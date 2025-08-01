@@ -101,7 +101,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DebugCamera.cpp" />
     <ClCompile Include="DebugLayer.cpp" />
     <ClCompile Include="Descriptor.cpp" />
-    <ClCompile Include="Draw.cpp" />
     <ClCompile Include="Dump.cpp" />
     <ClCompile Include="Easing.cpp" />
     <ClCompile Include="Enemy.cpp" />
@@ -113,7 +112,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="externals\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="externals\imgui\imgui_tables.cpp" />
     <ClCompile Include="externals\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="HitBox.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="InputDesc.cpp" />
@@ -122,6 +120,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MapChipField.cpp" />
     <ClCompile Include="Model.cpp" />
+    <ClCompile Include="ObjectDraw.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="PSO.cpp" />
     <ClCompile Include="Renderer.cpp" />
@@ -172,7 +171,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DebugCamera.h" />
     <ClInclude Include="DebugLayer.h" />
     <ClInclude Include="Descriptor.h" />
-    <ClInclude Include="Draw.h" />
     <ClInclude Include="Dump.h" />
     <ClInclude Include="Easing.h" />
     <ClInclude Include="Enemy.h" />
@@ -185,7 +183,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="externals\imgui\imstb_rectpack.h" />
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
-    <ClInclude Include="GameScene.h" />
     <ClInclude Include="HitBox.h" />
     <ClInclude Include="Input.h" />
     <ClInclude Include="InputDesc.h" />
@@ -193,6 +190,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="LogWrite.h" />
     <ClInclude Include="MapChipField.h" />
     <ClInclude Include="Model.h" />
+    <ClInclude Include="ObjectDraw.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="PSO.h" />
     <ClInclude Include="Renderer.h" />

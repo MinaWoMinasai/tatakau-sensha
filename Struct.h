@@ -63,10 +63,11 @@ struct Sphere {
 	float radius; // 半径
 };
 
-struct Material {
+struct alignas(16) Material {
 	Vector4 color;
-	int32_t ensbleLighting;
-	float padding[3];
+	int32_t enableLighting;
+	int32_t lightingMode;
+	float padding[2];
 	Matrix4x4 uvTransform;
 };
 

@@ -6,7 +6,7 @@ void DebugCamera::Initialize(const Matrix4x4& viewMatrix)
 {
     
 }
-void DebugCamera::Update(const DIMOUSESTATE& mousestate, std::span<const BYTE> key) {
+void DebugCamera::Update(const DIMOUSESTATE& mousestate, std::span<const BYTE> key, Vector2 leftStick) {
     static Vector3 rotation = {};
 
     // マウスで回転
@@ -29,10 +29,15 @@ void DebugCamera::Update(const DIMOUSESTATE& mousestate, std::span<const BYTE> k
         target = Add(target, Multiply(-mousestate.lX * velocity_.x, right));
         target = Add(target, Multiply(mousestate.lY * velocity_.y, up));
     }
-
+    
+    if (fabs(leftStick.x) > 0.1f || fabs(leftStick.y) > 0.1f) {
+        // スティックの入力値を使ってパン（平行移動）
+        target = Add(target, Multiply(-leftStick.x * velocity_.x * 5.0f, right)); // X: 左右
+        target = Add(target, Multiply(-leftStick.y * velocity_.y * 5.0f, up));     // Y: 上下
+    }
     // ズーム
     if (mousestate.lZ != 0) {
-        distance -= mousestate.lZ * velocity_.z;
+        distance -= mousestate.lZ * velocity_.z * 0.1f;
         distance = std::max(distance, 0.1f);
     }
 

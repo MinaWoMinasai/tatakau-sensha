@@ -38,7 +38,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Resource::CreateMaterial(Texture texture,
 	// 赤を書き込む
 	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 	// ライティングを有効にする
-	materialData->ensbleLighting = false;
+	materialData->enableLighting = false;
 	materialData->uvTransform = MakeIdentity4x4();
 
 	return materialResource;

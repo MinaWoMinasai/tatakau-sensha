@@ -1,6 +1,33 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include "Engine.h"
-#include "GameScene.h"
+#include "ObjectDraw.h"
+#include "Easing.h"
+
+Vector4 GetRainbowColor(float timeSeconds) {
+	// 時間に応じてH（色相）を0〜1でループさせる
+	float hue = fmodf(timeSeconds * 0.2f, 1.0f);  // 周期は約5秒（1.0 / 0.2）
+	float saturation = 1.0f;
+	float value = 1.0f;
+
+	// HSV → RGB 変換
+	float r, g, b;
+	int i = static_cast<int>(hue * 6.0f);
+	float f = hue * 6.0f - i;
+	float p = value * (1.0f - saturation);
+	float q = value * (1.0f - f * saturation);
+	float t = value * (1.0f - (1.0f - f) * saturation);
+
+	switch (i % 6) {
+	case 0: r = value; g = t;     b = p;     break;
+	case 1: r = q;     g = value; b = p;     break;
+	case 2: r = p;     g = value; b = t;     break;
+	case 3: r = p;     g = q;     b = value; break;
+	case 4: r = t;     g = p;     b = value; break;
+	case 5: r = value; g = p;     b = q;     break;
+	}
+
+	return Vector4{ r, g, b, 1.0f };  // Aは常に1
+}
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -139,89 +166,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	const int gridHalfSize = 50;      // -50 〜 +50
 	const float spacing = 1.0f;
 
-	for (int i = -gridHalfSize; i <= gridHalfSize; ++i) {
-		Vector4 lineColor;
-
-		// 区切り線ごとの色分け（X軸固定 = Z方向の線）
-		if (i == 0) {
-			lineColor = { 1.0f, 0.0f, 0.0f, 1.0f }; // X軸（赤）
-		} else if (i % 10 == 0) {
-			lineColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // 区切り（白）
-		} else {
-			lineColor = { 0.5f, 0.5f, 0.5f, 1.0f }; // 通常（グレー）
-		}
-
-		float x = i * spacing;
-		float zMin = -gridHalfSize * spacing;
-		float zMax = gridHalfSize * spacing;
-
-		// Z方向の線（Xを固定）
-		gridLines.push_back({ { x, 0.0f, zMin }, lineColor });
-		gridLines.push_back({ { x, 0.0f, zMax }, lineColor });
-	}
-
-	for (int i = -gridHalfSize; i <= gridHalfSize; ++i) {
-		Vector4 lineColor;
-
-		// 区切り線ごとの色分け（Z軸固定 = X方向の線）
-		if (i == 0) {
-			lineColor = { 0.0f, 0.0f, 1.0f, 1.0f }; // Z軸（青）
-		} else if (i % 10 == 0) {
-			lineColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // 区切り（白）
-		} else {
-			lineColor = { 0.5f, 0.5f, 0.5f, 1.0f }; // 通常（グレー）
-		}
-
-		float z = i * spacing;
-		float xMin = -gridHalfSize * spacing;
-		float xMax = gridHalfSize * spacing;
-
-		// X方向の線（Zを固定）
-		gridLines.push_back({ { xMin, 0.0f, z }, lineColor });
-		gridLines.push_back({ { xMax, 0.0f, z }, lineColor });
-	}
-	// グリッド用の頂点リソースを作成
-	UINT vertexBufferSize = static_cast<UINT>(sizeof(Vertex) * gridLines.size());
-
-	// 1. リソース作成
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
-	Microsoft::WRL::ComPtr<ID3D12Resource> cameraBuffer;
-
-	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
-	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
-	CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(Matrix4x4) + 0xFF) & ~0xFF);
-
-	hr = device->CreateCommittedResource(
-		&heapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&resourceDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&cameraBuffer)
-	);
-	assert(SUCCEEDED(hr)); // 必ず成功チェック
-
-	device->CreateCommittedResource(
-		&heapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&bufferDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&vertexBuffer)
-	);
-
-	// 2. 転送
-	void* mapped = nullptr;
-	vertexBuffer->Map(0, nullptr, &mapped);
-	memcpy(mapped, gridLines.data(), vertexBufferSize);
-	vertexBuffer->Unmap(0, nullptr);
-
-	// 3. ビュー作成
-	D3D12_VERTEX_BUFFER_VIEW vbView{};
-	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
-	vbView.SizeInBytes = vertexBufferSize;
-	vbView.StrideInBytes = sizeof(Vertex);
-
 	const uint32_t kSubdivision = 16; // 分割数
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = texture.CreateBufferResource(device, sizeof(VertexData) * kSubdivision * kSubdivision * 6);
@@ -296,6 +240,81 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		}
 	}
+	
+	// Sprite用の頂点リソースを作る
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSprite = texture.CreateBufferResource(device, sizeof(VertexData) * 4);
+
+	// 頂点バッファビューを作成する
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite{};
+	// リソースの先端のアドレスから使う
+	vertexBufferViewSprite.BufferLocation = vertexResourceSprite->GetGPUVirtualAddress();
+	// 使用するリソースのサイズは頂点6つ分のサイズ
+	vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 4;
+	// 1頂点あたりのサイズ
+	vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
+
+	VertexData* vertexDataSprite = nullptr;
+	vertexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSprite));
+
+	// 一枚目の三角形
+	vertexDataSprite[0].position = { 0.0f, 360.0f, 0.0f, 1.0f };// 左下
+	vertexDataSprite[0].texcoord = { 0.0f, 1.0f };
+	vertexDataSprite[1].position = { 0.0f, 0.0f, 0.0f, 1.0f };// 左上
+	vertexDataSprite[1].texcoord = { 0.0f, 0.0f };
+	vertexDataSprite[2].position = { 640.0f, 360.0f, 0.0f, 1.0f };// 右下
+	vertexDataSprite[2].texcoord = { 1.0f, 1.0f };
+	// 二枚目の三角形
+	vertexDataSprite[3].position = { 640.0f, 0.0f, 0.0f, 1.0f };// 右上
+	vertexDataSprite[3].texcoord = { 1.0f, 0.0f };
+
+	// Index用の頂点リソースを作る
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceSprite = texture.CreateBufferResource(device, sizeof(uint32_t) * 6);
+
+	// 頂点バッファビューを作成する
+	D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite{};
+	// リソースの先端のアドレスから使う
+	indexBufferViewSprite.BufferLocation = indexResourceSprite->GetGPUVirtualAddress();
+	// 使用するリソースのサイズは頂点6つ分のサイズ
+	indexBufferViewSprite.SizeInBytes = sizeof(uint32_t) * 6;
+	// 1頂点あたりのサイズ
+	indexBufferViewSprite.Format = DXGI_FORMAT_R32_UINT;
+
+	// インデックスリソースにデータを書きこむ
+	uint32_t* indexDataSprite = nullptr;
+	indexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSprite));
+	indexDataSprite[0] = 0; indexDataSprite[1] = 1; indexDataSprite[2] = 2;
+	indexDataSprite[3] = 1; indexDataSprite[4] = 3; indexDataSprite[5] = 2;
+
+	// マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
+	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceSprite = texture.CreateBufferResource(device, sizeof(Material));
+	// マテリアルにデータを書き込む
+	Material* materialDataSprite = nullptr;
+	// 書き込むためのアドレスを取得
+	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
+	// 白を書き込む
+	materialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	// SptiteはLightingを使わないのでfalse
+	materialDataSprite->enableLighting = false;
+	materialDataSprite->uvTransform = MakeIdentity4x4();
+
+	Transform uvTransformSprite{
+		{1.0f, 1.0f, 1.0f},
+		{0.0f, 0.0f, 0.0f},
+		{0.0f, 0.0f, 0.0f},
+	};
+
+	// Sprite用のTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
+	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceSprite = texture.CreateBufferResource(device, sizeof(TransformationMatrix));
+	// データを書き込む
+	TransformationMatrix* transformationMatrixDataSprite = nullptr;
+	// 書き込むためのアドレスを取得
+	transformationMatrixResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixDataSprite));
+	// 単位行列を書き込んでおく
+	transformationMatrixDataSprite->WVP = MakeIdentity4x4();
+	transformationMatrixDataSprite->World = MakeIdentity4x4();
+
+	Transform transformSprite{ {0.8f, 0.5f, 1.0f}, {0.0f, 0.0f, 0.0f }, {0.0f, 0.0f, 0.0f } };
 
 	// 天球リソース
 	Microsoft::WRL::ComPtr <ID3D12Resource> vertexResourceSkydome;
@@ -303,6 +322,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// マテリアル用のリソースを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = resource.CreateMaterial(texture, device);
+	// マテリアルにデータを書き込む
+	Material* materialData = nullptr;
+	// 書き込むためのアドレスを取得
+	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+	// 赤を書き込む
+	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	// ライティングを有効にする
+	materialData->enableLighting = false;
+	materialData->lightingMode = false;
+	materialData->uvTransform = MakeIdentity4x4();
 
 	// WVP用のリソースを作る。Matrix4x41つ分のサイズを用意する
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource;
@@ -310,11 +339,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	TransformationMatrix* wvpData = nullptr;
 	resource.CreateWVP(texture, device, wvpResource, wvpData);
 
-	Transform transform{ {1.0f, 1.0f,1.0f}, {0.0f, 0.0f,0.0f}, {0.0f,0.0f,0.0f} };
+	Transform transform{ {1.0f, 1.0f,1.0f}, {0.0f, 0.0f,0.0f}, {3.0f,-1.0f,0.0f} };
 
 	// 平行光源用のリソースを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource = resource.CreatedirectionalLight(texture, device);
-
+	// マテリアルにデータを書き込む
+	DirectionalLight* directionalLightData = nullptr;
+	// 書き込むためのアドレスを取得
+	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
+	// デフォルト値
+	directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
+	Normalize(directionalLightData->direction);
+	directionalLightData->intensity = 1.0f;
 	WindowScreenSize windowScreenSize;
 	windowScreenSize.Initialize(kClientWidth, kClientHeight);
 
@@ -403,9 +440,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// SRVの作成
 	device->CreateShaderResourceView(textureResource.Get(), &srvDesc, textureSrvHandleCPU);
-	device->CreateShaderResourceView(textureResourceS.Get(), &srvDesc2, textureSrvHandleCPUS);
-
-
 	DebugCamera debugCamera;
 
 	Renderer renderer;
@@ -420,7 +454,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	renderer.SetFenceValue(command.GetFenceValue());
 	renderer.SetSwapChain(swapChain.GetList());
 
-	// 例：Rendererの初期化（最初に一度だけ）
+	// Rendererの初期化
 	renderer.Initialize(
 		device.Get(),
 		command.GetList().Get(),
@@ -431,9 +465,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		2 // バックバッファ数
 	);
 
-	GameScene* gameScene = new GameScene;
-	gameScene->LoadModel(device, descriptor, command);
-	gameScene->Initialize(modelData, texture, device, descriptor, command);
+	ObjectDraw objectDraw;
+	objectDraw.Initialize(device, descriptor, command);
+
+	Audio audio;
+	audio.Initialize();
+	audio.LoadAudio(L"BGM", L"resources/BGM.mp3");
+	audio.playAudio(L"BGM");
+
+	float colorTimer = 0.0f;
+	float timer = 0.0f;
+	const float kTime = 3.0f;
+	const float kTimeSpeed = 0.01f;
 
 	MSG msg{};
 	// ウィンドウの×ボタンが押されるまでループ
@@ -448,18 +491,53 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// 前のフレームのキー状態を保存
 			input.BeforeFrameData();
-
+			Vector2 leftStick = input.GetLeftStick();
+			Vector2 rightStick = input.GetRightStick();
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
 
 			// デバッグカメラ
-			debugCamera.Update(input.GetMouseState(), input.GetKey());
+			debugCamera.Update(input.GetMouseState(), input.GetKey(), leftStick);
 
 			// 三角形の位置などを変えられるようにする
 			ImGui::DragFloat3("scale", &transform.scale.x, 0.1f);
 			ImGui::DragFloat3("rotate", &transform.rotate.x, 0.1f);
 			ImGui::DragFloat3("translate", &transform.translate.x, 1.0f);
+	
+			// スプライトもスライダーで変えられるようにする
+			ImGui::DragFloat3("scaleSprite", &transformSprite.scale.x, 1.0f);
+			ImGui::DragFloat3("rotateSprite", &transformSprite.rotate.x, 1.0f);
+			ImGui::DragFloat3("translateSprite", &transformSprite.translate.x, 1.0f);
+
+			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
+			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
+			ImGui::DragFloat("UVRotate", &uvTransformSprite.rotate.x, 0.01f);
+
+			uvTransformSprite.translate.x += 0.001f;
+			uvTransformSprite.translate.y += 0.001f;
+			uvTransformSprite.rotate.z += 0.005f;
+
+			transform.rotate.y += 0.01f;
+
+			// ライトの色を変化させる
+			colorTimer += kTimeSpeed;
+			directionalLightData->color = GetRainbowColor(colorTimer);
+
+			// ライティングの切り替え
+			timer += kTimeSpeed;
+			if (timer >= kTime) {
+				timer = 0.0f;
+				if (materialData->enableLighting) {
+					if (materialData->lightingMode) {
+						materialData->enableLighting = false;
+					} else {
+						materialData->lightingMode = true;
+					}
+				} else {
+					materialData->enableLighting = true;
+				}
+			}
 
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 			Matrix4x4 viewMatrix = debugCamera.GetViewMatrix();
@@ -467,68 +545,47 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 			wvpData->WVP = worldViewProjectionMatrix;
 			wvpData->World = worldMatrix;
-			
-			gameScene->Update(input.GetKey(), debugCamera);
 
-			// 開発用UIの処理。実際に開発用のUIを出す場合はここをゲーム固有の処理に置き換える
-			ImGui::ShowDemoWindow();
+			// Sprite用のWorldViewProjectionMatrixを作る
+			Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
+			Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
+			Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
+			Matrix4x4 worldViewProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
+			transformationMatrixDataSprite->WVP = worldViewProjectionMatrixSprite;
+			transformationMatrixDataSprite->World = worldMatrixSprite;
+			// パラメータからUVTransform用の行列を作成する
+			Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
+			uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
+			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
+			materialDataSprite->uvTransform = uvTransformMatrix;
+
+			objectDraw.Update();
 
 			// ImGuiの内部コマンドを生成する
 			ImGui::Render();
 
-			//Matrix4x4 view = debugCamera.GetViewMatrix();
-			//Matrix4x4 proj = MakePerspectiveForMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
-			//Matrix4x4 vp = Multiply(view, proj);
-
-			//// CBVに書き込む
-			//void* mapped = nullptr;
-			//cameraBuffer->Map(0, nullptr, &mapped);
-			//memcpy(mapped, &vp, sizeof(vp));
-			//cameraBuffer->Unmap(0, nullptr);
-
 			UINT backBufferIndex = swapChain.GetList()->GetCurrentBackBufferIndex();
 			renderer.BeginFrame(backBufferIndex);
 
-			//ID3D12DescriptorHeap* heaps[] = { descriptor.GetSrvHeap().Get() };
-			//command.GetList()->SetDescriptorHeaps(1, heaps);
-			//command.GetList()->SetGraphicsRootSignature(pso.GetRootSignature().Get());
-			//command.GetList()->SetPipelineState(graphicsPipelineState.Get()); // PSOを設定
-			//command.GetList()->SetGraphicsRootConstantBufferView(1, cameraBuffer->GetGPUVirtualAddress());
+			objectDraw.Draw(renderer, debugCamera, materialResource, directionalLightResource);
+			
+			// 球の描画
+			command.GetList()->IASetVertexBuffers(0, 1, &vertexBufferView); //VBVを設定
+			command.GetList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+			command.GetList()->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+			command.GetList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+			command.GetList()->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+			// 描画!(DrawCall/ドローコール) 。3頂点で1つのインスタンス。 インスタンスについては今度
+			command.GetList()->DrawInstanced(kSubdivision * kSubdivision * 6, 1, 0, 0);
 
-			//// グリッドの描画
-			//command.GetList()->IASetVertexBuffers(0, 1, &vbView);
-			//command.GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-			//command.GetList()->DrawInstanced(static_cast<UINT>(gridLines.size()), 1, 0, 0);
-
-			renderer.DrawModel(
-				vertexBufferViewSkydome,                // VBV
-				nullptr,                          // IBV（インデックスなしの例）
-				materialResource->GetGPUVirtualAddress(),  // Material CBV
-				wvpResource->GetGPUVirtualAddress(),       // WVP CBV
-				textureSrvHandleGPUS, // SRV
-				directionalLightResource->GetGPUVirtualAddress(),            // Light CBV
-				static_cast<UINT>(modelSkydome.vertices.size())
-			);
-
-			//renderer.DrawModel(
-			//	vertexBufferView,
-			//	nullptr,
-			//	materialResource->GetGPUVirtualAddress(),
-			//	wvpResource->GetGPUVirtualAddress(),
-			//	textureSrvHandleGPU,
-			//	directionalLightResource->GetGPUVirtualAddress(),
-			//	kSubdivision * kSubdivision * 6
-			//);
-
-			gameScene->Draw(
-				debugCamera,
-				renderer,
-				nullptr,                          // IBV（インデックスなしの例）
-				materialResource->GetGPUVirtualAddress(),  // Material CBV
-				textureSrvHandleGPU, // SRV
-				directionalLightResource->GetGPUVirtualAddress(),            // Light CBV
-				static_cast<UINT>(modelData.vertices.size())
-			);
+			// スプライトの描画
+			command.GetList()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite); //VBVを設定
+			command.GetList()->IASetIndexBuffer(&indexBufferViewSprite);// IBVを設定
+			command.GetList()->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
+			command.GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+			command.GetList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+			// 描画!(DrawCall/ドローコール) 。6個のインデックスを使用しで1つのインスタンスを描画。その他は当面0 
+			command.GetList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 			// 実際のcommandListのImGuiの描画コマンドを組む
 			renderer.DrawImGui();
@@ -537,8 +594,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		}
 	}
-
-	delete gameScene;
 
 	// ImGuiの終了処理
 	ImGui_ImplDX12_Shutdown();

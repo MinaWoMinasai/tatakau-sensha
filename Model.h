@@ -28,12 +28,14 @@ public:
 	/// </summary>
 	void Draw(Renderer renderer, const Transform& transform, const Matrix4x4& cameraMatrix);
 
+	void DrawPro(Renderer renderer, const Transform& transform, const Matrix4x4& cameraMatrix, Microsoft::WRL::ComPtr<ID3D12Resource> materialResource, Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource);
+
 private:
 
 	LoadFile loadFile_;
 	ModelData modelData_;
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSkydome;
-	Microsoft::WRL::ComPtr <ID3D12Resource> vertexResourceSkydome;
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+	Microsoft::WRL::ComPtr <ID3D12Resource> vertexResource;
 	// WVP用のリソースを作る。Matrix4x41つ分のサイズを用意する
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource;

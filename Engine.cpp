@@ -152,7 +152,7 @@ void Engine::PreDraw()
 	ImGui::NewFrame();
 
 	// デバッグカメラ
-	debugCamera.Update(input.GetMouseState(), input.GetKey());
+	//debugCamera.Update(input.GetMouseState(), input.GetKey());
 
 	UINT backBufferIndex = swapChain.GetList()->GetCurrentBackBufferIndex();
 	renderer.BeginFrame(backBufferIndex);

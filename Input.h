@@ -3,6 +3,8 @@
 #include <dinput.h>
 #include <span>
 #include <cassert>
+#include <Xinput.h>
+#include "Struct.h"
 
 class Input {
 
@@ -28,12 +30,18 @@ public:
 
 	// キーが離された瞬間か
 	bool IsMomentRelease(const uint8_t key, const uint8_t prekey);
+	
+	bool IsGamepadButtonPress(WORD button);
+	bool IsGamepadButtonTrigger(WORD button);
+	bool IsGamepadButtonRelease(WORD button);
 
 	std::span<const BYTE> GetKey() const { return key_; }
 	std::span<const BYTE> GetPreKey() const { return preKey_; }
 	DIMOUSESTATE GetMouseState() { return mouseState_; }
 	DIMOUSESTATE GetPreMouseState() { return preMouseState_; }
-
+	XINPUT_STATE GetCurrentGamepadState() const { return currentGamepadState_; }
+	Vector2 GetLeftStick() const;
+	Vector2 GetRightStick() const;
 private:
 	// キーの配列
 	BYTE key_[256] = {};
@@ -42,6 +50,8 @@ private:
 	// マウスの状態を格納する構造体
 	DIMOUSESTATE mouseState_;
 	DIMOUSESTATE preMouseState_;
+	XINPUT_STATE currentGamepadState_{};
+	XINPUT_STATE previousGamepadState_{};
 
 	IDirectInputDevice8* mouse_ = nullptr;
 	IDirectInputDevice8* keyboard_ = nullptr;

@@ -20,7 +20,7 @@ public:
 	/// <summary>
 	/// 更新
 	/// </summary>
-	void Update(const DIMOUSESTATE& mousestate, std::span<const BYTE> key);
+	void Update(const DIMOUSESTATE& mousestate, std::span<const BYTE> key, Vector2 leftStick);
 
 	Matrix4x4 GetViewMatrix() { return viewMatrix_; }
 
@@ -41,7 +41,7 @@ private:
 
 	// 移動・回転速度調整用
 	Vector3 velocity_ = { 0.01f, 0.01f, 0.1f }; // x=横回転速度, y=縦回転速度, z=ズーム速度
-	float distance = 50.0f;             // 注視点との距離（ズーム）
-	Vector3 target = {19.0f, 12.3f, 0.15f};             // 注視点のワールド座標
+	float distance = 15.0f;             // 注視点との距離（ズーム）
+	Vector3 target = {0.01f, 0.01f, 0.01f};             // 注視点のワールド座標
 };
 

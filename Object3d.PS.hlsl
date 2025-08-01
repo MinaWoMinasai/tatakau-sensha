@@ -4,7 +4,9 @@ struct Material
 {
     float32_t4 color;
     int32_t enableLighting;
-    float32_t4x4 uvTransform;  
+    int32_t lightingMode;
+    float32_t2 padding;
+    float32_t4x4 uvTransform;
 };
 
 ConstantBuffer<Material> gMaterial : register(b0);
@@ -30,21 +32,33 @@ struct PixelShaderOutput
 PixelShaderOutput main(VertexShaderOutput input)
 {
     
-    float4 transformedUV = mul(float32_t4(input.texcoord,0.0f, 1.0f), gMaterial.uvTransform);
-    
+    float4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
-    
+
     PixelShaderOutput output;
+
     if (gMaterial.enableLighting != 0)
     {
+        float cosLighting = 0.0f;
         float NdotL = dot(normalize(input.normal), -gDirectionalLight.direction);
-        float cos = pow(NdotL * 0.5f + 0.5f, 2.0f);
-        output.color = gMaterial.color * textureColor * gDirectionalLight.color * cos * gDirectionalLight.intensity;
+
+        if (gMaterial.lightingMode == 0)
+        {
+            // 通常のLambertライティング
+            cosLighting = saturate(NdotL);
+        }
+        else if (gMaterial.lightingMode == 1)
+        {
+            // Half Lambert
+            cosLighting = pow(NdotL * 0.5f + 0.5f, 2.0f);
+        }
+
+        output.color = gMaterial.color * textureColor * gDirectionalLight.color * cosLighting * gDirectionalLight.intensity;
     }
     else
     {
         output.color = gMaterial.color * textureColor;
     }
-    
+
     return output;
 }

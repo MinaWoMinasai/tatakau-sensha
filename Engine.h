@@ -65,9 +65,6 @@ public:
 
 	void Finalize();
 
-
-
-
 private:
 
 	D3DResouceLeakCheaker leakCheck;
