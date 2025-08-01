@@ -350,7 +350,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// デフォルト値
 	directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
-	Normalize(directionalLightData->direction);
+	directionalLightData->direction = Normalize(directionalLightData->direction);
 	directionalLightData->intensity = 1.0f;
 	WindowScreenSize windowScreenSize;
 	windowScreenSize.Initialize(kClientWidth, kClientHeight);
@@ -514,6 +514,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
 			ImGui::DragFloat("UVRotate", &uvTransformSprite.rotate.x, 0.01f);
 
+			// ライトの方向や光度などを変える
+			ImGui::ColorEdit4("color", &directionalLightData->color.x);
+			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.1f);
+			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.1f);
+			directionalLightData->direction = Normalize(directionalLightData->direction);
+
 			uvTransformSprite.translate.x += 0.001f;
 			uvTransformSprite.translate.y += 0.001f;
 			uvTransformSprite.rotate.z += 0.005f;
@@ -523,11 +529,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// ライトの色を変化させる
 			colorTimer += kTimeSpeed;
 			directionalLightData->color = GetRainbowColor(colorTimer);
+			
+			float angle = colorTimer * 0.5f; // 時間に応じて回転（角度はラジアン）
+			Vector3 baseDirection = { 0.0f, -1.0f, 0.0f };
+
+			Matrix4x4 rotation = MakeRotateZMatrix(angle); // Y軸回転行列を作る
+			Vector3 rotatedDir = TransformNormal(baseDirection, rotation); // 回転適用
+
+			directionalLightData->direction = Normalize(rotatedDir);
+
+			// ライトの強さを上げる
+			directionalLightData->intensity += 0.04f;
 
 			// ライティングの切り替え
 			timer += kTimeSpeed;
 			if (timer >= kTime) {
 				timer = 0.0f;
+				directionalLightData->intensity = 0.0f;
 				if (materialData->enableLighting) {
 					if (materialData->lightingMode) {
 						materialData->enableLighting = false;
