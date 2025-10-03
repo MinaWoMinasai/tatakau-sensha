@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "WinApp.h"
 
 void Model::Initialize(Microsoft::WRL::ComPtr<ID3D12Device>& device, Descriptor descriptor)
 {
@@ -61,7 +62,7 @@ void Model::Draw(Renderer renderer, const Transform& transform, const Matrix4x4&
 
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = cameraMatrix;
-	Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
+	Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
 	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 	wvpData->WVP = worldViewProjectionMatrix;
 	wvpData->World = worldMatrix;
@@ -81,7 +82,7 @@ void Model::DrawPro(Renderer renderer, const Transform& transform, const Matrix4
 {
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = cameraMatrix;
-	Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
+	Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
 	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 	wvpData->WVP = worldViewProjectionMatrix;
 	wvpData->World = worldMatrix;

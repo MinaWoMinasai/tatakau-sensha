@@ -37,6 +37,11 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     PixelShaderOutput output;
 
+    if (textureColor.a < 0.1f)
+    {
+        discard;
+    }
+    
     if (gMaterial.enableLighting != 0)
     {
         float cosLighting = 0.0f;
@@ -52,8 +57,10 @@ PixelShaderOutput main(VertexShaderOutput input)
             // Half Lambert
             cosLighting = pow(NdotL * 0.5f + 0.5f, 2.0f);
         }
-
-        output.color = gMaterial.color * textureColor * gDirectionalLight.color * cosLighting * gDirectionalLight.intensity;
+        
+        output.color.rgb = gMaterial.color.rgb * textureColor.rgb * gDirectionalLight.color.rgb * cosLighting * gDirectionalLight.intensity;
+        output.color.a = gMaterial.color.a * textureColor.a;
+        
     }
     else
     {

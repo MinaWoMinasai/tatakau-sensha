@@ -3,9 +3,6 @@
 #include <cassert>
 #include <random>
 
-const int32_t kClientWidth = 1280;
-const int32_t kClientHeight = 720;
-
 const float pi = 3.14159265f;
 
 // 加算

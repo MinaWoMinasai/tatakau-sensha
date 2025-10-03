@@ -97,11 +97,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="CameraContoroller.cpp" />
     <ClCompile Include="Command.cpp" />
     <ClCompile Include="CompileShader.cpp" />
-    <ClCompile Include="CreateDevice.cpp" />
     <ClCompile Include="DeathParticle.cpp" />
     <ClCompile Include="DebugCamera.cpp" />
     <ClCompile Include="DebugLayer.cpp" />
     <ClCompile Include="Descriptor.cpp" />
+    <ClCompile Include="DirectXCommon.cpp" />
     <ClCompile Include="Dump.cpp" />
     <ClCompile Include="Easing.cpp" />
     <ClCompile Include="Enemy.cpp" />
@@ -127,12 +127,14 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Resource.cpp" />
     <ClCompile Include="Root.cpp" />
+    <ClCompile Include="Sprite.cpp" />
+    <ClCompile Include="SpriteCommon.cpp" />
     <ClCompile Include="State.cpp" />
     <ClCompile Include="SwapChain.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="useAdapterDevice.cpp" />
     <ClCompile Include="View.cpp" />
-    <ClCompile Include="Window.cpp" />
+    <ClCompile Include="WinApp.cpp" />
     <ClCompile Include="WindowScreenSize.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -160,6 +162,18 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="Particle.PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Particle.VS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Audio.h" />
@@ -167,11 +181,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="CameraContoroller.h" />
     <ClInclude Include="Command.h" />
     <ClInclude Include="CompileShader.h" />
-    <ClInclude Include="CreateDevice.h" />
     <ClInclude Include="DeathParticle.h" />
     <ClInclude Include="DebugCamera.h" />
     <ClInclude Include="DebugLayer.h" />
     <ClInclude Include="Descriptor.h" />
+    <ClInclude Include="DirectXCommon.h" />
     <ClInclude Include="Dump.h" />
     <ClInclude Include="Easing.h" />
     <ClInclude Include="Enemy.h" />
@@ -197,13 +211,15 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Root.h" />
+    <ClInclude Include="Sprite.h" />
+    <ClInclude Include="SpriteCommon.h" />
     <ClInclude Include="State.h" />
     <ClInclude Include="Struct.h" />
     <ClInclude Include="SwapChain.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="useAdapterDevice.h" />
     <ClInclude Include="View.h" />
-    <ClInclude Include="Window.h" />
+    <ClInclude Include="WinApp.h" />
     <ClInclude Include="WindowScreenSize.h" />
   </ItemGroup>
   <ItemGroup>
@@ -216,6 +232,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <None Include="Object3d.hlsli" />
+    <None Include="Particle.hlsli">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

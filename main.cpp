@@ -2,6 +2,7 @@
 #include "Engine.h"
 #include "ObjectDraw.h"
 #include "Easing.h"
+#include "WinApp.h"
 
 Vector4 GetRainbowColor(float timeSeconds) {
 	// 時間に応じてH（色相）を0〜1でループさせる
@@ -18,12 +19,12 @@ Vector4 GetRainbowColor(float timeSeconds) {
 	float t = value * (1.0f - (1.0f - f) * saturation);
 
 	switch (i % 6) {
-	case 0: r = value; g = t;     b = p;     break;
-	case 1: r = q;     g = value; b = p;     break;
+	case 0: r = value; g = t;     b = p;       break;
+	case 1: r = q;     g = value; b = p;       break;
 	case 2: r = p;     g = value; b = t;     break;
-	case 3: r = p;     g = q;     b = value; break;
+	case 3: r = p;     g = q;     b = value;break;
 	case 4: r = t;     g = p;     b = value; break;
-	case 5: r = value; g = p;     b = q;     break;
+	case 5: r = value; g = p;     b = q;        break;
 	}
 
 	return Vector4{ r, g, b, 1.0f };  // Aは常に1
@@ -51,14 +52,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	log.Initialize();
 	log.Log(log.GetLogStream(), "test");
 
-	Window window;
-	window.Initialize();
+	WinApp winApp;
+	winApp.Initialize();
 
 	WNDCLASS wc{};
-	wc = window.GetWindowClass();
+	wc = winApp.GetWindowClass();
 
 	HWND hwnd;
-	hwnd = window.GetHwnd();
+	hwnd = winApp.GetHwnd();
 
 	HRESULT hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
 	assert(SUCCEEDED(hr));
@@ -80,7 +81,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	command.Initialize(device);
 
 	SwapChain swapChain;
-	swapChain.Initialize(kClientWidth, kClientHeight);
+	swapChain.Initialize(WinApp::kClientWidth, WinApp::kClientHeight);
 	swapChain.Create(dxgiFactory, command.GetQueue(), hwnd);
 
 	Descriptor descriptor;
@@ -89,7 +90,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Texture texture;
 
 	View view;
-	view.CreateDSV(texture, kClientWidth, kClientHeight, swapChain, descriptor, device);
+	view.CreateDSV(texture, WinApp::kClientWidth, WinApp::kClientHeight, swapChain, descriptor, device);
 	view.CreateSRV(swapChain, descriptor, device);
 
 	PSO pso;
@@ -353,7 +354,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	directionalLightData->direction = Normalize(directionalLightData->direction);
 	directionalLightData->intensity = 1.0f;
 	WindowScreenSize windowScreenSize;
-	windowScreenSize.Initialize(kClientWidth, kClientHeight);
+	windowScreenSize.Initialize(WinApp::kClientWidth, WinApp::kClientHeight);
 
 	// Textureを読んで転送する
 	DirectX::ScratchImage mipImages = texture.Load("resources/uvChecker.png");
@@ -516,6 +517,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// ライトの方向や光度などを変える
 			ImGui::ColorEdit4("color", &directionalLightData->color.x);
+			ImGui::ColorEdit4("mcolor", &materialData->color.x);
 			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.1f);
 			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.1f);
 			directionalLightData->direction = Normalize(directionalLightData->direction);
@@ -559,7 +561,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 			Matrix4x4 viewMatrix = debugCamera.GetViewMatrix();
-			Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
+			Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 			wvpData->WVP = worldViewProjectionMatrix;
 			wvpData->World = worldMatrix;
@@ -567,7 +569,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// Sprite用のWorldViewProjectionMatrixを作る
 			Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
 			Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
-			Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
+			Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
 			Matrix4x4 worldViewProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
 			transformationMatrixDataSprite->WVP = worldViewProjectionMatrixSprite;
 			transformationMatrixDataSprite->World = worldMatrixSprite;
@@ -626,10 +628,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	CloseHandle(command.GetFenceEvent());
 
 	pso.Release();
-
-	CloseWindow(hwnd);
-
-	CoUninitialize();
-
+	winApp.Finalize();
 	return 0;
 }

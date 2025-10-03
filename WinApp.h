@@ -13,13 +13,13 @@
 #include "externals/DirectXTex/d3dx12.h"
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-const int32_t kClientWidth_ = 1280;
-const int32_t kClientHeight_ = 720;
-
-class Window
+class WinApp
 {
 
 public:
+	
+	static const int32_t kClientWidth = 1280;
+	static const int32_t kClientHeight = 720;
 
 	// ウィンドウプロシージャ
 	static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
@@ -29,12 +29,15 @@ public:
 	/// </summary>
 	void Initialize();
 
+	void Finalize();
+
 	WNDCLASS GetWindowClass() { return wc_; };
 	HWND GetHwnd() { return hwnd_; }
 
 private:
 	HWND hwnd_ = nullptr;
 	WNDCLASS wc_{};
-	
+
 };
+
 

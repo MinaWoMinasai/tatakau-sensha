@@ -1,8 +1,6 @@
-#include "Window.h"
-#pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "dxgi.lib")
+#include "WinApp.h"
 
-LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	{
 
@@ -24,7 +22,7 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 	}
 }
 
-void Window::Initialize()
+void WinApp::Initialize()
 {
 	// ウィンドウプロシージャ
 	wc_.lpfnWndProc = WindowProc;
@@ -39,7 +37,7 @@ void Window::Initialize()
 	RegisterClass(&wc_);
 
 	// ウィンドウサイズを表す構造体にクライアント領域を入れる
-	RECT wrc = { 0,0,kClientWidth_, kClientHeight_ };
+	RECT wrc = { 0,0,kClientWidth, kClientHeight };
 
 	// クライアント領域を元に実際のサイズにwrcを変更してもらう
 	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
@@ -58,18 +56,13 @@ void Window::Initialize()
 		wc_.hInstance,
 		nullptr);
 
-#ifdef _DEBUG
-	Microsoft::WRL::ComPtr<ID3D12Debug1> debugComtroller = nullptr;
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugComtroller)))) {
-		// デバッグレイヤーを有効化する
-		debugComtroller->EnableDebugLayer();
-		// さらにGPU側でもチェックを行うようにする
-		debugComtroller->SetEnableGPUBasedValidation(TRUE);
-	}
-#endif
-
 	// ウィンドウを表示する
 	ShowWindow(hwnd_, SW_SHOW);
 
 }
 
+void WinApp::Finalize() 
+{
+	CloseWindow(hwnd_);
+	CoUninitialize();
+}

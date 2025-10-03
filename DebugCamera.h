@@ -6,6 +6,7 @@
 #include "algorithm"
 #include <DirectXMath.h>
 #include "externals/imgui/imgui.h"
+#include "WinApp.h"
 
 class DebugCamera
 {
@@ -32,7 +33,7 @@ private:
 	// ビュー行列
 	Matrix4x4 viewMatrix_ = MakeIdentity4x4();
 	// 射影行列
-	Matrix4x4 projectionMatrix_ = MakeOrthographicMatrix(0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
+	Matrix4x4 projectionMatrix_ = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
 	// カメラの移動速度
 	// カメラ
 	Matrix4x4 WorldMatrix_;

@@ -1,7 +1,7 @@
 #pragma once
 #define DIRECTINPUT_VERSION 0x0800
 #include "debugCamera.h"
-#include "Window.h"
+#include "WinApp.h"
 #include "LogWrite.h"
 #include "CompileShader.h"
 #include "LoadFile.h"
@@ -76,7 +76,7 @@ private:
 	// ログの初期化
 	LogWrite log;
 
-	Window window;
+	WinApp winApp;
 
 	WNDCLASS wc{};
 
