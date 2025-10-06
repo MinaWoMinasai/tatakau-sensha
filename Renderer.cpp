@@ -38,7 +38,7 @@ void Renderer::DrawModel(
     D3D12_GPU_VIRTUAL_ADDRESS wvpCBV,
     D3D12_GPU_DESCRIPTOR_HANDLE textureSrv,
     D3D12_GPU_VIRTUAL_ADDRESS lightCBV,
-    UINT vertexCount, UINT indexCount)
+    UINT vertexCount, UINT count, UINT indexCount)
 {
     ID3D12DescriptorHeap* heaps[] = { srvHeap };
     commandList->SetDescriptorHeaps(1, heaps);
@@ -57,7 +57,7 @@ void Renderer::DrawModel(
     if (ibv) {
         commandList->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
     } else {
-        commandList->DrawInstanced(vertexCount, 1, 0, 0);
+        commandList->DrawInstanced(vertexCount, count, 0, 0);
     }
 }
 

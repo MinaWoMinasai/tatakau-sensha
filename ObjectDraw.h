@@ -32,12 +32,13 @@ private:
 	Model teapotModel_;
 	Model bunnyModel_;
 	Model multiMeshModel_;
+	Model planeModel_;
 
 	// ワールドトランスフォーム
 	Transform worldTransformSuzanne_;
 	Transform worldTransformTeapot_;
 	Transform worldTransformBunny_;
 	Transform worldTransformMultiMesh_;
-
+	Transform worldTransformPlane_;
 };
 

@@ -8,13 +8,22 @@ void Root::Iniitalize()
 	// RootSignature作成
 	descriptionSignature_.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
+	descriptorRangeForInstancing_[0].BaseShaderRegister = 0; // 0から始まる
+	descriptorRangeForInstancing_[0].NumDescriptors = 1; // 数は一つ
+	descriptorRangeForInstancing_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // SRVを使う
+	descriptorRangeForInstancing_[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND; // offsetを自動計算
 	// RootParameterの作成
 	Parameters_[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
 	Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	Parameters_[0].Descriptor.ShaderRegister = 0; // レジスタ番号0とバインド
-	Parameters_[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
+	Parameters_[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; // CBVを使う
 	Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	Parameters_[1].Descriptor.ShaderRegister = 0; // レジスタ番号0とバインド
+	Parameters_[1].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing_;
+	Parameters_[1].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing_);
+
+	//Parameters_[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
+	//Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	//Parameters_[1].Descriptor.ShaderRegister = 0; // レジスタ番号0とバインド
 
 	descriptorRange_[0].BaseShaderRegister = 0; // 0から始まる
 	descriptorRange_[0].NumDescriptors = 1; // 数は一つ
@@ -63,11 +72,11 @@ void Root::Create(Microsoft::WRL::ComPtr<ID3D12Device>& device)
 
 void Root::Compile(Command& command)
 {
-	vertexShaderBlob_ = compileShader.Initialize(L"Object3d.VS.hlsl",
+	vertexShaderBlob_ = compileShader.Initialize(L"Particle.VS.hlsl",
 		L"vs_6_0", command.GetDxcUtils(), command.GetDxcCompiler(), command.GetIncludeHandler());
 	assert(vertexShaderBlob_ != nullptr);
 
-	pixelShaderBlob_ = compileShader.Initialize(L"Object3d.PS.hlsl",
+	pixelShaderBlob_ = compileShader.Initialize(L"Particle.PS.hlsl",
 		L"ps_6_0", command.GetDxcUtils(), command.GetDxcCompiler(), command.GetIncludeHandler());
 	assert(pixelShaderBlob_ != nullptr);
 
