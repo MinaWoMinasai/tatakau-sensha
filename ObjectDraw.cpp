@@ -25,6 +25,13 @@ void ObjectDraw::Initialize(Microsoft::WRL::ComPtr<ID3D12Device>& device, Descri
 	worldTransformMultiMesh_.translate = { 0.0f, 1.0f, 0.0f };
 	multiMeshModel_.Initialize(device, descriptor);
 	multiMeshModel_.Load(command, "multiMesh.obj", "uvChecker.png", 6);
+
+
+	//worldTransformPlane_.scale = { 1.0f, 1.0f, 1.0f };
+	//worldTransformPlane_.rotate = { 0.0f, 0.0f, 0.0f };
+	//worldTransformPlane_.translate = { 0.0f, 1.0f, 0.0f };
+	//planeModel_.Initialize(device, descriptor);
+	//planeModel_.Load(command, "plane.obj", "uvChecker.png", 7);
 }
 
 void ObjectDraw::Update()
@@ -61,4 +68,5 @@ void ObjectDraw::Draw(Renderer renderer, DebugCamera debugCamera, Microsoft::WRL
 	bunnyModel_.DrawPro(renderer, worldTransformBunny_, debugCamera.GetViewMatrix(), materialResource, directionalLightResource);
 	teapotModel_.DrawPro(renderer, worldTransformTeapot_, debugCamera.GetViewMatrix(), materialResource, directionalLightResource);
 	multiMeshModel_.DrawPro(renderer, worldTransformMultiMesh_, debugCamera.GetViewMatrix(), materialResource, directionalLightResource);
+	//suzanneModel_.DrawPro(renderer, worldTransformSuzanne_, debugCamera.GetViewMatrix(), materialResource, directionalLightResource, );
 }
