@@ -3,8 +3,7 @@
 #include "ObjectDraw.h"
 #include "Easing.h"
 #include "WinApp.h"
-
-Vector4 GetRainbowColor(float timeSeconds);
+#include <numbers>
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -199,14 +198,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialData->lightingMode = false;
 	materialData->uvTransform = MakeIdentity4x4();
 
-	// WVP用のリソースを作る。Matrix4x41つ分のサイズを用意する
-	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource;
-	// データを書き込む	
-	TransformationMatrix* wvpData = nullptr;
-	resource.CreateWVP(texture, device, wvpResource, wvpData);
-
-	Transform transform{ {1.0f, 1.0f,1.0f}, {0.0f, 0.0f,0.0f}, {3.0f,-1.0f,0.0f} };
-
 	// 平行光源用のリソースを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource = resource.CreatedirectionalLight(texture, device);
 	// マテリアルにデータを書き込む
@@ -332,11 +323,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ObjectDraw objectDraw;
 	objectDraw.Initialize(device, descriptor, command);
 
-	float colorTimer = 0.0f;
-	float timer = 0.0f;
-	const float kTime = 3.0f;
-	const float kTimeSpeed = 0.01f;
-
 	// パーティクル用のTransform
 	Particle particles[kNumInstance];
 	for (uint32_t index = 0; index < kNumInstance; ++index) {
@@ -347,6 +333,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		particles[index].velocity = Rand(Vector3(-0.5f, -0.5f, -0.5f), Vector3(0.5f, 0.5f, 0.5f));
 		particles[index].color = Rand();
 	}
+
+	Matrix4x4 billboardMatrix;
 
 	MSG msg{};
 	// ウィンドウの×ボタンが押されるまでループ
@@ -370,64 +358,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// デバッグカメラ
 			debugCamera.Update(input.GetMouseState(), input.GetKey(), leftStick);
 
-			// 三角形の位置などを変えられるようにする
-			ImGui::DragFloat3("scale", &particles[0].transform.scale.x, 0.1f);
-			ImGui::DragFloat3("rotate", &particles[0].transform.rotate.x, 0.1f);
-			ImGui::DragFloat3("translate", &particles[0].transform.translate.x, 1.0f);
-
-			// スプライトもスライダーで変えられるようにする
-			ImGui::DragFloat3("scaleSprite", &transformSprite.scale.x, 1.0f);
-			ImGui::DragFloat3("rotateSprite", &transformSprite.rotate.x, 1.0f);
-			ImGui::DragFloat3("translateSprite", &transformSprite.translate.x, 1.0f);
-			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
-			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
-			ImGui::DragFloat("UVRotate", &uvTransformSprite.rotate.x, 0.01f);
-
-			// ライトの方向や光度などを変える
-			ImGui::ColorEdit4("color", &directionalLightData->color.x);
-			ImGui::ColorEdit4("mcolor", &materialData->color.x);
-			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.1f);
-			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.1f);
-			directionalLightData->direction = Normalize(directionalLightData->direction);
-
-			uvTransformSprite.translate.x += 0.001f;
-			uvTransformSprite.translate.y += 0.001f;
-			uvTransformSprite.rotate.z += 0.005f;
-
-			transform.rotate.y += 0.01f;
-
-			// ライトの色を変化させる
-			colorTimer += kTimeSpeed;
-			directionalLightData->color = GetRainbowColor(colorTimer);
-
-			float angle = colorTimer * 0.5f; // 時間に応じて回転（角度はラジアン）
-			Vector3 baseDirection = { 0.0f, -1.0f, 0.0f };
-
-			Matrix4x4 rotation = MakeRotateZMatrix(angle); // Y軸回転行列を作る
-			Vector3 rotatedDir = TransformNormal(baseDirection, rotation); // 回転適用
-
-			directionalLightData->direction = Normalize(rotatedDir);
-
-			// ライトの強さを上げる
-			directionalLightData->intensity += 0.04f;
-
-			// ライティングの切り替え
-			timer += kTimeSpeed;
-			if (timer >= kTime) {
-				timer = 0.0f;
-				directionalLightData->intensity = 0.0f;
-				if (materialData->enableLighting) {
-					if (materialData->lightingMode) {
-						materialData->enableLighting = false;
-					} else {
-						materialData->lightingMode = true;
-					}
-				} else {
-					materialData->enableLighting = true;
-				}
-			}
-
-
 			const float kDeltaTime = 1.0f / 60.0f;
 			// パーティクルの移動
 			for (uint32_t index = 0; index < kNumInstance; ++index) {
@@ -436,19 +366,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				particles[index].color.w -= fabs(particles[index].velocity.x) * kDeltaTime;
 			}
 
-
-
-
-			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 			Matrix4x4 viewMatrix = debugCamera.GetViewMatrix();
 			Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
-			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
-			wvpData->WVP = worldViewProjectionMatrix;
-			wvpData->World = worldMatrix;
+			
+			billboardMatrix = Inverse(debugCamera.GetViewMatrix());
+			billboardMatrix.m[3][0] = 0.0f;
+			billboardMatrix.m[3][1] = 0.0f;
+			billboardMatrix.m[3][2] = 0.0f;
 
 			for (uint32_t index = 0; index < kNumInstance; ++index) {
-				Matrix4x4 worldMatrixParticle =
-					MakeAffineMatrix(particles[index].transform.scale, particles[index].transform.rotate, particles[index].transform.translate);
+				Matrix4x4 scaleMatrix = MakeScaleMatrix(particles[index].transform.scale);
+				Matrix4x4 translateMatrix = MakeTranslateMatrix(particles[index].transform.translate);
+				Matrix4x4 worldMatrixParticle = scaleMatrix * billboardMatrix * translateMatrix;
 				Matrix4x4 worldViewProjectionMarrixParticle = Multiply(worldMatrixParticle, Multiply(viewMatrix, projectionMatrix));
 				instancingData[index].WVP = worldViewProjectionMarrixParticle;
 				instancingData[index].World = worldMatrixParticle;
@@ -524,30 +453,4 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	psoParticle.Release();
 	winApp.Finalize();
 	return 0;
-}
-
-Vector4 GetRainbowColor(float timeSeconds) {
-	// 時間に応じてH（色相）を0〜1でループさせる
-	float hue = fmodf(timeSeconds * 0.2f, 1.0f);  // 周期は約5秒（1.0 / 0.2）
-	float saturation = 1.0f;
-	float value = 1.0f;
-
-	// HSV → RGB 変換
-	float r, g, b;
-	int i = static_cast<int>(hue * 6.0f);
-	float f = hue * 6.0f - i;
-	float p = value * (1.0f - saturation);
-	float q = value * (1.0f - f * saturation);
-	float t = value * (1.0f - (1.0f - f) * saturation);
-
-	switch (i % 6) {
-	case 0: r = value; g = t;     b = p;       break;
-	case 1: r = q;     g = value; b = p;       break;
-	case 2: r = p;     g = value; b = t;     break;
-	case 3: r = p;     g = q;     b = value; break;
-	case 4: r = t;     g = p;     b = value; break;
-	case 5: r = value; g = p;     b = q;        break;
-	}
-
-	return Vector4{ r, g, b, 1.0f };  // Aは常に1
 }
