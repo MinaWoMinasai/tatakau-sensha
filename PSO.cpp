@@ -1,14 +1,32 @@
 #include "PSO.h"
 
-void PSO::Initialize(Microsoft::WRL::ComPtr<ID3D12Device>& device, Command& command)
+void PSO::Initialize(Microsoft::WRL::ComPtr<ID3D12Device>& device, Command& command, const std::wstring& VSPath, const std::wstring& PSPath, int shaderType)
 {
-	root_.Iniitalize();
+	shaderType_ = static_cast<ShaderType>(shaderType);
+
+	switch (shaderType_)
+	{
+	case Object:
+		root_.InitalizeForObject();
+		break;
+	case Particle:
+		root_.InitalizeForParticle();
+	}
+
 	root_.Create(device);
-	root_.Compile(command);
+
+	vertexShaderBlob_ = compileShader.Initialize(VSPath,
+		L"vs_6_0", command.GetDxcUtils(), command.GetDxcCompiler(), command.GetIncludeHandler());
+	assert(vertexShaderBlob_ != nullptr);
+
+	pixelShaderBlob_ = compileShader.Initialize(PSPath,
+		L"ps_6_0", command.GetDxcUtils(), command.GetDxcCompiler(), command.GetIncludeHandler());
+	assert(pixelShaderBlob_ != nullptr);
 
 	inputDesc_.Initialize();
 
 	state_.Initialize();
+
 }
 
 void PSO::Graphics()
@@ -16,10 +34,10 @@ void PSO::Graphics()
 
 	graphicsDesc_.pRootSignature = root_.GetSignature().Get();// RootSignature
 	graphicsDesc_.InputLayout = inputDesc_.GetLayout();// InputLayout
-	graphicsDesc_.VS = { root_.GetVertexShaderBlob()->GetBufferPointer(),
-	root_.GetVertexShaderBlob()->GetBufferSize() };// VertexShader
-	graphicsDesc_.PS = { root_.GetPixelShaderBlob()->GetBufferPointer(),
-	root_.GetPixelShaderBlob()->GetBufferSize() };// pixelShader
+	graphicsDesc_.VS = { vertexShaderBlob_->GetBufferPointer(),
+	vertexShaderBlob_->GetBufferSize() };// VertexShader
+	graphicsDesc_.PS = { pixelShaderBlob_->GetBufferPointer(),
+	pixelShaderBlob_->GetBufferSize() };// pixelShader
 	graphicsDesc_.BlendState = state_.GetBlendDesc();// BlendState
 	graphicsDesc_.RasterizerState = state_.GetRasterizerDesc();// RasterizerState
 	// 書き込むRTVの情報
@@ -42,10 +60,10 @@ void PSO::GraphicsLine()
 
 	graphicsDescLine_.pRootSignature = root_.GetSignature().Get();// RootSignature
 	graphicsDescLine_.InputLayout = inputDesc_.GetLayout();// InputLayout
-	graphicsDescLine_.VS = { root_.GetVertexShaderBlob()->GetBufferPointer(),
-	root_.GetVertexShaderBlob()->GetBufferSize() };// VertexShader
-	graphicsDescLine_.PS = { root_.GetPixelShaderBlob()->GetBufferPointer(),
-	root_.GetPixelShaderBlob()->GetBufferSize() };// pixelShader
+	graphicsDescLine_.VS = { vertexShaderBlob_->GetBufferPointer(),
+	vertexShaderBlob_->GetBufferSize() };// VertexShader
+	graphicsDescLine_.PS = { pixelShaderBlob_->GetBufferPointer(),
+	pixelShaderBlob_->GetBufferSize() };// pixelShader
 	graphicsDescLine_.BlendState = state_.GetBlendDesc();// BlendState
 	graphicsDescLine_.RasterizerState = state_.GetRasterizerDesc();// RasterizerState
 	// 書き込むRTVの情報
@@ -90,7 +108,7 @@ void PSO::Release()
 	if (root_.GetErrorBlob()) {
 		root_.GetErrorBlob()->Release();
 	}
-	root_.GetPixelShaderBlob()->Release();
-	root_.GetVertexShaderBlob()->Release();
+	pixelShaderBlob_->Release();
+	vertexShaderBlob_->Release();
 
 }

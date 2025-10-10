@@ -11,19 +11,16 @@ class Root
 {
 public:
 
-	void Iniitalize();
+	void InitalizeForObject();
+	void InitalizeForParticle();
 
 	void Create(Microsoft::WRL::ComPtr<ID3D12Device>& device);
-
-	void Compile(Command& command);
 
 	D3D12_ROOT_SIGNATURE_DESC GetDescriptionSignature() { return descriptionSignature_; }
 	std::span<const D3D12_ROOT_PARAMETER> GetParameters() const { return Parameters_; }
 	std::span<const D3D12_DESCRIPTOR_RANGE> GetDescriptorRange() const { return descriptorRange_; }
 	ID3DBlob* GetSignatureBlob() { return signatureBlob_; }
 	ID3DBlob* GetErrorBlob() { return errorBlob_; }
-	IDxcBlob* GetVertexShaderBlob() { return vertexShaderBlob_; }
-	IDxcBlob* GetPixelShaderBlob() { return pixelShaderBlob_; }
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> GetSignature() { return signature_; }
 
 
@@ -37,13 +34,5 @@ private:
 	ID3DBlob* errorBlob_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> signature_ = nullptr;
 	LogWrite log;
-
-
-
-	CompileShader compileShader;
-
-	// Shaderをコンパイルする
-	IDxcBlob* vertexShaderBlob_;
-	IDxcBlob* pixelShaderBlob_;
 
 };
