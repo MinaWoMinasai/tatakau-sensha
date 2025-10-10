@@ -74,6 +74,8 @@ Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, f
 Matrix4x4 MakeLookAtMatrix(const Vector3& eye, const Vector3& target, const Vector3& up);
 
 float Rand(float min, float max);
+Vector3 Rand(const Vector3& min, const Vector3& max);
+Vector4 Rand(const Vector4& min = {0.0f, 0.0f, 0.0f, 1.0f}, const Vector4& max = {1.0f, 1.0f, 1.0f, 1.0f});
 
 // 演算子オーバーロード
 inline Vector3 operator+(const Vector3& v1, const Vector3& v2) { return Add(v1, v2); }

@@ -100,14 +100,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	const uint32_t kNumInstance = 10;
 	// Instancing用のTransformationMatrixリソースを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource =
-		texture.CreateBufferResource(device, sizeof(TransformationMatrix) * kNumInstance);
+		texture.CreateBufferResource(device, sizeof(ParticleForGPU) * kNumInstance);
 	// 書き込むためのアドレスを取得
-	TransformationMatrix* instancingData = nullptr;
+	ParticleForGPU* instancingData = nullptr;
 	instancingResource->Map(0, nullptr, reinterpret_cast<void**>(&instancingData));
 	// 単位行列を書き込んでおく
 	for (uint32_t index = 0; index < kNumInstance; ++index) {
 		instancingData[index].WVP = MakeIdentity4x4();
 		instancingData[index].World = MakeIdentity4x4();
+		instancingData[index].color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 
 	// Sprite用の頂点リソースを作る
@@ -221,7 +222,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	windowScreenSize.Initialize(WinApp::kClientWidth, WinApp::kClientHeight);
 
 	// Textureを読んで転送する
-	DirectX::ScratchImage mipImages = texture.Load("resources/uvChecker.png");
+	DirectX::ScratchImage mipImages = texture.Load("resources/circle.png");
 	const DirectX::TexMetadata metadata = mipImages.GetMetadata();
 	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = texture.CreateResource(device, metadata);
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = texture.UploadData(textureResource, mipImages, device, command.GetList());
@@ -285,7 +286,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instancingSrvDesc.Buffer.FirstElement = 0;
 	instancingSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 	instancingSrvDesc.Buffer.NumElements = kNumInstance;
-	instancingSrvDesc.Buffer.StructureByteStride = sizeof(TransformationMatrix);
+	instancingSrvDesc.Buffer.StructureByteStride = sizeof(ParticleForGPU);
 	D3D12_GPU_DESCRIPTOR_HANDLE instancingSrvHandleGPU = descriptor.GetGPUHandle(descriptor.GetSrvHeap(), descriptorSizeSRV, 100);
 	D3D12_CPU_DESCRIPTOR_HANDLE instancingSrvHandleCPU = descriptor.GetCPUHandle(descriptor.GetSrvHeap(), descriptorSizeSRV, 100);
 	device->CreateShaderResourceView(instancingResource.Get(), &instancingSrvDesc, instancingSrvHandleCPU);
@@ -337,11 +338,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	const float kTimeSpeed = 0.01f;
 
 	// パーティクル用のTransform
-	Transform transforms[kNumInstance];
+	Particle particles[kNumInstance];
 	for (uint32_t index = 0; index < kNumInstance; ++index) {
-		transforms[index].scale = { 1.0f, 1.0f, 1.0f };
-		transforms[index].rotate = { 0.0f, 0.0f, 0.0f };
-		transforms[index].translate = { index * 0.1f, index * 0.1f, index * 0.1f };
+		particles[index].transform.scale = { 1.0f, 1.0f, 1.0f };
+		particles[index].transform.rotate = { 0.0f, 0.0f, 0.0f };
+		particles[index].transform.translate = { index * 0.1f, index * 0.1f, index * 0.1f };
+	
+		particles[index].velocity = Rand(Vector3(-0.5f, -0.5f, -0.5f), Vector3(0.5f, 0.5f, 0.5f));
+		particles[index].color = Rand();
 	}
 
 	MSG msg{};
@@ -367,9 +371,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			debugCamera.Update(input.GetMouseState(), input.GetKey(), leftStick);
 
 			// 三角形の位置などを変えられるようにする
-			ImGui::DragFloat3("scale", &transforms[0].scale.x, 0.1f);
-			ImGui::DragFloat3("rotate", &transforms[0].rotate.x, 0.1f);
-			ImGui::DragFloat3("translate", &transforms[0].translate.x, 1.0f);
+			ImGui::DragFloat3("scale", &particles[0].transform.scale.x, 0.1f);
+			ImGui::DragFloat3("rotate", &particles[0].transform.rotate.x, 0.1f);
+			ImGui::DragFloat3("translate", &particles[0].transform.translate.x, 1.0f);
 
 			// スプライトもスライダーで変えられるようにする
 			ImGui::DragFloat3("scaleSprite", &transformSprite.scale.x, 1.0f);
@@ -423,6 +427,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				}
 			}
 
+
+			const float kDeltaTime = 1.0f / 60.0f;
+			// パーティクルの移動
+			for (uint32_t index = 0; index < kNumInstance; ++index) {
+			
+				particles[index].transform.translate += particles[index].velocity * kDeltaTime;
+				particles[index].color.w -= fabs(particles[index].velocity.x) * kDeltaTime;
+			}
+
+
+
+
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 			Matrix4x4 viewMatrix = debugCamera.GetViewMatrix();
 			Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
@@ -432,10 +448,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			for (uint32_t index = 0; index < kNumInstance; ++index) {
 				Matrix4x4 worldMatrixParticle =
-					MakeAffineMatrix(transforms[index].scale, transforms[index].rotate, transforms[index].translate);
+					MakeAffineMatrix(particles[index].transform.scale, particles[index].transform.rotate, particles[index].transform.translate);
 				Matrix4x4 worldViewProjectionMarrixParticle = Multiply(worldMatrixParticle, Multiply(viewMatrix, projectionMatrix));
 				instancingData[index].WVP = worldViewProjectionMarrixParticle;
 				instancingData[index].World = worldMatrixParticle;
+				instancingData[index].color = particles[index].color;
 			}
 
 			// Sprite用のWorldViewProjectionMatrixを作る
@@ -462,13 +479,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			objectDraw.Draw(renderer, debugCamera, materialResource, directionalLightResource);
 
 			// スプライトの描画
-			command.GetList()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite); //VBVを設定
-			command.GetList()->IASetIndexBuffer(&indexBufferViewSprite);// IBVを設定
-			command.GetList()->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
-			command.GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-			command.GetList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-			// 描画!(DrawCall/ドローコール) 。6個のインデックスを使用しで1つのインスタンスを描画。その他は当面0 
-			command.GetList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
+			//command.GetList()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite); //VBVを設定
+			//command.GetList()->IASetIndexBuffer(&indexBufferViewSprite);// IBVを設定
+			//command.GetList()->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
+			//command.GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+			//command.GetList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+			//// 描画!(DrawCall/ドローコール) 。6個のインデックスを使用しで1つのインスタンスを描画。その他は当面0 
+			//command.GetList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 			ID3D12DescriptorHeap* heaps[] = { descriptor.GetSrvHeap().Get() };
 			command.GetList()->SetDescriptorHeaps(1, heaps);
