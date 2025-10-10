@@ -629,3 +629,20 @@ float Rand(float min, float max) {
 	std::uniform_real_distribution<float> dist(min, max);
 	return dist(rng);
 }
+
+Vector3 Rand(const Vector3& min, const Vector3& max) {
+	return {
+		Rand(min.x, max.x),
+		Rand(min.y, max.y),
+		Rand(min.z, max.z)
+	};
+}
+
+Vector4 Rand(const Vector4& min, const Vector4& max) {
+	return {
+		Rand(min.x, max.x),
+		Rand(min.y, max.y),
+		Rand(min.z, max.z),
+		Rand(min.w, max.w),
+	};
+}

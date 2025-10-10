@@ -76,6 +76,12 @@ struct TransformationMatrix {
 	Matrix4x4 World;
 };
 
+struct ParticleForGPU {
+	Matrix4x4 WVP;
+	Matrix4x4 World;
+	Vector4 color;
+};
+
 struct DirectionalLight {
 	Vector4 color; // ライトの色
 	Vector3 direction; // ライトの方向
@@ -115,4 +121,10 @@ struct Block {
 	Transform transform;
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource;
 	TransformationMatrix* wvpData = nullptr;
+};
+
+struct Particle {
+	Transform transform;
+	Vector3 velocity;
+	Vector4 color;
 };
