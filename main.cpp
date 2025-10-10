@@ -69,10 +69,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	view.CreateDSV(texture, WinApp::kClientWidth, WinApp::kClientHeight, swapChain, descriptor, device);
 	view.CreateSRV(swapChain, descriptor, device);
 
-	PSO pso;
-	pso.Initialize(device, command);
-	pso.Graphics();
-	pso.Create(device);
+	PSO psoObject;
+	psoObject.Initialize(device, command, L"Object3d.VS.hlsl", L"Object3d.PS.hlsl", 0);
+	psoObject.Graphics();
+	psoObject.Create(device);
+
+	PSO psoParticle;
+	psoParticle.Initialize(device, command, L"Particle.VS.hlsl", L"Particle.PS.hlsl", 1);
+	psoParticle.Graphics();
+	psoParticle.Create(device);
 
 	// リソースを作成する
 	Resource resource;
@@ -281,8 +286,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instancingSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 	instancingSrvDesc.Buffer.NumElements = kNumInstance;
 	instancingSrvDesc.Buffer.StructureByteStride = sizeof(TransformationMatrix);
-	D3D12_CPU_DESCRIPTOR_HANDLE instancingSrvHandleCPU = descriptor.GetCPUHandle(descriptor.GetSrvHeap(), descriptorSizeSRV, 3);
-	D3D12_GPU_DESCRIPTOR_HANDLE instancingSrvHandleGPU = descriptor.GetGPUHandle(descriptor.GetSrvHeap(), descriptorSizeSRV, 3);
+	D3D12_GPU_DESCRIPTOR_HANDLE instancingSrvHandleGPU = descriptor.GetGPUHandle(descriptor.GetSrvHeap(), descriptorSizeSRV, 100);
+	D3D12_CPU_DESCRIPTOR_HANDLE instancingSrvHandleCPU = descriptor.GetCPUHandle(descriptor.GetSrvHeap(), descriptorSizeSRV, 100);
 	device->CreateShaderResourceView(instancingResource.Get(), &instancingSrvDesc, instancingSrvHandleCPU);
 
 	descriptor.GetCPUHandle(descriptor.GetRtvHeap(), descriptorSizeRTV, 0);
@@ -303,10 +308,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Renderer renderer;
 	renderer.SetDSVHandle(descriptor.GetDsvHeap()->GetCPUDescriptorHandleForHeapStart());
 	renderer.SetSwapChainResources({ view.GetSwapChainResource()[0], view.GetSwapChainResource()[1] });
-	renderer.SetGraphicsPipelineState(pso.GetGraphicsState().Get());
+	renderer.SetGraphicsPipelineState(psoObject.GetGraphicsState().Get());
 	renderer.SetSRVHeap(descriptor.GetSrvHeap().Get());
 	renderer.SetRTVHandles({ view.GetRtvHandles()[0], view.GetRtvHandles()[1] });
-	renderer.SetRootSignature(pso.GetRootSignature().Get());
+	renderer.SetRootSignature(psoObject.GetRootSignature().Get());
 	renderer.SetViewport(windowScreenSize.GetViewport());
 	renderer.SetScissorRect(windowScreenSize.GetSissorRect());
 	renderer.SetFenceValue(command.GetFenceValue());
@@ -323,8 +328,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		2 // バックバッファ数
 	);
 
-	//ObjectDraw objectDraw;
-	//objectDraw.Initialize(device, descriptor, command);
+	ObjectDraw objectDraw;
+	objectDraw.Initialize(device, descriptor, command);
 
 	float colorTimer = 0.0f;
 	float timer = 0.0f;
@@ -446,7 +451,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
 			materialDataSprite->uvTransform = uvTransformMatrix;
 
-			//objectDraw.Update();
+			objectDraw.Update();
 
 			// ImGuiの内部コマンドを生成する
 			ImGui::Render();
@@ -454,25 +459,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			UINT backBufferIndex = swapChain.GetList()->GetCurrentBackBufferIndex();
 			renderer.BeginFrame(backBufferIndex);
 
-			//objectDraw.Draw(renderer, debugCamera, materialResource, directionalLightResource);
+			objectDraw.Draw(renderer, debugCamera, materialResource, directionalLightResource);
 
 			// スプライトの描画
-			//command.GetList()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite); //VBVを設定
-			//command.GetList()->IASetIndexBuffer(&indexBufferViewSprite);// IBVを設定
-			//command.GetList()->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
-			//command.GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-			//command.GetList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+			command.GetList()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite); //VBVを設定
+			command.GetList()->IASetIndexBuffer(&indexBufferViewSprite);// IBVを設定
+			command.GetList()->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
+			command.GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+			command.GetList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			// 描画!(DrawCall/ドローコール) 。6個のインデックスを使用しで1つのインスタンスを描画。その他は当面0 
-			//command.GetList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
-			
+			command.GetList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
+
 			ID3D12DescriptorHeap* heaps[] = { descriptor.GetSrvHeap().Get() };
 			command.GetList()->SetDescriptorHeaps(1, heaps);
 
-			command.GetList()->SetGraphicsRootSignature(pso.GetRootSignature().Get());
-			command.GetList()->SetPipelineState(pso.GetGraphicsState().Get()); // PSOを設定
+			command.GetList()->SetGraphicsRootSignature(psoParticle.GetRootSignature().Get());
+			command.GetList()->SetPipelineState(psoParticle.GetGraphicsState().Get()); // PSOを設定
 			command.GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			// 球の描画
+			// パーティクルの描画
 			command.GetList()->IASetVertexBuffers(0, 1, &vertexBufferView); //VBVを設定
 			command.GetList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			command.GetList()->SetGraphicsRootDescriptorTable(1, instancingSrvHandleGPU);
@@ -498,7 +503,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	CloseHandle(command.GetFenceEvent());
 
-	pso.Release();
+	//psoObject.Release();
+	psoParticle.Release();
 	winApp.Finalize();
 	return 0;
 }

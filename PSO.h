@@ -8,7 +8,12 @@ class PSO
 
 public:
 
-	void Initialize(Microsoft::WRL::ComPtr<ID3D12Device>& device, Command& command);
+	enum ShaderType {
+		Object,
+		Particle,
+	};
+
+	void Initialize(Microsoft::WRL::ComPtr<ID3D12Device>& device, Command& command, const std::wstring& VSPath, const std::wstring& PSPath, int shaderType);
 
 	void Graphics();
 	void GraphicsLine();
@@ -25,8 +30,8 @@ public:
 	const Root& GetRoot() { return root_; }
 	ID3DBlob* GetSignatureBlob() { return root_.GetSignatureBlob(); }
 	ID3DBlob* GetErrorBlob() { return root_.GetErrorBlob(); }
-	IDxcBlob* GetVertexShaderBlob() { return root_.GetVertexShaderBlob(); }
-	IDxcBlob* GetPixelShaderBlob() { return root_.GetPixelShaderBlob(); }
+	IDxcBlob* GetVertexShaderBlob() { return vertexShaderBlob_; }
+	IDxcBlob* GetPixelShaderBlob() { return pixelShaderBlob_; }
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> GetRootSignature() { return root_.GetSignature(); }
 
 
@@ -41,5 +46,13 @@ private:
 	InputDesc inputDesc_;
 	Root root_;
 
+	// Shaderをコンパイルする
+	IDxcBlob* vertexShaderBlob_;
+	IDxcBlob* pixelShaderBlob_;
+
+	CompileShader compileShader;
+	LogWrite log_;
+
+	ShaderType shaderType_;
 };
 
