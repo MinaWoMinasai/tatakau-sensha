@@ -96,7 +96,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vertexBufferView = resource.CreateVBV(modelData, texture, device, vertexResource);
 
 	// 頂点データを10こ格納できるリソースを作成
-	const uint32_t kNumInstance = 10;
+	const uint32_t kNumInstance = 1000;
 	// Instancing用のTransformationMatrixリソースを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource =
 		texture.CreateBufferResource(device, sizeof(ParticleForGPU) * kNumInstance);
@@ -104,7 +104,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ParticleForGPU* instancingData = nullptr;
 	instancingResource->Map(0, nullptr, reinterpret_cast<void**>(&instancingData));
 	// 単位行列を書き込んでおく
-	for (uint32_t index = 0; index < kNumInstance; ++index) {
+	std::vector<Particle> particles;
+	for (uint32_t index = 0; index < 10; ++index) {
+		particles.push_back(MakeParticle(Vector3(0.0f, 0.0f, 0.0f)));
+	}
+
+	for (uint32_t index = 0; index < particles.size(); ++index) {
 		instancingData[index].WVP = MakeIdentity4x4();
 		instancingData[index].World = MakeIdentity4x4();
 		instancingData[index].color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -323,17 +328,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ObjectDraw objectDraw;
 	objectDraw.Initialize(device, descriptor, command);
 
-	// パーティクル用のTransform
-	Particle particles[kNumInstance];
-	for (uint32_t index = 0; index < kNumInstance; ++index) {
-		particles[index].transform.scale = { 1.0f, 1.0f, 1.0f };
-		particles[index].transform.rotate = { 0.0f, 0.0f, 0.0f };
-		particles[index].transform.translate = { index * 0.1f, index * 0.1f, index * 0.1f };
-	
-		particles[index].velocity = Rand(Vector3(-0.5f, -0.5f, -0.5f), Vector3(0.5f, 0.5f, 0.5f));
-		particles[index].color = Rand();
-	}
-
 	Matrix4x4 billboardMatrix;
 
 	MSG msg{};
@@ -355,33 +349,63 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
 
+			Vector2 mousePos = input.GetMousePosition();
+
+			ImGui::Begin("debug");
+			ImGui::DragFloat2("a", &mousePos.x);
+			ImGui::End();
+
 			// デバッグカメラ
 			debugCamera.Update(input.GetMouseState(), input.GetKey(), leftStick);
-
-			const float kDeltaTime = 1.0f / 60.0f;
-			// パーティクルの移動
-			for (uint32_t index = 0; index < kNumInstance; ++index) {
-			
-				particles[index].transform.translate += particles[index].velocity * kDeltaTime;
-				particles[index].color.w -= fabs(particles[index].velocity.x) * kDeltaTime;
-			}
 
 			Matrix4x4 viewMatrix = debugCamera.GetViewMatrix();
 			Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
 			
+			// ボタンを押したらパーティクル追加
+			if (input.IsTrigger(input.GetMouseState().rgbButtons[0], input.GetPreMouseState().rgbButtons[0])) {
+				for (uint32_t index = 0; index < 10; ++index) {
+					
+					Vector3 worldPos = ScreenToWorld3D(mousePos, debugCamera.GetViewMatrix(), projectionMatrix, WinApp::kClientWidth, WinApp::kClientHeight, debugCamera.GetDistance());
+					particles.push_back(MakeParticle(worldPos));
+				}
+			}
+
+			const float kDeltaTime = 1.0f / 60.0f;
+			// パーティクルの移動
+			for (auto& particle : particles) {
+				particle.currentTime += kDeltaTime;
+				particle.transform.translate += particle.velocity;
+				particle.color.w = 1.0f - (particle.currentTime / particle.lifeTime);
+			}
+
+			// パーティクルの削除
+			particles.erase(
+				std::remove_if(
+					particles.begin(), particles.end(),
+					[](const Particle& particle) {
+						return particle.currentTime >= particle.lifeTime; // ラムダ式でtrueの要素が削除される
+					}),
+				particles.end());
+
 			billboardMatrix = Inverse(debugCamera.GetViewMatrix());
 			billboardMatrix.m[3][0] = 0.0f;
 			billboardMatrix.m[3][1] = 0.0f;
 			billboardMatrix.m[3][2] = 0.0f;
 
-			for (uint32_t index = 0; index < kNumInstance; ++index) {
-				Matrix4x4 scaleMatrix = MakeScaleMatrix(particles[index].transform.scale);
-				Matrix4x4 translateMatrix = MakeTranslateMatrix(particles[index].transform.translate);
+			for (uint32_t index = 0; index < particles.size(); ++index) {
+				// パーティクルが最大数を超えたら追加しない
+				if(index >= kNumInstance){
+					break;
+				}
+
+				auto& particle = particles[index];
+				Matrix4x4 scaleMatrix = MakeScaleMatrix(particle.transform.scale);
+				Matrix4x4 translateMatrix = MakeTranslateMatrix(particle.transform.translate);
 				Matrix4x4 worldMatrixParticle = scaleMatrix * billboardMatrix * translateMatrix;
 				Matrix4x4 worldViewProjectionMarrixParticle = Multiply(worldMatrixParticle, Multiply(viewMatrix, projectionMatrix));
 				instancingData[index].WVP = worldViewProjectionMarrixParticle;
 				instancingData[index].World = worldMatrixParticle;
-				instancingData[index].color = particles[index].color;
+				instancingData[index].color = particle.color;
 			}
 
 			// Sprite用のWorldViewProjectionMatrixを作る
@@ -430,7 +454,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			command.GetList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			command.GetList()->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 			// 描画!(DrawCall/ドローコール) 。3頂点で1つのインスタンス。 インスタンスについては今度
-			command.GetList()->DrawInstanced(UINT(modelData.vertices.size()), kNumInstance, 0, 0);
+			command.GetList()->DrawInstanced(UINT(modelData.vertices.size()), UINT(particles.size()), 0, 0);
 
 			// 実際のcommandListのImGuiの描画コマンドを組む
 			renderer.DrawImGui();

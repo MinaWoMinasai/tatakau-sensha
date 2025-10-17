@@ -11,6 +11,17 @@ Vector3 Add(const Vector3& v1, const Vector3& v2) {
 
 }
 
+Vector4 Add(const Vector4& v1, const Vector4& v2)
+{
+	Vector4 result;
+	result.x = v1.x + v2.x;
+	result.y = v1.y + v2.y;
+	result.z = v1.z + v2.z;
+	result.w = v1.w + v2.w;
+
+	return result;
+}
+
 // 減産
 Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
 
@@ -73,7 +84,7 @@ Vector3 Normalize(const Vector3& v) {
 
 Vector3 TransformNormal(const Vector3& v, const Matrix4x4& m)
 {
-	
+
 	Vector3 result{
 		v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0],
 		v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1],
@@ -645,4 +656,85 @@ Vector4 Rand(const Vector4& min, const Vector4& max) {
 		Rand(min.z, max.z),
 		Rand(min.w, max.w),
 	};
+}
+
+Particle MakeParticle(const Vector3 position) {
+	Particle particle;
+	
+	particle.transform.scale = { 1.0f, 1.0f, 1.0f };
+	particle.transform.rotate = { 0.0f, 0.0f, 0.0f };
+	particle.transform.translate = position + Rand(Vector3(-0.1f, -0.1f, -0.1f), Vector3(0.1f, 0.1f, 0.1f));
+
+	particle.velocity = Rand(Vector3(-0.01f, -0.01f, -0.01f), Vector3(0.01f, 0.01f, 0.01f));
+	particle.color = Rand();
+	particle.lifeTime = Rand(1.0f, 5.0f);
+	particle.currentTime = 0.0f;
+
+	return particle;
+}
+
+Vector3 ScreenToWorld2D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth, float windowHeight) {
+	// スクリーン → NDC
+	float x = (2.0f * screenPos.x / windowWidth) - 1.0f;
+	float y = 1.0f - (2.0f * screenPos.y / windowHeight); // Y反転
+	float z = 0.0f; // 2D空間ならZ=0固定
+
+	// 同次座標系で変換
+	Vector4 ndcPos = { x, y, z, 1.0f };
+
+	Matrix4x4 invViewProj = Inverse(viewMatrix * projectionMatrix);
+	Vector4 worldPos4 = TransformMatrix(ndcPos, invViewProj);
+	worldPos4 /= worldPos4.w;
+
+	return Vector3(worldPos4.x, worldPos4.y, 0.0f); // 最後にZを0に固定
+}
+
+Vector3 ScreenToWorldOnZ0(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth, float windowHeight) {
+
+	// 1. マウス座標をNDCに変換
+	float x = (2.0f * screenPos.x / windowWidth) - 1.0f;
+	float y = 1.0f - (2.0f * screenPos.y / windowHeight);
+
+	// 2. Near/Far平面上の点を求める
+	Vector4 nearPos = { x, y, 0.0f, 1.0f };
+	Vector4 farPos = { x, y, 1.0f, 1.0f };
+
+	Matrix4x4 invViewProj = Inverse(viewMatrix * projectionMatrix);
+
+	nearPos = TransformMatrix(nearPos, invViewProj);
+	farPos = TransformMatrix(farPos, invViewProj);
+
+	nearPos /= nearPos.w;
+	farPos /= farPos.w;
+
+	// 3. レイを作る
+	Vector3 rayOrigin = { nearPos.x, nearPos.y, nearPos.z };
+	Vector3 rayDir = Normalize(Vector3{ farPos.x - nearPos.x, farPos.y - nearPos.y, farPos.z - nearPos.z });
+
+	// 4. Z=0平面と交差するtを求める（rayOrigin + t * rayDir）
+	float t = -rayOrigin.z / rayDir.z;
+	Vector3 hitPos = rayOrigin + rayDir * t;
+
+	return hitPos; // これがz=0平面上のマウス位置！
+}
+
+Vector3 ScreenToWorld3D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix,
+	float windowWidth, float windowHeight, float distanceFromCamera) {
+
+	float x = (2.0f * screenPos.x / windowWidth) - 1.0f;
+	float y = 1.0f - (2.0f * screenPos.y / windowHeight);
+
+	Vector4 nearPos = { x, y, 0.0f, 1.0f };
+	Vector4 farPos = { x, y, 1.0f, 1.0f };
+
+	Matrix4x4 invViewProj = Inverse(viewMatrix * projectionMatrix);
+	nearPos = TransformMatrix(nearPos, invViewProj);
+	farPos = TransformMatrix(farPos, invViewProj);
+	nearPos /= nearPos.w;
+	farPos /= farPos.w;
+
+	Vector3 rayOrigin = { nearPos.x, nearPos.y, nearPos.z };
+	Vector3 rayDir = Normalize(Vector3{ farPos.x - nearPos.x, farPos.y - nearPos.y, farPos.z - nearPos.z });
+
+	return rayOrigin + rayDir * distanceFromCamera;
 }

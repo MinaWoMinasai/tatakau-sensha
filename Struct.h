@@ -24,10 +24,12 @@ struct Vector3 {
 };
 
 struct Vector4 {
-	float x;
-	float y;
-	float z;
-	float w;
+	float x, y, z, w;
+
+	inline Vector4& operator+=(const Vector4& v) { x += v.x; y += v.y; z += v.z; w += v.w; return *this; }
+	inline Vector4& operator-=(const Vector4& v) { x -= v.x; y -= v.y; z -= v.z; w -= v.w; return *this; }
+	inline Vector4& operator*=(float s) { x *= s; y *= s; z *= s; w *= s; return *this; }
+	inline Vector4& operator/=(float s) { x /= s; y /= s; z /= s; w /= s; return *this; }
 };
 
 struct Transform {
@@ -127,4 +129,13 @@ struct Particle {
 	Transform transform;
 	Vector3 velocity;
 	Vector4 color;
+	float lifeTime;
+	float currentTime;
+};
+
+struct Emitter {
+	Transform transform; // エミッタの位置
+	uint32_t count; // 発生数
+	float frequency; // 発生頻度
+	float frequencyTime; // 頻度用時刻
 };

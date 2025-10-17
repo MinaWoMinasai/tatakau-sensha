@@ -7,6 +7,7 @@ const float pi = 3.14159265f;
 
 // 加算
 Vector3 Add(const Vector3& v1, const Vector3& v2);
+Vector4 Add(const Vector4& v1, const Vector4& v2);
 
 // 減算
 Vector3 Subtract(const Vector3& v1, const Vector3& v2);
@@ -76,13 +77,27 @@ Matrix4x4 MakeLookAtMatrix(const Vector3& eye, const Vector3& target, const Vect
 float Rand(float min, float max);
 Vector3 Rand(const Vector3& min, const Vector3& max);
 Vector4 Rand(const Vector4& min = {0.0f, 0.0f, 0.0f, 1.0f}, const Vector4& max = {1.0f, 1.0f, 1.0f, 1.0f});
+Particle MakeParticle(const Vector3 position);
 
-// 演算子オーバーロード
+//* 演算子オーバーロード
+//---------------------------------------------
+
+// Vector3
 inline Vector3 operator+(const Vector3& v1, const Vector3& v2) { return Add(v1, v2); }
 inline Vector3 operator-(const Vector3& v1, const Vector3& v2) { return Subtract(v1, v2); }
 inline Vector3 operator*(const float& s, const Vector3& v) { return Multiply(s, v); }
 inline Vector3 operator*(const Vector3& v, const float& s) { return Multiply(s, v); }
 inline Vector3 operator/(const Vector3& v, const float& s) { return Multiply(1.0f / s, v); }
+
+
+// Vector4
+inline Vector4 operator+(const Vector4& v1, const Vector4& v2) { return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w }; }
+inline Vector4 operator-(const Vector4& v1, const Vector4& v2) { return { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z, v1.w - v2.w }; }
+inline Vector4 operator*(const Vector4& v, float s) { return { v.x * s, v.y * s, v.z * s, v.w * s }; }
+inline Vector4 operator/(const Vector4& v, float s) { return { v.x / s, v.y / s, v.z / s, v.w / s }; }
+inline Vector4 operator-(const Vector4& v) { return { -v.x, -v.y, -v.z, -v.w }; }
+
+// Matrix4x4
 inline Matrix4x4 operator+(const Matrix4x4& m1, const Matrix4x4& m2) { return Add(m1, m2); }
 inline Matrix4x4 operator-(const Matrix4x4& m1, const Matrix4x4& m2) { return Subtract(m1, m2); }
 inline Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2) { return Multiply(m1, m2); }
@@ -90,3 +105,8 @@ inline Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2) { return Mu
 // 単項演算子
 inline Vector3 operator-(const Vector3& v) { return { -v.x, -v.y, -v.z }; }
 inline Vector3 operator+(const Vector3& v) { return v; }
+
+Vector3 ScreenToWorld2D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth, float windowHeight);
+Vector3 ScreenToWorldOnZ0(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth, float windowHeight);
+Vector3 ScreenToWorld3D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix,
+	float windowWidth, float windowHeight, float distanceFromCamera);

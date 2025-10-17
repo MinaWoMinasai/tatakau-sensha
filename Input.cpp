@@ -35,6 +35,8 @@ void Input::Initialize(const WNDCLASS& wc, const HWND& hwnd)
 	assert(SUCCEEDED(hr));
 	ZeroMemory(&currentGamepadState_, sizeof(XINPUT_STATE));
 	ZeroMemory(&previousGamepadState_, sizeof(XINPUT_STATE));
+
+	hwnd_ = hwnd;
 }
 
 void Input::BeforeFrameData()
@@ -120,4 +122,11 @@ Vector2 Input::GetRightStick() const {
 	if (abs(rawX) > deadzone) result.x = rawX / 32767.0f;
 	if (abs(rawY) > deadzone) result.y = rawY / 32767.0f;
 	return result;
+}
+
+Vector2 Input::GetMousePosition() const {
+	POINT point;
+	GetCursorPos(&point);               // デスクトップ上のマウス座標を取得
+	ScreenToClient(hwnd_, &point);      // ウィンドウ座標に変換
+	return Vector2{ static_cast<float>(point.x), static_cast<float>(point.y) };
 }
