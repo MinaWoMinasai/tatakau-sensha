@@ -330,6 +330,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	Matrix4x4 billboardMatrix;
 
+	AccelerationField accelerationField;
+	accelerationField.acceleration = { 15.0f, 0.0f, 0.0f };
+	accelerationField.area.min = { -1.0f, -1.0f, -1.0f };
+	accelerationField.area.max = { 1.0f, 1.0f, 1.0f };
+
 	MSG msg{};
 	// ウィンドウの×ボタンが押されるまでループ
 	while (msg.message != WM_QUIT) {

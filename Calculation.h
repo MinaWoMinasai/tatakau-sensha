@@ -79,6 +79,24 @@ Vector3 Rand(const Vector3& min, const Vector3& max);
 Vector4 Rand(const Vector4& min = {0.0f, 0.0f, 0.0f, 1.0f}, const Vector4& max = {1.0f, 1.0f, 1.0f, 1.0f});
 Particle MakeParticle(const Vector3 position);
 
+// 球と平面の衝突判定
+bool IsCollision(const Sphere& sphere, const Plane& plane);
+
+// 球と線分の衝突判定
+bool IsCollision(const Segment& segment, const Plane& plane);
+
+// 三角形と線のあたり判定
+bool IsCollision(const Segment& segment, const Triangle& triangle);
+
+// 直方体と直方体の当たり判定
+bool IsCollision(const AABB& aabb1, const AABB& aabb2);
+
+// 球と直方体のあたり判定
+bool IsCollision(const AABB& aabb, const Sphere& sphere);
+
+// 直方体と線の当たり判定
+bool IsCollision(const AABB& aabb, const Segment& segmrnt);
+
 //* 演算子オーバーロード
 //---------------------------------------------
 
