@@ -331,7 +331,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Matrix4x4 billboardMatrix;
 
 	AccelerationField accelerationField;
-	accelerationField.acceleration = { 15.0f, 0.0f, 0.0f };
+	accelerationField.acceleration = { 0.5f, 0.0f, 0.0f };
 	accelerationField.area.min = { -1.0f, -1.0f, -1.0f };
 	accelerationField.area.max = { 1.0f, 1.0f, 1.0f };
 
@@ -375,9 +375,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				}
 			}
 
+
+
 			const float kDeltaTime = 1.0f / 60.0f;
 			// パーティクルの移動
 			for (auto& particle : particles) {
+				// フィールドとパーティクル(球)の当たり判定をとる
+				if (IsCollision(accelerationField.area, Sphere(particle.transform.translate, 0.1f))) {
+					particle.velocity += accelerationField.acceleration * kDeltaTime;
+				}
 				particle.currentTime += kDeltaTime;
 				particle.transform.translate += particle.velocity;
 				particle.color.w = 1.0f - (particle.currentTime / particle.lifeTime);
