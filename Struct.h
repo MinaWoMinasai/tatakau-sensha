@@ -59,10 +59,43 @@ struct VertexData {
 	Vector3 normal;
 };
 
-// 球
 struct Sphere {
 	Vector3 center; // 中心点
-	float radius; // 半径
+	float radius;   // 半径
+};
+
+struct Line {
+	Vector3 origin; // 始点
+	Vector3 diff;   // 終点への差分ベクトル
+};
+
+struct Ray {
+	Vector3 origin; // 始点
+	Vector3 diff;   // 終点への差分ベクトル
+};
+
+struct Segment {
+	Vector3 origin; // 始点
+	Vector3 diff;   // 終点への差分ベクトル
+};
+
+struct Capsule {
+	Segment segment;
+	float radius;
+};
+
+struct Plane {
+	Vector3 normal; // 法線
+	float distance; // 距離
+};
+
+struct Triangle {
+	Vector3 vertex[3]; // 頂点
+};
+
+struct AABB {
+	Vector3 min; // 最小値
+	Vector3 max; // 最大値
 };
 
 struct alignas(16) Material {
@@ -138,4 +171,9 @@ struct Emitter {
 	uint32_t count; // 発生数
 	float frequency; // 発生頻度
 	float frequencyTime; // 頻度用時刻
+};
+
+struct AccelerationField {
+	Vector3 acceleration; // 加速度
+	AABB area; // 効果範囲
 };
