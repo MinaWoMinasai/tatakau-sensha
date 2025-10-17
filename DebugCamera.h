@@ -25,6 +25,8 @@ public:
 
 	Matrix4x4 GetViewMatrix() { return viewMatrix_; }
 
+	float GetDistance() { return distance; }
+
 private:
 	// X,Y,Z軸回りのローカル回転角
 	Vector3 rotation_ = {0,0,0};

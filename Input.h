@@ -42,7 +42,11 @@ public:
 	XINPUT_STATE GetCurrentGamepadState() const { return currentGamepadState_; }
 	Vector2 GetLeftStick() const;
 	Vector2 GetRightStick() const;
+
+	Vector2 GetMousePosition() const;
 private:
+	HWND hwnd_;
+	
 	// キーの配列
 	BYTE key_[256] = {};
 	BYTE preKey_[256] = {};
