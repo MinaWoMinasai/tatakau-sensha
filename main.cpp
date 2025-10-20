@@ -69,12 +69,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	view.CreateSRV(swapChain, descriptor, device);
 
 	PSO psoObject;
-	psoObject.Initialize(device, command, L"Object3d.VS.hlsl", L"Object3d.PS.hlsl", 0);
+	psoObject.Initialize(device, command, L"resources/shaders/Object3d.VS.hlsl", L"resources/shaders/Object3d.PS.hlsl", 0);
 	psoObject.Graphics();
 	psoObject.Create(device);
 
 	PSO psoParticle;
-	psoParticle.Initialize(device, command, L"Particle.VS.hlsl", L"Particle.PS.hlsl", 1);
+	psoParticle.Initialize(device, command, L"resources/shaders/Particle.VS.hlsl", L"resources/shaders/Particle.PS.hlsl", 1);
 	psoParticle.Graphics();
 	psoParticle.Create(device);
 
