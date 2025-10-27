@@ -23,7 +23,7 @@ public:
 	/// <summary>
 	/// 描画
 	/// </summary>
-	void Draw(Renderer renderer, DebugCamera debugcamera, Microsoft::WRL::ComPtr<ID3D12Resource> materialResource, Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource);
+	void Draw(Renderer renderer, DebugCamera debugcamera, Microsoft::WRL::ComPtr<ID3D12Resource> materialResource, Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource, Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource);
 
 private:
 

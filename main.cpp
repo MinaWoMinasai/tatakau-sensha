@@ -159,6 +159,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	indexDataSprite[0] = 0; indexDataSprite[1] = 1; indexDataSprite[2] = 2;
 	indexDataSprite[3] = 1; indexDataSprite[4] = 3; indexDataSprite[5] = 2;
 
+	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource = texture.CreateBufferResource(device, sizeof(Camera));
+	Camera* cameraData = nullptr;
+	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
+
 	// マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceSprite = texture.CreateBufferResource(device, sizeof(Material));
 	// マテリアルにデータを書き込む
@@ -199,9 +203,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 赤を書き込む
 	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 	// ライティングを有効にする
-	materialData->enableLighting = false;
+	materialData->enableLighting = true;
 	materialData->lightingMode = false;
 	materialData->uvTransform = MakeIdentity4x4();
+	materialData->shininess = 10.0f;
 
 	// 平行光源用のリソースを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource = resource.CreatedirectionalLight(texture, device);
@@ -360,9 +365,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat2("a", &mousePos.x);
 			ImGui::End();
 
+			// ライトの方向や光度などを変える
+			ImGui::ColorEdit4("color", &directionalLightData->color.x);
+			ImGui::ColorEdit4("mcolor", &materialData->color.x);
+			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.1f);
+			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.1f);
+			ImGui::DragFloat("shininess", &materialData->shininess, 0.1f);
+			directionalLightData->direction = Normalize(directionalLightData->direction);
+
 			// デバッグカメラ
 			debugCamera.Update(input.GetMouseState(), input.GetKey(), leftStick);
-
+			cameraData->worldPosition = debugCamera.GetEyePosition();
 			Matrix4x4 viewMatrix = debugCamera.GetViewMatrix();
 			Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
 			
@@ -440,7 +453,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			UINT backBufferIndex = swapChain.GetList()->GetCurrentBackBufferIndex();
 			renderer.BeginFrame(backBufferIndex);
 
-			objectDraw.Draw(renderer, debugCamera, materialResource, directionalLightResource);
+			objectDraw.Draw(renderer, debugCamera, materialResource, directionalLightResource, cameraResource);
 
 			// スプライトの描画
 			//command.GetList()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite); //VBVを設定

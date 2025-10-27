@@ -104,6 +104,8 @@ struct alignas(16) Material {
 	int32_t lightingMode;
 	float padding[2];
 	Matrix4x4 uvTransform;
+	float shininess;
+	float pad2[3];
 };
 
 struct TransformationMatrix {
@@ -176,4 +178,9 @@ struct Emitter {
 struct AccelerationField {
 	Vector3 acceleration; // 加速度
 	AABB area; // 効果範囲
+};
+
+struct alignas(16) Camera {
+	Vector3 worldPosition;
+	float pad; // 16バイトアラインメント対策
 };

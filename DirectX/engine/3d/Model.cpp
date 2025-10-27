@@ -57,9 +57,29 @@ void Model::Update()
 
 }
 
-void Model::Draw(Renderer renderer, const Transform& transform, const Matrix4x4& cameraMatrix)
-{
+//void Model::Draw(Renderer renderer, const Transform& transform, const Matrix4x4& cameraMatrix)
+//{
+//
+//	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+//	Matrix4x4 viewMatrix = cameraMatrix;
+//	Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
+//	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
+//	wvpData->WVP = worldViewProjectionMatrix;
+//	wvpData->World = worldMatrix;
+//
+//	renderer.DrawModel(
+//		vertexBufferView,                // VBV
+//		nullptr,                          // IBV（インデックスなしの例）
+//		materialResource->GetGPUVirtualAddress(),  // Material CBV
+//		wvpResource->GetGPUVirtualAddress(),       // WVP CBV
+//		textureSrvHandleGPU, // SRV
+//		directionalLightResource->GetGPUVirtualAddress(),            // Light CBV
+//		static_cast<UINT>(modelData_.vertices.size())
+//	);
+//}
 
+void Model::DrawPro(Renderer renderer, const Transform& transform, const Matrix4x4& cameraMatrix, Microsoft::WRL::ComPtr<ID3D12Resource> materialResource, Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource, Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource)
+{
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = cameraMatrix;
 	Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
@@ -73,26 +93,7 @@ void Model::Draw(Renderer renderer, const Transform& transform, const Matrix4x4&
 		materialResource->GetGPUVirtualAddress(),  // Material CBV
 		wvpResource->GetGPUVirtualAddress(),       // WVP CBV
 		textureSrvHandleGPU, // SRV
-		directionalLightResource->GetGPUVirtualAddress(),            // Light CBV
-		static_cast<UINT>(modelData_.vertices.size())
-	);
-}
-
-void Model::DrawPro(Renderer renderer, const Transform& transform, const Matrix4x4& cameraMatrix, Microsoft::WRL::ComPtr<ID3D12Resource> materialResource, Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource)
-{
-	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
-	Matrix4x4 viewMatrix = cameraMatrix;
-	Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
-	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
-	wvpData->WVP = worldViewProjectionMatrix;
-	wvpData->World = worldMatrix;
-
-	renderer.DrawModel(
-		vertexBufferView,                // VBV
-		nullptr,                          // IBV（インデックスなしの例）
-		materialResource->GetGPUVirtualAddress(),  // Material CBV
-		wvpResource->GetGPUVirtualAddress(),       // WVP CBV
-		textureSrvHandleGPU, // SRV
+		cameraResource->GetGPUVirtualAddress(),
 		directionalLightResource->GetGPUVirtualAddress(),            // Light CBV
 		static_cast<UINT>(modelData_.vertices.size())
 	);

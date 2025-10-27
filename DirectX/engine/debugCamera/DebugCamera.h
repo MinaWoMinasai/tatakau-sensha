@@ -27,6 +27,8 @@ public:
 
 	float GetDistance() { return distance; }
 
+	Vector3 GetEyePosition() { return eye_; }
+
 private:
 	// X,Y,Z軸回りのローカル回転角
 	Vector3 rotation_ = {0,0,0};
@@ -46,5 +48,6 @@ private:
 	Vector3 velocity_ = { 0.01f, 0.01f, 0.1f }; // x=横回転速度, y=縦回転速度, z=ズーム速度
 	float distance = 15.0f;             // 注視点との距離（ズーム）
 	Vector3 target = {0.01f, 0.01f, 0.01f};             // 注視点のワールド座標
+	Vector3 eye_; // カメラのワールド位置
 };
 

@@ -37,6 +37,7 @@ void Renderer::DrawModel(
     D3D12_GPU_VIRTUAL_ADDRESS materialCBV,
     D3D12_GPU_VIRTUAL_ADDRESS wvpCBV,
     D3D12_GPU_DESCRIPTOR_HANDLE textureSrv,
+    D3D12_GPU_VIRTUAL_ADDRESS cameraCBV,
     D3D12_GPU_VIRTUAL_ADDRESS lightCBV,
     UINT vertexCount, UINT count, UINT indexCount)
 {
@@ -53,6 +54,7 @@ void Renderer::DrawModel(
     commandList->SetGraphicsRootConstantBufferView(1, wvpCBV);
     commandList->SetGraphicsRootDescriptorTable(2, textureSrv);
     commandList->SetGraphicsRootConstantBufferView(3, lightCBV);
+    commandList->SetGraphicsRootConstantBufferView(4, cameraCBV);
 
     if (ibv) {
         commandList->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);

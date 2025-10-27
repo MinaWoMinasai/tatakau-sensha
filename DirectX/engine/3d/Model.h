@@ -26,9 +26,9 @@ public:
 	/// <summary>
 	/// モデル描画
 	/// </summary>
-	void Draw(Renderer renderer, const Transform& transform, const Matrix4x4& cameraMatrix);
+	//void Draw(Renderer renderer, const Transform& transform, const Matrix4x4& cameraMatrix);
 
-	void DrawPro(Renderer renderer, const Transform& transform, const Matrix4x4& cameraMatrix, Microsoft::WRL::ComPtr<ID3D12Resource> materialResource, Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource);
+	void DrawPro(Renderer renderer, const Transform& transform, const Matrix4x4& cameraMatrix, Microsoft::WRL::ComPtr<ID3D12Resource> materialResource, Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource, Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource);
 
 private:
 

@@ -30,6 +30,10 @@ void Root::InitalizeForObject()
 	Parameters_[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CSVを使う
 	Parameters_[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // PixelShaderで使う
 	Parameters_[3].Descriptor.ShaderRegister = 1; // レジスタ番号1とバインド
+	Parameters_[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	Parameters_[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[4].Descriptor.ShaderRegister = 2; // b2
+	Parameters_[4].Descriptor.RegisterSpace = 0;
 
 	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR; // バイリニアフィルタ
 	staticSamplers_[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP; // 0~1の範囲外をリピート

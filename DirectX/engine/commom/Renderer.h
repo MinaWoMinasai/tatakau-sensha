@@ -30,6 +30,7 @@ public:
         D3D12_GPU_VIRTUAL_ADDRESS materialCBV,
         D3D12_GPU_VIRTUAL_ADDRESS wvpCBV,
         D3D12_GPU_DESCRIPTOR_HANDLE textureSrv,
+        D3D12_GPU_VIRTUAL_ADDRESS cameraCBV,
         D3D12_GPU_VIRTUAL_ADDRESS lightCBV,
         UINT vertexCount, UINT count = 1, UINT indexCount = 0);
     void DrawLine(
