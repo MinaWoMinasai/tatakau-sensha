@@ -1,0 +1,43 @@
+﻿  Audio.cpp
+  Calculation.cpp
+  Command.cpp
+  CompileShader.cpp
+  DebugCamera.cpp
+  DebugLayer.cpp
+  Descriptor.cpp
+  DirectXCommon.cpp
+  Dump.cpp
+  Easing.cpp
+  Engine.cpp
+  Input.cpp
+  InputDesc.cpp
+  LoadFile.cpp
+  LogWrite.cpp
+  main.cpp
+  Model.cpp
+  ObjectDraw.cpp
+  PSO.cpp
+  Renderer.cpp
+  Resource.cpp
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\dinput.h: DIRECTINPUT_VERSION undefined. Defaulting to version 0x0800
+  Root.cpp
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\dinput.h: DIRECTINPUT_VERSION undefined. Defaulting to version 0x0800
+  Sprite.cpp
+  SpriteCommon.cpp
+  State.cpp
+  SwapChain.cpp
+  Texture.cpp
+  useAdapterDevice.cpp
+  View.cpp
+  WinApp.cpp
+  WindowScreenSize.cpp
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\dinput.h: DIRECTINPUT_VERSION undefined. Defaulting to version 0x0800
+  imgui.cpp
+  imgui_demo.cpp
+  imgui_draw.cpp
+  imgui_impl_dx12.cpp
+  imgui_impl_win32.cpp
+  imgui_tables.cpp
+  imgui_widgets.cpp
+  Audio.obj : MSIL .netmodule または /GL を伴ってコンパイルされたモジュールが見つかりました。/LTCG を使用して再開始してください。リンカーのパフォーマンスを向上させるためには、コマンドラインに /LTCG を追加してください。
+LINK : fatal error LNK1181: 入力ファイル 'C:\Users\k024g\CG3\project\externals\DirectXTex\Bin\Desktop_2022_Win10\x64\Development\DirectXTex.lib' を開けません。
