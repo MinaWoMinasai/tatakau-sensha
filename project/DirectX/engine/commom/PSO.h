@@ -2,6 +2,7 @@
 #include "State.h"
 #include "InputDesc.h"
 #include "Root.h"
+#include <CompileShader.h>
 
 class PSO
 {
