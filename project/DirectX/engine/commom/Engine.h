@@ -18,7 +18,6 @@
 #include "State.h"
 #include "PSO.h"
 #include "Resource.h"
-#include "WindowScreenSize.h"
 #include "View.h"
 #include "Audio.h"
 
@@ -126,8 +125,6 @@ private:
 
 	// 平行光源用のリソースを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource = resource.CreatedirectionalLight(texture, device);
-
-	WindowScreenSize windowScreenSize;
 
 	// Textureを読んで転送する
 	DirectX::ScratchImage mipImages = texture.Load("resources/block.png");

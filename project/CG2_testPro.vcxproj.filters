@@ -150,19 +150,10 @@
     <ClCompile Include="DirectX\engine\commom\Root.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\SwapChain.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\commom\Texture.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\useAdapterDevice.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\commom\View.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\WindowScreenSize.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\commom\WinApp.cpp">
@@ -173,6 +164,12 @@
     </ClCompile>
     <ClCompile Include="DirectX\engine\debugCamera\DebugCamera.cpp">
       <Filter>DirectX\engine\debugCamera</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\commom\useAdapterDevice.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\commom\SwapChain.cpp">
+      <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -286,19 +283,10 @@
     <ClInclude Include="DirectX\engine\commom\Texture.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\SwapChain.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\useAdapterDevice.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
     <ClInclude Include="DirectX\engine\commom\View.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\WinApp.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\WindowScreenSize.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\struct\Struct.h">
@@ -306,6 +294,12 @@
     </ClInclude>
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h">
       <Filter>DirectX\engine\debugCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\commom\useAdapterDevice.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\commom\SwapChain.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
