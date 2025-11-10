@@ -161,17 +161,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\CompileShader.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\SwapChain.cpp" />
-    <ClCompile Include="DirectX\engine\commom\useAdapterDevice.cpp" />
+    <ClCompile Include="DirectX\engine\commom\CompileShader.cpp" />
     <ClCompile Include="DirectX\engine\debugCamera\DebugCamera.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\DebugLayer.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
@@ -262,10 +253,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\View.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\commom\WinApp.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -310,10 +297,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\calc\Calculation.h" />
     <ClInclude Include="DirectX\engine\commom\Command.h" />
     <ClInclude Include="DirectX\engine\commom\CompileShader.h" />
-    <ClInclude Include="DirectX\engine\commom\SwapChain.h" />
-    <ClInclude Include="DirectX\engine\commom\useAdapterDevice.h" />
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h" />
-    <ClInclude Include="DirectX\engine\commom\DebugLayer.h" />
     <ClInclude Include="DirectX\engine\commom\Descriptor.h" />
     <ClInclude Include="DirectX\engine\commom\DirectXCommon.h" />
     <ClInclude Include="DirectX\engine\dump\Dump.h" />
@@ -342,7 +326,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\State.h" />
     <ClInclude Include="DirectX\engine\struct\Struct.h" />
     <ClInclude Include="DirectX\engine\commom\Texture.h" />
-    <ClInclude Include="DirectX\engine\commom\View.h" />
     <ClInclude Include="DirectX\engine\commom\WinApp.h" />
   </ItemGroup>
   <ItemGroup>

@@ -14,6 +14,16 @@ public:
 	/// </summary>
 	void Initialize(WinApp* winApp);
 	
+	/// <summary>
+	/// 描画前処理
+	/// </summary>
+	void PreDraw();
+
+	/// <summary>
+	/// 描画後処理
+	/// </summary>
+	void PostDraw();
+
     //Microsoft::WRL::ComPtr<ID3D12Device>& GetDevice() { return device_; }
 	//Microsoft::WRL::ComPtr<IDXGIFactory7>& GetDxgiFactory() { return dxgiFactory_; }
 	
@@ -26,6 +36,12 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetRtvHeap() { return rtvDescriptorHeap_; };
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetSrvHeap() { return srvDescriptorHeap_; };
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetDsvHeap() { return dsvDescriptorHeap_; };
+
+	//Microsoft::WRL::ComPtr<ID3D12Resource> GetDepthStencilResource() { return depthStencilResource; };
+	//std::span<const Microsoft::WRL::ComPtr<ID3D12Resource>> GetSwapChainResource() const { return swapChainResources; }
+	//std::span<const D3D12_CPU_DESCRIPTOR_HANDLE> GetRtvHandles() const { return rtvHandles; }
+	//D3D12_DEPTH_STENCIL_VIEW_DESC GetDsvDesc() { return dsvDesc; }
+	//D3D12_RENDER_TARGET_VIEW_DESC GetRtvDesc() { return rtvDesc; }
 
 private:
 

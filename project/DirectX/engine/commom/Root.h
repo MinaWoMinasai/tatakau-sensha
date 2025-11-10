@@ -4,7 +4,6 @@
 #include <wrl.h>
 #include <cassert>
 #include "LogWrite.h"
-#include "CompileShader.h"
 #include "Command.h"
 
 class Root
