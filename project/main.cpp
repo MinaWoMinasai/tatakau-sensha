@@ -4,6 +4,7 @@
 #include "Easing.h"
 #include "WinApp.h"
 #include <numbers>
+#include "DirectXCommon.h"
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -27,14 +28,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	log.Initialize();
 	log.Log(log.GetLogStream(), "test");
 
-	WinApp winApp;
-	winApp.Initialize();
+	std::unique_ptr<WinApp> winApp;
+	winApp = std::make_unique<WinApp>();
+	winApp->Initialize();
 
 	WNDCLASS wc{};
-	wc = winApp.GetWindowClass();
+	wc = winApp->GetWindowClass();
 
 	HWND hwnd;
-	hwnd = winApp.GetHwnd();
+	hwnd = winApp->GetHwnd();
+
+	std::unique_ptr<DirectXCommon> dxCommon;
+	dxCommon = std::make_unique<DirectXCommon>();
+	dxCommon->Initialize(winApp.get());
 
 	HRESULT hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
 	assert(SUCCEEDED(hr));
@@ -219,9 +225,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
 	directionalLightData->direction = Normalize(directionalLightData->direction);
 	directionalLightData->intensity = 1.0f;
-	WindowScreenSize windowScreenSize;
-	windowScreenSize.Initialize(WinApp::kClientWidth, WinApp::kClientHeight);
-
+	
 	// Textureを読んで転送する
 	DirectX::ScratchImage mipImages = texture.Load("resources/circle.png");
 	const DirectX::TexMetadata metadata = mipImages.GetMetadata();
@@ -314,8 +318,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	renderer.SetSRVHeap(descriptor.GetSrvHeap().Get());
 	renderer.SetRTVHandles({ view.GetRtvHandles()[0], view.GetRtvHandles()[1] });
 	renderer.SetRootSignature(psoObject.GetRootSignature().Get());
-	renderer.SetViewport(windowScreenSize.GetViewport());
-	renderer.SetScissorRect(windowScreenSize.GetSissorRect());
+	renderer.SetViewport(dxCommon->GetViewportRect());
+	renderer.SetScissorRect(dxCommon->GetSissorRect());
 	renderer.SetFenceValue(command.GetFenceValue());
 	renderer.SetSwapChain(swapChain.GetList());
 
@@ -499,6 +503,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//psoObject.Release();
 	psoParticle.Release();
-	winApp.Finalize();
+	winApp->Finalize();
 	return 0;
 }
