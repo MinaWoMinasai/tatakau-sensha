@@ -84,20 +84,11 @@
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="Game\ObjectDraw.cpp">
-      <Filter>Game</Filter>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\audio\Audio.cpp">
       <Filter>DirectX\engine\audio</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\calc\Calculation.cpp">
       <Filter>DirectX\engine\calc</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\Command.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\Descriptor.cpp">
-      <Filter>DirectX\engine\common</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\commom\DirectXCommon.cpp">
       <Filter>DirectX\engine\common</Filter>
@@ -117,9 +108,6 @@
     <ClCompile Include="DirectX\engine\2d\SpriteCommon.cpp">
       <Filter>DirectX\engine\2d</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\Model.cpp">
-      <Filter>DirectX\engine\3d</Filter>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\commom\InputDesc.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
@@ -130,9 +118,6 @@
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\commom\PSO.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\Renderer.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\commom\Resource.cpp">
@@ -199,20 +184,11 @@
     <ClInclude Include="externals\imgui\imstb_truetype.h">
       <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="Game\ObjectDraw.h">
-      <Filter>Game</Filter>
-    </ClInclude>
     <ClInclude Include="DirectX\engine\audio\Audio.h">
       <Filter>DirectX\engine\audio</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\calc\Calculation.h">
       <Filter>DirectX\engine\calc</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\Command.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\Descriptor.h">
-      <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\DirectXCommon.h">
       <Filter>DirectX\engine\common</Filter>
@@ -232,9 +208,6 @@
     <ClInclude Include="DirectX\engine\2d\Sprite.h">
       <Filter>DirectX\engine\2d</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\Model.h">
-      <Filter>DirectX\engine\3d</Filter>
-    </ClInclude>
     <ClInclude Include="DirectX\engine\commom\InputDesc.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
@@ -245,9 +218,6 @@
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\LogWrite.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\Renderer.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\PSO.h">

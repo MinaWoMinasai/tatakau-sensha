@@ -87,29 +87,18 @@ void DirectXCommon::PostDraw()
 	HRESULT hr = list_->Close();
 	assert(SUCCEEDED(hr));
 
-	// GPUにコマンドリストの実行を行わせる
-	ID3D12CommandList* commandLists[] = { list_.Get() };
-	queue_->ExecuteCommandLists(1, commandLists);
-	//GPUとOSに画面の交換を行うよう通知する
-	swapChain_->Present(1, 0);
-	// fenceの値を更新
-	fenceValue_++;
-	// GPUがここまでたどり着いたときに、Fenceの値を指定して値に代入するようにSignalを送る
-	queue_->Signal(fence_.Get(), fenceValue_);
-	// Fenceの値が指定したSignal値にたどり着いているか確認する
-	// GetCompletedValueの初期値はFence作成時に渡した初期値
-	if (fence_->GetCompletedValue() < fenceValue_) {
-		// 指定したSignalにたどり着いていないので、たどり着くまで待つようにイベントを設定する
-		fence_->SetEventOnCompletion(fenceValue_, fenceEvent_);
-		// イベント待つ
-		WaitForSingleObject(fenceEvent_, INFINITE);
-	}
-	// 次のフレーム用のコマンドリストを準備
-	hr = allocator_->Reset();
-	assert(SUCCEEDED(hr));
-	hr = list_->Reset(allocator_.Get(), nullptr);
-	assert(SUCCEEDED(hr));
+	CommandListExecuteAndReset();
 
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetSRVCPUDescriptorHandle(uint32_t index)
+{
+	return GetDescriptorCPUHandle(srvDescriptorHeap_, descriptorSizeSRV, index);
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetSRVGPUDescriptorHandle(uint32_t index)
+{
+	return GetDescriptorGPUHandle(srvDescriptorHeap_, descriptorSizeSRV, index);
 }
 
 void DirectXCommon::InitializeDevice()
@@ -274,6 +263,9 @@ void DirectXCommon::CreateDepthBuffer()
 
 void DirectXCommon::CreateDescriptorHeap()
 {
+	descriptorSizeSRV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	descriptorSizeRTV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	descriptorSizeDSV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
 	// RTV用のヒープでディスクリプタの数は2。RTVはShader内で触るものではないので、ShaderVisibleはfalse
 	rtvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
@@ -390,6 +382,32 @@ void DirectXCommon::InitializeImGui()
 		srvDescriptorHeap_->GetGPUDescriptorHandleForHeapStart());
 }
 
+void DirectXCommon::CommandListExecuteAndReset()
+{
+	// GPUにコマンドリストの実行を行わせる
+	ID3D12CommandList* commandLists[] = { list_.Get() };
+	queue_->ExecuteCommandLists(1, commandLists);
+	//GPUとOSに画面の交換を行うよう通知する
+	swapChain_->Present(1, 0);
+	// fenceの値を更新
+	fenceValue_++;
+	// GPUがここまでたどり着いたときに、Fenceの値を指定して値に代入するようにSignalを送る
+	queue_->Signal(fence_.Get(), fenceValue_);
+	// Fenceの値が指定したSignal値にたどり着いているか確認する
+	// GetCompletedValueの初期値はFence作成時に渡した初期値
+	if (fence_->GetCompletedValue() < fenceValue_) {
+		// 指定したSignalにたどり着いていないので、たどり着くまで待つようにイベントを設定する
+		fence_->SetEventOnCompletion(fenceValue_, fenceEvent_);
+		// イベント待つ
+		WaitForSingleObject(fenceEvent_, INFINITE);
+	}
+	// 次のフレーム用のコマンドリストを準備
+	HRESULT hr = allocator_->Reset();
+	assert(SUCCEEDED(hr));
+	hr = list_->Reset(allocator_.Get(), nullptr);
+	assert(SUCCEEDED(hr));
+}
+
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible)
 {
 	// ディスクリプタヒープの生成
@@ -403,4 +421,19 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap
 	assert(SUCCEEDED(hr));
 
 	return descriptorHeap;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index)
+{
+
+	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	handleCPU.ptr += (descriptorSize * index);
+	return handleCPU;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index)
+{
+	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	handleGPU.ptr += (descriptorSize * index);
+	return handleGPU;
 }

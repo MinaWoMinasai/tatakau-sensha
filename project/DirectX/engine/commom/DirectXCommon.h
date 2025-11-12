@@ -24,14 +24,19 @@ public:
 	/// </summary>
 	void PostDraw();
 
-    //Microsoft::WRL::ComPtr<ID3D12Device>& GetDevice() { return device_; }
-	//Microsoft::WRL::ComPtr<IDXGIFactory7>& GetDxgiFactory() { return dxgiFactory_; }
+	/// <summary>
+	/// 
+	/// </summary>
+	void CommandListExecuteAndReset();
+
+    Microsoft::WRL::ComPtr<ID3D12Device>& GetDevice() { return device_; }
+	Microsoft::WRL::ComPtr<IDXGIFactory7>& GetDxgiFactory() { return dxgiFactory_; }
 	
 	D3D12_VIEWPORT GetViewportRect() { return viewportRect_; }
 	D3D12_RECT GetSissorRect() { return scissorRect_; };
 
-	//Microsoft::WRL::ComPtr<IDXGISwapChain4>& GetSwapChain() { return swapChain_; }
-	//DXGI_SWAP_CHAIN_DESC1 GetSwapChainDesc() { return swapChainDesc_; }
+	Microsoft::WRL::ComPtr<IDXGISwapChain4>& GetSwapChain() { return swapChain_; }
+	DXGI_SWAP_CHAIN_DESC1 GetSwapChainDesc() { return swapChainDesc_; }
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetRtvHeap() { return rtvDescriptorHeap_; };
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetSrvHeap() { return srvDescriptorHeap_; };
@@ -42,6 +47,19 @@ public:
 	//std::span<const D3D12_CPU_DESCRIPTOR_HANDLE> GetRtvHandles() const { return rtvHandles; }
 	//D3D12_DEPTH_STENCIL_VIEW_DESC GetDsvDesc() { return dsvDesc; }
 	//D3D12_RENDER_TARGET_VIEW_DESC GetRtvDesc() { return rtvDesc; }
+	Microsoft::WRL::ComPtr<ID3D12Fence> GetFence() { return fence_; }
+	HANDLE GetFenceEvent() { return fenceEvent_; }
+	Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetQueue() { return queue_; }
+	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetAllocator() { return allocator_; }
+	D3D12_COMMAND_QUEUE_DESC GetQueueDesc() { return queueDesc_; }
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetList() { return list_; }
+	uint64_t GetFenceValue() { return fenceValue_; }
+	IDxcUtils* GetDxcUtils() { return dxcUtils_; }
+	IDxcCompiler3* GetDxcCompiler() { return dxcCompiler_; }
+	IDxcIncludeHandler* GetIncludeHandler() { return includeHandler_; }
+
+	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCPUDescriptorHandle(uint32_t index);
+	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUDescriptorHandle(uint32_t index);
 
 private:
 
@@ -110,6 +128,9 @@ private:
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
 
+	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
+	static D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
+
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_ = nullptr;
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdapter_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Device> device_ = nullptr;
@@ -130,6 +151,11 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap_;
+
+	// DescriptorSizeを取得しておく
+	uint32_t descriptorSizeSRV;
+	uint32_t descriptorSizeRTV;
+	uint32_t descriptorSizeDSV;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources_[2] = { nullptr };
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc_{};

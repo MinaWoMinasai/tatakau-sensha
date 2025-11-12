@@ -1,6 +1,6 @@
 #include "PSO.h"
 
-void PSO::Initialize(Microsoft::WRL::ComPtr<ID3D12Device>& device, Command& command, const std::wstring& VSPath, const std::wstring& PSPath, int shaderType)
+void PSO::Initialize(DirectXCommon& dxCommon, const std::wstring& VSPath, const std::wstring& PSPath, int shaderType)
 {
 	shaderType_ = static_cast<ShaderType>(shaderType);
 
@@ -13,14 +13,14 @@ void PSO::Initialize(Microsoft::WRL::ComPtr<ID3D12Device>& device, Command& comm
 		root_.InitalizeForParticle();
 	}
 
-	root_.Create(device);
+	root_.Create(dxCommon.GetDevice());
 
 	vertexShaderBlob_ = compileShader.Initialize(VSPath,
-		L"vs_6_0", command.GetDxcUtils(), command.GetDxcCompiler(), command.GetIncludeHandler());
+		L"vs_6_0", dxCommon.GetDxcUtils(), dxCommon.GetDxcCompiler(), dxCommon.GetIncludeHandler());
 	assert(vertexShaderBlob_ != nullptr);
 
 	pixelShaderBlob_ = compileShader.Initialize(PSPath,
-		L"ps_6_0", command.GetDxcUtils(), command.GetDxcCompiler(), command.GetIncludeHandler());
+		L"ps_6_0", dxCommon.GetDxcUtils(), dxCommon.GetDxcCompiler(), dxCommon.GetIncludeHandler());
 	assert(pixelShaderBlob_ != nullptr);
 
 	inputDesc_.Initialize();

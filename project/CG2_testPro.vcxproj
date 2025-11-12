@@ -157,16 +157,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\Command.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\commom\CompileShader.cpp" />
     <ClCompile Include="DirectX\engine\debugCamera\DebugCamera.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\Descriptor.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
@@ -213,19 +205,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\Model.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="Game\ObjectDraw.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\commom\PSO.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\Renderer.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
@@ -295,10 +275,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   <ItemGroup>
     <ClInclude Include="DirectX\engine\audio\Audio.h" />
     <ClInclude Include="DirectX\engine\calc\Calculation.h" />
-    <ClInclude Include="DirectX\engine\commom\Command.h" />
     <ClInclude Include="DirectX\engine\commom\CompileShader.h" />
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h" />
-    <ClInclude Include="DirectX\engine\commom\Descriptor.h" />
     <ClInclude Include="DirectX\engine\commom\DirectXCommon.h" />
     <ClInclude Include="DirectX\engine\dump\Dump.h" />
     <ClInclude Include="DirectX\engine\easing\Easing.h" />
@@ -315,10 +293,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\InputDesc.h" />
     <ClInclude Include="DirectX\engine\commom\LoadFile.h" />
     <ClInclude Include="DirectX\engine\commom\LogWrite.h" />
-    <ClInclude Include="DirectX\engine\3d\Model.h" />
-    <ClInclude Include="Game\ObjectDraw.h" />
     <ClInclude Include="DirectX\engine\commom\PSO.h" />
-    <ClInclude Include="DirectX\engine\commom\Renderer.h" />
     <ClInclude Include="DirectX\engine\commom\Resource.h" />
     <ClInclude Include="DirectX\engine\commom\Root.h" />
     <ClInclude Include="DirectX\engine\2d\Sprite.h" />
