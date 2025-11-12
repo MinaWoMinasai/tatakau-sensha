@@ -3,6 +3,7 @@
 #include "InputDesc.h"
 #include "Root.h"
 #include <CompileShader.h>
+#include "DirectXCommon.h"
 
 class PSO
 {
@@ -14,7 +15,7 @@ public:
 		Particle,
 	};
 
-	void Initialize(Microsoft::WRL::ComPtr<ID3D12Device>& device, Command& command, const std::wstring& VSPath, const std::wstring& PSPath, int shaderType);
+	void Initialize(DirectXCommon& dxCommon, const std::wstring& VSPath, const std::wstring& PSPath, int shaderType);
 
 	void Graphics();
 	void GraphicsLine();
