@@ -128,3 +128,5 @@ Vector3 ScreenToWorld2D(const Vector2& screenPos, const Matrix4x4& viewMatrix, c
 Vector3 ScreenToWorldOnZ0(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth, float windowHeight);
 Vector3 ScreenToWorld3D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix,
 	float windowWidth, float windowHeight, float distanceFromCamera);
+
+Vector3 RandomUnitVector();

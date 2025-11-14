@@ -4,6 +4,8 @@
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "dxcompiler.lib")
 
 using namespace Microsoft::WRL;
 
@@ -11,6 +13,9 @@ void DirectXCommon::Initialize(WinApp* winApp)
 {
 	assert(winApp);
 	winApp_ = winApp;
+
+	// FPS固定初期化
+	InitializeFixFPS();
 
 	InitializeDevice();
 	InititalizeCommand();
@@ -82,10 +87,6 @@ void DirectXCommon::PostDraw()
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	// TranssitionBarrierを張る
 	list_->ResourceBarrier(1, &barrier);
-
-	// コマンドリストの内容を確定させるすべてのコマンドを積んでからCloseすること
-	HRESULT hr = list_->Close();
-	assert(SUCCEEDED(hr));
 
 	CommandListExecuteAndReset();
 
@@ -384,6 +385,11 @@ void DirectXCommon::InitializeImGui()
 
 void DirectXCommon::CommandListExecuteAndReset()
 {
+
+	// コマンドリストの内容を確定させるすべてのコマンドを積んでからCloseすること
+	HRESULT hr = list_->Close();
+	assert(SUCCEEDED(hr));
+
 	// GPUにコマンドリストの実行を行わせる
 	ID3D12CommandList* commandLists[] = { list_.Get() };
 	queue_->ExecuteCommandLists(1, commandLists);
@@ -401,11 +407,69 @@ void DirectXCommon::CommandListExecuteAndReset()
 		// イベント待つ
 		WaitForSingleObject(fenceEvent_, INFINITE);
 	}
+
+	// FPS固定
+	UpdateFixFPS();
+
 	// 次のフレーム用のコマンドリストを準備
-	HRESULT hr = allocator_->Reset();
+	hr = allocator_->Reset();
 	assert(SUCCEEDED(hr));
 	hr = list_->Reset(allocator_.Get(), nullptr);
 	assert(SUCCEEDED(hr));
+}
+
+IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar_t* profile, IDxcUtils* dxcUtils, IDxcCompiler3* dxcCompiler, IDxcIncludeHandler* includeHandler)
+{
+
+	// hlslファイルを読む
+	IDxcBlobEncoding* shaderSource = nullptr;
+	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
+	// 読めなかったら止める
+	assert(SUCCEEDED(hr));
+	// 読み込んだファイルの内容を設定する
+	DxcBuffer shaderSourceBuffer;
+	shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
+	shaderSourceBuffer.Size = shaderSource->GetBufferSize();
+	shaderSourceBuffer.Encoding = DXC_CP_UTF8; // UTF8の文字コードであることを確認
+
+	LPCWSTR arguments[] = {
+		filePath.c_str(), // コンパイル対象のhlslファイル名
+		L"-E", L"main", // エントリーポイントの指定。基本的にmain以外にはしない
+		L"-T",profile, // ShaderProfileの設定
+		L"-Zi", L"-Qembed_debug", // デバッグ陽男情報を埋め込む
+		L"-Od", // 最適化を外しておく
+		L"-Zpr" // メモリレイアウトは行優先
+	};
+	// 実際にShaderをコンパイルする
+	IDxcResult* shaderResult = nullptr;
+	hr = dxcCompiler->Compile(
+		&shaderSourceBuffer, // 読み込んだファイル
+		arguments, // コンパイルオプション
+		_countof(arguments), // コンパイルオプションの数
+		includeHandler, // includeが含まれた諸々
+		IID_PPV_ARGS(&shaderResult) // コンパイル結果
+	);
+	// コンパイルエラーではなくdxcが起動できないなど致命的な状況
+	assert(SUCCEEDED(hr));
+
+	// 警告・エラーが出てたらログに出して止める
+	IDxcBlobUtf8* shaderError = nullptr;
+	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
+	if (shaderError != nullptr && shaderError->GetStringLength() != 0) {
+		// 警告・エラーダメ絶対
+		assert(false);
+	}
+
+	// コンパイル結果から実行用にバイナリ部分を取得
+	IDxcBlob* shaderBlob = nullptr;
+	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
+	assert(SUCCEEDED(hr));
+
+	// もう使わないリソース
+	shaderSource->Release();
+	shaderResult->Release();
+	// 実行用のバイナリを返却
+	return shaderBlob;
 }
 
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible)
@@ -436,4 +500,35 @@ D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetDescriptorGPUHandle(Microsoft::WRL
 	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	handleGPU.ptr += (descriptorSize * index);
 	return handleGPU;
+}
+
+void DirectXCommon::InitializeFixFPS()
+{
+	// 現在時間を記録する
+	reference_ = std::chrono::steady_clock::now();
+
+}
+
+void DirectXCommon::UpdateFixFPS()
+{
+	// 1/60ぴったりの時間
+	const std::chrono::microseconds kMinTime(uint64_t(1000000.0f / 60.0f));
+	// 1/60よりわずかに短い時間
+	const std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 65.0f));
+	
+	// 現在時間を取得する
+	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+	// 前回記録からの経過時間を取得する
+	std::chrono::microseconds elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - reference_);
+	
+	// 1/60(よりわずかに短い時間)立っていない場合
+	if (elapsed < kMinCheckTime) {
+		// 1/60経過するまで微小なスリープを繰り返す
+		while (std::chrono::steady_clock::now() - reference_ < kMinTime) {
+			// 1マイクロ秒スリープ
+			std::this_thread::sleep_for(std::chrono::microseconds(1));
+		}
+	}
+	// 現在時間を記録
+	reference_ = std::chrono::steady_clock::now();
 }

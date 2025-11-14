@@ -4,6 +4,39 @@
 #include <dxgi1_6.h>
 #include "WinApp.h"
 #include <dxcapi.h>
+#include <dxgidebug.h>
+#include <chrono>
+#include <thread>
+
+struct D3DResouceLeakCheaker {
+	~D3DResouceLeakCheaker()
+	{
+		// リソースリークチェック
+		Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
+		if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
+			debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+			debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
+			debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
+		}
+	}
+};
+
+class ResourceObject {
+public:
+	ResourceObject(Microsoft::WRL::ComPtr<ID3D12Resource>& resource)
+		:resource_(resource)
+	{
+	}
+	~ResourceObject() {
+		if (resource_) {
+			resource_->Release();
+		}
+	}
+	Microsoft::WRL::ComPtr<ID3D12Resource> Get() { return resource_; };
+
+private:
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource_;
+};
 
 class DirectXCommon
 {
@@ -28,6 +61,22 @@ public:
 	/// 
 	/// </summary>
 	void CommandListExecuteAndReset();
+
+	/// <summary>
+	/// シェーダーをコンパイル
+	/// </summary>
+	/// <param name="filePath"></param>
+	/// <param name="profile"></param>
+	/// <param name="dxcUtils"></param>
+	/// <param name="dxcCompiler"></param>
+	/// <param name="includeHandler"></param>
+	/// <returns></returns>
+	IDxcBlob* CompileShader(
+		const std::wstring& filePath,
+		const wchar_t* profile,
+		IDxcUtils* dxcUtils,
+		IDxcCompiler3* dxcCompiler,
+		IDxcIncludeHandler* includeHandler);
 
     Microsoft::WRL::ComPtr<ID3D12Device>& GetDevice() { return device_; }
 	Microsoft::WRL::ComPtr<IDXGIFactory7>& GetDxgiFactory() { return dxgiFactory_; }
@@ -131,6 +180,9 @@ private:
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
 
+	void InitializeFixFPS();
+	void UpdateFixFPS();
+
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_ = nullptr;
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdapter_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Device> device_ = nullptr;
@@ -170,5 +222,11 @@ private:
 	IDxcCompiler3* dxcCompiler_ = nullptr;
 	IDxcIncludeHandler* includeHandler_ = nullptr;
 	
+	// FPS固定変数
+	//---------------------------------
+	
+	// 記録時間
+	std::chrono::steady_clock::time_point reference_;
+
 };
 

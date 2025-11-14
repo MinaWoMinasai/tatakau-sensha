@@ -1,5 +1,6 @@
 #define NOMINMAX
 #include "Calculation.h"
+#include <Easing.h>
 
 Vector3 Add(const Vector3& v1, const Vector3& v2) {
 
@@ -664,11 +665,23 @@ Particle MakeParticle(const Vector3 position) {
 	
 	particle.transform.scale = { 1.0f, 1.0f, 1.0f };
 	particle.transform.rotate = { 0.0f, 0.0f, 0.0f };
-	particle.transform.translate = position + Rand(Vector3(-0.1f, -0.1f, -0.1f), Vector3(0.1f, 0.1f, 0.1f));
+	particle.transform.translate = position + Rand(Vector3(-0.5f, -0.5f, -0.5f), Vector3(0.5f, 0.5f, 0.5f));
 
-	particle.velocity = Rand(Vector3(-0.01f, -0.01f, -0.01f), Vector3(0.01f, 0.01f, 0.01f));
+	//particle.velocity = Rand(Vector3(-0.05f, -0.05f, -0.05f), Vector3(0.05f, 0.05f, 0.05f));
+	//Normalize(particle.velocity);
+
+	// パーティクル初期化時
+	Vector3 direction = RandomUnitVector();
+
+	// 拡散の強さ（スピード）を調整
+	float speed = Rand(0.15f, 0.3f); // 広がる速さの範囲
+	particle.velocity = (direction * speed) - Vector3(0.0f, 0.01f, 0.0f);
+	particle.kVelocity = (direction * speed) - Vector3(0.0f, 0.01f, 0.0f);
+
+	particle.acceleration = Rand(Vector3(0.0f, -0.0001f, 0.0f), Vector3(0.0f, -0.0005f, 0.0f));
+
 	particle.color = Rand();
-	particle.lifeTime = Rand(1.0f, 5.0f);
+	particle.lifeTime = Rand(3.0f, 6.0f);
 	particle.currentTime = 0.0f;
 
 	return particle;
@@ -872,4 +885,15 @@ bool IsCollision(const AABB& aabb, const Segment& segment) {
 
 	// すべて当たっていたら
 	return true;
+}
+
+Vector3 RandomUnitVector() {
+	float theta = Rand(0.0f, 2.0f * float(M_PI));   // 0〜2π の角度
+	float phi = acosf(Rand(-1.0f, 1.0f));           // -1〜1を使ってφを決定
+
+	Vector3 dir;
+	dir.x = sinf(phi) * cosf(theta);
+	dir.y = sinf(phi) * sinf(theta);
+	dir.z = cosf(phi);
+	return dir; // すでに正規化済み
 }
