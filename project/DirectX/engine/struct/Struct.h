@@ -163,6 +163,8 @@ struct Block {
 struct Particle {
 	Transform transform;
 	Vector3 velocity;
+	Vector3 acceleration;
+	Vector3 kVelocity;
 	Vector4 color;
 	float lifeTime;
 	float currentTime;

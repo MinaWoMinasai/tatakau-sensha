@@ -15,11 +15,11 @@ void PSO::Initialize(DirectXCommon& dxCommon, const std::wstring& VSPath, const 
 
 	root_.Create(dxCommon.GetDevice());
 
-	vertexShaderBlob_ = compileShader.Initialize(VSPath,
+	vertexShaderBlob_ = dxCommon.CompileShader(VSPath,
 		L"vs_6_0", dxCommon.GetDxcUtils(), dxCommon.GetDxcCompiler(), dxCommon.GetIncludeHandler());
 	assert(vertexShaderBlob_ != nullptr);
 
-	pixelShaderBlob_ = compileShader.Initialize(PSPath,
+	pixelShaderBlob_ = dxCommon.CompileShader(PSPath,
 		L"ps_6_0", dxCommon.GetDxcUtils(), dxCommon.GetDxcCompiler(), dxCommon.GetIncludeHandler());
 	assert(pixelShaderBlob_ != nullptr);
 

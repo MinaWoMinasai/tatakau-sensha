@@ -2,7 +2,6 @@
 #include "State.h"
 #include "InputDesc.h"
 #include "Root.h"
-#include <CompileShader.h>
 #include "DirectXCommon.h"
 
 class PSO
@@ -52,7 +51,6 @@ private:
 	IDxcBlob* vertexShaderBlob_;
 	IDxcBlob* pixelShaderBlob_;
 
-	CompileShader compileShader;
 	LogWrite log_;
 
 	ShaderType shaderType_;

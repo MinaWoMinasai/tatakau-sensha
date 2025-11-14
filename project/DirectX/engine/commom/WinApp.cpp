@@ -1,5 +1,7 @@
 #include "WinApp.h"
 
+#pragma comment(lib, "winmm.lib")
+
 LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	{
@@ -58,6 +60,9 @@ void WinApp::Initialize()
 
 	// ウィンドウを表示する
 	ShowWindow(hwnd_, SW_SHOW);
+
+	// システムタイマーの分解度をあげる
+	timeBeginPeriod(1);
 
 }
 
