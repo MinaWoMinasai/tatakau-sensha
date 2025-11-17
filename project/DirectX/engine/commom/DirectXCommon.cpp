@@ -29,6 +29,8 @@ void DirectXCommon::Initialize(WinApp* winApp)
 	InitializeSissorRect();
 	CreateDXCCompiler();
 	InitializeImGui();
+
+	CreateShader();
 }
 
 void DirectXCommon::PreDraw()
@@ -100,6 +102,75 @@ D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetSRVCPUDescriptorHandle(uint32_t in
 D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetSRVGPUDescriptorHandle(uint32_t index)
 {
 	return GetDescriptorGPUHandle(srvDescriptorHeap_, descriptorSizeSRV, index);
+}
+
+void DirectXCommon::CreateShaderCommon(PSO& pso)
+{
+
+	switch (pso.shaderType_)
+	{
+	case Object:
+		pso.root_.InitalizeForObject();
+		pso.vsFilePath_ = L"resources/shaders/Object3d.VS.hlsl";
+		pso.psFilePath_ = L"resources/shaders/Object3d.PS.hlsl";
+		break;
+	case Particle:
+		pso.root_.InitalizeForParticle();
+		pso.vsFilePath_ = L"resources/shaders/Particle.VS.hlsl";
+		pso.psFilePath_ = L"resources/shaders/Particle.PS.hlsl";
+		break;
+	default:
+		assert(false);
+		break;
+	}
+	pso.root_.Create(device_);
+
+	pso.vertexShaderBlob_ = CompileShader(pso.vsFilePath_, L"vs_6_0");
+	assert(pso.vertexShaderBlob_ != nullptr);
+	pso.pixelShaderBlob_ = CompileShader(pso.psFilePath_, L"ps_6_0");
+	assert(pso.pixelShaderBlob_ != nullptr);
+	pso.inputDesc_.Initialize();
+	pso.state_.Initialize();
+	pso.graphicsDesc_.pRootSignature = pso.root_.GetSignature().Get();// RootSignature
+	pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();// InputLayout
+	pso.graphicsDesc_.VS = { pso.vertexShaderBlob_->GetBufferPointer(),
+	pso.vertexShaderBlob_->GetBufferSize() };// VertexShader
+	pso.graphicsDesc_.PS = { pso.pixelShaderBlob_->GetBufferPointer(),
+	pso.pixelShaderBlob_->GetBufferSize() };// pixelShader
+	pso.graphicsDesc_.BlendState = pso.state_.GetBlendDesc();// BlendState
+	pso.graphicsDesc_.RasterizerState = pso.state_.GetRasterizerDesc();// RasterizerState
+	// 書き込むRTVの情報
+	pso.graphicsDesc_.NumRenderTargets = 1;
+	pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	// 利用するトロポジ(形状)のタイプ、三角形
+	pso.graphicsDesc_.PrimitiveTopologyType =
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	// どのように画面に色を打ち込むかの設定
+	pso.graphicsDesc_.SampleDesc.Count = 1;
+	pso.graphicsDesc_.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+	// DepthStencilの設定
+	pso.graphicsDesc_.DepthStencilState = pso.state_.GetDepthStencilDesc();
+	pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+	// 実際に生成
+	HRESULT hr = device_->CreateGraphicsPipelineState(&pso.graphicsDesc_,
+		IID_PPV_ARGS(&pso.graphicsState_));
+	assert(SUCCEEDED(hr));
+
+}
+
+void DirectXCommon::CreateShader()
+{
+	psoObject_.shaderType_ = Object;
+	psoParticle_.shaderType_ = Particle;
+
+	CreateShaderCommon(psoObject_);
+	CreateShaderCommon(psoParticle_);
+}
+
+void DirectXCommon::CreateGraphics()
+{
+
 }
 
 void DirectXCommon::InitializeDevice()
@@ -418,12 +489,12 @@ void DirectXCommon::CommandListExecuteAndReset()
 	assert(SUCCEEDED(hr));
 }
 
-IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar_t* profile, IDxcUtils* dxcUtils, IDxcCompiler3* dxcCompiler, IDxcIncludeHandler* includeHandler)
+IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar_t* profile)
 {
 
 	// hlslファイルを読む
 	IDxcBlobEncoding* shaderSource = nullptr;
-	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
+	HRESULT hr = dxcUtils_->LoadFile(filePath.c_str(), nullptr, &shaderSource);
 	// 読めなかったら止める
 	assert(SUCCEEDED(hr));
 	// 読み込んだファイルの内容を設定する
@@ -442,11 +513,11 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 	};
 	// 実際にShaderをコンパイルする
 	IDxcResult* shaderResult = nullptr;
-	hr = dxcCompiler->Compile(
+	hr = dxcCompiler_->Compile(
 		&shaderSourceBuffer, // 読み込んだファイル
 		arguments, // コンパイルオプション
 		_countof(arguments), // コンパイルオプションの数
-		includeHandler, // includeが含まれた諸々
+		includeHandler_, // includeが含まれた諸々
 		IID_PPV_ARGS(&shaderResult) // コンパイル結果
 	);
 	// コンパイルエラーではなくdxcが起動できないなど致命的な状況
@@ -531,4 +602,15 @@ void DirectXCommon::UpdateFixFPS()
 	}
 	// 現在時間を記録
 	reference_ = std::chrono::steady_clock::now();
+}
+
+void DirectXCommon::Release() {
+
+	psoObject_.root_.GetSignatureBlob()->Release();
+	if (psoObject_.root_.GetErrorBlob()) {
+		psoObject_.root_.GetErrorBlob()->Release();
+	}
+	psoObject_.pixelShaderBlob_->Release();
+	psoObject_.vertexShaderBlob_->Release();
+
 }

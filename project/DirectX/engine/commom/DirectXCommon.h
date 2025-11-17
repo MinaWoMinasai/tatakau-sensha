@@ -7,6 +7,9 @@
 #include <dxgidebug.h>
 #include <chrono>
 #include <thread>
+#include "Root.h"
+#include "State.h"
+#include "InputDesc.h"
 
 struct D3DResouceLeakCheaker {
 	~D3DResouceLeakCheaker()
@@ -42,6 +45,25 @@ class DirectXCommon
 {
 public:
 
+	enum ShaderType {
+		Object,
+		Particle,
+	};
+
+	struct PSO {
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsDesc_{};
+		Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsState_ = nullptr;
+		State state_;
+		InputDesc inputDesc_;
+		Root root_;
+		// Shaderをコンパイルする
+		IDxcBlob* vertexShaderBlob_ = nullptr;
+		IDxcBlob* pixelShaderBlob_ = nullptr;
+		ShaderType shaderType_;
+		std::wstring vsFilePath_;
+		std::wstring psFilePath_;
+	};
+
 	/// <summary>
 	/// 初期化
 	/// </summary>
@@ -71,12 +93,9 @@ public:
 	/// <param name="dxcCompiler"></param>
 	/// <param name="includeHandler"></param>
 	/// <returns></returns>
-	IDxcBlob* CompileShader(
-		const std::wstring& filePath,
-		const wchar_t* profile,
-		IDxcUtils* dxcUtils,
-		IDxcCompiler3* dxcCompiler,
-		IDxcIncludeHandler* includeHandler);
+	IDxcBlob* CompileShader(const std::wstring& filePath, const wchar_t* profile);
+
+	void Release();
 
     Microsoft::WRL::ComPtr<ID3D12Device>& GetDevice() { return device_; }
 	Microsoft::WRL::ComPtr<IDXGIFactory7>& GetDxgiFactory() { return dxgiFactory_; }
@@ -109,6 +128,9 @@ public:
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCPUDescriptorHandle(uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUDescriptorHandle(uint32_t index);
+
+	PSO& GetPSOObject() { return psoObject_; }
+	PSO& GetPSOParticle() { return psoParticle_; }
 
 private:
 
@@ -183,6 +205,10 @@ private:
 	void InitializeFixFPS();
 	void UpdateFixFPS();
 
+	void CreateShaderCommon(PSO& pso);
+	void CreateShader();
+	void CreateGraphics();
+
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_ = nullptr;
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdapter_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Device> device_ = nullptr;
@@ -227,6 +253,10 @@ private:
 	
 	// 記録時間
 	std::chrono::steady_clock::time_point reference_;
+
+	PSO psoObject_;
+	PSO psoParticle_;
+	ShaderType shaderType_;
 
 };
 
