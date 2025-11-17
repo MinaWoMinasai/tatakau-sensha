@@ -117,9 +117,6 @@
     <ClCompile Include="DirectX\engine\commom\LogWrite.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\PSO.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\commom\Resource.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
@@ -209,9 +206,6 @@
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\LogWrite.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\PSO.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\Resource.h">

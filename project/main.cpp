@@ -11,9 +11,10 @@
 #include "InputDesc.h"
 #include "Root.h"
 #include "State.h"
-#include "PSO.h"
 #include "Resource.h"
 #include "Audio.h"
+#include "SpriteCommon.h"
+#include "Sprite.h"
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -38,19 +39,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dxCommon = std::make_unique<DirectXCommon>();
 	dxCommon->Initialize(winApp.get());
 
+	std::unique_ptr<SpriteCommon> spriteCommon;
+	spriteCommon = std::make_unique<SpriteCommon>();
+	spriteCommon->Initialize(dxCommon.get());
+
+	std::unique_ptr<Sprite> sprite;
+	sprite = std::make_unique<Sprite>();
+	sprite->Initialize();
+
 	// キーの初期化
 	Input input;
 	input.Initialize(winApp->GetWindowClass(), winApp->GetHwnd());
-
-	PSO psoObject;
-	psoObject.Initialize(*dxCommon, L"resources/shaders/Object3d.VS.hlsl", L"resources/shaders/Object3d.PS.hlsl", 0);
-	psoObject.Graphics();
-	psoObject.Create(dxCommon->GetDevice());
-
-	PSO psoParticle;
-	psoParticle.Initialize(*dxCommon, L"resources/shaders/Particle.VS.hlsl", L"resources/shaders/Particle.PS.hlsl", 1);
-	psoParticle.Graphics();
-	psoParticle.Create(dxCommon->GetDevice());
 
 	// リソースを作成する
 	Resource resource;
@@ -60,9 +59,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Vector3 position;
 		Vector4 color;
 	};
-
-	State state;
-	state.Initialize();
 
 	LoadFile loadFile;
 	ModelData modelData = loadFile.Obj("resources", "plane.obj");
@@ -119,9 +115,84 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
 	directionalLightData->direction = Normalize(directionalLightData->direction);
 	directionalLightData->intensity = 1.0f;
-	
+
+	// Sprite用の頂点リソースを作る
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSprite = texture.CreateBufferResource(dxCommon->GetDevice(), sizeof(VertexData) * 4);
+
+	// 頂点バッファビューを作成する
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite{};
+	// リソースの先端のアドレスから使う
+	vertexBufferViewSprite.BufferLocation = vertexResourceSprite->GetGPUVirtualAddress();
+	// 使用するリソースのサイズは頂点6つ分のサイズ
+	vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 4;
+	// 1頂点あたりのサイズ
+	vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
+
+	VertexData* vertexDataSprite = nullptr;
+	vertexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSprite));
+
+	// 一枚目の三角形
+	vertexDataSprite[0].position = { 0.0f, 360.0f, 0.0f, 1.0f };// 左下
+	vertexDataSprite[0].texcoord = { 0.0f, 1.0f };
+	vertexDataSprite[1].position = { 0.0f, 0.0f, 0.0f, 1.0f };// 左上
+	vertexDataSprite[1].texcoord = { 0.0f, 0.0f };
+	vertexDataSprite[2].position = { 640.0f, 360.0f, 0.0f, 1.0f };// 右下
+	vertexDataSprite[2].texcoord = { 1.0f, 1.0f };
+	// 二枚目の三角形
+	vertexDataSprite[3].position = { 640.0f, 0.0f, 0.0f, 1.0f };// 右上
+	vertexDataSprite[3].texcoord = { 1.0f, 0.0f };
+
+	// Index用の頂点リソースを作る
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceSprite = texture.CreateBufferResource(dxCommon->GetDevice(), sizeof(uint32_t) * 6);
+
+	// 頂点バッファビューを作成する
+	D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite{};
+	// リソースの先端のアドレスから使う
+	indexBufferViewSprite.BufferLocation = indexResourceSprite->GetGPUVirtualAddress();
+	// 使用するリソースのサイズは頂点6つ分のサイズ
+	indexBufferViewSprite.SizeInBytes = sizeof(uint32_t) * 6;
+	// 1頂点あたりのサイズ
+	indexBufferViewSprite.Format = DXGI_FORMAT_R32_UINT;
+
+	// インデックスリソースにデータを書きこむ
+	uint32_t* indexDataSprite = nullptr;
+	indexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSprite));
+	indexDataSprite[0] = 0; indexDataSprite[1] = 1; indexDataSprite[2] = 2;
+	indexDataSprite[3] = 1; indexDataSprite[4] = 3; indexDataSprite[5] = 2;
+
+	// マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
+	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceSprite = texture.CreateBufferResource(dxCommon->GetDevice(), sizeof(Material));
+	// マテリアルにデータを書き込む
+	Material* materialDataSprite = nullptr;
+	// 書き込むためのアドレスを取得
+	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
+	// 白を書き込む
+	materialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	// SptiteはLightingを使わないのでfalse
+	materialDataSprite->enableLighting = false;
+	materialDataSprite->uvTransform = MakeIdentity4x4();
+
+	Transform uvTransformSprite{
+		{1.0f, 1.0f, 1.0f},
+		{0.0f, 0.0f, 0.0f},
+		{0.0f, 0.0f, 0.0f},
+	};
+
+	// Sprite用のTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
+	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceSprite = texture.CreateBufferResource(dxCommon->GetDevice(), sizeof(TransformationMatrix));
+	// データを書き込む
+	TransformationMatrix* transformationMatrixDataSprite = nullptr;
+	// 書き込むためのアドレスを取得
+	transformationMatrixResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixDataSprite));
+	// 単位行列を書き込んでおく
+	transformationMatrixDataSprite->WVP = MakeIdentity4x4();
+	transformationMatrixDataSprite->World = MakeIdentity4x4();
+
+	Transform transformSprite{ {0.8f, 0.5f, 1.0f}, {0.0f, 0.0f, 0.0f }, {0.0f, 0.0f, 0.0f } };
+
 	// Textureを読んで転送する
-	DirectX::ScratchImage mipImages = texture.Load("resources/circle.png");
+	DirectX::ScratchImage mipImages = texture.Load("resources/checkerBoard.png");
 	const DirectX::TexMetadata metadata = mipImages.GetMetadata();
 	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = texture.CreateResource(dxCommon->GetDevice(), metadata);
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = texture.UploadData(textureResource, mipImages, dxCommon->GetDevice(), dxCommon->GetList());
@@ -194,15 +265,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 viewMatrix = debugCamera.GetViewMatrix();
 			Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
 			
-			// ボタンを押したらパーティクル追加
-			//if (input.IsTrigger(input.GetMouseState().rgbButtons[0], input.GetPreMouseState().rgbButtons[0])) {
-			//	for (uint32_t index = 0; index < 10; ++index) {
-			//		
-			//		Vector3 worldPos = ScreenToWorld3D(mousePos, debugCamera.GetViewMatrix(), projectionMatrix, WinApp::kClientWidth, WinApp::kClientHeight, debugCamera.GetDistance());
-			//		particles.push_back(MakeParticle(worldPos));
-			//	}
-			//}
-
 			if (input.IsPress(input.GetMouseState().rgbButtons[0])) {
 				for (uint32_t index = 0; index < 500; ++index) {
 
@@ -257,16 +319,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				instancingData[index].color = particle.color;
 			}
 
+			// Sprite用のWorldViewProjectionMatrixを作る
+			Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
+			Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
+			Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+			Matrix4x4 worldViewProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
+			transformationMatrixDataSprite->WVP = worldViewProjectionMatrixSprite;
+			transformationMatrixDataSprite->World = worldMatrixSprite;
+			// パラメータからUVTransform用の行列を作成する
+			Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
+			uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
+			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
+			materialDataSprite->uvTransform = uvTransformMatrix;
+
 			// ImGuiの内部コマンドを生成する
 			ImGui::Render();
 
 			dxCommon->PreDraw();
 
+			spriteCommon->PreDraw();
+
 			ID3D12DescriptorHeap* heaps[] = { dxCommon->GetSrvHeap().Get() };
 			dxCommon->GetList()->SetDescriptorHeaps(1, heaps);
 
-			dxCommon->GetList()->SetGraphicsRootSignature(psoParticle.GetRootSignature().Get());
-			dxCommon->GetList()->SetPipelineState(psoParticle.GetGraphicsState().Get()); // PSOを設定
+			dxCommon->GetList()->SetGraphicsRootSignature(dxCommon->GetPSOParticle().root_.GetSignature().Get());
+			dxCommon->GetList()->SetPipelineState(dxCommon->GetPSOParticle().graphicsState_.Get()); // PSOを設定
 			dxCommon->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 			// パーティクルの描画
@@ -277,6 +354,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			dxCommon->GetList()->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 			// 描画!(DrawCall/ドローコール) 。3頂点で1つのインスタンス。 インスタンスについては今度
 			dxCommon->GetList()->DrawInstanced(UINT(modelData.vertices.size()), UINT(particles.size()), 0, 0);
+
+			spriteCommon->PreDraw();
+
+			// スプライトの描画
+			dxCommon->GetList()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite); //VBVを設定
+			dxCommon->GetList()->IASetIndexBuffer(&indexBufferViewSprite);// IBVを設定
+			dxCommon->GetList()->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
+			dxCommon->GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+			dxCommon->GetList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+			// 描画!(DrawCall/ドローコール) 。6個のインデックスを使用しで1つのインスタンスを描画。その他は当面0 
+			dxCommon->GetList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 			// 実際のcommandListのImGuiの描画コマンドを組む
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetList().Get());
@@ -295,8 +383,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	CloseHandle(dxCommon->GetFenceEvent());
 
-	psoObject.Release();
-	psoParticle.Release();
+	dxCommon->Release();
 	winApp->Finalize();
 	return 0;
 }
