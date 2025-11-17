@@ -10,6 +10,9 @@
 #include "Root.h"
 #include "State.h"
 #include "InputDesc.h"
+#include "Calculation.h"
+#include "Struct.h"
+#include "Texture.h"
 
 struct D3DResouceLeakCheaker {
 	~D3DResouceLeakCheaker()
