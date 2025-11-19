@@ -1,16 +1,9 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include "Easing.h"
 #include "WinApp.h"
-#include <numbers>
-#include "DirectXCommon.h"
 #include "debugCamera.h"
-#include "LogWrite.h"
 #include "LoadFile.h"
 #include "Dump.h"
-#include "Texture.h"
-#include "InputDesc.h"
-#include "Root.h"
-#include "State.h"
 #include "Resource.h"
 #include "Audio.h"
 #include "SpriteCommon.h"
@@ -66,7 +59,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Microsoft::WRL::ComPtr <ID3D12Resource> vertexResource;
 	vertexBufferView = resource.CreateVBV(modelData, texture, dxCommon->GetDevice(), vertexResource);
 
-	// 頂点データを1000こ格納できるリソースを作成
+	// 頂点データを10000000こ格納できるリソースを作成
 	const uint32_t kNumInstance = 10000000;
 	// Instancing用のTransformationMatrixリソースを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource =
@@ -193,7 +186,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
 			
 			if (input.IsPress(input.GetMouseState().rgbButtons[0])) {
-				for (uint32_t index = 0; index < 500; ++index) {
+				for (uint32_t index = 0; index < 1; ++index) {
 
 					Vector3 worldPos = ScreenToWorld3D(mousePos, debugCamera.GetViewMatrix(), projectionMatrix, WinApp::kClientWidth, WinApp::kClientHeight, debugCamera.GetDistance());
 					particles.push_back(MakeParticle(worldPos));
@@ -245,6 +238,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				instancingData[index].World = worldMatrixParticle;
 				instancingData[index].color = particle.color;
 			}
+
+			// スプライトもスライダーで変えられるようにする
+			ImGui::DragFloat2("scaleSprite", &sprite->GetSize().x);
+			ImGui::DragFloat("rotateSprite", &sprite->GetRotation());
+			ImGui::DragFloat2("translateSprite", &sprite->GetPosition().x);
+
+			ImGui::DragFloat3("UVTranslate", &sprite->GetUvTransform().translate.x);
+			ImGui::DragFloat3("UVScale", &sprite->GetUvTransform().scale.x);
+			ImGui::SliderAngle("UVRotate", &sprite->GetUvTransform().rotate.z);
 
 			sprite->Update();
 

@@ -14,6 +14,21 @@ public:
 
 	void SetSrvHandleGPU(D3D12_GPU_DESCRIPTOR_HANDLE srvHandleGPU) { srvHandleGPU_ = srvHandleGPU; }
 
+	Vector2& GetPosition() { return position_; }
+	void SetPosition(const Vector2& position) { position_ = position; }
+
+	float& GetRotation() { return rotation_; }
+	void SetRotation(float rotation) { rotation_ = rotation; }
+
+	Vector4& GetColor() { return materialData->color; }
+	void SetColor(const Vector4& color) { materialData->color = color; }
+
+	Vector2& GetSize() { return size_; }
+	void SetSize(const Vector2& size) { size_ = size; }
+
+	Transform& GetUvTransform() { return uvTransform_; }
+	void SetUvTransform(const Transform& uvTransform) { uvTransform_ = uvTransform; }
+
 private:
 	SpriteCommon* spriteCommon_ = nullptr;
 
@@ -33,7 +48,7 @@ private:
 
 	Texture texture;
 
-	Transform uvTransform{
+	Transform uvTransform_{
 		{1.0f, 1.0f, 1.0f},
 		{0.0f, 0.0f, 0.0f},
 		{0.0f, 0.0f, 0.0f},
@@ -42,6 +57,10 @@ private:
 	Transform transform{ {0.8f, 0.5f, 1.0f}, {0.0f, 0.0f, 0.0f }, {0.0f, 0.0f, 0.0f } };
 
 	D3D12_GPU_DESCRIPTOR_HANDLE srvHandleGPU_;
+
+	Vector2 position_ = { 0.0f, 0.0f };
+	float rotation_ = 0.0f;
+	Vector2 size_ = { 640.0f, 360.0f };
 
 };
 
