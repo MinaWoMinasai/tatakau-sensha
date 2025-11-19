@@ -16,14 +16,14 @@ void Sprite::Initialize(SpriteCommon* spriteCommon) {
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
 	// 一枚目の三角形
-	vertexData[0].position = { 0.0f, 360.0f, 0.0f, 1.0f };// 左下
+	vertexData[0].position = { 0.0f, 1.0f, 0.0f, 1.0f };// 左下
 	vertexData[0].texcoord = { 0.0f, 1.0f };
 	vertexData[1].position = { 0.0f, 0.0f, 0.0f, 1.0f };// 左上
 	vertexData[1].texcoord = { 0.0f, 0.0f };
-	vertexData[2].position = { 640.0f, 360.0f, 0.0f, 1.0f };// 右下
+	vertexData[2].position = { 1.0f, 1.0f, 0.0f, 1.0f };// 右下
 	vertexData[2].texcoord = { 1.0f, 1.0f };
 	// 二枚目の三角形
-	vertexData[3].position = { 640.0f, 0.0f, 0.0f, 1.0f };// 右上
+	vertexData[3].position = { 1.0f, 0.0f, 0.0f, 1.0f };// 右上
 	vertexData[3].texcoord = { 1.0f, 0.0f };
 
 	// Index用の頂点リソースを作る
@@ -64,6 +64,11 @@ void Sprite::Initialize(SpriteCommon* spriteCommon) {
 
 void Sprite::Update()
 {
+
+	transform.translate = { position_.x, position_.y, 0.0f };
+	transform.rotate = { 0.0f, 0.0f, rotation_ };
+	transform.scale = { size_.x, size_.y, 1.0f };
+
 	// 用のWorldViewProjectionMatrixを作る
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
@@ -72,9 +77,7 @@ void Sprite::Update()
 	transformationMatrixData->WVP = worldViewProjectionMatrix;
 	transformationMatrixData->World = worldMatrix;
 	// パラメータからUVTransform用の行列を作成する
-	Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransform.scale);
-	uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZMatrix(uvTransform.rotate.z));
-	uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransform.translate));
+	Matrix4x4 uvTransformMatrix = MakeAffineMatrix(uvTransform_.scale, Vector3(0.0f, 0.0f, uvTransform_.rotate.z), uvTransform_.translate);
 	materialData->uvTransform = uvTransformMatrix;
 
 }
