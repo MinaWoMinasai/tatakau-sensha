@@ -52,12 +52,10 @@ void DirectXCommon::PreDraw()
 	// TranssitionBarrierを張る
 	list_->ResourceBarrier(1, &barrier);
 	// 描画先のRTVとDSVを設定する
-	list_->OMSetRenderTargets(1, &rtvHandles_[backBufferIndex], false, nullptr);
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 	list_->OMSetRenderTargets(1, &rtvHandles_[backBufferIndex], false, &dsvHandle);
 	// 指定した色で画面全体をクリアする
 	float clearColor[] = { 0.1f, 0.25f, 0.5f, 1.0f };
-	//float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	list_->ClearRenderTargetView(rtvHandles_[backBufferIndex], clearColor, 0, nullptr);
 	// 指定して深度で画面全体をクリアする
 	list_->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
@@ -342,7 +340,7 @@ void DirectXCommon::CreateDescriptorHeap()
 	// RTV用のヒープでディスクリプタの数は2。RTVはShader内で触るものではないので、ShaderVisibleはfalse
 	rtvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 	// SRV用のヒープでディスクリプタの数は128。SRVはShader内で触るものなので、ShaderVisibleはtrue
-	srvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
+	srvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kMaxSrvCount, true);
 	// DSV用のヒープでディスクリプタの数は1。DSVはShader内で触るものではないので、ShaderVisibleはfalse
 	dsvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 }
@@ -487,6 +485,28 @@ void DirectXCommon::CommandListExecuteAndReset()
 	assert(SUCCEEDED(hr));
 	hr = list_->Reset(allocator_.Get(), nullptr);
 	assert(SUCCEEDED(hr));
+}
+
+void DirectXCommon::ExecuteCommandListAndWait()
+{
+	// Close
+	list_->Close();
+
+	// 実行
+	ID3D12CommandList* lists[] = { list_.Get() };
+	queue_->ExecuteCommandLists(1, lists);
+
+	// Fence
+	fenceValue_++;
+	queue_->Signal(fence_.Get(), fenceValue_);
+	if (fence_->GetCompletedValue() < fenceValue_) {
+		fence_->SetEventOnCompletion(fenceValue_, fenceEvent_);
+		WaitForSingleObject(fenceEvent_, INFINITE);
+	}
+
+	// Reset
+	allocator_->Reset();
+	list_->Reset(allocator_.Get(), nullptr);
 }
 
 IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar_t* profile)

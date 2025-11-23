@@ -1,6 +1,6 @@
 #include "Sprite.h"
 
-void Sprite::Initialize(SpriteCommon* spriteCommon) {
+void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath) {
 	spriteCommon_ = spriteCommon;
 
 	// 用の頂点リソースを作る
@@ -60,6 +60,9 @@ void Sprite::Initialize(SpriteCommon* spriteCommon) {
 	transformationMatrixData->WVP = MakeIdentity4x4();
 	transformationMatrixData->World = MakeIdentity4x4();
 
+	// 単位行列を書き込んでおく
+	TextureManager::GetInstance()->LoadTexture(textureFilePath);
+	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath);
 }
 
 void Sprite::Update()
@@ -89,8 +92,13 @@ void Sprite::Draw()
 	spriteCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);// IBVを設定
 	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
-	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(2, srvHandleGPU_);
+	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex));
 	// 描画!(DrawCall/ドローコール) 。6個のインデックスを使用しで1つのインスタンスを描画。その他は当面0 
 	spriteCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
+}
+
+void Sprite::SetTexture(std::string textureFilePath)
+{
+	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath);
 }
