@@ -87,6 +87,8 @@ public:
 	/// </summary>
 	void CommandListExecuteAndReset();
 
+	void ExecuteCommandListAndWait();
+
 	/// <summary>
 	/// シェーダーをコンパイル
 	/// </summary>
@@ -134,6 +136,12 @@ public:
 
 	PSO& GetPSOObject() { return psoObject_; }
 	PSO& GetPSOParticle() { return psoParticle_; }
+
+	// 最大srv数
+	static const uint32_t kMaxSrvCount = 512;
+
+	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
+	static D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
 
 private:
 
@@ -201,9 +209,6 @@ private:
 	/// デスクリプタヒープの生成
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
-
-	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
-	static D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
 
 	void InitializeFixFPS();
 	void UpdateFixFPS();
