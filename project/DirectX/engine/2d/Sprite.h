@@ -1,18 +1,25 @@
 #pragma once
 #include "SpriteCommon.h"
+#include "TextureManager.h"
 
 class Sprite
 {
 public:
 
 	// 初期化
-	void Initialize(SpriteCommon* spriteCommon);
+	void Initialize(SpriteCommon* spriteCommon, std::string textureFilePath);
 
 	void Update();
 
 	void Draw();
 
 	void SetSrvHandleGPU(D3D12_GPU_DESCRIPTOR_HANDLE srvHandleGPU) { srvHandleGPU_ = srvHandleGPU; }
+	
+	/// <summary>
+	/// テクスチャ変更
+	/// </summary>
+	/// <param name="textureFilePath"></param>
+	void SetTexture(std::string textureFilePath);
 
 	Vector2& GetPosition() { return position_; }
 	void SetPosition(const Vector2& position) { position_ = position; }
@@ -61,6 +68,9 @@ private:
 	Vector2 position_ = { 0.0f, 0.0f };
 	float rotation_ = 0.0f;
 	Vector2 size_ = { 640.0f, 360.0f };
+
+	// テクスチャ番号
+	uint32_t textureIndex = 0;
 
 };
 

@@ -135,6 +135,9 @@
     <ClCompile Include="DirectX\engine\debugCamera\DebugCamera.cpp">
       <Filter>DirectX\engine\debugCamera</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\2d\TextureManager.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\Object3d.PS.hlsl">
@@ -228,6 +231,9 @@
     </ClInclude>
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h">
       <Filter>DirectX\engine\debugCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\2d\TextureManager.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
