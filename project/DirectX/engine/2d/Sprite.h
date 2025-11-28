@@ -14,7 +14,7 @@ public:
 	void Draw();
 
 	void SetSrvHandleGPU(D3D12_GPU_DESCRIPTOR_HANDLE srvHandleGPU) { srvHandleGPU_ = srvHandleGPU; }
-	
+
 	/// <summary>
 	/// テクスチャ変更
 	/// </summary>
@@ -35,6 +35,15 @@ public:
 
 	Transform& GetUvTransform() { return uvTransform_; }
 	void SetUvTransform(const Transform& uvTransform) { uvTransform_ = uvTransform; }
+
+	Vector2& GetAnchorPoint() { return anchorPoint_; }
+	void SetAnchorPoint(const Vector2& anchorPoint) { anchorPoint_ = anchorPoint; }
+
+	bool GetIsFlipX() { return isFlipX_; }
+	void SetIsFlipX(bool isFlipX) { isFlipX_ = isFlipX; }
+
+	bool GetIsFlipY() { return isFlipY_; }
+	void SetIsFlipY(bool isFlipY) { isFlipY_ = isFlipY; }
 
 private:
 	SpriteCommon* spriteCommon_ = nullptr;
@@ -71,6 +80,11 @@ private:
 
 	// テクスチャ番号
 	uint32_t textureIndex = 0;
+
+	Vector2 anchorPoint_ = { 0.0f, 0.0f };
+
+	bool isFlipX_ = false;
+	bool isFlipY_ = false;
 
 };
 

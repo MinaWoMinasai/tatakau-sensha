@@ -186,3 +186,31 @@ struct alignas(16) Camera {
 	Vector3 worldPosition;
 	float pad; // 16バイトアラインメント対策
 };
+
+enum class FireworkState {
+	Rise,
+	Explode
+};
+
+struct FireworkShell {
+	Vector3 pos;
+	Vector3 velocity;
+	FireworkState state;
+
+	float timer;
+	float explodeTime;
+	bool isRemove;
+
+	Vector4 color;
+};
+
+struct TornadoParticle {
+	Vector3 pos;
+	float angle;
+	float height;
+	float baseRadius;
+	float rotateSpeed;
+	float upSpeed;
+	float maxHeight; // ← 無限ループ用
+	Vector4 color;
+};
