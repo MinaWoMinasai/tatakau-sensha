@@ -660,31 +660,51 @@ Vector4 Rand(const Vector4& min, const Vector4& max) {
 	};
 }
 
-Particle MakeParticle(const Vector3 position) {
+Particle MakeParticle(const Vector3& position, const Vector4& baseColor) {
 	Particle particle;
 	
 	particle.transform.scale = { 1.0f, 1.0f, 1.0f };
 	particle.transform.rotate = { 0.0f, 0.0f, 0.0f };
-	particle.transform.translate = position + Rand(Vector3(-0.5f, -0.5f, -0.5f), Vector3(0.5f, 0.5f, 0.5f));
-
-	//particle.velocity = Rand(Vector3(-0.05f, -0.05f, -0.05f), Vector3(0.05f, 0.05f, 0.05f));
-	//Normalize(particle.velocity);
+	particle.transform.translate = position + Rand(Vector3(-0.05f, -0.05f, -0.05f), Vector3(0.05f, 0.05f, 0.05f));
 
 	// パーティクル初期化時
 	Vector3 direction = RandomUnitVector();
 
 	// 拡散の強さ（スピード）を調整
-	float speed = Rand(0.15f, 0.3f); // 広がる速さの範囲
+	float speed = Rand(0.2f, 1.0f); // 広がる速さの範囲
 	particle.velocity = (direction * speed) - Vector3(0.0f, 0.01f, 0.0f);
 	particle.kVelocity = (direction * speed) - Vector3(0.0f, 0.01f, 0.0f);
 
-	particle.acceleration = Rand(Vector3(0.0f, -0.0001f, 0.0f), Vector3(0.0f, -0.0005f, 0.0f));
+	particle.acceleration = Vector3(0.0f, -0.004f, 0.0f);
 
-	particle.color = Rand();
-	particle.lifeTime = Rand(3.0f, 6.0f);
+	Vector4 randomOffset = Rand(
+		Vector4(-0.2f, -0.2f, -0.2f, 0.0f),
+		Vector4(+0.2f, +0.2f, +0.2f, 0.0f)
+	);
+
+	particle.color = Lerp(baseColor, baseColor + randomOffset, 0.5f);
+	particle.lifeTime = Rand(2.0f, 3.0f);
 	particle.currentTime = 0.0f;
 
 	return particle;
+}
+
+TornadoParticle MakeTornadoParticle(Vector3 center)
+{
+	TornadoParticle p;
+
+	p.angle = Rand(0.0f, 6.28f);
+	p.height = Rand(0.0f, 3.0f);      // ← 初期高さランダム
+	p.baseRadius = Rand(0.5f, 1.0f);
+	p.rotateSpeed = Rand(2.0f, 5.0f);
+	p.upSpeed = Rand(0.4f, 0.8f);
+	p.maxHeight = 10.0f;               // ← この高さでループ
+
+	p.color = { 0.8f, 0.9f, 1.0f, 0.4f };
+
+	p.pos = center;
+
+	return p;
 }
 
 Vector3 ScreenToWorld2D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth, float windowHeight) {

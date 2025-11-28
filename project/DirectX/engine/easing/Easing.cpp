@@ -198,4 +198,12 @@ Vector3 Lerp(const Vector3& start, const Vector3& end, float t) {
 	return result;
 }
 
+Vector4 Lerp(const Vector4& start, const Vector4& end, float t)
+{
+	// 線形補間
+	Vector4 result = start + (end - start) * t;
+	// 補間結果を返す
+	return result;
+}
+
 #pragma endregion

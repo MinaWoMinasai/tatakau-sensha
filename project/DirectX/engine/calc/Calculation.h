@@ -77,7 +77,8 @@ Matrix4x4 MakeLookAtMatrix(const Vector3& eye, const Vector3& target, const Vect
 float Rand(float min, float max);
 Vector3 Rand(const Vector3& min, const Vector3& max);
 Vector4 Rand(const Vector4& min = {0.0f, 0.0f, 0.0f, 1.0f}, const Vector4& max = {1.0f, 1.0f, 1.0f, 1.0f});
-Particle MakeParticle(const Vector3 position);
+Particle MakeParticle(const Vector3& position, const Vector4& baseColor);
+TornadoParticle MakeTornadoParticle(Vector3 center);
 
 // 球と平面の衝突判定
 bool IsCollision(const Sphere& sphere, const Plane& plane);

@@ -72,6 +72,17 @@ void Sprite::Update()
 	transform.rotate = { 0.0f, 0.0f, rotation_ };
 	transform.scale = { size_.x, size_.y, 1.0f };
 
+	float left = 0.0f - anchorPoint_.x;
+	float right = 1.0f - anchorPoint_.x;
+	float top = 0.0f - anchorPoint_.y;
+	float bottom = 1.0f - anchorPoint_.y;
+
+	// 頂点データ更新
+	vertexData[0].position = { left, bottom, 0.0f, 1.0f };
+	vertexData[1].position = { left, top, 0.0f, 1.0f };
+	vertexData[2].position = { right, bottom, 0.0f, 1.0f };
+	vertexData[3].position = { right, top, 0.0f, 1.0f };
+
 	// 用のWorldViewProjectionMatrixを作る
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
