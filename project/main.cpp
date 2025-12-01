@@ -3,10 +3,10 @@
 #include "debugCamera.h"
 #include "Dump.h"
 #include "Easing.h"
-#include "LoadFile.h"
 #include "Resource.h"
 #include "Sprite.h"
 #include "WinApp.h"
+#include "Object3d.h"
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -36,25 +36,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	spriteCommon = std::make_unique<SpriteCommon>();
 	spriteCommon->Initialize(dxCommon.get());
 
-	// リソースを作成する
-	Resource resource;
-	Texture texture;
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource = texture.CreateBufferResource(dxCommon->GetDevice(), sizeof(Camera));
-	Camera* cameraData = nullptr;
-	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
-
 	std::unique_ptr<Sprite> sprite;
 	sprite = std::make_unique<Sprite>();
 	sprite->Initialize(spriteCommon.get(), "resources/UvChecker.png");
-
+	
 	std::unique_ptr<Sprite> sprite2;
 	sprite2 = std::make_unique<Sprite>();
 	sprite2->Initialize(spriteCommon.get(), "resources/Circle.png");
-
+	
 	std::unique_ptr<Sprite> sprite3;
 	sprite3 = std::make_unique<Sprite>();
 	sprite3->Initialize(spriteCommon.get(), "resources/CheckerBoard.png");
+
+	std::unique_ptr<Object3dCommon> object3dCommon;
+	object3dCommon = std::make_unique<Object3dCommon>();
+	object3dCommon->Initialize(dxCommon.get());
+
+	std::unique_ptr<Object3d> object3d;
+	object3d = std::make_unique<Object3d>();
+	object3d->Initialize(object3dCommon.get());
 
 	// キーの初期化
 	Input input;
@@ -85,18 +85,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// デバッグカメラ
 			debugCamera.Update(input.GetMouseState(), input.GetKey(), leftStick);
-			cameraData->worldPosition = debugCamera.GetEyePosition();
 			Matrix4x4 viewMatrix = debugCamera.GetViewMatrix();
 			Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
 
 			// スプライトもスライダーで変えられるようにする
-			ImGui::DragFloat2("scaleSprite", &sprite->GetSize().x);
-			ImGui::DragFloat("rotateSprite", &sprite->GetRotation());
-			ImGui::DragFloat2("translateSprite", &sprite->GetPosition().x);
+			//ImGui::DragFloat2("scaleSprite", &sprite->GetSize().x);
+			//ImGui::DragFloat("rotateSprite", &sprite->GetRotation());
+			//ImGui::DragFloat2("translateSprite", &sprite->GetPosition().x);
+			//
+			//ImGui::DragFloat3("UVTranslate", &sprite->GetUvTransform().translate.x, 0.01f);
+			//ImGui::DragFloat3("UVScale", &sprite->GetUvTransform().scale.x, 0.01f);
+			//ImGui::SliderAngle("UVRotate", &sprite->GetUvTransform().rotate.z);
 
-			ImGui::DragFloat3("UVTranslate", &sprite->GetUvTransform().translate.x, 0.01f);
-			ImGui::DragFloat3("UVScale", &sprite->GetUvTransform().scale.x, 0.01f);
-			ImGui::SliderAngle("UVRotate", &sprite->GetUvTransform().rotate.z);
+			object3d->Update(debugCamera.GetViewMatrix());
 
 			sprite->Update();
 			sprite2->Update();
@@ -112,11 +113,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			dxCommon->PreDraw();
 
+			object3dCommon->PreDraw();
+
+			object3d->Draw();
+
 			spriteCommon->PreDraw();
 
 			sprite->Draw();
-			//sprite2->Draw();
-			//sprite3->Draw();
+			sprite2->Draw();
+			sprite3->Draw();
 
 			// 実際のcommandListのImGuiの描画コマンドを組む
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetList().Get());
