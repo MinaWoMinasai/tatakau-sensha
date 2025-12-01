@@ -63,6 +63,8 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath)
 	// 単位行列を書き込んでおく
 	TextureManager::GetInstance()->LoadTexture(textureFilePath);
 	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath);
+
+	AdjustTextureSize();
 }
 
 void Sprite::Update()
@@ -77,11 +79,35 @@ void Sprite::Update()
 	float top = 0.0f - anchorPoint_.y;
 	float bottom = 1.0f - anchorPoint_.y;
 
+	// 左右反転
+	if (isFlipX_) {
+		left = -left;
+		right = -right;
+	}
+
+	// 上下反転
+	if (isFlipY_) {
+		top = -top;
+		bottom = -bottom;
+	}
+
 	// 頂点データ更新
 	vertexData[0].position = { left, bottom, 0.0f, 1.0f };
 	vertexData[1].position = { left, top, 0.0f, 1.0f };
 	vertexData[2].position = { right, bottom, 0.0f, 1.0f };
 	vertexData[3].position = { right, top, 0.0f, 1.0f };
+
+	const DirectX::TexMetadata& metaData =
+		TextureManager::GetInstance()->GetMetaData(textureIndex);
+	float tex_left = textureLeftTop_.x / metaData.width;
+	float tex_right = (textureLeftTop_.x + textureSize_.x) / metaData.width;
+	float tex_top = textureLeftTop_.y / metaData.height;
+	float tex_bottom = (textureLeftTop_.y + textureSize_.y) / metaData.height;
+
+	vertexData[0].texcoord = { tex_left, tex_bottom };
+	vertexData[1].texcoord = { tex_left, tex_top };
+	vertexData[2].texcoord = { tex_right, tex_bottom };
+	vertexData[3].texcoord = { tex_right, tex_top };
 
 	// 用のWorldViewProjectionMatrixを作る
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
@@ -112,4 +138,12 @@ void Sprite::Draw()
 void Sprite::SetTexture(std::string textureFilePath)
 {
 	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath);
+}
+
+void Sprite::AdjustTextureSize()
+{
+	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetMetaData(textureIndex);
+	textureSize_.x = static_cast<float>(metadata.width);
+	textureSize_.y = static_cast<float>(metadata.height);
+	size_ = textureSize_;
 }

@@ -39,13 +39,22 @@ public:
 	Vector2& GetAnchorPoint() { return anchorPoint_; }
 	void SetAnchorPoint(const Vector2& anchorPoint) { anchorPoint_ = anchorPoint; }
 
-	bool GetIsFlipX() { return isFlipX_; }
+	bool& GetIsFlipX() { return isFlipX_; }
 	void SetIsFlipX(bool isFlipX) { isFlipX_ = isFlipX; }
 
-	bool GetIsFlipY() { return isFlipY_; }
+	bool& GetIsFlipY() { return isFlipY_; }
 	void SetIsFlipY(bool isFlipY) { isFlipY_ = isFlipY; }
 
+	Vector2& GetTextureLeftTop() { return textureLeftTop_; }
+	void SetTextureLeftTop(const Vector2& textureLeftTop) { textureLeftTop_ = textureLeftTop; }
+
+	Vector2& GetTextureSize() { return textureSize_; }
+	void SetTextureSize(const Vector2& textureSize) { textureSize_ = textureSize; }
+
 private:
+
+	void AdjustTextureSize();
+
 	SpriteCommon* spriteCommon_ = nullptr;
 
 	// バッファリソース
@@ -85,6 +94,9 @@ private:
 
 	bool isFlipX_ = false;
 	bool isFlipY_ = false;
+
+	Vector2 textureLeftTop_ = { 0.0f, 0.0f };
+	Vector2 textureSize_ = { 100.0f, 100.0f };
 
 };
 
