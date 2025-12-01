@@ -19,6 +19,9 @@ public:
 	// SRVインデックスの開始番号
 	static uint32_t kSRVIndexTop;
 
+	// メタデータを取得
+	const DirectX::TexMetadata& GetMetaData(uint32_t textureIndex);
+
 private:
 
 	struct TextureData {

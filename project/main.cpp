@@ -115,8 +115,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			spriteCommon->PreDraw();
 
 			sprite->Draw();
-			sprite2->Draw();
-			sprite3->Draw();
+			//sprite2->Draw();
+			//sprite3->Draw();
 
 			// 実際のcommandListのImGuiの描画コマンドを組む
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetList().Get());

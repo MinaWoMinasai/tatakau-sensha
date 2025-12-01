@@ -63,6 +63,8 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath)
 	// 単位行列を書き込んでおく
 	TextureManager::GetInstance()->LoadTexture(textureFilePath);
 	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath);
+
+	AdjustTextureSize();
 }
 
 void Sprite::Update()
@@ -95,6 +97,18 @@ void Sprite::Update()
 	vertexData[2].position = { right, bottom, 0.0f, 1.0f };
 	vertexData[3].position = { right, top, 0.0f, 1.0f };
 
+	const DirectX::TexMetadata& metaData =
+		TextureManager::GetInstance()->GetMetaData(textureIndex);
+	float tex_left = textureLeftTop_.x / metaData.width;
+	float tex_right = (textureLeftTop_.x + textureSize_.x) / metaData.width;
+	float tex_top = textureLeftTop_.y / metaData.height;
+	float tex_bottom = (textureLeftTop_.y + textureSize_.y) / metaData.height;
+
+	vertexData[0].texcoord = { tex_left, tex_bottom };
+	vertexData[1].texcoord = { tex_left, tex_top };
+	vertexData[2].texcoord = { tex_right, tex_bottom };
+	vertexData[3].texcoord = { tex_right, tex_top };
+
 	// 用のWorldViewProjectionMatrixを作る
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
@@ -124,4 +138,12 @@ void Sprite::Draw()
 void Sprite::SetTexture(std::string textureFilePath)
 {
 	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath);
+}
+
+void Sprite::AdjustTextureSize()
+{
+	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetMetaData(textureIndex);
+	textureSize_.x = static_cast<float>(metadata.width);
+	textureSize_.y = static_cast<float>(metadata.height);
+	size_ = textureSize_;
 }

@@ -52,6 +52,9 @@ public:
 	void SetTextureSize(const Vector2& textureSize) { textureSize_ = textureSize; }
 
 private:
+
+	void AdjustTextureSize();
+
 	SpriteCommon* spriteCommon_ = nullptr;
 
 	// バッファリソース
