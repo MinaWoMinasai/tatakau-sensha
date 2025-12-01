@@ -7,6 +7,7 @@
 #include "Sprite.h"
 #include "WinApp.h"
 #include "Object3d.h"
+#include "Model.h"
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -48,6 +49,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	sprite3 = std::make_unique<Sprite>();
 	sprite3->Initialize(spriteCommon.get(), "resources/CheckerBoard.png");
 
+	std::unique_ptr<ModelCommon> modelCommon;
+	modelCommon = std::make_unique<ModelCommon>();
+	modelCommon->Initialize(dxCommon.get());
+
+	std::unique_ptr<Model> model;
+	model = std::make_unique<Model>();
+	model->Initialize(modelCommon.get());
+
 	std::unique_ptr<Object3dCommon> object3dCommon;
 	object3dCommon = std::make_unique<Object3dCommon>();
 	object3dCommon->Initialize(dxCommon.get());
@@ -55,6 +64,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::unique_ptr<Object3d> object3d;
 	object3d = std::make_unique<Object3d>();
 	object3d->Initialize(object3dCommon.get());
+
+	std::unique_ptr<Object3d> object3d2;
+	object3d2 = std::make_unique<Object3d>();
+	object3d2->Initialize(object3dCommon.get());
+
+	object3d->SetModel(model.get());
+	object3d2->SetModel(model.get());
 
 	// キーの初期化
 	Input input;
@@ -97,7 +113,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//ImGui::DragFloat3("UVScale", &sprite->GetUvTransform().scale.x, 0.01f);
 			//ImGui::SliderAngle("UVRotate", &sprite->GetUvTransform().rotate.z);
 
+			ImGui::DragFloat3("translate", &object3d->GetTranslate().x, 0.01f);
+
 			object3d->Update(debugCamera.GetViewMatrix());
+			object3d2->Update(debugCamera.GetViewMatrix());
 
 			sprite->Update();
 			sprite2->Update();
@@ -116,6 +135,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			object3dCommon->PreDraw();
 
 			object3d->Draw();
+			object3d2->Draw();
 
 			spriteCommon->PreDraw();
 

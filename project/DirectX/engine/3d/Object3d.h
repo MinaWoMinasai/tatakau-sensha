@@ -1,7 +1,7 @@
 #pragma once
 #include "Object3dCommon.h"
 #include "Resource.h"
-#include "TextureManager.h"
+#include "Model.h"
 
 class Object3d
 {
@@ -13,33 +13,32 @@ public:
 
 	void Draw();
 
-	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
+	void SetModel(Model* model) { model_ = model; }
 
-	static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
+	Vector3& GetScale() { return transform.scale; }
+	Vector3& GetRotate() { return transform.rotate; }
+	Vector3& GetTranslate() { return transform.translate; }
+
+	void SetScale(const Vector3& scale) { transform.scale = scale; }
+	void SetRotate(const Vector3& rotate) { transform.rotate = rotate; }
+	void SetTranslate(const Vector3& translate) { transform.translate = translate; }
+
 
 private:
 
 	Object3dCommon* object3dCommon_;
 
-	// Objファイルのデータ
-	ModelData modelData_;
-
-	// バッファリソース
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource;
-	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource;
-	// バッファリソース内のデータをさすポインタ
-	VertexData* vertexData;
-	Material* materialData;
+	
 	TransformationMatrix* transformationMatrixData;
 	DirectionalLight* directionalLightData;
-	// バッファリソースの使い道を補足するバッファビュー
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
 
 	Texture texture;
 	Resource resource;
 
 	Transform transform;
+
+	Model* model_ = nullptr;
 };
 
