@@ -14,10 +14,6 @@ public:
 	DirectXCommon* GetDxCommon() { return dxCommon_; }
 
 private:
-	// ルートシグネチャの作成
-	void CreateRootSignature();
-	// グラフィックパイプラインの生成
-	void CreateGraphicsPipelineState();
 
 	DirectXCommon* dxCommon_ = nullptr;
 };

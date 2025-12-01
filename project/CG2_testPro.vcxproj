@@ -188,10 +188,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\LoadFile.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\commom\LogWrite.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -229,6 +225,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
     <ClCompile Include="DirectX\engine\2d\TextureManager.cpp" />
+    <ClCompile Include="DirectX\engine\3d\Object3dCommon.cpp" />
+    <ClCompile Include="DirectX\engine\3d\Object3d.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\Object3d.PS.hlsl">
@@ -281,7 +279,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="DirectX\engine\input\Input.h" />
     <ClInclude Include="DirectX\engine\commom\InputDesc.h" />
-    <ClInclude Include="DirectX\engine\commom\LoadFile.h" />
     <ClInclude Include="DirectX\engine\commom\LogWrite.h" />
     <ClInclude Include="DirectX\engine\commom\Resource.h" />
     <ClInclude Include="DirectX\engine\commom\Root.h" />
@@ -292,6 +289,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\Texture.h" />
     <ClInclude Include="DirectX\engine\commom\WinApp.h" />
     <ClInclude Include="DirectX\engine\2d\TextureManager.h" />
+    <ClInclude Include="DirectX\engine\3d\Object3dCommon.h" />
+    <ClInclude Include="DirectX\engine\3d\Object3d.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

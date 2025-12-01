@@ -14,11 +14,3 @@ void SpriteCommon::PreDraw()
 	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 }
-
-void SpriteCommon::CreateRootSignature()
-{
-}
-
-void SpriteCommon::CreateGraphicsPipelineState()
-{
-}
