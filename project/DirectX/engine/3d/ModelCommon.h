@@ -12,6 +12,5 @@ public:
 private:
 	DirectXCommon* dxCommon_;
 
-
 };
 

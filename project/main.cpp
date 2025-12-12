@@ -56,9 +56,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ModelManager::GetInstance()->LoadModel("teapot.obj");
 	ModelManager::GetInstance()->LoadModel("bunny.obj");
 
+	std::unique_ptr<DebugCamera> debugCamera;
+	debugCamera = std::make_unique<DebugCamera>();
+
+	std::unique_ptr<Camera> camera;
+	camera = std::make_unique<Camera>();
+
 	std::unique_ptr<Object3dCommon> object3dCommon;
 	object3dCommon = std::make_unique<Object3dCommon>();
 	object3dCommon->Initialize(dxCommon.get());
+	object3dCommon->SetDefaultCamera(camera.get());
+	object3dCommon->SetDebugDefaultCamera(debugCamera.get());
 
 	std::unique_ptr<Object3d> object3d;
 	object3d = std::make_unique<Object3d>();
@@ -74,8 +82,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// キーの初期化
 	Input input;
 	input.Initialize(winApp->GetWindowClass(), winApp->GetHwnd());
-
-	DebugCamera debugCamera;
 
 	MSG msg{};
 	// ウィンドウの×ボタンが押されるまでループ
@@ -98,33 +104,28 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			Vector2 mousePos = input.GetMousePosition();
 
+			ImGui::DragFloat3("translate", &camera->GetTranslate().x, 0.1f);
+			ImGui::DragFloat3("rotate", &camera->GetRotate().x, 0.1f);
+
+			if (input.IsPress(input.GetKey()[DIK_LSHIFT]) && input.IsTrigger(input.GetKey()[DIK_D], input.GetPreKey()[DIK_D])) {
+				if (object3dCommon->GetIsDebugCamera()) {
+					object3dCommon->SetIsDebugCamera(false);
+				} else {
+					object3dCommon->SetIsDebugCamera(true);
+				}
+			}
+			
+
 			// デバッグカメラ
-			debugCamera.Update(input.GetMouseState(), input.GetKey(), leftStick);
-			Matrix4x4 viewMatrix = debugCamera.GetViewMatrix();
-			Matrix4x4 projectionMatrix = MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
+			debugCamera->Update(input.GetMouseState(), input.GetKey(), leftStick);
+			camera->Update();
 
-			// スプライトもスライダーで変えられるようにする
-			//ImGui::DragFloat2("scaleSprite", &sprite->GetSize().x);
-			//ImGui::DragFloat("rotateSprite", &sprite->GetRotation());
-			//ImGui::DragFloat2("translateSprite", &sprite->GetPosition().x);
-			//
-			//ImGui::DragFloat3("UVTranslate", &sprite->GetUvTransform().translate.x, 0.01f);
-			//ImGui::DragFloat3("UVScale", &sprite->GetUvTransform().scale.x, 0.01f);
-			//ImGui::SliderAngle("UVRotate", &sprite->GetUvTransform().rotate.z);
-
-			ImGui::DragFloat3("translate", &object3d->GetTranslate().x, 0.01f);
-
-			object3d->Update(debugCamera.GetViewMatrix());
-			object3d2->Update(debugCamera.GetViewMatrix());
+			object3d->Update();
+			object3d2->Update();
 
 			sprite->Update();
 			sprite2->Update();
 			sprite3->Update();
-
-			//if (input.IsTrigger(input.GetMouseState().rgbButtons[0], input.GetPreMouseState().rgbButtons[0])) {
-			//	// テクスチャを変更する
-			//	sprite->SetTexture("resources/Circle.png");
-			//}
 
 			// ImGuiの内部コマンドを生成する
 			ImGui::Render();

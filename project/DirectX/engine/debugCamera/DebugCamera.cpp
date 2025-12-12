@@ -2,7 +2,14 @@
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
 
-void DebugCamera::Initialize(const Matrix4x4& viewMatrix)
+DebugCamera::DebugCamera(){
+    fovY_ = 0.45f;
+    aspectRatio_ = (float(WinApp::kClientWidth) / float(WinApp::kClientHeight));
+    nearClip_ = 0.1f;
+    farClip_ = 100.0f;
+}
+
+void DebugCamera::Initialize()
 {
     
 }
@@ -47,4 +54,8 @@ void DebugCamera::Update(const DIMOUSESTATE& mousestate, std::span<const BYTE> k
 
     // View行列の作成
     viewMatrix_ = MakeLookAtMatrix(cameraPos, target, up);
+
+    projectionMatrix_ = MakePerspectiveForMatrix(fovY_, aspectRatio_, nearClip_, farClip_);
+    viewProjectionMatrix_ = Multiply(viewMatrix_, projectionMatrix_);
+
 }
