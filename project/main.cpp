@@ -8,6 +8,7 @@
 #include "WinApp.h"
 #include "Object3d.h"
 #include "Model.h"
+#include "ModelManager.h"
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -49,13 +50,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	sprite3 = std::make_unique<Sprite>();
 	sprite3->Initialize(spriteCommon.get(), "resources/CheckerBoard.png");
 
-	std::unique_ptr<ModelCommon> modelCommon;
-	modelCommon = std::make_unique<ModelCommon>();
-	modelCommon->Initialize(dxCommon.get());
-
-	std::unique_ptr<Model> model;
-	model = std::make_unique<Model>();
-	model->Initialize(modelCommon.get());
+	ModelManager::GetInstance()->Initialize(dxCommon.get());
+	
+	//　objファイルからモデルを読み込む
+	ModelManager::GetInstance()->LoadModel("teapot.obj");
+	ModelManager::GetInstance()->LoadModel("bunny.obj");
 
 	std::unique_ptr<Object3dCommon> object3dCommon;
 	object3dCommon = std::make_unique<Object3dCommon>();
@@ -69,8 +68,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	object3d2 = std::make_unique<Object3d>();
 	object3d2->Initialize(object3dCommon.get());
 
-	object3d->SetModel(model.get());
-	object3d2->SetModel(model.get());
+	object3d->SetModel("teapot.obj");
+	object3d2->SetModel("bunny.obj");
 
 	// キーの初期化
 	Input input;
@@ -160,6 +159,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	CloseHandle(dxCommon->GetFenceEvent());
 	TextureManager::GetInstance()->Finalize();
+	ModelManager::GetInstance()->Finalize();
 
 	dxCommon->Release();
 	winApp->Finalize();

@@ -1,10 +1,10 @@
 #include "Model.h"
 
-void Model::Initialize(ModelCommon* modelCommon)
+void Model::Initialize(ModelCommon* modelCommon, const std::string& directorypath, const std::string& filename)
 {
 	modelCommon_ = modelCommon;
 	// モデル読み込み
-	modelData_ = LoadObjFile("resources", "teapot.obj");
+	modelData_ = LoadObjFile(directorypath, filename);
 
 	// 用の頂点リソースを作る
 	vertexResource = texture.CreateBufferResource(modelCommon_->GetDxCommon()->GetDevice(), sizeof(VertexData) * modelData_.vertices.size());
