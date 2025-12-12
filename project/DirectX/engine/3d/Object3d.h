@@ -1,7 +1,7 @@
 #pragma once
 #include "Object3dCommon.h"
 #include "Resource.h"
-#include "Model.h"
+#include "ModelManager.h"
 
 class Object3d
 {
@@ -14,6 +14,8 @@ public:
 	void Draw();
 
 	void SetModel(Model* model) { model_ = model; }
+
+	void SetModel(const std::string& filePath);
 
 	Vector3& GetScale() { return transform.scale; }
 	Vector3& GetRotate() { return transform.rotate; }
