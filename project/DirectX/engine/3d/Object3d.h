@@ -9,7 +9,7 @@ public:
 
 	void Initialize(Object3dCommon* object3dCommon);
 
-	void Update(const Matrix4x4& cameraMatrix);
+	void Update();
 
 	void Draw();
 
@@ -25,6 +25,8 @@ public:
 	void SetRotate(const Vector3& rotate) { transform.rotate = rotate; }
 	void SetTranslate(const Vector3& translate) { transform.translate = translate; }
 
+	void SetCamera(Camera* camera) { camera_ = camera; }
+	void SetDebugCamera(DebugCamera* debugCamera) { debugCamera_ = debugCamera; }
 
 private:
 
@@ -42,5 +44,8 @@ private:
 	Transform transform;
 
 	Model* model_ = nullptr;
+
+	Camera* camera_ = nullptr;
+	DebugCamera* debugCamera_ = nullptr;
 };
 

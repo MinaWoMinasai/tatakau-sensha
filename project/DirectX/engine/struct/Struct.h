@@ -182,11 +182,11 @@ struct AccelerationField {
 	Vector3 acceleration; // 加速度
 	AABB area; // 効果範囲
 };
-
-struct alignas(16) Camera {
-	Vector3 worldPosition;
-	float pad; // 16バイトアラインメント対策
-};
+//
+//struct alignas(16) Camera {
+//	Vector3 worldPosition;
+//	float pad; // 16バイトアラインメント対策
+//};
 
 enum class FireworkState {
 	Rise,

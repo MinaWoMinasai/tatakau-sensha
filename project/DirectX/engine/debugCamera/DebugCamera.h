@@ -13,10 +13,12 @@ class DebugCamera
 
 public:
 
+	DebugCamera();
+
 	/// <summary>
 	/// 初期化
 	/// </summary>
-	void Initialize(const Matrix4x4& viewMatrix);
+	void Initialize();
 
 	/// <summary>
 	/// 更新
@@ -29,6 +31,9 @@ public:
 
 	Vector3 GetEyePosition() { return eye_; }
 
+	Matrix4x4& GetProjectionMatrix() { return projectionMatrix_; }
+	Matrix4x4& GetViewProjectionMatrix() { return viewProjectionMatrix_; }
+
 private:
 	// X,Y,Z軸回りのローカル回転角
 	Vector3 rotation_ = {0,0,0};
@@ -37,7 +42,12 @@ private:
 	// ビュー行列
 	Matrix4x4 viewMatrix_ = MakeIdentity4x4();
 	// 射影行列
-	Matrix4x4 projectionMatrix_ = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+	Matrix4x4 projectionMatrix_;
+	Matrix4x4 viewProjectionMatrix_;
+	float fovY_;
+	float aspectRatio_;
+	float nearClip_;
+	float farClip_;
 	// カメラの移動速度
 	// カメラ
 	Matrix4x4 WorldMatrix_;
