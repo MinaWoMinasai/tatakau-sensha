@@ -93,7 +93,7 @@
     <ClCompile Include="DirectX\engine\commom\DirectXCommon.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\dump\Dump.cpp">
+    <ClCompile Include="DirectX\engine\dumpClass\Dump.cpp">
       <Filter>DirectX\engine\dump</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\easing\Easing.cpp">
@@ -205,7 +205,7 @@
     <ClInclude Include="DirectX\engine\commom\DirectXCommon.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\dump\Dump.h">
+    <ClInclude Include="DirectX\engine\dumpClass\Dump.h">
       <Filter>DirectX\engine\dump</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\easing\Easing.h">

@@ -81,7 +81,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dump;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)Game;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)Game;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -106,7 +106,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <TreatWarningAsError>false</TreatWarningAsError>
       <Optimization>MinSpace</Optimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dump;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)Game;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)Game;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -134,7 +134,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <TreatWarningAsError>false</TreatWarningAsError>
       <Optimization>Disabled</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dump;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)Game;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)Game;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -166,7 +166,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\dump\Dump.cpp">
+    <ClCompile Include="DirectX\engine\dumpClass\Dump.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
@@ -273,7 +273,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\calc\Calculation.h" />
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h" />
     <ClInclude Include="DirectX\engine\commom\DirectXCommon.h" />
-    <ClInclude Include="DirectX\engine\dump\Dump.h" />
+    <ClInclude Include="DirectX\engine\dumpClass\Dump.h" />
     <ClInclude Include="DirectX\engine\easing\Easing.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
