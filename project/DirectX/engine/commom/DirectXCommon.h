@@ -112,14 +112,8 @@ public:
 	DXGI_SWAP_CHAIN_DESC1 GetSwapChainDesc() { return swapChainDesc_; }
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetRtvHeap() { return rtvDescriptorHeap_; };
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetSrvHeap() { return srvDescriptorHeap_; };
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetDsvHeap() { return dsvDescriptorHeap_; };
 
-	//Microsoft::WRL::ComPtr<ID3D12Resource> GetDepthStencilResource() { return depthStencilResource; };
-	//std::span<const Microsoft::WRL::ComPtr<ID3D12Resource>> GetSwapChainResource() const { return swapChainResources; }
-	//std::span<const D3D12_CPU_DESCRIPTOR_HANDLE> GetRtvHandles() const { return rtvHandles; }
-	//D3D12_DEPTH_STENCIL_VIEW_DESC GetDsvDesc() { return dsvDesc; }
-	//D3D12_RENDER_TARGET_VIEW_DESC GetRtvDesc() { return rtvDesc; }
 	Microsoft::WRL::ComPtr<ID3D12Fence> GetFence() { return fence_; }
 	HANDLE GetFenceEvent() { return fenceEvent_; }
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetQueue() { return queue_; }
@@ -131,17 +125,18 @@ public:
 	IDxcCompiler3* GetDxcCompiler() { return dxcCompiler_; }
 	IDxcIncludeHandler* GetIncludeHandler() { return includeHandler_; }
 
-	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCPUDescriptorHandle(uint32_t index);
-	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUDescriptorHandle(uint32_t index);
-
 	PSO& GetPSOObject() { return psoObject_; }
 	PSO& GetPSOParticle() { return psoParticle_; }
 
-	// 最大srv数
-	static const uint32_t kMaxSrvCount = 512;
-
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
+
+	/// <summary>
+	/// デスクリプタヒープの生成
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
+
+	D3D12_RENDER_TARGET_VIEW_DESC GetRtvDesc() { return rtvDesc_; }
 
 private:
 
@@ -205,11 +200,6 @@ private:
 	/// </summary>
 	void InitializeImGui();
 
-	/// <summary>
-	/// デスクリプタヒープの生成
-	/// </summary>
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
-
 	void InitializeFixFPS();
 	void UpdateFixFPS();
 
@@ -235,11 +225,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_ = nullptr;
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_;
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap_;
 
 	// DescriptorSizeを取得しておく
-	uint32_t descriptorSizeSRV;
 	uint32_t descriptorSizeRTV;
 	uint32_t descriptorSizeDSV;
 

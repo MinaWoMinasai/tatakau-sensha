@@ -2,6 +2,7 @@
 
 void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath) {
 	spriteCommon_ = spriteCommon;
+	textureFilePath_ = textureFilePath;
 
 	// 用の頂点リソースを作る
 	vertexResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(VertexData) * 4);
@@ -61,8 +62,8 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath)
 	transformationMatrixData->World = MakeIdentity4x4();
 
 	// 単位行列を書き込んでおく
-	TextureManager::GetInstance()->LoadTexture(textureFilePath);
-	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath);
+	TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath_);
 
 	AdjustTextureSize();
 }
@@ -98,7 +99,7 @@ void Sprite::Update()
 	vertexData[3].position = { right, top, 0.0f, 1.0f };
 
 	const DirectX::TexMetadata& metaData =
-		TextureManager::GetInstance()->GetMetaData(textureIndex);
+		TextureManager::GetInstance()->GetMetaData(textureFilePath_);
 	float tex_left = textureLeftTop_.x / metaData.width;
 	float tex_right = (textureLeftTop_.x + textureSize_.x) / metaData.width;
 	float tex_top = textureLeftTop_.y / metaData.height;
@@ -129,7 +130,7 @@ void Sprite::Draw()
 	spriteCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);// IBVを設定
 	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
-	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex));
+	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_));
 	// 描画!(DrawCall/ドローコール) 。6個のインデックスを使用しで1つのインスタンスを描画。その他は当面0 
 	spriteCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
@@ -137,12 +138,13 @@ void Sprite::Draw()
 
 void Sprite::SetTexture(std::string textureFilePath)
 {
-	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath);
+	textureFilePath_ = textureFilePath;
+	//textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath);
 }
 
 void Sprite::AdjustTextureSize()
 {
-	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetMetaData(textureIndex);
+	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetMetaData(textureFilePath_);
 	textureSize_.x = static_cast<float>(metadata.width);
 	textureSize_.y = static_cast<float>(metadata.height);
 	size_ = textureSize_;
