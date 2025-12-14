@@ -9,6 +9,7 @@
 #include "Object3d.h"
 #include "Model.h"
 #include "ModelManager.h"
+#include "SrvManager.h"
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -32,7 +33,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dxCommon = std::make_unique<DirectXCommon>();
 	dxCommon->Initialize(winApp.get());
 
-	TextureManager::GetInstance()->Initialize(dxCommon.get());
+	std::unique_ptr<SrvManager> srvManager;
+	srvManager = std::make_unique<SrvManager>();
+	srvManager->Initialize(dxCommon.get());
+
+	// Imguiの初期化
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+	ImGui_ImplWin32_Init(winApp->GetHwnd());
+	ImGui_ImplDX12_Init(dxCommon->GetDevice().Get(),
+		dxCommon->GetSwapChainDesc().BufferCount,
+		dxCommon->GetRtvDesc().Format,
+		srvManager->GetSrvHeap().Get(),
+		srvManager->GetSrvHeap()->GetCPUDescriptorHandleForHeapStart(),
+		srvManager->GetSrvHeap()->GetGPUDescriptorHandleForHeapStart());
+
+	TextureManager::GetInstance()->Initialize(dxCommon.get(), srvManager.get());
 
 	std::unique_ptr<SpriteCommon> spriteCommon;
 	spriteCommon = std::make_unique<SpriteCommon>();
@@ -82,7 +99,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// キーの初期化
 	Input input;
 	input.Initialize(winApp->GetWindowClass(), winApp->GetHwnd());
-
+	
 	MSG msg{};
 	// ウィンドウの×ボタンが押されるまでループ
 	while (msg.message != WM_QUIT) {
@@ -131,6 +148,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::Render();
 
 			dxCommon->PreDraw();
+
+			srvManager->PreDraw();
 
 			object3dCommon->PreDraw();
 
