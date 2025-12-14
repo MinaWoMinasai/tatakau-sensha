@@ -215,3 +215,10 @@ struct TornadoParticle {
 	float maxHeight; // ← 無限ループ用
 	Vector4 color;
 };
+
+struct ParticleGroup {
+	MaterialData materialData;
+	std::vector<Particle> particles;
+
+
+};
