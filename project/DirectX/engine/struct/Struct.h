@@ -219,6 +219,8 @@ struct TornadoParticle {
 struct ParticleGroup {
 	MaterialData materialData;
 	std::vector<Particle> particles;
-
-
+	uint32_t srvIndex;
+	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource;
+	uint32_t numInstance;
+	ParticleForGPU* instancingData;
 };

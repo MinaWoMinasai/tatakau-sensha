@@ -131,7 +131,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					object3dCommon->SetIsDebugCamera(true);
 				}
 			}
-			
 
 			// デバッグカメラ
 			debugCamera->Update(input.GetMouseState(), input.GetKey(), leftStick);
