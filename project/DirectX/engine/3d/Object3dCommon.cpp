@@ -1,7 +1,17 @@
 #include "Object3dCommon.h"
 
+Object3dCommon* Object3dCommon::GetInstance()
+{
+	static Object3dCommon instance;
+	return &instance;
+}
+
 void Object3dCommon::Initialize(DirectXCommon* dxCommon)
 {
+
+	if (dxCommon_ != nullptr) {
+		return;
+	}
 	dxCommon_ = dxCommon;
 
 }

@@ -5,7 +5,6 @@
 #include <wrl.h>
 #include <d3d12.h>
 
-
 struct Vector2 {
 	float x;
 	float y;
@@ -98,6 +97,12 @@ struct AABB {
 	Vector3 max; // 最大値
 };
 
+struct OBB {
+	Vector3 center;
+	Vector3 halfExtents;
+	Vector3 orientation[3]; // 正規化済み
+};
+
 struct alignas(16) Material {
 	Vector4 color;
 	int32_t enableLighting;
@@ -155,12 +160,6 @@ struct FormatChunk
 	WAVEFORMATEX fmt; // 波形フォーマット
 };
 
-struct Block {
-	Transform transform;
-	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource;
-	TransformationMatrix* wvpData = nullptr;
-};
-
 struct Particle {
 	Transform transform;
 	Vector3 velocity;
@@ -214,4 +213,59 @@ struct TornadoParticle {
 	float upSpeed;
 	float maxHeight; // ← 無限ループ用
 	Vector4 color;
+};
+
+enum AxisXYZ {
+	X,
+	Y,
+	Z,
+};
+
+enum BlendMode {
+	kNone,
+	kAlpha,
+};
+
+enum Phase {
+	kFadeIn,
+	kMain,
+	kFadeOut,
+};
+
+struct AttackParam {
+	float bulletSpeed;
+	int bulletCount;
+	float spreadAngleDeg;
+	bool randomSpread;
+
+	bool reflect;
+	bool penetrate;
+
+	float cooldown;
+
+	uint32_t damage;
+};
+
+enum BulletOwner {
+	kPlayer,
+	kEnemy
+};
+
+enum TankType {
+	SingleShot,
+	DoubleShot,
+	TripleShot,
+
+	Shotgun,
+
+	ShotDrone,
+
+
+
+};
+
+struct CollisionResult {
+	bool hit = false;     // 衝突しているか
+	Vector3 normal;       // 押し戻し方向（正規化済み）
+	float depth = 0.0f;   // 侵入量（押し戻す距離）
 };

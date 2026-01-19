@@ -1,14 +1,15 @@
 #pragma once
 #include <d3d12.h>
+#include "Struct.h"
 
 class State
 {
 public:
 
-	void Initialize();
+	void Initialize(BlendMode blendMode);
 
 	D3D12_DEPTH_STENCIL_DESC GetDepthStencilDesc() { return depthStencilDesc; }
-	D3D12_BLEND_DESC GetBlendDesc() { return blendDesc; }
+	D3D12_BLEND_DESC& GetBlendDesc() { return blendDesc; }
 	D3D12_RASTERIZER_DESC GetRasterizerDesc() { return rasterizerDesc; }
 
 private:

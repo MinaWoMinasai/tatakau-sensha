@@ -149,3 +149,7 @@ void Sprite::AdjustTextureSize()
 	textureSize_.y = static_cast<float>(metadata.height);
 	size_ = textureSize_;
 }
+
+void Sprite::SetBlendMode(BlendMode blendMode) {
+	spriteCommon_->PreDraw(blendMode);
+}

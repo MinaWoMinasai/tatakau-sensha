@@ -5,11 +5,14 @@ class SpriteCommon
 {
 public:
 
+	// シングルトン
+	static SpriteCommon* GetInstance();
+
 	// 初期化
 	void Initialize(DirectXCommon* dxCommon);
 
 	// 共通描画設定
-	void PreDraw();
+	void PreDraw(BlendMode blendMode = kNone);
 
 	DirectXCommon* GetDxCommon() { return dxCommon_; }
 

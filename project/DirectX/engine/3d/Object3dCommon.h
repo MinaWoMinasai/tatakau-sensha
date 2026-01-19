@@ -7,6 +7,9 @@ class Object3dCommon
 {
 public:
 
+	// シングルトン
+	static Object3dCommon* GetInstance();
+
 	// 初期化
 	void Initialize(DirectXCommon* dxCommon);
 

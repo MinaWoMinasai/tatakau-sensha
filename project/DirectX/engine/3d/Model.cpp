@@ -20,20 +20,6 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directorypat
 	// 頂点データをリソースにコピー
 	std::memcpy(vertexData, modelData_.vertices.data(), sizeof(VertexData) * modelData_.vertices.size());
 
-	// マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
-	materialResource = texture.CreateBufferResource(modelCommon_->GetDxCommon()->GetDevice(), sizeof(Material));
-	// マテリアルにデータを書き込む
-	materialData = nullptr;
-	// 書き込むためのアドレスを取得
-	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-	// 赤を書き込む
-	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-	// ライティングを有効にする
-	materialData->enableLighting = false;
-	materialData->lightingMode = false;
-	materialData->uvTransform = MakeIdentity4x4();
-	materialData->shininess = 10.0f;
-
 	// objの参照しているテクスチャファイル読み込み
 	TextureManager::GetInstance()->LoadTexture(modelData_.material.textureFilePath);
 	// 読み込んだテクスチャの番号を取得
@@ -45,7 +31,6 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directorypat
 void Model::Draw() {
 	
 	modelCommon_->GetDxCommon()->GetList()->IASetVertexBuffers(0, 1, &vertexBufferView); //VBVを設定
-	modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 	modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.textureFilePath));
 	modelCommon_->GetDxCommon()->GetList()->DrawInstanced(UINT(modelData_.vertices.size()), 1, 0, 0);
 

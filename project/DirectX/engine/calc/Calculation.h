@@ -3,19 +3,22 @@
 #include <cassert>
 #include <random>
 
+extern std::mt19937 rng;
+
 const float pi = 3.14159265f;
 
 // 加算
+Vector2 Add(const Vector2& v1, const Vector2& v2);
 Vector3 Add(const Vector3& v1, const Vector3& v2);
 Vector4 Add(const Vector4& v1, const Vector4& v2);
 
 // 減算
+Vector2 Subtract(const Vector2& v1, const Vector2& v2);
 Vector3 Subtract(const Vector3& v1, const Vector3& v2);
-
-// 減算
 Vector4 Subtract(const Vector4& v1, const Vector4& v2);
 
 // スカラー倍
+Vector2 Multiply(float scalar, const Vector2& v);
 Vector3 Multiply(float scalar, const Vector3& v);
 
 // 内積
@@ -74,7 +77,9 @@ Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, f
 // LookAt行列
 Matrix4x4 MakeLookAtMatrix(const Vector3& eye, const Vector3& target, const Vector3& up);
 
+int Rand(int min, int max);
 float Rand(float min, float max);
+Vector2 Rand(const Vector2& min, const Vector2& max);
 Vector3 Rand(const Vector3& min, const Vector3& max);
 Vector4 Rand(const Vector4& min = {0.0f, 0.0f, 0.0f, 1.0f}, const Vector4& max = {1.0f, 1.0f, 1.0f, 1.0f});
 Particle MakeParticle(const Vector3& position, const Vector4& baseColor);
@@ -98,8 +103,23 @@ bool IsCollision(const AABB& aabb, const Sphere& sphere);
 // 直方体と線の当たり判定
 bool IsCollision(const AABB& aabb, const Segment& segmrnt);
 
+float DistancePointToSegment(const Vector3& point, const Segment& segment);
+
+// 線と球の当たり判定
+bool IsCollision(const Segment& segment, const Sphere& sphere);
+
+// カプセルと線の球の当たり判定
+bool IsCollision(const Segment& seg, const Sphere& sphere, float capsuleRadius);
+
 //* 演算子オーバーロード
 //---------------------------------------------
+
+// Vector2
+inline Vector2 operator+(const Vector2& v1, const Vector2& v2) { return Add(v1, v2); }
+inline Vector2 operator-(const Vector2& v1, const Vector2& v2) { return Subtract(v1, v2); }
+inline Vector2 operator*(const float& s, const Vector2& v) { return Multiply(s, v); }
+inline Vector2 operator*(const Vector2& v, const float& s) { return Multiply(s, v); }
+inline Vector2 operator/(const Vector2& v, const float& s) { return Multiply(1.0f / s, v); }
 
 // Vector3
 inline Vector3 operator+(const Vector3& v1, const Vector3& v2) { return Add(v1, v2); }
@@ -131,3 +151,14 @@ Vector3 ScreenToWorld3D(const Vector2& screenPos, const Matrix4x4& viewMatrix, c
 	float windowWidth, float windowHeight, float distanceFromCamera);
 
 Vector3 RandomUnitVector();
+
+// ワールドトランスフォームの初期化
+Transform InitWorldTransform();
+
+Vector3 SlideLeft(const Vector3& dir);
+
+Vector3 SlideRight(const Vector3& dir);
+
+CollisionResult CheckSphereVsOBB(const Sphere& s, const OBB& o);
+
+Vector2 RotateAround();
