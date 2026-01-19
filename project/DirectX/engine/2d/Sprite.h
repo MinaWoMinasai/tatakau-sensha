@@ -51,6 +51,8 @@ public:
 	Vector2& GetTextureSize() { return textureSize_; }
 	void SetTextureSize(const Vector2& textureSize) { textureSize_ = textureSize; }
 
+	void SetBlendMode(BlendMode blendMode);
+
 private:
 
 	void AdjustTextureSize();

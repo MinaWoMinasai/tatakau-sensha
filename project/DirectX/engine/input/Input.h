@@ -10,6 +10,9 @@ class Input {
 
 public:
 
+	// シングルトン
+	static Input* GetInstance();
+
 	/// <summary>
 	/// 初期化
 	/// </summary>

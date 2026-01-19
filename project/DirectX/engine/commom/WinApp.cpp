@@ -2,6 +2,12 @@
 
 #pragma comment(lib, "winmm.lib")
 
+WinApp* WinApp::GetInstance()
+{
+	static WinApp instance;
+	return &instance;
+}
+
 LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	{
@@ -47,7 +53,7 @@ void WinApp::Initialize()
 	// ウィンドウの生成
 	hwnd_ = CreateWindow(
 		wc_.lpszClassName,
-		L"LE2C_25_ホリケ_ハヤト",
+		L"LE2C_25_ホリケ_ハヤト_たたかうせんしゃ",
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,

@@ -125,7 +125,23 @@ public:
 	IDxcCompiler3* GetDxcCompiler() { return dxcCompiler_; }
 	IDxcIncludeHandler* GetIncludeHandler() { return includeHandler_; }
 
-	PSO& GetPSOObject() { return psoObject_; }
+	PSO& GetPSOObject(BlendMode blendMode = kAlpha) {
+		switch (blendMode)
+		{
+		case kNone:
+			return objectPSO_None;
+
+			break;
+		case kAlpha:
+			return objectPSO_Alpha;
+
+			break;
+		default:
+			return objectPSO_None;
+			break;
+		}
+	}
+
 	PSO& GetPSOParticle() { return psoParticle_; }
 
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
@@ -203,7 +219,7 @@ private:
 	void InitializeFixFPS();
 	void UpdateFixFPS();
 
-	void CreateShaderCommon(PSO& pso);
+	void CreateShaderCommon(PSO& pso, BlendMode blendMode = kAlpha);
 	void CreateShader();
 	void CreateGraphics();
 
@@ -249,8 +265,9 @@ private:
 	
 	// 記録時間
 	std::chrono::steady_clock::time_point reference_;
-
-	PSO psoObject_;
+	
+	PSO objectPSO_None;
+	PSO objectPSO_Alpha;
 	PSO psoParticle_;
 	ShaderType shaderType_;
 

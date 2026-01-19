@@ -22,10 +22,8 @@ private:
 
 	// バッファリソース
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource;
-	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource;
 	// バッファリソース内のデータをさすポインタ
 	VertexData* vertexData;
-	Material* materialData;
 	// バッファリソースの使い道を補足するバッファビュー
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
 

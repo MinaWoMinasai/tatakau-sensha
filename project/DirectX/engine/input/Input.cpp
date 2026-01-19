@@ -3,6 +3,12 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "xinput.lib")
 
+Input* Input::GetInstance()
+{
+	static Input instance;
+	return &instance;
+}
+
 void Input::Initialize(const WNDCLASS& wc, const HWND& hwnd)
 {
 	IDirectInput8* directInput = nullptr;
