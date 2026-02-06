@@ -32,8 +32,17 @@ void AttackController::Fire(const Vector3& origin, const Vector3& baseDir, const
         Vector3 velocity = param.bulletSpeed * dirRotated;
 
         auto bullet = std::make_unique<Bullet>();
+        
+        // 敵とプレイヤーで発射位置を少し変える
+        Vector3 bulletOrigin;
+        if (owner == BulletOwner::kPlayer) {
+            bulletOrigin = origin + (baseDir * 1.5f);
+        } else if (owner == BulletOwner::kEnemy) {
+            bulletOrigin = origin + (baseDir * 3.0f);
+        }
+        
         bullet->Initialize(
-            origin,
+            bulletOrigin,
             velocity,
             param.damage,
             owner,

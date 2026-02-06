@@ -56,6 +56,17 @@ void SceneManager::Draw() {
 	}
 }
 
+void SceneManager::DrawPostEffect3D() {
+	switch (scene) {
+	case Scene::kTitle:
+		//titleScene_->Draw();
+		break;
+	case Scene::kGame:
+		gameScene_->DrawPostEffect3D();
+		break;
+	}
+}
+
 void SceneManager::DrawSprite()
 {
 	switch (scene) {

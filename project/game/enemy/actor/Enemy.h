@@ -44,7 +44,7 @@ public:
 	/// <summary>
 	/// 更新
 	/// </summary>
-	void Update();
+	void Update(float deltaTime);
 
 	/// <summary>
 	/// 描画
@@ -114,7 +114,7 @@ public:
 	/// <summary>
 	/// ステートによる移動
 	/// </summary>
-	void Move();
+	void Move(float deltaTime);
 	Vector3 RandomDirection();
 	
 	Vector3 EvadeBullets();
@@ -152,6 +152,10 @@ public:
 		attackController_.SetBulletManager(bulletManager);
 	}
 
+	void UpdateHPBar();
+
+	void HPBarDraw();
+
 private:
 	// ワールド変換データ
 	Transform worldTransform_;
@@ -170,13 +174,11 @@ private:
 	// 最初の弾までの時間
 	uint32_t time_ = 60;
 
-	//bool isDead_ = false;
-
 	float radius_ = 2.8f;
 
 	std::string behaviorName_;
 	// 弾のクールダウン
-	uint32_t bulletCooldown_ = 30;
+	float bulletCooldown_ = 0.5f;
 
 	AIState aiState_ = AIState::Wander;
 
@@ -208,8 +210,8 @@ private:
 	
 	Vector3 velocity_{ 0, 0, 0 };
 
-	float maxSpeed_ = 0.30f;
-	float accel_ = 0.08f;
+	float maxSpeed_ = 0.10f;
+	float accel_ = 0.008f;
 	float friction_ = 0.90f;
 	
 	std::unique_ptr<Sprite> bossHpFont;
@@ -217,6 +219,7 @@ private:
 	std::unique_ptr<Sprite> bossHpRed;
 
 	int hp_ = 200;
+	int maxHP_ = 200;
 
 	bool isDead_ = false;
 
@@ -227,7 +230,15 @@ private:
 	// 攻撃コントローラ
 	AttackController attackController_;
 
-	BulletManager* bulletManager_ = nullptr;
+	BulletManager* bulletManager_;
+
+	// HPバーモデル
+	Transform hpBarFillTransform_;
+	Transform hpBarBGTransform_;
+
+	std::unique_ptr<Object3d> hpBarFill_;
+	std::unique_ptr<Object3d> hpBarBG_;
+
 
 private:
 	void SpawnParticles();

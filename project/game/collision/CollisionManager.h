@@ -6,6 +6,7 @@ class Enemy;
 class Player;
 class PlayerDrone;
 class BulletManager;
+class EnemyManager;
 
 class CollisionManager {
 

@@ -51,6 +51,7 @@ void DebugCamera::Update(const DIMOUSESTATE& mousestate, std::span<const BYTE> k
     // カメラ位置の算出
     Vector3 cameraPos = Add(target, Multiply(-distance, forward));
     eye_ = cameraPos;
+    //worldTransform_.translate = cameraPos;
 
     // View行列の作成
     viewMatrix_ = MakeLookAtMatrix(cameraPos, target, up);

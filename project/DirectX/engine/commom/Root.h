@@ -11,6 +11,7 @@ public:
 
 	void InitalizeForObject();
 	void InitalizeForParticle();
+	void InitializeForPostEffect();
 
 	void Create(Microsoft::WRL::ComPtr<ID3D12Device>& device);
 

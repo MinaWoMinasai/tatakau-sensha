@@ -13,7 +13,7 @@ public:
 	void Initialize(const Vector3& position, const Vector3& velocity, const uint32_t& damage, BulletOwner owner,
 		bool reflectable);
 
-	void Update();
+	void Update(float deltaTime);
 
 	void Draw();
 
@@ -55,9 +55,9 @@ private:
 	Vector3 velocity_;
 
 	// 寿命
-	static const int32_t kLifeTime = 200;
+	const float kLifeTime = 3.0f;
 	// デスタイマー
-	int32_t deathTimer_ = kLifeTime;
+	float deathTimer_ = kLifeTime;
 	// デスフラグ
 	bool isDead_ = false;
 

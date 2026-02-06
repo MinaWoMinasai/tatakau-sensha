@@ -7,56 +7,7 @@ void Stage::Initialize() {
 	GenerateBlocks();
 }
 
-void Stage::Update() {
-	//Vector2 orbitCenter = { 15.0f, 15.0f };
-	//float orbitSpeed = 1.0f;
-	//float dt = 1.0f / 600.0f;
-	//
-	//dt_ += dt;
-	//if (dt_ >= 0.8f) {
-	//	return;
-	//}
-
-	//for (auto& line : blocks_) {
-	//	for (Block& block : line) {
-	//		if (!block.isActive) continue;
-	//
-	//		// 角度更新
-	//		block.orbitAngle += orbitSpeed * dt;
-	//
-	//		// 公転（XY平面）
-	//		Vector2 p = {
-	//			block.originalPos.x - orbitCenter.x,
-	//			block.originalPos.y - orbitCenter.y
-	//		};
-	//
-	//		float c = cosf(block.orbitAngle);
-	//		float s = sinf(block.orbitAngle);
-	//
-	//		Vector2 rotated = {
-	//			p.x * c - p.y * s,
-	//			p.x * s + p.y * c
-	//		};
-	//
-	//		// OBB center 更新
-	//		block.obb.center.x = orbitCenter.x + rotated.x;
-	//		block.obb.center.y = orbitCenter.y + rotated.y;
-	//		block.obb.center.z = block.originalPos.z;
-	//		float rad = block.orbitAngle;
-
-	//		// 公転に追従する回転（Z軸）
-	//		block.obb.orientation[0] = { cosf(rad), sinf(rad), 0 };
-	//		block.obb.orientation[1] = { -sinf(rad), cosf(rad), 0 };
-	//		block.obb.orientation[2] = { 0, 0, 1 };
-
-	//		// 見た目も追従
-	//		block.worldTransform.translate = block.obb.center;
-	//		block.object->SetTransform(block.worldTransform);
-	//		block.object->SetRotate({ 0,0,rad });
-	//		block.object->Update();
-	//	}
-	//}
-}
+void Stage::Update() {}
 
 void Stage::Draw() {
 	for (auto& line : blocks_) {
@@ -115,14 +66,6 @@ void Stage::GenerateBlocks() {
 					mapChip_->kBlockWidth * 0.5f
 				};
 				float rad = 45.0f * (3.14159265f / 180.0f);
-
-				//block.obb.orientation[0] = { cosf(rad), sinf(rad), 0 };
-				//block.obb.orientation[1] = { -sinf(rad), cosf(rad), 0 };
-				//block.obb.orientation[2] = { 0, 0, 1 };
-				
-				// オブジェクトも回転を合わせる
-				//block.object->SetRotate({ 0, 0, rad });
-				//block.object->Update();
 
 				//// 軸はワールド基準（今は回さない）
 				block.obb.orientation[0] = { 1, 0, 0 };
@@ -199,7 +142,7 @@ void Stage::ResolvePlayerCollision(Player& player, AxisXYZ axis)
 		// ダメージ床
 		if (block.type == MapChipType::kDamageBlock) {
 			//if (!enemy.IsDead()) {
-			//	player.Damage();
+			player.Damage();
 			//}
 		}
 
@@ -334,10 +277,46 @@ void Stage::ResolveEnemyCollision(Enemy& enemy, AxisXYZ axis)
 	}
 }
 
+void Stage::ResolveExpEnemyCollision(ExpEnemy& enemy, AxisXYZ axis)
+{
+	AABB enemyAABB = enemy.GetAABB();
+	Vector3 enemyPos = enemy.GetWorldPosition();
+	const float kEpsilon = 0.01f;
+	//bool hit = false;
+
+	for (const MergedBlock& block : mergedBlocks_) {
+
+		if (!IsCollision(enemyAABB, block.aabb)) {
+			continue;
+		}
+
+		//hit = true;
+
+		Vector3 overlap = {
+			std::min(enemyAABB.max.x, block.aabb.max.x) - std::max(enemyAABB.min.x, block.aabb.min.x),
+			std::min(enemyAABB.max.y, block.aabb.max.y) - std::max(enemyAABB.min.y, block.aabb.min.y),
+			0.0f
+		};
+
+		if (axis == X) {
+			enemyPos.x += (enemyAABB.min.x < block.aabb.min.x)
+				? -(overlap.x + kEpsilon)
+				: +(overlap.x + kEpsilon);
+		} else if (axis == Y) {
+			enemyPos.y += (enemyAABB.min.y < block.aabb.min.y)
+				? -(overlap.y + kEpsilon)
+				: +(overlap.y + kEpsilon);
+		}
+
+		enemy.SetWorldPosition(enemyPos);
+		enemyAABB = enemy.GetAABB();
+	}
+}
+
 void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 {
 	for (Bullet* bullet : bullets) {
-		if (!bullet) continue;
+		if (!bullet || bullet->IsDead()) continue;
 
 		Vector3 bulletPos = bullet->GetWorldPosition();
 		float radius = bullet->GetRadius();
@@ -358,12 +337,25 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 				std::clamp(bulletSphere.center.z, block.aabb.min.z, block.aabb.max.z)
 			};
 
-			Vector3 normal = bulletSphere.center - closestPoint;
-			normal.z = 0.0f;
-			if (Length(normal) < 0.0001f) continue;
-			normal = Normalize(normal);
+			// 差分ベクトルを計算
+			Vector3 diff = bulletSphere.center - closestPoint;
+			diff.z = 0.0f; // 2D的な処理のためZを無視
 
-			float dist = Length(bulletSphere.center - closestPoint);
+			float dist = Length(diff);
+
+			// ★修正ポイント：完全に埋まっている（中心がブロック内）場合
+			if (dist < 0.0001f) {
+				// 中心が埋まっている＝即死させるのが一番安全
+				bullet->Die();
+
+				// もう死んだので計算終了フラグを立ててループを抜ける
+				isCollided = false;
+				break;
+			}
+
+			// ここまで来たら「外側で接している」ので正規化できる
+			Vector3 normal = Normalize(diff);
+
 			if (dist < nearestDist) {
 				nearestDist = dist;
 				nearestClosestPoint = closestPoint;
@@ -371,6 +363,9 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 				isCollided = true;
 			}
 		}
+		
+		// ループを抜けた後、埋まって死んだ弾は処理しない
+		if (bullet->IsDead()) continue;
 
 		if (isCollided) {
 			bulletPos = nearestClosestPoint + nearestNormal * (radius + 0.01f);
@@ -387,7 +382,6 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 				bullet->SetWorldPosition(bulletPos);
 				bullet->Die();
 			}
-
 		}
 	}
 }
@@ -510,6 +504,22 @@ void Stage::ResolvePlayerCollisionSphereX(Player& player)
 	player.SetWorldPosition(pos);
 	player.SetVelocity(vel);
 }
+
+bool Stage::IsCollisionWithAnyBlock(const Vector3& pos, float radius) {
+	Sphere spawnSphere = { pos, radius };
+	for (const auto& line : blocks_) {
+		for (const Block& block : line) {
+			if (!block.isActive) continue;
+			// 既存の判定関数（CheckSphereVsOBB）を利用
+			CollisionResult hit = CheckSphereVsOBB(spawnSphere, block.obb);
+			if (hit.hit) {
+				return true; // 壁に当たっている
+			}
+		}
+	}
+	return false; // 安全
+}
+
 const std::vector<MergedBlock>& Stage::GetMergedBlocks() const
 {
 	return mergedBlocks_;

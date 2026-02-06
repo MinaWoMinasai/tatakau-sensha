@@ -36,9 +36,22 @@ void Object3d::Initialize()
 	materialData_->enableLighting = false;
 	materialData_->lightingMode = false;
 	materialData_->uvTransform = MakeIdentity4x4();
-	materialData_->shininess = 10.0f;
+	materialData_->shininess = 32.0f;
 
 	transform_ = { {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
+	
+	// カメラ用 CBV を作成
+	cameraResource_ = texture.CreateBufferResource(
+		object3dCommon_->GetDxCommon()->GetDevice(),
+		sizeof(CameraData)
+	);
+
+	// マップ
+	cameraResource_->Map(0, nullptr, reinterpret_cast<void**>(&cameraData_));
+
+	// 初期値（とりあえず原点）
+	cameraData_->worldPosition = { 0.0f, 0.0f, 0.0f };
+	cameraData_->padding = 0.0f;
 
 	camera_ = object3dCommon_->GetDefaultCamera();
 	debugCamera_ = object3dCommon_->GetDebugCamera();
@@ -51,9 +64,11 @@ void Object3d::Update() {
 	if (object3dCommon_->GetIsDebugCamera()) {
 		const Matrix4x4& viewProjectionMatrix = debugCamera_->GetViewProjectionMatrix();
 		worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
+		cameraData_->worldPosition = debugCamera_->GetEyePosition();
 	} else {
 		const Matrix4x4& viewProjectionMatrix = camera_->GetViewProjectionMatrix();
 		worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
+		cameraData_->worldPosition = camera_->GetTranslate();
 	}
 	
 	transformationMatrixData->WVP = worldViewProjectionMatrix;
@@ -66,6 +81,7 @@ void Object3d::Draw() {
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
 	
 	if (model_) {
 		model_->Draw();

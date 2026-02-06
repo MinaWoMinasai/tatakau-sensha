@@ -181,11 +181,12 @@ struct AccelerationField {
 	Vector3 acceleration; // 加速度
 	AABB area; // 効果範囲
 };
-//
-//struct alignas(16) Camera {
-//	Vector3 worldPosition;
-//	float pad; // 16バイトアラインメント対策
-//};
+
+struct CameraData
+{
+	Vector3 worldPosition;
+	float padding; // 16byte アラインメント用（重要）
+};
 
 enum class FireworkState {
 	Rise,
@@ -223,7 +224,13 @@ enum AxisXYZ {
 
 enum BlendMode {
 	kNone,
-	kAlpha,
+	kAdd,
+
+	kAdd_Bloom_Extract,
+	kAdd_Bloom_BlurH,
+	kAdd_Bloom_BlurV,
+	kAdd_Bloom_Composite,
+	kAdd_Bloom_Downsample,
 };
 
 enum Phase {
@@ -251,21 +258,15 @@ enum BulletOwner {
 	kEnemy
 };
 
-enum TankType {
-	SingleShot,
-	DoubleShot,
-	TripleShot,
-
-	Shotgun,
-
-	ShotDrone,
-
-
-
-};
-
 struct CollisionResult {
 	bool hit = false;     // 衝突しているか
 	Vector3 normal;       // 押し戻し方向（正規化済み）
 	float depth = 0.0f;   // 侵入量（押し戻す距離）
+}; 
+
+struct BloomParam
+{
+	float threshold;
+	float intensity;
+	float padding[2]; // 16byte合わせ
 };

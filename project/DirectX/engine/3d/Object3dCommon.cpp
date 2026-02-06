@@ -16,11 +16,11 @@ void Object3dCommon::Initialize(DirectXCommon* dxCommon)
 
 }
 
-void Object3dCommon::PreDraw()
+void Object3dCommon::PreDraw(BlendMode blendMode)
 {
 
-	dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject().root_.GetSignature().Get());
-	dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObject().graphicsState_.Get()); // PSOを設定
+	dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject(blendMode).root_.GetSignature().Get());
+	dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObject(blendMode).graphicsState_.Get()); // PSOを設定
 	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 }

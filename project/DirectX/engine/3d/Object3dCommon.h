@@ -14,7 +14,7 @@ public:
 	void Initialize(DirectXCommon* dxCommon);
 
 	// 共通描画設定
-	void PreDraw();
+	void PreDraw(BlendMode blendMode);
 
 	DirectXCommon* GetDxCommon() { return dxCommon_; }
 

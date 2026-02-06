@@ -4,6 +4,7 @@
 #include "Enemy.h"
 #include "Bullet.h"
 #include "MapChip.h"
+#include "ExpEnemy.h"
 
 struct MergedBlock {
 	AABB aabb;
@@ -36,7 +37,10 @@ public:
 	void ResolvePlayerDroneCollision(PlayerDrone& playerDrone, AxisXYZ axis);
     void ResolveEnemyCollision(Enemy& enemy, AxisXYZ axis);
 	void ResolveBulletsCollision(const std::vector<Bullet*>& bullets);
-
+	void ResolveExpEnemyCollision(ExpEnemy& enemy, AxisXYZ axis);
+	
+	bool IsCollisionWithAnyBlock(const Vector3& pos, float radius);
+	
 	void ResolvePlayerCollisionSphere(Player& player);
 	
 	// Y軸（落下・接地）

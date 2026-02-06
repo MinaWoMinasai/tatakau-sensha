@@ -3,6 +3,7 @@
 #include "Player.h"
 #include "Bullet.h"
 #include "BulletManager.h"
+#include "EnemyManager.h"
 
 void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager) {
 
@@ -83,4 +84,9 @@ void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager*
 	for (Bullet* bullet : bulletManager->GetBulletPtrs()) {
 		colliders_.push_back(bullet);
 	}
+
+	//for (ExpEnemy* enemy : enemyManager->GetEnemyPtrs()) {
+	//	colliders_.push_back(enemy);
+	//}
+	
 }
