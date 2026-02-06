@@ -1,6 +1,7 @@
 #pragma once
 #include "SpriteCommon.h"
 #include "TextureManager.h"
+#include "SrvManager.h"
 
 class Sprite
 {
@@ -8,6 +9,7 @@ public:
 
 	// 初期化
 	void Initialize(SpriteCommon* spriteCommon, std::string textureFilePath);
+	void Initialize(SpriteCommon* spriteCommon, uint32_t srvIndex, SrvManager* srvManager);
 
 	void Update();
 
@@ -29,6 +31,8 @@ public:
 
 	Vector4& GetColor() { return materialData->color; }
 	void SetColor(const Vector4& color) { materialData->color = color; }
+
+	void SetAlpha(const float alpha){ materialData->color.w = alpha; }
 
 	Vector2& GetSize() { return size_; }
 	void SetSize(const Vector2& size) { size_ = size; }
@@ -52,6 +56,8 @@ public:
 	void SetTextureSize(const Vector2& textureSize) { textureSize_ = textureSize; }
 
 	void SetBlendMode(BlendMode blendMode);
+	
+	bool IsHovered(const Vector2& mousePos) const;
 
 private:
 
@@ -102,5 +108,7 @@ private:
 
 	std::string textureFilePath_;
 
+	bool isRenderTexture_ = false;
+	SrvManager* srvManager_ = nullptr;
 };
 

@@ -94,6 +94,8 @@ void PlayerDrone::Initialize(const Vector3& position, const Vector3& velocity) {
 	// シングルトンインスタンス
 	input_ = Input::GetInstance();
 
+	SetDamage(1);
+
 	// 衝突属性を設定
 	SetCollisionAttribute(kCollisionAttributePlayerDrone);
 	// 衝突対象を自分に設定
@@ -135,6 +137,24 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 	playerPos.y += GetMove().y;
 	SetWorldPosition(playerPos);
 	stage.ResolvePlayerDroneCollision(*this, Y);
+	
+	Vector3 pos = GetWorldPosition();
+
+	// ワールド座標からマップインデックスに変換
+	int xIndex = static_cast<int>(pos.x / 2.0f); // kBlockWidth = 2.0f
+	int yIndex = static_cast<int>(19 - (pos.y / 2.0f)); // kNumBlockVirtical - 1 = 19, kBlockHeight = 2.0f
+
+	// Stageクラスに判定用関数がある場合の例
+	// if (stage.GetMapChipType(pos) == MapChipType::kDamageBlock) { Die(); }
+
+	// 直接MapChipデータを参照する場合の簡易判定（MapChipのインスタンスが必要）
+	if (xIndex < 0 || xIndex >= 30 || yIndex < 0 || yIndex >= 20) {
+		Die(); // そもそもマップ配列の範囲外なら死亡
+	} else {
+		// マップの値を直接チェック（Stage経由でMapChipを取得する想定）
+		// MapChipType type = stage.GetMapChip().GetMapChipTypeByIndex(xIndex, yIndex);
+		// if (type == MapChipType::kDamageBlock) { Die(); }
+	}
 
 	// object_ の更新だけ（移動はしない）
 	object_->SetTransform(worldTransform_);

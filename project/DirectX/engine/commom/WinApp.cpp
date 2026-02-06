@@ -53,7 +53,7 @@ void WinApp::Initialize()
 	// ウィンドウの生成
 	hwnd_ = CreateWindow(
 		wc_.lpszClassName,
-		L"LE2C_25_ホリケ_ハヤト_たたかうせんしゃ",
+		L"LE2C_25_ホリケ_ハヤト",
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,

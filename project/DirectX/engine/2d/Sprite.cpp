@@ -3,6 +3,7 @@
 void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath) {
 	spriteCommon_ = spriteCommon;
 	textureFilePath_ = textureFilePath;
+	isRenderTexture_ = false;
 
 	// 用の頂点リソースを作る
 	vertexResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(VertexData) * 4);
@@ -49,7 +50,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath)
 	// 白を書き込む
 	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
-	// SptiteはLightingを使わないのでfalse
+	// SpriteはLightingを使わないのでfalse
 	materialData->enableLighting = false;
 	materialData->uvTransform = MakeIdentity4x4();
 
@@ -66,6 +67,68 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath)
 	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath_);
 
 	AdjustTextureSize();
+}
+
+void Sprite::Initialize(SpriteCommon* spriteCommon, uint32_t srvIndex, SrvManager* srvManager) {
+	spriteCommon_ = spriteCommon;
+	textureIndex = srvIndex;
+	isRenderTexture_ = true;
+	srvManager_ = srvManager;
+
+	vertexResource = texture.CreateBufferResource(
+		spriteCommon_->GetDxCommon()->GetDevice(),
+		sizeof(VertexData) * 4
+	);
+
+	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+	vertexBufferView.SizeInBytes = sizeof(VertexData) * 4;
+	vertexBufferView.StrideInBytes = sizeof(VertexData);
+
+	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+
+	vertexData[0].position = { 0,1,0,1 };
+	vertexData[0].texcoord = { 0,1 };
+	vertexData[1].position = { 0,0,0,1 };
+	vertexData[1].texcoord = { 0,0 };
+	vertexData[2].position = { 1,1,0,1 };
+	vertexData[2].texcoord = { 1,1 };
+	vertexData[3].position = { 1,0,0,1 };
+	vertexData[3].texcoord = { 1,0 };
+
+	// Index用の頂点リソースを作る
+	indexResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(uint32_t) * 6);
+
+	// リソースの先端のアドレスから使う
+	indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
+	// 使用するリソースのサイズは頂点6つ分のサイズ
+	indexBufferView.SizeInBytes = sizeof(uint32_t) * 6;
+	// 1頂点あたりのサイズ
+	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+
+	// インデックスリソースにデータを書きこむ
+	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
+	indexData[0] = 0; indexData[1] = 1; indexData[2] = 2;
+	indexData[3] = 1; indexData[4] = 3; indexData[5] = 2;
+
+	// マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
+	materialResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(Material));
+	// 書き込むためのアドレスを取得
+	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+	// 白を書き込む
+	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	// SpriteはLightingを使わないのでfalse
+	materialData->enableLighting = false;
+	materialData->uvTransform = MakeIdentity4x4();
+
+	// 用のTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
+	transformationMatrixResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(TransformationMatrix));
+	// 書き込むためのアドレスを取得
+	transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
+	// 単位行列を書き込んでおく
+	transformationMatrixData->WVP = MakeIdentity4x4();
+	transformationMatrixData->World = MakeIdentity4x4();
+
 }
 
 void Sprite::Update()
@@ -98,17 +161,26 @@ void Sprite::Update()
 	vertexData[2].position = { right, bottom, 0.0f, 1.0f };
 	vertexData[3].position = { right, top, 0.0f, 1.0f };
 
-	const DirectX::TexMetadata& metaData =
-		TextureManager::GetInstance()->GetMetaData(textureFilePath_);
-	float tex_left = textureLeftTop_.x / metaData.width;
-	float tex_right = (textureLeftTop_.x + textureSize_.x) / metaData.width;
-	float tex_top = textureLeftTop_.y / metaData.height;
-	float tex_bottom = (textureLeftTop_.y + textureSize_.y) / metaData.height;
+	if (!isRenderTexture_) {
+		const DirectX::TexMetadata& metaData =
+			TextureManager::GetInstance()->GetMetaData(textureFilePath_);
 
-	vertexData[0].texcoord = { tex_left, tex_bottom };
-	vertexData[1].texcoord = { tex_left, tex_top };
-	vertexData[2].texcoord = { tex_right, tex_bottom };
-	vertexData[3].texcoord = { tex_right, tex_top };
+		float tex_left = textureLeftTop_.x / metaData.width;
+		float tex_right = (textureLeftTop_.x + textureSize_.x) / metaData.width;
+		float tex_top = textureLeftTop_.y / metaData.height;
+		float tex_bottom = (textureLeftTop_.y + textureSize_.y) / metaData.height;
+
+		vertexData[0].texcoord = { tex_left,  tex_bottom };
+		vertexData[1].texcoord = { tex_left,  tex_top };
+		vertexData[2].texcoord = { tex_right, tex_bottom };
+		vertexData[3].texcoord = { tex_right, tex_top };
+	} else {
+		// RenderTexture は全面表示
+		vertexData[0].texcoord = { 0.0f, 1.0f };
+		vertexData[1].texcoord = { 0.0f, 0.0f };
+		vertexData[2].texcoord = { 1.0f, 1.0f };
+		vertexData[3].texcoord = { 1.0f, 0.0f };
+	}
 
 	// 用のWorldViewProjectionMatrixを作る
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
@@ -130,7 +202,16 @@ void Sprite::Draw()
 	spriteCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);// IBVを設定
 	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
-	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_));
+	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle{};
+
+	if (isRenderTexture_) {
+		srvHandle = srvManager_->GetGPUDescriptorHandle(textureIndex);
+	} else {
+		srvHandle = TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_);
+	}
+
+	spriteCommon_->GetDxCommon()->GetList()
+		->SetGraphicsRootDescriptorTable(2, srvHandle);
 	// 描画!(DrawCall/ドローコール) 。6個のインデックスを使用しで1つのインスタンスを描画。その他は当面0 
 	spriteCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
@@ -152,4 +233,11 @@ void Sprite::AdjustTextureSize()
 
 void Sprite::SetBlendMode(BlendMode blendMode) {
 	spriteCommon_->PreDraw(blendMode);
+}
+
+bool Sprite::IsHovered(const Vector2& mousePos) const
+{
+
+	return (mousePos.x >= position_.x && mousePos.x <= position_.x + size_.x &&
+		mousePos.y >= position_.y && mousePos.y <= position_.y + size_.y);
 }

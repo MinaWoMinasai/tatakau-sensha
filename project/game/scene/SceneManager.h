@@ -17,7 +17,9 @@ public:
 	void Update();
 
 	void Draw();
-	
+
+	void DrawPostEffect3D();
+
 	void DrawSprite();
 
 	//Difficult difficult = NORMAL;

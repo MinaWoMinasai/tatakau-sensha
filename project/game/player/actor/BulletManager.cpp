@@ -1,16 +1,20 @@
 #include "BulletManager.h"
 #include "Bullet.h"
 #include <algorithm>
+#include "Stage.h"
 
 void BulletManager::Add(std::unique_ptr<Bullet> bullet) {
     bullets_.push_back(std::move(bullet));
 }
 
-void BulletManager::Update() {
+void BulletManager::Update(Stage& stage, float deltaTime) {
 
     for (auto& bullet : bullets_) {
-        bullet->Update();
+        bullet->Update(deltaTime);
     }
+
+    // 弾とブロックの当たり判定
+    stage.ResolveBulletsCollision(GetBulletPtrs());
 
     bullets_.erase(
         std::remove_if(

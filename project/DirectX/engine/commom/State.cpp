@@ -25,7 +25,7 @@ void State::Initialize(BlendMode blendMode)
 		blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
 
 		break;
-	case kAlpha:
+	case kAdd:
 
 		// すべての色要素を書き込む
 		blendDesc.RenderTarget[0].RenderTargetWriteMask =

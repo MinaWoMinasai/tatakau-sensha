@@ -51,6 +51,15 @@ public:
 	enum ShaderType {
 		Object,
 		Particle,
+		PostEffect,
+	};
+
+	enum PostEffectType {
+		Bloom_Extract,
+		Bloom_Downsample,
+		Bloom_BlurH,
+		Bloom_BlurV,
+		Bloom_Composite,
 	};
 
 	struct PSO {
@@ -65,6 +74,7 @@ public:
 		ShaderType shaderType_;
 		std::wstring vsFilePath_;
 		std::wstring psFilePath_;
+		PostEffectType postEffectType_;
 	};
 
 	/// <summary>
@@ -125,16 +135,35 @@ public:
 	IDxcCompiler3* GetDxcCompiler() { return dxcCompiler_; }
 	IDxcIncludeHandler* GetIncludeHandler() { return includeHandler_; }
 
-	PSO& GetPSOObject(BlendMode blendMode = kAlpha) {
+	PSO& GetPSOObject(BlendMode blendMode = kAdd) {
 		switch (blendMode)
 		{
 		case kNone:
 			return objectPSO_None;
-
 			break;
-		case kAlpha:
-			return objectPSO_Alpha;
 
+		case kAdd:
+			return objectPSO_Alpha;
+			break;
+		
+		case kAdd_Bloom_Extract:
+			return bloomPSO;
+			break;
+		
+		case kAdd_Bloom_Downsample:
+			return downsamplePSO;
+			break;
+		
+		case kAdd_Bloom_BlurH:
+			return blurHPSO;
+			break;
+
+		case kAdd_Bloom_BlurV:
+			return blurVPSO;
+			break;
+
+		case kAdd_Bloom_Composite:
+			return conpositePSO;
 			break;
 		default:
 			return objectPSO_None;
@@ -153,7 +182,23 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
 
 	D3D12_RENDER_TARGET_VIEW_DESC GetRtvDesc() { return rtvDesc_; }
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(
+		uint32_t width,
+		uint32_t height,
+		DXGI_FORMAT format,
+		D3D12_RESOURCE_FLAGS flags,
+		const D3D12_CLEAR_VALUE* clearValue
+	);
 
+	void SetRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
+
+	void ClearRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
+
+	void ClearDepthBuffer();
+
+	void SetBackBuffer();
+
+	void SetViewport(uint32_t width, uint32_t height);
 private:
 
 	/// <summary>
@@ -184,7 +229,7 @@ private:
 	/// <summary>
 	/// レンダーターゲットビューの初期化
 	/// </summary>
-	void CreateRenderTargetView();
+	void CreateSwapChainRtv();
 
 	/// <summary>
 	/// 深度ステンシルビューの初期化
@@ -219,7 +264,7 @@ private:
 	void InitializeFixFPS();
 	void UpdateFixFPS();
 
-	void CreateShaderCommon(PSO& pso, BlendMode blendMode = kAlpha);
+	void CreateShaderCommon(PSO& pso, BlendMode blendMode = kAdd);
 	void CreateShader();
 	void CreateGraphics();
 
@@ -269,6 +314,11 @@ private:
 	PSO objectPSO_None;
 	PSO objectPSO_Alpha;
 	PSO psoParticle_;
+	PSO bloomPSO;
+	PSO downsamplePSO;
+	PSO blurHPSO;
+	PSO blurVPSO;
+	PSO conpositePSO;
 	ShaderType shaderType_;
 
 };

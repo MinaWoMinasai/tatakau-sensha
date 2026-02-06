@@ -55,22 +55,18 @@ void Enemy::ShotgunFire()
 
 	// 基準方向
 	Vector3 baseDir;
-	//if (random_) {
-		baseDir = Normalize(player_->GetWorldPosition() - origin);
-	//} else {
-	//	baseDir = Normalize(Vector3(-1.0f, 0.0f, 0.0f)); // 左固定など
-	//}
+	baseDir = Normalize(player_->GetWorldPosition() - origin);
 
 	// 攻撃パラメータを設定
 	AttackParam param{};
-	param.bulletSpeed = 0.3f;
-	param.bulletCount = 1;
-	param.spreadAngleDeg = 45.0f;
+	param.bulletSpeed = 0.4f;
+	param.bulletCount = 2;
+	param.spreadAngleDeg = 30.0f;
 	param.randomSpread = true;
 
-	param.reflect = true;
+	param.reflect = false;
 	param.penetrate = false;
-	param.cooldown = 1.0f;
+	param.cooldown = 0.7f;
 	param.damage = 10;
 
 	// 発射
@@ -83,6 +79,28 @@ void Enemy::ShotgunFire()
 }
 
 void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) {
+
+	hpBarFill_ = std::make_unique<Object3d>();
+	hpBarFill_->Initialize();
+	hpBarFill_->GetScale().y = 1.2f;
+	hpBarFill_->SetModel("playerHPBarGreenLong.obj");
+
+	hpBarFillTransform_ = InitWorldTransform();
+	hpBarFillTransform_.translate = position;
+	hpBarFill_->SetTransform(worldTransform_);
+	hpBarFill_->Update();
+
+
+	hpBarBG_ = std::make_unique<Object3d>();
+	hpBarBG_->Initialize();
+	hpBarBG_->GetScale().y = 1.2f;
+
+	hpBarBG_->SetModel("playerHPBarLong.obj");
+
+	hpBarBGTransform_ = InitWorldTransform();
+	hpBarBGTransform_.translate = position;
+	hpBarBG_->SetTransform(worldTransform_);
+	hpBarBG_->Update();
 
 	object_ = object;
 	worldTransform_ = InitWorldTransform();
@@ -111,14 +129,16 @@ void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) 
 
 }
 
-void Enemy::Update() {
+void Enemy::Update(float deltaTime) {
 
-	Move();
+	UpdateHPBar();
+
+	Move(deltaTime);
 
 	if (!isDead_){
 		if (HasLineOfSightToPlayer()) {
-			fireTimer_ -= 1.0f / 60.0f;
-			if (fireTimer_ <= 0) {
+			fireTimer_ -= deltaTime;
+			if (fireTimer_ <= 0.0f) {
 				ShotgunFire();
 				fireTimer_ = kFireTimerMax_;
 			}
@@ -126,20 +146,20 @@ void Enemy::Update() {
 
 			// 視線が通っていない場合、少しづつタイマーを回復
 			if (fireTimer_ < kFireTimerMax_) {
-				fireTimer_ += 1.0f / 60.0f;
+				fireTimer_ += deltaTime;
 			}
 		}
 	}
 
 	// X移動
 	Vector3 pos = GetWorldPosition();
-	pos.x += GetMove().x;
+	pos.x += GetMove().x * (deltaTime * 60.0f);
 	SetWorldPosition(pos);
 	stage_->ResolveEnemyCollision(*this, X);
 
 	// Y移動
 	pos = GetWorldPosition();
-	pos.y += GetMove().y;
+	pos.y += GetMove().y * (deltaTime * 60.0f);
 	SetWorldPosition(pos);
 	stage_->ResolveEnemyCollision(*this, Y);
 
@@ -172,9 +192,9 @@ void Enemy::Draw() {
 
 void Enemy::DrawSprite()
 {
-	bossHpRed->Draw();
-	sprite->Draw();
-	bossHpFont->Draw();
+	//bossHpRed->Draw();
+	//sprite->Draw();
+	//bossHpFont->Draw();
 }
 
 void Enemy::ApproachToPlayer(Vector3& startPos, Vector3& targetPos) {
@@ -242,7 +262,7 @@ void Enemy::AIStateMovePower() {
 	}
 }
 
-void Enemy::Move() { 
+void Enemy::Move(float deltaTime) {
 	
 	UpdateAIState();
 
@@ -250,7 +270,7 @@ void Enemy::Move() {
 
 	Vector3 toPlayer = player_->GetWorldPosition() - GetWorldPosition();
 	Vector3 attackVec = Normalize(toPlayer) * attackPower;
-	wanderChangeTimer -= 1.0f / 60.0f;
+	wanderChangeTimer -= deltaTime;
 	if (wanderChangeTimer <= 0.0f) {
 		wanderVec = RandomDirection() * wanderPower;
 		wanderChangeTimer = 3.0f;
@@ -287,23 +307,21 @@ void Enemy::Move() {
 		}
 	}
 
-	// 加速（追従の強さ）
+	// 1. まず摩擦を適用（速度を少し減衰させる）
+    // 何も入力がないとき、これでゆっくり止まる
+    velocity_ *= friction_ * (deltaTime * 60.0f);
 
-	// ③ desired velocity
-	Vector3 desiredVelocity = dir_ * maxSpeed_;
+    // 2. 入力方向（dir_）に向かって加速を「加算」する
+    // 目標速度との差分ではなく、純粋に「力」として足す
+    if (Length(dir_) > 0.0001f) {
+        // 加速度 accel_ をそのまま足す
+        velocity_ += dir_ * accel_ * (deltaTime * 60.0f);
+    }
 
-	// ④ 加速
-	Vector3 accel = desiredVelocity - velocity_;
-	velocity_ += accel * accel_;
-
-	// ⑤ 摩擦
-	velocity_ *= friction_;
-
-	// ⑥ 最大速度制限
-	if (Length(velocity_) > maxSpeed_) {
-		velocity_ = Normalize(velocity_) * maxSpeed_;
-	}
-
+    // 3. 最後に最大速度制限をかける
+    if (Length(velocity_) > maxSpeed_) {
+        velocity_ = Normalize(velocity_) * maxSpeed_;
+    }
 }
 
 Vector3 Enemy::RandomDirection() { return Rand(Vector3(-0.2f, -0.2f, 0.0f), Vector3(0.2f, 0.2f, 0.5f)); }
@@ -651,5 +669,37 @@ void Enemy::UpdateParticles(float deltaTime)
 
 	if (particles_.empty()) {
 		isExploding_ = false;
+	}
+}
+
+void Enemy::UpdateHPBar()
+{
+	Vector3 enemyPos = GetWorldPosition();
+	Vector3 barOffset = { -2.0f, -2.5f, 0.0f }; // プレイヤーの少し下に配置
+
+	// 背景の更新
+	hpBarBGTransform_.translate = enemyPos + barOffset;
+	hpBarBG_->SetTransform(hpBarBGTransform_);
+	hpBarBG_->Update();
+
+	// ゲージ中身の更新
+	float hpPercent = (float)hp_ / (float)maxHP_;
+	hpBarFillTransform_.translate = enemyPos + barOffset;
+	// XスケールだけHP割合にする
+	hpBarFillTransform_.scale.x = 1.0f * hpPercent;
+
+	// ゲージが左端から縮むように、少し位置をずらす調整をするとより綺麗です
+	//hpBarFillTransform_.translate.x -= 3.0f * (1.0f - hpPercent) * 0.5f;
+
+	hpBarFill_->SetTransform(hpBarFillTransform_);
+	hpBarFill_->Update();
+
+}
+
+void Enemy::HPBarDraw()
+{
+	if (!isDead_) {
+		hpBarBG_->Draw();
+		hpBarFill_->Draw();
 	}
 }

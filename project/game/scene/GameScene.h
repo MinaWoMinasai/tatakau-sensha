@@ -16,6 +16,7 @@
 #include "Fade.h"
 #include "Stage.h"
 #include "BulletManager.h"
+#include "EnemyManager.h"
 
 // ゲームシーン
 class GameScene {
@@ -47,6 +48,8 @@ public:
 	/// </summary>
 	void Draw();
 
+	void DrawPostEffect3D();
+
 	/// <summary>
 	/// 描画
 	/// </summary>
@@ -54,17 +57,22 @@ public:
 
 	bool IsFinished() const { return finished_; }
 
+	Object3d* GetBallObj() { return ballObj_.get(); }
+
 private:
 
 
 	std::unique_ptr<DebugCamera> debugCamera;
 	std::unique_ptr<Camera> camera;
 	
-	std::unique_ptr<Object3d> object3d;
+	//std::unique_ptr<Object3d> object3d;
 	std::unique_ptr<Object3d> enemyObject_;
 	std::unique_ptr<Object3d> object3d3;
 
 	std::unique_ptr<Object3d> playerObject_;
+
+	std::unique_ptr<Object3d> ballObj_;
+	std::unique_ptr<Object3d> ball_;
 
 	// 入力
 	Input* input_;
@@ -77,6 +85,9 @@ private:
 
 	// 敵
 	std::unique_ptr<Enemy> enemy_;
+
+	// 経験値敵
+	//std::unique_ptr<EnemyManager> enemyManager_;
 
 	// ステージ
 	std::unique_ptr<Stage> stage_;
@@ -95,8 +106,16 @@ private:
 
 	std::unique_ptr<Sprite> shotGide;
 	std::unique_ptr<Sprite> wasdGide;
+	std::unique_ptr<Sprite> dashGide;
 	std::unique_ptr<Sprite> toTitleGide;
 
 	// カメラ合わせフラグ
 	bool cameraFollow_ = true;
+
+	Vector3 direction = { 0.0f, -1.0f, 0.0f };
+	float insensity = 1.0f;
+	float shininess = 10.0f;
+
+	float timeScale_ = 1.0f; // 1.0 が通常、0.2 なら 5倍スロー
+
 };

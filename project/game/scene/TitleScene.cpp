@@ -11,7 +11,7 @@ void TitleScene::Initialize() {
 	fade_ = std::make_unique<Fade>();
 	fade_->Initialize();
 	fade_->Start(Fade::Status::FadeIn, 1.0f);
-	
+
 	const float screenW = 1280.0f;
 	const float screenH = 720.0f;
 
@@ -129,6 +129,7 @@ void TitleScene::Initialize() {
 	rule->Initialize(SpriteCommon::GetInstance(), "resources/rule.png");
 	rule->SetPosition({ 640.0f, 360.0f });
 	rule->SetAnchorPoint({ 0.5f,0.5f });
+	rule->SetAlpha(0.50f);
 }
 
 void TitleScene::Update() {
@@ -151,21 +152,25 @@ void TitleScene::Update() {
 		break;
 	case Phase::kMain:
 
-		// 右クリックでruleを表示
-		if (input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1])) {
+		// 左クリックでruleを表示
+		if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
 			if (ruleGide) {
-				ruleGide = false;
+				if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
+					fade_->Start(Fade::Status::FadeOut, 1.0f);
+					phase_ = Phase::kFadeOut;
+					ruleGide = false;
+				}
 			} else {
 				ruleGide = true;
 			}
 		}
 
-		if (!ruleGide) {
-			if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
-				fade_->Start(Fade::Status::FadeOut, 1.0f);
-				phase_ = Phase::kFadeOut;
-			}
-		}
+		//if (!ruleGide) {
+		//	if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
+		//		fade_->Start(Fade::Status::FadeOut, 1.0f);
+		//		phase_ = Phase::kFadeOut;
+		//	}
+		//}
 		break;
 	case Phase::kFadeOut:
 		fade_->Update();
@@ -184,7 +189,7 @@ void TitleScene::DrawSprite() {
 		c.sprite->Draw();
 	}
 	startLogo.sprite->Draw();
-	ruleLogo.sprite->Draw();
+	//ruleLogo.sprite->Draw();
 	fade_->Draw();
 
 	if (ruleGide) {
