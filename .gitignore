@@ -18,6 +18,9 @@ mono_crash.*
 
 # Build results
 generated/
+*.pdb
+*.ilk
+*.exe
 
 # Ignore Dumps and logs
 Dumps/
