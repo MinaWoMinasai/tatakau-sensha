@@ -82,7 +82,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)game\collision;$(ProjectDir)game\enemy;$(ProjectDir)game\enemy\state;$(ProjectDir)game\enemy\actor;$(ProjectDir)game\mapchip;$(ProjectDir)game\player\actor;$(ProjectDir)game\scene;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)game\collision;$(ProjectDir)game\enemy;$(ProjectDir)game\enemy\state;$(ProjectDir)game\enemy\actor;$(ProjectDir)game\mapchip;$(ProjectDir)game\player\actor;$(ProjectDir)game\scene;$(ProjectDir)game\exp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -107,7 +107,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <TreatWarningAsError>false</TreatWarningAsError>
       <Optimization>MinSpace</Optimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)game\collision;$(ProjectDir)game\enemy;$(ProjectDir)game\enemy\state;$(ProjectDir)game\enemy\actor;$(ProjectDir)game\mapchip;$(ProjectDir)game\player\actor;$(ProjectDir)game\scene;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)game\collision;$(ProjectDir)game\enemy;$(ProjectDir)game\enemy\state;$(ProjectDir)game\enemy\actor;$(ProjectDir)game\mapchip;$(ProjectDir)game\player\actor;$(ProjectDir)game\scene;$(ProjectDir)game\exp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -135,7 +135,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <TreatWarningAsError>false</TreatWarningAsError>
       <Optimization>Disabled</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)game\collision;$(ProjectDir)game\enemy;$(ProjectDir)game\enemy\state;$(ProjectDir)game\enemy\actor;$(ProjectDir)game\mapchip;$(ProjectDir)game\player\actor;$(ProjectDir)game\scene;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\commom;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)game\collision;$(ProjectDir)game\enemy;$(ProjectDir)game\enemy\state;$(ProjectDir)game\enemy\actor;$(ProjectDir)game\mapchip;$(ProjectDir)game\player\actor;$(ProjectDir)game\scene;$(ProjectDir)game\exp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -150,6 +150,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DirectX\engine\commom\BloomConstantBuffer.cpp" />
+    <ClCompile Include="DirectX\engine\commom\PostEffect.cpp" />
+    <ClCompile Include="DirectX\engine\commom\RenderTexture.cpp" />
+    <ClCompile Include="DirectX\engine\commom\RtvManager.cpp" />
     <ClCompile Include="DirectX\engine\debugCamera\Camera.cpp" />
     <ClCompile Include="DirectX\engine\audio\Audio.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
@@ -194,6 +198,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
+    <ClCompile Include="game\exp\EnemyManager.cpp" />
+    <ClCompile Include="game\exp\ExpEnemy.cpp" />
     <ClCompile Include="game\scene\Game.cpp" />
     <ClCompile Include="game\collision\Collider.cpp" />
     <ClCompile Include="game\collision\CollisionConfig.cpp" />
@@ -285,6 +291,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DirectX\engine\commom\BloomConstantBuffer.h" />
+    <ClInclude Include="DirectX\engine\commom\PostEffect.h" />
+    <ClInclude Include="DirectX\engine\commom\RenderTexture.h" />
+    <ClInclude Include="DirectX\engine\commom\RtvManager.h" />
     <ClInclude Include="DirectX\engine\debugCamera\Camera.h" />
     <ClInclude Include="DirectX\engine\audio\Audio.h" />
     <ClInclude Include="DirectX\engine\calc\Calculation.h" />
@@ -318,6 +328,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\3d\ModelCommon.h" />
     <ClInclude Include="DirectX\engine\3d\ModelManager.h" />
     <ClInclude Include="DirectX\engine\commom\SrvManager.h" />
+    <ClInclude Include="game\exp\EnemyManager.h" />
+    <ClInclude Include="game\exp\ExpEnemy.h" />
     <ClInclude Include="game\scene\Game.h" />
     <ClInclude Include="game\collision\Collider.h" />
     <ClInclude Include="game\collision\CollisionConfig.h" />
