@@ -70,6 +70,8 @@ bool Game::Initialize() {
     bloomParam_.intensity = 0.9f;
     bloomCB_->Update(bloomParam_);
 
+    ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
+
     return true;
 }
 

@@ -404,6 +404,7 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 
 		// ダッシュした瞬間に少し無敵にする（これが回避の基礎）
 		//stats_.stamina -= 1.0f;
+
 	}
 
 	// スタミナ回復

@@ -164,7 +164,18 @@ void GameScene::Update() {
 	// 衝突マネージャの更新
 	//collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
 	collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get());
-	
+
+	// 左クリックしたらパーティクル追加
+	if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
+		for (uint32_t index = 0; index < 50; ++index) {
+
+			Vector3 worldPos = ScreenToWorld3D(input_->GetMousePosition(), debugCamera->GetViewMatrix(), MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f), WinApp::kClientWidth, WinApp::kClientHeight, debugCamera->GetDistance());
+			ParticleManager::GetInstance()->Emit(MakeParticle(worldPos, Rand()));
+		}
+	}
+
+	ParticleManager::GetInstance()->Update(finalDeltaTime, camera.get(), debugCamera.get());
+
 	switch (phase_) {
 	case Phase::kFadeIn:
 		fade_->Update();
@@ -244,6 +255,8 @@ void GameScene::DrawPostEffect3D() {
 	//ballObj_->Draw();
 
 	enemy_->HPBarDraw();
+
+	ParticleManager::GetInstance()->Draw();
 
 }
 
