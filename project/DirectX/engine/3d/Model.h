@@ -14,6 +14,10 @@ public:
 
 	static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
 
+	ModelData& GetModelData() { return modelData_; }
+	Microsoft::WRL::ComPtr<ID3D12Resource>& GetVertexResource() { return vertexResource; }
+	D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() { return vertexBufferView; }
+
 private:
 	ModelCommon* modelCommon_;
 

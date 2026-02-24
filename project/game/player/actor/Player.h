@@ -11,7 +11,7 @@
 #include "AttackController.h"
 #include "PlayerDrone.h"
 #include "Easing.h"
-
+#include "ParticleManager.h"
 
 struct PlayerParticle {
 	std::unique_ptr<Object3d> object;
@@ -340,5 +340,6 @@ private:
 	const int kMaxSummonerDrones = 4;
 
 	float summonTimer_;
+
 };
 
