@@ -419,12 +419,6 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 	UpdateSummoner(deltaTime);
 
 
-	//ImGui::Begin("Stamina");
-	//ImGui::Text("stamina: %.8f", stats_.stamina);
-	//ImGui::Text("smashCharge: %.8f", smashCharge_);
-	//ImGui::Text("maxCharge: %.8f", maxCharge_);
-	//ImGui::End();
-
 	// ----------------------
 	// 横入力
 	// ----------------------

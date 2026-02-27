@@ -97,6 +97,9 @@ void Game::InitializeEngine() {
 
 void Game::InitializeImGui() {
 
+
+#ifdef USE_IMGUI
+
     // Imguiの初期化
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -108,6 +111,8 @@ void Game::InitializeImGui() {
         srvManager_->GetSrvHeap().Get(),
         srvManager_->GetSrvHeap()->GetCPUDescriptorHandleForHeapStart(),
         srvManager_->GetSrvHeap()->GetGPUDescriptorHandleForHeapStart());
+
+#endif // USE_IMGUI
 
 }
 
@@ -152,9 +157,15 @@ void Game::MainLoop() {
 
         // 前のフレームのキー状態を保存
         input->BeforeFrameData();
+
+#ifdef USE_IMGUI
+
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
+
+#endif // USE_IMGUI
+
 
         if (input->IsPress(input->GetKey()[DIK_LSHIFT]) && input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
             if (Object3dCommon::GetInstance()->GetIsDebugCamera()) {
@@ -164,17 +175,17 @@ void Game::MainLoop() {
             }
         }
 
-        //ImGui::Begin("BloomBlock");
-        //ImGui::DragFloat("Threshold", &bloomParam.threshold, 0.01f, 0.0f, 1.0f);
-        //ImGui::DragFloat("Insensity", &bloomParam.intensity, 0.01f);
-        //ImGui::End();
-
         bloomCB_->Update(bloomParam_);
 
         sceneManager_->Update();
 
+       
+#ifdef USE_IMGUI
         // ImGuiの内部コマンドを生成する
         ImGui::Render();
+
+#endif // USE_IMGUI
+
         dxCommon_->PreDraw(); // バックバッファのバリアはここで行われている
         srvManager_->PreDraw();
 
@@ -292,8 +303,12 @@ void Game::MainLoop() {
         );
         sceneManager_->Draw();
 
+#ifdef USE_IMGUI
         // 実際のcommandListのImGuiの描画コマンドを組む
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon_->GetList().Get());
+
+#endif // USE_IMGUI
+        
 
         dxCommon_->PostDraw();
 
@@ -315,9 +330,13 @@ void Game::TransitionResource(DirectXCommon* dxCommon, ID3D12Resource* resource,
 
 void Game::Finalize() {
 
+#ifdef USE_IMGUI
+    // 実際のcommandListのImGuiの描画コマンドを組む
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+
+#endif // USE_IMGUI
 
     TextureManager::GetInstance()->Finalize();
     ModelManager::GetInstance()->Finalize();
