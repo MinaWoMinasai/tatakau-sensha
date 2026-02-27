@@ -1,5 +1,6 @@
 #include "Player.h"
 #include "Stage.h"
+#include "Audio.h"
 
 Player::~Player() {
 
@@ -120,6 +121,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			}
 
 			velocity_ += recoilDir * recoilPower;
+			Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
 		}
 	}
 }

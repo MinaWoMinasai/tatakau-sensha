@@ -26,6 +26,11 @@ public:
 		std::vector<BYTE> bufferData;
 		WAVEFORMATEX* waveFormat;
 		IXAudio2SourceVoice* pSourceVoice;
+		UINT32 bufferSize;
+
+		// この音専用の再生用ボイスリスト
+		std::vector<IXAudio2SourceVoice*> voicePool;
+		size_t nextVoiceIndex = 0; // 次に使うボイスの番号
 	};
 
 
@@ -37,12 +42,19 @@ public:
 	/// <summary>
 	/// 音声の読み込み
 	/// </summary>
-	void LoadAudio(const std::wstring soundName, const std::wstring soundPath);
+	void LoadAudio(const std::wstring soundName, const std::wstring soundPath, size_t maxConcurrency = 1);
 
 	/// <summary>
 	/// 音声再生
 	/// </summary>
-	void PlayAudio(const std::wstring soundName);
+	void PlayAudio(const std::wstring soundName, bool loop, float volume);
+
+	/// <summary>
+	/// SE再生
+	/// </summary>
+	/// <param name="soundName"></param>
+	/// <param name="volume"></param>
+	void PlayAudioSE(const std::wstring soundName, float volume);
 
 private:
 
