@@ -19,6 +19,9 @@ class Audio
 {
 public:
 
+	// シングルトン
+	static Audio* GetInstance();
+
 	struct AudioData {
 		std::vector<BYTE> bufferData;
 		WAVEFORMATEX* waveFormat;
@@ -39,7 +42,7 @@ public:
 	/// <summary>
 	/// 音声再生
 	/// </summary>
-	void playAudio(const std::wstring soundName);
+	void PlayAudio(const std::wstring soundName);
 
 private:
 
