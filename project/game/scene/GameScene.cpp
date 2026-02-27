@@ -125,20 +125,19 @@ void GameScene::Update() {
 		finalDeltaTime = 0.0f;
 	}
 
-	//ImGui::Begin("FPS");
-	//ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
-	//ImGui::Text("deltaTime: %.8f", finalDeltaTime * 60.0f);
-	//ImGui::End();
-	//
+#ifdef USE_IMGUI
+
+	ImGui::Begin("FPS");
+	ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
+	ImGui::Text("deltaTime: %.8f", finalDeltaTime * 60.0f);
+	ImGui::End();
+	
+#endif // USE_IMGUI
+
 	camera->Update();
 	debugCamera->Update(input_->GetMouseState(), input_->GetKey(), input_->GetLeftStick());
-	//
-	//ImGui::Begin("Lighting");
-	//ImGui::DragFloat3("direction", &direction.x, 0.01f);
-	//ImGui::DragFloat("insensity", &insensity, 0.01f);
-	//ImGui::DragFloat("shininess", &shininess, 0.01f);
-	//ImGui::ColorEdit4("color", &ballObj_->GetColor().x);
-	//ImGui::End();
+	
+
 	direction = Normalize(direction);
 	ball_->SetDirectionalLightDirection(direction);
 	ball_->SetInsensity(insensity);
