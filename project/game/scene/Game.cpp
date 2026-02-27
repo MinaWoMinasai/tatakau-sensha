@@ -1,5 +1,6 @@
 #include "Game.h"
 #include "SceneManager.h"
+#include "Audio.h"
 
 bool Game::Initialize() {
 
@@ -72,6 +73,10 @@ bool Game::Initialize() {
 
     ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
 
+    // 音声読み込み
+    Audio::GetInstance()->Initialize();
+    Audio::GetInstance()->LoadAudio(L"BGM", L"resources/BGM.mp3");
+    
     return true;
 }
 
@@ -136,6 +141,7 @@ void Game::LoadResources() {
     for (auto& model : models) {
         ModelManager::GetInstance()->LoadModel(model);
     }
+
 }
 
 void Game::Run() {
@@ -158,6 +164,9 @@ void Game::MainLoop() {
         // 前のフレームのキー状態を保存
         input->BeforeFrameData();
 
+        // 再生
+        Audio::GetInstance()->PlayAudio(L"BGM");
+
 #ifdef USE_IMGUI
 
         ImGui_ImplDX12_NewFrame();
@@ -165,7 +174,6 @@ void Game::MainLoop() {
         ImGui::NewFrame();
 
 #endif // USE_IMGUI
-
 
         if (input->IsPress(input->GetKey()[DIK_LSHIFT]) && input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
             if (Object3dCommon::GetInstance()->GetIsDebugCamera()) {

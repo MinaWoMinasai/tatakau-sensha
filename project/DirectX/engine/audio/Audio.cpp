@@ -6,6 +6,12 @@
 #pragma comment(lib, "Mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
 
+Audio* Audio::GetInstance()
+{
+    static Audio instance;
+    return &instance;
+}
+
 Audio::~Audio()
 {
     for (auto& [name, data] : audioMap) {
@@ -112,7 +118,7 @@ void Audio::LoadAudio(const std::wstring soundName, const std::wstring filePath)
     audioMap[soundName] = std::move(audioData);
 }
 
-void Audio::playAudio(const std::wstring soundName)
+void Audio::PlayAudio(const std::wstring soundName)
 {
 	auto it = audioMap.find(soundName);
 	if (it != audioMap.end()) {
