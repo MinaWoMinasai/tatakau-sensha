@@ -5,7 +5,6 @@
 bool Game::Initialize() {
 
     CoInitializeEx(0, COINIT_MULTITHREADED);
-    MFStartup(MF_VERSION, MFSTARTUP_NOSOCKET);
 
     Dump dump;
     SetUnhandledExceptionFilter(dump.Export);
@@ -75,8 +74,12 @@ bool Game::Initialize() {
 
     // 音声読み込み
     Audio::GetInstance()->Initialize();
-    Audio::GetInstance()->LoadAudio(L"BGM", L"resources/BGM.mp3");
+    Audio::GetInstance()->LoadAudio(L"BGM", L"resources/BGM_shining_star.mp3");
+    Audio::GetInstance()->LoadAudio(L"bulletShoot", L"resources/bulletShoot.mp3", 5);
     
+    // 再生
+    Audio::GetInstance()->PlayAudio(L"BGM", true, 0.1f);
+
     return true;
 }
 
@@ -163,9 +166,6 @@ void Game::MainLoop() {
 
         // 前のフレームのキー状態を保存
         input->BeforeFrameData();
-
-        // 再生
-        Audio::GetInstance()->PlayAudio(L"BGM");
 
 #ifdef USE_IMGUI
 
@@ -355,4 +355,5 @@ void Game::Finalize() {
     WinApp::GetInstance()->Finalize();
 
     CoUninitialize();
+    MFShutdown();
 }

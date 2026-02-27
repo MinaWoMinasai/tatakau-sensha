@@ -18,14 +18,17 @@ Audio::~Audio()
         if (data.waveFormat) {
             CoTaskMemFree(data.waveFormat);
         }
-        if (data.pSourceVoice) {
-            data.pSourceVoice->DestroyVoice();
+        // プール内の全てのボイスを破棄
+        for (auto* pVoice : data.voicePool) {
+            if (pVoice) pVoice->DestroyVoice();
         }
     }
 }
 
 void Audio::Initialize()
 {
+    MFStartup(MF_VERSION, MFSTARTUP_NOSOCKET);
+
 	HRESULT hr = XAudio2Create(&xAudio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
 	if (FAILED(hr)) {
 		// エラー処理
@@ -38,7 +41,7 @@ void Audio::Initialize()
 		return;
 	}
 }
-void Audio::LoadAudio(const std::wstring soundName, const std::wstring filePath)
+void Audio::LoadAudio(const std::wstring soundName, const std::wstring filePath, size_t maxConcurrency)
 {
     // ソースリーダーの作成
     IMFSourceReader* pMFSourceReader{ nullptr };
@@ -98,32 +101,80 @@ void Audio::LoadAudio(const std::wstring soundName, const std::wstring filePath)
         OutputDebugStringA("XAudio2 has not been initialized!\n");
         return;
     }
+    // 1. 先にマップに登録して、その参照を取得する
+    AudioData& audioData = audioMap[soundName];
 
-    // audioMapに登録用のデータ準備
-    AudioData audioData;
-    audioData.bufferData = std::move(mediaData); // mediaData の寿命を確保
+    // 2. その参照に対してデータを格納していく
+    audioData.bufferData = std::move(mediaData);
     audioData.waveFormat = waveFormat;
+    audioData.bufferSize = static_cast<UINT32>(audioData.bufferData.size());
 
-    // SourceVoice の作成と登録
-    xAudio2_->CreateSourceVoice(&audioData.pSourceVoice, waveFormat);
-
-    // バッファ設定（audioData.bufferData を参照！）
-    XAUDIO2_BUFFER buffer{ 0 };
-    buffer.AudioBytes = static_cast<UINT32>(audioData.bufferData.size());
-    buffer.pAudioData = audioData.bufferData.data();
-    buffer.Flags = XAUDIO2_END_OF_STREAM;
-    audioData.pSourceVoice->SubmitSourceBuffer(&buffer);
-
-    // 最後にマップに登録
-    audioMap[soundName] = std::move(audioData);
+    // 指定された数だけ SourceVoice をあらかじめ作っておく
+    audioData.voicePool.resize(maxConcurrency);
+    for (size_t i = 0; i < maxConcurrency; ++i) {
+        xAudio2_->CreateSourceVoice(&audioData.voicePool[i], waveFormat);
+    }
 }
 
-void Audio::PlayAudio(const std::wstring soundName)
+void Audio::PlayAudio(const std::wstring soundName, bool loop, float volume)
 {
-	auto it = audioMap.find(soundName);
-	if (it != audioMap.end()) {
-		it->second.pSourceVoice->Start();
-        // 再生出来ていたらログを出す
-        OutputDebugStringA("Succees LoadAudio");
-	}
+    auto it = audioMap.find(soundName);
+    if (it == audioMap.end()) return;
+
+    auto& data = it->second;
+
+    // voicePoolが空でないかチェック
+    if (data.voicePool.empty()) return;
+
+    // pSourceVoice の代わりに voicePool[0] を使う
+    IXAudio2SourceVoice* pVoice = data.voicePool[0];
+
+    // 1. 再生中なら一度止めてバッファをクリア
+    pVoice->Stop();
+    pVoice->FlushSourceBuffers();
+
+    // 2. 音量の設定
+    pVoice->SetVolume(volume);
+
+    // 3. バッファの設定
+    XAUDIO2_BUFFER buffer{ 0 };
+    buffer.AudioBytes = data.bufferSize;
+    buffer.pAudioData = data.bufferData.data();
+    buffer.Flags = XAUDIO2_END_OF_STREAM;
+
+    if (loop) {
+        buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+    }
+
+    // 4. バッファの送信と再生開始
+    pVoice->SubmitSourceBuffer(&buffer);
+    pVoice->Start();
+}
+
+void Audio::PlayAudioSE(const std::wstring soundName, float volume)
+{
+    auto it = audioMap.find(soundName);
+    if (it == audioMap.end()) return;
+
+    auto& data = it->second;
+    if (data.voicePool.empty()) return;
+
+    // 次に使うボイスを選択
+    IXAudio2SourceVoice* pVoice = data.voicePool[data.nextVoiceIndex];
+
+    // インデックスを更新 (最後までいったら0に戻る)
+    data.nextVoiceIndex = (data.nextVoiceIndex + 1) % data.voicePool.size();
+
+    // 再生設定
+    pVoice->Stop();            // 念のため停止
+    pVoice->FlushSourceBuffers(); // キューを空にする
+    pVoice->SetVolume(volume);
+
+    XAUDIO2_BUFFER buffer{ 0 };
+    buffer.AudioBytes = data.bufferSize;
+    buffer.pAudioData = data.bufferData.data();
+    buffer.Flags = XAUDIO2_END_OF_STREAM;
+
+    pVoice->SubmitSourceBuffer(&buffer);
+    pVoice->Start();
 }
