@@ -81,7 +81,7 @@ void GameScene::Initialize() {
 
 	shotGide = std::make_unique<Sprite>();
 	shotGide->Initialize(SpriteCommon::GetInstance(), "resources/shotGide.png");
-	shotGide->SetPosition({ 20.0f, 370.0f });
+	shotGide->SetPosition({ 100.0f, 100.0f });
 	shotGide->SetSize({ 200.0f, 50.0f });
 
 	wasdGide = std::make_unique<Sprite>();
