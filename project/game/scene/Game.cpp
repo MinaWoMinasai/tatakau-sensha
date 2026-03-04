@@ -150,6 +150,9 @@ void Game::LoadResources() {
         "playerHPBarGreen.obj",
         "playerHPBarLong.obj",
         "playerHPBarGreenLong.obj",
+        "ball.obj",
+        "bloomBall.obj",
+        "bloomBlock.obj",
     };
 
     for (auto& model : models) {
