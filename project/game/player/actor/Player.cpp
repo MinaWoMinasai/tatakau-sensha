@@ -655,10 +655,10 @@ void Player::Damage()
 		//}
 
 		if (hp_ > 0) {
-			hpSprites_.pop_back();
+			//hpSprites_.pop_back();
 		}
 
-		hp_--;
+		//hp_--;
 		invincibleTimer_ = 2.0f;
 	}
 }

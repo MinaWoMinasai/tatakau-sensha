@@ -60,6 +60,10 @@ void Object3d::Initialize()
 void Object3d::Update() {
 
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+	// ワールド行列の逆行列を計算
+	Matrix4x4 inverseWorldMatrix = Inverse(worldMatrix);
+	// 逆行列を転置する
+	Matrix4x4 worldInverseTransposeMatrix = Transpose(inverseWorldMatrix);
 	Matrix4x4 worldViewProjectionMatrix;
 	if (object3dCommon_->GetIsDebugCamera()) {
 		const Matrix4x4& viewProjectionMatrix = debugCamera_->GetViewProjectionMatrix();
@@ -73,6 +77,7 @@ void Object3d::Update() {
 	
 	transformationMatrixData->WVP = worldViewProjectionMatrix;
 	transformationMatrixData->World = worldMatrix;
+	transformationMatrixData->WorldInverseTranspose = worldInverseTransposeMatrix;
 
 }
 

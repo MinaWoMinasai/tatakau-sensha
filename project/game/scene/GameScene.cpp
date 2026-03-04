@@ -139,6 +139,10 @@ void GameScene::Update() {
 	ImGui::SliderFloat2("position", &shotGide->GetPosition().x, 0.0f, 3000.0f, "%.1f");
 	ImGui::End();
 
+	ImGui::Begin("ballScale");
+	ImGui::DragFloat3("scale", &ball_->GetScale().x);
+	ImGui::End();
+
 #endif // USE_IMGUI
 
 	camera->Update();
@@ -242,6 +246,7 @@ void GameScene::Draw() {
 
 	Object3dCommon::GetInstance()->PreDraw(kNone);
 
+	ball_->Draw();
 }
 
 void GameScene::DrawPostEffect3D() {
@@ -258,7 +263,7 @@ void GameScene::DrawPostEffect3D() {
 	
 	stage_->Draw();
 
-	//ballObj_->Draw();
+	ballObj_->Draw();
 
 	enemy_->HPBarDraw();
 
