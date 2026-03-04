@@ -268,5 +268,18 @@ struct BloomParam
 {
 	float threshold;
 	float intensity;
-	float padding[2]; // 16byte合わせ
+	float vignetteIntensity;
+	float vignetteScale;
+	float timer; // 経過時間
+	float distortionAmount; // うねうねの強さ
+	float chromAbAmount; // 色収差（にじみ）の強さ
+	float isGrayscale;
+	float isInverted;
+	float noiseIntensity; // ノイズの強さ
+	float scanlineIntensity; // 走査線の強さ
+	float scanlineFrequency; // 走査線の密度
+	float curvature; // 画面の膨らみ具合 (0.02 くらいがおすすめ)
+	float borderSharp; // 枠の角の鋭さ (20.0 くらい)
+	float glitchAmount; // 追加：グリッチの強さ（0.0 ~ 0.1くらい）
+	float padding; // paddingを調節して16バイト境界に合わせる
 };

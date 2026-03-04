@@ -59,6 +59,8 @@ public:
 
 	Object3d* GetBallObj() { return ballObj_.get(); }
 
+	float GetFinalDeltaTime() const { return finalDeltaTime; }
+
 private:
 
 
@@ -117,5 +119,6 @@ private:
 	float shininess = 10.0f;
 
 	float timeScale_ = 1.0f; // 1.0 が通常、0.2 なら 5倍スロー
+	float finalDeltaTime;
 
 };

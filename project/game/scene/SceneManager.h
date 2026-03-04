@@ -24,6 +24,8 @@ public:
 
 	//Difficult difficult = NORMAL;
 
+	float GetFinalDeltaTime();
+
 private:
 	// 現在シーン（型）
 	Scene scene = Scene::kUnknown;
