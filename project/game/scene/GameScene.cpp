@@ -80,9 +80,9 @@ void GameScene::Initialize() {
 	fade_->Start(Fade::Status::FadeIn, 1.0f);
 
 	shotGide = std::make_unique<Sprite>();
-	shotGide->Initialize(SpriteCommon::GetInstance(), "resources/shotGide.png");
+	shotGide->Initialize(SpriteCommon::GetInstance(), "resources/LivePhoto.png");
 	shotGide->SetPosition({ 100.0f, 100.0f });
-	shotGide->SetSize({ 200.0f, 50.0f });
+	//shotGide->SetSize({ 200.0f, 50.0f });
 
 	wasdGide = std::make_unique<Sprite>();
 	wasdGide->Initialize(SpriteCommon::GetInstance(), "resources/wasd.png");
@@ -115,7 +115,7 @@ void GameScene::Update() {
 	timeScale_ += (1.0f - timeScale_) * 0.03f;
 
 	// 最終的な deltaTime
-	float finalDeltaTime = baseDeltaTime * timeScale_;
+	finalDeltaTime = baseDeltaTime * timeScale_;
 	// 一定まで速度が戻ったら完全に戻す
 	if (finalDeltaTime * 60.0f > 0.95f) {
 		finalDeltaTime = baseDeltaTime;

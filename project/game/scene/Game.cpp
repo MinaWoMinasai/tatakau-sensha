@@ -68,6 +68,17 @@ bool Game::Initialize() {
     // ブルームパラメータ
     bloomParam_.threshold = 0.1f;
     bloomParam_.intensity = 0.9f;
+    bloomParam_.vignetteIntensity = 0.5f;
+    bloomParam_.vignetteScale = 1.0f;
+    bloomParam_.chromAbAmount = 0.02f;
+    bloomParam_.distortionAmount = 0.01f;
+    bloomParam_.noiseIntensity = 0.5f;
+    bloomParam_.scanlineIntensity = 1.0f;
+    bloomParam_.scanlineFrequency = 30.0f;
+    bloomParam_.curvature = 0.6f;
+    bloomParam_.borderSharp = 0.02f;
+    bloomParam_.glitchAmount = 0.0f;
+
     bloomCB_->Update(bloomParam_);
 
     ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
@@ -173,6 +184,31 @@ void Game::MainLoop() {
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
+        ImGui::Begin("BloomAndVignette");
+        ImGui::DragFloat("Threshold", &bloomParam_.threshold, 0.01f, 0.0f, 1.0f);
+        ImGui::DragFloat("insensity", &bloomParam_.intensity, 0.01f);
+        ImGui::DragFloat("vinetteInsencity", &bloomParam_.vignetteIntensity, 0.01f);
+        ImGui::DragFloat("vinetteScale", &bloomParam_.vignetteScale, 0.01f);
+        ImGui::DragFloat("distortionAmount", &bloomParam_.distortionAmount, 0.001f);
+        ImGui::DragFloat("chromAbAmount", &bloomParam_.chromAbAmount, 0.001f);
+        ImGui::DragFloat("Noise", &bloomParam_.noiseIntensity, 0.01f);
+        ImGui::DragFloat("Scanline Intensity", &bloomParam_.scanlineIntensity, 0.01f);
+        ImGui::DragFloat("Scanline Frequency", &bloomParam_.scanlineFrequency, 0.01f);
+        ImGui::DragFloat("Curvature", &bloomParam_.curvature, 0.001f);   // 画面の膨らみ
+        ImGui::DragFloat("Border Sharp", &bloomParam_.borderSharp, 0.001f); // 角の丸み
+        ImGui::DragFloat("glitchAmount", &bloomParam_.glitchAmount, 0.001f); // 角の丸み
+        
+        // bool値を float(0.0 or 1.0) に変換して送る
+        static bool grayFlag = false;
+        static bool invertFlag = false;
+        if (ImGui::Checkbox("Grayscale", &grayFlag)) {
+            bloomParam_.isGrayscale = grayFlag ? 1.0f : 0.0f;
+        }
+        if (ImGui::Checkbox("Invert Color", &invertFlag)) {
+            bloomParam_.isInverted = invertFlag ? 1.0f : 0.0f;
+        }
+        ImGui::End();
+
 #endif // USE_IMGUI
 
         if (input->IsPress(input->GetKey()[DIK_LSHIFT]) && input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
@@ -186,7 +222,9 @@ void Game::MainLoop() {
         bloomCB_->Update(bloomParam_);
 
         sceneManager_->Update();
+        timer += sceneManager_->GetFinalDeltaTime();
 
+        bloomParam_.timer = timer;
        
 #ifdef USE_IMGUI
         // ImGuiの内部コマンドを生成する

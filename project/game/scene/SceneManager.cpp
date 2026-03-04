@@ -78,3 +78,11 @@ void SceneManager::DrawSprite()
 		break;
 	}
 }
+
+float SceneManager::GetFinalDeltaTime()
+{
+	if (scene == Scene::kGame) {
+		return gameScene_->GetFinalDeltaTime();
+	}
+	return 1.0f / 60.0f;
+}
