@@ -1,35 +1,26 @@
 #pragma once
-#include "GameScene.h"
-#include "TitleScene.h"
-
-enum class Scene {
-	kUnknown = 0,
-	kTitle,
-	kGame,
-};
+#include <memory>
+#include "IScene.h"
 
 class SceneManager {
 public:
 	void Initialize();
-
-	void ChangeScene();
-
 	void Update();
-
 	void Draw();
-
 	void DrawPostEffect3D();
-
+	void DrawShadow();
 	void DrawSprite();
 
-	//Difficult difficult = NORMAL;
-
 	float GetFinalDeltaTime();
+	
+	// シーン切り替えロジック
+	void ChangeScene();
 
 private:
-	// 現在シーン（型）
-	Scene scene = Scene::kUnknown;
+	// 現在のシーンを抽象的な型で保持
+	std::unique_ptr<IScene> currentScene_ = nullptr;
 
-	std::unique_ptr<TitleScene> titleScene_ = nullptr;
-	std::unique_ptr<GameScene> gameScene_ = nullptr;
+	// 現在どのシーンか識別するための型（切り替え判定用）
+	enum class SceneType { kTitle, kGame };
+	SceneType currentType_ = SceneType::kTitle;
 };

@@ -51,7 +51,9 @@ public:
 	enum ShaderType {
 		Object,
 		Particle,
+		ModelParticle,
 		PostEffect,
+		Shadow,
 	};
 
 	enum PostEffectType {
@@ -145,7 +147,9 @@ public:
 		case kAdd:
 			return objectPSO_Alpha;
 			break;
-		
+		case kShadow:
+			return shadowPSO;
+			break;
 		case kAdd_Bloom_Extract:
 			return bloomPSO;
 			break;
@@ -172,6 +176,7 @@ public:
 	}
 
 	PSO& GetPSOParticle() { return psoParticle_; }
+	PSO& GetPSOModelParticle() { return psoModelParticle_; }
 
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
@@ -199,6 +204,9 @@ public:
 	void SetBackBuffer();
 
 	void SetViewport(uint32_t width, uint32_t height);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE GetNewDsvHandle();
+
 private:
 
 	/// <summary>
@@ -314,12 +322,18 @@ private:
 	PSO objectPSO_None;
 	PSO objectPSO_Alpha;
 	PSO psoParticle_;
+	PSO psoModelParticle_;
 	PSO bloomPSO;
 	PSO downsamplePSO;
 	PSO blurHPSO;
 	PSO blurVPSO;
 	PSO conpositePSO;
+	PSO shadowPSO;
 	ShaderType shaderType_;
 
+	uint32_t dsvHeapIndex_ = 0;
+	const uint32_t kMaxDsvCount = 10;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle_;
 };
 

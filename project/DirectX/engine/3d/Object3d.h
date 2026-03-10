@@ -12,6 +12,7 @@ public:
 	void Update();
 
 	void Draw();
+	void DrawShadow();
 
 	void SetModel(Model* model) { model_ = model; }
 
@@ -61,9 +62,11 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource;
-	
+	Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource;
+
 	TransformationMatrix* transformationMatrixData;
 	DirectionalLight* directionalLightData;
+	PointLightData* pointLightData;
 	
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
 	Material* materialData_ = nullptr;
@@ -80,5 +83,10 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
 	CameraData* cameraData_ = nullptr;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> shadowDataResource;
+	ShadowData* shadowData;
+
+	Matrix4x4 lightViewProjection_;
 };
 

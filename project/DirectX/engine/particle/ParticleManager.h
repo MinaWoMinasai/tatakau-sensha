@@ -32,7 +32,7 @@ private:
 
     // インスタンシング用リソース
     Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource_;
-    ParticleForGPU* instancingData_ = nullptr;
+    ModelParticleTransformationMatrix* instancingData_ = nullptr;
     uint32_t srvIndex_; // SrvManagerで割り当てられたインデックス
 
     // 使用するモデル（plane.objなど）

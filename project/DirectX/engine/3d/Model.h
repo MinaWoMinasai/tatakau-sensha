@@ -9,6 +9,7 @@ public:
 	void Initialize(ModelCommon* modelCommon, const std::string& directorypath, const std::string& filename);
 
 	void Draw();
+	void DrawOnlyMesh();
 
 	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 

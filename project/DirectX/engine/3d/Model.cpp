@@ -36,6 +36,12 @@ void Model::Draw() {
 
 }
 
+void Model::DrawOnlyMesh() {
+	// 頂点バッファのセットと描画コマンドのみ
+	modelCommon_->GetDxCommon()->GetList()->IASetVertexBuffers(0, 1, &vertexBufferView);
+	modelCommon_->GetDxCommon()->GetList()->DrawInstanced(UINT(modelData_.vertices.size()), 1, 0, 0);
+}
+
 MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename)
 {
 

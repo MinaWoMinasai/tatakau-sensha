@@ -119,6 +119,13 @@ struct TransformationMatrix {
 	Matrix4x4 WorldInverseTranspose;
 };
 
+struct ModelParticleTransformationMatrix {
+	Matrix4x4 WVP;
+	Matrix4x4 World;
+	Matrix4x4 WorldInverseTranspose;
+	Vector4 color;
+};
+
 struct ParticleForGPU {
 	Matrix4x4 WVP;
 	Matrix4x4 World;
@@ -165,6 +172,7 @@ struct Particle {
 	Transform transform;
 	Vector3 velocity;
 	Vector3 acceleration;
+	Vector3 angularVelocity;
 	Vector3 kVelocity;
 	Vector4 color;
 	float lifeTime;
@@ -226,6 +234,7 @@ enum AxisXYZ {
 enum BlendMode {
 	kNone,
 	kAdd,
+	kShadow,
 
 	kAdd_Bloom_Extract,
 	kAdd_Bloom_BlurH,
@@ -283,4 +292,20 @@ struct BloomParam
 	float borderSharp; // 枠の角の鋭さ (20.0 くらい)
 	float glitchAmount; // 追加：グリッチの強さ（0.0 ~ 0.1くらい）
 	float padding; // paddingを調節して16バイト境界に合わせる
+};
+
+struct PointLightData {
+	Vector4 color;
+	Vector3 position;
+	float intensity;
+	float radius;
+	float decay;
+	float padding[2];
+};
+
+struct ShadowTransformationMatrix {
+	Matrix4x4 WVP;
+};
+struct ShadowData {
+	Matrix4x4 lightViewProjection;
 };

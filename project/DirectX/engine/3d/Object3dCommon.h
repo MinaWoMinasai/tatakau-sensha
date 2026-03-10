@@ -2,6 +2,8 @@
 #include "DirectXCommon.h"
 #include "Camera.h"
 #include "DebugCamera.h"
+#include "SrvManager.h"
+#include "ShadowMap.h"
 
 class Object3dCommon
 {
@@ -11,7 +13,9 @@ public:
 	static Object3dCommon* GetInstance();
 
 	// 初期化
-	void Initialize(DirectXCommon* dxCommon);
+	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, ShadowMap* shadowMap);
+
+	void Update();
 
 	// 共通描画設定
 	void PreDraw(BlendMode blendMode);
@@ -26,6 +30,12 @@ public:
 	bool& GetIsDebugCamera() { return isDebugCamera_; }
 	void SetIsDebugCamera(bool isDebugCamera) { isDebugCamera_ = isDebugCamera; }
 
+	Matrix4x4& GetLightViewProjection() { return lightViewProjection_; }
+
+	SrvManager* GetSrvManager() { return srvManager_; }
+
+	BlendMode GetBlendMode() { return blendMode_; }
+
 private:
 
 	DirectXCommon* dxCommon_ = nullptr;
@@ -34,6 +44,10 @@ private:
 	DebugCamera* debugDefaultCamera_ = nullptr;
 
 	bool isDebugCamera_ = false;
+	Matrix4x4 lightViewProjection_;
+	SrvManager* srvManager_ = nullptr;
+	ShadowMap* shadowMap_ = nullptr;
 
+	BlendMode blendMode_;
 };
 

@@ -1,8 +1,9 @@
 #pragma once
 #include "Player.h"
 #include "Fade.h"
+#include "IScene.h"
 
-class TitleScene {
+class TitleScene : public IScene {
 public:
 	
 	struct LogoChar {
@@ -18,15 +19,15 @@ public:
 		bool landed;
 	};
 
-	void Initialize();
+	void Initialize() override;
 
-	void Update();
+	void Update() override;
 
-	void Draw();
-	void DrawSprite();
+	void Draw() override;
+	void DrawSprite() override;
 
 	// デスフラグのgetter
-	bool IsFinished() const { return finished_; }
+	bool IsFinished() const override { return finished_; }
 	void UpdateLogoChar(LogoChar& c, float deltaTime);
 private:
 	// ビュープロジェクション

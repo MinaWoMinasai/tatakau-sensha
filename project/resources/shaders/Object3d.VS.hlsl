@@ -8,7 +8,14 @@ struct TransformationMatrix
     float32_t4x4 WorldInverseTranspose;
     
 };
+
+struct ShadowData
+{
+    float32_t4x4 lightViewProjection;
+};
+
 ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b0);
+ConstantBuffer<ShadowData> gShadowData : register(b1);
 
 struct VertexShaderInput
 {
@@ -28,5 +35,7 @@ VertexShaderOutput main(VertexShaderInput input)
     output.normal = normalize(mul(input.normal, (float32_t3x3) gTransformationMatrix.WorldInverseTranspose));
     
     output.worldPosition = mul(input.position, gTransformationMatrix.World).xyz;
+    output.shadowMapPosition = mul(float32_t4(output.worldPosition, 1.0f), gShadowData.lightViewProjection);
+    
     return output;
 }

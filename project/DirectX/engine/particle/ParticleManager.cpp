@@ -13,11 +13,11 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     srvManager_ = srvManager;
 
     // 1. モデルの取得（ModelManagerを使用）
-    ModelManager::GetInstance()->LoadModel("plane.obj");
-    model_ = ModelManager::GetInstance()->FindModel("plane.obj");
+    ModelManager::GetInstance()->LoadModel("triangleParticle.obj");
+    model_ = ModelManager::GetInstance()->FindModel("triangleParticle.obj");
 
     // 2. インスタンシング用リソースの作成
-    instancingResource_ = texture.CreateBufferResource(dxCommon_->GetDevice(), sizeof(ParticleForGPU) * kMaxInstance);
+    instancingResource_ = texture.CreateBufferResource(dxCommon_->GetDevice(), sizeof(ModelParticleTransformationMatrix) * kMaxInstance);
     instancingResource_->Map(0, nullptr, reinterpret_cast<void**>(&instancingData_));
 
     // 3. SRVの作成 (SrvManagerを活用！)
@@ -26,11 +26,11 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
         srvIndex_,
         instancingResource_.Get(),
         kMaxInstance,
-        sizeof(ParticleForGPU)
+        sizeof(ModelParticleTransformationMatrix)
     );
 
-    // 用のTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
-    transformationMatrixResource = texture.CreateBufferResource(dxCommon_->GetDevice(), sizeof(TransformationMatrix));
+    // 用のModelParticleTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
+    transformationMatrixResource = texture.CreateBufferResource(dxCommon_->GetDevice(), sizeof(ModelParticleTransformationMatrix));
     // 書き込むためのアドレスを取得
     transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
     // 単位行列を書き込んでおく
@@ -46,7 +46,7 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     // 赤を書き込む
     materialData_->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
     // ライティングを有効にする
-    materialData_->enableLighting = false;
+    materialData_->enableLighting = true;
     materialData_->lightingMode = false;
     materialData_->uvTransform = MakeIdentity4x4();
     materialData_->shininess = 32.0f;
@@ -86,18 +86,6 @@ void ParticleManager::Emit(const Particle& particle) {
 
 void ParticleManager::Update(float deltaTime, Camera* camera, DebugCamera* debugCamera) {
    
-    Matrix4x4 billboardMatrix;
-    
-    // ビルボード計算
-    if (Object3dCommon::GetInstance()->GetIsDebugCamera()) {
-        billboardMatrix = Inverse(debugCamera->GetViewMatrix());
-    } else {
-        billboardMatrix = Inverse(camera->GetViewMatrix());
-    }
-    billboardMatrix.m[3][0] = 0.0f;
-    billboardMatrix.m[3][1] = 0.0f;
-    billboardMatrix.m[3][2] = 0.0f;
-
     uint32_t instanceCount = 0;
     for (auto it = particles_.begin(); it != particles_.end(); ) {
         it->currentTime += deltaTime;
@@ -107,17 +95,27 @@ void ParticleManager::Update(float deltaTime, Camera* camera, DebugCamera* debug
         }
 
         // 移動
-        it->transform.translate += it->velocity;
+        it->transform.translate += it->velocity * deltaTime;
+
+        // 2. 回転：回転速度ベクトルを加算 (氷がくるくる回る動き)
+        it->transform.rotate.x += it->angularVelocity.x * deltaTime;
+        it->transform.rotate.y += it->angularVelocity.y * deltaTime;
+        it->transform.rotate.z += it->angularVelocity.z * deltaTime;
 
         // GPUデータ更新
         if (instanceCount < kMaxInstance) {
-            Matrix4x4 world = MakeScaleMatrix(it->transform.scale) * billboardMatrix * MakeTranslateMatrix(it->transform.translate);
+            Matrix4x4 world = MakeAffineMatrix(it->transform.scale, it->transform.rotate, it->transform.translate);
             if (Object3dCommon::GetInstance()->GetIsDebugCamera()) {
                 instancingData_[instanceCount].WVP = world * debugCamera->GetViewMatrix() * debugCamera->GetProjectionMatrix();
+                cameraData_->worldPosition = debugCamera->GetEyePosition();
             } else {
                 instancingData_[instanceCount].WVP = world * camera->GetViewMatrix() * camera->GetProjectionMatrix();
+                cameraData_->worldPosition = camera->GetTranslate();
 			}
+
+            Matrix4x4 worldInverseTranspose = Transpose(Inverse(world));
             instancingData_[instanceCount].World = world;
+            instancingData_[instanceCount].WorldInverseTranspose = worldInverseTranspose;
 
             // フェードアウトなどの色計算
             float alpha = 1.0f - (it->currentTime / it->lifeTime);
@@ -133,20 +131,38 @@ void ParticleManager::Update(float deltaTime, Camera* camera, DebugCamera* debug
 void ParticleManager::Draw() {
     if (particles_.empty()) return;
 
-    dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOParticle().root_.GetSignature().Get());
-    dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOParticle().graphicsState_.Get()); // PSOを設定
-    dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    auto commandList = dxCommon_->GetList();
 
-    // 1. マテリアル (b0)
-    dxCommon_->GetList()->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+    // 1. シグネチャとPSOの設定
+    commandList->SetGraphicsRootSignature(dxCommon_->GetPSOModelParticle().root_.GetSignature().Get());
+    commandList->SetPipelineState(dxCommon_->GetPSOModelParticle().graphicsState_.Get());
+    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // 2. テクスチャ (t0) をセット 
-    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(1, TextureManager::GetInstance()->GetSrvHandleGPU(model_->GetModelData().material.textureFilePath));
+    // 2. 頂点バッファの設定
+    commandList->IASetVertexBuffers(0, 1, &model_->GetVertexBufferView());
 
-    // 3. インスタンシングバッファ (t1) をセット
-    srvManager_->SetGraphicsRootDescriptorTable(2, srvIndex_);
+    // --- ここからルートパラメータのセット (InitalizeForModelParticleの順番に合わせる) ---
 
-    // 描画実行
-    dxCommon_->GetList()->IASetVertexBuffers(0, 1, &model_->GetVertexBufferView());
-    dxCommon_->GetList()->DrawInstanced((UINT)model_->GetModelData().vertices.size(), (UINT)particles_.size(), 0, 0);
+    // Index 0: Material (b0) - CBV
+    commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+
+    // Index 1: DirectionalLight (b1) - CBV
+    commandList->SetGraphicsRootConstantBufferView(1, directionalLightResource->GetGPUVirtualAddress());
+
+    // Index 2: Camera (b2) - CBV
+    commandList->SetGraphicsRootConstantBufferView(2, cameraResource_->GetGPUVirtualAddress());
+
+    // Index 3: Instancing Buffer (t1) - DescriptorTable
+    // SrvManagerからGPUハンドルを取得してセットします
+    commandList->SetGraphicsRootDescriptorTable(3, srvManager_->GetGPUDescriptorHandle(srvIndex_));
+
+    // Index 4: Texture (t0) - DescriptorTable
+    commandList->SetGraphicsRootDescriptorTable(4, TextureManager::GetInstance()->GetSrvHandleGPU(model_->GetModelData().material.textureFilePath));
+
+    // 3. 描画実行
+    commandList->DrawInstanced(
+        (UINT)model_->GetModelData().vertices.size(),
+        (UINT)particles_.size(),
+        0, 0
+    );
 }

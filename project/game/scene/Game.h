@@ -3,6 +3,9 @@
 #include "SceneManager.h"
 #include "RenderTexture.h"
 #include "PostEffect.h"
+#include "ShadowMap.h"
+#include "GameScene.h"
+#include "TitleScene.h"
 
 class Game {
 public:
@@ -28,6 +31,7 @@ private:
     std::unique_ptr<RenderTexture> bloomRT_B_;
     std::unique_ptr<RenderTexture> bloomRT_Half_;
     BloomParam bloomParam_{};
+    std::unique_ptr<ShadowMap> shadowMap_;
 
 
 
