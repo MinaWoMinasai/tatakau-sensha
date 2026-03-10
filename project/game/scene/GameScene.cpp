@@ -177,7 +177,9 @@ void GameScene::Update() {
 	// 衝突マネージャの更新
 	//collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
 	collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get());
-	
+
+#ifdef USE_IMGUI
+
 	ImGuiIO& io = ImGui::GetIO();
 
 	// アプリ側のクリック処理を行う前にチェック
@@ -191,7 +193,9 @@ void GameScene::Update() {
 			}
 		}
 	}
-	
+
+#endif // USE_IMGUI
+
 	ParticleManager::GetInstance()->Update(finalDeltaTime, camera.get(), debugCamera.get());
 
 	switch (phase_) {
