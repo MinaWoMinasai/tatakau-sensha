@@ -37,7 +37,17 @@ void Object3d::Initialize()
 	materialData_->lightingMode = false;
 	materialData_->uvTransform = MakeIdentity4x4();
 	materialData_->shininess = 32.0f;
+	
+	// ポイントライトリソース作成
+	pointLightResource = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(PointLightData));
+	pointLightResource->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData));
 
+	// デフォルト値
+	pointLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	pointLightData->position = { 0.0f, 5.0f, 0.0f };
+	pointLightData->intensity = 1.0f;
+	pointLightData->radius = 10.0f;
+	pointLightData->decay = 1.0f;
 	transform_ = { {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
 	
 	// カメラ用 CBV を作成
@@ -55,6 +65,10 @@ void Object3d::Initialize()
 
 	camera_ = object3dCommon_->GetDefaultCamera();
 	debugCamera_ = object3dCommon_->GetDebugCamera();
+
+	shadowDataResource = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(ShadowData));
+	shadowDataResource->Map(0, nullptr, reinterpret_cast<void**>(&shadowData));
+
 }
 
 void Object3d::Update() {
@@ -79,6 +93,9 @@ void Object3d::Update() {
 	transformationMatrixData->World = worldMatrix;
 	transformationMatrixData->WorldInverseTranspose = worldInverseTransposeMatrix;
 
+	lightViewProjection_ = object3dCommon_->GetLightViewProjection();
+	shadowData->lightViewProjection = lightViewProjection_;
+
 }
 
 void Object3d::Draw() {
@@ -87,9 +104,23 @@ void Object3d::Draw() {
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
+	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress());
+	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(6, shadowDataResource->GetGPUVirtualAddress());
 	
 	if (model_) {
 		model_->Draw();
+	}
+}
+
+void Object3d::DrawShadow() {
+	auto list = object3dCommon_->GetDxCommon()->GetList();
+
+	list->SetGraphicsRootConstantBufferView(0, transformationMatrixResource->GetGPUVirtualAddress());
+
+	if (model_) {
+		// Model側もテクスチャセットを含まない DrawMesh 等の関数を呼ぶか
+		// 頂点バッファのセットと描画だけを行うようにします
+		model_->DrawOnlyMesh();
 	}
 }
 

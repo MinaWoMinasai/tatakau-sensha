@@ -17,9 +17,10 @@
 #include "Stage.h"
 #include "BulletManager.h"
 #include "EnemyManager.h"
+#include "IScene.h"
 
 // ゲームシーン
-class GameScene {
+class GameScene : public IScene {
 
 public:
 
@@ -36,30 +37,32 @@ public:
 	/// <summary>
 	/// 初期化
 	/// </summary>
-	void Initialize();
+	void Initialize() override;
 
 	/// <summary>
 	/// 更新
 	/// </summary>
-	void Update();
+	void Update() override;
 
 	/// <summary>
 	/// 描画
 	/// </summary>
-	void Draw();
+	void Draw() override;
 
-	void DrawPostEffect3D();
+	void DrawShadow() override;
+
+	void DrawPostEffect3D() override;
 
 	/// <summary>
 	/// 描画
 	/// </summary>
-	void DrawSprite();
+	void DrawSprite() override;
 
-	bool IsFinished() const { return finished_; }
+	bool IsFinished() const override { return finished_; }
 
 	Object3d* GetBallObj() { return ballObj_.get(); }
 
-	float GetFinalDeltaTime() const { return finalDeltaTime; }
+	float GetFinalDeltaTime() const override { return finalDeltaTime; }
 
 private:
 

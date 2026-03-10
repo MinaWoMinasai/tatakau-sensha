@@ -2,9 +2,7 @@
 
 GameScene::GameScene() {}
 
-GameScene::~GameScene() {
-
-}
+GameScene::~GameScene() {}
 
 void GameScene::Initialize() {
 
@@ -49,7 +47,7 @@ void GameScene::Initialize() {
 	ballObj_->SetModel("bloomBlock.obj");
 	ballObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
 	
-	ball_->SetModel("ball.obj");
+	ball_->SetModel("jewelry.obj");
 
 	stage_ = std::make_unique<Stage>();
 	stage_->Initialize();
@@ -143,6 +141,11 @@ void GameScene::Update() {
 	ImGui::DragFloat3("scale", &ball_->GetScale().x);
 	ImGui::End();
 
+	ImGui::Begin("Color");
+	ImGui::DragFloat3("scale", &ball_->GetScale().x);
+	ImGui::ColorEdit4("color", &ball_->GetColor().x);
+	ImGui::End();
+
 #endif // USE_IMGUI
 
 	camera->Update();
@@ -174,16 +177,21 @@ void GameScene::Update() {
 	// 衝突マネージャの更新
 	//collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
 	collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get());
+	
+	ImGuiIO& io = ImGui::GetIO();
 
-	// 左クリックしたらパーティクル追加
-	if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
-		for (uint32_t index = 0; index < 50; ++index) {
+	// アプリ側のクリック処理を行う前にチェック
+	if (!io.WantCaptureMouse) {
+		// 左クリックしたらパーティクル追加
+		if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
+			for (uint32_t index = 0; index < 100; ++index) {
 
-			Vector3 worldPos = ScreenToWorld3D(input_->GetMousePosition(), debugCamera->GetViewMatrix(), MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f), WinApp::kClientWidth, WinApp::kClientHeight, debugCamera->GetDistance());
-			ParticleManager::GetInstance()->Emit(MakeParticle(worldPos, Rand()));
+				Vector3 worldPos = ScreenToWorld3D(input_->GetMousePosition(), debugCamera->GetViewMatrix(), MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f), WinApp::kClientWidth, WinApp::kClientHeight, debugCamera->GetDistance());
+				ParticleManager::GetInstance()->Emit(MakeParticle(worldPos, Rand()));
+			}
 		}
 	}
-
+	
 	ParticleManager::GetInstance()->Update(finalDeltaTime, camera.get(), debugCamera.get());
 
 	switch (phase_) {
@@ -246,7 +254,6 @@ void GameScene::Draw() {
 
 	Object3dCommon::GetInstance()->PreDraw(kNone);
 
-	ball_->Draw();
 }
 
 void GameScene::DrawPostEffect3D() {
@@ -258,16 +265,31 @@ void GameScene::DrawPostEffect3D() {
 	enemy_->Draw();
 	
 	//enemyManager_->Draw();
-
+	
 	bulletManager_->Draw();
 	
 	stage_->Draw();
-
+	
 	ballObj_->Draw();
-
+	
 	enemy_->HPBarDraw();
+	
+	
+	Object3dCommon::GetInstance()->PreDraw(kAdd);
 
-	ParticleManager::GetInstance()->Draw();
+	//ball_->Draw();
+
+	//ParticleManager::GetInstance()->Draw();
+
+}
+
+void GameScene::DrawShadow() {
+	// 影用の共通設定（PSOの切り替えなど）は Object3dCommon 側で行う
+	Object3dCommon::GetInstance()->PreDraw(kShadow);
+
+	// 影を落としたいモデルだけを描画
+	ballObj_->DrawShadow();
+	ball_->DrawShadow();
 
 }
 

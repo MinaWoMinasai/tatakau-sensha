@@ -13,7 +13,7 @@ void RenderTexture::Initialize(
 
     // RenderTarget用テクスチャ作成
     D3D12_CLEAR_VALUE clearValue{};
-    clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
     clearValue.Color[0] = 0.0f;
     clearValue.Color[1] = 0.0f;
     clearValue.Color[2] = 0.0f;
@@ -22,7 +22,7 @@ void RenderTexture::Initialize(
     resource_ = dxCommon_->CreateTextureResource(
         width,
         height,
-        DXGI_FORMAT_R8G8B8A8_UNORM,
+        DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         &clearValue
     );
@@ -42,7 +42,7 @@ void RenderTexture::Initialize(
     srvManager_->CreateSRVforTexture2D(
         srvIndex_,
         resource_.Get(),
-        DXGI_FORMAT_R8G8B8A8_UNORM,
+        DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
         1
     );
 }

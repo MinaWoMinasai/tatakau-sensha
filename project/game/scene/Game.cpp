@@ -66,8 +66,8 @@ bool Game::Initialize() {
     bloomRT_Half_->Initialize(dxCommon_.get(), srvManager_.get(), rtvManager_.get(), WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
 
     // ブルームパラメータ
-    bloomParam_.threshold = 0.1f;
-    bloomParam_.intensity = 0.9f;
+    bloomParam_.threshold = 0.0f;
+    bloomParam_.intensity = 1.2f;
     bloomParam_.vignetteIntensity = 0.5f;
     bloomParam_.vignetteScale = 1.0f;
     bloomParam_.chromAbAmount = 0.02f;
@@ -89,7 +89,7 @@ bool Game::Initialize() {
     Audio::GetInstance()->LoadAudio(L"bulletShoot", L"resources/bulletShoot.mp3", 5);
     
     // 再生
-    Audio::GetInstance()->PlayAudio(L"BGM", true, 0.1f);
+    //Audio::GetInstance()->PlayAudio(L"BGM", true, 0.1f);
 
     return true;
 }
@@ -101,11 +101,14 @@ void Game::InitializeEngine() {
 
     srvManager_ = std::make_unique<SrvManager>();
     srvManager_->Initialize(dxCommon_.get());
+    // シャドウマップの初期化
+    shadowMap_ = std::make_unique<ShadowMap>();
+    shadowMap_->Initialize(dxCommon_.get(), srvManager_.get(), 2048, 2048);
 
     TextureManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
     ModelManager::GetInstance()->Initialize(dxCommon_.get());
 
-    Object3dCommon::GetInstance()->Initialize(dxCommon_.get());
+    Object3dCommon::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get(), shadowMap_.get());
     SpriteCommon::GetInstance()->Initialize(dxCommon_.get());
 
     Input::GetInstance()->Initialize(
@@ -153,6 +156,7 @@ void Game::LoadResources() {
         "ball.obj",
         "bloomBall.obj",
         "bloomBlock.obj",
+        "jewelry.obj"
     };
 
     for (auto& model : models) {
@@ -210,6 +214,25 @@ void Game::MainLoop() {
         if (ImGui::Checkbox("Invert Color", &invertFlag)) {
             bloomParam_.isInverted = invertFlag ? 1.0f : 0.0f;
         }
+
+        // リセットするボタン
+        if (ImGui::Button("Reset")) {
+            bloomParam_.threshold = 0.0f;
+            bloomParam_.intensity = 1.2f;
+            bloomParam_.vignetteIntensity = 0.0f;
+            bloomParam_.vignetteScale = 0.0f;
+            bloomParam_.chromAbAmount = 0.0f;
+            bloomParam_.distortionAmount = 0.0f;
+            bloomParam_.noiseIntensity = 0.0f;
+            bloomParam_.scanlineIntensity = 0.0f;
+            bloomParam_.scanlineFrequency = 0.0f;
+            bloomParam_.curvature = 0.0f;
+            bloomParam_.borderSharp = 0.0f;
+            bloomParam_.glitchAmount = 0.0f;
+            grayFlag = false;
+			invertFlag = false;
+        }
+
         ImGui::End();
 
 #endif // USE_IMGUI
@@ -224,6 +247,7 @@ void Game::MainLoop() {
 
         bloomCB_->Update(bloomParam_);
 
+        Object3dCommon::GetInstance()->Update();
         sceneManager_->Update();
         timer += sceneManager_->GetFinalDeltaTime();
 
@@ -239,17 +263,55 @@ void Game::MainLoop() {
         srvManager_->PreDraw();
 
         // ==========================================
-        // 1. シーン描画 (SceneRT)
+        // 1. シャドウマップへの描き込み (Depth Only Pass)
         // ==========================================
-        // 書き込むので SRV -> RenderTarget に変更
-        TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        // リソースを DEPTH_WRITE に変更
+        TransitionResource(dxCommon_.get(), shadowMap_->GetResource(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-        // Scene → SceneRT
+        // シャドウ用のDSVをセットし、レンダーターゲットはNULLにする
+        auto dsvHandle = shadowMap_->GetDSVHandle(); // DSVハンドル
+        dxCommon_->GetList()->OMSetRenderTargets(0, nullptr, false, &dsvHandle);
+        dxCommon_->GetList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+        // シャドウ用ビューポート設定 (2048x2048など)
+        dxCommon_->SetViewport(2048, 2048);
+
+        // 影用PSOを使用して描画 (PSなしの軽量パス)
+        // 内部で SetPipelineState(shadowPSO.graphicsState_) を呼ぶ
+        sceneManager_->DrawShadow();
+
+        // 書き込み終わったので SHADER_RESOURCE に戻す
+        TransitionResource(dxCommon_.get(), shadowMap_->GetResource(),
+            D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+
+        // ==========================================
+        // 2. シーン描画 (Main Pass)
+        // ==========================================
+        // 通常のレンダーターゲット(SceneRT)に戻す
+        TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
         dxCommon_->SetRenderTarget(sceneRenderTexture_->GetRTVHandle());
         dxCommon_->ClearRenderTarget(sceneRenderTexture_->GetRTVHandle());
         dxCommon_->ClearDepthBuffer();
+        dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
-        sceneManager_->DrawPostEffect3D(); // 3Dオブジェクト描画
+        sceneManager_->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
+
+        //// ==========================================
+        //// 1. シーン描画 (SceneRT)
+        //// ==========================================
+        //// 書き込むので SRV -> RenderTarget に変更
+        //TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        //
+        //// Scene → SceneRT
+        //dxCommon_->SetRenderTarget(sceneRenderTexture_->GetRTVHandle());
+        //dxCommon_->ClearRenderTarget(sceneRenderTexture_->GetRTVHandle());
+        //dxCommon_->ClearDepthBuffer();
+        //
+        //sceneManager_->DrawPostEffect3D(); // 3Dオブジェクト描画
 
         SpriteCommon::GetInstance()->PreDraw(kNone);
         sceneManager_->DrawSprite();
@@ -367,6 +429,8 @@ void Game::MainLoop() {
 
 void Game::TransitionResource(DirectXCommon* dxCommon, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
 {
+
+    assert(resource != nullptr);
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -375,6 +439,7 @@ void Game::TransitionResource(DirectXCommon* dxCommon, ID3D12Resource* resource,
     barrier.Transition.StateAfter = stateAfter;
     barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     dxCommon->GetList()->ResourceBarrier(1, &barrier);
+    
 }
 
 void Game::Finalize() {

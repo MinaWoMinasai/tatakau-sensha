@@ -1,88 +1,54 @@
 #include "SceneManager.h"
+#include "TitleScene.h"
+#include "GameScene.h"
 
 void SceneManager::Initialize() {
-	// 最初のシーンを Title に設定
-	scene = Scene::kTitle;
-
-	// TitleScene を生成して初期化
-	titleScene_ = std::make_unique<TitleScene>();
-	titleScene_->Initialize();
+    currentType_ = SceneType::kTitle;
+    currentScene_ = std::make_unique<TitleScene>();
+    currentScene_->Initialize();
 }
 
 void SceneManager::ChangeScene() {
-	switch (scene) {
-	case Scene::kTitle:
-		if (titleScene_->IsFinished()) {
-			// シーン変更
-			scene = Scene::kGame;
-			// タイトルシーンを削除
-			titleScene_ = nullptr;
-			gameScene_ = std::make_unique<GameScene>();
-			gameScene_->Initialize();
-		}
-		break;
-	case Scene::kGame:
-		if (gameScene_->IsFinished()) {
-			// シーン変更
-			scene = Scene::kTitle;
-			// タイトルシーンを削除
-			gameScene_ = nullptr;
-			titleScene_ = std::make_unique<TitleScene>();
-			titleScene_->Initialize();
-		}
-		break;
-	}
+    // 現在のシーンが終了していなければ何もしない
+    if (!currentScene_->IsFinished()) return;
+
+    // 次のシーンを生成
+    if (currentType_ == SceneType::kTitle) {
+        currentType_ = SceneType::kGame;
+        currentScene_ = std::make_unique<GameScene>();
+    } else {
+        currentType_ = SceneType::kTitle;
+        currentScene_ = std::make_unique<TitleScene>();
+    }
+
+    // 新しいシーンを初期化
+    currentScene_->Initialize();
 }
 
 void SceneManager::Update() {
-	switch (scene) {
-	case Scene::kTitle:
-		titleScene_->Update();
-		break;
-	case Scene::kGame:
-		gameScene_->Update();
-		break;
-	}
+    ChangeScene(); // 終了チェックと切り替え
+    currentScene_->Update();
 }
 
 void SceneManager::Draw() {
-	switch (scene) {
-	case Scene::kTitle:
-		titleScene_->Draw();
-		break;
-	case Scene::kGame:
-		gameScene_->Draw();
-		break;
-	}
+    currentScene_->Draw();
+}
+
+void SceneManager::DrawShadow() {
+    currentScene_->DrawShadow();
 }
 
 void SceneManager::DrawPostEffect3D() {
-	switch (scene) {
-	case Scene::kTitle:
-		//titleScene_->Draw();
-		break;
-	case Scene::kGame:
-		gameScene_->DrawPostEffect3D();
-		break;
-	}
+    currentScene_->DrawPostEffect3D();
 }
 
-void SceneManager::DrawSprite()
-{
-	switch (scene) {
-	case Scene::kTitle:
-		titleScene_->DrawSprite();
-		break;
-	case Scene::kGame:
-		gameScene_->DrawSprite();
-		break;
-	}
+void SceneManager::DrawSprite() {
+    currentScene_->DrawSprite();
 }
-
 float SceneManager::GetFinalDeltaTime()
 {
-	if (scene == Scene::kGame) {
-		return gameScene_->GetFinalDeltaTime();
+	if (currentType_ == SceneType::kGame) {
+		return currentScene_->GetFinalDeltaTime();
 	}
 	return 1.0f / 60.0f;
 }

@@ -161,4 +161,5 @@ Vector3 SlideRight(const Vector3& dir);
 
 CollisionResult CheckSphereVsOBB(const Sphere& s, const OBB& o);
 
-Vector2 RotateAround();
+// 影用の行列を計算する関数例
+Matrix4x4 CalculateLightViewProjection();

@@ -715,11 +715,12 @@ Particle MakeParticle(const Vector3& position, const Vector4& baseColor) {
 	Vector3 direction = RandomUnitVector();
 
 	// 拡散の強さ（スピード）を調整
-	float speed = Rand(0.2f, 1.0f); // 広がる速さの範囲
-	particle.velocity = (direction * speed) - Vector3(0.0f, 0.01f, 0.0f);
-	particle.kVelocity = (direction * speed) - Vector3(0.0f, 0.01f, 0.0f);
+	float speed = Rand(4.0f, 20.0f); // 広がる速さの範囲
+	particle.velocity = (direction * speed) - Vector3(0.0f, 0.2f, 0.0f);
+	particle.kVelocity = (direction * speed) - Vector3(0.0f, 0.2f, 0.0f);
+	particle.angularVelocity = Rand(Vector3(-3.0f, -3.0f, -3.0f), Vector3(3.0f, 3.0, 3.0f));
 
-	particle.acceleration = Vector3(0.0f, -0.004f, 0.0f);
+	particle.acceleration = Vector3(0.0f, -0.08f, 0.0f);
 
 	Vector4 randomOffset = Rand(
 		Vector4(-0.2f, -0.2f, -0.2f, 0.0f),
@@ -1070,4 +1071,28 @@ Vector2 RotateAround(
 	r.y = p.x * sinf(rad) + p.y * cosf(rad);
 
 	return pivot + r;
+}
+
+// 影用の行列を計算する関数例
+Matrix4x4 CalculateLightViewProjection() {
+	// 1. ライトの方向（gDirectionalLight.directionと同じにする）
+	Vector3 lightDir = Normalize({ 0.0f, -1.0f, 1.0f });
+
+	// 2. ライトの「位置」を決める
+	// 本来、平行光源に位置はありませんが、LookAtを作るために
+	// シーンの中心からライトの逆方向に十分離れた点に置きます
+	Vector3 sceneCenter = { 0.0f, 0.0f, 0.0f };
+	Vector3 lightPos = sceneCenter - (lightDir * 50.0f); // 50m離す
+
+	// 3. ビュー行列（ライトがシーンの中心を向くように）
+	Matrix4x4 lightViewMatrix = MakeLookAtMatrix(lightPos, sceneCenter, { 0, 1, 0 });
+
+	// 4. プロジェクション行列（影を表示したい範囲をカバーする）
+	// MakeOrthographicMatrix(left, top, right, bottom, near, far)
+	// この数値が大きいほど広い範囲に影が落ちますが、影の解像度は下がります
+	float range = 40.0f;
+	Matrix4x4 lightProjectionMatrix = MakeOrthographicMatrix(-range, range, range, -range, 0.1f, 100.0f);
+
+	// 5. 合成
+	return Multiply(lightViewMatrix, lightProjectionMatrix);
 }
