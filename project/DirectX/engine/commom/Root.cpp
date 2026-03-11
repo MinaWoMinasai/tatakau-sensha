@@ -18,23 +18,17 @@ void Root::InitalizeForObject()
 	Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	Parameters_[1].Descriptor.ShaderRegister = 0;
 
-	// [2] DescriptorTable (Pixel t0:Texture, t1:ShadowMap)
-	// 記述子レンジを2つ分に増やします
-	descriptorRange_[0].BaseShaderRegister = 0; // t0 (通常のテクスチャ)
+	// [2] DescriptorTable (通常テクスチャ t0)
+	descriptorRange_[0].BaseShaderRegister = 0;
 	descriptorRange_[0].NumDescriptors = 1;
 	descriptorRange_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRange_[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	descriptorRange_[1].BaseShaderRegister = 1; // t1 (シャドウマップ)
-	descriptorRange_[1].NumDescriptors = 1;
-	descriptorRange_[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	descriptorRange_[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
 	Parameters_[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	Parameters_[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	Parameters_[2].DescriptorTable.pDescriptorRanges = descriptorRange_;
-	Parameters_[2].DescriptorTable.NumDescriptorRanges = 2; // レンジを2つに設定
-
+	Parameters_[2].DescriptorTable.pDescriptorRanges = &descriptorRange_[0]; // 0番のみ
+	Parameters_[2].DescriptorTable.NumDescriptorRanges = 1;
+	
 	// [3] DirectionalLight (Pixel b1)
 	Parameters_[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	Parameters_[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -54,8 +48,19 @@ void Root::InitalizeForObject()
 	Parameters_[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX; // VS用
 	Parameters_[6].Descriptor.ShaderRegister = 1; // register(b1)
 
+	// [7] DescriptorTable (シャドウマップ t1) ★新規追加
+	descriptorRange_[1].BaseShaderRegister = 1;
+	descriptorRange_[1].NumDescriptors = 1;
+	descriptorRange_[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[7].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[7].DescriptorTable.pDescriptorRanges = &descriptorRange_[1]; // 1番のみ
+	Parameters_[7].DescriptorTable.NumDescriptorRanges = 1;
+
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 7; // パラメータ数を更新
+	descriptionSignature_.NumParameters = 8; // パラメータ数を更新
 
 	// --- StaticSamplerの拡張 ---
 

@@ -55,8 +55,8 @@ void DirectXCommon::PreDraw()
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 	list_->OMSetRenderTargets(1, &rtvHandles_[backBufferIndex], false, &dsvHandle);
 	// 指定した色で画面全体をクリアする
-	//float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	float clearColor[] = { 0.1f, 0.25f, 0.5f, 1.0f };
+	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	//float clearColor[] = { 0.1f, 0.25f, 0.5f, 1.0f };
 	list_->ClearRenderTargetView(rtvHandles_[backBufferIndex], clearColor, 0, nullptr);
 	// 指定して深度で画面全体をクリアする
 	list_->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
@@ -89,11 +89,11 @@ void DirectXCommon::PostDraw()
 
 void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 {
-
+	// 1. 各タイプごとの初期化
 	switch (pso.shaderType_)
 	{
 	case Object:
-		pso.root_.InitalizeForObjectBe();
+		pso.root_.InitalizeForObject(); // ※前回 "InitalizeForObjectBe" だった場合は名前に注意
 		pso.vsFilePath_ = L"resources/shaders/Object3d.VS.hlsl";
 		pso.psFilePath_ = L"resources/shaders/Object3d.PS.hlsl";
 		break;
@@ -102,89 +102,93 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		pso.vsFilePath_ = L"resources/shaders/Particle.VS.hlsl";
 		pso.psFilePath_ = L"resources/shaders/Particle.PS.hlsl";
 		break;
+	case ModelParticle:
+		pso.root_.InitalizeForModelParticle();
+		pso.vsFilePath_ = L"resources/shaders/ModelParticle.VS.hlsl";
+		pso.psFilePath_ = L"resources/shaders/ModelParticle.PS.hlsl";
+		break;
+	case Shadow:
+		pso.root_.InitalizeForShadow();
+		pso.vsFilePath_ = L"resources/shaders/Shadow.VS.hlsl";
+		pso.psFilePath_ = L""; // PSなし
+		break;
 	case PostEffect:
 		pso.root_.InitializeForPostEffect();
-		switch (pso.postEffectType_)
-		{
-		case Bloom_Extract:
-
-			pso.vsFilePath_ = L"resources/shaders/FullScreen.VS.hlsl";
-			pso.psFilePath_ = L"resources/shaders/BloomExtract.PS.hlsl";
-
-			break;
-		case Bloom_Downsample:
-
-			pso.vsFilePath_ = L"resources/shaders/FullScreen.VS.hlsl";
-			pso.psFilePath_ = L"resources/shaders/BloomDownsample.PS.hlsl";
-
-			break;
-		case Bloom_BlurH:
-
-			pso.vsFilePath_ = L"resources/shaders/FullScreen.VS.hlsl";
-			pso.psFilePath_ = L"resources/shaders/BloomBlurH.PS.hlsl";
-
-			break;
-		case Bloom_BlurV:
-
-			pso.vsFilePath_ = L"resources/shaders/FullScreen.VS.hlsl";
-			pso.psFilePath_ = L"resources/shaders/BloomBlurV.PS.hlsl";
-
-			break;
-		case Bloom_Composite:
-
-			pso.vsFilePath_ = L"resources/shaders/FullScreen.VS.hlsl";
-			pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl";
-
-			break;
+		pso.vsFilePath_ = L"resources/shaders/FullScreen.VS.hlsl";
+		// PostEffectの内訳は switch で PS を切り替える
+		switch (pso.postEffectType_) {
+		case Bloom_Extract:   pso.psFilePath_ = L"resources/shaders/BloomExtract.PS.hlsl"; break;
+		case Bloom_Downsample:pso.psFilePath_ = L"resources/shaders/BloomDownsample.PS.hlsl"; break;
+		case Bloom_BlurH:     pso.psFilePath_ = L"resources/shaders/BloomBlurH.PS.hlsl"; break;
+		case Bloom_BlurV:     pso.psFilePath_ = L"resources/shaders/BloomBlurV.PS.hlsl"; break;
+		case Bloom_Composite: pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl"; break;
 		}
 		break;
+	default: assert(false); break;
 	}
+
+	// 2. ルートシグネチャ生成
 	pso.root_.Create(device_);
 
+	// 3. シェーダーコンパイル
 	pso.vertexShaderBlob_ = CompileShader(pso.vsFilePath_, L"vs_6_0");
 	assert(pso.vertexShaderBlob_ != nullptr);
-	pso.pixelShaderBlob_ = CompileShader(pso.psFilePath_, L"ps_6_0");
-	assert(pso.pixelShaderBlob_ != nullptr);
 
-	if (pso.shaderType_ != PostEffect) {
-		pso.inputDesc_.Initialize();
+	pso.pixelShaderBlob_ = nullptr;
+	if (pso.shaderType_ != Shadow && !pso.psFilePath_.empty()) {
+		pso.pixelShaderBlob_ = CompileShader(pso.psFilePath_, L"ps_6_0");
+		assert(pso.pixelShaderBlob_ != nullptr);
 	}
 
-	pso.inputDesc_.Initialize();
+	// 4. グラフィックスパイプライン記述子の構築
+	ZeroMemory(&pso.graphicsDesc_, sizeof(pso.graphicsDesc_)); // 初期化
+
 	pso.state_.Initialize(blendMode);
-	pso.graphicsDesc_.pRootSignature = pso.root_.GetSignature().Get();// RootSignature
-	pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();// InputLayout
-	pso.graphicsDesc_.VS = { pso.vertexShaderBlob_->GetBufferPointer(),
-	pso.vertexShaderBlob_->GetBufferSize() };// VertexShader
-	pso.graphicsDesc_.PS = { pso.pixelShaderBlob_->GetBufferPointer(),
-	pso.pixelShaderBlob_->GetBufferSize() };// pixelShader
-	pso.graphicsDesc_.BlendState = pso.state_.GetBlendDesc();// BlendState
-	pso.graphicsDesc_.RasterizerState = pso.state_.GetRasterizerDesc();// RasterizerState
-	// 書き込むRTVの情報
-	pso.graphicsDesc_.NumRenderTargets = 1;
-	pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	// 利用するトロポジ(形状)のタイプ、三角形
-	pso.graphicsDesc_.PrimitiveTopologyType =
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	// どのように画面に色を打ち込むかの設定
+	pso.graphicsDesc_.pRootSignature = pso.root_.GetSignature().Get();
+	pso.graphicsDesc_.VS = { pso.vertexShaderBlob_->GetBufferPointer(), pso.vertexShaderBlob_->GetBufferSize() };
+	if (pso.pixelShaderBlob_) {
+		pso.graphicsDesc_.PS = { pso.pixelShaderBlob_->GetBufferPointer(), pso.pixelShaderBlob_->GetBufferSize() };
+	}
+
+	// 5. 個別設定 (Shadow / PostEffect / Normal)
+	if (pso.shaderType_ == Shadow) {
+		pso.graphicsDesc_.NumRenderTargets = 0; // カラー出力なし
+		// ★重要：通常の深度バッファと同じフォーマットにする
+		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		pso.graphicsDesc_.DepthStencilState = pso.state_.GetDepthStencilDesc();
+		pso.graphicsDesc_.DepthStencilState.DepthEnable = true;
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+
+		pso.inputDesc_.Initialize();
+		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
+	} else if (pso.shaderType_ == PostEffect) {
+		pso.graphicsDesc_.NumRenderTargets = 1;
+		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_UNKNOWN;
+		pso.graphicsDesc_.DepthStencilState.DepthEnable = false;
+		pso.graphicsDesc_.InputLayout = { nullptr, 0 }; // 頂点レイアウトなし
+	} else {
+		pso.graphicsDesc_.NumRenderTargets = 1;
+		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		pso.graphicsDesc_.DepthStencilState = pso.state_.GetDepthStencilDesc();
+
+		pso.inputDesc_.Initialize();
+		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
+	}
+
+	// 6. 共通設定
+	pso.graphicsDesc_.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pso.graphicsDesc_.SampleDesc.Count = 1;
 	pso.graphicsDesc_.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-	// DepthStencilの設定
-	pso.graphicsDesc_.DepthStencilState = pso.state_.GetDepthStencilDesc();
-	if (pso.shaderType_ == PostEffect) {
-		pso.graphicsDesc_.DepthStencilState.DepthEnable = false;
-		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_UNKNOWN;
+	pso.graphicsDesc_.BlendState = pso.state_.GetBlendDesc();
+	pso.graphicsDesc_.RasterizerState = pso.state_.GetRasterizerDesc();
 
-		pso.graphicsDesc_.InputLayout = { nullptr, 0 };
-	} else {
-		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	}
-
-	// 実際に生成
-	HRESULT hr = device_->CreateGraphicsPipelineState(&pso.graphicsDesc_,
-		IID_PPV_ARGS(&pso.graphicsState_));
+	// 7. PSO生成
+	HRESULT hr = device_->CreateGraphicsPipelineState(&pso.graphicsDesc_, IID_PPV_ARGS(&pso.graphicsState_));
 	assert(SUCCEEDED(hr));
-
 }
 
 void DirectXCommon::CreateShader()
@@ -192,6 +196,7 @@ void DirectXCommon::CreateShader()
 	objectPSO_None.shaderType_ = Object;
 	objectPSO_Alpha.shaderType_ = Object;
 	psoParticle_.shaderType_ = Particle;
+	psoModelParticle_.shaderType_ = ModelParticle;
 	bloomPSO.shaderType_ = PostEffect;
 	bloomPSO.postEffectType_ = Bloom_Extract;
 	blurHPSO.shaderType_ = PostEffect;
@@ -202,15 +207,18 @@ void DirectXCommon::CreateShader()
 	conpositePSO.postEffectType_ = Bloom_Composite;
 	downsamplePSO.shaderType_ = PostEffect;
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
+	shadowPSO.shaderType_ = Shadow;
 
 	CreateShaderCommon(objectPSO_None, kNone);
 	CreateShaderCommon(objectPSO_Alpha, kAdd);
 	CreateShaderCommon(psoParticle_, kAdd);
+	CreateShaderCommon(psoModelParticle_, kAdd);
 	CreateShaderCommon(bloomPSO, kNone);
 	CreateShaderCommon(blurHPSO, kNone);
 	CreateShaderCommon(blurVPSO, kNone);
 	CreateShaderCommon(conpositePSO, kAdd);
 	CreateShaderCommon(downsamplePSO, kNone);
+	CreateShaderCommon(shadowPSO, kShadow);
 }
 
 
@@ -223,13 +231,13 @@ void DirectXCommon::InitializeDevice()
 {
 	HRESULT hr;
 
-	Microsoft::WRL::ComPtr<ID3D12Debug1> debugComtroller = nullptr;
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugComtroller)))) {
-		// デバッグレイヤーを有効化する
-		debugComtroller->EnableDebugLayer();
-		// さらにGPU側でもチェックを行うようにする
-		debugComtroller->SetEnableGPUBasedValidation(TRUE);
-	}
+	//Microsoft::WRL::ComPtr<ID3D12Debug1> debugComtroller = nullptr;
+	//if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugComtroller)))) {
+	//	// デバッグレイヤーを有効化する
+	//	debugComtroller->EnableDebugLayer();
+	//	// さらにGPU側でもチェックを行うようにする
+	//	debugComtroller->SetEnableGPUBasedValidation(TRUE);
+	//}
 	
 	hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
 	assert(SUCCEEDED(hr));

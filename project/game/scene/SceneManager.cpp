@@ -1,11 +1,17 @@
 #include "SceneManager.h"
 #include "SceneFactory.h"
 
+SceneManager* SceneManager::GetInstance()
+{
+    static SceneManager instance;
+    return &instance;
+}
+
 void SceneManager::Initialize() {
 
     sceneFactory_ = std::make_unique<SceneFactory>();
-    currentType_ = SceneType::kTitle;
-    currentScene_ = sceneFactory_->CreateScene("TITLE");
+    currentType_ = SceneType::kTest;
+    currentScene_ = sceneFactory_->CreateScene("TEST");
     currentScene_->Initialize();
 }
 

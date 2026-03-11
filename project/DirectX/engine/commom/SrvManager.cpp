@@ -66,8 +66,8 @@ void SrvManager::CreateSRVforStructuredBuffer(uint32_t srvIndex, ID3D12Resource*
 void SrvManager::CreateSRVforShadowMap(uint32_t srvIndex, ID3D12Resource* pResource)
 {
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	// 深度値をShaderで読むためのフォーマット
-	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	// 【重要】D24_S8 のリソースを Shader で「深度値」として読むためのフォーマット
+	srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;

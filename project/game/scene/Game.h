@@ -22,7 +22,6 @@ private:
 private:
     std::unique_ptr<DirectXCommon> dxCommon_;
     std::unique_ptr<SrvManager> srvManager_;
-    std::unique_ptr<SceneManager> sceneManager_;
     std::unique_ptr<RtvManager> rtvManager_;
     std::unique_ptr<RenderTexture> sceneRenderTexture_;
     std::unique_ptr<BloomConstantBuffer> bloomCB_;

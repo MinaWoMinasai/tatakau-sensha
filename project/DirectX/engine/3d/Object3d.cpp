@@ -4,8 +4,8 @@ void Object3d::Initialize()
 {
 	object3dCommon_ = Object3dCommon::GetInstance();
 	
-	// 用のTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
-	transformationMatrixResource = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(TransformationMatrix));
+	// 用のTransformationMatrixWithShadow用のリソースを作る。Matrix4x41つ分のサイズを用意する
+	transformationMatrixResource = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(TransformationMatrixWithShadow));
 	// 書き込むためのアドレスを取得
 	transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
 	// 単位行列を書き込んでおく
@@ -95,7 +95,7 @@ void Object3d::Update() {
 
 	lightViewProjection_ = object3dCommon_->GetLightViewProjection();
 	shadowData->lightViewProjection = lightViewProjection_;
-
+	transformationMatrixData->LightWVP = Multiply(worldMatrix, lightViewProjection_);
 }
 
 void Object3d::Draw() {
@@ -104,9 +104,10 @@ void Object3d::Draw() {
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
-	//object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress());
-	//object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(6, shadowDataResource->GetGPUVirtualAddress());
-	
+	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress());
+	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(6, shadowDataResource->GetGPUVirtualAddress());
+	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(7, object3dCommon_->GetShadowMap()->GetSrvIndex());
+
 	if (model_) {
 		model_->Draw();
 	}

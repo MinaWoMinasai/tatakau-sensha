@@ -15,8 +15,7 @@ bool Game::Initialize() {
     InitializeImGui();
     LoadResources();
 
-    sceneManager_ = std::make_unique<SceneManager>();
-    sceneManager_->Initialize();
+    SceneManager::GetInstance()->Initialize();
 
     rtvManager_ = std::make_unique<RtvManager>();
     rtvManager_->Initialize(dxCommon_.get());
@@ -156,7 +155,8 @@ void Game::LoadResources() {
         "ball.obj",
         "bloomBall.obj",
         "bloomBlock.obj",
-        "jewelry.obj"
+        "jewelry.obj",
+        "ground.obj"
     };
 
     for (auto& model : models) {
@@ -248,8 +248,8 @@ void Game::MainLoop() {
         bloomCB_->Update(bloomParam_);
 
         Object3dCommon::GetInstance()->Update();
-        sceneManager_->Update();
-        timer += sceneManager_->GetFinalDeltaTime();
+        SceneManager::GetInstance()->Update();
+        timer += SceneManager::GetInstance()->GetFinalDeltaTime();
 
         bloomParam_.timer = timer;
        
@@ -263,20 +263,58 @@ void Game::MainLoop() {
         srvManager_->PreDraw();
 
         // ==========================================
-        // 1. シーン描画 (SceneRT)
+        // 1. シャドウマップへの描き込み (Depth Only Pass)
         // ==========================================
-        // 書き込むので SRV -> RenderTarget に変更
-        TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        // リソースを DEPTH_WRITE に変更
+        TransitionResource(dxCommon_.get(), shadowMap_->GetResource(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-        // Scene → SceneRT
+        // シャドウ用のDSVをセットし、レンダーターゲットはNULLにする
+        auto dsvHandle = shadowMap_->GetDSVHandle(); // DSVハンドル
+        dxCommon_->GetList()->OMSetRenderTargets(0, nullptr, false, &dsvHandle);
+        dxCommon_->GetList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+        // シャドウ用ビューポート設定 (2048x2048など)
+        dxCommon_->SetViewport(2048, 2048);
+
+        // 影用PSOを使用して描画 (PSなしの軽量パス)
+        // 内部で SetPipelineState(shadowPSO.graphicsState_) を呼ぶ
+        SceneManager::GetInstance()->DrawShadow();
+
+        // 書き込み終わったので SHADER_RESOURCE に戻す
+        TransitionResource(dxCommon_.get(), shadowMap_->GetResource(),
+            D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+
+        // ==========================================
+        // 2. シーン描画 (Main Pass)
+        // ==========================================
+        // 通常のレンダーターゲット(SceneRT)に戻す
+        TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
         dxCommon_->SetRenderTarget(sceneRenderTexture_->GetRTVHandle());
         dxCommon_->ClearRenderTarget(sceneRenderTexture_->GetRTVHandle());
         dxCommon_->ClearDepthBuffer();
+        dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
-        sceneManager_->DrawPostEffect3D(); // 3Dオブジェクト描画
+        SceneManager::GetInstance()->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
+
+        //// ==========================================
+        //// 1. シーン描画 (SceneRT)
+        //// ==========================================
+        //// 書き込むので SRV -> RenderTarget に変更
+        //TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        //
+        //// Scene → SceneRT
+        //dxCommon_->SetRenderTarget(sceneRenderTexture_->GetRTVHandle());
+        //dxCommon_->ClearRenderTarget(sceneRenderTexture_->GetRTVHandle());
+        //dxCommon_->ClearDepthBuffer();
+        //
+        //sceneManager_->DrawPostEffect3D(); // 3Dオブジェクト描画
 
         SpriteCommon::GetInstance()->PreDraw(kNone);
-        sceneManager_->DrawSprite();
+        SceneManager::GetInstance()->DrawSprite();
 
         // 描き終わったので RenderTarget -> SRV (次の工程で読むため) に戻す
         TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -374,7 +412,7 @@ void Game::MainLoop() {
             srvManager_->GetGPUDescriptorHandle(sceneRenderTexture_->GetSrvIndex()),
             srvManager_->GetGPUDescriptorHandle(bloomRT_A_->GetSrvIndex())
         );
-        sceneManager_->Draw();
+        SceneManager::GetInstance()->Draw();
 
 #ifdef USE_IMGUI
         // 実際のcommandListのImGuiの描画コマンドを組む
@@ -385,7 +423,7 @@ void Game::MainLoop() {
 
         dxCommon_->PostDraw();
 
-        sceneManager_->ChangeScene();
+        SceneManager::GetInstance()->ChangeScene();
     }
 }
 

@@ -56,6 +56,22 @@ public:
 		directionalLightData->intensity = insensity;
 	}
 
+	Vector3 GetPointLightDirection() {
+		return directionalLightData->direction;
+	}
+
+	Vector3 GetPointLightPosition() {
+		return pointLightData->position;
+	}
+
+	void SetPointLightDirection(const Vector3& direction) {
+		directionalLightData->direction = Normalize(direction);
+	}
+
+	void SetPointLightPosition(const Vector3& position) {
+		pointLightData->position = position;
+	}
+
 private:
 
 	Object3dCommon* object3dCommon_;
@@ -64,7 +80,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource;
 
-	TransformationMatrix* transformationMatrixData;
+	TransformationMatrixWithShadow* transformationMatrixData;
 	DirectionalLight* directionalLightData;
 	PointLightData* pointLightData;
 	

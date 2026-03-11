@@ -40,12 +40,17 @@ void GameScene::Initialize() {
 	ball_->SetTranslate(Vector3(-20.0f, 0.0f, 0.0f));
 	ball_->Update();
 
-
+	groundObj_ = std::make_unique<Object3d>();
+	groundObj_->Initialize();
+	groundObj_->SetModel("ground.obj");
+	groundObj_->SetTranslate(Vector3(0.0f, -30.0f, 0.0f));
+	
 	enemyObject_->SetModel("enemy.obj");
 	object3d3->SetModel("plane.obj");
 	playerObject_->SetModel("player.obj");
 	ballObj_->SetModel("bloomBlock.obj");
 	ballObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
+	ballObj_->SetLighting(true);
 	
 	ball_->SetModel("jewelry.obj");
 
@@ -163,6 +168,7 @@ void GameScene::Update() {
 	//ballObj_->SetTranslate(worldTransform_.translate);
 	ballObj_->Update();
 	ball_->Update();
+	groundObj_->Update();
 
 	stage_->Update();
 	
@@ -264,24 +270,26 @@ void GameScene::DrawPostEffect3D() {
 
 	Object3dCommon::GetInstance()->PreDraw(kNone);
 
-	player_->Draw();
-	
-	enemy_->Draw();
-	
-	//enemyManager_->Draw();
-	
-	bulletManager_->Draw();
-	
-	stage_->Draw();
-	
+	//player_->Draw();
+	//
+	//enemy_->Draw();
+	//
+	////enemyManager_->Draw();
+	//
+	//bulletManager_->Draw();
+	//
+	//stage_->Draw();
+	//
 	ballObj_->Draw();
-	
-	enemy_->HPBarDraw();
-	
-	
-	Object3dCommon::GetInstance()->PreDraw(kAdd);
+	//
+	//enemy_->HPBarDraw();
+	//
+	groundObj_->Draw();
 
-	ball_->Draw();
+	//ball_->Draw();
+
+	
+	//Object3dCommon::GetInstance()->PreDraw(kAdd);
 
 	//ParticleManager::GetInstance()->Draw();
 
@@ -292,9 +300,9 @@ void GameScene::DrawShadow() {
 	Object3dCommon::GetInstance()->PreDraw(kShadow);
 
 	// 影を落としたいモデルだけを描画
-	ballObj_->DrawShadow();
-	ball_->DrawShadow();
-
+	//ballObj_->DrawShadow();
+	//ball_->DrawShadow();
+	//groundObj_->DrawShadow();
 }
 
 void GameScene::DrawSprite() {
@@ -303,7 +311,7 @@ void GameScene::DrawSprite() {
 	if (!enemy_->IsDead()) {
 		player_->DrawSprite();
 	}
-	shotGide->Draw();
+	//shotGide->Draw();
 	wasdGide->Draw();
 	dashGide->Draw();
 	toTitleGide->Draw();

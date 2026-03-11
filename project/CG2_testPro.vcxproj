@@ -271,6 +271,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\commom\SrvManager.cpp" />
     <ClCompile Include="DirectX\engine\particle\ParticleManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\ShadowMap.cpp" />
+    <ClCompile Include="game\scene\TestScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\ModelParticle.PS.hlsl">
@@ -415,6 +416,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\ShadowMap.h" />
     <ClInclude Include="game\scene\IScene.h" />
     <ClInclude Include="game\scene\SceneFactory.h" />
+    <ClInclude Include="game\scene\TestScene.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt">
