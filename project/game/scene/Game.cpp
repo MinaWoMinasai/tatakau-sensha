@@ -263,55 +263,17 @@ void Game::MainLoop() {
         srvManager_->PreDraw();
 
         // ==========================================
-        // 1. シャドウマップへの描き込み (Depth Only Pass)
+        // 1. シーン描画 (SceneRT)
         // ==========================================
-        // リソースを DEPTH_WRITE に変更
-        TransitionResource(dxCommon_.get(), shadowMap_->GetResource(),
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        // 書き込むので SRV -> RenderTarget に変更
+        TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-        // シャドウ用のDSVをセットし、レンダーターゲットはNULLにする
-        auto dsvHandle = shadowMap_->GetDSVHandle(); // DSVハンドル
-        dxCommon_->GetList()->OMSetRenderTargets(0, nullptr, false, &dsvHandle);
-        dxCommon_->GetList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-        // シャドウ用ビューポート設定 (2048x2048など)
-        dxCommon_->SetViewport(2048, 2048);
-
-        // 影用PSOを使用して描画 (PSなしの軽量パス)
-        // 内部で SetPipelineState(shadowPSO.graphicsState_) を呼ぶ
-        sceneManager_->DrawShadow();
-
-        // 書き込み終わったので SHADER_RESOURCE に戻す
-        TransitionResource(dxCommon_.get(), shadowMap_->GetResource(),
-            D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-
-        // ==========================================
-        // 2. シーン描画 (Main Pass)
-        // ==========================================
-        // 通常のレンダーターゲット(SceneRT)に戻す
-        TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(),
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
+        // Scene → SceneRT
         dxCommon_->SetRenderTarget(sceneRenderTexture_->GetRTVHandle());
         dxCommon_->ClearRenderTarget(sceneRenderTexture_->GetRTVHandle());
         dxCommon_->ClearDepthBuffer();
-        dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
-        sceneManager_->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
-
-        //// ==========================================
-        //// 1. シーン描画 (SceneRT)
-        //// ==========================================
-        //// 書き込むので SRV -> RenderTarget に変更
-        //TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        //
-        //// Scene → SceneRT
-        //dxCommon_->SetRenderTarget(sceneRenderTexture_->GetRTVHandle());
-        //dxCommon_->ClearRenderTarget(sceneRenderTexture_->GetRTVHandle());
-        //dxCommon_->ClearDepthBuffer();
-        //
-        //sceneManager_->DrawPostEffect3D(); // 3Dオブジェクト描画
+        sceneManager_->DrawPostEffect3D(); // 3Dオブジェクト描画
 
         SpriteCommon::GetInstance()->PreDraw(kNone);
         sceneManager_->DrawSprite();

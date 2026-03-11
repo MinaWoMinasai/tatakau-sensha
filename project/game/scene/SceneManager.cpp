@@ -1,27 +1,24 @@
 #include "SceneManager.h"
-#include "TitleScene.h"
-#include "GameScene.h"
+#include "SceneFactory.h"
 
 void SceneManager::Initialize() {
+
+    sceneFactory_ = std::make_unique<SceneFactory>();
     currentType_ = SceneType::kTitle;
-    currentScene_ = std::make_unique<TitleScene>();
+    currentScene_ = sceneFactory_->CreateScene("TITLE");
     currentScene_->Initialize();
 }
 
 void SceneManager::ChangeScene() {
-    // 現在のシーンが終了していなければ何もしない
     if (!currentScene_->IsFinished()) return;
 
-    // 次のシーンを生成
     if (currentType_ == SceneType::kTitle) {
         currentType_ = SceneType::kGame;
-        currentScene_ = std::make_unique<GameScene>();
+        currentScene_ = sceneFactory_->CreateScene("GAME"); // Factory経由にする
     } else {
         currentType_ = SceneType::kTitle;
-        currentScene_ = std::make_unique<TitleScene>();
+        currentScene_ = sceneFactory_->CreateScene("TITLE");
     }
-
-    // 新しいシーンを初期化
     currentScene_->Initialize();
 }
 
