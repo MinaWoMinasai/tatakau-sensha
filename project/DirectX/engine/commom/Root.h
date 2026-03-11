@@ -28,10 +28,10 @@ public:
 
 private:
 	D3D12_ROOT_SIGNATURE_DESC descriptionSignature_{};
-	D3D12_ROOT_PARAMETER Parameters_[5]{};
-	D3D12_DESCRIPTOR_RANGE descriptorRange_[1] = {};
+	D3D12_ROOT_PARAMETER Parameters_[8]{};
+	D3D12_DESCRIPTOR_RANGE descriptorRange_[2] = {};
 	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing_[1] = {};
-	D3D12_STATIC_SAMPLER_DESC staticSamplers_[1] = {};
+	D3D12_STATIC_SAMPLER_DESC staticSamplers_[2] = {};
 	ID3DBlob* signatureBlob_ = nullptr;
 	ID3DBlob* errorBlob_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> signature_ = nullptr;

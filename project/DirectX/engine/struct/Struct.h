@@ -119,6 +119,14 @@ struct TransformationMatrix {
 	Matrix4x4 WorldInverseTranspose;
 };
 
+struct TransformationMatrixWithShadow {
+	Matrix4x4 WVP;
+	Matrix4x4 World;
+	Matrix4x4 WorldInverseTranspose;
+	Matrix4x4 LightWVP;
+};
+
+
 struct ModelParticleTransformationMatrix {
 	Matrix4x4 WVP;
 	Matrix4x4 World;
@@ -305,6 +313,7 @@ struct PointLightData {
 
 struct ShadowTransformationMatrix {
 	Matrix4x4 WVP;
+	Matrix4x4 LightWVP;
 };
 struct ShadowData {
 	Matrix4x4 lightViewProjection;

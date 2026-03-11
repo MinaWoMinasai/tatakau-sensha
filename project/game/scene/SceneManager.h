@@ -4,6 +4,10 @@
 
 class SceneManager {
 public:
+
+	// シングルトン
+	static SceneManager* GetInstance();
+
 	void Initialize();
 	void Update();
 	void Draw();
@@ -22,6 +26,6 @@ private:
 	std::unique_ptr<AbstractSceneFactory> sceneFactory_ = nullptr;
 
 	// 現在どのシーンか識別するための型（切り替え判定用）
-	enum class SceneType { kTitle, kGame };
+	enum class SceneType { kTitle, kTest, kGame };
 	SceneType currentType_ = SceneType::kTitle;
 };

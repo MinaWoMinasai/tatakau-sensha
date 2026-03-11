@@ -79,6 +79,8 @@ private:
 	std::unique_ptr<Object3d> ballObj_;
 	std::unique_ptr<Object3d> ball_;
 
+	std::unique_ptr<Object3d> groundObj_;
+
 	// 入力
 	Input* input_;
 

@@ -30,53 +30,66 @@ ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
 Texture2D<float32_t4> gTexture : register(t0);
 SamplerState gSampler : register(s0);
 
+// シャドウマップ用
+Texture2D<float> gShadowMap : register(t1);
+SamplerComparisonState gShadowSampler : register(s1); // 比較用サンプラー
+
+// ポイントライト用
+ConstantBuffer<PointLight> gPointLight : register(b3);
+
 struct PixelShaderOutput
 {
     float32_t4 color : SV_TARGET0;
 };
 
-
+// PixelShaderOutput main(VertexShaderOutput input)
 PixelShaderOutput main(VertexShaderOutput input)
 {
-    
-    float32_t3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
-    float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
-    float32_t4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
-    
     PixelShaderOutput output;
+    
+    // テクスチャサンプリング
+    float4 transformedUV = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
+    float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
 
+    // 透明度による破棄
     if (textureColor.a < 0.1f)
     {
         discard;
     }
-    
-    if (gMaterial.enableLighting != 0)
-    {
-        float3 N = normalize(input.normal);
-        float3 L = -normalize(gDirectionalLight.direction);
-        float3 V = normalize(gCamera.worldPosition - input.worldPosition);
-        float3 H = normalize(L + V);
 
-        float NdotL = saturate(dot(N, L));
-        float NdotH = saturate(dot(N, H));
-        
-        // Ambient
+    if (gMaterial.enableLighting == 1)
+    {
+        // --- 共通ベクトルの準備 ---
+        float3 N = normalize(input.normal); // 滑らかな法線を使用
+        float3 V = normalize(gCamera.worldPosition - input.worldPosition);
+
+        // --- 2. シャドウマッピング ---
+        float2 shadowUV = input.shadowMapPosition.xy / input.shadowMapPosition.w;
+        shadowUV = shadowUV * float2(0.5f, -0.5f) + 0.5f;
+        float depth = input.shadowMapPosition.z / input.shadowMapPosition.w;
+        // 影の判定 (0.0: 影, 1.0: 日向)
+        float shadow = gShadowMap.SampleCmpLevelZero(gShadowSampler, shadowUV, depth - 0.005f);
+
+        // --- 3. 平行光源 (Directional Light) ---
+        float3 L_dir = -normalize(gDirectionalLight.direction);
+        float NdotL_dir = saturate(dot(N, L_dir));
+        float3 diffuse_dir = gMaterial.color.rgb * textureColor.rgb * gDirectionalLight.color.rgb * NdotL_dir * gDirectionalLight.intensity;
+
+        // --- 4. ポイントライト (Point Light) ---
+        float3 L_point = gPointLight.position - input.worldPosition;
+        float dist = length(L_point);
+        L_point = normalize(L_point);
+        float NdotL_point = saturate(dot(N, L_point));
+        // 距離減衰
+        float attenuation = pow(saturate(1.0f - dist / gPointLight.radius), gPointLight.decay);
+        float3 diffuse_point = gMaterial.color.rgb * textureColor.rgb * gPointLight.color.rgb * NdotL_point * gPointLight.intensity * attenuation;
+
+        // --- 5. 合成 ---
+        // 影は「直接光（平行光源 + ポイントライト）」の両方に掛ける
+        // ※環境光(Ambient)は影の中でも消えないように 0.1 ほど足す
         float3 ambient = gMaterial.color.rgb * textureColor.rgb * 0.1f;
         
-        // Diffuse
-        float3 diffuse = gMaterial.color.rgb * textureColor.rgb *
-    gDirectionalLight.color.rgb *
-    NdotL *
-    gDirectionalLight.intensity;
-
-// Specular（NdotLでマスク！）
-        float3 specular =
-    gDirectionalLight.color.rgb *
-    gDirectionalLight.intensity *
-    pow(NdotH, gMaterial.shininess) *
-    NdotL;
-
-        output.color.rgb = ambient + diffuse + specular;
+        output.color.rgb = ambient + (diffuse_dir + diffuse_point) * shadow;
         output.color.a = gMaterial.color.a * textureColor.a;
     }
     else

@@ -36,6 +36,8 @@ public:
 
 	BlendMode GetBlendMode() { return blendMode_; }
 
+	ShadowMap* GetShadowMap() { return shadowMap_; }
+
 private:
 
 	DirectXCommon* dxCommon_ = nullptr;
