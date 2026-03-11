@@ -281,7 +281,7 @@ void GameScene::DrawPostEffect3D() {
 	
 	Object3dCommon::GetInstance()->PreDraw(kAdd);
 
-	//ball_->Draw();
+	ball_->Draw();
 
 	//ParticleManager::GetInstance()->Draw();
 

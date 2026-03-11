@@ -339,6 +339,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="game\scene\AbstractSceneFactory.h" />
     <ClInclude Include="DirectX\engine\commom\BloomConstantBuffer.h" />
     <ClInclude Include="DirectX\engine\commom\PostEffect.h" />
     <ClInclude Include="DirectX\engine\commom\RenderTexture.h" />
@@ -413,6 +414,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\particle\ParticleManager.h" />
     <ClInclude Include="DirectX\engine\commom\ShadowMap.h" />
     <ClInclude Include="game\scene\IScene.h" />
+    <ClInclude Include="game\scene\SceneFactory.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt">
