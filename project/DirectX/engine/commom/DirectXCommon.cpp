@@ -668,6 +668,19 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(uint
 }
 
 void DirectXCommon::SetRenderTarget(
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle,
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle
+) {
+	
+	list_->OMSetRenderTargets(
+		1,
+		&rtvHandle,
+		false,
+		&dsvHandle
+	);
+}
+
+void DirectXCommon::SetRenderTargetNoDepth(
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle
 ) {
 	D3D12_CPU_DESCRIPTOR_HANDLE dsv =

@@ -224,3 +224,8 @@ void TitleScene::UpdateLogoChar(LogoChar& c, float deltaTime)
 	c.sprite->SetPosition(pos);
 	c.sprite->Update();
 }
+
+std::string TitleScene::GetNextSceneName() const
+{
+	return "GAME";
+}

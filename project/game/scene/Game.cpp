@@ -15,7 +15,7 @@ bool Game::Initialize() {
     InitializeImGui();
     LoadResources();
 
-    SceneManager::GetInstance()->Initialize();
+    SceneManager::GetInstance()->Initialize("TITLE");
 
     rtvManager_ = std::make_unique<RtvManager>();
     rtvManager_->Initialize(dxCommon_.get());
@@ -293,25 +293,21 @@ void Game::MainLoop() {
         TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(),
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-        dxCommon_->SetRenderTarget(sceneRenderTexture_->GetRTVHandle());
+        dxCommon_->SetRenderTarget(
+            sceneRenderTexture_->GetRTVHandle(),
+            sceneRenderTexture_->GetDSVHandle()
+        );
+
+        // ★修正：クリアも専用のDSVハンドルに対して行う
+        dxCommon_->GetList()->ClearDepthStencilView(
+            sceneRenderTexture_->GetDSVHandle(),
+            D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr
+        );
+
         dxCommon_->ClearRenderTarget(sceneRenderTexture_->GetRTVHandle());
-        dxCommon_->ClearDepthBuffer();
         dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
         SceneManager::GetInstance()->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
-
-        //// ==========================================
-        //// 1. シーン描画 (SceneRT)
-        //// ==========================================
-        //// 書き込むので SRV -> RenderTarget に変更
-        //TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        //
-        //// Scene → SceneRT
-        //dxCommon_->SetRenderTarget(sceneRenderTexture_->GetRTVHandle());
-        //dxCommon_->ClearRenderTarget(sceneRenderTexture_->GetRTVHandle());
-        //dxCommon_->ClearDepthBuffer();
-        //
-        //sceneManager_->DrawPostEffect3D(); // 3Dオブジェクト描画
 
         SpriteCommon::GetInstance()->PreDraw(kNone);
         SceneManager::GetInstance()->DrawSprite();
@@ -326,7 +322,7 @@ void Game::MainLoop() {
         // 書き込む BloomHalf を RT化
         TransitionResource(dxCommon_.get(), bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-        dxCommon_->SetRenderTarget(bloomRT_Half_->GetRTVHandle());
+        dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
         dxCommon_->SetViewport(WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
         dxCommon_->ClearRenderTarget(bloomRT_Half_->GetRTVHandle());
 
@@ -349,7 +345,7 @@ void Game::MainLoop() {
         uint32_t bloomWidth = WinApp::kClientWidth / 4;
         uint32_t bloomHeight = WinApp::kClientHeight / 4;
 
-        dxCommon_->SetRenderTarget(bloomRT_A_->GetRTVHandle());
+        dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
         dxCommon_->SetViewport(bloomWidth, bloomHeight);
         dxCommon_->ClearRenderTarget(bloomRT_A_->GetRTVHandle());
 
@@ -369,7 +365,7 @@ void Game::MainLoop() {
         // 書き込む BloomB を RT化
         TransitionResource(dxCommon_.get(), bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-        dxCommon_->SetRenderTarget(bloomRT_B_->GetRTVHandle());
+        dxCommon_->SetRenderTargetNoDepth(bloomRT_B_->GetRTVHandle());
         dxCommon_->ClearRenderTarget(bloomRT_B_->GetRTVHandle());
 
         // 入力は BloomA (SRV状態なのでOK)
@@ -388,7 +384,7 @@ void Game::MainLoop() {
         // ★注意: BloomA はさっきSRVにしたばかりだが、また書き込むので RT化
         TransitionResource(dxCommon_.get(), bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-        dxCommon_->SetRenderTarget(bloomRT_A_->GetRTVHandle());
+        dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
         dxCommon_->ClearRenderTarget(bloomRT_A_->GetRTVHandle());
 
         // 入力は BloomB (SRV状態なのでOK)
@@ -412,7 +408,7 @@ void Game::MainLoop() {
             srvManager_->GetGPUDescriptorHandle(sceneRenderTexture_->GetSrvIndex()),
             srvManager_->GetGPUDescriptorHandle(bloomRT_A_->GetSrvIndex())
         );
-        SceneManager::GetInstance()->Draw();
+        //SceneManager::GetInstance()->Draw();
 
 #ifdef USE_IMGUI
         // 実際のcommandListのImGuiの描画コマンドを組む
@@ -423,7 +419,6 @@ void Game::MainLoop() {
 
         dxCommon_->PostDraw();
 
-        SceneManager::GetInstance()->ChangeScene();
     }
 }
 

@@ -63,6 +63,8 @@ public:
 	Object3d* GetBallObj() { return ballObj_.get(); }
 
 	float GetFinalDeltaTime() const override { return finalDeltaTime; }
+	
+	std::string GetNextSceneName() const override;
 
 private:
 

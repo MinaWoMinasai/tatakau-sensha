@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 class IScene {
 public:
@@ -13,4 +14,6 @@ public:
 
     // シーン終了判定（SceneManagerがチェックする）
     virtual bool IsFinished() const = 0;
+
+    virtual std::string GetNextSceneName() const { return ""; }
 };

@@ -195,7 +195,8 @@ public:
 		const D3D12_CLEAR_VALUE* clearValue
 	);
 
-	void SetRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
+	void SetRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);
+	void SetRenderTargetNoDepth(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
 
 	void ClearRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
 
