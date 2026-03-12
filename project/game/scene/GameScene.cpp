@@ -270,21 +270,21 @@ void GameScene::DrawPostEffect3D() {
 
 	Object3dCommon::GetInstance()->PreDraw(kNone);
 
-	//player_->Draw();
+	player_->Draw();
+	
+	enemy_->Draw();
+	
+	//enemyManager_->Draw();
+	
+	bulletManager_->Draw();
+	
+	stage_->Draw();
 	//
-	//enemy_->Draw();
+	//ballObj_->Draw();
 	//
-	////enemyManager_->Draw();
+	enemy_->HPBarDraw();
 	//
-	//bulletManager_->Draw();
-	//
-	//stage_->Draw();
-	//
-	ballObj_->Draw();
-	//
-	//enemy_->HPBarDraw();
-	//
-	groundObj_->Draw();
+	//groundObj_->Draw();
 
 	//ball_->Draw();
 
@@ -316,4 +316,9 @@ void GameScene::DrawSprite() {
 	dashGide->Draw();
 	toTitleGide->Draw();
 	fade_->Draw();
+}
+
+std::string GameScene::GetNextSceneName() const
+{
+	return "TITLE";
 }

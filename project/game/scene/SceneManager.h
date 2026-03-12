@@ -8,7 +8,7 @@ public:
 	// シングルトン
 	static SceneManager* GetInstance();
 
-	void Initialize();
+	void Initialize(const std::string& firstSceneName);
 	void Update();
 	void Draw();
 	void DrawPostEffect3D();
@@ -16,16 +16,12 @@ public:
 	void DrawSprite();
 
 	float GetFinalDeltaTime();
-	
-	// シーン切り替えロジック
-	void ChangeScene();
 
 private:
 	// 現在のシーンを抽象的な型で保持
 	std::unique_ptr<IScene> currentScene_ = nullptr;
 	std::unique_ptr<AbstractSceneFactory> sceneFactory_ = nullptr;
 
-	// 現在どのシーンか識別するための型（切り替え判定用）
-	enum class SceneType { kTitle, kTest, kGame };
-	SceneType currentType_ = SceneType::kTitle;
+	// 現在のシーン名を保持（必要な場合のみ）
+	std::string currentSceneName_;
 };

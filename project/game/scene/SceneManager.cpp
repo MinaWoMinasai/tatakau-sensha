@@ -7,29 +7,32 @@ SceneManager* SceneManager::GetInstance()
     return &instance;
 }
 
-void SceneManager::Initialize() {
+void SceneManager::Initialize(const std::string& firstSceneName) {
 
+    // Factory の生成
     sceneFactory_ = std::make_unique<SceneFactory>();
-    currentType_ = SceneType::kTest;
-    currentScene_ = sceneFactory_->CreateScene("TEST");
-    currentScene_->Initialize();
-}
 
-void SceneManager::ChangeScene() {
-    if (!currentScene_->IsFinished()) return;
-
-    if (currentType_ == SceneType::kTitle) {
-        currentType_ = SceneType::kGame;
-        currentScene_ = sceneFactory_->CreateScene("GAME"); // Factory経由にする
-    } else {
-        currentType_ = SceneType::kTitle;
-        currentScene_ = sceneFactory_->CreateScene("TITLE");
-    }
+    // 最初のシーンを生成
+    currentScene_ = sceneFactory_->CreateScene(firstSceneName);
     currentScene_->Initialize();
 }
 
 void SceneManager::Update() {
-    ChangeScene(); // 終了チェックと切り替え
+    // シーンが終了していたら切り替え
+    if (currentScene_->IsFinished()) {
+        // 次のシーン名をシーン自身から取得する
+        std::string nextSceneName = currentScene_->GetNextSceneName();
+
+        // Factory に新しいシーンを作ってもらう
+        // ここで SceneManager は「何が作られるか」を具体的に知らなくて済む
+        std::unique_ptr<IScene> nextScene = sceneFactory_->CreateScene(nextSceneName);
+
+        if (nextScene) {
+            currentScene_ = std::move(nextScene);
+            currentScene_->Initialize();
+        }
+    }
+
     currentScene_->Update();
 }
 
@@ -50,8 +53,5 @@ void SceneManager::DrawSprite() {
 }
 float SceneManager::GetFinalDeltaTime()
 {
-	if (currentType_ == SceneType::kGame) {
-		return currentScene_->GetFinalDeltaTime();
-	}
-	return 1.0f / 60.0f;
+	return currentScene_->GetFinalDeltaTime();
 }

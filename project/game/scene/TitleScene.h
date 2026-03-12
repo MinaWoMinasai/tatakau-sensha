@@ -29,6 +29,9 @@ public:
 	// デスフラグのgetter
 	bool IsFinished() const override { return finished_; }
 	void UpdateLogoChar(LogoChar& c, float deltaTime);
+
+	std::string GetNextSceneName() const override;
+
 private:
 	// ビュープロジェクション
 	std::unique_ptr<Camera> camera;

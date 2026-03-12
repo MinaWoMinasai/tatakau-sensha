@@ -14,6 +14,7 @@ public:
 
     uint32_t GetSrvIndex() const { return srvIndex_; }
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() const { return rtvHandle_; }
+	D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle() const { return dsvHandle_; }
 
     SrvManager* GetSrvManager() { return srvManager_; }
 
@@ -28,5 +29,7 @@ private:
     DirectXCommon* dxCommon_ = nullptr;
     SrvManager* srvManager_ = nullptr;
     RtvManager* rtvManager_ = nullptr;
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> depthResource_;
 };
 
