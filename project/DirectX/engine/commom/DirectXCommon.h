@@ -8,7 +8,6 @@
 #include <chrono>
 #include <thread>
 #include "Root.h"
-#include "State.h"
 #include "InputDesc.h"
 #include "Calculation.h"
 #include "Struct.h"
@@ -67,7 +66,6 @@ public:
 	struct PSO {
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsDesc_{};
 		Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsState_ = nullptr;
-		State state_;
 		InputDesc inputDesc_;
 		Root root_;
 		// Shaderをコンパイルする

@@ -14,7 +14,7 @@ void TestScene::Initialize() {
 
 	camera = std::make_unique<Camera>();
 
-	camera->SetTranslate(Vector3(17.0f, 21.0f, -80.0f));
+	camera->SetTranslate(Vector3(17.0f, 21.0f, -2000.0f));
 
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
 	Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera.get());
@@ -66,6 +66,11 @@ void TestScene::Update() {
 	ImGui::DragFloat3("pos", &position.x);
 	ImGui::End();
 
+	ImGui::Begin("Ground");
+	ImGui::DragFloat3("position", &groundObj_->GetTranslate().x);
+	ImGui::DragFloat3("rotate", &groundObj_->GetRotate().x);
+	ImGui::End();
+
 	blockObj_->SetPointLightDirection(direction);
 	blockObj_->SetPointLightPosition(position);
 
@@ -111,9 +116,9 @@ void TestScene::DrawPostEffect3D() {
 
 	Object3dCommon::GetInstance()->PreDraw(kNone);
 
-	groundObj_->Draw();
-
 	blockObj_->Draw();
+
+	groundObj_->Draw();
 
 }
 

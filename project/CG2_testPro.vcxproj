@@ -250,10 +250,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\State.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\commom\Texture.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -383,7 +379,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\Root.h" />
     <ClInclude Include="DirectX\engine\2d\Sprite.h" />
     <ClInclude Include="DirectX\engine\2d\SpriteCommon.h" />
-    <ClInclude Include="DirectX\engine\commom\State.h" />
     <ClInclude Include="DirectX\engine\struct\Struct.h" />
     <ClInclude Include="DirectX\engine\commom\Texture.h" />
     <ClInclude Include="DirectX\engine\commom\WinApp.h" />

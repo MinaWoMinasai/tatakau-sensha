@@ -89,11 +89,11 @@ void DirectXCommon::PostDraw()
 
 void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 {
-	// 1. 各タイプごとの初期化
+	// 1. 各タイプごとのシェーダーパスとルートシグネチャ初期化
 	switch (pso.shaderType_)
 	{
 	case Object:
-		pso.root_.InitalizeForObject(); // ※前回 "InitalizeForObjectBe" だった場合は名前に注意
+		pso.root_.InitalizeForObject();
 		pso.vsFilePath_ = L"resources/shaders/Object3d.VS.hlsl";
 		pso.psFilePath_ = L"resources/shaders/Object3d.PS.hlsl";
 		break;
@@ -110,18 +110,17 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 	case Shadow:
 		pso.root_.InitalizeForShadow();
 		pso.vsFilePath_ = L"resources/shaders/Shadow.VS.hlsl";
-		pso.psFilePath_ = L""; // PSなし
+		pso.psFilePath_ = L"";
 		break;
 	case PostEffect:
 		pso.root_.InitializeForPostEffect();
 		pso.vsFilePath_ = L"resources/shaders/FullScreen.VS.hlsl";
-		// PostEffectの内訳は switch で PS を切り替える
 		switch (pso.postEffectType_) {
 		case Bloom_Extract:   pso.psFilePath_ = L"resources/shaders/BloomExtract.PS.hlsl"; break;
 		case Bloom_Downsample:pso.psFilePath_ = L"resources/shaders/BloomDownsample.PS.hlsl"; break;
-		case Bloom_BlurH:     pso.psFilePath_ = L"resources/shaders/BloomBlurH.PS.hlsl"; break;
-		case Bloom_BlurV:     pso.psFilePath_ = L"resources/shaders/BloomBlurV.PS.hlsl"; break;
-		case Bloom_Composite: pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl"; break;
+		case Bloom_BlurH:      pso.psFilePath_ = L"resources/shaders/BloomBlurH.PS.hlsl"; break;
+		case Bloom_BlurV:      pso.psFilePath_ = L"resources/shaders/BloomBlurV.PS.hlsl"; break;
+		case Bloom_Composite:  pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl"; break;
 		}
 		break;
 	default: assert(false); break;
@@ -140,25 +139,47 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		assert(pso.pixelShaderBlob_ != nullptr);
 	}
 
-	// 4. グラフィックスパイプライン記述子の構築
-	ZeroMemory(&pso.graphicsDesc_, sizeof(pso.graphicsDesc_)); // 初期化
+	// 4. グラフィックスパイプライン記述子の初期化
+	ZeroMemory(&pso.graphicsDesc_, sizeof(pso.graphicsDesc_));
 
-	pso.state_.Initialize(blendMode);
+	// --- 旧 State クラスの処理をここに統合 ---
+
+	// [RasterizerState] の設定
+	pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	pso.graphicsDesc_.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+
+	// [BlendState] の設定
+	pso.graphicsDesc_.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	if (blendMode == kAdd) {
+		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+	} else {
+		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = FALSE;
+	}
+
+	// [DepthStencilState] のデフォルト設定
+	pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
+	pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	// --- 統合ここまで ---
+
+	// 5. 個別設定の上書き (Shadow / PostEffect / Normal)
 	pso.graphicsDesc_.pRootSignature = pso.root_.GetSignature().Get();
 	pso.graphicsDesc_.VS = { pso.vertexShaderBlob_->GetBufferPointer(), pso.vertexShaderBlob_->GetBufferSize() };
 	if (pso.pixelShaderBlob_) {
 		pso.graphicsDesc_.PS = { pso.pixelShaderBlob_->GetBufferPointer(), pso.pixelShaderBlob_->GetBufferSize() };
 	}
 
-	// 5. 個別設定 (Shadow / PostEffect / Normal)
 	if (pso.shaderType_ == Shadow) {
-		pso.graphicsDesc_.NumRenderTargets = 0; // カラー出力なし
-		// ★重要：通常の深度バッファと同じフォーマットにする
+		pso.graphicsDesc_.NumRenderTargets = 0;
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-		pso.graphicsDesc_.DepthStencilState = pso.state_.GetDepthStencilDesc();
-		pso.graphicsDesc_.DepthStencilState.DepthEnable = true;
-		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		// Shadow用に比較関数を調整（必要に応じて）
 		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 
 		pso.inputDesc_.Initialize();
@@ -167,24 +188,25 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		pso.graphicsDesc_.NumRenderTargets = 1;
 		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_UNKNOWN;
-		pso.graphicsDesc_.DepthStencilState.DepthEnable = false;
-		pso.graphicsDesc_.InputLayout = { nullptr, 0 }; // 頂点レイアウトなし
+		pso.graphicsDesc_.DepthStencilState.DepthEnable = FALSE;
+		pso.graphicsDesc_.InputLayout = { nullptr, 0 };
 	} else {
 		pso.graphicsDesc_.NumRenderTargets = 1;
 		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		pso.graphicsDesc_.DepthStencilState = pso.state_.GetDepthStencilDesc();
 
 		pso.inputDesc_.Initialize();
 		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
+		// ★ここを確実に設定！
+		pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	}
 
-	// 6. 共通設定
+	// 6. 残りの共通設定
 	pso.graphicsDesc_.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pso.graphicsDesc_.SampleDesc.Count = 1;
 	pso.graphicsDesc_.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-	pso.graphicsDesc_.BlendState = pso.state_.GetBlendDesc();
-	pso.graphicsDesc_.RasterizerState = pso.state_.GetRasterizerDesc();
 
 	// 7. PSO生成
 	HRESULT hr = device_->CreateGraphicsPipelineState(&pso.graphicsDesc_, IID_PPV_ARGS(&pso.graphicsState_));
@@ -683,14 +705,11 @@ void DirectXCommon::SetRenderTarget(
 void DirectXCommon::SetRenderTargetNoDepth(
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle
 ) {
-	D3D12_CPU_DESCRIPTOR_HANDLE dsv =
-		dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
-
 	list_->OMSetRenderTargets(
 		1,
 		&rtvHandle,
 		false,
-		&dsv
+		nullptr
 	);
 }
 

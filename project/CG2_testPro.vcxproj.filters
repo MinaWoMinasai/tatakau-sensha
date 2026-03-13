@@ -117,9 +117,6 @@
     <ClCompile Include="DirectX\engine\commom\Resource.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\State.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\commom\Root.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
@@ -309,9 +306,6 @@
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\Root.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\State.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\Texture.h">
