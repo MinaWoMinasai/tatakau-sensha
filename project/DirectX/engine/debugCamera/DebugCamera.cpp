@@ -6,7 +6,7 @@ DebugCamera::DebugCamera(){
     fovY_ = 0.45f;
     aspectRatio_ = (float(WinApp::kClientWidth) / float(WinApp::kClientHeight));
     nearClip_ = 0.1f;
-    farClip_ = 100.0f;
+    farClip_ = 5000.0f;
 }
 
 void DebugCamera::Initialize()

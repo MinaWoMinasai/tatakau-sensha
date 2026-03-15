@@ -79,3 +79,8 @@ void RenderTexture::Initialize(
     );
 
 }
+
+D3D12_GPU_DESCRIPTOR_HANDLE RenderTexture::GetGPUHandle()
+{
+	return srvManager_->GetGPUDescriptorHandle(srvIndex_);
+}

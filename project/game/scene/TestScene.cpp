@@ -14,11 +14,10 @@ void TestScene::Initialize() {
 
 	camera = std::make_unique<Camera>();
 
-	camera->SetTranslate(Vector3(17.0f, 21.0f, -80.0f));
+	camera->SetTranslate(Vector3(17.0f, 61.0f, -500.0f));
 
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
 	Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera.get());
-
 
 	groundObj_ = std::make_unique<Object3d>();
 	groundObj_->Initialize();
@@ -35,25 +34,11 @@ void TestScene::Initialize() {
 	blockObj_->SetModel("bloomBlock.obj");
 	blockObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
 	blockObj_->SetLighting(true);
-
-	blockObj2_ = std::make_unique<Object3d>();
-	blockObj2_->Initialize();
-	blockObj2_->SetTranslate(Vector3(10.0f, 0.0f, 0.0f));
-	blockObj2_->Update();
-	blockObj2_->SetModel("bloomBlock.obj");
-	blockObj2_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
-	blockObj2_->SetLighting(true);
-
 }
 
 void TestScene::Update() {
 
-	Object3dCommon::GetInstance()->Update();
-
 #ifdef USE_IMGUI
-
-	Vector3 direction = blockObj_->GetPointLightDirection();
-	Vector3 position = blockObj_->GetPointLightPosition();
 
 	ImGui::Begin("FPS");
 	ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
@@ -62,12 +47,13 @@ void TestScene::Update() {
 
 	ImGui::Begin("Block");
 	ImGui::DragFloat3("position", &blockObj_->GetTranslate().x);
-	ImGui::DragFloat3("direction", &direction.x);
-	ImGui::DragFloat3("pos", &position.x);
+	ImGui::DragFloat3("scale", &blockObj_->GetScale().x);
 	ImGui::End();
 
-	blockObj_->SetPointLightDirection(direction);
-	blockObj_->SetPointLightPosition(position);
+	ImGui::Begin("Ground");
+	ImGui::DragFloat3("position", &groundObj_->GetTranslate().x);
+	ImGui::DragFloat3("rotate", &groundObj_->GetRotate().x, 0.01f);
+	ImGui::End();
 
 #endif // USE_IMGUI
 
@@ -75,7 +61,6 @@ void TestScene::Update() {
 	debugCamera->Update(input_->GetMouseState(), input_->GetKey(), input_->GetLeftStick());
 	groundObj_->Update();
 	blockObj_->Update();
-	blockObj2_->Update();
 
 #ifdef USE_IMGUI
 
@@ -101,19 +86,15 @@ void TestScene::Update() {
 
 void TestScene::Draw() {
 
-	Object3dCommon::GetInstance()->PreDraw(kNone);
-
-	blockObj2_->Draw();
-
 }
 
 void TestScene::DrawPostEffect3D() {
 
 	Object3dCommon::GetInstance()->PreDraw(kNone);
 
-	groundObj_->Draw();
-
 	blockObj_->Draw();
+
+	groundObj_->Draw();
 
 }
 
@@ -122,10 +103,6 @@ void TestScene::DrawShadow() {
 	Object3dCommon::GetInstance()->PreDraw(kShadow);
 
 	blockObj_->DrawShadow();
-	blockObj2_->DrawShadow();
-
-	// 影を落としたいモデルだけを描画
-	//groundObj_->DrawShadow();
 }
 
 void TestScene::DrawSprite() {

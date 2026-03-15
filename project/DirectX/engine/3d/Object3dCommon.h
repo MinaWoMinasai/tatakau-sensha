@@ -38,6 +38,8 @@ public:
 
 	ShadowMap* GetShadowMap() { return shadowMap_; }
 
+	Vector3& GetLightDir() { return lightDir_; }
+
 private:
 
 	DirectXCommon* dxCommon_ = nullptr;
@@ -51,5 +53,7 @@ private:
 	ShadowMap* shadowMap_ = nullptr;
 
 	BlendMode blendMode_;
+
+	Vector3 lightDir_;
 };
 

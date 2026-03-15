@@ -68,7 +68,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         shadowUV = shadowUV * float2(0.5f, -0.5f) + 0.5f;
         float depth = input.shadowMapPosition.z / input.shadowMapPosition.w;
         // 影の判定 (0.0: 影, 1.0: 日向)
-        float shadow = gShadowMap.SampleCmpLevelZero(gShadowSampler, shadowUV, depth - 0.005f);
+        float shadow = gShadowMap.SampleCmpLevelZero(gShadowSampler, shadowUV, depth - 0.001f);
 
         // --- 3. 平行光源 (Directional Light) ---
         float3 L_dir = -normalize(gDirectionalLight.direction);
@@ -85,11 +85,12 @@ PixelShaderOutput main(VertexShaderOutput input)
         float3 diffuse_point = gMaterial.color.rgb * textureColor.rgb * gPointLight.color.rgb * NdotL_point * gPointLight.intensity * attenuation;
 
         // --- 5. 合成 ---
-        // 影は「直接光（平行光源 + ポイントライト）」の両方に掛ける
-        // ※環境光(Ambient)は影の中でも消えないように 0.1 ほど足す
         float3 ambient = gMaterial.color.rgb * textureColor.rgb * 0.1f;
+        // 影（shadow）は平行光源（diffuse_dir）にだけ掛ける
+        // ポイントライト（diffuse_point）は、そのライト用のシャドウマップがない限りそのまま足す
         
-        output.color.rgb = ambient + (diffuse_dir + diffuse_point) * shadow;
+        // 影の計算結果をそのまま出す
+        output.color.rgb = ambient + (diffuse_dir * shadow) + diffuse_point;
         output.color.a = gMaterial.color.a * textureColor.a;
     }
     else

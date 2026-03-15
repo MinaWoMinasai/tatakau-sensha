@@ -1072,27 +1072,3 @@ Vector2 RotateAround(
 
 	return pivot + r;
 }
-
-// 影用の行列を計算する関数例
-Matrix4x4 CalculateLightViewProjection() {
-	// 1. ライトの方向（gDirectionalLight.directionと同じにする）
-	Vector3 lightDir = Normalize({ 0.0f, -1.0f, 1.0f });
-
-	// 2. ライトの「位置」を決める
-	// 本来、平行光源に位置はありませんが、LookAtを作るために
-	// シーンの中心からライトの逆方向に十分離れた点に置きます
-	Vector3 sceneCenter = { 0.0f, 0.0f, 0.0f };
-	Vector3 lightPos = sceneCenter - (lightDir * 50.0f); // 50m離す
-
-	// 3. ビュー行列（ライトがシーンの中心を向くように）
-	Matrix4x4 lightViewMatrix = MakeLookAtMatrix(lightPos, sceneCenter, { 0, 1, 0 });
-
-	// 4. プロジェクション行列（影を表示したい範囲をカバーする）
-	// MakeOrthographicMatrix(left, top, right, bottom, near, far)
-	// この数値が大きいほど広い範囲に影が落ちますが、影の解像度は下がります
-	float range = 40.0f;
-	Matrix4x4 lightProjectionMatrix = MakeOrthographicMatrix(-range, range, range, -range, 0.1f, 100.0f);
-
-	// 5. 合成
-	return Multiply(lightViewMatrix, lightProjectionMatrix);
-}

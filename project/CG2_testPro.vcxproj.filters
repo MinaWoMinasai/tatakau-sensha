@@ -117,9 +117,6 @@
     <ClCompile Include="DirectX\engine\commom\Resource.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\State.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\commom\Root.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
@@ -210,13 +207,13 @@
     <ClCompile Include="game\exp\ExpEnemy.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\BloomConstantBuffer.cpp">
+    <ClCompile Include="DirectX\engine\postEffect\BloomConstantBuffer.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\PostEffect.cpp">
+    <ClCompile Include="DirectX\engine\postEffect\PostEffect.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\RenderTexture.cpp">
+    <ClCompile Include="DirectX\engine\postEffect\RenderTexture.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\commom\RtvManager.cpp">
@@ -229,6 +226,12 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\scene\TestScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\postEffect\Bloom.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -309,9 +312,6 @@
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\Root.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\State.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\Texture.h">
@@ -404,13 +404,13 @@
     <ClInclude Include="game\exp\ExpEnemy.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\BloomConstantBuffer.h">
+    <ClInclude Include="DirectX\engine\postEffect\BloomConstantBuffer.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\PostEffect.h">
+    <ClInclude Include="DirectX\engine\postEffect\PostEffect.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\RenderTexture.h">
+    <ClInclude Include="DirectX\engine\postEffect\RenderTexture.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\RtvManager.h">
@@ -432,6 +432,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\scene\TestScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\Bloom.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\Shadow.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

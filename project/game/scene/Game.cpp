@@ -15,70 +15,13 @@ bool Game::Initialize() {
     InitializeImGui();
     LoadResources();
 
-    SceneManager::GetInstance()->Initialize("TITLE");
+    SceneManager::GetInstance()->Initialize("TEST");
 
     rtvManager_ = std::make_unique<RtvManager>();
     rtvManager_->Initialize(dxCommon_.get());
 
-    sceneRenderTexture_ = std::make_unique<RenderTexture>();
-
-    sceneRenderTexture_->Initialize(
-        dxCommon_.get(),
-        srvManager_.get(),
-        rtvManager_.get(),
-        WinApp::kClientWidth,
-        WinApp::kClientHeight
-    );
-
-    // bloom用CBVの生成
-    bloomCB_ = std::make_unique<BloomConstantBuffer>();
-    bloomCB_->Initialize(dxCommon_.get());
-
-    // ポストエフェクトの初期化
-    postEffect_ = std::make_unique<PostEffect>();
-    postEffect_->Initialize(dxCommon_.get(), bloomCB_.get());
-
-    bloomRT_A_ = std::make_unique<RenderTexture>();
-    bloomRT_B_ = std::make_unique<RenderTexture>();
-    uint32_t bloomWidth = WinApp::kClientWidth / 4;
-    uint32_t bloomHeight = WinApp::kClientHeight / 4;
-
-    bloomRT_A_->Initialize(
-        dxCommon_.get(),
-        srvManager_.get(),
-        rtvManager_.get(),
-        bloomWidth,
-        bloomHeight
-    );
-
-    bloomRT_B_->Initialize(
-        dxCommon_.get(),
-        srvManager_.get(),
-        rtvManager_.get(),
-        bloomWidth,
-        bloomHeight
-    );
-
-    // bloomRT_Half を追加
-    bloomRT_Half_ = std::make_unique<RenderTexture>();
-    // サイズは画面の半分
-    bloomRT_Half_->Initialize(dxCommon_.get(), srvManager_.get(), rtvManager_.get(), WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
-
-    // ブルームパラメータ
-    bloomParam_.threshold = 0.0f;
-    bloomParam_.intensity = 1.2f;
-    bloomParam_.vignetteIntensity = 0.5f;
-    bloomParam_.vignetteScale = 1.0f;
-    bloomParam_.chromAbAmount = 0.02f;
-    bloomParam_.distortionAmount = 0.01f;
-    bloomParam_.noiseIntensity = 0.5f;
-    bloomParam_.scanlineIntensity = 1.0f;
-    bloomParam_.scanlineFrequency = 30.0f;
-    bloomParam_.curvature = 0.6f;
-    bloomParam_.borderSharp = 0.02f;
-    bloomParam_.glitchAmount = 0.0f;
-
-    bloomCB_->Update(bloomParam_);
+    bloom_ = std::make_unique<Bloom>();
+	bloom_->Initialize(dxCommon_.get(), srvManager_.get(), rtvManager_.get());
 
     ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
 
@@ -100,14 +43,14 @@ void Game::InitializeEngine() {
 
     srvManager_ = std::make_unique<SrvManager>();
     srvManager_->Initialize(dxCommon_.get());
-    // シャドウマップの初期化
-    shadowMap_ = std::make_unique<ShadowMap>();
-    shadowMap_->Initialize(dxCommon_.get(), srvManager_.get(), 2048, 2048);
+    
+    shadow_ = std::make_unique<Shadow>();
+    shadow_->Initialize(dxCommon_.get(), srvManager_.get());
 
     TextureManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
     ModelManager::GetInstance()->Initialize(dxCommon_.get());
 
-    Object3dCommon::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get(), shadowMap_.get());
+    Object3dCommon::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get(), shadow_->GetShadowMap());
     SpriteCommon::GetInstance()->Initialize(dxCommon_.get());
 
     Input::GetInstance()->Initialize(
@@ -191,51 +134,9 @@ void Game::MainLoop() {
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("BloomAndVignette");
-        ImGui::DragFloat("Threshold", &bloomParam_.threshold, 0.01f, 0.0f, 1.0f);
-        ImGui::DragFloat("insensity", &bloomParam_.intensity, 0.01f);
-        ImGui::DragFloat("vinetteInsencity", &bloomParam_.vignetteIntensity, 0.01f);
-        ImGui::DragFloat("vinetteScale", &bloomParam_.vignetteScale, 0.01f);
-        ImGui::DragFloat("distortionAmount", &bloomParam_.distortionAmount, 0.001f);
-        ImGui::DragFloat("chromAbAmount", &bloomParam_.chromAbAmount, 0.001f);
-        ImGui::DragFloat("Noise", &bloomParam_.noiseIntensity, 0.01f);
-        ImGui::DragFloat("Scanline Intensity", &bloomParam_.scanlineIntensity, 0.01f);
-        ImGui::DragFloat("Scanline Frequency", &bloomParam_.scanlineFrequency, 0.01f);
-        ImGui::DragFloat("Curvature", &bloomParam_.curvature, 0.001f);   // 画面の膨らみ
-        ImGui::DragFloat("Border Sharp", &bloomParam_.borderSharp, 0.001f); // 角の丸み
-        ImGui::DragFloat("glitchAmount", &bloomParam_.glitchAmount, 0.001f); // 角の丸み
-        
-        // bool値を float(0.0 or 1.0) に変換して送る
-        static bool grayFlag = false;
-        static bool invertFlag = false;
-        if (ImGui::Checkbox("Grayscale", &grayFlag)) {
-            bloomParam_.isGrayscale = grayFlag ? 1.0f : 0.0f;
-        }
-        if (ImGui::Checkbox("Invert Color", &invertFlag)) {
-            bloomParam_.isInverted = invertFlag ? 1.0f : 0.0f;
-        }
-
-        // リセットするボタン
-        if (ImGui::Button("Reset")) {
-            bloomParam_.threshold = 0.0f;
-            bloomParam_.intensity = 1.2f;
-            bloomParam_.vignetteIntensity = 0.0f;
-            bloomParam_.vignetteScale = 0.0f;
-            bloomParam_.chromAbAmount = 0.0f;
-            bloomParam_.distortionAmount = 0.0f;
-            bloomParam_.noiseIntensity = 0.0f;
-            bloomParam_.scanlineIntensity = 0.0f;
-            bloomParam_.scanlineFrequency = 0.0f;
-            bloomParam_.curvature = 0.0f;
-            bloomParam_.borderSharp = 0.0f;
-            bloomParam_.glitchAmount = 0.0f;
-            grayFlag = false;
-			invertFlag = false;
-        }
-
-        ImGui::End();
-
 #endif // USE_IMGUI
+
+        bloom_->Update();
 
         if (input->IsPress(input->GetKey()[DIK_LSHIFT]) && input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
             if (Object3dCommon::GetInstance()->GetIsDebugCamera()) {
@@ -245,14 +146,9 @@ void Game::MainLoop() {
             }
         }
 
-        bloomCB_->Update(bloomParam_);
-
         Object3dCommon::GetInstance()->Update();
         SceneManager::GetInstance()->Update();
-        timer += SceneManager::GetInstance()->GetFinalDeltaTime();
-
-        bloomParam_.timer = timer;
-       
+        
 #ifdef USE_IMGUI
         // ImGuiの内部コマンドを生成する
         ImGui::Render();
@@ -261,154 +157,18 @@ void Game::MainLoop() {
 
         dxCommon_->PreDraw(); // バックバッファのバリアはここで行われている
         srvManager_->PreDraw();
+       
+        shadow_->PreDraw();
 
-        // ==========================================
-        // 1. シャドウマップへの描き込み (Depth Only Pass)
-        // ==========================================
-        // リソースを DEPTH_WRITE に変更
-        TransitionResource(dxCommon_.get(), shadowMap_->GetResource(),
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-        // シャドウ用のDSVをセットし、レンダーターゲットはNULLにする
-        auto dsvHandle = shadowMap_->GetDSVHandle(); // DSVハンドル
-        dxCommon_->GetList()->OMSetRenderTargets(0, nullptr, false, &dsvHandle);
-        dxCommon_->GetList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-        // シャドウ用ビューポート設定 (2048x2048など)
-        dxCommon_->SetViewport(2048, 2048);
-
-        // 影用PSOを使用して描画 (PSなしの軽量パス)
-        // 内部で SetPipelineState(shadowPSO.graphicsState_) を呼ぶ
-        SceneManager::GetInstance()->DrawShadow();
-
-        // 書き込み終わったので SHADER_RESOURCE に戻す
-        TransitionResource(dxCommon_.get(), shadowMap_->GetResource(),
-            D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-
-        // ==========================================
-        // 2. シーン描画 (Main Pass)
-        // ==========================================
-        // 通常のレンダーターゲット(SceneRT)に戻す
-        TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(),
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-        dxCommon_->SetRenderTarget(
-            sceneRenderTexture_->GetRTVHandle(),
-            sceneRenderTexture_->GetDSVHandle()
-        );
-
-        // ★修正：クリアも専用のDSVハンドルに対して行う
-        dxCommon_->GetList()->ClearDepthStencilView(
-            sceneRenderTexture_->GetDSVHandle(),
-            D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr
-        );
-
-        dxCommon_->ClearRenderTarget(sceneRenderTexture_->GetRTVHandle());
-        dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+        bloom_->PreDraw();
 
         SceneManager::GetInstance()->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
-
+        
         SpriteCommon::GetInstance()->PreDraw(kNone);
         SceneManager::GetInstance()->DrawSprite();
+        
+        bloom_->PostDraw();
 
-        // 描き終わったので RenderTarget -> SRV (次の工程で読むため) に戻す
-        TransitionResource(dxCommon_.get(), sceneRenderTexture_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-
-        // ==========================================
-        // 2. 高輝度抽出 (SceneRT -> BloomHalf)
-        // ==========================================
-        // 書き込む BloomHalf を RT化
-        TransitionResource(dxCommon_.get(), bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-        dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
-        dxCommon_->SetViewport(WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
-        dxCommon_->ClearRenderTarget(bloomRT_Half_->GetRTVHandle());
-
-        // 入力は sceneRenderTexture (SRV状態になっているのでOK)
-        postEffect_->Draw(
-            sceneRenderTexture_->GetSrvManager()->GetGPUDescriptorHandle(sceneRenderTexture_->GetSrvIndex()),
-            kAdd_Bloom_Extract
-        );
-
-        // 書き込み完了、BloomHalf を SRV化
-        TransitionResource(dxCommon_.get(), bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-
-        // ==========================================
-        // 3. ダウンサンプリング (BloomHalf -> BloomA)
-        // ==========================================
-        // 書き込む BloomA を RT化
-        TransitionResource(dxCommon_.get(), bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-        uint32_t bloomWidth = WinApp::kClientWidth / 4;
-        uint32_t bloomHeight = WinApp::kClientHeight / 4;
-
-        dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
-        dxCommon_->SetViewport(bloomWidth, bloomHeight);
-        dxCommon_->ClearRenderTarget(bloomRT_A_->GetRTVHandle());
-
-        // 入力は BloomHalf (SRV状態なのでOK)
-        postEffect_->Draw(
-            bloomRT_Half_->GetSrvManager()->GetGPUDescriptorHandle(bloomRT_Half_->GetSrvIndex()),
-            kAdd_Bloom_Downsample
-        );
-
-        // 書き込み完了、BloomA を SRV化
-        TransitionResource(dxCommon_.get(), bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-
-        // ==========================================
-        // 4. ブラー水平 (BloomA -> BloomB)
-        // ==========================================
-        // 書き込む BloomB を RT化
-        TransitionResource(dxCommon_.get(), bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-        dxCommon_->SetRenderTargetNoDepth(bloomRT_B_->GetRTVHandle());
-        dxCommon_->ClearRenderTarget(bloomRT_B_->GetRTVHandle());
-
-        // 入力は BloomA (SRV状態なのでOK)
-        postEffect_->Draw(
-            bloomRT_A_->GetSrvManager()->GetGPUDescriptorHandle(bloomRT_A_->GetSrvIndex()),
-            kAdd_Bloom_BlurH
-        );
-
-        // 書き込み完了、BloomB を SRV化
-        TransitionResource(dxCommon_.get(), bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-
-        // ==========================================
-        // 5. ブラー垂直 (BloomB -> BloomA)
-        // ==========================================
-        // ★注意: BloomA はさっきSRVにしたばかりだが、また書き込むので RT化
-        TransitionResource(dxCommon_.get(), bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-        dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
-        dxCommon_->ClearRenderTarget(bloomRT_A_->GetRTVHandle());
-
-        // 入力は BloomB (SRV状態なのでOK)
-        postEffect_->Draw(
-            bloomRT_B_->GetSrvManager()->GetGPUDescriptorHandle(bloomRT_B_->GetSrvIndex()),
-            kAdd_Bloom_BlurV
-        );
-
-        // 書き込み完了、BloomA を SRV化 (これでCompositeで使える)
-        TransitionResource(dxCommon_.get(), bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-
-        // ==========================================
-        // 6. 合成 (SceneRT + BloomA -> BackBuffer)
-        // ==========================================
-        dxCommon_->SetBackBuffer(); // BackBufferへのバリアは内部で行われているはず（PreDraw参照）
-        dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
-
-        // SceneRT も BloomA も ここまでの処理で SRV に戻っているので安全に読める
-        postEffect_->DrawComposite(
-            srvManager_->GetGPUDescriptorHandle(sceneRenderTexture_->GetSrvIndex()),
-            srvManager_->GetGPUDescriptorHandle(bloomRT_A_->GetSrvIndex())
-        );
-        //SceneManager::GetInstance()->Draw();
 
 #ifdef USE_IMGUI
         // 実際のcommandListのImGuiの描画コマンドを組む
@@ -416,25 +176,8 @@ void Game::MainLoop() {
 
 #endif // USE_IMGUI
         
-
         dxCommon_->PostDraw();
-
     }
-}
-
-void Game::TransitionResource(DirectXCommon* dxCommon, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
-{
-
-    assert(resource != nullptr);
-    D3D12_RESOURCE_BARRIER barrier = {};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource = resource;
-    barrier.Transition.StateBefore = stateBefore;
-    barrier.Transition.StateAfter = stateAfter;
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    dxCommon->GetList()->ResourceBarrier(1, &barrier);
-    
 }
 
 void Game::Finalize() {
