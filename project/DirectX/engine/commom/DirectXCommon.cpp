@@ -1,6 +1,7 @@
 #include "DirectXCommon.h"
 
 #include <cassert>
+#include "Bloom.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -145,7 +146,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 	// --- 旧 State クラスの処理をここに統合 ---
 
 	// [RasterizerState] の設定
-	pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 	pso.graphicsDesc_.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 
 	// [BlendState] の設定
@@ -181,7 +182,6 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		// Shadow用に比較関数を調整（必要に応じて）
 		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-
 		pso.inputDesc_.Initialize();
 		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
 	} else if (pso.shaderType_ == PostEffect) {

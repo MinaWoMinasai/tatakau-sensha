@@ -207,13 +207,13 @@
     <ClCompile Include="game\exp\ExpEnemy.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\BloomConstantBuffer.cpp">
+    <ClCompile Include="DirectX\engine\postEffect\BloomConstantBuffer.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\PostEffect.cpp">
+    <ClCompile Include="DirectX\engine\postEffect\PostEffect.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\commom\RenderTexture.cpp">
+    <ClCompile Include="DirectX\engine\postEffect\RenderTexture.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\commom\RtvManager.cpp">
@@ -226,6 +226,12 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\scene\TestScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\postEffect\Bloom.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -398,13 +404,13 @@
     <ClInclude Include="game\exp\ExpEnemy.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\BloomConstantBuffer.h">
+    <ClInclude Include="DirectX\engine\postEffect\BloomConstantBuffer.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\PostEffect.h">
+    <ClInclude Include="DirectX\engine\postEffect\PostEffect.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\commom\RenderTexture.h">
+    <ClInclude Include="DirectX\engine\postEffect\RenderTexture.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\commom\RtvManager.h">
@@ -426,6 +432,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\scene\TestScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\Bloom.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\Shadow.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

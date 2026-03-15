@@ -20,8 +20,7 @@ void Object3d::Initialize()
 	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
 	// デフォルト値
 	directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
-	directionalLightData->direction = Normalize(directionalLightData->direction);
+	directionalLightData->direction = object3dCommon_->GetLightDir();
 	directionalLightData->intensity = 1.0f;
 
 	// マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
@@ -93,6 +92,7 @@ void Object3d::Update() {
 	transformationMatrixData->World = worldMatrix;
 	transformationMatrixData->WorldInverseTranspose = worldInverseTransposeMatrix;
 
+	directionalLightData->direction = object3dCommon_->GetLightDir();
 	lightViewProjection_ = object3dCommon_->GetLightViewProjection();
 	shadowData->lightViewProjection = lightViewProjection_;
 	transformationMatrixData->LightWVP = Multiply(worldMatrix, lightViewProjection_);

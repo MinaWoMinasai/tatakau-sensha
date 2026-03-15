@@ -20,6 +20,8 @@ public:
 
     ID3D12Resource* GetResource() { return resource_.Get(); }
 
+    D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle();
+
 private:
     Microsoft::WRL::ComPtr<ID3D12Resource> resource_;
     
