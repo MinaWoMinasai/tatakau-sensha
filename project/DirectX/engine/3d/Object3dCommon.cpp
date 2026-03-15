@@ -22,11 +22,15 @@ void Object3dCommon::Update() {
     // 1. ライトの向き（DirectionalLightと同じ向きにする）
     // 例：斜め下 45度方向
 
+#ifdef USE_IMGUI
+
     ImGui::Begin("light");
     ImGui::DragFloat3("dir", &lightDir_.x, 0.01f);
     ImGui::End();
 
     lightDir_ = Normalize(lightDir_);
+
+#endif // USE_IMGUI
 
     // 2. ライトの位置
     // ライトの向きの逆方向に、十分離れた場所にカメラを置く
