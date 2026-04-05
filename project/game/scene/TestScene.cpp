@@ -18,6 +18,11 @@ void TestScene::Initialize() {
 
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
 	Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera.get());
+	
+	// 1. TrailManagerの初期化（仮にメンバ変数 std::unique_ptr<TrailManager> trailManager_ を追加）
+	//trailManager_ = std::make_unique<TrailManager>();
+	// 軌跡用のテクスチャを指定（とりあえず既存のものでもOK）
+	//trailManager_->Initialize("resources/gradation.png");
 
 	groundObj_ = std::make_unique<Object3d>();
 	groundObj_->Initialize();
@@ -34,6 +39,12 @@ void TestScene::Initialize() {
 	blockObj_->SetModel("bloomBlock.obj");
 	blockObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
 	blockObj_->SetLighting(true);
+
+	// 2. 剣に見立てた細長いブロックを作る
+	swordObj_ = std::make_unique<Object3d>();
+	swordObj_->Initialize();
+	swordObj_->SetModel("weapon.obj"); // 既存のモデル
+	swordObj_->SetScale({ 2.0f, 2.0f, 2.0f }); // 剣っぽく細長く
 }
 
 void TestScene::Update() {
@@ -57,10 +68,32 @@ void TestScene::Update() {
 
 #endif // USE_IMGUI
 
+	// 1. 剣をぶん回すアニメーション（テスト用）
+	static float timer = 0.0f;
+	timer += 0.02f;
+	swordObj_->SetRotate({ 0.0f, 0.0f, timer * 2.0f }); // Z軸でぐるぐる
+	//swordObj_->SetTranslate({ std::sin(timer) * 20.0f, 0.0f, 0.0f }); // 左右に揺らす
+	swordObj_->Update();
+
+	// 2. ワールド行列から先端と根元の座標を計算
+	// ※Object3dに GetWorldMatrix() がある前提。なければ計算してください
+	Matrix4x4 worldMat = MakeAffineMatrix(swordObj_->GetScale(), swordObj_->GetRotate(), swordObj_->GetTranslate());
+
+	Vector3 localBase = { 0.0f, 0.0f, 0.0f };   // 剣の根元
+	Vector3 localTip = { 0.0f, 6.0f, 0.0f };  // 剣の先端（Scale.yが10ならこのあたり）
+
+	// ローカル座標をワールド座標へ変換
+	Vector3 worldBase = TransformNormal(localBase, worldMat);
+	Vector3 worldTip = TransformNormal(localTip, worldMat);
+
+	// 3. 軌跡を更新！
+	//trailManager_->Update(worldTip, worldBase);
+
 	camera->Update();
 	debugCamera->Update(input_->GetMouseState(), input_->GetKey(), input_->GetLeftStick());
 	groundObj_->Update();
 	blockObj_->Update();
+	//swordObj_->Update();
 
 #ifdef USE_IMGUI
 
@@ -96,6 +129,10 @@ void TestScene::DrawPostEffect3D() {
 
 	groundObj_->Draw();
 
+	//swordObj_->Draw();
+
+	Matrix4x4 vp = Multiply(debugCamera->GetViewMatrix(), debugCamera->GetProjectionMatrix());
+	//trailManager_->Draw(vp);
 }
 
 void TestScene::DrawShadow() {
@@ -103,6 +140,8 @@ void TestScene::DrawShadow() {
 	Object3dCommon::GetInstance()->PreDraw(kShadow);
 
 	blockObj_->DrawShadow();
+
+	swordObj_->DrawShadow();
 }
 
 void TestScene::DrawSprite() {

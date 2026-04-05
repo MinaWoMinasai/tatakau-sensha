@@ -78,6 +78,21 @@ void RenderTexture::Initialize(
         depthResource_.Get(), nullptr, dsvHandle_
     );
 
+    // --- ここを追加 ---
+    // 生成直後は RENDER_TARGET 状態であることが多いため、
+    // 最初の使用に備えて PIXEL_SHADER_RESOURCE に遷移させておく
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = resource_.Get();
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET; // 生成時の状態
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+    dxCommon_->GetList()->ResourceBarrier(1, &barrier);
+
+    // このコマンドを即座に実行するか、あるいはコマンドリストを Close/Execute する仕組みが必要です
+    // TextureManager などと同様に、初期化用のコマンドリスト実行を呼んでください
+    dxCommon_->ExecuteCommandListAndWait();
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE RenderTexture::GetGPUHandle()

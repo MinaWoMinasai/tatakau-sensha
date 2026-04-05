@@ -53,6 +53,7 @@ public:
 		ModelParticle,
 		PostEffect,
 		Shadow,
+		Trail,
 	};
 
 	enum PostEffectType {
@@ -175,6 +176,7 @@ public:
 
 	PSO& GetPSOParticle() { return psoParticle_; }
 	PSO& GetPSOModelParticle() { return psoModelParticle_; }
+	PSO& GetPSOTrail() { return trailPSO; }
 
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
@@ -328,6 +330,7 @@ private:
 	PSO blurVPSO;
 	PSO conpositePSO;
 	PSO shadowPSO;
+	PSO trailPSO;
 	ShaderType shaderType_;
 
 	uint32_t dsvHeapIndex_ = 0;

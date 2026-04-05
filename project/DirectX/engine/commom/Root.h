@@ -15,6 +15,7 @@ public:
 	void InitializeForPostEffect();
 	void InitalizeForShadow();
 	void InitalizeForObjectBe();
+	void InitalizeForTrail();
 
 	void Create(Microsoft::WRL::ComPtr<ID3D12Device>& device);
 
