@@ -18,6 +18,7 @@
 #include "BulletManager.h"
 #include "EnemyManager.h"
 #include "IScene.h"
+#include "TrailManager.h"
 
 // ゲームシーン
 class TestScene : public IScene {
@@ -71,6 +72,9 @@ private:
 	std::unique_ptr<Object3d> groundObj_;
 	std::unique_ptr<Object3d> blockObj_;
 	std::unique_ptr<Object3d> blockObj2_;
+
+	//std::unique_ptr<TrailManager> trailManager_;
+	std::unique_ptr<Object3d> swordObj_;
 
 	// 入力
 	Input* input_;

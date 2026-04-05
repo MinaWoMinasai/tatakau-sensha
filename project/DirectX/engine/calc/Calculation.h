@@ -163,3 +163,5 @@ CollisionResult CheckSphereVsOBB(const Sphere& s, const OBB& o);
 
 // 影用の行列を計算する関数例
 Matrix4x4 CalculateLightViewProjection();
+
+Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t);

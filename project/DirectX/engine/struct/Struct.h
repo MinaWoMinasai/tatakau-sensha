@@ -318,3 +318,9 @@ struct ShadowTransformationMatrix {
 struct ShadowData {
 	Matrix4x4 lightViewProjection;
 };
+
+struct TrailVertex {
+	Vector3 pos;   // POSITION
+	Vector4 color; // COLOR (ここを毎フレーム変えてフェードアウトさせる)
+	Vector2 uv;    // TEXCOORD
+};

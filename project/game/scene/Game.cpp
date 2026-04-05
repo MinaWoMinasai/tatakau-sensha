@@ -99,7 +99,8 @@ void Game::LoadResources() {
         "bloomBall.obj",
         "bloomBlock.obj",
         "jewelry.obj",
-        "ground.obj"
+        "ground.obj",
+        "weapon.obj",
     };
 
     for (auto& model : models) {
@@ -159,9 +160,9 @@ void Game::MainLoop() {
         srvManager_->PreDraw();
        
         shadow_->PreDraw();
-
+        
         bloom_->PreDraw();
-
+        
         SceneManager::GetInstance()->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
         
         SpriteCommon::GetInstance()->PreDraw(kNone);

@@ -280,13 +280,13 @@ void GameScene::DrawPostEffect3D() {
 	
 	stage_->Draw();
 	//
-	//ballObj_->Draw();
+	ballObj_->Draw();
 	//
 	enemy_->HPBarDraw();
 	//
 	//groundObj_->Draw();
 
-	//ball_->Draw();
+	ball_->Draw();
 
 	
 	//Object3dCommon::GetInstance()->PreDraw(kAdd);

@@ -23,24 +23,26 @@ Audio::~Audio()
             if (pVoice) pVoice->DestroyVoice();
         }
     }
+    MFShutdown();
 }
 
 void Audio::Initialize()
 {
     MFStartup(MF_VERSION, MFSTARTUP_NOSOCKET);
 
-	HRESULT hr = XAudio2Create(&xAudio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
-	if (FAILED(hr)) {
-		// エラー処理
-		return;
-	}
+    HRESULT hr = XAudio2Create(&xAudio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
+    if (FAILED(hr)) {
+        // エラー処理
+        return;
+    }
 
-	hr = xAudio2_->CreateMasteringVoice(&masterVoice_);
-	if (FAILED(hr)) {
-		// エラー処理
-		return;
-	}
+    hr = xAudio2_->CreateMasteringVoice(&masterVoice_);
+    if (FAILED(hr)) {
+        // エラー処理
+        return;
+    }
 }
+
 void Audio::LoadAudio(const std::wstring soundName, const std::wstring filePath, size_t maxConcurrency)
 {
     // ソースリーダーの作成
@@ -116,6 +118,103 @@ void Audio::LoadAudio(const std::wstring soundName, const std::wstring filePath,
     }
 }
 
+Audio::VoiceHandle Audio::PlayAudioSE(const std::wstring soundName, float volume)
+{
+    auto it = audioMap.find(soundName);
+    if (it == audioMap.end() || it->second.voicePool.empty()) return { L"", 0 };
+
+    auto& data = it->second;
+
+    // 現在のインデックスを保存
+    size_t currentIndex = data.nextVoiceIndex;
+    IXAudio2SourceVoice* pVoice = data.voicePool[currentIndex];
+
+    // 再生設定
+    pVoice->Stop();
+    pVoice->FlushSourceBuffers();
+    pVoice->SetVolume(volume);
+
+    XAUDIO2_BUFFER buffer{ 0 };
+    buffer.AudioBytes = data.bufferSize;
+    buffer.pAudioData = data.bufferData.data();
+    buffer.Flags = XAUDIO2_END_OF_STREAM;
+
+    pVoice->SubmitSourceBuffer(&buffer);
+    pVoice->Start();
+
+    // 次に使うボイスのインデックスを更新 (ここだけにする)
+    data.nextVoiceIndex = (data.nextVoiceIndex + 1) % data.voicePool.size();
+
+    return { soundName, currentIndex };
+}
+
+// --- 追加機能 1: 名前指定での全停止 ---
+void Audio::StopAudio(const std::wstring& soundName) {
+    auto it = audioMap.find(soundName);
+    if (it != audioMap.end()) {
+        // その音のボイスプールにあるすべてのボイスを止める
+        for (auto* pVoice : it->second.voicePool) {
+            pVoice->Stop();
+            pVoice->FlushSourceBuffers();
+        }
+    }
+}
+
+// --- 追加機能 2: 音声データの完全解放 ---
+void Audio::UnloadAudio(const std::wstring& soundName) {
+    auto it = audioMap.find(soundName);
+    if (it != audioMap.end()) {
+        // 1. 再生中のボイスを止めて破棄
+        for (auto* pVoice : it->second.voicePool) {
+            if (pVoice) {
+                pVoice->Stop();
+                pVoice->FlushSourceBuffers();
+                pVoice->DestroyVoice();
+            }
+        }
+        // 2. メモリの解放
+        if (it->second.waveFormat) {
+            CoTaskMemFree(it->second.waveFormat);
+        }
+
+        // 3. マップから削除 (bufferData は vector なので自動で解放される)
+        audioMap.erase(it);
+    }
+}
+
+
+void Audio::PauseAudio(const VoiceHandle& handle) {
+    auto it = audioMap.find(handle.soundName);
+    if (it != audioMap.end() && handle.voiceIndex < it->second.voicePool.size()) {
+        it->second.voicePool[handle.voiceIndex]->Stop(0); // 0を指定すると一時停止
+    }
+}
+
+void Audio::ResumeAudio(const VoiceHandle& handle) {
+    auto it = audioMap.find(handle.soundName);
+    if (it != audioMap.end() && handle.voiceIndex < it->second.voicePool.size()) {
+        it->second.voicePool[handle.voiceIndex]->Start(0);
+    }
+}
+
+void Audio::StopAll() {
+    for (auto& [name, data] : audioMap) {
+        for (auto* pVoice : data.voicePool) {
+            pVoice->Stop();
+            pVoice->FlushSourceBuffers();
+        }
+    }
+}
+
+void Audio::StopAudio(const VoiceHandle& handle) {
+    auto it = audioMap.find(handle.soundName);
+    if (it != audioMap.end() && handle.voiceIndex < it->second.voicePool.size()) {
+        // 即時停止し、たまっているバッファ（キュー）をクリアする
+        it->second.voicePool[handle.voiceIndex]->Stop();
+        it->second.voicePool[handle.voiceIndex]->FlushSourceBuffers();
+    }
+}
+
 void Audio::PlayAudio(const std::wstring soundName, bool loop, float volume)
 {
     auto it = audioMap.find(soundName);
@@ -151,30 +250,16 @@ void Audio::PlayAudio(const std::wstring soundName, bool loop, float volume)
     pVoice->Start();
 }
 
-void Audio::PlayAudioSE(const std::wstring soundName, float volume)
-{
-    auto it = audioMap.find(soundName);
-    if (it == audioMap.end()) return;
+void Audio::SetVolume(const VoiceHandle& handle, float volume) {
+    auto it = audioMap.find(handle.soundName);
+    if (it != audioMap.end() && handle.voiceIndex < it->second.voicePool.size()) {
+        // 指定したボイスの音量のみを変更
+        it->second.voicePool[handle.voiceIndex]->SetVolume(volume);
+    }
+}
 
-    auto& data = it->second;
-    if (data.voicePool.empty()) return;
-
-    // 次に使うボイスを選択
-    IXAudio2SourceVoice* pVoice = data.voicePool[data.nextVoiceIndex];
-
-    // インデックスを更新 (最後までいったら0に戻る)
-    data.nextVoiceIndex = (data.nextVoiceIndex + 1) % data.voicePool.size();
-
-    // 再生設定
-    pVoice->Stop();            // 念のため停止
-    pVoice->FlushSourceBuffers(); // キューを空にする
-    pVoice->SetVolume(volume);
-
-    XAUDIO2_BUFFER buffer{ 0 };
-    buffer.AudioBytes = data.bufferSize;
-    buffer.pAudioData = data.bufferData.data();
-    buffer.Flags = XAUDIO2_END_OF_STREAM;
-
-    pVoice->SubmitSourceBuffer(&buffer);
-    pVoice->Start();
+void Audio::SetMasterVolume(float volume) {
+    if (masterVoice_) {
+        masterVoice_->SetVolume(volume);
+    }
 }

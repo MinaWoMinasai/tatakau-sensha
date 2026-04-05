@@ -124,6 +124,11 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		case Bloom_Composite:  pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl"; break;
 		}
 		break;
+	case Trail:
+		pso.root_.InitalizeForTrail(); // 上で作った関数
+		pso.vsFilePath_ = L"resources/shaders/Trail.VS.hlsl";
+		pso.psFilePath_ = L"resources/shaders/Trail.PS.hlsl";
+		break;
 	default: assert(false); break;
 	}
 
@@ -190,6 +195,17 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_UNKNOWN;
 		pso.graphicsDesc_.DepthStencilState.DepthEnable = FALSE;
 		pso.graphicsDesc_.InputLayout = { nullptr, 0 };
+	} else if (pso.shaderType_ == Trail) {
+		pso.graphicsDesc_.NumRenderTargets = 1;
+		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		// ★ 軌跡用の特殊設定
+		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // 両面描画
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // 深度は塗らない
+
+		pso.inputDesc_.InitializeForTrail(); // 頂点レイアウト(Pos, Color, UV)
+		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
 	} else {
 		pso.graphicsDesc_.NumRenderTargets = 1;
 		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -202,6 +218,8 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	}
+
+	
 
 	// 6. 残りの共通設定
 	pso.graphicsDesc_.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -230,6 +248,7 @@ void DirectXCommon::CreateShader()
 	downsamplePSO.shaderType_ = PostEffect;
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
 	shadowPSO.shaderType_ = Shadow;
+	trailPSO.shaderType_ = Trail;
 
 	CreateShaderCommon(objectPSO_None, kNone);
 	CreateShaderCommon(objectPSO_Alpha, kAdd);
@@ -241,6 +260,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(conpositePSO, kAdd);
 	CreateShaderCommon(downsamplePSO, kNone);
 	CreateShaderCommon(shadowPSO, kShadow);
+	CreateShaderCommon(trailPSO, kAdd);
 }
 
 
@@ -828,5 +848,60 @@ void DirectXCommon::Release() {
 	}
 	objectPSO_None.pixelShaderBlob_->Release();
 	objectPSO_None.vertexShaderBlob_->Release();
+
+	objectPSO_Alpha.root_.GetSignatureBlob()->Release();
+	if (objectPSO_Alpha.root_.GetErrorBlob()) {
+		objectPSO_Alpha.root_.GetErrorBlob()->Release();
+	}
+	objectPSO_Alpha.pixelShaderBlob_->Release();
+	objectPSO_Alpha.vertexShaderBlob_->Release();
+
+	shadowPSO.root_.GetSignatureBlob()->Release();
+	if (shadowPSO.root_.GetErrorBlob()) {
+		shadowPSO.root_.GetErrorBlob()->Release();
+	}
+	shadowPSO.vertexShaderBlob_->Release();
+
+	bloomPSO.root_.GetSignatureBlob()->Release();
+	if (bloomPSO.root_.GetErrorBlob()) {
+		bloomPSO.root_.GetErrorBlob()->Release();
+	}
+	bloomPSO.pixelShaderBlob_->Release();
+	bloomPSO.vertexShaderBlob_->Release();
+
+	downsamplePSO.root_.GetSignatureBlob()->Release();
+	if (downsamplePSO.root_.GetErrorBlob()) {
+		downsamplePSO.root_.GetErrorBlob()->Release();
+	}
+	downsamplePSO.pixelShaderBlob_->Release();
+	downsamplePSO.vertexShaderBlob_->Release();
+
+	blurHPSO.root_.GetSignatureBlob()->Release();
+	if (blurHPSO.root_.GetErrorBlob()) {
+		blurHPSO.root_.GetErrorBlob()->Release();
+	}
+	blurHPSO.pixelShaderBlob_->Release();
+	blurHPSO.vertexShaderBlob_->Release();
+
+	blurVPSO.root_.GetSignatureBlob()->Release();
+	if (blurVPSO.root_.GetErrorBlob()) {
+		blurVPSO.root_.GetErrorBlob()->Release();
+	}
+	blurVPSO.pixelShaderBlob_->Release();
+	blurVPSO.vertexShaderBlob_->Release();
+
+	conpositePSO.root_.GetSignatureBlob()->Release();
+	if (conpositePSO.root_.GetErrorBlob()) {
+		conpositePSO.root_.GetErrorBlob()->Release();
+	}
+	conpositePSO.pixelShaderBlob_->Release();
+	conpositePSO.vertexShaderBlob_->Release();
+
+	trailPSO.root_.GetSignatureBlob()->Release();
+	if (trailPSO.root_.GetErrorBlob()) {
+		trailPSO.root_.GetErrorBlob()->Release();
+	}
+	trailPSO.pixelShaderBlob_->Release();
+	trailPSO.vertexShaderBlob_->Release();
 
 }

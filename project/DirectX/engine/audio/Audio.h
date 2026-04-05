@@ -15,7 +15,7 @@
 #include <mfidl.h>
 #include <mfreadwrite.h>
 
-class Audio 
+class Audio
 {
 public:
 
@@ -33,6 +33,13 @@ public:
 		size_t nextVoiceIndex = 0; // 次に使うボイスの番号
 	};
 
+	struct VoiceHandle {
+		std::wstring soundName;
+		size_t voiceIndex;
+
+		// ハンドルが有効かどうかをチェックする簡単な方法
+		//boolIsValid() const { return !soundName.empty(); }
+	};
 
 	// デストラクタ
 	~Audio();
@@ -47,15 +54,32 @@ public:
 	/// <summary>
 	/// 音声再生
 	/// </summary>
-	void PlayAudio(const std::wstring soundName, bool loop, float volume);
+	void PlayAudio(const std::wstring soundName, bool loop, float volume = -1.0f);
 
 	/// <summary>
 	/// SE再生
 	/// </summary>
 	/// <param name="soundName"></param>
 	/// <param name="volume"></param>
-	void PlayAudioSE(const std::wstring soundName, float volume);
+	Audio::VoiceHandle PlayAudioSE(const std::wstring soundName, float volume = -1.0f);
 
+	/// <summary>
+	/// 特定の音をすべて停止（BGMの切り替えやエディターでの停止用）
+	/// </summary>
+	void StopAudio(const std::wstring& soundName);
+
+	/// <summary>
+	/// 音声データの解放（エディターで項目を削除した時や、メモリ節約用）
+	/// </summary>
+	void UnloadAudio(const std::wstring& soundName);
+
+	void StopAudio(const VoiceHandle& handle);
+	void PauseAudio(const VoiceHandle& handle);
+	void ResumeAudio(const VoiceHandle& handle);
+	void SetVolume(const VoiceHandle& handle, float volume);
+	void StopAll();
+
+	void SetMasterVolume(float volume);
 private:
 
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2_;

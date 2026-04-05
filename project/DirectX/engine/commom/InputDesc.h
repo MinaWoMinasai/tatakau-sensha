@@ -12,6 +12,8 @@ public:
 	/// </summary>
 	void Initialize();
 
+	void InitializeForTrail();
+
 	std::span<const D3D12_INPUT_ELEMENT_DESC> GetElementDescs() const {
 		return std::span{ ElementDescs_, _countof(ElementDescs_) };
 	}
