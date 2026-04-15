@@ -129,7 +129,7 @@ void TestScene::DrawPostEffect3D() {
 
 	groundObj_->Draw();
 
-	//swordObj_->Draw();
+	swordObj_->Draw();
 
 	Matrix4x4 vp = Multiply(debugCamera->GetViewMatrix(), debugCamera->GetProjectionMatrix());
 	//trailManager_->Draw(vp);

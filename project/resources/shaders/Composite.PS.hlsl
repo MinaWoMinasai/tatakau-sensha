@@ -19,7 +19,7 @@ cbuffer BloomParam : register(b0)
     float curvature;
     float borderSharp;
     float glitchAmount;
-    float padding;
+    float gaussianIntensity;
 };
 
 // --- ヘルパー関数：ランダム ---
@@ -131,7 +131,27 @@ float4 main(PSInput input) : SV_TARGET
     bloom.b = bloomTex.Sample(samp, finalUV - shift).b;
 
     // F. 合成とカラー加工
-    float3 result = scene + bloom * intensity;
+    float3 sceneColor = scene;
+    float3 blurredColor = bloom; // PostDrawでシーン全体をぼかして渡したもの
+    
+    float3 result;
+
+    if (gaussianIntensity > 0.0f)
+    {
+    // 【ガウスフィルタモード】
+    // シーン全体をぼかしたものを lerp で混ぜる（1.0に近づくほど全体がボケる）
+        result = lerp(sceneColor, blurredColor, gaussianIntensity);
+    }
+    else
+    {
+    // 【ブルームモード】
+    // 元の絵に、高輝度部分をぼかしたものを「加算」する
+    // ここで intensity をかけることで、光の強さを制御できます
+        result = sceneColor + (blurredColor * intensity);
+    }
+    
+    // ブルームとしても使いたい場合は、加算なども考慮
+    // result += blurredColor * intensity;
     result = ApplyColorModifiers(result);
     result = ApplyOverlays(result, texUV);
 

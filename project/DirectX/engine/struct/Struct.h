@@ -299,7 +299,7 @@ struct BloomParam
 	float curvature; // 画面の膨らみ具合 (0.02 くらいがおすすめ)
 	float borderSharp; // 枠の角の鋭さ (20.0 くらい)
 	float glitchAmount; // 追加：グリッチの強さ（0.0 ~ 0.1くらい）
-	float padding; // paddingを調節して16バイト境界に合わせる
+	float gaussianIntensity;
 };
 
 struct PointLightData {

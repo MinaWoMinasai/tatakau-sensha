@@ -6,6 +6,7 @@ cbuffer BloomParam : register(b0)
     float threshold;
     float intensity;
     float2 padding;
+    float blurStrength;
 };
 
 struct PSInput
@@ -31,5 +32,5 @@ float4 main(PSInput input) : SV_TARGET
         col += sceneTex.Sample(samp, input.uv - float2(0, texel.y * i)).rgb * weights[i];
     }
     
-    return float4(col * intensity, 1);
+    return float4(col, 1);
 }

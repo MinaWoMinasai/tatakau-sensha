@@ -85,6 +85,7 @@ void Bloom::Update() {
     ImGui::DragFloat("Curvature", &bloomParam_.curvature, 0.001f);   // 画面の膨らみ
     ImGui::DragFloat("Border Sharp", &bloomParam_.borderSharp, 0.001f); // 角の丸み
     ImGui::DragFloat("glitchAmount", &bloomParam_.glitchAmount, 0.001f); // 角の丸み
+    ImGui::DragFloat("Gaussian Intensity", &bloomParam_.gaussianIntensity, 0.01f, 0.0f, 1.0f);
 
     // bool値を float(0.0 or 1.0) に変換して送る
     static bool grayFlag = false;
@@ -145,13 +146,23 @@ void Bloom::PostDraw() {
     // --- A. SceneRT の描画終了 (RT -> SRV) ---
     Transition(sceneRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    // --- B. 高輝度抽出 (SceneRT -> BloomHalf) ---
+    // --- B. 抽出パス (SceneRT -> BloomHalf) ---
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
     dxCommon_->ClearRenderTarget(bloomRT_Half_->GetRTVHandle());
 
-    postEffect_->Draw(sceneRT_->GetGPUHandle(), kAdd_Bloom_Extract);
+    // 【ポイント】GaussianFilterが有効な場合は、抽出（しきい値カット）をスキップして
+    // シーン全体を縮小バッファへコピーするように、描画タイプを切り替える
+    if (bloomParam_.gaussianIntensity > 0.0f) {
+        // 高輝度抽出ではなく、単なるダウンサンプル（またはシーンコピー）を使用
+        // ※kAdd_Bloom_Downsample が単なるコピーならこれを使えます
+        postEffect_->Draw(sceneRT_->GetGPUHandle(), kAdd_Bloom_Downsample);
+    } else {
+        // 通常のブルーム用高輝度抽出
+        postEffect_->Draw(sceneRT_->GetGPUHandle(), kAdd_Bloom_Extract);
+    }
+
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     // --- C. ダウンサンプリング (BloomHalf -> BloomA) ---
@@ -164,22 +175,22 @@ void Bloom::PostDraw() {
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     // --- D. ブラー (BloomA <-> BloomB) ---
-    // Horizontal
+    // ここで実行される GaussianBlur は既存のシェーダーをそのまま使います
     Transition(bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_B_->GetRTVHandle());
     postEffect_->Draw(bloomRT_A_->GetGPUHandle(), kAdd_Bloom_BlurH);
     Transition(bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    // Vertical
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
     postEffect_->Draw(bloomRT_B_->GetGPUHandle(), kAdd_Bloom_BlurV);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     // --- E. 最終合成 (SceneRT + BloomA -> BackBuffer) ---
-    dxCommon_->SetBackBuffer(); // 内部でバックバッファを RT 状態にする想定
+    dxCommon_->SetBackBuffer();
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
+    // 最終的に DrawComposite で HLSL 側のメイン処理が走ります
     postEffect_->DrawComposite(sceneRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
 }
 
