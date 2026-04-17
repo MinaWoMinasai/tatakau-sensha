@@ -103,14 +103,14 @@ struct OBB {
 	Vector3 orientation[3]; // 正規化済み
 };
 
-struct alignas(16) Material {
+struct Material {
 	Vector4 color;
 	int32_t enableLighting;
 	int32_t lightingMode;
-	float padding[2];
+	float environmentCoefficient; // 追加：環境マッピング係数 (0.0~1.0)
+	float padding; // 16バイトアライメントのための調整
 	Matrix4x4 uvTransform;
 	float shininess;
-	float pad2[3];
 };
 
 struct TransformationMatrix {

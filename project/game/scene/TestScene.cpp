@@ -51,7 +51,10 @@ void TestScene::Initialize() {
 
 	skybox_ = std::make_unique<Skybox>();
 	skybox_->Initialize("resources/skybox.dds"); // ファイル名を指定するだけ
-
+	
+	uint32_t skyboxTextureIndex = TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
+	blockObj_->SetEnvironmentMap(skyboxTextureIndex);
+	blockObj_->SetEnvironmentCoefficient(0.5f); // 50%反射
 }
 
 void TestScene::Update() {
