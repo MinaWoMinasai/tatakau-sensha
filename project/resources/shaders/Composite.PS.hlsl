@@ -20,6 +20,12 @@ cbuffer BloomParam : register(b0)
     float borderSharp;
     float glitchAmount;
     float gaussianIntensity;
+    float dissolveThreshold; // ディゾルブの進行度 (0~1)
+    float outlineWidth; // アウトラインの太さ
+    float outlineThreshold; // エッジ検出のしきい値
+    float pad1;
+    float3 outlineColor; // アウトラインの色
+    float pad2;
 };
 
 // --- ヘルパー関数：ランダム ---
@@ -91,7 +97,31 @@ float3 ApplyOverlays(float3 color, float2 uv)
     
     return color;
 }
+// 改良版アウトライン関数
+float3 GetImprovedOutline(float2 uv)
+{
+    float2 texelSize = float2(1.0f / 1280.0f, 1.0f / 720.0f);
+    float2 offset = outlineWidth * texelSize;
 
+    // 8方向のサンプリング
+    float3 col00 = sceneTex.Sample(samp, uv + offset * float2(-1, -1)).rgb;
+    float3 col10 = sceneTex.Sample(samp, uv + offset * float2( 0, -1)).rgb;
+    float3 col20 = sceneTex.Sample(samp, uv + offset * float2( 1, -1)).rgb;
+    float3 col01 = sceneTex.Sample(samp, uv + offset * float2(-1,  0)).rgb;
+    float3 col21 = sceneTex.Sample(samp, uv + offset * float2( 1,  0)).rgb;
+    float3 col02 = sceneTex.Sample(samp, uv + offset * float2(-1,  1)).rgb;
+    float3 col12 = sceneTex.Sample(samp, uv + offset * float2( 0,  1)).rgb;
+    float3 col22 = sceneTex.Sample(samp, uv + offset * float2( 1,  1)).rgb;
+
+    // 水平・垂直の輝度変化を計算 (簡易Sobelフィルタ風)
+    float3 h = (col20 + col21 * 2.0 + col22) - (col00 + col01 * 2.0 + col02);
+    float3 v = (col02 + col12 * 2.0 + col22) - (col00 + col10 * 2.0 + col20);
+    
+    // エッジ強度
+    float edge = length(h) + length(v);
+
+    return (edge > outlineThreshold) ? outlineColor : float3(0, 0, 0);
+}
 struct PSInput
 {
     float4 position : SV_POSITION;
@@ -107,7 +137,7 @@ float4 main(PSInput input) : SV_TARGET
     // B. ブラウン管歪み適用
     float2 crtUV = ApplyCRTDistortion(baseUV);
     float2 texUV = (crtUV + 1.0) / 2.0;
-
+    
     // C. 画面外判定
     if (texUV.x < 0.0 || texUV.x > 1.0 || texUV.y < 0.0 || texUV.y > 1.0)
     {
@@ -129,7 +159,15 @@ float4 main(PSInput input) : SV_TARGET
     bloom.r = bloomTex.Sample(samp, finalUV + shift).r;
     bloom.g = bloomTex.Sample(samp, finalUV).g;
     bloom.b = bloomTex.Sample(samp, finalUV - shift).b;
-
+    
+    // 1. ディゾルブ処理 (消去判定)
+    // すでにある Hash 関数を利用して、UV座標に基づいたノイズを生成します
+    float dissolveNoise = Hash(texUV * 100.0f); // 100.0fはノイズの細かさ
+    if (dissolveNoise < dissolveThreshold)
+    {
+        discard; // しきい値より低いピクセルは描画をスキップ
+    }
+    
     // F. 合成とカラー加工
     float3 sceneColor = scene;
     float3 blurredColor = bloom; // PostDrawでシーン全体をぼかして渡したもの
@@ -148,6 +186,14 @@ float4 main(PSInput input) : SV_TARGET
     // 元の絵に、高輝度部分をぼかしたものを「加算」する
     // ここで intensity をかけることで、光の強さを制御できます
         result = sceneColor + (blurredColor * intensity);
+    }
+    
+    // 2. アウトライン処理 (エッジ検出)
+    // 改良版アウトラインの適用
+    float3 outline = GetImprovedOutline(finalUV);
+    if (any(outline)) // outlineが黒でない場合
+    {
+        result = outline;
     }
     
     // ブルームとしても使いたい場合は、加算なども考慮

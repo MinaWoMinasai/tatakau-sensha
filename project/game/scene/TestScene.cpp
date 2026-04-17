@@ -35,6 +35,7 @@ void TestScene::Initialize() {
 	blockObj_ = std::make_unique<Object3d>();
 	blockObj_->Initialize();
 	blockObj_->SetTranslate(Vector3(-10.0f, 0.0f, 0.0f));
+	blockObj_->SetScale(Vector3(10.0f, 10.0f, 10.0f));
 	blockObj_->Update();
 	blockObj_->SetModel("bloomBlock.obj");
 	blockObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
@@ -45,6 +46,12 @@ void TestScene::Initialize() {
 	swordObj_->Initialize();
 	swordObj_->SetModel("weapon.obj"); // 既存のモデル
 	swordObj_->SetScale({ 2.0f, 2.0f, 2.0f }); // 剣っぽく細長く
+
+	TextureManager::GetInstance()->LoadTexture("resources/skybox.dds");
+
+	skybox_ = std::make_unique<Skybox>();
+	skybox_->Initialize("resources/skybox.dds"); // ファイル名を指定するだけ
+
 }
 
 void TestScene::Update() {
@@ -94,6 +101,7 @@ void TestScene::Update() {
 	groundObj_->Update();
 	blockObj_->Update();
 	//swordObj_->Update();
+	skybox_->Update(camera.get(), debugCamera.get()); // カメラ追従もクラス内で完結
 
 #ifdef USE_IMGUI
 
@@ -122,6 +130,8 @@ void TestScene::Draw() {
 }
 
 void TestScene::DrawPostEffect3D() {
+
+	skybox_->Draw();
 
 	Object3dCommon::GetInstance()->PreDraw(kNone);
 

@@ -129,6 +129,11 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		pso.vsFilePath_ = L"resources/shaders/Trail.VS.hlsl";
 		pso.psFilePath_ = L"resources/shaders/Trail.PS.hlsl";
 		break;
+	case Skybox: // ★追加
+		pso.root_.InitializeForSkybox(); // 前回作成した関数
+		pso.vsFilePath_ = L"resources/shaders/Skybox.VS.hlsl";
+		pso.psFilePath_ = L"resources/shaders/Skybox.PS.hlsl";
+		break;
 	default: assert(false); break;
 	}
 
@@ -182,7 +187,19 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		pso.graphicsDesc_.PS = { pso.pixelShaderBlob_->GetBufferPointer(), pso.pixelShaderBlob_->GetBufferSize() };
 	}
 
-	if (pso.shaderType_ == Shadow) {
+	if (pso.shaderType_ == Skybox) {
+		pso.graphicsDesc_.NumRenderTargets = 1;
+		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		// ★ Skybox用の特殊設定
+		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // 中から見るのでカリングしない
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // 奥行きを更新しない（常に背景）
+		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+		pso.inputDesc_.Initialize(); // 頂点レイアウトはObjectと同じでOK
+		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
+	} else if (pso.shaderType_ == Shadow) {
 		pso.graphicsDesc_.NumRenderTargets = 0;
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		// Shadow用に比較関数を調整（必要に応じて）
@@ -249,6 +266,7 @@ void DirectXCommon::CreateShader()
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
 	shadowPSO.shaderType_ = Shadow;
 	trailPSO.shaderType_ = Trail;
+	skyboxPSO.shaderType_ = Skybox;
 
 	CreateShaderCommon(objectPSO_None, kNone);
 	CreateShaderCommon(objectPSO_Alpha, kAdd);
@@ -261,6 +279,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(downsamplePSO, kNone);
 	CreateShaderCommon(shadowPSO, kShadow);
 	CreateShaderCommon(trailPSO, kAdd);
+	CreateShaderCommon(skyboxPSO, kNone);
 }
 
 
@@ -273,13 +292,13 @@ void DirectXCommon::InitializeDevice()
 {
 	HRESULT hr;
 
-	//Microsoft::WRL::ComPtr<ID3D12Debug1> debugComtroller = nullptr;
-	//if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugComtroller)))) {
-	//	// デバッグレイヤーを有効化する
-	//	debugComtroller->EnableDebugLayer();
-	//	// さらにGPU側でもチェックを行うようにする
-	//	debugComtroller->SetEnableGPUBasedValidation(TRUE);
-	//}
+	Microsoft::WRL::ComPtr<ID3D12Debug1> debugComtroller = nullptr;
+	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugComtroller)))) {
+		// デバッグレイヤーを有効化する
+		debugComtroller->EnableDebugLayer();
+		// さらにGPU側でもチェックを行うようにする
+		debugComtroller->SetEnableGPUBasedValidation(TRUE);
+	}
 	
 	hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
 	assert(SUCCEEDED(hr));
@@ -495,6 +514,7 @@ void DirectXCommon::InitializeFence()
 	assert(SUCCEEDED(hr));
 
 	// FenceのSignalを持つためのイベントを作成する
+	fenceEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	assert(fenceEvent_ != nullptr);
 
 }

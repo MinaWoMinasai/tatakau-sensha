@@ -18,6 +18,8 @@ public:
 	void CreateSRVforStructuredBuffer(uint32_t srvIndex, ID3D12Resource* pResouce, UINT numElements, UINT structureBytrStrike);
 	// SRV生成(シャドウマッピング用)
 	void CreateSRVforShadowMap(uint32_t srvIndex, ID3D12Resource* pResource);
+	// SRV生成(テクスチャキューブ用)
+	void CreateSRVforTextureCube(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT format, UINT MipLevels);
 
 	void PreDraw();
 

@@ -271,6 +271,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\commom\ShadowMap.cpp" />
     <ClCompile Include="game\scene\TestScene.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp" />
+    <ClCompile Include="DirectX\engine\3d\Skybox.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\ModelParticle.PS.hlsl">
@@ -434,6 +435,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\scene\SceneFactory.h" />
     <ClInclude Include="game\scene\TestScene.h" />
     <ClInclude Include="DirectX\engine\postEffect\Shadow.h" />
+    <ClInclude Include="DirectX\engine\3d\Skybox.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt">

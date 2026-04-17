@@ -72,6 +72,10 @@ public:
 		pointLightData->position = position;
 	}
 
+	ID3D12Resource* GetMaterialResource() { return materialResource_.Get(); }
+	ID3D12Resource* GetTransformationResource() { return transformationMatrixResource.Get(); }
+	Model* GetModel() { return model_; }
+
 private:
 
 	Object3dCommon* object3dCommon_;
