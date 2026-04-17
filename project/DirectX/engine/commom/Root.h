@@ -16,6 +16,7 @@ public:
 	void InitalizeForShadow();
 	void InitalizeForObjectBe();
 	void InitalizeForTrail();
+	void InitializeForSkybox();
 
 	void Create(Microsoft::WRL::ComPtr<ID3D12Device>& device);
 

@@ -1,4 +1,5 @@
 #include "TextureManager.h"
+#include <filesystem> // 拡張子判定用
 
 TextureManager* TextureManager::instance = nullptr;
 
@@ -23,51 +24,58 @@ void TextureManager::Finalize() {
 	instance = nullptr;
 }
 
-void TextureManager::LoadTexture(const std::string& filePath)
-{
+void TextureManager::LoadTexture(const std::string& filePath) {
+    if (textureDatas.contains(filePath)) return;
 
-	// 読み込み済みテクスチャを検索
-	if (textureDatas.contains(filePath)) {
-		return;
-	}
+    assert(textureDatas.size() + kSRVIndexTop < SrvManager::kMaxSrvCount);
 
-	// テクスチャ枚数上限チェック
-	assert(textureDatas.size() + kSRVIndexTop < SrvManager::kMaxSrvCount);
+    DirectX::ScratchImage image{};
+    std::wstring filePathW = LogWrite().ConvertString(filePath);
+    HRESULT hr;
 
-	// テクスチャファイルを読んでプログラムで扱えるようにする
-	DirectX::ScratchImage image{};
-	LogWrite log;
-	std::wstring filePathW = log.ConvertString(filePath);
-	HRESULT hr = DirectX::LoadFromWICFile(filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
-	assert(SUCCEEDED(hr));
+    // 拡張子で読み込み方法を分岐
+    if (std::filesystem::path(filePath).extension() == ".dds") {
+        hr = DirectX::LoadFromDDSFile(filePathW.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image);
+    } else {
+        hr = DirectX::LoadFromWICFile(filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+    }
+    assert(SUCCEEDED(hr));
 
-	// ミップマップの作成
-	DirectX::ScratchImage mipImages{};
-	hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
-	assert(SUCCEEDED(hr));
+    // ミップマップ生成（DDSにミップマップが含まれていない場合のみ実行するのが一般的ですが、ここでは簡略化）
+    DirectX::ScratchImage mipImages{};
+    if (DirectX::IsCompressed(image.GetMetadata().format)) {
+        // 圧縮フォーマットの場合はそのまま使用
+        mipImages = std::move(image);
+    } else {
+        hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
+        assert(SUCCEEDED(hr));
+    }
 
-	// 追加したテクスチャデータの参照を取得する
-	TextureData& textureData = textureDatas[filePath];
+    TextureData& textureData = textureDatas[filePath];
+    textureData.metaData = mipImages.GetMetadata();
+    textureData.resource = texture.CreateResource(dxCommon_->GetDevice(), textureData.metaData);
+    textureData.srvIndex = srvManager_->Allocate();
+    textureData.srvHandleCPU = srvManager_->GetCPUDescriptorHandle(textureData.srvIndex);
+    textureData.srvHandleGPU = srvManager_->GetGPUDescriptorHandle(textureData.srvIndex);
 
-	textureData.metaData = mipImages.GetMetadata();
-	textureData.resource = texture.CreateResource(dxCommon_->GetDevice(), textureData.metaData);
+    // CubeMapかどうかの判定
+    if (textureData.metaData.miscFlags & DirectX::TEX_MISC_TEXTURECUBE) {
+        srvManager_->CreateSRVforTextureCube(textureData.srvIndex, textureData.resource.Get(),
+            textureData.metaData.format, static_cast<UINT>(textureData.metaData.mipLevels));
+    } else {
+        srvManager_->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(),
+            textureData.metaData.format, static_cast<UINT>(textureData.metaData.mipLevels));
+    }
 
-	// テクスチャデータの要素数番号をSRVのインデックスとする
-	uint32_t srvIndex = static_cast<uint32_t>(textureDatas.size() - 1 + kSRVIndexTop);
-	
-	textureData.srvIndex = srvManager_->Allocate();
-	textureData.srvHandleCPU = srvManager_->GetCPUDescriptorHandle(textureData.srvIndex);
-	textureData.srvHandleGPU = srvManager_->GetGPUDescriptorHandle(textureData.srvIndex);
-	
-	// metaDataを基にSRVの設定
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = textureData.metaData.format;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // 2Dテクスチャ
-	srvDesc.Texture2D.MipLevels = UINT(textureData.metaData.mipLevels);
-	dxCommon_->GetDevice()->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, textureData.srvHandleCPU);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = texture.UploadData(textureData.resource, mipImages, dxCommon_->GetDevice(), dxCommon_->GetList());
-	dxCommon_->ExecuteCommandListAndWait();
+    auto intermediateResource = texture.UploadData(
+        textureData.resource,
+        mipImages,
+        dxCommon_->GetDevice(),
+        dxCommon_->GetList()
+    );
+
+    // GPUの完了を待つ。この関数が終わるまで intermediateResource は生存し続ける。
+    dxCommon_->ExecuteCommandListAndWait();
 }
 
 uint32_t TextureManager::GetTextureIndexbyFilePath(const std::string& filePath)

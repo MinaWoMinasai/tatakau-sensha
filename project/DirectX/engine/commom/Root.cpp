@@ -409,6 +409,52 @@ void Root::InitalizeForTrail()
 	);
 }
 
+void Root::InitializeForSkybox()
+{
+	descriptionSignature_.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	// [0] Material (Pixel b0) : Skyboxの色味調整用
+	Parameters_[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[0].Descriptor.ShaderRegister = 0;
+
+	// [1] TransformationMatrix (Vertex b0) : WVP行列
+	Parameters_[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	Parameters_[1].Descriptor.ShaderRegister = 0;
+
+	// [2] DescriptorTable (CubeMap Texture t0) ★ここが重要
+	descriptorRange_[0].BaseShaderRegister = 0;
+	descriptorRange_[0].NumDescriptors = 1;
+	descriptorRange_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[2].DescriptorTable.pDescriptorRanges = &descriptorRange_[0];
+	Parameters_[2].DescriptorTable.NumDescriptorRanges = 1;
+
+	descriptionSignature_.pParameters = Parameters_;
+	descriptionSignature_.NumParameters = 3;
+
+	// サンプラー設定 (通常の線形補間)
+	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	staticSamplers_[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplers_[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplers_[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplers_[0].ShaderRegister = 0;
+	staticSamplers_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	descriptionSignature_.pStaticSamplers = staticSamplers_;
+	descriptionSignature_.NumStaticSamplers = 1;
+
+	HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_,
+		D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
+	if (FAILED(hr)) {
+		assert(false);
+	}
+}
+
 void Root::Create(Microsoft::WRL::ComPtr<ID3D12Device>& device)
 {
 

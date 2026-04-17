@@ -300,6 +300,12 @@ struct BloomParam
 	float borderSharp; // 枠の角の鋭さ (20.0 くらい)
 	float glitchAmount; // 追加：グリッチの強さ（0.0 ~ 0.1くらい）
 	float gaussianIntensity;
+	float dissolveThreshold; // ディゾルブの進行度 (0~1)
+	float outlineWidth; // アウトラインの太さ
+	float outlineThreshold; // エッジ検出のしきい値
+	float pad1;
+	Vector3 outlineColor; // アウトラインの色
+	float pad2;
 };
 
 struct PointLightData {

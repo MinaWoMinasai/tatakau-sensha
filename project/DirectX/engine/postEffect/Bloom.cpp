@@ -73,21 +73,36 @@ void Bloom::Update() {
 #ifdef USE_IMGUI
 
     ImGui::Begin("BloomAndVignette");
+
+    // --- 既存の項目 ---
     ImGui::DragFloat("Threshold", &bloomParam_.threshold, 0.01f, 0.0f, 1.0f);
-    ImGui::DragFloat("insensity", &bloomParam_.intensity, 0.01f);
-    ImGui::DragFloat("vinetteInsencity", &bloomParam_.vignetteIntensity, 0.01f);
-    ImGui::DragFloat("vinetteScale", &bloomParam_.vignetteScale, 0.01f);
-    ImGui::DragFloat("distortionAmount", &bloomParam_.distortionAmount, 0.001f);
-    ImGui::DragFloat("chromAbAmount", &bloomParam_.chromAbAmount, 0.001f);
+    ImGui::DragFloat("Intensity", &bloomParam_.intensity, 0.01f);
+    ImGui::DragFloat("Vignette Intensity", &bloomParam_.vignetteIntensity, 0.01f);
+    ImGui::DragFloat("Vignette Scale", &bloomParam_.vignetteScale, 0.01f);
+    ImGui::DragFloat("Distortion Amount", &bloomParam_.distortionAmount, 0.001f);
+    ImGui::DragFloat("ChromAb Amount", &bloomParam_.chromAbAmount, 0.001f);
     ImGui::DragFloat("Noise", &bloomParam_.noiseIntensity, 0.01f);
     ImGui::DragFloat("Scanline Intensity", &bloomParam_.scanlineIntensity, 0.01f);
     ImGui::DragFloat("Scanline Frequency", &bloomParam_.scanlineFrequency, 0.01f);
-    ImGui::DragFloat("Curvature", &bloomParam_.curvature, 0.001f);   // 画面の膨らみ
-    ImGui::DragFloat("Border Sharp", &bloomParam_.borderSharp, 0.001f); // 角の丸み
-    ImGui::DragFloat("glitchAmount", &bloomParam_.glitchAmount, 0.001f); // 角の丸み
+    ImGui::DragFloat("Curvature", &bloomParam_.curvature, 0.001f);
+    ImGui::DragFloat("Border Sharp", &bloomParam_.borderSharp, 0.1f);
+    ImGui::DragFloat("Glitch Amount", &bloomParam_.glitchAmount, 0.001f);
     ImGui::DragFloat("Gaussian Intensity", &bloomParam_.gaussianIntensity, 0.01f, 0.0f, 1.0f);
 
-    // bool値を float(0.0 or 1.0) に変換して送る
+    ImGui::Separator(); // 区切り線
+    ImGui::Text("New Effects");
+
+    // --- Dissolve (ディゾルブ) ---
+    ImGui::DragFloat("Dissolve Progress", &bloomParam_.dissolveThreshold, 0.01f, 0.0f, 1.0f);
+
+    // --- Outline (アウトライン) ---
+    ImGui::DragFloat("Outline Width", &bloomParam_.outlineWidth, 0.1f, 0.0f, 10.0f);
+    ImGui::DragFloat("Outline Threshold", &bloomParam_.outlineThreshold, 0.01f, 0.0f, 2.0f);
+    // Vector3がfloat[3]として解釈されるようにポインタを渡す
+    ImGui::ColorEdit3("Outline Color", &bloomParam_.outlineColor.x);
+
+    ImGui::Separator();
+
     static bool grayFlag = false;
     static bool invertFlag = false;
     if (ImGui::Checkbox("Grayscale", &grayFlag)) {
@@ -97,7 +112,7 @@ void Bloom::Update() {
         bloomParam_.isInverted = invertFlag ? 1.0f : 0.0f;
     }
 
-    // リセットするボタン
+    // リセットボタン
     if (ImGui::Button("Reset")) {
         bloomParam_.threshold = 0.0f;
         bloomParam_.intensity = 0.0f;
@@ -111,6 +126,12 @@ void Bloom::Update() {
         bloomParam_.curvature = 0.0f;
         bloomParam_.borderSharp = 0.0f;
         bloomParam_.glitchAmount = 0.0f;
+        bloomParam_.gaussianIntensity = 0.0f;
+        // 追加分のリセット
+        bloomParam_.dissolveThreshold = 0.0f;
+        bloomParam_.outlineWidth = 0.0f;
+        bloomParam_.outlineThreshold = 0.5f;
+        bloomParam_.outlineColor = { 1.0f, 1.0f, 1.0f };
         grayFlag = false;
         invertFlag = false;
     }
@@ -121,9 +142,7 @@ void Bloom::Update() {
 
     bloomCB_->Update(bloomParam_);
     timer_ += SceneManager::GetInstance()->GetFinalDeltaTime();
-
     bloomParam_.timer = timer_;
-
 }
 
 void Bloom::PreDraw() {

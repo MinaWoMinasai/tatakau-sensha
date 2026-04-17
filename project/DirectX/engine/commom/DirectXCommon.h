@@ -54,6 +54,7 @@ public:
 		PostEffect,
 		Shadow,
 		Trail,
+		Skybox,
 	};
 
 	enum PostEffectType {
@@ -177,6 +178,7 @@ public:
 	PSO& GetPSOParticle() { return psoParticle_; }
 	PSO& GetPSOModelParticle() { return psoModelParticle_; }
 	PSO& GetPSOTrail() { return trailPSO; }
+	PSO& GetPSOSkybox() { return skyboxPSO; }
 
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
@@ -331,6 +333,7 @@ private:
 	PSO conpositePSO;
 	PSO shadowPSO;
 	PSO trailPSO;
+	PSO skyboxPSO;
 	ShaderType shaderType_;
 
 	uint32_t dsvHeapIndex_ = 0;

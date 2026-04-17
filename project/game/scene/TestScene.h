@@ -19,6 +19,7 @@
 #include "EnemyManager.h"
 #include "IScene.h"
 #include "TrailManager.h"
+#include "Skybox.h"
 
 // ゲームシーン
 class TestScene : public IScene {
@@ -75,6 +76,8 @@ private:
 
 	//std::unique_ptr<TrailManager> trailManager_;
 	std::unique_ptr<Object3d> swordObj_;
+
+	std::unique_ptr<Skybox> skybox_;
 
 	// 入力
 	Input* input_;

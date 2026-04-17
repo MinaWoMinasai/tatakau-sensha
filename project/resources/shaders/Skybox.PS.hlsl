@@ -1,12 +1,22 @@
-TextureCube<float4> gSkyboxTexture : register(t0);
+struct Material
+{
+    float4 color;
+};
+ConstantBuffer<Material> gMaterial : register(b0);
+
+// Texture2DではなくTextureCubeを使用する
+TextureCube<float4> gTexture : register(t0);
 SamplerState gSampler : register(s0);
 
-struct PixelShaderOutput
+struct VertexShaderOutput
 {
-    float4 color : SV_TARGET0;
+    float4 position : SV_POSITION;
+    float3 texcoord : TEXCOORD0;
 };
 
-float4 main(float3 texcoord : TEXCOORD0) : SV_TARGET
+float4 main(VertexShaderOutput input) : SV_TARGET
 {
-    return gSkyboxTexture.Sample(gSampler, texcoord);
+    // 3Dの方向ベクトルでサンプリング
+    float4 sampledColor = gTexture.Sample(gSampler, input.texcoord);
+    return sampledColor * gMaterial.color;
 }
