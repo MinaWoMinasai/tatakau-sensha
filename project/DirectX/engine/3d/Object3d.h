@@ -76,6 +76,9 @@ public:
 	ID3D12Resource* GetTransformationResource() { return transformationMatrixResource.Get(); }
 	Model* GetModel() { return model_; }
 
+	void SetEnvironmentMap(uint32_t srvIndex) { environmentMapIndex_ = srvIndex; }
+	void SetEnvironmentCoefficient(float coefficient) { materialData_->environmentCoefficient = coefficient; }
+
 private:
 
 	Object3dCommon* object3dCommon_;
@@ -108,5 +111,7 @@ private:
 	ShadowData* shadowData;
 
 	Matrix4x4 lightViewProjection_;
+
+	uint32_t environmentMapIndex_ = 0; // デフォルトのSRVインデックス
 };
 

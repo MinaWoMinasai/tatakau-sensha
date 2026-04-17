@@ -58,9 +58,20 @@ void Root::InitalizeForObject()
 	Parameters_[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	Parameters_[7].DescriptorTable.pDescriptorRanges = &descriptorRange_[1]; // 1番のみ
 	Parameters_[7].DescriptorTable.NumDescriptorRanges = 1;
+	
+	// [8] DescriptorTable (環境マップ/キューブマップ t2)
+	descriptorRange_[2].BaseShaderRegister = 2; // register(t2) に対応
+	descriptorRange_[2].NumDescriptors = 1;
+	descriptorRange_[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+	Parameters_[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[8].DescriptorTable.pDescriptorRanges = &descriptorRange_[2];
+	Parameters_[8].DescriptorTable.NumDescriptorRanges = 1;
+	
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 8; // パラメータ数を更新
+	descriptionSignature_.NumParameters = 9; // パラメータ数を更新
 
 	// --- StaticSamplerの拡張 ---
 
