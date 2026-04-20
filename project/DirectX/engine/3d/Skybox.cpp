@@ -16,15 +16,18 @@ void Skybox::Initialize(const std::string& textureFilePath) {
     object_ = std::make_unique<Object3d>();
     object_->Initialize();
     object_->SetModel("cube.obj"); // Skybox用の立方体モデル
+    object_->SetScale({ 500.0f, 500.0f, 500.0f });
 }
 
 void Skybox::Update(Camera* camera, DebugCamera* debugCamera) {
 
     // 3. カメラの位置に追従させる（空が遠くに見えるように）
     if (object3dCommon_->GetIsDebugCamera()) {
+        // debugCameraの位置に追従させる
         object_->SetTranslate(debugCamera->GetEyePosition());
         object_->Update();
     } else {
+        // 通常のカメラの位置に追従させる
         object_->SetTranslate(camera->GetTranslate());
         object_->Update();
     }
