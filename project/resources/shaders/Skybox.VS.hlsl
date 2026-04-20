@@ -18,7 +18,9 @@ struct VertexShaderOutput
 VertexShaderOutput main(VertexShaderInput input)
 {
     VertexShaderOutput output;
-    output.position = mul(input.position, gTransformationMatrix.WVP);
+    float4 pos = mul(input.position, gTransformationMatrix.WVP);
+    // Z を W に置き換えることで、パースペクティブ除算後 Z/W = 1.0 (最奥) になる
+    output.position = pos.xyww;
     // 頂点のローカル座標をそのままテクスチャ座標（方向）として使用する
     output.texcoord = input.position.xyz;
     return output;
