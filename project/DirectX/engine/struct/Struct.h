@@ -241,6 +241,7 @@ enum AxisXYZ {
 
 enum BlendMode {
 	kNone,
+	kNormal,
 	kAdd,
 	kShadow,
 

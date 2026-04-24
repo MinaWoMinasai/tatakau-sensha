@@ -262,13 +262,13 @@ void GameScene::Update() {
 
 void GameScene::Draw() {
 
-	Object3dCommon::GetInstance()->PreDraw(kNone);
+	Object3dCommon::GetInstance()->PreDraw(kNormal);
 
 }
 
 void GameScene::DrawPostEffect3D() {
 
-	Object3dCommon::GetInstance()->PreDraw(kNone);
+	Object3dCommon::GetInstance()->PreDraw(kNormal);
 
 	player_->Draw();
 	
@@ -297,7 +297,7 @@ void GameScene::DrawPostEffect3D() {
 
 void GameScene::DrawShadow() {
 	// 影用の共通設定（PSOの切り替えなど）は Object3dCommon 側で行う
-	Object3dCommon::GetInstance()->PreDraw(kShadow);
+	//Object3dCommon::GetInstance()->PreDraw(kShadow);
 
 	// 影を落としたいモデルだけを描画
 	//ballObj_->DrawShadow();

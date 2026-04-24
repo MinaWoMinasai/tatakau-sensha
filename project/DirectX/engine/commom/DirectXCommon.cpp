@@ -161,23 +161,36 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 
 	// [BlendState] の設定
 	pso.graphicsDesc_.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	if (blendMode == kAdd) {
+	pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = FALSE;
+	pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+	pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+	pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+	pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+	pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+	// 2. ブレンドが必要な特定のモードの時だけ、設定を上書きして有効化する
+	if (blendMode == kNormal) {
 		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
 		pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	} else if (blendMode == kAdd) {
+		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 		pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
-		pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-		pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-	} else {
-		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = FALSE;
 	}
 
 	// [DepthStencilState] のデフォルト設定
 	pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
-	pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-
+	
+	if (blendMode == kNormal || blendMode == kAdd) {
+		// 半透明描画時は深度バッファを書き換えない
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	} else {
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	}
+	
 	// --- 統合ここまで ---
 
 	// 5. 個別設定の上書き (Shadow / PostEffect / Normal)
@@ -252,24 +265,27 @@ void DirectXCommon::CreateShader()
 {
 	objectPSO_None.shaderType_ = Object;
 	objectPSO_Alpha.shaderType_ = Object;
+	objectPSO_Add.shaderType_ = Object;
 	psoParticle_.shaderType_ = Particle;
 	psoModelParticle_.shaderType_ = ModelParticle;
 	bloomPSO.shaderType_ = PostEffect;
-	bloomPSO.postEffectType_ = Bloom_Extract;
 	blurHPSO.shaderType_ = PostEffect;
-	blurHPSO.postEffectType_ = Bloom_BlurH;
 	blurVPSO.shaderType_ = PostEffect;
-	blurVPSO.postEffectType_ = Bloom_BlurV;
 	conpositePSO.shaderType_ = PostEffect;
-	conpositePSO.postEffectType_ = Bloom_Composite;
 	downsamplePSO.shaderType_ = PostEffect;
-	downsamplePSO.postEffectType_ = Bloom_Downsample;
 	shadowPSO.shaderType_ = Shadow;
 	trailPSO.shaderType_ = Trail;
 	skyboxPSO.shaderType_ = Skybox;
 
+	bloomPSO.postEffectType_ = Bloom_Extract;
+	blurHPSO.postEffectType_ = Bloom_BlurH;
+	blurVPSO.postEffectType_ = Bloom_BlurV;
+	conpositePSO.postEffectType_ = Bloom_Composite;
+	downsamplePSO.postEffectType_ = Bloom_Downsample;
+
 	CreateShaderCommon(objectPSO_None, kNone);
-	CreateShaderCommon(objectPSO_Alpha, kAdd);
+	CreateShaderCommon(objectPSO_Alpha, kNormal);
+	CreateShaderCommon(objectPSO_Add, kAdd);
 	CreateShaderCommon(psoParticle_, kAdd);
 	CreateShaderCommon(psoModelParticle_, kAdd);
 	CreateShaderCommon(bloomPSO, kNone);
