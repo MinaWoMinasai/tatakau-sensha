@@ -15,7 +15,7 @@ bool Game::Initialize() {
     InitializeImGui();
     LoadResources();
 
-    SceneManager::GetInstance()->Initialize("TEST");
+    SceneManager::GetInstance()->Initialize("TITLE");
 
     rtvManager_ = std::make_unique<RtvManager>();
     rtvManager_->Initialize(dxCommon_.get());
@@ -165,7 +165,7 @@ void Game::MainLoop() {
         
         SceneManager::GetInstance()->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
         
-        SpriteCommon::GetInstance()->PreDraw(kNone);
+        SpriteCommon::GetInstance()->PreDraw(kNormal);
         SceneManager::GetInstance()->DrawSprite();
         
         bloom_->PostDraw();

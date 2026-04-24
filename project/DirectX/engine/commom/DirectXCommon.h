@@ -143,9 +143,11 @@ public:
 		case kNone:
 			return objectPSO_None;
 			break;
-
-		case kAdd:
+		case kNormal:
 			return objectPSO_Alpha;
+			break;
+		case kAdd:
+			return objectPSO_Add;
 			break;
 		case kShadow:
 			return shadowPSO;
@@ -324,6 +326,7 @@ private:
 	
 	PSO objectPSO_None;
 	PSO objectPSO_Alpha;
+	PSO objectPSO_Add;
 	PSO psoParticle_;
 	PSO psoModelParticle_;
 	PSO bloomPSO;
