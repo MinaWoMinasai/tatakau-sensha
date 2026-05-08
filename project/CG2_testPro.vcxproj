@@ -151,6 +151,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="DirectX\engine\audio\AudioManager.cpp" />
+    <ClCompile Include="DirectX\engine\commom\TrailInstance.cpp" />
+    <ClCompile Include="DirectX\engine\commom\TrailManager.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\Bloom.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\BloomConstantBuffer.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\PostEffect.cpp" />
@@ -181,6 +183,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\particle\EffectSequencer.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -357,7 +360,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectX\engine\audio\AudioManager.h" />
+    <ClInclude Include="DirectX\engine\commom\TrailInstance.h" />
+    <ClInclude Include="DirectX\engine\commom\TrailManager.h" />
     <ClInclude Include="DirectX\engine\postEffect\Bloom.h" />
+    <ClInclude Include="DirectX\engine\particle\EffectSequencer.h" />
     <ClInclude Include="game\scene\AbstractSceneFactory.h" />
     <ClInclude Include="DirectX\engine\postEffect\BloomConstantBuffer.h" />
     <ClInclude Include="DirectX\engine\postEffect\PostEffect.h" />

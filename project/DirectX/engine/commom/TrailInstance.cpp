@@ -1,14 +1,20 @@
 #include "TrailInstance.h"
 
-void TrailInstance::Update(const Vector3& tipPos, const Vector3& basePos, const TrailConfig& config) {
+void TrailInstance::Update(float deltaTime, const Vector3& tipPos, const Vector3& basePos, const TrailConfig& config) {
     config_ = config;
+
+    // 各頂点の経過時間を更新
+    for (auto& point : points_) {
+        point.currentTime += deltaTime;
+    }
 
     if (isActive_) {
         // 振っている間は新しい座標を追加
-        points_.push_front({ tipPos, basePos });
-    } else if (!points_.empty()) {
-        // 振るのを止めた（isActive_ = false）ら、古い座標を1つずつ消していく
-        // これにより、軌跡が「スッ...」と消える演出になる
+        points_.push_front({ tipPos, basePos, 0.0f });
+    }
+
+    // 寿命を過ぎた古い頂点を削除 (後ろから削除)
+    while (!points_.empty() && points_.back().currentTime > config_.lifetime) {
         points_.pop_back();
     }
 

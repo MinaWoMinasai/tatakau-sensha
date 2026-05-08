@@ -212,6 +212,9 @@ public:
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetNewDsvHandle();
 
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(size_t sizeInBytes);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateUAVBufferResource(size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
 private:
 
 	/// <summary>
