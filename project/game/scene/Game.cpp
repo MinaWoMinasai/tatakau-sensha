@@ -15,7 +15,7 @@ bool Game::Initialize() {
     InitializeImGui();
     LoadResources();
 
-    SceneManager::GetInstance()->Initialize("TITLE");
+    SceneManager::GetInstance()->Initialize("TEST");
 
     rtvManager_ = std::make_unique<RtvManager>();
     rtvManager_->Initialize(dxCommon_.get());
