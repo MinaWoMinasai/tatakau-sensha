@@ -3,6 +3,7 @@
 #include <string>
 #include <map>
 #include <random>
+#include <memory>
 #include <wrl.h>
 #include <d3d12.h>
 #include "DirectXCommon.h"
@@ -28,13 +29,18 @@ struct ParticleEmitterConfig {
     Vector3 gravity = { 0.0f, -0.08f, 0.0f };
     float startScale = 1.0f;
     float endScale = 0.0f;
+    Vector3 startScaleMin = { 1.0f, 1.0f, 1.0f };
+    Vector3 startScaleMax = { 1.0f, 1.0f, 1.0f };
+    Vector3 endScaleMin = { 0.0f, 0.0f, 0.0f };
+    Vector3 endScaleMax = { 0.0f, 0.0f, 0.0f };
     Vector4 startColor = { 1, 1, 1, 1 };
     Vector4 endColor = { 1, 1, 1, 0 };
-    std::string modelPath = "triangleParticle.obj";
+    std::string modelPath = "plane.obj";
     EmitterShape emitterShape = EmitterShape::Point;
     Vector3 shapeSize = { 1.0f, 1.0f, 1.0f };
     EasingType easingType = EasingType::Linear;
     bool isBillboard = false;
+    bool alignToVelocity = false;
 
     nlohmann::json ToJson() const;
     void FromJson(const nlohmann::json& j);
@@ -57,6 +63,8 @@ public:
 
     struct Particle {
         Transform transform;
+        Vector3 startScaleVector;
+        Vector3 endScaleVector;
         Vector3 velocity;
         Vector3 acceleration;
         Vector3 angularVelocity;
@@ -68,6 +76,7 @@ public:
         Vector4 endColor;
         EasingType easingType;
         bool isBillboard;
+        bool alignToVelocity;
     };
 
     // シェーダー用定数バッファ構造体
@@ -89,13 +98,27 @@ public:
     void Dispatch(float deltaTime, Camera* camera);
     void Draw();
 
+    void RegisterEffect(const std::string& effectName, const ParticleEmitterConfig& config);
     void RegisterEffect(const std::string& effectName, const std::string& jsonPath);
+    void SaveEffect(const std::string& effectName, const std::string& jsonPath) const;
     void Emit(const std::string& effectName, const Vector3& position, uint32_t count);
+    void EmitHitEffect(const Vector3& position);
     void Emit(const ::Particle& particle);
+    void DrawImGuiEditor();
+    uint32_t GetActiveCount() const;
 
 private:
+    struct ActiveParticle {
+        Particle particle;
+    };
+
     ParticleManager() = default;
     ~ParticleManager() = default;
+    float ApplyEasing(float t, EasingType type) const;
+    Vector4 LerpColor(const Vector4& a, const Vector4& b, float t) const;
+    Vector3 LerpVector3(const Vector3& a, const Vector3& b, float t) const;
+    Matrix4x4 MakeBillboardMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate, Camera* camera, DebugCamera* debugCamera) const;
+    void CreateDefaultEffects();
     void EmitBatch(const std::vector<Particle>& particles);
     Particle MakeParticle(const ParticleEmitterConfig& config);
 
@@ -104,9 +127,18 @@ private:
 
     std::map<std::string, ParticleEmitterConfig> effectLibrary_;
     Model* model_ = nullptr;
+    std::vector<ActiveParticle> activeParticles_;
+    uint32_t instanceCount_ = 0;
 
     // リソース
     Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource_;
+    ModelParticleTransformationMatrix* instancingData_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
+    Material* materialData_ = nullptr;
+    DirectionalLight* directionalLightData_ = nullptr;
+    CameraData* cameraData_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> particleResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> drawArgsResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> aliveIndicesResource_;
@@ -123,4 +155,6 @@ private:
     uint32_t uavIndexDrawArgs_ = 0;
 
     uint32_t freeIndex_ = 0;
+    std::string editorEffectName_ = "HitSpark";
+    ParticleEmitterConfig editorConfig_;
 };

@@ -1,0 +1,60 @@
+{
+    "alignToVelocity": true,
+    "easingType": 2,
+    "emitterShape": 0,
+    "endColor": [
+        1.0,
+        0.07999999821186066,
+        0.019999999552965164,
+        0.0
+    ],
+    "endScale": 0.0,
+    "endScaleMax": [
+        0.4000000059604645,
+        2.4000000953674316,
+        0.4000000059604645
+    ],
+    "endScaleMin": [
+        0.20000000298023224,
+        1.0,
+        0.20000000298023224
+    ],
+    "gravity": [
+        0.0,
+        -8.0,
+        0.0
+    ],
+    "isBillboard": true,
+    "lifeTimeMax": 4.0,
+    "lifeTimeMin": 2.0,
+    "modelPath": "plane.obj",
+    "position": [
+        0.0,
+        0.0,
+        0.0
+    ],
+    "shapeSize": [
+        1.0,
+        1.0,
+        1.0
+    ],
+    "speedMax": 17.0,
+    "speedMin": 9.0,
+    "startColor": [
+        1.0,
+        0.7799999713897705,
+        0.25999999046325684,
+        1.0
+    ],
+    "startScale": 1.0,
+    "startScaleMax": [
+        1.600000023841858,
+        22.0,
+        1.600000023841858
+    ],
+    "startScaleMin": [
+        0.800000011920929,
+        11.0,
+        0.800000011920929
+    ]
+}

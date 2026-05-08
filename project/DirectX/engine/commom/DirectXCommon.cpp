@@ -236,6 +236,18 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 
 		pso.inputDesc_.InitializeForTrail(); // 頂点レイアウト(Pos, Color, UV)
 		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
+	} else if (pso.shaderType_ == ModelParticle) {
+		pso.graphicsDesc_.NumRenderTargets = 1;
+		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+		pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+		pso.inputDesc_.Initialize();
+		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
 	} else {
 		pso.graphicsDesc_.NumRenderTargets = 1;
 		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;

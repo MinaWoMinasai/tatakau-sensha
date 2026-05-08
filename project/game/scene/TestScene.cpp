@@ -35,7 +35,7 @@ void TestScene::Initialize() {
 	blockObj_ = std::make_unique<Object3d>();
 	blockObj_->Initialize();
 	blockObj_->SetTranslate(Vector3(-10.0f, 0.0f, 0.0f));
-	blockObj_->SetScale(Vector3(10.0f, 10.0f, 10.0f));
+	blockObj_->SetScale(Vector3(1.0f, 1.0f, 1.0f));
 	blockObj_->Update();
 	blockObj_->SetModel("bloomBlock.obj");
 	blockObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
@@ -114,13 +114,14 @@ void TestScene::Update() {
 	if (!io.WantCaptureMouse) {
 		// 左クリックしたらパーティクル追加
 		if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
-			for (uint32_t index = 0; index < 100; ++index) {
-
-				Vector3 worldPos = ScreenToWorld3D(input_->GetMousePosition(), debugCamera->GetViewMatrix(), MakePerspectiveForMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f), WinApp::kClientWidth, WinApp::kClientHeight, debugCamera->GetDistance());
-				ParticleManager::GetInstance()->Emit(MakeParticle(worldPos, Rand()));
-			}
+			Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera() ? debugCamera->GetViewMatrix() : camera->GetViewMatrix();
+			Matrix4x4 projectionMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera() ? debugCamera->GetProjectionMatrix() : camera->GetProjectionMatrix();
+			Vector3 worldPos = ScreenToWorldOnZ0(input_->GetMousePosition(), viewMatrix, projectionMatrix, WinApp::kClientWidth, WinApp::kClientHeight);
+			ParticleManager::GetInstance()->EmitHitEffect(worldPos);
 		}
 	}
+
+	ParticleManager::GetInstance()->DrawImGuiEditor();
 
 #endif // USE_IMGUI
 
@@ -146,6 +147,8 @@ void TestScene::DrawPostEffect3D() {
 
 	Matrix4x4 vp = Multiply(debugCamera->GetViewMatrix(), debugCamera->GetProjectionMatrix());
 	//trailManager_->Draw(vp);
+
+	ParticleManager::GetInstance()->Draw();
 }
 
 void TestScene::DrawShadow() {
