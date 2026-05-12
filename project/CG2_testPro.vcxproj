@@ -151,6 +151,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="DirectX\engine\audio\AudioManager.cpp" />
+    <ClCompile Include="DirectX\engine\commom\CylinderManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\RingManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\TrailInstance.cpp" />
     <ClCompile Include="DirectX\engine\commom\TrailManager.cpp" />
@@ -362,6 +363,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectX\engine\audio\AudioManager.h" />
+    <ClInclude Include="DirectX\engine\commom\CylinderManager.h" />
     <ClInclude Include="DirectX\engine\commom\RingManager.h" />
     <ClInclude Include="DirectX\engine\commom\TrailInstance.h" />
     <ClInclude Include="DirectX\engine\commom\TrailManager.h" />
