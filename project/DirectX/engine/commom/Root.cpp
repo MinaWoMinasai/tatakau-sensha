@@ -306,9 +306,9 @@ void Root::InitializeForPostEffect()
 	Parameters_[0].Descriptor.ShaderRegister = 0; // b0
 	Parameters_[0].Descriptor.RegisterSpace = 0;
 
-	// -------- RootParameter 1 : SRV DescriptorTable (SceneRT)
+	// -------- RootParameter 1 : SRV DescriptorTable (Scene/Object RT)
 	descriptorRange_[0].BaseShaderRegister = 0; // t0
-	descriptorRange_[0].NumDescriptors = 2;     // ★ 修正
+	descriptorRange_[0].NumDescriptors = 1;
 	descriptorRange_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRange_[0].OffsetInDescriptorsFromTableStart =
 		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
@@ -319,8 +319,21 @@ void Root::InitializeForPostEffect()
 	Parameters_[1].DescriptorTable.pDescriptorRanges = descriptorRange_;
 	Parameters_[1].DescriptorTable.NumDescriptorRanges = 1;
 
+	// -------- RootParameter 2 : SRV DescriptorTable (Bloom RT)
+	descriptorRange_[1].BaseShaderRegister = 1; // t1
+	descriptorRange_[1].NumDescriptors = 1;
+	descriptorRange_[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[1].OffsetInDescriptorsFromTableStart =
+		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[2].ParameterType =
+		D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[2].DescriptorTable.pDescriptorRanges = &descriptorRange_[1];
+	Parameters_[2].DescriptorTable.NumDescriptorRanges = 1;
+
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 2;
+	descriptionSignature_.NumParameters = 3;
 
 	// -------- Static Sampler (s0)
 	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -462,6 +475,48 @@ void Root::InitializeForSkybox()
 	HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_,
 		D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
 	if (FAILED(hr)) {
+		assert(false);
+	}
+}
+
+void Root::InitializeForComputeParticle()
+{
+	log.Initialize();
+
+	descriptionSignature_.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+
+	Parameters_[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	Parameters_[0].Descriptor.ShaderRegister = 0;
+
+	Parameters_[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	Parameters_[1].Descriptor.ShaderRegister = 1;
+
+	for (uint32_t i = 0; i < 4; ++i) {
+		descriptorRange_[i].BaseShaderRegister = i;
+		descriptorRange_[i].NumDescriptors = 1;
+		descriptorRange_[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+		descriptorRange_[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		Parameters_[2 + i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		Parameters_[2 + i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		Parameters_[2 + i].DescriptorTable.pDescriptorRanges = &descriptorRange_[i];
+		Parameters_[2 + i].DescriptorTable.NumDescriptorRanges = 1;
+	}
+
+	descriptionSignature_.pParameters = Parameters_;
+	descriptionSignature_.NumParameters = 6;
+	descriptionSignature_.pStaticSamplers = nullptr;
+	descriptionSignature_.NumStaticSamplers = 0;
+
+	HRESULT hr = D3D12SerializeRootSignature(
+		&descriptionSignature_,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		&signatureBlob_,
+		&errorBlob_);
+	if (FAILED(hr)) {
+		log.Log(reinterpret_cast<char*>(errorBlob_->GetBufferPointer()));
 		assert(false);
 	}
 }

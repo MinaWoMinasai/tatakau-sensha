@@ -250,6 +250,7 @@ enum BlendMode {
 	kAdd_Bloom_BlurV,
 	kAdd_Bloom_Composite,
 	kAdd_Bloom_Downsample,
+	kAdd_ObjectPost_Composite,
 };
 
 enum Phase {

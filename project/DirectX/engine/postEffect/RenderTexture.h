@@ -1,6 +1,7 @@
 #pragma once
 #include "SrvManager.h"
 #include "RtvManager.h"
+#include <array>
 
 class RenderTexture {
 public:
@@ -9,7 +10,8 @@ public:
         SrvManager* srvManager,
         RtvManager* rtvManager,
         uint32_t width,
-        uint32_t height
+        uint32_t height,
+        std::array<float, 4> clearColor = { 0.0f, 0.0f, 0.0f, 1.0f }
     );
 
     uint32_t GetSrvIndex() const { return srvIndex_; }

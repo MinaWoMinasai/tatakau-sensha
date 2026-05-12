@@ -106,6 +106,8 @@ public:
     void Emit(const ::Particle& particle);
     void DrawImGuiEditor();
     uint32_t GetActiveCount() const;
+    void SetUseGpuUpdate(bool useGpuUpdate) { useGpuUpdate_ = useGpuUpdate; }
+    bool IsUseGpuUpdate() const { return useGpuUpdate_; }
 
 private:
     struct ActiveParticle {
@@ -119,6 +121,9 @@ private:
     Vector3 LerpVector3(const Vector3& a, const Vector3& b, float t) const;
     Matrix4x4 MakeBillboardMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate, Camera* camera, DebugCamera* debugCamera) const;
     void CreateDefaultEffects();
+    void DispatchGpu(float deltaTime, const Matrix4x4& viewProjection, const Vector3& cameraPosition);
+    void Transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
+    void ResetDrawArgs();
     void EmitBatch(const std::vector<Particle>& particles);
     Particle MakeParticle(const ParticleEmitterConfig& config);
 
@@ -133,6 +138,7 @@ private:
     // リソース
     Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource_;
     ModelParticleTransformationMatrix* instancingData_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> gpuInstancingResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
@@ -146,9 +152,11 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> computeSceneResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> emitStagingResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> resetResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> drawArgsInitResource_;
     Microsoft::WRL::ComPtr<ID3D12CommandSignature> commandSignature_;
 
     uint32_t srvIndexInstancing_ = 0;
+    uint32_t srvIndexGpuInstancing_ = 0;
     uint32_t uavIndexParticles_ = 0;
     uint32_t uavIndexRenderData_ = 0;
     uint32_t uavIndexAliveIndices_ = 0;
@@ -157,4 +165,6 @@ private:
     uint32_t freeIndex_ = 0;
     std::string editorEffectName_ = "HitSpark";
     ParticleEmitterConfig editorConfig_;
+    bool useGpuUpdate_ = false;
+    bool gpuDrawReady_ = false;
 };

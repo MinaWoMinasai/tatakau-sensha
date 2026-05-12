@@ -17,6 +17,7 @@ public:
 	void InitalizeForObjectBe();
 	void InitalizeForTrail();
 	void InitializeForSkybox();
+	void InitializeForComputeParticle();
 
 	void Create(Microsoft::WRL::ComPtr<ID3D12Device>& device);
 
@@ -31,7 +32,7 @@ public:
 private:
 	D3D12_ROOT_SIGNATURE_DESC descriptionSignature_{};
 	D3D12_ROOT_PARAMETER Parameters_[9]{};
-	D3D12_DESCRIPTOR_RANGE descriptorRange_[3] = {};
+	D3D12_DESCRIPTOR_RANGE descriptorRange_[4] = {};
 	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing_[1] = {};
 	D3D12_STATIC_SAMPLER_DESC staticSamplers_[2] = {};
 	ID3DBlob* signatureBlob_ = nullptr;

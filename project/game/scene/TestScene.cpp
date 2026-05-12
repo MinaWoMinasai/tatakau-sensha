@@ -19,10 +19,27 @@ void TestScene::Initialize() {
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
 	Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera.get());
 	
-	// 1. TrailManagerの初期化（仮にメンバ変数 std::unique_ptr<TrailManager> trailManager_ を追加）
-	//trailManager_ = std::make_unique<TrailManager>();
-	// 軌跡用のテクスチャを指定（とりあえず既存のものでもOK）
-	//trailManager_->Initialize("resources/gradation.png");
+	trailManager_ = std::make_unique<TrailManager>();
+	trailManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), Object3dCommon::GetInstance(), "resources/gradation.png");
+
+	ringManager_ = std::make_unique<RingManager>();
+	ringManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/gradationLine.png");
+
+	effectSequencer_ = std::make_unique<EffectSequencer>();
+	effectSequencer_->Initialize(
+		Object3dCommon::GetInstance(),
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		camera.get(),
+		ParticleManager::GetInstance(),
+		trailManager_.get()
+	);
+
+	objectPostEffect_ = std::make_unique<ObjectPostEffect>();
+	objectPostEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr
+	);
 
 	groundObj_ = std::make_unique<Object3d>();
 	groundObj_->Initialize();
@@ -39,7 +56,7 @@ void TestScene::Initialize() {
 	blockObj_->Update();
 	blockObj_->SetModel("bloomBlock.obj");
 	blockObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
-	blockObj_->SetLighting(true);
+	blockObj_->SetLighting(false);
 
 	// 2. 剣に見立てた細長いブロックを作る
 	swordObj_ = std::make_unique<Object3d>();
@@ -55,6 +72,46 @@ void TestScene::Initialize() {
 	uint32_t skyboxTextureIndex = TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
 	blockObj_->SetEnvironmentMap(skyboxTextureIndex);
 	blockObj_->SetEnvironmentCoefficient(0.5f); // 50%反射
+
+	effectStartMarker_ = std::make_unique<Object3d>();
+	effectStartMarker_->Initialize();
+	effectStartMarker_->SetModel("ball.obj");
+	effectStartMarker_->SetScale({ 2.0f, 2.0f, 2.0f });
+	effectStartMarker_->SetColor({ 0.1f, 0.8f, 1.0f, 1.0f });
+	effectStartMarker_->SetLighting(false);
+
+	effectTargetMarker_ = std::make_unique<Object3d>();
+	effectTargetMarker_->Initialize();
+	effectTargetMarker_->SetModel("ball.obj");
+	effectTargetMarker_->SetScale({ 2.0f, 2.0f, 2.0f });
+	effectTargetMarker_->SetColor({ 1.0f, 0.25f, 0.1f, 1.0f });
+	effectTargetMarker_->SetLighting(false);
+
+	transplantTestProfile_.projectile.modelPath = "ball.obj";
+	transplantTestProfile_.projectile.scale = { 1.4f, 1.4f, 1.4f };
+	transplantTestProfile_.projectile.rotationSpeed = { 2.0f, 6.0f, 1.0f };
+	transplantTestProfile_.flyParticle = "HitSpark";
+	transplantTestProfile_.hitParticle = "HitSpark";
+	transplantTestProfile_.flyParticleCount = 0;
+	transplantTestProfile_.hitParticleCount = 2;
+	transplantTestProfile_.duration = 1.2f;
+	transplantTestProfile_.hitDuration = 0.45f;
+	transplantTestProfile_.enableTrail = true;
+	transplantTestProfile_.trail.startColor = { 0.2f, 0.8f, 1.0f, 0.85f };
+	transplantTestProfile_.trail.endColor = { 1.0f, 0.2f, 0.1f, 0.0f };
+	transplantTestProfile_.trail.tipOffset = { 0.0f, 1.2f, 0.0f };
+	transplantTestProfile_.trail.baseOffset = { 0.0f, -1.2f, 0.0f };
+	transplantTestProfile_.trail.maxPoints = 80;
+	transplantTestProfile_.trail.interpolationSteps = 6;
+	transplantTestProfile_.trail.lifetime = 0.55f;
+
+	ringConfig_.startRadius = 1.0f;
+	ringConfig_.endRadius = 18.0f;
+	ringConfig_.startWidth = 0.6f;
+	ringConfig_.endWidth = 2.0f;
+	ringConfig_.lifeTime = 0.75f;
+	ringConfig_.startColor = { 0.1f, 0.85f, 1.0f, 1.0f };
+	ringConfig_.endColor = { 0.3f, 0.15f, 1.0f, 0.0f };
 }
 
 void TestScene::Update() {
@@ -103,28 +160,96 @@ void TestScene::Update() {
 	debugCamera->Update(input_->GetMouseState(), input_->GetKey(), input_->GetLeftStick());
 	groundObj_->Update();
 	blockObj_->Update();
+	effectStartMarker_->SetTranslate(effectStartPos_);
+	effectStartMarker_->Update();
+	effectTargetMarker_->SetTranslate(effectTargetPos_);
+	effectTargetMarker_->Update();
 	//swordObj_->Update();
 	skybox_->Update(camera.get(), debugCamera.get()); // カメラ追従もクラス内で完結
 
 #ifdef USE_IMGUI
 
-	ImGuiIO& io = ImGui::GetIO();
-
-	// アプリ側のクリック処理を行う前にチェック
-	if (!io.WantCaptureMouse) {
-		// 左クリックしたらパーティクル追加
-		if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
-			Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera() ? debugCamera->GetViewMatrix() : camera->GetViewMatrix();
-			Matrix4x4 projectionMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera() ? debugCamera->GetProjectionMatrix() : camera->GetProjectionMatrix();
-			Vector3 worldPos = ScreenToWorldOnZ0(input_->GetMousePosition(), viewMatrix, projectionMatrix, WinApp::kClientWidth, WinApp::kClientHeight);
-			ParticleManager::GetInstance()->EmitHitEffect(worldPos);
-		}
-	}
-
 	ParticleManager::GetInstance()->DrawImGuiEditor();
+	effectSequencer_->DrawImGuiEditor({ -20.0f, 10.0f, 0.0f }, { 20.0f, 10.0f, 0.0f });
+
+	ImGui::Begin("Transplant Feature Test");
+	ImGui::Text("EffectSequencer + TrailManager + ParticleManager");
+	ImGui::DragFloat3("Start Pos", &effectStartPos_.x, 0.2f);
+	ImGui::DragFloat3("Target Pos", &effectTargetPos_.x, 0.2f);
+	ImGui::DragFloat("Duration", &transplantTestProfile_.duration, 0.05f, 0.1f, 5.0f);
+	ImGui::Checkbox("Trail", &transplantTestProfile_.enableTrail);
+	bool useGpuParticle = ParticleManager::GetInstance()->IsUseGpuUpdate();
+	if (ImGui::Checkbox("GPU Particle Update", &useGpuParticle)) {
+		ParticleManager::GetInstance()->SetUseGpuUpdate(useGpuParticle);
+	}
+	int hitCount = static_cast<int>(transplantTestProfile_.hitParticleCount);
+	if (ImGui::SliderInt("Hit Burst Count", &hitCount, 1, 8)) {
+		transplantTestProfile_.hitParticleCount = static_cast<uint32_t>(hitCount);
+	}
+	if (ImGui::Button("Fire Migrated Sample")) {
+		effectSequencer_->Fire(transplantTestProfile_, effectStartPos_, effectTargetPos_);
+		ringManager_->Emit(effectStartPos_, ringConfig_);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Hit At Target")) {
+		ParticleManager::GetInstance()->EmitHitEffect(effectTargetPos_);
+		ringManager_->Emit(effectTargetPos_, ringConfig_);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Ring")) {
+		ringManager_->Emit(effectTargetPos_, ringConfig_);
+	}
+	ImGui::DragFloat("Ring Life", &ringConfig_.lifeTime, 0.01f, 0.05f, 5.0f);
+	ImGui::DragFloat("Ring Start Radius", &ringConfig_.startRadius, 0.1f, 0.0f, 50.0f);
+	ImGui::DragFloat("Ring End Radius", &ringConfig_.endRadius, 0.1f, 0.0f, 100.0f);
+	ImGui::DragFloat("Ring Start Width", &ringConfig_.startWidth, 0.05f, 0.0f, 20.0f);
+	ImGui::DragFloat("Ring End Width", &ringConfig_.endWidth, 0.05f, 0.0f, 20.0f);
+	ImGui::ColorEdit4("Ring Start Color", &ringConfig_.startColor.x);
+	ImGui::ColorEdit4("Ring End Color", &ringConfig_.endColor.x);
+	if (ImGui::Button("GPU Burst Test")) {
+		ParticleManager::GetInstance()->Emit("HitSpark", effectTargetPos_, 2000);
+	}
+	ImGui::Checkbox("Auto Fire", &autoFireEffect_);
+	ImGui::Text("State: %d", static_cast<int>(effectSequencer_->GetState()));
+	ImGui::Text("Start marker: cyan / Target marker: red");
+	ImGui::End();
+
+	ImGui::Begin("Object Post Effect Test");
+	ImGui::Checkbox("Enable Object Post", &enableObjectPostEffect_);
+	BloomParam& objectPost = objectPostEffect_->GetParam();
+	ImGui::DragFloat("Intensity", &objectPost.intensity, 0.01f, 0.0f, 5.0f);
+	ImGui::DragFloat("Distortion", &objectPost.distortionAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("ChromAb", &objectPost.chromAbAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Glitch", &objectPost.glitchAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Dissolve", &objectPost.dissolveThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::Text("Target object: green block only");
+	ImGui::End();
+
+	ImGuiIO& io = ImGui::GetIO();
+	if (!io.WantCaptureMouse && input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
+		Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera() ? debugCamera->GetViewMatrix() : camera->GetViewMatrix();
+		Matrix4x4 projectionMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera() ? debugCamera->GetProjectionMatrix() : camera->GetProjectionMatrix();
+		Vector3 worldPos = ScreenToWorldOnZ0(input_->GetMousePosition(), viewMatrix, projectionMatrix, WinApp::kClientWidth, WinApp::kClientHeight);
+		ParticleManager::GetInstance()->EmitHitEffect(worldPos);
+	}
 
 #endif // USE_IMGUI
 
+	objectPostEffect_->Update(finalDeltaTime);
+	if (autoFireEffect_) {
+		autoFireTimer_ += finalDeltaTime;
+		if (autoFireTimer_ >= 1.6f && effectSequencer_->IsFinished()) {
+			effectSequencer_->Fire(transplantTestProfile_, effectStartPos_, effectTargetPos_);
+			ringManager_->Emit(effectStartPos_, ringConfig_);
+			autoFireTimer_ = 0.0f;
+		}
+	} else {
+		autoFireTimer_ = 0.0f;
+	}
+
+	effectSequencer_->Update(finalDeltaTime);
+	trailManager_->Update(finalDeltaTime);
+	ringManager_->Update(finalDeltaTime);
 	ParticleManager::GetInstance()->Update(finalDeltaTime, camera.get(), debugCamera.get());
 
 }
@@ -139,14 +264,30 @@ void TestScene::DrawPostEffect3D() {
 
 	Object3dCommon::GetInstance()->PreDraw(kNone);
 
-	blockObj_->Draw();
+	if (!enableObjectPostEffect_) {
+		blockObj_->Draw();
+	}
+	effectStartMarker_->Draw();
+	effectTargetMarker_->Draw();
 
 	groundObj_->Draw();
 
 	swordObj_->Draw();
+	effectSequencer_->Draw();
 
-	Matrix4x4 vp = Multiply(debugCamera->GetViewMatrix(), debugCamera->GetProjectionMatrix());
-	//trailManager_->Draw(vp);
+	if (enableObjectPostEffect_) {
+		objectPostEffect_->BeginCapture();
+		Object3dCommon::GetInstance()->PreDraw(kNone);
+		blockObj_->Draw();
+		objectPostEffect_->EndCapture();
+		Object3dCommon::GetInstance()->PreDraw(kNone);
+	}
+
+	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+		? debugCamera->GetViewProjectionMatrix()
+		: camera->GetViewProjectionMatrix();
+	trailManager_->DrawAll(vp);
+	ringManager_->DrawAll(vp);
 
 	ParticleManager::GetInstance()->Draw();
 }
