@@ -20,6 +20,7 @@
 #include "IScene.h"
 #include "TrailManager.h"
 #include "RingManager.h"
+#include "CylinderManager.h"
 #include "Skybox.h"
 #include "EffectSequencer.h"
 #include "ObjectPostEffect.h"
@@ -81,6 +82,7 @@ private:
 
 	std::unique_ptr<TrailManager> trailManager_;
 	std::unique_ptr<RingManager> ringManager_;
+	std::unique_ptr<CylinderManager> cylinderManager_;
 	std::unique_ptr<EffectSequencer> effectSequencer_;
 	std::unique_ptr<ObjectPostEffect> objectPostEffect_;
 	std::unique_ptr<Object3d> swordObj_;
@@ -104,5 +106,6 @@ private:
 	bool enableObjectPostEffect_ = false;
 	float autoFireTimer_ = 0.0f;
 	RingEffectConfig ringConfig_;
+	CylinderEffectConfig cylinderConfig_;
 
 };

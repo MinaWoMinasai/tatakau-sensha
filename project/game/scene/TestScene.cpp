@@ -25,6 +25,9 @@ void TestScene::Initialize() {
 	ringManager_ = std::make_unique<RingManager>();
 	ringManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/gradationLine.png");
 
+	cylinderManager_ = std::make_unique<CylinderManager>();
+	cylinderManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/gradationLine.png");
+
 	effectSequencer_ = std::make_unique<EffectSequencer>();
 	effectSequencer_->Initialize(
 		Object3dCommon::GetInstance(),
@@ -112,6 +115,14 @@ void TestScene::Initialize() {
 	ringConfig_.lifeTime = 0.75f;
 	ringConfig_.startColor = { 0.1f, 0.85f, 1.0f, 1.0f };
 	ringConfig_.endColor = { 0.3f, 0.15f, 1.0f, 0.0f };
+
+	cylinderConfig_.startRadius = 2.0f;
+	cylinderConfig_.endRadius = 11.0f;
+	cylinderConfig_.startHeight = 2.0f;
+	cylinderConfig_.endHeight = 32.0f;
+	cylinderConfig_.lifeTime = 0.85f;
+	cylinderConfig_.startColor = { 0.1f, 0.85f, 1.0f, 0.95f };
+	cylinderConfig_.endColor = { 0.3f, 0.15f, 1.0f, 0.0f };
 }
 
 void TestScene::Update() {
@@ -189,15 +200,21 @@ void TestScene::Update() {
 	if (ImGui::Button("Fire Migrated Sample")) {
 		effectSequencer_->Fire(transplantTestProfile_, effectStartPos_, effectTargetPos_);
 		ringManager_->Emit(effectStartPos_, ringConfig_);
+		cylinderManager_->Emit(effectStartPos_, cylinderConfig_);
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Hit At Target")) {
 		ParticleManager::GetInstance()->EmitHitEffect(effectTargetPos_);
 		ringManager_->Emit(effectTargetPos_, ringConfig_);
+		cylinderManager_->Emit(effectTargetPos_, cylinderConfig_);
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Ring")) {
 		ringManager_->Emit(effectTargetPos_, ringConfig_);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Cylinder")) {
+		cylinderManager_->Emit(effectTargetPos_, cylinderConfig_);
 	}
 	ImGui::DragFloat("Ring Life", &ringConfig_.lifeTime, 0.01f, 0.05f, 5.0f);
 	ImGui::DragFloat("Ring Start Radius", &ringConfig_.startRadius, 0.1f, 0.0f, 50.0f);
@@ -206,6 +223,13 @@ void TestScene::Update() {
 	ImGui::DragFloat("Ring End Width", &ringConfig_.endWidth, 0.05f, 0.0f, 20.0f);
 	ImGui::ColorEdit4("Ring Start Color", &ringConfig_.startColor.x);
 	ImGui::ColorEdit4("Ring End Color", &ringConfig_.endColor.x);
+	ImGui::DragFloat("Cylinder Life", &cylinderConfig_.lifeTime, 0.01f, 0.05f, 5.0f);
+	ImGui::DragFloat("Cylinder Start Radius", &cylinderConfig_.startRadius, 0.1f, 0.0f, 50.0f);
+	ImGui::DragFloat("Cylinder End Radius", &cylinderConfig_.endRadius, 0.1f, 0.0f, 100.0f);
+	ImGui::DragFloat("Cylinder Start Height", &cylinderConfig_.startHeight, 0.1f, 0.0f, 100.0f);
+	ImGui::DragFloat("Cylinder End Height", &cylinderConfig_.endHeight, 0.1f, 0.0f, 200.0f);
+	ImGui::ColorEdit4("Cylinder Start Color", &cylinderConfig_.startColor.x);
+	ImGui::ColorEdit4("Cylinder End Color", &cylinderConfig_.endColor.x);
 	if (ImGui::Button("GPU Burst Test")) {
 		ParticleManager::GetInstance()->Emit("HitSpark", effectTargetPos_, 2000);
 	}
@@ -241,6 +265,7 @@ void TestScene::Update() {
 		if (autoFireTimer_ >= 1.6f && effectSequencer_->IsFinished()) {
 			effectSequencer_->Fire(transplantTestProfile_, effectStartPos_, effectTargetPos_);
 			ringManager_->Emit(effectStartPos_, ringConfig_);
+			cylinderManager_->Emit(effectStartPos_, cylinderConfig_);
 			autoFireTimer_ = 0.0f;
 		}
 	} else {
@@ -250,6 +275,7 @@ void TestScene::Update() {
 	effectSequencer_->Update(finalDeltaTime);
 	trailManager_->Update(finalDeltaTime);
 	ringManager_->Update(finalDeltaTime);
+	cylinderManager_->Update(finalDeltaTime);
 	ParticleManager::GetInstance()->Update(finalDeltaTime, camera.get(), debugCamera.get());
 
 }
@@ -288,6 +314,7 @@ void TestScene::DrawPostEffect3D() {
 		: camera->GetViewProjectionMatrix();
 	trailManager_->DrawAll(vp);
 	ringManager_->DrawAll(vp);
+	cylinderManager_->DrawAll(vp);
 
 	ParticleManager::GetInstance()->Draw();
 }
