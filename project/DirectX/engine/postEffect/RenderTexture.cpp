@@ -5,7 +5,8 @@ void RenderTexture::Initialize(
     SrvManager* srvManager,
     RtvManager* rtvManager,
     uint32_t width,
-    uint32_t height
+    uint32_t height,
+    std::array<float, 4> clearColor
 ) {
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
@@ -14,10 +15,10 @@ void RenderTexture::Initialize(
     // RenderTarget用テクスチャ作成
     D3D12_CLEAR_VALUE clearValue{};
     clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-    clearValue.Color[0] = 0.0f;
-    clearValue.Color[1] = 0.0f;
-    clearValue.Color[2] = 0.0f;
-    clearValue.Color[3] = 1.0f;
+    clearValue.Color[0] = clearColor[0];
+    clearValue.Color[1] = clearColor[1];
+    clearValue.Color[2] = clearColor[2];
+    clearValue.Color[3] = clearColor[3];
 
     resource_ = dxCommon_->CreateTextureResource(
         width,

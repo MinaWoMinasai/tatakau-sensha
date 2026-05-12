@@ -1,4 +1,5 @@
 #include "TrailManager.h"
+#include "Calculation.h"
 
 void TrailManager::Initialize(DirectXCommon* dxcommon, Object3dCommon* object3dCommon, const std::string& textureFilePath) {
     dxCommon_ = dxcommon;
@@ -15,6 +16,16 @@ void TrailManager::Initialize(DirectXCommon* dxcommon, Object3dCommon* object3dC
     // 定数リソース作成
     constResource_ = dxCommon_->CreateBufferResource(sizeof(Matrix4x4));
     constResource_->Map(0, nullptr, reinterpret_cast<void**>(&constData_));
+
+    materialResource_ = dxCommon_->CreateBufferResource(sizeof(Material));
+    materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
+    materialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+    materialData_->enableLighting = false;
+    materialData_->lightingMode = false;
+    materialData_->environmentCoefficient = 0.0f;
+    materialData_->padding = 0.0f;
+    materialData_->uvTransform = MakeIdentity4x4();
+    materialData_->shininess = 1.0f;
 }
 
 TrailInstance* TrailManager::CreateInstance() {
@@ -48,6 +59,7 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
     commandList->SetPipelineState(dxCommon_->GetPSOTrail().graphicsState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
+    commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
     commandList->SetGraphicsRootConstantBufferView(1, constResource_->GetGPUVirtualAddress());
     commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_));
 

@@ -51,6 +51,7 @@ public:
 		Object,
 		Particle,
 		ModelParticle,
+		ComputeParticle,
 		PostEffect,
 		Shadow,
 		Trail,
@@ -63,16 +64,20 @@ public:
 		Bloom_BlurH,
 		Bloom_BlurV,
 		Bloom_Composite,
+		ObjectPost_Composite,
 	};
 
 	struct PSO {
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsDesc_{};
+		D3D12_COMPUTE_PIPELINE_STATE_DESC computeDesc_{};
 		Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsState_ = nullptr;
+		Microsoft::WRL::ComPtr<ID3D12PipelineState> computeState_ = nullptr;
 		InputDesc inputDesc_;
 		Root root_;
 		// Shaderをコンパイルする
 		IDxcBlob* vertexShaderBlob_ = nullptr;
 		IDxcBlob* pixelShaderBlob_ = nullptr;
+		IDxcBlob* computeShaderBlob_ = nullptr;
 		ShaderType shaderType_;
 		std::wstring vsFilePath_;
 		std::wstring psFilePath_;
@@ -171,6 +176,9 @@ public:
 		case kAdd_Bloom_Composite:
 			return conpositePSO;
 			break;
+		case kAdd_ObjectPost_Composite:
+			return objectPostCompositePSO;
+			break;
 		default:
 			return objectPSO_None;
 			break;
@@ -179,6 +187,7 @@ public:
 
 	PSO& GetPSOParticle() { return psoParticle_; }
 	PSO& GetPSOModelParticle() { return psoModelParticle_; }
+	PSO& GetPSOComputeParticle() { return psoComputeParticle_; }
 	PSO& GetPSOTrail() { return trailPSO; }
 	PSO& GetPSOSkybox() { return skyboxPSO; }
 
@@ -201,6 +210,9 @@ public:
 
 	void SetRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);
 	void SetRenderTargetNoDepth(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
+	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRTVHandle() const { return currentRtvHandle_; }
+	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentDSVHandle() const { return currentDsvHandle_; }
+	bool HasCurrentDSV() const { return currentHasDsv_; }
 
 	void ClearRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
 
@@ -281,6 +293,7 @@ private:
 	void UpdateFixFPS();
 
 	void CreateShaderCommon(PSO& pso, BlendMode blendMode = kAdd);
+	void CreateComputeShaderCommon(PSO& pso);
 	void CreateShader();
 	void CreateGraphics();
 
@@ -332,11 +345,13 @@ private:
 	PSO objectPSO_Add;
 	PSO psoParticle_;
 	PSO psoModelParticle_;
+	PSO psoComputeParticle_;
 	PSO bloomPSO;
 	PSO downsamplePSO;
 	PSO blurHPSO;
 	PSO blurVPSO;
 	PSO conpositePSO;
+	PSO objectPostCompositePSO;
 	PSO shadowPSO;
 	PSO trailPSO;
 	PSO skyboxPSO;
@@ -346,5 +361,8 @@ private:
 	const uint32_t kMaxDsvCount = 10;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle_;
+	D3D12_CPU_DESCRIPTOR_HANDLE currentRtvHandle_{};
+	D3D12_CPU_DESCRIPTOR_HANDLE currentDsvHandle_{};
+	bool currentHasDsv_ = false;
 };
 

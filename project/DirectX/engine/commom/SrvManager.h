@@ -20,6 +20,10 @@ public:
 	void CreateSRVforShadowMap(uint32_t srvIndex, ID3D12Resource* pResource);
 	// SRV生成(テクスチャキューブ用)
 	void CreateSRVforTextureCube(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT format, UINT MipLevels);
+	// UAV生成(Structured Buffer用)
+	void CreateUAVforStructuredBuffer(uint32_t srvIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride);
+	// UAV生成(RWByteAddressBuffer用)
+	void CreateUAVforRawBuffer(uint32_t srvIndex, ID3D12Resource* pResource);
 
 	void PreDraw();
 

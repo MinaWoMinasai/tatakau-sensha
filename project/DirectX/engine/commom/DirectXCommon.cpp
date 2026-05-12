@@ -54,6 +54,9 @@ void DirectXCommon::PreDraw()
 	list_->ResourceBarrier(1, &barrier);
 	// 描画先のRTVとDSVを設定する
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+	currentRtvHandle_ = rtvHandles_[backBufferIndex];
+	currentDsvHandle_ = dsvHandle;
+	currentHasDsv_ = true;
 	list_->OMSetRenderTargets(1, &rtvHandles_[backBufferIndex], false, &dsvHandle);
 	// 指定した色で画面全体をクリアする
 	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -108,6 +111,9 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		pso.vsFilePath_ = L"resources/shaders/ModelParticle.VS.hlsl";
 		pso.psFilePath_ = L"resources/shaders/ModelParticle.PS.hlsl";
 		break;
+	case ComputeParticle:
+		assert(false);
+		break;
 	case Shadow:
 		pso.root_.InitalizeForShadow();
 		pso.vsFilePath_ = L"resources/shaders/Shadow.VS.hlsl";
@@ -122,6 +128,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		case Bloom_BlurH:      pso.psFilePath_ = L"resources/shaders/BloomBlurH.PS.hlsl"; break;
 		case Bloom_BlurV:      pso.psFilePath_ = L"resources/shaders/BloomBlurV.PS.hlsl"; break;
 		case Bloom_Composite:  pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl"; break;
+		case ObjectPost_Composite: pso.psFilePath_ = L"resources/shaders/ObjectPostComposite.PS.hlsl"; break;
 		}
 		break;
 	case Trail:
@@ -273,6 +280,24 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 	assert(SUCCEEDED(hr));
 }
 
+void DirectXCommon::CreateComputeShaderCommon(PSO& pso)
+{
+	pso.root_.InitializeForComputeParticle();
+	pso.root_.Create(device_);
+	pso.computeShaderBlob_ = CompileShader(L"resources/shaders/ParticleUpdate.CS.hlsl", L"cs_6_0");
+	assert(pso.computeShaderBlob_ != nullptr);
+
+	ZeroMemory(&pso.computeDesc_, sizeof(pso.computeDesc_));
+	pso.computeDesc_.pRootSignature = pso.root_.GetSignature().Get();
+	pso.computeDesc_.CS = {
+		pso.computeShaderBlob_->GetBufferPointer(),
+		pso.computeShaderBlob_->GetBufferSize()
+	};
+
+	HRESULT hr = device_->CreateComputePipelineState(&pso.computeDesc_, IID_PPV_ARGS(&pso.computeState_));
+	assert(SUCCEEDED(hr));
+}
+
 void DirectXCommon::CreateShader()
 {
 	objectPSO_None.shaderType_ = Object;
@@ -280,10 +305,12 @@ void DirectXCommon::CreateShader()
 	objectPSO_Add.shaderType_ = Object;
 	psoParticle_.shaderType_ = Particle;
 	psoModelParticle_.shaderType_ = ModelParticle;
+	psoComputeParticle_.shaderType_ = ComputeParticle;
 	bloomPSO.shaderType_ = PostEffect;
 	blurHPSO.shaderType_ = PostEffect;
 	blurVPSO.shaderType_ = PostEffect;
 	conpositePSO.shaderType_ = PostEffect;
+	objectPostCompositePSO.shaderType_ = PostEffect;
 	downsamplePSO.shaderType_ = PostEffect;
 	shadowPSO.shaderType_ = Shadow;
 	trailPSO.shaderType_ = Trail;
@@ -293,6 +320,7 @@ void DirectXCommon::CreateShader()
 	blurHPSO.postEffectType_ = Bloom_BlurH;
 	blurVPSO.postEffectType_ = Bloom_BlurV;
 	conpositePSO.postEffectType_ = Bloom_Composite;
+	objectPostCompositePSO.postEffectType_ = ObjectPost_Composite;
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
 
 	CreateShaderCommon(objectPSO_None, kNone);
@@ -300,10 +328,12 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(objectPSO_Add, kAdd);
 	CreateShaderCommon(psoParticle_, kAdd);
 	CreateShaderCommon(psoModelParticle_, kAdd);
+	CreateComputeShaderCommon(psoComputeParticle_);
 	CreateShaderCommon(bloomPSO, kNone);
 	CreateShaderCommon(blurHPSO, kNone);
 	CreateShaderCommon(blurVPSO, kNone);
 	CreateShaderCommon(conpositePSO, kAdd);
+	CreateShaderCommon(objectPostCompositePSO, kNormal);
 	CreateShaderCommon(downsamplePSO, kNone);
 	CreateShaderCommon(shadowPSO, kShadow);
 	CreateShaderCommon(trailPSO, kAdd);
@@ -761,7 +791,9 @@ void DirectXCommon::SetRenderTarget(
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle,
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle
 ) {
-	
+	currentRtvHandle_ = rtvHandle;
+	currentDsvHandle_ = dsvHandle;
+	currentHasDsv_ = true;
 	list_->OMSetRenderTargets(
 		1,
 		&rtvHandle,
@@ -773,6 +805,9 @@ void DirectXCommon::SetRenderTarget(
 void DirectXCommon::SetRenderTargetNoDepth(
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle
 ) {
+	currentRtvHandle_ = rtvHandle;
+	currentDsvHandle_ = {};
+	currentHasDsv_ = false;
 	list_->OMSetRenderTargets(
 		1,
 		&rtvHandle,
@@ -800,6 +835,9 @@ void DirectXCommon::SetBackBuffer() {
 	D3D12_CPU_DESCRIPTOR_HANDLE dsv =
 		dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 
+	currentRtvHandle_ = rtv;
+	currentDsvHandle_ = dsv;
+	currentHasDsv_ = true;
 	list_->OMSetRenderTargets(
 		1,
 		&rtv,

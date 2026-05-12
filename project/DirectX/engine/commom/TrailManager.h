@@ -40,6 +40,8 @@ private:
     // 共有定数バッファ
     Microsoft::WRL::ComPtr<ID3D12Resource> constResource_;
     Matrix4x4* constData_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
+    Material* materialData_ = nullptr;
 
     std::string textureFilePath_;
 };

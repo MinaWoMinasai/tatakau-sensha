@@ -6,7 +6,6 @@ cbuffer BloomParam : register(b0)
     float threshold;
     float intensity;
     float2 padding;
-    float blurStrength;
 };
 
 struct PSInput
@@ -20,17 +19,16 @@ float4 main(PSInput input) : SV_TARGET
     uint width, height;
     sceneTex.GetDimensions(width, height);
 
-    float2 texel = 1.0 / float2(width, height);
-    
-    float weights[5] = { 0.227, 0.194, 0.121, 0.054, 0.016 };
+    float2 texel = 1.0f / float2(width, height);
+    float weights[5] = { 0.227f, 0.194f, 0.121f, 0.054f, 0.016f };
 
-    float3 col = sceneTex.Sample(samp, input.uv).rgb * weights[0];
+    float4 col = sceneTex.Sample(samp, input.uv) * weights[0];
 
     for (int i = 1; i < 5; i++)
     {
-        col += sceneTex.Sample(samp, input.uv + float2(texel.x * i, 0)).rgb * weights[i];
-        col += sceneTex.Sample(samp, input.uv - float2(texel.x * i, 0)).rgb * weights[i];
+        col += sceneTex.Sample(samp, input.uv + float2(texel.x * i, 0.0f)) * weights[i];
+        col += sceneTex.Sample(samp, input.uv - float2(texel.x * i, 0.0f)) * weights[i];
     }
-    
-    return float4(col, 1);
+
+    return float4(col.rgb * intensity, col.a);
 }
