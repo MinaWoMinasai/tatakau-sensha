@@ -665,6 +665,96 @@ void ParticleManager::CreateDefaultEffects() {
     hit.isBillboard = true;
     hit.alignToVelocity = true;
     RegisterEffect("HitSpark", hit);
+
+    ParticleEmitterConfig burst{};
+    burst.speedMin = 14.0f;
+    burst.speedMax = 42.0f;
+    burst.lifeTimeMin = 0.35f;
+    burst.lifeTimeMax = 0.75f;
+    burst.gravity = { 0.0f, -1.2f, 0.0f };
+    burst.startScaleMin = { 0.16f, 0.16f, 0.16f };
+    burst.startScaleMax = { 0.42f, 0.42f, 0.42f };
+    burst.endScaleMin = { 0.02f, 0.02f, 0.02f };
+    burst.endScaleMax = { 0.05f, 0.05f, 0.05f };
+    burst.startColor = { 0.08f, 1.0f, 0.95f, 1.0f };
+    burst.endColor = { 1.0f, 0.10f, 0.85f, 0.0f };
+    burst.modelPath = "triangleParticle.obj";
+    burst.emitterShape = EmitterShape::Sphere;
+    burst.shapeSize = { 0.8f, 0.8f, 0.2f };
+    burst.easingType = EasingType::EaseOut;
+    burst.isBillboard = false;
+    burst.alignToVelocity = false;
+    RegisterEffect("PlayerDeathBurst", burst);
+
+    ParticleEmitterConfig debris = burst;
+    debris.speedMin = 10.0f;
+    debris.speedMax = 30.0f;
+    debris.lifeTimeMin = 0.28f;
+    debris.lifeTimeMax = 0.62f;
+    debris.gravity = { 0.0f, -0.6f, 0.0f };
+    debris.startScaleMin = { 0.12f, 0.12f, 0.12f };
+    debris.startScaleMax = { 0.34f, 0.34f, 0.34f };
+    debris.startColor = { 1.0f, 0.12f, 0.35f, 1.0f };
+    debris.endColor = { 0.15f, 0.85f, 1.0f, 0.0f };
+    RegisterEffect("EnemyDeathBurst", debris);
+
+    ParticleEmitterConfig smoke{};
+    smoke.speedMin = 1.0f;
+    smoke.speedMax = 4.0f;
+    smoke.lifeTimeMin = 0.32f;
+    smoke.lifeTimeMax = 0.62f;
+    smoke.gravity = { 0.0f, 0.4f, 0.0f };
+    smoke.startScaleMin = { 0.35f, 0.35f, 0.35f };
+    smoke.startScaleMax = { 0.85f, 0.85f, 0.85f };
+    smoke.endScaleMin = { 0.9f, 0.9f, 0.9f };
+    smoke.endScaleMax = { 1.5f, 1.5f, 1.5f };
+    smoke.startColor = { 0.10f, 0.95f, 1.0f, 0.36f };
+    smoke.endColor = { 0.95f, 0.05f, 1.0f, 0.0f };
+    smoke.modelPath = "plane.obj";
+    smoke.emitterShape = EmitterShape::Sphere;
+    smoke.shapeSize = { 0.6f, 0.6f, 0.2f };
+    smoke.easingType = EasingType::EaseOut;
+    smoke.isBillboard = true;
+    smoke.alignToVelocity = false;
+    RegisterEffect("DeathSmoke", smoke);
+
+    ParticleEmitterConfig dash{};
+    dash.speedMin = 1.0f;
+    dash.speedMax = 4.0f;
+    dash.lifeTimeMin = 0.12f;
+    dash.lifeTimeMax = 0.25f;
+    dash.gravity = { 0.0f, 0.0f, 0.0f };
+    dash.startScaleMin = { 0.08f, 0.08f, 0.08f };
+    dash.startScaleMax = { 0.18f, 0.18f, 0.18f };
+    dash.endScaleMin = { 0.02f, 0.02f, 0.02f };
+    dash.endScaleMax = { 0.04f, 0.04f, 0.04f };
+    dash.startColor = { 0.3f, 1.0f, 1.0f, 0.8f };
+    dash.endColor = { 0.0f, 0.45f, 0.65f, 0.0f };
+    dash.modelPath = "plane.obj";
+    dash.emitterShape = EmitterShape::Sphere;
+    dash.shapeSize = { 0.4f, 0.4f, 0.1f };
+    dash.easingType = EasingType::EaseOut;
+    dash.isBillboard = true;
+    RegisterEffect("DashDust", dash);
+
+    ParticleEmitterConfig casing{};
+    casing.speedMin = 3.0f;
+    casing.speedMax = 7.0f;
+    casing.lifeTimeMin = 0.25f;
+    casing.lifeTimeMax = 0.55f;
+    casing.gravity = { 0.0f, -6.0f, 0.0f };
+    casing.startScaleMin = { 0.05f, 0.22f, 0.05f };
+    casing.startScaleMax = { 0.08f, 0.36f, 0.08f };
+    casing.endScaleMin = { 0.02f, 0.04f, 0.02f };
+    casing.endScaleMax = { 0.03f, 0.08f, 0.03f };
+    casing.startColor = { 1.0f, 0.82f, 0.22f, 1.0f };
+    casing.endColor = { 0.9f, 0.25f, 0.03f, 0.0f };
+    casing.modelPath = "plane.obj";
+    casing.emitterShape = EmitterShape::Point;
+    casing.easingType = EasingType::EaseOut;
+    casing.isBillboard = true;
+    casing.alignToVelocity = true;
+    RegisterEffect("CasingSpark", casing);
 }
 
 void ParticleManager::DrawImGuiEditor() {

@@ -14,6 +14,8 @@ public:
     void Update();   // ImGuiと定数バッファ更新
     void PreDraw();  // 1. SceneRTをセット
     void PostDraw(); // 2. 抽出・ぼかし・合成を実行
+    void SetGrayscaleEnabled(bool enabled);
+    void SetGaussianOverride(float intensity);
 
 private:
     // 便利関数：リソースバリアの切り替え
@@ -37,4 +39,8 @@ private:
     BloomParam bloomParam_;
     std::unique_ptr<BloomConstantBuffer> bloomCB_;
     float timer_ = 0.0f;
+    bool manualGrayscale_ = false;
+    bool forceGrayscale_ = false;
+    float baseGaussianIntensity_ = 0.0f;
+    float gaussianOverrideIntensity_ = 0.0f;
 };

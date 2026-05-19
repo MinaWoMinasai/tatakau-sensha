@@ -129,6 +129,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		case Bloom_BlurV:      pso.psFilePath_ = L"resources/shaders/BloomBlurV.PS.hlsl"; break;
 		case Bloom_Composite:  pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl"; break;
 		case ObjectPost_Composite: pso.psFilePath_ = L"resources/shaders/ObjectPostComposite.PS.hlsl"; break;
+		case ObjectPost_OutlineAdd: pso.psFilePath_ = L"resources/shaders/ObjectPostOutlineAdd.PS.hlsl"; break;
 		}
 		break;
 	case Trail:
@@ -311,6 +312,7 @@ void DirectXCommon::CreateShader()
 	blurVPSO.shaderType_ = PostEffect;
 	conpositePSO.shaderType_ = PostEffect;
 	objectPostCompositePSO.shaderType_ = PostEffect;
+	objectPostOutlineAddPSO.shaderType_ = PostEffect;
 	downsamplePSO.shaderType_ = PostEffect;
 	shadowPSO.shaderType_ = Shadow;
 	trailPSO.shaderType_ = Trail;
@@ -321,6 +323,7 @@ void DirectXCommon::CreateShader()
 	blurVPSO.postEffectType_ = Bloom_BlurV;
 	conpositePSO.postEffectType_ = Bloom_Composite;
 	objectPostCompositePSO.postEffectType_ = ObjectPost_Composite;
+	objectPostOutlineAddPSO.postEffectType_ = ObjectPost_OutlineAdd;
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
 
 	CreateShaderCommon(objectPSO_None, kNone);
@@ -334,6 +337,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(blurVPSO, kNone);
 	CreateShaderCommon(conpositePSO, kAdd);
 	CreateShaderCommon(objectPostCompositePSO, kNormal);
+	CreateShaderCommon(objectPostOutlineAddPSO, kAdd);
 	CreateShaderCommon(downsamplePSO, kNone);
 	CreateShaderCommon(shadowPSO, kShadow);
 	CreateShaderCommon(trailPSO, kAdd);

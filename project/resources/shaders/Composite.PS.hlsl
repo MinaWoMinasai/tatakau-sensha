@@ -25,7 +25,9 @@ cbuffer BloomParam : register(b0)
     float outlineThreshold; // エッジ検出のしきい値
     float pad1;
     float3 outlineColor; // アウトラインの色
-    float pad2;
+    float outlineBloomIntensity;
+    float outlineBloomWidth;
+    float2 pad2;
 };
 
 // --- ヘルパー関数：ランダム ---
@@ -169,8 +171,8 @@ float4 main(PSInput input) : SV_TARGET
     }
     
     // F. 合成とカラー加工
-    float3 sceneColor = scene;
-    float3 blurredColor = bloom; // PostDrawでシーン全体をぼかして渡したもの
+    float3 sceneColor = sceneTex.Sample(samp, texUV).rgb;
+    float3 blurredColor = bloomTex.Sample(samp, texUV).rgb; // PostDrawでシーン全体をぼかして渡したもの
     
     float3 result;
 
@@ -182,18 +184,20 @@ float4 main(PSInput input) : SV_TARGET
     }
     else
     {
+        sceneColor = scene;
+        blurredColor = bloom;
     // 【ブルームモード】
     // 元の絵に、高輝度部分をぼかしたものを「加算」する
     // ここで intensity をかけることで、光の強さを制御できます
         result = sceneColor + (blurredColor * intensity);
-    }
     
-    // 2. アウトライン処理 (エッジ検出)
-    // 改良版アウトラインの適用
-    float3 outline = GetImprovedOutline(finalUV);
-    if (any(outline)) // outlineが黒でない場合
-    {
-        result = outline;
+        // 2. アウトライン処理 (エッジ検出)
+        // 改良版アウトラインの適用
+        float3 outline = GetImprovedOutline(finalUV);
+        if (any(outline)) // outlineが黒でない場合
+        {
+            result = outline;
+        }
     }
     
     // ブルームとしても使いたい場合は、加算なども考慮

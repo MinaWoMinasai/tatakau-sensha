@@ -126,29 +126,33 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 
 	velocity_ += (targetVelocity - velocity_) * accel * dt;
 
-	// X軸移動
-	Vector3 playerPos = GetWorldPosition();
-	playerPos.x += GetMove().x;
-	SetWorldPosition(playerPos);
-	stage.ResolvePlayerDroneCollision(*this, X);
+	Vector3 frameMove = GetMove();
+	const float maxStep = 0.30f;
+	const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(frameMove.x), std::abs(frameMove.y)) / maxStep) + 1);
+	Vector3 stepMove = frameMove / static_cast<float>(subStepCount);
+	for (int i = 0; i < subStepCount; ++i) {
+		Vector3 playerPos = GetWorldPosition();
+		playerPos.x += stepMove.x;
+		SetWorldPosition(playerPos);
+		stage.ResolvePlayerDroneCollision(*this, X);
 
-	// Y軸移動
-	playerPos = GetWorldPosition();
-	playerPos.y += GetMove().y;
-	SetWorldPosition(playerPos);
-	stage.ResolvePlayerDroneCollision(*this, Y);
+		playerPos = GetWorldPosition();
+		playerPos.y += stepMove.y;
+		SetWorldPosition(playerPos);
+		stage.ResolvePlayerDroneCollision(*this, Y);
+	}
 	
 	Vector3 pos = GetWorldPosition();
 
 	// ワールド座標からマップインデックスに変換
-	int xIndex = static_cast<int>(pos.x / 2.0f); // kBlockWidth = 2.0f
-	int yIndex = static_cast<int>(19 - (pos.y / 2.0f)); // kNumBlockVirtical - 1 = 19, kBlockHeight = 2.0f
+	int xIndex = static_cast<int>(pos.x / MapChip::kBlockWidth);
+	int yIndex = static_cast<int>(MapChip::kNumBlockVirtical - 1 - (pos.y / MapChip::kBlockHeight));
 
 	// Stageクラスに判定用関数がある場合の例
 	// if (stage.GetMapChipType(pos) == MapChipType::kDamageBlock) { Die(); }
 
 	// 直接MapChipデータを参照する場合の簡易判定（MapChipのインスタンスが必要）
-	if (xIndex < 0 || xIndex >= 30 || yIndex < 0 || yIndex >= 20) {
+	if (xIndex < 0 || xIndex >= static_cast<int>(MapChip::kNumBlockHorizontal) || yIndex < 0 || yIndex >= static_cast<int>(MapChip::kNumBlockVirtical)) {
 		Die(); // そもそもマップ配列の範囲外なら死亡
 	} else {
 		// マップの値を直接チェック（Stage経由でMapChipを取得する想定）
@@ -218,6 +222,10 @@ void PlayerDrone::OnCollision(Collider* other) {
 	const float kKnockBackPower = 0.1f;
 
 	velocity_ += hitDir * kKnockBackPower * other->GetHitPower();
+	const float maxKnockSpeed = 0.22f;
+	if (Length(velocity_) > maxKnockSpeed) {
+		velocity_ = Normalize(velocity_) * maxKnockSpeed;
+	}
 }
 
 AABB PlayerDrone::GetAABB() {

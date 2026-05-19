@@ -43,6 +43,15 @@ void TestScene::Initialize() {
 		Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr
 	);
+	{
+		BloomParam& objectPost = objectPostEffect_->GetParam();
+		objectPost.intensity = 0.0f;
+		objectPost.outlineWidth = 2.0f;
+		objectPost.outlineThreshold = 0.05f;
+		objectPost.outlineColor = { 1.0f, 0.9f, 0.2f };
+		objectPost.outlineBloomIntensity = 0.6f;
+		objectPost.outlineBloomWidth = 6.0f;
+	}
 
 	groundObj_ = std::make_unique<Object3d>();
 	groundObj_->Initialize();
@@ -57,8 +66,9 @@ void TestScene::Initialize() {
 	blockObj_->SetTranslate(Vector3(-10.0f, 0.0f, 0.0f));
 	blockObj_->SetScale(Vector3(1.0f, 1.0f, 1.0f));
 	blockObj_->Update();
-	blockObj_->SetModel("bloomBlock.obj");
+	blockObj_->SetModel("bloomBall.obj");
 	blockObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
+	//blockObj_->SetColor(Vector4(0.0f, 0.0f, 0.0f, 1.0f));
 	blockObj_->SetLighting(false);
 
 	// 2. 剣に見立てた細長いブロックを作る
@@ -246,6 +256,11 @@ void TestScene::Update() {
 	ImGui::DragFloat("ChromAb", &objectPost.chromAbAmount, 0.001f, 0.0f, 0.2f);
 	ImGui::DragFloat("Glitch", &objectPost.glitchAmount, 0.001f, 0.0f, 0.2f);
 	ImGui::DragFloat("Dissolve", &objectPost.dissolveThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Outline Width", &objectPost.outlineWidth, 0.1f, 0.0f, 10.0f);
+	ImGui::DragFloat("Outline Threshold", &objectPost.outlineThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::ColorEdit3("Outline Color", &objectPost.outlineColor.x);
+	ImGui::DragFloat("Outline Bloom Intensity", &objectPost.outlineBloomIntensity, 0.01f, 0.0f, 5.0f);
+	ImGui::DragFloat("Outline Bloom Width", &objectPost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
 	ImGui::Text("Target object: green block only");
 	ImGui::End();
 

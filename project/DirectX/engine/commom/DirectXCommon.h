@@ -65,6 +65,7 @@ public:
 		Bloom_BlurV,
 		Bloom_Composite,
 		ObjectPost_Composite,
+		ObjectPost_OutlineAdd,
 	};
 
 	struct PSO {
@@ -178,6 +179,9 @@ public:
 			break;
 		case kAdd_ObjectPost_Composite:
 			return objectPostCompositePSO;
+			break;
+		case kAdd_ObjectPost_OutlineAdd:
+			return objectPostOutlineAddPSO;
 			break;
 		default:
 			return objectPSO_None;
@@ -352,6 +356,7 @@ private:
 	PSO blurVPSO;
 	PSO conpositePSO;
 	PSO objectPostCompositePSO;
+	PSO objectPostOutlineAddPSO;
 	PSO shadowPSO;
 	PSO trailPSO;
 	PSO skyboxPSO;

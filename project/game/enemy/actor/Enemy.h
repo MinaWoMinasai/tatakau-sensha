@@ -3,19 +3,10 @@
 #include "Collider.h"
 #include <Windows.h>
 #include <algorithm>
+#include <optional>
 #include "Object3d.h"
 #include "Sprite.h"
 #include "AttackController.h"
-
-struct EnemyParticle {
-	std::unique_ptr<Object3d> object;
-	Vector3 velocity;
-	Vector3 rotateSpeed;
-	float timer;
-	float lifeTime;
-
-	float startAlpha;
-};
 
 class Player;
 class Stage;
@@ -49,7 +40,8 @@ public:
 	/// <summary>
 	/// 描画
 	/// </summary>
-	void Draw();
+	void Draw(bool drawBody = true);
+	void DrawBodyOnly();
 
 	/// <summary>
 	/// スプライト描画
@@ -136,7 +128,7 @@ public:
 
 	bool HitPlayerByRay(const Segment& ray);
 
-	bool HasLineOfSightToPlayer();
+	bool HasLineOfSightToPlayer() const;
 
 	Vector3 GetMove() { return velocity_; }
 
@@ -157,6 +149,20 @@ public:
 	void HPBarDraw();
 
 private:
+	struct MapIndex {
+		int x = 0;
+		int y = 0;
+	};
+
+	std::optional<Vector3> FindPathDirectionToPlayer();
+	std::optional<MapIndex> WorldToMapIndex(const Vector3& pos) const;
+	Vector3 MapIndexToWorld(const MapIndex& index) const;
+	bool IsPassableCell(int x, int y) const;
+	bool IsPathPassableCell(int x, int y) const;
+	MapIndex FindNearestPathPassableCell(const MapIndex& base) const;
+	bool HasClearMoveRouteToPlayer() const;
+	Vector3 ApplyHumanLikeSteering(const Vector3& desiredDir, bool usingPath, float deltaTime);
+
 	// ワールド変換データ
 	Transform worldTransform_;
 	// モデル
@@ -213,6 +219,11 @@ private:
 	float maxSpeed_ = 0.10f;
 	float accel_ = 0.008f;
 	float friction_ = 0.90f;
+	Vector3 steeringDir_{ 1.0f, 0.0f, 0.0f };
+	Vector3 steeringNoise_{ 0.0f, 0.0f, 0.0f };
+	float steeringNoiseTimer_ = 0.0f;
+	float hesitationTimer_ = 0.0f;
+	float hesitationCooldown_ = 1.0f;
 	
 	std::unique_ptr<Sprite> bossHpFont;
 	std::unique_ptr<Sprite> sprite;
@@ -224,8 +235,7 @@ private:
 	bool isDead_ = false;
 
 	bool isExploding_ = false;
-
-	std::vector<EnemyParticle> particles_;
+	float deathEffectTimer_ = 0.0f;
 
 	// 攻撃コントローラ
 	AttackController attackController_;

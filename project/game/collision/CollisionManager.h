@@ -14,7 +14,7 @@ public:
 	/// <summary>
 	/// 衝突判定と応答
 	/// </summary>
-	void CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager);
+	void CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager = nullptr);
 
 	/// <summary>
 	/// コライダー二つの衝突判定と応答
@@ -28,7 +28,7 @@ public:
 	/// </summary>
 	/// <param name="player"></param>
 	/// <param name="enemy"></param>
-	void SetColliders(Player* player, Enemy* enemy, BulletManager* bulletManager);
+	void SetColliders(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager = nullptr);
 
 private:
 	// コライダーリスト

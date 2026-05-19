@@ -1,7 +1,11 @@
 #include "Enemy.h"
 #include "Calculation.h"
 #include "Player.h"
+#include <array>
 #include <DirectXMath.h>
+#include <limits>
+#include <queue>
+#include "ParticleManager.h"
 #include "Stage.h"
 using namespace DirectX;
 
@@ -151,17 +155,21 @@ void Enemy::Update(float deltaTime) {
 		}
 	}
 
-	// X移動
-	Vector3 pos = GetWorldPosition();
-	pos.x += GetMove().x * (deltaTime * 60.0f);
-	SetWorldPosition(pos);
-	stage_->ResolveEnemyCollision(*this, X);
+	Vector3 move = GetMove() * (deltaTime * 60.0f);
+	const float maxStep = 0.35f;
+	const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(move.x), std::abs(move.y)) / maxStep) + 1);
+	Vector3 stepMove = move / static_cast<float>(subStepCount);
+	for (int i = 0; i < subStepCount; ++i) {
+		Vector3 pos = GetWorldPosition();
+		pos.x += stepMove.x;
+		SetWorldPosition(pos);
+		stage_->ResolveEnemyCollision(*this, X);
 
-	// Y移動
-	pos = GetWorldPosition();
-	pos.y += GetMove().y * (deltaTime * 60.0f);
-	SetWorldPosition(pos);
-	stage_->ResolveEnemyCollision(*this, Y);
+		pos = GetWorldPosition();
+		pos.y += stepMove.y;
+		SetWorldPosition(pos);
+		stage_->ResolveEnemyCollision(*this, Y);
+	}
 
 	object_->SetTransform(worldTransform_);
 	object_->Update();
@@ -180,13 +188,15 @@ void Enemy::Update(float deltaTime) {
 	bossHpFont->Update();
 }
 
-void Enemy::Draw() {
+void Enemy::Draw(bool drawBody) {
+	if (drawBody) {
+		DrawBodyOnly();
+	}
+}
+
+void Enemy::DrawBodyOnly() {
 	if (!isDead_) {
 		object_->Draw();
-	}
-
-	for (auto& p : particles_) {
-		p.object->Draw();
 	}
 }
 
@@ -229,9 +239,13 @@ void Enemy::OnCollision(Collider* other) {
 
 		dir = Normalize(dir);
 
-		const float knockPower = 2.0f;
+		const float knockPower = 0.18f;
 
 		velocity_ += dir * knockPower * other->GetHitPower();
+		const float maxKnockSpeed = 0.22f;
+		if (Length(velocity_) > maxKnockSpeed) {
+			velocity_ = Normalize(velocity_) * maxKnockSpeed;
+		}
 	}
 	// ダメージ処理
 	if (other->GetCollisionAttribute() == kCollisionAttributePlayerBullet) {
@@ -270,14 +284,21 @@ void Enemy::Move(float deltaTime) {
 
 	Vector3 toPlayer = player_->GetWorldPosition() - GetWorldPosition();
 	Vector3 attackVec = Normalize(toPlayer) * attackPower;
-	wanderChangeTimer -= deltaTime;
-	if (wanderChangeTimer <= 0.0f) {
-		wanderVec = RandomDirection() * wanderPower;
-		wanderChangeTimer = 3.0f;
+	std::optional<Vector3> pathDir = FindPathDirectionToPlayer();
+
+	if (pathDir) {
+		attackVec = *pathDir * 1.7f;
+		wanderVec = { 0.0f, 0.0f, 0.0f };
+	} else {
+		wanderChangeTimer -= deltaTime;
+		if (wanderChangeTimer <= 0.0f) {
+			wanderVec = RandomDirection() * wanderPower * 0.25f;
+			wanderChangeTimer = 3.0f;
+		}
 	}
 
-	evadeVec = EvadeBullets() * evadePower;
-	dir_ = attackVec + evadeVec + wanderVec + WallAvoidByRay();
+	evadeVec = EvadeBullets() * evadePower * 0.35f;
+	dir_ = attackVec + evadeVec + wanderVec;
 
 	if (Length(dir_) > 0.0001f) {
 		dir_ = Normalize(dir_);
@@ -286,6 +307,7 @@ void Enemy::Move(float deltaTime) {
 	}
 
 	dir_.z = 0.0f;
+	dir_ = ApplyHumanLikeSteering(dir_, pathDir.has_value(), deltaTime);
 
 	// --- 5. プレイヤーの位置と方向ベクトル ---
 	Vector3 dir = Normalize(toPlayer);
@@ -297,31 +319,275 @@ void Enemy::Move(float deltaTime) {
 		object_->SetRotate(worldTransform_.rotate);
 	}
 
-	if (isWallFollowing_) {
+	const float speed = pathDir ? 0.16f : maxSpeed_;
+	Vector3 targetVelocity = dir_ * speed;
+	velocity_ += (targetVelocity - velocity_) * 0.22f * (deltaTime * 60.0f);
+}
 
-		wallFollowTimer_ -= 1.0f / 60.0f;
-		dir_ = wallFollowDir_;
+Vector3 Enemy::ApplyHumanLikeSteering(const Vector3& desiredDir, bool usingPath, float deltaTime)
+{
+	if (Length(desiredDir) < 0.001f) {
+		return desiredDir;
+	}
 
-		if (wallFollowTimer_ <= 0.0f) {
-			isWallFollowing_ = false;
+	steeringNoiseTimer_ -= deltaTime;
+	if (steeringNoiseTimer_ <= 0.0f) {
+		Vector3 side = { -desiredDir.y, desiredDir.x, 0.0f };
+		float noisePower = usingPath ? Rand(-0.22f, 0.22f) : Rand(-0.12f, 0.12f);
+		steeringNoise_ = side * noisePower;
+		steeringNoiseTimer_ = Rand(0.25f, 0.75f);
+	}
+
+	hesitationCooldown_ -= deltaTime;
+	if (hesitationCooldown_ <= 0.0f && usingPath && Rand(0.0f, 1.0f) < 0.18f) {
+		hesitationTimer_ = Rand(0.08f, 0.18f);
+		hesitationCooldown_ = Rand(1.2f, 2.6f);
+	}
+
+	float response = usingPath ? 0.10f : 0.16f;
+	Vector3 targetDir = desiredDir + steeringNoise_;
+	if (Length(targetDir) > 0.001f) {
+		targetDir = Normalize(targetDir);
+	}
+
+	steeringDir_ += (targetDir - steeringDir_) * response * (deltaTime * 60.0f);
+	if (Length(steeringDir_) > 0.001f) {
+		steeringDir_ = Normalize(steeringDir_);
+	} else {
+		steeringDir_ = targetDir;
+	}
+
+	if (hesitationTimer_ > 0.0f) {
+		hesitationTimer_ -= deltaTime;
+		return steeringDir_ * 0.35f;
+	}
+
+	return steeringDir_;
+}
+
+std::optional<Vector3> Enemy::FindPathDirectionToPlayer()
+{
+	if (!stage_ || HasClearMoveRouteToPlayer()) {
+		return std::nullopt;
+	}
+
+	std::optional<MapIndex> startOpt = WorldToMapIndex(GetWorldPosition());
+	std::optional<MapIndex> goalOpt = WorldToMapIndex(player_->GetWorldPosition());
+	if (!startOpt || !goalOpt) {
+		return std::nullopt;
+	}
+
+	const MapIndex start = FindNearestPathPassableCell(*startOpt);
+	const MapIndex goal = FindNearestPathPassableCell(*goalOpt);
+	const int width = static_cast<int>(MapChip::kNumBlockHorizontal);
+	const int height = static_cast<int>(MapChip::kNumBlockVirtical);
+	const int nodeCount = width * height;
+	auto ToId = [width](const MapIndex& p) { return p.y * width + p.x; };
+	auto Heuristic = [](const MapIndex& a, const MapIndex& b) {
+		return std::abs(a.x - b.x) + std::abs(a.y - b.y);
+	};
+
+	struct QueueNode {
+		int id = 0;
+		int f = 0;
+		bool operator>(const QueueNode& other) const { return f > other.f; }
+	};
+
+	std::vector<int> cameFrom(nodeCount, -1);
+	std::vector<int> cost(nodeCount, std::numeric_limits<int>::max());
+	std::priority_queue<QueueNode, std::vector<QueueNode>, std::greater<QueueNode>> open;
+
+	const int startId = ToId(start);
+	const int goalId = ToId(goal);
+	cost[startId] = 0;
+	open.push({ startId, Heuristic(start, goal) });
+
+	const std::array<MapIndex, 8> dirs = {
+		MapIndex{ 1, 0 }, MapIndex{ -1, 0 }, MapIndex{ 0, 1 }, MapIndex{ 0, -1 },
+		MapIndex{ 1, 1 }, MapIndex{ 1, -1 }, MapIndex{ -1, 1 }, MapIndex{ -1, -1 }
+	};
+
+	while (!open.empty()) {
+		QueueNode current = open.top();
+		open.pop();
+		if (current.id == goalId) {
+			break;
+		}
+
+		MapIndex currentPos{ current.id % width, current.id / width };
+		for (const MapIndex& d : dirs) {
+			MapIndex next{ currentPos.x + d.x, currentPos.y + d.y };
+			if (next.x < 0 || next.y < 0 || next.x >= width || next.y >= height) {
+				continue;
+			}
+			if (!IsPathPassableCell(next.x, next.y) && ToId(next) != goalId) {
+				continue;
+			}
+			if (d.x != 0 && d.y != 0 && (!IsPathPassableCell(currentPos.x + d.x, currentPos.y) || !IsPathPassableCell(currentPos.x, currentPos.y + d.y))) {
+				continue;
+			}
+
+			const int nextId = ToId(next);
+			const int moveCost = (d.x != 0 && d.y != 0) ? 14 : 10;
+			const int newCost = cost[current.id] + moveCost;
+			if (newCost >= cost[nextId]) {
+				continue;
+			}
+
+			cost[nextId] = newCost;
+			cameFrom[nextId] = current.id;
+			open.push({ nextId, newCost + Heuristic(next, goal) * 10 });
 		}
 	}
 
-	// 1. まず摩擦を適用（速度を少し減衰させる）
-    // 何も入力がないとき、これでゆっくり止まる
-    velocity_ *= friction_ * (deltaTime * 60.0f);
+	if (cameFrom[goalId] < 0) {
+		return std::nullopt;
+	}
 
-    // 2. 入力方向（dir_）に向かって加速を「加算」する
-    // 目標速度との差分ではなく、純粋に「力」として足す
-    if (Length(dir_) > 0.0001f) {
-        // 加速度 accel_ をそのまま足す
-        velocity_ += dir_ * accel_ * (deltaTime * 60.0f);
-    }
+	int currentId = goalId;
+	int previousId = goalId;
+	while (cameFrom[currentId] >= 0 && cameFrom[currentId] != startId) {
+		currentId = cameFrom[currentId];
+		previousId = currentId;
+	}
 
-    // 3. 最後に最大速度制限をかける
-    if (Length(velocity_) > maxSpeed_) {
-        velocity_ = Normalize(velocity_) * maxSpeed_;
-    }
+	if (cameFrom[currentId] == startId) {
+		previousId = currentId;
+	}
+
+	MapIndex next{ previousId % width, previousId / width };
+	Vector3 waypoint = MapIndexToWorld(next);
+	Vector3 toWaypoint = waypoint - GetWorldPosition();
+	toWaypoint.z = 0.0f;
+	if (Length(toWaypoint) < 0.1f) {
+		return std::nullopt;
+	}
+	return Normalize(toWaypoint);
+}
+
+std::optional<Enemy::MapIndex> Enemy::WorldToMapIndex(const Vector3& pos) const
+{
+	const int x = static_cast<int>(std::round(pos.x / MapChip::kBlockWidth));
+	const int y = static_cast<int>(MapChip::kNumBlockVirtical - 1 - std::round(pos.y / MapChip::kBlockHeight));
+	if (x < 0 || y < 0 || x >= static_cast<int>(MapChip::kNumBlockHorizontal) || y >= static_cast<int>(MapChip::kNumBlockVirtical)) {
+		return std::nullopt;
+	}
+	return MapIndex{ x, y };
+}
+
+Vector3 Enemy::MapIndexToWorld(const MapIndex& index) const
+{
+	return {
+		MapChip::kBlockWidth * static_cast<float>(index.x),
+		MapChip::kBlockHeight * static_cast<float>(MapChip::kNumBlockVirtical - 1 - index.y),
+		0.0f
+	};
+}
+
+bool Enemy::IsPassableCell(int x, int y) const
+{
+	if (!stage_) {
+		return true;
+	}
+	if (x <= 0 || y <= 0 || x >= static_cast<int>(MapChip::kNumBlockHorizontal) - 1 || y >= static_cast<int>(MapChip::kNumBlockVirtical) - 1) {
+		return false;
+	}
+
+	const auto& blocks = stage_->GetBlocks();
+	if (y < 0 || y >= static_cast<int>(blocks.size()) || x < 0 || x >= static_cast<int>(blocks[y].size())) {
+		return false;
+	}
+
+	return !blocks[y][x].isActive;
+}
+
+bool Enemy::IsPathPassableCell(int x, int y) const
+{
+	const int clearance = static_cast<int>(std::ceil((kWidth * 0.5f) / MapChip::kBlockWidth));
+	for (int offsetY = -clearance; offsetY <= clearance; ++offsetY) {
+		for (int offsetX = -clearance; offsetX <= clearance; ++offsetX) {
+			if (!IsPassableCell(x + offsetX, y + offsetY)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+Enemy::MapIndex Enemy::FindNearestPathPassableCell(const MapIndex& base) const
+{
+	if (IsPathPassableCell(base.x, base.y)) {
+		return base;
+	}
+
+	const int width = static_cast<int>(MapChip::kNumBlockHorizontal);
+	const int height = static_cast<int>(MapChip::kNumBlockVirtical);
+	for (int radius = 1; radius < 8; ++radius) {
+		MapIndex best = base;
+		float bestDistance = std::numeric_limits<float>::max();
+		for (int y = base.y - radius; y <= base.y + radius; ++y) {
+			for (int x = base.x - radius; x <= base.x + radius; ++x) {
+				if (x < 0 || y < 0 || x >= width || y >= height || !IsPathPassableCell(x, y)) {
+					continue;
+				}
+				Vector3 candidateWorld = MapIndexToWorld({ x, y });
+				float distance = Length(candidateWorld - MapIndexToWorld(base));
+				if (distance < bestDistance) {
+					bestDistance = distance;
+					best = { x, y };
+				}
+			}
+		}
+		if (bestDistance < std::numeric_limits<float>::max()) {
+			return best;
+		}
+	}
+
+	return base;
+}
+
+bool Enemy::HasClearMoveRouteToPlayer() const
+{
+	if (!stage_ || !HasLineOfSightToPlayer()) {
+		return false;
+	}
+
+	const Vector3 enemyPos = GetWorldPosition();
+	const Vector3 playerPos = player_->GetWorldPosition();
+	Vector3 toPlayer = playerPos - enemyPos;
+	toPlayer.z = 0.0f;
+	const float distance = Length(toPlayer);
+	if (distance < 0.001f) {
+		return true;
+	}
+
+	Vector3 normal = Normalize(toPlayer);
+	Vector3 side = { -normal.y, normal.x, 0.0f };
+	const float halfWidth = kWidth * 0.5f + 0.25f;
+	const std::array<Vector3, 3> origins = {
+		enemyPos,
+		enemyPos + side * halfWidth,
+		enemyPos - side * halfWidth
+	};
+
+	for (const Vector3& origin : origins) {
+		Segment ray;
+		ray.origin = origin;
+		ray.diff = toPlayer;
+
+		for (const auto& row : stage_->GetBlocks()) {
+			for (const Block& block : row) {
+				if (!block.isActive) {
+					continue;
+				}
+				if (IsCollision(block.aabb, ray)) {
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
 }
 
 Vector3 Enemy::RandomDirection() { return Rand(Vector3(-0.2f, -0.2f, 0.0f), Vector3(0.2f, 0.2f, 0.5f)); }
@@ -501,7 +767,7 @@ bool Enemy::HitPlayerByRay(const Segment& ray)
 	return IsCollision(ray, playerSphere);
 }
 
-bool Enemy::HasLineOfSightToPlayer() {
+bool Enemy::HasLineOfSightToPlayer() const {
 
 	Segment ray = MakeRayToPlayer();
 
@@ -563,111 +829,17 @@ bool Enemy::isFinished()
 
 void Enemy::SpawnParticles()
 {
-	const int particleCount = 30;
-	Vector3 center = object_->GetTranslate();
-
-	for (int i = 0; i < particleCount; ++i) {
-
-		EnemyParticle p{};
-
-		p.object = std::make_unique<Object3d>();
-		p.object->Initialize();
-		p.object->SetModel("enemyParticle.obj");
-
-		p.object->SetTranslate(center);
-
-		// ----------------------
-		// ランダム方向 → 正規化
-		// ----------------------
-		Vector3 dir = Rand(
-			Vector3{ -1.0f, -1.0f, -1.0f },
-			Vector3{ 1.0f,  1.0f,  1.0f }
-		);
-		dir = Normalize(dir);
-
-		p.velocity = dir * Rand(3.0f, 6.0f);
-
-		// 回転速度
-		p.rotateSpeed = Rand(
-			Vector3{ -6.0f, -6.0f, -6.0f },
-			Vector3{ 6.0f,  6.0f,  6.0f }
-		);
-
-		// ----------------------
-		// 寿命 & 透明度
-		// ----------------------
-		p.timer = 0.0f;
-		p.lifeTime = Rand(0.9f, 1.4f);     // ★ 個体差
-		p.startAlpha = Rand(0.6f, 1.0f);   // ★ 初期アルファ
-
-		// Addブレンド映え用（少し明るめ）
-		Vector4 color = {
-			Rand(0.8f, 1.2f),
-			Rand(0.8f, 1.2f),
-			Rand(0.8f, 1.2f),
-			p.startAlpha
-		};
-		p.object->SetColor(color);
-
-		particles_.push_back(std::move(p));
-	}
+	Vector3 center = GetWorldPosition();
+	ParticleManager::GetInstance()->Emit("EnemyDeathBurst", center, 58);
+	ParticleManager::GetInstance()->Emit("DeathSmoke", center, 14);
+	ParticleManager::GetInstance()->EmitHitEffect(center);
+	deathEffectTimer_ = 1.0f;
 }
 
 void Enemy::UpdateParticles(float deltaTime)
 {
-	for (auto& p : particles_) {
-
-		p.timer += deltaTime;
-		if (p.timer >= p.lifeTime) continue;
-
-		float t = p.timer / p.lifeTime; // 0.0 → 1.0
-
-		// ----------------------
-		// 移動
-		// ----------------------
-		Vector3 pos = p.object->GetTranslate();
-		pos += p.velocity * deltaTime;
-
-		// 減速
-		p.velocity *= 0.97f;
-
-		// 重力
-		p.velocity.y -= 6.0f * deltaTime;
-
-		// ----------------------
-		// 回転
-		// ----------------------
-		Vector3 rot = p.object->GetRotate();
-		rot += p.rotateSpeed * deltaTime;
-
-		// ----------------------
-		// フェードアウト
-		// ----------------------
-		float alpha = p.startAlpha * (1.0f - t);
-		alpha = std::max(alpha, 0.0f);
-
-		Vector4 color = p.object->GetColor();
-		color.w = alpha;
-		p.object->SetColor(color);
-
-		// ----------------------
-		p.object->SetTranslate(pos);
-		p.object->SetRotate(rot);
-		p.object->Update();
-	}
-
-	// 寿命切れ削除
-	particles_.erase(
-		std::remove_if(
-			particles_.begin(),
-			particles_.end(),
-			[](const EnemyParticle& p) {
-				return p.timer >= p.lifeTime;
-			}),
-		particles_.end()
-	);
-
-	if (particles_.empty()) {
+	deathEffectTimer_ -= deltaTime;
+	if (deathEffectTimer_ <= 0.0f) {
 		isExploding_ = false;
 	}
 }

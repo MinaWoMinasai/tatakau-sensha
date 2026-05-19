@@ -5,13 +5,13 @@
 #include "BulletManager.h"
 #include "EnemyManager.h"
 
-void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager) {
+void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager) {
 
 	// 衝突マネージャのリストをクリア
 	colliders_.clear();
 
 	// コライダーをリストに登録
-	SetColliders(player, enemy, bulletManager);
+	SetColliders(player, enemy, bulletManager, enemyManager);
 	
 	// リスト内のペアの総当たり
 	std::list<Collider*>::iterator itrA = colliders_.begin();
@@ -67,7 +67,7 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 	colliderB->OnCollision(colliderA);
 }
 
-void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager* bulletManager) {
+void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager) {
 
 	// プレイヤーを登録
 	colliders_.push_back(player);
@@ -85,8 +85,10 @@ void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager*
 		colliders_.push_back(bullet);
 	}
 
-	//for (ExpEnemy* enemy : enemyManager->GetEnemyPtrs()) {
-	//	colliders_.push_back(enemy);
-	//}
+	if (enemyManager) {
+		for (ExpEnemy* expEnemy : enemyManager->GetEnemyPtrs()) {
+			colliders_.push_back(expEnemy);
+		}
+	}
 	
 }

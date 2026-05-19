@@ -24,6 +24,6 @@ private:
     BulletManager* bulletManager_ = nullptr;
 
     float spawnTimer_ = 0.0f;
-    const float kSpawnInterval = 1.5f; // 1.5秒に1回生成試行
-    const int kMaxEnemies = 30;        // 最大数
+    const float kSpawnInterval = 1.2f; // 短い間隔で図形を散らす
+    const int kMaxEnemies = 45;        // 最大数
 };

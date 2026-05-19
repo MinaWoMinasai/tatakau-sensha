@@ -6,7 +6,8 @@ void RenderTexture::Initialize(
     RtvManager* rtvManager,
     uint32_t width,
     uint32_t height,
-    std::array<float, 4> clearColor
+    std::array<float, 4> clearColor,
+    bool createDepth
 ) {
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
@@ -47,37 +48,38 @@ void RenderTexture::Initialize(
         1
     );
 
-    // --- 1. 深度リソース (ID3D12Resource) の作成 ---
-    D3D12_RESOURCE_DESC depthDesc = {};
-    depthDesc.Width = width;
-    depthDesc.Height = height;
-    depthDesc.MipLevels = 1;
-    depthDesc.DepthOrArraySize = 1;
-    depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // PSOと合わせる
-    depthDesc.SampleDesc.Count = 1;
-    depthDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    depthDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    if (createDepth) {
+        // --- 1. 深度リソース (ID3D12Resource) の作成 ---
+        D3D12_RESOURCE_DESC depthDesc = {};
+        depthDesc.Width = width;
+        depthDesc.Height = height;
+        depthDesc.MipLevels = 1;
+        depthDesc.DepthOrArraySize = 1;
+        depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // PSOと合わせる
+        depthDesc.SampleDesc.Count = 1;
+        depthDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        depthDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-    D3D12_HEAP_PROPERTIES heapProps = {};
-    heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+        D3D12_HEAP_PROPERTIES heapProps = {};
+        heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
 
-    D3D12_CLEAR_VALUE depthClearValue = {};
-    depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    depthClearValue.DepthStencil.Depth = 1.0f;
+        D3D12_CLEAR_VALUE depthClearValue = {};
+        depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        depthClearValue.DepthStencil.Depth = 1.0f;
 
-    dxCommon->GetDevice()->CreateCommittedResource(
-        &heapProps, D3D12_HEAP_FLAG_NONE, &depthDesc,
-        D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue,
-        IID_PPV_ARGS(&depthResource_) // RenderTextureのメンバに追加
-    );
+        dxCommon->GetDevice()->CreateCommittedResource(
+            &heapProps, D3D12_HEAP_FLAG_NONE, &depthDesc,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue,
+            IID_PPV_ARGS(&depthResource_)
+        );
 
-    // --- 2. DSVハンドルを取得して View を作成 ---
-    // ここであなたの作った関数を活用！
-    dsvHandle_ = dxCommon->GetNewDsvHandle();
+        // --- 2. DSVハンドルを取得して View を作成 ---
+        dsvHandle_ = dxCommon->GetNewDsvHandle();
 
-    dxCommon->GetDevice()->CreateDepthStencilView(
-        depthResource_.Get(), nullptr, dsvHandle_
-    );
+        dxCommon->GetDevice()->CreateDepthStencilView(
+            depthResource_.Get(), nullptr, dsvHandle_
+        );
+    }
 
     // --- ここを追加 ---
     // 生成直後は RENDER_TARGET 状態であることが多いため、

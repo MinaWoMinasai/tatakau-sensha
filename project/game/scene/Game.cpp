@@ -15,7 +15,7 @@ bool Game::Initialize() {
     InitializeImGui();
     LoadResources();
 
-    SceneManager::GetInstance()->Initialize("TEST");
+    SceneManager::GetInstance()->Initialize("TITLE");
 
     rtvManager_ = std::make_unique<RtvManager>();
     rtvManager_->Initialize(dxCommon_.get());
@@ -101,6 +101,7 @@ void Game::LoadResources() {
         "jewelry.obj",
         "ground.obj",
         "weapon.obj",
+        "player3D.obj",
     };
 
     for (auto& model : models) {
@@ -149,6 +150,8 @@ void Game::MainLoop() {
 
         Object3dCommon::GetInstance()->Update();
         SceneManager::GetInstance()->Update();
+        bloom_->SetGrayscaleEnabled(SceneManager::GetInstance()->GetFinalDeltaTime() < (1.0f / 60.0f) * 0.98f);
+        bloom_->SetGaussianOverride(SceneManager::GetInstance()->GetPostGaussianIntensity());
         
 #ifdef USE_IMGUI
         // ImGuiの内部コマンドを生成する
@@ -169,6 +172,7 @@ void Game::MainLoop() {
         SceneManager::GetInstance()->DrawSprite();
         
         bloom_->PostDraw();
+        SceneManager::GetInstance()->DrawAfterPostEffect3D();
 
 
 #ifdef USE_IMGUI

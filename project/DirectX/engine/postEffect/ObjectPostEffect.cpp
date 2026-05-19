@@ -18,13 +18,13 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     objectRT_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth, WinApp::kClientHeight, transparent);
 
     bloomRT_A_ = std::make_unique<RenderTexture>();
-    bloomRT_A_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth / 4, WinApp::kClientHeight / 4, transparent);
+    bloomRT_A_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth / 4, WinApp::kClientHeight / 4, transparent, false);
 
     bloomRT_B_ = std::make_unique<RenderTexture>();
-    bloomRT_B_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth / 4, WinApp::kClientHeight / 4, transparent);
+    bloomRT_B_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth / 4, WinApp::kClientHeight / 4, transparent, false);
 
     bloomRT_Half_ = std::make_unique<RenderTexture>();
-    bloomRT_Half_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth / 2, WinApp::kClientHeight / 2, transparent);
+    bloomRT_Half_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth / 2, WinApp::kClientHeight / 2, transparent, false);
 
     cb_ = std::make_unique<BloomConstantBuffer>();
     cb_->Initialize(dxCommon_);
@@ -49,6 +49,8 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     param_.outlineWidth = 0.0f;
     param_.outlineThreshold = 0.5f;
     param_.outlineColor = { 1.0f, 1.0f, 1.0f };
+    param_.outlineBloomIntensity = 0.0f;
+    param_.outlineBloomWidth = 6.0f;
 
     cb_->Update(param_);
 }
@@ -108,6 +110,7 @@ void ObjectPostEffect::EndCapture() {
     }
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
     postEffect_->DrawObjectComposite(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
+    postEffect_->DrawObjectOutlineAdd(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
 }
 
 void ObjectPostEffect::SetParam(const BloomParam& param) {

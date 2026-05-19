@@ -48,10 +48,19 @@ void SceneManager::DrawPostEffect3D() {
     currentScene_->DrawPostEffect3D();
 }
 
+void SceneManager::DrawAfterPostEffect3D() {
+    currentScene_->DrawAfterPostEffect3D();
+}
+
 void SceneManager::DrawSprite() {
     currentScene_->DrawSprite();
 }
 float SceneManager::GetFinalDeltaTime()
 {
 	return currentScene_->GetFinalDeltaTime();
+}
+
+float SceneManager::GetPostGaussianIntensity()
+{
+	return currentScene_->GetPostGaussianIntensity();
 }

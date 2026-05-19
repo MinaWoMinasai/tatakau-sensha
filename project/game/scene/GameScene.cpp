@@ -19,6 +19,39 @@ void GameScene::Initialize() {
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
 	Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera.get());
 
+	playerPostEffect_ = std::make_unique<ObjectPostEffect>();
+	playerPostEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr
+	);
+	{
+		BloomParam& playerPost = playerPostEffect_->GetParam();
+		playerPost.intensity = 2.0f;
+		playerPost.outlineWidth = 0.0f;
+		playerPost.outlineThreshold = 0.05f;
+		playerPost.outlineColor = { 0.1f, 0.85f, 1.0f };
+		playerPost.outlineBloomIntensity = 2.0f;
+		playerPost.outlineBloomWidth = 1.0f;
+	}
+
+	enemyPostEffect_ = std::make_unique<ObjectPostEffect>();
+	enemyPostEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr
+	);
+	{
+		BloomParam& enemyPost = enemyPostEffect_->GetParam();
+		enemyPost.intensity = 2.0f;
+		enemyPost.outlineWidth = 0.0f;
+		enemyPost.outlineThreshold = 0.0f;
+		enemyPost.outlineColor = { 1.0f, 0.2f, 0.1f };
+		enemyPost.chromAbAmount = 0.0f;
+		enemyPost.outlineBloomIntensity = 0.0f;
+		enemyPost.outlineBloomWidth = 0.0f;
+	}
+
 	enemyObject_ = std::make_unique<Object3d>();
 	enemyObject_->Initialize();
 
@@ -47,7 +80,10 @@ void GameScene::Initialize() {
 	
 	enemyObject_->SetModel("enemy.obj");
 	object3d3->SetModel("plane.obj");
-	playerObject_->SetModel("player.obj");
+	playerObject_->SetModel("player3D.obj");
+	//playerObject_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 0.6f));
+	playerObject_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 0.2f));
+	//playerObject_->SetLighting(true);
 	ballObj_->SetModel("bloomBlock.obj");
 	ballObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
 	ballObj_->SetLighting(true);
@@ -71,9 +107,9 @@ void GameScene::Initialize() {
 	enemy_->Initialize(enemyObject_.get(), Vector3(20.0f, 20.0f, 0.0f), stage_.get());
 	enemy_->SetAttackControllerBulletManager(bulletManager_.get());
 
-	// 敵マネージャの生成
-	//enemyManager_ = std::make_unique<EnemyManager>();
-	//enemyManager_->Initialize(player_.get(), bulletManager_.get());
+	// 経験値敵マネージャの生成
+	enemyManager_ = std::make_unique<EnemyManager>();
+	enemyManager_->Initialize(player_.get(), bulletManager_.get());
 
 	// 衝突マネージャの生成
 	collisionManager_ = std::make_unique<CollisionManager>();
@@ -81,6 +117,8 @@ void GameScene::Initialize() {
 	fade_ = std::make_unique<Fade>();
 	fade_->Initialize();
 	fade_->Start(Fade::Status::FadeIn, 1.0f);
+	sceneFadeBlurTimer_ = sceneFadeBlurDuration_;
+	sceneFadeBlurIntensity_ = 1.0f;
 
 	shotGide = std::make_unique<Sprite>();
 	shotGide->Initialize(SpriteCommon::GetInstance(), "resources/LivePhoto.png");
@@ -123,9 +161,18 @@ void GameScene::Update() {
 	if (finalDeltaTime * 60.0f > 0.95f) {
 		finalDeltaTime = baseDeltaTime;
 	}
+	slowMotionPostActive_ = finalDeltaTime < baseDeltaTime * 0.98f;
 
 	if (player_->IsChangeMode()) {
 		finalDeltaTime = 0.0f;
+	}
+
+	if (sceneFadeBlurTimer_ > 0.0f) {
+		sceneFadeBlurTimer_ -= baseDeltaTime;
+		float t = (std::clamp)(sceneFadeBlurTimer_ / sceneFadeBlurDuration_, 0.0f, 1.0f);
+		sceneFadeBlurIntensity_ = t * t;
+	} else {
+		sceneFadeBlurIntensity_ = 0.0f;
 	}
 
 #ifdef USE_IMGUI
@@ -151,7 +198,103 @@ void GameScene::Update() {
 	ImGui::ColorEdit4("color", &ball_->GetColor().x);
 	ImGui::End();
 
+	ImGui::Begin("Player Object Post");
+	ImGui::Checkbox("Enable Player Post", &enablePlayerPostEffect_);
+	BloomParam& playerPost = playerPostEffect_->GetParam();
+	ImGui::DragFloat("Player Intensity", &playerPost.intensity, 0.01f, 0.0f, 5.0f);
+	ImGui::DragFloat("Player Distortion", &playerPost.distortionAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Player ChromAb", &playerPost.chromAbAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Player Glitch", &playerPost.glitchAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Player Dissolve", &playerPost.dissolveThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Player Outline Width", &playerPost.outlineWidth, 0.1f, 0.0f, 10.0f);
+	ImGui::DragFloat("Player Outline Threshold", &playerPost.outlineThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::ColorEdit3("Player Outline Color", &playerPost.outlineColor.x);
+	ImGui::DragFloat("Player Outline Bloom Intensity", &playerPost.outlineBloomIntensity, 0.01f, 0.0f, 5.0f);
+	ImGui::DragFloat("Player Outline Bloom Width", &playerPost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
+	ImGui::End();
+
+	ImGui::Begin("Slow Motion Post");
+	ImGui::Text("Slow Active: %s", slowMotionPostActive_ ? "true" : "false");
+	ImGui::Checkbox("Keep Player Color During Slow", &keepPlayerColorDuringSlow_);
+	ImGui::DragFloat("Slow Player ChromAb", &slowPlayerChromAbAmount_, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Slow Player Distortion", &slowPlayerDistortionAmount_, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Slow Player Glitch", &slowPlayerGlitchAmount_, 0.001f, 0.0f, 0.2f);
+	ImGui::End();
+
+	ImGui::Begin("Enemy Object Post");
+	ImGui::Checkbox("Enable Enemy Post", &enableEnemyPostEffect_);
+	BloomParam& enemyPost = enemyPostEffect_->GetParam();
+	ImGui::DragFloat("Enemy Intensity", &enemyPost.intensity, 0.01f, 0.0f, 5.0f);
+	ImGui::DragFloat("Enemy Distortion", &enemyPost.distortionAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Enemy ChromAb", &enemyPost.chromAbAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Enemy Glitch", &enemyPost.glitchAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Enemy Dissolve", &enemyPost.dissolveThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Enemy Outline Width", &enemyPost.outlineWidth, 0.1f, 0.0f, 10.0f);
+	ImGui::DragFloat("Enemy Outline Threshold", &enemyPost.outlineThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::ColorEdit3("Enemy Outline Color", &enemyPost.outlineColor.x);
+	ImGui::DragFloat("Enemy Outline Bloom Intensity", &enemyPost.outlineBloomIntensity, 0.01f, 0.0f, 5.0f);
+	ImGui::DragFloat("Enemy Outline Bloom Width", &enemyPost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
+	ImGui::End();
+
+	ImGui::Begin("RPG Progress");
+	ImGui::Text("Level: %d", player_->GetLevel());
+	ImGui::Text("Exp: %d / %d", player_->GetExp(), player_->GetNextLevelExpValue());
+	ImGui::Text("Skill Points: %d", player_->GetSkillPoints());
+	ImGui::Text("Class: %s", player_->GetCurrentClassName());
+	ImGui::Separator();
+	ImGui::Text("1 Health Regen  Lv.%d", player_->GetUpgradeLevel(0));
+	ImGui::Text("2 Max Health    Lv.%d", player_->GetUpgradeLevel(1));
+	ImGui::Text("3 Body Damage   Lv.%d", player_->GetUpgradeLevel(2));
+	ImGui::Text("4 Bullet Speed  Lv.%d", player_->GetUpgradeLevel(3));
+	ImGui::Text("5 Bullet Damage Lv.%d", player_->GetUpgradeLevel(4));
+	ImGui::Text("6 Reload        Lv.%d", player_->GetUpgradeLevel(5));
+	ImGui::Text("7 Move Speed    Lv.%d", player_->GetUpgradeLevel(6));
+	ImGui::Text("Press C to open evolution cards.");
+	ImGui::Separator();
+	ImGui::Text("Debug Exp: F5 +next level, F6 +200");
+	if (ImGui::Button("+ Next Level Exp")) {
+		player_->AddExp(player_->GetNextLevelExpValue());
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("+200 Exp")) {
+		player_->AddExp(200);
+	}
+	ImGui::End();
+
 #endif // USE_IMGUI
+
+#ifdef USE_IMGUI
+	if (input_->IsTrigger(input_->GetKey()[DIK_F5], input_->GetPreKey()[DIK_F5])) {
+		player_->AddExp(player_->GetNextLevelExpValue());
+	}
+	if (input_->IsTrigger(input_->GetKey()[DIK_F6], input_->GetPreKey()[DIK_F6])) {
+		player_->AddExp(200);
+	}
+#endif // USE_IMGUI
+
+	{
+		Vector3 playerPos = player_->GetWorldPosition();
+		const float kCameraZ = -55.0f;
+		const float kMarginX = 18.0f;
+		const float kMarginY = 11.0f;
+		const float kMaxCameraX = MapChip::kBlockWidth * (MapChip::kNumBlockHorizontal - 1) - kMarginX;
+		const float kMaxCameraY = MapChip::kBlockHeight * (MapChip::kNumBlockVirtical - 1) - kMarginY;
+		Vector3 targetCameraPos = {
+			(std::clamp)(playerPos.x, kMarginX, kMaxCameraX),
+			(std::clamp)(playerPos.y, kMarginY, kMaxCameraY),
+			kCameraZ
+		};
+		Vector3 currentCameraPos = camera->GetTranslate();
+		Vector3 nextCameraPos = currentCameraPos + (targetCameraPos - currentCameraPos) * 0.12f;
+		if (cameraShakeTimer_ > 0.0f) {
+			cameraShakeTimer_ -= baseDeltaTime;
+			float t = (std::clamp)(cameraShakeTimer_ / cameraShakeDuration_, 0.0f, 1.0f);
+			float power = cameraShakePower_ * t * t;
+			nextCameraPos.x += Rand(-power, power);
+			nextCameraPos.y += Rand(-power, power);
+		}
+		camera->SetTranslate(nextCameraPos);
+	}
 
 	camera->Update();
 	debugCamera->Update(input_->GetMouseState(), input_->GetKey(), input_->GetLeftStick());
@@ -173,16 +316,22 @@ void GameScene::Update() {
 	stage_->Update();
 	
 	player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime);
+	if (player_->IsDead() && !playerDeathShakeStarted_) {
+		playerDeathShakeStarted_ = true;
+		cameraShakeTimer_ = cameraShakeDuration_;
+		cameraShakePower_ = 1.15f;
+	}
 	
 	enemy_->Update(finalDeltaTime);
 
-	//enemyManager_->Update(*stage_, finalDeltaTime);
+	enemyManager_->Update(*stage_, finalDeltaTime);
 	
 	bulletManager_->Update(*stage_, finalDeltaTime);
 	
 	// 衝突マネージャの更新
-	//collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
-	collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get());
+	collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
+	playerPostEffect_->Update(finalDeltaTime);
+	enemyPostEffect_->Update(finalDeltaTime);
 
 #ifdef USE_IMGUI
 
@@ -243,22 +392,6 @@ void GameScene::Update() {
 	dashGide->Update();
 	toTitleGide->Update();
 	
-	if (cameraFollow_) {
-	
-		// プレイヤーが死んでいる場合カメラをプレイヤーに合わせる
-		if (player_->IsDead()) {
-			Vector3 playerPos = player_->GetWorldPosition();
-			camera->SetTranslate({ playerPos.x, playerPos.y, -50.0f });
-			cameraFollow_ = false;
-		}
-	
-		// 敵が死んでいる場合カメラを敵に合わせる
-		if (enemy_->IsDead()) {
-			Vector3 enemyPos = enemy_->GetWorldPosition();
-			camera->SetTranslate({ enemyPos.x, enemyPos.y, -50.0f });
-			cameraFollow_ = false;
-		}
-	}
 }
 
 void GameScene::Draw() {
@@ -271,11 +404,11 @@ void GameScene::DrawPostEffect3D() {
 
 	Object3dCommon::GetInstance()->PreDraw(kNormal);
 
-	player_->Draw();
+	player_->Draw(!enablePlayerPostEffect_);
 	
-	enemy_->Draw();
+	enemy_->Draw(!enableEnemyPostEffect_);
 	
-	//enemyManager_->Draw();
+	enemyManager_->Draw();
 	
 	bulletManager_->Draw();
 	
@@ -289,9 +422,52 @@ void GameScene::DrawPostEffect3D() {
 
 	ball_->Draw();
 
+	if (enablePlayerPostEffect_ && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
+		playerPostEffect_->BeginCapture();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		player_->DrawBodyOnly();
+		playerPostEffect_->EndCapture();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+	}
+
+	if (enableEnemyPostEffect_) {
+		enemyPostEffect_->BeginCapture();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		enemy_->DrawBodyOnly();
+		enemyPostEffect_->EndCapture();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+	}
+
 	
 	ParticleManager::GetInstance()->Draw();
 
+}
+
+void GameScene::DrawAfterPostEffect3D() {
+	if (!enablePlayerPostEffect_ || !slowMotionPostActive_ || !keepPlayerColorDuringSlow_) {
+		return;
+	}
+
+	BloomParam savedParam = playerPostEffect_->GetParam();
+	BloomParam slowParam = savedParam;
+	if (slowParam.chromAbAmount < slowPlayerChromAbAmount_) {
+		slowParam.chromAbAmount = slowPlayerChromAbAmount_;
+	}
+	if (slowParam.distortionAmount < slowPlayerDistortionAmount_) {
+		slowParam.distortionAmount = slowPlayerDistortionAmount_;
+	}
+	if (slowParam.glitchAmount < slowPlayerGlitchAmount_) {
+		slowParam.glitchAmount = slowPlayerGlitchAmount_;
+	}
+	playerPostEffect_->SetParam(slowParam);
+
+	playerPostEffect_->BeginCapture();
+	Object3dCommon::GetInstance()->PreDraw(kNormal);
+	player_->DrawBodyOnly();
+	playerPostEffect_->EndCapture();
+	Object3dCommon::GetInstance()->PreDraw(kNormal);
+
+	playerPostEffect_->SetParam(savedParam);
 }
 
 void GameScene::DrawShadow() {
@@ -310,11 +486,14 @@ void GameScene::DrawSprite() {
 	if (!enemy_->IsDead()) {
 		player_->DrawSprite();
 	}
+	player_->DrawEncyclopedia();
 	//shotGide->Draw();
 	wasdGide->Draw();
 	dashGide->Draw();
 	toTitleGide->Draw();
-	fade_->Draw();
+	if (phase_ != Phase::kFadeIn) {
+		fade_->Draw();
+	}
 }
 
 std::string GameScene::GetNextSceneName() const

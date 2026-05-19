@@ -251,6 +251,7 @@ enum BlendMode {
 	kAdd_Bloom_Composite,
 	kAdd_Bloom_Downsample,
 	kAdd_ObjectPost_Composite,
+	kAdd_ObjectPost_OutlineAdd,
 };
 
 enum Phase {
@@ -307,7 +308,9 @@ struct BloomParam
 	float outlineThreshold; // エッジ検出のしきい値
 	float pad1;
 	Vector3 outlineColor; // アウトラインの色
-	float pad2;
+	float outlineBloomIntensity; // アウトラインだけのブルーム強度
+	float outlineBloomWidth; // アウトラインブルームの広がり
+	float pad2[2];
 };
 
 struct PointLightData {

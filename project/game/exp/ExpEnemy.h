@@ -6,9 +6,16 @@
 class Player;
 class Stage;
 
+enum class ExpEnemyType {
+    Square,
+    Triangle,
+    Pentagon,
+    Shooter,
+};
+
 class ExpEnemy : public Collider {
 public:
-    void Initialize(const Vector3& position, Player* player);
+    void Initialize(const Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
     void Update(Stage& stage,float deltaTime);
     void Draw();
 
@@ -36,6 +43,8 @@ public:
     uint32_t GetExpValue() const { return expValue_; }
 
 private:
+    void ApplyTypeParams();
+
     Transform worldTransform_;
     std::unique_ptr<Object3d> object_;
 
@@ -54,6 +63,7 @@ private:
     bool isDead_ = false;
 
     uint32_t expValue_ = 10;
+    ExpEnemyType type_ = ExpEnemyType::Square;
 
     Vector3 velocity_;
 
@@ -64,5 +74,6 @@ private:
 
     // 無敵時間
     float invincibleTimer_ = 0.0f;
+    float shootInterval_ = 0.0f;
 
 };
