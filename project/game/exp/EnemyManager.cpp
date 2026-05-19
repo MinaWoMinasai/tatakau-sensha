@@ -29,12 +29,12 @@ void EnemyManager::Update(Stage& stage, float deltaTime) {
 }
 
 void EnemyManager::Spawn(Stage& stage) {
-    // ステージの範囲（仮に0~30とする。お手元のmapサイズに合わせて調整してください）
-    const float kMapMin = 2.0f;
-    const float kMapMax = 28.0f;
+    const float kMapMin = MapChip::kBlockWidth * 2.0f;
+    const float kMapMaxX = MapChip::kBlockWidth * (MapChip::kNumBlockHorizontal - 3.0f);
+    const float kMapMaxY = MapChip::kBlockHeight * (MapChip::kNumBlockVirtical - 3.0f);
 
     for (int i = 0; i < 10; ++i) { // 最大10回リトライ
-        Vector3 spawnPos = { Rand(kMapMin, kMapMax), Rand(kMapMin, kMapMax), 0.0f };
+        Vector3 spawnPos = { Rand(kMapMin, kMapMaxX), Rand(kMapMin, kMapMaxY), 0.0f };
 
         // 壁と重なっていないか確認
         if (!stage.IsCollisionWithAnyBlock(spawnPos, 1.0f)) {
@@ -42,9 +42,19 @@ void EnemyManager::Spawn(Stage& stage) {
             float dist = Length(spawnPos - player_->GetWorldPosition());
             if (dist < 10.0f) continue;
 
+            ExpEnemyType type = ExpEnemyType::Square;
+            const int roll = static_cast<int>(Rand(0.0f, 100.0f));
+            if (roll >= 88) {
+                type = ExpEnemyType::Pentagon;
+            } else if (roll >= 68) {
+                type = ExpEnemyType::Shooter;
+            } else if (roll >= 38) {
+                type = ExpEnemyType::Triangle;
+            }
+
             // 生成
             auto newEnemy = std::make_unique<ExpEnemy>();
-            newEnemy->Initialize(spawnPos, player_);
+            newEnemy->Initialize(spawnPos, player_, type);
             newEnemy->SetAttackControllerBulletManager(bulletManager_);
             // AttackControllerが必要な場合はここでセットアップ
             enemies_.push_back(std::move(newEnemy));

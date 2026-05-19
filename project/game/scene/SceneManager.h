@@ -12,10 +12,12 @@ public:
 	void Update();
 	void Draw();
 	void DrawPostEffect3D();
+	void DrawAfterPostEffect3D();
 	void DrawShadow();
 	void DrawSprite();
 
 	float GetFinalDeltaTime();
+	float GetPostGaussianIntensity();
 
 private:
 	// 現在のシーンを抽象的な型で保持

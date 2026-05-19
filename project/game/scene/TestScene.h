@@ -103,7 +103,7 @@ private:
 	Vector3 effectStartPos_ = { -35.0f, 15.0f, 0.0f };
 	Vector3 effectTargetPos_ = { 35.0f, 15.0f, 0.0f };
 	bool autoFireEffect_ = false;
-	bool enableObjectPostEffect_ = false;
+	bool enableObjectPostEffect_ = true;
 	float autoFireTimer_ = 0.0f;
 	RingEffectConfig ringConfig_;
 	CylinderEffectConfig cylinderConfig_;

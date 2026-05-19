@@ -1,5 +1,6 @@
 #pragma once
 #define NOMINMAX
+#include <algorithm>
 #include "Audio.h"
 #include "debugCamera.h"
 #include "Dump.h"
@@ -18,6 +19,7 @@
 #include "BulletManager.h"
 #include "EnemyManager.h"
 #include "IScene.h"
+#include "ObjectPostEffect.h"
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -52,6 +54,7 @@ public:
 	void DrawShadow() override;
 
 	void DrawPostEffect3D() override;
+	void DrawAfterPostEffect3D() override;
 
 	/// <summary>
 	/// 描画
@@ -63,6 +66,7 @@ public:
 	Object3d* GetBallObj() { return ballObj_.get(); }
 
 	float GetFinalDeltaTime() const override { return finalDeltaTime; }
+	float GetPostGaussianIntensity() const override { return sceneFadeBlurIntensity_; }
 	
 	std::string GetNextSceneName() const override;
 
@@ -96,7 +100,7 @@ private:
 	std::unique_ptr<Enemy> enemy_;
 
 	// 経験値敵
-	//std::unique_ptr<EnemyManager> enemyManager_;
+	std::unique_ptr<EnemyManager> enemyManager_;
 
 	// ステージ
 	std::unique_ptr<Stage> stage_;
@@ -106,6 +110,8 @@ private:
 
 	// 衝突マネージャ
 	std::unique_ptr<CollisionManager> collisionManager_;
+	std::unique_ptr<ObjectPostEffect> playerPostEffect_;
+	std::unique_ptr<ObjectPostEffect> enemyPostEffect_;
 
 	// 終了フラグ
 	bool finished_ = false;
@@ -127,5 +133,19 @@ private:
 
 	float timeScale_ = 1.0f; // 1.0 が通常、0.2 なら 5倍スロー
 	float finalDeltaTime;
+	bool enablePlayerPostEffect_ = true;
+	bool enableEnemyPostEffect_ = true;
+	bool slowMotionPostActive_ = false;
+	bool keepPlayerColorDuringSlow_ = true;
+	float slowPlayerChromAbAmount_ = 0.035f;
+	float slowPlayerDistortionAmount_ = 0.018f;
+	float slowPlayerGlitchAmount_ = 0.015f;
+	float sceneFadeBlurTimer_ = 0.0f;
+	float sceneFadeBlurDuration_ = 2.0f;
+	float sceneFadeBlurIntensity_ = 0.0f;
+	bool playerDeathShakeStarted_ = false;
+	float cameraShakeTimer_ = 0.0f;
+	float cameraShakeDuration_ = 0.65f;
+	float cameraShakePower_ = 0.0f;
 
 };

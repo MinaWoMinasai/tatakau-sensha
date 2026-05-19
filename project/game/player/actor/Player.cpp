@@ -30,6 +30,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			param.penetrate = false;
 			param.cooldown = 1.0f;
 			param.damage = static_cast<uint32_t>(stats_.bulletDamage);
+			bool firedByClass = false;
 
 			Vector3 recoilDir = Normalize(dir_) * -1.0f;
 			float recoilPower = 0.01f; // 弾の重さ（慣性の強さ）
@@ -50,6 +51,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 					param.spreadAngleDeg = 20.0f;
 				}
 				attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
+				firedByClass = true;
 				
 				SpawnCasing(); // ここで呼び出す
 				break;
@@ -64,10 +66,12 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				if (shootBarrelIndex_ == 0) {
 					// 左から発射
 					attackController_.Fire(origin - rightDir * offsetValue, dir_, param, BulletOwner::kPlayer);
+					firedByClass = true;
 					shootBarrelIndex_ = 1; // 次は右
 				} else {
 					// 右から発射
 					attackController_.Fire(origin + rightDir * offsetValue, dir_, param, BulletOwner::kPlayer);
+					firedByClass = true;
 					shootBarrelIndex_ = 0; // 次は左
 				}
 
@@ -81,6 +85,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				param.spreadAngleDeg = 30.0f;
 				param.randomSpread = true;
 				attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
+				firedByClass = true;
 				// リロード補正0.6倍
 				bulletCoolTime = baseReload * 0.6f;
 				break;
@@ -88,6 +93,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			case ClassType::Overseer:
 				// 弾は撃たず、ドローン管理関数を呼ぶ
 				DroneShoot(bulletManager);
+				firedByClass = true;
 				// 反動なし
 				recoilPower = 0.0f;
 				break;
@@ -118,6 +124,11 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				param.spreadAngleDeg = 15.0f;
 				// ステルス解除はしない(仕様通りなら攻撃中も維持)
 				break;
+			}
+
+			if (!firedByClass && currentClass_ != ClassType::Smasher) {
+				attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
+				SpawnCasing();
 			}
 
 			velocity_ += recoilDir * recoilPower;
@@ -204,12 +215,17 @@ void Player::AddExp(int amount)
 	exp_ += amount;
 	// レベルアップ判定（余剰分も考慮してループ）
 	while (exp_ >= nextLevelExp_) {
+		const int previousRank = GetRankFromLevel(level_);
 		exp_ -= nextLevelExp_;
 		level_++;
-		// ここで「スキルポイント獲得」や「進化画面表示」のフラグを立てる
+		skillPoints_++;
 
 		// 次の必要経験値を再計算（例: レベル * 100 + 補正）
 		nextLevelExp_ = GetNextLevelExp();
+
+		if (GetRankFromLevel(level_) > previousRank) {
+			isChangeMode = true;
+		}
 
 		if (level_ >= kMaxLevel) {
 			exp_ = nextLevelExp_; // カンスト表示用
@@ -299,8 +315,9 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	SetCollisionAttribute(kCollisionAttributePlayer);
 	// 衝突対象を自分の属性以外に設定
 	SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeEnemyBullet);
+	SetDamage(static_cast<uint32_t>(stats_.bodyDamage));
 
-	level_ = 15;
+	level_ = 1;
 	exp_ = 0;
 	nextLevelExp_ = GetNextLevelExp();
 
@@ -317,28 +334,25 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 {
 	sprite->Update();
 
-	//POINT mousePos;
-	//GetCursorPos(&mousePos);
-	//ScreenToClient(WinApp::GetInstance()->GetHwnd(), &mousePos);
-	//Vector2 mouseVec = { (float)mousePos.x, (float)mousePos.y };
-	//
-	//mousePosition_ = mouseVec;
-	//
-	//UpdateEncyclopedia();
-	//
-	//if (machineGunBtnSprite_->IsHovered(mouseVec)) {
-	//	machineGunBtnSprite_->SetColor(Vector4(0.0f, 1.0f, 0.0f, 1.0f));
-	//	if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
-	//
-	//		if (isChangeMode) {
-	//			isChangeMode = false;
-	//		} else {
-	//			isChangeMode = true;
-	//		}
-	//	}
-	//} else {
-	//	machineGunBtnSprite_->SetColor(Vector4(1.0f, 1.0f, 1.0f, 1.0f));
-	//}
+	POINT mousePos;
+	GetCursorPos(&mousePos);
+	ScreenToClient(WinApp::GetInstance()->GetHwnd(), &mousePos);
+	mousePosition_ = { static_cast<float>(mousePos.x), static_cast<float>(mousePos.y) };
+	UpdateEncyclopedia();
+
+	if (input_->IsTrigger(input_->GetKey()[DIK_C], input_->GetPreKey()[DIK_C])) {
+		isChangeMode = !isChangeMode;
+	}
+
+	if (skillPoints_ > 0) {
+		if (input_->IsTrigger(input_->GetKey()[DIK_1], input_->GetPreKey()[DIK_1])) ApplyStatUpgrade(0);
+		if (input_->IsTrigger(input_->GetKey()[DIK_2], input_->GetPreKey()[DIK_2])) ApplyStatUpgrade(1);
+		if (input_->IsTrigger(input_->GetKey()[DIK_3], input_->GetPreKey()[DIK_3])) ApplyStatUpgrade(2);
+		if (input_->IsTrigger(input_->GetKey()[DIK_4], input_->GetPreKey()[DIK_4])) ApplyStatUpgrade(3);
+		if (input_->IsTrigger(input_->GetKey()[DIK_5], input_->GetPreKey()[DIK_5])) ApplyStatUpgrade(4);
+		if (input_->IsTrigger(input_->GetKey()[DIK_6], input_->GetPreKey()[DIK_6])) ApplyStatUpgrade(5);
+		if (input_->IsTrigger(input_->GetKey()[DIK_7], input_->GetPreKey()[DIK_7])) ApplyStatUpgrade(6);
+	}
 
 	//SetDamage(int(stats_.bodyDamage));
 
@@ -353,7 +367,7 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 		SpawnBuffParticle();
 		if (buffTimer_ <= 0.0f) {
 			isBuffActive_ = false;
-			object_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f }); // 元の色に戻す
+			//object_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f }); // 元の色に戻す
 		}
 	}
 
@@ -437,7 +451,7 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 	}
 
 	// --- 目標速度 ---
-	Vector3 targetVelocity = inputDir_ * maxSpeed_;
+	Vector3 targetVelocity = inputDir_ * stats_.moveSpeed;
 
 	// --- 慣性処理 ---
 	float accel = (Length(inputDir_) > 0.0f) ? accel_ : decel_;
@@ -446,17 +460,21 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 
 	float timeWeight = deltaTime * 60.0f;
 
-	// X移動
-	Vector3 pos = GetWorldPosition();
-	pos.x += velocity_.x * timeWeight;
-	SetWorldPosition(pos);
-	stage.ResolvePlayerCollision(*this, X);
+	Vector3 frameMove = velocity_ * timeWeight;
+	const float maxStep = 0.35f;
+	const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(frameMove.x), std::abs(frameMove.y)) / maxStep) + 1);
+	Vector3 stepMove = frameMove / static_cast<float>(subStepCount);
+	for (int i = 0; i < subStepCount; ++i) {
+		Vector3 pos = GetWorldPosition();
+		pos.x += stepMove.x;
+		SetWorldPosition(pos);
+		stage.ResolvePlayerCollision(*this, X);
 
-	// Y移動
-	pos = GetWorldPosition();
-	pos.y += velocity_.y * timeWeight;
-	SetWorldPosition(pos);
-	stage.ResolvePlayerCollision(*this, Y);
+		pos = GetWorldPosition();
+		pos.y += stepMove.y;
+		SetWorldPosition(pos);
+		stage.ResolvePlayerCollision(*this, Y);
+	}
 
 	// object_ の更新だけ（移動はしない）
 	object_->SetTransform(worldTransform_);
@@ -520,23 +538,23 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 	if (isExploding_) {
 		UpdateParticles(deltaTime);
 	}
-	UpdateP(deltaTime);
 
 }
 
-void Player::Draw() {
+void Player::Draw(bool drawBody) {
 
 	// ドローンの描画
 	for (auto& drone : drones_) {
 		drone->Draw();
 	}
 
-	for (auto& p : particles_) {
-		p.object->Draw();
+	if (drawBody) {
+		DrawBodyOnly();
 	}
-	for (auto& p : ps_) {
-		p.object->Draw();
-	}
+
+}
+
+void Player::DrawBodyOnly() {
 	if (!isDead_) {
 		// 無敵時間中は点滅
 
@@ -614,7 +632,7 @@ void Player::OnCollision(Collider* other) {
 		buffTimer_ = kBuffDuration;
 		isBuffActive_ = true;
 		// 演出として色を変える（例：金色っぽく）
-		object_->SetColor({ 0.0f, 1.0f, 0.0f, 1.0f });
+		//object_->SetColor({ 0.0f, 1.0f, 0.0f, 1.0f });
 		maxCharge_ = 5.0f;
 		return;
 	}
@@ -631,6 +649,10 @@ void Player::OnCollision(Collider* other) {
 	const float kKnockBackPower = 0.15f;
 
 	velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
+	const float maxKnockSpeed = isDashing_ ? 0.32f : 0.20f;
+	if (Length(velocity_) > maxKnockSpeed) {
+		velocity_ = Normalize(velocity_) * maxKnockSpeed;
+	}
 }
 
 AABB Player::GetAABB() {
@@ -710,6 +732,8 @@ void Player::Evolve(ClassType newClass)
 			//break;
 			// ...
 	}
+
+	isChangeMode = false;
 }
 
 void Player::InitializeEncyclopedia()
@@ -769,169 +793,24 @@ void Player::InitializeEncyclopedia()
 
 void Player::SpawnParticles()
 {
-	const int particleCount = 30;
-	Vector3 center = object_->GetTranslate();
-
-	for (int i = 0; i < particleCount; ++i) {
-
-		PlayerParticle p{};
-
-		p.object = std::make_unique<Object3d>();
-		p.object->Initialize();
-		p.object->SetModel("playerParticle.obj");
-
-		p.object->SetTranslate(center);
-
-		// ----------------------
-		// ランダム方向 → 正規化
-		// ----------------------
-		Vector3 dir = Rand(
-			Vector3{ -1.0f, -1.0f, -1.0f },
-			Vector3{ 1.0f,  1.0f,  1.0f }
-		);
-		dir = Normalize(dir);
-
-		p.velocity = dir * Rand(3.0f, 6.0f);
-
-		// 回転速度
-		p.rotateSpeed = Rand(
-			Vector3{ -6.0f, -6.0f, -6.0f },
-			Vector3{ 6.0f,  6.0f,  6.0f }
-		);
-
-		// ----------------------
-		// 寿命 & 透明度
-		// ----------------------
-		p.timer = 0.0f;
-		p.lifeTime = Rand(0.9f, 1.4f);     // ★ 個体差
-		p.startAlpha = Rand(0.6f, 1.0f);   // ★ 初期アルファ
-
-		// Addブレンド映え用（少し明るめ）
-		Vector4 color = {
-			Rand(0.8f, 1.2f),
-			Rand(0.8f, 1.2f),
-			Rand(0.8f, 1.2f),
-			p.startAlpha
-		};
-		p.object->SetColor(color);
-
-		particles_.push_back(std::move(p));
-	}
+	Vector3 center = GetWorldPosition();
+	ParticleManager::GetInstance()->Emit("PlayerDeathBurst", center, 70);
+	ParticleManager::GetInstance()->Emit("DeathSmoke", center, 22);
+	ParticleManager::GetInstance()->EmitHitEffect(center);
+	deathEffectTimer_ = 1.1f;
 }
 
 void Player::UpdateParticles(float deltaTime)
 {
-	for (auto& p : particles_) {
-
-		p.timer += deltaTime;
-		if (p.timer >= p.lifeTime) continue;
-
-		float t = p.timer / p.lifeTime; // 0.0 → 1.0
-
-		// ----------------------
-		// 移動
-		// ----------------------
-		Vector3 pos = p.object->GetTranslate();
-		pos += p.velocity * deltaTime;
-
-		// 減速
-		p.velocity *= 0.97f;
-
-		// 重力
-		p.velocity.y -= 6.0f * deltaTime;
-
-		// ----------------------
-		// 回転
-		// ----------------------
-		Vector3 rot = p.object->GetRotate();
-		rot += p.rotateSpeed * deltaTime;
-
-		// ----------------------
-		// フェードアウト
-		// ----------------------
-		float alpha = p.startAlpha * (1.0f - t);
-		alpha = std::max(alpha, 0.0f);
-
-		Vector4 color = p.object->GetColor();
-		color.w = alpha;
-		p.object->SetColor(color);
-
-		// ----------------------
-		p.object->SetTranslate(pos);
-		p.object->SetRotate(rot);
-		p.object->Update();
-	}
-
-	// 寿命切れ削除
-	particles_.erase(
-		std::remove_if(
-			particles_.begin(),
-			particles_.end(),
-			[](const PlayerParticle& p) {
-				return p.timer >= p.lifeTime;
-			}),
-		particles_.end()
-	);
-
-	if (particles_.empty()) {
+	deathEffectTimer_ -= deltaTime;
+	if (deathEffectTimer_ <= 0.0f) {
 		isExploding_ = false;
 	}
 }
 
 void Player::UpdateP(float deltaTime)
 {
-	for (auto& p : ps_) {
-
-		p.timer += deltaTime;
-		if (p.timer >= p.lifeTime) continue;
-
-		float t = p.timer / p.lifeTime; // 0.0 → 1.0
-
-		// ----------------------
-		// 移動
-		// ----------------------
-		Vector3 pos = p.object->GetTranslate();
-		pos += p.velocity * deltaTime;
-
-		// 減速
-		p.velocity *= 0.97f;
-
-		// 重力
-		p.velocity.y -= 6.0f * deltaTime;
-
-		// ----------------------
-		// 回転
-		// ----------------------
-		Vector3 rot = p.object->GetRotate();
-		rot += p.rotateSpeed * deltaTime;
-
-		// ----------------------
-		// フェードアウト
-		// ----------------------
-		float alpha = p.startAlpha * (1.0f - t);
-		alpha = std::max(alpha, 0.0f);
-
-		Vector4 color = p.object->GetColor();
-		color.w = alpha;
-		p.object->SetColor(color);
-
-		// ----------------------
-		p.object->SetTranslate(pos);
-		p.object->SetRotate(rot);
-		p.object->Update();
-	}
-
-	// 寿命切れ削除
-	ps_.erase(
-		std::remove_if(
-			ps_.begin(),
-			ps_.end(),
-			[](const PlayerParticle& p) {
-				return p.timer >= p.lifeTime;
-			}),
-		ps_.end()
-	);
-
+	(void)deltaTime;
 }
 
 void Player::UpdateEncyclopedia()
@@ -976,6 +855,78 @@ int Player::GetRankFromLevel(int level) {
 	if (level >= 10) return 3;
 	if (level >= 5) return 2;
 	return 1;
+}
+
+int Player::GetUpgradeLevel(int index) const
+{
+	if (index < 0 || index >= static_cast<int>(upgradeLevels_.size())) {
+		return 0;
+	}
+	return upgradeLevels_[index];
+}
+
+const char* Player::GetCurrentClassName() const
+{
+	switch (currentClass_) {
+	case ClassType::Basic: return "Basic";
+	case ClassType::Twin: return "Twin";
+	case ClassType::MachineGun: return "MachineGun";
+	case ClassType::Overseer: return "Overseer";
+	case ClassType::Triple: return "Triple";
+	case ClassType::Assassin: return "Assassin";
+	case ClassType::Bounder: return "Bounder";
+	case ClassType::Ninja: return "Ninja";
+	case ClassType::Smasher: return "Smasher";
+	case ClassType::Summoner: return "Summoner";
+	}
+	return "Unknown";
+}
+
+bool Player::ApplyStatUpgrade(int index)
+{
+	if (skillPoints_ <= 0 || index < 0 || index >= static_cast<int>(upgradeLevels_.size())) {
+		return false;
+	}
+	if (upgradeLevels_[index] >= maxEnhancePoint) {
+		return false;
+	}
+
+	upgradeLevels_[index]++;
+	skillPoints_--;
+
+	switch (index) {
+	case 0:
+		stats_.staminaRecovery += 0.25f;
+		break;
+	case 1:
+		stats_.maxHp += 1.0f;
+		hp_++;
+		{
+			auto hpSprite = std::make_unique<Sprite>();
+			hpSprite->Initialize(SpriteCommon::GetInstance(), "resources/playerSprite.png");
+			hpSprite->SetSize({ 20.0f, 20.0f });
+			hpSprites_.push_back(std::move(hpSprite));
+		}
+		break;
+	case 2:
+		stats_.bodyDamage += 1.0f;
+		SetDamage(static_cast<uint32_t>(stats_.bodyDamage));
+		break;
+	case 3:
+		stats_.bulletSpeed += 0.04f;
+		break;
+	case 4:
+		stats_.bulletDamage += 1.0f;
+		break;
+	case 5:
+		stats_.reloadSpeed = (std::max)(3.0f, stats_.reloadSpeed - 1.0f);
+		break;
+	case 6:
+		stats_.moveSpeed += 0.025f;
+		break;
+	}
+
+	return true;
 }
 
 void Player::UpdateStealth(float deltaTime) {
@@ -1030,91 +981,17 @@ void Player::UpdateSummoner(float deltaTime) {
 
 // 薬莢（スモールパーティクル）を生成する汎用関数
 void Player::SpawnCasing() {
-	for (int i = 0; i < 2; ++i) {
-		PlayerParticle p{};
-		p.object = std::make_unique<Object3d>();
-		p.object->Initialize();
-		p.object->SetModel("playerParticle.obj"); // 薬莢用の細長いモデルがあればベスト
-
-		// 1. 発射位置（プレイヤーの位置）
-		Vector3 origin = GetWorldPosition();
-		p.object->SetTranslate(origin + (dir_ * 1.0f));
-
-		// 2. 排出方向の計算 (進行方向 dir_ に対して右後ろに飛ばす)
-		// dir_ = {x, y, 0} と想定
-		Vector3 ejectDir = { -dir_.y, dir_.x, 0.0f }; // プレイヤーの右方向
-		ejectDir = Normalize(ejectDir + (dir_ * -0.5f)); // 少し後ろに傾ける
-
-		// 3. 初速と回転
-		float speed = Rand(2.0f, 4.0f);
-		p.velocity = ejectDir * speed;
-		p.rotateSpeed = Rand(Vector3{ -10.0f, -10.0f, -10.0f }, Vector3{ 10.0f, 10.0f, 10.0f });
-
-		// 4. 寿命と色（薬莢っぽく黄色・オレンジ系に）
-		p.timer = 0.0f;
-		p.lifeTime = Rand(0.5f, 0.8f);
-		p.startAlpha = 1.0f;
-		p.object->SetColor({ 1.0f, 0.8f, 0.2f, 1.0f }); // 金色
-		p.object->SetScale({ 0.4f, 0.4f, 0.4f });      // 小さくする
-
-		ps_.push_back(std::move(p));
-	}
+	ParticleManager::GetInstance()->Emit("CasingSpark", GetWorldPosition() + dir_ * 1.0f, 2);
 }
 
 // 残像を生成する関数
 void Player::SpawnAfterimage() {
-	PlayerParticle p{};
-	p.object = std::make_unique<Object3d>();
-	p.object->Initialize();
-
-	// 現在のプレイヤーと同じモデルとトランスフォームを設定
-	p.object->SetModel("player.obj"); // プレイヤーのモデル名に合わせてください
-	p.object->SetTranslate(worldTransform_.translate);
-	p.object->SetRotate(worldTransform_.rotate);
-	p.object->SetScale(worldTransform_.scale);
-
-	// 残像なので動かさない
-	p.velocity = { 0.0f, 0.0f, 0.0f };
-	p.rotateSpeed = { 0.0f, 0.0f, 0.0f };
-
-	p.timer = 0.0f;
-	p.lifeTime = 0.4f; // 短めに消える
-	p.startAlpha = 0.5f;
-
-	// ジャスト回避中なら緑/金、通常のダッシュなら青っぽくするなど
-	if (isJustEvaded_) {
-		p.object->SetColor({ 0.0f, 1.0f, 0.5f, 0.4f }); // ジャスト回避：エメラルド
-	} else {
-		p.object->SetColor({ 0.5f, 0.5f, 1.0f, 0.3f }); // 通常ダッシュ：薄い青
-	}
-
-	ps_.push_back(std::move(p));
+	ParticleManager::GetInstance()->Emit("DashDust", GetWorldPosition(), isJustEvaded_ ? 4 : 2);
 }
 
 // バフ中の粒子を生成
 void Player::SpawnBuffParticle() {
-	PlayerParticle p{};
-	p.object = std::make_unique<Object3d>();
-	p.object->Initialize();
-	p.object->SetModel("playerParticle.obj");
-
-	// プレイヤーの足元付近からランダムに発生
-	Vector3 offset = { Rand(-0.5f, 0.5f), -0.5f, Rand(-0.5f, 0.5f) };
-	p.object->SetTranslate(GetWorldPosition() + offset);
-
-	// 上に向かって昇っていく（重力に逆らう初速を与える）
-	p.velocity = { Rand(-0.2f, 0.2f), Rand(2.0f, 4.0f), 0.0f };
-	p.rotateSpeed = Rand(Vector3{ -5,-5,-5 }, Vector3{ 5,5,5 });
-
-	p.timer = 0.0f;
-	p.lifeTime = Rand(0.6f, 1.0f);
-	p.startAlpha = 1.0f;
-
-	// バフの色（鮮やかな緑や黄色）
-	p.object->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f });
-	p.object->SetScale({ 0.3f, 0.3f, 0.3f });
-
-	ps_.push_back(std::move(p));
+	ParticleManager::GetInstance()->Emit("DashDust", GetWorldPosition(), 1);
 }
 Vector2 Player::WorldToScreen(const Vector3& worldPos, Camera* camera) {
 	// 1. ビュープロジェクション行列で変換

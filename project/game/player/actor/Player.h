@@ -2,6 +2,7 @@
 #define NOMINMAX
 #include <Windows.h>
 #include <algorithm>
+#include <array>
 #include <list>
 #include "Calculation.h"
 #include "Collider.h"
@@ -12,16 +13,6 @@
 #include "PlayerDrone.h"
 #include "Easing.h"
 #include "ParticleManager.h"
-
-struct PlayerParticle {
-	std::unique_ptr<Object3d> object;
-	Vector3 velocity;
-	Vector3 rotateSpeed;
-	float timer;
-	float lifeTime;
-
-	float startAlpha;
-};
 
 enum class ClassType {
 	
@@ -105,7 +96,8 @@ public:
 	/// <summary>
 	/// 描画
 	/// </summary>
-	void Draw();
+	void Draw(bool drawBody = true);
+	void DrawBodyOnly();
 
 	/// <summary>
 	/// スプライト描画
@@ -177,6 +169,12 @@ public:
 	// 経験値を加算する関数
 	void AddExp(int amount);
 	int GetLevel() const { return level_; }
+	int GetExp() const { return exp_; }
+	int GetNextLevelExpValue() const { return nextLevelExp_; }
+	int GetSkillPoints() const { return skillPoints_; }
+	int GetUpgradeLevel(int index) const;
+	const char* GetCurrentClassName() const;
+	bool ApplyStatUpgrade(int index);
 
 	bool RequestSlow();
 
@@ -242,11 +240,7 @@ private:
 	bool isDead_ = false;
 
 	bool isExploding_ = false;
-
-	std::vector<PlayerParticle> particles_;
-
-
-	std::vector<PlayerParticle> ps_;
+	float deathEffectTimer_ = 0.0f;
 
 
 	// 攻撃コントローラ
@@ -274,6 +268,8 @@ private:
 	int shootBarrelIndex_ = 0; // 次に撃つ砲身の番号
 
 	const int maxEnhancePoint = 5;
+	std::array<int, 7> upgradeLevels_{};
+	int skillPoints_ = 0;
 	void UpdateStealth(float deltaTime);
 	void UpdateSummoner(float deltaTime);
 private:

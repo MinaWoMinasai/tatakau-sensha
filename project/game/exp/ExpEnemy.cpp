@@ -1,8 +1,9 @@
 #include "ExpEnemy.h"
 #include "Player.h"
+#include "ParticleManager.h"
 #include "Stage.h"
 
-void ExpEnemy::Initialize(const Vector3& position, Player* player)
+void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType type)
 {
     object_ = std::make_unique<Object3d>();
     object_->Initialize();
@@ -11,7 +12,8 @@ void ExpEnemy::Initialize(const Vector3& position, Player* player)
     worldTransform_.translate = position;
     worldTransform_.scale = Vector3(1.0f, 1.0f, 1.0f);
 
-    object_->SetModel("enemyParticle.obj");
+    type_ = type;
+    ApplyTypeParams();
 
     // 衝突属性を設定
     SetCollisionAttribute(kCollisionAttributeEnemy);
@@ -23,6 +25,44 @@ void ExpEnemy::Initialize(const Vector3& position, Player* player)
     object_->SetTransform(worldTransform_);
     object_->Update();
 
+}
+
+void ExpEnemy::ApplyTypeParams()
+{
+    switch (type_) {
+    case ExpEnemyType::Square:
+        object_->SetModel("enemyParticle.obj");
+        object_->SetColor({ 1.0f, 0.86f, 0.20f, 1.0f });
+        hp_ = 6;
+        expValue_ = 8;
+        shootInterval_ = 0.0f;
+        worldTransform_.scale = { 0.14f, 0.14f, 0.14f };
+        break;
+    case ExpEnemyType::Triangle:
+        object_->SetModel("triangleParticle.obj");
+        object_->SetColor({ 1.0f, 0.30f, 0.35f, 1.0f });
+        hp_ = 10;
+        expValue_ = 14;
+        shootInterval_ = 0.0f;
+        worldTransform_.scale = { 0.16f, 0.16f, 0.16f };
+        break;
+    case ExpEnemyType::Pentagon:
+        object_->SetModel("bloomBlock.obj");
+        object_->SetColor({ 0.35f, 0.48f, 1.0f, 1.0f });
+        hp_ = 24;
+        expValue_ = 35;
+        shootInterval_ = 0.0f;
+        worldTransform_.scale = { 0.18f, 0.18f, 0.18f };
+        break;
+    case ExpEnemyType::Shooter:
+        object_->SetModel("enemy.obj");
+        object_->SetColor({ 0.95f, 0.25f, 0.18f, 1.0f });
+        hp_ = 14;
+        expValue_ = 22;
+        shootInterval_ = 2.4f;
+        worldTransform_.scale = { 0.6f, 0.6f, 0.6f };
+        break;
+    }
 }
 
 void ExpEnemy::Update(Stage& stage, float deltaTime) {
@@ -58,6 +98,10 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
     object_->SetTransform(worldTransform_);
     object_->Update();
 
+    if (shootInterval_ <= 0.0f) {
+        return;
+    }
+
     // 2. 一定間隔で弾を撃つ（反撃ギミック）
     bulletCoolTime -= deltaTime;
     if (bulletCoolTime <= 0.0f) { // 2秒に1回
@@ -83,7 +127,7 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 
         attackController_.Fire(origin, baseDir, param, BulletOwner::kEnemy);
 
-        bulletCoolTime = 2.0f;
+        bulletCoolTime = shootInterval_;
     }
 }
 
@@ -109,6 +153,8 @@ void ExpEnemy::OnCollision(Collider* other)
     hp_ -= other->GetDamage();
     if (hp_ <= 0) {
         isDead_ = true;
+        ParticleManager::GetInstance()->Emit("EnemyDeathBurst", GetWorldPosition(), 18);
+        ParticleManager::GetInstance()->Emit("DeathSmoke", GetWorldPosition(), 5);
         player_->AddExp(expValue_);
     }
 

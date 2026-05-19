@@ -1,4 +1,5 @@
 #include "Bloom.h"
+#include <algorithm>
 
 void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager) {
 
@@ -34,7 +35,9 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         srvManager_,
         rtvManager_,
         bloomWidth,
-        bloomHeight
+        bloomHeight,
+        { 0.0f, 0.0f, 0.0f, 1.0f },
+        false
     );
 
     bloomRT_B_->Initialize(
@@ -42,13 +45,23 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         srvManager_,
         rtvManager_,
         bloomWidth,
-        bloomHeight
+        bloomHeight,
+        { 0.0f, 0.0f, 0.0f, 1.0f },
+        false
     );
 
     // bloomRT_Half を追加
     bloomRT_Half_ = std::make_unique<RenderTexture>();
     // サイズは画面の半分
-    bloomRT_Half_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
+    bloomRT_Half_->Initialize(
+        dxCommon_,
+        srvManager_,
+        rtvManager_,
+        WinApp::kClientWidth / 2,
+        WinApp::kClientHeight / 2,
+        { 0.0f, 0.0f, 0.0f, 1.0f },
+        false
+    );
 
     // ブルームパラメータ
     bloomParam_.threshold = 0.0f;
@@ -63,6 +76,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.curvature = 0.6f;
     bloomParam_.borderSharp = 0.02f;
     bloomParam_.glitchAmount = 0.0f;
+    baseGaussianIntensity_ = bloomParam_.gaussianIntensity;
 
     bloomCB_->Update(bloomParam_);
 
@@ -87,7 +101,7 @@ void Bloom::Update() {
     ImGui::DragFloat("Curvature", &bloomParam_.curvature, 0.001f);
     ImGui::DragFloat("Border Sharp", &bloomParam_.borderSharp, 0.1f);
     ImGui::DragFloat("Glitch Amount", &bloomParam_.glitchAmount, 0.001f);
-    ImGui::DragFloat("Gaussian Intensity", &bloomParam_.gaussianIntensity, 0.01f, 0.0f, 1.0f);
+    ImGui::DragFloat("Gaussian Intensity", &baseGaussianIntensity_, 0.01f);
 
     ImGui::Separator(); // 区切り線
     ImGui::Text("New Effects");
@@ -103,10 +117,9 @@ void Bloom::Update() {
 
     ImGui::Separator();
 
-    static bool grayFlag = false;
     static bool invertFlag = false;
-    if (ImGui::Checkbox("Grayscale", &grayFlag)) {
-        bloomParam_.isGrayscale = grayFlag ? 1.0f : 0.0f;
+    if (ImGui::Checkbox("Grayscale", &manualGrayscale_)) {
+        bloomParam_.isGrayscale = (manualGrayscale_ || forceGrayscale_) ? 1.0f : 0.0f;
     }
     if (ImGui::Checkbox("Invert Color", &invertFlag)) {
         bloomParam_.isInverted = invertFlag ? 1.0f : 0.0f;
@@ -126,13 +139,15 @@ void Bloom::Update() {
         bloomParam_.curvature = 0.0f;
         bloomParam_.borderSharp = 0.0f;
         bloomParam_.glitchAmount = 0.0f;
-        bloomParam_.gaussianIntensity = 0.0f;
+        baseGaussianIntensity_ = 0.0f;
         // 追加分のリセット
         bloomParam_.dissolveThreshold = 0.0f;
         bloomParam_.outlineWidth = 0.0f;
         bloomParam_.outlineThreshold = 0.5f;
         bloomParam_.outlineColor = { 1.0f, 1.0f, 1.0f };
-        grayFlag = false;
+        bloomParam_.outlineBloomIntensity = 0.0f;
+        bloomParam_.outlineBloomWidth = 6.0f;
+        manualGrayscale_ = false;
         invertFlag = false;
     }
 
@@ -140,9 +155,23 @@ void Bloom::Update() {
 
 #endif // USE_IMGUI
 
+    bloomParam_.isGrayscale = (manualGrayscale_ || forceGrayscale_) ? 1.0f : 0.0f;
+    bloomParam_.gaussianIntensity = (std::max)(baseGaussianIntensity_, gaussianOverrideIntensity_);
     bloomCB_->Update(bloomParam_);
     timer_ += SceneManager::GetInstance()->GetFinalDeltaTime();
     bloomParam_.timer = timer_;
+}
+
+void Bloom::SetGrayscaleEnabled(bool enabled) {
+    forceGrayscale_ = enabled;
+    bloomParam_.isGrayscale = (manualGrayscale_ || forceGrayscale_) ? 1.0f : 0.0f;
+    bloomCB_->Update(bloomParam_);
+}
+
+void Bloom::SetGaussianOverride(float intensity) {
+    gaussianOverrideIntensity_ = (std::clamp)(intensity, 0.0f, 1.0f);
+    bloomParam_.gaussianIntensity = (std::max)(baseGaussianIntensity_, gaussianOverrideIntensity_);
+    bloomCB_->Update(bloomParam_);
 }
 
 void Bloom::PreDraw() {

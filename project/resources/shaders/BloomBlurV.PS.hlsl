@@ -5,7 +5,28 @@ cbuffer BloomParam : register(b0)
 {
     float threshold;
     float intensity;
-    float2 padding;
+    float vignetteIntensity;
+    float vignetteScale;
+    float timer;
+    float distortionAmount;
+    float chromAbAmount;
+    float isGrayscale;
+    float isInverted;
+    float noiseIntensity;
+    float scanlineIntensity;
+    float scanlineFrequency;
+    float curvature;
+    float borderSharp;
+    float glitchAmount;
+    float gaussianIntensity;
+    float dissolveThreshold;
+    float outlineWidth;
+    float outlineThreshold;
+    float pad1;
+    float3 outlineColor;
+    float outlineBloomIntensity;
+    float outlineBloomWidth;
+    float2 pad2;
 };
 
 struct PSInput
@@ -30,5 +51,6 @@ float4 main(PSInput input) : SV_TARGET
         col += sceneTex.Sample(samp, input.uv - float2(0.0f, texel.y * i)) * weights[i];
     }
 
-    return float4(col.rgb * intensity, col.a);
+    float blurIntensity = (gaussianIntensity > 0.0f) ? 1.0f : intensity;
+    return float4(col.rgb * blurIntensity, col.a);
 }
