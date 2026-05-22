@@ -151,11 +151,18 @@ void TitleScene::Update() {
 		}
 		break;
 	case Phase::kMain:
+		if (input_->IsTrigger(input_->GetKey()[DIK_F2], input_->GetPreKey()[DIK_F2])) {
+			nextSceneName_ = "PLAYER_LAB";
+			fade_->Start(Fade::Status::FadeOut, 0.35f);
+			phase_ = Phase::kFadeOut;
+			break;
+		}
 
 		// 左クリックでruleを表示
 		if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
 			if (ruleGide) {
 				if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
+					nextSceneName_ = "GAME";
 					fade_->Start(Fade::Status::FadeOut, 1.0f);
 					phase_ = Phase::kFadeOut;
 					ruleGide = false;
@@ -227,5 +234,5 @@ void TitleScene::UpdateLogoChar(LogoChar& c, float deltaTime)
 
 std::string TitleScene::GetNextSceneName() const
 {
-	return "GAME";
+	return nextSceneName_;
 }

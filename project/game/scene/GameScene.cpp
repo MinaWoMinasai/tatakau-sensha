@@ -1,6 +1,7 @@
 #include "GameScene.h"
 #include "CollisionConfig.h"
 #include <cmath>
+#include <cstdio>
 
 namespace {
 
@@ -131,6 +132,24 @@ void GameScene::Initialize() {
 		expEnemyPost.outlineBloomWidth = 2.7f;
 	}
 
+	stagePostEffect_ = std::make_unique<ObjectPostEffect>();
+	stagePostEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr
+	);
+	{
+		BloomParam& stagePost = stagePostEffect_->GetParam();
+		stagePost.threshold = 0.0f;
+		stagePost.intensity = 1.1f;
+		stagePost.outlineWidth = 0.0f;
+		stagePost.outlineThreshold = 0.0f;
+		stagePost.outlineColor = { 1.0f, 0.55f, 0.58f };
+		stagePost.chromAbAmount = 0.0f;
+		stagePost.outlineBloomIntensity = 0.22f;
+		stagePost.outlineBloomWidth = 2.4f;
+	}
+
 	neonGridPostEffect_ = std::make_unique<ObjectPostEffect>();
 	neonGridPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
@@ -255,6 +274,27 @@ void GameScene::Initialize() {
 	toTitleGide->SetPosition({ 20.0f, 610.0f });
 	toTitleGide->SetSize({ 200.0f, 50.0f });
 
+	dashGuideText_ = std::make_unique<TextLabel>();
+	dashGuideText_->InitializeFromJson(SpriteCommon::GetInstance(), "resources/configs/gameText.json", "dashGuide");
+
+	moveGuideText_ = std::make_unique<TextLabel>();
+	moveGuideText_->InitializeFromJson(SpriteCommon::GetInstance(), "resources/configs/gameText.json", "moveGuide");
+
+	titleGuideText_ = std::make_unique<TextLabel>();
+	titleGuideText_->InitializeFromJson(SpriteCommon::GetInstance(), "resources/configs/gameText.json", "titleGuide");
+
+	TextStyle fpsStyle{};
+	fpsStyle.fontFamily = "Meiryo";
+	fpsStyle.fontSize = 24.0f;
+	fpsStyle.color = { 0.70f, 1.0f, 0.78f, 1.0f };
+	fpsStyle.outlineColor = { 0.0f, 0.0f, 0.0f, 0.88f };
+	fpsStyle.outlineThickness = 2.0f;
+	fpsStyle.padding = 5.0f;
+	fpsText_ = std::make_unique<TextLabel>();
+	fpsText_->Initialize(SpriteCommon::GetInstance(), "FPS: --", fpsStyle);
+	fpsText_->SetPosition({ 16.0f, 14.0f });
+	fpsLastSampleTime_ = std::chrono::steady_clock::now();
+
 	InitializeFollowHpBarBatch();
 
 }
@@ -282,6 +322,22 @@ void GameScene::Update() {
 
 	if (player_->IsChangeMode()) {
 		finalDeltaTime = 0.0f;
+	}
+
+	{
+		const auto now = std::chrono::steady_clock::now();
+		const float realDeltaTime = std::chrono::duration<float>(now - fpsLastSampleTime_).count();
+		fpsLastSampleTime_ = now;
+		fpsAccumulatedTime_ += realDeltaTime;
+		++fpsFrameCount_;
+		if (fpsText_ && fpsAccumulatedTime_ >= 0.25f) {
+			const float fps = static_cast<float>(fpsFrameCount_) / fpsAccumulatedTime_;
+			char text[32]{};
+			std::snprintf(text, sizeof(text), "FPS: %.0f", fps);
+			fpsText_->SetText(text);
+			fpsAccumulatedTime_ = 0.0f;
+			fpsFrameCount_ = 0;
+		}
 	}
 
 	if (sceneFadeBlurTimer_ > 0.0f) {
@@ -368,6 +424,20 @@ void GameScene::Update() {
 	ImGui::DragFloat("Exp Enemy Outline Bloom Width", &expEnemyPost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
 	ImGui::End();
 
+	ImGui::Begin("Stage Object Post");
+	ImGui::Checkbox("Enable Stage Post", &enableStagePostEffect_);
+	BloomParam& stagePost = stagePostEffect_->GetParam();
+	ImGui::DragFloat("Stage Intensity", &stagePost.intensity, 0.01f, 0.0f, 5.0f);
+	ImGui::DragFloat("Stage Distortion", &stagePost.distortionAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Stage ChromAb", &stagePost.chromAbAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Stage Glitch", &stagePost.glitchAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Stage Outline Width", &stagePost.outlineWidth, 0.1f, 0.0f, 10.0f);
+	ImGui::DragFloat("Stage Outline Threshold", &stagePost.outlineThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::ColorEdit3("Stage Outline Color", &stagePost.outlineColor.x);
+	ImGui::DragFloat("Stage Outline Bloom Intensity", &stagePost.outlineBloomIntensity, 0.01f, 0.0f, 5.0f);
+	ImGui::DragFloat("Stage Outline Bloom Width", &stagePost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
+	ImGui::End();
+
 	ImGui::Begin("RPG Progress");
 	ImGui::Text("Level: %d", player_->GetLevel());
 	ImGui::Text("Exp: %d / %d", player_->GetExp(), player_->GetNextLevelExpValue());
@@ -392,6 +462,8 @@ void GameScene::Update() {
 		player_->AddExp(200);
 	}
 	ImGui::End();
+
+	player_->DrawPlayerClassEditor();
 
 	ImGui::Begin("Collision Debug");
 	ImGui::Checkbox("Show Colliders (F7)", &showCollisionDebug_);
@@ -542,6 +614,7 @@ void GameScene::Update() {
 	playerPostEffect_->Update(finalDeltaTime);
 	enemyPostEffect_->Update(finalDeltaTime);
 	expEnemyPostEffect_->Update(finalDeltaTime);
+	stagePostEffect_->Update(finalDeltaTime);
 	neonGridPostEffect_->Update(finalDeltaTime);
 	bulletTrailPostEffect_->Update(finalDeltaTime);
 
@@ -634,14 +707,16 @@ void GameScene::DrawPostEffect3D() {
 	
 	bulletManager_->Draw();
 	
-	stage_->Draw();
-	//
-	ballObj_->Draw();
-	//
-	//groundObj_->Draw();
-
-	ball_->Draw();
-
+	if (enableStagePostEffect_) {
+		stagePostEffect_->BeginCapture();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		stage_->Draw();
+		stagePostEffect_->EndCapture();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+	} else {
+		stage_->Draw();
+	}
+	
 	{
 		Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewProjectionMatrix()
@@ -683,7 +758,6 @@ void GameScene::DrawPostEffect3D() {
 		Object3dCommon::GetInstance()->PreDraw(kNormal);
 	}
 
-	
 	if (showCollisionDebug_) {
 		Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewProjectionMatrix()
@@ -798,9 +872,18 @@ void GameScene::DrawSprite() {
 	player_->DrawSprite();
 	player_->DrawEncyclopedia();
 	//shotGide->Draw();
-	wasdGide->Draw();
-	dashGide->Draw();
-	toTitleGide->Draw();
+	if (dashGuideText_) {
+		dashGuideText_->Draw();
+	}
+	if (moveGuideText_) {
+		moveGuideText_->Draw();
+	}
+	if (titleGuideText_) {
+		titleGuideText_->Draw();
+	}
+	if (fpsText_) {
+		fpsText_->Draw();
+	}
 	if (phase_ != Phase::kFadeIn) {
 		fade_->Draw();
 	}

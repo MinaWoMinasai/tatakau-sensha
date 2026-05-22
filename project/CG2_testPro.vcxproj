@@ -156,6 +156,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\commom\RingManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\TrailInstance.cpp" />
     <ClCompile Include="DirectX\engine\commom\TrailManager.cpp" />
+    <ClCompile Include="DirectX\engine\2d\TextLabel.cpp" />
+    <ClCompile Include="DirectX\engine\2d\TextRenderer.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\Bloom.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\BloomConstantBuffer.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\ObjectPostEffect.cpp" />
@@ -237,6 +239,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\player\actor\Stage.cpp" />
     <ClCompile Include="game\scene\Fade.cpp" />
     <ClCompile Include="game\scene\GameScene.cpp" />
+    <ClCompile Include="game\scene\PlayerLabScene.cpp" />
     <ClCompile Include="game\scene\SceneManager.cpp" />
     <ClCompile Include="game\scene\TitleScene.cpp" />
     <ClCompile Include="main.cpp">
@@ -369,6 +372,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\RingManager.h" />
     <ClInclude Include="DirectX\engine\commom\TrailInstance.h" />
     <ClInclude Include="DirectX\engine\commom\TrailManager.h" />
+    <ClInclude Include="DirectX\engine\2d\TextLabel.h" />
+    <ClInclude Include="DirectX\engine\2d\TextRenderer.h" />
     <ClInclude Include="DirectX\engine\postEffect\Bloom.h" />
     <ClInclude Include="DirectX\engine\postEffect\ObjectPostEffect.h" />
     <ClInclude Include="DirectX\engine\particle\EffectSequencer.h" />
@@ -441,6 +446,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\player\actor\Stage.h" />
     <ClInclude Include="game\scene\Fade.h" />
     <ClInclude Include="game\scene\GameScene.h" />
+    <ClInclude Include="game\scene\PlayerLabScene.h" />
     <ClInclude Include="game\scene\SceneManager.h" />
     <ClInclude Include="game\scene\TitleScene.h" />
     <ClInclude Include="DirectX\engine\particle\ParticleManager.h" />
@@ -488,6 +494,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
     <None Include="resources\effects\hit_spark.json" />
+    <None Include="resources\configs\gameText.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

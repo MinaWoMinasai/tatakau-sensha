@@ -5,6 +5,8 @@
 #include <array>
 #include <list>
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <vector>
 #include "Calculation.h"
 #include "Collider.h"
@@ -188,11 +190,43 @@ public:
 
 	void DrawEncyclopedia();
 
+	void DrawPlayerClassEditor();
+
 	int GetRankFromLevel(int level);
 
 	bool IsChangeMode() { return isChangeMode; }
 
 private:
+	struct PlayerBarrelConfig {
+		std::string model = "gunBarrel.obj";
+		Vector3 offset = { 0.72f, 0.0f, 0.0f };
+		Vector3 scale = { 1.25f, 0.24f, 0.24f };
+		float angleDeg = 0.0f;
+		float muzzleForward = 0.95f;
+		bool fires = true;
+	};
+
+	struct PlayerClassConfig {
+		ClassType type = ClassType::Basic;
+		std::string id = "Basic";
+		std::string displayName = "Basic";
+		int requiredRank = 1;
+		bool usesDrone = false;
+		int maxDrones = 7;
+		float reloadScale = 1.0f;
+		float bulletSpeedScale = 1.0f;
+		float bulletDamageScale = 1.0f;
+		int bulletCount = 1;
+		float spreadAngleDeg = 10.0f;
+		bool randomSpread = true;
+		bool reflect = false;
+		bool penetrate = false;
+		bool fireAllBarrels = false;
+		bool alternateBarrels = false;
+		float recoilPower = 0.01f;
+		std::vector<PlayerBarrelConfig> barrels;
+	};
+
 	// ワールド変換データ
 	Transform worldTransform_;
 
@@ -205,6 +239,8 @@ private:
 		float recoilOffset = 0.0f;
 	};
 	std::vector<BarrelModel> barrels_;
+	std::unordered_map<std::string, PlayerClassConfig> classConfigs_;
+	std::vector<std::string> classOrder_;
 	// テクスチャハンドル
 	uint32_t textureHandle_ = 0u;
 
@@ -274,9 +310,20 @@ private:
 
 	PlayerStats stats_;
 	ClassType currentClass_ = ClassType::Basic;
+	std::string currentClassId_ = "Basic";
 
 	// 進化させる関数
 	void Evolve(ClassType newClass);
+	void EvolveById(const std::string& classId);
+	void LoadPlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json");
+	void SavePlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json") const;
+	PlayerClassConfig CreateDefaultClassConfig(ClassType type) const;
+	const PlayerClassConfig* GetClassConfig(ClassType type) const;
+	const PlayerClassConfig* GetClassConfig(const std::string& classId) const;
+	const PlayerClassConfig* GetCurrentClassConfig() const;
+	PlayerClassConfig* GetMutableClassConfig(const std::string& classId);
+	bool FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, Vector3& recoilDir, float& recoilPower);
+	Vector3 RotateDirection(const Vector3& direction, float angleDeg) const;
 	void InitializeBarrels();
 	void UpdateBarrelLayout();
 	void DrawBarrels();
@@ -343,6 +390,7 @@ private:
 	Vector2 mousePosition_;
 
 	bool isChangeMode = false;
+	int editorSelectedClassIndex_ = 0;
 
 	std::unique_ptr<Sprite> sprite;
 

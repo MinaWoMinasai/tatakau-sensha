@@ -15,7 +15,7 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     const std::array<float, 4> transparent = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     objectRT_ = std::make_unique<RenderTexture>();
-    objectRT_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth, WinApp::kClientHeight, transparent);
+    objectRT_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth, WinApp::kClientHeight, transparent, false);
 
     bloomRT_A_ = std::make_unique<RenderTexture>();
     bloomRT_A_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth / 4, WinApp::kClientHeight / 4, transparent, false);
@@ -68,9 +68,8 @@ void ObjectPostEffect::BeginCapture() {
 
     Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-    dxCommon_->SetRenderTarget(objectRT_->GetRTVHandle(), objectRT_->GetDSVHandle());
+    dxCommon_->SetRenderTargetNoDepth(objectRT_->GetRTVHandle());
     ClearTransparent(objectRT_->GetRTVHandle());
-    dxCommon_->GetList()->ClearDepthStencilView(objectRT_->GetDSVHandle(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 }
 

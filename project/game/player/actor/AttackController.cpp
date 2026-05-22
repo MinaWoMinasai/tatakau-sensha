@@ -4,6 +4,16 @@ using namespace DirectX;
 
 void AttackController::Fire(const Vector3& origin, const Vector3& baseDir, const AttackParam& param, BulletOwner owner)
 {
+    FireInternal(origin, baseDir, param, owner, false);
+}
+
+void AttackController::FireFromMuzzle(const Vector3& muzzlePosition, const Vector3& baseDir, const AttackParam& param, BulletOwner owner)
+{
+    FireInternal(muzzlePosition, baseDir, param, owner, true);
+}
+
+void AttackController::FireInternal(const Vector3& origin, const Vector3& baseDir, const AttackParam& param, BulletOwner owner, bool originIsMuzzle)
+{
 
     assert(bulletManager_);
     Vector3 dirNorm = Normalize(baseDir);
@@ -35,10 +45,14 @@ void AttackController::Fire(const Vector3& origin, const Vector3& baseDir, const
         
         // 敵とプレイヤーで発射位置を少し変える
         Vector3 bulletOrigin;
-        if (owner == BulletOwner::kPlayer) {
+        if (originIsMuzzle) {
+            bulletOrigin = origin;
+        } else if (owner == BulletOwner::kPlayer) {
             bulletOrigin = origin + (baseDir * 1.5f);
         } else if (owner == BulletOwner::kEnemy) {
             bulletOrigin = origin + (baseDir * 3.0f);
+        } else {
+            bulletOrigin = origin;
         }
         
         bullet->Initialize(

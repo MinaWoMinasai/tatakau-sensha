@@ -1,0 +1,37 @@
+{
+  "labels": {
+    "dashGuide": {
+      "text": "右クリック：ダッシュ",
+      "fontFamily": "Meiryo",
+      "fontSize": 42,
+      "position": [20, 450],
+      "anchorPoint": [0, 0],
+      "color": [0.92, 0.92, 1.0, 1.0],
+      "outlineColor": [0.0, 0.0, 0.0, 0.85],
+      "outlineThickness": 3,
+      "padding": 8
+    },
+    "moveGuide": {
+      "text": "WASD：移動",
+      "fontFamily": "Meiryo",
+      "fontSize": 42,
+      "position": [20, 530],
+      "anchorPoint": [0, 0],
+      "color": [0.92, 0.92, 1.0, 1.0],
+      "outlineColor": [0.0, 0.0, 0.0, 0.85],
+      "outlineThickness": 3,
+      "padding": 8
+    },
+    "titleGuide": {
+      "text": "ESC：タイトルへ",
+      "fontFamily": "Meiryo",
+      "fontSize": 42,
+      "position": [20, 610],
+      "anchorPoint": [0, 0],
+      "color": [0.92, 0.92, 1.0, 1.0],
+      "outlineColor": [0.0, 0.0, 0.0, 0.85],
+      "outlineThickness": 3,
+      "padding": 8
+    }
+  }
+}

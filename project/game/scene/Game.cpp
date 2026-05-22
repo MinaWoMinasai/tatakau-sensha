@@ -1,6 +1,7 @@
 #include "Game.h"
 #include "SceneManager.h"
 #include "Audio.h"
+#include "TextRenderer.h"
 
 bool Game::Initialize() {
 
@@ -67,6 +68,16 @@ void Game::InitializeImGui() {
     // Imguiの初期化
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        ImFontConfig fontConfig{};
+        fontConfig.MergeMode = false;
+        const ImWchar* japaneseRanges = io.Fonts->GetGlyphRangesJapanese();
+        ImFont* japaneseFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/meiryo.ttc", 18.0f, &fontConfig, japaneseRanges);
+        if (!japaneseFont) {
+            io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/msgothic.ttc", 18.0f, &fontConfig, japaneseRanges);
+        }
+    }
     ImGui::StyleColorsDark();
     ImGui_ImplWin32_Init(WinApp::GetInstance()->GetHwnd());
     ImGui_ImplDX12_Init(dxCommon_->GetDevice().Get(),
@@ -203,6 +214,7 @@ void Game::Finalize() {
 #endif // USE_IMGUI
 
     TextureManager::GetInstance()->Finalize();
+    TextRenderer::GetInstance()->Finalize();
     ModelManager::GetInstance()->Finalize();
 
     CloseHandle(dxCommon_->GetFenceEvent());
