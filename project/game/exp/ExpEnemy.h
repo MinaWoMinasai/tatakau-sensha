@@ -17,7 +17,8 @@ class ExpEnemy : public Collider {
 public:
     void Initialize(const Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
     void Update(Stage& stage,float deltaTime);
-    void Draw();
+    void Draw(bool drawBody = true);
+    void DrawBodyOnly();
 
     void OnCollision(Collider* other) override;
 
@@ -39,13 +40,19 @@ public:
     AABB GetAABB();
 
     bool IsDead() const { return isDead_; }
+    int GetHp() const { return hp_; }
+    int GetMaxHp() const { return maxHp_; }
 
     uint32_t GetExpValue() const { return expValue_; }
 
 private:
     void ApplyTypeParams();
+    void TriggerDamageFeedback();
+    void ApplyDamageFeedback(float deltaTime);
 
     Transform worldTransform_;
+    Vector3 baseScale_{ 1.0f, 1.0f, 1.0f };
+    Vector4 baseColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
     std::unique_ptr<Object3d> object_;
 
     // 攻撃コントローラ
@@ -54,6 +61,7 @@ private:
     Player* player_ = nullptr;
 
     int hp_ = 10;
+    int maxHp_ = 10;
     float bulletCoolTime = 0.0f;
 
     // キャラクターの当たり判定サイズ
@@ -75,5 +83,7 @@ private:
     // 無敵時間
     float invincibleTimer_ = 0.0f;
     float shootInterval_ = 0.0f;
+    float damageFeedbackTimer_ = 0.0f;
+    float damageFeedbackDuration_ = 0.16f;
 
 };

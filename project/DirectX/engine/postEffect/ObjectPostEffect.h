@@ -12,12 +12,14 @@ public:
 
     void BeginCapture();
     void EndCapture();
+    void EndCaptureAdditiveOnly();
 
     BloomParam& GetParam() { return param_; }
     const BloomParam& GetParam() const { return param_; }
     void SetParam(const BloomParam& param);
 
 private:
+    void FinishCapture(bool additiveOnly);
     void Transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
     void ClearTransparent(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
 

@@ -102,6 +102,13 @@ void Game::LoadResources() {
         "ground.obj",
         "weapon.obj",
         "player3D.obj",
+        "enemy3D.obj",
+        "expBlock.obj",
+        "expTriangle.obj",
+        "expEnemy.obj",
+        "expPentagon.obj",
+        "gunBarrel.obj",
+        "bullet.obj",
     };
 
     for (auto& model : models) {

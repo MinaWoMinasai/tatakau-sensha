@@ -95,45 +95,47 @@ float GetObjectAlpha(float2 uv)
     return objectTex.Sample(samp, uv).a;
 }
 
-float GetOutlineMask(float2 uv, float centerAlpha)
+float SampleOutlineRing(float2 uv, float2 texelSize, float radius)
+{
+    float alpha = 0.0f;
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2( 1.000f,  0.000f)));
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2( 0.866f,  0.500f)));
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2( 0.500f,  0.866f)));
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2( 0.000f,  1.000f)));
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2(-0.500f,  0.866f)));
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2(-0.866f,  0.500f)));
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2(-1.000f,  0.000f)));
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2(-0.866f, -0.500f)));
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2(-0.500f, -0.866f)));
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2( 0.000f, -1.000f)));
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2( 0.500f, -0.866f)));
+    alpha = max(alpha, GetObjectAlpha(uv + texelSize * radius * float2( 0.866f, -0.500f)));
+    return alpha;
+}
+
+float SampleDilatedAlpha(float2 uv, float2 texelSize, float radius)
+{
+    float alpha = GetObjectAlpha(uv);
+    int ringCount = clamp((int)ceil(radius * 0.5f), 1, 6);
+    [loop]
+    for (int ring = 1; ring <= ringCount; ++ring)
+    {
+        float ringRadius = radius * (float)ring / (float)ringCount;
+        alpha = max(alpha, SampleOutlineRing(uv, texelSize, ringRadius));
+    }
+    return alpha;
+}
+
+float GetOutlineMask(float2 uv, float centerAlpha, float2 texelSize)
 {
     if (outlineWidth <= 0.0f)
     {
         return 0.0f;
     }
 
-    uint width;
-    uint height;
-    objectTex.GetDimensions(width, height);
-    float2 texelSize = float2(1.0f / width, 1.0f / height);
-    float2 offset = texelSize * outlineWidth;
-
-    float neighborAlpha = 0.0f;
-    neighborAlpha = max(neighborAlpha, GetObjectAlpha(uv + offset * float2(-1.0f, -1.0f)));
-    neighborAlpha = max(neighborAlpha, GetObjectAlpha(uv + offset * float2( 0.0f, -1.0f)));
-    neighborAlpha = max(neighborAlpha, GetObjectAlpha(uv + offset * float2( 1.0f, -1.0f)));
-    neighborAlpha = max(neighborAlpha, GetObjectAlpha(uv + offset * float2(-1.0f,  0.0f)));
-    neighborAlpha = max(neighborAlpha, GetObjectAlpha(uv + offset * float2( 1.0f,  0.0f)));
-    neighborAlpha = max(neighborAlpha, GetObjectAlpha(uv + offset * float2(-1.0f,  1.0f)));
-    neighborAlpha = max(neighborAlpha, GetObjectAlpha(uv + offset * float2( 0.0f,  1.0f)));
-    neighborAlpha = max(neighborAlpha, GetObjectAlpha(uv + offset * float2( 1.0f,  1.0f)));
-
+    float neighborAlpha = SampleDilatedAlpha(uv, texelSize, outlineWidth);
     float edgeAlpha = saturate(neighborAlpha - centerAlpha);
     return smoothstep(outlineThreshold, 1.0f, edgeAlpha);
-}
-
-float SampleMaxAlpha(float2 uv, float2 offset)
-{
-    float alpha = 0.0f;
-    alpha = max(alpha, GetObjectAlpha(uv + offset * float2(-1.0f, -1.0f)));
-    alpha = max(alpha, GetObjectAlpha(uv + offset * float2( 0.0f, -1.0f)));
-    alpha = max(alpha, GetObjectAlpha(uv + offset * float2( 1.0f, -1.0f)));
-    alpha = max(alpha, GetObjectAlpha(uv + offset * float2(-1.0f,  0.0f)));
-    alpha = max(alpha, GetObjectAlpha(uv + offset * float2( 1.0f,  0.0f)));
-    alpha = max(alpha, GetObjectAlpha(uv + offset * float2(-1.0f,  1.0f)));
-    alpha = max(alpha, GetObjectAlpha(uv + offset * float2( 0.0f,  1.0f)));
-    alpha = max(alpha, GetObjectAlpha(uv + offset * float2( 1.0f,  1.0f)));
-    return alpha;
 }
 
 float GetOutlineBloomMask(float2 uv, float objectAlpha, float outlineMask)
@@ -147,13 +149,11 @@ float GetOutlineBloomMask(float2 uv, float objectAlpha, float outlineMask)
     uint height;
     objectTex.GetDimensions(width, height);
     float2 texelSize = float2(1.0f / width, 1.0f / height);
-    float2 baseOffset = texelSize * outlineBloomWidth;
-
     float glow = 0.0f;
-    glow += SampleMaxAlpha(uv, baseOffset * 1.0f) * 0.45f;
-    glow += SampleMaxAlpha(uv, baseOffset * 2.0f) * 0.28f;
-    glow += SampleMaxAlpha(uv, baseOffset * 3.0f) * 0.18f;
-    glow += SampleMaxAlpha(uv, baseOffset * 4.0f) * 0.09f;
+    glow += SampleDilatedAlpha(uv, texelSize, outlineBloomWidth * 1.0f) * 0.45f;
+    glow += SampleDilatedAlpha(uv, texelSize, outlineBloomWidth * 2.0f) * 0.28f;
+    glow += SampleDilatedAlpha(uv, texelSize, outlineBloomWidth * 3.0f) * 0.18f;
+    glow += SampleDilatedAlpha(uv, texelSize, outlineBloomWidth * 4.0f) * 0.09f;
 
     float outsideObject = 1.0f - objectAlpha;
     float outsideOutline = 1.0f - outlineMask;
@@ -177,16 +177,13 @@ float4 main(PSInput input) : SV_TARGET
     objectColor.b = objectTex.Sample(samp, uv - shift).b;
     objectColor.a = objectTex.Sample(samp, uv).a;
 
-    float4 bloomColor;
-    bloomColor.r = bloomTex.Sample(samp, uv + shift).r;
-    bloomColor.g = bloomTex.Sample(samp, uv).g;
-    bloomColor.b = bloomTex.Sample(samp, uv - shift).b;
-    bloomColor.a = bloomTex.Sample(samp, uv).a;
-
     float objectAlpha = saturate(objectColor.a);
-    float outlineMask = GetOutlineMask(uv, objectAlpha);
-    float outlineBloomMask = GetOutlineBloomMask(uv, objectAlpha, outlineMask);
-    float alpha = saturate(max(max(max(objectAlpha, bloomColor.a), outlineMask), outlineBloomMask));
+    uint width;
+    uint height;
+    objectTex.GetDimensions(width, height);
+    float2 texelSize = float2(1.0f / width, 1.0f / height);
+    float outlineMask = GetOutlineMask(uv, objectAlpha, texelSize);
+    float alpha = saturate(max(objectAlpha, outlineMask));
     if (dissolveThreshold > 0.0f)
     {
         float dissolveNoise = Hash(input.uv * 100.0f);
@@ -201,12 +198,12 @@ float4 main(PSInput input) : SV_TARGET
         discard;
     }
 
-    float3 result = objectColor.rgb + bloomColor.rgb * intensity;
+    float3 baseColor = objectColor.rgb / max(objectAlpha, 0.001f);
+    float3 result = baseColor;
     result = ApplyColorModifiers(result);
     result = ApplyOverlays(result, input.uv);
 
     result = lerp(result, outlineColor, outlineMask);
-    result += outlineColor * outlineBloomMask;
 
     float dist = length((input.uv * 2.0f - 1.0f) * 0.5f);
     result *= pow(saturate(1.0f - dist * vignetteIntensity * vignetteScale), 0.8f);

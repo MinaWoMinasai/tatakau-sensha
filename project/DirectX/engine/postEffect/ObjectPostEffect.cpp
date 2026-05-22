@@ -75,6 +75,14 @@ void ObjectPostEffect::BeginCapture() {
 }
 
 void ObjectPostEffect::EndCapture() {
+    FinishCapture(false);
+}
+
+void ObjectPostEffect::EndCaptureAdditiveOnly() {
+    FinishCapture(true);
+}
+
+void ObjectPostEffect::FinishCapture(bool additiveOnly) {
     Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -109,7 +117,9 @@ void ObjectPostEffect::EndCapture() {
         dxCommon_->SetRenderTargetNoDepth(restoreRtvHandle_);
     }
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
-    postEffect_->DrawObjectComposite(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
+    if (!additiveOnly) {
+        postEffect_->DrawObjectComposite(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
+    }
     postEffect_->DrawObjectOutlineAdd(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
 }
 

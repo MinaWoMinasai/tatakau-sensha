@@ -30,6 +30,8 @@ public:
 	/// <param name="enemy"></param>
 	void SetColliders(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager = nullptr);
 
+	const std::list<Collider*>& GetColliders() const { return colliders_; }
+
 private:
 	// コライダーリスト
 	std::list<Collider*> colliders_;

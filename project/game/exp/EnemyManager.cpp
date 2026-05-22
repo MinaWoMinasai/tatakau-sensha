@@ -63,9 +63,16 @@ void EnemyManager::Spawn(Stage& stage) {
     }
 }
 
-void EnemyManager::Draw() {
+void EnemyManager::Draw(bool drawBody) {
+    if (!drawBody) {
+        return;
+    }
+    DrawBodyOnly();
+}
+
+void EnemyManager::DrawBodyOnly() {
     for (auto& enemy : enemies_) {
-        enemy->Draw();
+        enemy->DrawBodyOnly();
     }
 }
 

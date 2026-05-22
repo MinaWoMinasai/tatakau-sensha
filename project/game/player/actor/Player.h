@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <array>
 #include <list>
+#include <memory>
+#include <vector>
 #include "Calculation.h"
 #include "Collider.h"
 #include "CollisionConfig.h"
@@ -139,6 +141,8 @@ public:
 	bool isFinished();
 
 	bool IsDead() const { return isDead_; }
+	int GetHp() const { return hp_; }
+	int GetMaxHp() const { return static_cast<int>(stats_.maxHp); }
 
 	bool IsOnGround() const { return isOnGround_; }
 	void SetOnGround(bool onGround) { isOnGround_ = onGround; }
@@ -194,8 +198,13 @@ private:
 
 	// モデル
 	Object3d* object_ = nullptr;
-	//// 砲塔モデル
-	//Object3d* object_ = nullptr;
+	struct BarrelModel {
+		std::unique_ptr<Object3d> object;
+		Transform transform;
+		Vector3 localOffset;
+		float recoilOffset = 0.0f;
+	};
+	std::vector<BarrelModel> barrels_;
 	// テクスチャハンドル
 	uint32_t textureHandle_ = 0u;
 
@@ -236,6 +245,10 @@ private:
 
 	// 無敵時間
 	float invincibleTimer_ = 0.0f;
+	float damageFeedbackTimer_ = 0.0f;
+	float damageFeedbackDuration_ = 0.18f;
+	Vector4 baseVehicleColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
+	Vector4 baseBarrelColor_{ 0.48f, 0.86f, 0.22f, 1.0f };
 
 	bool isDead_ = false;
 
@@ -264,6 +277,11 @@ private:
 
 	// 進化させる関数
 	void Evolve(ClassType newClass);
+	void InitializeBarrels();
+	void UpdateBarrelLayout();
+	void DrawBarrels();
+	void SetVehicleAlpha(float alpha);
+	void TriggerDamageFeedback();
 	void SpawnCasing();
 	int shootBarrelIndex_ = 0; // 次に撃つ砲身の番号
 

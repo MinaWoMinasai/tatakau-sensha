@@ -5,6 +5,29 @@
 #include "Collider.h"
 #include "CollisionConfig.h"
 #include <Object3d.h>
+#include "TrailManager.h"
+
+struct BulletTrailSettings {
+	float playerHalfWidth = 0.26f;
+	float enemyHalfWidth = 0.22f;
+	float lifetime = 0.24f;
+	int maxPoints = 22;
+	int interpolationSteps = 5;
+	float headWidthScale = 1.0f;
+	float tailWidthScale = 0.15f;
+	bool useObjectColorForTrail = true;
+	float trailHeadIntensity = 1.15f;
+	float trailTailIntensity = 0.45f;
+	float trailHeadAlpha = 1.0f;
+	float trailTailAlpha = 0.0f;
+	Vector4 playerObjectColor = { 1.0f, 0.78f, 0.28f, 1.0f };
+	Vector4 enemyObjectColor = { 1.0f, 0.22f, 0.38f, 1.0f };
+	Vector4 reflectableObjectColor = { 1.0f, 1.0f, 0.0f, 1.0f };
+	Vector4 startColor = { 1.0f, 0.98f, 0.78f, 1.0f };
+	Vector4 playerEndColor = { 1.0f, 0.55f, 0.20f, 0.0f };
+	Vector4 enemyEndColor = { 1.0f, 0.20f, 0.36f, 0.0f };
+	Vector4 reflectableEndColor = { 1.0f, 1.0f, 0.22f, 0.0f };
+};
 
 class Bullet : public Collider {
 
@@ -16,6 +39,8 @@ public:
 	void Update(float deltaTime);
 
 	void Draw();
+	void AttachTrail(TrailManager* trailManager, BulletTrailSettings* trailSettings);
+	void ReleaseTrail();
 
 	bool IsDead() const { return isDead_; }
 
@@ -45,6 +70,10 @@ public:
 	void Die();
 
 private:
+	void ApplyVisualSettings();
+	void UpdateTrail(float deltaTime);
+	TrailConfig MakeTrailConfig() const;
+	Vector4 GetBulletColor() const;
 
 	std::unique_ptr<Object3d> object_;
 
@@ -70,4 +99,6 @@ private:
 	// 反射するか
 	bool isReflectable_ = false;
 	BulletOwner owner_;
+	TrailInstance* trail_ = nullptr;
+	BulletTrailSettings* trailSettings_ = nullptr;
 };

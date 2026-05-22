@@ -21,6 +21,8 @@ struct TrailConfig {
     uint32_t interpolationSteps = 4;                 // 補間分割数
     uint32_t maxPoints = 50;                         // 軌跡の長さ
     float lifetime = 0.5f;                           // 各頂点の生存時間（秒）
+    float startWidthScale = 1.0f;                    // 先頭側の太さ倍率
+    float endWidthScale = 1.0f;                      // 尻尾側の太さ倍率
 
     // JSON変換 (ModelParticleManagerと同様に)
     nlohmann::json ToJson() const {
@@ -29,7 +31,9 @@ struct TrailConfig {
             {"endColor", {endColor.x, endColor.y, endColor.z, endColor.w}},
             {"interpolationSteps", interpolationSteps},
             {"maxPoints", maxPoints},
-            {"lifetime", lifetime}
+            {"lifetime", lifetime},
+            {"startWidthScale", startWidthScale},
+            {"endWidthScale", endWidthScale}
         };
     }
 
@@ -43,6 +47,8 @@ struct TrailConfig {
         interpolationSteps = j.value("interpolationSteps", interpolationSteps);
         maxPoints = j.value("maxPoints", maxPoints);
         lifetime = j.value("lifetime", lifetime);
+        startWidthScale = j.value("startWidthScale", startWidthScale);
+        endWidthScale = j.value("endWidthScale", endWidthScale);
     }
 };
 

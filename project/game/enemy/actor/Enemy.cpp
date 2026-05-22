@@ -2,6 +2,8 @@
 #include "Calculation.h"
 #include "Player.h"
 #include <array>
+#include <algorithm>
+#include <cmath>
 #include <DirectXMath.h>
 #include <limits>
 #include <queue>
@@ -10,6 +12,19 @@
 using namespace DirectX;
 
 static constexpr float kDeltaTime = 1.0f / 60.0f;
+
+namespace {
+Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
+{
+	t = (std::clamp)(t, 0.0f, 1.0f);
+	return {
+		a.x + (b.x - a.x) * t,
+		a.y + (b.y - a.y) * t,
+		a.z + (b.z - a.z) * t,
+		a.w + (b.w - a.w) * t
+	};
+}
+}
 
 Enemy::~Enemy() {}
 
@@ -70,7 +85,7 @@ void Enemy::ShotgunFire()
 
 	param.reflect = false;
 	param.penetrate = false;
-	param.cooldown = 0.7f;
+	param.cooldown = 2.0f;
 	param.damage = 10;
 
 	// 発射
@@ -109,7 +124,9 @@ void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) 
 	object_ = object;
 	worldTransform_ = InitWorldTransform();
 	worldTransform_.translate = position;
-	worldTransform_.scale = Vector3(2.0f, 2.0f, 2.0f);
+	baseScale_ = worldTransform_.scale;
+	baseColor_ = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
+	object_->SetColor(baseColor_);
 
 	// 衝突属性を設定
 	SetCollisionAttribute(kCollisionAttributeEnemy);
@@ -136,6 +153,7 @@ void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) 
 void Enemy::Update(float deltaTime) {
 
 	UpdateHPBar();
+	ApplyDamageFeedback(deltaTime);
 
 	Move(deltaTime);
 
@@ -251,7 +269,26 @@ void Enemy::OnCollision(Collider* other) {
 	if (other->GetCollisionAttribute() == kCollisionAttributePlayerBullet) {
 
 		hp_ -= other->GetDamage();
+		TriggerDamageFeedback();
 	}
+}
+
+void Enemy::TriggerDamageFeedback()
+{
+	damageFeedbackTimer_ = damageFeedbackDuration_;
+}
+
+void Enemy::ApplyDamageFeedback(float deltaTime)
+{
+	if (damageFeedbackTimer_ > 0.0f) {
+		damageFeedbackTimer_ = (std::max)(0.0f, damageFeedbackTimer_ - deltaTime);
+	}
+
+	const float t = damageFeedbackDuration_ > 0.0f ? damageFeedbackTimer_ / damageFeedbackDuration_ : 0.0f;
+	const float flash = t * t;
+	const float pulse = std::sin(t * 3.14159265f) * 0.08f;
+	worldTransform_.scale = baseScale_ * (1.0f + pulse);
+	object_->SetColor(LerpColor(baseColor_, { 1.0f, 1.0f, 1.0f, baseColor_.w }, flash * 0.65f));
 }
 
 void Enemy::AIStateMovePower() {
@@ -319,7 +356,7 @@ void Enemy::Move(float deltaTime) {
 		object_->SetRotate(worldTransform_.rotate);
 	}
 
-	const float speed = pathDir ? 0.16f : maxSpeed_;
+	const float speed = pathDir ? 0.10f : maxSpeed_;
 	Vector3 targetVelocity = dir_ * speed;
 	velocity_ += (targetVelocity - velocity_) * 0.22f * (deltaTime * 60.0f);
 }
