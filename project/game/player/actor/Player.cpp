@@ -1,6 +1,21 @@
 #include "Player.h"
 #include "Stage.h"
 #include "Audio.h"
+#include <algorithm>
+#include <cmath>
+
+namespace {
+Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
+{
+	t = (std::clamp)(t, 0.0f, 1.0f);
+	return {
+		a.x + (b.x - a.x) * t,
+		a.y + (b.y - a.y) * t,
+		a.z + (b.z - a.z) * t,
+		a.w + (b.w - a.w) * t
+	};
+}
+}
 
 Player::~Player() {
 
@@ -52,6 +67,9 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				}
 				attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
 				firedByClass = true;
+				if (!barrels_.empty()) {
+					barrels_[0].recoilOffset = 0.22f;
+				}
 				
 				SpawnCasing(); // ここで呼び出す
 				break;
@@ -67,11 +85,17 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 					// 左から発射
 					attackController_.Fire(origin - rightDir * offsetValue, dir_, param, BulletOwner::kPlayer);
 					firedByClass = true;
+					if (!barrels_.empty()) {
+						barrels_[0].recoilOffset = 0.22f;
+					}
 					shootBarrelIndex_ = 1; // 次は右
 				} else {
 					// 右から発射
 					attackController_.Fire(origin + rightDir * offsetValue, dir_, param, BulletOwner::kPlayer);
 					firedByClass = true;
+					if (barrels_.size() > 1) {
+						barrels_[1].recoilOffset = 0.22f;
+					}
 					shootBarrelIndex_ = 0; // 次は左
 				}
 
@@ -287,26 +311,14 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	sprite->SetColor(Vector4(1.0f, 1.0f, 1.0f, 0.8f));
 
 	object_ = object;
+	baseVehicleColor_ = object_->GetColor();
 
 	worldTransform_ = InitWorldTransform();
 	worldTransform_.translate = position;
 	object_->SetTransform(worldTransform_);
 	object_->Update();
-
-	for (int i = 0; i < hp_; ++i) {
-		auto sprite = std::make_unique<Sprite>();
-
-		sprite->Initialize(SpriteCommon::GetInstance(),
-			"resources/playerSprite.png");
-		sprite->SetPosition({ 40.0f + 50.0f * i, 80.0f });
-
-		hpSprites_.push_back(std::move(sprite));
-	}
-
-	hpFont = std::make_unique<Sprite>();
-	hpFont->Initialize(SpriteCommon::GetInstance(), "resources/PlayerHp.png");
-	hpFont->SetPosition({ 20.0f, 20.0f });
-	hpFont->SetSize({ 120.0f, 40.0f });
+	InitializeBarrels();
+	UpdateBarrelLayout();
 
 	// シングルトンインスタンス
 	input_ = Input::GetInstance();
@@ -388,6 +400,9 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 	dt_ = deltaTime;
 
 	invincibleTimer_ -= deltaTime;
+	if (damageFeedbackTimer_ > 0.0f) {
+		damageFeedbackTimer_ = (std::max)(0.0f, damageFeedbackTimer_ - deltaTime);
+	}
 
 	if (dashTimer_ > 0.0f) {
 		dashTimer_ -= deltaTime;
@@ -479,6 +494,7 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 	// object_ の更新だけ（移動はしない）
 	object_->SetTransform(worldTransform_);
 	object_->Update();
+	UpdateBarrelLayout();
 
 	if (!isDead_) {
 		// 攻撃処理
@@ -503,32 +519,6 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 			drones_.end());
 
 	}
-
-	for (auto& sprite : hpSprites_) {
-		sprite->Update();
-	}
-	
-	Vector3 footPos = GetWorldPosition();
-	footPos.y -= 1.0f; // プレイヤーの少し下へオフセット
-	footPos.x -= 1.0f;
-
-	// 2. スクリーン座標に変換
-	Vector2 screenBasePos = WorldToScreen(footPos, viewProjection);
-
-	// 3. 3つのスプライトを中央揃えで配置
-	float interval = 25.0f; // アイコン同士の間隔
-	float totalWidth = interval * (hpSprites_.size() - 1);
-	float startX = screenBasePos.x - (totalWidth / 2.0f);
-
-	for (size_t i = 0; i < hpSprites_.size(); ++i) {
-		hpSprites_[i]->SetPosition({ startX + (interval * i), screenBasePos.y });
-		hpSprites_[i]->SetSize({ 20.0f, 20.0f }); // 少し小さくすると見やすい
-		hpSprites_[i]->Update();
-	}
-
-	// HPの文字（Font）も足元に置くなら同様に、不要なら非表示に
-	//hpFont->SetPosition({ screenBasePos.x - 20.0f, screenBasePos.y - 30.0f });
-	//hpFont->Update();
 
 	machineGunBtnSprite_->Update();
 
@@ -562,27 +552,42 @@ void Player::DrawBodyOnly() {
 			if (static_cast<int>(invincibleTimer_ * 10) % 5 == 0) {
 				// 透明度を下げる
 				if (isStealth_) {
-					object_->GetColor().w = 0.2f;
+					SetVehicleAlpha(0.2f);
 				} else {
-					object_->GetColor().w = 0.5f;
+					SetVehicleAlpha(0.5f);
+				}
+				if (damageFeedbackTimer_ > 0.0f) {
+					Transform drawTransform = worldTransform_;
+					const float t = damageFeedbackTimer_ / damageFeedbackDuration_;
+					const float pulse = std::sin(t * 3.14159265f) * 0.10f;
+					drawTransform.scale = worldTransform_.scale * (1.0f + pulse);
+					object_->SetTransform(drawTransform);
+					object_->Update();
 				}
 				object_->Draw();
+				DrawBarrels();
 				return;
 			}
 		}
 		if (!isStealth_) {
-			object_->GetColor().w = 1.0f;
+			SetVehicleAlpha(1.0f);
+		}
+		if (damageFeedbackTimer_ > 0.0f) {
+			Transform drawTransform = worldTransform_;
+			const float t = damageFeedbackTimer_ / damageFeedbackDuration_;
+			const float pulse = std::sin(t * 3.14159265f) * 0.10f;
+			drawTransform.scale = worldTransform_.scale * (1.0f + pulse);
+			object_->SetTransform(drawTransform);
+			object_->Update();
 		}
 		object_->Draw();
+		DrawBarrels();
 	}
 
 }
 
 void Player::DrawSprite()
 {
-	for (auto& sprite : hpSprites_) {
-		sprite->Draw();
-	}
 	//hpFont->Draw();
 
 	//DrawEncyclopedia();
@@ -653,6 +658,14 @@ void Player::OnCollision(Collider* other) {
 	if (Length(velocity_) > maxKnockSpeed) {
 		velocity_ = Normalize(velocity_) * maxKnockSpeed;
 	}
+
+	if (other->GetCollisionAttribute() == kCollisionAttributeEnemy ||
+		other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
+		TriggerDamageFeedback();
+		if (invincibleTimer_ <= 0.0f) {
+			invincibleTimer_ = 0.45f;
+		}
+	}
 }
 
 AABB Player::GetAABB() {
@@ -681,7 +694,8 @@ void Player::Damage()
 		}
 
 		//hp_--;
-		invincibleTimer_ = 2.0f;
+		TriggerDamageFeedback();
+		invincibleTimer_ = 0.45f;
 	}
 }
 
@@ -732,8 +746,89 @@ void Player::Evolve(ClassType newClass)
 			//break;
 			// ...
 	}
+	UpdateBarrelLayout();
 
 	isChangeMode = false;
+}
+
+void Player::InitializeBarrels()
+{
+	barrels_.clear();
+	barrels_.reserve(2);
+	for (int i = 0; i < 2; ++i) {
+		BarrelModel barrel{};
+		barrel.object = std::make_unique<Object3d>();
+		barrel.object->Initialize();
+		barrel.object->SetModel("gunBarrel.obj");
+		barrel.object->SetColor(Vector4(0.48f, 0.86f, 0.22f, 1.0f));
+		baseBarrelColor_ = Vector4(0.48f, 0.86f, 0.22f, 1.0f);
+		barrel.transform = InitWorldTransform();
+		barrel.transform.scale = { 1.25f, 0.24f, 0.24f };
+		barrels_.push_back(std::move(barrel));
+	}
+}
+
+void Player::UpdateBarrelLayout()
+{
+	if (barrels_.empty()) {
+		return;
+	}
+
+	const Vector3 forward = Length(dir_) > 0.0001f ? Normalize(dir_) : Vector3{ 1.0f, 0.0f, 0.0f };
+	const Vector3 right = { -forward.y, forward.x, 0.0f };
+	const int barrelCount = currentClass_ == ClassType::Twin ? 2 : 1;
+	const float forwardOffset = 0.72f;
+	const float twinSideOffset = 0.34f;
+	const float recoilReturn = 0.055f;
+
+	for (size_t i = 0; i < barrels_.size(); ++i) {
+		BarrelModel& barrel = barrels_[i];
+		const bool active = i < static_cast<size_t>(barrelCount);
+		float sideOffset = 0.0f;
+		if (barrelCount == 2) {
+			sideOffset = (i == 0) ? -twinSideOffset : twinSideOffset;
+		}
+
+		barrel.recoilOffset = (std::max)(0.0f, barrel.recoilOffset - recoilReturn * dt_ * 60.0f);
+		barrel.localOffset = forward * (forwardOffset - barrel.recoilOffset) + right * sideOffset;
+		barrel.transform.translate = worldTransform_.translate + barrel.localOffset;
+		barrel.transform.rotate = worldTransform_.rotate;
+		barrel.transform.scale = active ? Vector3{ 1.25f, 0.24f, 0.24f } : Vector3{ 0.0f, 0.0f, 0.0f };
+		barrel.object->SetTransform(barrel.transform);
+		barrel.object->Update();
+	}
+}
+
+void Player::DrawBarrels()
+{
+	const size_t activeCount = currentClass_ == ClassType::Twin ? 2u : 1u;
+	for (size_t i = 0; i < barrels_.size() && i < activeCount; ++i) {
+		barrels_[i].object->Draw();
+	}
+}
+
+void Player::SetVehicleAlpha(float alpha)
+{
+	float flash = 0.0f;
+	if (damageFeedbackTimer_ > 0.0f && damageFeedbackDuration_ > 0.0f) {
+		const float t = damageFeedbackTimer_ / damageFeedbackDuration_;
+		flash = t * t * 0.75f;
+	}
+	Vector4 vehicleColor = LerpColor(baseVehicleColor_, { 1.0f, 1.0f, 1.0f, baseVehicleColor_.w }, flash);
+	vehicleColor.w = alpha;
+	object_->SetColor(vehicleColor);
+	for (BarrelModel& barrel : barrels_) {
+		if (barrel.object) {
+			Vector4 barrelColor = LerpColor(baseBarrelColor_, { 1.0f, 1.0f, 1.0f, baseBarrelColor_.w }, flash);
+			barrelColor.w = alpha;
+			barrel.object->SetColor(barrelColor);
+		}
+	}
+}
+
+void Player::TriggerDamageFeedback()
+{
+	damageFeedbackTimer_ = damageFeedbackDuration_;
 }
 
 void Player::InitializeEncyclopedia()
@@ -901,12 +996,6 @@ bool Player::ApplyStatUpgrade(int index)
 	case 1:
 		stats_.maxHp += 1.0f;
 		hp_++;
-		{
-			auto hpSprite = std::make_unique<Sprite>();
-			hpSprite->Initialize(SpriteCommon::GetInstance(), "resources/playerSprite.png");
-			hpSprite->SetSize({ 20.0f, 20.0f });
-			hpSprites_.push_back(std::move(hpSprite));
-		}
 		break;
 	case 2:
 		stats_.bodyDamage += 1.0f;
@@ -963,6 +1052,11 @@ void Player::UpdateStealth(float deltaTime) {
 	stealthAlpha_ = Lerp(stealthAlpha_, targetAlpha, 0.1f);
 	// 実際のモデルのカラーに適用
 	object_->SetAlpha(stealthAlpha_);
+	for (BarrelModel& barrel : barrels_) {
+		if (barrel.object) {
+			barrel.object->SetAlpha(stealthAlpha_);
+		}
+	}
 }
 
 void Player::UpdateSummoner(float deltaTime) {

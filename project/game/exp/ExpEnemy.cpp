@@ -2,6 +2,21 @@
 #include "Player.h"
 #include "ParticleManager.h"
 #include "Stage.h"
+#include <algorithm>
+#include <cmath>
+
+namespace {
+Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
+{
+    t = (std::clamp)(t, 0.0f, 1.0f);
+    return {
+        a.x + (b.x - a.x) * t,
+        a.y + (b.y - a.y) * t,
+        a.z + (b.z - a.z) * t,
+        a.w + (b.w - a.w) * t
+    };
+}
+}
 
 void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType type)
 {
@@ -11,6 +26,7 @@ void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType 
     worldTransform_ = InitWorldTransform();
     worldTransform_.translate = position;
     worldTransform_.scale = Vector3(1.0f, 1.0f, 1.0f);
+    baseScale_ = worldTransform_.scale;
 
     type_ = type;
     ApplyTypeParams();
@@ -31,38 +47,36 @@ void ExpEnemy::ApplyTypeParams()
 {
     switch (type_) {
     case ExpEnemyType::Square:
-        object_->SetModel("enemyParticle.obj");
-        object_->SetColor({ 1.0f, 0.86f, 0.20f, 1.0f });
+        object_->SetModel("expBlock.obj");
+        baseColor_ = { 1.0f, 0.86f, 0.20f, 1.0f };
         hp_ = 6;
         expValue_ = 8;
         shootInterval_ = 0.0f;
-        worldTransform_.scale = { 0.14f, 0.14f, 0.14f };
         break;
     case ExpEnemyType::Triangle:
-        object_->SetModel("triangleParticle.obj");
-        object_->SetColor({ 1.0f, 0.30f, 0.35f, 1.0f });
+        object_->SetModel("expTriangle.obj");
+        baseColor_ = { 1.0f, 0.30f, 0.35f, 1.0f };
         hp_ = 10;
         expValue_ = 14;
         shootInterval_ = 0.0f;
-        worldTransform_.scale = { 0.16f, 0.16f, 0.16f };
         break;
     case ExpEnemyType::Pentagon:
-        object_->SetModel("bloomBlock.obj");
-        object_->SetColor({ 0.35f, 0.48f, 1.0f, 1.0f });
+        object_->SetModel("expPentagon.obj");
+        baseColor_ = { 0.35f, 0.48f, 1.0f, 1.0f };
         hp_ = 24;
         expValue_ = 35;
         shootInterval_ = 0.0f;
-        worldTransform_.scale = { 0.18f, 0.18f, 0.18f };
         break;
     case ExpEnemyType::Shooter:
-        object_->SetModel("enemy.obj");
-        object_->SetColor({ 0.95f, 0.25f, 0.18f, 1.0f });
+        object_->SetModel("expEnemy.obj");
+        baseColor_ = { 0.95f, 0.25f, 0.18f, 1.0f };
         hp_ = 14;
         expValue_ = 22;
         shootInterval_ = 2.4f;
-        worldTransform_.scale = { 0.6f, 0.6f, 0.6f };
         break;
     }
+    object_->SetColor(baseColor_);
+    maxHp_ = hp_;
 }
 
 void ExpEnemy::Update(Stage& stage, float deltaTime) {
@@ -73,6 +87,7 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
     dt_ = deltaTime;
 
     invincibleTimer_ -= deltaTime;
+    ApplyDamageFeedback(deltaTime);
 
     // --- 慣性処理 ---
     velocity_ += (velocity_ * -1.0f) * 0.98f * deltaTime;
@@ -131,7 +146,14 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
     }
 }
 
-void ExpEnemy::Draw() {
+void ExpEnemy::Draw(bool drawBody) {
+    if (!drawBody) {
+        return;
+    }
+    DrawBodyOnly();
+}
+
+void ExpEnemy::DrawBodyOnly() {
     object_->Draw();
 }
 
@@ -151,6 +173,7 @@ void ExpEnemy::OnCollision(Collider* other)
     }
 
     hp_ -= other->GetDamage();
+    TriggerDamageFeedback();
     if (hp_ <= 0) {
         isDead_ = true;
         ParticleManager::GetInstance()->Emit("EnemyDeathBurst", GetWorldPosition(), 18);
@@ -161,6 +184,24 @@ void ExpEnemy::OnCollision(Collider* other)
     if (other->GetCollisionAttribute() == kCollisionAttributePlayer) {
         invincibleTimer_ = 0.5f;
     }
+}
+
+void ExpEnemy::TriggerDamageFeedback()
+{
+    damageFeedbackTimer_ = damageFeedbackDuration_;
+}
+
+void ExpEnemy::ApplyDamageFeedback(float deltaTime)
+{
+    if (damageFeedbackTimer_ > 0.0f) {
+        damageFeedbackTimer_ = (std::max)(0.0f, damageFeedbackTimer_ - deltaTime);
+    }
+
+    const float t = damageFeedbackDuration_ > 0.0f ? damageFeedbackTimer_ / damageFeedbackDuration_ : 0.0f;
+    const float flash = t * t;
+    const float pulse = std::sin(t * 3.14159265f) * 0.16f;
+    worldTransform_.scale = baseScale_ * (1.0f + pulse);
+    object_->SetColor(LerpColor(baseColor_, { 1.0f, 1.0f, 1.0f, baseColor_.w }, flash * 0.9f));
 }
 
 AABB ExpEnemy::GetAABB() {

@@ -89,6 +89,11 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
                 Vector4 color = Lerp(config.startColor, config.endColor, globalRatio);
                 Vector3 tip = CatmullRom(points[i0].tip, points[i1].tip, points[i2].tip, points[i3].tip, t);
                 Vector3 base = CatmullRom(points[i0].base, points[i1].base, points[i2].base, points[i3].base, t);
+                float widthScale = config.startWidthScale + (config.endWidthScale - config.startWidthScale) * globalRatio;
+                Vector3 center = (tip + base) * 0.5f;
+                Vector3 halfWidth = (tip - base) * (0.5f * widthScale);
+                tip = center + halfWidth;
+                base = center - halfWidth;
 
                 // 書き込み
                 uint32_t vIdx = currentVertexOffset + instanceVertexCount;

@@ -1,4 +1,64 @@
 #include "GameScene.h"
+#include "CollisionConfig.h"
+#include <cmath>
+
+namespace {
+
+Vector4 GetCollisionDebugColor(uint32_t attribute) {
+	if (attribute & kCollisionAttributePlayer) {
+		return { 0.15f, 1.0f, 0.95f, 0.85f };
+	}
+	if (attribute & kCollisionAttributePlayerDrone) {
+		return { 0.25f, 0.75f, 1.0f, 0.85f };
+	}
+	if (attribute & kCollisionAttributeEnemy) {
+		return { 1.0f, 0.18f, 0.35f, 0.85f };
+	}
+	if (attribute & kCollisionAttributePlayerBullet) {
+		return { 1.0f, 0.95f, 0.2f, 0.75f };
+	}
+	if (attribute & kCollisionAttributeEnemyBullet) {
+		return { 1.0f, 0.35f, 0.1f, 0.75f };
+	}
+	return { 1.0f, 1.0f, 1.0f, 0.7f };
+}
+
+bool IsBulletCollider(uint32_t attribute) {
+	return (attribute & (kCollisionAttributePlayerBullet | kCollisionAttributeEnemyBullet)) != 0;
+}
+
+RingEffectConfig MakeCollisionRingConfig(float radius, const Vector4& color) {
+	RingEffectConfig config{};
+	config.lifeTime = 0.045f;
+	config.startRadius = radius;
+	config.endRadius = radius;
+	config.startWidth = 0.045f;
+	config.endWidth = 0.045f;
+	config.rotate = { 0.0f, 0.0f, 0.0f };
+	config.startColor = color;
+	config.endColor = color;
+	config.divisions = 64;
+	return config;
+}
+
+void EmitColliderDebugRings(RingManager& ringManager, Collider& collider) {
+	const Vector4 color = GetCollisionDebugColor(collider.GetCollisionAttribute());
+	if (collider.GetShape() == ColliderShape::Capsule) {
+		const Segment& segment = collider.GetSegment();
+		const Vector3 start = segment.origin;
+		const Vector3 end = segment.origin + segment.diff;
+		const Vector3 middle = start + segment.diff * 0.5f;
+		RingEffectConfig config = MakeCollisionRingConfig(collider.GetCapsuleRadius(), color);
+		ringManager.Emit(start, config);
+		ringManager.Emit(middle, config);
+		ringManager.Emit(end, config);
+		return;
+	}
+
+	ringManager.Emit(collider.GetWorldPosition(), MakeCollisionRingConfig(collider.GetRadius(), color));
+}
+
+} // namespace
 
 GameScene::GameScene() {}
 
@@ -27,12 +87,13 @@ void GameScene::Initialize() {
 	);
 	{
 		BloomParam& playerPost = playerPostEffect_->GetParam();
-		playerPost.intensity = 2.0f;
+		playerPost.threshold = 0.0f;
+		playerPost.intensity = 1.0f;
 		playerPost.outlineWidth = 0.0f;
-		playerPost.outlineThreshold = 0.05f;
-		playerPost.outlineColor = { 0.1f, 0.85f, 1.0f };
-		playerPost.outlineBloomIntensity = 2.0f;
-		playerPost.outlineBloomWidth = 1.0f;
+		playerPost.outlineThreshold = 0.0f;
+		playerPost.outlineColor = { 0.12f, 1.0f, 0.32f };
+		playerPost.outlineBloomIntensity = 0.27f;
+		playerPost.outlineBloomWidth = 2.7f;
 	}
 
 	enemyPostEffect_ = std::make_unique<ObjectPostEffect>();
@@ -43,13 +104,63 @@ void GameScene::Initialize() {
 	);
 	{
 		BloomParam& enemyPost = enemyPostEffect_->GetParam();
-		enemyPost.intensity = 2.0f;
+		enemyPost.intensity = 1.2f;
 		enemyPost.outlineWidth = 0.0f;
 		enemyPost.outlineThreshold = 0.0f;
 		enemyPost.outlineColor = { 1.0f, 0.2f, 0.1f };
 		enemyPost.chromAbAmount = 0.0f;
-		enemyPost.outlineBloomIntensity = 0.0f;
-		enemyPost.outlineBloomWidth = 0.0f;
+		enemyPost.outlineBloomIntensity = 0.27f;
+		enemyPost.outlineBloomWidth = 2.7f;
+	}
+
+	expEnemyPostEffect_ = std::make_unique<ObjectPostEffect>();
+	expEnemyPostEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr
+	);
+	{
+		BloomParam& expEnemyPost = expEnemyPostEffect_->GetParam();
+		expEnemyPost.intensity = 1.0f;
+		expEnemyPost.threshold = 0.0f;
+		expEnemyPost.outlineWidth = 0.0f;
+		expEnemyPost.outlineThreshold = 0.0f;
+		expEnemyPost.outlineColor = { 0.9f, 0.15f, 0.98f };
+		expEnemyPost.chromAbAmount = 0.0f;
+		expEnemyPost.outlineBloomIntensity = 0.27f;
+		expEnemyPost.outlineBloomWidth = 2.7f;
+	}
+
+	neonGridPostEffect_ = std::make_unique<ObjectPostEffect>();
+	neonGridPostEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr
+	);
+	{
+		BloomParam& gridPost = neonGridPostEffect_->GetParam();
+		gridPost.threshold = 0.0f;
+		gridPost.intensity = 1.5f;
+		gridPost.outlineWidth = 0.0f;
+		gridPost.outlineThreshold = 0.0f;
+		gridPost.outlineBloomIntensity = 0.0f;
+		gridPost.outlineBloomWidth = 0.0f;
+	}
+
+	bulletTrailPostEffect_ = std::make_unique<ObjectPostEffect>();
+	bulletTrailPostEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr
+	);
+	{
+		BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
+		bulletTrailPost.threshold = 0.0f;
+		bulletTrailPost.intensity = 2.0f;
+		bulletTrailPost.outlineWidth = 0.0f;
+		bulletTrailPost.outlineThreshold = 0.0f;
+		bulletTrailPost.outlineBloomIntensity = 0.0f;
+		bulletTrailPost.outlineBloomWidth = 0.0f;
 	}
 
 	enemyObject_ = std::make_unique<Object3d>();
@@ -78,11 +189,10 @@ void GameScene::Initialize() {
 	groundObj_->SetModel("ground.obj");
 	groundObj_->SetTranslate(Vector3(0.0f, -30.0f, 0.0f));
 	
-	enemyObject_->SetModel("enemy.obj");
+	enemyObject_->SetModel("enemy3D.obj");
 	object3d3->SetModel("plane.obj");
 	playerObject_->SetModel("player3D.obj");
-	//playerObject_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 0.6f));
-	playerObject_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 0.2f));
+	playerObject_->SetColor(Vector4(0.48f, 0.86f, 0.22f, 1.0f));
 	//playerObject_->SetLighting(true);
 	ballObj_->SetModel("bloomBlock.obj");
 	ballObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
@@ -95,6 +205,7 @@ void GameScene::Initialize() {
 
 	// 弾マネージャの生成
 	bulletManager_ = std::make_unique<BulletManager>();
+	bulletManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), Object3dCommon::GetInstance());
 
 	player_ = std::make_unique<Player>();
 	player_->Initialize(playerObject_.get(), Vector3(30.0f, 30.0f, 0.0f));
@@ -113,6 +224,10 @@ void GameScene::Initialize() {
 
 	// 衝突マネージャの生成
 	collisionManager_ = std::make_unique<CollisionManager>();
+	collisionDebugRingManager_ = std::make_unique<RingManager>();
+	collisionDebugRingManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/gradationLine.png");
+	neonGridRenderer_ = std::make_unique<NeonGridRenderer>();
+	neonGridRenderer_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/white512x512.png");
 
 	fade_ = std::make_unique<Fade>();
 	fade_->Initialize();
@@ -139,6 +254,8 @@ void GameScene::Initialize() {
 	toTitleGide->Initialize(SpriteCommon::GetInstance(), "resources/toTitle.png");
 	toTitleGide->SetPosition({ 20.0f, 610.0f });
 	toTitleGide->SetSize({ 200.0f, 50.0f });
+
+	InitializeFollowHpBarBatch();
 
 }
 
@@ -236,6 +353,21 @@ void GameScene::Update() {
 	ImGui::DragFloat("Enemy Outline Bloom Width", &enemyPost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
 	ImGui::End();
 
+	ImGui::Begin("Exp Enemy Object Post");
+	ImGui::Checkbox("Enable Exp Enemy Post", &enableExpEnemyPostEffect_);
+	BloomParam& expEnemyPost = expEnemyPostEffect_->GetParam();
+	ImGui::DragFloat("Exp Enemy Intensity", &expEnemyPost.intensity, 0.01f, 0.0f, 5.0f);
+	ImGui::DragFloat("Exp Enemy Distortion", &expEnemyPost.distortionAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Exp Enemy ChromAb", &expEnemyPost.chromAbAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Exp Enemy Glitch", &expEnemyPost.glitchAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Exp Enemy Dissolve", &expEnemyPost.dissolveThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Exp Enemy Outline Width", &expEnemyPost.outlineWidth, 0.1f, 0.0f, 100.0f);
+	ImGui::DragFloat("Exp Enemy Outline Threshold", &expEnemyPost.outlineThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::ColorEdit3("Exp Enemy Outline Color", &expEnemyPost.outlineColor.x);
+	ImGui::DragFloat("Exp Enemy Outline Bloom Intensity", &expEnemyPost.outlineBloomIntensity, 0.01f, 0.0f, 5.0f);
+	ImGui::DragFloat("Exp Enemy Outline Bloom Width", &expEnemyPost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
+	ImGui::End();
+
 	ImGui::Begin("RPG Progress");
 	ImGui::Text("Level: %d", player_->GetLevel());
 	ImGui::Text("Exp: %d / %d", player_->GetExp(), player_->GetNextLevelExpValue());
@@ -261,9 +393,72 @@ void GameScene::Update() {
 	}
 	ImGui::End();
 
+	ImGui::Begin("Collision Debug");
+	ImGui::Checkbox("Show Colliders (F7)", &showCollisionDebug_);
+	ImGui::Checkbox("Show Bullet Colliders", &showCollisionDebugBullets_);
+	ImGui::Text("Player/Drone: cyan, Enemy: red, Bullets: yellow/orange");
+	ImGui::End();
+
+	ImGui::Begin("World HP Bars");
+	ImGui::Checkbox("Show Follow HP Bars", &showFollowHpBars_);
+	ImGui::Text("White outline / black missing HP / green HP");
+	ImGui::End();
+
+	ImGui::Begin("Neon Grid");
+	ImGui::Checkbox("Show World Grid", &showNeonGrid_);
+	ImGui::Checkbox("Show Actor Local Grid", &showActorLocalGrid_);
+	ImGui::Checkbox("Enable Grid Post", &enableNeonGridPostEffect_);
+	ImGui::DragFloat("World Spacing", &worldGridSpacing_, 0.05f, 0.25f, 8.0f);
+	ImGui::DragFloat("World Line Width", &worldGridLineWidth_, 0.005f, 0.005f, 0.5f);
+	ImGui::ColorEdit4("World Color", &worldGridColor_.x);
+	ImGui::DragFloat("Actor Radius", &actorGridRadius_, 0.05f, 0.5f, 16.0f);
+	ImGui::DragFloat("Actor Spacing", &actorGridSpacing_, 0.025f, 0.2f, 3.0f);
+	ImGui::DragFloat("Actor Line Width", &actorGridLineWidth_, 0.005f, 0.005f, 0.5f);
+	ImGui::ColorEdit4("Player Grid", &playerGridColor_.x);
+	ImGui::ColorEdit4("Enemy Grid", &enemyGridColor_.x);
+	ImGui::ColorEdit4("Exp Enemy Grid", &expEnemyGridColor_.x);
+	BloomParam& gridPost = neonGridPostEffect_->GetParam();
+	ImGui::DragFloat("Grid Bloom Intensity", &gridPost.intensity, 0.01f, 0.0f, 6.0f);
+	ImGui::DragFloat("Grid Bloom Threshold", &gridPost.threshold, 0.01f, 0.0f, 2.0f);
+	ImGui::End();
+
+	ImGui::Begin("Bullet Trail");
+	ImGui::Checkbox("Enable Bullet Trail Post", &enableBulletTrailPostEffect_);
+	BulletTrailSettings& bulletTrail = bulletManager_->GetTrailSettings();
+	ImGui::DragFloat("Player Trail Half Width", &bulletTrail.playerHalfWidth, 0.01f, 0.01f, 1.5f);
+	ImGui::DragFloat("Enemy Trail Half Width", &bulletTrail.enemyHalfWidth, 0.01f, 0.01f, 1.5f);
+	ImGui::DragFloat("Trail Lifetime", &bulletTrail.lifetime, 0.01f, 0.02f, 1.5f);
+	ImGui::DragInt("Trail Max Points", &bulletTrail.maxPoints, 1.0f, 2, 80);
+	ImGui::DragInt("Trail Interpolation", &bulletTrail.interpolationSteps, 1.0f, 1, 12);
+	ImGui::DragFloat("Head Width Scale", &bulletTrail.headWidthScale, 0.01f, 0.0f, 4.0f);
+	ImGui::DragFloat("Tail Width Scale", &bulletTrail.tailWidthScale, 0.01f, 0.0f, 4.0f);
+	ImGui::Checkbox("Use Object Color For Trail", &bulletTrail.useObjectColorForTrail);
+	ImGui::ColorEdit4("Player Bullet Color", &bulletTrail.playerObjectColor.x);
+	ImGui::ColorEdit4("Enemy Bullet Color", &bulletTrail.enemyObjectColor.x);
+	ImGui::ColorEdit4("Reflect Bullet Color", &bulletTrail.reflectableObjectColor.x);
+	if (bulletTrail.useObjectColorForTrail) {
+		ImGui::DragFloat("Trail Head Intensity", &bulletTrail.trailHeadIntensity, 0.01f, 0.0f, 5.0f);
+		ImGui::DragFloat("Trail Tail Intensity", &bulletTrail.trailTailIntensity, 0.01f, 0.0f, 5.0f);
+		ImGui::DragFloat("Trail Head Alpha", &bulletTrail.trailHeadAlpha, 0.01f, 0.0f, 1.0f);
+		ImGui::DragFloat("Trail Tail Alpha", &bulletTrail.trailTailAlpha, 0.01f, 0.0f, 1.0f);
+	} else {
+		ImGui::ColorEdit4("Trail Start Color", &bulletTrail.startColor.x);
+		ImGui::ColorEdit4("Player Trail End", &bulletTrail.playerEndColor.x);
+		ImGui::ColorEdit4("Enemy Trail End", &bulletTrail.enemyEndColor.x);
+		ImGui::ColorEdit4("Reflect Trail End", &bulletTrail.reflectableEndColor.x);
+	}
+	ImGui::Text("Trail Instances: %zu", bulletManager_->GetTrailInstanceCount());
+	BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
+	ImGui::DragFloat("Bullet Trail Bloom Intensity", &bulletTrailPost.intensity, 0.01f, 0.0f, 8.0f);
+	ImGui::DragFloat("Bullet Trail Bloom Threshold", &bulletTrailPost.threshold, 0.01f, 0.0f, 2.0f);
+	ImGui::End();
+
 #endif // USE_IMGUI
 
 #ifdef USE_IMGUI
+	if (input_->IsTrigger(input_->GetKey()[DIK_F7], input_->GetPreKey()[DIK_F7])) {
+		showCollisionDebug_ = !showCollisionDebug_;
+	}
 	if (input_->IsTrigger(input_->GetKey()[DIK_F5], input_->GetPreKey()[DIK_F5])) {
 		player_->AddExp(player_->GetNextLevelExpValue());
 	}
@@ -330,8 +525,25 @@ void GameScene::Update() {
 	
 	// 衝突マネージャの更新
 	collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
+	if (showCollisionDebug_) {
+		for (Collider* collider : collisionManager_->GetColliders()) {
+			if (!collider) {
+				continue;
+			}
+			if (!showCollisionDebugBullets_ && IsBulletCollider(collider->GetCollisionAttribute())) {
+				continue;
+			}
+			EmitColliderDebugRings(*collisionDebugRingManager_, *collider);
+		}
+	} else {
+		collisionDebugRingManager_->Clear();
+	}
+	collisionDebugRingManager_->Update(finalDeltaTime);
 	playerPostEffect_->Update(finalDeltaTime);
 	enemyPostEffect_->Update(finalDeltaTime);
+	expEnemyPostEffect_->Update(finalDeltaTime);
+	neonGridPostEffect_->Update(finalDeltaTime);
+	bulletTrailPostEffect_->Update(finalDeltaTime);
 
 #ifdef USE_IMGUI
 
@@ -404,11 +616,21 @@ void GameScene::DrawPostEffect3D() {
 
 	Object3dCommon::GetInstance()->PreDraw(kNormal);
 
+	if (enableNeonGridPostEffect_) {
+		neonGridPostEffect_->BeginCapture();
+		DrawNeonGridPass();
+		neonGridPostEffect_->EndCaptureAdditiveOnly();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+	} else {
+		DrawNeonGridPass();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+	}
+
 	player_->Draw(!enablePlayerPostEffect_);
 	
 	enemy_->Draw(!enableEnemyPostEffect_);
 	
-	enemyManager_->Draw();
+	enemyManager_->Draw(!enableExpEnemyPostEffect_);
 	
 	bulletManager_->Draw();
 	
@@ -416,11 +638,26 @@ void GameScene::DrawPostEffect3D() {
 	//
 	ballObj_->Draw();
 	//
-	enemy_->HPBarDraw();
-	//
 	//groundObj_->Draw();
 
 	ball_->Draw();
+
+	{
+		Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+			? debugCamera->GetViewProjectionMatrix()
+			: camera->GetViewProjectionMatrix();
+		if (enableBulletTrailPostEffect_) {
+			bulletTrailPostEffect_->BeginCapture();
+			bulletManager_->DrawTrails(vp);
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			bulletManager_->Draw();
+			bulletTrailPostEffect_->EndCaptureAdditiveOnly();
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+		} else {
+			bulletManager_->DrawTrails(vp);
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+		}
+	}
 
 	if (enablePlayerPostEffect_ && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
 		playerPostEffect_->BeginCapture();
@@ -438,7 +675,22 @@ void GameScene::DrawPostEffect3D() {
 		Object3dCommon::GetInstance()->PreDraw(kNormal);
 	}
 
+	if (enableExpEnemyPostEffect_) {
+		expEnemyPostEffect_->BeginCapture();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		enemyManager_->DrawBodyOnly();
+		expEnemyPostEffect_->EndCapture();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+	}
+
 	
+	if (showCollisionDebug_) {
+		Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+			? debugCamera->GetViewProjectionMatrix()
+			: camera->GetViewProjectionMatrix();
+		collisionDebugRingManager_->DrawAll(vp);
+	}
+
 	ParticleManager::GetInstance()->Draw();
 
 }
@@ -470,6 +722,43 @@ void GameScene::DrawAfterPostEffect3D() {
 	playerPostEffect_->SetParam(savedParam);
 }
 
+void GameScene::DrawNeonGridPass() {
+	if (!neonGridRenderer_) {
+		return;
+	}
+
+	neonGridRenderer_->BeginFrame();
+	if (showNeonGrid_) {
+		const float minX = 0.0f;
+		const float minY = 0.0f;
+		const float maxX = MapChip::kBlockWidth * static_cast<float>(MapChip::kNumBlockHorizontal - 1);
+		const float maxY = MapChip::kBlockHeight * static_cast<float>(MapChip::kNumBlockVirtical - 1);
+		neonGridRenderer_->QueueWorldGrid(minX, maxX, minY, maxY, worldGridSpacing_, worldGridLineWidth_, worldGridColor_);
+	}
+	if (showActorLocalGrid_) {
+		const float fieldMinX = 0.0f;
+		const float fieldMinY = 0.0f;
+		const float fieldMaxX = MapChip::kBlockWidth * static_cast<float>(MapChip::kNumBlockHorizontal - 1);
+		const float fieldMaxY = MapChip::kBlockHeight * static_cast<float>(MapChip::kNumBlockVirtical - 1);
+		if (!player_->IsDead()) {
+			neonGridRenderer_->QueueLocalGridClipped(player_->GetWorldPosition(), actorGridRadius_, actorGridSpacing_, actorGridLineWidth_, playerGridColor_, fieldMinX, fieldMaxX, fieldMinY, fieldMaxY);
+		}
+		if (!enemy_->IsDead()) {
+			neonGridRenderer_->QueueLocalGridClipped(enemy_->GetWorldPosition(), actorGridRadius_ * 1.15f, actorGridSpacing_, actorGridLineWidth_, enemyGridColor_, fieldMinX, fieldMaxX, fieldMinY, fieldMaxY);
+		}
+		for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
+			if (expEnemy && !expEnemy->IsDead()) {
+				neonGridRenderer_->QueueLocalGridClipped(expEnemy->GetWorldPosition(), actorGridRadius_ * 0.6f, actorGridSpacing_, actorGridLineWidth_ * 0.8f, expEnemyGridColor_, fieldMinX, fieldMaxX, fieldMinY, fieldMaxY);
+			}
+		}
+	}
+
+	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+		? debugCamera->GetViewProjectionMatrix()
+		: camera->GetViewProjectionMatrix();
+	neonGridRenderer_->DrawAll(vp);
+}
+
 void GameScene::DrawShadow() {
 	// 影用の共通設定（PSOの切り替えなど）は Object3dCommon 側で行う
 	//Object3dCommon::GetInstance()->PreDraw(kShadow);
@@ -483,9 +772,30 @@ void GameScene::DrawShadow() {
 void GameScene::DrawSprite() {
 
 	enemy_->DrawSprite();
-	if (!enemy_->IsDead()) {
-		player_->DrawSprite();
+	followHpBarIndex_ = 0;
+	for (auto& vertices : hpBarBackgroundVertices_) { vertices.clear(); }
+	for (auto& vertices : hpBarFillVertices_) { vertices.clear(); }
+	for (auto& vertices : hpBarOutlineVertices_) { vertices.clear(); }
+	if (showFollowHpBars_) {
+		if (!player_->IsDead()) {
+			DrawFollowHpBar(player_.get(), player_->GetWorldPosition(), player_->GetHp(), player_->GetMaxHp(), 58.0f, -1.55f);
+		}
+		for (PlayerDrone* drone : player_->GetDronePtrs()) {
+			if (drone && !drone->IsDead()) {
+				DrawFollowHpBar(drone, drone->GetWorldPosition(), drone->GetHp(), drone->GetMaxHp(), 42.0f, -1.45f);
+			}
+		}
+		if (!enemy_->IsDead()) {
+			DrawFollowHpBar(enemy_.get(), enemy_->GetWorldPosition(), enemy_->GetHp(), enemy_->GetMaxHp(), 92.0f, -3.25f);
+		}
+		for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
+			if (expEnemy && !expEnemy->IsDead()) {
+				DrawFollowHpBar(expEnemy, expEnemy->GetWorldPosition(), expEnemy->GetHp(), expEnemy->GetMaxHp(), 36.0f, -1.05f);
+			}
+		}
 	}
+	DrawHpBarBatches();
+	player_->DrawSprite();
 	player_->DrawEncyclopedia();
 	//shotGide->Draw();
 	wasdGide->Draw();
@@ -494,6 +804,201 @@ void GameScene::DrawSprite() {
 	if (phase_ != Phase::kFadeIn) {
 		fade_->Draw();
 	}
+}
+
+void GameScene::InitializeFollowHpBars(size_t count) {
+	followHpBars_.clear();
+	followHpBars_.reserve(count);
+	for (size_t i = 0; i < count; ++i) {
+		FollowHpBar bar{};
+		bar.outline = std::make_unique<Sprite>();
+		bar.background = std::make_unique<Sprite>();
+		bar.fill = std::make_unique<Sprite>();
+
+		bar.outline->Initialize(SpriteCommon::GetInstance(), "resources/hpBarFrame.png");
+		bar.background->Initialize(SpriteCommon::GetInstance(), "resources/hpBarMask.png");
+		bar.fill->Initialize(SpriteCommon::GetInstance(), "resources/hpBarFillMask.png");
+
+		bar.outline->SetAnchorPoint({ 0.5f, 0.5f });
+		bar.background->SetAnchorPoint({ 0.5f, 0.5f });
+		bar.fill->SetAnchorPoint({ 0.0f, 0.5f });
+
+		bar.outline->SetColor({ 1.0f, 1.0f, 1.0f, 0.95f });
+		bar.background->SetColor({ 0.0f, 0.0f, 0.0f, 0.92f });
+		bar.fill->SetColor({ 0.35f, 1.0f, 0.42f, 1.0f });
+
+		followHpBars_.push_back(std::move(bar));
+	}
+}
+
+void GameScene::InitializeFollowHpBarBatch() {
+	TextureManager::GetInstance()->LoadTexture("resources/hpBarOutlineMask.png");
+	TextureManager::GetInstance()->LoadTexture("resources/hpBarFillMask.png");
+
+	const uint32_t kMaxHpBarVertices = 4096;
+	hpBarVertexResource_ = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(VertexData) * kMaxHpBarVertices);
+	hpBarVertexBufferView_.BufferLocation = hpBarVertexResource_->GetGPUVirtualAddress();
+	hpBarVertexBufferView_.SizeInBytes = sizeof(VertexData) * kMaxHpBarVertices;
+	hpBarVertexBufferView_.StrideInBytes = sizeof(VertexData);
+	hpBarVertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&hpBarVertexData_));
+
+	for (HpBarMaterialBuffer& material : hpBarMaterials_) {
+		material.resource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(Material));
+		material.resource->Map(0, nullptr, reinterpret_cast<void**>(&material.data));
+		material.data->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		material.data->enableLighting = false;
+		material.data->lightingMode = false;
+		material.data->environmentCoefficient = 0.0f;
+		material.data->padding = 0.0f;
+		material.data->uvTransform = MakeIdentity4x4();
+		material.data->shininess = 1.0f;
+	}
+	for (size_t i = 0; i < 4; ++i) {
+		const float alpha = static_cast<float>(i + 1) / 4.0f;
+		hpBarMaterials_[i * 3 + 0].data->color = { 0.0f, 0.0f, 0.0f, 0.94f * alpha };
+		hpBarMaterials_[i * 3 + 1].data->color = { 0.46f, 1.0f, 0.56f, alpha };
+		hpBarMaterials_[i * 3 + 2].data->color = { 0.92f, 1.0f, 0.94f, 0.98f * alpha };
+	}
+
+	hpBarTransformResource_ = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
+	hpBarTransformResource_->Map(0, nullptr, reinterpret_cast<void**>(&hpBarTransformData_));
+	hpBarTransformData_->World = MakeIdentity4x4();
+	hpBarTransformData_->WVP = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+}
+
+void GameScene::DrawFollowHpBar(const void* ownerKey, const Vector3& worldPos, int hp, int maxHp, float width, float yOffset) {
+	if (maxHp <= 0 || hp <= 0) {
+		return;
+	}
+
+	HpBarVisibility& visibility = hpBarVisibility_[ownerKey];
+	if (visibility.lastHp < 0) {
+		visibility.lastHp = hp;
+		visibility.lastMaxHp = maxHp;
+	}
+	const bool hpChanged = hp != visibility.lastHp || maxHp != visibility.lastMaxHp;
+	if (hpChanged) {
+		visibility.visibleTimer = 1.2f;
+	} else if (visibility.lastHp < visibility.lastMaxHp && hp >= maxHp) {
+		visibility.visibleTimer = 0.35f;
+	}
+	visibility.lastHp = hp;
+	visibility.lastMaxHp = maxHp;
+
+	const float targetAlpha = hp < maxHp || visibility.visibleTimer > 0.0f ? 1.0f : 0.0f;
+	const float fadeSpeed = targetAlpha > visibility.alpha ? 10.0f : 4.0f;
+	if (visibility.alpha < targetAlpha) {
+		visibility.alpha = (std::min)(targetAlpha, visibility.alpha + finalDeltaTime * fadeSpeed);
+	} else if (visibility.alpha > targetAlpha) {
+		visibility.alpha = (std::max)(targetAlpha, visibility.alpha - finalDeltaTime * fadeSpeed);
+	}
+	visibility.visibleTimer = (std::max)(0.0f, visibility.visibleTimer - finalDeltaTime);
+
+	if (visibility.alpha <= 0.0f) {
+		return;
+	}
+	const float alpha = visibility.alpha;
+
+	const float ratio = (std::clamp)(static_cast<float>(hp) / static_cast<float>(maxHp), 0.0f, 1.0f);
+	const float height = (std::max)(9.0f, width * 0.18f);
+	const Vector2 screenPos = WorldToScreen(worldPos + Vector3{ 0.0f, yOffset, 0.0f });
+	const float kCullMargin = 80.0f;
+	if (screenPos.x < -kCullMargin || screenPos.x > WinApp::kClientWidth + kCullMargin ||
+		screenPos.y < -kCullMargin || screenPos.y > WinApp::kClientHeight + kCullMargin) {
+		return;
+	}
+
+	const float inset = 3.0f;
+	const float innerWidth = (std::max)(1.0f, width - inset * 2.0f);
+	const float innerHeight = (std::max)(1.0f, height - inset * 2.0f);
+	const float fillWidth = (std::max)(1.0f, innerWidth * ratio);
+	const size_t alphaBucket = static_cast<size_t>((std::clamp)(static_cast<int>(std::ceil(alpha * 4.0f)) - 1, 0, 3));
+
+	QueueHpBarQuad(hpBarBackgroundVertices_[alphaBucket], screenPos, { innerWidth, innerHeight });
+	QueueHpBarQuad(
+		hpBarFillVertices_[alphaBucket],
+		{ screenPos.x - innerWidth * 0.5f + fillWidth * 0.5f, screenPos.y },
+		{ fillWidth, innerHeight }
+	);
+	QueueHpBarQuad(hpBarOutlineVertices_[alphaBucket], screenPos, { width, height });
+}
+
+void GameScene::QueueHpBarQuad(std::vector<VertexData>& vertices, const Vector2& center, const Vector2& size) {
+	const float left = center.x - size.x * 0.5f;
+	const float right = center.x + size.x * 0.5f;
+	const float top = center.y - size.y * 0.5f;
+	const float bottom = center.y + size.y * 0.5f;
+
+	vertices.push_back({ { left, bottom, 0.0f, 1.0f }, { 0.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } });
+	vertices.push_back({ { left, top, 0.0f, 1.0f }, { 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f } });
+	vertices.push_back({ { right, bottom, 0.0f, 1.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } });
+	vertices.push_back({ { left, top, 0.0f, 1.0f }, { 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f } });
+	vertices.push_back({ { right, top, 0.0f, 1.0f }, { 1.0f, 0.0f }, { 0.0f, 0.0f, -1.0f } });
+	vertices.push_back({ { right, bottom, 0.0f, 1.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } });
+}
+
+void GameScene::DrawHpBarBatch(uint32_t startVertex, uint32_t vertexCount, const std::string& textureFilePath, const HpBarMaterialBuffer& material) {
+	if (vertexCount == 0 || !hpBarVertexData_) {
+		return;
+	}
+
+	auto* dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
+	auto* commandList = dxCommon->GetList().Get();
+	commandList->IASetVertexBuffers(0, 1, &hpBarVertexBufferView_);
+	commandList->SetGraphicsRootConstantBufferView(0, material.resource->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(1, hpBarTransformResource_->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath));
+	commandList->DrawInstanced(vertexCount, 1, startVertex, 0);
+}
+
+void GameScene::DrawHpBarBatches() {
+	struct HpBarDrawCommand {
+		uint32_t startVertex = 0;
+		uint32_t vertexCount = 0;
+		const char* textureFilePath = nullptr;
+		const HpBarMaterialBuffer* material = nullptr;
+	};
+
+	std::array<HpBarDrawCommand, 12> drawCommands{};
+	uint32_t currentVertex = 0;
+	auto appendVertices = [&](const std::vector<VertexData>& vertices, const char* textureFilePath, const HpBarMaterialBuffer& material, size_t commandIndex) {
+		if (vertices.empty() || currentVertex >= 4096u) {
+			return;
+		}
+		const uint32_t count = (std::min)(static_cast<uint32_t>(vertices.size()), 4096u - currentVertex);
+		std::copy_n(vertices.data(), count, hpBarVertexData_ + currentVertex);
+		drawCommands[commandIndex] = { currentVertex, count, textureFilePath, &material };
+		currentVertex += count;
+	};
+
+	for (size_t i = 0; i < hpBarBackgroundVertices_.size(); ++i) {
+		appendVertices(hpBarBackgroundVertices_[i], "resources/hpBarFillMask.png", hpBarMaterials_[i * 3 + 0], i * 3 + 0);
+		appendVertices(hpBarFillVertices_[i], "resources/hpBarFillMask.png", hpBarMaterials_[i * 3 + 1], i * 3 + 1);
+		appendVertices(hpBarOutlineVertices_[i], "resources/hpBarOutlineMask.png", hpBarMaterials_[i * 3 + 2], i * 3 + 2);
+	}
+	if (currentVertex == 0) {
+		return;
+	}
+
+	hpBarTransformData_->WVP = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	for (const HpBarDrawCommand& command : drawCommands) {
+		if (command.vertexCount == 0) {
+			continue;
+		}
+		DrawHpBarBatch(command.startVertex, command.vertexCount, command.textureFilePath, *command.material);
+	}
+}
+
+Vector2 GameScene::WorldToScreen(const Vector3& worldPos) const {
+	Matrix4x4 matVP = Object3dCommon::GetInstance()->GetIsDebugCamera()
+		? debugCamera->GetViewMatrix() * debugCamera->GetProjectionMatrix()
+		: camera->GetViewMatrix() * camera->GetProjectionMatrix();
+	Vector3 ndcPos = TransformMatrix(worldPos, matVP);
+
+	float screenX = (ndcPos.x + 1.0f) * 0.5f * WinApp::kClientWidth;
+	float screenY = (1.0f - ndcPos.y) * 0.5f * WinApp::kClientHeight;
+	return { screenX, screenY };
 }
 
 std::string GameScene::GetNextSceneName() const

@@ -138,6 +138,8 @@ public:
 	bool isFinished();
 
 	bool IsDead() const { return isDead_; }
+	int GetHp() const { return hp_; }
+	int GetMaxHp() const { return maxHP_; }
 
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
 		bulletManager_ = bulletManager;
@@ -180,7 +182,7 @@ private:
 	// 最初の弾までの時間
 	uint32_t time_ = 60;
 
-	float radius_ = 2.8f;
+	float radius_ = 2.0f;
 
 	std::string behaviorName_;
 	// 弾のクールダウン
@@ -216,7 +218,7 @@ private:
 	
 	Vector3 velocity_{ 0, 0, 0 };
 
-	float maxSpeed_ = 0.10f;
+	float maxSpeed_ = 0.06f;
 	float accel_ = 0.008f;
 	float friction_ = 0.90f;
 	Vector3 steeringDir_{ 1.0f, 0.0f, 0.0f };
@@ -231,6 +233,10 @@ private:
 
 	int hp_ = 200;
 	int maxHP_ = 200;
+	Vector3 baseScale_{ 1.0f, 1.0f, 1.0f };
+	Vector4 baseColor_{ 0.0f, 0.0f, 0.0f, 1.0f };
+	float damageFeedbackTimer_ = 0.0f;
+	float damageFeedbackDuration_ = 0.14f;
 
 	bool isDead_ = false;
 
@@ -251,6 +257,8 @@ private:
 
 
 private:
+	void TriggerDamageFeedback();
+	void ApplyDamageFeedback(float deltaTime);
 	void SpawnParticles();
 	void UpdateParticles(float deltaTime = 1.0f / 60.0f);
 	const float deltaTime = 1.0f / 60.0f;

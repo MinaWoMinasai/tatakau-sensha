@@ -88,12 +88,16 @@ public:
 	void Die();
 
 	bool IsDead() const { return isDead_; }
+	int GetHp() const { return hp_; }
+	int GetMaxHp() const { return kMaxHp; }
 
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
 		attackController_.SetBulletManager(bulletManager);
 	}
 
 private:
+	static inline const int kMaxHp = 10;
+
 	// ワールド変換データ
 	Transform worldTransform_;
 
@@ -128,7 +132,7 @@ private:
 
 	Transform hpTransform_;
 
-	int hp_ = 10;
+	int hp_ = kMaxHp;
 
 	// 無敵時間
 	float invincibleTimer_ = 0.0f;

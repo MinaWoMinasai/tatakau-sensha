@@ -11,7 +11,8 @@ class EnemyManager {
 public:
     void Initialize(Player* player, BulletManager* bulletManager);
     void Update(Stage& stage, float deltaTime);
-    void Draw();
+    void Draw(bool drawBody = true);
+    void DrawBodyOnly();
 
     // 衝突判定のためにリストを公開
     std::vector<ExpEnemy*> GetEnemyPtrs() const;

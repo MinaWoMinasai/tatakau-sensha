@@ -20,6 +20,7 @@ public:
 
     // インスタンスのクリア（シーン切り替え時など）
     void ClearInstances() { instances_.clear(); }
+    size_t GetInstanceCount() const { return instances_.size(); }
 
     // 以前の計算用ヘルパー（staticにしてManagerが所有）
     static Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t);
