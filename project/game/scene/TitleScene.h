@@ -38,6 +38,7 @@ private:
 
 	// 終了フラグ
 	bool finished_ = false;
+	std::string nextSceneName_ = "GAME";
 
 	// スプライト
 	std::unique_ptr<Sprite> rule;

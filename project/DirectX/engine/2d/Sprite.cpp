@@ -220,7 +220,10 @@ void Sprite::Draw()
 void Sprite::SetTexture(std::string textureFilePath)
 {
 	textureFilePath_ = textureFilePath;
-	//textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath);
+	isRenderTexture_ = false;
+	TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath_);
+	AdjustTextureSize();
 }
 
 void Sprite::AdjustTextureSize()

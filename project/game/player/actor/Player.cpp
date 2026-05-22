@@ -3,6 +3,13 @@
 #include "Audio.h"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <fstream>
+#include <nlohmann/json.hpp>
+
+#ifdef USE_IMGUI
+#include "externals/imgui/imgui.h"
+#endif
 
 namespace {
 Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
@@ -14,6 +21,72 @@ Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
 		a.z + (b.z - a.z) * t,
 		a.w + (b.w - a.w) * t
 	};
+}
+
+Vector3 ReadVector3(const nlohmann::json& json, const Vector3& fallback)
+{
+	if (!json.is_array() || json.size() < 3) {
+		return fallback;
+	}
+	return {
+		json[0].get<float>(),
+		json[1].get<float>(),
+		json[2].get<float>()
+	};
+}
+
+ClassType ClassTypeFromString(const std::string& id)
+{
+	if (id == "Twin") return ClassType::Twin;
+	if (id == "MachineGun") return ClassType::MachineGun;
+	if (id == "Overseer") return ClassType::Overseer;
+	if (id == "Triple") return ClassType::Triple;
+	if (id == "Assassin") return ClassType::Assassin;
+	if (id == "Bounder") return ClassType::Bounder;
+	if (id == "Ninja") return ClassType::Ninja;
+	if (id == "Smasher") return ClassType::Smasher;
+	if (id == "Summoner") return ClassType::Summoner;
+	return ClassType::Basic;
+}
+
+const std::array<ClassType, 10>& EditableClassTypes()
+{
+	static const std::array<ClassType, 10> types = {
+		ClassType::Basic,
+		ClassType::Twin,
+		ClassType::MachineGun,
+		ClassType::Overseer,
+		ClassType::Triple,
+		ClassType::Assassin,
+		ClassType::Bounder,
+		ClassType::Ninja,
+		ClassType::Smasher,
+		ClassType::Summoner
+	};
+	return types;
+}
+
+const char* ClassTypeToString(ClassType type)
+{
+	switch (type) {
+	case ClassType::Basic: return "Basic";
+	case ClassType::Twin: return "Twin";
+	case ClassType::MachineGun: return "MachineGun";
+	case ClassType::Overseer: return "Overseer";
+	case ClassType::Triple: return "Triple";
+	case ClassType::Assassin: return "Assassin";
+	case ClassType::Bounder: return "Bounder";
+	case ClassType::Ninja: return "Ninja";
+	case ClassType::Smasher: return "Smasher";
+	case ClassType::Summoner: return "Summoner";
+	}
+	return "Unknown";
+}
+
+
+nlohmann::json Vector3ToJson(const Vector3& value)
+{
+	return nlohmann::json::array({ value.x, value.y, value.z });
 }
 }
 
@@ -53,6 +126,14 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			// 個別にクールタイムを設定するために先に設定
 			float baseReload = isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f;
 			bulletCoolTime = baseReload;
+
+			if (const PlayerClassConfig* config = GetCurrentClassConfig()) {
+				if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
+					velocity_ += recoilDir * recoilPower;
+					Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
+					return;
+				}
+			}
 
 			switch (currentClass_) {
 			case ClassType::Basic:
@@ -169,7 +250,9 @@ void Player::DroneShoot(BulletManager* BulletManager)
 
 	//if (input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
 
-	if (drones_.size() >= 7) {
+	const PlayerClassConfig* config = GetCurrentClassConfig();
+	const size_t maxDrones = static_cast<size_t>((std::max)(0, config ? config->maxDrones : 7));
+	if (drones_.size() >= maxDrones) {
 		bulletCoolTime = 0.0f;
 		return;
 	}
@@ -317,6 +400,7 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	worldTransform_.translate = position;
 	object_->SetTransform(worldTransform_);
 	object_->Update();
+	LoadPlayerClassConfigs();
 	InitializeBarrels();
 	UpdateBarrelLayout();
 
@@ -728,7 +812,18 @@ int Player::GetNextLevelExp() const
 
 void Player::Evolve(ClassType newClass)
 {
-	currentClass_ = newClass;
+	EvolveById(ClassTypeToString(newClass));
+}
+
+void Player::EvolveById(const std::string& classId)
+{
+	const PlayerClassConfig* config = GetClassConfig(classId);
+	if (!config) {
+		return;
+	}
+
+	currentClassId_ = config->id;
+	currentClass_ = config->type;
 	
 	// 進化時に特殊状態をリセットする
 	isSmash_ = false;
@@ -746,24 +841,318 @@ void Player::Evolve(ClassType newClass)
 			//break;
 			// ...
 	}
+	InitializeBarrels();
 	UpdateBarrelLayout();
 
 	isChangeMode = false;
 }
 
+void Player::LoadPlayerClassConfigs(const std::string& path)
+{
+	classConfigs_.clear();
+	classOrder_.clear();
+	for (ClassType type : EditableClassTypes()) {
+		PlayerClassConfig config = CreateDefaultClassConfig(type);
+		classOrder_.push_back(config.id);
+		classConfigs_[config.id] = config;
+	}
+
+	std::ifstream file(path);
+	if (!file.is_open()) {
+		return;
+	}
+
+	nlohmann::json root;
+	file >> root;
+	const nlohmann::json& classes = root.contains("classes") ? root["classes"] : root;
+	if (!classes.is_array()) {
+		return;
+	}
+
+	for (const nlohmann::json& item : classes) {
+		const std::string id = item.value("id", "Basic");
+		PlayerClassConfig config = CreateDefaultClassConfig(ClassTypeFromString(id));
+		config.id = id;
+		config.type = ClassTypeFromString(id);
+		config.displayName = item.value("displayName", config.displayName);
+		config.requiredRank = item.value("requiredRank", config.requiredRank);
+		config.usesDrone = item.value("usesDrone", config.usesDrone);
+		config.maxDrones = item.value("maxDrones", config.maxDrones);
+		config.reloadScale = item.value("reloadScale", config.reloadScale);
+		config.bulletSpeedScale = item.value("bulletSpeedScale", config.bulletSpeedScale);
+		config.bulletDamageScale = item.value("bulletDamageScale", config.bulletDamageScale);
+		config.bulletCount = item.value("bulletCount", config.bulletCount);
+		config.spreadAngleDeg = item.value("spreadAngleDeg", config.spreadAngleDeg);
+		config.randomSpread = item.value("randomSpread", config.randomSpread);
+		config.reflect = item.value("reflect", config.reflect);
+		config.penetrate = item.value("penetrate", config.penetrate);
+		config.fireAllBarrels = item.value("fireAllBarrels", config.fireAllBarrels);
+		config.alternateBarrels = item.value("alternateBarrels", config.alternateBarrels);
+		config.recoilPower = item.value("recoilPower", config.recoilPower);
+
+		config.barrels.clear();
+		if (item.contains("barrels") && item["barrels"].is_array()) {
+			for (const nlohmann::json& barrelJson : item["barrels"]) {
+				PlayerBarrelConfig barrel{};
+				barrel.model = barrelJson.value("model", barrel.model);
+				barrel.offset = ReadVector3(barrelJson.value("offset", nlohmann::json::array()), barrel.offset);
+				barrel.scale = ReadVector3(barrelJson.value("scale", nlohmann::json::array()), barrel.scale);
+				barrel.angleDeg = barrelJson.value("angleDeg", barrel.angleDeg);
+				barrel.muzzleForward = barrelJson.value("muzzleForward", barrel.muzzleForward);
+				barrel.fires = barrelJson.value("fires", barrel.fires);
+				config.barrels.push_back(barrel);
+			}
+		}
+		if (config.barrels.empty()) {
+			config.barrels = CreateDefaultClassConfig(config.type).barrels;
+		}
+
+		if (classConfigs_.find(config.id) == classConfigs_.end()) {
+			classOrder_.push_back(config.id);
+		}
+		classConfigs_[config.id] = config;
+	}
+
+	if (classConfigs_.find(currentClassId_) == classConfigs_.end()) {
+		currentClassId_ = "Basic";
+		currentClass_ = ClassType::Basic;
+	}
+}
+
+Player::PlayerClassConfig Player::CreateDefaultClassConfig(ClassType type) const
+{
+	PlayerClassConfig config{};
+	config.type = type;
+	config.id = ClassTypeToString(type);
+	config.displayName = ClassTypeToString(type);
+	config.requiredRank = 1;
+	config.spreadAngleDeg = 10.0f;
+	config.randomSpread = true;
+	config.reloadScale = 1.0f;
+	config.alternateBarrels = false;
+	config.barrels = {
+		{ "gunBarrel.obj", { 0.72f, 0.0f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f, 0.95f, true }
+	};
+
+	if (type == ClassType::Twin) {
+		config.id = "Twin";
+		config.displayName = "Twin";
+		config.requiredRank = 2;
+		config.spreadAngleDeg = 2.0f;
+		config.randomSpread = true;
+		config.reloadScale = 1.0f / 2.5f;
+		config.alternateBarrels = true;
+		config.barrels = {
+			{ "gunBarrel.obj", { 0.72f, -0.34f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f, 0.95f, true },
+			{ "gunBarrel.obj", { 0.72f,  0.34f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f, 0.95f, true }
+		};
+		return config;
+	}
+
+	if (type == ClassType::MachineGun) {
+		config.requiredRank = 2;
+		config.spreadAngleDeg = 30.0f;
+		config.reloadScale = 0.6f;
+	}
+	if (type == ClassType::Overseer) {
+		config.requiredRank = 2;
+		config.usesDrone = true;
+		config.recoilPower = 0.0f;
+	}
+	if (type == ClassType::Triple) {
+		config.requiredRank = 3;
+		config.bulletCount = 3;
+		config.spreadAngleDeg = 45.0f;
+		config.randomSpread = false;
+	}
+	if (type == ClassType::Bounder) {
+		config.requiredRank = 3;
+		config.reflect = true;
+	}
+	if (type == ClassType::Assassin) {
+		config.requiredRank = 3;
+		config.bulletSpeedScale = 1.5f;
+	}
+	if (type == ClassType::Ninja) {
+		config.requiredRank = 4;
+		config.bulletCount = 3;
+		config.spreadAngleDeg = 15.0f;
+		config.randomSpread = false;
+	}
+	if (type == ClassType::Smasher || type == ClassType::Summoner) {
+		config.requiredRank = 4;
+	}
+
+	return config;
+}
+
+void Player::SavePlayerClassConfigs(const std::string& path) const
+{
+	nlohmann::json classes = nlohmann::json::array();
+	for (const std::string& id : classOrder_) {
+		const PlayerClassConfig* config = GetClassConfig(id);
+		if (!config) {
+			continue;
+		}
+
+		nlohmann::json item;
+		item["id"] = config->id;
+		item["displayName"] = config->displayName;
+		item["requiredRank"] = config->requiredRank;
+		item["usesDrone"] = config->usesDrone;
+		item["maxDrones"] = config->maxDrones;
+		item["reloadScale"] = config->reloadScale;
+		item["bulletSpeedScale"] = config->bulletSpeedScale;
+		item["bulletDamageScale"] = config->bulletDamageScale;
+		item["bulletCount"] = config->bulletCount;
+		item["spreadAngleDeg"] = config->spreadAngleDeg;
+		item["randomSpread"] = config->randomSpread;
+		item["reflect"] = config->reflect;
+		item["penetrate"] = config->penetrate;
+		item["fireAllBarrels"] = config->fireAllBarrels;
+		item["alternateBarrels"] = config->alternateBarrels;
+		item["recoilPower"] = config->recoilPower;
+		item["barrels"] = nlohmann::json::array();
+		for (const PlayerBarrelConfig& barrel : config->barrels) {
+			nlohmann::json barrelJson;
+			barrelJson["model"] = barrel.model;
+			barrelJson["offset"] = Vector3ToJson(barrel.offset);
+			barrelJson["scale"] = Vector3ToJson(barrel.scale);
+			barrelJson["angleDeg"] = barrel.angleDeg;
+			barrelJson["muzzleForward"] = barrel.muzzleForward;
+			barrelJson["fires"] = barrel.fires;
+			item["barrels"].push_back(barrelJson);
+		}
+		classes.push_back(item);
+	}
+
+	nlohmann::json root;
+	root["classes"] = classes;
+	std::ofstream file(path);
+	if (file.is_open()) {
+		file << root.dump(2);
+	}
+}
+
+const Player::PlayerClassConfig* Player::GetClassConfig(ClassType type) const
+{
+	return GetClassConfig(ClassTypeToString(type));
+}
+
+const Player::PlayerClassConfig* Player::GetClassConfig(const std::string& classId) const
+{
+	auto it = classConfigs_.find(classId);
+	if (it == classConfigs_.end()) {
+		return nullptr;
+	}
+	return &it->second;
+}
+
+const Player::PlayerClassConfig* Player::GetCurrentClassConfig() const
+{
+	return GetClassConfig(currentClassId_);
+}
+
+Player::PlayerClassConfig* Player::GetMutableClassConfig(const std::string& classId)
+{
+	auto it = classConfigs_.find(classId);
+	if (it == classConfigs_.end()) {
+		return nullptr;
+	}
+	return &it->second;
+}
+
+bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, Vector3& recoilDir, float& recoilPower)
+{
+	if (config.usesDrone) {
+		DroneShoot(bulletManager);
+		recoilPower = 0.0f;
+		bulletCoolTime = baseReload * config.reloadScale;
+		return true;
+	}
+
+	AttackParam param{};
+	param.bulletSpeed = stats_.bulletSpeed * config.bulletSpeedScale;
+	param.bulletCount = config.bulletCount;
+	param.spreadAngleDeg = config.spreadAngleDeg;
+	param.randomSpread = config.randomSpread;
+	param.reflect = config.reflect;
+	param.penetrate = config.penetrate;
+	param.cooldown = 1.0f;
+	param.damage = static_cast<uint32_t>((std::max)(1.0f, stats_.bulletDamage * config.bulletDamageScale));
+
+	if (isBuffActive_) {
+		param.reflect = true;
+		param.spreadAngleDeg += 10.0f;
+	}
+
+	std::vector<size_t> fireIndices;
+	for (size_t i = 0; i < config.barrels.size(); ++i) {
+		if (config.barrels[i].fires) {
+			fireIndices.push_back(i);
+		}
+	}
+	if (fireIndices.empty()) {
+		return false;
+	}
+
+	if (config.alternateBarrels && !config.fireAllBarrels) {
+		const size_t selectableCount = fireIndices.size();
+		const size_t index = fireIndices[shootBarrelIndex_ % selectableCount];
+		fireIndices = { index };
+		shootBarrelIndex_ = static_cast<int>((shootBarrelIndex_ + 1) % selectableCount);
+	}
+
+	const Vector3 forward = Length(dir_) > 0.0001f ? Normalize(dir_) : Vector3{ 1.0f, 0.0f, 0.0f };
+	const Vector3 right = { -forward.y, forward.x, 0.0f };
+
+	for (size_t index : fireIndices) {
+		const PlayerBarrelConfig& barrelConfig = config.barrels[index];
+		const Vector3 fireDir = RotateDirection(forward, barrelConfig.angleDeg);
+		const Vector3 muzzle =
+			worldTransform_.translate +
+			forward * barrelConfig.offset.x +
+			right * barrelConfig.offset.y +
+			Vector3{ 0.0f, 0.0f, barrelConfig.offset.z } +
+			fireDir * barrelConfig.muzzleForward;
+		attackController_.FireFromMuzzle(muzzle, fireDir, param, BulletOwner::kPlayer);
+		if (index < barrels_.size()) {
+			barrels_[index].recoilOffset = 0.22f;
+		}
+		SpawnCasing();
+	}
+
+	bulletCoolTime = baseReload * config.reloadScale;
+	recoilDir = Normalize(dir_) * -1.0f;
+	recoilPower = config.recoilPower;
+	return true;
+}
+
+Vector3 Player::RotateDirection(const Vector3& direction, float angleDeg) const
+{
+	const float rad = angleDeg * 3.1415926535f / 180.0f;
+	return {
+		direction.x * cosf(rad) - direction.y * sinf(rad),
+		direction.x * sinf(rad) + direction.y * cosf(rad),
+		direction.z
+	};
+}
+
 void Player::InitializeBarrels()
 {
 	barrels_.clear();
-	barrels_.reserve(2);
-	for (int i = 0; i < 2; ++i) {
+	const PlayerClassConfig* config = GetCurrentClassConfig();
+	const size_t barrelCount = config ? config->barrels.size() : 1u;
+	barrels_.reserve(barrelCount);
+	for (size_t i = 0; i < barrelCount; ++i) {
 		BarrelModel barrel{};
 		barrel.object = std::make_unique<Object3d>();
 		barrel.object->Initialize();
-		barrel.object->SetModel("gunBarrel.obj");
+		barrel.object->SetModel(config ? config->barrels[i].model : "gunBarrel.obj");
 		barrel.object->SetColor(Vector4(0.48f, 0.86f, 0.22f, 1.0f));
 		baseBarrelColor_ = Vector4(0.48f, 0.86f, 0.22f, 1.0f);
 		barrel.transform = InitWorldTransform();
-		barrel.transform.scale = { 1.25f, 0.24f, 0.24f };
+		barrel.transform.scale = config ? config->barrels[i].scale : Vector3{ 1.25f, 0.24f, 0.24f };
 		barrels_.push_back(std::move(barrel));
 	}
 }
@@ -776,24 +1165,20 @@ void Player::UpdateBarrelLayout()
 
 	const Vector3 forward = Length(dir_) > 0.0001f ? Normalize(dir_) : Vector3{ 1.0f, 0.0f, 0.0f };
 	const Vector3 right = { -forward.y, forward.x, 0.0f };
-	const int barrelCount = currentClass_ == ClassType::Twin ? 2 : 1;
-	const float forwardOffset = 0.72f;
-	const float twinSideOffset = 0.34f;
+	const PlayerClassConfig* config = GetCurrentClassConfig();
 	const float recoilReturn = 0.055f;
 
 	for (size_t i = 0; i < barrels_.size(); ++i) {
 		BarrelModel& barrel = barrels_[i];
-		const bool active = i < static_cast<size_t>(barrelCount);
-		float sideOffset = 0.0f;
-		if (barrelCount == 2) {
-			sideOffset = (i == 0) ? -twinSideOffset : twinSideOffset;
-		}
+		const PlayerBarrelConfig barrelConfig = (config && i < config->barrels.size()) ? config->barrels[i] : PlayerBarrelConfig{};
+		const bool active = config ? i < config->barrels.size() : i == 0;
 
 		barrel.recoilOffset = (std::max)(0.0f, barrel.recoilOffset - recoilReturn * dt_ * 60.0f);
-		barrel.localOffset = forward * (forwardOffset - barrel.recoilOffset) + right * sideOffset;
+		barrel.localOffset = forward * (barrelConfig.offset.x - barrel.recoilOffset) + right * barrelConfig.offset.y + Vector3{ 0.0f, 0.0f, barrelConfig.offset.z };
 		barrel.transform.translate = worldTransform_.translate + barrel.localOffset;
 		barrel.transform.rotate = worldTransform_.rotate;
-		barrel.transform.scale = active ? Vector3{ 1.25f, 0.24f, 0.24f } : Vector3{ 0.0f, 0.0f, 0.0f };
+		barrel.transform.rotate.z += barrelConfig.angleDeg * 3.1415926535f / 180.0f;
+		barrel.transform.scale = active ? barrelConfig.scale : Vector3{ 0.0f, 0.0f, 0.0f };
 		barrel.object->SetTransform(barrel.transform);
 		barrel.object->Update();
 	}
@@ -801,7 +1186,8 @@ void Player::UpdateBarrelLayout()
 
 void Player::DrawBarrels()
 {
-	const size_t activeCount = currentClass_ == ClassType::Twin ? 2u : 1u;
+	const PlayerClassConfig* config = GetCurrentClassConfig();
+	const size_t activeCount = config ? config->barrels.size() : 1u;
 	for (size_t i = 0; i < barrels_.size() && i < activeCount; ++i) {
 		barrels_[i].object->Draw();
 	}
@@ -952,6 +1338,329 @@ int Player::GetRankFromLevel(int level) {
 	return 1;
 }
 
+void Player::DrawPlayerClassEditor()
+{
+#ifdef USE_IMGUI
+	if (!ImGui::Begin("Player Class Editor")) {
+		ImGui::End();
+		return;
+	}
+
+	if (classOrder_.empty()) {
+		LoadPlayerClassConfigs();
+	}
+	editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classOrder_.size()) - 1);
+	std::string selectedId = classOrder_[editorSelectedClassIndex_];
+	PlayerClassConfig* config = GetMutableClassConfig(selectedId);
+	if (!config) {
+		ImGui::Text("Class config is missing.");
+		ImGui::End();
+		return;
+	}
+
+	if (ImGui::BeginCombo("Class", config->displayName.c_str())) {
+		for (int i = 0; i < static_cast<int>(classOrder_.size()); ++i) {
+			const std::string& id = classOrder_[i];
+			const PlayerClassConfig* itemConfig = GetClassConfig(id);
+			const char* label = itemConfig ? itemConfig->displayName.c_str() : id.c_str();
+			const bool selected = i == editorSelectedClassIndex_;
+			if (ImGui::Selectable(label, selected)) {
+				editorSelectedClassIndex_ = i;
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	bool rebuildBarrels = false;
+	bool relayoutBarrels = false;
+	auto makeUniqueId = [this](const std::string& baseId) {
+		const std::string prefix = baseId.empty() ? "CustomTank" : baseId;
+		if (classConfigs_.find(prefix) == classConfigs_.end()) {
+			return prefix;
+		}
+		for (int i = 1; i < 1000; ++i) {
+			const std::string candidate = prefix + "_" + std::to_string(i);
+			if (classConfigs_.find(candidate) == classConfigs_.end()) {
+				return candidate;
+			}
+		}
+		return prefix + "_Copy";
+	};
+
+	if (ImGui::Button("New Class")) {
+		PlayerClassConfig newConfig = CreateDefaultClassConfig(ClassType::Basic);
+		newConfig.id = makeUniqueId("CustomTank");
+		newConfig.displayName = newConfig.id;
+		classOrder_.push_back(newConfig.id);
+		classConfigs_[newConfig.id] = newConfig;
+		editorSelectedClassIndex_ = static_cast<int>(classOrder_.size()) - 1;
+		selectedId = newConfig.id;
+		config = GetMutableClassConfig(selectedId);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Duplicate Class")) {
+		PlayerClassConfig newConfig = *config;
+		newConfig.id = makeUniqueId(config->id + "_Copy");
+		newConfig.displayName = newConfig.id;
+		classOrder_.push_back(newConfig.id);
+		classConfigs_[newConfig.id] = newConfig;
+		editorSelectedClassIndex_ = static_cast<int>(classOrder_.size()) - 1;
+		selectedId = newConfig.id;
+		config = GetMutableClassConfig(selectedId);
+	}
+	ImGui::SameLine();
+	const bool isLegacyId = config->id == ClassTypeToString(config->type);
+	if (!isLegacyId && ImGui::Button("Delete Class")) {
+		const bool deletingCurrent = currentClassId_ == config->id;
+		classConfigs_.erase(config->id);
+		classOrder_.erase(classOrder_.begin() + editorSelectedClassIndex_);
+		editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classOrder_.size()) - 1);
+		if (deletingCurrent) {
+			EvolveById("Basic");
+		}
+		ImGui::End();
+		return;
+	}
+
+	ImGui::Text("Class ID: %s", config->id.c_str());
+
+	char nameBuffer[64]{};
+	strncpy_s(nameBuffer, config->displayName.c_str(), _TRUNCATE);
+	if (ImGui::InputText("Display Name", nameBuffer, sizeof(nameBuffer))) {
+		config->displayName = nameBuffer;
+	}
+
+	ImGui::DragInt("Required Rank", &config->requiredRank, 1.0f, 1, 4);
+	ImGui::Checkbox("Uses Drone", &config->usesDrone);
+	ImGui::DragInt("Max Drones", &config->maxDrones, 1.0f, 0, 32);
+	ImGui::DragFloat("Reload Scale", &config->reloadScale, 0.01f, 0.05f, 5.0f);
+	ImGui::DragFloat("Bullet Speed Scale", &config->bulletSpeedScale, 0.01f, 0.05f, 5.0f);
+	ImGui::DragFloat("Bullet Damage Scale", &config->bulletDamageScale, 0.01f, 0.05f, 20.0f);
+	ImGui::DragInt("Bullet Count", &config->bulletCount, 1.0f, 1, 16);
+	ImGui::DragFloat("Spread Angle Deg", &config->spreadAngleDeg, 0.1f, 0.0f, 180.0f);
+	ImGui::Checkbox("Random Spread", &config->randomSpread);
+	ImGui::Checkbox("Reflect", &config->reflect);
+	ImGui::Checkbox("Penetrate", &config->penetrate);
+	ImGui::Checkbox("Fire All Barrels", &config->fireAllBarrels);
+	ImGui::Checkbox("Alternate Barrels", &config->alternateBarrels);
+	ImGui::DragFloat("Recoil Power", &config->recoilPower, 0.001f, 0.0f, 0.5f);
+
+	ImGui::Separator();
+	ImGui::Text("Current Class: %s", GetCurrentClassName());
+	if (ImGui::Button("Switch To This Class")) {
+		EvolveById(config->id);
+		rebuildBarrels = false;
+		relayoutBarrels = false;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Apply To Current")) {
+		rebuildBarrels = true;
+	}
+	ImGui::Separator();
+	ImGui::Text("Barrels: %zu", config->barrels.size());
+	if (ImGui::CollapsingHeader("Auto Barrel Layout", ImGuiTreeNodeFlags_DefaultOpen)) {
+		static int layoutCount = 2;
+		static float layoutForward = 0.72f;
+		static float layoutSideSpacing = 0.34f;
+		static float layoutAngleSpread = 0.0f;
+		static float layoutMuzzleForward = 0.95f;
+		static float layoutArcRadius = 0.62f;
+		static float layoutArcCenterAngle = 0.0f;
+		static float layoutArcSweepAngle = 80.0f;
+		static float layoutArcRotationScale = 1.0f;
+		static Vector3 layoutScale = { 1.25f, 0.24f, 0.24f };
+		ImGui::DragInt("Layout Count", &layoutCount, 1.0f, 1, 12);
+		ImGui::DragFloat("Layout Forward", &layoutForward, 0.01f, -2.0f, 5.0f);
+		ImGui::DragFloat("Layout Side Spacing", &layoutSideSpacing, 0.01f, 0.0f, 3.0f);
+		ImGui::DragFloat("Layout Angle Spread", &layoutAngleSpread, 0.1f, -180.0f, 180.0f);
+		ImGui::DragFloat("Layout Muzzle Forward", &layoutMuzzleForward, 0.01f, -2.0f, 5.0f);
+		ImGui::DragFloat("Arc Radius", &layoutArcRadius, 0.01f, 0.0f, 3.0f);
+		ImGui::DragFloat("Arc Center Angle", &layoutArcCenterAngle, 0.1f, -180.0f, 180.0f);
+		ImGui::DragFloat("Arc Sweep Angle", &layoutArcSweepAngle, 0.1f, 0.0f, 360.0f);
+		ImGui::DragFloat("Arc Rotation Scale", &layoutArcRotationScale, 0.01f, -2.0f, 2.0f);
+		ImGui::DragFloat3("Layout Scale", &layoutScale.x, 0.01f, 0.01f, 10.0f);
+		auto generateArcLayout = [&]() {
+			layoutCount = (std::clamp)(layoutCount, 1, 12);
+			const std::string model = config->barrels.empty() ? "gunBarrel.obj" : config->barrels.front().model;
+			const bool fires = config->barrels.empty() ? true : config->barrels.front().fires;
+			constexpr float kDegToRad = 3.1415926535f / 180.0f;
+			config->barrels.clear();
+			config->barrels.reserve(static_cast<size_t>(layoutCount));
+			for (int i = 0; i < layoutCount; ++i) {
+				const float centerIndex = (static_cast<float>(layoutCount) - 1.0f) * 0.5f;
+				const float normalized = layoutCount <= 1 ? 0.0f : (static_cast<float>(i) - centerIndex) / centerIndex;
+				const float angleDeg = layoutArcCenterAngle + normalized * layoutArcSweepAngle * 0.5f;
+				const float angleRad = angleDeg * kDegToRad;
+				PlayerBarrelConfig barrel{};
+				barrel.model = model;
+				barrel.offset = {
+					std::cos(angleRad) * layoutArcRadius,
+					std::sin(angleRad) * layoutArcRadius,
+					0.0f
+				};
+				barrel.scale = layoutScale;
+				barrel.angleDeg = (angleDeg - layoutArcCenterAngle) * layoutArcRotationScale + layoutArcCenterAngle;
+				barrel.muzzleForward = layoutMuzzleForward;
+				barrel.fires = fires;
+				config->barrels.push_back(barrel);
+			}
+			config->fireAllBarrels = layoutCount > 1;
+			config->alternateBarrels = false;
+			rebuildBarrels = true;
+		};
+		if (ImGui::Button("Generate Symmetric Layout")) {
+			layoutCount = (std::clamp)(layoutCount, 1, 12);
+			const std::string model = config->barrels.empty() ? "gunBarrel.obj" : config->barrels.front().model;
+			const bool fires = config->barrels.empty() ? true : config->barrels.front().fires;
+			config->barrels.clear();
+			config->barrels.reserve(static_cast<size_t>(layoutCount));
+			for (int i = 0; i < layoutCount; ++i) {
+				const float centerIndex = (static_cast<float>(layoutCount) - 1.0f) * 0.5f;
+				const float normalized = layoutCount <= 1 ? 0.0f : (static_cast<float>(i) - centerIndex) / centerIndex;
+				PlayerBarrelConfig barrel{};
+				barrel.model = model;
+				barrel.offset = { layoutForward, (static_cast<float>(i) - centerIndex) * layoutSideSpacing, 0.0f };
+				barrel.scale = layoutScale;
+				barrel.angleDeg = normalized * layoutAngleSpread * 0.5f;
+				barrel.muzzleForward = layoutMuzzleForward;
+				barrel.fires = fires;
+				config->barrels.push_back(barrel);
+			}
+			config->fireAllBarrels = layoutCount > 2;
+			config->alternateBarrels = layoutCount == 2;
+			rebuildBarrels = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Generate V Shape")) {
+			layoutCount = (std::clamp)(layoutCount, 2, 12);
+			const std::string model = config->barrels.empty() ? "gunBarrel.obj" : config->barrels.front().model;
+			config->barrels.clear();
+			config->barrels.reserve(static_cast<size_t>(layoutCount));
+			for (int i = 0; i < layoutCount; ++i) {
+				const float centerIndex = (static_cast<float>(layoutCount) - 1.0f) * 0.5f;
+				const float signedIndex = static_cast<float>(i) - centerIndex;
+				PlayerBarrelConfig barrel{};
+				barrel.model = model;
+				barrel.offset = {
+					layoutForward - std::abs(signedIndex) * 0.12f,
+					signedIndex * layoutSideSpacing,
+					0.0f
+				};
+				barrel.scale = layoutScale;
+				barrel.angleDeg = (layoutCount <= 1 || centerIndex == 0.0f) ? 0.0f : (signedIndex / centerIndex) * layoutAngleSpread * 0.5f;
+				barrel.muzzleForward = layoutMuzzleForward;
+				barrel.fires = true;
+				config->barrels.push_back(barrel);
+			}
+			config->fireAllBarrels = true;
+			config->alternateBarrels = false;
+			rebuildBarrels = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Generate Arc Fan")) {
+			generateArcLayout();
+		}
+		if (ImGui::Button("Preset 3 Fan")) {
+			layoutCount = 3;
+			layoutArcRadius = 0.62f;
+			layoutArcCenterAngle = 0.0f;
+			layoutArcSweepAngle = 70.0f;
+			layoutArcRotationScale = 1.0f;
+			layoutScale = { 1.25f, 0.24f, 0.24f };
+			generateArcLayout();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Preset 5 Fan")) {
+			layoutCount = 5;
+			layoutArcRadius = 0.64f;
+			layoutArcCenterAngle = 0.0f;
+			layoutArcSweepAngle = 120.0f;
+			layoutArcRotationScale = 0.85f;
+			layoutScale = { 1.18f, 0.22f, 0.22f };
+			generateArcLayout();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Preset Side Stack")) {
+			layoutCount = 4;
+			layoutArcRadius = 0.58f;
+			layoutArcCenterAngle = 25.0f;
+			layoutArcSweepAngle = 90.0f;
+			layoutArcRotationScale = 0.65f;
+			layoutScale = { 1.18f, 0.22f, 0.22f };
+			generateArcLayout();
+		}
+		ImGui::Separator();
+	}
+	if (ImGui::Button("Add Barrel")) {
+		PlayerBarrelConfig barrel{};
+		if (!config->barrels.empty()) {
+			barrel = config->barrels.back();
+			barrel.offset.y += 0.34f;
+		}
+		config->barrels.push_back(barrel);
+		rebuildBarrels = true;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Save JSON")) {
+		SavePlayerClassConfigs();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Reload JSON")) {
+		LoadPlayerClassConfigs();
+		rebuildBarrels = true;
+	}
+
+	for (size_t i = 0; i < config->barrels.size(); ++i) {
+		ImGui::PushID(static_cast<int>(i));
+		PlayerBarrelConfig& barrel = config->barrels[i];
+		const std::string label = "Barrel " + std::to_string(i);
+		if (ImGui::TreeNode(label.c_str())) {
+			char modelBuffer[128]{};
+			strncpy_s(modelBuffer, barrel.model.c_str(), _TRUNCATE);
+			if (ImGui::InputText("Model", modelBuffer, sizeof(modelBuffer))) {
+				barrel.model = modelBuffer;
+				rebuildBarrels = true;
+			}
+			relayoutBarrels |= ImGui::DragFloat3("Offset X/Y/Z", &barrel.offset.x, 0.01f, -10.0f, 10.0f);
+			relayoutBarrels |= ImGui::DragFloat3("Scale", &barrel.scale.x, 0.01f, 0.0f, 10.0f);
+			relayoutBarrels |= ImGui::DragFloat("Angle Deg", &barrel.angleDeg, 0.1f, -180.0f, 180.0f);
+			ImGui::DragFloat("Muzzle Forward", &barrel.muzzleForward, 0.01f, -2.0f, 5.0f);
+			ImGui::Checkbox("Fires", &barrel.fires);
+			if (ImGui::Button("Duplicate")) {
+				config->barrels.insert(config->barrels.begin() + static_cast<std::ptrdiff_t>(i + 1), barrel);
+				rebuildBarrels = true;
+				ImGui::TreePop();
+				ImGui::PopID();
+				break;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Remove") && config->barrels.size() > 1) {
+				config->barrels.erase(config->barrels.begin() + static_cast<std::ptrdiff_t>(i));
+				rebuildBarrels = true;
+				ImGui::TreePop();
+				ImGui::PopID();
+				break;
+			}
+			ImGui::TreePop();
+		}
+		ImGui::PopID();
+	}
+
+	if (config && config->id == currentClassId_ && (rebuildBarrels || relayoutBarrels)) {
+		if (rebuildBarrels) {
+			InitializeBarrels();
+		}
+		UpdateBarrelLayout();
+	}
+
+	ImGui::Text("Tip: offset.x = forward, offset.y = side, angleDeg = aim offset.");
+	ImGui::End();
+#endif
+}
+
 int Player::GetUpgradeLevel(int index) const
 {
 	if (index < 0 || index >= static_cast<int>(upgradeLevels_.size())) {
@@ -962,6 +1671,9 @@ int Player::GetUpgradeLevel(int index) const
 
 const char* Player::GetCurrentClassName() const
 {
+	if (const PlayerClassConfig* config = GetCurrentClassConfig()) {
+		return config->displayName.c_str();
+	}
 	switch (currentClass_) {
 	case ClassType::Basic: return "Basic";
 	case ClassType::Twin: return "Twin";

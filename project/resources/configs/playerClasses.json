@@ -1,0 +1,416 @@
+{
+  "classes": [
+    {
+      "alternateBarrels": false,
+      "barrels": [
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        }
+      ],
+      "bulletCount": 1,
+      "bulletDamageScale": 1.0,
+      "bulletSpeedScale": 1.0,
+      "displayName": "Basic",
+      "fireAllBarrels": false,
+      "id": "Basic",
+      "maxDrones": 7,
+      "penetrate": false,
+      "randomSpread": true,
+      "recoilPower": 0.009999999776482582,
+      "reflect": false,
+      "reloadScale": 1.0,
+      "requiredRank": 1,
+      "spreadAngleDeg": 10.0,
+      "usesDrone": false
+    },
+    {
+      "alternateBarrels": true,
+      "barrels": [
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            -0.3400000035762787,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        },
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            0.3400000035762787,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        }
+      ],
+      "bulletCount": 1,
+      "bulletDamageScale": 1.0,
+      "bulletSpeedScale": 1.0,
+      "displayName": "Twin",
+      "fireAllBarrels": false,
+      "id": "Twin",
+      "maxDrones": 7,
+      "penetrate": false,
+      "randomSpread": true,
+      "recoilPower": 0.009999999776482582,
+      "reflect": false,
+      "reloadScale": 0.4000000059604645,
+      "requiredRank": 2,
+      "spreadAngleDeg": 2.0,
+      "usesDrone": false
+    },
+    {
+      "alternateBarrels": false,
+      "barrels": [
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        }
+      ],
+      "bulletCount": 1,
+      "bulletDamageScale": 1.0,
+      "bulletSpeedScale": 1.0,
+      "displayName": "MachineGun",
+      "fireAllBarrels": false,
+      "id": "MachineGun",
+      "maxDrones": 7,
+      "penetrate": false,
+      "randomSpread": true,
+      "recoilPower": 0.009999999776482582,
+      "reflect": false,
+      "reloadScale": 0.6000000238418579,
+      "requiredRank": 2,
+      "spreadAngleDeg": 30.0,
+      "usesDrone": false
+    },
+    {
+      "alternateBarrels": false,
+      "barrels": [
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        }
+      ],
+      "bulletCount": 1,
+      "bulletDamageScale": 1.0,
+      "bulletSpeedScale": 1.0,
+      "displayName": "Overseer",
+      "fireAllBarrels": false,
+      "id": "Overseer",
+      "maxDrones": 7,
+      "penetrate": false,
+      "randomSpread": true,
+      "recoilPower": 0.0,
+      "reflect": false,
+      "reloadScale": 1.0,
+      "requiredRank": 2,
+      "spreadAngleDeg": 10.0,
+      "usesDrone": true
+    },
+    {
+      "alternateBarrels": false,
+      "barrels": [
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        }
+      ],
+      "bulletCount": 3,
+      "bulletDamageScale": 1.0,
+      "bulletSpeedScale": 1.0,
+      "displayName": "Triple",
+      "fireAllBarrels": false,
+      "id": "Triple",
+      "maxDrones": 7,
+      "penetrate": false,
+      "randomSpread": false,
+      "recoilPower": 0.009999999776482582,
+      "reflect": false,
+      "reloadScale": 1.0,
+      "requiredRank": 3,
+      "spreadAngleDeg": 45.0,
+      "usesDrone": false
+    },
+    {
+      "alternateBarrels": false,
+      "barrels": [
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        }
+      ],
+      "bulletCount": 1,
+      "bulletDamageScale": 1.0,
+      "bulletSpeedScale": 1.5,
+      "displayName": "Assassin",
+      "fireAllBarrels": false,
+      "id": "Assassin",
+      "maxDrones": 7,
+      "penetrate": false,
+      "randomSpread": true,
+      "recoilPower": 0.009999999776482582,
+      "reflect": false,
+      "reloadScale": 1.0,
+      "requiredRank": 3,
+      "spreadAngleDeg": 10.0,
+      "usesDrone": false
+    },
+    {
+      "alternateBarrels": false,
+      "barrels": [
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        }
+      ],
+      "bulletCount": 1,
+      "bulletDamageScale": 1.0,
+      "bulletSpeedScale": 1.0,
+      "displayName": "Bounder",
+      "fireAllBarrels": false,
+      "id": "Bounder",
+      "maxDrones": 7,
+      "penetrate": false,
+      "randomSpread": true,
+      "recoilPower": 0.009999999776482582,
+      "reflect": true,
+      "reloadScale": 1.0,
+      "requiredRank": 3,
+      "spreadAngleDeg": 10.0,
+      "usesDrone": false
+    },
+    {
+      "alternateBarrels": false,
+      "barrels": [
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        }
+      ],
+      "bulletCount": 3,
+      "bulletDamageScale": 1.0,
+      "bulletSpeedScale": 1.0,
+      "displayName": "Ninja",
+      "fireAllBarrels": false,
+      "id": "Ninja",
+      "maxDrones": 7,
+      "penetrate": false,
+      "randomSpread": false,
+      "recoilPower": 0.009999999776482582,
+      "reflect": false,
+      "reloadScale": 1.0,
+      "requiredRank": 4,
+      "spreadAngleDeg": 15.0,
+      "usesDrone": false
+    },
+    {
+      "alternateBarrels": false,
+      "barrels": [
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        }
+      ],
+      "bulletCount": 1,
+      "bulletDamageScale": 1.0,
+      "bulletSpeedScale": 1.0,
+      "displayName": "Smasher",
+      "fireAllBarrels": false,
+      "id": "Smasher",
+      "maxDrones": 7,
+      "penetrate": false,
+      "randomSpread": true,
+      "recoilPower": 0.009999999776482582,
+      "reflect": false,
+      "reloadScale": 1.0,
+      "requiredRank": 4,
+      "spreadAngleDeg": 10.0,
+      "usesDrone": false
+    },
+    {
+      "alternateBarrels": false,
+      "barrels": [
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        }
+      ],
+      "bulletCount": 1,
+      "bulletDamageScale": 1.0,
+      "bulletSpeedScale": 1.0,
+      "displayName": "Summoner",
+      "fireAllBarrels": false,
+      "id": "Summoner",
+      "maxDrones": 7,
+      "penetrate": false,
+      "randomSpread": true,
+      "recoilPower": 0.009999999776482582,
+      "reflect": false,
+      "reloadScale": 1.0,
+      "requiredRank": 4,
+      "spreadAngleDeg": 10.0,
+      "usesDrone": false
+    },
+    {
+      "alternateBarrels": false,
+      "barrels": [
+        {
+          "angleDeg": 0.0,
+          "fires": true,
+          "model": "gunBarrel.obj",
+          "muzzleForward": 0.949999988079071,
+          "offset": [
+            0.7200000286102295,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.25,
+            0.23999999463558197,
+            0.23999999463558197
+          ]
+        }
+      ],
+      "bulletCount": 1,
+      "bulletDamageScale": 1.0,
+      "bulletSpeedScale": 1.0,
+      "displayName": "TripleGun",
+      "fireAllBarrels": false,
+      "id": "Triple_Copy",
+      "maxDrones": 7,
+      "penetrate": false,
+      "randomSpread": false,
+      "recoilPower": 0.009999999776482582,
+      "reflect": false,
+      "reloadScale": 1.0,
+      "requiredRank": 3,
+      "spreadAngleDeg": 0.0,
+      "usesDrone": false
+    }
+  ]
+}

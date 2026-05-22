@@ -2,6 +2,7 @@
 #define NOMINMAX
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <vector>
 #include <unordered_map>
 #include <d3d12.h>
@@ -12,6 +13,7 @@
 #include "Easing.h"
 #include "Resource.h"
 #include "Sprite.h"
+#include "TextLabel.h"
 #include "WinApp.h"
 #include "Object3d.h"
 #include "Model.h"
@@ -150,6 +152,7 @@ private:
 	std::unique_ptr<ObjectPostEffect> playerPostEffect_;
 	std::unique_ptr<ObjectPostEffect> enemyPostEffect_;
 	std::unique_ptr<ObjectPostEffect> expEnemyPostEffect_;
+	std::unique_ptr<ObjectPostEffect> stagePostEffect_;
 
 	// 終了フラグ
 	bool finished_ = false;
@@ -161,6 +164,10 @@ private:
 	std::unique_ptr<Sprite> wasdGide;
 	std::unique_ptr<Sprite> dashGide;
 	std::unique_ptr<Sprite> toTitleGide;
+	std::unique_ptr<TextLabel> dashGuideText_;
+	std::unique_ptr<TextLabel> moveGuideText_;
+	std::unique_ptr<TextLabel> titleGuideText_;
+	std::unique_ptr<TextLabel> fpsText_;
 	std::vector<FollowHpBar> followHpBars_;
 	std::array<std::vector<VertexData>, 4> hpBarBackgroundVertices_;
 	std::array<std::vector<VertexData>, 4> hpBarFillVertices_;
@@ -184,9 +191,13 @@ private:
 
 	float timeScale_ = 1.0f; // 1.0 が通常、0.2 なら 5倍スロー
 	float finalDeltaTime;
+	std::chrono::steady_clock::time_point fpsLastSampleTime_{};
+	float fpsAccumulatedTime_ = 0.0f;
+	int fpsFrameCount_ = 0;
 	bool enablePlayerPostEffect_ = true;
 	bool enableEnemyPostEffect_ = true;
 	bool enableExpEnemyPostEffect_ = true;
+	bool enableStagePostEffect_ = true;
 	bool slowMotionPostActive_ = false;
 	bool keepPlayerColorDuringSlow_ = true;
 	float slowPlayerChromAbAmount_ = 0.035f;

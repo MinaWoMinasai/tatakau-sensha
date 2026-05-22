@@ -65,6 +65,19 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
 
     // ブルームパラメータ
     bloomParam_.threshold = 0.0f;
+    bloomParam_.intensity = 0.0f;
+    bloomParam_.vignetteIntensity = 0.0f;
+    bloomParam_.vignetteScale = 0.0f;
+    bloomParam_.chromAbAmount = 0.0f;
+    bloomParam_.distortionAmount = 0.0f;
+    bloomParam_.noiseIntensity = 0.0f;
+    bloomParam_.scanlineIntensity = 0.0f;
+    bloomParam_.scanlineFrequency = 0.0f;
+    bloomParam_.curvature = 0.0f;
+    bloomParam_.borderSharp = 0.0f;
+    bloomParam_.glitchAmount = 0.00f;
+
+   /* bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 1.2f;
     bloomParam_.vignetteIntensity = 1.0f;
     bloomParam_.vignetteScale = 1.7f;
@@ -75,7 +88,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.scanlineFrequency = 50.0f;
     bloomParam_.curvature = 0.0f;
     bloomParam_.borderSharp = 0.0f;
-    bloomParam_.glitchAmount = 0.005f;
+    bloomParam_.glitchAmount = 0.005f;*/
     baseGaussianIntensity_ = bloomParam_.gaussianIntensity;
 
     bloomCB_->Update(bloomParam_);

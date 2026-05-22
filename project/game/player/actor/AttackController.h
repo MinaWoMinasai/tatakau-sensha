@@ -18,7 +18,22 @@ public:
         BulletOwner owner
     );
 
+    void FireFromMuzzle(
+        const Vector3& muzzlePosition,
+        const Vector3& baseDir,
+        const AttackParam& param,
+        BulletOwner owner
+    );
+
 private:
+    void FireInternal(
+        const Vector3& origin,
+        const Vector3& baseDir,
+        const AttackParam& param,
+        BulletOwner owner,
+        bool originIsMuzzle
+    );
+
     BulletManager* bulletManager_ = nullptr;
 };
 
