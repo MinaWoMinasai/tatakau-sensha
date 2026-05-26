@@ -23,11 +23,12 @@ cbuffer BloomParam : register(b0)
     float dissolveThreshold; // ディゾルブの進行度 (0~1)
     float outlineWidth; // アウトラインの太さ
     float outlineThreshold; // エッジ検出のしきい値
-    float pad1;
+    float boxBlurIntensity;
     float3 outlineColor; // アウトラインの色
     float outlineBloomIntensity;
     float outlineBloomWidth;
-    float2 pad2;
+    float boxBlurRadius;
+    float boxBlurReserved;
 };
 
 // --- ヘルパー関数：ランダム ---
@@ -99,6 +100,31 @@ float3 ApplyOverlays(float3 color, float2 uv)
     
     return color;
 }
+
+float3 SampleBoxBlur(Texture2D tex, float2 uv, float radiusPixels)
+{
+    if (boxBlurIntensity <= 0.0f || radiusPixels <= 0.0f)
+    {
+        return tex.Sample(samp, uv).rgb;
+    }
+
+    float2 texelSize = float2(1.0f / 1280.0f, 1.0f / 720.0f);
+    float2 offset = texelSize * radiusPixels;
+
+    float3 sum = 0.0f;
+    sum += tex.Sample(samp, uv + offset * float2(-1.0f, -1.0f)).rgb;
+    sum += tex.Sample(samp, uv + offset * float2( 0.0f, -1.0f)).rgb;
+    sum += tex.Sample(samp, uv + offset * float2( 1.0f, -1.0f)).rgb;
+    sum += tex.Sample(samp, uv + offset * float2(-1.0f,  0.0f)).rgb;
+    sum += tex.Sample(samp, uv).rgb;
+    sum += tex.Sample(samp, uv + offset * float2( 1.0f,  0.0f)).rgb;
+    sum += tex.Sample(samp, uv + offset * float2(-1.0f,  1.0f)).rgb;
+    sum += tex.Sample(samp, uv + offset * float2( 0.0f,  1.0f)).rgb;
+    sum += tex.Sample(samp, uv + offset * float2( 1.0f,  1.0f)).rgb;
+
+    return sum / 9.0f;
+}
+
 // 改良版アウトライン関数
 float3 GetImprovedOutline(float2 uv)
 {
@@ -172,6 +198,8 @@ float4 main(PSInput input) : SV_TARGET
     
     // F. 合成とカラー加工
     float3 sceneColor = sceneTex.Sample(samp, texUV).rgb;
+    float3 boxBlurredScene = SampleBoxBlur(sceneTex, finalUV, boxBlurRadius);
+    sceneColor = lerp(sceneColor, boxBlurredScene, saturate(boxBlurIntensity));
     float3 blurredColor = bloomTex.Sample(samp, texUV).rgb; // PostDrawでシーン全体をぼかして渡したもの
     
     float3 result;
@@ -185,6 +213,7 @@ float4 main(PSInput input) : SV_TARGET
     else
     {
         sceneColor = scene;
+        sceneColor = lerp(sceneColor, boxBlurredScene, saturate(boxBlurIntensity));
         blurredColor = bloom;
     // 【ブルームモード】
     // 元の絵に、高輝度部分をぼかしたものを「加算」する

@@ -98,14 +98,14 @@ void ObjectPostEffect::EndCaptureBloomOnlyToCache() {
 }
 
 void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset) {
-    const float savedOffsetX = param_.pad2[0];
-    const float savedOffsetY = param_.pad2[1];
-    param_.pad2[0] = uvOffset.x;
-    param_.pad2[1] = uvOffset.y;
+    const float savedOffsetX = param_.boxBlurRadius;
+    const float savedOffsetY = param_.boxBlurReserved;
+    param_.boxBlurRadius = uvOffset.x;
+    param_.boxBlurReserved = uvOffset.y;
     cb_->Update(param_);
     postEffect_->DrawObjectBloomAdd(bloomRT_A_->GetGPUHandle());
-    param_.pad2[0] = savedOffsetX;
-    param_.pad2[1] = savedOffsetY;
+    param_.boxBlurRadius = savedOffsetX;
+    param_.boxBlurReserved = savedOffsetY;
     cb_->Update(param_);
 }
 

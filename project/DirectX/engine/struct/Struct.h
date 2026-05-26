@@ -307,11 +307,12 @@ struct BloomParam
 	float dissolveThreshold; // ディゾルブの進行度 (0~1)
 	float outlineWidth; // アウトラインの太さ
 	float outlineThreshold; // エッジ検出のしきい値
-	float pad1;
+	float boxBlurIntensity; // 全体ポストのボックスぼかし合成量
 	Vector3 outlineColor; // アウトラインの色
 	float outlineBloomIntensity; // アウトラインだけのブルーム強度
 	float outlineBloomWidth; // アウトラインブルームの広がり
-	float pad2[2];
+	float boxBlurRadius; // 全体ポストのボックスぼかし半径(px)
+	float boxBlurReserved;
 };
 
 struct PointLightData {
