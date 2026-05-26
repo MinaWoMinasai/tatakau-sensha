@@ -252,6 +252,7 @@ enum BlendMode {
 	kAdd_Bloom_Downsample,
 	kAdd_ObjectPost_Composite,
 	kAdd_ObjectPost_OutlineAdd,
+	kAdd_ObjectPost_BloomAdd,
 };
 
 enum Phase {

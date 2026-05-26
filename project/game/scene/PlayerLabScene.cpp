@@ -9,6 +9,16 @@
 #include "externals/imgui/imgui.h"
 #endif
 
+namespace {
+
+Vector3 GetActiveCameraPosition(Camera* camera, DebugCamera* debugCamera) {
+	return Object3dCommon::GetInstance()->GetIsDebugCamera() && debugCamera
+		? debugCamera->GetEyePosition()
+		: camera->GetTranslate();
+}
+
+} // namespace
+
 void PlayerLabScene::Initialize()
 {
 	input_ = Input::GetInstance();
@@ -57,17 +67,18 @@ void PlayerLabScene::Initialize()
 	stagePostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
-		nullptr
+		nullptr,
+		0.5f
 	);
 	{
 		BloomParam& param = stagePostEffect_->GetParam();
 		param.threshold = 0.0f;
-		param.intensity = 1.1f;
+		param.intensity = 0.75f;
 		param.outlineWidth = 0.0f;
 		param.outlineThreshold = 0.0f;
 		param.outlineColor = { 1.0f, 0.55f, 0.58f };
-		param.outlineBloomIntensity = 0.22f;
-		param.outlineBloomWidth = 2.4f;
+		param.outlineBloomIntensity = 0.0f;
+		param.outlineBloomWidth = 0.0f;
 	}
 
 	neonGridPostEffect_ = std::make_unique<ObjectPostEffect>();
@@ -217,14 +228,13 @@ void PlayerLabScene::DrawPostEffect3D()
 	}
 	bulletManager_->Draw();
 	if (showStage_) {
+		stage_->DrawVisible(GetActiveCameraPosition(camera_.get(), debugCamera_.get()), 38.0f, 24.0f);
 		if (enableStagePostEffect_) {
 			stagePostEffect_->BeginCapture();
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
-			stage_->Draw();
-			stagePostEffect_->EndCapture();
+			stage_->DrawVisible(GetActiveCameraPosition(camera_.get(), debugCamera_.get()), 38.0f, 24.0f);
+			stagePostEffect_->EndCaptureBloomOnly();
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
-		} else {
-			stage_->Draw();
 		}
 	}
 
@@ -391,11 +401,7 @@ void PlayerLabScene::DrawLabEditor()
 	ImGui::Begin("Lab Stage Post");
 	BloomParam& stagePost = stagePostEffect_->GetParam();
 	ImGui::DragFloat("Stage Intensity", &stagePost.intensity, 0.01f, 0.0f, 5.0f);
-	ImGui::DragFloat("Stage Outline Width", &stagePost.outlineWidth, 0.1f, 0.0f, 10.0f);
-	ImGui::DragFloat("Stage Outline Threshold", &stagePost.outlineThreshold, 0.01f, 0.0f, 1.0f);
-	ImGui::ColorEdit3("Stage Outline Color", &stagePost.outlineColor.x);
-	ImGui::DragFloat("Stage Outline Bloom Intensity", &stagePost.outlineBloomIntensity, 0.01f, 0.0f, 5.0f);
-	ImGui::DragFloat("Stage Outline Bloom Width", &stagePost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
+	ImGui::Text("Stage uses bloom-only add pass for performance.");
 	ImGui::End();
 
 	ImGui::Begin("Lab Neon Grid");

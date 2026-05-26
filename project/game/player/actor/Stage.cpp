@@ -20,6 +20,30 @@ void Stage::Draw() {
 	}
 }
 
+void Stage::DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHeight) {
+	const float minX = cameraPos.x - halfWidth;
+	const float maxX = cameraPos.x + halfWidth;
+	const float minY = cameraPos.y - halfHeight;
+	const float maxY = cameraPos.y + halfHeight;
+	const float marginX = MapChip::kBlockWidth * 1.5f;
+	const float marginY = MapChip::kBlockHeight * 1.5f;
+
+	for (auto& line : blocks_) {
+		for (auto& block : line) {
+			if (!block.isActive) continue;
+
+			const Vector3& pos = block.originalPos;
+			if (pos.x < minX - marginX || pos.x > maxX + marginX ||
+				pos.y < minY - marginY || pos.y > maxY + marginY) {
+				continue;
+			}
+
+			block.object->Update();
+			block.object->Draw();
+		}
+	}
+}
+
 void Stage::GenerateBlocks() {
 
 	uint32_t numBlockHorizontal = mapChip_->GetNumBlockHorizontal();

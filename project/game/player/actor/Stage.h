@@ -27,6 +27,7 @@ public:
     void Initialize();
     void Update();
 	void Draw();
+	void DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHeight);
 
 	/// <summary>
 	/// マップチップの生成
