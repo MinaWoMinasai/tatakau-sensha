@@ -10,6 +10,9 @@
     <None Include="resources\shaders\ObjectPostComposite.PS.hlsl">
       <Filter>DirectX\shaders</Filter>
     </None>
+    <None Include="resources\shaders\ObjectPostBloomAdd.PS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </None>
     <Filter Include="ソース ファイル">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>

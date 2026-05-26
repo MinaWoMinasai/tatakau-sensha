@@ -99,12 +99,24 @@ private:
 	void DrawHpBarBatches();
 	Vector2 WorldToScreen(const Vector3& worldPos) const;
 	void DrawNeonGridPass();
+	void ResetPostProfileEntries();
+	void AddPostProfileEntry(const char* name, float ms, bool active);
+	void UpdatePostProfileText();
+	bool IsPostProfileCategoryEnabled(const char* category) const;
+	const char* GetPostProfileModeName() const;
+	Vector2 GetStagePostCacheUvOffset(const Vector3& currentCameraPos) const;
 
 	struct HpBarVisibility {
 		int lastHp = -1;
 		int lastMaxHp = -1;
 		float visibleTimer = 0.0f;
 		float alpha = 0.0f;
+	};
+
+	struct PostProfileEntry {
+		const char* name = "";
+		float ms = 0.0f;
+		bool active = false;
 	};
 
 
@@ -168,6 +180,7 @@ private:
 	std::unique_ptr<TextLabel> moveGuideText_;
 	std::unique_ptr<TextLabel> titleGuideText_;
 	std::unique_ptr<TextLabel> fpsText_;
+	std::unique_ptr<TextLabel> postProfileText_;
 	std::vector<FollowHpBar> followHpBars_;
 	std::array<std::vector<VertexData>, 4> hpBarBackgroundVertices_;
 	std::array<std::vector<VertexData>, 4> hpBarFillVertices_;
@@ -198,6 +211,15 @@ private:
 	bool enableEnemyPostEffect_ = true;
 	bool enableExpEnemyPostEffect_ = true;
 	bool enableStagePostEffect_ = true;
+	bool showPostProfileOverlay_ = true;
+	int postProfileMode_ = 0;
+	std::array<PostProfileEntry, 10> postProfileEntries_;
+	size_t postProfileEntryCount_ = 0;
+	std::array<float, 10> postProfileAccumulatedMs_{};
+	int postProfileAccumulatedFrames_ = 0;
+	bool stagePostCacheValid_ = false;
+	Vector3 stagePostCacheCameraPos_{};
+	float stagePostCacheRefreshPixels_ = 48.0f;
 	bool slowMotionPostActive_ = false;
 	bool keepPlayerColorDuringSlow_ = true;
 	float slowPlayerChromAbAmount_ = 0.035f;

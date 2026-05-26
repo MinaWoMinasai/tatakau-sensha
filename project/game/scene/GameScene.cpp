@@ -2,6 +2,7 @@
 #include "CollisionConfig.h"
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 namespace {
 
@@ -57,6 +58,12 @@ void EmitColliderDebugRings(RingManager& ringManager, Collider& collider) {
 	}
 
 	ringManager.Emit(collider.GetWorldPosition(), MakeCollisionRingConfig(collider.GetRadius(), color));
+}
+
+Vector3 GetActiveCameraPosition(Camera* camera, DebugCamera* debugCamera) {
+	return Object3dCommon::GetInstance()->GetIsDebugCamera() && debugCamera
+		? debugCamera->GetEyePosition()
+		: camera->GetTranslate();
 }
 
 } // namespace
@@ -136,18 +143,19 @@ void GameScene::Initialize() {
 	stagePostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
-		nullptr
+		nullptr,
+		0.5f
 	);
 	{
 		BloomParam& stagePost = stagePostEffect_->GetParam();
 		stagePost.threshold = 0.0f;
-		stagePost.intensity = 1.1f;
+		stagePost.intensity = 0.75f;
 		stagePost.outlineWidth = 0.0f;
 		stagePost.outlineThreshold = 0.0f;
 		stagePost.outlineColor = { 1.0f, 0.55f, 0.58f };
 		stagePost.chromAbAmount = 0.0f;
-		stagePost.outlineBloomIntensity = 0.22f;
-		stagePost.outlineBloomWidth = 2.4f;
+		stagePost.outlineBloomIntensity = 0.0f;
+		stagePost.outlineBloomWidth = 0.0f;
 	}
 
 	neonGridPostEffect_ = std::make_unique<ObjectPostEffect>();
@@ -295,6 +303,14 @@ void GameScene::Initialize() {
 	fpsText_->SetPosition({ 16.0f, 14.0f });
 	fpsLastSampleTime_ = std::chrono::steady_clock::now();
 
+	TextStyle profileStyle = fpsStyle;
+	profileStyle.fontSize = 18.0f;
+	profileStyle.color = { 0.75f, 0.95f, 1.0f, 1.0f };
+	profileStyle.outlineThickness = 2.0f;
+	postProfileText_ = std::make_unique<TextLabel>();
+	postProfileText_->Initialize(SpriteCommon::GetInstance(), "Post Profile  F8:hide  F9:mode", profileStyle);
+	postProfileText_->SetPosition({ 16.0f, 46.0f });
+
 	InitializeFollowHpBarBatch();
 
 }
@@ -431,11 +447,7 @@ void GameScene::Update() {
 	ImGui::DragFloat("Stage Distortion", &stagePost.distortionAmount, 0.001f, 0.0f, 0.2f);
 	ImGui::DragFloat("Stage ChromAb", &stagePost.chromAbAmount, 0.001f, 0.0f, 0.2f);
 	ImGui::DragFloat("Stage Glitch", &stagePost.glitchAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Stage Outline Width", &stagePost.outlineWidth, 0.1f, 0.0f, 10.0f);
-	ImGui::DragFloat("Stage Outline Threshold", &stagePost.outlineThreshold, 0.01f, 0.0f, 1.0f);
-	ImGui::ColorEdit3("Stage Outline Color", &stagePost.outlineColor.x);
-	ImGui::DragFloat("Stage Outline Bloom Intensity", &stagePost.outlineBloomIntensity, 0.01f, 0.0f, 5.0f);
-	ImGui::DragFloat("Stage Outline Bloom Width", &stagePost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
+	ImGui::Text("Stage uses bloom-only add pass for performance.");
 	ImGui::End();
 
 	ImGui::Begin("RPG Progress");
@@ -539,6 +551,13 @@ void GameScene::Update() {
 	}
 #endif // USE_IMGUI
 
+	if (input_->IsTrigger(input_->GetKey()[DIK_F8], input_->GetPreKey()[DIK_F8])) {
+		showPostProfileOverlay_ = !showPostProfileOverlay_;
+	}
+	if (input_->IsTrigger(input_->GetKey()[DIK_F9], input_->GetPreKey()[DIK_F9])) {
+		postProfileMode_ = (postProfileMode_ + 1) % 8;
+	}
+
 	{
 		Vector3 playerPos = player_->GetWorldPosition();
 		const float kCameraZ = -55.0f;
@@ -617,6 +636,7 @@ void GameScene::Update() {
 	stagePostEffect_->Update(finalDeltaTime);
 	neonGridPostEffect_->Update(finalDeltaTime);
 	bulletTrailPostEffect_->Update(finalDeltaTime);
+	UpdatePostProfileText();
 
 #ifdef USE_IMGUI
 
@@ -688,84 +708,139 @@ void GameScene::Draw() {
 void GameScene::DrawPostEffect3D() {
 
 	Object3dCommon::GetInstance()->PreDraw(kNormal);
+	ResetPostProfileEntries();
+	const bool useGridPost = enableNeonGridPostEffect_ && IsPostProfileCategoryEnabled("Grid");
+	const bool useStagePost = enableStagePostEffect_ && IsPostProfileCategoryEnabled("Stage");
+	const bool useBulletTrailPost = enableBulletTrailPostEffect_ && IsPostProfileCategoryEnabled("BulletTrail");
+	const bool usePlayerPost = enablePlayerPostEffect_ && IsPostProfileCategoryEnabled("Player");
+	const bool useEnemyPost = enableEnemyPostEffect_ && IsPostProfileCategoryEnabled("Enemy");
+	const bool useExpEnemyPost = enableExpEnemyPostEffect_ && IsPostProfileCategoryEnabled("ExpEnemy");
+	auto profile = [this](const char* name, bool active, auto&& drawFunc) {
+		const auto start = std::chrono::steady_clock::now();
+		drawFunc();
+		const auto end = std::chrono::steady_clock::now();
+		const float ms = std::chrono::duration<float, std::milli>(end - start).count();
+		AddPostProfileEntry(name, ms, active);
+	};
 
-	if (enableNeonGridPostEffect_) {
-		neonGridPostEffect_->BeginCapture();
-		DrawNeonGridPass();
-		neonGridPostEffect_->EndCaptureAdditiveOnly();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
+	if (useGridPost) {
+		profile("Grid Post", true, [&]() {
+			neonGridPostEffect_->BeginCapture();
+			DrawNeonGridPass();
+			neonGridPostEffect_->EndCaptureAdditiveOnly();
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+		});
 	} else {
-		DrawNeonGridPass();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		profile("Grid Draw", false, [&]() {
+			DrawNeonGridPass();
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+		});
 	}
 
-	player_->Draw(!enablePlayerPostEffect_);
-	
-	enemy_->Draw(!enableEnemyPostEffect_);
-	
-	enemyManager_->Draw(!enableExpEnemyPostEffect_);
-	
-	bulletManager_->Draw();
-	
-	if (enableStagePostEffect_) {
-		stagePostEffect_->BeginCapture();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
-		stage_->Draw();
-		stagePostEffect_->EndCapture();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
+	profile("Base Objects", true, [&]() {
+		player_->Draw(!usePlayerPost);
+		enemy_->Draw(!useEnemyPost);
+		enemyManager_->Draw(!useExpEnemyPost);
+		bulletManager_->Draw();
+		stage_->DrawVisible(GetActiveCameraPosition(camera.get(), debugCamera.get()), 38.0f, 24.0f);
+	});
+	if (useStagePost) {
+		profile("Stage Post", true, [&]() {
+			const Vector3 currentCameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
+			Vector2 cacheOffset = stagePostCacheValid_ ? GetStagePostCacheUvOffset(currentCameraPos) : Vector2{ 0.0f, 0.0f };
+			const float pixelOffsetX = cacheOffset.x * static_cast<float>(WinApp::kClientWidth);
+			const float pixelOffsetY = cacheOffset.y * static_cast<float>(WinApp::kClientHeight);
+			const bool shouldRefreshCache =
+				!stagePostCacheValid_ ||
+				std::fabs(pixelOffsetX) > stagePostCacheRefreshPixels_ ||
+				std::fabs(pixelOffsetY) > stagePostCacheRefreshPixels_;
+
+			if (shouldRefreshCache) {
+				stagePostEffect_->BeginCapture();
+				Object3dCommon::GetInstance()->PreDraw(kNormal);
+				stage_->DrawVisible(currentCameraPos, 38.0f, 24.0f);
+				stagePostEffect_->EndCaptureBloomOnlyToCache();
+				stagePostCacheCameraPos_ = currentCameraPos;
+				stagePostCacheValid_ = true;
+				cacheOffset = { 0.0f, 0.0f };
+			}
+			stagePostEffect_->DrawCachedBloom(cacheOffset);
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+		});
 	} else {
-		stage_->Draw();
+		stagePostCacheValid_ = false;
+		AddPostProfileEntry("Stage Post", 0.0f, false);
 	}
 	
 	{
 		Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewProjectionMatrix()
 			: camera->GetViewProjectionMatrix();
-		if (enableBulletTrailPostEffect_) {
-			bulletTrailPostEffect_->BeginCapture();
-			bulletManager_->DrawTrails(vp);
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
-			bulletManager_->Draw();
-			bulletTrailPostEffect_->EndCaptureAdditiveOnly();
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
+		if (useBulletTrailPost) {
+			profile("Trail Post", true, [&]() {
+				bulletTrailPostEffect_->BeginCapture();
+				bulletManager_->DrawTrails(vp);
+				Object3dCommon::GetInstance()->PreDraw(kNormal);
+				bulletManager_->Draw();
+				bulletTrailPostEffect_->EndCaptureAdditiveOnly();
+				Object3dCommon::GetInstance()->PreDraw(kNormal);
+			});
 		} else {
-			bulletManager_->DrawTrails(vp);
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			profile("Trail Draw", false, [&]() {
+				bulletManager_->DrawTrails(vp);
+				Object3dCommon::GetInstance()->PreDraw(kNormal);
+			});
 		}
 	}
 
-	if (enablePlayerPostEffect_ && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
-		playerPostEffect_->BeginCapture();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
-		player_->DrawBodyOnly();
-		playerPostEffect_->EndCapture();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
+	if (usePlayerPost && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
+		profile("Player Post", true, [&]() {
+			playerPostEffect_->BeginCapture();
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			player_->DrawBodyOnly();
+			playerPostEffect_->EndCapture();
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+		});
+	} else {
+		AddPostProfileEntry("Player Post", 0.0f, false);
 	}
 
-	if (enableEnemyPostEffect_) {
-		enemyPostEffect_->BeginCapture();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
-		enemy_->DrawBodyOnly();
-		enemyPostEffect_->EndCapture();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
+	if (useEnemyPost) {
+		profile("Enemy Post", true, [&]() {
+			enemyPostEffect_->BeginCapture();
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			enemy_->DrawBodyOnly();
+			enemyPostEffect_->EndCapture();
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+		});
+	} else {
+		AddPostProfileEntry("Enemy Post", 0.0f, false);
 	}
 
-	if (enableExpEnemyPostEffect_) {
-		expEnemyPostEffect_->BeginCapture();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
-		enemyManager_->DrawBodyOnly();
-		expEnemyPostEffect_->EndCapture();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
+	if (useExpEnemyPost) {
+		profile("Exp Post", true, [&]() {
+			expEnemyPostEffect_->BeginCapture();
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			enemyManager_->DrawBodyOnly();
+			expEnemyPostEffect_->EndCapture();
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+		});
+	} else {
+		AddPostProfileEntry("Exp Post", 0.0f, false);
 	}
 
 	if (showCollisionDebug_) {
 		Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewProjectionMatrix()
 			: camera->GetViewProjectionMatrix();
-		collisionDebugRingManager_->DrawAll(vp);
+		profile("Collision", true, [&]() {
+			collisionDebugRingManager_->DrawAll(vp);
+		});
 	}
 
-	ParticleManager::GetInstance()->Draw();
+	profile("Particles", true, [&]() {
+		ParticleManager::GetInstance()->Draw();
+	});
 
 }
 
@@ -833,6 +908,98 @@ void GameScene::DrawNeonGridPass() {
 	neonGridRenderer_->DrawAll(vp);
 }
 
+void GameScene::ResetPostProfileEntries() {
+	postProfileEntryCount_ = 0;
+}
+
+void GameScene::AddPostProfileEntry(const char* name, float ms, bool active) {
+	if (postProfileEntryCount_ >= postProfileEntries_.size()) {
+		return;
+	}
+	postProfileEntries_[postProfileEntryCount_] = { name, ms, active };
+	postProfileAccumulatedMs_[postProfileEntryCount_] += ms;
+	++postProfileEntryCount_;
+}
+
+void GameScene::UpdatePostProfileText() {
+	++postProfileAccumulatedFrames_;
+	if (postProfileAccumulatedFrames_ < 15) {
+		return;
+	}
+
+	char text[768]{};
+	int offset = std::snprintf(
+		text,
+		sizeof(text),
+		"CG2  PostProfile F8 hide F9 mode | %s",
+		GetPostProfileModeName()
+	);
+	const int frames = (std::max)(1, postProfileAccumulatedFrames_);
+	for (size_t i = 0; i < postProfileEntryCount_ && offset > 0 && offset < static_cast<int>(sizeof(text)); ++i) {
+		const float avgMs = postProfileAccumulatedMs_[i] / static_cast<float>(frames);
+		offset += std::snprintf(
+			text + offset,
+			sizeof(text) - static_cast<size_t>(offset),
+			" | %s%s %.2fms",
+			postProfileEntries_[i].active ? "" : "(off) ",
+			postProfileEntries_[i].name,
+			avgMs
+		);
+	}
+
+	SetWindowTextA(WinApp::GetInstance()->GetHwnd(), text);
+	postProfileAccumulatedMs_.fill(0.0f);
+	postProfileAccumulatedFrames_ = 0;
+}
+
+bool GameScene::IsPostProfileCategoryEnabled(const char* category) const {
+	switch (postProfileMode_) {
+	case 1:
+		return std::strcmp(category, "Grid") != 0;
+	case 2:
+		return std::strcmp(category, "Stage") != 0;
+	case 3:
+		return std::strcmp(category, "BulletTrail") != 0;
+	case 4:
+		return std::strcmp(category, "Player") != 0;
+	case 5:
+		return std::strcmp(category, "Enemy") != 0;
+	case 6:
+		return std::strcmp(category, "ExpEnemy") != 0;
+	case 7:
+		return std::strcmp(category, "Grid") != 0
+			&& std::strcmp(category, "Stage") != 0
+			&& std::strcmp(category, "BulletTrail") != 0
+			&& std::strcmp(category, "Player") != 0
+			&& std::strcmp(category, "Enemy") != 0
+			&& std::strcmp(category, "ExpEnemy") != 0;
+	default:
+		return true;
+	}
+}
+
+const char* GameScene::GetPostProfileModeName() const {
+	switch (postProfileMode_) {
+	case 1: return "No Grid Post";
+	case 2: return "No Stage Post";
+	case 3: return "No Bullet Trail Post";
+	case 4: return "No Player Post";
+	case 5: return "No Enemy Post";
+	case 6: return "No Exp Enemy Post";
+	case 7: return "No Post Effects";
+	default: return "All Enabled";
+	}
+}
+
+Vector2 GameScene::GetStagePostCacheUvOffset(const Vector3& currentCameraPos) const {
+	const Vector2 cacheCenterScreen = WorldToScreen({ stagePostCacheCameraPos_.x, stagePostCacheCameraPos_.y, 0.0f });
+	const Vector2 currentCenterScreen = WorldToScreen({ currentCameraPos.x, currentCameraPos.y, 0.0f });
+	return {
+		(cacheCenterScreen.x - currentCenterScreen.x) / static_cast<float>(WinApp::kClientWidth),
+		(cacheCenterScreen.y - currentCenterScreen.y) / static_cast<float>(WinApp::kClientHeight)
+	};
+}
+
 void GameScene::DrawShadow() {
 	// 影用の共通設定（PSOの切り替えなど）は Object3dCommon 側で行う
 	//Object3dCommon::GetInstance()->PreDraw(kShadow);
@@ -883,6 +1050,9 @@ void GameScene::DrawSprite() {
 	}
 	if (fpsText_) {
 		fpsText_->Draw();
+	}
+	if (showPostProfileOverlay_ && postProfileText_) {
+		postProfileText_->Draw();
 	}
 	if (phase_ != Phase::kFadeIn) {
 		fade_->Draw();
