@@ -6,6 +6,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
     rtvManager_ = rtvManager;
+    bloomParam_ = {};
 
     sceneRT_ = std::make_unique<RenderTexture>();
 
@@ -76,6 +77,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.curvature = 0.0f;
     bloomParam_.borderSharp = 0.0f;
     bloomParam_.glitchAmount = 0.00f;
+    bloomParam_.boxBlurIntensity = 0.0f;
+    bloomParam_.boxBlurRadius = 1.0f;
 
    /* bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 1.2f;
@@ -115,6 +118,8 @@ void Bloom::Update() {
     ImGui::DragFloat("Border Sharp", &bloomParam_.borderSharp, 0.1f);
     ImGui::DragFloat("Glitch Amount", &bloomParam_.glitchAmount, 0.001f);
     ImGui::DragFloat("Gaussian Intensity", &baseGaussianIntensity_, 0.01f);
+    ImGui::DragFloat("Box Blur Intensity", &bloomParam_.boxBlurIntensity, 0.01f, 0.0f, 1.0f);
+    ImGui::DragFloat("Box Blur Radius", &bloomParam_.boxBlurRadius, 0.1f, 0.0f, 8.0f);
 
     ImGui::Separator(); // 区切り線
     ImGui::Text("New Effects");
@@ -153,6 +158,8 @@ void Bloom::Update() {
         bloomParam_.borderSharp = 0.0f;
         bloomParam_.glitchAmount = 0.0f;
         baseGaussianIntensity_ = 0.0f;
+        bloomParam_.boxBlurIntensity = 0.0f;
+        bloomParam_.boxBlurRadius = 1.0f;
         // 追加分のリセット
         bloomParam_.dissolveThreshold = 0.0f;
         bloomParam_.outlineWidth = 0.0f;
