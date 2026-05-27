@@ -28,7 +28,7 @@ cbuffer BloomParam : register(b0)
     float outlineBloomIntensity;
     float outlineBloomWidth;
     float boxBlurRadius;
-    float boxBlurReserved;
+    float fullScreenBoxBlurBlend;
 };
 
 // --- ヘルパー関数：ランダム ---
@@ -204,10 +204,16 @@ float4 main(PSInput input) : SV_TARGET
     
     float3 result;
 
-    if (gaussianIntensity > 0.0f)
+    if (fullScreenBoxBlurBlend > 0.0f)
     {
-    // 【ガウスフィルタモード】
-    // シーン全体をぼかしたものを lerp で混ぜる（1.0に近づくほど全体がボケる）
+    // 【5x5 Box Filterモード】
+    // シーン全体を5x5平均でぼかしたものをlerpで混ぜる
+        result = lerp(sceneColor, blurredColor, fullScreenBoxBlurBlend);
+    }
+    else if (gaussianIntensity > 0.0f)
+    {
+    // 【Gaussian Blurモード】
+    // シーン全体をガウシアンぼかししたものをlerpで混ぜる
         result = lerp(sceneColor, blurredColor, gaussianIntensity);
     }
     else

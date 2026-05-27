@@ -52,7 +52,7 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     param_.curvature = 0.0f;
     param_.borderSharp = 0.0f;
     param_.glitchAmount = 0.0f;
-    param_.gaussianIntensity = 0.0f;
+    param_.fullScreenBoxBlurBlend = 0.0f;
     param_.dissolveThreshold = 0.0f;
     param_.outlineWidth = 0.0f;
     param_.outlineThreshold = 0.5f;
@@ -99,13 +99,13 @@ void ObjectPostEffect::EndCaptureBloomOnlyToCache() {
 
 void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset) {
     const float savedOffsetX = param_.boxBlurRadius;
-    const float savedOffsetY = param_.boxBlurReserved;
+    const float savedOffsetY = param_.fullScreenBoxBlurBlend;
     param_.boxBlurRadius = uvOffset.x;
-    param_.boxBlurReserved = uvOffset.y;
+    param_.fullScreenBoxBlurBlend = uvOffset.y;
     cb_->Update(param_);
     postEffect_->DrawObjectBloomAdd(bloomRT_A_->GetGPUHandle());
     param_.boxBlurRadius = savedOffsetX;
-    param_.boxBlurReserved = savedOffsetY;
+    param_.fullScreenBoxBlurBlend = savedOffsetY;
     cb_->Update(param_);
 }
 

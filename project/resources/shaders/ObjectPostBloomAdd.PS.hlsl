@@ -22,7 +22,7 @@ cbuffer BloomParam : register(b0)
     float dissolveThreshold;
     float outlineWidth;
     float outlineThreshold;
-    float pad1;
+    float boxBlurIntensity;
     float3 outlineColor;
     float outlineBloomIntensity;
     float outlineBloomWidth;

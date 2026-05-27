@@ -125,7 +125,8 @@ void GameScene::Initialize() {
 	expEnemyPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
-		nullptr
+		nullptr,
+		0.5f
 	);
 	{
 		BloomParam& expEnemyPost = expEnemyPostEffect_->GetParam();
@@ -178,7 +179,8 @@ void GameScene::Initialize() {
 	bulletTrailPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
-		nullptr
+		nullptr,
+		0.5f
 	);
 	{
 		BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
@@ -369,6 +371,34 @@ void GameScene::Update() {
 	ImGui::Begin("FPS");
 	ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
 	ImGui::Text("deltaTime: %.8f", finalDeltaTime * 60.0f);
+	ImGui::Text("Exp Enemies: %zu", enemyManager_ ? enemyManager_->GetEnemyCount() : 0);
+	ImGui::Text("Trail Instances: %zu", bulletManager_ ? bulletManager_->GetTrailInstanceCount() : 0);
+	ImGui::End();
+
+	ImGui::Begin("Post Effect Toggles");
+	if (ImGui::Button("Enable All Posts")) {
+		enableNeonGridPostEffect_ = true;
+		enableStagePostEffect_ = true;
+		enableBulletTrailPostEffect_ = true;
+		enablePlayerPostEffect_ = true;
+		enableEnemyPostEffect_ = true;
+		enableExpEnemyPostEffect_ = true;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Disable All Posts")) {
+		enableNeonGridPostEffect_ = false;
+		enableStagePostEffect_ = false;
+		enableBulletTrailPostEffect_ = false;
+		enablePlayerPostEffect_ = false;
+		enableEnemyPostEffect_ = false;
+		enableExpEnemyPostEffect_ = false;
+	}
+	ImGui::Checkbox("Grid Post", &enableNeonGridPostEffect_);
+	ImGui::Checkbox("Stage Post", &enableStagePostEffect_);
+	ImGui::Checkbox("Bullet Trail Post", &enableBulletTrailPostEffect_);
+	ImGui::Checkbox("Player Post", &enablePlayerPostEffect_);
+	ImGui::Checkbox("Boss Enemy Post", &enableEnemyPostEffect_);
+	ImGui::Checkbox("Exp Enemy Post", &enableExpEnemyPostEffect_);
 	ImGui::End();
 	
 	ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_FirstUseEver);
@@ -438,6 +468,8 @@ void GameScene::Update() {
 	ImGui::ColorEdit3("Exp Enemy Outline Color", &expEnemyPost.outlineColor.x);
 	ImGui::DragFloat("Exp Enemy Outline Bloom Intensity", &expEnemyPost.outlineBloomIntensity, 0.01f, 0.0f, 5.0f);
 	ImGui::DragFloat("Exp Enemy Outline Bloom Width", &expEnemyPost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
+	ImGui::DragFloat("Exp Enemy Post Cull Half Width", &expEnemyPostVisibleHalfWidth_, 0.5f, 10.0f, 80.0f);
+	ImGui::DragFloat("Exp Enemy Post Cull Half Height", &expEnemyPostVisibleHalfHeight_, 0.5f, 10.0f, 60.0f);
 	ImGui::End();
 
 	ImGui::Begin("Stage Object Post");
@@ -501,6 +533,8 @@ void GameScene::Update() {
 	ImGui::ColorEdit4("Player Grid", &playerGridColor_.x);
 	ImGui::ColorEdit4("Enemy Grid", &enemyGridColor_.x);
 	ImGui::ColorEdit4("Exp Enemy Grid", &expEnemyGridColor_.x);
+	ImGui::Checkbox("Cull Actor Local Grid", &cullActorLocalGrid_);
+	ImGui::DragInt("Max Exp Enemy Local Grids", &maxExpEnemyLocalGrids_, 1.0f, 0, 60);
 	BloomParam& gridPost = neonGridPostEffect_->GetParam();
 	ImGui::DragFloat("Grid Bloom Intensity", &gridPost.intensity, 0.01f, 0.0f, 6.0f);
 	ImGui::DragFloat("Grid Bloom Threshold", &gridPost.threshold, 0.01f, 0.0f, 2.0f);
@@ -819,9 +853,13 @@ void GameScene::DrawPostEffect3D() {
 
 	if (useExpEnemyPost) {
 		profile("Exp Post", true, [&]() {
+			const Vector3 currentCameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
 			expEnemyPostEffect_->BeginCapture();
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
-			enemyManager_->DrawBodyOnly();
+			enemyManager_->DrawBodyOnlyVisible(
+				currentCameraPos,
+				expEnemyPostVisibleHalfWidth_,
+				expEnemyPostVisibleHalfHeight_);
 			expEnemyPostEffect_->EndCapture();
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
 		});
@@ -895,9 +933,17 @@ void GameScene::DrawNeonGridPass() {
 		if (!enemy_->IsDead()) {
 			neonGridRenderer_->QueueLocalGridClipped(enemy_->GetWorldPosition(), actorGridRadius_ * 1.15f, actorGridSpacing_, actorGridLineWidth_, enemyGridColor_, fieldMinX, fieldMaxX, fieldMinY, fieldMaxY);
 		}
+		int expEnemyLocalGridCount = 0;
 		for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
 			if (expEnemy && !expEnemy->IsDead()) {
+				if (maxExpEnemyLocalGrids_ >= 0 && expEnemyLocalGridCount >= maxExpEnemyLocalGrids_) {
+					break;
+				}
+				if (cullActorLocalGrid_ && !IsNearCamera2D(expEnemy->GetWorldPosition(), 38.0f, 24.0f, actorGridRadius_)) {
+					continue;
+				}
 				neonGridRenderer_->QueueLocalGridClipped(expEnemy->GetWorldPosition(), actorGridRadius_ * 0.6f, actorGridSpacing_, actorGridLineWidth_ * 0.8f, expEnemyGridColor_, fieldMinX, fieldMaxX, fieldMinY, fieldMaxY);
+				++expEnemyLocalGridCount;
 			}
 		}
 	}
@@ -906,6 +952,14 @@ void GameScene::DrawNeonGridPass() {
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
 	neonGridRenderer_->DrawAll(vp);
+}
+
+bool GameScene::IsNearCamera2D(const Vector3& worldPos, float halfWidth, float halfHeight, float margin) const {
+	const Vector3 cameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
+	return worldPos.x >= cameraPos.x - halfWidth - margin &&
+		worldPos.x <= cameraPos.x + halfWidth + margin &&
+		worldPos.y >= cameraPos.y - halfHeight - margin &&
+		worldPos.y <= cameraPos.y + halfHeight + margin;
 }
 
 void GameScene::ResetPostProfileEntries() {

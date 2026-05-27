@@ -13,9 +13,11 @@ public:
     void Update(Stage& stage, float deltaTime);
     void Draw(bool drawBody = true);
     void DrawBodyOnly();
+    void DrawBodyOnlyVisible(const Vector3& cameraPos, float halfWidth, float halfHeight);
 
     // 衝突判定のためにリストを公開
     std::vector<ExpEnemy*> GetEnemyPtrs() const;
+    size_t GetEnemyCount() const { return enemies_.size(); }
 
 private:
     void Spawn(Stage& stage);

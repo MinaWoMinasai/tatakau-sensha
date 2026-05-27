@@ -77,8 +77,10 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.curvature = 0.0f;
     bloomParam_.borderSharp = 0.0f;
     bloomParam_.glitchAmount = 0.00f;
+    bloomParam_.gaussianIntensity = 0.0f;
     bloomParam_.boxBlurIntensity = 0.0f;
     bloomParam_.boxBlurRadius = 1.0f;
+    bloomParam_.fullScreenBoxBlurBlend = 0.0f;
 
    /* bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 1.2f;
@@ -93,6 +95,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.borderSharp = 0.0f;
     bloomParam_.glitchAmount = 0.005f;*/
     baseGaussianIntensity_ = bloomParam_.gaussianIntensity;
+    baseFullScreenBoxBlurBlend_ = bloomParam_.fullScreenBoxBlurBlend;
 
     bloomCB_->Update(bloomParam_);
 
@@ -117,9 +120,12 @@ void Bloom::Update() {
     ImGui::DragFloat("Curvature", &bloomParam_.curvature, 0.001f);
     ImGui::DragFloat("Border Sharp", &bloomParam_.borderSharp, 0.1f);
     ImGui::DragFloat("Glitch Amount", &bloomParam_.glitchAmount, 0.001f);
-    ImGui::DragFloat("Gaussian Intensity", &baseGaussianIntensity_, 0.01f);
-    ImGui::DragFloat("Box Blur Intensity", &bloomParam_.boxBlurIntensity, 0.01f, 0.0f, 1.0f);
-    ImGui::DragFloat("Box Blur Radius", &bloomParam_.boxBlurRadius, 0.1f, 0.0f, 8.0f);
+    const char* smoothingModes[] = { "Off", "Gaussian Blur", "5x5 Box Filter" };
+    ImGui::Combo("Full-Screen Smoothing Filter", &fullScreenSmoothingMode_, smoothingModes, IM_ARRAYSIZE(smoothingModes));
+    ImGui::DragFloat("Gaussian Blur Blend", &baseGaussianIntensity_, 0.01f, 0.0f, 1.0f);
+    ImGui::DragFloat("5x5 Box Filter Blend", &baseFullScreenBoxBlurBlend_, 0.01f, 0.0f, 1.0f);
+    ImGui::DragFloat("Final 3x3 Box Smoothing Blend", &bloomParam_.boxBlurIntensity, 0.01f, 0.0f, 1.0f);
+    ImGui::DragFloat("Final 3x3 Box Smoothing Radius", &bloomParam_.boxBlurRadius, 0.1f, 0.0f, 8.0f);
 
     ImGui::Separator(); // 区切り線
     ImGui::Text("New Effects");
@@ -157,7 +163,9 @@ void Bloom::Update() {
         bloomParam_.curvature = 0.0f;
         bloomParam_.borderSharp = 0.0f;
         bloomParam_.glitchAmount = 0.0f;
+        fullScreenSmoothingMode_ = 0;
         baseGaussianIntensity_ = 0.0f;
+        baseFullScreenBoxBlurBlend_ = 0.0f;
         bloomParam_.boxBlurIntensity = 0.0f;
         bloomParam_.boxBlurRadius = 1.0f;
         // 追加分のリセット
@@ -176,7 +184,10 @@ void Bloom::Update() {
 #endif // USE_IMGUI
 
     bloomParam_.isGrayscale = (manualGrayscale_ || forceGrayscale_) ? 1.0f : 0.0f;
-    bloomParam_.gaussianIntensity = (std::max)(baseGaussianIntensity_, gaussianOverrideIntensity_);
+    const float manualGaussian = fullScreenSmoothingMode_ == 1 ? baseGaussianIntensity_ : 0.0f;
+    const float manualBox = fullScreenSmoothingMode_ == 2 ? baseFullScreenBoxBlurBlend_ : 0.0f;
+    bloomParam_.gaussianIntensity = (std::max)(manualGaussian, gaussianOverrideIntensity_);
+    bloomParam_.fullScreenBoxBlurBlend = manualBox;
     bloomCB_->Update(bloomParam_);
     timer_ += SceneManager::GetInstance()->GetFinalDeltaTime();
     bloomParam_.timer = timer_;
@@ -190,7 +201,9 @@ void Bloom::SetGrayscaleEnabled(bool enabled) {
 
 void Bloom::SetGaussianOverride(float intensity) {
     gaussianOverrideIntensity_ = (std::clamp)(intensity, 0.0f, 1.0f);
-    bloomParam_.gaussianIntensity = (std::max)(baseGaussianIntensity_, gaussianOverrideIntensity_);
+    const float manualGaussian = fullScreenSmoothingMode_ == 1 ? baseGaussianIntensity_ : 0.0f;
+    bloomParam_.gaussianIntensity = (std::max)(manualGaussian, gaussianOverrideIntensity_);
+    bloomParam_.fullScreenBoxBlurBlend = fullScreenSmoothingMode_ == 2 ? baseFullScreenBoxBlurBlend_ : 0.0f;
     bloomCB_->Update(bloomParam_);
 }
 
@@ -220,14 +233,10 @@ void Bloom::PostDraw() {
     dxCommon_->SetViewport(WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
     dxCommon_->ClearRenderTarget(bloomRT_Half_->GetRTVHandle());
 
-    // 【ポイント】GaussianFilterが有効な場合は、抽出（しきい値カット）をスキップして
-    // シーン全体を縮小バッファへコピーするように、描画タイプを切り替える
-    if (bloomParam_.gaussianIntensity > 0.0f) {
-        // 高輝度抽出ではなく、単なるダウンサンプル（またはシーンコピー）を使用
-        // ※kAdd_Bloom_Downsample が単なるコピーならこれを使えます
+    // Full-screen smoothing modes skip bright-pass extraction and blur the whole scene.
+    if (bloomParam_.gaussianIntensity > 0.0f || bloomParam_.fullScreenBoxBlurBlend > 0.0f) {
         postEffect_->Draw(sceneRT_->GetGPUHandle(), kAdd_Bloom_Downsample);
     } else {
-        // 通常のブルーム用高輝度抽出
         postEffect_->Draw(sceneRT_->GetGPUHandle(), kAdd_Bloom_Extract);
     }
 
@@ -242,8 +251,7 @@ void Bloom::PostDraw() {
     postEffect_->Draw(bloomRT_Half_->GetGPUHandle(), kAdd_Bloom_Downsample);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    // --- D. ブラー (BloomA <-> BloomB) ---
-    // ここで実行される GaussianBlur は既存のシェーダーをそのまま使います
+    // --- D. Blur filter ---
     Transition(bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_B_->GetRTVHandle());
     postEffect_->Draw(bloomRT_A_->GetGPUHandle(), kAdd_Bloom_BlurH);

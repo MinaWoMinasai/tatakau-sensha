@@ -22,11 +22,12 @@ cbuffer BloomParam : register(b0)
     float dissolveThreshold;
     float outlineWidth;
     float outlineThreshold;
-    float pad1;
+    float boxBlurIntensity;
     float3 outlineColor;
     float outlineBloomIntensity;
     float outlineBloomWidth;
-    float2 pad2;
+    float boxBlurRadius;
+    float fullScreenBoxBlurBlend;
 };
 
 struct PSInput
@@ -41,16 +42,32 @@ float4 main(PSInput input) : SV_TARGET
     sceneTex.GetDimensions(width, height);
 
     float2 texel = 1.0f / float2(width, height);
-    float weights[5] = { 0.227f, 0.194f, 0.121f, 0.054f, 0.016f };
 
-    float4 col = sceneTex.Sample(samp, input.uv) * weights[0];
-
-    for (int i = 1; i < 5; i++)
+    float4 col = 0.0f;
+    if (fullScreenBoxBlurBlend > 0.0f)
     {
-        col += sceneTex.Sample(samp, input.uv + float2(texel.x * i, 0.0f)) * weights[i];
-        col += sceneTex.Sample(samp, input.uv - float2(texel.x * i, 0.0f)) * weights[i];
+        // Horizontal 5-tap box filter. The vertical pass applies the same
+        // 1/5 average, so the combined result is a true 5x5 1/25 box filter.
+        const int kBoxRadius = 2;
+        const float kBoxWeight = 1.0f / 5.0f;
+        [unroll]
+        for (int x = -kBoxRadius; x <= kBoxRadius; ++x)
+        {
+            col += sceneTex.Sample(samp, input.uv + float2(texel.x * x, 0.0f)) * kBoxWeight;
+        }
+    }
+    else
+    {
+        float weights[5] = { 0.227f, 0.194f, 0.121f, 0.054f, 0.016f };
+        col = sceneTex.Sample(samp, input.uv) * weights[0];
+        [unroll]
+        for (int i = 1; i < 5; ++i)
+        {
+            col += sceneTex.Sample(samp, input.uv + float2(texel.x * i, 0.0f)) * weights[i];
+            col += sceneTex.Sample(samp, input.uv - float2(texel.x * i, 0.0f)) * weights[i];
+        }
     }
 
-    float blurIntensity = (gaussianIntensity > 0.0f) ? 1.0f : intensity;
+    float blurIntensity = (gaussianIntensity > 0.0f || fullScreenBoxBlurBlend > 0.0f) ? 1.0f : intensity;
     return float4(col.rgb * blurIntensity, col.a);
 }

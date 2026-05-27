@@ -76,6 +76,18 @@ void EnemyManager::DrawBodyOnly() {
     }
 }
 
+void EnemyManager::DrawBodyOnlyVisible(const Vector3& cameraPos, float halfWidth, float halfHeight) {
+    for (auto& enemy : enemies_) {
+        const Vector3 pos = enemy->GetWorldPosition();
+        const float radius = enemy->GetRadius();
+        if (pos.x + radius < cameraPos.x - halfWidth || pos.x - radius > cameraPos.x + halfWidth ||
+            pos.y + radius < cameraPos.y - halfHeight || pos.y - radius > cameraPos.y + halfHeight) {
+            continue;
+        }
+        enemy->DrawBodyOnly();
+    }
+}
+
 std::vector<ExpEnemy*> EnemyManager::GetEnemyPtrs() const {
     std::vector<ExpEnemy*> result;
     result.reserve(enemies_.size());

@@ -303,7 +303,7 @@ struct BloomParam
 	float curvature; // 画面の膨らみ具合 (0.02 くらいがおすすめ)
 	float borderSharp; // 枠の角の鋭さ (20.0 くらい)
 	float glitchAmount; // 追加：グリッチの強さ（0.0 ~ 0.1くらい）
-	float gaussianIntensity;
+	float gaussianIntensity; // Gaussian Blurの全画面ブレンド量
 	float dissolveThreshold; // ディゾルブの進行度 (0~1)
 	float outlineWidth; // アウトラインの太さ
 	float outlineThreshold; // エッジ検出のしきい値
@@ -312,7 +312,7 @@ struct BloomParam
 	float outlineBloomIntensity; // アウトラインだけのブルーム強度
 	float outlineBloomWidth; // アウトラインブルームの広がり
 	float boxBlurRadius; // 全体ポストのボックスぼかし半径(px)
-	float boxBlurReserved;
+	float fullScreenBoxBlurBlend; // 5x5 Box Filterの全画面ブレンド量
 };
 
 struct PointLightData {
