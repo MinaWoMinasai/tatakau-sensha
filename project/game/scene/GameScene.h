@@ -99,6 +99,7 @@ private:
 	void DrawHpBarBatches();
 	Vector2 WorldToScreen(const Vector3& worldPos) const;
 	void DrawNeonGridPass();
+	bool IsNearCamera2D(const Vector3& worldPos, float halfWidth, float halfHeight, float margin = 0.0f) const;
 	void ResetPostProfileEntries();
 	void AddPostProfileEntry(const char* name, float ms, bool active);
 	void UpdatePostProfileText();
@@ -220,6 +221,8 @@ private:
 	bool stagePostCacheValid_ = false;
 	Vector3 stagePostCacheCameraPos_{};
 	float stagePostCacheRefreshPixels_ = 48.0f;
+	float expEnemyPostVisibleHalfWidth_ = 20.0f;
+	float expEnemyPostVisibleHalfHeight_ = 10.0f;
 	bool slowMotionPostActive_ = false;
 	bool keepPlayerColorDuringSlow_ = true;
 	float slowPlayerChromAbAmount_ = 0.035f;
@@ -247,5 +250,7 @@ private:
 	Vector4 playerGridColor_ = { 0.50f, 1.0f, 0.35f, 1.0f };
 	Vector4 enemyGridColor_ = { 1.0f, 0.18f, 0.24f, 1.0f };
 	Vector4 expEnemyGridColor_ = { 1.0f, 0.32f, 0.58f, 1.0f };
+	bool cullActorLocalGrid_ = true;
+	int maxExpEnemyLocalGrids_ = 18;
 
 };

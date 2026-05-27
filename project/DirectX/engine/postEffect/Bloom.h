@@ -41,6 +41,8 @@ private:
     float timer_ = 0.0f;
     bool manualGrayscale_ = false;
     bool forceGrayscale_ = false;
+    int fullScreenSmoothingMode_ = 0; // 0: Off, 1: Gaussian, 2: 5x5 Box
     float baseGaussianIntensity_ = 0.0f;
+    float baseFullScreenBoxBlurBlend_ = 0.0f;
     float gaussianOverrideIntensity_ = 0.0f;
 };

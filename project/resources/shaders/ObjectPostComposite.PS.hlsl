@@ -23,11 +23,12 @@ cbuffer BloomParam : register(b0)
     float dissolveThreshold;
     float outlineWidth;
     float outlineThreshold;
-    float pad1;
+    float boxBlurIntensity;
     float3 outlineColor;
     float outlineBloomIntensity;
     float outlineBloomWidth;
-    float2 pad2;
+    float boxBlurRadius;
+    float fullScreenBoxBlurBlend;
 };
 
 float Hash(float2 p)
