@@ -45,4 +45,5 @@ private:
     float baseGaussianIntensity_ = 0.0f;
     float baseFullScreenBoxBlurBlend_ = 0.0f;
     float gaussianOverrideIntensity_ = 0.0f;
+    bool enableDepthOutline_ = true;
 };

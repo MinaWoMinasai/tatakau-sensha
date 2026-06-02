@@ -22,8 +22,10 @@ public:
     SrvManager* GetSrvManager() { return srvManager_; }
 
     ID3D12Resource* GetResource() { return resource_.Get(); }
+    ID3D12Resource* GetDepthResource() { return depthResource_.Get(); }
 
     D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle();
+    D3D12_GPU_DESCRIPTOR_HANDLE GetDepthGPUHandle();
 
 private:
     Microsoft::WRL::ComPtr<ID3D12Resource> resource_;
@@ -36,5 +38,6 @@ private:
     RtvManager* rtvManager_ = nullptr;
     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle_;
     Microsoft::WRL::ComPtr<ID3D12Resource> depthResource_;
+    uint32_t depthSrvIndex_ = 0;
 };
 

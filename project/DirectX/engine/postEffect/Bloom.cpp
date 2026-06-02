@@ -81,6 +81,10 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.boxBlurIntensity = 0.0f;
     bloomParam_.boxBlurRadius = 1.0f;
     bloomParam_.fullScreenBoxBlurBlend = 0.0f;
+    bloomParam_.depthOutlineEnabled = 1.0f;
+    bloomParam_.depthNearClip = 0.1f;
+    bloomParam_.depthFarClip = 5000.0f;
+    bloomParam_.depthOutlineScale = 1.0f;
 
    /* bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 1.2f;
@@ -136,6 +140,8 @@ void Bloom::Update() {
     // --- Outline (アウトライン) ---
     ImGui::DragFloat("Outline Width", &bloomParam_.outlineWidth, 0.1f, 0.0f, 10.0f);
     ImGui::DragFloat("Outline Threshold", &bloomParam_.outlineThreshold, 0.01f, 0.0f, 2.0f);
+    ImGui::Checkbox("Depth Outline", &enableDepthOutline_);
+    ImGui::DragFloat("Depth Outline Scale", &bloomParam_.depthOutlineScale, 0.01f, 0.01f, 10.0f);
     // Vector3がfloat[3]として解釈されるようにポインタを渡す
     ImGui::ColorEdit3("Outline Color", &bloomParam_.outlineColor.x);
 
@@ -173,6 +179,8 @@ void Bloom::Update() {
         bloomParam_.outlineWidth = 0.0f;
         bloomParam_.outlineThreshold = 0.5f;
         bloomParam_.outlineColor = { 1.0f, 1.0f, 1.0f };
+        enableDepthOutline_ = true;
+        bloomParam_.depthOutlineScale = 1.0f;
         bloomParam_.outlineBloomIntensity = 0.0f;
         bloomParam_.outlineBloomWidth = 6.0f;
         manualGrayscale_ = false;
@@ -184,6 +192,7 @@ void Bloom::Update() {
 #endif // USE_IMGUI
 
     bloomParam_.isGrayscale = (manualGrayscale_ || forceGrayscale_) ? 1.0f : 0.0f;
+    bloomParam_.depthOutlineEnabled = enableDepthOutline_ ? 1.0f : 0.0f;
     const float manualGaussian = fullScreenSmoothingMode_ == 1 ? baseGaussianIntensity_ : 0.0f;
     const float manualBox = fullScreenSmoothingMode_ == 2 ? baseFullScreenBoxBlurBlend_ : 0.0f;
     bloomParam_.gaussianIntensity = (std::max)(manualGaussian, gaussianOverrideIntensity_);
@@ -208,6 +217,10 @@ void Bloom::SetGaussianOverride(float intensity) {
 }
 
 void Bloom::PreDraw() {
+    Transition(sceneRT_->GetDepthResource(),
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
     // 1. SceneRT を RenderTarget 状態へ
     Transition(sceneRT_->GetResource(),
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
@@ -226,6 +239,7 @@ void Bloom::PostDraw() {
 
     // --- A. SceneRT の描画終了 (RT -> SRV) ---
     Transition(sceneRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    Transition(sceneRT_->GetDepthResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     // --- B. 抽出パス (SceneRT -> BloomHalf) ---
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -267,7 +281,7 @@ void Bloom::PostDraw() {
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
     // 最終的に DrawComposite で HLSL 側のメイン処理が走ります
-    postEffect_->DrawComposite(sceneRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
+    postEffect_->DrawComposite(sceneRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle(), sceneRT_->GetDepthGPUHandle());
 }
 
 void Bloom::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {

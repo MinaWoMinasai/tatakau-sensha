@@ -8,7 +8,10 @@ public:
     void Draw(
         D3D12_GPU_DESCRIPTOR_HANDLE inputSRV, BlendMode blendMode
     );
-    void DrawComposite(D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV);
+    void DrawComposite(
+        D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV,
+        D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV,
+        D3D12_GPU_DESCRIPTOR_HANDLE depthSRV);
     void DrawObjectComposite(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV);
     void DrawObjectOutlineAdd(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV);
     void DrawObjectBloomAdd(D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV);

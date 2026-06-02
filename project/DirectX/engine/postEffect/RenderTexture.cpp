@@ -55,7 +55,8 @@ void RenderTexture::Initialize(
         depthDesc.Height = height;
         depthDesc.MipLevels = 1;
         depthDesc.DepthOrArraySize = 1;
-        depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // PSOと合わせる
+        // DSVとして書き込みつつ、SRVとして深度値を読めるように typeless で確保する。
+        depthDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
         depthDesc.SampleDesc.Count = 1;
         depthDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
         depthDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
@@ -67,18 +68,23 @@ void RenderTexture::Initialize(
         depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
         depthClearValue.DepthStencil.Depth = 1.0f;
 
-        dxCommon->GetDevice()->CreateCommittedResource(
+        HRESULT hr = dxCommon->GetDevice()->CreateCommittedResource(
             &heapProps, D3D12_HEAP_FLAG_NONE, &depthDesc,
             D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue,
             IID_PPV_ARGS(&depthResource_)
         );
+        assert(SUCCEEDED(hr));
 
         // --- 2. DSVハンドルを取得して View を作成 ---
         dsvHandle_ = dxCommon->GetNewDsvHandle();
 
-        dxCommon->GetDevice()->CreateDepthStencilView(
-            depthResource_.Get(), nullptr, dsvHandle_
-        );
+        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+        dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+        dxCommon->GetDevice()->CreateDepthStencilView(depthResource_.Get(), &dsvDesc, dsvHandle_);
+
+        depthSrvIndex_ = srvManager_->Allocate();
+        srvManager_->CreateSRVforShadowMap(depthSrvIndex_, depthResource_.Get());
     }
 
     // --- ここを追加 ---
@@ -93,6 +99,16 @@ void RenderTexture::Initialize(
 
     dxCommon_->GetList()->ResourceBarrier(1, &barrier);
 
+    if (depthResource_) {
+        D3D12_RESOURCE_BARRIER depthBarrier{};
+        depthBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        depthBarrier.Transition.pResource = depthResource_.Get();
+        depthBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+        depthBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        depthBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        dxCommon_->GetList()->ResourceBarrier(1, &depthBarrier);
+    }
+
     // このコマンドを即座に実行するか、あるいはコマンドリストを Close/Execute する仕組みが必要です
     // TextureManager などと同様に、初期化用のコマンドリスト実行を呼んでください
     dxCommon_->ExecuteCommandListAndWait();
@@ -101,4 +117,10 @@ void RenderTexture::Initialize(
 D3D12_GPU_DESCRIPTOR_HANDLE RenderTexture::GetGPUHandle()
 {
 	return srvManager_->GetGPUDescriptorHandle(srvIndex_);
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE RenderTexture::GetDepthGPUHandle()
+{
+    assert(depthResource_ != nullptr);
+    return srvManager_->GetGPUDescriptorHandle(depthSrvIndex_);
 }

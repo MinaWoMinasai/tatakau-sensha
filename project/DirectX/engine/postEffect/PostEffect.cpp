@@ -20,7 +20,10 @@ void PostEffect::Draw(D3D12_GPU_DESCRIPTOR_HANDLE inputSRV, BlendMode blendMode)
 
 }
 
-void PostEffect::DrawComposite( D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV){
+void PostEffect::DrawComposite(
+    D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV,
+    D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV,
+    D3D12_GPU_DESCRIPTOR_HANDLE depthSRV) {
     
     dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject(kAdd_Bloom_Composite).root_.GetSignature().Get());
 
@@ -31,6 +34,7 @@ void PostEffect::DrawComposite( D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV, D3D12_GPU_
 
     dxCommon_->GetList()->SetGraphicsRootDescriptorTable(1, sceneSRV);
     dxCommon_->GetList()->SetGraphicsRootDescriptorTable(2, bloomSRV);
+    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(3, depthSRV);
 
     dxCommon_->GetList()->DrawInstanced(3, 1, 0, 0);
 }

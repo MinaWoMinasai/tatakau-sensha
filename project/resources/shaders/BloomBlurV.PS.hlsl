@@ -36,6 +36,12 @@ struct PSInput
     float2 uv : TEXCOORD0;
 };
 
+float CalculateGaussianWeight(int offset, float sigma)
+{
+    float x = (float)offset;
+    return exp(-(x * x) / (2.0f * sigma * sigma));
+}
+
 float4 main(PSInput input) : SV_TARGET
 {
     uint width, height;
@@ -58,13 +64,24 @@ float4 main(PSInput input) : SV_TARGET
     }
     else
     {
-        float weights[5] = { 0.227f, 0.194f, 0.121f, 0.054f, 0.016f };
-        col = sceneTex.Sample(samp, input.uv) * weights[0];
+        // Gaussian kernel: calculate weights from the Gaussian function,
+        // then normalize them so the convolution preserves brightness.
+        const int kGaussianRadius = 4;
+        const float kGaussianSigma = 1.75f;
+        float weightSum = CalculateGaussianWeight(0, kGaussianSigma);
         [unroll]
-        for (int i = 1; i < 5; ++i)
+        for (int i = 1; i <= kGaussianRadius; ++i)
         {
-            col += sceneTex.Sample(samp, input.uv + float2(0.0f, texel.y * i)) * weights[i];
-            col += sceneTex.Sample(samp, input.uv - float2(0.0f, texel.y * i)) * weights[i];
+            weightSum += CalculateGaussianWeight(i, kGaussianSigma) * 2.0f;
+        }
+
+        col = sceneTex.Sample(samp, input.uv) * (CalculateGaussianWeight(0, kGaussianSigma) / weightSum);
+        [unroll]
+        for (int i = 1; i <= kGaussianRadius; ++i)
+        {
+            float weight = CalculateGaussianWeight(i, kGaussianSigma) / weightSum;
+            col += sceneTex.Sample(samp, input.uv + float2(0.0f, texel.y * i)) * weight;
+            col += sceneTex.Sample(samp, input.uv - float2(0.0f, texel.y * i)) * weight;
         }
     }
 
