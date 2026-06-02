@@ -127,6 +127,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		case Bloom_Downsample:pso.psFilePath_ = L"resources/shaders/BloomDownsample.PS.hlsl"; break;
 		case Bloom_BlurH:      pso.psFilePath_ = L"resources/shaders/BloomBlurH.PS.hlsl"; break;
 		case Bloom_BlurV:      pso.psFilePath_ = L"resources/shaders/BloomBlurV.PS.hlsl"; break;
+		case Gaussian_Filter:  pso.psFilePath_ = L"resources/shaders/GaussianFilter.PS.hlsl"; break;
 		case Bloom_Composite:  pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl"; break;
 		case ObjectPost_Composite: pso.psFilePath_ = L"resources/shaders/ObjectPostComposite.PS.hlsl"; break;
 		case ObjectPost_OutlineAdd: pso.psFilePath_ = L"resources/shaders/ObjectPostOutlineAdd.PS.hlsl"; break;
@@ -311,6 +312,7 @@ void DirectXCommon::CreateShader()
 	bloomPSO.shaderType_ = PostEffect;
 	blurHPSO.shaderType_ = PostEffect;
 	blurVPSO.shaderType_ = PostEffect;
+	gaussianFilterPSO.shaderType_ = PostEffect;
 	conpositePSO.shaderType_ = PostEffect;
 	objectPostCompositePSO.shaderType_ = PostEffect;
 	objectPostOutlineAddPSO.shaderType_ = PostEffect;
@@ -323,6 +325,7 @@ void DirectXCommon::CreateShader()
 	bloomPSO.postEffectType_ = Bloom_Extract;
 	blurHPSO.postEffectType_ = Bloom_BlurH;
 	blurVPSO.postEffectType_ = Bloom_BlurV;
+	gaussianFilterPSO.postEffectType_ = Gaussian_Filter;
 	conpositePSO.postEffectType_ = Bloom_Composite;
 	objectPostCompositePSO.postEffectType_ = ObjectPost_Composite;
 	objectPostOutlineAddPSO.postEffectType_ = ObjectPost_OutlineAdd;
@@ -338,6 +341,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(bloomPSO, kNone);
 	CreateShaderCommon(blurHPSO, kNone);
 	CreateShaderCommon(blurVPSO, kNone);
+	CreateShaderCommon(gaussianFilterPSO, kNone);
 	CreateShaderCommon(conpositePSO, kAdd);
 	CreateShaderCommon(objectPostCompositePSO, kNormal);
 	CreateShaderCommon(objectPostOutlineAddPSO, kAdd);
@@ -1039,6 +1043,13 @@ void DirectXCommon::Release() {
 	}
 	blurVPSO.pixelShaderBlob_->Release();
 	blurVPSO.vertexShaderBlob_->Release();
+
+	gaussianFilterPSO.root_.GetSignatureBlob()->Release();
+	if (gaussianFilterPSO.root_.GetErrorBlob()) {
+		gaussianFilterPSO.root_.GetErrorBlob()->Release();
+	}
+	gaussianFilterPSO.pixelShaderBlob_->Release();
+	gaussianFilterPSO.vertexShaderBlob_->Release();
 
 	conpositePSO.root_.GetSignatureBlob()->Release();
 	if (conpositePSO.root_.GetErrorBlob()) {
