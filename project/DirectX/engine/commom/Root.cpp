@@ -332,8 +332,21 @@ void Root::InitializeForPostEffect()
 	Parameters_[2].DescriptorTable.pDescriptorRanges = &descriptorRange_[1];
 	Parameters_[2].DescriptorTable.NumDescriptorRanges = 1;
 
+	// -------- RootParameter 3 : SRV DescriptorTable (Depth RT)
+	descriptorRange_[2].BaseShaderRegister = 2; // t2
+	descriptorRange_[2].NumDescriptors = 1;
+	descriptorRange_[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[2].OffsetInDescriptorsFromTableStart =
+		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[3].ParameterType =
+		D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[3].DescriptorTable.pDescriptorRanges = &descriptorRange_[2];
+	Parameters_[3].DescriptorTable.NumDescriptorRanges = 1;
+
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 3;
+	descriptionSignature_.NumParameters = 4;
 
 	// -------- Static Sampler (s0)
 	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;

@@ -1,5 +1,6 @@
 Texture2D sceneTex : register(t0);
 Texture2D bloomTex : register(t1);
+Texture2D<float> depthTex : register(t2);
 SamplerState samp : register(s0);
 
 cbuffer BloomParam : register(b0)
@@ -29,6 +30,10 @@ cbuffer BloomParam : register(b0)
     float outlineBloomWidth;
     float boxBlurRadius;
     float fullScreenBoxBlurBlend;
+    float depthOutlineEnabled;
+    float depthNearClip;
+    float depthFarClip;
+    float depthOutlineScale;
 };
 
 // --- ヘルパー関数：ランダム ---
@@ -125,30 +130,49 @@ float3 SampleBoxBlur(Texture2D tex, float2 uv, float radiusPixels)
     return sum / 9.0f;
 }
 
-// 改良版アウトライン関数
-float3 GetImprovedOutline(float2 uv)
+float RestoreViewSpaceZ(float depth)
 {
-    float2 texelSize = float2(1.0f / 1280.0f, 1.0f / 720.0f);
+    return depthNearClip * depthFarClip /
+        max(depthFarClip - depth * (depthFarClip - depthNearClip), 0.0001f);
+}
+
+// DepthBufferからView空間Zを復元し、奥行きの不連続を輪郭として抽出する。
+float3 GetDepthOutline(float2 uv)
+{
+    if (depthOutlineEnabled <= 0.5f || outlineWidth <= 0.0f)
+    {
+        return float3(0.0f, 0.0f, 0.0f);
+    }
+
+    uint width;
+    uint height;
+    depthTex.GetDimensions(width, height);
+    float2 texelSize = 1.0f / float2(width, height);
     float2 offset = outlineWidth * texelSize;
+    float centerDepth = depthTex.Sample(samp, uv);
+    if (centerDepth >= 0.99999f)
+    {
+        return float3(0.0f, 0.0f, 0.0f);
+    }
 
-    // 8方向のサンプリング
-    float3 col00 = sceneTex.Sample(samp, uv + offset * float2(-1, -1)).rgb;
-    float3 col10 = sceneTex.Sample(samp, uv + offset * float2( 0, -1)).rgb;
-    float3 col20 = sceneTex.Sample(samp, uv + offset * float2( 1, -1)).rgb;
-    float3 col01 = sceneTex.Sample(samp, uv + offset * float2(-1,  0)).rgb;
-    float3 col21 = sceneTex.Sample(samp, uv + offset * float2( 1,  0)).rgb;
-    float3 col02 = sceneTex.Sample(samp, uv + offset * float2(-1,  1)).rgb;
-    float3 col12 = sceneTex.Sample(samp, uv + offset * float2( 0,  1)).rgb;
-    float3 col22 = sceneTex.Sample(samp, uv + offset * float2( 1,  1)).rgb;
+    float centerViewZ = RestoreViewSpaceZ(centerDepth);
+    float maxViewZDifference = 0.0f;
+    const float2 directions[8] = {
+        float2(-1.0f, -1.0f), float2(0.0f, -1.0f), float2(1.0f, -1.0f),
+        float2(-1.0f,  0.0f),                       float2(1.0f,  0.0f),
+        float2(-1.0f,  1.0f), float2(0.0f,  1.0f), float2(1.0f,  1.0f)
+    };
 
-    // 水平・垂直の輝度変化を計算 (簡易Sobelフィルタ風)
-    float3 h = (col20 + col21 * 2.0 + col22) - (col00 + col01 * 2.0 + col02);
-    float3 v = (col02 + col12 * 2.0 + col22) - (col00 + col10 * 2.0 + col20);
-    
-    // エッジ強度
-    float edge = length(h) + length(v);
+    [unroll]
+    for (int i = 0; i < 8; ++i)
+    {
+        float sampleDepth = depthTex.Sample(samp, uv + directions[i] * offset);
+        float sampleViewZ = sampleDepth >= 0.99999f ? depthFarClip : RestoreViewSpaceZ(sampleDepth);
+        maxViewZDifference = max(maxViewZDifference, abs(sampleViewZ - centerViewZ));
+    }
 
-    return (edge > outlineThreshold) ? outlineColor : float3(0, 0, 0);
+    float edge = maxViewZDifference * depthOutlineScale;
+    return edge > outlineThreshold ? outlineColor : float3(0.0f, 0.0f, 0.0f);
 }
 struct PSInput
 {
@@ -228,7 +252,7 @@ float4 main(PSInput input) : SV_TARGET
     
         // 2. アウトライン処理 (エッジ検出)
         // 改良版アウトラインの適用
-        float3 outline = GetImprovedOutline(finalUV);
+        float3 outline = GetDepthOutline(finalUV);
         if (any(outline)) // outlineが黒でない場合
         {
             result = outline;

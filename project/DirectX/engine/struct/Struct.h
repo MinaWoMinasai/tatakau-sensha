@@ -313,6 +313,10 @@ struct BloomParam
 	float outlineBloomWidth; // アウトラインブルームの広がり
 	float boxBlurRadius; // 全体ポストのボックスぼかし半径(px)
 	float fullScreenBoxBlurBlend; // 5x5 Box Filterの全画面ブレンド量
+	float depthOutlineEnabled; // DepthBufferを利用したアウトラインの有効化
+	float depthNearClip; // View空間Z復元用のnear clip
+	float depthFarClip; // View空間Z復元用のfar clip
+	float depthOutlineScale; // View空間Z差分の強調倍率
 };
 
 struct PointLightData {
