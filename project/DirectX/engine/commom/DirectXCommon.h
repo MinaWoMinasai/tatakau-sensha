@@ -63,6 +63,7 @@ public:
 		Bloom_Downsample,
 		Bloom_BlurH,
 		Bloom_BlurV,
+		Gaussian_Filter,
 		Bloom_Composite,
 		ObjectPost_Composite,
 		ObjectPost_OutlineAdd,
@@ -195,6 +196,7 @@ public:
 
 	PSO& GetPSOParticle() { return psoParticle_; }
 	PSO& GetPSOModelParticle() { return psoModelParticle_; }
+	const PSO& GetGaussianFilterPSO() const { return gaussianFilterPSO; }
 	PSO& GetPSOComputeParticle() { return psoComputeParticle_; }
 	PSO& GetPSOTrail() { return trailPSO; }
 	PSO& GetPSOSkybox() { return skyboxPSO; }
@@ -358,6 +360,7 @@ private:
 	PSO downsamplePSO;
 	PSO blurHPSO;
 	PSO blurVPSO;
+	PSO gaussianFilterPSO;
 	PSO conpositePSO;
 	PSO objectPostCompositePSO;
 	PSO objectPostOutlineAddPSO;
