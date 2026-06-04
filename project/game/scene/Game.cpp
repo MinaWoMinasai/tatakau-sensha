@@ -70,6 +70,8 @@ void Game::InitializeImGui() {
     ImGui::CreateContext();
     {
         ImGuiIO& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
         ImFontConfig fontConfig{};
         fontConfig.MergeMode = false;
         const ImWchar* japaneseRanges = io.Fonts->GetGlyphRangesJapanese();
@@ -80,12 +82,24 @@ void Game::InitializeImGui() {
     }
     ImGui::StyleColorsDark();
     ImGui_ImplWin32_Init(WinApp::GetInstance()->GetHwnd());
-    ImGui_ImplDX12_Init(dxCommon_->GetDevice().Get(),
-        dxCommon_->GetSwapChainDesc().BufferCount,
-        dxCommon_->GetRtvDesc().Format,
-        srvManager_->GetSrvHeap().Get(),
-        srvManager_->GetSrvHeap()->GetCPUDescriptorHandleForHeapStart(),
-        srvManager_->GetSrvHeap()->GetGPUDescriptorHandleForHeapStart());
+
+    ImGui_ImplDX12_InitInfo initInfo{};
+    initInfo.Device = dxCommon_->GetDevice().Get();
+    initInfo.CommandQueue = dxCommon_->GetQueue().Get();
+    initInfo.NumFramesInFlight = dxCommon_->GetSwapChainDesc().BufferCount;
+    initInfo.RTVFormat = dxCommon_->GetRtvDesc().Format;
+    initInfo.DSVFormat = DXGI_FORMAT_UNKNOWN;
+    initInfo.SrvDescriptorHeap = srvManager_->GetSrvHeap().Get();
+    initInfo.UserData = srvManager_.get();
+    initInfo.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* outCpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGpuHandle) {
+        SrvManager* srvManager = static_cast<SrvManager*>(info->UserData);
+        const uint32_t srvIndex = srvManager->Allocate();
+        *outCpuHandle = srvManager->GetCPUDescriptorHandle(srvIndex);
+        *outGpuHandle = srvManager->GetGPUDescriptorHandle(srvIndex);
+    };
+    initInfo.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE) {
+    };
+    ImGui_ImplDX12_Init(&initInfo);
 
 #endif // USE_IMGUI
 
@@ -153,6 +167,7 @@ void Game::MainLoop() {
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
+        ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
 
 #endif // USE_IMGUI
 
