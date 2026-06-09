@@ -1,0 +1,117 @@
+{
+  "purpose": "AIやBlenderスクリプトがlevel.jsonを編集しやすくするための簡易辞書です。",
+  "levelFileRules": [
+    "objects配列の各要素は name, type, prefab, position, rotation, scale, customProperties を持つ",
+    "position, rotation, scale は x, y, z の数値オブジェクトにする",
+    "rotationはエンジン側ではラジアンとして扱う",
+    "未対応のtypeやprefabはエンジン側で警告ログを出し、クラッシュしない",
+    "既存のCSVステージを壊さないため、level.jsonのObstacleは追加ブロックとして扱う"
+  ],
+  "types": [
+    {
+      "type": "PlayerSpawn",
+      "description": "プレイヤー開始位置。複数ある場合、最初の1つを使う。",
+      "prefabs": [
+        {
+          "prefab": "Default",
+          "description": "通常プレイヤー開始位置",
+          "customProperties": {}
+        }
+      ],
+      "recommendedCount": "1",
+      "notes": "ステージ内の安全な床位置に置く。Obstacleと重ならないようにする。"
+    },
+    {
+      "type": "Enemy",
+      "description": "EnemyManagerに追加でスポーンする敵。現状はExpEnemy系に対応。",
+      "prefabs": [
+        {
+          "prefab": "Basic",
+          "description": "基本の四角い敵。内部的にはSquareと同じ。",
+          "customProperties": {
+            "hp": "number: 初期HP。省略時はprefab既定値",
+            "movePattern": "string: 現状は読み取りのみ。将来の移動パターン用"
+          }
+        },
+        {
+          "prefab": "Triangle",
+          "description": "やや硬い三角形の敵",
+          "customProperties": {
+            "hp": "number: 初期HP"
+          }
+        },
+        {
+          "prefab": "Pentagon",
+          "description": "高HPの五角形の敵",
+          "customProperties": {
+            "hp": "number: 初期HP"
+          }
+        },
+        {
+          "prefab": "Shooter",
+          "description": "弾を撃つ敵",
+          "customProperties": {
+            "hp": "number: 初期HP"
+          }
+        }
+      ],
+      "recommendedCount": "3-20",
+      "notes": "PlayerSpawnの近くには置きすぎない。CSV壁やObstacleと重ならないようにする。"
+    },
+    {
+      "type": "Obstacle",
+      "description": "Stageに追加される衝突ブロック。",
+      "prefabs": [
+        {
+          "prefab": "Wall",
+          "description": "通常の壁ブロック。cube.objを使う。",
+          "customProperties": {}
+        },
+        {
+          "prefab": "DamageBlock",
+          "description": "ダメージ床/ブロック。cubeDamage.objを使う。",
+          "customProperties": {}
+        }
+      ],
+      "recommendedCount": "0-50",
+      "notes": "scaleで当たり判定サイズも変わる。現状、回転した当たり判定は未対応。"
+    },
+    {
+      "type": "Item",
+      "description": "GameScene上に表示される簡易アイテム。現状は取得処理なし。",
+      "prefabs": [
+        {
+          "prefab": "Heal",
+          "description": "回復アイテム想定。jewelry.objを使う。",
+          "customProperties": {
+            "healAmount": "number: 回復量。現状は読み取りのみ"
+          }
+        },
+        {
+          "prefab": "Power",
+          "description": "強化アイテム想定。ball.objを使う。",
+          "customProperties": {
+            "powerType": "string: 強化種別。現状は読み取りのみ"
+          }
+        },
+        {
+          "prefab": "Exp",
+          "description": "経験値アイテム想定。bloomBall.objを使う。",
+          "customProperties": {
+            "expAmount": "number: 経験値量。現状は読み取りのみ"
+          }
+        }
+      ],
+      "recommendedCount": "0-20",
+      "notes": "取得処理は未実装なので、まずは見た目の配置確認用。"
+    }
+  ],
+  "aiEditingRules": [
+    "PlayerSpawnは原則1つだけにする",
+    "Enemyはプレイヤー開始位置から10以上離す",
+    "ObstacleはPlayerSpawnやEnemyの真上に置かない",
+    "ItemはObstacle内部に置かない",
+    "未知のprefabを作る場合は、この辞書に先に追加してからlevel.jsonに使う",
+    "座標はこのゲームの2D平面に合わせ、基本的にzは0.0にする"
+  ]
+}

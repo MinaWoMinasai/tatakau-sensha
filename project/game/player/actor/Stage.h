@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include "Player.h"
 #include "PlayerDrone.h"
 #include "Enemy.h"
@@ -28,6 +29,7 @@ public:
     void Update();
 	void Draw();
 	void DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHeight);
+	bool AddLevelObstacle(const Transform& transform, const std::string& prefab);
 
 	/// <summary>
 	/// マップチップの生成

@@ -1,6 +1,7 @@
 #pragma once
 #include <list>
 #include <memory>
+#include <string>
 #include "ExpEnemy.h"
 
 class Player;
@@ -14,6 +15,7 @@ public:
     void Draw(bool drawBody = true);
     void DrawBodyOnly();
     void DrawBodyOnlyVisible(const Vector3& cameraPos, float halfWidth, float halfHeight);
+    bool SpawnLevelEnemy(const Vector3& position, const std::string& prefab, int hp = -1);
 
     // 衝突判定のためにリストを公開
     std::vector<ExpEnemy*> GetEnemyPtrs() const;

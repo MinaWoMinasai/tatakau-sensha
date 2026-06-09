@@ -29,6 +29,7 @@
 #include "ObjectPostEffect.h"
 #include "RingManager.h"
 #include "NeonGridRenderer.h"
+#include "game/level/LevelLoader.h"
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -85,6 +86,10 @@ private:
 		std::unique_ptr<Sprite> background;
 		std::unique_ptr<Sprite> fill;
 	};
+	struct LevelVisualObject {
+		std::string name;
+		std::unique_ptr<Object3d> object;
+	};
 
 	void InitializeFollowHpBars(size_t count);
 	void InitializeFollowHpBarBatch();
@@ -106,6 +111,10 @@ private:
 	bool IsPostProfileCategoryEnabled(const char* category) const;
 	const char* GetPostProfileModeName() const;
 	Vector2 GetStagePostCacheUvOffset(const Vector3& currentCameraPos) const;
+	void ApplyLevelData(const LevelData& levelData);
+	bool AddLevelItem(const LevelObject& levelObject);
+	void UpdateLevelItems();
+	void DrawLevelItems();
 
 	struct HpBarVisibility {
 		int lastHp = -1;
@@ -166,6 +175,7 @@ private:
 	std::unique_ptr<ObjectPostEffect> enemyPostEffect_;
 	std::unique_ptr<ObjectPostEffect> expEnemyPostEffect_;
 	std::unique_ptr<ObjectPostEffect> stagePostEffect_;
+	std::vector<LevelVisualObject> levelItems_;
 
 	// 終了フラグ
 	bool finished_ = false;

@@ -1,0 +1,46 @@
+{
+  "levelName": "test_stage",
+  "objects": [
+    {
+      "name": "PlayerSpawn_001",
+      "type": "PlayerSpawn",
+      "prefab": "Default",
+      "position": { "x": 30.0, "y": 30.0, "z": 0.0 },
+      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "customProperties": {}
+    },
+    {
+      "name": "Enemy_Basic_001",
+      "type": "Enemy",
+      "prefab": "Basic",
+      "position": { "x": 42.0, "y": 30.0, "z": 0.0 },
+      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "customProperties": {
+        "hp": 30,
+        "movePattern": "Straight"
+      }
+    },
+    {
+      "name": "Obstacle_Wall_001",
+      "type": "Obstacle",
+      "prefab": "Wall",
+      "position": { "x": 36.0, "y": 24.0, "z": 0.0 },
+      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "customProperties": {}
+    },
+    {
+      "name": "Item_Heal_001",
+      "type": "Item",
+      "prefab": "Heal",
+      "position": { "x": 34.0, "y": 32.0, "z": 0.0 },
+      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+      "scale": { "x": 0.8, "y": 0.8, "z": 0.8 },
+      "customProperties": {
+        "healAmount": 1
+      }
+    }
+  ]
+}

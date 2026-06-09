@@ -1,4 +1,24 @@
 #include "Stage.h"
+#include <iostream>
+
+namespace {
+
+bool TryGetObstacleModel(const std::string& prefab, std::string& model, MapChipType& type)
+{
+	if (prefab == "Default" || prefab == "Wall" || prefab == "Block") {
+		model = "cube.obj";
+		type = MapChipType::kBlock;
+		return true;
+	}
+	if (prefab == "DamageBlock") {
+		model = "cubeDamage.obj";
+		type = MapChipType::kDamageBlock;
+		return true;
+	}
+	return false;
+}
+
+} // namespace
 
 void Stage::Initialize() {
 
@@ -42,6 +62,47 @@ void Stage::DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHei
 			block.object->Draw();
 		}
 	}
+}
+
+bool Stage::AddLevelObstacle(const Transform& transform, const std::string& prefab)
+{
+	std::string model;
+	MapChipType type = MapChipType::kBlock;
+	if (!TryGetObstacleModel(prefab, model, type)) {
+		std::cerr << "[LevelLoader] Unsupported Obstacle prefab: " << prefab << std::endl;
+		return false;
+	}
+
+	Block block{};
+	block.worldTransform = transform;
+	block.object = std::make_unique<Object3d>();
+	block.object->Initialize();
+	block.object->SetModel(model);
+	block.object->SetTransform(block.worldTransform);
+	block.object->Update();
+	block.originalPos = block.worldTransform.translate;
+	block.type = type;
+	block.isActive = true;
+
+	const Vector3& pos = block.worldTransform.translate;
+	const Vector3 halfSize = {
+		MapChip::kBlockWidth * block.worldTransform.scale.x * 0.5f,
+		MapChip::kBlockHeight * block.worldTransform.scale.y * 0.5f,
+		MapChip::kBlockWidth * block.worldTransform.scale.z * 0.5f
+	};
+	block.aabb.min = { pos.x - halfSize.x, pos.y - halfSize.y, pos.z - halfSize.z };
+	block.aabb.max = { pos.x + halfSize.x, pos.y + halfSize.y, pos.z + halfSize.z };
+	block.obb.center = pos;
+	block.obb.halfExtents = halfSize;
+	block.obb.orientation[0] = { 1.0f, 0.0f, 0.0f };
+	block.obb.orientation[1] = { 0.0f, 1.0f, 0.0f };
+	block.obb.orientation[2] = { 0.0f, 0.0f, 1.0f };
+
+	std::vector<Block> row;
+	row.push_back(std::move(block));
+	blocks_.push_back(std::move(row));
+	mergedBlocks_.push_back({ blocks_.back().front().aabb, type });
+	return true;
 }
 
 void Stage::GenerateBlocks() {
