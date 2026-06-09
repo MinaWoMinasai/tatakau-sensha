@@ -223,6 +223,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
+    <ClCompile Include="game\level\LevelLoader.cpp" />
     <ClCompile Include="game\exp\EnemyManager.cpp" />
     <ClCompile Include="game\exp\ExpEnemy.cpp" />
     <ClCompile Include="game\scene\Game.cpp" />
@@ -451,6 +452,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\scene\TitleScene.h" />
     <ClInclude Include="DirectX\engine\particle\ParticleManager.h" />
     <ClInclude Include="DirectX\engine\commom\ShadowMap.h" />
+    <ClInclude Include="game\level\LevelLoader.h" />
     <ClInclude Include="game\scene\IScene.h" />
     <ClInclude Include="game\scene\SceneFactory.h" />
     <ClInclude Include="game\scene\TestScene.h" />
@@ -500,6 +502,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </None>
     <None Include="resources\effects\hit_spark.json" />
     <None Include="resources\configs\gameText.json" />
+    <None Include="resources\levels\level_test.json" />
+    <None Include="resources\levels\prefab_dictionary.json" />
+    <None Include="tools\blender\export_level_test.py" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -42,6 +42,7 @@ public:
     bool IsDead() const { return isDead_; }
     int GetHp() const { return hp_; }
     int GetMaxHp() const { return maxHp_; }
+    void SetHp(int hp) { hp_ = hp; maxHp_ = hp; }
 
     uint32_t GetExpValue() const { return expValue_; }
 

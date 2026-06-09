@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 
 namespace {
 
@@ -27,6 +28,31 @@ Vector4 GetCollisionDebugColor(uint32_t attribute) {
 
 bool IsBulletCollider(uint32_t attribute) {
 	return (attribute & (kCollisionAttributePlayerBullet | kCollisionAttributeEnemyBullet)) != 0;
+}
+
+int ReadCustomInt(const nlohmann::json& customProperties, const char* key, int fallback)
+{
+	if (!customProperties.is_object() || !customProperties.contains(key) || !customProperties[key].is_number()) {
+		return fallback;
+	}
+	return customProperties[key].get<int>();
+}
+
+bool TryGetItemModel(const std::string& prefab, std::string& model)
+{
+	if (prefab == "Default" || prefab == "Heal") {
+		model = "jewelry.obj";
+		return true;
+	}
+	if (prefab == "Power") {
+		model = "ball.obj";
+		return true;
+	}
+	if (prefab == "Exp") {
+		model = "bloomBall.obj";
+		return true;
+	}
+	return false;
 }
 
 RingEffectConfig MakeCollisionRingConfig(float radius, const Vector4& color) {
@@ -236,8 +262,23 @@ void GameScene::Initialize() {
 	bulletManager_ = std::make_unique<BulletManager>();
 	bulletManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), Object3dCommon::GetInstance());
 
+	LevelData levelData;
+	const bool hasLevelData = LevelLoader().Load("resources/levels/level_test.json", levelData);
+	Vector3 playerSpawnPosition = Vector3(30.0f, 30.0f, 0.0f);
+	if (hasLevelData) {
+		for (const LevelObject& object : levelData.objects) {
+			if (object.type == "PlayerSpawn") {
+				if (object.prefab != "Default") {
+					std::cerr << "[LevelLoader] Unsupported PlayerSpawn prefab: " << object.prefab << std::endl;
+				}
+				playerSpawnPosition = object.transform.translate;
+				break;
+			}
+		}
+	}
+
 	player_ = std::make_unique<Player>();
-	player_->Initialize(playerObject_.get(), Vector3(30.0f, 30.0f, 0.0f));
+	player_->Initialize(playerObject_.get(), playerSpawnPosition);
 	player_->SetAttackControllerBulletManager(bulletManager_.get());
 
 	// 敵キャラの生成
@@ -250,6 +291,9 @@ void GameScene::Initialize() {
 	// 経験値敵マネージャの生成
 	enemyManager_ = std::make_unique<EnemyManager>();
 	enemyManager_->Initialize(player_.get(), bulletManager_.get());
+	if (hasLevelData) {
+		ApplyLevelData(levelData);
+	}
 
 	// 衝突マネージャの生成
 	collisionManager_ = std::make_unique<CollisionManager>();
@@ -634,6 +678,7 @@ void GameScene::Update() {
 	groundObj_->Update();
 
 	stage_->Update();
+	UpdateLevelItems();
 	
 	player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime);
 	if (player_->IsDead() && !playerDeathShakeStarted_) {
@@ -776,6 +821,7 @@ void GameScene::DrawPostEffect3D() {
 		enemy_->Draw(!useEnemyPost);
 		enemyManager_->Draw(!useExpEnemyPost);
 		bulletManager_->Draw();
+		DrawLevelItems();
 		stage_->DrawVisible(GetActiveCameraPosition(camera.get(), debugCamera.get()), 38.0f, 24.0f);
 	});
 	if (useStagePost) {
@@ -1052,6 +1098,69 @@ Vector2 GameScene::GetStagePostCacheUvOffset(const Vector3& currentCameraPos) co
 		(cacheCenterScreen.x - currentCenterScreen.x) / static_cast<float>(WinApp::kClientWidth),
 		(cacheCenterScreen.y - currentCenterScreen.y) / static_cast<float>(WinApp::kClientHeight)
 	};
+}
+
+void GameScene::ApplyLevelData(const LevelData& levelData)
+{
+	for (const LevelObject& object : levelData.objects) {
+		if (object.type == "PlayerSpawn") {
+			continue;
+		}
+		if (object.type == "Enemy") {
+			const int hp = ReadCustomInt(object.customProperties, "hp", -1);
+			enemyManager_->SpawnLevelEnemy(object.transform.translate, object.prefab, hp);
+			continue;
+		}
+		if (object.type == "Obstacle") {
+			stage_->AddLevelObstacle(object.transform, object.prefab);
+			stagePostCacheValid_ = false;
+			continue;
+		}
+		if (object.type == "Item") {
+			AddLevelItem(object);
+			continue;
+		}
+
+		std::cerr << "[LevelLoader] Unsupported object type: " << object.type << " (" << object.name << ")" << std::endl;
+	}
+}
+
+bool GameScene::AddLevelItem(const LevelObject& levelObject)
+{
+	std::string model;
+	if (!TryGetItemModel(levelObject.prefab, model)) {
+		std::cerr << "[LevelLoader] Unsupported Item prefab: " << levelObject.prefab << std::endl;
+		return false;
+	}
+
+	LevelVisualObject visual{};
+	visual.name = levelObject.name;
+	visual.object = std::make_unique<Object3d>();
+	visual.object->Initialize();
+	visual.object->SetModel(model);
+	visual.object->SetTransform(levelObject.transform);
+	visual.object->SetColor({ 0.35f, 1.0f, 0.75f, 1.0f });
+	visual.object->Update();
+	levelItems_.push_back(std::move(visual));
+	return true;
+}
+
+void GameScene::UpdateLevelItems()
+{
+	for (LevelVisualObject& item : levelItems_) {
+		if (item.object) {
+			item.object->Update();
+		}
+	}
+}
+
+void GameScene::DrawLevelItems()
+{
+	for (LevelVisualObject& item : levelItems_) {
+		if (item.object) {
+			item.object->Draw();
+		}
+	}
 }
 
 void GameScene::DrawShadow() {

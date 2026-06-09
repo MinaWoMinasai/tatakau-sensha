@@ -2,6 +2,32 @@
 #include "Stage.h"
 #include "Player.h"
 #include "Calculation.h"
+#include <iostream>
+
+namespace {
+
+bool TryGetExpEnemyType(const std::string& prefab, ExpEnemyType& type)
+{
+    if (prefab == "Default" || prefab == "Basic" || prefab == "Square") {
+        type = ExpEnemyType::Square;
+        return true;
+    }
+    if (prefab == "Triangle") {
+        type = ExpEnemyType::Triangle;
+        return true;
+    }
+    if (prefab == "Pentagon") {
+        type = ExpEnemyType::Pentagon;
+        return true;
+    }
+    if (prefab == "Shooter") {
+        type = ExpEnemyType::Shooter;
+        return true;
+    }
+    return false;
+}
+
+} // namespace
 
 void EnemyManager::Initialize(Player* player, BulletManager* bulletManager) {
     player_ = player;
@@ -74,6 +100,24 @@ void EnemyManager::DrawBodyOnly() {
     for (auto& enemy : enemies_) {
         enemy->DrawBodyOnly();
     }
+}
+
+bool EnemyManager::SpawnLevelEnemy(const Vector3& position, const std::string& prefab, int hp)
+{
+    ExpEnemyType type = ExpEnemyType::Square;
+    if (!TryGetExpEnemyType(prefab, type)) {
+        std::cerr << "[LevelLoader] Unsupported Enemy prefab: " << prefab << std::endl;
+        return false;
+    }
+
+    auto newEnemy = std::make_unique<ExpEnemy>();
+    newEnemy->Initialize(position, player_, type);
+    newEnemy->SetAttackControllerBulletManager(bulletManager_);
+    if (hp > 0) {
+        newEnemy->SetHp(hp);
+    }
+    enemies_.push_back(std::move(newEnemy));
+    return true;
 }
 
 void EnemyManager::DrawBodyOnlyVisible(const Vector3& cameraPos, float halfWidth, float halfHeight) {
