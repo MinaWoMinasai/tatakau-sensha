@@ -12,6 +12,7 @@ public:
     void Initialize(DirectXCommon* dxCommon, const std::string& textureFilePath);
     void BeginFrame();
     void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color);
+    void QueueRectangle(const Vector3& center, const Vector3& size, float lineWidth, const Vector4& color);
     void QueueLocalGrid(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color);
     void QueueLocalGridClipped(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color, float minX, float maxX, float minY, float maxY);
     void DrawAll(const Matrix4x4& viewProjection);

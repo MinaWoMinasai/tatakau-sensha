@@ -1,11 +1,25 @@
 {
-  "purpose": "AIやBlenderスクリプトがlevel.jsonを編集しやすくするための簡易辞書です。",
+  "toolName": "Level AI-ditor",
+  "purpose": "AIやBlenderスクリプトが、アリーナ型ボス戦のlevel.jsonを編集しやすくするための辞書です。",
+  "editorConcept": {
+    "displayName": "Level AI-ditor",
+    "description": "ステージを作るだけではなく、ボス戦の湧き、危険地帯、フェーズ変化、成長導線をAIと一緒に編集するためのレベルエディター。",
+    "recommendedWorkflow": [
+      "BlenderでPlayerSpawn、BossSpawn、Obstacle、SpawnAreaなどの位置や範囲を置く",
+      "Level AI-ditorのJSONをAIに調整させる",
+      "ゲーム側で即読み込み、戦闘テンポと難易度を確認する",
+      "使いづらいルールやprefabはこの辞書に追記する"
+    ]
+  },
   "levelFileRules": [
+    "トップレベルに toolName, editorMode, levelName, balance, objects, spawnAreas, bossPhases を置ける",
     "objects配列の各要素は name, type, prefab, position, rotation, scale, customProperties を持つ",
-    "position, rotation, scale は x, y, z の数値オブジェクトにする",
+    "SpawnAreaはobjects内にもspawnAreas配列にも書ける",
+    "bossPhasesはボスHP割合がstartHpRate以下になった時に一度だけobjectsを適用する",
+    "position, rotation, scale, center, size は x, y, z の数値オブジェクトにする",
     "rotationはエンジン側ではラジアンとして扱う",
-    "未対応のtypeやprefabはエンジン側で警告ログを出し、クラッシュしない",
-    "既存のCSVステージを壊さないため、level.jsonのObstacleは追加ブロックとして扱う"
+    "基本的に2D平面なのでzは0.0を推奨する",
+    "未対応のtypeやprefabはエンジン側で警告ログを出し、クラッシュしない"
   ],
   "types": [
     {
@@ -19,11 +33,24 @@
         }
       ],
       "recommendedCount": "1",
-      "notes": "ステージ内の安全な床位置に置く。Obstacleと重ならないようにする。"
+      "notes": "ObstacleやDamageBlockと重ねない。最初の数秒で安全に移動できる場所に置く。"
+    },
+    {
+      "type": "BossSpawn",
+      "description": "ボス開始位置。複数ある場合、最初の1つを使う。",
+      "prefabs": [
+        {
+          "prefab": "Default",
+          "description": "既存の黒いボス用開始位置",
+          "customProperties": {}
+        }
+      ],
+      "recommendedCount": "1",
+      "notes": "PlayerSpawnに近すぎると開幕が理不尽になる。15以上離すのがおすすめ。"
     },
     {
       "type": "Enemy",
-      "description": "EnemyManagerに追加でスポーンする敵。現状はExpEnemy系に対応。",
+      "description": "開始時に1体だけ追加スポーンするEXP敵。",
       "prefabs": [
         {
           "prefab": "Basic",
@@ -36,31 +63,62 @@
         {
           "prefab": "Triangle",
           "description": "やや硬い三角形の敵",
-          "customProperties": {
-            "hp": "number: 初期HP"
-          }
+          "customProperties": { "hp": "number: 初期HP" }
         },
         {
           "prefab": "Pentagon",
           "description": "高HPの五角形の敵",
-          "customProperties": {
-            "hp": "number: 初期HP"
-          }
+          "customProperties": { "hp": "number: 初期HP" }
         },
         {
           "prefab": "Shooter",
           "description": "弾を撃つ敵",
+          "customProperties": { "hp": "number: 初期HP" }
+        }
+      ],
+      "recommendedCount": "0-10",
+      "notes": "継続的な湧きはEnemyよりSpawnAreaを使う。"
+    },
+    {
+      "type": "SpawnArea",
+      "description": "指定範囲内にEXP敵を継続スポーンさせる。Level AI-ditorの主力データ。",
+      "prefabs": [
+        {
+          "prefab": "Basic",
+          "description": "初心者向けの基本EXP敵を湧かせる",
           "customProperties": {
-            "hp": "number: 初期HP"
+            "spawnInterval": "number: スポーン間隔秒。小さいほど難しい",
+            "maxAlive": "number: 範囲内に同時存在できる最大数",
+            "hp": "number: 初期HP。省略時はprefab既定値",
+            "enemyPrefab": "string: prefabを上書きしたい時だけ使う",
+            "enabled": "bool: falseなら無効"
+          }
+        },
+        {
+          "prefab": "Triangle",
+          "description": "少し硬い敵でルートに圧をかける",
+          "customProperties": {
+            "spawnInterval": "number",
+            "maxAlive": "number",
+            "hp": "number"
+          }
+        },
+        {
+          "prefab": "Shooter",
+          "description": "弾を撃つ敵でボス戦の圧を上げる。多用しすぎない",
+          "customProperties": {
+            "spawnInterval": "number: 5.0以上を推奨",
+            "maxAlive": "number: 1-3推奨",
+            "hp": "number"
           }
         }
       ],
-      "recommendedCount": "3-20",
-      "notes": "PlayerSpawnの近くには置きすぎない。CSV壁やObstacleと重ならないようにする。"
+      "recommendedCount": "1-6",
+      "notes": "scaleは範囲サイズとして使われる。Blenderでは大きめのEmptyやCubeで範囲を表す。"
     },
     {
       "type": "Obstacle",
-      "description": "Stageに追加される衝突ブロック。",
+      "description": "Stageに追加される衝突ブロックまたはダメージブロック。",
       "prefabs": [
         {
           "prefab": "Wall",
@@ -69,8 +127,10 @@
         },
         {
           "prefab": "DamageBlock",
-          "description": "ダメージ床/ブロック。cubeDamage.objを使う。",
-          "customProperties": {}
+          "description": "赤い危険ブロック。cubeDamage.objを使う。",
+          "customProperties": {
+            "intent": "string: AIや人間向けの配置意図"
+          }
         }
       ],
       "recommendedCount": "0-50",
@@ -83,35 +143,68 @@
         {
           "prefab": "Heal",
           "description": "回復アイテム想定。jewelry.objを使う。",
-          "customProperties": {
-            "healAmount": "number: 回復量。現状は読み取りのみ"
-          }
+          "customProperties": { "healAmount": "number: 回復量。現状は読み取りのみ" }
         },
         {
           "prefab": "Power",
           "description": "強化アイテム想定。ball.objを使う。",
-          "customProperties": {
-            "powerType": "string: 強化種別。現状は読み取りのみ"
-          }
+          "customProperties": { "powerType": "string: 強化種別。現状は読み取りのみ" }
         },
         {
           "prefab": "Exp",
           "description": "経験値アイテム想定。bloomBall.objを使う。",
-          "customProperties": {
-            "expAmount": "number: 経験値量。現状は読み取りのみ"
-          }
+          "customProperties": { "expAmount": "number: 経験値量。現状は読み取りのみ" }
         }
       ],
       "recommendedCount": "0-20",
       "notes": "取得処理は未実装なので、まずは見た目の配置確認用。"
     }
   ],
+  "bossPhaseRules": {
+    "description": "ボスHP割合で一度だけ追加イベントを起こす。",
+    "fields": {
+      "name": "string: フェーズ名",
+      "startHpRate": "number: 0.0-1.0。ボスHP率がこの値以下になったら発動",
+      "message": "string: ログ用メッセージ",
+      "objects": "array: 発動時に適用するLevelObject配列",
+      "customProperties": "object: AI向けメモや将来拡張用"
+    },
+    "supportedCustomProperties": {
+      "bossAttack": {
+        "bulletSpeed": "number: ボス弾速。0.35-0.5程度から調整",
+        "bulletCount": "number: 1以上。増やすほど難しくなる",
+        "spreadAngleDeg": "number: 拡散角度。0-180",
+        "cooldown": "number: 発射間隔秒。小さいほど難しい",
+        "damage": "number: 弾ダメージ",
+        "randomSpread": "bool: trueならランダム拡散"
+      },
+      "effectPreset": {
+        "gridBloomIntensity": "number: グリッドブルーム強度",
+        "enemyBloomIntensity": "number: ボス表示ブルーム強度",
+        "cameraShakePower": "number: フェーズ発動時のカメラ揺れ",
+        "gridColor": "Vector4: ワールドグリッド色",
+        "enemyGridColor": "Vector4: ボス周辺グリッド色",
+        "bossOutlineColor": "Vector3: ボスアウトライン色"
+      }
+    },
+    "recommended": [
+      "0.75: 軽い追加SpawnArea",
+      "0.50: DamageBlockや壁でアリーナ形状を少し変える",
+      "0.25: Shooterや高HP敵を少数追加"
+    ]
+  },
+  "balanceFields": {
+    "defaultRandomSpawnEnabled": "bool: 従来のランダムスポーンを使うか。AI調整を重視するならfalseもあり",
+    "notes": "string: AIや人間向けの調整メモ"
+  },
   "aiEditingRules": [
-    "PlayerSpawnは原則1つだけにする",
-    "Enemyはプレイヤー開始位置から10以上離す",
-    "ObstacleはPlayerSpawnやEnemyの真上に置かない",
-    "ItemはObstacle内部に置かない",
-    "未知のprefabを作る場合は、この辞書に先に追加してからlevel.jsonに使う",
-    "座標はこのゲームの2D平面に合わせ、基本的にzは0.0にする"
+    "PlayerSpawnとBossSpawnは原則1つずつにする",
+    "EnemyはPlayerSpawnから10以上、BossSpawnから近すぎない位置に置く",
+    "継続湧きはEnemyではなくSpawnAreaを使う",
+    "ShooterのSpawnAreaはmaxAliveを1-3に抑える",
+    "DamageBlockは逃げ道を完全に塞がない",
+    "bossPhasesのstartHpRateは大きい順に考えると読みやすい",
+    "初心者向け調整ではspawnIntervalを短くしすぎない",
+    "未知のprefabを使う場合はこの辞書に先に追加してからlevel.jsonに使う"
   ]
 }

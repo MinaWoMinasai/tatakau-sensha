@@ -49,6 +49,25 @@ void NeonGridRenderer::QueueWorldGrid(float minX, float maxX, float minY, float 
     }
 }
 
+void NeonGridRenderer::QueueRectangle(const Vector3& center, const Vector3& size, float lineWidth, const Vector4& color) {
+    if (size.x <= 0.0f || size.y <= 0.0f || lineWidth <= 0.0f) {
+        return;
+    }
+
+    const float halfX = size.x * 0.5f;
+    const float halfY = size.y * 0.5f;
+    const float z = center.z - 0.02f;
+    const Vector3 leftTop = { center.x - halfX, center.y + halfY, z };
+    const Vector3 rightTop = { center.x + halfX, center.y + halfY, z };
+    const Vector3 rightBottom = { center.x + halfX, center.y - halfY, z };
+    const Vector3 leftBottom = { center.x - halfX, center.y - halfY, z };
+
+    AddLineQuad(leftTop, rightTop, lineWidth, color);
+    AddLineQuad(rightTop, rightBottom, lineWidth, color);
+    AddLineQuad(rightBottom, leftBottom, lineWidth, color);
+    AddLineQuad(leftBottom, leftTop, lineWidth, color);
+}
+
 void NeonGridRenderer::QueueLocalGrid(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color) {
     QueueLocalGridClipped(center, radius, spacing, lineWidth, color, center.x - radius, center.x + radius, center.y - radius, center.y + radius);
 }

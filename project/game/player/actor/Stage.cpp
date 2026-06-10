@@ -1,4 +1,5 @@
 #include "Stage.h"
+#include <algorithm>
 #include <iostream>
 
 namespace {
@@ -83,6 +84,7 @@ bool Stage::AddLevelObstacle(const Transform& transform, const std::string& pref
 	block.originalPos = block.worldTransform.translate;
 	block.type = type;
 	block.isActive = true;
+	block.isLevelObject = true;
 
 	const Vector3& pos = block.worldTransform.translate;
 	const Vector3 halfSize = {
@@ -103,6 +105,19 @@ bool Stage::AddLevelObstacle(const Transform& transform, const std::string& pref
 	blocks_.push_back(std::move(row));
 	mergedBlocks_.push_back({ blocks_.back().front().aabb, type });
 	return true;
+}
+
+void Stage::ClearLevelObstacles()
+{
+	blocks_.erase(
+		std::remove_if(
+			blocks_.begin(),
+			blocks_.end(),
+			[](const std::vector<Block>& row) {
+				return row.size() == 1 && row.front().isLevelObject;
+			}),
+		blocks_.end());
+	RebuildMergedBlocks();
 }
 
 void Stage::GenerateBlocks() {
@@ -162,6 +177,11 @@ void Stage::GenerateBlocks() {
 		}
 	}
 
+	RebuildMergedBlocks();
+}
+
+void Stage::RebuildMergedBlocks()
+{
 	// ブロック統合処理 
 	auto FixAABB = [](AABB& aabb) {
 		if (aabb.min.x > aabb.max.x)
@@ -173,12 +193,19 @@ void Stage::GenerateBlocks() {
 		};
 
 	mergedBlocks_.clear();
-	for (uint32_t i = 0; i < numBlockVirtical; ++i) {
+	for (uint32_t i = 0; i < blocks_.size(); ++i) {
+		if (blocks_[i].size() == 1 && blocks_[i].front().isLevelObject) {
+			const Block& block = blocks_[i].front();
+			if (block.isActive) {
+				mergedBlocks_.push_back({ block.aabb, block.type });
+			}
+			continue;
+		}
 		bool merging = false;
 		AABB mergedAABB{};
 		MapChipType currentType{};
 
-		for (uint32_t j = 0; j < numBlockHorizontal; ++j) {
+		for (uint32_t j = 0; j < blocks_[i].size(); ++j) {
 			const Block& block = blocks_[i][j];
 
 			if (block.isActive) {

@@ -4,7 +4,7 @@ import os
 import bpy
 
 
-SUPPORTED_TYPES = {"PlayerSpawn", "Enemy", "Obstacle", "Item"}
+SUPPORTED_TYPES = {"PlayerSpawn", "BossSpawn", "Enemy", "SpawnArea", "Obstacle", "Item"}
 
 
 def infer_type_and_prefab(object_name):
@@ -14,7 +14,10 @@ def infer_type_and_prefab(object_name):
     if object_type == "PlayerSpawn":
         return "PlayerSpawn", "Default"
 
-    if object_type in {"Enemy", "Obstacle", "Item"}:
+    if object_type == "BossSpawn":
+        return "BossSpawn", "Default"
+
+    if object_type in {"Enemy", "SpawnArea", "Obstacle", "Item"}:
         prefab = parts[1] if len(parts) >= 2 and parts[1] else "Default"
         return object_type, prefab
 
@@ -75,8 +78,15 @@ def export_level():
         })
 
     level = {
+        "toolName": "Level AI-ditor",
+        "editorMode": "ArenaBattle",
         "levelName": "test_stage",
+        "balance": {
+            "defaultRandomSpawnEnabled": True
+        },
         "objects": objects,
+        "spawnAreas": [],
+        "bossPhases": []
     }
 
     if bpy.data.filepath:

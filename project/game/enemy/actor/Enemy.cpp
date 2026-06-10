@@ -78,15 +78,15 @@ void Enemy::ShotgunFire()
 
 	// 攻撃パラメータを設定
 	AttackParam param{};
-	param.bulletSpeed = 0.4f;
-	param.bulletCount = 2;
-	param.spreadAngleDeg = 30.0f;
-	param.randomSpread = true;
+	param.bulletSpeed = bossAttackConfig_.bulletSpeed;
+	param.bulletCount = bossAttackConfig_.bulletCount;
+	param.spreadAngleDeg = bossAttackConfig_.spreadAngleDeg;
+	param.randomSpread = bossAttackConfig_.randomSpread;
 
 	param.reflect = false;
 	param.penetrate = false;
-	param.cooldown = 2.0f;
-	param.damage = 10;
+	param.cooldown = bossAttackConfig_.cooldown;
+	param.damage = bossAttackConfig_.damage;
 
 	// 発射
 	attackController_.Fire(
@@ -148,6 +148,16 @@ void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) 
 	bossHpFont->SetPosition({ 20.0f, 160.0f });
 	bossHpFont->SetSize({120.0f, 40.0f});
 
+}
+
+void Enemy::SetBossAttackConfig(const BossAttackConfig& config)
+{
+	bossAttackConfig_ = config;
+	bossAttackConfig_.bulletSpeed = (std::max)(0.01f, bossAttackConfig_.bulletSpeed);
+	bossAttackConfig_.bulletCount = (std::max)(1, bossAttackConfig_.bulletCount);
+	bossAttackConfig_.spreadAngleDeg = (std::clamp)(bossAttackConfig_.spreadAngleDeg, 0.0f, 180.0f);
+	bossAttackConfig_.cooldown = (std::max)(0.05f, bossAttackConfig_.cooldown);
+	kFireTimerMax_ = bossAttackConfig_.cooldown;
 }
 
 void Enemy::Update(float deltaTime) {
