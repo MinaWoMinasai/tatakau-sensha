@@ -263,8 +263,16 @@ void GameScene::Initialize() {
 	groundObj_->Initialize();
 	groundObj_->SetModel("ground.obj");
 	groundObj_->SetTranslate(Vector3(0.0f, -30.0f, 0.0f));
+
+	TextureManager::GetInstance()->LoadTexture("resources/skybox.dds");
+	skybox_ = std::make_unique<Skybox>();
+	skybox_->Initialize("resources/skybox.dds");
+	const uint32_t skyboxTextureIndex = TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
 	
 	enemyObject_->SetModel("enemy3D.obj");
+	enemyObject_->SetLighting(true);
+	enemyObject_->SetEnvironmentMap(skyboxTextureIndex);
+	enemyObject_->SetEnvironmentCoefficient(0.75f);
 	object3d3->SetModel("plane.obj");
 	playerObject_->SetModel("player3D.obj");
 	playerObject_->SetColor(Vector4(0.48f, 0.86f, 0.22f, 1.0f));
@@ -682,6 +690,9 @@ void GameScene::Update() {
 
 	camera->Update();
 	debugCamera->Update(input_->GetMouseState(), input_->GetKey(), input_->GetLeftStick());
+	if (skybox_) {
+		skybox_->Update(camera.get(), debugCamera.get());
+	}
 	
 
 	direction = Normalize(direction);
@@ -807,8 +818,11 @@ void GameScene::Draw() {
 
 void GameScene::DrawPostEffect3D() {
 
-	Object3dCommon::GetInstance()->PreDraw(kNormal);
 	ResetPostProfileEntries();
+	if (skybox_) {
+		skybox_->Draw();
+	}
+	Object3dCommon::GetInstance()->PreDraw(kNormal);
 	const bool useGridPost = enableNeonGridPostEffect_ && IsPostProfileCategoryEnabled("Grid");
 	const bool useStagePost = enableStagePostEffect_ && IsPostProfileCategoryEnabled("Stage");
 	const bool useBulletTrailPost = enableBulletTrailPostEffect_ && IsPostProfileCategoryEnabled("BulletTrail");

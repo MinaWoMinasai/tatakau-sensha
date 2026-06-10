@@ -29,6 +29,7 @@
 #include "ObjectPostEffect.h"
 #include "RingManager.h"
 #include "NeonGridRenderer.h"
+#include "Skybox.h"
 #include "game/level/LevelLoader.h"
 
 // ゲームシーン
@@ -169,6 +170,7 @@ private:
 	std::unique_ptr<CollisionManager> collisionManager_;
 	std::unique_ptr<RingManager> collisionDebugRingManager_;
 	std::unique_ptr<NeonGridRenderer> neonGridRenderer_;
+	std::unique_ptr<Skybox> skybox_;
 	std::unique_ptr<ObjectPostEffect> neonGridPostEffect_;
 	std::unique_ptr<ObjectPostEffect> bulletTrailPostEffect_;
 	std::unique_ptr<ObjectPostEffect> playerPostEffect_;
