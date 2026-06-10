@@ -718,8 +718,12 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 		filePath.c_str(), // コンパイル対象のhlslファイル名
 		L"-E", L"main", // エントリーポイントの指定。基本的にmain以外にはしない
 		L"-T",profile, // ShaderProfileの設定
+#ifdef _DEBUG
 		L"-Zi", L"-Qembed_debug", // デバッグ陽男情報を埋め込む
 		L"-Od", // 最適化を外しておく
+#else
+		L"-O3",
+#endif
 		L"-Zpr" // メモリレイアウトは行優先
 	};
 	// 実際にShaderをコンパイルする

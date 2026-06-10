@@ -117,7 +117,8 @@ void GameScene::Initialize() {
 	playerPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
-		nullptr
+		nullptr,
+		0.5f
 	);
 	{
 		BloomParam& playerPost = playerPostEffect_->GetParam();
@@ -134,7 +135,8 @@ void GameScene::Initialize() {
 	enemyPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
-		nullptr
+		nullptr,
+		0.5f
 	);
 	{
 		BloomParam& enemyPost = enemyPostEffect_->GetParam();
@@ -189,7 +191,8 @@ void GameScene::Initialize() {
 	neonGridPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
-		nullptr
+		nullptr,
+		0.5f
 	);
 	{
 		BloomParam& gridPost = neonGridPostEffect_->GetParam();
@@ -216,6 +219,23 @@ void GameScene::Initialize() {
 		bulletTrailPost.outlineThreshold = 0.0f;
 		bulletTrailPost.outlineBloomIntensity = 0.0f;
 		bulletTrailPost.outlineBloomWidth = 0.0f;
+	}
+
+	sharedObjectBloomPostEffect_ = std::make_unique<ObjectPostEffect>();
+	sharedObjectBloomPostEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr,
+		0.5f
+	);
+	{
+		BloomParam& objectBloomPost = sharedObjectBloomPostEffect_->GetParam();
+		objectBloomPost.threshold = 0.0f;
+		objectBloomPost.intensity = 1.15f;
+		objectBloomPost.outlineWidth = 0.0f;
+		objectBloomPost.outlineThreshold = 0.0f;
+		objectBloomPost.outlineBloomIntensity = 0.0f;
+		objectBloomPost.outlineBloomWidth = 0.0f;
 	}
 
 	enemyObject_ = std::make_unique<Object3d>();
@@ -715,6 +735,7 @@ void GameScene::Update() {
 	stagePostEffect_->Update(finalDeltaTime);
 	neonGridPostEffect_->Update(finalDeltaTime);
 	bulletTrailPostEffect_->Update(finalDeltaTime);
+	sharedObjectBloomPostEffect_->Update(finalDeltaTime);
 	UpdatePostProfileText();
 
 #ifdef USE_IMGUI
@@ -817,9 +838,9 @@ void GameScene::DrawPostEffect3D() {
 	}
 
 	profile("Base Objects", true, [&]() {
-		player_->Draw(!usePlayerPost);
-		enemy_->Draw(!useEnemyPost);
-		enemyManager_->Draw(!useExpEnemyPost);
+		player_->Draw(true);
+		enemy_->Draw(true);
+		enemyManager_->Draw(true);
 		bulletManager_->Draw();
 		DrawLevelItems();
 		stage_->DrawVisible(GetActiveCameraPosition(camera.get(), debugCamera.get()), 38.0f, 24.0f);
@@ -873,44 +894,32 @@ void GameScene::DrawPostEffect3D() {
 		}
 	}
 
-	if (usePlayerPost && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
-		profile("Player Post", true, [&]() {
-			playerPostEffect_->BeginCapture();
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
-			player_->DrawBodyOnly();
-			playerPostEffect_->EndCapture();
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
-		});
-	} else {
-		AddPostProfileEntry("Player Post", 0.0f, false);
-	}
-
-	if (useEnemyPost) {
-		profile("Enemy Post", true, [&]() {
-			enemyPostEffect_->BeginCapture();
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
-			enemy_->DrawBodyOnly();
-			enemyPostEffect_->EndCapture();
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
-		});
-	} else {
-		AddPostProfileEntry("Enemy Post", 0.0f, false);
-	}
-
-	if (useExpEnemyPost) {
-		profile("Exp Post", true, [&]() {
+	const bool useSharedObjectBloom =
+		(usePlayerPost && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) ||
+		useEnemyPost ||
+		useExpEnemyPost;
+	if (useSharedObjectBloom) {
+		profile("Object Glow", true, [&]() {
 			const Vector3 currentCameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
-			expEnemyPostEffect_->BeginCapture();
+			sharedObjectBloomPostEffect_->BeginCapture();
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
-			enemyManager_->DrawBodyOnlyVisible(
-				currentCameraPos,
-				expEnemyPostVisibleHalfWidth_,
-				expEnemyPostVisibleHalfHeight_);
-			expEnemyPostEffect_->EndCapture();
+			if (usePlayerPost && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
+				player_->DrawBodyOnly();
+			}
+			if (useEnemyPost) {
+				enemy_->DrawBodyOnly();
+			}
+			if (useExpEnemyPost) {
+				enemyManager_->DrawBodyOnlyVisible(
+					currentCameraPos,
+					expEnemyPostVisibleHalfWidth_,
+					expEnemyPostVisibleHalfHeight_);
+			}
+			sharedObjectBloomPostEffect_->EndCaptureBloomOnly();
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
 		});
 	} else {
-		AddPostProfileEntry("Exp Post", 0.0f, false);
+		AddPostProfileEntry("Object Glow", 0.0f, false);
 	}
 
 	if (showCollisionDebug_) {
