@@ -33,7 +33,8 @@ void PlayerLabScene::Initialize()
 	playerPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
-		nullptr
+		nullptr,
+		0.5f
 	);
 	{
 		BloomParam& param = playerPostEffect_->GetParam();
@@ -50,7 +51,8 @@ void PlayerLabScene::Initialize()
 	expEnemyPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
-		nullptr
+		nullptr,
+		0.5f
 	);
 	{
 		BloomParam& param = expEnemyPostEffect_->GetParam();
@@ -85,7 +87,8 @@ void PlayerLabScene::Initialize()
 	neonGridPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
-		nullptr
+		nullptr,
+		0.5f
 	);
 	{
 		BloomParam& param = neonGridPostEffect_->GetParam();
@@ -97,7 +100,8 @@ void PlayerLabScene::Initialize()
 	bulletTrailPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
-		nullptr
+		nullptr,
+		0.5f
 	);
 	{
 		BloomParam& param = bulletTrailPostEffect_->GetParam();

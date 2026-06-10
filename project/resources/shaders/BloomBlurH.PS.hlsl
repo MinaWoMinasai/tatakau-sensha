@@ -36,12 +36,6 @@ struct PSInput
     float2 uv : TEXCOORD0;
 };
 
-float CalculateGaussianWeight(int offset, float sigma)
-{
-    float x = (float)offset;
-    return exp(-(x * x) / (2.0f * sigma * sigma));
-}
-
 float4 main(PSInput input) : SV_TARGET
 {
     uint width, height;
@@ -64,25 +58,16 @@ float4 main(PSInput input) : SV_TARGET
     }
     else
     {
-        // Gaussian kernel: calculate weights from the Gaussian function,
-        // then normalize them so the convolution preserves brightness.
-        const int kGaussianRadius = 4;
-        const float kGaussianSigma = 1.75f;
-        float weightSum = CalculateGaussianWeight(0, kGaussianSigma);
-        [unroll]
-        for (int i = 1; i <= kGaussianRadius; ++i)
-        {
-            weightSum += CalculateGaussianWeight(i, kGaussianSigma) * 2.0f;
-        }
-
-        col = sceneTex.Sample(samp, input.uv) * (CalculateGaussianWeight(0, kGaussianSigma) / weightSum);
-        [unroll]
-        for (int i = 1; i <= kGaussianRadius; ++i)
-        {
-            float weight = CalculateGaussianWeight(i, kGaussianSigma) / weightSum;
-            col += sceneTex.Sample(samp, input.uv + float2(texel.x * i, 0.0f)) * weight;
-            col += sceneTex.Sample(samp, input.uv - float2(texel.x * i, 0.0f)) * weight;
-        }
+        // Pre-normalized Gaussian weights for radius 4, sigma 1.75.
+        col = sceneTex.Sample(samp, input.uv) * 0.23006997f;
+        col += sceneTex.Sample(samp, input.uv + float2(texel.x * 1.0f, 0.0f)) * 0.19541357f;
+        col += sceneTex.Sample(samp, input.uv - float2(texel.x * 1.0f, 0.0f)) * 0.19541357f;
+        col += sceneTex.Sample(samp, input.uv + float2(texel.x * 2.0f, 0.0f)) * 0.11973994f;
+        col += sceneTex.Sample(samp, input.uv - float2(texel.x * 2.0f, 0.0f)) * 0.11973994f;
+        col += sceneTex.Sample(samp, input.uv + float2(texel.x * 3.0f, 0.0f)) * 0.05293135f;
+        col += sceneTex.Sample(samp, input.uv - float2(texel.x * 3.0f, 0.0f)) * 0.05293135f;
+        col += sceneTex.Sample(samp, input.uv + float2(texel.x * 4.0f, 0.0f)) * 0.01688015f;
+        col += sceneTex.Sample(samp, input.uv - float2(texel.x * 4.0f, 0.0f)) * 0.01688015f;
     }
 
     float blurIntensity = (gaussianIntensity > 0.0f || fullScreenBoxBlurBlend > 0.0f) ? 1.0f : intensity;

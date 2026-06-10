@@ -174,6 +174,7 @@ private:
 	std::unique_ptr<ObjectPostEffect> playerPostEffect_;
 	std::unique_ptr<ObjectPostEffect> enemyPostEffect_;
 	std::unique_ptr<ObjectPostEffect> expEnemyPostEffect_;
+	std::unique_ptr<ObjectPostEffect> sharedObjectBloomPostEffect_;
 	std::unique_ptr<ObjectPostEffect> stagePostEffect_;
 	std::vector<LevelVisualObject> levelItems_;
 
