@@ -14,6 +14,15 @@ class Stage;
 class Enemy : public Collider {
 
 public:
+	struct BossAttackConfig {
+		float bulletSpeed = 0.4f;
+		int bulletCount = 2;
+		float spreadAngleDeg = 30.0f;
+		float cooldown = 0.15f;
+		uint32_t damage = 10;
+		bool randomSpread = true;
+	};
+
 
 	enum class AIState {
 		Attack, // 攻撃、射撃
@@ -140,6 +149,8 @@ public:
 	bool IsDead() const { return isDead_; }
 	int GetHp() const { return hp_; }
 	int GetMaxHp() const { return maxHP_; }
+	void SetBossAttackConfig(const BossAttackConfig& config);
+	const BossAttackConfig& GetBossAttackConfig() const { return bossAttackConfig_; }
 
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
 		bulletManager_ = bulletManager;
@@ -215,6 +226,7 @@ private:
 	// 射撃感覚タイマー
 	float kFireTimerMax_ = 0.15f;
 	float fireTimer_ = 0.0f;
+	BossAttackConfig bossAttackConfig_{};
 	
 	Vector3 velocity_{ 0, 0, 0 };
 

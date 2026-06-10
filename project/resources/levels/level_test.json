@@ -1,11 +1,26 @@
 {
+  "toolName": "Level AI-ditor",
+  "editorMode": "ArenaBattle",
   "levelName": "test_stage",
+  "balance": {
+    "defaultRandomSpawnEnabled": true,
+    "notes": "trueなら従来のランダムEXP敵スポーンも残す。falseならspawnAreas中心の調整にできる。"
+  },
   "objects": [
     {
       "name": "PlayerSpawn_001",
       "type": "PlayerSpawn",
       "prefab": "Default",
       "position": { "x": 30.0, "y": 30.0, "z": 0.0 },
+      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "customProperties": {}
+    },
+    {
+      "name": "BossSpawn_001",
+      "type": "BossSpawn",
+      "prefab": "Default",
+      "position": { "x": 20.0, "y": 20.0, "z": 0.0 },
       "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
       "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
       "customProperties": {}
@@ -20,6 +35,19 @@
       "customProperties": {
         "hp": 30,
         "movePattern": "Straight"
+      }
+    },
+    {
+      "name": "SpawnArea_Basic_North",
+      "type": "SpawnArea",
+      "prefab": "Basic",
+      "position": { "x": 34.0, "y": 38.0, "z": 0.0 },
+      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+      "scale": { "x": 14.0, "y": 8.0, "z": 1.0 },
+      "customProperties": {
+        "spawnInterval": 2.5,
+        "maxAlive": 6,
+        "hp": 8
       }
     },
     {
@@ -40,6 +68,97 @@
       "scale": { "x": 0.8, "y": 0.8, "z": 0.8 },
       "customProperties": {
         "healAmount": 1
+      }
+    }
+  ],
+  "spawnAreas": [
+    {
+      "name": "SpawnArea_Triangle_East",
+      "prefab": "Triangle",
+      "center": { "x": 48.0, "y": 28.0, "z": 0.0 },
+      "size": { "x": 10.0, "y": 12.0, "z": 1.0 },
+      "spawnInterval": 4.0,
+      "maxAlive": 4,
+      "hp": 12,
+      "enabled": true,
+      "customProperties": {
+        "intent": "ボス右側の回避ルートに少し圧をかける"
+      }
+    }
+  ],
+  "bossPhases": [
+    {
+      "name": "phase_75_add_exp_pressure",
+      "startHpRate": 0.75,
+      "message": "HP75%以下で追加EXP敵の湧きエリアを出す",
+      "objects": [
+        {
+          "name": "SpawnArea_Shooter_Phase75",
+          "type": "SpawnArea",
+          "prefab": "Shooter",
+          "position": { "x": 24.0, "y": 34.0, "z": 0.0 },
+          "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+          "scale": { "x": 8.0, "y": 8.0, "z": 1.0 },
+          "customProperties": {
+            "spawnInterval": 6.0,
+            "maxAlive": 2,
+            "hp": 14
+          }
+        }
+      ],
+      "customProperties": {
+        "aiNote": "初心者向けなので弾を撃つ敵は少数だけ追加する",
+        "bossAttack": {
+          "bulletSpeed": 0.42,
+          "bulletCount": 3,
+          "spreadAngleDeg": 35.0,
+          "cooldown": 0.22,
+          "damage": 10,
+          "randomSpread": true
+        },
+        "effectPreset": {
+          "gridBloomIntensity": 1.8,
+          "enemyBloomIntensity": 1.35,
+          "cameraShakePower": 0.25,
+          "gridColor": { "x": 0.2, "y": 0.55, "z": 1.0, "w": 0.20 }
+        }
+      }
+    },
+    {
+      "name": "phase_50_add_hazard",
+      "startHpRate": 0.5,
+      "message": "HP50%以下でダメージブロックを追加する",
+      "objects": [
+        {
+          "name": "Obstacle_DamageBlock_Phase50_001",
+          "type": "Obstacle",
+          "prefab": "DamageBlock",
+          "position": { "x": 28.0, "y": 24.0, "z": 0.0 },
+          "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+          "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+          "customProperties": {
+            "intent": "中央下側に軽い危険地帯を追加する"
+          }
+        }
+      ],
+      "customProperties": {
+        "aiNote": "避け道を塞ぎすぎないこと",
+        "bossAttack": {
+          "bulletSpeed": 0.46,
+          "bulletCount": 5,
+          "spreadAngleDeg": 48.0,
+          "cooldown": 0.18,
+          "damage": 10,
+          "randomSpread": true
+        },
+        "effectPreset": {
+          "gridBloomIntensity": 2.2,
+          "enemyBloomIntensity": 1.55,
+          "cameraShakePower": 0.45,
+          "gridColor": { "x": 1.0, "y": 0.18, "z": 0.34, "w": 0.24 },
+          "enemyGridColor": { "x": 1.0, "y": 0.12, "z": 0.18, "w": 1.0 },
+          "bossOutlineColor": { "x": 1.0, "y": 0.1, "z": 0.18 }
+        }
       }
     }
   ]

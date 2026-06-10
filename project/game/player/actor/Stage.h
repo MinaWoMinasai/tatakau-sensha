@@ -18,6 +18,7 @@ struct Block {
 	AABB aabb;
 	OBB obb;
 	bool isActive = false;
+	bool isLevelObject = false;
 	MapChipType type;
 	Vector3 originalPos;
 	float orbitAngle = 0.0f;
@@ -30,11 +31,13 @@ public:
 	void Draw();
 	void DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHeight);
 	bool AddLevelObstacle(const Transform& transform, const std::string& prefab);
+	void ClearLevelObstacles();
 
 	/// <summary>
 	/// マップチップの生成
 	/// </summary>
 	void GenerateBlocks();
+	void RebuildMergedBlocks();
 
     void ResolvePlayerCollision(Player& player, AxisXYZ axis);
 	void ResolvePlayerDroneCollision(PlayerDrone& playerDrone, AxisXYZ axis);

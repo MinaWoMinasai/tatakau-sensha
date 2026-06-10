@@ -55,6 +55,57 @@ bool TryGetItemModel(const std::string& prefab, std::string& model)
 	return false;
 }
 
+bool ReadCustomBool(const nlohmann::json& customProperties, const char* key, bool fallback)
+{
+	if (!customProperties.is_object() || !customProperties.contains(key) || !customProperties[key].is_boolean()) {
+		return fallback;
+	}
+	return customProperties[key].get<bool>();
+}
+
+float ReadCustomFloat(const nlohmann::json& customProperties, const char* key, float fallback)
+{
+	if (!customProperties.is_object() || !customProperties.contains(key) || !customProperties[key].is_number()) {
+		return fallback;
+	}
+	return customProperties[key].get<float>();
+}
+
+std::string ReadCustomString(const nlohmann::json& customProperties, const char* key, const std::string& fallback)
+{
+	if (!customProperties.is_object() || !customProperties.contains(key) || !customProperties[key].is_string()) {
+		return fallback;
+	}
+	return customProperties[key].get<std::string>();
+}
+
+Vector4 ReadJsonVector4(const nlohmann::json& json, const Vector4& fallback)
+{
+	if (!json.is_object()) {
+		return fallback;
+	}
+
+	Vector4 value = fallback;
+	if (json.contains("x") && json["x"].is_number()) value.x = json["x"].get<float>();
+	if (json.contains("y") && json["y"].is_number()) value.y = json["y"].get<float>();
+	if (json.contains("z") && json["z"].is_number()) value.z = json["z"].get<float>();
+	if (json.contains("w") && json["w"].is_number()) value.w = json["w"].get<float>();
+	return value;
+}
+
+Vector3 ReadJsonVector3(const nlohmann::json& json, const Vector3& fallback)
+{
+	if (!json.is_object()) {
+		return fallback;
+	}
+
+	Vector3 value = fallback;
+	if (json.contains("x") && json["x"].is_number()) value.x = json["x"].get<float>();
+	if (json.contains("y") && json["y"].is_number()) value.y = json["y"].get<float>();
+	if (json.contains("z") && json["z"].is_number()) value.z = json["z"].get<float>();
+	return value;
+}
+
 RingEffectConfig MakeCollisionRingConfig(float radius, const Vector4& color) {
 	RingEffectConfig config{};
 	config.lifeTime = 0.045f;
@@ -291,7 +342,7 @@ void GameScene::Initialize() {
 	bulletManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), Object3dCommon::GetInstance());
 
 	LevelData levelData;
-	const bool hasLevelData = LevelLoader().Load("resources/levels/level_test.json", levelData);
+	const bool hasLevelData = LoadLevelFile(levelData);
 	Vector3 playerSpawnPosition = Vector3(30.0f, 30.0f, 0.0f);
 	if (hasLevelData) {
 		for (const LevelObject& object : levelData.objects) {
@@ -313,7 +364,19 @@ void GameScene::Initialize() {
 	enemy_ = std::make_unique<Enemy>();
 	// 敵キャラの初期化
 	enemy_->SetPlayer(player_.get());
-	enemy_->Initialize(enemyObject_.get(), Vector3(20.0f, 20.0f, 0.0f), stage_.get());
+	Vector3 bossSpawnPosition = Vector3(20.0f, 20.0f, 0.0f);
+	if (hasLevelData) {
+		for (const LevelObject& object : levelData.objects) {
+			if (object.type == "BossSpawn") {
+				if (object.prefab != "Default") {
+					std::cerr << "[LevelLoader] Unsupported BossSpawn prefab: " << object.prefab << std::endl;
+				}
+				bossSpawnPosition = object.transform.translate;
+				break;
+			}
+		}
+	}
+	enemy_->Initialize(enemyObject_.get(), bossSpawnPosition, stage_.get());
 	enemy_->SetAttackControllerBulletManager(bulletManager_.get());
 
 	// 経験値敵マネージャの生成
@@ -663,6 +726,12 @@ void GameScene::Update() {
 	if (input_->IsTrigger(input_->GetKey()[DIK_F9], input_->GetPreKey()[DIK_F9])) {
 		postProfileMode_ = (postProfileMode_ + 1) % 8;
 	}
+	if (input_->IsTrigger(input_->GetKey()[DIK_F10], input_->GetPreKey()[DIK_F10])) {
+		ReloadLevelData(true);
+	}
+	if (input_->IsTrigger(input_->GetKey()[DIK_F11], input_->GetPreKey()[DIK_F11])) {
+		showLevelAIDitorPreview_ = !showLevelAIDitorPreview_;
+	}
 
 	{
 		Vector3 playerPos = player_->GetWorldPosition();
@@ -719,6 +788,7 @@ void GameScene::Update() {
 	}
 	
 	enemy_->Update(finalDeltaTime);
+	UpdateLevelBossPhases();
 
 	enemyManager_->Update(*stage_, finalDeltaTime);
 	
@@ -820,7 +890,7 @@ void GameScene::DrawPostEffect3D() {
 
 	ResetPostProfileEntries();
 	if (skybox_) {
-		skybox_->Draw();
+		//skybox_->Draw();
 	}
 	Object3dCommon::GetInstance()->PreDraw(kNormal);
 	const bool useGridPost = enableNeonGridPostEffect_ && IsPostProfileCategoryEnabled("Grid");
@@ -1016,6 +1086,9 @@ void GameScene::DrawNeonGridPass() {
 			}
 		}
 	}
+	if (showLevelAIDitorPreview_) {
+		QueueLevelEditorPreview();
+	}
 
 	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewProjectionMatrix()
@@ -1123,29 +1196,254 @@ Vector2 GameScene::GetStagePostCacheUvOffset(const Vector3& currentCameraPos) co
 	};
 }
 
+bool GameScene::LoadLevelFile(LevelData& outLevel) const
+{
+	return LevelLoader().Load("resources/levels/level_test.json", outLevel);
+}
+
+void GameScene::ReloadLevelData(bool resetSpawnPositions)
+{
+	LevelData levelData;
+	if (!LoadLevelFile(levelData)) {
+		std::cerr << "[Level AI-ditor] Reload failed." << std::endl;
+		return;
+	}
+
+	ClearAppliedLevelData();
+
+	if (resetSpawnPositions) {
+		for (const LevelObject& object : levelData.objects) {
+			if (object.type == "PlayerSpawn" && player_) {
+				player_->SetWorldPosition(object.transform.translate);
+			} else if (object.type == "BossSpawn" && enemy_) {
+				enemy_->SetWorldPosition(object.transform.translate);
+			}
+		}
+	}
+
+	ApplyLevelData(levelData);
+	stagePostCacheValid_ = false;
+	std::cerr << "[Level AI-ditor] Reloaded: " << levelData.levelName << std::endl;
+}
+
+void GameScene::ClearAppliedLevelData()
+{
+	levelItems_.clear();
+	levelBossPhases_.clear();
+	if (stage_) {
+		stage_->ClearLevelObstacles();
+	}
+	if (enemyManager_) {
+		enemyManager_->ClearLevelData();
+	}
+	if (enemy_) {
+		enemy_->SetBossAttackConfig(Enemy::BossAttackConfig{});
+	}
+}
+
 void GameScene::ApplyLevelData(const LevelData& levelData)
 {
+	currentLevelData_ = levelData;
+	if (levelData.balance.is_object()) {
+		const bool randomSpawnEnabled = ReadCustomBool(levelData.balance, "defaultRandomSpawnEnabled", true);
+		enemyManager_->SetDefaultRandomSpawnEnabled(randomSpawnEnabled);
+	}
+
 	for (const LevelObject& object : levelData.objects) {
-		if (object.type == "PlayerSpawn") {
-			continue;
+		ApplyLevelObject(object, false);
+	}
+	for (const LevelSpawnArea& spawnArea : levelData.spawnAreas) {
+		AddLevelSpawnArea(spawnArea);
+	}
+	levelBossPhases_.clear();
+	levelBossPhases_.reserve(levelData.bossPhases.size());
+	for (const LevelBossPhase& phase : levelData.bossPhases) {
+		levelBossPhases_.push_back({ phase, false });
+	}
+}
+
+void GameScene::ApplyLevelObject(const LevelObject& levelObject, bool allowBossSpawn)
+{
+	if (levelObject.type == "PlayerSpawn" || levelObject.type == "BossSpawn") {
+		if (!allowBossSpawn) {
+			return;
 		}
-		if (object.type == "Enemy") {
-			const int hp = ReadCustomInt(object.customProperties, "hp", -1);
-			enemyManager_->SpawnLevelEnemy(object.transform.translate, object.prefab, hp);
-			continue;
-		}
-		if (object.type == "Obstacle") {
-			stage_->AddLevelObstacle(object.transform, object.prefab);
-			stagePostCacheValid_ = false;
-			continue;
-		}
-		if (object.type == "Item") {
-			AddLevelItem(object);
+		std::cerr << "[LevelLoader] Spawn markers are ignored after initialization: " << levelObject.name << std::endl;
+		return;
+	}
+	if (levelObject.type == "Enemy") {
+		const int hp = ReadCustomInt(levelObject.customProperties, "hp", -1);
+		enemyManager_->SpawnLevelEnemy(levelObject.transform.translate, levelObject.prefab, hp);
+		return;
+	}
+	if (levelObject.type == "SpawnArea") {
+		AddLevelSpawnAreaFromObject(levelObject);
+		return;
+	}
+	if (levelObject.type == "Obstacle") {
+		stage_->AddLevelObstacle(levelObject.transform, levelObject.prefab);
+		stagePostCacheValid_ = false;
+		return;
+	}
+	if (levelObject.type == "Item") {
+		AddLevelItem(levelObject);
+		return;
+	}
+
+	std::cerr << "[LevelLoader] Unsupported object type: " << levelObject.type << " (" << levelObject.name << ")" << std::endl;
+}
+
+void GameScene::AddLevelSpawnArea(const LevelSpawnArea& spawnArea)
+{
+	EnemyManager::SpawnArea area{};
+	area.name = spawnArea.name;
+	area.prefab = spawnArea.prefab;
+	area.center = spawnArea.center;
+	area.size = spawnArea.size;
+	area.spawnInterval = spawnArea.spawnInterval;
+	area.maxAlive = spawnArea.maxAlive;
+	area.hp = spawnArea.hp;
+	area.enabled = spawnArea.enabled;
+	enemyManager_->AddLevelSpawnArea(area);
+}
+
+void GameScene::AddLevelSpawnAreaFromObject(const LevelObject& levelObject)
+{
+	LevelSpawnArea spawnArea{};
+	spawnArea.name = levelObject.name;
+	spawnArea.prefab = levelObject.prefab;
+	spawnArea.center = levelObject.transform.translate;
+	spawnArea.size = levelObject.transform.scale;
+	spawnArea.spawnInterval = ReadCustomFloat(levelObject.customProperties, "spawnInterval", 2.0f);
+	spawnArea.maxAlive = ReadCustomInt(levelObject.customProperties, "maxAlive", 8);
+	spawnArea.hp = ReadCustomInt(levelObject.customProperties, "hp", -1);
+	spawnArea.enabled = ReadCustomBool(levelObject.customProperties, "enabled", true);
+	spawnArea.prefab = ReadCustomString(levelObject.customProperties, "enemyPrefab", spawnArea.prefab);
+	AddLevelSpawnArea(spawnArea);
+}
+
+void GameScene::UpdateLevelBossPhases()
+{
+	if (!enemy_ || enemy_->GetMaxHp() <= 0) {
+		return;
+	}
+
+	const float hpRate = static_cast<float>(enemy_->GetHp()) / static_cast<float>(enemy_->GetMaxHp());
+	for (RuntimeBossPhase& runtimePhase : levelBossPhases_) {
+		if (runtimePhase.activated || hpRate > runtimePhase.phase.startHpRate) {
 			continue;
 		}
 
-		std::cerr << "[LevelLoader] Unsupported object type: " << object.type << " (" << object.name << ")" << std::endl;
+		runtimePhase.activated = true;
+		std::cerr << "[Level AI-ditor] Activate boss phase: " << runtimePhase.phase.name << std::endl;
+		if (!runtimePhase.phase.message.empty()) {
+			std::cerr << "[Level AI-ditor] " << runtimePhase.phase.message << std::endl;
+		}
+		ApplyBossPhaseTuning(runtimePhase.phase);
+		for (const LevelObject& object : runtimePhase.phase.objects) {
+			ApplyLevelObject(object, true);
+		}
 	}
+}
+
+void GameScene::ApplyBossPhaseTuning(const LevelBossPhase& phase)
+{
+	if (!phase.customProperties.is_object()) {
+		return;
+	}
+
+	if (phase.customProperties.contains("bossAttack") && phase.customProperties["bossAttack"].is_object() && enemy_) {
+		const nlohmann::json& attackJson = phase.customProperties["bossAttack"];
+		Enemy::BossAttackConfig config = enemy_->GetBossAttackConfig();
+		config.bulletSpeed = ReadCustomFloat(attackJson, "bulletSpeed", config.bulletSpeed);
+		config.bulletCount = ReadCustomInt(attackJson, "bulletCount", config.bulletCount);
+		config.spreadAngleDeg = ReadCustomFloat(attackJson, "spreadAngleDeg", config.spreadAngleDeg);
+		config.cooldown = ReadCustomFloat(attackJson, "cooldown", config.cooldown);
+		config.damage = static_cast<uint32_t>(ReadCustomInt(attackJson, "damage", static_cast<int>(config.damage)));
+		config.randomSpread = ReadCustomBool(attackJson, "randomSpread", config.randomSpread);
+		enemy_->SetBossAttackConfig(config);
+	}
+
+	if (phase.customProperties.contains("effectPreset") && phase.customProperties["effectPreset"].is_object()) {
+		ApplyLevelEffectPreset(phase.customProperties["effectPreset"]);
+	}
+}
+
+void GameScene::ApplyLevelEffectPreset(const nlohmann::json& effectJson)
+{
+	if (effectJson.contains("gridColor") && effectJson["gridColor"].is_object()) {
+		worldGridColor_ = ReadJsonVector4(effectJson["gridColor"], worldGridColor_);
+	}
+	if (effectJson.contains("enemyGridColor") && effectJson["enemyGridColor"].is_object()) {
+		enemyGridColor_ = ReadJsonVector4(effectJson["enemyGridColor"], enemyGridColor_);
+	}
+	if (effectJson.contains("bossOutlineColor") && effectJson["bossOutlineColor"].is_object() && enemyPostEffect_) {
+		BloomParam& enemyPost = enemyPostEffect_->GetParam();
+		enemyPost.outlineColor = ReadJsonVector3(effectJson["bossOutlineColor"], enemyPost.outlineColor);
+	}
+	if (effectJson.contains("enemyBloomIntensity") && effectJson["enemyBloomIntensity"].is_number() && enemyPostEffect_) {
+		enemyPostEffect_->GetParam().intensity = effectJson["enemyBloomIntensity"].get<float>();
+	}
+	if (effectJson.contains("gridBloomIntensity") && effectJson["gridBloomIntensity"].is_number() && neonGridPostEffect_) {
+		neonGridPostEffect_->GetParam().intensity = effectJson["gridBloomIntensity"].get<float>();
+	}
+	if (effectJson.contains("cameraShakePower") && effectJson["cameraShakePower"].is_number()) {
+		cameraShakePower_ = effectJson["cameraShakePower"].get<float>();
+		cameraShakeTimer_ = cameraShakeDuration_;
+	}
+}
+
+void GameScene::QueueLevelEditorPreview()
+{
+	if (!neonGridRenderer_) {
+		return;
+	}
+
+	for (const LevelObject& object : currentLevelData_.objects) {
+		QueueLevelObjectPreview(object, { 0.45f, 0.95f, 1.0f, 0.65f });
+	}
+	for (const LevelSpawnArea& spawnArea : currentLevelData_.spawnAreas) {
+		QueueLevelSpawnAreaPreview(spawnArea, { 1.0f, 0.85f, 0.2f, 0.70f });
+	}
+	for (const RuntimeBossPhase& runtimePhase : levelBossPhases_) {
+		const Vector4 color = runtimePhase.activated
+			? Vector4{ 1.0f, 0.25f, 0.25f, 0.85f }
+			: Vector4{ 0.85f, 0.35f, 1.0f, 0.45f };
+		for (const LevelObject& object : runtimePhase.phase.objects) {
+			QueueLevelObjectPreview(object, color);
+		}
+	}
+}
+
+void GameScene::QueueLevelObjectPreview(const LevelObject& levelObject, const Vector4& color)
+{
+	if (levelObject.type == "SpawnArea") {
+		LevelSpawnArea spawnArea{};
+		spawnArea.name = levelObject.name;
+		spawnArea.prefab = levelObject.prefab;
+		spawnArea.center = levelObject.transform.translate;
+		spawnArea.size = levelObject.transform.scale;
+		QueueLevelSpawnAreaPreview(spawnArea, color);
+		return;
+	}
+
+	if (levelObject.type == "Obstacle") {
+		neonGridRenderer_->QueueRectangle(levelObject.transform.translate, {
+			MapChip::kBlockWidth * levelObject.transform.scale.x,
+			MapChip::kBlockHeight * levelObject.transform.scale.y,
+			1.0f
+		}, 0.08f, color);
+		return;
+	}
+
+	const float radius = levelObject.type == "BossSpawn" ? 3.0f : 1.7f;
+	neonGridRenderer_->QueueLocalGrid(levelObject.transform.translate, radius, 0.75f, 0.055f, color);
+}
+
+void GameScene::QueueLevelSpawnAreaPreview(const LevelSpawnArea& spawnArea, const Vector4& color)
+{
+	neonGridRenderer_->QueueRectangle(spawnArea.center, spawnArea.size, 0.09f, color);
+	neonGridRenderer_->QueueLocalGrid(spawnArea.center, (std::min)(spawnArea.size.x, spawnArea.size.y) * 0.22f, 1.0f, 0.045f, color);
 }
 
 bool GameScene::AddLevelItem(const LevelObject& levelObject)

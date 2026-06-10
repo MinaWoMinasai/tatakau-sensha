@@ -91,6 +91,10 @@ private:
 		std::string name;
 		std::unique_ptr<Object3d> object;
 	};
+	struct RuntimeBossPhase {
+		LevelBossPhase phase;
+		bool activated = false;
+	};
 
 	void InitializeFollowHpBars(size_t count);
 	void InitializeFollowHpBarBatch();
@@ -112,7 +116,19 @@ private:
 	bool IsPostProfileCategoryEnabled(const char* category) const;
 	const char* GetPostProfileModeName() const;
 	Vector2 GetStagePostCacheUvOffset(const Vector3& currentCameraPos) const;
+	bool LoadLevelFile(LevelData& outLevel) const;
+	void ReloadLevelData(bool resetSpawnPositions);
+	void ClearAppliedLevelData();
 	void ApplyLevelData(const LevelData& levelData);
+	void ApplyLevelObject(const LevelObject& levelObject, bool allowBossSpawn);
+	void AddLevelSpawnArea(const LevelSpawnArea& spawnArea);
+	void AddLevelSpawnAreaFromObject(const LevelObject& levelObject);
+	void UpdateLevelBossPhases();
+	void ApplyBossPhaseTuning(const LevelBossPhase& phase);
+	void ApplyLevelEffectPreset(const nlohmann::json& effectJson);
+	void QueueLevelEditorPreview();
+	void QueueLevelObjectPreview(const LevelObject& levelObject, const Vector4& color);
+	void QueueLevelSpawnAreaPreview(const LevelSpawnArea& spawnArea, const Vector4& color);
 	bool AddLevelItem(const LevelObject& levelObject);
 	void UpdateLevelItems();
 	void DrawLevelItems();
@@ -178,7 +194,9 @@ private:
 	std::unique_ptr<ObjectPostEffect> expEnemyPostEffect_;
 	std::unique_ptr<ObjectPostEffect> sharedObjectBloomPostEffect_;
 	std::unique_ptr<ObjectPostEffect> stagePostEffect_;
+	LevelData currentLevelData_;
 	std::vector<LevelVisualObject> levelItems_;
+	std::vector<RuntimeBossPhase> levelBossPhases_;
 
 	// 終了フラグ
 	bool finished_ = false;
@@ -252,6 +270,7 @@ private:
 	bool showCollisionDebugBullets_ = true;
 	bool showNeonGrid_ = true;
 	bool showActorLocalGrid_ = true;
+	bool showLevelAIDitorPreview_ = true;
 	bool enableNeonGridPostEffect_ = true;
 	bool enableBulletTrailPostEffect_ = true;
 	float worldGridSpacing_ = 2.0f;

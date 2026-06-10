@@ -2,6 +2,7 @@
 #include "Stage.h"
 #include "Player.h"
 #include "Calculation.h"
+#include <algorithm>
 #include <iostream>
 
 namespace {
@@ -36,11 +37,14 @@ void EnemyManager::Initialize(Player* player, BulletManager* bulletManager) {
 
 void EnemyManager::Update(Stage& stage, float deltaTime) {
     // 1. 一定間隔でスポーン
-    spawnTimer_ -= deltaTime;
-    if (spawnTimer_ <= 0.0f && enemies_.size() < kMaxEnemies) {
+    if (defaultRandomSpawnEnabled_) {
+        spawnTimer_ -= deltaTime;
+    }
+    if (defaultRandomSpawnEnabled_ && spawnTimer_ <= 0.0f && enemies_.size() < kMaxEnemies) {
         Spawn(stage);
         spawnTimer_ = kSpawnInterval;
     }
+    UpdateLevelSpawnAreas(stage, deltaTime);
 
     // 2. 全ての敵を更新 & デスフラグが立ったら削除
     for (auto it = enemies_.begin(); it != enemies_.end(); ) {
@@ -118,6 +122,75 @@ bool EnemyManager::SpawnLevelEnemy(const Vector3& position, const std::string& p
     }
     enemies_.push_back(std::move(newEnemy));
     return true;
+}
+
+void EnemyManager::AddLevelSpawnArea(const SpawnArea& spawnArea)
+{
+    if (!spawnArea.enabled) {
+        return;
+    }
+    SpawnArea area = spawnArea;
+    area.spawnInterval = (std::max)(0.1f, area.spawnInterval);
+    area.maxAlive = (std::max)(0, area.maxAlive);
+    area.size.x = (std::max)(0.0f, area.size.x);
+    area.size.y = (std::max)(0.0f, area.size.y);
+    spawnAreas_.push_back(area);
+}
+
+void EnemyManager::ClearLevelData()
+{
+    spawnAreas_.clear();
+    enemies_.clear();
+    spawnTimer_ = 0.0f;
+}
+
+void EnemyManager::UpdateLevelSpawnAreas(Stage& stage, float deltaTime)
+{
+    for (SpawnArea& area : spawnAreas_) {
+        if (!area.enabled || area.maxAlive <= 0 || enemies_.size() >= kMaxEnemies) {
+            continue;
+        }
+
+        area.timer -= deltaTime;
+        if (area.timer > 0.0f || CountEnemiesInArea(area) >= area.maxAlive) {
+            continue;
+        }
+
+        for (int i = 0; i < 10; ++i) {
+            Vector3 spawnPos = {
+                Rand(area.center.x - area.size.x * 0.5f, area.center.x + area.size.x * 0.5f),
+                Rand(area.center.y - area.size.y * 0.5f, area.center.y + area.size.y * 0.5f),
+                area.center.z
+            };
+            if (stage.IsCollisionWithAnyBlock(spawnPos, 1.0f)) {
+                continue;
+            }
+            if (player_ && Length(spawnPos - player_->GetWorldPosition()) < 6.0f) {
+                continue;
+            }
+            SpawnLevelEnemy(spawnPos, area.prefab, area.hp);
+            break;
+        }
+        area.timer = area.spawnInterval;
+    }
+}
+
+int EnemyManager::CountEnemiesInArea(const SpawnArea& spawnArea) const
+{
+    int count = 0;
+    const float halfX = spawnArea.size.x * 0.5f;
+    const float halfY = spawnArea.size.y * 0.5f;
+    for (const auto& enemy : enemies_) {
+        if (!enemy || enemy->IsDead()) {
+            continue;
+        }
+        const Vector3 pos = enemy->GetWorldPosition();
+        if (pos.x >= spawnArea.center.x - halfX && pos.x <= spawnArea.center.x + halfX &&
+            pos.y >= spawnArea.center.y - halfY && pos.y <= spawnArea.center.y + halfY) {
+            ++count;
+        }
+    }
+    return count;
 }
 
 void EnemyManager::DrawBodyOnlyVisible(const Vector3& cameraPos, float halfWidth, float halfHeight) {

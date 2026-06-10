@@ -13,6 +13,9 @@
     <None Include="resources\levels\prefab_dictionary.json">
       <Filter>リソース ファイル</Filter>
     </None>
+    <None Include="resources\levels\ai_edit_prompt_template.md">
+      <Filter>リソース ファイル</Filter>
+    </None>
     <None Include="tools\blender\export_level_test.py">
       <Filter>リソース ファイル</Filter>
     </None>
