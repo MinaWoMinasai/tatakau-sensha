@@ -932,33 +932,7 @@ void GameScene::DrawPostEffect3D() {
 		DrawLevelItems();
 		stage_->DrawVisible(GetActiveCameraPosition(camera.get(), debugCamera.get()), 38.0f, 24.0f);
 	});
-	if (useStagePost) {
-		profile("Stage Post", true, [&]() {
-			const Vector3 currentCameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
-			Vector2 cacheOffset = stagePostCacheValid_ ? GetStagePostCacheUvOffset(currentCameraPos) : Vector2{ 0.0f, 0.0f };
-			const float pixelOffsetX = cacheOffset.x * static_cast<float>(WinApp::kClientWidth);
-			const float pixelOffsetY = cacheOffset.y * static_cast<float>(WinApp::kClientHeight);
-			const bool shouldRefreshCache =
-				!stagePostCacheValid_ ||
-				std::fabs(pixelOffsetX) > stagePostCacheRefreshPixels_ ||
-				std::fabs(pixelOffsetY) > stagePostCacheRefreshPixels_;
-
-			if (shouldRefreshCache) {
-				stagePostEffect_->BeginCapture();
-				Object3dCommon::GetInstance()->PreDraw(kNormal);
-				stage_->DrawVisible(currentCameraPos, 38.0f, 24.0f);
-				stagePostEffect_->EndCaptureBloomOnlyToCache();
-				stagePostCacheCameraPos_ = currentCameraPos;
-				stagePostCacheValid_ = true;
-				cacheOffset = { 0.0f, 0.0f };
-			}
-			stagePostEffect_->DrawCachedBloom(cacheOffset);
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
-		});
-	} else {
-		stagePostCacheValid_ = false;
-		AddPostProfileEntry("Stage Post", 0.0f, false);
-	}
+	AddPostProfileEntry("Stage Glow", 0.0f, useStagePost);
 	
 	{
 		Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
@@ -982,14 +956,18 @@ void GameScene::DrawPostEffect3D() {
 	}
 
 	const bool useSharedObjectBloom =
+		useStagePost ||
 		(usePlayerPost && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) ||
 		useEnemyPost ||
 		useExpEnemyPost;
 	if (useSharedObjectBloom) {
-		profile("Object Glow", true, [&]() {
+		profile("Shared Glow", true, [&]() {
 			const Vector3 currentCameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
 			sharedObjectBloomPostEffect_->BeginCapture();
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			if (useStagePost) {
+				stage_->DrawVisible(currentCameraPos, 38.0f, 24.0f);
+			}
 			if (usePlayerPost && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
 				player_->DrawBodyOnly();
 			}
@@ -1006,7 +984,7 @@ void GameScene::DrawPostEffect3D() {
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
 		});
 	} else {
-		AddPostProfileEntry("Object Glow", 0.0f, false);
+		AddPostProfileEntry("Shared Glow", 0.0f, false);
 	}
 
 	if (showCollisionDebug_) {

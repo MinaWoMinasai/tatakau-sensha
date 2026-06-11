@@ -22,6 +22,7 @@ public:
 	/// 前のデータの保存
 	/// </summary>
 	void BeforeFrameData();
+	void OnFocusChanged(bool active);
 
 	// キーが押されている状態か
 	bool IsPress(const uint8_t key);
