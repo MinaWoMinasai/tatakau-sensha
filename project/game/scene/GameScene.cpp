@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 
 namespace {
@@ -642,6 +643,8 @@ void GameScene::Update() {
 	}
 	ImGui::End();
 
+	DrawLevelAIDitorBalanceLab();
+
 	player_->DrawPlayerClassEditor();
 
 	ImGui::Begin("Collision Debug");
@@ -1247,6 +1250,8 @@ void GameScene::ApplyLevelData(const LevelData& levelData)
 	if (levelData.balance.is_object()) {
 		const bool randomSpawnEnabled = ReadCustomBool(levelData.balance, "defaultRandomSpawnEnabled", true);
 		enemyManager_->SetDefaultRandomSpawnEnabled(randomSpawnEnabled);
+		LoadBalanceEditorFromJson(levelData.balance);
+		ApplyLevelBalance(levelData.balance);
 	}
 
 	for (const LevelObject& object : levelData.objects) {
@@ -1260,6 +1265,253 @@ void GameScene::ApplyLevelData(const LevelData& levelData)
 	for (const LevelBossPhase& phase : levelData.bossPhases) {
 		levelBossPhases_.push_back({ phase, false });
 	}
+}
+
+void GameScene::ApplyLevelBalance(const nlohmann::json& balanceJson)
+{
+	if (!balanceJson.is_object()) {
+		return;
+	}
+
+	if (player_ && balanceJson.contains("player") && balanceJson["player"].is_object()) {
+		const nlohmann::json& playerJson = balanceJson["player"];
+		Player::BalanceConfig config{};
+		config.maxHp = ReadCustomInt(playerJson, "maxHp", player_->GetMaxHp());
+		config.maxHpUpgradeAmount = ReadCustomInt(playerJson, "maxHpUpgradeAmount", 50);
+		config.bodyDamage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(playerJson, "bodyDamage", static_cast<int>(player_->GetDamage()))));
+		config.healToFull = ReadCustomBool(playerJson, "healToFull", false);
+		player_->ApplyBalanceConfig(config);
+	}
+
+	if (balanceJson.contains("damage") && balanceJson["damage"].is_object()) {
+		const nlohmann::json& damageJson = balanceJson["damage"];
+		if (stage_) {
+			stage_->SetDamageBlockDamage(static_cast<uint32_t>((std::max)(1, ReadCustomInt(damageJson, "damageBlock", 75))));
+		}
+		if (enemy_) {
+			enemy_->SetDamage(static_cast<uint32_t>((std::max)(1, ReadCustomInt(damageJson, "bossContact", static_cast<int>(enemy_->GetDamage())))));
+		}
+
+		ExpEnemy::BalanceConfig expConfig{};
+		expConfig.contactDamage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(damageJson, "expEnemyContact", 12)));
+		expConfig.shooterContactDamage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(damageJson, "shooterContact", 20)));
+		expConfig.shooterBulletDamage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(damageJson, "shooterBullet", 15)));
+		ExpEnemy::SetBalanceConfig(expConfig);
+	}
+
+	if (enemy_ && balanceJson.contains("bossAttackDefault") && balanceJson["bossAttackDefault"].is_object()) {
+		const nlohmann::json& attackJson = balanceJson["bossAttackDefault"];
+		Enemy::BossAttackConfig config = enemy_->GetBossAttackConfig();
+		config.bulletSpeed = ReadCustomFloat(attackJson, "bulletSpeed", config.bulletSpeed);
+		config.bulletCount = ReadCustomInt(attackJson, "bulletCount", config.bulletCount);
+		config.spreadAngleDeg = ReadCustomFloat(attackJson, "spreadAngleDeg", config.spreadAngleDeg);
+		config.cooldown = ReadCustomFloat(attackJson, "cooldown", config.cooldown);
+		config.damage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(attackJson, "damage", static_cast<int>(config.damage))));
+		config.randomSpread = ReadCustomBool(attackJson, "randomSpread", config.randomSpread);
+		enemy_->SetBossAttackConfig(config);
+	}
+}
+
+void GameScene::LoadBalanceEditorFromJson(const nlohmann::json& balanceJson)
+{
+	if (!balanceJson.is_object()) {
+		return;
+	}
+
+	balanceEditor_.defaultRandomSpawnEnabled = ReadCustomBool(balanceJson, "defaultRandomSpawnEnabled", balanceEditor_.defaultRandomSpawnEnabled);
+	if (balanceJson.contains("player") && balanceJson["player"].is_object()) {
+		const nlohmann::json& playerJson = balanceJson["player"];
+		balanceEditor_.playerMaxHp = ReadCustomInt(playerJson, "maxHp", balanceEditor_.playerMaxHp);
+		balanceEditor_.maxHpUpgradeAmount = ReadCustomInt(playerJson, "maxHpUpgradeAmount", balanceEditor_.maxHpUpgradeAmount);
+		balanceEditor_.playerBodyDamage = ReadCustomInt(playerJson, "bodyDamage", balanceEditor_.playerBodyDamage);
+		balanceEditor_.healToFull = ReadCustomBool(playerJson, "healToFull", balanceEditor_.healToFull);
+	}
+	if (balanceJson.contains("damage") && balanceJson["damage"].is_object()) {
+		const nlohmann::json& damageJson = balanceJson["damage"];
+		balanceEditor_.damageBlock = ReadCustomInt(damageJson, "damageBlock", balanceEditor_.damageBlock);
+		balanceEditor_.bossContact = ReadCustomInt(damageJson, "bossContact", balanceEditor_.bossContact);
+		balanceEditor_.expEnemyContact = ReadCustomInt(damageJson, "expEnemyContact", balanceEditor_.expEnemyContact);
+		balanceEditor_.shooterContact = ReadCustomInt(damageJson, "shooterContact", balanceEditor_.shooterContact);
+		balanceEditor_.shooterBullet = ReadCustomInt(damageJson, "shooterBullet", balanceEditor_.shooterBullet);
+	}
+	if (balanceJson.contains("bossAttackDefault") && balanceJson["bossAttackDefault"].is_object()) {
+		const nlohmann::json& attackJson = balanceJson["bossAttackDefault"];
+		balanceEditor_.bossBulletSpeed = ReadCustomFloat(attackJson, "bulletSpeed", balanceEditor_.bossBulletSpeed);
+		balanceEditor_.bossBulletCount = ReadCustomInt(attackJson, "bulletCount", balanceEditor_.bossBulletCount);
+		balanceEditor_.bossSpreadAngleDeg = ReadCustomFloat(attackJson, "spreadAngleDeg", balanceEditor_.bossSpreadAngleDeg);
+		balanceEditor_.bossCooldown = ReadCustomFloat(attackJson, "cooldown", balanceEditor_.bossCooldown);
+		balanceEditor_.bossBulletDamage = ReadCustomInt(attackJson, "damage", balanceEditor_.bossBulletDamage);
+		balanceEditor_.bossRandomSpread = ReadCustomBool(attackJson, "randomSpread", balanceEditor_.bossRandomSpread);
+	}
+	balanceEditor_.initialized = true;
+}
+
+nlohmann::json GameScene::BuildBalanceJsonFromEditor() const
+{
+	nlohmann::json balance = nlohmann::json::object();
+	balance["defaultRandomSpawnEnabled"] = balanceEditor_.defaultRandomSpawnEnabled;
+	balance["player"] = {
+		{ "maxHp", (std::max)(1, balanceEditor_.playerMaxHp) },
+		{ "maxHpUpgradeAmount", (std::max)(1, balanceEditor_.maxHpUpgradeAmount) },
+		{ "bodyDamage", (std::max)(1, balanceEditor_.playerBodyDamage) },
+		{ "healToFull", balanceEditor_.healToFull }
+	};
+	balance["damage"] = {
+		{ "damageBlock", (std::max)(1, balanceEditor_.damageBlock) },
+		{ "bossContact", (std::max)(1, balanceEditor_.bossContact) },
+		{ "expEnemyContact", (std::max)(1, balanceEditor_.expEnemyContact) },
+		{ "shooterContact", (std::max)(1, balanceEditor_.shooterContact) },
+		{ "shooterBullet", (std::max)(1, balanceEditor_.shooterBullet) }
+	};
+	balance["bossAttackDefault"] = {
+		{ "bulletSpeed", (std::max)(0.01f, balanceEditor_.bossBulletSpeed) },
+		{ "bulletCount", (std::max)(1, balanceEditor_.bossBulletCount) },
+		{ "spreadAngleDeg", (std::clamp)(balanceEditor_.bossSpreadAngleDeg, 0.0f, 180.0f) },
+		{ "cooldown", (std::max)(0.05f, balanceEditor_.bossCooldown) },
+		{ "damage", (std::max)(1, balanceEditor_.bossBulletDamage) },
+		{ "randomSpread", balanceEditor_.bossRandomSpread }
+	};
+	if (currentLevelData_.balance.is_object()
+		&& currentLevelData_.balance.contains("notes")
+		&& currentLevelData_.balance["notes"].is_string()) {
+		balance["notes"] = currentLevelData_.balance["notes"];
+	} else {
+		balance["notes"] = "Level AI-ditor Balance Labで調整した値。";
+	}
+	return balance;
+}
+
+bool GameScene::SaveBalanceEditorToLevelFile(const std::string& filePath)
+{
+	nlohmann::json levelJson = nlohmann::json::object();
+	{
+		std::ifstream in(filePath);
+		if (in.is_open()) {
+			try {
+				in >> levelJson;
+			} catch (const std::exception& e) {
+				balanceEditor_.statusMessage = std::string("Failed to parse level JSON: ") + e.what();
+				return false;
+			}
+		}
+	}
+	if (!levelJson.is_object()) {
+		levelJson = nlohmann::json::object();
+	}
+
+	levelJson["balance"] = BuildBalanceJsonFromEditor();
+	std::ofstream out(filePath);
+	if (!out.is_open()) {
+		balanceEditor_.statusMessage = "Failed to open level JSON for writing.";
+		return false;
+	}
+	out << levelJson.dump(2) << std::endl;
+	currentLevelData_.balance = levelJson["balance"];
+	balanceEditor_.statusMessage = "Saved balance to " + filePath;
+	return true;
+}
+
+bool GameScene::WriteBalanceAIHandoff(const std::string& filePath) const
+{
+	std::ofstream out(filePath);
+	if (!out.is_open()) {
+		return false;
+	}
+
+	out
+		<< "# Level AI-ditor Balance Handoff\n\n"
+		<< "このファイルは、ゲーム内のBalance Labで調整した値をAIに渡すためのメモです。\n\n"
+		<< "## 依頼例\n\n"
+		<< "- 現在のプレイ感:\n"
+		<< "- 困っていること:\n"
+		<< "- もっと強くしたい要素:\n"
+		<< "- もっと弱くしたい要素:\n"
+		<< "- 残したい体験:\n\n"
+		<< "## 現在のBalance JSON\n\n"
+		<< "```json\n"
+		<< BuildBalanceJsonFromEditor().dump(2)
+		<< "\n```\n\n"
+		<< "## AIへのルール\n\n"
+		<< "- C++の固定値変更ではなく、まず `resources/levels/level_test.json` の `balance` を調整してください。\n"
+		<< "- プレイヤーHP、DamageBlock、Shooter弾、ボス通常弾は `balance` 内で調整してください。\n"
+		<< "- ボスHPフェーズ中の弾性能だけは `bossPhases[].customProperties.bossAttack` で調整してください。\n"
+		<< "- 変更後の `balance` JSONと、なぜその値にしたかを短く説明してください。\n";
+	return true;
+}
+
+void GameScene::DrawLevelAIDitorBalanceLab()
+{
+#ifdef USE_IMGUI
+	if (!balanceEditor_.initialized && currentLevelData_.balance.is_object()) {
+		LoadBalanceEditorFromJson(currentLevelData_.balance);
+	}
+
+	ImGui::Begin("Level AI-ditor Balance Lab");
+	ImGui::Text("Edit runtime balance, then save it back to level_test.json.");
+	ImGui::Checkbox("Default Random Spawn", &balanceEditor_.defaultRandomSpawnEnabled);
+	ImGui::Separator();
+
+	if (ImGui::CollapsingHeader("Player", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::DragInt("Max HP", &balanceEditor_.playerMaxHp, 10.0f, 1, 9999);
+		ImGui::DragInt("Max HP Upgrade", &balanceEditor_.maxHpUpgradeAmount, 1.0f, 1, 999);
+		ImGui::DragInt("Body Damage", &balanceEditor_.playerBodyDamage, 1.0f, 1, 999);
+		ImGui::Checkbox("Heal To Full On Apply", &balanceEditor_.healToFull);
+		if (player_) {
+			ImGui::Text("Current HP: %d / %d", player_->GetHp(), player_->GetMaxHp());
+		}
+	}
+
+	if (ImGui::CollapsingHeader("Damage", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::DragInt("DamageBlock", &balanceEditor_.damageBlock, 1.0f, 1, 999);
+		ImGui::DragInt("Boss Contact", &balanceEditor_.bossContact, 1.0f, 1, 999);
+		ImGui::DragInt("Exp Enemy Contact", &balanceEditor_.expEnemyContact, 1.0f, 1, 999);
+		ImGui::DragInt("Shooter Contact", &balanceEditor_.shooterContact, 1.0f, 1, 999);
+		ImGui::DragInt("Shooter Bullet", &balanceEditor_.shooterBullet, 1.0f, 1, 999);
+	}
+
+	if (ImGui::CollapsingHeader("Boss Attack Default", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::DragFloat("Bullet Speed", &balanceEditor_.bossBulletSpeed, 0.01f, 0.01f, 2.0f);
+		ImGui::DragInt("Bullet Count", &balanceEditor_.bossBulletCount, 1.0f, 1, 64);
+		ImGui::DragFloat("Spread Angle", &balanceEditor_.bossSpreadAngleDeg, 1.0f, 0.0f, 180.0f);
+		ImGui::DragFloat("Cooldown", &balanceEditor_.bossCooldown, 0.01f, 0.05f, 5.0f);
+		ImGui::DragInt("Bullet Damage", &balanceEditor_.bossBulletDamage, 1.0f, 1, 999);
+		ImGui::Checkbox("Random Spread", &balanceEditor_.bossRandomSpread);
+	}
+
+	ImGui::Separator();
+	if (ImGui::Button("Apply Runtime")) {
+		currentLevelData_.balance = BuildBalanceJsonFromEditor();
+		enemyManager_->SetDefaultRandomSpawnEnabled(balanceEditor_.defaultRandomSpawnEnabled);
+		ApplyLevelBalance(currentLevelData_.balance);
+		balanceEditor_.statusMessage = "Applied balance to running game.";
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Save level_test.json")) {
+		SaveBalanceEditorToLevelFile("resources/levels/level_test.json");
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("AI Handoff MD")) {
+		if (WriteBalanceAIHandoff("resources/levels/ai_balance_handoff.md")) {
+			balanceEditor_.statusMessage = "Wrote resources/levels/ai_balance_handoff.md";
+		} else {
+			balanceEditor_.statusMessage = "Failed to write AI handoff file.";
+		}
+	}
+	if (ImGui::Button("Reload From JSON")) {
+		LevelData levelData;
+		if (LoadLevelFile(levelData)) {
+			LoadBalanceEditorFromJson(levelData.balance);
+			balanceEditor_.statusMessage = "Reloaded balance editor values from JSON.";
+		} else {
+			balanceEditor_.statusMessage = "Failed to reload level JSON.";
+		}
+	}
+
+	if (!balanceEditor_.statusMessage.empty()) {
+		ImGui::TextWrapped("%s", balanceEditor_.statusMessage.c_str());
+	}
+	ImGui::End();
+#endif
 }
 
 void GameScene::ApplyLevelObject(const LevelObject& levelObject, bool allowBossSpawn)

@@ -18,6 +18,15 @@ Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
 }
 }
 
+ExpEnemy::BalanceConfig ExpEnemy::balanceConfig_{};
+
+void ExpEnemy::SetBalanceConfig(const BalanceConfig& config)
+{
+    balanceConfig_.contactDamage = (std::max)(1u, config.contactDamage);
+    balanceConfig_.shooterContactDamage = (std::max)(1u, config.shooterContactDamage);
+    balanceConfig_.shooterBulletDamage = (std::max)(1u, config.shooterBulletDamage);
+}
+
 void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType type)
 {
     object_ = std::make_unique<Object3d>();
@@ -77,6 +86,7 @@ void ExpEnemy::ApplyTypeParams()
     }
     object_->SetColor(baseColor_);
     maxHp_ = hp_;
+    SetDamage(type_ == ExpEnemyType::Shooter ? balanceConfig_.shooterContactDamage : balanceConfig_.contactDamage);
 }
 
 void ExpEnemy::Update(Stage& stage, float deltaTime) {
@@ -138,7 +148,7 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
         param.reflect = false;
         param.penetrate = false;
         param.cooldown = 1.0f;
-        param.damage = 1;
+        param.damage = balanceConfig_.shooterBulletDamage;
 
         attackController_.Fire(origin, baseDir, param, BulletOwner::kEnemy);
 

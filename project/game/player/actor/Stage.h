@@ -32,6 +32,7 @@ public:
 	void DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHeight);
 	bool AddLevelObstacle(const Transform& transform, const std::string& prefab);
 	void ClearLevelObstacles();
+	void SetDamageBlockDamage(uint32_t damage) { damageBlockDamage_ = damage; }
 
 	/// <summary>
 	/// マップチップの生成
@@ -70,4 +71,5 @@ private:
 	std::vector<MergedBlock> mergedBlocks_;
 
 	float dt_ = 0;
+	uint32_t damageBlockDamage_ = 75;
 };

@@ -4,6 +4,27 @@
   "levelName": "test_stage",
   "balance": {
     "defaultRandomSpawnEnabled": true,
+    "player": {
+      "maxHp": 1000,
+      "maxHpUpgradeAmount": 80,
+      "bodyDamage": 3,
+      "healToFull": false
+    },
+    "damage": {
+      "damageBlock": 90,
+      "bossContact": 45,
+      "expEnemyContact": 15,
+      "shooterContact": 25,
+      "shooterBullet": 18
+    },
+    "bossAttackDefault": {
+      "bulletSpeed": 0.4,
+      "bulletCount": 2,
+      "spreadAngleDeg": 30.0,
+      "cooldown": 0.15,
+      "damage": 12,
+      "randomSpread": true
+    },
     "notes": "trueなら従来のランダムEXP敵スポーンも残す。falseならspawnAreas中心の調整にできる。"
   },
   "objects": [
@@ -158,6 +179,57 @@
           "gridColor": { "x": 1.0, "y": 0.18, "z": 0.34, "w": 0.24 },
           "enemyGridColor": { "x": 1.0, "y": 0.12, "z": 0.18, "w": 1.0 },
           "bossOutlineColor": { "x": 1.0, "y": 0.1, "z": 0.18 }
+        }
+      }
+    },
+    {
+      "name": "phase_25_final_pressure",
+      "startHpRate": 0.25,
+      "message": "HP25%以下でラストスパート演出と高EXP敵を追加する",
+      "objects": [
+        {
+          "name": "SpawnArea_Pentagon_Phase25",
+          "type": "SpawnArea",
+          "prefab": "Pentagon",
+          "position": { "x": 38.0, "y": 22.0, "z": 0.0 },
+          "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+          "scale": { "x": 10.0, "y": 8.0, "z": 1.0 },
+          "customProperties": {
+            "spawnInterval": 7.0,
+            "maxAlive": 2,
+            "hp": 24,
+            "intent": "終盤に高EXP対象を少数だけ追加して、攻める理由を作る"
+          }
+        },
+        {
+          "name": "Obstacle_DamageBlock_Phase25_001",
+          "type": "Obstacle",
+          "prefab": "DamageBlock",
+          "position": { "x": 32.0, "y": 28.0, "z": 0.0 },
+          "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+          "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+          "customProperties": {
+            "intent": "中央に近いが通路を塞ぎきらない危険ブロック"
+          }
+        }
+      ],
+      "customProperties": {
+        "aiNote": "ラストフェーズなので派手にするが、Shooterは増やしすぎない",
+        "bossAttack": {
+          "bulletSpeed": 0.5,
+          "bulletCount": 6,
+          "spreadAngleDeg": 60.0,
+          "cooldown": 0.16,
+          "damage": 10,
+          "randomSpread": true
+        },
+        "effectPreset": {
+          "gridBloomIntensity": 2.6,
+          "enemyBloomIntensity": 1.8,
+          "cameraShakePower": 0.65,
+          "gridColor": { "x": 1.0, "y": 0.45, "z": 0.1, "w": 0.26 },
+          "enemyGridColor": { "x": 1.0, "y": 0.25, "z": 0.08, "w": 1.0 },
+          "bossOutlineColor": { "x": 1.0, "y": 0.35, "z": 0.05 }
         }
       }
     }

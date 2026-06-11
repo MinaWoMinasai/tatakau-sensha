@@ -6,6 +6,7 @@
 
 - `resources/levels/level_test.json`
 - 仕様辞書: `resources/levels/prefab_dictionary.json`
+- Balance調整メモ: `resources/levels/ai_balance_handoff.md`
 
 ## ゲーム概要
 
@@ -14,6 +15,9 @@
 - 三角形、四角形、五角形などのEXP敵を倒して経験値を得ます。
 - レベルアップすると進化や強化ができます。
 - 赤い `DamageBlock` は危険ブロックです。
+- プレイヤーHPは `balance.player.maxHp` で調整します。現在の基準は1000です。
+- `DamageBlock`、Shooter弾、敵接触、ボス通常弾は `balance.damage` と `balance.bossAttackDefault` で調整します。
+- ボスフェーズ中の弾性能は `bossPhases[].customProperties.bossAttack` で上書きできます。
 - 目的は、ボス戦の緊張感とEXP稼ぎの気持ちよさを両立することです。
 
 ## 編集ルール
@@ -26,6 +30,8 @@
 - `DamageBlock` は逃げ道を完全に塞がないようにしてください。
 - `bossPhases` は `startHpRate` が大きい順に読むと分かりやすいです。
 - 初心者向けにする場合、`spawnInterval` を短くしすぎないでください。
+- HPやダメージなどの数値調整は、できるだけC++ではなく `balance` 内のJSON項目で行ってください。
+- `ai_balance_handoff.md` がある場合は、現在のプレイ感やBalance Labの調整値として参考にしてください。
 
 ## 依頼例
 

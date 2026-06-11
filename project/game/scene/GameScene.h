@@ -95,6 +95,26 @@ private:
 		LevelBossPhase phase;
 		bool activated = false;
 	};
+	struct BalanceEditorState {
+		bool initialized = false;
+		bool defaultRandomSpawnEnabled = true;
+		int playerMaxHp = 1000;
+		int maxHpUpgradeAmount = 80;
+		int playerBodyDamage = 3;
+		bool healToFull = false;
+		int damageBlock = 90;
+		int bossContact = 45;
+		int expEnemyContact = 15;
+		int shooterContact = 25;
+		int shooterBullet = 18;
+		float bossBulletSpeed = 0.4f;
+		int bossBulletCount = 2;
+		float bossSpreadAngleDeg = 30.0f;
+		float bossCooldown = 0.15f;
+		int bossBulletDamage = 12;
+		bool bossRandomSpread = true;
+		std::string statusMessage;
+	};
 
 	void InitializeFollowHpBars(size_t count);
 	void InitializeFollowHpBarBatch();
@@ -120,6 +140,12 @@ private:
 	void ReloadLevelData(bool resetSpawnPositions);
 	void ClearAppliedLevelData();
 	void ApplyLevelData(const LevelData& levelData);
+	void ApplyLevelBalance(const nlohmann::json& balanceJson);
+	void DrawLevelAIDitorBalanceLab();
+	void LoadBalanceEditorFromJson(const nlohmann::json& balanceJson);
+	nlohmann::json BuildBalanceJsonFromEditor() const;
+	bool SaveBalanceEditorToLevelFile(const std::string& filePath);
+	bool WriteBalanceAIHandoff(const std::string& filePath) const;
 	void ApplyLevelObject(const LevelObject& levelObject, bool allowBossSpawn);
 	void AddLevelSpawnArea(const LevelSpawnArea& spawnArea);
 	void AddLevelSpawnAreaFromObject(const LevelObject& levelObject);
@@ -195,6 +221,7 @@ private:
 	std::unique_ptr<ObjectPostEffect> sharedObjectBloomPostEffect_;
 	std::unique_ptr<ObjectPostEffect> stagePostEffect_;
 	LevelData currentLevelData_;
+	BalanceEditorState balanceEditor_;
 	std::vector<LevelVisualObject> levelItems_;
 	std::vector<RuntimeBossPhase> levelBossPhases_;
 

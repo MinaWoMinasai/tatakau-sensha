@@ -66,11 +66,18 @@ public:
 		float bulletDamage = 1.0f;    // 弾の威力
 		float bulletSpeed = 0.3f;     // 弾速
 		float moveSpeed = 0.2f;       // 移動速度
-		float maxHp = 3.0f;           // 最大HP
+		float maxHp = 1000.0f;         // 最大HP
 		float staminaRecovery = 1.0f; // スタミナ回復速度
 		float stamina = 3.0f;         // スタミナ
 		float maxStamina = 3.0f;      // スタミナ最大値
 		float bodyDamage = 3.0f;      // 直接ダメージ
+	};
+
+	struct BalanceConfig {
+		int maxHp = 1000;
+		int maxHpUpgradeAmount = 50;
+		uint32_t bodyDamage = 3;
+		bool healToFull = false;
 	};
 
 	/// <summary>
@@ -135,7 +142,9 @@ public:
 
 	AABB GetAABB();
 
-	void Damage();
+	void Damage(uint32_t amount = kDamageBlockDamage);
+	void TakeDamage(uint32_t amount, float invincibleTime = 0.45f);
+	void ApplyBalanceConfig(const BalanceConfig& config);
 
 	void Die(); // ← プレイヤー消滅
 
@@ -277,7 +286,8 @@ private:
 	// HPモデル
 	std::vector<std::unique_ptr<Sprite>> hpSprites_;
 	std::unique_ptr<Sprite> hpFont;
-	int hp_ = 3;
+	static constexpr uint32_t kDamageBlockDamage = 75;
+	int hp_ = 1000;
 
 	// 無敵時間
 	float invincibleTimer_ = 0.0f;
@@ -309,6 +319,7 @@ private:
 	int GetNextLevelExp() const;
 
 	PlayerStats stats_;
+	int maxHpUpgradeAmount_ = 50;
 	ClassType currentClass_ = ClassType::Basic;
 	std::string currentClassId_ = "Basic";
 
