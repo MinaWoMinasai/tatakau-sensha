@@ -132,6 +132,7 @@ void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) 
 	SetCollisionAttribute(kCollisionAttributeEnemy);
 	// 衝突対象をプレイヤーとプレイヤーの弾に設定
 	SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerBullet | kCollisionAttributePlayerDrone);
+	SetDamage(35);
 
 	stage_ = stage;
 	

@@ -262,17 +262,17 @@ enum Phase {
 };
 
 struct AttackParam {
-	float bulletSpeed;
-	int bulletCount;
-	float spreadAngleDeg;
-	bool randomSpread;
+	float bulletSpeed = 0.0f;
+	int bulletCount = 1;
+	float spreadAngleDeg = 0.0f;
+	bool randomSpread = false;
 
-	bool reflect;
-	bool penetrate;
+	bool reflect = false;
+	bool penetrate = false;
 
-	float cooldown;
+	float cooldown = 0.0f;
 
-	uint32_t damage;
+	uint32_t damage = 0;
 };
 
 enum BulletOwner {

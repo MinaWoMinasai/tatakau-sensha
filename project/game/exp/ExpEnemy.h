@@ -15,6 +15,14 @@ enum class ExpEnemyType {
 
 class ExpEnemy : public Collider {
 public:
+    struct BalanceConfig {
+        uint32_t contactDamage = 12;
+        uint32_t shooterContactDamage = 20;
+        uint32_t shooterBulletDamage = 15;
+    };
+
+    static void SetBalanceConfig(const BalanceConfig& config);
+
     void Initialize(const Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
     void Update(Stage& stage,float deltaTime);
     void Draw(bool drawBody = true);
@@ -50,6 +58,8 @@ private:
     void ApplyTypeParams();
     void TriggerDamageFeedback();
     void ApplyDamageFeedback(float deltaTime);
+
+    static BalanceConfig balanceConfig_;
 
     Transform worldTransform_;
     Vector3 baseScale_{ 1.0f, 1.0f, 1.0f };

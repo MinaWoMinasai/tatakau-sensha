@@ -416,6 +416,7 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	level_ = 1;
 	exp_ = 0;
 	nextLevelExp_ = GetNextLevelExp();
+	hp_ = GetMaxHp();
 
 	machineGunBtnSprite_ = std::make_unique<Sprite>();
 	machineGunBtnSprite_->Initialize(SpriteCommon::GetInstance(), "resources/white512x512.png");
@@ -745,10 +746,7 @@ void Player::OnCollision(Collider* other) {
 
 	if (other->GetCollisionAttribute() == kCollisionAttributeEnemy ||
 		other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
-		TriggerDamageFeedback();
-		if (invincibleTimer_ <= 0.0f) {
-			invincibleTimer_ = 0.45f;
-		}
+		TakeDamage(other->GetDamage(), 0.45f);
 	}
 }
 
@@ -763,23 +761,50 @@ AABB Player::GetAABB() {
 	return aabb;
 }
 
-void Player::Damage()
+void Player::Damage(uint32_t amount)
 {
-	if (invincibleTimer_ <= 0.0f) {
+	TakeDamage(amount, 0.45f);
+}
 
-		// --- ジャスト回避判定 ---
-		//if (isDashing_ && (kDashDuration - dashTimer_) <= kJustEvadeWindow) {
-		//	requestSlow_ = true;
-		//	return;
-		//}
+void Player::TakeDamage(uint32_t amount, float invincibleTime)
+{
+	if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f) {
+		return;
+	}
 
-		if (hp_ > 0) {
-			//hpSprites_.pop_back();
-		}
+	// --- ジャスト回避判定 ---
+	//if (isDashing_ && (kDashDuration - dashTimer_) <= kJustEvadeWindow) {
+	//	requestSlow_ = true;
+	//	return;
+	//}
 
-		//hp_--;
-		TriggerDamageFeedback();
-		invincibleTimer_ = 0.45f;
+	hp_ -= static_cast<int>(amount);
+	if (hp_ < 0) {
+		hp_ = 0;
+	}
+
+	TriggerDamageFeedback();
+	invincibleTimer_ = invincibleTime;
+	if (hp_ <= 0) {
+		Die();
+	}
+}
+
+void Player::ApplyBalanceConfig(const BalanceConfig& config)
+{
+	const int oldMaxHp = GetMaxHp();
+	const int newMaxHp = (std::max)(1, config.maxHp);
+	stats_.maxHp = static_cast<float>(newMaxHp);
+	maxHpUpgradeAmount_ = (std::max)(1, config.maxHpUpgradeAmount);
+	stats_.bodyDamage = static_cast<float>((std::max)(1u, config.bodyDamage));
+	SetDamage(static_cast<uint32_t>(stats_.bodyDamage));
+
+	if (config.healToFull) {
+		hp_ = newMaxHp;
+	} else if (oldMaxHp > 0 && hp_ >= oldMaxHp) {
+		hp_ = newMaxHp;
+	} else {
+		hp_ = (std::clamp)(hp_, 0, newMaxHp);
 	}
 }
 
@@ -1706,8 +1731,8 @@ bool Player::ApplyStatUpgrade(int index)
 		stats_.staminaRecovery += 0.25f;
 		break;
 	case 1:
-		stats_.maxHp += 1.0f;
-		hp_++;
+		stats_.maxHp += static_cast<float>(maxHpUpgradeAmount_);
+		hp_ = (std::min)(GetMaxHp(), hp_ + maxHpUpgradeAmount_);
 		break;
 	case 2:
 		stats_.bodyDamage += 1.0f;

@@ -195,7 +195,35 @@
   },
   "balanceFields": {
     "defaultRandomSpawnEnabled": "bool: 従来のランダムスポーンを使うか。AI調整を重視するならfalseもあり",
+    "player": {
+      "maxHp": "number: プレイヤー最大HP。現在のサンプルは1000",
+      "maxHpUpgradeAmount": "number: Max Health強化1回あたりの増加量",
+      "bodyDamage": "number: プレイヤーが敵に接触した時に与えるダメージ",
+      "healToFull": "bool: trueならBalance適用時にプレイヤーHPを全回復する。F10調整ではfalse推奨"
+    },
+    "damage": {
+      "damageBlock": "number: DamageBlock接触ダメージ",
+      "bossContact": "number: ボス本体接触ダメージ",
+      "expEnemyContact": "number: 通常EXP敵接触ダメージ",
+      "shooterContact": "number: Shooter接触ダメージ",
+      "shooterBullet": "number: Shooter弾ダメージ"
+    },
+    "bossAttackDefault": {
+      "bulletSpeed": "number: 通常時のボス弾速",
+      "bulletCount": "number: 通常時のボス弾数",
+      "spreadAngleDeg": "number: 通常時の拡散角度",
+      "cooldown": "number: 通常時の発射間隔秒",
+      "damage": "number: 通常時のボス弾ダメージ",
+      "randomSpread": "bool: trueならランダム拡散"
+    },
     "notes": "string: AIや人間向けの調整メモ"
+  },
+  "runtimeBalanceNotes": {
+    "playerHp": "number: 現在の基準値は1000。balance.player.maxHpで調整",
+    "enemyBulletDamage": "number: 通常時のボス弾はbalance.bossAttackDefault.damage、フェーズ中はbossPhase.customProperties.bossAttack.damageで調整",
+    "shooterBulletDamage": "number: Shooter系EXP敵の弾はbalance.damage.shooterBulletで調整",
+    "damageBlockDamage": "number: DamageBlock接触はbalance.damage.damageBlockで調整。連続ヒットしないようプレイヤー側に短い無敵時間がある",
+    "enemyContactDamage": "number: EXP敵、Shooter、ボス本体の接触ダメージはbalance.damageで調整"
   },
   "aiEditingRules": [
     "PlayerSpawnとBossSpawnは原則1つずつにする",

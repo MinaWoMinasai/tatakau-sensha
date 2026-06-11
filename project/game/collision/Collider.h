@@ -71,6 +71,6 @@ private:
 	float hitPower_ = 1.0f;
 
 	// 与えるダメージ
-	uint32_t damage_;
+	uint32_t damage_ = 0;
 
 };

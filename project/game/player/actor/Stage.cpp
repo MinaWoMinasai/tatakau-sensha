@@ -254,7 +254,7 @@ void Stage::ResolvePlayerCollision(Player& player, AxisXYZ axis)
 		// ダメージ床
 		if (block.type == MapChipType::kDamageBlock) {
 			//if (!enemy.IsDead()) {
-			player.Damage();
+			player.Damage(damageBlockDamage_);
 			//}
 		}
 
