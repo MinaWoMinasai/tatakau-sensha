@@ -2,6 +2,8 @@
 #include "SceneManager.h"
 #include "Audio.h"
 #include "TextRenderer.h"
+#include <chrono>
+#include <thread>
 
 bool Game::Initialize() {
 
@@ -151,13 +153,26 @@ void Game::MainLoop() {
     MSG msg{};
     while (msg.message != WM_QUIT) {
 
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
-            continue;
+        }
+        if (msg.message == WM_QUIT) {
+            break;
         }
         // インプットインスタンスを取得
         Input* input = Input::GetInstance();
+        WinApp* winApp = WinApp::GetInstance();
+
+        if (winApp->ConsumeActivationChanged()) {
+            input->OnFocusChanged(winApp->IsActive());
+            dxCommon_->ResetFixFPS();
+        }
+        if (!winApp->IsActive()) {
+            dxCommon_->ResetFixFPS();
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            continue;
+        }
 
         // 前のフレームのキー状態を保存
         input->BeforeFrameData();

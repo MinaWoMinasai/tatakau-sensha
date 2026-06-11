@@ -49,18 +49,54 @@ void Input::BeforeFrameData()
 {
 	// 前のフレームのキー状態を保存
 	memcpy(preKey_, key_, sizeof(key_));
-	keyboard_->Acquire();
-	keyboard_->GetDeviceState(sizeof(key_), key_);
+	if (keyboard_) {
+		HRESULT hr = keyboard_->Acquire();
+		hr = keyboard_->GetDeviceState(sizeof(key_), key_);
+		if (FAILED(hr)) {
+			ZeroMemory(key_, sizeof(key_));
+		}
+	}
 
 	// マウス情報の取得
 	memcpy(&preMouseState_, &mouseState_, sizeof(DIMOUSESTATE));
-	mouse_->Acquire();
-	mouse_->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState_);
+	if (mouse_) {
+		HRESULT hr = mouse_->Acquire();
+		hr = mouse_->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState_);
+		if (FAILED(hr)) {
+			ZeroMemory(&mouseState_, sizeof(mouseState_));
+		}
+	}
 
 	// ゲームパッドの更新
 	previousGamepadState_ = currentGamepadState_;
 	ZeroMemory(&currentGamepadState_, sizeof(XINPUT_STATE));
 	XInputGetState(0, &currentGamepadState_);
+}
+
+void Input::OnFocusChanged(bool active)
+{
+	if (active) {
+		if (keyboard_) {
+			keyboard_->Acquire();
+		}
+		if (mouse_) {
+			mouse_->Acquire();
+		}
+	} else {
+		if (keyboard_) {
+			keyboard_->Unacquire();
+		}
+		if (mouse_) {
+			mouse_->Unacquire();
+		}
+	}
+
+	ZeroMemory(key_, sizeof(key_));
+	ZeroMemory(preKey_, sizeof(preKey_));
+	ZeroMemory(&mouseState_, sizeof(mouseState_));
+	ZeroMemory(&preMouseState_, sizeof(preMouseState_));
+	ZeroMemory(&currentGamepadState_, sizeof(currentGamepadState_));
+	ZeroMemory(&previousGamepadState_, sizeof(previousGamepadState_));
 }
 
 bool Input::IsPress(const uint8_t key)

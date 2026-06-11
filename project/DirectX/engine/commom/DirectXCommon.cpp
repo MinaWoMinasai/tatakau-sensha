@@ -481,6 +481,8 @@ void DirectXCommon::CreateSwapChain()
 	// コマンドキュー、ウィンドウハンドル、設定を渡して生成する
 	HRESULT hr = dxgiFactory_->CreateSwapChainForHwnd(queue_.Get(), winApp_->GetHwnd(), &swapChainDesc_, nullptr, nullptr, reinterpret_cast<IDXGISwapChain1**>(swapChain_.GetAddressOf()));
 	assert(SUCCEEDED(hr));
+
+	dxgiFactory_->MakeWindowAssociation(winApp_->GetHwnd(), DXGI_MWA_NO_ALT_ENTER);
 }
 
 void DirectXCommon::CreateDepthBuffer()
@@ -654,7 +656,7 @@ void DirectXCommon::CommandListExecuteAndReset()
 	ID3D12CommandList* commandLists[] = { list_.Get() };
 	queue_->ExecuteCommandLists(1, commandLists);
 	//GPUとOSに画面の交換を行うよう通知する
-	swapChain_->Present(1, 0);
+	swapChain_->Present(0, 0);
 	// fenceの値を更新
 	fenceValue_++;
 	// GPUがここまでたどり着いたときに、Fenceの値を指定して値に代入するようにSignalを送る
@@ -972,6 +974,11 @@ void DirectXCommon::InitializeFixFPS()
 	// 現在時間を記録する
 	reference_ = std::chrono::steady_clock::now();
 
+}
+
+void DirectXCommon::ResetFixFPS()
+{
+	reference_ = std::chrono::steady_clock::now();
 }
 
 void DirectXCommon::UpdateFixFPS()

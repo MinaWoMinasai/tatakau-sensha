@@ -41,10 +41,14 @@ public:
 
 	WNDCLASS GetWindowClass() { return wc_; };
 	HWND GetHwnd() { return hwnd_; }
+	bool IsActive() const { return isActive_; }
+	bool ConsumeActivationChanged();
 
 private:
 	HWND hwnd_ = nullptr;
 	WNDCLASS wc_{};
+	bool isActive_ = true;
+	bool activationChanged_ = false;
 
 };
 

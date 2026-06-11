@@ -22,6 +22,10 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 		// メッセージに応じてゲーム固有の処理を行う
 		switch (msg) {
+		case WM_ACTIVATEAPP:
+			WinApp::GetInstance()->isActive_ = wparam != FALSE;
+			WinApp::GetInstance()->activationChanged_ = true;
+			return 0;
 			// ウィンドウが破棄された
 		case WM_DESTROY:
 			// OSに対して、アプリの終了を伝える
@@ -32,6 +36,13 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		// 標準のメッセージ処置を行う
 		return DefWindowProc(hwnd, msg, wparam, lparam);
 	}
+}
+
+bool WinApp::ConsumeActivationChanged()
+{
+	const bool changed = activationChanged_;
+	activationChanged_ = false;
+	return changed;
 }
 
 void WinApp::Initialize()

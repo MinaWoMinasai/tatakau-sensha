@@ -108,6 +108,7 @@ public:
 	void CommandListExecuteAndReset();
 
 	void ExecuteCommandListAndWait();
+	void ResetFixFPS();
 
 	/// <summary>
 	/// シェーダーをコンパイル
