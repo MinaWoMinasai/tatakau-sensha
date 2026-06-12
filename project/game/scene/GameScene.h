@@ -98,7 +98,7 @@ private:
 	struct BalanceEditorState {
 		bool initialized = false;
 		bool defaultRandomSpawnEnabled = true;
-		int playerMaxHp = 1000;
+		int playerMaxHp = 10000;
 		int maxHpUpgradeAmount = 80;
 		int playerBodyDamage = 3;
 		bool healToFull = false;
@@ -269,7 +269,7 @@ private:
 	bool enablePlayerPostEffect_ = true;
 	bool enableEnemyPostEffect_ = true;
 	bool enableExpEnemyPostEffect_ = true;
-	bool enableStagePostEffect_ = true;
+	bool enableStagePostEffect_ = false;
 	bool showPostProfileOverlay_ = true;
 	int postProfileMode_ = 0;
 	std::array<PostProfileEntry, 10> postProfileEntries_;

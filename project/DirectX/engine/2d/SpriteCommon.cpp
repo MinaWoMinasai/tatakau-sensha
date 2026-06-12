@@ -1,4 +1,5 @@
 #include "SpriteCommon.h"
+#include "TextureManager.h"
 
 SpriteCommon* SpriteCommon::GetInstance()
 {
@@ -18,6 +19,7 @@ void SpriteCommon::Initialize(DirectXCommon* dxCommon)
 void SpriteCommon::PreDraw(BlendMode blendMode)
 {
 
+	TextureManager::GetInstance()->PreDraw();
 	dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject(blendMode).root_.GetSignature().Get());
 	dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObject(blendMode).graphicsState_.Get()); // PSOを設定
 	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
