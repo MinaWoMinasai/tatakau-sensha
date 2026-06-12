@@ -13,6 +13,7 @@ public:
 	void Finalize();
 
 	void LoadTexture(const std::string& filePath);
+	void PreDraw();
 
 	uint32_t GetTextureIndexbyFilePath(const std::string& filePath);
 

@@ -13,6 +13,7 @@
 #include "CollisionConfig.h"
 #include "Object3d.h"
 #include "Sprite.h"
+#include "TextLabel.h"
 #include "AttackController.h"
 #include "PlayerDrone.h"
 #include "Easing.h"
@@ -46,10 +47,14 @@ struct TankSeed {
 };
 struct TankData {
 	ClassType type;
+	std::string classId;
 	std::string name;
 	int requiredRank;
 	std::string texturePath; // 画像パス
+	std::unique_ptr<Sprite> cardSprite;
 	std::unique_ptr<Sprite> sprite; // 各戦車専用のスプライト
+	std::unique_ptr<TextLabel> nameLabel;
+	std::unique_ptr<TextLabel> rankLabel;
 };
 
 class Stage;
@@ -66,7 +71,7 @@ public:
 		float bulletDamage = 1.0f;    // 弾の威力
 		float bulletSpeed = 0.3f;     // 弾速
 		float moveSpeed = 0.2f;       // 移動速度
-		float maxHp = 1000.0f;         // 最大HP
+		float maxHp = 10000.0f;        // 最大HP
 		float staminaRecovery = 1.0f; // スタミナ回復速度
 		float stamina = 3.0f;         // スタミナ
 		float maxStamina = 3.0f;      // スタミナ最大値
@@ -74,7 +79,7 @@ public:
 	};
 
 	struct BalanceConfig {
-		int maxHp = 1000;
+		int maxHp = 10000;
 		int maxHpUpgradeAmount = 50;
 		uint32_t bodyDamage = 3;
 		bool healToFull = false;
@@ -199,6 +204,8 @@ public:
 
 	void DrawEncyclopedia();
 
+	void DrawTankCodex();
+
 	void DrawPlayerClassEditor();
 
 	int GetRankFromLevel(int level);
@@ -287,7 +294,7 @@ private:
 	std::vector<std::unique_ptr<Sprite>> hpSprites_;
 	std::unique_ptr<Sprite> hpFont;
 	static constexpr uint32_t kDamageBlockDamage = 75;
-	int hp_ = 1000;
+	int hp_ = 10000;
 
 	// 無敵時間
 	float invincibleTimer_ = 0.0f;
@@ -397,11 +404,30 @@ private:
 
 	// 図鑑の並び順（表示したい順番に定義）
 	std::vector<TankData> encyclopedia_;
+	std::unique_ptr<Sprite> evolutionBackdropSprite_;
+	std::unique_ptr<Sprite> evolutionPreviewPanelSprite_;
+	std::unique_ptr<Sprite> evolutionStatsPanelSprite_;
+	std::unique_ptr<Sprite> evolutionPreviewTankSprite_;
+	std::unique_ptr<Sprite> evolutionShotSprite_;
+	std::unique_ptr<Sprite> evolutionChangeButtonSprite_;
+	std::unique_ptr<TextLabel> evolutionTitleLabel_;
+	std::unique_ptr<TextLabel> evolutionHintLabel_;
+	std::unique_ptr<TextLabel> evolutionPreviewNameLabel_;
+	std::unique_ptr<TextLabel> evolutionRoleLabel_;
+	std::unique_ptr<TextLabel> evolutionChangeButtonLabel_;
+	std::array<std::unique_ptr<TextLabel>, 9> evolutionStatLabels_;
 
 	Vector2 mousePosition_;
 
 	bool isChangeMode = false;
+	int evolutionSelectedIndex_ = 0;
+	float evolutionUiTimer_ = 0.0f;
 	int editorSelectedClassIndex_ = 0;
+	int codexSelectedClassIndex_ = 0;
+	float codexPreviewTimer_ = 0.0f;
+	float codexPreviewAimDeg_ = 0.0f;
+	bool codexPreviewAutoMove_ = true;
+	bool codexPreviewAutoFire_ = true;
 
 	std::unique_ptr<Sprite> sprite;
 

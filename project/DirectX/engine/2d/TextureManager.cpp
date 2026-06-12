@@ -78,6 +78,13 @@ void TextureManager::LoadTexture(const std::string& filePath) {
     dxCommon_->ExecuteCommandListAndWait();
 }
 
+void TextureManager::PreDraw()
+{
+    if (srvManager_) {
+        srvManager_->PreDraw();
+    }
+}
+
 uint32_t TextureManager::GetTextureIndexbyFilePath(const std::string& filePath)
 {
 	// 読み込み済みテクスチャを検索

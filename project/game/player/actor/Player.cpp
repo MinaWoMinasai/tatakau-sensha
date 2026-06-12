@@ -83,6 +83,27 @@ const char* ClassTypeToString(ClassType type)
 	return "Unknown";
 }
 
+const char* ClassTexturePath(ClassType type)
+{
+	switch (type) {
+	case ClassType::Twin: return "resources/twin.png";
+	case ClassType::MachineGun: return "resources/machineGun.png";
+	case ClassType::Overseer:
+	case ClassType::Summoner: return "resources/drone.png";
+	default: return "resources/normalTank.png";
+	}
+}
+
+void SetLabel(std::unique_ptr<TextLabel>& label, SpriteCommon* spriteCommon, const std::string& text, const Vector2& position, const TextStyle& style)
+{
+	if (!label) {
+		label = std::make_unique<TextLabel>();
+		label->Initialize(spriteCommon, text, style);
+	} else {
+		label->SetText(text);
+	}
+	label->SetPosition(position);
+}
 
 nlohmann::json Vector3ToJson(const Vector3& value)
 {
@@ -1244,55 +1265,82 @@ void Player::TriggerDamageFeedback()
 
 void Player::InitializeEncyclopedia()
 {
-	std::vector<TankSeed> seeds = {
-		   { ClassType::Basic,      "Basic",      1, "resources/normalTank.png" },
-		   { ClassType::Twin,       "Twin",       2, "resources/twin.png" },
-		   { ClassType::Overseer,   "Overseer",   2, "resources/drone.png" },
-		   { ClassType::MachineGun, "MachineGun", 2, "resources/machineGun.png" },
-		   { ClassType::Triple,     "Triple",     3, "resources/normalTank.png" },
-		   { ClassType::Assassin,   "Assassin",   3, "resources/normalTank.png" },
-		   { ClassType::Bounder,    "Bounder",    3, "resources/normalTank.png" },
-		   { ClassType::Ninja,      "Ninja",      4, "resources/normalTank.png" },
-		   { ClassType::Smasher,    "Smasher",    4, "resources/normalTank.png" },
-		   { ClassType::Summoner,   "Summoner",   4, "resources/normalTank.png" }
+	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
+	auto makePanel = [spriteCommon](const Vector2& pos, const Vector2& size, const Vector4& color) {
+		auto panel = std::make_unique<Sprite>();
+		panel->Initialize(spriteCommon, "resources/white512x512.png");
+		panel->SetPosition(pos);
+		panel->SetSize(size);
+		panel->SetColor(color);
+		return panel;
 	};
 
-	const float kBtnWidth = 165.0f;
-	const float kBtnHeight = 54.0f;
-	// 間隔を大幅に広げる
-	const float kMarginX = 150.0f;
-	const float kMarginY = 80.0f;
-	// 画面全体の中央付近（左上基準）
-	const Vector2 kBasePos = { 240.0f, 120.0f };
+	evolutionBackdropSprite_ = makePanel({ 0.0f, 0.0f }, { 1600.0f, 900.0f }, { 0.02f, 0.03f, 0.07f, 0.78f });
+	evolutionPreviewPanelSprite_ = makePanel({ 36.0f, 86.0f }, { 500.0f, 690.0f }, { 0.05f, 0.12f, 0.17f, 0.86f });
+	evolutionStatsPanelSprite_ = makePanel({ 1058.0f, 86.0f }, { 500.0f, 690.0f }, { 0.07f, 0.08f, 0.12f, 0.88f });
+	evolutionPreviewTankSprite_ = std::make_unique<Sprite>();
+	evolutionPreviewTankSprite_->Initialize(spriteCommon, "resources/normalTank.png");
+	evolutionPreviewTankSprite_->SetAnchorPoint({ 0.5f, 0.5f });
+	evolutionPreviewTankSprite_->SetSize({ 280.0f, 170.0f });
+	evolutionPreviewTankSprite_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+	evolutionShotSprite_ = makePanel({ 0.0f, 0.0f }, { 170.0f, 9.0f }, { 1.0f, 0.88f, 0.28f, 0.0f });
+	evolutionShotSprite_->SetAnchorPoint({ 0.0f, 0.5f });
+	evolutionChangeButtonSprite_ = makePanel({ 1115.0f, 700.0f }, { 385.0f, 54.0f }, { 0.24f, 0.86f, 0.44f, 0.92f });
 
-	// 既存のリストをクリアして再構築
+	TextStyle titleStyle{};
+	titleStyle.fontFamily = "Meiryo";
+	titleStyle.fontSize = 34.0f;
+	titleStyle.color = { 0.75f, 1.0f, 0.92f, 1.0f };
+	titleStyle.outlineColor = { 0.0f, 0.08f, 0.10f, 0.95f };
+	titleStyle.outlineThickness = 3.0f;
+	titleStyle.padding = 8.0f;
+	SetLabel(evolutionTitleLabel_, spriteCommon, "戦車図鑑 / 進化ツリー", { 50.0f, 30.0f }, titleStyle);
+
+	TextStyle smallStyle = titleStyle;
+	smallStyle.fontSize = 20.0f;
+	smallStyle.color = { 0.86f, 0.92f, 1.0f, 1.0f };
+	smallStyle.outlineThickness = 2.0f;
+	SetLabel(evolutionHintLabel_, spriteCommon, "C:閉じる  /  カード選択:詳細  /  ボタン:機体変更", { 610.0f, 42.0f }, smallStyle);
+
 	encyclopedia_.clear();
+	const float cardWidth = 206.0f;
+	const float cardHeight = 105.0f;
+	const float cardGapX = 22.0f;
+	const float cardGapY = 22.0f;
+	const Vector2 cardBase = { 585.0f, 116.0f };
 
-	for (int i = 0; i < seeds.size(); ++i) {
-		// 新しい実体を作成
+	for (int i = 0; i < static_cast<int>(classOrder_.size()); ++i) {
+		const PlayerClassConfig* config = GetClassConfig(classOrder_[i]);
+		if (!config) {
+			continue;
+		}
 		TankData data;
-		data.type = seeds[i].type;
-		data.name = seeds[i].name;
-		data.requiredRank = seeds[i].requiredRank;
-		data.texturePath = seeds[i].texturePath;
+		data.type = config->type;
+		data.classId = config->id;
+		data.name = config->displayName;
+		data.requiredRank = config->requiredRank;
+		data.texturePath = ClassTexturePath(config->type);
 
-		// スプライトの生成
+		const int col = i % 2;
+		const int row = i / 2;
+		const Vector2 cardPos = { cardBase.x + static_cast<float>(col) * (cardWidth + cardGapX), cardBase.y + static_cast<float>(row) * (cardHeight + cardGapY) };
+
+		data.cardSprite = makePanel(cardPos, { cardWidth, cardHeight }, { 0.10f, 0.15f, 0.22f, 0.82f });
 		data.sprite = std::make_unique<Sprite>();
 		data.sprite->Initialize(SpriteCommon::GetInstance(), data.texturePath);
-		data.sprite->SetSize({ kBtnWidth, kBtnHeight });
+		data.sprite->SetPosition({ cardPos.x + 18.0f, cardPos.y + 10.0f });
+		data.sprite->SetSize({ 170.0f, 56.0f });
 
-		// ポジション計算
-		Vector2 pos;
-		if (i == 0) {
-			pos = { kBasePos.x + (kBtnWidth + kMarginX), kBasePos.y };
-		} else {
-			int row = (i - 1) / 3 + 1;
-			int col = (i - 1) % 3;
-			pos = { kBasePos.x + (col * (kBtnWidth + kMarginX)), kBasePos.y + (row * (kBtnHeight + kMarginY)) };
-		}
-		data.sprite->SetPosition(pos);
+		TextStyle cardNameStyle = smallStyle;
+		cardNameStyle.fontSize = 17.0f;
+		cardNameStyle.color = { 0.92f, 1.0f, 0.95f, 1.0f };
+		SetLabel(data.nameLabel, spriteCommon, data.name, { cardPos.x + 12.0f, cardPos.y + 70.0f }, cardNameStyle);
 
-		// moveを使ってvectorに追加（これでコピーを回避！）
+		TextStyle rankStyle = cardNameStyle;
+		rankStyle.fontSize = 14.0f;
+		rankStyle.color = { 0.72f, 0.86f, 1.0f, 1.0f };
+		SetLabel(data.rankLabel, spriteCommon, "Rank " + std::to_string(data.requiredRank), { cardPos.x + 132.0f, cardPos.y + 74.0f }, rankStyle);
+
 		encyclopedia_.push_back(std::move(data));
 	}
 }
@@ -1321,39 +1369,412 @@ void Player::UpdateP(float deltaTime)
 
 void Player::UpdateEncyclopedia()
 {
+	if (!isChangeMode) {
+		return;
+	}
+	if (encyclopedia_.size() != classOrder_.size()) {
+		InitializeEncyclopedia();
+	}
+	if (encyclopedia_.empty()) {
+		return;
+	}
+	evolutionUiTimer_ += dt_;
 	int currentRank = GetRankFromLevel(this->level_);
 
-	for (auto& tank : encyclopedia_) {
-		// ランクが足りているか
+	for (int i = 0; i < static_cast<int>(encyclopedia_.size()); ++i) {
+		auto& tank = encyclopedia_[i];
 		bool isAvailable = (currentRank >= tank.requiredRank);
+		const bool selected = (i == evolutionSelectedIndex_);
+		const bool hovered = tank.cardSprite && tank.cardSprite->IsHovered(mousePosition_);
 
-		if (isAvailable) {
-			// ホバー判定（現在のボタンの位置とサイズで判定）
-			if (tank.sprite->IsHovered(mousePosition_)) {
-				tank.sprite->SetColor({ 0.0f, 1.0f, 0.0f, 0.8f }); // ホバー時は緑
-				if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) { // 左クリック時
-					Evolve(tank.type);
-				}
-			} else {
-				tank.sprite->SetColor({ 1.0f, 1.0f, 1.0f, 0.8f }); // 通常
-			}
-		} else {
-			tank.sprite->SetColor({ 0.2f, 0.2f, 0.2f, 0.3f }); // ロック中（暗く・半透明）
+		if (hovered && input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
+			evolutionSelectedIndex_ = i;
+			codexSelectedClassIndex_ = i;
 		}
 
-		tank.sprite->Update(); // エンジンの仕様に合わせてUpdateを呼ぶ
+		if (tank.cardSprite) {
+			if (selected) {
+				tank.cardSprite->SetColor({ 0.18f, 0.48f, 0.42f, 0.94f });
+			} else if (hovered) {
+				tank.cardSprite->SetColor({ 0.16f, 0.30f, 0.38f, 0.92f });
+			} else if (isAvailable) {
+				tank.cardSprite->SetColor({ 0.10f, 0.15f, 0.22f, 0.82f });
+			} else {
+				tank.cardSprite->SetColor({ 0.05f, 0.05f, 0.07f, 0.72f });
+			}
+			tank.cardSprite->Update();
+		}
+
+		if (isAvailable) {
+			tank.sprite->SetColor({ 1.0f, 1.0f, 1.0f, selected ? 1.0f : 0.86f });
+		} else {
+			tank.sprite->SetColor({ 0.20f, 0.24f, 0.28f, 0.45f });
+		}
+
+		tank.sprite->Update();
+	}
+
+	evolutionSelectedIndex_ = (std::clamp)(evolutionSelectedIndex_, 0, static_cast<int>(encyclopedia_.size()) - 1);
+	const TankData& selectedTank = encyclopedia_[evolutionSelectedIndex_];
+	const PlayerClassConfig* selectedConfig = GetClassConfig(selectedTank.classId);
+	if (!selectedConfig) {
+		return;
+	}
+
+	const bool locked = currentRank < selectedTank.requiredRank;
+	if (evolutionPreviewTankSprite_) {
+		evolutionPreviewTankSprite_->SetTexture(selectedTank.texturePath);
+		const float bob = std::sin(evolutionUiTimer_ * 2.0f) * 12.0f;
+		evolutionPreviewTankSprite_->SetPosition({ 286.0f + bob, 330.0f });
+		evolutionPreviewTankSprite_->SetRotation(std::sin(evolutionUiTimer_ * 1.35f) * 0.08f);
+		evolutionPreviewTankSprite_->SetColor(locked ? Vector4{ 0.35f, 0.40f, 0.45f, 0.65f } : Vector4{ 1.0f, 1.0f, 1.0f, 1.0f });
+		evolutionPreviewTankSprite_->Update();
+	}
+
+	if (evolutionShotSprite_) {
+		const float shotPhase = std::fmod(evolutionUiTimer_ * 1.8f, 1.0f);
+		evolutionShotSprite_->SetPosition({ 388.0f + shotPhase * 70.0f, 326.0f });
+		evolutionShotSprite_->SetRotation(std::sin(evolutionUiTimer_ * 1.2f) * 0.12f);
+		evolutionShotSprite_->SetSize({ 120.0f + shotPhase * 120.0f, 8.0f });
+		evolutionShotSprite_->SetColor(locked ? Vector4{ 0.55f, 0.55f, 0.60f, 0.18f } : Vector4{ 1.0f, 0.90f, 0.32f, 0.82f * (1.0f - shotPhase * 0.55f) });
+		evolutionShotSprite_->Update();
+	}
+
+	if (evolutionChangeButtonSprite_) {
+		const bool buttonHovered = evolutionChangeButtonSprite_->IsHovered(mousePosition_);
+		if (locked) {
+			evolutionChangeButtonSprite_->SetColor({ 0.16f, 0.16f, 0.18f, 0.82f });
+		} else if (buttonHovered) {
+			evolutionChangeButtonSprite_->SetColor({ 0.36f, 1.0f, 0.58f, 0.96f });
+			if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
+				EvolveById(selectedTank.classId);
+			}
+		} else {
+			evolutionChangeButtonSprite_->SetColor({ 0.24f, 0.86f, 0.44f, 0.92f });
+		}
+		evolutionChangeButtonSprite_->Update();
 	}
 }
 
 void Player::DrawEncyclopedia() {
 
 	if (isChangeMode) {
-		sprite->Draw();
+		if (encyclopedia_.empty()) {
+			return;
+		}
+		evolutionSelectedIndex_ = (std::clamp)(evolutionSelectedIndex_, 0, static_cast<int>(encyclopedia_.size()) - 1);
+		const TankData& selectedTank = encyclopedia_[evolutionSelectedIndex_];
+		const PlayerClassConfig* selectedConfig = GetClassConfig(selectedTank.classId);
+		if (!selectedConfig) {
+			return;
+		}
+
+		auto roleText = [](const PlayerClassConfig& config) {
+			if (config.usesDrone) {
+				return std::string("ドローンで周囲を制圧する支援型タンク。");
+			}
+			if (config.reflect) {
+				return std::string("反射弾で壁越しにも圧をかける技巧型タンク。");
+			}
+			if (config.bulletSpeedScale > 1.2f) {
+				return std::string("高速弾で遠距離から狙う狙撃型タンク。");
+			}
+			if (config.reloadScale < 0.75f) {
+				return std::string("連射力で押し切る近中距離向けタンク。");
+			}
+			if (config.bulletCount > 1 || config.barrels.size() >= 3) {
+				return std::string("複数の砲身で広い範囲を抑える制圧型タンク。");
+			}
+			return std::string("扱いやすい基本性能を持つバランス型タンク。");
+		};
+
+		TextStyle headingStyle{};
+		headingStyle.fontFamily = "Meiryo";
+		headingStyle.fontSize = 28.0f;
+		headingStyle.color = { 0.82f, 1.0f, 0.92f, 1.0f };
+		headingStyle.outlineColor = { 0.0f, 0.05f, 0.08f, 0.95f };
+		headingStyle.outlineThickness = 3.0f;
+		headingStyle.padding = 8.0f;
+
+		TextStyle bodyStyle = headingStyle;
+		bodyStyle.fontSize = 21.0f;
+		bodyStyle.color = { 0.92f, 0.96f, 1.0f, 1.0f };
+		bodyStyle.outlineThickness = 2.0f;
+
+		TextStyle smallStyle = bodyStyle;
+		smallStyle.fontSize = 18.0f;
+
+		SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
+		SetLabel(evolutionPreviewNameLabel_, spriteCommon, selectedConfig->displayName, { 70.0f, 112.0f }, headingStyle);
+		SetLabel(evolutionRoleLabel_, spriteCommon, roleText(*selectedConfig), { 72.0f, 580.0f }, bodyStyle);
+
+		const int currentRank = GetRankFromLevel(level_);
+		const bool locked = currentRank < selectedConfig->requiredRank;
+		std::array<std::string, 9> statLines = {
+			"必要ランク: " + std::to_string(selectedConfig->requiredRank) + (locked ? "  (未解放)" : "  (使用可能)"),
+			"砲塔数: " + std::to_string(selectedConfig->barrels.size()),
+			"発射方式: " + std::string(selectedConfig->fireAllBarrels ? "全砲門" : (selectedConfig->alternateBarrels ? "交互発射" : "単発")),
+			"弾数: " + std::to_string(selectedConfig->bulletCount),
+			"リロード倍率: " + std::to_string(selectedConfig->reloadScale).substr(0, 4),
+			"弾速倍率: " + std::to_string(selectedConfig->bulletSpeedScale).substr(0, 4),
+			"ダメージ倍率: " + std::to_string(selectedConfig->bulletDamageScale).substr(0, 4),
+			"拡散角: " + std::to_string(selectedConfig->spreadAngleDeg).substr(0, 4),
+			std::string("特殊: ") + (selectedConfig->usesDrone ? "ドローン" : selectedConfig->reflect ? "反射" : selectedConfig->penetrate ? "貫通" : "なし")
+		};
+		for (int i = 0; i < static_cast<int>(statLines.size()); ++i) {
+			SetLabel(evolutionStatLabels_[i], spriteCommon, statLines[i], { 1100.0f, 150.0f + static_cast<float>(i) * 48.0f }, smallStyle);
+		}
+
+		TextStyle buttonStyle = headingStyle;
+		buttonStyle.fontSize = 24.0f;
+		buttonStyle.color = locked ? Vector4{ 0.68f, 0.68f, 0.72f, 1.0f } : Vector4{ 0.02f, 0.09f, 0.04f, 1.0f };
+		buttonStyle.outlineColor = locked ? Vector4{ 0.0f, 0.0f, 0.0f, 0.70f } : Vector4{ 0.78f, 1.0f, 0.82f, 0.65f };
+		SetLabel(evolutionChangeButtonLabel_, spriteCommon, locked ? "ランク不足" : "この戦車に変更", { 1212.0f, 711.0f }, buttonStyle);
+
+		SpriteCommon::GetInstance()->PreDraw(kNormal);
+		if (evolutionBackdropSprite_) evolutionBackdropSprite_->Draw();
+		if (evolutionPreviewPanelSprite_) evolutionPreviewPanelSprite_->Draw();
+		if (evolutionStatsPanelSprite_) evolutionStatsPanelSprite_->Draw();
+		if (evolutionTitleLabel_) evolutionTitleLabel_->Draw();
+		if (evolutionHintLabel_) evolutionHintLabel_->Draw();
+		if (evolutionPreviewNameLabel_) evolutionPreviewNameLabel_->Draw();
+		if (evolutionShotSprite_) evolutionShotSprite_->Draw();
+		if (evolutionPreviewTankSprite_) evolutionPreviewTankSprite_->Draw();
+		if (evolutionRoleLabel_) evolutionRoleLabel_->Draw();
 
 		for (auto& tank : encyclopedia_) {
+			if (tank.cardSprite) tank.cardSprite->Draw();
 			tank.sprite->Draw(); // 各スプライトが持つ位置で描画
+			if (tank.nameLabel) tank.nameLabel->Draw();
+			if (tank.rankLabel) tank.rankLabel->Draw();
+		}
+
+		for (auto& label : evolutionStatLabels_) {
+			if (label) {
+				label->Draw();
+			}
+		}
+		if (evolutionChangeButtonSprite_) {
+			evolutionChangeButtonSprite_->Draw();
+		}
+		if (evolutionChangeButtonLabel_) {
+			evolutionChangeButtonLabel_->Draw();
 		}
 	}
+}
+
+void Player::DrawTankCodex()
+{
+#ifdef USE_IMGUI
+	if (classOrder_.empty()) {
+		LoadPlayerClassConfigs();
+	}
+	if (classOrder_.empty()) {
+		return;
+	}
+
+	codexSelectedClassIndex_ = (std::clamp)(codexSelectedClassIndex_, 0, static_cast<int>(classOrder_.size()) - 1);
+	const std::string selectedId = classOrder_[codexSelectedClassIndex_];
+	const PlayerClassConfig* selectedConfig = GetClassConfig(selectedId);
+	if (!selectedConfig) {
+		return;
+	}
+
+	if (!ImGui::Begin("Tank Codex / Evolution Tree")) {
+		ImGui::End();
+		return;
+	}
+
+	const int currentRank = GetRankFromLevel(level_);
+	codexPreviewTimer_ += dt_;
+	ImGui::Text("Level %d  Rank %d  Current: %s", level_, currentRank, GetCurrentClassName());
+	ImGui::Text("Click a tank to inspect it. Locked tanks can be previewed, but not equipped.");
+	ImGui::Separator();
+
+	ImGui::Columns(3, "TankCodexColumns", true);
+	ImGui::SetColumnWidth(0, 230.0f);
+	ImGui::SetColumnWidth(1, 420.0f);
+
+	ImGui::Text("Evolution Tree");
+	ImGui::BeginChild("TankCodexTree", ImVec2(0.0f, 430.0f), true);
+	for (int rank = 1; rank <= 4; ++rank) {
+		ImGui::Text("Rank %d", rank);
+		ImGui::Indent(14.0f);
+		for (int i = 0; i < static_cast<int>(classOrder_.size()); ++i) {
+			const PlayerClassConfig* config = GetClassConfig(classOrder_[i]);
+			if (!config || config->requiredRank != rank) {
+				continue;
+			}
+			const bool selected = i == codexSelectedClassIndex_;
+			const bool locked = currentRank < config->requiredRank;
+			ImGui::PushID(i);
+			if (locked) {
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.55f, 0.62f, 1.0f));
+			}
+			std::string label = config->displayName;
+			if (config->id == currentClassId_) {
+				label += "  [Current]";
+			} else if (locked) {
+				label += "  [Locked]";
+			}
+			if (ImGui::Selectable(label.c_str(), selected)) {
+				codexSelectedClassIndex_ = i;
+			}
+			if (locked) {
+				ImGui::PopStyleColor();
+			}
+			ImGui::PopID();
+		}
+		ImGui::Unindent(14.0f);
+		ImGui::Spacing();
+		if (rank < 4) {
+			ImGui::Text("  v");
+		}
+	}
+	ImGui::EndChild();
+
+	ImGui::NextColumn();
+
+	ImGui::Text("Preview");
+	ImGui::BeginChild("TankCodexPreview", ImVec2(0.0f, 430.0f), true);
+	ImGui::Checkbox("Auto Move", &codexPreviewAutoMove_);
+	ImGui::SameLine();
+	ImGui::Checkbox("Auto Fire", &codexPreviewAutoFire_);
+	ImGui::SliderFloat("Aim Deg", &codexPreviewAimDeg_, -180.0f, 180.0f);
+	if (ImGui::Button("Test Shot")) {
+		codexPreviewTimer_ = 0.0f;
+	}
+
+	const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
+	const ImVec2 canvasSize = ImVec2((std::max)(360.0f, ImGui::GetContentRegionAvail().x), 300.0f);
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	drawList->AddRectFilled(canvasPos, ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y), IM_COL32(8, 12, 20, 255));
+	drawList->AddRect(canvasPos, ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y), IM_COL32(90, 160, 190, 150));
+
+	const float grid = 28.0f;
+	for (float x = std::fmod(codexPreviewTimer_ * 18.0f, grid); x < canvasSize.x; x += grid) {
+		drawList->AddLine(ImVec2(canvasPos.x + x, canvasPos.y), ImVec2(canvasPos.x + x, canvasPos.y + canvasSize.y), IM_COL32(45, 105, 155, 80), 1.0f);
+	}
+	for (float y = std::fmod(codexPreviewTimer_ * 10.0f, grid); y < canvasSize.y; y += grid) {
+		drawList->AddLine(ImVec2(canvasPos.x, canvasPos.y + y), ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + y), IM_COL32(45, 105, 155, 80), 1.0f);
+	}
+
+	const float moveWave = codexPreviewAutoMove_ ? std::sin(codexPreviewTimer_ * 1.7f) : 0.0f;
+	const ImVec2 center = ImVec2(canvasPos.x + canvasSize.x * 0.48f + moveWave * 42.0f, canvasPos.y + canvasSize.y * 0.55f);
+	const float aimRad = codexPreviewAimDeg_ * 3.1415926535f / 180.0f;
+	const ImVec2 forward = ImVec2(std::cos(aimRad), std::sin(aimRad));
+	const ImVec2 right = ImVec2(-forward.y, forward.x);
+	const float bodyRadius = 38.0f;
+	const ImU32 bodyFill = IM_COL32(97, 250, 135, 235);
+	const ImU32 bodyOutline = IM_COL32(190, 255, 210, 255);
+	const ImU32 barrelFill = IM_COL32(120, 245, 145, 170);
+	const ImU32 barrelOutline = IM_COL32(210, 255, 220, 230);
+
+	auto addRotatedRect = [&](ImVec2 origin, ImVec2 axisX, ImVec2 axisY, float halfX, float halfY, ImU32 fill, ImU32 outline) {
+		const ImVec2 p0 = ImVec2(origin.x - axisX.x * halfX - axisY.x * halfY, origin.y - axisX.y * halfX - axisY.y * halfY);
+		const ImVec2 p1 = ImVec2(origin.x + axisX.x * halfX - axisY.x * halfY, origin.y + axisX.y * halfX - axisY.y * halfY);
+		const ImVec2 p2 = ImVec2(origin.x + axisX.x * halfX + axisY.x * halfY, origin.y + axisX.y * halfX + axisY.y * halfY);
+		const ImVec2 p3 = ImVec2(origin.x - axisX.x * halfX + axisY.x * halfY, origin.y - axisX.y * halfX + axisY.y * halfY);
+		drawList->AddQuadFilled(p0, p1, p2, p3, fill);
+		drawList->AddQuad(p0, p1, p2, p3, outline, 2.0f);
+	};
+
+	std::vector<ImVec2> muzzlePoints;
+	for (const PlayerBarrelConfig& barrel : selectedConfig->barrels) {
+		const float localAngleRad = (codexPreviewAimDeg_ + barrel.angleDeg) * 3.1415926535f / 180.0f;
+		const ImVec2 barrelForward = ImVec2(std::cos(localAngleRad), std::sin(localAngleRad));
+		const ImVec2 barrelRight = ImVec2(-barrelForward.y, barrelForward.x);
+		const ImVec2 offset = ImVec2(
+			forward.x * barrel.offset.x * 42.0f + right.x * barrel.offset.y * 42.0f,
+			forward.y * barrel.offset.x * 42.0f + right.y * barrel.offset.y * 42.0f
+		);
+		const float length = (std::max)(26.0f, barrel.scale.x * 34.0f);
+		const float width = (std::max)(8.0f, barrel.scale.y * 38.0f);
+		const ImVec2 base = ImVec2(center.x + offset.x + barrelForward.x * length * 0.32f, center.y + offset.y + barrelForward.y * length * 0.32f);
+		addRotatedRect(base, barrelForward, barrelRight, length * 0.5f, width * 0.5f, barrelFill, barrelOutline);
+		muzzlePoints.push_back(ImVec2(base.x + barrelForward.x * length * 0.56f, base.y + barrelForward.y * length * 0.56f));
+	}
+
+	drawList->AddCircleFilled(center, bodyRadius + 7.0f, IM_COL32(95, 255, 135, 45), 48);
+	drawList->AddCircleFilled(center, bodyRadius, bodyFill, 48);
+	drawList->AddCircle(center, bodyRadius, bodyOutline, 48, 3.0f);
+
+	const bool showShot = codexPreviewAutoFire_ || std::fmod(codexPreviewTimer_, 1.0f) < 0.18f;
+	if (showShot) {
+		const float shotPhase = std::fmod(codexPreviewTimer_ * 1.8f, 1.0f);
+		for (const ImVec2& muzzle : muzzlePoints) {
+			const ImVec2 head = ImVec2(muzzle.x + forward.x * (50.0f + shotPhase * 130.0f), muzzle.y + forward.y * (50.0f + shotPhase * 130.0f));
+			drawList->AddLine(muzzle, head, IM_COL32(255, 245, 175, 190), 8.0f);
+			drawList->AddLine(muzzle, head, IM_COL32(255, 105, 130, 210), 3.0f);
+			drawList->AddCircleFilled(head, 8.0f, IM_COL32(255, 245, 185, 220), 20);
+		}
+	}
+
+	if (selectedConfig->usesDrone) {
+		for (int i = 0; i < (std::min)(selectedConfig->maxDrones, 7); ++i) {
+			const float a = codexPreviewTimer_ * 1.8f + static_cast<float>(i) * 6.283185307f / (std::max)(1, (std::min)(selectedConfig->maxDrones, 7));
+			const ImVec2 drone = ImVec2(center.x + std::cos(a) * 78.0f, center.y + std::sin(a) * 78.0f);
+			drawList->AddCircleFilled(drone, 8.0f, IM_COL32(120, 230, 255, 210), 20);
+			drawList->AddCircle(drone, 8.0f, IM_COL32(215, 250, 255, 230), 20, 2.0f);
+		}
+	}
+
+	ImGui::Dummy(canvasSize);
+	ImGui::EndChild();
+
+	ImGui::NextColumn();
+
+	ImGui::Text("Tank Data");
+	ImGui::BeginChild("TankCodexStats", ImVec2(0.0f, 430.0f), true);
+	const bool locked = currentRank < selectedConfig->requiredRank;
+	ImGui::Text("Name: %s", selectedConfig->displayName.c_str());
+	ImGui::Text("ID: %s", selectedConfig->id.c_str());
+	ImGui::Text("Required Rank: %d  %s", selectedConfig->requiredRank, locked ? "(locked)" : "(available)");
+	ImGui::Separator();
+	ImGui::Text("Barrels: %zu", selectedConfig->barrels.size());
+	ImGui::Text("Fire Mode: %s%s",
+		selectedConfig->fireAllBarrels ? "All Barrels" : (selectedConfig->alternateBarrels ? "Alternate" : "Single"),
+		selectedConfig->usesDrone ? " + Drone" : "");
+	ImGui::Text("Bullet Count: %d", selectedConfig->bulletCount);
+	ImGui::Text("Reload Scale: %.2f", selectedConfig->reloadScale);
+	ImGui::Text("Bullet Speed Scale: %.2f", selectedConfig->bulletSpeedScale);
+	ImGui::Text("Bullet Damage Scale: %.2f", selectedConfig->bulletDamageScale);
+	ImGui::Text("Spread: %.1f deg  %s", selectedConfig->spreadAngleDeg, selectedConfig->randomSpread ? "random" : "fixed");
+	ImGui::Text("Reflect: %s", selectedConfig->reflect ? "yes" : "no");
+	ImGui::Text("Penetrate: %s", selectedConfig->penetrate ? "yes" : "no");
+	ImGui::Text("Drones: %s  max %d", selectedConfig->usesDrone ? "yes" : "no", selectedConfig->maxDrones);
+	ImGui::Separator();
+	ImGui::TextWrapped("Role: %s",
+		selectedConfig->usesDrone ? "Controls drones and keeps pressure while repositioning." :
+		selectedConfig->reflect ? "Uses bounce shots to fight around cover." :
+		selectedConfig->bulletSpeedScale > 1.2f ? "Long range, fast projectile style." :
+		selectedConfig->reloadScale < 0.75f ? "Rapid fire tank for close and mid range pressure." :
+		selectedConfig->bulletCount > 1 || selectedConfig->barrels.size() >= 3 ? "Wide multi-shot tank that controls space." :
+		"Balanced starter tank.");
+	ImGui::Spacing();
+	if (locked) {
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.20f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.18f, 0.18f, 0.20f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.18f, 0.18f, 0.20f, 1.0f));
+	}
+	const bool changeClicked = ImGui::Button(locked ? "Locked" : "Change To This Tank", ImVec2(-1.0f, 32.0f));
+	if (locked) {
+		ImGui::PopStyleColor(3);
+	}
+	if (!locked && changeClicked) {
+		EvolveById(selectedConfig->id);
+	}
+	if (locked) {
+		ImGui::TextWrapped("Need Rank %d. Use debug exp or play to unlock it.", selectedConfig->requiredRank);
+	}
+	if (ImGui::Button("Edit This In Class Editor", ImVec2(-1.0f, 28.0f))) {
+		editorSelectedClassIndex_ = codexSelectedClassIndex_;
+	}
+	ImGui::EndChild();
+
+	ImGui::Columns(1);
+	ImGui::End();
+#endif
 }
 
 int Player::GetRankFromLevel(int level) {

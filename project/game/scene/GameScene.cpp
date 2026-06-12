@@ -1750,6 +1750,7 @@ void GameScene::DrawSprite() {
 		}
 	}
 	DrawHpBarBatches();
+	SpriteCommon::GetInstance()->PreDraw(kNormal);
 	player_->DrawSprite();
 	player_->DrawEncyclopedia();
 	//shotGide->Draw();
