@@ -20,8 +20,13 @@ public:
         uint32_t shooterContactDamage = 20;
         uint32_t shooterBulletDamage = 15;
     };
+    struct EnemyInteractionConfig {
+        bool hostileToBoss = false;
+    };
 
     static void SetBalanceConfig(const BalanceConfig& config);
+    static void SetEnemyInteractionConfig(const EnemyInteractionConfig& config);
+    static bool IsHostileToBoss() { return enemyInteractionConfig_.hostileToBoss; }
 
     void Initialize(const Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
     void Update(Stage& stage,float deltaTime);
@@ -51,6 +56,8 @@ public:
     int GetHp() const { return hp_; }
     int GetMaxHp() const { return maxHp_; }
     void SetHp(int hp) { hp_ = hp; maxHp_ = hp; }
+    bool TakeDamageFromEnemy(uint32_t amount);
+    void RefreshCollisionMask();
 
     uint32_t GetExpValue() const { return expValue_; }
 
@@ -60,6 +67,7 @@ private:
     void ApplyDamageFeedback(float deltaTime);
 
     static BalanceConfig balanceConfig_;
+    static EnemyInteractionConfig enemyInteractionConfig_;
 
     Transform worldTransform_;
     Vector3 baseScale_{ 1.0f, 1.0f, 1.0f };

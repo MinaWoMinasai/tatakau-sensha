@@ -1,5 +1,7 @@
 #include "Enemy.h"
 #include "Calculation.h"
+#include "EnemyManager.h"
+#include "ExpEnemy.h"
 #include "Player.h"
 #include <array>
 #include <algorithm>
@@ -23,6 +25,28 @@ Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
 		a.z + (b.z - a.z) * t,
 		a.w + (b.w - a.w) * t
 	};
+}
+
+Vector3 RotateDirection2D(const Vector3& dir, float angleDeg)
+{
+	const float rad = angleDeg * 3.1415926535f / 180.0f;
+	return {
+		dir.x * std::cos(rad) - dir.y * std::sin(rad),
+		dir.x * std::sin(rad) + dir.y * std::cos(rad),
+		dir.z
+	};
+}
+
+float NormalizeAngleRad(float angle)
+{
+	constexpr float twoPi = 6.283185307f;
+	while (angle > 3.1415926535f) {
+		angle -= twoPi;
+	}
+	while (angle < -3.1415926535f) {
+		angle += twoPi;
+	}
+	return angle;
 }
 }
 
@@ -74,7 +98,14 @@ void Enemy::ShotgunFire()
 
 	// 基準方向
 	Vector3 baseDir;
-	baseDir = Normalize(player_->GetWorldPosition() - origin);
+	Vector3 aimTarget = currentMoveTargetPosition_;
+	if (Length(aimTarget - origin) < 0.001f) {
+		aimTarget = player_->GetWorldPosition();
+	}
+	if (Length(aimTarget - origin) < 0.001f) {
+		return;
+	}
+	baseDir = Normalize(aimTarget - origin);
 
 	// 攻撃パラメータを設定
 	AttackParam param{};
@@ -87,6 +118,30 @@ void Enemy::ShotgunFire()
 	param.penetrate = false;
 	param.cooldown = bossAttackConfig_.cooldown;
 	param.damage = bossAttackConfig_.damage;
+
+	switch (bossAttackConfig_.pattern) {
+	case BossAttackConfig::Pattern::Ring:
+		param.bulletCount = (std::max)(8, bossAttackConfig_.bulletCount);
+		param.spreadAngleDeg = 360.0f;
+		param.randomSpread = false;
+		break;
+	case BossAttackConfig::Pattern::Sniper:
+		param.bulletCount = 1;
+		param.bulletSpeed = bossAttackConfig_.bulletSpeed * 1.7f;
+		param.spreadAngleDeg = 0.0f;
+		param.randomSpread = false;
+		break;
+	case BossAttackConfig::Pattern::Alternating:
+		param.bulletCount = (std::max)(1, bossAttackConfig_.bulletCount);
+		param.spreadAngleDeg = (std::max)(8.0f, bossAttackConfig_.spreadAngleDeg * 0.35f);
+		param.randomSpread = false;
+		baseDir = RotateDirection2D(baseDir, (alternatingShotIndex_ % 2 == 0) ? -18.0f : 18.0f);
+		alternatingShotIndex_++;
+		break;
+	case BossAttackConfig::Pattern::Spread:
+	default:
+		break;
+	}
 
 	// 発射
 	attackController_.Fire(
@@ -157,8 +212,32 @@ void Enemy::SetBossAttackConfig(const BossAttackConfig& config)
 	bossAttackConfig_.bulletSpeed = (std::max)(0.01f, bossAttackConfig_.bulletSpeed);
 	bossAttackConfig_.bulletCount = (std::max)(1, bossAttackConfig_.bulletCount);
 	bossAttackConfig_.spreadAngleDeg = (std::clamp)(bossAttackConfig_.spreadAngleDeg, 0.0f, 180.0f);
+	if (bossAttackConfig_.pattern == BossAttackConfig::Pattern::Ring) {
+		bossAttackConfig_.spreadAngleDeg = 360.0f;
+	}
 	bossAttackConfig_.cooldown = (std::max)(0.05f, bossAttackConfig_.cooldown);
 	kFireTimerMax_ = bossAttackConfig_.cooldown;
+}
+
+void Enemy::SetEnemyProgressConfig(const EnemyProgressConfig& config)
+{
+	enemyProgressConfig_ = config;
+	enemyProgressConfig_.expEnemyContactDamage = (std::max)(1u, enemyProgressConfig_.expEnemyContactDamage);
+	enemyProgressConfig_.healOnExpEnemyKill = (std::max)(0, enemyProgressConfig_.healOnExpEnemyKill);
+	enemyProgressConfig_.killsPerLevel = (std::max)(1, enemyProgressConfig_.killsPerLevel);
+	enemyProgressConfig_.maxHpGainPerLevel = (std::max)(0, enemyProgressConfig_.maxHpGainPerLevel);
+	enemyProgressConfig_.levelingEnterPlayerDistance = (std::max)(1.0f, enemyProgressConfig_.levelingEnterPlayerDistance);
+	enemyProgressConfig_.levelingExitPlayerDistance = (std::clamp)(enemyProgressConfig_.levelingExitPlayerDistance, 0.5f, enemyProgressConfig_.levelingEnterPlayerDistance);
+	enemyProgressConfig_.levelingSearchRadius = (std::max)(1.0f, enemyProgressConfig_.levelingSearchRadius);
+	enemyProgressConfig_.aimTurnHalfSeconds = (std::max)(0.05f, enemyProgressConfig_.aimTurnHalfSeconds);
+	if (!enemyProgressConfig_.expEnemyHostile || !enemyProgressConfig_.levelingModeEnabled) {
+		levelingModeActive_ = false;
+	}
+	uint32_t mask = kCollisionAttributePlayer | kCollisionAttributePlayerBullet | kCollisionAttributePlayerDrone;
+	if (enemyProgressConfig_.expEnemyHostile) {
+		mask |= kCollisionAttributeExpEnemy;
+	}
+	SetCollisionMask(mask);
 }
 
 void Enemy::Update(float deltaTime) {
@@ -169,7 +248,7 @@ void Enemy::Update(float deltaTime) {
 	Move(deltaTime);
 
 	if (!isDead_){
-		if (HasLineOfSightToPlayer()) {
+		if (HasLineOfSightToTarget(currentMoveTargetPosition_)) {
 			fireTimer_ -= deltaTime;
 			if (fireTimer_ <= 0.0f) {
 				ShotgunFire();
@@ -260,6 +339,35 @@ Vector3 Enemy::GetWorldPosition() const {
 
 void Enemy::OnCollision(Collider* other) {
 	
+	if (other->GetCollisionAttribute() == kCollisionAttributeExpEnemy) {
+		if (!enemyProgressConfig_.expEnemyHostile) {
+			return;
+		}
+		ExpEnemy* expEnemy = dynamic_cast<ExpEnemy*>(other);
+		if (!expEnemy || expEnemy->IsDead()) {
+			return;
+		}
+		Vector3 dir = worldTransform_.translate - other->GetWorldPosition();
+		if (Length(dir) > 0.001f) {
+			velocity_ += Normalize(dir) * 0.05f;
+		}
+		const bool killed = expEnemy->TakeDamageFromEnemy(enemyProgressConfig_.expEnemyContactDamage);
+		if (killed) {
+			expEnemyKillCount_++;
+			if (enemyProgressConfig_.healOnExpEnemyKill > 0) {
+				hp_ = (std::min)(maxHP_, hp_ + enemyProgressConfig_.healOnExpEnemyKill);
+			}
+			if (expEnemyKillCount_ % enemyProgressConfig_.killsPerLevel == 0) {
+				enemyLevel_++;
+				maxHP_ += enemyProgressConfig_.maxHpGainPerLevel;
+				hp_ = (std::min)(maxHP_, hp_ + enemyProgressConfig_.maxHpGainPerLevel);
+				SetDamage(GetDamage() + enemyProgressConfig_.damageGainPerLevel);
+				bossAttackConfig_.damage += enemyProgressConfig_.damageGainPerLevel;
+			}
+		}
+		return;
+	}
+
 	// つみとバグ防止
 	if (other->GetCollisionAttribute() == kCollisionAttributePlayer || other->GetCollisionAttribute() == kCollisionAttributePlayerDrone) {
 		Vector3 dir = worldTransform_.translate - other->GetWorldPosition();
@@ -330,9 +438,12 @@ void Enemy::Move(float deltaTime) {
 
 	AIStateMovePower();
 
-	Vector3 toPlayer = player_->GetWorldPosition() - GetWorldPosition();
-	Vector3 attackVec = Normalize(toPlayer) * attackPower;
-	std::optional<Vector3> pathDir = FindPathDirectionToPlayer();
+	const Vector3 moveTargetPos = ResolveMoveTargetPosition();
+	currentMoveTargetPosition_ = moveTargetPos;
+	Vector3 toTarget = moveTargetPos - GetWorldPosition();
+	toTarget.z = 0.0f;
+	Vector3 attackVec = Length(toTarget) > 0.001f ? Normalize(toTarget) * attackPower : Vector3{ 0.0f, 0.0f, 0.0f };
+	std::optional<Vector3> pathDir = FindPathDirectionToTarget(moveTargetPos);
 
 	if (pathDir) {
 		attackVec = *pathDir * 1.7f;
@@ -357,19 +468,29 @@ void Enemy::Move(float deltaTime) {
 	dir_.z = 0.0f;
 	dir_ = ApplyHumanLikeSteering(dir_, pathDir.has_value(), deltaTime);
 
-	// --- 5. プレイヤーの位置と方向ベクトル ---
-	Vector3 dir = Normalize(toPlayer);
-
-	// --- 6. 回転角度を算出 ---
-	if (Length(velocity_) > 0.001f) {
-		float angle = atan2(dir.y, dir.x);
-		worldTransform_.rotate.z = angle;
-		object_->SetRotate(worldTransform_.rotate);
-	}
+	RotateTowardTarget(moveTargetPos, deltaTime);
 
 	const float speed = pathDir ? 0.10f : maxSpeed_;
 	Vector3 targetVelocity = dir_ * speed;
 	velocity_ += (targetVelocity - velocity_) * 0.22f * (deltaTime * 60.0f);
+}
+
+void Enemy::RotateTowardTarget(const Vector3& targetPos, float deltaTime)
+{
+	Vector3 toTarget = targetPos - GetWorldPosition();
+	toTarget.z = 0.0f;
+	if (Length(toTarget) < 0.001f) {
+		return;
+	}
+
+	const float targetAngle = std::atan2(toTarget.y, toTarget.x);
+	const float currentAngle = worldTransform_.rotate.z;
+	const float angleDiff = NormalizeAngleRad(targetAngle - currentAngle);
+	const float halfTurnSeconds = (std::max)(0.05f, enemyProgressConfig_.aimTurnHalfSeconds);
+	const float maxStep = 3.1415926535f * (deltaTime / halfTurnSeconds);
+	const float step = (std::clamp)(angleDiff, -maxStep, maxStep);
+	worldTransform_.rotate.z = NormalizeAngleRad(currentAngle + step);
+	object_->SetRotate(worldTransform_.rotate);
 }
 
 Vector3 Enemy::ApplyHumanLikeSteering(const Vector3& desiredDir, bool usingPath, float deltaTime)
@@ -415,12 +536,53 @@ Vector3 Enemy::ApplyHumanLikeSteering(const Vector3& desiredDir, bool usingPath,
 
 std::optional<Vector3> Enemy::FindPathDirectionToPlayer()
 {
-	if (!stage_ || HasClearMoveRouteToPlayer()) {
+	return FindPathDirectionToTarget(player_->GetWorldPosition());
+}
+
+Vector3 Enemy::ResolveMoveTargetPosition()
+{
+	if (!player_) {
+		levelingModeActive_ = false;
+		return GetWorldPosition();
+	}
+
+	const Vector3 playerPos = player_->GetWorldPosition();
+	if (!enemyProgressConfig_.expEnemyHostile || !enemyProgressConfig_.levelingModeEnabled || !enemyManager_) {
+		levelingModeActive_ = false;
+		return playerPos;
+	}
+
+	const float playerDistance = Length(playerPos - GetWorldPosition());
+	if (levelingModeActive_) {
+		if (playerDistance <= enemyProgressConfig_.levelingExitPlayerDistance) {
+			levelingModeActive_ = false;
+			return playerPos;
+		}
+	} else if (playerDistance >= enemyProgressConfig_.levelingEnterPlayerDistance) {
+		levelingModeActive_ = true;
+	}
+
+	if (!levelingModeActive_) {
+		return playerPos;
+	}
+
+	ExpEnemy* target = enemyManager_->FindNearestEnemy(GetWorldPosition(), enemyProgressConfig_.levelingSearchRadius);
+	if (!target) {
+		levelingModeActive_ = false;
+		return playerPos;
+	}
+
+	return target->GetWorldPosition();
+}
+
+std::optional<Vector3> Enemy::FindPathDirectionToTarget(const Vector3& targetPos)
+{
+	if (!stage_ || HasClearMoveRouteToTarget(targetPos)) {
 		return std::nullopt;
 	}
 
 	std::optional<MapIndex> startOpt = WorldToMapIndex(GetWorldPosition());
-	std::optional<MapIndex> goalOpt = WorldToMapIndex(player_->GetWorldPosition());
+	std::optional<MapIndex> goalOpt = WorldToMapIndex(targetPos);
 	if (!startOpt || !goalOpt) {
 		return std::nullopt;
 	}
@@ -596,20 +758,24 @@ Enemy::MapIndex Enemy::FindNearestPathPassableCell(const MapIndex& base) const
 
 bool Enemy::HasClearMoveRouteToPlayer() const
 {
-	if (!stage_ || !HasLineOfSightToPlayer()) {
+	return HasClearMoveRouteToTarget(player_->GetWorldPosition());
+}
+
+bool Enemy::HasClearMoveRouteToTarget(const Vector3& targetPos) const
+{
+	if (!stage_) {
 		return false;
 	}
 
 	const Vector3 enemyPos = GetWorldPosition();
-	const Vector3 playerPos = player_->GetWorldPosition();
-	Vector3 toPlayer = playerPos - enemyPos;
-	toPlayer.z = 0.0f;
-	const float distance = Length(toPlayer);
+	Vector3 toTarget = targetPos - enemyPos;
+	toTarget.z = 0.0f;
+	const float distance = Length(toTarget);
 	if (distance < 0.001f) {
 		return true;
 	}
 
-	Vector3 normal = Normalize(toPlayer);
+	Vector3 normal = Normalize(toTarget);
 	Vector3 side = { -normal.y, normal.x, 0.0f };
 	const float halfWidth = kWidth * 0.5f + 0.25f;
 	const std::array<Vector3, 3> origins = {
@@ -621,7 +787,7 @@ bool Enemy::HasClearMoveRouteToPlayer() const
 	for (const Vector3& origin : origins) {
 		Segment ray;
 		ray.origin = origin;
-		ray.diff = toPlayer;
+		ray.diff = toTarget;
 
 		for (const auto& row : stage_->GetBlocks()) {
 			for (const Block& block : row) {
@@ -816,17 +982,21 @@ bool Enemy::HitPlayerByRay(const Segment& ray)
 }
 
 bool Enemy::HasLineOfSightToPlayer() const {
+	return HasLineOfSightToTarget(player_->GetWorldPosition());
+}
 
-	Segment ray = MakeRayToPlayer();
+bool Enemy::HasLineOfSightToTarget(const Vector3& targetPos) const {
 
-	float playerDist = Length(ray.diff);
-	
-	Sphere playerSphere;
-	playerSphere.center = player_->GetWorldPosition();
-	playerSphere.radius = player_->GetRadius();
-	
-	// プレイヤーに当たる？
-	if (!IsCollision(ray, playerSphere)) {
+	if (!stage_) {
+		return false;
+	}
+
+	Segment ray;
+	ray.origin = GetWorldPosition();
+	ray.diff = targetPos - ray.origin;
+
+	float targetDist = Length(ray.diff);
+	if (targetDist < 0.001f) {
 		return false;
 	}
 
@@ -844,7 +1014,7 @@ bool Enemy::HasLineOfSightToPlayer() const {
 				float blockDist =
 					Length((block.aabb.max + block.aabb.min) / 2.0f - ray.origin);
 
-				if (blockDist < playerDist) {
+				if (blockDist < targetDist) {
 					return false; // 壁に遮られている
 				}
 			}

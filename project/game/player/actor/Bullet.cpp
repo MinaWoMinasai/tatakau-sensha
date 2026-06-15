@@ -14,7 +14,7 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 	if (owner_ == kPlayer) {
 		object_->SetModel("bullet.obj");
 		SetCollisionAttribute(kCollisionAttributePlayerBullet);
-		SetCollisionMask(kCollisionAttributeEnemy);
+		SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeExpEnemy);
 		if (isReflectable_) {
 			object_->SetColor(Vector4(1.0f, 1.0f, 0.0f, 1.0f));
 		} else {
@@ -24,7 +24,7 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 		object_->SetModel("bullet.obj");
 		object_->SetColor(Vector4(1.0f, 0.22f, 0.38f, 1.0f));
 		SetCollisionAttribute(kCollisionAttributeEnemyBullet);
-		SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerDrone);
+		SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerDrone | kCollisionAttributeExpEnemy);
 	}
 
 	worldTransform_ = InitWorldTransform();

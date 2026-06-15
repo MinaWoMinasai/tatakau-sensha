@@ -32,6 +32,8 @@ public:
     void AddLevelSpawnArea(const SpawnArea& spawnArea);
     void ClearLevelData();
     void SetDefaultRandomSpawnEnabled(bool enabled) { defaultRandomSpawnEnabled_ = enabled; }
+    void SetExpEnemyHostileToBoss(bool hostile);
+    ExpEnemy* FindNearestEnemy(const Vector3& position, float maxDistance) const;
 
     // 衝突判定のためにリストを公開
     std::vector<ExpEnemy*> GetEnemyPtrs() const;

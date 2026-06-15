@@ -1,237 +1,412 @@
 {
-  "toolName": "Level AI-ditor",
-  "editorMode": "ArenaBattle",
-  "levelName": "test_stage",
   "balance": {
-    "defaultRandomSpawnEnabled": true,
-    "player": {
-      "maxHp": 1000,
-      "maxHpUpgradeAmount": 80,
-      "bodyDamage": 3,
-      "healToFull": false
+    "bossAttackDefault": {
+      "bulletCount": 2,
+      "bulletSpeed": 0.4000000059604645,
+      "cooldown": 0.15000000596046448,
+      "damage": 12,
+      "pattern": 0,
+      "randomSpread": true,
+      "spreadAngleDeg": 30.0
     },
     "damage": {
-      "damageBlock": 90,
       "bossContact": 45,
+      "damageBlock": 90,
       "expEnemyContact": 15,
-      "shooterContact": 25,
-      "shooterBullet": 18
+      "shooterBullet": 18,
+      "shooterContact": 25
     },
-    "bossAttackDefault": {
-      "bulletSpeed": 0.4,
-      "bulletCount": 2,
-      "spreadAngleDeg": 30.0,
-      "cooldown": 0.15,
-      "damage": 12,
-      "randomSpread": true
+    "defaultRandomSpawnEnabled": true,
+    "enemySystem": {
+      "bossDamageGainPerLevel": 2,
+      "bossExpEnemyDamage": 12,
+      "bossHealOnExpEnemyKill": 30,
+      "bossKillsPerLevel": 3,
+      "bossLevelingEnterDistance": 24.0,
+      "bossLevelingExitDistance": 16.0,
+      "bossLevelingModeEnabled": true,
+      "bossLevelingSearchRadius": 80.0,
+      "bossAimTurnHalfSeconds": 1.0,
+      "bossMaxHpGainPerLevel": 20,
+      "expEnemyHostileToBoss": true
     },
-    "notes": "trueなら従来のランダムEXP敵スポーンも残す。falseならspawnAreas中心の調整にできる。"
+    "notes": "trueなら従来のランダムEXP敵スポーンも残す。falseならspawnAreas中心の調整にできる。",
+    "player": {
+      "bodyDamage": 3,
+      "healToFull": true,
+      "maxHp": 10000,
+      "maxHpUpgradeAmount": 80
+    }
   },
+  "bossPhases": [
+    {
+      "customProperties": {
+        "aiNote": "初心者向けなので弾を撃つ敵は少数だけ追加する",
+        "bossAttack": {
+          "bulletCount": 3,
+          "bulletSpeed": 0.42,
+          "cooldown": 0.22,
+          "damage": 10,
+          "randomSpread": true,
+          "spreadAngleDeg": 35.0
+        },
+        "effectPreset": {
+          "cameraShakePower": 0.25,
+          "enemyBloomIntensity": 1.35,
+          "gridBloomIntensity": 1.8,
+          "gridColor": {
+            "w": 0.2,
+            "x": 0.2,
+            "y": 0.55,
+            "z": 1.0
+          }
+        }
+      },
+      "message": "HP75%以下で追加EXP敵の湧きエリアを出す",
+      "name": "phase_75_add_exp_pressure",
+      "objects": [
+        {
+          "customProperties": {
+            "hp": 14,
+            "maxAlive": 2,
+            "spawnInterval": 6.0
+          },
+          "name": "SpawnArea_Shooter_Phase75",
+          "position": {
+            "x": 24.0,
+            "y": 34.0,
+            "z": 0.0
+          },
+          "prefab": "Shooter",
+          "rotation": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "scale": {
+            "x": 8.0,
+            "y": 8.0,
+            "z": 1.0
+          },
+          "type": "SpawnArea"
+        }
+      ],
+      "startHpRate": 0.75
+    },
+    {
+      "customProperties": {
+        "aiNote": "避け道を塞ぎすぎないこと",
+        "bossAttack": {
+          "bulletCount": 5,
+          "bulletSpeed": 0.46,
+          "cooldown": 0.18,
+          "damage": 10,
+          "randomSpread": true,
+          "spreadAngleDeg": 48.0
+        },
+        "effectPreset": {
+          "bossOutlineColor": {
+            "x": 1.0,
+            "y": 0.1,
+            "z": 0.18
+          },
+          "cameraShakePower": 0.45,
+          "enemyBloomIntensity": 1.55,
+          "enemyGridColor": {
+            "w": 1.0,
+            "x": 1.0,
+            "y": 0.12,
+            "z": 0.18
+          },
+          "gridBloomIntensity": 2.2,
+          "gridColor": {
+            "w": 0.24,
+            "x": 1.0,
+            "y": 0.18,
+            "z": 0.34
+          }
+        }
+      },
+      "message": "HP50%以下でダメージブロックを追加する",
+      "name": "phase_50_add_hazard",
+      "objects": [
+        {
+          "customProperties": {
+            "intent": "中央下側に軽い危険地帯を追加する"
+          },
+          "name": "Obstacle_DamageBlock_Phase50_001",
+          "position": {
+            "x": 28.0,
+            "y": 24.0,
+            "z": 0.0
+          },
+          "prefab": "DamageBlock",
+          "rotation": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "type": "Obstacle"
+        }
+      ],
+      "startHpRate": 0.5
+    },
+    {
+      "customProperties": {
+        "aiNote": "ラストフェーズなので派手にするが、Shooterは増やしすぎない",
+        "bossAttack": {
+          "bulletCount": 6,
+          "bulletSpeed": 0.5,
+          "cooldown": 0.16,
+          "damage": 10,
+          "randomSpread": true,
+          "spreadAngleDeg": 60.0
+        },
+        "effectPreset": {
+          "bossOutlineColor": {
+            "x": 1.0,
+            "y": 0.35,
+            "z": 0.05
+          },
+          "cameraShakePower": 0.65,
+          "enemyBloomIntensity": 1.8,
+          "enemyGridColor": {
+            "w": 1.0,
+            "x": 1.0,
+            "y": 0.25,
+            "z": 0.08
+          },
+          "gridBloomIntensity": 2.6,
+          "gridColor": {
+            "w": 0.26,
+            "x": 1.0,
+            "y": 0.45,
+            "z": 0.1
+          }
+        }
+      },
+      "message": "HP25%以下でラストスパート演出と高EXP敵を追加する",
+      "name": "phase_25_final_pressure",
+      "objects": [
+        {
+          "customProperties": {
+            "hp": 24,
+            "intent": "終盤に高EXP対象を少数だけ追加して、攻める理由を作る",
+            "maxAlive": 2,
+            "spawnInterval": 7.0
+          },
+          "name": "SpawnArea_Pentagon_Phase25",
+          "position": {
+            "x": 38.0,
+            "y": 22.0,
+            "z": 0.0
+          },
+          "prefab": "Pentagon",
+          "rotation": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "scale": {
+            "x": 10.0,
+            "y": 8.0,
+            "z": 1.0
+          },
+          "type": "SpawnArea"
+        },
+        {
+          "customProperties": {
+            "intent": "中央に近いが通路を塞ぎきらない危険ブロック"
+          },
+          "name": "Obstacle_DamageBlock_Phase25_001",
+          "position": {
+            "x": 32.0,
+            "y": 28.0,
+            "z": 0.0
+          },
+          "prefab": "DamageBlock",
+          "rotation": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "type": "Obstacle"
+        }
+      ],
+      "startHpRate": 0.25
+    }
+  ],
+  "editorMode": "ArenaBattle",
+  "levelName": "test_stage",
   "objects": [
     {
+      "customProperties": {},
       "name": "PlayerSpawn_001",
-      "type": "PlayerSpawn",
+      "position": {
+        "x": 30.0,
+        "y": 30.0,
+        "z": 0.0
+      },
       "prefab": "Default",
-      "position": { "x": 30.0, "y": 30.0, "z": 0.0 },
-      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
-      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
-      "customProperties": {}
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "type": "PlayerSpawn"
     },
     {
+      "customProperties": {},
       "name": "BossSpawn_001",
-      "type": "BossSpawn",
+      "position": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 0.0
+      },
       "prefab": "Default",
-      "position": { "x": 20.0, "y": 20.0, "z": 0.0 },
-      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
-      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
-      "customProperties": {}
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "type": "BossSpawn"
     },
     {
-      "name": "Enemy_Basic_001",
-      "type": "Enemy",
-      "prefab": "Basic",
-      "position": { "x": 42.0, "y": 30.0, "z": 0.0 },
-      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
-      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
       "customProperties": {
         "hp": 30,
         "movePattern": "Straight"
-      }
-    },
-    {
-      "name": "SpawnArea_Basic_North",
-      "type": "SpawnArea",
+      },
+      "name": "Enemy_Basic_001",
+      "position": {
+        "x": 42.0,
+        "y": 30.0,
+        "z": 0.0
+      },
       "prefab": "Basic",
-      "position": { "x": 34.0, "y": 38.0, "z": 0.0 },
-      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
-      "scale": { "x": 14.0, "y": 8.0, "z": 1.0 },
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "type": "Enemy"
+    },
+    {
       "customProperties": {
-        "spawnInterval": 2.5,
+        "hp": 8,
         "maxAlive": 6,
-        "hp": 8
-      }
+        "spawnInterval": 2.5
+      },
+      "name": "SpawnArea_Basic_North",
+      "position": {
+        "x": 34.0,
+        "y": 38.0,
+        "z": 0.0
+      },
+      "prefab": "Basic",
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 14.0,
+        "y": 8.0,
+        "z": 1.0
+      },
+      "type": "SpawnArea"
     },
     {
+      "customProperties": {},
       "name": "Obstacle_Wall_001",
-      "type": "Obstacle",
+      "position": {
+        "x": 36.0,
+        "y": 24.0,
+        "z": 0.0
+      },
       "prefab": "Wall",
-      "position": { "x": 36.0, "y": 24.0, "z": 0.0 },
-      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
-      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
-      "customProperties": {}
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "type": "Obstacle"
     },
     {
-      "name": "Item_Heal_001",
-      "type": "Item",
-      "prefab": "Heal",
-      "position": { "x": 34.0, "y": 32.0, "z": 0.0 },
-      "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
-      "scale": { "x": 0.8, "y": 0.8, "z": 0.8 },
       "customProperties": {
         "healAmount": 1
-      }
+      },
+      "name": "Item_Heal_001",
+      "position": {
+        "x": 34.0,
+        "y": 32.0,
+        "z": 0.0
+      },
+      "prefab": "Heal",
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "type": "Item"
     }
   ],
   "spawnAreas": [
     {
-      "name": "SpawnArea_Triangle_East",
-      "prefab": "Triangle",
-      "center": { "x": 48.0, "y": 28.0, "z": 0.0 },
-      "size": { "x": 10.0, "y": 12.0, "z": 1.0 },
-      "spawnInterval": 4.0,
-      "maxAlive": 4,
-      "hp": 12,
-      "enabled": true,
+      "center": {
+        "x": 48.0,
+        "y": 28.0,
+        "z": 0.0
+      },
       "customProperties": {
         "intent": "ボス右側の回避ルートに少し圧をかける"
-      }
+      },
+      "enabled": true,
+      "hp": 12,
+      "maxAlive": 4,
+      "name": "SpawnArea_Triangle_East",
+      "prefab": "Triangle",
+      "size": {
+        "x": 10.0,
+        "y": 12.0,
+        "z": 1.0
+      },
+      "spawnInterval": 4.0
     }
   ],
-  "bossPhases": [
-    {
-      "name": "phase_75_add_exp_pressure",
-      "startHpRate": 0.75,
-      "message": "HP75%以下で追加EXP敵の湧きエリアを出す",
-      "objects": [
-        {
-          "name": "SpawnArea_Shooter_Phase75",
-          "type": "SpawnArea",
-          "prefab": "Shooter",
-          "position": { "x": 24.0, "y": 34.0, "z": 0.0 },
-          "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
-          "scale": { "x": 8.0, "y": 8.0, "z": 1.0 },
-          "customProperties": {
-            "spawnInterval": 6.0,
-            "maxAlive": 2,
-            "hp": 14
-          }
-        }
-      ],
-      "customProperties": {
-        "aiNote": "初心者向けなので弾を撃つ敵は少数だけ追加する",
-        "bossAttack": {
-          "bulletSpeed": 0.42,
-          "bulletCount": 3,
-          "spreadAngleDeg": 35.0,
-          "cooldown": 0.22,
-          "damage": 10,
-          "randomSpread": true
-        },
-        "effectPreset": {
-          "gridBloomIntensity": 1.8,
-          "enemyBloomIntensity": 1.35,
-          "cameraShakePower": 0.25,
-          "gridColor": { "x": 0.2, "y": 0.55, "z": 1.0, "w": 0.20 }
-        }
-      }
-    },
-    {
-      "name": "phase_50_add_hazard",
-      "startHpRate": 0.5,
-      "message": "HP50%以下でダメージブロックを追加する",
-      "objects": [
-        {
-          "name": "Obstacle_DamageBlock_Phase50_001",
-          "type": "Obstacle",
-          "prefab": "DamageBlock",
-          "position": { "x": 28.0, "y": 24.0, "z": 0.0 },
-          "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
-          "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
-          "customProperties": {
-            "intent": "中央下側に軽い危険地帯を追加する"
-          }
-        }
-      ],
-      "customProperties": {
-        "aiNote": "避け道を塞ぎすぎないこと",
-        "bossAttack": {
-          "bulletSpeed": 0.46,
-          "bulletCount": 5,
-          "spreadAngleDeg": 48.0,
-          "cooldown": 0.18,
-          "damage": 10,
-          "randomSpread": true
-        },
-        "effectPreset": {
-          "gridBloomIntensity": 2.2,
-          "enemyBloomIntensity": 1.55,
-          "cameraShakePower": 0.45,
-          "gridColor": { "x": 1.0, "y": 0.18, "z": 0.34, "w": 0.24 },
-          "enemyGridColor": { "x": 1.0, "y": 0.12, "z": 0.18, "w": 1.0 },
-          "bossOutlineColor": { "x": 1.0, "y": 0.1, "z": 0.18 }
-        }
-      }
-    },
-    {
-      "name": "phase_25_final_pressure",
-      "startHpRate": 0.25,
-      "message": "HP25%以下でラストスパート演出と高EXP敵を追加する",
-      "objects": [
-        {
-          "name": "SpawnArea_Pentagon_Phase25",
-          "type": "SpawnArea",
-          "prefab": "Pentagon",
-          "position": { "x": 38.0, "y": 22.0, "z": 0.0 },
-          "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
-          "scale": { "x": 10.0, "y": 8.0, "z": 1.0 },
-          "customProperties": {
-            "spawnInterval": 7.0,
-            "maxAlive": 2,
-            "hp": 24,
-            "intent": "終盤に高EXP対象を少数だけ追加して、攻める理由を作る"
-          }
-        },
-        {
-          "name": "Obstacle_DamageBlock_Phase25_001",
-          "type": "Obstacle",
-          "prefab": "DamageBlock",
-          "position": { "x": 32.0, "y": 28.0, "z": 0.0 },
-          "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
-          "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
-          "customProperties": {
-            "intent": "中央に近いが通路を塞ぎきらない危険ブロック"
-          }
-        }
-      ],
-      "customProperties": {
-        "aiNote": "ラストフェーズなので派手にするが、Shooterは増やしすぎない",
-        "bossAttack": {
-          "bulletSpeed": 0.5,
-          "bulletCount": 6,
-          "spreadAngleDeg": 60.0,
-          "cooldown": 0.16,
-          "damage": 10,
-          "randomSpread": true
-        },
-        "effectPreset": {
-          "gridBloomIntensity": 2.6,
-          "enemyBloomIntensity": 1.8,
-          "cameraShakePower": 0.65,
-          "gridColor": { "x": 1.0, "y": 0.45, "z": 0.1, "w": 0.26 },
-          "enemyGridColor": { "x": 1.0, "y": 0.25, "z": 0.08, "w": 1.0 },
-          "bossOutlineColor": { "x": 1.0, "y": 0.35, "z": 0.05 }
-        }
-      }
-    }
-  ]
+  "toolName": "Level AI-ditor"
 }

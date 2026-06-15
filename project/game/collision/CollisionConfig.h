@@ -11,3 +11,5 @@ const uint32_t kCollisionAttributeEnemyBullet = 1 << 2;
 const uint32_t kCollisionAttributePlayerBullet = 1 << 3;
 // プレイヤードローン陣営
 const uint32_t kCollisionAttributePlayerDrone = 1 << 4;
+// 経験値敵・中立オブジェクト寄りの敵陣営
+const uint32_t kCollisionAttributeExpEnemy = 1 << 5;

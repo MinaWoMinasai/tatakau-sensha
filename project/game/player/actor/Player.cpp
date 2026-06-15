@@ -431,7 +431,7 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	// 衝突属性を設定
 	SetCollisionAttribute(kCollisionAttributePlayer);
 	// 衝突対象を自分の属性以外に設定
-	SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeEnemyBullet);
+	SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeExpEnemy | kCollisionAttributeEnemyBullet);
 	SetDamage(static_cast<uint32_t>(stats_.bodyDamage));
 
 	level_ = 1;
@@ -766,6 +766,7 @@ void Player::OnCollision(Collider* other) {
 	}
 
 	if (other->GetCollisionAttribute() == kCollisionAttributeEnemy ||
+		other->GetCollisionAttribute() == kCollisionAttributeExpEnemy ||
 		other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
 		TakeDamage(other->GetDamage(), 0.45f);
 	}
@@ -853,7 +854,7 @@ bool Player::isFinished()
 int Player::GetNextLevelExp() const
 {
 	// 簡易的な計算式（必要に応じて調整）
-	return level_ * 20 + 20;
+	return level_ * 10 + 20;
 }
 
 void Player::Evolve(ClassType newClass)

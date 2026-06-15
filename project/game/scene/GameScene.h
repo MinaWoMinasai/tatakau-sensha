@@ -113,6 +113,18 @@ private:
 		float bossCooldown = 0.15f;
 		int bossBulletDamage = 12;
 		bool bossRandomSpread = true;
+		int bossAttackPattern = 0;
+		bool expEnemyHostileToBoss = false;
+		int bossExpEnemyDamage = 12;
+		int bossHealOnExpEnemyKill = 30;
+		int bossKillsPerLevel = 3;
+		int bossMaxHpGainPerLevel = 20;
+		int bossDamageGainPerLevel = 2;
+		bool bossLevelingModeEnabled = true;
+		float bossLevelingEnterDistance = 24.0f;
+		float bossLevelingExitDistance = 16.0f;
+		float bossLevelingSearchRadius = 80.0f;
+		float bossAimTurnHalfSeconds = 1.0f;
 		std::string statusMessage;
 	};
 
@@ -141,7 +153,9 @@ private:
 	void ClearAppliedLevelData();
 	void ApplyLevelData(const LevelData& levelData);
 	void ApplyLevelBalance(const nlohmann::json& balanceJson);
-	void DrawLevelAIDitorBalanceLab();
+	void DrawGameSceneDebugImGui();
+	void DrawPostEffectParamControls(const char* labelPrefix, BloomParam& param);
+	void DrawLevelAIDitorBalanceLab(bool embedded = false);
 	void LoadBalanceEditorFromJson(const nlohmann::json& balanceJson);
 	nlohmann::json BuildBalanceJsonFromEditor() const;
 	bool SaveBalanceEditorToLevelFile(const std::string& filePath);
@@ -295,6 +309,9 @@ private:
 	float cameraShakePower_ = 0.0f;
 	bool showCollisionDebug_ = false;
 	bool showCollisionDebugBullets_ = true;
+	bool showGameDebugConsole_ = true;
+	bool showParticleEditor_ = false;
+	bool showPlayerClassEditor_ = false;
 	bool showNeonGrid_ = true;
 	bool showActorLocalGrid_ = true;
 	bool showLevelAIDitorPreview_ = true;

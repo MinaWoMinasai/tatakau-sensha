@@ -144,6 +144,35 @@ void EnemyManager::ClearLevelData()
     spawnTimer_ = 0.0f;
 }
 
+void EnemyManager::SetExpEnemyHostileToBoss(bool hostile)
+{
+    ExpEnemy::EnemyInteractionConfig config{};
+    config.hostileToBoss = hostile;
+    ExpEnemy::SetEnemyInteractionConfig(config);
+    for (auto& enemy : enemies_) {
+        if (enemy) {
+            enemy->RefreshCollisionMask();
+        }
+    }
+}
+
+ExpEnemy* EnemyManager::FindNearestEnemy(const Vector3& position, float maxDistance) const
+{
+    ExpEnemy* nearest = nullptr;
+    float bestDistance = maxDistance;
+    for (const auto& enemy : enemies_) {
+        if (!enemy || enemy->IsDead()) {
+            continue;
+        }
+        const float distance = Length(enemy->GetWorldPosition() - position);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            nearest = enemy.get();
+        }
+    }
+    return nearest;
+}
+
 void EnemyManager::UpdateLevelSpawnAreas(Stage& stage, float deltaTime)
 {
     for (SpawnArea& area : spawnAreas_) {

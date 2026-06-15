@@ -19,12 +19,18 @@ Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
 }
 
 ExpEnemy::BalanceConfig ExpEnemy::balanceConfig_{};
+ExpEnemy::EnemyInteractionConfig ExpEnemy::enemyInteractionConfig_{};
 
 void ExpEnemy::SetBalanceConfig(const BalanceConfig& config)
 {
     balanceConfig_.contactDamage = (std::max)(1u, config.contactDamage);
     balanceConfig_.shooterContactDamage = (std::max)(1u, config.shooterContactDamage);
     balanceConfig_.shooterBulletDamage = (std::max)(1u, config.shooterBulletDamage);
+}
+
+void ExpEnemy::SetEnemyInteractionConfig(const EnemyInteractionConfig& config)
+{
+    enemyInteractionConfig_ = config;
 }
 
 void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType type)
@@ -41,15 +47,23 @@ void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType 
     ApplyTypeParams();
 
     // 衝突属性を設定
-    SetCollisionAttribute(kCollisionAttributeEnemy);
-    // 衝突対象をプレイヤーとプレイヤーの弾に設定
-    SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerBullet | kCollisionAttributePlayerDrone);
+    SetCollisionAttribute(kCollisionAttributeExpEnemy);
+    RefreshCollisionMask();
 
     player_ = player;
 
     object_->SetTransform(worldTransform_);
     object_->Update();
 
+}
+
+void ExpEnemy::RefreshCollisionMask()
+{
+    uint32_t mask = kCollisionAttributePlayer | kCollisionAttributePlayerBullet | kCollisionAttributePlayerDrone;
+    if (enemyInteractionConfig_.hostileToBoss) {
+        mask |= kCollisionAttributeEnemy;
+    }
+    SetCollisionMask(mask);
 }
 
 void ExpEnemy::ApplyTypeParams()
@@ -172,12 +186,28 @@ void ExpEnemy::OnCollision(Collider* other)
     Vector3 hitDir =
         worldTransform_.translate - other->GetWorldPosition();
 
+    if (Length(hitDir) < 0.0001f) {
+        hitDir = { 1.0f, 0.0f, 0.0f };
+    }
     hitDir = Normalize(hitDir);
 
     const float kKnockBackPower = 0.05f;
 
     velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
     
+    if (other->GetCollisionAttribute() == kCollisionAttributeEnemy) {
+        return;
+    }
+
+    const bool canTakeDamage =
+        other->GetCollisionAttribute() == kCollisionAttributePlayer ||
+        other->GetCollisionAttribute() == kCollisionAttributePlayerBullet ||
+        other->GetCollisionAttribute() == kCollisionAttributePlayerDrone ||
+        (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet && IsHostileToBoss());
+    if (!canTakeDamage) {
+        return;
+    }
+
     if (other->GetCollisionAttribute() == kCollisionAttributePlayer && invincibleTimer_ > 0.0f) {
         return;
     }
@@ -194,6 +224,23 @@ void ExpEnemy::OnCollision(Collider* other)
     if (other->GetCollisionAttribute() == kCollisionAttributePlayer) {
         invincibleTimer_ = 0.5f;
     }
+}
+
+bool ExpEnemy::TakeDamageFromEnemy(uint32_t amount)
+{
+    if (isDead_ || amount == 0) {
+        return false;
+    }
+
+    hp_ -= static_cast<int>(amount);
+    TriggerDamageFeedback();
+    if (hp_ <= 0) {
+        isDead_ = true;
+        ParticleManager::GetInstance()->Emit("EnemyDeathBurst", GetWorldPosition(), 18);
+        ParticleManager::GetInstance()->Emit("DeathSmoke", GetWorldPosition(), 5);
+        return true;
+    }
+    return false;
 }
 
 void ExpEnemy::TriggerDamageFeedback()
