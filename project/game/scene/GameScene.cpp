@@ -15,6 +15,9 @@ Vector4 GetCollisionDebugColor(uint32_t attribute) {
 	if (attribute & kCollisionAttributePlayerDrone) {
 		return { 0.25f, 0.75f, 1.0f, 0.85f };
 	}
+	if (attribute & kCollisionAttributeExpEnemy) {
+		return { 1.0f, 0.72f, 0.15f, 0.85f };
+	}
 	if (attribute & kCollisionAttributeEnemy) {
 		return { 1.0f, 0.18f, 0.35f, 0.85f };
 	}
@@ -383,6 +386,7 @@ void GameScene::Initialize() {
 	// 経験値敵マネージャの生成
 	enemyManager_ = std::make_unique<EnemyManager>();
 	enemyManager_->Initialize(player_.get(), bulletManager_.get());
+	enemy_->SetEnemyManager(enemyManager_.get());
 	if (hasLevelData) {
 		ApplyLevelData(levelData);
 	}
@@ -504,210 +508,10 @@ void GameScene::Update() {
 
 #ifdef USE_IMGUI
 
-	ImGui::Begin("FPS");
-	ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
-	ImGui::Text("deltaTime: %.8f", finalDeltaTime * 60.0f);
-	ImGui::Text("Exp Enemies: %zu", enemyManager_ ? enemyManager_->GetEnemyCount() : 0);
-	ImGui::Text("Trail Instances: %zu", bulletManager_ ? bulletManager_->GetTrailInstanceCount() : 0);
-	ImGui::End();
-
-	ImGui::Begin("Post Effect Toggles");
-	if (ImGui::Button("Enable All Posts")) {
-		enableNeonGridPostEffect_ = true;
-		enableStagePostEffect_ = true;
-		enableBulletTrailPostEffect_ = true;
-		enablePlayerPostEffect_ = true;
-		enableEnemyPostEffect_ = true;
-		enableExpEnemyPostEffect_ = true;
+	DrawGameSceneDebugImGui();
+	if (showPlayerClassEditor_) {
+		player_->DrawPlayerClassEditor();
 	}
-	ImGui::SameLine();
-	if (ImGui::Button("Disable All Posts")) {
-		enableNeonGridPostEffect_ = false;
-		enableStagePostEffect_ = false;
-		enableBulletTrailPostEffect_ = false;
-		enablePlayerPostEffect_ = false;
-		enableEnemyPostEffect_ = false;
-		enableExpEnemyPostEffect_ = false;
-	}
-	ImGui::Checkbox("Grid Post", &enableNeonGridPostEffect_);
-	ImGui::Checkbox("Stage Post", &enableStagePostEffect_);
-	ImGui::Checkbox("Bullet Trail Post", &enableBulletTrailPostEffect_);
-	ImGui::Checkbox("Player Post", &enablePlayerPostEffect_);
-	ImGui::Checkbox("Boss Enemy Post", &enableEnemyPostEffect_);
-	ImGui::Checkbox("Exp Enemy Post", &enableExpEnemyPostEffect_);
-	ImGui::End();
-	
-	ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiCond_FirstUseEver);
-
-	ImGui::Begin("Sprite");
-	ImGui::SliderFloat2("position", &shotGide->GetPosition().x, 0.0f, 3000.0f, "%.1f");
-	ImGui::End();
-
-	ImGui::Begin("ballScale");
-	ImGui::DragFloat3("scale", &ball_->GetScale().x);
-	ImGui::End();
-
-	ImGui::Begin("Color");
-	ImGui::DragFloat3("scale", &ball_->GetScale().x);
-	ImGui::ColorEdit4("color", &ball_->GetColor().x);
-	ImGui::End();
-
-	ImGui::Begin("Player Object Post");
-	ImGui::Checkbox("Enable Player Post", &enablePlayerPostEffect_);
-	BloomParam& playerPost = playerPostEffect_->GetParam();
-	ImGui::DragFloat("Player Intensity", &playerPost.intensity, 0.01f, 0.0f, 5.0f);
-	ImGui::DragFloat("Player Distortion", &playerPost.distortionAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Player ChromAb", &playerPost.chromAbAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Player Glitch", &playerPost.glitchAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Player Dissolve", &playerPost.dissolveThreshold, 0.01f, 0.0f, 1.0f);
-	ImGui::DragFloat("Player Outline Width", &playerPost.outlineWidth, 0.1f, 0.0f, 10.0f);
-	ImGui::DragFloat("Player Outline Threshold", &playerPost.outlineThreshold, 0.01f, 0.0f, 1.0f);
-	ImGui::ColorEdit3("Player Outline Color", &playerPost.outlineColor.x);
-	ImGui::DragFloat("Player Outline Bloom Intensity", &playerPost.outlineBloomIntensity, 0.01f, 0.0f, 5.0f);
-	ImGui::DragFloat("Player Outline Bloom Width", &playerPost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
-	ImGui::End();
-
-	ImGui::Begin("Slow Motion Post");
-	ImGui::Text("Slow Active: %s", slowMotionPostActive_ ? "true" : "false");
-	ImGui::Checkbox("Keep Player Color During Slow", &keepPlayerColorDuringSlow_);
-	ImGui::DragFloat("Slow Player ChromAb", &slowPlayerChromAbAmount_, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Slow Player Distortion", &slowPlayerDistortionAmount_, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Slow Player Glitch", &slowPlayerGlitchAmount_, 0.001f, 0.0f, 0.2f);
-	ImGui::End();
-
-	ImGui::Begin("Enemy Object Post");
-	ImGui::Checkbox("Enable Enemy Post", &enableEnemyPostEffect_);
-	BloomParam& enemyPost = enemyPostEffect_->GetParam();
-	ImGui::DragFloat("Enemy Intensity", &enemyPost.intensity, 0.01f, 0.0f, 5.0f);
-	ImGui::DragFloat("Enemy Distortion", &enemyPost.distortionAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Enemy ChromAb", &enemyPost.chromAbAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Enemy Glitch", &enemyPost.glitchAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Enemy Dissolve", &enemyPost.dissolveThreshold, 0.01f, 0.0f, 1.0f);
-	ImGui::DragFloat("Enemy Outline Width", &enemyPost.outlineWidth, 0.1f, 0.0f, 10.0f);
-	ImGui::DragFloat("Enemy Outline Threshold", &enemyPost.outlineThreshold, 0.01f, 0.0f, 1.0f);
-	ImGui::ColorEdit3("Enemy Outline Color", &enemyPost.outlineColor.x);
-	ImGui::DragFloat("Enemy Outline Bloom Intensity", &enemyPost.outlineBloomIntensity, 0.01f, 0.0f, 5.0f);
-	ImGui::DragFloat("Enemy Outline Bloom Width", &enemyPost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
-	ImGui::End();
-
-	ImGui::Begin("Exp Enemy Object Post");
-	ImGui::Checkbox("Enable Exp Enemy Post", &enableExpEnemyPostEffect_);
-	BloomParam& expEnemyPost = expEnemyPostEffect_->GetParam();
-	ImGui::DragFloat("Exp Enemy Intensity", &expEnemyPost.intensity, 0.01f, 0.0f, 5.0f);
-	ImGui::DragFloat("Exp Enemy Distortion", &expEnemyPost.distortionAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Exp Enemy ChromAb", &expEnemyPost.chromAbAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Exp Enemy Glitch", &expEnemyPost.glitchAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Exp Enemy Dissolve", &expEnemyPost.dissolveThreshold, 0.01f, 0.0f, 1.0f);
-	ImGui::DragFloat("Exp Enemy Outline Width", &expEnemyPost.outlineWidth, 0.1f, 0.0f, 100.0f);
-	ImGui::DragFloat("Exp Enemy Outline Threshold", &expEnemyPost.outlineThreshold, 0.01f, 0.0f, 1.0f);
-	ImGui::ColorEdit3("Exp Enemy Outline Color", &expEnemyPost.outlineColor.x);
-	ImGui::DragFloat("Exp Enemy Outline Bloom Intensity", &expEnemyPost.outlineBloomIntensity, 0.01f, 0.0f, 5.0f);
-	ImGui::DragFloat("Exp Enemy Outline Bloom Width", &expEnemyPost.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
-	ImGui::DragFloat("Exp Enemy Post Cull Half Width", &expEnemyPostVisibleHalfWidth_, 0.5f, 10.0f, 80.0f);
-	ImGui::DragFloat("Exp Enemy Post Cull Half Height", &expEnemyPostVisibleHalfHeight_, 0.5f, 10.0f, 60.0f);
-	ImGui::End();
-
-	ImGui::Begin("Stage Object Post");
-	ImGui::Checkbox("Enable Stage Post", &enableStagePostEffect_);
-	BloomParam& stagePost = stagePostEffect_->GetParam();
-	ImGui::DragFloat("Stage Intensity", &stagePost.intensity, 0.01f, 0.0f, 5.0f);
-	ImGui::DragFloat("Stage Distortion", &stagePost.distortionAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Stage ChromAb", &stagePost.chromAbAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Stage Glitch", &stagePost.glitchAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::Text("Stage uses bloom-only add pass for performance.");
-	ImGui::End();
-
-	ImGui::Begin("RPG Progress");
-	ImGui::Text("Level: %d", player_->GetLevel());
-	ImGui::Text("Exp: %d / %d", player_->GetExp(), player_->GetNextLevelExpValue());
-	ImGui::Text("Skill Points: %d", player_->GetSkillPoints());
-	ImGui::Text("Class: %s", player_->GetCurrentClassName());
-	ImGui::Separator();
-	ImGui::Text("1 Health Regen  Lv.%d", player_->GetUpgradeLevel(0));
-	ImGui::Text("2 Max Health    Lv.%d", player_->GetUpgradeLevel(1));
-	ImGui::Text("3 Body Damage   Lv.%d", player_->GetUpgradeLevel(2));
-	ImGui::Text("4 Bullet Speed  Lv.%d", player_->GetUpgradeLevel(3));
-	ImGui::Text("5 Bullet Damage Lv.%d", player_->GetUpgradeLevel(4));
-	ImGui::Text("6 Reload        Lv.%d", player_->GetUpgradeLevel(5));
-	ImGui::Text("7 Move Speed    Lv.%d", player_->GetUpgradeLevel(6));
-	ImGui::Text("Press C to open evolution cards.");
-	ImGui::Separator();
-	ImGui::Text("Debug Exp: F5 +next level, F6 +200");
-	if (ImGui::Button("+ Next Level Exp")) {
-		player_->AddExp(player_->GetNextLevelExpValue());
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("+200 Exp")) {
-		player_->AddExp(200);
-	}
-	ImGui::End();
-
-	DrawLevelAIDitorBalanceLab();
-
-	player_->DrawPlayerClassEditor();
-
-	ImGui::Begin("Collision Debug");
-	ImGui::Checkbox("Show Colliders (F7)", &showCollisionDebug_);
-	ImGui::Checkbox("Show Bullet Colliders", &showCollisionDebugBullets_);
-	ImGui::Text("Player/Drone: cyan, Enemy: red, Bullets: yellow/orange");
-	ImGui::End();
-
-	ImGui::Begin("World HP Bars");
-	ImGui::Checkbox("Show Follow HP Bars", &showFollowHpBars_);
-	ImGui::Text("White outline / black missing HP / green HP");
-	ImGui::End();
-
-	ImGui::Begin("Neon Grid");
-	ImGui::Checkbox("Show World Grid", &showNeonGrid_);
-	ImGui::Checkbox("Show Actor Local Grid", &showActorLocalGrid_);
-	ImGui::Checkbox("Enable Grid Post", &enableNeonGridPostEffect_);
-	ImGui::DragFloat("World Spacing", &worldGridSpacing_, 0.05f, 0.25f, 8.0f);
-	ImGui::DragFloat("World Line Width", &worldGridLineWidth_, 0.005f, 0.005f, 0.5f);
-	ImGui::ColorEdit4("World Color", &worldGridColor_.x);
-	ImGui::DragFloat("Actor Radius", &actorGridRadius_, 0.05f, 0.5f, 16.0f);
-	ImGui::DragFloat("Actor Spacing", &actorGridSpacing_, 0.025f, 0.2f, 3.0f);
-	ImGui::DragFloat("Actor Line Width", &actorGridLineWidth_, 0.005f, 0.005f, 0.5f);
-	ImGui::ColorEdit4("Player Grid", &playerGridColor_.x);
-	ImGui::ColorEdit4("Enemy Grid", &enemyGridColor_.x);
-	ImGui::ColorEdit4("Exp Enemy Grid", &expEnemyGridColor_.x);
-	ImGui::Checkbox("Cull Actor Local Grid", &cullActorLocalGrid_);
-	ImGui::DragInt("Max Exp Enemy Local Grids", &maxExpEnemyLocalGrids_, 1.0f, 0, 60);
-	BloomParam& gridPost = neonGridPostEffect_->GetParam();
-	ImGui::DragFloat("Grid Bloom Intensity", &gridPost.intensity, 0.01f, 0.0f, 6.0f);
-	ImGui::DragFloat("Grid Bloom Threshold", &gridPost.threshold, 0.01f, 0.0f, 2.0f);
-	ImGui::End();
-
-	ImGui::Begin("Bullet Trail");
-	ImGui::Checkbox("Enable Bullet Trail Post", &enableBulletTrailPostEffect_);
-	BulletTrailSettings& bulletTrail = bulletManager_->GetTrailSettings();
-	ImGui::DragFloat("Player Trail Half Width", &bulletTrail.playerHalfWidth, 0.01f, 0.01f, 1.5f);
-	ImGui::DragFloat("Enemy Trail Half Width", &bulletTrail.enemyHalfWidth, 0.01f, 0.01f, 1.5f);
-	ImGui::DragFloat("Trail Lifetime", &bulletTrail.lifetime, 0.01f, 0.02f, 1.5f);
-	ImGui::DragInt("Trail Max Points", &bulletTrail.maxPoints, 1.0f, 2, 80);
-	ImGui::DragInt("Trail Interpolation", &bulletTrail.interpolationSteps, 1.0f, 1, 12);
-	ImGui::DragFloat("Head Width Scale", &bulletTrail.headWidthScale, 0.01f, 0.0f, 4.0f);
-	ImGui::DragFloat("Tail Width Scale", &bulletTrail.tailWidthScale, 0.01f, 0.0f, 4.0f);
-	ImGui::Checkbox("Use Object Color For Trail", &bulletTrail.useObjectColorForTrail);
-	ImGui::ColorEdit4("Player Bullet Color", &bulletTrail.playerObjectColor.x);
-	ImGui::ColorEdit4("Enemy Bullet Color", &bulletTrail.enemyObjectColor.x);
-	ImGui::ColorEdit4("Reflect Bullet Color", &bulletTrail.reflectableObjectColor.x);
-	if (bulletTrail.useObjectColorForTrail) {
-		ImGui::DragFloat("Trail Head Intensity", &bulletTrail.trailHeadIntensity, 0.01f, 0.0f, 5.0f);
-		ImGui::DragFloat("Trail Tail Intensity", &bulletTrail.trailTailIntensity, 0.01f, 0.0f, 5.0f);
-		ImGui::DragFloat("Trail Head Alpha", &bulletTrail.trailHeadAlpha, 0.01f, 0.0f, 1.0f);
-		ImGui::DragFloat("Trail Tail Alpha", &bulletTrail.trailTailAlpha, 0.01f, 0.0f, 1.0f);
-	} else {
-		ImGui::ColorEdit4("Trail Start Color", &bulletTrail.startColor.x);
-		ImGui::ColorEdit4("Player Trail End", &bulletTrail.playerEndColor.x);
-		ImGui::ColorEdit4("Enemy Trail End", &bulletTrail.enemyEndColor.x);
-		ImGui::ColorEdit4("Reflect Trail End", &bulletTrail.reflectableEndColor.x);
-	}
-	ImGui::Text("Trail Instances: %zu", bulletManager_->GetTrailInstanceCount());
-	BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
-	ImGui::DragFloat("Bullet Trail Bloom Intensity", &bulletTrailPost.intensity, 0.01f, 0.0f, 8.0f);
-	ImGui::DragFloat("Bullet Trail Bloom Threshold", &bulletTrailPost.threshold, 0.01f, 0.0f, 2.0f);
-	ImGui::End();
 
 #endif // USE_IMGUI
 
@@ -734,6 +538,9 @@ void GameScene::Update() {
 	}
 	if (input_->IsTrigger(input_->GetKey()[DIK_F11], input_->GetPreKey()[DIK_F11])) {
 		showLevelAIDitorPreview_ = !showLevelAIDitorPreview_;
+	}
+	if (input_->IsTrigger(input_->GetKey()[DIK_F12], input_->GetPreKey()[DIK_F12])) {
+		showGameDebugConsole_ = !showGameDebugConsole_;
 	}
 
 	{
@@ -837,7 +644,9 @@ void GameScene::Update() {
 		}
 	}
 
-	ParticleManager::GetInstance()->DrawImGuiEditor();
+	if (showParticleEditor_) {
+		ParticleManager::GetInstance()->DrawImGuiEditor();
+	}
 
 #endif // USE_IMGUI
 
@@ -1286,7 +1095,35 @@ void GameScene::ApplyLevelBalance(const nlohmann::json& balanceJson)
 		config.cooldown = ReadCustomFloat(attackJson, "cooldown", config.cooldown);
 		config.damage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(attackJson, "damage", static_cast<int>(config.damage))));
 		config.randomSpread = ReadCustomBool(attackJson, "randomSpread", config.randomSpread);
+		config.pattern = static_cast<Enemy::BossAttackConfig::Pattern>((std::clamp)(ReadCustomInt(attackJson, "pattern", static_cast<int>(config.pattern)), 0, 3));
 		enemy_->SetBossAttackConfig(config);
+	}
+
+	if (enemyManager_ || enemy_) {
+		const nlohmann::json emptyEnemySystem = nlohmann::json::object();
+		const nlohmann::json& enemySystemJson =
+			(balanceJson.contains("enemySystem") && balanceJson["enemySystem"].is_object())
+				? balanceJson["enemySystem"]
+				: emptyEnemySystem;
+		const bool hostile = ReadCustomBool(enemySystemJson, "expEnemyHostileToBoss", false);
+		if (enemyManager_) {
+			enemyManager_->SetExpEnemyHostileToBoss(hostile);
+		}
+		if (enemy_) {
+			Enemy::EnemyProgressConfig config = enemy_->GetEnemyProgressConfig();
+			config.expEnemyHostile = hostile;
+			config.expEnemyContactDamage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(enemySystemJson, "bossExpEnemyDamage", static_cast<int>(config.expEnemyContactDamage))));
+			config.healOnExpEnemyKill = ReadCustomInt(enemySystemJson, "bossHealOnExpEnemyKill", config.healOnExpEnemyKill);
+			config.killsPerLevel = ReadCustomInt(enemySystemJson, "bossKillsPerLevel", config.killsPerLevel);
+			config.maxHpGainPerLevel = ReadCustomInt(enemySystemJson, "bossMaxHpGainPerLevel", config.maxHpGainPerLevel);
+			config.damageGainPerLevel = static_cast<uint32_t>((std::max)(0, ReadCustomInt(enemySystemJson, "bossDamageGainPerLevel", static_cast<int>(config.damageGainPerLevel))));
+			config.levelingModeEnabled = ReadCustomBool(enemySystemJson, "bossLevelingModeEnabled", config.levelingModeEnabled);
+			config.levelingEnterPlayerDistance = ReadCustomFloat(enemySystemJson, "bossLevelingEnterDistance", config.levelingEnterPlayerDistance);
+			config.levelingExitPlayerDistance = ReadCustomFloat(enemySystemJson, "bossLevelingExitDistance", config.levelingExitPlayerDistance);
+			config.levelingSearchRadius = ReadCustomFloat(enemySystemJson, "bossLevelingSearchRadius", config.levelingSearchRadius);
+			config.aimTurnHalfSeconds = ReadCustomFloat(enemySystemJson, "bossAimTurnHalfSeconds", config.aimTurnHalfSeconds);
+			enemy_->SetEnemyProgressConfig(config);
+		}
 	}
 }
 
@@ -1320,6 +1157,21 @@ void GameScene::LoadBalanceEditorFromJson(const nlohmann::json& balanceJson)
 		balanceEditor_.bossCooldown = ReadCustomFloat(attackJson, "cooldown", balanceEditor_.bossCooldown);
 		balanceEditor_.bossBulletDamage = ReadCustomInt(attackJson, "damage", balanceEditor_.bossBulletDamage);
 		balanceEditor_.bossRandomSpread = ReadCustomBool(attackJson, "randomSpread", balanceEditor_.bossRandomSpread);
+		balanceEditor_.bossAttackPattern = (std::clamp)(ReadCustomInt(attackJson, "pattern", balanceEditor_.bossAttackPattern), 0, 3);
+	}
+	if (balanceJson.contains("enemySystem") && balanceJson["enemySystem"].is_object()) {
+		const nlohmann::json& enemySystemJson = balanceJson["enemySystem"];
+		balanceEditor_.expEnemyHostileToBoss = ReadCustomBool(enemySystemJson, "expEnemyHostileToBoss", balanceEditor_.expEnemyHostileToBoss);
+		balanceEditor_.bossExpEnemyDamage = ReadCustomInt(enemySystemJson, "bossExpEnemyDamage", balanceEditor_.bossExpEnemyDamage);
+		balanceEditor_.bossHealOnExpEnemyKill = ReadCustomInt(enemySystemJson, "bossHealOnExpEnemyKill", balanceEditor_.bossHealOnExpEnemyKill);
+		balanceEditor_.bossKillsPerLevel = ReadCustomInt(enemySystemJson, "bossKillsPerLevel", balanceEditor_.bossKillsPerLevel);
+		balanceEditor_.bossMaxHpGainPerLevel = ReadCustomInt(enemySystemJson, "bossMaxHpGainPerLevel", balanceEditor_.bossMaxHpGainPerLevel);
+		balanceEditor_.bossDamageGainPerLevel = ReadCustomInt(enemySystemJson, "bossDamageGainPerLevel", balanceEditor_.bossDamageGainPerLevel);
+		balanceEditor_.bossLevelingModeEnabled = ReadCustomBool(enemySystemJson, "bossLevelingModeEnabled", balanceEditor_.bossLevelingModeEnabled);
+		balanceEditor_.bossLevelingEnterDistance = ReadCustomFloat(enemySystemJson, "bossLevelingEnterDistance", balanceEditor_.bossLevelingEnterDistance);
+		balanceEditor_.bossLevelingExitDistance = ReadCustomFloat(enemySystemJson, "bossLevelingExitDistance", balanceEditor_.bossLevelingExitDistance);
+		balanceEditor_.bossLevelingSearchRadius = ReadCustomFloat(enemySystemJson, "bossLevelingSearchRadius", balanceEditor_.bossLevelingSearchRadius);
+		balanceEditor_.bossAimTurnHalfSeconds = ReadCustomFloat(enemySystemJson, "bossAimTurnHalfSeconds", balanceEditor_.bossAimTurnHalfSeconds);
 	}
 	balanceEditor_.initialized = true;
 }
@@ -1344,10 +1196,24 @@ nlohmann::json GameScene::BuildBalanceJsonFromEditor() const
 	balance["bossAttackDefault"] = {
 		{ "bulletSpeed", (std::max)(0.01f, balanceEditor_.bossBulletSpeed) },
 		{ "bulletCount", (std::max)(1, balanceEditor_.bossBulletCount) },
-		{ "spreadAngleDeg", (std::clamp)(balanceEditor_.bossSpreadAngleDeg, 0.0f, 180.0f) },
+		{ "spreadAngleDeg", (std::clamp)(balanceEditor_.bossSpreadAngleDeg, 0.0f, 360.0f) },
 		{ "cooldown", (std::max)(0.05f, balanceEditor_.bossCooldown) },
 		{ "damage", (std::max)(1, balanceEditor_.bossBulletDamage) },
-		{ "randomSpread", balanceEditor_.bossRandomSpread }
+		{ "randomSpread", balanceEditor_.bossRandomSpread },
+		{ "pattern", (std::clamp)(balanceEditor_.bossAttackPattern, 0, 3) }
+	};
+	balance["enemySystem"] = {
+		{ "expEnemyHostileToBoss", balanceEditor_.expEnemyHostileToBoss },
+		{ "bossExpEnemyDamage", (std::max)(1, balanceEditor_.bossExpEnemyDamage) },
+		{ "bossHealOnExpEnemyKill", (std::max)(0, balanceEditor_.bossHealOnExpEnemyKill) },
+		{ "bossKillsPerLevel", (std::max)(1, balanceEditor_.bossKillsPerLevel) },
+		{ "bossMaxHpGainPerLevel", (std::max)(0, balanceEditor_.bossMaxHpGainPerLevel) },
+		{ "bossDamageGainPerLevel", (std::max)(0, balanceEditor_.bossDamageGainPerLevel) },
+		{ "bossLevelingModeEnabled", balanceEditor_.bossLevelingModeEnabled },
+		{ "bossLevelingEnterDistance", (std::max)(1.0f, balanceEditor_.bossLevelingEnterDistance) },
+		{ "bossLevelingExitDistance", (std::clamp)(balanceEditor_.bossLevelingExitDistance, 0.5f, balanceEditor_.bossLevelingEnterDistance) },
+		{ "bossLevelingSearchRadius", (std::max)(1.0f, balanceEditor_.bossLevelingSearchRadius) },
+		{ "bossAimTurnHalfSeconds", (std::max)(0.05f, balanceEditor_.bossAimTurnHalfSeconds) }
 	};
 	if (currentLevelData_.balance.is_object()
 		&& currentLevelData_.balance.contains("notes")
@@ -1417,14 +1283,219 @@ bool GameScene::WriteBalanceAIHandoff(const std::string& filePath) const
 	return true;
 }
 
-void GameScene::DrawLevelAIDitorBalanceLab()
+void GameScene::DrawPostEffectParamControls(const char* labelPrefix, BloomParam& param)
+{
+#ifdef USE_IMGUI
+	ImGui::PushID(labelPrefix);
+	ImGui::DragFloat("Intensity", &param.intensity, 0.01f, 0.0f, 8.0f);
+	ImGui::DragFloat("Threshold", &param.threshold, 0.01f, 0.0f, 2.0f);
+	ImGui::DragFloat("Distortion", &param.distortionAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("ChromAb", &param.chromAbAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Glitch", &param.glitchAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Dissolve", &param.dissolveThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Outline Width", &param.outlineWidth, 0.1f, 0.0f, 100.0f);
+	ImGui::DragFloat("Outline Threshold", &param.outlineThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::ColorEdit3("Outline Color", &param.outlineColor.x);
+	ImGui::DragFloat("Outline Bloom Intensity", &param.outlineBloomIntensity, 0.01f, 0.0f, 8.0f);
+	ImGui::DragFloat("Outline Bloom Width", &param.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
+	ImGui::PopID();
+#else
+	(void)labelPrefix;
+	(void)param;
+#endif
+}
+
+void GameScene::DrawGameSceneDebugImGui()
+{
+#ifdef USE_IMGUI
+	if (!showGameDebugConsole_) {
+		return;
+	}
+
+	ImGui::SetNextWindowSize(ImVec2(620.0f, 540.0f), ImGuiCond_FirstUseEver);
+	if (!ImGui::Begin("Game Debug Console", &showGameDebugConsole_)) {
+		ImGui::End();
+		return;
+	}
+
+	if (ImGui::BeginTabBar("GameDebugTabs")) {
+		if (ImGui::BeginTabItem("Overview")) {
+			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
+			ImGui::Text("deltaTime: %.8f", finalDeltaTime * 60.0f);
+			ImGui::Text("Exp Enemies: %zu", enemyManager_ ? enemyManager_->GetEnemyCount() : 0);
+			ImGui::Text("Trail Instances: %zu", bulletManager_ ? bulletManager_->GetTrailInstanceCount() : 0);
+			ImGui::Separator();
+			ImGui::Checkbox("Show Follow HP Bars", &showFollowHpBars_);
+			ImGui::Checkbox("Show Colliders (F7)", &showCollisionDebug_);
+			ImGui::Checkbox("Show Bullet Colliders", &showCollisionDebugBullets_);
+			ImGui::Checkbox("Show Post Profile Overlay (F8)", &showPostProfileOverlay_);
+			ImGui::Text("F12: toggle this console");
+			ImGui::EndTabItem();
+		}
+
+		if (ImGui::BeginTabItem("Gameplay")) {
+			ImGui::Text("Level: %d", player_->GetLevel());
+			ImGui::Text("Exp: %d / %d", player_->GetExp(), player_->GetNextLevelExpValue());
+			ImGui::Text("Skill Points: %d", player_->GetSkillPoints());
+			ImGui::Text("Class: %s", player_->GetCurrentClassName());
+			ImGui::Separator();
+			ImGui::Text("1 Health Regen  Lv.%d", player_->GetUpgradeLevel(0));
+			ImGui::Text("2 Max Health    Lv.%d", player_->GetUpgradeLevel(1));
+			ImGui::Text("3 Body Damage   Lv.%d", player_->GetUpgradeLevel(2));
+			ImGui::Text("4 Bullet Speed  Lv.%d", player_->GetUpgradeLevel(3));
+			ImGui::Text("5 Bullet Damage Lv.%d", player_->GetUpgradeLevel(4));
+			ImGui::Text("6 Reload        Lv.%d", player_->GetUpgradeLevel(5));
+			ImGui::Text("7 Move Speed    Lv.%d", player_->GetUpgradeLevel(6));
+			ImGui::Separator();
+			if (ImGui::Button("+ Next Level Exp")) {
+				player_->AddExp(player_->GetNextLevelExpValue());
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("+200 Exp")) {
+				player_->AddExp(200);
+			}
+			ImGui::EndTabItem();
+		}
+
+		if (ImGui::BeginTabItem("Visuals")) {
+			if (ImGui::CollapsingHeader("Neon Grid", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::Checkbox("Show World Grid", &showNeonGrid_);
+				ImGui::Checkbox("Show Actor Local Grid", &showActorLocalGrid_);
+				ImGui::Checkbox("Enable Grid Post", &enableNeonGridPostEffect_);
+				ImGui::DragFloat("World Spacing", &worldGridSpacing_, 0.05f, 0.25f, 8.0f);
+				ImGui::DragFloat("World Line Width", &worldGridLineWidth_, 0.005f, 0.005f, 0.5f);
+				ImGui::ColorEdit4("World Color", &worldGridColor_.x);
+				ImGui::DragFloat("Actor Radius", &actorGridRadius_, 0.05f, 0.5f, 16.0f);
+				ImGui::DragFloat("Actor Spacing", &actorGridSpacing_, 0.025f, 0.2f, 3.0f);
+				ImGui::DragFloat("Actor Line Width", &actorGridLineWidth_, 0.005f, 0.005f, 0.5f);
+				ImGui::ColorEdit4("Player Grid", &playerGridColor_.x);
+				ImGui::ColorEdit4("Enemy Grid", &enemyGridColor_.x);
+				ImGui::ColorEdit4("Exp Enemy Grid", &expEnemyGridColor_.x);
+				ImGui::Checkbox("Cull Actor Local Grid", &cullActorLocalGrid_);
+				ImGui::DragInt("Max Exp Enemy Local Grids", &maxExpEnemyLocalGrids_, 1.0f, 0, 60);
+			}
+			if (ImGui::CollapsingHeader("Bullet Trail", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::Checkbox("Enable Bullet Trail Post", &enableBulletTrailPostEffect_);
+				BulletTrailSettings& bulletTrail = bulletManager_->GetTrailSettings();
+				ImGui::DragFloat("Player Trail Half Width", &bulletTrail.playerHalfWidth, 0.01f, 0.01f, 1.5f);
+				ImGui::DragFloat("Enemy Trail Half Width", &bulletTrail.enemyHalfWidth, 0.01f, 0.01f, 1.5f);
+				ImGui::DragFloat("Trail Lifetime", &bulletTrail.lifetime, 0.01f, 0.02f, 1.5f);
+				ImGui::DragInt("Trail Max Points", &bulletTrail.maxPoints, 1.0f, 2, 80);
+				ImGui::DragInt("Trail Interpolation", &bulletTrail.interpolationSteps, 1.0f, 1, 12);
+				ImGui::DragFloat("Head Width Scale", &bulletTrail.headWidthScale, 0.01f, 0.0f, 4.0f);
+				ImGui::DragFloat("Tail Width Scale", &bulletTrail.tailWidthScale, 0.01f, 0.0f, 4.0f);
+				ImGui::Checkbox("Use Object Color For Trail", &bulletTrail.useObjectColorForTrail);
+				ImGui::ColorEdit4("Player Bullet Color", &bulletTrail.playerObjectColor.x);
+				ImGui::ColorEdit4("Enemy Bullet Color", &bulletTrail.enemyObjectColor.x);
+				ImGui::ColorEdit4("Reflect Bullet Color", &bulletTrail.reflectableObjectColor.x);
+				if (bulletTrail.useObjectColorForTrail) {
+					ImGui::DragFloat("Trail Head Intensity", &bulletTrail.trailHeadIntensity, 0.01f, 0.0f, 5.0f);
+					ImGui::DragFloat("Trail Tail Intensity", &bulletTrail.trailTailIntensity, 0.01f, 0.0f, 5.0f);
+					ImGui::DragFloat("Trail Head Alpha", &bulletTrail.trailHeadAlpha, 0.01f, 0.0f, 1.0f);
+					ImGui::DragFloat("Trail Tail Alpha", &bulletTrail.trailTailAlpha, 0.01f, 0.0f, 1.0f);
+				} else {
+					ImGui::ColorEdit4("Trail Start Color", &bulletTrail.startColor.x);
+					ImGui::ColorEdit4("Player Trail End", &bulletTrail.playerEndColor.x);
+					ImGui::ColorEdit4("Enemy Trail End", &bulletTrail.enemyEndColor.x);
+					ImGui::ColorEdit4("Reflect Trail End", &bulletTrail.reflectableEndColor.x);
+				}
+			}
+			ImGui::EndTabItem();
+		}
+
+		if (ImGui::BeginTabItem("Posts")) {
+			if (ImGui::Button("Enable All Posts")) {
+				enableNeonGridPostEffect_ = true;
+				enableStagePostEffect_ = true;
+				enableBulletTrailPostEffect_ = true;
+				enablePlayerPostEffect_ = true;
+				enableEnemyPostEffect_ = true;
+				enableExpEnemyPostEffect_ = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Disable All Posts")) {
+				enableNeonGridPostEffect_ = false;
+				enableStagePostEffect_ = false;
+				enableBulletTrailPostEffect_ = false;
+				enablePlayerPostEffect_ = false;
+				enableEnemyPostEffect_ = false;
+				enableExpEnemyPostEffect_ = false;
+			}
+			if (ImGui::CollapsingHeader("Player", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::Checkbox("Enable Player Post", &enablePlayerPostEffect_);
+				DrawPostEffectParamControls("Player", playerPostEffect_->GetParam());
+			}
+			if (ImGui::CollapsingHeader("Boss Enemy")) {
+				ImGui::Checkbox("Enable Enemy Post", &enableEnemyPostEffect_);
+				DrawPostEffectParamControls("Enemy", enemyPostEffect_->GetParam());
+			}
+			if (ImGui::CollapsingHeader("Exp Enemy")) {
+				ImGui::Checkbox("Enable Exp Enemy Post", &enableExpEnemyPostEffect_);
+				DrawPostEffectParamControls("ExpEnemy", expEnemyPostEffect_->GetParam());
+				ImGui::DragFloat("Post Cull Half Width", &expEnemyPostVisibleHalfWidth_, 0.5f, 10.0f, 80.0f);
+				ImGui::DragFloat("Post Cull Half Height", &expEnemyPostVisibleHalfHeight_, 0.5f, 10.0f, 60.0f);
+			}
+			if (ImGui::CollapsingHeader("Stage")) {
+				ImGui::Checkbox("Enable Stage Post", &enableStagePostEffect_);
+				DrawPostEffectParamControls("Stage", stagePostEffect_->GetParam());
+				ImGui::Text("Stage uses bloom-only add pass for performance.");
+			}
+			if (ImGui::CollapsingHeader("Grid / Trail")) {
+				ImGui::Checkbox("Enable Grid Post", &enableNeonGridPostEffect_);
+				BloomParam& gridPost = neonGridPostEffect_->GetParam();
+				ImGui::DragFloat("Grid Bloom Intensity", &gridPost.intensity, 0.01f, 0.0f, 6.0f);
+				ImGui::DragFloat("Grid Bloom Threshold", &gridPost.threshold, 0.01f, 0.0f, 2.0f);
+				ImGui::Checkbox("Enable Bullet Trail Post", &enableBulletTrailPostEffect_);
+				BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
+				ImGui::DragFloat("Bullet Trail Bloom Intensity", &bulletTrailPost.intensity, 0.01f, 0.0f, 8.0f);
+				ImGui::DragFloat("Bullet Trail Bloom Threshold", &bulletTrailPost.threshold, 0.01f, 0.0f, 2.0f);
+			}
+			if (ImGui::CollapsingHeader("Slow Motion")) {
+				ImGui::Text("Slow Active: %s", slowMotionPostActive_ ? "true" : "false");
+				ImGui::Checkbox("Keep Player Color During Slow", &keepPlayerColorDuringSlow_);
+				ImGui::DragFloat("Slow Player ChromAb", &slowPlayerChromAbAmount_, 0.001f, 0.0f, 0.2f);
+				ImGui::DragFloat("Slow Player Distortion", &slowPlayerDistortionAmount_, 0.001f, 0.0f, 0.2f);
+				ImGui::DragFloat("Slow Player Glitch", &slowPlayerGlitchAmount_, 0.001f, 0.0f, 0.2f);
+			}
+			ImGui::EndTabItem();
+		}
+
+		if (ImGui::BeginTabItem("Tools")) {
+			ImGui::Checkbox("Particle Editor Window", &showParticleEditor_);
+			ImGui::Checkbox("Player Class Editor Window", &showPlayerClassEditor_);
+			ImGui::Separator();
+			if (shotGide) {
+				ImGui::SliderFloat2("Shot Guide Position", &shotGide->GetPosition().x, 0.0f, 3000.0f, "%.1f");
+			}
+			if (ball_) {
+				ImGui::DragFloat3("Ball Scale", &ball_->GetScale().x);
+				ImGui::ColorEdit4("Ball Color", &ball_->GetColor().x);
+			}
+			ImGui::EndTabItem();
+		}
+
+		if (ImGui::BeginTabItem("Balance")) {
+			DrawLevelAIDitorBalanceLab(true);
+			ImGui::EndTabItem();
+		}
+
+		ImGui::EndTabBar();
+	}
+
+	ImGui::End();
+#endif
+}
+
+void GameScene::DrawLevelAIDitorBalanceLab(bool embedded)
 {
 #ifdef USE_IMGUI
 	if (!balanceEditor_.initialized && currentLevelData_.balance.is_object()) {
 		LoadBalanceEditorFromJson(currentLevelData_.balance);
 	}
 
-	ImGui::Begin("Level AI-ditor Balance Lab");
+	if (!embedded) {
+		ImGui::Begin("Level AI-ditor Balance Lab");
+	}
 	ImGui::Text("Edit runtime balance, then save it back to level_test.json.");
 	ImGui::Checkbox("Default Random Spawn", &balanceEditor_.defaultRandomSpawnEnabled);
 	ImGui::Separator();
@@ -1448,12 +1519,35 @@ void GameScene::DrawLevelAIDitorBalanceLab()
 	}
 
 	if (ImGui::CollapsingHeader("Boss Attack Default", ImGuiTreeNodeFlags_DefaultOpen)) {
+		const char* patternNames[] = { "Spread", "Ring", "Sniper", "Alternating" };
+		ImGui::Combo("Attack Pattern", &balanceEditor_.bossAttackPattern, patternNames, IM_ARRAYSIZE(patternNames));
 		ImGui::DragFloat("Bullet Speed", &balanceEditor_.bossBulletSpeed, 0.01f, 0.01f, 2.0f);
 		ImGui::DragInt("Bullet Count", &balanceEditor_.bossBulletCount, 1.0f, 1, 64);
-		ImGui::DragFloat("Spread Angle", &balanceEditor_.bossSpreadAngleDeg, 1.0f, 0.0f, 180.0f);
+		ImGui::DragFloat("Spread Angle", &balanceEditor_.bossSpreadAngleDeg, 1.0f, 0.0f, 360.0f);
 		ImGui::DragFloat("Cooldown", &balanceEditor_.bossCooldown, 0.01f, 0.05f, 5.0f);
 		ImGui::DragInt("Bullet Damage", &balanceEditor_.bossBulletDamage, 1.0f, 1, 999);
 		ImGui::Checkbox("Random Spread", &balanceEditor_.bossRandomSpread);
+		if (enemy_) {
+			ImGui::Text("Boss Level: %d", enemy_->GetLevel());
+		}
+	}
+
+	if (ImGui::CollapsingHeader("Enemy RPG / Faction", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Exp Enemy Hostile To Boss", &balanceEditor_.expEnemyHostileToBoss);
+		ImGui::DragInt("Boss Damage To Exp Enemy", &balanceEditor_.bossExpEnemyDamage, 1.0f, 1, 999);
+		ImGui::DragInt("Boss Heal On Exp Kill", &balanceEditor_.bossHealOnExpEnemyKill, 1.0f, 0, 999);
+		ImGui::DragInt("Boss Kills Per Level", &balanceEditor_.bossKillsPerLevel, 1.0f, 1, 99);
+		ImGui::DragInt("Boss Max HP Gain / Level", &balanceEditor_.bossMaxHpGainPerLevel, 1.0f, 0, 999);
+		ImGui::DragInt("Boss Damage Gain / Level", &balanceEditor_.bossDamageGainPerLevel, 1.0f, 0, 99);
+		ImGui::Checkbox("Boss Leveling Hunt Mode", &balanceEditor_.bossLevelingModeEnabled);
+		ImGui::DragFloat("Hunt Enter Player Distance", &balanceEditor_.bossLevelingEnterDistance, 0.5f, 1.0f, 120.0f);
+		ImGui::DragFloat("Hunt Exit Player Distance", &balanceEditor_.bossLevelingExitDistance, 0.5f, 0.5f, 120.0f);
+		ImGui::DragFloat("Hunt Search Radius", &balanceEditor_.bossLevelingSearchRadius, 1.0f, 1.0f, 200.0f);
+		ImGui::DragFloat("Aim 180deg Turn Seconds", &balanceEditor_.bossAimTurnHalfSeconds, 0.05f, 0.05f, 5.0f);
+		if (enemy_) {
+			ImGui::Text("Current Boss Mode: %s", enemy_->IsLevelingModeActive() ? "Leveling Hunt" : "Player Pressure");
+		}
+		ImGui::TextWrapped("When enabled, boss and EXP enemies collide as hostile factions. Boss heals and levels when it kills EXP enemies.");
 	}
 
 	ImGui::Separator();
@@ -1488,7 +1582,11 @@ void GameScene::DrawLevelAIDitorBalanceLab()
 	if (!balanceEditor_.statusMessage.empty()) {
 		ImGui::TextWrapped("%s", balanceEditor_.statusMessage.c_str());
 	}
-	ImGui::End();
+	if (!embedded) {
+		ImGui::End();
+	}
+#else
+	(void)embedded;
 #endif
 }
 
@@ -1591,6 +1689,7 @@ void GameScene::ApplyBossPhaseTuning(const LevelBossPhase& phase)
 		config.cooldown = ReadCustomFloat(attackJson, "cooldown", config.cooldown);
 		config.damage = static_cast<uint32_t>(ReadCustomInt(attackJson, "damage", static_cast<int>(config.damage)));
 		config.randomSpread = ReadCustomBool(attackJson, "randomSpread", config.randomSpread);
+		config.pattern = static_cast<Enemy::BossAttackConfig::Pattern>((std::clamp)(ReadCustomInt(attackJson, "pattern", static_cast<int>(config.pattern)), 0, 3));
 		enemy_->SetBossAttackConfig(config);
 	}
 

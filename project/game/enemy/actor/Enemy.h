@@ -10,17 +10,38 @@
 
 class Player;
 class Stage;
+class EnemyManager;
 
 class Enemy : public Collider {
 
 public:
 	struct BossAttackConfig {
+		enum class Pattern {
+			Spread = 0,
+			Ring = 1,
+			Sniper = 2,
+			Alternating = 3,
+		};
 		float bulletSpeed = 0.4f;
 		int bulletCount = 2;
 		float spreadAngleDeg = 30.0f;
 		float cooldown = 0.15f;
 		uint32_t damage = 10;
 		bool randomSpread = true;
+		Pattern pattern = Pattern::Spread;
+	};
+	struct EnemyProgressConfig {
+		bool expEnemyHostile = false;
+		uint32_t expEnemyContactDamage = 12;
+		int healOnExpEnemyKill = 30;
+		int killsPerLevel = 3;
+		int maxHpGainPerLevel = 20;
+		uint32_t damageGainPerLevel = 2;
+		bool levelingModeEnabled = true;
+		float levelingEnterPlayerDistance = 24.0f;
+		float levelingExitPlayerDistance = 16.0f;
+		float levelingSearchRadius = 80.0f;
+		float aimTurnHalfSeconds = 1.0f;
 	};
 
 
@@ -82,6 +103,7 @@ public:
 
 	// 自キャラのセッター
 	void SetPlayer(Player* player) { player_ = player; }
+	void SetEnemyManager(EnemyManager* enemyManager) { enemyManager_ = enemyManager; }
 	
 	// セッター
 	void SetWorldPosition(const Vector3& pos) {
@@ -138,6 +160,7 @@ public:
 	bool HitPlayerByRay(const Segment& ray);
 
 	bool HasLineOfSightToPlayer() const;
+	bool HasLineOfSightToTarget(const Vector3& targetPos) const;
 
 	Vector3 GetMove() { return velocity_; }
 
@@ -151,6 +174,10 @@ public:
 	int GetMaxHp() const { return maxHP_; }
 	void SetBossAttackConfig(const BossAttackConfig& config);
 	const BossAttackConfig& GetBossAttackConfig() const { return bossAttackConfig_; }
+	void SetEnemyProgressConfig(const EnemyProgressConfig& config);
+	const EnemyProgressConfig& GetEnemyProgressConfig() const { return enemyProgressConfig_; }
+	int GetLevel() const { return enemyLevel_; }
+	bool IsLevelingModeActive() const { return levelingModeActive_; }
 
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
 		bulletManager_ = bulletManager;
@@ -168,13 +195,17 @@ private:
 	};
 
 	std::optional<Vector3> FindPathDirectionToPlayer();
+	std::optional<Vector3> FindPathDirectionToTarget(const Vector3& targetPos);
 	std::optional<MapIndex> WorldToMapIndex(const Vector3& pos) const;
 	Vector3 MapIndexToWorld(const MapIndex& index) const;
 	bool IsPassableCell(int x, int y) const;
 	bool IsPathPassableCell(int x, int y) const;
 	MapIndex FindNearestPathPassableCell(const MapIndex& base) const;
 	bool HasClearMoveRouteToPlayer() const;
+	bool HasClearMoveRouteToTarget(const Vector3& targetPos) const;
 	Vector3 ApplyHumanLikeSteering(const Vector3& desiredDir, bool usingPath, float deltaTime);
+	Vector3 ResolveMoveTargetPosition();
+	void RotateTowardTarget(const Vector3& targetPos, float deltaTime);
 
 	// ワールド変換データ
 	Transform worldTransform_;
@@ -189,6 +220,7 @@ private:
 
 	// 自キャラ
 	Player* player_ = nullptr;
+	EnemyManager* enemyManager_ = nullptr;
 
 	// 最初の弾までの時間
 	uint32_t time_ = 60;
@@ -227,6 +259,12 @@ private:
 	float kFireTimerMax_ = 0.15f;
 	float fireTimer_ = 0.0f;
 	BossAttackConfig bossAttackConfig_{};
+	EnemyProgressConfig enemyProgressConfig_{};
+	int enemyLevel_ = 1;
+	int expEnemyKillCount_ = 0;
+	int alternatingShotIndex_ = 0;
+	bool levelingModeActive_ = false;
+	Vector3 currentMoveTargetPosition_{ 0.0f, 0.0f, 0.0f };
 	
 	Vector3 velocity_{ 0, 0, 0 };
 

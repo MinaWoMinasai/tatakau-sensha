@@ -99,7 +99,7 @@ void PlayerDrone::Initialize(const Vector3& position, const Vector3& velocity) {
 	// 衝突属性を設定
 	SetCollisionAttribute(kCollisionAttributePlayerDrone);
 	// 衝突対象を自分に設定
-	SetCollisionMask(kCollisionAttributePlayerDrone | kCollisionAttributeEnemyBullet | kCollisionAttributeEnemy);
+	SetCollisionMask(kCollisionAttributePlayerDrone | kCollisionAttributeEnemyBullet | kCollisionAttributeEnemy | kCollisionAttributeExpEnemy);
 }
 
 void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& playerPosition)
@@ -206,7 +206,9 @@ Vector3 PlayerDrone::GetWorldPosition() const {
 
 void PlayerDrone::OnCollision(Collider* other) {
 
-	if (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet || other->GetCollisionAttribute() == kCollisionAttributeEnemy) {
+	if (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet ||
+		other->GetCollisionAttribute() == kCollisionAttributeEnemy ||
+		other->GetCollisionAttribute() == kCollisionAttributeExpEnemy) {
 		hp_--;
 	}
 
