@@ -1,0 +1,21 @@
+Codexへの説明メモ：debugFPS.mp4から2秒ごとに切り出したフレームです。
+
+目的：
+FPSが落ちている場面でも、ImGui上の「強化HUD CPU / HUD Update / HUD Sprite / HUD Text」のCPU計測値が小さいことを確認し、HUDのCPU処理が主原因ではなさそうだと伝えるための資料です。
+
+動画情報：
+- ファイル名: debugFPS.mp4
+- 解像度: 1280x720
+- 長さ: 約41.1秒
+- 動画FPS: 約26.06
+
+見てほしいポイント：
+1. 左上の実FPSが30〜40前後まで落ちている場面がある。
+2. その一方で、ImGuiの「強化HUD: 表示 total」「HUD Update」「HUD Sprite」「HUD Text」は0.x ms程度で、CPU上は大きくなさそう。
+3. そのため、HUDのCPU処理だけでなく、GPU側のSprite描画、透明ピクセル、PostEffect、アウトライン/ブルーム、Present待ち、他の描画要素も疑ってほしい。
+4. 動画解析ができない環境でも、このフレーム画像群を見て数値を確認してほしい。
+
+フォルダ内容：
+- frames_full_every2s: 2秒ごとのフル画面フレーム
+- frames_console_crop_every2s: FPS表示とImGui計測値が見やすいように切り出したフレーム
+- contact_sheet_console_*.jpg: console cropを縦に並べた一覧画像

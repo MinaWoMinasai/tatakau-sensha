@@ -1,5 +1,6 @@
 #include "AttackController.h"
 #include <DirectXMath.h>
+#include <algorithm>
 using namespace DirectX;
 
 void AttackController::Fire(const Vector3& origin, const Vector3& baseDir, const AttackParam& param, BulletOwner owner)
@@ -60,7 +61,9 @@ void AttackController::FireInternal(const Vector3& origin, const Vector3& baseDi
             velocity,
             param.damage,
             owner,
-            param.reflect
+            param.reflect,
+            param.bulletHp > 0.0f ? param.bulletHp : static_cast<float>((std::max)(1u, param.damage)),
+            param.bulletPenetration > 0.0f ? param.bulletPenetration : static_cast<float>((std::max)(1u, param.damage))
         );
 
         bulletManager_->Add(std::move(bullet));

@@ -78,6 +78,9 @@ void TextLabel::SetText(const std::string& text)
 
 void TextLabel::SetStyle(const TextStyle& style)
 {
+	if (IsSameStyle(style)) {
+		return;
+	}
 	style_ = style;
 	RebuildTexture();
 }
@@ -135,4 +138,20 @@ void TextLabel::RebuildTexture()
 	sprite_->SetPosition(position_);
 	sprite_->SetAnchorPoint(anchorPoint_);
 	sprite_->SetAlpha(alpha_);
+}
+
+bool TextLabel::IsSameStyle(const TextStyle& style) const
+{
+	return style_.fontFamily == style.fontFamily &&
+		style_.fontSize == style.fontSize &&
+		style_.color.x == style.color.x &&
+		style_.color.y == style.color.y &&
+		style_.color.z == style.color.z &&
+		style_.color.w == style.color.w &&
+		style_.outlineColor.x == style.outlineColor.x &&
+		style_.outlineColor.y == style.outlineColor.y &&
+		style_.outlineColor.z == style.outlineColor.z &&
+		style_.outlineColor.w == style.outlineColor.w &&
+		style_.outlineThickness == style.outlineThickness &&
+		style_.padding == style.padding;
 }

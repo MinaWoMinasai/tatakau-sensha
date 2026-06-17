@@ -118,6 +118,8 @@ void Enemy::ShotgunFire()
 	param.penetrate = false;
 	param.cooldown = bossAttackConfig_.cooldown;
 	param.damage = bossAttackConfig_.damage;
+	param.bulletHp = bossAttackConfig_.bulletHp;
+	param.bulletPenetration = bossAttackConfig_.bulletPenetration;
 
 	switch (bossAttackConfig_.pattern) {
 	case BossAttackConfig::Pattern::Ring:
@@ -216,6 +218,8 @@ void Enemy::SetBossAttackConfig(const BossAttackConfig& config)
 		bossAttackConfig_.spreadAngleDeg = 360.0f;
 	}
 	bossAttackConfig_.cooldown = (std::max)(0.05f, bossAttackConfig_.cooldown);
+	bossAttackConfig_.bulletHp = (std::max)(0.0f, bossAttackConfig_.bulletHp);
+	bossAttackConfig_.bulletPenetration = (std::max)(0.0f, bossAttackConfig_.bulletPenetration);
 	kFireTimerMax_ = bossAttackConfig_.cooldown;
 }
 
@@ -238,6 +242,22 @@ void Enemy::SetEnemyProgressConfig(const EnemyProgressConfig& config)
 		mask |= kCollisionAttributeExpEnemy;
 	}
 	SetCollisionMask(mask);
+}
+
+void Enemy::RegisterExpEnemyKill(uint32_t expValue)
+{
+	expEnemyKillCount_++;
+	enemyExp_ += expValue;
+	if (enemyProgressConfig_.healOnExpEnemyKill > 0) {
+		hp_ = (std::min)(maxHP_, hp_ + enemyProgressConfig_.healOnExpEnemyKill);
+	}
+	if (expEnemyKillCount_ % enemyProgressConfig_.killsPerLevel == 0) {
+		enemyLevel_++;
+		maxHP_ += enemyProgressConfig_.maxHpGainPerLevel;
+		hp_ = (std::min)(maxHP_, hp_ + enemyProgressConfig_.maxHpGainPerLevel);
+		SetDamage(GetDamage() + enemyProgressConfig_.damageGainPerLevel);
+		bossAttackConfig_.damage += enemyProgressConfig_.damageGainPerLevel;
+	}
 }
 
 void Enemy::Update(float deltaTime) {
@@ -353,17 +373,7 @@ void Enemy::OnCollision(Collider* other) {
 		}
 		const bool killed = expEnemy->TakeDamageFromEnemy(enemyProgressConfig_.expEnemyContactDamage);
 		if (killed) {
-			expEnemyKillCount_++;
-			if (enemyProgressConfig_.healOnExpEnemyKill > 0) {
-				hp_ = (std::min)(maxHP_, hp_ + enemyProgressConfig_.healOnExpEnemyKill);
-			}
-			if (expEnemyKillCount_ % enemyProgressConfig_.killsPerLevel == 0) {
-				enemyLevel_++;
-				maxHP_ += enemyProgressConfig_.maxHpGainPerLevel;
-				hp_ = (std::min)(maxHP_, hp_ + enemyProgressConfig_.maxHpGainPerLevel);
-				SetDamage(GetDamage() + enemyProgressConfig_.damageGainPerLevel);
-				bossAttackConfig_.damage += enemyProgressConfig_.damageGainPerLevel;
-			}
+			RegisterExpEnemyKill(expEnemy->GetExpValue());
 		}
 		return;
 	}

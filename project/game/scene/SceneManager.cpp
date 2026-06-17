@@ -64,3 +64,10 @@ float SceneManager::GetPostGaussianIntensity()
 {
 	return currentScene_->GetPostGaussianIntensity();
 }
+
+void SceneManager::SetRenderProfile(const IScene::RenderProfile& profile)
+{
+	if (currentScene_) {
+		currentScene_->SetRenderProfile(profile);
+	}
+}

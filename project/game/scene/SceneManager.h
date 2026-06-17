@@ -18,6 +18,7 @@ public:
 
 	float GetFinalDeltaTime();
 	float GetPostGaussianIntensity();
+	void SetRenderProfile(const IScene::RenderProfile& profile);
 
 private:
 	// 現在のシーンを抽象的な型で保持

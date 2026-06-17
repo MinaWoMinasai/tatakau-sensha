@@ -3,8 +3,13 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+
+#ifdef USE_IMGUI
+#include "externals/imgui/imgui.h"
+#endif
 
 namespace {
 
@@ -33,6 +38,32 @@ Vector4 GetCollisionDebugColor(uint32_t attribute) {
 bool IsBulletCollider(uint32_t attribute) {
 	return (attribute & (kCollisionAttributePlayerBullet | kCollisionAttributeEnemyBullet)) != 0;
 }
+
+const char* BulletOwnerName(BulletOwner owner)
+{
+	switch (owner) {
+	case kPlayer:
+		return "プレイヤー";
+	case kEnemy:
+		return "敵";
+	default:
+		return "不明";
+	}
+}
+
+#ifdef USE_IMGUI
+ImU32 BulletOwnerDebugColor(BulletOwner owner)
+{
+	switch (owner) {
+	case kPlayer:
+		return IM_COL32(255, 238, 80, 255);
+	case kEnemy:
+		return IM_COL32(255, 94, 120, 255);
+	default:
+		return IM_COL32(255, 255, 255, 255);
+	}
+}
+#endif
 
 int ReadCustomInt(const nlohmann::json& customProperties, const char* key, int fallback)
 {
@@ -110,6 +141,147 @@ Vector3 ReadJsonVector3(const nlohmann::json& json, const Vector3& fallback)
 	return value;
 }
 
+nlohmann::json WriteJsonVector3(const Vector3& value)
+{
+	return {
+		{ "x", value.x },
+		{ "y", value.y },
+		{ "z", value.z }
+	};
+}
+
+nlohmann::json WriteJsonVector4(const Vector4& value)
+{
+	return {
+		{ "x", value.x },
+		{ "y", value.y },
+		{ "z", value.z },
+		{ "w", value.w }
+	};
+}
+
+nlohmann::json WriteBulletTrailSettingsJson(const BulletTrailSettings& settings)
+{
+	return {
+		{ "playerHalfWidth", settings.playerHalfWidth },
+		{ "enemyHalfWidth", settings.enemyHalfWidth },
+		{ "lifetime", settings.lifetime },
+		{ "maxPoints", settings.maxPoints },
+		{ "interpolationSteps", settings.interpolationSteps },
+		{ "headWidthScale", settings.headWidthScale },
+		{ "tailWidthScale", settings.tailWidthScale },
+		{ "widthCurvePower", settings.widthCurvePower },
+		{ "colorCurvePower", settings.colorCurvePower },
+		{ "useObjectColorForTrail", settings.useObjectColorForTrail },
+		{ "trailHeadIntensity", settings.trailHeadIntensity },
+		{ "trailTailIntensity", settings.trailTailIntensity },
+		{ "trailHeadAlpha", settings.trailHeadAlpha },
+		{ "trailTailAlpha", settings.trailTailAlpha },
+		{ "playerObjectColor", WriteJsonVector4(settings.playerObjectColor) },
+		{ "enemyObjectColor", WriteJsonVector4(settings.enemyObjectColor) },
+		{ "reflectableObjectColor", WriteJsonVector4(settings.reflectableObjectColor) },
+		{ "startColor", WriteJsonVector4(settings.startColor) },
+		{ "playerEndColor", WriteJsonVector4(settings.playerEndColor) },
+		{ "enemyEndColor", WriteJsonVector4(settings.enemyEndColor) },
+		{ "reflectableEndColor", WriteJsonVector4(settings.reflectableEndColor) }
+	};
+}
+
+void ReadBulletTrailSettingsJson(const nlohmann::json& json, BulletTrailSettings& settings)
+{
+	if (!json.is_object()) {
+		return;
+	}
+	settings.playerHalfWidth = ReadCustomFloat(json, "playerHalfWidth", settings.playerHalfWidth);
+	settings.enemyHalfWidth = ReadCustomFloat(json, "enemyHalfWidth", settings.enemyHalfWidth);
+	settings.lifetime = ReadCustomFloat(json, "lifetime", settings.lifetime);
+	settings.maxPoints = ReadCustomInt(json, "maxPoints", settings.maxPoints);
+	settings.interpolationSteps = ReadCustomInt(json, "interpolationSteps", settings.interpolationSteps);
+	settings.headWidthScale = ReadCustomFloat(json, "headWidthScale", settings.headWidthScale);
+	settings.tailWidthScale = ReadCustomFloat(json, "tailWidthScale", settings.tailWidthScale);
+	settings.widthCurvePower = ReadCustomFloat(json, "widthCurvePower", settings.widthCurvePower);
+	settings.colorCurvePower = ReadCustomFloat(json, "colorCurvePower", settings.colorCurvePower);
+	settings.useObjectColorForTrail = ReadCustomBool(json, "useObjectColorForTrail", settings.useObjectColorForTrail);
+	settings.trailHeadIntensity = ReadCustomFloat(json, "trailHeadIntensity", settings.trailHeadIntensity);
+	settings.trailTailIntensity = ReadCustomFloat(json, "trailTailIntensity", settings.trailTailIntensity);
+	settings.trailHeadAlpha = ReadCustomFloat(json, "trailHeadAlpha", settings.trailHeadAlpha);
+	settings.trailTailAlpha = ReadCustomFloat(json, "trailTailAlpha", settings.trailTailAlpha);
+	if (json.contains("playerObjectColor")) settings.playerObjectColor = ReadJsonVector4(json["playerObjectColor"], settings.playerObjectColor);
+	if (json.contains("enemyObjectColor")) settings.enemyObjectColor = ReadJsonVector4(json["enemyObjectColor"], settings.enemyObjectColor);
+	if (json.contains("reflectableObjectColor")) settings.reflectableObjectColor = ReadJsonVector4(json["reflectableObjectColor"], settings.reflectableObjectColor);
+	if (json.contains("startColor")) settings.startColor = ReadJsonVector4(json["startColor"], settings.startColor);
+	if (json.contains("playerEndColor")) settings.playerEndColor = ReadJsonVector4(json["playerEndColor"], settings.playerEndColor);
+	if (json.contains("enemyEndColor")) settings.enemyEndColor = ReadJsonVector4(json["enemyEndColor"], settings.enemyEndColor);
+	if (json.contains("reflectableEndColor")) settings.reflectableEndColor = ReadJsonVector4(json["reflectableEndColor"], settings.reflectableEndColor);
+}
+
+nlohmann::json WriteBloomParamJson(const BloomParam& param)
+{
+	return {
+		{ "threshold", param.threshold },
+		{ "intensity", param.intensity },
+		{ "vignetteIntensity", param.vignetteIntensity },
+		{ "vignetteScale", param.vignetteScale },
+		{ "distortionAmount", param.distortionAmount },
+		{ "chromAbAmount", param.chromAbAmount },
+		{ "noiseIntensity", param.noiseIntensity },
+		{ "scanlineIntensity", param.scanlineIntensity },
+		{ "scanlineFrequency", param.scanlineFrequency },
+		{ "curvature", param.curvature },
+		{ "borderSharp", param.borderSharp },
+		{ "glitchAmount", param.glitchAmount },
+		{ "gaussianIntensity", param.gaussianIntensity },
+		{ "dissolveThreshold", param.dissolveThreshold },
+		{ "outlineWidth", param.outlineWidth },
+		{ "outlineThreshold", param.outlineThreshold },
+		{ "boxBlurIntensity", param.boxBlurIntensity },
+		{ "outlineColor", WriteJsonVector3(param.outlineColor) },
+		{ "outlineBloomIntensity", param.outlineBloomIntensity },
+		{ "outlineBloomWidth", param.outlineBloomWidth },
+		{ "boxBlurRadius", param.boxBlurRadius },
+		{ "fullScreenBoxBlurBlend", param.fullScreenBoxBlurBlend },
+		{ "depthOutlineEnabled", param.depthOutlineEnabled },
+		{ "depthNearClip", param.depthNearClip },
+		{ "depthFarClip", param.depthFarClip },
+		{ "depthOutlineScale", param.depthOutlineScale }
+	};
+}
+
+void ReadBloomParamJson(const nlohmann::json& json, BloomParam& param)
+{
+	if (!json.is_object()) {
+		return;
+	}
+	param.threshold = ReadCustomFloat(json, "threshold", param.threshold);
+	param.intensity = ReadCustomFloat(json, "intensity", param.intensity);
+	param.vignetteIntensity = ReadCustomFloat(json, "vignetteIntensity", param.vignetteIntensity);
+	param.vignetteScale = ReadCustomFloat(json, "vignetteScale", param.vignetteScale);
+	param.distortionAmount = ReadCustomFloat(json, "distortionAmount", param.distortionAmount);
+	param.chromAbAmount = ReadCustomFloat(json, "chromAbAmount", param.chromAbAmount);
+	param.noiseIntensity = ReadCustomFloat(json, "noiseIntensity", param.noiseIntensity);
+	param.scanlineIntensity = ReadCustomFloat(json, "scanlineIntensity", param.scanlineIntensity);
+	param.scanlineFrequency = ReadCustomFloat(json, "scanlineFrequency", param.scanlineFrequency);
+	param.curvature = ReadCustomFloat(json, "curvature", param.curvature);
+	param.borderSharp = ReadCustomFloat(json, "borderSharp", param.borderSharp);
+	param.glitchAmount = ReadCustomFloat(json, "glitchAmount", param.glitchAmount);
+	param.gaussianIntensity = ReadCustomFloat(json, "gaussianIntensity", param.gaussianIntensity);
+	param.dissolveThreshold = ReadCustomFloat(json, "dissolveThreshold", param.dissolveThreshold);
+	param.outlineWidth = ReadCustomFloat(json, "outlineWidth", param.outlineWidth);
+	param.outlineThreshold = ReadCustomFloat(json, "outlineThreshold", param.outlineThreshold);
+	param.boxBlurIntensity = ReadCustomFloat(json, "boxBlurIntensity", param.boxBlurIntensity);
+	if (json.contains("outlineColor")) {
+		param.outlineColor = ReadJsonVector3(json["outlineColor"], param.outlineColor);
+	}
+	param.outlineBloomIntensity = ReadCustomFloat(json, "outlineBloomIntensity", param.outlineBloomIntensity);
+	param.outlineBloomWidth = ReadCustomFloat(json, "outlineBloomWidth", param.outlineBloomWidth);
+	param.boxBlurRadius = ReadCustomFloat(json, "boxBlurRadius", param.boxBlurRadius);
+	param.fullScreenBoxBlurBlend = ReadCustomFloat(json, "fullScreenBoxBlurBlend", param.fullScreenBoxBlurBlend);
+	param.depthOutlineEnabled = ReadCustomFloat(json, "depthOutlineEnabled", param.depthOutlineEnabled);
+	param.depthNearClip = ReadCustomFloat(json, "depthNearClip", param.depthNearClip);
+	param.depthFarClip = ReadCustomFloat(json, "depthFarClip", param.depthFarClip);
+	param.depthOutlineScale = ReadCustomFloat(json, "depthOutlineScale", param.depthOutlineScale);
+}
+
 RingEffectConfig MakeCollisionRingConfig(float radius, const Vector4& color) {
 	RingEffectConfig config{};
 	config.lifeTime = 0.045f;
@@ -151,7 +323,10 @@ Vector3 GetActiveCameraPosition(Camera* camera, DebugCamera* debugCamera) {
 
 GameScene::GameScene() {}
 
-GameScene::~GameScene() {}
+GameScene::~GameScene()
+{
+	ExpEnemy::SetEnemyKillCallback(nullptr);
+}
 
 void GameScene::Initialize() {
 
@@ -292,6 +467,7 @@ void GameScene::Initialize() {
 		objectBloomPost.outlineBloomIntensity = 0.0f;
 		objectBloomPost.outlineBloomWidth = 0.0f;
 	}
+	LoadGamePostEffectConfig();
 
 	enemyObject_ = std::make_unique<Object3d>();
 	enemyObject_->Initialize();
@@ -387,6 +563,11 @@ void GameScene::Initialize() {
 	enemyManager_ = std::make_unique<EnemyManager>();
 	enemyManager_->Initialize(player_.get(), bulletManager_.get());
 	enemy_->SetEnemyManager(enemyManager_.get());
+	ExpEnemy::SetEnemyKillCallback([this](uint32_t expValue) {
+		if (enemy_) {
+			enemy_->RegisterExpEnemyKill(expValue);
+		}
+	});
 	if (hasLevelData) {
 		ApplyLevelData(levelData);
 	}
@@ -397,6 +578,7 @@ void GameScene::Initialize() {
 	collisionDebugRingManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/gradationLine.png");
 	neonGridRenderer_ = std::make_unique<NeonGridRenderer>();
 	neonGridRenderer_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/white512x512.png");
+	LoadGameVisualConfig();
 
 	fade_ = std::make_unique<Fade>();
 	fade_->Initialize();
@@ -590,6 +772,7 @@ void GameScene::Update() {
 	stage_->Update();
 	UpdateLevelItems();
 	
+	player_->SetDebugNoDamage(debugPlayerNoDamage_);
 	player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime);
 	if (player_->IsDead() && !playerDeathShakeStarted_) {
 		playerDeathShakeStarted_ = true;
@@ -923,6 +1106,7 @@ void GameScene::UpdatePostProfileText() {
 	const int frames = (std::max)(1, postProfileAccumulatedFrames_);
 	for (size_t i = 0; i < postProfileEntryCount_ && offset > 0 && offset < static_cast<int>(sizeof(text)); ++i) {
 		const float avgMs = postProfileAccumulatedMs_[i] / static_cast<float>(frames);
+		postProfileAverageMs_[i] = avgMs;
 		offset += std::snprintf(
 			text + offset,
 			sizeof(text) - static_cast<size_t>(offset),
@@ -936,6 +1120,67 @@ void GameScene::UpdatePostProfileText() {
 	SetWindowTextA(WinApp::GetInstance()->GetHwnd(), text);
 	postProfileAccumulatedMs_.fill(0.0f);
 	postProfileAccumulatedFrames_ = 0;
+}
+
+void GameScene::DrawPerformanceBreakdownImGui()
+{
+#ifdef USE_IMGUI
+	const float fps = (std::max)(1.0f, ImGui::GetIO().Framerate);
+	const float frameMs = 1000.0f / fps;
+	auto fpsGainIfRemoved = [frameMs, fps](float ms) -> float {
+		if (ms <= 0.0f || ms >= frameMs - 0.01f) {
+			return 0.0f;
+		}
+		return 1000.0f / (frameMs - ms) - fps;
+	};
+
+	ImGui::Text("現在FPS %.2f / 1フレーム %.3fms", fps, frameMs);
+	ImGui::TextWrapped("FPS影響は「このmsが丸ごとフレーム時間から消えた場合」のCPU側概算です。D3D12のGPU待ちやPresent待ちは別途ずれることがあります。");
+
+	if (ImGui::BeginTable("PerformanceBreakdownTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+		ImGui::TableSetupColumn("項目");
+		ImGui::TableSetupColumn("状態");
+		ImGui::TableSetupColumn("平均ms");
+		ImGui::TableSetupColumn("FPS影響");
+		ImGui::TableSetupColumn("比率");
+		ImGui::TableHeadersRow();
+
+		auto row = [&](const char* name, bool active, float ms) {
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::TextUnformatted(name);
+			ImGui::TableSetColumnIndex(1);
+			ImGui::TextUnformatted(active ? "ON" : "OFF");
+			ImGui::TableSetColumnIndex(2);
+			ImGui::Text("%.3f", ms);
+			ImGui::TableSetColumnIndex(3);
+			ImGui::Text("+%.2f fps", fpsGainIfRemoved(ms));
+			ImGui::TableSetColumnIndex(4);
+			ImGui::Text("%.1f%%", frameMs > 0.0f ? (ms / frameMs) * 100.0f : 0.0f);
+		};
+
+		row("Scene PostEffect3D", true, renderProfile_.scenePostMs);
+		row("Global Bloom/Post", true, renderProfile_.globalBloomMs);
+		row("After Object Post", renderProfile_.afterPostMs > 0.0f, renderProfile_.afterPostMs);
+		row("Sprite Pass", true, renderProfile_.spriteMs);
+		for (size_t i = 0; i < postProfileEntryCount_; ++i) {
+			row(postProfileEntries_[i].name, postProfileEntries_[i].active, postProfileAverageMs_[i]);
+		}
+		if (player_) {
+			const auto& hud = player_->GetUpgradeHudProfileStats();
+			const auto& evo = player_->GetEvolutionUiProfileStats();
+			row("Upgrade HUD CPU", hud.visible, hud.totalMs);
+			row("  HUD Update", hud.visible, hud.updateMs);
+			row("  HUD Sprite", hud.visible, hud.spriteMs);
+			row("  HUD Text", hud.visible, hud.textMs);
+			row("Evolution UI CPU", evo.visible, evo.totalMs);
+			row("  Evolution Update", evo.visible, evo.updateMs);
+			row("  Evolution Sprite", evo.visible, evo.spriteMs);
+			row("  Evolution Text", evo.visible, evo.textMs);
+		}
+		ImGui::EndTable();
+	}
+#endif
 }
 
 bool GameScene::IsPostProfileCategoryEnabled(const char* category) const {
@@ -1064,8 +1309,25 @@ void GameScene::ApplyLevelBalance(const nlohmann::json& balanceJson)
 		const nlohmann::json& playerJson = balanceJson["player"];
 		Player::BalanceConfig config{};
 		config.maxHp = ReadCustomInt(playerJson, "maxHp", player_->GetMaxHp());
+		config.reloadSpeed = ReadCustomFloat(playerJson, "reloadSpeed", config.reloadSpeed);
+		config.bulletDamage = ReadCustomFloat(playerJson, "bulletDamage", config.bulletDamage);
+		config.bulletSpeed = ReadCustomFloat(playerJson, "bulletSpeed", config.bulletSpeed);
+		config.moveSpeed = ReadCustomFloat(playerJson, "moveSpeed", config.moveSpeed);
+		config.staminaRecovery = ReadCustomFloat(playerJson, "staminaRecovery", config.staminaRecovery);
+		config.maxStamina = ReadCustomFloat(playerJson, "maxStamina", config.maxStamina);
 		config.maxHpUpgradeAmount = ReadCustomInt(playerJson, "maxHpUpgradeAmount", 50);
 		config.bodyDamage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(playerJson, "bodyDamage", static_cast<int>(player_->GetDamage()))));
+		if (balanceJson.contains("playerUpgrades") && balanceJson["playerUpgrades"].is_object()) {
+			const nlohmann::json& upgradeJson = balanceJson["playerUpgrades"];
+			config.healthRegenUpgrade = ReadCustomFloat(upgradeJson, "healthRegen", config.healthRegenUpgrade);
+			config.maxHpUpgradeAmount = ReadCustomInt(upgradeJson, "maxHp", config.maxHpUpgradeAmount);
+			config.bodyDamageUpgrade = ReadCustomFloat(upgradeJson, "bodyDamage", config.bodyDamageUpgrade);
+			config.bulletSpeedUpgrade = ReadCustomFloat(upgradeJson, "bulletSpeed", config.bulletSpeedUpgrade);
+			config.bulletDamageUpgrade = ReadCustomFloat(upgradeJson, "bulletDamage", config.bulletDamageUpgrade);
+			config.reloadUpgrade = ReadCustomFloat(upgradeJson, "reloadSpeed", config.reloadUpgrade);
+			config.moveSpeedUpgrade = ReadCustomFloat(upgradeJson, "moveSpeed", config.moveSpeedUpgrade);
+			config.minReloadSpeed = ReadCustomFloat(upgradeJson, "minReloadSpeed", config.minReloadSpeed);
+		}
 		config.healToFull = ReadCustomBool(playerJson, "healToFull", false);
 		player_->ApplyBalanceConfig(config);
 	}
@@ -1094,6 +1356,8 @@ void GameScene::ApplyLevelBalance(const nlohmann::json& balanceJson)
 		config.spreadAngleDeg = ReadCustomFloat(attackJson, "spreadAngleDeg", config.spreadAngleDeg);
 		config.cooldown = ReadCustomFloat(attackJson, "cooldown", config.cooldown);
 		config.damage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(attackJson, "damage", static_cast<int>(config.damage))));
+		config.bulletHp = ReadCustomFloat(attackJson, "bulletHp", config.bulletHp);
+		config.bulletPenetration = ReadCustomFloat(attackJson, "bulletPenetration", config.bulletPenetration);
 		config.randomSpread = ReadCustomBool(attackJson, "randomSpread", config.randomSpread);
 		config.pattern = static_cast<Enemy::BossAttackConfig::Pattern>((std::clamp)(ReadCustomInt(attackJson, "pattern", static_cast<int>(config.pattern)), 0, 3));
 		enemy_->SetBossAttackConfig(config);
@@ -1137,9 +1401,26 @@ void GameScene::LoadBalanceEditorFromJson(const nlohmann::json& balanceJson)
 	if (balanceJson.contains("player") && balanceJson["player"].is_object()) {
 		const nlohmann::json& playerJson = balanceJson["player"];
 		balanceEditor_.playerMaxHp = ReadCustomInt(playerJson, "maxHp", balanceEditor_.playerMaxHp);
+		balanceEditor_.playerReloadSpeed = ReadCustomFloat(playerJson, "reloadSpeed", balanceEditor_.playerReloadSpeed);
+		balanceEditor_.playerBulletDamage = ReadCustomFloat(playerJson, "bulletDamage", balanceEditor_.playerBulletDamage);
+		balanceEditor_.playerBulletSpeed = ReadCustomFloat(playerJson, "bulletSpeed", balanceEditor_.playerBulletSpeed);
+		balanceEditor_.playerMoveSpeed = ReadCustomFloat(playerJson, "moveSpeed", balanceEditor_.playerMoveSpeed);
+		balanceEditor_.playerStaminaRecovery = ReadCustomFloat(playerJson, "staminaRecovery", balanceEditor_.playerStaminaRecovery);
+		balanceEditor_.playerMaxStamina = ReadCustomFloat(playerJson, "maxStamina", balanceEditor_.playerMaxStamina);
 		balanceEditor_.maxHpUpgradeAmount = ReadCustomInt(playerJson, "maxHpUpgradeAmount", balanceEditor_.maxHpUpgradeAmount);
 		balanceEditor_.playerBodyDamage = ReadCustomInt(playerJson, "bodyDamage", balanceEditor_.playerBodyDamage);
 		balanceEditor_.healToFull = ReadCustomBool(playerJson, "healToFull", balanceEditor_.healToFull);
+	}
+	if (balanceJson.contains("playerUpgrades") && balanceJson["playerUpgrades"].is_object()) {
+		const nlohmann::json& upgradeJson = balanceJson["playerUpgrades"];
+		balanceEditor_.playerHealthRegenUpgrade = ReadCustomFloat(upgradeJson, "healthRegen", balanceEditor_.playerHealthRegenUpgrade);
+		balanceEditor_.maxHpUpgradeAmount = ReadCustomInt(upgradeJson, "maxHp", balanceEditor_.maxHpUpgradeAmount);
+		balanceEditor_.playerBodyDamageUpgrade = ReadCustomFloat(upgradeJson, "bodyDamage", balanceEditor_.playerBodyDamageUpgrade);
+		balanceEditor_.playerBulletSpeedUpgrade = ReadCustomFloat(upgradeJson, "bulletSpeed", balanceEditor_.playerBulletSpeedUpgrade);
+		balanceEditor_.playerBulletDamageUpgrade = ReadCustomFloat(upgradeJson, "bulletDamage", balanceEditor_.playerBulletDamageUpgrade);
+		balanceEditor_.playerReloadUpgrade = ReadCustomFloat(upgradeJson, "reloadSpeed", balanceEditor_.playerReloadUpgrade);
+		balanceEditor_.playerMoveSpeedUpgrade = ReadCustomFloat(upgradeJson, "moveSpeed", balanceEditor_.playerMoveSpeedUpgrade);
+		balanceEditor_.playerMinReloadSpeed = ReadCustomFloat(upgradeJson, "minReloadSpeed", balanceEditor_.playerMinReloadSpeed);
 	}
 	if (balanceJson.contains("damage") && balanceJson["damage"].is_object()) {
 		const nlohmann::json& damageJson = balanceJson["damage"];
@@ -1156,6 +1437,8 @@ void GameScene::LoadBalanceEditorFromJson(const nlohmann::json& balanceJson)
 		balanceEditor_.bossSpreadAngleDeg = ReadCustomFloat(attackJson, "spreadAngleDeg", balanceEditor_.bossSpreadAngleDeg);
 		balanceEditor_.bossCooldown = ReadCustomFloat(attackJson, "cooldown", balanceEditor_.bossCooldown);
 		balanceEditor_.bossBulletDamage = ReadCustomInt(attackJson, "damage", balanceEditor_.bossBulletDamage);
+		balanceEditor_.bossBulletHp = ReadCustomFloat(attackJson, "bulletHp", balanceEditor_.bossBulletHp);
+		balanceEditor_.bossBulletPenetration = ReadCustomFloat(attackJson, "bulletPenetration", balanceEditor_.bossBulletPenetration);
 		balanceEditor_.bossRandomSpread = ReadCustomBool(attackJson, "randomSpread", balanceEditor_.bossRandomSpread);
 		balanceEditor_.bossAttackPattern = (std::clamp)(ReadCustomInt(attackJson, "pattern", balanceEditor_.bossAttackPattern), 0, 3);
 	}
@@ -1182,9 +1465,24 @@ nlohmann::json GameScene::BuildBalanceJsonFromEditor() const
 	balance["defaultRandomSpawnEnabled"] = balanceEditor_.defaultRandomSpawnEnabled;
 	balance["player"] = {
 		{ "maxHp", (std::max)(1, balanceEditor_.playerMaxHp) },
-		{ "maxHpUpgradeAmount", (std::max)(1, balanceEditor_.maxHpUpgradeAmount) },
+		{ "reloadSpeed", (std::max)(0.05f, balanceEditor_.playerReloadSpeed) },
+		{ "bulletDamage", (std::max)(0.1f, balanceEditor_.playerBulletDamage) },
+		{ "bulletSpeed", (std::max)(0.01f, balanceEditor_.playerBulletSpeed) },
+		{ "moveSpeed", (std::max)(0.01f, balanceEditor_.playerMoveSpeed) },
+		{ "staminaRecovery", (std::max)(0.0f, balanceEditor_.playerStaminaRecovery) },
+		{ "maxStamina", (std::max)(0.0f, balanceEditor_.playerMaxStamina) },
 		{ "bodyDamage", (std::max)(1, balanceEditor_.playerBodyDamage) },
 		{ "healToFull", balanceEditor_.healToFull }
+	};
+	balance["playerUpgrades"] = {
+		{ "healthRegen", (std::max)(0.0f, balanceEditor_.playerHealthRegenUpgrade) },
+		{ "maxHp", (std::max)(1, balanceEditor_.maxHpUpgradeAmount) },
+		{ "bodyDamage", (std::max)(0.0f, balanceEditor_.playerBodyDamageUpgrade) },
+		{ "bulletSpeed", balanceEditor_.playerBulletSpeedUpgrade },
+		{ "bulletDamage", (std::max)(0.0f, balanceEditor_.playerBulletDamageUpgrade) },
+		{ "reloadSpeed", (std::max)(0.0f, balanceEditor_.playerReloadUpgrade) },
+		{ "moveSpeed", balanceEditor_.playerMoveSpeedUpgrade },
+		{ "minReloadSpeed", (std::max)(0.05f, balanceEditor_.playerMinReloadSpeed) }
 	};
 	balance["damage"] = {
 		{ "damageBlock", (std::max)(1, balanceEditor_.damageBlock) },
@@ -1199,6 +1497,8 @@ nlohmann::json GameScene::BuildBalanceJsonFromEditor() const
 		{ "spreadAngleDeg", (std::clamp)(balanceEditor_.bossSpreadAngleDeg, 0.0f, 360.0f) },
 		{ "cooldown", (std::max)(0.05f, balanceEditor_.bossCooldown) },
 		{ "damage", (std::max)(1, balanceEditor_.bossBulletDamage) },
+		{ "bulletHp", (std::max)(0.0f, balanceEditor_.bossBulletHp) },
+		{ "bulletPenetration", (std::max)(0.0f, balanceEditor_.bossBulletPenetration) },
 		{ "randomSpread", balanceEditor_.bossRandomSpread },
 		{ "pattern", (std::clamp)(balanceEditor_.bossAttackPattern, 0, 3) }
 	};
@@ -1287,22 +1587,217 @@ void GameScene::DrawPostEffectParamControls(const char* labelPrefix, BloomParam&
 {
 #ifdef USE_IMGUI
 	ImGui::PushID(labelPrefix);
-	ImGui::DragFloat("Intensity", &param.intensity, 0.01f, 0.0f, 8.0f);
-	ImGui::DragFloat("Threshold", &param.threshold, 0.01f, 0.0f, 2.0f);
-	ImGui::DragFloat("Distortion", &param.distortionAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("ChromAb", &param.chromAbAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Glitch", &param.glitchAmount, 0.001f, 0.0f, 0.2f);
-	ImGui::DragFloat("Dissolve", &param.dissolveThreshold, 0.01f, 0.0f, 1.0f);
-	ImGui::DragFloat("Outline Width", &param.outlineWidth, 0.1f, 0.0f, 100.0f);
-	ImGui::DragFloat("Outline Threshold", &param.outlineThreshold, 0.01f, 0.0f, 1.0f);
-	ImGui::ColorEdit3("Outline Color", &param.outlineColor.x);
-	ImGui::DragFloat("Outline Bloom Intensity", &param.outlineBloomIntensity, 0.01f, 0.0f, 8.0f);
-	ImGui::DragFloat("Outline Bloom Width", &param.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
+	ImGui::DragFloat("ブルーム強度", &param.intensity, 0.01f, 0.0f, 8.0f);
+	ImGui::DragFloat("ブルームしきい値", &param.threshold, 0.01f, 0.0f, 2.0f);
+	ImGui::DragFloat("歪み量", &param.distortionAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("色収差", &param.chromAbAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("グリッチ", &param.glitchAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("ディゾルブ", &param.dissolveThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("アウトライン幅", &param.outlineWidth, 0.1f, 0.0f, 100.0f);
+	ImGui::DragFloat("アウトラインしきい値", &param.outlineThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::ColorEdit3("アウトライン色", &param.outlineColor.x);
+	ImGui::DragFloat("アウトライン発光強度", &param.outlineBloomIntensity, 0.01f, 0.0f, 8.0f);
+	ImGui::DragFloat("アウトライン発光幅", &param.outlineBloomWidth, 0.1f, 0.0f, 30.0f);
 	ImGui::PopID();
 #else
 	(void)labelPrefix;
 	(void)param;
 #endif
+}
+
+nlohmann::json GameScene::BuildGamePostEffectConfig() const
+{
+	auto makeEntry = [](bool enabled, const ObjectPostEffect* effect) {
+		nlohmann::json entry = nlohmann::json::object();
+		entry["enabled"] = enabled;
+		if (effect) {
+			entry["param"] = WriteBloomParamJson(effect->GetParam());
+		}
+		return entry;
+	};
+
+	nlohmann::json config = nlohmann::json::object();
+	config["version"] = 1;
+	config["player"] = makeEntry(enablePlayerPostEffect_, playerPostEffect_.get());
+	config["bossEnemy"] = makeEntry(enableEnemyPostEffect_, enemyPostEffect_.get());
+	config["expEnemy"] = makeEntry(enableExpEnemyPostEffect_, expEnemyPostEffect_.get());
+	config["stage"] = makeEntry(enableStagePostEffect_, stagePostEffect_.get());
+	config["grid"] = makeEntry(enableNeonGridPostEffect_, neonGridPostEffect_.get());
+	config["bulletTrail"] = makeEntry(enableBulletTrailPostEffect_, bulletTrailPostEffect_.get());
+	config["sharedObjectBloom"] = {
+		{ "param", sharedObjectBloomPostEffect_ ? WriteBloomParamJson(sharedObjectBloomPostEffect_->GetParam()) : nlohmann::json::object() }
+	};
+	config["expEnemyPostCull"] = {
+		{ "halfWidth", expEnemyPostVisibleHalfWidth_ },
+		{ "halfHeight", expEnemyPostVisibleHalfHeight_ }
+	};
+	config["slowMotionPlayerPost"] = {
+		{ "keepPlayerColor", keepPlayerColorDuringSlow_ },
+		{ "chromAbAmount", slowPlayerChromAbAmount_ },
+		{ "distortionAmount", slowPlayerDistortionAmount_ },
+		{ "glitchAmount", slowPlayerGlitchAmount_ }
+	};
+	return config;
+}
+
+void GameScene::ApplyGamePostEffectConfig(const nlohmann::json& configJson)
+{
+	if (!configJson.is_object()) {
+		return;
+	}
+
+	auto applyEntry = [&](const char* key, bool* enabled, ObjectPostEffect* effect) {
+		if (!configJson.contains(key) || !configJson[key].is_object()) {
+			return;
+		}
+		const nlohmann::json& entry = configJson[key];
+		if (enabled) {
+			*enabled = ReadCustomBool(entry, "enabled", *enabled);
+		}
+		if (effect && entry.contains("param")) {
+			BloomParam param = effect->GetParam();
+			ReadBloomParamJson(entry["param"], param);
+			effect->SetParam(param);
+		}
+	};
+
+	applyEntry("player", &enablePlayerPostEffect_, playerPostEffect_.get());
+	applyEntry("bossEnemy", &enableEnemyPostEffect_, enemyPostEffect_.get());
+	applyEntry("expEnemy", &enableExpEnemyPostEffect_, expEnemyPostEffect_.get());
+	applyEntry("stage", &enableStagePostEffect_, stagePostEffect_.get());
+	applyEntry("grid", &enableNeonGridPostEffect_, neonGridPostEffect_.get());
+	applyEntry("bulletTrail", &enableBulletTrailPostEffect_, bulletTrailPostEffect_.get());
+	applyEntry("sharedObjectBloom", nullptr, sharedObjectBloomPostEffect_.get());
+
+	if (configJson.contains("expEnemyPostCull") && configJson["expEnemyPostCull"].is_object()) {
+		const nlohmann::json& cullJson = configJson["expEnemyPostCull"];
+		expEnemyPostVisibleHalfWidth_ = ReadCustomFloat(cullJson, "halfWidth", expEnemyPostVisibleHalfWidth_);
+		expEnemyPostVisibleHalfHeight_ = ReadCustomFloat(cullJson, "halfHeight", expEnemyPostVisibleHalfHeight_);
+	}
+	if (configJson.contains("slowMotionPlayerPost") && configJson["slowMotionPlayerPost"].is_object()) {
+		const nlohmann::json& slowJson = configJson["slowMotionPlayerPost"];
+		keepPlayerColorDuringSlow_ = ReadCustomBool(slowJson, "keepPlayerColor", keepPlayerColorDuringSlow_);
+		slowPlayerChromAbAmount_ = ReadCustomFloat(slowJson, "chromAbAmount", slowPlayerChromAbAmount_);
+		slowPlayerDistortionAmount_ = ReadCustomFloat(slowJson, "distortionAmount", slowPlayerDistortionAmount_);
+		slowPlayerGlitchAmount_ = ReadCustomFloat(slowJson, "glitchAmount", slowPlayerGlitchAmount_);
+	}
+
+	stagePostCacheValid_ = false;
+}
+
+bool GameScene::LoadGamePostEffectConfig(const std::string& filePath)
+{
+	std::ifstream file(filePath);
+	if (!file.is_open()) {
+		postEffectConfigStatus_ = "ポスト設定ファイルが見つからないため、初期値を使用します。";
+		return false;
+	}
+
+	nlohmann::json configJson;
+	try {
+		file >> configJson;
+	} catch (...) {
+		postEffectConfigStatus_ = "ポスト設定JSONの読み込みに失敗しました。";
+		return false;
+	}
+
+	ApplyGamePostEffectConfig(configJson);
+	postEffectConfigStatus_ = "ポスト設定を読み込みました: " + filePath;
+	return true;
+}
+
+bool GameScene::SaveGamePostEffectConfig(const std::string& filePath) const
+{
+	std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
+	std::ofstream file(filePath);
+	if (!file.is_open()) {
+		return false;
+	}
+	file << BuildGamePostEffectConfig().dump(2);
+	return true;
+}
+
+nlohmann::json GameScene::BuildGameVisualConfig() const
+{
+	nlohmann::json config = nlohmann::json::object();
+	config["version"] = 1;
+	config["neonGrid"] = {
+		{ "showWorldGrid", showNeonGrid_ },
+		{ "showActorLocalGrid", showActorLocalGrid_ },
+		{ "worldSpacing", worldGridSpacing_ },
+		{ "worldLineWidth", worldGridLineWidth_ },
+		{ "worldColor", WriteJsonVector4(worldGridColor_) },
+		{ "actorRadius", actorGridRadius_ },
+		{ "actorSpacing", actorGridSpacing_ },
+		{ "actorLineWidth", actorGridLineWidth_ },
+		{ "playerColor", WriteJsonVector4(playerGridColor_) },
+		{ "bossEnemyColor", WriteJsonVector4(enemyGridColor_) },
+		{ "expEnemyColor", WriteJsonVector4(expEnemyGridColor_) },
+		{ "cullActorLocalGrid", cullActorLocalGrid_ },
+		{ "maxExpEnemyLocalGrids", maxExpEnemyLocalGrids_ }
+	};
+	if (bulletManager_) {
+		config["bulletTrail"] = WriteBulletTrailSettingsJson(bulletManager_->GetTrailSettings());
+	}
+	return config;
+}
+
+void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
+{
+	if (!configJson.is_object()) {
+		return;
+	}
+	if (configJson.contains("neonGrid") && configJson["neonGrid"].is_object()) {
+		const nlohmann::json& gridJson = configJson["neonGrid"];
+		showNeonGrid_ = ReadCustomBool(gridJson, "showWorldGrid", showNeonGrid_);
+		showActorLocalGrid_ = ReadCustomBool(gridJson, "showActorLocalGrid", showActorLocalGrid_);
+		worldGridSpacing_ = ReadCustomFloat(gridJson, "worldSpacing", worldGridSpacing_);
+		worldGridLineWidth_ = ReadCustomFloat(gridJson, "worldLineWidth", worldGridLineWidth_);
+		if (gridJson.contains("worldColor")) worldGridColor_ = ReadJsonVector4(gridJson["worldColor"], worldGridColor_);
+		actorGridRadius_ = ReadCustomFloat(gridJson, "actorRadius", actorGridRadius_);
+		actorGridSpacing_ = ReadCustomFloat(gridJson, "actorSpacing", actorGridSpacing_);
+		actorGridLineWidth_ = ReadCustomFloat(gridJson, "actorLineWidth", actorGridLineWidth_);
+		if (gridJson.contains("playerColor")) playerGridColor_ = ReadJsonVector4(gridJson["playerColor"], playerGridColor_);
+		if (gridJson.contains("bossEnemyColor")) enemyGridColor_ = ReadJsonVector4(gridJson["bossEnemyColor"], enemyGridColor_);
+		if (gridJson.contains("expEnemyColor")) expEnemyGridColor_ = ReadJsonVector4(gridJson["expEnemyColor"], expEnemyGridColor_);
+		cullActorLocalGrid_ = ReadCustomBool(gridJson, "cullActorLocalGrid", cullActorLocalGrid_);
+		maxExpEnemyLocalGrids_ = ReadCustomInt(gridJson, "maxExpEnemyLocalGrids", maxExpEnemyLocalGrids_);
+	}
+	if (bulletManager_ && configJson.contains("bulletTrail")) {
+		ReadBulletTrailSettingsJson(configJson["bulletTrail"], bulletManager_->GetTrailSettings());
+	}
+}
+
+bool GameScene::LoadGameVisualConfig(const std::string& filePath)
+{
+	std::ifstream file(filePath);
+	if (!file.is_open()) {
+		visualConfigStatus_ = "見た目設定ファイルが見つからないため、初期値を使用します。";
+		return false;
+	}
+
+	nlohmann::json configJson;
+	try {
+		file >> configJson;
+	} catch (...) {
+		visualConfigStatus_ = "見た目設定JSONの読み込みに失敗しました。";
+		return false;
+	}
+
+	ApplyGameVisualConfig(configJson);
+	visualConfigStatus_ = "見た目設定を読み込みました: " + filePath;
+	return true;
+}
+
+bool GameScene::SaveGameVisualConfig(const std::string& filePath) const
+{
+	std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
+	std::ofstream file(filePath);
+	if (!file.is_open()) {
+		return false;
+	}
+	file << BuildGameVisualConfig().dump(2);
+	return true;
 }
 
 void GameScene::DrawGameSceneDebugImGui()
@@ -1313,98 +1808,151 @@ void GameScene::DrawGameSceneDebugImGui()
 	}
 
 	ImGui::SetNextWindowSize(ImVec2(620.0f, 540.0f), ImGuiCond_FirstUseEver);
-	if (!ImGui::Begin("Game Debug Console", &showGameDebugConsole_)) {
+	if (!ImGui::Begin("ゲームデバッグコンソール", &showGameDebugConsole_)) {
 		ImGui::End();
 		return;
 	}
 
 	if (ImGui::BeginTabBar("GameDebugTabs")) {
-		if (ImGui::BeginTabItem("Overview")) {
+		if (ImGui::BeginTabItem("概要")) {
 			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
-			ImGui::Text("deltaTime: %.8f", finalDeltaTime * 60.0f);
-			ImGui::Text("Exp Enemies: %zu", enemyManager_ ? enemyManager_->GetEnemyCount() : 0);
-			ImGui::Text("Trail Instances: %zu", bulletManager_ ? bulletManager_->GetTrailInstanceCount() : 0);
+			ImGui::Text("デルタタイム: %.8f", finalDeltaTime * 60.0f);
+			ImGui::Text("経験値敵の数: %zu", enemyManager_ ? enemyManager_->GetEnemyCount() : 0);
+			ImGui::Text("弾軌跡インスタンス数: %zu", bulletManager_ ? bulletManager_->GetTrailInstanceCount() : 0);
+			if (player_) {
+				const auto& hud = player_->GetUpgradeHudProfileStats();
+				const auto& evo = player_->GetEvolutionUiProfileStats();
+				ImGui::Separator();
+				ImGui::Text("強化HUD: %s total %.3fms / update %.3f / sprite %.3f (%d) / text %.3f (%d)",
+					hud.visible ? "表示" : "非表示",
+					hud.totalMs, hud.updateMs, hud.spriteMs, hud.spriteDraws, hud.textMs, hud.textDraws);
+				ImGui::Text("進化UI: %s total %.3fms / update %.3f / sprite %.3f (%d) / text %.3f (%d)",
+					evo.visible ? "表示" : "非表示",
+					evo.totalMs, evo.updateMs, evo.spriteMs, evo.spriteDraws, evo.textMs, evo.textDraws);
+			}
+			ImGui::SeparatorText("処理時間比較");
+			DrawPerformanceBreakdownImGui();
 			ImGui::Separator();
-			ImGui::Checkbox("Show Follow HP Bars", &showFollowHpBars_);
-			ImGui::Checkbox("Show Colliders (F7)", &showCollisionDebug_);
-			ImGui::Checkbox("Show Bullet Colliders", &showCollisionDebugBullets_);
-			ImGui::Checkbox("Show Post Profile Overlay (F8)", &showPostProfileOverlay_);
-			ImGui::Text("F12: toggle this console");
+			ImGui::Checkbox("追従HPバーを表示", &showFollowHpBars_);
+			ImGui::Checkbox("当たり判定を表示 (F7)", &showCollisionDebug_);
+			ImGui::Checkbox("弾の当たり判定も表示", &showCollisionDebugBullets_);
+			ImGui::Checkbox("弾HP/貫通力ラベルを表示", &showBulletStatusDebugOverlay_);
+			ImGui::Checkbox("弾HP/貫通力テーブルを表示", &showBulletStatusDebugTable_);
+			ImGui::DragInt("弾ラベル最大数", &bulletStatusDebugMaxLabels_, 1.0f, 1, 200);
+			ImGui::Checkbox("ポスト負荷表示を表示 (F8)", &showPostProfileOverlay_);
+			ImGui::Text("F12: このコンソールを表示/非表示");
 			ImGui::EndTabItem();
 		}
 
-		if (ImGui::BeginTabItem("Gameplay")) {
-			ImGui::Text("Level: %d", player_->GetLevel());
-			ImGui::Text("Exp: %d / %d", player_->GetExp(), player_->GetNextLevelExpValue());
-			ImGui::Text("Skill Points: %d", player_->GetSkillPoints());
-			ImGui::Text("Class: %s", player_->GetCurrentClassName());
+		if (ImGui::BeginTabItem("ゲームプレイ")) {
+			ImGui::Text("レベル: %d", player_->GetLevel());
+			ImGui::Text("経験値: %d / %d", player_->GetExp(), player_->GetNextLevelExpValue());
+			ImGui::Text("スキルポイント: %d", player_->GetSkillPoints());
+			ImGui::Text("機体クラス: %s", player_->GetCurrentClassName());
+			ImGui::Checkbox("デバッグ無敵: プレイヤーHPを減らさない", &debugPlayerNoDamage_);
 			ImGui::Separator();
-			ImGui::Text("1 Health Regen  Lv.%d", player_->GetUpgradeLevel(0));
-			ImGui::Text("2 Max Health    Lv.%d", player_->GetUpgradeLevel(1));
-			ImGui::Text("3 Body Damage   Lv.%d", player_->GetUpgradeLevel(2));
-			ImGui::Text("4 Bullet Speed  Lv.%d", player_->GetUpgradeLevel(3));
-			ImGui::Text("5 Bullet Damage Lv.%d", player_->GetUpgradeLevel(4));
-			ImGui::Text("6 Reload        Lv.%d", player_->GetUpgradeLevel(5));
-			ImGui::Text("7 Move Speed    Lv.%d", player_->GetUpgradeLevel(6));
+			ImGui::Text("1 自然回復       Lv.%d", player_->GetUpgradeLevel(0));
+			ImGui::Text("2 最大HP         Lv.%d", player_->GetUpgradeLevel(1));
+			ImGui::Text("3 体当たりダメージ Lv.%d", player_->GetUpgradeLevel(2));
+			ImGui::Text("4 弾速           Lv.%d", player_->GetUpgradeLevel(3));
+			ImGui::Text("5 弾ダメージ     Lv.%d", player_->GetUpgradeLevel(4));
+			ImGui::Text("6 リロード       Lv.%d", player_->GetUpgradeLevel(5));
+			ImGui::Text("7 移動速度       Lv.%d", player_->GetUpgradeLevel(6));
 			ImGui::Separator();
-			if (ImGui::Button("+ Next Level Exp")) {
+			if (ImGui::Button("+ 次レベル分の経験値")) {
 				player_->AddExp(player_->GetNextLevelExpValue());
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("+200 Exp")) {
+			if (ImGui::Button("+200 経験値")) {
 				player_->AddExp(200);
 			}
 			ImGui::EndTabItem();
 		}
 
-		if (ImGui::BeginTabItem("Visuals")) {
-			if (ImGui::CollapsingHeader("Neon Grid", ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::Checkbox("Show World Grid", &showNeonGrid_);
-				ImGui::Checkbox("Show Actor Local Grid", &showActorLocalGrid_);
-				ImGui::Checkbox("Enable Grid Post", &enableNeonGridPostEffect_);
-				ImGui::DragFloat("World Spacing", &worldGridSpacing_, 0.05f, 0.25f, 8.0f);
-				ImGui::DragFloat("World Line Width", &worldGridLineWidth_, 0.005f, 0.005f, 0.5f);
-				ImGui::ColorEdit4("World Color", &worldGridColor_.x);
-				ImGui::DragFloat("Actor Radius", &actorGridRadius_, 0.05f, 0.5f, 16.0f);
-				ImGui::DragFloat("Actor Spacing", &actorGridSpacing_, 0.025f, 0.2f, 3.0f);
-				ImGui::DragFloat("Actor Line Width", &actorGridLineWidth_, 0.005f, 0.005f, 0.5f);
-				ImGui::ColorEdit4("Player Grid", &playerGridColor_.x);
-				ImGui::ColorEdit4("Enemy Grid", &enemyGridColor_.x);
-				ImGui::ColorEdit4("Exp Enemy Grid", &expEnemyGridColor_.x);
-				ImGui::Checkbox("Cull Actor Local Grid", &cullActorLocalGrid_);
-				ImGui::DragInt("Max Exp Enemy Local Grids", &maxExpEnemyLocalGrids_, 1.0f, 0, 60);
-			}
-			if (ImGui::CollapsingHeader("Bullet Trail", ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::Checkbox("Enable Bullet Trail Post", &enableBulletTrailPostEffect_);
-				BulletTrailSettings& bulletTrail = bulletManager_->GetTrailSettings();
-				ImGui::DragFloat("Player Trail Half Width", &bulletTrail.playerHalfWidth, 0.01f, 0.01f, 1.5f);
-				ImGui::DragFloat("Enemy Trail Half Width", &bulletTrail.enemyHalfWidth, 0.01f, 0.01f, 1.5f);
-				ImGui::DragFloat("Trail Lifetime", &bulletTrail.lifetime, 0.01f, 0.02f, 1.5f);
-				ImGui::DragInt("Trail Max Points", &bulletTrail.maxPoints, 1.0f, 2, 80);
-				ImGui::DragInt("Trail Interpolation", &bulletTrail.interpolationSteps, 1.0f, 1, 12);
-				ImGui::DragFloat("Head Width Scale", &bulletTrail.headWidthScale, 0.01f, 0.0f, 4.0f);
-				ImGui::DragFloat("Tail Width Scale", &bulletTrail.tailWidthScale, 0.01f, 0.0f, 4.0f);
-				ImGui::Checkbox("Use Object Color For Trail", &bulletTrail.useObjectColorForTrail);
-				ImGui::ColorEdit4("Player Bullet Color", &bulletTrail.playerObjectColor.x);
-				ImGui::ColorEdit4("Enemy Bullet Color", &bulletTrail.enemyObjectColor.x);
-				ImGui::ColorEdit4("Reflect Bullet Color", &bulletTrail.reflectableObjectColor.x);
-				if (bulletTrail.useObjectColorForTrail) {
-					ImGui::DragFloat("Trail Head Intensity", &bulletTrail.trailHeadIntensity, 0.01f, 0.0f, 5.0f);
-					ImGui::DragFloat("Trail Tail Intensity", &bulletTrail.trailTailIntensity, 0.01f, 0.0f, 5.0f);
-					ImGui::DragFloat("Trail Head Alpha", &bulletTrail.trailHeadAlpha, 0.01f, 0.0f, 1.0f);
-					ImGui::DragFloat("Trail Tail Alpha", &bulletTrail.trailTailAlpha, 0.01f, 0.0f, 1.0f);
+		if (ImGui::BeginTabItem("見た目")) {
+			if (ImGui::Button("見た目設定を保存")) {
+				if (SaveGameVisualConfig()) {
+					visualConfigStatus_ = "見た目設定を保存しました: resources/configs/gameVisuals.json";
 				} else {
-					ImGui::ColorEdit4("Trail Start Color", &bulletTrail.startColor.x);
-					ImGui::ColorEdit4("Player Trail End", &bulletTrail.playerEndColor.x);
-					ImGui::ColorEdit4("Enemy Trail End", &bulletTrail.enemyEndColor.x);
-					ImGui::ColorEdit4("Reflect Trail End", &bulletTrail.reflectableEndColor.x);
+					visualConfigStatus_ = "見た目設定の保存に失敗しました。";
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("見た目設定を再読み込み")) {
+				LoadGameVisualConfig();
+			}
+			if (!visualConfigStatus_.empty()) {
+				ImGui::TextWrapped("%s", visualConfigStatus_.c_str());
+			}
+			ImGui::Separator();
+			if (player_) {
+				player_->DrawUpgradeHudDebugImGui();
+				ImGui::Separator();
+			}
+			if (ImGui::CollapsingHeader("ネオングリッド", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::Checkbox("背景グリッドを表示", &showNeonGrid_);
+				ImGui::Checkbox("キャラ周辺グリッドを表示", &showActorLocalGrid_);
+				ImGui::Checkbox("グリッドにポストエフェクト", &enableNeonGridPostEffect_);
+				ImGui::DragFloat("背景グリッド間隔", &worldGridSpacing_, 0.05f, 0.25f, 8.0f);
+				ImGui::DragFloat("背景グリッド線幅", &worldGridLineWidth_, 0.005f, 0.005f, 0.5f);
+				ImGui::ColorEdit4("背景グリッド色", &worldGridColor_.x);
+				ImGui::DragFloat("キャラ周辺グリッド半径", &actorGridRadius_, 0.05f, 0.5f, 16.0f);
+				ImGui::DragFloat("キャラ周辺グリッド間隔", &actorGridSpacing_, 0.025f, 0.2f, 3.0f);
+				ImGui::DragFloat("キャラ周辺グリッド線幅", &actorGridLineWidth_, 0.005f, 0.005f, 0.5f);
+				ImGui::ColorEdit4("プレイヤーグリッド色", &playerGridColor_.x);
+				ImGui::ColorEdit4("ボスグリッド色", &enemyGridColor_.x);
+				ImGui::ColorEdit4("経験値敵グリッド色", &expEnemyGridColor_.x);
+				ImGui::Checkbox("画面外の周辺グリッドを省略", &cullActorLocalGrid_);
+				ImGui::DragInt("経験値敵グリッド最大数", &maxExpEnemyLocalGrids_, 1.0f, 0, 60);
+			}
+			if (ImGui::CollapsingHeader("弾の軌跡", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::Checkbox("弾軌跡にポストエフェクト", &enableBulletTrailPostEffect_);
+				BulletTrailSettings& bulletTrail = bulletManager_->GetTrailSettings();
+				ImGui::DragFloat("プレイヤー軌跡半幅", &bulletTrail.playerHalfWidth, 0.01f, 0.01f, 1.5f);
+				ImGui::DragFloat("敵軌跡半幅", &bulletTrail.enemyHalfWidth, 0.01f, 0.01f, 1.5f);
+				ImGui::DragFloat("軌跡の寿命", &bulletTrail.lifetime, 0.01f, 0.02f, 1.5f);
+				ImGui::DragInt("軌跡の最大点数", &bulletTrail.maxPoints, 1.0f, 2, 80);
+				ImGui::DragInt("軌跡の補間数", &bulletTrail.interpolationSteps, 1.0f, 1, 12);
+				ImGui::DragFloat("先端の太さ倍率", &bulletTrail.headWidthScale, 0.01f, 0.0f, 4.0f);
+				ImGui::DragFloat("末端の太さ倍率", &bulletTrail.tailWidthScale, 0.01f, 0.0f, 4.0f);
+				ImGui::DragFloat("太さの減衰カーブ", &bulletTrail.widthCurvePower, 0.01f, 0.05f, 6.0f);
+				ImGui::DragFloat("色の減衰カーブ", &bulletTrail.colorCurvePower, 0.01f, 0.05f, 6.0f);
+				ImGui::Checkbox("弾の色を軌跡に使う", &bulletTrail.useObjectColorForTrail);
+				ImGui::ColorEdit4("プレイヤー弾色", &bulletTrail.playerObjectColor.x);
+				ImGui::ColorEdit4("敵弾色", &bulletTrail.enemyObjectColor.x);
+				ImGui::ColorEdit4("反射弾色", &bulletTrail.reflectableObjectColor.x);
+				if (bulletTrail.useObjectColorForTrail) {
+					ImGui::DragFloat("軌跡先端の発光倍率", &bulletTrail.trailHeadIntensity, 0.01f, 0.0f, 5.0f);
+					ImGui::DragFloat("軌跡末端の発光倍率", &bulletTrail.trailTailIntensity, 0.01f, 0.0f, 5.0f);
+					ImGui::DragFloat("軌跡先端の透明度", &bulletTrail.trailHeadAlpha, 0.01f, 0.0f, 1.0f);
+					ImGui::DragFloat("軌跡末端の透明度", &bulletTrail.trailTailAlpha, 0.01f, 0.0f, 1.0f);
+				} else {
+					ImGui::ColorEdit4("軌跡開始色", &bulletTrail.startColor.x);
+					ImGui::ColorEdit4("プレイヤー軌跡終了色", &bulletTrail.playerEndColor.x);
+					ImGui::ColorEdit4("敵軌跡終了色", &bulletTrail.enemyEndColor.x);
+					ImGui::ColorEdit4("反射弾軌跡終了色", &bulletTrail.reflectableEndColor.x);
 				}
 			}
 			ImGui::EndTabItem();
 		}
 
-		if (ImGui::BeginTabItem("Posts")) {
-			if (ImGui::Button("Enable All Posts")) {
+		if (ImGui::BeginTabItem("ポスト")) {
+			if (ImGui::Button("ポスト設定を保存")) {
+				if (SaveGamePostEffectConfig()) {
+					postEffectConfigStatus_ = "ポスト設定を保存しました: resources/configs/gamePostEffects.json";
+				} else {
+					postEffectConfigStatus_ = "ポスト設定の保存に失敗しました。";
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("ポスト設定を再読み込み")) {
+				LoadGamePostEffectConfig();
+			}
+			if (!postEffectConfigStatus_.empty()) {
+				ImGui::TextWrapped("%s", postEffectConfigStatus_.c_str());
+			}
+			ImGui::Separator();
+			if (ImGui::Button("全ポスト有効")) {
 				enableNeonGridPostEffect_ = true;
 				enableStagePostEffect_ = true;
 				enableBulletTrailPostEffect_ = true;
@@ -1413,7 +1961,7 @@ void GameScene::DrawGameSceneDebugImGui()
 				enableExpEnemyPostEffect_ = true;
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Disable All Posts")) {
+			if (ImGui::Button("全ポスト無効")) {
 				enableNeonGridPostEffect_ = false;
 				enableStagePostEffect_ = false;
 				enableBulletTrailPostEffect_ = false;
@@ -1421,60 +1969,70 @@ void GameScene::DrawGameSceneDebugImGui()
 				enableEnemyPostEffect_ = false;
 				enableExpEnemyPostEffect_ = false;
 			}
-			if (ImGui::CollapsingHeader("Player", ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::Checkbox("Enable Player Post", &enablePlayerPostEffect_);
+			if (ImGui::CollapsingHeader("プレイヤー", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::Checkbox("プレイヤーポストを有効", &enablePlayerPostEffect_);
 				DrawPostEffectParamControls("Player", playerPostEffect_->GetParam());
 			}
-			if (ImGui::CollapsingHeader("Boss Enemy")) {
-				ImGui::Checkbox("Enable Enemy Post", &enableEnemyPostEffect_);
+			if (ImGui::CollapsingHeader("ボス敵")) {
+				ImGui::Checkbox("ボス敵ポストを有効", &enableEnemyPostEffect_);
 				DrawPostEffectParamControls("Enemy", enemyPostEffect_->GetParam());
 			}
-			if (ImGui::CollapsingHeader("Exp Enemy")) {
-				ImGui::Checkbox("Enable Exp Enemy Post", &enableExpEnemyPostEffect_);
+			if (ImGui::CollapsingHeader("経験値敵")) {
+				ImGui::Checkbox("経験値敵ポストを有効", &enableExpEnemyPostEffect_);
 				DrawPostEffectParamControls("ExpEnemy", expEnemyPostEffect_->GetParam());
-				ImGui::DragFloat("Post Cull Half Width", &expEnemyPostVisibleHalfWidth_, 0.5f, 10.0f, 80.0f);
-				ImGui::DragFloat("Post Cull Half Height", &expEnemyPostVisibleHalfHeight_, 0.5f, 10.0f, 60.0f);
+				ImGui::DragFloat("ポスト省略範囲 半幅", &expEnemyPostVisibleHalfWidth_, 0.5f, 10.0f, 80.0f);
+				ImGui::DragFloat("ポスト省略範囲 半高さ", &expEnemyPostVisibleHalfHeight_, 0.5f, 10.0f, 60.0f);
 			}
-			if (ImGui::CollapsingHeader("Stage")) {
-				ImGui::Checkbox("Enable Stage Post", &enableStagePostEffect_);
+			if (ImGui::CollapsingHeader("ステージ")) {
+				ImGui::Checkbox("ステージポストを有効", &enableStagePostEffect_);
 				DrawPostEffectParamControls("Stage", stagePostEffect_->GetParam());
-				ImGui::Text("Stage uses bloom-only add pass for performance.");
+				ImGui::Text("ステージは軽量化のためブルーム加算のみを使います。");
 			}
-			if (ImGui::CollapsingHeader("Grid / Trail")) {
-				ImGui::Checkbox("Enable Grid Post", &enableNeonGridPostEffect_);
+			if (ImGui::CollapsingHeader("共有オブジェクト発光")) {
+				DrawPostEffectParamControls("SharedObjectBloom", sharedObjectBloomPostEffect_->GetParam());
+				ImGui::TextWrapped("プレイヤー、敵、経験値敵、ステージなどの単体発光をまとめる共通パスです。");
+			}
+			if (ImGui::CollapsingHeader("グリッド / 弾軌跡")) {
+				ImGui::Checkbox("グリッドポストを有効", &enableNeonGridPostEffect_);
 				BloomParam& gridPost = neonGridPostEffect_->GetParam();
-				ImGui::DragFloat("Grid Bloom Intensity", &gridPost.intensity, 0.01f, 0.0f, 6.0f);
-				ImGui::DragFloat("Grid Bloom Threshold", &gridPost.threshold, 0.01f, 0.0f, 2.0f);
-				ImGui::Checkbox("Enable Bullet Trail Post", &enableBulletTrailPostEffect_);
+				ImGui::DragFloat("グリッド発光強度", &gridPost.intensity, 0.01f, 0.0f, 6.0f);
+				ImGui::DragFloat("グリッド発光しきい値", &gridPost.threshold, 0.01f, 0.0f, 2.0f);
+				ImGui::Checkbox("弾軌跡ポストを有効", &enableBulletTrailPostEffect_);
 				BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
-				ImGui::DragFloat("Bullet Trail Bloom Intensity", &bulletTrailPost.intensity, 0.01f, 0.0f, 8.0f);
-				ImGui::DragFloat("Bullet Trail Bloom Threshold", &bulletTrailPost.threshold, 0.01f, 0.0f, 2.0f);
+				ImGui::DragFloat("弾軌跡発光強度", &bulletTrailPost.intensity, 0.01f, 0.0f, 8.0f);
+				ImGui::DragFloat("弾軌跡発光しきい値", &bulletTrailPost.threshold, 0.01f, 0.0f, 2.0f);
 			}
-			if (ImGui::CollapsingHeader("Slow Motion")) {
-				ImGui::Text("Slow Active: %s", slowMotionPostActive_ ? "true" : "false");
-				ImGui::Checkbox("Keep Player Color During Slow", &keepPlayerColorDuringSlow_);
-				ImGui::DragFloat("Slow Player ChromAb", &slowPlayerChromAbAmount_, 0.001f, 0.0f, 0.2f);
-				ImGui::DragFloat("Slow Player Distortion", &slowPlayerDistortionAmount_, 0.001f, 0.0f, 0.2f);
-				ImGui::DragFloat("Slow Player Glitch", &slowPlayerGlitchAmount_, 0.001f, 0.0f, 0.2f);
+			if (ImGui::CollapsingHeader("スローモーション")) {
+				ImGui::Text("スロー中: %s", slowMotionPostActive_ ? "はい" : "いいえ");
+				ImGui::Checkbox("スロー中もプレイヤー色を維持", &keepPlayerColorDuringSlow_);
+				ImGui::DragFloat("スロー時 プレイヤー色収差", &slowPlayerChromAbAmount_, 0.001f, 0.0f, 0.2f);
+				ImGui::DragFloat("スロー時 プレイヤー歪み", &slowPlayerDistortionAmount_, 0.001f, 0.0f, 0.2f);
+				ImGui::DragFloat("スロー時 プレイヤーグリッチ", &slowPlayerGlitchAmount_, 0.001f, 0.0f, 0.2f);
 			}
 			ImGui::EndTabItem();
 		}
 
-		if (ImGui::BeginTabItem("Tools")) {
-			ImGui::Checkbox("Particle Editor Window", &showParticleEditor_);
-			ImGui::Checkbox("Player Class Editor Window", &showPlayerClassEditor_);
+		if (ImGui::BeginTabItem("ツール")) {
+			ImGui::Checkbox("パーティクルエディタを開く", &showParticleEditor_);
+			ImGui::Checkbox("プレイヤー機体エディタを開く", &showPlayerClassEditor_);
+			ImGui::Separator();
+			ImGui::Text("弾耐久デバッグ");
+			ImGui::Checkbox("画面上ラベル", &showBulletStatusDebugOverlay_);
+			ImGui::Checkbox("ライブ表", &showBulletStatusDebugTable_);
+			ImGui::DragInt("画面上ラベル最大数", &bulletStatusDebugMaxLabels_, 1.0f, 1, 200);
+			DrawBulletStatusDebugTable();
 			ImGui::Separator();
 			if (shotGide) {
-				ImGui::SliderFloat2("Shot Guide Position", &shotGide->GetPosition().x, 0.0f, 3000.0f, "%.1f");
+				ImGui::SliderFloat2("射撃ガイド位置", &shotGide->GetPosition().x, 0.0f, 3000.0f, "%.1f");
 			}
 			if (ball_) {
-				ImGui::DragFloat3("Ball Scale", &ball_->GetScale().x);
-				ImGui::ColorEdit4("Ball Color", &ball_->GetColor().x);
+				ImGui::DragFloat3("デバッグ球スケール", &ball_->GetScale().x);
+				ImGui::ColorEdit4("デバッグ球色", &ball_->GetColor().x);
 			}
 			ImGui::EndTabItem();
 		}
 
-		if (ImGui::BeginTabItem("Balance")) {
+		if (ImGui::BeginTabItem("バランス")) {
 			DrawLevelAIDitorBalanceLab(true);
 			ImGui::EndTabItem();
 		}
@@ -1486,6 +2044,105 @@ void GameScene::DrawGameSceneDebugImGui()
 #endif
 }
 
+void GameScene::DrawBulletStatusDebugTable()
+{
+#ifdef USE_IMGUI
+	if (!showBulletStatusDebugTable_ || !bulletManager_) {
+		return;
+	}
+
+	const std::vector<Bullet*> bullets = bulletManager_->GetBulletPtrs();
+	ImGui::Text("現在の弾数: %zu", bullets.size());
+	if (!ImGui::BeginTable("BulletStatusDebugTable", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(0.0f, 180.0f))) {
+		return;
+	}
+
+	ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 36.0f);
+	ImGui::TableSetupColumn("所属", ImGuiTableColumnFlags_WidthFixed, 74.0f);
+	ImGui::TableSetupColumn("ダメージ", ImGuiTableColumnFlags_WidthFixed, 78.0f);
+	ImGui::TableSetupColumn("弾HP", ImGuiTableColumnFlags_WidthFixed, 82.0f);
+	ImGui::TableSetupColumn("貫通力", ImGuiTableColumnFlags_WidthFixed, 74.0f);
+	ImGui::TableSetupColumn("位置", ImGuiTableColumnFlags_WidthStretch);
+	ImGui::TableSetupColumn("速度", ImGuiTableColumnFlags_WidthStretch);
+	ImGui::TableHeadersRow();
+
+	for (size_t i = 0; i < bullets.size(); ++i) {
+		Bullet* bullet = bullets[i];
+		if (!bullet) {
+			continue;
+		}
+		const Vector3 pos = bullet->GetWorldPosition();
+		const Vector3 vel = bullet->GetMove();
+
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImGui::Text("%zu", i);
+		ImGui::TableSetColumnIndex(1);
+		ImGui::TextColored(
+			bullet->GetOwner() == kPlayer ? ImVec4(1.0f, 0.92f, 0.28f, 1.0f) : ImVec4(1.0f, 0.36f, 0.48f, 1.0f),
+			"%s",
+			BulletOwnerName(bullet->GetOwner()));
+		ImGui::TableSetColumnIndex(2);
+		ImGui::Text("%u", bullet->GetDamage());
+		ImGui::TableSetColumnIndex(3);
+		ImGui::Text("%.1f", bullet->GetBulletHp());
+		ImGui::TableSetColumnIndex(4);
+		ImGui::Text("%.1f", bullet->GetBulletPenetration());
+		ImGui::TableSetColumnIndex(5);
+		ImGui::Text("%.1f, %.1f", pos.x, pos.y);
+		ImGui::TableSetColumnIndex(6);
+		ImGui::Text("%.2f, %.2f", vel.x, vel.y);
+	}
+
+	ImGui::EndTable();
+#endif
+}
+
+void GameScene::DrawBulletStatusDebugOverlay()
+{
+#ifdef USE_IMGUI
+	if (!showBulletStatusDebugOverlay_ || !bulletManager_) {
+		return;
+	}
+
+	const std::vector<Bullet*> bullets = bulletManager_->GetBulletPtrs();
+	ImDrawList* drawList = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
+	const int maxLabels = (std::max)(1, bulletStatusDebugMaxLabels_);
+	int drawn = 0;
+	for (Bullet* bullet : bullets) {
+		if (!bullet || bullet->IsDead()) {
+			continue;
+		}
+		if (drawn >= maxLabels) {
+			break;
+		}
+
+		const Vector3 worldPos = bullet->GetWorldPosition();
+		const Vector2 screen = WorldToScreen(worldPos + Vector3{ 0.0f, 0.85f, 0.0f });
+		if (screen.x < -80.0f || screen.x > WinApp::kClientWidth + 80.0f ||
+			screen.y < -40.0f || screen.y > WinApp::kClientHeight + 40.0f) {
+			continue;
+		}
+
+		char text[64]{};
+		std::snprintf(
+			text,
+			sizeof(text),
+			"%c HP %.1f  PEN %.1f",
+			bullet->GetOwner() == kPlayer ? 'P' : 'E',
+			bullet->GetBulletHp(),
+			bullet->GetBulletPenetration());
+
+		const ImVec2 textPos(screen.x + 8.0f, screen.y - 10.0f);
+		drawList->AddText(ImVec2(textPos.x + 1.0f, textPos.y + 1.0f), IM_COL32(0, 0, 0, 220), text);
+		drawList->AddText(textPos, BulletOwnerDebugColor(bullet->GetOwner()), text);
+		++drawn;
+	}
+#else
+	(void)this;
+#endif
+}
+
 void GameScene::DrawLevelAIDitorBalanceLab(bool embedded)
 {
 #ifdef USE_IMGUI
@@ -1494,82 +2151,105 @@ void GameScene::DrawLevelAIDitorBalanceLab(bool embedded)
 	}
 
 	if (!embedded) {
-		ImGui::Begin("Level AI-ditor Balance Lab");
+		ImGui::Begin("レベルバランス調整ラボ");
 	}
-	ImGui::Text("Edit runtime balance, then save it back to level_test.json.");
-	ImGui::Checkbox("Default Random Spawn", &balanceEditor_.defaultRandomSpawnEnabled);
+	ImGui::Text("実行中のバランスを調整し、必要なら level_test.json に保存します。");
+	ImGui::Checkbox("通常ランダムスポーン有効", &balanceEditor_.defaultRandomSpawnEnabled);
 	ImGui::Separator();
 
-	if (ImGui::CollapsingHeader("Player", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::DragInt("Max HP", &balanceEditor_.playerMaxHp, 10.0f, 1, 9999);
-		ImGui::DragInt("Max HP Upgrade", &balanceEditor_.maxHpUpgradeAmount, 1.0f, 1, 999);
-		ImGui::DragInt("Body Damage", &balanceEditor_.playerBodyDamage, 1.0f, 1, 999);
-		ImGui::Checkbox("Heal To Full On Apply", &balanceEditor_.healToFull);
+	if (ImGui::CollapsingHeader("プレイヤー", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::DragInt("最大HP", &balanceEditor_.playerMaxHp, 10.0f, 1, 9999);
+		ImGui::DragFloat("リロード速度 基礎値", &balanceEditor_.playerReloadSpeed, 0.05f, 0.05f, 60.0f);
+		ImGui::DragFloat("弾ダメージ 基礎値", &balanceEditor_.playerBulletDamage, 0.1f, 0.1f, 999.0f);
+		ImGui::DragFloat("弾速 基礎値", &balanceEditor_.playerBulletSpeed, 0.01f, 0.01f, 5.0f);
+		ImGui::DragFloat("移動速度 基礎値", &balanceEditor_.playerMoveSpeed, 0.005f, 0.01f, 5.0f);
+		ImGui::DragFloat("自然回復 基礎値", &balanceEditor_.playerStaminaRecovery, 0.01f, 0.0f, 20.0f);
+		ImGui::DragFloat("最大スタミナ 基礎値", &balanceEditor_.playerMaxStamina, 0.1f, 0.0f, 20.0f);
+		ImGui::DragInt("体当たりダメージ", &balanceEditor_.playerBodyDamage, 1.0f, 1, 999);
+		ImGui::Checkbox("適用時に全回復", &balanceEditor_.healToFull);
 		if (player_) {
-			ImGui::Text("Current HP: %d / %d", player_->GetHp(), player_->GetMaxHp());
+			ImGui::Text("現在HP: %d / %d", player_->GetHp(), player_->GetMaxHp());
+			const Player::PlayerStats& stats = player_->GetStats();
+			ImGui::Text("現在値: リロード %.2f / 弾ダメ %.2f / 弾速 %.3f / 移動 %.3f / 回復 %.2f",
+				stats.reloadSpeed, stats.bulletDamage, stats.bulletSpeed, stats.moveSpeed, stats.staminaRecovery);
 		}
 	}
 
-	if (ImGui::CollapsingHeader("Damage", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::DragInt("DamageBlock", &balanceEditor_.damageBlock, 1.0f, 1, 999);
-		ImGui::DragInt("Boss Contact", &balanceEditor_.bossContact, 1.0f, 1, 999);
-		ImGui::DragInt("Exp Enemy Contact", &balanceEditor_.expEnemyContact, 1.0f, 1, 999);
-		ImGui::DragInt("Shooter Contact", &balanceEditor_.shooterContact, 1.0f, 1, 999);
-		ImGui::DragInt("Shooter Bullet", &balanceEditor_.shooterBullet, 1.0f, 1, 999);
+	if (ImGui::CollapsingHeader("プレイヤー強化幅", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::TextWrapped("1回強化したときに増える量です。リロードだけは数値が小さいほど速いため、この値ぶん減ります。");
+		ImGui::DragFloat("自然回復 +/Lv", &balanceEditor_.playerHealthRegenUpgrade, 0.01f, 0.0f, 20.0f);
+		ImGui::DragInt("最大HP +/Lv", &balanceEditor_.maxHpUpgradeAmount, 1.0f, 1, 9999);
+		ImGui::DragFloat("体当たりダメージ +/Lv", &balanceEditor_.playerBodyDamageUpgrade, 0.1f, 0.0f, 999.0f);
+		ImGui::DragFloat("弾速 +/Lv", &balanceEditor_.playerBulletSpeedUpgrade, 0.005f, -5.0f, 5.0f);
+		ImGui::DragFloat("弾ダメージ +/Lv", &balanceEditor_.playerBulletDamageUpgrade, 0.1f, 0.0f, 999.0f);
+		ImGui::DragFloat("リロード短縮 /Lv", &balanceEditor_.playerReloadUpgrade, 0.05f, 0.0f, 20.0f);
+		ImGui::DragFloat("リロード最小値", &balanceEditor_.playerMinReloadSpeed, 0.05f, 0.05f, 60.0f);
+		ImGui::DragFloat("移動速度 +/Lv", &balanceEditor_.playerMoveSpeedUpgrade, 0.005f, -5.0f, 5.0f);
 	}
 
-	if (ImGui::CollapsingHeader("Boss Attack Default", ImGuiTreeNodeFlags_DefaultOpen)) {
-		const char* patternNames[] = { "Spread", "Ring", "Sniper", "Alternating" };
-		ImGui::Combo("Attack Pattern", &balanceEditor_.bossAttackPattern, patternNames, IM_ARRAYSIZE(patternNames));
-		ImGui::DragFloat("Bullet Speed", &balanceEditor_.bossBulletSpeed, 0.01f, 0.01f, 2.0f);
-		ImGui::DragInt("Bullet Count", &balanceEditor_.bossBulletCount, 1.0f, 1, 64);
-		ImGui::DragFloat("Spread Angle", &balanceEditor_.bossSpreadAngleDeg, 1.0f, 0.0f, 360.0f);
-		ImGui::DragFloat("Cooldown", &balanceEditor_.bossCooldown, 0.01f, 0.05f, 5.0f);
-		ImGui::DragInt("Bullet Damage", &balanceEditor_.bossBulletDamage, 1.0f, 1, 999);
-		ImGui::Checkbox("Random Spread", &balanceEditor_.bossRandomSpread);
+	if (ImGui::CollapsingHeader("接触/被弾ダメージ", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::DragInt("ダメージブロック", &balanceEditor_.damageBlock, 1.0f, 1, 999);
+		ImGui::DragInt("ボス接触", &balanceEditor_.bossContact, 1.0f, 1, 999);
+		ImGui::DragInt("経験値敵接触", &balanceEditor_.expEnemyContact, 1.0f, 1, 999);
+		ImGui::DragInt("射撃敵接触", &balanceEditor_.shooterContact, 1.0f, 1, 999);
+		ImGui::DragInt("射撃敵の弾", &balanceEditor_.shooterBullet, 1.0f, 1, 999);
+	}
+
+	if (ImGui::CollapsingHeader("ボス通常攻撃", ImGuiTreeNodeFlags_DefaultOpen)) {
+		const char* patternNames[] = { "拡散", "リング", "狙撃", "交互射撃" };
+		ImGui::Combo("攻撃パターン", &balanceEditor_.bossAttackPattern, patternNames, IM_ARRAYSIZE(patternNames));
+		ImGui::DragFloat("弾速", &balanceEditor_.bossBulletSpeed, 0.01f, 0.01f, 2.0f);
+		ImGui::DragInt("弾数", &balanceEditor_.bossBulletCount, 1.0f, 1, 64);
+		ImGui::DragFloat("拡散角度", &balanceEditor_.bossSpreadAngleDeg, 1.0f, 0.0f, 360.0f);
+		ImGui::DragFloat("クールタイム", &balanceEditor_.bossCooldown, 0.01f, 0.05f, 5.0f);
+		ImGui::DragInt("弾ダメージ", &balanceEditor_.bossBulletDamage, 1.0f, 1, 999);
+		ImGui::DragFloat("弾HP (0=ダメージ値)", &balanceEditor_.bossBulletHp, 0.1f, 0.0f, 999.0f);
+		ImGui::DragFloat("弾貫通力 (0=ダメージ値)", &balanceEditor_.bossBulletPenetration, 0.1f, 0.0f, 999.0f);
+		ImGui::Checkbox("ランダム拡散", &balanceEditor_.bossRandomSpread);
 		if (enemy_) {
-			ImGui::Text("Boss Level: %d", enemy_->GetLevel());
+			ImGui::Text("ボスレベル: %d", enemy_->GetLevel());
+			ImGui::Text("ボス経験値: %u", enemy_->GetEnemyExp());
 		}
 	}
 
-	if (ImGui::CollapsingHeader("Enemy RPG / Faction", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::Checkbox("Exp Enemy Hostile To Boss", &balanceEditor_.expEnemyHostileToBoss);
-		ImGui::DragInt("Boss Damage To Exp Enemy", &balanceEditor_.bossExpEnemyDamage, 1.0f, 1, 999);
-		ImGui::DragInt("Boss Heal On Exp Kill", &balanceEditor_.bossHealOnExpEnemyKill, 1.0f, 0, 999);
-		ImGui::DragInt("Boss Kills Per Level", &balanceEditor_.bossKillsPerLevel, 1.0f, 1, 99);
-		ImGui::DragInt("Boss Max HP Gain / Level", &balanceEditor_.bossMaxHpGainPerLevel, 1.0f, 0, 999);
-		ImGui::DragInt("Boss Damage Gain / Level", &balanceEditor_.bossDamageGainPerLevel, 1.0f, 0, 99);
-		ImGui::Checkbox("Boss Leveling Hunt Mode", &balanceEditor_.bossLevelingModeEnabled);
-		ImGui::DragFloat("Hunt Enter Player Distance", &balanceEditor_.bossLevelingEnterDistance, 0.5f, 1.0f, 120.0f);
-		ImGui::DragFloat("Hunt Exit Player Distance", &balanceEditor_.bossLevelingExitDistance, 0.5f, 0.5f, 120.0f);
-		ImGui::DragFloat("Hunt Search Radius", &balanceEditor_.bossLevelingSearchRadius, 1.0f, 1.0f, 200.0f);
-		ImGui::DragFloat("Aim 180deg Turn Seconds", &balanceEditor_.bossAimTurnHalfSeconds, 0.05f, 0.05f, 5.0f);
+	if (ImGui::CollapsingHeader("敵RPG / 陣営", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("経験値敵をボスと敵対させる", &balanceEditor_.expEnemyHostileToBoss);
+		ImGui::DragInt("ボスから経験値敵へのダメージ", &balanceEditor_.bossExpEnemyDamage, 1.0f, 1, 999);
+		ImGui::DragInt("ボスが経験値敵撃破で回復", &balanceEditor_.bossHealOnExpEnemyKill, 1.0f, 0, 999);
+		ImGui::DragInt("ボスの必要撃破数/レベル", &balanceEditor_.bossKillsPerLevel, 1.0f, 1, 99);
+		ImGui::DragInt("ボス最大HP増加/レベル", &balanceEditor_.bossMaxHpGainPerLevel, 1.0f, 0, 999);
+		ImGui::DragInt("ボス攻撃力増加/レベル", &balanceEditor_.bossDamageGainPerLevel, 1.0f, 0, 99);
+		ImGui::Checkbox("ボスのレベリング狩りモード", &balanceEditor_.bossLevelingModeEnabled);
+		ImGui::DragFloat("狩り開始 プレイヤー距離", &balanceEditor_.bossLevelingEnterDistance, 0.5f, 1.0f, 120.0f);
+		ImGui::DragFloat("狩り終了 プレイヤー距離", &balanceEditor_.bossLevelingExitDistance, 0.5f, 0.5f, 120.0f);
+		ImGui::DragFloat("狩り探索半径", &balanceEditor_.bossLevelingSearchRadius, 1.0f, 1.0f, 200.0f);
+		ImGui::DragFloat("180度旋回にかかる秒数", &balanceEditor_.bossAimTurnHalfSeconds, 0.05f, 0.05f, 5.0f);
 		if (enemy_) {
-			ImGui::Text("Current Boss Mode: %s", enemy_->IsLevelingModeActive() ? "Leveling Hunt" : "Player Pressure");
+			ImGui::Text("現在のボスモード: %s", enemy_->IsLevelingModeActive() ? "レベリング狩り" : "プレイヤー圧力");
 		}
-		ImGui::TextWrapped("When enabled, boss and EXP enemies collide as hostile factions. Boss heals and levels when it kills EXP enemies.");
+		ImGui::TextWrapped("有効にすると、ボスと経験値敵が敵対陣営として衝突します。ボスは経験値敵を倒すと回復し、レベルアップします。");
 	}
 
 	ImGui::Separator();
-	if (ImGui::Button("Apply Runtime")) {
+	if (ImGui::Button("実行中ゲームへ適用")) {
 		currentLevelData_.balance = BuildBalanceJsonFromEditor();
 		enemyManager_->SetDefaultRandomSpawnEnabled(balanceEditor_.defaultRandomSpawnEnabled);
 		ApplyLevelBalance(currentLevelData_.balance);
 		balanceEditor_.statusMessage = "Applied balance to running game.";
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Save level_test.json")) {
+	if (ImGui::Button("level_test.jsonへ保存")) {
 		SaveBalanceEditorToLevelFile("resources/levels/level_test.json");
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("AI Handoff MD")) {
+	if (ImGui::Button("AI引き継ぎMD出力")) {
 		if (WriteBalanceAIHandoff("resources/levels/ai_balance_handoff.md")) {
 			balanceEditor_.statusMessage = "Wrote resources/levels/ai_balance_handoff.md";
 		} else {
 			balanceEditor_.statusMessage = "Failed to write AI handoff file.";
 		}
 	}
-	if (ImGui::Button("Reload From JSON")) {
+	if (ImGui::Button("JSONから再読み込み")) {
 		LevelData levelData;
 		if (LoadLevelFile(levelData)) {
 			LoadBalanceEditorFromJson(levelData.balance);
@@ -1688,6 +2368,8 @@ void GameScene::ApplyBossPhaseTuning(const LevelBossPhase& phase)
 		config.spreadAngleDeg = ReadCustomFloat(attackJson, "spreadAngleDeg", config.spreadAngleDeg);
 		config.cooldown = ReadCustomFloat(attackJson, "cooldown", config.cooldown);
 		config.damage = static_cast<uint32_t>(ReadCustomInt(attackJson, "damage", static_cast<int>(config.damage)));
+		config.bulletHp = ReadCustomFloat(attackJson, "bulletHp", config.bulletHp);
+		config.bulletPenetration = ReadCustomFloat(attackJson, "bulletPenetration", config.bulletPenetration);
 		config.randomSpread = ReadCustomBool(attackJson, "randomSpread", config.randomSpread);
 		config.pattern = static_cast<Enemy::BossAttackConfig::Pattern>((std::clamp)(ReadCustomInt(attackJson, "pattern", static_cast<int>(config.pattern)), 0, 3));
 		enemy_->SetBossAttackConfig(config);
@@ -1868,6 +2550,7 @@ void GameScene::DrawSprite() {
 	if (showPostProfileOverlay_ && postProfileText_) {
 		postProfileText_->Draw();
 	}
+	DrawBulletStatusDebugOverlay();
 	if (phase_ != Phase::kFadeIn) {
 		fade_->Draw();
 	}

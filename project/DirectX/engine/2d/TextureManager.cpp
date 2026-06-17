@@ -89,8 +89,7 @@ uint32_t TextureManager::GetTextureIndexbyFilePath(const std::string& filePath)
 {
 	// 読み込み済みテクスチャを検索
 	if (textureDatas.contains(filePath)) {
-		uint32_t textureIndex = static_cast<uint32_t>(textureDatas.contains(filePath));
-		return textureIndex + kSRVIndexTop;
+		return textureDatas[filePath].srvIndex;
 	}
 	
 	assert(0);

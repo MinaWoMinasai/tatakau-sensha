@@ -2,19 +2,21 @@
 #include <cmath>
 
 void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const uint32_t& damage, BulletOwner owner,
-	bool reflectable) {
+	bool reflectable, float bulletHp, float bulletPenetration) {
 	object_ = std::make_unique<Object3d>();
 	object_->Initialize();
 
 	owner_ = owner;
 	isReflectable_ = reflectable;
+	bulletHp_ = (std::max)(0.1f, bulletHp);
+	bulletPenetration_ = (std::max)(0.1f, bulletPenetration);
 	
 
 	// モデル切り替え（見た目差分）
 	if (owner_ == kPlayer) {
 		object_->SetModel("bullet.obj");
 		SetCollisionAttribute(kCollisionAttributePlayerBullet);
-		SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeExpEnemy);
+		SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeExpEnemy | kCollisionAttributeEnemyBullet);
 		if (isReflectable_) {
 			object_->SetColor(Vector4(1.0f, 1.0f, 0.0f, 1.0f));
 		} else {
@@ -24,7 +26,7 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 		object_->SetModel("bullet.obj");
 		object_->SetColor(Vector4(1.0f, 0.22f, 0.38f, 1.0f));
 		SetCollisionAttribute(kCollisionAttributeEnemyBullet);
-		SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerDrone | kCollisionAttributeExpEnemy);
+		SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerDrone | kCollisionAttributeExpEnemy | kCollisionAttributePlayerBullet);
 	}
 
 	worldTransform_ = InitWorldTransform();
@@ -70,9 +72,33 @@ void Bullet::Draw() {
 }
 
 void Bullet::OnCollision(Collider* other) {
-	(void)other;
-	// デスフラグを立てる
+	if (isDead_) {
+		return;
+	}
+	Bullet* otherBullet = dynamic_cast<Bullet*>(other);
+	if (otherBullet) {
+		if (otherBullet->IsDead()) {
+			return;
+		}
+		if (otherBullet->GetOwner() == owner_) {
+			return;
+		}
+		ApplyBulletDurabilityDamage(otherBullet->GetBulletPenetration());
+		return;
+	}
+
 	Die();
+}
+
+void Bullet::ApplyBulletDurabilityDamage(float amount)
+{
+	if (isDead_) {
+		return;
+	}
+	bulletHp_ -= (std::max)(0.0f, amount);
+	if (bulletHp_ <= 0.0f) {
+		Die();
+	}
 }
 
 Vector3 Bullet::GetWorldPosition() const {
@@ -170,6 +196,8 @@ TrailConfig Bullet::MakeTrailConfig() const {
 		config.lifetime = (std::max)(0.01f, trailSettings_->lifetime);
 		config.startWidthScale = (std::max)(0.0f, trailSettings_->headWidthScale);
 		config.endWidthScale = (std::max)(0.0f, trailSettings_->tailWidthScale);
+		config.widthCurvePower = (std::max)(0.05f, trailSettings_->widthCurvePower);
+		config.colorCurvePower = (std::max)(0.05f, trailSettings_->colorCurvePower);
 	} else {
 		config.startColor = { 1.0f, 0.98f, 0.78f, 1.0f };
 		config.endColor = { color.x, color.y, color.z, 0.0f };

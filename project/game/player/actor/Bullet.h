@@ -15,6 +15,8 @@ struct BulletTrailSettings {
 	int interpolationSteps = 5;
 	float headWidthScale = 1.0f;
 	float tailWidthScale = 0.15f;
+	float widthCurvePower = 1.0f;
+	float colorCurvePower = 1.0f;
 	bool useObjectColorForTrail = true;
 	float trailHeadIntensity = 1.15f;
 	float trailTailIntensity = 0.45f;
@@ -34,7 +36,7 @@ class Bullet : public Collider {
 public:
 
 	void Initialize(const Vector3& position, const Vector3& velocity, const uint32_t& damage, BulletOwner owner,
-		bool reflectable);
+		bool reflectable, float bulletHp = 1.0f, float bulletPenetration = 1.0f);
 
 	void Update(float deltaTime);
 
@@ -66,6 +68,10 @@ public:
 	float GetRadius() const override { return radius_; }
 
 	bool IsReflectable() const { return isReflectable_; }
+	BulletOwner GetOwner() const { return owner_; }
+	float GetBulletHp() const { return bulletHp_; }
+	float GetBulletPenetration() const { return bulletPenetration_; }
+	void ApplyBulletDurabilityDamage(float amount);
 
 	void Die();
 
@@ -99,6 +105,8 @@ private:
 	// 反射するか
 	bool isReflectable_ = false;
 	BulletOwner owner_;
+	float bulletHp_ = 1.0f;
+	float bulletPenetration_ = 1.0f;
 	TrailInstance* trail_ = nullptr;
 	BulletTrailSettings* trailSettings_ = nullptr;
 };

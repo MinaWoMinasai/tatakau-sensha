@@ -20,6 +20,7 @@ Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
 
 ExpEnemy::BalanceConfig ExpEnemy::balanceConfig_{};
 ExpEnemy::EnemyInteractionConfig ExpEnemy::enemyInteractionConfig_{};
+std::function<void(uint32_t)> ExpEnemy::enemyKillCallback_{};
 
 void ExpEnemy::SetBalanceConfig(const BalanceConfig& config)
 {
@@ -31,6 +32,11 @@ void ExpEnemy::SetBalanceConfig(const BalanceConfig& config)
 void ExpEnemy::SetEnemyInteractionConfig(const EnemyInteractionConfig& config)
 {
     enemyInteractionConfig_ = config;
+}
+
+void ExpEnemy::SetEnemyKillCallback(std::function<void(uint32_t)> callback)
+{
+    enemyKillCallback_ = std::move(callback);
 }
 
 void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType type)
@@ -212,13 +218,22 @@ void ExpEnemy::OnCollision(Collider* other)
         return;
     }
 
+    const bool killedByEnemy =
+        other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet && IsHostileToBoss();
+
     hp_ -= other->GetDamage();
     TriggerDamageFeedback();
     if (hp_ <= 0) {
         isDead_ = true;
         ParticleManager::GetInstance()->Emit("EnemyDeathBurst", GetWorldPosition(), 18);
         ParticleManager::GetInstance()->Emit("DeathSmoke", GetWorldPosition(), 5);
-        player_->AddExp(expValue_);
+        if (killedByEnemy) {
+            if (enemyKillCallback_) {
+                enemyKillCallback_(expValue_);
+            }
+        } else if (player_) {
+            player_->AddExp(expValue_);
+        }
     }
 
     if (other->GetCollisionAttribute() == kCollisionAttributePlayer) {

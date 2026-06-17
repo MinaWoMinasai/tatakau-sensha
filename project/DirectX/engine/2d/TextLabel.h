@@ -21,6 +21,7 @@ public:
 
 private:
 	void RebuildTexture();
+	bool IsSameStyle(const TextStyle& style) const;
 
 	SpriteCommon* spriteCommon_ = nullptr;
 	std::unique_ptr<Sprite> sprite_;
