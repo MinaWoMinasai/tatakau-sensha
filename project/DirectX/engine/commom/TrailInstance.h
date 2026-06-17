@@ -23,6 +23,8 @@ struct TrailConfig {
     float lifetime = 0.5f;                           // 各頂点の生存時間（秒）
     float startWidthScale = 1.0f;                    // 先頭側の太さ倍率
     float endWidthScale = 1.0f;                      // 尻尾側の太さ倍率
+    float widthCurvePower = 1.0f;                    // 太さの減衰カーブ
+    float colorCurvePower = 1.0f;                    // 色/透明度の減衰カーブ
 
     // JSON変換 (ModelParticleManagerと同様に)
     nlohmann::json ToJson() const {
@@ -33,7 +35,9 @@ struct TrailConfig {
             {"maxPoints", maxPoints},
             {"lifetime", lifetime},
             {"startWidthScale", startWidthScale},
-            {"endWidthScale", endWidthScale}
+            {"endWidthScale", endWidthScale},
+            {"widthCurvePower", widthCurvePower},
+            {"colorCurvePower", colorCurvePower}
         };
     }
 
@@ -49,6 +53,8 @@ struct TrailConfig {
         lifetime = j.value("lifetime", lifetime);
         startWidthScale = j.value("startWidthScale", startWidthScale);
         endWidthScale = j.value("endWidthScale", endWidthScale);
+        widthCurvePower = j.value("widthCurvePower", widthCurvePower);
+        colorCurvePower = j.value("colorCurvePower", colorCurvePower);
     }
 };
 

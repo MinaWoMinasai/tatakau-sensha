@@ -27,6 +27,8 @@ public:
 		float spreadAngleDeg = 30.0f;
 		float cooldown = 0.15f;
 		uint32_t damage = 10;
+		float bulletHp = 0.0f;
+		float bulletPenetration = 0.0f;
 		bool randomSpread = true;
 		Pattern pattern = Pattern::Spread;
 	};
@@ -177,7 +179,9 @@ public:
 	void SetEnemyProgressConfig(const EnemyProgressConfig& config);
 	const EnemyProgressConfig& GetEnemyProgressConfig() const { return enemyProgressConfig_; }
 	int GetLevel() const { return enemyLevel_; }
+	uint32_t GetEnemyExp() const { return enemyExp_; }
 	bool IsLevelingModeActive() const { return levelingModeActive_; }
+	void RegisterExpEnemyKill(uint32_t expValue);
 
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
 		bulletManager_ = bulletManager;
@@ -262,6 +266,7 @@ private:
 	EnemyProgressConfig enemyProgressConfig_{};
 	int enemyLevel_ = 1;
 	int expEnemyKillCount_ = 0;
+	uint32_t enemyExp_ = 0;
 	int alternatingShotIndex_ = 0;
 	bool levelingModeActive_ = false;
 	Vector3 currentMoveTargetPosition_{ 0.0f, 0.0f, 0.0f };

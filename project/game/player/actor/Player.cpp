@@ -3,7 +3,10 @@
 #include "Audio.h"
 #include <algorithm>
 #include <cmath>
+#include <chrono>
+#include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -32,6 +35,25 @@ Vector3 ReadVector3(const nlohmann::json& json, const Vector3& fallback)
 		json[0].get<float>(),
 		json[1].get<float>(),
 		json[2].get<float>()
+	};
+}
+
+Vector2 ReadVector2Object(const nlohmann::json& json, const Vector2& fallback)
+{
+	if (!json.is_object()) {
+		return fallback;
+	}
+	Vector2 value = fallback;
+	if (json.contains("x") && json["x"].is_number()) value.x = json["x"].get<float>();
+	if (json.contains("y") && json["y"].is_number()) value.y = json["y"].get<float>();
+	return value;
+}
+
+nlohmann::json WriteVector2Object(const Vector2& value)
+{
+	return {
+		{ "x", value.x },
+		{ "y", value.y }
 	};
 }
 
@@ -94,12 +116,27 @@ const char* ClassTexturePath(ClassType type)
 	}
 }
 
+const std::array<const char*, 7>& UpgradeHudNames()
+{
+	static const std::array<const char*, 7> names = {
+		"Health Regen",
+		"Max Health",
+		"Body Damage",
+		"Bullet Speed",
+		"Bullet Damage",
+		"Reload",
+		"Move Speed"
+	};
+	return names;
+}
+
 void SetLabel(std::unique_ptr<TextLabel>& label, SpriteCommon* spriteCommon, const std::string& text, const Vector2& position, const TextStyle& style)
 {
 	if (!label) {
 		label = std::make_unique<TextLabel>();
 		label->Initialize(spriteCommon, text, style);
 	} else {
+		label->SetStyle(style);
 		label->SetText(text);
 	}
 	label->SetPosition(position);
@@ -121,7 +158,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 	bulletCoolTime -= deltaTime;
 	if (bulletCoolTime > 0.0f) return; // クールタイム中は抜ける
 
-	if (input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
+	if (input_->IsPress(input_->GetMouseState().rgbButtons[0]) && !upgradeHudMouseCaptured_) {
 
 		if (bulletCoolTime <= 0.0f) {
 
@@ -445,6 +482,9 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	machineGunBtnSprite_->SetSize({ btnSize_ });
 
 	InitializeEncyclopedia();
+	InitializeUpgradeHud();
+	LoadUpgradeHudConfig();
+	ApplyUpgradeHudLayout();
 
 }
 
@@ -457,6 +497,7 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 	ScreenToClient(WinApp::GetInstance()->GetHwnd(), &mousePos);
 	mousePosition_ = { static_cast<float>(mousePos.x), static_cast<float>(mousePos.y) };
 	UpdateEncyclopedia();
+	UpdateUpgradeHud();
 
 	if (input_->IsTrigger(input_->GetKey()[DIK_C], input_->GetPreKey()[DIK_C])) {
 		isChangeMode = !isChangeMode;
@@ -694,11 +735,8 @@ void Player::DrawBodyOnly() {
 
 void Player::DrawSprite()
 {
-	//hpFont->Draw();
-
-	//DrawEncyclopedia();
-	//machineGunBtnSprite_->Draw();
-
+	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	DrawUpgradeHud();
 }
 
 std::vector<PlayerDrone*> Player::GetDronePtrs() const {
@@ -790,7 +828,7 @@ void Player::Damage(uint32_t amount)
 
 void Player::TakeDamage(uint32_t amount, float invincibleTime)
 {
-	if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f) {
+	if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f || debugNoDamage_) {
 		return;
 	}
 
@@ -814,20 +852,25 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
 
 void Player::ApplyBalanceConfig(const BalanceConfig& config)
 {
-	const int oldMaxHp = GetMaxHp();
-	const int newMaxHp = (std::max)(1, config.maxHp);
-	stats_.maxHp = static_cast<float>(newMaxHp);
-	maxHpUpgradeAmount_ = (std::max)(1, config.maxHpUpgradeAmount);
-	stats_.bodyDamage = static_cast<float>((std::max)(1u, config.bodyDamage));
-	SetDamage(static_cast<uint32_t>(stats_.bodyDamage));
+	baseStats_.maxHp = static_cast<float>((std::max)(1, config.maxHp));
+	baseStats_.reloadSpeed = (std::max)(0.05f, config.reloadSpeed);
+	baseStats_.bulletDamage = (std::max)(0.1f, config.bulletDamage);
+	baseStats_.bulletSpeed = (std::max)(0.01f, config.bulletSpeed);
+	baseStats_.moveSpeed = (std::max)(0.01f, config.moveSpeed);
+	baseStats_.staminaRecovery = (std::max)(0.0f, config.staminaRecovery);
+	baseStats_.maxStamina = (std::max)(0.0f, config.maxStamina);
+	baseStats_.bodyDamage = static_cast<float>((std::max)(1u, config.bodyDamage));
 
-	if (config.healToFull) {
-		hp_ = newMaxHp;
-	} else if (oldMaxHp > 0 && hp_ >= oldMaxHp) {
-		hp_ = newMaxHp;
-	} else {
-		hp_ = (std::clamp)(hp_, 0, newMaxHp);
-	}
+	healthRegenUpgradeAmount_ = (std::max)(0.0f, config.healthRegenUpgrade);
+	maxHpUpgradeAmount_ = (std::max)(1, config.maxHpUpgradeAmount);
+	bodyDamageUpgradeAmount_ = (std::max)(0.0f, config.bodyDamageUpgrade);
+	bulletSpeedUpgradeAmount_ = config.bulletSpeedUpgrade;
+	bulletDamageUpgradeAmount_ = (std::max)(0.0f, config.bulletDamageUpgrade);
+	reloadUpgradeAmount_ = (std::max)(0.0f, config.reloadUpgrade);
+	moveSpeedUpgradeAmount_ = config.moveSpeedUpgrade;
+	minReloadSpeed_ = (std::max)(0.05f, config.minReloadSpeed);
+
+	RecalculateStatsFromBase(config.healToFull);
 }
 
 void Player::Die()
@@ -1346,6 +1389,392 @@ void Player::InitializeEncyclopedia()
 	}
 }
 
+void Player::InitializeUpgradeHud()
+{
+	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
+	auto makePanel = [spriteCommon](const Vector2& pos, const Vector2& size, const Vector4& color) {
+		auto panel = std::make_unique<Sprite>();
+		panel->Initialize(spriteCommon, "resources/white512x512.png");
+		panel->SetPosition(pos);
+		panel->SetSize(size);
+		panel->SetColor(color);
+		return panel;
+	};
+
+	upgradeHudBackdropSprite_ = makePanel(upgradeHudPanelPos_, upgradeHudPanelSize_, { 0.03f, 0.04f, 0.06f, 0.58f });
+	upgradeHudExpBackSprite_ = makePanel(upgradeHudExpBarPos_, upgradeHudExpBarSize_, { 0.04f, 0.04f, 0.05f, 0.82f });
+	upgradeHudExpFillSprite_ = makePanel(upgradeHudExpBarPos_, { 0.0f, upgradeHudExpBarSize_.y }, { 0.96f, 0.83f, 0.24f, 0.95f });
+	upgradeHudLevelBackSprite_ = makePanel(upgradeHudLevelBarPos_, upgradeHudLevelBarSize_, { 0.04f, 0.04f, 0.05f, 0.82f });
+	upgradeHudLevelFillSprite_ = makePanel({ 785.0f, 786.0f }, { 0.0f, 18.0f }, { 0.36f, 1.0f, 0.56f, 0.92f });
+
+	TextStyle titleStyle{};
+	titleStyle.fontFamily = "Meiryo";
+	titleStyle.fontSize = 18.0f;
+	titleStyle.color = { 0.84f, 1.0f, 0.94f, 1.0f };
+	titleStyle.outlineColor = { 0.0f, 0.03f, 0.05f, 0.95f };
+	titleStyle.outlineThickness = 2.0f;
+	titleStyle.padding = 5.0f;
+	SetLabel(upgradeHudTitleLabel_, spriteCommon, "TANK UPGRADES", upgradeHudTitlePos_, titleStyle);
+
+	TextStyle smallStyle = titleStyle;
+	smallStyle.fontSize = 15.0f;
+	smallStyle.color = { 0.90f, 0.94f, 1.0f, 1.0f };
+	SetLabel(upgradeHudPointLabel_, spriteCommon, "", upgradeHudPointPos_, smallStyle);
+	SetLabel(upgradeHudExpLabel_, spriteCommon, "", upgradeHudExpTextPos_, smallStyle);
+	SetLabel(upgradeHudLevelLabel_, spriteCommon, "", upgradeHudLevelTextPos_, smallStyle);
+	SetLabel(upgradeHudListLabel_, spriteCommon, "", { upgradeHudNameX_, upgradeHudRowStart_.y + 4.0f }, smallStyle);
+
+	const auto& names = UpgradeHudNames();
+	for (int i = 0; i < 7; ++i) {
+		const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
+		upgradeHudButtonSprites_[i] = makePanel({ upgradeHudRowStart_.x, y }, upgradeHudButtonSize_, { 0.10f, 0.12f, 0.15f, 0.84f });
+		upgradeHudPlusSprites_[i] = makePanel({ upgradeHudPlusX_, y }, upgradeHudPlusSize_, { 0.34f, 0.95f, 0.64f, 0.88f });
+		(void)names;
+	}
+}
+
+void Player::UpdateUpgradeHud()
+{
+	upgradeHudMouseCaptured_ = false;
+	if (!upgradeHudVisible_ || isChangeMode || isDead_) {
+		return;
+	}
+
+	for (float& timer : upgradeHudFlashTimers_) {
+		timer = (std::max)(0.0f, timer - dt_);
+	}
+
+	ApplyUpgradeHudLayout();
+	const bool showUpgradeList = !upgradeHudHideListWithoutPoints_ || skillPoints_ > 0;
+	if (!showUpgradeList) {
+		if (upgradeHudExpBackSprite_) upgradeHudExpBackSprite_->Update();
+		if (upgradeHudExpFillSprite_) upgradeHudExpFillSprite_->Update();
+		if (upgradeHudLevelBackSprite_) upgradeHudLevelBackSprite_->Update();
+		if (upgradeHudLevelFillSprite_) upgradeHudLevelFillSprite_->Update();
+		return;
+	}
+
+	const bool canUpgrade = skillPoints_ > 0;
+	const bool click = input_ && input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0]);
+	for (int i = 0; i < 7; ++i) {
+		Sprite* button = upgradeHudButtonSprites_[i].get();
+		Sprite* plus = upgradeHudPlusSprites_[i].get();
+		const bool hovered = (button && button->IsHovered(mousePosition_)) || (plus && plus->IsHovered(mousePosition_));
+		upgradeHudMouseCaptured_ = upgradeHudMouseCaptured_ || hovered;
+		const bool maxed = upgradeLevels_[i] >= maxEnhancePoint;
+		if (hovered && click && canUpgrade && !maxed) {
+			if (ApplyStatUpgrade(i)) {
+				upgradeHudFlashTimers_[i] = 0.22f;
+			}
+		}
+
+		const float flash = (std::min)(1.0f, upgradeHudFlashTimers_[i] / 0.22f);
+		if (button) {
+			if (maxed) {
+				button->SetColor({ 0.12f, 0.12f, 0.14f, 0.72f });
+			} else if (hovered && canUpgrade) {
+				button->SetColor({ 0.24f + flash * 0.22f, 0.38f + flash * 0.30f, 0.34f + flash * 0.20f, 0.94f });
+			} else {
+				button->SetColor({ 0.10f + flash * 0.25f, 0.12f + flash * 0.36f, 0.15f + flash * 0.20f, 0.84f });
+			}
+			button->Update();
+		}
+		if (plus) {
+			if (maxed) {
+				plus->SetColor({ 0.18f, 0.18f, 0.20f, 0.72f });
+			} else if (canUpgrade) {
+				plus->SetColor(hovered ? Vector4{ 0.62f, 1.0f, 0.78f, 0.98f } : Vector4{ 0.34f, 0.95f, 0.64f, 0.88f });
+			} else {
+				plus->SetColor({ 0.15f, 0.22f, 0.24f, 0.64f });
+			}
+			plus->Update();
+		}
+	}
+
+	if (upgradeHudBackdropSprite_) upgradeHudBackdropSprite_->Update();
+	if (upgradeHudExpBackSprite_) upgradeHudExpBackSprite_->Update();
+	if (upgradeHudExpFillSprite_) upgradeHudExpFillSprite_->Update();
+	if (upgradeHudLevelBackSprite_) upgradeHudLevelBackSprite_->Update();
+	if (upgradeHudLevelFillSprite_) upgradeHudLevelFillSprite_->Update();
+}
+
+void Player::DrawUpgradeHud()
+{
+	upgradeHudProfile_ = {};
+	if (!upgradeHudVisible_ || isChangeMode || isDead_) {
+		return;
+	}
+	upgradeHudProfile_.visible = true;
+	const auto totalStart = std::chrono::steady_clock::now();
+
+	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
+	TextStyle smallStyle{};
+	smallStyle.fontFamily = "Meiryo";
+	smallStyle.fontSize = 15.0f;
+	smallStyle.color = { 0.90f, 0.94f, 1.0f, 1.0f };
+	smallStyle.outlineColor = { 0.0f, 0.03f, 0.05f, 0.95f };
+	smallStyle.outlineThickness = 2.0f;
+	smallStyle.padding = 5.0f;
+
+	const int safeNextExp = (std::max)(1, nextLevelExp_);
+	const float expRatio = (std::clamp)(static_cast<float>(exp_) / static_cast<float>(safeNextExp), 0.0f, 1.0f);
+	const float levelRatio = (std::clamp)(static_cast<float>(level_ - 1) / static_cast<float>((std::max)(1, kMaxLevel - 1)), 0.0f, 1.0f);
+	if (upgradeHudExpFillSprite_) {
+		upgradeHudExpFillSprite_->SetSize({ upgradeHudExpBarSize_.x * expRatio, upgradeHudExpBarSize_.y });
+		upgradeHudExpFillSprite_->Update();
+	}
+	if (upgradeHudLevelFillSprite_) {
+		upgradeHudLevelFillSprite_->SetSize({ upgradeHudLevelBarSize_.x * levelRatio, upgradeHudLevelBarSize_.y });
+		upgradeHudLevelFillSprite_->Update();
+	}
+
+	const bool showUpgradeList = !upgradeHudHideListWithoutPoints_ || skillPoints_ > 0;
+	const auto& names = UpgradeHudNames();
+	const std::string className = GetCurrentClassName();
+	const bool baseTextDirty =
+		cachedUpgradeHudExp_ != exp_ ||
+		cachedUpgradeHudNextExp_ != nextLevelExp_ ||
+		cachedUpgradeHudLevel_ != level_ ||
+		cachedUpgradeHudClassName_ != className;
+	if (baseTextDirty) {
+		SetLabel(upgradeHudExpLabel_, spriteCommon, "EXP " + std::to_string(exp_) + " / " + std::to_string(nextLevelExp_), upgradeHudExpTextPos_, smallStyle);
+		SetLabel(upgradeHudLevelLabel_, spriteCommon, "Lv " + std::to_string(level_) + " " + className, upgradeHudLevelTextPos_, smallStyle);
+		cachedUpgradeHudExp_ = exp_;
+		cachedUpgradeHudNextExp_ = nextLevelExp_;
+		cachedUpgradeHudLevel_ = level_;
+		cachedUpgradeHudClassName_ = className;
+	} else {
+		if (upgradeHudExpLabel_) upgradeHudExpLabel_->SetPosition(upgradeHudExpTextPos_);
+		if (upgradeHudLevelLabel_) upgradeHudLevelLabel_->SetPosition(upgradeHudLevelTextPos_);
+	}
+
+	if (showUpgradeList) {
+		const bool listDirty =
+			!cachedUpgradeHudListVisible_ ||
+			cachedUpgradeHudSkillPoints_ != skillPoints_ ||
+			cachedUpgradeHudLevels_ != upgradeLevels_;
+		if (listDirty) {
+			SetLabel(upgradeHudPointLabel_, spriteCommon, "x" + std::to_string(skillPoints_), upgradeHudPointPos_, smallStyle);
+			SetLabel(upgradeHudTitleLabel_, spriteCommon, "TANK UPGRADES", upgradeHudTitlePos_, smallStyle);
+			std::string listText;
+			for (int i = 0; i < 7; ++i) {
+				char line[96]{};
+				std::snprintf(line, sizeof(line), "%d  %-16s Lv.%d      +%s", i + 1, names[i], upgradeLevels_[i],
+					upgradeLevels_[i] >= maxEnhancePoint ? " MAX" : "");
+				listText += line;
+				if (i + 1 < 7) {
+					listText += "\n";
+				}
+			}
+			SetLabel(upgradeHudListLabel_, spriteCommon, listText, { upgradeHudNameX_, upgradeHudRowStart_.y + 4.0f }, smallStyle);
+			cachedUpgradeHudSkillPoints_ = skillPoints_;
+			cachedUpgradeHudLevels_ = upgradeLevels_;
+		} else {
+			if (upgradeHudPointLabel_) upgradeHudPointLabel_->SetPosition(upgradeHudPointPos_);
+			if (upgradeHudTitleLabel_) upgradeHudTitleLabel_->SetPosition(upgradeHudTitlePos_);
+			if (upgradeHudListLabel_) upgradeHudListLabel_->SetPosition({ upgradeHudNameX_, upgradeHudRowStart_.y + 4.0f });
+		}
+	}
+	cachedUpgradeHudListVisible_ = showUpgradeList;
+
+	const auto spriteStart = std::chrono::steady_clock::now();
+	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	if (showUpgradeList && upgradeHudDrawListPanels_) {
+		if (upgradeHudBackdropSprite_) { upgradeHudBackdropSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+		for (int i = 0; i < 7; ++i) {
+			if (upgradeHudButtonSprites_[i]) { upgradeHudButtonSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+			if (upgradeHudPlusSprites_[i]) { upgradeHudPlusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+		}
+	}
+	if (upgradeHudDrawBottomBars_) {
+		if (upgradeHudLevelBackSprite_) { upgradeHudLevelBackSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+		if (upgradeHudLevelFillSprite_) { upgradeHudLevelFillSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+		if (upgradeHudExpBackSprite_) { upgradeHudExpBackSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+		if (upgradeHudExpFillSprite_) { upgradeHudExpFillSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+	}
+	const auto spriteEnd = std::chrono::steady_clock::now();
+
+	const auto textStart = std::chrono::steady_clock::now();
+	if (showUpgradeList && upgradeHudDrawListText_) {
+		if (upgradeHudTitleLabel_) { upgradeHudTitleLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
+		if (upgradeHudPointLabel_) { upgradeHudPointLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
+		if (upgradeHudListLabel_) { upgradeHudListLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
+	}
+	if (upgradeHudDrawBottomText_) {
+		if (upgradeHudLevelLabel_) { upgradeHudLevelLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
+		if (upgradeHudExpLabel_) { upgradeHudExpLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
+	}
+	const auto textEnd = std::chrono::steady_clock::now();
+	const auto totalEnd = std::chrono::steady_clock::now();
+
+	upgradeHudProfile_.spriteMs = std::chrono::duration<float, std::milli>(spriteEnd - spriteStart).count();
+	upgradeHudProfile_.textMs = std::chrono::duration<float, std::milli>(textEnd - textStart).count();
+	upgradeHudProfile_.updateMs = std::chrono::duration<float, std::milli>(spriteStart - totalStart).count();
+	upgradeHudProfile_.totalMs = std::chrono::duration<float, std::milli>(totalEnd - totalStart).count();
+}
+
+void Player::ApplyUpgradeHudLayout()
+{
+	if (upgradeHudBackdropSprite_) {
+		upgradeHudBackdropSprite_->SetPosition(upgradeHudPanelPos_);
+		upgradeHudBackdropSprite_->SetSize(upgradeHudPanelSize_);
+	}
+	if (upgradeHudExpBackSprite_) {
+		upgradeHudExpBackSprite_->SetPosition(upgradeHudExpBarPos_);
+		upgradeHudExpBackSprite_->SetSize(upgradeHudExpBarSize_);
+	}
+	if (upgradeHudExpFillSprite_) {
+		upgradeHudExpFillSprite_->SetPosition(upgradeHudExpBarPos_);
+	}
+	if (upgradeHudLevelBackSprite_) {
+		upgradeHudLevelBackSprite_->SetPosition(upgradeHudLevelBarPos_);
+		upgradeHudLevelBackSprite_->SetSize(upgradeHudLevelBarSize_);
+	}
+	if (upgradeHudLevelFillSprite_) {
+		upgradeHudLevelFillSprite_->SetPosition(upgradeHudLevelBarPos_);
+	}
+	for (int i = 0; i < 7; ++i) {
+		const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
+		if (upgradeHudButtonSprites_[i]) {
+			upgradeHudButtonSprites_[i]->SetPosition({ upgradeHudRowStart_.x, y });
+			upgradeHudButtonSprites_[i]->SetSize(upgradeHudButtonSize_);
+		}
+		if (upgradeHudPlusSprites_[i]) {
+			upgradeHudPlusSprites_[i]->SetPosition({ upgradeHudPlusX_, y });
+			upgradeHudPlusSprites_[i]->SetSize(upgradeHudPlusSize_);
+		}
+	}
+}
+
+bool Player::LoadUpgradeHudConfig(const std::string& path)
+{
+	std::ifstream file(path);
+	if (!file.is_open()) {
+		upgradeHudConfigStatus_ = "HUD設定ファイルが見つからないため初期値を使用します。";
+		return false;
+	}
+	nlohmann::json json{};
+	try {
+		file >> json;
+	} catch (...) {
+		upgradeHudConfigStatus_ = "HUD設定JSONの読み込みに失敗しました。";
+		return false;
+	}
+	if (!json.is_object()) {
+		return false;
+	}
+	upgradeHudVisible_ = json.value("visible", upgradeHudVisible_);
+	upgradeHudHideListWithoutPoints_ = json.value("hideListWithoutPoints", upgradeHudHideListWithoutPoints_);
+	upgradeHudDrawListPanels_ = json.value("drawListPanels", upgradeHudDrawListPanels_);
+	upgradeHudDrawListText_ = json.value("drawListText", upgradeHudDrawListText_);
+	upgradeHudDrawBottomBars_ = json.value("drawBottomBars", upgradeHudDrawBottomBars_);
+	upgradeHudDrawBottomText_ = json.value("drawBottomText", upgradeHudDrawBottomText_);
+	upgradeHudPanelPos_ = ReadVector2Object(json.value("panelPos", nlohmann::json::object()), upgradeHudPanelPos_);
+	upgradeHudPanelSize_ = ReadVector2Object(json.value("panelSize", nlohmann::json::object()), upgradeHudPanelSize_);
+	upgradeHudRowStart_ = ReadVector2Object(json.value("rowStart", nlohmann::json::object()), upgradeHudRowStart_);
+	upgradeHudButtonSize_ = ReadVector2Object(json.value("buttonSize", nlohmann::json::object()), upgradeHudButtonSize_);
+	upgradeHudPlusSize_ = ReadVector2Object(json.value("plusSize", nlohmann::json::object()), upgradeHudPlusSize_);
+	upgradeHudRowGap_ = json.value("rowGap", upgradeHudRowGap_);
+	upgradeHudNameX_ = json.value("nameX", upgradeHudNameX_);
+	upgradeHudLevelX_ = json.value("levelX", upgradeHudLevelX_);
+	upgradeHudPlusX_ = json.value("plusX", upgradeHudPlusX_);
+	upgradeHudPlusLabelX_ = json.value("plusLabelX", upgradeHudPlusLabelX_);
+	upgradeHudTitlePos_ = ReadVector2Object(json.value("titlePos", nlohmann::json::object()), upgradeHudTitlePos_);
+	upgradeHudPointPos_ = ReadVector2Object(json.value("pointPos", nlohmann::json::object()), upgradeHudPointPos_);
+	upgradeHudLevelBarPos_ = ReadVector2Object(json.value("levelBarPos", nlohmann::json::object()), upgradeHudLevelBarPos_);
+	upgradeHudLevelBarSize_ = ReadVector2Object(json.value("levelBarSize", nlohmann::json::object()), upgradeHudLevelBarSize_);
+	upgradeHudLevelTextPos_ = ReadVector2Object(json.value("levelTextPos", nlohmann::json::object()), upgradeHudLevelTextPos_);
+	upgradeHudExpBarPos_ = ReadVector2Object(json.value("expBarPos", nlohmann::json::object()), upgradeHudExpBarPos_);
+	upgradeHudExpBarSize_ = ReadVector2Object(json.value("expBarSize", nlohmann::json::object()), upgradeHudExpBarSize_);
+	upgradeHudExpTextPos_ = ReadVector2Object(json.value("expTextPos", nlohmann::json::object()), upgradeHudExpTextPos_);
+	ApplyUpgradeHudLayout();
+	upgradeHudConfigStatus_ = "HUD設定を読み込みました: " + path;
+	return true;
+}
+
+bool Player::SaveUpgradeHudConfig(const std::string& path) const
+{
+	std::filesystem::create_directories(std::filesystem::path(path).parent_path());
+	std::ofstream file(path);
+	if (!file.is_open()) {
+		return false;
+	}
+	nlohmann::json json = {
+		{ "version", 1 },
+		{ "visible", upgradeHudVisible_ },
+		{ "hideListWithoutPoints", upgradeHudHideListWithoutPoints_ },
+		{ "drawListPanels", upgradeHudDrawListPanels_ },
+		{ "drawListText", upgradeHudDrawListText_ },
+		{ "drawBottomBars", upgradeHudDrawBottomBars_ },
+		{ "drawBottomText", upgradeHudDrawBottomText_ },
+		{ "panelPos", WriteVector2Object(upgradeHudPanelPos_) },
+		{ "panelSize", WriteVector2Object(upgradeHudPanelSize_) },
+		{ "rowStart", WriteVector2Object(upgradeHudRowStart_) },
+		{ "buttonSize", WriteVector2Object(upgradeHudButtonSize_) },
+		{ "plusSize", WriteVector2Object(upgradeHudPlusSize_) },
+		{ "rowGap", upgradeHudRowGap_ },
+		{ "nameX", upgradeHudNameX_ },
+		{ "levelX", upgradeHudLevelX_ },
+		{ "plusX", upgradeHudPlusX_ },
+		{ "plusLabelX", upgradeHudPlusLabelX_ },
+		{ "titlePos", WriteVector2Object(upgradeHudTitlePos_) },
+		{ "pointPos", WriteVector2Object(upgradeHudPointPos_) },
+		{ "levelBarPos", WriteVector2Object(upgradeHudLevelBarPos_) },
+		{ "levelBarSize", WriteVector2Object(upgradeHudLevelBarSize_) },
+		{ "levelTextPos", WriteVector2Object(upgradeHudLevelTextPos_) },
+		{ "expBarPos", WriteVector2Object(upgradeHudExpBarPos_) },
+		{ "expBarSize", WriteVector2Object(upgradeHudExpBarSize_) },
+		{ "expTextPos", WriteVector2Object(upgradeHudExpTextPos_) }
+	};
+	file << json.dump(2);
+	return true;
+}
+
+void Player::DrawUpgradeHudDebugImGui()
+{
+#ifdef USE_IMGUI
+	if (!ImGui::CollapsingHeader("プレイヤー強化HUD", ImGuiTreeNodeFlags_DefaultOpen)) {
+		return;
+	}
+	ImGui::Checkbox("HUDを表示", &upgradeHudVisible_);
+	ImGui::Checkbox("スキルポイントがない時は強化リストを隠す", &upgradeHudHideListWithoutPoints_);
+	ImGui::Checkbox("強化リスト背景/ボタンを描画", &upgradeHudDrawListPanels_);
+	ImGui::Checkbox("強化リスト文字を描画", &upgradeHudDrawListText_);
+	ImGui::Checkbox("下部EXP/Levelバーを描画", &upgradeHudDrawBottomBars_);
+	ImGui::Checkbox("下部EXP/Level文字を描画", &upgradeHudDrawBottomText_);
+	if (ImGui::Button("強化HUD設定を保存")) {
+		upgradeHudConfigStatus_ = SaveUpgradeHudConfig() ? "強化HUD設定を保存しました。" : "強化HUD設定の保存に失敗しました。";
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("強化HUD設定を再読み込み")) {
+		LoadUpgradeHudConfig();
+	}
+	if (!upgradeHudConfigStatus_.empty()) {
+		ImGui::TextWrapped("%s", upgradeHudConfigStatus_.c_str());
+	}
+	ImGui::DragFloat2("左パネル位置", &upgradeHudPanelPos_.x, 1.0f);
+	ImGui::DragFloat2("左パネルサイズ", &upgradeHudPanelSize_.x, 1.0f, 0.0f, 2000.0f);
+	ImGui::DragFloat2("強化行 開始位置", &upgradeHudRowStart_.x, 1.0f);
+	ImGui::DragFloat2("強化ボタンサイズ", &upgradeHudButtonSize_.x, 1.0f, 0.0f, 1000.0f);
+	ImGui::DragFloat2("プラスボタンサイズ", &upgradeHudPlusSize_.x, 1.0f, 0.0f, 300.0f);
+	ImGui::DragFloat("強化行 間隔", &upgradeHudRowGap_, 1.0f, 10.0f, 100.0f);
+	ImGui::DragFloat("項目名X", &upgradeHudNameX_, 1.0f);
+	ImGui::DragFloat("Lv表示X", &upgradeHudLevelX_, 1.0f);
+	ImGui::DragFloat("プラスボタンX", &upgradeHudPlusX_, 1.0f);
+	ImGui::DragFloat("プラス文字X", &upgradeHudPlusLabelX_, 1.0f);
+	ImGui::DragFloat2("タイトル位置", &upgradeHudTitlePos_.x, 1.0f);
+	ImGui::DragFloat2("ポイント表示位置", &upgradeHudPointPos_.x, 1.0f);
+	ImGui::Separator();
+	ImGui::DragFloat2("レベルバー位置", &upgradeHudLevelBarPos_.x, 1.0f);
+	ImGui::DragFloat2("レベルバーサイズ", &upgradeHudLevelBarSize_.x, 1.0f, 0.0f, 2000.0f);
+	ImGui::DragFloat2("レベル文字位置", &upgradeHudLevelTextPos_.x, 1.0f);
+	ImGui::DragFloat2("経験値バー位置", &upgradeHudExpBarPos_.x, 1.0f);
+	ImGui::DragFloat2("経験値バーサイズ", &upgradeHudExpBarSize_.x, 1.0f, 0.0f, 2000.0f);
+	ImGui::DragFloat2("経験値文字位置", &upgradeHudExpTextPos_.x, 1.0f);
+	ApplyUpgradeHudLayout();
+#endif
+}
+
 void Player::SpawnParticles()
 {
 	Vector3 center = GetWorldPosition();
@@ -1459,7 +1888,10 @@ void Player::UpdateEncyclopedia()
 
 void Player::DrawEncyclopedia() {
 
+	evolutionUiProfile_ = {};
 	if (isChangeMode) {
+		evolutionUiProfile_.visible = true;
+		const auto totalStart = std::chrono::steady_clock::now();
 		if (encyclopedia_.empty()) {
 			return;
 		}
@@ -1532,35 +1964,53 @@ void Player::DrawEncyclopedia() {
 		buttonStyle.outlineColor = locked ? Vector4{ 0.0f, 0.0f, 0.0f, 0.70f } : Vector4{ 0.78f, 1.0f, 0.82f, 0.65f };
 		SetLabel(evolutionChangeButtonLabel_, spriteCommon, locked ? "ランク不足" : "この戦車に変更", { 1212.0f, 711.0f }, buttonStyle);
 
+		const auto spriteStart = std::chrono::steady_clock::now();
 		SpriteCommon::GetInstance()->PreDraw(kNormal);
-		if (evolutionBackdropSprite_) evolutionBackdropSprite_->Draw();
-		if (evolutionPreviewPanelSprite_) evolutionPreviewPanelSprite_->Draw();
-		if (evolutionStatsPanelSprite_) evolutionStatsPanelSprite_->Draw();
-		if (evolutionTitleLabel_) evolutionTitleLabel_->Draw();
-		if (evolutionHintLabel_) evolutionHintLabel_->Draw();
-		if (evolutionPreviewNameLabel_) evolutionPreviewNameLabel_->Draw();
-		if (evolutionShotSprite_) evolutionShotSprite_->Draw();
-		if (evolutionPreviewTankSprite_) evolutionPreviewTankSprite_->Draw();
-		if (evolutionRoleLabel_) evolutionRoleLabel_->Draw();
+		if (evolutionBackdropSprite_) { evolutionBackdropSprite_->Draw(); ++evolutionUiProfile_.spriteDraws; }
+		if (evolutionPreviewPanelSprite_) { evolutionPreviewPanelSprite_->Draw(); ++evolutionUiProfile_.spriteDraws; }
+		if (evolutionStatsPanelSprite_) { evolutionStatsPanelSprite_->Draw(); ++evolutionUiProfile_.spriteDraws; }
+		if (evolutionShotSprite_) { evolutionShotSprite_->Draw(); ++evolutionUiProfile_.spriteDraws; }
+		if (evolutionPreviewTankSprite_) { evolutionPreviewTankSprite_->Draw(); ++evolutionUiProfile_.spriteDraws; }
 
 		for (auto& tank : encyclopedia_) {
-			if (tank.cardSprite) tank.cardSprite->Draw();
+			if (tank.cardSprite) { tank.cardSprite->Draw(); ++evolutionUiProfile_.spriteDraws; }
 			tank.sprite->Draw(); // 各スプライトが持つ位置で描画
-			if (tank.nameLabel) tank.nameLabel->Draw();
-			if (tank.rankLabel) tank.rankLabel->Draw();
+			++evolutionUiProfile_.spriteDraws;
+		}
+		if (evolutionChangeButtonSprite_) {
+			evolutionChangeButtonSprite_->Draw();
+			++evolutionUiProfile_.spriteDraws;
+		}
+		const auto spriteEnd = std::chrono::steady_clock::now();
+
+		const auto textStart = std::chrono::steady_clock::now();
+		if (evolutionTitleLabel_) { evolutionTitleLabel_->Draw(); ++evolutionUiProfile_.textDraws; }
+		if (evolutionHintLabel_) { evolutionHintLabel_->Draw(); ++evolutionUiProfile_.textDraws; }
+		if (evolutionPreviewNameLabel_) { evolutionPreviewNameLabel_->Draw(); ++evolutionUiProfile_.textDraws; }
+		if (evolutionRoleLabel_) { evolutionRoleLabel_->Draw(); ++evolutionUiProfile_.textDraws; }
+
+		for (auto& tank : encyclopedia_) {
+			if (tank.nameLabel) { tank.nameLabel->Draw(); ++evolutionUiProfile_.textDraws; }
+			if (tank.rankLabel) { tank.rankLabel->Draw(); ++evolutionUiProfile_.textDraws; }
 		}
 
 		for (auto& label : evolutionStatLabels_) {
 			if (label) {
 				label->Draw();
+				++evolutionUiProfile_.textDraws;
 			}
-		}
-		if (evolutionChangeButtonSprite_) {
-			evolutionChangeButtonSprite_->Draw();
 		}
 		if (evolutionChangeButtonLabel_) {
 			evolutionChangeButtonLabel_->Draw();
+			++evolutionUiProfile_.textDraws;
 		}
+		const auto textEnd = std::chrono::steady_clock::now();
+		const auto totalEnd = std::chrono::steady_clock::now();
+
+		evolutionUiProfile_.spriteMs = std::chrono::duration<float, std::milli>(spriteEnd - spriteStart).count();
+		evolutionUiProfile_.textMs = std::chrono::duration<float, std::milli>(textEnd - textStart).count();
+		evolutionUiProfile_.updateMs = std::chrono::duration<float, std::milli>(spriteStart - totalStart).count();
+		evolutionUiProfile_.totalMs = std::chrono::duration<float, std::milli>(totalEnd - totalStart).count();
 	}
 }
 
@@ -1788,7 +2238,7 @@ int Player::GetRankFromLevel(int level) {
 void Player::DrawPlayerClassEditor()
 {
 #ifdef USE_IMGUI
-	if (!ImGui::Begin("Player Class Editor")) {
+	if (!ImGui::Begin("プレイヤー機体エディタ")) {
 		ImGui::End();
 		return;
 	}
@@ -1800,12 +2250,12 @@ void Player::DrawPlayerClassEditor()
 	std::string selectedId = classOrder_[editorSelectedClassIndex_];
 	PlayerClassConfig* config = GetMutableClassConfig(selectedId);
 	if (!config) {
-		ImGui::Text("Class config is missing.");
+		ImGui::Text("機体設定が見つかりません。");
 		ImGui::End();
 		return;
 	}
 
-	if (ImGui::BeginCombo("Class", config->displayName.c_str())) {
+	if (ImGui::BeginCombo("機体クラス", config->displayName.c_str())) {
 		for (int i = 0; i < static_cast<int>(classOrder_.size()); ++i) {
 			const std::string& id = classOrder_[i];
 			const PlayerClassConfig* itemConfig = GetClassConfig(id);
@@ -1837,7 +2287,7 @@ void Player::DrawPlayerClassEditor()
 		return prefix + "_Copy";
 	};
 
-	if (ImGui::Button("New Class")) {
+	if (ImGui::Button("新規作成")) {
 		PlayerClassConfig newConfig = CreateDefaultClassConfig(ClassType::Basic);
 		newConfig.id = makeUniqueId("CustomTank");
 		newConfig.displayName = newConfig.id;
@@ -1848,7 +2298,7 @@ void Player::DrawPlayerClassEditor()
 		config = GetMutableClassConfig(selectedId);
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Duplicate Class")) {
+	if (ImGui::Button("複製")) {
 		PlayerClassConfig newConfig = *config;
 		newConfig.id = makeUniqueId(config->id + "_Copy");
 		newConfig.displayName = newConfig.id;
@@ -1860,7 +2310,7 @@ void Player::DrawPlayerClassEditor()
 	}
 	ImGui::SameLine();
 	const bool isLegacyId = config->id == ClassTypeToString(config->type);
-	if (!isLegacyId && ImGui::Button("Delete Class")) {
+	if (!isLegacyId && ImGui::Button("削除")) {
 		const bool deletingCurrent = currentClassId_ == config->id;
 		classConfigs_.erase(config->id);
 		classOrder_.erase(classOrder_.begin() + editorSelectedClassIndex_);
@@ -1872,43 +2322,43 @@ void Player::DrawPlayerClassEditor()
 		return;
 	}
 
-	ImGui::Text("Class ID: %s", config->id.c_str());
+	ImGui::Text("機体ID: %s", config->id.c_str());
 
 	char nameBuffer[64]{};
 	strncpy_s(nameBuffer, config->displayName.c_str(), _TRUNCATE);
-	if (ImGui::InputText("Display Name", nameBuffer, sizeof(nameBuffer))) {
+	if (ImGui::InputText("表示名", nameBuffer, sizeof(nameBuffer))) {
 		config->displayName = nameBuffer;
 	}
 
-	ImGui::DragInt("Required Rank", &config->requiredRank, 1.0f, 1, 4);
-	ImGui::Checkbox("Uses Drone", &config->usesDrone);
-	ImGui::DragInt("Max Drones", &config->maxDrones, 1.0f, 0, 32);
-	ImGui::DragFloat("Reload Scale", &config->reloadScale, 0.01f, 0.05f, 5.0f);
-	ImGui::DragFloat("Bullet Speed Scale", &config->bulletSpeedScale, 0.01f, 0.05f, 5.0f);
-	ImGui::DragFloat("Bullet Damage Scale", &config->bulletDamageScale, 0.01f, 0.05f, 20.0f);
-	ImGui::DragInt("Bullet Count", &config->bulletCount, 1.0f, 1, 16);
-	ImGui::DragFloat("Spread Angle Deg", &config->spreadAngleDeg, 0.1f, 0.0f, 180.0f);
-	ImGui::Checkbox("Random Spread", &config->randomSpread);
-	ImGui::Checkbox("Reflect", &config->reflect);
-	ImGui::Checkbox("Penetrate", &config->penetrate);
-	ImGui::Checkbox("Fire All Barrels", &config->fireAllBarrels);
-	ImGui::Checkbox("Alternate Barrels", &config->alternateBarrels);
-	ImGui::DragFloat("Recoil Power", &config->recoilPower, 0.001f, 0.0f, 0.5f);
+	ImGui::DragInt("必要ランク", &config->requiredRank, 1.0f, 1, 4);
+	ImGui::Checkbox("ドローン機体", &config->usesDrone);
+	ImGui::DragInt("最大ドローン数", &config->maxDrones, 1.0f, 0, 32);
+	ImGui::DragFloat("リロード倍率", &config->reloadScale, 0.01f, 0.05f, 5.0f);
+	ImGui::DragFloat("弾速倍率", &config->bulletSpeedScale, 0.01f, 0.05f, 5.0f);
+	ImGui::DragFloat("弾ダメージ倍率", &config->bulletDamageScale, 0.01f, 0.05f, 20.0f);
+	ImGui::DragInt("同時発射弾数", &config->bulletCount, 1.0f, 1, 16);
+	ImGui::DragFloat("拡散角度", &config->spreadAngleDeg, 0.1f, 0.0f, 180.0f);
+	ImGui::Checkbox("ランダム拡散", &config->randomSpread);
+	ImGui::Checkbox("反射弾", &config->reflect);
+	ImGui::Checkbox("貫通弾", &config->penetrate);
+	ImGui::Checkbox("全砲塔から発射", &config->fireAllBarrels);
+	ImGui::Checkbox("砲塔を交互発射", &config->alternateBarrels);
+	ImGui::DragFloat("反動", &config->recoilPower, 0.001f, 0.0f, 0.5f);
 
 	ImGui::Separator();
-	ImGui::Text("Current Class: %s", GetCurrentClassName());
-	if (ImGui::Button("Switch To This Class")) {
+	ImGui::Text("現在の機体: %s", GetCurrentClassName());
+	if (ImGui::Button("この機体に切り替え")) {
 		EvolveById(config->id);
 		rebuildBarrels = false;
 		relayoutBarrels = false;
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Apply To Current")) {
+	if (ImGui::Button("現在の機体へ反映")) {
 		rebuildBarrels = true;
 	}
 	ImGui::Separator();
-	ImGui::Text("Barrels: %zu", config->barrels.size());
-	if (ImGui::CollapsingHeader("Auto Barrel Layout", ImGuiTreeNodeFlags_DefaultOpen)) {
+	ImGui::Text("砲塔数: %zu", config->barrels.size());
+	if (ImGui::CollapsingHeader("砲塔の自動配置", ImGuiTreeNodeFlags_DefaultOpen)) {
 		static int layoutCount = 2;
 		static float layoutForward = 0.72f;
 		static float layoutSideSpacing = 0.34f;
@@ -1919,16 +2369,16 @@ void Player::DrawPlayerClassEditor()
 		static float layoutArcSweepAngle = 80.0f;
 		static float layoutArcRotationScale = 1.0f;
 		static Vector3 layoutScale = { 1.25f, 0.24f, 0.24f };
-		ImGui::DragInt("Layout Count", &layoutCount, 1.0f, 1, 12);
-		ImGui::DragFloat("Layout Forward", &layoutForward, 0.01f, -2.0f, 5.0f);
-		ImGui::DragFloat("Layout Side Spacing", &layoutSideSpacing, 0.01f, 0.0f, 3.0f);
-		ImGui::DragFloat("Layout Angle Spread", &layoutAngleSpread, 0.1f, -180.0f, 180.0f);
-		ImGui::DragFloat("Layout Muzzle Forward", &layoutMuzzleForward, 0.01f, -2.0f, 5.0f);
-		ImGui::DragFloat("Arc Radius", &layoutArcRadius, 0.01f, 0.0f, 3.0f);
-		ImGui::DragFloat("Arc Center Angle", &layoutArcCenterAngle, 0.1f, -180.0f, 180.0f);
-		ImGui::DragFloat("Arc Sweep Angle", &layoutArcSweepAngle, 0.1f, 0.0f, 360.0f);
-		ImGui::DragFloat("Arc Rotation Scale", &layoutArcRotationScale, 0.01f, -2.0f, 2.0f);
-		ImGui::DragFloat3("Layout Scale", &layoutScale.x, 0.01f, 0.01f, 10.0f);
+		ImGui::DragInt("配置数", &layoutCount, 1.0f, 1, 12);
+		ImGui::DragFloat("前方向位置", &layoutForward, 0.01f, -2.0f, 5.0f);
+		ImGui::DragFloat("横間隔", &layoutSideSpacing, 0.01f, 0.0f, 3.0f);
+		ImGui::DragFloat("角度広がり", &layoutAngleSpread, 0.1f, -180.0f, 180.0f);
+		ImGui::DragFloat("銃口の前方オフセット", &layoutMuzzleForward, 0.01f, -2.0f, 5.0f);
+		ImGui::DragFloat("円弧半径", &layoutArcRadius, 0.01f, 0.0f, 3.0f);
+		ImGui::DragFloat("円弧中心角", &layoutArcCenterAngle, 0.1f, -180.0f, 180.0f);
+		ImGui::DragFloat("円弧の広がり角", &layoutArcSweepAngle, 0.1f, 0.0f, 360.0f);
+		ImGui::DragFloat("円弧回転倍率", &layoutArcRotationScale, 0.01f, -2.0f, 2.0f);
+		ImGui::DragFloat3("配置スケール", &layoutScale.x, 0.01f, 0.01f, 10.0f);
 		auto generateArcLayout = [&]() {
 			layoutCount = (std::clamp)(layoutCount, 1, 12);
 			const std::string model = config->barrels.empty() ? "gunBarrel.obj" : config->barrels.front().model;
@@ -1958,7 +2408,7 @@ void Player::DrawPlayerClassEditor()
 			config->alternateBarrels = false;
 			rebuildBarrels = true;
 		};
-		if (ImGui::Button("Generate Symmetric Layout")) {
+		if (ImGui::Button("左右対称配置を生成")) {
 			layoutCount = (std::clamp)(layoutCount, 1, 12);
 			const std::string model = config->barrels.empty() ? "gunBarrel.obj" : config->barrels.front().model;
 			const bool fires = config->barrels.empty() ? true : config->barrels.front().fires;
@@ -1981,7 +2431,7 @@ void Player::DrawPlayerClassEditor()
 			rebuildBarrels = true;
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Generate V Shape")) {
+		if (ImGui::Button("V字配置を生成")) {
 			layoutCount = (std::clamp)(layoutCount, 2, 12);
 			const std::string model = config->barrels.empty() ? "gunBarrel.obj" : config->barrels.front().model;
 			config->barrels.clear();
@@ -2007,10 +2457,10 @@ void Player::DrawPlayerClassEditor()
 			rebuildBarrels = true;
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Generate Arc Fan")) {
+		if (ImGui::Button("円弧ファン配置を生成")) {
 			generateArcLayout();
 		}
-		if (ImGui::Button("Preset 3 Fan")) {
+		if (ImGui::Button("プリセット 3連ファン")) {
 			layoutCount = 3;
 			layoutArcRadius = 0.62f;
 			layoutArcCenterAngle = 0.0f;
@@ -2020,7 +2470,7 @@ void Player::DrawPlayerClassEditor()
 			generateArcLayout();
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Preset 5 Fan")) {
+		if (ImGui::Button("プリセット 5連ファン")) {
 			layoutCount = 5;
 			layoutArcRadius = 0.64f;
 			layoutArcCenterAngle = 0.0f;
@@ -2030,7 +2480,7 @@ void Player::DrawPlayerClassEditor()
 			generateArcLayout();
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Preset Side Stack")) {
+		if (ImGui::Button("プリセット 側面積み")) {
 			layoutCount = 4;
 			layoutArcRadius = 0.58f;
 			layoutArcCenterAngle = 25.0f;
@@ -2041,7 +2491,7 @@ void Player::DrawPlayerClassEditor()
 		}
 		ImGui::Separator();
 	}
-	if (ImGui::Button("Add Barrel")) {
+	if (ImGui::Button("砲塔を追加")) {
 		PlayerBarrelConfig barrel{};
 		if (!config->barrels.empty()) {
 			barrel = config->barrels.back();
@@ -2051,11 +2501,11 @@ void Player::DrawPlayerClassEditor()
 		rebuildBarrels = true;
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Save JSON")) {
+	if (ImGui::Button("JSON保存")) {
 		SavePlayerClassConfigs();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Reload JSON")) {
+	if (ImGui::Button("JSON再読み込み")) {
 		LoadPlayerClassConfigs();
 		rebuildBarrels = true;
 	}
@@ -2063,20 +2513,20 @@ void Player::DrawPlayerClassEditor()
 	for (size_t i = 0; i < config->barrels.size(); ++i) {
 		ImGui::PushID(static_cast<int>(i));
 		PlayerBarrelConfig& barrel = config->barrels[i];
-		const std::string label = "Barrel " + std::to_string(i);
+		const std::string label = "砲塔 " + std::to_string(i);
 		if (ImGui::TreeNode(label.c_str())) {
 			char modelBuffer[128]{};
 			strncpy_s(modelBuffer, barrel.model.c_str(), _TRUNCATE);
-			if (ImGui::InputText("Model", modelBuffer, sizeof(modelBuffer))) {
+			if (ImGui::InputText("モデル", modelBuffer, sizeof(modelBuffer))) {
 				barrel.model = modelBuffer;
 				rebuildBarrels = true;
 			}
-			relayoutBarrels |= ImGui::DragFloat3("Offset X/Y/Z", &barrel.offset.x, 0.01f, -10.0f, 10.0f);
-			relayoutBarrels |= ImGui::DragFloat3("Scale", &barrel.scale.x, 0.01f, 0.0f, 10.0f);
-			relayoutBarrels |= ImGui::DragFloat("Angle Deg", &barrel.angleDeg, 0.1f, -180.0f, 180.0f);
-			ImGui::DragFloat("Muzzle Forward", &barrel.muzzleForward, 0.01f, -2.0f, 5.0f);
-			ImGui::Checkbox("Fires", &barrel.fires);
-			if (ImGui::Button("Duplicate")) {
+			relayoutBarrels |= ImGui::DragFloat3("位置 X/Y/Z", &barrel.offset.x, 0.01f, -10.0f, 10.0f);
+			relayoutBarrels |= ImGui::DragFloat3("スケール", &barrel.scale.x, 0.01f, 0.0f, 10.0f);
+			relayoutBarrels |= ImGui::DragFloat("角度", &barrel.angleDeg, 0.1f, -180.0f, 180.0f);
+			ImGui::DragFloat("銃口の前方オフセット", &barrel.muzzleForward, 0.01f, -2.0f, 5.0f);
+			ImGui::Checkbox("発射する", &barrel.fires);
+			if (ImGui::Button("複製")) {
 				config->barrels.insert(config->barrels.begin() + static_cast<std::ptrdiff_t>(i + 1), barrel);
 				rebuildBarrels = true;
 				ImGui::TreePop();
@@ -2084,7 +2534,7 @@ void Player::DrawPlayerClassEditor()
 				break;
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Remove") && config->barrels.size() > 1) {
+			if (ImGui::Button("削除") && config->barrels.size() > 1) {
 				config->barrels.erase(config->barrels.begin() + static_cast<std::ptrdiff_t>(i));
 				rebuildBarrels = true;
 				ImGui::TreePop();
@@ -2103,7 +2553,7 @@ void Player::DrawPlayerClassEditor()
 		UpdateBarrelLayout();
 	}
 
-	ImGui::Text("Tip: offset.x = forward, offset.y = side, angleDeg = aim offset.");
+	ImGui::Text("メモ: 位置X=前方向、位置Y=横方向、角度=照準からのずれです。");
 	ImGui::End();
 #endif
 }
@@ -2150,31 +2600,54 @@ bool Player::ApplyStatUpgrade(int index)
 
 	switch (index) {
 	case 0:
-		stats_.staminaRecovery += 0.25f;
 		break;
 	case 1:
-		stats_.maxHp += static_cast<float>(maxHpUpgradeAmount_);
-		hp_ = (std::min)(GetMaxHp(), hp_ + maxHpUpgradeAmount_);
 		break;
 	case 2:
-		stats_.bodyDamage += 1.0f;
-		SetDamage(static_cast<uint32_t>(stats_.bodyDamage));
 		break;
 	case 3:
-		stats_.bulletSpeed += 0.04f;
 		break;
 	case 4:
-		stats_.bulletDamage += 1.0f;
 		break;
 	case 5:
-		stats_.reloadSpeed = (std::max)(3.0f, stats_.reloadSpeed - 1.0f);
 		break;
 	case 6:
-		stats_.moveSpeed += 0.025f;
 		break;
 	}
 
+	RecalculateStatsFromBase(false);
 	return true;
+}
+
+void Player::RecalculateStatsFromBase(bool healToFull)
+{
+	const int oldMaxHp = GetMaxHp();
+	const bool wasFullHp = oldMaxHp > 0 && hp_ >= oldMaxHp;
+
+	stats_ = baseStats_;
+	stats_.staminaRecovery += healthRegenUpgradeAmount_ * static_cast<float>(upgradeLevels_[0]);
+	stats_.maxHp += static_cast<float>(maxHpUpgradeAmount_ * upgradeLevels_[1]);
+	stats_.bodyDamage += bodyDamageUpgradeAmount_ * static_cast<float>(upgradeLevels_[2]);
+	stats_.bulletSpeed += bulletSpeedUpgradeAmount_ * static_cast<float>(upgradeLevels_[3]);
+	stats_.bulletDamage += bulletDamageUpgradeAmount_ * static_cast<float>(upgradeLevels_[4]);
+	stats_.reloadSpeed = (std::max)(minReloadSpeed_, stats_.reloadSpeed - reloadUpgradeAmount_ * static_cast<float>(upgradeLevels_[5]));
+	stats_.moveSpeed += moveSpeedUpgradeAmount_ * static_cast<float>(upgradeLevels_[6]);
+	stats_.maxHp = (std::max)(1.0f, stats_.maxHp);
+	stats_.reloadSpeed = (std::max)(0.05f, stats_.reloadSpeed);
+	stats_.bulletDamage = (std::max)(0.1f, stats_.bulletDamage);
+	stats_.bulletSpeed = (std::max)(0.01f, stats_.bulletSpeed);
+	stats_.moveSpeed = (std::max)(0.01f, stats_.moveSpeed);
+	stats_.maxStamina = (std::max)(0.0f, stats_.maxStamina);
+	stats_.stamina = (std::min)(stats_.stamina, stats_.maxStamina);
+
+	SetDamage(static_cast<uint32_t>((std::max)(1.0f, stats_.bodyDamage)));
+
+	const int newMaxHp = GetMaxHp();
+	if (healToFull || wasFullHp) {
+		hp_ = newMaxHp;
+	} else {
+		hp_ = (std::clamp)(hp_, 0, newMaxHp);
+	}
 }
 
 void Player::UpdateStealth(float deltaTime) {

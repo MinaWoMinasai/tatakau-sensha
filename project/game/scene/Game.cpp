@@ -213,14 +213,32 @@ void Game::MainLoop() {
         shadow_->PreDraw();
         
         bloom_->PreDraw();
-        
-        SceneManager::GetInstance()->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
-        
-        SpriteCommon::GetInstance()->PreDraw(kNormal);
-        SceneManager::GetInstance()->DrawSprite();
-        
-        bloom_->PostDraw();
-        SceneManager::GetInstance()->DrawAfterPostEffect3D();
+
+        IScene::RenderProfile renderProfile{};
+        auto measureMs = [](auto&& func) {
+            const auto start = std::chrono::steady_clock::now();
+            func();
+            const auto end = std::chrono::steady_clock::now();
+            return std::chrono::duration<float, std::milli>(end - start).count();
+        };
+
+        renderProfile.scenePostMs = measureMs([&]() {
+            SceneManager::GetInstance()->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
+        });
+
+        renderProfile.globalBloomMs = measureMs([&]() {
+            bloom_->PostDraw();
+        });
+
+        renderProfile.afterPostMs = measureMs([&]() {
+            SceneManager::GetInstance()->DrawAfterPostEffect3D();
+        });
+
+        renderProfile.spriteMs = measureMs([&]() {
+            SpriteCommon::GetInstance()->PreDraw(kNormal);
+            SceneManager::GetInstance()->DrawSprite();
+        });
+        SceneManager::GetInstance()->SetRenderProfile(renderProfile);
 
 
 #ifdef USE_IMGUI

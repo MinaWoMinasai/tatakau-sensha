@@ -1,0 +1,96 @@
+{
+  "bulletTrail": {
+    "colorCurvePower": 1.0,
+    "enemyEndColor": {
+      "w": 0.0,
+      "x": 1.0,
+      "y": 0.20000000298023224,
+      "z": 0.36000001430511475
+    },
+    "enemyHalfWidth": 0.2199999988079071,
+    "enemyObjectColor": {
+      "w": 1.0,
+      "x": 1.0,
+      "y": 0.4710424542427063,
+      "z": 0.8754194974899292
+    },
+    "headWidthScale": 1.0,
+    "interpolationSteps": 5,
+    "lifetime": 0.23999999463558197,
+    "maxPoints": 22,
+    "playerEndColor": {
+      "w": 0.0,
+      "x": 1.0,
+      "y": 0.550000011920929,
+      "z": 0.20000000298023224
+    },
+    "playerHalfWidth": 0.2199999988079071,
+    "playerObjectColor": {
+      "w": 1.0,
+      "x": 0.2799999713897705,
+      "y": 1.0,
+      "z": 0.3745172619819641
+    },
+    "reflectableEndColor": {
+      "w": 0.0,
+      "x": 1.0,
+      "y": 1.0,
+      "z": 0.2199999988079071
+    },
+    "reflectableObjectColor": {
+      "w": 1.0,
+      "x": 1.0,
+      "y": 1.0,
+      "z": 0.2046331763267517
+    },
+    "startColor": {
+      "w": 1.0,
+      "x": 1.0,
+      "y": 0.9800000190734863,
+      "z": 0.7799999713897705
+    },
+    "tailWidthScale": 0.20000000298023224,
+    "trailHeadAlpha": 1.0,
+    "trailHeadIntensity": 1.0,
+    "trailTailAlpha": 1.0,
+    "trailTailIntensity": 1.0,
+    "useObjectColorForTrail": true,
+    "widthCurvePower": 1.0
+  },
+  "neonGrid": {
+    "actorLineWidth": 0.10000000149011612,
+    "actorRadius": 5.400000095367432,
+    "actorSpacing": 1.0,
+    "bossEnemyColor": {
+      "w": 1.0,
+      "x": 1.0,
+      "y": 0.18000000715255737,
+      "z": 0.23999999463558197
+    },
+    "cullActorLocalGrid": true,
+    "expEnemyColor": {
+      "w": 1.0,
+      "x": 1.0,
+      "y": 0.3199999928474426,
+      "z": 0.5799999833106995
+    },
+    "maxExpEnemyLocalGrids": 18,
+    "playerColor": {
+      "w": 1.0,
+      "x": 0.5,
+      "y": 1.0,
+      "z": 0.3499999940395355
+    },
+    "showActorLocalGrid": true,
+    "showWorldGrid": true,
+    "worldColor": {
+      "w": 0.15000000596046448,
+      "x": 0.11999999731779099,
+      "y": 0.41999998688697815,
+      "z": 1.0
+    },
+    "worldLineWidth": 0.07500000298023224,
+    "worldSpacing": 2.0
+  },
+  "version": 1
+}

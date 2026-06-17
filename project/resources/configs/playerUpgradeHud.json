@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "visible": true,
+  "hideListWithoutPoints": true,
+  "drawListPanels": true,
+  "drawListText": true,
+  "drawBottomBars": true,
+  "drawBottomText": true,
+  "panelPos": {
+    "x": 18.0,
+    "y": 388.0
+  },
+  "panelSize": {
+    "x": 322.0,
+    "y": 300.0
+  },
+  "rowStart": {
+    "x": 30.0,
+    "y": 436.0
+  },
+  "buttonSize": {
+    "x": 264.0,
+    "y": 24.0
+  },
+  "plusSize": {
+    "x": 28.0,
+    "y": 24.0
+  },
+  "rowGap": 34.0,
+  "nameX": 44.0,
+  "levelX": 226.0,
+  "plusX": 298.0,
+  "plusLabelX": 307.0,
+  "titlePos": {
+    "x": 32.0,
+    "y": 400.0
+  },
+  "pointPos": {
+    "x": 266.0,
+    "y": 402.0
+  },
+  "levelBarPos": {
+    "x": 415.0,
+    "y": 656.0
+  },
+  "levelBarSize": {
+    "x": 450.0,
+    "y": 16.0
+  },
+  "levelTextPos": {
+    "x": 565.0,
+    "y": 653.0
+  },
+  "expBarPos": {
+    "x": 390.0,
+    "y": 680.0
+  },
+  "expBarSize": {
+    "x": 500.0,
+    "y": 20.0
+  },
+  "expTextPos": {
+    "x": 560.0,
+    "y": 677.0
+  }
+}

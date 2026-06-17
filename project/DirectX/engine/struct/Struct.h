@@ -273,6 +273,8 @@ struct AttackParam {
 	float cooldown = 0.0f;
 
 	uint32_t damage = 0;
+	float bulletHp = 0.0f;
+	float bulletPenetration = 0.0f;
 };
 
 enum BulletOwner {

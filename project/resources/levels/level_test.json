@@ -1,10 +1,12 @@
 {
   "balance": {
     "bossAttackDefault": {
-      "bulletCount": 2,
+      "bulletCount": 1,
+      "bulletHp": 0.0,
+      "bulletPenetration": 0.0,
       "bulletSpeed": 0.4000000059604645,
-      "cooldown": 0.15000000596046448,
-      "damage": 12,
+      "cooldown": 0.30000001192092896,
+      "damage": 1,
       "pattern": 0,
       "randomSpread": true,
       "spreadAngleDeg": 30.0
@@ -18,24 +20,39 @@
     },
     "defaultRandomSpawnEnabled": true,
     "enemySystem": {
-      "bossDamageGainPerLevel": 2,
-      "bossExpEnemyDamage": 12,
-      "bossHealOnExpEnemyKill": 30,
+      "bossAimTurnHalfSeconds": 2.0,
+      "bossDamageGainPerLevel": 1,
+      "bossExpEnemyDamage": 6,
+      "bossHealOnExpEnemyKill": 15,
       "bossKillsPerLevel": 3,
-      "bossLevelingEnterDistance": 24.0,
-      "bossLevelingExitDistance": 16.0,
+      "bossLevelingEnterDistance": 12.0,
+      "bossLevelingExitDistance": 8.0,
       "bossLevelingModeEnabled": true,
-      "bossLevelingSearchRadius": 80.0,
-      "bossAimTurnHalfSeconds": 1.0,
-      "bossMaxHpGainPerLevel": 20,
+      "bossLevelingSearchRadius": 40.0,
+      "bossMaxHpGainPerLevel": 10,
       "expEnemyHostileToBoss": true
     },
     "notes": "trueなら従来のランダムEXP敵スポーンも残す。falseならspawnAreas中心の調整にできる。",
     "player": {
       "bodyDamage": 3,
+      "bulletDamage": 1.0,
+      "bulletSpeed": 0.30000001192092896,
       "healToFull": true,
-      "maxHp": 10000,
-      "maxHpUpgradeAmount": 80
+      "maxHp": 5000,
+      "maxStamina": 3.0,
+      "moveSpeed": 0.20000000298023224,
+      "reloadSpeed": 60.0,
+      "staminaRecovery": 1.0
+    },
+    "playerUpgrades": {
+      "bodyDamage": 1.0,
+      "bulletDamage": 1.0,
+      "bulletSpeed": 0.03999999910593033,
+      "healthRegen": 0.25,
+      "maxHp": 80,
+      "minReloadSpeed": 3.0,
+      "moveSpeed": 0.02500000037252903,
+      "reloadSpeed": 1.0
     }
   },
   "bossPhases": [

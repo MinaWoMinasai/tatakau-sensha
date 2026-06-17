@@ -80,8 +80,21 @@ public:
 
 	struct BalanceConfig {
 		int maxHp = 10000;
-		int maxHpUpgradeAmount = 50;
+		float reloadSpeed = 10.0f;
+		float bulletDamage = 1.0f;
+		float bulletSpeed = 0.3f;
+		float moveSpeed = 0.2f;
+		float staminaRecovery = 1.0f;
+		float maxStamina = 3.0f;
 		uint32_t bodyDamage = 3;
+		float healthRegenUpgrade = 0.25f;
+		int maxHpUpgradeAmount = 50;
+		float bodyDamageUpgrade = 1.0f;
+		float bulletSpeedUpgrade = 0.04f;
+		float bulletDamageUpgrade = 1.0f;
+		float reloadUpgrade = 1.0f;
+		float moveSpeedUpgrade = 0.025f;
+		float minReloadSpeed = 3.0f;
 		bool healToFull = false;
 	};
 
@@ -150,6 +163,8 @@ public:
 	void Damage(uint32_t amount = kDamageBlockDamage);
 	void TakeDamage(uint32_t amount, float invincibleTime = 0.45f);
 	void ApplyBalanceConfig(const BalanceConfig& config);
+	void SetDebugNoDamage(bool enabled) { debugNoDamage_ = enabled; }
+	bool IsDebugNoDamage() const { return debugNoDamage_; }
 
 	void Die(); // ← プレイヤー消滅
 
@@ -195,6 +210,7 @@ public:
 	int GetUpgradeLevel(int index) const;
 	const char* GetCurrentClassName() const;
 	bool ApplyStatUpgrade(int index);
+	const PlayerStats& GetStats() const { return stats_; }
 
 	bool RequestSlow();
 
@@ -207,6 +223,18 @@ public:
 	void DrawTankCodex();
 
 	void DrawPlayerClassEditor();
+	void DrawUpgradeHudDebugImGui();
+	struct UiProfileStats {
+		float updateMs = 0.0f;
+		float spriteMs = 0.0f;
+		float textMs = 0.0f;
+		float totalMs = 0.0f;
+		int spriteDraws = 0;
+		int textDraws = 0;
+		bool visible = false;
+	};
+	const UiProfileStats& GetUpgradeHudProfileStats() const { return upgradeHudProfile_; }
+	const UiProfileStats& GetEvolutionUiProfileStats() const { return evolutionUiProfile_; }
 
 	int GetRankFromLevel(int level);
 
@@ -298,6 +326,7 @@ private:
 
 	// 無敵時間
 	float invincibleTimer_ = 0.0f;
+	bool debugNoDamage_ = false;
 	float damageFeedbackTimer_ = 0.0f;
 	float damageFeedbackDuration_ = 0.18f;
 	Vector4 baseVehicleColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
@@ -326,7 +355,15 @@ private:
 	int GetNextLevelExp() const;
 
 	PlayerStats stats_;
+	PlayerStats baseStats_;
+	float healthRegenUpgradeAmount_ = 0.25f;
 	int maxHpUpgradeAmount_ = 50;
+	float bodyDamageUpgradeAmount_ = 1.0f;
+	float bulletSpeedUpgradeAmount_ = 0.04f;
+	float bulletDamageUpgradeAmount_ = 1.0f;
+	float reloadUpgradeAmount_ = 1.0f;
+	float moveSpeedUpgradeAmount_ = 0.025f;
+	float minReloadSpeed_ = 3.0f;
 	ClassType currentClass_ = ClassType::Basic;
 	std::string currentClassId_ = "Basic";
 
@@ -347,6 +384,13 @@ private:
 	void DrawBarrels();
 	void SetVehicleAlpha(float alpha);
 	void TriggerDamageFeedback();
+	void InitializeUpgradeHud();
+	void UpdateUpgradeHud();
+	void DrawUpgradeHud();
+	void ApplyUpgradeHudLayout();
+	bool LoadUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json");
+	bool SaveUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json") const;
+	void RecalculateStatsFromBase(bool healToFull);
 	void SpawnCasing();
 	int shootBarrelIndex_ = 0; // 次に撃つ砲身の番号
 
@@ -416,6 +460,57 @@ private:
 	std::unique_ptr<TextLabel> evolutionRoleLabel_;
 	std::unique_ptr<TextLabel> evolutionChangeButtonLabel_;
 	std::array<std::unique_ptr<TextLabel>, 9> evolutionStatLabels_;
+	std::unique_ptr<Sprite> upgradeHudBackdropSprite_;
+	std::unique_ptr<Sprite> upgradeHudExpBackSprite_;
+	std::unique_ptr<Sprite> upgradeHudExpFillSprite_;
+	std::unique_ptr<Sprite> upgradeHudLevelBackSprite_;
+	std::unique_ptr<Sprite> upgradeHudLevelFillSprite_;
+	std::unique_ptr<TextLabel> upgradeHudTitleLabel_;
+	std::unique_ptr<TextLabel> upgradeHudPointLabel_;
+	std::unique_ptr<TextLabel> upgradeHudExpLabel_;
+	std::unique_ptr<TextLabel> upgradeHudLevelLabel_;
+	std::unique_ptr<TextLabel> upgradeHudListLabel_;
+	std::array<std::unique_ptr<Sprite>, 7> upgradeHudButtonSprites_;
+	std::array<std::unique_ptr<Sprite>, 7> upgradeHudPlusSprites_;
+	std::array<std::unique_ptr<TextLabel>, 7> upgradeHudNameLabels_;
+	std::array<std::unique_ptr<TextLabel>, 7> upgradeHudLevelLabels_;
+	std::array<std::unique_ptr<TextLabel>, 7> upgradeHudPlusLabels_;
+	std::array<float, 7> upgradeHudFlashTimers_{};
+	bool upgradeHudMouseCaptured_ = false;
+	bool upgradeHudVisible_ = true;
+	bool upgradeHudHideListWithoutPoints_ = true;
+	bool upgradeHudDrawListPanels_ = true;
+	bool upgradeHudDrawListText_ = true;
+	bool upgradeHudDrawBottomBars_ = true;
+	bool upgradeHudDrawBottomText_ = true;
+	Vector2 upgradeHudPanelPos_ = { 18.0f, 388.0f };
+	Vector2 upgradeHudPanelSize_ = { 322.0f, 300.0f };
+	Vector2 upgradeHudRowStart_ = { 30.0f, 436.0f };
+	Vector2 upgradeHudButtonSize_ = { 264.0f, 24.0f };
+	Vector2 upgradeHudPlusSize_ = { 28.0f, 24.0f };
+	float upgradeHudRowGap_ = 34.0f;
+	float upgradeHudNameX_ = 44.0f;
+	float upgradeHudLevelX_ = 226.0f;
+	float upgradeHudPlusX_ = 298.0f;
+	float upgradeHudPlusLabelX_ = 307.0f;
+	Vector2 upgradeHudTitlePos_ = { 32.0f, 400.0f };
+	Vector2 upgradeHudPointPos_ = { 266.0f, 402.0f };
+	Vector2 upgradeHudLevelBarPos_ = { 415.0f, 656.0f };
+	Vector2 upgradeHudLevelBarSize_ = { 450.0f, 16.0f };
+	Vector2 upgradeHudLevelTextPos_ = { 565.0f, 653.0f };
+	Vector2 upgradeHudExpBarPos_ = { 390.0f, 680.0f };
+	Vector2 upgradeHudExpBarSize_ = { 500.0f, 20.0f };
+	Vector2 upgradeHudExpTextPos_ = { 560.0f, 677.0f };
+	std::string upgradeHudConfigStatus_;
+	UiProfileStats upgradeHudProfile_{};
+	UiProfileStats evolutionUiProfile_{};
+	int cachedUpgradeHudExp_ = -1;
+	int cachedUpgradeHudNextExp_ = -1;
+	int cachedUpgradeHudLevel_ = -1;
+	int cachedUpgradeHudSkillPoints_ = -1;
+	std::string cachedUpgradeHudClassName_;
+	std::array<int, 7> cachedUpgradeHudLevels_{ -1, -1, -1, -1, -1, -1, -1 };
+	bool cachedUpgradeHudListVisible_ = false;
 
 	Vector2 mousePosition_;
 

@@ -1,5 +1,6 @@
 #include "TrailManager.h"
 #include "Calculation.h"
+#include <cmath>
 
 void TrailManager::Initialize(DirectXCommon* dxcommon, Object3dCommon* object3dCommon, const std::string& textureFilePath) {
     dxCommon_ = dxcommon;
@@ -86,10 +87,12 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
                 float t = (float)j / (float)steps;
                 float globalRatio = (float)(i * steps + j) / (float)((points.size() - 1) * steps);
 
-                Vector4 color = Lerp(config.startColor, config.endColor, globalRatio);
+                const float colorRatio = std::pow(globalRatio, (std::max)(0.05f, config.colorCurvePower));
+                const float widthRatio = std::pow(globalRatio, (std::max)(0.05f, config.widthCurvePower));
+                Vector4 color = Lerp(config.startColor, config.endColor, colorRatio);
                 Vector3 tip = CatmullRom(points[i0].tip, points[i1].tip, points[i2].tip, points[i3].tip, t);
                 Vector3 base = CatmullRom(points[i0].base, points[i1].base, points[i2].base, points[i3].base, t);
-                float widthScale = config.startWidthScale + (config.endWidthScale - config.startWidthScale) * globalRatio;
+                float widthScale = config.startWidthScale + (config.endWidthScale - config.startWidthScale) * widthRatio;
                 Vector3 center = (tip + base) * 0.5f;
                 Vector3 halfWidth = (tip - base) * (0.5f * widthScale);
                 tip = center + halfWidth;

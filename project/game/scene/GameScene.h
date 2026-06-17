@@ -78,6 +78,7 @@ public:
 
 	float GetFinalDeltaTime() const override { return finalDeltaTime; }
 	float GetPostGaussianIntensity() const override { return sceneFadeBlurIntensity_; }
+	void SetRenderProfile(const IScene::RenderProfile& profile) override { renderProfile_ = profile; }
 	
 	std::string GetNextSceneName() const override;
 
@@ -99,8 +100,21 @@ private:
 		bool initialized = false;
 		bool defaultRandomSpawnEnabled = true;
 		int playerMaxHp = 10000;
-		int maxHpUpgradeAmount = 80;
+		float playerReloadSpeed = 10.0f;
+		float playerBulletDamage = 1.0f;
+		float playerBulletSpeed = 0.3f;
+		float playerMoveSpeed = 0.2f;
+		float playerStaminaRecovery = 1.0f;
+		float playerMaxStamina = 3.0f;
 		int playerBodyDamage = 3;
+		float playerHealthRegenUpgrade = 0.25f;
+		int maxHpUpgradeAmount = 80;
+		float playerBodyDamageUpgrade = 1.0f;
+		float playerBulletSpeedUpgrade = 0.04f;
+		float playerBulletDamageUpgrade = 1.0f;
+		float playerReloadUpgrade = 1.0f;
+		float playerMoveSpeedUpgrade = 0.025f;
+		float playerMinReloadSpeed = 3.0f;
 		bool healToFull = false;
 		int damageBlock = 90;
 		int bossContact = 45;
@@ -112,6 +126,8 @@ private:
 		float bossSpreadAngleDeg = 30.0f;
 		float bossCooldown = 0.15f;
 		int bossBulletDamage = 12;
+		float bossBulletHp = 0.0f;
+		float bossBulletPenetration = 0.0f;
 		bool bossRandomSpread = true;
 		int bossAttackPattern = 0;
 		bool expEnemyHostileToBoss = false;
@@ -145,6 +161,7 @@ private:
 	void ResetPostProfileEntries();
 	void AddPostProfileEntry(const char* name, float ms, bool active);
 	void UpdatePostProfileText();
+	void DrawPerformanceBreakdownImGui();
 	bool IsPostProfileCategoryEnabled(const char* category) const;
 	const char* GetPostProfileModeName() const;
 	Vector2 GetStagePostCacheUvOffset(const Vector3& currentCameraPos) const;
@@ -155,6 +172,14 @@ private:
 	void ApplyLevelBalance(const nlohmann::json& balanceJson);
 	void DrawGameSceneDebugImGui();
 	void DrawPostEffectParamControls(const char* labelPrefix, BloomParam& param);
+	bool LoadGamePostEffectConfig(const std::string& filePath = "resources/configs/gamePostEffects.json");
+	bool SaveGamePostEffectConfig(const std::string& filePath = "resources/configs/gamePostEffects.json") const;
+	nlohmann::json BuildGamePostEffectConfig() const;
+	void ApplyGamePostEffectConfig(const nlohmann::json& configJson);
+	bool LoadGameVisualConfig(const std::string& filePath = "resources/configs/gameVisuals.json");
+	bool SaveGameVisualConfig(const std::string& filePath = "resources/configs/gameVisuals.json") const;
+	nlohmann::json BuildGameVisualConfig() const;
+	void ApplyGameVisualConfig(const nlohmann::json& configJson);
 	void DrawLevelAIDitorBalanceLab(bool embedded = false);
 	void LoadBalanceEditorFromJson(const nlohmann::json& balanceJson);
 	nlohmann::json BuildBalanceJsonFromEditor() const;
@@ -172,6 +197,8 @@ private:
 	bool AddLevelItem(const LevelObject& levelObject);
 	void UpdateLevelItems();
 	void DrawLevelItems();
+	void DrawBulletStatusDebugOverlay();
+	void DrawBulletStatusDebugTable();
 
 	struct HpBarVisibility {
 		int lastHp = -1;
@@ -286,10 +313,12 @@ private:
 	bool enableStagePostEffect_ = false;
 	bool showPostProfileOverlay_ = true;
 	int postProfileMode_ = 0;
-	std::array<PostProfileEntry, 10> postProfileEntries_;
+	std::array<PostProfileEntry, 16> postProfileEntries_;
 	size_t postProfileEntryCount_ = 0;
-	std::array<float, 10> postProfileAccumulatedMs_{};
+	std::array<float, 16> postProfileAccumulatedMs_{};
+	std::array<float, 16> postProfileAverageMs_{};
 	int postProfileAccumulatedFrames_ = 0;
+	IScene::RenderProfile renderProfile_{};
 	bool stagePostCacheValid_ = false;
 	Vector3 stagePostCacheCameraPos_{};
 	float stagePostCacheRefreshPixels_ = 48.0f;
@@ -309,6 +338,10 @@ private:
 	float cameraShakePower_ = 0.0f;
 	bool showCollisionDebug_ = false;
 	bool showCollisionDebugBullets_ = true;
+	bool showBulletStatusDebugOverlay_ = false;
+	bool showBulletStatusDebugTable_ = true;
+	int bulletStatusDebugMaxLabels_ = 40;
+	bool debugPlayerNoDamage_ = false;
 	bool showGameDebugConsole_ = true;
 	bool showParticleEditor_ = false;
 	bool showPlayerClassEditor_ = false;
@@ -317,6 +350,8 @@ private:
 	bool showLevelAIDitorPreview_ = true;
 	bool enableNeonGridPostEffect_ = true;
 	bool enableBulletTrailPostEffect_ = true;
+	std::string postEffectConfigStatus_;
+	std::string visualConfigStatus_;
 	float worldGridSpacing_ = 2.0f;
 	float worldGridLineWidth_ = 0.075f;
 	Vector4 worldGridColor_ = { 0.12f, 0.42f, 1.0f, 0.15f };

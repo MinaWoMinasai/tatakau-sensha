@@ -2,6 +2,7 @@
 #include "Collider.h"
 #include "Object3d.h"
 #include "AttackController.h"
+#include <functional>
 
 class Player;
 class Stage;
@@ -26,6 +27,7 @@ public:
 
     static void SetBalanceConfig(const BalanceConfig& config);
     static void SetEnemyInteractionConfig(const EnemyInteractionConfig& config);
+    static void SetEnemyKillCallback(std::function<void(uint32_t)> callback);
     static bool IsHostileToBoss() { return enemyInteractionConfig_.hostileToBoss; }
 
     void Initialize(const Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
@@ -68,6 +70,7 @@ private:
 
     static BalanceConfig balanceConfig_;
     static EnemyInteractionConfig enemyInteractionConfig_;
+    static std::function<void(uint32_t)> enemyKillCallback_;
 
     Transform worldTransform_;
     Vector3 baseScale_{ 1.0f, 1.0f, 1.0f };
