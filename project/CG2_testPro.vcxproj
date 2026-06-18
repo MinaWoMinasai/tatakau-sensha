@@ -507,6 +507,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="resources\levels\ai_edit_prompt_template.md" />
     <None Include="resources\levels\ai_balance_handoff.md" />
     <None Include="tools\blender\export_level_test.py" />
+    <None Include="tools\level_aiditor\level_aiditor.py" />
+    <None Include="tools\level_aiditor\README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
