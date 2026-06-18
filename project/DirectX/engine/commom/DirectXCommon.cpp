@@ -320,6 +320,7 @@ void DirectXCommon::CreateShader()
 	downsamplePSO.shaderType_ = PostEffect;
 	shadowPSO.shaderType_ = Shadow;
 	trailPSO.shaderType_ = Trail;
+	hudRectPSO.shaderType_ = Trail;
 	skyboxPSO.shaderType_ = Skybox;
 
 	bloomPSO.postEffectType_ = Bloom_Extract;
@@ -349,6 +350,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(downsamplePSO, kNone);
 	CreateShaderCommon(shadowPSO, kShadow);
 	CreateShaderCommon(trailPSO, kAdd);
+	CreateShaderCommon(hudRectPSO, kNormal);
 	CreateShaderCommon(skyboxPSO, kNone);
 }
 
@@ -1075,5 +1077,12 @@ void DirectXCommon::Release() {
 	}
 	trailPSO.pixelShaderBlob_->Release();
 	trailPSO.vertexShaderBlob_->Release();
+
+	hudRectPSO.root_.GetSignatureBlob()->Release();
+	if (hudRectPSO.root_.GetErrorBlob()) {
+		hudRectPSO.root_.GetErrorBlob()->Release();
+	}
+	hudRectPSO.pixelShaderBlob_->Release();
+	hudRectPSO.vertexShaderBlob_->Release();
 
 }

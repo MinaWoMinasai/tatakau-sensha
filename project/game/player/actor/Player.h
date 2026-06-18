@@ -387,6 +387,9 @@ private:
 	void InitializeUpgradeHud();
 	void UpdateUpgradeHud();
 	void DrawUpgradeHud();
+	void InitializeUpgradeHudBatch();
+	void DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float levelRatio);
+	void QueueUpgradeHudRect(std::vector<TrailVertex>& vertices, const Vector2& pos, const Vector2& size, const Vector4& color) const;
 	void ApplyUpgradeHudLayout();
 	bool LoadUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json");
 	bool SaveUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json") const;
@@ -475,6 +478,14 @@ private:
 	std::array<std::unique_ptr<TextLabel>, 7> upgradeHudNameLabels_;
 	std::array<std::unique_ptr<TextLabel>, 7> upgradeHudLevelLabels_;
 	std::array<std::unique_ptr<TextLabel>, 7> upgradeHudPlusLabels_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchVertexResource_;
+	D3D12_VERTEX_BUFFER_VIEW upgradeHudBatchVertexBufferView_{};
+	TrailVertex* upgradeHudBatchVertexData_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchTransformResource_;
+	Matrix4x4* upgradeHudBatchTransformData_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchMaterialResource_;
+	Material* upgradeHudBatchMaterialData_ = nullptr;
+	static constexpr uint32_t kUpgradeHudBatchMaxVertices = 256;
 	std::array<float, 7> upgradeHudFlashTimers_{};
 	bool upgradeHudMouseCaptured_ = false;
 	bool upgradeHudVisible_ = true;
@@ -483,6 +494,7 @@ private:
 	bool upgradeHudDrawListText_ = true;
 	bool upgradeHudDrawBottomBars_ = true;
 	bool upgradeHudDrawBottomText_ = true;
+	bool upgradeHudUseRectBatch_ = true;
 	Vector2 upgradeHudPanelPos_ = { 18.0f, 388.0f };
 	Vector2 upgradeHudPanelSize_ = { 322.0f, 300.0f };
 	Vector2 upgradeHudRowStart_ = { 30.0f, 436.0f };

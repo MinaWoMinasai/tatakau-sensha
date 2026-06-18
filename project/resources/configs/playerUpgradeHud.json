@@ -6,6 +6,7 @@
   "drawListText": true,
   "drawBottomBars": true,
   "drawBottomText": true,
+  "useRectBatch": true,
   "panelPos": {
     "x": 18.0,
     "y": 388.0

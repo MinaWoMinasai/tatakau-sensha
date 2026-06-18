@@ -200,6 +200,7 @@ public:
 	const PSO& GetGaussianFilterPSO() const { return gaussianFilterPSO; }
 	PSO& GetPSOComputeParticle() { return psoComputeParticle_; }
 	PSO& GetPSOTrail() { return trailPSO; }
+	PSO& GetPSOHudRect() { return hudRectPSO; }
 	PSO& GetPSOSkybox() { return skyboxPSO; }
 
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
@@ -368,6 +369,7 @@ private:
 	PSO objectPostBloomAddPSO;
 	PSO shadowPSO;
 	PSO trailPSO;
+	PSO hudRectPSO;
 	PSO skyboxPSO;
 	ShaderType shaderType_;
 
