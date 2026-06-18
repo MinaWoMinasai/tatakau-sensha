@@ -1431,6 +1431,36 @@ void Player::InitializeUpgradeHud()
 		upgradeHudPlusSprites_[i] = makePanel({ upgradeHudPlusX_, y }, upgradeHudPlusSize_, { 0.34f, 0.95f, 0.64f, 0.88f });
 		(void)names;
 	}
+	InitializeUpgradeHudBatch();
+}
+
+void Player::InitializeUpgradeHudBatch()
+{
+	DirectXCommon* dxCommon = SpriteCommon::GetInstance()->GetDxCommon();
+	if (!dxCommon) {
+		return;
+	}
+	TextureManager::GetInstance()->LoadTexture("resources/white512x512.png");
+
+	upgradeHudBatchVertexResource_ = dxCommon->CreateBufferResource(sizeof(TrailVertex) * kUpgradeHudBatchMaxVertices);
+	upgradeHudBatchVertexBufferView_.BufferLocation = upgradeHudBatchVertexResource_->GetGPUVirtualAddress();
+	upgradeHudBatchVertexBufferView_.SizeInBytes = sizeof(TrailVertex) * kUpgradeHudBatchMaxVertices;
+	upgradeHudBatchVertexBufferView_.StrideInBytes = sizeof(TrailVertex);
+	upgradeHudBatchVertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&upgradeHudBatchVertexData_));
+
+	upgradeHudBatchTransformResource_ = dxCommon->CreateBufferResource(sizeof(Matrix4x4));
+	upgradeHudBatchTransformResource_->Map(0, nullptr, reinterpret_cast<void**>(&upgradeHudBatchTransformData_));
+	*upgradeHudBatchTransformData_ = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+
+	upgradeHudBatchMaterialResource_ = dxCommon->CreateBufferResource(sizeof(Material));
+	upgradeHudBatchMaterialResource_->Map(0, nullptr, reinterpret_cast<void**>(&upgradeHudBatchMaterialData_));
+	upgradeHudBatchMaterialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	upgradeHudBatchMaterialData_->enableLighting = false;
+	upgradeHudBatchMaterialData_->lightingMode = false;
+	upgradeHudBatchMaterialData_->environmentCoefficient = 0.0f;
+	upgradeHudBatchMaterialData_->padding = 0.0f;
+	upgradeHudBatchMaterialData_->uvTransform = MakeIdentity4x4();
+	upgradeHudBatchMaterialData_->shininess = 1.0f;
 }
 
 void Player::UpdateUpgradeHud()
@@ -1578,23 +1608,28 @@ void Player::DrawUpgradeHud()
 	cachedUpgradeHudListVisible_ = showUpgradeList;
 
 	const auto spriteStart = std::chrono::steady_clock::now();
-	SpriteCommon::GetInstance()->PreDraw(kNormal);
-	if (showUpgradeList && upgradeHudDrawListPanels_) {
-		if (upgradeHudBackdropSprite_) { upgradeHudBackdropSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
-		for (int i = 0; i < 7; ++i) {
-			if (upgradeHudButtonSprites_[i]) { upgradeHudButtonSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
-			if (upgradeHudPlusSprites_[i]) { upgradeHudPlusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+	if (upgradeHudUseRectBatch_) {
+		DrawUpgradeHudRectBatch(showUpgradeList, expRatio, levelRatio);
+	} else {
+		SpriteCommon::GetInstance()->PreDraw(kNormal);
+		if (showUpgradeList && upgradeHudDrawListPanels_) {
+			if (upgradeHudBackdropSprite_) { upgradeHudBackdropSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+			for (int i = 0; i < 7; ++i) {
+				if (upgradeHudButtonSprites_[i]) { upgradeHudButtonSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+				if (upgradeHudPlusSprites_[i]) { upgradeHudPlusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+			}
 		}
-	}
-	if (upgradeHudDrawBottomBars_) {
-		if (upgradeHudLevelBackSprite_) { upgradeHudLevelBackSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
-		if (upgradeHudLevelFillSprite_) { upgradeHudLevelFillSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
-		if (upgradeHudExpBackSprite_) { upgradeHudExpBackSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
-		if (upgradeHudExpFillSprite_) { upgradeHudExpFillSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+		if (upgradeHudDrawBottomBars_) {
+			if (upgradeHudLevelBackSprite_) { upgradeHudLevelBackSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+			if (upgradeHudLevelFillSprite_) { upgradeHudLevelFillSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+			if (upgradeHudExpBackSprite_) { upgradeHudExpBackSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+			if (upgradeHudExpFillSprite_) { upgradeHudExpFillSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+		}
 	}
 	const auto spriteEnd = std::chrono::steady_clock::now();
 
 	const auto textStart = std::chrono::steady_clock::now();
+	SpriteCommon::GetInstance()->PreDraw(kNormal);
 	if (showUpgradeList && upgradeHudDrawListText_) {
 		if (upgradeHudTitleLabel_) { upgradeHudTitleLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
 		if (upgradeHudPointLabel_) { upgradeHudPointLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
@@ -1611,6 +1646,78 @@ void Player::DrawUpgradeHud()
 	upgradeHudProfile_.textMs = std::chrono::duration<float, std::milli>(textEnd - textStart).count();
 	upgradeHudProfile_.updateMs = std::chrono::duration<float, std::milli>(spriteStart - totalStart).count();
 	upgradeHudProfile_.totalMs = std::chrono::duration<float, std::milli>(totalEnd - totalStart).count();
+}
+
+void Player::QueueUpgradeHudRect(std::vector<TrailVertex>& vertices, const Vector2& pos, const Vector2& size, const Vector4& color) const
+{
+	const float left = pos.x;
+	const float top = pos.y;
+	const float right = pos.x + size.x;
+	const float bottom = pos.y + size.y;
+	const Vector3 p0{ left, bottom, 0.0f };
+	const Vector3 p1{ left, top, 0.0f };
+	const Vector3 p2{ right, bottom, 0.0f };
+	const Vector3 p3{ right, top, 0.0f };
+
+	vertices.push_back({ p0, color, { 0.0f, 1.0f } });
+	vertices.push_back({ p1, color, { 0.0f, 0.0f } });
+	vertices.push_back({ p2, color, { 1.0f, 1.0f } });
+	vertices.push_back({ p1, color, { 0.0f, 0.0f } });
+	vertices.push_back({ p3, color, { 1.0f, 0.0f } });
+	vertices.push_back({ p2, color, { 1.0f, 1.0f } });
+}
+
+void Player::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float levelRatio)
+{
+	if (!upgradeHudBatchVertexData_ || !upgradeHudBatchTransformData_ || !upgradeHudBatchMaterialData_) {
+		return;
+	}
+
+	std::vector<TrailVertex> vertices;
+	vertices.reserve(kUpgradeHudBatchMaxVertices);
+
+	if (showUpgradeList && upgradeHudDrawListPanels_) {
+		QueueUpgradeHudRect(vertices, upgradeHudPanelPos_, upgradeHudPanelSize_, { 0.03f, 0.04f, 0.06f, 0.58f });
+		for (int i = 0; i < 7; ++i) {
+			const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
+			float flash = (std::min)(1.0f, upgradeHudFlashTimers_[i] / 0.22f);
+			const Vector4 buttonColor = LerpColor({ 0.10f, 0.12f, 0.15f, 0.84f }, { 0.35f, 0.90f, 0.72f, 0.96f }, flash);
+			const Vector4 plusColor = skillPoints_ > 0
+				? LerpColor({ 0.34f, 0.95f, 0.64f, 0.88f }, { 1.0f, 1.0f, 0.46f, 1.0f }, flash)
+				: Vector4{ 0.18f, 0.22f, 0.24f, 0.48f };
+			QueueUpgradeHudRect(vertices, { upgradeHudRowStart_.x, y }, upgradeHudButtonSize_, buttonColor);
+			QueueUpgradeHudRect(vertices, { upgradeHudPlusX_, y }, upgradeHudPlusSize_, plusColor);
+		}
+	}
+
+	if (upgradeHudDrawBottomBars_) {
+		QueueUpgradeHudRect(vertices, upgradeHudLevelBarPos_, upgradeHudLevelBarSize_, { 0.04f, 0.04f, 0.05f, 0.82f });
+		QueueUpgradeHudRect(vertices, upgradeHudLevelBarPos_, { upgradeHudLevelBarSize_.x * levelRatio, upgradeHudLevelBarSize_.y }, { 0.36f, 1.0f, 0.56f, 0.92f });
+		QueueUpgradeHudRect(vertices, upgradeHudExpBarPos_, upgradeHudExpBarSize_, { 0.04f, 0.04f, 0.05f, 0.82f });
+		QueueUpgradeHudRect(vertices, upgradeHudExpBarPos_, { upgradeHudExpBarSize_.x * expRatio, upgradeHudExpBarSize_.y }, { 0.96f, 0.83f, 0.24f, 0.95f });
+	}
+
+	if (vertices.empty()) {
+		return;
+	}
+	if (vertices.size() > kUpgradeHudBatchMaxVertices) {
+		vertices.resize(kUpgradeHudBatchMaxVertices);
+	}
+	std::memcpy(upgradeHudBatchVertexData_, vertices.data(), sizeof(TrailVertex) * vertices.size());
+	*upgradeHudBatchTransformData_ = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+
+	DirectXCommon* dxCommon = SpriteCommon::GetInstance()->GetDxCommon();
+	ID3D12GraphicsCommandList* commandList = dxCommon->GetList().Get();
+	TextureManager::GetInstance()->PreDraw();
+	commandList->SetGraphicsRootSignature(dxCommon->GetPSOHudRect().root_.GetSignature().Get());
+	commandList->SetPipelineState(dxCommon->GetPSOHudRect().graphicsState_.Get());
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	commandList->IASetVertexBuffers(0, 1, &upgradeHudBatchVertexBufferView_);
+	commandList->SetGraphicsRootConstantBufferView(0, upgradeHudBatchMaterialResource_->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(1, upgradeHudBatchTransformResource_->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU("resources/white512x512.png"));
+	commandList->DrawInstanced(static_cast<UINT>(vertices.size()), 1, 0, 0);
+	upgradeHudProfile_.spriteDraws += 1;
 }
 
 void Player::ApplyUpgradeHudLayout()
@@ -1669,6 +1776,7 @@ bool Player::LoadUpgradeHudConfig(const std::string& path)
 	upgradeHudDrawListText_ = json.value("drawListText", upgradeHudDrawListText_);
 	upgradeHudDrawBottomBars_ = json.value("drawBottomBars", upgradeHudDrawBottomBars_);
 	upgradeHudDrawBottomText_ = json.value("drawBottomText", upgradeHudDrawBottomText_);
+	upgradeHudUseRectBatch_ = json.value("useRectBatch", upgradeHudUseRectBatch_);
 	upgradeHudPanelPos_ = ReadVector2Object(json.value("panelPos", nlohmann::json::object()), upgradeHudPanelPos_);
 	upgradeHudPanelSize_ = ReadVector2Object(json.value("panelSize", nlohmann::json::object()), upgradeHudPanelSize_);
 	upgradeHudRowStart_ = ReadVector2Object(json.value("rowStart", nlohmann::json::object()), upgradeHudRowStart_);
@@ -1707,6 +1815,7 @@ bool Player::SaveUpgradeHudConfig(const std::string& path) const
 		{ "drawListText", upgradeHudDrawListText_ },
 		{ "drawBottomBars", upgradeHudDrawBottomBars_ },
 		{ "drawBottomText", upgradeHudDrawBottomText_ },
+		{ "useRectBatch", upgradeHudUseRectBatch_ },
 		{ "panelPos", WriteVector2Object(upgradeHudPanelPos_) },
 		{ "panelSize", WriteVector2Object(upgradeHudPanelSize_) },
 		{ "rowStart", WriteVector2Object(upgradeHudRowStart_) },
@@ -1742,6 +1851,8 @@ void Player::DrawUpgradeHudDebugImGui()
 	ImGui::Checkbox("強化リスト文字を描画", &upgradeHudDrawListText_);
 	ImGui::Checkbox("下部EXP/Levelバーを描画", &upgradeHudDrawBottomBars_);
 	ImGui::Checkbox("下部EXP/Level文字を描画", &upgradeHudDrawBottomText_);
+	ImGui::Checkbox("背景/バーを矩形バッチで描画", &upgradeHudUseRectBatch_);
+	ImGui::Text("矩形Draw数: %d", upgradeHudProfile_.spriteDraws);
 	if (ImGui::Button("強化HUD設定を保存")) {
 		upgradeHudConfigStatus_ = SaveUpgradeHudConfig() ? "強化HUD設定を保存しました。" : "強化HUD設定の保存に失敗しました。";
 	}
