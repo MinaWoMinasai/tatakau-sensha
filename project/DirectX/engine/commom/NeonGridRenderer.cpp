@@ -33,6 +33,49 @@ void NeonGridRenderer::BeginFrame() {
     vertexCount_ = 0;
 }
 
+void NeonGridRenderer::SetLineStyle(float softEdgeRatio, float coreIntensity) {
+    lineSoftEdgeRatio_ = std::clamp(softEdgeRatio, 0.0f, 0.95f);
+    lineCoreIntensity_ = (std::max)(0.0f, coreIntensity);
+}
+
+void NeonGridRenderer::QueueLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color) {
+    AddLineQuad(a, b, lineWidth, color);
+}
+
+void NeonGridRenderer::QueueTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color) {
+    AddLineQuad(a, b, lineWidth, color);
+    AddLineQuad(b, c, lineWidth, color);
+    AddLineQuad(c, a, lineWidth, color);
+}
+
+void NeonGridRenderer::QueueBillboardTriangle(
+    const Vector3& center,
+    float radius,
+    float rotationRad,
+    float lineWidth,
+    const Vector4& color,
+    const Vector3& cameraRight,
+    const Vector3& cameraUp,
+    const Vector3& cameraForward) {
+    if (radius <= 0.0f || lineWidth <= 0.0f || color.w <= 0.001f) {
+        return;
+    }
+
+    constexpr float kTwoPi = 6.28318530718f;
+    constexpr float kStartAngle = -kTwoPi * 0.25f;
+    Vector3 points[3]{};
+    for (int i = 0; i < 3; ++i) {
+        const float angle = kStartAngle + rotationRad + static_cast<float>(i) * (kTwoPi / 3.0f);
+        const float x = std::cos(angle) * radius;
+        const float y = std::sin(angle) * radius;
+        points[i] = center + cameraRight * x + cameraUp * y;
+    }
+
+    AddCameraFacingLineQuad(points[0], points[1], lineWidth, color, cameraForward);
+    AddCameraFacingLineQuad(points[1], points[2], lineWidth, color, cameraForward);
+    AddCameraFacingLineQuad(points[2], points[0], lineWidth, color, cameraForward);
+}
+
 void NeonGridRenderer::QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color) {
     if (spacing <= 0.0f || lineWidth <= 0.0f) {
         return;
@@ -181,19 +224,100 @@ void NeonGridRenderer::AddLineQuad(const Vector3& a, const Vector3& b, float wid
     }
     dir = dir / len;
     Vector3 normal = { -dir.y, dir.x, 0.0f };
-    normal *= width * 0.5f;
+    AddSoftLineQuad(a, b, normal, width, color);
+}
 
-    const Vector3 p0 = a - normal;
-    const Vector3 p1 = a + normal;
-    const Vector3 p2 = b - normal;
-    const Vector3 p3 = b + normal;
+void NeonGridRenderer::AddCameraFacingLineQuad(const Vector3& a, const Vector3& b, float width, const Vector4& color, const Vector3& cameraForward) {
+    if (color.w <= 0.001f || vertexCount_ + 6 > kMaxVertices) {
+        return;
+    }
 
-    PushVertex(p0, color, { 0.0f, 0.0f });
-    PushVertex(p1, color, { 0.0f, 1.0f });
-    PushVertex(p2, color, { 1.0f, 0.0f });
-    PushVertex(p1, color, { 0.0f, 1.0f });
-    PushVertex(p3, color, { 1.0f, 1.0f });
-    PushVertex(p2, color, { 1.0f, 0.0f });
+    Vector3 dir = b - a;
+    const float len = Length(dir);
+    if (len <= 0.0001f) {
+        return;
+    }
+    dir = dir / len;
+
+    Vector3 forward = cameraForward;
+    if (Length(forward) <= 0.0001f) {
+        forward = { 0.0f, 0.0f, 1.0f };
+    } else {
+        forward = Normalize(forward);
+    }
+
+    Vector3 normal = Cross(forward, dir);
+    if (Length(normal) <= 0.0001f) {
+        normal = { -dir.y, dir.x, 0.0f };
+    } else {
+        normal = Normalize(normal);
+    }
+    AddSoftLineQuad(a, b, normal, width, color);
+}
+
+void NeonGridRenderer::AddSoftLineQuad(const Vector3& a, const Vector3& b, const Vector3& normalDir, float width, const Vector4& color) {
+    if (color.w <= 0.001f || width <= 0.0f || vertexCount_ + 18 > kMaxVertices) {
+        return;
+    }
+
+    Vector3 normal = normalDir;
+    const float normalLength = Length(normal);
+    if (normalLength <= 0.0001f) {
+        return;
+    }
+    normal = normal / normalLength;
+
+    const float halfWidth = width * 0.5f;
+    const float softRatio = std::clamp(lineSoftEdgeRatio_, 0.0f, 0.95f);
+    if (softRatio <= 0.001f) {
+        Vector4 hardColor = color;
+        hardColor.x *= lineCoreIntensity_;
+        hardColor.y *= lineCoreIntensity_;
+        hardColor.z *= lineCoreIntensity_;
+        PushLineStrip(a, b, normal, -halfWidth, halfWidth, hardColor, hardColor);
+        return;
+    }
+
+    const float coreHalfWidth = (std::max)(halfWidth * (1.0f - softRatio), halfWidth * 0.05f);
+    Vector4 outerColor = color;
+    outerColor.x *= 0.35f;
+    outerColor.y *= 0.35f;
+    outerColor.z *= 0.35f;
+    outerColor.w = 0.0f;
+
+    Vector4 coreColor = color;
+    coreColor.x *= lineCoreIntensity_;
+    coreColor.y *= lineCoreIntensity_;
+    coreColor.z *= lineCoreIntensity_;
+
+    PushLineStrip(a, b, normal, -halfWidth, -coreHalfWidth, outerColor, coreColor);
+    PushLineStrip(a, b, normal, -coreHalfWidth, coreHalfWidth, coreColor, coreColor);
+    PushLineStrip(a, b, normal, coreHalfWidth, halfWidth, coreColor, outerColor);
+}
+
+void NeonGridRenderer::PushLineStrip(
+    const Vector3& a,
+    const Vector3& b,
+    const Vector3& normalDir,
+    float offset0,
+    float offset1,
+    const Vector4& color0,
+    const Vector4& color1) {
+    if (vertexCount_ + 6 > kMaxVertices) {
+        return;
+    }
+
+    const Vector3 p0 = a + normalDir * offset0;
+    const Vector3 p1 = a + normalDir * offset1;
+    const Vector3 p2 = b + normalDir * offset0;
+    const Vector3 p3 = b + normalDir * offset1;
+
+    PushVertex(p0, color0, { 0.0f, 0.0f });
+    PushVertex(p1, color1, { 0.0f, 1.0f });
+    PushVertex(p2, color0, { 1.0f, 0.0f });
+    PushVertex(p1, color1, { 0.0f, 1.0f });
+    PushVertex(p3, color1, { 1.0f, 1.0f });
+    PushVertex(p2, color0, { 1.0f, 0.0f });
 }
 
 void NeonGridRenderer::PushVertex(const Vector3& pos, const Vector4& color, const Vector2& uv) {

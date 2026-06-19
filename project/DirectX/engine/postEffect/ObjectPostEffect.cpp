@@ -19,17 +19,17 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     renderHeight_ = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(WinApp::kClientHeight) * safeScale));
     halfWidth_ = (std::max)(1u, renderWidth_ / 2);
     halfHeight_ = (std::max)(1u, renderHeight_ / 2);
-    quarterWidth_ = (std::max)(1u, renderWidth_ / 4);
-    quarterHeight_ = (std::max)(1u, renderHeight_ / 4);
+    bloomWidth_ = halfWidth_;
+    bloomHeight_ = halfHeight_;
 
     objectRT_ = std::make_unique<RenderTexture>();
     objectRT_->Initialize(dxCommon_, srvManager_, rtvManager_, renderWidth_, renderHeight_, transparent, false);
 
     bloomRT_A_ = std::make_unique<RenderTexture>();
-    bloomRT_A_->Initialize(dxCommon_, srvManager_, rtvManager_, quarterWidth_, quarterHeight_, transparent, false);
+    bloomRT_A_->Initialize(dxCommon_, srvManager_, rtvManager_, bloomWidth_, bloomHeight_, transparent, false);
 
     bloomRT_B_ = std::make_unique<RenderTexture>();
-    bloomRT_B_->Initialize(dxCommon_, srvManager_, rtvManager_, quarterWidth_, quarterHeight_, transparent, false);
+    bloomRT_B_->Initialize(dxCommon_, srvManager_, rtvManager_, bloomWidth_, bloomHeight_, transparent, false);
 
     bloomRT_Half_ = std::make_unique<RenderTexture>();
     bloomRT_Half_->Initialize(dxCommon_, srvManager_, rtvManager_, halfWidth_, halfHeight_, transparent, false);
@@ -121,21 +121,21 @@ void ObjectPostEffect::FinishCapture(FinishMode mode) {
 
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
-    dxCommon_->SetViewport(quarterWidth_, quarterHeight_);
+    dxCommon_->SetViewport(bloomWidth_, bloomHeight_);
     ClearTransparent(bloomRT_A_->GetRTVHandle());
     postEffect_->Draw(bloomRT_Half_->GetGPUHandle(), kAdd_Bloom_Downsample);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     Transition(bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_B_->GetRTVHandle());
-    dxCommon_->SetViewport(quarterWidth_, quarterHeight_);
+    dxCommon_->SetViewport(bloomWidth_, bloomHeight_);
     ClearTransparent(bloomRT_B_->GetRTVHandle());
     postEffect_->Draw(bloomRT_A_->GetGPUHandle(), kAdd_Bloom_BlurH);
     Transition(bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
-    dxCommon_->SetViewport(quarterWidth_, quarterHeight_);
+    dxCommon_->SetViewport(bloomWidth_, bloomHeight_);
     ClearTransparent(bloomRT_A_->GetRTVHandle());
     postEffect_->Draw(bloomRT_B_->GetGPUHandle(), kAdd_Bloom_BlurV);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

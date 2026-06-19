@@ -422,7 +422,7 @@ void GameScene::Initialize() {
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
-		0.5f
+		1.0f
 	);
 	{
 		BloomParam& gridPost = neonGridPostEffect_->GetParam();
@@ -685,6 +685,8 @@ void GameScene::Update() {
 	if (player_->IsChangeMode()) {
 		finalDeltaTime = 0.0f;
 	}
+
+	neonTriangleDemoRotation_ += neonTriangleDemoRotateSpeed_ * baseDeltaTime;
 
 	{
 		const auto now = std::chrono::steady_clock::now();
@@ -1049,6 +1051,7 @@ void GameScene::DrawNeonGridPass() {
 	}
 
 	neonGridRenderer_->BeginFrame();
+	neonGridRenderer_->SetLineStyle(neonLineSoftEdgeRatio_, neonLineCoreIntensity_);
 	if (showNeonGrid_) {
 		const float minX = 0.0f;
 		const float minY = 0.0f;
@@ -1083,6 +1086,24 @@ void GameScene::DrawNeonGridPass() {
 	}
 	if (showLevelAIDitorPreview_) {
 		QueueLevelEditorPreview();
+	}
+	if (showNeonTriangleDemo_) {
+		Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera()
+			? debugCamera->GetViewMatrix()
+			: camera->GetViewMatrix();
+		Matrix4x4 cameraWorld = Inverse(viewMatrix);
+		Vector3 cameraRight = Normalize({ cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2] });
+		Vector3 cameraUp = Normalize({ cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2] });
+		Vector3 cameraForward = Normalize({ cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] });
+		neonGridRenderer_->QueueBillboardTriangle(
+			neonTriangleDemoCenter_,
+			neonTriangleDemoRadius_,
+			neonTriangleDemoRotation_,
+			neonTriangleDemoLineWidth_,
+			neonTriangleDemoColor_,
+			cameraRight,
+			cameraUp,
+			cameraForward);
 	}
 
 	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
@@ -1752,11 +1773,19 @@ nlohmann::json GameScene::BuildGameVisualConfig() const
 		{ "actorRadius", actorGridRadius_ },
 		{ "actorSpacing", actorGridSpacing_ },
 		{ "actorLineWidth", actorGridLineWidth_ },
+		{ "lineSoftEdgeRatio", neonLineSoftEdgeRatio_ },
+		{ "lineCoreIntensity", neonLineCoreIntensity_ },
 		{ "playerColor", WriteJsonVector4(playerGridColor_) },
 		{ "bossEnemyColor", WriteJsonVector4(enemyGridColor_) },
 		{ "expEnemyColor", WriteJsonVector4(expEnemyGridColor_) },
 		{ "cullActorLocalGrid", cullActorLocalGrid_ },
-		{ "maxExpEnemyLocalGrids", maxExpEnemyLocalGrids_ }
+		{ "maxExpEnemyLocalGrids", maxExpEnemyLocalGrids_ },
+		{ "showTriangleDemo", showNeonTriangleDemo_ },
+		{ "triangleCenter", WriteJsonVector3(neonTriangleDemoCenter_) },
+		{ "triangleRadius", neonTriangleDemoRadius_ },
+		{ "triangleLineWidth", neonTriangleDemoLineWidth_ },
+		{ "triangleRotateSpeed", neonTriangleDemoRotateSpeed_ },
+		{ "triangleColor", WriteJsonVector4(neonTriangleDemoColor_) }
 	};
 	if (bulletManager_) {
 		config["bulletTrail"] = WriteBulletTrailSettingsJson(bulletManager_->GetTrailSettings());
@@ -1779,11 +1808,19 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 		actorGridRadius_ = ReadCustomFloat(gridJson, "actorRadius", actorGridRadius_);
 		actorGridSpacing_ = ReadCustomFloat(gridJson, "actorSpacing", actorGridSpacing_);
 		actorGridLineWidth_ = ReadCustomFloat(gridJson, "actorLineWidth", actorGridLineWidth_);
+		neonLineSoftEdgeRatio_ = ReadCustomFloat(gridJson, "lineSoftEdgeRatio", neonLineSoftEdgeRatio_);
+		neonLineCoreIntensity_ = ReadCustomFloat(gridJson, "lineCoreIntensity", neonLineCoreIntensity_);
 		if (gridJson.contains("playerColor")) playerGridColor_ = ReadJsonVector4(gridJson["playerColor"], playerGridColor_);
 		if (gridJson.contains("bossEnemyColor")) enemyGridColor_ = ReadJsonVector4(gridJson["bossEnemyColor"], enemyGridColor_);
 		if (gridJson.contains("expEnemyColor")) expEnemyGridColor_ = ReadJsonVector4(gridJson["expEnemyColor"], expEnemyGridColor_);
 		cullActorLocalGrid_ = ReadCustomBool(gridJson, "cullActorLocalGrid", cullActorLocalGrid_);
 		maxExpEnemyLocalGrids_ = ReadCustomInt(gridJson, "maxExpEnemyLocalGrids", maxExpEnemyLocalGrids_);
+		showNeonTriangleDemo_ = ReadCustomBool(gridJson, "showTriangleDemo", showNeonTriangleDemo_);
+		if (gridJson.contains("triangleCenter")) neonTriangleDemoCenter_ = ReadJsonVector3(gridJson["triangleCenter"], neonTriangleDemoCenter_);
+		neonTriangleDemoRadius_ = ReadCustomFloat(gridJson, "triangleRadius", neonTriangleDemoRadius_);
+		neonTriangleDemoLineWidth_ = ReadCustomFloat(gridJson, "triangleLineWidth", neonTriangleDemoLineWidth_);
+		neonTriangleDemoRotateSpeed_ = ReadCustomFloat(gridJson, "triangleRotateSpeed", neonTriangleDemoRotateSpeed_);
+		if (gridJson.contains("triangleColor")) neonTriangleDemoColor_ = ReadJsonVector4(gridJson["triangleColor"], neonTriangleDemoColor_);
 	}
 	if (bulletManager_ && configJson.contains("bulletTrail")) {
 		ReadBulletTrailSettingsJson(configJson["bulletTrail"], bulletManager_->GetTrailSettings());
@@ -1921,11 +1958,20 @@ void GameScene::DrawGameSceneDebugImGui()
 				ImGui::DragFloat("キャラ周辺グリッド半径", &actorGridRadius_, 0.05f, 0.5f, 16.0f);
 				ImGui::DragFloat("キャラ周辺グリッド間隔", &actorGridSpacing_, 0.025f, 0.2f, 3.0f);
 				ImGui::DragFloat("キャラ周辺グリッド線幅", &actorGridLineWidth_, 0.005f, 0.005f, 0.5f);
+				ImGui::DragFloat("ネオンライン外縁フェード", &neonLineSoftEdgeRatio_, 0.01f, 0.0f, 0.95f);
+				ImGui::DragFloat("ネオンライン芯の明るさ", &neonLineCoreIntensity_, 0.01f, 0.0f, 3.0f);
 				ImGui::ColorEdit4("プレイヤーグリッド色", &playerGridColor_.x);
 				ImGui::ColorEdit4("ボスグリッド色", &enemyGridColor_.x);
 				ImGui::ColorEdit4("経験値敵グリッド色", &expEnemyGridColor_.x);
 				ImGui::Checkbox("画面外の周辺グリッドを省略", &cullActorLocalGrid_);
 				ImGui::DragInt("経験値敵グリッド最大数", &maxExpEnemyLocalGrids_, 1.0f, 0, 60);
+				ImGui::SeparatorText("ネオン三角形デモ");
+				ImGui::Checkbox("ネオン三角形デモを表示", &showNeonTriangleDemo_);
+				ImGui::DragFloat3("ネオン三角形 位置", &neonTriangleDemoCenter_.x, 0.05f);
+				ImGui::DragFloat("ネオン三角形 半径", &neonTriangleDemoRadius_, 0.05f, 0.1f, 12.0f);
+				ImGui::DragFloat("ネオン三角形 線幅", &neonTriangleDemoLineWidth_, 0.005f, 0.005f, 1.0f);
+				ImGui::DragFloat("ネオン三角形 回転速度", &neonTriangleDemoRotateSpeed_, 0.01f, -5.0f, 5.0f);
+				ImGui::ColorEdit4("ネオン三角形 色", &neonTriangleDemoColor_.x);
 			}
 			if (ImGui::CollapsingHeader("弾の軌跡", ImGuiTreeNodeFlags_DefaultOpen)) {
 				ImGui::Checkbox("弾軌跡にポストエフェクト", &enableBulletTrailPostEffect_);

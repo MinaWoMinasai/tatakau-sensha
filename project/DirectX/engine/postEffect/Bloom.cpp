@@ -28,8 +28,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
 
     bloomRT_A_ = std::make_unique<RenderTexture>();
     bloomRT_B_ = std::make_unique<RenderTexture>();
-    uint32_t bloomWidth = WinApp::kClientWidth / 4;
-    uint32_t bloomHeight = WinApp::kClientHeight / 4;
+    uint32_t bloomWidth = WinApp::kClientWidth / 2;
+    uint32_t bloomHeight = WinApp::kClientHeight / 2;
 
     bloomRT_A_->Initialize(
         dxCommon_,
@@ -256,10 +256,10 @@ void Bloom::PostDraw() {
 
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    // --- C. ダウンサンプリング (BloomHalf -> BloomA) ---
+    // --- C. Bloom prefilter (BloomHalf -> BloomA) ---
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
-    dxCommon_->SetViewport(WinApp::kClientWidth / 4, WinApp::kClientHeight / 4);
+    dxCommon_->SetViewport(WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
     dxCommon_->ClearRenderTarget(bloomRT_A_->GetRTVHandle());
 
     postEffect_->Draw(bloomRT_Half_->GetGPUHandle(), kAdd_Bloom_Downsample);

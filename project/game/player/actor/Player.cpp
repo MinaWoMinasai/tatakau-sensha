@@ -1488,6 +1488,9 @@ void Player::UpdateUpgradeHud()
 		upgradeHudListVisibility_ = (std::max)(targetListVisibility, upgradeHudListVisibility_ - listStep);
 	}
 	const bool showUpgradeList = upgradeHudListVisibility_ > 0.01f;
+	const float listAlpha = (std::clamp)(upgradeHudListVisibility_, 0.0f, 1.0f);
+	const float easedListAlpha = listAlpha * listAlpha * (3.0f - 2.0f * listAlpha);
+	const float listOffsetX = -(1.0f - easedListAlpha) * upgradeHudListSlideDistance_;
 	if (!showUpgradeList) {
 		if (upgradeHudExpBackSprite_) upgradeHudExpBackSprite_->Update();
 		if (upgradeHudExpFillSprite_) upgradeHudExpFillSprite_->Update();
@@ -1499,9 +1502,19 @@ void Player::UpdateUpgradeHud()
 	const bool canUpgrade = skillPoints_ > 0;
 	const bool click = input_ && input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0]);
 	for (int i = 0; i < 7; ++i) {
+		const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
 		Sprite* button = upgradeHudButtonSprites_[i].get();
 		Sprite* plus = upgradeHudPlusSprites_[i].get();
 		Sprite* minus = upgradeHudMinusSprites_[i].get();
+		if (button) {
+			button->SetPosition({ upgradeHudRowStart_.x + listOffsetX, y });
+		}
+		if (minus) {
+			minus->SetPosition({ upgradeHudMinusX_ + listOffsetX, y });
+		}
+		if (plus) {
+			plus->SetPosition({ upgradeHudPlusX_ + listOffsetX, y });
+		}
 		const bool plusHovered = plus && plus->IsHovered(mousePosition_);
 		const bool minusHovered = minus && minus->IsHovered(mousePosition_);
 		const bool rowHovered = button && button->IsHovered(mousePosition_);
@@ -1625,42 +1638,38 @@ void Player::DrawUpgradeHud()
 		if (listDirty) {
 			SetLabel(upgradeHudPointLabel_, spriteCommon, "x" + std::to_string(skillPoints_), { upgradeHudPointPos_.x + listOffsetX, upgradeHudPointPos_.y }, smallStyle);
 			SetLabel(upgradeHudTitleLabel_, spriteCommon, "強化", { upgradeHudTitlePos_.x + listOffsetX, upgradeHudTitlePos_.y }, smallStyle);
-			std::string nameText;
-			std::string levelText;
-			std::string minusText;
-			std::string plusText;
 			for (int i = 0; i < 7; ++i) {
-				nameText += std::to_string(i + 1) + " " + names[i];
-				levelText += "Lv." + std::to_string(upgradeLevels_[i]);
-				minusText += "-";
-				plusText += upgradeLevels_[i] >= maxEnhancePoint ? "済" : "+";
-				if (i + 1 < 7) {
-					nameText += "\n";
-					levelText += "\n";
-					minusText += "\n";
-					plusText += "\n";
-				}
+				const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
+				SetLabel(upgradeHudNameLabels_[i], spriteCommon, std::to_string(i + 1) + " " + names[i],
+					{ upgradeHudNameX_ + listOffsetX, y + upgradeHudNameTextOffsetY_ }, smallStyle);
+				SetLabel(upgradeHudLevelLabels_[i], spriteCommon, "Lv." + std::to_string(upgradeLevels_[i]),
+					{ upgradeHudLevelX_ + listOffsetX, y + upgradeHudLevelTextOffsetY_ }, smallStyle);
+				SetLabel(upgradeHudMinusLabels_[i], spriteCommon, "-",
+					{ upgradeHudMinusLabelX_ + listOffsetX, y + upgradeHudMinusTextOffsetY_ }, smallStyle);
+				SetLabel(upgradeHudPlusLabels_[i], spriteCommon, upgradeLevels_[i] >= maxEnhancePoint ? "済" : "+",
+					{ upgradeHudPlusLabelX_ + listOffsetX, y + upgradeHudPlusTextOffsetY_ }, smallStyle);
 			}
-			SetLabel(upgradeHudListLabel_, spriteCommon, nameText, { upgradeHudNameX_ + listOffsetX, upgradeHudRowStart_.y + 3.0f }, smallStyle);
-			SetLabel(upgradeHudLevelColumnLabel_, spriteCommon, levelText, { upgradeHudLevelX_ + listOffsetX, upgradeHudRowStart_.y + 3.0f }, smallStyle);
-			SetLabel(upgradeHudMinusColumnLabel_, spriteCommon, minusText, { upgradeHudMinusLabelX_ + listOffsetX, upgradeHudRowStart_.y + 1.0f }, smallStyle);
-			SetLabel(upgradeHudPlusColumnLabel_, spriteCommon, plusText, { upgradeHudPlusLabelX_ + listOffsetX, upgradeHudRowStart_.y + 1.0f }, smallStyle);
 			cachedUpgradeHudSkillPoints_ = skillPoints_;
 			cachedUpgradeHudLevels_ = upgradeLevels_;
 		} else {
 			if (upgradeHudPointLabel_) upgradeHudPointLabel_->SetPosition({ upgradeHudPointPos_.x + listOffsetX, upgradeHudPointPos_.y });
 			if (upgradeHudTitleLabel_) upgradeHudTitleLabel_->SetPosition({ upgradeHudTitlePos_.x + listOffsetX, upgradeHudTitlePos_.y });
-			if (upgradeHudListLabel_) upgradeHudListLabel_->SetPosition({ upgradeHudNameX_ + listOffsetX, upgradeHudRowStart_.y + 3.0f });
-			if (upgradeHudLevelColumnLabel_) upgradeHudLevelColumnLabel_->SetPosition({ upgradeHudLevelX_ + listOffsetX, upgradeHudRowStart_.y + 3.0f });
-			if (upgradeHudMinusColumnLabel_) upgradeHudMinusColumnLabel_->SetPosition({ upgradeHudMinusLabelX_ + listOffsetX, upgradeHudRowStart_.y + 1.0f });
-			if (upgradeHudPlusColumnLabel_) upgradeHudPlusColumnLabel_->SetPosition({ upgradeHudPlusLabelX_ + listOffsetX, upgradeHudRowStart_.y + 1.0f });
+			for (int i = 0; i < 7; ++i) {
+				const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
+				if (upgradeHudNameLabels_[i]) upgradeHudNameLabels_[i]->SetPosition({ upgradeHudNameX_ + listOffsetX, y + upgradeHudNameTextOffsetY_ });
+				if (upgradeHudLevelLabels_[i]) upgradeHudLevelLabels_[i]->SetPosition({ upgradeHudLevelX_ + listOffsetX, y + upgradeHudLevelTextOffsetY_ });
+				if (upgradeHudMinusLabels_[i]) upgradeHudMinusLabels_[i]->SetPosition({ upgradeHudMinusLabelX_ + listOffsetX, y + upgradeHudMinusTextOffsetY_ });
+				if (upgradeHudPlusLabels_[i]) upgradeHudPlusLabels_[i]->SetPosition({ upgradeHudPlusLabelX_ + listOffsetX, y + upgradeHudPlusTextOffsetY_ });
+			}
 		}
 		if (upgradeHudPointLabel_) upgradeHudPointLabel_->SetAlpha(easedListAlpha);
 		if (upgradeHudTitleLabel_) upgradeHudTitleLabel_->SetAlpha(easedListAlpha);
-		if (upgradeHudListLabel_) upgradeHudListLabel_->SetAlpha(easedListAlpha);
-		if (upgradeHudLevelColumnLabel_) upgradeHudLevelColumnLabel_->SetAlpha(easedListAlpha);
-		if (upgradeHudMinusColumnLabel_) upgradeHudMinusColumnLabel_->SetAlpha(easedListAlpha);
-		if (upgradeHudPlusColumnLabel_) upgradeHudPlusColumnLabel_->SetAlpha(easedListAlpha);
+		for (int i = 0; i < 7; ++i) {
+			if (upgradeHudNameLabels_[i]) upgradeHudNameLabels_[i]->SetAlpha(easedListAlpha);
+			if (upgradeHudLevelLabels_[i]) upgradeHudLevelLabels_[i]->SetAlpha(easedListAlpha);
+			if (upgradeHudMinusLabels_[i]) upgradeHudMinusLabels_[i]->SetAlpha(easedListAlpha);
+			if (upgradeHudPlusLabels_[i]) upgradeHudPlusLabels_[i]->SetAlpha(easedListAlpha);
+		}
 	}
 	cachedUpgradeHudListVisible_ = showUpgradeList;
 
@@ -1691,10 +1700,12 @@ void Player::DrawUpgradeHud()
 	if (showUpgradeList && upgradeHudDrawListText_) {
 		if (upgradeHudTitleLabel_) { upgradeHudTitleLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
 		if (upgradeHudPointLabel_) { upgradeHudPointLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
-		if (upgradeHudListLabel_) { upgradeHudListLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
-		if (upgradeHudLevelColumnLabel_) { upgradeHudLevelColumnLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
-		if (upgradeHudMinusColumnLabel_) { upgradeHudMinusColumnLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
-		if (upgradeHudPlusColumnLabel_) { upgradeHudPlusColumnLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
+		for (int i = 0; i < 7; ++i) {
+			if (upgradeHudNameLabels_[i]) { upgradeHudNameLabels_[i]->Draw(); ++upgradeHudProfile_.textDraws; }
+			if (upgradeHudLevelLabels_[i]) { upgradeHudLevelLabels_[i]->Draw(); ++upgradeHudProfile_.textDraws; }
+			if (upgradeHudMinusLabels_[i]) { upgradeHudMinusLabels_[i]->Draw(); ++upgradeHudProfile_.textDraws; }
+			if (upgradeHudPlusLabels_[i]) { upgradeHudPlusLabels_[i]->Draw(); ++upgradeHudProfile_.textDraws; }
+		}
 	}
 	if (upgradeHudDrawBottomText_) {
 		if (upgradeHudLevelLabel_) { upgradeHudLevelLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
@@ -1870,6 +1881,10 @@ bool Player::LoadUpgradeHudConfig(const std::string& path)
 	upgradeHudPlusX_ = json.value("plusX", upgradeHudPlusX_);
 	upgradeHudMinusLabelX_ = json.value("minusLabelX", upgradeHudMinusLabelX_);
 	upgradeHudPlusLabelX_ = json.value("plusLabelX", upgradeHudPlusLabelX_);
+	upgradeHudNameTextOffsetY_ = json.value("nameTextOffsetY", upgradeHudNameTextOffsetY_);
+	upgradeHudLevelTextOffsetY_ = json.value("levelTextOffsetY", upgradeHudLevelTextOffsetY_);
+	upgradeHudMinusTextOffsetY_ = json.value("minusTextOffsetY", upgradeHudMinusTextOffsetY_);
+	upgradeHudPlusTextOffsetY_ = json.value("plusTextOffsetY", upgradeHudPlusTextOffsetY_);
 	upgradeHudTitlePos_ = ReadVector2Object(json.value("titlePos", nlohmann::json::object()), upgradeHudTitlePos_);
 	upgradeHudPointPos_ = ReadVector2Object(json.value("pointPos", nlohmann::json::object()), upgradeHudPointPos_);
 	upgradeHudLevelBarPos_ = ReadVector2Object(json.value("levelBarPos", nlohmann::json::object()), upgradeHudLevelBarPos_);
@@ -1913,6 +1928,10 @@ bool Player::SaveUpgradeHudConfig(const std::string& path) const
 		{ "plusX", upgradeHudPlusX_ },
 		{ "minusLabelX", upgradeHudMinusLabelX_ },
 		{ "plusLabelX", upgradeHudPlusLabelX_ },
+		{ "nameTextOffsetY", upgradeHudNameTextOffsetY_ },
+		{ "levelTextOffsetY", upgradeHudLevelTextOffsetY_ },
+		{ "minusTextOffsetY", upgradeHudMinusTextOffsetY_ },
+		{ "plusTextOffsetY", upgradeHudPlusTextOffsetY_ },
 		{ "titlePos", WriteVector2Object(upgradeHudTitlePos_) },
 		{ "pointPos", WriteVector2Object(upgradeHudPointPos_) },
 		{ "levelBarPos", WriteVector2Object(upgradeHudLevelBarPos_) },
@@ -1964,6 +1983,10 @@ void Player::DrawUpgradeHudDebugImGui()
 	ImGui::DragFloat("プラスボタンX", &upgradeHudPlusX_, 1.0f);
 	ImGui::DragFloat("マイナス文字X", &upgradeHudMinusLabelX_, 1.0f);
 	ImGui::DragFloat("プラス文字X", &upgradeHudPlusLabelX_, 1.0f);
+	ImGui::DragFloat("項目名文字Yオフセット", &upgradeHudNameTextOffsetY_, 0.25f, -20.0f, 40.0f);
+	ImGui::DragFloat("Lv文字Yオフセット", &upgradeHudLevelTextOffsetY_, 0.25f, -20.0f, 40.0f);
+	ImGui::DragFloat("マイナス文字Yオフセット", &upgradeHudMinusTextOffsetY_, 0.25f, -20.0f, 40.0f);
+	ImGui::DragFloat("プラス文字Yオフセット", &upgradeHudPlusTextOffsetY_, 0.25f, -20.0f, 40.0f);
 	ImGui::DragFloat2("タイトル位置", &upgradeHudTitlePos_.x, 1.0f);
 	ImGui::DragFloat2("ポイント表示位置", &upgradeHudPointPos_.x, 1.0f);
 	ImGui::Separator();

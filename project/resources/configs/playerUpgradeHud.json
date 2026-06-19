@@ -36,6 +36,10 @@
   "plusX": 304.0,
   "minusLabelX": 277.0,
   "plusLabelX": 313.0,
+  "nameTextOffsetY": 3.0,
+  "levelTextOffsetY": 3.0,
+  "minusTextOffsetY": 1.0,
+  "plusTextOffsetY": 1.0,
   "titlePos": {
     "x": 32.0,
     "y": 350.0

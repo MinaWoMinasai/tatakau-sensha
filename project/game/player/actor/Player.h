@@ -474,9 +474,6 @@ private:
 	std::unique_ptr<TextLabel> upgradeHudExpLabel_;
 	std::unique_ptr<TextLabel> upgradeHudLevelLabel_;
 	std::unique_ptr<TextLabel> upgradeHudListLabel_;
-	std::unique_ptr<TextLabel> upgradeHudLevelColumnLabel_;
-	std::unique_ptr<TextLabel> upgradeHudMinusColumnLabel_;
-	std::unique_ptr<TextLabel> upgradeHudPlusColumnLabel_;
 	std::array<std::unique_ptr<Sprite>, 7> upgradeHudButtonSprites_;
 	std::array<std::unique_ptr<Sprite>, 7> upgradeHudPlusSprites_;
 	std::array<std::unique_ptr<Sprite>, 7> upgradeHudMinusSprites_;
@@ -518,6 +515,10 @@ private:
 	float upgradeHudPlusX_ = 304.0f;
 	float upgradeHudMinusLabelX_ = 277.0f;
 	float upgradeHudPlusLabelX_ = 313.0f;
+	float upgradeHudNameTextOffsetY_ = 3.0f;
+	float upgradeHudLevelTextOffsetY_ = 3.0f;
+	float upgradeHudMinusTextOffsetY_ = 1.0f;
+	float upgradeHudPlusTextOffsetY_ = 1.0f;
 	Vector2 upgradeHudTitlePos_ = { 32.0f, 350.0f };
 	Vector2 upgradeHudPointPos_ = { 286.0f, 352.0f };
 	Vector2 upgradeHudLevelBarPos_ = { 415.0f, 656.0f };

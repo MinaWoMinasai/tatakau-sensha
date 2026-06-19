@@ -360,10 +360,19 @@ private:
 	float actorGridRadius_ = 5.4f;
 	float actorGridSpacing_ = 1.0f;
 	float actorGridLineWidth_ = 0.1f;
+	float neonLineSoftEdgeRatio_ = 0.42f;
+	float neonLineCoreIntensity_ = 1.35f;
 	Vector4 playerGridColor_ = { 0.50f, 1.0f, 0.35f, 1.0f };
 	Vector4 enemyGridColor_ = { 1.0f, 0.18f, 0.24f, 1.0f };
 	Vector4 expEnemyGridColor_ = { 1.0f, 0.32f, 0.58f, 1.0f };
 	bool cullActorLocalGrid_ = true;
 	int maxExpEnemyLocalGrids_ = 18;
+	bool showNeonTriangleDemo_ = true;
+	Vector3 neonTriangleDemoCenter_ = { 30.0f, 30.0f, 1.2f };
+	float neonTriangleDemoRadius_ = 2.2f;
+	float neonTriangleDemoLineWidth_ = 0.16f;
+	float neonTriangleDemoRotateSpeed_ = 0.75f;
+	float neonTriangleDemoRotation_ = 0.0f;
+	Vector4 neonTriangleDemoColor_ = { 0.15f, 0.95f, 1.0f, 1.0f };
 
 };
