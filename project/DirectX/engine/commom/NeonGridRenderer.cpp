@@ -235,9 +235,14 @@ void NeonGridRenderer::QueueLocalGridClipped(const Vector3& center, float radius
 }
 
 void NeonGridRenderer::DrawAll(const Matrix4x4& viewProjection) {
-    if (!dxCommon_ || !vertexData_ || vertexCount_ == 0) {
+    DrawRange(0, vertexCount_, viewProjection);
+}
+
+void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection) {
+    if (!dxCommon_ || !vertexData_ || vertexCount == 0 || startVertex >= vertexCount_) {
         return;
     }
+    const uint32_t drawableCount = (std::min)(vertexCount, vertexCount_ - startVertex);
 
     *viewProjectionData_ = viewProjection;
 
@@ -249,7 +254,7 @@ void NeonGridRenderer::DrawAll(const Matrix4x4& viewProjection) {
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
     commandList->SetGraphicsRootConstantBufferView(1, viewProjectionResource_->GetGPUVirtualAddress());
     commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_));
-    commandList->DrawInstanced(vertexCount_, 1, 0, 0);
+    commandList->DrawInstanced(drawableCount, 1, startVertex, 0);
 }
 
 void NeonGridRenderer::AddLineQuad(const Vector3& a, const Vector3& b, float width, const Vector4& color) {

@@ -41,7 +41,7 @@ void Stage::Draw() {
 	}
 }
 
-void Stage::DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHeight) {
+void Stage::DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks) {
 	const float minX = cameraPos.x - halfWidth;
 	const float maxX = cameraPos.x + halfWidth;
 	const float minY = cameraPos.y - halfHeight;
@@ -52,6 +52,9 @@ void Stage::DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHei
 	for (auto& line : blocks_) {
 		for (auto& block : line) {
 			if (!block.isActive) continue;
+			if (!drawNormalBlocks && block.type == MapChipType::kBlock) {
+				continue;
+			}
 
 			const Vector3& pos = block.originalPos;
 			if (pos.x < minX - marginX || pos.x > maxX + marginX ||

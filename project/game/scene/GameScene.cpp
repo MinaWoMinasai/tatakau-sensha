@@ -941,13 +941,13 @@ void GameScene::DrawPostEffect3D() {
 	if (useGridPost) {
 		profile("Grid Post", true, [&]() {
 			neonGridPostEffect_->BeginCapture();
-			DrawNeonGridPass();
+			DrawNeonGridPass(false);
 			neonGridPostEffect_->EndCaptureAdditiveOnly();
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
 		});
 	} else {
 		profile("Grid Draw", false, [&]() {
-			DrawNeonGridPass();
+			DrawNeonGridPass(false);
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
 		});
 	}
@@ -958,9 +958,27 @@ void GameScene::DrawPostEffect3D() {
 		enemyManager_->Draw(true);
 		bulletManager_->Draw();
 		DrawLevelItems();
-		stage_->DrawVisible(GetActiveCameraPosition(camera.get(), debugCamera.get()), 38.0f, 24.0f);
+		stage_->DrawVisible(GetActiveCameraPosition(camera.get(), debugCamera.get()), 38.0f, 24.0f, showStageNormalBlockBodies_);
 	});
 	AddPostProfileEntry("Stage Glow", 0.0f, useStagePost);
+
+	if (showStageBlockNeonOutlines_) {
+		if (useGridPost) {
+			profile("Stage Block Neon", true, [&]() {
+				neonGridPostEffect_->BeginCapture();
+				DrawStageBlockNeonPass();
+				neonGridPostEffect_->EndCaptureAdditiveOnly();
+				Object3dCommon::GetInstance()->PreDraw(kNormal);
+			});
+		} else {
+			profile("Stage Block Neon", false, [&]() {
+				DrawStageBlockNeonPass();
+				Object3dCommon::GetInstance()->PreDraw(kNormal);
+			});
+		}
+	} else {
+		AddPostProfileEntry("Stage Block Neon", 0.0f, false);
+	}
 	
 	{
 		Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
@@ -994,7 +1012,7 @@ void GameScene::DrawPostEffect3D() {
 			sharedObjectBloomPostEffect_->BeginCapture();
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
 			if (useStagePost) {
-				stage_->DrawVisible(currentCameraPos, 38.0f, 24.0f);
+				stage_->DrawVisible(currentCameraPos, 38.0f, 24.0f, showStageNormalBlockBodies_);
 			}
 			if (usePlayerPost && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
 				player_->DrawBodyOnly();
@@ -1057,7 +1075,7 @@ void GameScene::DrawAfterPostEffect3D() {
 	playerPostEffect_->SetParam(savedParam);
 }
 
-void GameScene::DrawNeonGridPass() {
+void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 	if (!neonGridRenderer_) {
 		return;
 	}
@@ -1099,7 +1117,7 @@ void GameScene::DrawNeonGridPass() {
 	if (showLevelAIDitorPreview_) {
 		QueueLevelEditorPreview();
 	}
-	if (showStageBlockNeonOutlines_) {
+	if (includeStageBlockOutlines && showStageBlockNeonOutlines_) {
 		QueueStageBlockNeonOutlines();
 	}
 	const bool queueExpEnemyNeonInGridPass = expEnemyNeonRenderMode_ == 1 || expEnemyNeonRenderMode_ == 2;
@@ -1131,6 +1149,25 @@ void GameScene::DrawNeonGridPass() {
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
 	neonGridRenderer_->DrawAll(vp);
+}
+
+void GameScene::DrawStageBlockNeonPass() {
+	if (!neonGridRenderer_ || !showStageBlockNeonOutlines_) {
+		return;
+	}
+
+	const uint32_t startVertex = neonGridRenderer_->GetVertexCount();
+	neonGridRenderer_->SetLineStyle(neonLineSoftEdgeRatio_, neonLineCoreIntensity_);
+	QueueStageBlockNeonOutlines();
+	const uint32_t vertexCount = neonGridRenderer_->GetVertexCount() - startVertex;
+	if (vertexCount == 0) {
+		return;
+	}
+
+	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+		? debugCamera->GetViewProjectionMatrix()
+		: camera->GetViewProjectionMatrix();
+	neonGridRenderer_->DrawRange(startVertex, vertexCount, vp);
 }
 
 void GameScene::QueueStageBlockNeonOutlines() {
@@ -2161,6 +2198,7 @@ nlohmann::json GameScene::BuildGameVisualConfig() const
 		{ "bossEnemyColor", WriteJsonVector4(enemyGridColor_) },
 		{ "expEnemyColor", WriteJsonVector4(expEnemyGridColor_) },
 		{ "showStageBlockNeonOutlines", showStageBlockNeonOutlines_ },
+		{ "showStageNormalBlockBodies", showStageNormalBlockBodies_ },
 		{ "stageBlockNeonLineWidth", stageBlockNeonLineWidth_ },
 		{ "stageBlockNeonColor", WriteJsonVector4(stageBlockNeonColor_) },
 		{ "cullActorLocalGrid", cullActorLocalGrid_ },
@@ -2205,6 +2243,7 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 		if (gridJson.contains("bossEnemyColor")) enemyGridColor_ = ReadJsonVector4(gridJson["bossEnemyColor"], enemyGridColor_);
 		if (gridJson.contains("expEnemyColor")) expEnemyGridColor_ = ReadJsonVector4(gridJson["expEnemyColor"], expEnemyGridColor_);
 		showStageBlockNeonOutlines_ = ReadCustomBool(gridJson, "showStageBlockNeonOutlines", showStageBlockNeonOutlines_);
+		showStageNormalBlockBodies_ = ReadCustomBool(gridJson, "showStageNormalBlockBodies", showStageNormalBlockBodies_);
 		stageBlockNeonLineWidth_ = ReadCustomFloat(gridJson, "stageBlockNeonLineWidth", stageBlockNeonLineWidth_);
 		if (gridJson.contains("stageBlockNeonColor")) stageBlockNeonColor_ = ReadJsonVector4(gridJson["stageBlockNeonColor"], stageBlockNeonColor_);
 		cullActorLocalGrid_ = ReadCustomBool(gridJson, "cullActorLocalGrid", cullActorLocalGrid_);
@@ -2371,6 +2410,7 @@ void GameScene::DrawGameSceneDebugImGui()
 				ImGui::DragInt("経験値敵グリッド最大数", &maxExpEnemyLocalGrids_, 1.0f, 0, 60);
 				ImGui::SeparatorText("ステージ通常ブロック枠線");
 				ImGui::Checkbox("通常ブロックに3Dネオン枠線", &showStageBlockNeonOutlines_);
+				ImGui::Checkbox("通常ブロック本体を表示", &showStageNormalBlockBodies_);
 				ImGui::DragFloat("通常ブロック枠線幅", &stageBlockNeonLineWidth_, 0.005f, 0.005f, 0.5f);
 				ImGui::ColorEdit4("通常ブロック枠線色", &stageBlockNeonColor_.x);
 				ImGui::SeparatorText("経験値敵ネオン表示");

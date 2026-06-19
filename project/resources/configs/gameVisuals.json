@@ -91,6 +91,7 @@
     },
     "showActorLocalGrid": true,
     "showStageBlockNeonOutlines": true,
+    "showStageNormalBlockBodies": true,
     "showTriangleDemo": true,
     "showWorldGrid": true,
     "stageBlockNeonColor": {
