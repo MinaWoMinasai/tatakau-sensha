@@ -41,7 +41,7 @@
       "maxHp": 5000,
       "maxStamina": 3.0,
       "moveSpeed": 0.20000000298023224,
-      "reloadSpeed": 60.0,
+      "reloadSpeed": 30.0,
       "staminaRecovery": 1.0
     },
     "playerUpgrades": {
@@ -267,75 +267,98 @@
   "levelName": "test_stage",
   "objects": [
     {
-      "customProperties": {},
-      "name": "PlayerSpawn_001",
+      "customProperties": {
+        "enabled": true,
+        "hp": 12,
+        "levelType": "SpawnArea",
+        "maxAlive": 4,
+        "prefab": "Triangle",
+        "sourceName": "SpawnArea_Triangle_East",
+        "spawnInterval": 4.0
+      },
+      "name": "SpawnArea_Triangle_East",
       "position": {
-        "x": 30.0,
-        "y": 30.0,
+        "x": 48.0,
+        "y": 28.0,
         "z": 0.0
       },
-      "prefab": "Default",
+      "prefab": "Triangle",
       "rotation": {
         "x": 0.0,
         "y": 0.0,
         "z": 0.0
       },
       "scale": {
-        "x": 1.0,
-        "y": 1.0,
+        "x": 10.0,
+        "y": 12.0,
         "z": 1.0
       },
-      "type": "PlayerSpawn"
-    },
-    {
-      "customProperties": {},
-      "name": "BossSpawn_001",
-      "position": {
-        "x": 20.0,
-        "y": 20.0,
-        "z": 0.0
-      },
-      "prefab": "Default",
-      "rotation": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0
-      },
-      "scale": {
-        "x": 1.0,
-        "y": 1.0,
-        "z": 1.0
-      },
-      "type": "BossSpawn"
+      "type": "SpawnArea"
     },
     {
       "customProperties": {
-        "hp": 30,
-        "movePattern": "Straight"
+        "hp": 14,
+        "levelType": "SpawnArea",
+        "maxAlive": 2,
+        "prefab": "Shooter",
+        "sourceName": "SpawnArea_Shooter_Phase75",
+        "spawnInterval": 6.0
       },
-      "name": "Enemy_Basic_001",
+      "name": "SpawnArea_Shooter_Phase75",
       "position": {
-        "x": 42.0,
-        "y": 30.0,
+        "x": 24.0,
+        "y": 34.0,
         "z": 0.0
       },
-      "prefab": "Basic",
+      "prefab": "Shooter",
       "rotation": {
         "x": 0.0,
         "y": 0.0,
         "z": 0.0
       },
       "scale": {
-        "x": 1.0,
-        "y": 1.0,
+        "x": 8.0,
+        "y": 8.0,
         "z": 1.0
       },
-      "type": "Enemy"
+      "type": "SpawnArea"
+    },
+    {
+      "customProperties": {
+        "hp": 24,
+        "intent": "終盤に高EXP対象を少数だけ追加して、攻める理由を作る",
+        "levelType": "SpawnArea",
+        "maxAlive": 2,
+        "prefab": "Pentagon",
+        "sourceName": "SpawnArea_Pentagon_Phase25",
+        "spawnInterval": 7.0
+      },
+      "name": "SpawnArea_Pentagon_Phase25",
+      "position": {
+        "x": 38.0,
+        "y": 22.0,
+        "z": 0.0
+      },
+      "prefab": "Pentagon",
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 10.0,
+        "y": 8.0,
+        "z": 1.0
+      },
+      "type": "SpawnArea"
     },
     {
       "customProperties": {
         "hp": 8,
+        "levelType": "SpawnArea",
         "maxAlive": 6,
+        "prefab": "Basic",
+        "sourceName": "SpawnArea_Basic_North",
         "spawnInterval": 2.5
       },
       "name": "SpawnArea_Basic_North",
@@ -358,7 +381,36 @@
       "type": "SpawnArea"
     },
     {
-      "customProperties": {},
+      "customProperties": {
+        "levelType": "PlayerSpawn",
+        "prefab": "Default",
+        "sourceName": "PlayerSpawn_001"
+      },
+      "name": "PlayerSpawn_001",
+      "position": {
+        "x": 30.0,
+        "y": 30.0,
+        "z": 0.0
+      },
+      "prefab": "Default",
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "type": "PlayerSpawn"
+    },
+    {
+      "customProperties": {
+        "levelType": "Obstacle",
+        "prefab": "Wall",
+        "sourceName": "Obstacle_Wall_001"
+      },
       "name": "Obstacle_Wall_001",
       "position": {
         "x": 36.0,
@@ -380,7 +432,63 @@
     },
     {
       "customProperties": {
-        "healAmount": 1
+        "intent": "中央下側に軽い危険地帯を追加する",
+        "levelType": "Obstacle",
+        "prefab": "DamageBlock",
+        "sourceName": "Obstacle_DamageBlock_Phase50_001"
+      },
+      "name": "Obstacle_DamageBlock_Phase50_001",
+      "position": {
+        "x": 28.0,
+        "y": 24.0,
+        "z": 0.0
+      },
+      "prefab": "DamageBlock",
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "type": "Obstacle"
+    },
+    {
+      "customProperties": {
+        "intent": "中央に近いが通路を塞ぎきらない危険ブロック",
+        "levelType": "Obstacle",
+        "level_settings": "<bpy id prop: owner=\"OBObstacle_DamageBlock_Phase25_001\", name=\"level_settings\", address=0x000002C3AC1B6988>",
+        "prefab": "DamageBlock",
+        "sourceName": "Obstacle_DamageBlock_Phase25_001"
+      },
+      "name": "Obstacle_DamageBlock_Phase25_001",
+      "position": {
+        "x": 32.0,
+        "y": 28.0,
+        "z": 0.0
+      },
+      "prefab": "DamageBlock",
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "type": "Obstacle"
+    },
+    {
+      "customProperties": {
+        "healAmount": 1,
+        "levelType": "Item",
+        "prefab": "Heal",
+        "sourceName": "Item_Heal_001"
       },
       "name": "Item_Heal_001",
       "position": {
@@ -395,11 +503,92 @@
         "z": 0.0
       },
       "scale": {
-        "x": 0.8,
-        "y": 0.8,
-        "z": 0.8
+        "x": 0.800000011920929,
+        "y": 0.800000011920929,
+        "z": 0.800000011920929
       },
       "type": "Item"
+    },
+    {
+      "customProperties": {
+        "hp": 30,
+        "levelType": "Enemy",
+        "movePattern": "Straight",
+        "prefab": "Basic",
+        "sourceName": "Enemy_Basic_001"
+      },
+      "name": "Enemy_Basic_001",
+      "position": {
+        "x": 42.0,
+        "y": 30.0,
+        "z": 0.0
+      },
+      "prefab": "Basic",
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "type": "Enemy"
+    },
+    {
+      "customProperties": {
+        "levelType": "BossSpawn",
+        "prefab": "Default",
+        "sourceName": "BossSpawn_001"
+      },
+      "name": "BossSpawn_001",
+      "position": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 0.0
+      },
+      "prefab": "Default",
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "type": "BossSpawn"
+    },
+    {
+      "customProperties": {
+        "enabled": true,
+        "hp": 12,
+        "levelType": "SpawnArea",
+        "maxAlive": 4,
+        "prefab": "Triangle",
+        "sourceName": "SpawnArea_Triangle_East",
+        "spawnInterval": 4.0
+      },
+      "name": "SpawnArea_Basic_Demo_001",
+      "position": {
+        "x": 60.0,
+        "y": 36.0,
+        "z": 0.0
+      },
+      "prefab": "Basic",
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 10.0,
+        "y": 12.0,
+        "z": 1.0
+      },
+      "type": "SpawnArea"
     }
   ],
   "spawnAreas": [

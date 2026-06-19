@@ -22,6 +22,12 @@
     <None Include="tools\blender\export_level_test.py">
       <Filter>リソース ファイル</Filter>
     </None>
+    <None Include="tools\blender\import_level_test.py">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="tools\blender\README.md">
+      <Filter>リソース ファイル</Filter>
+    </None>
     <None Include="tools\level_aiditor\level_aiditor.py">
       <Filter>リソース ファイル</Filter>
     </None>

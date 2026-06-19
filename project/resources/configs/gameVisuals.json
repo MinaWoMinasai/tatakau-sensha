@@ -10,14 +10,14 @@
     "enemyHalfWidth": 0.2199999988079071,
     "enemyObjectColor": {
       "w": 1.0,
-      "x": 1.0,
-      "y": 0.4710424542427063,
-      "z": 0.8754194974899292
+      "x": 0.9472875595092773,
+      "y": 0.19691121578216553,
+      "z": 1.0
     },
-    "headWidthScale": 1.0,
+    "headWidthScale": 0.75,
     "interpolationSteps": 5,
-    "lifetime": 0.23999999463558197,
-    "maxPoints": 22,
+    "lifetime": 0.1599999964237213,
+    "maxPoints": 40,
     "playerEndColor": {
       "w": 0.0,
       "x": 1.0,
@@ -49,7 +49,7 @@
       "y": 0.9800000190734863,
       "z": 0.7799999713897705
     },
-    "tailWidthScale": 0.20000000298023224,
+    "tailWidthScale": 0.15000000596046448,
     "trailHeadAlpha": 1.0,
     "trailHeadIntensity": 1.0,
     "trailTailAlpha": 1.0,
