@@ -6,6 +6,54 @@ import bpy
 
 SUPPORTED_TYPES = {"PlayerSpawn", "BossSpawn", "Enemy", "SpawnArea", "Obstacle", "Item"}
 
+# Set this to an absolute path when you want to export somewhere else.
+LEVEL_JSON_PATH = ""
+
+
+def get_script_dir():
+    text = getattr(getattr(bpy.context, "space_data", None), "text", None)
+    if text and getattr(text, "filepath", ""):
+        return os.path.dirname(bpy.path.abspath(text.filepath))
+
+    for text in bpy.data.texts:
+        if text.name.endswith("export_level_test.py") and getattr(text, "filepath", ""):
+            return os.path.dirname(bpy.path.abspath(text.filepath))
+
+    file_path = globals().get("__file__", "")
+    if file_path:
+        return os.path.dirname(os.path.abspath(file_path))
+
+    return ""
+
+
+def resolve_output_path():
+    if LEVEL_JSON_PATH:
+        return bpy.path.abspath(LEVEL_JSON_PATH)
+
+    candidates = []
+    script_dir = get_script_dir()
+    if script_dir:
+        candidates.append(os.path.join(script_dir, "..", "..", "resources", "levels", "level_test.json"))
+
+    if bpy.data.filepath:
+        blend_dir = os.path.dirname(bpy.data.filepath)
+        candidates.append(os.path.join(blend_dir, "resources", "levels", "level_test.json"))
+        candidates.append(os.path.join(blend_dir, "level_test.json"))
+
+    candidates.append(os.path.join(os.getcwd(), "resources", "levels", "level_test.json"))
+    candidates.append(os.path.join(os.getcwd(), "level_test.json"))
+
+    for path in candidates:
+        normalized = os.path.abspath(os.path.normpath(path))
+        parent = os.path.dirname(normalized)
+        if os.path.isdir(parent):
+            return normalized
+
+    raise FileNotFoundError(
+        "Export directory was not found. Set LEVEL_JSON_PATH at the top of this script. "
+        f"Checked: {', '.join(os.path.abspath(os.path.normpath(path)) for path in candidates)}"
+    )
+
 
 def infer_type_and_prefab(object_name):
     parts = object_name.split("_")
@@ -48,6 +96,16 @@ def custom_properties_to_dict(obj):
 
 
 def should_export(obj):
+    if obj.name.startswith("Label_"):
+        return False
+    ignored_import_collections = {"Boss Phases", "Root Spawn Areas"}
+    for collection in obj.users_collection:
+        current = collection
+        while current:
+            if current.name in ignored_import_collections:
+                return False
+            parents = [candidate for candidate in bpy.data.collections if current.name in candidate.children]
+            current = parents[0] if parents else None
     return obj.type in {"EMPTY", "MESH"}
 
 
@@ -77,24 +135,21 @@ def export_level():
             "customProperties": custom_properties_to_dict(obj),
         })
 
-    level = {
-        "toolName": "Level AI-ditor",
-        "editorMode": "ArenaBattle",
-        "levelName": "test_stage",
-        "balance": {
-            "defaultRandomSpawnEnabled": True
-        },
-        "objects": objects,
-        "spawnAreas": [],
-        "bossPhases": []
-    }
-
-    if bpy.data.filepath:
-        output_dir = os.path.dirname(bpy.data.filepath)
+    output_path = resolve_output_path()
+    if os.path.exists(output_path):
+        with open(output_path, "r", encoding="utf-8") as file:
+            level = json.load(file)
     else:
-        output_dir = os.path.expanduser("~/Desktop")
+        level = {}
 
-    output_path = os.path.join(output_dir, "level_test.json")
+    level["toolName"] = level.get("toolName", "Level AI-ditor")
+    level["editorMode"] = level.get("editorMode", "ArenaBattle")
+    level["levelName"] = level.get("levelName", "test_stage")
+    level["balance"] = level.get("balance", {"defaultRandomSpawnEnabled": True})
+    level["objects"] = objects
+    level["spawnAreas"] = level.get("spawnAreas", [])
+    level["bossPhases"] = level.get("bossPhases", [])
+
     with open(output_path, "w", encoding="utf-8") as file:
         json.dump(level, file, ensure_ascii=False, indent=2)
 
