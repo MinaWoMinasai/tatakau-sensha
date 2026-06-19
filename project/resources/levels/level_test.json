@@ -45,14 +45,14 @@
       "staminaRecovery": 1.0
     },
     "playerUpgrades": {
-      "bodyDamage": 1.0,
-      "bulletDamage": 1.0,
-      "bulletSpeed": 0.03999999910593033,
-      "healthRegen": 0.25,
-      "maxHp": 80,
+      "bodyDamage": 0.10000000149011612,
+      "bulletDamage": 0.10000000149011612,
+      "bulletSpeed": 0.07999999821186066,
+      "healthRegen": 0.07999999821186066,
+      "maxHp": 0.10000000149011612,
       "minReloadSpeed": 3.0,
-      "moveSpeed": 0.02500000037252903,
-      "reloadSpeed": 1.0
+      "moveSpeed": 0.05999999865889549,
+      "reloadSpeed": 0.07000000029802322
     }
   },
   "bossPhases": [

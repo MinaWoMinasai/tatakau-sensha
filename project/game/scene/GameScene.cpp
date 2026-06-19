@@ -615,6 +615,20 @@ void GameScene::Initialize() {
 	titleGuideText_ = std::make_unique<TextLabel>();
 	titleGuideText_->InitializeFromJson(SpriteCommon::GetInstance(), "resources/configs/gameText.json", "titleGuide");
 
+	TextStyle controlGuideStyle{};
+	controlGuideStyle.fontFamily = "Meiryo";
+	controlGuideStyle.fontSize = 14.0f;
+	controlGuideStyle.color = { 0.88f, 0.94f, 1.0f, 0.78f };
+	controlGuideStyle.outlineColor = { 0.0f, 0.02f, 0.04f, 0.88f };
+	controlGuideStyle.outlineThickness = 2.0f;
+	controlGuideStyle.padding = 5.0f;
+	controlGuideText_ = std::make_unique<TextLabel>();
+	controlGuideText_->Initialize(
+		SpriteCommon::GetInstance(),
+		"WASD 移動 / 左クリック 射撃 / 右クリック ダッシュ\nC 進化ツリー / ESC タイトルへ / H ヘルプ切替",
+		controlGuideStyle);
+	controlGuideText_->SetPosition({ 22.0f, 636.0f });
+
 	TextStyle fpsStyle{};
 	fpsStyle.fontFamily = "Meiryo";
 	fpsStyle.fontSize = 24.0f;
@@ -657,6 +671,14 @@ void GameScene::Update() {
 	// 一定まで速度が戻ったら完全に戻す
 	if (finalDeltaTime * 60.0f > 0.95f) {
 		finalDeltaTime = baseDeltaTime;
+	}
+	if (input_->IsTrigger(input_->GetKey()[DIK_H], input_->GetPreKey()[DIK_H])) {
+		showControlGuide_ = !showControlGuide_;
+		if (controlGuideText_) {
+			controlGuideText_->SetText(showControlGuide_
+				? "WASD 移動 / 左クリック 射撃 / 右クリック ダッシュ\nC 進化ツリー / ESC タイトルへ / H ヘルプ切替"
+				: "H:操作説明ON");
+		}
 	}
 	slowMotionPostActive_ = finalDeltaTime < baseDeltaTime * 0.98f;
 
@@ -1315,12 +1337,12 @@ void GameScene::ApplyLevelBalance(const nlohmann::json& balanceJson)
 		config.moveSpeed = ReadCustomFloat(playerJson, "moveSpeed", config.moveSpeed);
 		config.staminaRecovery = ReadCustomFloat(playerJson, "staminaRecovery", config.staminaRecovery);
 		config.maxStamina = ReadCustomFloat(playerJson, "maxStamina", config.maxStamina);
-		config.maxHpUpgradeAmount = ReadCustomInt(playerJson, "maxHpUpgradeAmount", 50);
+		config.maxHpUpgradeAmount = ReadCustomFloat(playerJson, "maxHpUpgradeAmount", 0.10f);
 		config.bodyDamage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(playerJson, "bodyDamage", static_cast<int>(player_->GetDamage()))));
 		if (balanceJson.contains("playerUpgrades") && balanceJson["playerUpgrades"].is_object()) {
 			const nlohmann::json& upgradeJson = balanceJson["playerUpgrades"];
 			config.healthRegenUpgrade = ReadCustomFloat(upgradeJson, "healthRegen", config.healthRegenUpgrade);
-			config.maxHpUpgradeAmount = ReadCustomInt(upgradeJson, "maxHp", config.maxHpUpgradeAmount);
+			config.maxHpUpgradeAmount = ReadCustomFloat(upgradeJson, "maxHp", config.maxHpUpgradeAmount);
 			config.bodyDamageUpgrade = ReadCustomFloat(upgradeJson, "bodyDamage", config.bodyDamageUpgrade);
 			config.bulletSpeedUpgrade = ReadCustomFloat(upgradeJson, "bulletSpeed", config.bulletSpeedUpgrade);
 			config.bulletDamageUpgrade = ReadCustomFloat(upgradeJson, "bulletDamage", config.bulletDamageUpgrade);
@@ -1407,14 +1429,14 @@ void GameScene::LoadBalanceEditorFromJson(const nlohmann::json& balanceJson)
 		balanceEditor_.playerMoveSpeed = ReadCustomFloat(playerJson, "moveSpeed", balanceEditor_.playerMoveSpeed);
 		balanceEditor_.playerStaminaRecovery = ReadCustomFloat(playerJson, "staminaRecovery", balanceEditor_.playerStaminaRecovery);
 		balanceEditor_.playerMaxStamina = ReadCustomFloat(playerJson, "maxStamina", balanceEditor_.playerMaxStamina);
-		balanceEditor_.maxHpUpgradeAmount = ReadCustomInt(playerJson, "maxHpUpgradeAmount", balanceEditor_.maxHpUpgradeAmount);
+		balanceEditor_.maxHpUpgradeAmount = ReadCustomFloat(playerJson, "maxHpUpgradeAmount", balanceEditor_.maxHpUpgradeAmount);
 		balanceEditor_.playerBodyDamage = ReadCustomInt(playerJson, "bodyDamage", balanceEditor_.playerBodyDamage);
 		balanceEditor_.healToFull = ReadCustomBool(playerJson, "healToFull", balanceEditor_.healToFull);
 	}
 	if (balanceJson.contains("playerUpgrades") && balanceJson["playerUpgrades"].is_object()) {
 		const nlohmann::json& upgradeJson = balanceJson["playerUpgrades"];
 		balanceEditor_.playerHealthRegenUpgrade = ReadCustomFloat(upgradeJson, "healthRegen", balanceEditor_.playerHealthRegenUpgrade);
-		balanceEditor_.maxHpUpgradeAmount = ReadCustomInt(upgradeJson, "maxHp", balanceEditor_.maxHpUpgradeAmount);
+		balanceEditor_.maxHpUpgradeAmount = ReadCustomFloat(upgradeJson, "maxHp", balanceEditor_.maxHpUpgradeAmount);
 		balanceEditor_.playerBodyDamageUpgrade = ReadCustomFloat(upgradeJson, "bodyDamage", balanceEditor_.playerBodyDamageUpgrade);
 		balanceEditor_.playerBulletSpeedUpgrade = ReadCustomFloat(upgradeJson, "bulletSpeed", balanceEditor_.playerBulletSpeedUpgrade);
 		balanceEditor_.playerBulletDamageUpgrade = ReadCustomFloat(upgradeJson, "bulletDamage", balanceEditor_.playerBulletDamageUpgrade);
@@ -1476,7 +1498,7 @@ nlohmann::json GameScene::BuildBalanceJsonFromEditor() const
 	};
 	balance["playerUpgrades"] = {
 		{ "healthRegen", (std::max)(0.0f, balanceEditor_.playerHealthRegenUpgrade) },
-		{ "maxHp", (std::max)(1, balanceEditor_.maxHpUpgradeAmount) },
+		{ "maxHp", (std::max)(0.0f, balanceEditor_.maxHpUpgradeAmount) },
 		{ "bodyDamage", (std::max)(0.0f, balanceEditor_.playerBodyDamageUpgrade) },
 		{ "bulletSpeed", balanceEditor_.playerBulletSpeedUpgrade },
 		{ "bulletDamage", (std::max)(0.0f, balanceEditor_.playerBulletDamageUpgrade) },
@@ -2176,15 +2198,15 @@ void GameScene::DrawLevelAIDitorBalanceLab(bool embedded)
 	}
 
 	if (ImGui::CollapsingHeader("プレイヤー強化幅", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::TextWrapped("1回強化したときに増える量です。リロードだけは数値が小さいほど速いため、この値ぶん減ります。");
-		ImGui::DragFloat("自然回復 +/Lv", &balanceEditor_.playerHealthRegenUpgrade, 0.01f, 0.0f, 20.0f);
-		ImGui::DragInt("最大HP +/Lv", &balanceEditor_.maxHpUpgradeAmount, 1.0f, 1, 9999);
-		ImGui::DragFloat("体当たりダメージ +/Lv", &balanceEditor_.playerBodyDamageUpgrade, 0.1f, 0.0f, 999.0f);
-		ImGui::DragFloat("弾速 +/Lv", &balanceEditor_.playerBulletSpeedUpgrade, 0.005f, -5.0f, 5.0f);
-		ImGui::DragFloat("弾ダメージ +/Lv", &balanceEditor_.playerBulletDamageUpgrade, 0.1f, 0.0f, 999.0f);
-		ImGui::DragFloat("リロード短縮 /Lv", &balanceEditor_.playerReloadUpgrade, 0.05f, 0.0f, 20.0f);
+		ImGui::TextWrapped("1回強化したときの倍率です。0.10なら10%%/Lvです。リロードだけは数値が小さいほど速いため、この割合ぶん短縮されます。");
+		ImGui::DragFloat("自然回復 倍率/Lv", &balanceEditor_.playerHealthRegenUpgrade, 0.005f, 0.0f, 2.0f);
+		ImGui::DragFloat("最大HP 倍率/Lv", &balanceEditor_.maxHpUpgradeAmount, 0.005f, 0.0f, 2.0f);
+		ImGui::DragFloat("体当たり倍率/Lv", &balanceEditor_.playerBodyDamageUpgrade, 0.005f, 0.0f, 2.0f);
+		ImGui::DragFloat("弾速倍率/Lv", &balanceEditor_.playerBulletSpeedUpgrade, 0.005f, -0.95f, 2.0f);
+		ImGui::DragFloat("弾ダメージ倍率/Lv", &balanceEditor_.playerBulletDamageUpgrade, 0.005f, 0.0f, 2.0f);
+		ImGui::DragFloat("リロード短縮率/Lv", &balanceEditor_.playerReloadUpgrade, 0.005f, 0.0f, 0.95f);
 		ImGui::DragFloat("リロード最小値", &balanceEditor_.playerMinReloadSpeed, 0.05f, 0.05f, 60.0f);
-		ImGui::DragFloat("移動速度 +/Lv", &balanceEditor_.playerMoveSpeedUpgrade, 0.005f, -5.0f, 5.0f);
+		ImGui::DragFloat("移動速度倍率/Lv", &balanceEditor_.playerMoveSpeedUpgrade, 0.005f, -0.95f, 2.0f);
 	}
 
 	if (ImGui::CollapsingHeader("接触/被弾ダメージ", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -2535,14 +2557,9 @@ void GameScene::DrawSprite() {
 	player_->DrawSprite();
 	player_->DrawEncyclopedia();
 	//shotGide->Draw();
-	if (dashGuideText_) {
-		dashGuideText_->Draw();
-	}
-	if (moveGuideText_) {
-		moveGuideText_->Draw();
-	}
-	if (titleGuideText_) {
-		titleGuideText_->Draw();
+	if (controlGuideText_) {
+		controlGuideText_->SetPosition(showControlGuide_ ? Vector2{ 22.0f, 636.0f } : Vector2{ 22.0f, 690.0f });
+		controlGuideText_->Draw();
 	}
 	if (fpsText_) {
 		fpsText_->Draw();

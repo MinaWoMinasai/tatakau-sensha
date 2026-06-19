@@ -119,13 +119,13 @@ const char* ClassTexturePath(ClassType type)
 const std::array<const char*, 7>& UpgradeHudNames()
 {
 	static const std::array<const char*, 7> names = {
-		"Health Regen",
-		"Max Health",
-		"Body Damage",
-		"Bullet Speed",
-		"Bullet Damage",
-		"Reload",
-		"Move Speed"
+		"自動回復",
+		"最大HP",
+		"体当たり",
+		"弾速",
+		"弾ダメージ",
+		"リロード",
+		"移動速度"
 	};
 	return names;
 }
@@ -861,13 +861,13 @@ void Player::ApplyBalanceConfig(const BalanceConfig& config)
 	baseStats_.maxStamina = (std::max)(0.0f, config.maxStamina);
 	baseStats_.bodyDamage = static_cast<float>((std::max)(1u, config.bodyDamage));
 
-	healthRegenUpgradeAmount_ = (std::max)(0.0f, config.healthRegenUpgrade);
-	maxHpUpgradeAmount_ = (std::max)(1, config.maxHpUpgradeAmount);
-	bodyDamageUpgradeAmount_ = (std::max)(0.0f, config.bodyDamageUpgrade);
-	bulletSpeedUpgradeAmount_ = config.bulletSpeedUpgrade;
-	bulletDamageUpgradeAmount_ = (std::max)(0.0f, config.bulletDamageUpgrade);
-	reloadUpgradeAmount_ = (std::max)(0.0f, config.reloadUpgrade);
-	moveSpeedUpgradeAmount_ = config.moveSpeedUpgrade;
+	healthRegenUpgradeRate_ = (std::max)(0.0f, config.healthRegenUpgrade);
+	maxHpUpgradeRate_ = (std::max)(0.0f, config.maxHpUpgradeAmount);
+	bodyDamageUpgradeRate_ = (std::max)(0.0f, config.bodyDamageUpgrade);
+	bulletSpeedUpgradeRate_ = config.bulletSpeedUpgrade;
+	bulletDamageUpgradeRate_ = (std::max)(0.0f, config.bulletDamageUpgrade);
+	reloadUpgradeRate_ = (std::max)(0.0f, config.reloadUpgrade);
+	moveSpeedUpgradeRate_ = config.moveSpeedUpgrade;
 	minReloadSpeed_ = (std::max)(0.05f, config.minReloadSpeed);
 
 	RecalculateStatsFromBase(config.healToFull);
@@ -1319,17 +1319,17 @@ void Player::InitializeEncyclopedia()
 		return panel;
 	};
 
-	evolutionBackdropSprite_ = makePanel({ 0.0f, 0.0f }, { 1600.0f, 900.0f }, { 0.02f, 0.03f, 0.07f, 0.78f });
-	evolutionPreviewPanelSprite_ = makePanel({ 36.0f, 86.0f }, { 500.0f, 690.0f }, { 0.05f, 0.12f, 0.17f, 0.86f });
-	evolutionStatsPanelSprite_ = makePanel({ 1058.0f, 86.0f }, { 500.0f, 690.0f }, { 0.07f, 0.08f, 0.12f, 0.88f });
+	evolutionBackdropSprite_ = makePanel({ 0.0f, 0.0f }, { 1280.0f, 720.0f }, { 0.02f, 0.03f, 0.07f, 0.78f });
+	evolutionPreviewPanelSprite_ = makePanel({ 28.0f, 84.0f }, { 360.0f, 560.0f }, { 0.05f, 0.12f, 0.17f, 0.86f });
+	evolutionStatsPanelSprite_ = makePanel({ 910.0f, 84.0f }, { 342.0f, 560.0f }, { 0.07f, 0.08f, 0.12f, 0.88f });
 	evolutionPreviewTankSprite_ = std::make_unique<Sprite>();
 	evolutionPreviewTankSprite_->Initialize(spriteCommon, "resources/normalTank.png");
 	evolutionPreviewTankSprite_->SetAnchorPoint({ 0.5f, 0.5f });
-	evolutionPreviewTankSprite_->SetSize({ 280.0f, 170.0f });
+	evolutionPreviewTankSprite_->SetSize({ 250.0f, 150.0f });
 	evolutionPreviewTankSprite_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 	evolutionShotSprite_ = makePanel({ 0.0f, 0.0f }, { 170.0f, 9.0f }, { 1.0f, 0.88f, 0.28f, 0.0f });
 	evolutionShotSprite_->SetAnchorPoint({ 0.0f, 0.5f });
-	evolutionChangeButtonSprite_ = makePanel({ 1115.0f, 700.0f }, { 385.0f, 54.0f }, { 0.24f, 0.86f, 0.44f, 0.92f });
+	evolutionChangeButtonSprite_ = makePanel({ 940.0f, 650.0f }, { 290.0f, 48.0f }, { 0.24f, 0.86f, 0.44f, 0.92f });
 
 	TextStyle titleStyle{};
 	titleStyle.fontFamily = "Meiryo";
@@ -1338,20 +1338,20 @@ void Player::InitializeEncyclopedia()
 	titleStyle.outlineColor = { 0.0f, 0.08f, 0.10f, 0.95f };
 	titleStyle.outlineThickness = 3.0f;
 	titleStyle.padding = 8.0f;
-	SetLabel(evolutionTitleLabel_, spriteCommon, "戦車図鑑 / 進化ツリー", { 50.0f, 30.0f }, titleStyle);
+	SetLabel(evolutionTitleLabel_, spriteCommon, "戦車図鑑 / 進化ツリー", { 40.0f, 28.0f }, titleStyle);
 
 	TextStyle smallStyle = titleStyle;
 	smallStyle.fontSize = 20.0f;
 	smallStyle.color = { 0.86f, 0.92f, 1.0f, 1.0f };
 	smallStyle.outlineThickness = 2.0f;
-	SetLabel(evolutionHintLabel_, spriteCommon, "C:閉じる  /  カード選択:詳細  /  ボタン:機体変更", { 610.0f, 42.0f }, smallStyle);
+	SetLabel(evolutionHintLabel_, spriteCommon, "C:閉じる / カード選択:詳細 / ボタン:機体変更", { 520.0f, 42.0f }, smallStyle);
 
 	encyclopedia_.clear();
-	const float cardWidth = 206.0f;
-	const float cardHeight = 105.0f;
-	const float cardGapX = 22.0f;
-	const float cardGapY = 22.0f;
-	const Vector2 cardBase = { 585.0f, 116.0f };
+	const float cardWidth = 154.0f;
+	const float cardHeight = 80.0f;
+	const float cardGapX = 12.0f;
+	const float cardGapY = 12.0f;
+	const Vector2 cardBase = { 416.0f, 112.0f };
 
 	for (int i = 0; i < static_cast<int>(classOrder_.size()); ++i) {
 		const PlayerClassConfig* config = GetClassConfig(classOrder_[i]);
@@ -1365,25 +1365,25 @@ void Player::InitializeEncyclopedia()
 		data.requiredRank = config->requiredRank;
 		data.texturePath = ClassTexturePath(config->type);
 
-		const int col = i % 2;
-		const int row = i / 2;
+		const int col = i % 3;
+		const int row = i / 3;
 		const Vector2 cardPos = { cardBase.x + static_cast<float>(col) * (cardWidth + cardGapX), cardBase.y + static_cast<float>(row) * (cardHeight + cardGapY) };
 
 		data.cardSprite = makePanel(cardPos, { cardWidth, cardHeight }, { 0.10f, 0.15f, 0.22f, 0.82f });
 		data.sprite = std::make_unique<Sprite>();
 		data.sprite->Initialize(SpriteCommon::GetInstance(), data.texturePath);
-		data.sprite->SetPosition({ cardPos.x + 18.0f, cardPos.y + 10.0f });
-		data.sprite->SetSize({ 170.0f, 56.0f });
+		data.sprite->SetPosition({ cardPos.x + 14.0f, cardPos.y + 8.0f });
+		data.sprite->SetSize({ 126.0f, 38.0f });
 
 		TextStyle cardNameStyle = smallStyle;
-		cardNameStyle.fontSize = 17.0f;
+		cardNameStyle.fontSize = 14.0f;
 		cardNameStyle.color = { 0.92f, 1.0f, 0.95f, 1.0f };
-		SetLabel(data.nameLabel, spriteCommon, data.name, { cardPos.x + 12.0f, cardPos.y + 70.0f }, cardNameStyle);
+		SetLabel(data.nameLabel, spriteCommon, data.name, { cardPos.x + 10.0f, cardPos.y + 50.0f }, cardNameStyle);
 
 		TextStyle rankStyle = cardNameStyle;
-		rankStyle.fontSize = 14.0f;
+		rankStyle.fontSize = 12.0f;
 		rankStyle.color = { 0.72f, 0.86f, 1.0f, 1.0f };
-		SetLabel(data.rankLabel, spriteCommon, "Rank " + std::to_string(data.requiredRank), { cardPos.x + 132.0f, cardPos.y + 74.0f }, rankStyle);
+		SetLabel(data.rankLabel, spriteCommon, "R" + std::to_string(data.requiredRank), { cardPos.x + 112.0f, cardPos.y + 54.0f }, rankStyle);
 
 		encyclopedia_.push_back(std::move(data));
 	}
@@ -1422,14 +1422,12 @@ void Player::InitializeUpgradeHud()
 	SetLabel(upgradeHudPointLabel_, spriteCommon, "", upgradeHudPointPos_, smallStyle);
 	SetLabel(upgradeHudExpLabel_, spriteCommon, "", upgradeHudExpTextPos_, smallStyle);
 	SetLabel(upgradeHudLevelLabel_, spriteCommon, "", upgradeHudLevelTextPos_, smallStyle);
-	SetLabel(upgradeHudListLabel_, spriteCommon, "", { upgradeHudNameX_, upgradeHudRowStart_.y + 4.0f }, smallStyle);
 
-	const auto& names = UpgradeHudNames();
 	for (int i = 0; i < 7; ++i) {
 		const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
 		upgradeHudButtonSprites_[i] = makePanel({ upgradeHudRowStart_.x, y }, upgradeHudButtonSize_, { 0.10f, 0.12f, 0.15f, 0.84f });
+		upgradeHudMinusSprites_[i] = makePanel({ upgradeHudMinusX_, y }, upgradeHudPlusSize_, { 0.26f, 0.42f, 0.86f, 0.68f });
 		upgradeHudPlusSprites_[i] = makePanel({ upgradeHudPlusX_, y }, upgradeHudPlusSize_, { 0.34f, 0.95f, 0.64f, 0.88f });
-		(void)names;
 	}
 	InitializeUpgradeHudBatch();
 }
@@ -1473,9 +1471,23 @@ void Player::UpdateUpgradeHud()
 	for (float& timer : upgradeHudFlashTimers_) {
 		timer = (std::max)(0.0f, timer - dt_);
 	}
+	for (float& timer : upgradeHudRefundFlashTimers_) {
+		timer = (std::max)(0.0f, timer - dt_);
+	}
+	for (float& timer : upgradeHudMissFlashTimers_) {
+		timer = (std::max)(0.0f, timer - dt_);
+	}
 
 	ApplyUpgradeHudLayout();
-	const bool showUpgradeList = !upgradeHudHideListWithoutPoints_ || skillPoints_ > 0;
+	const bool wantsUpgradeList = !upgradeHudHideListWithoutPoints_ || skillPoints_ > 0;
+	const float targetListVisibility = wantsUpgradeList ? 1.0f : 0.0f;
+	const float listStep = dt_ * upgradeHudListAnimSpeed_;
+	if (upgradeHudListVisibility_ < targetListVisibility) {
+		upgradeHudListVisibility_ = (std::min)(targetListVisibility, upgradeHudListVisibility_ + listStep);
+	} else if (upgradeHudListVisibility_ > targetListVisibility) {
+		upgradeHudListVisibility_ = (std::max)(targetListVisibility, upgradeHudListVisibility_ - listStep);
+	}
+	const bool showUpgradeList = upgradeHudListVisibility_ > 0.01f;
 	if (!showUpgradeList) {
 		if (upgradeHudExpBackSprite_) upgradeHudExpBackSprite_->Update();
 		if (upgradeHudExpFillSprite_) upgradeHudExpFillSprite_->Update();
@@ -1489,33 +1501,57 @@ void Player::UpdateUpgradeHud()
 	for (int i = 0; i < 7; ++i) {
 		Sprite* button = upgradeHudButtonSprites_[i].get();
 		Sprite* plus = upgradeHudPlusSprites_[i].get();
-		const bool hovered = (button && button->IsHovered(mousePosition_)) || (plus && plus->IsHovered(mousePosition_));
+		Sprite* minus = upgradeHudMinusSprites_[i].get();
+		const bool plusHovered = plus && plus->IsHovered(mousePosition_);
+		const bool minusHovered = minus && minus->IsHovered(mousePosition_);
+		const bool rowHovered = button && button->IsHovered(mousePosition_);
+		const bool hovered = rowHovered || plusHovered || minusHovered;
 		upgradeHudMouseCaptured_ = upgradeHudMouseCaptured_ || hovered;
 		const bool maxed = upgradeLevels_[i] >= maxEnhancePoint;
-		if (hovered && click && canUpgrade && !maxed) {
-			if (ApplyStatUpgrade(i)) {
+		if (wantsUpgradeList && click && plusHovered) {
+			if (canUpgrade && !maxed && ApplyStatUpgrade(i)) {
 				upgradeHudFlashTimers_[i] = 0.22f;
+			} else {
+				upgradeHudMissFlashTimers_[i] = 0.26f;
+			}
+		} else if (wantsUpgradeList && click && minusHovered) {
+			if (RefundStatUpgrade(i)) {
+				upgradeHudRefundFlashTimers_[i] = 0.22f;
+			} else {
+				upgradeHudMissFlashTimers_[i] = 0.26f;
 			}
 		}
 
 		const float flash = (std::min)(1.0f, upgradeHudFlashTimers_[i] / 0.22f);
+		const float refundFlash = (std::min)(1.0f, upgradeHudRefundFlashTimers_[i] / 0.22f);
+		const float missFlash = (std::min)(1.0f, upgradeHudMissFlashTimers_[i] / 0.26f);
 		if (button) {
 			if (maxed) {
 				button->SetColor({ 0.12f, 0.12f, 0.14f, 0.72f });
-			} else if (hovered && canUpgrade) {
-				button->SetColor({ 0.24f + flash * 0.22f, 0.38f + flash * 0.30f, 0.34f + flash * 0.20f, 0.94f });
+			} else if (rowHovered) {
+				button->SetColor({ 0.18f + flash * 0.18f + missFlash * 0.22f, 0.28f + flash * 0.30f, 0.30f + refundFlash * 0.20f, 0.92f });
 			} else {
-				button->SetColor({ 0.10f + flash * 0.25f, 0.12f + flash * 0.36f, 0.15f + flash * 0.20f, 0.84f });
+				button->SetColor({ 0.10f + flash * 0.25f + missFlash * 0.20f, 0.12f + flash * 0.36f, 0.15f + refundFlash * 0.22f, 0.84f });
 			}
 			button->Update();
 		}
+		if (minus) {
+			if (upgradeLevels_[i] <= 0) {
+				minus->SetColor({ 0.12f + missFlash * 0.32f, 0.14f, 0.18f, 0.42f + missFlash * 0.32f });
+			} else {
+				minus->SetColor(minusHovered
+					? Vector4{ 0.48f + refundFlash * 0.18f, 0.66f + refundFlash * 0.20f, 1.0f, 0.96f }
+					: Vector4{ 0.26f + refundFlash * 0.25f, 0.42f + refundFlash * 0.22f, 0.86f, 0.70f });
+			}
+			minus->Update();
+		}
 		if (plus) {
 			if (maxed) {
-				plus->SetColor({ 0.18f, 0.18f, 0.20f, 0.72f });
+				plus->SetColor({ 0.18f + missFlash * 0.30f, 0.18f, 0.20f, 0.72f + missFlash * 0.20f });
 			} else if (canUpgrade) {
-				plus->SetColor(hovered ? Vector4{ 0.62f, 1.0f, 0.78f, 0.98f } : Vector4{ 0.34f, 0.95f, 0.64f, 0.88f });
+				plus->SetColor(plusHovered ? Vector4{ 0.62f, 1.0f, 0.78f, 0.98f } : Vector4{ 0.34f + flash * 0.35f, 0.95f, 0.64f, 0.88f });
 			} else {
-				plus->SetColor({ 0.15f, 0.22f, 0.24f, 0.64f });
+				plus->SetColor({ 0.15f + missFlash * 0.34f, 0.22f, 0.24f, 0.64f + missFlash * 0.25f });
 			}
 			plus->Update();
 		}
@@ -1558,7 +1594,10 @@ void Player::DrawUpgradeHud()
 		upgradeHudLevelFillSprite_->Update();
 	}
 
-	const bool showUpgradeList = !upgradeHudHideListWithoutPoints_ || skillPoints_ > 0;
+	const bool showUpgradeList = upgradeHudListVisibility_ > 0.01f;
+	const float listAlpha = (std::clamp)(upgradeHudListVisibility_, 0.0f, 1.0f);
+	const float easedListAlpha = listAlpha * listAlpha * (3.0f - 2.0f * listAlpha);
+	const float listOffsetX = -(1.0f - easedListAlpha) * upgradeHudListSlideDistance_;
 	const auto& names = UpgradeHudNames();
 	const std::string className = GetCurrentClassName();
 	const bool baseTextDirty =
@@ -1584,38 +1623,57 @@ void Player::DrawUpgradeHud()
 			cachedUpgradeHudSkillPoints_ != skillPoints_ ||
 			cachedUpgradeHudLevels_ != upgradeLevels_;
 		if (listDirty) {
-			SetLabel(upgradeHudPointLabel_, spriteCommon, "x" + std::to_string(skillPoints_), upgradeHudPointPos_, smallStyle);
-			SetLabel(upgradeHudTitleLabel_, spriteCommon, "TANK UPGRADES", upgradeHudTitlePos_, smallStyle);
-			std::string listText;
+			SetLabel(upgradeHudPointLabel_, spriteCommon, "x" + std::to_string(skillPoints_), { upgradeHudPointPos_.x + listOffsetX, upgradeHudPointPos_.y }, smallStyle);
+			SetLabel(upgradeHudTitleLabel_, spriteCommon, "強化", { upgradeHudTitlePos_.x + listOffsetX, upgradeHudTitlePos_.y }, smallStyle);
+			std::string nameText;
+			std::string levelText;
+			std::string minusText;
+			std::string plusText;
 			for (int i = 0; i < 7; ++i) {
-				char line[96]{};
-				std::snprintf(line, sizeof(line), "%d  %-16s Lv.%d      +%s", i + 1, names[i], upgradeLevels_[i],
-					upgradeLevels_[i] >= maxEnhancePoint ? " MAX" : "");
-				listText += line;
+				nameText += std::to_string(i + 1) + " " + names[i];
+				levelText += "Lv." + std::to_string(upgradeLevels_[i]);
+				minusText += "-";
+				plusText += upgradeLevels_[i] >= maxEnhancePoint ? "済" : "+";
 				if (i + 1 < 7) {
-					listText += "\n";
+					nameText += "\n";
+					levelText += "\n";
+					minusText += "\n";
+					plusText += "\n";
 				}
 			}
-			SetLabel(upgradeHudListLabel_, spriteCommon, listText, { upgradeHudNameX_, upgradeHudRowStart_.y + 4.0f }, smallStyle);
+			SetLabel(upgradeHudListLabel_, spriteCommon, nameText, { upgradeHudNameX_ + listOffsetX, upgradeHudRowStart_.y + 3.0f }, smallStyle);
+			SetLabel(upgradeHudLevelColumnLabel_, spriteCommon, levelText, { upgradeHudLevelX_ + listOffsetX, upgradeHudRowStart_.y + 3.0f }, smallStyle);
+			SetLabel(upgradeHudMinusColumnLabel_, spriteCommon, minusText, { upgradeHudMinusLabelX_ + listOffsetX, upgradeHudRowStart_.y + 1.0f }, smallStyle);
+			SetLabel(upgradeHudPlusColumnLabel_, spriteCommon, plusText, { upgradeHudPlusLabelX_ + listOffsetX, upgradeHudRowStart_.y + 1.0f }, smallStyle);
 			cachedUpgradeHudSkillPoints_ = skillPoints_;
 			cachedUpgradeHudLevels_ = upgradeLevels_;
 		} else {
-			if (upgradeHudPointLabel_) upgradeHudPointLabel_->SetPosition(upgradeHudPointPos_);
-			if (upgradeHudTitleLabel_) upgradeHudTitleLabel_->SetPosition(upgradeHudTitlePos_);
-			if (upgradeHudListLabel_) upgradeHudListLabel_->SetPosition({ upgradeHudNameX_, upgradeHudRowStart_.y + 4.0f });
+			if (upgradeHudPointLabel_) upgradeHudPointLabel_->SetPosition({ upgradeHudPointPos_.x + listOffsetX, upgradeHudPointPos_.y });
+			if (upgradeHudTitleLabel_) upgradeHudTitleLabel_->SetPosition({ upgradeHudTitlePos_.x + listOffsetX, upgradeHudTitlePos_.y });
+			if (upgradeHudListLabel_) upgradeHudListLabel_->SetPosition({ upgradeHudNameX_ + listOffsetX, upgradeHudRowStart_.y + 3.0f });
+			if (upgradeHudLevelColumnLabel_) upgradeHudLevelColumnLabel_->SetPosition({ upgradeHudLevelX_ + listOffsetX, upgradeHudRowStart_.y + 3.0f });
+			if (upgradeHudMinusColumnLabel_) upgradeHudMinusColumnLabel_->SetPosition({ upgradeHudMinusLabelX_ + listOffsetX, upgradeHudRowStart_.y + 1.0f });
+			if (upgradeHudPlusColumnLabel_) upgradeHudPlusColumnLabel_->SetPosition({ upgradeHudPlusLabelX_ + listOffsetX, upgradeHudRowStart_.y + 1.0f });
 		}
+		if (upgradeHudPointLabel_) upgradeHudPointLabel_->SetAlpha(easedListAlpha);
+		if (upgradeHudTitleLabel_) upgradeHudTitleLabel_->SetAlpha(easedListAlpha);
+		if (upgradeHudListLabel_) upgradeHudListLabel_->SetAlpha(easedListAlpha);
+		if (upgradeHudLevelColumnLabel_) upgradeHudLevelColumnLabel_->SetAlpha(easedListAlpha);
+		if (upgradeHudMinusColumnLabel_) upgradeHudMinusColumnLabel_->SetAlpha(easedListAlpha);
+		if (upgradeHudPlusColumnLabel_) upgradeHudPlusColumnLabel_->SetAlpha(easedListAlpha);
 	}
 	cachedUpgradeHudListVisible_ = showUpgradeList;
 
 	const auto spriteStart = std::chrono::steady_clock::now();
 	if (upgradeHudUseRectBatch_) {
-		DrawUpgradeHudRectBatch(showUpgradeList, expRatio, levelRatio);
+		DrawUpgradeHudRectBatch(showUpgradeList, expRatio, levelRatio, easedListAlpha, listOffsetX);
 	} else {
 		SpriteCommon::GetInstance()->PreDraw(kNormal);
 		if (showUpgradeList && upgradeHudDrawListPanels_) {
 			if (upgradeHudBackdropSprite_) { upgradeHudBackdropSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
 			for (int i = 0; i < 7; ++i) {
-				if (upgradeHudButtonSprites_[i]) { upgradeHudButtonSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+			if (upgradeHudButtonSprites_[i]) { upgradeHudButtonSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+				if (upgradeHudMinusSprites_[i]) { upgradeHudMinusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
 				if (upgradeHudPlusSprites_[i]) { upgradeHudPlusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
 			}
 		}
@@ -1634,6 +1692,9 @@ void Player::DrawUpgradeHud()
 		if (upgradeHudTitleLabel_) { upgradeHudTitleLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
 		if (upgradeHudPointLabel_) { upgradeHudPointLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
 		if (upgradeHudListLabel_) { upgradeHudListLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
+		if (upgradeHudLevelColumnLabel_) { upgradeHudLevelColumnLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
+		if (upgradeHudMinusColumnLabel_) { upgradeHudMinusColumnLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
+		if (upgradeHudPlusColumnLabel_) { upgradeHudPlusColumnLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
 	}
 	if (upgradeHudDrawBottomText_) {
 		if (upgradeHudLevelLabel_) { upgradeHudLevelLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
@@ -1667,7 +1728,7 @@ void Player::QueueUpgradeHudRect(std::vector<TrailVertex>& vertices, const Vecto
 	vertices.push_back({ p2, color, { 1.0f, 1.0f } });
 }
 
-void Player::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float levelRatio)
+void Player::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float levelRatio, float listAlpha, float listOffsetX)
 {
 	if (!upgradeHudBatchVertexData_ || !upgradeHudBatchTransformData_ || !upgradeHudBatchMaterialData_) {
 		return;
@@ -1675,18 +1736,32 @@ void Player::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float
 
 	std::vector<TrailVertex> vertices;
 	vertices.reserve(kUpgradeHudBatchMaxVertices);
+	auto withListAlpha = [listAlpha](Vector4 color) {
+		color.w *= listAlpha;
+		return color;
+	};
+	auto offsetListPos = [listOffsetX](Vector2 pos) {
+		pos.x += listOffsetX;
+		return pos;
+	};
 
 	if (showUpgradeList && upgradeHudDrawListPanels_) {
-		QueueUpgradeHudRect(vertices, upgradeHudPanelPos_, upgradeHudPanelSize_, { 0.03f, 0.04f, 0.06f, 0.58f });
+		QueueUpgradeHudRect(vertices, offsetListPos(upgradeHudPanelPos_), upgradeHudPanelSize_, withListAlpha({ 0.03f, 0.04f, 0.06f, 0.58f }));
 		for (int i = 0; i < 7; ++i) {
 			const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
 			float flash = (std::min)(1.0f, upgradeHudFlashTimers_[i] / 0.22f);
-			const Vector4 buttonColor = LerpColor({ 0.10f, 0.12f, 0.15f, 0.84f }, { 0.35f, 0.90f, 0.72f, 0.96f }, flash);
+			const float refundFlash = (std::min)(1.0f, upgradeHudRefundFlashTimers_[i] / 0.22f);
+			const float missFlash = (std::min)(1.0f, upgradeHudMissFlashTimers_[i] / 0.26f);
+			const Vector4 buttonColor = LerpColor({ 0.10f + missFlash * 0.20f, 0.12f, 0.15f + refundFlash * 0.16f, 0.84f }, { 0.35f, 0.90f, 0.72f, 0.96f }, flash);
+			const Vector4 minusColor = upgradeLevels_[i] > 0
+				? LerpColor({ 0.26f, 0.42f, 0.86f, 0.70f }, { 0.70f, 0.86f, 1.0f, 0.98f }, refundFlash)
+				: Vector4{ 0.12f + missFlash * 0.30f, 0.14f, 0.18f, 0.42f + missFlash * 0.28f };
 			const Vector4 plusColor = skillPoints_ > 0
 				? LerpColor({ 0.34f, 0.95f, 0.64f, 0.88f }, { 1.0f, 1.0f, 0.46f, 1.0f }, flash)
-				: Vector4{ 0.18f, 0.22f, 0.24f, 0.48f };
-			QueueUpgradeHudRect(vertices, { upgradeHudRowStart_.x, y }, upgradeHudButtonSize_, buttonColor);
-			QueueUpgradeHudRect(vertices, { upgradeHudPlusX_, y }, upgradeHudPlusSize_, plusColor);
+				: Vector4{ 0.18f + missFlash * 0.32f, 0.22f, 0.24f, 0.48f + missFlash * 0.28f };
+			QueueUpgradeHudRect(vertices, offsetListPos({ upgradeHudRowStart_.x, y }), upgradeHudButtonSize_, withListAlpha(buttonColor));
+			QueueUpgradeHudRect(vertices, offsetListPos({ upgradeHudMinusX_, y }), upgradeHudPlusSize_, withListAlpha(minusColor));
+			QueueUpgradeHudRect(vertices, offsetListPos({ upgradeHudPlusX_, y }), upgradeHudPlusSize_, withListAlpha(plusColor));
 		}
 	}
 
@@ -1746,6 +1821,10 @@ void Player::ApplyUpgradeHudLayout()
 			upgradeHudButtonSprites_[i]->SetPosition({ upgradeHudRowStart_.x, y });
 			upgradeHudButtonSprites_[i]->SetSize(upgradeHudButtonSize_);
 		}
+		if (upgradeHudMinusSprites_[i]) {
+			upgradeHudMinusSprites_[i]->SetPosition({ upgradeHudMinusX_, y });
+			upgradeHudMinusSprites_[i]->SetSize(upgradeHudPlusSize_);
+		}
 		if (upgradeHudPlusSprites_[i]) {
 			upgradeHudPlusSprites_[i]->SetPosition({ upgradeHudPlusX_, y });
 			upgradeHudPlusSprites_[i]->SetSize(upgradeHudPlusSize_);
@@ -1777,6 +1856,8 @@ bool Player::LoadUpgradeHudConfig(const std::string& path)
 	upgradeHudDrawBottomBars_ = json.value("drawBottomBars", upgradeHudDrawBottomBars_);
 	upgradeHudDrawBottomText_ = json.value("drawBottomText", upgradeHudDrawBottomText_);
 	upgradeHudUseRectBatch_ = json.value("useRectBatch", upgradeHudUseRectBatch_);
+	upgradeHudListAnimSpeed_ = json.value("listAnimSpeed", upgradeHudListAnimSpeed_);
+	upgradeHudListSlideDistance_ = json.value("listSlideDistance", upgradeHudListSlideDistance_);
 	upgradeHudPanelPos_ = ReadVector2Object(json.value("panelPos", nlohmann::json::object()), upgradeHudPanelPos_);
 	upgradeHudPanelSize_ = ReadVector2Object(json.value("panelSize", nlohmann::json::object()), upgradeHudPanelSize_);
 	upgradeHudRowStart_ = ReadVector2Object(json.value("rowStart", nlohmann::json::object()), upgradeHudRowStart_);
@@ -1785,7 +1866,9 @@ bool Player::LoadUpgradeHudConfig(const std::string& path)
 	upgradeHudRowGap_ = json.value("rowGap", upgradeHudRowGap_);
 	upgradeHudNameX_ = json.value("nameX", upgradeHudNameX_);
 	upgradeHudLevelX_ = json.value("levelX", upgradeHudLevelX_);
+	upgradeHudMinusX_ = json.value("minusX", upgradeHudMinusX_);
 	upgradeHudPlusX_ = json.value("plusX", upgradeHudPlusX_);
+	upgradeHudMinusLabelX_ = json.value("minusLabelX", upgradeHudMinusLabelX_);
 	upgradeHudPlusLabelX_ = json.value("plusLabelX", upgradeHudPlusLabelX_);
 	upgradeHudTitlePos_ = ReadVector2Object(json.value("titlePos", nlohmann::json::object()), upgradeHudTitlePos_);
 	upgradeHudPointPos_ = ReadVector2Object(json.value("pointPos", nlohmann::json::object()), upgradeHudPointPos_);
@@ -1816,6 +1899,8 @@ bool Player::SaveUpgradeHudConfig(const std::string& path) const
 		{ "drawBottomBars", upgradeHudDrawBottomBars_ },
 		{ "drawBottomText", upgradeHudDrawBottomText_ },
 		{ "useRectBatch", upgradeHudUseRectBatch_ },
+		{ "listAnimSpeed", upgradeHudListAnimSpeed_ },
+		{ "listSlideDistance", upgradeHudListSlideDistance_ },
 		{ "panelPos", WriteVector2Object(upgradeHudPanelPos_) },
 		{ "panelSize", WriteVector2Object(upgradeHudPanelSize_) },
 		{ "rowStart", WriteVector2Object(upgradeHudRowStart_) },
@@ -1824,7 +1909,9 @@ bool Player::SaveUpgradeHudConfig(const std::string& path) const
 		{ "rowGap", upgradeHudRowGap_ },
 		{ "nameX", upgradeHudNameX_ },
 		{ "levelX", upgradeHudLevelX_ },
+		{ "minusX", upgradeHudMinusX_ },
 		{ "plusX", upgradeHudPlusX_ },
+		{ "minusLabelX", upgradeHudMinusLabelX_ },
 		{ "plusLabelX", upgradeHudPlusLabelX_ },
 		{ "titlePos", WriteVector2Object(upgradeHudTitlePos_) },
 		{ "pointPos", WriteVector2Object(upgradeHudPointPos_) },
@@ -1853,6 +1940,8 @@ void Player::DrawUpgradeHudDebugImGui()
 	ImGui::Checkbox("下部EXP/Level文字を描画", &upgradeHudDrawBottomText_);
 	ImGui::Checkbox("背景/バーを矩形バッチで描画", &upgradeHudUseRectBatch_);
 	ImGui::Text("矩形Draw数: %d", upgradeHudProfile_.spriteDraws);
+	ImGui::DragFloat("リスト表示アニメ速度", &upgradeHudListAnimSpeed_, 0.1f, 1.0f, 30.0f);
+	ImGui::DragFloat("リストスライド距離", &upgradeHudListSlideDistance_, 1.0f, 0.0f, 500.0f);
 	if (ImGui::Button("強化HUD設定を保存")) {
 		upgradeHudConfigStatus_ = SaveUpgradeHudConfig() ? "強化HUD設定を保存しました。" : "強化HUD設定の保存に失敗しました。";
 	}
@@ -1871,7 +1960,9 @@ void Player::DrawUpgradeHudDebugImGui()
 	ImGui::DragFloat("強化行 間隔", &upgradeHudRowGap_, 1.0f, 10.0f, 100.0f);
 	ImGui::DragFloat("項目名X", &upgradeHudNameX_, 1.0f);
 	ImGui::DragFloat("Lv表示X", &upgradeHudLevelX_, 1.0f);
+	ImGui::DragFloat("マイナスボタンX", &upgradeHudMinusX_, 1.0f);
 	ImGui::DragFloat("プラスボタンX", &upgradeHudPlusX_, 1.0f);
+	ImGui::DragFloat("マイナス文字X", &upgradeHudMinusLabelX_, 1.0f);
 	ImGui::DragFloat("プラス文字X", &upgradeHudPlusLabelX_, 1.0f);
 	ImGui::DragFloat2("タイトル位置", &upgradeHudTitlePos_.x, 1.0f);
 	ImGui::DragFloat2("ポイント表示位置", &upgradeHudPointPos_.x, 1.0f);
@@ -1966,7 +2057,7 @@ void Player::UpdateEncyclopedia()
 	if (evolutionPreviewTankSprite_) {
 		evolutionPreviewTankSprite_->SetTexture(selectedTank.texturePath);
 		const float bob = std::sin(evolutionUiTimer_ * 2.0f) * 12.0f;
-		evolutionPreviewTankSprite_->SetPosition({ 286.0f + bob, 330.0f });
+		evolutionPreviewTankSprite_->SetPosition({ 210.0f + bob, 300.0f });
 		evolutionPreviewTankSprite_->SetRotation(std::sin(evolutionUiTimer_ * 1.35f) * 0.08f);
 		evolutionPreviewTankSprite_->SetColor(locked ? Vector4{ 0.35f, 0.40f, 0.45f, 0.65f } : Vector4{ 1.0f, 1.0f, 1.0f, 1.0f });
 		evolutionPreviewTankSprite_->Update();
@@ -1974,9 +2065,9 @@ void Player::UpdateEncyclopedia()
 
 	if (evolutionShotSprite_) {
 		const float shotPhase = std::fmod(evolutionUiTimer_ * 1.8f, 1.0f);
-		evolutionShotSprite_->SetPosition({ 388.0f + shotPhase * 70.0f, 326.0f });
+		evolutionShotSprite_->SetPosition({ 300.0f + shotPhase * 52.0f, 296.0f });
 		evolutionShotSprite_->SetRotation(std::sin(evolutionUiTimer_ * 1.2f) * 0.12f);
-		evolutionShotSprite_->SetSize({ 120.0f + shotPhase * 120.0f, 8.0f });
+		evolutionShotSprite_->SetSize({ 85.0f + shotPhase * 95.0f, 7.0f });
 		evolutionShotSprite_->SetColor(locked ? Vector4{ 0.55f, 0.55f, 0.60f, 0.18f } : Vector4{ 1.0f, 0.90f, 0.32f, 0.82f * (1.0f - shotPhase * 0.55f) });
 		evolutionShotSprite_->Update();
 	}
@@ -2049,8 +2140,8 @@ void Player::DrawEncyclopedia() {
 		smallStyle.fontSize = 18.0f;
 
 		SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
-		SetLabel(evolutionPreviewNameLabel_, spriteCommon, selectedConfig->displayName, { 70.0f, 112.0f }, headingStyle);
-		SetLabel(evolutionRoleLabel_, spriteCommon, roleText(*selectedConfig), { 72.0f, 580.0f }, bodyStyle);
+		SetLabel(evolutionPreviewNameLabel_, spriteCommon, selectedConfig->displayName, { 58.0f, 112.0f }, headingStyle);
+		SetLabel(evolutionRoleLabel_, spriteCommon, roleText(*selectedConfig), { 58.0f, 560.0f }, bodyStyle);
 
 		const int currentRank = GetRankFromLevel(level_);
 		const bool locked = currentRank < selectedConfig->requiredRank;
@@ -2066,14 +2157,14 @@ void Player::DrawEncyclopedia() {
 			std::string("特殊: ") + (selectedConfig->usesDrone ? "ドローン" : selectedConfig->reflect ? "反射" : selectedConfig->penetrate ? "貫通" : "なし")
 		};
 		for (int i = 0; i < static_cast<int>(statLines.size()); ++i) {
-			SetLabel(evolutionStatLabels_[i], spriteCommon, statLines[i], { 1100.0f, 150.0f + static_cast<float>(i) * 48.0f }, smallStyle);
+			SetLabel(evolutionStatLabels_[i], spriteCommon, statLines[i], { 932.0f, 136.0f + static_cast<float>(i) * 40.0f }, smallStyle);
 		}
 
 		TextStyle buttonStyle = headingStyle;
 		buttonStyle.fontSize = 24.0f;
 		buttonStyle.color = locked ? Vector4{ 0.68f, 0.68f, 0.72f, 1.0f } : Vector4{ 0.02f, 0.09f, 0.04f, 1.0f };
 		buttonStyle.outlineColor = locked ? Vector4{ 0.0f, 0.0f, 0.0f, 0.70f } : Vector4{ 0.78f, 1.0f, 0.82f, 0.65f };
-		SetLabel(evolutionChangeButtonLabel_, spriteCommon, locked ? "ランク不足" : "この戦車に変更", { 1212.0f, 711.0f }, buttonStyle);
+		SetLabel(evolutionChangeButtonLabel_, spriteCommon, locked ? "ランク不足" : "この戦車に変更", { 990.0f, 660.0f }, buttonStyle);
 
 		const auto spriteStart = std::chrono::steady_clock::now();
 		SpriteCommon::GetInstance()->PreDraw(kNormal);
@@ -2730,19 +2821,35 @@ bool Player::ApplyStatUpgrade(int index)
 	return true;
 }
 
+bool Player::RefundStatUpgrade(int index)
+{
+	if (index < 0 || index >= static_cast<int>(upgradeLevels_.size())) {
+		return false;
+	}
+	if (upgradeLevels_[index] <= 0) {
+		return false;
+	}
+
+	upgradeLevels_[index]--;
+	skillPoints_++;
+	RecalculateStatsFromBase(false);
+	return true;
+}
+
 void Player::RecalculateStatsFromBase(bool healToFull)
 {
 	const int oldMaxHp = GetMaxHp();
 	const bool wasFullHp = oldMaxHp > 0 && hp_ >= oldMaxHp;
 
 	stats_ = baseStats_;
-	stats_.staminaRecovery += healthRegenUpgradeAmount_ * static_cast<float>(upgradeLevels_[0]);
-	stats_.maxHp += static_cast<float>(maxHpUpgradeAmount_ * upgradeLevels_[1]);
-	stats_.bodyDamage += bodyDamageUpgradeAmount_ * static_cast<float>(upgradeLevels_[2]);
-	stats_.bulletSpeed += bulletSpeedUpgradeAmount_ * static_cast<float>(upgradeLevels_[3]);
-	stats_.bulletDamage += bulletDamageUpgradeAmount_ * static_cast<float>(upgradeLevels_[4]);
-	stats_.reloadSpeed = (std::max)(minReloadSpeed_, stats_.reloadSpeed - reloadUpgradeAmount_ * static_cast<float>(upgradeLevels_[5]));
-	stats_.moveSpeed += moveSpeedUpgradeAmount_ * static_cast<float>(upgradeLevels_[6]);
+	stats_.staminaRecovery *= 1.0f + healthRegenUpgradeRate_ * static_cast<float>(upgradeLevels_[0]);
+	stats_.maxHp *= 1.0f + maxHpUpgradeRate_ * static_cast<float>(upgradeLevels_[1]);
+	stats_.bodyDamage *= 1.0f + bodyDamageUpgradeRate_ * static_cast<float>(upgradeLevels_[2]);
+	stats_.bulletSpeed *= 1.0f + bulletSpeedUpgradeRate_ * static_cast<float>(upgradeLevels_[3]);
+	stats_.bulletDamage *= 1.0f + bulletDamageUpgradeRate_ * static_cast<float>(upgradeLevels_[4]);
+	stats_.reloadSpeed *= (std::max)(0.05f, 1.0f - reloadUpgradeRate_ * static_cast<float>(upgradeLevels_[5]));
+	stats_.reloadSpeed = (std::max)(minReloadSpeed_, stats_.reloadSpeed);
+	stats_.moveSpeed *= 1.0f + moveSpeedUpgradeRate_ * static_cast<float>(upgradeLevels_[6]);
 	stats_.maxHp = (std::max)(1.0f, stats_.maxHp);
 	stats_.reloadSpeed = (std::max)(0.05f, stats_.reloadSpeed);
 	stats_.bulletDamage = (std::max)(0.1f, stats_.bulletDamage);
