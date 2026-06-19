@@ -50,8 +50,8 @@ private:
     uint32_t renderHeight_ = WinApp::kClientHeight;
     uint32_t halfWidth_ = WinApp::kClientWidth / 2;
     uint32_t halfHeight_ = WinApp::kClientHeight / 2;
-    uint32_t quarterWidth_ = WinApp::kClientWidth / 4;
-    uint32_t quarterHeight_ = WinApp::kClientHeight / 4;
+    uint32_t bloomWidth_ = WinApp::kClientWidth / 2;
+    uint32_t bloomHeight_ = WinApp::kClientHeight / 2;
     D3D12_CPU_DESCRIPTOR_HANDLE restoreRtvHandle_{};
     D3D12_CPU_DESCRIPTOR_HANDLE restoreDsvHandle_{};
     bool restoreHasDsv_ = false;

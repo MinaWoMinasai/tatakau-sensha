@@ -511,7 +511,7 @@
     },
     {
       "customProperties": {
-        "hp": 30,
+        "hp": 8,
         "levelType": "Enemy",
         "movePattern": "Straight",
         "prefab": "Basic",
@@ -564,11 +564,11 @@
     {
       "customProperties": {
         "enabled": true,
-        "hp": 12,
+        "hp": 8,
         "levelType": "SpawnArea",
         "maxAlive": 4,
-        "prefab": "Triangle",
-        "sourceName": "SpawnArea_Triangle_East",
+        "prefab": "Basic",
+        "sourceName": "SpawnArea_Basic_Demo_001",
         "spawnInterval": 4.0
       },
       "name": "SpawnArea_Basic_Demo_001",

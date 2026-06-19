@@ -61,6 +61,8 @@
     "actorLineWidth": 0.10000000149011612,
     "actorRadius": 5.400000095367432,
     "actorSpacing": 1.0,
+    "lineCoreIntensity": 1.35,
+    "lineSoftEdgeRatio": 0.42,
     "bossEnemyColor": {
       "w": 1.0,
       "x": 1.0,
@@ -90,7 +92,22 @@
       "z": 1.0
     },
     "worldLineWidth": 0.07500000298023224,
-    "worldSpacing": 2.0
+    "worldSpacing": 2.0,
+    "triangleRotateSpeed": 0.75,
+    "triangleRadius": 2.2,
+    "triangleLineWidth": 0.16,
+    "triangleCenter": {
+      "x": 30.0,
+      "y": 30.0,
+      "z": 1.2
+    },
+    "triangleColor": {
+      "x": 0.15,
+      "y": 0.95,
+      "z": 1.0,
+      "w": 1.0
+    },
+    "showTriangleDemo": true
   },
   "version": 1
 }
