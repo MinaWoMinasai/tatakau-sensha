@@ -107,13 +107,13 @@ private:
 		float playerStaminaRecovery = 1.0f;
 		float playerMaxStamina = 3.0f;
 		int playerBodyDamage = 3;
-		float playerHealthRegenUpgrade = 0.25f;
-		int maxHpUpgradeAmount = 80;
-		float playerBodyDamageUpgrade = 1.0f;
-		float playerBulletSpeedUpgrade = 0.04f;
-		float playerBulletDamageUpgrade = 1.0f;
-		float playerReloadUpgrade = 1.0f;
-		float playerMoveSpeedUpgrade = 0.025f;
+		float playerHealthRegenUpgrade = 0.08f;
+		float maxHpUpgradeAmount = 0.10f;
+		float playerBodyDamageUpgrade = 0.10f;
+		float playerBulletSpeedUpgrade = 0.08f;
+		float playerBulletDamageUpgrade = 0.10f;
+		float playerReloadUpgrade = 0.07f;
+		float playerMoveSpeedUpgrade = 0.06f;
 		float playerMinReloadSpeed = 3.0f;
 		bool healToFull = false;
 		int damageBlock = 90;
@@ -279,6 +279,7 @@ private:
 	std::unique_ptr<TextLabel> dashGuideText_;
 	std::unique_ptr<TextLabel> moveGuideText_;
 	std::unique_ptr<TextLabel> titleGuideText_;
+	std::unique_ptr<TextLabel> controlGuideText_;
 	std::unique_ptr<TextLabel> fpsText_;
 	std::unique_ptr<TextLabel> postProfileText_;
 	std::vector<FollowHpBar> followHpBars_;
@@ -294,6 +295,7 @@ private:
 	TransformationMatrix* hpBarTransformData_ = nullptr;
 	size_t followHpBarIndex_ = 0;
 	bool showFollowHpBars_ = true;
+	bool showControlGuide_ = true;
 
 	// カメラ合わせフラグ
 	bool cameraFollow_ = true;
