@@ -156,7 +156,8 @@ private:
 	void DrawHpBarBatch(uint32_t startVertex, uint32_t vertexCount, const std::string& textureFilePath, const HpBarMaterialBuffer& material);
 	void DrawHpBarBatches();
 	Vector2 WorldToScreen(const Vector3& worldPos) const;
-	void DrawNeonGridPass();
+	void DrawNeonGridPass(bool includeStageBlockOutlines = true);
+	void DrawStageBlockNeonPass();
 	void QueueStageBlockNeonOutlines();
 	void DrawExpEnemyNeonFillModels();
 	void DrawExpEnemyNeonDepthLines();
@@ -370,6 +371,7 @@ private:
 	Vector4 enemyGridColor_ = { 1.0f, 0.18f, 0.24f, 1.0f };
 	Vector4 expEnemyGridColor_ = { 1.0f, 0.32f, 0.58f, 1.0f };
 	bool showStageBlockNeonOutlines_ = true;
+	bool showStageNormalBlockBodies_ = true;
 	float stageBlockNeonLineWidth_ = 0.10f;
 	Vector4 stageBlockNeonColor_ = { 0.55f, 1.0f, 0.32f, 1.0f };
 	bool cullActorLocalGrid_ = true;

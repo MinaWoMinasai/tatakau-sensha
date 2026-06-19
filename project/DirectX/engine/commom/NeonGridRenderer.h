@@ -38,6 +38,8 @@ public:
     void QueueLocalGrid(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color);
     void QueueLocalGridClipped(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color, float minX, float maxX, float minY, float maxY);
     void DrawAll(const Matrix4x4& viewProjection);
+    void DrawRange(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection);
+    uint32_t GetVertexCount() const { return vertexCount_; }
 
 private:
     void AddLineQuad(const Vector3& a, const Vector3& b, float width, const Vector4& color);
