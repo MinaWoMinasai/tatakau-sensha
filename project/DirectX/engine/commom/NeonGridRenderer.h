@@ -13,10 +13,20 @@ public:
     void BeginFrame();
     void SetLineStyle(float softEdgeRatio, float coreIntensity);
     void QueueLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color);
+    void QueueCameraFacingLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color, const Vector3& cameraForward);
     void QueueTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color);
     void QueueBillboardTriangle(
         const Vector3& center,
         float radius,
+        float rotationRad,
+        float lineWidth,
+        const Vector4& color,
+        const Vector3& cameraRight,
+        const Vector3& cameraUp,
+        const Vector3& cameraForward);
+    void QueueBillboardRectangle(
+        const Vector3& center,
+        const Vector2& size,
         float rotationRad,
         float lineWidth,
         const Vector4& color,

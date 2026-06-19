@@ -21,6 +21,8 @@ Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
 ExpEnemy::BalanceConfig ExpEnemy::balanceConfig_{};
 ExpEnemy::EnemyInteractionConfig ExpEnemy::enemyInteractionConfig_{};
 std::function<void(uint32_t)> ExpEnemy::enemyKillCallback_{};
+bool ExpEnemy::shapeNeonBillboardEnabled_ = false;
+int ExpEnemy::shapeNeonRenderMode_ = 0;
 
 void ExpEnemy::SetBalanceConfig(const BalanceConfig& config)
 {
@@ -37,6 +39,26 @@ void ExpEnemy::SetEnemyInteractionConfig(const EnemyInteractionConfig& config)
 void ExpEnemy::SetEnemyKillCallback(std::function<void(uint32_t)> callback)
 {
     enemyKillCallback_ = std::move(callback);
+}
+
+void ExpEnemy::SetShapeNeonBillboardEnabled(bool enabled)
+{
+    shapeNeonBillboardEnabled_ = enabled;
+    shapeNeonRenderMode_ = enabled ? 1 : 0;
+}
+
+void ExpEnemy::SetShapeNeonRenderMode(int mode)
+{
+    shapeNeonRenderMode_ = (std::clamp)(mode, 0, 3);
+    shapeNeonBillboardEnabled_ = shapeNeonRenderMode_ != 0;
+}
+
+bool ExpEnemy::IsShapeNeonBillboardTarget() const
+{
+    return type_ == ExpEnemyType::Square ||
+        type_ == ExpEnemyType::Triangle ||
+        type_ == ExpEnemyType::Pentagon ||
+        type_ == ExpEnemyType::Shooter;
 }
 
 void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType type)
@@ -105,6 +127,7 @@ void ExpEnemy::ApplyTypeParams()
         break;
     }
     object_->SetColor(baseColor_);
+    visualColor_ = baseColor_;
     maxHp_ = hp_;
     SetDamage(type_ == ExpEnemyType::Shooter ? balanceConfig_.shooterContactDamage : balanceConfig_.contactDamage);
 }
@@ -184,7 +207,29 @@ void ExpEnemy::Draw(bool drawBody) {
 }
 
 void ExpEnemy::DrawBodyOnly() {
+    if (shapeNeonRenderMode_ != 0 && IsShapeNeonRenderTarget()) {
+        return;
+    }
     object_->Draw();
+}
+
+void ExpEnemy::DrawNeonFillBodyOnly() {
+    if (shapeNeonRenderMode_ != 3 || !IsShapeNeonRenderTarget()) {
+        return;
+    }
+
+    const Vector4 savedColor = object_->GetColor();
+    const bool savedLighting = object_->IsLightingEnabled();
+    const float savedEnvironmentCoefficient = object_->GetEnvironmentCoefficient();
+
+    object_->SetLighting(false);
+    object_->SetEnvironmentCoefficient(0.0f);
+    object_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
+    object_->Draw();
+
+    object_->SetColor(savedColor);
+    object_->SetLighting(savedLighting);
+    object_->SetEnvironmentCoefficient(savedEnvironmentCoefficient);
 }
 
 void ExpEnemy::OnCollision(Collider* other)
@@ -273,7 +318,8 @@ void ExpEnemy::ApplyDamageFeedback(float deltaTime)
     const float flash = t * t;
     const float pulse = std::sin(t * 3.14159265f) * 0.16f;
     worldTransform_.scale = baseScale_ * (1.0f + pulse);
-    object_->SetColor(LerpColor(baseColor_, { 1.0f, 1.0f, 1.0f, baseColor_.w }, flash * 0.9f));
+    visualColor_ = LerpColor(baseColor_, { 1.0f, 1.0f, 1.0f, baseColor_.w }, flash * 0.9f);
+    object_->SetColor(visualColor_);
 }
 
 AABB ExpEnemy::GetAABB() {

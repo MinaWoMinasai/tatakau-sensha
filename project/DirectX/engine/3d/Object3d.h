@@ -46,6 +46,9 @@ public:
 	void SetLighting(bool enable) {
 		materialData_->enableLighting = enable;
 	}
+	bool IsLightingEnabled() const {
+		return materialData_->enableLighting != 0;
+	}
 	void SetDirectionalLightDirection(const Vector3& direction) {
 		directionalLightData->direction = Normalize(direction);
 	}
@@ -78,6 +81,7 @@ public:
 
 	void SetEnvironmentMap(uint32_t srvIndex) { environmentMapIndex_ = srvIndex; }
 	void SetEnvironmentCoefficient(float coefficient) { materialData_->environmentCoefficient = coefficient; }
+	float GetEnvironmentCoefficient() const { return materialData_->environmentCoefficient; }
 
 private:
 
