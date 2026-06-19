@@ -965,7 +965,7 @@ void GameScene::DrawPostEffect3D() {
 	if (showStageBlockNeonOutlines_) {
 		if (useGridPost) {
 			profile("Stage Block Neon", true, [&]() {
-				neonGridPostEffect_->BeginCapture();
+				neonGridPostEffect_->BeginCaptureWithCurrentDepth();
 				DrawStageBlockNeonPass();
 				neonGridPostEffect_->EndCaptureAdditiveOnly();
 				Object3dCommon::GetInstance()->PreDraw(kNormal);
@@ -1204,10 +1204,18 @@ void GameScene::QueueStageBlockNeonOutlines() {
 			auto localToWorld = [&](const Vector3& local) {
 				return TransformMatrix(local, transform);
 			};
-			auto queueLocalLine = [&](const Vector3& start, const Vector3& end) {
+			auto queueLocalLine = [&](const Vector3& start, const Vector3& end, const Vector3& localNormal) {
+				Vector3 worldStart = localToWorld(start);
+				Vector3 worldEnd = localToWorld(end);
+				Vector3 worldNormal = localToWorld(localNormal) - localToWorld({ 0.0f, 0.0f, 0.0f });
+				if (Length(worldNormal) > 0.0001f && stageBlockNeonDepthBias_ > 0.0f) {
+					worldNormal = Normalize(worldNormal);
+					worldStart = worldStart + worldNormal * stageBlockNeonDepthBias_;
+					worldEnd = worldEnd + worldNormal * stageBlockNeonDepthBias_;
+				}
 				neonGridRenderer_->QueueCameraFacingLine(
-					localToWorld(start),
-					localToWorld(end),
+					worldStart,
+					worldEnd,
 					stageBlockNeonLineWidth_,
 					stageBlockNeonColor_,
 					cameraForward);
@@ -1215,7 +1223,14 @@ void GameScene::QueueStageBlockNeonOutlines() {
 			auto shouldDrawFace = [&](const Vector3& localCenter, const Vector3& localNormal) {
 				const Vector3 worldCenter = localToWorld(localCenter);
 				const Vector3 worldNormal = localToWorld(localCenter + localNormal) - worldCenter;
-				return Dot(worldNormal, cameraPos - worldCenter) > 0.0f;
+				const Vector3 toCamera = cameraPos - worldCenter;
+				const float normalLength = Length(worldNormal);
+				const float toCameraLength = Length(toCamera);
+				if (normalLength <= 0.0001f || toCameraLength <= 0.0001f) {
+					return true;
+				}
+				const float facingDot = Dot(worldNormal / normalLength, toCamera / toCameraLength);
+				return facingDot >= -0.08f;
 			};
 			auto localCoord = [](int index, int divisions) {
 				return -1.0f + 2.0f * (static_cast<float>(index) / static_cast<float>(divisions));
@@ -1226,44 +1241,47 @@ void GameScene::QueueStageBlockNeonOutlines() {
 			const int divZ = divisionCount(block.worldTransform.scale.z);
 
 			for (float z : { -1.0f, 1.0f }) {
+				const Vector3 faceNormal = { 0.0f, 0.0f, z };
 				if (!shouldDrawFace({ 0.0f, 0.0f, z }, { 0.0f, 0.0f, z })) {
 					continue;
 				}
 				for (int i = 0; i <= divX; ++i) {
 					const float x = localCoord(i, divX);
-					queueLocalLine({ x, -1.0f, z }, { x, 1.0f, z });
+					queueLocalLine({ x, -1.0f, z }, { x, 1.0f, z }, faceNormal);
 				}
 				for (int i = 0; i <= divY; ++i) {
 					const float y = localCoord(i, divY);
-					queueLocalLine({ -1.0f, y, z }, { 1.0f, y, z });
+					queueLocalLine({ -1.0f, y, z }, { 1.0f, y, z }, faceNormal);
 				}
 			}
 
 			for (float y : { -1.0f, 1.0f }) {
+				const Vector3 faceNormal = { 0.0f, y, 0.0f };
 				if (!shouldDrawFace({ 0.0f, y, 0.0f }, { 0.0f, y, 0.0f })) {
 					continue;
 				}
 				for (int i = 0; i <= divX; ++i) {
 					const float x = localCoord(i, divX);
-					queueLocalLine({ x, y, -1.0f }, { x, y, 1.0f });
+					queueLocalLine({ x, y, -1.0f }, { x, y, 1.0f }, faceNormal);
 				}
 				for (int i = 0; i <= divZ; ++i) {
 					const float z = localCoord(i, divZ);
-					queueLocalLine({ -1.0f, y, z }, { 1.0f, y, z });
+					queueLocalLine({ -1.0f, y, z }, { 1.0f, y, z }, faceNormal);
 				}
 			}
 
 			for (float x : { -1.0f, 1.0f }) {
+				const Vector3 faceNormal = { x, 0.0f, 0.0f };
 				if (!shouldDrawFace({ x, 0.0f, 0.0f }, { x, 0.0f, 0.0f })) {
 					continue;
 				}
 				for (int i = 0; i <= divY; ++i) {
 					const float y = localCoord(i, divY);
-					queueLocalLine({ x, y, -1.0f }, { x, y, 1.0f });
+					queueLocalLine({ x, y, -1.0f }, { x, y, 1.0f }, faceNormal);
 				}
 				for (int i = 0; i <= divZ; ++i) {
 					const float z = localCoord(i, divZ);
-					queueLocalLine({ x, -1.0f, z }, { x, 1.0f, z });
+					queueLocalLine({ x, -1.0f, z }, { x, 1.0f, z }, faceNormal);
 				}
 			}
 		}
@@ -2200,6 +2218,7 @@ nlohmann::json GameScene::BuildGameVisualConfig() const
 		{ "showStageBlockNeonOutlines", showStageBlockNeonOutlines_ },
 		{ "showStageNormalBlockBodies", showStageNormalBlockBodies_ },
 		{ "stageBlockNeonLineWidth", stageBlockNeonLineWidth_ },
+		{ "stageBlockNeonDepthBias", stageBlockNeonDepthBias_ },
 		{ "stageBlockNeonColor", WriteJsonVector4(stageBlockNeonColor_) },
 		{ "cullActorLocalGrid", cullActorLocalGrid_ },
 		{ "maxExpEnemyLocalGrids", maxExpEnemyLocalGrids_ },
@@ -2245,6 +2264,7 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 		showStageBlockNeonOutlines_ = ReadCustomBool(gridJson, "showStageBlockNeonOutlines", showStageBlockNeonOutlines_);
 		showStageNormalBlockBodies_ = ReadCustomBool(gridJson, "showStageNormalBlockBodies", showStageNormalBlockBodies_);
 		stageBlockNeonLineWidth_ = ReadCustomFloat(gridJson, "stageBlockNeonLineWidth", stageBlockNeonLineWidth_);
+		stageBlockNeonDepthBias_ = ReadCustomFloat(gridJson, "stageBlockNeonDepthBias", stageBlockNeonDepthBias_);
 		if (gridJson.contains("stageBlockNeonColor")) stageBlockNeonColor_ = ReadJsonVector4(gridJson["stageBlockNeonColor"], stageBlockNeonColor_);
 		cullActorLocalGrid_ = ReadCustomBool(gridJson, "cullActorLocalGrid", cullActorLocalGrid_);
 		maxExpEnemyLocalGrids_ = ReadCustomInt(gridJson, "maxExpEnemyLocalGrids", maxExpEnemyLocalGrids_);
@@ -2412,6 +2432,7 @@ void GameScene::DrawGameSceneDebugImGui()
 				ImGui::Checkbox("通常ブロックに3Dネオン枠線", &showStageBlockNeonOutlines_);
 				ImGui::Checkbox("通常ブロック本体を表示", &showStageNormalBlockBodies_);
 				ImGui::DragFloat("通常ブロック枠線幅", &stageBlockNeonLineWidth_, 0.005f, 0.005f, 0.5f);
+				ImGui::DragFloat("通常ブロック枠線の深度オフセット", &stageBlockNeonDepthBias_, 0.001f, 0.0f, 0.2f);
 				ImGui::ColorEdit4("通常ブロック枠線色", &stageBlockNeonColor_.x);
 				ImGui::SeparatorText("経験値敵ネオン表示");
 				const char* expEnemyNeonModes[] = { "3Dモデル", "ビルボード枠線", "3D枠線", "黒塗り+3D枠線" };

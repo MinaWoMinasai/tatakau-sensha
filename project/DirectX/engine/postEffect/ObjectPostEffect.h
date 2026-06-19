@@ -11,6 +11,7 @@ public:
     void Update(float deltaTime = 1.0f / 60.0f);
 
     void BeginCapture();
+    void BeginCaptureWithCurrentDepth();
     void EndCapture();
     void EndCaptureAdditiveOnly();
     void EndCaptureBloomOnly();

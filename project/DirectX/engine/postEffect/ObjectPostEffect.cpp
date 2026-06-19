@@ -81,6 +81,22 @@ void ObjectPostEffect::BeginCapture() {
     dxCommon_->SetViewport(renderWidth_, renderHeight_);
 }
 
+void ObjectPostEffect::BeginCaptureWithCurrentDepth() {
+    restoreRtvHandle_ = dxCommon_->GetCurrentRTVHandle();
+    restoreDsvHandle_ = dxCommon_->GetCurrentDSVHandle();
+    restoreHasDsv_ = dxCommon_->HasCurrentDSV();
+
+    Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    if (restoreHasDsv_ && renderWidth_ == WinApp::kClientWidth && renderHeight_ == WinApp::kClientHeight) {
+        dxCommon_->SetRenderTarget(objectRT_->GetRTVHandle(), restoreDsvHandle_);
+    } else {
+        dxCommon_->SetRenderTargetNoDepth(objectRT_->GetRTVHandle());
+    }
+    ClearTransparent(objectRT_->GetRTVHandle());
+    dxCommon_->SetViewport(renderWidth_, renderHeight_);
+}
+
 void ObjectPostEffect::EndCapture() {
     FinishCapture(FinishMode::CompositeAndAdd);
 }

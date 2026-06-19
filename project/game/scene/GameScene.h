@@ -373,6 +373,7 @@ private:
 	bool showStageBlockNeonOutlines_ = true;
 	bool showStageNormalBlockBodies_ = true;
 	float stageBlockNeonLineWidth_ = 0.10f;
+	float stageBlockNeonDepthBias_ = 0.035f;
 	Vector4 stageBlockNeonColor_ = { 0.55f, 1.0f, 0.32f, 1.0f };
 	bool cullActorLocalGrid_ = true;
 	int maxExpEnemyLocalGrids_ = 18;
