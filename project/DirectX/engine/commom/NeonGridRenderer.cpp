@@ -293,7 +293,10 @@ void NeonGridRenderer::AddCameraFacingLineQuad(const Vector3& a, const Vector3& 
 
     Vector3 normal = Cross(forward, dir);
     if (Length(normal) <= 0.0001f) {
-        normal = { -dir.y, dir.x, 0.0f };
+        normal = Cross({ 0.0f, 1.0f, 0.0f }, dir);
+        if (Length(normal) <= 0.0001f) {
+            normal = Cross({ 1.0f, 0.0f, 0.0f }, dir);
+        }
     } else {
         normal = Normalize(normal);
     }

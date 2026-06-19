@@ -89,17 +89,18 @@
       "y": 1.0,
       "z": 0.3499999940395355
     },
-    "showActorLocalGrid": true,
+    "showActorLocalGrid": false,
     "showStageBlockNeonOutlines": true,
     "showStageNormalBlockBodies": true,
     "showTriangleDemo": true,
     "showWorldGrid": true,
     "stageBlockNeonColor": {
       "w": 1.0,
-      "x": 0.550000011920929,
+      "x": 0.007722020149230957,
       "y": 1.0,
-      "z": 0.3199999928474426
+      "z": 0.023046791553497314
     },
+    "stageBlockNeonDepthBias": 0.03500000014901161,
     "stageBlockNeonLineWidth": 0.10000000149011612,
     "triangleCenter": {
       "x": 30.0,
