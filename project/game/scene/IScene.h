@@ -4,10 +4,26 @@
 class IScene {
 public:
     struct RenderProfile {
+		float frameTotalMs = 0.0f;
+		float messagePumpMs = 0.0f;
+		float inputImGuiBeginMs = 0.0f;
+		float engineUpdateMs = 0.0f;
+		float sceneUpdateMs = 0.0f;
+		float imguiBuildMs = 0.0f;
+		float drawSetupMs = 0.0f;
+		float drawRecordMs = 0.0f;
         float scenePostMs = 0.0f;
         float globalBloomMs = 0.0f;
         float afterPostMs = 0.0f;
         float spriteMs = 0.0f;
+		float imguiDrawMs = 0.0f;
+		float postDrawMs = 0.0f;
+		float submitCloseMs = 0.0f;
+		float submitExecuteMs = 0.0f;
+		float presentMs = 0.0f;
+		float fenceWaitMs = 0.0f;
+		float fpsLimitMs = 0.0f;
+		float submitResetMs = 0.0f;
     };
 
     virtual ~IScene() = default;

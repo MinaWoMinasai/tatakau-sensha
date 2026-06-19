@@ -46,6 +46,15 @@ private:
 class DirectXCommon
 {
 public:
+	struct FrameSubmitProfile {
+		float closeMs = 0.0f;
+		float executeMs = 0.0f;
+		float presentMs = 0.0f;
+		float fenceWaitMs = 0.0f;
+		float fpsLimitMs = 0.0f;
+		float resetMs = 0.0f;
+		float totalMs = 0.0f;
+	};
 
 	enum ShaderType {
 		Object,
@@ -109,6 +118,8 @@ public:
 
 	void ExecuteCommandListAndWait();
 	void ResetFixFPS();
+	const FrameSubmitProfile& GetFrameSubmitProfile() const { return frameSubmitProfile_; }
+	bool IsGpuBasedValidationEnabled() const { return gpuBasedValidationEnabled_; }
 
 	/// <summary>
 	/// シェーダーをコンパイル
@@ -321,6 +332,8 @@ private:
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain_ = nullptr;
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc_{};
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence_ = nullptr;
+	FrameSubmitProfile frameSubmitProfile_{};
+	bool gpuBasedValidationEnabled_ = false;
 	HANDLE fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
 	uint64_t fenceValue_ = 0;
 

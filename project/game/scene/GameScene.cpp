@@ -1606,57 +1606,95 @@ void GameScene::DrawPerformanceBreakdownImGui()
 {
 #ifdef USE_IMGUI
 	const float fps = (std::max)(1.0f, ImGui::GetIO().Framerate);
-	const float frameMs = 1000.0f / fps;
+	const float frameMs = renderProfile_.frameTotalMs > 0.0f ? renderProfile_.frameTotalMs : 1000.0f / fps;
 	auto fpsGainIfRemoved = [frameMs, fps](float ms) -> float {
 		if (ms <= 0.0f || ms >= frameMs - 0.01f) {
 			return 0.0f;
 		}
 		return 1000.0f / (frameMs - ms) - fps;
 	};
+	const float measuredTopLevelMs =
+		renderProfile_.messagePumpMs + renderProfile_.inputImGuiBeginMs +
+		renderProfile_.engineUpdateMs + renderProfile_.sceneUpdateMs +
+		renderProfile_.imguiBuildMs + renderProfile_.drawSetupMs +
+		renderProfile_.drawRecordMs + renderProfile_.imguiDrawMs +
+		renderProfile_.postDrawMs;
+	const float unmeasuredMs = (std::max)(0.0f, frameMs - measuredTopLevelMs);
 
-	ImGui::Text("現在FPS %.2f / 1フレーム %.3fms", fps, frameMs);
-	ImGui::TextWrapped("FPS影響は「このmsが丸ごとフレーム時間から消えた場合」のCPU側概算です。D3D12のGPU待ちやPresent待ちは別途ずれることがあります。");
+	ImGui::Text("現在FPS %.2f / 計測フレーム %.3fms", fps, frameMs);
+	ImGui::Text("合計対象 %.3fms + 未計測 %.3fms = %.3fms (100.0%%)", measuredTopLevelMs, unmeasuredMs, frameMs);
+	const bool gpuValidationEnabled = Object3dCommon::GetInstance()->GetDxCommon()->IsGpuBasedValidationEnabled();
+	ImGui::TextColored(
+		gpuValidationEnabled ? ImVec4{ 1.0f, 0.45f, 0.30f, 1.0f } : ImVec4{ 0.45f, 1.0f, 0.65f, 1.0f },
+		"D3D12 GPU-Based Validation: %s", gpuValidationEnabled ? "ON (計測には非常に重い)" : "OFF");
+	ImGui::TextWrapped("[合計] 行だけで1フレームを分割します。[内訳] は親項目の詳細なので、合計には二重加算しません。Fence待ちはGPU処理完了待ちを含みます。");
 
-	if (ImGui::BeginTable("PerformanceBreakdownTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+	if (ImGui::BeginTable("PerformanceBreakdownTable", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+		ImGui::TableSetupColumn("区分");
 		ImGui::TableSetupColumn("項目");
 		ImGui::TableSetupColumn("状態");
-		ImGui::TableSetupColumn("平均ms");
+		ImGui::TableSetupColumn("直近ms");
 		ImGui::TableSetupColumn("FPS影響");
 		ImGui::TableSetupColumn("比率");
 		ImGui::TableHeadersRow();
 
-		auto row = [&](const char* name, bool active, float ms) {
+		auto row = [&](const char* kind, const char* name, const char* state, float ms) {
 			ImGui::TableNextRow();
 			ImGui::TableSetColumnIndex(0);
-			ImGui::TextUnformatted(name);
+			ImGui::TextUnformatted(kind);
 			ImGui::TableSetColumnIndex(1);
-			ImGui::TextUnformatted(active ? "ON" : "OFF");
+			ImGui::TextUnformatted(name);
 			ImGui::TableSetColumnIndex(2);
-			ImGui::Text("%.3f", ms);
+			ImGui::TextUnformatted(state);
 			ImGui::TableSetColumnIndex(3);
-			ImGui::Text("+%.2f fps", fpsGainIfRemoved(ms));
+			ImGui::Text("%.3f", ms);
 			ImGui::TableSetColumnIndex(4);
+			ImGui::Text("+%.2f fps", fpsGainIfRemoved(ms));
+			ImGui::TableSetColumnIndex(5);
 			ImGui::Text("%.1f%%", frameMs > 0.0f ? (ms / frameMs) * 100.0f : 0.0f);
 		};
+		auto totalRow = [&](const char* name, float ms) { row("合計", name, "ON", ms); };
+		auto detailRow = [&](const char* name, bool active, float ms) { row("内訳", name, active ? "ON" : "OFF", ms); };
 
-		row("Scene PostEffect3D", true, renderProfile_.scenePostMs);
-		row("Global Bloom/Post", true, renderProfile_.globalBloomMs);
-		row("After Object Post", renderProfile_.afterPostMs > 0.0f, renderProfile_.afterPostMs);
-		row("Sprite Pass", true, renderProfile_.spriteMs);
+		totalRow("Windows Message", renderProfile_.messagePumpMs);
+		totalRow("Input + ImGui Begin", renderProfile_.inputImGuiBeginMs);
+		totalRow("Engine Common Update", renderProfile_.engineUpdateMs);
+		totalRow("Scene Update / UI構築", renderProfile_.sceneUpdateMs);
+		totalRow("ImGui Build", renderProfile_.imguiBuildMs);
+		totalRow("Draw Setup", renderProfile_.drawSetupMs);
+		totalRow("Draw Command Record", renderProfile_.drawRecordMs);
+		totalRow("ImGui Draw Command", renderProfile_.imguiDrawMs);
+		totalRow("Submit / Present / Wait", renderProfile_.postDrawMs);
+		row("合計", "未計測・計測誤差", "-", unmeasuredMs);
+
+		detailRow("  Scene PostEffect3D", true, renderProfile_.scenePostMs);
+		detailRow("  Global Bloom/Post", true, renderProfile_.globalBloomMs);
+		detailRow("  After Object Post", renderProfile_.afterPostMs > 0.0f, renderProfile_.afterPostMs);
+		detailRow("  Sprite Pass", true, renderProfile_.spriteMs);
+		detailRow("  CommandList Close", true, renderProfile_.submitCloseMs);
+		detailRow("  ExecuteCommandLists", true, renderProfile_.submitExecuteMs);
+		detailRow("  Present", true, renderProfile_.presentMs);
+		detailRow("  GPU Fence Wait", true, renderProfile_.fenceWaitMs);
+		detailRow("  FPS固定待ち", renderProfile_.fpsLimitMs > 0.01f, renderProfile_.fpsLimitMs);
+		detailRow("  Allocator/List Reset", true, renderProfile_.submitResetMs);
 		for (size_t i = 0; i < postProfileEntryCount_; ++i) {
-			row(postProfileEntries_[i].name, postProfileEntries_[i].active, postProfileAverageMs_[i]);
+			detailRow(postProfileEntries_[i].name, postProfileEntries_[i].active, postProfileAverageMs_[i]);
 		}
 		if (player_) {
 			const auto& hud = player_->GetUpgradeHudProfileStats();
 			const auto& evo = player_->GetEvolutionUiProfileStats();
-			row("Upgrade HUD CPU", hud.visible, hud.totalMs);
-			row("  HUD Update", hud.visible, hud.updateMs);
-			row("  HUD Sprite", hud.visible, hud.spriteMs);
-			row("  HUD Text", hud.visible, hud.textMs);
-			row("Evolution UI CPU", evo.visible, evo.totalMs);
-			row("  Evolution Update", evo.visible, evo.updateMs);
-			row("  Evolution Sprite", evo.visible, evo.spriteMs);
-			row("  Evolution Text", evo.visible, evo.textMs);
+			char hudState[32]{};
+			std::snprintf(hudState, sizeof(hudState), "%s %d draws", hud.visible ? "ON" : "OFF", hud.spriteDraws + hud.textDraws);
+			row("内訳", "Upgrade HUD CPU", hudState, hud.totalMs);
+			detailRow("  HUD Update", hud.visible, hud.updateMs);
+			detailRow("  HUD Sprite", hud.visible, hud.spriteMs);
+			detailRow("  HUD Text", hud.visible, hud.textMs);
+			char evoState[32]{};
+			std::snprintf(evoState, sizeof(evoState), "%s %d draws", evo.visible ? "ON" : "OFF", evo.spriteDraws + evo.textDraws);
+			row("内訳", "Evolution UI CPU", evoState, evo.totalMs);
+			detailRow("  Evolution Update", evo.visible, evo.updateMs);
+			detailRow("  Evolution Sprite", evo.visible, evo.spriteMs);
+			detailRow("  Evolution Text", evo.visible, evo.textMs);
 		}
 		ImGui::EndTable();
 	}
