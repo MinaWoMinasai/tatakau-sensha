@@ -61,8 +61,6 @@
     "actorLineWidth": 0.10000000149011612,
     "actorRadius": 5.400000095367432,
     "actorSpacing": 1.0,
-    "lineCoreIntensity": 1.35,
-    "lineSoftEdgeRatio": 0.42,
     "bossEnemyColor": {
       "w": 1.0,
       "x": 1.0,
@@ -76,6 +74,14 @@
       "y": 0.3199999928474426,
       "z": 0.5799999833106995
     },
+    "expEnemyNeonLineWidth": 0.11999999731779099,
+    "expEnemyNeonPentagonRadius": 1.0499999523162842,
+    "expEnemyNeonRenderMode": 1,
+    "expEnemyNeonShooterRadius": 0.949999988079071,
+    "expEnemyNeonSquareSize": 1.7999999523162842,
+    "expEnemyNeonTriangleRadius": 1.0499999523162842,
+    "lineCoreIntensity": 1.350000023841858,
+    "lineSoftEdgeRatio": 0.41999998688697815,
     "maxExpEnemyLocalGrids": 18,
     "playerColor": {
       "w": 1.0,
@@ -84,7 +90,30 @@
       "z": 0.3499999940395355
     },
     "showActorLocalGrid": true,
+    "showStageBlockNeonOutlines": true,
+    "showTriangleDemo": true,
     "showWorldGrid": true,
+    "stageBlockNeonColor": {
+      "w": 1.0,
+      "x": 0.550000011920929,
+      "y": 1.0,
+      "z": 0.3199999928474426
+    },
+    "stageBlockNeonLineWidth": 0.10000000149011612,
+    "triangleCenter": {
+      "x": 30.0,
+      "y": 30.0,
+      "z": 1.2000000476837158
+    },
+    "triangleColor": {
+      "w": 1.0,
+      "x": 0.15000000596046448,
+      "y": 0.949999988079071,
+      "z": 1.0
+    },
+    "triangleLineWidth": 0.1599999964237213,
+    "triangleRadius": 2.200000047683716,
+    "triangleRotateSpeed": 0.75,
     "worldColor": {
       "w": 0.15000000596046448,
       "x": 0.11999999731779099,
@@ -92,22 +121,7 @@
       "z": 1.0
     },
     "worldLineWidth": 0.07500000298023224,
-    "worldSpacing": 2.0,
-    "triangleRotateSpeed": 0.75,
-    "triangleRadius": 2.2,
-    "triangleLineWidth": 0.16,
-    "triangleCenter": {
-      "x": 30.0,
-      "y": 30.0,
-      "z": 1.2
-    },
-    "triangleColor": {
-      "x": 0.15,
-      "y": 0.95,
-      "z": 1.0,
-      "w": 1.0
-    },
-    "showTriangleDemo": true
+    "worldSpacing": 2.0
   },
   "version": 1
 }

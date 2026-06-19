@@ -1,109 +1,257 @@
 {
-  "version": 1,
-  "player": {
-    "enabled": true,
-    "param": {
-      "threshold": 0.0,
-      "intensity": 1.0,
-      "outlineWidth": 0.0,
-      "outlineThreshold": 0.0,
-      "outlineColor": {
-        "x": 0.12,
-        "y": 1.0,
-        "z": 0.32
-      },
-      "outlineBloomIntensity": 0.27,
-      "outlineBloomWidth": 2.7
-    }
-  },
   "bossEnemy": {
     "enabled": true,
     "param": {
-      "threshold": 0.0,
-      "intensity": 1.2,
-      "outlineWidth": 0.0,
-      "outlineThreshold": 0.0,
+      "borderSharp": 0.0,
+      "boxBlurIntensity": 0.0,
+      "boxBlurRadius": 0.0,
+      "chromAbAmount": 0.0,
+      "curvature": 0.0,
+      "depthFarClip": 0.0,
+      "depthNearClip": 0.0,
+      "depthOutlineEnabled": 0.0,
+      "depthOutlineScale": 0.0,
+      "dissolveThreshold": 0.0,
+      "distortionAmount": 0.0,
+      "fullScreenBoxBlurBlend": 0.0,
+      "gaussianIntensity": 0.0,
+      "glitchAmount": 0.0,
+      "intensity": 1.2000000476837158,
+      "noiseIntensity": 0.0,
+      "outlineBloomIntensity": 0.27000001072883606,
+      "outlineBloomWidth": 2.700000047683716,
       "outlineColor": {
         "x": 1.0,
-        "y": 0.2,
-        "z": 0.1
+        "y": 0.20000000298023224,
+        "z": 0.10000000149011612
       },
-      "outlineBloomIntensity": 0.27,
-      "outlineBloomWidth": 2.7
-    }
-  },
-  "expEnemy": {
-    "enabled": true,
-    "param": {
-      "threshold": 0.0,
-      "intensity": 1.0,
-      "outlineWidth": 0.0,
       "outlineThreshold": 0.0,
-      "outlineColor": {
-        "x": 0.9,
-        "y": 0.15,
-        "z": 0.98
-      },
-      "outlineBloomIntensity": 0.27,
-      "outlineBloomWidth": 2.7
-    }
-  },
-  "stage": {
-    "enabled": false,
-    "param": {
-      "threshold": 0.0,
-      "intensity": 0.75,
       "outlineWidth": 0.0,
-      "outlineThreshold": 0.0,
-      "outlineColor": {
-        "x": 1.0,
-        "y": 0.55,
-        "z": 0.58
-      },
-      "outlineBloomIntensity": 0.0,
-      "outlineBloomWidth": 0.0
-    }
-  },
-  "grid": {
-    "enabled": true,
-    "param": {
+      "scanlineFrequency": 100.0,
+      "scanlineIntensity": 0.0,
       "threshold": 0.0,
-      "intensity": 1.5,
-      "outlineWidth": 0.0,
-      "outlineThreshold": 0.0,
-      "outlineBloomIntensity": 0.0,
-      "outlineBloomWidth": 0.0
+      "vignetteIntensity": 0.0,
+      "vignetteScale": 0.0
     }
   },
   "bulletTrail": {
     "enabled": true,
     "param": {
-      "threshold": 0.0,
+      "borderSharp": 0.0,
+      "boxBlurIntensity": 0.0,
+      "boxBlurRadius": 0.0,
+      "chromAbAmount": 0.0,
+      "curvature": 0.0,
+      "depthFarClip": 0.0,
+      "depthNearClip": 0.0,
+      "depthOutlineEnabled": 0.0,
+      "depthOutlineScale": 0.0,
+      "dissolveThreshold": 0.0,
+      "distortionAmount": 0.0,
+      "fullScreenBoxBlurBlend": 0.0,
+      "gaussianIntensity": 0.0,
+      "glitchAmount": 0.0,
       "intensity": 2.0,
-      "outlineWidth": 0.0,
-      "outlineThreshold": 0.0,
+      "noiseIntensity": 0.0,
       "outlineBloomIntensity": 0.0,
-      "outlineBloomWidth": 0.0
+      "outlineBloomWidth": 0.0,
+      "outlineColor": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "outlineThreshold": 0.0,
+      "outlineWidth": 0.0,
+      "scanlineFrequency": 100.0,
+      "scanlineIntensity": 0.0,
+      "threshold": 0.0,
+      "vignetteIntensity": 0.0,
+      "vignetteScale": 0.0
+    }
+  },
+  "expEnemy": {
+    "enabled": true,
+    "param": {
+      "borderSharp": 0.0,
+      "boxBlurIntensity": 0.0,
+      "boxBlurRadius": 0.0,
+      "chromAbAmount": 0.0,
+      "curvature": 0.0,
+      "depthFarClip": 0.0,
+      "depthNearClip": 0.0,
+      "depthOutlineEnabled": 0.0,
+      "depthOutlineScale": 0.0,
+      "dissolveThreshold": 0.0,
+      "distortionAmount": 0.0,
+      "fullScreenBoxBlurBlend": 0.0,
+      "gaussianIntensity": 0.0,
+      "glitchAmount": 0.0,
+      "intensity": 1.0,
+      "noiseIntensity": 0.0,
+      "outlineBloomIntensity": 0.27000001072883606,
+      "outlineBloomWidth": 2.700000047683716,
+      "outlineColor": {
+        "x": 0.8999999761581421,
+        "y": 0.15000000596046448,
+        "z": 0.9800000190734863
+      },
+      "outlineThreshold": 0.0,
+      "outlineWidth": 0.0,
+      "scanlineFrequency": 100.0,
+      "scanlineIntensity": 0.0,
+      "threshold": 0.0,
+      "vignetteIntensity": 0.0,
+      "vignetteScale": 0.0
+    }
+  },
+  "expEnemyPostCull": {
+    "halfHeight": 10.0,
+    "halfWidth": 20.0
+  },
+  "grid": {
+    "enabled": true,
+    "param": {
+      "borderSharp": 0.0,
+      "boxBlurIntensity": 0.0,
+      "boxBlurRadius": 0.0,
+      "chromAbAmount": 0.0,
+      "curvature": 0.0,
+      "depthFarClip": 0.0,
+      "depthNearClip": 0.0,
+      "depthOutlineEnabled": 0.0,
+      "depthOutlineScale": 0.0,
+      "dissolveThreshold": 0.0,
+      "distortionAmount": 0.0,
+      "fullScreenBoxBlurBlend": 0.0,
+      "gaussianIntensity": 0.0,
+      "glitchAmount": 0.0,
+      "intensity": 1.0,
+      "noiseIntensity": 0.0,
+      "outlineBloomIntensity": 0.0,
+      "outlineBloomWidth": 0.0,
+      "outlineColor": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "outlineThreshold": 0.0,
+      "outlineWidth": 0.0,
+      "scanlineFrequency": 100.0,
+      "scanlineIntensity": 0.0,
+      "threshold": 0.0,
+      "vignetteIntensity": 0.0,
+      "vignetteScale": 0.0
+    }
+  },
+  "player": {
+    "enabled": true,
+    "param": {
+      "borderSharp": 0.0,
+      "boxBlurIntensity": 0.0,
+      "boxBlurRadius": 0.0,
+      "chromAbAmount": 0.0,
+      "curvature": 0.0,
+      "depthFarClip": 0.0,
+      "depthNearClip": 0.0,
+      "depthOutlineEnabled": 0.0,
+      "depthOutlineScale": 0.0,
+      "dissolveThreshold": 0.0,
+      "distortionAmount": 0.0,
+      "fullScreenBoxBlurBlend": 0.0,
+      "gaussianIntensity": 0.0,
+      "glitchAmount": 0.0,
+      "intensity": 1.0,
+      "noiseIntensity": 0.0,
+      "outlineBloomIntensity": 0.27000001072883606,
+      "outlineBloomWidth": 2.700000047683716,
+      "outlineColor": {
+        "x": 0.11999999731779099,
+        "y": 1.0,
+        "z": 0.3199999928474426
+      },
+      "outlineThreshold": 0.0,
+      "outlineWidth": 0.0,
+      "scanlineFrequency": 100.0,
+      "scanlineIntensity": 0.0,
+      "threshold": 0.0,
+      "vignetteIntensity": 0.0,
+      "vignetteScale": 0.0
     }
   },
   "sharedObjectBloom": {
     "param": {
-      "threshold": 0.0,
-      "intensity": 1.15,
-      "outlineWidth": 0.0,
-      "outlineThreshold": 0.0,
+      "borderSharp": 0.0,
+      "boxBlurIntensity": 0.0,
+      "boxBlurRadius": 0.0,
+      "chromAbAmount": 0.0,
+      "curvature": 0.0,
+      "depthFarClip": 0.0,
+      "depthNearClip": 0.0,
+      "depthOutlineEnabled": 0.0,
+      "depthOutlineScale": 0.0,
+      "dissolveThreshold": 0.0,
+      "distortionAmount": 0.0,
+      "fullScreenBoxBlurBlend": 0.0,
+      "gaussianIntensity": 0.0,
+      "glitchAmount": 0.0,
+      "intensity": 1.149999976158142,
+      "noiseIntensity": 0.0,
       "outlineBloomIntensity": 0.0,
-      "outlineBloomWidth": 0.0
+      "outlineBloomWidth": 0.0,
+      "outlineColor": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "outlineThreshold": 0.0,
+      "outlineWidth": 0.0,
+      "scanlineFrequency": 100.0,
+      "scanlineIntensity": 0.0,
+      "threshold": 0.0,
+      "vignetteIntensity": 0.0,
+      "vignetteScale": 0.0
     }
   },
-  "expEnemyPostCull": {
-    "halfWidth": 20.0,
-    "halfHeight": 10.0
-  },
   "slowMotionPlayerPost": {
-    "keepPlayerColor": true,
-    "chromAbAmount": 0.035,
-    "distortionAmount": 0.018,
-    "glitchAmount": 0.015
-  }
+    "chromAbAmount": 0.03500000014901161,
+    "distortionAmount": 0.017999999225139618,
+    "glitchAmount": 0.014999999664723873,
+    "keepPlayerColor": true
+  },
+  "stage": {
+    "enabled": false,
+    "param": {
+      "borderSharp": 0.0,
+      "boxBlurIntensity": 0.0,
+      "boxBlurRadius": 0.0,
+      "chromAbAmount": 0.0,
+      "curvature": 0.0,
+      "depthFarClip": 0.0,
+      "depthNearClip": 0.0,
+      "depthOutlineEnabled": 0.0,
+      "depthOutlineScale": 0.0,
+      "dissolveThreshold": 0.0,
+      "distortionAmount": 0.0,
+      "fullScreenBoxBlurBlend": 0.0,
+      "gaussianIntensity": 0.0,
+      "glitchAmount": 0.0,
+      "intensity": 0.75,
+      "noiseIntensity": 0.0,
+      "outlineBloomIntensity": 0.0,
+      "outlineBloomWidth": 0.0,
+      "outlineColor": {
+        "x": 1.0,
+        "y": 0.550000011920929,
+        "z": 0.5799999833106995
+      },
+      "outlineThreshold": 0.0,
+      "outlineWidth": 0.0,
+      "scanlineFrequency": 100.0,
+      "scanlineIntensity": 0.0,
+      "threshold": 0.0,
+      "vignetteIntensity": 0.0,
+      "vignetteScale": 0.0
+    }
+  },
+  "version": 1
 }

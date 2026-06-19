@@ -326,6 +326,7 @@ GameScene::GameScene() {}
 GameScene::~GameScene()
 {
 	ExpEnemy::SetEnemyKillCallback(nullptr);
+	ExpEnemy::SetShapeNeonRenderMode(0);
 }
 
 void GameScene::Initialize() {
@@ -687,6 +688,7 @@ void GameScene::Update() {
 	}
 
 	neonTriangleDemoRotation_ += neonTriangleDemoRotateSpeed_ * baseDeltaTime;
+	ExpEnemy::SetShapeNeonRenderMode(expEnemyNeonRenderMode_);
 
 	{
 		const auto now = std::chrono::steady_clock::now();
@@ -908,6 +910,7 @@ void GameScene::Draw() {
 void GameScene::DrawPostEffect3D() {
 
 	ResetPostProfileEntries();
+	ExpEnemy::SetShapeNeonRenderMode(expEnemyNeonRenderMode_);
 	if (skybox_) {
 		//skybox_->Draw();
 	}
@@ -925,6 +928,15 @@ void GameScene::DrawPostEffect3D() {
 		const float ms = std::chrono::duration<float, std::milli>(end - start).count();
 		AddPostProfileEntry(name, ms, active);
 	};
+
+	if (expEnemyNeonRenderMode_ == 3) {
+		profile("Exp Fill", true, [&]() {
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			DrawExpEnemyNeonFillModels();
+			DrawExpEnemyNeonDepthLines();
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+		});
+	}
 
 	if (useGridPost) {
 		profile("Grid Post", true, [&]() {
@@ -1087,7 +1099,11 @@ void GameScene::DrawNeonGridPass() {
 	if (showLevelAIDitorPreview_) {
 		QueueLevelEditorPreview();
 	}
-	if (showNeonTriangleDemo_) {
+	if (showStageBlockNeonOutlines_) {
+		QueueStageBlockNeonOutlines();
+	}
+	const bool queueExpEnemyNeonInGridPass = expEnemyNeonRenderMode_ == 1 || expEnemyNeonRenderMode_ == 2;
+	if (showNeonTriangleDemo_ || queueExpEnemyNeonInGridPass) {
 		Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewMatrix()
 			: camera->GetViewMatrix();
@@ -1095,16 +1111,382 @@ void GameScene::DrawNeonGridPass() {
 		Vector3 cameraRight = Normalize({ cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2] });
 		Vector3 cameraUp = Normalize({ cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2] });
 		Vector3 cameraForward = Normalize({ cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] });
-		neonGridRenderer_->QueueBillboardTriangle(
-			neonTriangleDemoCenter_,
-			neonTriangleDemoRadius_,
-			neonTriangleDemoRotation_,
-			neonTriangleDemoLineWidth_,
-			neonTriangleDemoColor_,
-			cameraRight,
-			cameraUp,
-			cameraForward);
+		if (queueExpEnemyNeonInGridPass) {
+			QueueExpEnemyNeonShapes(cameraRight, cameraUp, cameraForward);
+		}
+		if (showNeonTriangleDemo_) {
+			neonGridRenderer_->QueueBillboardTriangle(
+				neonTriangleDemoCenter_,
+				neonTriangleDemoRadius_,
+				neonTriangleDemoRotation_,
+				neonTriangleDemoLineWidth_,
+				neonTriangleDemoColor_,
+				cameraRight,
+				cameraUp,
+				cameraForward);
+		}
 	}
+
+	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+		? debugCamera->GetViewProjectionMatrix()
+		: camera->GetViewProjectionMatrix();
+	neonGridRenderer_->DrawAll(vp);
+}
+
+void GameScene::QueueStageBlockNeonOutlines() {
+	if (!stage_ || !neonGridRenderer_) {
+		return;
+	}
+
+	Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera()
+		? debugCamera->GetViewMatrix()
+		: camera->GetViewMatrix();
+	Matrix4x4 cameraWorld = Inverse(viewMatrix);
+	Vector3 cameraForward = Normalize({ cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] });
+	const Vector3 cameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
+
+	auto divisionCount = [](float scale) {
+		return (std::max)(1, static_cast<int>(std::round(std::abs(scale))));
+	};
+
+	const auto& blocks = stage_->GetBlocks();
+	for (const std::vector<Block>& row : blocks) {
+		for (const Block& block : row) {
+			if (!block.isActive || block.type != MapChipType::kBlock) {
+				continue;
+			}
+			if (cullActorLocalGrid_ && !IsNearCamera2D(block.originalPos, 38.0f, 24.0f, MapChip::kBlockWidth * 1.5f)) {
+				continue;
+			}
+
+			const Matrix4x4 transform = MakeAffineMatrix(
+				block.worldTransform.scale,
+				block.worldTransform.rotate,
+				block.worldTransform.translate);
+
+			auto localToWorld = [&](const Vector3& local) {
+				return TransformMatrix(local, transform);
+			};
+			auto queueLocalLine = [&](const Vector3& start, const Vector3& end) {
+				neonGridRenderer_->QueueCameraFacingLine(
+					localToWorld(start),
+					localToWorld(end),
+					stageBlockNeonLineWidth_,
+					stageBlockNeonColor_,
+					cameraForward);
+			};
+			auto shouldDrawFace = [&](const Vector3& localCenter, const Vector3& localNormal) {
+				const Vector3 worldCenter = localToWorld(localCenter);
+				const Vector3 worldNormal = localToWorld(localCenter + localNormal) - worldCenter;
+				return Dot(worldNormal, cameraPos - worldCenter) > 0.0f;
+			};
+			auto localCoord = [](int index, int divisions) {
+				return -1.0f + 2.0f * (static_cast<float>(index) / static_cast<float>(divisions));
+			};
+
+			const int divX = divisionCount(block.worldTransform.scale.x);
+			const int divY = divisionCount(block.worldTransform.scale.y);
+			const int divZ = divisionCount(block.worldTransform.scale.z);
+
+			for (float z : { -1.0f, 1.0f }) {
+				if (!shouldDrawFace({ 0.0f, 0.0f, z }, { 0.0f, 0.0f, z })) {
+					continue;
+				}
+				for (int i = 0; i <= divX; ++i) {
+					const float x = localCoord(i, divX);
+					queueLocalLine({ x, -1.0f, z }, { x, 1.0f, z });
+				}
+				for (int i = 0; i <= divY; ++i) {
+					const float y = localCoord(i, divY);
+					queueLocalLine({ -1.0f, y, z }, { 1.0f, y, z });
+				}
+			}
+
+			for (float y : { -1.0f, 1.0f }) {
+				if (!shouldDrawFace({ 0.0f, y, 0.0f }, { 0.0f, y, 0.0f })) {
+					continue;
+				}
+				for (int i = 0; i <= divX; ++i) {
+					const float x = localCoord(i, divX);
+					queueLocalLine({ x, y, -1.0f }, { x, y, 1.0f });
+				}
+				for (int i = 0; i <= divZ; ++i) {
+					const float z = localCoord(i, divZ);
+					queueLocalLine({ -1.0f, y, z }, { 1.0f, y, z });
+				}
+			}
+
+			for (float x : { -1.0f, 1.0f }) {
+				if (!shouldDrawFace({ x, 0.0f, 0.0f }, { x, 0.0f, 0.0f })) {
+					continue;
+				}
+				for (int i = 0; i <= divY; ++i) {
+					const float y = localCoord(i, divY);
+					queueLocalLine({ x, y, -1.0f }, { x, y, 1.0f });
+				}
+				for (int i = 0; i <= divZ; ++i) {
+					const float z = localCoord(i, divZ);
+					queueLocalLine({ x, -1.0f, z }, { x, 1.0f, z });
+				}
+			}
+		}
+	}
+}
+
+void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward) {
+	if (!enemyManager_ || !neonGridRenderer_) {
+		return;
+	}
+
+	auto maxScaleComponent = [](const Vector3& scale) {
+		return (std::max)({ scale.x, scale.y, scale.z });
+	};
+
+	auto transformLocalPoint = [](const Vector3& local, const Vector3& center, const Vector3& rotate, const Vector3& scale) {
+		const Matrix4x4 transform = MakeAffineMatrix(scale, rotate, center);
+		return TransformMatrix(local, transform);
+	};
+
+	auto queueCube = [&](const Vector3& center, float size, const Vector3& rotate, const Vector3& scale, float lineWidth, const Vector4& color) {
+		const float h = size * 0.5f;
+		const float z = size * 0.5f;
+		Vector3 corners[8] = {
+			{ -h, -h, -z }, { h, -h, -z }, { h, h, -z }, { -h, h, -z },
+			{ -h, -h, z }, { h, -h, z }, { h, h, z }, { -h, h, z }
+		};
+		for (Vector3& corner : corners) {
+			corner = transformLocalPoint(corner, center, rotate, scale);
+		}
+		const int edges[12][2] = {
+			{ 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 },
+			{ 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 4 },
+			{ 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 }
+		};
+		for (const auto& edge : edges) {
+			neonGridRenderer_->QueueLine(corners[edge[0]], corners[edge[1]], lineWidth, color);
+		}
+	};
+
+	auto queueTriangularPyramid = [&](const Vector3& center, float radius, const Vector3& rotate, const Vector3& scale, float lineWidth, const Vector4& color) {
+		constexpr float kTwoPi = 6.28318530718f;
+		const float depth = radius * 0.75f;
+		Vector3 points[4]{};
+		for (int i = 0; i < 3; ++i) {
+			const float angle = -kTwoPi * 0.25f + static_cast<float>(i) * (kTwoPi / 3.0f);
+			points[i] = transformLocalPoint({ std::cos(angle) * radius, std::sin(angle) * radius, -depth * 0.35f }, center, rotate, scale);
+		}
+		points[3] = transformLocalPoint({ 0.0f, 0.0f, depth * 0.65f }, center, rotate, scale);
+		neonGridRenderer_->QueueLine(points[0], points[1], lineWidth, color);
+		neonGridRenderer_->QueueLine(points[1], points[2], lineWidth, color);
+		neonGridRenderer_->QueueLine(points[2], points[0], lineWidth, color);
+		neonGridRenderer_->QueueLine(points[0], points[3], lineWidth, color);
+		neonGridRenderer_->QueueLine(points[1], points[3], lineWidth, color);
+		neonGridRenderer_->QueueLine(points[2], points[3], lineWidth, color);
+	};
+
+	auto queuePentagonalPrism = [&](const Vector3& center, float radius, const Vector3& rotate, const Vector3& scale, float lineWidth, const Vector4& color) {
+		constexpr float kTwoPi = 6.28318530718f;
+		const float depth = radius * 0.85f;
+		Vector3 points[10]{};
+		for (int i = 0; i < 5; ++i) {
+			const float angle = -kTwoPi * 0.25f + static_cast<float>(i) * (kTwoPi / 5.0f);
+			const Vector3 front = { std::cos(angle) * radius, std::sin(angle) * radius, -depth * 0.5f };
+			const Vector3 back = { front.x, front.y, depth * 0.5f };
+			points[i] = transformLocalPoint(front, center, rotate, scale);
+			points[i + 5] = transformLocalPoint(back, center, rotate, scale);
+		}
+		for (int i = 0; i < 5; ++i) {
+			const int next = (i + 1) % 5;
+			neonGridRenderer_->QueueLine(points[i], points[next], lineWidth, color);
+			neonGridRenderer_->QueueLine(points[i + 5], points[next + 5], lineWidth, color);
+			neonGridRenderer_->QueueLine(points[i], points[i + 5], lineWidth, color);
+		}
+	};
+
+	auto queueCircle3D = [&](const Vector3& center, float radius, const Vector3& rotate, const Vector3& scale, int axis, float lineWidth, const Vector4& color) {
+		constexpr float kTwoPi = 6.28318530718f;
+		constexpr int kSegments = 20;
+		Vector3 previous{};
+		for (int i = 0; i <= kSegments; ++i) {
+			const float angle = static_cast<float>(i) * (kTwoPi / static_cast<float>(kSegments));
+			Vector3 local{};
+			if (axis == 0) {
+				local = { 0.0f, std::cos(angle) * radius, std::sin(angle) * radius };
+			} else if (axis == 1) {
+				local = { std::cos(angle) * radius, 0.0f, std::sin(angle) * radius };
+			} else {
+				local = { std::cos(angle) * radius, std::sin(angle) * radius, 0.0f };
+			}
+			const Vector3 current = transformLocalPoint(local, center, rotate, scale);
+			if (i > 0) {
+				neonGridRenderer_->QueueLine(previous, current, lineWidth, color);
+			}
+			previous = current;
+		}
+	};
+
+	auto queueShooter = [&](const Vector3& center, float radius, const Vector3& rotate, const Vector3& scale, float lineWidth, const Vector4& color) {
+		queueCircle3D(center, radius, rotate, scale, 0, lineWidth, color);
+		queueCircle3D(center, radius, rotate, scale, 1, lineWidth, color);
+		queueCircle3D(center, radius, rotate, scale, 2, lineWidth, color);
+
+		const float barrelLength = radius * 0.9f;
+		const float barrelHalf = radius * 0.22f;
+		const float barrelOffset = radius * 0.72f;
+		Vector3 corners[8] = {
+			{ -barrelHalf, -barrelOffset, -barrelHalf },
+			{ barrelHalf, -barrelOffset, -barrelHalf },
+			{ barrelHalf, -barrelOffset - barrelLength, -barrelHalf },
+			{ -barrelHalf, -barrelOffset - barrelLength, -barrelHalf },
+			{ -barrelHalf, -barrelOffset, barrelHalf },
+			{ barrelHalf, -barrelOffset, barrelHalf },
+			{ barrelHalf, -barrelOffset - barrelLength, barrelHalf },
+			{ -barrelHalf, -barrelOffset - barrelLength, barrelHalf }
+		};
+		for (Vector3& corner : corners) {
+			corner = transformLocalPoint(corner, center, rotate, scale);
+		}
+		const int edges[12][2] = {
+			{ 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 },
+			{ 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 4 },
+			{ 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 }
+		};
+		for (const auto& edge : edges) {
+			neonGridRenderer_->QueueLine(corners[edge[0]], corners[edge[1]], lineWidth, color);
+		}
+	};
+
+	auto queueBillboardPolygon = [&](const Vector3& center, int sides, float radius, float rotation, float lineWidth, const Vector4& color) {
+		constexpr float kTwoPi = 6.28318530718f;
+		if (sides < 3) {
+			return;
+		}
+		Vector3 previous{};
+		for (int i = 0; i <= sides; ++i) {
+			const float angle = rotation - kTwoPi * 0.25f + static_cast<float>(i % sides) * (kTwoPi / static_cast<float>(sides));
+			const Vector3 current = center + cameraRight * (std::cos(angle) * radius) + cameraUp * (std::sin(angle) * radius);
+			if (i > 0) {
+				neonGridRenderer_->QueueLine(previous, current, lineWidth, color);
+			}
+			previous = current;
+		}
+	};
+
+	auto queueBillboardShooter = [&](const Vector3& center, float radius, float rotation, float lineWidth, const Vector4& color) {
+		queueBillboardPolygon(center, 20, radius, rotation, lineWidth, color);
+		const float c = std::cos(rotation);
+		const float s = std::sin(rotation);
+		const Vector3 down = cameraRight * s + cameraUp * -c;
+		const Vector3 side = cameraRight * c + cameraUp * s;
+		const Vector3 base = center + down * (radius * 0.65f);
+		const Vector3 tip = center + down * (radius * 1.45f);
+		const float half = radius * 0.18f;
+		neonGridRenderer_->QueueLine(base - side * half, tip - side * half, lineWidth, color);
+		neonGridRenderer_->QueueLine(tip - side * half, tip + side * half, lineWidth, color);
+		neonGridRenderer_->QueueLine(tip + side * half, base + side * half, lineWidth, color);
+		neonGridRenderer_->QueueLine(base + side * half, base - side * half, lineWidth, color);
+	};
+
+	for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
+		if (!expEnemy || expEnemy->IsDead() || !expEnemy->IsShapeNeonRenderTarget()) {
+			continue;
+		}
+		const Vector3 visualScale = expEnemy->GetVisualScale();
+		const float scalePulse = maxScaleComponent(visualScale);
+		float shapeRadius = expEnemyNeonSquareSize_ * 0.5f;
+		if (expEnemy->GetType() == ExpEnemyType::Triangle) {
+			shapeRadius = expEnemyNeonTriangleRadius_;
+		} else if (expEnemy->GetType() == ExpEnemyType::Pentagon) {
+			shapeRadius = expEnemyNeonPentagonRadius_;
+		} else if (expEnemy->GetType() == ExpEnemyType::Shooter) {
+			shapeRadius = expEnemyNeonShooterRadius_ * 1.5f;
+		}
+		if (cullActorLocalGrid_ && !IsNearCamera2D(expEnemy->GetWorldPosition(), 38.0f, 24.0f, shapeRadius * scalePulse + 1.0f)) {
+			continue;
+		}
+
+		const Vector3 center = expEnemy->GetWorldPosition() + (expEnemyNeonRenderMode_ >= 2 ? Vector3{} : Vector3{ 0.0f, 0.0f, 0.35f });
+		const Vector4 color = expEnemy->GetVisualColor();
+		if (expEnemyNeonRenderMode_ >= 2) {
+			if (expEnemy->GetType() == ExpEnemyType::Triangle) {
+				queueTriangularPyramid(center, expEnemyNeonTriangleRadius_, expEnemy->GetVisualRotate(), visualScale, expEnemyNeonLineWidth_, color);
+			} else if (expEnemy->GetType() == ExpEnemyType::Pentagon) {
+				queuePentagonalPrism(center, expEnemyNeonPentagonRadius_, expEnemy->GetVisualRotate(), visualScale, expEnemyNeonLineWidth_, color);
+			} else if (expEnemy->GetType() == ExpEnemyType::Shooter) {
+				queueShooter(center, expEnemyNeonShooterRadius_, expEnemy->GetVisualRotate(), visualScale, expEnemyNeonLineWidth_, color);
+			} else {
+				queueCube(center, expEnemyNeonSquareSize_, expEnemy->GetVisualRotate(), visualScale, expEnemyNeonLineWidth_, color);
+			}
+		} else if (expEnemy->GetType() == ExpEnemyType::Triangle) {
+			neonGridRenderer_->QueueBillboardTriangle(
+				center,
+				expEnemyNeonTriangleRadius_ * scalePulse,
+				expEnemy->GetVisualRotation(),
+				expEnemyNeonLineWidth_,
+				color,
+				cameraRight,
+				cameraUp,
+				cameraForward);
+		} else if (expEnemy->GetType() == ExpEnemyType::Pentagon) {
+			queueBillboardPolygon(center, 5, expEnemyNeonPentagonRadius_ * scalePulse, expEnemy->GetVisualRotation(), expEnemyNeonLineWidth_, color);
+		} else if (expEnemy->GetType() == ExpEnemyType::Shooter) {
+			queueBillboardShooter(center, expEnemyNeonShooterRadius_ * scalePulse, expEnemy->GetVisualRotation(), expEnemyNeonLineWidth_, color);
+		} else {
+			neonGridRenderer_->QueueBillboardRectangle(
+				center,
+				{ expEnemyNeonSquareSize_ * scalePulse, expEnemyNeonSquareSize_ * scalePulse },
+				expEnemy->GetVisualRotation(),
+				expEnemyNeonLineWidth_,
+				color,
+				cameraRight,
+				cameraUp,
+				cameraForward);
+		}
+	}
+}
+
+void GameScene::DrawExpEnemyNeonFillModels() {
+	if (!enemyManager_) {
+		return;
+	}
+
+	for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
+		if (!expEnemy || expEnemy->IsDead() || !expEnemy->IsShapeNeonRenderTarget()) {
+			continue;
+		}
+		float shapeRadius = expEnemyNeonSquareSize_ * 0.5f;
+		if (expEnemy->GetType() == ExpEnemyType::Triangle) {
+			shapeRadius = expEnemyNeonTriangleRadius_;
+		} else if (expEnemy->GetType() == ExpEnemyType::Pentagon) {
+			shapeRadius = expEnemyNeonPentagonRadius_;
+		} else if (expEnemy->GetType() == ExpEnemyType::Shooter) {
+			shapeRadius = expEnemyNeonShooterRadius_ * 1.5f;
+		}
+		const Vector3 visualScale = expEnemy->GetVisualScale();
+		const float scalePulse = (std::max)({ visualScale.x, visualScale.y, visualScale.z });
+		if (cullActorLocalGrid_ && !IsNearCamera2D(expEnemy->GetWorldPosition(), 38.0f, 24.0f, shapeRadius * scalePulse + 1.0f)) {
+			continue;
+		}
+		expEnemy->DrawNeonFillBodyOnly();
+	}
+}
+
+void GameScene::DrawExpEnemyNeonDepthLines() {
+	if (!neonGridRenderer_) {
+		return;
+	}
+
+	Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera()
+		? debugCamera->GetViewMatrix()
+		: camera->GetViewMatrix();
+	Matrix4x4 cameraWorld = Inverse(viewMatrix);
+	Vector3 cameraRight = Normalize({ cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2] });
+	Vector3 cameraUp = Normalize({ cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2] });
+	Vector3 cameraForward = Normalize({ cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] });
+
+	neonGridRenderer_->BeginFrame();
+	neonGridRenderer_->SetLineStyle(neonLineSoftEdgeRatio_, neonLineCoreIntensity_);
+	QueueExpEnemyNeonShapes(cameraRight, cameraUp, cameraForward);
 
 	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewProjectionMatrix()
@@ -1778,8 +2160,17 @@ nlohmann::json GameScene::BuildGameVisualConfig() const
 		{ "playerColor", WriteJsonVector4(playerGridColor_) },
 		{ "bossEnemyColor", WriteJsonVector4(enemyGridColor_) },
 		{ "expEnemyColor", WriteJsonVector4(expEnemyGridColor_) },
+		{ "showStageBlockNeonOutlines", showStageBlockNeonOutlines_ },
+		{ "stageBlockNeonLineWidth", stageBlockNeonLineWidth_ },
+		{ "stageBlockNeonColor", WriteJsonVector4(stageBlockNeonColor_) },
 		{ "cullActorLocalGrid", cullActorLocalGrid_ },
 		{ "maxExpEnemyLocalGrids", maxExpEnemyLocalGrids_ },
+		{ "expEnemyNeonRenderMode", expEnemyNeonRenderMode_ },
+		{ "expEnemyNeonSquareSize", expEnemyNeonSquareSize_ },
+		{ "expEnemyNeonTriangleRadius", expEnemyNeonTriangleRadius_ },
+		{ "expEnemyNeonPentagonRadius", expEnemyNeonPentagonRadius_ },
+		{ "expEnemyNeonShooterRadius", expEnemyNeonShooterRadius_ },
+		{ "expEnemyNeonLineWidth", expEnemyNeonLineWidth_ },
 		{ "showTriangleDemo", showNeonTriangleDemo_ },
 		{ "triangleCenter", WriteJsonVector3(neonTriangleDemoCenter_) },
 		{ "triangleRadius", neonTriangleDemoRadius_ },
@@ -1813,8 +2204,21 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 		if (gridJson.contains("playerColor")) playerGridColor_ = ReadJsonVector4(gridJson["playerColor"], playerGridColor_);
 		if (gridJson.contains("bossEnemyColor")) enemyGridColor_ = ReadJsonVector4(gridJson["bossEnemyColor"], enemyGridColor_);
 		if (gridJson.contains("expEnemyColor")) expEnemyGridColor_ = ReadJsonVector4(gridJson["expEnemyColor"], expEnemyGridColor_);
+		showStageBlockNeonOutlines_ = ReadCustomBool(gridJson, "showStageBlockNeonOutlines", showStageBlockNeonOutlines_);
+		stageBlockNeonLineWidth_ = ReadCustomFloat(gridJson, "stageBlockNeonLineWidth", stageBlockNeonLineWidth_);
+		if (gridJson.contains("stageBlockNeonColor")) stageBlockNeonColor_ = ReadJsonVector4(gridJson["stageBlockNeonColor"], stageBlockNeonColor_);
 		cullActorLocalGrid_ = ReadCustomBool(gridJson, "cullActorLocalGrid", cullActorLocalGrid_);
 		maxExpEnemyLocalGrids_ = ReadCustomInt(gridJson, "maxExpEnemyLocalGrids", maxExpEnemyLocalGrids_);
+		expEnemyNeonRenderMode_ = ReadCustomInt(gridJson, "expEnemyNeonRenderMode", expEnemyNeonRenderMode_);
+		if (gridJson.contains("useExpEnemyNeonBillboards") && !gridJson.contains("expEnemyNeonRenderMode")) {
+			expEnemyNeonRenderMode_ = ReadCustomBool(gridJson, "useExpEnemyNeonBillboards", false) ? 1 : 0;
+		}
+		expEnemyNeonRenderMode_ = (std::clamp)(expEnemyNeonRenderMode_, 0, 3);
+		expEnemyNeonSquareSize_ = ReadCustomFloat(gridJson, "expEnemyNeonSquareSize", expEnemyNeonSquareSize_);
+		expEnemyNeonTriangleRadius_ = ReadCustomFloat(gridJson, "expEnemyNeonTriangleRadius", expEnemyNeonTriangleRadius_);
+		expEnemyNeonPentagonRadius_ = ReadCustomFloat(gridJson, "expEnemyNeonPentagonRadius", expEnemyNeonPentagonRadius_);
+		expEnemyNeonShooterRadius_ = ReadCustomFloat(gridJson, "expEnemyNeonShooterRadius", expEnemyNeonShooterRadius_);
+		expEnemyNeonLineWidth_ = ReadCustomFloat(gridJson, "expEnemyNeonLineWidth", expEnemyNeonLineWidth_);
 		showNeonTriangleDemo_ = ReadCustomBool(gridJson, "showTriangleDemo", showNeonTriangleDemo_);
 		if (gridJson.contains("triangleCenter")) neonTriangleDemoCenter_ = ReadJsonVector3(gridJson["triangleCenter"], neonTriangleDemoCenter_);
 		neonTriangleDemoRadius_ = ReadCustomFloat(gridJson, "triangleRadius", neonTriangleDemoRadius_);
@@ -1965,6 +2369,18 @@ void GameScene::DrawGameSceneDebugImGui()
 				ImGui::ColorEdit4("経験値敵グリッド色", &expEnemyGridColor_.x);
 				ImGui::Checkbox("画面外の周辺グリッドを省略", &cullActorLocalGrid_);
 				ImGui::DragInt("経験値敵グリッド最大数", &maxExpEnemyLocalGrids_, 1.0f, 0, 60);
+				ImGui::SeparatorText("ステージ通常ブロック枠線");
+				ImGui::Checkbox("通常ブロックに3Dネオン枠線", &showStageBlockNeonOutlines_);
+				ImGui::DragFloat("通常ブロック枠線幅", &stageBlockNeonLineWidth_, 0.005f, 0.005f, 0.5f);
+				ImGui::ColorEdit4("通常ブロック枠線色", &stageBlockNeonColor_.x);
+				ImGui::SeparatorText("経験値敵ネオン表示");
+				const char* expEnemyNeonModes[] = { "3Dモデル", "ビルボード枠線", "3D枠線", "黒塗り+3D枠線" };
+				ImGui::Combo("経験値敵の表示", &expEnemyNeonRenderMode_, expEnemyNeonModes, IM_ARRAYSIZE(expEnemyNeonModes));
+				ImGui::DragFloat("四角敵ネオンサイズ", &expEnemyNeonSquareSize_, 0.025f, 0.2f, 4.0f);
+				ImGui::DragFloat("三角敵ネオン半径", &expEnemyNeonTriangleRadius_, 0.025f, 0.2f, 4.0f);
+				ImGui::DragFloat("五角敵ネオン半径", &expEnemyNeonPentagonRadius_, 0.025f, 0.2f, 4.0f);
+				ImGui::DragFloat("射撃敵ネオン半径", &expEnemyNeonShooterRadius_, 0.025f, 0.2f, 4.0f);
+				ImGui::DragFloat("敵ネオン線幅", &expEnemyNeonLineWidth_, 0.005f, 0.01f, 0.5f);
 				ImGui::SeparatorText("ネオン三角形デモ");
 				ImGui::Checkbox("ネオン三角形デモを表示", &showNeonTriangleDemo_);
 				ImGui::DragFloat3("ネオン三角形 位置", &neonTriangleDemoCenter_.x, 0.05f);

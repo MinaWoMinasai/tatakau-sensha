@@ -42,6 +42,10 @@ void NeonGridRenderer::QueueLine(const Vector3& a, const Vector3& b, float lineW
     AddLineQuad(a, b, lineWidth, color);
 }
 
+void NeonGridRenderer::QueueCameraFacingLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color, const Vector3& cameraForward) {
+    AddCameraFacingLineQuad(a, b, lineWidth, color, cameraForward);
+}
+
 void NeonGridRenderer::QueueTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color) {
     AddLineQuad(a, b, lineWidth, color);
     AddLineQuad(b, c, lineWidth, color);
@@ -74,6 +78,42 @@ void NeonGridRenderer::QueueBillboardTriangle(
     AddCameraFacingLineQuad(points[0], points[1], lineWidth, color, cameraForward);
     AddCameraFacingLineQuad(points[1], points[2], lineWidth, color, cameraForward);
     AddCameraFacingLineQuad(points[2], points[0], lineWidth, color, cameraForward);
+}
+
+void NeonGridRenderer::QueueBillboardRectangle(
+    const Vector3& center,
+    const Vector2& size,
+    float rotationRad,
+    float lineWidth,
+    const Vector4& color,
+    const Vector3& cameraRight,
+    const Vector3& cameraUp,
+    const Vector3& cameraForward) {
+    if (size.x <= 0.0f || size.y <= 0.0f || lineWidth <= 0.0f || color.w <= 0.001f) {
+        return;
+    }
+
+    const float c = std::cos(rotationRad);
+    const float s = std::sin(rotationRad);
+    auto makePoint = [&](float x, float y) {
+        const float rx = x * c - y * s;
+        const float ry = x * s + y * c;
+        return center + cameraRight * rx + cameraUp * ry;
+    };
+
+    const float halfX = size.x * 0.5f;
+    const float halfY = size.y * 0.5f;
+    const Vector3 points[4] = {
+        makePoint(-halfX, halfY),
+        makePoint(halfX, halfY),
+        makePoint(halfX, -halfY),
+        makePoint(-halfX, -halfY)
+    };
+
+    AddCameraFacingLineQuad(points[0], points[1], lineWidth, color, cameraForward);
+    AddCameraFacingLineQuad(points[1], points[2], lineWidth, color, cameraForward);
+    AddCameraFacingLineQuad(points[2], points[3], lineWidth, color, cameraForward);
+    AddCameraFacingLineQuad(points[3], points[0], lineWidth, color, cameraForward);
 }
 
 void NeonGridRenderer::QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color) {

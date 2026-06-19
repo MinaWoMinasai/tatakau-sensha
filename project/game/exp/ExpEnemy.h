@@ -28,12 +28,15 @@ public:
     static void SetBalanceConfig(const BalanceConfig& config);
     static void SetEnemyInteractionConfig(const EnemyInteractionConfig& config);
     static void SetEnemyKillCallback(std::function<void(uint32_t)> callback);
+    static void SetShapeNeonBillboardEnabled(bool enabled);
+    static void SetShapeNeonRenderMode(int mode);
     static bool IsHostileToBoss() { return enemyInteractionConfig_.hostileToBoss; }
 
     void Initialize(const Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
     void Update(Stage& stage,float deltaTime);
     void Draw(bool drawBody = true);
     void DrawBodyOnly();
+    void DrawNeonFillBodyOnly();
 
     void OnCollision(Collider* other) override;
 
@@ -62,6 +65,13 @@ public:
     void RefreshCollisionMask();
 
     uint32_t GetExpValue() const { return expValue_; }
+    ExpEnemyType GetType() const { return type_; }
+    const Vector4& GetVisualColor() const { return visualColor_; }
+    float GetVisualRotation() const { return worldTransform_.rotate.z; }
+    const Vector3& GetVisualRotate() const { return worldTransform_.rotate; }
+    const Vector3& GetVisualScale() const { return worldTransform_.scale; }
+    bool IsShapeNeonBillboardTarget() const;
+    bool IsShapeNeonRenderTarget() const { return IsShapeNeonBillboardTarget(); }
 
 private:
     void ApplyTypeParams();
@@ -71,10 +81,13 @@ private:
     static BalanceConfig balanceConfig_;
     static EnemyInteractionConfig enemyInteractionConfig_;
     static std::function<void(uint32_t)> enemyKillCallback_;
+    static bool shapeNeonBillboardEnabled_;
+    static int shapeNeonRenderMode_;
 
     Transform worldTransform_;
     Vector3 baseScale_{ 1.0f, 1.0f, 1.0f };
     Vector4 baseColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
+    Vector4 visualColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
     std::unique_ptr<Object3d> object_;
 
     // 攻撃コントローラ
