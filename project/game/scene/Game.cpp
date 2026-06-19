@@ -152,7 +152,12 @@ void Game::MainLoop() {
 
     MSG msg{};
     while (msg.message != WM_QUIT) {
+		const auto frameStart = std::chrono::steady_clock::now();
+		auto elapsedMs = [](auto start, auto end) {
+			return std::chrono::duration<float, std::milli>(end - start).count();
+		};
 
+		const auto messageStart = std::chrono::steady_clock::now();
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
@@ -160,6 +165,7 @@ void Game::MainLoop() {
         if (msg.message == WM_QUIT) {
             break;
         }
+		const float messagePumpMs = elapsedMs(messageStart, std::chrono::steady_clock::now());
         // インプットインスタンスを取得
         Input* input = Input::GetInstance();
         WinApp* winApp = WinApp::GetInstance();
@@ -174,7 +180,8 @@ void Game::MainLoop() {
             continue;
         }
 
-        // 前のフレームのキー状態を保存
+		const auto inputImGuiStart = std::chrono::steady_clock::now();
+		// 前のフレームのキー状態を保存
         input->BeforeFrameData();
 
 #ifdef USE_IMGUI
@@ -185,7 +192,9 @@ void Game::MainLoop() {
         ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
 
 #endif // USE_IMGUI
+		const float inputImGuiBeginMs = elapsedMs(inputImGuiStart, std::chrono::steady_clock::now());
 
+		const auto engineUpdateStart = std::chrono::steady_clock::now();
         bloom_->Update();
 
         if (input->IsPress(input->GetKey()[DIK_LSHIFT]) && input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
@@ -197,22 +206,29 @@ void Game::MainLoop() {
         }
 
         Object3dCommon::GetInstance()->Update();
+		const float engineUpdateMs = elapsedMs(engineUpdateStart, std::chrono::steady_clock::now());
+		const auto sceneUpdateStart = std::chrono::steady_clock::now();
         SceneManager::GetInstance()->Update();
+		const float sceneUpdateMs = elapsedMs(sceneUpdateStart, std::chrono::steady_clock::now());
         bloom_->SetGrayscaleEnabled(SceneManager::GetInstance()->GetFinalDeltaTime() < (1.0f / 60.0f) * 0.98f);
         bloom_->SetGaussianOverride(SceneManager::GetInstance()->GetPostGaussianIntensity());
         
+		const auto imguiBuildStart = std::chrono::steady_clock::now();
 #ifdef USE_IMGUI
         // ImGuiの内部コマンドを生成する
         ImGui::Render();
 
 #endif // USE_IMGUI
+		const float imguiBuildMs = elapsedMs(imguiBuildStart, std::chrono::steady_clock::now());
 
+		const auto drawSetupStart = std::chrono::steady_clock::now();
         dxCommon_->PreDraw(); // バックバッファのバリアはここで行われている
         srvManager_->PreDraw();
        
         shadow_->PreDraw();
         
         bloom_->PreDraw();
+		const float drawSetupMs = elapsedMs(drawSetupStart, std::chrono::steady_clock::now());
 
         IScene::RenderProfile renderProfile{};
         auto measureMs = [](auto&& func) {
@@ -222,7 +238,8 @@ void Game::MainLoop() {
             return std::chrono::duration<float, std::milli>(end - start).count();
         };
 
-        renderProfile.scenePostMs = measureMs([&]() {
+		const auto drawRecordStart = std::chrono::steady_clock::now();
+		renderProfile.scenePostMs = measureMs([&]() {
             SceneManager::GetInstance()->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
         });
 
@@ -238,16 +255,35 @@ void Game::MainLoop() {
             SpriteCommon::GetInstance()->PreDraw(kNormal);
             SceneManager::GetInstance()->DrawSprite();
         });
-        SceneManager::GetInstance()->SetRenderProfile(renderProfile);
+		renderProfile.drawRecordMs = elapsedMs(drawRecordStart, std::chrono::steady_clock::now());
 
 
+		const auto imguiDrawStart = std::chrono::steady_clock::now();
 #ifdef USE_IMGUI
         // 実際のcommandListのImGuiの描画コマンドを組む
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon_->GetList().Get());
 
 #endif // USE_IMGUI
-        
+		renderProfile.imguiDrawMs = elapsedMs(imguiDrawStart, std::chrono::steady_clock::now());
+
+		const auto postDrawStart = std::chrono::steady_clock::now();
         dxCommon_->PostDraw();
+		renderProfile.postDrawMs = elapsedMs(postDrawStart, std::chrono::steady_clock::now());
+		const auto& submit = dxCommon_->GetFrameSubmitProfile();
+		renderProfile.submitCloseMs = submit.closeMs;
+		renderProfile.submitExecuteMs = submit.executeMs;
+		renderProfile.presentMs = submit.presentMs;
+		renderProfile.fenceWaitMs = submit.fenceWaitMs;
+		renderProfile.fpsLimitMs = submit.fpsLimitMs;
+		renderProfile.submitResetMs = submit.resetMs;
+		renderProfile.messagePumpMs = messagePumpMs;
+		renderProfile.inputImGuiBeginMs = inputImGuiBeginMs;
+		renderProfile.engineUpdateMs = engineUpdateMs;
+		renderProfile.sceneUpdateMs = sceneUpdateMs;
+		renderProfile.imguiBuildMs = imguiBuildMs;
+		renderProfile.drawSetupMs = drawSetupMs;
+		renderProfile.frameTotalMs = elapsedMs(frameStart, std::chrono::steady_clock::now());
+		SceneManager::GetInstance()->SetRenderProfile(renderProfile);
     }
 }
 

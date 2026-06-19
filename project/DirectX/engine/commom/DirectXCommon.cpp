@@ -368,8 +368,12 @@ void DirectXCommon::InitializeDevice()
 	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugComtroller)))) {
 		// デバッグレイヤーを有効化する
 		debugComtroller->EnableDebugLayer();
-		// さらにGPU側でもチェックを行うようにする
-		debugComtroller->SetEnableGPUBasedValidation(TRUE);
+		// GPU-Based Validation は描画命令数に比例して極端に重くなるため、必要時のみ有効化する。
+		char gpuValidationValue[8]{};
+		const DWORD valueLength = GetEnvironmentVariableA(
+			"CG2_GPU_BASED_VALIDATION", gpuValidationValue, static_cast<DWORD>(std::size(gpuValidationValue)));
+		gpuBasedValidationEnabled_ = valueLength > 0 && gpuValidationValue[0] == '1';
+		debugComtroller->SetEnableGPUBasedValidation(gpuBasedValidationEnabled_ ? TRUE : FALSE);
 	}
 	
 	hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
@@ -649,16 +653,31 @@ void DirectXCommon::InitializeImGui()
 
 void DirectXCommon::CommandListExecuteAndReset()
 {
+	using Clock = std::chrono::steady_clock;
+	auto elapsedMs = [](Clock::time_point start, Clock::time_point end) {
+		return std::chrono::duration<float, std::milli>(end - start).count();
+	};
+	frameSubmitProfile_ = {};
+	const auto totalStart = Clock::now();
 
 	// コマンドリストの内容を確定させるすべてのコマンドを積んでからCloseすること
+	const auto closeStart = Clock::now();
 	HRESULT hr = list_->Close();
 	assert(SUCCEEDED(hr));
+	const auto closeEnd = Clock::now();
+	frameSubmitProfile_.closeMs = elapsedMs(closeStart, closeEnd);
 
 	// GPUにコマンドリストの実行を行わせる
 	ID3D12CommandList* commandLists[] = { list_.Get() };
+	const auto executeStart = Clock::now();
 	queue_->ExecuteCommandLists(1, commandLists);
+	const auto executeEnd = Clock::now();
+	frameSubmitProfile_.executeMs = elapsedMs(executeStart, executeEnd);
 	//GPUとOSに画面の交換を行うよう通知する
+	const auto presentStart = Clock::now();
 	swapChain_->Present(0, 0);
+	const auto presentEnd = Clock::now();
+	frameSubmitProfile_.presentMs = elapsedMs(presentStart, presentEnd);
 	// fenceの値を更新
 	fenceValue_++;
 	// GPUがここまでたどり着いたときに、Fenceの値を指定して値に代入するようにSignalを送る
@@ -669,17 +688,25 @@ void DirectXCommon::CommandListExecuteAndReset()
 		// 指定したSignalにたどり着いていないので、たどり着くまで待つようにイベントを設定する
 		fence_->SetEventOnCompletion(fenceValue_, fenceEvent_);
 		// イベント待つ
+		const auto fenceStart = Clock::now();
 		WaitForSingleObject(fenceEvent_, INFINITE);
+		frameSubmitProfile_.fenceWaitMs = elapsedMs(fenceStart, Clock::now());
 	}
 
 	// FPS固定
+	const auto fpsLimitStart = Clock::now();
 	UpdateFixFPS();
+	frameSubmitProfile_.fpsLimitMs = elapsedMs(fpsLimitStart, Clock::now());
 
 	// 次のフレーム用のコマンドリストを準備
+	const auto resetStart = Clock::now();
 	hr = allocator_->Reset();
 	assert(SUCCEEDED(hr));
 	hr = list_->Reset(allocator_.Get(), nullptr);
 	assert(SUCCEEDED(hr));
+	const auto totalEnd = Clock::now();
+	frameSubmitProfile_.resetMs = elapsedMs(resetStart, totalEnd);
+	frameSubmitProfile_.totalMs = elapsedMs(totalStart, totalEnd);
 }
 
 void DirectXCommon::ExecuteCommandListAndWait()

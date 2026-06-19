@@ -34,14 +34,14 @@
     },
     "notes": "trueなら従来のランダムEXP敵スポーンも残す。falseならspawnAreas中心の調整にできる。",
     "player": {
-      "bodyDamage": 3,
-      "bulletDamage": 1.0,
+      "bodyDamage": 5,
+      "bulletDamage": 2.0,
       "bulletSpeed": 0.30000001192092896,
       "healToFull": true,
       "maxHp": 5000,
       "maxStamina": 3.0,
       "moveSpeed": 0.20000000298023224,
-      "reloadSpeed": 30.0,
+      "reloadSpeed": 20.0,
       "staminaRecovery": 1.0
     },
     "playerUpgrades": {

@@ -147,7 +147,7 @@
       "bulletCount": 1,
       "bulletDamageScale": 1.0,
       "bulletSpeedScale": 1.0,
-      "displayName": "オーバーシアー",
+      "displayName": "ドローン",
       "fireAllBarrels": false,
       "id": "Overseer",
       "maxDrones": 7,
