@@ -34,6 +34,11 @@ cbuffer BloomParam : register(b0)
     float depthNearClip;
     float depthFarClip;
     float depthOutlineScale;
+    float2 shockwaveCenter;
+    float shockwaveRadius;
+    float shockwaveWidth;
+    float shockwaveStrength;
+    float3 shockwavePadding;
 };
 
 // --- ヘルパー関数：ランダム ---
@@ -77,6 +82,24 @@ float2 ApplyWave(float2 uv)
     uv.x += sin(uv.y * 10.0f + timer * 2.0f) * distortionAmount;
     uv.y += cos(uv.x * 10.0f + timer * 2.0f) * distortionAmount;
     return uv;
+}
+
+float2 ApplyShockwave(float2 uv)
+{
+    if (shockwaveStrength <= 0.0f || shockwaveWidth <= 0.0f)
+    {
+        return uv;
+    }
+
+    const float aspect = 1280.0f / 720.0f;
+    float2 delta = uv - shockwaveCenter;
+    float2 aspectDelta = float2(delta.x * aspect, delta.y);
+    float distanceFromCenter = length(aspectDelta);
+    float ring = 1.0f - saturate(abs(distanceFromCenter - shockwaveRadius) / shockwaveWidth);
+    ring = ring * ring * (3.0f - 2.0f * ring);
+    float2 direction = distanceFromCenter > 0.0001f ? aspectDelta / distanceFromCenter : float2(0.0f, 0.0f);
+    direction.x /= aspect;
+    return uv + direction * ring * shockwaveStrength;
 }
 
 // --- 4. カラー変換：反転・グレースケール ---
@@ -198,10 +221,11 @@ float4 main(PSInput input) : SV_TARGET
 
     // D. グリッチ・うねうね座標確定
     float2 postGlitchUV = ApplyGlitch(texUV);
-    float2 finalUV = ApplyWave(postGlitchUV);
+    float2 shockwaveUV = ApplyShockwave(postGlitchUV);
+    float2 finalUV = ApplyWave(shockwaveUV);
 
     // E. サンプリング（色収差）
-    float2 shift = (postGlitchUV - 0.5f) * chromAbAmount;
+    float2 shift = (shockwaveUV - 0.5f) * chromAbAmount;
     float3 scene, bloom;
     
     scene.r = sceneTex.Sample(samp, finalUV + shift).r;

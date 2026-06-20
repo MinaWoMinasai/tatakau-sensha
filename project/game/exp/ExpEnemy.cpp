@@ -270,8 +270,11 @@ void ExpEnemy::OnCollision(Collider* other)
     TriggerDamageFeedback();
     if (hp_ <= 0) {
         isDead_ = true;
-        ParticleManager::GetInstance()->Emit("EnemyDeathBurst", GetWorldPosition(), 18);
-        ParticleManager::GetInstance()->Emit("DeathSmoke", GetWorldPosition(), 5);
+        ParticleManager::GetInstance()->EmitNeonDeathEffect(
+            GetWorldPosition(),
+            { 1.20f, 0.32f, 1.35f, 1.0f },
+            { 0.18f, 1.10f, 1.35f, 0.0f },
+            0.32f);
         if (killedByEnemy) {
             if (enemyKillCallback_) {
                 enemyKillCallback_(expValue_);
@@ -296,8 +299,11 @@ bool ExpEnemy::TakeDamageFromEnemy(uint32_t amount)
     TriggerDamageFeedback();
     if (hp_ <= 0) {
         isDead_ = true;
-        ParticleManager::GetInstance()->Emit("EnemyDeathBurst", GetWorldPosition(), 18);
-        ParticleManager::GetInstance()->Emit("DeathSmoke", GetWorldPosition(), 5);
+        ParticleManager::GetInstance()->EmitNeonDeathEffect(
+            GetWorldPosition(),
+            { 1.20f, 0.32f, 1.35f, 1.0f },
+            { 0.18f, 1.10f, 1.35f, 0.0f },
+            0.32f);
         return true;
     }
     return false;

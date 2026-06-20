@@ -85,6 +85,10 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.depthNearClip = 0.1f;
     bloomParam_.depthFarClip = 5000.0f;
     bloomParam_.depthOutlineScale = 1.0f;
+    bloomParam_.shockwaveCenter = { 0.5f, 0.5f };
+    bloomParam_.shockwaveRadius = 0.0f;
+    bloomParam_.shockwaveWidth = 0.05f;
+    bloomParam_.shockwaveStrength = 0.0f;
 
    /* bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 1.2f;
@@ -100,6 +104,9 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.glitchAmount = 0.005f;*/
     baseGaussianIntensity_ = bloomParam_.gaussianIntensity;
     baseFullScreenBoxBlurBlend_ = bloomParam_.fullScreenBoxBlurBlend;
+    baseBloomIntensity_ = bloomParam_.intensity;
+    baseDistortionAmount_ = bloomParam_.distortionAmount;
+    baseChromAbAmount_ = bloomParam_.chromAbAmount;
 
     bloomCB_->Update(bloomParam_);
 
@@ -113,11 +120,11 @@ void Bloom::Update() {
 
     // --- 既存の項目 ---
     ImGui::DragFloat("Threshold", &bloomParam_.threshold, 0.01f, 0.0f, 1.0f);
-    ImGui::DragFloat("Intensity", &bloomParam_.intensity, 0.01f);
+    ImGui::DragFloat("Intensity", &baseBloomIntensity_, 0.01f);
     ImGui::DragFloat("Vignette Intensity", &bloomParam_.vignetteIntensity, 0.01f);
     ImGui::DragFloat("Vignette Scale", &bloomParam_.vignetteScale, 0.01f);
-    ImGui::DragFloat("Distortion Amount", &bloomParam_.distortionAmount, 0.001f);
-    ImGui::DragFloat("ChromAb Amount", &bloomParam_.chromAbAmount, 0.001f);
+    ImGui::DragFloat("Distortion Amount", &baseDistortionAmount_, 0.001f);
+    ImGui::DragFloat("ChromAb Amount", &baseChromAbAmount_, 0.001f);
     ImGui::DragFloat("Noise", &bloomParam_.noiseIntensity, 0.01f);
     ImGui::DragFloat("Scanline Intensity", &bloomParam_.scanlineIntensity, 0.01f);
     ImGui::DragFloat("Scanline Frequency", &bloomParam_.scanlineFrequency, 0.01f);
@@ -158,11 +165,11 @@ void Bloom::Update() {
     // リセットボタン
     if (ImGui::Button("Reset")) {
         bloomParam_.threshold = 0.0f;
-        bloomParam_.intensity = 0.0f;
+        baseBloomIntensity_ = 0.0f;
         bloomParam_.vignetteIntensity = 0.0f;
         bloomParam_.vignetteScale = 0.0f;
-        bloomParam_.chromAbAmount = 0.0f;
-        bloomParam_.distortionAmount = 0.0f;
+        baseChromAbAmount_ = 0.0f;
+        baseDistortionAmount_ = 0.0f;
         bloomParam_.noiseIntensity = 0.0f;
         bloomParam_.scanlineIntensity = 0.0f;
         bloomParam_.scanlineFrequency = 0.0f;
@@ -193,6 +200,9 @@ void Bloom::Update() {
 
     bloomParam_.isGrayscale = (manualGrayscale_ || forceGrayscale_) ? 1.0f : 0.0f;
     bloomParam_.depthOutlineEnabled = enableDepthOutline_ ? 1.0f : 0.0f;
+    bloomParam_.intensity = baseBloomIntensity_ + transientBloomBoost_;
+    bloomParam_.distortionAmount = baseDistortionAmount_;
+    bloomParam_.chromAbAmount = baseChromAbAmount_ + transientChromAbAmount_;
     const float manualGaussian = fullScreenSmoothingMode_ == 1 ? baseGaussianIntensity_ : 0.0f;
     const float manualBox = fullScreenSmoothingMode_ == 2 ? baseFullScreenBoxBlurBlend_ : 0.0f;
     bloomParam_.gaussianIntensity = (std::max)(manualGaussian, gaussianOverrideIntensity_);
@@ -213,6 +223,25 @@ void Bloom::SetGaussianOverride(float intensity) {
     const float manualGaussian = fullScreenSmoothingMode_ == 1 ? baseGaussianIntensity_ : 0.0f;
     bloomParam_.gaussianIntensity = (std::max)(manualGaussian, gaussianOverrideIntensity_);
     bloomParam_.fullScreenBoxBlurBlend = fullScreenSmoothingMode_ == 2 ? baseFullScreenBoxBlurBlend_ : 0.0f;
+    bloomCB_->Update(bloomParam_);
+}
+
+void Bloom::SetTransientPulse(
+    float bloomBoost,
+    float chromAbAmount,
+    const Vector2& center,
+    float radius,
+    float width,
+    float strength) {
+    transientBloomBoost_ = (std::max)(0.0f, bloomBoost);
+    transientChromAbAmount_ = (std::max)(0.0f, chromAbAmount);
+    bloomParam_.intensity = baseBloomIntensity_ + transientBloomBoost_;
+    bloomParam_.distortionAmount = baseDistortionAmount_;
+    bloomParam_.chromAbAmount = baseChromAbAmount_ + transientChromAbAmount_;
+    bloomParam_.shockwaveCenter = center;
+    bloomParam_.shockwaveRadius = (std::max)(0.0f, radius);
+    bloomParam_.shockwaveWidth = (std::max)(0.001f, width);
+    bloomParam_.shockwaveStrength = (std::max)(0.0f, strength);
     bloomCB_->Update(bloomParam_);
 }
 
