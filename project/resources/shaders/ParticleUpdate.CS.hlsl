@@ -113,7 +113,7 @@ float ApplyEasing(float t, uint easingType)
 }
 
 // --- 新機能: ビルボード行列生成 ---
-float4x4 MakeBillboardMatrix(float3 scale, float3 position, float3 cameraPos)
+float4x4 MakeBillboardMatrix(float3 scale, float3 position, float3 cameraPos, float rotation)
 {
     float3 forward = normalize(cameraPos - position);
     
@@ -126,11 +126,16 @@ float4x4 MakeBillboardMatrix(float3 scale, float3 position, float3 cameraPos)
     
     float3 right = normalize(cross(up, forward));
     up = cross(forward, right);
+
+    float rotationCos = cos(rotation);
+    float rotationSin = sin(rotation);
+    float3 spunRight = right * rotationCos + up * rotationSin;
+    float3 spunUp = up * rotationCos - right * rotationSin;
     
     float4x4 billboard =
     {
-        right.x * scale.x,   right.y * scale.x,   right.z * scale.x,   0,
-        up.x * scale.y,      up.y * scale.y,      up.z * scale.y,      0,
+        spunRight.x * scale.x, spunRight.y * scale.x, spunRight.z * scale.x, 0,
+        spunUp.x * scale.y, spunUp.y * scale.y, spunUp.z * scale.y, 0,
         forward.x * scale.z, forward.y * scale.z, forward.z * scale.z, 0,
         position.x,          position.y,          position.z,          1
     };
@@ -181,7 +186,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
         world = MakeBillboardMatrix(
             float3(currentScale, currentScale, currentScale),
             p.position,
-            gScene.cameraPosition
+            gScene.cameraPosition,
+            p.rotate.z
         );
     }
     else

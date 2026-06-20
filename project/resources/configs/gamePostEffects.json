@@ -143,6 +143,29 @@
       "vignetteScale": 0.0
     }
   },
+  "particles": {
+    "enabled": true,
+    "param": {
+      "threshold": 0.0,
+      "intensity": 1.65,
+      "distortionAmount": 0.0,
+      "chromAbAmount": 0.0,
+      "glitchAmount": 0.0,
+      "outlineWidth": 0.0,
+      "outlineThreshold": 0.0,
+      "outlineBloomIntensity": 0.0,
+      "outlineBloomWidth": 0.0
+    }
+  },
+  "deathPulse": {
+    "enabled": true,
+    "duration": 0.62,
+    "bloomBoost": 1.8,
+    "chromAbAmount": 0.018,
+    "shockwaveStrength": 0.028,
+    "shockwaveWidth": 0.055,
+    "shockwaveMaxRadius": 0.72
+  },
   "player": {
     "enabled": true,
     "param": {

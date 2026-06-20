@@ -83,10 +83,11 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     srvManager_ = srvManager;
     auto device = dxCommon_->GetDevice();
 
-    // モデル読み込み。細長く伸ばしてヒットエフェクトに使いやすい plane を標準にする。
+    // 全パーティクルを同じGPU間接描画にまとめるため、ネオン枠線モデルに統一する。
     ModelManager::GetInstance()->LoadModel("plane.obj");
     ModelManager::GetInstance()->LoadModel("triangleParticle.obj");
-    model_ = ModelManager::GetInstance()->FindModel("plane.obj");
+    ModelManager::GetInstance()->LoadModel("neonTriangleParticle.obj");
+    model_ = ModelManager::GetInstance()->FindModel("neonTriangleParticle.obj");
 
     // 1. インスタンシング用。CPU更新した行列を毎フレーム書き込むためUploadにする。
     instancingResource_ = dxCommon_->CreateBufferResource(sizeof(ModelParticleTransformationMatrix) * kMaxInstance);
@@ -141,6 +142,18 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     computeConfigResource_ = dxCommon_->CreateBufferResource(sizeof(GlobalConfig));
     computeSceneResource_ = dxCommon_->CreateBufferResource(sizeof(SceneConfig));
     emitStagingResource_ = dxCommon_->CreateBufferResource(sizeof(ParticleGPU) * kMaxInstance);
+
+    // Default heapの初期内容は未定義なので、GPU更新を始める前に全スロットを無効化する。
+    void* initialParticles = nullptr;
+    emitStagingResource_->Map(0, nullptr, &initialParticles);
+    std::memset(initialParticles, 0, sizeof(ParticleGPU) * kMaxInstance);
+    emitStagingResource_->Unmap(0, nullptr);
+    Transition(particleResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+    dxCommon_->GetList()->CopyBufferRegion(
+        particleResource_.Get(), 0, emitStagingResource_.Get(), 0,
+        sizeof(ParticleGPU) * kMaxInstance);
+    Transition(particleResource_.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
     resetResource_ = dxCommon_->CreateBufferResource(sizeof(uint32_t));
     uint32_t zero = 0;
     void* pReset = nullptr;
@@ -157,7 +170,6 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     drawArgs->StartInstanceLocation = 0;
     drawArgsInitResource_->Unmap(0, nullptr);
     ResetDrawArgs();
-    Transition(particleResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     Transition(gpuInstancingResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     Transition(aliveIndicesResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -247,6 +259,8 @@ void ParticleManager::Update(float deltaTime, Camera* camera, DebugCamera* debug
     if (!camera) {
         return;
     }
+
+	UpdatePendingDeathBursts(deltaTime);
 
     const bool useDebugCamera = debugCamera && Object3dCommon::GetInstance()->GetIsDebugCamera();
     const Matrix4x4& viewProjection = useDebugCamera ? debugCamera->GetViewProjectionMatrix() : camera->GetViewProjectionMatrix();
@@ -496,6 +510,146 @@ void ParticleManager::EmitHitEffect(const Vector3& position) {
     EmitBatch(particles);
 }
 
+void ParticleManager::EmitNeonDeathEffect(
+    const Vector3& position,
+    const Vector4& primaryColor,
+    const Vector4& secondaryColor,
+    float strength) {
+    strength = std::clamp(strength, 0.2f, 2.0f);
+
+	if (strength >= 0.75f) {
+		auto chargeIt = effectLibrary_.find("NeonDeathCharge");
+		if (chargeIt != effectLibrary_.end()) {
+			ParticleEmitterConfig charge = chargeIt->second;
+			charge.position = position;
+			const float chargeScale = 0.75f + strength * 0.35f;
+			charge.startScaleMin *= chargeScale;
+			charge.startScaleMax *= chargeScale;
+			charge.endScaleMin *= chargeScale;
+			charge.endScaleMax *= chargeScale;
+			std::vector<Particle> chargeParticles;
+			const uint32_t chargeCount = static_cast<uint32_t>(std::lround(5.0f * strength));
+			chargeParticles.reserve(chargeCount);
+			for (uint32_t i = 0; i < chargeCount; ++i) {
+				Particle particle = MakeParticle(charge);
+				particle.transform.rotate.z = (2.0f * pi * static_cast<float>(i)) /
+					static_cast<float>((std::max)(1u, chargeCount));
+				particle.angularVelocity = { 0.0f, 0.0f, (i % 2 == 0 ? 1.0f : -1.0f) * Rand(2.0f, 5.0f) };
+				chargeParticles.push_back(particle);
+			}
+			EmitBatch(chargeParticles);
+		}
+
+		pendingDeathBursts_.push_back({ position, primaryColor, secondaryColor, strength, 0.28f });
+		return;
+	}
+
+	EmitNeonDeathBurstNow(position, primaryColor, secondaryColor, strength);
+}
+
+void ParticleManager::EmitNeonDeathBurstNow(
+	const Vector3& position,
+	const Vector4& primaryColor,
+	const Vector4& secondaryColor,
+	float strength) {
+
+    std::vector<Particle> particles;
+    auto emitLayer = [&](const char* effectName, uint32_t baseCount, float scaleMultiplier) {
+        auto it = effectLibrary_.find(effectName);
+        if (it == effectLibrary_.end()) {
+            return;
+        }
+
+        ParticleEmitterConfig config = it->second;
+        config.position = position;
+        config.shapeSize *= scaleMultiplier;
+        config.startScaleMin *= scaleMultiplier;
+        config.startScaleMax *= scaleMultiplier;
+        config.endScaleMin *= scaleMultiplier;
+        config.endScaleMax *= scaleMultiplier;
+        config.startColor = primaryColor;
+        config.endColor = secondaryColor;
+
+        const uint32_t count = (std::max)(1u, static_cast<uint32_t>(std::lround(baseCount * strength)));
+        particles.reserve(particles.size() + count);
+        for (uint32_t i = 0; i < count; ++i) {
+            Particle particle = MakeParticle(config);
+            particle.angularVelocity *= Rand(0.75f, 1.65f);
+            particles.push_back(particle);
+        }
+    };
+
+    const float scaleMultiplier = 0.72f + strength * 0.38f;
+    emitLayer("NeonDeathFlash", 7, scaleMultiplier);
+    emitLayer("NeonDeathShard", 54, scaleMultiplier);
+    emitLayer("NeonDeathFragment", 20, scaleMultiplier);
+    EmitBatch(particles);
+}
+
+void ParticleManager::UpdatePendingDeathBursts(float deltaTime) {
+	for (PendingDeathBurst& pending : pendingDeathBursts_) {
+		pending.timer -= deltaTime;
+		if (pending.timer <= 0.0f) {
+			EmitNeonDeathBurstNow(
+				pending.position,
+				pending.primaryColor,
+				pending.secondaryColor,
+				pending.strength);
+			screenPulseEvents_.push_back({ pending.position, pending.strength });
+		}
+	}
+
+	std::erase_if(pendingDeathBursts_, [](const PendingDeathBurst& pending) {
+		return pending.timer <= 0.0f;
+	});
+}
+
+std::vector<ParticleManager::ScreenPulseEvent> ParticleManager::ConsumeScreenPulseEvents() {
+	std::vector<ScreenPulseEvent> events = std::move(screenPulseEvents_);
+	screenPulseEvents_.clear();
+	return events;
+}
+
+void ParticleManager::EmitNeonImpactEffect(
+    const Vector3& position,
+    const Vector3& impactNormal,
+    const Vector4& color,
+    uint32_t count) {
+    auto it = effectLibrary_.find("NeonImpactSpark");
+    if (it == effectLibrary_.end() || count == 0) {
+        return;
+    }
+
+    ParticleEmitterConfig config = it->second;
+    config.position = position;
+    config.startColor = color;
+    config.endColor = { color.x * 0.35f, color.y * 0.35f, color.z * 0.35f, 0.0f };
+
+    Vector3 normal = impactNormal;
+    normal.z = 0.0f;
+    if (Length(normal) < 0.0001f) {
+        normal = { 1.0f, 0.0f, 0.0f };
+    } else {
+        normal = Normalize(normal);
+    }
+    const Vector3 tangent = { -normal.y, normal.x, 0.0f };
+
+    std::vector<Particle> particles;
+    particles.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        Particle particle = MakeParticle(config);
+        Vector3 direction = normal * Rand(0.55f, 1.35f) +
+            tangent * Rand(-0.95f, 0.95f) + Vector3{ 0.0f, 0.0f, Rand(-0.18f, 0.18f) };
+        direction = Normalize(direction);
+        particle.velocity = direction * Rand(config.speedMin, config.speedMax);
+        particle.transform.translate += direction * Rand(0.0f, 0.18f);
+        particle.transform.rotate.z = std::atan2(direction.y, direction.x) + Rand(-0.6f, 0.6f);
+        particle.angularVelocity = { 0.0f, 0.0f, Rand(-12.0f, 12.0f) };
+        particles.push_back(particle);
+    }
+    EmitBatch(particles);
+}
+
 void ParticleManager::Emit(const ::Particle& particle) {
     Particle converted{};
     converted.transform = particle.transform;
@@ -518,11 +672,13 @@ void ParticleManager::Emit(const ::Particle& particle) {
 }
 
 void ParticleManager::EmitBatch(const std::vector<Particle>& particles) {
-    for (const Particle& particle : particles) {
-        if (activeParticles_.size() >= kMaxInstance) {
-            activeParticles_.erase(activeParticles_.begin());
+    if (!useGpuUpdate_) {
+        for (const Particle& particle : particles) {
+            if (activeParticles_.size() >= kMaxInstance) {
+                activeParticles_.erase(activeParticles_.begin());
+            }
+            activeParticles_.push_back({ particle });
         }
-        activeParticles_.push_back({ particle });
     }
 
     if (!particleResource_ || !emitStagingResource_ || particles.empty()) {
@@ -644,6 +800,15 @@ uint32_t ParticleManager::GetActiveCount() const {
     return static_cast<uint32_t>(activeParticles_.size());
 }
 
+void ParticleManager::SetUseGpuUpdate(bool useGpuUpdate) {
+    if (useGpuUpdate_ == useGpuUpdate) {
+        return;
+    }
+    useGpuUpdate_ = useGpuUpdate;
+    activeParticles_.clear();
+    instanceCount_ = 0;
+}
+
 void ParticleManager::CreateDefaultEffects() {
     ParticleEmitterConfig hit{};
     hit.speedMin = 18.0f;
@@ -653,13 +818,13 @@ void ParticleManager::CreateDefaultEffects() {
     hit.gravity = { 0.0f, -8.0f, 0.0f };
     hit.startScale = 1.0f;
     hit.endScale = 0.0f;
-    hit.startScaleMin = { 0.08f, 1.1f, 0.08f };
-    hit.startScaleMax = { 0.16f, 2.1f, 0.16f };
-    hit.endScaleMin = { 0.02f, 0.10f, 0.02f };
-    hit.endScaleMax = { 0.04f, 0.24f, 0.04f };
+    hit.startScaleMin = { 0.10f, 0.10f, 0.10f };
+    hit.startScaleMax = { 0.30f, 0.30f, 0.30f };
+    hit.endScaleMin = { 0.01f, 0.01f, 0.01f };
+    hit.endScaleMax = { 0.04f, 0.04f, 0.04f };
     hit.startColor = { 1.0f, 0.78f, 0.26f, 1.0f };
     hit.endColor = { 1.0f, 0.08f, 0.02f, 0.0f };
-    hit.modelPath = "plane.obj";
+    hit.modelPath = "neonTriangleParticle.obj";
     hit.emitterShape = EmitterShape::Point;
     hit.easingType = EasingType::EaseOut;
     hit.isBillboard = true;
@@ -697,6 +862,88 @@ void ParticleManager::CreateDefaultEffects() {
     debris.startColor = { 1.0f, 0.12f, 0.35f, 1.0f };
     debris.endColor = { 0.15f, 0.85f, 1.0f, 0.0f };
     RegisterEffect("EnemyDeathBurst", debris);
+
+	ParticleEmitterConfig deathCharge{};
+	deathCharge.speedMin = 0.0f;
+	deathCharge.speedMax = 1.5f;
+	deathCharge.lifeTimeMin = 0.28f;
+	deathCharge.lifeTimeMax = 0.32f;
+	deathCharge.gravity = { 0.0f, 0.0f, 0.0f };
+	deathCharge.startScaleMin = { 0.28f, 0.28f, 0.28f };
+	deathCharge.startScaleMax = { 0.55f, 0.55f, 0.55f };
+	deathCharge.endScaleMin = { 2.5f, 2.5f, 2.5f };
+	deathCharge.endScaleMax = { 4.0f, 4.0f, 4.0f };
+	deathCharge.startColor = { 2.2f, 2.2f, 2.2f, 0.95f };
+	deathCharge.endColor = { 1.6f, 1.6f, 1.6f, 0.0f };
+	deathCharge.modelPath = "neonTriangleParticle.obj";
+	deathCharge.emitterShape = EmitterShape::Sphere;
+	deathCharge.shapeSize = { 0.18f, 0.18f, 0.05f };
+	deathCharge.easingType = EasingType::EaseOut;
+	deathCharge.isBillboard = true;
+	RegisterEffect("NeonDeathCharge", deathCharge);
+
+    ParticleEmitterConfig deathFlash{};
+    deathFlash.speedMin = 1.5f;
+    deathFlash.speedMax = 7.0f;
+    deathFlash.lifeTimeMin = 0.16f;
+    deathFlash.lifeTimeMax = 0.30f;
+    deathFlash.gravity = { 0.0f, 0.0f, 0.0f };
+    deathFlash.startScaleMin = { 0.75f, 0.75f, 0.75f };
+    deathFlash.startScaleMax = { 1.45f, 1.45f, 1.45f };
+    deathFlash.endScaleMin = { 2.8f, 2.8f, 2.8f };
+    deathFlash.endScaleMax = { 5.2f, 5.2f, 5.2f };
+    deathFlash.modelPath = "neonTriangleParticle.obj";
+    deathFlash.emitterShape = EmitterShape::Sphere;
+    deathFlash.shapeSize = { 0.35f, 0.35f, 0.12f };
+    deathFlash.easingType = EasingType::EaseOut;
+    deathFlash.isBillboard = true;
+    RegisterEffect("NeonDeathFlash", deathFlash);
+
+    ParticleEmitterConfig deathShard{};
+    deathShard.speedMin = 13.0f;
+    deathShard.speedMax = 40.0f;
+    deathShard.lifeTimeMin = 0.34f;
+    deathShard.lifeTimeMax = 0.86f;
+    deathShard.gravity = { 0.0f, -1.1f, 0.0f };
+    deathShard.startScaleMin = { 0.12f, 0.12f, 0.12f };
+    deathShard.startScaleMax = { 0.38f, 0.38f, 0.38f };
+    deathShard.endScaleMin = { 0.015f, 0.015f, 0.015f };
+    deathShard.endScaleMax = { 0.07f, 0.07f, 0.07f };
+    deathShard.modelPath = "neonTriangleParticle.obj";
+    deathShard.emitterShape = EmitterShape::Sphere;
+    deathShard.shapeSize = { 0.65f, 0.65f, 0.18f };
+    deathShard.easingType = EasingType::EaseOut;
+    deathShard.isBillboard = false;
+    RegisterEffect("NeonDeathShard", deathShard);
+
+    ParticleEmitterConfig deathFragment = deathShard;
+    deathFragment.speedMin = 4.0f;
+    deathFragment.speedMax = 15.0f;
+    deathFragment.lifeTimeMin = 0.72f;
+    deathFragment.lifeTimeMax = 1.35f;
+    deathFragment.gravity = { 0.0f, -0.45f, 0.0f };
+    deathFragment.startScaleMin = { 0.34f, 0.34f, 0.34f };
+    deathFragment.startScaleMax = { 0.82f, 0.82f, 0.82f };
+    deathFragment.endScaleMin = { 0.05f, 0.05f, 0.05f };
+    deathFragment.endScaleMax = { 0.18f, 0.18f, 0.18f };
+    deathFragment.shapeSize = { 0.9f, 0.9f, 0.25f };
+    RegisterEffect("NeonDeathFragment", deathFragment);
+
+    ParticleEmitterConfig impact{};
+    impact.speedMin = 9.0f;
+    impact.speedMax = 24.0f;
+    impact.lifeTimeMin = 0.14f;
+    impact.lifeTimeMax = 0.32f;
+    impact.gravity = { 0.0f, -2.0f, 0.0f };
+    impact.startScaleMin = { 0.10f, 0.10f, 0.10f };
+    impact.startScaleMax = { 0.28f, 0.28f, 0.28f };
+    impact.endScaleMin = { 0.01f, 0.01f, 0.01f };
+    impact.endScaleMax = { 0.04f, 0.04f, 0.04f };
+    impact.modelPath = "neonTriangleParticle.obj";
+    impact.emitterShape = EmitterShape::Point;
+    impact.easingType = EasingType::EaseOut;
+    impact.isBillboard = true;
+    RegisterEffect("NeonImpactSpark", impact);
 
     ParticleEmitterConfig smoke{};
     smoke.speedMin = 1.0f;

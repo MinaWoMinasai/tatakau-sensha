@@ -1,8 +1,17 @@
 #pragma once
 #include <string>
+#include "Struct.h"
 
 class IScene {
 public:
+	struct PostEffectPulse {
+		float bloomBoost = 0.0f;
+		float chromAbAmount = 0.0f;
+		Vector2 center = { 0.5f, 0.5f };
+		float radius = 0.0f;
+		float width = 0.05f;
+		float strength = 0.0f;
+	};
     struct RenderProfile {
 		float frameTotalMs = 0.0f;
 		float messagePumpMs = 0.0f;
@@ -36,6 +45,7 @@ public:
     virtual void DrawSprite() = 0;
     virtual float GetFinalDeltaTime() const { return 1.0f / 60.0f; } // デフォルトは60FPS 
     virtual float GetPostGaussianIntensity() const { return 0.0f; }
+    virtual PostEffectPulse GetPostEffectPulse() const { return {}; }
     virtual void SetRenderProfile(const RenderProfile& profile) { (void)profile; }
 
     // シーン終了判定（SceneManagerがチェックする）

@@ -48,6 +48,10 @@ struct ParticleEmitterConfig {
 
 class ParticleManager {
 public:
+	struct ScreenPulseEvent {
+		Vector3 position{};
+		float strength = 1.0f;
+	};
     // GPUに送るパーティクル1粒のデータ
     struct ParticleGPU {
         Vector3 position;    float currentTime;
@@ -103,10 +107,15 @@ public:
     void SaveEffect(const std::string& effectName, const std::string& jsonPath) const;
     void Emit(const std::string& effectName, const Vector3& position, uint32_t count);
     void EmitHitEffect(const Vector3& position);
+    void EmitNeonDeathEffect(const Vector3& position, const Vector4& primaryColor,
+        const Vector4& secondaryColor, float strength = 1.0f);
+    void EmitNeonImpactEffect(const Vector3& position, const Vector3& impactNormal,
+        const Vector4& color, uint32_t count = 10);
+	std::vector<ScreenPulseEvent> ConsumeScreenPulseEvents();
     void Emit(const ::Particle& particle);
     void DrawImGuiEditor();
     uint32_t GetActiveCount() const;
-    void SetUseGpuUpdate(bool useGpuUpdate) { useGpuUpdate_ = useGpuUpdate; }
+    void SetUseGpuUpdate(bool useGpuUpdate);
     bool IsUseGpuUpdate() const { return useGpuUpdate_; }
 
 private:
@@ -126,11 +135,24 @@ private:
     void ResetDrawArgs();
     void EmitBatch(const std::vector<Particle>& particles);
     Particle MakeParticle(const ParticleEmitterConfig& config);
+	void EmitNeonDeathBurstNow(const Vector3& position, const Vector4& primaryColor,
+		const Vector4& secondaryColor, float strength);
+	void UpdatePendingDeathBursts(float deltaTime);
+
+	struct PendingDeathBurst {
+		Vector3 position{};
+		Vector4 primaryColor{};
+		Vector4 secondaryColor{};
+		float strength = 1.0f;
+		float timer = 0.28f;
+	};
 
     DirectXCommon* dxCommon_ = nullptr;
     SrvManager* srvManager_ = nullptr;
 
     std::map<std::string, ParticleEmitterConfig> effectLibrary_;
+	std::vector<PendingDeathBurst> pendingDeathBursts_;
+	std::vector<ScreenPulseEvent> screenPulseEvents_;
     Model* model_ = nullptr;
     std::vector<ActiveParticle> activeParticles_;
     uint32_t instanceCount_ = 0;
@@ -165,6 +187,6 @@ private:
     uint32_t freeIndex_ = 0;
     std::string editorEffectName_ = "HitSpark";
     ParticleEmitterConfig editorConfig_;
-    bool useGpuUpdate_ = false;
+    bool useGpuUpdate_ = true;
     bool gpuDrawReady_ = false;
 };

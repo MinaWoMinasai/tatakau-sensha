@@ -323,6 +323,29 @@ void Enemy::Draw(bool drawBody) {
 }
 
 void Enemy::DrawBodyOnly() {
+	if (isDead_) {
+		if (deathChargeTimer_ <= 0.0f) {
+			return;
+		}
+
+		const float progress = 1.0f - deathChargeTimer_ / deathChargeDuration_;
+		const float charge = progress * progress;
+		Transform chargeTransform = worldTransform_;
+		chargeTransform.scale = worldTransform_.scale * (1.0f + charge * 0.65f);
+		const Vector4 savedColor = object_->GetColor();
+		const bool savedLighting = object_->IsLightingEnabled();
+		object_->SetTransform(chargeTransform);
+		object_->SetLighting(false);
+		object_->SetColor({ 2.4f, 2.4f, 2.4f, 1.0f });
+		object_->Update();
+		object_->Draw();
+		object_->SetTransform(worldTransform_);
+		object_->SetColor(savedColor);
+		object_->SetLighting(savedLighting);
+		object_->Update();
+		return;
+	}
+
 	if (!isDead_) {
 		object_->Draw();
 	}
@@ -1058,14 +1081,18 @@ bool Enemy::isFinished()
 void Enemy::SpawnParticles()
 {
 	Vector3 center = GetWorldPosition();
-	ParticleManager::GetInstance()->Emit("EnemyDeathBurst", center, 58);
-	ParticleManager::GetInstance()->Emit("DeathSmoke", center, 14);
-	ParticleManager::GetInstance()->EmitHitEffect(center);
-	deathEffectTimer_ = 1.0f;
+	ParticleManager::GetInstance()->EmitNeonDeathEffect(
+		center,
+		{ 1.55f, 0.22f, 0.48f, 1.0f },
+		{ 1.30f, 0.92f, 0.18f, 0.0f },
+		1.35f);
+	deathChargeTimer_ = deathChargeDuration_;
+	deathEffectTimer_ = 2.0f;
 }
 
 void Enemy::UpdateParticles(float deltaTime)
 {
+	deathChargeTimer_ = (std::max)(0.0f, deathChargeTimer_ - deltaTime);
 	deathEffectTimer_ -= deltaTime;
 	if (deathEffectTimer_ <= 0.0f) {
 		isExploding_ = false;

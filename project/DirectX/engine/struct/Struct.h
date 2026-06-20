@@ -319,6 +319,11 @@ struct BloomParam
 	float depthNearClip; // View空間Z復元用のnear clip
 	float depthFarClip; // View空間Z復元用のfar clip
 	float depthOutlineScale; // View空間Z差分の強調倍率
+	Vector2 shockwaveCenter; // 画面UV上の衝撃波中心
+	float shockwaveRadius;
+	float shockwaveWidth;
+	float shockwaveStrength;
+	float shockwavePadding[3];
 };
 
 struct PointLightData {

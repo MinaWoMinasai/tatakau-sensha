@@ -78,6 +78,7 @@ public:
 
 	float GetFinalDeltaTime() const override { return finalDeltaTime; }
 	float GetPostGaussianIntensity() const override { return sceneFadeBlurIntensity_; }
+	PostEffectPulse GetPostEffectPulse() const override { return deathPostPulse_; }
 	void SetRenderProfile(const IScene::RenderProfile& profile) override { renderProfile_ = profile; }
 	
 	std::string GetNextSceneName() const override;
@@ -161,6 +162,8 @@ private:
 	void QueueStageBlockNeonOutlines();
 	void DrawExpEnemyNeonFillModels();
 	void DrawExpEnemyNeonDepthLines();
+	void TriggerDeathPostPulse(const Vector3& worldPosition, float strength);
+	void UpdateDeathPostPulse(float deltaTime);
 	void QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward);
 	bool IsNearCamera2D(const Vector3& worldPos, float halfWidth, float halfHeight, float margin = 0.0f) const;
 	void ResetPostProfileEntries();
@@ -261,6 +264,7 @@ private:
 	std::unique_ptr<Skybox> skybox_;
 	std::unique_ptr<ObjectPostEffect> neonGridPostEffect_;
 	std::unique_ptr<ObjectPostEffect> bulletTrailPostEffect_;
+	std::unique_ptr<ObjectPostEffect> particlePostEffect_;
 	std::unique_ptr<ObjectPostEffect> playerPostEffect_;
 	std::unique_ptr<ObjectPostEffect> enemyPostEffect_;
 	std::unique_ptr<ObjectPostEffect> expEnemyPostEffect_;
@@ -357,6 +361,17 @@ private:
 	bool showLevelAIDitorPreview_ = true;
 	bool enableNeonGridPostEffect_ = true;
 	bool enableBulletTrailPostEffect_ = true;
+	bool enableParticlePostEffect_ = true;
+	bool enableDeathPostPulse_ = true;
+	PostEffectPulse deathPostPulse_{};
+	float deathPostPulseTimer_ = 0.0f;
+	float deathPostPulseDuration_ = 0.62f;
+	float deathPostPulseScale_ = 1.0f;
+	float deathPostBloomBoost_ = 1.8f;
+	float deathPostChromAbAmount_ = 0.018f;
+	float deathPostShockwaveStrength_ = 0.028f;
+	float deathPostShockwaveWidth_ = 0.055f;
+	float deathPostShockwaveMaxRadius_ = 0.72f;
 	std::string postEffectConfigStatus_;
 	std::string visualConfigStatus_;
 	float worldGridSpacing_ = 2.0f;

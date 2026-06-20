@@ -16,6 +16,8 @@ public:
     void PostDraw(); // 2. 抽出・ぼかし・合成を実行
     void SetGrayscaleEnabled(bool enabled);
     void SetGaussianOverride(float intensity);
+    void SetTransientPulse(float bloomBoost, float chromAbAmount, const Vector2& center,
+        float radius, float width, float strength);
 
 private:
     // 便利関数：リソースバリアの切り替え
@@ -45,5 +47,10 @@ private:
     float baseGaussianIntensity_ = 0.0f;
     float baseFullScreenBoxBlurBlend_ = 0.0f;
     float gaussianOverrideIntensity_ = 0.0f;
+    float baseBloomIntensity_ = 0.0f;
+    float baseDistortionAmount_ = 0.0f;
+    float baseChromAbAmount_ = 0.0f;
+    float transientBloomBoost_ = 0.0f;
+    float transientChromAbAmount_ = 0.0f;
     bool enableDepthOutline_ = true;
 };

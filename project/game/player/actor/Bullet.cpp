@@ -1,4 +1,5 @@
 #include "Bullet.h"
+#include "ParticleManager.h"
 #include <cmath>
 
 void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const uint32_t& damage, BulletOwner owner,
@@ -83,10 +84,16 @@ void Bullet::OnCollision(Collider* other) {
 		if (otherBullet->GetOwner() == owner_) {
 			return;
 		}
+		Vector3 impactNormal = velocity_ * -1.0f;
+		ParticleManager::GetInstance()->EmitNeonImpactEffect(
+			GetWorldPosition(), impactNormal, GetBulletColor(), 7);
 		ApplyBulletDurabilityDamage(otherBullet->GetBulletPenetration());
 		return;
 	}
 
+	Vector3 impactNormal = velocity_ * -1.0f;
+	ParticleManager::GetInstance()->EmitNeonImpactEffect(
+		GetWorldPosition(), impactNormal, GetBulletColor(), 11);
 	Die();
 }
 

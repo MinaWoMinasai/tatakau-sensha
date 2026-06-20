@@ -65,6 +65,11 @@ float SceneManager::GetPostGaussianIntensity()
 	return currentScene_->GetPostGaussianIntensity();
 }
 
+IScene::PostEffectPulse SceneManager::GetPostEffectPulse()
+{
+	return currentScene_ ? currentScene_->GetPostEffectPulse() : IScene::PostEffectPulse{};
+}
+
 void SceneManager::SetRenderProfile(const IScene::RenderProfile& profile)
 {
 	if (currentScene_) {

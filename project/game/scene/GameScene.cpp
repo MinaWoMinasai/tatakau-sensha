@@ -452,6 +452,23 @@ void GameScene::Initialize() {
 		bulletTrailPost.outlineBloomWidth = 0.0f;
 	}
 
+	particlePostEffect_ = std::make_unique<ObjectPostEffect>();
+	particlePostEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr,
+		1.0f
+	);
+	{
+		BloomParam& particlePost = particlePostEffect_->GetParam();
+		particlePost.threshold = 0.0f;
+		particlePost.intensity = 1.65f;
+		particlePost.outlineWidth = 0.0f;
+		particlePost.outlineThreshold = 0.0f;
+		particlePost.outlineBloomIntensity = 0.0f;
+		particlePost.outlineBloomWidth = 0.0f;
+	}
+
 	sharedObjectBloomPostEffect_ = std::make_unique<ObjectPostEffect>();
 	sharedObjectBloomPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
@@ -802,8 +819,6 @@ void GameScene::Update() {
 	player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime);
 	if (player_->IsDead() && !playerDeathShakeStarted_) {
 		playerDeathShakeStarted_ = true;
-		cameraShakeTimer_ = cameraShakeDuration_;
-		cameraShakePower_ = 1.15f;
 	}
 	
 	enemy_->Update(finalDeltaTime);
@@ -835,6 +850,7 @@ void GameScene::Update() {
 	stagePostEffect_->Update(finalDeltaTime);
 	neonGridPostEffect_->Update(finalDeltaTime);
 	bulletTrailPostEffect_->Update(finalDeltaTime);
+	particlePostEffect_->Update(finalDeltaTime);
 	sharedObjectBloomPostEffect_->Update(finalDeltaTime);
 	UpdatePostProfileText();
 
@@ -859,7 +875,11 @@ void GameScene::Update() {
 
 #endif // USE_IMGUI
 
+	UpdateDeathPostPulse(baseDeltaTime);
 	ParticleManager::GetInstance()->Update(finalDeltaTime, camera.get(), debugCamera.get());
+	for (const ParticleManager::ScreenPulseEvent& event : ParticleManager::GetInstance()->ConsumeScreenPulseEvents()) {
+		TriggerDeathPostPulse(event.position, event.strength);
+	}
 
 	switch (phase_) {
 	case Phase::kFadeIn:
@@ -1042,10 +1062,55 @@ void GameScene::DrawPostEffect3D() {
 		});
 	}
 
-	profile("Particles", true, [&]() {
-		ParticleManager::GetInstance()->Draw();
-	});
+	if (enableParticlePostEffect_) {
+		profile("Particle Glow", true, [&]() {
+			particlePostEffect_->BeginCaptureWithCurrentDepth();
+			ParticleManager::GetInstance()->Draw();
+			particlePostEffect_->EndCaptureAdditiveOnly();
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+		});
+	} else {
+		profile("Particles", false, [&]() {
+			ParticleManager::GetInstance()->Draw();
+		});
+	}
 
+}
+
+void GameScene::TriggerDeathPostPulse(const Vector3& worldPosition, float strength) {
+	if (!enableDeathPostPulse_) {
+		return;
+	}
+
+	const Vector2 screen = WorldToScreen(worldPosition);
+	deathPostPulse_.center = {
+		(std::clamp)(screen.x / static_cast<float>(WinApp::kClientWidth), 0.0f, 1.0f),
+		(std::clamp)(screen.y / static_cast<float>(WinApp::kClientHeight), 0.0f, 1.0f)
+	};
+	deathPostPulseScale_ = (std::clamp)(strength, 0.5f, 1.6f);
+	deathPostPulseTimer_ = deathPostPulseDuration_;
+	UpdateDeathPostPulse(0.0f);
+
+	cameraShakeTimer_ = cameraShakeDuration_;
+	cameraShakePower_ = (std::max)(cameraShakePower_, 0.65f * deathPostPulseScale_);
+}
+
+void GameScene::UpdateDeathPostPulse(float deltaTime) {
+	if (deathPostPulseTimer_ <= 0.0f || !enableDeathPostPulse_) {
+		deathPostPulseTimer_ = 0.0f;
+		deathPostPulse_ = {};
+		return;
+	}
+
+	deathPostPulseTimer_ = (std::max)(0.0f, deathPostPulseTimer_ - deltaTime);
+	const float age = 1.0f - deathPostPulseTimer_ / (std::max)(0.001f, deathPostPulseDuration_);
+	const float impactEnvelope = std::sin(age * pi) * (1.0f - age * 0.35f);
+	const float flashEnvelope = (1.0f - age) * (1.0f - age);
+	deathPostPulse_.radius = 0.025f + age * deathPostShockwaveMaxRadius_;
+	deathPostPulse_.width = deathPostShockwaveWidth_;
+	deathPostPulse_.strength = deathPostShockwaveStrength_ * deathPostPulseScale_ * impactEnvelope;
+	deathPostPulse_.bloomBoost = deathPostBloomBoost_ * deathPostPulseScale_ * flashEnvelope;
+	deathPostPulse_.chromAbAmount = deathPostChromAbAmount_ * deathPostPulseScale_ * impactEnvelope;
 }
 
 void GameScene::DrawAfterPostEffect3D() {
@@ -2142,6 +2207,7 @@ nlohmann::json GameScene::BuildGamePostEffectConfig() const
 	config["stage"] = makeEntry(enableStagePostEffect_, stagePostEffect_.get());
 	config["grid"] = makeEntry(enableNeonGridPostEffect_, neonGridPostEffect_.get());
 	config["bulletTrail"] = makeEntry(enableBulletTrailPostEffect_, bulletTrailPostEffect_.get());
+	config["particles"] = makeEntry(enableParticlePostEffect_, particlePostEffect_.get());
 	config["sharedObjectBloom"] = {
 		{ "param", sharedObjectBloomPostEffect_ ? WriteBloomParamJson(sharedObjectBloomPostEffect_->GetParam()) : nlohmann::json::object() }
 	};
@@ -2154,6 +2220,15 @@ nlohmann::json GameScene::BuildGamePostEffectConfig() const
 		{ "chromAbAmount", slowPlayerChromAbAmount_ },
 		{ "distortionAmount", slowPlayerDistortionAmount_ },
 		{ "glitchAmount", slowPlayerGlitchAmount_ }
+	};
+	config["deathPulse"] = {
+		{ "enabled", enableDeathPostPulse_ },
+		{ "duration", deathPostPulseDuration_ },
+		{ "bloomBoost", deathPostBloomBoost_ },
+		{ "chromAbAmount", deathPostChromAbAmount_ },
+		{ "shockwaveStrength", deathPostShockwaveStrength_ },
+		{ "shockwaveWidth", deathPostShockwaveWidth_ },
+		{ "shockwaveMaxRadius", deathPostShockwaveMaxRadius_ }
 	};
 	return config;
 }
@@ -2185,6 +2260,7 @@ void GameScene::ApplyGamePostEffectConfig(const nlohmann::json& configJson)
 	applyEntry("stage", &enableStagePostEffect_, stagePostEffect_.get());
 	applyEntry("grid", &enableNeonGridPostEffect_, neonGridPostEffect_.get());
 	applyEntry("bulletTrail", &enableBulletTrailPostEffect_, bulletTrailPostEffect_.get());
+	applyEntry("particles", &enableParticlePostEffect_, particlePostEffect_.get());
 	applyEntry("sharedObjectBloom", nullptr, sharedObjectBloomPostEffect_.get());
 
 	if (configJson.contains("expEnemyPostCull") && configJson["expEnemyPostCull"].is_object()) {
@@ -2198,6 +2274,16 @@ void GameScene::ApplyGamePostEffectConfig(const nlohmann::json& configJson)
 		slowPlayerChromAbAmount_ = ReadCustomFloat(slowJson, "chromAbAmount", slowPlayerChromAbAmount_);
 		slowPlayerDistortionAmount_ = ReadCustomFloat(slowJson, "distortionAmount", slowPlayerDistortionAmount_);
 		slowPlayerGlitchAmount_ = ReadCustomFloat(slowJson, "glitchAmount", slowPlayerGlitchAmount_);
+	}
+	if (configJson.contains("deathPulse") && configJson["deathPulse"].is_object()) {
+		const nlohmann::json& pulseJson = configJson["deathPulse"];
+		enableDeathPostPulse_ = ReadCustomBool(pulseJson, "enabled", enableDeathPostPulse_);
+		deathPostPulseDuration_ = ReadCustomFloat(pulseJson, "duration", deathPostPulseDuration_);
+		deathPostBloomBoost_ = ReadCustomFloat(pulseJson, "bloomBoost", deathPostBloomBoost_);
+		deathPostChromAbAmount_ = ReadCustomFloat(pulseJson, "chromAbAmount", deathPostChromAbAmount_);
+		deathPostShockwaveStrength_ = ReadCustomFloat(pulseJson, "shockwaveStrength", deathPostShockwaveStrength_);
+		deathPostShockwaveWidth_ = ReadCustomFloat(pulseJson, "shockwaveWidth", deathPostShockwaveWidth_);
+		deathPostShockwaveMaxRadius_ = ReadCustomFloat(pulseJson, "shockwaveMaxRadius", deathPostShockwaveMaxRadius_);
 	}
 
 	stagePostCacheValid_ = false;
@@ -2539,6 +2625,7 @@ void GameScene::DrawGameSceneDebugImGui()
 				enableNeonGridPostEffect_ = true;
 				enableStagePostEffect_ = true;
 				enableBulletTrailPostEffect_ = true;
+				enableParticlePostEffect_ = true;
 				enablePlayerPostEffect_ = true;
 				enableEnemyPostEffect_ = true;
 				enableExpEnemyPostEffect_ = true;
@@ -2548,6 +2635,7 @@ void GameScene::DrawGameSceneDebugImGui()
 				enableNeonGridPostEffect_ = false;
 				enableStagePostEffect_ = false;
 				enableBulletTrailPostEffect_ = false;
+				enableParticlePostEffect_ = false;
 				enablePlayerPostEffect_ = false;
 				enableEnemyPostEffect_ = false;
 				enableExpEnemyPostEffect_ = false;
@@ -2575,7 +2663,7 @@ void GameScene::DrawGameSceneDebugImGui()
 				DrawPostEffectParamControls("SharedObjectBloom", sharedObjectBloomPostEffect_->GetParam());
 				ImGui::TextWrapped("プレイヤー、敵、経験値敵、ステージなどの単体発光をまとめる共通パスです。");
 			}
-			if (ImGui::CollapsingHeader("グリッド / 弾軌跡")) {
+			if (ImGui::CollapsingHeader("グリッド / 弾軌跡 / パーティクル")) {
 				ImGui::Checkbox("グリッドポストを有効", &enableNeonGridPostEffect_);
 				BloomParam& gridPost = neonGridPostEffect_->GetParam();
 				ImGui::DragFloat("グリッド発光強度", &gridPost.intensity, 0.01f, 0.0f, 6.0f);
@@ -2584,6 +2672,19 @@ void GameScene::DrawGameSceneDebugImGui()
 				BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
 				ImGui::DragFloat("弾軌跡発光強度", &bulletTrailPost.intensity, 0.01f, 0.0f, 8.0f);
 				ImGui::DragFloat("弾軌跡発光しきい値", &bulletTrailPost.threshold, 0.01f, 0.0f, 2.0f);
+				ImGui::Checkbox("三角パーティクルポストを有効", &enableParticlePostEffect_);
+				BloomParam& particlePost = particlePostEffect_->GetParam();
+				ImGui::DragFloat("三角パーティクル発光強度", &particlePost.intensity, 0.01f, 0.0f, 8.0f);
+				ImGui::DragFloat("三角パーティクル発光しきい値", &particlePost.threshold, 0.01f, 0.0f, 2.0f);
+			}
+			if (ImGui::CollapsingHeader("死亡チャージ / 衝撃波")) {
+				ImGui::Checkbox("死亡時の画面衝撃波を有効", &enableDeathPostPulse_);
+				ImGui::DragFloat("衝撃波の時間", &deathPostPulseDuration_, 0.01f, 0.1f, 2.0f);
+				ImGui::DragFloat("死亡時ブルーム増幅", &deathPostBloomBoost_, 0.05f, 0.0f, 6.0f);
+				ImGui::DragFloat("死亡時色収差", &deathPostChromAbAmount_, 0.001f, 0.0f, 0.2f);
+				ImGui::DragFloat("衝撃波の歪み", &deathPostShockwaveStrength_, 0.001f, 0.0f, 0.15f);
+				ImGui::DragFloat("衝撃波リング幅", &deathPostShockwaveWidth_, 0.001f, 0.005f, 0.25f);
+				ImGui::DragFloat("衝撃波の到達半径", &deathPostShockwaveMaxRadius_, 0.01f, 0.1f, 1.5f);
 			}
 			if (ImGui::CollapsingHeader("スローモーション")) {
 				ImGui::Text("スロー中: %s", slowMotionPostActive_ ? "はい" : "いいえ");

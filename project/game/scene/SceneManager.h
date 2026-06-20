@@ -18,6 +18,7 @@ public:
 
 	float GetFinalDeltaTime();
 	float GetPostGaussianIntensity();
+	IScene::PostEffectPulse GetPostEffectPulse();
 	void SetRenderProfile(const IScene::RenderProfile& profile);
 
 private:

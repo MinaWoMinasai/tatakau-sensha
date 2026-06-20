@@ -212,6 +212,14 @@ void Game::MainLoop() {
 		const float sceneUpdateMs = elapsedMs(sceneUpdateStart, std::chrono::steady_clock::now());
         bloom_->SetGrayscaleEnabled(SceneManager::GetInstance()->GetFinalDeltaTime() < (1.0f / 60.0f) * 0.98f);
         bloom_->SetGaussianOverride(SceneManager::GetInstance()->GetPostGaussianIntensity());
+        const IScene::PostEffectPulse postPulse = SceneManager::GetInstance()->GetPostEffectPulse();
+        bloom_->SetTransientPulse(
+            postPulse.bloomBoost,
+            postPulse.chromAbAmount,
+            postPulse.center,
+            postPulse.radius,
+            postPulse.width,
+            postPulse.strength);
         
 		const auto imguiBuildStart = std::chrono::steady_clock::now();
 #ifdef USE_IMGUI

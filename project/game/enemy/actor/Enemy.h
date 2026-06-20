@@ -297,6 +297,8 @@ private:
 
 	bool isExploding_ = false;
 	float deathEffectTimer_ = 0.0f;
+	float deathChargeTimer_ = 0.0f;
+	float deathChargeDuration_ = 0.28f;
 
 	// 攻撃コントローラ
 	AttackController attackController_;
