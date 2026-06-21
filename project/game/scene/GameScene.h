@@ -122,6 +122,10 @@ private:
 		int expEnemyContact = 15;
 		int shooterContact = 25;
 		int shooterBullet = 18;
+		float shooterDetectionRadius = 18.0f;
+		float shooterTurnSpeed = 5.5f;
+		float shooterFireInterval = 1.25f;
+		float shooterBulletSpeed = 0.20f;
 		float bossBulletSpeed = 0.4f;
 		int bossBulletCount = 2;
 		float bossSpreadAngleDeg = 30.0f;
@@ -165,6 +169,8 @@ private:
 	void TriggerDeathPostPulse(const Vector3& worldPosition, float strength);
 	void UpdateDeathPostPulse(float deltaTime);
 	void QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward);
+	void QueueActorNeonBillboards(const Vector3& cameraRight, const Vector3& cameraUp);
+	void UpdatePlayerNeonAfterimages(float deltaTime);
 	bool IsNearCamera2D(const Vector3& worldPos, float halfWidth, float halfHeight, float margin = 0.0f) const;
 	void ResetPostProfileEntries();
 	void AddPostProfileEntry(const char* name, float ms, bool active);
@@ -390,6 +396,12 @@ private:
 	float stageBlockNeonLineWidth_ = 0.10f;
 	float stageBlockNeonDepthBias_ = 0.035f;
 	Vector4 stageBlockNeonColor_ = { 0.55f, 1.0f, 0.32f, 1.0f };
+	bool showStageDamageBlockNeonOutlines_ = true;
+	Vector4 stageDamageBlockNeonColor_ = { 1.20f, 0.035f, 0.02f, 1.0f };
+	float stageDamageBlockPulseSpeed_ = 5.0f;
+	float stageDamageBlockPulseMin_ = 0.45f;
+	float stageDamageBlockPulseMax_ = 1.35f;
+	float stageDamageBlockPulseTime_ = 0.0f;
 	bool cullActorLocalGrid_ = true;
 	int maxExpEnemyLocalGrids_ = 18;
 	bool showNeonTriangleDemo_ = true;
@@ -399,6 +411,22 @@ private:
 	float expEnemyNeonPentagonRadius_ = 1.05f;
 	float expEnemyNeonShooterRadius_ = 0.95f;
 	float expEnemyNeonLineWidth_ = 0.12f;
+	int playerNeonRenderMode_ = 0;
+	int bossNeonRenderMode_ = 0;
+	float playerNeonBillboardRadius_ = 1.05f;
+	float bossNeonBillboardRadius_ = 1.35f;
+	float actorNeonBillboardLineWidth_ = 0.12f;
+	float playerDashCurrentAlpha_ = 0.58f;
+	float playerAfterimageAlpha_ = 0.42f;
+	float playerAfterimageInterval_ = 0.045f;
+	float playerAfterimageLifetime_ = 0.30f;
+	float playerAfterimageSpawnTimer_ = 0.0f;
+	struct PlayerNeonAfterimage {
+		Vector3 position{};
+		Vector3 direction{ 0.0f, -1.0f, 0.0f };
+		float life = 0.0f;
+	};
+	std::vector<PlayerNeonAfterimage> playerNeonAfterimages_;
 	Vector3 neonTriangleDemoCenter_ = { 30.0f, 30.0f, 1.2f };
 	float neonTriangleDemoRadius_ = 2.2f;
 	float neonTriangleDemoLineWidth_ = 0.16f;

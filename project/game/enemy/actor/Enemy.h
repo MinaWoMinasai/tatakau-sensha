@@ -148,6 +148,11 @@ public:
 	AABB GetAABB();
 
 	Vector3 GetDir() { return dir_; }
+	float GetDamageFeedbackRatio() const {
+		return damageFeedbackDuration_ > 0.0f
+			? (std::clamp)(damageFeedbackTimer_ / damageFeedbackDuration_, 0.0f, 1.0f)
+			: 0.0f;
+	}
 
 	Segment MakeForwardRay(float length) const;
 

@@ -16,6 +16,10 @@
       "damageBlock": 90,
       "expEnemyContact": 15,
       "shooterBullet": 18,
+      "shooterDetectionRadius": 18.0,
+      "shooterTurnSpeed": 5.5,
+      "shooterFireInterval": 1.25,
+      "shooterBulletSpeed": 0.2,
       "shooterContact": 25
     },
     "defaultRandomSpawnEnabled": true,

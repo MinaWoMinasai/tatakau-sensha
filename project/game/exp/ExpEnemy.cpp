@@ -1,4 +1,5 @@
 #include "ExpEnemy.h"
+#include "Enemy.h"
 #include "Player.h"
 #include "ParticleManager.h"
 #include "Stage.h"
@@ -29,6 +30,10 @@ void ExpEnemy::SetBalanceConfig(const BalanceConfig& config)
     balanceConfig_.contactDamage = (std::max)(1u, config.contactDamage);
     balanceConfig_.shooterContactDamage = (std::max)(1u, config.shooterContactDamage);
     balanceConfig_.shooterBulletDamage = (std::max)(1u, config.shooterBulletDamage);
+	balanceConfig_.shooterDetectionRadius = (std::max)(1.0f, config.shooterDetectionRadius);
+	balanceConfig_.shooterTurnSpeed = (std::max)(0.1f, config.shooterTurnSpeed);
+	balanceConfig_.shooterFireInterval = (std::max)(0.1f, config.shooterFireInterval);
+	balanceConfig_.shooterBulletSpeed = (std::max)(0.01f, config.shooterBulletSpeed);
 }
 
 void ExpEnemy::SetEnemyInteractionConfig(const EnemyInteractionConfig& config)
@@ -123,7 +128,7 @@ void ExpEnemy::ApplyTypeParams()
         baseColor_ = { 0.95f, 0.25f, 0.18f, 1.0f };
         hp_ = 14;
         expValue_ = 22;
-        shootInterval_ = 2.4f;
+        shootInterval_ = balanceConfig_.shooterFireInterval;
         break;
     }
     object_->SetColor(baseColor_);
@@ -159,44 +164,83 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
     SetWorldPosition(pos);
     stage.ResolveExpEnemyCollision(*this, Y);
 
-    // 1. その場で回転させる（見た目の動き）
-    worldTransform_.rotate.y += 0.2f * deltaTime;
-    worldTransform_.rotate.x += 0.2f * deltaTime;
-    worldTransform_.rotate.z += 0.2f * deltaTime;
-    object_->SetTransform(worldTransform_);
-    object_->Update();
+	if (type_ != ExpEnemyType::Shooter) {
+		worldTransform_.rotate.y += 0.2f * deltaTime;
+		worldTransform_.rotate.x += 0.2f * deltaTime;
+		worldTransform_.rotate.z += 0.2f * deltaTime;
+		object_->SetTransform(worldTransform_);
+		object_->Update();
+		return;
+	}
+	shootInterval_ = balanceConfig_.shooterFireInterval;
 
-    if (shootInterval_ <= 0.0f) {
-        return;
-    }
+	const Vector3 origin = GetWorldPosition();
+	Vector3 targetPosition{};
+	BulletOwner bulletOwner = BulletOwner::kEnemy;
+	float nearestDistance = balanceConfig_.shooterDetectionRadius;
+	bool hasTarget = false;
+	if (player_ && !player_->IsDead()) {
+		const float distance = Length(player_->GetWorldPosition() - origin);
+		if (distance <= nearestDistance) {
+			targetPosition = player_->GetWorldPosition();
+			nearestDistance = distance;
+			hasTarget = true;
+		}
+	}
+	if (IsHostileToBoss() && boss_ && !boss_->IsDead()) {
+		const float distance = Length(boss_->GetWorldPosition() - origin);
+		if (distance < nearestDistance) {
+			targetPosition = boss_->GetWorldPosition();
+			nearestDistance = distance;
+			bulletOwner = BulletOwner::kExpEnemyHostile;
+			hasTarget = true;
+		}
+	}
 
-    // 2. 一定間隔で弾を撃つ（反撃ギミック）
-    bulletCoolTime -= deltaTime;
-    if (bulletCoolTime <= 0.0f) { // 2秒に1回
+	auto hasLineOfSight = [&](const Vector3& target) {
+		Segment ray{};
+		ray.origin = origin;
+		ray.diff = target - origin;
+		const float targetDistance = Length(ray.diff);
+		for (const auto& row : stage.GetBlocks()) {
+			for (const Block& block : row) {
+				if (!block.isActive || !IsCollision(block.aabb, ray)) {
+					continue;
+				}
+				const Vector3 blockCenter = (block.aabb.max + block.aabb.min) / 2.0f;
+				if (Length(blockCenter - origin) < targetDistance) {
+					return false;
+				}
+			}
+		}
+		return true;
+	};
 
-        // 発射位置
-        Vector3 origin = GetWorldPosition();
+	if (hasTarget) {
+		const Vector3 desiredDirection = Normalize(targetPosition - origin);
+		const float turnT = (std::clamp)(balanceConfig_.shooterTurnSpeed * deltaTime, 0.0f, 1.0f);
+		aimDirection_ += (desiredDirection - aimDirection_) * turnT;
+		if (Length(aimDirection_) > 0.001f) {
+			aimDirection_ = Normalize(aimDirection_);
+		}
+		worldTransform_.rotate = { 0.0f, 0.0f, std::atan2(aimDirection_.x, -aimDirection_.y) };
+		bulletCoolTime -= deltaTime;
+		if (bulletCoolTime <= 0.0f && hasLineOfSight(targetPosition)) {
+			AttackParam param{};
+			param.bulletSpeed = balanceConfig_.shooterBulletSpeed;
+			param.bulletCount = 1;
+			param.spreadAngleDeg = 3.0f;
+			param.randomSpread = true;
+			param.damage = balanceConfig_.shooterBulletDamage;
+			attackController_.FireFromMuzzle(origin + aimDirection_ * 1.4f, aimDirection_, param, bulletOwner);
+			bulletCoolTime = shootInterval_;
+		}
+	} else {
+		bulletCoolTime = (std::min)(bulletCoolTime, shootInterval_);
+	}
 
-        // 基準方向
-        Vector3 baseDir;
-        baseDir = Normalize(player_->GetWorldPosition() - origin);
-        
-        // 攻撃パラメータを設定
-        AttackParam param{};
-        param.bulletSpeed = 0.2f;
-        param.bulletCount = 1;
-        param.spreadAngleDeg = 5.0f;
-        param.randomSpread = true;
-
-        param.reflect = false;
-        param.penetrate = false;
-        param.cooldown = 1.0f;
-        param.damage = balanceConfig_.shooterBulletDamage;
-
-        attackController_.Fire(origin, baseDir, param, BulletOwner::kEnemy);
-
-        bulletCoolTime = shootInterval_;
-    }
+	object_->SetTransform(worldTransform_);
+	object_->Update();
 }
 
 void ExpEnemy::Draw(bool drawBody) {

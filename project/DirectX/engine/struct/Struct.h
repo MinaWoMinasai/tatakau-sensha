@@ -279,7 +279,8 @@ struct AttackParam {
 
 enum BulletOwner {
 	kPlayer,
-	kEnemy
+	kEnemy,
+	kExpEnemyHostile
 };
 
 struct CollisionResult {

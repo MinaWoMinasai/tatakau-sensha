@@ -28,6 +28,11 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 		object_->SetColor(Vector4(1.0f, 0.22f, 0.38f, 1.0f));
 		SetCollisionAttribute(kCollisionAttributeEnemyBullet);
 		SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerDrone | kCollisionAttributeExpEnemy | kCollisionAttributePlayerBullet);
+	} else if (owner_ == kExpEnemyHostile) {
+		object_->SetModel("bullet.obj");
+		object_->SetColor(Vector4(1.0f, 0.16f, 0.08f, 1.0f));
+		SetCollisionAttribute(kCollisionAttributeHostileExpEnemyBullet);
+		SetCollisionMask(kCollisionAttributeEnemy);
 	}
 
 	worldTransform_ = InitWorldTransform();
@@ -153,6 +158,9 @@ Vector4 Bullet::GetBulletColor() const {
 		if (owner_ == kPlayer) {
 			return trailSettings_->playerObjectColor;
 		}
+		if (owner_ == kExpEnemyHostile) {
+			return { 1.0f, 0.16f, 0.08f, 1.0f };
+		}
 		return trailSettings_->enemyObjectColor;
 	}
 	if (owner_ == kPlayer) {
@@ -160,6 +168,9 @@ Vector4 Bullet::GetBulletColor() const {
 			return { 1.0f, 1.0f, 0.22f, 1.0f };
 		}
 		return { 1.0f, 0.55f, 0.20f, 1.0f };
+	}
+	if (owner_ == kExpEnemyHostile) {
+		return { 1.0f, 0.16f, 0.08f, 1.0f };
 	}
 	return { 1.0f, 0.20f, 0.36f, 1.0f };
 }

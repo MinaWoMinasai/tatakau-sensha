@@ -59,6 +59,7 @@
   },
   "neonGrid": {
     "actorLineWidth": 0.10000000149011612,
+    "actorNeonBillboardLineWidth": 0.11999999731779099,
     "actorRadius": 5.400000095367432,
     "actorSpacing": 1.0,
     "bossEnemyColor": {
@@ -67,6 +68,8 @@
       "y": 0.18000000715255737,
       "z": 0.23999999463558197
     },
+    "bossNeonBillboardRadius": 1.350000023841858,
+    "bossNeonRenderMode": 1,
     "cullActorLocalGrid": true,
     "expEnemyColor": {
       "w": 1.0,
@@ -83,14 +86,21 @@
     "lineCoreIntensity": 1.350000023841858,
     "lineSoftEdgeRatio": 0.41999998688697815,
     "maxExpEnemyLocalGrids": 18,
+    "playerAfterimageAlpha": 0.41999998688697815,
+    "playerAfterimageInterval": 0.04500000178813934,
+    "playerAfterimageLifetime": 0.30000001192092896,
     "playerColor": {
       "w": 1.0,
       "x": 0.5,
       "y": 1.0,
       "z": 0.3499999940395355
     },
+    "playerDashCurrentAlpha": 0.5799999833106995,
+    "playerNeonBillboardRadius": 1.0499999523162842,
+    "playerNeonRenderMode": 1,
     "showActorLocalGrid": false,
     "showStageBlockNeonOutlines": true,
+    "showStageDamageBlockNeonOutlines": true,
     "showStageNormalBlockBodies": true,
     "showTriangleDemo": true,
     "showWorldGrid": true,
@@ -102,6 +112,15 @@
     },
     "stageBlockNeonDepthBias": 0.03500000014901161,
     "stageBlockNeonLineWidth": 0.10000000149011612,
+    "stageDamageBlockNeonColor": {
+      "w": 1.0,
+      "x": 1.2000000476837158,
+      "y": 0.03500000014901161,
+      "z": 0.019999999552965164
+    },
+    "stageDamageBlockPulseMax": 1.350000023841858,
+    "stageDamageBlockPulseMin": 0.44999998807907104,
+    "stageDamageBlockPulseSpeed": 5.0,
     "triangleCenter": {
       "x": 30.0,
       "y": 30.0,

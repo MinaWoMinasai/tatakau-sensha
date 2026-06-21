@@ -32,11 +32,14 @@ Vector4 GetCollisionDebugColor(uint32_t attribute) {
 	if (attribute & kCollisionAttributeEnemyBullet) {
 		return { 1.0f, 0.35f, 0.1f, 0.75f };
 	}
+	if (attribute & kCollisionAttributeHostileExpEnemyBullet) {
+		return { 1.0f, 0.12f, 0.04f, 0.8f };
+	}
 	return { 1.0f, 1.0f, 1.0f, 0.7f };
 }
 
 bool IsBulletCollider(uint32_t attribute) {
-	return (attribute & (kCollisionAttributePlayerBullet | kCollisionAttributeEnemyBullet)) != 0;
+	return (attribute & (kCollisionAttributePlayerBullet | kCollisionAttributeEnemyBullet | kCollisionAttributeHostileExpEnemyBullet)) != 0;
 }
 
 const char* BulletOwnerName(BulletOwner owner)
@@ -46,6 +49,8 @@ const char* BulletOwnerName(BulletOwner owner)
 		return "プレイヤー";
 	case kEnemy:
 		return "敵";
+	case kExpEnemyHostile:
+		return "EXP敵";
 	default:
 		return "不明";
 	}
@@ -59,6 +64,8 @@ ImU32 BulletOwnerDebugColor(BulletOwner owner)
 		return IM_COL32(255, 238, 80, 255);
 	case kEnemy:
 		return IM_COL32(255, 94, 120, 255);
+	case kExpEnemyHostile:
+		return IM_COL32(255, 48, 24, 255);
 	default:
 		return IM_COL32(255, 255, 255, 255);
 	}
@@ -579,7 +586,7 @@ void GameScene::Initialize() {
 
 	// 経験値敵マネージャの生成
 	enemyManager_ = std::make_unique<EnemyManager>();
-	enemyManager_->Initialize(player_.get(), bulletManager_.get());
+	enemyManager_->Initialize(player_.get(), bulletManager_.get(), enemy_.get());
 	enemy_->SetEnemyManager(enemyManager_.get());
 	ExpEnemy::SetEnemyKillCallback([this](uint32_t expValue) {
 		if (enemy_) {
@@ -705,6 +712,7 @@ void GameScene::Update() {
 	}
 
 	neonTriangleDemoRotation_ += neonTriangleDemoRotateSpeed_ * baseDeltaTime;
+	stageDamageBlockPulseTime_ += baseDeltaTime;
 	ExpEnemy::SetShapeNeonRenderMode(expEnemyNeonRenderMode_);
 
 	{
@@ -817,6 +825,7 @@ void GameScene::Update() {
 	
 	player_->SetDebugNoDamage(debugPlayerNoDamage_);
 	player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime);
+	UpdatePlayerNeonAfterimages(baseDeltaTime);
 	if (player_->IsDead() && !playerDeathShakeStarted_) {
 		playerDeathShakeStarted_ = true;
 	}
@@ -973,8 +982,8 @@ void GameScene::DrawPostEffect3D() {
 	}
 
 	profile("Base Objects", true, [&]() {
-		player_->Draw(true);
-		enemy_->Draw(true);
+		player_->Draw(playerNeonRenderMode_ == 0);
+		enemy_->Draw(bossNeonRenderMode_ == 0);
 		enemyManager_->Draw(true);
 		bulletManager_->Draw();
 		DrawLevelItems();
@@ -982,7 +991,7 @@ void GameScene::DrawPostEffect3D() {
 	});
 	AddPostProfileEntry("Stage Glow", 0.0f, useStagePost);
 
-	if (showStageBlockNeonOutlines_) {
+	if (showStageBlockNeonOutlines_ || showStageDamageBlockNeonOutlines_) {
 		if (useGridPost) {
 			profile("Stage Block Neon", true, [&]() {
 				neonGridPostEffect_->BeginCaptureWithCurrentDepth();
@@ -1034,10 +1043,10 @@ void GameScene::DrawPostEffect3D() {
 			if (useStagePost) {
 				stage_->DrawVisible(currentCameraPos, 38.0f, 24.0f, showStageNormalBlockBodies_);
 			}
-			if (usePlayerPost && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
+			if (usePlayerPost && playerNeonRenderMode_ == 0 && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
 				player_->DrawBodyOnly();
 			}
-			if (useEnemyPost) {
+			if (useEnemyPost && bossNeonRenderMode_ == 0) {
 				enemy_->DrawBodyOnly();
 			}
 			if (useExpEnemyPost) {
@@ -1114,7 +1123,7 @@ void GameScene::UpdateDeathPostPulse(float deltaTime) {
 }
 
 void GameScene::DrawAfterPostEffect3D() {
-	if (!enablePlayerPostEffect_ || !slowMotionPostActive_ || !keepPlayerColorDuringSlow_) {
+	if (!enablePlayerPostEffect_ || playerNeonRenderMode_ != 0 || !slowMotionPostActive_ || !keepPlayerColorDuringSlow_) {
 		return;
 	}
 
@@ -1182,11 +1191,12 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 	if (showLevelAIDitorPreview_) {
 		QueueLevelEditorPreview();
 	}
-	if (includeStageBlockOutlines && showStageBlockNeonOutlines_) {
+	if (includeStageBlockOutlines && (showStageBlockNeonOutlines_ || showStageDamageBlockNeonOutlines_)) {
 		QueueStageBlockNeonOutlines();
 	}
 	const bool queueExpEnemyNeonInGridPass = expEnemyNeonRenderMode_ == 1 || expEnemyNeonRenderMode_ == 2;
-	if (showNeonTriangleDemo_ || queueExpEnemyNeonInGridPass) {
+	const bool queueActorBillboards = playerNeonRenderMode_ == 1 || bossNeonRenderMode_ == 1 || !playerNeonAfterimages_.empty();
+	if (showNeonTriangleDemo_ || queueExpEnemyNeonInGridPass || queueActorBillboards) {
 		Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewMatrix()
 			: camera->GetViewMatrix();
@@ -1196,6 +1206,9 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 		Vector3 cameraForward = Normalize({ cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] });
 		if (queueExpEnemyNeonInGridPass) {
 			QueueExpEnemyNeonShapes(cameraRight, cameraUp, cameraForward);
+		}
+		if (queueActorBillboards) {
+			QueueActorNeonBillboards(cameraRight, cameraUp);
 		}
 		if (showNeonTriangleDemo_) {
 			neonGridRenderer_->QueueBillboardTriangle(
@@ -1217,7 +1230,7 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 }
 
 void GameScene::DrawStageBlockNeonPass() {
-	if (!neonGridRenderer_ || !showStageBlockNeonOutlines_) {
+	if (!neonGridRenderer_ || (!showStageBlockNeonOutlines_ && !showStageDamageBlockNeonOutlines_)) {
 		return;
 	}
 
@@ -1254,7 +1267,13 @@ void GameScene::QueueStageBlockNeonOutlines() {
 	const auto& blocks = stage_->GetBlocks();
 	for (const std::vector<Block>& row : blocks) {
 		for (const Block& block : row) {
-			if (!block.isActive || block.type != MapChipType::kBlock) {
+			const bool isNormalBlock = block.type == MapChipType::kBlock;
+			const bool isDamageBlock = block.type == MapChipType::kDamageBlock;
+			if (!block.isActive || (!isNormalBlock && !isDamageBlock)) {
+				continue;
+			}
+			if ((isNormalBlock && !showStageBlockNeonOutlines_) ||
+				(isDamageBlock && !showStageDamageBlockNeonOutlines_)) {
 				continue;
 			}
 			if (cullActorLocalGrid_ && !IsNearCamera2D(block.originalPos, 38.0f, 24.0f, MapChip::kBlockWidth * 1.5f)) {
@@ -1266,9 +1285,20 @@ void GameScene::QueueStageBlockNeonOutlines() {
 				block.worldTransform.rotate,
 				block.worldTransform.translate);
 
-			auto localToWorld = [&](const Vector3& local) {
+				auto localToWorld = [&](const Vector3& local) {
 				return TransformMatrix(local, transform);
 			};
+			Vector4 blockNeonColor = stageBlockNeonColor_;
+			if (isDamageBlock) {
+				const float wave = 0.5f + 0.5f * std::sin(stageDamageBlockPulseTime_ * stageDamageBlockPulseSpeed_);
+				const float pulse = stageDamageBlockPulseMin_ +
+					(stageDamageBlockPulseMax_ - stageDamageBlockPulseMin_) * wave;
+				blockNeonColor = stageDamageBlockNeonColor_;
+				blockNeonColor.x *= pulse;
+				blockNeonColor.y *= pulse;
+				blockNeonColor.z *= pulse;
+				blockNeonColor.w *= 0.75f + wave * 0.25f;
+			}
 			auto queueLocalLine = [&](const Vector3& start, const Vector3& end, const Vector3& localNormal) {
 				Vector3 worldStart = localToWorld(start);
 				Vector3 worldEnd = localToWorld(end);
@@ -1282,7 +1312,7 @@ void GameScene::QueueStageBlockNeonOutlines() {
 					worldStart,
 					worldEnd,
 					stageBlockNeonLineWidth_,
-					stageBlockNeonColor_,
+					blockNeonColor,
 					cameraForward);
 			};
 			auto shouldDrawFace = [&](const Vector3& localCenter, const Vector3& localNormal) {
@@ -1350,6 +1380,139 @@ void GameScene::QueueStageBlockNeonOutlines() {
 				}
 			}
 		}
+	}
+}
+
+void GameScene::UpdatePlayerNeonAfterimages(float deltaTime) {
+	for (PlayerNeonAfterimage& afterimage : playerNeonAfterimages_) {
+		afterimage.life -= deltaTime;
+	}
+	playerNeonAfterimages_.erase(
+		std::remove_if(
+			playerNeonAfterimages_.begin(),
+			playerNeonAfterimages_.end(),
+			[](const PlayerNeonAfterimage& afterimage) { return afterimage.life <= 0.0f; }),
+		playerNeonAfterimages_.end());
+
+	if (!player_ || player_->IsDead() || !player_->IsDashing()) {
+		playerAfterimageSpawnTimer_ = 0.0f;
+		return;
+	}
+
+	playerAfterimageSpawnTimer_ -= deltaTime;
+	if (playerAfterimageSpawnTimer_ <= 0.0f) {
+		Vector3 direction = player_->GetDirection();
+		if (Length(direction) < 0.001f) {
+			direction = { 0.0f, -1.0f, 0.0f };
+		}
+		playerNeonAfterimages_.push_back({ player_->GetWorldPosition(), Normalize(direction), playerAfterimageLifetime_ });
+		playerAfterimageSpawnTimer_ = playerAfterimageInterval_;
+	}
+}
+
+void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vector3& cameraUp) {
+	if (!neonGridRenderer_) {
+		return;
+	}
+
+	auto directionToRotation = [&](const Vector3& worldDirection) {
+		Vector3 direction = worldDirection;
+		if (Length(direction) < 0.001f) {
+			direction = { 0.0f, -1.0f, 0.0f };
+		}
+		direction = Normalize(direction);
+		return std::atan2(Dot(direction, cameraRight), -Dot(direction, cameraUp));
+	};
+
+	auto lerpColor = [](const Vector4& a, const Vector4& b, float t) {
+		t = (std::clamp)(t, 0.0f, 1.0f);
+		return Vector4{
+			a.x + (b.x - a.x) * t,
+			a.y + (b.y - a.y) * t,
+			a.z + (b.z - a.z) * t,
+			a.w + (b.w - a.w) * t };
+	};
+	auto rotateDirection = [](const Vector3& direction, float angle) {
+		const float c = std::cos(angle);
+		const float s = std::sin(angle);
+		return Vector3{ direction.x * c - direction.y * s, direction.x * s + direction.y * c, direction.z };
+	};
+
+	auto queueTankBillboard = [&](const Vector3& center, const Vector3& direction, float radius, float lineWidth, const Vector4& color, const std::vector<Player::NeonBarrelLayout>* barrelLayouts) {
+		constexpr float kTwoPi = 6.28318530718f;
+		constexpr int kSegments = 24;
+		Vector3 previous{};
+		for (int i = 0; i <= kSegments; ++i) {
+			const float angle = static_cast<float>(i % kSegments) * (kTwoPi / static_cast<float>(kSegments));
+			const Vector3 current = center + cameraRight * (std::cos(angle) * radius) + cameraUp * (std::sin(angle) * radius);
+			if (i > 0) {
+				neonGridRenderer_->QueueLine(previous, current, lineWidth, color);
+			}
+			previous = current;
+		}
+
+		Vector3 mainDirection = direction;
+		if (Length(mainDirection) < 0.001f) {
+			mainDirection = { 0.0f, -1.0f, 0.0f };
+		}
+		mainDirection = Normalize(mainDirection);
+		const float mainRotation = directionToRotation(mainDirection);
+		const Vector3 mainForward = cameraRight * std::sin(mainRotation) + cameraUp * -std::cos(mainRotation);
+		const Vector3 mainRight = cameraRight * std::cos(mainRotation) + cameraUp * std::sin(mainRotation);
+
+		auto queueBarrel = [&](const Player::NeonBarrelLayout& layout) {
+			const Vector3 barrelDirection = Normalize(rotateDirection(mainDirection, layout.angleRad));
+			const float barrelRotation = directionToRotation(barrelDirection);
+			const Vector3 barrelForward = cameraRight * std::sin(barrelRotation) + cameraUp * -std::cos(barrelRotation);
+			const Vector3 barrelRight = cameraRight * std::cos(barrelRotation) + cameraUp * std::sin(barrelRotation);
+			const Vector3 barrelCenter = center +
+				mainForward * ((layout.offset.x - layout.recoilOffset) * radius) +
+				mainRight * (layout.offset.y * radius) +
+				Vector3{ 0.0f, 0.0f, layout.offset.z };
+			const float length = (std::max)(radius * 0.28f, layout.scale.x * radius * 0.72f);
+			const float half = (std::max)(lineWidth * 1.5f, layout.scale.y * radius * 0.75f);
+			const Vector3 base = barrelCenter - barrelForward * (length * 0.20f);
+			const Vector3 tip = barrelCenter + barrelForward * (length * 0.80f);
+			neonGridRenderer_->QueueLine(base - barrelRight * half, tip - barrelRight * half, lineWidth, color);
+			neonGridRenderer_->QueueLine(tip - barrelRight * half, tip + barrelRight * half, lineWidth, color);
+			neonGridRenderer_->QueueLine(tip + barrelRight * half, base + barrelRight * half, lineWidth, color);
+			neonGridRenderer_->QueueLine(base + barrelRight * half, base - barrelRight * half, lineWidth, color);
+		};
+
+		if (barrelLayouts && !barrelLayouts->empty()) {
+			for (const Player::NeonBarrelLayout& layout : *barrelLayouts) {
+				queueBarrel(layout);
+			}
+		} else {
+			queueBarrel({});
+		}
+	};
+
+	const std::vector<Player::NeonBarrelLayout> playerBarrels = player_ ? player_->GetNeonBarrelLayouts() : std::vector<Player::NeonBarrelLayout>{};
+
+	for (const PlayerNeonAfterimage& afterimage : playerNeonAfterimages_) {
+		const float lifeRatio = (std::clamp)(afterimage.life / (std::max)(0.001f, playerAfterimageLifetime_), 0.0f, 1.0f);
+		Vector4 color = playerGridColor_;
+		color.w *= playerAfterimageAlpha_ * lifeRatio;
+		const float radius = playerNeonBillboardRadius_ * (0.88f + lifeRatio * 0.12f);
+		queueTankBillboard(afterimage.position + Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBarrels);
+	}
+
+	if (playerNeonRenderMode_ == 1 && player_ && !player_->IsDead()) {
+		Vector4 color = playerGridColor_;
+		const float feedback = player_->GetDamageFeedbackRatio();
+		const float pulse = std::sin(feedback * 3.14159265f) * 0.10f;
+		color = lerpColor(color, { 1.8f, 1.8f, 1.8f, color.w }, feedback * feedback * 0.75f);
+		if (player_->IsDashing()) {
+			color.w *= playerDashCurrentAlpha_;
+		}
+		queueTankBillboard(player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBarrels);
+	}
+	if (bossNeonRenderMode_ == 1 && enemy_ && !enemy_->IsDead()) {
+		const float feedback = enemy_->GetDamageFeedbackRatio();
+		const float pulse = std::sin(feedback * 3.14159265f) * 0.08f;
+		const Vector4 color = lerpColor(enemyGridColor_, { 1.8f, 1.8f, 1.8f, enemyGridColor_.w }, feedback * feedback * 0.65f);
+		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetDir(), bossNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, nullptr);
 	}
 }
 
@@ -1928,6 +2091,10 @@ void GameScene::ApplyLevelBalance(const nlohmann::json& balanceJson)
 		expConfig.contactDamage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(damageJson, "expEnemyContact", 12)));
 		expConfig.shooterContactDamage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(damageJson, "shooterContact", 20)));
 		expConfig.shooterBulletDamage = static_cast<uint32_t>((std::max)(1, ReadCustomInt(damageJson, "shooterBullet", 15)));
+		expConfig.shooterDetectionRadius = ReadCustomFloat(damageJson, "shooterDetectionRadius", expConfig.shooterDetectionRadius);
+		expConfig.shooterTurnSpeed = ReadCustomFloat(damageJson, "shooterTurnSpeed", expConfig.shooterTurnSpeed);
+		expConfig.shooterFireInterval = ReadCustomFloat(damageJson, "shooterFireInterval", expConfig.shooterFireInterval);
+		expConfig.shooterBulletSpeed = ReadCustomFloat(damageJson, "shooterBulletSpeed", expConfig.shooterBulletSpeed);
 		ExpEnemy::SetBalanceConfig(expConfig);
 	}
 
@@ -2012,6 +2179,10 @@ void GameScene::LoadBalanceEditorFromJson(const nlohmann::json& balanceJson)
 		balanceEditor_.expEnemyContact = ReadCustomInt(damageJson, "expEnemyContact", balanceEditor_.expEnemyContact);
 		balanceEditor_.shooterContact = ReadCustomInt(damageJson, "shooterContact", balanceEditor_.shooterContact);
 		balanceEditor_.shooterBullet = ReadCustomInt(damageJson, "shooterBullet", balanceEditor_.shooterBullet);
+		balanceEditor_.shooterDetectionRadius = ReadCustomFloat(damageJson, "shooterDetectionRadius", balanceEditor_.shooterDetectionRadius);
+		balanceEditor_.shooterTurnSpeed = ReadCustomFloat(damageJson, "shooterTurnSpeed", balanceEditor_.shooterTurnSpeed);
+		balanceEditor_.shooterFireInterval = ReadCustomFloat(damageJson, "shooterFireInterval", balanceEditor_.shooterFireInterval);
+		balanceEditor_.shooterBulletSpeed = ReadCustomFloat(damageJson, "shooterBulletSpeed", balanceEditor_.shooterBulletSpeed);
 	}
 	if (balanceJson.contains("bossAttackDefault") && balanceJson["bossAttackDefault"].is_object()) {
 		const nlohmann::json& attackJson = balanceJson["bossAttackDefault"];
@@ -2072,7 +2243,11 @@ nlohmann::json GameScene::BuildBalanceJsonFromEditor() const
 		{ "bossContact", (std::max)(1, balanceEditor_.bossContact) },
 		{ "expEnemyContact", (std::max)(1, balanceEditor_.expEnemyContact) },
 		{ "shooterContact", (std::max)(1, balanceEditor_.shooterContact) },
-		{ "shooterBullet", (std::max)(1, balanceEditor_.shooterBullet) }
+		{ "shooterBullet", (std::max)(1, balanceEditor_.shooterBullet) },
+		{ "shooterDetectionRadius", (std::max)(1.0f, balanceEditor_.shooterDetectionRadius) },
+		{ "shooterTurnSpeed", (std::max)(0.1f, balanceEditor_.shooterTurnSpeed) },
+		{ "shooterFireInterval", (std::max)(0.1f, balanceEditor_.shooterFireInterval) },
+		{ "shooterBulletSpeed", (std::max)(0.01f, balanceEditor_.shooterBulletSpeed) }
 	};
 	balance["bossAttackDefault"] = {
 		{ "bulletSpeed", (std::max)(0.01f, balanceEditor_.bossBulletSpeed) },
@@ -2344,6 +2519,11 @@ nlohmann::json GameScene::BuildGameVisualConfig() const
 		{ "stageBlockNeonLineWidth", stageBlockNeonLineWidth_ },
 		{ "stageBlockNeonDepthBias", stageBlockNeonDepthBias_ },
 		{ "stageBlockNeonColor", WriteJsonVector4(stageBlockNeonColor_) },
+		{ "showStageDamageBlockNeonOutlines", showStageDamageBlockNeonOutlines_ },
+		{ "stageDamageBlockNeonColor", WriteJsonVector4(stageDamageBlockNeonColor_) },
+		{ "stageDamageBlockPulseSpeed", stageDamageBlockPulseSpeed_ },
+		{ "stageDamageBlockPulseMin", stageDamageBlockPulseMin_ },
+		{ "stageDamageBlockPulseMax", stageDamageBlockPulseMax_ },
 		{ "cullActorLocalGrid", cullActorLocalGrid_ },
 		{ "maxExpEnemyLocalGrids", maxExpEnemyLocalGrids_ },
 		{ "expEnemyNeonRenderMode", expEnemyNeonRenderMode_ },
@@ -2352,6 +2532,15 @@ nlohmann::json GameScene::BuildGameVisualConfig() const
 		{ "expEnemyNeonPentagonRadius", expEnemyNeonPentagonRadius_ },
 		{ "expEnemyNeonShooterRadius", expEnemyNeonShooterRadius_ },
 		{ "expEnemyNeonLineWidth", expEnemyNeonLineWidth_ },
+		{ "playerNeonRenderMode", playerNeonRenderMode_ },
+		{ "bossNeonRenderMode", bossNeonRenderMode_ },
+		{ "playerNeonBillboardRadius", playerNeonBillboardRadius_ },
+		{ "bossNeonBillboardRadius", bossNeonBillboardRadius_ },
+		{ "actorNeonBillboardLineWidth", actorNeonBillboardLineWidth_ },
+		{ "playerDashCurrentAlpha", playerDashCurrentAlpha_ },
+		{ "playerAfterimageAlpha", playerAfterimageAlpha_ },
+		{ "playerAfterimageInterval", playerAfterimageInterval_ },
+		{ "playerAfterimageLifetime", playerAfterimageLifetime_ },
 		{ "showTriangleDemo", showNeonTriangleDemo_ },
 		{ "triangleCenter", WriteJsonVector3(neonTriangleDemoCenter_) },
 		{ "triangleRadius", neonTriangleDemoRadius_ },
@@ -2390,6 +2579,14 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 		stageBlockNeonLineWidth_ = ReadCustomFloat(gridJson, "stageBlockNeonLineWidth", stageBlockNeonLineWidth_);
 		stageBlockNeonDepthBias_ = ReadCustomFloat(gridJson, "stageBlockNeonDepthBias", stageBlockNeonDepthBias_);
 		if (gridJson.contains("stageBlockNeonColor")) stageBlockNeonColor_ = ReadJsonVector4(gridJson["stageBlockNeonColor"], stageBlockNeonColor_);
+		showStageDamageBlockNeonOutlines_ = ReadCustomBool(gridJson, "showStageDamageBlockNeonOutlines", showStageDamageBlockNeonOutlines_);
+		if (gridJson.contains("stageDamageBlockNeonColor")) stageDamageBlockNeonColor_ = ReadJsonVector4(gridJson["stageDamageBlockNeonColor"], stageDamageBlockNeonColor_);
+		stageDamageBlockPulseSpeed_ = ReadCustomFloat(gridJson, "stageDamageBlockPulseSpeed", stageDamageBlockPulseSpeed_);
+		stageDamageBlockPulseMin_ = ReadCustomFloat(gridJson, "stageDamageBlockPulseMin", stageDamageBlockPulseMin_);
+		stageDamageBlockPulseMax_ = ReadCustomFloat(gridJson, "stageDamageBlockPulseMax", stageDamageBlockPulseMax_);
+		if (stageDamageBlockPulseMin_ > stageDamageBlockPulseMax_) {
+			std::swap(stageDamageBlockPulseMin_, stageDamageBlockPulseMax_);
+		}
 		cullActorLocalGrid_ = ReadCustomBool(gridJson, "cullActorLocalGrid", cullActorLocalGrid_);
 		maxExpEnemyLocalGrids_ = ReadCustomInt(gridJson, "maxExpEnemyLocalGrids", maxExpEnemyLocalGrids_);
 		expEnemyNeonRenderMode_ = ReadCustomInt(gridJson, "expEnemyNeonRenderMode", expEnemyNeonRenderMode_);
@@ -2402,6 +2599,15 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 		expEnemyNeonPentagonRadius_ = ReadCustomFloat(gridJson, "expEnemyNeonPentagonRadius", expEnemyNeonPentagonRadius_);
 		expEnemyNeonShooterRadius_ = ReadCustomFloat(gridJson, "expEnemyNeonShooterRadius", expEnemyNeonShooterRadius_);
 		expEnemyNeonLineWidth_ = ReadCustomFloat(gridJson, "expEnemyNeonLineWidth", expEnemyNeonLineWidth_);
+		playerNeonRenderMode_ = (std::clamp)(ReadCustomInt(gridJson, "playerNeonRenderMode", playerNeonRenderMode_), 0, 1);
+		bossNeonRenderMode_ = (std::clamp)(ReadCustomInt(gridJson, "bossNeonRenderMode", bossNeonRenderMode_), 0, 1);
+		playerNeonBillboardRadius_ = ReadCustomFloat(gridJson, "playerNeonBillboardRadius", playerNeonBillboardRadius_);
+		bossNeonBillboardRadius_ = ReadCustomFloat(gridJson, "bossNeonBillboardRadius", bossNeonBillboardRadius_);
+		actorNeonBillboardLineWidth_ = ReadCustomFloat(gridJson, "actorNeonBillboardLineWidth", actorNeonBillboardLineWidth_);
+		playerDashCurrentAlpha_ = ReadCustomFloat(gridJson, "playerDashCurrentAlpha", playerDashCurrentAlpha_);
+		playerAfterimageAlpha_ = ReadCustomFloat(gridJson, "playerAfterimageAlpha", playerAfterimageAlpha_);
+		playerAfterimageInterval_ = (std::max)(0.01f, ReadCustomFloat(gridJson, "playerAfterimageInterval", playerAfterimageInterval_));
+		playerAfterimageLifetime_ = (std::max)(0.05f, ReadCustomFloat(gridJson, "playerAfterimageLifetime", playerAfterimageLifetime_));
 		showNeonTriangleDemo_ = ReadCustomBool(gridJson, "showTriangleDemo", showNeonTriangleDemo_);
 		if (gridJson.contains("triangleCenter")) neonTriangleDemoCenter_ = ReadJsonVector3(gridJson["triangleCenter"], neonTriangleDemoCenter_);
 		neonTriangleDemoRadius_ = ReadCustomFloat(gridJson, "triangleRadius", neonTriangleDemoRadius_);
@@ -2552,12 +2758,24 @@ void GameScene::DrawGameSceneDebugImGui()
 				ImGui::ColorEdit4("経験値敵グリッド色", &expEnemyGridColor_.x);
 				ImGui::Checkbox("画面外の周辺グリッドを省略", &cullActorLocalGrid_);
 				ImGui::DragInt("経験値敵グリッド最大数", &maxExpEnemyLocalGrids_, 1.0f, 0, 60);
-				ImGui::SeparatorText("ステージ通常ブロック枠線");
+				ImGui::SeparatorText("ステージブロック枠線");
 				ImGui::Checkbox("通常ブロックに3Dネオン枠線", &showStageBlockNeonOutlines_);
 				ImGui::Checkbox("通常ブロック本体を表示", &showStageNormalBlockBodies_);
-				ImGui::DragFloat("通常ブロック枠線幅", &stageBlockNeonLineWidth_, 0.005f, 0.005f, 0.5f);
-				ImGui::DragFloat("通常ブロック枠線の深度オフセット", &stageBlockNeonDepthBias_, 0.001f, 0.0f, 0.2f);
+				ImGui::DragFloat("共通ブロック枠線幅", &stageBlockNeonLineWidth_, 0.005f, 0.005f, 0.5f);
+				ImGui::DragFloat("共通ブロック枠線の深度オフセット", &stageBlockNeonDepthBias_, 0.001f, 0.0f, 0.2f);
 				ImGui::ColorEdit4("通常ブロック枠線色", &stageBlockNeonColor_.x);
+				ImGui::Checkbox("ダメージブロックに3Dネオン枠線", &showStageDamageBlockNeonOutlines_);
+				ImGui::ColorEdit4("ダメージブロック枠線色", &stageDamageBlockNeonColor_.x);
+				ImGui::DragFloat("ダメージブロック点滅速度", &stageDamageBlockPulseSpeed_, 0.1f, 0.0f, 30.0f);
+				ImGui::DragFloatRange2(
+					"ダメージブロック点滅輝度",
+					&stageDamageBlockPulseMin_,
+					&stageDamageBlockPulseMax_,
+					0.01f,
+					0.0f,
+					4.0f,
+					"最小 %.2f",
+					"最大 %.2f");
 				ImGui::SeparatorText("経験値敵ネオン表示");
 				const char* expEnemyNeonModes[] = { "3Dモデル", "ビルボード枠線", "3D枠線", "黒塗り+3D枠線" };
 				ImGui::Combo("経験値敵の表示", &expEnemyNeonRenderMode_, expEnemyNeonModes, IM_ARRAYSIZE(expEnemyNeonModes));
@@ -2566,6 +2784,17 @@ void GameScene::DrawGameSceneDebugImGui()
 				ImGui::DragFloat("五角敵ネオン半径", &expEnemyNeonPentagonRadius_, 0.025f, 0.2f, 4.0f);
 				ImGui::DragFloat("射撃敵ネオン半径", &expEnemyNeonShooterRadius_, 0.025f, 0.2f, 4.0f);
 				ImGui::DragFloat("敵ネオン線幅", &expEnemyNeonLineWidth_, 0.005f, 0.01f, 0.5f);
+				ImGui::SeparatorText("プレイヤー / ボス ネオン表示");
+				const char* actorNeonModes[] = { "3Dモデル", "ビルボード枠線" };
+				ImGui::Combo("プレイヤー表示", &playerNeonRenderMode_, actorNeonModes, IM_ARRAYSIZE(actorNeonModes));
+				ImGui::Combo("ボス表示", &bossNeonRenderMode_, actorNeonModes, IM_ARRAYSIZE(actorNeonModes));
+				ImGui::DragFloat("プレイヤー板ポリ半径", &playerNeonBillboardRadius_, 0.025f, 0.2f, 4.0f);
+				ImGui::DragFloat("ボス板ポリ半径", &bossNeonBillboardRadius_, 0.025f, 0.2f, 5.0f);
+				ImGui::DragFloat("プレイヤー/ボス線幅", &actorNeonBillboardLineWidth_, 0.005f, 0.01f, 0.5f);
+				ImGui::SliderFloat("ダッシュ中の本体濃度", &playerDashCurrentAlpha_, 0.05f, 1.0f);
+				ImGui::SliderFloat("残像の濃度", &playerAfterimageAlpha_, 0.05f, 1.0f);
+				ImGui::DragFloat("残像の生成間隔", &playerAfterimageInterval_, 0.005f, 0.01f, 0.25f);
+				ImGui::DragFloat("残像の寿命", &playerAfterimageLifetime_, 0.01f, 0.05f, 1.0f);
 				ImGui::SeparatorText("ネオン三角形デモ");
 				ImGui::Checkbox("ネオン三角形デモを表示", &showNeonTriangleDemo_);
 				ImGui::DragFloat3("ネオン三角形 位置", &neonTriangleDemoCenter_.x, 0.05f);
@@ -2813,7 +3042,7 @@ void GameScene::DrawBulletStatusDebugOverlay()
 			text,
 			sizeof(text),
 			"%c HP %.1f  PEN %.1f",
-			bullet->GetOwner() == kPlayer ? 'P' : 'E',
+			bullet->GetOwner() == kPlayer ? 'P' : (bullet->GetOwner() == kExpEnemyHostile ? 'X' : 'E'),
 			bullet->GetBulletHp(),
 			bullet->GetBulletPenetration());
 
@@ -2877,6 +3106,10 @@ void GameScene::DrawLevelAIDitorBalanceLab(bool embedded)
 		ImGui::DragInt("経験値敵接触", &balanceEditor_.expEnemyContact, 1.0f, 1, 999);
 		ImGui::DragInt("射撃敵接触", &balanceEditor_.shooterContact, 1.0f, 1, 999);
 		ImGui::DragInt("射撃敵の弾", &balanceEditor_.shooterBullet, 1.0f, 1, 999);
+		ImGui::DragFloat("射撃敵の探知半径", &balanceEditor_.shooterDetectionRadius, 0.25f, 1.0f, 100.0f);
+		ImGui::DragFloat("射撃敵の砲塔旋回速度", &balanceEditor_.shooterTurnSpeed, 0.1f, 0.1f, 30.0f);
+		ImGui::DragFloat("射撃敵の発射間隔", &balanceEditor_.shooterFireInterval, 0.05f, 0.1f, 10.0f);
+		ImGui::DragFloat("射撃敵の弾速", &balanceEditor_.shooterBulletSpeed, 0.01f, 0.01f, 2.0f);
 	}
 
 	if (ImGui::CollapsingHeader("ボス通常攻撃", ImGuiTreeNodeFlags_DefaultOpen)) {

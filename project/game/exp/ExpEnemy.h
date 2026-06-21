@@ -6,6 +6,7 @@
 
 class Player;
 class Stage;
+class Enemy;
 
 enum class ExpEnemyType {
     Square,
@@ -20,6 +21,10 @@ public:
         uint32_t contactDamage = 12;
         uint32_t shooterContactDamage = 20;
         uint32_t shooterBulletDamage = 15;
+		float shooterDetectionRadius = 18.0f;
+		float shooterTurnSpeed = 5.5f;
+		float shooterFireInterval = 1.25f;
+		float shooterBulletSpeed = 0.20f;
     };
     struct EnemyInteractionConfig {
         bool hostileToBoss = false;
@@ -47,6 +52,7 @@ public:
     void SetAttackControllerBulletManager(BulletManager* bulletManager) {
         attackController_.SetBulletManager(bulletManager);
     }
+	void SetBossTarget(Enemy* boss) { boss_ = boss; }
 
     // セッター
     void SetWorldPosition(const Vector3& pos) {
@@ -94,6 +100,8 @@ private:
     AttackController attackController_;
 
     Player* player_ = nullptr;
+	Enemy* boss_ = nullptr;
+	Vector3 aimDirection_{ 0.0f, -1.0f, 0.0f };
 
     int hp_ = 10;
     int maxHp_ = 10;
