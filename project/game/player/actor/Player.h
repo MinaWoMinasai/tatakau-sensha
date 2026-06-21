@@ -18,6 +18,7 @@
 #include "PlayerDrone.h"
 #include "Easing.h"
 #include "ParticleManager.h"
+#include "game/weapon/WeaponMount.h"
 
 enum class ClassType {
 	
@@ -39,6 +40,7 @@ enum class ClassType {
 	Smasher,    // 強力な近接攻撃
 	Summoner,
 };
+
 struct TankSeed {
 	ClassType type;
 	std::string name;
@@ -252,15 +254,6 @@ public:
 	bool IsChangeMode() { return isChangeMode; }
 
 private:
-	struct PlayerBarrelConfig {
-		std::string model = "gunBarrel.obj";
-		Vector3 offset = { 0.72f, 0.0f, 0.0f };
-		Vector3 scale = { 1.25f, 0.24f, 0.24f };
-		float angleDeg = 0.0f;
-		float muzzleForward = 0.95f;
-		bool fires = true;
-	};
-
 	struct PlayerClassConfig {
 		ClassType type = ClassType::Basic;
 		std::string id = "Basic";
@@ -279,7 +272,7 @@ private:
 		bool fireAllBarrels = false;
 		bool alternateBarrels = false;
 		float recoilPower = 0.01f;
-		std::vector<PlayerBarrelConfig> barrels;
+		std::vector<WeaponMountConfig> barrels;
 	};
 
 	// ワールド変換データ
