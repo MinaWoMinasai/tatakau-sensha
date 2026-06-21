@@ -105,6 +105,27 @@ const char* ClassTypeToString(ClassType type)
 	return "Unknown";
 }
 
+WeaponType WeaponTypeFromString(const std::string& id)
+{
+	if (id == "Laser") return WeaponType::Laser;
+	if (id == "Mine") return WeaponType::Mine;
+	if (id == "Drone") return WeaponType::Drone;
+	if (id == "Melee") return WeaponType::Melee;
+	return WeaponType::Projectile;
+}
+
+const char* WeaponTypeToString(WeaponType type)
+{
+	switch (type) {
+	case WeaponType::Projectile: return "Projectile";
+	case WeaponType::Laser: return "Laser";
+	case WeaponType::Mine: return "Mine";
+	case WeaponType::Drone: return "Drone";
+	case WeaponType::Melee: return "Melee";
+	}
+	return "Projectile";
+}
+
 const char* ClassTexturePath(ClassType type)
 {
 	switch (type) {
@@ -1013,15 +1034,24 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 		config.recoilPower = item.value("recoilPower", config.recoilPower);
 
 		config.barrels.clear();
-		if (item.contains("barrels") && item["barrels"].is_array()) {
-			for (const nlohmann::json& barrelJson : item["barrels"]) {
-				PlayerBarrelConfig barrel{};
+		const nlohmann::json* mountsJson = nullptr;
+		if (item.contains("weaponMounts") && item["weaponMounts"].is_array()) {
+			mountsJson = &item["weaponMounts"];
+		} else if (item.contains("barrels") && item["barrels"].is_array()) {
+			mountsJson = &item["barrels"];
+		}
+		if (mountsJson) {
+			for (const nlohmann::json& barrelJson : *mountsJson) {
+				WeaponMountConfig barrel{};
 				barrel.model = barrelJson.value("model", barrel.model);
 				barrel.offset = ReadVector3(barrelJson.value("offset", nlohmann::json::array()), barrel.offset);
 				barrel.scale = ReadVector3(barrelJson.value("scale", nlohmann::json::array()), barrel.scale);
 				barrel.angleDeg = barrelJson.value("angleDeg", barrel.angleDeg);
 				barrel.muzzleForward = barrelJson.value("muzzleForward", barrel.muzzleForward);
 				barrel.fires = barrelJson.value("fires", barrel.fires);
+				barrel.weaponType = WeaponTypeFromString(barrelJson.value("weaponType", std::string("Projectile")));
+				barrel.damageScale = (std::max)(0.0f, barrelJson.value("damageScale", barrel.damageScale));
+				barrel.projectileSpeedScale = (std::max)(0.01f, barrelJson.value("projectileSpeedScale", barrel.projectileSpeedScale));
 				config.barrels.push_back(barrel);
 			}
 		}
@@ -1134,8 +1164,8 @@ void Player::SavePlayerClassConfigs(const std::string& path) const
 		item["fireAllBarrels"] = config->fireAllBarrels;
 		item["alternateBarrels"] = config->alternateBarrels;
 		item["recoilPower"] = config->recoilPower;
-		item["barrels"] = nlohmann::json::array();
-		for (const PlayerBarrelConfig& barrel : config->barrels) {
+		item["weaponMounts"] = nlohmann::json::array();
+		for (const WeaponMountConfig& barrel : config->barrels) {
 			nlohmann::json barrelJson;
 			barrelJson["model"] = barrel.model;
 			barrelJson["offset"] = Vector3ToJson(barrel.offset);
@@ -1143,12 +1173,16 @@ void Player::SavePlayerClassConfigs(const std::string& path) const
 			barrelJson["angleDeg"] = barrel.angleDeg;
 			barrelJson["muzzleForward"] = barrel.muzzleForward;
 			barrelJson["fires"] = barrel.fires;
-			item["barrels"].push_back(barrelJson);
+			barrelJson["weaponType"] = WeaponTypeToString(barrel.weaponType);
+			barrelJson["damageScale"] = barrel.damageScale;
+			barrelJson["projectileSpeedScale"] = barrel.projectileSpeedScale;
+			item["weaponMounts"].push_back(barrelJson);
 		}
 		classes.push_back(item);
 	}
 
 	nlohmann::json root;
+	root["version"] = 2;
 	root["classes"] = classes;
 	std::ofstream file(path);
 	if (file.is_open()) {
@@ -1210,7 +1244,7 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 
 	std::vector<size_t> fireIndices;
 	for (size_t i = 0; i < config.barrels.size(); ++i) {
-		if (config.barrels[i].fires) {
+		if (config.barrels[i].fires && config.barrels[i].weaponType == WeaponType::Projectile) {
 			fireIndices.push_back(i);
 		}
 	}
@@ -1229,7 +1263,7 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 	const Vector3 right = { -forward.y, forward.x, 0.0f };
 
 	for (size_t index : fireIndices) {
-		const PlayerBarrelConfig& barrelConfig = config.barrels[index];
+		const WeaponMountConfig& barrelConfig = config.barrels[index];
 		const Vector3 fireDir = RotateDirection(forward, barrelConfig.angleDeg);
 		const Vector3 muzzle =
 			worldTransform_.translate +
@@ -1237,7 +1271,10 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 			right * barrelConfig.offset.y +
 			Vector3{ 0.0f, 0.0f, barrelConfig.offset.z } +
 			fireDir * barrelConfig.muzzleForward;
-		attackController_.FireFromMuzzle(muzzle, fireDir, param, BulletOwner::kPlayer);
+		AttackParam mountParam = param;
+		mountParam.bulletSpeed *= barrelConfig.projectileSpeedScale;
+		mountParam.damage = static_cast<uint32_t>((std::max)(1.0f, static_cast<float>(param.damage) * barrelConfig.damageScale));
+		attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
 		if (index < barrels_.size()) {
 			barrels_[index].recoilOffset = 0.22f;
 		}
@@ -1292,7 +1329,7 @@ void Player::UpdateBarrelLayout()
 
 	for (size_t i = 0; i < barrels_.size(); ++i) {
 		BarrelModel& barrel = barrels_[i];
-		const PlayerBarrelConfig barrelConfig = (config && i < config->barrels.size()) ? config->barrels[i] : PlayerBarrelConfig{};
+		const WeaponMountConfig barrelConfig = (config && i < config->barrels.size()) ? config->barrels[i] : WeaponMountConfig{};
 		const bool active = config ? i < config->barrels.size() : i == 0;
 
 		barrel.recoilOffset = (std::max)(0.0f, barrel.recoilOffset - recoilReturn * dt_ * 60.0f);
@@ -2392,7 +2429,7 @@ void Player::DrawTankCodex()
 	};
 
 	std::vector<ImVec2> muzzlePoints;
-	for (const PlayerBarrelConfig& barrel : selectedConfig->barrels) {
+	for (const WeaponMountConfig& barrel : selectedConfig->barrels) {
 		const float localAngleRad = (codexPreviewAimDeg_ + barrel.angleDeg) * 3.1415926535f / 180.0f;
 		const ImVec2 barrelForward = ImVec2(std::cos(localAngleRad), std::sin(localAngleRad));
 		const ImVec2 barrelRight = ImVec2(-barrelForward.y, barrelForward.x);
@@ -2652,7 +2689,7 @@ void Player::DrawPlayerClassEditor()
 				const float normalized = layoutCount <= 1 ? 0.0f : (static_cast<float>(i) - centerIndex) / centerIndex;
 				const float angleDeg = layoutArcCenterAngle + normalized * layoutArcSweepAngle * 0.5f;
 				const float angleRad = angleDeg * kDegToRad;
-				PlayerBarrelConfig barrel{};
+				WeaponMountConfig barrel{};
 				barrel.model = model;
 				barrel.offset = {
 					std::cos(angleRad) * layoutArcRadius,
@@ -2678,7 +2715,7 @@ void Player::DrawPlayerClassEditor()
 			for (int i = 0; i < layoutCount; ++i) {
 				const float centerIndex = (static_cast<float>(layoutCount) - 1.0f) * 0.5f;
 				const float normalized = layoutCount <= 1 ? 0.0f : (static_cast<float>(i) - centerIndex) / centerIndex;
-				PlayerBarrelConfig barrel{};
+				WeaponMountConfig barrel{};
 				barrel.model = model;
 				barrel.offset = { layoutForward, (static_cast<float>(i) - centerIndex) * layoutSideSpacing, 0.0f };
 				barrel.scale = layoutScale;
@@ -2700,7 +2737,7 @@ void Player::DrawPlayerClassEditor()
 			for (int i = 0; i < layoutCount; ++i) {
 				const float centerIndex = (static_cast<float>(layoutCount) - 1.0f) * 0.5f;
 				const float signedIndex = static_cast<float>(i) - centerIndex;
-				PlayerBarrelConfig barrel{};
+				WeaponMountConfig barrel{};
 				barrel.model = model;
 				barrel.offset = {
 					layoutForward - std::abs(signedIndex) * 0.12f,
@@ -2752,8 +2789,8 @@ void Player::DrawPlayerClassEditor()
 		}
 		ImGui::Separator();
 	}
-	if (ImGui::Button("砲塔を追加")) {
-		PlayerBarrelConfig barrel{};
+	if (ImGui::Button("武器マウントを追加")) {
+		WeaponMountConfig barrel{};
 		if (!config->barrels.empty()) {
 			barrel = config->barrels.back();
 			barrel.offset.y += 0.34f;
@@ -2773,8 +2810,8 @@ void Player::DrawPlayerClassEditor()
 
 	for (size_t i = 0; i < config->barrels.size(); ++i) {
 		ImGui::PushID(static_cast<int>(i));
-		PlayerBarrelConfig& barrel = config->barrels[i];
-		const std::string label = "砲塔 " + std::to_string(i);
+		WeaponMountConfig& barrel = config->barrels[i];
+		const std::string label = "武器マウント " + std::to_string(i);
 		if (ImGui::TreeNode(label.c_str())) {
 			char modelBuffer[128]{};
 			strncpy_s(modelBuffer, barrel.model.c_str(), _TRUNCATE);
@@ -2786,7 +2823,17 @@ void Player::DrawPlayerClassEditor()
 			relayoutBarrels |= ImGui::DragFloat3("スケール", &barrel.scale.x, 0.01f, 0.0f, 10.0f);
 			relayoutBarrels |= ImGui::DragFloat("角度", &barrel.angleDeg, 0.1f, -180.0f, 180.0f);
 			ImGui::DragFloat("銃口の前方オフセット", &barrel.muzzleForward, 0.01f, -2.0f, 5.0f);
-			ImGui::Checkbox("発射する", &barrel.fires);
+			ImGui::Checkbox("マウントを有効化", &barrel.fires);
+			const char* weaponTypeNames[] = { "Projectile", "Laser (準備中)", "Mine (準備中)", "Drone (準備中)", "Melee (準備中)" };
+			int weaponTypeIndex = static_cast<int>(barrel.weaponType);
+			if (ImGui::Combo("武器種", &weaponTypeIndex, weaponTypeNames, IM_ARRAYSIZE(weaponTypeNames))) {
+				barrel.weaponType = static_cast<WeaponType>((std::clamp)(weaponTypeIndex, 0, 4));
+			}
+			if (barrel.weaponType != WeaponType::Projectile) {
+				ImGui::TextDisabled("この武器種は次の実装段階まで発射されません。");
+			}
+			ImGui::DragFloat("マウント威力倍率", &barrel.damageScale, 0.01f, 0.0f, 20.0f);
+			ImGui::DragFloat("マウント弾速倍率", &barrel.projectileSpeedScale, 0.01f, 0.01f, 10.0f);
 			if (ImGui::Button("複製")) {
 				config->barrels.insert(config->barrels.begin() + static_cast<std::ptrdiff_t>(i + 1), barrel);
 				rebuildBarrels = true;
@@ -2815,6 +2862,7 @@ void Player::DrawPlayerClassEditor()
 	}
 
 	ImGui::Text("メモ: 位置X=前方向、位置Y=横方向、角度=照準からのずれです。");
+	ImGui::TextDisabled("WeaponMount v2: 旧 barrels JSONも自動で読み込めます。");
 	ImGui::End();
 #endif
 }
@@ -3009,7 +3057,7 @@ std::vector<Player::NeonBarrelLayout> Player::GetNeonBarrelLayouts() const
 
 	layouts.reserve(config->barrels.size());
 	for (size_t i = 0; i < config->barrels.size(); ++i) {
-		const PlayerBarrelConfig& barrel = config->barrels[i];
+		const WeaponMountConfig& barrel = config->barrels[i];
 		NeonBarrelLayout layout{};
 		layout.offset = barrel.offset;
 		layout.scale = barrel.scale;
