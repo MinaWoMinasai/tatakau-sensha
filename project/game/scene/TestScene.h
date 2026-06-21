@@ -26,6 +26,7 @@
 #include "ObjectPostEffect.h"
 #include "Animation.h"
 #include "Skeleton.h"
+#include "SkinCluster.h"
 
 // ゲームシーン
 class TestScene : public IScene {
@@ -114,5 +115,15 @@ private:
 	AnimationPlayer keyframeTestPlayer_;
 	Skeleton keyframeTestSkeleton_;
 	float keyframeTestPlaybackSpeed_ = 1.0f;
+	bool assimpAnimationLoaded_ = false;
+	std::string assimpAnimationStatus_;
+
+	SkinningModelAsset skinningTestAsset_;
+	Skeleton skinningTestSkeleton_;
+	SkinCluster skinningTestCluster_;
+	Animation skinningTestAnimation_;
+	AnimationPlayer skinningTestPlayer_;
+	bool skinClusterLoaded_ = false;
+	std::string skinClusterStatus_;
 
 };

@@ -96,6 +96,14 @@ void TestScene::Initialize() {
 		{ 1.0f, { 5.0f, 2.0f, 3.0f } },
 		{ 2.0f, { 3.0f, 3.0f, 3.0f } },
 	};
+	// Assimp連携確認用の最小glTF。失敗時は上の手作りアニメーションを維持する。
+	try {
+		keyframeTestAnimation_ = AnimationLoader::LoadFromFile("resources/animation/assimp_test.gltf");
+		assimpAnimationLoaded_ = true;
+		assimpAnimationStatus_ = "Assimp glTF animation: loaded";
+	} catch (const std::exception& error) {
+		assimpAnimationStatus_ = std::string("Assimp glTF animation: fallback / ") + error.what();
+	}
 	keyframeTestPlayer_.SetAnimation(&keyframeTestAnimation_);
 	SkeletonNode testSkeletonRoot;
 	testSkeletonRoot.name = "Root";
@@ -104,6 +112,21 @@ void TestScene::Initialize() {
 	testSkeletonChild.transform.translate = { 0.0f, 5.0f, 0.0f };
 	testSkeletonRoot.children.push_back(testSkeletonChild);
 	keyframeTestSkeleton_ = SkeletonSystem::Create(testSkeletonRoot);
+
+	// Skinning単元: 配布simpleSkinからMesh / Skeleton / Weightを抽出し、
+	// SkinClusterのInfluenceとPaletteを生成する。GPU描画は次の単元で接続する。
+	try {
+		const std::string skinPath = "resources/models/simpleSkin/simpleSkin.gltf";
+		skinningTestAsset_ = SkinningModelLoader::LoadFromFile(skinPath);
+		skinningTestSkeleton_ = SkeletonSystem::Create(skinningTestAsset_.rootNode);
+		skinningTestCluster_ = SkinCluster::Create(skinningTestSkeleton_, skinningTestAsset_);
+		skinningTestAnimation_ = AnimationLoader::LoadFromFile(skinPath);
+		skinningTestPlayer_.SetAnimation(&skinningTestAnimation_);
+		skinClusterLoaded_ = true;
+		skinClusterStatus_ = "simpleSkin SkinCluster: loaded";
+	} catch (const std::exception& error) {
+		skinClusterStatus_ = std::string("simpleSkin SkinCluster: failed / ") + error.what();
+	}
 
 	// 2. 剣に見立てた細長いブロックを作る
 	swordObj_ = std::make_unique<Object3d>();
@@ -190,6 +213,20 @@ void TestScene::Update() {
 	}
 	ImGui::Text("Cyan cube: Vector3 Lerp + Quaternion Slerp");
 	ImGui::Text("Skeleton joints: %zu", keyframeTestSkeleton_.joints.size());
+	ImGui::TextColored(
+		assimpAnimationLoaded_ ? ImVec4{ 0.4f, 1.0f, 0.6f, 1.0f } : ImVec4{ 1.0f, 0.45f, 0.3f, 1.0f },
+		"%s", assimpAnimationStatus_.c_str());
+	ImGui::Separator();
+	ImGui::TextColored(
+		skinClusterLoaded_ ? ImVec4{ 0.4f, 1.0f, 0.6f, 1.0f } : ImVec4{ 1.0f, 0.45f, 0.3f, 1.0f },
+		"%s", skinClusterStatus_.c_str());
+	if (skinClusterLoaded_) {
+		ImGui::Text("Skin vertices: %zu", skinningTestAsset_.modelData.vertices.size());
+		ImGui::Text("Skin indices: %zu", skinningTestAsset_.modelData.indices.size());
+		ImGui::Text("Skin joints: %zu", skinningTestSkeleton_.joints.size());
+		ImGui::Text("Assigned influences: %u", skinningTestCluster_.GetAssignedInfluenceCount());
+		ImGui::Text("Palette entries: %zu", skinningTestCluster_.GetPalette().size());
+	}
 	ImGui::End();
 
 	ImGui::Begin("Block");
@@ -237,6 +274,11 @@ void TestScene::Update() {
 	blockObj2_->SetTranslate(keyframeTransform.translate);
 	blockObj2_->SetQuaternionRotate(keyframeTransform.rotate);
 	blockObj2_->Update();
+	if (skinClusterLoaded_) {
+		skinningTestPlayer_.Update(finalDeltaTime);
+		SkeletonSystem::ApplyAnimation(skinningTestSkeleton_, skinningTestPlayer_);
+		skinningTestCluster_.Update(skinningTestSkeleton_);
+	}
 	effectStartMarker_->SetTranslate(effectStartPos_);
 	effectStartMarker_->Update();
 	effectTargetMarker_->SetTranslate(effectTargetPos_);

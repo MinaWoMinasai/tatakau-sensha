@@ -1,14 +1,9 @@
 #include "Animation.h"
 
 #include "Calculation.h"
-#include <algorithm>
-#if __has_include(<assimp/Importer.hpp>)
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
-#define CG2_HAS_ASSIMP 1
-#else
-#define CG2_HAS_ASSIMP 0
-#endif
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
@@ -38,7 +33,6 @@ TValue CalculateCurveValue(
 	return curve.keyframes.back().value;
 }
 
-#if CG2_HAS_ASSIMP
 float TicksPerSecond(const aiAnimation& animation) {
 	return animation.mTicksPerSecond > 0.0 ? static_cast<float>(animation.mTicksPerSecond) : 1.0f;
 }
@@ -82,7 +76,6 @@ Animation ConvertAnimation(const aiAnimation& source, uint32_t index) {
 	}
 	return result;
 }
-#endif
 
 } // namespace
 
@@ -158,7 +151,6 @@ Animation AnimationLoader::LoadFromFile(const std::string& filePath, uint32_t an
 }
 
 std::vector<Animation> AnimationLoader::LoadAllFromFile(const std::string& filePath) {
-#if CG2_HAS_ASSIMP
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(filePath, 0);
 	if (scene == nullptr) {
@@ -174,8 +166,4 @@ std::vector<Animation> AnimationLoader::LoadAllFromFile(const std::string& fileP
 		animations.push_back(ConvertAnimation(*scene->mAnimations[index], index));
 	}
 	return animations;
-#else
-	throw std::runtime_error(
-		"AnimationLoader requires Assimp. AnimationPlayer and keyframe sampling are available: " + filePath);
-#endif
 }
