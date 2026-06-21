@@ -153,7 +153,15 @@ struct MaterialData {
 
 struct ModelData {
 	std::vector<VertexData> vertices;
+	std::vector<uint32_t> indices;
 	MaterialData material;
+};
+
+struct Quaternion {
+	float x;
+	float y;
+	float z;
+	float w;
 };
 
 struct ChunkHeader

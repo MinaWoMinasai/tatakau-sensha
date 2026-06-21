@@ -22,10 +22,12 @@ public:
 	Vector3& GetRotate() { return transform_.rotate; }
 	Vector3& GetTranslate() { return transform_.translate; }
 
-	void SetTransform(const Transform& transform) { transform_ = transform; }
+	void SetTransform(const Transform& transform) { transform_ = transform; useQuaternionRotate_ = false; }
 
 	void SetScale(const Vector3& scale) { transform_.scale = scale; }
-	void SetRotate(const Vector3& rotate) { transform_.rotate = rotate; }
+	void SetRotate(const Vector3& rotate) { transform_.rotate = rotate; useQuaternionRotate_ = false; }
+	void SetQuaternionRotate(const Quaternion& rotate) { quaternionRotate_ = rotate; useQuaternionRotate_ = true; }
+	void UseEulerRotate() { useQuaternionRotate_ = false; }
 	void SetTranslate(const Vector3& translate) { transform_.translate = translate; }
 
 	void SetCamera(Camera* camera) { camera_ = camera; }
@@ -102,6 +104,8 @@ private:
 	Resource resource;
 
 	Transform transform_;
+	Quaternion quaternionRotate_ = { 0.0f, 0.0f, 0.0f, 1.0f };
+	bool useQuaternionRotate_ = false;
 
 	Model* model_ = nullptr;
 

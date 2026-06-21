@@ -72,7 +72,9 @@ void Object3d::Initialize()
 
 void Object3d::Update() {
 
-	Matrix4x4 worldMatrix = MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+	Matrix4x4 worldMatrix = useQuaternionRotate_
+		? MakeAffineMatrix(transform_.scale, quaternionRotate_, transform_.translate)
+		: MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
 	// ワールド行列の逆行列を計算
 	Matrix4x4 inverseWorldMatrix = Inverse(worldMatrix);
 	// 逆行列を転置する

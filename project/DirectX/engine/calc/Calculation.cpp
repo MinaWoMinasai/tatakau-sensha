@@ -116,6 +116,65 @@ Vector3 Normalize(const Vector3& v) {
 
 }
 
+float DotQuaternion(const Quaternion& q0, const Quaternion& q1) {
+	return q0.x * q1.x + q0.y * q1.y + q0.z * q1.z + q0.w * q1.w;
+}
+
+Quaternion NormalizeQuaternion(const Quaternion& quaternion) {
+	const float length = std::sqrt(DotQuaternion(quaternion, quaternion));
+	if (length <= 0.000001f) {
+		return { 0.0f, 0.0f, 0.0f, 1.0f };
+	}
+	return {
+		quaternion.x / length,
+		quaternion.y / length,
+		quaternion.z / length,
+		quaternion.w / length,
+	};
+}
+
+Quaternion SlerpQuaternion(const Quaternion& q0, const Quaternion& q1, float t) {
+	Quaternion start = NormalizeQuaternion(q0);
+	Quaternion end = NormalizeQuaternion(q1);
+	float dot = DotQuaternion(start, end);
+	if (dot < 0.0f) {
+		end = { -end.x, -end.y, -end.z, -end.w };
+		dot = -dot;
+	}
+	dot = (std::clamp)(dot, -1.0f, 1.0f);
+	if (dot > 0.9995f) {
+		return NormalizeQuaternion({
+			start.x + (end.x - start.x) * t,
+			start.y + (end.y - start.y) * t,
+			start.z + (end.z - start.z) * t,
+			start.w + (end.w - start.w) * t,
+		});
+	}
+
+	const float theta = std::acos(dot);
+	const float sinTheta = std::sin(theta);
+	const float startWeight = std::sin((1.0f - t) * theta) / sinTheta;
+	const float endWeight = std::sin(t * theta) / sinTheta;
+	return {
+		start.x * startWeight + end.x * endWeight,
+		start.y * startWeight + end.y * endWeight,
+		start.z * startWeight + end.z * endWeight,
+		start.w * startWeight + end.w * endWeight,
+	};
+}
+
+Quaternion MakeRotateAxisAngleQuaternion(const Vector3& axis, float angle) {
+	const Vector3 normalizedAxis = Normalize(axis);
+	const float halfAngle = angle * 0.5f;
+	const float sinHalfAngle = std::sin(halfAngle);
+	return NormalizeQuaternion({
+		normalizedAxis.x * sinHalfAngle,
+		normalizedAxis.y * sinHalfAngle,
+		normalizedAxis.z * sinHalfAngle,
+		std::cos(halfAngle),
+	});
+}
+
 Vector3 TransformNormal(const Vector3& v, const Matrix4x4& m)
 {
 
@@ -521,6 +580,21 @@ Matrix4x4 MakeRotateZMatrix(float radian) {
 
 }
 
+Matrix4x4 MakeRotateMatrix(const Quaternion& quaternion) {
+	const Quaternion q = NormalizeQuaternion(quaternion);
+	Matrix4x4 result = MakeIdentity4x4();
+	result.m[0][0] = 1.0f - 2.0f * (q.y * q.y + q.z * q.z);
+	result.m[0][1] = 2.0f * (q.x * q.y + q.z * q.w);
+	result.m[0][2] = 2.0f * (q.x * q.z - q.y * q.w);
+	result.m[1][0] = 2.0f * (q.x * q.y - q.z * q.w);
+	result.m[1][1] = 1.0f - 2.0f * (q.x * q.x + q.z * q.z);
+	result.m[1][2] = 2.0f * (q.y * q.z + q.x * q.w);
+	result.m[2][0] = 2.0f * (q.x * q.z + q.y * q.w);
+	result.m[2][1] = 2.0f * (q.y * q.z - q.x * q.w);
+	result.m[2][2] = 1.0f - 2.0f * (q.x * q.x + q.y * q.y);
+	return result;
+}
+
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
 
 	//Matrix4x4 translateMatrix = MakeTranslateMatrix(translate);
@@ -561,6 +635,20 @@ Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Ve
 	result.m[3][3] = 1.0f;
 	return result;
 
+}
+
+Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate) {
+	Matrix4x4 result = MakeRotateMatrix(rotate);
+	for (size_t column = 0; column < 3; ++column) {
+		result.m[0][column] *= scale.x;
+		result.m[1][column] *= scale.y;
+		result.m[2][column] *= scale.z;
+	}
+	result.m[3][0] = translate.x;
+	result.m[3][1] = translate.y;
+	result.m[3][2] = translate.z;
+	result.m[3][3] = 1.0f;
+	return result;
 }
 
 Matrix4x4 MakePerspectiveForMatrix(float fovY, float aspectRatio, float nearClip, float farClip) {
