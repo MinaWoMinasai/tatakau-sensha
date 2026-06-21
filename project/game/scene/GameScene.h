@@ -169,7 +169,8 @@ private:
 	void TriggerDeathPostPulse(const Vector3& worldPosition, float strength);
 	void UpdateDeathPostPulse(float deltaTime);
 	void QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward);
-	void QueueActorNeonBillboards(const Vector3& cameraRight, const Vector3& cameraUp);
+	void QueueActorNeonBillboards(const Vector3& cameraRight, const Vector3& cameraUp, bool drawBodies = true, bool drawBarrels = true);
+	void DrawActorNeonBodyFillPass();
 	void UpdatePlayerNeonAfterimages(float deltaTime);
 	bool IsNearCamera2D(const Vector3& worldPos, float halfWidth, float halfHeight, float margin = 0.0f) const;
 	void ResetPostProfileEntries();
@@ -416,6 +417,13 @@ private:
 	float playerNeonBillboardRadius_ = 1.05f;
 	float bossNeonBillboardRadius_ = 1.35f;
 	float actorNeonBillboardLineWidth_ = 0.12f;
+	float bossNeonBarrelForwardOffset_ = 0.92f;
+	float bossNeonBarrelSideOffset_ = 0.0f;
+	float bossNeonBarrelLengthScale_ = 1.15f;
+	float bossNeonBarrelWidthScale_ = 0.24f;
+	float bossNeonBarrelAngleDeg_ = 0.0f;
+	bool fillActorNeonBodies_ = true;
+	Vector4 actorNeonBodyFillColor_ = { 0.006f, 0.010f, 0.016f, 0.92f };
 	float playerDashCurrentAlpha_ = 0.58f;
 	float playerAfterimageAlpha_ = 0.42f;
 	float playerAfterimageInterval_ = 0.045f;

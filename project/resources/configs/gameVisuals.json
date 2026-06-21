@@ -60,6 +60,12 @@
   "neonGrid": {
     "actorLineWidth": 0.10000000149011612,
     "actorNeonBillboardLineWidth": 0.11999999731779099,
+    "actorNeonBodyFillColor": {
+      "w": 0.9200000166893005,
+      "x": 0.006000000052154064,
+      "y": 0.009999999776482582,
+      "z": 0.01600000075995922
+    },
     "actorRadius": 5.400000095367432,
     "actorSpacing": 1.0,
     "bossEnemyColor": {
@@ -68,6 +74,11 @@
       "y": 0.18000000715255737,
       "z": 0.23999999463558197
     },
+    "bossNeonBarrelAngleDeg": 0.0,
+    "bossNeonBarrelForwardOffset": 0.9200000166893005,
+    "bossNeonBarrelLengthScale": 1.149999976158142,
+    "bossNeonBarrelSideOffset": 0.0,
+    "bossNeonBarrelWidthScale": 0.23999999463558197,
     "bossNeonBillboardRadius": 1.350000023841858,
     "bossNeonRenderMode": 1,
     "cullActorLocalGrid": true,
@@ -83,6 +94,7 @@
     "expEnemyNeonShooterRadius": 0.949999988079071,
     "expEnemyNeonSquareSize": 1.7999999523162842,
     "expEnemyNeonTriangleRadius": 1.0499999523162842,
+    "fillActorNeonBodies": true,
     "lineCoreIntensity": 1.350000023841858,
     "lineSoftEdgeRatio": 0.41999998688697815,
     "maxExpEnemyLocalGrids": 18,
@@ -102,7 +114,7 @@
     "showStageBlockNeonOutlines": true,
     "showStageDamageBlockNeonOutlines": true,
     "showStageNormalBlockBodies": true,
-    "showTriangleDemo": true,
+    "showTriangleDemo": false,
     "showWorldGrid": true,
     "stageBlockNeonColor": {
       "w": 1.0,

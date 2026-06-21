@@ -116,6 +116,33 @@ void NeonGridRenderer::QueueBillboardRectangle(
     AddCameraFacingLineQuad(points[3], points[0], lineWidth, color, cameraForward);
 }
 
+void NeonGridRenderer::QueueBillboardDisc(
+    const Vector3& center,
+    float radius,
+    const Vector4& color,
+    const Vector3& cameraRight,
+    const Vector3& cameraUp,
+    int segments) {
+    if (radius <= 0.0f || color.w <= 0.001f) {
+        return;
+    }
+    segments = (std::clamp)(segments, 8, 96);
+    if (vertexCount_ + static_cast<uint32_t>(segments * 3) > kMaxVertices) {
+        return;
+    }
+
+    constexpr float kTwoPi = 6.28318530718f;
+    for (int i = 0; i < segments; ++i) {
+        const float angle0 = static_cast<float>(i) * kTwoPi / static_cast<float>(segments);
+        const float angle1 = static_cast<float>(i + 1) * kTwoPi / static_cast<float>(segments);
+        const Vector3 p0 = center + cameraRight * (std::cos(angle0) * radius) + cameraUp * (std::sin(angle0) * radius);
+        const Vector3 p1 = center + cameraRight * (std::cos(angle1) * radius) + cameraUp * (std::sin(angle1) * radius);
+        PushVertex(center, color, { 0.5f, 0.5f });
+        PushVertex(p0, color, { 0.0f, 0.0f });
+        PushVertex(p1, color, { 1.0f, 1.0f });
+    }
+}
+
 void NeonGridRenderer::QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color) {
     if (spacing <= 0.0f || lineWidth <= 0.0f) {
         return;
@@ -249,6 +276,24 @@ void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, con
     auto commandList = dxCommon_->GetList();
     commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrail().root_.GetSignature().Get());
     commandList->SetPipelineState(dxCommon_->GetPSOTrail().graphicsState_.Get());
+    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
+    commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+    commandList->SetGraphicsRootConstantBufferView(1, viewProjectionResource_->GetGPUVirtualAddress());
+    commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_));
+    commandList->DrawInstanced(drawableCount, 1, startVertex, 0);
+}
+
+void NeonGridRenderer::DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection) {
+    if (!dxCommon_ || !vertexData_ || vertexCount == 0 || startVertex >= vertexCount_) {
+        return;
+    }
+    const uint32_t drawableCount = (std::min)(vertexCount, vertexCount_ - startVertex);
+    *viewProjectionData_ = viewProjection;
+
+    auto commandList = dxCommon_->GetList();
+    commandList->SetGraphicsRootSignature(dxCommon_->GetPSOHudRect().root_.GetSignature().Get());
+    commandList->SetPipelineState(dxCommon_->GetPSOHudRect().graphicsState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());

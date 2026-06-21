@@ -33,12 +33,20 @@ public:
         const Vector3& cameraRight,
         const Vector3& cameraUp,
         const Vector3& cameraForward);
+	void QueueBillboardDisc(
+		const Vector3& center,
+		float radius,
+		const Vector4& color,
+		const Vector3& cameraRight,
+		const Vector3& cameraUp,
+		int segments = 32);
     void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color);
     void QueueRectangle(const Vector3& center, const Vector3& size, float lineWidth, const Vector4& color);
     void QueueLocalGrid(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color);
     void QueueLocalGridClipped(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color, float minX, float maxX, float minY, float maxY);
     void DrawAll(const Matrix4x4& viewProjection);
     void DrawRange(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection);
+	void DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection);
     uint32_t GetVertexCount() const { return vertexCount_; }
 
 private:
