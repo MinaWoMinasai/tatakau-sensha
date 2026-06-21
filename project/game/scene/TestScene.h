@@ -24,6 +24,8 @@
 #include "Skybox.h"
 #include "EffectSequencer.h"
 #include "ObjectPostEffect.h"
+#include "Animation.h"
+#include "Skeleton.h"
 
 // ゲームシーン
 class TestScene : public IScene {
@@ -107,5 +109,10 @@ private:
 	float autoFireTimer_ = 0.0f;
 	RingEffectConfig ringConfig_;
 	CylinderEffectConfig cylinderConfig_;
+
+	Animation keyframeTestAnimation_;
+	AnimationPlayer keyframeTestPlayer_;
+	Skeleton keyframeTestSkeleton_;
+	float keyframeTestPlaybackSpeed_ = 1.0f;
 
 };

@@ -71,6 +71,40 @@ void TestScene::Initialize() {
 	//blockObj_->SetColor(Vector4(0.0f, 0.0f, 0.0f, 1.0f));
 	blockObj_->SetLighting(false);
 
+	// Animation単元の確認用。外部アセットに依存せず、
+	// Vector3線形補間とQuaternion球面線形補間をTestSceneだけで確認する。
+	blockObj2_ = std::make_unique<Object3d>();
+	blockObj2_->Initialize();
+	blockObj2_->SetModel("cube.obj");
+	blockObj2_->SetColor({ 0.2f, 0.75f, 1.0f, 1.0f });
+	blockObj2_->SetLighting(false);
+	keyframeTestAnimation_.name = "TestScene_Keyframe";
+	keyframeTestAnimation_.duration = 2.0f;
+	NodeAnimation& testNode = keyframeTestAnimation_.nodeAnimations["Root"];
+	testNode.translate.keyframes = {
+		{ 0.0f, { -30.0f, 0.0f, 0.0f } },
+		{ 1.0f, { -30.0f, 15.0f, 0.0f } },
+		{ 2.0f, { -30.0f, 0.0f, 0.0f } },
+	};
+	testNode.rotate.keyframes = {
+		{ 0.0f, { 0.0f, 0.0f, 0.0f, 1.0f } },
+		{ 1.0f, MakeRotateAxisAngleQuaternion({ 0.0f, 0.0f, 1.0f }, pi) },
+		{ 2.0f, MakeRotateAxisAngleQuaternion({ 0.0f, 0.0f, 1.0f }, pi * 2.0f) },
+	};
+	testNode.scale.keyframes = {
+		{ 0.0f, { 3.0f, 3.0f, 3.0f } },
+		{ 1.0f, { 5.0f, 2.0f, 3.0f } },
+		{ 2.0f, { 3.0f, 3.0f, 3.0f } },
+	};
+	keyframeTestPlayer_.SetAnimation(&keyframeTestAnimation_);
+	SkeletonNode testSkeletonRoot;
+	testSkeletonRoot.name = "Root";
+	SkeletonNode testSkeletonChild;
+	testSkeletonChild.name = "Child";
+	testSkeletonChild.transform.translate = { 0.0f, 5.0f, 0.0f };
+	testSkeletonRoot.children.push_back(testSkeletonChild);
+	keyframeTestSkeleton_ = SkeletonSystem::Create(testSkeletonRoot);
+
 	// 2. 剣に見立てた細長いブロックを作る
 	swordObj_ = std::make_unique<Object3d>();
 	swordObj_->Initialize();
@@ -144,6 +178,20 @@ void TestScene::Update() {
 	ImGui::Text("deltaTime: %.8f", finalDeltaTime * 60.0f);
 	ImGui::End();
 
+	ImGui::Begin("Keyframe Animation Test");
+	bool keyframePlaying = keyframeTestPlayer_.IsPlaying();
+	if (ImGui::Checkbox("Play", &keyframePlaying)) {
+		keyframeTestPlayer_.SetPlaying(keyframePlaying);
+	}
+	ImGui::DragFloat("Playback Speed", &keyframeTestPlaybackSpeed_, 0.05f, -3.0f, 3.0f);
+	float keyframeTime = keyframeTestPlayer_.GetTime();
+	if (ImGui::SliderFloat("Time", &keyframeTime, 0.0f, keyframeTestAnimation_.duration)) {
+		keyframeTestPlayer_.Seek(keyframeTime);
+	}
+	ImGui::Text("Cyan cube: Vector3 Lerp + Quaternion Slerp");
+	ImGui::Text("Skeleton joints: %zu", keyframeTestSkeleton_.joints.size());
+	ImGui::End();
+
 	ImGui::Begin("Block");
 	ImGui::DragFloat3("position", &blockObj_->GetTranslate().x);
 	ImGui::DragFloat3("scale", &blockObj_->GetScale().x);
@@ -181,6 +229,14 @@ void TestScene::Update() {
 	debugCamera->Update(input_->GetMouseState(), input_->GetKey(), input_->GetLeftStick());
 	groundObj_->Update();
 	blockObj_->Update();
+	keyframeTestPlayer_.SetPlaybackSpeed(keyframeTestPlaybackSpeed_);
+	keyframeTestPlayer_.Update(finalDeltaTime);
+	SkeletonSystem::ApplyAnimation(keyframeTestSkeleton_, keyframeTestPlayer_);
+	const QuaternionTransform& keyframeTransform = keyframeTestSkeleton_.joints[keyframeTestSkeleton_.root].transform;
+	blockObj2_->SetScale(keyframeTransform.scale);
+	blockObj2_->SetTranslate(keyframeTransform.translate);
+	blockObj2_->SetQuaternionRotate(keyframeTransform.rotate);
+	blockObj2_->Update();
 	effectStartMarker_->SetTranslate(effectStartPos_);
 	effectStartMarker_->Update();
 	effectTargetMarker_->SetTranslate(effectTargetPos_);
@@ -312,6 +368,7 @@ void TestScene::DrawPostEffect3D() {
 	effectTargetMarker_->Draw();
 
 	groundObj_->Draw();
+	blockObj2_->Draw();
 
 	swordObj_->Draw();
 	effectSequencer_->Draw();
@@ -339,6 +396,7 @@ void TestScene::DrawShadow() {
 	Object3dCommon::GetInstance()->PreDraw(kShadow);
 
 	blockObj_->DrawShadow();
+	blockObj2_->DrawShadow();
 
 	swordObj_->DrawShadow();
 }

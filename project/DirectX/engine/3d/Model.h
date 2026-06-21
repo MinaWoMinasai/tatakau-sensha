@@ -18,6 +18,7 @@ public:
 	ModelData& GetModelData() { return modelData_; }
 	Microsoft::WRL::ComPtr<ID3D12Resource>& GetVertexResource() { return vertexResource; }
 	D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() { return vertexBufferView; }
+	D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() { return indexBufferView; }
 
 private:
 	ModelCommon* modelCommon_;
@@ -31,6 +32,10 @@ private:
 	VertexData* vertexData;
 	// バッファリソースの使い道を補足するバッファビュー
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource;
+	uint32_t* indexData = nullptr;
+	D3D12_INDEX_BUFFER_VIEW indexBufferView{};
 
 	Texture texture;
 };

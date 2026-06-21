@@ -1,4 +1,5 @@
 #include "Model.h"
+#include <unordered_map>
 
 void Model::Initialize(ModelCommon* modelCommon, const std::string& directorypath, const std::string& filename)
 {
@@ -20,6 +21,16 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directorypat
 	// 頂点データをリソースにコピー
 	std::memcpy(vertexData, modelData_.vertices.data(), sizeof(VertexData) * modelData_.vertices.size());
 
+	// IndexBufferを作成する。Skinningでは頂点とWeightを一対一で対応させるため、
+	// 面ごとに頂点を複製せずIndexで共有する形を標準とする。
+	indexResource = texture.CreateBufferResource(
+		modelCommon_->GetDxCommon()->GetDevice(), sizeof(uint32_t) * modelData_.indices.size());
+	indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
+	indexBufferView.SizeInBytes = UINT(sizeof(uint32_t) * modelData_.indices.size());
+	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
+	std::memcpy(indexData, modelData_.indices.data(), sizeof(uint32_t) * modelData_.indices.size());
+
 	// objの参照しているテクスチャファイル読み込み
 	TextureManager::GetInstance()->LoadTexture(modelData_.material.textureFilePath);
 	// 読み込んだテクスチャの番号を取得
@@ -31,15 +42,17 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directorypat
 void Model::Draw() {
 	
 	modelCommon_->GetDxCommon()->GetList()->IASetVertexBuffers(0, 1, &vertexBufferView); //VBVを設定
+	modelCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);
 	modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.textureFilePath));
-	modelCommon_->GetDxCommon()->GetList()->DrawInstanced(UINT(modelData_.vertices.size()), 1, 0, 0);
+	modelCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(UINT(modelData_.indices.size()), 1, 0, 0, 0);
 
 }
 
 void Model::DrawOnlyMesh() {
 	// 頂点バッファのセットと描画コマンドのみ
 	modelCommon_->GetDxCommon()->GetList()->IASetVertexBuffers(0, 1, &vertexBufferView);
-	modelCommon_->GetDxCommon()->GetList()->DrawInstanced(UINT(modelData_.vertices.size()), 1, 0, 0);
+	modelCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);
+	modelCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(UINT(modelData_.indices.size()), 1, 0, 0, 0);
 }
 
 MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename)
@@ -80,6 +93,7 @@ ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string
 	std::vector<Vector2> texcoords; // テクスチャ座標
 	std::string line; // ファイルから読んだ一行を格納するもの
 	std::string currentMaterialName;
+	std::unordered_map<std::string, uint32_t> vertexDefinitionToIndex;
 
 	std::ifstream file(directoryPath + "/" + filename); // ファイルを開く
 	assert(file.is_open()); // 開けなかったらエラー
@@ -110,10 +124,15 @@ ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string
 			normals.push_back(normal);
 		} else if (identifier == "f") {
 
-			VertexData triangle[3];
-			for (int32_t faceVertex = 0; faceVertex < 3; ++faceVertex) {
-				std::string vertexDef;
-				s >> vertexDef;
+			std::vector<uint32_t> faceIndices;
+			std::string vertexDef;
+			while (s >> vertexDef) {
+				auto existing = vertexDefinitionToIndex.find(vertexDef);
+				if (existing != vertexDefinitionToIndex.end()) {
+					faceIndices.push_back(existing->second);
+					continue;
+				}
+
 				std::istringstream v(vertexDef);
 
 				std::string indexStr;
@@ -132,12 +151,19 @@ ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string
 				Vector2 texcoord = (elementIndices[1] > 0) ? texcoords[elementIndices[1] - 1] : Vector2{};
 				Vector3 normal = (elementIndices[2] > 0) ? normals[elementIndices[2] - 1] : Vector3{};
 
-				triangle[faceVertex] = { position, texcoord, normal };
+				const uint32_t vertexIndex = static_cast<uint32_t>(modelData.vertices.size());
+				modelData.vertices.push_back({ position, texcoord, normal });
+				vertexDefinitionToIndex.emplace(vertexDef, vertexIndex);
+				faceIndices.push_back(vertexIndex);
 			}
-			// 頂点を逆順に登録することで、回り順を逆にする
-			modelData.vertices.push_back(triangle[2]);
-			modelData.vertices.push_back(triangle[1]);
-			modelData.vertices.push_back(triangle[0]);
+
+			// 三角形だけでなく四角形以上もfanで三角形化する。
+			// 座標系変換に合わせて頂点順を反転する。
+			for (size_t index = 1; index + 1 < faceIndices.size(); ++index) {
+				modelData.indices.push_back(faceIndices[index + 1]);
+				modelData.indices.push_back(faceIndices[index]);
+				modelData.indices.push_back(faceIndices[0]);
+			}
 		} else if (identifier == "mtllib") {
 			// materialTemplateLiblaryファイルの名前を取得する
 			std::string materialFilename;
