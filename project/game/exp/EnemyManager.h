@@ -8,6 +8,7 @@
 class Player;
 class Stage;
 class BulletManager;
+class Enemy;
 
 class EnemyManager {
 public:
@@ -23,7 +24,7 @@ public:
         bool enabled = true;
     };
 
-    void Initialize(Player* player, BulletManager* bulletManager);
+    void Initialize(Player* player, BulletManager* bulletManager, Enemy* boss);
     void Update(Stage& stage, float deltaTime);
     void Draw(bool drawBody = true);
     void DrawBodyOnly();
@@ -48,6 +49,7 @@ private:
     std::vector<SpawnArea> spawnAreas_;
     Player* player_ = nullptr;
     BulletManager* bulletManager_ = nullptr;
+	Enemy* boss_ = nullptr;
 
     float spawnTimer_ = 0.0f;
     bool defaultRandomSpawnEnabled_ = true;

@@ -13,3 +13,5 @@ const uint32_t kCollisionAttributePlayerBullet = 1 << 3;
 const uint32_t kCollisionAttributePlayerDrone = 1 << 4;
 // 経験値敵・中立オブジェクト寄りの敵陣営
 const uint32_t kCollisionAttributeExpEnemy = 1 << 5;
+// ボスと敵対する経験値敵が撃つ弾
+const uint32_t kCollisionAttributeHostileExpEnemyBullet = 1 << 6;

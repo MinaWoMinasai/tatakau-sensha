@@ -179,6 +179,16 @@ public:
 	void SetOnGround(bool onGround) { isOnGround_ = onGround; }
 
 	float GetAngle() const { return angle_; }
+	const Vector3& GetDirection() const { return dir_; }
+	bool IsDashing() const { return isDashing_; }
+	struct NeonBarrelLayout {
+		Vector3 offset{};
+		Vector3 scale{ 1.25f, 0.24f, 0.24f };
+		float angleRad = 0.0f;
+		float recoilOffset = 0.0f;
+	};
+	std::vector<NeonBarrelLayout> GetNeonBarrelLayouts() const;
+	float GetDamageFeedbackRatio() const;
 
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
 		attackController_.SetBulletManager(bulletManager);
@@ -420,6 +430,8 @@ private:
 	bool isDashing_ = false;
 	float dashTimer_ = 0.0f;           // ダッシュ持続時間
 	float dashCooldown_ = 0.0f;        // 再使用までの時間
+	float movementParticleTimer_ = 0.0f;
+	float movementParticleInterval_ = 0.08f;
 	const float kDashDuration = 0.3f; // ダッシュしている時間（秒）
 	const float kDashCooldown = 0.3f;  // クールタイム（秒）
 	const float kDashSpeed = 0.3f;     // ダッシュの強さ

@@ -188,7 +188,7 @@ void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) 
 	// 衝突属性を設定
 	SetCollisionAttribute(kCollisionAttributeEnemy);
 	// 衝突対象をプレイヤーとプレイヤーの弾に設定
-	SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerBullet | kCollisionAttributePlayerDrone);
+	SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerBullet | kCollisionAttributePlayerDrone | kCollisionAttributeHostileExpEnemyBullet);
 	SetDamage(35);
 
 	stage_ = stage;
@@ -237,7 +237,7 @@ void Enemy::SetEnemyProgressConfig(const EnemyProgressConfig& config)
 	if (!enemyProgressConfig_.expEnemyHostile || !enemyProgressConfig_.levelingModeEnabled) {
 		levelingModeActive_ = false;
 	}
-	uint32_t mask = kCollisionAttributePlayer | kCollisionAttributePlayerBullet | kCollisionAttributePlayerDrone;
+	uint32_t mask = kCollisionAttributePlayer | kCollisionAttributePlayerBullet | kCollisionAttributePlayerDrone | kCollisionAttributeHostileExpEnemyBullet;
 	if (enemyProgressConfig_.expEnemyHostile) {
 		mask |= kCollisionAttributeExpEnemy;
 	}
@@ -418,7 +418,8 @@ void Enemy::OnCollision(Collider* other) {
 		}
 	}
 	// ダメージ処理
-	if (other->GetCollisionAttribute() == kCollisionAttributePlayerBullet) {
+	if (other->GetCollisionAttribute() == kCollisionAttributePlayerBullet ||
+		other->GetCollisionAttribute() == kCollisionAttributeHostileExpEnemyBullet) {
 
 		hp_ -= other->GetDamage();
 		TriggerDamageFeedback();

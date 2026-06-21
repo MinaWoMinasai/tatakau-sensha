@@ -553,7 +553,6 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 
 	if (dashTimer_ > 0.0f) {
 		dashTimer_ -= deltaTime;
-		SpawnAfterimage();
 		if (dashTimer_ <= 0.0f) {
 			isDashing_ = false;
 			isJustEvaded_ = false;
@@ -636,6 +635,16 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 		pos.y += stepMove.y;
 		SetWorldPosition(pos);
 		stage.ResolvePlayerCollision(*this, Y);
+	}
+
+	if (!isDead_ && !isDashing_ && Length(inputDir_) > 0.05f) {
+		movementParticleTimer_ -= deltaTime;
+		if (movementParticleTimer_ <= 0.0f) {
+			SpawnAfterimage();
+			movementParticleTimer_ = movementParticleInterval_;
+		}
+	} else {
+		movementParticleTimer_ = 0.0f;
 	}
 
 	// object_ の更新だけ（移動はしない）
@@ -2980,7 +2989,45 @@ void Player::SpawnCasing() {
 
 // 残像を生成する関数
 void Player::SpawnAfterimage() {
-	ParticleManager::GetInstance()->Emit("DashDust", GetWorldPosition(), isJustEvaded_ ? 4 : 2);
+	Vector3 position = GetWorldPosition();
+	Vector3 moveDirection = velocity_;
+	moveDirection.z = 0.0f;
+	if (Length(moveDirection) > 0.001f) {
+		position -= Normalize(moveDirection) * 0.65f;
+	}
+	ParticleManager::GetInstance()->Emit("DashDust", position, 1);
+}
+
+std::vector<Player::NeonBarrelLayout> Player::GetNeonBarrelLayouts() const
+{
+	std::vector<NeonBarrelLayout> layouts;
+	const PlayerClassConfig* config = GetCurrentClassConfig();
+	if (!config) {
+		layouts.push_back({});
+		return layouts;
+	}
+
+	layouts.reserve(config->barrels.size());
+	for (size_t i = 0; i < config->barrels.size(); ++i) {
+		const PlayerBarrelConfig& barrel = config->barrels[i];
+		NeonBarrelLayout layout{};
+		layout.offset = barrel.offset;
+		layout.scale = barrel.scale;
+		layout.angleRad = barrel.angleDeg * 3.1415926535f / 180.0f;
+		if (i < barrels_.size()) {
+			layout.recoilOffset = barrels_[i].recoilOffset;
+		}
+		layouts.push_back(layout);
+	}
+	return layouts;
+}
+
+float Player::GetDamageFeedbackRatio() const
+{
+	if (damageFeedbackDuration_ <= 0.0f) {
+		return 0.0f;
+	}
+	return (std::clamp)(damageFeedbackTimer_ / damageFeedbackDuration_, 0.0f, 1.0f);
 }
 
 // バフ中の粒子を生成

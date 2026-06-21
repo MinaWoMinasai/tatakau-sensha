@@ -30,9 +30,10 @@ bool TryGetExpEnemyType(const std::string& prefab, ExpEnemyType& type)
 
 } // namespace
 
-void EnemyManager::Initialize(Player* player, BulletManager* bulletManager) {
+void EnemyManager::Initialize(Player* player, BulletManager* bulletManager, Enemy* boss) {
     player_ = player;
     bulletManager_ = bulletManager;
+	boss_ = boss;
 }
 
 void EnemyManager::Update(Stage& stage, float deltaTime) {
@@ -85,6 +86,7 @@ void EnemyManager::Spawn(Stage& stage) {
             // 生成
             auto newEnemy = std::make_unique<ExpEnemy>();
             newEnemy->Initialize(spawnPos, player_, type);
+			newEnemy->SetBossTarget(boss_);
             newEnemy->SetAttackControllerBulletManager(bulletManager_);
             // AttackControllerが必要な場合はここでセットアップ
             enemies_.push_back(std::move(newEnemy));
@@ -116,6 +118,7 @@ bool EnemyManager::SpawnLevelEnemy(const Vector3& position, const std::string& p
 
     auto newEnemy = std::make_unique<ExpEnemy>();
     newEnemy->Initialize(position, player_, type);
+	newEnemy->SetBossTarget(boss_);
     newEnemy->SetAttackControllerBulletManager(bulletManager_);
     if (hp > 0) {
         newEnemy->SetHp(hp);
