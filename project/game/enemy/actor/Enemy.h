@@ -3,6 +3,7 @@
 #include "Collider.h"
 #include <Windows.h>
 #include <algorithm>
+#include <cmath>
 #include <optional>
 #include "Object3d.h"
 #include "Sprite.h"
@@ -148,6 +149,9 @@ public:
 	AABB GetAABB();
 
 	Vector3 GetDir() { return dir_; }
+	Vector3 GetAimDirection() const {
+		return { std::cos(worldTransform_.rotate.z), std::sin(worldTransform_.rotate.z), 0.0f };
+	}
 	float GetDamageFeedbackRatio() const {
 		return damageFeedbackDuration_ > 0.0f
 			? (std::clamp)(damageFeedbackTimer_ / damageFeedbackDuration_, 0.0f, 1.0f)
