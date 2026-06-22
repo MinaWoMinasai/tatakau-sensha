@@ -59,6 +59,13 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     param_.outlineColor = { 1.0f, 1.0f, 1.0f };
     param_.outlineBloomIntensity = 0.0f;
     param_.outlineBloomWidth = 6.0f;
+	param_.radialBlurCenter = { 0.5f, 0.5f };
+	param_.radialBlurWidth = 0.01f;
+	param_.radialBlurIntensity = 0.0f;
+	param_.dissolveEdgeColor = { 1.0f, 0.4f, 0.3f };
+	param_.dissolveEdgeWidth = 0.03f;
+	param_.dissolveNoiseScale = 100.0f;
+	param_.dissolveNoiseSpeed = 0.0f;
 
     cb_->Update(param_);
 }

@@ -148,6 +148,26 @@ Vector3 ReadJsonVector3(const nlohmann::json& json, const Vector3& fallback)
 	return value;
 }
 
+Vector2 ReadJsonVector2(const nlohmann::json& json, const Vector2& fallback)
+{
+	if (!json.is_object()) {
+		return fallback;
+	}
+
+	Vector2 value = fallback;
+	if (json.contains("x") && json["x"].is_number()) value.x = json["x"].get<float>();
+	if (json.contains("y") && json["y"].is_number()) value.y = json["y"].get<float>();
+	return value;
+}
+
+nlohmann::json WriteJsonVector2(const Vector2& value)
+{
+	return {
+		{ "x", value.x },
+		{ "y", value.y }
+	};
+}
+
 nlohmann::json WriteJsonVector3(const Vector3& value)
 {
 	return {
@@ -250,7 +270,14 @@ nlohmann::json WriteBloomParamJson(const BloomParam& param)
 		{ "depthOutlineEnabled", param.depthOutlineEnabled },
 		{ "depthNearClip", param.depthNearClip },
 		{ "depthFarClip", param.depthFarClip },
-		{ "depthOutlineScale", param.depthOutlineScale }
+		{ "depthOutlineScale", param.depthOutlineScale },
+		{ "radialBlurCenter", WriteJsonVector2(param.radialBlurCenter) },
+		{ "radialBlurWidth", param.radialBlurWidth },
+		{ "radialBlurIntensity", param.radialBlurIntensity },
+		{ "dissolveEdgeColor", WriteJsonVector3(param.dissolveEdgeColor) },
+		{ "dissolveEdgeWidth", param.dissolveEdgeWidth },
+		{ "dissolveNoiseScale", param.dissolveNoiseScale },
+		{ "dissolveNoiseSpeed", param.dissolveNoiseSpeed }
 	};
 }
 
@@ -287,6 +314,17 @@ void ReadBloomParamJson(const nlohmann::json& json, BloomParam& param)
 	param.depthNearClip = ReadCustomFloat(json, "depthNearClip", param.depthNearClip);
 	param.depthFarClip = ReadCustomFloat(json, "depthFarClip", param.depthFarClip);
 	param.depthOutlineScale = ReadCustomFloat(json, "depthOutlineScale", param.depthOutlineScale);
+	if (json.contains("radialBlurCenter")) {
+		param.radialBlurCenter = ReadJsonVector2(json["radialBlurCenter"], param.radialBlurCenter);
+	}
+	param.radialBlurWidth = ReadCustomFloat(json, "radialBlurWidth", param.radialBlurWidth);
+	param.radialBlurIntensity = ReadCustomFloat(json, "radialBlurIntensity", param.radialBlurIntensity);
+	if (json.contains("dissolveEdgeColor")) {
+		param.dissolveEdgeColor = ReadJsonVector3(json["dissolveEdgeColor"], param.dissolveEdgeColor);
+	}
+	param.dissolveEdgeWidth = ReadCustomFloat(json, "dissolveEdgeWidth", param.dissolveEdgeWidth);
+	param.dissolveNoiseScale = ReadCustomFloat(json, "dissolveNoiseScale", param.dissolveNoiseScale);
+	param.dissolveNoiseSpeed = ReadCustomFloat(json, "dissolveNoiseSpeed", param.dissolveNoiseSpeed);
 }
 
 RingEffectConfig MakeCollisionRingConfig(float radius, const Vector4& color) {
@@ -2410,6 +2448,10 @@ void GameScene::DrawPostEffectParamControls(const char* labelPrefix, BloomParam&
 	ImGui::DragFloat("色収差", &param.chromAbAmount, 0.001f, 0.0f, 0.2f);
 	ImGui::DragFloat("グリッチ", &param.glitchAmount, 0.001f, 0.0f, 0.2f);
 	ImGui::DragFloat("ディゾルブ", &param.dissolveThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::ColorEdit3("ディゾルブ境界色", &param.dissolveEdgeColor.x);
+	ImGui::DragFloat("ディゾルブ境界幅", &param.dissolveEdgeWidth, 0.001f, 0.0f, 0.25f);
+	ImGui::DragFloat("ディゾルブノイズ密度", &param.dissolveNoiseScale, 1.0f, 1.0f, 400.0f);
+	ImGui::DragFloat("ディゾルブノイズ速度", &param.dissolveNoiseSpeed, 0.01f, 0.0f, 10.0f);
 	ImGui::DragFloat("アウトライン幅", &param.outlineWidth, 0.1f, 0.0f, 100.0f);
 	ImGui::DragFloat("アウトラインしきい値", &param.outlineThreshold, 0.01f, 0.0f, 1.0f);
 	ImGui::ColorEdit3("アウトライン色", &param.outlineColor.x);

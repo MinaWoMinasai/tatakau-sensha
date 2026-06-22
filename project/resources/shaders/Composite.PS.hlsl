@@ -39,6 +39,14 @@ cbuffer BloomParam : register(b0)
     float shockwaveWidth;
     float shockwaveStrength;
     float3 shockwavePadding;
+	float2 radialBlurCenter;
+	float radialBlurWidth;
+	float radialBlurIntensity;
+	float3 dissolveEdgeColor;
+	float dissolveEdgeWidth;
+	float dissolveNoiseScale;
+	float dissolveNoiseSpeed;
+	float2 postEffectPadding;
 };
 
 // --- ヘルパー関数：ランダム ---
@@ -153,6 +161,27 @@ float3 SampleBoxBlur(Texture2D tex, float2 uv, float radiusPixels)
     return sum / 9.0f;
 }
 
+float3 SampleRadialBlur(Texture2D tex, float2 uv)
+{
+	float3 original = tex.Sample(samp, uv).rgb;
+	if (radialBlurIntensity <= 0.0f || radialBlurWidth <= 0.0f)
+	{
+		return original;
+	}
+
+	const int sampleCount = 10;
+	float2 direction = uv - radialBlurCenter;
+	float3 sum = 0.0f;
+	[unroll]
+	for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+	{
+		float sampleStep = (float)sampleIndex / (float)(sampleCount - 1);
+		float2 sampleUV = saturate(uv + direction * radialBlurWidth * sampleStep);
+		sum += tex.Sample(samp, sampleUV).rgb;
+	}
+	return lerp(original, sum / (float)sampleCount, saturate(radialBlurIntensity));
+}
+
 float RestoreViewSpaceZ(float depth)
 {
     return depthNearClip * depthFarClip /
@@ -236,16 +265,16 @@ float4 main(PSInput input) : SV_TARGET
     bloom.g = bloomTex.Sample(samp, finalUV).g;
     bloom.b = bloomTex.Sample(samp, finalUV - shift).b;
     
-    // 1. ディゾルブ処理 (消去判定)
-    // すでにある Hash 関数を利用して、UV座標に基づいたノイズを生成します
-    float dissolveNoise = Hash(texUV * 100.0f); // 100.0fはノイズの細かさ
+    // 1. ディゾルブ処理。Hashをノイズマスクとして扱い、時間で任意に流せる。
+	float2 dissolveUV = texUV * max(dissolveNoiseScale, 1.0f);
+	float dissolveNoise = Hash(dissolveUV + timer * dissolveNoiseSpeed);
     if (dissolveNoise < dissolveThreshold)
     {
         discard; // しきい値より低いピクセルは描画をスキップ
     }
     
     // F. 合成とカラー加工
-    float3 sceneColor = sceneTex.Sample(samp, texUV).rgb;
+	float3 sceneColor = SampleRadialBlur(sceneTex, finalUV);
     float3 boxBlurredScene = SampleBoxBlur(sceneTex, finalUV, boxBlurRadius);
     sceneColor = lerp(sceneColor, boxBlurredScene, saturate(boxBlurIntensity));
     float3 blurredColor = bloomTex.Sample(samp, texUV).rgb; // PostDrawでシーン全体をぼかして渡したもの
@@ -266,7 +295,7 @@ float4 main(PSInput input) : SV_TARGET
     }
     else
     {
-        sceneColor = scene;
+		sceneColor = radialBlurIntensity > 0.0f ? SampleRadialBlur(sceneTex, finalUV) : scene;
         sceneColor = lerp(sceneColor, boxBlurredScene, saturate(boxBlurIntensity));
         blurredColor = bloom;
     // 【ブルームモード】
@@ -287,6 +316,14 @@ float4 main(PSInput input) : SV_TARGET
     // result += blurredColor * intensity;
     result = ApplyColorModifiers(result);
     result = ApplyOverlays(result, texUV);
+	if (dissolveThreshold > 0.0f && dissolveEdgeWidth > 0.0f)
+	{
+		float dissolveEdge = 1.0f - smoothstep(
+			dissolveThreshold,
+			dissolveThreshold + dissolveEdgeWidth,
+			dissolveNoise);
+		result += dissolveEdge * dissolveEdgeColor;
+	}
 
     // G. 仕上げ（角丸・ビネット）
     float2 edge = abs(crtUV);

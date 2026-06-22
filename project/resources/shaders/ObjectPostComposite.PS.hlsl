@@ -29,6 +29,23 @@ cbuffer BloomParam : register(b0)
     float outlineBloomWidth;
     float boxBlurRadius;
     float fullScreenBoxBlurBlend;
+	float depthOutlineEnabled;
+	float depthNearClip;
+	float depthFarClip;
+	float depthOutlineScale;
+	float2 shockwaveCenter;
+	float shockwaveRadius;
+	float shockwaveWidth;
+	float shockwaveStrength;
+	float3 shockwavePadding;
+	float2 radialBlurCenter;
+	float radialBlurWidth;
+	float radialBlurIntensity;
+	float3 dissolveEdgeColor;
+	float dissolveEdgeWidth;
+	float dissolveNoiseScale;
+	float dissolveNoiseSpeed;
+	float2 postEffectPadding;
 };
 
 float Hash(float2 p)
@@ -187,7 +204,8 @@ float4 main(PSInput input) : SV_TARGET
     float alpha = saturate(max(objectAlpha, outlineMask));
     if (dissolveThreshold > 0.0f)
     {
-        float dissolveNoise = Hash(input.uv * 100.0f);
+		float dissolveNoise = Hash(
+			input.uv * max(dissolveNoiseScale, 1.0f) + timer * dissolveNoiseSpeed);
         if (dissolveNoise < dissolveThreshold)
         {
             discard;
@@ -201,6 +219,16 @@ float4 main(PSInput input) : SV_TARGET
 
     float3 baseColor = objectColor.rgb / max(objectAlpha, 0.001f);
     float3 result = baseColor;
+	if (dissolveThreshold > 0.0f && dissolveEdgeWidth > 0.0f)
+	{
+		float dissolveNoise = Hash(
+			input.uv * max(dissolveNoiseScale, 1.0f) + timer * dissolveNoiseSpeed);
+		float dissolveEdge = 1.0f - smoothstep(
+			dissolveThreshold,
+			dissolveThreshold + dissolveEdgeWidth,
+			dissolveNoise);
+		result += dissolveEdge * dissolveEdgeColor;
+	}
     result = ApplyColorModifiers(result);
     result = ApplyOverlays(result, input.uv);
 

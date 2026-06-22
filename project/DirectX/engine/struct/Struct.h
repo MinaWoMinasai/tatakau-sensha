@@ -333,6 +333,14 @@ struct BloomParam
 	float shockwaveWidth;
 	float shockwaveStrength;
 	float shockwavePadding[3];
+	Vector2 radialBlurCenter; // 放射状ブラーの中心（画面UV）
+	float radialBlurWidth; // 中心から外側へ進めるサンプリング幅
+	float radialBlurIntensity; // 元画像との合成量
+	Vector3 dissolveEdgeColor; // ディゾルブ境界の発光色
+	float dissolveEdgeWidth; // 閾値から境界色を付ける幅
+	float dissolveNoiseScale; // 手続きノイズマスクの細かさ
+	float dissolveNoiseSpeed; // ノイズマスクの時間変化速度
+	float postEffectPadding[2];
 };
 
 struct PointLightData {
