@@ -3,6 +3,8 @@
 #include "Resource.h"
 #include "ModelManager.h"
 
+class SkinnedModel;
+
 class Object3d
 {
 public:
@@ -12,6 +14,8 @@ public:
 	void Update();
 
 	void Draw();
+	void DrawSkinned(SkinnedModel& model);
+	void DrawSkinnedShadow(SkinnedModel& model);
 	void DrawShadow();
 
 	void SetModel(Model* model) { model_ = model; }

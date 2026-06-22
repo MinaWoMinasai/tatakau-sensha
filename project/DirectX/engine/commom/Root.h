@@ -14,6 +14,7 @@ public:
 	void InitalizeForModelParticle();
 	void InitializeForPostEffect();
 	void InitalizeForShadow();
+	void InitializeForSkinningShadow();
 	void InitalizeForObjectBe();
 	void InitalizeForTrail();
 	void InitializeForSkybox();
@@ -31,7 +32,7 @@ public:
 
 private:
 	D3D12_ROOT_SIGNATURE_DESC descriptionSignature_{};
-	D3D12_ROOT_PARAMETER Parameters_[9]{};
+	D3D12_ROOT_PARAMETER Parameters_[10]{};
 	D3D12_DESCRIPTOR_RANGE descriptorRange_[4] = {};
 	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing_[1] = {};
 	D3D12_STATIC_SAMPLER_DESC staticSamplers_[2] = {};

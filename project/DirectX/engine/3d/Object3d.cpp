@@ -1,4 +1,5 @@
 #include "Object3d.h"
+#include "SkinCluster.h"
 
 void Object3d::Initialize()
 {
@@ -36,6 +37,7 @@ void Object3d::Initialize()
 	materialData_->lightingMode = false;
 	materialData_->uvTransform = MakeIdentity4x4();
 	materialData_->shininess = 32.0f;
+	materialData_->environmentCoefficient = 0.0f;
 	
 	// ポイントライトリソース作成
 	pointLightResource = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(PointLightData));
@@ -68,6 +70,38 @@ void Object3d::Initialize()
 	shadowDataResource = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(ShadowData));
 	shadowDataResource->Map(0, nullptr, reinterpret_cast<void**>(&shadowData));
 
+}
+
+void Object3d::DrawSkinned(SkinnedModel& model) {
+	auto commandList = object3dCommon_->GetDxCommon()->GetList();
+	auto& pso = object3dCommon_->GetDxCommon()->GetPSOSkinning();
+	commandList->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
+	commandList->SetPipelineState(pso.graphicsState_.Get());
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(6, shadowDataResource->GetGPUVirtualAddress());
+	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(7, object3dCommon_->GetShadowMap()->GetSrvIndex());
+	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(8, environmentMapIndex_);
+	model.Draw();
+	object3dCommon_->PreDraw(kNone);
+}
+
+void Object3d::DrawSkinnedShadow(SkinnedModel& model) {
+	auto commandList = object3dCommon_->GetDxCommon()->GetList();
+	auto& pso = object3dCommon_->GetDxCommon()->GetPSOSkinningShadow();
+	commandList->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
+	commandList->SetPipelineState(pso.graphicsState_.Get());
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	commandList->SetGraphicsRootConstantBufferView(0, transformationMatrixResource->GetGPUVirtualAddress());
+	model.DrawShadow();
+	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootSignature(
+		object3dCommon_->GetDxCommon()->GetPSOObject(kShadow).root_.GetSignature().Get());
+	object3dCommon_->GetDxCommon()->GetList()->SetPipelineState(
+		object3dCommon_->GetDxCommon()->GetPSOObject(kShadow).graphicsState_.Get());
 }
 
 void Object3d::Update() {

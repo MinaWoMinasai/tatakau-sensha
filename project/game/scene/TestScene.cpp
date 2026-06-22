@@ -122,10 +122,39 @@ void TestScene::Initialize() {
 		skinningTestCluster_ = SkinCluster::Create(skinningTestSkeleton_, skinningTestAsset_);
 		skinningTestAnimation_ = AnimationLoader::LoadFromFile(skinPath);
 		skinningTestPlayer_.SetAnimation(&skinningTestAnimation_);
+		skinnedTestModel_ = std::make_unique<SkinnedModel>();
+		skinnedTestModel_->Initialize(
+			Object3dCommon::GetInstance()->GetDxCommon(),
+			Object3dCommon::GetInstance()->GetSrvManager(), skinPath);
+		skinnedTestObject_ = std::make_unique<Object3d>();
+		skinnedTestObject_->Initialize();
+		skinnedTestObject_->SetTranslate({ 30.0f, -5.0f, 0.0f });
+		skinnedTestObject_->SetScale({ 10.0f, 10.0f, 10.0f });
+		skinnedTestObject_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+		skinnedTestObject_->SetLighting(false);
+		skinnedTestObject_->Update();
 		skinClusterLoaded_ = true;
-		skinClusterStatus_ = "simpleSkin SkinCluster: loaded";
+		skinClusterStatus_ = "simpleSkin GPU Skinning: loaded";
 	} catch (const std::exception& error) {
 		skinClusterStatus_ = std::string("simpleSkin SkinCluster: failed / ") + error.what();
+	}
+	try {
+		const std::string humanPath = "resources/models/human/walk.gltf";
+		humanTestModel_ = std::make_unique<SkinnedModel>();
+		humanTestModel_->Initialize(
+			Object3dCommon::GetInstance()->GetDxCommon(),
+			Object3dCommon::GetInstance()->GetSrvManager(), humanPath);
+		humanTestObject_ = std::make_unique<Object3d>();
+		humanTestObject_->Initialize();
+		humanTestObject_->SetTranslate(humanActionPosition_);
+		humanTestObject_->SetScale({ 8.0f, 8.0f, 8.0f });
+		humanTestObject_->SetColor({ 0.55f, 0.9f, 1.0f, 1.0f });
+		humanTestObject_->SetLighting(false);
+		humanTestObject_->Update();
+		humanSkinningLoaded_ = true;
+		humanSkinningStatus_ = "human/walk GPU Skinning: loaded";
+	} catch (const std::exception& error) {
+		humanSkinningStatus_ = std::string("human/walk GPU Skinning: failed / ") + error.what();
 	}
 
 	// 2. 剣に見立てた細長いブロックを作る
@@ -227,6 +256,20 @@ void TestScene::Update() {
 		ImGui::Text("Assigned influences: %u", skinningTestCluster_.GetAssignedInfluenceCount());
 		ImGui::Text("Palette entries: %zu", skinningTestCluster_.GetPalette().size());
 	}
+	ImGui::TextColored(
+		humanSkinningLoaded_ ? ImVec4{ 0.4f, 1.0f, 0.6f, 1.0f } : ImVec4{ 1.0f, 0.45f, 0.3f, 1.0f },
+		"%s", humanSkinningStatus_.c_str());
+	if (humanSkinningLoaded_) {
+		ImGui::Text("Human vertices: %zu", humanTestModel_->GetAsset().modelData.vertices.size());
+		ImGui::Text("Human joints: %zu", humanTestModel_->GetSkeleton().joints.size());
+		ImGui::Text("Human influences: %u", humanTestModel_->GetSkinCluster().GetAssignedInfluenceCount());
+	}
+	ImGui::SeparatorText("3D Action Skinning");
+	ImGui::Checkbox("Humanを表示", &showHumanSkinning_);
+	ImGui::Checkbox("simpleSkinを表示", &showSimpleSkin_);
+	ImGui::Checkbox("旧テストオブジェクトを表示", &showLegacyTestObjects_);
+	ImGui::Checkbox("WASDでHumanを操作", &enableHumanActionControl_);
+	ImGui::DragFloat("移動速度", &humanActionMoveSpeed_, 0.5f, 1.0f, 100.0f);
 	ImGui::End();
 
 	ImGui::Begin("Block");
@@ -278,6 +321,30 @@ void TestScene::Update() {
 		skinningTestPlayer_.Update(finalDeltaTime);
 		SkeletonSystem::ApplyAnimation(skinningTestSkeleton_, skinningTestPlayer_);
 		skinningTestCluster_.Update(skinningTestSkeleton_);
+		skinnedTestModel_->Update(finalDeltaTime);
+		skinnedTestObject_->Update();
+	}
+	if (humanSkinningLoaded_) {
+		Vector3 move{};
+		if (enableHumanActionControl_) {
+			if (input_->IsPress(input_->GetKey()[DIK_A])) move.x -= 1.0f;
+			if (input_->IsPress(input_->GetKey()[DIK_D])) move.x += 1.0f;
+			if (input_->IsPress(input_->GetKey()[DIK_W])) move.z += 1.0f;
+			if (input_->IsPress(input_->GetKey()[DIK_S])) move.z -= 1.0f;
+		}
+		const float moveLength = std::sqrt(move.x * move.x + move.z * move.z);
+		const bool isMoving = moveLength > 0.0001f;
+		if (isMoving) {
+			move.x /= moveLength;
+			move.z /= moveLength;
+			humanActionPosition_.x += move.x * humanActionMoveSpeed_ * finalDeltaTime;
+			humanActionPosition_.z += move.z * humanActionMoveSpeed_ * finalDeltaTime;
+			humanTestObject_->SetRotate({ 0.0f, std::atan2(move.x, move.z), 0.0f });
+		}
+		humanTestObject_->SetTranslate(humanActionPosition_);
+		humanTestModel_->GetAnimationPlayer().SetPlaying(isMoving || !enableHumanActionControl_);
+		humanTestModel_->Update(finalDeltaTime);
+		humanTestObject_->Update();
 	}
 	effectStartMarker_->SetTranslate(effectStartPos_);
 	effectStartMarker_->Update();
@@ -399,23 +466,35 @@ void TestScene::Draw() {
 
 void TestScene::DrawPostEffect3D() {
 
-	skybox_->Draw();
+	if (showLegacyTestObjects_) {
+		skybox_->Draw();
+	}
 
 	Object3dCommon::GetInstance()->PreDraw(kNone);
 
-	if (!enableObjectPostEffect_) {
-		blockObj_->Draw();
+	if (showLegacyTestObjects_) {
+		if (!enableObjectPostEffect_) {
+			blockObj_->Draw();
+		}
+		effectStartMarker_->Draw();
+		effectTargetMarker_->Draw();
+		blockObj2_->Draw();
+		swordObj_->Draw();
 	}
-	effectStartMarker_->Draw();
-	effectTargetMarker_->Draw();
 
 	groundObj_->Draw();
-	blockObj2_->Draw();
+	if (showSimpleSkin_ && skinClusterLoaded_) {
+		skinnedTestObject_->DrawSkinned(*skinnedTestModel_);
+	}
+	if (showHumanSkinning_ && humanSkinningLoaded_) {
+		humanTestObject_->DrawSkinned(*humanTestModel_);
+	}
 
-	swordObj_->Draw();
-	effectSequencer_->Draw();
+	if (showLegacyTestObjects_) {
+		effectSequencer_->Draw();
+	}
 
-	if (enableObjectPostEffect_) {
+	if (showLegacyTestObjects_ && enableObjectPostEffect_) {
 		objectPostEffect_->BeginCapture();
 		Object3dCommon::GetInstance()->PreDraw(kNone);
 		blockObj_->Draw();
@@ -426,21 +505,29 @@ void TestScene::DrawPostEffect3D() {
 	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
-	trailManager_->DrawAll(vp);
-	ringManager_->DrawAll(vp);
-	cylinderManager_->DrawAll(vp);
-
-	ParticleManager::GetInstance()->Draw();
+	if (showLegacyTestObjects_) {
+		trailManager_->DrawAll(vp);
+		ringManager_->DrawAll(vp);
+		cylinderManager_->DrawAll(vp);
+		ParticleManager::GetInstance()->Draw();
+	}
 }
 
 void TestScene::DrawShadow() {
 
 	Object3dCommon::GetInstance()->PreDraw(kShadow);
 
-	blockObj_->DrawShadow();
-	blockObj2_->DrawShadow();
-
-	swordObj_->DrawShadow();
+	if (showLegacyTestObjects_) {
+		blockObj_->DrawShadow();
+		blockObj2_->DrawShadow();
+		swordObj_->DrawShadow();
+	}
+	if (showSimpleSkin_ && skinClusterLoaded_) {
+		skinnedTestObject_->DrawSkinnedShadow(*skinnedTestModel_);
+	}
+	if (showHumanSkinning_ && humanSkinningLoaded_) {
+		humanTestObject_->DrawSkinnedShadow(*humanTestModel_);
+	}
 }
 
 void TestScene::DrawSprite() {

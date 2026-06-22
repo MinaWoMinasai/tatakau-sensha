@@ -123,7 +123,19 @@ private:
 	SkinCluster skinningTestCluster_;
 	Animation skinningTestAnimation_;
 	AnimationPlayer skinningTestPlayer_;
+	std::unique_ptr<SkinnedModel> skinnedTestModel_;
+	std::unique_ptr<Object3d> skinnedTestObject_;
 	bool skinClusterLoaded_ = false;
 	std::string skinClusterStatus_;
+	std::unique_ptr<SkinnedModel> humanTestModel_;
+	std::unique_ptr<Object3d> humanTestObject_;
+	bool humanSkinningLoaded_ = false;
+	std::string humanSkinningStatus_;
+	Vector3 humanActionPosition_ = { 0.0f, -25.0f, 20.0f };
+	float humanActionMoveSpeed_ = 25.0f;
+	bool enableHumanActionControl_ = true;
+	bool showLegacyTestObjects_ = false;
+	bool showSimpleSkin_ = false;
+	bool showHumanSkinning_ = true;
 
 };

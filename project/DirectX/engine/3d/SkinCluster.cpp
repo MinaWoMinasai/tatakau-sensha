@@ -1,6 +1,9 @@
 #include "SkinCluster.h"
 
 #include "Calculation.h"
+#include "DirectXCommon.h"
+#include "SrvManager.h"
+#include "TextureManager.h"
 #include <assimp/Importer.hpp>
 #include <assimp/material.h>
 #include <assimp/postprocess.h>
@@ -8,6 +11,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <stdexcept>
 
@@ -155,10 +159,89 @@ SkinCluster SkinCluster::Create(const Skeleton& skeleton, const SkinningModelAss
 					++cluster.assignedInfluenceCount_;
 				}
 			}
+		} else {
+			influence.weights[0] = 1.0f;
+			influence.jointIndices[0] = skeleton.root >= 0 ? skeleton.root : 0;
+			++cluster.assignedInfluenceCount_;
 		}
 	}
 	cluster.Update(skeleton);
 	return cluster;
+}
+
+void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, const std::string& filePath) {
+	dxCommon_ = dxCommon;
+	srvManager_ = srvManager;
+	asset_ = SkinningModelLoader::LoadFromFile(filePath);
+	skeleton_ = SkeletonSystem::Create(asset_.rootNode);
+	skinCluster_ = SkinCluster::Create(skeleton_, asset_);
+	animation_ = AnimationLoader::LoadFromFile(filePath);
+	animationPlayer_.SetAnimation(&animation_);
+
+	const size_t vertexBytes = sizeof(VertexData) * asset_.modelData.vertices.size();
+	vertexResource_ = dxCommon_->CreateBufferResource(vertexBytes);
+	VertexData* mappedVertices = nullptr;
+	vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertices));
+	std::memcpy(mappedVertices, asset_.modelData.vertices.data(), vertexBytes);
+	vertexBufferViews_[0].BufferLocation = vertexResource_->GetGPUVirtualAddress();
+	vertexBufferViews_[0].SizeInBytes = static_cast<UINT>(vertexBytes);
+	vertexBufferViews_[0].StrideInBytes = sizeof(VertexData);
+
+	const size_t influenceBytes = sizeof(VertexInfluence) * skinCluster_.GetInfluences().size();
+	influenceResource_ = dxCommon_->CreateBufferResource(influenceBytes);
+	VertexInfluence* mappedInfluences = nullptr;
+	influenceResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedInfluences));
+	std::memcpy(mappedInfluences, skinCluster_.GetInfluences().data(), influenceBytes);
+	vertexBufferViews_[1].BufferLocation = influenceResource_->GetGPUVirtualAddress();
+	vertexBufferViews_[1].SizeInBytes = static_cast<UINT>(influenceBytes);
+	vertexBufferViews_[1].StrideInBytes = sizeof(VertexInfluence);
+
+	const size_t indexBytes = sizeof(uint32_t) * asset_.modelData.indices.size();
+	indexResource_ = dxCommon_->CreateBufferResource(indexBytes);
+	uint32_t* mappedIndices = nullptr;
+	indexResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedIndices));
+	std::memcpy(mappedIndices, asset_.modelData.indices.data(), indexBytes);
+	indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
+	indexBufferView_.SizeInBytes = static_cast<UINT>(indexBytes);
+	indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
+
+	const size_t paletteBytes = sizeof(SkinningPaletteEntry) * skinCluster_.GetPalette().size();
+	paletteResource_ = dxCommon_->CreateBufferResource(paletteBytes);
+	paletteResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedPalette_));
+	std::memcpy(mappedPalette_, skinCluster_.GetPalette().data(), paletteBytes);
+	paletteSrvIndex_ = srvManager_->Allocate();
+	srvManager_->CreateSRVforStructuredBuffer(
+		paletteSrvIndex_, paletteResource_.Get(),
+		static_cast<UINT>(skinCluster_.GetPalette().size()), sizeof(SkinningPaletteEntry));
+
+	TextureManager::GetInstance()->LoadTexture(asset_.modelData.material.textureFilePath);
+}
+
+void SkinnedModel::Update(float deltaTime) {
+	animationPlayer_.Update(deltaTime);
+	SkeletonSystem::ApplyAnimation(skeleton_, animationPlayer_);
+	skinCluster_.Update(skeleton_);
+	std::memcpy(
+		mappedPalette_, skinCluster_.GetPalette().data(),
+		sizeof(SkinningPaletteEntry) * skinCluster_.GetPalette().size());
+}
+
+void SkinnedModel::Draw() {
+	auto commandList = dxCommon_->GetList();
+	commandList->IASetVertexBuffers(0, 2, vertexBufferViews_);
+	commandList->IASetIndexBuffer(&indexBufferView_);
+	commandList->SetGraphicsRootDescriptorTable(
+		2, TextureManager::GetInstance()->GetSrvHandleGPU(asset_.modelData.material.textureFilePath));
+	srvManager_->SetGraphicsRootDescriptorTable(9, paletteSrvIndex_);
+	commandList->DrawIndexedInstanced(static_cast<UINT>(asset_.modelData.indices.size()), 1, 0, 0, 0);
+}
+
+void SkinnedModel::DrawShadow() {
+	auto commandList = dxCommon_->GetList();
+	commandList->IASetVertexBuffers(0, 2, vertexBufferViews_);
+	commandList->IASetIndexBuffer(&indexBufferView_);
+	srvManager_->SetGraphicsRootDescriptorTable(1, paletteSrvIndex_);
+	commandList->DrawIndexedInstanced(static_cast<UINT>(asset_.modelData.indices.size()), 1, 0, 0, 0);
 }
 
 void SkinCluster::Update(const Skeleton& skeleton) {

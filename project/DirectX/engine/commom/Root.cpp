@@ -69,9 +69,19 @@ void Root::InitalizeForObject()
 	Parameters_[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	Parameters_[8].DescriptorTable.pDescriptorRanges = &descriptorRange_[2];
 	Parameters_[8].DescriptorTable.NumDescriptorRanges = 1;
+
+	// [9] Skinning用MatrixPalette (Vertex t3)。通常Objectでは未使用。
+	descriptorRange_[3].BaseShaderRegister = 3;
+	descriptorRange_[3].NumDescriptors = 1;
+	descriptorRange_[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	Parameters_[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	Parameters_[9].DescriptorTable.pDescriptorRanges = &descriptorRange_[3];
+	Parameters_[9].DescriptorTable.NumDescriptorRanges = 1;
 	
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 9; // パラメータ数を更新
+	descriptionSignature_.NumParameters = 10;
 
 	// --- StaticSamplerの拡張 ---
 
@@ -132,7 +142,7 @@ void Root::InitalizeForObjectBe()
 	Parameters_[2].DescriptorTable.pDescriptorRanges = descriptorRange_; // Tableの中身の配列を指定
 	Parameters_[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange_); // Tableで利用する数
 	descriptionSignature_.pParameters = Parameters_; // ルートパラメータ配列へのポインタ
-	descriptionSignature_.NumParameters = _countof(Parameters_); // 配列の長さ
+	descriptionSignature_.NumParameters = 5;
 	Parameters_[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CSVを使う
 	Parameters_[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // PixelShaderで使う
 	Parameters_[3].Descriptor.ShaderRegister = 1; // レジスタ番号1とバインド
@@ -396,6 +406,35 @@ void Root::InitalizeForShadow() {
 		&signatureBlob_,
 		&errorBlob_
 	);
+}
+
+void Root::InitializeForSkinningShadow() {
+	descriptionSignature_.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	Parameters_[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	Parameters_[0].Descriptor.ShaderRegister = 0;
+
+	descriptorRange_[0].BaseShaderRegister = 3;
+	descriptorRange_[0].NumDescriptors = 1;
+	descriptorRange_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	Parameters_[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	Parameters_[1].DescriptorTable.pDescriptorRanges = &descriptorRange_[0];
+	Parameters_[1].DescriptorTable.NumDescriptorRanges = 1;
+
+	descriptionSignature_.pParameters = Parameters_;
+	descriptionSignature_.NumParameters = 2;
+	descriptionSignature_.pStaticSamplers = nullptr;
+	descriptionSignature_.NumStaticSamplers = 0;
+	const HRESULT hr = D3D12SerializeRootSignature(
+		&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
+	if (FAILED(hr)) {
+		if (errorBlob_) {
+			log.Log(reinterpret_cast<char*>(errorBlob_->GetBufferPointer()));
+		}
+		assert(false);
+	}
 }
 
 void Root::InitalizeForTrail()
