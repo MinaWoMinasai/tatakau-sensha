@@ -89,6 +89,13 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.shockwaveRadius = 0.0f;
     bloomParam_.shockwaveWidth = 0.05f;
     bloomParam_.shockwaveStrength = 0.0f;
+	bloomParam_.radialBlurCenter = { 0.5f, 0.5f };
+	bloomParam_.radialBlurWidth = 0.01f;
+	bloomParam_.radialBlurIntensity = 0.0f;
+	bloomParam_.dissolveEdgeColor = { 1.0f, 0.4f, 0.3f };
+	bloomParam_.dissolveEdgeWidth = 0.03f;
+	bloomParam_.dissolveNoiseScale = 100.0f;
+	bloomParam_.dissolveNoiseSpeed = 0.0f;
 
    /* bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 1.2f;
@@ -141,8 +148,18 @@ void Bloom::Update() {
     ImGui::Separator(); // 区切り線
     ImGui::Text("New Effects");
 
+	// --- Radial Blur（放射状ブラー） ---
+	ImGui::Text("Radial Blur");
+	ImGui::DragFloat2("Radial Center", &bloomParam_.radialBlurCenter.x, 0.005f, 0.0f, 1.0f);
+	ImGui::DragFloat("Radial Width", &bloomParam_.radialBlurWidth, 0.001f, 0.0f, 0.1f);
+	ImGui::DragFloat("Radial Intensity", &bloomParam_.radialBlurIntensity, 0.01f, 0.0f, 1.0f);
+
     // --- Dissolve (ディゾルブ) ---
     ImGui::DragFloat("Dissolve Progress", &bloomParam_.dissolveThreshold, 0.01f, 0.0f, 1.0f);
+	ImGui::ColorEdit3("Dissolve Edge Color", &bloomParam_.dissolveEdgeColor.x);
+	ImGui::DragFloat("Dissolve Edge Width", &bloomParam_.dissolveEdgeWidth, 0.001f, 0.0f, 0.25f);
+	ImGui::DragFloat("Dissolve Noise Scale", &bloomParam_.dissolveNoiseScale, 1.0f, 1.0f, 400.0f);
+	ImGui::DragFloat("Dissolve Noise Speed", &bloomParam_.dissolveNoiseSpeed, 0.01f, 0.0f, 10.0f);
 
     // --- Outline (アウトライン) ---
     ImGui::DragFloat("Outline Width", &bloomParam_.outlineWidth, 0.1f, 0.0f, 10.0f);
@@ -183,6 +200,13 @@ void Bloom::Update() {
         bloomParam_.boxBlurRadius = 1.0f;
         // 追加分のリセット
         bloomParam_.dissolveThreshold = 0.0f;
+		bloomParam_.radialBlurCenter = { 0.5f, 0.5f };
+		bloomParam_.radialBlurWidth = 0.01f;
+		bloomParam_.radialBlurIntensity = 0.0f;
+		bloomParam_.dissolveEdgeColor = { 1.0f, 0.4f, 0.3f };
+		bloomParam_.dissolveEdgeWidth = 0.03f;
+		bloomParam_.dissolveNoiseScale = 100.0f;
+		bloomParam_.dissolveNoiseSpeed = 0.0f;
         bloomParam_.outlineWidth = 0.0f;
         bloomParam_.outlineThreshold = 0.5f;
         bloomParam_.outlineColor = { 1.0f, 1.0f, 1.0f };
