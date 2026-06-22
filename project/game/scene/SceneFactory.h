@@ -3,6 +3,7 @@
 #include "GameScene.h"
 #include "TestScene.h"
 #include "PlayerLabScene.h"
+#include "Action3DScene.h"
 
 class SceneFactory : public AbstractSceneFactory {
 public:
@@ -11,6 +12,7 @@ public:
         if (sceneName == "TEST")  return std::make_unique<TestScene>();
         if (sceneName == "GAME")  return std::make_unique<GameScene>();
         if (sceneName == "PLAYER_LAB") return std::make_unique<PlayerLabScene>();
+        if (sceneName == "ACTION3D") return std::make_unique<Action3DScene>();
         return nullptr;
     }
 };

@@ -65,6 +65,8 @@ public:
 		Shadow,
 		Trail,
 		Skybox,
+		Skinning,
+		SkinningShadow,
 	};
 
 	enum PostEffectType {
@@ -213,6 +215,8 @@ public:
 	PSO& GetPSOTrail() { return trailPSO; }
 	PSO& GetPSOHudRect() { return hudRectPSO; }
 	PSO& GetPSOSkybox() { return skyboxPSO; }
+	PSO& GetPSOSkinning() { return skinningPSO; }
+	PSO& GetPSOSkinningShadow() { return skinningShadowPSO; }
 
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
@@ -384,6 +388,8 @@ private:
 	PSO trailPSO;
 	PSO hudRectPSO;
 	PSO skyboxPSO;
+	PSO skinningPSO;
+	PSO skinningShadowPSO;
 	ShaderType shaderType_;
 
 	uint32_t dsvHeapIndex_ = 0;

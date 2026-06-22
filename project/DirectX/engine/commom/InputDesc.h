@@ -13,6 +13,7 @@ public:
 	void Initialize();
 
 	void InitializeForTrail();
+	void InitializeForSkinning();
 
 	std::span<const D3D12_INPUT_ELEMENT_DESC> GetElementDescs() const {
 		return std::span{ ElementDescs_, _countof(ElementDescs_) };
@@ -23,7 +24,7 @@ public:
 private:
 
 	// InputLayout
-	D3D12_INPUT_ELEMENT_DESC ElementDescs_[3] = {};
+	D3D12_INPUT_ELEMENT_DESC ElementDescs_[5] = {};
 	D3D12_INPUT_LAYOUT_DESC Layout_{};
 };
 

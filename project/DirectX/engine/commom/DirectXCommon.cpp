@@ -144,6 +144,16 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		pso.vsFilePath_ = L"resources/shaders/Skybox.VS.hlsl";
 		pso.psFilePath_ = L"resources/shaders/Skybox.PS.hlsl";
 		break;
+	case Skinning:
+		pso.root_.InitalizeForObject();
+		pso.vsFilePath_ = L"resources/shaders/SkinningObject3d.VS.hlsl";
+		pso.psFilePath_ = L"resources/shaders/Object3d.PS.hlsl";
+		break;
+	case SkinningShadow:
+		pso.root_.InitializeForSkinningShadow();
+		pso.vsFilePath_ = L"resources/shaders/SkinningShadow.VS.hlsl";
+		pso.psFilePath_ = L"";
+		break;
 	default: assert(false); break;
 	}
 
@@ -155,7 +165,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 	assert(pso.vertexShaderBlob_ != nullptr);
 
 	pso.pixelShaderBlob_ = nullptr;
-	if (pso.shaderType_ != Shadow && !pso.psFilePath_.empty()) {
+	if (pso.shaderType_ != Shadow && pso.shaderType_ != SkinningShadow && !pso.psFilePath_.empty()) {
 		pso.pixelShaderBlob_ = CompileShader(pso.psFilePath_, L"ps_6_0");
 		assert(pso.pixelShaderBlob_ != nullptr);
 	}
@@ -222,12 +232,16 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 
 		pso.inputDesc_.Initialize(); // 頂点レイアウトはObjectと同じでOK
 		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
-	} else if (pso.shaderType_ == Shadow) {
+	} else if (pso.shaderType_ == Shadow || pso.shaderType_ == SkinningShadow) {
 		pso.graphicsDesc_.NumRenderTargets = 0;
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		// Shadow用に比較関数を調整（必要に応じて）
 		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-		pso.inputDesc_.Initialize();
+		if (pso.shaderType_ == SkinningShadow) {
+			pso.inputDesc_.InitializeForSkinning();
+		} else {
+			pso.inputDesc_.Initialize();
+		}
 		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
 	} else if (pso.shaderType_ == PostEffect) {
 		pso.graphicsDesc_.NumRenderTargets = 1;
@@ -235,6 +249,15 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_UNKNOWN;
 		pso.graphicsDesc_.DepthStencilState.DepthEnable = FALSE;
 		pso.graphicsDesc_.InputLayout = { nullptr, 0 };
+	} else if (pso.shaderType_ == Skinning) {
+		pso.graphicsDesc_.NumRenderTargets = 1;
+		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		pso.inputDesc_.InitializeForSkinning();
+		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
 	} else if (pso.shaderType_ == Trail) {
 		pso.graphicsDesc_.NumRenderTargets = 1;
 		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -322,6 +345,8 @@ void DirectXCommon::CreateShader()
 	trailPSO.shaderType_ = Trail;
 	hudRectPSO.shaderType_ = Trail;
 	skyboxPSO.shaderType_ = Skybox;
+	skinningPSO.shaderType_ = Skinning;
+	skinningShadowPSO.shaderType_ = SkinningShadow;
 
 	bloomPSO.postEffectType_ = Bloom_Extract;
 	blurHPSO.postEffectType_ = Bloom_BlurH;
@@ -352,6 +377,8 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(trailPSO, kAdd);
 	CreateShaderCommon(hudRectPSO, kNormal);
 	CreateShaderCommon(skyboxPSO, kNone);
+	CreateShaderCommon(skinningPSO, kNone);
+	CreateShaderCommon(skinningShadowPSO, kShadow);
 }
 
 
