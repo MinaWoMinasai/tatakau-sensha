@@ -212,6 +212,9 @@ public:
 	PSO& GetPSOModelParticle() { return psoModelParticle_; }
 	const PSO& GetGaussianFilterPSO() const { return gaussianFilterPSO; }
 	PSO& GetPSOComputeParticle() { return psoComputeParticle_; }
+	PSO& GetPSOInitializeParticle() { return psoInitializeParticle_; }
+	PSO& GetPSOEmitParticle() { return psoEmitParticle_; }
+	PSO& GetPSOEmitBatchParticle() { return psoEmitBatchParticle_; }
 	PSO& GetPSOTrail() { return trailPSO; }
 	PSO& GetPSOHudRect() { return hudRectPSO; }
 	PSO& GetPSOSkybox() { return skyboxPSO; }
@@ -320,7 +323,7 @@ private:
 	void UpdateFixFPS();
 
 	void CreateShaderCommon(PSO& pso, BlendMode blendMode = kAdd);
-	void CreateComputeShaderCommon(PSO& pso);
+	void CreateComputeShaderCommon(PSO& pso, const std::wstring& shaderPath);
 	void CreateShader();
 	void CreateGraphics();
 
@@ -375,6 +378,9 @@ private:
 	PSO psoParticle_;
 	PSO psoModelParticle_;
 	PSO psoComputeParticle_;
+	PSO psoInitializeParticle_;
+	PSO psoEmitParticle_;
+	PSO psoEmitBatchParticle_;
 	PSO bloomPSO;
 	PSO downsamplePSO;
 	PSO blurHPSO;
