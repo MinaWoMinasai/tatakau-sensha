@@ -4,6 +4,7 @@
 #include <map>
 #include <random>
 #include <memory>
+#include <initializer_list>
 #include <wrl.h>
 #include <d3d12.h>
 #include "DirectXCommon.h"
@@ -91,8 +92,26 @@ public:
         Vector4 color;
     };
 
-    struct GlobalConfig { float deltaTime; uint32_t maxParticles; };
+    struct GlobalConfig {
+        float deltaTime;
+        uint32_t maxParticles;
+        float time;
+        uint32_t itemCount;
+    };
     struct SceneConfig { Matrix4x4 viewProjection; Vector3 cameraPosition; float scenePadding; };
+
+    // ParticleEmit.CS.hlsl と同じ128-byteレイアウト。
+    struct GpuEmitterRequest {
+        Vector3 position; float radius;
+        Vector3 boxSize; uint32_t shape;
+        float speedMin; float speedMax; float lifeTimeMin; float lifeTimeMax;
+        Vector3 acceleration; float startScaleMin;
+        float startScaleMax; float endScaleMin; float endScaleMax; uint32_t easingType;
+        Vector4 startColor;
+        Vector4 endColor;
+        uint32_t isBillboard; float seed; float padding[2];
+    };
+    static_assert(sizeof(GpuEmitterRequest) == 128, "GpuEmitterRequest must match ParticleEmit.CS.hlsl");
 
     static ParticleManager* GetInstance();
     static const uint32_t kMaxInstance = 100000; // 実行環境に合わせて調整
@@ -131,6 +150,10 @@ private:
     Matrix4x4 MakeBillboardMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate, Camera* camera, DebugCamera* debugCamera) const;
     void CreateDefaultEffects();
     void DispatchGpu(float deltaTime, const Matrix4x4& viewProjection, const Vector3& cameraPosition);
+    void DispatchGpuEmitters();
+    void InitializeGpuParticles();
+    void QueueGpuEmitter(const ParticleEmitterConfig& config, const Vector3& position, uint32_t count);
+    void AddUavBarrier(std::initializer_list<ID3D12Resource*> resources);
     void Transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
     void ResetDrawArgs();
     void EmitBatch(const std::vector<Particle>& particles);
@@ -168,10 +191,16 @@ private:
     DirectionalLight* directionalLightData_ = nullptr;
     CameraData* cameraData_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> particleResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> freeListIndexResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> freeListResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> drawArgsResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> aliveIndicesResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> computeConfigResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> computeSceneResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> initializeConfigResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> emitterConfigResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> batchConfigResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> emitterRequestResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> emitStagingResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> resetResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> drawArgsInitResource_;
@@ -180,11 +209,19 @@ private:
     uint32_t srvIndexInstancing_ = 0;
     uint32_t srvIndexGpuInstancing_ = 0;
     uint32_t uavIndexParticles_ = 0;
+    uint32_t uavIndexFreeListIndex_ = 0;
+    uint32_t uavIndexFreeList_ = 0;
     uint32_t uavIndexRenderData_ = 0;
     uint32_t uavIndexAliveIndices_ = 0;
     uint32_t uavIndexDrawArgs_ = 0;
+    uint32_t srvIndexEmitterRequests_ = 0;
+    uint32_t srvIndexPrebuiltParticles_ = 0;
 
-    uint32_t freeIndex_ = 0;
+    std::vector<GpuEmitterRequest> pendingGpuEmitters_;
+    std::vector<ParticleGPU> pendingGpuParticles_;
+    float gpuTime_ = 0.0f;
+    uint32_t emitterSeed_ = 1;
+    static constexpr uint32_t kMaxEmitRequests = 16384;
     std::string editorEffectName_ = "HitSpark";
     ParticleEmitterConfig editorConfig_;
     bool useGpuUpdate_ = true;

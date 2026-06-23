@@ -306,11 +306,11 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 	assert(SUCCEEDED(hr));
 }
 
-void DirectXCommon::CreateComputeShaderCommon(PSO& pso)
+void DirectXCommon::CreateComputeShaderCommon(PSO& pso, const std::wstring& shaderPath)
 {
 	pso.root_.InitializeForComputeParticle();
 	pso.root_.Create(device_);
-	pso.computeShaderBlob_ = CompileShader(L"resources/shaders/ParticleUpdate.CS.hlsl", L"cs_6_0");
+	pso.computeShaderBlob_ = CompileShader(shaderPath, L"cs_6_0");
 	assert(pso.computeShaderBlob_ != nullptr);
 
 	ZeroMemory(&pso.computeDesc_, sizeof(pso.computeDesc_));
@@ -332,6 +332,9 @@ void DirectXCommon::CreateShader()
 	psoParticle_.shaderType_ = Particle;
 	psoModelParticle_.shaderType_ = ModelParticle;
 	psoComputeParticle_.shaderType_ = ComputeParticle;
+	psoInitializeParticle_.shaderType_ = ComputeParticle;
+	psoEmitParticle_.shaderType_ = ComputeParticle;
+	psoEmitBatchParticle_.shaderType_ = ComputeParticle;
 	bloomPSO.shaderType_ = PostEffect;
 	blurHPSO.shaderType_ = PostEffect;
 	blurVPSO.shaderType_ = PostEffect;
@@ -363,7 +366,10 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(objectPSO_Add, kAdd);
 	CreateShaderCommon(psoParticle_, kAdd);
 	CreateShaderCommon(psoModelParticle_, kAdd);
-	CreateComputeShaderCommon(psoComputeParticle_);
+	CreateComputeShaderCommon(psoInitializeParticle_, L"resources/shaders/ParticleInitialize.CS.hlsl");
+	CreateComputeShaderCommon(psoEmitParticle_, L"resources/shaders/ParticleEmit.CS.hlsl");
+	CreateComputeShaderCommon(psoEmitBatchParticle_, L"resources/shaders/ParticleEmitBatch.CS.hlsl");
+	CreateComputeShaderCommon(psoComputeParticle_, L"resources/shaders/ParticleUpdate.CS.hlsl");
 	CreateShaderCommon(bloomPSO, kNone);
 	CreateShaderCommon(blurHPSO, kNone);
 	CreateShaderCommon(blurVPSO, kNone);

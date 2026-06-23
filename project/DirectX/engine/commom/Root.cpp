@@ -545,7 +545,8 @@ void Root::InitializeForComputeParticle()
 	Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	Parameters_[1].Descriptor.ShaderRegister = 1;
 
-	for (uint32_t i = 0; i < 4; ++i) {
+	// u0..u5: Particle / RenderData / DrawArgs / FreeList resources.
+	for (uint32_t i = 0; i < 6; ++i) {
 		descriptorRange_[i].BaseShaderRegister = i;
 		descriptorRange_[i].NumDescriptors = 1;
 		descriptorRange_[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
@@ -557,8 +558,18 @@ void Root::InitializeForComputeParticle()
 		Parameters_[2 + i].DescriptorTable.NumDescriptorRanges = 1;
 	}
 
+	// t0: GPU Emitter request or prebuilt particle input.
+	descriptorRange_[6].BaseShaderRegister = 0;
+	descriptorRange_[6].NumDescriptors = 1;
+	descriptorRange_[6].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[6].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	Parameters_[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	Parameters_[8].DescriptorTable.pDescriptorRanges = &descriptorRange_[6];
+	Parameters_[8].DescriptorTable.NumDescriptorRanges = 1;
+
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 6;
+	descriptionSignature_.NumParameters = 9;
 	descriptionSignature_.pStaticSamplers = nullptr;
 	descriptionSignature_.NumStaticSamplers = 0;
 

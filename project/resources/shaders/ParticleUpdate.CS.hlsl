@@ -1,22 +1,4 @@
-struct Particle
-{
-    float3 position;
-    float currentTime;
-    float3 velocity;
-    float lifeTime;
-    float3 acceleration;
-    float startScale;
-    float4 startColor;
-    float4 endColor;
-    float endScale;
-    uint isActive;
-    uint easingType;   // 0=Linear, 1=EaseIn, 2=EaseOut
-    uint isBillboard;  // 0=OFF, 1=ON
-    float3 rotate;
-    float padding1;
-    float3 angularVelocity;
-    float padding2;
-};
+#include "ParticleCompute.hlsli"
 
 struct RenderData
 {
@@ -34,13 +16,10 @@ RWStructuredBuffer<RenderData> gRenderData : register(u1); // 描画用
 RWStructuredBuffer<uint> gAliveIndices : register(u2);
 // ExecuteIndirect用の引数バッファ (InstanceCountを書き換える)
 RWByteAddressBuffer gDrawArgs : register(u3);
+RWStructuredBuffer<int> gFreeListIndex : register(u4);
+RWStructuredBuffer<uint> gFreeList : register(u5);
 
 // 定数
-struct GlobalConfig
-{
-    float deltaTime;
-    uint maxParticles;
-};
 struct SceneConfig
 {
     float4x4 viewProjection;
@@ -48,7 +27,7 @@ struct SceneConfig
     float scenePadding;
 };
 
-ConstantBuffer<GlobalConfig> gConfig : register(b0);
+ConstantBuffer<ComputeConfig> gConfig : register(b0);
 ConstantBuffer<SceneConfig> gScene : register(b1);
 
 // --- 行列生成関数 ---
@@ -160,8 +139,22 @@ void main(uint3 DTid : SV_DispatchThreadID)
     if (p.currentTime >= p.lifeTime)
     {
         p.isActive = 0;
+        p.currentTime = p.lifeTime;
+        p.startScale = 0.0f;
+        p.endScale = 0.0f;
         gParticles[DTid.x] = p;
-        // ここでは gRenderData への書き込みは不要（描画リストに入れないため）
+
+        int freeListIndex;
+        InterlockedAdd(gFreeListIndex[0], 1, freeListIndex);
+        if ((freeListIndex + 1) < int(gConfig.maxParticles))
+        {
+            gFreeList[freeListIndex + 1] = DTid.x;
+        }
+        else
+        {
+            // 二重解放などが起きてもFreeListを破壊しない安全策。
+            InterlockedAdd(gFreeListIndex[0], -1);
+        }
         return;
     }
 

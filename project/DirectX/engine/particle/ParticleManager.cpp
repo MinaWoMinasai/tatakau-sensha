@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -128,6 +129,14 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     uavIndexParticles_ = srvManager_->Allocate();
     srvManager_->CreateUAVforStructuredBuffer(uavIndexParticles_, particleResource_.Get(), kMaxInstance, sizeof(ParticleGPU));
 
+    // GPU FreeList。空きParticle indexの取得・返却をCS内の不可分操作で行う。
+    freeListIndexResource_ = dxCommon_->CreateUAVBufferResource(sizeof(int32_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    uavIndexFreeListIndex_ = srvManager_->Allocate();
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexFreeListIndex_, freeListIndexResource_.Get(), 1, sizeof(int32_t));
+    freeListResource_ = dxCommon_->CreateUAVBufferResource(sizeof(uint32_t) * kMaxInstance, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    uavIndexFreeList_ = srvManager_->Allocate();
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexFreeList_, freeListResource_.Get(), kMaxInstance, sizeof(uint32_t));
+
     // 3. 間接描画 (Indirect Args)
     drawArgsResource_ = dxCommon_->CreateUAVBufferResource(sizeof(D3D12_DRAW_ARGUMENTS), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     uavIndexDrawArgs_ = srvManager_->Allocate();
@@ -141,18 +150,19 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     // 5. 定数バッファ
     computeConfigResource_ = dxCommon_->CreateBufferResource(sizeof(GlobalConfig));
     computeSceneResource_ = dxCommon_->CreateBufferResource(sizeof(SceneConfig));
-    emitStagingResource_ = dxCommon_->CreateBufferResource(sizeof(ParticleGPU) * kMaxInstance);
+    initializeConfigResource_ = dxCommon_->CreateBufferResource(sizeof(GlobalConfig));
+    emitterConfigResource_ = dxCommon_->CreateBufferResource(sizeof(GlobalConfig));
+    batchConfigResource_ = dxCommon_->CreateBufferResource(sizeof(GlobalConfig));
 
-    // Default heapの初期内容は未定義なので、GPU更新を始める前に全スロットを無効化する。
-    void* initialParticles = nullptr;
-    emitStagingResource_->Map(0, nullptr, &initialParticles);
-    std::memset(initialParticles, 0, sizeof(ParticleGPU) * kMaxInstance);
-    emitStagingResource_->Unmap(0, nullptr);
-    Transition(particleResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
-    dxCommon_->GetList()->CopyBufferRegion(
-        particleResource_.Get(), 0, emitStagingResource_.Get(), 0,
-        sizeof(ParticleGPU) * kMaxInstance);
-    Transition(particleResource_.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    emitterRequestResource_ = dxCommon_->CreateBufferResource(sizeof(GpuEmitterRequest) * kMaxEmitRequests);
+    srvIndexEmitterRequests_ = srvManager_->Allocate();
+    srvManager_->CreateSRVforStructuredBuffer(
+        srvIndexEmitterRequests_, emitterRequestResource_.Get(), kMaxEmitRequests, sizeof(GpuEmitterRequest));
+
+    emitStagingResource_ = dxCommon_->CreateBufferResource(sizeof(ParticleGPU) * kMaxInstance);
+    srvIndexPrebuiltParticles_ = srvManager_->Allocate();
+    srvManager_->CreateSRVforStructuredBuffer(
+        srvIndexPrebuiltParticles_, emitStagingResource_.Get(), kMaxInstance, sizeof(ParticleGPU));
 
     resetResource_ = dxCommon_->CreateBufferResource(sizeof(uint32_t));
     uint32_t zero = 0;
@@ -170,8 +180,13 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     drawArgs->StartInstanceLocation = 0;
     drawArgsInitResource_->Unmap(0, nullptr);
     ResetDrawArgs();
+    Transition(particleResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    Transition(freeListIndexResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    Transition(freeListResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     Transition(gpuInstancingResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     Transition(aliveIndicesResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+    InitializeGpuParticles();
 
     // コマンドシグネチャ
     D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
@@ -354,6 +369,8 @@ void ParticleManager::Dispatch(float deltaTime, Camera* camera) {
     computeConfigResource_->Map(0, nullptr, (void**)&conf);
     conf->deltaTime = deltaTime;
     conf->maxParticles = kMaxInstance;
+    conf->time = gpuTime_;
+    conf->itemCount = kMaxInstance;
     computeConfigResource_->Unmap(0, nullptr);
 
     SceneConfig* scene;
@@ -374,6 +391,9 @@ void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjecti
 
     auto commandList = dxCommon_->GetList();
 
+    gpuTime_ += deltaTime;
+    DispatchGpuEmitters();
+
     Transition(drawArgsResource_.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_DEST);
     commandList->CopyBufferRegion(drawArgsResource_.Get(), 4, resetResource_.Get(), 0, sizeof(uint32_t));
     Transition(drawArgsResource_.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -382,6 +402,8 @@ void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjecti
     computeConfigResource_->Map(0, nullptr, reinterpret_cast<void**>(&config));
     config->deltaTime = deltaTime;
     config->maxParticles = kMaxInstance;
+    config->time = gpuTime_;
+    config->itemCount = kMaxInstance;
     computeConfigResource_->Unmap(0, nullptr);
 
     SceneConfig* scene = nullptr;
@@ -401,21 +423,109 @@ void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjecti
     commandList->SetComputeRootDescriptorTable(3, srvManager_->GetGPUDescriptorHandle(uavIndexRenderData_));
     commandList->SetComputeRootDescriptorTable(4, srvManager_->GetGPUDescriptorHandle(uavIndexAliveIndices_));
     commandList->SetComputeRootDescriptorTable(5, srvManager_->GetGPUDescriptorHandle(uavIndexDrawArgs_));
+    commandList->SetComputeRootDescriptorTable(6, srvManager_->GetGPUDescriptorHandle(uavIndexFreeListIndex_));
+    commandList->SetComputeRootDescriptorTable(7, srvManager_->GetGPUDescriptorHandle(uavIndexFreeList_));
 
     commandList->Dispatch((kMaxInstance + 1023) / 1024, 1, 1);
 
-    D3D12_RESOURCE_BARRIER uavBarriers[3]{};
-    uavBarriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-    uavBarriers[0].UAV.pResource = particleResource_.Get();
-    uavBarriers[1].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-    uavBarriers[1].UAV.pResource = gpuInstancingResource_.Get();
-    uavBarriers[2].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-    uavBarriers[2].UAV.pResource = drawArgsResource_.Get();
-    commandList->ResourceBarrier(3, uavBarriers);
+    AddUavBarrier({ particleResource_.Get(), gpuInstancingResource_.Get(), drawArgsResource_.Get(),
+        freeListIndexResource_.Get(), freeListResource_.Get() });
 
     Transition(gpuInstancingResource_.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     Transition(drawArgsResource_.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
     gpuDrawReady_ = true;
+}
+
+void ParticleManager::InitializeGpuParticles() {
+    GlobalConfig* config = nullptr;
+    initializeConfigResource_->Map(0, nullptr, reinterpret_cast<void**>(&config));
+    *config = { 0.0f, kMaxInstance, 0.0f, kMaxInstance };
+    initializeConfigResource_->Unmap(0, nullptr);
+
+    srvManager_->PreDraw();
+    auto commandList = dxCommon_->GetList();
+    auto& pso = dxCommon_->GetPSOInitializeParticle();
+    commandList->SetComputeRootSignature(pso.root_.GetSignature().Get());
+    commandList->SetPipelineState(pso.computeState_.Get());
+    commandList->SetComputeRootConstantBufferView(0, initializeConfigResource_->GetGPUVirtualAddress());
+    commandList->SetComputeRootDescriptorTable(2, srvManager_->GetGPUDescriptorHandle(uavIndexParticles_));
+    commandList->SetComputeRootDescriptorTable(3, srvManager_->GetGPUDescriptorHandle(uavIndexFreeListIndex_));
+    commandList->SetComputeRootDescriptorTable(4, srvManager_->GetGPUDescriptorHandle(uavIndexFreeList_));
+    commandList->Dispatch((kMaxInstance + 1023) / 1024, 1, 1);
+    AddUavBarrier({ particleResource_.Get(), freeListIndexResource_.Get(), freeListResource_.Get() });
+}
+
+void ParticleManager::DispatchGpuEmitters() {
+    auto commandList = dxCommon_->GetList();
+    srvManager_->PreDraw();
+
+    if (!pendingGpuEmitters_.empty()) {
+        const uint32_t count = static_cast<uint32_t>((std::min)(pendingGpuEmitters_.size(), size_t{ kMaxEmitRequests }));
+        void* mapped = nullptr;
+        emitterRequestResource_->Map(0, nullptr, &mapped);
+        std::memcpy(mapped, pendingGpuEmitters_.data(), sizeof(GpuEmitterRequest) * count);
+        emitterRequestResource_->Unmap(0, nullptr);
+
+        GlobalConfig* config = nullptr;
+        emitterConfigResource_->Map(0, nullptr, reinterpret_cast<void**>(&config));
+        *config = { 0.0f, kMaxInstance, gpuTime_, count };
+        emitterConfigResource_->Unmap(0, nullptr);
+
+        auto& pso = dxCommon_->GetPSOEmitParticle();
+        commandList->SetComputeRootSignature(pso.root_.GetSignature().Get());
+        commandList->SetPipelineState(pso.computeState_.Get());
+        commandList->SetComputeRootConstantBufferView(0, emitterConfigResource_->GetGPUVirtualAddress());
+        commandList->SetComputeRootDescriptorTable(2, srvManager_->GetGPUDescriptorHandle(uavIndexParticles_));
+        commandList->SetComputeRootDescriptorTable(3, srvManager_->GetGPUDescriptorHandle(uavIndexFreeListIndex_));
+        commandList->SetComputeRootDescriptorTable(4, srvManager_->GetGPUDescriptorHandle(uavIndexFreeList_));
+        commandList->SetComputeRootDescriptorTable(8, srvManager_->GetGPUDescriptorHandle(srvIndexEmitterRequests_));
+        commandList->Dispatch((count + 63) / 64, 1, 1);
+        AddUavBarrier({ particleResource_.Get(), freeListIndexResource_.Get(), freeListResource_.Get() });
+    }
+
+    if (!pendingGpuParticles_.empty()) {
+        const uint32_t count = static_cast<uint32_t>((std::min)(pendingGpuParticles_.size(), size_t{ kMaxInstance }));
+        void* mapped = nullptr;
+        emitStagingResource_->Map(0, nullptr, &mapped);
+        std::memcpy(mapped, pendingGpuParticles_.data(), sizeof(ParticleGPU) * count);
+        emitStagingResource_->Unmap(0, nullptr);
+
+        GlobalConfig* config = nullptr;
+        batchConfigResource_->Map(0, nullptr, reinterpret_cast<void**>(&config));
+        *config = { 0.0f, kMaxInstance, gpuTime_, count };
+        batchConfigResource_->Unmap(0, nullptr);
+
+        auto& pso = dxCommon_->GetPSOEmitBatchParticle();
+        commandList->SetComputeRootSignature(pso.root_.GetSignature().Get());
+        commandList->SetPipelineState(pso.computeState_.Get());
+        commandList->SetComputeRootConstantBufferView(0, batchConfigResource_->GetGPUVirtualAddress());
+        commandList->SetComputeRootDescriptorTable(2, srvManager_->GetGPUDescriptorHandle(uavIndexParticles_));
+        commandList->SetComputeRootDescriptorTable(3, srvManager_->GetGPUDescriptorHandle(uavIndexFreeListIndex_));
+        commandList->SetComputeRootDescriptorTable(4, srvManager_->GetGPUDescriptorHandle(uavIndexFreeList_));
+        commandList->SetComputeRootDescriptorTable(8, srvManager_->GetGPUDescriptorHandle(srvIndexPrebuiltParticles_));
+        commandList->Dispatch((count + 63) / 64, 1, 1);
+        AddUavBarrier({ particleResource_.Get(), freeListIndexResource_.Get(), freeListResource_.Get() });
+    }
+
+    pendingGpuEmitters_.clear();
+    pendingGpuParticles_.clear();
+}
+
+void ParticleManager::AddUavBarrier(std::initializer_list<ID3D12Resource*> resources) {
+    std::vector<D3D12_RESOURCE_BARRIER> barriers;
+    barriers.reserve(resources.size());
+    for (ID3D12Resource* resource : resources) {
+        if (!resource) {
+            continue;
+        }
+        D3D12_RESOURCE_BARRIER barrier{};
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+        barrier.UAV.pResource = resource;
+        barriers.push_back(barrier);
+    }
+    if (!barriers.empty()) {
+        dxCommon_->GetList()->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
+    }
 }
 
 void ParticleManager::Transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
@@ -469,13 +579,52 @@ void ParticleManager::SaveEffect(const std::string& effectName, const std::strin
 }
 
 void ParticleManager::Emit(const std::string& effectName, const Vector3& position, uint32_t count) {
-    if (effectLibrary_.find(effectName) == effectLibrary_.end()) return;
-    auto& config = effectLibrary_[effectName];
+    auto it = effectLibrary_.find(effectName);
+    if (it == effectLibrary_.end() || count == 0) return;
+
+    if (useGpuUpdate_) {
+        QueueGpuEmitter(it->second, position, count);
+        return;
+    }
+
+    ParticleEmitterConfig config = it->second;
     config.position = position;
 
     std::vector<Particle> particles;
     for (uint32_t i = 0; i < count; ++i) particles.push_back(MakeParticle(config));
     EmitBatch(particles);
+}
+
+void ParticleManager::QueueGpuEmitter(const ParticleEmitterConfig& config, const Vector3& position, uint32_t count) {
+    const uint32_t available = kMaxEmitRequests - static_cast<uint32_t>((std::min)(pendingGpuEmitters_.size(), size_t{ kMaxEmitRequests }));
+    count = (std::min)(count, available);
+    pendingGpuEmitters_.reserve(pendingGpuEmitters_.size() + count);
+
+    const auto maxComponent = [](const Vector3& value) {
+        return (std::max)({ value.x, value.y, value.z });
+    };
+    for (uint32_t i = 0; i < count; ++i) {
+        GpuEmitterRequest request{};
+        request.position = position;
+        request.radius = config.shapeSize.x;
+        request.boxSize = config.shapeSize;
+        request.shape = static_cast<uint32_t>(config.emitterShape);
+        request.speedMin = config.speedMin;
+        request.speedMax = config.speedMax;
+        request.lifeTimeMin = config.lifeTimeMin;
+        request.lifeTimeMax = config.lifeTimeMax;
+        request.acceleration = config.gravity;
+        request.startScaleMin = maxComponent(config.startScaleMin);
+        request.startScaleMax = maxComponent(config.startScaleMax);
+        request.endScaleMin = maxComponent(config.endScaleMin);
+        request.endScaleMax = maxComponent(config.endScaleMax);
+        request.easingType = static_cast<uint32_t>(config.easingType);
+        request.startColor = config.startColor;
+        request.endColor = config.endColor;
+        request.isBillboard = config.isBillboard ? 1u : 0u;
+        request.seed = static_cast<float>(emitterSeed_++);
+        pendingGpuEmitters_.push_back(request);
+    }
 }
 
 void ParticleManager::EmitHitEffect(const Vector3& position) {
@@ -679,51 +828,38 @@ void ParticleManager::EmitBatch(const std::vector<Particle>& particles) {
             }
             activeParticles_.push_back({ particle });
         }
-    }
-
-    if (!particleResource_ || !emitStagingResource_ || particles.empty()) {
         return;
     }
 
-    uint32_t count = static_cast<uint32_t>((std::min)(particles.size(), size_t{ 1000 }));
-    if (freeIndex_ + count >= kMaxInstance) {
-        freeIndex_ = 0;
+    if (!particleResource_ || particles.empty()) {
+        return;
     }
 
-    void* mappedPtr = nullptr;
-    emitStagingResource_->Map(0, nullptr, &mappedPtr);
-    ParticleGPU* dest = static_cast<ParticleGPU*>(mappedPtr) + freeIndex_;
+    const size_t available = kMaxInstance - (std::min)(pendingGpuParticles_.size(), size_t{ kMaxInstance });
+    const uint32_t count = static_cast<uint32_t>((std::min)(particles.size(), available));
+    pendingGpuParticles_.reserve(pendingGpuParticles_.size() + count);
 
     for (uint32_t i = 0; i < count; ++i) {
         const Particle& src = particles[i];
         float startScale = (std::max)({ src.startScaleVector.x, src.startScaleVector.y, src.startScaleVector.z, src.startScale });
         float endScale = (std::max)({ src.endScaleVector.x, src.endScaleVector.y, src.endScaleVector.z, src.endScale });
-        dest[i].position = src.transform.translate;
-        dest[i].velocity = src.velocity;
-        dest[i].acceleration = src.acceleration;
-        dest[i].angularVelocity = src.angularVelocity;
-        dest[i].currentTime = src.currentTime;
-        dest[i].lifeTime = src.lifeTime;
-        dest[i].startScale = startScale;
-        dest[i].endScale = endScale;
-        dest[i].startColor = src.startColor;
-        dest[i].endColor = src.endColor;
-        dest[i].rotate = src.transform.rotate;
-        dest[i].isActive = 1;
-        dest[i].easingType = static_cast<uint32_t>(src.easingType);
-        dest[i].isBillboard = src.isBillboard ? 1 : 0;
+        ParticleGPU particle{};
+        particle.position = src.transform.translate;
+        particle.velocity = src.velocity;
+        particle.acceleration = src.acceleration;
+        particle.angularVelocity = src.angularVelocity;
+        particle.currentTime = src.currentTime;
+        particle.lifeTime = src.lifeTime;
+        particle.startScale = startScale;
+        particle.endScale = endScale;
+        particle.startColor = src.startColor;
+        particle.endColor = src.endColor;
+        particle.rotate = src.transform.rotate;
+        particle.isActive = 1;
+        particle.easingType = static_cast<uint32_t>(src.easingType);
+        particle.isBillboard = src.isBillboard ? 1u : 0u;
+        pendingGpuParticles_.push_back(particle);
     }
-    emitStagingResource_->Unmap(0, nullptr);
-
-    Transition(particleResource_.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_DEST);
-    dxCommon_->GetList()->CopyBufferRegion(
-        particleResource_.Get(),
-        freeIndex_ * sizeof(ParticleGPU),
-        emitStagingResource_.Get(),
-        freeIndex_ * sizeof(ParticleGPU),
-        count * sizeof(ParticleGPU));
-    Transition(particleResource_.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    freeIndex_ += count;
 }
 
 ParticleManager::Particle ParticleManager::MakeParticle(const ParticleEmitterConfig& config) {
@@ -806,7 +942,12 @@ void ParticleManager::SetUseGpuUpdate(bool useGpuUpdate) {
     }
     useGpuUpdate_ = useGpuUpdate;
     activeParticles_.clear();
+    pendingGpuEmitters_.clear();
+    pendingGpuParticles_.clear();
     instanceCount_ = 0;
+    if (useGpuUpdate_ && particleResource_) {
+        InitializeGpuParticles();
+    }
 }
 
 void ParticleManager::CreateDefaultEffects() {
@@ -1013,8 +1154,13 @@ void ParticleManager::DrawImGuiEditor() {
             editorEffectName_ = nameBuffer;
         }
 
-        ImGui::Text("Active: %u", GetActiveCount());
-        ImGui::Checkbox("GPU Update", &useGpuUpdate_);
+        ImGui::Text("CPU Active: %u", GetActiveCount());
+        ImGui::TextDisabled("GPU: Initialize CS -> Emit CS -> Update CS -> ExecuteIndirect");
+        ImGui::TextDisabled("GPU FreeList: enabled / max %u", kMaxInstance);
+        bool gpuUpdate = useGpuUpdate_;
+        if (ImGui::Checkbox("GPU Update", &gpuUpdate)) {
+            SetUseGpuUpdate(gpuUpdate);
+        }
         ImGui::DragFloat("Speed Min", &editorConfig_.speedMin, 0.1f, 0.0f, 200.0f);
         ImGui::DragFloat("Speed Max", &editorConfig_.speedMax, 0.1f, 0.0f, 200.0f);
         ImGui::DragFloat("Life Min", &editorConfig_.lifeTimeMin, 0.01f, 0.01f, 10.0f);
@@ -1031,6 +1177,11 @@ void ParticleManager::DrawImGuiEditor() {
 
         if (ImGui::Button("Apply")) {
             RegisterEffect(editorEffectName_, editorConfig_);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("GPU Emitter x2048")) {
+            RegisterEffect(editorEffectName_, editorConfig_);
+            Emit(editorEffectName_, { 0.0f, 0.0f, 0.0f }, 2048);
         }
         ImGui::SameLine();
         if (ImGui::Button("Sample Hit")) {
