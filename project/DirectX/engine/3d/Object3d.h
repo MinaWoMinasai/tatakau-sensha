@@ -12,6 +12,9 @@ public:
 	void Initialize();
 
 	void Update();
+	// Skeleton Jointなど、親側で完成したワールド行列をそのまま利用する。
+	// 装備品・アクセサリ・子オブジェクトの追従用途を想定。
+	void UpdateWithWorldMatrix(const Matrix4x4& worldMatrix);
 
 	void Draw();
 	void DrawSkinned(SkinnedModel& model);
@@ -90,6 +93,7 @@ public:
 	float GetEnvironmentCoefficient() const { return materialData_->environmentCoefficient; }
 
 private:
+	void UpdateMatrixConstants(const Matrix4x4& worldMatrix);
 
 	Object3dCommon* object3dCommon_;
 
