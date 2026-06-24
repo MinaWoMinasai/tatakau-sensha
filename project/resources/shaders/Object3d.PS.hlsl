@@ -79,8 +79,31 @@ PixelShaderOutput main(VertexShaderOutput input)
         float2 shadowUV = input.shadowMapPosition.xy / input.shadowMapPosition.w;
         shadowUV = shadowUV * float2(0.5f, -0.5f) + 0.5f;
         float depth = input.shadowMapPosition.z / input.shadowMapPosition.w;
-        // 影の判定 (0.0: 影, 1.0: 日向)
-        float shadow = gShadowMap.SampleCmpLevelZero(gShadowSampler, shadowUV, depth - 0.001f);
+        // 法線の傾斜に応じてbiasを増やし、shadow acneを抑える。
+        float3 shadowLightDir = -normalize(gDirectionalLight.direction);
+        float slope = 1.0f - saturate(dot(N, shadowLightDir));
+        float shadowBias = max(0.00035f, 0.0018f * slope);
+
+        // 3x3 PCF。単一比較より輪郭を柔らかくし、ジャギーを抑える。
+        uint shadowWidth, shadowHeight;
+        gShadowMap.GetDimensions(shadowWidth, shadowHeight);
+        float2 shadowTexel = 1.0f / float2(shadowWidth, shadowHeight);
+        float shadow = 1.0f;
+        if (all(shadowUV >= 0.0f) && all(shadowUV <= 1.0f) && depth >= 0.0f && depth <= 1.0f)
+        {
+            shadow = 0.0f;
+            [unroll]
+            for (int y = -1; y <= 1; ++y)
+            {
+                [unroll]
+                for (int x = -1; x <= 1; ++x)
+                {
+                    shadow += gShadowMap.SampleCmpLevelZero(
+                        gShadowSampler, shadowUV + float2(x, y) * shadowTexel, depth - shadowBias);
+                }
+            }
+            shadow /= 9.0f;
+        }
 
         // --- 3. 平行光源 (Directional Light) ---
         float3 L_dir = -normalize(gDirectionalLight.direction);

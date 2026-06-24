@@ -35,6 +35,11 @@ public:
 	static Skeleton Create(const SkeletonNode& rootNode);
 	static void ResetToBindPose(Skeleton& skeleton);
 	static void ApplyAnimation(Skeleton& skeleton, const AnimationPlayer& animationPlayer);
+	static void ApplyAnimationBlend(
+		Skeleton& skeleton,
+		const AnimationPlayer& animationA,
+		const AnimationPlayer& animationB,
+		float blendFactor);
 	static void Update(Skeleton& skeleton);
 
 private:

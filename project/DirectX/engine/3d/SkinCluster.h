@@ -65,12 +65,18 @@ class SkinnedModel {
 public:
 	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, const std::string& filePath);
 	void Update(float deltaTime);
+	void UpdateBlended(
+		float deltaTime,
+		AnimationPlayer& animationA,
+		AnimationPlayer& animationB,
+		float blendFactor);
 	void Draw();
 	void DrawShadow();
 
 	Skeleton& GetSkeleton() { return skeleton_; }
 	const SkinCluster& GetSkinCluster() const { return skinCluster_; }
 	AnimationPlayer& GetAnimationPlayer() { return animationPlayer_; }
+	const Animation& GetAnimation() const { return animation_; }
 	const SkinningModelAsset& GetAsset() const { return asset_; }
 
 private:
