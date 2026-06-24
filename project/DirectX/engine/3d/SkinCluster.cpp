@@ -226,6 +226,21 @@ void SkinnedModel::Update(float deltaTime) {
 		sizeof(SkinningPaletteEntry) * skinCluster_.GetPalette().size());
 }
 
+void SkinnedModel::UpdateBlended(
+	float deltaTime,
+	AnimationPlayer& animationA,
+	AnimationPlayer& animationB,
+	float blendFactor) {
+	// 補間中だけでなく両方を常時進めておくことで、切替時に時間が飛ばない。
+	animationA.Update(deltaTime);
+	animationB.Update(deltaTime);
+	SkeletonSystem::ApplyAnimationBlend(skeleton_, animationA, animationB, blendFactor);
+	skinCluster_.Update(skeleton_);
+	std::memcpy(
+		mappedPalette_, skinCluster_.GetPalette().data(),
+		sizeof(SkinningPaletteEntry) * skinCluster_.GetPalette().size());
+}
+
 void SkinnedModel::Draw() {
 	auto commandList = dxCommon_->GetList();
 	commandList->IASetVertexBuffers(0, 2, vertexBufferViews_);

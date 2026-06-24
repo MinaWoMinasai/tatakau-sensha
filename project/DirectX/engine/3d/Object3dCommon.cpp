@@ -35,15 +35,19 @@ void Object3dCommon::Update() {
     // 2. ライトの位置
     // ライトの向きの逆方向に、十分離れた場所にカメラを置く
     float distance = 300.0f; // 十分な距離をとる
-    Vector3 lightPos = { lightDir_.x * distance, -lightDir_.y * distance, lightDir_.z * distance };
+    Vector3 lightPos = {
+        shadowFocus_.x + lightDir_.x * distance,
+        shadowFocus_.y - lightDir_.y * distance,
+        shadowFocus_.z + lightDir_.z * distance
+    };
 
     // 3. ライトビュー行列
     // 原点付近を映す。もしキャラが動くならここをキャラの座標にする
-    Matrix4x4 lightView = MakeLookAtMatrix(lightPos, { 0, 0, 0 }, { 0, 1, 0 });
+    Matrix4x4 lightView = MakeLookAtMatrix(lightPos, shadowFocus_, { 0, 1, 0 });
 
     // 4. プロジェクション行列（ここが重要！）
     // 地面全体（緑色の範囲）を広げるために range を大きくする
-    float range = 500.0f; // ステージ全体を覆うくらいのサイズ
+    float range = shadowRange_;
     // 奥行き（FarZ）も十分に確保する
     Matrix4x4 lightOrtho = MakeOrthographicMatrix(-range, range, range, -range, 0.1f, 1000.0f);
 

@@ -4,6 +4,7 @@
 #include "DebugCamera.h"
 #include "SrvManager.h"
 #include "ShadowMap.h"
+#include <algorithm>
 
 class Object3dCommon
 {
@@ -39,6 +40,10 @@ public:
 	ShadowMap* GetShadowMap() { return shadowMap_; }
 
 	Vector3& GetLightDir() { return lightDir_; }
+	void SetShadowFocus(const Vector3& focus) { shadowFocus_ = focus; }
+	void SetShadowRange(float range) { shadowRange_ = (std::max)(range, 1.0f); }
+	const Vector3& GetShadowFocus() const { return shadowFocus_; }
+	float GetShadowRange() const { return shadowRange_; }
 
 private:
 
@@ -55,5 +60,7 @@ private:
 	BlendMode blendMode_;
 
 	Vector3 lightDir_;
+	Vector3 shadowFocus_ = { 0.0f, 0.0f, 0.0f };
+	float shadowRange_ = 500.0f;
 };
 

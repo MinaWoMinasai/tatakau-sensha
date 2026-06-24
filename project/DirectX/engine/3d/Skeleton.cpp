@@ -1,6 +1,7 @@
 #include "Skeleton.h"
 
 #include "Calculation.h"
+#include <algorithm>
 #include <cassert>
 #include <stdexcept>
 
@@ -57,6 +58,30 @@ void SkeletonSystem::ApplyAnimation(Skeleton& skeleton, const AnimationPlayer& a
 		} else {
 			joint.transform = joint.bindTransform;
 		}
+	}
+	Update(skeleton);
+}
+
+void SkeletonSystem::ApplyAnimationBlend(
+	Skeleton& skeleton,
+	const AnimationPlayer& animationA,
+	const AnimationPlayer& animationB,
+	float blendFactor) {
+	const float t = (std::clamp)(blendFactor, 0.0f, 1.0f);
+	for (Joint& joint : skeleton.joints) {
+		const QuaternionTransform poseA = animationA.SampleNode(joint.name, joint.bindTransform);
+		const QuaternionTransform poseB = animationB.SampleNode(joint.name, joint.bindTransform);
+		joint.transform.scale = {
+			poseA.scale.x + (poseB.scale.x - poseA.scale.x) * t,
+			poseA.scale.y + (poseB.scale.y - poseA.scale.y) * t,
+			poseA.scale.z + (poseB.scale.z - poseA.scale.z) * t,
+		};
+		joint.transform.translate = {
+			poseA.translate.x + (poseB.translate.x - poseA.translate.x) * t,
+			poseA.translate.y + (poseB.translate.y - poseA.translate.y) * t,
+			poseA.translate.z + (poseB.translate.z - poseA.translate.z) * t,
+		};
+		joint.transform.rotate = SlerpQuaternion(poseA.rotate, poseB.rotate, t);
 	}
 	Update(skeleton);
 }
