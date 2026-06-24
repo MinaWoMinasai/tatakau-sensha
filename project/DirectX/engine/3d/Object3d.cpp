@@ -109,6 +109,14 @@ void Object3d::Update() {
 	Matrix4x4 worldMatrix = useQuaternionRotate_
 		? MakeAffineMatrix(transform_.scale, quaternionRotate_, transform_.translate)
 		: MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+	UpdateMatrixConstants(worldMatrix);
+}
+
+void Object3d::UpdateWithWorldMatrix(const Matrix4x4& worldMatrix) {
+	UpdateMatrixConstants(worldMatrix);
+}
+
+void Object3d::UpdateMatrixConstants(const Matrix4x4& worldMatrix) {
 	// ワールド行列の逆行列を計算
 	Matrix4x4 inverseWorldMatrix = Inverse(worldMatrix);
 	// 逆行列を転置する
