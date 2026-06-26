@@ -426,6 +426,15 @@ void Enemy::OnCollision(Collider* other) {
 	}
 }
 
+void Enemy::TakeDamage(uint32_t amount)
+{
+	if (isDead_ || amount == 0) {
+		return;
+	}
+	hp_ -= static_cast<int>(amount);
+	TriggerDamageFeedback();
+}
+
 void Enemy::TriggerDamageFeedback()
 {
 	damageFeedbackTimer_ = damageFeedbackDuration_;

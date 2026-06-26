@@ -45,7 +45,7 @@
       "maxHp": 2000,
       "maxStamina": 3.0,
       "moveSpeed": 0.20000000298023224,
-      "reloadSpeed": 30.0,
+      "reloadSpeed": 45.0,
       "staminaRecovery": 1.0
     },
     "playerUpgrades": {

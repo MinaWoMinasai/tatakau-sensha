@@ -634,29 +634,23 @@ void ParticleManager::EmitHitEffect(const Vector3& position) {
     }
 
     ParticleEmitterConfig config = it->second;
-    config.position = position;
-
-    std::vector<Particle> particles;
     constexpr uint32_t kSparkCount = 18;
-    particles.reserve(kSparkCount);
 
     for (uint32_t i = 0; i < kSparkCount; ++i) {
         float angle = (2.0f * pi * static_cast<float>(i) / static_cast<float>(kSparkCount)) + Rand(-0.18f, 0.18f);
         Vector3 radial = { std::cos(angle), std::sin(angle), 0.0f };
         Vector3 dir = Normalize(radial * Rand(0.45f, 1.0f) + RandomUnitVector() * Rand(0.55f, 1.15f));
-        float speed = Rand(config.speedMin, config.speedMax);
-
-        Particle particle = MakeParticle(config);
-        particle.transform.translate = position + Rand(Vector3{ -0.18f, -0.18f, -0.04f }, Vector3{ 0.18f, 0.18f, 0.04f });
-        particle.transform.rotate = { 0.0f, 0.0f, angle - (pi * 0.5f) };
-        particle.velocity = dir * speed;
-        particle.startScaleVector = Rand(config.startScaleMin, config.startScaleMax);
-        particle.endScaleVector = Rand(config.endScaleMin, config.endScaleMax);
-        particle.alignToVelocity = config.alignToVelocity;
-        particles.push_back(particle);
+		NeonTriangleEvent event{};
+		event.position = position + Rand(Vector3{ -0.18f, -0.18f, -0.04f }, Vector3{ 0.18f, 0.18f, 0.04f });
+		event.velocity = dir * Rand(config.speedMin, config.speedMax);
+		event.radius = Rand(0.12f, 0.28f);
+		event.rotation = angle - (pi * 0.5f);
+		event.angularVelocity = Rand(-10.0f, 10.0f);
+		event.lineWidth = Rand(0.03f, 0.055f);
+		event.lifeTime = Rand(config.lifeTimeMin, config.lifeTimeMax);
+		event.color = config.startColor;
+		neonTriangleEvents_.push_back(event);
     }
-
-    EmitBatch(particles);
 }
 
 void ParticleManager::EmitNeonDeathEffect(
@@ -667,26 +661,18 @@ void ParticleManager::EmitNeonDeathEffect(
     strength = std::clamp(strength, 0.2f, 2.0f);
 
 	if (strength >= 0.75f) {
-		auto chargeIt = effectLibrary_.find("NeonDeathCharge");
-		if (chargeIt != effectLibrary_.end()) {
-			ParticleEmitterConfig charge = chargeIt->second;
-			charge.position = position;
-			const float chargeScale = 0.75f + strength * 0.35f;
-			charge.startScaleMin *= chargeScale;
-			charge.startScaleMax *= chargeScale;
-			charge.endScaleMin *= chargeScale;
-			charge.endScaleMax *= chargeScale;
-			std::vector<Particle> chargeParticles;
-			const uint32_t chargeCount = static_cast<uint32_t>(std::lround(5.0f * strength));
-			chargeParticles.reserve(chargeCount);
-			for (uint32_t i = 0; i < chargeCount; ++i) {
-				Particle particle = MakeParticle(charge);
-				particle.transform.rotate.z = (2.0f * pi * static_cast<float>(i)) /
-					static_cast<float>((std::max)(1u, chargeCount));
-				particle.angularVelocity = { 0.0f, 0.0f, (i % 2 == 0 ? 1.0f : -1.0f) * Rand(2.0f, 5.0f) };
-				chargeParticles.push_back(particle);
-			}
-			EmitBatch(chargeParticles);
+		const uint32_t chargeCount = static_cast<uint32_t>(std::lround(5.0f * strength));
+		for (uint32_t i = 0; i < chargeCount; ++i) {
+			NeonTriangleEvent event{};
+			event.position = position + Rand(Vector3{ -0.12f, -0.12f, -0.04f }, Vector3{ 0.12f, 0.12f, 0.04f });
+			event.velocity = Rand(Vector3{ -0.45f, -0.45f, -0.04f }, Vector3{ 0.45f, 0.45f, 0.04f });
+			event.radius = Rand(0.85f, 1.65f) * (0.75f + strength * 0.35f);
+			event.rotation = (2.0f * pi * static_cast<float>(i)) / static_cast<float>((std::max)(1u, chargeCount));
+			event.angularVelocity = (i % 2 == 0 ? 1.0f : -1.0f) * Rand(2.0f, 5.0f);
+			event.lineWidth = Rand(0.055f, 0.11f);
+			event.lifeTime = Rand(0.24f, 0.34f);
+			event.color = { 2.2f, 2.2f, 2.2f, 0.95f };
+			neonTriangleEvents_.push_back(event);
 		}
 
 		pendingDeathBursts_.push_back({ position, primaryColor, secondaryColor, strength, 0.28f });
@@ -702,37 +688,27 @@ void ParticleManager::EmitNeonDeathBurstNow(
 	const Vector4& secondaryColor,
 	float strength) {
 
-    std::vector<Particle> particles;
-    auto emitLayer = [&](const char* effectName, uint32_t baseCount, float scaleMultiplier) {
-        auto it = effectLibrary_.find(effectName);
-        if (it == effectLibrary_.end()) {
-            return;
-        }
-
-        ParticleEmitterConfig config = it->second;
-        config.position = position;
-        config.shapeSize *= scaleMultiplier;
-        config.startScaleMin *= scaleMultiplier;
-        config.startScaleMax *= scaleMultiplier;
-        config.endScaleMin *= scaleMultiplier;
-        config.endScaleMax *= scaleMultiplier;
-        config.startColor = primaryColor;
-        config.endColor = secondaryColor;
-
-        const uint32_t count = (std::max)(1u, static_cast<uint32_t>(std::lround(baseCount * strength)));
-        particles.reserve(particles.size() + count);
-        for (uint32_t i = 0; i < count; ++i) {
-            Particle particle = MakeParticle(config);
-            particle.angularVelocity *= Rand(0.75f, 1.65f);
-            particles.push_back(particle);
-        }
-    };
-
     const float scaleMultiplier = 0.72f + strength * 0.38f;
-    emitLayer("NeonDeathFlash", 7, scaleMultiplier);
-    emitLayer("NeonDeathShard", 54, scaleMultiplier);
-    emitLayer("NeonDeathFragment", 20, scaleMultiplier);
-    EmitBatch(particles);
+	const uint32_t neonTriangleCount = (std::max)(8u, static_cast<uint32_t>(std::lround(42.0f * strength)));
+	for (uint32_t i = 0; i < neonTriangleCount; ++i) {
+		Vector3 direction = RandomUnitVector();
+		direction.z *= 0.25f;
+		if (Length(direction) < 0.0001f) {
+			direction = { 1.0f, 0.0f, 0.0f };
+		}
+		direction = Normalize(direction);
+		NeonTriangleEvent event{};
+		event.position = position + Rand(Vector3{ -0.28f, -0.28f, -0.08f }, Vector3{ 0.28f, 0.28f, 0.08f });
+		event.velocity = direction * Rand(3.5f, 10.0f + 8.0f * strength);
+		event.radius = Rand(0.22f, 0.72f) * scaleMultiplier;
+		event.rotation = Rand(0.0f, pi * 2.0f);
+		event.angularVelocity = Rand(-7.0f, 7.0f);
+		event.lineWidth = Rand(0.035f, 0.075f);
+		event.lifeTime = Rand(0.26f, 0.72f);
+		event.color = (i % 2 == 0) ? primaryColor : secondaryColor;
+		event.color.w = (std::max)(event.color.w, 0.85f);
+		neonTriangleEvents_.push_back(event);
+	}
 }
 
 void ParticleManager::UpdatePendingDeathBursts(float deltaTime) {
@@ -759,6 +735,12 @@ std::vector<ParticleManager::ScreenPulseEvent> ParticleManager::ConsumeScreenPul
 	return events;
 }
 
+std::vector<ParticleManager::NeonTriangleEvent> ParticleManager::ConsumeNeonTriangleEvents() {
+	std::vector<NeonTriangleEvent> events = std::move(neonTriangleEvents_);
+	neonTriangleEvents_.clear();
+	return events;
+}
+
 void ParticleManager::EmitNeonImpactEffect(
     const Vector3& position,
     const Vector3& impactNormal,
@@ -782,6 +764,25 @@ void ParticleManager::EmitNeonImpactEffect(
         normal = Normalize(normal);
     }
     const Vector3 tangent = { -normal.y, normal.x, 0.0f };
+	const uint32_t triangleCount = (std::min)(count, 10u);
+	for (uint32_t i = 0; i < triangleCount; ++i) {
+		Vector3 direction = normal * Rand(0.55f, 1.25f) + tangent * Rand(-0.85f, 0.85f);
+		if (Length(direction) < 0.0001f) {
+			direction = normal;
+		}
+		direction = Normalize(direction);
+		NeonTriangleEvent event{};
+		event.position = position + Rand(Vector3{ -0.12f, -0.12f, -0.03f }, Vector3{ 0.12f, 0.12f, 0.03f });
+		event.velocity = direction * Rand(5.5f, 14.0f);
+		event.radius = Rand(0.18f, 0.42f);
+		event.rotation = Rand(0.0f, pi * 2.0f);
+		event.angularVelocity = Rand(-9.0f, 9.0f);
+		event.lineWidth = Rand(0.035f, 0.065f);
+		event.lifeTime = Rand(0.16f, 0.36f);
+		event.color = color;
+		neonTriangleEvents_.push_back(event);
+	}
+	return;
 
     std::vector<Particle> particles;
     particles.reserve(count);

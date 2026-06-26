@@ -53,6 +53,16 @@ public:
 		Vector3 position{};
 		float strength = 1.0f;
 	};
+	struct NeonTriangleEvent {
+		Vector3 position{};
+		Vector3 velocity{};
+		float radius = 0.35f;
+		float rotation = 0.0f;
+		float angularVelocity = 0.0f;
+		float lineWidth = 0.055f;
+		float lifeTime = 0.35f;
+		Vector4 color{ 1.0f, 0.4f, 1.0f, 1.0f };
+	};
     // GPUに送るパーティクル1粒のデータ
     struct ParticleGPU {
         Vector3 position;    float currentTime;
@@ -131,6 +141,7 @@ public:
     void EmitNeonImpactEffect(const Vector3& position, const Vector3& impactNormal,
         const Vector4& color, uint32_t count = 10);
 	std::vector<ScreenPulseEvent> ConsumeScreenPulseEvents();
+	std::vector<NeonTriangleEvent> ConsumeNeonTriangleEvents();
     void Emit(const ::Particle& particle);
     void DrawImGuiEditor();
     uint32_t GetActiveCount() const;
@@ -176,6 +187,7 @@ private:
     std::map<std::string, ParticleEmitterConfig> effectLibrary_;
 	std::vector<PendingDeathBurst> pendingDeathBursts_;
 	std::vector<ScreenPulseEvent> screenPulseEvents_;
+	std::vector<NeonTriangleEvent> neonTriangleEvents_;
     Model* model_ = nullptr;
     std::vector<ActiveParticle> activeParticles_;
     uint32_t instanceCount_ = 0;

@@ -353,6 +353,29 @@ bool ExpEnemy::TakeDamageFromEnemy(uint32_t amount)
     return false;
 }
 
+bool ExpEnemy::TakeDamageFromPlayer(uint32_t amount)
+{
+    if (isDead_ || amount == 0) {
+        return false;
+    }
+
+    hp_ -= static_cast<int>(amount);
+    TriggerDamageFeedback();
+    if (hp_ <= 0) {
+        isDead_ = true;
+        ParticleManager::GetInstance()->EmitNeonDeathEffect(
+            GetWorldPosition(),
+            { 1.20f, 0.32f, 1.35f, 1.0f },
+            { 0.18f, 1.10f, 1.35f, 0.0f },
+            0.32f);
+        if (player_) {
+            player_->AddExp(expValue_);
+        }
+        return true;
+    }
+    return false;
+}
+
 void ExpEnemy::TriggerDamageFeedback()
 {
     damageFeedbackTimer_ = damageFeedbackDuration_;
