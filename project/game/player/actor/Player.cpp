@@ -38,6 +38,19 @@ Vector3 ReadVector3(const nlohmann::json& json, const Vector3& fallback)
 	};
 }
 
+Vector4 ReadVector4(const nlohmann::json& json, const Vector4& fallback)
+{
+	if (!json.is_array() || json.size() < 4) {
+		return fallback;
+	}
+	return {
+		json[0].get<float>(),
+		json[1].get<float>(),
+		json[2].get<float>(),
+		json[3].get<float>()
+	};
+}
+
 Vector2 ReadVector2Object(const nlohmann::json& json, const Vector2& fallback)
 {
 	if (!json.is_object()) {
@@ -166,6 +179,11 @@ void SetLabel(std::unique_ptr<TextLabel>& label, SpriteCommon* spriteCommon, con
 nlohmann::json Vector3ToJson(const Vector3& value)
 {
 	return nlohmann::json::array({ value.x, value.y, value.z });
+}
+
+nlohmann::json Vector4ToJson(const Vector4& value)
+{
+	return nlohmann::json::array({ value.x, value.y, value.z, value.w });
 }
 }
 
@@ -1052,6 +1070,20 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 				barrel.weaponType = WeaponTypeFromString(barrelJson.value("weaponType", std::string("Projectile")));
 				barrel.damageScale = (std::max)(0.0f, barrelJson.value("damageScale", barrel.damageScale));
 				barrel.projectileSpeedScale = (std::max)(0.01f, barrelJson.value("projectileSpeedScale", barrel.projectileSpeedScale));
+				if (barrelJson.contains("effectColor")) {
+					barrel.effectColor = ReadVector4(barrelJson["effectColor"], barrel.effectColor);
+				}
+				barrel.laserRange = (std::max)(0.1f, barrelJson.value("laserRange", barrel.laserRange));
+				barrel.laserWidth = (std::max)(0.01f, barrelJson.value("laserWidth", barrel.laserWidth));
+				barrel.laserDuration = (std::max)(0.01f, barrelJson.value("laserDuration", barrel.laserDuration));
+				barrel.laserDamageInterval = (std::max)(0.01f, barrelJson.value("laserDamageInterval", barrel.laserDamageInterval));
+				barrel.mineRadius = (std::max)(0.1f, barrelJson.value("mineRadius", barrel.mineRadius));
+				barrel.mineFuseTime = (std::max)(0.0f, barrelJson.value("mineFuseTime", barrel.mineFuseTime));
+				barrel.mineLifeTime = (std::max)(0.1f, barrelJson.value("mineLifeTime", barrel.mineLifeTime));
+				barrel.meleeRange = (std::max)(0.1f, barrelJson.value("meleeRange", barrel.meleeRange));
+				barrel.meleeArcDeg = (std::clamp)(barrelJson.value("meleeArcDeg", barrel.meleeArcDeg), 5.0f, 360.0f);
+				barrel.meleeWidth = (std::max)(0.01f, barrelJson.value("meleeWidth", barrel.meleeWidth));
+				barrel.meleeDuration = (std::max)(0.01f, barrelJson.value("meleeDuration", barrel.meleeDuration));
 				config.barrels.push_back(barrel);
 			}
 		}
@@ -1176,6 +1208,18 @@ void Player::SavePlayerClassConfigs(const std::string& path) const
 			barrelJson["weaponType"] = WeaponTypeToString(barrel.weaponType);
 			barrelJson["damageScale"] = barrel.damageScale;
 			barrelJson["projectileSpeedScale"] = barrel.projectileSpeedScale;
+			barrelJson["effectColor"] = Vector4ToJson(barrel.effectColor);
+			barrelJson["laserRange"] = barrel.laserRange;
+			barrelJson["laserWidth"] = barrel.laserWidth;
+			barrelJson["laserDuration"] = barrel.laserDuration;
+			barrelJson["laserDamageInterval"] = barrel.laserDamageInterval;
+			barrelJson["mineRadius"] = barrel.mineRadius;
+			barrelJson["mineFuseTime"] = barrel.mineFuseTime;
+			barrelJson["mineLifeTime"] = barrel.mineLifeTime;
+			barrelJson["meleeRange"] = barrel.meleeRange;
+			barrelJson["meleeArcDeg"] = barrel.meleeArcDeg;
+			barrelJson["meleeWidth"] = barrel.meleeWidth;
+			barrelJson["meleeDuration"] = barrel.meleeDuration;
 			item["weaponMounts"].push_back(barrelJson);
 		}
 		classes.push_back(item);
@@ -1218,6 +1262,27 @@ Player::PlayerClassConfig* Player::GetMutableClassConfig(const std::string& clas
 	return &it->second;
 }
 
+std::vector<Player::LaserShotEvent> Player::ConsumeLaserShotEvents()
+{
+	std::vector<LaserShotEvent> events = std::move(pendingLaserShots_);
+	pendingLaserShots_.clear();
+	return events;
+}
+
+std::vector<Player::MineDropEvent> Player::ConsumeMineDropEvents()
+{
+	std::vector<MineDropEvent> events = std::move(pendingMineDrops_);
+	pendingMineDrops_.clear();
+	return events;
+}
+
+std::vector<Player::MeleeSlashEvent> Player::ConsumeMeleeSlashEvents()
+{
+	std::vector<MeleeSlashEvent> events = std::move(pendingMeleeSlashes_);
+	pendingMeleeSlashes_.clear();
+	return events;
+}
+
 bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, Vector3& recoilDir, float& recoilPower)
 {
 	if (config.usesDrone) {
@@ -1244,7 +1309,11 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 
 	std::vector<size_t> fireIndices;
 	for (size_t i = 0; i < config.barrels.size(); ++i) {
-		if (config.barrels[i].fires && config.barrels[i].weaponType == WeaponType::Projectile) {
+		if (config.barrels[i].fires &&
+			(config.barrels[i].weaponType == WeaponType::Projectile ||
+			 config.barrels[i].weaponType == WeaponType::Laser ||
+			 config.barrels[i].weaponType == WeaponType::Mine ||
+			 config.barrels[i].weaponType == WeaponType::Melee)) {
 			fireIndices.push_back(i);
 		}
 	}
@@ -1265,20 +1334,53 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 	for (size_t index : fireIndices) {
 		const WeaponMountConfig& barrelConfig = config.barrels[index];
 		const Vector3 fireDir = RotateDirection(forward, barrelConfig.angleDeg);
-		const Vector3 muzzle =
+		const Vector3 mountBase =
 			worldTransform_.translate +
 			forward * barrelConfig.offset.x +
 			right * barrelConfig.offset.y +
-			Vector3{ 0.0f, 0.0f, barrelConfig.offset.z } +
-			fireDir * barrelConfig.muzzleForward;
+			Vector3{ 0.0f, 0.0f, barrelConfig.offset.z };
+		const Vector3 muzzle = mountBase + fireDir * barrelConfig.muzzleForward;
 		AttackParam mountParam = param;
-		mountParam.bulletSpeed *= barrelConfig.projectileSpeedScale;
 		mountParam.damage = static_cast<uint32_t>((std::max)(1.0f, static_cast<float>(param.damage) * barrelConfig.damageScale));
-		attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
+		if (barrelConfig.weaponType == WeaponType::Laser) {
+			LaserShotEvent event{};
+			event.origin = muzzle;
+			event.direction = fireDir;
+			event.range = barrelConfig.laserRange;
+			event.width = barrelConfig.laserWidth;
+			event.duration = barrelConfig.laserDuration;
+			event.damageInterval = barrelConfig.laserDamageInterval;
+			event.damage = mountParam.damage;
+			event.color = barrelConfig.effectColor;
+			pendingLaserShots_.push_back(event);
+		} else if (barrelConfig.weaponType == WeaponType::Mine) {
+			MineDropEvent event{};
+			event.position = muzzle;
+			event.radius = barrelConfig.mineRadius;
+			event.fuseTime = barrelConfig.mineFuseTime;
+			event.lifeTime = barrelConfig.mineLifeTime;
+			event.damage = mountParam.damage;
+			event.color = barrelConfig.effectColor;
+			pendingMineDrops_.push_back(event);
+		} else if (barrelConfig.weaponType == WeaponType::Melee) {
+			MeleeSlashEvent event{};
+			event.origin = mountBase;
+			event.direction = fireDir;
+			event.range = barrelConfig.meleeRange;
+			event.arcDeg = barrelConfig.meleeArcDeg;
+			event.width = barrelConfig.meleeWidth;
+			event.duration = barrelConfig.meleeDuration;
+			event.damage = mountParam.damage;
+			event.color = barrelConfig.effectColor;
+			pendingMeleeSlashes_.push_back(event);
+		} else {
+			mountParam.bulletSpeed *= barrelConfig.projectileSpeedScale;
+			attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
+			SpawnCasing();
+		}
 		if (index < barrels_.size()) {
 			barrels_[index].recoilOffset = 0.22f;
 		}
-		SpawnCasing();
 	}
 
 	bulletCoolTime = baseReload * config.reloadScale;
@@ -2824,14 +2926,29 @@ void Player::DrawPlayerClassEditor()
 			relayoutBarrels |= ImGui::DragFloat("角度", &barrel.angleDeg, 0.1f, -180.0f, 180.0f);
 			ImGui::DragFloat("銃口の前方オフセット", &barrel.muzzleForward, 0.01f, -2.0f, 5.0f);
 			ImGui::Checkbox("マウントを有効化", &barrel.fires);
-			const char* weaponTypeNames[] = { "Projectile", "Laser (準備中)", "Mine (準備中)", "Drone (準備中)", "Melee (準備中)" };
+			const char* weaponTypeNames[] = { "Projectile", "Laser", "Mine", "Drone (準備中)", "Melee" };
 			int weaponTypeIndex = static_cast<int>(barrel.weaponType);
 			if (ImGui::Combo("武器種", &weaponTypeIndex, weaponTypeNames, IM_ARRAYSIZE(weaponTypeNames))) {
 				barrel.weaponType = static_cast<WeaponType>((std::clamp)(weaponTypeIndex, 0, 4));
 			}
-			if (barrel.weaponType != WeaponType::Projectile) {
+			if (barrel.weaponType == WeaponType::Laser) {
+				ImGui::DragFloat("レーザー射程", &barrel.laserRange, 0.1f, 0.5f, 80.0f);
+				ImGui::DragFloat("レーザー太さ", &barrel.laserWidth, 0.005f, 0.02f, 2.0f);
+				ImGui::DragFloat("レーザー表示時間", &barrel.laserDuration, 0.005f, 0.01f, 1.0f);
+				ImGui::DragFloat("レーザーダメージ間隔", &barrel.laserDamageInterval, 0.005f, 0.01f, 1.0f);
+			} else if (barrel.weaponType == WeaponType::Mine) {
+				ImGui::DragFloat("地雷爆発半径", &barrel.mineRadius, 0.05f, 0.2f, 20.0f);
+				ImGui::DragFloat("地雷起爆待ち", &barrel.mineFuseTime, 0.01f, 0.0f, 5.0f);
+				ImGui::DragFloat("地雷寿命", &barrel.mineLifeTime, 0.05f, 0.2f, 30.0f);
+			} else if (barrel.weaponType == WeaponType::Melee) {
+				ImGui::DragFloat("近接射程", &barrel.meleeRange, 0.05f, 0.3f, 12.0f);
+				ImGui::DragFloat("近接角度", &barrel.meleeArcDeg, 0.5f, 5.0f, 360.0f);
+				ImGui::DragFloat("近接線幅", &barrel.meleeWidth, 0.005f, 0.02f, 1.0f);
+				ImGui::DragFloat("近接表示時間", &barrel.meleeDuration, 0.005f, 0.03f, 1.0f);
+			} else if (barrel.weaponType != WeaponType::Projectile) {
 				ImGui::TextDisabled("この武器種は次の実装段階まで発射されません。");
 			}
+			ImGui::ColorEdit4("エフェクト色", &barrel.effectColor.x);
 			ImGui::DragFloat("マウント威力倍率", &barrel.damageScale, 0.01f, 0.0f, 20.0f);
 			ImGui::DragFloat("マウント弾速倍率", &barrel.projectileSpeedScale, 0.01f, 0.01f, 10.0f);
 			if (ImGui::Button("複製")) {

@@ -99,6 +99,34 @@ public:
 		float minReloadSpeed = 3.0f;
 		bool healToFull = false;
 	};
+	struct LaserShotEvent {
+		Vector3 origin{};
+		Vector3 direction{ 1.0f, 0.0f, 0.0f };
+		float range = 18.0f;
+		float width = 0.18f;
+		float duration = 0.12f;
+		float damageInterval = 0.08f;
+		uint32_t damage = 1;
+		Vector4 color{ 0.25f, 1.0f, 0.95f, 1.0f };
+	};
+	struct MineDropEvent {
+		Vector3 position{};
+		float radius = 3.2f;
+		float fuseTime = 0.45f;
+		float lifeTime = 5.0f;
+		uint32_t damage = 1;
+		Vector4 color{ 1.0f, 0.25f, 0.95f, 1.0f };
+	};
+	struct MeleeSlashEvent {
+		Vector3 origin{};
+		Vector3 direction{ 1.0f, 0.0f, 0.0f };
+		float range = 3.4f;
+		float arcDeg = 105.0f;
+		float width = 0.20f;
+		float duration = 0.18f;
+		uint32_t damage = 1;
+		Vector4 color{ 0.55f, 1.25f, 1.0f, 1.0f };
+	};
 
 	/// <summary>
 	/// デストラクタ
@@ -248,6 +276,9 @@ public:
 	};
 	const UiProfileStats& GetUpgradeHudProfileStats() const { return upgradeHudProfile_; }
 	const UiProfileStats& GetEvolutionUiProfileStats() const { return evolutionUiProfile_; }
+	std::vector<LaserShotEvent> ConsumeLaserShotEvents();
+	std::vector<MineDropEvent> ConsumeMineDropEvents();
+	std::vector<MeleeSlashEvent> ConsumeMeleeSlashEvents();
 
 	int GetRankFromLevel(int level);
 
@@ -349,6 +380,9 @@ private:
 
 	// プレイヤーのドローン
 	std::vector<std::unique_ptr<PlayerDrone>> drones_;
+	std::vector<LaserShotEvent> pendingLaserShots_;
+	std::vector<MineDropEvent> pendingMineDrops_;
+	std::vector<MeleeSlashEvent> pendingMeleeSlashes_;
 
 	// プレイヤーの経験値とレベル
 	int exp_ = 0;

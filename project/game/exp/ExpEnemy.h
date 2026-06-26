@@ -67,6 +67,7 @@ public:
     int GetHp() const { return hp_; }
     int GetMaxHp() const { return maxHp_; }
     void SetHp(int hp) { hp_ = hp; maxHp_ = hp; }
+    bool TakeDamageFromPlayer(uint32_t amount);
     bool TakeDamageFromEnemy(uint32_t amount);
     void RefreshCollisionMask();
 

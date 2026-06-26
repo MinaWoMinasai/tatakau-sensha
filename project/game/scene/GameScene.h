@@ -29,6 +29,7 @@
 #include "ObjectPostEffect.h"
 #include "RingManager.h"
 #include "NeonGridRenderer.h"
+#include "TrailManager.h"
 #include "Skybox.h"
 #include "game/level/LevelLoader.h"
 
@@ -172,6 +173,21 @@ private:
 	void QueueActorNeonBillboards(const Vector3& cameraRight, const Vector3& cameraUp, bool drawBodies = true, bool drawBarrels = true);
 	void DrawActorNeonBodyFillPass();
 	void UpdatePlayerNeonAfterimages(float deltaTime);
+	struct PlayerMeleeSlash;
+	void SpawnPlayerLaser(const Player::LaserShotEvent& event);
+	void UpdatePlayerLasers(float deltaTime);
+	void QueuePlayerLasers(const Vector3& cameraForward);
+	void SpawnPlayerMine(const Player::MineDropEvent& event);
+	void UpdatePlayerMines(float deltaTime);
+	void DetonatePlayerMine(size_t index);
+	void QueuePlayerMines(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward);
+	void SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event);
+	void UpdatePlayerMeleeSlashes(float deltaTime);
+	void QueuePlayerMeleeSlashes();
+	TrailConfig MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale = 1.0f) const;
+	void ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, Vector3& base, Vector3& tip) const;
+	void UpdateNeonTriangleParticles(float deltaTime);
+	void QueueNeonTriangleParticles(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward);
 	bool IsNearCamera2D(const Vector3& worldPos, float halfWidth, float halfHeight, float margin = 0.0f) const;
 	void ResetPostProfileEntries();
 	void AddPostProfileEntry(const char* name, float ms, bool active);
@@ -268,6 +284,7 @@ private:
 	std::unique_ptr<CollisionManager> collisionManager_;
 	std::unique_ptr<RingManager> collisionDebugRingManager_;
 	std::unique_ptr<NeonGridRenderer> neonGridRenderer_;
+	std::unique_ptr<TrailManager> playerMeleeTrailManager_;
 	std::unique_ptr<Skybox> skybox_;
 	std::unique_ptr<ObjectPostEffect> neonGridPostEffect_;
 	std::unique_ptr<ObjectPostEffect> bulletTrailPostEffect_;
@@ -435,6 +452,59 @@ private:
 		float life = 0.0f;
 	};
 	std::vector<PlayerNeonAfterimage> playerNeonAfterimages_;
+	struct PlayerLaserBeam {
+		Vector3 start{};
+		Vector3 end{};
+		float width = 0.18f;
+		float life = 0.0f;
+		float maxLife = 0.12f;
+		Vector4 color{ 0.25f, 1.0f, 0.95f, 1.0f };
+	};
+	std::vector<PlayerLaserBeam> playerLaserBeams_;
+	struct PlayerMine {
+		Vector3 position{};
+		float radius = 3.2f;
+		float fuse = 0.45f;
+		float life = 5.0f;
+		float maxLife = 5.0f;
+		uint32_t damage = 1;
+		float rotation = 0.0f;
+		Vector4 color{ 1.0f, 0.25f, 0.95f, 1.0f };
+	};
+	std::vector<PlayerMine> playerMines_;
+	struct PlayerMineExplosion {
+		Vector3 position{};
+		float radius = 3.2f;
+		float life = 0.28f;
+		float maxLife = 0.28f;
+		Vector4 color{ 1.0f, 0.25f, 0.95f, 1.0f };
+	};
+	std::vector<PlayerMineExplosion> playerMineExplosions_;
+	struct PlayerMeleeSlash {
+		Vector3 origin{};
+		Vector3 followAnchor{};
+		Vector3 direction{ 1.0f, 0.0f, 0.0f };
+		float range = 3.4f;
+		float arcDeg = 105.0f;
+		float width = 0.20f;
+		float life = 0.18f;
+		float maxLife = 0.18f;
+		Vector4 color{ 0.55f, 1.25f, 1.0f, 1.0f };
+		TrailInstance* trail = nullptr;
+	};
+	std::vector<PlayerMeleeSlash> playerMeleeSlashes_;
+	struct NeonTriangleParticle {
+		Vector3 position{};
+		Vector3 velocity{};
+		float radius = 0.35f;
+		float rotation = 0.0f;
+		float angularVelocity = 0.0f;
+		float lineWidth = 0.055f;
+		float life = 0.0f;
+		float maxLife = 0.35f;
+		Vector4 color{ 1.0f, 0.4f, 1.0f, 1.0f };
+	};
+	std::vector<NeonTriangleParticle> neonTriangleParticles_;
 	Vector3 neonTriangleDemoCenter_ = { 30.0f, 30.0f, 1.2f };
 	float neonTriangleDemoRadius_ = 2.2f;
 	float neonTriangleDemoLineWidth_ = 0.16f;

@@ -183,6 +183,7 @@ public:
 	bool IsDead() const { return isDead_; }
 	int GetHp() const { return hp_; }
 	int GetMaxHp() const { return maxHP_; }
+	void TakeDamage(uint32_t amount);
 	void SetBossAttackConfig(const BossAttackConfig& config);
 	const BossAttackConfig& GetBossAttackConfig() const { return bossAttackConfig_; }
 	void SetEnemyProgressConfig(const EnemyProgressConfig& config);

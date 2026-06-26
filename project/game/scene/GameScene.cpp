@@ -364,6 +364,32 @@ Vector3 GetActiveCameraPosition(Camera* camera, DebugCamera* debugCamera) {
 		: camera->GetTranslate();
 }
 
+float DistancePointToSegment2D(const Vector3& point, const Vector3& start, const Vector3& end, float* outT = nullptr) {
+	const Vector3 segment = end - start;
+	const Vector3 toPoint = point - start;
+	const float lengthSq = segment.x * segment.x + segment.y * segment.y;
+	float t = 0.0f;
+	if (lengthSq > 0.0001f) {
+		t = (std::clamp)((toPoint.x * segment.x + toPoint.y * segment.y) / lengthSq, 0.0f, 1.0f);
+	}
+	if (outT) {
+		*outT = t;
+	}
+	const Vector3 closest = start + segment * t;
+	const Vector3 diff = point - closest;
+	return std::sqrt(diff.x * diff.x + diff.y * diff.y);
+}
+
+Vector3 RotateVector2D(const Vector3& value, float angleRad) {
+	const float c = std::cos(angleRad);
+	const float s = std::sin(angleRad);
+	return {
+		value.x * c - value.y * s,
+		value.x * s + value.y * c,
+		value.z
+	};
+}
+
 } // namespace
 
 GameScene::GameScene() {}
@@ -641,6 +667,8 @@ void GameScene::Initialize() {
 	collisionDebugRingManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/gradationLine.png");
 	neonGridRenderer_ = std::make_unique<NeonGridRenderer>();
 	neonGridRenderer_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/white512x512.png");
+	playerMeleeTrailManager_ = std::make_unique<TrailManager>();
+	playerMeleeTrailManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), Object3dCommon::GetInstance(), "resources/white512x512.png");
 	LoadGameVisualConfig();
 
 	fade_ = std::make_unique<Fade>();
@@ -863,7 +891,20 @@ void GameScene::Update() {
 	
 	player_->SetDebugNoDamage(debugPlayerNoDamage_);
 	player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime);
+	for (const Player::LaserShotEvent& event : player_->ConsumeLaserShotEvents()) {
+		SpawnPlayerLaser(event);
+	}
+	for (const Player::MineDropEvent& event : player_->ConsumeMineDropEvents()) {
+		SpawnPlayerMine(event);
+	}
+	for (const Player::MeleeSlashEvent& event : player_->ConsumeMeleeSlashEvents()) {
+		SpawnPlayerMeleeSlash(event);
+	}
 	UpdatePlayerNeonAfterimages(baseDeltaTime);
+	UpdatePlayerLasers(baseDeltaTime);
+	UpdatePlayerMines(baseDeltaTime);
+	UpdatePlayerMeleeSlashes(baseDeltaTime);
+	UpdateNeonTriangleParticles(baseDeltaTime);
 	if (player_->IsDead() && !playerDeathShakeStarted_) {
 		playerDeathShakeStarted_ = true;
 	}
@@ -1063,6 +1104,9 @@ void GameScene::DrawPostEffect3D() {
 			profile("Trail Post", true, [&]() {
 				bulletTrailPostEffect_->BeginCapture();
 				bulletManager_->DrawTrails(vp);
+				if (playerMeleeTrailManager_) {
+					playerMeleeTrailManager_->DrawAll(vp);
+				}
 				Object3dCommon::GetInstance()->PreDraw(kNormal);
 				bulletManager_->Draw();
 				bulletTrailPostEffect_->EndCaptureAdditiveOnly();
@@ -1071,6 +1115,9 @@ void GameScene::DrawPostEffect3D() {
 		} else {
 			profile("Trail Draw", false, [&]() {
 				bulletManager_->DrawTrails(vp);
+				if (playerMeleeTrailManager_) {
+					playerMeleeTrailManager_->DrawAll(vp);
+				}
 				Object3dCommon::GetInstance()->PreDraw(kNormal);
 			});
 		}
@@ -1242,7 +1289,9 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 	}
 	const bool queueExpEnemyNeonInGridPass = expEnemyNeonRenderMode_ == 1 || expEnemyNeonRenderMode_ == 2;
 	const bool queueActorBillboards = playerNeonRenderMode_ == 1 || bossNeonRenderMode_ == 1 || !playerNeonAfterimages_.empty();
-	if (showNeonTriangleDemo_ || queueExpEnemyNeonInGridPass || queueActorBillboards) {
+	if (showNeonTriangleDemo_ || queueExpEnemyNeonInGridPass || queueActorBillboards ||
+		!playerLaserBeams_.empty() || !playerMines_.empty() || !playerMineExplosions_.empty() ||
+		!playerMeleeSlashes_.empty() || !neonTriangleParticles_.empty()) {
 		Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewMatrix()
 			: camera->GetViewMatrix();
@@ -1256,6 +1305,10 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 		if (queueActorBillboards) {
 			QueueActorNeonBillboards(cameraRight, cameraUp);
 		}
+		QueuePlayerLasers(cameraForward);
+		QueuePlayerMines(cameraRight, cameraUp, cameraForward);
+		QueuePlayerMeleeSlashes();
+		QueueNeonTriangleParticles(cameraRight, cameraUp, cameraForward);
 		if (showNeonTriangleDemo_) {
 			neonGridRenderer_->QueueBillboardTriangle(
 				neonTriangleDemoCenter_,
@@ -1453,6 +1506,493 @@ void GameScene::UpdatePlayerNeonAfterimages(float deltaTime) {
 		}
 		playerNeonAfterimages_.push_back({ player_->GetWorldPosition(), Normalize(direction), playerAfterimageLifetime_ });
 		playerAfterimageSpawnTimer_ = playerAfterimageInterval_;
+	}
+}
+
+void GameScene::SpawnPlayerLaser(const Player::LaserShotEvent& event)
+{
+	if (Length(event.direction) < 0.0001f) {
+		return;
+	}
+
+	const Vector3 direction = Normalize(event.direction);
+	float range = (std::max)(0.1f, event.range);
+	if (stage_) {
+		const float step = 0.35f;
+		for (float d = step; d <= range; d += step) {
+			const Vector3 sample = event.origin + direction * d;
+			if (stage_->IsCollisionWithAnyBlock(sample, (std::max)(0.03f, event.width * 0.35f))) {
+				range = d;
+				break;
+			}
+		}
+	}
+
+	const Vector3 end = event.origin + direction * range;
+	PlayerLaserBeam beam{};
+	beam.start = event.origin;
+	beam.end = end;
+	beam.width = (std::max)(0.02f, event.width);
+	beam.life = (std::max)(0.01f, event.duration);
+	beam.maxLife = beam.life;
+	beam.color = event.color;
+	playerLaserBeams_.push_back(beam);
+
+	bool emittedImpact = false;
+	if (enemy_ && !enemy_->IsDead()) {
+		float t = 0.0f;
+		const float distance = DistancePointToSegment2D(enemy_->GetWorldPosition(), event.origin, end, &t);
+		if (distance <= enemy_->GetRadius() + beam.width * 0.75f) {
+			enemy_->TakeDamage(event.damage);
+			ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f, event.color, 8);
+			emittedImpact = true;
+		}
+	}
+	if (enemyManager_) {
+		for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
+			if (!expEnemy || expEnemy->IsDead()) {
+				continue;
+			}
+			float t = 0.0f;
+			const float distance = DistancePointToSegment2D(expEnemy->GetWorldPosition(), event.origin, end, &t);
+			if (distance <= expEnemy->GetRadius() + beam.width * 0.75f) {
+				expEnemy->TakeDamageFromPlayer(event.damage);
+				if (!emittedImpact) {
+					ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f, event.color, 8);
+					emittedImpact = true;
+				}
+			}
+		}
+	}
+}
+
+void GameScene::UpdatePlayerLasers(float deltaTime)
+{
+	for (PlayerLaserBeam& beam : playerLaserBeams_) {
+		beam.life -= deltaTime;
+	}
+	playerLaserBeams_.erase(
+		std::remove_if(
+			playerLaserBeams_.begin(),
+			playerLaserBeams_.end(),
+			[](const PlayerLaserBeam& beam) { return beam.life <= 0.0f; }),
+		playerLaserBeams_.end());
+}
+
+void GameScene::QueuePlayerLasers(const Vector3& cameraForward)
+{
+	if (!neonGridRenderer_) {
+		return;
+	}
+
+	for (const PlayerLaserBeam& beam : playerLaserBeams_) {
+		const float t = beam.maxLife > 0.0f ? (std::clamp)(beam.life / beam.maxLife, 0.0f, 1.0f) : 0.0f;
+		Vector4 color = beam.color;
+		color.w *= t;
+		neonGridRenderer_->QueueCameraFacingLine(beam.start, beam.end, beam.width * (0.70f + 0.35f * t), color, cameraForward);
+
+		Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w };
+		neonGridRenderer_->QueueCameraFacingLine(beam.start, beam.end, beam.width * 0.32f, coreColor, cameraForward);
+	}
+}
+
+void GameScene::SpawnPlayerMine(const Player::MineDropEvent& event)
+{
+	PlayerMine mine{};
+	mine.position = event.position;
+	mine.radius = (std::max)(0.2f, event.radius);
+	mine.fuse = (std::max)(0.0f, event.fuseTime);
+	mine.life = (std::max)(0.1f, event.lifeTime);
+	mine.maxLife = mine.life;
+	mine.damage = event.damage;
+	mine.rotation = Rand(0.0f, 6.28318530718f);
+	mine.color = event.color;
+	playerMines_.push_back(mine);
+	ParticleManager::GetInstance()->EmitNeonImpactEffect(mine.position, { 0.0f, 1.0f, 0.0f }, mine.color, 5);
+}
+
+void GameScene::UpdatePlayerMines(float deltaTime)
+{
+	for (PlayerMineExplosion& explosion : playerMineExplosions_) {
+		explosion.life -= deltaTime;
+	}
+	playerMineExplosions_.erase(
+		std::remove_if(
+			playerMineExplosions_.begin(),
+			playerMineExplosions_.end(),
+			[](const PlayerMineExplosion& explosion) { return explosion.life <= 0.0f; }),
+		playerMineExplosions_.end());
+
+	for (size_t i = 0; i < playerMines_.size();) {
+		PlayerMine& mine = playerMines_[i];
+		mine.fuse -= deltaTime;
+		mine.life -= deltaTime;
+		mine.rotation += deltaTime * 2.4f;
+
+		bool shouldDetonate = mine.life <= 0.0f;
+		if (!shouldDetonate && mine.fuse <= 0.0f) {
+			if (enemy_ && !enemy_->IsDead() && Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
+				shouldDetonate = true;
+			}
+			if (!shouldDetonate && enemyManager_) {
+				for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
+					if (expEnemy && !expEnemy->IsDead() && Length(expEnemy->GetWorldPosition() - mine.position) <= mine.radius + expEnemy->GetRadius()) {
+						shouldDetonate = true;
+						break;
+					}
+				}
+			}
+		}
+
+		if (shouldDetonate) {
+			DetonatePlayerMine(i);
+			continue;
+		}
+		++i;
+	}
+}
+
+void GameScene::DetonatePlayerMine(size_t index)
+{
+	if (index >= playerMines_.size()) {
+		return;
+	}
+
+	const PlayerMine mine = playerMines_[index];
+	if (enemy_ && !enemy_->IsDead() && Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
+		enemy_->TakeDamage(mine.damage);
+	}
+	if (enemyManager_) {
+		for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
+			if (expEnemy && !expEnemy->IsDead() && Length(expEnemy->GetWorldPosition() - mine.position) <= mine.radius + expEnemy->GetRadius()) {
+				expEnemy->TakeDamageFromPlayer(mine.damage);
+			}
+		}
+	}
+
+	ParticleManager::GetInstance()->EmitNeonImpactEffect(mine.position, { 0.0f, 1.0f, 0.0f }, mine.color, 18);
+	playerMineExplosions_.push_back({ mine.position, mine.radius, 0.30f, 0.30f, mine.color });
+	playerMines_.erase(playerMines_.begin() + static_cast<std::ptrdiff_t>(index));
+}
+
+void GameScene::QueuePlayerMines(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward)
+{
+	if (!neonGridRenderer_) {
+		return;
+	}
+
+	auto queueCircle = [&](const Vector3& center, float radius, float lineWidth, const Vector4& color) {
+		const int segments = 36;
+		Vector3 previous = center + cameraRight * radius;
+		for (int i = 1; i <= segments; ++i) {
+			const float angle = 6.28318530718f * static_cast<float>(i) / static_cast<float>(segments);
+			const Vector3 current = center + (cameraRight * std::cos(angle) + cameraUp * std::sin(angle)) * radius;
+			neonGridRenderer_->QueueLine(previous, current, lineWidth, color);
+			previous = current;
+		}
+	};
+
+	for (const PlayerMineExplosion& explosion : playerMineExplosions_) {
+		const float t = explosion.maxLife > 0.0f ? (std::clamp)(explosion.life / explosion.maxLife, 0.0f, 1.0f) : 0.0f;
+		Vector4 color = explosion.color;
+		color.w *= t;
+		queueCircle(explosion.position, explosion.radius * (1.05f - t * 0.35f), 0.10f * (0.6f + t), color);
+		Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w * 0.8f };
+		queueCircle(explosion.position, explosion.radius * (0.55f + (1.0f - t) * 0.25f), 0.045f, coreColor);
+	}
+
+	for (const PlayerMine& mine : playerMines_) {
+		const float lifeRatio = mine.maxLife > 0.0f ? (std::clamp)(mine.life / mine.maxLife, 0.0f, 1.0f) : 0.0f;
+		const float armed = mine.fuse <= 0.0f ? 1.0f : 0.45f;
+		Vector4 color = mine.color;
+		const float warningPulse = 0.5f + 0.5f * std::sin(mine.rotation * (mine.fuse <= 0.0f ? 8.0f : 3.0f));
+		color.w *= (0.45f + 0.55f * armed) * (0.45f + 0.55f * lifeRatio) * (0.72f + warningPulse * 0.28f);
+		const float markerRadius = 0.42f + warningPulse * 0.12f;
+		neonGridRenderer_->QueueBillboardTriangle(mine.position, markerRadius, mine.rotation, 0.055f, color, cameraRight, cameraUp, cameraForward);
+		neonGridRenderer_->QueueBillboardTriangle(mine.position, markerRadius * 0.72f, -mine.rotation * 1.35f, 0.04f, color, cameraRight, cameraUp, cameraForward);
+
+		Vector4 rangeColor = color;
+		rangeColor.w *= mine.fuse <= 0.0f ? 0.28f : 0.14f;
+		queueCircle(mine.position, mine.radius * (0.96f + warningPulse * 0.04f), 0.035f + warningPulse * 0.02f, rangeColor);
+	}
+}
+
+TrailConfig GameScene::MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale) const
+{
+	TrailConfig config{};
+	Vector4 headColor = slash.color;
+	headColor.x *= 1.45f;
+	headColor.y *= 1.45f;
+	headColor.z *= 1.45f;
+	headColor.w *= 0.70f * alphaScale;
+	config.startColor = headColor;
+	config.endColor = {
+		slash.color.x * 0.45f,
+		slash.color.y * 0.45f,
+		slash.color.z * 0.45f,
+		0.0f
+	};
+	config.interpolationSteps = 5;
+	config.maxPoints = 18;
+	config.lifetime = (std::max)(0.10f, slash.maxLife * 1.25f);
+	config.startWidthScale = 1.0f;
+	config.endWidthScale = 0.08f;
+	config.widthCurvePower = 0.80f;
+	config.colorCurvePower = 0.65f;
+	return config;
+}
+
+void GameScene::ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, Vector3& base, Vector3& tip) const
+{
+	constexpr float kPi = 3.1415926535f;
+	const float x = (std::clamp)(progress, 0.0f, 1.0f);
+	const float eased = x * x * (3.0f - 2.0f * x);
+	const float halfArc = slash.arcDeg * 0.5f * kPi / 180.0f;
+	const Vector3 bladeDir = RotateVector2D(slash.direction, -halfArc + halfArc * 2.0f * eased);
+	const Vector3 hilt = slash.origin - slash.direction * (slash.range * 0.08f);
+	base = hilt + bladeDir * (slash.range * 0.06f);
+	tip = hilt + bladeDir * (slash.range * (0.92f + x * 0.08f));
+}
+
+void GameScene::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event)
+{
+	if (Length(event.direction) < 0.0001f) {
+		return;
+	}
+
+	PlayerMeleeSlash slash{};
+	slash.origin = event.origin;
+	slash.followAnchor = player_ ? player_->GetWorldPosition() : event.origin;
+	slash.direction = Normalize(event.direction);
+	slash.range = (std::max)(0.3f, event.range);
+	slash.arcDeg = (std::clamp)(event.arcDeg, 5.0f, 360.0f);
+	slash.width = (std::max)(0.02f, event.width);
+	slash.life = (std::max)(0.03f, event.duration);
+	slash.maxLife = slash.life;
+	slash.color = event.color;
+	if (playerMeleeTrailManager_) {
+		slash.trail = playerMeleeTrailManager_->CreateInstance();
+		slash.trail->SetIsPermanent(false);
+		slash.trail->SetActive(true);
+		slash.trail->SetConfig(MakePlayerMeleeTrailConfig(slash));
+		for (int i = 0; i < 4; ++i) {
+			Vector3 base{};
+			Vector3 tip{};
+			ComputePlayerMeleeBladeSection(slash, static_cast<float>(i) * 0.025f, base, tip);
+			slash.trail->Update(0.0f, tip, base, MakePlayerMeleeTrailConfig(slash));
+		}
+	}
+	playerMeleeSlashes_.push_back(slash);
+
+	const float halfArcRad = slash.arcDeg * 0.5f * 3.1415926535f / 180.0f;
+	const float minDot = slash.arcDeg >= 359.0f ? -1.0f : std::cos(halfArcRad);
+	auto hitTarget = [&](const Vector3& targetPos, float targetRadius) {
+		Vector3 toTarget = targetPos - slash.origin;
+		toTarget.z = 0.0f;
+		const float distance = Length(toTarget);
+		if (distance <= 0.0001f) {
+			return true;
+		}
+		if (distance > slash.range + targetRadius) {
+			return false;
+		}
+		return Dot(Normalize(toTarget), slash.direction) >= minDot;
+	};
+
+	if (enemy_ && !enemy_->IsDead() && hitTarget(enemy_->GetWorldPosition(), enemy_->GetRadius())) {
+		enemy_->TakeDamage(event.damage);
+		ParticleManager::GetInstance()->EmitNeonImpactEffect(enemy_->GetWorldPosition(), slash.direction * -1.0f, event.color, 10);
+	}
+	if (enemyManager_) {
+		for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
+			if (expEnemy && !expEnemy->IsDead() && hitTarget(expEnemy->GetWorldPosition(), expEnemy->GetRadius())) {
+				expEnemy->TakeDamageFromPlayer(event.damage);
+				ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(), slash.direction * -1.0f, event.color, 8);
+			}
+		}
+	}
+}
+
+void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
+{
+	const bool canFollowPlayer = player_ != nullptr;
+	const Vector3 playerPosition = canFollowPlayer ? player_->GetWorldPosition() : Vector3{};
+	for (PlayerMeleeSlash& slash : playerMeleeSlashes_) {
+		if (canFollowPlayer) {
+			Vector3 followDelta = playerPosition - slash.followAnchor;
+			followDelta.z = 0.0f;
+			slash.origin += followDelta;
+			slash.followAnchor = playerPosition;
+		}
+		slash.life -= deltaTime;
+		if (slash.life > 0.0f && slash.trail) {
+			const float progress = 1.0f - (slash.maxLife > 0.0f ? (std::clamp)(slash.life / slash.maxLife, 0.0f, 1.0f) : 0.0f);
+			Vector3 base{};
+			Vector3 tip{};
+			ComputePlayerMeleeBladeSection(slash, progress, base, tip);
+			slash.trail->Update(deltaTime, tip, base, MakePlayerMeleeTrailConfig(slash));
+		} else if (slash.trail) {
+			slash.trail->SetActive(false);
+			slash.trail = nullptr;
+		}
+	}
+	playerMeleeSlashes_.erase(
+		std::remove_if(
+			playerMeleeSlashes_.begin(),
+			playerMeleeSlashes_.end(),
+			[](const PlayerMeleeSlash& slash) { return slash.life <= 0.0f; }),
+		playerMeleeSlashes_.end());
+	if (playerMeleeTrailManager_) {
+		playerMeleeTrailManager_->Update(deltaTime);
+	}
+}
+
+void GameScene::QueuePlayerMeleeSlashes()
+{
+	if (!neonGridRenderer_) {
+		return;
+	}
+
+	constexpr float kPi = 3.1415926535f;
+	auto smoothStep = [](float value) {
+		const float x = (std::clamp)(value, 0.0f, 1.0f);
+		return x * x * (3.0f - 2.0f * x);
+	};
+	auto directionAt = [&](const PlayerMeleeSlash& slash, float progress) {
+		const float halfArc = slash.arcDeg * 0.5f * kPi / 180.0f;
+		const float angle = -halfArc + halfArc * 2.0f * smoothStep(progress);
+		return RotateVector2D(slash.direction, angle);
+	};
+	auto queueBlade = [&](const Vector3& hilt, const Vector3& bladeDir, float length, float width, const Vector4& color, float coreAlpha) {
+		const Vector3 tip = hilt + bladeDir * length;
+		Vector4 outerColor = color;
+		outerColor.x *= 1.20f;
+		outerColor.y *= 1.20f;
+		outerColor.z *= 1.20f;
+		outerColor.w *= 0.30f;
+		neonGridRenderer_->QueueLine(hilt, tip, width * 2.35f, outerColor);
+
+		Vector4 haloColor = color;
+		haloColor.x *= 1.35f;
+		haloColor.y *= 1.35f;
+		haloColor.z *= 1.35f;
+		haloColor.w *= 0.78f;
+		neonGridRenderer_->QueueLine(hilt + bladeDir * (length * 0.03f), tip, width * 1.05f, haloColor);
+
+		Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w * coreAlpha };
+		neonGridRenderer_->QueueLine(hilt + bladeDir * (length * 0.08f), tip, width * 0.26f, coreColor);
+
+		const Vector3 guardRight = { -bladeDir.y, bladeDir.x, 0.0f };
+		Vector4 guardColor = color;
+		guardColor.w *= 0.62f;
+		neonGridRenderer_->QueueLine(
+			hilt - guardRight * (width * 1.9f),
+			hilt + guardRight * (width * 1.9f),
+			width * 0.42f,
+			guardColor);
+
+		Vector4 tipColor = color;
+		tipColor.w *= 0.58f;
+		neonGridRenderer_->QueueLine(tip - guardRight * (width * 0.90f), tip + guardRight * (width * 0.90f), width * 0.34f, tipColor);
+	};
+	auto queueTipTrail = [&](const PlayerMeleeSlash& slash, const Vector3& hilt, float startProgress, float endProgress, const Vector4& color) {
+		const int segments = 12;
+		Vector3 previous = hilt + directionAt(slash, startProgress) * slash.range;
+		for (int i = 1; i <= segments; ++i) {
+			const float localT = static_cast<float>(i) / static_cast<float>(segments);
+			const float progress = startProgress + (endProgress - startProgress) * localT;
+			const Vector3 current = hilt + directionAt(slash, progress) * slash.range;
+			Vector4 segmentColor = color;
+			segmentColor.w *= localT * 0.72f;
+			neonGridRenderer_->QueueLine(previous, current, slash.width * (0.55f + localT * 0.55f), segmentColor);
+
+			Vector4 coreColor = { 1.0f, 1.0f, 1.0f, segmentColor.w * 0.55f };
+			neonGridRenderer_->QueueLine(previous, current, slash.width * (0.10f + localT * 0.12f), coreColor);
+			previous = current;
+		}
+	};
+
+	for (const PlayerMeleeSlash& slash : playerMeleeSlashes_) {
+		const float t = slash.maxLife > 0.0f ? (std::clamp)(slash.life / slash.maxLife, 0.0f, 1.0f) : 0.0f;
+		const float progress = 1.0f - t;
+		const Vector3 hilt = slash.origin - slash.direction * (slash.range * 0.08f);
+		Vector4 color = slash.color;
+		color.x *= 1.18f;
+		color.y *= 1.18f;
+		color.z *= 1.18f;
+		color.w *= (0.25f + t * 0.75f);
+
+		const Vector3 bladeDir = directionAt(slash, progress);
+		queueTipTrail(slash, hilt, (std::max)(0.0f, progress - 0.42f), progress, color);
+
+		for (int i = 4; i >= 1; --i) {
+			const float sampleProgress = progress - static_cast<float>(i) * 0.085f;
+			if (sampleProgress < 0.0f) {
+				continue;
+			}
+			Vector4 afterColor = slash.color;
+			afterColor.x *= 1.08f;
+			afterColor.y *= 1.08f;
+			afterColor.z *= 1.08f;
+			afterColor.w *= t * (0.10f + 0.07f * static_cast<float>(5 - i));
+			const float afterLength = slash.range * (0.78f + 0.04f * static_cast<float>(5 - i));
+			queueBlade(hilt, directionAt(slash, sampleProgress), afterLength, slash.width * 0.46f, afterColor, 0.20f);
+		}
+
+		queueBlade(hilt, bladeDir, slash.range * (0.92f + progress * 0.08f), slash.width, color, 0.94f);
+	}
+}
+
+void GameScene::UpdateNeonTriangleParticles(float deltaTime)
+{
+	for (const ParticleManager::NeonTriangleEvent& event : ParticleManager::GetInstance()->ConsumeNeonTriangleEvents()) {
+		NeonTriangleParticle particle{};
+		particle.position = event.position;
+		particle.velocity = event.velocity;
+		particle.radius = event.radius;
+		particle.rotation = event.rotation;
+		particle.angularVelocity = event.angularVelocity;
+		particle.lineWidth = event.lineWidth;
+		particle.life = (std::max)(0.01f, event.lifeTime);
+		particle.maxLife = particle.life;
+		particle.color = event.color;
+		neonTriangleParticles_.push_back(particle);
+	}
+
+	for (NeonTriangleParticle& particle : neonTriangleParticles_) {
+		particle.life -= deltaTime;
+		particle.position += particle.velocity * deltaTime;
+		particle.velocity = particle.velocity * std::pow(0.08f, deltaTime);
+		particle.rotation += particle.angularVelocity * deltaTime;
+	}
+
+	neonTriangleParticles_.erase(
+		std::remove_if(
+			neonTriangleParticles_.begin(),
+			neonTriangleParticles_.end(),
+			[](const NeonTriangleParticle& particle) { return particle.life <= 0.0f; }),
+		neonTriangleParticles_.end());
+}
+
+void GameScene::QueueNeonTriangleParticles(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward)
+{
+	if (!neonGridRenderer_) {
+		return;
+	}
+
+	for (const NeonTriangleParticle& particle : neonTriangleParticles_) {
+		const float t = particle.maxLife > 0.0f ? (std::clamp)(particle.life / particle.maxLife, 0.0f, 1.0f) : 0.0f;
+		Vector4 color = particle.color;
+		color.w *= t;
+		neonGridRenderer_->QueueBillboardTriangle(
+			particle.position,
+			particle.radius * (0.75f + 0.25f * t),
+			particle.rotation,
+			particle.lineWidth,
+			color,
+			cameraRight,
+			cameraUp,
+			cameraForward);
 	}
 }
 
