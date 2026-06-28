@@ -261,6 +261,7 @@ enum BlendMode {
 	kAdd_ObjectPost_Composite,
 	kAdd_ObjectPost_OutlineAdd,
 	kAdd_ObjectPost_BloomAdd,
+	kRandom,
 };
 
 enum Phase {
@@ -341,6 +342,10 @@ struct BloomParam
 	float dissolveNoiseScale; // 手続きノイズマスクの細かさ
 	float dissolveNoiseSpeed; // ノイズマスクの時間変化速度
 	float postEffectPadding[2];
+	float randomIntensity; // 入力画像へ乗算する乱数の強さ
+	float randomScale; // 乱数セルの細かさ
+	float randomTimeScale; // timeをSeedへ加える速度
+	float randomGrayscalePreview; // 乱数を白黒で直接表示
 };
 
 struct PointLightData {

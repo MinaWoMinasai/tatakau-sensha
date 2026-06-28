@@ -37,6 +37,9 @@
     <None Include="resources\shaders\ObjectPostComposite.PS.hlsl">
       <Filter>DirectX\shaders</Filter>
     </None>
+	<None Include="resources\shaders\Random.PS.hlsl">
+	  <Filter>DirectX\shaders</Filter>
+	</None>
     <None Include="resources\shaders\ObjectPostBloomAdd.PS.hlsl">
       <Filter>DirectX\shaders</Filter>
     </None>

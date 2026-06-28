@@ -79,6 +79,7 @@ public:
 		ObjectPost_Composite,
 		ObjectPost_OutlineAdd,
 		ObjectPost_BloomAdd,
+		Random,
 	};
 
 	struct PSO {
@@ -201,6 +202,9 @@ public:
 			break;
 		case kAdd_ObjectPost_BloomAdd:
 			return objectPostBloomAddPSO;
+			break;
+		case kRandom:
+			return randomPSO;
 			break;
 		default:
 			return objectPSO_None;
@@ -390,6 +394,7 @@ private:
 	PSO objectPostCompositePSO;
 	PSO objectPostOutlineAddPSO;
 	PSO objectPostBloomAddPSO;
+	PSO randomPSO;
 	PSO shadowPSO;
 	PSO trailPSO;
 	PSO hudRectPSO;
