@@ -33,4 +33,17 @@ struct WeaponMountConfig {
 	float meleeArcDeg = 105.0f;
 	float meleeWidth = 0.20f;
 	float meleeDuration = 0.18f;
+	float meleeComboResetTime = 0.90f;
+	float meleeCombo1DamageScale = 1.0f;
+	float meleeCombo2DamageScale = 1.0f;
+	float meleeCombo3DamageScale = 1.35f;
+	float meleeCombo1RangeScale = 1.0f;
+	float meleeCombo2RangeScale = 1.0f;
+	float meleeCombo3RangeScale = 1.18f;
+	float meleeCombo1Windup = 0.08f;
+	float meleeCombo2Windup = 0.10f;
+	float meleeCombo3Windup = 0.18f;
+	float meleeCombo1Recovery = 0.10f;
+	float meleeCombo2Recovery = 0.11f;
+	float meleeCombo3Recovery = 0.24f;
 };
