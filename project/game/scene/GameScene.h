@@ -446,6 +446,22 @@ private:
 	float playerAfterimageInterval_ = 0.045f;
 	float playerAfterimageLifetime_ = 0.30f;
 	float playerAfterimageSpawnTimer_ = 0.0f;
+	bool showPlayerIdleMeleeSaber_ = true;
+	bool enablePlayerMeleeRibbonTrail_ = false;
+	float playerIdleSaberSideOffset_ = 0.72f;
+	float playerIdleSaberForwardOffset_ = 0.18f;
+	float playerIdleSaberLength_ = 1.18f;
+	float playerIdleSaberAngleDeg_ = 58.0f;
+	float playerIdleSaberHiltLength_ = 0.24f;
+	float playerIdleSaberBladeWidth_ = 0.08f;
+	float playerIdleSaberOuterWidthScale_ = 2.65f;
+	float playerIdleSaberCoreWidthScale_ = 0.30f;
+	float playerMeleeBladeOuterWidthScale_ = 2.35f;
+	float playerMeleeBladeHaloWidthScale_ = 1.05f;
+	float playerMeleeBladeCoreWidthScale_ = 0.26f;
+	float playerMeleeTrailWidthScale_ = 1.0f;
+	float playerMeleeTrailAlphaScale_ = 1.0f;
+	float playerMeleeAfterimageAlphaScale_ = 1.0f;
 	struct PlayerNeonAfterimage {
 		Vector3 position{};
 		Vector3 direction{ 0.0f, -1.0f, 0.0f };
@@ -486,13 +502,41 @@ private:
 		Vector3 direction{ 1.0f, 0.0f, 0.0f };
 		float range = 3.4f;
 		float arcDeg = 105.0f;
+		float startAngleDeg = -52.5f;
+		float endAngleDeg = 52.5f;
+		float bladeLengthScale = 1.0f;
+		float hiltSideOffset = 0.0f;
+		float windupAngleDeg = -100.0f;
+		float returnAngleDeg = 58.0f;
 		float width = 0.20f;
+		float windupDuration = 0.08f;
+		float swingDuration = 0.18f;
+		float recoveryDuration = 0.10f;
+		float elapsed = 0.0f;
+		uint32_t damage = 1;
+		bool hitApplied = false;
 		float life = 0.18f;
 		float maxLife = 0.18f;
 		Vector4 color{ 0.55f, 1.25f, 1.0f, 1.0f };
 		TrailInstance* trail = nullptr;
 	};
+	struct MeleeComboVisualProfile {
+		float startAngleDeg = -70.0f;
+		float endAngleDeg = 45.0f;
+		float durationScale = 1.0f;
+		float bladeLengthScale = 1.0f;
+		float bladeWidthScale = 1.0f;
+		float hiltSideOffset = 0.0f;
+		float windupAngleDeg = -100.0f;
+		float returnAngleDeg = 58.0f;
+		Vector4 colorScale{ 1.0f, 1.0f, 1.0f, 1.0f };
+	};
 	std::vector<PlayerMeleeSlash> playerMeleeSlashes_;
+	std::vector<MeleeComboVisualProfile> playerMeleeComboVisuals_ = {
+		{ -75.0f, 45.0f, 0.92f, 0.96f, 0.90f, -0.04f, -105.0f, 58.0f, { 0.90f, 1.05f, 1.10f, 1.0f } },
+		{ 70.0f, -55.0f, 1.00f, 1.02f, 1.00f, 0.05f, 110.0f, 58.0f, { 1.08f, 0.94f, 1.08f, 1.0f } },
+		{ -145.0f, 135.0f, 1.28f, 1.16f, 1.30f, 0.00f, -178.0f, 58.0f, { 1.12f, 1.02f, 0.82f, 1.0f } }
+	};
 	struct NeonTriangleParticle {
 		Vector3 position{};
 		Vector3 velocity{};

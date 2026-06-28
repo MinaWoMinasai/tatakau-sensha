@@ -1104,7 +1104,7 @@ void GameScene::DrawPostEffect3D() {
 			profile("Trail Post", true, [&]() {
 				bulletTrailPostEffect_->BeginCapture();
 				bulletManager_->DrawTrails(vp);
-				if (playerMeleeTrailManager_) {
+				if (enablePlayerMeleeRibbonTrail_ && playerMeleeTrailManager_) {
 					playerMeleeTrailManager_->DrawAll(vp);
 				}
 				Object3dCommon::GetInstance()->PreDraw(kNormal);
@@ -1115,7 +1115,7 @@ void GameScene::DrawPostEffect3D() {
 		} else {
 			profile("Trail Draw", false, [&]() {
 				bulletManager_->DrawTrails(vp);
-				if (playerMeleeTrailManager_) {
+				if (enablePlayerMeleeRibbonTrail_ && playerMeleeTrailManager_) {
 					playerMeleeTrailManager_->DrawAll(vp);
 				}
 				Object3dCommon::GetInstance()->PreDraw(kNormal);
@@ -1747,11 +1747,12 @@ void GameScene::ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, fl
 	constexpr float kPi = 3.1415926535f;
 	const float x = (std::clamp)(progress, 0.0f, 1.0f);
 	const float eased = x * x * (3.0f - 2.0f * x);
-	const float halfArc = slash.arcDeg * 0.5f * kPi / 180.0f;
-	const Vector3 bladeDir = RotateVector2D(slash.direction, -halfArc + halfArc * 2.0f * eased);
-	const Vector3 hilt = slash.origin - slash.direction * (slash.range * 0.08f);
+	const float angle = (slash.startAngleDeg + (slash.endAngleDeg - slash.startAngleDeg) * eased) * kPi / 180.0f;
+	const Vector3 bladeDir = RotateVector2D(slash.direction, angle);
+	const Vector3 right = { -slash.direction.y, slash.direction.x, 0.0f };
+	const Vector3 hilt = slash.origin - slash.direction * (slash.range * 0.08f) + right * (slash.range * slash.hiltSideOffset);
 	base = hilt + bladeDir * (slash.range * 0.06f);
-	tip = hilt + bladeDir * (slash.range * (0.92f + x * 0.08f));
+	tip = hilt + bladeDir * (slash.range * slash.bladeLengthScale * (0.92f + x * 0.08f));
 }
 
 void GameScene::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event)
@@ -1767,50 +1768,31 @@ void GameScene::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event)
 	slash.range = (std::max)(0.3f, event.range);
 	slash.arcDeg = (std::clamp)(event.arcDeg, 5.0f, 360.0f);
 	slash.width = (std::max)(0.02f, event.width);
-	slash.life = (std::max)(0.03f, event.duration);
-	slash.maxLife = slash.life;
+	slash.windupDuration = (std::max)(0.0f, event.windupDuration);
+	slash.swingDuration = (std::max)(0.03f, event.duration);
+	slash.recoveryDuration = (std::max)(0.0f, event.recoveryDuration);
+	slash.damage = event.damage;
+	slash.life = slash.windupDuration + slash.swingDuration + slash.recoveryDuration;
 	slash.color = event.color;
-	if (playerMeleeTrailManager_) {
-		slash.trail = playerMeleeTrailManager_->CreateInstance();
-		slash.trail->SetIsPermanent(false);
-		slash.trail->SetActive(true);
-		slash.trail->SetConfig(MakePlayerMeleeTrailConfig(slash));
-		for (int i = 0; i < 4; ++i) {
-			Vector3 base{};
-			Vector3 tip{};
-			ComputePlayerMeleeBladeSection(slash, static_cast<float>(i) * 0.025f, base, tip);
-			slash.trail->Update(0.0f, tip, base, MakePlayerMeleeTrailConfig(slash));
-		}
+	if (!playerMeleeComboVisuals_.empty()) {
+		const size_t profileIndex = static_cast<size_t>((std::max)(0, event.comboStep)) % playerMeleeComboVisuals_.size();
+		const MeleeComboVisualProfile& profile = playerMeleeComboVisuals_[profileIndex];
+		slash.startAngleDeg = profile.startAngleDeg;
+		slash.endAngleDeg = profile.endAngleDeg;
+		slash.bladeLengthScale = (std::max)(0.05f, profile.bladeLengthScale);
+		slash.hiltSideOffset = profile.hiltSideOffset;
+		slash.windupAngleDeg = profile.windupAngleDeg;
+		slash.returnAngleDeg = profile.returnAngleDeg;
+		slash.width *= (std::max)(0.05f, profile.bladeWidthScale);
+		slash.swingDuration *= (std::max)(0.05f, profile.durationScale);
+		slash.life = slash.windupDuration + slash.swingDuration + slash.recoveryDuration;
+		slash.color.x *= profile.colorScale.x;
+		slash.color.y *= profile.colorScale.y;
+		slash.color.z *= profile.colorScale.z;
+		slash.color.w *= profile.colorScale.w;
 	}
+	slash.maxLife = slash.life;
 	playerMeleeSlashes_.push_back(slash);
-
-	const float halfArcRad = slash.arcDeg * 0.5f * 3.1415926535f / 180.0f;
-	const float minDot = slash.arcDeg >= 359.0f ? -1.0f : std::cos(halfArcRad);
-	auto hitTarget = [&](const Vector3& targetPos, float targetRadius) {
-		Vector3 toTarget = targetPos - slash.origin;
-		toTarget.z = 0.0f;
-		const float distance = Length(toTarget);
-		if (distance <= 0.0001f) {
-			return true;
-		}
-		if (distance > slash.range + targetRadius) {
-			return false;
-		}
-		return Dot(Normalize(toTarget), slash.direction) >= minDot;
-	};
-
-	if (enemy_ && !enemy_->IsDead() && hitTarget(enemy_->GetWorldPosition(), enemy_->GetRadius())) {
-		enemy_->TakeDamage(event.damage);
-		ParticleManager::GetInstance()->EmitNeonImpactEffect(enemy_->GetWorldPosition(), slash.direction * -1.0f, event.color, 10);
-	}
-	if (enemyManager_) {
-		for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
-			if (expEnemy && !expEnemy->IsDead() && hitTarget(expEnemy->GetWorldPosition(), expEnemy->GetRadius())) {
-				expEnemy->TakeDamageFromPlayer(event.damage);
-				ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(), slash.direction * -1.0f, event.color, 8);
-			}
-		}
-	}
 }
 
 void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
@@ -1824,9 +1806,42 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 			slash.origin += followDelta;
 			slash.followAnchor = playerPosition;
 		}
+		slash.elapsed += deltaTime;
 		slash.life -= deltaTime;
-		if (slash.life > 0.0f && slash.trail) {
-			const float progress = 1.0f - (slash.maxLife > 0.0f ? (std::clamp)(slash.life / slash.maxLife, 0.0f, 1.0f) : 0.0f);
+		if (!slash.hitApplied && slash.elapsed >= slash.windupDuration) {
+			slash.hitApplied = true;
+			const float halfArcRad = slash.arcDeg * 0.5f * 3.1415926535f / 180.0f;
+			const float minDot = slash.arcDeg >= 359.0f ? -1.0f : std::cos(halfArcRad);
+			auto hitTarget = [&](const Vector3& targetPos, float targetRadius) {
+				Vector3 toTarget = targetPos - slash.origin;
+				toTarget.z = 0.0f;
+				const float distance = Length(toTarget);
+				return distance <= 0.0001f ||
+					(distance <= slash.range + targetRadius && Dot(Normalize(toTarget), slash.direction) >= minDot);
+			};
+			if (enemy_ && !enemy_->IsDead() && hitTarget(enemy_->GetWorldPosition(), enemy_->GetRadius())) {
+				enemy_->TakeDamage(slash.damage);
+				ParticleManager::GetInstance()->EmitNeonImpactEffect(enemy_->GetWorldPosition(), slash.direction * -1.0f, slash.color, 10);
+			}
+			if (enemyManager_) {
+				for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
+					if (expEnemy && !expEnemy->IsDead() && hitTarget(expEnemy->GetWorldPosition(), expEnemy->GetRadius())) {
+						expEnemy->TakeDamageFromPlayer(slash.damage);
+						ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(), slash.direction * -1.0f, slash.color, 8);
+					}
+				}
+			}
+		}
+		const float swingElapsed = slash.elapsed - slash.windupDuration;
+		const bool isSwinging = swingElapsed >= 0.0f && swingElapsed < slash.swingDuration;
+		if (enablePlayerMeleeRibbonTrail_ && isSwinging && !slash.trail && playerMeleeTrailManager_) {
+			slash.trail = playerMeleeTrailManager_->CreateInstance();
+			slash.trail->SetIsPermanent(false);
+			slash.trail->SetActive(true);
+			slash.trail->SetConfig(MakePlayerMeleeTrailConfig(slash));
+		}
+		if (enablePlayerMeleeRibbonTrail_ && isSwinging && slash.trail) {
+			const float progress = (std::clamp)(swingElapsed / slash.swingDuration, 0.0f, 1.0f);
 			Vector3 base{};
 			Vector3 tip{};
 			ComputePlayerMeleeBladeSection(slash, progress, base, tip);
@@ -1842,7 +1857,7 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 			playerMeleeSlashes_.end(),
 			[](const PlayerMeleeSlash& slash) { return slash.life <= 0.0f; }),
 		playerMeleeSlashes_.end());
-	if (playerMeleeTrailManager_) {
+	if (enablePlayerMeleeRibbonTrail_ && playerMeleeTrailManager_) {
 		playerMeleeTrailManager_->Update(deltaTime);
 	}
 }
@@ -1859,8 +1874,7 @@ void GameScene::QueuePlayerMeleeSlashes()
 		return x * x * (3.0f - 2.0f * x);
 	};
 	auto directionAt = [&](const PlayerMeleeSlash& slash, float progress) {
-		const float halfArc = slash.arcDeg * 0.5f * kPi / 180.0f;
-		const float angle = -halfArc + halfArc * 2.0f * smoothStep(progress);
+		const float angle = (slash.startAngleDeg + (slash.endAngleDeg - slash.startAngleDeg) * smoothStep(progress)) * kPi / 180.0f;
 		return RotateVector2D(slash.direction, angle);
 	};
 	auto queueBlade = [&](const Vector3& hilt, const Vector3& bladeDir, float length, float width, const Vector4& color, float coreAlpha) {
@@ -1870,17 +1884,17 @@ void GameScene::QueuePlayerMeleeSlashes()
 		outerColor.y *= 1.20f;
 		outerColor.z *= 1.20f;
 		outerColor.w *= 0.30f;
-		neonGridRenderer_->QueueLine(hilt, tip, width * 2.35f, outerColor);
+		neonGridRenderer_->QueueLine(hilt, tip, width * playerMeleeBladeOuterWidthScale_, outerColor);
 
 		Vector4 haloColor = color;
 		haloColor.x *= 1.35f;
 		haloColor.y *= 1.35f;
 		haloColor.z *= 1.35f;
 		haloColor.w *= 0.78f;
-		neonGridRenderer_->QueueLine(hilt + bladeDir * (length * 0.03f), tip, width * 1.05f, haloColor);
+		neonGridRenderer_->QueueLine(hilt + bladeDir * (length * 0.03f), tip, width * playerMeleeBladeHaloWidthScale_, haloColor);
 
 		Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w * coreAlpha };
-		neonGridRenderer_->QueueLine(hilt + bladeDir * (length * 0.08f), tip, width * 0.26f, coreColor);
+		neonGridRenderer_->QueueLine(hilt + bladeDir * (length * 0.08f), tip, width * playerMeleeBladeCoreWidthScale_, coreColor);
 
 		const Vector3 guardRight = { -bladeDir.y, bladeDir.x, 0.0f };
 		Vector4 guardColor = color;
@@ -1897,36 +1911,64 @@ void GameScene::QueuePlayerMeleeSlashes()
 	};
 	auto queueTipTrail = [&](const PlayerMeleeSlash& slash, const Vector3& hilt, float startProgress, float endProgress, const Vector4& color) {
 		const int segments = 12;
-		Vector3 previous = hilt + directionAt(slash, startProgress) * slash.range;
+		Vector3 previous = hilt + directionAt(slash, startProgress) * (slash.range * slash.bladeLengthScale);
 		for (int i = 1; i <= segments; ++i) {
 			const float localT = static_cast<float>(i) / static_cast<float>(segments);
 			const float progress = startProgress + (endProgress - startProgress) * localT;
-			const Vector3 current = hilt + directionAt(slash, progress) * slash.range;
+			const Vector3 current = hilt + directionAt(slash, progress) * (slash.range * slash.bladeLengthScale);
 			Vector4 segmentColor = color;
-			segmentColor.w *= localT * 0.72f;
-			neonGridRenderer_->QueueLine(previous, current, slash.width * (0.55f + localT * 0.55f), segmentColor);
+			segmentColor.w *= localT * 0.72f * playerMeleeTrailAlphaScale_;
+			neonGridRenderer_->QueueLine(previous, current, slash.width * (0.55f + localT * 0.55f) * playerMeleeTrailWidthScale_, segmentColor);
 
 			Vector4 coreColor = { 1.0f, 1.0f, 1.0f, segmentColor.w * 0.55f };
-			neonGridRenderer_->QueueLine(previous, current, slash.width * (0.10f + localT * 0.12f), coreColor);
+			neonGridRenderer_->QueueLine(previous, current, slash.width * (0.10f + localT * 0.12f) * playerMeleeTrailWidthScale_, coreColor);
 			previous = current;
 		}
 	};
 
 	for (const PlayerMeleeSlash& slash : playerMeleeSlashes_) {
 		const float t = slash.maxLife > 0.0f ? (std::clamp)(slash.life / slash.maxLife, 0.0f, 1.0f) : 0.0f;
-		const float progress = 1.0f - t;
-		const Vector3 hilt = slash.origin - slash.direction * (slash.range * 0.08f);
+		const float swingElapsed = slash.elapsed - slash.windupDuration;
+		const bool isWindup = slash.elapsed < slash.windupDuration;
+		const bool isSwinging = !isWindup && swingElapsed < slash.swingDuration;
+		const float swingProgress = (std::clamp)(swingElapsed / slash.swingDuration, 0.0f, 1.0f);
+		float windupProgress = 1.0f;
+		float recoveryProgress = 0.0f;
+		float displayAngleDeg = slash.startAngleDeg;
+		if (isWindup) {
+			windupProgress = slash.windupDuration > 0.0f ? smoothStep(slash.elapsed / slash.windupDuration) : 1.0f;
+			displayAngleDeg = slash.windupAngleDeg + (slash.startAngleDeg - slash.windupAngleDeg) * windupProgress;
+		} else if (isSwinging) {
+			displayAngleDeg = slash.startAngleDeg + (slash.endAngleDeg - slash.startAngleDeg) * smoothStep(swingProgress);
+		} else {
+			const float recoveryElapsed = swingElapsed - slash.swingDuration;
+			recoveryProgress = slash.recoveryDuration > 0.0f ? smoothStep(recoveryElapsed / slash.recoveryDuration) : 1.0f;
+			displayAngleDeg = slash.endAngleDeg + (slash.returnAngleDeg - slash.endAngleDeg) * recoveryProgress;
+		}
+		const Vector3 right = { -slash.direction.y, slash.direction.x, 0.0f };
+		const Vector3 attackHilt = slash.origin - slash.direction * (slash.range * 0.08f) + right * (slash.range * slash.hiltSideOffset);
+		Vector3 idleHilt = slash.followAnchor +
+			slash.direction * (playerIdleSaberForwardOffset_ * playerNeonBillboardRadius_) +
+			right * (playerIdleSaberSideOffset_ * playerNeonBillboardRadius_);
+		idleHilt.z = attackHilt.z;
+		auto lerpPosition = [](const Vector3& a, const Vector3& b, float amount) {
+			return a + (b - a) * (std::clamp)(amount, 0.0f, 1.0f);
+		};
+		const Vector3 hilt = isWindup ? lerpPosition(idleHilt, attackHilt, windupProgress) :
+			(isSwinging ? attackHilt : lerpPosition(attackHilt, idleHilt, recoveryProgress));
 		Vector4 color = slash.color;
 		color.x *= 1.18f;
 		color.y *= 1.18f;
 		color.z *= 1.18f;
 		color.w *= (0.25f + t * 0.75f);
 
-		const Vector3 bladeDir = directionAt(slash, progress);
-		queueTipTrail(slash, hilt, (std::max)(0.0f, progress - 0.42f), progress, color);
+		const Vector3 bladeDir = RotateVector2D(slash.direction, displayAngleDeg * kPi / 180.0f);
+		if (isSwinging) {
+			queueTipTrail(slash, hilt, (std::max)(0.0f, swingProgress - 0.42f), swingProgress, color);
+		}
 
-		for (int i = 4; i >= 1; --i) {
-			const float sampleProgress = progress - static_cast<float>(i) * 0.085f;
+		for (int i = 4; isSwinging && i >= 1; --i) {
+			const float sampleProgress = swingProgress - static_cast<float>(i) * 0.085f;
 			if (sampleProgress < 0.0f) {
 				continue;
 			}
@@ -1934,12 +1976,13 @@ void GameScene::QueuePlayerMeleeSlashes()
 			afterColor.x *= 1.08f;
 			afterColor.y *= 1.08f;
 			afterColor.z *= 1.08f;
-			afterColor.w *= t * (0.10f + 0.07f * static_cast<float>(5 - i));
-			const float afterLength = slash.range * (0.78f + 0.04f * static_cast<float>(5 - i));
+			afterColor.w *= t * (0.10f + 0.07f * static_cast<float>(5 - i)) * playerMeleeAfterimageAlphaScale_;
+			const float afterLength = slash.range * slash.bladeLengthScale * (0.78f + 0.04f * static_cast<float>(5 - i));
 			queueBlade(hilt, directionAt(slash, sampleProgress), afterLength, slash.width * 0.46f, afterColor, 0.20f);
 		}
 
-		queueBlade(hilt, bladeDir, slash.range * (0.92f + progress * 0.08f), slash.width, color, 0.94f);
+		const float motionLengthScale = isWindup ? 0.86f : (isSwinging ? 0.92f + swingProgress * 0.08f : 1.0f);
+		queueBlade(hilt, bladeDir, slash.range * slash.bladeLengthScale * motionLengthScale, slash.width, color, 0.94f);
 	}
 }
 
@@ -2024,7 +2067,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		return Vector3{ direction.x * c - direction.y * s, direction.x * s + direction.y * c, direction.z };
 	};
 
-	auto queueTankBillboard = [&](const Vector3& center, const Vector3& direction, float radius, float lineWidth, const Vector4& color, const std::vector<Player::NeonBarrelLayout>* barrelLayouts) {
+	auto queueTankBillboard = [&](const Vector3& center, const Vector3& direction, float radius, float lineWidth, const Vector4& color, const std::vector<Player::NeonBarrelLayout>* barrelLayouts, bool allowIdleMeleeSaber) {
 		constexpr float kTwoPi = 6.28318530718f;
 		constexpr int kSegments = 24;
 		if (drawBodies) {
@@ -2048,7 +2091,58 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		const Vector3 mainForward = cameraRight * std::sin(mainRotation) + cameraUp * -std::cos(mainRotation);
 		const Vector3 mainRight = cameraRight * std::cos(mainRotation) + cameraUp * std::sin(mainRotation);
 
+		auto queueIdleMeleeSaber = [&](const Player::NeonBarrelLayout& layout) {
+			if (!allowIdleMeleeSaber || !showPlayerIdleMeleeSaber_ || !playerMeleeSlashes_.empty()) {
+				return;
+			}
+			const float sideSign = layout.offset.y < -0.05f ? -1.0f : 1.0f;
+			const float angle = playerIdleSaberAngleDeg_ * 3.1415926535f / 180.0f * sideSign;
+			const Vector3 saberDir = Normalize(mainForward * std::cos(angle) + mainRight * std::sin(angle));
+			const Vector3 saberRight = Normalize(mainRight * std::cos(angle) - mainForward * std::sin(angle));
+			const Vector3 hiltCenter =
+				center +
+				mainForward * (playerIdleSaberForwardOffset_ * radius) +
+				mainRight * (playerIdleSaberSideOffset_ * radius * sideSign) +
+				Vector3{ 0.0f, 0.0f, layout.offset.z };
+			const float bladeLength = (std::max)(0.05f, playerIdleSaberLength_) * radius;
+			const float bladeWidth = (std::max)(0.005f, playerIdleSaberBladeWidth_) * radius;
+			const float hiltLength = (std::max)(0.02f, playerIdleSaberHiltLength_) * radius;
+			const Vector3 hiltBase = hiltCenter - saberDir * (hiltLength * 0.45f);
+			const Vector3 bladeBase = hiltCenter + saberDir * (hiltLength * 0.42f);
+			const Vector3 bladeTip = bladeBase + saberDir * bladeLength;
+
+			Vector4 hiltColor = color;
+			hiltColor.w *= 0.88f;
+			neonGridRenderer_->QueueLine(hiltBase, bladeBase, bladeWidth * 0.72f, hiltColor);
+			neonGridRenderer_->QueueLine(
+				hiltCenter - saberRight * (bladeWidth * 1.55f),
+				hiltCenter + saberRight * (bladeWidth * 1.55f),
+				bladeWidth * 0.42f,
+				hiltColor);
+
+			Vector4 outerColor = color;
+			outerColor.x *= 1.20f;
+			outerColor.y *= 1.20f;
+			outerColor.z *= 1.20f;
+			outerColor.w *= 0.28f;
+			neonGridRenderer_->QueueLine(bladeBase, bladeTip, bladeWidth * playerIdleSaberOuterWidthScale_, outerColor);
+
+			Vector4 haloColor = color;
+			haloColor.x *= 1.35f;
+			haloColor.y *= 1.35f;
+			haloColor.z *= 1.35f;
+			haloColor.w *= 0.78f;
+			neonGridRenderer_->QueueLine(bladeBase + saberDir * (bladeLength * 0.03f), bladeTip, bladeWidth, haloColor);
+
+			Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w * 0.82f };
+			neonGridRenderer_->QueueLine(bladeBase + saberDir * (bladeLength * 0.08f), bladeTip, bladeWidth * playerIdleSaberCoreWidthScale_, coreColor);
+		};
+
 		auto queueBarrel = [&](const Player::NeonBarrelLayout& layout) {
+			if (layout.isMelee) {
+				queueIdleMeleeSaber(layout);
+				return;
+			}
 			const Vector3 barrelDirection = Normalize(rotateDirection(mainDirection, layout.angleRad));
 			const float barrelRotation = directionToRotation(barrelDirection);
 			const Vector3 barrelForward = cameraRight * std::sin(barrelRotation) + cameraUp * -std::cos(barrelRotation);
@@ -2086,7 +2180,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		Vector4 color = playerGridColor_;
 		color.w *= playerAfterimageAlpha_ * lifeRatio;
 		const float radius = playerNeonBillboardRadius_ * (0.88f + lifeRatio * 0.12f);
-		queueTankBillboard(afterimage.position + Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBarrels);
+		queueTankBillboard(afterimage.position + Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBarrels, false);
 	}
 
 	if (playerNeonRenderMode_ == 1 && player_ && !player_->IsDead()) {
@@ -2097,7 +2191,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		if (player_->IsDashing()) {
 			color.w *= playerDashCurrentAlpha_;
 		}
-		queueTankBillboard(player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBarrels);
+		queueTankBillboard(player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBarrels, true);
 	}
 	if (bossNeonRenderMode_ == 1 && enemy_ && !enemy_->IsDead()) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
@@ -2108,7 +2202,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		bossBarrel.scale = { bossNeonBarrelLengthScale_, bossNeonBarrelWidthScale_, bossNeonBarrelWidthScale_ };
 		bossBarrel.angleRad = bossNeonBarrelAngleDeg_ * 3.1415926535f / 180.0f;
 		const std::vector<Player::NeonBarrelLayout> bossBarrels = { bossBarrel };
-		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &bossBarrels);
+		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &bossBarrels, false);
 	}
 }
 
@@ -3189,6 +3283,22 @@ nlohmann::json GameScene::BuildGameVisualConfig() const
 		{ "playerAfterimageAlpha", playerAfterimageAlpha_ },
 		{ "playerAfterimageInterval", playerAfterimageInterval_ },
 		{ "playerAfterimageLifetime", playerAfterimageLifetime_ },
+		{ "showPlayerIdleMeleeSaber", showPlayerIdleMeleeSaber_ },
+		{ "enablePlayerMeleeRibbonTrail", enablePlayerMeleeRibbonTrail_ },
+		{ "playerIdleSaberSideOffset", playerIdleSaberSideOffset_ },
+		{ "playerIdleSaberForwardOffset", playerIdleSaberForwardOffset_ },
+		{ "playerIdleSaberLength", playerIdleSaberLength_ },
+		{ "playerIdleSaberAngleDeg", playerIdleSaberAngleDeg_ },
+		{ "playerIdleSaberHiltLength", playerIdleSaberHiltLength_ },
+		{ "playerIdleSaberBladeWidth", playerIdleSaberBladeWidth_ },
+		{ "playerIdleSaberOuterWidthScale", playerIdleSaberOuterWidthScale_ },
+		{ "playerIdleSaberCoreWidthScale", playerIdleSaberCoreWidthScale_ },
+		{ "playerMeleeBladeOuterWidthScale", playerMeleeBladeOuterWidthScale_ },
+		{ "playerMeleeBladeHaloWidthScale", playerMeleeBladeHaloWidthScale_ },
+		{ "playerMeleeBladeCoreWidthScale", playerMeleeBladeCoreWidthScale_ },
+		{ "playerMeleeTrailWidthScale", playerMeleeTrailWidthScale_ },
+		{ "playerMeleeTrailAlphaScale", playerMeleeTrailAlphaScale_ },
+		{ "playerMeleeAfterimageAlphaScale", playerMeleeAfterimageAlphaScale_ },
 		{ "showTriangleDemo", showNeonTriangleDemo_ },
 		{ "triangleCenter", WriteJsonVector3(neonTriangleDemoCenter_) },
 		{ "triangleRadius", neonTriangleDemoRadius_ },
@@ -3196,6 +3306,20 @@ nlohmann::json GameScene::BuildGameVisualConfig() const
 		{ "triangleRotateSpeed", neonTriangleDemoRotateSpeed_ },
 		{ "triangleColor", WriteJsonVector4(neonTriangleDemoColor_) }
 	};
+	config["neonGrid"]["meleeComboVisuals"] = nlohmann::json::array();
+	for (const MeleeComboVisualProfile& profile : playerMeleeComboVisuals_) {
+		config["neonGrid"]["meleeComboVisuals"].push_back({
+			{ "startAngleDeg", profile.startAngleDeg },
+			{ "endAngleDeg", profile.endAngleDeg },
+			{ "durationScale", profile.durationScale },
+			{ "bladeLengthScale", profile.bladeLengthScale },
+			{ "bladeWidthScale", profile.bladeWidthScale },
+			{ "hiltSideOffset", profile.hiltSideOffset },
+			{ "windupAngleDeg", profile.windupAngleDeg },
+			{ "returnAngleDeg", profile.returnAngleDeg },
+			{ "colorScale", WriteJsonVector4(profile.colorScale) }
+		});
+	}
 	if (bulletManager_) {
 		config["bulletTrail"] = WriteBulletTrailSettingsJson(bulletManager_->GetTrailSettings());
 	}
@@ -3263,6 +3387,44 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 		playerAfterimageAlpha_ = ReadCustomFloat(gridJson, "playerAfterimageAlpha", playerAfterimageAlpha_);
 		playerAfterimageInterval_ = (std::max)(0.01f, ReadCustomFloat(gridJson, "playerAfterimageInterval", playerAfterimageInterval_));
 		playerAfterimageLifetime_ = (std::max)(0.05f, ReadCustomFloat(gridJson, "playerAfterimageLifetime", playerAfterimageLifetime_));
+		showPlayerIdleMeleeSaber_ = ReadCustomBool(gridJson, "showPlayerIdleMeleeSaber", showPlayerIdleMeleeSaber_);
+		enablePlayerMeleeRibbonTrail_ = ReadCustomBool(gridJson, "enablePlayerMeleeRibbonTrail", enablePlayerMeleeRibbonTrail_);
+		playerIdleSaberSideOffset_ = ReadCustomFloat(gridJson, "playerIdleSaberSideOffset", playerIdleSaberSideOffset_);
+		playerIdleSaberForwardOffset_ = ReadCustomFloat(gridJson, "playerIdleSaberForwardOffset", playerIdleSaberForwardOffset_);
+		playerIdleSaberLength_ = (std::max)(0.05f, ReadCustomFloat(gridJson, "playerIdleSaberLength", playerIdleSaberLength_));
+		playerIdleSaberAngleDeg_ = ReadCustomFloat(gridJson, "playerIdleSaberAngleDeg", playerIdleSaberAngleDeg_);
+		playerIdleSaberHiltLength_ = (std::max)(0.02f, ReadCustomFloat(gridJson, "playerIdleSaberHiltLength", playerIdleSaberHiltLength_));
+		playerIdleSaberBladeWidth_ = (std::max)(0.005f, ReadCustomFloat(gridJson, "playerIdleSaberBladeWidth", playerIdleSaberBladeWidth_));
+		playerIdleSaberOuterWidthScale_ = (std::max)(0.05f, ReadCustomFloat(gridJson, "playerIdleSaberOuterWidthScale", playerIdleSaberOuterWidthScale_));
+		playerIdleSaberCoreWidthScale_ = (std::max)(0.01f, ReadCustomFloat(gridJson, "playerIdleSaberCoreWidthScale", playerIdleSaberCoreWidthScale_));
+		playerMeleeBladeOuterWidthScale_ = (std::max)(0.05f, ReadCustomFloat(gridJson, "playerMeleeBladeOuterWidthScale", playerMeleeBladeOuterWidthScale_));
+		playerMeleeBladeHaloWidthScale_ = (std::max)(0.05f, ReadCustomFloat(gridJson, "playerMeleeBladeHaloWidthScale", playerMeleeBladeHaloWidthScale_));
+		playerMeleeBladeCoreWidthScale_ = (std::max)(0.01f, ReadCustomFloat(gridJson, "playerMeleeBladeCoreWidthScale", playerMeleeBladeCoreWidthScale_));
+		playerMeleeTrailWidthScale_ = (std::max)(0.05f, ReadCustomFloat(gridJson, "playerMeleeTrailWidthScale", playerMeleeTrailWidthScale_));
+		playerMeleeTrailAlphaScale_ = (std::max)(0.0f, ReadCustomFloat(gridJson, "playerMeleeTrailAlphaScale", playerMeleeTrailAlphaScale_));
+		playerMeleeAfterimageAlphaScale_ = (std::max)(0.0f, ReadCustomFloat(gridJson, "playerMeleeAfterimageAlphaScale", playerMeleeAfterimageAlphaScale_));
+		if (gridJson.contains("meleeComboVisuals") && gridJson["meleeComboVisuals"].is_array()) {
+			std::vector<MeleeComboVisualProfile> loadedProfiles;
+			for (const nlohmann::json& profileJson : gridJson["meleeComboVisuals"]) {
+				if (!profileJson.is_object()) {
+					continue;
+				}
+				MeleeComboVisualProfile profile{};
+				profile.startAngleDeg = ReadCustomFloat(profileJson, "startAngleDeg", profile.startAngleDeg);
+				profile.endAngleDeg = ReadCustomFloat(profileJson, "endAngleDeg", profile.endAngleDeg);
+				profile.durationScale = (std::max)(0.05f, ReadCustomFloat(profileJson, "durationScale", profile.durationScale));
+				profile.bladeLengthScale = (std::max)(0.05f, ReadCustomFloat(profileJson, "bladeLengthScale", profile.bladeLengthScale));
+				profile.bladeWidthScale = (std::max)(0.05f, ReadCustomFloat(profileJson, "bladeWidthScale", profile.bladeWidthScale));
+				profile.hiltSideOffset = ReadCustomFloat(profileJson, "hiltSideOffset", profile.hiltSideOffset);
+				profile.windupAngleDeg = ReadCustomFloat(profileJson, "windupAngleDeg", profile.windupAngleDeg);
+				profile.returnAngleDeg = ReadCustomFloat(profileJson, "returnAngleDeg", profile.returnAngleDeg);
+				if (profileJson.contains("colorScale")) profile.colorScale = ReadJsonVector4(profileJson["colorScale"], profile.colorScale);
+				loadedProfiles.push_back(profile);
+			}
+			if (!loadedProfiles.empty()) {
+				playerMeleeComboVisuals_ = std::move(loadedProfiles);
+			}
+		}
 		showNeonTriangleDemo_ = ReadCustomBool(gridJson, "showTriangleDemo", showNeonTriangleDemo_);
 		if (gridJson.contains("triangleCenter")) neonTriangleDemoCenter_ = ReadJsonVector3(gridJson["triangleCenter"], neonTriangleDemoCenter_);
 		neonTriangleDemoRadius_ = ReadCustomFloat(gridJson, "triangleRadius", neonTriangleDemoRadius_);
@@ -3459,6 +3621,44 @@ void GameScene::DrawGameSceneDebugImGui()
 				ImGui::SliderFloat("残像の濃度", &playerAfterimageAlpha_, 0.05f, 1.0f);
 				ImGui::DragFloat("残像の生成間隔", &playerAfterimageInterval_, 0.005f, 0.01f, 0.25f);
 				ImGui::DragFloat("残像の寿命", &playerAfterimageLifetime_, 0.01f, 0.05f, 1.0f);
+				ImGui::SeparatorText("プレイヤー近接剣");
+				ImGui::Checkbox("待機中の剣を表示", &showPlayerIdleMeleeSaber_);
+				ImGui::Checkbox("攻撃中のリボン軌跡を表示", &enablePlayerMeleeRibbonTrail_);
+				ImGui::DragFloat("待機剣 横位置", &playerIdleSaberSideOffset_, 0.01f, -2.0f, 2.0f);
+				ImGui::DragFloat("待機剣 前後位置", &playerIdleSaberForwardOffset_, 0.01f, -2.0f, 2.0f);
+				ImGui::DragFloat("待機剣 長さ", &playerIdleSaberLength_, 0.01f, 0.05f, 4.0f);
+				ImGui::DragFloat("待機剣 角度", &playerIdleSaberAngleDeg_, 0.25f, -180.0f, 180.0f);
+				ImGui::DragFloat("待機剣 柄の長さ", &playerIdleSaberHiltLength_, 0.01f, 0.02f, 1.0f);
+				ImGui::DragFloat("待機剣 刃の基準幅", &playerIdleSaberBladeWidth_, 0.005f, 0.005f, 0.5f);
+				ImGui::DragFloat("待機剣 外光幅倍率", &playerIdleSaberOuterWidthScale_, 0.01f, 0.05f, 8.0f);
+				ImGui::DragFloat("待機剣 芯幅倍率", &playerIdleSaberCoreWidthScale_, 0.01f, 0.01f, 2.0f);
+				ImGui::DragFloat("攻撃剣 外光幅倍率", &playerMeleeBladeOuterWidthScale_, 0.01f, 0.05f, 8.0f);
+				ImGui::DragFloat("攻撃剣 発光幅倍率", &playerMeleeBladeHaloWidthScale_, 0.01f, 0.05f, 4.0f);
+				ImGui::DragFloat("攻撃剣 芯幅倍率", &playerMeleeBladeCoreWidthScale_, 0.01f, 0.01f, 2.0f);
+				ImGui::DragFloat("攻撃軌跡 太さ倍率", &playerMeleeTrailWidthScale_, 0.01f, 0.05f, 5.0f);
+				ImGui::DragFloat("攻撃軌跡 濃度倍率", &playerMeleeTrailAlphaScale_, 0.01f, 0.0f, 5.0f);
+				ImGui::DragFloat("攻撃残像 濃度倍率", &playerMeleeAfterimageAlphaScale_, 0.01f, 0.0f, 5.0f);
+				if (ImGui::TreeNode("コンボ段ごとの軌道")) {
+					for (size_t i = 0; i < playerMeleeComboVisuals_.size(); ++i) {
+						MeleeComboVisualProfile& profile = playerMeleeComboVisuals_[i];
+						ImGui::PushID(static_cast<int>(i));
+						const std::string label = std::to_string(i + 1) + "段目";
+						if (ImGui::TreeNode(label.c_str())) {
+							ImGui::DragFloat("開始角度", &profile.startAngleDeg, 0.5f, -360.0f, 360.0f);
+							ImGui::DragFloat("終了角度", &profile.endAngleDeg, 0.5f, -360.0f, 360.0f);
+							ImGui::DragFloat("演出時間倍率", &profile.durationScale, 0.01f, 0.05f, 3.0f);
+							ImGui::DragFloat("刃の長さ倍率", &profile.bladeLengthScale, 0.01f, 0.05f, 3.0f);
+							ImGui::DragFloat("刃の太さ倍率", &profile.bladeWidthScale, 0.01f, 0.05f, 3.0f);
+							ImGui::DragFloat("柄の横位置", &profile.hiltSideOffset, 0.005f, -1.0f, 1.0f);
+							ImGui::DragFloat("振りかぶり角度", &profile.windupAngleDeg, 0.5f, -360.0f, 360.0f);
+							ImGui::DragFloat("戻り先角度", &profile.returnAngleDeg, 0.5f, -360.0f, 360.0f);
+							ImGui::ColorEdit4("色倍率", &profile.colorScale.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
+							ImGui::TreePop();
+						}
+						ImGui::PopID();
+					}
+					ImGui::TreePop();
+				}
 				ImGui::SeparatorText("ネオン三角形デモ");
 				ImGui::Checkbox("ネオン三角形デモを表示", &showNeonTriangleDemo_);
 				ImGui::DragFloat3("ネオン三角形 位置", &neonTriangleDemoCenter_.x, 0.05f);
