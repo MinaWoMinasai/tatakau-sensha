@@ -132,6 +132,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 		case ObjectPost_Composite: pso.psFilePath_ = L"resources/shaders/ObjectPostComposite.PS.hlsl"; break;
 		case ObjectPost_OutlineAdd: pso.psFilePath_ = L"resources/shaders/ObjectPostOutlineAdd.PS.hlsl"; break;
 		case ObjectPost_BloomAdd: pso.psFilePath_ = L"resources/shaders/ObjectPostBloomAdd.PS.hlsl"; break;
+		case Random: pso.psFilePath_ = L"resources/shaders/Random.PS.hlsl"; break;
 		}
 		break;
 	case Trail:
@@ -343,6 +344,7 @@ void DirectXCommon::CreateShader()
 	objectPostCompositePSO.shaderType_ = PostEffect;
 	objectPostOutlineAddPSO.shaderType_ = PostEffect;
 	objectPostBloomAddPSO.shaderType_ = PostEffect;
+	randomPSO.shaderType_ = PostEffect;
 	downsamplePSO.shaderType_ = PostEffect;
 	shadowPSO.shaderType_ = Shadow;
 	trailPSO.shaderType_ = Trail;
@@ -359,6 +361,7 @@ void DirectXCommon::CreateShader()
 	objectPostCompositePSO.postEffectType_ = ObjectPost_Composite;
 	objectPostOutlineAddPSO.postEffectType_ = ObjectPost_OutlineAdd;
 	objectPostBloomAddPSO.postEffectType_ = ObjectPost_BloomAdd;
+	randomPSO.postEffectType_ = Random;
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
 
 	CreateShaderCommon(objectPSO_None, kNone);
@@ -378,6 +381,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(objectPostCompositePSO, kNormal);
 	CreateShaderCommon(objectPostOutlineAddPSO, kAdd);
 	CreateShaderCommon(objectPostBloomAddPSO, kAdd);
+	CreateShaderCommon(randomPSO, kNone);
 	CreateShaderCommon(downsamplePSO, kNone);
 	CreateShaderCommon(shadowPSO, kShadow);
 	CreateShaderCommon(trailPSO, kAdd);
@@ -1130,6 +1134,13 @@ void DirectXCommon::Release() {
 	}
 	conpositePSO.pixelShaderBlob_->Release();
 	conpositePSO.vertexShaderBlob_->Release();
+
+	randomPSO.root_.GetSignatureBlob()->Release();
+	if (randomPSO.root_.GetErrorBlob()) {
+		randomPSO.root_.GetErrorBlob()->Release();
+	}
+	randomPSO.pixelShaderBlob_->Release();
+	randomPSO.vertexShaderBlob_->Release();
 
 	trailPSO.root_.GetSignatureBlob()->Release();
 	if (trailPSO.root_.GetErrorBlob()) {

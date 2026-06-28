@@ -64,6 +64,13 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         false
     );
 
+	// Random課題用の独立した全画面パス。入力画像へGPU乱数を乗算する。
+	randomRT_ = std::make_unique<RenderTexture>();
+	randomRT_->Initialize(
+		dxCommon_, srvManager_, rtvManager_,
+		WinApp::kClientWidth, WinApp::kClientHeight,
+		{ 0.0f, 0.0f, 0.0f, 1.0f }, false);
+
     // ブルームパラメータ
     bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 0.0f;
@@ -96,6 +103,10 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
 	bloomParam_.dissolveEdgeWidth = 0.03f;
 	bloomParam_.dissolveNoiseScale = 100.0f;
 	bloomParam_.dissolveNoiseSpeed = 0.0f;
+	bloomParam_.randomIntensity = 0.0f;
+	bloomParam_.randomScale = 160.0f;
+	bloomParam_.randomTimeScale = 8.0f;
+	bloomParam_.randomGrayscalePreview = 0.0f;
 
    /* bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 1.2f;
@@ -161,6 +172,16 @@ void Bloom::Update() {
 	ImGui::DragFloat("Dissolve Noise Scale", &bloomParam_.dissolveNoiseScale, 1.0f, 1.0f, 400.0f);
 	ImGui::DragFloat("Dissolve Noise Speed", &bloomParam_.dissolveNoiseSpeed, 0.01f, 0.0f, 10.0f);
 
+	ImGui::Separator();
+	ImGui::Text("Random GPU Noise (CG5_00_09)");
+	bool randomPreview = bloomParam_.randomGrayscalePreview > 0.5f;
+	if (ImGui::Checkbox("Random Grayscale Preview", &randomPreview)) {
+		bloomParam_.randomGrayscalePreview = randomPreview ? 1.0f : 0.0f;
+	}
+	ImGui::DragFloat("Random Multiply Intensity", &bloomParam_.randomIntensity, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Random Scale", &bloomParam_.randomScale, 1.0f, 1.0f, 1000.0f);
+	ImGui::DragFloat("Random Time Seed Speed", &bloomParam_.randomTimeScale, 0.1f, 0.0f, 60.0f);
+
     // --- Outline (アウトライン) ---
     ImGui::DragFloat("Outline Width", &bloomParam_.outlineWidth, 0.1f, 0.0f, 10.0f);
     ImGui::DragFloat("Outline Threshold", &bloomParam_.outlineThreshold, 0.01f, 0.0f, 2.0f);
@@ -207,6 +228,10 @@ void Bloom::Update() {
 		bloomParam_.dissolveEdgeWidth = 0.03f;
 		bloomParam_.dissolveNoiseScale = 100.0f;
 		bloomParam_.dissolveNoiseSpeed = 0.0f;
+		bloomParam_.randomIntensity = 0.0f;
+		bloomParam_.randomScale = 160.0f;
+		bloomParam_.randomTimeScale = 8.0f;
+		bloomParam_.randomGrayscalePreview = 0.0f;
         bloomParam_.outlineWidth = 0.0f;
         bloomParam_.outlineThreshold = 0.5f;
         bloomParam_.outlineColor = { 1.0f, 1.0f, 1.0f };
@@ -294,6 +319,18 @@ void Bloom::PostDraw() {
     Transition(sceneRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     Transition(sceneRT_->GetDepthResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
+	D3D12_GPU_DESCRIPTOR_HANDLE sceneSource = sceneRT_->GetGPUHandle();
+	const bool useRandomPass = bloomParam_.randomGrayscalePreview > 0.5f || bloomParam_.randomIntensity > 0.0f;
+	if (useRandomPass) {
+		Transition(randomRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		dxCommon_->SetRenderTargetNoDepth(randomRT_->GetRTVHandle());
+		dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+		dxCommon_->ClearRenderTarget(randomRT_->GetRTVHandle());
+		postEffect_->Draw(sceneRT_->GetGPUHandle(), kRandom);
+		Transition(randomRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		sceneSource = randomRT_->GetGPUHandle();
+	}
+
     // --- B. 抽出パス (SceneRT -> BloomHalf) ---
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
@@ -302,9 +339,9 @@ void Bloom::PostDraw() {
 
     // Full-screen smoothing modes skip bright-pass extraction and blur the whole scene.
     if (bloomParam_.gaussianIntensity > 0.0f || bloomParam_.fullScreenBoxBlurBlend > 0.0f) {
-        postEffect_->Draw(sceneRT_->GetGPUHandle(), kAdd_Bloom_Downsample);
+        postEffect_->Draw(sceneSource, kAdd_Bloom_Downsample);
     } else {
-        postEffect_->Draw(sceneRT_->GetGPUHandle(), kAdd_Bloom_Extract);
+        postEffect_->Draw(sceneSource, kAdd_Bloom_Extract);
     }
 
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -334,7 +371,7 @@ void Bloom::PostDraw() {
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
     // 最終的に DrawComposite で HLSL 側のメイン処理が走ります
-    postEffect_->DrawComposite(sceneRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle(), sceneRT_->GetDepthGPUHandle());
+    postEffect_->DrawComposite(sceneSource, bloomRT_A_->GetGPUHandle(), sceneRT_->GetDepthGPUHandle());
 }
 
 void Bloom::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
