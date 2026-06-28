@@ -33,6 +33,7 @@ private:
     std::unique_ptr<RenderTexture> bloomRT_Half_;
     std::unique_ptr<RenderTexture> bloomRT_A_;
     std::unique_ptr<RenderTexture> bloomRT_B_;
+	std::unique_ptr<RenderTexture> randomRT_;
 
     // ポストエフェクト実行クラス
     std::unique_ptr<PostEffect> postEffect_;
