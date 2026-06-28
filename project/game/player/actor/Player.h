@@ -124,6 +124,9 @@ public:
 		float arcDeg = 105.0f;
 		float width = 0.20f;
 		float duration = 0.18f;
+		float windupDuration = 0.08f;
+		float recoveryDuration = 0.10f;
+		int comboStep = 0;
 		uint32_t damage = 1;
 		Vector4 color{ 0.55f, 1.25f, 1.0f, 1.0f };
 	};
@@ -216,6 +219,7 @@ public:
 		Vector3 scale{ 1.25f, 0.24f, 0.24f };
 		float angleRad = 0.0f;
 		float recoilOffset = 0.0f;
+		bool isMelee = false;
 	};
 	std::vector<NeonBarrelLayout> GetNeonBarrelLayouts() const;
 	float GetDamageFeedbackRatio() const;
@@ -383,6 +387,8 @@ private:
 	std::vector<LaserShotEvent> pendingLaserShots_;
 	std::vector<MineDropEvent> pendingMineDrops_;
 	std::vector<MeleeSlashEvent> pendingMeleeSlashes_;
+	int meleeComboStep_ = 0;
+	float meleeComboTimer_ = 0.0f;
 
 	// プレイヤーの経験値とレベル
 	int exp_ = 0;

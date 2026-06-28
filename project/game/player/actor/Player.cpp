@@ -589,6 +589,11 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 	if (damageFeedbackTimer_ > 0.0f) {
 		damageFeedbackTimer_ = (std::max)(0.0f, damageFeedbackTimer_ - deltaTime);
 	}
+	if (meleeComboTimer_ > 0.0f) {
+		meleeComboTimer_ = (std::max)(0.0f, meleeComboTimer_ - deltaTime);
+	} else {
+		meleeComboStep_ = 0;
+	}
 
 	if (dashTimer_ > 0.0f) {
 		dashTimer_ -= deltaTime;
@@ -1084,6 +1089,19 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 				barrel.meleeArcDeg = (std::clamp)(barrelJson.value("meleeArcDeg", barrel.meleeArcDeg), 5.0f, 360.0f);
 				barrel.meleeWidth = (std::max)(0.01f, barrelJson.value("meleeWidth", barrel.meleeWidth));
 				barrel.meleeDuration = (std::max)(0.01f, barrelJson.value("meleeDuration", barrel.meleeDuration));
+				barrel.meleeComboResetTime = (std::max)(0.05f, barrelJson.value("meleeComboResetTime", barrel.meleeComboResetTime));
+				barrel.meleeCombo1DamageScale = (std::max)(0.0f, barrelJson.value("meleeCombo1DamageScale", barrel.meleeCombo1DamageScale));
+				barrel.meleeCombo2DamageScale = (std::max)(0.0f, barrelJson.value("meleeCombo2DamageScale", barrel.meleeCombo2DamageScale));
+				barrel.meleeCombo3DamageScale = (std::max)(0.0f, barrelJson.value("meleeCombo3DamageScale", barrel.meleeCombo3DamageScale));
+				barrel.meleeCombo1RangeScale = (std::max)(0.05f, barrelJson.value("meleeCombo1RangeScale", barrel.meleeCombo1RangeScale));
+				barrel.meleeCombo2RangeScale = (std::max)(0.05f, barrelJson.value("meleeCombo2RangeScale", barrel.meleeCombo2RangeScale));
+				barrel.meleeCombo3RangeScale = (std::max)(0.05f, barrelJson.value("meleeCombo3RangeScale", barrel.meleeCombo3RangeScale));
+				barrel.meleeCombo1Windup = (std::max)(0.0f, barrelJson.value("meleeCombo1Windup", barrel.meleeCombo1Windup));
+				barrel.meleeCombo2Windup = (std::max)(0.0f, barrelJson.value("meleeCombo2Windup", barrel.meleeCombo2Windup));
+				barrel.meleeCombo3Windup = (std::max)(0.0f, barrelJson.value("meleeCombo3Windup", barrel.meleeCombo3Windup));
+				barrel.meleeCombo1Recovery = (std::max)(0.0f, barrelJson.value("meleeCombo1Recovery", barrel.meleeCombo1Recovery));
+				barrel.meleeCombo2Recovery = (std::max)(0.0f, barrelJson.value("meleeCombo2Recovery", barrel.meleeCombo2Recovery));
+				barrel.meleeCombo3Recovery = (std::max)(0.0f, barrelJson.value("meleeCombo3Recovery", barrel.meleeCombo3Recovery));
 				config.barrels.push_back(barrel);
 			}
 		}
@@ -1220,6 +1238,19 @@ void Player::SavePlayerClassConfigs(const std::string& path) const
 			barrelJson["meleeArcDeg"] = barrel.meleeArcDeg;
 			barrelJson["meleeWidth"] = barrel.meleeWidth;
 			barrelJson["meleeDuration"] = barrel.meleeDuration;
+			barrelJson["meleeComboResetTime"] = barrel.meleeComboResetTime;
+			barrelJson["meleeCombo1DamageScale"] = barrel.meleeCombo1DamageScale;
+			barrelJson["meleeCombo2DamageScale"] = barrel.meleeCombo2DamageScale;
+			barrelJson["meleeCombo3DamageScale"] = barrel.meleeCombo3DamageScale;
+			barrelJson["meleeCombo1RangeScale"] = barrel.meleeCombo1RangeScale;
+			barrelJson["meleeCombo2RangeScale"] = barrel.meleeCombo2RangeScale;
+			barrelJson["meleeCombo3RangeScale"] = barrel.meleeCombo3RangeScale;
+			barrelJson["meleeCombo1Windup"] = barrel.meleeCombo1Windup;
+			barrelJson["meleeCombo2Windup"] = barrel.meleeCombo2Windup;
+			barrelJson["meleeCombo3Windup"] = barrel.meleeCombo3Windup;
+			barrelJson["meleeCombo1Recovery"] = barrel.meleeCombo1Recovery;
+			barrelJson["meleeCombo2Recovery"] = barrel.meleeCombo2Recovery;
+			barrelJson["meleeCombo3Recovery"] = barrel.meleeCombo3Recovery;
 			item["weaponMounts"].push_back(barrelJson);
 		}
 		classes.push_back(item);
@@ -1330,6 +1361,24 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 
 	const Vector3 forward = Length(dir_) > 0.0001f ? Normalize(dir_) : Vector3{ 1.0f, 0.0f, 0.0f };
 	const Vector3 right = { -forward.y, forward.x, 0.0f };
+	bool firesMelee = false;
+	float meleeComboResetTime = 0.90f;
+	for (size_t index : fireIndices) {
+		if (index < config.barrels.size() && config.barrels[index].weaponType == WeaponType::Melee) {
+			firesMelee = true;
+			meleeComboResetTime = config.barrels[index].meleeComboResetTime;
+			break;
+		}
+	}
+	if (firesMelee && meleeComboTimer_ <= 0.0f) {
+		meleeComboStep_ = 0;
+	}
+	const int meleeComboStepForShot = (std::clamp)(meleeComboStep_, 0, 2);
+	float meleeActionDuration = 0.0f;
+	if (firesMelee) {
+		meleeComboStep_ = (meleeComboStepForShot + 1) % 3;
+		meleeComboTimer_ = (std::max)(0.05f, meleeComboResetTime);
+	}
 
 	for (size_t index : fireIndices) {
 		const WeaponMountConfig& barrelConfig = config.barrels[index];
@@ -1363,16 +1412,36 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 			event.color = barrelConfig.effectColor;
 			pendingMineDrops_.push_back(event);
 		} else if (barrelConfig.weaponType == WeaponType::Melee) {
+			const float meleeDamageScale =
+				meleeComboStepForShot == 0 ? barrelConfig.meleeCombo1DamageScale :
+				meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2DamageScale :
+				barrelConfig.meleeCombo3DamageScale;
+			const float meleeRangeScale =
+				meleeComboStepForShot == 0 ? barrelConfig.meleeCombo1RangeScale :
+				meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2RangeScale :
+				barrelConfig.meleeCombo3RangeScale;
+			const float meleeWindup =
+				meleeComboStepForShot == 0 ? barrelConfig.meleeCombo1Windup :
+				meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2Windup :
+				barrelConfig.meleeCombo3Windup;
+			const float meleeRecovery =
+				meleeComboStepForShot == 0 ? barrelConfig.meleeCombo1Recovery :
+				meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2Recovery :
+				barrelConfig.meleeCombo3Recovery;
 			MeleeSlashEvent event{};
 			event.origin = mountBase;
 			event.direction = fireDir;
-			event.range = barrelConfig.meleeRange;
+			event.range = barrelConfig.meleeRange * meleeRangeScale;
 			event.arcDeg = barrelConfig.meleeArcDeg;
 			event.width = barrelConfig.meleeWidth;
 			event.duration = barrelConfig.meleeDuration;
-			event.damage = mountParam.damage;
+			event.windupDuration = meleeWindup;
+			event.recoveryDuration = meleeRecovery;
+			event.damage = static_cast<uint32_t>((std::max)(1.0f, static_cast<float>(mountParam.damage) * meleeDamageScale));
 			event.color = barrelConfig.effectColor;
+			event.comboStep = meleeComboStepForShot;
 			pendingMeleeSlashes_.push_back(event);
+			meleeActionDuration = (std::max)(meleeActionDuration, meleeWindup + barrelConfig.meleeDuration + meleeRecovery);
 		} else {
 			mountParam.bulletSpeed *= barrelConfig.projectileSpeedScale;
 			attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
@@ -1383,7 +1452,7 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 		}
 	}
 
-	bulletCoolTime = baseReload * config.reloadScale;
+	bulletCoolTime = (std::max)(baseReload * config.reloadScale, meleeActionDuration);
 	recoilDir = Normalize(dir_) * -1.0f;
 	recoilPower = config.recoilPower;
 	return true;
@@ -2945,6 +3014,19 @@ void Player::DrawPlayerClassEditor()
 				ImGui::DragFloat("近接角度", &barrel.meleeArcDeg, 0.5f, 5.0f, 360.0f);
 				ImGui::DragFloat("近接線幅", &barrel.meleeWidth, 0.005f, 0.02f, 1.0f);
 				ImGui::DragFloat("近接表示時間", &barrel.meleeDuration, 0.005f, 0.03f, 1.0f);
+				ImGui::DragFloat("コンボリセット時間", &barrel.meleeComboResetTime, 0.01f, 0.05f, 3.0f);
+				ImGui::DragFloat("1段目 ダメージ倍率", &barrel.meleeCombo1DamageScale, 0.01f, 0.0f, 10.0f);
+				ImGui::DragFloat("2段目 ダメージ倍率", &barrel.meleeCombo2DamageScale, 0.01f, 0.0f, 10.0f);
+				ImGui::DragFloat("3段目 ダメージ倍率", &barrel.meleeCombo3DamageScale, 0.01f, 0.0f, 10.0f);
+				ImGui::DragFloat("1段目 射程倍率", &barrel.meleeCombo1RangeScale, 0.01f, 0.05f, 5.0f);
+				ImGui::DragFloat("2段目 射程倍率", &barrel.meleeCombo2RangeScale, 0.01f, 0.05f, 5.0f);
+				ImGui::DragFloat("3段目 射程倍率", &barrel.meleeCombo3RangeScale, 0.01f, 0.05f, 5.0f);
+				ImGui::DragFloat("1段目 予備動作", &barrel.meleeCombo1Windup, 0.005f, 0.0f, 1.5f);
+				ImGui::DragFloat("2段目 予備動作", &barrel.meleeCombo2Windup, 0.005f, 0.0f, 1.5f);
+				ImGui::DragFloat("3段目 予備動作", &barrel.meleeCombo3Windup, 0.005f, 0.0f, 1.5f);
+				ImGui::DragFloat("1段目 後隙", &barrel.meleeCombo1Recovery, 0.005f, 0.0f, 1.5f);
+				ImGui::DragFloat("2段目 後隙", &barrel.meleeCombo2Recovery, 0.005f, 0.0f, 1.5f);
+				ImGui::DragFloat("3段目 後隙", &barrel.meleeCombo3Recovery, 0.005f, 0.0f, 1.5f);
 			} else if (barrel.weaponType != WeaponType::Projectile) {
 				ImGui::TextDisabled("この武器種は次の実装段階まで発射されません。");
 			}
@@ -3179,6 +3261,7 @@ std::vector<Player::NeonBarrelLayout> Player::GetNeonBarrelLayouts() const
 		layout.offset = barrel.offset;
 		layout.scale = barrel.scale;
 		layout.angleRad = barrel.angleDeg * 3.1415926535f / 180.0f;
+		layout.isMelee = barrel.weaponType == WeaponType::Melee;
 		if (i < barrels_.size()) {
 			layout.recoilOffset = barrels_[i].recoilOffset;
 		}
