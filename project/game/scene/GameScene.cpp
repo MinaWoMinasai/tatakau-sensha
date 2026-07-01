@@ -1992,12 +1992,16 @@ void GameScene::UpdateNeonTriangleParticles(float deltaTime)
 		NeonTriangleParticle particle{};
 		particle.position = event.position;
 		particle.velocity = event.velocity;
+		particle.initialVelocity = event.velocity;
 		particle.radius = event.radius;
 		particle.rotation = event.rotation;
 		particle.angularVelocity = event.angularVelocity;
 		particle.lineWidth = event.lineWidth;
 		particle.life = (std::max)(0.01f, event.lifeTime);
 		particle.maxLife = particle.life;
+		particle.tiltRad = event.tiltRad;
+		particle.trailCopies = static_cast<int>(event.trailCopies);
+		particle.isBillboard = event.isBillboard;
 		particle.color = event.color;
 		neonTriangleParticles_.push_back(particle);
 	}
@@ -2024,18 +2028,73 @@ void GameScene::QueueNeonTriangleParticles(const Vector3& cameraRight, const Vec
 	}
 
 	for (const NeonTriangleParticle& particle : neonTriangleParticles_) {
+		auto queueParticleTriangle = [&](const Vector3& center, float radius, float rotation, float width, const Vector4& drawColor) {
+			if (particle.isBillboard) {
+				neonGridRenderer_->QueueBillboardTriangle(center, radius, rotation, width, drawColor, cameraRight, cameraUp, cameraForward);
+				return;
+			}
+			const float c = std::cos(rotation);
+			const float s = std::sin(rotation);
+			const float tiltCos = std::cos(particle.tiltRad);
+			const float tiltSin = std::sin(particle.tiltRad);
+			const Vector3 axisU = { c, s, 0.0f };
+			const Vector3 axisV = { -s * tiltCos, c * tiltCos, tiltSin };
+			Vector3 points[3]{};
+			for (int i = 0; i < 3; ++i) {
+				const float angle = -1.5707963268f + static_cast<float>(i) * 2.0943951024f;
+				points[i] = center + axisU * (std::cos(angle) * radius) + axisV * (std::sin(angle) * radius);
+			}
+			neonGridRenderer_->QueueCameraFacingLine(points[0], points[1], width, drawColor, cameraForward);
+			neonGridRenderer_->QueueCameraFacingLine(points[1], points[2], width, drawColor, cameraForward);
+			neonGridRenderer_->QueueCameraFacingLine(points[2], points[0], width, drawColor, cameraForward);
+		};
 		const float t = particle.maxLife > 0.0f ? (std::clamp)(particle.life / particle.maxLife, 0.0f, 1.0f) : 0.0f;
+		const float age = 1.0f - t;
+		const float birth = (std::clamp)(age / 0.18f, 0.0f, 1.0f);
+		const float scale = neonParticleTriangleBirthScale_ + (1.0f - neonParticleTriangleBirthScale_) * (1.0f - (1.0f - birth) * (1.0f - birth));
 		Vector4 color = particle.color;
-		color.w *= t;
-		neonGridRenderer_->QueueBillboardTriangle(
+		color.x *= neonParticleTriangleBrightness_;
+		color.y *= neonParticleTriangleBrightness_;
+		color.z *= neonParticleTriangleBrightness_;
+		color.w *= t * (0.45f + birth * 0.55f);
+		Vector3 trailDirection{};
+		if (Length(particle.initialVelocity) > 0.0001f) {
+			trailDirection = Normalize(particle.initialVelocity);
+		}
+		const int trailCopies = (std::min)(neonParticleTriangleTrailCopies_, particle.trailCopies);
+		for (int copy = trailCopies; copy >= 1; --copy) {
+			const float copyRatio = static_cast<float>(copy) / static_cast<float>((std::max)(1, trailCopies));
+			Vector4 trailColor = color;
+			trailColor.w *= (1.0f - copyRatio * 0.72f) * 0.30f;
+			queueParticleTriangle(
+				particle.position - trailDirection * (particle.radius * neonParticleTriangleTrailSpacing_ * static_cast<float>(copy)),
+				particle.radius * scale * (1.0f - copyRatio * 0.12f),
+				particle.rotation - particle.angularVelocity * 0.018f * static_cast<float>(copy),
+				particle.lineWidth * 0.72f,
+				trailColor);
+		}
+
+		Vector4 glowColor = color;
+		glowColor.w *= 0.18f;
+		queueParticleTriangle(
 			particle.position,
-			particle.radius * (0.75f + 0.25f * t),
+			particle.radius * scale,
+			particle.rotation,
+			particle.lineWidth * neonParticleTriangleGlowWidthScale_,
+			glowColor);
+		queueParticleTriangle(
+			particle.position,
+			particle.radius * scale,
 			particle.rotation,
 			particle.lineWidth,
-			color,
-			cameraRight,
-			cameraUp,
-			cameraForward);
+			color);
+		Vector4 coreColor = { 2.0f, 2.0f, 2.0f, color.w * 0.82f };
+		queueParticleTriangle(
+			particle.position,
+			particle.radius * scale,
+			particle.rotation,
+			particle.lineWidth * neonParticleTriangleCoreWidthScale_,
+			coreColor);
 	}
 }
 
@@ -3246,6 +3305,13 @@ nlohmann::json GameScene::BuildGameVisualConfig() const
 		{ "actorLineWidth", actorGridLineWidth_ },
 		{ "lineSoftEdgeRatio", neonLineSoftEdgeRatio_ },
 		{ "lineCoreIntensity", neonLineCoreIntensity_ },
+		{ "particleTriangleGlowWidthScale", neonParticleTriangleGlowWidthScale_ },
+		{ "particleTriangleCoreWidthScale", neonParticleTriangleCoreWidthScale_ },
+		{ "particleTriangleBrightness", neonParticleTriangleBrightness_ },
+		{ "particleTriangleTrailSpacing", neonParticleTriangleTrailSpacing_ },
+		{ "particleTriangleBirthScale", neonParticleTriangleBirthScale_ },
+		{ "particleTriangleTrailCopies", neonParticleTriangleTrailCopies_ },
+		{ "triangleEffectMode", neonTriangleEffectMode_ },
 		{ "playerColor", WriteJsonVector4(playerGridColor_) },
 		{ "bossEnemyColor", WriteJsonVector4(enemyGridColor_) },
 		{ "expEnemyColor", WriteJsonVector4(expEnemyGridColor_) },
@@ -3343,6 +3409,14 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 		actorGridLineWidth_ = ReadCustomFloat(gridJson, "actorLineWidth", actorGridLineWidth_);
 		neonLineSoftEdgeRatio_ = ReadCustomFloat(gridJson, "lineSoftEdgeRatio", neonLineSoftEdgeRatio_);
 		neonLineCoreIntensity_ = ReadCustomFloat(gridJson, "lineCoreIntensity", neonLineCoreIntensity_);
+		neonParticleTriangleGlowWidthScale_ = (std::max)(1.0f, ReadCustomFloat(gridJson, "particleTriangleGlowWidthScale", neonParticleTriangleGlowWidthScale_));
+		neonParticleTriangleCoreWidthScale_ = (std::max)(0.01f, ReadCustomFloat(gridJson, "particleTriangleCoreWidthScale", neonParticleTriangleCoreWidthScale_));
+		neonParticleTriangleBrightness_ = (std::max)(0.0f, ReadCustomFloat(gridJson, "particleTriangleBrightness", neonParticleTriangleBrightness_));
+		neonParticleTriangleTrailSpacing_ = (std::max)(0.0f, ReadCustomFloat(gridJson, "particleTriangleTrailSpacing", neonParticleTriangleTrailSpacing_));
+		neonParticleTriangleBirthScale_ = (std::clamp)(ReadCustomFloat(gridJson, "particleTriangleBirthScale", neonParticleTriangleBirthScale_), 0.05f, 1.0f);
+		neonParticleTriangleTrailCopies_ = (std::clamp)(ReadCustomInt(gridJson, "particleTriangleTrailCopies", neonParticleTriangleTrailCopies_), 0, 8);
+		neonTriangleEffectMode_ = (std::clamp)(ReadCustomInt(gridJson, "triangleEffectMode", neonTriangleEffectMode_), 0, 2);
+		ParticleManager::GetInstance()->SetNeonTriangleEffectMode(static_cast<ParticleManager::NeonTriangleEffectMode>(neonTriangleEffectMode_));
 		if (gridJson.contains("playerColor")) playerGridColor_ = ReadJsonVector4(gridJson["playerColor"], playerGridColor_);
 		if (gridJson.contains("bossEnemyColor")) enemyGridColor_ = ReadJsonVector4(gridJson["bossEnemyColor"], enemyGridColor_);
 		if (gridJson.contains("expEnemyColor")) expEnemyGridColor_ = ReadJsonVector4(gridJson["expEnemyColor"], expEnemyGridColor_);
@@ -3503,6 +3577,7 @@ void GameScene::DrawGameSceneDebugImGui()
 			DrawPerformanceBreakdownImGui();
 			ImGui::Separator();
 			ImGui::Checkbox("追従HPバーを表示", &showFollowHpBars_);
+			ImGui::Checkbox("プレイヤースタミナバーを表示", &showPlayerStaminaBar_);
 			ImGui::Checkbox("当たり判定を表示 (F7)", &showCollisionDebug_);
 			ImGui::Checkbox("弾の当たり判定も表示", &showCollisionDebugBullets_);
 			ImGui::Checkbox("弾HP/貫通力ラベルを表示", &showBulletStatusDebugOverlay_);
@@ -3570,6 +3645,22 @@ void GameScene::DrawGameSceneDebugImGui()
 				ImGui::DragFloat("キャラ周辺グリッド線幅", &actorGridLineWidth_, 0.005f, 0.005f, 0.5f);
 				ImGui::DragFloat("ネオンライン外縁フェード", &neonLineSoftEdgeRatio_, 0.01f, 0.0f, 0.95f);
 				ImGui::DragFloat("ネオンライン芯の明るさ", &neonLineCoreIntensity_, 0.01f, 0.0f, 3.0f);
+				ImGui::SeparatorText("ネオン三角形パーティクル");
+				const char* triangleEffectModes[] = { "枠線ネオン", "旧モデル粒子", "ハイブリッド" };
+				if (ImGui::Combo("三角形演出方式", &neonTriangleEffectMode_, triangleEffectModes, IM_ARRAYSIZE(triangleEffectModes))) {
+					ParticleManager::GetInstance()->SetNeonTriangleEffectMode(static_cast<ParticleManager::NeonTriangleEffectMode>(neonTriangleEffectMode_));
+				}
+				bool useGpuParticleUpdate = ParticleManager::GetInstance()->IsUseGpuUpdate();
+				if (ImGui::Checkbox("GPUパーティクル更新", &useGpuParticleUpdate)) {
+					ParticleManager::GetInstance()->SetUseGpuUpdate(useGpuParticleUpdate);
+				}
+				ImGui::TextDisabled("OFF: 旧CPU行列生成（枠線比較用）");
+				ImGui::DragFloat("三角形 外光幅倍率", &neonParticleTriangleGlowWidthScale_, 0.05f, 1.0f, 8.0f);
+				ImGui::DragFloat("三角形 白芯幅倍率", &neonParticleTriangleCoreWidthScale_, 0.01f, 0.01f, 1.0f);
+				ImGui::DragFloat("三角形 発光強度", &neonParticleTriangleBrightness_, 0.05f, 0.0f, 5.0f);
+				ImGui::DragInt("三角形 残像数", &neonParticleTriangleTrailCopies_, 1.0f, 0, 8);
+				ImGui::DragFloat("三角形 残像間隔", &neonParticleTriangleTrailSpacing_, 0.01f, 0.0f, 2.0f);
+				ImGui::DragFloat("三角形 出現時サイズ", &neonParticleTriangleBirthScale_, 0.01f, 0.05f, 1.0f);
 				ImGui::ColorEdit4("プレイヤーグリッド色", &playerGridColor_.x);
 				ImGui::ColorEdit4("ボスグリッド色", &enemyGridColor_.x);
 				ImGui::ColorEdit4("経験値敵グリッド色", &expEnemyGridColor_.x);
@@ -4296,6 +4387,10 @@ void GameScene::DrawSprite() {
 	if (showFollowHpBars_) {
 		if (!player_->IsDead()) {
 			DrawFollowHpBar(player_.get(), player_->GetWorldPosition(), player_->GetHp(), player_->GetMaxHp(), 58.0f, -1.55f);
+			if (showPlayerStaminaBar_) {
+				const Player::PlayerStats& stats = player_->GetStats();
+				DrawFollowStaminaBar(player_->GetWorldPosition(), stats.stamina, stats.maxStamina, 54.0f, -1.83f);
+			}
 		}
 		for (PlayerDrone* drone : player_->GetDronePtrs()) {
 			if (drone && !drone->IsDead()) {
@@ -4447,6 +4542,34 @@ void GameScene::DrawFollowHpBar(const void* ownerKey, const Vector3& worldPos, i
 		{ fillWidth, innerHeight }
 	);
 	QueueHpBarQuad(hpBarOutlineVertices_[alphaBucket], screenPos, { width, height });
+}
+
+void GameScene::DrawFollowStaminaBar(const Vector3& worldPos, float stamina, float maxStamina, float width, float yOffset) {
+	if (maxStamina <= 0.0f) {
+		return;
+	}
+	const float ratio = (std::clamp)(stamina / maxStamina, 0.0f, 1.0f);
+	const Vector2 screenPos = WorldToScreen(worldPos + Vector3{ 0.0f, yOffset, 0.0f });
+	const float kCullMargin = 80.0f;
+	if (screenPos.x < -kCullMargin || screenPos.x > WinApp::kClientWidth + kCullMargin ||
+		screenPos.y < -kCullMargin || screenPos.y > WinApp::kClientHeight + kCullMargin) {
+		return;
+	}
+
+	const float height = 7.0f;
+	const float inset = 2.0f;
+	const float innerWidth = (std::max)(1.0f, width - inset * 2.0f);
+	const float innerHeight = (std::max)(1.0f, height - inset * 2.0f);
+	const float fillWidth = innerWidth * ratio;
+	constexpr size_t kOpaqueBucket = 3;
+	QueueHpBarQuad(hpBarBackgroundVertices_[kOpaqueBucket], screenPos, { innerWidth, innerHeight });
+	if (fillWidth > 0.0f) {
+		QueueHpBarQuad(
+			hpBarFillVertices_[kOpaqueBucket],
+			{ screenPos.x - innerWidth * 0.5f + fillWidth * 0.5f, screenPos.y },
+			{ fillWidth, innerHeight });
+	}
+	QueueHpBarQuad(hpBarOutlineVertices_[kOpaqueBucket], screenPos, { width, height });
 }
 
 void GameScene::QueueHpBarQuad(std::vector<VertexData>& vertices, const Vector2& center, const Vector2& size) {

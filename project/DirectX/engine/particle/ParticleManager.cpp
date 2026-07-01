@@ -138,7 +138,7 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     srvManager_->CreateUAVforStructuredBuffer(uavIndexFreeList_, freeListResource_.Get(), kMaxInstance, sizeof(uint32_t));
 
     // 3. 間接描画 (Indirect Args)
-    drawArgsResource_ = dxCommon_->CreateUAVBufferResource(sizeof(D3D12_DRAW_ARGUMENTS), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    drawArgsResource_ = dxCommon_->CreateUAVBufferResource(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     uavIndexDrawArgs_ = srvManager_->Allocate();
     srvManager_->CreateUAVforRawBuffer(uavIndexDrawArgs_, drawArgsResource_.Get());
 
@@ -171,12 +171,13 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     memcpy(pReset, &zero, 4);
     resetResource_->Unmap(0, nullptr);
 
-    drawArgsInitResource_ = dxCommon_->CreateBufferResource(sizeof(D3D12_DRAW_ARGUMENTS));
-    D3D12_DRAW_ARGUMENTS* drawArgs = nullptr;
+    drawArgsInitResource_ = dxCommon_->CreateBufferResource(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
+    D3D12_DRAW_INDEXED_ARGUMENTS* drawArgs = nullptr;
     drawArgsInitResource_->Map(0, nullptr, reinterpret_cast<void**>(&drawArgs));
-    drawArgs->VertexCountPerInstance = static_cast<UINT>(model_->GetModelData().vertices.size());
+    drawArgs->IndexCountPerInstance = static_cast<UINT>(model_->GetModelData().indices.size());
     drawArgs->InstanceCount = 0;
-    drawArgs->StartVertexLocation = 0;
+    drawArgs->StartIndexLocation = 0;
+    drawArgs->BaseVertexLocation = 0;
     drawArgs->StartInstanceLocation = 0;
     drawArgsInitResource_->Unmap(0, nullptr);
     ResetDrawArgs();
@@ -190,9 +191,9 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
 
     // コマンドシグネチャ
     D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
-    argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+    argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
     D3D12_COMMAND_SIGNATURE_DESC sigDesc{};
-    sigDesc.ByteStride = static_cast<UINT>(sizeof(D3D12_DRAW_ARGUMENTS));
+    sigDesc.ByteStride = static_cast<UINT>(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
     sigDesc.NumArgumentDescs = 1;
     sigDesc.pArgumentDescs = &argDesc;
     device->CreateCommandSignature(&sigDesc, nullptr, IID_PPV_ARGS(&commandSignature_));
@@ -546,7 +547,9 @@ void ParticleManager::Transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES
 void ParticleManager::ResetDrawArgs() {
     auto commandList = dxCommon_->GetList();
     Transition(drawArgsResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
-    commandList->CopyBufferRegion(drawArgsResource_.Get(), 0, drawArgsInitResource_.Get(), 0, sizeof(D3D12_DRAW_ARGUMENTS));
+    commandList->CopyBufferRegion(
+        drawArgsResource_.Get(), 0, drawArgsInitResource_.Get(), 0,
+        sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
     Transition(drawArgsResource_.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
@@ -635,11 +638,29 @@ void ParticleManager::EmitHitEffect(const Vector3& position) {
 
     ParticleEmitterConfig config = it->second;
     constexpr uint32_t kSparkCount = 18;
+	const bool useOutline = neonTriangleEffectMode_ != NeonTriangleEffectMode::LegacyModel;
+	const bool useLegacy = neonTriangleEffectMode_ != NeonTriangleEffectMode::Outline;
+	std::vector<Particle> legacyParticles;
+	legacyParticles.reserve(useLegacy ? kSparkCount : 0u);
 
     for (uint32_t i = 0; i < kSparkCount; ++i) {
         float angle = (2.0f * pi * static_cast<float>(i) / static_cast<float>(kSparkCount)) + Rand(-0.18f, 0.18f);
         Vector3 radial = { std::cos(angle), std::sin(angle), 0.0f };
         Vector3 dir = Normalize(radial * Rand(0.45f, 1.0f) + RandomUnitVector() * Rand(0.55f, 1.15f));
+		if (useLegacy) {
+			Particle particle = MakeParticle(config);
+			particle.velocity = dir * Rand(config.speedMin, config.speedMax);
+			particle.transform.translate = position + Rand(
+				Vector3{ -0.18f, -0.18f, -0.04f }, Vector3{ 0.18f, 0.18f, 0.04f });
+			particle.transform.rotate.z = angle - (pi * 0.5f);
+			particle.angularVelocity = { 0.0f, 0.0f, Rand(-10.0f, 10.0f) };
+			particle.startScaleVector *= 1.8f;
+			particle.endScaleVector *= 1.8f;
+			legacyParticles.push_back(particle);
+		}
+		if (!useOutline) {
+			continue;
+		}
 		NeonTriangleEvent event{};
 		event.position = position + Rand(Vector3{ -0.18f, -0.18f, -0.04f }, Vector3{ 0.18f, 0.18f, 0.04f });
 		event.velocity = dir * Rand(config.speedMin, config.speedMax);
@@ -648,9 +669,13 @@ void ParticleManager::EmitHitEffect(const Vector3& position) {
 		event.angularVelocity = Rand(-10.0f, 10.0f);
 		event.lineWidth = Rand(0.03f, 0.055f);
 		event.lifeTime = Rand(config.lifeTimeMin, config.lifeTimeMax);
+		event.tiltRad = Rand(-0.95f, 0.95f);
+		event.trailCopies = 0;
+		event.isBillboard = false;
 		event.color = config.startColor;
 		neonTriangleEvents_.push_back(event);
     }
+	EmitBatch(legacyParticles);
 }
 
 void ParticleManager::EmitNeonDeathEffect(
@@ -659,10 +684,35 @@ void ParticleManager::EmitNeonDeathEffect(
     const Vector4& secondaryColor,
     float strength) {
     strength = std::clamp(strength, 0.2f, 2.0f);
+	const bool useOutline = neonTriangleEffectMode_ != NeonTriangleEffectMode::LegacyModel;
+	const bool useLegacy = neonTriangleEffectMode_ != NeonTriangleEffectMode::Outline;
 
 	if (strength >= 0.75f) {
 		const uint32_t chargeCount = static_cast<uint32_t>(std::lround(5.0f * strength));
-		for (uint32_t i = 0; i < chargeCount; ++i) {
+		if (useLegacy) {
+			auto chargeIt = effectLibrary_.find("NeonDeathCharge");
+			if (chargeIt != effectLibrary_.end()) {
+				ParticleEmitterConfig charge = chargeIt->second;
+				charge.position = position;
+				const float chargeScale = 0.75f + strength * 0.35f;
+				charge.startScaleMin *= chargeScale;
+				charge.startScaleMax *= chargeScale;
+				charge.endScaleMin *= chargeScale;
+				charge.endScaleMax *= chargeScale;
+				std::vector<Particle> particles;
+				particles.reserve(chargeCount);
+				for (uint32_t i = 0; i < chargeCount; ++i) {
+					Particle particle = MakeParticle(charge);
+					particle.transform.rotate.z = (2.0f * pi * static_cast<float>(i)) /
+						static_cast<float>((std::max)(1u, chargeCount));
+					particle.angularVelocity = { 0.0f, 0.0f,
+						(i % 2 == 0 ? 1.0f : -1.0f) * Rand(2.0f, 5.0f) };
+					particles.push_back(particle);
+				}
+				EmitBatch(particles);
+			}
+		}
+		for (uint32_t i = 0; useOutline && i < chargeCount; ++i) {
 			NeonTriangleEvent event{};
 			event.position = position + Rand(Vector3{ -0.12f, -0.12f, -0.04f }, Vector3{ 0.12f, 0.12f, 0.04f });
 			event.velocity = Rand(Vector3{ -0.45f, -0.45f, -0.04f }, Vector3{ 0.45f, 0.45f, 0.04f });
@@ -671,6 +721,9 @@ void ParticleManager::EmitNeonDeathEffect(
 			event.angularVelocity = (i % 2 == 0 ? 1.0f : -1.0f) * Rand(2.0f, 5.0f);
 			event.lineWidth = Rand(0.055f, 0.11f);
 			event.lifeTime = Rand(0.24f, 0.34f);
+			event.tiltRad = 0.0f;
+			event.trailCopies = 0;
+			event.isBillboard = true;
 			event.color = { 2.2f, 2.2f, 2.2f, 0.95f };
 			neonTriangleEvents_.push_back(event);
 		}
@@ -687,6 +740,44 @@ void ParticleManager::EmitNeonDeathBurstNow(
 	const Vector4& primaryColor,
 	const Vector4& secondaryColor,
 	float strength) {
+	const bool useOutline = neonTriangleEffectMode_ != NeonTriangleEffectMode::LegacyModel;
+	const bool useLegacy = neonTriangleEffectMode_ != NeonTriangleEffectMode::Outline;
+	if (useLegacy) {
+		std::vector<Particle> particles;
+		auto emitLayer = [&](const char* effectName, uint32_t baseCount, float scaleMultiplier) {
+			auto it = effectLibrary_.find(effectName);
+			if (it == effectLibrary_.end()) {
+				return;
+			}
+			ParticleEmitterConfig config = it->second;
+			config.position = position;
+			config.shapeSize *= scaleMultiplier;
+			config.startScaleMin *= scaleMultiplier;
+			config.startScaleMax *= scaleMultiplier;
+			config.endScaleMin *= scaleMultiplier;
+			config.endScaleMax *= scaleMultiplier;
+			config.startColor = primaryColor;
+			config.endColor = secondaryColor;
+
+			const uint32_t count = (std::max)(1u,
+				static_cast<uint32_t>(std::lround(baseCount * strength)));
+			particles.reserve(particles.size() + count);
+			for (uint32_t i = 0; i < count; ++i) {
+				Particle particle = MakeParticle(config);
+				particle.angularVelocity *= Rand(0.75f, 1.65f);
+				particles.push_back(particle);
+			}
+		};
+
+		const float scaleMultiplier = 0.72f + strength * 0.38f;
+		emitLayer("NeonDeathFlash", 7, scaleMultiplier);
+		emitLayer("NeonDeathShard", 54, scaleMultiplier);
+		emitLayer("NeonDeathFragment", 20, scaleMultiplier);
+		EmitBatch(particles);
+	}
+	if (!useOutline) {
+		return;
+	}
 
     const float scaleMultiplier = 0.72f + strength * 0.38f;
 	const uint32_t neonTriangleCount = (std::max)(8u, static_cast<uint32_t>(std::lround(42.0f * strength)));
@@ -705,6 +796,9 @@ void ParticleManager::EmitNeonDeathBurstNow(
 		event.angularVelocity = Rand(-7.0f, 7.0f);
 		event.lineWidth = Rand(0.035f, 0.075f);
 		event.lifeTime = Rand(0.26f, 0.72f);
+		event.tiltRad = Rand(-1.05f, 1.05f);
+		event.trailCopies = 1;
+		event.isBillboard = false;
 		event.color = (i % 2 == 0) ? primaryColor : secondaryColor;
 		event.color.w = (std::max)(event.color.w, 0.85f);
 		neonTriangleEvents_.push_back(event);
@@ -750,6 +844,41 @@ void ParticleManager::EmitNeonImpactEffect(
     if (it == effectLibrary_.end() || count == 0) {
         return;
     }
+	const bool useOutline = neonTriangleEffectMode_ != NeonTriangleEffectMode::LegacyModel;
+	const bool useLegacy = neonTriangleEffectMode_ != NeonTriangleEffectMode::Outline;
+	if (useLegacy) {
+		ParticleEmitterConfig legacyConfig = it->second;
+		legacyConfig.position = position;
+		legacyConfig.startColor = color;
+		legacyConfig.endColor = { color.x * 0.35f, color.y * 0.35f, color.z * 0.35f, 0.0f };
+		legacyConfig.startScaleMin *= 1.8f;
+		legacyConfig.startScaleMax *= 1.8f;
+		legacyConfig.endScaleMin *= 1.8f;
+		legacyConfig.endScaleMax *= 1.8f;
+
+		Vector3 legacyNormal = impactNormal;
+		legacyNormal.z = 0.0f;
+		legacyNormal = Length(legacyNormal) < 0.0001f
+			? Vector3{ 1.0f, 0.0f, 0.0f } : Normalize(legacyNormal);
+		const Vector3 legacyTangent = { -legacyNormal.y, legacyNormal.x, 0.0f };
+		std::vector<Particle> particles;
+		particles.reserve(count);
+		for (uint32_t i = 0; i < count; ++i) {
+			Particle particle = MakeParticle(legacyConfig);
+			Vector3 direction = legacyNormal * Rand(0.55f, 1.35f) +
+				legacyTangent * Rand(-0.95f, 0.95f) + Vector3{ 0.0f, 0.0f, Rand(-0.18f, 0.18f) };
+			direction = Normalize(direction);
+			particle.velocity = direction * Rand(legacyConfig.speedMin, legacyConfig.speedMax);
+			particle.transform.translate += direction * Rand(0.0f, 0.18f);
+			particle.transform.rotate.z = std::atan2(direction.y, direction.x) + Rand(-0.6f, 0.6f);
+			particle.angularVelocity = { 0.0f, 0.0f, Rand(-12.0f, 12.0f) };
+			particles.push_back(particle);
+		}
+		EmitBatch(particles);
+	}
+	if (!useOutline) {
+		return;
+	}
 
     ParticleEmitterConfig config = it->second;
     config.position = position;
@@ -764,7 +893,7 @@ void ParticleManager::EmitNeonImpactEffect(
         normal = Normalize(normal);
     }
     const Vector3 tangent = { -normal.y, normal.x, 0.0f };
-	const uint32_t triangleCount = (std::min)(count, 10u);
+	const uint32_t triangleCount = (std::min)(count, 18u);
 	for (uint32_t i = 0; i < triangleCount; ++i) {
 		Vector3 direction = normal * Rand(0.55f, 1.25f) + tangent * Rand(-0.85f, 0.85f);
 		if (Length(direction) < 0.0001f) {
@@ -774,30 +903,61 @@ void ParticleManager::EmitNeonImpactEffect(
 		NeonTriangleEvent event{};
 		event.position = position + Rand(Vector3{ -0.12f, -0.12f, -0.03f }, Vector3{ 0.12f, 0.12f, 0.03f });
 		event.velocity = direction * Rand(5.5f, 14.0f);
-		event.radius = Rand(0.18f, 0.42f);
+		event.radius = (i % 5 == 0) ? Rand(0.48f, 0.78f) : Rand(0.14f, 0.40f);
 		event.rotation = Rand(0.0f, pi * 2.0f);
 		event.angularVelocity = Rand(-9.0f, 9.0f);
-		event.lineWidth = Rand(0.035f, 0.065f);
-		event.lifeTime = Rand(0.16f, 0.36f);
+		event.lineWidth = Rand(0.028f, 0.072f);
+		event.lifeTime = Rand(0.18f, 0.46f);
+		event.tiltRad = Rand(-0.85f, 0.85f);
+		event.trailCopies = 0;
+		event.isBillboard = false;
 		event.color = color;
 		neonTriangleEvents_.push_back(event);
 	}
-	return;
+}
 
-    std::vector<Particle> particles;
-    particles.reserve(count);
-    for (uint32_t i = 0; i < count; ++i) {
-        Particle particle = MakeParticle(config);
-        Vector3 direction = normal * Rand(0.55f, 1.35f) +
-            tangent * Rand(-0.95f, 0.95f) + Vector3{ 0.0f, 0.0f, Rand(-0.18f, 0.18f) };
-        direction = Normalize(direction);
-        particle.velocity = direction * Rand(config.speedMin, config.speedMax);
-        particle.transform.translate += direction * Rand(0.0f, 0.18f);
-        particle.transform.rotate.z = std::atan2(direction.y, direction.x) + Rand(-0.6f, 0.6f);
-        particle.angularVelocity = { 0.0f, 0.0f, Rand(-12.0f, 12.0f) };
-        particles.push_back(particle);
-    }
-    EmitBatch(particles);
+void ParticleManager::EmitNeonMovementEffect(const Vector3& position, const Vector3& movementDirection) {
+	const bool useOutline = neonTriangleEffectMode_ != NeonTriangleEffectMode::LegacyModel;
+	const bool useLegacy = neonTriangleEffectMode_ != NeonTriangleEffectMode::Outline;
+	Vector3 backward = movementDirection;
+	backward.z = 0.0f;
+	if (Length(backward) < 0.0001f) {
+		backward = { 0.0f, 1.0f, 0.0f };
+	} else {
+		backward = Normalize(backward) * -1.0f;
+	}
+	const Vector3 side = { -backward.y, backward.x, 0.0f };
+	if (useLegacy) {
+		auto it = effectLibrary_.find("DashTrail");
+		if (it != effectLibrary_.end()) {
+			ParticleEmitterConfig config = it->second;
+			config.position = position;
+			Particle particle = MakeParticle(config);
+			particle.transform.translate += side * Rand(-0.32f, 0.32f);
+			particle.velocity = backward * Rand(0.8f, 2.4f) + side * Rand(-1.2f, 1.2f);
+			particle.startScaleVector *= 2.35f;
+			particle.endScaleVector *= 2.35f;
+			particle.transform.rotate.z = std::atan2(backward.y, backward.x) - (pi * 0.5f) + Rand(-0.45f, 0.45f);
+			particle.angularVelocity = { 0.0f, 0.0f, Rand(-5.0f, 5.0f) };
+			EmitBatch({ particle });
+		}
+	}
+	if (!useOutline) {
+		return;
+	}
+	NeonTriangleEvent event{};
+	event.position = position + side * Rand(-0.32f, 0.32f) + Vector3{ 0.0f, 0.0f, Rand(-0.08f, 0.08f) };
+	event.velocity = backward * Rand(0.8f, 2.4f) + side * Rand(-1.2f, 1.2f);
+	event.radius = Rand(0.10f, 0.22f);
+	event.rotation = Rand(0.0f, pi * 2.0f);
+	event.angularVelocity = Rand(-5.0f, 5.0f);
+	event.lineWidth = Rand(0.018f, 0.034f);
+	event.lifeTime = Rand(0.16f, 0.30f);
+	event.tiltRad = Rand(-1.0f, 1.0f);
+	event.trailCopies = 0;
+	event.isBillboard = false;
+	event.color = { 0.20f, 0.95f, 1.15f, 0.30f };
+	neonTriangleEvents_.push_back(event);
 }
 
 void ParticleManager::Emit(const ::Particle& particle) {
@@ -914,6 +1074,7 @@ void ParticleManager::Draw() {
 
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &model_->GetVertexBufferView());
+    commandList->IASetIndexBuffer(&model_->GetIndexBufferView());
 
     // RootParameter [0]:Material, [1]:Light, [2]:Camera, [3]:InstancingSRV, [4]:Texture
     // 各エンジンのCBVリソースから取得してセット
@@ -929,7 +1090,8 @@ void ParticleManager::Draw() {
         Transition(drawArgsResource_.Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         gpuDrawReady_ = false;
     } else {
-        commandList->DrawInstanced(static_cast<UINT>(model_->GetModelData().vertices.size()), instanceCount_, 0, 0);
+        commandList->DrawIndexedInstanced(
+            static_cast<UINT>(model_->GetModelData().indices.size()), instanceCount_, 0, 0, 0);
     }
 }
 
