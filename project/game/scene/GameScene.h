@@ -153,6 +153,7 @@ private:
 	void InitializeFollowHpBars(size_t count);
 	void InitializeFollowHpBarBatch();
 	void DrawFollowHpBar(const void* ownerKey, const Vector3& worldPos, int hp, int maxHp, float width, float yOffset);
+	void DrawFollowStaminaBar(const Vector3& worldPos, float stamina, float maxStamina, float width, float yOffset);
 	void QueueHpBarQuad(std::vector<VertexData>& vertices, const Vector2& center, const Vector2& size);
 	struct HpBarMaterialBuffer {
 		Microsoft::WRL::ComPtr<ID3D12Resource> resource;
@@ -328,6 +329,7 @@ private:
 	TransformationMatrix* hpBarTransformData_ = nullptr;
 	size_t followHpBarIndex_ = 0;
 	bool showFollowHpBars_ = true;
+	bool showPlayerStaminaBar_ = true;
 	bool showControlGuide_ = true;
 
 	// カメラ合わせフラグ
@@ -540,15 +542,26 @@ private:
 	struct NeonTriangleParticle {
 		Vector3 position{};
 		Vector3 velocity{};
+		Vector3 initialVelocity{};
 		float radius = 0.35f;
 		float rotation = 0.0f;
 		float angularVelocity = 0.0f;
 		float lineWidth = 0.055f;
 		float life = 0.0f;
 		float maxLife = 0.35f;
+		float tiltRad = 0.0f;
+		int trailCopies = 0;
+		bool isBillboard = false;
 		Vector4 color{ 1.0f, 0.4f, 1.0f, 1.0f };
 	};
 	std::vector<NeonTriangleParticle> neonTriangleParticles_;
+	float neonParticleTriangleGlowWidthScale_ = 3.2f;
+	float neonParticleTriangleCoreWidthScale_ = 0.28f;
+	float neonParticleTriangleBrightness_ = 1.45f;
+	float neonParticleTriangleTrailSpacing_ = 0.48f;
+	float neonParticleTriangleBirthScale_ = 0.52f;
+	int neonParticleTriangleTrailCopies_ = 3;
+	int neonTriangleEffectMode_ = 0;
 	Vector3 neonTriangleDemoCenter_ = { 30.0f, 30.0f, 1.2f };
 	float neonTriangleDemoRadius_ = 2.2f;
 	float neonTriangleDemoLineWidth_ = 0.16f;
