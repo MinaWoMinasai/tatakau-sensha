@@ -15,6 +15,23 @@
 #endif
 
 namespace {
+struct SpecialActionDefinition {
+	const char* id;
+	const char* displayName;
+	bool implemented;
+};
+
+const std::array<SpecialActionDefinition, 4>& SpecialActionDefinitions()
+{
+	static const std::array<SpecialActionDefinition, 4> definitions = {{
+		{ "none", "なし", true },
+		{ "perfect_dodge", "ジャスト回避", true },
+		{ "saber_counter", "剣カウンター", true },
+		{ "charge_beam", "チャージビーム（準備中）", false }
+	}};
+	return definitions;
+}
+
 Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
 {
 	t = (std::clamp)(t, 0.0f, 1.0f);
@@ -607,25 +624,12 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 		dashCooldown_ -= deltaTime;
 	}
 
-	// 右クリックでダッシュ
-	if (input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1]) && dashCooldown_ <= 0.0f && stats_.stamina >= 1.0f) {
-
-		// 移動中ならその方向へ、止まっていれば向いている方向(dir_)へダッシュ
-		Vector3 dashDir = inputDir_;
-		if (Length(dashDir) < 0.01f) {
-			dashDir = dir_;
-		}
-
-		// 瞬間的に速度を上書き、または強く加算
-		velocity_ = Normalize(dashDir) * kDashSpeed;
-
-		isDashing_ = true;
-		dashTimer_ = kDashDuration;
-		dashCooldown_ = kDashCooldown;
-
-		// ダッシュした瞬間に少し無敵にする（これが回避の基礎）
-		//stats_.stamina -= 1.0f;
-
+	// 右クリックは機体ごとの特殊行動スロットとして扱う。
+	if (input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1])) {
+		TryActivateSpecialAction();
+	}
+	if (saberCounterTimer_ > 0.0f) {
+		saberCounterTimer_ = (std::max)(0.0f, saberCounterTimer_ - deltaTime);
 	}
 
 	// スタミナ回復
@@ -907,6 +911,13 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
 	if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f || debugNoDamage_) {
 		return;
 	}
+	if (saberCounterTimer_ > 0.0f) {
+		const PlayerClassConfig* config = GetCurrentClassConfig();
+		if (config && config->specialActionId == "saber_counter") {
+			TriggerSaberCounter(*config);
+			return;
+		}
+	}
 
 	// --- ジャスト回避判定 ---
 	//if (isDashing_ && (kDashDuration - dashTimer_) <= kJustEvadeWindow) {
@@ -979,6 +990,91 @@ int Player::GetNextLevelExp() const
 void Player::Evolve(ClassType newClass)
 {
 	EvolveById(ClassTypeToString(newClass));
+}
+
+bool Player::TryActivateSpecialAction()
+{
+	const PlayerClassConfig* config = GetCurrentClassConfig();
+	if (!config || config->specialActionId == "none" || dashCooldown_ > 0.0f) {
+		return false;
+	}
+	if (config->specialActionId == "perfect_dodge") {
+		return ActivatePerfectDodge(*config);
+	}
+	if (config->specialActionId == "saber_counter") {
+		return ActivateSaberCounter(*config);
+	}
+	// charge_beam は同じ入口へ後から実装する。
+	return false;
+}
+
+bool Player::ActivatePerfectDodge(const PlayerClassConfig& config)
+{
+	const float staminaCost = (std::max)(0.0f, config.specialActionStaminaCost);
+	if (stats_.stamina < staminaCost) {
+		return false;
+	}
+
+	Vector3 dashDir = inputDir_;
+	if (Length(dashDir) < 0.01f) {
+		dashDir = dir_;
+	}
+	if (Length(dashDir) < 0.01f) {
+		return false;
+	}
+
+	velocity_ = Normalize(dashDir) * kDashSpeed;
+	isDashing_ = true;
+	dashTimer_ = kDashDuration;
+	dashCooldown_ = kDashCooldown * (std::max)(0.05f, config.specialActionCooldownScale);
+	stats_.stamina = (std::max)(0.0f, stats_.stamina - staminaCost);
+	return true;
+}
+
+bool Player::ActivateSaberCounter(const PlayerClassConfig& config)
+{
+	const bool hasMeleeWeapon = std::any_of(config.barrels.begin(), config.barrels.end(), [](const WeaponMountConfig& mount) {
+		return mount.fires && mount.weaponType == WeaponType::Melee;
+	});
+	const float staminaCost = (std::max)(0.0f, config.specialActionStaminaCost);
+	if (!hasMeleeWeapon || stats_.stamina < staminaCost) {
+		return false;
+	}
+
+	saberCounterTimer_ = (std::max)(0.01f, config.saberCounterWindow);
+	dashCooldown_ = 1.0f * (std::max)(0.05f, config.specialActionCooldownScale);
+	stats_.stamina = (std::max)(0.0f, stats_.stamina - staminaCost);
+	return true;
+}
+
+void Player::TriggerSaberCounter(const PlayerClassConfig& config)
+{
+	const auto mountIt = std::find_if(config.barrels.begin(), config.barrels.end(), [](const WeaponMountConfig& mount) {
+		return mount.fires && mount.weaponType == WeaponType::Melee;
+	});
+	if (mountIt == config.barrels.end()) {
+		return;
+	}
+
+	const WeaponMountConfig& mount = *mountIt;
+	const Vector3 forward = Length(dir_) > 0.0001f ? Normalize(dir_) : Vector3{ 1.0f, 0.0f, 0.0f };
+	const Vector3 right = { -forward.y, forward.x, 0.0f };
+	MeleeSlashEvent event{};
+	event.origin = worldTransform_.translate + forward * mount.offset.x + right * mount.offset.y + Vector3{ 0.0f, 0.0f, mount.offset.z };
+	event.direction = RotateDirection(forward, mount.angleDeg);
+	event.range = mount.meleeRange * config.saberCounterRangeScale;
+	event.arcDeg = (std::max)(180.0f, mount.meleeArcDeg);
+	event.width = mount.meleeWidth * 1.35f;
+	event.duration = (std::max)(0.08f, mount.meleeDuration * 0.85f);
+	event.windupDuration = 0.0f;
+	event.recoveryDuration = 0.22f;
+	event.comboStep = 2;
+	event.damage = static_cast<uint32_t>((std::max)(1.0f, stats_.bulletDamage * mount.damageScale * config.saberCounterDamageScale));
+	event.color = { 0.65f, 1.45f, 1.25f, 1.0f };
+	pendingMeleeSlashes_.push_back(event);
+	saberCounterTimer_ = 0.0f;
+	invincibleTimer_ = 0.28f;
+	requestSlow_ = true;
 }
 
 void Player::EvolveById(const std::string& classId)
@@ -1055,6 +1151,12 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 		config.fireAllBarrels = item.value("fireAllBarrels", config.fireAllBarrels);
 		config.alternateBarrels = item.value("alternateBarrels", config.alternateBarrels);
 		config.recoilPower = item.value("recoilPower", config.recoilPower);
+		config.specialActionId = item.value("specialActionId", config.specialActionId);
+		config.specialActionCooldownScale = (std::max)(0.05f, item.value("specialActionCooldownScale", config.specialActionCooldownScale));
+		config.specialActionStaminaCost = (std::max)(0.0f, item.value("specialActionStaminaCost", item.value("specialActionStaminaRequirement", config.specialActionStaminaCost)));
+		config.saberCounterWindow = (std::max)(0.01f, item.value("saberCounterWindow", config.saberCounterWindow));
+		config.saberCounterDamageScale = (std::max)(0.0f, item.value("saberCounterDamageScale", config.saberCounterDamageScale));
+		config.saberCounterRangeScale = (std::max)(0.1f, item.value("saberCounterRangeScale", config.saberCounterRangeScale));
 
 		config.barrels.clear();
 		const nlohmann::json* mountsJson = nullptr;
@@ -1214,6 +1316,12 @@ void Player::SavePlayerClassConfigs(const std::string& path) const
 		item["fireAllBarrels"] = config->fireAllBarrels;
 		item["alternateBarrels"] = config->alternateBarrels;
 		item["recoilPower"] = config->recoilPower;
+		item["specialActionId"] = config->specialActionId;
+		item["specialActionCooldownScale"] = config->specialActionCooldownScale;
+		item["specialActionStaminaCost"] = config->specialActionStaminaCost;
+		item["saberCounterWindow"] = config->saberCounterWindow;
+		item["saberCounterDamageScale"] = config->saberCounterDamageScale;
+		item["saberCounterRangeScale"] = config->saberCounterRangeScale;
 		item["weaponMounts"] = nlohmann::json::array();
 		for (const WeaponMountConfig& barrel : config->barrels) {
 			nlohmann::json barrelJson;
@@ -2813,6 +2921,37 @@ void Player::DrawPlayerClassEditor()
 	ImGui::Checkbox("全砲塔から発射", &config->fireAllBarrels);
 	ImGui::Checkbox("砲塔を交互発射", &config->alternateBarrels);
 	ImGui::DragFloat("反動", &config->recoilPower, 0.001f, 0.0f, 0.5f);
+	ImGui::SeparatorText("右クリック特殊行動");
+	const auto& specialActions = SpecialActionDefinitions();
+	const SpecialActionDefinition* selectedSpecialAction = &specialActions.front();
+	for (const SpecialActionDefinition& definition : specialActions) {
+		if (config->specialActionId == definition.id) {
+			selectedSpecialAction = &definition;
+			break;
+		}
+	}
+	if (ImGui::BeginCombo("特殊行動", selectedSpecialAction->displayName)) {
+		for (const SpecialActionDefinition& definition : specialActions) {
+			const bool selected = config->specialActionId == definition.id;
+			if (ImGui::Selectable(definition.displayName, selected)) {
+				config->specialActionId = definition.id;
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+	ImGui::DragFloat("特殊行動クールタイム倍率", &config->specialActionCooldownScale, 0.01f, 0.05f, 10.0f);
+	ImGui::DragFloat("特殊行動スタミナ消費", &config->specialActionStaminaCost, 0.05f, 0.0f, 100.0f);
+	if (config->specialActionId == "saber_counter") {
+		ImGui::DragFloat("カウンター受付時間", &config->saberCounterWindow, 0.005f, 0.01f, 2.0f);
+		ImGui::DragFloat("カウンター威力倍率", &config->saberCounterDamageScale, 0.05f, 0.0f, 20.0f);
+		ImGui::DragFloat("カウンター射程倍率", &config->saberCounterRangeScale, 0.01f, 0.1f, 5.0f);
+	}
+	if (!selectedSpecialAction->implemented) {
+		ImGui::TextDisabled("この特殊行動は割り当てのみ対応しています。");
+	}
 
 	ImGui::Separator();
 	ImGui::Text("現在の機体: %s", GetCurrentClassName());
@@ -3243,6 +3382,7 @@ void Player::SpawnAfterimage() {
 		position -= Normalize(moveDirection) * 0.65f;
 	}
 	ParticleManager::GetInstance()->Emit("DashDust", position, 1);
+	ParticleManager::GetInstance()->EmitNeonMovementEffect(position, moveDirection);
 }
 
 std::vector<Player::NeonBarrelLayout> Player::GetNeonBarrelLayouts() const

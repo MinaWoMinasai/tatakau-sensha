@@ -307,6 +307,12 @@ private:
 		bool fireAllBarrels = false;
 		bool alternateBarrels = false;
 		float recoilPower = 0.01f;
+		std::string specialActionId = "perfect_dodge";
+		float specialActionCooldownScale = 1.0f;
+		float specialActionStaminaCost = 1.0f;
+		float saberCounterWindow = 0.28f;
+		float saberCounterDamageScale = 2.5f;
+		float saberCounterRangeScale = 1.35f;
 		std::vector<WeaponMountConfig> barrels;
 	};
 
@@ -389,6 +395,7 @@ private:
 	std::vector<MeleeSlashEvent> pendingMeleeSlashes_;
 	int meleeComboStep_ = 0;
 	float meleeComboTimer_ = 0.0f;
+	float saberCounterTimer_ = 0.0f;
 
 	// プレイヤーの経験値とレベル
 	int exp_ = 0;
@@ -424,6 +431,10 @@ private:
 	const PlayerClassConfig* GetCurrentClassConfig() const;
 	PlayerClassConfig* GetMutableClassConfig(const std::string& classId);
 	bool FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, Vector3& recoilDir, float& recoilPower);
+	bool TryActivateSpecialAction();
+	bool ActivatePerfectDodge(const PlayerClassConfig& config);
+	bool ActivateSaberCounter(const PlayerClassConfig& config);
+	void TriggerSaberCounter(const PlayerClassConfig& config);
 	Vector3 RotateDirection(const Vector3& direction, float angleDeg) const;
 	void InitializeBarrels();
 	void UpdateBarrelLayout();
