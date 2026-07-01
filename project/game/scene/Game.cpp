@@ -31,7 +31,7 @@ bool Game::Initialize() {
 
     // 音声読み込み
     Audio::GetInstance()->Initialize();
-    Audio::GetInstance()->LoadAudio(L"BGM", L"resources/BGM_shining_star.mp3");
+    //Audio::GetInstance()->LoadAudio(L"BGM", L"resources/BGM_shining_star.mp3");
     Audio::GetInstance()->LoadAudio(L"bulletShoot", L"resources/bulletShoot.mp3", 5);
     
     // 再生

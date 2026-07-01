@@ -49,6 +49,11 @@ struct ParticleEmitterConfig {
 
 class ParticleManager {
 public:
+	enum class NeonTriangleEffectMode : uint32_t {
+		Outline = 0,
+		LegacyModel = 1,
+		Hybrid = 2
+	};
 	struct ScreenPulseEvent {
 		Vector3 position{};
 		float strength = 1.0f;
@@ -61,6 +66,9 @@ public:
 		float angularVelocity = 0.0f;
 		float lineWidth = 0.055f;
 		float lifeTime = 0.35f;
+		float tiltRad = 0.0f;
+		uint32_t trailCopies = 0;
+		bool isBillboard = false;
 		Vector4 color{ 1.0f, 0.4f, 1.0f, 1.0f };
 	};
     // GPUに送るパーティクル1粒のデータ
@@ -140,12 +148,15 @@ public:
         const Vector4& secondaryColor, float strength = 1.0f);
     void EmitNeonImpactEffect(const Vector3& position, const Vector3& impactNormal,
         const Vector4& color, uint32_t count = 10);
+	void EmitNeonMovementEffect(const Vector3& position, const Vector3& movementDirection);
 	std::vector<ScreenPulseEvent> ConsumeScreenPulseEvents();
 	std::vector<NeonTriangleEvent> ConsumeNeonTriangleEvents();
     void Emit(const ::Particle& particle);
     void DrawImGuiEditor();
     uint32_t GetActiveCount() const;
     void SetUseGpuUpdate(bool useGpuUpdate);
+	void SetNeonTriangleEffectMode(NeonTriangleEffectMode mode) { neonTriangleEffectMode_ = mode; }
+	NeonTriangleEffectMode GetNeonTriangleEffectMode() const { return neonTriangleEffectMode_; }
     bool IsUseGpuUpdate() const { return useGpuUpdate_; }
 
 private:
@@ -188,6 +199,7 @@ private:
 	std::vector<PendingDeathBurst> pendingDeathBursts_;
 	std::vector<ScreenPulseEvent> screenPulseEvents_;
 	std::vector<NeonTriangleEvent> neonTriangleEvents_;
+	NeonTriangleEffectMode neonTriangleEffectMode_ = NeonTriangleEffectMode::Outline;
     Model* model_ = nullptr;
     std::vector<ActiveParticle> activeParticles_;
     uint32_t instanceCount_ = 0;
