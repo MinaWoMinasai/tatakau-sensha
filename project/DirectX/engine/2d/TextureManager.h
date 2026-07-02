@@ -2,6 +2,8 @@
 #include <string>
 #include "DirectXCommon.h"
 #include "SrvManager.h"
+#include <cstddef>
+#include <cstdint>
 #include <unordered_map>
 
 class TextureManager
@@ -13,6 +15,8 @@ public:
 	void Finalize();
 
 	void LoadTexture(const std::string& filePath);
+	// GLBなどに埋め込まれたPNG/JPEGを仮想キー付きで直接読み込む。
+	bool LoadTextureFromMemory(const std::string& textureKey, const void* data, size_t size);
 	void PreDraw();
 
 	uint32_t GetTextureIndexbyFilePath(const std::string& filePath);

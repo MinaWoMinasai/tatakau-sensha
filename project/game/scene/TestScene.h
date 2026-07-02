@@ -138,4 +138,19 @@ private:
 	bool showSimpleSkin_ = false;
 	bool showHumanSkinning_ = true;
 
+	// VRoidへMixamoモーションをリターゲットしたゲーム用GLB。
+	std::unique_ptr<SkinnedModel> vrmTestModel_;
+	std::unique_ptr<Object3d> vrmTestObject_;
+	bool vrmTestLoaded_ = false;
+	bool showVrmTestModel_ = true;
+	std::string vrmTestStatus_;
+	Vector3 vrmActionPosition_ = { 0.0f, -30.0f, 20.0f };
+	float vrmActionMoveSpeed_ = 12.0f;
+	float vrmActionRunMultiplier_ = 1.8f;
+	float vrmAnimationBlendDuration_ = 0.18f;
+	float vrmFacingTurnSpeed_ = 12.0f;
+	float vrmFacingYaw_ = 0.0f;
+	bool enableVrmActionControl_ = true;
+	std::string vrmCurrentAnimation_ = "Idle";
+
 };
