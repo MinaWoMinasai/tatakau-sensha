@@ -24,9 +24,23 @@ struct JointWeightData {
 };
 
 struct SkinningModelAsset {
+	struct Submesh {
+		uint32_t indexStart = 0;
+		uint32_t indexCount = 0;
+		std::string textureKey;
+		bool doubleSided = false;
+	};
+
+	struct EmbeddedTexture {
+		std::string textureKey;
+		std::vector<uint8_t> encodedData;
+	};
+
 	ModelData modelData;
 	SkeletonNode rootNode;
 	std::map<std::string, JointWeightData> jointWeights;
+	std::vector<Submesh> submeshes;
+	std::vector<EmbeddedTexture> embeddedTextures;
 };
 
 struct VertexInfluence {
@@ -72,11 +86,23 @@ public:
 		float blendFactor);
 	void Draw();
 	void DrawShadow();
+	bool SetAnimation(const std::string& name, bool restart = true);
+	bool SetAnimation(size_t index, bool restart = true);
+	bool TransitionToAnimation(
+		const std::string& name,
+		float duration,
+		bool synchronizeNormalizedTime = false);
+	bool TransitionToAnimation(
+		size_t index,
+		float duration,
+		bool synchronizeNormalizedTime = false);
 
 	Skeleton& GetSkeleton() { return skeleton_; }
 	const SkinCluster& GetSkinCluster() const { return skinCluster_; }
 	AnimationPlayer& GetAnimationPlayer() { return animationPlayer_; }
-	const Animation& GetAnimation() const { return animation_; }
+	const Animation& GetAnimation() const { return animations_[currentAnimationIndex_]; }
+	const std::vector<Animation>& GetAnimations() const { return animations_; }
+	size_t GetCurrentAnimationIndex() const { return currentAnimationIndex_; }
 	const SkinningModelAsset& GetAsset() const { return asset_; }
 
 private:
@@ -85,8 +111,13 @@ private:
 	SkinningModelAsset asset_;
 	Skeleton skeleton_;
 	SkinCluster skinCluster_;
-	Animation animation_;
+	std::vector<Animation> animations_;
+	size_t currentAnimationIndex_ = 0;
 	AnimationPlayer animationPlayer_;
+	std::vector<QuaternionTransform> animationTransitionStartPose_;
+	float animationTransitionDuration_ = 0.0f;
+	float animationTransitionElapsed_ = 0.0f;
+	bool animationTransitionActive_ = false;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> influenceResource_;
