@@ -86,6 +86,33 @@ void SkeletonSystem::ApplyAnimationBlend(
 	Update(skeleton);
 }
 
+void SkeletonSystem::ApplyAnimationBlendFromPose(
+	Skeleton& skeleton,
+	const std::vector<QuaternionTransform>& startPose,
+	const AnimationPlayer& targetAnimation,
+	float blendFactor) {
+	const float t = (std::clamp)(blendFactor, 0.0f, 1.0f);
+	for (size_t index = 0; index < skeleton.joints.size(); ++index) {
+		Joint& joint = skeleton.joints[index];
+		const QuaternionTransform& poseA =
+			index < startPose.size() ? startPose[index] : joint.bindTransform;
+		const QuaternionTransform poseB =
+			targetAnimation.SampleNode(joint.name, joint.bindTransform);
+		joint.transform.scale = {
+			poseA.scale.x + (poseB.scale.x - poseA.scale.x) * t,
+			poseA.scale.y + (poseB.scale.y - poseA.scale.y) * t,
+			poseA.scale.z + (poseB.scale.z - poseA.scale.z) * t,
+		};
+		joint.transform.translate = {
+			poseA.translate.x + (poseB.translate.x - poseA.translate.x) * t,
+			poseA.translate.y + (poseB.translate.y - poseA.translate.y) * t,
+			poseA.translate.z + (poseB.translate.z - poseA.translate.z) * t,
+		};
+		joint.transform.rotate = SlerpQuaternion(poseA.rotate, poseB.rotate, t);
+	}
+	Update(skeleton);
+}
+
 void SkeletonSystem::Update(Skeleton& skeleton) {
 	if (skeleton.root < 0 || static_cast<size_t>(skeleton.root) >= skeleton.joints.size()) {
 		return;

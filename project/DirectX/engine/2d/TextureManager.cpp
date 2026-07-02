@@ -78,6 +78,44 @@ void TextureManager::LoadTexture(const std::string& filePath) {
     dxCommon_->ExecuteCommandListAndWait();
 }
 
+bool TextureManager::LoadTextureFromMemory(const std::string& textureKey, const void* data, size_t size) {
+    if (textureDatas.contains(textureKey)) return true;
+    if (data == nullptr || size == 0) return false;
+
+    assert(textureDatas.size() + kSRVIndexTop < SrvManager::kMaxSrvCount);
+
+    DirectX::ScratchImage image{};
+    HRESULT hr = DirectX::LoadFromWICMemory(
+        static_cast<const uint8_t*>(data), size,
+        DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+    if (FAILED(hr)) {
+        return false;
+    }
+
+    DirectX::ScratchImage mipImages{};
+    hr = DirectX::GenerateMipMaps(
+        image.GetImages(), image.GetImageCount(), image.GetMetadata(),
+        DirectX::TEX_FILTER_SRGB, 0, mipImages);
+    if (FAILED(hr)) {
+        return false;
+    }
+
+    TextureData& textureData = textureDatas[textureKey];
+    textureData.metaData = mipImages.GetMetadata();
+    textureData.resource = texture.CreateResource(dxCommon_->GetDevice(), textureData.metaData);
+    textureData.srvIndex = srvManager_->Allocate();
+    textureData.srvHandleCPU = srvManager_->GetCPUDescriptorHandle(textureData.srvIndex);
+    textureData.srvHandleGPU = srvManager_->GetGPUDescriptorHandle(textureData.srvIndex);
+    srvManager_->CreateSRVforTexture2D(
+        textureData.srvIndex, textureData.resource.Get(),
+        textureData.metaData.format, static_cast<UINT>(textureData.metaData.mipLevels));
+
+    auto intermediateResource = texture.UploadData(
+        textureData.resource, mipImages, dxCommon_->GetDevice(), dxCommon_->GetList());
+    dxCommon_->ExecuteCommandListAndWait();
+    return true;
+}
+
 void TextureManager::PreDraw()
 {
     if (srvManager_) {

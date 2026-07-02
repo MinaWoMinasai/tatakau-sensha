@@ -223,6 +223,7 @@ public:
 	PSO& GetPSOHudRect() { return hudRectPSO; }
 	PSO& GetPSOSkybox() { return skyboxPSO; }
 	PSO& GetPSOSkinning() { return skinningPSO; }
+	PSO& GetPSOSkinningDoubleSided() { return skinningDoubleSidedPSO; }
 	PSO& GetPSOSkinningShadow() { return skinningShadowPSO; }
 
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
@@ -326,7 +327,7 @@ private:
 	void InitializeFixFPS();
 	void UpdateFixFPS();
 
-	void CreateShaderCommon(PSO& pso, BlendMode blendMode = kAdd);
+	void CreateShaderCommon(PSO& pso, BlendMode blendMode = kAdd, bool doubleSided = false);
 	void CreateComputeShaderCommon(PSO& pso, const std::wstring& shaderPath);
 	void CreateShader();
 	void CreateGraphics();
@@ -400,6 +401,7 @@ private:
 	PSO hudRectPSO;
 	PSO skyboxPSO;
 	PSO skinningPSO;
+	PSO skinningDoubleSidedPSO;
 	PSO skinningShadowPSO;
 	ShaderType shaderType_;
 
