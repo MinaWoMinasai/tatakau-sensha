@@ -156,6 +156,28 @@ void TestScene::Initialize() {
 	} catch (const std::exception& error) {
 		humanSkinningStatus_ = std::string("human/walk GPU Skinning: failed / ") + error.what();
 	}
+	try {
+		const std::string vrmGlbPath = "resources/models/player/testModel_animated.glb";
+		vrmTestModel_ = std::make_unique<SkinnedModel>();
+		vrmTestModel_->Initialize(
+			Object3dCommon::GetInstance()->GetDxCommon(),
+			Object3dCommon::GetInstance()->GetSrvManager(), vrmGlbPath);
+		vrmTestObject_ = std::make_unique<Object3d>();
+		vrmTestObject_->Initialize();
+		vrmTestObject_->SetTranslate(vrmActionPosition_);
+		vrmTestObject_->SetScale({ 25.0f, 25.0f, 25.0f });
+		vrmTestObject_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+		// VRoidのMToonは現行Object3dライティングと特性が異なるため、
+		// まずはベーステクスチャ色を正確に確認できるUnlit表示にする。
+		vrmTestObject_->SetLighting(false);
+		vrmTestObject_->Update();
+		vrmTestModel_->SetAnimation("Idle");
+		vrmTestLoaded_ = true;
+		vrmTestStatus_ = "VRoid + Mixamo: Idle / Walk / Run loaded";
+		showHumanSkinning_ = false;
+	} catch (const std::exception& error) {
+		vrmTestStatus_ = std::string("VRoid testModel.glb: failed / ") + error.what();
+	}
 
 	// 2. 剣に見立てた細長いブロックを作る
 	swordObj_ = std::make_unique<Object3d>();
@@ -264,6 +286,33 @@ void TestScene::Update() {
 		ImGui::Text("Human joints: %zu", humanTestModel_->GetSkeleton().joints.size());
 		ImGui::Text("Human influences: %u", humanTestModel_->GetSkinCluster().GetAssignedInfluenceCount());
 	}
+	ImGui::SeparatorText("VRoid GLB Test");
+	ImGui::TextColored(
+		vrmTestLoaded_ ? ImVec4{ 0.4f, 1.0f, 0.6f, 1.0f } : ImVec4{ 1.0f, 0.45f, 0.3f, 1.0f },
+		"%s", vrmTestStatus_.c_str());
+	ImGui::Checkbox("VRoid testModelを表示", &showVrmTestModel_);
+	if (vrmTestLoaded_) {
+		ImGui::Text("Vertices: %zu", vrmTestModel_->GetAsset().modelData.vertices.size());
+		ImGui::Text("Indices: %zu", vrmTestModel_->GetAsset().modelData.indices.size());
+		ImGui::Text("Submeshes: %zu", vrmTestModel_->GetAsset().submeshes.size());
+		ImGui::Text("Embedded textures: %zu", vrmTestModel_->GetAsset().embeddedTextures.size());
+		ImGui::Text("Skeleton joints: %zu", vrmTestModel_->GetSkeleton().joints.size());
+		ImGui::Text("Animations: %zu", vrmTestModel_->GetAnimations().size());
+		ImGui::Text("Current animation: %s", vrmCurrentAnimation_.c_str());
+		ImGui::Checkbox("WASDでVRoidを操作", &enableVrmActionControl_);
+		ImGui::DragFloat("VRoid歩行速度", &vrmActionMoveSpeed_, 0.25f, 1.0f, 50.0f);
+		ImGui::DragFloat("Shift走行倍率", &vrmActionRunMultiplier_, 0.05f, 1.0f, 4.0f);
+		ImGui::DragFloat("アニメーション補間秒", &vrmAnimationBlendDuration_, 0.01f, 0.0f, 0.6f);
+		ImGui::DragFloat("VRoid旋回速度", &vrmFacingTurnSpeed_, 0.25f, 1.0f, 30.0f);
+		if (ImGui::Button("Idle")) vrmCurrentAnimation_ = "Idle";
+		ImGui::SameLine();
+		if (ImGui::Button("Walk")) vrmCurrentAnimation_ = "Walk";
+		ImGui::SameLine();
+		if (ImGui::Button("Run")) vrmCurrentAnimation_ = "Run";
+		ImGui::DragFloat3("VRoid Position", &vrmTestObject_->GetTranslate().x, 0.1f);
+		ImGui::DragFloat3("VRoid Rotation", &vrmTestObject_->GetRotate().x, 0.01f);
+		ImGui::DragFloat3("VRoid Scale", &vrmTestObject_->GetScale().x, 0.1f, 0.01f, 100.0f);
+	}
 	ImGui::SeparatorText("3D Action Skinning");
 	ImGui::Checkbox("Humanを表示", &showHumanSkinning_);
 	ImGui::Checkbox("simpleSkinを表示", &showSimpleSkin_);
@@ -345,6 +394,47 @@ void TestScene::Update() {
 		humanTestModel_->GetAnimationPlayer().SetPlaying(isMoving || !enableHumanActionControl_);
 		humanTestModel_->Update(finalDeltaTime);
 		humanTestObject_->Update();
+	}
+	if (vrmTestLoaded_) {
+		Vector3 move{};
+		bool isMoving = false;
+		bool isRunning = false;
+		if (enableVrmActionControl_) {
+			if (input_->IsPress(input_->GetKey()[DIK_A])) move.x -= 1.0f;
+			if (input_->IsPress(input_->GetKey()[DIK_D])) move.x += 1.0f;
+			if (input_->IsPress(input_->GetKey()[DIK_W])) move.z += 1.0f;
+			if (input_->IsPress(input_->GetKey()[DIK_S])) move.z -= 1.0f;
+			const float moveLength = std::sqrt(move.x * move.x + move.z * move.z);
+			isMoving = moveLength > 0.0001f;
+			isRunning = isMoving && input_->IsPress(input_->GetKey()[DIK_LSHIFT]);
+			if (isMoving) {
+				move.x /= moveLength;
+				move.z /= moveLength;
+				const float speed = vrmActionMoveSpeed_ * (isRunning ? vrmActionRunMultiplier_ : 1.0f);
+				vrmActionPosition_.x += move.x * speed * finalDeltaTime;
+				vrmActionPosition_.z += move.z * speed * finalDeltaTime;
+				const float targetYaw = std::atan2(move.x, move.z);
+				const float yawDifference = std::atan2(
+					std::sin(targetYaw - vrmFacingYaw_),
+					std::cos(targetYaw - vrmFacingYaw_));
+				const float turnT = (std::min)(1.0f, vrmFacingTurnSpeed_ * finalDeltaTime);
+				vrmFacingYaw_ += yawDifference * turnT;
+				vrmTestObject_->SetRotate({ 0.0f, vrmFacingYaw_, 0.0f });
+			}
+			const std::string desiredAnimation = isMoving ? (isRunning ? "Run" : "Walk") : "Idle";
+			if (desiredAnimation != vrmCurrentAnimation_) {
+				const bool previousIsLocomotion = vrmCurrentAnimation_ == "Walk" || vrmCurrentAnimation_ == "Run";
+				const bool nextIsLocomotion = desiredAnimation == "Walk" || desiredAnimation == "Run";
+				vrmTestModel_->TransitionToAnimation(
+					desiredAnimation,
+					vrmAnimationBlendDuration_,
+					previousIsLocomotion && nextIsLocomotion);
+				vrmCurrentAnimation_ = desiredAnimation;
+			}
+		}
+		vrmTestObject_->SetTranslate(vrmActionPosition_);
+		vrmTestModel_->Update(finalDeltaTime);
+		vrmTestObject_->Update();
 	}
 	effectStartMarker_->SetTranslate(effectStartPos_);
 	effectStartMarker_->Update();
@@ -489,6 +579,9 @@ void TestScene::DrawPostEffect3D() {
 	if (showHumanSkinning_ && humanSkinningLoaded_) {
 		humanTestObject_->DrawSkinned(*humanTestModel_);
 	}
+	if (showVrmTestModel_ && vrmTestLoaded_) {
+		vrmTestObject_->DrawSkinned(*vrmTestModel_);
+	}
 
 	if (showLegacyTestObjects_) {
 		effectSequencer_->Draw();
@@ -527,6 +620,9 @@ void TestScene::DrawShadow() {
 	}
 	if (showHumanSkinning_ && humanSkinningLoaded_) {
 		humanTestObject_->DrawSkinnedShadow(*humanTestModel_);
+	}
+	if (showVrmTestModel_ && vrmTestLoaded_) {
+		vrmTestObject_->DrawSkinnedShadow(*vrmTestModel_);
 	}
 }
 

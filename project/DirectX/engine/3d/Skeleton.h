@@ -40,6 +40,11 @@ public:
 		const AnimationPlayer& animationA,
 		const AnimationPlayer& animationB,
 		float blendFactor);
+	static void ApplyAnimationBlendFromPose(
+		Skeleton& skeleton,
+		const std::vector<QuaternionTransform>& startPose,
+		const AnimationPlayer& targetAnimation,
+		float blendFactor);
 	static void Update(Skeleton& skeleton);
 
 private:

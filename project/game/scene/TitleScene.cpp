@@ -151,6 +151,12 @@ void TitleScene::Update() {
 		}
 		break;
 	case Phase::kMain:
+		if (input_->IsTrigger(input_->GetKey()[DIK_F3], input_->GetPreKey()[DIK_F3])) {
+			nextSceneName_ = "TEST";
+			fade_->Start(Fade::Status::FadeOut, 0.35f);
+			phase_ = Phase::kFadeOut;
+			break;
+		}
 		if (input_->IsTrigger(input_->GetKey()[DIK_F2], input_->GetPreKey()[DIK_F2])) {
 			nextSceneName_ = "PLAYER_LAB";
 			fade_->Start(Fade::Status::FadeOut, 0.35f);

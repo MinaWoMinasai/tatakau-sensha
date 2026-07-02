@@ -91,7 +91,7 @@ void DirectXCommon::PostDraw()
 
 }
 
-void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
+void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubleSided)
 {
 	// 1. 各タイプごとのシェーダーパスとルートシグネチャ初期化
 	switch (pso.shaderType_)
@@ -298,6 +298,9 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 	
 
 	// 6. 残りの共通設定
+	if (doubleSided) {
+		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	}
 	pso.graphicsDesc_.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pso.graphicsDesc_.SampleDesc.Count = 1;
 	pso.graphicsDesc_.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
@@ -351,6 +354,7 @@ void DirectXCommon::CreateShader()
 	hudRectPSO.shaderType_ = Trail;
 	skyboxPSO.shaderType_ = Skybox;
 	skinningPSO.shaderType_ = Skinning;
+	skinningDoubleSidedPSO.shaderType_ = Skinning;
 	skinningShadowPSO.shaderType_ = SkinningShadow;
 
 	bloomPSO.postEffectType_ = Bloom_Extract;
@@ -388,6 +392,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(hudRectPSO, kNormal);
 	CreateShaderCommon(skyboxPSO, kNone);
 	CreateShaderCommon(skinningPSO, kNone);
+	CreateShaderCommon(skinningDoubleSidedPSO, kNone, true);
 	CreateShaderCommon(skinningShadowPSO, kShadow);
 }
 
