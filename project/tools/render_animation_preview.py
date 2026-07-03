@@ -11,6 +11,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--action")
     argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
     return parser.parse_args(argv)
 
@@ -64,6 +65,8 @@ def main():
     scene.world.color = (0.06, 0.06, 0.08)
 
     for action in sorted(bpy.data.actions, key=lambda item: item.name):
+        if args.action and action.name != args.action:
+            continue
         armature.animation_data.action = action
         start = int(round(action.frame_range[0]))
         end = int(round(action.frame_range[1]))

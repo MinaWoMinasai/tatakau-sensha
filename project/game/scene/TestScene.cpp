@@ -4,6 +4,29 @@ TestScene::TestScene() {}
 
 TestScene::~TestScene() {}
 
+float TestScene::GetVrmGroundHeight(const Vector3& position) const {
+	float height = vrmGroundY_;
+	if (!enableSlopeGround_) {
+		return height;
+	}
+
+	const float sinAngle = std::sin(slopeGroundAngle_);
+	const float cosAngle = std::cos(slopeGroundAngle_);
+	const float topCenterX = slopeGroundCenter_.x - slopeGroundScale_.y * sinAngle;
+	const float halfProjectedWidth = slopeGroundScale_.x * cosAngle;
+	const bool insideX = position.x >= topCenterX - halfProjectedWidth &&
+		position.x <= topCenterX + halfProjectedWidth;
+	const bool insideZ = std::abs(position.z - slopeGroundCenter_.z) <= slopeGroundScale_.z;
+	if (insideX && insideZ) {
+		const float localX = (position.x - slopeGroundCenter_.x + slopeGroundScale_.y * sinAngle) /
+			((std::max)(slopeGroundScale_.x * cosAngle, 0.001f));
+		const float slopeHeight = slopeGroundCenter_.y +
+			localX * slopeGroundScale_.x * sinAngle + slopeGroundScale_.y * cosAngle;
+		height = (std::max)(height, slopeHeight);
+	}
+	return height;
+}
+
 void TestScene::Initialize() {
 
 	worldTransform_ = InitWorldTransform();
@@ -11,8 +34,15 @@ void TestScene::Initialize() {
 	input_ = Input::GetInstance();
 
 	debugCamera = std::make_unique<DebugCamera>();
+	// The VRoid clothes contain several nearly overlapping surfaces.  The old
+	// 0.1-5000 depth range loses too much D24 precision around this scene's
+	// roughly 500-unit camera distance and makes the skirt flicker.
+	debugCamera->SetNearClip(0.5f);
+	debugCamera->SetFarClip(1500.0f);
 
 	camera = std::make_unique<Camera>();
+	camera->SetNearClip(2.0f);
+	camera->SetFarClip(1500.0f);
 
 	camera->SetTranslate(Vector3(17.0f, 61.0f, -500.0f));
 
@@ -21,6 +51,18 @@ void TestScene::Initialize() {
 	
 	trailManager_ = std::make_unique<TrailManager>();
 	trailManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), Object3dCommon::GetInstance(), "resources/gradation.png");
+	swordTrail_ = trailManager_->CreateInstance();
+	swordTrail_->SetIsPermanent(true);
+	swordTrail_->SetActive(false);
+	swordTrailConfig_.startColor = { 0.55f, 1.35f, 2.4f, 0.95f };
+	swordTrailConfig_.endColor = { 0.05f, 0.35f, 1.2f, 0.0f };
+	swordTrailConfig_.interpolationSteps = 5;
+	swordTrailConfig_.maxPoints = 28;
+	swordTrailConfig_.lifetime = 0.24f;
+	swordTrailConfig_.startWidthScale = 1.0f;
+	swordTrailConfig_.endWidthScale = 0.15f;
+	swordTrailConfig_.widthCurvePower = 1.25f;
+	swordTrailConfig_.colorCurvePower = 1.15f;
 
 	ringManager_ = std::make_unique<RingManager>();
 	ringManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/gradationLine.png");
@@ -52,6 +94,18 @@ void TestScene::Initialize() {
 		objectPost.outlineBloomIntensity = 0.6f;
 		objectPost.outlineBloomWidth = 6.0f;
 	}
+	swordPostEffect_ = std::make_unique<ObjectPostEffect>();
+	swordPostEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr,
+		1.0f);
+	{
+		BloomParam& swordBloom = swordPostEffect_->GetParam();
+		swordBloom.threshold = 0.05f;
+		swordBloom.intensity = 1.35f;
+		swordBloom.outlineBloomIntensity = 0.0f;
+	}
 
 	groundObj_ = std::make_unique<Object3d>();
 	groundObj_->Initialize();
@@ -60,6 +114,22 @@ void TestScene::Initialize() {
 	groundObj_->SetColor(Vector4(0.5f, 0.5f, 0.5f, 1.0f));
 	groundObj_->Update();
 	groundObj_->SetLighting(true);
+
+	// TestScene用の傾斜床。接地計算と同じ変換を使うため、見た目と
+	// キャラクターの足元がずれない。
+	const float slopeCenterY = vrmGroundY_ +
+		slopeGroundScale_.x * std::sin(slopeGroundAngle_) -
+		slopeGroundScale_.y * std::cos(slopeGroundAngle_);
+	slopeGroundCenter_.y = slopeCenterY;
+	slopeGroundObj_ = std::make_unique<Object3d>();
+	slopeGroundObj_->Initialize();
+	slopeGroundObj_->SetModel("cube.obj");
+	slopeGroundObj_->SetTranslate(slopeGroundCenter_);
+	slopeGroundObj_->SetScale(slopeGroundScale_);
+	slopeGroundObj_->SetRotate({ 0.0f, 0.0f, slopeGroundAngle_ });
+	slopeGroundObj_->SetColor({ 0.16f, 0.19f, 0.24f, 1.0f });
+	slopeGroundObj_->SetLighting(true);
+	slopeGroundObj_->Update();
 
 	blockObj_ = std::make_unique<Object3d>();
 	blockObj_->Initialize();
@@ -182,8 +252,10 @@ void TestScene::Initialize() {
 	// 2. 剣に見立てた細長いブロックを作る
 	swordObj_ = std::make_unique<Object3d>();
 	swordObj_->Initialize();
-	swordObj_->SetModel("weapon.obj"); // 既存のモデル
-	swordObj_->SetScale({ 2.0f, 2.0f, 2.0f }); // 剣っぽく細長く
+	ModelManager::GetInstance()->LoadModel("light.obj");
+	swordObj_->SetModel("light.obj");
+	swordObj_->SetColor({ 0.25f, 0.85f, 1.0f, 1.0f });
+	swordObj_->SetLighting(false);
 
 	TextureManager::GetInstance()->LoadTexture("resources/skybox.dds");
 
@@ -299,11 +371,49 @@ void TestScene::Update() {
 		ImGui::Text("Skeleton joints: %zu", vrmTestModel_->GetSkeleton().joints.size());
 		ImGui::Text("Animations: %zu", vrmTestModel_->GetAnimations().size());
 		ImGui::Text("Current animation: %s", vrmCurrentAnimation_.c_str());
+		ImGui::Text(
+			"Animation time: %.3f / %.3f  playing=%s loop=%s",
+			vrmTestModel_->GetCurrentAnimationTime(),
+			vrmTestModel_->GetCurrentAnimationDuration(),
+			vrmTestModel_->IsCurrentAnimationPlaying() ? "true" : "false",
+			vrmTestModel_->IsCurrentAnimationLooping() ? "true" : "false");
 		ImGui::Checkbox("WASDでVRoidを操作", &enableVrmActionControl_);
 		ImGui::DragFloat("VRoid歩行速度", &vrmActionMoveSpeed_, 0.25f, 1.0f, 50.0f);
 		ImGui::DragFloat("Shift走行倍率", &vrmActionRunMultiplier_, 0.05f, 1.0f, 4.0f);
 		ImGui::DragFloat("アニメーション補間秒", &vrmAnimationBlendDuration_, 0.01f, 0.0f, 0.6f);
 		ImGui::DragFloat("VRoid旋回速度", &vrmFacingTurnSpeed_, 0.25f, 1.0f, 30.0f);
+		ImGui::Checkbox("戦闘向きを固定（4方向回避確認）", &vrmLockFacing_);
+		ImGui::Text("Space: Jump / Left Ctrl: Dodge / F: Sword attack");
+		ImGui::DragFloat("回避距離", &vrmDodgeDistance_, 0.25f, 1.0f, 60.0f);
+		ImGui::DragFloat("ジャンプ初速", &vrmJumpSpeed_, 0.25f, 1.0f, 80.0f);
+		ImGui::DragFloat("重力", &vrmGravity_, 0.25f, 1.0f, 100.0f);
+		ImGui::DragFloat("踏み切り再生速度", &vrmTakeoffPlaybackSpeed_, 0.05f, 0.25f, 3.0f);
+		ImGui::SliderFloat("踏み切りで上昇を始める時点", &vrmTakeoffLaunchPhase_, 0.0f, 0.9f);
+		ImGui::SliderFloat("着地クリップ開始位置", &vrmLandingStartPhase_, 0.0f, 0.8f);
+		ImGui::DragFloat("着地再生速度", &vrmLandingPlaybackSpeed_, 0.05f, 0.25f, 3.0f);
+		ImGui::SeparatorText("3-hit sword combo");
+		ImGui::Text(
+			"Combo step: %d  queued=%s  hit=%s",
+			vrmComboStep_, vrmComboQueued_ ? "true" : "false", vrmAttackHitActive_ ? "active" : "off");
+		ImGui::DragFloat("攻撃再生速度", &vrmAttackPlaybackSpeed_, 0.05f, 0.25f, 3.0f);
+		ImGui::SliderFloat("先行入力受付開始", &vrmComboBufferStart_, 0.0f, 0.8f);
+		ImGui::SliderFloat("次段へつなぐ時点", &vrmComboChainPoint_, 0.2f, 0.95f);
+		ImGui::SeparatorText("Right-hand light sword");
+		ImGui::DragFloat3("Sword local offset", &vrmSwordLocalOffset_.x, 0.005f, -2.0f, 2.0f);
+		ImGui::DragFloat3("Sword local rotation", &vrmSwordLocalRotate_.x, 0.01f, -6.3f, 6.3f);
+		ImGui::DragFloat3(
+			"Attack2 sword correction", &vrmSwordAttack2RotateCorrection_.x, 0.01f, -3.2f, 3.2f);
+		ImGui::DragFloat3("Sword local scale", &vrmSwordLocalScale_.x, 0.005f, 0.001f, 2.0f);
+		ImGui::Checkbox("Sword bloom", &enableSwordBloom_);
+		BloomParam& swordBloom = swordPostEffect_->GetParam();
+		ImGui::DragFloat("Sword bloom intensity", &swordBloom.intensity, 0.05f, 0.0f, 5.0f);
+		ImGui::DragFloat("Sword bloom threshold", &swordBloom.threshold, 0.01f, 0.0f, 2.0f);
+		ImGui::Checkbox("Sword attack ribbon", &enableSwordTrail_);
+		ImGui::ColorEdit4("Ribbon start color", &swordTrailConfig_.startColor.x);
+		ImGui::ColorEdit4("Ribbon end color", &swordTrailConfig_.endColor.x);
+		ImGui::DragFloat("Ribbon lifetime", &swordTrailConfig_.lifetime, 0.01f, 0.03f, 1.0f);
+		ImGui::DragFloat("Ribbon root Y", &vrmSwordTrailBaseY_, 0.02f, 0.0f, 6.0f);
+		ImGui::DragFloat("Ribbon tip Y", &vrmSwordTrailTipY_, 0.02f, 0.1f, 10.0f);
 		if (ImGui::Button("Idle")) vrmCurrentAnimation_ = "Idle";
 		ImGui::SameLine();
 		if (ImGui::Button("Walk")) vrmCurrentAnimation_ = "Walk";
@@ -327,32 +437,13 @@ void TestScene::Update() {
 	ImGui::End();
 
 	ImGui::Begin("Ground");
+	ImGui::Checkbox("Enable slope ground", &enableSlopeGround_);
+	ImGui::Text("Slope test: walk to the right side of the character (world +X)");
 	ImGui::DragFloat3("position", &groundObj_->GetTranslate().x);
 	ImGui::DragFloat3("rotate", &groundObj_->GetRotate().x, 0.01f);
 	ImGui::End();
 
 #endif // USE_IMGUI
-
-	// 1. 剣をぶん回すアニメーション（テスト用）
-	static float timer = 0.0f;
-	timer += 0.02f;
-	swordObj_->SetRotate({ 0.0f, 0.0f, timer * 2.0f }); // Z軸でぐるぐる
-	//swordObj_->SetTranslate({ std::sin(timer) * 20.0f, 0.0f, 0.0f }); // 左右に揺らす
-	swordObj_->Update();
-
-	// 2. ワールド行列から先端と根元の座標を計算
-	// ※Object3dに GetWorldMatrix() がある前提。なければ計算してください
-	Matrix4x4 worldMat = MakeAffineMatrix(swordObj_->GetScale(), swordObj_->GetRotate(), swordObj_->GetTranslate());
-
-	Vector3 localBase = { 0.0f, 0.0f, 0.0f };   // 剣の根元
-	Vector3 localTip = { 0.0f, 6.0f, 0.0f };  // 剣の先端（Scale.yが10ならこのあたり）
-
-	// ローカル座標をワールド座標へ変換
-	Vector3 worldBase = TransformNormal(localBase, worldMat);
-	Vector3 worldTip = TransformNormal(localTip, worldMat);
-
-	// 3. 軌跡を更新！
-	//trailManager_->Update(worldTip, worldBase);
 
 	camera->Update();
 	debugCamera->Update(input_->GetMouseState(), input_->GetKey(), input_->GetLeftStick());
@@ -397,6 +488,7 @@ void TestScene::Update() {
 	}
 	if (vrmTestLoaded_) {
 		Vector3 move{};
+		Vector3 localMove{};
 		bool isMoving = false;
 		bool isRunning = false;
 		if (enableVrmActionControl_) {
@@ -404,37 +496,232 @@ void TestScene::Update() {
 			if (input_->IsPress(input_->GetKey()[DIK_D])) move.x += 1.0f;
 			if (input_->IsPress(input_->GetKey()[DIK_W])) move.z += 1.0f;
 			if (input_->IsPress(input_->GetKey()[DIK_S])) move.z -= 1.0f;
+			localMove = move;
 			const float moveLength = std::sqrt(move.x * move.x + move.z * move.z);
 			isMoving = moveLength > 0.0001f;
 			isRunning = isMoving && input_->IsPress(input_->GetKey()[DIK_LSHIFT]);
 			if (isMoving) {
 				move.x /= moveLength;
 				move.z /= moveLength;
-				const float speed = vrmActionMoveSpeed_ * (isRunning ? vrmActionRunMultiplier_ : 1.0f);
-				vrmActionPosition_.x += move.x * speed * finalDeltaTime;
-				vrmActionPosition_.z += move.z * speed * finalDeltaTime;
-				const float targetYaw = std::atan2(move.x, move.z);
-				const float yawDifference = std::atan2(
-					std::sin(targetYaw - vrmFacingYaw_),
-					std::cos(targetYaw - vrmFacingYaw_));
-				const float turnT = (std::min)(1.0f, vrmFacingTurnSpeed_ * finalDeltaTime);
-				vrmFacingYaw_ += yawDifference * turnT;
-				vrmTestObject_->SetRotate({ 0.0f, vrmFacingYaw_, 0.0f });
+				localMove.x /= moveLength;
+				localMove.z /= moveLength;
+				if (vrmLockFacing_) {
+					const Vector3 forward = { std::sin(vrmFacingYaw_), 0.0f, std::cos(vrmFacingYaw_) };
+					const Vector3 right = { std::cos(vrmFacingYaw_), 0.0f, -std::sin(vrmFacingYaw_) };
+					move = {
+						right.x * localMove.x + forward.x * localMove.z,
+						0.0f,
+						right.z * localMove.x + forward.z * localMove.z,
+					};
+				}
 			}
-			const std::string desiredAnimation = isMoving ? (isRunning ? "Run" : "Walk") : "Idle";
-			if (desiredAnimation != vrmCurrentAnimation_) {
-				const bool previousIsLocomotion = vrmCurrentAnimation_ == "Walk" || vrmCurrentAnimation_ == "Run";
-				const bool nextIsLocomotion = desiredAnimation == "Walk" || desiredAnimation == "Run";
-				vrmTestModel_->TransitionToAnimation(
-					desiredAnimation,
-					vrmAnimationBlendDuration_,
-					previousIsLocomotion && nextIsLocomotion);
-				vrmCurrentAnimation_ = desiredAnimation;
+
+				auto returnToLocomotion = [&]() {
+				vrmActionState_ = VrmActionState::Locomotion;
+				vrmComboStep_ = 0;
+				vrmComboQueued_ = false;
+				vrmAttackHitActive_ = false;
+				vrmTestModel_->SetAnimationLoop(true);
+				vrmTestModel_->SetAnimationPlaybackSpeed(1.0f);
+				const std::string desired = isMoving ? (isRunning ? "Run" : "Walk") : "Idle";
+				vrmTestModel_->TransitionToAnimation(desired, vrmAnimationBlendDuration_, false);
+				vrmCurrentAnimation_ = desired;
+			};
+			const auto key = input_->GetKey();
+			const auto preKey = input_->GetPreKey();
+			const bool attackTriggered = input_->IsTrigger(key[DIK_F], preKey[DIK_F]);
+
+			if (vrmActionState_ == VrmActionState::Locomotion) {
+				if (input_->IsTrigger(key[DIK_SPACE], preKey[DIK_SPACE])) {
+					vrmActionState_ = VrmActionState::Jump;
+					vrmJumpPhase_ = VrmJumpPhase::Takeoff;
+					vrmVerticalVelocity_ = 0.0f;
+					vrmTestModel_->TransitionToAnimation("JumpingUp", 0.08f, false);
+					vrmTestModel_->SetAnimationLoop(false);
+					vrmTestModel_->SetAnimationPlaybackSpeed(vrmTakeoffPlaybackSpeed_);
+					vrmCurrentAnimation_ = "JumpingUp";
+				} else if (input_->IsTrigger(key[DIK_LCONTROL], preKey[DIK_LCONTROL])) {
+					vrmActionState_ = VrmActionState::Dodge;
+					vrmDodgeElapsed_ = 0.0f;
+					vrmDodgePreviousProgress_ = 0.0f;
+					const Vector3 forward = { std::sin(vrmFacingYaw_), 0.0f, std::cos(vrmFacingYaw_) };
+					const Vector3 right = { std::cos(vrmFacingYaw_), 0.0f, -std::sin(vrmFacingYaw_) };
+					vrmDodgeDirection_ = isMoving ? move : forward;
+					const float localForward = vrmLockFacing_ ? localMove.z
+						: vrmDodgeDirection_.x * forward.x + vrmDodgeDirection_.z * forward.z;
+					const float localRight = vrmLockFacing_ ? localMove.x
+						: vrmDodgeDirection_.x * right.x + vrmDodgeDirection_.z * right.z;
+					std::string dodgeAnimation;
+					if (std::abs(localForward) >= std::abs(localRight)) {
+						dodgeAnimation = localForward >= 0.0f ? "DodgeForward" : "DodgeBackward";
+					} else {
+						dodgeAnimation = localRight >= 0.0f ? "DodgeRight" : "DodgeLeft";
+					}
+					vrmTestModel_->TransitionToAnimation(dodgeAnimation, 0.06f, false);
+					vrmTestModel_->SetAnimationLoop(false);
+					vrmTestModel_->SetAnimationPlaybackSpeed(1.0f);
+					vrmCurrentAnimation_ = dodgeAnimation;
+				} else if (attackTriggered) {
+					vrmActionState_ = VrmActionState::Attack;
+					if (swordTrail_) {
+						swordTrail_->Clear();
+					}
+					vrmAttackElapsed_ = 0.0f;
+					vrmComboStep_ = 1;
+					vrmComboQueued_ = false;
+					vrmAttackHitActive_ = false;
+					vrmTestModel_->TransitionToAnimation("Attack1", 0.07f, false);
+					vrmTestModel_->SetAnimationLoop(false);
+					vrmTestModel_->SetAnimationPlaybackSpeed(vrmAttackPlaybackSpeed_);
+					vrmCurrentAnimation_ = "Attack1";
+				}
 			}
+
+			if (vrmActionState_ == VrmActionState::Locomotion) {
+				if (isMoving) {
+					const float speed = vrmActionMoveSpeed_ * (isRunning ? vrmActionRunMultiplier_ : 1.0f);
+					vrmActionPosition_.x += move.x * speed * finalDeltaTime;
+					vrmActionPosition_.z += move.z * speed * finalDeltaTime;
+					if (!vrmLockFacing_) {
+						const float targetYaw = std::atan2(move.x, move.z);
+						const float yawDifference = std::atan2(
+							std::sin(targetYaw - vrmFacingYaw_), std::cos(targetYaw - vrmFacingYaw_));
+						vrmFacingYaw_ += yawDifference * (std::min)(1.0f, vrmFacingTurnSpeed_ * finalDeltaTime);
+					}
+				}
+				vrmActionPosition_.y = GetVrmGroundHeight(vrmActionPosition_);
+				const std::string desiredAnimation = isMoving ? (isRunning ? "Run" : "Walk") : "Idle";
+				if (desiredAnimation != vrmCurrentAnimation_) {
+					const bool previousIsLocomotion = vrmCurrentAnimation_ == "Walk" || vrmCurrentAnimation_ == "Run";
+					const bool nextIsLocomotion = desiredAnimation == "Walk" || desiredAnimation == "Run";
+					vrmTestModel_->SetAnimationLoop(true);
+					vrmTestModel_->TransitionToAnimation(
+						desiredAnimation, vrmAnimationBlendDuration_, previousIsLocomotion && nextIsLocomotion);
+					vrmCurrentAnimation_ = desiredAnimation;
+				}
+			} else if (vrmActionState_ == VrmActionState::Dodge) {
+				vrmDodgeElapsed_ += finalDeltaTime;
+				const float duration = (std::max)(0.1f, vrmTestModel_->GetCurrentAnimationDuration());
+				const float t = (std::clamp)(vrmDodgeElapsed_ / duration, 0.0f, 1.0f);
+				const float progress = t * t * (3.0f - 2.0f * t);
+				const float deltaProgress = progress - vrmDodgePreviousProgress_;
+				vrmDodgePreviousProgress_ = progress;
+				vrmActionPosition_.x += vrmDodgeDirection_.x * vrmDodgeDistance_ * deltaProgress;
+				vrmActionPosition_.z += vrmDodgeDirection_.z * vrmDodgeDistance_ * deltaProgress;
+				vrmActionPosition_.y = GetVrmGroundHeight(vrmActionPosition_);
+				if (t >= 1.0f) returnToLocomotion();
+			} else if (vrmActionState_ == VrmActionState::Jump) {
+				if (vrmJumpPhase_ == VrmJumpPhase::Takeoff) {
+					const float duration = (std::max)(
+						vrmTestModel_->GetCurrentAnimationDuration(), 0.001f);
+					const float takeoffPhase = vrmTestModel_->GetCurrentAnimationTime() / duration;
+					if (takeoffPhase >= vrmTakeoffLaunchPhase_) {
+						vrmJumpPhase_ = VrmJumpPhase::Rising;
+						vrmVerticalVelocity_ = vrmJumpSpeed_;
+					}
+				}
+
+				if (vrmJumpPhase_ == VrmJumpPhase::Rising || vrmJumpPhase_ == VrmJumpPhase::Falling) {
+					if (isMoving) {
+						vrmActionPosition_.x += move.x * vrmActionMoveSpeed_ * 0.55f * finalDeltaTime;
+						vrmActionPosition_.z += move.z * vrmActionMoveSpeed_ * 0.55f * finalDeltaTime;
+					}
+					vrmVerticalVelocity_ -= vrmGravity_ * finalDeltaTime;
+					vrmActionPosition_.y += vrmVerticalVelocity_ * finalDeltaTime;
+				}
+
+				if (vrmJumpPhase_ == VrmJumpPhase::Rising && vrmVerticalVelocity_ <= 0.0f) {
+					vrmJumpPhase_ = VrmJumpPhase::Falling;
+					vrmTestModel_->TransitionToAnimation("FallingIdle", 0.08f, false);
+					vrmTestModel_->SetAnimationLoop(true);
+					vrmTestModel_->SetAnimationPlaybackSpeed(1.0f);
+					vrmCurrentAnimation_ = "FallingIdle";
+				}
+
+				const float currentGroundHeight = GetVrmGroundHeight(vrmActionPosition_);
+				if (vrmJumpPhase_ != VrmJumpPhase::Landing &&
+					vrmActionPosition_.y <= currentGroundHeight && vrmVerticalVelocity_ < 0.0f) {
+					vrmActionPosition_.y = currentGroundHeight;
+					vrmVerticalVelocity_ = 0.0f;
+					vrmJumpPhase_ = VrmJumpPhase::Landing;
+					vrmTestModel_->TransitionToAnimation("FallingToLanding", 0.05f, false);
+					vrmTestModel_->SetAnimationLoop(false);
+					vrmTestModel_->SeekCurrentAnimation(
+						vrmLandingStartPhase_ * vrmTestModel_->GetCurrentAnimationDuration());
+					vrmTestModel_->SetAnimationPlaybackSpeed(vrmLandingPlaybackSpeed_);
+					vrmCurrentAnimation_ = "FallingToLanding";
+				} else if (vrmJumpPhase_ == VrmJumpPhase::Landing &&
+					!vrmTestModel_->IsCurrentAnimationPlaying()) {
+					returnToLocomotion();
+				}
+			} else if (vrmActionState_ == VrmActionState::Attack) {
+				vrmAttackElapsed_ += finalDeltaTime;
+				const float duration = (std::max)(vrmTestModel_->GetCurrentAnimationDuration(), 0.001f);
+				const float normalizedTime = (std::clamp)(
+					vrmTestModel_->GetCurrentAnimationTime() / duration, 0.0f, 1.0f);
+				vrmAttackHitActive_ = normalizedTime >= 0.28f && normalizedTime <= 0.62f;
+				if (attackTriggered && vrmComboStep_ < 3 && normalizedTime >= vrmComboBufferStart_) {
+					vrmComboQueued_ = true;
+				}
+				if (vrmComboQueued_ && vrmComboStep_ < 3 && normalizedTime >= vrmComboChainPoint_) {
+					++vrmComboStep_;
+					vrmComboQueued_ = false;
+					vrmAttackHitActive_ = false;
+					const std::string nextAttack = "Attack" + std::to_string(vrmComboStep_);
+					vrmTestModel_->TransitionToAnimation(nextAttack, 0.055f, false);
+					vrmTestModel_->SetAnimationLoop(false);
+					vrmTestModel_->SetAnimationPlaybackSpeed(vrmAttackPlaybackSpeed_);
+					vrmCurrentAnimation_ = nextAttack;
+				} else if (!vrmTestModel_->IsCurrentAnimationPlaying()) {
+					returnToLocomotion();
+				}
+			}
+			vrmTestObject_->SetRotate({ 0.0f, vrmFacingYaw_, 0.0f });
 		}
 		vrmTestObject_->SetTranslate(vrmActionPosition_);
 		vrmTestModel_->Update(finalDeltaTime);
 		vrmTestObject_->Update();
+
+		vrmSwordAttached_ = false;
+		const Skeleton& skeleton = vrmTestModel_->GetSkeleton();
+		const auto hand = skeleton.jointMap.find("J_Bip_R_Hand");
+		if (hand != skeleton.jointMap.end()) {
+			Vector3 swordRotation = vrmSwordLocalRotate_;
+			if (vrmActionState_ == VrmActionState::Attack && vrmComboStep_ == 2) {
+				swordRotation.x += vrmSwordAttack2RotateCorrection_.x;
+				swordRotation.y += vrmSwordAttack2RotateCorrection_.y;
+				swordRotation.z += vrmSwordAttack2RotateCorrection_.z;
+			}
+			const Matrix4x4 swordLocal = MakeAffineMatrix(
+				vrmSwordLocalScale_, swordRotation, vrmSwordLocalOffset_);
+			const Matrix4x4 characterWorld = MakeAffineMatrix(
+				vrmTestObject_->GetScale(), vrmTestObject_->GetRotate(), vrmTestObject_->GetTranslate());
+			const Matrix4x4 swordWorld = Multiply(
+				Multiply(swordLocal, skeleton.joints[hand->second].skeletonSpaceMatrix), characterWorld);
+			swordObj_->UpdateWithWorldMatrix(swordWorld);
+			vrmSwordAttached_ = true;
+
+			const bool recordSwordTrail = enableSwordTrail_ &&
+				vrmActionState_ == VrmActionState::Attack && vrmAttackHitActive_;
+			swordTrail_->SetActive(recordSwordTrail);
+			if (recordSwordTrail) {
+				auto transformSwordPoint = [&](float localY) {
+					Vector3 result = TransformNormal({ 0.0f, localY, 0.0f }, swordWorld);
+					result.x += swordWorld.m[3][0];
+					result.y += swordWorld.m[3][1];
+					result.z += swordWorld.m[3][2];
+					return result;
+				};
+				swordTrail_->Update(
+					finalDeltaTime,
+					transformSwordPoint(vrmSwordTrailTipY_),
+					transformSwordPoint(vrmSwordTrailBaseY_),
+					swordTrailConfig_);
+			}
+		}
+		if (!vrmSwordAttached_ && swordTrail_) {
+			swordTrail_->SetActive(false);
+		}
 	}
 	effectStartMarker_->SetTranslate(effectStartPos_);
 	effectStartMarker_->Update();
@@ -530,6 +817,7 @@ void TestScene::Update() {
 #endif // USE_IMGUI
 
 	objectPostEffect_->Update(finalDeltaTime);
+	swordPostEffect_->Update(finalDeltaTime);
 	if (autoFireEffect_) {
 		autoFireTimer_ += finalDeltaTime;
 		if (autoFireTimer_ >= 1.6f && effectSequencer_->IsFinished()) {
@@ -569,10 +857,12 @@ void TestScene::DrawPostEffect3D() {
 		effectStartMarker_->Draw();
 		effectTargetMarker_->Draw();
 		blockObj2_->Draw();
-		swordObj_->Draw();
 	}
 
 	groundObj_->Draw();
+	if (enableSlopeGround_) {
+		slopeGroundObj_->Draw();
+	}
 	if (showSimpleSkin_ && skinClusterLoaded_) {
 		skinnedTestObject_->DrawSkinned(*skinnedTestModel_);
 	}
@@ -581,6 +871,16 @@ void TestScene::DrawPostEffect3D() {
 	}
 	if (showVrmTestModel_ && vrmTestLoaded_) {
 		vrmTestObject_->DrawSkinned(*vrmTestModel_);
+		if (vrmSwordAttached_) {
+			swordObj_->Draw();
+		}
+	}
+	if (showVrmTestModel_ && vrmSwordAttached_ && enableSwordBloom_) {
+		swordPostEffect_->BeginCaptureWithCurrentDepth();
+		Object3dCommon::GetInstance()->PreDraw(kNone);
+		swordObj_->Draw();
+		swordPostEffect_->EndCaptureBloomOnly();
+		Object3dCommon::GetInstance()->PreDraw(kNone);
 	}
 
 	if (showLegacyTestObjects_) {
@@ -598,8 +898,14 @@ void TestScene::DrawPostEffect3D() {
 	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
-	if (showLegacyTestObjects_) {
+	trailManager_->DrawAll(vp);
+	if (enableSwordTrail_ && enableSwordBloom_ && swordTrail_ && !swordTrail_->GetPoints().empty()) {
+		swordPostEffect_->BeginCaptureWithCurrentDepth();
 		trailManager_->DrawAll(vp);
+		swordPostEffect_->EndCaptureBloomOnly();
+		Object3dCommon::GetInstance()->PreDraw(kNone);
+	}
+	if (showLegacyTestObjects_) {
 		ringManager_->DrawAll(vp);
 		cylinderManager_->DrawAll(vp);
 		ParticleManager::GetInstance()->Draw();
@@ -613,7 +919,9 @@ void TestScene::DrawShadow() {
 	if (showLegacyTestObjects_) {
 		blockObj_->DrawShadow();
 		blockObj2_->DrawShadow();
-		swordObj_->DrawShadow();
+	}
+	if (enableSlopeGround_) {
+		slopeGroundObj_->DrawShadow();
 	}
 	if (showSimpleSkin_ && skinClusterLoaded_) {
 		skinnedTestObject_->DrawSkinnedShadow(*skinnedTestModel_);
@@ -623,6 +931,9 @@ void TestScene::DrawShadow() {
 	}
 	if (showVrmTestModel_ && vrmTestLoaded_) {
 		vrmTestObject_->DrawSkinnedShadow(*vrmTestModel_);
+		if (vrmSwordAttached_) {
+			swordObj_->DrawShadow();
+		}
 	}
 }
 

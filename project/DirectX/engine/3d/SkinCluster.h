@@ -98,6 +98,15 @@ public:
 		bool synchronizeNormalizedTime = false);
 
 	Skeleton& GetSkeleton() { return skeleton_; }
+	void SetAnimationLoop(bool loop) { animationPlayer_.SetLoop(loop); }
+	void SetAnimationPlaybackSpeed(float speed) { animationPlayer_.SetPlaybackSpeed(speed); }
+	void SeekCurrentAnimation(float time) { animationPlayer_.Seek(time); }
+	float GetCurrentAnimationTime() const { return animationPlayer_.GetTime(); }
+	float GetCurrentAnimationDuration() const {
+		return animationPlayer_.GetAnimation() ? animationPlayer_.GetAnimation()->duration : 0.0f;
+	}
+	bool IsCurrentAnimationPlaying() const { return animationPlayer_.IsPlaying(); }
+	bool IsCurrentAnimationLooping() const { return animationPlayer_.IsLooping(); }
 	const SkinCluster& GetSkinCluster() const { return skinCluster_; }
 	AnimationPlayer& GetAnimationPlayer() { return animationPlayer_; }
 	const Animation& GetAnimation() const { return animations_[currentAnimationIndex_]; }

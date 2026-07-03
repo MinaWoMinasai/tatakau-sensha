@@ -33,6 +33,8 @@ public:
 
 	Matrix4x4& GetProjectionMatrix() { return projectionMatrix_; }
 	Matrix4x4& GetViewProjectionMatrix() { return viewProjectionMatrix_; }
+	void SetNearClip(float nearClip) { nearClip_ = nearClip; }
+	void SetFarClip(float farClip) { farClip_ = farClip; }
 
 private:
 	// X,Y,Z軸回りのローカル回転角
