@@ -78,12 +78,14 @@ private:
 	std::unique_ptr<Camera> camera;
 
 	std::unique_ptr<Object3d> groundObj_;
+	std::unique_ptr<Object3d> slopeGroundObj_;
 	std::unique_ptr<Object3d> blockObj_;
 	std::unique_ptr<Object3d> blockObj2_;
 	std::unique_ptr<Object3d> effectStartMarker_;
 	std::unique_ptr<Object3d> effectTargetMarker_;
 
 	std::unique_ptr<TrailManager> trailManager_;
+	TrailInstance* swordTrail_ = nullptr;
 	std::unique_ptr<RingManager> ringManager_;
 	std::unique_ptr<CylinderManager> cylinderManager_;
 	std::unique_ptr<EffectSequencer> effectSequencer_;
@@ -150,7 +152,48 @@ private:
 	float vrmAnimationBlendDuration_ = 0.18f;
 	float vrmFacingTurnSpeed_ = 12.0f;
 	float vrmFacingYaw_ = 0.0f;
+	bool vrmLockFacing_ = true;
 	bool enableVrmActionControl_ = true;
 	std::string vrmCurrentAnimation_ = "Idle";
+	enum class VrmActionState { Locomotion, Dodge, Jump, Attack };
+	enum class VrmJumpPhase { Takeoff, Rising, Falling, Landing };
+	VrmActionState vrmActionState_ = VrmActionState::Locomotion;
+	VrmJumpPhase vrmJumpPhase_ = VrmJumpPhase::Takeoff;
+	Vector3 vrmDodgeDirection_ = { 0.0f, 0.0f, 1.0f };
+	float vrmDodgeDistance_ = 22.0f;
+	float vrmDodgeElapsed_ = 0.0f;
+	float vrmDodgePreviousProgress_ = 0.0f;
+	float vrmVerticalVelocity_ = 0.0f;
+	float vrmJumpSpeed_ = 30.0f;
+	float vrmGravity_ = 32.0f;
+	float vrmGroundY_ = -30.0f;
+	float vrmTakeoffPlaybackSpeed_ = 1.35f;
+	float vrmTakeoffLaunchPhase_ = 0.42f;
+	float vrmLandingStartPhase_ = 0.30f;
+	float vrmLandingPlaybackSpeed_ = 1.35f;
+	float vrmAttackElapsed_ = 0.0f;
+	float vrmAttackPlaybackSpeed_ = 1.45f;
+	float vrmComboBufferStart_ = 0.18f;
+	float vrmComboChainPoint_ = 0.58f;
+	int vrmComboStep_ = 0;
+	bool vrmComboQueued_ = false;
+	bool vrmAttackHitActive_ = false;
+	std::unique_ptr<ObjectPostEffect> swordPostEffect_;
+	bool enableSwordBloom_ = true;
+	Vector3 vrmSwordLocalOffset_ = { 0.0f, 0.0f, 0.0f };
+	Vector3 vrmSwordLocalRotate_ = { 0.0f, 0.0f, 0.0f };
+	Vector3 vrmSwordAttack2RotateCorrection_ = { 0.55f, 0.0f, 0.0f };
+	Vector3 vrmSwordLocalScale_ = { 0.14f, 0.14f, 0.14f };
+	bool vrmSwordAttached_ = false;
+	bool enableSwordTrail_ = true;
+	TrailConfig swordTrailConfig_{};
+	float vrmSwordTrailBaseY_ = 0.35f;
+	float vrmSwordTrailTipY_ = 6.0f;
+	bool enableSlopeGround_ = true;
+	Vector3 slopeGroundCenter_ = { 30.0f, 0.0f, 20.0f };
+	Vector3 slopeGroundScale_ = { 20.0f, 2.0f, 15.0f };
+	float slopeGroundAngle_ = 0.25f;
+
+	float GetVrmGroundHeight(const Vector3& position) const;
 
 };
