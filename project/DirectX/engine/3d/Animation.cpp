@@ -95,6 +95,7 @@ void AnimationPlayer::SetAnimation(const Animation* animation, bool restart) {
 	animation_ = animation;
 	if (restart) {
 		time_ = 0.0f;
+		playing_ = true;
 	}
 }
 
