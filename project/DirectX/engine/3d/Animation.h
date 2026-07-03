@@ -50,6 +50,7 @@ public:
 	void SetPlaying(bool playing) { playing_ = playing; }
 	void SetPlaybackSpeed(float speed) { playbackSpeed_ = speed; }
 	bool IsPlaying() const { return playing_; }
+	bool IsLooping() const { return loop_; }
 	float GetTime() const { return time_; }
 	const Animation* GetAnimation() const { return animation_; }
 

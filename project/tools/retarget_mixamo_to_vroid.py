@@ -30,6 +30,23 @@ BONE_MAP = {
     "mixamorig:RightToeBase": "J_Bip_R_ToeBase",
 }
 
+# Mixamo attack clips contain keyed finger poses.  Keeping only the hand joint
+# leaves the VRoid bind-pose fingers open, making every weapon attack look like
+# a karate chop.  Mixamo's fourth finger node is an unskinned tip, so map the
+# three deforming segments that both rigs share.
+for mixamo_side, target_side in (("Left", "L"), ("Right", "R")):
+    for mixamo_finger, target_finger in (
+        ("Thumb", "Thumb"),
+        ("Index", "Index"),
+        ("Middle", "Middle"),
+        ("Ring", "Ring"),
+        ("Pinky", "Little"),
+    ):
+        for segment in range(1, 4):
+            BONE_MAP[
+                f"mixamorig:{mixamo_side}Hand{mixamo_finger}{segment}"
+            ] = f"J_Bip_{target_side}_{target_finger}{segment}"
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -89,7 +106,8 @@ def retarget_clip(target_armature, clip_name, fbx_path):
     scene.frame_start = start
     scene.frame_end = end
     first_baked_rotations = {}
-    loop_blend_frames = min(12, max(4, (end - start) // 5))
+    is_looping = clip_name in {"Idle", "Walk", "Run", "FallingIdle"}
+    loop_blend_frames = min(12, max(4, (end - start) // 5)) if is_looping else 0
     for frame in range(start, end + 1):
         scene.frame_set(frame)
         for source_name, target_name in BONE_MAP.items():
@@ -165,7 +183,7 @@ def retarget_clip(target_armature, clip_name, fbx_path):
             baked_rotation = target_pose_bone.rotation_quaternion.copy()
             if frame == start:
                 first_baked_rotations[target_name] = baked_rotation.copy()
-            elif frame > end - loop_blend_frames:
+            elif loop_blend_frames > 0 and frame > end - loop_blend_frames:
                 loop_t = (frame - (end - loop_blend_frames)) / loop_blend_frames
                 smooth_loop_t = loop_t * loop_t * (3.0 - 2.0 * loop_t)
                 baked_rotation = baked_rotation.slerp(
@@ -223,6 +241,10 @@ def main():
         export_format="GLB",
         export_animations=True,
         export_animation_mode="ACTIONS",
+        # Only the 22 explicitly keyed humanoid joints need animation channels.
+        # Force-sampling every VRoid helper bone multiplies memory/file size by
+        # the number of clips and becomes unstable once combo actions are added.
+        export_force_sampling=False,
         export_skins=True,
         export_morph=True,
         export_materials="EXPORT",
