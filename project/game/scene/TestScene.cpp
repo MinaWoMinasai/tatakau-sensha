@@ -4,27 +4,36 @@ TestScene::TestScene() {}
 
 TestScene::~TestScene() {}
 
-float TestScene::GetVrmGroundHeight(const Vector3& position) const {
-	float height = vrmGroundY_;
-	if (!enableSlopeGround_) {
-		return height;
+float TestScene::GetVrmGroundHeight(const Vector3& position) {
+	const float probeDown = vrmActionState_ == VrmActionState::Jump
+		? 200.0f
+		: vrmGroundProbeDown_;
+	const Vector3 rayOrigin = {
+		position.x,
+		position.y + vrmGroundProbeUp_,
+		position.z,
+	};
+	GroundRayHit hit{};
+	GroundRayHit candidate{};
+	bool found = false;
+	const float minimumNormalY = std::cos(vrmMaximumSlopeDegrees_ * pi / 180.0f);
+	if (flatGroundMesh_.RaycastDown(
+		rayOrigin, vrmGroundProbeUp_ + probeDown, minimumNormalY, candidate)) {
+		hit = candidate;
+		found = true;
 	}
-
-	const float sinAngle = std::sin(slopeGroundAngle_);
-	const float cosAngle = std::cos(slopeGroundAngle_);
-	const float topCenterX = slopeGroundCenter_.x - slopeGroundScale_.y * sinAngle;
-	const float halfProjectedWidth = slopeGroundScale_.x * cosAngle;
-	const bool insideX = position.x >= topCenterX - halfProjectedWidth &&
-		position.x <= topCenterX + halfProjectedWidth;
-	const bool insideZ = std::abs(position.z - slopeGroundCenter_.z) <= slopeGroundScale_.z;
-	if (insideX && insideZ) {
-		const float localX = (position.x - slopeGroundCenter_.x + slopeGroundScale_.y * sinAngle) /
-			((std::max)(slopeGroundScale_.x * cosAngle, 0.001f));
-		const float slopeHeight = slopeGroundCenter_.y +
-			localX * slopeGroundScale_.x * sinAngle + slopeGroundScale_.y * cosAngle;
-		height = (std::max)(height, slopeHeight);
+	if (enableSlopeGround_ && slopeGroundMesh_.RaycastDown(
+		rayOrigin, vrmGroundProbeUp_ + probeDown, minimumNormalY, candidate) &&
+		(!found || candidate.distance < hit.distance)) {
+		hit = candidate;
+		found = true;
 	}
-	return height;
+	if (found) {
+		vrmGroundNormal_ = hit.normal;
+		return hit.position.y;
+	}
+	vrmGroundNormal_ = { 0.0f, 1.0f, 0.0f };
+	return vrmGroundY_;
 }
 
 void TestScene::Initialize() {
@@ -130,6 +139,23 @@ void TestScene::Initialize() {
 	slopeGroundObj_->SetColor({ 0.16f, 0.19f, 0.24f, 1.0f });
 	slopeGroundObj_->SetLighting(true);
 	slopeGroundObj_->Update();
+
+	flatGroundMesh_.Clear();
+	slopeGroundMesh_.Clear();
+	if (Model* groundModel = ModelManager::GetInstance()->FindModel("ground.obj")) {
+		flatGroundMesh_.AddMesh(
+			groundModel->GetModelData(),
+			MakeAffineMatrix(
+				Vector3{ 1.0f, 1.0f, 1.0f },
+				Vector3{ 0.0f, 0.0f, 0.0f },
+				Vector3{ 0.0f, vrmGroundY_, 0.0f }));
+	}
+	if (Model* slopeModel = ModelManager::GetInstance()->FindModel("cube.obj")) {
+		slopeGroundMesh_.AddMesh(
+			slopeModel->GetModelData(),
+			MakeAffineMatrix(
+				slopeGroundScale_, Vector3{ 0.0f, 0.0f, slopeGroundAngle_ }, slopeGroundCenter_));
+	}
 
 	blockObj_ = std::make_unique<Object3d>();
 	blockObj_->Initialize();
@@ -439,6 +465,12 @@ void TestScene::Update() {
 	ImGui::Begin("Ground");
 	ImGui::Checkbox("Enable slope ground", &enableSlopeGround_);
 	ImGui::Text("Slope test: walk to the right side of the character (world +X)");
+	ImGui::SliderFloat("Maximum walkable slope", &vrmMaximumSlopeDegrees_, 1.0f, 75.0f, "%.1f deg");
+	ImGui::DragFloat("Ground probe up", &vrmGroundProbeUp_, 0.1f, 0.1f, 20.0f);
+	ImGui::DragFloat("Ground probe down", &vrmGroundProbeDown_, 0.1f, 0.5f, 50.0f);
+	ImGui::Text("Ground normal: %.2f, %.2f, %.2f", vrmGroundNormal_.x, vrmGroundNormal_.y, vrmGroundNormal_.z);
+	ImGui::Text("Collision triangles: flat=%zu slope=%zu",
+		flatGroundMesh_.GetTriangleCount(), slopeGroundMesh_.GetTriangleCount());
 	ImGui::DragFloat3("position", &groundObj_->GetTranslate().x);
 	ImGui::DragFloat3("rotate", &groundObj_->GetRotate().x, 0.01f);
 	ImGui::End();

@@ -290,6 +290,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\commom\SrvManager.cpp" />
     <ClCompile Include="DirectX\engine\particle\ParticleManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\ShadowMap.cpp" />
+    <ClCompile Include="game\collision\TriangleMeshGround.cpp" />
     <ClCompile Include="game\scene\TestScene.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp" />
     <ClCompile Include="DirectX\engine\3d\Skybox.cpp" />
@@ -485,6 +486,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\level\LevelLoader.h" />
     <ClInclude Include="game\scene\IScene.h" />
     <ClInclude Include="game\scene\SceneFactory.h" />
+    <ClInclude Include="game\collision\TriangleMeshGround.h" />
     <ClInclude Include="game\scene\TestScene.h" />
     <ClInclude Include="DirectX\engine\postEffect\Shadow.h" />
     <ClInclude Include="DirectX\engine\3d\Skybox.h" />
