@@ -24,6 +24,7 @@
 #include "Skybox.h"
 #include "EffectSequencer.h"
 #include "ObjectPostEffect.h"
+#include "TriangleMeshGround.h"
 #include "Animation.h"
 #include "Skeleton.h"
 #include "SkinCluster.h"
@@ -193,7 +194,13 @@ private:
 	Vector3 slopeGroundCenter_ = { 30.0f, 0.0f, 20.0f };
 	Vector3 slopeGroundScale_ = { 20.0f, 2.0f, 15.0f };
 	float slopeGroundAngle_ = 0.25f;
+	TriangleMeshGround flatGroundMesh_;
+	TriangleMeshGround slopeGroundMesh_;
+	Vector3 vrmGroundNormal_ = { 0.0f, 1.0f, 0.0f };
+	float vrmMaximumSlopeDegrees_ = 48.0f;
+	float vrmGroundProbeUp_ = 3.0f;
+	float vrmGroundProbeDown_ = 12.0f;
 
-	float GetVrmGroundHeight(const Vector3& position) const;
+	float GetVrmGroundHeight(const Vector3& position);
 
 };
