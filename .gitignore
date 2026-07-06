@@ -21,6 +21,12 @@ generated/
 *.pdb
 *.ilk
 *.exe
+*.dll
+*.so
+*.dylib
+*.lib
+*.a
+*.o
 
 # Local dependency/build caches. These are regenerated and must not be committed.
 project/vcpkg_installed/
