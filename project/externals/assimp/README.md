@@ -4,7 +4,7 @@ This directory contains the headers and build instructions for the Assimp 5.4.3
 runtime used by CG2. Generated libraries are kept locally and are not committed
 to the repository.
 
-- Built with Visual Studio 2026 (`v145`), x64.
+- Built locally with Visual Studio 2026 (`v145`) by default, x64.
 - Shared-library build to keep the repository and executable small.
 - Only the glTF/glb importer is enabled for the animation pipeline.
 - The rebuild script creates `lib/assimp-vc145-mt.lib` and

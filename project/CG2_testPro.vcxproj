@@ -58,6 +58,10 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <AssimpLibraryName>assimp-vc145-mt</AssimpLibraryName>
+    <AssimpLibraryName Condition="Exists('$(ProjectDir)externals\assimp\lib\assimp-vc143-mt.lib') and !Exists('$(ProjectDir)externals\assimp\lib\assimp-vc145-mt.lib')">assimp-vc143-mt</AssimpLibraryName>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IntDir>$(SolutionDir)..\generated\obj\$(ProjectName)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)..\generated\outputs\$(Configuration)\</OutDir>
@@ -88,7 +92,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)externals\assimp\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>assimp-vc145-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(AssimpLibraryName).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
@@ -117,7 +121,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)externals\assimp\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>assimp-vc145-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(AssimpLibraryName).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
@@ -148,7 +152,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <LinkTimeCodeGeneration />
       <AdditionalLibraryDirectories>$(ProjectDir)externals\assimp\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>assimp-vc145-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(AssimpLibraryName).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
@@ -232,6 +236,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\level\LevelLoader.cpp" />
     <ClCompile Include="game\exp\EnemyManager.cpp" />
     <ClCompile Include="game\exp\ExpEnemy.cpp" />
+    <ClCompile Include="game\naval\scene\NavalBattleScene.cpp" />
     <ClCompile Include="game\scene\Game.cpp" />
     <ClCompile Include="game\scene\Action3DScene.cpp" />
     <ClCompile Include="game\collision\Collider.cpp" />
@@ -463,6 +468,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\SrvManager.h" />
     <ClInclude Include="game\exp\EnemyManager.h" />
     <ClInclude Include="game\exp\ExpEnemy.h" />
+    <ClInclude Include="game\naval\scene\NavalBattleScene.h" />
     <ClInclude Include="game\scene\Game.h" />
     <ClInclude Include="game\scene\Action3DScene.h" />
     <ClInclude Include="game\collision\Collider.h" />
@@ -550,8 +556,14 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="tools\level_aiditor\README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="ValidateAssimpLocalBinaries" BeforeTargets="Link">
+    <Error Condition="!Exists('$(ProjectDir)externals\assimp\lib\$(AssimpLibraryName).lib')"
+           Text="Assimp import library is missing. This generated file is intentionally not committed. Run project\tools\bootstrap_dependencies.ps1, or rebuild/copy it locally to project\externals\assimp\lib\$(AssimpLibraryName).lib. See project\externals\assimp\README.md." />
+    <Error Condition="!Exists('$(ProjectDir)externals\assimp\runtime\$(AssimpLibraryName).dll')"
+           Text="Assimp runtime DLL is missing. This generated file is intentionally not committed. Run project\tools\bootstrap_dependencies.ps1, or rebuild/copy it locally to project\externals\assimp\runtime\$(AssimpLibraryName).dll. See project\externals\assimp\README.md." />
+  </Target>
   <Target Name="CopyAssimpRuntime" AfterTargets="Build">
-    <Copy SourceFiles="$(ProjectDir)externals\assimp\runtime\assimp-vc145-mt.dll"
+    <Copy SourceFiles="$(ProjectDir)externals\assimp\runtime\$(AssimpLibraryName).dll"
           DestinationFolder="$(TargetDir)"
           SkipUnchangedFiles="true" />
   </Target>
