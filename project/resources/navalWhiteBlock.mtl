@@ -1,0 +1,13 @@
+# Naval prototype debug material.
+# A white texture is used so Object3d::SetColor() appears as-is instead of
+# being multiplied by the blue/black color of another model texture.
+
+newmtl NavalWhite
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 1
+map_Kd white512x512.png
