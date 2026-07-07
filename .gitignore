@@ -30,6 +30,7 @@ generated/
 
 # Local dependency/build caches. These are regenerated and must not be committed.
 project/vcpkg_installed/
+project/.deps/
 project/.codex-tmp/
 project/.codex_tmp/
 

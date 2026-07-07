@@ -163,6 +163,12 @@ void TitleScene::Update() {
 			phase_ = Phase::kFadeOut;
 			break;
 		}
+		if (input_->IsTrigger(input_->GetKey()[DIK_F4], input_->GetPreKey()[DIK_F4])) {
+			nextSceneName_ = "NAVAL_BATTLE";
+			fade_->Start(Fade::Status::FadeOut, 0.35f);
+			phase_ = Phase::kFadeOut;
+			break;
+		}
 
 		// 左クリックでruleを表示
 		if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {

@@ -261,6 +261,9 @@
     <ClCompile Include="game\exp\ExpEnemy.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\naval\scene\NavalBattleScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="DirectX\engine\postEffect\BloomConstantBuffer.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -500,6 +503,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\exp\ExpEnemy.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\naval\scene\NavalBattleScene.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\postEffect\BloomConstantBuffer.h">

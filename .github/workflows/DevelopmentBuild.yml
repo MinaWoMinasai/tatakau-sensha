@@ -23,6 +23,10 @@ jobs:
         with:
           msbuild-architecture: x64
 
+      - name: Bootstrap dependencies
+        shell: pwsh
+        run: .\project\tools\bootstrap_dependencies.ps1
+
       - name: Build
         run: |
-          msbuild ${{ env.SOLUTION_FILE_PATH }} /p:Platform=x64,Configuration=${{ env.CONFIGURATION }} /p:PlatformToolset=v143
+          msbuild ${{ env.SOLUTION_FILE_PATH }} /p:Platform=x64 /p:Configuration=${{ env.CONFIGURATION }} /p:PlatformToolset=v143
