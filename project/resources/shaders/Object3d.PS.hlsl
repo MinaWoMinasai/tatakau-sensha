@@ -61,6 +61,53 @@ PixelShaderOutput main(VertexShaderOutput input)
         discard;
     }
 
+    // Naval water prototype.
+    // environmentCoefficient >= 1.5 is reserved as a lightweight water-material flag.
+    // shininess is reused as scene time for the water object only.
+    if (gMaterial.environmentCoefficient >= 1.5f)
+    {
+        float time = gMaterial.shininess;
+        float2 worldXZ = input.worldPosition.xz;
+        float3 viewVector = gCamera.worldPosition - input.worldPosition;
+        float viewDistance = length(viewVector);
+        float3 V = normalize(viewVector);
+        float horizon = saturate(viewDistance / 310.0f);
+
+        float longWave =
+            sin(worldXZ.x * 0.055f + time * 0.62f) * 0.55f +
+            sin(worldXZ.y * 0.071f - time * 0.48f) * 0.45f +
+            sin((worldXZ.x + worldXZ.y) * 0.034f + time * 0.35f) * 0.38f;
+        float shortWave =
+            sin(worldXZ.x * 0.31f + worldXZ.y * 0.13f + time * 1.85f) * 0.16f +
+            sin(worldXZ.x * -0.19f + worldXZ.y * 0.27f - time * 1.35f) * 0.13f;
+        float wave = longWave + shortWave;
+
+        float crest = smoothstep(0.78f, 1.24f, wave);
+        float fineFoam = smoothstep(0.64f, 0.93f, sin(worldXZ.x * 0.83f + worldXZ.y * 0.58f + time * 2.8f));
+        float foam = crest * (0.55f + 0.45f * fineFoam);
+
+        float fresnel = pow(1.0f - saturate(dot(float3(0.0f, 1.0f, 0.0f), V)), 3.2f);
+        float glintLine = smoothstep(0.86f, 1.0f, sin(worldXZ.x * 0.021f - worldXZ.y * 0.018f + time * 0.28f));
+        float glint = fresnel * glintLine * 0.22f;
+
+        float3 nearWater = float3(0.02f, 0.43f, 0.72f);
+        float3 farWater = float3(0.05f, 0.23f, 0.48f);
+        float3 skyTint = float3(0.45f, 0.70f, 0.92f);
+        float3 waveTint = float3(0.04f, 0.63f, 0.88f);
+        float3 foamTint = float3(0.74f, 0.92f, 1.0f);
+
+        float3 color = lerp(nearWater, farWater, horizon);
+        color = lerp(color, skyTint, fresnel * 0.34f);
+        color += waveTint * (wave * 0.055f + 0.055f);
+        color += foamTint * foam * 0.34f;
+        color += skyTint * glint;
+
+        // PSP-like high readability: keep the water vivid, but add modern layered depth.
+        color = saturate(color * gMaterial.color.rgb * 1.18f);
+        output.color = float4(color, gMaterial.color.a * textureColor.a);
+        return output;
+    }
+
     if (gMaterial.enableLighting == 1)
     {
         // --- 共通ベクトルの準備 ---

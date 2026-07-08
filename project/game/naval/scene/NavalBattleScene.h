@@ -50,17 +50,47 @@ private:
 		std::unique_ptr<Object3d> object;
 	};
 
+	struct ImpactEffect {
+		Vector3 position = {};
+		float life = 0.0f;
+		float duration = 1.0f;
+		float baseScale = 1.0f;
+		bool waterSplash = false;
+		std::unique_ptr<Object3d> object;
+	};
+
+	struct GunMount {
+		Vector3 localOffset = {};
+		float centerYaw = 0.0f;
+		float halfArc = 0.0f;
+	};
+
 	void ResetBattle();
 	void InitializeObject(Object3d& object, const std::string& modelPath, const Vector4& color, bool lighting);
 	void UpdatePlayer();
 	void UpdateEnemies();
 	void UpdateProjectiles();
+	void SpawnImpactEffect(const Vector3& position, bool waterSplash);
 	void UpdateCamera();
 	void FireMainGun();
 	void DrawDebugWindow();
+	void DrawBattleHud();
 
 	Vector3 ForwardFromYaw(float yaw) const;
+	Vector3 GetReticleRayDirection() const;
+	bool TryGetReticleWaterTarget(Vector3& targetPosition) const;
+	float GetAimYaw() const;
+	float GetEffectiveAimYaw() const;
+	float GetAimVerticalVelocity() const;
+	float CalculateBallisticVerticalVelocity(const Vector3& muzzlePosition, const Vector3& targetPosition, float horizontalSpeed) const;
+	int GetAssistedTargetIndex() const;
+	std::vector<GunMount> GetBearableGunMounts(float aimYaw) const;
+	bool HasFiringSolution() const;
 	float DistanceXZ(const Vector3& a, const Vector3& b) const;
+	int FindPrecisionTargetFromAim() const;
+	int FindNextPrecisionTarget(int direction) const;
+	int FindLockTarget() const;
+	float NormalizeAngle(float angle) const;
 
 	Input* input_ = nullptr;
 	std::unique_ptr<Camera> camera_;
@@ -72,6 +102,7 @@ private:
 	std::unique_ptr<Object3d> playerMarker_;
 	std::vector<EnemyShip> enemies_;
 	std::vector<Projectile> projectiles_;
+	std::vector<ImpactEffect> impactEffects_;
 
 	ShipState player_;
 	bool finished_ = false;
@@ -79,4 +110,11 @@ private:
 	float finalDeltaTime_ = 1.0f / 60.0f;
 	float battleTimer_ = 0.0f;
 	float cameraYawOffset_ = 0.0f;
+	float cameraPitch_ = 0.46f;
+	float cameraDistance_ = 70.0f;
+	Vector2 aimOffset_ = {};
+	int throttleStep_ = 0;
+	bool precisionAimMode_ = false;
+	int lockTargetIndex_ = -1;
+	float precisionSwitchCooldown_ = 0.0f;
 };
