@@ -111,6 +111,7 @@ void PlayerLabScene::Initialize()
 
 	stage_ = std::make_unique<Stage>();
 	stage_->Initialize();
+	stage_->ClearBlocksForPreview();
 
 	bulletManager_ = std::make_unique<BulletManager>();
 	bulletManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), Object3dCommon::GetInstance());
@@ -121,7 +122,7 @@ void PlayerLabScene::Initialize()
 	playerObject_->SetColor(Vector4(0.48f, 0.86f, 0.22f, 1.0f));
 
 	player_ = std::make_unique<Player>();
-	player_->Initialize(playerObject_.get(), Vector3(30.0f, 30.0f, 0.0f));
+	player_->Initialize(playerObject_.get(), Vector3(26.0f, 30.0f, 0.0f));
 	player_->SetAttackControllerBulletManager(bulletManager_.get());
 
 	collisionManager_ = std::make_unique<CollisionManager>();
@@ -130,9 +131,9 @@ void PlayerLabScene::Initialize()
 
 	targetSpawns_ = {
 		{ Vector3(38.0f, 30.0f, 0.0f), ExpEnemyType::Square },
-		{ Vector3(44.0f, 32.5f, 0.0f), ExpEnemyType::Triangle },
-		{ Vector3(50.0f, 28.0f, 0.0f), ExpEnemyType::Pentagon },
-		{ Vector3(56.0f, 33.0f, 0.0f), ExpEnemyType::Square }
+		{ Vector3(44.0f, 33.0f, 0.0f), ExpEnemyType::Triangle },
+		{ Vector3(44.0f, 27.0f, 0.0f), ExpEnemyType::Triangle },
+		{ Vector3(52.0f, 30.0f, 0.0f), ExpEnemyType::Pentagon }
 	};
 	SpawnTargets();
 
@@ -145,8 +146,34 @@ void PlayerLabScene::Initialize()
 	fpsStyle.padding = 5.0f;
 	fpsText_ = std::make_unique<TextLabel>();
 	fpsText_->Initialize(SpriteCommon::GetInstance(), "FPS: --", fpsStyle);
-	fpsText_->SetPosition({ 16.0f, 14.0f });
+	fpsText_->SetPosition({ 1120.0f, 16.0f });
 	fpsLastSampleTime_ = std::chrono::steady_clock::now();
+
+	TextStyle titleStyle{};
+	titleStyle.fontFamily = "Meiryo";
+	titleStyle.fontSize = 30.0f;
+	titleStyle.color = { 0.55f, 1.0f, 0.75f, 1.0f };
+	titleStyle.outlineColor = { 0.0f, 0.0f, 0.0f, 0.92f };
+	titleStyle.outlineThickness = 3.0f;
+	titleStyle.padding = 6.0f;
+	labTitleText_ = std::make_unique<TextLabel>();
+	labTitleText_->Initialize(SpriteCommon::GetInstance(), "PLAYER MACHINE TUNING LAB", titleStyle);
+	labTitleText_->SetPosition({ 28.0f, 18.0f });
+
+	TextStyle guideStyle{};
+	guideStyle.fontFamily = "Meiryo";
+	guideStyle.fontSize = 18.0f;
+	guideStyle.color = { 0.84f, 0.94f, 1.0f, 1.0f };
+	guideStyle.outlineColor = { 0.0f, 0.0f, 0.0f, 0.90f };
+	guideStyle.outlineThickness = 2.0f;
+	guideStyle.padding = 5.0f;
+	labGuideText_ = std::make_unique<TextLabel>();
+	labGuideText_->Initialize(SpriteCommon::GetInstance(), "コードを変更せずに、機体性能・砲性能・特殊行動の変化を試射で確認する専用プレビュー環境", guideStyle);
+	labGuideText_->SetPosition({ 30.0f, 58.0f });
+
+	labStatusText_ = std::make_unique<TextLabel>();
+	labStatusText_->Initialize(SpriteCommon::GetInstance(), "", guideStyle);
+	labStatusText_->SetPosition({ 30.0f, 88.0f });
 }
 
 void PlayerLabScene::Update()
@@ -184,6 +211,7 @@ void PlayerLabScene::Update()
 			fpsFrameCount_ = 0;
 		}
 	}
+	UpdateLabStatusText();
 
 	UpdateCamera();
 
@@ -284,6 +312,15 @@ void PlayerLabScene::DrawSprite()
 	if (fpsText_) {
 		fpsText_->Draw();
 	}
+	if (labTitleText_) {
+		labTitleText_->Draw();
+	}
+	if (labGuideText_) {
+		labGuideText_->Draw();
+	}
+	if (labStatusText_) {
+		labStatusText_->Draw();
+	}
 }
 
 void PlayerLabScene::SpawnTargets()
@@ -294,6 +331,7 @@ void PlayerLabScene::SpawnTargets()
 		auto target = std::make_unique<ExpEnemy>();
 		target->Initialize(spawn.position, player_.get(), spawn.type);
 		target->SetAttackControllerBulletManager(bulletManager_.get());
+		target->SetHp(999);
 		targets_.push_back(std::move(target));
 	}
 }
@@ -307,6 +345,7 @@ void PlayerLabScene::RespawnDeadTargets()
 		auto target = std::make_unique<ExpEnemy>();
 		target->Initialize(targetSpawns_[i].position, player_.get(), targetSpawns_[i].type);
 		target->SetAttackControllerBulletManager(bulletManager_.get());
+		target->SetHp(999);
 		targets_[i] = std::move(target);
 	}
 }
@@ -380,37 +419,49 @@ void PlayerLabScene::DrawNeonGridPass()
 void PlayerLabScene::DrawLabEditor()
 {
 #ifdef USE_IMGUI
-	ImGui::Begin("Player Lab");
-	ImGui::Text("ESC: Title / F5: Next Level Exp / F6: +200 Exp / F9: Reset Targets");
-	ImGui::Checkbox("Show Stage", &showStage_);
-	ImGui::Checkbox("Show Targets", &showTargets_);
-	ImGui::Checkbox("Enable Player Post", &enablePlayerPostEffect_);
-	ImGui::Checkbox("Enable Target Post", &enableExpEnemyPostEffect_);
-	ImGui::Checkbox("Enable Stage Post", &enableStagePostEffect_);
-	ImGui::Checkbox("Enable Grid Post", &enableNeonGridPostEffect_);
-	ImGui::Checkbox("Enable Bullet Trail Post", &enableBulletTrailPostEffect_);
-	ImGui::Separator();
-	ImGui::Text("Level: %d  Exp: %d / %d  Class: %s",
+	ImGui::SetNextWindowSize(ImVec2(430.0f, 430.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(20.0f, 130.0f), ImGuiCond_FirstUseEver);
+	ImGui::Begin("プレイヤー機体プレビューラボ");
+	ImGui::TextWrapped("戦闘中のボスやブロックを外し、機体データの変更だけを確認するための試射シーンです。");
+	ImGui::SeparatorText("操作");
+	ImGui::Text("左クリック: 試射 / 右クリック: 特殊行動");
+	ImGui::Text("F9: ターゲット再配置 / ESC: タイトルへ戻る");
+	ImGui::SeparatorText("プレビュー");
+	ImGui::Checkbox("試射ターゲットを表示", &showTargets_);
+	ImGui::Checkbox("床グリッドを表示", &showWorldGrid_);
+	ImGui::Checkbox("機体周辺グリッドを表示", &showActorLocalGrid_);
+	ImGui::Checkbox("通常ステージも表示（確認用）", &showStage_);
+	ImGui::SeparatorText("現在の機体");
+	ImGui::Text("Level: %d  Exp: %d / %d",
 		player_->GetLevel(),
 		player_->GetExp(),
-		player_->GetNextLevelExpValue(),
-		player_->GetCurrentClassName());
+		player_->GetNextLevelExpValue());
+	ImGui::Text("Class: %s", player_->GetCurrentClassName());
+	if (ImGui::Button("ターゲットを再配置")) {
+		SpawnTargets();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("ランク経験値 +")) {
+		player_->AddExp(player_->GetNextLevelExpValue());
+	}
+	if (ImGui::CollapsingHeader("表示効果", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("プレイヤー発光", &enablePlayerPostEffect_);
+		ImGui::Checkbox("ターゲット発光", &enableExpEnemyPostEffect_);
+		ImGui::Checkbox("グリッド発光", &enableNeonGridPostEffect_);
+		ImGui::Checkbox("弾道発光", &enableBulletTrailPostEffect_);
+	}
+	if (ImGui::CollapsingHeader("弾道表示調整")) {
 	BulletTrailSettings& trail = bulletManager_->GetTrailSettings();
 	ImGui::DragFloat("Player Trail Half Width", &trail.playerHalfWidth, 0.01f, 0.01f, 1.5f);
 	ImGui::DragFloat("Trail Lifetime", &trail.lifetime, 0.01f, 0.02f, 1.5f);
 	ImGui::DragFloat("Head Width Scale", &trail.headWidthScale, 0.01f, 0.0f, 4.0f);
 	ImGui::DragFloat("Tail Width Scale", &trail.tailWidthScale, 0.01f, 0.0f, 4.0f);
+	}
 	ImGui::End();
 
-	ImGui::Begin("Lab Stage Post");
-	BloomParam& stagePost = stagePostEffect_->GetParam();
-	ImGui::DragFloat("Stage Intensity", &stagePost.intensity, 0.01f, 0.0f, 5.0f);
-	ImGui::Text("Stage uses bloom-only add pass for performance.");
-	ImGui::End();
-
-	ImGui::Begin("Lab Neon Grid");
-	ImGui::Checkbox("Show World Grid", &showWorldGrid_);
-	ImGui::Checkbox("Show Actor Local Grid", &showActorLocalGrid_);
+	ImGui::SetNextWindowSize(ImVec2(360.0f, 280.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(20.0f, 570.0f), ImGuiCond_FirstUseEver);
+	ImGui::Begin("ラボ表示グリッド");
 	ImGui::DragFloat("World Spacing", &worldGridSpacing_, 0.05f, 0.25f, 8.0f);
 	ImGui::DragFloat("World Line Width", &worldGridLineWidth_, 0.005f, 0.005f, 0.5f);
 	ImGui::ColorEdit4("World Color", &worldGridColor_.x);
@@ -423,4 +474,16 @@ void PlayerLabScene::DrawLabEditor()
 
 	player_->DrawPlayerClassEditor();
 #endif
+}
+
+void PlayerLabScene::UpdateLabStatusText()
+{
+	if (!labStatusText_ || !player_) {
+		return;
+	}
+	const std::string status =
+		"現在の機体: " + std::string(player_->GetCurrentClassName()) +
+		" / ターゲット: " + std::to_string(targets_.size()) +
+		" / F9で再配置";
+	labStatusText_->SetText(status);
 }

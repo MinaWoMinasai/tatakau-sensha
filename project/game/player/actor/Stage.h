@@ -30,6 +30,7 @@ public:
 	void Update();
 	void Draw();
 	void DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks = true);
+	void ClearBlocksForPreview();
 	bool AddLevelObstacle(const Transform& transform, const std::string& prefab);
 	void ClearLevelObstacles();
 	void SetDamageBlockDamage(uint32_t damage) { damageBlockDamage_ = damage; }

@@ -68,6 +68,12 @@ void Stage::DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHei
 	}
 }
 
+void Stage::ClearBlocksForPreview()
+{
+	blocks_.clear();
+	mergedBlocks_.clear();
+}
+
 bool Stage::AddLevelObstacle(const Transform& transform, const std::string& prefab)
 {
 	std::string model;
