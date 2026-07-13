@@ -112,7 +112,9 @@
         "durationScale": 0.9200000166893005,
         "endAngleDeg": 45.0,
         "hiltSideOffset": -0.03999999910593033,
-        "startAngleDeg": -75.0
+        "returnAngleDeg": 58.0,
+        "startAngleDeg": -75.0,
+        "windupAngleDeg": -100.0
       },
       {
         "bladeLengthScale": 1.0199999809265137,
@@ -126,7 +128,9 @@
         "durationScale": 1.0,
         "endAngleDeg": -55.0,
         "hiltSideOffset": 0.05000000074505806,
-        "startAngleDeg": 70.0
+        "returnAngleDeg": 58.0,
+        "startAngleDeg": 70.0,
+        "windupAngleDeg": -100.0
       },
       {
         "bladeLengthScale": 1.159999966621399,
@@ -140,9 +144,17 @@
         "durationScale": 1.2799999713897705,
         "endAngleDeg": 135.0,
         "hiltSideOffset": 0.0,
-        "startAngleDeg": -145.0
+        "returnAngleDeg": 58.0,
+        "startAngleDeg": -145.0,
+        "windupAngleDeg": -100.0
       }
     ],
+    "particleTriangleBirthScale": 0.5199999809265137,
+    "particleTriangleBrightness": 1.4500000476837158,
+    "particleTriangleCoreWidthScale": 0.2800000011920929,
+    "particleTriangleGlowWidthScale": 3.200000047683716,
+    "particleTriangleTrailCopies": 3,
+    "particleTriangleTrailSpacing": 0.47999998927116394,
     "playerAfterimageAlpha": 0.41999998688697815,
     "playerAfterimageInterval": 0.04500000178813934,
     "playerAfterimageLifetime": 0.30000001192092896,
@@ -166,7 +178,7 @@
     "playerMeleeBladeHaloWidthScale": 1.0499999523162842,
     "playerMeleeBladeOuterWidthScale": 2.3499999046325684,
     "playerMeleeTrailAlphaScale": 1.0,
-    "playerMeleeTrailWidthScale": 0.0,
+    "playerMeleeTrailWidthScale": 0.05000000074505806,
     "playerNeonBillboardRadius": 1.0499999523162842,
     "playerNeonRenderMode": 1,
     "showActorLocalGrid": false,
@@ -204,6 +216,7 @@
       "y": 0.949999988079071,
       "z": 1.0
     },
+    "triangleEffectMode": 1,
     "triangleLineWidth": 0.1599999964237213,
     "triangleRadius": 2.200000047683716,
     "triangleRotateSpeed": 0.75,

@@ -79,9 +79,15 @@ void Root::InitalizeForObject()
 	Parameters_[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	Parameters_[9].DescriptorTable.pDescriptorRanges = &descriptorRange_[3];
 	Parameters_[9].DescriptorTable.NumDescriptorRanges = 1;
+
+	// [10] Naval water material copy (Vertex b2).
+	// Normal objects ignore it; Object3d.VS uses it only when environmentCoefficient >= 1.5.
+	Parameters_[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	Parameters_[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	Parameters_[10].Descriptor.ShaderRegister = 2;
 	
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 10;
+	descriptionSignature_.NumParameters = 11;
 
 	// --- StaticSamplerの拡張 ---
 
