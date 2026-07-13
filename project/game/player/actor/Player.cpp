@@ -32,6 +32,21 @@ const std::array<SpecialActionDefinition, 4>& SpecialActionDefinitions()
 	return definitions;
 }
 
+#ifdef USE_IMGUI
+void DrawEditorHelp(const char* text)
+{
+	ImGui::SameLine();
+	ImGui::TextDisabled("(?)");
+	if (ImGui::IsItemHovered()) {
+		ImGui::BeginTooltip();
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 30.0f);
+		ImGui::TextUnformatted(text);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+}
+#endif
+
 Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
 {
 	t = (std::clamp)(t, 0.0f, 1.0f);
@@ -2815,10 +2830,20 @@ int Player::GetRankFromLevel(int level) {
 void Player::DrawPlayerClassEditor()
 {
 #ifdef USE_IMGUI
-	if (!ImGui::Begin("プレイヤー機体エディタ")) {
+	static bool hasUnsavedEditorChanges = false;
+	ImGui::SetNextWindowSize(ImVec2(760.0f, 780.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(500.0f, 24.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowBgAlpha(0.96f);
+	if (!ImGui::Begin("プレイヤー機体データ編集ツール")) {
 		ImGui::End();
 		return;
 	}
+
+	ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 1.0f), "EDITOR MODE");
+	ImGui::SameLine();
+	ImGui::TextDisabled("コードを変更せずに、機体性能・砲性能・特殊行動を調整する開発補助ツール");
+	ImGui::TextWrapped("目的: C++を直接編集してビルドし直す手間を減らし、JSON化したプレイヤー機体データを画面上で確認・編集・保存できるようにする。");
+	ImGui::Separator();
 
 	if (classOrder_.empty()) {
 		LoadPlayerClassConfigs();
@@ -2832,24 +2857,26 @@ void Player::DrawPlayerClassEditor()
 		return;
 	}
 
-	if (ImGui::BeginCombo("機体クラス", config->displayName.c_str())) {
-		for (int i = 0; i < static_cast<int>(classOrder_.size()); ++i) {
-			const std::string& id = classOrder_[i];
-			const PlayerClassConfig* itemConfig = GetClassConfig(id);
-			const char* label = itemConfig ? itemConfig->displayName.c_str() : id.c_str();
-			const bool selected = i == editorSelectedClassIndex_;
-			if (ImGui::Selectable(label, selected)) {
-				editorSelectedClassIndex_ = i;
-			}
-			if (selected) {
-				ImGui::SetItemDefaultFocus();
-			}
-		}
-		ImGui::EndCombo();
-	}
-
 	bool rebuildBarrels = false;
 	bool relayoutBarrels = false;
+	bool editedThisFrame = false;
+	static std::unordered_map<std::string, PlayerClassConfig> editorBaselineConfigs;
+	static std::unordered_map<std::string, std::string> editorBaselineLabels;
+	static bool editorBaselineInitialized = false;
+	auto refreshEditorBaselines = [&]() {
+		editorBaselineConfigs.clear();
+		editorBaselineLabels.clear();
+		for (const std::string& id : classOrder_) {
+			if (const PlayerClassConfig* baselineConfig = GetClassConfig(id)) {
+				editorBaselineConfigs[id] = *baselineConfig;
+				editorBaselineLabels[id] = "JSON保存時";
+			}
+		}
+		editorBaselineInitialized = true;
+	};
+	if (!editorBaselineInitialized) {
+		refreshEditorBaselines();
+	}
 	auto makeUniqueId = [this](const std::string& baseId) {
 		const std::string prefix = baseId.empty() ? "CustomTank" : baseId;
 		if (classConfigs_.find(prefix) == classConfigs_.end()) {
@@ -2864,97 +2891,271 @@ void Player::DrawPlayerClassEditor()
 		return prefix + "_Copy";
 	};
 
-	if (ImGui::Button("新規作成")) {
-		PlayerClassConfig newConfig = CreateDefaultClassConfig(ClassType::Basic);
-		newConfig.id = makeUniqueId("CustomTank");
-		newConfig.displayName = newConfig.id;
-		classOrder_.push_back(newConfig.id);
-		classConfigs_[newConfig.id] = newConfig;
-		editorSelectedClassIndex_ = static_cast<int>(classOrder_.size()) - 1;
-		selectedId = newConfig.id;
-		config = GetMutableClassConfig(selectedId);
-	}
+	ImGui::Text("編集中: %s / %s", config->id.c_str(), config->displayName.c_str());
 	ImGui::SameLine();
-	if (ImGui::Button("複製")) {
-		PlayerClassConfig newConfig = *config;
-		newConfig.id = makeUniqueId(config->id + "_Copy");
-		newConfig.displayName = newConfig.id;
-		classOrder_.push_back(newConfig.id);
-		classConfigs_[newConfig.id] = newConfig;
-		editorSelectedClassIndex_ = static_cast<int>(classOrder_.size()) - 1;
-		selectedId = newConfig.id;
-		config = GetMutableClassConfig(selectedId);
-	}
-	ImGui::SameLine();
-	const bool isLegacyId = config->id == ClassTypeToString(config->type);
-	if (!isLegacyId && ImGui::Button("削除")) {
-		const bool deletingCurrent = currentClassId_ == config->id;
-		classConfigs_.erase(config->id);
-		classOrder_.erase(classOrder_.begin() + editorSelectedClassIndex_);
-		editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classOrder_.size()) - 1);
-		if (deletingCurrent) {
-			EvolveById("Basic");
+	ImGui::TextDisabled(hasUnsavedEditorChanges ? "保存状態: 未保存の変更あり" : "保存状態: 保存済み");
+	ImGui::Text("現在ゲームに反映中: %s", GetCurrentClassName());
+	ImGui::Separator();
+
+	if (ImGui::CollapsingHeader("データ操作", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::TextWrapped("JSONの機体データを作成・複製・保存・再読み込みします。新しい機体案を試す入口です。");
+		if (ImGui::Button("新規作成")) {
+			PlayerClassConfig newConfig = CreateDefaultClassConfig(ClassType::Basic);
+			newConfig.id = makeUniqueId("CustomTank");
+			newConfig.displayName = newConfig.id;
+			classOrder_.push_back(newConfig.id);
+			classConfigs_[newConfig.id] = newConfig;
+			editorSelectedClassIndex_ = static_cast<int>(classOrder_.size()) - 1;
+			selectedId = newConfig.id;
+			config = GetMutableClassConfig(selectedId);
+			editorBaselineConfigs[newConfig.id] = newConfig;
+			editorBaselineLabels[newConfig.id] = "新規作成時";
+			hasUnsavedEditorChanges = true;
 		}
-		ImGui::End();
-		return;
-	}
-
-	ImGui::Text("機体ID: %s", config->id.c_str());
-
-	char nameBuffer[64]{};
-	strncpy_s(nameBuffer, config->displayName.c_str(), _TRUNCATE);
-	if (ImGui::InputText("表示名", nameBuffer, sizeof(nameBuffer))) {
-		config->displayName = nameBuffer;
-	}
-
-	ImGui::DragInt("必要ランク", &config->requiredRank, 1.0f, 1, 4);
-	ImGui::Checkbox("ドローン機体", &config->usesDrone);
-	ImGui::DragInt("最大ドローン数", &config->maxDrones, 1.0f, 0, 32);
-	ImGui::DragFloat("リロード倍率", &config->reloadScale, 0.01f, 0.05f, 5.0f);
-	ImGui::DragFloat("弾速倍率", &config->bulletSpeedScale, 0.01f, 0.05f, 5.0f);
-	ImGui::DragFloat("弾ダメージ倍率", &config->bulletDamageScale, 0.01f, 0.05f, 20.0f);
-	ImGui::DragInt("同時発射弾数", &config->bulletCount, 1.0f, 1, 16);
-	ImGui::DragFloat("拡散角度", &config->spreadAngleDeg, 0.1f, 0.0f, 180.0f);
-	ImGui::Checkbox("ランダム拡散", &config->randomSpread);
-	ImGui::Checkbox("反射弾", &config->reflect);
-	ImGui::Checkbox("貫通弾", &config->penetrate);
-	ImGui::Checkbox("全砲塔から発射", &config->fireAllBarrels);
-	ImGui::Checkbox("砲塔を交互発射", &config->alternateBarrels);
-	ImGui::DragFloat("反動", &config->recoilPower, 0.001f, 0.0f, 0.5f);
-	ImGui::SeparatorText("右クリック特殊行動");
-	const auto& specialActions = SpecialActionDefinitions();
-	const SpecialActionDefinition* selectedSpecialAction = &specialActions.front();
-	for (const SpecialActionDefinition& definition : specialActions) {
-		if (config->specialActionId == definition.id) {
-			selectedSpecialAction = &definition;
-			break;
+		ImGui::SameLine();
+		if (ImGui::Button("複製")) {
+			const PlayerClassConfig sourceConfig = *config;
+			PlayerClassConfig newConfig = *config;
+			newConfig.id = makeUniqueId(config->id + "_Copy");
+			newConfig.displayName = newConfig.id;
+			classOrder_.push_back(newConfig.id);
+			classConfigs_[newConfig.id] = newConfig;
+			editorSelectedClassIndex_ = static_cast<int>(classOrder_.size()) - 1;
+			selectedId = newConfig.id;
+			config = GetMutableClassConfig(selectedId);
+			editorBaselineConfigs[newConfig.id] = sourceConfig;
+			editorBaselineLabels[newConfig.id] = "複製元: " + sourceConfig.displayName;
+			hasUnsavedEditorChanges = true;
+		}
+		ImGui::SameLine();
+		const bool isLegacyId = config->id == ClassTypeToString(config->type);
+		if (!isLegacyId && ImGui::Button("削除")) {
+			const bool deletingCurrent = currentClassId_ == config->id;
+			classConfigs_.erase(config->id);
+			editorBaselineConfigs.erase(config->id);
+			editorBaselineLabels.erase(config->id);
+			classOrder_.erase(classOrder_.begin() + editorSelectedClassIndex_);
+			editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classOrder_.size()) - 1);
+			if (deletingCurrent) {
+				EvolveById("Basic");
+			}
+			ImGui::End();
+			return;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("JSON保存")) {
+			SavePlayerClassConfigs();
+			refreshEditorBaselines();
+			hasUnsavedEditorChanges = false;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("JSON再読み込み")) {
+			LoadPlayerClassConfigs();
+			refreshEditorBaselines();
+			rebuildBarrels = true;
+			hasUnsavedEditorChanges = false;
 		}
 	}
-	if (ImGui::BeginCombo("特殊行動", selectedSpecialAction->displayName)) {
+
+	if (ImGui::CollapsingHeader("機体づくり変更サマリー", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::TextWrapped("目的: プログラムを増やさず、既存機体を元にして新しい機体バリエーションを作るための差分確認です。");
+		const auto baselineIt = editorBaselineConfigs.find(config->id);
+		if (baselineIt == editorBaselineConfigs.end()) {
+			ImGui::TextDisabled("比較元がありません。JSON保存または再読み込み後に比較できます。");
+		} else {
+			const PlayerClassConfig& baseline = baselineIt->second;
+			const std::string sourceLabel = editorBaselineLabels.count(config->id) > 0 ? editorBaselineLabels[config->id] : "比較元";
+			ImGui::Text("比較元: %s", sourceLabel.c_str());
+
+			int changeCount = 0;
+			auto floatChanged = [](float a, float b) {
+				return std::abs(a - b) > 0.0005f;
+			};
+			auto boolText = [](bool value) {
+				return value ? "ON" : "OFF";
+			};
+			auto weaponTypeName = [](WeaponType type) {
+				switch (type) {
+				case WeaponType::Projectile: return "Projectile";
+				case WeaponType::Laser: return "Laser";
+				case WeaponType::Mine: return "Mine";
+				case WeaponType::Drone: return "Drone";
+				case WeaponType::Melee: return "Melee";
+				}
+				return "Unknown";
+			};
+			auto addChange = [&](const char* label, const std::string& before, const std::string& after) {
+				++changeCount;
+				ImGui::BulletText("%s: %s -> %s", label, before.c_str(), after.c_str());
+			};
+			auto addIntChange = [&](const char* label, int before, int after) {
+				if (before != after) {
+					addChange(label, std::to_string(before), std::to_string(after));
+				}
+			};
+			auto addFloatChange = [&](const char* label, float before, float after) {
+				if (!floatChanged(before, after)) {
+					return;
+				}
+				char beforeText[32]{};
+				char afterText[32]{};
+				std::snprintf(beforeText, sizeof(beforeText), "%.2f", before);
+				std::snprintf(afterText, sizeof(afterText), "%.2f", after);
+				addChange(label, beforeText, afterText);
+			};
+			auto addBoolChange = [&](const char* label, bool before, bool after) {
+				if (before != after) {
+					addChange(label, boolText(before), boolText(after));
+				}
+			};
+			if (baseline.displayName != config->displayName) {
+				addChange("表示名", baseline.displayName, config->displayName);
+			}
+			addIntChange("必要ランク", baseline.requiredRank, config->requiredRank);
+			addBoolChange("ドローン機体", baseline.usesDrone, config->usesDrone);
+			addIntChange("最大ドローン数", baseline.maxDrones, config->maxDrones);
+			addFloatChange("リロード倍率", baseline.reloadScale, config->reloadScale);
+			addFloatChange("弾速倍率", baseline.bulletSpeedScale, config->bulletSpeedScale);
+			addFloatChange("弾ダメージ倍率", baseline.bulletDamageScale, config->bulletDamageScale);
+			addIntChange("同時発射弾数", baseline.bulletCount, config->bulletCount);
+			addFloatChange("拡散角度", baseline.spreadAngleDeg, config->spreadAngleDeg);
+			addBoolChange("ランダム拡散", baseline.randomSpread, config->randomSpread);
+			addBoolChange("反射弾", baseline.reflect, config->reflect);
+			addBoolChange("貫通弾", baseline.penetrate, config->penetrate);
+			addBoolChange("全砲塔から発射", baseline.fireAllBarrels, config->fireAllBarrels);
+			addBoolChange("砲塔を交互発射", baseline.alternateBarrels, config->alternateBarrels);
+			addFloatChange("反動", baseline.recoilPower, config->recoilPower);
+			if (baseline.specialActionId != config->specialActionId) {
+				addChange("特殊行動", baseline.specialActionId, config->specialActionId);
+			}
+			addFloatChange("特殊行動クールタイム倍率", baseline.specialActionCooldownScale, config->specialActionCooldownScale);
+			addFloatChange("特殊行動スタミナ消費", baseline.specialActionStaminaCost, config->specialActionStaminaCost);
+			if (baseline.barrels.size() != config->barrels.size()) {
+				addChange("砲塔数", std::to_string(baseline.barrels.size()), std::to_string(config->barrels.size()));
+			}
+			const size_t comparableBarrels = (std::min)(baseline.barrels.size(), config->barrels.size());
+			for (size_t i = 0; i < comparableBarrels && i < 4; ++i) {
+				const WeaponMountConfig& before = baseline.barrels[i];
+				const WeaponMountConfig& after = config->barrels[i];
+				const std::string prefix = "武器マウント" + std::to_string(i) + " ";
+				if (before.weaponType != after.weaponType) {
+					addChange((prefix + "武器種").c_str(), weaponTypeName(before.weaponType), weaponTypeName(after.weaponType));
+				}
+				addFloatChange((prefix + "威力倍率").c_str(), before.damageScale, after.damageScale);
+				addFloatChange((prefix + "弾速倍率").c_str(), before.projectileSpeedScale, after.projectileSpeedScale);
+			}
+			if (changeCount == 0) {
+				ImGui::TextDisabled("まだ比較元から変わっていません。複製してから弾数や砲塔配置を変えると、ここに変更内容が出ます。");
+			} else {
+				ImGui::TextColored(ImVec4(0.55f, 1.0f, 0.70f, 1.0f), "変更項目: %d", changeCount);
+			}
+		}
+	}
+
+	if (ImGui::CollapsingHeader("基本情報", ImGuiTreeNodeFlags_DefaultOpen)) {
+		if (ImGui::BeginCombo("編集する機体", config->displayName.c_str())) {
+			for (int i = 0; i < static_cast<int>(classOrder_.size()); ++i) {
+				const std::string& id = classOrder_[i];
+				const PlayerClassConfig* itemConfig = GetClassConfig(id);
+				const char* label = itemConfig ? itemConfig->displayName.c_str() : id.c_str();
+				const bool selected = i == editorSelectedClassIndex_;
+				if (ImGui::Selectable(label, selected)) {
+					editorSelectedClassIndex_ = i;
+				}
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+		DrawEditorHelp("編集対象の機体データを選びます。変更内容はJSON保存するまでファイルには反映されません。");
+		ImGui::Text("機体ID: %s", config->id.c_str());
+		DrawEditorHelp("ゲーム内部とJSONで使う識別子です。既存機体はIDを固定し、表示名だけ変える運用が安全です。");
+
+		char nameBuffer[64]{};
+		strncpy_s(nameBuffer, config->displayName.c_str(), _TRUNCATE);
+		if (ImGui::InputText("表示名", nameBuffer, sizeof(nameBuffer))) {
+			config->displayName = nameBuffer;
+			editedThisFrame = true;
+		}
+		DrawEditorHelp("ゲーム内や選択画面で見える機体名です。");
+		editedThisFrame |= ImGui::DragInt("必要ランク", &config->requiredRank, 1.0f, 1, 4);
+		DrawEditorHelp("プレイヤーがこの機体を解放できるランクです。");
+	}
+
+	if (ImGui::CollapsingHeader("機体性能", ImGuiTreeNodeFlags_DefaultOpen)) {
+		editedThisFrame |= ImGui::Checkbox("ドローン機体", &config->usesDrone);
+		DrawEditorHelp("有効にすると、この機体はドローンを使用するタイプとして扱われます。");
+		editedThisFrame |= ImGui::DragInt("最大ドローン数", &config->maxDrones, 1.0f, 0, 32);
+		DrawEditorHelp("同時に扱えるドローンの上限です。");
+		editedThisFrame |= ImGui::DragFloat("リロード倍率", &config->reloadScale, 0.01f, 0.05f, 5.0f);
+		DrawEditorHelp("射撃間隔にかかる倍率です。小さいほど連射が速くなります。");
+		editedThisFrame |= ImGui::DragFloat("反動", &config->recoilPower, 0.001f, 0.0f, 0.5f);
+		DrawEditorHelp("射撃時に機体へ加わる押し戻し量です。");
+	}
+
+	if (ImGui::CollapsingHeader("砲性能", ImGuiTreeNodeFlags_DefaultOpen)) {
+		editedThisFrame |= ImGui::DragInt("同時発射弾数", &config->bulletCount, 1.0f, 1, 16);
+		DrawEditorHelp("1回の射撃で出る弾の数です。");
+		editedThisFrame |= ImGui::DragFloat("拡散角度", &config->spreadAngleDeg, 0.1f, 0.0f, 180.0f);
+		DrawEditorHelp("複数弾を撃つときの広がり角度です。");
+		editedThisFrame |= ImGui::Checkbox("全砲塔から発射", &config->fireAllBarrels);
+		DrawEditorHelp("有効にすると、登録されている発射可能な砲塔すべてから撃ちます。");
+		editedThisFrame |= ImGui::Checkbox("砲塔を交互発射", &config->alternateBarrels);
+		DrawEditorHelp("有効にすると、複数砲塔を順番に切り替えて発射します。");
+	}
+
+	if (ImGui::CollapsingHeader("弾性能・特殊効果", ImGuiTreeNodeFlags_DefaultOpen)) {
+		editedThisFrame |= ImGui::DragFloat("弾速倍率", &config->bulletSpeedScale, 0.01f, 0.05f, 5.0f);
+		DrawEditorHelp("基礎弾速にかかる倍率です。大きいほど弾が速く飛びます。");
+		editedThisFrame |= ImGui::DragFloat("弾ダメージ倍率", &config->bulletDamageScale, 0.01f, 0.05f, 20.0f);
+		DrawEditorHelp("基礎ダメージにかかる倍率です。");
+		editedThisFrame |= ImGui::Checkbox("ランダム拡散", &config->randomSpread);
+		DrawEditorHelp("有効にすると弾の散り方にランダム性を持たせます。");
+		editedThisFrame |= ImGui::Checkbox("反射弾", &config->reflect);
+		DrawEditorHelp("有効にすると弾が壁などで反射するタイプになります。");
+		editedThisFrame |= ImGui::Checkbox("貫通弾", &config->penetrate);
+		DrawEditorHelp("有効にすると弾が敵を貫通するタイプになります。");
+	}
+
+	if (ImGui::CollapsingHeader("特殊行動", ImGuiTreeNodeFlags_DefaultOpen)) {
+		const auto& specialActions = SpecialActionDefinitions();
+		const SpecialActionDefinition* selectedSpecialAction = &specialActions.front();
 		for (const SpecialActionDefinition& definition : specialActions) {
-			const bool selected = config->specialActionId == definition.id;
-			if (ImGui::Selectable(definition.displayName, selected)) {
-				config->specialActionId = definition.id;
-			}
-			if (selected) {
-				ImGui::SetItemDefaultFocus();
+			if (config->specialActionId == definition.id) {
+				selectedSpecialAction = &definition;
+				break;
 			}
 		}
-		ImGui::EndCombo();
-	}
-	ImGui::DragFloat("特殊行動クールタイム倍率", &config->specialActionCooldownScale, 0.01f, 0.05f, 10.0f);
-	ImGui::DragFloat("特殊行動スタミナ消費", &config->specialActionStaminaCost, 0.05f, 0.0f, 100.0f);
-	if (config->specialActionId == "saber_counter") {
-		ImGui::DragFloat("カウンター受付時間", &config->saberCounterWindow, 0.005f, 0.01f, 2.0f);
-		ImGui::DragFloat("カウンター威力倍率", &config->saberCounterDamageScale, 0.05f, 0.0f, 20.0f);
-		ImGui::DragFloat("カウンター射程倍率", &config->saberCounterRangeScale, 0.01f, 0.1f, 5.0f);
-	}
-	if (!selectedSpecialAction->implemented) {
-		ImGui::TextDisabled("この特殊行動は割り当てのみ対応しています。");
+		if (ImGui::BeginCombo("特殊行動", selectedSpecialAction->displayName)) {
+			for (const SpecialActionDefinition& definition : specialActions) {
+				const bool selected = config->specialActionId == definition.id;
+				if (ImGui::Selectable(definition.displayName, selected)) {
+					config->specialActionId = definition.id;
+					editedThisFrame = true;
+				}
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+		DrawEditorHelp("右クリックに割り当てる特殊行動です。未実装のものはデータ上の割り当てだけ行えます。");
+		editedThisFrame |= ImGui::DragFloat("特殊行動クールタイム倍率", &config->specialActionCooldownScale, 0.01f, 0.05f, 10.0f);
+		DrawEditorHelp("特殊行動の再使用時間にかかる倍率です。小さいほど再使用が早くなります。");
+		editedThisFrame |= ImGui::DragFloat("特殊行動スタミナ消費", &config->specialActionStaminaCost, 0.05f, 0.0f, 100.0f);
+		DrawEditorHelp("特殊行動を使うときに消費するスタミナ量です。");
+		if (config->specialActionId == "saber_counter") {
+			editedThisFrame |= ImGui::DragFloat("カウンター受付時間", &config->saberCounterWindow, 0.005f, 0.01f, 2.0f);
+			editedThisFrame |= ImGui::DragFloat("カウンター威力倍率", &config->saberCounterDamageScale, 0.05f, 0.0f, 20.0f);
+			editedThisFrame |= ImGui::DragFloat("カウンター射程倍率", &config->saberCounterRangeScale, 0.01f, 0.1f, 5.0f);
+		}
+		if (!selectedSpecialAction->implemented) {
+			ImGui::TextDisabled("この特殊行動は割り当てのみ対応しています。");
+		}
 	}
 
 	ImGui::Separator();
-	ImGui::Text("現在の機体: %s", GetCurrentClassName());
 	if (ImGui::Button("この機体に切り替え")) {
 		EvolveById(config->id);
 		rebuildBarrels = false;
@@ -2965,8 +3166,10 @@ void Player::DrawPlayerClassEditor()
 		rebuildBarrels = true;
 	}
 	ImGui::Separator();
-	ImGui::Text("砲塔数: %zu", config->barrels.size());
-	if (ImGui::CollapsingHeader("砲塔の自動配置", ImGuiTreeNodeFlags_DefaultOpen)) {
+	if (ImGui::CollapsingHeader("砲配置・武器マウント", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("砲塔数: %zu", config->barrels.size());
+		ImGui::TextWrapped("機体に取り付ける砲塔の位置、武器種、レーザー・地雷・近接などの個別性能を編集します。");
+		if (ImGui::TreeNodeEx("砲塔の自動配置", ImGuiTreeNodeFlags_DefaultOpen)) {
 		static int layoutCount = 2;
 		static float layoutForward = 0.72f;
 		static float layoutSideSpacing = 0.34f;
@@ -3015,6 +3218,7 @@ void Player::DrawPlayerClassEditor()
 			config->fireAllBarrels = layoutCount > 1;
 			config->alternateBarrels = false;
 			rebuildBarrels = true;
+			editedThisFrame = true;
 		};
 		if (ImGui::Button("左右対称配置を生成")) {
 			layoutCount = (std::clamp)(layoutCount, 1, 12);
@@ -3037,6 +3241,7 @@ void Player::DrawPlayerClassEditor()
 			config->fireAllBarrels = layoutCount > 2;
 			config->alternateBarrels = layoutCount == 2;
 			rebuildBarrels = true;
+			editedThisFrame = true;
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("V字配置を生成")) {
@@ -3063,6 +3268,7 @@ void Player::DrawPlayerClassEditor()
 			config->fireAllBarrels = true;
 			config->alternateBarrels = false;
 			rebuildBarrels = true;
+			editedThisFrame = true;
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("円弧ファン配置を生成")) {
@@ -3098,48 +3304,43 @@ void Player::DrawPlayerClassEditor()
 			generateArcLayout();
 		}
 		ImGui::Separator();
-	}
-	if (ImGui::Button("武器マウントを追加")) {
-		WeaponMountConfig barrel{};
-		if (!config->barrels.empty()) {
-			barrel = config->barrels.back();
-			barrel.offset.y += 0.34f;
+			ImGui::TreePop();
 		}
-		config->barrels.push_back(barrel);
-		rebuildBarrels = true;
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("JSON保存")) {
-		SavePlayerClassConfigs();
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("JSON再読み込み")) {
-		LoadPlayerClassConfigs();
-		rebuildBarrels = true;
-	}
+		if (ImGui::Button("武器マウントを追加")) {
+			WeaponMountConfig barrel{};
+			if (!config->barrels.empty()) {
+				barrel = config->barrels.back();
+				barrel.offset.y += 0.34f;
+			}
+			config->barrels.push_back(barrel);
+			rebuildBarrels = true;
+			editedThisFrame = true;
+		}
 
-	for (size_t i = 0; i < config->barrels.size(); ++i) {
-		ImGui::PushID(static_cast<int>(i));
-		WeaponMountConfig& barrel = config->barrels[i];
-		const std::string label = "武器マウント " + std::to_string(i);
-		if (ImGui::TreeNode(label.c_str())) {
-			char modelBuffer[128]{};
-			strncpy_s(modelBuffer, barrel.model.c_str(), _TRUNCATE);
-			if (ImGui::InputText("モデル", modelBuffer, sizeof(modelBuffer))) {
-				barrel.model = modelBuffer;
-				rebuildBarrels = true;
-			}
-			relayoutBarrels |= ImGui::DragFloat3("位置 X/Y/Z", &barrel.offset.x, 0.01f, -10.0f, 10.0f);
-			relayoutBarrels |= ImGui::DragFloat3("スケール", &barrel.scale.x, 0.01f, 0.0f, 10.0f);
-			relayoutBarrels |= ImGui::DragFloat("角度", &barrel.angleDeg, 0.1f, -180.0f, 180.0f);
-			ImGui::DragFloat("銃口の前方オフセット", &barrel.muzzleForward, 0.01f, -2.0f, 5.0f);
-			ImGui::Checkbox("マウントを有効化", &barrel.fires);
-			const char* weaponTypeNames[] = { "Projectile", "Laser", "Mine", "Drone (準備中)", "Melee" };
-			int weaponTypeIndex = static_cast<int>(barrel.weaponType);
-			if (ImGui::Combo("武器種", &weaponTypeIndex, weaponTypeNames, IM_ARRAYSIZE(weaponTypeNames))) {
-				barrel.weaponType = static_cast<WeaponType>((std::clamp)(weaponTypeIndex, 0, 4));
-			}
-			if (barrel.weaponType == WeaponType::Laser) {
+		for (size_t i = 0; i < config->barrels.size(); ++i) {
+			ImGui::PushID(static_cast<int>(i));
+			WeaponMountConfig& barrel = config->barrels[i];
+			const std::string label = "武器マウント " + std::to_string(i);
+			if (ImGui::TreeNode(label.c_str())) {
+				char modelBuffer[128]{};
+				strncpy_s(modelBuffer, barrel.model.c_str(), _TRUNCATE);
+				if (ImGui::InputText("モデル", modelBuffer, sizeof(modelBuffer))) {
+					barrel.model = modelBuffer;
+					rebuildBarrels = true;
+					editedThisFrame = true;
+				}
+				relayoutBarrels |= ImGui::DragFloat3("位置 X/Y/Z", &barrel.offset.x, 0.01f, -10.0f, 10.0f);
+				relayoutBarrels |= ImGui::DragFloat3("スケール", &barrel.scale.x, 0.01f, 0.0f, 10.0f);
+				relayoutBarrels |= ImGui::DragFloat("角度", &barrel.angleDeg, 0.1f, -180.0f, 180.0f);
+				editedThisFrame |= ImGui::DragFloat("銃口の前方オフセット", &barrel.muzzleForward, 0.01f, -2.0f, 5.0f);
+				editedThisFrame |= ImGui::Checkbox("マウントを有効化", &barrel.fires);
+				const char* weaponTypeNames[] = { "Projectile", "Laser", "Mine", "Drone (準備中)", "Melee" };
+				int weaponTypeIndex = static_cast<int>(barrel.weaponType);
+				if (ImGui::Combo("武器種", &weaponTypeIndex, weaponTypeNames, IM_ARRAYSIZE(weaponTypeNames))) {
+					barrel.weaponType = static_cast<WeaponType>((std::clamp)(weaponTypeIndex, 0, 4));
+					editedThisFrame = true;
+				}
+				if (barrel.weaponType == WeaponType::Laser) {
 				ImGui::DragFloat("レーザー射程", &barrel.laserRange, 0.1f, 0.5f, 80.0f);
 				ImGui::DragFloat("レーザー太さ", &barrel.laserWidth, 0.005f, 0.02f, 2.0f);
 				ImGui::DragFloat("レーザー表示時間", &barrel.laserDuration, 0.005f, 0.01f, 1.0f);
@@ -3191,6 +3392,7 @@ void Player::DrawPlayerClassEditor()
 		}
 		ImGui::PopID();
 	}
+	}
 
 	if (config && config->id == currentClassId_ && (rebuildBarrels || relayoutBarrels)) {
 		if (rebuildBarrels) {
@@ -3201,6 +3403,9 @@ void Player::DrawPlayerClassEditor()
 
 	ImGui::Text("メモ: 位置X=前方向、位置Y=横方向、角度=照準からのずれです。");
 	ImGui::TextDisabled("WeaponMount v2: 旧 barrels JSONも自動で読み込めます。");
+	if (editedThisFrame || relayoutBarrels) {
+		hasUnsavedEditorChanges = true;
+	}
 	ImGui::End();
 #endif
 }

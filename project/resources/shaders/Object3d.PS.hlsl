@@ -71,39 +71,57 @@ PixelShaderOutput main(VertexShaderOutput input)
         float3 viewVector = gCamera.worldPosition - input.worldPosition;
         float viewDistance = length(viewVector);
         float3 V = normalize(viewVector);
-        float horizon = saturate(viewDistance / 310.0f);
+        float horizon = saturate(viewDistance / 330.0f);
 
+        float2 swellA = normalize(float2(0.96f, 0.28f));
+        float2 swellB = normalize(float2(-0.34f, 0.94f));
+        float2 swellC = normalize(float2(0.68f, 0.74f));
         float longWave =
-            sin(worldXZ.x * 0.055f + time * 0.62f) * 0.55f +
-            sin(worldXZ.y * 0.071f - time * 0.48f) * 0.45f +
-            sin((worldXZ.x + worldXZ.y) * 0.034f + time * 0.35f) * 0.38f;
+            sin(dot(worldXZ, swellA) * 0.052f + time * 0.72f) * 0.62f +
+            sin(dot(worldXZ, swellB) * 0.067f - time * 0.58f) * 0.49f +
+            sin(dot(worldXZ, swellC) * 0.033f + time * 0.34f) * 0.39f;
         float shortWave =
-            sin(worldXZ.x * 0.31f + worldXZ.y * 0.13f + time * 1.85f) * 0.16f +
-            sin(worldXZ.x * -0.19f + worldXZ.y * 0.27f - time * 1.35f) * 0.13f;
-        float wave = longWave + shortWave;
+            sin(dot(worldXZ, normalize(float2(0.42f, 0.91f))) * 0.42f + time * 1.70f) * 0.135f +
+            sin(dot(worldXZ, normalize(float2(-0.82f, 0.57f))) * 0.55f - time * 1.28f) * 0.115f +
+            sin((worldXZ.x * 0.83f + worldXZ.y * -0.38f) + time * 2.45f) * 0.060f;
+        float gust = sin(dot(worldXZ, normalize(float2(0.78f, -0.62f))) * 0.012f + time * 0.19f);
+        float gustMask = smoothstep(0.26f, 0.78f, gust);
+        float wave = (longWave + shortWave) * (1.0f + gustMask * 0.28f);
 
-        float crest = smoothstep(0.78f, 1.24f, wave);
-        float fineFoam = smoothstep(0.64f, 0.93f, sin(worldXZ.x * 0.83f + worldXZ.y * 0.58f + time * 2.8f));
-        float foam = crest * (0.55f + 0.45f * fineFoam);
+        float waveSlope = abs(ddx(wave)) + abs(ddy(wave));
+        float crest = smoothstep(0.72f, 1.12f, wave);
+        float fineFoamA = smoothstep(0.72f, 0.96f, sin(worldXZ.x * 1.26f + worldXZ.y * 0.84f + time * 2.55f));
+        float fineFoamB = smoothstep(0.66f, 0.94f, sin(worldXZ.x * -1.05f + worldXZ.y * 1.18f - time * 2.10f));
+        float foamStreak = smoothstep(0.88f, 1.0f, sin(dot(worldXZ, swellA) * 0.19f + time * 1.12f));
+        float slopeFoam = smoothstep(0.018f, 0.065f, waveSlope);
+        float foam = crest * (0.30f + 0.30f * fineFoamA + 0.16f * fineFoamB + 0.18f * foamStreak) + slopeFoam * 0.055f;
 
         float fresnel = pow(1.0f - saturate(dot(float3(0.0f, 1.0f, 0.0f), V)), 3.2f);
-        float glintLine = smoothstep(0.86f, 1.0f, sin(worldXZ.x * 0.021f - worldXZ.y * 0.018f + time * 0.28f));
-        float glint = fresnel * glintLine * 0.22f;
+        float glintLineA = smoothstep(0.94f, 1.0f, sin(worldXZ.x * 0.035f - worldXZ.y * 0.030f + time * 0.26f));
+        float glintLineB = smoothstep(0.91f, 1.0f, sin(worldXZ.x * -0.027f + worldXZ.y * 0.040f - time * 0.22f));
+        float sparkle = smoothstep(0.965f, 1.0f, sin(worldXZ.x * 1.74f + worldXZ.y * 1.31f + time * 3.60f));
+        float glint = fresnel * (glintLineA * 0.13f + glintLineB * 0.08f + sparkle * 0.035f) * (1.0f + gustMask * 0.22f);
 
-        float3 nearWater = float3(0.02f, 0.43f, 0.72f);
-        float3 farWater = float3(0.05f, 0.23f, 0.48f);
-        float3 skyTint = float3(0.45f, 0.70f, 0.92f);
-        float3 waveTint = float3(0.04f, 0.63f, 0.88f);
-        float3 foamTint = float3(0.74f, 0.92f, 1.0f);
+        float3 nearWater = float3(0.010f, 0.34f, 0.62f);
+        float3 midWater = float3(0.018f, 0.43f, 0.70f);
+        float3 farWater = float3(0.028f, 0.18f, 0.38f);
+        float3 skyTint = float3(0.39f, 0.64f, 0.88f);
+        float3 waveTint = float3(0.020f, 0.52f, 0.78f);
+        float3 deepTint = float3(0.004f, 0.070f, 0.16f);
+        float3 foamTint = float3(0.72f, 0.91f, 0.98f);
+        float3 horizonMist = float3(0.32f, 0.60f, 0.80f);
 
-        float3 color = lerp(nearWater, farWater, horizon);
-        color = lerp(color, skyTint, fresnel * 0.34f);
-        color += waveTint * (wave * 0.055f + 0.055f);
-        color += foamTint * foam * 0.34f;
+        float3 color = lerp(nearWater, midWater, saturate(0.45f + wave * 0.18f));
+        color = lerp(color, farWater, horizon);
+        color = lerp(color, deepTint, smoothstep(-1.05f, -0.15f, -wave) * 0.16f);
+        color = lerp(color, horizonMist, smoothstep(0.48f, 1.0f, horizon) * 0.18f);
+        color = lerp(color, skyTint, fresnel * 0.26f);
+        color += waveTint * (wave * 0.050f + 0.034f);
+        color += foamTint * foam * (0.18f + gustMask * 0.075f);
         color += skyTint * glint;
 
         // PSP-like high readability: keep the water vivid, but add modern layered depth.
-        color = saturate(color * gMaterial.color.rgb * 1.18f);
+        color = saturate(color * gMaterial.color.rgb * 1.05f);
         output.color = float4(color, gMaterial.color.a * textureColor.a);
         return output;
     }

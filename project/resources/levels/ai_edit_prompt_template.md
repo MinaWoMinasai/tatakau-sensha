@@ -6,13 +6,16 @@
 
 - `resources/levels/level_test.json`
 - 仕様辞書: `resources/levels/prefab_dictionary.json`
+- 戦車案辞書: `resources/levels/tank_dictionary.json`
 - Balance調整メモ: `resources/levels/ai_balance_handoff.md`
+- 企画相談メモ: `resources/levels/ai_design_brief.md`
 
 ## ゲーム概要
 
 - プレイヤーは黄緑色の自機です。
 - 黒い球体風の敵がボスです。
 - 三角形、四角形、五角形などのEXP敵を倒して経験値を得ます。
+- 戦車タイプや敵タイプの大枠は `tank_dictionary.json` の役割・強み・弱みを参考にします。
 - レベルアップすると進化や強化ができます。
 - 赤い `DamageBlock` は危険ブロックです。
 - プレイヤーHPは `balance.player.maxHp` で調整します。現在の基準は1000です。
@@ -32,6 +35,8 @@
 - 初心者向けにする場合、`spawnInterval` を短くしすぎないでください。
 - HPやダメージなどの数値調整は、できるだけC++ではなく `balance` 内のJSON項目で行ってください。
 - `ai_balance_handoff.md` がある場合は、現在のプレイ感やBalance Labの調整値として参考にしてください。
+- `ai_design_brief.md` がある場合は、人間の狙いたい体験やステージ方針を優先してください。
+- 戦車タイプを提案するときは、まず役割と遊びの狙いを説明し、その後で必要なJSONや数値案を出してください。
 
 ## 依頼例
 

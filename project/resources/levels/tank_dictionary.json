@@ -1,0 +1,124 @@
+{
+  "toolName": "Neon Arena Director",
+  "purpose": "AI and human designers use this dictionary to discuss tank and enemy roles before editing level JSON or C++.",
+  "tankTypes": {
+    "NormalTank": {
+      "role": "standard",
+      "strengths": [
+        "balanced movement",
+        "balanced reload",
+        "easy to place in most stages"
+      ],
+      "weaknesses": [
+        "no strong identity"
+      ],
+      "levelUse": "baseline player or enemy tank idea",
+      "balanceHints": {
+        "hp": "medium",
+        "moveSpeed": "medium",
+        "reload": "medium",
+        "bulletSpeed": "medium"
+      }
+    },
+    "SniperTank": {
+      "role": "long range pressure",
+      "strengths": [
+        "fast bullets",
+        "high single-shot threat",
+        "forces lateral dodging"
+      ],
+      "weaknesses": [
+        "low fire rate",
+        "weak at close range"
+      ],
+      "levelUse": "place on open lanes, not near PlayerSpawn",
+      "balanceHints": {
+        "hp": "low-medium",
+        "moveSpeed": "low",
+        "reload": "slow",
+        "bulletSpeed": "high"
+      }
+    },
+    "RushTank": {
+      "role": "close range chase",
+      "strengths": [
+        "high movement",
+        "creates panic and repositioning"
+      ],
+      "weaknesses": [
+        "low durability",
+        "can feel unfair in narrow maps"
+      ],
+      "levelUse": "use with wide escape routes and low maxAlive",
+      "balanceHints": {
+        "hp": "low",
+        "moveSpeed": "high",
+        "reload": "medium",
+        "bulletSpeed": "medium"
+      }
+    },
+    "HeavyTank": {
+      "role": "slow pressure wall",
+      "strengths": [
+        "high durability",
+        "strong contact pressure",
+        "anchors a phase"
+      ],
+      "weaknesses": [
+        "slow",
+        "easy to kite in open spaces"
+      ],
+      "levelUse": "good for bossPhase objects or late-game pressure",
+      "balanceHints": {
+        "hp": "high",
+        "moveSpeed": "low",
+        "reload": "slow",
+        "bulletSpeed": "medium"
+      }
+    },
+    "SpreadTank": {
+      "role": "area denial shooter",
+      "strengths": [
+        "wide bullet coverage",
+        "good against direct approaches"
+      ],
+      "weaknesses": [
+        "can clutter the screen",
+        "needs lower damage per bullet"
+      ],
+      "levelUse": "use sparingly near red hazard zones",
+      "balanceHints": {
+        "hp": "medium",
+        "moveSpeed": "low-medium",
+        "reload": "medium",
+        "bulletCount": "high",
+        "damage": "low-medium"
+      }
+    },
+    "MineTank": {
+      "role": "trap setter",
+      "strengths": [
+        "controls routes",
+        "pairs well with chase enemies"
+      ],
+      "weaknesses": [
+        "requires clear visual readability",
+        "too many traps feel unfair"
+      ],
+      "levelUse": "use in outer-ring or maze-pressure stages",
+      "balanceHints": {
+        "hp": "medium",
+        "moveSpeed": "low",
+        "spawnInterval": "slow",
+        "damage": "medium"
+      }
+    }
+  },
+  "aiRules": [
+    "Suggest tank ideas as roles first, then numeric values.",
+    "Keep readability high in neon scenes with many bloom effects.",
+    "Avoid combining narrow corridors, high rush speed, and high contact damage.",
+    "When adding a strong tank type, reduce maxAlive or increase spawnInterval.",
+    "Use the external preview to check escape routes before final tuning."
+  ]
+}

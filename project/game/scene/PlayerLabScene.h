@@ -40,6 +40,7 @@ private:
 	void CheckLabCollisions();
 	void DrawNeonGridPass();
 	void DrawLabEditor();
+	void UpdateLabStatusText();
 
 	Input* input_ = nullptr;
 	std::unique_ptr<Camera> camera_;
@@ -58,6 +59,9 @@ private:
 	std::unique_ptr<ObjectPostEffect> bulletTrailPostEffect_;
 	std::unique_ptr<ObjectPostEffect> stagePostEffect_;
 	std::unique_ptr<TextLabel> fpsText_;
+	std::unique_ptr<TextLabel> labTitleText_;
+	std::unique_ptr<TextLabel> labGuideText_;
+	std::unique_ptr<TextLabel> labStatusText_;
 
 	bool finished_ = false;
 	std::string nextSceneName_ = "TITLE";
@@ -69,12 +73,12 @@ private:
 	bool enableExpEnemyPostEffect_ = true;
 	bool enableNeonGridPostEffect_ = true;
 	bool enableBulletTrailPostEffect_ = true;
-	bool enableStagePostEffect_ = true;
-	bool showStage_ = true;
+	bool enableStagePostEffect_ = false;
+	bool showStage_ = false;
 	bool showTargets_ = true;
 	bool showWorldGrid_ = true;
 	bool showActorLocalGrid_ = true;
-	float worldGridSpacing_ = 2.0f;
+	float worldGridSpacing_ = 1.5f;
 	float worldGridLineWidth_ = 0.075f;
 	Vector4 worldGridColor_ = { 0.12f, 0.42f, 1.0f, 0.16f };
 	float actorGridRadius_ = 5.4f;
