@@ -37,8 +37,16 @@ private:
 
 	struct EnemyShip {
 		ShipState ship;
+		Vector3 formationOffset = {};
 		std::unique_ptr<Object3d> hull;
 		bool alive = true;
+		bool sinking = false;
+		bool detectedPlayer = false;
+		float aimYaw = 0.0f;
+		float desiredRange = 145.0f;
+		float sinkTimer = 0.0f;
+		float deathFlash = 0.0f;
+		int broadsideDirection = 1;
 	};
 
 	struct Projectile {
@@ -47,15 +55,30 @@ private:
 		float life = 0.0f;
 		float damage = 20.0f;
 		float radius = 3.0f;
+		bool fromPlayer = true;
 		std::unique_ptr<Object3d> object;
 	};
 
 	struct ImpactEffect {
 		Vector3 position = {};
+		Vector3 velocity = {};
 		float life = 0.0f;
 		float duration = 1.0f;
 		float baseScale = 1.0f;
+		float verticalScale = 1.0f;
 		bool waterSplash = false;
+		std::unique_ptr<Object3d> object;
+	};
+
+	struct WakeTrail {
+		Vector3 position = {};
+		Vector3 velocity = {};
+		float yaw = 0.0f;
+		float life = 0.0f;
+		float duration = 1.0f;
+		float baseWidth = 1.0f;
+		float baseLength = 1.0f;
+		float baseAlpha = 0.25f;
 		std::unique_ptr<Object3d> object;
 	};
 
@@ -70,13 +93,23 @@ private:
 	void UpdatePlayer();
 	void UpdateEnemies();
 	void UpdateProjectiles();
+	void SpawnEnemyShell(EnemyShip& enemy);
 	void SpawnImpactEffect(const Vector3& position, bool waterSplash);
+	void AddCameraShake(float intensity, float duration);
+	int CountAliveEnemies() const;
+	void UpdateWakeTrails();
+	void SpawnWakeTrail();
+	void SpawnHullFoamTrail();
+	void AddWaterFoamTrail(const Vector3& position, const Vector3& velocity, float yaw, float duration, float width, float length, float alpha);
 	void UpdateCamera();
 	void FireMainGun();
 	void DrawDebugWindow();
 	void DrawBattleHud();
 
 	Vector3 ForwardFromYaw(float yaw) const;
+	Vector3 VelocityFromShip(const ShipState& ship) const;
+	Vector3 PredictBallisticTargetPosition(const Vector3& muzzlePosition, const Vector3& targetPosition, const Vector3& targetVelocity, float horizontalSpeed) const;
+	float SampleOceanHeight(const Vector3& position, float time) const;
 	Vector3 GetReticleRayDirection() const;
 	bool TryGetReticleWaterTarget(Vector3& targetPosition) const;
 	float GetAimYaw() const;
@@ -103,6 +136,7 @@ private:
 	std::vector<EnemyShip> enemies_;
 	std::vector<Projectile> projectiles_;
 	std::vector<ImpactEffect> impactEffects_;
+	std::vector<WakeTrail> wakeTrails_;
 
 	ShipState player_;
 	bool finished_ = false;
@@ -117,4 +151,20 @@ private:
 	bool precisionAimMode_ = false;
 	int lockTargetIndex_ = -1;
 	float precisionSwitchCooldown_ = 0.0f;
+	float wakeSpawnTimer_ = 0.0f;
+	float hullFoamSpawnTimer_ = 0.0f;
+	float playerVisualWaterHeight_ = 1.1f;
+	float playerVisualPitch_ = 0.0f;
+	float playerVisualRoll_ = 0.0f;
+	float cameraShakeTime_ = 0.0f;
+	float cameraShakeDuration_ = 0.0f;
+	float cameraShakeIntensity_ = 0.0f;
+	float playerDamageFlash_ = 0.0f;
+	bool missionComplete_ = false;
+	bool gameOver_ = false;
+	Vector3 enemyFleetAnchor_ = {};
+	float enemyFleetYaw_ = 0.0f;
+	float enemyFleetSpeed_ = 0.0f;
+	bool enemyFleetDetected_ = false;
+	int enemyFleetBroadsideDirection_ = 1;
 };
