@@ -393,9 +393,9 @@ private:
 	float deathPostPulseTimer_ = 0.0f;
 	float deathPostPulseDuration_ = 0.62f;
 	float deathPostPulseScale_ = 1.0f;
-	float deathPostBloomBoost_ = 1.8f;
-	float deathPostChromAbAmount_ = 0.018f;
-	float deathPostShockwaveStrength_ = 0.028f;
+	float deathPostBloomBoost_ = 0.65f;
+	float deathPostChromAbAmount_ = 0.006f;
+	float deathPostShockwaveStrength_ = 0.012f;
 	float deathPostShockwaveWidth_ = 0.055f;
 	float deathPostShockwaveMaxRadius_ = 0.72f;
 	std::string postEffectConfigStatus_;

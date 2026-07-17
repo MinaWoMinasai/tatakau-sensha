@@ -8,6 +8,7 @@ public:
     void Initialize(const std::string& textureFilePath);
     void Update(Camera* camera, DebugCamera* debugCamera);
     void Draw();
+    void SetColor(const Vector4& color);
 
 private:
     std::unique_ptr<Object3d> object_;

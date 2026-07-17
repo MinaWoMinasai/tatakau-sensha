@@ -1164,7 +1164,8 @@ void GameScene::DrawPostEffect3D() {
 		});
 	}
 
-	if (enableParticlePostEffect_) {
+	const bool hasDrawableParticles = ParticleManager::GetInstance()->HasDrawableParticles();
+	if (enableParticlePostEffect_ && hasDrawableParticles) {
 		profile("Particle Glow", true, [&]() {
 			particlePostEffect_->BeginCaptureWithCurrentDepth();
 			ParticleManager::GetInstance()->Draw();
@@ -1172,7 +1173,7 @@ void GameScene::DrawPostEffect3D() {
 			Object3dCommon::GetInstance()->PreDraw(kNormal);
 		});
 	} else {
-		profile("Particles", false, [&]() {
+		profile("Particles", hasDrawableParticles, [&]() {
 			ParticleManager::GetInstance()->Draw();
 		});
 	}
@@ -2126,20 +2127,22 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		return Vector3{ direction.x * c - direction.y * s, direction.x * s + direction.y * c, direction.z };
 	};
 
-	auto queueTankBillboard = [&](const Vector3& center, const Vector3& direction, float radius, float lineWidth, const Vector4& color, const std::vector<Player::NeonBarrelLayout>* barrelLayouts, bool allowIdleMeleeSaber) {
+	auto queueTankBillboard = [&](const Vector3& center, const Vector3& direction, float radius, float lineWidth, const Vector4& color, const Player::NeonBodyLayout* bodyLayout, const std::vector<Player::NeonBarrelLayout>* barrelLayouts, bool allowIdleMeleeSaber) {
 		constexpr float kTwoPi = 6.28318530718f;
-		constexpr int kSegments = 24;
-		if (drawBodies) {
+		auto queueBodyPolygon = [&](int segments, float rotation, const Vector2& scale, const Vector4& outlineColor) {
+			segments = (std::clamp)(segments, 3, 48);
 			Vector3 previous{};
-			for (int i = 0; i <= kSegments; ++i) {
-				const float angle = static_cast<float>(i % kSegments) * (kTwoPi / static_cast<float>(kSegments));
-				const Vector3 current = center + cameraRight * (std::cos(angle) * radius) + cameraUp * (std::sin(angle) * radius);
+			for (int i = 0; i <= segments; ++i) {
+				const float angle = rotation + static_cast<float>(i % segments) * (kTwoPi / static_cast<float>(segments));
+				const Vector3 current = center +
+					cameraRight * (std::cos(angle) * radius * scale.x) +
+					cameraUp * (std::sin(angle) * radius * scale.y);
 				if (i > 0) {
-					neonGridRenderer_->QueueLine(previous, current, lineWidth, color);
+					neonGridRenderer_->QueueLine(previous, current, lineWidth, outlineColor);
 				}
 				previous = current;
 			}
-		}
+		};
 
 		Vector3 mainDirection = direction;
 		if (Length(mainDirection) < 0.001f) {
@@ -2149,6 +2152,30 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		const float mainRotation = directionToRotation(mainDirection);
 		const Vector3 mainForward = cameraRight * std::sin(mainRotation) + cameraUp * -std::cos(mainRotation);
 		const Vector3 mainRight = cameraRight * std::cos(mainRotation) + cameraUp * std::sin(mainRotation);
+
+		if (drawBodies) {
+			const Player::NeonBodyLayout defaultBody{};
+			const Player::NeonBodyLayout& body = bodyLayout ? *bodyLayout : defaultBody;
+			Vector4 outlineColor = body.outlineColor;
+			if (outlineColor.w <= 0.001f) {
+				outlineColor = color;
+			}
+			switch (body.shape) {
+			case Player::BodyShape::Box:
+				queueBodyPolygon(4, mainRotation + kTwoPi * 0.125f, body.scale, outlineColor);
+				break;
+			case Player::BodyShape::Triangle:
+				queueBodyPolygon(3, mainRotation - kTwoPi * 0.25f, body.scale, outlineColor);
+				break;
+			case Player::BodyShape::Pentagon:
+				queueBodyPolygon(5, mainRotation - kTwoPi * 0.25f, body.scale, outlineColor);
+				break;
+			case Player::BodyShape::Circle:
+			default:
+				queueBodyPolygon(28, mainRotation, body.scale, outlineColor);
+				break;
+			}
+		}
 
 		auto queueIdleMeleeSaber = [&](const Player::NeonBarrelLayout& layout) {
 			if (!allowIdleMeleeSaber || !showPlayerIdleMeleeSaber_ || !playerMeleeSlashes_.empty()) {
@@ -2202,6 +2229,22 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 				queueIdleMeleeSaber(layout);
 				return;
 			}
+			auto groupColor = [&](int group, Vector4 fallback) {
+				static const Vector4 colors[] = {
+					{ 0.55f, 1.00f, 0.35f, 1.0f },
+					{ 1.00f, 0.86f, 0.25f, 1.0f },
+					{ 0.30f, 0.92f, 1.00f, 1.0f },
+					{ 1.00f, 0.36f, 0.72f, 1.0f },
+					{ 0.76f, 0.54f, 1.00f, 1.0f },
+					{ 1.00f, 0.58f, 0.32f, 1.0f }
+				};
+				if (group < 0) {
+					return fallback;
+				}
+				Vector4 result = colors[static_cast<size_t>(group) % (sizeof(colors) / sizeof(colors[0]))];
+				result.w = fallback.w > 0.001f ? fallback.w : color.w;
+				return result;
+			};
 			const Vector3 barrelDirection = Normalize(rotateDirection(mainDirection, layout.angleRad));
 			const float barrelRotation = directionToRotation(barrelDirection);
 			const Vector3 barrelForward = cameraRight * std::sin(barrelRotation) + cameraUp * -std::cos(barrelRotation);
@@ -2210,14 +2253,34 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 				mainForward * ((layout.offset.x - layout.recoilOffset) * radius) +
 				mainRight * (layout.offset.y * radius) +
 				Vector3{ 0.0f, 0.0f, layout.offset.z };
-			const float length = (std::max)(radius * 0.28f, layout.scale.x * radius * 0.72f);
-			const float half = (std::max)(lineWidth * 1.5f, layout.scale.y * radius * 0.75f);
+			float length = (std::max)(radius * 0.28f, layout.scale.x * radius * 0.72f);
+			float half = (std::max)(lineWidth * 1.5f, layout.scale.y * radius * 0.75f);
+			if (layout.shape == BarrelShape::Heavy) {
+				length *= 1.12f;
+				half *= 1.45f;
+			} else if (layout.shape == BarrelShape::Short) {
+				length *= 0.58f;
+				half *= 1.08f;
+			} else if (layout.shape == BarrelShape::Wide) {
+				length *= 0.86f;
+				half *= 1.80f;
+			}
 			const Vector3 base = barrelCenter - barrelForward * (length * 0.20f);
 			const Vector3 tip = barrelCenter + barrelForward * (length * 0.80f);
-			neonGridRenderer_->QueueLine(base - barrelRight * half, tip - barrelRight * half, lineWidth, color);
-			neonGridRenderer_->QueueLine(tip - barrelRight * half, tip + barrelRight * half, lineWidth, color);
-			neonGridRenderer_->QueueLine(tip + barrelRight * half, base + barrelRight * half, lineWidth, color);
-			neonGridRenderer_->QueueLine(base + barrelRight * half, base - barrelRight * half, lineWidth, color);
+			Vector4 barrelColor = groupColor(layout.fireGroup, layout.outlineColor.w > 0.001f ? layout.outlineColor : color);
+			if (layout.shape == BarrelShape::Trapezoid) {
+				const float baseHalf = half * 1.28f;
+				const float tipHalf = half * 0.72f;
+				neonGridRenderer_->QueueLine(base - barrelRight * baseHalf, tip - barrelRight * tipHalf, lineWidth, barrelColor);
+				neonGridRenderer_->QueueLine(tip - barrelRight * tipHalf, tip + barrelRight * tipHalf, lineWidth, barrelColor);
+				neonGridRenderer_->QueueLine(tip + barrelRight * tipHalf, base + barrelRight * baseHalf, lineWidth, barrelColor);
+				neonGridRenderer_->QueueLine(base + barrelRight * baseHalf, base - barrelRight * baseHalf, lineWidth, barrelColor);
+			} else {
+				neonGridRenderer_->QueueLine(base - barrelRight * half, tip - barrelRight * half, lineWidth, barrelColor);
+				neonGridRenderer_->QueueLine(tip - barrelRight * half, tip + barrelRight * half, lineWidth, barrelColor);
+				neonGridRenderer_->QueueLine(tip + barrelRight * half, base + barrelRight * half, lineWidth, barrelColor);
+				neonGridRenderer_->QueueLine(base + barrelRight * half, base - barrelRight * half, lineWidth, barrelColor);
+			}
 		};
 
 		if (!drawBarrels) {
@@ -2233,13 +2296,14 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 	};
 
 	const std::vector<Player::NeonBarrelLayout> playerBarrels = player_ ? player_->GetNeonBarrelLayouts() : std::vector<Player::NeonBarrelLayout>{};
+	const Player::NeonBodyLayout playerBody = player_ ? player_->GetNeonBodyLayout() : Player::NeonBodyLayout{};
 
 	for (const PlayerNeonAfterimage& afterimage : playerNeonAfterimages_) {
 		const float lifeRatio = (std::clamp)(afterimage.life / (std::max)(0.001f, playerAfterimageLifetime_), 0.0f, 1.0f);
 		Vector4 color = playerGridColor_;
 		color.w *= playerAfterimageAlpha_ * lifeRatio;
 		const float radius = playerNeonBillboardRadius_ * (0.88f + lifeRatio * 0.12f);
-		queueTankBillboard(afterimage.position + Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBarrels, false);
+		queueTankBillboard(afterimage.position + Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, false);
 	}
 
 	if (playerNeonRenderMode_ == 1 && player_ && !player_->IsDead()) {
@@ -2250,18 +2314,22 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		if (player_->IsDashing()) {
 			color.w *= playerDashCurrentAlpha_;
 		}
-		queueTankBillboard(player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBarrels, true);
+		queueTankBillboard(player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true);
 	}
 	if (bossNeonRenderMode_ == 1 && enemy_ && !enemy_->IsDead()) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
 		const float pulse = std::sin(feedback * 3.14159265f) * 0.08f;
 		const Vector4 color = lerpColor(enemyGridColor_, { 1.8f, 1.8f, 1.8f, enemyGridColor_.w }, feedback * feedback * 0.65f);
+		Player::NeonBodyLayout bossBody{};
+		bossBody.outlineColor = color;
 		Player::NeonBarrelLayout bossBarrel{};
 		bossBarrel.offset = { bossNeonBarrelForwardOffset_, bossNeonBarrelSideOffset_, 0.0f };
 		bossBarrel.scale = { bossNeonBarrelLengthScale_, bossNeonBarrelWidthScale_, bossNeonBarrelWidthScale_ };
 		bossBarrel.angleRad = bossNeonBarrelAngleDeg_ * 3.1415926535f / 180.0f;
+		bossBarrel.fireGroup = -1;
+		bossBarrel.outlineColor = color;
 		const std::vector<Player::NeonBarrelLayout> bossBarrels = { bossBarrel };
-		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &bossBarrels, false);
+		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &bossBody, &bossBarrels, false);
 	}
 }
 
@@ -2280,14 +2348,58 @@ void GameScene::DrawActorNeonBodyFillPass() {
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
 
+	auto directionToRotation = [&](const Vector3& worldDirection) {
+		Vector3 direction = worldDirection;
+		if (Length(direction) < 0.001f) {
+			direction = { 0.0f, -1.0f, 0.0f };
+		}
+		direction = Normalize(direction);
+		return std::atan2(Dot(direction, cameraRight), -Dot(direction, cameraUp));
+	};
+	auto queueBodyFill = [&](const Vector3& center, const Vector3& direction, float radius, const Player::NeonBodyLayout& body, const Vector4& fillColor) {
+		constexpr float kTwoPi = 6.28318530718f;
+		const float mainRotation = directionToRotation(direction);
+		int segments = 32;
+		float rotation = mainRotation;
+		switch (body.shape) {
+		case Player::BodyShape::Box:
+			segments = 4;
+			rotation = mainRotation + kTwoPi * 0.125f;
+			break;
+		case Player::BodyShape::Triangle:
+			segments = 3;
+			rotation = mainRotation - kTwoPi * 0.25f;
+			break;
+		case Player::BodyShape::Pentagon:
+			segments = 5;
+			rotation = mainRotation - kTwoPi * 0.25f;
+			break;
+		case Player::BodyShape::Circle:
+		default:
+			segments = 32;
+			break;
+		}
+		neonGridRenderer_->QueueBillboardRegularPolygonFill(
+			center,
+			segments,
+			radius,
+			rotation,
+			body.scale,
+			fillColor,
+			cameraRight,
+			cameraUp);
+	};
+
 	const uint32_t fillStart = neonGridRenderer_->GetVertexCount();
 	if (playerNeonRenderMode_ == 1 && player_ && !player_->IsDead()) {
 		const float feedback = player_->GetDamageFeedbackRatio();
 		const float pulse = std::sin(feedback * 3.14159265f) * 0.10f;
-		neonGridRenderer_->QueueBillboardDisc(
+		queueBodyFill(
 			player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.345f },
+			player_->GetDirection(),
 			playerNeonBillboardRadius_ * (1.0f + pulse) * 0.96f,
-			actorNeonBodyFillColor_, cameraRight, cameraUp);
+			player_->GetNeonBodyLayout(),
+			actorNeonBodyFillColor_);
 	}
 	if (bossNeonRenderMode_ == 1 && enemy_ && !enemy_->IsDead()) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();

@@ -33,6 +33,12 @@ void Skybox::Update(Camera* camera, DebugCamera* debugCamera) {
     }
 }
 
+void Skybox::SetColor(const Vector4& color) {
+    if (object_) {
+        object_->SetColor(color);
+    }
+}
+
 void Skybox::Draw() {
     auto list = dxCommon_->GetList();
     auto& pso = dxCommon_->GetPSOSkybox();

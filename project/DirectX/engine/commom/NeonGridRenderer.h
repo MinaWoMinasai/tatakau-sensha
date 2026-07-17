@@ -40,6 +40,15 @@ public:
 		const Vector3& cameraRight,
 		const Vector3& cameraUp,
 		int segments = 32);
+	void QueueBillboardRegularPolygonFill(
+		const Vector3& center,
+		int segments,
+		float radius,
+		float rotationRad,
+		const Vector2& scale,
+		const Vector4& color,
+		const Vector3& cameraRight,
+		const Vector3& cameraUp);
     void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color);
     void QueueRectangle(const Vector3& center, const Vector3& size, float lineWidth, const Vector4& color);
     void QueueLocalGrid(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color);
