@@ -28,6 +28,7 @@ struct VertexShaderInput
     float32_t4 position : POSITION0;
     float32_t2 texcoord : TEXCOORD0;
     float32_t3 normal : NORMAL0;
+    float32_t4 tangent : TANGENT0;
     float32_t4 weight : WEIGHT0;
     int32_t4 index : INDEX0;
 };
@@ -36,11 +37,13 @@ VertexShaderOutput main(VertexShaderInput input)
 {
     float32_t4 skinnedPosition = float32_t4(0.0f, 0.0f, 0.0f, 0.0f);
     float32_t3 skinnedNormal = float32_t3(0.0f, 0.0f, 0.0f);
+    float32_t3 skinnedTangent = float32_t3(0.0f, 0.0f, 0.0f);
     [unroll]
     for (uint32_t influence = 0; influence < 4; ++influence)
     {
         skinnedPosition += mul(input.position, gMatrixPalette[input.index[influence]].skeletonSpaceMatrix) * input.weight[influence];
         skinnedNormal += mul(input.normal, (float32_t3x3)gMatrixPalette[input.index[influence]].skeletonSpaceInverseTransposeMatrix) * input.weight[influence];
+        skinnedTangent += mul(input.tangent.xyz, (float32_t3x3)gMatrixPalette[input.index[influence]].skeletonSpaceInverseTransposeMatrix) * input.weight[influence];
     }
     skinnedPosition.w = 1.0f;
 
@@ -48,6 +51,9 @@ VertexShaderOutput main(VertexShaderInput input)
     output.position = mul(skinnedPosition, gTransformationMatrix.WVP);
     output.texcoord = input.texcoord;
     output.normal = normalize(mul(skinnedNormal, (float32_t3x3)gTransformationMatrix.WorldInverseTranspose));
+    output.tangent = float32_t4(
+        normalize(mul(skinnedTangent, (float32_t3x3)gTransformationMatrix.WorldInverseTranspose)),
+        input.tangent.w);
     output.worldPosition = mul(skinnedPosition, gTransformationMatrix.World).xyz;
     output.shadowMapPosition = mul(skinnedPosition, gTransformationMatrix.LightWVP);
     return output;

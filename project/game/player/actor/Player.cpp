@@ -1980,12 +1980,7 @@ void Player::InitializeUpgradeHudBatch()
 
 	upgradeHudBatchMaterialResource_ = dxCommon->CreateBufferResource(sizeof(Material));
 	upgradeHudBatchMaterialResource_->Map(0, nullptr, reinterpret_cast<void**>(&upgradeHudBatchMaterialData_));
-	upgradeHudBatchMaterialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	upgradeHudBatchMaterialData_->enableLighting = false;
-	upgradeHudBatchMaterialData_->lightingMode = false;
-	upgradeHudBatchMaterialData_->environmentCoefficient = 0.0f;
-	upgradeHudBatchMaterialData_->padding = 0.0f;
-	upgradeHudBatchMaterialData_->uvTransform = MakeIdentity4x4();
+	*upgradeHudBatchMaterialData_ = MakeDefaultMaterial();
 	upgradeHudBatchMaterialData_->shininess = 1.0f;
 }
 

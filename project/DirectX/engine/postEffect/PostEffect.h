@@ -6,15 +6,17 @@ class PostEffect {
 public:
     void Initialize(DirectXCommon* dxCommon, BloomConstantBuffer* bloomCB);
     void Draw(
-        D3D12_GPU_DESCRIPTOR_HANDLE inputSRV, BlendMode blendMode
+        D3D12_GPU_DESCRIPTOR_HANDLE inputSRV,
+        BlendMode blendMode,
+        bool outputToHdr = true
     );
     void DrawComposite(
         D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV,
         D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV,
         D3D12_GPU_DESCRIPTOR_HANDLE depthSRV);
-    void DrawObjectComposite(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV);
-    void DrawObjectOutlineAdd(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV);
-    void DrawObjectBloomAdd(D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV);
+    void DrawObjectComposite(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV, bool outputToHdr = true);
+    void DrawObjectOutlineAdd(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV, bool outputToHdr = true);
+    void DrawObjectBloomAdd(D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV, bool outputToHdr = true);
 
 private:
     DirectXCommon* dxCommon_ = nullptr;

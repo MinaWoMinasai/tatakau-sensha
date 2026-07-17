@@ -105,12 +105,7 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
 
     materialResource_ = dxCommon_->CreateBufferResource(sizeof(Material));
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
-    materialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-    materialData_->enableLighting = false;
-    materialData_->lightingMode = false;
-    materialData_->environmentCoefficient = 0.0f;
-    materialData_->padding = 0.0f;
-    materialData_->uvTransform = MakeIdentity4x4();
+    *materialData_ = MakeDefaultMaterial();
     materialData_->shininess = 1.0f;
 
     directionalLightResource_ = dxCommon_->CreateBufferResource(sizeof(DirectionalLight));
@@ -1068,7 +1063,7 @@ void ParticleManager::Draw() {
     }
 
     auto commandList = dxCommon_->GetList();
-    auto& pso = dxCommon_->GetPSOModelParticle(); // 共通のModelParticlePSOを使用
+    auto& pso = dxCommon_->GetPSOModelParticleForScene(); // SceneRT向けのModelParticlePSOを使用
     commandList->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
     commandList->SetPipelineState(pso.graphicsState_.Get());
 

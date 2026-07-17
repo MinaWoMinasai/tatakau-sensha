@@ -7,6 +7,7 @@ struct VertexShaderOutput
     float32_t3 normal : NORMAL0;
     float32_t3 worldPosition : POSITION0;
     float32_t4 shadowMapPosition : TEXCOORD1;
+    float32_t4 tangent : TANGENT0;
 };
 
 struct PointLight

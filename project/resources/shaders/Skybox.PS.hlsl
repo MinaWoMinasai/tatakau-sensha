@@ -33,11 +33,11 @@ float4 main(VertexShaderOutput input) : SV_TARGET
         float3 color = lerp(horizonSky, midSky, smoothstep(0.05f, 0.55f, horizon));
         color = lerp(color, zenith, zenithFade * 0.72f);
         color += float3(1.0f, 0.72f, 0.46f) * warmHaze * 0.16f;
-        color += float3(0.98f, 0.84f, 0.52f) * sunGlow * 0.38f;
-        color += float3(1.0f, 0.92f, 0.66f) * sun * 3.4f;
+        color += float3(0.98f, 0.84f, 0.52f) * sunGlow * 0.60f;
+        color += float3(1.0f, 0.92f, 0.66f) * sun * 8.0f;
         color = lerp(color, float3(0.48f, 0.56f, 0.56f), lowMist * 0.16f);
 
-        return float4(saturate(color * gMaterial.color.rgb), 1.0f);
+        return float4(max(color * gMaterial.color.rgb, 0.0f), 1.0f);
     }
 
     // 3Dの方向ベクトルでサンプリング
