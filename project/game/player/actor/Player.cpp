@@ -70,6 +70,20 @@ Vector3 ReadVector3(const nlohmann::json& json, const Vector3& fallback)
 	};
 }
 
+Vector2 ReadVector2(const nlohmann::json& json, const Vector2& fallback)
+{
+	if (!json.is_array() || json.size() < 2) {
+		return fallback;
+	}
+	if (!json[0].is_number() || !json[1].is_number()) {
+		return fallback;
+	}
+	return {
+		json[0].get<float>(),
+		json[1].get<float>()
+	};
+}
+
 Vector4 ReadVector4(const nlohmann::json& json, const Vector4& fallback)
 {
 	if (!json.is_array() || json.size() < 4) {
@@ -171,6 +185,46 @@ const char* WeaponTypeToString(WeaponType type)
 	return "Projectile";
 }
 
+BarrelShape BarrelShapeFromString(const std::string& id)
+{
+	if (id == "Heavy") return BarrelShape::Heavy;
+	if (id == "Short") return BarrelShape::Short;
+	if (id == "Wide") return BarrelShape::Wide;
+	if (id == "Trapezoid") return BarrelShape::Trapezoid;
+	return BarrelShape::Box;
+}
+
+const char* BarrelShapeToString(BarrelShape shape)
+{
+	switch (shape) {
+	case BarrelShape::Box: return "Box";
+	case BarrelShape::Heavy: return "Heavy";
+	case BarrelShape::Short: return "Short";
+	case BarrelShape::Wide: return "Wide";
+	case BarrelShape::Trapezoid: return "Trapezoid";
+	}
+	return "Box";
+}
+
+Player::BodyShape BodyShapeFromString(const std::string& id)
+{
+	if (id == "Box") return Player::BodyShape::Box;
+	if (id == "Triangle") return Player::BodyShape::Triangle;
+	if (id == "Pentagon") return Player::BodyShape::Pentagon;
+	return Player::BodyShape::Circle;
+}
+
+const char* BodyShapeToString(Player::BodyShape shape)
+{
+	switch (shape) {
+	case Player::BodyShape::Circle: return "Circle";
+	case Player::BodyShape::Box: return "Box";
+	case Player::BodyShape::Triangle: return "Triangle";
+	case Player::BodyShape::Pentagon: return "Pentagon";
+	}
+	return "Circle";
+}
+
 const char* ClassTexturePath(ClassType type)
 {
 	switch (type) {
@@ -226,10 +280,23 @@ Player::~Player() {
 void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 
 	// 弾のクールタイムを計算する
-	bulletCoolTime -= deltaTime;
-	if (bulletCoolTime > 0.0f) return; // クールタイム中は抜ける
+	bulletCoolTime = (std::max)(0.0f, bulletCoolTime - deltaTime);
+	for (float& cooldown : weaponGroupCooldowns_) {
+		cooldown = (std::max)(0.0f, cooldown - deltaTime);
+	}
 
 	if (input_->IsPress(input_->GetMouseState().rgbButtons[0]) && !upgradeHudMouseCaptured_) {
+
+		if (const PlayerClassConfig* config = GetCurrentClassConfig()) {
+			const float baseReload = isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f;
+			Vector3 recoilDir = Normalize(dir_) * -1.0f;
+			float recoilPower = 0.01f;
+			if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
+				velocity_ += recoilDir * recoilPower;
+				Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
+			}
+			return;
+		}
 
 		if (bulletCoolTime <= 0.0f) {
 
@@ -255,14 +322,6 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			// 個別にクールタイムを設定するために先に設定
 			float baseReload = isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f;
 			bulletCoolTime = baseReload;
-
-			if (const PlayerClassConfig* config = GetCurrentClassConfig()) {
-				if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
-					velocity_ += recoilDir * recoilPower;
-					Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
-					return;
-				}
-			}
 
 			switch (currentClass_) {
 			case ClassType::Basic:
@@ -1101,6 +1160,10 @@ void Player::EvolveById(const std::string& classId)
 
 	currentClassId_ = config->id;
 	currentClass_ = config->type;
+	bulletCoolTime = 0.0f;
+	shootBarrelIndex_ = 0;
+	shootGroupIndex_ = 0;
+	weaponGroupCooldowns_.clear();
 	
 	// 進化時に特殊状態をリセットする
 	isSmash_ = false;
@@ -1172,6 +1235,16 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 		config.saberCounterWindow = (std::max)(0.01f, item.value("saberCounterWindow", config.saberCounterWindow));
 		config.saberCounterDamageScale = (std::max)(0.0f, item.value("saberCounterDamageScale", config.saberCounterDamageScale));
 		config.saberCounterRangeScale = (std::max)(0.1f, item.value("saberCounterRangeScale", config.saberCounterRangeScale));
+		config.bodyShape = BodyShapeFromString(item.value("bodyShape", std::string(BodyShapeToString(config.bodyShape))));
+		if (item.contains("bodyScale")) {
+			config.bodyScale = ReadVector2(item["bodyScale"], config.bodyScale);
+		}
+		if (item.contains("bodyFillColor")) {
+			config.bodyFillColor = ReadVector4(item["bodyFillColor"], config.bodyFillColor);
+		}
+		if (item.contains("bodyOutlineColor")) {
+			config.bodyOutlineColor = ReadVector4(item["bodyOutlineColor"], config.bodyOutlineColor);
+		}
 
 		config.barrels.clear();
 		const nlohmann::json* mountsJson = nullptr;
@@ -1184,6 +1257,7 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 			for (const nlohmann::json& barrelJson : *mountsJson) {
 				WeaponMountConfig barrel{};
 				barrel.model = barrelJson.value("model", barrel.model);
+				barrel.barrelShape = BarrelShapeFromString(barrelJson.value("barrelShape", std::string(BarrelShapeToString(barrel.barrelShape))));
 				barrel.offset = ReadVector3(barrelJson.value("offset", nlohmann::json::array()), barrel.offset);
 				barrel.scale = ReadVector3(barrelJson.value("scale", nlohmann::json::array()), barrel.scale);
 				barrel.angleDeg = barrelJson.value("angleDeg", barrel.angleDeg);
@@ -1192,6 +1266,15 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 				barrel.weaponType = WeaponTypeFromString(barrelJson.value("weaponType", std::string("Projectile")));
 				barrel.damageScale = (std::max)(0.0f, barrelJson.value("damageScale", barrel.damageScale));
 				barrel.projectileSpeedScale = (std::max)(0.01f, barrelJson.value("projectileSpeedScale", barrel.projectileSpeedScale));
+				barrel.fireGroup = (std::max)(0, barrelJson.value("fireGroup", barrel.fireGroup));
+				barrel.reloadScale = (std::max)(0.05f, barrelJson.value("reloadScale", barrel.reloadScale));
+				barrel.recoilScale = (std::max)(0.0f, barrelJson.value("recoilScale", barrel.recoilScale));
+				if (barrelJson.contains("barrelColor")) {
+					barrel.barrelColor = ReadVector4(barrelJson["barrelColor"], barrel.barrelColor);
+				}
+				if (barrelJson.contains("outlineColor")) {
+					barrel.outlineColor = ReadVector4(barrelJson["outlineColor"], barrel.outlineColor);
+				}
 				if (barrelJson.contains("effectColor")) {
 					barrel.effectColor = ReadVector4(barrelJson["effectColor"], barrel.effectColor);
 				}
@@ -1249,8 +1332,18 @@ Player::PlayerClassConfig Player::CreateDefaultClassConfig(ClassType type) const
 	config.randomSpread = true;
 	config.reloadScale = 1.0f;
 	config.alternateBarrels = false;
+	auto makeBarrel = [](Vector3 offset, Vector3 scale, float angleDeg) {
+		WeaponMountConfig barrel{};
+		barrel.model = "gunBarrel.obj";
+		barrel.offset = offset;
+		barrel.scale = scale;
+		barrel.angleDeg = angleDeg;
+		barrel.muzzleForward = 0.95f;
+		barrel.fires = true;
+		return barrel;
+	};
 	config.barrels = {
-		{ "gunBarrel.obj", { 0.72f, 0.0f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f, 0.95f, true }
+		makeBarrel({ 0.72f, 0.0f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f)
 	};
 
 	if (type == ClassType::Twin) {
@@ -1262,8 +1355,8 @@ Player::PlayerClassConfig Player::CreateDefaultClassConfig(ClassType type) const
 		config.reloadScale = 1.0f / 2.5f;
 		config.alternateBarrels = true;
 		config.barrels = {
-			{ "gunBarrel.obj", { 0.72f, -0.34f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f, 0.95f, true },
-			{ "gunBarrel.obj", { 0.72f,  0.34f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f, 0.95f, true }
+			makeBarrel({ 0.72f, -0.34f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f),
+			makeBarrel({ 0.72f,  0.34f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f)
 		};
 		return config;
 	}
@@ -1337,10 +1430,15 @@ void Player::SavePlayerClassConfigs(const std::string& path) const
 		item["saberCounterWindow"] = config->saberCounterWindow;
 		item["saberCounterDamageScale"] = config->saberCounterDamageScale;
 		item["saberCounterRangeScale"] = config->saberCounterRangeScale;
+		item["bodyShape"] = BodyShapeToString(config->bodyShape);
+		item["bodyScale"] = nlohmann::json::array({ config->bodyScale.x, config->bodyScale.y });
+		item["bodyFillColor"] = Vector4ToJson(config->bodyFillColor);
+		item["bodyOutlineColor"] = Vector4ToJson(config->bodyOutlineColor);
 		item["weaponMounts"] = nlohmann::json::array();
 		for (const WeaponMountConfig& barrel : config->barrels) {
 			nlohmann::json barrelJson;
 			barrelJson["model"] = barrel.model;
+			barrelJson["barrelShape"] = BarrelShapeToString(barrel.barrelShape);
 			barrelJson["offset"] = Vector3ToJson(barrel.offset);
 			barrelJson["scale"] = Vector3ToJson(barrel.scale);
 			barrelJson["angleDeg"] = barrel.angleDeg;
@@ -1349,6 +1447,11 @@ void Player::SavePlayerClassConfigs(const std::string& path) const
 			barrelJson["weaponType"] = WeaponTypeToString(barrel.weaponType);
 			barrelJson["damageScale"] = barrel.damageScale;
 			barrelJson["projectileSpeedScale"] = barrel.projectileSpeedScale;
+			barrelJson["fireGroup"] = barrel.fireGroup;
+			barrelJson["reloadScale"] = barrel.reloadScale;
+			barrelJson["recoilScale"] = barrel.recoilScale;
+			barrelJson["barrelColor"] = Vector4ToJson(barrel.barrelColor);
+			barrelJson["outlineColor"] = Vector4ToJson(barrel.outlineColor);
 			barrelJson["effectColor"] = Vector4ToJson(barrel.effectColor);
 			barrelJson["laserRange"] = barrel.laserRange;
 			barrelJson["laserWidth"] = barrel.laserWidth;
@@ -1440,6 +1543,9 @@ std::vector<Player::MeleeSlashEvent> Player::ConsumeMeleeSlashEvents()
 bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, Vector3& recoilDir, float& recoilPower)
 {
 	if (config.usesDrone) {
+		if (bulletCoolTime > 0.0f) {
+			return false;
+		}
 		DroneShoot(bulletManager);
 		recoilPower = 0.0f;
 		bulletCoolTime = baseReload * config.reloadScale;
@@ -1475,11 +1581,54 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 		return false;
 	}
 
+	std::vector<int> fireGroups;
+	for (size_t index : fireIndices) {
+		const int group = (std::max)(0, config.barrels[index].fireGroup);
+		if (std::find(fireGroups.begin(), fireGroups.end(), group) == fireGroups.end()) {
+			fireGroups.push_back(group);
+		}
+	}
+	std::sort(fireGroups.begin(), fireGroups.end());
+	const bool usesGroupCooldowns = config.alternateBarrels && !config.fireAllBarrels && fireGroups.size() > 1;
+	int selectedGroupSlot = -1;
+
 	if (config.alternateBarrels && !config.fireAllBarrels) {
-		const size_t selectableCount = fireIndices.size();
-		const size_t index = fireIndices[shootBarrelIndex_ % selectableCount];
-		fireIndices = { index };
-		shootBarrelIndex_ = static_cast<int>((shootBarrelIndex_ + 1) % selectableCount);
+		if (usesGroupCooldowns) {
+			if (weaponGroupCooldowns_.size() != fireGroups.size()) {
+				weaponGroupCooldowns_.assign(fireGroups.size(), 0.0f);
+				shootGroupIndex_ = 0;
+			}
+			for (size_t attempt = 0; attempt < fireGroups.size(); ++attempt) {
+				const size_t slot = (static_cast<size_t>(shootGroupIndex_) + attempt) % fireGroups.size();
+				if (weaponGroupCooldowns_[slot] <= 0.0f) {
+					selectedGroupSlot = static_cast<int>(slot);
+					break;
+				}
+			}
+			if (selectedGroupSlot < 0) {
+				bulletCoolTime = 0.0f;
+				return false;
+			}
+			const int selectedGroup = fireGroups[static_cast<size_t>(selectedGroupSlot)];
+			std::vector<size_t> groupIndices;
+			for (size_t index : fireIndices) {
+				if ((std::max)(0, config.barrels[index].fireGroup) == selectedGroup) {
+					groupIndices.push_back(index);
+				}
+			}
+			fireIndices = groupIndices;
+			shootGroupIndex_ = (selectedGroupSlot + 1) % static_cast<int>(fireGroups.size());
+		} else {
+			if (bulletCoolTime > 0.0f) {
+				return false;
+			}
+			const size_t selectableCount = fireIndices.size();
+			const size_t index = fireIndices[shootBarrelIndex_ % selectableCount];
+			fireIndices = { index };
+			shootBarrelIndex_ = static_cast<int>((shootBarrelIndex_ + 1) % selectableCount);
+		}
+	} else if (bulletCoolTime > 0.0f) {
+		return false;
 	}
 
 	const Vector3 forward = Length(dir_) > 0.0001f ? Normalize(dir_) : Vector3{ 1.0f, 0.0f, 0.0f };
@@ -1503,9 +1652,13 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 		meleeComboTimer_ = (std::max)(0.05f, meleeComboResetTime);
 	}
 
+	Vector3 combinedRecoil{};
+	float firedReloadScale = 1.0f;
 	for (size_t index : fireIndices) {
 		const WeaponMountConfig& barrelConfig = config.barrels[index];
 		const Vector3 fireDir = RotateDirection(forward, barrelConfig.angleDeg);
+		combinedRecoil = combinedRecoil + fireDir * (-(std::max)(0.0f, barrelConfig.recoilScale));
+		firedReloadScale = (std::max)(firedReloadScale, barrelConfig.reloadScale);
 		const Vector3 mountBase =
 			worldTransform_.translate +
 			forward * barrelConfig.offset.x +
@@ -1575,9 +1728,21 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 		}
 	}
 
-	bulletCoolTime = (std::max)(baseReload * config.reloadScale, meleeActionDuration);
-	recoilDir = Normalize(dir_) * -1.0f;
-	recoilPower = config.recoilPower;
+	const float reloadTime = (std::max)(baseReload * config.reloadScale * firedReloadScale, meleeActionDuration);
+	if (usesGroupCooldowns && selectedGroupSlot >= 0 && static_cast<size_t>(selectedGroupSlot) < weaponGroupCooldowns_.size()) {
+		weaponGroupCooldowns_[static_cast<size_t>(selectedGroupSlot)] = reloadTime;
+		bulletCoolTime = 0.0f;
+	} else {
+		bulletCoolTime = reloadTime;
+	}
+	const float combinedRecoilLength = Length(combinedRecoil);
+	if (combinedRecoilLength > 0.0001f) {
+		recoilDir = combinedRecoil * (1.0f / combinedRecoilLength);
+		recoilPower = config.recoilPower * combinedRecoilLength;
+	} else {
+		recoilDir = Normalize(dir_) * -1.0f;
+		recoilPower = 0.0f;
+	}
 	return true;
 }
 
@@ -2708,10 +2873,15 @@ void Player::DrawTankCodex()
 	const ImVec2 forward = ImVec2(std::cos(aimRad), std::sin(aimRad));
 	const ImVec2 right = ImVec2(-forward.y, forward.x);
 	const float bodyRadius = 38.0f;
-	const ImU32 bodyFill = IM_COL32(97, 250, 135, 235);
-	const ImU32 bodyOutline = IM_COL32(190, 255, 210, 255);
-	const ImU32 barrelFill = IM_COL32(120, 245, 145, 170);
-	const ImU32 barrelOutline = IM_COL32(210, 255, 220, 230);
+	auto toImColor = [](const Vector4& color) {
+		return IM_COL32(
+			static_cast<int>(std::clamp(color.x, 0.0f, 1.0f) * 255.0f),
+			static_cast<int>(std::clamp(color.y, 0.0f, 1.0f) * 255.0f),
+			static_cast<int>(std::clamp(color.z, 0.0f, 1.0f) * 255.0f),
+			static_cast<int>(std::clamp(color.w, 0.0f, 1.0f) * 255.0f));
+	};
+	const ImU32 bodyFill = toImColor(selectedConfig->bodyFillColor);
+	const ImU32 bodyOutline = toImColor(selectedConfig->bodyOutlineColor);
 
 	auto addRotatedRect = [&](ImVec2 origin, ImVec2 axisX, ImVec2 axisY, float halfX, float halfY, ImU32 fill, ImU32 outline) {
 		const ImVec2 p0 = ImVec2(origin.x - axisX.x * halfX - axisY.x * halfY, origin.y - axisX.y * halfX - axisY.y * halfY);
@@ -2720,6 +2890,30 @@ void Player::DrawTankCodex()
 		const ImVec2 p3 = ImVec2(origin.x - axisX.x * halfX + axisY.x * halfY, origin.y - axisX.y * halfX + axisY.y * halfY);
 		drawList->AddQuadFilled(p0, p1, p2, p3, fill);
 		drawList->AddQuad(p0, p1, p2, p3, outline, 2.0f);
+	};
+	auto addPolygonBody = [&](int segments, float rotationRad, ImU32 fill, ImU32 outline) {
+		segments = (std::clamp)(segments, 3, 48);
+		std::vector<ImVec2> points;
+		points.reserve(static_cast<size_t>(segments));
+		for (int i = 0; i < segments; ++i) {
+			const float angle = rotationRad + static_cast<float>(i) * 6.283185307f / static_cast<float>(segments);
+			points.push_back(ImVec2(
+				center.x + std::cos(angle) * bodyRadius * selectedConfig->bodyScale.x,
+				center.y + std::sin(angle) * bodyRadius * selectedConfig->bodyScale.y));
+		}
+		drawList->AddConvexPolyFilled(points.data(), static_cast<int>(points.size()), fill);
+		drawList->AddPolyline(points.data(), static_cast<int>(points.size()), outline, ImDrawFlags_Closed, 3.0f);
+	};
+	auto groupColor = [](int group) {
+		static const ImU32 colors[] = {
+			IM_COL32(160, 255, 120, 230),
+			IM_COL32(255, 220, 80, 230),
+			IM_COL32(90, 230, 255, 230),
+			IM_COL32(255, 110, 190, 230),
+			IM_COL32(190, 140, 255, 230),
+			IM_COL32(255, 150, 95, 230)
+		};
+		return colors[static_cast<size_t>((std::max)(0, group)) % (sizeof(colors) / sizeof(colors[0]))];
 	};
 
 	std::vector<ImVec2> muzzlePoints;
@@ -2731,16 +2925,54 @@ void Player::DrawTankCodex()
 			forward.x * barrel.offset.x * 42.0f + right.x * barrel.offset.y * 42.0f,
 			forward.y * barrel.offset.x * 42.0f + right.y * barrel.offset.y * 42.0f
 		);
-		const float length = (std::max)(26.0f, barrel.scale.x * 34.0f);
-		const float width = (std::max)(8.0f, barrel.scale.y * 38.0f);
+		float length = (std::max)(26.0f, barrel.scale.x * 34.0f);
+		float width = (std::max)(8.0f, barrel.scale.y * 38.0f);
+		if (barrel.barrelShape == BarrelShape::Heavy) {
+			length *= 1.12f;
+			width *= 1.45f;
+		} else if (barrel.barrelShape == BarrelShape::Short) {
+			length *= 0.58f;
+			width *= 1.08f;
+		} else if (barrel.barrelShape == BarrelShape::Wide) {
+			length *= 0.86f;
+			width *= 1.80f;
+		}
 		const ImVec2 base = ImVec2(center.x + offset.x + barrelForward.x * length * 0.32f, center.y + offset.y + barrelForward.y * length * 0.32f);
-		addRotatedRect(base, barrelForward, barrelRight, length * 0.5f, width * 0.5f, barrelFill, barrelOutline);
+		const ImU32 barrelFill = toImColor(barrel.barrelColor);
+		const ImU32 outline = groupColor(barrel.fireGroup);
+		if (barrel.barrelShape == BarrelShape::Trapezoid) {
+			const float halfBase = width * 0.64f;
+			const float halfTip = width * 0.36f;
+			const float halfLength = length * 0.5f;
+			const ImVec2 p0 = ImVec2(base.x - barrelForward.x * halfLength - barrelRight.x * halfBase, base.y - barrelForward.y * halfLength - barrelRight.y * halfBase);
+			const ImVec2 p1 = ImVec2(base.x + barrelForward.x * halfLength - barrelRight.x * halfTip, base.y + barrelForward.y * halfLength - barrelRight.y * halfTip);
+			const ImVec2 p2 = ImVec2(base.x + barrelForward.x * halfLength + barrelRight.x * halfTip, base.y + barrelForward.y * halfLength + barrelRight.y * halfTip);
+			const ImVec2 p3 = ImVec2(base.x - barrelForward.x * halfLength + barrelRight.x * halfBase, base.y - barrelForward.y * halfLength + barrelRight.y * halfBase);
+			drawList->AddQuadFilled(p0, p1, p2, p3, barrelFill);
+			drawList->AddQuad(p0, p1, p2, p3, outline, 2.0f);
+		} else {
+			addRotatedRect(base, barrelForward, barrelRight, length * 0.5f, width * 0.5f, barrelFill, outline);
+		}
 		muzzlePoints.push_back(ImVec2(base.x + barrelForward.x * length * 0.56f, base.y + barrelForward.y * length * 0.56f));
 	}
 
-	drawList->AddCircleFilled(center, bodyRadius + 7.0f, IM_COL32(95, 255, 135, 45), 48);
-	drawList->AddCircleFilled(center, bodyRadius, bodyFill, 48);
-	drawList->AddCircle(center, bodyRadius, bodyOutline, 48, 3.0f);
+	switch (selectedConfig->bodyShape) {
+	case BodyShape::Box:
+		addPolygonBody(4, aimRad + 6.283185307f * 0.125f, bodyFill, bodyOutline);
+		break;
+	case BodyShape::Triangle:
+		addPolygonBody(3, aimRad - 6.283185307f * 0.25f, bodyFill, bodyOutline);
+		break;
+	case BodyShape::Pentagon:
+		addPolygonBody(5, aimRad - 6.283185307f * 0.25f, bodyFill, bodyOutline);
+		break;
+	case BodyShape::Circle:
+	default:
+		drawList->AddCircleFilled(center, bodyRadius + 7.0f, IM_COL32(95, 255, 135, 45), 48);
+		drawList->AddCircleFilled(center, bodyRadius, bodyFill, 48);
+		drawList->AddCircle(center, bodyRadius, bodyOutline, 48, 3.0f);
+		break;
+	}
 
 	const bool showShot = codexPreviewAutoFire_ || std::fmod(codexPreviewTimer_, 1.0f) < 0.18f;
 	if (showShot) {
@@ -3083,6 +3315,19 @@ void Player::DrawPlayerClassEditor()
 		DrawEditorHelp("プレイヤーがこの機体を解放できるランクです。");
 	}
 
+	if (ImGui::CollapsingHeader("ネオン外観", ImGuiTreeNodeFlags_DefaultOpen)) {
+		const char* bodyShapeNames[] = { "Circle", "Box", "Triangle", "Pentagon" };
+		int bodyShapeIndex = static_cast<int>(config->bodyShape);
+		if (ImGui::Combo("ボディ形状", &bodyShapeIndex, bodyShapeNames, IM_ARRAYSIZE(bodyShapeNames))) {
+			config->bodyShape = static_cast<BodyShape>((std::clamp)(bodyShapeIndex, 0, 3));
+			editedThisFrame = true;
+		}
+		editedThisFrame |= ImGui::DragFloat2("ボディスケール", &config->bodyScale.x, 0.01f, 0.25f, 3.0f);
+		editedThisFrame |= ImGui::ColorEdit4("ボディ塗り色", &config->bodyFillColor.x);
+		editedThisFrame |= ImGui::ColorEdit4("ボディ枠線色", &config->bodyOutlineColor.x);
+		DrawEditorHelp("モデルを増やさず、ネオン枠線描画側の形と色を変更します。");
+	}
+
 	if (ImGui::CollapsingHeader("機体性能", ImGuiTreeNodeFlags_DefaultOpen)) {
 		editedThisFrame |= ImGui::Checkbox("ドローン機体", &config->usesDrone);
 		DrawEditorHelp("有効にすると、この機体はドローンを使用するタイプとして扱われます。");
@@ -3179,6 +3424,8 @@ void Player::DrawPlayerClassEditor()
 		static float layoutArcCenterAngle = 0.0f;
 		static float layoutArcSweepAngle = 80.0f;
 		static float layoutArcRotationScale = 1.0f;
+		static bool layoutSnapAngles = true;
+		static float layoutSnapStepDeg = 15.0f;
 		static Vector3 layoutScale = { 1.25f, 0.24f, 0.24f };
 		ImGui::DragInt("配置数", &layoutCount, 1.0f, 1, 12);
 		ImGui::DragFloat("前方向位置", &layoutForward, 0.01f, -2.0f, 5.0f);
@@ -3189,30 +3436,47 @@ void Player::DrawPlayerClassEditor()
 		ImGui::DragFloat("円弧中心角", &layoutArcCenterAngle, 0.1f, -180.0f, 180.0f);
 		ImGui::DragFloat("円弧の広がり角", &layoutArcSweepAngle, 0.1f, 0.0f, 360.0f);
 		ImGui::DragFloat("円弧回転倍率", &layoutArcRotationScale, 0.01f, -2.0f, 2.0f);
+		ImGui::Checkbox("角度をスナップ", &layoutSnapAngles);
+		ImGui::SameLine();
+		ImGui::DragFloat("スナップ角", &layoutSnapStepDeg, 1.0f, 1.0f, 90.0f);
 		ImGui::DragFloat3("配置スケール", &layoutScale.x, 0.01f, 0.01f, 10.0f);
+		auto snapAngle = [](float angleDeg) {
+			if (!layoutSnapAngles || layoutSnapStepDeg <= 0.0f) {
+				return angleDeg;
+			}
+			return std::round(angleDeg / layoutSnapStepDeg) * layoutSnapStepDeg;
+		};
+		auto applyCommonMountStyle = [&](WeaponMountConfig& barrel) {
+			if (!config->barrels.empty()) {
+				const WeaponMountConfig& source = config->barrels.front();
+				barrel.model = source.model;
+				barrel.fires = source.fires;
+				barrel.weaponType = source.weaponType;
+				barrel.effectColor = source.effectColor;
+				barrel.damageScale = source.damageScale;
+				barrel.projectileSpeedScale = source.projectileSpeedScale;
+			}
+			barrel.muzzleForward = layoutMuzzleForward;
+		};
 		auto generateArcLayout = [&]() {
 			layoutCount = (std::clamp)(layoutCount, 1, 12);
-			const std::string model = config->barrels.empty() ? "gunBarrel.obj" : config->barrels.front().model;
-			const bool fires = config->barrels.empty() ? true : config->barrels.front().fires;
 			constexpr float kDegToRad = 3.1415926535f / 180.0f;
 			config->barrels.clear();
 			config->barrels.reserve(static_cast<size_t>(layoutCount));
 			for (int i = 0; i < layoutCount; ++i) {
 				const float centerIndex = (static_cast<float>(layoutCount) - 1.0f) * 0.5f;
 				const float normalized = layoutCount <= 1 ? 0.0f : (static_cast<float>(i) - centerIndex) / centerIndex;
-				const float angleDeg = layoutArcCenterAngle + normalized * layoutArcSweepAngle * 0.5f;
+				const float angleDeg = snapAngle(layoutArcCenterAngle + normalized * layoutArcSweepAngle * 0.5f);
 				const float angleRad = angleDeg * kDegToRad;
 				WeaponMountConfig barrel{};
-				barrel.model = model;
+				applyCommonMountStyle(barrel);
 				barrel.offset = {
 					std::cos(angleRad) * layoutArcRadius,
 					std::sin(angleRad) * layoutArcRadius,
 					0.0f
 				};
 				barrel.scale = layoutScale;
-				barrel.angleDeg = (angleDeg - layoutArcCenterAngle) * layoutArcRotationScale + layoutArcCenterAngle;
-				barrel.muzzleForward = layoutMuzzleForward;
-				barrel.fires = fires;
+				barrel.angleDeg = snapAngle((angleDeg - layoutArcCenterAngle) * layoutArcRotationScale + layoutArcCenterAngle);
 				config->barrels.push_back(barrel);
 			}
 			config->fireAllBarrels = layoutCount > 1;
@@ -3220,22 +3484,61 @@ void Player::DrawPlayerClassEditor()
 			rebuildBarrels = true;
 			editedThisFrame = true;
 		};
+		auto generateRadialLayout = [&](int count, float radius, float startAngleDeg, float angleOffsetDeg, Vector3 scale, WeaponType forcedType = WeaponType::Projectile) {
+			count = (std::clamp)(count, 1, 12);
+			constexpr float kDegToRad = 3.1415926535f / 180.0f;
+			config->barrels.clear();
+			config->barrels.reserve(static_cast<size_t>(count));
+			for (int i = 0; i < count; ++i) {
+				const float angleDeg = snapAngle(startAngleDeg + 360.0f * static_cast<float>(i) / static_cast<float>(count));
+				const float angleRad = angleDeg * kDegToRad;
+				WeaponMountConfig barrel{};
+				applyCommonMountStyle(barrel);
+				barrel.offset = { std::cos(angleRad) * radius, std::sin(angleRad) * radius, 0.0f };
+				barrel.scale = scale;
+				barrel.angleDeg = snapAngle(angleDeg + angleOffsetDeg);
+				barrel.weaponType = forcedType;
+				barrel.fires = true;
+				config->barrels.push_back(barrel);
+			}
+			config->fireAllBarrels = count > 1;
+			config->alternateBarrels = false;
+			rebuildBarrels = true;
+			editedThisFrame = true;
+		};
+		auto generateFixedAngleLayout = [&](const std::vector<float>& anglesDeg, float radius, Vector3 scale, bool fireAll, bool alternate, WeaponType forcedType = WeaponType::Projectile) {
+			constexpr float kDegToRad = 3.1415926535f / 180.0f;
+			config->barrels.clear();
+			config->barrels.reserve(anglesDeg.size());
+			for (float rawAngleDeg : anglesDeg) {
+				const float angleDeg = snapAngle(rawAngleDeg);
+				const float angleRad = angleDeg * kDegToRad;
+				WeaponMountConfig barrel{};
+				applyCommonMountStyle(barrel);
+				barrel.offset = { std::cos(angleRad) * radius, std::sin(angleRad) * radius, 0.0f };
+				barrel.scale = scale;
+				barrel.angleDeg = angleDeg;
+				barrel.weaponType = forcedType;
+				barrel.fires = true;
+				config->barrels.push_back(barrel);
+			}
+			config->fireAllBarrels = fireAll;
+			config->alternateBarrels = alternate;
+			rebuildBarrels = true;
+			editedThisFrame = true;
+		};
 		if (ImGui::Button("左右対称配置を生成")) {
 			layoutCount = (std::clamp)(layoutCount, 1, 12);
-			const std::string model = config->barrels.empty() ? "gunBarrel.obj" : config->barrels.front().model;
-			const bool fires = config->barrels.empty() ? true : config->barrels.front().fires;
 			config->barrels.clear();
 			config->barrels.reserve(static_cast<size_t>(layoutCount));
 			for (int i = 0; i < layoutCount; ++i) {
 				const float centerIndex = (static_cast<float>(layoutCount) - 1.0f) * 0.5f;
 				const float normalized = layoutCount <= 1 ? 0.0f : (static_cast<float>(i) - centerIndex) / centerIndex;
 				WeaponMountConfig barrel{};
-				barrel.model = model;
+				applyCommonMountStyle(barrel);
 				barrel.offset = { layoutForward, (static_cast<float>(i) - centerIndex) * layoutSideSpacing, 0.0f };
 				barrel.scale = layoutScale;
-				barrel.angleDeg = normalized * layoutAngleSpread * 0.5f;
-				barrel.muzzleForward = layoutMuzzleForward;
-				barrel.fires = fires;
+				barrel.angleDeg = snapAngle(normalized * layoutAngleSpread * 0.5f);
 				config->barrels.push_back(barrel);
 			}
 			config->fireAllBarrels = layoutCount > 2;
@@ -3246,23 +3549,20 @@ void Player::DrawPlayerClassEditor()
 		ImGui::SameLine();
 		if (ImGui::Button("V字配置を生成")) {
 			layoutCount = (std::clamp)(layoutCount, 2, 12);
-			const std::string model = config->barrels.empty() ? "gunBarrel.obj" : config->barrels.front().model;
 			config->barrels.clear();
 			config->barrels.reserve(static_cast<size_t>(layoutCount));
 			for (int i = 0; i < layoutCount; ++i) {
 				const float centerIndex = (static_cast<float>(layoutCount) - 1.0f) * 0.5f;
 				const float signedIndex = static_cast<float>(i) - centerIndex;
 				WeaponMountConfig barrel{};
-				barrel.model = model;
+				applyCommonMountStyle(barrel);
 				barrel.offset = {
 					layoutForward - std::abs(signedIndex) * 0.12f,
 					signedIndex * layoutSideSpacing,
 					0.0f
 				};
 				barrel.scale = layoutScale;
-				barrel.angleDeg = (layoutCount <= 1 || centerIndex == 0.0f) ? 0.0f : (signedIndex / centerIndex) * layoutAngleSpread * 0.5f;
-				barrel.muzzleForward = layoutMuzzleForward;
-				barrel.fires = true;
+				barrel.angleDeg = snapAngle((layoutCount <= 1 || centerIndex == 0.0f) ? 0.0f : (signedIndex / centerIndex) * layoutAngleSpread * 0.5f);
 				config->barrels.push_back(barrel);
 			}
 			config->fireAllBarrels = true;
@@ -3273,6 +3573,105 @@ void Player::DrawPlayerClassEditor()
 		ImGui::SameLine();
 		if (ImGui::Button("円弧ファン配置を生成")) {
 			generateArcLayout();
+		}
+		ImGui::SeparatorText("diep.io風プリセット");
+		if (ImGui::Button("単砲")) {
+			generateFixedAngleLayout({ 0.0f }, 0.72f, { 1.25f, 0.24f, 0.24f }, false, false);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("ツイン")) {
+			layoutCount = 2;
+			layoutForward = 0.72f;
+			layoutSideSpacing = 0.34f;
+			layoutAngleSpread = 0.0f;
+			layoutScale = { 1.25f, 0.24f, 0.24f };
+			config->barrels.clear();
+			for (float side : { -0.5f, 0.5f }) {
+				WeaponMountConfig barrel{};
+				applyCommonMountStyle(barrel);
+				barrel.offset = { layoutForward, side * layoutSideSpacing * 2.0f, 0.0f };
+				barrel.scale = layoutScale;
+				barrel.angleDeg = 0.0f;
+				config->barrels.push_back(barrel);
+			}
+			config->fireAllBarrels = false;
+			config->alternateBarrels = true;
+			rebuildBarrels = true;
+			editedThisFrame = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("大型砲")) {
+			generateFixedAngleLayout({ 0.0f }, 0.74f, { 1.58f, 0.42f, 0.42f }, false, false);
+			config->reloadScale = (std::max)(config->reloadScale, 1.35f);
+			config->bulletDamageScale = (std::max)(config->bulletDamageScale, 2.0f);
+			config->recoilPower = (std::max)(config->recoilPower, 0.035f);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("トラッパー")) {
+			generateFixedAngleLayout({ 0.0f }, 0.64f, { 0.72f, 0.46f, 0.46f }, false, false, WeaponType::Mine);
+		}
+		if (ImGui::Button("前後砲")) {
+			generateFixedAngleLayout({ 0.0f, 180.0f }, 0.70f, { 1.18f, 0.22f, 0.22f }, true, false);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("左右サイド砲")) {
+			generateFixedAngleLayout({ 90.0f, -90.0f }, 0.70f, { 1.18f, 0.22f, 0.22f }, true, false);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("十字4砲")) {
+			generateRadialLayout(4, 0.70f, 0.0f, 0.0f, { 1.14f, 0.22f, 0.22f });
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("斜め4砲")) {
+			generateRadialLayout(4, 0.70f, 45.0f, 0.0f, { 1.14f, 0.22f, 0.22f });
+		}
+		if (ImGui::Button("オクト8砲")) {
+			generateRadialLayout(8, 0.68f, 0.0f, 0.0f, { 1.04f, 0.18f, 0.18f });
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("前方3連")) {
+			layoutCount = 3;
+			layoutArcRadius = 0.66f;
+			layoutArcCenterAngle = 0.0f;
+			layoutArcSweepAngle = 70.0f;
+			layoutArcRotationScale = 1.0f;
+			layoutScale = { 1.25f, 0.24f, 0.24f };
+			generateArcLayout();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("前方5連")) {
+			layoutCount = 5;
+			layoutArcRadius = 0.66f;
+			layoutArcCenterAngle = 0.0f;
+			layoutArcSweepAngle = 120.0f;
+			layoutArcRotationScale = 0.9f;
+			layoutScale = { 1.14f, 0.20f, 0.20f };
+			generateArcLayout();
+		}
+		if (ImGui::Button("ツイン前後")) {
+			config->barrels.clear();
+			for (float angleDeg : { 0.0f, 180.0f }) {
+				const float angleRad = angleDeg * 3.1415926535f / 180.0f;
+				const Vector3 forwardOffset = { std::cos(angleRad) * 0.72f, std::sin(angleRad) * 0.72f, 0.0f };
+				const Vector3 sideAxis = { -std::sin(angleRad), std::cos(angleRad), 0.0f };
+				for (float side : { -0.22f, 0.22f }) {
+					WeaponMountConfig barrel{};
+					applyCommonMountStyle(barrel);
+					barrel.offset = forwardOffset + sideAxis * side;
+					barrel.scale = { 1.12f, 0.20f, 0.20f };
+					barrel.angleDeg = angleDeg;
+					barrel.fireGroup = angleDeg == 0.0f ? 0 : 1;
+					config->barrels.push_back(barrel);
+				}
+			}
+			config->fireAllBarrels = false;
+			config->alternateBarrels = true;
+			rebuildBarrels = true;
+			editedThisFrame = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("前方+左右")) {
+			generateFixedAngleLayout({ 0.0f, 90.0f, -90.0f }, 0.70f, { 1.14f, 0.21f, 0.21f }, true, false);
 		}
 		if (ImGui::Button("プリセット 3連ファン")) {
 			layoutCount = 3;
@@ -3316,6 +3715,124 @@ void Player::DrawPlayerClassEditor()
 			rebuildBarrels = true;
 			editedThisFrame = true;
 		}
+		ImGui::SameLine();
+		if (ImGui::Button("左右ペアをグループ化")) {
+			for (WeaponMountConfig& barrel : config->barrels) {
+				const int angleBucket = static_cast<int>(std::round(barrel.angleDeg / 15.0f));
+				barrel.fireGroup = (angleBucket + 12) * 2 + (barrel.offset.y >= 0.0f ? 1 : 0);
+			}
+			config->fireAllBarrels = false;
+			config->alternateBarrels = true;
+			editedThisFrame = true;
+		}
+		if (ImGui::Button("角度ごとにグループ化")) {
+			for (WeaponMountConfig& barrel : config->barrels) {
+				barrel.fireGroup = static_cast<int>(std::round((barrel.angleDeg + 180.0f) / 15.0f));
+			}
+			config->fireAllBarrels = false;
+			config->alternateBarrels = true;
+			editedThisFrame = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("前後を2グループ化")) {
+			for (WeaponMountConfig& barrel : config->barrels) {
+				const float angle = std::fmod(barrel.angleDeg + 360.0f, 360.0f);
+				barrel.fireGroup = (angle > 90.0f && angle < 270.0f) ? 1 : 0;
+			}
+			config->fireAllBarrels = false;
+			config->alternateBarrels = true;
+			editedThisFrame = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("全砲を同じグループへ")) {
+			for (WeaponMountConfig& barrel : config->barrels) {
+				barrel.fireGroup = 0;
+			}
+			editedThisFrame = true;
+		}
+		if (ImGui::Button("グループ交互射撃を有効化")) {
+			config->fireAllBarrels = false;
+			config->alternateBarrels = true;
+			editedThisFrame = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("全グループ同時射撃に戻す")) {
+			config->fireAllBarrels = true;
+			config->alternateBarrels = false;
+			editedThisFrame = true;
+		}
+		if (ImGui::Button("左右ミラーを生成")) {
+			std::vector<WeaponMountConfig> mirrored;
+			mirrored.reserve(config->barrels.size() * 2);
+			for (const WeaponMountConfig& source : config->barrels) {
+				if (source.offset.y < -0.001f) {
+					continue;
+				}
+				WeaponMountConfig left = source;
+				left.offset.y = -std::abs(source.offset.y);
+				left.angleDeg = -source.angleDeg;
+				WeaponMountConfig right = source;
+				right.offset.y = std::abs(source.offset.y);
+				right.angleDeg = source.angleDeg;
+				if (std::abs(source.offset.y) <= 0.001f) {
+					mirrored.push_back(source);
+				} else {
+					mirrored.push_back(left);
+					mirrored.push_back(right);
+				}
+			}
+			if (!mirrored.empty()) {
+				config->barrels = mirrored;
+				rebuildBarrels = true;
+				editedThisFrame = true;
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("選択風: 右側を左へ同期")) {
+			for (WeaponMountConfig& right : config->barrels) {
+				if (right.offset.y <= 0.001f) {
+					continue;
+				}
+				for (WeaponMountConfig& left : config->barrels) {
+					if (left.offset.y >= -0.001f) {
+						continue;
+					}
+					if (std::abs(std::abs(left.offset.y) - right.offset.y) < 0.05f &&
+						std::abs(left.offset.x - right.offset.x) < 0.05f) {
+						left = right;
+						left.offset.y = -right.offset.y;
+						left.angleDeg = -right.angleDeg;
+						break;
+					}
+				}
+			}
+			rebuildBarrels = true;
+			editedThisFrame = true;
+		}
+		{
+			std::vector<int> groups;
+			for (const WeaponMountConfig& barrel : config->barrels) {
+				if (!barrel.fires) {
+					continue;
+				}
+				const int group = (std::max)(0, barrel.fireGroup);
+				if (std::find(groups.begin(), groups.end(), group) == groups.end()) {
+					groups.push_back(group);
+				}
+			}
+			std::sort(groups.begin(), groups.end());
+			ImGui::Text("発射グループ数: %zu / モード: %s",
+				groups.size(),
+				(config->alternateBarrels && !config->fireAllBarrels && groups.size() > 1) ? "グループ交互" :
+				(config->fireAllBarrels ? "全砲同時" : "砲塔交互"));
+			if (config->id == currentClassId_ && !weaponGroupCooldowns_.empty()) {
+				ImGui::Text("実行中グループCD: ");
+				for (size_t groupIndex = 0; groupIndex < groups.size() && groupIndex < weaponGroupCooldowns_.size(); ++groupIndex) {
+					ImGui::SameLine();
+					ImGui::Text("[%d %.2f]", groups[groupIndex], weaponGroupCooldowns_[groupIndex]);
+				}
+			}
+		}
 
 		for (size_t i = 0; i < config->barrels.size(); ++i) {
 			ImGui::PushID(static_cast<int>(i));
@@ -3327,6 +3844,12 @@ void Player::DrawPlayerClassEditor()
 				if (ImGui::InputText("モデル", modelBuffer, sizeof(modelBuffer))) {
 					barrel.model = modelBuffer;
 					rebuildBarrels = true;
+					editedThisFrame = true;
+				}
+				const char* barrelShapeNames[] = { "Box", "Heavy", "Short", "Wide", "Trapezoid" };
+				int barrelShapeIndex = static_cast<int>(barrel.barrelShape);
+				if (ImGui::Combo("ネオン砲身形状", &barrelShapeIndex, barrelShapeNames, IM_ARRAYSIZE(barrelShapeNames))) {
+					barrel.barrelShape = static_cast<BarrelShape>((std::clamp)(barrelShapeIndex, 0, 4));
 					editedThisFrame = true;
 				}
 				relayoutBarrels |= ImGui::DragFloat3("位置 X/Y/Z", &barrel.offset.x, 0.01f, -10.0f, 10.0f);
@@ -3370,9 +3893,14 @@ void Player::DrawPlayerClassEditor()
 			} else if (barrel.weaponType != WeaponType::Projectile) {
 				ImGui::TextDisabled("この武器種は次の実装段階まで発射されません。");
 			}
-			ImGui::ColorEdit4("エフェクト色", &barrel.effectColor.x);
+			editedThisFrame |= ImGui::ColorEdit4("エフェクト色", &barrel.effectColor.x);
+			editedThisFrame |= ImGui::ColorEdit4("砲身塗り色", &barrel.barrelColor.x);
+			editedThisFrame |= ImGui::ColorEdit4("砲身枠線色", &barrel.outlineColor.x);
 			ImGui::DragFloat("マウント威力倍率", &barrel.damageScale, 0.01f, 0.0f, 20.0f);
 			ImGui::DragFloat("マウント弾速倍率", &barrel.projectileSpeedScale, 0.01f, 0.01f, 10.0f);
+			editedThisFrame |= ImGui::DragInt("発射グループ", &barrel.fireGroup, 1.0f, 0, 64);
+			editedThisFrame |= ImGui::DragFloat("個別リロード倍率", &barrel.reloadScale, 0.01f, 0.05f, 10.0f);
+			editedThisFrame |= ImGui::DragFloat("個別反動倍率", &barrel.recoilScale, 0.01f, 0.0f, 10.0f);
 			if (ImGui::Button("複製")) {
 				config->barrels.insert(config->barrels.begin() + static_cast<std::ptrdiff_t>(i + 1), barrel);
 				rebuildBarrels = true;
@@ -3607,12 +4135,30 @@ std::vector<Player::NeonBarrelLayout> Player::GetNeonBarrelLayouts() const
 		layout.scale = barrel.scale;
 		layout.angleRad = barrel.angleDeg * 3.1415926535f / 180.0f;
 		layout.isMelee = barrel.weaponType == WeaponType::Melee;
+		layout.shape = barrel.barrelShape;
+		layout.fireGroup = barrel.fireGroup;
+		layout.barrelColor = barrel.barrelColor;
+		layout.outlineColor = barrel.outlineColor;
 		if (i < barrels_.size()) {
 			layout.recoilOffset = barrels_[i].recoilOffset;
 		}
 		layouts.push_back(layout);
 	}
 	return layouts;
+}
+
+Player::NeonBodyLayout Player::GetNeonBodyLayout() const
+{
+	NeonBodyLayout layout{};
+	const PlayerClassConfig* config = GetCurrentClassConfig();
+	if (!config) {
+		return layout;
+	}
+	layout.shape = config->bodyShape;
+	layout.scale = config->bodyScale;
+	layout.fillColor = config->bodyFillColor;
+	layout.outlineColor = config->bodyOutlineColor;
+	return layout;
 }
 
 float Player::GetDamageFeedbackRatio() const

@@ -42,10 +42,49 @@ VertexShaderOutput main(VertexShaderInput input)
     float32_t4 localPosition = input.position;
     float32_t3 localNormal = input.normal;
 
+    // Graphics lab water: dedicated high-density river mesh.
+    if (gMaterial.environmentCoefficient >= 2.5f)
+    {
+        float time = gMaterial.shininess;
+        float2 p = input.position.xz;
+
+        float flow = p.y * 0.030f + time * 0.86f;
+        float cross = p.x * 0.095f;
+        float2 dirA = normalize(float2(0.18f, 0.98f));
+        float2 dirB = normalize(float2(-0.42f, 0.91f));
+        float2 dirC = normalize(float2(0.72f, 0.69f));
+
+        float phaseA = dot(p, dirA) * 0.040f + time * 0.92f;
+        float phaseB = dot(p, dirB) * 0.078f - time * 1.34f;
+        float phaseC = dot(p, dirC) * 0.150f + time * 2.05f;
+        float phaseD = flow + sin(cross + time * 0.35f) * 0.55f;
+
+        float edgeCalm = saturate((45.0f - abs(p.x)) / 18.0f);
+        float centerCurrent = smoothstep(0.0f, 1.0f, edgeCalm);
+        float displacement =
+            sin(phaseA) * 0.46f +
+            sin(phaseB) * 0.20f +
+            sin(phaseC) * 0.08f +
+            sin(phaseD) * 0.12f;
+        localPosition.y += displacement * (0.54f + centerCurrent * 0.30f);
+
+        float2 grad;
+        grad.x =
+            cos(phaseA) * 0.46f * 0.040f * dirA.x +
+            cos(phaseB) * 0.20f * 0.078f * dirB.x +
+            cos(phaseC) * 0.08f * 0.150f * dirC.x +
+            cos(phaseD) * 0.12f * cos(cross + time * 0.35f) * 0.095f * 0.55f;
+        grad.y =
+            cos(phaseA) * 0.46f * 0.040f * dirA.y +
+            cos(phaseB) * 0.20f * 0.078f * dirB.y +
+            cos(phaseC) * 0.08f * 0.150f * dirC.y +
+            cos(phaseD) * 0.12f * 0.030f;
+        localNormal = normalize(float32_t3(-grad.x, 1.0f, -grad.y));
+    }
     // Naval water prototype:
     // environmentCoefficient >= 1.5 means this mesh is the sea.
     // The sea mesh must be subdivided; otherwise this only moves the large plane corners.
-    if (gMaterial.environmentCoefficient >= 1.5f)
+    else if (gMaterial.environmentCoefficient >= 1.5f)
     {
         float time = gMaterial.shininess;
         float2 p = input.position.xz;

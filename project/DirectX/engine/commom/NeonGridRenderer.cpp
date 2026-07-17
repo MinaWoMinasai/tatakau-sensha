@@ -143,6 +143,39 @@ void NeonGridRenderer::QueueBillboardDisc(
     }
 }
 
+void NeonGridRenderer::QueueBillboardRegularPolygonFill(
+    const Vector3& center,
+    int segments,
+    float radius,
+    float rotationRad,
+    const Vector2& scale,
+    const Vector4& color,
+    const Vector3& cameraRight,
+    const Vector3& cameraUp) {
+    if (radius <= 0.0f || scale.x <= 0.0f || scale.y <= 0.0f || color.w <= 0.001f) {
+        return;
+    }
+    segments = (std::clamp)(segments, 3, 96);
+    if (vertexCount_ + static_cast<uint32_t>(segments * 3) > kMaxVertices) {
+        return;
+    }
+
+    constexpr float kTwoPi = 6.28318530718f;
+    for (int i = 0; i < segments; ++i) {
+        const float angle0 = rotationRad + static_cast<float>(i) * kTwoPi / static_cast<float>(segments);
+        const float angle1 = rotationRad + static_cast<float>(i + 1) * kTwoPi / static_cast<float>(segments);
+        const Vector3 p0 = center +
+            cameraRight * (std::cos(angle0) * radius * scale.x) +
+            cameraUp * (std::sin(angle0) * radius * scale.y);
+        const Vector3 p1 = center +
+            cameraRight * (std::cos(angle1) * radius * scale.x) +
+            cameraUp * (std::sin(angle1) * radius * scale.y);
+        PushVertex(center, color, { 0.5f, 0.5f });
+        PushVertex(p0, color, { 0.0f, 0.0f });
+        PushVertex(p1, color, { 1.0f, 1.0f });
+    }
+}
+
 void NeonGridRenderer::QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color) {
     if (spacing <= 0.0f || lineWidth <= 0.0f) {
         return;

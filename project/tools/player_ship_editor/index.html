@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Player Ship Editor Prototype</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="top-bar">
+      <div>
+        <p class="eyebrow">Neon 2D Shooter</p>
+        <h1>Player Ship Editor Prototype</h1>
+      </div>
+      <p class="status-text">JSON連携試作: 読み込み / 機体選択 / 編集JSON保存</p>
+    </header>
+
+    <section class="toolbar" aria-label="JSON操作">
+      <label class="file-button">
+        JSONを読み込む
+        <input id="json-file-input" type="file" accept="application/json,.json">
+      </label>
+      <label class="field-label">
+        機体
+        <select id="class-select"></select>
+      </label>
+      <button id="new-class-button" type="button">新規機体</button>
+      <button id="duplicate-class-button" type="button">機体を複製</button>
+      <button id="export-json-button" type="button">JSONを書き出す</button>
+      <span id="json-status" class="json-status">仮データを表示中</span>
+    </section>
+
+    <section class="editor-layout">
+      <div class="stage-panel">
+        <div id="stage-container" aria-label="機体編集領域"></div>
+      </div>
+
+      <aside class="inspect-panel" aria-label="選択中砲塔の情報">
+        <section class="panel-section">
+          <h2>Ship</h2>
+          <label class="mount-picker">
+            ID
+            <input id="class-id-input" type="text" autocomplete="off">
+          </label>
+          <label class="mount-picker">
+            Display Name
+            <input id="class-name-input" type="text" autocomplete="off">
+          </label>
+          <label class="mount-picker">
+            Body Shape
+            <select id="body-shape-select">
+              <option value="Circle">Circle</option>
+              <option value="Box">Box</option>
+              <option value="Triangle">Triangle</option>
+              <option value="Pentagon">Pentagon</option>
+            </select>
+          </label>
+          <div class="mini-grid">
+            <label>
+              Rank
+              <input id="required-rank-input" type="number" min="1" max="99" step="1" inputmode="numeric">
+            </label>
+            <label>
+              Reload
+              <input id="reload-scale-input" type="number" min="0.05" step="0.05" inputmode="decimal">
+            </label>
+            <label>
+              Bullet Speed
+              <input id="bullet-speed-input" type="number" min="0.05" step="0.05" inputmode="decimal">
+            </label>
+            <label>
+              Bullet Damage
+              <input id="bullet-damage-input" type="number" min="0.05" step="0.05" inputmode="decimal">
+            </label>
+            <label>
+              Bullet Count
+              <input id="bullet-count-input" type="number" min="1" step="1" inputmode="numeric">
+            </label>
+            <label>
+              Spread
+              <input id="spread-angle-input" type="number" min="0" step="1" inputmode="decimal">
+            </label>
+          </div>
+          <label class="check-row">
+            <input id="fire-all-checkbox" type="checkbox">
+            全砲塔から発射
+          </label>
+          <label class="check-row">
+            <input id="alternate-checkbox" type="checkbox">
+            砲塔を交互発射
+          </label>
+        </section>
+
+        <section class="panel-section">
+          <h2>Mount Tools</h2>
+          <div class="button-grid">
+            <button id="add-mount-button" type="button">砲塔追加</button>
+            <button id="duplicate-mount-button" type="button">砲塔複製</button>
+            <button id="delete-mount-button" type="button">砲塔削除</button>
+          </div>
+          <label class="mount-picker">
+            Preset
+            <select id="mount-preset-select">
+              <option value="single">単砲</option>
+              <option value="twin">ツイン</option>
+              <option value="triple">前方3連</option>
+              <option value="quad">十字4砲</option>
+              <option value="fan5">前方5連</option>
+            </select>
+          </label>
+          <button id="apply-preset-button" type="button" class="wide-button">プリセット適用</button>
+        </section>
+
+        <section class="panel-section">
+          <h2>Selected Mount</h2>
+        <label class="mount-picker">
+          Mount
+          <select id="mount-select"></select>
+        </label>
+        <label class="mount-picker">
+          Weapon Type
+          <select id="weapon-type-select">
+            <option value="Projectile">Projectile</option>
+            <option value="Laser">Laser</option>
+            <option value="Mine">Mine</option>
+            <option value="Melee">Melee</option>
+          </select>
+        </label>
+        <label class="mount-picker">
+          Barrel Shape
+          <select id="barrel-shape-select">
+            <option value="Box">Box</option>
+            <option value="Heavy">Heavy</option>
+            <option value="Short">Short</option>
+            <option value="Wide">Wide</option>
+            <option value="Trapezoid">Trapezoid</option>
+          </select>
+        </label>
+        <label class="mount-picker">
+          Move Mode
+          <select id="move-mode-select">
+            <option value="ring">外周固定 16方向</option>
+            <option value="free">自由移動</option>
+          </select>
+        </label>
+        <label class="check-row">
+          <input id="auto-aim-checkbox" type="checkbox" checked>
+          位置方向へ砲塔角度を追従
+        </label>
+        <dl class="value-grid">
+          <div>
+            <dt>X</dt>
+            <dd><input id="mount-x" type="number" step="0.01" inputmode="decimal"></dd>
+          </div>
+          <div>
+            <dt>Y</dt>
+            <dd><input id="mount-y" type="number" step="0.01" inputmode="decimal"></dd>
+          </div>
+          <div>
+            <dt>Angle</dt>
+            <dd><input id="mount-angle" type="number" step="15" inputmode="decimal"></dd>
+          </div>
+        </dl>
+        <p class="hint">外周固定では16方向の接続点へ吸着します。角度追従ONなら砲塔も配置方向を向きます。</p>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script src="./vendor/konva.min.js"></script>
+  <script>
+    if (!window.Konva) {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"><\/script>');
+    }
+  </script>
+  <script src="./app.js"></script>
+</body>
+</html>
