@@ -34,6 +34,7 @@ struct VertexShaderInput
     float32_t4 position : POSITION0;
     float32_t2 texcoord : TEXCOORD0;
     float32_t3 normal : NORMAL0;
+    float32_t4 tangent : TANGENT0;
 };
 
 VertexShaderOutput main(VertexShaderInput input)
@@ -41,6 +42,7 @@ VertexShaderOutput main(VertexShaderInput input)
     VertexShaderOutput output;
     float32_t4 localPosition = input.position;
     float32_t3 localNormal = input.normal;
+    float32_t4 localTangent = input.tangent;
 
     // Graphics lab water: dedicated high-density river mesh.
     if (gMaterial.environmentCoefficient >= 2.5f)
@@ -125,6 +127,9 @@ VertexShaderOutput main(VertexShaderInput input)
     // 2. 法線の変換に逆転置行列を使用する
     // float32_t3x3 にキャストして、平行移動成分を無視します
     output.normal = normalize(mul(localNormal, (float32_t3x3) gTransformationMatrix.WorldInverseTranspose));
+    output.tangent = float32_t4(
+        normalize(mul(localTangent.xyz, (float32_t3x3) gTransformationMatrix.WorldInverseTranspose)),
+        localTangent.w);
     
     output.worldPosition = mul(localPosition, gTransformationMatrix.World).xyz;
     output.shadowMapPosition = mul(localPosition, gTransformationMatrix.LightWVP);

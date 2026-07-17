@@ -24,7 +24,7 @@ public:
 private:
 
 	// InputLayout
-	D3D12_INPUT_ELEMENT_DESC ElementDescs_[5] = {};
+	D3D12_INPUT_ELEMENT_DESC ElementDescs_[6] = {};
 	D3D12_INPUT_LAYOUT_DESC Layout_{};
 };
 

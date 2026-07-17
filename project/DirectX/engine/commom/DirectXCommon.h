@@ -56,6 +56,9 @@ public:
 		float totalMs = 0.0f;
 	};
 
+	static constexpr DXGI_FORMAT kBackBufferRenderTargetFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	static constexpr DXGI_FORMAT kSceneRenderTargetFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
 	enum ShaderType {
 		Object,
 		Particle,
@@ -212,18 +215,54 @@ public:
 		}
 	}
 
+	PSO& GetPSOObjectForScene(BlendMode blendMode = kAdd) {
+		switch (blendMode)
+		{
+		case kNone:
+			return objectPSO_None_HDR;
+		case kNormal:
+			return objectPSO_Alpha_HDR;
+		case kAdd:
+			return objectPSO_Add_HDR;
+		case kShadow:
+			return shadowPSO;
+		case kAdd_Bloom_Extract:
+			return bloomPSO_HDR;
+		case kAdd_Bloom_Downsample:
+			return downsamplePSO_HDR;
+		case kAdd_Bloom_BlurH:
+			return blurHPSO_HDR;
+		case kAdd_Bloom_BlurV:
+			return blurVPSO_HDR;
+		case kAdd_ObjectPost_Composite:
+			return objectPostCompositePSO_HDR;
+		case kAdd_ObjectPost_OutlineAdd:
+			return objectPostOutlineAddPSO_HDR;
+		case kAdd_ObjectPost_BloomAdd:
+			return objectPostBloomAddPSO_HDR;
+		case kRandom:
+			return randomPSO_HDR;
+		default:
+			return objectPSO_None_HDR;
+		}
+	}
+
 	PSO& GetPSOParticle() { return psoParticle_; }
 	PSO& GetPSOModelParticle() { return psoModelParticle_; }
+	PSO& GetPSOModelParticleForScene() { return psoModelParticle_HDR; }
 	const PSO& GetGaussianFilterPSO() const { return gaussianFilterPSO; }
 	PSO& GetPSOComputeParticle() { return psoComputeParticle_; }
 	PSO& GetPSOInitializeParticle() { return psoInitializeParticle_; }
 	PSO& GetPSOEmitParticle() { return psoEmitParticle_; }
 	PSO& GetPSOEmitBatchParticle() { return psoEmitBatchParticle_; }
 	PSO& GetPSOTrail() { return trailPSO; }
+	PSO& GetPSOTrailForScene() { return trailPSO_HDR; }
 	PSO& GetPSOHudRect() { return hudRectPSO; }
-	PSO& GetPSOSkybox() { return skyboxPSO; }
+	PSO& GetPSOSkybox() { return skyboxPSO_HDR; }
 	PSO& GetPSOSkinning() { return skinningPSO; }
+	PSO& GetPSOSkinningForScene() { return skinningPSO_HDR; }
 	PSO& GetPSOSkinningDoubleSided() { return skinningDoubleSidedPSO; }
+	PSO& GetPSOSkinningDoubleSidedForScene() { return skinningDoubleSidedPSO_HDR; }
 	PSO& GetPSOSkinningShadow() { return skinningShadowPSO; }
 
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
@@ -327,7 +366,11 @@ private:
 	void InitializeFixFPS();
 	void UpdateFixFPS();
 
-	void CreateShaderCommon(PSO& pso, BlendMode blendMode = kAdd, bool doubleSided = false);
+	void CreateShaderCommon(
+		PSO& pso,
+		BlendMode blendMode = kAdd,
+		bool doubleSided = false,
+		DXGI_FORMAT renderTargetFormat = kBackBufferRenderTargetFormat);
 	void CreateComputeShaderCommon(PSO& pso, const std::wstring& shaderPath);
 	void CreateShader();
 	void CreateGraphics();
@@ -380,8 +423,12 @@ private:
 	PSO objectPSO_None;
 	PSO objectPSO_Alpha;
 	PSO objectPSO_Add;
+	PSO objectPSO_None_HDR;
+	PSO objectPSO_Alpha_HDR;
+	PSO objectPSO_Add_HDR;
 	PSO psoParticle_;
 	PSO psoModelParticle_;
+	PSO psoModelParticle_HDR;
 	PSO psoComputeParticle_;
 	PSO psoInitializeParticle_;
 	PSO psoEmitParticle_;
@@ -390,18 +437,30 @@ private:
 	PSO downsamplePSO;
 	PSO blurHPSO;
 	PSO blurVPSO;
+	PSO bloomPSO_HDR;
+	PSO downsamplePSO_HDR;
+	PSO blurHPSO_HDR;
+	PSO blurVPSO_HDR;
 	PSO gaussianFilterPSO;
 	PSO conpositePSO;
 	PSO objectPostCompositePSO;
 	PSO objectPostOutlineAddPSO;
 	PSO objectPostBloomAddPSO;
 	PSO randomPSO;
+	PSO objectPostCompositePSO_HDR;
+	PSO objectPostOutlineAddPSO_HDR;
+	PSO objectPostBloomAddPSO_HDR;
+	PSO randomPSO_HDR;
 	PSO shadowPSO;
 	PSO trailPSO;
+	PSO trailPSO_HDR;
 	PSO hudRectPSO;
 	PSO skyboxPSO;
+	PSO skyboxPSO_HDR;
 	PSO skinningPSO;
 	PSO skinningDoubleSidedPSO;
+	PSO skinningPSO_HDR;
+	PSO skinningDoubleSidedPSO_HDR;
 	PSO skinningShadowPSO;
 	ShaderType shaderType_;
 

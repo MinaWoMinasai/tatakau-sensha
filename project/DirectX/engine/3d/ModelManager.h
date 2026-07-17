@@ -16,6 +16,7 @@ public:
 	void Initialize(DirectXCommon* dxCommon);
 
 	void LoadModel(const std::string& filePath);
+	void CreateUvSphereModel(const std::string& modelName, float radius = 1.0f, uint32_t latitudeSegments = 64, uint32_t longitudeSegments = 128);
 
 	Model* FindModel(const std::string& filePath);
 

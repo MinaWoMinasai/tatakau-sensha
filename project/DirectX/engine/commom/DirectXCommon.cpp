@@ -91,7 +91,11 @@ void DirectXCommon::PostDraw()
 
 }
 
-void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubleSided)
+void DirectXCommon::CreateShaderCommon(
+	PSO& pso,
+	BlendMode blendMode,
+	bool doubleSided,
+	DXGI_FORMAT renderTargetFormat)
 {
 	// 1. 各タイプごとのシェーダーパスとルートシグネチャ初期化
 	switch (pso.shaderType_)
@@ -223,7 +227,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
 
 	if (pso.shaderType_ == Skybox) {
 		pso.graphicsDesc_.NumRenderTargets = 1;
-		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.RTVFormats[0] = renderTargetFormat;
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 		// ★ Skybox用の特殊設定
@@ -246,13 +250,13 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
 		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
 	} else if (pso.shaderType_ == PostEffect) {
 		pso.graphicsDesc_.NumRenderTargets = 1;
-		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.RTVFormats[0] = renderTargetFormat;
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_UNKNOWN;
 		pso.graphicsDesc_.DepthStencilState.DepthEnable = FALSE;
 		pso.graphicsDesc_.InputLayout = { nullptr, 0 };
 	} else if (pso.shaderType_ == Skinning) {
 		pso.graphicsDesc_.NumRenderTargets = 1;
-		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.RTVFormats[0] = renderTargetFormat;
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
 		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
@@ -261,7 +265,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
 		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
 	} else if (pso.shaderType_ == Trail) {
 		pso.graphicsDesc_.NumRenderTargets = 1;
-		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.RTVFormats[0] = renderTargetFormat;
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 		// ★ 軌跡用の特殊設定
@@ -272,7 +276,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
 		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
 	} else if (pso.shaderType_ == ModelParticle) {
 		pso.graphicsDesc_.NumRenderTargets = 1;
-		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.RTVFormats[0] = renderTargetFormat;
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
@@ -284,7 +288,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
 		pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
 	} else {
 		pso.graphicsDesc_.NumRenderTargets = 1;
-		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.RTVFormats[0] = renderTargetFormat;
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 		pso.inputDesc_.Initialize();
@@ -333,8 +337,12 @@ void DirectXCommon::CreateShader()
 	objectPSO_None.shaderType_ = Object;
 	objectPSO_Alpha.shaderType_ = Object;
 	objectPSO_Add.shaderType_ = Object;
+	objectPSO_None_HDR.shaderType_ = Object;
+	objectPSO_Alpha_HDR.shaderType_ = Object;
+	objectPSO_Add_HDR.shaderType_ = Object;
 	psoParticle_.shaderType_ = Particle;
 	psoModelParticle_.shaderType_ = ModelParticle;
+	psoModelParticle_HDR.shaderType_ = ModelParticle;
 	psoComputeParticle_.shaderType_ = ComputeParticle;
 	psoInitializeParticle_.shaderType_ = ComputeParticle;
 	psoEmitParticle_.shaderType_ = ComputeParticle;
@@ -342,57 +350,93 @@ void DirectXCommon::CreateShader()
 	bloomPSO.shaderType_ = PostEffect;
 	blurHPSO.shaderType_ = PostEffect;
 	blurVPSO.shaderType_ = PostEffect;
+	bloomPSO_HDR.shaderType_ = PostEffect;
+	blurHPSO_HDR.shaderType_ = PostEffect;
+	blurVPSO_HDR.shaderType_ = PostEffect;
 	gaussianFilterPSO.shaderType_ = PostEffect;
 	conpositePSO.shaderType_ = PostEffect;
 	objectPostCompositePSO.shaderType_ = PostEffect;
 	objectPostOutlineAddPSO.shaderType_ = PostEffect;
 	objectPostBloomAddPSO.shaderType_ = PostEffect;
 	randomPSO.shaderType_ = PostEffect;
+	objectPostCompositePSO_HDR.shaderType_ = PostEffect;
+	objectPostOutlineAddPSO_HDR.shaderType_ = PostEffect;
+	objectPostBloomAddPSO_HDR.shaderType_ = PostEffect;
+	randomPSO_HDR.shaderType_ = PostEffect;
 	downsamplePSO.shaderType_ = PostEffect;
+	downsamplePSO_HDR.shaderType_ = PostEffect;
 	shadowPSO.shaderType_ = Shadow;
 	trailPSO.shaderType_ = Trail;
+	trailPSO_HDR.shaderType_ = Trail;
 	hudRectPSO.shaderType_ = Trail;
 	skyboxPSO.shaderType_ = Skybox;
+	skyboxPSO_HDR.shaderType_ = Skybox;
 	skinningPSO.shaderType_ = Skinning;
 	skinningDoubleSidedPSO.shaderType_ = Skinning;
+	skinningPSO_HDR.shaderType_ = Skinning;
+	skinningDoubleSidedPSO_HDR.shaderType_ = Skinning;
 	skinningShadowPSO.shaderType_ = SkinningShadow;
 
 	bloomPSO.postEffectType_ = Bloom_Extract;
 	blurHPSO.postEffectType_ = Bloom_BlurH;
 	blurVPSO.postEffectType_ = Bloom_BlurV;
+	bloomPSO_HDR.postEffectType_ = Bloom_Extract;
+	blurHPSO_HDR.postEffectType_ = Bloom_BlurH;
+	blurVPSO_HDR.postEffectType_ = Bloom_BlurV;
 	gaussianFilterPSO.postEffectType_ = Gaussian_Filter;
 	conpositePSO.postEffectType_ = Bloom_Composite;
 	objectPostCompositePSO.postEffectType_ = ObjectPost_Composite;
 	objectPostOutlineAddPSO.postEffectType_ = ObjectPost_OutlineAdd;
 	objectPostBloomAddPSO.postEffectType_ = ObjectPost_BloomAdd;
 	randomPSO.postEffectType_ = Random;
+	objectPostCompositePSO_HDR.postEffectType_ = ObjectPost_Composite;
+	objectPostOutlineAddPSO_HDR.postEffectType_ = ObjectPost_OutlineAdd;
+	objectPostBloomAddPSO_HDR.postEffectType_ = ObjectPost_BloomAdd;
+	randomPSO_HDR.postEffectType_ = Random;
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
+	downsamplePSO_HDR.postEffectType_ = Bloom_Downsample;
 
 	CreateShaderCommon(objectPSO_None, kNone);
 	CreateShaderCommon(objectPSO_Alpha, kNormal);
 	CreateShaderCommon(objectPSO_Add, kAdd);
+	CreateShaderCommon(objectPSO_None_HDR, kNone, false, kSceneRenderTargetFormat);
+	CreateShaderCommon(objectPSO_Alpha_HDR, kNormal, false, kSceneRenderTargetFormat);
+	CreateShaderCommon(objectPSO_Add_HDR, kAdd, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(psoParticle_, kAdd);
 	CreateShaderCommon(psoModelParticle_, kAdd);
+	CreateShaderCommon(psoModelParticle_HDR, kAdd, false, kSceneRenderTargetFormat);
 	CreateComputeShaderCommon(psoInitializeParticle_, L"resources/shaders/ParticleInitialize.CS.hlsl");
 	CreateComputeShaderCommon(psoEmitParticle_, L"resources/shaders/ParticleEmit.CS.hlsl");
 	CreateComputeShaderCommon(psoEmitBatchParticle_, L"resources/shaders/ParticleEmitBatch.CS.hlsl");
 	CreateComputeShaderCommon(psoComputeParticle_, L"resources/shaders/ParticleUpdate.CS.hlsl");
 	CreateShaderCommon(bloomPSO, kNone);
+	CreateShaderCommon(bloomPSO_HDR, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(blurHPSO, kNone);
+	CreateShaderCommon(blurHPSO_HDR, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(blurVPSO, kNone);
+	CreateShaderCommon(blurVPSO_HDR, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(gaussianFilterPSO, kNone);
 	CreateShaderCommon(conpositePSO, kAdd);
 	CreateShaderCommon(objectPostCompositePSO, kNormal);
 	CreateShaderCommon(objectPostOutlineAddPSO, kAdd);
 	CreateShaderCommon(objectPostBloomAddPSO, kAdd);
+	CreateShaderCommon(objectPostCompositePSO_HDR, kNormal, false, kSceneRenderTargetFormat);
+	CreateShaderCommon(objectPostOutlineAddPSO_HDR, kAdd, false, kSceneRenderTargetFormat);
+	CreateShaderCommon(objectPostBloomAddPSO_HDR, kAdd, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(randomPSO, kNone);
+	CreateShaderCommon(randomPSO_HDR, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(downsamplePSO, kNone);
+	CreateShaderCommon(downsamplePSO_HDR, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(shadowPSO, kShadow);
 	CreateShaderCommon(trailPSO, kAdd);
+	CreateShaderCommon(trailPSO_HDR, kAdd, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(hudRectPSO, kNormal);
 	CreateShaderCommon(skyboxPSO, kNone);
+	CreateShaderCommon(skyboxPSO_HDR, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(skinningPSO, kNone);
 	CreateShaderCommon(skinningDoubleSidedPSO, kNone, true);
+	CreateShaderCommon(skinningPSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	CreateShaderCommon(skinningDoubleSidedPSO_HDR, kNone, true, kSceneRenderTargetFormat);
 	CreateShaderCommon(skinningShadowPSO, kShadow);
 }
 

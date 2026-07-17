@@ -12,7 +12,8 @@ public:
         uint32_t width,
         uint32_t height,
         std::array<float, 4> clearColor = { 0.0f, 0.0f, 0.0f, 1.0f },
-        bool createDepth = true
+        bool createDepth = true,
+        DXGI_FORMAT colorFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
     );
 
     uint32_t GetSrvIndex() const { return srvIndex_; }

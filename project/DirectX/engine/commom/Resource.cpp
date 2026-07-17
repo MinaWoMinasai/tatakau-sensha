@@ -35,11 +35,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Resource::CreateMaterial(Texture texture,
 	Material* materialData = nullptr;
 	// 書き込むためのアドレスを取得
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-	// 赤を書き込む
-	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-	// ライティングを有効にする
-	materialData->enableLighting = false;
-	materialData->uvTransform = MakeIdentity4x4();
+	*materialData = MakeDefaultMaterial();
 
 	return materialResource;
 

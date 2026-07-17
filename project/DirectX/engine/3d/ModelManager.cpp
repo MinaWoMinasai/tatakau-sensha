@@ -37,6 +37,20 @@ void ModelManager::LoadModel(const std::string& filePath)
 	models.insert(std::make_pair(filePath, std::move(model)));
 }
 
+void ModelManager::CreateUvSphereModel(const std::string& modelName, float radius, uint32_t latitudeSegments, uint32_t longitudeSegments)
+{
+	if (models.contains(modelName)) {
+		return;
+	}
+
+	std::unique_ptr<Model> model = std::make_unique<Model>();
+	model->InitializeFromModelData(
+		modelCommon.get(),
+		Model::CreateUvSphere(radius, latitudeSegments, longitudeSegments));
+
+	models.insert(std::make_pair(modelName, std::move(model)));
+}
+
 Model* ModelManager::FindModel(const std::string& filePath)
 {
 	// 読み込み済みモデルを検索
