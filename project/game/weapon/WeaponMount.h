@@ -11,8 +11,17 @@ enum class WeaponType {
 	Melee,
 };
 
+enum class BarrelShape {
+	Box = 0,
+	Heavy,
+	Short,
+	Wide,
+	Trapezoid,
+};
+
 struct WeaponMountConfig {
 	std::string model = "gunBarrel.obj";
+	BarrelShape barrelShape = BarrelShape::Box;
 	Vector3 offset = { 0.72f, 0.0f, 0.0f };
 	Vector3 scale = { 1.25f, 0.24f, 0.24f };
 	float angleDeg = 0.0f;
@@ -21,6 +30,11 @@ struct WeaponMountConfig {
 	WeaponType weaponType = WeaponType::Projectile;
 	float damageScale = 1.0f;
 	float projectileSpeedScale = 1.0f;
+	int fireGroup = 0;
+	float reloadScale = 1.0f;
+	float recoilScale = 1.0f;
+	Vector4 barrelColor = { 0.25f, 1.0f, 0.95f, 1.0f };
+	Vector4 outlineColor = { 0.80f, 1.0f, 0.95f, 1.0f };
 	Vector4 effectColor = { 0.25f, 1.0f, 0.95f, 1.0f };
 	float laserRange = 18.0f;
 	float laserWidth = 0.18f;

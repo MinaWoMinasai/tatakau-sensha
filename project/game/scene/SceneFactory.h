@@ -4,6 +4,7 @@
 #include "TestScene.h"
 #include "PlayerLabScene.h"
 #include "Action3DScene.h"
+#include "GraphicsLabScene.h"
 #include "../naval/scene/NavalBattleScene.h"
 
 class SceneFactory : public AbstractSceneFactory {
@@ -14,6 +15,7 @@ public:
         if (sceneName == "GAME")  return std::make_unique<GameScene>();
         if (sceneName == "PLAYER_LAB") return std::make_unique<PlayerLabScene>();
         if (sceneName == "ACTION3D") return std::make_unique<Action3DScene>();
+        if (sceneName == "GRAPHICS_LAB") return std::make_unique<GraphicsLabScene>();
         if (sceneName == "NAVAL_BATTLE") return std::make_unique<NavalBattleScene>();
         return nullptr;
     }

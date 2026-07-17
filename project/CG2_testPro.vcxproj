@@ -239,6 +239,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\naval\scene\NavalBattleScene.cpp" />
     <ClCompile Include="game\scene\Game.cpp" />
     <ClCompile Include="game\scene\Action3DScene.cpp" />
+    <ClCompile Include="game\scene\GraphicsLabScene.cpp" />
     <ClCompile Include="game\collision\Collider.cpp" />
     <ClCompile Include="game\collision\CollisionConfig.cpp" />
     <ClCompile Include="game\collision\CollisionManager.cpp" />
@@ -471,6 +472,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\naval\scene\NavalBattleScene.h" />
     <ClInclude Include="game\scene\Game.h" />
     <ClInclude Include="game\scene\Action3DScene.h" />
+    <ClInclude Include="game\scene\GraphicsLabScene.h" />
     <ClInclude Include="game\collision\Collider.h" />
     <ClInclude Include="game\collision\CollisionConfig.h" />
     <ClInclude Include="game\collision\CollisionManager.h" />

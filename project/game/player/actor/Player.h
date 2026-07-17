@@ -67,6 +67,12 @@ class Stage;
 class Player : public Collider {
 
 public:
+	enum class BodyShape {
+		Circle = 0,
+		Box,
+		Triangle,
+		Pentagon,
+	};
 
 	struct PlayerStats {
 		float reloadSpeed = 10.0f;    // 連射速度（小さいほど速い）
@@ -220,8 +226,19 @@ public:
 		float angleRad = 0.0f;
 		float recoilOffset = 0.0f;
 		bool isMelee = false;
+		BarrelShape shape = BarrelShape::Box;
+		int fireGroup = 0;
+		Vector4 barrelColor{ 0.25f, 1.0f, 0.95f, 1.0f };
+		Vector4 outlineColor{ 0.80f, 1.0f, 0.95f, 1.0f };
+	};
+	struct NeonBodyLayout {
+		BodyShape shape = BodyShape::Circle;
+		Vector2 scale{ 1.0f, 1.0f };
+		Vector4 fillColor{ 0.18f, 0.28f, 0.34f, 0.38f };
+		Vector4 outlineColor{ 0.50f, 1.0f, 0.35f, 1.0f };
 	};
 	std::vector<NeonBarrelLayout> GetNeonBarrelLayouts() const;
+	NeonBodyLayout GetNeonBodyLayout() const;
 	float GetDamageFeedbackRatio() const;
 
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
@@ -313,6 +330,10 @@ private:
 		float saberCounterWindow = 0.28f;
 		float saberCounterDamageScale = 2.5f;
 		float saberCounterRangeScale = 1.35f;
+		BodyShape bodyShape = BodyShape::Circle;
+		Vector2 bodyScale = { 1.0f, 1.0f };
+		Vector4 bodyFillColor = { 0.18f, 0.28f, 0.34f, 0.38f };
+		Vector4 bodyOutlineColor = { 0.50f, 1.0f, 0.35f, 1.0f };
 		std::vector<WeaponMountConfig> barrels;
 	};
 
@@ -453,6 +474,8 @@ private:
 	void RecalculateStatsFromBase(bool healToFull);
 	void SpawnCasing();
 	int shootBarrelIndex_ = 0; // 次に撃つ砲身の番号
+	int shootGroupIndex_ = 0;
+	std::vector<float> weaponGroupCooldowns_;
 
 	const int maxEnhancePoint = 5;
 	std::array<int, 7> upgradeLevels_{};

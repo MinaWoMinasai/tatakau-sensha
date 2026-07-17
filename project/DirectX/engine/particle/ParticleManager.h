@@ -154,6 +154,7 @@ public:
     void Emit(const ::Particle& particle);
     void DrawImGuiEditor();
     uint32_t GetActiveCount() const;
+    bool HasDrawableParticles() const;
     void SetUseGpuUpdate(bool useGpuUpdate);
 	void SetNeonTriangleEffectMode(NeonTriangleEffectMode mode) { neonTriangleEffectMode_ = mode; }
 	NeonTriangleEffectMode GetNeonTriangleEffectMode() const { return neonTriangleEffectMode_; }
