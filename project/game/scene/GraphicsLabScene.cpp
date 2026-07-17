@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <utility>
 
 #include "ModelManager.h"
 #include "Object3dCommon.h"
@@ -11,6 +12,10 @@
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
+
+namespace {
+const char* kPbrSphereModelName = "__primitive_pbr_sphere";
+}
 
 void GraphicsLabScene::Initialize()
 {
@@ -36,6 +41,12 @@ void GraphicsLabScene::Initialize()
 	ModelManager::GetInstance()->LoadModel("graphicsSand.obj");
 	ModelManager::GetInstance()->LoadModel("graphicsBeach.obj");
 	ModelManager::GetInstance()->LoadModel("cube.obj");
+	ModelManager::GetInstance()->LoadModel("ball.obj");
+	ModelManager::GetInstance()->LoadModel("jewelry.obj");
+	ModelManager::GetInstance()->CreateUvSphereModel(kPbrSphereModelName, 1.0f, 64, 128);
+	if (Model* ballModel = ModelManager::GetInstance()->FindModel("ball.obj")) {
+		ballModel->RecalculateSmoothNormals();
+	}
 	TextureManager::GetInstance()->LoadTexture("resources/skybox.dds");
 	const uint32_t skyboxSrv = TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
 
@@ -50,7 +61,7 @@ void GraphicsLabScene::Initialize()
 	river_->SetLighting(false);
 	river_->SetEnvironmentMap(skyboxSrv);
 	river_->SetEnvironmentCoefficient(2.75f);
-	river_->SetInsensity(1.45f);
+	river_->SetInsensity(waterLightIntensity_);
 	river_->SetScale({ 1.0f, 1.0f, 1.0f });
 	river_->SetTranslate({ 0.0f, -1.15f, 0.0f });
 
@@ -115,6 +126,39 @@ void GraphicsLabScene::Initialize()
 		24.0f,
 		LabObjectKind::Obstacle));
 
+	auto addPbrSample = [&](const std::string& modelPath, const Vector3& translate, const Vector3& scale,
+		const Vector4& color, float metallic, float roughness) {
+		LabObject sample = MakeObject(
+			modelPath,
+			translate,
+			{ 0.0f, 0.0f, 0.0f },
+			scale,
+			color,
+			true,
+			0.78f,
+			32.0f,
+			LabObjectKind::Scene);
+		sample.object->SetLightingMode(2);
+		sample.object->SetMetallic(metallic);
+		sample.object->SetRoughness(roughness);
+		sample.object->SetAmbientOcclusion(1.0f);
+		sample.object->SetEnvironmentMap(skyboxSrv);
+		sample.object->SetIBLIntensity(pbrIblDiffuseIntensity_, pbrIblSpecularIntensity_);
+		sample.object->SetIBLMaxMipLevel(pbrIblMaxMipLevel_);
+		sample.object->SetPBREnvironmentMode(usePbrProceduralEnvironment_ ? 1.0f : 0.0f);
+		sample.object->SetShadowReceiveStrength(enablePbrSampleShadows_ ? 1.0f : 0.0f);
+		sample.object->SetNormalDetail(pbrNormalDetailStrength_, pbrNormalDetailScale_);
+		sample.object->SetInsensity(pbrDirectLightIntensity_);
+		sample.shadowReceiveStrength = 0.0f;
+		sample.castsShadow = false;
+		metalObjects_.push_back(std::move(sample));
+	};
+
+	addPbrSample(kPbrSphereModelName, { -48.0f, 8.8f, -12.0f }, { 7.0f, 7.0f, 7.0f }, { 1.00f, 0.77f, 0.34f, 1.0f }, 1.0f, 0.18f);
+	addPbrSample(kPbrSphereModelName, { -16.0f, 8.8f, -12.0f }, { 7.0f, 7.0f, 7.0f }, { 0.92f, 0.95f, 1.00f, 1.0f }, 1.0f, 0.56f);
+	addPbrSample(kPbrSphereModelName, { 16.0f, 8.8f, -12.0f }, { 7.0f, 7.0f, 7.0f }, { 0.12f, 0.38f, 0.78f, 1.0f }, 0.0f, 0.28f);
+	addPbrSample("jewelry.obj", { 52.0f, 7.6f, -12.0f }, { 4.2f, 4.2f, 4.2f }, { 0.82f, 0.88f, 0.90f, 1.0f }, 1.0f, 0.34f);
+
 	UpdateCamera();
 	sandBed_->Update();
 	river_->Update();
@@ -145,6 +189,7 @@ void GraphicsLabScene::Update()
 	skybox_->Update(camera_.get(), debugCamera_.get());
 	river_->SetColor(riverTint_);
 	river_->SetShininess(sceneTime_);
+	river_->SetInsensity(waterLightIntensity_);
 	river_->Update();
 	sandBed_->Update();
 
@@ -162,6 +207,12 @@ void GraphicsLabScene::Update()
 		}
 		object.object->SetEnvironmentCoefficient(object.environment);
 		object.object->SetShininess(object.shininess);
+		object.object->SetIBLIntensity(pbrIblDiffuseIntensity_, pbrIblSpecularIntensity_);
+		object.object->SetIBLMaxMipLevel(pbrIblMaxMipLevel_);
+		object.object->SetPBREnvironmentMode(usePbrProceduralEnvironment_ ? 1.0f : 0.0f);
+		object.object->SetShadowReceiveStrength(enablePbrSampleShadows_ ? 1.0f : object.shadowReceiveStrength);
+		object.object->SetNormalDetail(pbrNormalDetailStrength_, pbrNormalDetailScale_);
+		object.object->SetInsensity(pbrDirectLightIntensity_);
 		object.object->Update();
 	}
 
@@ -172,12 +223,14 @@ void GraphicsLabScene::DrawShadow()
 {
 	Object3dCommon::GetInstance()->PreDraw(kShadow);
 	for (auto& object : sceneObjects_) {
-		if (ShouldDrawLabObject(object)) {
+		if (ShouldDrawLabObject(object) && object.castsShadow) {
 			object.object->DrawShadow();
 		}
 	}
-	for (auto& object : metalObjects_) {
-		object.object->DrawShadow();
+	if (showPbrSamples_ && enablePbrSampleShadows_) {
+		for (auto& object : metalObjects_) {
+			object.object->DrawShadow();
+		}
 	}
 }
 
@@ -194,8 +247,10 @@ void GraphicsLabScene::DrawPostEffect3D()
 			object.object->Draw();
 		}
 	}
-	for (auto& object : metalObjects_) {
-		object.object->Draw();
+	if (showPbrSamples_) {
+		for (auto& object : metalObjects_) {
+			object.object->Draw();
+		}
 	}
 
 	Object3dCommon::GetInstance()->PreDraw(kNormal);
@@ -227,6 +282,8 @@ GraphicsLabScene::LabObject GraphicsLabScene::MakeObject(
 	result.object->SetInsensity(1.15f);
 	result.environment = environment;
 	result.shininess = shininess;
+	result.shadowReceiveStrength = 1.0f;
+	result.castsShadow = true;
 	result.kind = kind;
 	return result;
 }
@@ -288,7 +345,17 @@ void GraphicsLabScene::DrawDebugWindow()
 	ImGui::Checkbox("Show underwater sand", &showSandBed_);
 	ImGui::Checkbox("Show beach", &showBeach_);
 	ImGui::Checkbox("Show obstacles", &showObstacles_);
+	ImGui::Checkbox("Show PBR samples", &showPbrSamples_);
+	ImGui::Checkbox("PBR procedural environment", &usePbrProceduralEnvironment_);
+	ImGui::Checkbox("PBR sample shadows", &enablePbrSampleShadows_);
 	ImGui::DragFloat("Water speed", &waterTimeScale_, 0.02f, 0.0f, 4.0f);
+	ImGui::DragFloat("Water light intensity", &waterLightIntensity_, 0.05f, 0.0f, 8.0f);
+	ImGui::DragFloat("PBR direct light", &pbrDirectLightIntensity_, 0.05f, 0.0f, 8.0f);
+	ImGui::DragFloat("PBR IBL diffuse", &pbrIblDiffuseIntensity_, 0.02f, 0.0f, 4.0f);
+	ImGui::DragFloat("PBR IBL specular", &pbrIblSpecularIntensity_, 0.02f, 0.0f, 4.0f);
+	ImGui::DragFloat("PBR IBL max mip", &pbrIblMaxMipLevel_, 0.1f, 0.0f, 12.0f);
+	ImGui::DragFloat("PBR normal detail", &pbrNormalDetailStrength_, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("PBR normal detail scale", &pbrNormalDetailScale_, 0.5f, 1.0f, 96.0f);
 	ImGui::ColorEdit4("River tint", &riverTint_.x);
 	ImGui::DragFloat("Camera distance", &cameraDistance_, 0.5f, 36.0f, 180.0f);
 	ImGui::Text("Beach and rocks provide shoreline context for the water.");

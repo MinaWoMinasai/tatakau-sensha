@@ -21,18 +21,19 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     halfHeight_ = (std::max)(1u, renderHeight_ / 2);
     bloomWidth_ = halfWidth_;
     bloomHeight_ = halfHeight_;
+    const DXGI_FORMAT hdrFormat = DirectXCommon::kSceneRenderTargetFormat;
 
     objectRT_ = std::make_unique<RenderTexture>();
-    objectRT_->Initialize(dxCommon_, srvManager_, rtvManager_, renderWidth_, renderHeight_, transparent, false);
+    objectRT_->Initialize(dxCommon_, srvManager_, rtvManager_, renderWidth_, renderHeight_, transparent, false, hdrFormat);
 
     bloomRT_A_ = std::make_unique<RenderTexture>();
-    bloomRT_A_->Initialize(dxCommon_, srvManager_, rtvManager_, bloomWidth_, bloomHeight_, transparent, false);
+    bloomRT_A_->Initialize(dxCommon_, srvManager_, rtvManager_, bloomWidth_, bloomHeight_, transparent, false, hdrFormat);
 
     bloomRT_B_ = std::make_unique<RenderTexture>();
-    bloomRT_B_->Initialize(dxCommon_, srvManager_, rtvManager_, bloomWidth_, bloomHeight_, transparent, false);
+    bloomRT_B_->Initialize(dxCommon_, srvManager_, rtvManager_, bloomWidth_, bloomHeight_, transparent, false, hdrFormat);
 
     bloomRT_Half_ = std::make_unique<RenderTexture>();
-    bloomRT_Half_->Initialize(dxCommon_, srvManager_, rtvManager_, halfWidth_, halfHeight_, transparent, false);
+    bloomRT_Half_->Initialize(dxCommon_, srvManager_, rtvManager_, halfWidth_, halfHeight_, transparent, false, hdrFormat);
 
     cb_ = std::make_unique<BloomConstantBuffer>();
     cb_->Initialize(dxCommon_);
@@ -66,6 +67,9 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
 	param_.dissolveEdgeWidth = 0.03f;
 	param_.dissolveNoiseScale = 100.0f;
 	param_.dissolveNoiseSpeed = 0.0f;
+    param_.exposure = 1.0f;
+    param_.toneMappingMode = 1.0f;
+    param_.hdrWhitePoint = 11.2f;
 
     cb_->Update(param_);
 }
@@ -105,19 +109,23 @@ void ObjectPostEffect::BeginCaptureWithCurrentDepth() {
 }
 
 void ObjectPostEffect::EndCapture() {
-    FinishCapture(FinishMode::CompositeAndAdd);
+    FinishCapture(FinishMode::CompositeAndAdd, true);
+}
+
+void ObjectPostEffect::EndCaptureToBackBuffer() {
+    FinishCapture(FinishMode::CompositeAndAdd, false);
 }
 
 void ObjectPostEffect::EndCaptureAdditiveOnly() {
-    FinishCapture(FinishMode::AdditiveOnly);
+    FinishCapture(FinishMode::AdditiveOnly, true);
 }
 
 void ObjectPostEffect::EndCaptureBloomOnly() {
-    FinishCapture(FinishMode::BloomOnly);
+    FinishCapture(FinishMode::BloomOnly, true);
 }
 
 void ObjectPostEffect::EndCaptureBloomOnlyToCache() {
-    FinishCapture(FinishMode::BloomOnlyCache);
+    FinishCapture(FinishMode::BloomOnlyCache, true);
 }
 
 void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset) {
@@ -132,7 +140,7 @@ void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset) {
     cb_->Update(param_);
 }
 
-void ObjectPostEffect::FinishCapture(FinishMode mode) {
+void ObjectPostEffect::FinishCapture(FinishMode mode, bool outputToHdr) {
     Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -173,13 +181,13 @@ void ObjectPostEffect::FinishCapture(FinishMode mode) {
         return;
     }
     if (mode == FinishMode::BloomOnly) {
-        postEffect_->DrawObjectBloomAdd(bloomRT_A_->GetGPUHandle());
+        postEffect_->DrawObjectBloomAdd(bloomRT_A_->GetGPUHandle(), outputToHdr);
         return;
     }
     if (mode == FinishMode::CompositeAndAdd) {
-        postEffect_->DrawObjectComposite(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
+        postEffect_->DrawObjectComposite(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle(), outputToHdr);
     }
-    postEffect_->DrawObjectOutlineAdd(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
+    postEffect_->DrawObjectOutlineAdd(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle(), outputToHdr);
 }
 
 void ObjectPostEffect::SetParam(const BloomParam& param) {

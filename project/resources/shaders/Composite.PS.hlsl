@@ -47,6 +47,14 @@ cbuffer BloomParam : register(b0)
 	float dissolveNoiseScale;
 	float dissolveNoiseSpeed;
 	float2 postEffectPadding;
+    float randomIntensity;
+    float randomScale;
+    float randomTimeScale;
+    float randomGrayscalePreview;
+    float exposure;
+    float toneMappingMode;
+    float hdrWhitePoint;
+    float hdrPadding;
 };
 
 // --- ヘルパー関数：ランダム ---
@@ -135,6 +143,29 @@ float3 ApplyOverlays(float3 color, float2 uv)
     color += (n - 0.5f) * noiseIntensity;
     
     return color;
+}
+
+float3 ACESFilm(float3 color)
+{
+    const float a = 2.51f;
+    const float b = 0.03f;
+    const float c = 2.43f;
+    const float d = 0.59f;
+    const float e = 0.14f;
+    return saturate((color * (a * color + b)) / (color * (c * color + d) + e));
+}
+
+float3 ReinhardExtended(float3 color)
+{
+    float whitePoint = max(hdrWhitePoint, 0.001f);
+    float whitePointSq = whitePoint * whitePoint;
+    return saturate((color * (1.0f + color / whitePointSq)) / (1.0f + color));
+}
+
+float3 ApplyToneMapping(float3 color)
+{
+    color = max(color, 0.0f) * max(exposure, 0.0f);
+    return toneMappingMode > 0.5f ? ACESFilm(color) : ReinhardExtended(color);
 }
 
 float3 SampleBoxBlur(Texture2D tex, float2 uv, float radiusPixels)
@@ -333,5 +364,6 @@ float4 main(PSInput input) : SV_TARGET
     float dist = length(baseUV * 0.5);
     result *= pow(saturate(1.0 - dist * vignetteIntensity * vignetteScale), 0.8);
 
+    result = ApplyToneMapping(result);
     return float4(result, 1.0f);
 }

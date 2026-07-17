@@ -1237,7 +1237,7 @@ void GameScene::DrawAfterPostEffect3D() {
 	playerPostEffect_->BeginCapture();
 	Object3dCommon::GetInstance()->PreDraw(kNormal);
 	player_->DrawBodyOnly();
-	playerPostEffect_->EndCapture();
+	playerPostEffect_->EndCaptureToBackBuffer();
 	Object3dCommon::GetInstance()->PreDraw(kNormal);
 
 	playerPostEffect_->SetParam(savedParam);
@@ -4578,12 +4578,7 @@ void GameScene::InitializeFollowHpBarBatch() {
 	for (HpBarMaterialBuffer& material : hpBarMaterials_) {
 		material.resource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(Material));
 		material.resource->Map(0, nullptr, reinterpret_cast<void**>(&material.data));
-		material.data->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-		material.data->enableLighting = false;
-		material.data->lightingMode = false;
-		material.data->environmentCoefficient = 0.0f;
-		material.data->padding = 0.0f;
-		material.data->uvTransform = MakeIdentity4x4();
+		*material.data = MakeDefaultMaterial();
 		material.data->shininess = 1.0f;
 	}
 	for (size_t i = 0; i < 4; ++i) {

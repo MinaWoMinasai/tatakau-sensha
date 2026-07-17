@@ -13,6 +13,7 @@ public:
     void BeginCapture();
     void BeginCaptureWithCurrentDepth();
     void EndCapture();
+    void EndCaptureToBackBuffer();
     void EndCaptureAdditiveOnly();
     void EndCaptureBloomOnly();
     void EndCaptureBloomOnlyToCache();
@@ -29,7 +30,7 @@ private:
         BloomOnly,
         BloomOnlyCache,
     };
-    void FinishCapture(FinishMode mode);
+    void FinishCapture(FinishMode mode, bool outputToHdr);
     void Transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
     void ClearTransparent(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
 

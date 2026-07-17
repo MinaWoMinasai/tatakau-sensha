@@ -9,13 +9,17 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_ = {};
 
     sceneRT_ = std::make_unique<RenderTexture>();
+    const DXGI_FORMAT hdrFormat = DirectXCommon::kSceneRenderTargetFormat;
 
     sceneRT_->Initialize(
         dxCommon_,
         srvManager_,
         rtvManager_,
         WinApp::kClientWidth,
-        WinApp::kClientHeight
+        WinApp::kClientHeight,
+        { 0.0f, 0.0f, 0.0f, 1.0f },
+        true,
+        hdrFormat
     );
 
     // bloom用CBVの生成
@@ -38,7 +42,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         bloomWidth,
         bloomHeight,
         { 0.0f, 0.0f, 0.0f, 1.0f },
-        false
+        false,
+        hdrFormat
     );
 
     bloomRT_B_->Initialize(
@@ -48,7 +53,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         bloomWidth,
         bloomHeight,
         { 0.0f, 0.0f, 0.0f, 1.0f },
-        false
+        false,
+        hdrFormat
     );
 
     // bloomRT_Half を追加
@@ -61,7 +67,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         WinApp::kClientWidth / 2,
         WinApp::kClientHeight / 2,
         { 0.0f, 0.0f, 0.0f, 1.0f },
-        false
+        false,
+        hdrFormat
     );
 
 	// Random課題用の独立した全画面パス。入力画像へGPU乱数を乗算する。
@@ -69,11 +76,11 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
 	randomRT_->Initialize(
 		dxCommon_, srvManager_, rtvManager_,
 		WinApp::kClientWidth, WinApp::kClientHeight,
-		{ 0.0f, 0.0f, 0.0f, 1.0f }, false);
+		{ 0.0f, 0.0f, 0.0f, 1.0f }, false, hdrFormat);
 
     // ブルームパラメータ
-    bloomParam_.threshold = 0.0f;
-    bloomParam_.intensity = 0.0f;
+    bloomParam_.threshold = 1.0f;
+    bloomParam_.intensity = 0.35f;
     bloomParam_.vignetteIntensity = 0.0f;
     bloomParam_.vignetteScale = 0.0f;
     bloomParam_.chromAbAmount = 0.0f;
@@ -107,6 +114,9 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
 	bloomParam_.randomScale = 160.0f;
 	bloomParam_.randomTimeScale = 8.0f;
 	bloomParam_.randomGrayscalePreview = 0.0f;
+    bloomParam_.exposure = 1.0f;
+    bloomParam_.toneMappingMode = 1.0f;
+    bloomParam_.hdrWhitePoint = 11.2f;
 
    /* bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 1.2f;
@@ -137,7 +147,14 @@ void Bloom::Update() {
     ImGui::Begin("BloomAndVignette");
 
     // --- 既存の項目 ---
-    ImGui::DragFloat("Threshold", &bloomParam_.threshold, 0.01f, 0.0f, 1.0f);
+    ImGui::Text("HDR Output");
+    ImGui::DragFloat("Exposure", &bloomParam_.exposure, 0.01f, 0.01f, 10.0f);
+    bool useAcesToneMapping = bloomParam_.toneMappingMode > 0.5f;
+    if (ImGui::Checkbox("ACES Tone Mapping", &useAcesToneMapping)) {
+        bloomParam_.toneMappingMode = useAcesToneMapping ? 1.0f : 0.0f;
+    }
+    ImGui::DragFloat("HDR White Point", &bloomParam_.hdrWhitePoint, 0.1f, 1.0f, 32.0f);
+    ImGui::DragFloat("Threshold", &bloomParam_.threshold, 0.01f, 0.0f, 20.0f);
     ImGui::DragFloat("Intensity", &baseBloomIntensity_, 0.01f);
     ImGui::DragFloat("Vignette Intensity", &bloomParam_.vignetteIntensity, 0.01f);
     ImGui::DragFloat("Vignette Scale", &bloomParam_.vignetteScale, 0.01f);
@@ -202,8 +219,11 @@ void Bloom::Update() {
 
     // リセットボタン
     if (ImGui::Button("Reset")) {
-        bloomParam_.threshold = 0.0f;
-        baseBloomIntensity_ = 0.0f;
+        bloomParam_.threshold = 1.0f;
+        baseBloomIntensity_ = 0.35f;
+        bloomParam_.exposure = 1.0f;
+        bloomParam_.toneMappingMode = 1.0f;
+        bloomParam_.hdrWhitePoint = 11.2f;
         bloomParam_.vignetteIntensity = 0.0f;
         bloomParam_.vignetteScale = 0.0f;
         baseChromAbAmount_ = 0.0f;
