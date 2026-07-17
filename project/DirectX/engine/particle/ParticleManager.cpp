@@ -1099,6 +1099,10 @@ uint32_t ParticleManager::GetActiveCount() const {
     return static_cast<uint32_t>(activeParticles_.size());
 }
 
+bool ParticleManager::HasDrawableParticles() const {
+    return useGpuUpdate_ ? gpuDrawReady_ : instanceCount_ > 0;
+}
+
 void ParticleManager::SetUseGpuUpdate(bool useGpuUpdate) {
     if (useGpuUpdate_ == useGpuUpdate) {
         return;

@@ -61,6 +61,152 @@ PixelShaderOutput main(VertexShaderOutput input)
         discard;
     }
 
+    if (gMaterial.environmentCoefficient <= -0.5f)
+    {
+        float2 p = input.worldPosition.xz;
+        float large = sin(p.x * 0.030f + sin(p.y * 0.021f) * 2.1f);
+        float middle = sin(p.x * -0.115f + p.y * 0.082f) * sin(p.x * 0.071f - p.y * 0.096f);
+        float fine = sin(p.x * 0.83f + p.y * 0.37f) * sin(p.x * -0.46f + p.y * 0.74f);
+        float grain = saturate(0.54f + large * 0.16f + middle * 0.08f + fine * 0.035f);
+        float wet = smoothstep(-90.0f, 115.0f, p.y);
+        float offshore = smoothstep(40.0f, 220.0f, p.y);
+        float3 drySand = float3(0.84f, 0.80f, 0.66f);
+        float3 wetSand = float3(0.52f, 0.60f, 0.58f);
+        float3 color = lerp(drySand, wetSand, wet * 0.66f) * (0.82f + grain * 0.34f);
+        color += float3(0.040f, 0.095f, 0.110f) * smoothstep(0.72f, 1.0f, grain) * wet;
+        color = lerp(color, float3(0.10f, 0.27f, 0.34f), offshore * 0.58f);
+        output.color = float4(saturate(color * gMaterial.color.rgb), gMaterial.color.a * textureColor.a);
+        return output;
+    }
+
+    // Graphics lab water. environmentCoefficient >= 2.5 is reserved for
+    // the dedicated high-density river mesh.
+    if (gMaterial.environmentCoefficient >= 2.5f)
+    {
+        float time = gMaterial.shininess;
+        float2 worldXZ = input.worldPosition.xz;
+        float3 baseN = normalize(input.normal);
+        float3 V = normalize(gCamera.worldPosition - input.worldPosition);
+        float viewDistance = length(gCamera.worldPosition - input.worldPosition);
+
+        float2 flowDir = normalize(float2(0.10f, 0.995f));
+        float2 crossDir = float2(flowDir.y, -flowDir.x);
+        float flow = dot(worldXZ, flowDir);
+        float cross = dot(worldXZ, crossDir);
+        float edgeDistance = abs(cross);
+        float oceanMode = step(2.7f, gMaterial.environmentCoefficient);
+        float seaDepth = saturate(smoothstep(-60.0f, 205.0f, worldXZ.y));
+        float shoreFoamMask = smoothstep(-95.0f, -10.0f, worldXZ.y) * (1.0f - smoothstep(70.0f, 160.0f, worldXZ.y));
+        float farDetailFade = 1.0f - smoothstep(95.0f, 285.0f, viewDistance);
+        float foregroundDetail = 1.0f - smoothstep(40.0f, 165.0f, viewDistance);
+        float riverBank = 1.0f - smoothstep(18.0f, 43.0f, edgeDistance);
+        float bank = lerp(riverBank, seaDepth, oceanMode);
+        float shallow = lerp(1.0f - riverBank, 1.0f - seaDepth, oceanMode);
+
+        float warpA = sin(flow * 0.031f + cross * 0.047f + time * 0.42f);
+        float warpB = sin(flow * -0.044f + cross * 0.026f - time * 0.31f);
+        float warpedFlow = flow + warpA * 8.5f + warpB * 5.0f;
+        float warpedCross = cross + warpA * 4.0f - warpB * 6.5f;
+
+        float longFlow =
+            sin(warpedFlow * 0.050f + time * 0.72f) * 0.46f +
+            sin(warpedFlow * 0.083f + warpedCross * 0.019f - time * 1.05f) * 0.24f;
+        float capillary =
+            sin(warpedFlow * 0.33f + warpedCross * 0.13f + time * 1.85f) * 0.040f +
+            sin(warpedFlow * 0.58f - warpedCross * 0.19f - time * 2.25f) * 0.028f;
+        float curl =
+            sin(warpedFlow * 0.13f + sin(warpedCross * 0.075f + time * 0.44f) * 2.8f + time * 0.88f);
+        float wave = longFlow + capillary;
+
+        float microA = sin(warpedFlow * 0.78f + warpedCross * 0.34f + time * 2.60f);
+        float microB = sin(warpedFlow * -0.56f + warpedCross * 0.61f - time * 2.10f);
+        float microC = sin(warpedFlow * 1.08f - warpedCross * 0.24f + time * 3.40f);
+        float2 microSlope = float2(
+            microA * 0.035f + microB * -0.026f + microC * 0.014f,
+            microA * 0.012f + microB * 0.032f + microC * -0.019f);
+        float3 N = normalize(baseN + float3(microSlope.x, 0.0f, microSlope.y));
+        float fresnel = pow(1.0f - saturate(dot(N, V)), 4.2f);
+        float facing = saturate(dot(N, float3(0.0f, 1.0f, 0.0f)));
+
+        float3 reflectVector = reflect(-V, N);
+        float3 skyReflection = gEnvironmentMap.Sample(gSampler, reflectVector).rgb;
+        float3 proceduralSky = lerp(
+            float3(0.11f, 0.26f, 0.48f),
+            float3(0.62f, 0.66f, 0.60f),
+            saturate(reflectVector.y * 0.55f + 0.45f));
+        skyReflection = lerp(skyReflection, proceduralSky, oceanMode * 0.72f);
+
+        float2 refractUV = worldXZ * 0.040f + microSlope * 4.2f;
+        float bottomMud = sin(refractUV.x * 1.15f + sin(refractUV.y * 0.73f + time * 0.05f) * 1.8f);
+        float bottomPebble = sin(refractUV.x * 3.4f + sin(refractUV.y * 1.9f) * 0.7f) * sin(refractUV.y * 2.8f);
+        float bottomNoise = saturate(bottomMud * 0.26f + bottomPebble * 0.10f + 0.58f);
+        float3 riverBed = lerp(float3(0.34f, 0.39f, 0.34f), float3(0.75f, 0.69f, 0.52f), bottomNoise);
+        riverBed = lerp(riverBed, float3(0.09f, 0.23f, 0.28f), bank * 0.36f);
+
+        float depthFade = saturate(viewDistance / 260.0f);
+        float3 shallowTint = float3(0.24f, 0.82f, 0.88f);
+        float3 clearBlue = float3(0.045f, 0.40f, 0.66f);
+        float3 deepBlue = float3(0.006f, 0.075f, 0.185f);
+        float3 waterColor = lerp(shallowTint, clearBlue, bank);
+        waterColor = lerp(waterColor, deepBlue, depthFade * 0.64f);
+        waterColor += float3(0.008f, 0.090f, 0.125f) * wave * (0.65f + seaDepth * 0.35f);
+        float oceanDepth = saturate(max(depthFade, seaDepth));
+        float riverWaterDominance = 0.36f + bank * 0.47f + fresnel * 0.22f;
+        float oceanWaterDominance = 0.68f + oceanDepth * 0.25f + fresnel * 0.14f;
+        waterColor = lerp(riverBed, waterColor, saturate(lerp(riverWaterDominance, oceanWaterDominance, oceanMode)));
+
+        float causticA = smoothstep(0.62f, 0.99f, sin(warpedFlow * 0.16f + sin(warpedCross * 0.052f) * 3.0f + time * 0.72f));
+        float causticB = smoothstep(0.58f, 0.98f, sin(warpedFlow * -0.12f + warpedCross * 0.082f - time * 0.55f));
+        float caustic = causticA * causticB * (0.22f + shallow * 0.44f) * (1.0f - oceanDepth * oceanMode * 0.80f);
+        caustic *= lerp(1.0f, foregroundDetail * 0.72f, oceanMode);
+        waterColor += float3(0.25f, 0.72f, 0.78f) * caustic * (0.025f + shallow * 0.045f);
+
+        float crest = smoothstep(0.82f, 1.16f, longFlow + curl * 0.18f);
+        float foamNoiseA = sin(warpedFlow * 0.034f + warpedCross * 0.021f + sin(warpedCross * 0.029f) * 2.6f + time * 0.32f);
+        float foamNoiseB = sin(warpedFlow * -0.027f + warpedCross * 0.048f + sin(warpedFlow * 0.017f) * 2.2f - time * 0.24f);
+        float foamNoise = foamNoiseA * 0.62f + foamNoiseB * 0.38f + curl * 0.16f;
+        float shoreOnlyMask = shoreFoamMask * (1.0f - smoothstep(115.0f, 240.0f, viewDistance));
+        float foamSheet = smoothstep(0.64f, 1.06f, foamNoise) * shoreOnlyMask;
+        float foamLace = smoothstep(0.84f, 1.0f, sin(warpedFlow * 0.095f + foamNoiseB * 1.4f + time * 0.42f)) * shoreOnlyMask;
+        float openWaterFoam = crest * 0.018f * (1.0f - oceanDepth * oceanMode) * farDetailFade;
+        float foam = saturate(openWaterFoam + foamSheet * 0.16f + foamLace * foamSheet * 0.08f);
+
+        float glintLine = smoothstep(0.990f, 1.0f, sin(warpedFlow * 0.17f - warpedCross * 0.046f + sin(warpedCross * 0.020f) * 2.8f + time * 0.86f));
+        float sparkle = smoothstep(0.994f, 1.0f, sin(warpedFlow * 0.70f + warpedCross * 0.45f + time * 2.70f));
+        float glint = (glintLine * 0.075f + sparkle * 0.045f) * fresnel * facing * (0.42f + oceanDepth * 0.58f) * farDetailFade;
+
+        float3 sunDir = normalize(-gDirectionalLight.direction);
+        float3 sunReflect = reflect(-sunDir, N);
+        float sunSpec = pow(saturate(dot(sunReflect, V)), 180.0f);
+        float sunBroad = pow(saturate(dot(sunReflect, V)), 10.0f);
+        float sunPathNoise =
+            0.74f +
+            sin(flow * 0.038f + sin(cross * 0.018f) * 1.1f + time * 0.26f) * 0.13f +
+            sin(flow * 0.083f - cross * 0.018f + time * 0.51f) * 0.08f;
+        float sunLaneCenter = sin(flow * 0.007f + time * 0.05f) * 28.0f;
+        float sunPathWidth = exp(-abs(cross - sunLaneCenter) * 0.0046f);
+        float horizonBoost = smoothstep(25.0f, 210.0f, viewDistance);
+        float sunPath = (sunBroad * 0.82f + sunSpec * 2.0f) * saturate(sunPathNoise) * sunPathWidth;
+        sunPath *= 0.55f + horizonBoost * 0.55f;
+        sunPath *= gDirectionalLight.intensity;
+        sunPath *= oceanMode;
+
+        float3 reflection = skyReflection * (0.23f + fresnel * 0.76f + oceanMode * 0.15f);
+        float3 color = lerp(waterColor, reflection, 0.20f + fresnel * 0.54f + oceanDepth * oceanMode * 0.14f);
+        color += float3(0.78f, 0.95f, 1.0f) * foam * 0.16f;
+        color += float3(0.78f, 0.93f, 1.0f) * glint;
+        color += float3(1.0f, 0.86f, 0.50f) * sunPath * 1.75f;
+        color = lerp(color, float3(0.34f, 0.52f, 0.55f), depthFade * 0.12f);
+        color *= gMaterial.color.rgb;
+
+        float edgeAlpha = lerp(1.0f - smoothstep(36.0f, 45.0f, edgeDistance), 1.0f, oceanMode);
+        float riverAlpha = 0.70f + fresnel * 0.26f + bank * 0.18f;
+        float oceanAlpha = 0.76f + fresnel * 0.18f + oceanDepth * 0.20f;
+        float alpha = gMaterial.color.a * textureColor.a * saturate(lerp(riverAlpha, oceanAlpha, oceanMode));
+        output.color = float4(saturate(color), alpha * edgeAlpha);
+        return output;
+    }
+
     // Naval water prototype.
     // environmentCoefficient >= 1.5 is reserved as a lightweight water-material flag.
     // shininess is reused as scene time for the water object only.
