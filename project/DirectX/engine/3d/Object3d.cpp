@@ -30,14 +30,7 @@ void Object3d::Initialize()
 	materialData_ = nullptr;
 	// 書き込むためのアドレスを取得
 	materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
-	// 赤を書き込む
-	materialData_->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-	// ライティングを有効にする
-	materialData_->enableLighting = false;
-	materialData_->lightingMode = false;
-	materialData_->uvTransform = MakeIdentity4x4();
-	materialData_->shininess = 32.0f;
-	materialData_->environmentCoefficient = 0.0f;
+	*materialData_ = MakeDefaultMaterial();
 	
 	// ポイントライトリソース作成
 	pointLightResource = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(PointLightData));
@@ -74,7 +67,7 @@ void Object3d::Initialize()
 
 void Object3d::DrawSkinned(SkinnedModel& model) {
 	auto commandList = object3dCommon_->GetDxCommon()->GetList();
-	auto& pso = object3dCommon_->GetDxCommon()->GetPSOSkinning();
+	auto& pso = object3dCommon_->GetDxCommon()->GetPSOSkinningForScene();
 	commandList->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
 	commandList->SetPipelineState(pso.graphicsState_.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

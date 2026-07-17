@@ -419,8 +419,8 @@ void SkinnedModel::Draw() {
 	srvManager_->SetGraphicsRootDescriptorTable(9, paletteSrvIndex_);
 	for (const SkinningModelAsset::Submesh& submesh : asset_.submeshes) {
 		auto& pso = submesh.doubleSided
-			? dxCommon_->GetPSOSkinningDoubleSided()
-			: dxCommon_->GetPSOSkinning();
+			? dxCommon_->GetPSOSkinningDoubleSidedForScene()
+			: dxCommon_->GetPSOSkinningForScene();
 		commandList->SetPipelineState(pso.graphicsState_.Get());
 		commandList->SetGraphicsRootDescriptorTable(
 			2, TextureManager::GetInstance()->GetSrvHandleGPU(submesh.textureKey));

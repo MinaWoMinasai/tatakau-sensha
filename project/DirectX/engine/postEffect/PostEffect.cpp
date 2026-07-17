@@ -5,10 +5,13 @@ void PostEffect::Initialize(DirectXCommon* dxCommon, BloomConstantBuffer* bloomC
 	bloomCB_ = bloomCB;
 }
 
-void PostEffect::Draw(D3D12_GPU_DESCRIPTOR_HANDLE inputSRV, BlendMode blendMode)
+void PostEffect::Draw(D3D12_GPU_DESCRIPTOR_HANDLE inputSRV, BlendMode blendMode, bool outputToHdr)
 {
-	dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject(blendMode).root_.GetSignature().Get());
-	dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObject(blendMode).graphicsState_.Get());
+    auto& pso = outputToHdr
+        ? dxCommon_->GetPSOObjectForScene(blendMode)
+        : dxCommon_->GetPSOObject(blendMode);
+	dxCommon_->GetList()->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
+	dxCommon_->GetList()->SetPipelineState(pso.graphicsState_.Get());
 	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	
 	dxCommon_->GetList()->SetGraphicsRootConstantBufferView(0, bloomCB_->GetGPUAddress());
@@ -39,9 +42,12 @@ void PostEffect::DrawComposite(
     dxCommon_->GetList()->DrawInstanced(3, 1, 0, 0);
 }
 
-void PostEffect::DrawObjectComposite(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV) {
-    dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject(kAdd_ObjectPost_Composite).root_.GetSignature().Get());
-    dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObject(kAdd_ObjectPost_Composite).graphicsState_.Get());
+void PostEffect::DrawObjectComposite(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV, bool outputToHdr) {
+    auto& pso = outputToHdr
+        ? dxCommon_->GetPSOObjectForScene(kAdd_ObjectPost_Composite)
+        : dxCommon_->GetPSOObject(kAdd_ObjectPost_Composite);
+    dxCommon_->GetList()->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
+    dxCommon_->GetList()->SetPipelineState(pso.graphicsState_.Get());
     dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     dxCommon_->GetList()->SetGraphicsRootConstantBufferView(0, bloomCB_->GetGPUAddress());
@@ -51,9 +57,12 @@ void PostEffect::DrawObjectComposite(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D1
     dxCommon_->GetList()->DrawInstanced(3, 1, 0, 0);
 }
 
-void PostEffect::DrawObjectOutlineAdd(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV) {
-    dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject(kAdd_ObjectPost_OutlineAdd).root_.GetSignature().Get());
-    dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObject(kAdd_ObjectPost_OutlineAdd).graphicsState_.Get());
+void PostEffect::DrawObjectOutlineAdd(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV, bool outputToHdr) {
+    auto& pso = outputToHdr
+        ? dxCommon_->GetPSOObjectForScene(kAdd_ObjectPost_OutlineAdd)
+        : dxCommon_->GetPSOObject(kAdd_ObjectPost_OutlineAdd);
+    dxCommon_->GetList()->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
+    dxCommon_->GetList()->SetPipelineState(pso.graphicsState_.Get());
     dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     dxCommon_->GetList()->SetGraphicsRootConstantBufferView(0, bloomCB_->GetGPUAddress());
@@ -63,9 +72,12 @@ void PostEffect::DrawObjectOutlineAdd(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D
     dxCommon_->GetList()->DrawInstanced(3, 1, 0, 0);
 }
 
-void PostEffect::DrawObjectBloomAdd(D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV) {
-    dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject(kAdd_ObjectPost_BloomAdd).root_.GetSignature().Get());
-    dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObject(kAdd_ObjectPost_BloomAdd).graphicsState_.Get());
+void PostEffect::DrawObjectBloomAdd(D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV, bool outputToHdr) {
+    auto& pso = outputToHdr
+        ? dxCommon_->GetPSOObjectForScene(kAdd_ObjectPost_BloomAdd)
+        : dxCommon_->GetPSOObject(kAdd_ObjectPost_BloomAdd);
+    dxCommon_->GetList()->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
+    dxCommon_->GetList()->SetPipelineState(pso.graphicsState_.Get());
     dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     dxCommon_->GetList()->SetGraphicsRootConstantBufferView(0, bloomCB_->GetGPUAddress());

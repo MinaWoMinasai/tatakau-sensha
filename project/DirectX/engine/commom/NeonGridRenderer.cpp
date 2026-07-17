@@ -20,12 +20,7 @@ void NeonGridRenderer::Initialize(DirectXCommon* dxCommon, const std::string& te
 
     materialResource_ = dxCommon_->CreateBufferResource(sizeof(Material));
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
-    materialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-    materialData_->enableLighting = false;
-    materialData_->lightingMode = false;
-    materialData_->environmentCoefficient = 0.0f;
-    materialData_->padding = 0.0f;
-    materialData_->uvTransform = MakeIdentity4x4();
+    *materialData_ = MakeDefaultMaterial();
     materialData_->shininess = 1.0f;
 }
 
@@ -307,8 +302,8 @@ void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, con
     *viewProjectionData_ = viewProjection;
 
     auto commandList = dxCommon_->GetList();
-    commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrail().root_.GetSignature().Get());
-    commandList->SetPipelineState(dxCommon_->GetPSOTrail().graphicsState_.Get());
+    commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
+    commandList->SetPipelineState(dxCommon_->GetPSOTrailForScene().graphicsState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());

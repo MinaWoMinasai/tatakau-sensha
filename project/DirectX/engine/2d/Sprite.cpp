@@ -47,12 +47,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath)
 	materialResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(Material));
 	// 書き込むためのアドレスを取得
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-	// 白を書き込む
-	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-
-	// SpriteはLightingを使わないのでfalse
-	materialData->enableLighting = false;
-	materialData->uvTransform = MakeIdentity4x4();
+	*materialData = MakeDefaultMaterial();
 
 	// 用のTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
 	transformationMatrixResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(TransformationMatrix));
@@ -114,12 +109,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, uint32_t srvIndex, SrvManage
 	materialResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(Material));
 	// 書き込むためのアドレスを取得
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-	// 白を書き込む
-	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-
-	// SpriteはLightingを使わないのでfalse
-	materialData->enableLighting = false;
-	materialData->uvTransform = MakeIdentity4x4();
+	*materialData = MakeDefaultMaterial();
 
 	// 用のTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
 	transformationMatrixResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(TransformationMatrix));

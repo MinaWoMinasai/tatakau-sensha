@@ -7,6 +7,8 @@ class Model
 
 public:
 	void Initialize(ModelCommon* modelCommon, const std::string& directorypath, const std::string& filename);
+	void InitializeFromModelData(ModelCommon* modelCommon, const ModelData& modelData);
+	void RecalculateSmoothNormals();
 
 	void Draw();
 	void DrawOnlyMesh();
@@ -14,6 +16,7 @@ public:
 	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 
 	static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
+	static ModelData CreateUvSphere(float radius, uint32_t latitudeSegments, uint32_t longitudeSegments);
 
 	ModelData& GetModelData() { return modelData_; }
 	Microsoft::WRL::ComPtr<ID3D12Resource>& GetVertexResource() { return vertexResource; }
@@ -21,6 +24,8 @@ public:
 	D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() { return indexBufferView; }
 
 private:
+	void CreateGpuResources();
+
 	ModelCommon* modelCommon_;
 
 	// Objファイルのデータ

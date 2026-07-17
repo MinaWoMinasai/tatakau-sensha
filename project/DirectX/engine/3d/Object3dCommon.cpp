@@ -57,8 +57,8 @@ void Object3dCommon::Update() {
 void Object3dCommon::PreDraw(BlendMode blendMode)
 {
 
-	dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject(blendMode).root_.GetSignature().Get());
-	dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObject(blendMode).graphicsState_.Get()); // PSOを設定
+	dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObjectForScene(blendMode).root_.GetSignature().Get());
+	dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObjectForScene(blendMode).graphicsState_.Get()); // PSOを設定
 	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	blendMode_ = blendMode;

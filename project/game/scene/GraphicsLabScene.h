@@ -35,6 +35,8 @@ private:
 		std::unique_ptr<Object3d> object;
 		float environment = 0.0f;
 		float shininess = 32.0f;
+		float shadowReceiveStrength = 1.0f;
+		bool castsShadow = true;
 		LabObjectKind kind = LabObjectKind::Scene;
 	};
 
@@ -69,7 +71,17 @@ private:
 	bool showSandBed_ = true;
 	bool showBeach_ = true;
 	bool showObstacles_ = true;
+	bool showPbrSamples_ = true;
+	bool usePbrProceduralEnvironment_ = true;
+	bool enablePbrSampleShadows_ = false;
 	float waterTimeScale_ = 1.0f;
+	float waterLightIntensity_ = 2.2f;
+	float pbrDirectLightIntensity_ = 2.4f;
+	float pbrIblDiffuseIntensity_ = 0.62f;
+	float pbrIblSpecularIntensity_ = 1.35f;
+	float pbrIblMaxMipLevel_ = 7.0f;
+	float pbrNormalDetailStrength_ = 0.0f;
+	float pbrNormalDetailScale_ = 24.0f;
 	Vector4 riverTint_ = { 0.88f, 0.98f, 1.0f, 0.84f };
 	float cameraYaw_ = 0.18f;
 	float cameraPitch_ = 0.20f;

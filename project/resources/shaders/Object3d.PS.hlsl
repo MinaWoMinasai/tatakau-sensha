@@ -9,6 +9,19 @@ struct Material
     float32_t padding; // 16バイトアライメントのための調整
     float32_t4x4 uvTransform;
     float32_t shininess;
+    float32_t metallic;
+    float32_t roughness;
+    float32_t ambientOcclusion;
+    float32_t3 emissiveColor;
+    float32_t emissiveIntensity;
+    float32_t iblDiffuseIntensity;
+    float32_t iblSpecularIntensity;
+    float32_t iblMaxMipLevel;
+    float32_t pbrEnvironmentMode;
+    float32_t shadowReceiveStrength;
+    float32_t normalDetailStrength;
+    float32_t normalDetailScale;
+    float32_t materialPadding;
 };
 
 struct Camera
@@ -40,6 +53,8 @@ ConstantBuffer<PointLight> gPointLight : register(b3);
 
 // 環境マッピング（キューブマップ）用
 TextureCube<float32_t4> gEnvironmentMap : register(t2); // register(t2)に追加
+
+#include "PbrLighting.hlsli"
 
 struct PixelShaderOutput
 {
@@ -194,8 +209,8 @@ PixelShaderOutput main(VertexShaderOutput input)
         float3 reflection = skyReflection * (0.23f + fresnel * 0.76f + oceanMode * 0.15f);
         float3 color = lerp(waterColor, reflection, 0.20f + fresnel * 0.54f + oceanDepth * oceanMode * 0.14f);
         color += float3(0.78f, 0.95f, 1.0f) * foam * 0.16f;
-        color += float3(0.78f, 0.93f, 1.0f) * glint;
-        color += float3(1.0f, 0.86f, 0.50f) * sunPath * 1.75f;
+        color += float3(0.78f, 0.93f, 1.0f) * glint * 2.4f;
+        color += float3(1.0f, 0.86f, 0.50f) * sunPath * 3.2f;
         color = lerp(color, float3(0.34f, 0.52f, 0.55f), depthFade * 0.12f);
         color *= gMaterial.color.rgb;
 
@@ -203,7 +218,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         float riverAlpha = 0.70f + fresnel * 0.26f + bank * 0.18f;
         float oceanAlpha = 0.76f + fresnel * 0.18f + oceanDepth * 0.20f;
         float alpha = gMaterial.color.a * textureColor.a * saturate(lerp(riverAlpha, oceanAlpha, oceanMode));
-        output.color = float4(saturate(color), alpha * edgeAlpha);
+        output.color = float4(max(color, 0.0f), alpha * edgeAlpha);
         return output;
     }
 
@@ -264,10 +279,10 @@ PixelShaderOutput main(VertexShaderOutput input)
         color = lerp(color, skyTint, fresnel * 0.26f);
         color += waveTint * (wave * 0.050f + 0.034f);
         color += foamTint * foam * (0.18f + gustMask * 0.075f);
-        color += skyTint * glint;
+        color += skyTint * glint * 2.0f;
 
         // PSP-like high readability: keep the water vivid, but add modern layered depth.
-        color = saturate(color * gMaterial.color.rgb * 1.05f);
+        color = max(color * gMaterial.color.rgb * 1.05f, 0.0f);
         output.color = float4(color, gMaterial.color.a * textureColor.a);
         return output;
     }
@@ -276,6 +291,22 @@ PixelShaderOutput main(VertexShaderOutput input)
     {
         // --- 共通ベクトルの準備 ---
         float3 N = normalize(input.normal); // 滑らかな法線を使用
+        float normalDetailStrength = saturate(gMaterial.normalDetailStrength);
+        if (normalDetailStrength > 0.0001f)
+        {
+            float3 T = normalize(input.tangent.xyz - N * dot(N, input.tangent.xyz));
+            float3 B = normalize(cross(N, T) * input.tangent.w);
+            float normalDetailScale = max(gMaterial.normalDetailScale, 0.001f);
+            float2 detailUV = input.texcoord * normalDetailScale;
+            float waveA = sin(detailUV.x * 6.28318f + sin(detailUV.y * 1.73f) * 0.65f);
+            float waveB = sin(detailUV.y * 6.28318f + sin(detailUV.x * 1.31f) * 0.55f);
+            float waveC = sin((detailUV.x + detailUV.y) * 3.14159f);
+            float2 detailSlope = float2(
+                waveA * 0.55f + waveC * 0.24f,
+                waveB * 0.55f - waveC * 0.18f) * normalDetailStrength;
+            float3 detailNormalTS = normalize(float3(detailSlope.x, detailSlope.y, 1.0f));
+            N = normalize(T * detailNormalTS.x + B * detailNormalTS.y + N * detailNormalTS.z);
+        }
         float3 V = normalize(gCamera.worldPosition - input.worldPosition);
         
         // --- 環境マッピングの追加 ---
@@ -314,6 +345,44 @@ PixelShaderOutput main(VertexShaderOutput input)
                 }
             }
             shadow /= 9.0f;
+        }
+        shadow = lerp(1.0f, shadow, saturate(gMaterial.shadowReceiveStrength));
+
+        if (gMaterial.lightingMode == 2)
+        {
+            float3 albedo = max(gMaterial.color.rgb * textureColor.rgb, 0.0f);
+            float metallic = saturate(gMaterial.metallic);
+            float roughness = clamp(gMaterial.roughness, 0.04f, 1.0f);
+            float ao = saturate(gMaterial.ambientOcclusion);
+            float NdotV = saturate(dot(N, V));
+            float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedo, metallic);
+
+            float3 Lo = 0.0f;
+            float3 L_dir = -normalize(gDirectionalLight.direction);
+            float3 directionalRadiance = gDirectionalLight.color.rgb * max(gDirectionalLight.intensity, 0.0f);
+            Lo += EvaluateCookTorranceLight(N, V, L_dir, albedo, F0, metallic, roughness, directionalRadiance) * shadow;
+
+            float3 pointVector = gPointLight.position - input.worldPosition;
+            float pointDistance = max(length(pointVector), 0.001f);
+            float3 L_point = pointVector / pointDistance;
+            float pointAttenuation = pow(saturate(1.0f - pointDistance / gPointLight.radius), gPointLight.decay);
+            float3 pointRadiance = gPointLight.color.rgb * max(gPointLight.intensity, 0.0f) * pointAttenuation;
+            Lo += EvaluateCookTorranceLight(N, V, L_point, albedo, F0, metallic, roughness, pointRadiance);
+
+            float3 kS = FresnelSchlickRoughness(NdotV, F0, roughness);
+            float3 kD = (1.0f - kS) * (1.0f - metallic);
+            float envStrength = max(gMaterial.environmentCoefficient, 0.0f);
+            float maxMipLevel = max(gMaterial.iblMaxMipLevel, 0.0f);
+            float environmentMode = gMaterial.pbrEnvironmentMode;
+            float3 diffuseIrradiance = SampleDiffuseIrradianceApprox(gEnvironmentMap, gSampler, N, maxMipLevel, environmentMode);
+            float3 specularIBL = SampleSpecularIBL(gEnvironmentMap, gSampler, reflectVector, F0, roughness, NdotV, maxMipLevel, environmentMode);
+            float3 ambientDiffuse = kD * albedo * diffuseIrradiance * ao * max(gMaterial.iblDiffuseIntensity, 0.0f);
+            float3 ambientSpecular = specularIBL * envStrength * max(gMaterial.iblSpecularIntensity, 0.0f);
+            float3 emissive = gMaterial.emissiveColor * max(gMaterial.emissiveIntensity, 0.0f);
+
+            output.color.rgb = max(ambientDiffuse + ambientSpecular + Lo + emissive, 0.0f);
+            output.color.a = gMaterial.color.a * textureColor.a;
+            return output;
         }
 
         // --- 3. 平行光源 (Directional Light) ---

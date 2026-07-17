@@ -55,6 +55,9 @@ public:
 	void SetLighting(bool enable) {
 		materialData_->enableLighting = enable;
 	}
+	void SetLightingMode(int32_t mode) {
+		materialData_->lightingMode = mode;
+	}
 	bool IsLightingEnabled() const {
 		return materialData_->enableLighting != 0;
 	}
@@ -91,6 +94,24 @@ public:
 	void SetEnvironmentMap(uint32_t srvIndex) { environmentMapIndex_ = srvIndex; }
 	void SetEnvironmentCoefficient(float coefficient) { materialData_->environmentCoefficient = coefficient; }
 	float GetEnvironmentCoefficient() const { return materialData_->environmentCoefficient; }
+	void SetMetallic(float metallic) { materialData_->metallic = metallic; }
+	void SetRoughness(float roughness) { materialData_->roughness = roughness; }
+	void SetAmbientOcclusion(float ambientOcclusion) { materialData_->ambientOcclusion = ambientOcclusion; }
+	void SetEmissive(const Vector3& color, float intensity) {
+		materialData_->emissiveColor = color;
+		materialData_->emissiveIntensity = intensity;
+	}
+	void SetIBLIntensity(float diffuseIntensity, float specularIntensity) {
+		materialData_->iblDiffuseIntensity = diffuseIntensity;
+		materialData_->iblSpecularIntensity = specularIntensity;
+	}
+	void SetIBLMaxMipLevel(float maxMipLevel) { materialData_->iblMaxMipLevel = maxMipLevel; }
+	void SetPBREnvironmentMode(float mode) { materialData_->pbrEnvironmentMode = mode; }
+	void SetShadowReceiveStrength(float strength) { materialData_->shadowReceiveStrength = strength; }
+	void SetNormalDetail(float strength, float scale) {
+		materialData_->normalDetailStrength = strength;
+		materialData_->normalDetailScale = scale;
+	}
 
 private:
 	void UpdateMatrixConstants(const Matrix4x4& worldMatrix);

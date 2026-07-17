@@ -56,6 +56,7 @@ struct VertexData {
 	Vector4 position;
 	Vector2 texcoord;
 	Vector3 normal;
+	Vector4 tangent = { 1.0f, 0.0f, 0.0f, 1.0f };
 };
 
 struct Sphere {
@@ -111,7 +112,50 @@ struct Material {
 	float padding; // 16バイトアライメントのための調整
 	Matrix4x4 uvTransform;
 	float shininess;
+	float metallic;
+	float roughness;
+	float ambientOcclusion;
+	Vector3 emissiveColor;
+	float emissiveIntensity;
+	float iblDiffuseIntensity;
+	float iblSpecularIntensity;
+	float iblMaxMipLevel;
+	float pbrEnvironmentMode;
+	float shadowReceiveStrength;
+	float normalDetailStrength;
+	float normalDetailScale;
+	float materialPadding;
 };
+
+inline Material MakeDefaultMaterial()
+{
+	Material material{};
+	material.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	material.enableLighting = false;
+	material.lightingMode = 0;
+	material.environmentCoefficient = 0.0f;
+	material.padding = 0.0f;
+	material.uvTransform = {};
+	material.uvTransform.m[0][0] = 1.0f;
+	material.uvTransform.m[1][1] = 1.0f;
+	material.uvTransform.m[2][2] = 1.0f;
+	material.uvTransform.m[3][3] = 1.0f;
+	material.shininess = 32.0f;
+	material.metallic = 0.0f;
+	material.roughness = 0.5f;
+	material.ambientOcclusion = 1.0f;
+	material.emissiveColor = { 0.0f, 0.0f, 0.0f };
+	material.emissiveIntensity = 0.0f;
+	material.iblDiffuseIntensity = 1.0f;
+	material.iblSpecularIntensity = 1.0f;
+	material.iblMaxMipLevel = 7.0f;
+	material.pbrEnvironmentMode = 0.0f;
+	material.shadowReceiveStrength = 1.0f;
+	material.normalDetailStrength = 0.0f;
+	material.normalDetailScale = 24.0f;
+	material.materialPadding = 0.0f;
+	return material;
+}
 
 struct TransformationMatrix {
 	Matrix4x4 WVP;
@@ -346,6 +390,10 @@ struct BloomParam
 	float randomScale; // 乱数セルの細かさ
 	float randomTimeScale; // timeをSeedへ加える速度
 	float randomGrayscalePreview; // 乱数を白黒で直接表示
+	float exposure; // HDRシーンをLDRへ落とす前の露出
+	float toneMappingMode; // 0: Reinhard, 1: ACES
+	float hdrWhitePoint; // Reinhard系ToneMappingの白基準
+	float hdrPadding;
 };
 
 struct PointLightData {
