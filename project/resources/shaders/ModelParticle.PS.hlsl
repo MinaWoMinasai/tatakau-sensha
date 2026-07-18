@@ -1,5 +1,9 @@
 #include "ModelParticle.hlsli"
 
+#ifndef SCENE_NORMAL_TARGET
+#define SCENE_NORMAL_TARGET 0
+#endif
+
 struct Material
 {
     float32_t4 color;
@@ -32,11 +36,17 @@ SamplerState gSampler : register(s0);
 struct PixelShaderOutput
 {
     float32_t4 color : SV_TARGET0;
+#if SCENE_NORMAL_TARGET
+    float32_t4 normal : SV_TARGET1;
+#endif
 };
 
 PixelShaderOutput main(VertexShaderOutput input)
 {
     PixelShaderOutput output;
+#if SCENE_NORMAL_TARGET
+    output.normal = float32_t4(0.5f, 0.5f, 1.0f, 0.0f);
+#endif
     
     // UVトランスフォームの適用
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
