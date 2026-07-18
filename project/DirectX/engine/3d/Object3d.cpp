@@ -165,8 +165,40 @@ void Object3d::DrawShadow() {
 	}
 }
 
+void Object3d::SetModel(Model* model)
+{
+	model_ = model;
+	ApplyModelMaterialData();
+}
+
 void Object3d::SetModel(const std::string& filePath)
 {
 	// モデルを検索してセットする
 	model_ = ModelManager::GetInstance()->FindModel(filePath);
+	ApplyModelMaterialData();
+}
+
+void Object3d::ApplyModelMaterialData()
+{
+	if (!materialData_ || !model_) {
+		return;
+	}
+
+	const MaterialData& material = model_->GetModelData().material;
+	materialData_->normalMapStrength = material.hasNormalTexture ? 1.0f : 0.0f;
+	materialData_->metallicRoughnessMapStrength = material.hasMetallicRoughnessTexture ? 1.0f : 0.0f;
+	materialData_->occlusionMapStrength = material.hasOcclusionTexture ? 1.0f : 0.0f;
+
+	if (material.hasBaseColorFactor) {
+		materialData_->color = material.baseColorFactor;
+	}
+	if (material.hasPbrFactors) {
+		materialData_->metallic = material.metallicFactor;
+		materialData_->roughness = material.roughnessFactor;
+		materialData_->ambientOcclusion = material.ambientOcclusionFactor;
+	}
+	if (material.hasEmissive) {
+		materialData_->emissiveColor = material.emissiveColor;
+		materialData_->emissiveIntensity = material.emissiveIntensity;
+	}
 }

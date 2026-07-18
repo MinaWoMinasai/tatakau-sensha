@@ -20,6 +20,10 @@ public:
 	void Finalize();
 
 	void LoadTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
+	void CreateFlatNormalTexture();
+	void CreateBrdfLutTexture();
+	void CreatePbrIrradianceTexture();
+	void CreatePbrPrefilteredEnvironmentTexture();
 	// GLBなどに埋め込まれたPNG/JPEGを仮想キー付きで直接読み込む。
 	bool LoadTextureFromMemory(const std::string& textureKey, const void* data, size_t size, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
 	void PreDraw();
@@ -36,6 +40,10 @@ public:
 
 	// SRVインデックスを取得
 	uint32_t GetSrvIndex(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
+	static const std::string& GetFlatNormalTexturePath();
+	static const std::string& GetBrdfLutTexturePath();
+	static const std::string& GetPbrIrradianceTexturePath();
+	static const std::string& GetPbrPrefilteredEnvironmentTexturePath();
 
 private:
 

@@ -122,8 +122,7 @@ float3 SampleDiffuseIrradianceApprox(
     TextureCube<float4> environmentMap,
     SamplerState environmentSampler,
     float3 N,
-    float maxMipLevel,
-    float environmentMode)
+    float maxMipLevel)
 {
     float3 T;
     float3 B;
@@ -133,21 +132,36 @@ float3 SampleDiffuseIrradianceApprox(
     float side = 0.72f;
     float diag = 0.52f;
 
-    float3 color = SamplePbrEnvironment(environmentMap, environmentSampler, N, lod, environmentMode) * 0.28f;
-    color += SamplePbrEnvironment(environmentMap, environmentSampler, normalize(N + T * side), lod, environmentMode) * 0.12f;
-    color += SamplePbrEnvironment(environmentMap, environmentSampler, normalize(N - T * side), lod, environmentMode) * 0.12f;
-    color += SamplePbrEnvironment(environmentMap, environmentSampler, normalize(N + B * side), lod, environmentMode) * 0.12f;
-    color += SamplePbrEnvironment(environmentMap, environmentSampler, normalize(N - B * side), lod, environmentMode) * 0.12f;
-    color += SamplePbrEnvironment(environmentMap, environmentSampler, normalize(N + (T + B) * diag), lod, environmentMode) * 0.06f;
-    color += SamplePbrEnvironment(environmentMap, environmentSampler, normalize(N + (T - B) * diag), lod, environmentMode) * 0.06f;
-    color += SamplePbrEnvironment(environmentMap, environmentSampler, normalize(N + (-T + B) * diag), lod, environmentMode) * 0.06f;
-    color += SamplePbrEnvironment(environmentMap, environmentSampler, normalize(N + (-T - B) * diag), lod, environmentMode) * 0.06f;
+    float3 color = environmentMap.SampleLevel(environmentSampler, N, lod).rgb * 0.28f;
+    color += environmentMap.SampleLevel(environmentSampler, normalize(N + T * side), lod).rgb * 0.12f;
+    color += environmentMap.SampleLevel(environmentSampler, normalize(N - T * side), lod).rgb * 0.12f;
+    color += environmentMap.SampleLevel(environmentSampler, normalize(N + B * side), lod).rgb * 0.12f;
+    color += environmentMap.SampleLevel(environmentSampler, normalize(N - B * side), lod).rgb * 0.12f;
+    color += environmentMap.SampleLevel(environmentSampler, normalize(N + (T + B) * diag), lod).rgb * 0.06f;
+    color += environmentMap.SampleLevel(environmentSampler, normalize(N + (T - B) * diag), lod).rgb * 0.06f;
+    color += environmentMap.SampleLevel(environmentSampler, normalize(N + (-T + B) * diag), lod).rgb * 0.06f;
+    color += environmentMap.SampleLevel(environmentSampler, normalize(N + (-T - B) * diag), lod).rgb * 0.06f;
     return max(color, 0.0f);
+}
+
+float3 SampleDiffuseIrradiance(
+    TextureCube<float4> environmentMap,
+    TextureCube<float4> irradianceMap,
+    SamplerState environmentSampler,
+    float3 N,
+    float maxMipLevel,
+    float environmentMode)
+{
+    float3 cubemapIrradiance = SampleDiffuseIrradianceApprox(environmentMap, environmentSampler, N, maxMipLevel);
+    float3 proceduralIrradiance = irradianceMap.SampleLevel(environmentSampler, N, 0.0f).rgb;
+    return lerp(cubemapIrradiance, proceduralIrradiance, saturate(environmentMode));
 }
 
 float3 SampleSpecularIBL(
     TextureCube<float4> environmentMap,
+    TextureCube<float4> prefilteredEnvironmentMap,
     SamplerState environmentSampler,
+    Texture2D<float4> brdfLut,
     float3 R,
     float3 F0,
     float roughness,
@@ -156,7 +170,10 @@ float3 SampleSpecularIBL(
     float environmentMode)
 {
     float lod = roughness * max(maxMipLevel, 0.0f);
-    float3 prefilteredColor = SamplePbrEnvironment(environmentMap, environmentSampler, R, lod, environmentMode);
-    float3 brdf = EnvironmentBRDFApprox(F0, roughness, NdotV);
-    return max(prefilteredColor * brdf, 0.0f);
+    float3 cubemapColor = environmentMap.SampleLevel(environmentSampler, R, lod).rgb;
+    float3 proceduralPrefilteredColor = prefilteredEnvironmentMap.SampleLevel(environmentSampler, R, lod).rgb;
+    float3 prefilteredColor = lerp(cubemapColor, proceduralPrefilteredColor, saturate(environmentMode));
+    float2 brdf = brdfLut.SampleLevel(environmentSampler, float2(saturate(NdotV), saturate(roughness)), 0.0f).rg;
+    float3 specularBrdf = max(F0 * brdf.x + brdf.y, 0.0f);
+    return max(prefilteredColor * specularBrdf, 0.0f);
 }

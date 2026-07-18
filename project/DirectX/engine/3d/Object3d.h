@@ -21,7 +21,7 @@ public:
 	void DrawSkinnedShadow(SkinnedModel& model);
 	void DrawShadow();
 
-	void SetModel(Model* model) { model_ = model; }
+	void SetModel(Model* model);
 
 	void SetModel(const std::string& filePath);
 
@@ -112,9 +112,13 @@ public:
 		materialData_->normalDetailStrength = strength;
 		materialData_->normalDetailScale = scale;
 	}
+	void SetNormalMapStrength(float strength) { materialData_->normalMapStrength = strength; }
+	void SetMetallicRoughnessMapStrength(float strength) { materialData_->metallicRoughnessMapStrength = strength; }
+	void SetOcclusionMapStrength(float strength) { materialData_->occlusionMapStrength = strength; }
 
 private:
 	void UpdateMatrixConstants(const Matrix4x4& worldMatrix);
+	void ApplyModelMaterialData();
 
 	Object3dCommon* object3dCommon_;
 

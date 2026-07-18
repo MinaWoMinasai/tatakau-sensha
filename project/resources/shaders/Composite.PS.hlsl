@@ -1,6 +1,7 @@
 Texture2D sceneTex : register(t0);
 Texture2D bloomTex : register(t1);
 Texture2D<float> depthTex : register(t2);
+Texture2D normalTex : register(t3);
 SamplerState samp : register(s0);
 
 cbuffer BloomParam : register(b0)
@@ -55,6 +56,24 @@ cbuffer BloomParam : register(b0)
     float toneMappingMode;
     float hdrWhitePoint;
     float hdrPadding;
+    float renderDebugMode;
+    float linearDepthDebugRange;
+    float depthNormalScale;
+    float depthFogEnabled;
+    float3 depthFogColor;
+    float depthFogStart;
+    float depthFogEnd;
+    float depthFogDensity;
+    float depthFogMaxOpacity;
+    float renderDebugPadding;
+    float ssaoEnabled;
+    float ssaoRadius;
+    float ssaoIntensity;
+    float ssaoBias;
+    float ssaoPower;
+    float ssaoSampleCount;
+    float ssaoNormalInfluence;
+    float ssaoDistanceFalloff;
 };
 
 // --- ヘルパー関数：ランダム ---
@@ -219,12 +238,17 @@ float RestoreViewSpaceZ(float depth)
         max(depthFarClip - depth * (depthFarClip - depthNearClip), 0.0001f);
 }
 
-// DepthBufferからView空間Zを復元し、奥行きの不連続を輪郭として抽出する。
-float3 GetDepthOutline(float2 uv)
+float GetLinearDepth(float2 uv)
 {
-    if (depthOutlineEnabled <= 0.5f || outlineWidth <= 0.0f)
+    float depth = depthTex.Sample(samp, uv);
+    return depth >= 0.99999f ? depthFarClip : RestoreViewSpaceZ(depth);
+}
+
+float GetDepthEdgeIntensity(float2 uv)
+{
+    if (outlineWidth <= 0.0f)
     {
-        return float3(0.0f, 0.0f, 0.0f);
+        return 0.0f;
     }
 
     uint width;
@@ -235,7 +259,7 @@ float3 GetDepthOutline(float2 uv)
     float centerDepth = depthTex.Sample(samp, uv);
     if (centerDepth >= 0.99999f)
     {
-        return float3(0.0f, 0.0f, 0.0f);
+        return 0.0f;
     }
 
     float centerViewZ = RestoreViewSpaceZ(centerDepth);
@@ -254,8 +278,210 @@ float3 GetDepthOutline(float2 uv)
         maxViewZDifference = max(maxViewZDifference, abs(sampleViewZ - centerViewZ));
     }
 
-    float edge = maxViewZDifference * depthOutlineScale;
+    return maxViewZDifference * depthOutlineScale;
+}
+
+// DepthBufferからView空間Zを復元し、奥行きの不連続を輪郭として抽出する。
+float3 GetDepthOutline(float2 uv)
+{
+    if (depthOutlineEnabled <= 0.5f)
+    {
+        return float3(0.0f, 0.0f, 0.0f);
+    }
+
+    float edge = GetDepthEdgeIntensity(uv);
     return edge > outlineThreshold ? outlineColor : float3(0.0f, 0.0f, 0.0f);
+}
+
+float3 GetDepthDerivedNormal(float2 uv)
+{
+    float centerDepth = depthTex.Sample(samp, uv);
+    if (centerDepth >= 0.99999f)
+    {
+        return float3(0.5f, 0.5f, 1.0f);
+    }
+
+    uint width;
+    uint height;
+    depthTex.GetDimensions(width, height);
+    float2 texelSize = 1.0f / float2(width, height);
+
+    float leftZ = GetLinearDepth(uv - float2(texelSize.x, 0.0f));
+    float rightZ = GetLinearDepth(uv + float2(texelSize.x, 0.0f));
+    float upZ = GetLinearDepth(uv - float2(0.0f, texelSize.y));
+    float downZ = GetLinearDepth(uv + float2(0.0f, texelSize.y));
+
+    float2 slope = float2(rightZ - leftZ, downZ - upZ) * depthNormalScale;
+    float3 normal = normalize(float3(-slope.x, slope.y, 1.0f));
+    return normal * 0.5f + 0.5f;
+}
+
+float3 DecodeNormalTarget(float4 encodedNormal)
+{
+    return normalize(encodedNormal.xyz * 2.0f - 1.0f);
+}
+
+float2 GetSSAOPoissonOffset(int index)
+{
+    if (index == 0) return float2(-0.94201624f, -0.39906216f);
+    if (index == 1) return float2( 0.94558609f, -0.76890725f);
+    if (index == 2) return float2(-0.09418410f, -0.92938870f);
+    if (index == 3) return float2( 0.34495938f,  0.29387760f);
+    if (index == 4) return float2(-0.91588581f,  0.45771432f);
+    if (index == 5) return float2(-0.81544232f, -0.87912464f);
+    if (index == 6) return float2(-0.38277543f,  0.27676845f);
+    if (index == 7) return float2( 0.97484398f,  0.75648379f);
+    if (index == 8) return float2( 0.44323325f, -0.97511554f);
+    if (index == 9) return float2( 0.53742981f, -0.47373420f);
+    if (index == 10) return float2(-0.26496911f, -0.41893023f);
+    if (index == 11) return float2( 0.79197514f,  0.19090188f);
+    if (index == 12) return float2(-0.24188840f,  0.99706507f);
+    if (index == 13) return float2(-0.81409955f,  0.91437590f);
+    if (index == 14) return float2( 0.19984126f,  0.78641367f);
+    return float2(0.14383161f, -0.14100790f);
+}
+
+float GetSSAO(float2 uv)
+{
+    if (ssaoEnabled <= 0.5f)
+    {
+        return 1.0f;
+    }
+
+    float centerDepth = depthTex.Sample(samp, uv);
+    if (centerDepth >= 0.99999f)
+    {
+        return 1.0f;
+    }
+
+    float4 centerNormalSample = normalTex.Sample(samp, uv);
+    if (centerNormalSample.a <= 0.001f)
+    {
+        return 1.0f;
+    }
+
+    uint width;
+    uint height;
+    depthTex.GetDimensions(width, height);
+    float2 texelSize = 1.0f / float2(width, height);
+
+    float centerViewZ = RestoreViewSpaceZ(centerDepth);
+    float3 centerNormal = DecodeNormalTarget(centerNormalSample);
+    float radiusPixels = max(ssaoRadius, 0.0f);
+    float distanceFalloff = max(ssaoDistanceFalloff, 0.001f);
+    int sampleCount = clamp((int)ssaoSampleCount, 1, 16);
+
+    float randomAngle = Hash(floor(uv * float2(width, height)) * 0.25f) * 6.2831853f;
+    float s = sin(randomAngle);
+    float c = cos(randomAngle);
+    float2x2 rotation = float2x2(c, -s, s, c);
+
+    float occlusion = 0.0f;
+    float validSamples = 0.0f;
+
+    [unroll]
+    for (int i = 0; i < 16; ++i)
+    {
+        if (i >= sampleCount)
+        {
+            continue;
+        }
+
+        float sampleStep = ((float)i + 0.5f) / (float)sampleCount;
+        float2 offset = mul(GetSSAOPoissonOffset(i), rotation) * (0.35f + sampleStep * 0.65f);
+        float2 sampleUV = uv + offset * texelSize * radiusPixels;
+        if (any(sampleUV < 0.0f) || any(sampleUV > 1.0f))
+        {
+            continue;
+        }
+
+        float sampleDepth = depthTex.Sample(samp, sampleUV);
+        if (sampleDepth >= 0.99999f)
+        {
+            continue;
+        }
+
+        float sampleViewZ = RestoreViewSpaceZ(sampleDepth);
+        float depthDelta = centerViewZ - sampleViewZ;
+        float frontWeight = smoothstep(ssaoBias, ssaoBias + distanceFalloff * 0.18f, depthDelta);
+        float rangeWeight = 1.0f - saturate(abs(depthDelta) / distanceFalloff);
+
+        float4 sampleNormalSample = normalTex.Sample(samp, sampleUV);
+        float3 sampleNormal = DecodeNormalTarget(sampleNormalSample);
+        float normalDifference = 1.0f - saturate(dot(centerNormal, sampleNormal));
+        float normalWeight = lerp(1.0f, normalDifference, saturate(ssaoNormalInfluence));
+
+        occlusion += frontWeight * rangeWeight * normalWeight;
+        validSamples += 1.0f;
+    }
+
+    if (validSamples <= 0.0f)
+    {
+        return 1.0f;
+    }
+
+    float ao = 1.0f - saturate((occlusion / validSamples) * max(ssaoIntensity, 0.0f));
+    return pow(saturate(ao), max(ssaoPower, 0.001f));
+}
+
+float3 ApplyDepthFog(float3 color, float2 uv)
+{
+    if (depthFogEnabled <= 0.5f)
+    {
+        return color;
+    }
+
+    float depth = depthTex.Sample(samp, uv);
+    if (depth >= 0.99999f)
+    {
+        return color;
+    }
+
+    float viewZ = RestoreViewSpaceZ(depth);
+    float fogRange = max(depthFogEnd - depthFogStart, 0.001f);
+    float fogDistance = max(viewZ - depthFogStart, 0.0f);
+    float linearFog = saturate(fogDistance / fogRange);
+    float expFog = 1.0f - exp(-fogDistance * max(depthFogDensity, 0.0f));
+    float fogFactor = saturate(max(linearFog, expFog) * saturate(depthFogMaxOpacity));
+    return lerp(color, depthFogColor, fogFactor);
+}
+
+float3 GetRenderDebugColor(float2 uv)
+{
+    if (renderDebugMode < 1.5f)
+    {
+        return ApplyToneMapping(sceneTex.Sample(samp, uv).rgb);
+    }
+
+    if (renderDebugMode < 2.5f)
+    {
+        return ApplyToneMapping(bloomTex.Sample(samp, uv).rgb);
+    }
+
+    if (renderDebugMode < 3.5f)
+    {
+        float viewZ = GetLinearDepth(uv);
+        float normalizedDepth = saturate(viewZ / max(linearDepthDebugRange, 0.001f));
+        return normalizedDepth.xxx;
+    }
+
+    if (renderDebugMode < 4.5f)
+    {
+        float edge = saturate(GetDepthEdgeIntensity(uv));
+        return edge.xxx;
+    }
+
+    if (renderDebugMode < 5.5f)
+    {
+        return GetDepthDerivedNormal(uv);
+    }
+
+    if (renderDebugMode < 6.5f)
+    {
+        return normalTex.Sample(samp, uv).rgb;
+    }
+
+    return GetSSAO(uv).xxx;
 }
 struct PSInput
 {
@@ -279,10 +505,16 @@ float4 main(PSInput input) : SV_TARGET
         return float4(0, 0, 0, 1);
     }
 
+    if (renderDebugMode > 0.5f)
+    {
+        return float4(GetRenderDebugColor(input.uv), 1.0f);
+    }
+
     // D. グリッチ・うねうね座標確定
     float2 postGlitchUV = ApplyGlitch(texUV);
     float2 shockwaveUV = ApplyShockwave(postGlitchUV);
     float2 finalUV = ApplyWave(shockwaveUV);
+    float screenSpaceAO = GetSSAO(finalUV);
 
     // E. サンプリング（色収差）
     float2 shift = (shockwaveUV - 0.5f) * chromAbAmount;
@@ -308,6 +540,7 @@ float4 main(PSInput input) : SV_TARGET
 	float3 sceneColor = SampleRadialBlur(sceneTex, finalUV);
     float3 boxBlurredScene = SampleBoxBlur(sceneTex, finalUV, boxBlurRadius);
     sceneColor = lerp(sceneColor, boxBlurredScene, saturate(boxBlurIntensity));
+    sceneColor *= screenSpaceAO;
     float3 blurredColor = bloomTex.Sample(samp, texUV).rgb; // PostDrawでシーン全体をぼかして渡したもの
     
     float3 result;
@@ -328,6 +561,7 @@ float4 main(PSInput input) : SV_TARGET
     {
 		sceneColor = radialBlurIntensity > 0.0f ? SampleRadialBlur(sceneTex, finalUV) : scene;
         sceneColor = lerp(sceneColor, boxBlurredScene, saturate(boxBlurIntensity));
+        sceneColor *= screenSpaceAO;
         blurredColor = bloom;
     // 【ブルームモード】
     // 元の絵に、高輝度部分をぼかしたものを「加算」する
@@ -342,6 +576,8 @@ float4 main(PSInput input) : SV_TARGET
             result = outline;
         }
     }
+
+    result = ApplyDepthFog(result, finalUV);
     
     // ブルームとしても使いたい場合は、加算なども考慮
     // result += blurredColor * intensity;

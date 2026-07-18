@@ -1,5 +1,9 @@
 #include "Object3d.hlsli"
 
+#ifndef SCENE_NORMAL_TARGET
+#define SCENE_NORMAL_TARGET 0
+#endif
+
 struct Material
 {
     float32_t4 color;
@@ -21,7 +25,10 @@ struct Material
     float32_t shadowReceiveStrength;
     float32_t normalDetailStrength;
     float32_t normalDetailScale;
-    float32_t materialPadding;
+    float32_t normalMapStrength;
+    float32_t metallicRoughnessMapStrength;
+    float32_t occlusionMapStrength;
+    float32_t2 materialPadding;
 };
 
 struct Camera
@@ -43,6 +50,12 @@ ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
 
 Texture2D<float32_t4> gTexture : register(t0);
 SamplerState gSampler : register(s0);
+Texture2D<float32_t4> gNormalMap : register(t4);
+Texture2D<float32_t4> gMetallicRoughnessMap : register(t5);
+Texture2D<float32_t4> gOcclusionMap : register(t6);
+Texture2D<float32_t4> gBrdfLut : register(t7);
+TextureCube<float32_t4> gIrradianceMap : register(t8);
+TextureCube<float32_t4> gPrefilteredEnvironmentMap : register(t9);
 
 // シャドウマップ用
 Texture2D<float> gShadowMap : register(t1);
@@ -59,12 +72,23 @@ TextureCube<float32_t4> gEnvironmentMap : register(t2); // register(t2)に追加
 struct PixelShaderOutput
 {
     float32_t4 color : SV_TARGET0;
+#if SCENE_NORMAL_TARGET
+    float32_t4 normal : SV_TARGET1;
+#endif
 };
+
+float32_t4 EncodeNormalTarget(float32_t3 normal, float32_t alpha)
+{
+    return float32_t4(normalize(normal) * 0.5f + 0.5f, alpha);
+}
 
 // PixelShaderOutput main(VertexShaderOutput input)
 PixelShaderOutput main(VertexShaderOutput input)
 {
     PixelShaderOutput output;
+#if SCENE_NORMAL_TARGET
+    output.normal = EncodeNormalTarget(input.normal, 1.0f);
+#endif
     
     // テクスチャサンプリング
     float4 transformedUV = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
@@ -140,6 +164,9 @@ PixelShaderOutput main(VertexShaderOutput input)
             microA * 0.035f + microB * -0.026f + microC * 0.014f,
             microA * 0.012f + microB * 0.032f + microC * -0.019f);
         float3 N = normalize(baseN + float3(microSlope.x, 0.0f, microSlope.y));
+#if SCENE_NORMAL_TARGET
+        output.normal = EncodeNormalTarget(N, 1.0f);
+#endif
         float fresnel = pow(1.0f - saturate(dot(N, V)), 4.2f);
         float facing = saturate(dot(N, float3(0.0f, 1.0f, 0.0f)));
 
@@ -291,11 +318,24 @@ PixelShaderOutput main(VertexShaderOutput input)
     {
         // --- 共通ベクトルの準備 ---
         float3 N = normalize(input.normal); // 滑らかな法線を使用
+        float3 T = input.tangent.xyz - N * dot(N, input.tangent.xyz);
+        T = normalize(T + float3(0.00001f, 0.0f, 0.0f));
+        float3 B = normalize(cross(N, T) * input.tangent.w);
+        float3 normalTS = float3(0.0f, 0.0f, 1.0f);
+
+        float normalMapStrength = saturate(gMaterial.normalMapStrength);
+        if (normalMapStrength > 0.0001f)
+        {
+            float3 sampledNormalTS = gNormalMap.Sample(gSampler, transformedUV.xy).xyz * 2.0f - 1.0f;
+            sampledNormalTS = normalize(float3(
+                sampledNormalTS.xy * normalMapStrength,
+                lerp(1.0f, max(sampledNormalTS.z, 0.001f), normalMapStrength)));
+            normalTS = sampledNormalTS;
+        }
+
         float normalDetailStrength = saturate(gMaterial.normalDetailStrength);
         if (normalDetailStrength > 0.0001f)
         {
-            float3 T = normalize(input.tangent.xyz - N * dot(N, input.tangent.xyz));
-            float3 B = normalize(cross(N, T) * input.tangent.w);
             float normalDetailScale = max(gMaterial.normalDetailScale, 0.001f);
             float2 detailUV = input.texcoord * normalDetailScale;
             float waveA = sin(detailUV.x * 6.28318f + sin(detailUV.y * 1.73f) * 0.65f);
@@ -304,9 +344,12 @@ PixelShaderOutput main(VertexShaderOutput input)
             float2 detailSlope = float2(
                 waveA * 0.55f + waveC * 0.24f,
                 waveB * 0.55f - waveC * 0.18f) * normalDetailStrength;
-            float3 detailNormalTS = normalize(float3(detailSlope.x, detailSlope.y, 1.0f));
-            N = normalize(T * detailNormalTS.x + B * detailNormalTS.y + N * detailNormalTS.z);
+            normalTS = normalize(float3(normalTS.xy + detailSlope, max(normalTS.z, 0.001f)));
         }
+        N = normalize(T * normalTS.x + B * normalTS.y + N * normalTS.z);
+#if SCENE_NORMAL_TARGET
+        output.normal = EncodeNormalTarget(N, 1.0f);
+#endif
         float3 V = normalize(gCamera.worldPosition - input.worldPosition);
         
         // --- 環境マッピングの追加 ---
@@ -351,9 +394,12 @@ PixelShaderOutput main(VertexShaderOutput input)
         if (gMaterial.lightingMode == 2)
         {
             float3 albedo = max(gMaterial.color.rgb * textureColor.rgb, 0.0f);
-            float metallic = saturate(gMaterial.metallic);
-            float roughness = clamp(gMaterial.roughness, 0.04f, 1.0f);
-            float ao = saturate(gMaterial.ambientOcclusion);
+            float4 metallicRoughnessSample = gMetallicRoughnessMap.Sample(gSampler, transformedUV.xy);
+            float metallicRoughnessMapStrength = saturate(gMaterial.metallicRoughnessMapStrength);
+            float metallic = saturate(lerp(gMaterial.metallic, metallicRoughnessSample.b, metallicRoughnessMapStrength));
+            float roughness = clamp(lerp(gMaterial.roughness, metallicRoughnessSample.g, metallicRoughnessMapStrength), 0.04f, 1.0f);
+            float occlusionSample = gOcclusionMap.Sample(gSampler, transformedUV.xy).r;
+            float ao = saturate(gMaterial.ambientOcclusion * lerp(1.0f, occlusionSample, saturate(gMaterial.occlusionMapStrength)));
             float NdotV = saturate(dot(N, V));
             float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedo, metallic);
 
@@ -374,8 +420,11 @@ PixelShaderOutput main(VertexShaderOutput input)
             float envStrength = max(gMaterial.environmentCoefficient, 0.0f);
             float maxMipLevel = max(gMaterial.iblMaxMipLevel, 0.0f);
             float environmentMode = gMaterial.pbrEnvironmentMode;
-            float3 diffuseIrradiance = SampleDiffuseIrradianceApprox(gEnvironmentMap, gSampler, N, maxMipLevel, environmentMode);
-            float3 specularIBL = SampleSpecularIBL(gEnvironmentMap, gSampler, reflectVector, F0, roughness, NdotV, maxMipLevel, environmentMode);
+            float3 diffuseIrradiance = SampleDiffuseIrradiance(
+                gEnvironmentMap, gIrradianceMap, gSampler, N, maxMipLevel, environmentMode);
+            float3 specularIBL = SampleSpecularIBL(
+                gEnvironmentMap, gPrefilteredEnvironmentMap, gSampler, gBrdfLut,
+                reflectVector, F0, roughness, NdotV, maxMipLevel, environmentMode);
             float3 ambientDiffuse = kD * albedo * diffuseIrradiance * ao * max(gMaterial.iblDiffuseIntensity, 0.0f);
             float3 ambientSpecular = specularIBL * envStrength * max(gMaterial.iblSpecularIntensity, 0.0f);
             float3 emissive = gMaterial.emissiveColor * max(gMaterial.emissiveIntensity, 0.0f);

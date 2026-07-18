@@ -37,6 +37,7 @@ private:
 		float shininess = 32.0f;
 		float shadowReceiveStrength = 1.0f;
 		bool castsShadow = true;
+		bool animateRotation = false;
 		LabObjectKind kind = LabObjectKind::Scene;
 	};
 
