@@ -127,7 +127,7 @@ void GraphicsLabScene::Initialize()
 		LabObjectKind::Obstacle));
 
 	auto addPbrSample = [&](const std::string& modelPath, const Vector3& translate, const Vector3& scale,
-		const Vector4& color, float metallic, float roughness) {
+		const Vector4& color, float metallic, float roughness, bool animateRotation = false) {
 		LabObject sample = MakeObject(
 			modelPath,
 			translate,
@@ -151,13 +151,54 @@ void GraphicsLabScene::Initialize()
 		sample.object->SetInsensity(pbrDirectLightIntensity_);
 		sample.shadowReceiveStrength = 0.0f;
 		sample.castsShadow = false;
+		sample.animateRotation = animateRotation;
 		metalObjects_.push_back(std::move(sample));
 	};
 
-	addPbrSample(kPbrSphereModelName, { -48.0f, 8.8f, -12.0f }, { 7.0f, 7.0f, 7.0f }, { 1.00f, 0.77f, 0.34f, 1.0f }, 1.0f, 0.18f);
-	addPbrSample(kPbrSphereModelName, { -16.0f, 8.8f, -12.0f }, { 7.0f, 7.0f, 7.0f }, { 0.92f, 0.95f, 1.00f, 1.0f }, 1.0f, 0.56f);
-	addPbrSample(kPbrSphereModelName, { 16.0f, 8.8f, -12.0f }, { 7.0f, 7.0f, 7.0f }, { 0.12f, 0.38f, 0.78f, 1.0f }, 0.0f, 0.28f);
-	addPbrSample("jewelry.obj", { 52.0f, 7.6f, -12.0f }, { 4.2f, 4.2f, 4.2f }, { 0.82f, 0.88f, 0.90f, 1.0f }, 1.0f, 0.34f);
+	const Vector3 sphereScale = { 6.2f, 6.2f, 6.2f };
+	const float xs[] = { -54.0f, -18.0f, 18.0f, 54.0f };
+	const float dielectricRoughness[] = { 0.08f, 0.28f, 0.58f, 0.88f };
+	const Vector4 dielectricColors[] = {
+		{ 0.90f, 0.18f, 0.12f, 1.0f },
+		{ 0.12f, 0.38f, 0.78f, 1.0f },
+		{ 0.86f, 0.90f, 0.94f, 1.0f },
+		{ 0.05f, 0.06f, 0.07f, 1.0f },
+	};
+	for (int i = 0; i < 4; ++i) {
+		addPbrSample(
+			kPbrSphereModelName,
+			{ xs[i], 8.8f, -28.0f },
+			sphereScale,
+			dielectricColors[i],
+			0.0f,
+			dielectricRoughness[i]);
+	}
+
+	const float metalRoughness[] = { 0.10f, 0.28f, 0.52f, 0.80f };
+	const Vector4 metalColors[] = {
+		{ 1.00f, 0.77f, 0.34f, 1.0f },
+		{ 0.92f, 0.95f, 1.00f, 1.0f },
+		{ 0.95f, 0.64f, 0.54f, 1.0f },
+		{ 0.66f, 0.90f, 0.54f, 1.0f },
+	};
+	for (int i = 0; i < 4; ++i) {
+		addPbrSample(
+			kPbrSphereModelName,
+			{ xs[i], 8.8f, 8.0f },
+			sphereScale,
+			metalColors[i],
+			1.0f,
+			metalRoughness[i]);
+	}
+
+	addPbrSample(
+		"jewelry.obj",
+		{ 84.0f, 7.4f, -10.0f },
+		{ 4.0f, 4.0f, 4.0f },
+		{ 0.82f, 0.88f, 0.90f, 1.0f },
+		1.0f,
+		0.34f,
+		true);
 
 	UpdateCamera();
 	sandBed_->Update();
@@ -200,7 +241,7 @@ void GraphicsLabScene::Update()
 	}
 	for (size_t i = 0; i < metalObjects_.size(); ++i) {
 		auto& object = metalObjects_[i];
-		if (i >= 3) {
+		if (object.animateRotation) {
 			Vector3 rotate = object.object->GetRotate();
 			rotate.y += finalDeltaTime_ * (0.35f + static_cast<float>(i) * 0.12f);
 			object.object->SetRotate(rotate);
@@ -346,6 +387,7 @@ void GraphicsLabScene::DrawDebugWindow()
 	ImGui::Checkbox("Show beach", &showBeach_);
 	ImGui::Checkbox("Show obstacles", &showObstacles_);
 	ImGui::Checkbox("Show PBR samples", &showPbrSamples_);
+	ImGui::Text("PBR grid: front row dielectrics, back row metals; roughness increases left to right.");
 	ImGui::Checkbox("PBR procedural environment", &usePbrProceduralEnvironment_);
 	ImGui::Checkbox("PBR sample shadows", &enablePbrSampleShadows_);
 	ImGui::DragFloat("Water speed", &waterTimeScale_, 0.02f, 0.0f, 4.0f);

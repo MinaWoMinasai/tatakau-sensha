@@ -22,6 +22,18 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         hdrFormat
     );
 
+    normalRT_ = std::make_unique<RenderTexture>();
+    normalRT_->Initialize(
+        dxCommon_,
+        srvManager_,
+        rtvManager_,
+        WinApp::kClientWidth,
+        WinApp::kClientHeight,
+        { 0.5f, 0.5f, 1.0f, 0.0f },
+        false,
+        DirectXCommon::kNormalBufferFormat
+    );
+
     // bloom用CBVの生成
     bloomCB_ = std::make_unique<BloomConstantBuffer>();
     bloomCB_->Initialize(dxCommon_);
@@ -117,6 +129,23 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.exposure = 1.0f;
     bloomParam_.toneMappingMode = 1.0f;
     bloomParam_.hdrWhitePoint = 11.2f;
+    bloomParam_.renderDebugMode = 0.0f;
+    bloomParam_.linearDepthDebugRange = 800.0f;
+    bloomParam_.depthNormalScale = 0.035f;
+    bloomParam_.depthFogEnabled = 0.0f;
+    bloomParam_.depthFogColor = { 0.62f, 0.78f, 0.84f };
+    bloomParam_.depthFogStart = 180.0f;
+    bloomParam_.depthFogEnd = 1400.0f;
+    bloomParam_.depthFogDensity = 0.0012f;
+    bloomParam_.depthFogMaxOpacity = 0.55f;
+    bloomParam_.ssaoEnabled = 1.0f;
+    bloomParam_.ssaoRadius = 18.0f;
+    bloomParam_.ssaoIntensity = 0.55f;
+    bloomParam_.ssaoBias = 0.08f;
+    bloomParam_.ssaoPower = 1.25f;
+    bloomParam_.ssaoSampleCount = 12.0f;
+    bloomParam_.ssaoNormalInfluence = 0.65f;
+    bloomParam_.ssaoDistanceFalloff = 22.0f;
 
    /* bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 1.2f;
@@ -208,6 +237,42 @@ void Bloom::Update() {
     ImGui::ColorEdit3("Outline Color", &bloomParam_.outlineColor.x);
 
     ImGui::Separator();
+    ImGui::Text("Render Target Debug");
+    const char* renderDebugModes[] = {
+        "Final",
+        "Scene Color",
+        "Bloom Only",
+        "Linear Depth",
+        "Depth Edge",
+        "Depth-derived Normal",
+        "Normal Buffer",
+        "SSAO"
+    };
+    ImGui::Combo("Debug View", &renderDebugMode_, renderDebugModes, IM_ARRAYSIZE(renderDebugModes));
+    ImGui::DragFloat("Linear Depth Range", &bloomParam_.linearDepthDebugRange, 10.0f, 1.0f, 5000.0f);
+    ImGui::DragFloat("Depth Normal Scale", &bloomParam_.depthNormalScale, 0.001f, 0.001f, 0.25f);
+
+    ImGui::Separator();
+    ImGui::Text("SSAO");
+    ImGui::Checkbox("Enable SSAO", &enableSSAO_);
+    ImGui::DragFloat("SSAO Radius", &bloomParam_.ssaoRadius, 0.5f, 1.0f, 96.0f);
+    ImGui::DragFloat("SSAO Intensity", &bloomParam_.ssaoIntensity, 0.01f, 0.0f, 3.0f);
+    ImGui::DragFloat("SSAO Bias", &bloomParam_.ssaoBias, 0.01f, 0.0f, 5.0f);
+    ImGui::DragFloat("SSAO Power", &bloomParam_.ssaoPower, 0.01f, 0.1f, 4.0f);
+    ImGui::DragFloat("SSAO Samples", &bloomParam_.ssaoSampleCount, 1.0f, 1.0f, 16.0f);
+    ImGui::DragFloat("SSAO Normal Influence", &bloomParam_.ssaoNormalInfluence, 0.01f, 0.0f, 1.0f);
+    ImGui::DragFloat("SSAO Distance Falloff", &bloomParam_.ssaoDistanceFalloff, 0.5f, 1.0f, 200.0f);
+
+    ImGui::Separator();
+    ImGui::Text("Depth Fog");
+    ImGui::Checkbox("Enable Depth Fog", &enableDepthFog_);
+    ImGui::ColorEdit3("Depth Fog Color", &bloomParam_.depthFogColor.x);
+    ImGui::DragFloat("Depth Fog Start", &bloomParam_.depthFogStart, 5.0f, 0.0f, 5000.0f);
+    ImGui::DragFloat("Depth Fog End", &bloomParam_.depthFogEnd, 5.0f, 1.0f, 5000.0f);
+    ImGui::DragFloat("Depth Fog Density", &bloomParam_.depthFogDensity, 0.0001f, 0.0f, 0.02f, "%.4f");
+    ImGui::DragFloat("Depth Fog Max Opacity", &bloomParam_.depthFogMaxOpacity, 0.01f, 0.0f, 1.0f);
+
+    ImGui::Separator();
 
     static bool invertFlag = false;
     if (ImGui::Checkbox("Grayscale", &manualGrayscale_)) {
@@ -224,6 +289,23 @@ void Bloom::Update() {
         bloomParam_.exposure = 1.0f;
         bloomParam_.toneMappingMode = 1.0f;
         bloomParam_.hdrWhitePoint = 11.2f;
+        renderDebugMode_ = 0;
+        bloomParam_.linearDepthDebugRange = 800.0f;
+        bloomParam_.depthNormalScale = 0.035f;
+        enableDepthFog_ = false;
+        bloomParam_.depthFogColor = { 0.62f, 0.78f, 0.84f };
+        bloomParam_.depthFogStart = 180.0f;
+        bloomParam_.depthFogEnd = 1400.0f;
+        bloomParam_.depthFogDensity = 0.0012f;
+        bloomParam_.depthFogMaxOpacity = 0.55f;
+        enableSSAO_ = true;
+        bloomParam_.ssaoRadius = 18.0f;
+        bloomParam_.ssaoIntensity = 0.55f;
+        bloomParam_.ssaoBias = 0.08f;
+        bloomParam_.ssaoPower = 1.25f;
+        bloomParam_.ssaoSampleCount = 12.0f;
+        bloomParam_.ssaoNormalInfluence = 0.65f;
+        bloomParam_.ssaoDistanceFalloff = 22.0f;
         bloomParam_.vignetteIntensity = 0.0f;
         bloomParam_.vignetteScale = 0.0f;
         baseChromAbAmount_ = 0.0f;
@@ -267,8 +349,13 @@ void Bloom::Update() {
 
 #endif // USE_IMGUI
 
+    renderDebugMode_ = (std::clamp)(renderDebugMode_, 0, 7);
     bloomParam_.isGrayscale = (manualGrayscale_ || forceGrayscale_) ? 1.0f : 0.0f;
     bloomParam_.depthOutlineEnabled = enableDepthOutline_ ? 1.0f : 0.0f;
+    bloomParam_.depthFogEnabled = enableDepthFog_ ? 1.0f : 0.0f;
+    bloomParam_.ssaoEnabled = enableSSAO_ ? 1.0f : 0.0f;
+    bloomParam_.ssaoSampleCount = (std::clamp)(bloomParam_.ssaoSampleCount, 1.0f, 16.0f);
+    bloomParam_.renderDebugMode = static_cast<float>(renderDebugMode_);
     bloomParam_.intensity = baseBloomIntensity_ + transientBloomBoost_;
     bloomParam_.distortionAmount = baseDistortionAmount_;
     bloomParam_.chromAbAmount = baseChromAbAmount_ + transientChromAbAmount_;
@@ -323,11 +410,16 @@ void Bloom::PreDraw() {
     Transition(sceneRT_->GetResource(),
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         D3D12_RESOURCE_STATE_RENDER_TARGET);
+    Transition(normalRT_->GetResource(),
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     // 2. レンダーターゲット設定とクリア
-    dxCommon_->SetRenderTarget(sceneRT_->GetRTVHandle(), sceneRT_->GetDSVHandle());
+    dxCommon_->SetRenderTargets(sceneRT_->GetRTVHandle(), normalRT_->GetRTVHandle(), sceneRT_->GetDSVHandle());
     dxCommon_->GetList()->ClearDepthStencilView(sceneRT_->GetDSVHandle(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     dxCommon_->ClearRenderTarget(sceneRT_->GetRTVHandle());
+    const float normalClearColor[4] = { 0.5f, 0.5f, 1.0f, 0.0f };
+    dxCommon_->ClearRenderTarget(normalRT_->GetRTVHandle(), normalClearColor);
 
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 }
@@ -337,6 +429,7 @@ void Bloom::PostDraw() {
 
     // --- A. SceneRT の描画終了 (RT -> SRV) ---
     Transition(sceneRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    Transition(normalRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     Transition(sceneRT_->GetDepthResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE sceneSource = sceneRT_->GetGPUHandle();
@@ -391,7 +484,11 @@ void Bloom::PostDraw() {
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
     // 最終的に DrawComposite で HLSL 側のメイン処理が走ります
-    postEffect_->DrawComposite(sceneSource, bloomRT_A_->GetGPUHandle(), sceneRT_->GetDepthGPUHandle());
+    postEffect_->DrawComposite(
+        sceneSource,
+        bloomRT_A_->GetGPUHandle(),
+        sceneRT_->GetDepthGPUHandle(),
+        normalRT_->GetGPUHandle());
 }
 
 void Bloom::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {

@@ -85,9 +85,78 @@ void Root::InitalizeForObject()
 	Parameters_[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	Parameters_[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	Parameters_[10].Descriptor.ShaderRegister = 2;
+
+	// [11] DescriptorTable (normal map t4). Models without a normal map bind
+	// the engine flat-normal texture, so the slot is always valid.
+	descriptorRange_[4].BaseShaderRegister = 4;
+	descriptorRange_[4].NumDescriptors = 1;
+	descriptorRange_[4].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[4].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[11].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[11].DescriptorTable.pDescriptorRanges = &descriptorRange_[4];
+	Parameters_[11].DescriptorTable.NumDescriptorRanges = 1;
+
+	// [12] DescriptorTable (metallic-roughness map t5). Uses glTF channel
+	// convention: G = roughness, B = metallic.
+	descriptorRange_[5].BaseShaderRegister = 5;
+	descriptorRange_[5].NumDescriptors = 1;
+	descriptorRange_[5].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[5].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[12].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[12].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[12].DescriptorTable.pDescriptorRanges = &descriptorRange_[5];
+	Parameters_[12].DescriptorTable.NumDescriptorRanges = 1;
+
+	// [13] DescriptorTable (ambient occlusion map t6). Uses R channel.
+	descriptorRange_[6].BaseShaderRegister = 6;
+	descriptorRange_[6].NumDescriptors = 1;
+	descriptorRange_[6].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[6].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[13].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[13].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[13].DescriptorTable.pDescriptorRanges = &descriptorRange_[6];
+	Parameters_[13].DescriptorTable.NumDescriptorRanges = 1;
+
+	// [14] DescriptorTable (integrated BRDF LUT t7). PBR specular IBL uses
+	// this split-sum table instead of the older analytic approximation.
+	descriptorRange_[7].BaseShaderRegister = 7;
+	descriptorRange_[7].NumDescriptors = 1;
+	descriptorRange_[7].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[7].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[14].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[14].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[14].DescriptorTable.pDescriptorRanges = &descriptorRange_[7];
+	Parameters_[14].DescriptorTable.NumDescriptorRanges = 1;
+
+	// [15] DescriptorTable (diffuse irradiance cube t8).
+	descriptorRange_[8].BaseShaderRegister = 8;
+	descriptorRange_[8].NumDescriptors = 1;
+	descriptorRange_[8].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[8].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[15].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[15].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[15].DescriptorTable.pDescriptorRanges = &descriptorRange_[8];
+	Parameters_[15].DescriptorTable.NumDescriptorRanges = 1;
+
+	// [16] DescriptorTable (prefiltered specular environment cube t9).
+	descriptorRange_[9].BaseShaderRegister = 9;
+	descriptorRange_[9].NumDescriptors = 1;
+	descriptorRange_[9].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[9].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[16].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[16].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[16].DescriptorTable.pDescriptorRanges = &descriptorRange_[9];
+	Parameters_[16].DescriptorTable.NumDescriptorRanges = 1;
 	
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 11;
+	descriptionSignature_.NumParameters = 17;
 
 	// --- StaticSamplerの拡張 ---
 
@@ -146,7 +215,7 @@ void Root::InitalizeForObjectBe()
 	Parameters_[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; // DescriptorTableを使う
 	Parameters_[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // Tableの中身の配列を指定
 	Parameters_[2].DescriptorTable.pDescriptorRanges = descriptorRange_; // Tableの中身の配列を指定
-	Parameters_[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange_); // Tableで利用する数
+	Parameters_[2].DescriptorTable.NumDescriptorRanges = 1; // Tableで利用する数
 	descriptionSignature_.pParameters = Parameters_; // ルートパラメータ配列へのポインタ
 	descriptionSignature_.NumParameters = 5;
 	Parameters_[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CSVを使う
@@ -361,8 +430,21 @@ void Root::InitializeForPostEffect()
 	Parameters_[3].DescriptorTable.pDescriptorRanges = &descriptorRange_[2];
 	Parameters_[3].DescriptorTable.NumDescriptorRanges = 1;
 
+	// -------- RootParameter 4 : SRV DescriptorTable (Normal RT)
+	descriptorRange_[3].BaseShaderRegister = 3; // t3
+	descriptorRange_[3].NumDescriptors = 1;
+	descriptorRange_[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[3].OffsetInDescriptorsFromTableStart =
+		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[4].ParameterType =
+		D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[4].DescriptorTable.pDescriptorRanges = &descriptorRange_[3];
+	Parameters_[4].DescriptorTable.NumDescriptorRanges = 1;
+
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 4;
+	descriptionSignature_.NumParameters = 5;
 
 	// -------- Static Sampler (s0)
 	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;

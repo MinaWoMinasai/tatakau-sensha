@@ -228,6 +228,10 @@ void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, c
 	dxCommon_ = dxCommon;
 	srvManager_ = srvManager;
 	asset_ = SkinningModelLoader::LoadFromFile(filePath);
+	TextureManager::GetInstance()->CreateFlatNormalTexture();
+	TextureManager::GetInstance()->CreateBrdfLutTexture();
+	TextureManager::GetInstance()->CreatePbrIrradianceTexture();
+	TextureManager::GetInstance()->CreatePbrPrefilteredEnvironmentTexture();
 	skeleton_ = SkeletonSystem::Create(asset_.rootNode);
 	skinCluster_ = SkinCluster::Create(skeleton_, asset_);
 	try {
@@ -424,6 +428,36 @@ void SkinnedModel::Draw() {
 		commandList->SetPipelineState(pso.graphicsState_.Get());
 		commandList->SetGraphicsRootDescriptorTable(
 			2, TextureManager::GetInstance()->GetSrvHandleGPU(submesh.textureKey));
+		commandList->SetGraphicsRootDescriptorTable(
+			11,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				TextureManager::GetFlatNormalTexturePath(),
+				TextureManager::TextureColorSpace::LinearData));
+		commandList->SetGraphicsRootDescriptorTable(
+			12,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				TextureManager::GetFlatNormalTexturePath(),
+				TextureManager::TextureColorSpace::LinearData));
+		commandList->SetGraphicsRootDescriptorTable(
+			13,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				TextureManager::GetFlatNormalTexturePath(),
+				TextureManager::TextureColorSpace::LinearData));
+		commandList->SetGraphicsRootDescriptorTable(
+			14,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				TextureManager::GetBrdfLutTexturePath(),
+				TextureManager::TextureColorSpace::LinearData));
+		commandList->SetGraphicsRootDescriptorTable(
+			15,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				TextureManager::GetPbrIrradianceTexturePath(),
+				TextureManager::TextureColorSpace::LinearData));
+		commandList->SetGraphicsRootDescriptorTable(
+			16,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				TextureManager::GetPbrPrefilteredEnvironmentTexturePath(),
+				TextureManager::TextureColorSpace::LinearData));
 		commandList->DrawIndexedInstanced(
 			submesh.indexCount, 1, submesh.indexStart, 0, 0);
 	}

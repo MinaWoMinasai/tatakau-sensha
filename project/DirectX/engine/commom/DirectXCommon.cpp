@@ -97,13 +97,23 @@ void DirectXCommon::CreateShaderCommon(
 	bool doubleSided,
 	DXGI_FORMAT renderTargetFormat)
 {
+	const bool usesSceneNormalTarget =
+		renderTargetFormat == kSceneRenderTargetFormat &&
+		(pso.shaderType_ == Object ||
+		 pso.shaderType_ == Skinning ||
+		 pso.shaderType_ == Skybox ||
+		 pso.shaderType_ == Trail ||
+		 pso.shaderType_ == ModelParticle);
+
 	// 1. 各タイプごとのシェーダーパスとルートシグネチャ初期化
 	switch (pso.shaderType_)
 	{
 	case Object:
 		pso.root_.InitalizeForObject();
 		pso.vsFilePath_ = L"resources/shaders/Object3d.VS.hlsl";
-		pso.psFilePath_ = L"resources/shaders/Object3d.PS.hlsl";
+		pso.psFilePath_ = usesSceneNormalTarget
+			? L"resources/shaders/Object3d.Scene.PS.hlsl"
+			: L"resources/shaders/Object3d.PS.hlsl";
 		break;
 	case Particle:
 		pso.root_.InitalizeForParticle();
@@ -113,7 +123,9 @@ void DirectXCommon::CreateShaderCommon(
 	case ModelParticle:
 		pso.root_.InitalizeForModelParticle();
 		pso.vsFilePath_ = L"resources/shaders/ModelParticle.VS.hlsl";
-		pso.psFilePath_ = L"resources/shaders/ModelParticle.PS.hlsl";
+		pso.psFilePath_ = usesSceneNormalTarget
+			? L"resources/shaders/ModelParticle.Scene.PS.hlsl"
+			: L"resources/shaders/ModelParticle.PS.hlsl";
 		break;
 	case ComputeParticle:
 		assert(false);
@@ -142,17 +154,23 @@ void DirectXCommon::CreateShaderCommon(
 	case Trail:
 		pso.root_.InitalizeForTrail(); // 上で作った関数
 		pso.vsFilePath_ = L"resources/shaders/Trail.VS.hlsl";
-		pso.psFilePath_ = L"resources/shaders/Trail.PS.hlsl";
+		pso.psFilePath_ = usesSceneNormalTarget
+			? L"resources/shaders/Trail.Scene.PS.hlsl"
+			: L"resources/shaders/Trail.PS.hlsl";
 		break;
 	case Skybox: // ★追加
 		pso.root_.InitializeForSkybox(); // 前回作成した関数
 		pso.vsFilePath_ = L"resources/shaders/Skybox.VS.hlsl";
-		pso.psFilePath_ = L"resources/shaders/Skybox.PS.hlsl";
+		pso.psFilePath_ = usesSceneNormalTarget
+			? L"resources/shaders/Skybox.Scene.PS.hlsl"
+			: L"resources/shaders/Skybox.PS.hlsl";
 		break;
 	case Skinning:
 		pso.root_.InitalizeForObject();
 		pso.vsFilePath_ = L"resources/shaders/SkinningObject3d.VS.hlsl";
-		pso.psFilePath_ = L"resources/shaders/Object3d.PS.hlsl";
+		pso.psFilePath_ = usesSceneNormalTarget
+			? L"resources/shaders/Object3d.Scene.PS.hlsl"
+			: L"resources/shaders/Object3d.PS.hlsl";
 		break;
 	case SkinningShadow:
 		pso.root_.InitializeForSkinningShadow();
@@ -304,6 +322,21 @@ void DirectXCommon::CreateShaderCommon(
 	// 6. 残りの共通設定
 	if (doubleSided) {
 		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	}
+	if (usesSceneNormalTarget) {
+		pso.graphicsDesc_.NumRenderTargets = 2;
+		pso.graphicsDesc_.RTVFormats[1] = kNormalBufferFormat;
+		pso.graphicsDesc_.BlendState.RenderTarget[1].BlendEnable = FALSE;
+		pso.graphicsDesc_.BlendState.RenderTarget[1].SrcBlend = D3D12_BLEND_ONE;
+		pso.graphicsDesc_.BlendState.RenderTarget[1].DestBlend = D3D12_BLEND_ZERO;
+		pso.graphicsDesc_.BlendState.RenderTarget[1].BlendOp = D3D12_BLEND_OP_ADD;
+		pso.graphicsDesc_.BlendState.RenderTarget[1].SrcBlendAlpha = D3D12_BLEND_ONE;
+		pso.graphicsDesc_.BlendState.RenderTarget[1].DestBlendAlpha = D3D12_BLEND_ZERO;
+		pso.graphicsDesc_.BlendState.RenderTarget[1].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		pso.graphicsDesc_.BlendState.RenderTarget[1].RenderTargetWriteMask =
+			(blendMode == kNone && pso.shaderType_ != Skybox)
+				? D3D12_COLOR_WRITE_ENABLE_ALL
+				: 0;
 	}
 	pso.graphicsDesc_.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pso.graphicsDesc_.SampleDesc.Count = 1;
@@ -935,6 +968,26 @@ void DirectXCommon::SetRenderTarget(
 	);
 }
 
+void DirectXCommon::SetRenderTargets(
+	D3D12_CPU_DESCRIPTOR_HANDLE colorRtvHandle,
+	D3D12_CPU_DESCRIPTOR_HANDLE normalRtvHandle,
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle
+) {
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = {
+		colorRtvHandle,
+		normalRtvHandle,
+	};
+	currentRtvHandle_ = colorRtvHandle;
+	currentDsvHandle_ = dsvHandle;
+	currentHasDsv_ = true;
+	list_->OMSetRenderTargets(
+		_countof(rtvHandles),
+		rtvHandles,
+		false,
+		&dsvHandle
+	);
+}
+
 void DirectXCommon::SetRenderTargetNoDepth(
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle
 ) {
@@ -953,6 +1006,13 @@ void DirectXCommon::ClearRenderTarget(
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle
 ) {
 	float clearColor[4] = { 0, 0, 0, 1 };
+	ClearRenderTarget(rtvHandle, clearColor);
+}
+
+void DirectXCommon::ClearRenderTarget(
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle,
+	const float clearColor[4]
+) {
 	list_->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 }
 
