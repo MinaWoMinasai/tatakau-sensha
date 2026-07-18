@@ -13,7 +13,8 @@ public:
     void DrawComposite(
         D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV,
         D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV,
-        D3D12_GPU_DESCRIPTOR_HANDLE depthSRV);
+        D3D12_GPU_DESCRIPTOR_HANDLE depthSRV,
+        D3D12_GPU_DESCRIPTOR_HANDLE normalSRV);
     void DrawObjectComposite(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV, bool outputToHdr = true);
     void DrawObjectOutlineAdd(D3D12_GPU_DESCRIPTOR_HANDLE objectSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV, bool outputToHdr = true);
     void DrawObjectBloomAdd(D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV, bool outputToHdr = true);

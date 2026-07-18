@@ -30,6 +30,7 @@ private:
 
     // 各種レンダーターゲット（クラス化したRenderTexture等があると仮定）
     std::unique_ptr<RenderTexture> sceneRT_;
+    std::unique_ptr<RenderTexture> normalRT_;
     std::unique_ptr<RenderTexture> bloomRT_Half_;
     std::unique_ptr<RenderTexture> bloomRT_A_;
     std::unique_ptr<RenderTexture> bloomRT_B_;
@@ -54,4 +55,7 @@ private:
     float transientBloomBoost_ = 0.0f;
     float transientChromAbAmount_ = 0.0f;
     bool enableDepthOutline_ = true;
+    bool enableDepthFog_ = false;
+    bool enableSSAO_ = true;
+    int renderDebugMode_ = 0;
 };

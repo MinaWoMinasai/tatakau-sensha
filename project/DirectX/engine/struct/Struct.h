@@ -124,7 +124,10 @@ struct Material {
 	float shadowReceiveStrength;
 	float normalDetailStrength;
 	float normalDetailScale;
-	float materialPadding;
+	float normalMapStrength;
+	float metallicRoughnessMapStrength;
+	float occlusionMapStrength;
+	float materialPadding[2];
 };
 
 inline Material MakeDefaultMaterial()
@@ -153,7 +156,11 @@ inline Material MakeDefaultMaterial()
 	material.shadowReceiveStrength = 1.0f;
 	material.normalDetailStrength = 0.0f;
 	material.normalDetailScale = 24.0f;
-	material.materialPadding = 0.0f;
+	material.normalMapStrength = 0.0f;
+	material.metallicRoughnessMapStrength = 0.0f;
+	material.occlusionMapStrength = 0.0f;
+	material.materialPadding[0] = 0.0f;
+	material.materialPadding[1] = 0.0f;
 	return material;
 }
 
@@ -193,6 +200,24 @@ struct DirectionalLight {
 struct MaterialData {
 	std::string textureFilePath;
 	uint32_t textureIndex = 0;
+	Vector4 baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	bool hasBaseColorFactor = false;
+	float metallicFactor = 0.0f;
+	float roughnessFactor = 0.5f;
+	float ambientOcclusionFactor = 1.0f;
+	bool hasPbrFactors = false;
+	Vector3 emissiveColor = { 0.0f, 0.0f, 0.0f };
+	float emissiveIntensity = 0.0f;
+	bool hasEmissive = false;
+	std::string normalTextureFilePath;
+	uint32_t normalTextureIndex = 0;
+	bool hasNormalTexture = false;
+	std::string metallicRoughnessTextureFilePath;
+	uint32_t metallicRoughnessTextureIndex = 0;
+	bool hasMetallicRoughnessTexture = false;
+	std::string occlusionTextureFilePath;
+	uint32_t occlusionTextureIndex = 0;
+	bool hasOcclusionTexture = false;
 };
 
 struct ModelData {
@@ -373,6 +398,7 @@ struct BloomParam
 	float depthNearClip; // View空間Z復元用のnear clip
 	float depthFarClip; // View空間Z復元用のfar clip
 	float depthOutlineScale; // View空間Z差分の強調倍率
+	float depthBufferPadding; // HLSL cbufferのfloat2境界に合わせる
 	Vector2 shockwaveCenter; // 画面UV上の衝撃波中心
 	float shockwaveRadius;
 	float shockwaveWidth;
@@ -394,6 +420,24 @@ struct BloomParam
 	float toneMappingMode; // 0: Reinhard, 1: ACES
 	float hdrWhitePoint; // Reinhard系ToneMappingの白基準
 	float hdrPadding;
+	float renderDebugMode; // 0: Final, 1: Scene, 2: Bloom, 3: LinearDepth, 4: DepthEdge, 5: DepthNormal, 6: NormalBuffer, 7: SSAO
+	float linearDepthDebugRange; // LinearDepth表示の白基準距離
+	float depthNormalScale; // Depthから推定する画面空間法線の強調倍率
+	float depthFogEnabled; // DepthFogの有効化
+	Vector3 depthFogColor; // DepthFogの色
+	float depthFogStart; // Fog開始距離
+	float depthFogEnd; // Fog最大距離
+	float depthFogDensity; // 指数Fogの濃さ
+	float depthFogMaxOpacity; // Fogの最大合成率
+	float renderDebugPadding;
+	float ssaoEnabled; // Screen Space Ambient Occlusionの有効化
+	float ssaoRadius; // SSAOサンプル半径(px)
+	float ssaoIntensity; // SSAOの暗さ
+	float ssaoBias; // 自己遮蔽を抑える深度バイアス
+	float ssaoPower; // AOカーブ
+	float ssaoSampleCount; // 使用サンプル数
+	float ssaoNormalInfluence; // 法線差による重み
+	float ssaoDistanceFalloff; // 深度差の減衰距離
 };
 
 struct PointLightData {

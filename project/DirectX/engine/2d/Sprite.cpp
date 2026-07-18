@@ -202,6 +202,28 @@ void Sprite::Draw()
 
 	spriteCommon_->GetDxCommon()->GetList()
 		->SetGraphicsRootDescriptorTable(2, srvHandle);
+	TextureManager* textureManager = TextureManager::GetInstance();
+	const D3D12_GPU_DESCRIPTOR_HANDLE flatNormalSrv = textureManager->GetSrvHandleGPU(
+		TextureManager::GetFlatNormalTexturePath(),
+		TextureManager::TextureColorSpace::LinearData);
+	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(11, flatNormalSrv);
+	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(12, flatNormalSrv);
+	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(13, flatNormalSrv);
+	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+		14,
+		textureManager->GetSrvHandleGPU(
+			TextureManager::GetBrdfLutTexturePath(),
+			TextureManager::TextureColorSpace::LinearData));
+	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+		15,
+		textureManager->GetSrvHandleGPU(
+			TextureManager::GetPbrIrradianceTexturePath(),
+			TextureManager::TextureColorSpace::LinearData));
+	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+		16,
+		textureManager->GetSrvHandleGPU(
+			TextureManager::GetPbrPrefilteredEnvironmentTexturePath(),
+			TextureManager::TextureColorSpace::LinearData));
 	// 描画!(DrawCall/ドローコール) 。6個のインデックスを使用しで1つのインスタンスを描画。その他は当面0 
 	spriteCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
