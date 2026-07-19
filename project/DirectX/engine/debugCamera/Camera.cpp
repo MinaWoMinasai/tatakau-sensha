@@ -9,13 +9,25 @@ Camera::Camera() {
 	farClip_ = 5000.0f;
 	worldMatrix_ = MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
 	viewMatrix_ = Inverse(worldMatrix_);
-	projectionMatrix_ = MakePerspectiveForMatrix(fovY_, aspectRatio_, nearClip_, farClip_);
-	viewProjectionMatrix_ = Multiply(viewMatrix_, projectionMatrix_);
+	UpdateProjectionMatrices();
 }
 
 void Camera::Update() {
 	worldMatrix_ = MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
 	viewMatrix_ = Inverse(worldMatrix_);
-	projectionMatrix_ = MakePerspectiveForMatrix(fovY_, aspectRatio_, nearClip_, farClip_);
+	UpdateProjectionMatrices();
+}
+
+void Camera::SetProjectionJitter(const Vector2& jitter) {
+	projectionJitter_ = jitter;
+	UpdateProjectionMatrices();
+}
+
+void Camera::UpdateProjectionMatrices() {
+	unjitteredProjectionMatrix_ = MakePerspectiveForMatrix(fovY_, aspectRatio_, nearClip_, farClip_);
+	unjitteredViewProjectionMatrix_ = Multiply(viewMatrix_, unjitteredProjectionMatrix_);
+	projectionMatrix_ = unjitteredProjectionMatrix_;
+	projectionMatrix_.m[2][0] += projectionJitter_.x;
+	projectionMatrix_.m[2][1] += projectionJitter_.y;
 	viewProjectionMatrix_ = Multiply(viewMatrix_, projectionMatrix_);
 }

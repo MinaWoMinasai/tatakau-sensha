@@ -74,6 +74,7 @@ struct PixelShaderOutput
     float32_t4 color : SV_TARGET0;
 #if SCENE_NORMAL_TARGET
     float32_t4 normal : SV_TARGET1;
+    float32_t4 material : SV_TARGET2;
 #endif
 };
 
@@ -82,12 +83,31 @@ float32_t4 EncodeNormalTarget(float32_t3 normal, float32_t alpha)
     return float32_t4(normalize(normal) * 0.5f + 0.5f, alpha);
 }
 
+float32_t4 EncodeMaterialTarget(float32_t roughness, float32_t metallic, float32_t ambientOcclusion, float32_t materialClass)
+{
+    return float32_t4(
+        saturate(roughness),
+        saturate(metallic),
+        saturate(ambientOcclusion),
+        saturate(materialClass));
+}
+
+float32_t ComputeSSRMaterialMask(float32_t metallic, float32_t roughness, float32_t environmentStrength, float32_t alpha)
+{
+    float32_t smoothness = 1.0f - saturate(roughness);
+    float32_t dielectricReflection = smoothness * smoothness * 0.22f;
+    float32_t metalReflection = saturate(metallic) * smoothness * 0.95f;
+    float32_t environmentReflection = saturate(environmentStrength) * smoothness * 0.45f;
+    return saturate(max(max(dielectricReflection, metalReflection), environmentReflection) * alpha);
+}
+
 // PixelShaderOutput main(VertexShaderOutput input)
 PixelShaderOutput main(VertexShaderOutput input)
 {
     PixelShaderOutput output;
 #if SCENE_NORMAL_TARGET
-    output.normal = EncodeNormalTarget(input.normal, 1.0f);
+    output.normal = EncodeNormalTarget(input.normal, 0.0f);
+    output.material = EncodeMaterialTarget(1.0f, 0.0f, 1.0f, 0.0f);
 #endif
     
     // テクスチャサンプリング
@@ -114,6 +134,10 @@ PixelShaderOutput main(VertexShaderOutput input)
         float3 color = lerp(drySand, wetSand, wet * 0.66f) * (0.82f + grain * 0.34f);
         color += float3(0.040f, 0.095f, 0.110f) * smoothstep(0.72f, 1.0f, grain) * wet;
         color = lerp(color, float3(0.10f, 0.27f, 0.34f), offshore * 0.58f);
+#if SCENE_NORMAL_TARGET
+        output.normal = EncodeNormalTarget(input.normal, saturate(wet * 0.045f));
+        output.material = EncodeMaterialTarget(0.86f - wet * 0.14f, 0.0f, 1.0f, 0.35f);
+#endif
         output.color = float4(saturate(color * gMaterial.color.rgb), gMaterial.color.a * textureColor.a);
         return output;
     }
@@ -164,11 +188,12 @@ PixelShaderOutput main(VertexShaderOutput input)
             microA * 0.035f + microB * -0.026f + microC * 0.014f,
             microA * 0.012f + microB * 0.032f + microC * -0.019f);
         float3 N = normalize(baseN + float3(microSlope.x, 0.0f, microSlope.y));
-#if SCENE_NORMAL_TARGET
-        output.normal = EncodeNormalTarget(N, 1.0f);
-#endif
         float fresnel = pow(1.0f - saturate(dot(N, V)), 4.2f);
         float facing = saturate(dot(N, float3(0.0f, 1.0f, 0.0f)));
+#if SCENE_NORMAL_TARGET
+        output.normal = EncodeNormalTarget(N, saturate(0.82f + fresnel * 0.18f));
+        output.material = EncodeMaterialTarget(0.045f, 0.0f, 1.0f, 0.65f);
+#endif
 
         float3 reflectVector = reflect(-V, N);
         float3 skyReflection = gEnvironmentMap.Sample(gSampler, reflectVector).rgb;
@@ -260,6 +285,12 @@ PixelShaderOutput main(VertexShaderOutput input)
         float viewDistance = length(viewVector);
         float3 V = normalize(viewVector);
         float horizon = saturate(viewDistance / 330.0f);
+#if SCENE_NORMAL_TARGET
+        float3 waterNormal = normalize(input.normal);
+        float waterFresnel = pow(1.0f - saturate(dot(waterNormal, V)), 3.2f);
+        output.normal = EncodeNormalTarget(waterNormal, saturate(0.68f + waterFresnel * 0.22f));
+        output.material = EncodeMaterialTarget(0.06f, 0.0f, 1.0f, 0.65f);
+#endif
 
         float2 swellA = normalize(float2(0.96f, 0.28f));
         float2 swellB = normalize(float2(-0.34f, 0.94f));
@@ -347,9 +378,6 @@ PixelShaderOutput main(VertexShaderOutput input)
             normalTS = normalize(float3(normalTS.xy + detailSlope, max(normalTS.z, 0.001f)));
         }
         N = normalize(T * normalTS.x + B * normalTS.y + N * normalTS.z);
-#if SCENE_NORMAL_TARGET
-        output.normal = EncodeNormalTarget(N, 1.0f);
-#endif
         float3 V = normalize(gCamera.worldPosition - input.worldPosition);
         
         // --- 環境マッピングの追加 ---
@@ -398,8 +426,15 @@ PixelShaderOutput main(VertexShaderOutput input)
             float metallicRoughnessMapStrength = saturate(gMaterial.metallicRoughnessMapStrength);
             float metallic = saturate(lerp(gMaterial.metallic, metallicRoughnessSample.b, metallicRoughnessMapStrength));
             float roughness = clamp(lerp(gMaterial.roughness, metallicRoughnessSample.g, metallicRoughnessMapStrength), 0.04f, 1.0f);
+#if SCENE_NORMAL_TARGET
+            float ssrMask = ComputeSSRMaterialMask(metallic, roughness, max(gMaterial.environmentCoefficient, 0.0f), gMaterial.color.a * textureColor.a);
+            output.normal = EncodeNormalTarget(N, ssrMask);
+#endif
             float occlusionSample = gOcclusionMap.Sample(gSampler, transformedUV.xy).r;
             float ao = saturate(gMaterial.ambientOcclusion * lerp(1.0f, occlusionSample, saturate(gMaterial.occlusionMapStrength)));
+#if SCENE_NORMAL_TARGET
+            output.material = EncodeMaterialTarget(roughness, metallic, ao, 1.0f);
+#endif
             float NdotV = saturate(dot(N, V));
             float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedo, metallic);
 
@@ -455,6 +490,15 @@ PixelShaderOutput main(VertexShaderOutput input)
         // 反射色を係数に基づいて合成
         
         float3 reflection = environmentColor.rgb * gMaterial.environmentCoefficient;
+#if SCENE_NORMAL_TARGET
+        float legacySSRMask = ComputeSSRMaterialMask(0.0f, max(1.0f - saturate(gMaterial.environmentCoefficient), 0.12f), max(gMaterial.environmentCoefficient, 0.0f), gMaterial.color.a * textureColor.a);
+        output.normal = EncodeNormalTarget(N, legacySSRMask);
+        output.material = EncodeMaterialTarget(
+            max(1.0f - saturate(gMaterial.environmentCoefficient), 0.12f),
+            0.0f,
+            1.0f,
+            0.25f);
+#endif
         
         // 最終出力に反射成分を加算
         output.color.rgb = ambient + (diffuse_dir * shadow) + diffuse_point + reflection;

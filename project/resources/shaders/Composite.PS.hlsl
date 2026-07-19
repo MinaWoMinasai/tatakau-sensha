@@ -2,85 +2,13 @@ Texture2D sceneTex : register(t0);
 Texture2D bloomTex : register(t1);
 Texture2D<float> depthTex : register(t2);
 Texture2D normalTex : register(t3);
+Texture2D ssrTex : register(t4);
+Texture2D materialTex : register(t5);
+Texture2D ssaoTex : register(t6);
+Texture2D motionVectorTex : register(t7);
 SamplerState samp : register(s0);
 
-cbuffer BloomParam : register(b0)
-{
-    float threshold;
-    float intensity;
-    float vignetteIntensity;
-    float vignetteScale;
-    float timer;
-    float distortionAmount;
-    float chromAbAmount;
-    float isGrayscale;
-    float isInverted;
-    float noiseIntensity;
-    float scanlineIntensity;
-    float scanlineFrequency;
-    float curvature;
-    float borderSharp;
-    float glitchAmount;
-    float gaussianIntensity;
-    float dissolveThreshold; // ディゾルブの進行度 (0~1)
-    float outlineWidth; // アウトラインの太さ
-    float outlineThreshold; // エッジ検出のしきい値
-    float boxBlurIntensity;
-    float3 outlineColor; // アウトラインの色
-    float outlineBloomIntensity;
-    float outlineBloomWidth;
-    float boxBlurRadius;
-    float fullScreenBoxBlurBlend;
-    float depthOutlineEnabled;
-    float depthNearClip;
-    float depthFarClip;
-    float depthOutlineScale;
-    float2 shockwaveCenter;
-    float shockwaveRadius;
-    float shockwaveWidth;
-    float shockwaveStrength;
-    float3 shockwavePadding;
-	float2 radialBlurCenter;
-	float radialBlurWidth;
-	float radialBlurIntensity;
-	float3 dissolveEdgeColor;
-	float dissolveEdgeWidth;
-	float dissolveNoiseScale;
-	float dissolveNoiseSpeed;
-	float2 postEffectPadding;
-    float randomIntensity;
-    float randomScale;
-    float randomTimeScale;
-    float randomGrayscalePreview;
-    float exposure;
-    float toneMappingMode;
-    float hdrWhitePoint;
-    float hdrPadding;
-    float renderDebugMode;
-    float linearDepthDebugRange;
-    float depthNormalScale;
-    float depthFogEnabled;
-    float3 depthFogColor;
-    float depthFogStart;
-    float depthFogEnd;
-    float depthFogDensity;
-    float depthFogMaxOpacity;
-    float renderDebugPadding;
-    float ssaoEnabled;
-    float ssaoRadius;
-    float ssaoIntensity;
-    float ssaoBias;
-    float ssaoPower;
-    float ssaoSampleCount;
-    float ssaoNormalInfluence;
-    float ssaoDistanceFalloff;
-};
-
-// --- ヘルパー関数：ランダム ---
-float Hash(float2 p)
-{
-    return frac(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
-}
+#include "PostEffectCommon.hlsli"
 
 // --- 1. 座標変換：ブラウン管の歪み ---
 float2 ApplyCRTDistortion(float2 baseUV)
@@ -164,29 +92,6 @@ float3 ApplyOverlays(float3 color, float2 uv)
     return color;
 }
 
-float3 ACESFilm(float3 color)
-{
-    const float a = 2.51f;
-    const float b = 0.03f;
-    const float c = 2.43f;
-    const float d = 0.59f;
-    const float e = 0.14f;
-    return saturate((color * (a * color + b)) / (color * (c * color + d) + e));
-}
-
-float3 ReinhardExtended(float3 color)
-{
-    float whitePoint = max(hdrWhitePoint, 0.001f);
-    float whitePointSq = whitePoint * whitePoint;
-    return saturate((color * (1.0f + color / whitePointSq)) / (1.0f + color));
-}
-
-float3 ApplyToneMapping(float3 color)
-{
-    color = max(color, 0.0f) * max(exposure, 0.0f);
-    return toneMappingMode > 0.5f ? ACESFilm(color) : ReinhardExtended(color);
-}
-
 float3 SampleBoxBlur(Texture2D tex, float2 uv, float radiusPixels)
 {
     if (boxBlurIntensity <= 0.0f || radiusPixels <= 0.0f)
@@ -230,12 +135,6 @@ float3 SampleRadialBlur(Texture2D tex, float2 uv)
 		sum += tex.Sample(samp, sampleUV).rgb;
 	}
 	return lerp(original, sum / (float)sampleCount, saturate(radialBlurIntensity));
-}
-
-float RestoreViewSpaceZ(float depth)
-{
-    return depthNearClip * depthFarClip /
-        max(depthFarClip - depth * (depthFarClip - depthNearClip), 0.0001f);
 }
 
 float GetLinearDepth(float2 uv)
@@ -316,11 +215,6 @@ float3 GetDepthDerivedNormal(float2 uv)
     return normal * 0.5f + 0.5f;
 }
 
-float3 DecodeNormalTarget(float4 encodedNormal)
-{
-    return normalize(encodedNormal.xyz * 2.0f - 1.0f);
-}
-
 float2 GetSSAOPoissonOffset(int index)
 {
     if (index == 0) return float2(-0.94201624f, -0.39906216f);
@@ -355,10 +249,6 @@ float GetSSAO(float2 uv)
     }
 
     float4 centerNormalSample = normalTex.Sample(samp, uv);
-    if (centerNormalSample.a <= 0.001f)
-    {
-        return 1.0f;
-    }
 
     uint width;
     uint height;
@@ -481,14 +371,74 @@ float3 GetRenderDebugColor(float2 uv)
         return normalTex.Sample(samp, uv).rgb;
     }
 
-    return GetSSAO(uv).xxx;
-}
-struct PSInput
-{
-    float4 position : SV_POSITION;
-    float2 uv : TEXCOORD0;
-};
+    if (renderDebugMode < 7.5f)
+    {
+        return ssaoTex.Sample(samp, uv).r.xxx;
+    }
 
+    if (renderDebugMode < 8.5f)
+    {
+        float4 ssr = ssrTex.Sample(samp, uv);
+        return ApplyToneMapping(ssr.rgb * ssr.a * max(ssrIntensity, 0.0f));
+    }
+
+    if (renderDebugMode < 9.5f)
+    {
+        return normalTex.Sample(samp, uv).a.xxx;
+    }
+
+    float4 materialSample = materialTex.Sample(samp, uv);
+    if (renderDebugMode < 10.5f)
+    {
+        return materialSample.r.xxx;
+    }
+
+    if (renderDebugMode < 11.5f)
+    {
+        return materialSample.g.xxx;
+    }
+
+    if (renderDebugMode < 12.5f)
+    {
+        return materialSample.b.xxx;
+    }
+
+    if (renderDebugMode < 13.5f)
+    {
+        return materialSample.a.xxx;
+    }
+
+    if (renderDebugMode < 14.5f)
+    {
+        if (motionVectorEnabled <= 0.5f)
+        {
+            return float3(1.0f, 0.12f, 0.04f);
+        }
+
+        float2 motionVector = motionVectorTex.Sample(samp, uv).rg;
+        float2 debugMotion = motionVector * max(motionVectorDebugScale, 1.0f);
+        return saturate(float3(0.5f + debugMotion.x, 0.5f - debugMotion.y, 0.5f + length(debugMotion)));
+    }
+
+    if (renderDebugMode < 15.5f)
+    {
+        if (motionVectorEnabled <= 0.5f)
+        {
+            return float3(1.0f, 0.12f, 0.04f);
+        }
+
+        float2 motionVector = motionVectorTex.Sample(samp, uv).rg;
+        float motionSignal = max(abs(motionVector.x), abs(motionVector.y));
+        if (motionSignal < 0.0001f)
+        {
+            return float3(1.0f, 0.0f, 1.0f);
+        }
+
+        return float3(saturate(motionVector), 1.0f);
+    }
+
+    return ApplyToneMapping(sceneTex.Sample(samp, uv).rgb);
+}
 // --- メイン処理 ---
 float4 main(PSInput input) : SV_TARGET
 {
@@ -514,7 +464,12 @@ float4 main(PSInput input) : SV_TARGET
     float2 postGlitchUV = ApplyGlitch(texUV);
     float2 shockwaveUV = ApplyShockwave(postGlitchUV);
     float2 finalUV = ApplyWave(shockwaveUV);
-    float screenSpaceAO = GetSSAO(finalUV);
+    float screenSpaceAO = ssaoTex.Sample(samp, finalUV).r;
+    float4 screenSpaceReflection = ssrTex.Sample(samp, finalUV);
+    float screenSpaceReflectionBlend = saturate(screenSpaceReflection.a * max(ssrIntensity, 0.0f));
+    float4 materialSample = materialTex.Sample(samp, finalUV);
+    float materialDrivenRoughnessFade = 1.0f - smoothstep(0.58f, 0.94f, materialSample.r);
+    screenSpaceReflectionBlend *= lerp(1.0f, materialDrivenRoughnessFade, saturate(materialSample.a));
 
     // E. サンプリング（色収差）
     float2 shift = (shockwaveUV - 0.5f) * chromAbAmount;
@@ -541,6 +496,7 @@ float4 main(PSInput input) : SV_TARGET
     float3 boxBlurredScene = SampleBoxBlur(sceneTex, finalUV, boxBlurRadius);
     sceneColor = lerp(sceneColor, boxBlurredScene, saturate(boxBlurIntensity));
     sceneColor *= screenSpaceAO;
+    sceneColor = lerp(sceneColor, screenSpaceReflection.rgb, screenSpaceReflectionBlend);
     float3 blurredColor = bloomTex.Sample(samp, texUV).rgb; // PostDrawでシーン全体をぼかして渡したもの
     
     float3 result;
@@ -562,6 +518,7 @@ float4 main(PSInput input) : SV_TARGET
 		sceneColor = radialBlurIntensity > 0.0f ? SampleRadialBlur(sceneTex, finalUV) : scene;
         sceneColor = lerp(sceneColor, boxBlurredScene, saturate(boxBlurIntensity));
         sceneColor *= screenSpaceAO;
+        sceneColor = lerp(sceneColor, screenSpaceReflection.rgb, screenSpaceReflectionBlend);
         blurredColor = bloom;
     // 【ブルームモード】
     // 元の絵に、高輝度部分をぼかしたものを「加算」する
