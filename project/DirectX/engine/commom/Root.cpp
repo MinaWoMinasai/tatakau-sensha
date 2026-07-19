@@ -443,8 +443,60 @@ void Root::InitializeForPostEffect()
 	Parameters_[4].DescriptorTable.pDescriptorRanges = &descriptorRange_[3];
 	Parameters_[4].DescriptorTable.NumDescriptorRanges = 1;
 
+	// -------- RootParameter 5 : SRV DescriptorTable (SSR Resolve RT)
+	descriptorRange_[4].BaseShaderRegister = 4; // t4
+	descriptorRange_[4].NumDescriptors = 1;
+	descriptorRange_[4].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[4].OffsetInDescriptorsFromTableStart =
+		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[5].ParameterType =
+		D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[5].DescriptorTable.pDescriptorRanges = &descriptorRange_[4];
+	Parameters_[5].DescriptorTable.NumDescriptorRanges = 1;
+
+	// -------- RootParameter 6 : SRV DescriptorTable (Material RT)
+	descriptorRange_[5].BaseShaderRegister = 5; // t5
+	descriptorRange_[5].NumDescriptors = 1;
+	descriptorRange_[5].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[5].OffsetInDescriptorsFromTableStart =
+		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[6].ParameterType =
+		D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[6].DescriptorTable.pDescriptorRanges = &descriptorRange_[5];
+	Parameters_[6].DescriptorTable.NumDescriptorRanges = 1;
+
+	// -------- RootParameter 7 : SRV DescriptorTable (SSAO RT)
+	descriptorRange_[6].BaseShaderRegister = 6; // t6
+	descriptorRange_[6].NumDescriptors = 1;
+	descriptorRange_[6].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[6].OffsetInDescriptorsFromTableStart =
+		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[7].ParameterType =
+		D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[7].DescriptorTable.pDescriptorRanges = &descriptorRange_[6];
+	Parameters_[7].DescriptorTable.NumDescriptorRanges = 1;
+
+	// -------- RootParameter 8 : SRV DescriptorTable (Motion Vector RT)
+	descriptorRange_[7].BaseShaderRegister = 7; // t7
+	descriptorRange_[7].NumDescriptors = 1;
+	descriptorRange_[7].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[7].OffsetInDescriptorsFromTableStart =
+		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[8].ParameterType =
+		D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[8].DescriptorTable.pDescriptorRanges = &descriptorRange_[7];
+	Parameters_[8].DescriptorTable.NumDescriptorRanges = 1;
+
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 5;
+	descriptionSignature_.NumParameters = 9;
 
 	// -------- Static Sampler (s0)
 	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
