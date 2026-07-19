@@ -59,6 +59,9 @@ public:
 	static constexpr DXGI_FORMAT kBackBufferRenderTargetFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	static constexpr DXGI_FORMAT kSceneRenderTargetFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	static constexpr DXGI_FORMAT kNormalBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	static constexpr DXGI_FORMAT kMaterialBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	static constexpr DXGI_FORMAT kAmbientOcclusionBufferFormat = DXGI_FORMAT_R8_UNORM;
+	static constexpr DXGI_FORMAT kMotionVectorBufferFormat = DXGI_FORMAT_R16G16_FLOAT;
 
 	enum ShaderType {
 		Object,
@@ -84,6 +87,12 @@ public:
 		ObjectPost_OutlineAdd,
 		ObjectPost_BloomAdd,
 		Random,
+		SSAO_Resolve,
+		SSAO_Denoise,
+		SSR_Resolve,
+		SSR_Denoise,
+		MotionVector_Resolve,
+		Temporal_Resolve,
 	};
 
 	struct PSO {
@@ -210,6 +219,24 @@ public:
 		case kRandom:
 			return randomPSO;
 			break;
+		case kAdd_SSAO_Resolve:
+			return ssaoResolvePSO;
+			break;
+		case kAdd_SSAO_Denoise:
+			return ssaoDenoisePSO;
+			break;
+		case kAdd_SSR_Resolve:
+			return ssrResolvePSO;
+			break;
+		case kAdd_SSR_Denoise:
+			return ssrDenoisePSO;
+			break;
+		case kAdd_MotionVector_Resolve:
+			return motionVectorResolvePSO;
+			break;
+		case kAdd_Temporal_Resolve:
+			return temporalResolvePSO;
+			break;
 		default:
 			return objectPSO_None;
 			break;
@@ -243,6 +270,18 @@ public:
 			return objectPostBloomAddPSO_HDR;
 		case kRandom:
 			return randomPSO_HDR;
+		case kAdd_SSAO_Resolve:
+			return ssaoResolvePSO;
+		case kAdd_SSAO_Denoise:
+			return ssaoDenoisePSO;
+		case kAdd_SSR_Resolve:
+			return ssrResolvePSO_HDR;
+		case kAdd_SSR_Denoise:
+			return ssrDenoisePSO_HDR;
+		case kAdd_MotionVector_Resolve:
+			return motionVectorResolvePSO;
+		case kAdd_Temporal_Resolve:
+			return temporalResolvePSO;
 		default:
 			return objectPSO_None_HDR;
 		}
@@ -287,6 +326,11 @@ public:
 	void SetRenderTargets(
 		D3D12_CPU_DESCRIPTOR_HANDLE colorRtvHandle,
 		D3D12_CPU_DESCRIPTOR_HANDLE normalRtvHandle,
+		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);
+	void SetRenderTargets(
+		D3D12_CPU_DESCRIPTOR_HANDLE colorRtvHandle,
+		D3D12_CPU_DESCRIPTOR_HANDLE normalRtvHandle,
+		D3D12_CPU_DESCRIPTOR_HANDLE materialRtvHandle,
 		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);
 	void SetRenderTargetNoDepth(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRTVHandle() const { return currentRtvHandle_; }
@@ -453,10 +497,18 @@ private:
 	PSO objectPostOutlineAddPSO;
 	PSO objectPostBloomAddPSO;
 	PSO randomPSO;
+	PSO ssaoResolvePSO;
+	PSO ssaoDenoisePSO;
+	PSO ssrResolvePSO;
+	PSO ssrDenoisePSO;
+	PSO motionVectorResolvePSO;
+	PSO temporalResolvePSO;
 	PSO objectPostCompositePSO_HDR;
 	PSO objectPostOutlineAddPSO_HDR;
 	PSO objectPostBloomAddPSO_HDR;
 	PSO randomPSO_HDR;
+	PSO ssrResolvePSO_HDR;
+	PSO ssrDenoisePSO_HDR;
 	PSO shadowPSO;
 	PSO trailPSO;
 	PSO trailPSO_HDR;

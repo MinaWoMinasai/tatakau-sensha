@@ -19,21 +19,30 @@ public:
 	void SetAspectRatio(const float& aspectRatio) { aspectRatio_ = aspectRatio; }
 	void SetNearClip(const float& nearClip) { nearClip_ = nearClip; }
 	void SetFarClip(const float& farClip) { farClip_ = farClip; }
+	void SetProjectionJitter(const Vector2& jitter);
 
 	// getter
 	Matrix4x4& GetWorldMatrix() { return worldMatrix_; }
 	Matrix4x4& GetViewMatrix() { return viewMatrix_; }
 	Matrix4x4& GetProjectionMatrix() { return projectionMatrix_; }
 	Matrix4x4& GetViewProjectionMatrix() { return viewProjectionMatrix_; }
+	Matrix4x4& GetUnjitteredProjectionMatrix() { return unjitteredProjectionMatrix_; }
+	Matrix4x4& GetUnjitteredViewProjectionMatrix() { return unjitteredViewProjectionMatrix_; }
+	Vector2& GetProjectionJitter() { return projectionJitter_; }
 	Vector3& GetRotate() { return transform_.rotate; }
 	Vector3& GetTranslate() { return transform_.translate; }
 
 private:
+	void UpdateProjectionMatrices();
+
 	Transform transform_;
 	Matrix4x4 worldMatrix_;
 	Matrix4x4 viewMatrix_;
 	Matrix4x4 projectionMatrix_;
 	Matrix4x4 viewProjectionMatrix_;
+	Matrix4x4 unjitteredProjectionMatrix_;
+	Matrix4x4 unjitteredViewProjectionMatrix_;
+	Vector2 projectionJitter_ = { 0.0f, 0.0f };
 	float fovY_;
 	float aspectRatio_;
 	float nearClip_;

@@ -149,6 +149,12 @@ void DirectXCommon::CreateShaderCommon(
 		case ObjectPost_OutlineAdd: pso.psFilePath_ = L"resources/shaders/ObjectPostOutlineAdd.PS.hlsl"; break;
 		case ObjectPost_BloomAdd: pso.psFilePath_ = L"resources/shaders/ObjectPostBloomAdd.PS.hlsl"; break;
 		case Random: pso.psFilePath_ = L"resources/shaders/Random.PS.hlsl"; break;
+		case SSAO_Resolve: pso.psFilePath_ = L"resources/shaders/SSAOResolve.PS.hlsl"; break;
+		case SSAO_Denoise: pso.psFilePath_ = L"resources/shaders/SSAODenoise.PS.hlsl"; break;
+		case SSR_Resolve: pso.psFilePath_ = L"resources/shaders/SSRResolve.PS.hlsl"; break;
+		case SSR_Denoise: pso.psFilePath_ = L"resources/shaders/SSRDenoise.PS.hlsl"; break;
+		case MotionVector_Resolve: pso.psFilePath_ = L"resources/shaders/MotionVectorResolve.PS.hlsl"; break;
+		case Temporal_Resolve: pso.psFilePath_ = L"resources/shaders/TemporalResolve.PS.hlsl"; break;
 		}
 		break;
 	case Trail:
@@ -324,8 +330,9 @@ void DirectXCommon::CreateShaderCommon(
 		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	}
 	if (usesSceneNormalTarget) {
-		pso.graphicsDesc_.NumRenderTargets = 2;
+		pso.graphicsDesc_.NumRenderTargets = 3;
 		pso.graphicsDesc_.RTVFormats[1] = kNormalBufferFormat;
+		pso.graphicsDesc_.RTVFormats[2] = kMaterialBufferFormat;
 		pso.graphicsDesc_.BlendState.RenderTarget[1].BlendEnable = FALSE;
 		pso.graphicsDesc_.BlendState.RenderTarget[1].SrcBlend = D3D12_BLEND_ONE;
 		pso.graphicsDesc_.BlendState.RenderTarget[1].DestBlend = D3D12_BLEND_ZERO;
@@ -334,6 +341,17 @@ void DirectXCommon::CreateShaderCommon(
 		pso.graphicsDesc_.BlendState.RenderTarget[1].DestBlendAlpha = D3D12_BLEND_ZERO;
 		pso.graphicsDesc_.BlendState.RenderTarget[1].BlendOpAlpha = D3D12_BLEND_OP_ADD;
 		pso.graphicsDesc_.BlendState.RenderTarget[1].RenderTargetWriteMask =
+			(blendMode == kNone && pso.shaderType_ != Skybox)
+				? D3D12_COLOR_WRITE_ENABLE_ALL
+				: 0;
+		pso.graphicsDesc_.BlendState.RenderTarget[2].BlendEnable = FALSE;
+		pso.graphicsDesc_.BlendState.RenderTarget[2].SrcBlend = D3D12_BLEND_ONE;
+		pso.graphicsDesc_.BlendState.RenderTarget[2].DestBlend = D3D12_BLEND_ZERO;
+		pso.graphicsDesc_.BlendState.RenderTarget[2].BlendOp = D3D12_BLEND_OP_ADD;
+		pso.graphicsDesc_.BlendState.RenderTarget[2].SrcBlendAlpha = D3D12_BLEND_ONE;
+		pso.graphicsDesc_.BlendState.RenderTarget[2].DestBlendAlpha = D3D12_BLEND_ZERO;
+		pso.graphicsDesc_.BlendState.RenderTarget[2].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		pso.graphicsDesc_.BlendState.RenderTarget[2].RenderTargetWriteMask =
 			(blendMode == kNone && pso.shaderType_ != Skybox)
 				? D3D12_COLOR_WRITE_ENABLE_ALL
 				: 0;
@@ -392,10 +410,18 @@ void DirectXCommon::CreateShader()
 	objectPostOutlineAddPSO.shaderType_ = PostEffect;
 	objectPostBloomAddPSO.shaderType_ = PostEffect;
 	randomPSO.shaderType_ = PostEffect;
+	ssaoResolvePSO.shaderType_ = PostEffect;
+	ssaoDenoisePSO.shaderType_ = PostEffect;
+	ssrResolvePSO.shaderType_ = PostEffect;
+	ssrDenoisePSO.shaderType_ = PostEffect;
+	motionVectorResolvePSO.shaderType_ = PostEffect;
+	temporalResolvePSO.shaderType_ = PostEffect;
 	objectPostCompositePSO_HDR.shaderType_ = PostEffect;
 	objectPostOutlineAddPSO_HDR.shaderType_ = PostEffect;
 	objectPostBloomAddPSO_HDR.shaderType_ = PostEffect;
 	randomPSO_HDR.shaderType_ = PostEffect;
+	ssrResolvePSO_HDR.shaderType_ = PostEffect;
+	ssrDenoisePSO_HDR.shaderType_ = PostEffect;
 	downsamplePSO.shaderType_ = PostEffect;
 	downsamplePSO_HDR.shaderType_ = PostEffect;
 	shadowPSO.shaderType_ = Shadow;
@@ -422,10 +448,18 @@ void DirectXCommon::CreateShader()
 	objectPostOutlineAddPSO.postEffectType_ = ObjectPost_OutlineAdd;
 	objectPostBloomAddPSO.postEffectType_ = ObjectPost_BloomAdd;
 	randomPSO.postEffectType_ = Random;
+	ssaoResolvePSO.postEffectType_ = SSAO_Resolve;
+	ssaoDenoisePSO.postEffectType_ = SSAO_Denoise;
+	ssrResolvePSO.postEffectType_ = SSR_Resolve;
+	ssrDenoisePSO.postEffectType_ = SSR_Denoise;
+	motionVectorResolvePSO.postEffectType_ = MotionVector_Resolve;
+	temporalResolvePSO.postEffectType_ = Temporal_Resolve;
 	objectPostCompositePSO_HDR.postEffectType_ = ObjectPost_Composite;
 	objectPostOutlineAddPSO_HDR.postEffectType_ = ObjectPost_OutlineAdd;
 	objectPostBloomAddPSO_HDR.postEffectType_ = ObjectPost_BloomAdd;
 	randomPSO_HDR.postEffectType_ = Random;
+	ssrResolvePSO_HDR.postEffectType_ = SSR_Resolve;
+	ssrDenoisePSO_HDR.postEffectType_ = SSR_Denoise;
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
 	downsamplePSO_HDR.postEffectType_ = Bloom_Downsample;
 
@@ -458,6 +492,14 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(objectPostBloomAddPSO_HDR, kAdd, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(randomPSO, kNone);
 	CreateShaderCommon(randomPSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	CreateShaderCommon(ssaoResolvePSO, kNone, false, kAmbientOcclusionBufferFormat);
+	CreateShaderCommon(ssaoDenoisePSO, kNone, false, kAmbientOcclusionBufferFormat);
+	CreateShaderCommon(ssrResolvePSO, kNone);
+	CreateShaderCommon(ssrResolvePSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	CreateShaderCommon(ssrDenoisePSO, kNone);
+	CreateShaderCommon(ssrDenoisePSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	CreateShaderCommon(motionVectorResolvePSO, kNone, false, kMotionVectorBufferFormat);
+	CreateShaderCommon(temporalResolvePSO, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(downsamplePSO, kNone);
 	CreateShaderCommon(downsamplePSO_HDR, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(shadowPSO, kShadow);
@@ -976,6 +1018,28 @@ void DirectXCommon::SetRenderTargets(
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = {
 		colorRtvHandle,
 		normalRtvHandle,
+	};
+	currentRtvHandle_ = colorRtvHandle;
+	currentDsvHandle_ = dsvHandle;
+	currentHasDsv_ = true;
+	list_->OMSetRenderTargets(
+		_countof(rtvHandles),
+		rtvHandles,
+		false,
+		&dsvHandle
+	);
+}
+
+void DirectXCommon::SetRenderTargets(
+	D3D12_CPU_DESCRIPTOR_HANDLE colorRtvHandle,
+	D3D12_CPU_DESCRIPTOR_HANDLE normalRtvHandle,
+	D3D12_CPU_DESCRIPTOR_HANDLE materialRtvHandle,
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle
+) {
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = {
+		colorRtvHandle,
+		normalRtvHandle,
+		materialRtvHandle,
 	};
 	currentRtvHandle_ = colorRtvHandle;
 	currentDsvHandle_ = dsvHandle;

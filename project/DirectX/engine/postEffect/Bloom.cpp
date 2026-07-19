@@ -1,5 +1,24 @@
 #include "Bloom.h"
+#include "Object3dCommon.h"
 #include <algorithm>
+#include <cmath>
+
+namespace {
+
+float Halton(uint32_t index, uint32_t base) {
+    float result = 0.0f;
+    float fraction = 1.0f / static_cast<float>(base);
+
+    while (index > 0) {
+        result += fraction * static_cast<float>(index % base);
+        index /= base;
+        fraction /= static_cast<float>(base);
+    }
+
+    return result;
+}
+
+}
 
 void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager) {
 
@@ -32,6 +51,18 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         { 0.5f, 0.5f, 1.0f, 0.0f },
         false,
         DirectXCommon::kNormalBufferFormat
+    );
+
+    materialRT_ = std::make_unique<RenderTexture>();
+    materialRT_->Initialize(
+        dxCommon_,
+        srvManager_,
+        rtvManager_,
+        WinApp::kClientWidth,
+        WinApp::kClientHeight,
+        { 1.0f, 0.0f, 1.0f, 0.0f },
+        false,
+        DirectXCommon::kMaterialBufferFormat
     );
 
     // bloom用CBVの生成
@@ -90,6 +121,44 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
 		WinApp::kClientWidth, WinApp::kClientHeight,
 		{ 0.0f, 0.0f, 0.0f, 1.0f }, false, hdrFormat);
 
+    ssaoResolveRT_ = std::make_unique<RenderTexture>();
+    ssaoResolveRT_->Initialize(
+        dxCommon_, srvManager_, rtvManager_,
+        WinApp::kClientWidth, WinApp::kClientHeight,
+        { 1.0f, 1.0f, 1.0f, 1.0f }, false, DirectXCommon::kAmbientOcclusionBufferFormat);
+
+    ssaoDenoiseRT_ = std::make_unique<RenderTexture>();
+    ssaoDenoiseRT_->Initialize(
+        dxCommon_, srvManager_, rtvManager_,
+        WinApp::kClientWidth, WinApp::kClientHeight,
+        { 1.0f, 1.0f, 1.0f, 1.0f }, false, DirectXCommon::kAmbientOcclusionBufferFormat);
+
+    ssrResolveRT_ = std::make_unique<RenderTexture>();
+    ssrResolveRT_->Initialize(
+        dxCommon_, srvManager_, rtvManager_,
+        WinApp::kClientWidth, WinApp::kClientHeight,
+        { 0.0f, 0.0f, 0.0f, 0.0f }, false, hdrFormat);
+
+    ssrDenoiseRT_ = std::make_unique<RenderTexture>();
+    ssrDenoiseRT_->Initialize(
+        dxCommon_, srvManager_, rtvManager_,
+        WinApp::kClientWidth, WinApp::kClientHeight,
+        { 0.0f, 0.0f, 0.0f, 0.0f }, false, hdrFormat);
+
+    motionVectorRT_ = std::make_unique<RenderTexture>();
+    motionVectorRT_->Initialize(
+        dxCommon_, srvManager_, rtvManager_,
+        WinApp::kClientWidth, WinApp::kClientHeight,
+        { 0.0f, 0.0f, 0.0f, 0.0f }, false, DirectXCommon::kMotionVectorBufferFormat);
+
+    for (auto& temporalRT : temporalHistoryRT_) {
+        temporalRT = std::make_unique<RenderTexture>();
+        temporalRT->Initialize(
+            dxCommon_, srvManager_, rtvManager_,
+            WinApp::kClientWidth, WinApp::kClientHeight,
+            { 0.0f, 0.0f, 0.0f, 1.0f }, false, hdrFormat);
+    }
+
     // ブルームパラメータ
     bloomParam_.threshold = 1.0f;
     bloomParam_.intensity = 0.35f;
@@ -146,6 +215,48 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.ssaoSampleCount = 12.0f;
     bloomParam_.ssaoNormalInfluence = 0.65f;
     bloomParam_.ssaoDistanceFalloff = 22.0f;
+    bloomParam_.ssaoDenoiseEnabled = 1.0f;
+    bloomParam_.ssaoDenoiseRadius = 2.0f;
+    bloomParam_.ssaoDenoiseDepthSigma = 24.0f;
+    bloomParam_.ssaoDenoiseNormalSigma = 18.0f;
+    bloomParam_.ssrViewMatrix = MakeIdentity4x4();
+    const float aspectRatio = static_cast<float>(WinApp::kClientWidth) / static_cast<float>(WinApp::kClientHeight);
+    const float tanHalfFovY = std::tan(0.45f * 0.5f);
+    bloomParam_.ssrProjectionScale = { aspectRatio * tanHalfFovY, tanHalfFovY };
+    bloomParam_.ssrEnabled = 1.0f;
+    bloomParam_.ssrIntensity = 0.32f;
+    bloomParam_.ssrMaxDistance = 420.0f;
+    bloomParam_.ssrThickness = 2.5f;
+    bloomParam_.ssrStepCount = 28.0f;
+    bloomParam_.ssrStride = 1.0f;
+    bloomParam_.ssrFresnelPower = 2.2f;
+    bloomParam_.ssrEdgeFade = 0.075f;
+    bloomParam_.ssrDepthFade = 1800.0f;
+    bloomParam_.ssrNormalFade = 0.85f;
+    bloomParam_.ssrMaskPower = 1.0f;
+    bloomParam_.ssrBlurRadius = 3.5f;
+    bloomParam_.ssrDenoiseEnabled = 1.0f;
+    bloomParam_.ssrDenoiseRadius = 2.0f;
+    bloomParam_.ssrDenoiseDepthSigma = 28.0f;
+    bloomParam_.ssrDenoiseNormalSigma = 20.0f;
+    bloomParam_.motionMatrixPadding[0] = 0.0f;
+    bloomParam_.motionMatrixPadding[1] = 0.0f;
+    bloomParam_.motionCurrentViewProjection = MakeIdentity4x4();
+    bloomParam_.motionPreviousViewProjection = MakeIdentity4x4();
+    bloomParam_.motionInverseCurrentViewProjection = MakeIdentity4x4();
+    bloomParam_.motionVectorEnabled = 1.0f;
+    bloomParam_.motionVectorScale = 1.0f;
+    bloomParam_.motionVectorDebugScale = 80.0f;
+    bloomParam_.temporalEnabled = 1.0f;
+    bloomParam_.temporalHistoryValid = 0.0f;
+    bloomParam_.temporalBlendFactor = 0.88f;
+    bloomParam_.temporalMotionRejection = 24.0f;
+    bloomParam_.temporalJitter = { 0.0f, 0.0f };
+    bloomParam_.temporalPreviousJitter = { 0.0f, 0.0f };
+    bloomParam_.temporalJitterEnabled = 1.0f;
+    bloomParam_.temporalJitterScale = temporalJitterScale_;
+    bloomParam_.temporalJitterPadding[0] = 0.0f;
+    bloomParam_.temporalJitterPadding[1] = 0.0f;
 
    /* bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 1.2f;
@@ -246,7 +357,16 @@ void Bloom::Update() {
         "Depth Edge",
         "Depth-derived Normal",
         "Normal Buffer",
-        "SSAO"
+        "SSAO",
+        "SSR",
+        "SSR Mask",
+        "Material Roughness",
+        "Material Metallic",
+        "Material AO",
+        "Material Class",
+        "Motion Vector",
+        "Motion Diagnostic",
+        "Temporal Source"
     };
     ImGui::Combo("Debug View", &renderDebugMode_, renderDebugModes, IM_ARRAYSIZE(renderDebugModes));
     ImGui::DragFloat("Linear Depth Range", &bloomParam_.linearDepthDebugRange, 10.0f, 1.0f, 5000.0f);
@@ -262,6 +382,56 @@ void Bloom::Update() {
     ImGui::DragFloat("SSAO Samples", &bloomParam_.ssaoSampleCount, 1.0f, 1.0f, 16.0f);
     ImGui::DragFloat("SSAO Normal Influence", &bloomParam_.ssaoNormalInfluence, 0.01f, 0.0f, 1.0f);
     ImGui::DragFloat("SSAO Distance Falloff", &bloomParam_.ssaoDistanceFalloff, 0.5f, 1.0f, 200.0f);
+    ImGui::Checkbox("Enable SSAO Denoise", &enableSSAODenoise_);
+    ImGui::DragFloat("SSAO Denoise Radius", &bloomParam_.ssaoDenoiseRadius, 0.1f, 0.0f, 8.0f);
+    ImGui::DragFloat("SSAO Denoise Depth Sigma", &bloomParam_.ssaoDenoiseDepthSigma, 1.0f, 1.0f, 200.0f);
+    ImGui::DragFloat("SSAO Denoise Normal Sigma", &bloomParam_.ssaoDenoiseNormalSigma, 0.5f, 0.0f, 80.0f);
+
+    ImGui::Separator();
+    ImGui::Text("SSR");
+    ImGui::Checkbox("Enable SSR", &enableSSR_);
+    ImGui::DragFloat("SSR Intensity", &bloomParam_.ssrIntensity, 0.01f, 0.0f, 1.0f);
+    ImGui::DragFloat("SSR Max Distance", &bloomParam_.ssrMaxDistance, 5.0f, 1.0f, 2500.0f);
+    ImGui::DragFloat("SSR Thickness", &bloomParam_.ssrThickness, 0.1f, 0.01f, 40.0f);
+    ImGui::DragFloat("SSR Steps", &bloomParam_.ssrStepCount, 1.0f, 1.0f, 48.0f);
+    ImGui::DragFloat("SSR Stride", &bloomParam_.ssrStride, 0.01f, 0.1f, 4.0f);
+    ImGui::DragFloat("SSR Fresnel Power", &bloomParam_.ssrFresnelPower, 0.01f, 0.1f, 8.0f);
+    ImGui::DragFloat("SSR Edge Fade", &bloomParam_.ssrEdgeFade, 0.001f, 0.001f, 0.3f);
+    ImGui::DragFloat("SSR Depth Fade", &bloomParam_.ssrDepthFade, 10.0f, 10.0f, 5000.0f);
+    ImGui::DragFloat("SSR Normal Fade", &bloomParam_.ssrNormalFade, 0.01f, 0.0f, 1.0f);
+    ImGui::DragFloat("SSR Mask Power", &bloomParam_.ssrMaskPower, 0.01f, 0.1f, 4.0f);
+    ImGui::DragFloat("SSR Blur Radius", &bloomParam_.ssrBlurRadius, 0.1f, 0.0f, 16.0f);
+    ImGui::Checkbox("Enable SSR Denoise", &enableSSRDenoise_);
+    ImGui::DragFloat("SSR Denoise Radius", &bloomParam_.ssrDenoiseRadius, 0.1f, 0.0f, 8.0f);
+    ImGui::DragFloat("SSR Denoise Depth Sigma", &bloomParam_.ssrDenoiseDepthSigma, 1.0f, 1.0f, 200.0f);
+    ImGui::DragFloat("SSR Denoise Normal Sigma", &bloomParam_.ssrDenoiseNormalSigma, 0.5f, 0.0f, 80.0f);
+
+    ImGui::Separator();
+    ImGui::Text("Motion Vector");
+    ImGui::Checkbox("Enable Motion Vector", &enableMotionVector_);
+    ImGui::DragFloat("Motion Vector Scale", &bloomParam_.motionVectorScale, 0.01f, -1.0f, 8.0f);
+    ImGui::DragFloat("Motion Vector Debug Scale", &bloomParam_.motionVectorDebugScale, 1.0f, 1.0f, 500.0f);
+    ImGui::Text("Motion matrix delta: %.6f", motionMatrixDelta_);
+    ImGui::Text("Set Motion Vector Scale to -1.0 or choose Motion Diagnostic to test the RT path.");
+
+    ImGui::Separator();
+    ImGui::Text("Temporal");
+    if (ImGui::Checkbox("Enable Temporal Accumulation", &enableTemporalAccumulation_)) {
+        ResetTemporalHistory();
+    }
+    if (ImGui::Checkbox("Enable TAA Camera Jitter", &enableTemporalJitter_)) {
+        ResetTemporalHistory();
+    }
+    ImGui::DragFloat("Temporal History Blend", &bloomParam_.temporalBlendFactor, 0.01f, 0.0f, 0.98f);
+    ImGui::DragFloat("Temporal Motion Rejection", &bloomParam_.temporalMotionRejection, 0.5f, 0.0f, 96.0f);
+    if (ImGui::DragFloat("Temporal Jitter Scale", &temporalJitterScale_, 0.01f, 0.0f, 2.0f)) {
+        ResetTemporalHistory();
+    }
+    ImGui::Text("TAA jitter: %.6f, %.6f", temporalJitter_.x, temporalJitter_.y);
+    ImGui::Text("Temporal history: %s", hasTemporalHistory_ ? "valid" : "reset");
+    if (ImGui::Button("Reset Temporal History")) {
+        ResetTemporalHistory();
+    }
 
     ImGui::Separator();
     ImGui::Text("Depth Fog");
@@ -306,6 +476,37 @@ void Bloom::Update() {
         bloomParam_.ssaoSampleCount = 12.0f;
         bloomParam_.ssaoNormalInfluence = 0.65f;
         bloomParam_.ssaoDistanceFalloff = 22.0f;
+        enableSSAODenoise_ = true;
+        bloomParam_.ssaoDenoiseRadius = 2.0f;
+        bloomParam_.ssaoDenoiseDepthSigma = 24.0f;
+        bloomParam_.ssaoDenoiseNormalSigma = 18.0f;
+        enableSSR_ = true;
+        bloomParam_.ssrIntensity = 0.32f;
+        bloomParam_.ssrMaxDistance = 420.0f;
+        bloomParam_.ssrThickness = 2.5f;
+        bloomParam_.ssrStepCount = 28.0f;
+        bloomParam_.ssrStride = 1.0f;
+        bloomParam_.ssrFresnelPower = 2.2f;
+        bloomParam_.ssrEdgeFade = 0.075f;
+        bloomParam_.ssrDepthFade = 1800.0f;
+        bloomParam_.ssrNormalFade = 0.85f;
+        bloomParam_.ssrMaskPower = 1.0f;
+        bloomParam_.ssrBlurRadius = 3.5f;
+        enableSSRDenoise_ = true;
+        bloomParam_.ssrDenoiseRadius = 2.0f;
+        bloomParam_.ssrDenoiseDepthSigma = 28.0f;
+        bloomParam_.ssrDenoiseNormalSigma = 20.0f;
+        bloomParam_.motionMatrixPadding[0] = 0.0f;
+        bloomParam_.motionMatrixPadding[1] = 0.0f;
+        enableMotionVector_ = true;
+        bloomParam_.motionVectorScale = 1.0f;
+        bloomParam_.motionVectorDebugScale = 80.0f;
+        enableTemporalAccumulation_ = true;
+        enableTemporalJitter_ = true;
+        temporalJitterScale_ = 1.0f;
+        ResetTemporalHistory();
+        bloomParam_.temporalBlendFactor = 0.88f;
+        bloomParam_.temporalMotionRejection = 24.0f;
         bloomParam_.vignetteIntensity = 0.0f;
         bloomParam_.vignetteScale = 0.0f;
         baseChromAbAmount_ = 0.0f;
@@ -349,13 +550,48 @@ void Bloom::Update() {
 
 #endif // USE_IMGUI
 
-    renderDebugMode_ = (std::clamp)(renderDebugMode_, 0, 7);
+    renderDebugMode_ = (std::clamp)(renderDebugMode_, 0, 16);
     bloomParam_.isGrayscale = (manualGrayscale_ || forceGrayscale_) ? 1.0f : 0.0f;
     bloomParam_.depthOutlineEnabled = enableDepthOutline_ ? 1.0f : 0.0f;
     bloomParam_.depthFogEnabled = enableDepthFog_ ? 1.0f : 0.0f;
     bloomParam_.ssaoEnabled = enableSSAO_ ? 1.0f : 0.0f;
     bloomParam_.ssaoSampleCount = (std::clamp)(bloomParam_.ssaoSampleCount, 1.0f, 16.0f);
-    bloomParam_.renderDebugMode = static_cast<float>(renderDebugMode_);
+    bloomParam_.ssaoRadius = (std::max)(bloomParam_.ssaoRadius, 0.0f);
+    bloomParam_.ssaoIntensity = (std::max)(bloomParam_.ssaoIntensity, 0.0f);
+    bloomParam_.ssaoDistanceFalloff = (std::max)(bloomParam_.ssaoDistanceFalloff, 0.001f);
+    bloomParam_.ssaoDenoiseEnabled = enableSSAODenoise_ ? 1.0f : 0.0f;
+    bloomParam_.ssaoDenoiseRadius = (std::max)(bloomParam_.ssaoDenoiseRadius, 0.0f);
+    bloomParam_.ssaoDenoiseDepthSigma = (std::max)(bloomParam_.ssaoDenoiseDepthSigma, 0.001f);
+    bloomParam_.ssaoDenoiseNormalSigma = (std::max)(bloomParam_.ssaoDenoiseNormalSigma, 0.0f);
+    bloomParam_.ssrEnabled = enableSSR_ ? 1.0f : 0.0f;
+    bloomParam_.ssrStepCount = (std::clamp)(bloomParam_.ssrStepCount, 1.0f, 48.0f);
+    bloomParam_.ssrStride = (std::max)(bloomParam_.ssrStride, 0.1f);
+    bloomParam_.ssrThickness = (std::max)(bloomParam_.ssrThickness, 0.01f);
+    bloomParam_.ssrMaxDistance = (std::max)(bloomParam_.ssrMaxDistance, 1.0f);
+    bloomParam_.ssrMaskPower = (std::max)(bloomParam_.ssrMaskPower, 0.1f);
+    bloomParam_.ssrBlurRadius = (std::max)(bloomParam_.ssrBlurRadius, 0.0f);
+    bloomParam_.ssrDenoiseEnabled = enableSSRDenoise_ ? 1.0f : 0.0f;
+    bloomParam_.ssrDenoiseRadius = (std::max)(bloomParam_.ssrDenoiseRadius, 0.0f);
+    bloomParam_.ssrDenoiseDepthSigma = (std::max)(bloomParam_.ssrDenoiseDepthSigma, 0.001f);
+    bloomParam_.ssrDenoiseNormalSigma = (std::max)(bloomParam_.ssrDenoiseNormalSigma, 0.0f);
+    bloomParam_.motionVectorEnabled = enableMotionVector_ ? 1.0f : 0.0f;
+    bloomParam_.motionVectorScale = (std::clamp)(bloomParam_.motionVectorScale, -1.0f, 8.0f);
+    bloomParam_.motionVectorDebugScale = (std::max)(bloomParam_.motionVectorDebugScale, 1.0f);
+    bloomParam_.temporalEnabled = enableTemporalAccumulation_ ? 1.0f : 0.0f;
+    bloomParam_.temporalBlendFactor = (std::clamp)(bloomParam_.temporalBlendFactor, 0.0f, 0.98f);
+    bloomParam_.temporalMotionRejection = (std::max)(bloomParam_.temporalMotionRejection, 0.0f);
+    temporalJitterScale_ = (std::clamp)(temporalJitterScale_, 0.0f, 2.0f);
+    bloomParam_.temporalJitterEnabled = enableTemporalJitter_ ? 1.0f : 0.0f;
+    bloomParam_.temporalJitterScale = temporalJitterScale_;
+    if (!enableTemporalAccumulation_) {
+        hasTemporalHistory_ = false;
+    }
+    const float aspectRatio = static_cast<float>(WinApp::kClientWidth) / static_cast<float>(WinApp::kClientHeight);
+    const float tanHalfFovY = std::tan(0.45f * 0.5f);
+    bloomParam_.ssrProjectionScale = { aspectRatio * tanHalfFovY, tanHalfFovY };
+    bloomParam_.renderDebugMode = (enableMotionVector_ && bloomParam_.motionVectorScale < -0.5f)
+        ? 15.0f
+        : static_cast<float>(renderDebugMode_);
     bloomParam_.intensity = baseBloomIntensity_ + transientBloomBoost_;
     bloomParam_.distortionAmount = baseDistortionAmount_;
     bloomParam_.chromAbAmount = baseChromAbAmount_ + transientChromAbAmount_;
@@ -366,6 +602,96 @@ void Bloom::Update() {
     bloomCB_->Update(bloomParam_);
     timer_ += SceneManager::GetInstance()->GetFinalDeltaTime();
     bloomParam_.timer = timer_;
+}
+
+void Bloom::UpdateFrameCameraParameters(bool advanceMotionHistory) {
+    Object3dCommon* objectCommon = Object3dCommon::GetInstance();
+    bloomParam_.ssrViewMatrix = MakeIdentity4x4();
+
+    Matrix4x4 currentMotionViewProjection = MakeIdentity4x4();
+    bool usingDebugCamera = false;
+    if (objectCommon->GetIsDebugCamera() && objectCommon->GetDebugCamera()) {
+        bloomParam_.ssrViewMatrix = objectCommon->GetDebugCamera()->GetViewMatrix();
+        currentMotionViewProjection = objectCommon->GetDebugCamera()->GetViewProjectionMatrix();
+        usingDebugCamera = true;
+    } else if (objectCommon->GetDefaultCamera()) {
+        bloomParam_.ssrViewMatrix = objectCommon->GetDefaultCamera()->GetViewMatrix();
+        currentMotionViewProjection = objectCommon->GetDefaultCamera()->GetViewProjectionMatrix();
+    }
+
+    const bool resetHistory = !hasPreviousMotionViewProjection_ || previousMotionUsedDebugCamera_ != usingDebugCamera;
+    if (resetHistory) {
+        previousMotionViewProjection_ = currentMotionViewProjection;
+        hasPreviousMotionViewProjection_ = true;
+        ResetTemporalHistory();
+    }
+
+    motionMatrixDelta_ = 0.0f;
+    for (int row = 0; row < 4; ++row) {
+        for (int column = 0; column < 4; ++column) {
+            motionMatrixDelta_ += std::abs(
+                currentMotionViewProjection.m[row][column] -
+                previousMotionViewProjection_.m[row][column]);
+        }
+    }
+
+    bloomParam_.motionCurrentViewProjection = currentMotionViewProjection;
+    bloomParam_.motionPreviousViewProjection = previousMotionViewProjection_;
+    bloomParam_.motionInverseCurrentViewProjection = Inverse(currentMotionViewProjection);
+
+    if (advanceMotionHistory) {
+        previousMotionViewProjection_ = currentMotionViewProjection;
+        previousMotionUsedDebugCamera_ = usingDebugCamera;
+    }
+}
+
+void Bloom::ApplyTemporalJitterToCameras() {
+    previousTemporalJitter_ = temporalJitter_;
+
+    const bool canUseJitter =
+        enableTemporalAccumulation_ &&
+        enableTemporalJitter_ &&
+        enableMotionVector_ &&
+        bloomParam_.motionVectorScale >= 0.0f &&
+        renderDebugMode_ != 15;
+
+    if (canUseJitter) {
+        const uint32_t sampleIndex = (temporalFrameIndex_ % 8u) + 1u;
+        const float jitterX = Halton(sampleIndex, 2u) - 0.5f;
+        const float jitterY = Halton(sampleIndex, 3u) - 0.5f;
+        temporalJitter_ = {
+            (jitterX * 2.0f / static_cast<float>(WinApp::kClientWidth)) * temporalJitterScale_,
+            (-jitterY * 2.0f / static_cast<float>(WinApp::kClientHeight)) * temporalJitterScale_
+        };
+        ++temporalFrameIndex_;
+    } else {
+        temporalJitter_ = { 0.0f, 0.0f };
+        previousTemporalJitter_ = { 0.0f, 0.0f };
+    }
+
+    bloomParam_.temporalJitter = temporalJitter_;
+    bloomParam_.temporalPreviousJitter = previousTemporalJitter_;
+    bloomParam_.temporalJitterEnabled = enableTemporalJitter_ ? 1.0f : 0.0f;
+    bloomParam_.temporalJitterScale = temporalJitterScale_;
+
+    Object3dCommon* objectCommon = Object3dCommon::GetInstance();
+    if (objectCommon->GetDefaultCamera()) {
+        objectCommon->GetDefaultCamera()->SetProjectionJitter(temporalJitter_);
+    }
+    if (objectCommon->GetDebugCamera()) {
+        objectCommon->GetDebugCamera()->SetProjectionJitter(temporalJitter_);
+    }
+}
+
+void Bloom::ResetTemporalHistory() {
+    hasTemporalHistory_ = false;
+    temporalHistoryIndex_ = 0;
+    temporalFrameIndex_ = 0;
+    temporalJitter_ = { 0.0f, 0.0f };
+    previousTemporalJitter_ = { 0.0f, 0.0f };
+    bloomParam_.temporalHistoryValid = 0.0f;
+    bloomParam_.temporalJitter = temporalJitter_;
+    bloomParam_.temporalPreviousJitter = previousTemporalJitter_;
 }
 
 void Bloom::SetGrayscaleEnabled(bool enabled) {
@@ -402,6 +728,8 @@ void Bloom::SetTransientPulse(
 }
 
 void Bloom::PreDraw() {
+    ApplyTemporalJitterToCameras();
+
     Transition(sceneRT_->GetDepthResource(),
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -413,13 +741,22 @@ void Bloom::PreDraw() {
     Transition(normalRT_->GetResource(),
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         D3D12_RESOURCE_STATE_RENDER_TARGET);
+    Transition(materialRT_->GetResource(),
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     // 2. レンダーターゲット設定とクリア
-    dxCommon_->SetRenderTargets(sceneRT_->GetRTVHandle(), normalRT_->GetRTVHandle(), sceneRT_->GetDSVHandle());
+    dxCommon_->SetRenderTargets(
+        sceneRT_->GetRTVHandle(),
+        normalRT_->GetRTVHandle(),
+        materialRT_->GetRTVHandle(),
+        sceneRT_->GetDSVHandle());
     dxCommon_->GetList()->ClearDepthStencilView(sceneRT_->GetDSVHandle(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     dxCommon_->ClearRenderTarget(sceneRT_->GetRTVHandle());
     const float normalClearColor[4] = { 0.5f, 0.5f, 1.0f, 0.0f };
     dxCommon_->ClearRenderTarget(normalRT_->GetRTVHandle(), normalClearColor);
+    const float materialClearColor[4] = { 1.0f, 0.0f, 1.0f, 0.0f };
+    dxCommon_->ClearRenderTarget(materialRT_->GetRTVHandle(), materialClearColor);
 
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 }
@@ -430,7 +767,11 @@ void Bloom::PostDraw() {
     // --- A. SceneRT の描画終了 (RT -> SRV) ---
     Transition(sceneRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     Transition(normalRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    Transition(materialRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     Transition(sceneRT_->GetDepthResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    UpdateFrameCameraParameters(true);
+    bloomCB_->Update(bloomParam_);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE sceneSource = sceneRT_->GetGPUHandle();
 	const bool useRandomPass = bloomParam_.randomGrayscalePreview > 0.5f || bloomParam_.randomIntensity > 0.0f;
@@ -444,7 +785,122 @@ void Bloom::PostDraw() {
 		sceneSource = randomRT_->GetGPUHandle();
 	}
 
-    // --- B. 抽出パス (SceneRT -> BloomHalf) ---
+    // --- B. Motion vector pass (Depth + current/previous camera -> Motion Vector RT) ---
+    Transition(motionVectorRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    dxCommon_->SetRenderTargetNoDepth(motionVectorRT_->GetRTVHandle());
+    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    const float motionClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    dxCommon_->ClearRenderTarget(motionVectorRT_->GetRTVHandle(), motionClearColor);
+    if (enableMotionVector_) {
+        postEffect_->DrawMotionVectorResolve(sceneRT_->GetDepthGPUHandle());
+    }
+    Transition(motionVectorRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    // --- C. Temporal resolve pass (Scene + History + Motion -> Stable Scene) ---
+    const bool canUseTemporalAccumulation =
+        enableTemporalAccumulation_ &&
+        enableMotionVector_ &&
+        bloomParam_.motionVectorScale >= 0.0f &&
+        renderDebugMode_ != 15;
+
+    if (canUseTemporalAccumulation) {
+        const int readHistoryIndex = temporalHistoryIndex_;
+        const int writeHistoryIndex = 1 - temporalHistoryIndex_;
+        D3D12_GPU_DESCRIPTOR_HANDLE historySource = hasTemporalHistory_
+            ? temporalHistoryRT_[readHistoryIndex]->GetGPUHandle()
+            : sceneSource;
+
+        bloomParam_.temporalHistoryValid = hasTemporalHistory_ ? 1.0f : 0.0f;
+        bloomCB_->Update(bloomParam_);
+
+        Transition(temporalHistoryRT_[writeHistoryIndex]->GetResource(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_RENDER_TARGET);
+        dxCommon_->SetRenderTargetNoDepth(temporalHistoryRT_[writeHistoryIndex]->GetRTVHandle());
+        dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+        const float temporalClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        dxCommon_->ClearRenderTarget(temporalHistoryRT_[writeHistoryIndex]->GetRTVHandle(), temporalClearColor);
+        postEffect_->DrawTemporalResolve(
+            sceneSource,
+            historySource,
+            sceneRT_->GetDepthGPUHandle(),
+            normalRT_->GetGPUHandle(),
+            motionVectorRT_->GetGPUHandle());
+        Transition(temporalHistoryRT_[writeHistoryIndex]->GetResource(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+        sceneSource = temporalHistoryRT_[writeHistoryIndex]->GetGPUHandle();
+        temporalHistoryIndex_ = writeHistoryIndex;
+        hasTemporalHistory_ = true;
+        bloomParam_.temporalHistoryValid = 1.0f;
+        bloomCB_->Update(bloomParam_);
+    } else {
+        hasTemporalHistory_ = false;
+        bloomParam_.temporalHistoryValid = 0.0f;
+        bloomCB_->Update(bloomParam_);
+    }
+
+    // --- D. SSAO resolve pass (Depth/Normal/Material -> AO RT) ---
+    Transition(ssaoResolveRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    dxCommon_->SetRenderTargetNoDepth(ssaoResolveRT_->GetRTVHandle());
+    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    const float aoClearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    dxCommon_->ClearRenderTarget(ssaoResolveRT_->GetRTVHandle(), aoClearColor);
+    if (enableSSAO_) {
+        postEffect_->DrawSSAOResolve(
+            sceneRT_->GetDepthGPUHandle(),
+            normalRT_->GetGPUHandle(),
+            materialRT_->GetGPUHandle());
+    }
+    Transition(ssaoResolveRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    D3D12_GPU_DESCRIPTOR_HANDLE ssaoCompositeSource = ssaoResolveRT_->GetGPUHandle();
+    if (enableSSAO_ && enableSSAODenoise_) {
+        Transition(ssaoDenoiseRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        dxCommon_->SetRenderTargetNoDepth(ssaoDenoiseRT_->GetRTVHandle());
+        dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+        dxCommon_->ClearRenderTarget(ssaoDenoiseRT_->GetRTVHandle(), aoClearColor);
+        postEffect_->DrawSSAODenoise(
+            ssaoResolveRT_->GetGPUHandle(),
+            sceneRT_->GetDepthGPUHandle(),
+            normalRT_->GetGPUHandle(),
+            materialRT_->GetGPUHandle());
+        Transition(ssaoDenoiseRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        ssaoCompositeSource = ssaoDenoiseRT_->GetGPUHandle();
+    }
+
+    // --- E. SSR resolve pass (Scene/Depth/Normal -> SSR RT) ---
+    Transition(ssrResolveRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    dxCommon_->SetRenderTargetNoDepth(ssrResolveRT_->GetRTVHandle());
+    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    const float ssrClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    dxCommon_->ClearRenderTarget(ssrResolveRT_->GetRTVHandle(), ssrClearColor);
+    if (enableSSR_) {
+        postEffect_->DrawSSRResolve(
+            sceneSource,
+            sceneRT_->GetDepthGPUHandle(),
+            normalRT_->GetGPUHandle(),
+            materialRT_->GetGPUHandle());
+    }
+    Transition(ssrResolveRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    D3D12_GPU_DESCRIPTOR_HANDLE ssrCompositeSource = ssrResolveRT_->GetGPUHandle();
+    if (enableSSR_ && enableSSRDenoise_) {
+        Transition(ssrDenoiseRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        dxCommon_->SetRenderTargetNoDepth(ssrDenoiseRT_->GetRTVHandle());
+        dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+        dxCommon_->ClearRenderTarget(ssrDenoiseRT_->GetRTVHandle(), ssrClearColor);
+        postEffect_->DrawSSRDenoise(
+            ssrResolveRT_->GetGPUHandle(),
+            sceneRT_->GetDepthGPUHandle(),
+            normalRT_->GetGPUHandle(),
+            materialRT_->GetGPUHandle());
+        Transition(ssrDenoiseRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        ssrCompositeSource = ssrDenoiseRT_->GetGPUHandle();
+    }
+
+    // --- F. 抽出パス (SceneRT -> BloomHalf) ---
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
@@ -459,7 +915,7 @@ void Bloom::PostDraw() {
 
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    // --- C. Bloom prefilter (BloomHalf -> BloomA) ---
+    // --- G. Bloom prefilter (BloomHalf -> BloomA) ---
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
@@ -468,7 +924,7 @@ void Bloom::PostDraw() {
     postEffect_->Draw(bloomRT_Half_->GetGPUHandle(), kAdd_Bloom_Downsample);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    // --- D. Blur filter ---
+    // --- H. Blur filter ---
     Transition(bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_B_->GetRTVHandle());
     postEffect_->Draw(bloomRT_A_->GetGPUHandle(), kAdd_Bloom_BlurH);
@@ -479,7 +935,7 @@ void Bloom::PostDraw() {
     postEffect_->Draw(bloomRT_B_->GetGPUHandle(), kAdd_Bloom_BlurV);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    // --- E. 最終合成 (SceneRT + BloomA -> BackBuffer) ---
+    // --- I. 最終合成 (SceneRT + BloomA + AO + SSR + Motion -> BackBuffer) ---
     dxCommon_->SetBackBuffer();
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
@@ -488,7 +944,11 @@ void Bloom::PostDraw() {
         sceneSource,
         bloomRT_A_->GetGPUHandle(),
         sceneRT_->GetDepthGPUHandle(),
-        normalRT_->GetGPUHandle());
+        normalRT_->GetGPUHandle(),
+        ssrCompositeSource,
+        materialRT_->GetGPUHandle(),
+        ssaoCompositeSource,
+        motionVectorRT_->GetGPUHandle());
 }
 
 void Bloom::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {

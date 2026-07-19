@@ -56,7 +56,20 @@ void DebugCamera::Update(const DIMOUSESTATE& mousestate, std::span<const BYTE> k
     // View行列の作成
     viewMatrix_ = MakeLookAtMatrix(cameraPos, target, up);
 
-    projectionMatrix_ = MakePerspectiveForMatrix(fovY_, aspectRatio_, nearClip_, farClip_);
-    viewProjectionMatrix_ = Multiply(viewMatrix_, projectionMatrix_);
+    UpdateProjectionMatrices();
 
+}
+
+void DebugCamera::SetProjectionJitter(const Vector2& jitter) {
+    projectionJitter_ = jitter;
+    UpdateProjectionMatrices();
+}
+
+void DebugCamera::UpdateProjectionMatrices() {
+    unjitteredProjectionMatrix_ = MakePerspectiveForMatrix(fovY_, aspectRatio_, nearClip_, farClip_);
+    unjitteredViewProjectionMatrix_ = Multiply(viewMatrix_, unjitteredProjectionMatrix_);
+    projectionMatrix_ = unjitteredProjectionMatrix_;
+    projectionMatrix_.m[2][0] += projectionJitter_.x;
+    projectionMatrix_.m[2][1] += projectionJitter_.y;
+    viewProjectionMatrix_ = Multiply(viewMatrix_, projectionMatrix_);
 }
