@@ -331,6 +331,12 @@ enum BlendMode {
 	kAdd_ObjectPost_OutlineAdd,
 	kAdd_ObjectPost_BloomAdd,
 	kRandom,
+	kAdd_SSAO_Resolve,
+	kAdd_SSAO_Denoise,
+	kAdd_SSR_Resolve,
+	kAdd_SSR_Denoise,
+	kAdd_MotionVector_Resolve,
+	kAdd_Temporal_Resolve,
 };
 
 enum Phase {
@@ -420,7 +426,7 @@ struct BloomParam
 	float toneMappingMode; // 0: Reinhard, 1: ACES
 	float hdrWhitePoint; // Reinhard系ToneMappingの白基準
 	float hdrPadding;
-	float renderDebugMode; // 0: Final, 1: Scene, 2: Bloom, 3: LinearDepth, 4: DepthEdge, 5: DepthNormal, 6: NormalBuffer, 7: SSAO
+	float renderDebugMode; // 0: Final, 1: Scene, 2: Bloom, 3: LinearDepth, 4: DepthEdge, 5: DepthNormal, 6: NormalBuffer, 7: SSAO, 8: SSR, 9: SSRMask, 10-13: Material, 14: Motion, 15: MotionDiagnostic, 16: TemporalSource
 	float linearDepthDebugRange; // LinearDepth表示の白基準距離
 	float depthNormalScale; // Depthから推定する画面空間法線の強調倍率
 	float depthFogEnabled; // DepthFogの有効化
@@ -438,6 +444,45 @@ struct BloomParam
 	float ssaoSampleCount; // 使用サンプル数
 	float ssaoNormalInfluence; // 法線差による重み
 	float ssaoDistanceFalloff; // 深度差の減衰距離
+	Matrix4x4 ssrViewMatrix; // ワールド法線をView空間へ変換するための現在カメラView
+	Vector2 ssrProjectionScale; // View空間座標復元用: tan(fovY/2)*aspect, tan(fovY/2)
+	float ssrEnabled; // Screen Space Reflectionの有効化
+	float ssrIntensity; // 反射合成の強さ
+	float ssrMaxDistance; // View空間での最大レイ距離
+	float ssrThickness; // 深度ヒット許容幅
+	float ssrStepCount; // レイマーチサンプル数
+	float ssrStride; // レイの進み幅倍率
+	float ssrFresnelPower; // 視線角による反射強度カーブ
+	float ssrEdgeFade; // 画面端フェード幅
+	float ssrDepthFade; // 遠距離フェード開始の目安
+	float ssrNormalFade; // 正面向き面の反射抑制
+	float ssrMaskPower; // マテリアル反射マスクのカーブ
+	float ssrBlurRadius; // 反射色の簡易ぼかし半径(px)
+	float ssrDenoiseEnabled; // SSR専用デノイズの有効化
+	float ssrDenoiseRadius; // SSRデノイズ半径(px)
+	float ssrDenoiseDepthSigma; // 深度差によるにじみ抑制
+	float ssrDenoiseNormalSigma; // 法線差によるにじみ抑制
+	float ssaoDenoiseEnabled; // SSAO専用デノイズの有効化
+	float ssaoDenoiseRadius; // SSAOデノイズ半径(px)
+	float ssaoDenoiseDepthSigma; // SSAOの深度差によるにじみ抑制
+	float ssaoDenoiseNormalSigma; // SSAOの法線差によるにじみ抑制
+	float motionMatrixPadding[2]; // HLSL cbufferで後続Matrix4x4を16byte境界へ揃える
+	Matrix4x4 motionCurrentViewProjection; // 現在フレームのViewProjection
+	Matrix4x4 motionPreviousViewProjection; // 前フレームのViewProjection
+	Matrix4x4 motionInverseCurrentViewProjection; // Depth復元用の現在ViewProjection逆行列
+	float motionVectorEnabled; // Motion Vector Bufferの有効化
+	float motionVectorScale; // 保存するモーション量の倍率
+	float motionVectorDebugScale; // Debug表示時の強調倍率
+	float motionVectorPadding;
+	float temporalEnabled; // Temporal履歴合成の有効化
+	float temporalHistoryValid; // 前フレーム履歴が使用可能か
+	float temporalBlendFactor; // 履歴色の合成率
+	float temporalMotionRejection; // 大きな動きで履歴を捨てる強さ
+	Vector2 temporalJitter; // 現在フレームのTAAサブピクセルジッター(NDC)
+	Vector2 temporalPreviousJitter; // 前フレームのTAAサブピクセルジッター(NDC)
+	float temporalJitterEnabled; // カメラジッターの有効化
+	float temporalJitterScale; // Haltonジッターの倍率
+	float temporalJitterPadding[2];
 };
 
 struct PointLightData {

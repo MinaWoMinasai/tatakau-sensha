@@ -33,10 +33,16 @@ public:
 
 	Matrix4x4& GetProjectionMatrix() { return projectionMatrix_; }
 	Matrix4x4& GetViewProjectionMatrix() { return viewProjectionMatrix_; }
+	Matrix4x4& GetUnjitteredProjectionMatrix() { return unjitteredProjectionMatrix_; }
+	Matrix4x4& GetUnjitteredViewProjectionMatrix() { return unjitteredViewProjectionMatrix_; }
+	Vector2& GetProjectionJitter() { return projectionJitter_; }
 	void SetNearClip(float nearClip) { nearClip_ = nearClip; }
 	void SetFarClip(float farClip) { farClip_ = farClip; }
+	void SetProjectionJitter(const Vector2& jitter);
 
 private:
+	void UpdateProjectionMatrices();
+
 	// X,Y,Z軸回りのローカル回転角
 	Vector3 rotation_ = {0,0,0};
 	// ローカル座標
@@ -46,6 +52,9 @@ private:
 	// 射影行列
 	Matrix4x4 projectionMatrix_;
 	Matrix4x4 viewProjectionMatrix_;
+	Matrix4x4 unjitteredProjectionMatrix_;
+	Matrix4x4 unjitteredViewProjectionMatrix_;
+	Vector2 projectionJitter_ = { 0.0f, 0.0f };
 	float fovY_;
 	float aspectRatio_;
 	float nearClip_;

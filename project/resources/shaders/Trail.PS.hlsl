@@ -18,6 +18,7 @@ struct PixelShaderOutput
     float4 color : SV_TARGET0;
 #if SCENE_NORMAL_TARGET
     float4 normal : SV_TARGET1;
+    float4 material : SV_TARGET2;
 #endif
 };
 
@@ -26,6 +27,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     PixelShaderOutput output;
 #if SCENE_NORMAL_TARGET
     output.normal = float4(0.5f, 0.5f, 1.0f, 0.0f);
+    output.material = float4(1.0f, 0.0f, 1.0f, 0.0f);
 #endif
     // テクスチャサンプリング
     float4 textureColor = gTexture.Sample(gSampler, input.texcoord);
