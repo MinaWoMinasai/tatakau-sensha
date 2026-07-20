@@ -11,14 +11,20 @@ public:
 	void RecalculateSmoothNormals();
 
 	void Draw();
+	void Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses);
 	void DrawOnlyMesh();
 
 	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 
 	static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
+	static ModelData LoadAssimpFile(const std::string& directoryPath, const std::string& filename);
+	static ModelData CreatePlane(float width, float depth);
+	static ModelData CreateBox(const Vector3& size);
+	static ModelData CreateCylinder(float radius, float height, uint32_t segments = 64);
 	static ModelData CreateUvSphere(float radius, uint32_t latitudeSegments, uint32_t longitudeSegments);
 
 	ModelData& GetModelData() { return modelData_; }
+	const ModelData& GetModelData() const { return modelData_; }
 	Microsoft::WRL::ComPtr<ID3D12Resource>& GetVertexResource() { return vertexResource; }
 	D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() { return vertexBufferView; }
 	D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() { return indexBufferView; }

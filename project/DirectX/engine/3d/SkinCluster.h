@@ -27,6 +27,8 @@ struct SkinningModelAsset {
 	struct Submesh {
 		uint32_t indexStart = 0;
 		uint32_t indexCount = 0;
+		uint32_t materialIndex = 0;
+		std::string materialName;
 		std::string textureKey;
 		bool doubleSided = false;
 	};
@@ -34,6 +36,7 @@ struct SkinningModelAsset {
 	struct EmbeddedTexture {
 		std::string textureKey;
 		std::vector<uint8_t> encodedData;
+		bool linearData = false;
 	};
 
 	ModelData modelData;
@@ -84,7 +87,7 @@ public:
 		AnimationPlayer& animationA,
 		AnimationPlayer& animationB,
 		float blendFactor);
-	void Draw();
+	void Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses = {});
 	void DrawShadow();
 	bool SetAnimation(const std::string& name, bool restart = true);
 	bool SetAnimation(size_t index, bool restart = true);

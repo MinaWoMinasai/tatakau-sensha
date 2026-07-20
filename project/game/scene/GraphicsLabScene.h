@@ -9,6 +9,7 @@
 #include "Input.h"
 #include "IScene.h"
 #include "Object3d.h"
+#include "PbrEnvironment.h"
 #include "Skybox.h"
 
 class GraphicsLabScene : public IScene {
@@ -54,6 +55,7 @@ private:
 	void UpdateCamera();
 	void DrawDebugWindow();
 	bool ShouldDrawLabObject(const LabObject& object) const;
+	void ApplyPbrEnvironmentDebugMode();
 
 	Input* input_ = nullptr;
 	std::unique_ptr<Camera> camera_;
@@ -61,7 +63,9 @@ private:
 	std::unique_ptr<Skybox> skybox_;
 	std::unique_ptr<Object3d> river_;
 	std::unique_ptr<Object3d> sandBed_;
+	PbrEnvironment pbrEnvironment_;
 	std::vector<LabObject> metalObjects_;
+	std::vector<LabObject> validationObjects_;
 	std::vector<LabObject> sceneObjects_;
 
 	bool finished_ = false;
@@ -73,16 +77,23 @@ private:
 	bool showBeach_ = true;
 	bool showObstacles_ = true;
 	bool showPbrSamples_ = true;
-	bool usePbrProceduralEnvironment_ = true;
+	bool showValidationPrimitives_ = true;
 	bool enablePbrSampleShadows_ = false;
+	int pbrEnvironmentDebugMode_ = 0;
+	int appliedPbrEnvironmentDebugMode_ = -1;
+	int pbrMaterialDebugMode_ = 0;
 	float waterTimeScale_ = 1.0f;
 	float waterLightIntensity_ = 2.2f;
 	float pbrDirectLightIntensity_ = 2.4f;
 	float pbrIblDiffuseIntensity_ = 0.62f;
 	float pbrIblSpecularIntensity_ = 1.35f;
 	float pbrIblMaxMipLevel_ = 7.0f;
+	float pbrFilteredIblBlend_ = 1.0f;
 	float pbrNormalDetailStrength_ = 0.0f;
 	float pbrNormalDetailScale_ = 24.0f;
+	float pbrShadowDepthBias_ = 0.00035f;
+	float pbrShadowSlopeBias_ = 0.0018f;
+	float pbrShadowPcfRadius_ = 1.0f;
 	Vector4 riverTint_ = { 0.88f, 0.98f, 1.0f, 0.84f };
 	float cameraYaw_ = 0.18f;
 	float cameraPitch_ = 0.20f;

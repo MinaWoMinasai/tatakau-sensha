@@ -1,5 +1,10 @@
 #include "Model.h"
+#include <assimp/Importer.hpp>
+#include <assimp/material.h>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 #include <algorithm>
+#include <cassert>
 #include <unordered_map>
 #include <cmath>
 #include <cctype>
@@ -7,9 +12,15 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <sstream>
+#include <utility>
 
 namespace {
+float Clamp01(float value);
+float MaxComponent(const Vector3& value);
+MaterialData MakeDefaultPrimitiveMaterial();
+
 struct SmoothNormalKey {
 	int64_t x;
 	int64_t y;
@@ -126,6 +137,324 @@ std::string ToLowerAscii(std::string value)
 	return value;
 }
 
+std::string GetLowerExtension(const std::string& filename)
+{
+	return ToLowerAscii(std::filesystem::path(filename).extension().generic_string());
+}
+
+bool IsObjModel(const std::string& filename)
+{
+	return GetLowerExtension(filename) == ".obj";
+}
+
+Vector4 ConvertAssimpPosition(const aiVector3D& position)
+{
+	return { -position.x, position.y, position.z, 1.0f };
+}
+
+Vector3 ConvertAssimpDirection(const aiVector3D& direction)
+{
+	return { -direction.x, direction.y, direction.z };
+}
+
+std::string MakeAssimpTextureKey(
+	const std::filesystem::path& sourcePath,
+	const aiString& texturePath,
+	TextureManager::TextureColorSpace colorSpace)
+{
+	std::string key = sourcePath.generic_string() + "#embedded/" + texturePath.C_Str();
+	if (colorSpace == TextureManager::TextureColorSpace::LinearData) {
+		key += "#linear";
+	}
+	return key;
+}
+
+std::string ResolveAssimpTexturePath(
+	const aiScene& scene,
+	const std::filesystem::path& sourcePath,
+	const aiString& texturePath,
+	TextureManager::TextureColorSpace colorSpace)
+{
+	if (texturePath.length == 0) {
+		return {};
+	}
+
+	const aiTexture* embeddedTexture = scene.GetEmbeddedTexture(texturePath.C_Str());
+	if (embeddedTexture != nullptr) {
+		if (embeddedTexture->mHeight == 0 && embeddedTexture->mWidth > 0) {
+			const std::string textureKey = MakeAssimpTextureKey(sourcePath, texturePath, colorSpace);
+			const auto* encodedBegin = reinterpret_cast<const uint8_t*>(embeddedTexture->pcData);
+			if (TextureManager::GetInstance()->LoadTextureFromMemory(
+				textureKey,
+				encodedBegin,
+				embeddedTexture->mWidth,
+				colorSpace)) {
+				return textureKey;
+			}
+		}
+		return {};
+	}
+
+	std::filesystem::path resolvedPath(texturePath.C_Str());
+	if (!resolvedPath.is_absolute()) {
+		resolvedPath = sourcePath.parent_path() / resolvedPath;
+	}
+	return resolvedPath.lexically_normal().generic_string();
+}
+
+std::string GetAssimpMaterialTexture(
+	const aiScene& scene,
+	const aiMaterial& sourceMaterial,
+	const std::filesystem::path& sourcePath,
+	aiTextureType textureType,
+	TextureManager::TextureColorSpace colorSpace)
+{
+	aiString texturePath;
+	if (sourceMaterial.GetTexture(textureType, 0, &texturePath) != AI_SUCCESS) {
+		return {};
+	}
+	return ResolveAssimpTexturePath(scene, sourcePath, texturePath, colorSpace);
+}
+
+void ReadAssimpBaseColor(const aiMaterial& sourceMaterial, MaterialData& materialData)
+{
+	aiColor4D color{};
+	if (aiGetMaterialColor(&sourceMaterial, AI_MATKEY_BASE_COLOR, &color) == AI_SUCCESS ||
+		aiGetMaterialColor(&sourceMaterial, AI_MATKEY_COLOR_DIFFUSE, &color) == AI_SUCCESS) {
+		materialData.baseColorFactor = { color.r, color.g, color.b, color.a };
+		materialData.hasBaseColorFactor = true;
+	}
+}
+
+void ReadAssimpPbrFactors(const aiMaterial& sourceMaterial, MaterialData& materialData)
+{
+	float metallic = 0.0f;
+	if (sourceMaterial.Get(AI_MATKEY_METALLIC_FACTOR, metallic) == AI_SUCCESS) {
+		materialData.metallicFactor = Clamp01(metallic);
+		materialData.hasPbrFactors = true;
+	}
+
+	float roughness = 0.5f;
+	if (sourceMaterial.Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == AI_SUCCESS) {
+		materialData.roughnessFactor = Clamp01(roughness);
+		materialData.hasPbrFactors = true;
+	}
+
+	float glossiness = 0.0f;
+	if (sourceMaterial.Get(AI_MATKEY_GLOSSINESS_FACTOR, glossiness) == AI_SUCCESS) {
+		materialData.roughnessFactor = Clamp01(1.0f - glossiness);
+		materialData.hasPbrFactors = true;
+	}
+}
+
+void ReadAssimpEmissive(const aiMaterial& sourceMaterial, MaterialData& materialData)
+{
+	aiColor4D emissive{};
+	if (aiGetMaterialColor(&sourceMaterial, AI_MATKEY_COLOR_EMISSIVE, &emissive) != AI_SUCCESS) {
+		return;
+	}
+
+	const Vector3 emissiveColor = { emissive.r, emissive.g, emissive.b };
+	const float emissiveMax = MaxComponent(emissiveColor);
+	if (emissiveMax <= 0.0001f) {
+		return;
+	}
+
+	float emissiveIntensity = emissiveMax;
+	sourceMaterial.Get(AI_MATKEY_EMISSIVE_INTENSITY, emissiveIntensity);
+
+	materialData.emissiveColor = {
+		emissiveColor.x / emissiveMax,
+		emissiveColor.y / emissiveMax,
+		emissiveColor.z / emissiveMax,
+	};
+	materialData.emissiveIntensity = (std::max)(emissiveIntensity, emissiveMax);
+	materialData.hasEmissive = true;
+}
+
+std::vector<MaterialData> LoadAssimpMaterials(
+	const aiScene& scene,
+	const std::filesystem::path& sourcePath)
+{
+	std::vector<MaterialData> materials;
+	materials.reserve((std::max)(scene.mNumMaterials, 1u));
+
+	for (uint32_t materialIndex = 0; materialIndex < scene.mNumMaterials; ++materialIndex) {
+		const aiMaterial& sourceMaterial = *scene.mMaterials[materialIndex];
+		MaterialData materialData = MakeDefaultPrimitiveMaterial();
+
+		ReadAssimpBaseColor(sourceMaterial, materialData);
+		ReadAssimpPbrFactors(sourceMaterial, materialData);
+		ReadAssimpEmissive(sourceMaterial, materialData);
+
+		std::string baseColorTexture = GetAssimpMaterialTexture(
+			scene,
+			sourceMaterial,
+			sourcePath,
+			aiTextureType_BASE_COLOR,
+			TextureManager::TextureColorSpace::SRGB);
+		if (baseColorTexture.empty()) {
+			baseColorTexture = GetAssimpMaterialTexture(
+				scene,
+				sourceMaterial,
+				sourcePath,
+				aiTextureType_DIFFUSE,
+				TextureManager::TextureColorSpace::SRGB);
+		}
+		if (!baseColorTexture.empty()) {
+			materialData.textureFilePath = baseColorTexture;
+		}
+
+		std::string normalTexture = GetAssimpMaterialTexture(
+			scene,
+			sourceMaterial,
+			sourcePath,
+			aiTextureType_NORMALS,
+			TextureManager::TextureColorSpace::LinearData);
+		if (normalTexture.empty()) {
+			normalTexture = GetAssimpMaterialTexture(
+				scene,
+				sourceMaterial,
+				sourcePath,
+				aiTextureType_NORMAL_CAMERA,
+				TextureManager::TextureColorSpace::LinearData);
+		}
+		if (normalTexture.empty()) {
+			normalTexture = GetAssimpMaterialTexture(
+				scene,
+				sourceMaterial,
+				sourcePath,
+				aiTextureType_HEIGHT,
+				TextureManager::TextureColorSpace::LinearData);
+		}
+		if (!normalTexture.empty()) {
+			materialData.normalTextureFilePath = normalTexture;
+			materialData.hasNormalTexture = true;
+		}
+
+		const std::string metallicTexture = GetAssimpMaterialTexture(
+			scene,
+			sourceMaterial,
+			sourcePath,
+			aiTextureType_METALNESS,
+			TextureManager::TextureColorSpace::LinearData);
+		const std::string roughnessTexture = GetAssimpMaterialTexture(
+			scene,
+			sourceMaterial,
+			sourcePath,
+			aiTextureType_DIFFUSE_ROUGHNESS,
+			TextureManager::TextureColorSpace::LinearData);
+		if (!metallicTexture.empty() && metallicTexture == roughnessTexture) {
+			materialData.metallicRoughnessTextureFilePath = metallicTexture;
+			materialData.hasMetallicRoughnessTexture = true;
+			materialData.hasMetallicTexture = true;
+			materialData.hasRoughnessTexture = true;
+			materialData.metallicMapChannel = 2.0f;
+			materialData.roughnessMapChannel = 1.0f;
+		} else {
+			if (!metallicTexture.empty()) {
+				materialData.metallicTextureFilePath = metallicTexture;
+				materialData.hasMetallicTexture = true;
+				materialData.metallicMapChannel = 0.0f;
+			}
+			if (!roughnessTexture.empty()) {
+				materialData.roughnessTextureFilePath = roughnessTexture;
+				materialData.hasRoughnessTexture = true;
+				materialData.roughnessMapChannel = 0.0f;
+			}
+		}
+
+		const std::string occlusionTexture = GetAssimpMaterialTexture(
+			scene,
+			sourceMaterial,
+			sourcePath,
+			aiTextureType_AMBIENT_OCCLUSION,
+			TextureManager::TextureColorSpace::LinearData);
+		if (!occlusionTexture.empty()) {
+			materialData.occlusionTextureFilePath = occlusionTexture;
+			materialData.hasOcclusionTexture = true;
+			materialData.occlusionMapChannel = 0.0f;
+		}
+
+		materials.push_back(std::move(materialData));
+	}
+
+	if (materials.empty()) {
+		materials.push_back(MakeDefaultPrimitiveMaterial());
+	}
+	return materials;
+}
+
+void AppendAssimpNodeMeshes(
+	const aiScene& scene,
+	const aiNode& node,
+	const aiMatrix4x4& parentTransform,
+	ModelData& modelData)
+{
+	const aiMatrix4x4 nodeTransform = parentTransform * node.mTransformation;
+	aiMatrix3x3 normalTransform(nodeTransform);
+	normalTransform.Inverse();
+	normalTransform.Transpose();
+
+	for (uint32_t nodeMeshIndex = 0; nodeMeshIndex < node.mNumMeshes; ++nodeMeshIndex) {
+		const aiMesh& mesh = *scene.mMeshes[node.mMeshes[nodeMeshIndex]];
+		const uint32_t vertexOffset = static_cast<uint32_t>(modelData.vertices.size());
+		const uint32_t indexStart = static_cast<uint32_t>(modelData.indices.size());
+		modelData.vertices.reserve(modelData.vertices.size() + mesh.mNumVertices);
+
+		for (uint32_t vertexIndex = 0; vertexIndex < mesh.mNumVertices; ++vertexIndex) {
+			const aiVector3D transformedPosition = nodeTransform * mesh.mVertices[vertexIndex];
+			const aiVector3D sourceNormal = mesh.HasNormals() ? mesh.mNormals[vertexIndex] : aiVector3D{ 0.0f, 1.0f, 0.0f };
+			aiVector3D transformedNormal = normalTransform * sourceNormal;
+			transformedNormal.NormalizeSafe();
+			const aiVector3D sourceUv = mesh.HasTextureCoords(0) ? mesh.mTextureCoords[0][vertexIndex] : aiVector3D{};
+
+			VertexData vertex{};
+			vertex.position = ConvertAssimpPosition(transformedPosition);
+			vertex.texcoord = { sourceUv.x, 1.0f - sourceUv.y };
+			vertex.normal = ConvertAssimpDirection(transformedNormal);
+			if (mesh.HasTangentsAndBitangents()) {
+				aiVector3D transformedTangent = normalTransform * mesh.mTangents[vertexIndex];
+				transformedTangent.NormalizeSafe();
+				const Vector3 tangent = ConvertAssimpDirection(transformedTangent);
+				vertex.tangent = { tangent.x, tangent.y, tangent.z, 1.0f };
+			}
+			modelData.vertices.push_back(vertex);
+		}
+
+		for (uint32_t faceIndex = 0; faceIndex < mesh.mNumFaces; ++faceIndex) {
+			const aiFace& face = mesh.mFaces[faceIndex];
+			if (face.mNumIndices != 3) {
+				continue;
+			}
+			modelData.indices.push_back(vertexOffset + face.mIndices[2]);
+			modelData.indices.push_back(vertexOffset + face.mIndices[1]);
+			modelData.indices.push_back(vertexOffset + face.mIndices[0]);
+		}
+
+		const uint32_t indexCount = static_cast<uint32_t>(modelData.indices.size()) - indexStart;
+		if (indexCount > 0) {
+			uint32_t materialIndex = mesh.mMaterialIndex < modelData.materials.size()
+				? mesh.mMaterialIndex
+				: 0u;
+			aiString materialName;
+			if (mesh.mMaterialIndex < scene.mNumMaterials) {
+				scene.mMaterials[mesh.mMaterialIndex]->Get(AI_MATKEY_NAME, materialName);
+			}
+			modelData.submeshes.push_back({
+				indexStart,
+				indexCount,
+				materialIndex,
+				materialName.length > 0 ? materialName.C_Str() : "material" + std::to_string(materialIndex),
+			});
+		}
+	}
+
+	for (uint32_t childIndex = 0; childIndex < node.mNumChildren; ++childIndex) {
+		AppendAssimpNodeMeshes(scene, *node.mChildren[childIndex], nodeTransform, modelData);
+	}
+}
+
 float Clamp01(float value)
 {
 	return std::clamp(value, 0.0f, 1.0f);
@@ -147,6 +476,255 @@ float RoughnessFromMtlSpecularPower(float specularPower)
 bool ReadVector3(std::istringstream& stream, Vector3& value)
 {
 	return static_cast<bool>(stream >> value.x >> value.y >> value.z);
+}
+
+MaterialData MakeDefaultPrimitiveMaterial()
+{
+	MaterialData material;
+	material.textureFilePath = "resources/white512x512.png";
+	material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+	material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+	material.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+	return material;
+}
+
+struct ParsedMaterialData {
+	MaterialData material;
+	bool hasExplicitRoughness = false;
+	bool hasSpecularPower = false;
+	bool hasLegacySpecular = false;
+	float legacySpecularStrength = 0.0f;
+};
+
+void FinalizeParsedMaterial(ParsedMaterialData& parsedMaterial)
+{
+	MaterialData& materialData = parsedMaterial.material;
+	if (parsedMaterial.hasLegacySpecular &&
+		!parsedMaterial.hasSpecularPower &&
+		!parsedMaterial.hasExplicitRoughness) {
+		materialData.roughnessFactor = std::clamp(0.72f - parsedMaterial.legacySpecularStrength * 0.38f, 0.18f, 0.90f);
+		materialData.hasPbrFactors = true;
+	}
+
+	if (materialData.textureFilePath.empty()) {
+		materialData.textureFilePath = "resources/white512x512.png";
+	}
+	if (!materialData.hasNormalTexture) {
+		materialData.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+	}
+	if (!materialData.hasMetallicRoughnessTexture) {
+		materialData.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+	}
+	if (!materialData.hasOcclusionTexture) {
+		materialData.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+	}
+}
+
+void ParseMtlMaterialLine(
+	ParsedMaterialData& parsedMaterial,
+	const std::string& directoryPath,
+	const std::string& identifierLower,
+	std::istringstream& stream)
+{
+	MaterialData& materialData = parsedMaterial.material;
+	auto assignPackedMaterialTexture = [&](const std::string& texturePath, float occlusionChannel, float roughnessChannel, float metallicChannel, bool includesOcclusion) {
+		materialData.metallicRoughnessTextureFilePath = texturePath;
+		materialData.hasMetallicRoughnessTexture = !texturePath.empty();
+		materialData.hasMetallicTexture = materialData.hasMetallicRoughnessTexture;
+		materialData.hasRoughnessTexture = materialData.hasMetallicRoughnessTexture;
+		materialData.metallicMapChannel = metallicChannel;
+		materialData.roughnessMapChannel = roughnessChannel;
+		if (includesOcclusion) {
+			materialData.occlusionTextureFilePath = texturePath;
+			materialData.hasOcclusionTexture = !texturePath.empty();
+			materialData.occlusionMapChannel = occlusionChannel;
+		}
+	};
+	auto assignSeparateScalarTexture = [&](const std::string& texturePath, bool metallicChannel, float channel) {
+		if (texturePath.empty()) {
+			return;
+		}
+		if (metallicChannel) {
+			materialData.metallicTextureFilePath = texturePath;
+			materialData.hasMetallicTexture = true;
+			materialData.metallicMapChannel = channel;
+		} else {
+			materialData.roughnessTextureFilePath = texturePath;
+			materialData.hasRoughnessTexture = true;
+			materialData.roughnessMapChannel = channel;
+		}
+	};
+
+	if (identifierLower == "kd") {
+		Vector3 baseColor{};
+		if (ReadVector3(stream, baseColor)) {
+			materialData.baseColorFactor.x = baseColor.x;
+			materialData.baseColorFactor.y = baseColor.y;
+			materialData.baseColorFactor.z = baseColor.z;
+			materialData.hasBaseColorFactor = true;
+		}
+	} else if (identifierLower == "d") {
+		float alpha = 1.0f;
+		if (stream >> alpha) {
+			materialData.baseColorFactor.w = Clamp01(alpha);
+			materialData.hasBaseColorFactor = true;
+		}
+	} else if (identifierLower == "tr") {
+		float transparency = 0.0f;
+		if (stream >> transparency) {
+			materialData.baseColorFactor.w = Clamp01(1.0f - transparency);
+			materialData.hasBaseColorFactor = true;
+		}
+	} else if (identifierLower == "ks") {
+		Vector3 specularColor{};
+		if (ReadVector3(stream, specularColor)) {
+			parsedMaterial.legacySpecularStrength = Clamp01(MaxComponent(specularColor));
+			parsedMaterial.hasLegacySpecular = true;
+		}
+	} else if (identifierLower == "ns") {
+		float specularPower = 0.0f;
+		if (stream >> specularPower) {
+			materialData.roughnessFactor = RoughnessFromMtlSpecularPower(specularPower);
+			materialData.hasPbrFactors = true;
+			parsedMaterial.hasSpecularPower = true;
+		}
+	} else if (identifierLower == "pm" || identifierLower == "metallic") {
+		float metallic = 0.0f;
+		if (stream >> metallic) {
+			materialData.metallicFactor = Clamp01(metallic);
+			materialData.hasPbrFactors = true;
+		}
+	} else if (identifierLower == "pr" || identifierLower == "roughness") {
+		float roughness = 0.5f;
+		if (stream >> roughness) {
+			materialData.roughnessFactor = Clamp01(roughness);
+			materialData.hasPbrFactors = true;
+			parsedMaterial.hasExplicitRoughness = true;
+		}
+	} else if (identifierLower == "pa" || identifierLower == "ao" || identifierLower == "ambientocclusion") {
+		float occlusion = 1.0f;
+		if (stream >> occlusion) {
+			materialData.ambientOcclusionFactor = Clamp01(occlusion);
+			materialData.hasPbrFactors = true;
+		}
+	} else if (identifierLower == "ke") {
+		Vector3 emissive{};
+		if (ReadVector3(stream, emissive)) {
+			const float emissiveMax = MaxComponent(emissive);
+			if (emissiveMax > 0.0001f) {
+				materialData.emissiveColor = {
+					emissive.x / emissiveMax,
+					emissive.y / emissiveMax,
+					emissive.z / emissiveMax,
+				};
+				materialData.emissiveIntensity = emissiveMax;
+				materialData.hasEmissive = true;
+			}
+		}
+	} else if (identifierLower == "map_kd") {
+		std::string textureFilename = ReadTextureFilename(stream);
+		materialData.textureFilePath = ResolveTexturePath(directoryPath, textureFilename);
+	} else if (identifierLower == "map_bump" || identifierLower == "map_normal" ||
+		identifierLower == "map_norm" || identifierLower == "bump" || identifierLower == "norm") {
+		std::string textureFilename = ReadTextureFilename(stream);
+		materialData.normalTextureFilePath = ResolveTexturePath(directoryPath, textureFilename);
+		materialData.hasNormalTexture = !materialData.normalTextureFilePath.empty();
+	} else if (identifierLower == "map_orm" || identifierLower == "map_arm" ||
+		identifierLower == "map_occlusionroughnessmetallic") {
+		std::string textureFilename = ReadTextureFilename(stream);
+		const std::string texturePath = ResolveTexturePath(directoryPath, textureFilename);
+		assignPackedMaterialTexture(texturePath, 0.0f, 1.0f, 2.0f, true);
+	} else if (identifierLower == "map_rma") {
+		std::string textureFilename = ReadTextureFilename(stream);
+		const std::string texturePath = ResolveTexturePath(directoryPath, textureFilename);
+		assignPackedMaterialTexture(texturePath, 2.0f, 0.0f, 1.0f, true);
+	} else if (identifierLower == "map_mra") {
+		std::string textureFilename = ReadTextureFilename(stream);
+		const std::string texturePath = ResolveTexturePath(directoryPath, textureFilename);
+		assignPackedMaterialTexture(texturePath, 2.0f, 1.0f, 0.0f, true);
+	} else if (identifierLower == "map_mr" || identifierLower == "map_metallicroughness") {
+		std::string textureFilename = ReadTextureFilename(stream);
+		const std::string texturePath = ResolveTexturePath(directoryPath, textureFilename);
+		assignPackedMaterialTexture(texturePath, 0.0f, 1.0f, 2.0f, false);
+	} else if (identifierLower == "map_pm" || identifierLower == "map_metallic" ||
+		identifierLower == "map_metalness") {
+		std::string textureFilename = ReadTextureFilename(stream);
+		assignSeparateScalarTexture(ResolveTexturePath(directoryPath, textureFilename), true, 0.0f);
+	} else if (identifierLower == "map_pr" || identifierLower == "map_roughness") {
+		std::string textureFilename = ReadTextureFilename(stream);
+		assignSeparateScalarTexture(ResolveTexturePath(directoryPath, textureFilename), false, 0.0f);
+	} else if (identifierLower == "map_ao" || identifierLower == "map_occlusion") {
+		std::string textureFilename = ReadTextureFilename(stream);
+		materialData.occlusionTextureFilePath = ResolveTexturePath(directoryPath, textureFilename);
+		materialData.hasOcclusionTexture = !materialData.occlusionTextureFilePath.empty();
+		materialData.occlusionMapChannel = 0.0f;
+	}
+}
+
+std::vector<std::pair<std::string, MaterialData>> LoadMaterialTemplateLibrary(
+	const std::string& directoryPath,
+	const std::string& filename)
+{
+	std::vector<std::pair<std::string, MaterialData>> materials;
+	std::ifstream file(directoryPath + "/" + filename);
+	assert(file.is_open());
+
+	std::string line;
+	std::string currentMaterialName;
+	ParsedMaterialData currentMaterial;
+	bool hasCurrentMaterial = false;
+
+	auto flushCurrentMaterial = [&]() {
+		if (!hasCurrentMaterial) {
+			return;
+		}
+		FinalizeParsedMaterial(currentMaterial);
+		materials.push_back({ currentMaterialName, currentMaterial.material });
+		currentMaterial = {};
+		hasCurrentMaterial = false;
+		currentMaterialName.clear();
+	};
+
+	while (std::getline(file, line)) {
+		std::string identifier;
+		std::istringstream stream(line);
+		stream >> identifier;
+		if (identifier.empty() || identifier[0] == '#') {
+			continue;
+		}
+
+		const std::string identifierLower = ToLowerAscii(identifier);
+		if (identifierLower == "newmtl") {
+			flushCurrentMaterial();
+			stream >> currentMaterialName;
+			hasCurrentMaterial = true;
+			continue;
+		}
+
+		if (!hasCurrentMaterial) {
+			currentMaterialName = "default";
+			hasCurrentMaterial = true;
+		}
+		ParseMtlMaterialLine(currentMaterial, directoryPath, identifierLower, stream);
+	}
+
+	flushCurrentMaterial();
+	return materials;
+}
+
+Vector4 MakePosition(float x, float y, float z)
+{
+	return { x, y, z, 1.0f };
+}
+
+void AddDoubleSidedTriangle(std::vector<uint32_t>& indices, uint32_t index0, uint32_t index1, uint32_t index2)
+{
+	indices.push_back(index0);
+	indices.push_back(index1);
+	indices.push_back(index2);
+	indices.push_back(index2);
+	indices.push_back(index1);
+	indices.push_back(index0);
 }
 
 void GenerateModelTangents(ModelData& modelData)
@@ -223,64 +801,118 @@ void GenerateModelTangents(ModelData& modelData)
 
 void Model::Initialize(ModelCommon* modelCommon, const std::string& directorypath, const std::string& filename)
 {
-	InitializeFromModelData(modelCommon, LoadObjFile(directorypath, filename));
+	if (IsObjModel(filename)) {
+		InitializeFromModelData(modelCommon, LoadObjFile(directorypath, filename));
+		return;
+	}
+	InitializeFromModelData(modelCommon, LoadAssimpFile(directorypath, filename));
 }
 
 void Model::InitializeFromModelData(ModelCommon* modelCommon, const ModelData& modelData)
 {
 	modelCommon_ = modelCommon;
 	modelData_ = modelData;
-	if (modelData_.material.textureFilePath.empty()) {
-		modelData_.material.textureFilePath = "resources/white512x512.png";
-	}
 	TextureManager::GetInstance()->CreateFlatNormalTexture();
 	TextureManager::GetInstance()->CreateBrdfLutTexture();
 	TextureManager::GetInstance()->CreatePbrIrradianceTexture();
 	TextureManager::GetInstance()->CreatePbrPrefilteredEnvironmentTexture();
-	if (!modelData_.material.hasNormalTexture || modelData_.material.normalTextureFilePath.empty()) {
-		modelData_.material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
-		modelData_.material.hasNormalTexture = false;
+
+	if (modelData_.materials.empty()) {
+		modelData_.materials.push_back(modelData_.material);
 	}
-	if (!modelData_.material.hasMetallicRoughnessTexture || modelData_.material.metallicRoughnessTextureFilePath.empty()) {
-		modelData_.material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
-		modelData_.material.hasMetallicRoughnessTexture = false;
+
+	if (modelData_.submeshes.empty() && !modelData_.indices.empty()) {
+		modelData_.submeshes.push_back({
+			0,
+			static_cast<uint32_t>(modelData_.indices.size()),
+			0,
+			"default",
+		});
 	}
-	if (!modelData_.material.hasOcclusionTexture || modelData_.material.occlusionTextureFilePath.empty()) {
-		modelData_.material.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
-		modelData_.material.hasOcclusionTexture = false;
+
+	auto prepareMaterial = [](MaterialData& material) {
+		if (material.textureFilePath.empty()) {
+			material.textureFilePath = "resources/white512x512.png";
+		}
+
+		if (!material.metallicTextureFilePath.empty() ||
+			!material.roughnessTextureFilePath.empty()) {
+			const std::string packedMaterialPath = TextureManager::GetInstance()->CreatePackedPbrMaterialTexture(
+				material.metallicTextureFilePath,
+				material.metallicMapChannel,
+				material.roughnessTextureFilePath,
+				material.roughnessMapChannel,
+				material.occlusionTextureFilePath,
+				material.occlusionMapChannel,
+				material.metallicFactor,
+				material.roughnessFactor,
+				material.ambientOcclusionFactor);
+			if (!packedMaterialPath.empty()) {
+				material.metallicRoughnessTextureFilePath = packedMaterialPath;
+				material.hasMetallicRoughnessTexture =
+					material.hasMetallicTexture || material.hasRoughnessTexture;
+				material.metallicMapChannel = 2.0f;
+				material.roughnessMapChannel = 1.0f;
+				if (material.hasOcclusionTexture) {
+					material.occlusionTextureFilePath = packedMaterialPath;
+					material.occlusionMapChannel = 0.0f;
+				}
+			}
+		}
+
+		if (!material.hasNormalTexture || material.normalTextureFilePath.empty()) {
+			material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+			material.hasNormalTexture = false;
+		}
+		if (!material.hasMetallicRoughnessTexture || material.metallicRoughnessTextureFilePath.empty()) {
+			material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+			material.hasMetallicRoughnessTexture = false;
+		}
+		if (!material.hasOcclusionTexture || material.occlusionTextureFilePath.empty()) {
+			material.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+			material.hasOcclusionTexture = false;
+		}
+	};
+
+	for (MaterialData& material : modelData_.materials) {
+		prepareMaterial(material);
 	}
+	modelData_.material = modelData_.materials.front();
+
 	GenerateModelTangents(modelData_);
 
 	CreateGpuResources();
 
-	// objの参照しているテクスチャファイル読み込み
-	TextureManager::GetInstance()->LoadTexture(modelData_.material.textureFilePath);
-	if (modelData_.material.hasNormalTexture) {
-		TextureManager::GetInstance()->LoadTexture(
-			modelData_.material.normalTextureFilePath,
+	for (MaterialData& material : modelData_.materials) {
+		TextureManager::GetInstance()->LoadTexture(material.textureFilePath);
+		if (material.hasNormalTexture) {
+			TextureManager::GetInstance()->LoadTexture(
+				material.normalTextureFilePath,
+				TextureManager::TextureColorSpace::LinearData);
+		}
+		if (material.hasMetallicRoughnessTexture) {
+			TextureManager::GetInstance()->LoadTexture(
+				material.metallicRoughnessTextureFilePath,
+				TextureManager::TextureColorSpace::LinearData);
+		}
+		if (material.hasOcclusionTexture) {
+			TextureManager::GetInstance()->LoadTexture(
+				material.occlusionTextureFilePath,
+				TextureManager::TextureColorSpace::LinearData);
+		}
+
+		material.textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(material.textureFilePath);
+		material.normalTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+			material.normalTextureFilePath,
+			TextureManager::TextureColorSpace::LinearData);
+		material.metallicRoughnessTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+			material.metallicRoughnessTextureFilePath,
+			TextureManager::TextureColorSpace::LinearData);
+		material.occlusionTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+			material.occlusionTextureFilePath,
 			TextureManager::TextureColorSpace::LinearData);
 	}
-	if (modelData_.material.hasMetallicRoughnessTexture) {
-		TextureManager::GetInstance()->LoadTexture(
-			modelData_.material.metallicRoughnessTextureFilePath,
-			TextureManager::TextureColorSpace::LinearData);
-	}
-	if (modelData_.material.hasOcclusionTexture) {
-		TextureManager::GetInstance()->LoadTexture(
-			modelData_.material.occlusionTextureFilePath,
-			TextureManager::TextureColorSpace::LinearData);
-	}
-	// 読み込んだテクスチャの番号を取得
-	modelData_.material.textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(modelData_.material.textureFilePath);
-	modelData_.material.normalTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
-		modelData_.material.normalTextureFilePath,
-		TextureManager::TextureColorSpace::LinearData);
-	modelData_.material.metallicRoughnessTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
-		modelData_.material.metallicRoughnessTextureFilePath,
-		TextureManager::TextureColorSpace::LinearData);
-	modelData_.material.occlusionTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
-		modelData_.material.occlusionTextureFilePath,
-		TextureManager::TextureColorSpace::LinearData);
+	modelData_.material = modelData_.materials.front();
 }
 
 void Model::CreateGpuResources()
@@ -310,42 +942,70 @@ void Model::CreateGpuResources()
 	std::memcpy(indexData, modelData_.indices.data(), sizeof(uint32_t) * modelData_.indices.size());
 }
 
-void Model::Draw() {
-	
+void Model::Draw()
+{
+	Draw({});
+}
+
+void Model::Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses) {
+
 	modelCommon_->GetDxCommon()->GetList()->IASetVertexBuffers(0, 1, &vertexBufferView); //VBVを設定
 	modelCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);
-	modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.textureFilePath));
-	modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
-		11,
-		TextureManager::GetInstance()->GetSrvHandleGPU(
-			modelData_.material.normalTextureFilePath,
-			TextureManager::TextureColorSpace::LinearData));
-	modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
-		12,
-		TextureManager::GetInstance()->GetSrvHandleGPU(
-			modelData_.material.metallicRoughnessTextureFilePath,
-			TextureManager::TextureColorSpace::LinearData));
-	modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
-		13,
-		TextureManager::GetInstance()->GetSrvHandleGPU(
-			modelData_.material.occlusionTextureFilePath,
-			TextureManager::TextureColorSpace::LinearData));
-	modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
-		14,
-		TextureManager::GetInstance()->GetSrvHandleGPU(
-			TextureManager::GetBrdfLutTexturePath(),
-			TextureManager::TextureColorSpace::LinearData));
-	modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
-		15,
-		TextureManager::GetInstance()->GetSrvHandleGPU(
-			TextureManager::GetPbrIrradianceTexturePath(),
-			TextureManager::TextureColorSpace::LinearData));
-	modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
-		16,
-		TextureManager::GetInstance()->GetSrvHandleGPU(
-			TextureManager::GetPbrPrefilteredEnvironmentTexturePath(),
-			TextureManager::TextureColorSpace::LinearData));
-	modelCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(UINT(modelData_.indices.size()), 1, 0, 0, 0);
+
+	auto drawSubmesh = [&](const ModelSubmesh& submesh) {
+		const uint32_t materialIndex = submesh.materialIndex < modelData_.materials.size()
+			? submesh.materialIndex
+			: 0u;
+		const MaterialData& material = modelData_.materials.empty()
+			? modelData_.material
+			: modelData_.materials[materialIndex];
+
+		if (materialIndex < materialCbvAddresses.size() && materialCbvAddresses[materialIndex] != 0) {
+			modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(0, materialCbvAddresses[materialIndex]);
+			modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(10, materialCbvAddresses[materialIndex]);
+		}
+
+		modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(material.textureFilePath));
+		modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+			11,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				material.normalTextureFilePath,
+				TextureManager::TextureColorSpace::LinearData));
+		modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+			12,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				material.metallicRoughnessTextureFilePath,
+				TextureManager::TextureColorSpace::LinearData));
+		modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+			13,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				material.occlusionTextureFilePath,
+				TextureManager::TextureColorSpace::LinearData));
+		modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+			14,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				TextureManager::GetBrdfLutTexturePath(),
+				TextureManager::TextureColorSpace::LinearData));
+		modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+			15,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				TextureManager::GetPbrIrradianceTexturePath(),
+				TextureManager::TextureColorSpace::LinearData));
+		modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+			16,
+			TextureManager::GetInstance()->GetSrvHandleGPU(
+				TextureManager::GetPbrPrefilteredEnvironmentTexturePath(),
+				TextureManager::TextureColorSpace::LinearData));
+		modelCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(submesh.indexCount, 1, submesh.startIndex, 0, 0);
+	};
+
+	if (modelData_.submeshes.empty()) {
+		drawSubmesh({ 0, static_cast<uint32_t>(modelData_.indices.size()), 0, "default" });
+	} else {
+		for (const ModelSubmesh& submesh : modelData_.submeshes) {
+			drawSubmesh(submesh);
+		}
+	}
 
 }
 
@@ -353,7 +1013,13 @@ void Model::DrawOnlyMesh() {
 	// 頂点バッファのセットと描画コマンドのみ
 	modelCommon_->GetDxCommon()->GetList()->IASetVertexBuffers(0, 1, &vertexBufferView);
 	modelCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);
-	modelCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(UINT(modelData_.indices.size()), 1, 0, 0, 0);
+	if (modelData_.submeshes.empty()) {
+		modelCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(UINT(modelData_.indices.size()), 1, 0, 0, 0);
+	} else {
+		for (const ModelSubmesh& submesh : modelData_.submeshes) {
+			modelCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(submesh.indexCount, 1, submesh.startIndex, 0, 0);
+		}
+	}
 }
 
 void Model::RecalculateSmoothNormals()
@@ -426,6 +1092,33 @@ MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, c
 	bool hasSpecularPower = false;
 	bool hasLegacySpecular = false;
 	float legacySpecularStrength = 0.0f;
+	auto assignPackedMaterialTexture = [&](const std::string& texturePath, float occlusionChannel, float roughnessChannel, float metallicChannel, bool includesOcclusion) {
+		materialData.metallicRoughnessTextureFilePath = texturePath;
+		materialData.hasMetallicRoughnessTexture = !texturePath.empty();
+		materialData.hasMetallicTexture = materialData.hasMetallicRoughnessTexture;
+		materialData.hasRoughnessTexture = materialData.hasMetallicRoughnessTexture;
+		materialData.metallicMapChannel = metallicChannel;
+		materialData.roughnessMapChannel = roughnessChannel;
+		if (includesOcclusion) {
+			materialData.occlusionTextureFilePath = texturePath;
+			materialData.hasOcclusionTexture = !texturePath.empty();
+			materialData.occlusionMapChannel = occlusionChannel;
+		}
+	};
+	auto assignSeparateScalarTexture = [&](const std::string& texturePath, bool metallicChannel, float channel) {
+		if (texturePath.empty()) {
+			return;
+		}
+		if (metallicChannel) {
+			materialData.metallicTextureFilePath = texturePath;
+			materialData.hasMetallicTexture = true;
+			materialData.metallicMapChannel = channel;
+		} else {
+			materialData.roughnessTextureFilePath = texturePath;
+			materialData.hasRoughnessTexture = true;
+			materialData.roughnessMapChannel = channel;
+		}
+	};
 
 	while (std::getline(file, line)) {
 		std::string identifier;
@@ -512,18 +1205,35 @@ MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, c
 			std::string textureFilename = ReadTextureFilename(s);
 			materialData.normalTextureFilePath = ResolveTexturePath(directoryPath, textureFilename);
 			materialData.hasNormalTexture = !materialData.normalTextureFilePath.empty();
-		} else if (identifierLower == "map_orm" || identifierLower == "map_rma" ||
-			identifierLower == "map_mr" || identifierLower == "map_metallicroughness") {
+		} else if (identifierLower == "map_orm" || identifierLower == "map_arm" ||
+			identifierLower == "map_occlusionroughnessmetallic") {
 			std::string textureFilename = ReadTextureFilename(s);
 			const std::string texturePath = ResolveTexturePath(directoryPath, textureFilename);
-			materialData.metallicRoughnessTextureFilePath = texturePath;
-			materialData.hasMetallicRoughnessTexture = !texturePath.empty();
-			materialData.occlusionTextureFilePath = texturePath;
-			materialData.hasOcclusionTexture = !texturePath.empty();
+			assignPackedMaterialTexture(texturePath, 0.0f, 1.0f, 2.0f, true);
+		} else if (identifierLower == "map_rma") {
+			std::string textureFilename = ReadTextureFilename(s);
+			const std::string texturePath = ResolveTexturePath(directoryPath, textureFilename);
+			assignPackedMaterialTexture(texturePath, 2.0f, 0.0f, 1.0f, true);
+		} else if (identifierLower == "map_mra") {
+			std::string textureFilename = ReadTextureFilename(s);
+			const std::string texturePath = ResolveTexturePath(directoryPath, textureFilename);
+			assignPackedMaterialTexture(texturePath, 2.0f, 1.0f, 0.0f, true);
+		} else if (identifierLower == "map_mr" || identifierLower == "map_metallicroughness") {
+			std::string textureFilename = ReadTextureFilename(s);
+			const std::string texturePath = ResolveTexturePath(directoryPath, textureFilename);
+			assignPackedMaterialTexture(texturePath, 0.0f, 1.0f, 2.0f, false);
+		} else if (identifierLower == "map_pm" || identifierLower == "map_metallic" ||
+			identifierLower == "map_metalness") {
+			std::string textureFilename = ReadTextureFilename(s);
+			assignSeparateScalarTexture(ResolveTexturePath(directoryPath, textureFilename), true, 0.0f);
+		} else if (identifierLower == "map_pr" || identifierLower == "map_roughness") {
+			std::string textureFilename = ReadTextureFilename(s);
+			assignSeparateScalarTexture(ResolveTexturePath(directoryPath, textureFilename), false, 0.0f);
 		} else if (identifierLower == "map_ao" || identifierLower == "map_occlusion") {
 			std::string textureFilename = ReadTextureFilename(s);
 			materialData.occlusionTextureFilePath = ResolveTexturePath(directoryPath, textureFilename);
 			materialData.hasOcclusionTexture = !materialData.occlusionTextureFilePath.empty();
+			materialData.occlusionMapChannel = 0.0f;
 		}
 	}
 
@@ -556,18 +1266,60 @@ ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string
 	std::vector<Vector3> normals; // 法線
 	std::vector<Vector2> texcoords; // テクスチャ座標
 	std::string line; // ファイルから読んだ一行を格納するもの
-	std::string currentMaterialName;
+	std::string currentMaterialName = "default";
+	uint32_t currentMaterialIndex = 0;
+	std::unordered_map<std::string, uint32_t> materialNameToIndex;
 	std::unordered_map<std::string, uint32_t> vertexDefinitionToIndex;
 
 	std::ifstream file(directoryPath + "/" + filename); // ファイルを開く
 	assert(file.is_open()); // 開けなかったらエラー
+
+	auto ensureDefaultMaterial = [&]() {
+		if (!modelData.materials.empty()) {
+			return;
+		}
+		modelData.materials.push_back(MakeDefaultPrimitiveMaterial());
+		modelData.material = modelData.materials.front();
+		materialNameToIndex["default"] = 0;
+		currentMaterialName = "default";
+		currentMaterialIndex = 0;
+	};
+
+	auto findOrCreateMaterialIndex = [&](const std::string& materialName) -> uint32_t {
+		ensureDefaultMaterial();
+		const std::string lookupName = materialName.empty() ? "default" : materialName;
+		auto materialIt = materialNameToIndex.find(lookupName);
+		if (materialIt != materialNameToIndex.end()) {
+			return materialIt->second;
+		}
+		const uint32_t newMaterialIndex = static_cast<uint32_t>(modelData.materials.size());
+		modelData.materials.push_back(MakeDefaultPrimitiveMaterial());
+		materialNameToIndex[lookupName] = newMaterialIndex;
+		return newMaterialIndex;
+	};
+
+	auto appendSubmesh = [&](uint32_t materialIndex, const std::string& materialName, uint32_t startIndex, uint32_t indexCount) {
+		if (indexCount == 0) {
+			return;
+		}
+		if (!modelData.submeshes.empty()) {
+			ModelSubmesh& lastSubmesh = modelData.submeshes.back();
+			if (lastSubmesh.materialIndex == materialIndex &&
+				lastSubmesh.startIndex + lastSubmesh.indexCount == startIndex) {
+				lastSubmesh.indexCount += indexCount;
+				return;
+			}
+		}
+		modelData.submeshes.push_back({ startIndex, indexCount, materialIndex, materialName });
+	};
 
 	while (std::getline(file, line)) {
 		std::string identifier;
 		std::istringstream s(line);
 		s >> identifier; // 先端の識別子を読む
 
-		if (identifier == "v") {
+		const std::string identifierLower = ToLowerAscii(identifier);
+		if (identifierLower == "v") {
 			Vector4 position;
 			s >> position.x >> position.y >> position.z;
 			position.w = 1.0f;
@@ -575,19 +1327,21 @@ ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string
 			position.y *= 1.0f;
 			position.z *= -1.0f;
 			positions.push_back(position);
-		} else if (identifier == "vt") {
+		} else if (identifierLower == "vt") {
 			Vector2 texcoord;
 			s >> texcoord.x >> texcoord.y;
 			texcoord.y = 1.0f - texcoord.y;
 			//texcoord.x = 1.0f - texcoord.x;
 			texcoords.push_back(texcoord);
-		} else if (identifier == "vn") {
+		} else if (identifierLower == "vn") {
 			Vector3 normal;
 			s >> normal.x >> normal.y >> normal.z;
 			normal.x *= -1.0f;
 			normals.push_back(normal);
-		} else if (identifier == "f") {
+		} else if (identifierLower == "f") {
 
+			ensureDefaultMaterial();
+			const uint32_t faceStartIndex = static_cast<uint32_t>(modelData.indices.size());
 			std::vector<uint32_t> faceIndices;
 			std::string vertexDef;
 			while (s >> vertexDef) {
@@ -628,16 +1382,226 @@ ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string
 				modelData.indices.push_back(faceIndices[index]);
 				modelData.indices.push_back(faceIndices[0]);
 			}
-		} else if (identifier == "mtllib") {
+			const uint32_t faceIndexCount = static_cast<uint32_t>(modelData.indices.size()) - faceStartIndex;
+			appendSubmesh(currentMaterialIndex, currentMaterialName, faceStartIndex, faceIndexCount);
+		} else if (identifierLower == "mtllib") {
 			// materialTemplateLiblaryファイルの名前を取得する
 			std::string materialFilename;
 			s >> materialFilename;
 			// 基本的にobjファイルと同一階層にmtlは存在させるので、ディレクトリ名とファイル名を渡す
-			modelData.material = LoadMaterialTemplateFile(directoryPath, materialFilename);
-		} else if (identifier == "newmtl") {
+			const auto loadedMaterials = LoadMaterialTemplateLibrary(directoryPath, materialFilename);
+			if (!loadedMaterials.empty()) {
+				modelData.materials.clear();
+				materialNameToIndex.clear();
+				for (const auto& [materialName, materialData] : loadedMaterials) {
+					const uint32_t materialIndex = static_cast<uint32_t>(modelData.materials.size());
+					const std::string resolvedName = materialName.empty()
+						? "material" + std::to_string(materialIndex)
+						: materialName;
+					modelData.materials.push_back(materialData);
+					materialNameToIndex[resolvedName] = materialIndex;
+				}
+				modelData.material = modelData.materials.front();
+				currentMaterialName = loadedMaterials.front().first.empty() ? "material0" : loadedMaterials.front().first;
+				currentMaterialIndex = 0;
+			}
+		} else if (identifierLower == "usemtl" || identifierLower == "newmtl") {
 			s >> currentMaterialName;
+			currentMaterialIndex = findOrCreateMaterialIndex(currentMaterialName);
 		}
 	}
+	if (modelData.materials.empty()) {
+		ensureDefaultMaterial();
+	}
+	if (modelData.submeshes.empty() && !modelData.indices.empty()) {
+		modelData.submeshes.push_back({
+			0,
+			static_cast<uint32_t>(modelData.indices.size()),
+			0,
+			"default",
+		});
+	}
+	modelData.material = modelData.materials.front();
+	return modelData;
+}
+
+ModelData Model::LoadAssimpFile(const std::string& directoryPath, const std::string& filename)
+{
+	const std::filesystem::path sourcePath = std::filesystem::path(directoryPath) / filename;
+
+	Assimp::Importer importer;
+	constexpr unsigned int kImportFlags =
+		aiProcess_Triangulate |
+		aiProcess_JoinIdenticalVertices |
+		aiProcess_GenSmoothNormals |
+		aiProcess_CalcTangentSpace |
+		aiProcess_ImproveCacheLocality |
+		aiProcess_SortByPType;
+
+	const aiScene* scene = importer.ReadFile(sourcePath.generic_string(), kImportFlags);
+	if (scene == nullptr || scene->mRootNode == nullptr || scene->mNumMeshes == 0) {
+		throw std::runtime_error("Failed to load static model: " + sourcePath.generic_string() + " / " + importer.GetErrorString());
+	}
+
+	ModelData modelData;
+	modelData.materials = LoadAssimpMaterials(*scene, sourcePath);
+	AppendAssimpNodeMeshes(*scene, *scene->mRootNode, aiMatrix4x4{}, modelData);
+
+	if (modelData.materials.empty()) {
+		modelData.materials.push_back(MakeDefaultPrimitiveMaterial());
+	}
+	if (modelData.submeshes.empty() && !modelData.indices.empty()) {
+		modelData.submeshes.push_back({
+			0,
+			static_cast<uint32_t>(modelData.indices.size()),
+			0,
+			"default",
+		});
+	}
+	modelData.material = modelData.materials.front();
+	return modelData;
+}
+
+ModelData Model::CreatePlane(float width, float depth)
+{
+	width = (std::max)(width, 0.001f);
+	depth = (std::max)(depth, 0.001f);
+
+	const float halfWidth = width * 0.5f;
+	const float halfDepth = depth * 0.5f;
+	const Vector3 normal = { 0.0f, 1.0f, 0.0f };
+
+	ModelData modelData;
+	modelData.material = MakeDefaultPrimitiveMaterial();
+	modelData.vertices = {
+		{ MakePosition(-halfWidth, 0.0f, -halfDepth), { 0.0f, 1.0f }, normal },
+		{ MakePosition( halfWidth, 0.0f, -halfDepth), { 1.0f, 1.0f }, normal },
+		{ MakePosition(-halfWidth, 0.0f,  halfDepth), { 0.0f, 0.0f }, normal },
+		{ MakePosition( halfWidth, 0.0f,  halfDepth), { 1.0f, 0.0f }, normal },
+	};
+
+	AddDoubleSidedTriangle(modelData.indices, 0, 1, 2);
+	AddDoubleSidedTriangle(modelData.indices, 2, 1, 3);
+	return modelData;
+}
+
+ModelData Model::CreateBox(const Vector3& size)
+{
+	const float halfX = (std::max)(std::abs(size.x), 0.001f) * 0.5f;
+	const float halfY = (std::max)(std::abs(size.y), 0.001f) * 0.5f;
+	const float halfZ = (std::max)(std::abs(size.z), 0.001f) * 0.5f;
+
+	ModelData modelData;
+	modelData.material = MakeDefaultPrimitiveMaterial();
+	modelData.vertices.reserve(24);
+	modelData.indices.reserve(72);
+
+	auto addQuad = [&](Vector4 p0, Vector4 p1, Vector4 p2, Vector4 p3, Vector3 normal) {
+		const uint32_t base = static_cast<uint32_t>(modelData.vertices.size());
+		modelData.vertices.push_back({ p0, { 0.0f, 1.0f }, normal });
+		modelData.vertices.push_back({ p1, { 1.0f, 1.0f }, normal });
+		modelData.vertices.push_back({ p2, { 0.0f, 0.0f }, normal });
+		modelData.vertices.push_back({ p3, { 1.0f, 0.0f }, normal });
+		AddDoubleSidedTriangle(modelData.indices, base + 0, base + 1, base + 2);
+		AddDoubleSidedTriangle(modelData.indices, base + 2, base + 1, base + 3);
+	};
+
+	addQuad(
+		MakePosition(-halfX, -halfY,  halfZ), MakePosition( halfX, -halfY,  halfZ),
+		MakePosition(-halfX,  halfY,  halfZ), MakePosition( halfX,  halfY,  halfZ),
+		{ 0.0f, 0.0f, 1.0f });
+	addQuad(
+		MakePosition( halfX, -halfY, -halfZ), MakePosition(-halfX, -halfY, -halfZ),
+		MakePosition( halfX,  halfY, -halfZ), MakePosition(-halfX,  halfY, -halfZ),
+		{ 0.0f, 0.0f, -1.0f });
+	addQuad(
+		MakePosition( halfX, -halfY,  halfZ), MakePosition( halfX, -halfY, -halfZ),
+		MakePosition( halfX,  halfY,  halfZ), MakePosition( halfX,  halfY, -halfZ),
+		{ 1.0f, 0.0f, 0.0f });
+	addQuad(
+		MakePosition(-halfX, -halfY, -halfZ), MakePosition(-halfX, -halfY,  halfZ),
+		MakePosition(-halfX,  halfY, -halfZ), MakePosition(-halfX,  halfY,  halfZ),
+		{ -1.0f, 0.0f, 0.0f });
+	addQuad(
+		MakePosition(-halfX,  halfY,  halfZ), MakePosition( halfX,  halfY,  halfZ),
+		MakePosition(-halfX,  halfY, -halfZ), MakePosition( halfX,  halfY, -halfZ),
+		{ 0.0f, 1.0f, 0.0f });
+	addQuad(
+		MakePosition(-halfX, -halfY, -halfZ), MakePosition( halfX, -halfY, -halfZ),
+		MakePosition(-halfX, -halfY,  halfZ), MakePosition( halfX, -halfY,  halfZ),
+		{ 0.0f, -1.0f, 0.0f });
+
+	return modelData;
+}
+
+ModelData Model::CreateCylinder(float radius, float height, uint32_t segments)
+{
+	constexpr float kPi = 3.14159265358979323846f;
+	radius = (std::max)(radius, 0.001f);
+	height = (std::max)(height, 0.001f);
+	segments = (std::max)(segments, 3u);
+
+	const float halfHeight = height * 0.5f;
+	ModelData modelData;
+	modelData.material = MakeDefaultPrimitiveMaterial();
+	modelData.vertices.reserve(static_cast<size_t>(segments + 1u) * 4u + 2u);
+	modelData.indices.reserve(static_cast<size_t>(segments) * 24u);
+
+	const uint32_t sideBase = static_cast<uint32_t>(modelData.vertices.size());
+	for (uint32_t i = 0; i <= segments; ++i) {
+		const float u = static_cast<float>(i) / static_cast<float>(segments);
+		const float phi = u * kPi * 2.0f;
+		const float x = std::cos(phi) * radius;
+		const float z = std::sin(phi) * radius;
+		const Vector3 normal = NormalizeVector3({ x, 0.0f, z });
+		modelData.vertices.push_back({ MakePosition(x, -halfHeight, z), { u, 1.0f }, normal });
+		modelData.vertices.push_back({ MakePosition(x,  halfHeight, z), { u, 0.0f }, normal });
+	}
+
+	for (uint32_t i = 0; i < segments; ++i) {
+		const uint32_t index0 = sideBase + i * 2u;
+		const uint32_t index1 = index0 + 1u;
+		const uint32_t index2 = index0 + 2u;
+		const uint32_t index3 = index0 + 3u;
+		AddDoubleSidedTriangle(modelData.indices, index0, index2, index1);
+		AddDoubleSidedTriangle(modelData.indices, index1, index2, index3);
+	}
+
+	const uint32_t topCenter = static_cast<uint32_t>(modelData.vertices.size());
+	modelData.vertices.push_back({ MakePosition(0.0f, halfHeight, 0.0f), { 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f } });
+	const uint32_t topRingBase = static_cast<uint32_t>(modelData.vertices.size());
+	for (uint32_t i = 0; i <= segments; ++i) {
+		const float u = static_cast<float>(i) / static_cast<float>(segments);
+		const float phi = u * kPi * 2.0f;
+		const float x = std::cos(phi) * radius;
+		const float z = std::sin(phi) * radius;
+		modelData.vertices.push_back({
+			MakePosition(x, halfHeight, z),
+			{ x / (radius * 2.0f) + 0.5f, 0.5f - z / (radius * 2.0f) },
+			{ 0.0f, 1.0f, 0.0f },
+		});
+	}
+
+	const uint32_t bottomCenter = static_cast<uint32_t>(modelData.vertices.size());
+	modelData.vertices.push_back({ MakePosition(0.0f, -halfHeight, 0.0f), { 0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f } });
+	const uint32_t bottomRingBase = static_cast<uint32_t>(modelData.vertices.size());
+	for (uint32_t i = 0; i <= segments; ++i) {
+		const float u = static_cast<float>(i) / static_cast<float>(segments);
+		const float phi = u * kPi * 2.0f;
+		const float x = std::cos(phi) * radius;
+		const float z = std::sin(phi) * radius;
+		modelData.vertices.push_back({
+			MakePosition(x, -halfHeight, z),
+			{ x / (radius * 2.0f) + 0.5f, z / (radius * 2.0f) + 0.5f },
+			{ 0.0f, -1.0f, 0.0f },
+		});
+	}
+
+	for (uint32_t i = 0; i < segments; ++i) {
+		AddDoubleSidedTriangle(modelData.indices, topCenter, topRingBase + i, topRingBase + i + 1u);
+		AddDoubleSidedTriangle(modelData.indices, bottomCenter, bottomRingBase + i + 1u, bottomRingBase + i);
+	}
+
 	return modelData;
 }
 
@@ -649,10 +1613,7 @@ ModelData Model::CreateUvSphere(float radius, uint32_t latitudeSegments, uint32_
 	radius = (std::max)(radius, 0.001f);
 
 	ModelData modelData;
-	modelData.material.textureFilePath = "resources/white512x512.png";
-	modelData.material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
-	modelData.material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
-	modelData.material.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+	modelData.material = MakeDefaultPrimitiveMaterial();
 	modelData.vertices.reserve(static_cast<size_t>(latitudeSegments + 1u) * static_cast<size_t>(longitudeSegments + 1u));
 	modelData.indices.reserve(static_cast<size_t>(latitudeSegments) * static_cast<size_t>(longitudeSegments) * 12u);
 
