@@ -1,6 +1,8 @@
 #include "Object3d.h"
 #include "SkinCluster.h"
 
+#include <algorithm>
+
 void Object3d::Initialize()
 {
 	object3dCommon_ = Object3dCommon::GetInstance();
@@ -80,7 +82,13 @@ void Object3d::DrawSkinned(SkinnedModel& model) {
 	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(7, object3dCommon_->GetShadowMap()->GetSrvIndex());
 	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(8, environmentMapIndex_);
 	commandList->SetGraphicsRootConstantBufferView(10, materialResource_->GetGPUVirtualAddress());
-	model.Draw();
+	UpdateMaterialInstanceData(model.GetAsset().modelData);
+	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> materialCbvAddresses;
+	materialCbvAddresses.reserve(materialInstanceResources_.size());
+	for (const auto& materialResource : materialInstanceResources_) {
+		materialCbvAddresses.push_back(materialResource ? materialResource->GetGPUVirtualAddress() : 0);
+	}
+	model.Draw(materialCbvAddresses);
 	object3dCommon_->PreDraw(kNone);
 }
 
@@ -149,7 +157,13 @@ void Object3d::Draw() {
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(10, materialResource_->GetGPUVirtualAddress());
 
 	if (model_) {
-		model_->Draw();
+		UpdateMaterialInstanceData();
+		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> materialCbvAddresses;
+		materialCbvAddresses.reserve(materialInstanceResources_.size());
+		for (const auto& materialResource : materialInstanceResources_) {
+			materialCbvAddresses.push_back(materialResource ? materialResource->GetGPUVirtualAddress() : 0);
+		}
+		model_->Draw(materialCbvAddresses);
 	}
 }
 
@@ -167,15 +181,23 @@ void Object3d::DrawShadow() {
 
 void Object3d::SetModel(Model* model)
 {
+	ResetMaterialOverrideFlags();
 	model_ = model;
 	ApplyModelMaterialData();
+	if (model_) {
+		EnsureMaterialInstanceResources((std::max)(size_t{ 1 }, model_->GetModelData().materials.size()));
+	}
 }
 
 void Object3d::SetModel(const std::string& filePath)
 {
+	ResetMaterialOverrideFlags();
 	// モデルを検索してセットする
 	model_ = ModelManager::GetInstance()->FindModel(filePath);
 	ApplyModelMaterialData();
+	if (model_) {
+		EnsureMaterialInstanceResources((std::max)(size_t{ 1 }, model_->GetModelData().materials.size()));
+	}
 }
 
 void Object3d::ApplyModelMaterialData()
@@ -184,10 +206,17 @@ void Object3d::ApplyModelMaterialData()
 		return;
 	}
 
-	const MaterialData& material = model_->GetModelData().material;
+	const ModelData& modelData = model_->GetModelData();
+	const MaterialData& material = modelData.materials.empty()
+		? modelData.material
+		: modelData.materials.front();
 	materialData_->normalMapStrength = material.hasNormalTexture ? 1.0f : 0.0f;
-	materialData_->metallicRoughnessMapStrength = material.hasMetallicRoughnessTexture ? 1.0f : 0.0f;
+	materialData_->metallicMapStrength = material.hasMetallicTexture ? 1.0f : 0.0f;
+	materialData_->roughnessMapStrength = material.hasRoughnessTexture ? 1.0f : 0.0f;
 	materialData_->occlusionMapStrength = material.hasOcclusionTexture ? 1.0f : 0.0f;
+	materialData_->metallicMapChannel = material.metallicMapChannel;
+	materialData_->roughnessMapChannel = material.roughnessMapChannel;
+	materialData_->occlusionMapChannel = material.occlusionMapChannel;
 
 	if (material.hasBaseColorFactor) {
 		materialData_->color = material.baseColorFactor;
@@ -200,5 +229,95 @@ void Object3d::ApplyModelMaterialData()
 	if (material.hasEmissive) {
 		materialData_->emissiveColor = material.emissiveColor;
 		materialData_->emissiveIntensity = material.emissiveIntensity;
+	}
+}
+
+void Object3d::ResetMaterialOverrideFlags()
+{
+	userColorOverride_ = false;
+	userMetallicOverride_ = false;
+	userRoughnessOverride_ = false;
+	userAmbientOcclusionOverride_ = false;
+	userEmissiveOverride_ = false;
+}
+
+void Object3d::EnsureMaterialInstanceResources(size_t materialCount)
+{
+	materialCount = (std::max)(materialCount, size_t{ 1 });
+	if (materialInstanceResources_.size() == materialCount &&
+		materialInstanceData_.size() == materialCount) {
+		return;
+	}
+
+	materialInstanceResources_.clear();
+	materialInstanceData_.clear();
+	materialInstanceResources_.resize(materialCount);
+	materialInstanceData_.resize(materialCount, nullptr);
+
+	for (size_t index = 0; index < materialCount; ++index) {
+		materialInstanceResources_[index] = texture.CreateBufferResource(
+			object3dCommon_->GetDxCommon()->GetDevice(),
+			sizeof(Material));
+		materialInstanceResources_[index]->Map(0, nullptr, reinterpret_cast<void**>(&materialInstanceData_[index]));
+		if (materialInstanceData_[index]) {
+			*materialInstanceData_[index] = materialData_ ? *materialData_ : MakeDefaultMaterial();
+		}
+	}
+}
+
+Material Object3d::BuildMaterialForModelMaterial(const MaterialData& materialData) const
+{
+	Material material = materialData_ ? *materialData_ : MakeDefaultMaterial();
+	material.normalMapStrength = materialData.hasNormalTexture ? 1.0f : 0.0f;
+	material.metallicMapStrength = materialData.hasMetallicTexture ? 1.0f : 0.0f;
+	material.roughnessMapStrength = materialData.hasRoughnessTexture ? 1.0f : 0.0f;
+	material.occlusionMapStrength = materialData.hasOcclusionTexture ? 1.0f : 0.0f;
+	material.metallicMapChannel = materialData.metallicMapChannel;
+	material.roughnessMapChannel = materialData.roughnessMapChannel;
+	material.occlusionMapChannel = materialData.occlusionMapChannel;
+
+	if (!userColorOverride_ && materialData.hasBaseColorFactor) {
+		material.color = materialData.baseColorFactor;
+	}
+	if (materialData.hasPbrFactors) {
+		if (!userMetallicOverride_) {
+			material.metallic = materialData.metallicFactor;
+		}
+		if (!userRoughnessOverride_) {
+			material.roughness = materialData.roughnessFactor;
+		}
+		if (!userAmbientOcclusionOverride_) {
+			material.ambientOcclusion = materialData.ambientOcclusionFactor;
+		}
+	}
+	if (!userEmissiveOverride_ && materialData.hasEmissive) {
+		material.emissiveColor = materialData.emissiveColor;
+		material.emissiveIntensity = materialData.emissiveIntensity;
+	}
+	return material;
+}
+
+void Object3d::UpdateMaterialInstanceData()
+{
+	if (!model_) {
+		return;
+	}
+
+	UpdateMaterialInstanceData(model_->GetModelData());
+}
+
+void Object3d::UpdateMaterialInstanceData(const ModelData& modelData)
+{
+	const size_t materialCount = (std::max)(size_t{ 1 }, modelData.materials.size());
+	EnsureMaterialInstanceResources(materialCount);
+
+	for (size_t materialIndex = 0; materialIndex < materialCount; ++materialIndex) {
+		if (!materialInstanceData_[materialIndex]) {
+			continue;
+		}
+		const MaterialData& sourceMaterial = modelData.materials.empty()
+			? modelData.material
+			: modelData.materials[materialIndex];
+		*materialInstanceData_[materialIndex] = BuildMaterialForModelMaterial(sourceMaterial);
 	}
 }

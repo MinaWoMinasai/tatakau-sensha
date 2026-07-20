@@ -2,6 +2,7 @@
 #include "Object3dCommon.h"
 #include "Resource.h"
 #include "ModelManager.h"
+#include <vector>
 
 class SkinnedModel;
 
@@ -46,10 +47,12 @@ public:
 
 	void SetColor(const Vector4& color) {
 		materialData_->color = color;
+		userColorOverride_ = true;
 	}
 
 	void SetAlpha(const float& color) {
 		materialData_->color.w = color;
+		userColorOverride_ = true;
 	}
 
 	void SetLighting(bool enable) {
@@ -94,12 +97,13 @@ public:
 	void SetEnvironmentMap(uint32_t srvIndex) { environmentMapIndex_ = srvIndex; }
 	void SetEnvironmentCoefficient(float coefficient) { materialData_->environmentCoefficient = coefficient; }
 	float GetEnvironmentCoefficient() const { return materialData_->environmentCoefficient; }
-	void SetMetallic(float metallic) { materialData_->metallic = metallic; }
-	void SetRoughness(float roughness) { materialData_->roughness = roughness; }
-	void SetAmbientOcclusion(float ambientOcclusion) { materialData_->ambientOcclusion = ambientOcclusion; }
+	void SetMetallic(float metallic) { materialData_->metallic = metallic; userMetallicOverride_ = true; }
+	void SetRoughness(float roughness) { materialData_->roughness = roughness; userRoughnessOverride_ = true; }
+	void SetAmbientOcclusion(float ambientOcclusion) { materialData_->ambientOcclusion = ambientOcclusion; userAmbientOcclusionOverride_ = true; }
 	void SetEmissive(const Vector3& color, float intensity) {
 		materialData_->emissiveColor = color;
 		materialData_->emissiveIntensity = intensity;
+		userEmissiveOverride_ = true;
 	}
 	void SetIBLIntensity(float diffuseIntensity, float specularIntensity) {
 		materialData_->iblDiffuseIntensity = diffuseIntensity;
@@ -113,12 +117,33 @@ public:
 		materialData_->normalDetailScale = scale;
 	}
 	void SetNormalMapStrength(float strength) { materialData_->normalMapStrength = strength; }
-	void SetMetallicRoughnessMapStrength(float strength) { materialData_->metallicRoughnessMapStrength = strength; }
+	void SetMetallicMapStrength(float strength) { materialData_->metallicMapStrength = strength; }
+	void SetRoughnessMapStrength(float strength) { materialData_->roughnessMapStrength = strength; }
+	void SetMetallicRoughnessMapStrength(float strength) {
+		materialData_->metallicMapStrength = strength;
+		materialData_->roughnessMapStrength = strength;
+	}
 	void SetOcclusionMapStrength(float strength) { materialData_->occlusionMapStrength = strength; }
+	void SetPackedMaterialMapChannels(float metallicChannel, float roughnessChannel, float occlusionChannel) {
+		materialData_->metallicMapChannel = metallicChannel;
+		materialData_->roughnessMapChannel = roughnessChannel;
+		materialData_->occlusionMapChannel = occlusionChannel;
+	}
+	void SetShadowFilter(float depthBias, float slopeBias, float pcfRadius) {
+		materialData_->shadowDepthBias = depthBias;
+		materialData_->shadowSlopeBias = slopeBias;
+		materialData_->shadowPcfRadius = pcfRadius;
+	}
+	void SetMaterialDebugMode(int32_t mode) { materialData_->materialDebugMode = static_cast<float>(mode); }
 
 private:
 	void UpdateMatrixConstants(const Matrix4x4& worldMatrix);
 	void ApplyModelMaterialData();
+	void ResetMaterialOverrideFlags();
+	void EnsureMaterialInstanceResources(size_t materialCount);
+	void UpdateMaterialInstanceData();
+	void UpdateMaterialInstanceData(const ModelData& modelData);
+	Material BuildMaterialForModelMaterial(const MaterialData& materialData) const;
 
 	Object3dCommon* object3dCommon_;
 
@@ -132,6 +157,8 @@ private:
 	
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
 	Material* materialData_ = nullptr;
+	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> materialInstanceResources_;
+	std::vector<Material*> materialInstanceData_;
 	
 	Texture texture;
 	Resource resource;
@@ -154,5 +181,11 @@ private:
 	Matrix4x4 lightViewProjection_;
 
 	uint32_t environmentMapIndex_ = 0; // デフォルトのSRVインデックス
+
+	bool userColorOverride_ = false;
+	bool userMetallicOverride_ = false;
+	bool userRoughnessOverride_ = false;
+	bool userAmbientOcclusionOverride_ = false;
+	bool userEmissiveOverride_ = false;
 };
 

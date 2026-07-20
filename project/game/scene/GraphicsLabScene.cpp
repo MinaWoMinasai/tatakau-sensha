@@ -15,6 +15,161 @@
 
 namespace {
 const char* kPbrSphereModelName = "__primitive_pbr_sphere";
+const char* kPbrPlaneModelName = "__primitive_pbr_plane";
+const char* kPbrBoxModelName = "__primitive_pbr_box";
+const char* kPbrCylinderModelName = "__primitive_pbr_cylinder";
+
+#ifdef USE_IMGUI
+const char* BoolStatus(bool value)
+{
+	return value ? "authored" : "fallback";
+}
+
+const char* TextureChannelName(float channel)
+{
+	const int channelIndex = static_cast<int>(channel + 0.5f);
+	switch (channelIndex) {
+	case 0:
+		return "R";
+	case 1:
+		return "G";
+	case 2:
+		return "B";
+	case 3:
+		return "A";
+	default:
+		return "?";
+	}
+}
+
+bool IsAuthoredBaseColorTexture(const std::string& path)
+{
+	return !path.empty() && path != "resources/white512x512.png";
+}
+
+void DrawTextureSlot(
+	const char* label,
+	const std::string& path,
+	uint32_t srvIndex,
+	bool authored,
+	const char* colorSpace)
+{
+	ImGui::BulletText("%s: %s, srv=%u, %s", label, BoolStatus(authored), srvIndex, colorSpace);
+	ImGui::TextWrapped("  %s", path.empty() ? "(empty)" : path.c_str());
+}
+
+void DrawScalarTextureSlot(
+	const char* label,
+	const std::string& path,
+	uint32_t srvIndex,
+	bool authored,
+	float channel)
+{
+	ImGui::BulletText("%s: %s, srv=%u, channel=%s", label, BoolStatus(authored), srvIndex, TextureChannelName(channel));
+	ImGui::TextWrapped("  %s", path.empty() ? "(empty)" : path.c_str());
+}
+
+void DrawMaterialTextureDebug(const std::string& modelName, const ModelData& modelData)
+{
+	ImGui::PushID(modelName.c_str());
+	if (ImGui::TreeNode(modelName.c_str())) {
+		ImGui::Text(
+			"mesh: vertices=%zu, indices=%zu, materials=%zu, submeshes=%zu",
+			modelData.vertices.size(),
+			modelData.indices.size(),
+			modelData.materials.empty() ? size_t{ 1 } : modelData.materials.size(),
+			modelData.submeshes.size());
+		if (!modelData.submeshes.empty() && ImGui::TreeNode("Submeshes")) {
+			for (size_t submeshIndex = 0; submeshIndex < modelData.submeshes.size(); ++submeshIndex) {
+				const ModelSubmesh& submesh = modelData.submeshes[submeshIndex];
+				ImGui::BulletText(
+					"[%zu] start=%u count=%u material=%u %s",
+					submeshIndex,
+					submesh.startIndex,
+					submesh.indexCount,
+					submesh.materialIndex,
+					submesh.materialName.c_str());
+			}
+			ImGui::TreePop();
+		}
+
+		auto drawMaterial = [](const char* label, const MaterialData& material) {
+			if (!ImGui::TreeNode(label)) {
+				return;
+			}
+			ImGui::Text(
+				"baseColor: %.3f %.3f %.3f %.3f  %s",
+				material.baseColorFactor.x,
+				material.baseColorFactor.y,
+				material.baseColorFactor.z,
+				material.baseColorFactor.w,
+				material.hasBaseColorFactor ? "authored" : "default");
+			ImGui::Text(
+				"pbr: metallic=%.3f roughness=%.3f ao=%.3f  %s",
+				material.metallicFactor,
+				material.roughnessFactor,
+				material.ambientOcclusionFactor,
+				material.hasPbrFactors ? "authored" : "default");
+			ImGui::Text(
+				"emissive: %.3f %.3f %.3f x %.3f  %s",
+				material.emissiveColor.x,
+				material.emissiveColor.y,
+				material.emissiveColor.z,
+				material.emissiveIntensity,
+				material.hasEmissive ? "authored" : "default");
+
+			DrawTextureSlot(
+				"Base color",
+				material.textureFilePath,
+				material.textureIndex,
+				IsAuthoredBaseColorTexture(material.textureFilePath),
+				"sRGB");
+			DrawTextureSlot(
+				"Normal",
+				material.normalTextureFilePath,
+				material.normalTextureIndex,
+				material.hasNormalTexture,
+				"linear");
+			DrawScalarTextureSlot(
+				"Packed material",
+				material.metallicRoughnessTextureFilePath,
+				material.metallicRoughnessTextureIndex,
+				material.hasMetallicRoughnessTexture,
+				material.roughnessMapChannel);
+			ImGui::Text("  metallic channel=%s, roughness channel=%s",
+				TextureChannelName(material.metallicMapChannel),
+				TextureChannelName(material.roughnessMapChannel));
+			if (!material.metallicTextureFilePath.empty()) {
+				ImGui::TextWrapped("  metallic source: %s", material.metallicTextureFilePath.c_str());
+			}
+			if (!material.roughnessTextureFilePath.empty()) {
+				ImGui::TextWrapped("  roughness source: %s", material.roughnessTextureFilePath.c_str());
+			}
+			DrawScalarTextureSlot(
+				"Occlusion",
+				material.occlusionTextureFilePath,
+				material.occlusionTextureIndex,
+				material.hasOcclusionTexture,
+				material.occlusionMapChannel);
+			ImGui::TreePop();
+		};
+
+		if (modelData.materials.empty()) {
+			drawMaterial("Material 0", modelData.material);
+		} else {
+			for (size_t materialIndex = 0; materialIndex < modelData.materials.size(); ++materialIndex) {
+				ImGui::PushID(static_cast<int>(materialIndex));
+				const std::string label = "Material " + std::to_string(materialIndex);
+				drawMaterial(label.c_str(), modelData.materials[materialIndex]);
+				ImGui::PopID();
+			}
+		}
+
+		ImGui::TreePop();
+	}
+	ImGui::PopID();
+}
+#endif
 }
 
 void GraphicsLabScene::Initialize()
@@ -43,12 +198,17 @@ void GraphicsLabScene::Initialize()
 	ModelManager::GetInstance()->LoadModel("cube.obj");
 	ModelManager::GetInstance()->LoadModel("ball.obj");
 	ModelManager::GetInstance()->LoadModel("jewelry.obj");
+	ModelManager::GetInstance()->LoadModel("TestBlock.obj");
 	ModelManager::GetInstance()->CreateUvSphereModel(kPbrSphereModelName, 1.0f, 64, 128);
+	ModelManager::GetInstance()->CreatePlaneModel(kPbrPlaneModelName, 14.0f, 14.0f);
+	ModelManager::GetInstance()->CreateBoxModel(kPbrBoxModelName, { 2.0f, 2.0f, 2.0f });
+	ModelManager::GetInstance()->CreateCylinderModel(kPbrCylinderModelName, 1.0f, 2.4f, 96);
 	if (Model* ballModel = ModelManager::GetInstance()->FindModel("ball.obj")) {
 		ballModel->RecalculateSmoothNormals();
 	}
 	TextureManager::GetInstance()->LoadTexture("resources/skybox.dds");
-	const uint32_t skyboxSrv = TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
+	ApplyPbrEnvironmentDebugMode();
+	const uint32_t pbrEnvironmentSrv = pbrEnvironment_.GetEnvironmentSrvIndex();
 
 	skybox_ = std::make_unique<Skybox>();
 	skybox_->Initialize("resources/skybox.dds");
@@ -59,7 +219,7 @@ void GraphicsLabScene::Initialize()
 	river_->SetModel("graphicsOcean.obj");
 	river_->SetColor(riverTint_);
 	river_->SetLighting(false);
-	river_->SetEnvironmentMap(skyboxSrv);
+	river_->SetEnvironmentMap(pbrEnvironmentSrv);
 	river_->SetEnvironmentCoefficient(2.75f);
 	river_->SetInsensity(waterLightIntensity_);
 	river_->SetScale({ 1.0f, 1.0f, 1.0f });
@@ -142,12 +302,14 @@ void GraphicsLabScene::Initialize()
 		sample.object->SetMetallic(metallic);
 		sample.object->SetRoughness(roughness);
 		sample.object->SetAmbientOcclusion(1.0f);
-		sample.object->SetEnvironmentMap(skyboxSrv);
+		sample.object->SetEnvironmentMap(pbrEnvironmentSrv);
 		sample.object->SetIBLIntensity(pbrIblDiffuseIntensity_, pbrIblSpecularIntensity_);
 		sample.object->SetIBLMaxMipLevel(pbrIblMaxMipLevel_);
-		sample.object->SetPBREnvironmentMode(usePbrProceduralEnvironment_ ? 1.0f : 0.0f);
+		sample.object->SetPBREnvironmentMode(pbrFilteredIblBlend_);
 		sample.object->SetShadowReceiveStrength(enablePbrSampleShadows_ ? 1.0f : 0.0f);
+		sample.object->SetShadowFilter(pbrShadowDepthBias_, pbrShadowSlopeBias_, pbrShadowPcfRadius_);
 		sample.object->SetNormalDetail(pbrNormalDetailStrength_, pbrNormalDetailScale_);
+		sample.object->SetMaterialDebugMode(pbrMaterialDebugMode_);
 		sample.object->SetInsensity(pbrDirectLightIntensity_);
 		sample.shadowReceiveStrength = 0.0f;
 		sample.castsShadow = false;
@@ -200,6 +362,95 @@ void GraphicsLabScene::Initialize()
 		0.34f,
 		true);
 
+	auto addValidationPrimitive = [&](const std::string& modelPath, const Vector3& translate, const Vector3& rotate,
+		const Vector3& scale, const Vector4& color, float metallic, float roughness) {
+		LabObject sample = MakeObject(
+			modelPath,
+			translate,
+			rotate,
+			scale,
+			color,
+			true,
+			0.78f,
+			32.0f,
+			LabObjectKind::Scene);
+		sample.object->SetLightingMode(2);
+		sample.object->SetMetallic(metallic);
+		sample.object->SetRoughness(roughness);
+		sample.object->SetAmbientOcclusion(1.0f);
+		sample.object->SetEnvironmentMap(pbrEnvironmentSrv);
+		sample.object->SetIBLIntensity(pbrIblDiffuseIntensity_, pbrIblSpecularIntensity_);
+		sample.object->SetIBLMaxMipLevel(pbrIblMaxMipLevel_);
+		sample.object->SetPBREnvironmentMode(pbrFilteredIblBlend_);
+		sample.object->SetShadowReceiveStrength(enablePbrSampleShadows_ ? 1.0f : 0.0f);
+		sample.object->SetShadowFilter(pbrShadowDepthBias_, pbrShadowSlopeBias_, pbrShadowPcfRadius_);
+		sample.object->SetNormalDetail(pbrNormalDetailStrength_, pbrNormalDetailScale_);
+		sample.object->SetMaterialDebugMode(pbrMaterialDebugMode_);
+		sample.object->SetInsensity(pbrDirectLightIntensity_);
+		sample.shadowReceiveStrength = 0.0f;
+		sample.castsShadow = true;
+		validationObjects_.push_back(std::move(sample));
+	};
+
+	addValidationPrimitive(
+		kPbrPlaneModelName,
+		{ -54.0f, 7.0f, 44.0f },
+		{ -0.62f, 0.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f },
+		{ 0.82f, 0.84f, 0.86f, 1.0f },
+		0.0f,
+		0.20f);
+	addValidationPrimitive(
+		kPbrBoxModelName,
+		{ -18.0f, 8.2f, 44.0f },
+		{ 0.18f, 0.48f, 0.0f },
+		{ 4.8f, 4.8f, 4.8f },
+		{ 0.78f, 0.33f, 0.22f, 1.0f },
+		0.0f,
+		0.52f);
+	addValidationPrimitive(
+		kPbrCylinderModelName,
+		{ 18.0f, 8.8f, 44.0f },
+		{ 0.0f, 0.0f, 0.0f },
+		{ 4.2f, 4.2f, 4.2f },
+		{ 0.94f, 0.96f, 1.0f, 1.0f },
+		1.0f,
+		0.28f);
+	addValidationPrimitive(
+		kPbrBoxModelName,
+		{ 54.0f, 8.2f, 44.0f },
+		{ -0.20f, 0.76f, 0.12f },
+		{ 3.8f, 3.8f, 3.8f },
+		{ 0.05f, 0.06f, 0.07f, 1.0f },
+		0.0f,
+		0.86f);
+
+	LabObject authoredTestBlock;
+	authoredTestBlock.object = std::make_unique<Object3d>();
+	authoredTestBlock.object->Initialize();
+	authoredTestBlock.object->SetModel("TestBlock.obj");
+	authoredTestBlock.object->SetTranslate({ 90.0f, 8.5f, 44.0f });
+	authoredTestBlock.object->SetRotate({ 0.18f, 0.58f, -0.06f });
+	authoredTestBlock.object->SetScale({ 0.72f, 0.72f, 0.72f });
+	authoredTestBlock.object->SetLighting(true);
+	authoredTestBlock.object->SetLightingMode(2);
+	authoredTestBlock.object->SetEnvironmentCoefficient(0.78f);
+	authoredTestBlock.object->SetEnvironmentMap(pbrEnvironmentSrv);
+	authoredTestBlock.object->SetIBLIntensity(pbrIblDiffuseIntensity_, pbrIblSpecularIntensity_);
+	authoredTestBlock.object->SetIBLMaxMipLevel(pbrIblMaxMipLevel_);
+	authoredTestBlock.object->SetPBREnvironmentMode(pbrFilteredIblBlend_);
+	authoredTestBlock.object->SetShadowReceiveStrength(enablePbrSampleShadows_ ? 1.0f : 0.0f);
+	authoredTestBlock.object->SetShadowFilter(pbrShadowDepthBias_, pbrShadowSlopeBias_, pbrShadowPcfRadius_);
+	authoredTestBlock.object->SetNormalDetail(pbrNormalDetailStrength_, pbrNormalDetailScale_);
+	authoredTestBlock.object->SetMaterialDebugMode(pbrMaterialDebugMode_);
+	authoredTestBlock.object->SetInsensity(pbrDirectLightIntensity_);
+	authoredTestBlock.environment = 0.78f;
+	authoredTestBlock.shininess = 32.0f;
+	authoredTestBlock.shadowReceiveStrength = 0.0f;
+	authoredTestBlock.castsShadow = true;
+	authoredTestBlock.kind = LabObjectKind::Scene;
+	validationObjects_.push_back(std::move(authoredTestBlock));
+
 	UpdateCamera();
 	sandBed_->Update();
 	river_->Update();
@@ -207,6 +458,9 @@ void GraphicsLabScene::Initialize()
 		object.object->Update();
 	}
 	for (auto& object : metalObjects_) {
+		object.object->Update();
+	}
+	for (auto& object : validationObjects_) {
 		object.object->Update();
 	}
 }
@@ -222,6 +476,8 @@ void GraphicsLabScene::Update()
 	if (!pauseWater_) {
 		sceneTime_ += finalDeltaTime_ * waterTimeScale_;
 	}
+
+	ApplyPbrEnvironmentDebugMode();
 
 	if (!Object3dCommon::GetInstance()->GetIsDebugCamera()) {
 		UpdateCamera();
@@ -250,9 +506,24 @@ void GraphicsLabScene::Update()
 		object.object->SetShininess(object.shininess);
 		object.object->SetIBLIntensity(pbrIblDiffuseIntensity_, pbrIblSpecularIntensity_);
 		object.object->SetIBLMaxMipLevel(pbrIblMaxMipLevel_);
-		object.object->SetPBREnvironmentMode(usePbrProceduralEnvironment_ ? 1.0f : 0.0f);
+		object.object->SetPBREnvironmentMode(pbrFilteredIblBlend_);
 		object.object->SetShadowReceiveStrength(enablePbrSampleShadows_ ? 1.0f : object.shadowReceiveStrength);
+		object.object->SetShadowFilter(pbrShadowDepthBias_, pbrShadowSlopeBias_, pbrShadowPcfRadius_);
 		object.object->SetNormalDetail(pbrNormalDetailStrength_, pbrNormalDetailScale_);
+		object.object->SetMaterialDebugMode(pbrMaterialDebugMode_);
+		object.object->SetInsensity(pbrDirectLightIntensity_);
+		object.object->Update();
+	}
+	for (auto& object : validationObjects_) {
+		object.object->SetEnvironmentCoefficient(object.environment);
+		object.object->SetShininess(object.shininess);
+		object.object->SetIBLIntensity(pbrIblDiffuseIntensity_, pbrIblSpecularIntensity_);
+		object.object->SetIBLMaxMipLevel(pbrIblMaxMipLevel_);
+		object.object->SetPBREnvironmentMode(pbrFilteredIblBlend_);
+		object.object->SetShadowReceiveStrength(enablePbrSampleShadows_ ? 1.0f : object.shadowReceiveStrength);
+		object.object->SetShadowFilter(pbrShadowDepthBias_, pbrShadowSlopeBias_, pbrShadowPcfRadius_);
+		object.object->SetNormalDetail(pbrNormalDetailStrength_, pbrNormalDetailScale_);
+		object.object->SetMaterialDebugMode(pbrMaterialDebugMode_);
 		object.object->SetInsensity(pbrDirectLightIntensity_);
 		object.object->Update();
 	}
@@ -273,6 +544,13 @@ void GraphicsLabScene::DrawShadow()
 			object.object->DrawShadow();
 		}
 	}
+	if (showValidationPrimitives_ && enablePbrSampleShadows_) {
+		for (auto& object : validationObjects_) {
+			if (object.castsShadow) {
+				object.object->DrawShadow();
+			}
+		}
+	}
 }
 
 void GraphicsLabScene::DrawPostEffect3D()
@@ -290,6 +568,11 @@ void GraphicsLabScene::DrawPostEffect3D()
 	}
 	if (showPbrSamples_) {
 		for (auto& object : metalObjects_) {
+			object.object->Draw();
+		}
+	}
+	if (showValidationPrimitives_) {
+		for (auto& object : validationObjects_) {
 			object.object->Draw();
 		}
 	}
@@ -342,6 +625,37 @@ bool GraphicsLabScene::ShouldDrawLabObject(const LabObject& object) const
 	}
 }
 
+void GraphicsLabScene::ApplyPbrEnvironmentDebugMode()
+{
+	if (appliedPbrEnvironmentDebugMode_ == pbrEnvironmentDebugMode_) {
+		return;
+	}
+
+	PbrEnvironment::Settings environmentSettings{};
+	switch (pbrEnvironmentDebugMode_) {
+	case 1:
+		environmentSettings.sourceType = PbrEnvironment::SourceType::TextureFile;
+		environmentSettings.texturePath = "resources/skybox.dds";
+		break;
+	case 2:
+		environmentSettings.sourceType = PbrEnvironment::SourceType::SolidColor;
+		environmentSettings.solidColor = { 0.74f, 0.78f, 0.82f };
+		break;
+	case 3:
+		environmentSettings.sourceType = PbrEnvironment::SourceType::SolidColor;
+		environmentSettings.solidColor = { 1.0f, 1.0f, 1.0f };
+		break;
+	case 0:
+	default:
+		environmentSettings.sourceType = PbrEnvironment::SourceType::ProceduralSky;
+		pbrEnvironmentDebugMode_ = 0;
+		break;
+	}
+
+	pbrEnvironment_.Apply(environmentSettings);
+	appliedPbrEnvironmentDebugMode_ = pbrEnvironmentDebugMode_;
+}
+
 void GraphicsLabScene::UpdateCamera()
 {
 	cameraYaw_ += (input_->IsPress(input_->GetKey()[DIK_D]) ? 1.0f : 0.0f) * finalDeltaTime_ * 0.9f;
@@ -387,9 +701,31 @@ void GraphicsLabScene::DrawDebugWindow()
 	ImGui::Checkbox("Show beach", &showBeach_);
 	ImGui::Checkbox("Show obstacles", &showObstacles_);
 	ImGui::Checkbox("Show PBR samples", &showPbrSamples_);
+	ImGui::Checkbox("Show validation primitives", &showValidationPrimitives_);
 	ImGui::Text("PBR grid: front row dielectrics, back row metals; roughness increases left to right.");
-	ImGui::Checkbox("PBR procedural environment", &usePbrProceduralEnvironment_);
+	ImGui::Text("Validation primitives: tilted plane, hard-edge boxes, and a cylinder.");
+	const char* pbrMaterialDebugModes[] = {
+		"Final",
+		"World normal",
+		"Tangent normal",
+		"Albedo",
+		"Roughness",
+		"Metallic",
+		"Ambient occlusion",
+		"F0",
+		"SSR mask",
+		"Packed raw",
+		"UV"
+	};
+	ImGui::Combo("PBR material debug", &pbrMaterialDebugMode_, pbrMaterialDebugModes, IM_ARRAYSIZE(pbrMaterialDebugModes));
+	const char* pbrEnvironmentModes[] = { "Clean sky", "Skybox DDS", "Neutral gray", "Neutral white" };
+	ImGui::Combo("PBR env debug", &pbrEnvironmentDebugMode_, pbrEnvironmentModes, IM_ARRAYSIZE(pbrEnvironmentModes));
+	ImGui::Text("PBR IBL source: %s", pbrEnvironment_.GetSourceLabel().c_str());
+	ImGui::DragFloat("PBR filtered IBL blend", &pbrFilteredIblBlend_, 0.01f, 0.0f, 1.0f);
 	ImGui::Checkbox("PBR sample shadows", &enablePbrSampleShadows_);
+	ImGui::DragFloat("PBR shadow depth bias", &pbrShadowDepthBias_, 0.00001f, 0.0f, 0.01f, "%.5f");
+	ImGui::DragFloat("PBR shadow slope bias", &pbrShadowSlopeBias_, 0.00005f, 0.0f, 0.02f, "%.5f");
+	ImGui::DragFloat("PBR shadow PCF radius", &pbrShadowPcfRadius_, 0.05f, 0.0f, 4.0f);
 	ImGui::DragFloat("Water speed", &waterTimeScale_, 0.02f, 0.0f, 4.0f);
 	ImGui::DragFloat("Water light intensity", &waterLightIntensity_, 0.05f, 0.0f, 8.0f);
 	ImGui::DragFloat("PBR direct light", &pbrDirectLightIntensity_, 0.05f, 0.0f, 8.0f);
@@ -401,6 +737,15 @@ void GraphicsLabScene::DrawDebugWindow()
 	ImGui::ColorEdit4("River tint", &riverTint_.x);
 	ImGui::DragFloat("Camera distance", &cameraDistance_, 0.5f, 36.0f, 180.0f);
 	ImGui::Text("Beach and rocks provide shoreline context for the water.");
+	if (ImGui::CollapsingHeader("Loaded model material debug")) {
+		const auto& models = ModelManager::GetInstance()->GetModels();
+		ImGui::Text("loaded models: %zu", models.size());
+		for (const auto& [modelName, model] : models) {
+			if (model) {
+				DrawMaterialTextureDebug(modelName, model->GetModelData());
+			}
+		}
+	}
 	ImGui::End();
 #endif
 }

@@ -568,6 +568,9 @@
     <ClInclude Include="DirectX\engine\3d\Skybox.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="DirectX\engine\3d\PbrEnvironment.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="DirectX\engine\particle\EffectSequencer.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

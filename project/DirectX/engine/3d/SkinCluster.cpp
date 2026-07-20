@@ -14,6 +14,7 @@
 #include <cstring>
 #include <filesystem>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -49,6 +50,392 @@ Matrix4x4 ConvertInverseBindPose(const aiMatrix4x4& sourceOffsetMatrix) {
 	return Inverse(MakeAffineMatrix(transform.scale, transform.rotate, transform.translate));
 }
 
+float Clamp01(float value) {
+	return std::clamp(value, 0.0f, 1.0f);
+}
+
+float MaxComponent(const Vector3& value) {
+	return (std::max)((std::max)(value.x, value.y), value.z);
+}
+
+Vector3 ConvertAssimpDirection(const aiVector3D& direction) {
+	return { -direction.x, direction.y, direction.z };
+}
+
+Vector3 ToVector3(const Vector4& value) {
+	return { value.x, value.y, value.z };
+}
+
+Vector3 SubtractVector3(const Vector3& a, const Vector3& b) {
+	return { a.x - b.x, a.y - b.y, a.z - b.z };
+}
+
+Vector3 CrossVector3(const Vector3& a, const Vector3& b) {
+	return {
+		a.y * b.z - a.z * b.y,
+		a.z * b.x - a.x * b.z,
+		a.x * b.y - a.y * b.x,
+	};
+}
+
+float DotVector3(const Vector3& a, const Vector3& b) {
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+float LengthVector3(const Vector3& value) {
+	return std::sqrt(DotVector3(value, value));
+}
+
+Vector3 NormalizeVector3Local(const Vector3& value) {
+	const float length = LengthVector3(value);
+	if (length <= 0.00001f) {
+		return { 0.0f, 1.0f, 0.0f };
+	}
+	return { value.x / length, value.y / length, value.z / length };
+}
+
+Vector3 MultiplyVector3(const Vector3& value, float scalar) {
+	return { value.x * scalar, value.y * scalar, value.z * scalar };
+}
+
+Vector3 AddVector3(const Vector3& a, const Vector3& b) {
+	return { a.x + b.x, a.y + b.y, a.z + b.z };
+}
+
+Vector3 BuildFallbackTangent(const Vector3& normal) {
+	const Vector3 up = std::abs(normal.y) < 0.95f ? Vector3{ 0.0f, 1.0f, 0.0f } : Vector3{ 1.0f, 0.0f, 0.0f };
+	return NormalizeVector3Local(CrossVector3(up, normal));
+}
+
+MaterialData MakeDefaultSkinnedMaterial() {
+	MaterialData material;
+	material.textureFilePath = "resources/white512x512.png";
+	material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+	material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+	material.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+	return material;
+}
+
+std::string MakeEmbeddedTextureKey(
+	const std::filesystem::path& sourcePath,
+	const aiString& texturePath,
+	TextureManager::TextureColorSpace colorSpace) {
+	std::string key = sourcePath.generic_string() + "#embedded/" + texturePath.C_Str();
+	if (colorSpace == TextureManager::TextureColorSpace::LinearData) {
+		key += "#linear";
+	}
+	return key;
+}
+
+std::string ResolveSkinningTexturePath(
+	SkinningModelAsset& asset,
+	const aiScene& scene,
+	const std::filesystem::path& sourcePath,
+	const aiString& texturePath,
+	TextureManager::TextureColorSpace colorSpace) {
+	if (texturePath.length == 0) {
+		return {};
+	}
+
+	const aiTexture* embedded = scene.GetEmbeddedTexture(texturePath.C_Str());
+	if (embedded != nullptr) {
+		if (embedded->mHeight == 0 && embedded->mWidth > 0) {
+			const std::string textureKey = MakeEmbeddedTextureKey(sourcePath, texturePath, colorSpace);
+			const auto alreadyCopied = std::find_if(
+				asset.embeddedTextures.begin(), asset.embeddedTextures.end(),
+				[&](const SkinningModelAsset::EmbeddedTexture& texture) {
+					return texture.textureKey == textureKey;
+				});
+			if (alreadyCopied == asset.embeddedTextures.end()) {
+				SkinningModelAsset::EmbeddedTexture texture;
+				texture.textureKey = textureKey;
+				texture.linearData = colorSpace == TextureManager::TextureColorSpace::LinearData;
+				const auto* begin = reinterpret_cast<const uint8_t*>(embedded->pcData);
+				texture.encodedData.assign(begin, begin + embedded->mWidth);
+				asset.embeddedTextures.push_back(std::move(texture));
+			}
+			return textureKey;
+		}
+		return {};
+	}
+
+	std::filesystem::path resolvedPath(texturePath.C_Str());
+	if (!resolvedPath.is_absolute()) {
+		resolvedPath = sourcePath.parent_path() / resolvedPath;
+	}
+	return resolvedPath.lexically_normal().generic_string();
+}
+
+std::string GetSkinningMaterialTexture(
+	SkinningModelAsset& asset,
+	const aiScene& scene,
+	const aiMaterial& material,
+	const std::filesystem::path& sourcePath,
+	aiTextureType textureType,
+	TextureManager::TextureColorSpace colorSpace) {
+	aiString texturePath;
+	if (material.GetTexture(textureType, 0, &texturePath) != AI_SUCCESS) {
+		return {};
+	}
+	return ResolveSkinningTexturePath(asset, scene, sourcePath, texturePath, colorSpace);
+}
+
+void ReadSkinningBaseColor(const aiMaterial& sourceMaterial, MaterialData& materialData) {
+	aiColor4D color{};
+	if (aiGetMaterialColor(&sourceMaterial, AI_MATKEY_BASE_COLOR, &color) == AI_SUCCESS ||
+		aiGetMaterialColor(&sourceMaterial, AI_MATKEY_COLOR_DIFFUSE, &color) == AI_SUCCESS) {
+		materialData.baseColorFactor = { color.r, color.g, color.b, color.a };
+		materialData.hasBaseColorFactor = true;
+	}
+}
+
+void ReadSkinningPbrFactors(const aiMaterial& sourceMaterial, MaterialData& materialData) {
+	float metallic = 0.0f;
+	if (sourceMaterial.Get(AI_MATKEY_METALLIC_FACTOR, metallic) == AI_SUCCESS) {
+		materialData.metallicFactor = Clamp01(metallic);
+		materialData.hasPbrFactors = true;
+	}
+
+	float roughness = 0.5f;
+	if (sourceMaterial.Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == AI_SUCCESS) {
+		materialData.roughnessFactor = Clamp01(roughness);
+		materialData.hasPbrFactors = true;
+	}
+
+	float glossiness = 0.0f;
+	if (sourceMaterial.Get(AI_MATKEY_GLOSSINESS_FACTOR, glossiness) == AI_SUCCESS) {
+		materialData.roughnessFactor = Clamp01(1.0f - glossiness);
+		materialData.hasPbrFactors = true;
+	}
+}
+
+void ReadSkinningEmissive(const aiMaterial& sourceMaterial, MaterialData& materialData) {
+	aiColor4D emissive{};
+	if (aiGetMaterialColor(&sourceMaterial, AI_MATKEY_COLOR_EMISSIVE, &emissive) != AI_SUCCESS) {
+		return;
+	}
+
+	const Vector3 emissiveColor = { emissive.r, emissive.g, emissive.b };
+	const float emissiveMax = MaxComponent(emissiveColor);
+	if (emissiveMax <= 0.0001f) {
+		return;
+	}
+
+	float emissiveIntensity = emissiveMax;
+	sourceMaterial.Get(AI_MATKEY_EMISSIVE_INTENSITY, emissiveIntensity);
+
+	materialData.emissiveColor = {
+		emissiveColor.x / emissiveMax,
+		emissiveColor.y / emissiveMax,
+		emissiveColor.z / emissiveMax,
+	};
+	materialData.emissiveIntensity = (std::max)(emissiveIntensity, emissiveMax);
+	materialData.hasEmissive = true;
+}
+
+std::vector<MaterialData> LoadSkinningMaterials(
+	SkinningModelAsset& asset,
+	const aiScene& scene,
+	const std::filesystem::path& sourcePath) {
+	std::vector<MaterialData> materials;
+	materials.reserve((std::max)(scene.mNumMaterials, 1u));
+
+	for (uint32_t materialIndex = 0; materialIndex < scene.mNumMaterials; ++materialIndex) {
+		const aiMaterial& sourceMaterial = *scene.mMaterials[materialIndex];
+		MaterialData materialData = MakeDefaultSkinnedMaterial();
+
+		ReadSkinningBaseColor(sourceMaterial, materialData);
+		ReadSkinningPbrFactors(sourceMaterial, materialData);
+		ReadSkinningEmissive(sourceMaterial, materialData);
+
+		std::string baseColorTexture = GetSkinningMaterialTexture(
+			asset, scene, sourceMaterial, sourcePath,
+			aiTextureType_BASE_COLOR, TextureManager::TextureColorSpace::SRGB);
+		if (baseColorTexture.empty()) {
+			baseColorTexture = GetSkinningMaterialTexture(
+				asset, scene, sourceMaterial, sourcePath,
+				aiTextureType_DIFFUSE, TextureManager::TextureColorSpace::SRGB);
+		}
+		if (!baseColorTexture.empty()) {
+			materialData.textureFilePath = baseColorTexture;
+		}
+
+		std::string normalTexture = GetSkinningMaterialTexture(
+			asset, scene, sourceMaterial, sourcePath,
+			aiTextureType_NORMALS, TextureManager::TextureColorSpace::LinearData);
+		if (normalTexture.empty()) {
+			normalTexture = GetSkinningMaterialTexture(
+				asset, scene, sourceMaterial, sourcePath,
+				aiTextureType_NORMAL_CAMERA, TextureManager::TextureColorSpace::LinearData);
+		}
+		if (normalTexture.empty()) {
+			normalTexture = GetSkinningMaterialTexture(
+				asset, scene, sourceMaterial, sourcePath,
+				aiTextureType_HEIGHT, TextureManager::TextureColorSpace::LinearData);
+		}
+		if (!normalTexture.empty()) {
+			materialData.normalTextureFilePath = normalTexture;
+			materialData.hasNormalTexture = true;
+		}
+
+		const std::string metallicTexture = GetSkinningMaterialTexture(
+			asset, scene, sourceMaterial, sourcePath,
+			aiTextureType_METALNESS, TextureManager::TextureColorSpace::LinearData);
+		const std::string roughnessTexture = GetSkinningMaterialTexture(
+			asset, scene, sourceMaterial, sourcePath,
+			aiTextureType_DIFFUSE_ROUGHNESS, TextureManager::TextureColorSpace::LinearData);
+		if (!metallicTexture.empty() && metallicTexture == roughnessTexture) {
+			materialData.metallicRoughnessTextureFilePath = metallicTexture;
+			materialData.hasMetallicRoughnessTexture = true;
+			materialData.hasMetallicTexture = true;
+			materialData.hasRoughnessTexture = true;
+			materialData.metallicMapChannel = 2.0f;
+			materialData.roughnessMapChannel = 1.0f;
+		} else {
+			if (!metallicTexture.empty()) {
+				materialData.metallicTextureFilePath = metallicTexture;
+				materialData.hasMetallicTexture = true;
+				materialData.metallicMapChannel = 0.0f;
+			}
+			if (!roughnessTexture.empty()) {
+				materialData.roughnessTextureFilePath = roughnessTexture;
+				materialData.hasRoughnessTexture = true;
+				materialData.roughnessMapChannel = 0.0f;
+			}
+		}
+
+		const std::string occlusionTexture = GetSkinningMaterialTexture(
+			asset, scene, sourceMaterial, sourcePath,
+			aiTextureType_AMBIENT_OCCLUSION, TextureManager::TextureColorSpace::LinearData);
+		if (!occlusionTexture.empty()) {
+			materialData.occlusionTextureFilePath = occlusionTexture;
+			materialData.hasOcclusionTexture = true;
+			materialData.occlusionMapChannel = 0.0f;
+		}
+
+		materials.push_back(std::move(materialData));
+	}
+
+	if (materials.empty()) {
+		materials.push_back(MakeDefaultSkinnedMaterial());
+	}
+	return materials;
+}
+
+void GenerateSkinningTangents(ModelData& modelData) {
+	std::vector<Vector3> tangentSums(modelData.vertices.size(), {});
+	std::vector<Vector3> bitangentSums(modelData.vertices.size(), {});
+
+	for (size_t i = 0; i + 2 < modelData.indices.size(); i += 3) {
+		const uint32_t index0 = modelData.indices[i + 0];
+		const uint32_t index1 = modelData.indices[i + 1];
+		const uint32_t index2 = modelData.indices[i + 2];
+		if (index0 >= modelData.vertices.size() ||
+			index1 >= modelData.vertices.size() ||
+			index2 >= modelData.vertices.size()) {
+			continue;
+		}
+
+		const VertexData& v0 = modelData.vertices[index0];
+		const VertexData& v1 = modelData.vertices[index1];
+		const VertexData& v2 = modelData.vertices[index2];
+		const Vector3 p0 = ToVector3(v0.position);
+		const Vector3 p1 = ToVector3(v1.position);
+		const Vector3 p2 = ToVector3(v2.position);
+		const Vector3 edge1 = SubtractVector3(p1, p0);
+		const Vector3 edge2 = SubtractVector3(p2, p0);
+		const Vector2 deltaUv1 = { v1.texcoord.x - v0.texcoord.x, v1.texcoord.y - v0.texcoord.y };
+		const Vector2 deltaUv2 = { v2.texcoord.x - v0.texcoord.x, v2.texcoord.y - v0.texcoord.y };
+		const float det = deltaUv1.x * deltaUv2.y - deltaUv1.y * deltaUv2.x;
+
+		Vector3 tangent = {};
+		Vector3 bitangent = {};
+		if (std::abs(det) > 0.000001f) {
+			const float invDet = 1.0f / det;
+			tangent = {
+				(edge1.x * deltaUv2.y - edge2.x * deltaUv1.y) * invDet,
+				(edge1.y * deltaUv2.y - edge2.y * deltaUv1.y) * invDet,
+				(edge1.z * deltaUv2.y - edge2.z * deltaUv1.y) * invDet,
+			};
+			bitangent = {
+				(edge2.x * deltaUv1.x - edge1.x * deltaUv2.x) * invDet,
+				(edge2.y * deltaUv1.x - edge1.y * deltaUv2.x) * invDet,
+				(edge2.z * deltaUv1.x - edge1.z * deltaUv2.x) * invDet,
+			};
+		} else {
+			const Vector3 faceNormal = NormalizeVector3Local(CrossVector3(edge1, edge2));
+			tangent = BuildFallbackTangent(faceNormal);
+			bitangent = NormalizeVector3Local(CrossVector3(faceNormal, tangent));
+		}
+
+		const uint32_t indices[3] = { index0, index1, index2 };
+		for (uint32_t index : indices) {
+			tangentSums[index] = AddVector3(tangentSums[index], tangent);
+			bitangentSums[index] = AddVector3(bitangentSums[index], bitangent);
+		}
+	}
+
+	for (size_t i = 0; i < modelData.vertices.size(); ++i) {
+		VertexData& vertex = modelData.vertices[i];
+		const Vector3 normal = NormalizeVector3Local(vertex.normal);
+		Vector3 tangent = tangentSums[i];
+		tangent = SubtractVector3(tangent, MultiplyVector3(normal, DotVector3(normal, tangent)));
+		if (LengthVector3(tangent) <= 0.00001f) {
+			tangent = BuildFallbackTangent(normal);
+		} else {
+			tangent = NormalizeVector3Local(tangent);
+		}
+
+		const Vector3 bitangent = bitangentSums[i];
+		const float handedness = DotVector3(CrossVector3(normal, tangent), bitangent) < 0.0f ? -1.0f : 1.0f;
+		vertex.tangent = { tangent.x, tangent.y, tangent.z, handedness };
+	}
+}
+
+void PrepareSkinningMaterialForGpu(MaterialData& material) {
+	if (material.textureFilePath.empty()) {
+		material.textureFilePath = "resources/white512x512.png";
+	}
+
+	if (!material.metallicTextureFilePath.empty() ||
+		!material.roughnessTextureFilePath.empty()) {
+		const std::string packedMaterialPath = TextureManager::GetInstance()->CreatePackedPbrMaterialTexture(
+			material.metallicTextureFilePath,
+			material.metallicMapChannel,
+			material.roughnessTextureFilePath,
+			material.roughnessMapChannel,
+			material.occlusionTextureFilePath,
+			material.occlusionMapChannel,
+			material.metallicFactor,
+			material.roughnessFactor,
+			material.ambientOcclusionFactor);
+		if (!packedMaterialPath.empty()) {
+			material.metallicRoughnessTextureFilePath = packedMaterialPath;
+			material.hasMetallicRoughnessTexture =
+				material.hasMetallicTexture || material.hasRoughnessTexture;
+			material.metallicMapChannel = 2.0f;
+			material.roughnessMapChannel = 1.0f;
+			if (material.hasOcclusionTexture) {
+				material.occlusionTextureFilePath = packedMaterialPath;
+				material.occlusionMapChannel = 0.0f;
+			}
+		}
+	}
+
+	if (!material.hasNormalTexture || material.normalTextureFilePath.empty()) {
+		material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+		material.hasNormalTexture = false;
+	}
+	if (!material.hasMetallicRoughnessTexture || material.metallicRoughnessTextureFilePath.empty()) {
+		material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+		material.hasMetallicRoughnessTexture = false;
+	}
+	if (!material.hasOcclusionTexture || material.occlusionTextureFilePath.empty()) {
+		material.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+		material.hasOcclusionTexture = false;
+	}
+}
+
 void InsertInfluence(VertexInfluence& influence, float weight, int32_t jointIndex) {
 	for (size_t slot = 0; slot < influence.weights.size(); ++slot) {
 		if (influence.weights[slot] == 0.0f) {
@@ -69,7 +456,14 @@ void InsertInfluence(VertexInfluence& influence, float weight, int32_t jointInde
 
 SkinningModelAsset SkinningModelLoader::LoadFromFile(const std::string& filePath) {
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(filePath, aiProcess_Triangulate | aiProcess_JoinIdenticalVertices);
+	constexpr unsigned int kImportFlags =
+		aiProcess_Triangulate |
+		aiProcess_JoinIdenticalVertices |
+		aiProcess_GenSmoothNormals |
+		aiProcess_CalcTangentSpace |
+		aiProcess_LimitBoneWeights |
+		aiProcess_ImproveCacheLocality;
+	const aiScene* scene = importer.ReadFile(filePath, kImportFlags);
 	if (scene == nullptr || scene->mRootNode == nullptr || scene->mNumMeshes == 0) {
 		throw std::runtime_error("Failed to load skinned model: " + filePath + " / " + importer.GetErrorString());
 	}
@@ -77,47 +471,7 @@ SkinningModelAsset SkinningModelLoader::LoadFromFile(const std::string& filePath
 	SkinningModelAsset asset;
 	asset.rootNode = ReadNode(*scene->mRootNode);
 	const std::filesystem::path sourcePath(filePath);
-	std::unordered_map<uint32_t, std::string> materialTextureKeys;
-
-	auto resolveMaterialTexture = [&](uint32_t materialIndex) -> std::string {
-		const auto cached = materialTextureKeys.find(materialIndex);
-		if (cached != materialTextureKeys.end()) {
-			return cached->second;
-		}
-
-		std::string textureKey = "resources/white512x512.png";
-		if (materialIndex < scene->mNumMaterials) {
-			const aiMaterial& material = *scene->mMaterials[materialIndex];
-			aiString texturePath;
-			aiReturn result = material.GetTexture(aiTextureType_BASE_COLOR, 0, &texturePath);
-			if (result != AI_SUCCESS) {
-				result = material.GetTexture(aiTextureType_DIFFUSE, 0, &texturePath);
-			}
-			if (result == AI_SUCCESS && texturePath.length > 0) {
-				const aiTexture* embedded = scene->GetEmbeddedTexture(texturePath.C_Str());
-				if (embedded != nullptr && embedded->mHeight == 0 && embedded->mWidth > 0) {
-					textureKey = filePath + "#embedded/" + texturePath.C_Str();
-					const auto alreadyCopied = std::find_if(
-						asset.embeddedTextures.begin(), asset.embeddedTextures.end(),
-						[&](const SkinningModelAsset::EmbeddedTexture& texture) {
-							return texture.textureKey == textureKey;
-						});
-					if (alreadyCopied == asset.embeddedTextures.end()) {
-						SkinningModelAsset::EmbeddedTexture texture;
-						texture.textureKey = textureKey;
-						const auto* begin = reinterpret_cast<const uint8_t*>(embedded->pcData);
-						texture.encodedData.assign(begin, begin + embedded->mWidth);
-						asset.embeddedTextures.push_back(std::move(texture));
-					}
-				} else if (embedded == nullptr) {
-					textureKey =
-						(sourcePath.parent_path() / std::filesystem::path(texturePath.C_Str())).generic_string();
-				}
-			}
-		}
-		materialTextureKeys.emplace(materialIndex, textureKey);
-		return textureKey;
-	};
+	asset.modelData.materials = LoadSkinningMaterials(asset, *scene, sourcePath);
 
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
 		const aiMesh& mesh = *scene->mMeshes[meshIndex];
@@ -128,13 +482,17 @@ SkinningModelAsset SkinningModelLoader::LoadFromFile(const std::string& filePath
 			const aiVector3D& position = mesh.mVertices[vertexIndex];
 			const aiVector3D normal = mesh.HasNormals() ? mesh.mNormals[vertexIndex] : aiVector3D{};
 			const aiVector3D uv = mesh.HasTextureCoords(0) ? mesh.mTextureCoords[0][vertexIndex] : aiVector3D{};
-			asset.modelData.vertices.push_back({
-				{ -position.x, position.y, position.z, 1.0f },
-				// AssimpのglTFインポータはVを下原点へ変換して返すため、
-				// DirectX/WICの上原点テクスチャへ合わせて元に戻す。
-				{ uv.x, 1.0f - uv.y },
-				{ -normal.x, normal.y, normal.z },
-			});
+			VertexData vertex{};
+			vertex.position = { -position.x, position.y, position.z, 1.0f };
+			// AssimpのglTFインポータはVを下原点へ変換して返すため、
+			// DirectX/WICの上原点テクスチャへ合わせて元に戻す。
+			vertex.texcoord = { uv.x, 1.0f - uv.y };
+			vertex.normal = ConvertAssimpDirection(normal);
+			if (mesh.HasTangentsAndBitangents()) {
+				const Vector3 tangent = ConvertAssimpDirection(mesh.mTangents[vertexIndex]);
+				vertex.tangent = { tangent.x, tangent.y, tangent.z, 1.0f };
+			}
+			asset.modelData.vertices.push_back(vertex);
 		}
 
 		for (uint32_t faceIndex = 0; faceIndex < mesh.mNumFaces; ++faceIndex) {
@@ -163,22 +521,56 @@ SkinningModelAsset SkinningModelLoader::LoadFromFile(const std::string& filePath
 			SkinningModelAsset::Submesh submesh;
 			submesh.indexStart = indexStart;
 			submesh.indexCount = indexCount;
-			submesh.textureKey = resolveMaterialTexture(mesh.mMaterialIndex);
+			submesh.materialIndex = mesh.mMaterialIndex < asset.modelData.materials.size()
+				? mesh.mMaterialIndex
+				: 0u;
+			if (submesh.materialIndex < asset.modelData.materials.size()) {
+				submesh.textureKey = asset.modelData.materials[submesh.materialIndex].textureFilePath;
+			} else {
+				submesh.textureKey = "resources/white512x512.png";
+			}
 			if (mesh.mMaterialIndex < scene->mNumMaterials) {
+				aiString materialName;
+				if (scene->mMaterials[mesh.mMaterialIndex]->Get(AI_MATKEY_NAME, materialName) == AI_SUCCESS) {
+					submesh.materialName = materialName.C_Str();
+				}
 				int twoSided = 0;
 				if (scene->mMaterials[mesh.mMaterialIndex]->Get(AI_MATKEY_TWOSIDED, twoSided) == AI_SUCCESS) {
 					submesh.doubleSided = twoSided != 0;
 				}
 			}
+			asset.modelData.submeshes.push_back({
+				indexStart,
+				indexCount,
+				submesh.materialIndex,
+				submesh.materialName,
+			});
 			asset.submeshes.push_back(std::move(submesh));
 		}
 	}
 
 	if (asset.submeshes.empty()) {
-		asset.submeshes.push_back({
-			0, static_cast<uint32_t>(asset.modelData.indices.size()), "resources/white512x512.png" });
+		SkinningModelAsset::Submesh submesh;
+		submesh.indexStart = 0;
+		submesh.indexCount = static_cast<uint32_t>(asset.modelData.indices.size());
+		submesh.materialIndex = 0;
+		submesh.materialName = "default";
+		submesh.textureKey = asset.modelData.materials.empty()
+			? "resources/white512x512.png"
+			: asset.modelData.materials.front().textureFilePath;
+		asset.submeshes.push_back(submesh);
+		asset.modelData.submeshes.push_back({
+			submesh.indexStart,
+			submesh.indexCount,
+			submesh.materialIndex,
+			submesh.materialName,
+		});
 	}
-	asset.modelData.material.textureFilePath = asset.submeshes.front().textureKey;
+	if (asset.modelData.materials.empty()) {
+		asset.modelData.materials.push_back(MakeDefaultSkinnedMaterial());
+	}
+	asset.modelData.material = asset.modelData.materials.front();
+	GenerateSkinningTangents(asset.modelData);
 	return asset;
 }
 
@@ -232,6 +624,15 @@ void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, c
 	TextureManager::GetInstance()->CreateBrdfLutTexture();
 	TextureManager::GetInstance()->CreatePbrIrradianceTexture();
 	TextureManager::GetInstance()->CreatePbrPrefilteredEnvironmentTexture();
+
+	if (asset_.modelData.materials.empty()) {
+		asset_.modelData.materials.push_back(asset_.modelData.material);
+	}
+	for (MaterialData& material : asset_.modelData.materials) {
+		PrepareSkinningMaterialForGpu(material);
+	}
+	asset_.modelData.material = asset_.modelData.materials.front();
+
 	skeleton_ = SkeletonSystem::Create(asset_.rootNode);
 	skinCluster_ = SkinCluster::Create(skeleton_, asset_);
 	try {
@@ -251,22 +652,77 @@ void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, c
 	}
 
 	std::unordered_set<std::string> embeddedTextureKeys;
+	std::unordered_set<std::string> failedEmbeddedTextureKeys;
 	for (const SkinningModelAsset::EmbeddedTexture& embedded : asset_.embeddedTextures) {
+		const TextureManager::TextureColorSpace colorSpace = embedded.linearData
+			? TextureManager::TextureColorSpace::LinearData
+			: TextureManager::TextureColorSpace::SRGB;
 		if (TextureManager::GetInstance()->LoadTextureFromMemory(
-			embedded.textureKey, embedded.encodedData.data(), embedded.encodedData.size())) {
+			embedded.textureKey, embedded.encodedData.data(), embedded.encodedData.size(), colorSpace)) {
 			embeddedTextureKeys.insert(embedded.textureKey);
 		} else {
-			for (SkinningModelAsset::Submesh& submesh : asset_.submeshes) {
-				if (submesh.textureKey == embedded.textureKey) {
-					submesh.textureKey = "resources/white512x512.png";
-				}
-			}
+			failedEmbeddedTextureKeys.insert(embedded.textureKey);
 		}
 	}
-	for (const SkinningModelAsset::Submesh& submesh : asset_.submeshes) {
-		if (!embeddedTextureKeys.contains(submesh.textureKey)) {
-			TextureManager::GetInstance()->LoadTexture(submesh.textureKey);
+
+	for (MaterialData& material : asset_.modelData.materials) {
+		if (failedEmbeddedTextureKeys.contains(material.textureFilePath)) {
+			material.textureFilePath = "resources/white512x512.png";
+			material.hasBaseColorFactor = true;
 		}
+		if (failedEmbeddedTextureKeys.contains(material.normalTextureFilePath)) {
+			material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+			material.hasNormalTexture = false;
+		}
+		if (failedEmbeddedTextureKeys.contains(material.metallicRoughnessTextureFilePath)) {
+			material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+			material.hasMetallicRoughnessTexture = false;
+			material.hasMetallicTexture = false;
+			material.hasRoughnessTexture = false;
+		}
+		if (failedEmbeddedTextureKeys.contains(material.occlusionTextureFilePath)) {
+			material.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
+			material.hasOcclusionTexture = false;
+		}
+
+		if (!embeddedTextureKeys.contains(material.textureFilePath)) {
+			TextureManager::GetInstance()->LoadTexture(material.textureFilePath);
+		}
+		if (material.hasNormalTexture && !embeddedTextureKeys.contains(material.normalTextureFilePath)) {
+			TextureManager::GetInstance()->LoadTexture(
+				material.normalTextureFilePath,
+				TextureManager::TextureColorSpace::LinearData);
+		}
+		if (material.hasMetallicRoughnessTexture &&
+			!embeddedTextureKeys.contains(material.metallicRoughnessTextureFilePath)) {
+			TextureManager::GetInstance()->LoadTexture(
+				material.metallicRoughnessTextureFilePath,
+				TextureManager::TextureColorSpace::LinearData);
+		}
+		if (material.hasOcclusionTexture && !embeddedTextureKeys.contains(material.occlusionTextureFilePath)) {
+			TextureManager::GetInstance()->LoadTexture(
+				material.occlusionTextureFilePath,
+				TextureManager::TextureColorSpace::LinearData);
+		}
+
+		material.textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(material.textureFilePath);
+		material.normalTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+			material.normalTextureFilePath,
+			TextureManager::TextureColorSpace::LinearData);
+		material.metallicRoughnessTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+			material.metallicRoughnessTextureFilePath,
+			TextureManager::TextureColorSpace::LinearData);
+		material.occlusionTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+			material.occlusionTextureFilePath,
+			TextureManager::TextureColorSpace::LinearData);
+	}
+	asset_.modelData.material = asset_.modelData.materials.front();
+
+	for (SkinningModelAsset::Submesh& submesh : asset_.submeshes) {
+		const uint32_t materialIndex = submesh.materialIndex < asset_.modelData.materials.size()
+			? submesh.materialIndex
+			: 0u;
+		submesh.textureKey = asset_.modelData.materials[materialIndex].textureFilePath;
 	}
 
 	const size_t vertexBytes = sizeof(VertexData) * asset_.modelData.vertices.size();
@@ -416,32 +872,44 @@ void SkinnedModel::UpdateBlended(
 		sizeof(SkinningPaletteEntry) * skinCluster_.GetPalette().size());
 }
 
-void SkinnedModel::Draw() {
+void SkinnedModel::Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses) {
 	auto commandList = dxCommon_->GetList();
 	commandList->IASetVertexBuffers(0, 2, vertexBufferViews_);
 	commandList->IASetIndexBuffer(&indexBufferView_);
 	srvManager_->SetGraphicsRootDescriptorTable(9, paletteSrvIndex_);
 	for (const SkinningModelAsset::Submesh& submesh : asset_.submeshes) {
+		const uint32_t materialIndex = submesh.materialIndex < asset_.modelData.materials.size()
+			? submesh.materialIndex
+			: 0u;
+		const MaterialData& material = asset_.modelData.materials.empty()
+			? asset_.modelData.material
+			: asset_.modelData.materials[materialIndex];
+
 		auto& pso = submesh.doubleSided
 			? dxCommon_->GetPSOSkinningDoubleSidedForScene()
 			: dxCommon_->GetPSOSkinningForScene();
 		commandList->SetPipelineState(pso.graphicsState_.Get());
+		if (materialIndex < materialCbvAddresses.size() && materialCbvAddresses[materialIndex] != 0) {
+			commandList->SetGraphicsRootConstantBufferView(0, materialCbvAddresses[materialIndex]);
+			commandList->SetGraphicsRootConstantBufferView(10, materialCbvAddresses[materialIndex]);
+		}
 		commandList->SetGraphicsRootDescriptorTable(
-			2, TextureManager::GetInstance()->GetSrvHandleGPU(submesh.textureKey));
+			2,
+			TextureManager::GetInstance()->GetSrvHandleGPU(material.textureFilePath));
 		commandList->SetGraphicsRootDescriptorTable(
 			11,
 			TextureManager::GetInstance()->GetSrvHandleGPU(
-				TextureManager::GetFlatNormalTexturePath(),
+				material.normalTextureFilePath,
 				TextureManager::TextureColorSpace::LinearData));
 		commandList->SetGraphicsRootDescriptorTable(
 			12,
 			TextureManager::GetInstance()->GetSrvHandleGPU(
-				TextureManager::GetFlatNormalTexturePath(),
+				material.metallicRoughnessTextureFilePath,
 				TextureManager::TextureColorSpace::LinearData));
 		commandList->SetGraphicsRootDescriptorTable(
 			13,
 			TextureManager::GetInstance()->GetSrvHandleGPU(
-				TextureManager::GetFlatNormalTexturePath(),
+				material.occlusionTextureFilePath,
 				TextureManager::TextureColorSpace::LinearData));
 		commandList->SetGraphicsRootDescriptorTable(
 			14,

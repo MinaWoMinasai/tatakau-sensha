@@ -24,6 +24,18 @@ public:
 	void CreateBrdfLutTexture();
 	void CreatePbrIrradianceTexture();
 	void CreatePbrPrefilteredEnvironmentTexture();
+	bool CreatePbrEnvironmentTexturesFromCubeMap(const std::string& sourceCubePath);
+	bool CreatePbrSolidColorEnvironmentTextures(float red, float green, float blue);
+	std::string CreatePackedPbrMaterialTexture(
+		const std::string& metallicPath,
+		float metallicChannel,
+		const std::string& roughnessPath,
+		float roughnessChannel,
+		const std::string& occlusionPath,
+		float occlusionChannel,
+		float metallicFallback,
+		float roughnessFallback,
+		float occlusionFallback);
 	// GLBなどに埋め込まれたPNG/JPEGを仮想キー付きで直接読み込む。
 	bool LoadTextureFromMemory(const std::string& textureKey, const void* data, size_t size, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
 	void PreDraw();
@@ -42,6 +54,7 @@ public:
 	uint32_t GetSrvIndex(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
 	static const std::string& GetFlatNormalTexturePath();
 	static const std::string& GetBrdfLutTexturePath();
+	static const std::string& GetPbrEnvironmentTexturePath();
 	static const std::string& GetPbrIrradianceTexturePath();
 	static const std::string& GetPbrPrefilteredEnvironmentTexturePath();
 
@@ -56,6 +69,7 @@ private:
 	};
 
 	static std::string MakeTextureKey(const std::string& filePath, TextureColorSpace colorSpace);
+	void StoreGeneratedTexture(const std::string& filePath, TextureColorSpace colorSpace, const DirectX::ScratchImage& image, bool textureCube);
 
 	static TextureManager* instance;
 
@@ -70,5 +84,7 @@ private:
 	Texture texture;
 	DirectXCommon* dxCommon_ = nullptr;
 	SrvManager* srvManager_ = nullptr;
+	std::string pbrEnvironmentSourcePath_;
+	bool pbrEnvironmentBuilt_ = false;
+	bool pbrEnvironmentLoadedFromSource_ = false;
 };
-

@@ -37,6 +37,48 @@ void ModelManager::LoadModel(const std::string& filePath)
 	models.insert(std::make_pair(filePath, std::move(model)));
 }
 
+void ModelManager::CreatePlaneModel(const std::string& modelName, float width, float depth)
+{
+	if (models.contains(modelName)) {
+		return;
+	}
+
+	std::unique_ptr<Model> model = std::make_unique<Model>();
+	model->InitializeFromModelData(
+		modelCommon.get(),
+		Model::CreatePlane(width, depth));
+
+	models.insert(std::make_pair(modelName, std::move(model)));
+}
+
+void ModelManager::CreateBoxModel(const std::string& modelName, const Vector3& size)
+{
+	if (models.contains(modelName)) {
+		return;
+	}
+
+	std::unique_ptr<Model> model = std::make_unique<Model>();
+	model->InitializeFromModelData(
+		modelCommon.get(),
+		Model::CreateBox(size));
+
+	models.insert(std::make_pair(modelName, std::move(model)));
+}
+
+void ModelManager::CreateCylinderModel(const std::string& modelName, float radius, float height, uint32_t segments)
+{
+	if (models.contains(modelName)) {
+		return;
+	}
+
+	std::unique_ptr<Model> model = std::make_unique<Model>();
+	model->InitializeFromModelData(
+		modelCommon.get(),
+		Model::CreateCylinder(radius, height, segments));
+
+	models.insert(std::make_pair(modelName, std::move(model)));
+}
+
 void ModelManager::CreateUvSphereModel(const std::string& modelName, float radius, uint32_t latitudeSegments, uint32_t longitudeSegments)
 {
 	if (models.contains(modelName)) {
