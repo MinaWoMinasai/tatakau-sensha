@@ -18,6 +18,7 @@ bool Game::Initialize() {
     InitializeImGui();
     LoadResources();
 
+    //SceneManager::GetInstance()->Initialize("TITLE");
     SceneManager::GetInstance()->Initialize("GRAPHICS_LAB");
     //SceneManager::GetInstance()->Initialize("ACTION3D");
 

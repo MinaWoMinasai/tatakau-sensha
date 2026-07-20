@@ -153,8 +153,8 @@ float3 SampleDiffuseIrradiance(
     float environmentMode)
 {
     float3 cubemapIrradiance = SampleDiffuseIrradianceApprox(environmentMap, environmentSampler, N, maxMipLevel);
-    float3 proceduralIrradiance = irradianceMap.SampleLevel(environmentSampler, N, 0.0f).rgb;
-    return lerp(cubemapIrradiance, proceduralIrradiance, saturate(environmentMode));
+    float3 filteredIrradiance = irradianceMap.SampleLevel(environmentSampler, N, 0.0f).rgb;
+    return lerp(cubemapIrradiance, filteredIrradiance, saturate(environmentMode));
 }
 
 float3 SampleSpecularIBL(
@@ -171,8 +171,8 @@ float3 SampleSpecularIBL(
 {
     float lod = roughness * max(maxMipLevel, 0.0f);
     float3 cubemapColor = environmentMap.SampleLevel(environmentSampler, R, lod).rgb;
-    float3 proceduralPrefilteredColor = prefilteredEnvironmentMap.SampleLevel(environmentSampler, R, lod).rgb;
-    float3 prefilteredColor = lerp(cubemapColor, proceduralPrefilteredColor, saturate(environmentMode));
+    float3 filteredPrefilteredColor = prefilteredEnvironmentMap.SampleLevel(environmentSampler, R, lod).rgb;
+    float3 prefilteredColor = lerp(cubemapColor, filteredPrefilteredColor, saturate(environmentMode));
     float2 brdf = brdfLut.SampleLevel(environmentSampler, float2(saturate(NdotV), saturate(roughness)), 0.0f).rg;
     float3 specularBrdf = max(F0 * brdf.x + brdf.y, 0.0f);
     return max(prefilteredColor * specularBrdf, 0.0f);

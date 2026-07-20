@@ -26,9 +26,17 @@ struct Material
     float32_t normalDetailStrength;
     float32_t normalDetailScale;
     float32_t normalMapStrength;
-    float32_t metallicRoughnessMapStrength;
+    float32_t metallicMapStrength;
+    float32_t roughnessMapStrength;
     float32_t occlusionMapStrength;
-    float32_t2 materialPadding;
+    float32_t metallicMapChannel;
+    float32_t roughnessMapChannel;
+    float32_t occlusionMapChannel;
+    float32_t shadowDepthBias;
+    float32_t shadowSlopeBias;
+    float32_t shadowPcfRadius;
+    float32_t materialDebugMode;
+    float32_t2 materialDebugPadding;
 };
 
 struct Camera
@@ -92,6 +100,20 @@ float32_t4 EncodeMaterialTarget(float32_t roughness, float32_t metallic, float32
         saturate(materialClass));
 }
 
+float32_t SelectPackedMaterialChannel(float32_t4 sampleValue, float32_t channel)
+{
+    if (channel < 0.5f) {
+        return sampleValue.r;
+    }
+    if (channel < 1.5f) {
+        return sampleValue.g;
+    }
+    if (channel < 2.5f) {
+        return sampleValue.b;
+    }
+    return sampleValue.a;
+}
+
 float32_t ComputeSSRMaterialMask(float32_t metallic, float32_t roughness, float32_t environmentStrength, float32_t alpha)
 {
     float32_t smoothness = 1.0f - saturate(roughness);
@@ -99,6 +121,56 @@ float32_t ComputeSSRMaterialMask(float32_t metallic, float32_t roughness, float3
     float32_t metalReflection = saturate(metallic) * smoothness * 0.95f;
     float32_t environmentReflection = saturate(environmentStrength) * smoothness * 0.45f;
     return saturate(max(max(dielectricReflection, metalReflection), environmentReflection) * alpha);
+}
+
+float32_t3 MakeMaterialDebugColor(
+    int32_t debugMode,
+    float32_t3 worldNormal,
+    float32_t3 tangentNormal,
+    float32_t3 albedo,
+    float32_t roughness,
+    float32_t metallic,
+    float32_t ambientOcclusion,
+    float32_t3 f0,
+    float32_t ssrMask,
+    float32_t4 packedMaterialSample,
+    float32_t2 uv)
+{
+    if (debugMode == 1) {
+        return normalize(worldNormal) * 0.5f + 0.5f;
+    }
+    if (debugMode == 2) {
+        return normalize(tangentNormal) * 0.5f + 0.5f;
+    }
+    if (debugMode == 3) {
+        return saturate(albedo);
+    }
+    if (debugMode == 4) {
+        return float32_t3(roughness, roughness, roughness);
+    }
+    if (debugMode == 5) {
+        return float32_t3(metallic, metallic, metallic);
+    }
+    if (debugMode == 6) {
+        return float32_t3(ambientOcclusion, ambientOcclusion, ambientOcclusion);
+    }
+    if (debugMode == 7) {
+        return saturate(f0);
+    }
+    if (debugMode == 8) {
+        return float32_t3(ssrMask, ssrMask, ssrMask);
+    }
+    if (debugMode == 9) {
+        return saturate(packedMaterialSample.rgb);
+    }
+    if (debugMode == 10) {
+        float2 tiledUv = frac(uv * 4.0f);
+        float32_t gridLine = max(
+            1.0f - smoothstep(0.0f, 0.025f, min(tiledUv.x, 1.0f - tiledUv.x)),
+            1.0f - smoothstep(0.0f, 0.025f, min(tiledUv.y, 1.0f - tiledUv.y)));
+        return lerp(float32_t3(tiledUv.x, tiledUv.y, 0.25f), float32_t3(1.0f, 1.0f, 1.0f), gridLine);
+    }
+    return saturate(albedo);
 }
 
 // PixelShaderOutput main(VertexShaderOutput input)
@@ -395,12 +467,13 @@ PixelShaderOutput main(VertexShaderOutput input)
         // 法線の傾斜に応じてbiasを増やし、shadow acneを抑える。
         float3 shadowLightDir = -normalize(gDirectionalLight.direction);
         float slope = 1.0f - saturate(dot(N, shadowLightDir));
-        float shadowBias = max(0.00035f, 0.0018f * slope);
+        float shadowBias = max(max(gMaterial.shadowDepthBias, 0.0f), max(gMaterial.shadowSlopeBias, 0.0f) * slope);
 
         // 3x3 PCF。単一比較より輪郭を柔らかくし、ジャギーを抑える。
         uint shadowWidth, shadowHeight;
         gShadowMap.GetDimensions(shadowWidth, shadowHeight);
         float2 shadowTexel = 1.0f / float2(shadowWidth, shadowHeight);
+        float shadowPcfRadius = max(gMaterial.shadowPcfRadius, 0.0f);
         float shadow = 1.0f;
         if (all(shadowUV >= 0.0f) && all(shadowUV <= 1.0f) && depth >= 0.0f && depth <= 1.0f)
         {
@@ -412,7 +485,7 @@ PixelShaderOutput main(VertexShaderOutput input)
                 for (int x = -1; x <= 1; ++x)
                 {
                     shadow += gShadowMap.SampleCmpLevelZero(
-                        gShadowSampler, shadowUV + float2(x, y) * shadowTexel, depth - shadowBias);
+                        gShadowSampler, shadowUV + float2(x, y) * shadowTexel * shadowPcfRadius, depth - shadowBias);
                 }
             }
             shadow /= 9.0f;
@@ -423,20 +496,49 @@ PixelShaderOutput main(VertexShaderOutput input)
         {
             float3 albedo = max(gMaterial.color.rgb * textureColor.rgb, 0.0f);
             float4 metallicRoughnessSample = gMetallicRoughnessMap.Sample(gSampler, transformedUV.xy);
-            float metallicRoughnessMapStrength = saturate(gMaterial.metallicRoughnessMapStrength);
-            float metallic = saturate(lerp(gMaterial.metallic, metallicRoughnessSample.b, metallicRoughnessMapStrength));
-            float roughness = clamp(lerp(gMaterial.roughness, metallicRoughnessSample.g, metallicRoughnessMapStrength), 0.04f, 1.0f);
+            float metallic = saturate(lerp(
+                gMaterial.metallic,
+                SelectPackedMaterialChannel(metallicRoughnessSample, gMaterial.metallicMapChannel),
+                saturate(gMaterial.metallicMapStrength)));
+            float roughness = clamp(lerp(
+                gMaterial.roughness,
+                SelectPackedMaterialChannel(metallicRoughnessSample, gMaterial.roughnessMapChannel),
+                saturate(gMaterial.roughnessMapStrength)), 0.04f, 1.0f);
 #if SCENE_NORMAL_TARGET
             float ssrMask = ComputeSSRMaterialMask(metallic, roughness, max(gMaterial.environmentCoefficient, 0.0f), gMaterial.color.a * textureColor.a);
             output.normal = EncodeNormalTarget(N, ssrMask);
 #endif
-            float occlusionSample = gOcclusionMap.Sample(gSampler, transformedUV.xy).r;
+            float occlusionSample = SelectPackedMaterialChannel(
+                gOcclusionMap.Sample(gSampler, transformedUV.xy),
+                gMaterial.occlusionMapChannel);
             float ao = saturate(gMaterial.ambientOcclusion * lerp(1.0f, occlusionSample, saturate(gMaterial.occlusionMapStrength)));
 #if SCENE_NORMAL_TARGET
             output.material = EncodeMaterialTarget(roughness, metallic, ao, 1.0f);
 #endif
             float NdotV = saturate(dot(N, V));
             float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedo, metallic);
+            int materialDebugMode = (int)(gMaterial.materialDebugMode + 0.5f);
+            if (materialDebugMode > 0)
+            {
+                float debugSSRMask = ComputeSSRMaterialMask(
+                    metallic,
+                    roughness,
+                    max(gMaterial.environmentCoefficient, 0.0f),
+                    gMaterial.color.a * textureColor.a);
+                output.color = float4(MakeMaterialDebugColor(
+                    materialDebugMode,
+                    N,
+                    normalTS,
+                    albedo,
+                    roughness,
+                    metallic,
+                    ao,
+                    F0,
+                    debugSSRMask,
+                    metallicRoughnessSample,
+                    transformedUV.xy), gMaterial.color.a * textureColor.a);
+                return output;
+            }
 
             float3 Lo = 0.0f;
             float3 L_dir = -normalize(gDirectionalLight.direction);

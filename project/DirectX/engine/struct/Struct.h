@@ -125,9 +125,17 @@ struct Material {
 	float normalDetailStrength;
 	float normalDetailScale;
 	float normalMapStrength;
-	float metallicRoughnessMapStrength;
+	float metallicMapStrength;
+	float roughnessMapStrength;
 	float occlusionMapStrength;
-	float materialPadding[2];
+	float metallicMapChannel;
+	float roughnessMapChannel;
+	float occlusionMapChannel;
+	float shadowDepthBias;
+	float shadowSlopeBias;
+	float shadowPcfRadius;
+	float materialDebugMode;
+	float materialDebugPadding[2];
 };
 
 inline Material MakeDefaultMaterial()
@@ -157,10 +165,18 @@ inline Material MakeDefaultMaterial()
 	material.normalDetailStrength = 0.0f;
 	material.normalDetailScale = 24.0f;
 	material.normalMapStrength = 0.0f;
-	material.metallicRoughnessMapStrength = 0.0f;
+	material.metallicMapStrength = 0.0f;
+	material.roughnessMapStrength = 0.0f;
 	material.occlusionMapStrength = 0.0f;
-	material.materialPadding[0] = 0.0f;
-	material.materialPadding[1] = 0.0f;
+	material.metallicMapChannel = 2.0f;
+	material.roughnessMapChannel = 1.0f;
+	material.occlusionMapChannel = 0.0f;
+	material.shadowDepthBias = 0.00035f;
+	material.shadowSlopeBias = 0.0018f;
+	material.shadowPcfRadius = 1.0f;
+	material.materialDebugMode = 0.0f;
+	material.materialDebugPadding[0] = 0.0f;
+	material.materialDebugPadding[1] = 0.0f;
 	return material;
 }
 
@@ -215,15 +231,31 @@ struct MaterialData {
 	std::string metallicRoughnessTextureFilePath;
 	uint32_t metallicRoughnessTextureIndex = 0;
 	bool hasMetallicRoughnessTexture = false;
+	std::string metallicTextureFilePath;
+	std::string roughnessTextureFilePath;
+	bool hasMetallicTexture = false;
+	bool hasRoughnessTexture = false;
+	float metallicMapChannel = 2.0f;
+	float roughnessMapChannel = 1.0f;
 	std::string occlusionTextureFilePath;
 	uint32_t occlusionTextureIndex = 0;
 	bool hasOcclusionTexture = false;
+	float occlusionMapChannel = 0.0f;
+};
+
+struct ModelSubmesh {
+	uint32_t startIndex = 0;
+	uint32_t indexCount = 0;
+	uint32_t materialIndex = 0;
+	std::string materialName;
 };
 
 struct ModelData {
 	std::vector<VertexData> vertices;
 	std::vector<uint32_t> indices;
 	MaterialData material;
+	std::vector<MaterialData> materials;
+	std::vector<ModelSubmesh> submeshes;
 };
 
 struct Quaternion {
