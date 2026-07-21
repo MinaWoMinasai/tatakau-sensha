@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <exception>
 #include <numbers>
 #include <utility>
 
@@ -97,6 +98,11 @@ void DrawMaterialTextureDebug(const std::string& modelName, const ModelData& mod
 			if (!ImGui::TreeNode(label)) {
 				return;
 			}
+			ImGui::TextWrapped("name: %s", material.materialName.empty() ? "(unnamed)" : material.materialName.c_str());
+			ImGui::Text(
+				"semantic: %s  %s",
+				MaterialSemanticName(material.semantic),
+				material.semanticInferred ? "inferred" : "default/manual");
 			ImGui::Text(
 				"baseColor: %.3f %.3f %.3f %.3f  %s",
 				material.baseColorFactor.x,
@@ -451,6 +457,19 @@ void GraphicsLabScene::Initialize()
 	authoredTestBlock.kind = LabObjectKind::Scene;
 	validationObjects_.push_back(std::move(authoredTestBlock));
 
+	AddSkinnedLabObject(
+		"Human walk.gltf",
+		"resources/models/human/walk.gltf",
+		{ -96.0f, -1.0f, 78.0f },
+		{ 0.0f, std::numbers::pi_v<float>, 0.0f },
+		{ 8.0f, 8.0f, 8.0f });
+	AddSkinnedLabObject(
+		"VRoid testModel_animated.glb",
+		"resources/models/player/testModel_animated.glb",
+		{ 0.0f, -1.0f, 82.0f },
+		{ 0.0f, std::numbers::pi_v<float>, 0.0f },
+		{ 18.0f, 18.0f, 18.0f });
+
 	UpdateCamera();
 	sandBed_->Update();
 	river_->Update();
@@ -462,6 +481,11 @@ void GraphicsLabScene::Initialize()
 	}
 	for (auto& object : validationObjects_) {
 		object.object->Update();
+	}
+	for (auto& object : skinnedLabObjects_) {
+		if (object.loaded && object.object) {
+			object.object->Update();
+		}
 	}
 }
 
@@ -527,6 +551,14 @@ void GraphicsLabScene::Update()
 		object.object->SetInsensity(pbrDirectLightIntensity_);
 		object.object->Update();
 	}
+	for (auto& object : skinnedLabObjects_) {
+		if (!object.loaded || !object.model || !object.object) {
+			continue;
+		}
+		object.model->Update(finalDeltaTime_);
+		ApplyPbrSettingsToSkinnedObject(*object.object, object.shadowReceiveStrength);
+		object.object->Update();
+	}
 
 	DrawDebugWindow();
 }
@@ -548,6 +580,13 @@ void GraphicsLabScene::DrawShadow()
 		for (auto& object : validationObjects_) {
 			if (object.castsShadow) {
 				object.object->DrawShadow();
+			}
+		}
+	}
+	if (showSkinnedPbrSamples_ && enablePbrSampleShadows_) {
+		for (auto& object : skinnedLabObjects_) {
+			if (object.loaded && object.castsShadow && object.object && object.model) {
+				object.object->DrawSkinnedShadow(*object.model);
 			}
 		}
 	}
@@ -574,6 +613,13 @@ void GraphicsLabScene::DrawPostEffect3D()
 	if (showValidationPrimitives_) {
 		for (auto& object : validationObjects_) {
 			object.object->Draw();
+		}
+	}
+	if (showSkinnedPbrSamples_) {
+		for (auto& object : skinnedLabObjects_) {
+			if (object.loaded && object.object && object.model) {
+				object.object->DrawSkinned(*object.model);
+			}
 		}
 	}
 
@@ -623,6 +669,77 @@ bool GraphicsLabScene::ShouldDrawLabObject(const LabObject& object) const
 	default:
 		return true;
 	}
+}
+
+void GraphicsLabScene::AddSkinnedLabObject(
+	const std::string& label,
+	const std::string& path,
+	const Vector3& translate,
+	const Vector3& rotate,
+	const Vector3& scale)
+{
+	SkinnedLabObject sample;
+	sample.label = label;
+	sample.path = path;
+	sample.status = label + ": not loaded";
+	sample.shadowReceiveStrength = 0.35f;
+
+	try {
+		sample.model = std::make_unique<SkinnedModel>();
+		sample.model->Initialize(
+			Object3dCommon::GetInstance()->GetDxCommon(),
+			Object3dCommon::GetInstance()->GetSrvManager(),
+			path);
+
+		sample.object = std::make_unique<Object3d>();
+		sample.object->Initialize();
+		sample.object->SetTranslate(translate);
+		sample.object->SetRotate(rotate);
+		sample.object->SetScale(scale);
+		ApplyPbrSettingsToSkinnedObject(*sample.object, sample.shadowReceiveStrength);
+		sample.object->Update();
+
+		const auto& asset = sample.model->GetAsset();
+		sample.loaded = true;
+		sample.status =
+			label + ": loaded / materials=" + std::to_string(asset.modelData.materials.size()) +
+			" submeshes=" + std::to_string(asset.modelData.submeshes.size()) +
+			" animations=" + std::to_string(sample.model->GetAnimations().size());
+	} catch (const std::exception& error) {
+		sample.loaded = false;
+		sample.status = label + ": failed / " + error.what();
+	}
+
+	skinnedLabObjects_.push_back(std::move(sample));
+}
+
+void GraphicsLabScene::ApplyPbrSettingsToSkinnedObject(Object3d& object, float shadowReceiveStrength)
+{
+	const bool usePbrLighting = skinnedShadingMode_ == 0 && enableSkinnedPbrLighting_;
+	const bool useCharacterLighting = skinnedShadingMode_ == 1;
+	const bool useLighting = usePbrLighting || useCharacterLighting;
+	object.SetLighting(useLighting);
+	object.SetLightingMode(useCharacterLighting ? 3 : 2);
+	object.SetEnvironmentCoefficient(usePbrLighting ? 0.78f : 0.0f);
+	object.SetEnvironmentMap(pbrEnvironment_.GetEnvironmentSrvIndex());
+	object.SetIBLIntensity(
+		usePbrLighting ? pbrIblDiffuseIntensity_ : 0.0f,
+		usePbrLighting ? pbrIblSpecularIntensity_ : 0.0f);
+	object.SetIBLMaxMipLevel(pbrIblMaxMipLevel_);
+	object.SetPBREnvironmentMode(usePbrLighting ? pbrFilteredIblBlend_ : 0.0f);
+	object.SetShadowReceiveStrength(useLighting && enablePbrSampleShadows_ ? shadowReceiveStrength : 0.0f);
+	object.SetShadowFilter(pbrShadowDepthBias_, pbrShadowSlopeBias_, pbrShadowPcfRadius_);
+	object.SetNormalDetail(usePbrLighting ? pbrNormalDetailStrength_ : 0.0f, pbrNormalDetailScale_);
+	object.SetMaterialDebugMode(pbrMaterialDebugMode_);
+	object.SetInsensity(usePbrLighting ? pbrDirectLightIntensity_ : (useCharacterLighting ? 0.92f : 1.0f));
+	object.SetCharacterShading(
+		characterLightWrap_,
+		characterShadowSoftness_,
+		characterShadowStrength_,
+		characterRimStrength_,
+		characterRimPower_,
+		characterSpecularStrength_,
+		characterSpecularPower_);
 }
 
 void GraphicsLabScene::ApplyPbrEnvironmentDebugMode()
@@ -702,8 +819,24 @@ void GraphicsLabScene::DrawDebugWindow()
 	ImGui::Checkbox("Show obstacles", &showObstacles_);
 	ImGui::Checkbox("Show PBR samples", &showPbrSamples_);
 	ImGui::Checkbox("Show validation primitives", &showValidationPrimitives_);
+	ImGui::Checkbox("Show skinned PBR samples", &showSkinnedPbrSamples_);
+	const char* skinnedShadingModes[] = { "PBR look-dev", "Character bridge", "Unlit texture reference" };
+	ImGui::Combo("Skinned shading", &skinnedShadingMode_, skinnedShadingModes, IM_ARRAYSIZE(skinnedShadingModes));
+	ImGui::Checkbox("Skinned PBR lighting", &enableSkinnedPbrLighting_);
+	ImGui::DragFloat("Character light wrap", &characterLightWrap_, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Character shadow softness", &characterShadowSoftness_, 0.01f, 0.001f, 0.6f);
+	ImGui::DragFloat("Character shadow strength", &characterShadowStrength_, 0.01f, 0.0f, 0.95f);
+	ImGui::DragFloat("Character rim strength", &characterRimStrength_, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Character rim power", &characterRimPower_, 0.05f, 0.25f, 10.0f);
+	ImGui::DragFloat("Character specular strength", &characterSpecularStrength_, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Character specular power", &characterSpecularPower_, 0.5f, 1.0f, 128.0f);
 	ImGui::Text("PBR grid: front row dielectrics, back row metals; roughness increases left to right.");
 	ImGui::Text("Validation primitives: tilted plane, hard-edge boxes, and a cylinder.");
+	if (ImGui::CollapsingHeader("Skinned PBR samples")) {
+		for (const auto& object : skinnedLabObjects_) {
+			ImGui::TextWrapped("%s", object.status.c_str());
+		}
+	}
 	const char* pbrMaterialDebugModes[] = {
 		"Final",
 		"World normal",
@@ -743,6 +876,17 @@ void GraphicsLabScene::DrawDebugWindow()
 		for (const auto& [modelName, model] : models) {
 			if (model) {
 				DrawMaterialTextureDebug(modelName, model->GetModelData());
+			}
+		}
+		if (!skinnedLabObjects_.empty()) {
+			ImGui::Separator();
+			ImGui::TextUnformatted("Skinned");
+			for (const auto& object : skinnedLabObjects_) {
+				if (object.loaded && object.model) {
+					DrawMaterialTextureDebug("Skinned: " + object.label, object.model->GetAsset().modelData);
+				} else {
+					ImGui::TextWrapped("%s", object.status.c_str());
+				}
 			}
 		}
 	}

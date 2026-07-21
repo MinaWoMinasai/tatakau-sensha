@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cctype>
 #include <cstring>
 #include <filesystem>
 #include <stdexcept>
@@ -107,8 +108,64 @@ Vector3 BuildFallbackTangent(const Vector3& normal) {
 	return NormalizeVector3Local(CrossVector3(up, normal));
 }
 
+std::string ToLowerAscii(std::string value) {
+	std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+		return static_cast<char>(std::tolower(c));
+	});
+	return value;
+}
+
+bool ContainsToken(const std::string& text, const char* token) {
+	return text.find(token) != std::string::npos;
+}
+
+MaterialSemantic InferMaterialSemantic(const MaterialData& material) {
+	const std::string text = ToLowerAscii(
+		material.materialName + " " +
+		material.textureFilePath + " " +
+		material.normalTextureFilePath + " " +
+		material.metallicRoughnessTextureFilePath + " " +
+		material.metallicTextureFilePath + " " +
+		material.roughnessTextureFilePath + " " +
+		material.occlusionTextureFilePath);
+
+	if (material.hasEmissive || ContainsToken(text, "emissive") || ContainsToken(text, "emit")) {
+		return MaterialSemantic::Emissive;
+	}
+	if (ContainsToken(text, "eye") || ContainsToken(text, "iris") || ContainsToken(text, "pupil")) {
+		return MaterialSemantic::CharacterEye;
+	}
+	if (ContainsToken(text, "hair") || ContainsToken(text, "brow") || ContainsToken(text, "lash")) {
+		return MaterialSemantic::CharacterHair;
+	}
+	if (ContainsToken(text, "skin") || ContainsToken(text, "face") || ContainsToken(text, "body") ||
+		ContainsToken(text, "hand") || ContainsToken(text, "arm") || ContainsToken(text, "leg") ||
+		ContainsToken(text, "head") || ContainsToken(text, "neck") || ContainsToken(text, "mouth") ||
+		ContainsToken(text, "lip")) {
+		return MaterialSemantic::CharacterSkin;
+	}
+	if (ContainsToken(text, "cloth") || ContainsToken(text, "clothes") || ContainsToken(text, "dress") ||
+		ContainsToken(text, "shirt") || ContainsToken(text, "skirt") || ContainsToken(text, "sleeve") ||
+		ContainsToken(text, "uniform") || ContainsToken(text, "wear") || ContainsToken(text, "shoe") ||
+		ContainsToken(text, "sock") || ContainsToken(text, "ribbon")) {
+		return MaterialSemantic::CharacterCloth;
+	}
+	if (ContainsToken(text, "glass") || ContainsToken(text, "transparent") || ContainsToken(text, "window") ||
+		(material.hasBaseColorFactor && material.baseColorFactor.w < 0.75f)) {
+		return MaterialSemantic::Glass;
+	}
+	if (ContainsToken(text, "metal") || ContainsToken(text, "steel") || ContainsToken(text, "iron") ||
+		ContainsToken(text, "gold") || ContainsToken(text, "silver") || ContainsToken(text, "chrome") ||
+		material.hasMetallicTexture || material.metallicFactor > 0.65f) {
+		return MaterialSemantic::Metal;
+	}
+	return MaterialSemantic::GenericPbr;
+}
+
 MaterialData MakeDefaultSkinnedMaterial() {
 	MaterialData material;
+	material.materialName = "default";
+	material.semantic = MaterialSemantic::GenericPbr;
 	material.textureFilePath = "resources/white512x512.png";
 	material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
 	material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
@@ -243,6 +300,12 @@ std::vector<MaterialData> LoadSkinningMaterials(
 	for (uint32_t materialIndex = 0; materialIndex < scene.mNumMaterials; ++materialIndex) {
 		const aiMaterial& sourceMaterial = *scene.mMaterials[materialIndex];
 		MaterialData materialData = MakeDefaultSkinnedMaterial();
+		aiString materialName;
+		if (sourceMaterial.Get(AI_MATKEY_NAME, materialName) == AI_SUCCESS && materialName.length > 0) {
+			materialData.materialName = materialName.C_Str();
+		} else {
+			materialData.materialName = "material" + std::to_string(materialIndex);
+		}
 
 		ReadSkinningBaseColor(sourceMaterial, materialData);
 		ReadSkinningPbrFactors(sourceMaterial, materialData);
@@ -313,6 +376,8 @@ std::vector<MaterialData> LoadSkinningMaterials(
 			materialData.occlusionMapChannel = 0.0f;
 		}
 
+		materialData.semantic = InferMaterialSemantic(materialData);
+		materialData.semanticInferred = true;
 		materials.push_back(std::move(materialData));
 	}
 
@@ -396,6 +461,11 @@ void PrepareSkinningMaterialForGpu(MaterialData& material) {
 	if (material.textureFilePath.empty()) {
 		material.textureFilePath = "resources/white512x512.png";
 	}
+	if (material.materialName.empty()) {
+		material.materialName = "default";
+	}
+	material.semantic = InferMaterialSemantic(material);
+	material.semanticInferred = true;
 
 	if (!material.metallicTextureFilePath.empty() ||
 		!material.roughnessTextureFilePath.empty()) {

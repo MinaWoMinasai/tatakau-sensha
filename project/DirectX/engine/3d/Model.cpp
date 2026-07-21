@@ -137,6 +137,55 @@ std::string ToLowerAscii(std::string value)
 	return value;
 }
 
+bool ContainsToken(const std::string& text, const char* token)
+{
+	return text.find(token) != std::string::npos;
+}
+
+MaterialSemantic InferMaterialSemantic(const MaterialData& material)
+{
+	const std::string text = ToLowerAscii(
+		material.materialName + " " +
+		material.textureFilePath + " " +
+		material.normalTextureFilePath + " " +
+		material.metallicRoughnessTextureFilePath + " " +
+		material.metallicTextureFilePath + " " +
+		material.roughnessTextureFilePath + " " +
+		material.occlusionTextureFilePath);
+
+	if (material.hasEmissive || ContainsToken(text, "emissive") || ContainsToken(text, "emit")) {
+		return MaterialSemantic::Emissive;
+	}
+	if (ContainsToken(text, "eye") || ContainsToken(text, "iris") || ContainsToken(text, "pupil")) {
+		return MaterialSemantic::CharacterEye;
+	}
+	if (ContainsToken(text, "hair") || ContainsToken(text, "brow") || ContainsToken(text, "lash")) {
+		return MaterialSemantic::CharacterHair;
+	}
+	if (ContainsToken(text, "skin") || ContainsToken(text, "face") || ContainsToken(text, "body") ||
+		ContainsToken(text, "hand") || ContainsToken(text, "arm") || ContainsToken(text, "leg") ||
+		ContainsToken(text, "head") || ContainsToken(text, "neck") || ContainsToken(text, "mouth") ||
+		ContainsToken(text, "lip")) {
+		return MaterialSemantic::CharacterSkin;
+	}
+	if (ContainsToken(text, "cloth") || ContainsToken(text, "clothes") || ContainsToken(text, "dress") ||
+		ContainsToken(text, "shirt") || ContainsToken(text, "skirt") || ContainsToken(text, "sleeve") ||
+		ContainsToken(text, "uniform") || ContainsToken(text, "wear") || ContainsToken(text, "shoe") ||
+		ContainsToken(text, "sock") || ContainsToken(text, "ribbon")) {
+		return MaterialSemantic::CharacterCloth;
+	}
+	if (ContainsToken(text, "glass") || ContainsToken(text, "transparent") || ContainsToken(text, "window") ||
+		(material.hasBaseColorFactor && material.baseColorFactor.w < 0.75f)) {
+		return MaterialSemantic::Glass;
+	}
+	if (ContainsToken(text, "metal") || ContainsToken(text, "steel") || ContainsToken(text, "iron") ||
+		ContainsToken(text, "gold") || ContainsToken(text, "silver") || ContainsToken(text, "chrome") ||
+		material.hasMetallicTexture || material.metallicFactor > 0.65f) {
+		return MaterialSemantic::Metal;
+	}
+	return MaterialSemantic::GenericPbr;
+}
+
 std::string GetLowerExtension(const std::string& filename)
 {
 	return ToLowerAscii(std::filesystem::path(filename).extension().generic_string());
@@ -282,6 +331,12 @@ std::vector<MaterialData> LoadAssimpMaterials(
 	for (uint32_t materialIndex = 0; materialIndex < scene.mNumMaterials; ++materialIndex) {
 		const aiMaterial& sourceMaterial = *scene.mMaterials[materialIndex];
 		MaterialData materialData = MakeDefaultPrimitiveMaterial();
+		aiString materialName;
+		if (sourceMaterial.Get(AI_MATKEY_NAME, materialName) == AI_SUCCESS && materialName.length > 0) {
+			materialData.materialName = materialName.C_Str();
+		} else {
+			materialData.materialName = "material" + std::to_string(materialIndex);
+		}
 
 		ReadAssimpBaseColor(sourceMaterial, materialData);
 		ReadAssimpPbrFactors(sourceMaterial, materialData);
@@ -376,6 +431,8 @@ std::vector<MaterialData> LoadAssimpMaterials(
 			materialData.occlusionMapChannel = 0.0f;
 		}
 
+		materialData.semantic = InferMaterialSemantic(materialData);
+		materialData.semanticInferred = true;
 		materials.push_back(std::move(materialData));
 	}
 
@@ -481,6 +538,8 @@ bool ReadVector3(std::istringstream& stream, Vector3& value)
 MaterialData MakeDefaultPrimitiveMaterial()
 {
 	MaterialData material;
+	material.materialName = "default";
+	material.semantic = MaterialSemantic::GenericPbr;
 	material.textureFilePath = "resources/white512x512.png";
 	material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
 	material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
@@ -518,6 +577,8 @@ void FinalizeParsedMaterial(ParsedMaterialData& parsedMaterial)
 	if (!materialData.hasOcclusionTexture) {
 		materialData.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
 	}
+	materialData.semantic = InferMaterialSemantic(materialData);
+	materialData.semanticInferred = true;
 }
 
 void ParseMtlMaterialLine(
@@ -678,6 +739,9 @@ std::vector<std::pair<std::string, MaterialData>> LoadMaterialTemplateLibrary(
 		if (!hasCurrentMaterial) {
 			return;
 		}
+		currentMaterial.material.materialName = currentMaterialName.empty()
+			? "default"
+			: currentMaterialName;
 		FinalizeParsedMaterial(currentMaterial);
 		materials.push_back({ currentMaterialName, currentMaterial.material });
 		currentMaterial = {};
@@ -1293,7 +1357,11 @@ ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string
 			return materialIt->second;
 		}
 		const uint32_t newMaterialIndex = static_cast<uint32_t>(modelData.materials.size());
-		modelData.materials.push_back(MakeDefaultPrimitiveMaterial());
+		MaterialData materialData = MakeDefaultPrimitiveMaterial();
+		materialData.materialName = lookupName;
+		materialData.semantic = InferMaterialSemantic(materialData);
+		materialData.semanticInferred = true;
+		modelData.materials.push_back(std::move(materialData));
 		materialNameToIndex[lookupName] = newMaterialIndex;
 		return newMaterialIndex;
 	};
@@ -1398,7 +1466,13 @@ ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string
 					const std::string resolvedName = materialName.empty()
 						? "material" + std::to_string(materialIndex)
 						: materialName;
-					modelData.materials.push_back(materialData);
+					MaterialData resolvedMaterialData = materialData;
+					if (resolvedMaterialData.materialName.empty() || resolvedMaterialData.materialName == "default") {
+						resolvedMaterialData.materialName = resolvedName;
+						resolvedMaterialData.semantic = InferMaterialSemantic(resolvedMaterialData);
+						resolvedMaterialData.semanticInferred = true;
+					}
+					modelData.materials.push_back(std::move(resolvedMaterialData));
 					materialNameToIndex[resolvedName] = materialIndex;
 				}
 				modelData.material = modelData.materials.front();
