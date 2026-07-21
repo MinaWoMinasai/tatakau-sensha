@@ -3,6 +3,97 @@
 
 #include <algorithm>
 
+namespace {
+
+void ApplyCharacterSemanticMaterial(
+	Material& material,
+	const MaterialData& sourceMaterial,
+	bool userMetallicOverride,
+	bool userRoughnessOverride,
+	bool userAmbientOcclusionOverride)
+{
+	if (material.lightingMode != 3) {
+		return;
+	}
+
+	switch (sourceMaterial.semantic) {
+	case MaterialSemantic::CharacterSkin:
+		if (!userMetallicOverride) {
+			material.metallic = 0.0f;
+		}
+		if (!userRoughnessOverride) {
+			material.roughness = (std::max)(material.roughness, 0.68f);
+		}
+		if (!userAmbientOcclusionOverride) {
+			material.ambientOcclusion = (std::max)(material.ambientOcclusion, 0.82f);
+		}
+		material.characterLightWrap = (std::max)(material.characterLightWrap, 0.34f);
+		material.characterShadowSoftness = (std::max)(material.characterShadowSoftness, 0.24f);
+		material.characterShadowStrength = (std::max)(material.characterShadowStrength, 0.46f);
+		material.characterRimStrength *= 0.65f;
+		material.characterSpecularStrength *= 0.55f;
+		break;
+	case MaterialSemantic::CharacterHair:
+		if (!userMetallicOverride) {
+			material.metallic = 0.0f;
+		}
+		if (!userRoughnessOverride) {
+			material.roughness = std::clamp(material.roughness, 0.38f, 0.70f);
+		}
+		material.characterRimStrength = (std::max)(material.characterRimStrength, 0.24f);
+		material.characterSpecularStrength = (std::max)(material.characterSpecularStrength, 0.14f);
+		material.characterSpecularPower = (std::max)(material.characterSpecularPower, 56.0f);
+		break;
+	case MaterialSemantic::CharacterCloth:
+		if (!userMetallicOverride) {
+			material.metallic = 0.0f;
+		}
+		if (!userRoughnessOverride) {
+			material.roughness = (std::max)(material.roughness, 0.82f);
+		}
+		material.characterRimStrength *= 0.75f;
+		material.characterSpecularStrength *= 0.35f;
+		break;
+	case MaterialSemantic::CharacterEye:
+		if (!userMetallicOverride) {
+			material.metallic = 0.0f;
+		}
+		if (!userRoughnessOverride) {
+			material.roughness = (std::min)(material.roughness, 0.32f);
+		}
+		material.characterRimStrength = (std::max)(material.characterRimStrength, 0.20f);
+		material.characterSpecularStrength = (std::max)(material.characterSpecularStrength, 0.30f);
+		material.characterSpecularPower = (std::max)(material.characterSpecularPower, 80.0f);
+		break;
+	case MaterialSemantic::Metal:
+		material.lightingMode = 2;
+		material.environmentCoefficient = (std::max)(material.environmentCoefficient, 0.55f);
+		material.iblDiffuseIntensity = (std::max)(material.iblDiffuseIntensity, 0.35f);
+		material.iblSpecularIntensity = (std::max)(material.iblSpecularIntensity, 0.85f);
+		if (!userMetallicOverride) {
+			material.metallic = (std::max)(material.metallic, 0.80f);
+		}
+		if (!userRoughnessOverride) {
+			material.roughness = std::clamp(material.roughness, 0.18f, 0.55f);
+		}
+		break;
+	case MaterialSemantic::Glass:
+		if (!userMetallicOverride) {
+			material.metallic = 0.0f;
+		}
+		if (!userRoughnessOverride) {
+			material.roughness = (std::min)(material.roughness, 0.18f);
+		}
+		material.characterSpecularStrength = (std::max)(material.characterSpecularStrength, 0.34f);
+		material.characterRimStrength = (std::max)(material.characterRimStrength, 0.24f);
+		break;
+	default:
+		break;
+	}
+}
+
+}
+
 void Object3d::Initialize()
 {
 	object3dCommon_ = Object3dCommon::GetInstance();
@@ -294,6 +385,12 @@ Material Object3d::BuildMaterialForModelMaterial(const MaterialData& materialDat
 		material.emissiveColor = materialData.emissiveColor;
 		material.emissiveIntensity = materialData.emissiveIntensity;
 	}
+	ApplyCharacterSemanticMaterial(
+		material,
+		materialData,
+		userMetallicOverride_,
+		userRoughnessOverride_,
+		userAmbientOcclusionOverride_);
 	return material;
 }
 

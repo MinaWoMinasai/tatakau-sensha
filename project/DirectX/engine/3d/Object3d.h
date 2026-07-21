@@ -135,6 +135,22 @@ public:
 		materialData_->shadowPcfRadius = pcfRadius;
 	}
 	void SetMaterialDebugMode(int32_t mode) { materialData_->materialDebugMode = static_cast<float>(mode); }
+	void SetCharacterShading(
+		float lightWrap,
+		float shadowSoftness,
+		float shadowStrength,
+		float rimStrength,
+		float rimPower,
+		float specularStrength,
+		float specularPower) {
+		materialData_->characterLightWrap = lightWrap;
+		materialData_->characterShadowSoftness = shadowSoftness;
+		materialData_->characterShadowStrength = shadowStrength;
+		materialData_->characterRimStrength = rimStrength;
+		materialData_->characterRimPower = rimPower;
+		materialData_->characterSpecularStrength = specularStrength;
+		materialData_->characterSpecularPower = specularPower;
+	}
 
 private:
 	void UpdateMatrixConstants(const Matrix4x4& worldMatrix);
