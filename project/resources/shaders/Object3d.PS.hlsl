@@ -37,6 +37,14 @@ struct Material
     float32_t shadowPcfRadius;
     float32_t materialDebugMode;
     float32_t2 materialDebugPadding;
+    float32_t characterLightWrap;
+    float32_t characterShadowSoftness;
+    float32_t characterShadowStrength;
+    float32_t characterRimStrength;
+    float32_t characterRimPower;
+    float32_t characterSpecularStrength;
+    float32_t characterSpecularPower;
+    float32_t characterPadding;
 };
 
 struct Camera
@@ -491,6 +499,62 @@ PixelShaderOutput main(VertexShaderOutput input)
             shadow /= 9.0f;
         }
         shadow = lerp(1.0f, shadow, saturate(gMaterial.shadowReceiveStrength));
+
+        if (gMaterial.lightingMode == 3)
+        {
+            float3 albedo = max(gMaterial.color.rgb * textureColor.rgb, 0.0f);
+            float3 L_dir = -normalize(gDirectionalLight.direction);
+            float3 lightColor = gDirectionalLight.color.rgb * max(gDirectionalLight.intensity, 0.0f);
+            float NdotL = dot(N, L_dir);
+            float wrappedLight = saturate((NdotL + saturate(gMaterial.characterLightWrap)) /
+                (1.0f + saturate(gMaterial.characterLightWrap)));
+            float softness = max(gMaterial.characterShadowSoftness, 0.001f);
+            float ramp = smoothstep(0.50f - softness, 0.50f + softness, wrappedLight);
+            float shadowedRamp = ramp * shadow;
+            float shadowStrength = saturate(gMaterial.characterShadowStrength);
+            float shade = lerp(1.0f - shadowStrength, 1.0f, shadowedRamp);
+
+            float3 ambientTint = lerp(float3(0.50f, 0.54f, 0.60f), float3(0.76f, 0.80f, 0.86f), ramp);
+            float3 baseLit = albedo * ambientTint * (0.48f + 0.20f * shade);
+            float3 directLit = albedo * lightColor * (0.05f + 0.11f * ramp) * shadowedRamp;
+
+            float NdotV = saturate(dot(N, V));
+            float3 H = normalize(L_dir + V);
+            float specular = pow(saturate(dot(N, H)), max(gMaterial.characterSpecularPower, 1.0f));
+            specular *= saturate(gMaterial.characterSpecularStrength) * ramp * shadow;
+
+            float rimPower = max(gMaterial.characterRimPower, 0.25f);
+            float rim = pow(1.0f - NdotV, rimPower) * saturate(gMaterial.characterRimStrength);
+            rim *= lerp(0.55f, 1.0f, ramp);
+
+            int materialDebugMode = (int)(gMaterial.materialDebugMode + 0.5f);
+            if (materialDebugMode > 0)
+            {
+                output.color = float4(MakeMaterialDebugColor(
+                    materialDebugMode,
+                    N,
+                    normalTS,
+                    albedo,
+                    0.78f,
+                    0.0f,
+                    1.0f,
+                    float3(0.04f, 0.04f, 0.04f),
+                    0.0f,
+                    float4(0.0f, 0.78f, 0.0f, 1.0f),
+                    transformedUV.xy), gMaterial.color.a * textureColor.a);
+                return output;
+            }
+
+#if SCENE_NORMAL_TARGET
+            output.normal = EncodeNormalTarget(N, 0.08f);
+            output.material = EncodeMaterialTarget(0.78f, 0.0f, 1.0f, 0.45f);
+#endif
+            float3 color = baseLit + directLit + specular * float3(1.0f, 1.0f, 1.0f) + rim * float3(0.74f, 0.88f, 1.0f);
+            color += gMaterial.emissiveColor * max(gMaterial.emissiveIntensity, 0.0f);
+            output.color.rgb = max(color, 0.0f);
+            output.color.a = gMaterial.color.a * textureColor.a;
+            return output;
+        }
 
         if (gMaterial.lightingMode == 2)
         {

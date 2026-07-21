@@ -10,6 +10,7 @@
 #include "IScene.h"
 #include "Object3d.h"
 #include "PbrEnvironment.h"
+#include "SkinCluster.h"
 #include "Skybox.h"
 
 class GraphicsLabScene : public IScene {
@@ -42,6 +43,17 @@ private:
 		LabObjectKind kind = LabObjectKind::Scene;
 	};
 
+	struct SkinnedLabObject {
+		std::unique_ptr<SkinnedModel> model;
+		std::unique_ptr<Object3d> object;
+		std::string label;
+		std::string path;
+		std::string status;
+		float shadowReceiveStrength = 0.0f;
+		bool loaded = false;
+		bool castsShadow = true;
+	};
+
 	LabObject MakeObject(
 		const std::string& modelPath,
 		const Vector3& translate,
@@ -56,6 +68,13 @@ private:
 	void DrawDebugWindow();
 	bool ShouldDrawLabObject(const LabObject& object) const;
 	void ApplyPbrEnvironmentDebugMode();
+	void AddSkinnedLabObject(
+		const std::string& label,
+		const std::string& path,
+		const Vector3& translate,
+		const Vector3& rotate,
+		const Vector3& scale);
+	void ApplyPbrSettingsToSkinnedObject(Object3d& object, float shadowReceiveStrength);
 
 	Input* input_ = nullptr;
 	std::unique_ptr<Camera> camera_;
@@ -67,6 +86,7 @@ private:
 	std::vector<LabObject> metalObjects_;
 	std::vector<LabObject> validationObjects_;
 	std::vector<LabObject> sceneObjects_;
+	std::vector<SkinnedLabObject> skinnedLabObjects_;
 
 	bool finished_ = false;
 	std::string nextSceneName_ = "TITLE";
@@ -78,6 +98,16 @@ private:
 	bool showObstacles_ = true;
 	bool showPbrSamples_ = true;
 	bool showValidationPrimitives_ = true;
+	bool showSkinnedPbrSamples_ = true;
+	bool enableSkinnedPbrLighting_ = true;
+	int skinnedShadingMode_ = 1;
+	float characterLightWrap_ = 0.28f;
+	float characterShadowSoftness_ = 0.16f;
+	float characterShadowStrength_ = 0.54f;
+	float characterRimStrength_ = 0.12f;
+	float characterRimPower_ = 3.2f;
+	float characterSpecularStrength_ = 0.075f;
+	float characterSpecularPower_ = 42.0f;
 	bool enablePbrSampleShadows_ = false;
 	int pbrEnvironmentDebugMode_ = 0;
 	int appliedPbrEnvironmentDebugMode_ = -1;

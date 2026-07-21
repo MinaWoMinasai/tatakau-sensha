@@ -1,6 +1,8 @@
 #pragma once
+#include <cstdint>
 #include <format>
 #include <dxgi1_6.h>
+#include <string>
 #include <vector>
 #include <wrl.h>
 #include <d3d12.h>
@@ -136,6 +138,14 @@ struct Material {
 	float shadowPcfRadius;
 	float materialDebugMode;
 	float materialDebugPadding[2];
+	float characterLightWrap;
+	float characterShadowSoftness;
+	float characterShadowStrength;
+	float characterRimStrength;
+	float characterRimPower;
+	float characterSpecularStrength;
+	float characterSpecularPower;
+	float characterPadding;
 };
 
 inline Material MakeDefaultMaterial()
@@ -177,6 +187,14 @@ inline Material MakeDefaultMaterial()
 	material.materialDebugMode = 0.0f;
 	material.materialDebugPadding[0] = 0.0f;
 	material.materialDebugPadding[1] = 0.0f;
+	material.characterLightWrap = 0.28f;
+	material.characterShadowSoftness = 0.16f;
+	material.characterShadowStrength = 0.54f;
+	material.characterRimStrength = 0.12f;
+	material.characterRimPower = 3.2f;
+	material.characterSpecularStrength = 0.075f;
+	material.characterSpecularPower = 42.0f;
+	material.characterPadding = 0.0f;
 	return material;
 }
 
@@ -213,7 +231,46 @@ struct DirectionalLight {
 	float intensity; // ライトの光度
 };
 
+enum class MaterialSemantic : uint32_t {
+	Unknown = 0,
+	GenericPbr,
+	CharacterSkin,
+	CharacterHair,
+	CharacterCloth,
+	CharacterEye,
+	Metal,
+	Glass,
+	Emissive,
+};
+
+inline const char* MaterialSemanticName(MaterialSemantic semantic)
+{
+	switch (semantic) {
+	case MaterialSemantic::GenericPbr:
+		return "Generic PBR";
+	case MaterialSemantic::CharacterSkin:
+		return "Character skin";
+	case MaterialSemantic::CharacterHair:
+		return "Character hair";
+	case MaterialSemantic::CharacterCloth:
+		return "Character cloth";
+	case MaterialSemantic::CharacterEye:
+		return "Character eye";
+	case MaterialSemantic::Metal:
+		return "Metal";
+	case MaterialSemantic::Glass:
+		return "Glass";
+	case MaterialSemantic::Emissive:
+		return "Emissive";
+	default:
+		return "Unknown";
+	}
+}
+
 struct MaterialData {
+	std::string materialName;
+	MaterialSemantic semantic = MaterialSemantic::GenericPbr;
+	bool semanticInferred = false;
 	std::string textureFilePath;
 	uint32_t textureIndex = 0;
 	Vector4 baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
