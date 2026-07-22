@@ -30,25 +30,33 @@ void NavalBattleScene::Initialize()
 	debugCamera_ = std::make_unique<DebugCamera>();
 
 	ModelManager::GetInstance()->LoadModel("ground.obj");
+	ModelManager::GetInstance()->LoadModel("cube.obj");
 	ModelManager::GetInstance()->LoadModel("sea.obj");
 	ModelManager::GetInstance()->LoadModel("bullet.obj");
 	ModelManager::GetInstance()->LoadModel("navalHullBox.obj");
+	ModelManager::GetInstance()->LoadModel("testShip.obj");
+	TextureManager::GetInstance()->LoadTexture("resources/skyboxSky.dds");
 
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera_.get());
 	Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera_.get());
 	Object3dCommon::GetInstance()->SetIsDebugCamera(false);
 	Object3dCommon::GetInstance()->SetShadowRange(420.0f);
 
+	skybox_ = std::make_unique<Skybox>();
+	skybox_->Initialize("resources/skyboxSky.dds");
+	skybox_->SetColor({ 1.0f, 1.0f, 1.0f, 1.20f });
+
 	sea_ = std::make_unique<Object3d>();
 	sea_->Initialize();
-	InitializeObject(*sea_, "sea.obj", { 0.72f, 0.92f, 1.0f, 1.0f }, false);
-	sea_->SetEnvironmentCoefficient(2.0f);
+	InitializeObject(*sea_, "sea.obj", { 0.66f, 0.76f, 0.88f, 1.0f }, false);
+	sea_->SetEnvironmentMap(TextureManager::GetInstance()->GetSrvIndex("resources/skyboxSky.dds"));
+	sea_->SetEnvironmentCoefficient(2.9f);
 	sea_->SetScale({ 0.50f, 1.0f, 0.50f });
 	sea_->SetTranslate({ 0.0f, -1.2f, 0.0f });
 
 	playerHull_ = std::make_unique<Object3d>();
 	playerHull_->Initialize();
-	InitializeObject(*playerHull_, "navalHullBox.obj", { 1.0f, 0.08f, 0.04f, 1.0f }, false);
+	InitializeObject(*playerHull_, "testShip.obj", { 0.78f, 0.84f, 0.90f, 1.0f }, true);
 
 	playerTurret_ = std::make_unique<Object3d>();
 	playerTurret_->Initialize();
@@ -81,9 +89,12 @@ void NavalBattleScene::Update()
 	}
 	UpdateEnemies();
 	UpdateWakeTrails();
+	UpdateOceanWakeSources();
 	UpdateCamera();
 
+	skybox_->Update(camera_.get(), debugCamera_.get());
 	sea_->SetShininess(battleTimer_);
+	ApplyOceanWakeToSea();
 	sea_->Update();
 	playerHull_->Update();
 	playerTurret_->Update();
@@ -103,9 +114,11 @@ void NavalBattleScene::Update()
 			impact.object->Update();
 		}
 	}
-	for (auto& wake : wakeTrails_) {
-		if (wake.object) {
-			wake.object->Update();
+	if (showFoamPlates_) {
+		for (auto& wake : wakeTrails_) {
+			if (wake.object) {
+				wake.object->Update();
+			}
 		}
 	}
 
@@ -127,13 +140,17 @@ void NavalBattleScene::DrawShadow()
 
 void NavalBattleScene::DrawPostEffect3D()
 {
+	skybox_->Draw();
+
 	Object3dCommon::GetInstance()->PreDraw(kNone);
 	sea_->Draw();
 
-	Object3dCommon::GetInstance()->PreDraw(kNormal);
-	for (auto& wake : wakeTrails_) {
-		if (wake.object) {
-			wake.object->Draw();
+	if (showFoamPlates_) {
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		for (auto& wake : wakeTrails_) {
+			if (wake.object) {
+				wake.object->Draw();
+			}
 		}
 	}
 
@@ -181,6 +198,8 @@ void NavalBattleScene::ResetBattle()
 	enemies_.clear();
 	wakeSpawnTimer_ = 0.0f;
 	hullFoamSpawnTimer_ = 0.0f;
+	oceanWakeSpawnTimer_ = 0.0f;
+	oceanWakeSources_.clear();
 	playerVisualWaterHeight_ = player_.position.y;
 	playerVisualPitch_ = 0.0f;
 	playerVisualRoll_ = 0.0f;
@@ -426,8 +445,8 @@ void NavalBattleScene::UpdatePlayer()
 		player_.position.z,
 	};
 	playerHull_->SetTranslate(playerVisualPosition);
-	playerHull_->SetRotate({ playerVisualPitch_, player_.yaw, playerVisualRoll_ });
-	playerHull_->SetScale({ 1.85f, 0.42f, 5.4f });
+	playerHull_->SetRotate({ playerVisualPitch_, player_.yaw + std::numbers::pi_v<float> * 0.5f, playerVisualRoll_ });
+	playerHull_->SetScale({ 1.12f, 1.12f, 1.12f });
 
 	const Vector3 turretOffset = shipForward;
 	playerTurret_->SetTranslate({
@@ -683,11 +702,13 @@ void NavalBattleScene::UpdateProjectiles()
 		} else {
 			const float verticalDistance = std::abs(projectile.position.y - player_.position.y);
 			if (DistanceXZ(projectile.position, player_.position) < projectile.radius + 1.4f && verticalDistance < 5.2f) {
-				player_.hp = (std::max)(0.0f, player_.hp - projectile.damage);
-				playerDamageFlash_ = 0.65f;
+				if (!playerInvincible_) {
+					player_.hp = (std::max)(0.0f, player_.hp - projectile.damage);
+					playerDamageFlash_ = 0.65f;
+				}
 				SpawnImpactEffect({ player_.position.x, player_.position.y + 1.3f, player_.position.z }, false);
-				AddCameraShake(player_.hp <= 0.0f ? 0.95f : 0.56f, player_.hp <= 0.0f ? 0.55f : 0.36f);
-				if (player_.hp <= 0.0f && !gameOver_) {
+				AddCameraShake(playerInvincible_ ? 0.18f : (player_.hp <= 0.0f ? 0.95f : 0.56f), playerInvincible_ ? 0.16f : (player_.hp <= 0.0f ? 0.55f : 0.36f));
+				if (!playerInvincible_ && player_.hp <= 0.0f && !gameOver_) {
 					gameOver_ = true;
 					throttleStep_ = 0;
 					player_.speed = 0.0f;
@@ -804,6 +825,12 @@ void NavalBattleScene::SpawnImpactEffect(const Vector3& position, bool waterSpla
 void NavalBattleScene::UpdateWakeTrails()
 {
 	const float dt = finalDeltaTime_;
+	if (!showFoamPlates_) {
+		wakeTrails_.clear();
+		wakeSpawnTimer_ = 0.0f;
+		hullFoamSpawnTimer_ = 0.0f;
+		return;
+	}
 	wakeSpawnTimer_ = (std::max)(0.0f, wakeSpawnTimer_ - dt);
 	hullFoamSpawnTimer_ = (std::max)(0.0f, hullFoamSpawnTimer_ - dt);
 	const float speedAbs = std::abs(player_.speed);
@@ -846,6 +873,73 @@ void NavalBattleScene::UpdateWakeTrails()
 		wakeTrails_.end());
 }
 
+void NavalBattleScene::UpdateOceanWakeSources()
+{
+	oceanWakeSpawnTimer_ = (std::max)(0.0f, oceanWakeSpawnTimer_ - finalDeltaTime_);
+	for (auto& source : oceanWakeSources_) {
+		source.age += finalDeltaTime_;
+	}
+	oceanWakeSources_.erase(
+		std::remove_if(oceanWakeSources_.begin(), oceanWakeSources_.end(), [](const OceanWakeSource& source) {
+			return source.age > 10.0f || source.strength <= 0.0f;
+		}),
+		oceanWakeSources_.end());
+
+	const float speedAbs = std::abs(player_.speed);
+	if (speedAbs <= 3.0f || oceanWakeSpawnTimer_ > 0.0f || missionComplete_ || gameOver_) {
+		return;
+	}
+
+	const float speedRate = std::clamp(speedAbs / 33.0f, 0.0f, 1.0f);
+	const Vector3 forward = ForwardFromYaw(player_.yaw);
+	const float directionSign = player_.speed >= 0.0f ? 1.0f : -1.0f;
+	const Vector3 flowDirection = {
+		-forward.x * directionSign,
+		0.0f,
+		-forward.z * directionSign,
+	};
+	OceanWakeSource source{};
+	source.position = {
+		player_.position.x + flowDirection.x * 5.2f,
+		0.0f,
+		player_.position.z + flowDirection.z * 5.2f,
+	};
+	source.direction = flowDirection;
+	source.age = 0.0f;
+	source.strength = 0.82f + speedRate * 1.35f;
+	oceanWakeSources_.push_back(source);
+
+	if (oceanWakeSources_.size() > 48) {
+		oceanWakeSources_.erase(oceanWakeSources_.begin(), oceanWakeSources_.begin() + (oceanWakeSources_.size() - 48));
+	}
+
+	oceanWakeSpawnTimer_ = 0.26f - speedRate * 0.09f;
+}
+
+void NavalBattleScene::ApplyOceanWakeToSea()
+{
+	std::array<Vector4, 16> wakePoints{};
+	std::array<Vector4, 16> wakeDirections{};
+	constexpr float seaScaleXZ = 0.50f;
+	const size_t sourceCount = (std::min)(size_t{ 16 }, oceanWakeSources_.size());
+	for (size_t index = 0; index < sourceCount; ++index) {
+		const OceanWakeSource& source = oceanWakeSources_[oceanWakeSources_.size() - 1 - index];
+		wakePoints[index] = {
+			source.position.x / seaScaleXZ,
+			source.position.z / seaScaleXZ,
+			source.age,
+			source.strength,
+		};
+		wakeDirections[index] = {
+			source.direction.x,
+			0.0f,
+			source.direction.z,
+			0.0f,
+		};
+	}
+	sea_->SetOceanWakeData(wakePoints, wakeDirections, { static_cast<float>(sourceCount), 0.0f, 0.0f, 0.0f });
+}
+
 void NavalBattleScene::SpawnWakeTrail()
 {
 	const float speedAbs = std::abs(player_.speed);
@@ -867,11 +961,11 @@ void NavalBattleScene::SpawnWakeTrail()
 	for (float side : { -1.0f, 1.0f }) {
 		WakeTrail wake{};
 		wake.yaw = player_.yaw;
-		wake.duration = 1.15f + speedRate * 0.62f;
+		wake.duration = 1.00f + speedRate * 0.50f;
 		wake.life = wake.duration;
-		wake.baseWidth = 0.00036f + speedRate * 0.00016f;
-		wake.baseLength = 0.00125f + speedRate * 0.00085f;
-		wake.baseAlpha = 0.28f;
+		wake.baseWidth = 0.00026f + speedRate * 0.00012f;
+		wake.baseLength = 0.00105f + speedRate * 0.00058f;
+		wake.baseAlpha = 0.105f + speedRate * 0.035f;
 		wake.position = {
 			sternCenter.x + right.x * side * 1.25f,
 			sternCenter.y + side * 0.006f,
@@ -884,15 +978,59 @@ void NavalBattleScene::SpawnWakeTrail()
 		};
 		wake.object = std::make_unique<Object3d>();
 		wake.object->Initialize();
-		InitializeObject(*wake.object, "ground.obj", { 0.80f, 0.95f, 1.0f, 0.28f }, false);
+		InitializeObject(*wake.object, "ground.obj", { 0.46f, 0.66f, 0.78f, wake.baseAlpha }, false);
 		wake.object->SetTranslate(wake.position);
 		wake.object->SetRotate({ 0.0f, wake.yaw, 0.0f });
 		wake.object->SetScale({ wake.baseWidth, 1.0f, wake.baseLength });
 		wakeTrails_.push_back(std::move(wake));
+
+		const float wakeAngle = 0.36f + speedRate * 0.18f;
+		const float cosWake = std::cos(side * wakeAngle);
+		const float sinWake = std::sin(side * wakeAngle);
+		const Vector3 vDirection = {
+			flowDirection.x * cosWake + right.x * sinWake,
+			0.0f,
+			flowDirection.z * cosWake + right.z * sinWake,
+		};
+		const Vector3 vPosition = {
+			sternCenter.x + right.x * side * (1.65f + speedRate * 0.55f) + flowDirection.x * 1.8f,
+			sternCenter.y + 0.026f + side * 0.010f,
+			sternCenter.z + right.z * side * (1.65f + speedRate * 0.55f) + flowDirection.z * 1.8f,
+		};
+		AddWaterFoamTrail(
+			vPosition,
+			{
+				vDirection.x * (speedAbs * 0.34f + 1.6f),
+				0.0f,
+				vDirection.z * (speedAbs * 0.34f + 1.6f),
+			},
+			player_.yaw + side * wakeAngle,
+			1.35f + speedRate * 1.10f,
+			0.00018f + speedRate * 0.00010f,
+			0.0022f + speedRate * 0.00175f,
+			0.095f + speedRate * 0.060f);
+
+		const Vector3 shoulderPosition = {
+			sternCenter.x + right.x * side * (2.15f + speedRate * 0.95f) + flowDirection.x * 0.2f,
+			sternCenter.y + 0.018f + side * 0.012f,
+			sternCenter.z + right.z * side * (2.15f + speedRate * 0.95f) + flowDirection.z * 0.2f,
+		};
+		AddWaterFoamTrail(
+			shoulderPosition,
+			{
+				vDirection.x * (speedAbs * 0.24f + 1.1f),
+				0.0f,
+				vDirection.z * (speedAbs * 0.24f + 1.1f),
+			},
+			player_.yaw + side * (wakeAngle + 0.035f),
+			1.60f + speedRate * 1.35f,
+			0.00011f + speedRate * 0.00008f,
+			0.0036f + speedRate * 0.0026f,
+			0.038f + speedRate * 0.030f);
 	}
 
-	if (wakeTrails_.size() > 96) {
-		wakeTrails_.erase(wakeTrails_.begin(), wakeTrails_.begin() + (wakeTrails_.size() - 96));
+	if (wakeTrails_.size() > 168) {
+		wakeTrails_.erase(wakeTrails_.begin(), wakeTrails_.begin() + (wakeTrails_.size() - 168));
 	}
 }
 
@@ -933,11 +1071,11 @@ void NavalBattleScene::SpawnHullFoamTrail()
 		AddWaterFoamTrail(
 			bowPosition,
 			bowVelocity,
-			player_.yaw + side * 0.46f,
-			0.48f + speedRate * 0.22f,
-			0.00022f + speedRate * 0.00008f,
-			0.00092f + speedRate * 0.00035f,
-			0.24f);
+			player_.yaw + side * (0.52f + speedRate * 0.12f),
+			0.52f + speedRate * 0.34f,
+			0.00018f + speedRate * 0.00007f,
+			0.00115f + speedRate * 0.00058f,
+			0.105f + speedRate * 0.045f);
 
 		const Vector3 sidePosition = {
 			midCenter.x + right.x * side * 2.05f,
@@ -953,14 +1091,14 @@ void NavalBattleScene::SpawnHullFoamTrail()
 			sidePosition,
 			sideVelocity,
 			player_.yaw,
-			0.62f + speedRate * 0.28f,
-			0.00016f + speedRate * 0.00006f,
-			0.00115f + speedRate * 0.00035f,
-			0.18f);
+			0.58f + speedRate * 0.25f,
+			0.00013f + speedRate * 0.00005f,
+			0.00105f + speedRate * 0.00028f,
+			0.070f + speedRate * 0.030f);
 	}
 
-	if (wakeTrails_.size() > 96) {
-		wakeTrails_.erase(wakeTrails_.begin(), wakeTrails_.begin() + (wakeTrails_.size() - 96));
+	if (wakeTrails_.size() > 168) {
+		wakeTrails_.erase(wakeTrails_.begin(), wakeTrails_.begin() + (wakeTrails_.size() - 168));
 	}
 }
 
@@ -977,7 +1115,7 @@ void NavalBattleScene::AddWaterFoamTrail(const Vector3& position, const Vector3&
 	foam.baseAlpha = alpha;
 	foam.object = std::make_unique<Object3d>();
 	foam.object->Initialize();
-	InitializeObject(*foam.object, "ground.obj", { 0.82f, 0.96f, 1.0f, alpha }, false);
+	InitializeObject(*foam.object, "ground.obj", { 0.50f, 0.70f, 0.82f, alpha }, false);
 	foam.object->SetTranslate(foam.position);
 	foam.object->SetRotate({ 0.0f, foam.yaw, 0.0f });
 	foam.object->SetScale({ foam.baseWidth, 1.0f, foam.baseLength });
@@ -1167,7 +1305,9 @@ void NavalBattleScene::FireMainGun()
 void NavalBattleScene::DrawDebugWindow()
 {
 #ifdef USE_IMGUI
-	DrawBattleHud();
+	if (showHorizonFog_ || showBattleHud_) {
+		DrawBattleHud();
+	}
 
 	int aliveEnemies = 0;
 	for (const auto& enemy : enemies_) {
@@ -1177,6 +1317,11 @@ void NavalBattleScene::DrawDebugWindow()
 	}
 
 	ImGui::Begin("Naval Battle Prototype");
+	ImGui::Checkbox("Show Horizon/Fog", &showHorizonFog_);
+	ImGui::Checkbox("Show Battle UI", &showBattleHud_);
+	ImGui::Checkbox("Show Flat Foam Plates", &showFoamPlates_);
+	ImGui::Checkbox("Player Invincible", &playerInvincible_);
+	ImGui::Separator();
 	ImGui::Text("F4 from title: Naval prototype");
 	ImGui::Text("W/S: throttle 3..0..-1  A/D: rudder");
 	ImGui::Text("RDrag/RightStick: move reticle, edge scrolls camera");
@@ -1232,22 +1377,32 @@ void NavalBattleScene::DrawBattleHud()
 	const int aliveEnemies = CountAliveEnemies();
 	const float playerHpRate = std::clamp(player_.hp / player_.maxHp, 0.0f, 1.0f);
 
-	const float skyBottomY = viewport.y * 0.34f;
-	const float hazeBottomY = viewport.y * 0.43f;
-	drawList->AddRectFilledMultiColor(
-		ImVec2(0.0f, 0.0f),
-		ImVec2(viewport.x, skyBottomY),
-		IM_COL32(18, 48, 86, 235),
-		IM_COL32(24, 62, 104, 235),
-		IM_COL32(88, 166, 210, 155),
-		IM_COL32(75, 150, 200, 155));
-	drawList->AddRectFilledMultiColor(
-		ImVec2(0.0f, skyBottomY),
-		ImVec2(viewport.x, hazeBottomY),
-		IM_COL32(98, 178, 220, 135),
-		IM_COL32(98, 178, 220, 135),
-		IM_COL32(84, 170, 210, 0),
-		IM_COL32(84, 170, 210, 0));
+	if (showHorizonFog_) {
+		const float skyBottomY = viewport.y * 0.33f;
+		const float hazeBottomY = viewport.y * 0.43f;
+		drawList->AddRectFilledMultiColor(
+			ImVec2(0.0f, 0.0f),
+			ImVec2(viewport.x, skyBottomY),
+			IM_COL32(16, 28, 58, 245),
+			IM_COL32(24, 36, 74, 245),
+			IM_COL32(88, 130, 154, 190),
+			IM_COL32(84, 126, 152, 190));
+		drawList->AddRectFilledMultiColor(
+			ImVec2(0.0f, skyBottomY),
+			ImVec2(viewport.x, hazeBottomY),
+			IM_COL32(102, 144, 164, 152),
+			IM_COL32(104, 148, 170, 152),
+			IM_COL32(38, 64, 78, 18),
+			IM_COL32(40, 68, 84, 18));
+		drawList->AddRectFilled(
+			ImVec2(0.0f, skyBottomY - 2.0f),
+			ImVec2(viewport.x, skyBottomY + 3.0f),
+			IM_COL32(176, 214, 218, 28));
+	}
+
+	if (!showBattleHud_) {
+		return;
+	}
 
 	if (playerDamageFlash_ > 0.0f) {
 		const int alpha = static_cast<int>(std::clamp(playerDamageFlash_ / 0.65f, 0.0f, 1.0f) * 105.0f);
@@ -1569,39 +1724,36 @@ Vector3 NavalBattleScene::PredictBallisticTargetPosition(const Vector3& muzzlePo
 
 float NavalBattleScene::SampleOceanHeight(const Vector3& position, float time) const
 {
-	// Match the sea vertex shader as closely as possible.
+	// Match the naval ocean vertex shader as closely as possible.
 	// The sea object is drawn with XZ scale 0.5, so world-space samples are converted
 	// back to the sea mesh local coordinates before evaluating the same wave phases.
 	constexpr float seaScaleXZ = 0.50f;
 	const float x = position.x / seaScaleXZ;
 	const float z = position.z / seaScaleXZ;
 
-	constexpr float dirALen = 0.99984999f;
-	constexpr float dirBLen = 1.00224745f;
-	constexpr float dirCLen = 0.99699549f;
-	constexpr float dirDLen = 0.99724621f;
-
-	const float dirAx = 0.86f / dirALen;
-	const float dirAz = 0.51f / dirALen;
+	constexpr float dirALen = 0.9963935f;
+	constexpr float dirBLen = 0.9984488f;
+	constexpr float dirCLen = 0.9976472f;
+	const float dirAx = 0.18f / dirALen;
+	const float dirAz = 0.98f / dirALen;
 	const float dirBx = -0.42f / dirBLen;
 	const float dirBz = 0.91f / dirBLen;
-	const float dirCx = 0.62f / dirCLen;
-	const float dirCz = -0.78f / dirCLen;
-	const float dirDx = 0.27f / dirDLen;
-	const float dirDz = 0.96f / dirDLen;
+	const float dirCx = 0.72f / dirCLen;
+	const float dirCz = 0.69f / dirCLen;
 
-	const float phaseA = (x * dirAx + z * dirAz) * 0.014f + time * 0.66f;
-	const float phaseB = (x * dirBx + z * dirBz) * 0.021f - time * 0.54f;
-	const float phaseC = (x * dirCx + z * dirCz) * 0.038f + time * 1.05f;
-	const float phaseD = x * 0.068f + z * -0.041f + time * 1.55f;
-	const float swellFocus = 0.88f + 0.18f * std::sin((x * dirDx + z * dirDz) * 0.006f + time * 0.18f);
+	const float flow = z * 0.030f + time * 0.86f;
+	const float cross = x * 0.095f;
+	const float phaseA = (x * dirAx + z * dirAz) * 0.040f + time * 0.92f;
+	const float phaseB = (x * dirBx + z * dirBz) * 0.078f - time * 1.34f;
+	const float phaseC = (x * dirCx + z * dirCz) * 0.150f + time * 2.05f;
+	const float phaseD = flow + std::sin(cross + time * 0.35f) * 0.55f;
 
 	return (
-		std::sin(phaseA) * 1.75f +
-		std::sin(phaseB) * 1.05f +
-		std::sin(phaseC) * 0.50f +
-		std::sin(phaseD) * 0.28f
-		) * swellFocus;
+		std::sin(phaseA) * 0.46f +
+		std::sin(phaseB) * 0.20f +
+		std::sin(phaseC) * 0.08f +
+		std::sin(phaseD) * 0.12f
+		) * 1.72f;
 }
 
 Vector3 NavalBattleScene::GetReticleRayDirection() const

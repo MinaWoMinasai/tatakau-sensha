@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -9,6 +10,7 @@
 #include "Input.h"
 #include "IScene.h"
 #include "Object3d.h"
+#include "Skybox.h"
 
 // 海戦ゲーム用の最小プロトタイプシーン。
 // 既存の2D/3Dアクション実装と衝突しないよう、naval配下だけで操作・砲撃・敵艦の骨組みを試す。
@@ -82,6 +84,13 @@ private:
 		std::unique_ptr<Object3d> object;
 	};
 
+	struct OceanWakeSource {
+		Vector3 position = {};
+		Vector3 direction = {};
+		float age = 0.0f;
+		float strength = 0.0f;
+	};
+
 	struct GunMount {
 		Vector3 localOffset = {};
 		float centerYaw = 0.0f;
@@ -98,6 +107,8 @@ private:
 	void AddCameraShake(float intensity, float duration);
 	int CountAliveEnemies() const;
 	void UpdateWakeTrails();
+	void UpdateOceanWakeSources();
+	void ApplyOceanWakeToSea();
 	void SpawnWakeTrail();
 	void SpawnHullFoamTrail();
 	void AddWaterFoamTrail(const Vector3& position, const Vector3& velocity, float yaw, float duration, float width, float length, float alpha);
@@ -130,6 +141,7 @@ private:
 	std::unique_ptr<DebugCamera> debugCamera_;
 
 	std::unique_ptr<Object3d> sea_;
+	std::unique_ptr<Skybox> skybox_;
 	std::unique_ptr<Object3d> playerHull_;
 	std::unique_ptr<Object3d> playerTurret_;
 	std::unique_ptr<Object3d> playerMarker_;
@@ -137,6 +149,7 @@ private:
 	std::vector<Projectile> projectiles_;
 	std::vector<ImpactEffect> impactEffects_;
 	std::vector<WakeTrail> wakeTrails_;
+	std::vector<OceanWakeSource> oceanWakeSources_;
 
 	ShipState player_;
 	bool finished_ = false;
@@ -153,6 +166,7 @@ private:
 	float precisionSwitchCooldown_ = 0.0f;
 	float wakeSpawnTimer_ = 0.0f;
 	float hullFoamSpawnTimer_ = 0.0f;
+	float oceanWakeSpawnTimer_ = 0.0f;
 	float playerVisualWaterHeight_ = 1.1f;
 	float playerVisualPitch_ = 0.0f;
 	float playerVisualRoll_ = 0.0f;
@@ -162,6 +176,10 @@ private:
 	float playerDamageFlash_ = 0.0f;
 	bool missionComplete_ = false;
 	bool gameOver_ = false;
+	bool showBattleHud_ = true;
+	bool showHorizonFog_ = false;
+	bool showFoamPlates_ = false;
+	bool playerInvincible_ = false;
 	Vector3 enemyFleetAnchor_ = {};
 	float enemyFleetYaw_ = 0.0f;
 	float enemyFleetSpeed_ = 0.0f;

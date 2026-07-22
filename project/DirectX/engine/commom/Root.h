@@ -32,7 +32,7 @@ public:
 
 private:
 	D3D12_ROOT_SIGNATURE_DESC descriptionSignature_{};
-	D3D12_ROOT_PARAMETER Parameters_[17]{};
+	D3D12_ROOT_PARAMETER Parameters_[18]{};
 	D3D12_DESCRIPTOR_RANGE descriptorRange_[10] = {};
 	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing_[1] = {};
 	D3D12_STATIC_SAMPLER_DESC staticSamplers_[2] = {};

@@ -29,6 +29,15 @@ ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b0);
 ConstantBuffer<ShadowData> gShadowData : register(b1);
 ConstantBuffer<Material> gMaterial : register(b2);
 
+struct OceanWakeData
+{
+    float32_t4 wakePoints[16];     // x: local sea x, y: local sea z, z: age, w: strength
+    float32_t4 wakeDirections[16]; // xz: flow direction in local sea space
+    float32_t4 parameters;        // x: active count, yzw: reserved
+};
+
+ConstantBuffer<OceanWakeData> gOceanWake : register(b3);
+
 struct VertexShaderInput
 {
     float32_t4 position : POSITION0;
@@ -63,12 +72,13 @@ VertexShaderOutput main(VertexShaderInput input)
 
         float edgeCalm = saturate((45.0f - abs(p.x)) / 18.0f);
         float centerCurrent = smoothstep(0.0f, 1.0f, edgeCalm);
+        float navalOceanMode = step(2.85f, gMaterial.environmentCoefficient);
         float displacement =
             sin(phaseA) * 0.46f +
             sin(phaseB) * 0.20f +
             sin(phaseC) * 0.08f +
             sin(phaseD) * 0.12f;
-        localPosition.y += displacement * (0.54f + centerCurrent * 0.30f);
+        float oceanDisplacement = displacement * lerp(0.54f + centerCurrent * 0.30f, 2.28f, navalOceanMode);
 
         float2 grad;
         grad.x =
@@ -81,6 +91,50 @@ VertexShaderOutput main(VertexShaderInput input)
             cos(phaseB) * 0.20f * 0.078f * dirB.y +
             cos(phaseC) * 0.08f * 0.150f * dirC.y +
             cos(phaseD) * 0.12f * 0.030f;
+        grad *= lerp(1.0f, 1.92f, navalOceanMode);
+
+        float wakeCount = min(gOceanWake.parameters.x, 16.0f);
+        float wakeDisplacement = 0.0f;
+        float2 wakeGrad = float2(0.0f, 0.0f);
+        [unroll]
+        for (int index = 0; index < 16; ++index)
+        {
+            if (index >= (int)wakeCount)
+            {
+                continue;
+            }
+            float4 wakePoint = gOceanWake.wakePoints[index];
+            float4 wakeDirectionData = gOceanWake.wakeDirections[index];
+            float2 wakeOrigin = wakePoint.xy;
+            float age = wakePoint.z;
+            float strength = wakePoint.w;
+            float2 wakeDir = normalize(wakeDirectionData.xz + float2(0.0001f, 0.0f));
+            float2 wakeSide = float2(-wakeDir.y, wakeDir.x);
+            float2 rel = p - wakeOrigin;
+            float along = dot(rel, wakeDir);
+            float side = dot(rel, wakeSide);
+            float behindMask = smoothstep(-2.0f, 8.0f, along);
+            float lengthFade = 1.0f - smoothstep(36.0f + age * 18.0f, 260.0f + age * 32.0f, along);
+            float ageFade = 1.0f - smoothstep(1.0f, 10.0f, age);
+            float vWidth = 4.5f + along * 0.13f + age * 1.35f;
+            float vArm = abs(abs(side) - along * 0.265f);
+            float vMask = exp(-(vArm * vArm) / max(vWidth * vWidth, 0.001f));
+            float centerMask = exp(-(side * side) / max((5.0f + along * 0.045f) * (5.0f + along * 0.045f), 0.001f));
+            float hollowCenter = 1.0f - exp(-(side * side) / 18.0f);
+            float wakeMask = behindMask * lengthFade * ageFade * strength;
+            float wakePhase = along * 0.31f - age * 4.9f;
+            float vWave = sin(wakePhase) * vMask * hollowCenter * 1.24f;
+            float centerWave = sin(along * 0.18f - age * 2.8f) * centerMask * 0.46f;
+            float wakeHeight = (vWave + centerWave) * wakeMask * navalOceanMode;
+            wakeDisplacement += wakeHeight;
+
+            float gradPhase = cos(wakePhase) * wakeMask * navalOceanMode;
+            wakeGrad += wakeDir * gradPhase * (vMask * 0.72f + centerMask * 0.22f);
+            wakeGrad += wakeSide * (-sign(side)) * wakeMask * navalOceanMode * (vMask * 0.115f + centerMask * 0.060f);
+        }
+
+        localPosition.y += oceanDisplacement + wakeDisplacement;
+        grad += wakeGrad * 0.36f;
         localNormal = normalize(float32_t3(-grad.x, 1.0f, -grad.y));
     }
     // Naval water prototype:
