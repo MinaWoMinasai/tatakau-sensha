@@ -124,6 +124,10 @@ void Object3d::Initialize()
 	// 書き込むためのアドレスを取得
 	materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
 	*materialData_ = MakeDefaultMaterial();
+
+	oceanWakeResource_ = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(OceanWakeData));
+	oceanWakeResource_->Map(0, nullptr, reinterpret_cast<void**>(&oceanWakeData_));
+	*oceanWakeData_ = {};
 	
 	// ポイントライトリソース作成
 	pointLightResource = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(PointLightData));
@@ -173,6 +177,7 @@ void Object3d::DrawSkinned(SkinnedModel& model) {
 	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(7, object3dCommon_->GetShadowMap()->GetSrvIndex());
 	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(8, environmentMapIndex_);
 	commandList->SetGraphicsRootConstantBufferView(10, materialResource_->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(17, oceanWakeResource_->GetGPUVirtualAddress());
 	UpdateMaterialInstanceData(model.GetAsset().modelData);
 	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> materialCbvAddresses;
 	materialCbvAddresses.reserve(materialInstanceResources_.size());
@@ -246,6 +251,7 @@ void Object3d::Draw() {
 	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(7, object3dCommon_->GetShadowMap()->GetSrvIndex());
 	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(8, environmentMapIndex_);
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(10, materialResource_->GetGPUVirtualAddress());
+	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(17, oceanWakeResource_->GetGPUVirtualAddress());
 
 	if (model_) {
 		UpdateMaterialInstanceData();
@@ -256,6 +262,21 @@ void Object3d::Draw() {
 		}
 		model_->Draw(materialCbvAddresses);
 	}
+}
+
+void Object3d::SetOceanWakeData(
+	const std::array<Vector4, 16>& wakePoints,
+	const std::array<Vector4, 16>& wakeDirections,
+	const Vector4& parameters)
+{
+	if (!oceanWakeData_) {
+		return;
+	}
+	for (size_t index = 0; index < wakePoints.size(); ++index) {
+		oceanWakeData_->wakePoints[index] = wakePoints[index];
+		oceanWakeData_->wakeDirections[index] = wakeDirections[index];
+	}
+	oceanWakeData_->parameters = parameters;
 }
 
 void Object3d::DrawShadow() {

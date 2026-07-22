@@ -154,9 +154,15 @@ void Root::InitalizeForObject()
 	Parameters_[16].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	Parameters_[16].DescriptorTable.pDescriptorRanges = &descriptorRange_[9];
 	Parameters_[16].DescriptorTable.NumDescriptorRanges = 1;
+
+	// [17] Naval ocean wake data (Vertex b3). Non-ocean meshes bind the default
+	// zero buffer and the vertex shader ignores it outside naval ocean mode.
+	Parameters_[17].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	Parameters_[17].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	Parameters_[17].Descriptor.ShaderRegister = 3;
 	
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 17;
+	descriptionSignature_.NumParameters = 18;
 
 	// --- StaticSamplerの拡張 ---
 

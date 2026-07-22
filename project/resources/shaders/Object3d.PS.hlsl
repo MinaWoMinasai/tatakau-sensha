@@ -238,10 +238,17 @@ PixelShaderOutput main(VertexShaderOutput input)
         float cross = dot(worldXZ, crossDir);
         float edgeDistance = abs(cross);
         float oceanMode = step(2.7f, gMaterial.environmentCoefficient);
+        float navalOceanMode = step(2.85f, gMaterial.environmentCoefficient);
         float seaDepth = saturate(smoothstep(-60.0f, 205.0f, worldXZ.y));
         float shoreFoamMask = smoothstep(-95.0f, -10.0f, worldXZ.y) * (1.0f - smoothstep(70.0f, 160.0f, worldXZ.y));
-        float farDetailFade = 1.0f - smoothstep(95.0f, 285.0f, viewDistance);
-        float foregroundDetail = 1.0f - smoothstep(40.0f, 165.0f, viewDistance);
+        float farDetailFade = lerp(
+            1.0f - smoothstep(95.0f, 285.0f, viewDistance),
+            1.0f - smoothstep(145.0f, 460.0f, viewDistance),
+            navalOceanMode);
+        float foregroundDetail = lerp(
+            1.0f - smoothstep(40.0f, 165.0f, viewDistance),
+            1.0f - smoothstep(70.0f, 260.0f, viewDistance),
+            navalOceanMode);
         float riverBank = 1.0f - smoothstep(18.0f, 43.0f, edgeDistance);
         float bank = lerp(riverBank, seaDepth, oceanMode);
         float shallow = lerp(1.0f - riverBank, 1.0f - seaDepth, oceanMode);
@@ -250,6 +257,9 @@ PixelShaderOutput main(VertexShaderOutput input)
         float warpB = sin(flow * -0.044f + cross * 0.026f - time * 0.31f);
         float warpedFlow = flow + warpA * 8.5f + warpB * 5.0f;
         float warpedCross = cross + warpA * 4.0f - warpB * 6.5f;
+        float largePatchNoise = frac(sin(dot(floor(worldXZ * 0.032f), float2(12.9898f, 78.233f))) * 43758.5453f);
+        float midPatchNoise = frac(sin(dot(floor(worldXZ * 0.115f), float2(39.346f, 11.135f))) * 24634.6345f);
+        float patchBreakup = lerp(1.0f, 0.72f + largePatchNoise * 0.42f + midPatchNoise * 0.16f, navalOceanMode);
 
         float longFlow =
             sin(warpedFlow * 0.050f + time * 0.72f) * 0.46f +
@@ -267,8 +277,13 @@ PixelShaderOutput main(VertexShaderOutput input)
         float2 microSlope = float2(
             microA * 0.035f + microB * -0.026f + microC * 0.014f,
             microA * 0.012f + microB * 0.032f + microC * -0.019f);
+        float chopA = sin(warpedFlow * 1.58f + warpedCross * 0.72f + time * 4.35f);
+        float chopB = sin(warpedFlow * -1.24f + warpedCross * 1.06f - time * 3.90f);
+        microSlope += float2(chopA * 0.025f + chopB * -0.020f, chopA * 0.015f + chopB * 0.024f) * navalOceanMode * foregroundDetail;
+        microSlope *= lerp(1.0f, 1.42f, navalOceanMode);
         float3 N = normalize(baseN + float3(microSlope.x, 0.0f, microSlope.y));
         float fresnel = pow(1.0f - saturate(dot(N, V)), 4.2f);
+        float lowAngleFresnel = pow(1.0f - saturate(dot(N, V)), 6.0f);
         float facing = saturate(dot(N, float3(0.0f, 1.0f, 0.0f)));
 #if SCENE_NORMAL_TARGET
         output.normal = EncodeNormalTarget(N, saturate(0.82f + fresnel * 0.18f));
@@ -281,7 +296,7 @@ PixelShaderOutput main(VertexShaderOutput input)
             float3(0.11f, 0.26f, 0.48f),
             float3(0.62f, 0.66f, 0.60f),
             saturate(reflectVector.y * 0.55f + 0.45f));
-        skyReflection = lerp(skyReflection, proceduralSky, oceanMode * 0.72f);
+        skyReflection = lerp(skyReflection, proceduralSky, oceanMode * lerp(0.72f, 0.42f, navalOceanMode));
 
         float2 refractUV = worldXZ * 0.040f + microSlope * 4.2f;
         float bottomMud = sin(refractUV.x * 1.15f + sin(refractUV.y * 0.73f + time * 0.05f) * 1.8f);
@@ -291,12 +306,14 @@ PixelShaderOutput main(VertexShaderOutput input)
         riverBed = lerp(riverBed, float3(0.09f, 0.23f, 0.28f), bank * 0.36f);
 
         float depthFade = saturate(viewDistance / 260.0f);
-        float3 shallowTint = float3(0.24f, 0.82f, 0.88f);
-        float3 clearBlue = float3(0.045f, 0.40f, 0.66f);
-        float3 deepBlue = float3(0.006f, 0.075f, 0.185f);
+        float3 shallowTint = lerp(float3(0.24f, 0.82f, 0.88f), float3(0.045f, 0.245f, 0.340f), navalOceanMode);
+        float3 clearBlue = lerp(float3(0.045f, 0.40f, 0.66f), float3(0.006f, 0.100f, 0.205f), navalOceanMode);
+        float3 deepBlue = lerp(float3(0.006f, 0.075f, 0.185f), float3(0.000f, 0.010f, 0.040f), navalOceanMode);
         float3 waterColor = lerp(shallowTint, clearBlue, bank);
-        waterColor = lerp(waterColor, deepBlue, depthFade * 0.64f);
-        waterColor += float3(0.008f, 0.090f, 0.125f) * wave * (0.65f + seaDepth * 0.35f);
+        waterColor = lerp(waterColor, deepBlue, depthFade * lerp(0.64f, 0.92f, navalOceanMode));
+        float trough = smoothstep(0.12f, 0.74f, -wave);
+        waterColor = lerp(waterColor, deepBlue, trough * 0.15f * navalOceanMode);
+        waterColor += lerp(float3(0.008f, 0.090f, 0.125f), float3(0.010f, 0.060f, 0.115f), navalOceanMode) * wave * (0.65f + seaDepth * 0.35f);
         float oceanDepth = saturate(max(depthFade, seaDepth));
         float riverWaterDominance = 0.36f + bank * 0.47f + fresnel * 0.22f;
         float oceanWaterDominance = 0.68f + oceanDepth * 0.25f + fresnel * 0.14f;
@@ -306,6 +323,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         float causticB = smoothstep(0.58f, 0.98f, sin(warpedFlow * -0.12f + warpedCross * 0.082f - time * 0.55f));
         float caustic = causticA * causticB * (0.22f + shallow * 0.44f) * (1.0f - oceanDepth * oceanMode * 0.80f);
         caustic *= lerp(1.0f, foregroundDetail * 0.72f, oceanMode);
+        caustic *= lerp(1.0f, 0.035f, navalOceanMode);
         waterColor += float3(0.25f, 0.72f, 0.78f) * caustic * (0.025f + shallow * 0.045f);
 
         float crest = smoothstep(0.82f, 1.16f, longFlow + curl * 0.18f);
@@ -315,12 +333,16 @@ PixelShaderOutput main(VertexShaderOutput input)
         float shoreOnlyMask = shoreFoamMask * (1.0f - smoothstep(115.0f, 240.0f, viewDistance));
         float foamSheet = smoothstep(0.64f, 1.06f, foamNoise) * shoreOnlyMask;
         float foamLace = smoothstep(0.84f, 1.0f, sin(warpedFlow * 0.095f + foamNoiseB * 1.4f + time * 0.42f)) * shoreOnlyMask;
-        float openWaterFoam = crest * 0.018f * (1.0f - oceanDepth * oceanMode) * farDetailFade;
+        float foamThreads = smoothstep(0.965f, 1.0f, sin(warpedFlow * 0.245f - warpedCross * 0.063f + curl * 0.55f + time * 1.18f));
+        float openWaterFoam = lerp(
+            crest * 0.018f * (1.0f - oceanDepth * oceanMode) * farDetailFade,
+            (crest * 0.010f + foamThreads * crest * 0.017f) * farDetailFade * (0.35f + facing * 0.65f) * patchBreakup,
+            navalOceanMode);
         float foam = saturate(openWaterFoam + foamSheet * 0.16f + foamLace * foamSheet * 0.08f);
 
-        float glintLine = smoothstep(0.990f, 1.0f, sin(warpedFlow * 0.17f - warpedCross * 0.046f + sin(warpedCross * 0.020f) * 2.8f + time * 0.86f));
-        float sparkle = smoothstep(0.994f, 1.0f, sin(warpedFlow * 0.70f + warpedCross * 0.45f + time * 2.70f));
-        float glint = (glintLine * 0.075f + sparkle * 0.045f) * fresnel * facing * (0.42f + oceanDepth * 0.58f) * farDetailFade;
+        float glintLine = smoothstep(lerp(0.990f, 0.988f, navalOceanMode), 1.0f, sin(warpedFlow * 0.17f - warpedCross * 0.046f + sin(warpedCross * 0.020f) * 2.8f + time * 0.86f));
+        float sparkle = smoothstep(lerp(0.994f, 0.992f, navalOceanMode), 1.0f, sin(warpedFlow * 0.70f + warpedCross * 0.45f + time * 2.70f));
+        float glint = (glintLine * lerp(0.075f, 0.070f, navalOceanMode) + sparkle * lerp(0.045f, 0.040f, navalOceanMode)) * fresnel * facing * (0.42f + oceanDepth * 0.58f) * farDetailFade * patchBreakup;
 
         float3 sunDir = normalize(-gDirectionalLight.direction);
         float3 sunReflect = reflect(-sunDir, N);
@@ -338,17 +360,20 @@ PixelShaderOutput main(VertexShaderOutput input)
         sunPath *= gDirectionalLight.intensity;
         sunPath *= oceanMode;
 
-        float3 reflection = skyReflection * (0.23f + fresnel * 0.76f + oceanMode * 0.15f);
-        float3 color = lerp(waterColor, reflection, 0.20f + fresnel * 0.54f + oceanDepth * oceanMode * 0.14f);
-        color += float3(0.78f, 0.95f, 1.0f) * foam * 0.16f;
-        color += float3(0.78f, 0.93f, 1.0f) * glint * 2.4f;
-        color += float3(1.0f, 0.86f, 0.50f) * sunPath * 3.2f;
-        color = lerp(color, float3(0.34f, 0.52f, 0.55f), depthFade * 0.12f);
+        float3 reflection = skyReflection * (0.18f + fresnel * 0.95f + oceanMode * 0.13f + navalOceanMode * 0.12f);
+        float reflectionMix = 0.16f + fresnel * 0.64f + oceanDepth * oceanMode * 0.12f + navalOceanMode * lowAngleFresnel * 0.16f;
+        float3 color = lerp(waterColor, reflection, reflectionMix);
+        color += float3(0.70f, 0.88f, 0.96f) * foam * lerp(0.16f, 0.13f, navalOceanMode);
+        color += float3(0.78f, 0.93f, 1.0f) * glint * lerp(2.4f, 2.7f, navalOceanMode);
+        color += float3(1.0f, 0.86f, 0.50f) * sunPath * lerp(3.2f, 4.1f, navalOceanMode);
+        color = lerp(color, float3(0.20f, 0.34f, 0.40f), depthFade * lerp(0.12f, 0.035f, navalOceanMode));
+        color = lerp(color, float3(0.002f, 0.014f, 0.036f), navalOceanMode * 0.18f);
+        color = lerp(color, color * color * 1.38f, navalOceanMode * 0.22f);
         color *= gMaterial.color.rgb;
 
         float edgeAlpha = lerp(1.0f - smoothstep(36.0f, 45.0f, edgeDistance), 1.0f, oceanMode);
         float riverAlpha = 0.70f + fresnel * 0.26f + bank * 0.18f;
-        float oceanAlpha = 0.76f + fresnel * 0.18f + oceanDepth * 0.20f;
+        float oceanAlpha = 0.90f + fresnel * 0.08f + oceanDepth * 0.10f;
         float alpha = gMaterial.color.a * textureColor.a * saturate(lerp(riverAlpha, oceanAlpha, oceanMode));
         output.color = float4(max(color, 0.0f), alpha * edgeAlpha);
         return output;
@@ -395,32 +420,44 @@ PixelShaderOutput main(VertexShaderOutput input)
         float slopeFoam = smoothstep(0.018f, 0.065f, waveSlope);
         float foam = crest * (0.30f + 0.30f * fineFoamA + 0.16f * fineFoamB + 0.18f * foamStreak) + slopeFoam * 0.055f;
 
-        float fresnel = pow(1.0f - saturate(dot(float3(0.0f, 1.0f, 0.0f), V)), 3.2f);
-        float glintLineA = smoothstep(0.94f, 1.0f, sin(worldXZ.x * 0.035f - worldXZ.y * 0.030f + time * 0.26f));
-        float glintLineB = smoothstep(0.91f, 1.0f, sin(worldXZ.x * -0.027f + worldXZ.y * 0.040f - time * 0.22f));
-        float sparkle = smoothstep(0.965f, 1.0f, sin(worldXZ.x * 1.74f + worldXZ.y * 1.31f + time * 3.60f));
-        float glint = fresnel * (glintLineA * 0.13f + glintLineB * 0.08f + sparkle * 0.035f) * (1.0f + gustMask * 0.22f);
+        float causticA = 1.0f - abs(sin(worldXZ.x * 0.165f + worldXZ.y * 0.108f + time * 0.82f));
+        float causticB = 1.0f - abs(sin(worldXZ.x * -0.132f + worldXZ.y * 0.156f - time * 0.67f));
+        float causticC = 1.0f - abs(sin(worldXZ.x * 0.074f + worldXZ.y * -0.188f + time * 0.43f));
+        float causticWeb = smoothstep(0.91f, 0.992f, causticA * causticB + causticC * 0.32f);
+        float causticDistanceMask = 1.0f - smoothstep(95.0f, 260.0f, viewDistance);
 
-        float3 nearWater = float3(0.010f, 0.34f, 0.62f);
-        float3 midWater = float3(0.018f, 0.43f, 0.70f);
-        float3 farWater = float3(0.028f, 0.18f, 0.38f);
-        float3 skyTint = float3(0.39f, 0.64f, 0.88f);
-        float3 waveTint = float3(0.020f, 0.52f, 0.78f);
-        float3 deepTint = float3(0.004f, 0.070f, 0.16f);
-        float3 foamTint = float3(0.72f, 0.91f, 0.98f);
-        float3 horizonMist = float3(0.32f, 0.60f, 0.80f);
+        float fresnel = pow(1.0f - saturate(dot(float3(0.0f, 1.0f, 0.0f), V)), 3.2f);
+        float lowAngleFresnel = pow(1.0f - saturate(dot(normalize(input.normal), V)), 4.6f);
+        float glintLineA = smoothstep(0.955f, 1.0f, sin(worldXZ.x * 0.035f - worldXZ.y * 0.030f + time * 0.26f));
+        float glintLineB = smoothstep(0.940f, 1.0f, sin(worldXZ.x * -0.027f + worldXZ.y * 0.040f - time * 0.22f));
+        float sparkle = smoothstep(0.982f, 1.0f, sin(worldXZ.x * 1.74f + worldXZ.y * 1.31f + time * 3.60f));
+        float glint = fresnel * (glintLineA * 0.095f + glintLineB * 0.060f + sparkle * 0.024f) * (1.0f + gustMask * 0.18f);
+        float longSpecularBand = smoothstep(0.88f, 1.0f, sin(dot(worldXZ, normalize(float2(0.98f, 0.18f))) * 0.025f + time * 0.16f));
+
+        float3 nearWater = float3(0.010f, 0.235f, 0.405f);
+        float3 midWater = float3(0.012f, 0.305f, 0.520f);
+        float3 farWater = float3(0.018f, 0.095f, 0.230f);
+        float3 skyTint = float3(0.34f, 0.51f, 0.72f);
+        float3 waveTint = float3(0.012f, 0.335f, 0.560f);
+        float3 deepTint = float3(0.002f, 0.034f, 0.090f);
+        float3 foamTint = float3(0.68f, 0.86f, 0.94f);
+        float3 horizonMist = float3(0.27f, 0.42f, 0.62f);
+        float3 causticTint = float3(0.28f, 0.72f, 0.86f);
 
         float3 color = lerp(nearWater, midWater, saturate(0.45f + wave * 0.18f));
         color = lerp(color, farWater, horizon);
         color = lerp(color, deepTint, smoothstep(-1.05f, -0.15f, -wave) * 0.16f);
-        color = lerp(color, horizonMist, smoothstep(0.48f, 1.0f, horizon) * 0.18f);
-        color = lerp(color, skyTint, fresnel * 0.26f);
-        color += waveTint * (wave * 0.050f + 0.034f);
-        color += foamTint * foam * (0.18f + gustMask * 0.075f);
-        color += skyTint * glint * 2.0f;
+        color = lerp(color, horizonMist, smoothstep(0.48f, 1.0f, horizon) * 0.16f);
+        color = lerp(color, skyTint, fresnel * 0.20f + lowAngleFresnel * 0.055f);
+        color += waveTint * (wave * 0.036f + 0.020f);
+        color += foamTint * foam * (0.105f + gustMask * 0.040f);
+        color += causticTint * causticWeb * causticDistanceMask * (0.035f + fresnel * 0.025f);
+        color += skyTint * glint * 1.45f;
+        color += skyTint * longSpecularBand * lowAngleFresnel * 0.105f;
 
-        // PSP-like high readability: keep the water vivid, but add modern layered depth.
-        color = max(color * gMaterial.color.rgb * 1.05f, 0.0f);
+        // Naval battle water: start from the darker original-game ocean, then add
+        // restrained modern glints so ships and UI remain readable.
+        color = max(color * gMaterial.color.rgb * 0.98f, 0.0f);
         output.color = float4(color, gMaterial.color.a * textureColor.a);
         return output;
     }

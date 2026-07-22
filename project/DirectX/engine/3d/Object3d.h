@@ -2,6 +2,7 @@
 #include "Object3dCommon.h"
 #include "Resource.h"
 #include "ModelManager.h"
+#include <array>
 #include <vector>
 
 class SkinnedModel;
@@ -135,6 +136,10 @@ public:
 		materialData_->shadowPcfRadius = pcfRadius;
 	}
 	void SetMaterialDebugMode(int32_t mode) { materialData_->materialDebugMode = static_cast<float>(mode); }
+	void SetOceanWakeData(
+		const std::array<Vector4, 16>& wakePoints,
+		const std::array<Vector4, 16>& wakeDirections,
+		const Vector4& parameters);
 	void SetCharacterShading(
 		float lightWrap,
 		float shadowSoftness,
@@ -173,6 +178,8 @@ private:
 	
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
 	Material* materialData_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> oceanWakeResource_;
+	OceanWakeData* oceanWakeData_ = nullptr;
 	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> materialInstanceResources_;
 	std::vector<Material*> materialInstanceData_;
 	
