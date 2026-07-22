@@ -148,6 +148,12 @@ struct Material {
 	float characterPadding;
 };
 
+struct OceanWakeData {
+	Vector4 wakePoints[16];
+	Vector4 wakeDirections[16];
+	Vector4 parameters;
+};
+
 inline Material MakeDefaultMaterial()
 {
 	Material material{};
