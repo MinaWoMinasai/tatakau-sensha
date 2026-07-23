@@ -257,6 +257,14 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.temporalJitterScale = temporalJitterScale_;
     bloomParam_.temporalJitterPadding[0] = 0.0f;
     bloomParam_.temporalJitterPadding[1] = 0.0f;
+    bloomParam_.waterDiagnosticsEnabled = 0.0f;
+    bloomParam_.waterTaaEnabled = 1.0f;
+    bloomParam_.waterBloomEnabled = 1.0f;
+    bloomParam_.waterHistoryWeight = 0.08f;
+    bloomParam_.waterDebugMode = 0.0f;
+    bloomParam_.waterPostPadding[0] = 0.0f;
+    bloomParam_.waterPostPadding[1] = 0.0f;
+    bloomParam_.waterPostPadding[2] = 0.0f;
 
    /* bloomParam_.threshold = 0.0f;
     bloomParam_.intensity = 1.2f;
@@ -583,6 +591,15 @@ void Bloom::Update() {
     temporalJitterScale_ = (std::clamp)(temporalJitterScale_, 0.0f, 2.0f);
     bloomParam_.temporalJitterEnabled = enableTemporalJitter_ ? 1.0f : 0.0f;
     bloomParam_.temporalJitterScale = temporalJitterScale_;
+    const IScene::WaterPostProcessSettings waterSettings =
+        SceneManager::GetInstance()->GetWaterPostProcessSettings();
+    bloomParam_.waterDiagnosticsEnabled = waterSettings.diagnosticsEnabled ? 1.0f : 0.0f;
+    bloomParam_.waterTaaEnabled = waterSettings.taaEnabled ? 1.0f : 0.0f;
+    bloomParam_.waterBloomEnabled = waterSettings.bloomEnabled ? 1.0f : 0.0f;
+    bloomParam_.waterHistoryWeight =
+        (std::clamp)(waterSettings.historyWeight, 0.0f, 0.10f);
+    bloomParam_.waterDebugMode =
+        static_cast<float>((std::clamp)(waterSettings.debugMode, 0, 5));
     if (!enableTemporalAccumulation_) {
         hasTemporalHistory_ = false;
     }
@@ -825,6 +842,7 @@ void Bloom::PostDraw() {
             historySource,
             sceneRT_->GetDepthGPUHandle(),
             normalRT_->GetGPUHandle(),
+            materialRT_->GetGPUHandle(),
             motionVectorRT_->GetGPUHandle());
         Transition(temporalHistoryRT_[writeHistoryIndex]->GetResource(),
             D3D12_RESOURCE_STATE_RENDER_TARGET,
@@ -910,7 +928,7 @@ void Bloom::PostDraw() {
     if (bloomParam_.gaussianIntensity > 0.0f || bloomParam_.fullScreenBoxBlurBlend > 0.0f) {
         postEffect_->Draw(sceneSource, kAdd_Bloom_Downsample);
     } else {
-        postEffect_->Draw(sceneSource, kAdd_Bloom_Extract);
+        postEffect_->DrawBloomExtract(sceneSource, materialRT_->GetGPUHandle());
     }
 
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

@@ -70,6 +70,13 @@ IScene::PostEffectPulse SceneManager::GetPostEffectPulse()
 	return currentScene_ ? currentScene_->GetPostEffectPulse() : IScene::PostEffectPulse{};
 }
 
+IScene::WaterPostProcessSettings SceneManager::GetWaterPostProcessSettings()
+{
+	return currentScene_
+		? currentScene_->GetWaterPostProcessSettings()
+		: IScene::WaterPostProcessSettings{};
+}
+
 void SceneManager::SetRenderProfile(const IScene::RenderProfile& profile)
 {
 	if (currentScene_) {

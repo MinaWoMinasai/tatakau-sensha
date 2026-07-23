@@ -23,6 +23,14 @@ struct Material
     float32_t padding;
     float32_t4x4 uvTransform;
     float32_t shininess;
+    float32_t waterDiagnosticsEnabled;
+    float32_t waterSunPathEnabled;
+    float32_t waterAtmosphereEnabled;
+    float32_t waterFarFlattenEnabled;
+    float32_t waterProceduralCloudReflectionEnabled;
+    float32_t waterDebugMode;
+    float32_t waterAtmosphereStrength;
+    float32_t waterFarFlattenStrength;
 };
 
 ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b0);
@@ -95,7 +103,13 @@ VertexShaderOutput main(VertexShaderInput input)
         displacement += arcBlancMode * swellPatch * (
             sin(phaseG) * 0.165f +
             sin(phaseH) * 0.095f);
-        float farFlatten = lerp(1.0f, 1.0f - smoothstep(360.0f, 900.0f, abs(p.y)) * 0.58f, arcBlancMode);
+        float diagnosticFarFlatten = saturate(gMaterial.waterFarFlattenEnabled) *
+            saturate(gMaterial.waterFarFlattenStrength);
+        float farFlattenStrength = lerp(1.0f, diagnosticFarFlatten, saturate(gMaterial.waterDiagnosticsEnabled));
+        float farFlatten = lerp(
+            1.0f,
+            1.0f - smoothstep(360.0f, 900.0f, abs(p.y)) * 0.58f * farFlattenStrength,
+            arcBlancMode);
         float oceanDisplacement = displacement * lerp(0.54f + centerCurrent * 0.30f, lerp(2.28f, 1.32f, arcBlancMode), navalOceanMode);
         oceanDisplacement *= farFlatten;
 

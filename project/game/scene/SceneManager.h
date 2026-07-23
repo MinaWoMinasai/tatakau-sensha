@@ -19,6 +19,7 @@ public:
 	float GetFinalDeltaTime();
 	float GetPostGaussianIntensity();
 	IScene::PostEffectPulse GetPostEffectPulse();
+	IScene::WaterPostProcessSettings GetWaterPostProcessSettings();
 	void SetRenderProfile(const IScene::RenderProfile& profile);
 
 private:
