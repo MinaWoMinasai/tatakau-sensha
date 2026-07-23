@@ -10,6 +10,9 @@ public:
         BlendMode blendMode,
         bool outputToHdr = true
     );
+    void DrawBloomExtract(
+        D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV,
+        D3D12_GPU_DESCRIPTOR_HANDLE materialSRV);
     void DrawComposite(
         D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV,
         D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV,
@@ -26,6 +29,7 @@ public:
         D3D12_GPU_DESCRIPTOR_HANDLE historySceneSRV,
         D3D12_GPU_DESCRIPTOR_HANDLE depthSRV,
         D3D12_GPU_DESCRIPTOR_HANDLE normalSRV,
+        D3D12_GPU_DESCRIPTOR_HANDLE materialSRV,
         D3D12_GPU_DESCRIPTOR_HANDLE motionVectorSRV);
     void DrawSSAOResolve(
         D3D12_GPU_DESCRIPTOR_HANDLE depthSRV,

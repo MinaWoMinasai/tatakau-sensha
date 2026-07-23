@@ -136,6 +136,25 @@ public:
 		materialData_->shadowPcfRadius = pcfRadius;
 	}
 	void SetMaterialDebugMode(int32_t mode) { materialData_->materialDebugMode = static_cast<float>(mode); }
+	void SetWaterDiagnostics(
+		bool enabled,
+		bool sunPathEnabled,
+		bool atmosphereEnabled,
+		bool farFlattenEnabled,
+		bool proceduralCloudReflectionEnabled,
+		int32_t debugMode,
+		float atmosphereStrength,
+		float farFlattenStrength) {
+		materialData_->waterDiagnosticsEnabled = enabled ? 1.0f : 0.0f;
+		materialData_->waterSunPathEnabled = sunPathEnabled ? 1.0f : 0.0f;
+		materialData_->waterAtmosphereEnabled = atmosphereEnabled ? 1.0f : 0.0f;
+		materialData_->waterFarFlattenEnabled = farFlattenEnabled ? 1.0f : 0.0f;
+		materialData_->waterProceduralCloudReflectionEnabled =
+			proceduralCloudReflectionEnabled ? 1.0f : 0.0f;
+		materialData_->waterDebugMode = static_cast<float>(debugMode);
+		materialData_->waterAtmosphereStrength = atmosphereStrength;
+		materialData_->waterFarFlattenStrength = farFlattenStrength;
+	}
 	void SetOceanWakeData(
 		const std::array<Vector4, 16>& wakePoints,
 		const std::array<Vector4, 16>& wakeDirections,

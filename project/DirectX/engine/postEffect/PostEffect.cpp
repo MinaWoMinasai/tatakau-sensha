@@ -30,6 +30,27 @@ void PostEffect::Draw(D3D12_GPU_DESCRIPTOR_HANDLE inputSRV, BlendMode blendMode,
 
 }
 
+void PostEffect::DrawBloomExtract(
+    D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV,
+    D3D12_GPU_DESCRIPTOR_HANDLE materialSRV)
+{
+    auto& pso = dxCommon_->GetPSOObjectForScene(kAdd_Bloom_Extract);
+    dxCommon_->GetList()->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
+    dxCommon_->GetList()->SetPipelineState(pso.graphicsState_.Get());
+    dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    dxCommon_->GetList()->SetGraphicsRootConstantBufferView(0, bloomCB_->GetGPUAddress());
+    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(1, sceneSRV);
+    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(2, sceneSRV);
+    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(3, sceneSRV);
+    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(4, sceneSRV);
+    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(5, sceneSRV);
+    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(6, materialSRV);
+    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(7, sceneSRV);
+    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(8, sceneSRV);
+    dxCommon_->GetList()->DrawInstanced(3, 1, 0, 0);
+}
+
 void PostEffect::DrawComposite(
     D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV,
     D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV,
@@ -85,6 +106,7 @@ void PostEffect::DrawTemporalResolve(
     D3D12_GPU_DESCRIPTOR_HANDLE historySceneSRV,
     D3D12_GPU_DESCRIPTOR_HANDLE depthSRV,
     D3D12_GPU_DESCRIPTOR_HANDLE normalSRV,
+    D3D12_GPU_DESCRIPTOR_HANDLE materialSRV,
     D3D12_GPU_DESCRIPTOR_HANDLE motionVectorSRV) {
 
     auto& pso = dxCommon_->GetPSOObjectForScene(kAdd_Temporal_Resolve);
@@ -98,7 +120,7 @@ void PostEffect::DrawTemporalResolve(
     dxCommon_->GetList()->SetGraphicsRootDescriptorTable(3, depthSRV);
     dxCommon_->GetList()->SetGraphicsRootDescriptorTable(4, normalSRV);
     dxCommon_->GetList()->SetGraphicsRootDescriptorTable(5, currentSceneSRV);
-    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(6, currentSceneSRV);
+    dxCommon_->GetList()->SetGraphicsRootDescriptorTable(6, materialSRV);
     dxCommon_->GetList()->SetGraphicsRootDescriptorTable(7, currentSceneSRV);
     dxCommon_->GetList()->SetGraphicsRootDescriptorTable(8, motionVectorSRV);
 

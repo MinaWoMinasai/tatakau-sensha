@@ -12,6 +12,13 @@ public:
 		float width = 0.05f;
 		float strength = 0.0f;
 	};
+	struct WaterPostProcessSettings {
+		bool diagnosticsEnabled = false;
+		bool taaEnabled = true;
+		bool bloomEnabled = true;
+		float historyWeight = 0.08f;
+		int debugMode = 0;
+	};
     struct RenderProfile {
 		float frameTotalMs = 0.0f;
 		float messagePumpMs = 0.0f;
@@ -46,6 +53,7 @@ public:
     virtual float GetFinalDeltaTime() const { return 1.0f / 60.0f; } // デフォルトは60FPS 
     virtual float GetPostGaussianIntensity() const { return 0.0f; }
     virtual PostEffectPulse GetPostEffectPulse() const { return {}; }
+	virtual WaterPostProcessSettings GetWaterPostProcessSettings() const { return {}; }
     virtual void SetRenderProfile(const RenderProfile& profile) { (void)profile; }
 
     // シーン終了判定（SceneManagerがチェックする）
