@@ -17,6 +17,7 @@ public:
 
 	void LoadModel(const std::string& filePath);
 	void CreatePlaneModel(const std::string& modelName, float width = 1.0f, float depth = 1.0f);
+	void CreateGridModel(const std::string& modelName, float width, float depth, uint32_t xSegments, uint32_t zSegments);
 	void CreateBoxModel(const std::string& modelName, const Vector3& size = { 1.0f, 1.0f, 1.0f });
 	void CreateCylinderModel(const std::string& modelName, float radius = 1.0f, float height = 2.0f, uint32_t segments = 64);
 	void CreateUvSphereModel(const std::string& modelName, float radius = 1.0f, uint32_t latitudeSegments = 64, uint32_t longitudeSegments = 128);

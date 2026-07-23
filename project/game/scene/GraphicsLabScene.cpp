@@ -19,6 +19,7 @@ const char* kPbrSphereModelName = "__primitive_pbr_sphere";
 const char* kPbrPlaneModelName = "__primitive_pbr_plane";
 const char* kPbrBoxModelName = "__primitive_pbr_box";
 const char* kPbrCylinderModelName = "__primitive_pbr_cylinder";
+const char* kArcBlancOceanGridModelName = "__arc_blanc_ocean_grid";
 
 #ifdef USE_IMGUI
 const char* BoolStatus(bool value)
@@ -196,25 +197,34 @@ void GraphicsLabScene::Initialize()
 	Object3dCommon::GetInstance()->SetIsDebugCamera(false);
 	Object3dCommon::GetInstance()->SetShadowFocus({ 0.0f, 0.0f, 32.0f });
 	Object3dCommon::GetInstance()->SetShadowRange(210.0f);
-	Object3dCommon::GetInstance()->GetLightDir() = { -0.36f, -0.30f, -0.88f };
+	Object3dCommon::GetInstance()->GetLightDir() = { -0.12f, -0.26f, -0.96f };
 
-	ModelManager::GetInstance()->LoadModel("graphicsOcean.obj");
-	ModelManager::GetInstance()->LoadModel("graphicsSand.obj");
-	ModelManager::GetInstance()->LoadModel("graphicsBeach.obj");
-	ModelManager::GetInstance()->LoadModel("cube.obj");
-	ModelManager::GetInstance()->LoadModel("ball.obj");
-	ModelManager::GetInstance()->LoadModel("jewelry.obj");
-	ModelManager::GetInstance()->LoadModel("TestBlock.obj");
-	ModelManager::GetInstance()->CreateUvSphereModel(kPbrSphereModelName, 1.0f, 64, 128);
-	ModelManager::GetInstance()->CreatePlaneModel(kPbrPlaneModelName, 14.0f, 14.0f);
-	ModelManager::GetInstance()->CreateBoxModel(kPbrBoxModelName, { 2.0f, 2.0f, 2.0f });
-	ModelManager::GetInstance()->CreateCylinderModel(kPbrCylinderModelName, 1.0f, 2.4f, 96);
-	if (Model* ballModel = ModelManager::GetInstance()->FindModel("ball.obj")) {
-		ballModel->RecalculateSmoothNormals();
+	ModelManager::GetInstance()->CreateGridModel(kArcBlancOceanGridModelName, 1800.0f, 1800.0f, 256, 256);
+	if (showSandBed_) {
+		ModelManager::GetInstance()->LoadModel("graphicsSand.obj");
+	}
+	if (loadLookDevSamples_) {
+		ModelManager::GetInstance()->LoadModel("graphicsBeach.obj");
+		ModelManager::GetInstance()->LoadModel("cube.obj");
+		ModelManager::GetInstance()->LoadModel("ball.obj");
+		ModelManager::GetInstance()->LoadModel("jewelry.obj");
+		ModelManager::GetInstance()->LoadModel("TestBlock.obj");
+		ModelManager::GetInstance()->CreateUvSphereModel(kPbrSphereModelName, 1.0f, 64, 128);
+		ModelManager::GetInstance()->CreatePlaneModel(kPbrPlaneModelName, 14.0f, 14.0f);
+		ModelManager::GetInstance()->CreateBoxModel(kPbrBoxModelName, { 2.0f, 2.0f, 2.0f });
+		ModelManager::GetInstance()->CreateCylinderModel(kPbrCylinderModelName, 1.0f, 2.4f, 96);
+		if (Model* ballModel = ModelManager::GetInstance()->FindModel("ball.obj")) {
+			ballModel->RecalculateSmoothNormals();
+		}
 	}
 	TextureManager::GetInstance()->LoadTexture("resources/skybox.dds");
-	ApplyPbrEnvironmentDebugMode();
-	const uint32_t pbrEnvironmentSrv = pbrEnvironment_.GetEnvironmentSrvIndex();
+	uint32_t pbrEnvironmentSrv = TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
+	if (loadLookDevSamples_ || loadSkinnedPbrSamples_) {
+		ApplyPbrEnvironmentDebugMode();
+		pbrEnvironmentSrv = pbrEnvironment_.GetEnvironmentSrvIndex();
+	} else {
+		appliedPbrEnvironmentDebugMode_ = pbrEnvironmentDebugMode_;
+	}
 
 	skybox_ = std::make_unique<Skybox>();
 	skybox_->Initialize("resources/skybox.dds");
@@ -222,24 +232,27 @@ void GraphicsLabScene::Initialize()
 
 	river_ = std::make_unique<Object3d>();
 	river_->Initialize();
-	river_->SetModel("graphicsOcean.obj");
+	river_->SetModel(kArcBlancOceanGridModelName);
 	river_->SetColor(riverTint_);
 	river_->SetLighting(false);
 	river_->SetEnvironmentMap(pbrEnvironmentSrv);
-	river_->SetEnvironmentCoefficient(2.75f);
+	river_->SetEnvironmentCoefficient(3.15f);
 	river_->SetInsensity(waterLightIntensity_);
 	river_->SetScale({ 1.0f, 1.0f, 1.0f });
 	river_->SetTranslate({ 0.0f, -1.15f, 0.0f });
 
-	sandBed_ = std::make_unique<Object3d>();
-	sandBed_->Initialize();
-	sandBed_->SetModel("graphicsSand.obj");
-	sandBed_->SetColor({ 0.78f, 0.75f, 0.62f, 1.0f });
-	sandBed_->SetLighting(false);
-	sandBed_->SetEnvironmentCoefficient(-1.0f);
-	sandBed_->SetScale({ 1.0f, 1.0f, 1.0f });
-	sandBed_->SetTranslate({ 0.0f, -4.2f, 0.0f });
+	if (showSandBed_) {
+		sandBed_ = std::make_unique<Object3d>();
+		sandBed_->Initialize();
+		sandBed_->SetModel("graphicsSand.obj");
+		sandBed_->SetColor({ 0.78f, 0.75f, 0.62f, 1.0f });
+		sandBed_->SetLighting(false);
+		sandBed_->SetEnvironmentCoefficient(-1.0f);
+		sandBed_->SetScale({ 1.0f, 1.0f, 1.0f });
+		sandBed_->SetTranslate({ 0.0f, -4.2f, 0.0f });
+	}
 
+	if (loadLookDevSamples_) {
 	sceneObjects_.push_back(MakeObject(
 		"graphicsBeach.obj",
 		{ 0.0f, -1.06f, 0.0f },
@@ -456,22 +469,27 @@ void GraphicsLabScene::Initialize()
 	authoredTestBlock.castsShadow = true;
 	authoredTestBlock.kind = LabObjectKind::Scene;
 	validationObjects_.push_back(std::move(authoredTestBlock));
+	}
 
-	AddSkinnedLabObject(
-		"Human walk.gltf",
-		"resources/models/human/walk.gltf",
-		{ -96.0f, -1.0f, 78.0f },
-		{ 0.0f, std::numbers::pi_v<float>, 0.0f },
-		{ 8.0f, 8.0f, 8.0f });
-	AddSkinnedLabObject(
-		"VRoid testModel_animated.glb",
-		"resources/models/player/testModel_animated.glb",
-		{ 0.0f, -1.0f, 82.0f },
-		{ 0.0f, std::numbers::pi_v<float>, 0.0f },
-		{ 18.0f, 18.0f, 18.0f });
+	if (loadSkinnedPbrSamples_) {
+		AddSkinnedLabObject(
+			"Human walk.gltf",
+			"resources/models/human/walk.gltf",
+			{ -96.0f, -1.0f, 78.0f },
+			{ 0.0f, std::numbers::pi_v<float>, 0.0f },
+			{ 8.0f, 8.0f, 8.0f });
+		AddSkinnedLabObject(
+			"VRoid testModel_animated.glb",
+			"resources/models/player/testModel_animated.glb",
+			{ 0.0f, -1.0f, 82.0f },
+			{ 0.0f, std::numbers::pi_v<float>, 0.0f },
+			{ 18.0f, 18.0f, 18.0f });
+	}
 
 	UpdateCamera();
-	sandBed_->Update();
+	if (sandBed_) {
+		sandBed_->Update();
+	}
 	river_->Update();
 	for (auto& object : sceneObjects_) {
 		object.object->Update();
@@ -501,7 +519,9 @@ void GraphicsLabScene::Update()
 		sceneTime_ += finalDeltaTime_ * waterTimeScale_;
 	}
 
-	ApplyPbrEnvironmentDebugMode();
+	if (loadLookDevSamples_ || loadSkinnedPbrSamples_) {
+		ApplyPbrEnvironmentDebugMode();
+	}
 
 	if (!Object3dCommon::GetInstance()->GetIsDebugCamera()) {
 		UpdateCamera();
@@ -512,7 +532,9 @@ void GraphicsLabScene::Update()
 	river_->SetShininess(sceneTime_);
 	river_->SetInsensity(waterLightIntensity_);
 	river_->Update();
-	sandBed_->Update();
+	if (sandBed_) {
+		sandBed_->Update();
+	}
 
 	for (auto& object : sceneObjects_) {
 		object.object->SetEnvironmentCoefficient(object.environment);
@@ -597,7 +619,7 @@ void GraphicsLabScene::DrawPostEffect3D()
 	skybox_->Draw();
 
 	Object3dCommon::GetInstance()->PreDraw(kNone);
-	if (showSandBed_) {
+	if (showSandBed_ && sandBed_) {
 		sandBed_->Draw();
 	}
 	for (auto& object : sceneObjects_) {
@@ -810,7 +832,7 @@ void GraphicsLabScene::DrawDebugWindow()
 {
 #ifdef USE_IMGUI
 	ImGui::Begin("Graphics Lab");
-	ImGui::Text("Realistic water look-dev scene");
+	ImGui::Text("Arc Blanc style ocean look-dev scene");
 	ImGui::Text("A,D: Orbit  W,S: Pitch  Mouse wheel: Zoom  Esc: Title");
 	ImGui::Text("Shift+D: Debug camera  MMB: Orbit  Shift+MMB: Pan  Wheel: Zoom");
 	ImGui::Checkbox("Pause water", &pauseWater_);
@@ -819,7 +841,11 @@ void GraphicsLabScene::DrawDebugWindow()
 	ImGui::Checkbox("Show obstacles", &showObstacles_);
 	ImGui::Checkbox("Show PBR samples", &showPbrSamples_);
 	ImGui::Checkbox("Show validation primitives", &showValidationPrimitives_);
-	ImGui::Checkbox("Show skinned PBR samples", &showSkinnedPbrSamples_);
+	if (skinnedLabObjects_.empty()) {
+		ImGui::Text("Skinned PBR samples: skipped for faster ocean iteration.");
+	} else {
+		ImGui::Checkbox("Show skinned PBR samples", &showSkinnedPbrSamples_);
+	}
 	const char* skinnedShadingModes[] = { "PBR look-dev", "Character bridge", "Unlit texture reference" };
 	ImGui::Combo("Skinned shading", &skinnedShadingMode_, skinnedShadingModes, IM_ARRAYSIZE(skinnedShadingModes));
 	ImGui::Checkbox("Skinned PBR lighting", &enableSkinnedPbrLighting_);

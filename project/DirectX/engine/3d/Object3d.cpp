@@ -304,8 +304,11 @@ void Object3d::SetModel(Model* model)
 void Object3d::SetModel(const std::string& filePath)
 {
 	ResetMaterialOverrideFlags();
-	// モデルを検索してセットする
 	model_ = ModelManager::GetInstance()->FindModel(filePath);
+	if (!model_ && filePath.rfind("__", 0) != 0) {
+		ModelManager::GetInstance()->LoadModel(filePath);
+		model_ = ModelManager::GetInstance()->FindModel(filePath);
+	}
 	ApplyModelMaterialData();
 	if (model_) {
 		EnsureMaterialInstanceResources((std::max)(size_t{ 1 }, model_->GetModelData().materials.size()));

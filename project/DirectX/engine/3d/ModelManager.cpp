@@ -51,6 +51,20 @@ void ModelManager::CreatePlaneModel(const std::string& modelName, float width, f
 	models.insert(std::make_pair(modelName, std::move(model)));
 }
 
+void ModelManager::CreateGridModel(const std::string& modelName, float width, float depth, uint32_t xSegments, uint32_t zSegments)
+{
+	if (models.contains(modelName)) {
+		return;
+	}
+
+	std::unique_ptr<Model> model = std::make_unique<Model>();
+	model->InitializeFromModelData(
+		modelCommon.get(),
+		Model::CreateGrid(width, depth, xSegments, zSegments));
+
+	models.insert(std::make_pair(modelName, std::move(model)));
+}
+
 void ModelManager::CreateBoxModel(const std::string& modelName, const Vector3& size)
 {
 	if (models.contains(modelName)) {
