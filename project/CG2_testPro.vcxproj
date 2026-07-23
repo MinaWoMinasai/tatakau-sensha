@@ -236,6 +236,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\level\LevelLoader.cpp" />
     <ClCompile Include="game\exp\EnemyManager.cpp" />
     <ClCompile Include="game\exp\ExpEnemy.cpp" />
+    <ClCompile Include="game\naval\rendering\NavalOceanRenderer.cpp" />
     <ClCompile Include="game\naval\scene\NavalBattleScene.cpp" />
     <ClCompile Include="game\scene\Game.cpp" />
     <ClCompile Include="game\scene\Action3DScene.cpp" />
@@ -470,6 +471,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\SrvManager.h" />
     <ClInclude Include="game\exp\EnemyManager.h" />
     <ClInclude Include="game\exp\ExpEnemy.h" />
+    <ClInclude Include="game\naval\rendering\NavalOceanRenderer.h" />
     <ClInclude Include="game\naval\scene\NavalBattleScene.h" />
     <ClInclude Include="game\scene\Game.h" />
     <ClInclude Include="game\scene\Action3DScene.h" />

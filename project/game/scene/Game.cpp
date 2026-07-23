@@ -110,40 +110,8 @@ void Game::InitializeImGui() {
 }
 
 void Game::LoadResources() {
-
-    const char* models[] = {
-        "cube.obj",
-        "cubeDamage.obj",
-        "player.obj",
-        "playerBullet.obj",
-        "enemy.obj",
-        "enemyBullet.obj",
-        "playerParticle.obj",
-        "enemyParticle.obj",
-        "playerHPBar.obj",
-        "playerHPBarGreen.obj",
-        "playerHPBarLong.obj",
-        "playerHPBarGreenLong.obj",
-        "ball.obj",
-        "bloomBall.obj",
-        "bloomBlock.obj",
-        "jewelry.obj",
-        "ground.obj",
-        "weapon.obj",
-        "player3D.obj",
-        "enemy3D.obj",
-        "expBlock.obj",
-        "expTriangle.obj",
-        "expEnemy.obj",
-        "expPentagon.obj",
-        "gunBarrel.obj",
-        "bullet.obj",
-    };
-
-    for (auto& model : models) {
-        ModelManager::GetInstance()->LoadModel(model);
-    }
-
+    // Keep startup focused on the title scene. Models are now loaded on demand
+    // from Object3d::SetModel() or explicitly by the scene that needs them.
 }
 
 void Game::Run() {
