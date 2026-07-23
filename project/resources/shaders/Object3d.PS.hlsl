@@ -13,6 +13,14 @@ struct Material
     float32_t padding; // 16バイトアライメントのための調整
     float32_t4x4 uvTransform;
     float32_t shininess;
+    float32_t waterDiagnosticsEnabled;
+    float32_t waterSunPathEnabled;
+    float32_t waterAtmosphereEnabled;
+    float32_t waterFarFlattenEnabled;
+    float32_t waterProceduralCloudReflectionEnabled;
+    float32_t waterDebugMode;
+    float32_t waterAtmosphereStrength;
+    float32_t waterFarFlattenStrength;
     float32_t metallic;
     float32_t roughness;
     float32_t ambientOcclusion;
@@ -240,6 +248,20 @@ PixelShaderOutput main(VertexShaderOutput input)
         float oceanMode = step(2.7f, gMaterial.environmentCoefficient);
         float navalOceanMode = step(2.85f, gMaterial.environmentCoefficient);
         float arcBlancMode = step(3.10f, gMaterial.environmentCoefficient);
+        float waterDiagnostics = saturate(gMaterial.waterDiagnosticsEnabled);
+        float sunPathControl = lerp(
+            1.0f,
+            saturate(gMaterial.waterSunPathEnabled),
+            waterDiagnostics);
+        float atmosphereControl = lerp(
+            1.0f,
+            saturate(gMaterial.waterAtmosphereEnabled) *
+                max(gMaterial.waterAtmosphereStrength, 0.0f),
+            waterDiagnostics);
+        float proceduralCloudControl = lerp(
+            1.0f,
+            saturate(gMaterial.waterProceduralCloudReflectionEnabled),
+            waterDiagnostics);
         float seaDepth = saturate(smoothstep(-60.0f, 205.0f, worldXZ.y));
         float shoreFoamMask = smoothstep(-95.0f, -10.0f, worldXZ.y) * (1.0f - smoothstep(70.0f, 160.0f, worldXZ.y));
         float farDetailFade = lerp(
@@ -269,6 +291,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         float cloudLayerC = sin(cloudUv.x * -83.0f + cloudUv.y * 49.0f + time * 0.016f);
         float reflectedCloudMask = smoothstep(0.42f, 0.92f, cloudLayerA * 0.44f + cloudLayerB * 0.28f + cloudLayerC * 0.20f + 0.40f);
         reflectedCloudMask *= smoothstep(85.0f, 460.0f, viewDistance) * (1.0f - smoothstep(920.0f, 1320.0f, viewDistance));
+        reflectedCloudMask *= proceduralCloudControl;
         float patchBreakup = lerp(1.0f, 0.44f + largePatchNoise * 0.30f + midPatchNoise * 0.17f + finePatchNoise * 0.14f, navalOceanMode);
         patchBreakup = lerp(patchBreakup, saturate(patchBreakup * 0.86f + 0.19f), arcBlancMode);
         float softPatchGate = smoothstep(0.44f, 0.88f, patchBreakup);
@@ -356,7 +379,11 @@ PixelShaderOutput main(VertexShaderOutput input)
         float facing = saturate(dot(N, float3(0.0f, 1.0f, 0.0f)));
 #if SCENE_NORMAL_TARGET
         output.normal = EncodeNormalTarget(N, saturate(0.82f + fresnel * 0.18f));
-        output.material = EncodeMaterialTarget(0.045f, 0.0f, 1.0f, 0.65f);
+        output.material = EncodeMaterialTarget(
+            0.045f,
+            0.0f,
+            1.0f,
+            lerp(0.65f, 0.75f, waterDiagnostics));
 #endif
 
         float3 reflectVector = reflect(-V, N);
@@ -369,7 +396,11 @@ PixelShaderOutput main(VertexShaderOutput input)
             lerp(float3(0.11f, 0.26f, 0.48f), float3(0.33f, 0.50f, 0.68f), arcBlancMode),
             lerp(float3(0.62f, 0.66f, 0.60f), float3(0.78f, 0.84f, 0.88f), arcBlancMode),
             saturate(reflectVector.y * 0.55f + 0.45f));
-        skyReflection = lerp(skyReflection, proceduralSky, oceanMode * lerp(0.30f, lerp(0.14f, 0.22f, arcBlancMode), navalOceanMode));
+        float proceduralSkyBlend =
+            oceanMode *
+            lerp(0.30f, lerp(0.14f, 0.22f, arcBlancMode), navalOceanMode) *
+            (1.0f - waterDiagnostics);
+        skyReflection = lerp(skyReflection, proceduralSky, proceduralSkyBlend);
         float reflectionLuma = dot(skyReflection, float3(0.299f, 0.587f, 0.114f));
         skyReflection = lerp(skyReflection, skyReflection * (0.54f + reflectionLuma * 0.18f), navalOceanMode * smoothstep(0.52f, 0.92f, reflectionLuma));
 
@@ -470,6 +501,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         sunPath *= lerp(1.0f, 0.30f + streakMask * 0.92f, navalOceanMode);
         sunPath *= gDirectionalLight.intensity;
         sunPath *= oceanMode;
+        sunPath *= sunPathControl;
 
         float3 reflection = skyReflection * (0.045f + fresnel * 0.92f + oceanMode * 0.045f + navalOceanMode * lowAngleFresnel * lerp(0.30f, 0.24f, arcBlancMode));
         float reflectionMix = 0.040f + fresnel * 0.58f + oceanDepth * oceanMode * 0.045f + navalOceanMode * lowAngleFresnel * lerp(0.30f, 0.24f, arcBlancMode);
@@ -479,13 +511,17 @@ PixelShaderOutput main(VertexShaderOutput input)
         color = lerp(color, color * float3(0.84f, 0.91f, 0.96f), reflectedCloudMask * arcBlancMode * navalOceanMode * 0.10f);
         color += float3(0.78f, 0.92f, 1.0f) * foam * lerp(0.16f, lerp(0.055f, 0.090f, arcBlancMode), navalOceanMode);
         color += float3(0.82f, 0.94f, 1.0f) * glint * lerp(2.4f, lerp(1.05f, 1.48f, arcBlancMode), navalOceanMode);
-        color += float3(0.90f, 0.97f, 1.0f) * stableSunLane * navalOceanMode * arcBlancMode * 0.030f;
+        color += float3(0.90f, 0.97f, 1.0f) * stableSunLane * navalOceanMode * arcBlancMode * 0.030f * sunPathControl;
         color += float3(0.78f, 0.92f, 1.0f) * spectrumSheen * arcBlancMode * navalOceanMode * farDetailFade * 0.018f;
         color += lerp(float3(1.0f, 0.82f, 0.44f), float3(1.0f, 0.96f, 0.86f), arcBlancMode) * sunPath * lerp(3.2f, lerp(2.15f, 2.55f, arcBlancMode), navalOceanMode);
         color = lerp(color, float3(0.20f, 0.34f, 0.40f), depthFade * lerp(0.12f, lerp(0.035f, 0.020f, arcBlancMode), navalOceanMode));
         color = lerp(color, float3(0.012f, 0.055f, 0.105f), navalOceanMode * lerp(0.26f, 0.07f, arcBlancMode));
-        color = lerp(color, color * color * 1.42f, navalOceanMode * lerp(0.36f, 0.12f, arcBlancMode));
-        color = lerp(color, color / (1.0f + color * 0.42f), arcBlancMode * 0.76f);
+        if (waterDiagnostics < 0.5f)
+        {
+            // Preserve the shipped Naval look while Graphics Lab emits linear HDR.
+            color = lerp(color, color * color * 1.42f, navalOceanMode * lerp(0.36f, 0.12f, arcBlancMode));
+            color = lerp(color, color / (1.0f + color * 0.42f), arcBlancMode * 0.76f);
+        }
 
         float shipBody = exp(-(shipAlong * shipAlong) / 95.0f) * exp(-(shipSideDist * shipSideDist) / 12.0f);
         float shipStern = exp(-((shipAlong + 9.5f) * (shipAlong + 9.5f)) / 220.0f) * exp(-(shipSideDist * shipSideDist) / 28.0f);
@@ -501,19 +537,52 @@ PixelShaderOutput main(VertexShaderOutput input)
         color = lerp(color, shipReflectionTint, shipReflectionMask * (0.50f + shipRipple * 0.10f));
         color += skyReflectionSharp * shipReflectionMask * fresnel * 0.035f;
 
-        float horizonBlend = smoothstep(165.0f, 640.0f, viewDistance) * navalOceanMode;
-        float horizonSilhouetteFade = smoothstep(430.0f, 960.0f, viewDistance) * arcBlancMode * navalOceanMode;
+        float horizonBlend = smoothstep(165.0f, 640.0f, viewDistance) * navalOceanMode * atmosphereControl;
+        float horizonSilhouetteFade = smoothstep(430.0f, 960.0f, viewDistance) * arcBlancMode * navalOceanMode * atmosphereControl;
         float3 horizonWater = lerp(float3(0.21f, 0.40f, 0.48f), skyReflection * 0.72f + float3(0.02f, 0.045f, 0.065f), fresnel);
         horizonWater = lerp(horizonWater, float3(0.42f, 0.61f, 0.70f), arcBlancMode * smoothstep(0.18f, 1.0f, horizonBlend));
         color = lerp(color, horizonWater, horizonBlend * lerp(0.22f, 0.56f, arcBlancMode));
-        float atmosphere = smoothstep(115.0f, 760.0f, viewDistance) * lerp(smoothstep(0.10f, 0.82f, lowAngleFresnel), 0.72f, horizonSilhouetteFade) * navalOceanMode;
-        float3 horizonSky = skyReflectionSoft * 0.40f + proceduralSky * 0.45f + lerp(float3(0.035f, 0.060f, 0.082f), float3(0.090f, 0.135f, 0.165f), arcBlancMode);
+        float atmosphere = smoothstep(115.0f, 760.0f, viewDistance) * lerp(smoothstep(0.10f, 0.82f, lowAngleFresnel), 0.72f, horizonSilhouetteFade) * navalOceanMode * atmosphereControl;
+        float3 diagnosticHorizonSky = skyReflectionSoft * 0.85f +
+            lerp(float3(0.035f, 0.060f, 0.082f), float3(0.090f, 0.135f, 0.165f), arcBlancMode);
+        float3 legacyHorizonSky = skyReflectionSoft * 0.40f + proceduralSky * 0.45f +
+            lerp(float3(0.035f, 0.060f, 0.082f), float3(0.090f, 0.135f, 0.165f), arcBlancMode);
+        float3 horizonSky = lerp(legacyHorizonSky, diagnosticHorizonSky, waterDiagnostics);
         float3 farBlueAir = lerp(float3(0.19f, 0.31f, 0.39f), horizonSky, lerp(0.56f, 0.76f, arcBlancMode));
         farBlueAir = lerp(farBlueAir, float3(0.48f, 0.66f, 0.73f), horizonSilhouetteFade * 0.72f);
         color = lerp(color, farBlueAir, atmosphere * lerp(0.38f, 0.74f, arcBlancMode));
         color += horizonSky * atmosphere * lerp(0.030f, 0.085f, arcBlancMode);
         color += reflectedCloudMask * atmosphere * arcBlancMode * navalOceanMode * float3(0.08f, 0.12f, 0.14f);
         color *= gMaterial.color.rgb;
+
+        int waterDebugMode = (int)(gMaterial.waterDebugMode + 0.5f);
+        if (waterDiagnostics > 0.5f && waterDebugMode > 0)
+        {
+            float3 debugColor = float3(0.0f, 0.0f, 0.0f);
+            if (waterDebugMode == 1)
+            {
+                debugColor = N * 0.5f + 0.5f;
+            }
+            else if (waterDebugMode == 2)
+            {
+                debugColor = fresnel.xxx;
+            }
+            else if (waterDebugMode == 3)
+            {
+                float sunSignal = saturate(sunPath * 0.15f + stableSunLane * sunPathControl);
+                debugColor = sunSignal.xxx;
+            }
+            else if (waterDebugMode == 4)
+            {
+                debugColor = foam.xxx;
+            }
+            else
+            {
+                debugColor = 1.0f.xxx;
+            }
+            output.color = float4(saturate(debugColor), 1.0f);
+            return output;
+        }
 
         float edgeAlpha = lerp(1.0f - smoothstep(36.0f, 45.0f, edgeDistance), 1.0f, oceanMode);
         float riverAlpha = 0.70f + fresnel * 0.26f + bank * 0.18f;

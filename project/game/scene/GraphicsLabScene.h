@@ -25,6 +25,7 @@ public:
 	bool IsFinished() const override { return finished_; }
 	float GetFinalDeltaTime() const override { return finalDeltaTime_; }
 	std::string GetNextSceneName() const override { return nextSceneName_; }
+	WaterPostProcessSettings GetWaterPostProcessSettings() const override;
 
 private:
 	enum class LabObjectKind {
@@ -93,6 +94,16 @@ private:
 	float finalDeltaTime_ = 1.0f / 60.0f;
 	float sceneTime_ = 0.0f;
 	bool pauseWater_ = false;
+	bool waterTaaEnabled_ = true;
+	bool waterBloomEnabled_ = true;
+	bool waterSunPathEnabled_ = true;
+	bool waterAtmosphereEnabled_ = true;
+	bool waterFarFlattenEnabled_ = true;
+	bool waterProceduralCloudReflectionEnabled_ = false;
+	int waterDebugMode_ = 0;
+	float waterHistoryWeight_ = 0.08f;
+	float waterAtmosphereStrength_ = 1.0f;
+	float waterFarFlattenStrength_ = 1.0f;
 	bool showSandBed_ = false;
 	bool showBeach_ = false;
 	bool showObstacles_ = false;

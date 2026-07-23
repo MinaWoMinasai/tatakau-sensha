@@ -2,6 +2,7 @@ Texture2D currentSceneTex : register(t0);
 Texture2D historySceneTex : register(t1);
 Texture2D<float> depthTex : register(t2);
 Texture2D normalTex : register(t3);
+Texture2D materialTex : register(t5);
 Texture2D motionVectorTex : register(t7);
 SamplerState samp : register(s0);
 
@@ -61,6 +62,14 @@ float4 main(PSInput input) : SV_TARGET
 
     float historyWeight = saturate(temporalBlendFactor);
     historyWeight *= 1.0f - saturate(length(motionVector) * max(temporalMotionRejection, 0.0f));
+    float waterMask = GetGraphicsLabWaterMask(materialTex.Sample(samp, uv));
+    float waterMaxHistory = waterTaaEnabled > 0.5f
+        ? min(saturate(waterHistoryWeight), 0.10f)
+        : 0.0f;
+    historyWeight = lerp(
+        historyWeight,
+        min(historyWeight, waterMaxHistory),
+        waterMask);
 
     return float4(lerp(currentColor, historyColor, historyWeight), 1.0f);
 }
