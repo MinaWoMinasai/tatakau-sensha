@@ -1559,6 +1559,56 @@ ModelData Model::CreatePlane(float width, float depth)
 	return modelData;
 }
 
+ModelData Model::CreateGrid(float width, float depth, uint32_t xSegments, uint32_t zSegments)
+{
+	width = (std::max)(width, 0.001f);
+	depth = (std::max)(depth, 0.001f);
+	xSegments = (std::max)(xSegments, 1u);
+	zSegments = (std::max)(zSegments, 1u);
+
+	const float halfWidth = width * 0.5f;
+	const float halfDepth = depth * 0.5f;
+	const Vector3 normal = { 0.0f, 1.0f, 0.0f };
+
+	ModelData modelData;
+	modelData.material = MakeDefaultPrimitiveMaterial();
+	modelData.vertices.reserve(static_cast<size_t>(xSegments + 1u) * static_cast<size_t>(zSegments + 1u));
+	modelData.indices.reserve(static_cast<size_t>(xSegments) * static_cast<size_t>(zSegments) * 6u);
+
+	for (uint32_t z = 0; z <= zSegments; ++z) {
+		const float v = static_cast<float>(z) / static_cast<float>(zSegments);
+		const float posZ = -halfDepth + depth * v;
+		for (uint32_t x = 0; x <= xSegments; ++x) {
+			const float u = static_cast<float>(x) / static_cast<float>(xSegments);
+			const float posX = -halfWidth + width * u;
+			modelData.vertices.push_back({
+				MakePosition(posX, 0.0f, posZ),
+				{ u, 1.0f - v },
+				normal,
+				{ 1.0f, 0.0f, 0.0f, 1.0f },
+			});
+		}
+	}
+
+	const uint32_t stride = xSegments + 1u;
+	for (uint32_t z = 0; z < zSegments; ++z) {
+		for (uint32_t x = 0; x < xSegments; ++x) {
+			const uint32_t i0 = z * stride + x;
+			const uint32_t i1 = i0 + 1u;
+			const uint32_t i2 = i0 + stride;
+			const uint32_t i3 = i2 + 1u;
+			modelData.indices.push_back(i0);
+			modelData.indices.push_back(i2);
+			modelData.indices.push_back(i1);
+			modelData.indices.push_back(i2);
+			modelData.indices.push_back(i3);
+			modelData.indices.push_back(i1);
+		}
+	}
+
+	return modelData;
+}
+
 ModelData Model::CreateBox(const Vector3& size)
 {
 	const float halfX = (std::max)(std::abs(size.x), 0.001f) * 0.5f;

@@ -11,6 +11,7 @@
 #include "IScene.h"
 #include "Object3d.h"
 #include "Skybox.h"
+#include "game/naval/rendering/NavalOceanRenderer.h"
 
 // 海戦ゲーム用の最小プロトタイプシーン。
 // 既存の2D/3Dアクション実装と衝突しないよう、naval配下だけで操作・砲撃・敵艦の骨組みを試す。
@@ -89,6 +90,7 @@ private:
 		Vector3 direction = {};
 		float age = 0.0f;
 		float strength = 0.0f;
+		float type = 0.0f;
 	};
 
 	struct GunMount {
@@ -108,7 +110,7 @@ private:
 	int CountAliveEnemies() const;
 	void UpdateWakeTrails();
 	void UpdateOceanWakeSources();
-	void ApplyOceanWakeToSea();
+	void ApplyOceanWakeToOcean();
 	void SpawnWakeTrail();
 	void SpawnHullFoamTrail();
 	void AddWaterFoamTrail(const Vector3& position, const Vector3& velocity, float yaw, float duration, float width, float length, float alpha);
@@ -140,7 +142,7 @@ private:
 	std::unique_ptr<Camera> camera_;
 	std::unique_ptr<DebugCamera> debugCamera_;
 
-	std::unique_ptr<Object3d> sea_;
+	std::unique_ptr<NavalOceanRenderer> ocean_;
 	std::unique_ptr<Skybox> skybox_;
 	std::unique_ptr<Object3d> playerHull_;
 	std::unique_ptr<Object3d> playerTurret_;
@@ -150,6 +152,7 @@ private:
 	std::vector<ImpactEffect> impactEffects_;
 	std::vector<WakeTrail> wakeTrails_;
 	std::vector<OceanWakeSource> oceanWakeSources_;
+	Vector3 lastOceanWakePosition_ = {};
 
 	ShipState player_;
 	bool finished_ = false;
@@ -167,9 +170,13 @@ private:
 	float wakeSpawnTimer_ = 0.0f;
 	float hullFoamSpawnTimer_ = 0.0f;
 	float oceanWakeSpawnTimer_ = 0.0f;
+	float oceanWakeDistanceAccumulator_ = 0.0f;
+	bool hasLastOceanWakePosition_ = false;
 	float playerVisualWaterHeight_ = 1.1f;
 	float playerVisualPitch_ = 0.0f;
 	float playerVisualRoll_ = 0.0f;
+	float playerDraftOffset_ = -0.68f;
+	float playerModelScale_ = 1.12f;
 	float cameraShakeTime_ = 0.0f;
 	float cameraShakeDuration_ = 0.0f;
 	float cameraShakeIntensity_ = 0.0f;

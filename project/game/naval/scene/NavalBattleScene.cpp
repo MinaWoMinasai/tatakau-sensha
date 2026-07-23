@@ -46,13 +46,8 @@ void NavalBattleScene::Initialize()
 	skybox_->Initialize("resources/skyboxSky.dds");
 	skybox_->SetColor({ 1.0f, 1.0f, 1.0f, 1.20f });
 
-	sea_ = std::make_unique<Object3d>();
-	sea_->Initialize();
-	InitializeObject(*sea_, "sea.obj", { 0.66f, 0.76f, 0.88f, 1.0f }, false);
-	sea_->SetEnvironmentMap(TextureManager::GetInstance()->GetSrvIndex("resources/skyboxSky.dds"));
-	sea_->SetEnvironmentCoefficient(2.9f);
-	sea_->SetScale({ 0.50f, 1.0f, 0.50f });
-	sea_->SetTranslate({ 0.0f, -1.2f, 0.0f });
+	ocean_ = std::make_unique<NavalOceanRenderer>();
+	ocean_->Initialize("resources/skyboxSky.dds");
 
 	playerHull_ = std::make_unique<Object3d>();
 	playerHull_->Initialize();
@@ -93,9 +88,10 @@ void NavalBattleScene::Update()
 	UpdateCamera();
 
 	skybox_->Update(camera_.get(), debugCamera_.get());
-	sea_->SetShininess(battleTimer_);
-	ApplyOceanWakeToSea();
-	sea_->Update();
+	ApplyOceanWakeToOcean();
+	const float reflectionStrength = 0.62f + std::clamp(std::abs(player_.speed) / 33.0f, 0.0f, 1.0f) * 0.18f;
+	ocean_->SetShipReflection(player_.position, player_.yaw, reflectionStrength);
+	ocean_->Update(battleTimer_);
 	playerHull_->Update();
 	playerTurret_->Update();
 	playerMarker_->Update();
@@ -141,9 +137,7 @@ void NavalBattleScene::DrawShadow()
 void NavalBattleScene::DrawPostEffect3D()
 {
 	skybox_->Draw();
-
-	Object3dCommon::GetInstance()->PreDraw(kNone);
-	sea_->Draw();
+	ocean_->Draw();
 
 	if (showFoamPlates_) {
 		Object3dCommon::GetInstance()->PreDraw(kNormal);
@@ -199,8 +193,11 @@ void NavalBattleScene::ResetBattle()
 	wakeSpawnTimer_ = 0.0f;
 	hullFoamSpawnTimer_ = 0.0f;
 	oceanWakeSpawnTimer_ = 0.0f;
+	oceanWakeDistanceAccumulator_ = 0.0f;
+	hasLastOceanWakePosition_ = false;
+	lastOceanWakePosition_ = player_.position;
 	oceanWakeSources_.clear();
-	playerVisualWaterHeight_ = player_.position.y;
+	playerVisualWaterHeight_ = 1.1f + playerDraftOffset_ + SampleOceanHeight(player_.position, battleTimer_) * 0.70f;
 	playerVisualPitch_ = 0.0f;
 	playerVisualRoll_ = 0.0f;
 	cameraShakeTime_ = 0.0f;
@@ -251,7 +248,9 @@ void NavalBattleScene::ResetBattle()
 
 	UpdatePlayer();
 	UpdateCamera();
-	sea_->Update();
+	const float reflectionStrength = 0.62f + std::clamp(std::abs(player_.speed) / 33.0f, 0.0f, 1.0f) * 0.18f;
+	ocean_->SetShipReflection(player_.position, player_.yaw, reflectionStrength);
+	ocean_->Update(battleTimer_);
 	for (auto& enemy : enemies_) {
 		if (enemy.hull) {
 			enemy.hull->SetTranslate(enemy.ship.position);
@@ -432,7 +431,7 @@ void NavalBattleScene::UpdatePlayer()
 		player_.position.z - shipRight.z * 1.9f,
 	};
 	const float speedMotion = 0.70f + std::clamp(std::abs(player_.speed) / 33.0f, 0.0f, 1.0f) * 0.55f;
-	const float targetWaterHeight = 1.1f + waveCenter * 0.70f * speedMotion;
+	const float targetWaterHeight = 1.1f + playerDraftOffset_ + waveCenter * 0.70f * speedMotion;
 	const float targetPitch = std::clamp((SampleOceanHeight(sternSample, battleTimer_) - SampleOceanHeight(bowSample, battleTimer_)) * 0.145f * speedMotion, -0.145f, 0.145f);
 	const float targetRoll = std::clamp((SampleOceanHeight(rightSample, battleTimer_) - SampleOceanHeight(leftSample, battleTimer_)) * 0.205f * speedMotion, -0.170f, 0.170f);
 	playerVisualWaterHeight_ += (targetWaterHeight - playerVisualWaterHeight_) * (std::min)(1.0f, dt * 4.8f);
@@ -446,7 +445,7 @@ void NavalBattleScene::UpdatePlayer()
 	};
 	playerHull_->SetTranslate(playerVisualPosition);
 	playerHull_->SetRotate({ playerVisualPitch_, player_.yaw + std::numbers::pi_v<float> * 0.5f, playerVisualRoll_ });
-	playerHull_->SetScale({ 1.12f, 1.12f, 1.12f });
+	playerHull_->SetScale({ playerModelScale_, playerModelScale_, playerModelScale_ });
 
 	const Vector3 turretOffset = shipForward;
 	playerTurret_->SetTranslate({
@@ -875,22 +874,43 @@ void NavalBattleScene::UpdateWakeTrails()
 
 void NavalBattleScene::UpdateOceanWakeSources()
 {
-	oceanWakeSpawnTimer_ = (std::max)(0.0f, oceanWakeSpawnTimer_ - finalDeltaTime_);
 	for (auto& source : oceanWakeSources_) {
 		source.age += finalDeltaTime_;
 	}
 	oceanWakeSources_.erase(
 		std::remove_if(oceanWakeSources_.begin(), oceanWakeSources_.end(), [](const OceanWakeSource& source) {
-			return source.age > 10.0f || source.strength <= 0.0f;
+			return source.age > 12.0f || source.strength <= 0.0f;
 		}),
 		oceanWakeSources_.end());
 
 	const float speedAbs = std::abs(player_.speed);
-	if (speedAbs <= 3.0f || oceanWakeSpawnTimer_ > 0.0f || missionComplete_ || gameOver_) {
+	if (speedAbs <= 3.0f || missionComplete_ || gameOver_) {
+		hasLastOceanWakePosition_ = false;
+		oceanWakeDistanceAccumulator_ = 0.0f;
+		return;
+	}
+
+	if (!hasLastOceanWakePosition_) {
+		lastOceanWakePosition_ = player_.position;
+		hasLastOceanWakePosition_ = true;
 		return;
 	}
 
 	const float speedRate = std::clamp(speedAbs / 33.0f, 0.0f, 1.0f);
+	const float movedDistance = DistanceXZ(player_.position, lastOceanWakePosition_);
+	oceanWakeDistanceAccumulator_ += movedDistance;
+	lastOceanWakePosition_ = player_.position;
+
+	const float sampleSpacing = 2.4f - speedRate * 0.75f;
+	int spawnCount = 0;
+	while (oceanWakeDistanceAccumulator_ >= sampleSpacing && spawnCount < 3) {
+		oceanWakeDistanceAccumulator_ -= sampleSpacing;
+		++spawnCount;
+	}
+	if (spawnCount <= 0) {
+		return;
+	}
+
 	const Vector3 forward = ForwardFromYaw(player_.yaw);
 	const float directionSign = player_.speed >= 0.0f ? 1.0f : -1.0f;
 	const Vector3 flowDirection = {
@@ -898,25 +918,69 @@ void NavalBattleScene::UpdateOceanWakeSources()
 		0.0f,
 		-forward.z * directionSign,
 	};
-	OceanWakeSource source{};
-	source.position = {
-		player_.position.x + flowDirection.x * 5.2f,
-		0.0f,
-		player_.position.z + flowDirection.z * 5.2f,
-	};
-	source.direction = flowDirection;
-	source.age = 0.0f;
-	source.strength = 0.82f + speedRate * 1.35f;
-	oceanWakeSources_.push_back(source);
+	const Vector3 right = { std::cos(player_.yaw), 0.0f, -std::sin(player_.yaw) };
 
-	if (oceanWakeSources_.size() > 48) {
-		oceanWakeSources_.erase(oceanWakeSources_.begin(), oceanWakeSources_.begin() + (oceanWakeSources_.size() - 48));
+	for (int sample = 0; sample < spawnCount; ++sample) {
+		const float backStep = sampleSpacing * static_cast<float>(spawnCount - 1 - sample);
+		const Vector3 samplePosition = {
+			player_.position.x + flowDirection.x * backStep,
+			0.0f,
+			player_.position.z + flowDirection.z * backStep,
+		};
+
+		OceanWakeSource sternSource{};
+		sternSource.position = {
+			samplePosition.x + flowDirection.x * 5.2f,
+			0.0f,
+			samplePosition.z + flowDirection.z * 5.2f,
+		};
+		sternSource.direction = flowDirection;
+		sternSource.age = 0.0f;
+		sternSource.strength = 0.44f + speedRate * 0.88f;
+		sternSource.type = 0.0f;
+		oceanWakeSources_.push_back(sternSource);
+
+		OceanWakeSource bowSource{};
+		bowSource.position = {
+			samplePosition.x + forward.x * directionSign * 5.0f,
+			0.0f,
+			samplePosition.z + forward.z * directionSign * 5.0f,
+		};
+		bowSource.direction = {
+			forward.x * directionSign,
+			0.0f,
+			forward.z * directionSign,
+		};
+		bowSource.age = 0.0f;
+		bowSource.strength = 0.28f + speedRate * 0.58f;
+		bowSource.type = 1.0f;
+		oceanWakeSources_.push_back(bowSource);
+
+		for (float side : { -1.0f, 1.0f }) {
+			OceanWakeSource sideSource{};
+			sideSource.position = {
+				samplePosition.x + right.x * side * 2.6f - forward.x * directionSign * 0.6f,
+				0.0f,
+				samplePosition.z + right.z * side * 2.6f - forward.z * directionSign * 0.6f,
+			};
+			sideSource.direction = {
+				right.x * side * 0.35f + flowDirection.x * 0.65f,
+				0.0f,
+				right.z * side * 0.35f + flowDirection.z * 0.65f,
+			};
+			sideSource.age = 0.0f;
+			sideSource.strength = 0.20f + speedRate * 0.38f;
+			sideSource.type = 2.0f;
+			oceanWakeSources_.push_back(sideSource);
+		}
 	}
 
-	oceanWakeSpawnTimer_ = 0.26f - speedRate * 0.09f;
+	if (oceanWakeSources_.size() > 96) {
+		oceanWakeSources_.erase(oceanWakeSources_.begin(), oceanWakeSources_.begin() + (oceanWakeSources_.size() - 96));
+	}
 }
 
-void NavalBattleScene::ApplyOceanWakeToSea()
+void NavalBattleScene::ApplyOceanWakeToOcean()
 {
 	std::array<Vector4, 16> wakePoints{};
 	std::array<Vector4, 16> wakeDirections{};
@@ -932,12 +996,12 @@ void NavalBattleScene::ApplyOceanWakeToSea()
 		};
 		wakeDirections[index] = {
 			source.direction.x,
-			0.0f,
+			source.type,
 			source.direction.z,
 			0.0f,
 		};
 	}
-	sea_->SetOceanWakeData(wakePoints, wakeDirections, { static_cast<float>(sourceCount), 0.0f, 0.0f, 0.0f });
+	ocean_->SetWakeData(wakePoints, wakeDirections, { static_cast<float>(sourceCount), 0.0f, 0.0f, 0.0f });
 }
 
 void NavalBattleScene::SpawnWakeTrail()
@@ -1332,6 +1396,9 @@ void NavalBattleScene::DrawDebugWindow()
 	ImGui::Separator();
 	ImGui::Text("Player HP: %.0f / %.0f", player_.hp, player_.maxHp);
 	ImGui::Text("Player Pos: %.1f, %.1f, %.1f", player_.position.x, player_.position.y, player_.position.z);
+	ImGui::Text("Ocean Height: %.2f  Ship Visual Y: %.2f", SampleOceanHeight(player_.position, battleTimer_), playerVisualWaterHeight_);
+	ImGui::SliderFloat("Ship Draft Offset", &playerDraftOffset_, -1.80f, 0.40f);
+	ImGui::SliderFloat("Ship Model Scale", &playerModelScale_, 0.70f, 1.80f);
 	if (camera_) {
 		const Vector3& cameraPos = camera_->GetTranslate();
 		ImGui::Text("Camera Pos: %.1f, %.1f, %.1f", cameraPos.x, cameraPos.y, cameraPos.z);
@@ -1724,36 +1791,7 @@ Vector3 NavalBattleScene::PredictBallisticTargetPosition(const Vector3& muzzlePo
 
 float NavalBattleScene::SampleOceanHeight(const Vector3& position, float time) const
 {
-	// Match the naval ocean vertex shader as closely as possible.
-	// The sea object is drawn with XZ scale 0.5, so world-space samples are converted
-	// back to the sea mesh local coordinates before evaluating the same wave phases.
-	constexpr float seaScaleXZ = 0.50f;
-	const float x = position.x / seaScaleXZ;
-	const float z = position.z / seaScaleXZ;
-
-	constexpr float dirALen = 0.9963935f;
-	constexpr float dirBLen = 0.9984488f;
-	constexpr float dirCLen = 0.9976472f;
-	const float dirAx = 0.18f / dirALen;
-	const float dirAz = 0.98f / dirALen;
-	const float dirBx = -0.42f / dirBLen;
-	const float dirBz = 0.91f / dirBLen;
-	const float dirCx = 0.72f / dirCLen;
-	const float dirCz = 0.69f / dirCLen;
-
-	const float flow = z * 0.030f + time * 0.86f;
-	const float cross = x * 0.095f;
-	const float phaseA = (x * dirAx + z * dirAz) * 0.040f + time * 0.92f;
-	const float phaseB = (x * dirBx + z * dirBz) * 0.078f - time * 1.34f;
-	const float phaseC = (x * dirCx + z * dirCz) * 0.150f + time * 2.05f;
-	const float phaseD = flow + std::sin(cross + time * 0.35f) * 0.55f;
-
-	return (
-		std::sin(phaseA) * 0.46f +
-		std::sin(phaseB) * 0.20f +
-		std::sin(phaseC) * 0.08f +
-		std::sin(phaseD) * 0.12f
-		) * 1.72f;
+	return ocean_ ? ocean_->SampleHeight(position, time) : 0.0f;
 }
 
 Vector3 NavalBattleScene::GetReticleRayDirection() const
