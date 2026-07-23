@@ -455,6 +455,12 @@ float4 main(PSInput input) : SV_TARGET
         return float4(0, 0, 0, 1);
     }
 
+    if (waterDiagnosticsEnabled > 0.5f && waterDebugMode > 4.5f)
+    {
+        float waterReactiveMask = GetGraphicsLabWaterMask(materialTex.Sample(samp, input.uv));
+        return float4(waterReactiveMask.xxx, 1.0f);
+    }
+
     if (renderDebugMode > 0.5f)
     {
         return float4(GetRenderDebugColor(input.uv), 1.0f);

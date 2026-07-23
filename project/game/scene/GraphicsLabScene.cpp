@@ -240,6 +240,15 @@ void GraphicsLabScene::Initialize()
 	river_->SetInsensity(waterLightIntensity_);
 	river_->SetScale({ 1.0f, 1.0f, 1.0f });
 	river_->SetTranslate({ 0.0f, -1.15f, 0.0f });
+	river_->SetWaterDiagnostics(
+		true,
+		waterSunPathEnabled_,
+		waterAtmosphereEnabled_,
+		waterFarFlattenEnabled_,
+		waterProceduralCloudReflectionEnabled_,
+		waterDebugMode_,
+		waterAtmosphereStrength_,
+		waterFarFlattenStrength_);
 
 	if (showSandBed_) {
 		sandBed_ = std::make_unique<Object3d>();
@@ -531,6 +540,15 @@ void GraphicsLabScene::Update()
 	river_->SetColor(riverTint_);
 	river_->SetShininess(sceneTime_);
 	river_->SetInsensity(waterLightIntensity_);
+	river_->SetWaterDiagnostics(
+		true,
+		waterSunPathEnabled_,
+		waterAtmosphereEnabled_,
+		waterFarFlattenEnabled_,
+		waterProceduralCloudReflectionEnabled_,
+		waterDebugMode_,
+		waterAtmosphereStrength_,
+		waterFarFlattenStrength_);
 	river_->Update();
 	if (sandBed_) {
 		sandBed_->Update();
@@ -583,6 +601,17 @@ void GraphicsLabScene::Update()
 	}
 
 	DrawDebugWindow();
+}
+
+IScene::WaterPostProcessSettings GraphicsLabScene::GetWaterPostProcessSettings() const
+{
+	WaterPostProcessSettings settings{};
+	settings.diagnosticsEnabled = true;
+	settings.taaEnabled = waterTaaEnabled_;
+	settings.bloomEnabled = waterBloomEnabled_;
+	settings.historyWeight = waterHistoryWeight_;
+	settings.debugMode = waterDebugMode_;
+	return settings;
 }
 
 void GraphicsLabScene::DrawShadow()
@@ -836,6 +865,49 @@ void GraphicsLabScene::DrawDebugWindow()
 	ImGui::Text("A,D: Orbit  W,S: Pitch  Mouse wheel: Zoom  Esc: Title");
 	ImGui::Text("Shift+D: Debug camera  MMB: Orbit  Shift+MMB: Pan  Wheel: Zoom");
 	ImGui::Checkbox("Pause water", &pauseWater_);
+	if (ImGui::CollapsingHeader("Water isolation", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Water TAA", &waterTaaEnabled_);
+		ImGui::SameLine();
+		ImGui::Checkbox("Water bloom", &waterBloomEnabled_);
+		ImGui::Checkbox("Water sun path", &waterSunPathEnabled_);
+		ImGui::Checkbox("Water atmosphere blend", &waterAtmosphereEnabled_);
+		ImGui::Checkbox("Water far flatten", &waterFarFlattenEnabled_);
+		ImGui::Checkbox(
+			"Water procedural cloud reflection",
+			&waterProceduralCloudReflectionEnabled_);
+		ImGui::DragFloat(
+			"Water TAA history weight",
+			&waterHistoryWeight_,
+			0.005f,
+			0.0f,
+			0.10f,
+			"%.3f");
+		ImGui::DragFloat(
+			"Water horizon atmosphere strength",
+			&waterAtmosphereStrength_,
+			0.02f,
+			0.0f,
+			2.0f);
+		ImGui::DragFloat(
+			"Water far flatten strength",
+			&waterFarFlattenStrength_,
+			0.02f,
+			0.0f,
+			1.0f);
+		const char* waterDebugModes[] = {
+			"Final",
+			"Normal",
+			"Fresnel",
+			"Sun Specular",
+			"Foam",
+			"TAA Reactive Mask"
+		};
+		ImGui::Combo(
+			"Water debug view",
+			&waterDebugMode_,
+			waterDebugModes,
+			IM_ARRAYSIZE(waterDebugModes));
+	}
 	ImGui::Checkbox("Show underwater sand", &showSandBed_);
 	ImGui::Checkbox("Show beach", &showBeach_);
 	ImGui::Checkbox("Show obstacles", &showObstacles_);

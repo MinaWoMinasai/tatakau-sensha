@@ -111,6 +111,12 @@ cbuffer BloomParam : register(b0)
     float temporalJitterEnabled;
     float temporalJitterScale;
     float2 temporalJitterPadding;
+    float waterDiagnosticsEnabled;
+    float waterTaaEnabled;
+    float waterBloomEnabled;
+    float waterHistoryWeight;
+    float waterDebugMode;
+    float3 waterPostPadding;
 };
 
 struct PSInput
@@ -133,6 +139,13 @@ float RestoreViewSpaceZ(float depth)
 float3 DecodeNormalTarget(float4 encodedNormal)
 {
     return normalize(encodedNormal.xyz * 2.0f - 1.0f);
+}
+
+float GetGraphicsLabWaterMask(float4 materialSample)
+{
+    float lowerBound = smoothstep(0.70f, 0.735f, materialSample.a);
+    float upperBound = 1.0f - smoothstep(0.765f, 0.80f, materialSample.a);
+    return saturate(lowerBound * upperBound * waterDiagnosticsEnabled);
 }
 
 float3 ACESFilm(float3 color)

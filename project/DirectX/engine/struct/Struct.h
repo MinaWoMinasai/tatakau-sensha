@@ -114,6 +114,14 @@ struct Material {
 	float padding; // 16バイトアライメントのための調整
 	Matrix4x4 uvTransform;
 	float shininess;
+	float waterDiagnosticsEnabled;
+	float waterSunPathEnabled;
+	float waterAtmosphereEnabled;
+	float waterFarFlattenEnabled;
+	float waterProceduralCloudReflectionEnabled;
+	float waterDebugMode;
+	float waterAtmosphereStrength;
+	float waterFarFlattenStrength;
 	float metallic;
 	float roughness;
 	float ambientOcclusion;
@@ -168,6 +176,14 @@ inline Material MakeDefaultMaterial()
 	material.uvTransform.m[2][2] = 1.0f;
 	material.uvTransform.m[3][3] = 1.0f;
 	material.shininess = 32.0f;
+	material.waterDiagnosticsEnabled = 0.0f;
+	material.waterSunPathEnabled = 1.0f;
+	material.waterAtmosphereEnabled = 1.0f;
+	material.waterFarFlattenEnabled = 1.0f;
+	material.waterProceduralCloudReflectionEnabled = 1.0f;
+	material.waterDebugMode = 0.0f;
+	material.waterAtmosphereStrength = 1.0f;
+	material.waterFarFlattenStrength = 1.0f;
 	material.metallic = 0.0f;
 	material.roughness = 0.5f;
 	material.ambientOcclusion = 1.0f;
@@ -578,6 +594,12 @@ struct BloomParam
 	float temporalJitterEnabled; // カメラジッターの有効化
 	float temporalJitterScale; // Haltonジッターの倍率
 	float temporalJitterPadding[2];
+	float waterDiagnosticsEnabled; // Graphics Labの水面原因分離を有効化
+	float waterTaaEnabled; // 水面へ低履歴TAAを適用
+	float waterBloomEnabled; // 水面をBloom抽出へ含める
+	float waterHistoryWeight; // 水面TAAの最大history weight
+	float waterDebugMode; // 0: Final, 1: Normal, 2: Fresnel, 3: Sun, 4: Foam, 5: Reactive
+	float waterPostPadding[3];
 };
 
 struct PointLightData {
