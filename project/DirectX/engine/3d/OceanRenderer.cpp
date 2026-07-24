@@ -3,6 +3,10 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
+#include <limits>
+
+#include <DirectXPackedVector.h>
 
 #include "Camera.h"
 #include "DebugCamera.h"
@@ -21,6 +25,272 @@ constexpr D3D12_RESOURCE_STATES kShaderReadState =
 	static_cast<D3D12_RESOURCE_STATES>(
 		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+constexpr double kOceanPi = 3.14159265358979323846;
+constexpr double kOceanGravity = 9.81;
+constexpr double kPhillipsAmplitude = 0.0008;
+constexpr uint32_t kDirectionIntegrationSamples = 64;
+constexpr uint32_t kDirectionValidationSamples = 128;
+static_assert(sizeof(OceanRenderer::OceanFFTParameters) == 80);
+
+struct SpectrumEvaluation {
+	double radial = 0.0;
+	double directional = 0.0;
+	double waveNumber = 0.0;
+	double directionalNormalizationError = 0.0;
+};
+
+Vector2 NormalizeDirection(const Vector2& direction, const Vector2& fallback)
+{
+	const double lengthSquared =
+		static_cast<double>(direction.x) * direction.x +
+		static_cast<double>(direction.y) * direction.y;
+	if (lengthSquared <= 0.000001) {
+		return fallback;
+	}
+	const float inverseLength =
+		static_cast<float>(1.0 / std::sqrt(lengthSquared));
+	return { direction.x * inverseLength, direction.y * inverseLength };
+}
+
+double WrapAngle(double angle)
+{
+	return std::atan2(std::sin(angle), std::cos(angle));
+}
+
+double JonswapAlpha(const OceanRenderer::OceanFFTParameters& parameters)
+{
+	const double windSpeed = (std::max)(static_cast<double>(parameters.windSpeed), 0.1);
+	const double fetch = (std::max)(static_cast<double>(parameters.fetch), 1.0);
+	const double nondimensionalFetch =
+		(std::max)(windSpeed * windSpeed / (fetch * kOceanGravity), 1.0e-8);
+	return 0.076 * std::pow(nondimensionalFetch, 0.22);
+}
+
+double JonswapPeakAngularFrequency(
+	const OceanRenderer::OceanFFTParameters& parameters)
+{
+	const double windSpeed = (std::max)(static_cast<double>(parameters.windSpeed), 0.1);
+	const double fetch = (std::max)(static_cast<double>(parameters.fetch), 1.0);
+	return 22.0 * std::pow(
+		kOceanGravity * kOceanGravity / (windSpeed * fetch),
+		1.0 / 3.0);
+}
+
+double JonswapRadialSpectrum(
+	const OceanRenderer::OceanFFTParameters& parameters,
+	double angularFrequency)
+{
+	const double omega = (std::max)(angularFrequency, 0.0001);
+	const double omegaPeak =
+		(std::max)(JonswapPeakAngularFrequency(parameters), 0.0001);
+	const double sigma = omega <= omegaPeak ? 0.07 : 0.09;
+	const double difference = omega - omegaPeak;
+	const double peakExponent = std::exp(
+		-(difference * difference) /
+		(std::max)(2.0 * sigma * sigma * omegaPeak * omegaPeak, 0.000001));
+	const double peakEnhancement = std::pow(
+		(std::max)(static_cast<double>(parameters.gamma), 1.0),
+		peakExponent);
+	const double frequencyRatio = omegaPeak / omega;
+	const double lowDamping = std::exp(
+		-(std::max)(static_cast<double>(parameters.lowFrequencyDamping), 0.0) *
+		std::pow(frequencyRatio, 4.0));
+	const double highRatio = omega / omegaPeak;
+	const double highDamping = std::exp(
+		-(std::max)(static_cast<double>(parameters.highFrequencyDamping), 0.0) *
+		highRatio * highRatio);
+	const double spectrum =
+		JonswapAlpha(parameters) * kOceanGravity * kOceanGravity /
+		std::pow(omega, 5.0) *
+		std::exp(-1.25 * std::pow(frequencyRatio, 4.0)) *
+		peakEnhancement * lowDamping * highDamping;
+	return std::isfinite(spectrum) ? (std::max)(spectrum, 0.0) : 0.0;
+}
+
+double DonelanBeta(double frequencyRatio)
+{
+	const double ratio = (std::max)(frequencyRatio, 0.0001);
+	if (ratio < 0.95) {
+		return 2.61 * std::pow(ratio, 1.3);
+	}
+	if (ratio < 1.6) {
+		return 2.28 * std::pow(ratio, -1.3);
+	}
+	const double epsilon =
+		0.8393 * std::exp(-0.567 * std::log(ratio * ratio)) - 0.4;
+	return std::pow(10.0, epsilon);
+}
+
+double DonelanBanner(
+	const OceanRenderer::OceanFFTParameters& parameters,
+	double angularFrequency,
+	double directionOffset)
+{
+	const double omegaPeak =
+		(std::max)(JonswapPeakAngularFrequency(parameters), 0.0001);
+	const double beta =
+		(std::max)(DonelanBeta(angularFrequency / omegaPeak), 0.0001);
+	const double wrappedOffset = WrapAngle(directionOffset);
+	const double inverseCosh = 1.0 / std::cosh(
+		(std::clamp)(beta * wrappedOffset, -20.0, 20.0));
+	return 0.5 * beta /
+		(std::max)(std::tanh(beta * kOceanPi), 0.0001) *
+		inverseCosh * inverseCosh;
+}
+
+double OppositeWeight(
+	const OceanRenderer::OceanFFTParameters& parameters,
+	double directionOffset)
+{
+	const double forwardWeight = (std::clamp)(
+		0.5 + 0.5 * std::cos(WrapAngle(directionOffset)),
+		0.0,
+		1.0);
+	const double suppression = (std::clamp)(
+		static_cast<double>(parameters.oppositeWaveSuppression),
+		0.0,
+		1.0);
+	return (1.0 - suppression) +
+		suppression * forwardWeight * forwardWeight;
+}
+
+double DirectionalRaw(
+	const OceanRenderer::OceanFFTParameters& parameters,
+	double angularFrequency,
+	double absoluteAngle)
+{
+	const Vector2 windDirection = NormalizeDirection(
+		parameters.windDirection,
+		{ 1.0f, 0.0f });
+	const Vector2 swellDirection = NormalizeDirection(
+		parameters.swellDirection,
+		windDirection);
+	const double windOffset = WrapAngle(
+		absoluteAngle - std::atan2(windDirection.y, windDirection.x));
+	const double swellOffset = WrapAngle(
+		absoluteAngle - std::atan2(swellDirection.y, swellDirection.x));
+	const double frequencyRatio = angularFrequency /
+		(std::max)(JonswapPeakAngularFrequency(parameters), 0.0001);
+	const double swellAmount = (std::clamp)(
+		static_cast<double>(parameters.swellAmount),
+		0.0,
+		1.0);
+	const double swellExponent =
+		16.0 * std::pow(std::tanh(1.0 / (std::max)(frequencyRatio, 0.0001)), 2.0) *
+		swellAmount;
+	const double swellShape = std::pow(
+		(std::max)(std::abs(std::cos(0.5 * swellOffset)), 0.000001),
+		2.0 * swellExponent);
+	const double windLobe =
+		DonelanBanner(parameters, angularFrequency, windOffset) *
+		OppositeWeight(parameters, windOffset);
+	const double swellLobe =
+		DonelanBanner(parameters, angularFrequency, swellOffset) *
+		swellShape *
+		OppositeWeight(parameters, swellOffset);
+	return (1.0 - swellAmount) * windLobe + swellAmount * swellLobe;
+}
+
+double DirectionalIntegral(
+	const OceanRenderer::OceanFFTParameters& parameters,
+	double angularFrequency,
+	uint32_t sampleCount)
+{
+	const double angleStep = 2.0 * kOceanPi / sampleCount;
+	double integral = 0.0;
+	for (uint32_t index = 0; index < sampleCount; ++index) {
+		const double angle =
+			-kOceanPi + (static_cast<double>(index) + 0.5) * angleStep;
+		integral += DirectionalRaw(parameters, angularFrequency, angle);
+	}
+	return (std::max)(integral * angleStep, 0.000001);
+}
+
+SpectrumEvaluation EvaluateSpectrum(
+	const OceanRenderer::OceanFFTParameters& parameters,
+	double waveX,
+	double waveZ)
+{
+	SpectrumEvaluation result{};
+	const double waveNumber = std::sqrt(waveX * waveX + waveZ * waveZ);
+	if (waveNumber < 0.0001) {
+		return result;
+	}
+
+	if (parameters.spectrumModel ==
+		static_cast<uint32_t>(OceanRenderer::SpectrumModel::Phillips)) {
+		const double directionX = waveX / waveNumber;
+		const double directionZ = waveZ / waveNumber;
+		const Vector2 windDirection = NormalizeDirection(
+			parameters.windDirection,
+			{ 1.0f, 0.0f });
+		const double alignment =
+			directionX * windDirection.x + directionZ * windDirection.y;
+		result.directional = alignment * alignment *
+			(alignment >= 0.0 ? 1.0 : 0.07);
+		const double largestWave =
+			parameters.windSpeed * parameters.windSpeed / kOceanGravity;
+		const double k2 = waveNumber * waveNumber;
+		const double dampingLength = largestWave * 0.001;
+		result.radial =
+			kPhillipsAmplitude * parameters.amplitude *
+			std::exp(-1.0 / (std::max)(k2 * largestWave * largestWave, 0.000001)) *
+			std::exp(-k2 * dampingLength * dampingLength) /
+			(std::max)(k2 * k2, 0.000001);
+		result.waveNumber = result.radial * result.directional;
+		return result;
+	}
+
+	const double angularFrequency = std::sqrt(kOceanGravity * waveNumber);
+	const double absoluteAngle = std::atan2(waveZ, waveX);
+	const double directionIntegral = DirectionalIntegral(
+		parameters,
+		angularFrequency,
+		kDirectionIntegrationSamples);
+	result.directional =
+		DirectionalRaw(parameters, angularFrequency, absoluteAngle) /
+		directionIntegral;
+	result.directionalNormalizationError = std::abs(
+		DirectionalIntegral(
+			parameters,
+			angularFrequency,
+			kDirectionValidationSamples) /
+		directionIntegral - 1.0);
+	result.radial = JonswapRadialSpectrum(parameters, angularFrequency);
+	const double angularFrequencyDerivative =
+		0.5 * kOceanGravity / (std::max)(angularFrequency, 0.0001);
+	result.waveNumber =
+		parameters.amplitude * result.radial * result.directional *
+		angularFrequencyDerivative / waveNumber;
+	if (!std::isfinite(result.waveNumber)) {
+		result.waveNumber = 0.0;
+	}
+	return result;
+}
+
+float ExpectedHeightRms(
+	const OceanRenderer::OceanFFTParameters& parameters,
+	uint32_t resolution)
+{
+	const double deltaK =
+		2.0 * kOceanPi / (std::max)(static_cast<double>(parameters.patchLength), 1.0);
+	double variance = 0.0;
+	for (uint32_t y = 0; y < resolution; ++y) {
+		for (uint32_t x = 0; x < resolution; ++x) {
+			const int32_t centeredX =
+				static_cast<int32_t>(x) - static_cast<int32_t>(resolution / 2);
+			const int32_t centeredY =
+				static_cast<int32_t>(y) - static_cast<int32_t>(resolution / 2);
+			const SpectrumEvaluation spectrum = EvaluateSpectrum(
+				parameters,
+				centeredX * deltaK,
+				centeredY * deltaK);
+			variance += spectrum.waveNumber * deltaK * deltaK;
+		}
+	}
+	return static_cast<float>(std::sqrt((std::max)(variance, 0.0)));
+}
 }
 
 void OceanRenderer::Initialize(Model* gridModel, uint32_t environmentSrvIndex)
@@ -42,6 +312,7 @@ void OceanRenderer::Update(
 	DebugCamera& debugCamera,
 	bool useDebugCamera)
 {
+	ResolveFFTDiagnostics();
 	parameters_.time = time;
 	if (useDebugCamera) {
 		parameters_.viewProjection = debugCamera.GetViewProjectionMatrix();
@@ -66,7 +337,9 @@ void OceanRenderer::Draw()
 		return;
 	}
 
-	if (parameters_.waveSource >= 0.5f || parameters_.fftDebugMode > 0.5f) {
+	if (parameters_.waveSource >= 0.5f ||
+		parameters_.fftDebugMode > 0.5f ||
+		fftDiagnosticsRequested_) {
 		RunFFT();
 	}
 
@@ -94,6 +367,9 @@ void OceanRenderer::Draw()
 	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
 		5,
 		evolvedSpectrumDebug_.srvIndex);
+	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
+		6,
+		spectrumDebug_.srvIndex);
 	gridModel_->DrawOnlyMesh();
 }
 
@@ -203,8 +479,68 @@ void OceanRenderer::SetFFTSettings(
 	fftPaused_ = paused;
 	parameters_.fftPatchLength = clampedPatchLength;
 	parameters_.fftDebugMode =
-		static_cast<float>((std::clamp)(debugMode, 0, 7));
+		static_cast<float>((std::clamp)(debugMode, 0, 9));
 	parameters_.fftDebugScale = (std::max)(debugDisplayScale, 0.001f);
+}
+
+void OceanRenderer::SetFFTSpectrumSettings(
+	SpectrumModel model,
+	float fetch,
+	float gamma,
+	float lowFrequencyDamping,
+	float highFrequencyDamping,
+	const Vector2& swellDirection,
+	float swellAmount,
+	float oppositeWaveSuppression)
+{
+	const uint32_t spectrumModel = static_cast<uint32_t>(model);
+	const float clampedFetch = (std::clamp)(fetch, 1.0f, 10000000.0f);
+	const float clampedGamma = (std::clamp)(gamma, 1.0f, 10.0f);
+	const float clampedLowDamping =
+		(std::clamp)(lowFrequencyDamping, 0.0f, 10.0f);
+	const float clampedHighDamping =
+		(std::clamp)(highFrequencyDamping, 0.0f, 10.0f);
+	const Vector2 normalizedSwellDirection = NormalizeDirection(
+		swellDirection,
+		fftParameters_.windDirection);
+	const float clampedSwellAmount = (std::clamp)(swellAmount, 0.0f, 1.0f);
+	const float clampedOppositeSuppression =
+		(std::clamp)(oppositeWaveSuppression, 0.0f, 1.0f);
+
+	if (fftParameters_.spectrumModel != spectrumModel ||
+		std::abs(fftParameters_.fetch - clampedFetch) > 0.01f ||
+		std::abs(fftParameters_.gamma - clampedGamma) > 0.0001f ||
+		std::abs(fftParameters_.lowFrequencyDamping - clampedLowDamping) >
+			0.0001f ||
+		std::abs(fftParameters_.highFrequencyDamping - clampedHighDamping) >
+			0.0001f ||
+		std::abs(fftParameters_.swellDirection.x - normalizedSwellDirection.x) >
+			0.0001f ||
+		std::abs(fftParameters_.swellDirection.y - normalizedSwellDirection.y) >
+			0.0001f ||
+		std::abs(fftParameters_.swellAmount - clampedSwellAmount) > 0.0001f ||
+		std::abs(
+			fftParameters_.oppositeWaveSuppression -
+			clampedOppositeSuppression) > 0.0001f) {
+		fftInitialSpectrumDirty_ = true;
+		fftOutputDirty_ = true;
+	}
+
+	fftParameters_.spectrumModel = spectrumModel;
+	fftParameters_.fetch = clampedFetch;
+	fftParameters_.gamma = clampedGamma;
+	fftParameters_.lowFrequencyDamping = clampedLowDamping;
+	fftParameters_.highFrequencyDamping = clampedHighDamping;
+	fftParameters_.swellDirection = normalizedSwellDirection;
+	fftParameters_.swellAmount = clampedSwellAmount;
+	fftParameters_.oppositeWaveSuppression = clampedOppositeSuppression;
+}
+
+void OceanRenderer::RequestFFTDiagnostics()
+{
+	if (!fftDiagnosticsPending_) {
+		fftDiagnosticsRequested_ = true;
+	}
 }
 
 void OceanRenderer::SetEnvironmentSrvIndex(uint32_t environmentSrvIndex)
@@ -246,6 +582,7 @@ void OceanRenderer::InitializeFFT()
 		fftOutputPipeline_);
 
 	CreateFFTTexture(initialSpectrum_, DXGI_FORMAT_R32G32B32A32_FLOAT);
+	CreateFFTTexture(spectrumDebug_, DXGI_FORMAT_R32G32B32A32_FLOAT);
 	CreateFFTTexture(evolvedSpectrumDebug_, DXGI_FORMAT_R32G32B32A32_FLOAT);
 	for (uint32_t index = 0; index < 2; ++index) {
 		CreateFFTTexture(spectrumA_[index], DXGI_FORMAT_R32G32B32A32_FLOAT);
@@ -254,6 +591,11 @@ void OceanRenderer::InitializeFFT()
 	}
 	CreateFFTTexture(displacement_, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	CreateFFTTexture(slope_, DXGI_FORMAT_R16G16_FLOAT);
+	CreateFFTReadback(displacementReadback_, displacement_);
+	CreateFFTReadback(slopeReadback_, slope_);
+	CreateFFTReadback(evolvedSpectrumReadback_, evolvedSpectrumDebug_);
+	CreateFFTReadback(finalSpectrumReadback_, spectrumA_[0]);
+	CreateFFTReadback(spectrumDebugReadback_, spectrumDebug_);
 }
 
 void OceanRenderer::CreateFFTTexture(FFTTexture& texture, DXGI_FORMAT format)
@@ -303,6 +645,44 @@ void OceanRenderer::CreateFFTTexture(FFTTexture& texture, DXGI_FORMAT format)
 		srvManager->GetCPUDescriptorHandle(texture.uavIndex));
 }
 
+void OceanRenderer::CreateFFTReadback(
+	FFTReadback& readback,
+	const FFTTexture& source)
+{
+	DirectXCommon* dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
+	const D3D12_RESOURCE_DESC sourceDescription =
+		source.resource->GetDesc();
+	dxCommon->GetDevice()->GetCopyableFootprints(
+		&sourceDescription,
+		0,
+		1,
+		0,
+		&readback.footprint,
+		nullptr,
+		nullptr,
+		&readback.totalBytes);
+
+	D3D12_HEAP_PROPERTIES heapProperties{};
+	heapProperties.Type = D3D12_HEAP_TYPE_READBACK;
+	D3D12_RESOURCE_DESC bufferDescription{};
+	bufferDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	bufferDescription.Width = readback.totalBytes;
+	bufferDescription.Height = 1;
+	bufferDescription.DepthOrArraySize = 1;
+	bufferDescription.MipLevels = 1;
+	bufferDescription.SampleDesc.Count = 1;
+	bufferDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	const HRESULT hr = dxCommon->GetDevice()->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&bufferDescription,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(&readback.resource));
+	assert(SUCCEEDED(hr));
+}
+
 void OceanRenderer::CreateComputePipeline(
 	const std::wstring& shaderPath,
 	Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipeline)
@@ -329,7 +709,8 @@ void OceanRenderer::RunFFT()
 	if (fftPaused_ &&
 		fftHasOutput_ &&
 		!fftInitialSpectrumDirty_ &&
-		!fftOutputDirty_) {
+		!fftOutputDirty_ &&
+		!fftDiagnosticsRequested_) {
 		return;
 	}
 
@@ -341,12 +722,16 @@ void OceanRenderer::RunFFT()
 
 	if (fftInitialSpectrumDirty_) {
 		Transition(initialSpectrum_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		Transition(spectrumDebug_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		BindComputePipeline(spectrumInitializePipeline_.Get());
 		commandList->SetComputeRoot32BitConstants(1, 4, zeroConstants, 0);
 		BindComputeUav(5, initialSpectrum_);
+		BindComputeUav(6, spectrumDebug_);
 		commandList->Dispatch(groupCount, groupCount, 1);
 		InsertUAVBarrier(initialSpectrum_);
+		InsertUAVBarrier(spectrumDebug_);
 		Transition(initialSpectrum_, kShaderReadState);
+		Transition(spectrumDebug_, kShaderReadState);
 		fftInitialSpectrumDirty_ = false;
 	}
 
@@ -431,6 +816,298 @@ void OceanRenderer::RunFFT()
 	Transition(slope_, kShaderReadState);
 	fftHasOutput_ = true;
 	fftOutputDirty_ = false;
+	if (fftDiagnosticsRequested_) {
+		QueueFFTDiagnosticsReadback();
+	}
+}
+
+void OceanRenderer::QueueFFTDiagnosticsReadback()
+{
+	CopyFFTTextureToReadback(displacement_, displacementReadback_);
+	CopyFFTTextureToReadback(slope_, slopeReadback_);
+	CopyFFTTextureToReadback(
+		evolvedSpectrumDebug_,
+		evolvedSpectrumReadback_);
+	CopyFFTTextureToReadback(
+		spectrumA_[finalSpectrumIndex_],
+		finalSpectrumReadback_);
+	CopyFFTTextureToReadback(spectrumDebug_, spectrumDebugReadback_);
+	diagnosticsParameters_ = fftParameters_;
+	fftDiagnosticsRequested_ = false;
+	fftDiagnosticsPending_ = true;
+}
+
+void OceanRenderer::ResolveFFTDiagnostics()
+{
+	if (!fftDiagnosticsPending_) {
+		return;
+	}
+
+	const D3D12_RANGE displacementRange = {
+		0,
+		static_cast<SIZE_T>(displacementReadback_.totalBytes),
+	};
+	const D3D12_RANGE evolvedRange = {
+		0,
+		static_cast<SIZE_T>(evolvedSpectrumReadback_.totalBytes),
+	};
+	const D3D12_RANGE slopeRange = {
+		0,
+		static_cast<SIZE_T>(slopeReadback_.totalBytes),
+	};
+	const D3D12_RANGE finalRange = {
+		0,
+		static_cast<SIZE_T>(finalSpectrumReadback_.totalBytes),
+	};
+	const D3D12_RANGE debugRange = {
+		0,
+		static_cast<SIZE_T>(spectrumDebugReadback_.totalBytes),
+	};
+	void* displacementMapped = nullptr;
+	void* evolvedMapped = nullptr;
+	void* slopeMapped = nullptr;
+	void* finalMapped = nullptr;
+	void* debugMapped = nullptr;
+	HRESULT hr = displacementReadback_.resource->Map(
+		0,
+		&displacementRange,
+		&displacementMapped);
+	assert(SUCCEEDED(hr));
+	hr = slopeReadback_.resource->Map(
+		0,
+		&slopeRange,
+		&slopeMapped);
+	assert(SUCCEEDED(hr));
+	hr = evolvedSpectrumReadback_.resource->Map(
+		0,
+		&evolvedRange,
+		&evolvedMapped);
+	assert(SUCCEEDED(hr));
+	hr = finalSpectrumReadback_.resource->Map(
+		0,
+		&finalRange,
+		&finalMapped);
+	assert(SUCCEEDED(hr));
+	hr = spectrumDebugReadback_.resource->Map(
+		0,
+		&debugRange,
+		&debugMapped);
+	assert(SUCCEEDED(hr));
+	const auto* displacementData =
+		static_cast<const uint8_t*>(displacementMapped);
+	const auto* evolvedData = static_cast<const uint8_t*>(evolvedMapped);
+	const auto* slopeData = static_cast<const uint8_t*>(slopeMapped);
+	const auto* finalData = static_cast<const uint8_t*>(finalMapped);
+	const auto* debugData = static_cast<const uint8_t*>(debugMapped);
+
+	OceanFFTDiagnostics diagnostics{};
+	diagnostics.sampleTime = diagnosticsParameters_.time;
+	diagnostics.heightMinimum = (std::numeric_limits<float>::max)();
+	diagnostics.heightMaximum = (std::numeric_limits<float>::lowest)();
+	double heightSquaredSum = 0.0;
+	double imaginarySquaredSum = 0.0;
+	double hermitianErrorSquaredSum = 0.0;
+	double hermitianMagnitudeSquaredSum = 0.0;
+	float maximumDirectionalError = 0.0f;
+	uint32_t validHeightCount = 0;
+	uint32_t validImaginaryCount = 0;
+	uint32_t validHermitianCount = 0;
+
+	auto readFloat4 = [](
+		const uint8_t* data,
+		const FFTReadback& readback,
+		uint32_t x,
+		uint32_t y) {
+		const uint8_t* row =
+			data + static_cast<size_t>(y) * readback.footprint.Footprint.RowPitch;
+		return reinterpret_cast<const float*>(
+			row + static_cast<size_t>(x) * sizeof(float) * 4);
+	};
+
+	const float inverseTransformScale =
+		1.0f / static_cast<float>(kFFTSize * kFFTSize);
+	for (uint32_t y = 0; y < kFFTSize; ++y) {
+		const uint8_t* displacementRow =
+			displacementData +
+			static_cast<size_t>(y) *
+			displacementReadback_.footprint.Footprint.RowPitch;
+		const uint8_t* slopeRow =
+			slopeData +
+			static_cast<size_t>(y) *
+			slopeReadback_.footprint.Footprint.RowPitch;
+		for (uint32_t x = 0; x < kFFTSize; ++x) {
+			const auto* displacementPixel =
+				reinterpret_cast<const uint16_t*>(
+					displacementRow + static_cast<size_t>(x) * sizeof(uint16_t) * 4);
+			float displacementValues[4]{};
+			for (uint32_t component = 0; component < 4; ++component) {
+				displacementValues[component] =
+					DirectX::PackedVector::XMConvertHalfToFloat(
+						displacementPixel[component]);
+				if (!std::isfinite(displacementValues[component])) {
+					++diagnostics.invalidValueCount;
+				}
+			}
+			const auto* slopePixel = reinterpret_cast<const uint16_t*>(
+				slopeRow + static_cast<size_t>(x) * sizeof(uint16_t) * 2);
+			for (uint32_t component = 0; component < 2; ++component) {
+				const float slopeValue =
+					DirectX::PackedVector::XMConvertHalfToFloat(
+						slopePixel[component]);
+				if (!std::isfinite(slopeValue)) {
+					++diagnostics.invalidValueCount;
+				}
+			}
+			const float height = displacementValues[1];
+			if (std::isfinite(height)) {
+				heightSquaredSum += static_cast<double>(height) * height;
+				diagnostics.heightMinimum =
+					(std::min)(diagnostics.heightMinimum, height);
+				diagnostics.heightMaximum =
+					(std::max)(diagnostics.heightMaximum, height);
+				++validHeightCount;
+			}
+
+			const float* finalPixel = readFloat4(
+				finalData,
+				finalSpectrumReadback_,
+				x,
+				y);
+			const float imaginaryHeight =
+				finalPixel[1] * inverseTransformScale;
+			for (uint32_t component = 0; component < 4; ++component) {
+				if (!std::isfinite(finalPixel[component])) {
+					++diagnostics.invalidValueCount;
+				}
+			}
+			if (std::isfinite(imaginaryHeight)) {
+				imaginarySquaredSum +=
+					static_cast<double>(imaginaryHeight) * imaginaryHeight;
+				++validImaginaryCount;
+			}
+
+			const float* evolvedPixel = readFloat4(
+				evolvedData,
+				evolvedSpectrumReadback_,
+				x,
+				y);
+			const uint32_t oppositeX = (kFFTSize - x) % kFFTSize;
+			const uint32_t oppositeY = (kFFTSize - y) % kFFTSize;
+			const float* oppositePixel = readFloat4(
+				evolvedData,
+				evolvedSpectrumReadback_,
+				oppositeX,
+				oppositeY);
+			for (uint32_t component = 0; component < 4; ++component) {
+				if (!std::isfinite(evolvedPixel[component])) {
+					++diagnostics.invalidValueCount;
+				}
+			}
+			if (std::isfinite(evolvedPixel[0]) &&
+				std::isfinite(evolvedPixel[1]) &&
+				std::isfinite(oppositePixel[0]) &&
+				std::isfinite(oppositePixel[1])) {
+				const double realError =
+					static_cast<double>(evolvedPixel[0]) - oppositePixel[0];
+				const double imaginaryError =
+					static_cast<double>(evolvedPixel[1]) + oppositePixel[1];
+				hermitianErrorSquaredSum +=
+					realError * realError + imaginaryError * imaginaryError;
+				hermitianMagnitudeSquaredSum +=
+					static_cast<double>(evolvedPixel[0]) * evolvedPixel[0] +
+					static_cast<double>(evolvedPixel[1]) * evolvedPixel[1];
+				++validHermitianCount;
+			}
+
+			const float* debugPixel = readFloat4(
+				debugData,
+				spectrumDebugReadback_,
+				x,
+				y);
+			for (uint32_t component = 0; component < 4; ++component) {
+				if (!std::isfinite(debugPixel[component])) {
+					++diagnostics.invalidValueCount;
+				}
+			}
+			if (std::isfinite(debugPixel[2])) {
+				maximumDirectionalError =
+					(std::max)(maximumDirectionalError, std::abs(debugPixel[2]));
+			}
+		}
+	}
+
+	if (validHeightCount > 0) {
+		diagnostics.heightRms = static_cast<float>(
+			std::sqrt(heightSquaredSum / validHeightCount));
+	} else {
+		diagnostics.heightMinimum = 0.0f;
+		diagnostics.heightMaximum = 0.0f;
+	}
+	diagnostics.significantWaveHeight = 4.0f * diagnostics.heightRms;
+	if (validImaginaryCount > 0) {
+		diagnostics.ifftImaginaryResidual = static_cast<float>(
+			std::sqrt(imaginarySquaredSum / validImaginaryCount));
+	}
+	if (validHermitianCount > 0) {
+		diagnostics.hermitianSymmetryError = static_cast<float>(
+			std::sqrt(
+				hermitianErrorSquaredSum /
+				(std::max)(hermitianMagnitudeSquaredSum, 1.0e-30)));
+	}
+	diagnostics.directionalNormalizationError = maximumDirectionalError;
+	diagnostics.expectedRms64 =
+		ExpectedHeightRms(diagnosticsParameters_, 64);
+	diagnostics.expectedRms128 =
+		ExpectedHeightRms(diagnosticsParameters_, 128);
+	diagnostics.expectedRms256 =
+		ExpectedHeightRms(diagnosticsParameters_, 256);
+	const float minimumExpected = (std::min)(
+		diagnostics.expectedRms64,
+		(std::min)(diagnostics.expectedRms128, diagnostics.expectedRms256));
+	const float maximumExpected = (std::max)(
+		diagnostics.expectedRms64,
+		(std::max)(diagnostics.expectedRms128, diagnostics.expectedRms256));
+	diagnostics.resolutionRelativeSpread =
+		maximumExpected > 0.000001f
+		? (maximumExpected - minimumExpected) / maximumExpected
+		: 0.0f;
+	diagnostics.jonswapAlpha =
+		static_cast<float>(JonswapAlpha(diagnosticsParameters_));
+	diagnostics.peakAngularFrequency = static_cast<float>(
+		JonswapPeakAngularFrequency(diagnosticsParameters_));
+	diagnostics.valid = true;
+	fftDiagnostics_ = diagnostics;
+
+	const D3D12_RANGE emptyWriteRange = { 0, 0 };
+	displacementReadback_.resource->Unmap(0, &emptyWriteRange);
+	slopeReadback_.resource->Unmap(0, &emptyWriteRange);
+	evolvedSpectrumReadback_.resource->Unmap(0, &emptyWriteRange);
+	finalSpectrumReadback_.resource->Unmap(0, &emptyWriteRange);
+	spectrumDebugReadback_.resource->Unmap(0, &emptyWriteRange);
+	fftDiagnosticsPending_ = false;
+}
+
+void OceanRenderer::CopyFFTTextureToReadback(
+	FFTTexture& source,
+	FFTReadback& destination)
+{
+	Transition(source, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	D3D12_TEXTURE_COPY_LOCATION sourceLocation{};
+	sourceLocation.pResource = source.resource.Get();
+	sourceLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	sourceLocation.SubresourceIndex = 0;
+	D3D12_TEXTURE_COPY_LOCATION destinationLocation{};
+	destinationLocation.pResource = destination.resource.Get();
+	destinationLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	destinationLocation.PlacedFootprint = destination.footprint;
+	Object3dCommon::GetInstance()->GetDxCommon()->GetList()->CopyTextureRegion(
+		&destinationLocation,
+		0,
+		0,
+		0,
+		&sourceLocation,
+		nullptr);
+	Transition(source, kShaderReadState);
 }
 
 void OceanRenderer::BindComputePipeline(ID3D12PipelineState* pipeline)
