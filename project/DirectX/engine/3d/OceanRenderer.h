@@ -39,6 +39,17 @@ public:
 		float significantWaveHeight = 0.0f;
 		float heightMinimum = 0.0f;
 		float heightMaximum = 0.0f;
+		float targetSpectrumVariance = 0.0f;
+		float legacyCoefficientVariance = 0.0f;
+		float h0PredictedVariance = 0.0f;
+		float evolvedParsevalVariance = 0.0f;
+		float ifftFloatVariance = 0.0f;
+		float rgba16fVariance = 0.0f;
+		float gaussianRealSquared = 0.0f;
+		float gaussianImaginarySquared = 0.0f;
+		float gaussianMagnitudeSquared = 0.0f;
+		float h0MagnitudeSquared = 0.0f;
+		float evolvedMagnitudeSquared = 0.0f;
 		float hermitianSymmetryError = 0.0f;
 		float ifftImaginaryResidual = 0.0f;
 		float directionalNormalizationError = 0.0f;
@@ -48,7 +59,15 @@ public:
 		float resolutionRelativeSpread = 0.0f;
 		float jonswapAlpha = 0.0f;
 		float peakAngularFrequency = 0.0f;
+		float seedRmsMean = 0.0f;
+		float seedRmsStandardDeviation = 0.0f;
+		float seedRmsMinimum = 0.0f;
+		float seedRmsMaximum = 0.0f;
+		float seedMeanRelativeError = 0.0f;
+		float seedMeanAbsoluteRelativeError = 0.0f;
 		uint32_t invalidValueCount = 0;
+		uint32_t gaussianSampleCount = 0;
+		uint32_t selfConjugateBinCount = 0;
 	};
 
 	struct alignas(16) OceanParameters {
@@ -220,6 +239,7 @@ private:
 	FFTTexture slope_;
 	FFTReadback displacementReadback_;
 	FFTReadback slopeReadback_;
+	FFTReadback initialSpectrumReadback_;
 	FFTReadback evolvedSpectrumReadback_;
 	FFTReadback finalSpectrumReadback_;
 	FFTReadback spectrumDebugReadback_;
