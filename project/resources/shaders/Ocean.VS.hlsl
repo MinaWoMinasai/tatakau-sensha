@@ -1,5 +1,8 @@
 #include "OceanCommon.hlsli"
 
+Texture2D<float4> gFFTDisplacement : register(t1);
+SamplerState gOceanSampler : register(s0);
+
 OceanVertexOutput main(OceanVertexInput input)
 {
     OceanVertexOutput output;
@@ -80,6 +83,18 @@ OceanVertexOutput main(OceanVertexInput input)
         worldXZ.x + choppyOffset.x,
         gBaseHeight + displacement,
         worldXZ.y + choppyOffset.y);
+    if (gWaveSource >= 0.5f)
+    {
+        float2 fftUv = worldXZ / max(gFFTPatchLength, 0.001f);
+        float3 fftDisplacement =
+            gFFTDisplacement.SampleLevel(gOceanSampler, fftUv, 0.0f).xyz;
+        fftDisplacement *= farFlatten;
+        worldPosition = float3(
+            worldXZ.x + fftDisplacement.x,
+            gBaseHeight + fftDisplacement.y,
+            worldXZ.y + fftDisplacement.z);
+        grad = 0.0f.xx;
+    }
 
     output.position = mul(float4(worldPosition, 1.0f), gViewProjection);
     output.texcoord = input.texcoord;

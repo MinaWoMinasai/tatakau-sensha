@@ -608,6 +608,21 @@
     <None Include="resources\shaders\OceanCommon.hlsli">
       <Filter>DirectX\shaders</Filter>
     </None>
+    <None Include="resources\shaders\OceanFFTCommon.hlsli">
+      <Filter>DirectX\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\OceanSpectrumInitialize.CS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\OceanSpectrumEvolve.CS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\OceanFFT.CS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\OceanFFTOutput.CS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </None>
     <None Include="resources\shaders\Particle.hlsli">
       <Filter>DirectX\shaders</Filter>
     </None>
