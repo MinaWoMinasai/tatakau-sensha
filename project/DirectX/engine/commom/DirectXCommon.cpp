@@ -102,6 +102,7 @@ void DirectXCommon::CreateShaderCommon(
 		(pso.shaderType_ == Object ||
 		 pso.shaderType_ == Skinning ||
 		 pso.shaderType_ == Skybox ||
+		 pso.shaderType_ == Ocean ||
 		 pso.shaderType_ == Trail ||
 		 pso.shaderType_ == ModelParticle);
 
@@ -170,6 +171,11 @@ void DirectXCommon::CreateShaderCommon(
 		pso.psFilePath_ = usesSceneNormalTarget
 			? L"resources/shaders/Skybox.Scene.PS.hlsl"
 			: L"resources/shaders/Skybox.PS.hlsl";
+		break;
+	case Ocean:
+		pso.root_.InitializeForOcean();
+		pso.vsFilePath_ = L"resources/shaders/Ocean.VS.hlsl";
+		pso.psFilePath_ = L"resources/shaders/Ocean.PS.hlsl";
 		break;
 	case Skinning:
 		pso.root_.InitalizeForObject();
@@ -391,6 +397,7 @@ void DirectXCommon::CreateShader()
 	objectPSO_None_HDR.shaderType_ = Object;
 	objectPSO_Alpha_HDR.shaderType_ = Object;
 	objectPSO_Add_HDR.shaderType_ = Object;
+	oceanPSO_HDR.shaderType_ = Ocean;
 	psoParticle_.shaderType_ = Particle;
 	psoModelParticle_.shaderType_ = ModelParticle;
 	psoModelParticle_HDR.shaderType_ = ModelParticle;
@@ -469,6 +476,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(objectPSO_None_HDR, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(objectPSO_Alpha_HDR, kNormal, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(objectPSO_Add_HDR, kAdd, false, kSceneRenderTargetFormat);
+	CreateShaderCommon(oceanPSO_HDR, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(psoParticle_, kAdd);
 	CreateShaderCommon(psoModelParticle_, kAdd);
 	CreateShaderCommon(psoModelParticle_HDR, kAdd, false, kSceneRenderTargetFormat);

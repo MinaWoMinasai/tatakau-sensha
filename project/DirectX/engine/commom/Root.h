@@ -18,6 +18,7 @@ public:
 	void InitalizeForObjectBe();
 	void InitalizeForTrail();
 	void InitializeForSkybox();
+	void InitializeForOcean();
 	void InitializeForComputeParticle();
 
 	void Create(Microsoft::WRL::ComPtr<ID3D12Device>& device);
