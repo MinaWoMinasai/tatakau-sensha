@@ -101,9 +101,12 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     // A normalized 2D IFFT computes (1 / N^2) sum(H[k] exp(i k x)).
     // Store N^2 times the physical Fourier-series coefficient so the final
     // explicit normalization preserves the continuous-spectrum discretization.
+    // The complex Gaussian has E[|xi|^2] = 2. The 0.25 factor gives
+    // E[|h0(k)|^2] = 0.5 P(k) deltaK^2; adding the +/-k evolution pair then
+    // produces exactly one physical P(k) integral in expectation.
     float inverseTransformScale = float(gFFTSize * gFFTSize);
     float amplitude =
-        sqrt(max(waveNumberSpectrum, 0.0f) * 0.5f) *
+        sqrt(max(waveNumberSpectrum, 0.0f) * 0.25f) *
         deltaK * inverseTransformScale;
 
     uint2 oppositeCoordinate = uint2(
@@ -121,7 +124,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         oppositeDirectionalSpectrum,
         oppositeDirectionalNormalizationError);
     float oppositeAmplitude =
-        sqrt(max(oppositeWaveNumberSpectrum, 0.0f) * 0.5f) *
+        sqrt(max(oppositeWaveNumberSpectrum, 0.0f) * 0.25f) *
         deltaK * inverseTransformScale;
 
     float2 h0 = OceanGaussian(coordinate) * amplitude;
