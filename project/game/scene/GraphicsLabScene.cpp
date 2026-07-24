@@ -218,7 +218,9 @@ void GraphicsLabScene::Initialize()
 		}
 	}
 	TextureManager::GetInstance()->LoadTexture("resources/skybox.dds");
-	uint32_t pbrEnvironmentSrv = TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
+	const uint32_t skyboxEnvironmentSrv =
+		TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
+	uint32_t pbrEnvironmentSrv = skyboxEnvironmentSrv;
 	if (loadLookDevSamples_ || loadSkinnedPbrSamples_) {
 		ApplyPbrEnvironmentDebugMode();
 		pbrEnvironmentSrv = pbrEnvironment_.GetEnvironmentSrvIndex();
@@ -249,6 +251,11 @@ void GraphicsLabScene::Initialize()
 		waterDebugMode_,
 		waterAtmosphereStrength_,
 		waterFarFlattenStrength_);
+
+	oceanRenderer_ = std::make_unique<OceanRenderer>();
+	oceanRenderer_->Initialize(
+		ModelManager::GetInstance()->FindModel(kArcBlancOceanGridModelName),
+		skyboxEnvironmentSrv);
 
 	if (showSandBed_) {
 		sandBed_ = std::make_unique<Object3d>();
@@ -496,6 +503,7 @@ void GraphicsLabScene::Initialize()
 	}
 
 	UpdateCamera();
+	UpdateDedicatedOcean();
 	if (sandBed_) {
 		sandBed_->Update();
 	}
@@ -550,6 +558,7 @@ void GraphicsLabScene::Update()
 		waterAtmosphereStrength_,
 		waterFarFlattenStrength_);
 	river_->Update();
+	UpdateDedicatedOcean();
 	if (sandBed_) {
 		sandBed_->Update();
 	}
@@ -674,8 +683,48 @@ void GraphicsLabScene::DrawPostEffect3D()
 		}
 	}
 
-	Object3dCommon::GetInstance()->PreDraw(kNormal);
-	river_->Draw();
+	if (useDedicatedOceanRenderer_ && oceanRenderer_) {
+		oceanRenderer_->Draw();
+	} else {
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		river_->Draw();
+	}
+}
+
+void GraphicsLabScene::UpdateDedicatedOcean()
+{
+	if (!oceanRenderer_ || !camera_ || !debugCamera_) {
+		return;
+	}
+
+	const int clampedMode = (std::clamp)(
+		oceanMode_,
+		static_cast<int>(OceanRenderer::Mode::Calm),
+		static_cast<int>(OceanRenderer::Mode::ArcBlanc));
+	oceanRenderer_->SetMode(static_cast<OceanRenderer::Mode>(clampedMode));
+	oceanRenderer_->SetTint(riverTint_);
+	oceanRenderer_->SetBaseHeight(-1.15f);
+	oceanRenderer_->SetWind(
+		oceanWindDirection_,
+		oceanWindSpeed_,
+		oceanChoppiness_);
+	oceanRenderer_->SetSun(
+		waterLightIntensity_,
+		oceanSunSpecularStrength_,
+		oceanArtisticSunLaneStrength_);
+	oceanRenderer_->SetDiagnostics(
+		waterSunPathEnabled_,
+		waterAtmosphereEnabled_,
+		waterFarFlattenEnabled_,
+		waterProceduralCloudReflectionEnabled_,
+		waterDebugMode_,
+		waterAtmosphereStrength_,
+		waterFarFlattenStrength_);
+	oceanRenderer_->Update(
+		sceneTime_,
+		*camera_,
+		*debugCamera_,
+		Object3dCommon::GetInstance()->GetIsDebugCamera());
 }
 
 GraphicsLabScene::LabObject GraphicsLabScene::MakeObject(
@@ -866,6 +915,24 @@ void GraphicsLabScene::DrawDebugWindow()
 	ImGui::Text("Shift+D: Debug camera  MMB: Orbit  Shift+MMB: Pan  Wheel: Zoom");
 	ImGui::Checkbox("Pause water", &pauseWater_);
 	if (ImGui::CollapsingHeader("Water isolation", ImGuiTreeNodeFlags_DefaultOpen)) {
+		const char* oceanRenderers[] = {
+			"Legacy Object3d ocean",
+			"Dedicated OceanRenderer"
+		};
+		int rendererMode = useDedicatedOceanRenderer_ ? 1 : 0;
+		if (ImGui::Combo(
+			"Ocean renderer",
+			&rendererMode,
+			oceanRenderers,
+			IM_ARRAYSIZE(oceanRenderers))) {
+			useDedicatedOceanRenderer_ = rendererMode == 1;
+		}
+		const char* oceanModes[] = { "Calm", "Naval", "Arc Blanc" };
+		ImGui::Combo(
+			"Ocean mode",
+			&oceanMode_,
+			oceanModes,
+			IM_ARRAYSIZE(oceanModes));
 		ImGui::Checkbox("Water TAA", &waterTaaEnabled_);
 		ImGui::SameLine();
 		ImGui::Checkbox("Water bloom", &waterBloomEnabled_);
@@ -894,6 +961,36 @@ void GraphicsLabScene::DrawDebugWindow()
 			0.02f,
 			0.0f,
 			1.0f);
+		ImGui::DragFloat2(
+			"Ocean wind direction",
+			&oceanWindDirection_.x,
+			0.01f,
+			-1.0f,
+			1.0f);
+		ImGui::DragFloat(
+			"Ocean wind speed",
+			&oceanWindSpeed_,
+			0.10f,
+			0.0f,
+			40.0f);
+		ImGui::DragFloat(
+			"Ocean choppiness",
+			&oceanChoppiness_,
+			0.02f,
+			0.0f,
+			8.0f);
+		ImGui::DragFloat(
+			"Physical GGX sun specular",
+			&oceanSunSpecularStrength_,
+			0.01f,
+			0.0f,
+			4.0f);
+		ImGui::DragFloat(
+			"Artistic sun lane",
+			&oceanArtisticSunLaneStrength_,
+			0.01f,
+			0.0f,
+			4.0f);
 		const char* waterDebugModes[] = {
 			"Final",
 			"Normal",

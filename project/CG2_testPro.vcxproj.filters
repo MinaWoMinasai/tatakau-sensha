@@ -186,6 +186,9 @@
     <ClCompile Include="DirectX\engine\3d\Object3d.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\OceanRenderer.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="DirectX\engine\3d\ModelCommon.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -332,6 +335,12 @@
     <FxCompile Include="resources\shaders\Object3d.VS.hlsl">
       <Filter>DirectX\shaders</Filter>
     </FxCompile>
+    <FxCompile Include="resources\shaders\Ocean.PS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\Ocean.VS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </FxCompile>
     <FxCompile Include="resources\shaders\Particle.PS.hlsl">
       <Filter>DirectX\shaders</Filter>
     </FxCompile>
@@ -431,6 +440,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\3d\Object3d.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\3d\OceanRenderer.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\3d\ModelCommon.h">
@@ -591,6 +603,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Object3d.hlsli">
+      <Filter>DirectX\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\OceanCommon.hlsli">
       <Filter>DirectX\shaders</Filter>
     </None>
     <None Include="resources\shaders\Particle.hlsli">
