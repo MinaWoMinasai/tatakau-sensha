@@ -737,6 +737,20 @@ void GraphicsLabScene::UpdateDedicatedOcean()
 		fftPaused_,
 		fftDebugMode_,
 		fftDebugDisplayScale_);
+	const int clampedSpectrumModel = (std::clamp)(
+		fftSpectrumModel_,
+		static_cast<int>(OceanRenderer::SpectrumModel::Phillips),
+		static_cast<int>(
+			OceanRenderer::SpectrumModel::JonswapDonelanBanner));
+	oceanRenderer_->SetFFTSpectrumSettings(
+		static_cast<OceanRenderer::SpectrumModel>(clampedSpectrumModel),
+		fftFetch_,
+		fftGamma_,
+		fftLowFrequencyDamping_,
+		fftHighFrequencyDamping_,
+		fftSwellDirection_,
+		fftSwellAmount_,
+		fftOppositeWaveSuppression_);
 	oceanRenderer_->Update(
 		sceneTime_,
 		*camera_,
@@ -989,7 +1003,7 @@ void GraphicsLabScene::DrawDebugWindow()
 			0.0f,
 			1.0f);
 		ImGui::DragFloat2(
-			"Ocean wind direction",
+			"Main wind direction (unit)",
 			&oceanWindDirection_.x,
 			0.01f,
 			-1.0f,
@@ -999,20 +1013,30 @@ void GraphicsLabScene::DrawDebugWindow()
 			&oceanWindSpeed_,
 			0.10f,
 			0.0f,
-			40.0f);
+			40.0f,
+			"%.2f m/s");
 		ImGui::DragFloat(
 			"Ocean choppiness",
 			&oceanChoppiness_,
 			0.02f,
 			0.0f,
 			8.0f);
+		const char* fftSpectrumModels[] = {
+			"Phillips",
+			"JONSWAP + Donelan-Banner"
+		};
+		ImGui::Combo(
+			"FFT spectrum",
+			&fftSpectrumModel_,
+			fftSpectrumModels,
+			IM_ARRAYSIZE(fftSpectrumModels));
 		ImGui::DragFloat(
-			"FFT amplitude",
+			"FFT energy scale (unitless)",
 			&fftAmplitude_,
-			0.00002f,
+			0.01f,
 			0.0f,
-			0.02f,
-			"%.6f");
+			8.0f,
+			"%.3f");
 		ImGui::DragFloat(
 			"FFT patch length",
 			&fftPatchLength_,
@@ -1021,14 +1045,64 @@ void GraphicsLabScene::DrawDebugWindow()
 			2048.0f,
 			"%.0f m");
 		ImGui::InputInt("FFT seed", &fftSeed_);
+		ImGui::DragFloat(
+			"JONSWAP fetch",
+			&fftFetch_,
+			1000.0f,
+			1.0f,
+			10000000.0f,
+			"%.0f m");
+		ImGui::DragFloat(
+			"JONSWAP gamma (unitless)",
+			&fftGamma_,
+			0.01f,
+			1.0f,
+			10.0f,
+			"%.2f");
+		ImGui::DragFloat(
+			"Low frequency damping (unitless)",
+			&fftLowFrequencyDamping_,
+			0.002f,
+			0.0f,
+			10.0f,
+			"%.3f");
+		ImGui::DragFloat(
+			"High frequency damping (unitless)",
+			&fftHighFrequencyDamping_,
+			0.002f,
+			0.0f,
+			10.0f,
+			"%.3f");
+		ImGui::DragFloat2(
+			"Swell direction (unit)",
+			&fftSwellDirection_.x,
+			0.01f,
+			-1.0f,
+			1.0f);
+		ImGui::DragFloat(
+			"Swell amount",
+			&fftSwellAmount_,
+			0.01f,
+			0.0f,
+			1.0f,
+			"%.2f");
+		ImGui::DragFloat(
+			"Opposite-wave suppression",
+			&fftOppositeWaveSuppression_,
+			0.01f,
+			0.0f,
+			1.0f,
+			"%.2f");
 		const char* fftDebugModes[] = {
 			"None",
-			"Initial spectrum",
+			"Radial spectrum",
+			"Directional spectrum",
+			"Initial complex spectrum",
 			"Evolved spectrum",
-			"Height",
+			"Final height",
 			"Displacement X",
 			"Displacement Z",
-			"Slope X/Z",
+			"Final slope",
 			"Final normal"
 		};
 		ImGui::Combo(
@@ -1042,6 +1116,52 @@ void GraphicsLabScene::DrawDebugWindow()
 			0.05f,
 			0.01f,
 			64.0f);
+		if (oceanRenderer_) {
+			if (ImGui::Button("Run FFT diagnostics") &&
+				!oceanRenderer_->IsFFTDiagnosticsPending()) {
+				oceanRenderer_->RequestFFTDiagnostics();
+			}
+			if (oceanRenderer_->IsFFTDiagnosticsPending()) {
+				ImGui::SameLine();
+				ImGui::TextUnformatted("Pending...");
+			}
+			const auto& diagnostics = oceanRenderer_->GetFFTDiagnostics();
+			if (diagnostics.valid) {
+				ImGui::Text(
+					"Height RMS: %.6f m   Hs: %.6f m",
+					diagnostics.heightRms,
+					diagnostics.significantWaveHeight);
+				ImGui::Text(
+					"Height min/max: %.6f / %.6f m",
+					diagnostics.heightMinimum,
+					diagnostics.heightMaximum);
+				ImGui::Text(
+					"Hermitian error: %.3e",
+					diagnostics.hermitianSymmetryError);
+				ImGui::Text(
+					"IFFT imaginary RMS: %.3e m",
+					diagnostics.ifftImaginaryResidual);
+				ImGui::Text(
+					"Directional norm error: %.3e",
+					diagnostics.directionalNormalizationError);
+				ImGui::Text(
+					"Expected RMS N=64/128/256: %.5f / %.5f / %.5f m",
+					diagnostics.expectedRms64,
+					diagnostics.expectedRms128,
+					diagnostics.expectedRms256);
+				ImGui::Text(
+					"Resolution spread: %.3f%%",
+					diagnostics.resolutionRelativeSpread * 100.0f);
+				ImGui::Text(
+					"JONSWAP alpha: %.6f   peak omega: %.4f rad/s",
+					diagnostics.jonswapAlpha,
+					diagnostics.peakAngularFrequency);
+				ImGui::Text(
+					"NaN/Inf values: %u   sample time: %.3f s",
+					diagnostics.invalidValueCount,
+					diagnostics.sampleTime);
+			}
+		}
 		ImGui::DragFloat(
 			"Physical GGX sun specular",
 			&oceanSunSpecularStrength_,
