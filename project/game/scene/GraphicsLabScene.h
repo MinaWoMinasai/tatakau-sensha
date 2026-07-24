@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -100,7 +101,7 @@ private:
 	bool useDedicatedOceanRenderer_ = true;
 	int oceanMode_ = static_cast<int>(OceanRenderer::Mode::ArcBlanc);
 	int oceanWaveSource_ =
-		static_cast<int>(OceanRenderer::WaveSource::Procedural);
+		static_cast<int>(OceanRenderer::WaveSource::FFTThreeCascades);
 	bool waterTaaEnabled_ = true;
 	bool waterBloomEnabled_ = true;
 	bool waterSunPathEnabled_ = true;
@@ -122,7 +123,8 @@ private:
 	float fftPatchLength_ = 256.0f;
 	int fftSeed_ = 1337;
 	int fftSpectrumModel_ =
-		static_cast<int>(OceanRenderer::SpectrumModel::Phillips);
+		static_cast<int>(
+			OceanRenderer::SpectrumModel::JonswapDonelanBanner);
 	float fftFetch_ = 100000.0f;
 	float fftGamma_ = 3.3f;
 	float fftLowFrequencyDamping_ = 0.0f;
@@ -130,6 +132,36 @@ private:
 	Vector2 fftSwellDirection_ = { 0.60f, 0.80f };
 	float fftSwellAmount_ = 0.20f;
 	float fftOppositeWaveSuppression_ = 0.85f;
+	int fftCascadeBandMode_ =
+		static_cast<int>(OceanRenderer::CascadeBandMode::HardCutoff);
+	float fftCascadeTransitionWidth_ = 0.25f;
+	int fftCascadeDisplayMode_ = 0;
+	int fftDebugCascadeIndex_ = 0;
+	std::array<
+		OceanRenderer::OceanCascadeSettings,
+		OceanRenderer::kFFTCascadeCount> fftCascadeSettings_ = {
+			OceanRenderer::OceanCascadeSettings{
+				true,
+				256.0f,
+				0.0f,
+				2.35619449f,
+				1.0f,
+				1.0f },
+			OceanRenderer::OceanCascadeSettings{
+				true,
+				16.0f,
+				2.35619449f,
+				9.42477796f,
+				1.0f,
+				1.0f },
+			OceanRenderer::OceanCascadeSettings{
+				true,
+				4.0f,
+				9.42477796f,
+				142.1722540f,
+				0.0f,
+				1.0f },
+		};
 	int fftDebugMode_ = 0;
 	float fftDebugDisplayScale_ = 1.0f;
 	bool showSandBed_ = false;

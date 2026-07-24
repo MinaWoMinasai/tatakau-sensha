@@ -31,6 +31,14 @@ cbuffer OceanParameters : register(b0)
     float gFFTPatchLength;
     float gFFTDebugMode;
     float gFFTDebugScale;
+    float4 gCascadePatchLengths;
+    float4 gCascadeDisplacementContributions;
+    float4 gCascadeSlopeContributions;
+    float4 gCascadeEnabled;
+    float gCascadeDisplayMode;
+    float gFFTDebugPatchLength;
+    float gFFTDebugCascade;
+    float gCascadePadding;
 };
 
 struct OceanVertexInput

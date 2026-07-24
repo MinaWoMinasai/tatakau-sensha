@@ -33,11 +33,19 @@ constexpr double kOceanGravity = 9.81;
 constexpr double kPhillipsAmplitude = 0.0008;
 constexpr uint32_t kDirectionIntegrationSamples = 64;
 constexpr uint32_t kDirectionValidationSamples = 128;
-static_assert(sizeof(OceanRenderer::OceanFFTParameters) == 80);
+constexpr float kLargeMediumBoundary =
+	static_cast<float>(12.0 * kOceanPi / 16.0);
+constexpr float kMediumSmallBoundary =
+	static_cast<float>(12.0 * kOceanPi / 4.0);
+constexpr float kSmallNyquist =
+	static_cast<float>(1.4142135623730951 * kOceanPi * 128.0 / 4.0);
+constexpr uint32_t kCascadeSeedStride = 1009;
+static_assert(sizeof(OceanRenderer::OceanFFTParameters) == 112);
 
 struct SpectrumEvaluation {
 	double radial = 0.0;
 	double directional = 0.0;
+	double bandWeight = 1.0;
 	double waveNumber = 0.0;
 	double directionalNormalizationError = 0.0;
 };
@@ -209,6 +217,68 @@ double DirectionalIntegral(
 	return (std::max)(integral * angleStep, 0.000001);
 }
 
+double CascadeBandWeight(
+	const OceanRenderer::OceanFFTParameters& parameters,
+	double waveNumber)
+{
+	if (parameters.cascadeIndex >= OceanRenderer::kFFTCascadeCount) {
+		return 1.0;
+	}
+
+	if (parameters.bandMode == static_cast<uint32_t>(
+		OceanRenderer::CascadeBandMode::HardCutoff)) {
+		if (parameters.cascadeIndex == 0) {
+			return waveNumber < parameters.maximumWaveNumber ? 1.0 : 0.0;
+		}
+		if (parameters.cascadeIndex == 1) {
+			return waveNumber >= parameters.minimumWaveNumber &&
+				waveNumber < parameters.maximumWaveNumber
+				? 1.0
+				: 0.0;
+		}
+		const double radialNyquist =
+			std::sqrt(2.0) * kOceanPi * parameters.fftSize /
+			(std::max)(static_cast<double>(parameters.patchLength), 0.001);
+		const bool usesFullNyquist =
+			parameters.maximumWaveNumber >= radialNyquist - 0.0001;
+		return waveNumber >= parameters.minimumWaveNumber &&
+			(usesFullNyquist ||
+				waveNumber < parameters.maximumWaveNumber)
+			? 1.0
+			: 0.0;
+	}
+
+	const double halfWidth =
+		(std::max)(static_cast<double>(parameters.bandTransitionWidth), 0.0001) *
+		0.5;
+	auto smoothStep = [](double minimum, double maximum, double value) {
+		const double t = (std::clamp)(
+			(value - minimum) / (std::max)(maximum - minimum, 0.000001),
+			0.0,
+			1.0);
+		return t * t * (3.0 - 2.0 * t);
+	};
+	const double lowerWeight = parameters.cascadeIndex == 0
+		? 1.0
+		: smoothStep(
+			parameters.minimumWaveNumber - halfWidth,
+			parameters.minimumWaveNumber + halfWidth,
+			waveNumber);
+	const double radialNyquist =
+		std::sqrt(2.0) * kOceanPi * parameters.fftSize /
+		(std::max)(static_cast<double>(parameters.patchLength), 0.001);
+	const bool usesFullNyquist =
+		parameters.cascadeIndex == 2 &&
+		parameters.maximumWaveNumber >= radialNyquist - 0.0001;
+	const double upperWeight = usesFullNyquist
+		? 1.0
+		: 1.0 - smoothStep(
+			parameters.maximumWaveNumber - halfWidth,
+			parameters.maximumWaveNumber + halfWidth,
+			waveNumber);
+	return (std::clamp)(lowerWeight * upperWeight, 0.0, 1.0);
+}
+
 SpectrumEvaluation EvaluateSpectrum(
 	const OceanRenderer::OceanFFTParameters& parameters,
 	double waveX,
@@ -241,6 +311,8 @@ SpectrumEvaluation EvaluateSpectrum(
 			std::exp(-k2 * dampingLength * dampingLength) /
 			(std::max)(k2 * k2, 0.000001);
 		result.waveNumber = result.radial * result.directional;
+		result.bandWeight = CascadeBandWeight(parameters, waveNumber);
+		result.waveNumber *= result.bandWeight;
 		return result;
 	}
 
@@ -265,6 +337,8 @@ SpectrumEvaluation EvaluateSpectrum(
 	result.waveNumber =
 		parameters.amplitude * result.radial * result.directional *
 		angularFrequencyDerivative / waveNumber;
+	result.bandWeight = CascadeBandWeight(parameters, waveNumber);
+	result.waveNumber *= result.bandWeight;
 	if (!std::isfinite(result.waveNumber)) {
 		result.waveNumber = 0.0;
 	}
@@ -340,6 +414,7 @@ struct SeedEnsembleResult {
 	float maximum = 0.0f;
 	float meanRelativeError = 0.0f;
 	float meanAbsoluteRelativeError = 0.0f;
+	float meanVariance = 0.0f;
 	uint32_t invalidValueCount = 0;
 };
 
@@ -434,11 +509,13 @@ SeedEnsembleResult EvaluateSeedEnsemble(
 		return result;
 	}
 	double sum = 0.0;
+	double varianceSum = 0.0;
 	double relativeErrorSum = 0.0;
 	result.minimum = (std::numeric_limits<float>::max)();
 	result.maximum = (std::numeric_limits<float>::lowest)();
 	for (double rms : rmsValues) {
 		sum += rms;
+		varianceSum += rms * rms;
 		result.minimum = (std::min)(result.minimum, static_cast<float>(rms));
 		result.maximum = (std::max)(result.maximum, static_cast<float>(rms));
 		if (physicalExpectedRms > 0.000001) {
@@ -462,7 +539,72 @@ SeedEnsembleResult EvaluateSeedEnsemble(
 		: 0.0f;
 	result.meanAbsoluteRelativeError = static_cast<float>(
 		relativeErrorSum / rmsValues.size());
+	result.meanVariance = static_cast<float>(
+		varianceSum / rmsValues.size());
 	return result;
+}
+
+struct BandPartitionMetrics {
+	float overlapEnergy = 0.0f;
+	float missingEnergy = 0.0f;
+};
+
+BandPartitionMetrics EvaluateBandPartition(
+	const OceanRenderer::OceanFFTParameters& baseParameters,
+	const std::array<
+		OceanRenderer::OceanFFTParameters,
+		OceanRenderer::kFFTCascadeCount>& cascadeParameters)
+{
+	constexpr uint32_t radialSamples = 192;
+	constexpr uint32_t angularSamples = 64;
+	const double minimumWaveNumber = 2.0 * kOceanPi / 256.0;
+	const double maximumWaveNumber = kSmallNyquist;
+	const double logMinimum = std::log(minimumWaveNumber);
+	const double logMaximum = std::log(maximumWaveNumber);
+	const double logStep =
+		(logMaximum - logMinimum) / radialSamples;
+	const double angleStep = 2.0 * kOceanPi / angularSamples;
+	OceanRenderer::OceanFFTParameters unfiltered = baseParameters;
+	unfiltered.cascadeIndex = OceanRenderer::kFFTCascadeCount;
+
+	double overlapEnergy = 0.0;
+	double missingEnergy = 0.0;
+	for (uint32_t radialIndex = 0;
+		radialIndex < radialSamples;
+		++radialIndex) {
+		const double waveNumber = std::exp(
+			logMinimum + (static_cast<double>(radialIndex) + 0.5) * logStep);
+		const double radialWidth = waveNumber * logStep;
+		for (uint32_t angularIndex = 0;
+			angularIndex < angularSamples;
+			++angularIndex) {
+			const double angle =
+				-kOceanPi +
+				(static_cast<double>(angularIndex) + 0.5) * angleStep;
+			const SpectrumEvaluation spectrum = EvaluateSpectrum(
+				unfiltered,
+				waveNumber * std::cos(angle),
+				waveNumber * std::sin(angle));
+			double weightSum = 0.0;
+			for (const auto& parameters : cascadeParameters) {
+				weightSum += CascadeBandWeight(parameters, waveNumber);
+			}
+			const double energyElement =
+				spectrum.waveNumber *
+				waveNumber *
+				radialWidth *
+				angleStep;
+			overlapEnergy +=
+				(std::max)(weightSum - 1.0, 0.0) * energyElement;
+			missingEnergy +=
+				(std::max)(1.0 - weightSum, 0.0) * energyElement;
+		}
+	}
+
+	return {
+		static_cast<float>(overlapEnergy),
+		static_cast<float>(missingEnergy),
+	};
 }
 }
 
@@ -528,21 +670,48 @@ void OceanRenderer::Draw()
 	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
 		1,
 		environmentSrvIndex_);
+	std::array<OceanCascade*, kFFTCascadeCount> renderCascades{};
+	if (parameters_.waveSource >=
+		static_cast<float>(WaveSource::FFTThreeCascades) - 0.5f) {
+		for (uint32_t index = 0; index < kFFTCascadeCount; ++index) {
+			renderCascades[index] = &cascades_[index];
+		}
+	} else {
+		renderCascades.fill(&singleCascade_);
+	}
 	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
 		2,
-		displacement_.srvIndex);
+		renderCascades[0]->displacement.srvIndex);
 	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
 		3,
-		slope_.srvIndex);
+		renderCascades[0]->slope.srvIndex);
 	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
 		4,
-		initialSpectrum_.srvIndex);
+		renderCascades[1]->displacement.srvIndex);
 	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
 		5,
-		evolvedSpectrumDebug_.srvIndex);
+		renderCascades[1]->slope.srvIndex);
 	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
 		6,
-		spectrumDebug_.srvIndex);
+		renderCascades[2]->displacement.srvIndex);
+	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
+		7,
+		renderCascades[2]->slope.srvIndex);
+	const uint32_t selectedDebugCascade =
+		parameters_.waveSource >=
+			static_cast<float>(WaveSource::FFTThreeCascades) - 0.5f
+		? (std::min)(debugCascadeIndex_, kFFTCascadeCount - 1)
+		: 0;
+	OceanCascade* debugCascade = renderCascades[selectedDebugCascade];
+	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
+		8,
+		debugCascade->initialSpectrum.srvIndex);
+	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
+		9,
+		debugCascade->evolvedSpectrumDebug.srvIndex);
+	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
+		10,
+		debugCascade->spectrumDebug.srvIndex);
 	gridModel_->DrawOnlyMesh();
 }
 
@@ -554,6 +723,7 @@ void OceanRenderer::SetMode(Mode mode)
 void OceanRenderer::SetWaveSource(WaveSource source)
 {
 	parameters_.waveSource = static_cast<float>(source);
+	ApplyBaseParametersToCascades();
 }
 
 void OceanRenderer::SetTint(const Vector4& tint)
@@ -581,10 +751,10 @@ void OceanRenderer::SetWind(
 	if (std::abs(fftParameters_.windDirection.x - normalizedDirection.x) > 0.0001f ||
 		std::abs(fftParameters_.windDirection.y - normalizedDirection.y) > 0.0001f ||
 		std::abs(fftParameters_.windSpeed - normalizedSpeed) > 0.0001f) {
-		fftInitialSpectrumDirty_ = true;
+		MarkAllInitialSpectraDirty();
 	}
 	if (std::abs(fftParameters_.choppiness - normalizedChoppiness) > 0.0001f) {
-		fftOutputDirty_ = true;
+		MarkAllOutputsDirty();
 	}
 
 	parameters_.windDirection = normalizedDirection;
@@ -593,6 +763,7 @@ void OceanRenderer::SetWind(
 	fftParameters_.windDirection = normalizedDirection;
 	fftParameters_.windSpeed = normalizedSpeed;
 	fftParameters_.choppiness = normalizedChoppiness;
+	ApplyBaseParametersToCascades();
 }
 
 void OceanRenderer::SetSun(
@@ -639,10 +810,10 @@ void OceanRenderer::SetFFTSettings(
 	if (std::abs(fftParameters_.amplitude - clampedAmplitude) > 0.000001f ||
 		std::abs(fftParameters_.patchLength - clampedPatchLength) > 0.0001f ||
 		fftParameters_.seed != seed) {
-		fftInitialSpectrumDirty_ = true;
+		MarkAllInitialSpectraDirty();
 	}
 	if (std::abs(fftParameters_.time - time) > 0.0001f) {
-		fftOutputDirty_ = true;
+		MarkAllOutputsDirty();
 	}
 
 	fftParameters_.time = time;
@@ -652,8 +823,9 @@ void OceanRenderer::SetFFTSettings(
 	fftPaused_ = paused;
 	parameters_.fftPatchLength = clampedPatchLength;
 	parameters_.fftDebugMode =
-		static_cast<float>((std::clamp)(debugMode, 0, 9));
+		static_cast<float>((std::clamp)(debugMode, 0, 10));
 	parameters_.fftDebugScale = (std::max)(debugDisplayScale, 0.001f);
+	ApplyBaseParametersToCascades();
 }
 
 void OceanRenderer::SetFFTSpectrumSettings(
@@ -695,8 +867,8 @@ void OceanRenderer::SetFFTSpectrumSettings(
 		std::abs(
 			fftParameters_.oppositeWaveSuppression -
 			clampedOppositeSuppression) > 0.0001f) {
-		fftInitialSpectrumDirty_ = true;
-		fftOutputDirty_ = true;
+		MarkAllInitialSpectraDirty();
+		MarkAllOutputsDirty();
 	}
 
 	fftParameters_.spectrumModel = spectrumModel;
@@ -707,6 +879,61 @@ void OceanRenderer::SetFFTSpectrumSettings(
 	fftParameters_.swellDirection = normalizedSwellDirection;
 	fftParameters_.swellAmount = clampedSwellAmount;
 	fftParameters_.oppositeWaveSuppression = clampedOppositeSuppression;
+	ApplyBaseParametersToCascades();
+}
+
+void OceanRenderer::SetFFTCascadeSettings(
+	CascadeBandMode bandMode,
+	float transitionWidth,
+	const std::array<OceanCascadeSettings, kFFTCascadeCount>& settings,
+	int displayMode,
+	int debugCascadeIndex)
+{
+	const float clampedTransitionWidth =
+		(std::clamp)(transitionWidth, 0.001f, 8.0f);
+	bool spectrumChanged =
+		cascadeBandMode_ != bandMode ||
+		std::abs(cascadeTransitionWidth_ - clampedTransitionWidth) > 0.0001f;
+	cascadeBandMode_ = bandMode;
+	cascadeTransitionWidth_ = clampedTransitionWidth;
+
+	for (uint32_t index = 0; index < kFFTCascadeCount; ++index) {
+		OceanCascadeSettings normalized = settings[index];
+		normalized.patchLength =
+			(std::clamp)(normalized.patchLength, 1.0f, 2048.0f);
+		normalized.minimumWaveNumber =
+			(std::max)(normalized.minimumWaveNumber, 0.0f);
+		normalized.maximumWaveNumber = (std::max)(
+			normalized.maximumWaveNumber,
+			normalized.minimumWaveNumber + 0.0001f);
+		normalized.displacementContribution =
+			(std::clamp)(normalized.displacementContribution, 0.0f, 4.0f);
+		normalized.slopeContribution =
+			(std::clamp)(normalized.slopeContribution, 0.0f, 4.0f);
+		const OceanCascadeSettings& previous = cascadeSettings_[index];
+		if (std::abs(previous.patchLength - normalized.patchLength) > 0.0001f ||
+			std::abs(
+				previous.minimumWaveNumber -
+				normalized.minimumWaveNumber) > 0.0001f ||
+			std::abs(
+				previous.maximumWaveNumber -
+				normalized.maximumWaveNumber) > 0.0001f) {
+			spectrumChanged = true;
+		}
+		cascadeSettings_[index] = normalized;
+	}
+	if (spectrumChanged) {
+		for (auto& cascade : cascades_) {
+			cascade.initialSpectrumDirty = true;
+			cascade.outputDirty = true;
+		}
+	}
+
+	cascadeDisplayMode_ =
+		static_cast<uint32_t>((std::clamp)(displayMode, 0, 3));
+	debugCascadeIndex_ =
+		static_cast<uint32_t>((std::clamp)(debugCascadeIndex, 0, 2));
+	ApplyBaseParametersToCascades();
 }
 
 void OceanRenderer::RequestFFTDiagnostics()
@@ -731,14 +958,6 @@ void OceanRenderer::UploadParameters()
 void OceanRenderer::InitializeFFT()
 {
 	DirectXCommon* dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
-	fftParameterResource_ = dxCommon->CreateBufferResource(
-		AlignConstantBufferSize(sizeof(OceanFFTParameters)));
-	fftParameterResource_->Map(
-		0,
-		nullptr,
-		reinterpret_cast<void**>(&fftParameterData_));
-	*fftParameterData_ = fftParameters_;
-
 	fftComputeRoot_.InitializeForOceanCompute();
 	fftComputeRoot_.Create(dxCommon->GetDevice());
 	CreateComputePipeline(
@@ -754,22 +973,251 @@ void OceanRenderer::InitializeFFT()
 		L"resources/shaders/OceanFFTOutput.CS.hlsl",
 		fftOutputPipeline_);
 
-	CreateFFTTexture(initialSpectrum_, DXGI_FORMAT_R32G32B32A32_FLOAT);
-	CreateFFTTexture(spectrumDebug_, DXGI_FORMAT_R32G32B32A32_FLOAT);
-	CreateFFTTexture(evolvedSpectrumDebug_, DXGI_FORMAT_R32G32B32A32_FLOAT);
-	for (uint32_t index = 0; index < 2; ++index) {
-		CreateFFTTexture(spectrumA_[index], DXGI_FORMAT_R32G32B32A32_FLOAT);
-		CreateFFTTexture(spectrumB_[index], DXGI_FORMAT_R32G32B32A32_FLOAT);
-		CreateFFTTexture(spectrumC_[index], DXGI_FORMAT_R32G32B32A32_FLOAT);
+	const OceanCascadeSettings singleSettings = {
+		true,
+		256.0f,
+		0.0f,
+		1000000.0f,
+		1.0f,
+		1.0f,
+	};
+	cascadeSettings_[0] = {
+		true,
+		256.0f,
+		0.0f,
+		kLargeMediumBoundary,
+		1.0f,
+		1.0f,
+	};
+	cascadeSettings_[1] = {
+		true,
+		16.0f,
+		kLargeMediumBoundary,
+		kMediumSmallBoundary,
+		1.0f,
+		1.0f,
+	};
+	cascadeSettings_[2] = {
+		true,
+		4.0f,
+		kMediumSmallBoundary,
+		kSmallNyquist,
+		0.0f,
+		1.0f,
+	};
+	InitializeCascade(
+		singleCascade_,
+		singleSettings,
+		kFFTCascadeCount,
+		fftParameters_.seed);
+	for (uint32_t index = 0; index < kFFTCascadeCount; ++index) {
+		InitializeCascade(
+			cascades_[index],
+			cascadeSettings_[index],
+			index,
+			fftParameters_.seed + index * kCascadeSeedStride);
 	}
-	CreateFFTTexture(displacement_, DXGI_FORMAT_R16G16B16A16_FLOAT);
-	CreateFFTTexture(slope_, DXGI_FORMAT_R16G16_FLOAT);
-	CreateFFTReadback(displacementReadback_, displacement_);
-	CreateFFTReadback(slopeReadback_, slope_);
-	CreateFFTReadback(initialSpectrumReadback_, initialSpectrum_);
-	CreateFFTReadback(evolvedSpectrumReadback_, evolvedSpectrumDebug_);
-	CreateFFTReadback(finalSpectrumReadback_, spectrumA_[0]);
-	CreateFFTReadback(spectrumDebugReadback_, spectrumDebug_);
+	ApplyBaseParametersToCascades();
+	InitializeGpuTiming();
+}
+
+void OceanRenderer::InitializeCascade(
+	OceanCascade& cascade,
+	const OceanCascadeSettings& settings,
+	uint32_t cascadeIndex,
+	uint32_t seed)
+{
+	DirectXCommon* dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
+	cascade.settings = settings;
+	cascade.parameters = fftParameters_;
+	cascade.parameters.patchLength = settings.patchLength;
+	cascade.parameters.minimumWaveNumber = settings.minimumWaveNumber;
+	cascade.parameters.maximumWaveNumber = settings.maximumWaveNumber;
+	cascade.parameters.bandTransitionWidth = cascadeTransitionWidth_;
+	cascade.parameters.bandMode =
+		static_cast<uint32_t>(cascadeBandMode_);
+	cascade.parameters.cascadeIndex = cascadeIndex;
+	cascade.parameters.seed = seed;
+	cascade.parameterResource = dxCommon->CreateBufferResource(
+		AlignConstantBufferSize(sizeof(OceanFFTParameters)));
+	cascade.parameterResource->Map(
+		0,
+		nullptr,
+		reinterpret_cast<void**>(&cascade.parameterData));
+	*cascade.parameterData = cascade.parameters;
+
+	CreateFFTTexture(
+		cascade.initialSpectrum,
+		DXGI_FORMAT_R32G32B32A32_FLOAT);
+	CreateFFTTexture(
+		cascade.spectrumDebug,
+		DXGI_FORMAT_R32G32B32A32_FLOAT);
+	CreateFFTTexture(
+		cascade.evolvedSpectrumDebug,
+		DXGI_FORMAT_R32G32B32A32_FLOAT);
+	for (uint32_t index = 0; index < 2; ++index) {
+		CreateFFTTexture(
+			cascade.spectrumA[index],
+			DXGI_FORMAT_R32G32B32A32_FLOAT);
+		CreateFFTTexture(
+			cascade.spectrumB[index],
+			DXGI_FORMAT_R32G32B32A32_FLOAT);
+		CreateFFTTexture(
+			cascade.spectrumC[index],
+			DXGI_FORMAT_R32G32B32A32_FLOAT);
+	}
+	CreateFFTTexture(
+		cascade.displacement,
+		DXGI_FORMAT_R16G16B16A16_FLOAT);
+	CreateFFTTexture(cascade.slope, DXGI_FORMAT_R16G16_FLOAT);
+	CreateFFTReadback(
+		cascade.displacementReadback,
+		cascade.displacement);
+	CreateFFTReadback(cascade.slopeReadback, cascade.slope);
+	CreateFFTReadback(
+		cascade.initialSpectrumReadback,
+		cascade.initialSpectrum);
+	CreateFFTReadback(
+		cascade.evolvedSpectrumReadback,
+		cascade.evolvedSpectrumDebug);
+	CreateFFTReadback(
+		cascade.finalSpectrumReadback,
+		cascade.spectrumA[0]);
+	CreateFFTReadback(
+		cascade.spectrumDebugReadback,
+		cascade.spectrumDebug);
+}
+
+void OceanRenderer::ApplyBaseParametersToCascades()
+{
+	auto applyBase = [this](
+		OceanCascade& cascade,
+		const OceanCascadeSettings& settings,
+		uint32_t cascadeIndex,
+		uint32_t seed) {
+		cascade.settings = settings;
+		cascade.parameters.fftSize = fftParameters_.fftSize;
+		cascade.parameters.time = fftParameters_.time;
+		cascade.parameters.amplitude = fftParameters_.amplitude;
+		cascade.parameters.windDirection = fftParameters_.windDirection;
+		cascade.parameters.windSpeed = fftParameters_.windSpeed;
+		cascade.parameters.choppiness = fftParameters_.choppiness;
+		cascade.parameters.seed = seed;
+		cascade.parameters.spectrumModel = fftParameters_.spectrumModel;
+		cascade.parameters.fetch = fftParameters_.fetch;
+		cascade.parameters.gamma = fftParameters_.gamma;
+		cascade.parameters.lowFrequencyDamping =
+			fftParameters_.lowFrequencyDamping;
+		cascade.parameters.highFrequencyDamping =
+			fftParameters_.highFrequencyDamping;
+		cascade.parameters.swellDirection =
+			fftParameters_.swellDirection;
+		cascade.parameters.swellAmount = fftParameters_.swellAmount;
+		cascade.parameters.oppositeWaveSuppression =
+			fftParameters_.oppositeWaveSuppression;
+		cascade.parameters.patchLength = settings.patchLength;
+		cascade.parameters.minimumWaveNumber =
+			settings.minimumWaveNumber;
+		cascade.parameters.maximumWaveNumber =
+			settings.maximumWaveNumber;
+		cascade.parameters.bandTransitionWidth =
+			cascadeTransitionWidth_;
+		cascade.parameters.bandMode =
+			static_cast<uint32_t>(cascadeBandMode_);
+		cascade.parameters.cascadeIndex = cascadeIndex;
+	};
+
+	OceanCascadeSettings singleSettings = singleCascade_.settings;
+	singleSettings.patchLength = fftParameters_.patchLength;
+	applyBase(
+		singleCascade_,
+		singleSettings,
+		kFFTCascadeCount,
+		fftParameters_.seed);
+	for (uint32_t index = 0; index < kFFTCascadeCount; ++index) {
+		applyBase(
+			cascades_[index],
+			cascadeSettings_[index],
+			index,
+			fftParameters_.seed + index * kCascadeSeedStride);
+	}
+
+	const bool useThree =
+		parameters_.waveSource >=
+		static_cast<float>(WaveSource::FFTThreeCascades) - 0.5f;
+	if (useThree) {
+		parameters_.cascadePatchLengths = {
+			cascadeSettings_[0].patchLength,
+			cascadeSettings_[1].patchLength,
+			cascadeSettings_[2].patchLength,
+			0.0f,
+		};
+		parameters_.cascadeDisplacementContributions = {
+			cascadeSettings_[0].displacementContribution,
+			cascadeSettings_[1].displacementContribution,
+			cascadeSettings_[2].displacementContribution,
+			0.0f,
+		};
+		parameters_.cascadeSlopeContributions = {
+			cascadeSettings_[0].slopeContribution,
+			cascadeSettings_[1].slopeContribution,
+			cascadeSettings_[2].slopeContribution,
+			0.0f,
+		};
+		parameters_.cascadeEnabled = {
+			cascadeSettings_[0].enabled ? 1.0f : 0.0f,
+			cascadeSettings_[1].enabled ? 1.0f : 0.0f,
+			cascadeSettings_[2].enabled ? 1.0f : 0.0f,
+			0.0f,
+		};
+		parameters_.cascadeDisplayMode =
+			static_cast<float>(cascadeDisplayMode_);
+		parameters_.fftDebugCascade =
+			static_cast<float>(debugCascadeIndex_);
+		parameters_.fftDebugPatchLength =
+			cascadeSettings_[debugCascadeIndex_].patchLength;
+	} else {
+		parameters_.cascadePatchLengths = {
+			fftParameters_.patchLength,
+			fftParameters_.patchLength,
+			fftParameters_.patchLength,
+			0.0f,
+		};
+		parameters_.cascadeDisplacementContributions = {
+			1.0f,
+			0.0f,
+			0.0f,
+			0.0f,
+		};
+		parameters_.cascadeSlopeContributions = {
+			1.0f,
+			0.0f,
+			0.0f,
+			0.0f,
+		};
+		parameters_.cascadeEnabled = { 1.0f, 0.0f, 0.0f, 0.0f };
+		parameters_.cascadeDisplayMode = 0.0f;
+		parameters_.fftDebugCascade = 0.0f;
+		parameters_.fftDebugPatchLength = fftParameters_.patchLength;
+	}
+}
+
+void OceanRenderer::MarkAllInitialSpectraDirty()
+{
+	singleCascade_.initialSpectrumDirty = true;
+	singleCascade_.outputDirty = true;
+	for (auto& cascade : cascades_) {
+		cascade.initialSpectrumDirty = true;
+		cascade.outputDirty = true;
+	}
+}
+
+void OceanRenderer::MarkAllOutputsDirty()
+{
+	singleCascade_.outputDirty = true;
+	for (auto& cascade : cascades_) {
+		cascade.outputDirty = true;
+	}
 }
 
 void OceanRenderer::CreateFFTTexture(FFTTexture& texture, DXGI_FORMAT format)
@@ -878,73 +1326,245 @@ void OceanRenderer::CreateComputePipeline(
 	assert(SUCCEEDED(hr));
 }
 
-void OceanRenderer::RunFFT()
+void OceanRenderer::InitializeGpuTiming()
 {
-	if (fftPaused_ &&
-		fftHasOutput_ &&
-		!fftInitialSpectrumDirty_ &&
-		!fftOutputDirty_ &&
-		!fftDiagnosticsRequested_) {
+	DirectXCommon* dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
+	D3D12_QUERY_HEAP_DESC queryDescription{};
+	queryDescription.Count = kFFTCascadeCount * 2;
+	queryDescription.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+	HRESULT hr = dxCommon->GetDevice()->CreateQueryHeap(
+		&queryDescription,
+		IID_PPV_ARGS(&fftTimestampQueryHeap_));
+	assert(SUCCEEDED(hr));
+
+	D3D12_HEAP_PROPERTIES heapProperties{};
+	heapProperties.Type = D3D12_HEAP_TYPE_READBACK;
+	D3D12_RESOURCE_DESC bufferDescription{};
+	bufferDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	bufferDescription.Width =
+		sizeof(uint64_t) * kFFTCascadeCount * 2;
+	bufferDescription.Height = 1;
+	bufferDescription.DepthOrArraySize = 1;
+	bufferDescription.MipLevels = 1;
+	bufferDescription.SampleDesc.Count = 1;
+	bufferDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	hr = dxCommon->GetDevice()->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&bufferDescription,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(&fftTimestampReadback_));
+	assert(SUCCEEDED(hr));
+
+	hr = dxCommon->GetQueue()->GetTimestampFrequency(
+		&fftTimestampFrequency_);
+	assert(SUCCEEDED(hr));
+}
+
+void OceanRenderer::BeginCascadeGpuTiming(uint32_t queryIndex)
+{
+	Object3dCommon::GetInstance()->GetDxCommon()->GetList()->EndQuery(
+		fftTimestampQueryHeap_.Get(),
+		D3D12_QUERY_TYPE_TIMESTAMP,
+		queryIndex);
+}
+
+void OceanRenderer::EndCascadeGpuTiming(uint32_t queryIndex)
+{
+	Object3dCommon::GetInstance()->GetDxCommon()->GetList()->EndQuery(
+		fftTimestampQueryHeap_.Get(),
+		D3D12_QUERY_TYPE_TIMESTAMP,
+		queryIndex);
+}
+
+void OceanRenderer::QueueGpuTimingReadback(uint32_t queryCount)
+{
+	fftTimestampQueryCount_ = queryCount;
+	Object3dCommon::GetInstance()->GetDxCommon()->GetList()->
+		ResolveQueryData(
+			fftTimestampQueryHeap_.Get(),
+			D3D12_QUERY_TYPE_TIMESTAMP,
+			0,
+			queryCount,
+			fftTimestampReadback_.Get(),
+			0);
+}
+
+void OceanRenderer::ResolveGpuTimings()
+{
+	pendingGpuTimes_.fill(0.0f);
+	if (fftTimestampQueryCount_ < 2 ||
+		fftTimestampFrequency_ == 0) {
 		return;
 	}
 
-	*fftParameterData_ = fftParameters_;
+	const D3D12_RANGE readRange = {
+		0,
+		static_cast<SIZE_T>(
+			sizeof(uint64_t) * fftTimestampQueryCount_),
+	};
+	void* mappedData = nullptr;
+	const HRESULT hr = fftTimestampReadback_->Map(
+		0,
+		&readRange,
+		&mappedData);
+	assert(SUCCEEDED(hr));
+	const auto* timestamps =
+		static_cast<const uint64_t*>(mappedData);
+	const uint32_t timingCount =
+		(std::min)(
+			fftTimestampQueryCount_ / 2,
+			kFFTCascadeCount);
+	for (uint32_t index = 0; index < timingCount; ++index) {
+		const uint64_t start = timestamps[index * 2];
+		const uint64_t end = timestamps[index * 2 + 1];
+		if (end >= start) {
+			pendingGpuTimes_[index] = static_cast<float>(
+				static_cast<double>(end - start) * 1000.0 /
+				static_cast<double>(fftTimestampFrequency_));
+		}
+		if (diagnosticsThreeCascades_ &&
+			!cascadeSettings_[index].enabled) {
+			pendingGpuTimes_[index] = 0.0f;
+		}
+	}
+	const D3D12_RANGE emptyWriteRange = { 0, 0 };
+	fftTimestampReadback_->Unmap(0, &emptyWriteRange);
+}
+
+void OceanRenderer::RunFFT()
+{
+	const bool useThree =
+		parameters_.waveSource >=
+		static_cast<float>(WaveSource::FFTThreeCascades) - 0.5f;
+	auto cascadeNeedsWork = [](const OceanCascade& cascade) {
+		return !cascade.hasOutput ||
+			cascade.initialSpectrumDirty ||
+			cascade.outputDirty;
+	};
+	bool needsWork = useThree
+		? false
+		: cascadeNeedsWork(singleCascade_);
+	if (useThree) {
+		for (uint32_t index = 0; index < kFFTCascadeCount; ++index) {
+			needsWork = needsWork ||
+				!cascades_[index].hasOutput ||
+				(cascadeSettings_[index].enabled &&
+					cascadeNeedsWork(cascades_[index]));
+		}
+	}
+	if (fftPaused_ && !needsWork && !fftDiagnosticsRequested_) {
+		return;
+	}
+
+	diagnosticsThreeCascades_ = useThree;
+	if (useThree) {
+		for (uint32_t index = 0; index < kFFTCascadeCount; ++index) {
+			if (fftDiagnosticsRequested_) {
+				BeginCascadeGpuTiming(index * 2);
+			}
+			if (cascadeSettings_[index].enabled ||
+				!cascades_[index].hasOutput) {
+				RunCascadeFFT(cascades_[index]);
+			}
+			if (fftDiagnosticsRequested_) {
+				EndCascadeGpuTiming(index * 2 + 1);
+			}
+		}
+		if (fftDiagnosticsRequested_) {
+			for (uint32_t index = 0; index < kFFTCascadeCount; ++index) {
+				if (cascadeSettings_[index].enabled) {
+					QueueFFTDiagnosticsReadback(cascades_[index]);
+				}
+			}
+			QueueGpuTimingReadback(kFFTCascadeCount * 2);
+		}
+	} else {
+		if (fftDiagnosticsRequested_) {
+			BeginCascadeGpuTiming(0);
+		}
+		RunCascadeFFT(singleCascade_);
+		if (fftDiagnosticsRequested_) {
+			EndCascadeGpuTiming(1);
+			QueueFFTDiagnosticsReadback(singleCascade_);
+			QueueGpuTimingReadback(2);
+		}
+	}
+
+	if (fftDiagnosticsRequested_) {
+		fftDiagnosticsRequested_ = false;
+		fftDiagnosticsPending_ = true;
+	}
+}
+
+void OceanRenderer::RunCascadeFFT(OceanCascade& cascade)
+{
+	*cascade.parameterData = cascade.parameters;
 	auto commandList = Object3dCommon::GetInstance()->GetDxCommon()->GetList();
 	Object3dCommon::GetInstance()->GetSrvManager()->PreDraw();
 	constexpr uint32_t groupCount = kFFTSize / 16;
 	const uint32_t zeroConstants[4] = {};
 
-	if (fftInitialSpectrumDirty_) {
-		Transition(initialSpectrum_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		Transition(spectrumDebug_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		BindComputePipeline(spectrumInitializePipeline_.Get());
+	if (cascade.initialSpectrumDirty) {
+		Transition(
+			cascade.initialSpectrum,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		Transition(
+			cascade.spectrumDebug,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		BindComputePipeline(
+			spectrumInitializePipeline_.Get(),
+			cascade);
 		commandList->SetComputeRoot32BitConstants(1, 4, zeroConstants, 0);
-		BindComputeUav(5, initialSpectrum_);
-		BindComputeUav(6, spectrumDebug_);
+		BindComputeUav(5, cascade.initialSpectrum);
+		BindComputeUav(6, cascade.spectrumDebug);
 		commandList->Dispatch(groupCount, groupCount, 1);
-		InsertUAVBarrier(initialSpectrum_);
-		InsertUAVBarrier(spectrumDebug_);
-		Transition(initialSpectrum_, kShaderReadState);
-		Transition(spectrumDebug_, kShaderReadState);
-		fftInitialSpectrumDirty_ = false;
+		InsertUAVBarrier(cascade.initialSpectrum);
+		InsertUAVBarrier(cascade.spectrumDebug);
+		Transition(cascade.initialSpectrum, kShaderReadState);
+		Transition(cascade.spectrumDebug, kShaderReadState);
+		cascade.initialSpectrumDirty = false;
 	}
 
-	Transition(spectrumA_[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	Transition(spectrumB_[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	Transition(spectrumC_[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	Transition(evolvedSpectrumDebug_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	BindComputePipeline(spectrumEvolvePipeline_.Get());
+	Transition(cascade.spectrumA[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Transition(cascade.spectrumB[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Transition(cascade.spectrumC[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Transition(
+		cascade.evolvedSpectrumDebug,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	BindComputePipeline(spectrumEvolvePipeline_.Get(), cascade);
 	commandList->SetComputeRoot32BitConstants(1, 4, zeroConstants, 0);
-	BindComputeSrv(2, initialSpectrum_);
-	BindComputeUav(5, spectrumA_[0]);
-	BindComputeUav(6, spectrumB_[0]);
-	BindComputeUav(7, spectrumC_[0]);
-	BindComputeUav(8, evolvedSpectrumDebug_);
+	BindComputeSrv(2, cascade.initialSpectrum);
+	BindComputeUav(5, cascade.spectrumA[0]);
+	BindComputeUav(6, cascade.spectrumB[0]);
+	BindComputeUav(7, cascade.spectrumC[0]);
+	BindComputeUav(8, cascade.evolvedSpectrumDebug);
 	commandList->Dispatch(groupCount, groupCount, 1);
-	InsertUAVBarrier(spectrumA_[0]);
-	InsertUAVBarrier(spectrumB_[0]);
-	InsertUAVBarrier(spectrumC_[0]);
-	InsertUAVBarrier(evolvedSpectrumDebug_);
-	Transition(spectrumA_[0], kShaderReadState);
-	Transition(spectrumB_[0], kShaderReadState);
-	Transition(spectrumC_[0], kShaderReadState);
-	Transition(evolvedSpectrumDebug_, kShaderReadState);
+	InsertUAVBarrier(cascade.spectrumA[0]);
+	InsertUAVBarrier(cascade.spectrumB[0]);
+	InsertUAVBarrier(cascade.spectrumC[0]);
+	InsertUAVBarrier(cascade.evolvedSpectrumDebug);
+	Transition(cascade.spectrumA[0], kShaderReadState);
+	Transition(cascade.spectrumB[0], kShaderReadState);
+	Transition(cascade.spectrumC[0], kShaderReadState);
+	Transition(cascade.evolvedSpectrumDebug, kShaderReadState);
 
 	uint32_t currentIndex = 0;
 	for (uint32_t direction = 0; direction < 2; ++direction) {
 		for (uint32_t stage = 0; stage < kFFTLog2; ++stage) {
 			const uint32_t destinationIndex = 1u - currentIndex;
 			Transition(
-				spectrumA_[destinationIndex],
+				cascade.spectrumA[destinationIndex],
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 			Transition(
-				spectrumB_[destinationIndex],
+				cascade.spectrumB[destinationIndex],
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 			Transition(
-				spectrumC_[destinationIndex],
+				cascade.spectrumC[destinationIndex],
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-			BindComputePipeline(fftPipeline_.Get());
+			BindComputePipeline(fftPipeline_.Get(), cascade);
 			const uint32_t dispatchConstants[4] = {
 				stage,
 				direction,
@@ -956,62 +1576,61 @@ void OceanRenderer::RunFFT()
 				4,
 				dispatchConstants,
 				0);
-			BindComputeSrv(2, spectrumA_[currentIndex]);
-			BindComputeSrv(3, spectrumB_[currentIndex]);
-			BindComputeSrv(4, spectrumC_[currentIndex]);
-			BindComputeUav(5, spectrumA_[destinationIndex]);
-			BindComputeUav(6, spectrumB_[destinationIndex]);
-			BindComputeUav(7, spectrumC_[destinationIndex]);
+			BindComputeSrv(2, cascade.spectrumA[currentIndex]);
+			BindComputeSrv(3, cascade.spectrumB[currentIndex]);
+			BindComputeSrv(4, cascade.spectrumC[currentIndex]);
+			BindComputeUav(5, cascade.spectrumA[destinationIndex]);
+			BindComputeUav(6, cascade.spectrumB[destinationIndex]);
+			BindComputeUav(7, cascade.spectrumC[destinationIndex]);
 			commandList->Dispatch(groupCount, groupCount, 1);
-			InsertUAVBarrier(spectrumA_[destinationIndex]);
-			InsertUAVBarrier(spectrumB_[destinationIndex]);
-			InsertUAVBarrier(spectrumC_[destinationIndex]);
-			Transition(spectrumA_[destinationIndex], kShaderReadState);
-			Transition(spectrumB_[destinationIndex], kShaderReadState);
-			Transition(spectrumC_[destinationIndex], kShaderReadState);
+			InsertUAVBarrier(cascade.spectrumA[destinationIndex]);
+			InsertUAVBarrier(cascade.spectrumB[destinationIndex]);
+			InsertUAVBarrier(cascade.spectrumC[destinationIndex]);
+			Transition(cascade.spectrumA[destinationIndex], kShaderReadState);
+			Transition(cascade.spectrumB[destinationIndex], kShaderReadState);
+			Transition(cascade.spectrumC[destinationIndex], kShaderReadState);
 			currentIndex = destinationIndex;
 		}
 	}
-	finalSpectrumIndex_ = currentIndex;
+	cascade.finalSpectrumIndex = currentIndex;
 
-	Transition(displacement_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	Transition(slope_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	BindComputePipeline(fftOutputPipeline_.Get());
+	Transition(cascade.displacement, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Transition(cascade.slope, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	BindComputePipeline(fftOutputPipeline_.Get(), cascade);
 	commandList->SetComputeRoot32BitConstants(1, 4, zeroConstants, 0);
-	BindComputeSrv(2, spectrumA_[finalSpectrumIndex_]);
-	BindComputeSrv(3, spectrumB_[finalSpectrumIndex_]);
-	BindComputeSrv(4, spectrumC_[finalSpectrumIndex_]);
-	BindComputeUav(5, displacement_);
-	BindComputeUav(6, slope_);
+	BindComputeSrv(2, cascade.spectrumA[cascade.finalSpectrumIndex]);
+	BindComputeSrv(3, cascade.spectrumB[cascade.finalSpectrumIndex]);
+	BindComputeSrv(4, cascade.spectrumC[cascade.finalSpectrumIndex]);
+	BindComputeUav(5, cascade.displacement);
+	BindComputeUav(6, cascade.slope);
 	commandList->Dispatch(groupCount, groupCount, 1);
-	InsertUAVBarrier(displacement_);
-	InsertUAVBarrier(slope_);
-	Transition(displacement_, kShaderReadState);
-	Transition(slope_, kShaderReadState);
-	fftHasOutput_ = true;
-	fftOutputDirty_ = false;
-	if (fftDiagnosticsRequested_) {
-		QueueFFTDiagnosticsReadback();
-	}
+	InsertUAVBarrier(cascade.displacement);
+	InsertUAVBarrier(cascade.slope);
+	Transition(cascade.displacement, kShaderReadState);
+	Transition(cascade.slope, kShaderReadState);
+	cascade.hasOutput = true;
+	cascade.outputDirty = false;
 }
 
-void OceanRenderer::QueueFFTDiagnosticsReadback()
+void OceanRenderer::QueueFFTDiagnosticsReadback(OceanCascade& cascade)
 {
-	CopyFFTTextureToReadback(displacement_, displacementReadback_);
-	CopyFFTTextureToReadback(slope_, slopeReadback_);
 	CopyFFTTextureToReadback(
-		initialSpectrum_,
-		initialSpectrumReadback_);
+		cascade.displacement,
+		cascade.displacementReadback);
+	CopyFFTTextureToReadback(cascade.slope, cascade.slopeReadback);
 	CopyFFTTextureToReadback(
-		evolvedSpectrumDebug_,
-		evolvedSpectrumReadback_);
+		cascade.initialSpectrum,
+		cascade.initialSpectrumReadback);
 	CopyFFTTextureToReadback(
-		spectrumA_[finalSpectrumIndex_],
-		finalSpectrumReadback_);
-	CopyFFTTextureToReadback(spectrumDebug_, spectrumDebugReadback_);
-	diagnosticsParameters_ = fftParameters_;
-	fftDiagnosticsRequested_ = false;
-	fftDiagnosticsPending_ = true;
+		cascade.evolvedSpectrumDebug,
+		cascade.evolvedSpectrumReadback);
+	CopyFFTTextureToReadback(
+		cascade.spectrumA[cascade.finalSpectrumIndex],
+		cascade.finalSpectrumReadback);
+	CopyFFTTextureToReadback(
+		cascade.spectrumDebug,
+		cascade.spectrumDebugReadback);
+	cascade.diagnosticsParameters = cascade.parameters;
 }
 
 void OceanRenderer::ResolveFFTDiagnostics()
@@ -1020,29 +1639,142 @@ void OceanRenderer::ResolveFFTDiagnostics()
 		return;
 	}
 
+	ResolveGpuTimings();
+	OceanFFTDiagnostics diagnostics{};
+	diagnostics.threeCascades = diagnosticsThreeCascades_;
+	if (!diagnosticsThreeCascades_) {
+		OceanCascadeDiagnostics singleDiagnostics =
+			ResolveCascadeDiagnostics(singleCascade_);
+		singleDiagnostics.gpuTimeMilliseconds = pendingGpuTimes_[0];
+		singleCascade_.diagnostics = singleDiagnostics;
+		static_cast<OceanCascadeDiagnostics&>(diagnostics) =
+			singleDiagnostics;
+		diagnostics.cascades[0] = singleDiagnostics;
+		diagnostics.singleReferenceTargetVariance =
+			singleDiagnostics.targetSpectrumVariance;
+		diagnostics.combinedTargetVariance =
+			singleDiagnostics.targetSpectrumVariance;
+		diagnostics.combinedGpuVariance =
+			singleDiagnostics.rgba16fVariance;
+		diagnostics.combinedHeightRms =
+			singleDiagnostics.heightRms;
+		diagnostics.combinedSignificantWaveHeight =
+			singleDiagnostics.significantWaveHeight;
+		diagnostics.combinedSeedMeanVariance =
+			singleDiagnostics.seedMeanVariance;
+		diagnostics.totalGpuTimeMilliseconds =
+			singleDiagnostics.gpuTimeMilliseconds;
+	} else {
+		std::array<OceanFFTParameters, kFFTCascadeCount>
+			diagnosticParameters{};
+		for (uint32_t index = 0; index < kFFTCascadeCount; ++index) {
+			if (cascadeSettings_[index].enabled) {
+				OceanCascadeDiagnostics cascadeDiagnostics =
+					ResolveCascadeDiagnostics(cascades_[index]);
+				cascadeDiagnostics.gpuTimeMilliseconds =
+					pendingGpuTimes_[index];
+				cascades_[index].diagnostics = cascadeDiagnostics;
+				diagnostics.cascades[index] = cascadeDiagnostics;
+				diagnostics.combinedTargetVariance +=
+					cascadeDiagnostics.targetSpectrumVariance;
+				diagnostics.combinedGpuVariance +=
+					cascadeDiagnostics.rgba16fVariance;
+				diagnostics.combinedSeedMeanVariance +=
+					cascadeDiagnostics.seedMeanVariance;
+				diagnostics.totalGpuTimeMilliseconds +=
+					cascadeDiagnostics.gpuTimeMilliseconds;
+				diagnostics.invalidValueCount +=
+					cascadeDiagnostics.invalidValueCount;
+				diagnostics.hermitianSymmetryError = (std::max)(
+					diagnostics.hermitianSymmetryError,
+					cascadeDiagnostics.hermitianSymmetryError);
+				diagnostics.ifftImaginaryResidual = (std::max)(
+					diagnostics.ifftImaginaryResidual,
+					cascadeDiagnostics.ifftImaginaryResidual);
+				diagnostics.directionalNormalizationError = (std::max)(
+					diagnostics.directionalNormalizationError,
+					cascadeDiagnostics.directionalNormalizationError);
+			}
+			diagnosticParameters[index] =
+				cascades_[index].parameters;
+		}
+
+		OceanFFTParameters singleReference = fftParameters_;
+		singleReference.cascadeIndex = kFFTCascadeCount;
+		singleReference.minimumWaveNumber = 0.0f;
+		singleReference.maximumWaveNumber = 1000000.0f;
+		const float singleReferenceRms =
+			ExpectedHeightRms(singleReference, kFFTSize);
+		diagnostics.singleReferenceTargetVariance =
+			singleReferenceRms * singleReferenceRms;
+		diagnostics.combinedHeightRms = std::sqrt(
+			(std::max)(diagnostics.combinedGpuVariance, 0.0f));
+		diagnostics.combinedSignificantWaveHeight =
+			4.0f * diagnostics.combinedHeightRms;
+		diagnostics.combinedVarianceRelativeError =
+			diagnostics.singleReferenceTargetVariance > 1.0e-12f
+			? std::abs(
+				diagnostics.combinedGpuVariance -
+				diagnostics.singleReferenceTargetVariance) /
+				diagnostics.singleReferenceTargetVariance
+			: 0.0f;
+		diagnostics.energyPartitionError =
+			diagnostics.singleReferenceTargetVariance > 1.0e-12f
+			? std::abs(
+				diagnostics.combinedTargetVariance -
+				diagnostics.singleReferenceTargetVariance) /
+				diagnostics.singleReferenceTargetVariance
+			: 0.0f;
+		const BandPartitionMetrics partition =
+			EvaluateBandPartition(singleReference, diagnosticParameters);
+		diagnostics.bandOverlapEnergy = partition.overlapEnergy;
+		diagnostics.bandMissingEnergy = partition.missingEnergy;
+
+		diagnostics.valid = true;
+		diagnostics.sampleTime = fftParameters_.time;
+		diagnostics.heightRms = diagnostics.combinedHeightRms;
+		diagnostics.significantWaveHeight =
+			diagnostics.combinedSignificantWaveHeight;
+		diagnostics.targetSpectrumVariance =
+			diagnostics.combinedTargetVariance;
+		diagnostics.rgba16fVariance =
+			diagnostics.combinedGpuVariance;
+		diagnostics.seedMeanVariance =
+			diagnostics.combinedSeedMeanVariance;
+		diagnostics.gpuTimeMilliseconds =
+			diagnostics.totalGpuTimeMilliseconds;
+	}
+
+	fftDiagnostics_ = diagnostics;
+	fftDiagnosticsPending_ = false;
+}
+
+OceanRenderer::OceanCascadeDiagnostics
+OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
+{
 	const D3D12_RANGE displacementRange = {
 		0,
-		static_cast<SIZE_T>(displacementReadback_.totalBytes),
+		static_cast<SIZE_T>(cascade.displacementReadback.totalBytes),
 	};
 	const D3D12_RANGE evolvedRange = {
 		0,
-		static_cast<SIZE_T>(evolvedSpectrumReadback_.totalBytes),
+		static_cast<SIZE_T>(cascade.evolvedSpectrumReadback.totalBytes),
 	};
 	const D3D12_RANGE initialRange = {
 		0,
-		static_cast<SIZE_T>(initialSpectrumReadback_.totalBytes),
+		static_cast<SIZE_T>(cascade.initialSpectrumReadback.totalBytes),
 	};
 	const D3D12_RANGE slopeRange = {
 		0,
-		static_cast<SIZE_T>(slopeReadback_.totalBytes),
+		static_cast<SIZE_T>(cascade.slopeReadback.totalBytes),
 	};
 	const D3D12_RANGE finalRange = {
 		0,
-		static_cast<SIZE_T>(finalSpectrumReadback_.totalBytes),
+		static_cast<SIZE_T>(cascade.finalSpectrumReadback.totalBytes),
 	};
 	const D3D12_RANGE debugRange = {
 		0,
-		static_cast<SIZE_T>(spectrumDebugReadback_.totalBytes),
+		static_cast<SIZE_T>(cascade.spectrumDebugReadback.totalBytes),
 	};
 	void* displacementMapped = nullptr;
 	void* evolvedMapped = nullptr;
@@ -1050,32 +1782,32 @@ void OceanRenderer::ResolveFFTDiagnostics()
 	void* slopeMapped = nullptr;
 	void* finalMapped = nullptr;
 	void* debugMapped = nullptr;
-	HRESULT hr = displacementReadback_.resource->Map(
+	HRESULT hr = cascade.displacementReadback.resource->Map(
 		0,
 		&displacementRange,
 		&displacementMapped);
 	assert(SUCCEEDED(hr));
-	hr = slopeReadback_.resource->Map(
+	hr = cascade.slopeReadback.resource->Map(
 		0,
 		&slopeRange,
 		&slopeMapped);
 	assert(SUCCEEDED(hr));
-	hr = initialSpectrumReadback_.resource->Map(
+	hr = cascade.initialSpectrumReadback.resource->Map(
 		0,
 		&initialRange,
 		&initialMapped);
 	assert(SUCCEEDED(hr));
-	hr = evolvedSpectrumReadback_.resource->Map(
+	hr = cascade.evolvedSpectrumReadback.resource->Map(
 		0,
 		&evolvedRange,
 		&evolvedMapped);
 	assert(SUCCEEDED(hr));
-	hr = finalSpectrumReadback_.resource->Map(
+	hr = cascade.finalSpectrumReadback.resource->Map(
 		0,
 		&finalRange,
 		&finalMapped);
 	assert(SUCCEEDED(hr));
-	hr = spectrumDebugReadback_.resource->Map(
+	hr = cascade.spectrumDebugReadback.resource->Map(
 		0,
 		&debugRange,
 		&debugMapped);
@@ -1088,8 +1820,8 @@ void OceanRenderer::ResolveFFTDiagnostics()
 	const auto* finalData = static_cast<const uint8_t*>(finalMapped);
 	const auto* debugData = static_cast<const uint8_t*>(debugMapped);
 
-	OceanFFTDiagnostics diagnostics{};
-	diagnostics.sampleTime = diagnosticsParameters_.time;
+	OceanCascadeDiagnostics diagnostics{};
+	diagnostics.sampleTime = cascade.diagnosticsParameters.time;
 	diagnostics.heightMinimum = (std::numeric_limits<float>::max)();
 	diagnostics.heightMaximum = (std::numeric_limits<float>::lowest)();
 	double heightSquaredSum = 0.0;
@@ -1125,16 +1857,18 @@ void OceanRenderer::ResolveFFTDiagnostics()
 		1.0f / static_cast<float>(kFFTSize * kFFTSize);
 	const double deltaK =
 		2.0 * kOceanPi /
-		(std::max)(static_cast<double>(diagnosticsParameters_.patchLength), 1.0);
+		(std::max)(
+			static_cast<double>(cascade.diagnosticsParameters.patchLength),
+			1.0);
 	for (uint32_t y = 0; y < kFFTSize; ++y) {
 		const uint8_t* displacementRow =
 			displacementData +
 			static_cast<size_t>(y) *
-			displacementReadback_.footprint.Footprint.RowPitch;
+			cascade.displacementReadback.footprint.Footprint.RowPitch;
 		const uint8_t* slopeRow =
 			slopeData +
 			static_cast<size_t>(y) *
-			slopeReadback_.footprint.Footprint.RowPitch;
+			cascade.slopeReadback.footprint.Footprint.RowPitch;
 		for (uint32_t x = 0; x < kFFTSize; ++x) {
 			const auto* displacementPixel =
 				reinterpret_cast<const uint16_t*>(
@@ -1170,7 +1904,7 @@ void OceanRenderer::ResolveFFTDiagnostics()
 
 			const float* debugPixel = readFloat4(
 				debugData,
-				spectrumDebugReadback_,
+				cascade.spectrumDebugReadback,
 				x,
 				y);
 			for (uint32_t component = 0; component < 4; ++component) {
@@ -1178,10 +1912,18 @@ void OceanRenderer::ResolveFFTDiagnostics()
 					++diagnostics.invalidValueCount;
 				}
 			}
-			if (std::isfinite(debugPixel[2])) {
-				maximumDirectionalError =
-					(std::max)(maximumDirectionalError, std::abs(debugPixel[2]));
-			}
+			const int32_t centeredX =
+				static_cast<int32_t>(x) - static_cast<int32_t>(kFFTSize / 2);
+			const int32_t centeredY =
+				static_cast<int32_t>(y) - static_cast<int32_t>(kFFTSize / 2);
+			const SpectrumEvaluation cpuSpectrum = EvaluateSpectrum(
+				cascade.diagnosticsParameters,
+				centeredX * deltaK,
+				centeredY * deltaK);
+			maximumDirectionalError = (std::max)(
+				maximumDirectionalError,
+				static_cast<float>(
+					cpuSpectrum.directionalNormalizationError));
 			const double waveNumberSpectrum =
 				std::isfinite(debugPixel[3])
 				? (std::max)(static_cast<double>(debugPixel[3]), 0.0)
@@ -1191,7 +1933,7 @@ void OceanRenderer::ResolveFFTDiagnostics()
 
 			const float* initialPixel = readFloat4(
 				initialData,
-				initialSpectrumReadback_,
+				cascade.initialSpectrumReadback,
 				x,
 				y);
 			for (uint32_t component = 0; component < 4; ++component) {
@@ -1223,7 +1965,7 @@ void OceanRenderer::ResolveFFTDiagnostics()
 
 			const float* finalPixel = readFloat4(
 				finalData,
-				finalSpectrumReadback_,
+				cascade.finalSpectrumReadback,
 				x,
 				y);
 			const float imaginaryHeight =
@@ -1248,7 +1990,7 @@ void OceanRenderer::ResolveFFTDiagnostics()
 
 			const float* evolvedPixel = readFloat4(
 				evolvedData,
-				evolvedSpectrumReadback_,
+				cascade.evolvedSpectrumReadback,
 				x,
 				y);
 			const uint32_t oppositeX = (kFFTSize - x) % kFFTSize;
@@ -1258,7 +2000,7 @@ void OceanRenderer::ResolveFFTDiagnostics()
 			}
 			const float* oppositePixel = readFloat4(
 				evolvedData,
-				evolvedSpectrumReadback_,
+				cascade.evolvedSpectrumReadback,
 				oppositeX,
 				oppositeY);
 			for (uint32_t component = 0; component < 4; ++component) {
@@ -1352,11 +2094,11 @@ void OceanRenderer::ResolveFFTDiagnostics()
 	}
 	diagnostics.directionalNormalizationError = maximumDirectionalError;
 	diagnostics.expectedRms64 =
-		ExpectedHeightRms(diagnosticsParameters_, 64);
+		ExpectedHeightRms(cascade.diagnosticsParameters, 64);
 	diagnostics.expectedRms128 =
-		ExpectedHeightRms(diagnosticsParameters_, 128);
+		ExpectedHeightRms(cascade.diagnosticsParameters, 128);
 	diagnostics.expectedRms256 =
-		ExpectedHeightRms(diagnosticsParameters_, 256);
+		ExpectedHeightRms(cascade.diagnosticsParameters, 256);
 	const float minimumExpected = (std::min)(
 		diagnostics.expectedRms64,
 		(std::min)(diagnostics.expectedRms128, diagnostics.expectedRms256));
@@ -1368,11 +2110,11 @@ void OceanRenderer::ResolveFFTDiagnostics()
 		? (maximumExpected - minimumExpected) / maximumExpected
 		: 0.0f;
 	diagnostics.jonswapAlpha =
-		static_cast<float>(JonswapAlpha(diagnosticsParameters_));
+		static_cast<float>(JonswapAlpha(cascade.diagnosticsParameters));
 	diagnostics.peakAngularFrequency = static_cast<float>(
-		JonswapPeakAngularFrequency(diagnosticsParameters_));
+		JonswapPeakAngularFrequency(cascade.diagnosticsParameters));
 	const SeedEnsembleResult seedEnsemble =
-		EvaluateSeedEnsemble(diagnosticsParameters_, 32);
+		EvaluateSeedEnsemble(cascade.diagnosticsParameters, 32);
 	diagnostics.seedRmsMean = seedEnsemble.mean;
 	diagnostics.seedRmsStandardDeviation =
 		seedEnsemble.standardDeviation;
@@ -1382,19 +2124,27 @@ void OceanRenderer::ResolveFFTDiagnostics()
 		seedEnsemble.meanRelativeError;
 	diagnostics.seedMeanAbsoluteRelativeError =
 		seedEnsemble.meanAbsoluteRelativeError;
+	diagnostics.seedMeanVariance = seedEnsemble.meanVariance;
+	diagnostics.rgba16fQuantizationError =
+		diagnostics.ifftFloatVariance > 1.0e-12f
+		? std::abs(
+			diagnostics.rgba16fVariance -
+			diagnostics.ifftFloatVariance) /
+			diagnostics.ifftFloatVariance
+		: 0.0f;
 	diagnostics.invalidValueCount +=
 		seedEnsemble.invalidValueCount;
 	diagnostics.valid = true;
-	fftDiagnostics_ = diagnostics;
+	cascade.diagnostics = diagnostics;
 
 	const D3D12_RANGE emptyWriteRange = { 0, 0 };
-	displacementReadback_.resource->Unmap(0, &emptyWriteRange);
-	slopeReadback_.resource->Unmap(0, &emptyWriteRange);
-	initialSpectrumReadback_.resource->Unmap(0, &emptyWriteRange);
-	evolvedSpectrumReadback_.resource->Unmap(0, &emptyWriteRange);
-	finalSpectrumReadback_.resource->Unmap(0, &emptyWriteRange);
-	spectrumDebugReadback_.resource->Unmap(0, &emptyWriteRange);
-	fftDiagnosticsPending_ = false;
+	cascade.displacementReadback.resource->Unmap(0, &emptyWriteRange);
+	cascade.slopeReadback.resource->Unmap(0, &emptyWriteRange);
+	cascade.initialSpectrumReadback.resource->Unmap(0, &emptyWriteRange);
+	cascade.evolvedSpectrumReadback.resource->Unmap(0, &emptyWriteRange);
+	cascade.finalSpectrumReadback.resource->Unmap(0, &emptyWriteRange);
+	cascade.spectrumDebugReadback.resource->Unmap(0, &emptyWriteRange);
+	return diagnostics;
 }
 
 void OceanRenderer::CopyFFTTextureToReadback(
@@ -1420,14 +2170,16 @@ void OceanRenderer::CopyFFTTextureToReadback(
 	Transition(source, kShaderReadState);
 }
 
-void OceanRenderer::BindComputePipeline(ID3D12PipelineState* pipeline)
+void OceanRenderer::BindComputePipeline(
+	ID3D12PipelineState* pipeline,
+	const OceanCascade& cascade)
 {
 	auto commandList = Object3dCommon::GetInstance()->GetDxCommon()->GetList();
 	commandList->SetComputeRootSignature(fftComputeRoot_.GetSignature().Get());
 	commandList->SetPipelineState(pipeline);
 	commandList->SetComputeRootConstantBufferView(
 		0,
-		fftParameterResource_->GetGPUVirtualAddress());
+		cascade.parameterResource->GetGPUVirtualAddress());
 }
 
 void OceanRenderer::Transition(
