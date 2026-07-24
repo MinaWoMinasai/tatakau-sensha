@@ -19,11 +19,14 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float4 spectrumB = gSpectrumB.Load(int3(coordinate, 0));
     float4 spectrumC = gSpectrumC.Load(int3(coordinate, 0));
 
-    float height = spectrumA.x;
-    float displacementX = spectrumA.z;
-    float displacementZ = spectrumB.x;
-    float slopeX = spectrumB.z;
-    float slopeZ = spectrumC.x;
+    // The butterfly kernels intentionally perform an unnormalized inverse
+    // transform. Apply the standard 2D IFFT normalization exactly once here.
+    float normalization = rcp(float(gFFTSize * gFFTSize));
+    float height = spectrumA.x * normalization;
+    float displacementX = spectrumA.z * normalization;
+    float displacementZ = spectrumB.x * normalization;
+    float slopeX = spectrumB.z * normalization;
+    float slopeZ = spectrumC.x * normalization;
     gDisplacement[coordinate] =
         float4(displacementX, height, displacementZ, 1.0f);
     gSlope[coordinate] = float2(slopeX, slopeZ);

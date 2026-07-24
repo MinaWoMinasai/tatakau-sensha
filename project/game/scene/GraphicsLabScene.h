@@ -118,9 +118,18 @@ private:
 	float oceanArtisticSunLaneStrength_ = 1.0f;
 	bool fftPaused_ = false;
 	float fftTime_ = 0.0f;
-	float fftAmplitude_ = 0.0008f;
+	float fftAmplitude_ = 1.0f;
 	float fftPatchLength_ = 256.0f;
 	int fftSeed_ = 1337;
+	int fftSpectrumModel_ =
+		static_cast<int>(OceanRenderer::SpectrumModel::Phillips);
+	float fftFetch_ = 100000.0f;
+	float fftGamma_ = 3.3f;
+	float fftLowFrequencyDamping_ = 0.0f;
+	float fftHighFrequencyDamping_ = 0.01f;
+	Vector2 fftSwellDirection_ = { 0.60f, 0.80f };
+	float fftSwellAmount_ = 0.20f;
+	float fftOppositeWaveSuppression_ = 0.85f;
 	int fftDebugMode_ = 0;
 	float fftDebugDisplayScale_ = 1.0f;
 	bool showSandBed_ = false;
