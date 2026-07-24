@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <complex>
 #include <cstdint>
 #include <limits>
+#include <vector>
 
 #include <DirectXPackedVector.h>
 
@@ -290,6 +292,177 @@ float ExpectedHeightRms(
 		}
 	}
 	return static_cast<float>(std::sqrt((std::max)(variance, 0.0)));
+}
+
+uint32_t OceanHashReference(uint32_t value)
+{
+	value ^= value >> 16;
+	value *= 0x7feb352du;
+	value ^= value >> 15;
+	value *= 0x846ca68bu;
+	value ^= value >> 16;
+	return value;
+}
+
+double OceanHash01Reference(
+	uint32_t x,
+	uint32_t y,
+	uint32_t seed,
+	uint32_t salt)
+{
+	const uint32_t value = OceanHashReference(
+		x * 0x9e3779b9u ^
+		y * 0x85ebca6bu ^
+		seed ^
+		salt);
+	return (static_cast<double>(value) + 0.5) / 4294967296.0;
+}
+
+std::complex<double> OceanGaussianReference(
+	uint32_t x,
+	uint32_t y,
+	uint32_t seed)
+{
+	const double u1 = (std::max)(
+		OceanHash01Reference(x, y, seed, 0x68bc21ebu),
+		0.000001);
+	const double u2 =
+		OceanHash01Reference(x, y, seed, 0x02e5be93u);
+	const double radius = std::sqrt(-2.0 * std::log(u1));
+	const double angle = 2.0 * kOceanPi * u2;
+	return { radius * std::cos(angle), radius * std::sin(angle) };
+}
+
+struct SeedEnsembleResult {
+	float mean = 0.0f;
+	float standardDeviation = 0.0f;
+	float minimum = 0.0f;
+	float maximum = 0.0f;
+	float meanRelativeError = 0.0f;
+	float meanAbsoluteRelativeError = 0.0f;
+	uint32_t invalidValueCount = 0;
+};
+
+SeedEnsembleResult EvaluateSeedEnsemble(
+	const OceanRenderer::OceanFFTParameters& parameters,
+	uint32_t seedCount)
+{
+	const uint32_t resolution = parameters.fftSize;
+	const size_t coefficientCount =
+		static_cast<size_t>(resolution) * resolution;
+	const double deltaK =
+		2.0 * kOceanPi / (std::max)(
+			static_cast<double>(parameters.patchLength),
+			1.0);
+	std::vector<double> coefficientAmplitudes(coefficientCount);
+	for (uint32_t y = 0; y < resolution; ++y) {
+		for (uint32_t x = 0; x < resolution; ++x) {
+			const int32_t centeredX =
+				static_cast<int32_t>(x) - static_cast<int32_t>(resolution / 2);
+			const int32_t centeredY =
+				static_cast<int32_t>(y) - static_cast<int32_t>(resolution / 2);
+			const SpectrumEvaluation spectrum = EvaluateSpectrum(
+				parameters,
+				centeredX * deltaK,
+				centeredY * deltaK);
+			coefficientAmplitudes[
+				static_cast<size_t>(y) * resolution + x] =
+				std::sqrt((std::max)(spectrum.waveNumber, 0.0) * 0.25) *
+				deltaK;
+		}
+	}
+
+	const double physicalExpectedRms =
+		ExpectedHeightRms(parameters, resolution);
+	std::vector<double> rmsValues;
+	rmsValues.reserve(seedCount);
+	std::vector<std::complex<double>> h0(coefficientCount);
+	for (uint32_t seedIndex = 0; seedIndex < seedCount; ++seedIndex) {
+		const uint32_t seed = parameters.seed + seedIndex;
+		for (uint32_t y = 0; y < resolution; ++y) {
+			for (uint32_t x = 0; x < resolution; ++x) {
+				const size_t index =
+					static_cast<size_t>(y) * resolution + x;
+				h0[index] =
+					OceanGaussianReference(x, y, seed) *
+					coefficientAmplitudes[index];
+				if (x == resolution / 2 && y == resolution / 2) {
+					h0[index] = {};
+				}
+			}
+		}
+
+		double evolvedVariance = 0.0;
+		for (uint32_t y = 0; y < resolution; ++y) {
+			for (uint32_t x = 0; x < resolution; ++x) {
+				const size_t index =
+					static_cast<size_t>(y) * resolution + x;
+				const uint32_t oppositeX = (resolution - x) % resolution;
+				const uint32_t oppositeY = (resolution - y) % resolution;
+				const size_t oppositeIndex =
+					static_cast<size_t>(oppositeY) * resolution + oppositeX;
+				const int32_t centeredX =
+					static_cast<int32_t>(x) -
+					static_cast<int32_t>(resolution / 2);
+				const int32_t centeredY =
+					static_cast<int32_t>(y) -
+					static_cast<int32_t>(resolution / 2);
+				const double waveNumber = deltaK * std::sqrt(
+					static_cast<double>(centeredX) * centeredX +
+					static_cast<double>(centeredY) * centeredY);
+				const double phase =
+					std::sqrt(kOceanGravity * waveNumber) *
+					parameters.time;
+				const std::complex<double> positivePhase = std::polar(1.0, phase);
+				const std::complex<double> negativePhase =
+					std::polar(1.0, -phase);
+				const std::complex<double> evolved =
+					h0[index] * positivePhase +
+					std::conj(h0[oppositeIndex]) * negativePhase;
+				evolvedVariance += std::norm(evolved);
+			}
+		}
+		if (std::isfinite(evolvedVariance)) {
+			rmsValues.push_back(std::sqrt((std::max)(evolvedVariance, 0.0)));
+		}
+	}
+
+	SeedEnsembleResult result{};
+	result.invalidValueCount = seedCount -
+		static_cast<uint32_t>(rmsValues.size());
+	if (rmsValues.empty()) {
+		return result;
+	}
+	double sum = 0.0;
+	double relativeErrorSum = 0.0;
+	result.minimum = (std::numeric_limits<float>::max)();
+	result.maximum = (std::numeric_limits<float>::lowest)();
+	for (double rms : rmsValues) {
+		sum += rms;
+		result.minimum = (std::min)(result.minimum, static_cast<float>(rms));
+		result.maximum = (std::max)(result.maximum, static_cast<float>(rms));
+		if (physicalExpectedRms > 0.000001) {
+			relativeErrorSum +=
+				std::abs(rms - physicalExpectedRms) / physicalExpectedRms;
+		}
+	}
+	const double mean = sum / rmsValues.size();
+	double squaredDifferenceSum = 0.0;
+	for (double rms : rmsValues) {
+		const double difference = rms - mean;
+		squaredDifferenceSum += difference * difference;
+	}
+	result.mean = static_cast<float>(mean);
+	result.standardDeviation = static_cast<float>(
+		std::sqrt(squaredDifferenceSum / rmsValues.size()));
+	result.meanRelativeError =
+		physicalExpectedRms > 0.000001
+		? static_cast<float>(
+			std::abs(mean - physicalExpectedRms) / physicalExpectedRms)
+		: 0.0f;
+	result.meanAbsoluteRelativeError = static_cast<float>(
+		relativeErrorSum / rmsValues.size());
+	return result;
 }
 }
 
@@ -593,6 +766,7 @@ void OceanRenderer::InitializeFFT()
 	CreateFFTTexture(slope_, DXGI_FORMAT_R16G16_FLOAT);
 	CreateFFTReadback(displacementReadback_, displacement_);
 	CreateFFTReadback(slopeReadback_, slope_);
+	CreateFFTReadback(initialSpectrumReadback_, initialSpectrum_);
 	CreateFFTReadback(evolvedSpectrumReadback_, evolvedSpectrumDebug_);
 	CreateFFTReadback(finalSpectrumReadback_, spectrumA_[0]);
 	CreateFFTReadback(spectrumDebugReadback_, spectrumDebug_);
@@ -826,6 +1000,9 @@ void OceanRenderer::QueueFFTDiagnosticsReadback()
 	CopyFFTTextureToReadback(displacement_, displacementReadback_);
 	CopyFFTTextureToReadback(slope_, slopeReadback_);
 	CopyFFTTextureToReadback(
+		initialSpectrum_,
+		initialSpectrumReadback_);
+	CopyFFTTextureToReadback(
 		evolvedSpectrumDebug_,
 		evolvedSpectrumReadback_);
 	CopyFFTTextureToReadback(
@@ -851,6 +1028,10 @@ void OceanRenderer::ResolveFFTDiagnostics()
 		0,
 		static_cast<SIZE_T>(evolvedSpectrumReadback_.totalBytes),
 	};
+	const D3D12_RANGE initialRange = {
+		0,
+		static_cast<SIZE_T>(initialSpectrumReadback_.totalBytes),
+	};
 	const D3D12_RANGE slopeRange = {
 		0,
 		static_cast<SIZE_T>(slopeReadback_.totalBytes),
@@ -865,6 +1046,7 @@ void OceanRenderer::ResolveFFTDiagnostics()
 	};
 	void* displacementMapped = nullptr;
 	void* evolvedMapped = nullptr;
+	void* initialMapped = nullptr;
 	void* slopeMapped = nullptr;
 	void* finalMapped = nullptr;
 	void* debugMapped = nullptr;
@@ -877,6 +1059,11 @@ void OceanRenderer::ResolveFFTDiagnostics()
 		0,
 		&slopeRange,
 		&slopeMapped);
+	assert(SUCCEEDED(hr));
+	hr = initialSpectrumReadback_.resource->Map(
+		0,
+		&initialRange,
+		&initialMapped);
 	assert(SUCCEEDED(hr));
 	hr = evolvedSpectrumReadback_.resource->Map(
 		0,
@@ -896,6 +1083,7 @@ void OceanRenderer::ResolveFFTDiagnostics()
 	const auto* displacementData =
 		static_cast<const uint8_t*>(displacementMapped);
 	const auto* evolvedData = static_cast<const uint8_t*>(evolvedMapped);
+	const auto* initialData = static_cast<const uint8_t*>(initialMapped);
 	const auto* slopeData = static_cast<const uint8_t*>(slopeMapped);
 	const auto* finalData = static_cast<const uint8_t*>(finalMapped);
 	const auto* debugData = static_cast<const uint8_t*>(debugMapped);
@@ -905,11 +1093,20 @@ void OceanRenderer::ResolveFFTDiagnostics()
 	diagnostics.heightMinimum = (std::numeric_limits<float>::max)();
 	diagnostics.heightMaximum = (std::numeric_limits<float>::lowest)();
 	double heightSquaredSum = 0.0;
+	double ifftFloatSquaredSum = 0.0;
 	double imaginarySquaredSum = 0.0;
+	double targetVarianceSum = 0.0;
+	double h0MagnitudeSquaredSum = 0.0;
+	double evolvedMagnitudeSquaredSum = 0.0;
+	double gaussianRealSquaredSum = 0.0;
+	double gaussianImaginarySquaredSum = 0.0;
 	double hermitianErrorSquaredSum = 0.0;
 	double hermitianMagnitudeSquaredSum = 0.0;
 	float maximumDirectionalError = 0.0f;
 	uint32_t validHeightCount = 0;
+	uint32_t validFloatHeightCount = 0;
+	uint32_t validH0Count = 0;
+	uint32_t validEvolvedCount = 0;
 	uint32_t validImaginaryCount = 0;
 	uint32_t validHermitianCount = 0;
 
@@ -926,6 +1123,9 @@ void OceanRenderer::ResolveFFTDiagnostics()
 
 	const float inverseTransformScale =
 		1.0f / static_cast<float>(kFFTSize * kFFTSize);
+	const double deltaK =
+		2.0 * kOceanPi /
+		(std::max)(static_cast<double>(diagnosticsParameters_.patchLength), 1.0);
 	for (uint32_t y = 0; y < kFFTSize; ++y) {
 		const uint8_t* displacementRow =
 			displacementData +
@@ -968,57 +1168,6 @@ void OceanRenderer::ResolveFFTDiagnostics()
 				++validHeightCount;
 			}
 
-			const float* finalPixel = readFloat4(
-				finalData,
-				finalSpectrumReadback_,
-				x,
-				y);
-			const float imaginaryHeight =
-				finalPixel[1] * inverseTransformScale;
-			for (uint32_t component = 0; component < 4; ++component) {
-				if (!std::isfinite(finalPixel[component])) {
-					++diagnostics.invalidValueCount;
-				}
-			}
-			if (std::isfinite(imaginaryHeight)) {
-				imaginarySquaredSum +=
-					static_cast<double>(imaginaryHeight) * imaginaryHeight;
-				++validImaginaryCount;
-			}
-
-			const float* evolvedPixel = readFloat4(
-				evolvedData,
-				evolvedSpectrumReadback_,
-				x,
-				y);
-			const uint32_t oppositeX = (kFFTSize - x) % kFFTSize;
-			const uint32_t oppositeY = (kFFTSize - y) % kFFTSize;
-			const float* oppositePixel = readFloat4(
-				evolvedData,
-				evolvedSpectrumReadback_,
-				oppositeX,
-				oppositeY);
-			for (uint32_t component = 0; component < 4; ++component) {
-				if (!std::isfinite(evolvedPixel[component])) {
-					++diagnostics.invalidValueCount;
-				}
-			}
-			if (std::isfinite(evolvedPixel[0]) &&
-				std::isfinite(evolvedPixel[1]) &&
-				std::isfinite(oppositePixel[0]) &&
-				std::isfinite(oppositePixel[1])) {
-				const double realError =
-					static_cast<double>(evolvedPixel[0]) - oppositePixel[0];
-				const double imaginaryError =
-					static_cast<double>(evolvedPixel[1]) + oppositePixel[1];
-				hermitianErrorSquaredSum +=
-					realError * realError + imaginaryError * imaginaryError;
-				hermitianMagnitudeSquaredSum +=
-					static_cast<double>(evolvedPixel[0]) * evolvedPixel[0] +
-					static_cast<double>(evolvedPixel[1]) * evolvedPixel[1];
-				++validHermitianCount;
-			}
-
 			const float* debugPixel = readFloat4(
 				debugData,
 				spectrumDebugReadback_,
@@ -1033,6 +1182,115 @@ void OceanRenderer::ResolveFFTDiagnostics()
 				maximumDirectionalError =
 					(std::max)(maximumDirectionalError, std::abs(debugPixel[2]));
 			}
+			const double waveNumberSpectrum =
+				std::isfinite(debugPixel[3])
+				? (std::max)(static_cast<double>(debugPixel[3]), 0.0)
+				: 0.0;
+			targetVarianceSum +=
+				waveNumberSpectrum * deltaK * deltaK;
+
+			const float* initialPixel = readFloat4(
+				initialData,
+				initialSpectrumReadback_,
+				x,
+				y);
+			for (uint32_t component = 0; component < 4; ++component) {
+				if (!std::isfinite(initialPixel[component])) {
+					++diagnostics.invalidValueCount;
+				}
+			}
+			const double h0Real =
+				static_cast<double>(initialPixel[0]) * inverseTransformScale;
+			const double h0Imaginary =
+				static_cast<double>(initialPixel[1]) * inverseTransformScale;
+			if (std::isfinite(h0Real) && std::isfinite(h0Imaginary)) {
+				const double h0MagnitudeSquared =
+					h0Real * h0Real + h0Imaginary * h0Imaginary;
+				h0MagnitudeSquaredSum += h0MagnitudeSquared;
+				++validH0Count;
+				const double gaussianScale =
+					std::sqrt(waveNumberSpectrum * 0.25) * deltaK;
+				if (gaussianScale > 1.0e-20) {
+					const double gaussianReal = h0Real / gaussianScale;
+					const double gaussianImaginary =
+						h0Imaginary / gaussianScale;
+					gaussianRealSquaredSum += gaussianReal * gaussianReal;
+					gaussianImaginarySquaredSum +=
+						gaussianImaginary * gaussianImaginary;
+					++diagnostics.gaussianSampleCount;
+				}
+			}
+
+			const float* finalPixel = readFloat4(
+				finalData,
+				finalSpectrumReadback_,
+				x,
+				y);
+			const float imaginaryHeight =
+				finalPixel[1] * inverseTransformScale;
+			const float floatHeight =
+				finalPixel[0] * inverseTransformScale;
+			for (uint32_t component = 0; component < 4; ++component) {
+				if (!std::isfinite(finalPixel[component])) {
+					++diagnostics.invalidValueCount;
+				}
+			}
+			if (std::isfinite(imaginaryHeight)) {
+				imaginarySquaredSum +=
+					static_cast<double>(imaginaryHeight) * imaginaryHeight;
+				++validImaginaryCount;
+			}
+			if (std::isfinite(floatHeight)) {
+				ifftFloatSquaredSum +=
+					static_cast<double>(floatHeight) * floatHeight;
+				++validFloatHeightCount;
+			}
+
+			const float* evolvedPixel = readFloat4(
+				evolvedData,
+				evolvedSpectrumReadback_,
+				x,
+				y);
+			const uint32_t oppositeX = (kFFTSize - x) % kFFTSize;
+			const uint32_t oppositeY = (kFFTSize - y) % kFFTSize;
+			if (oppositeX == x && oppositeY == y) {
+				++diagnostics.selfConjugateBinCount;
+			}
+			const float* oppositePixel = readFloat4(
+				evolvedData,
+				evolvedSpectrumReadback_,
+				oppositeX,
+				oppositeY);
+			for (uint32_t component = 0; component < 4; ++component) {
+				if (!std::isfinite(evolvedPixel[component])) {
+					++diagnostics.invalidValueCount;
+				}
+			}
+			if (std::isfinite(evolvedPixel[0]) &&
+				std::isfinite(evolvedPixel[1]) &&
+				std::isfinite(oppositePixel[0]) &&
+				std::isfinite(oppositePixel[1])) {
+				const double evolvedReal =
+					static_cast<double>(evolvedPixel[0]) *
+					inverseTransformScale;
+				const double evolvedImaginary =
+					static_cast<double>(evolvedPixel[1]) *
+					inverseTransformScale;
+				evolvedMagnitudeSquaredSum +=
+					evolvedReal * evolvedReal +
+					evolvedImaginary * evolvedImaginary;
+				++validEvolvedCount;
+				const double realError =
+					static_cast<double>(evolvedPixel[0]) - oppositePixel[0];
+				const double imaginaryError =
+					static_cast<double>(evolvedPixel[1]) + oppositePixel[1];
+				hermitianErrorSquaredSum +=
+					realError * realError + imaginaryError * imaginaryError;
+				hermitianMagnitudeSquaredSum +=
+					static_cast<double>(evolvedPixel[0]) * evolvedPixel[0] +
+					static_cast<double>(evolvedPixel[1]) * evolvedPixel[1];
+				++validHermitianCount;
+			}
 		}
 	}
 
@@ -1044,6 +1302,44 @@ void OceanRenderer::ResolveFFTDiagnostics()
 		diagnostics.heightMaximum = 0.0f;
 	}
 	diagnostics.significantWaveHeight = 4.0f * diagnostics.heightRms;
+	diagnostics.targetSpectrumVariance =
+		static_cast<float>(targetVarianceSum);
+	diagnostics.legacyCoefficientVariance =
+		2.0f * diagnostics.targetSpectrumVariance;
+	diagnostics.h0PredictedVariance =
+		static_cast<float>(2.0 * h0MagnitudeSquaredSum);
+	diagnostics.evolvedParsevalVariance =
+		static_cast<float>(evolvedMagnitudeSquaredSum);
+	diagnostics.ifftFloatVariance =
+		validFloatHeightCount > 0
+		? static_cast<float>(ifftFloatSquaredSum / validFloatHeightCount)
+		: 0.0f;
+	diagnostics.rgba16fVariance =
+		validHeightCount > 0
+		? static_cast<float>(heightSquaredSum / validHeightCount)
+		: 0.0f;
+	diagnostics.gaussianRealSquared =
+		diagnostics.gaussianSampleCount > 0
+		? static_cast<float>(
+			gaussianRealSquaredSum / diagnostics.gaussianSampleCount)
+		: 0.0f;
+	diagnostics.gaussianImaginarySquared =
+		diagnostics.gaussianSampleCount > 0
+		? static_cast<float>(
+			gaussianImaginarySquaredSum / diagnostics.gaussianSampleCount)
+		: 0.0f;
+	diagnostics.gaussianMagnitudeSquared =
+		diagnostics.gaussianRealSquared +
+		diagnostics.gaussianImaginarySquared;
+	diagnostics.h0MagnitudeSquared =
+		validH0Count > 0
+		? static_cast<float>(h0MagnitudeSquaredSum / validH0Count)
+		: 0.0f;
+	diagnostics.evolvedMagnitudeSquared =
+		validEvolvedCount > 0
+		? static_cast<float>(
+			evolvedMagnitudeSquaredSum / validEvolvedCount)
+		: 0.0f;
 	if (validImaginaryCount > 0) {
 		diagnostics.ifftImaginaryResidual = static_cast<float>(
 			std::sqrt(imaginarySquaredSum / validImaginaryCount));
@@ -1075,12 +1371,26 @@ void OceanRenderer::ResolveFFTDiagnostics()
 		static_cast<float>(JonswapAlpha(diagnosticsParameters_));
 	diagnostics.peakAngularFrequency = static_cast<float>(
 		JonswapPeakAngularFrequency(diagnosticsParameters_));
+	const SeedEnsembleResult seedEnsemble =
+		EvaluateSeedEnsemble(diagnosticsParameters_, 32);
+	diagnostics.seedRmsMean = seedEnsemble.mean;
+	diagnostics.seedRmsStandardDeviation =
+		seedEnsemble.standardDeviation;
+	diagnostics.seedRmsMinimum = seedEnsemble.minimum;
+	diagnostics.seedRmsMaximum = seedEnsemble.maximum;
+	diagnostics.seedMeanRelativeError =
+		seedEnsemble.meanRelativeError;
+	diagnostics.seedMeanAbsoluteRelativeError =
+		seedEnsemble.meanAbsoluteRelativeError;
+	diagnostics.invalidValueCount +=
+		seedEnsemble.invalidValueCount;
 	diagnostics.valid = true;
 	fftDiagnostics_ = diagnostics;
 
 	const D3D12_RANGE emptyWriteRange = { 0, 0 };
 	displacementReadback_.resource->Unmap(0, &emptyWriteRange);
 	slopeReadback_.resource->Unmap(0, &emptyWriteRange);
+	initialSpectrumReadback_.resource->Unmap(0, &emptyWriteRange);
 	evolvedSpectrumReadback_.resource->Unmap(0, &emptyWriteRange);
 	finalSpectrumReadback_.resource->Unmap(0, &emptyWriteRange);
 	spectrumDebugReadback_.resource->Unmap(0, &emptyWriteRange);

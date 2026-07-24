@@ -1136,6 +1136,31 @@ void GraphicsLabScene::DrawDebugWindow()
 					diagnostics.heightMinimum,
 					diagnostics.heightMaximum);
 				ImGui::Text(
+					"Variance target / legacy 0.5: %.6e / %.6e m^2",
+					diagnostics.targetSpectrumVariance,
+					diagnostics.legacyCoefficientVariance);
+				ImGui::Text(
+					"Variance h0 predicted / evolved: %.6e / %.6e m^2",
+					diagnostics.h0PredictedVariance,
+					diagnostics.evolvedParsevalVariance);
+				ImGui::Text(
+					"Variance IFFT float / RGBA16F: %.6e / %.6e m^2",
+					diagnostics.ifftFloatVariance,
+					diagnostics.rgba16fVariance);
+				ImGui::Text(
+					"Gaussian E[r^2]/E[i^2]/E[|xi|^2]: %.4f / %.4f / %.4f",
+					diagnostics.gaussianRealSquared,
+					diagnostics.gaussianImaginarySquared,
+					diagnostics.gaussianMagnitudeSquared);
+				ImGui::Text(
+					"Mean |h0|^2 / |h(t)|^2: %.6e / %.6e",
+					diagnostics.h0MagnitudeSquared,
+					diagnostics.evolvedMagnitudeSquared);
+				ImGui::Text(
+					"Gaussian samples: %u   self-conjugate bins: %u",
+					diagnostics.gaussianSampleCount,
+					diagnostics.selfConjugateBinCount);
+				ImGui::Text(
 					"Hermitian error: %.3e",
 					diagnostics.hermitianSymmetryError);
 				ImGui::Text(
@@ -1153,6 +1178,18 @@ void GraphicsLabScene::DrawDebugWindow()
 					"Resolution spread: %.3f%%",
 					diagnostics.resolutionRelativeSpread * 100.0f);
 				ImGui::Text(
+					"32-seed RMS mean/stddev: %.6f / %.6f m",
+					diagnostics.seedRmsMean,
+					diagnostics.seedRmsStandardDeviation);
+				ImGui::Text(
+					"32-seed RMS min/max: %.6f / %.6f m",
+					diagnostics.seedRmsMinimum,
+					diagnostics.seedRmsMaximum);
+				ImGui::Text(
+					"Mean-vs-physical / mean absolute error: %.3f%% / %.3f%%",
+					diagnostics.seedMeanRelativeError * 100.0f,
+					diagnostics.seedMeanAbsoluteRelativeError * 100.0f);
+				ImGui::Text(
 					"JONSWAP alpha: %.6f   peak omega: %.4f rad/s",
 					diagnostics.jonswapAlpha,
 					diagnostics.peakAngularFrequency);
@@ -1160,6 +1197,18 @@ void GraphicsLabScene::DrawDebugWindow()
 					"NaN/Inf values: %u   sample time: %.3f s",
 					diagnostics.invalidValueCount,
 					diagnostics.sampleTime);
+				const bool variancePass =
+					diagnostics.seedMeanRelativeError <= 0.05f;
+				const bool numericalPass =
+					diagnostics.invalidValueCount == 0 &&
+					diagnostics.hermitianSymmetryError <= 1.0e-4f &&
+					diagnostics.ifftImaginaryResidual <= 1.0e-4f &&
+					diagnostics.directionalNormalizationError <= 1.0e-3f &&
+					diagnostics.resolutionRelativeSpread <= 0.01f;
+				ImGui::Text(
+					"Acceptance: variance %s   numerical %s",
+					variancePass ? "PASS" : "FAIL",
+					numericalPass ? "PASS" : "FAIL");
 			}
 		}
 		ImGui::DragFloat(
