@@ -5,6 +5,7 @@ Texture2D<float4> gFFTDisplacement : register(t1);
 Texture2D<float2> gFFTSlope : register(t2);
 Texture2D<float4> gFFTInitialSpectrum : register(t3);
 Texture2D<float4> gFFTEvolvedSpectrum : register(t4);
+Texture2D<float4> gFFTSpectrumDebug : register(t5);
 SamplerState gEnvironmentSampler : register(s0);
 
 struct OceanPixelOutput
@@ -263,35 +264,59 @@ OceanPixelOutput main(OceanVertexOutput input)
             gFFTInitialSpectrum.SampleLevel(gEnvironmentSampler, fftUv, 0.0f);
         float4 evolvedDebug =
             gFFTEvolvedSpectrum.SampleLevel(gEnvironmentSampler, fftUv, 0.0f);
+        float4 spectrumDebug =
+            gFFTSpectrumDebug.SampleLevel(gEnvironmentSampler, fftUv, 0.0f);
         if (fftDebugMode == 1)
         {
-            float magnitude = log2(1.0f + length(initialDebug.xy) * debugScale * 64.0f);
+            float radial =
+                log2(1.0f + max(spectrumDebug.x, 0.0f) * debugScale);
             color = float3(
-                0.5f + initialDebug.x * debugScale,
-                0.5f + initialDebug.y * debugScale,
-                saturate(magnitude));
+                saturate(radial * 0.18f),
+                saturate(radial * 0.42f),
+                saturate(radial));
         }
         else if (fftDebugMode == 2)
         {
-            float magnitude = log2(1.0f + evolvedDebug.z * debugScale * 64.0f);
+            float directional =
+                max(spectrumDebug.y, 0.0f) * debugScale * 6.28318530718f;
             color = float3(
-                0.5f + evolvedDebug.x * debugScale,
-                0.5f + evolvedDebug.y * debugScale,
-                saturate(magnitude));
+                saturate(directional * 0.22f),
+                saturate(directional * 0.72f),
+                saturate(directional));
         }
         else if (fftDebugMode == 3)
         {
-            color = (0.5f + displacementDebug.y * debugScale).xxx;
+            float2 initialPhysical = initialDebug.xy / (128.0f * 128.0f);
+            float magnitude =
+                log2(1.0f + length(initialPhysical) * debugScale);
+            color = float3(
+                0.5f + initialPhysical.x * debugScale,
+                0.5f + initialPhysical.y * debugScale,
+                saturate(magnitude));
         }
         else if (fftDebugMode == 4)
         {
-            color = (0.5f + displacementDebug.x * debugScale).xxx;
+            float2 evolvedPhysical = evolvedDebug.xy / (128.0f * 128.0f);
+            float magnitude =
+                log2(1.0f + length(evolvedPhysical) * debugScale);
+            color = float3(
+                0.5f + evolvedPhysical.x * debugScale,
+                0.5f + evolvedPhysical.y * debugScale,
+                saturate(magnitude));
         }
         else if (fftDebugMode == 5)
         {
-            color = (0.5f + displacementDebug.z * debugScale).xxx;
+            color = (0.5f + displacementDebug.y * debugScale).xxx;
         }
         else if (fftDebugMode == 6)
+        {
+            color = (0.5f + displacementDebug.x * debugScale).xxx;
+        }
+        else if (fftDebugMode == 7)
+        {
+            color = (0.5f + displacementDebug.z * debugScale).xxx;
+        }
+        else if (fftDebugMode == 8)
         {
             color = float3(
                 0.5f + slopeDebug.x * debugScale,

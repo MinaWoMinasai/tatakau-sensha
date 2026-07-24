@@ -687,8 +687,8 @@ void Root::InitializeForOcean()
 	Parameters_[0].Descriptor.ShaderRegister = 0;
 
 	// t0: environment, t1: displacement, t2: slope,
-	// t3/t4: initial and evolved spectrum diagnostics.
-	for (uint32_t index = 0; index < 5; ++index) {
+	// t3/t4: initial/evolved complex spectra, t5: radial/directional data.
+	for (uint32_t index = 0; index < 6; ++index) {
 		descriptorRange_[index].BaseShaderRegister = index;
 		descriptorRange_[index].NumDescriptors = 1;
 		descriptorRange_[index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -707,7 +707,7 @@ void Root::InitializeForOcean()
 	}
 
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 6;
+	descriptionSignature_.NumParameters = 7;
 
 	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	staticSamplers_[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
