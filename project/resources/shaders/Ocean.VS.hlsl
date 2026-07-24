@@ -1,6 +1,8 @@
 #include "OceanCommon.hlsli"
 
-Texture2D<float4> gFFTDisplacement : register(t1);
+Texture2D<float4> gFFTDisplacementLarge : register(t1);
+Texture2D<float4> gFFTDisplacementMedium : register(t3);
+Texture2D<float4> gFFTDisplacementSmall : register(t5);
 SamplerState gOceanSampler : register(s0);
 
 OceanVertexOutput main(OceanVertexInput input)
@@ -85,9 +87,39 @@ OceanVertexOutput main(OceanVertexInput input)
         worldXZ.y + choppyOffset.y);
     if (gWaveSource >= 0.5f)
     {
-        float2 fftUv = worldXZ / max(gFFTPatchLength, 0.001f);
+        float3 displayMask = 1.0f.xxx;
+        if (gCascadeDisplayMode > 0.5f)
+        {
+            uint selectedCascade =
+                min((uint)(gCascadeDisplayMode - 0.5f), 2u);
+            displayMask = float3(
+                selectedCascade == 0u,
+                selectedCascade == 1u,
+                selectedCascade == 2u);
+        }
+        float3 displacementWeights =
+            gCascadeEnabled.xyz *
+            gCascadeDisplacementContributions.xyz *
+            displayMask;
+        float2 uvLarge = frac(
+            worldXZ / max(gCascadePatchLengths.x, 0.001f));
+        float2 uvMedium = frac(
+            worldXZ / max(gCascadePatchLengths.y, 0.001f));
+        float2 uvSmall = frac(
+            worldXZ / max(gCascadePatchLengths.z, 0.001f));
         float3 fftDisplacement =
-            gFFTDisplacement.SampleLevel(gOceanSampler, fftUv, 0.0f).xyz;
+            gFFTDisplacementLarge.SampleLevel(
+                gOceanSampler,
+                uvLarge,
+                0.0f).xyz * displacementWeights.x +
+            gFFTDisplacementMedium.SampleLevel(
+                gOceanSampler,
+                uvMedium,
+                0.0f).xyz * displacementWeights.y +
+            gFFTDisplacementSmall.SampleLevel(
+                gOceanSampler,
+                uvSmall,
+                0.0f).xyz * displacementWeights.z;
         fftDisplacement *= farFlatten;
         worldPosition = float3(
             worldXZ.x + fftDisplacement.x,

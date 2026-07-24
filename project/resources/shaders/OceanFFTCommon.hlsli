@@ -19,7 +19,12 @@ cbuffer OceanFFTParameters : register(b0)
     float2 gFFTSwellDirection;
     float gFFTSwellAmount;
     float gFFTOppositeWaveSuppression;
-    float2 gFFTPadding;
+    float gFFTMinimumWaveNumber;
+    float gFFTMaximumWaveNumber;
+    float gFFTBandTransitionWidth;
+    uint gFFTBandMode;
+    uint gFFTCascadeIndex;
+    float3 gFFTPadding;
 };
 
 cbuffer OceanFFTDispatch : register(b1)
@@ -243,6 +248,57 @@ float OceanNormalizedDirectionalSpectrum(
         kDirectionValidationSamples) / integral;
     normalizationError = abs(validationIntegral - 1.0f);
     return isfinite(directional) ? max(directional, 0.0f) : 0.0f;
+}
+
+float OceanCascadeBandWeight(float waveNumber)
+{
+    if (gFFTCascadeIndex >= 3u)
+    {
+        return 1.0f;
+    }
+
+    if (gFFTBandMode == 0u)
+    {
+        if (gFFTCascadeIndex == 0u)
+        {
+            return waveNumber < gFFTMaximumWaveNumber ? 1.0f : 0.0f;
+        }
+        if (gFFTCascadeIndex == 1u)
+        {
+            return waveNumber >= gFFTMinimumWaveNumber &&
+                waveNumber < gFFTMaximumWaveNumber ? 1.0f : 0.0f;
+        }
+        float radialNyquist =
+            1.41421356237f * kOceanPi * float(gFFTSize) /
+            max(gFFTPatchLength, 0.001f);
+        bool usesFullNyquist =
+            gFFTMaximumWaveNumber >= radialNyquist - 0.0001f;
+        return waveNumber >= gFFTMinimumWaveNumber &&
+            (usesFullNyquist || waveNumber < gFFTMaximumWaveNumber)
+            ? 1.0f
+            : 0.0f;
+    }
+
+    float halfWidth = max(gFFTBandTransitionWidth, 0.0001f) * 0.5f;
+    float lowerWeight = gFFTCascadeIndex == 0u
+        ? 1.0f
+        : smoothstep(
+            gFFTMinimumWaveNumber - halfWidth,
+            gFFTMinimumWaveNumber + halfWidth,
+            waveNumber);
+    float radialNyquist =
+        1.41421356237f * kOceanPi * float(gFFTSize) /
+        max(gFFTPatchLength, 0.001f);
+    bool usesFullNyquist =
+        gFFTCascadeIndex == 2u &&
+        gFFTMaximumWaveNumber >= radialNyquist - 0.0001f;
+    float upperWeight = usesFullNyquist
+        ? 1.0f
+        : 1.0f - smoothstep(
+            gFFTMaximumWaveNumber - halfWidth,
+            gFFTMaximumWaveNumber + halfWidth,
+            waveNumber);
+    return saturate(lowerWeight * upperWeight);
 }
 
 #endif
