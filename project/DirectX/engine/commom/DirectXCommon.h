@@ -72,6 +72,7 @@ public:
 		Shadow,
 		Trail,
 		Skybox,
+		Ocean,
 		Skinning,
 		SkinningShadow,
 	};
@@ -286,6 +287,7 @@ public:
 			return objectPSO_None_HDR;
 		}
 	}
+	PSO& GetPSOOceanForScene() { return oceanPSO_HDR; }
 
 	PSO& GetPSOParticle() { return psoParticle_; }
 	PSO& GetPSOModelParticle() { return psoModelParticle_; }
@@ -476,6 +478,7 @@ private:
 	PSO objectPSO_None_HDR;
 	PSO objectPSO_Alpha_HDR;
 	PSO objectPSO_Add_HDR;
+	PSO oceanPSO_HDR;
 	PSO psoParticle_;
 	PSO psoModelParticle_;
 	PSO psoModelParticle_HDR;

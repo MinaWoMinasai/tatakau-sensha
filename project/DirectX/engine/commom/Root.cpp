@@ -677,6 +677,49 @@ void Root::InitializeForSkybox()
 	}
 }
 
+void Root::InitializeForOcean()
+{
+	descriptionSignature_.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	// b0 is shared by the ocean vertex and pixel stages.
+	Parameters_[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	Parameters_[0].Descriptor.ShaderRegister = 0;
+
+	// t0 contains the same environment cubemap used by the visible skybox.
+	descriptorRange_[0].BaseShaderRegister = 0;
+	descriptorRange_[0].NumDescriptors = 1;
+	descriptorRange_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[1].DescriptorTable.pDescriptorRanges = &descriptorRange_[0];
+	Parameters_[1].DescriptorTable.NumDescriptorRanges = 1;
+
+	descriptionSignature_.pParameters = Parameters_;
+	descriptionSignature_.NumParameters = 2;
+
+	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	staticSamplers_[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplers_[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplers_[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplers_[0].ShaderRegister = 0;
+	staticSamplers_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	descriptionSignature_.pStaticSamplers = staticSamplers_;
+	descriptionSignature_.NumStaticSamplers = 1;
+
+	HRESULT hr = D3D12SerializeRootSignature(
+		&descriptionSignature_,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		&signatureBlob_,
+		&errorBlob_);
+	if (FAILED(hr)) {
+		assert(false);
+	}
+}
+
 void Root::InitializeForComputeParticle()
 {
 	log.Initialize();
