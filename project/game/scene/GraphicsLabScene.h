@@ -99,6 +99,8 @@ private:
 	bool pauseWater_ = false;
 	bool useDedicatedOceanRenderer_ = true;
 	int oceanMode_ = static_cast<int>(OceanRenderer::Mode::ArcBlanc);
+	int oceanWaveSource_ =
+		static_cast<int>(OceanRenderer::WaveSource::Procedural);
 	bool waterTaaEnabled_ = true;
 	bool waterBloomEnabled_ = true;
 	bool waterSunPathEnabled_ = true;
@@ -114,6 +116,13 @@ private:
 	float oceanChoppiness_ = 3.10f;
 	float oceanSunSpecularStrength_ = 0.70f;
 	float oceanArtisticSunLaneStrength_ = 1.0f;
+	bool fftPaused_ = false;
+	float fftTime_ = 0.0f;
+	float fftAmplitude_ = 0.0008f;
+	float fftPatchLength_ = 256.0f;
+	int fftSeed_ = 1337;
+	int fftDebugMode_ = 0;
+	float fftDebugDisplayScale_ = 1.0f;
 	bool showSandBed_ = false;
 	bool showBeach_ = false;
 	bool showObstacles_ = false;

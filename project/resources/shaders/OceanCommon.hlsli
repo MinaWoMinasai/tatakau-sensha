@@ -27,6 +27,10 @@ cbuffer OceanParameters : register(b0)
     float gFarFlattenEnabled;
     float gProceduralCloudReflectionEnabled;
     float2 gPadding;
+    float gWaveSource;
+    float gFFTPatchLength;
+    float gFFTDebugMode;
+    float gFFTDebugScale;
 };
 
 struct OceanVertexInput

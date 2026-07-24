@@ -534,6 +534,9 @@ void GraphicsLabScene::Update()
 
 	if (!pauseWater_) {
 		sceneTime_ += finalDeltaTime_ * waterTimeScale_;
+		if (!fftPaused_) {
+			fftTime_ += finalDeltaTime_ * waterTimeScale_;
+		}
 	}
 
 	if (loadLookDevSamples_ || loadSkinnedPbrSamples_) {
@@ -702,6 +705,12 @@ void GraphicsLabScene::UpdateDedicatedOcean()
 		static_cast<int>(OceanRenderer::Mode::Calm),
 		static_cast<int>(OceanRenderer::Mode::ArcBlanc));
 	oceanRenderer_->SetMode(static_cast<OceanRenderer::Mode>(clampedMode));
+	const int clampedWaveSource = (std::clamp)(
+		oceanWaveSource_,
+		static_cast<int>(OceanRenderer::WaveSource::Procedural),
+		static_cast<int>(OceanRenderer::WaveSource::FFTSingleCascade));
+	oceanRenderer_->SetWaveSource(
+		static_cast<OceanRenderer::WaveSource>(clampedWaveSource));
 	oceanRenderer_->SetTint(riverTint_);
 	oceanRenderer_->SetBaseHeight(-1.15f);
 	oceanRenderer_->SetWind(
@@ -720,6 +729,14 @@ void GraphicsLabScene::UpdateDedicatedOcean()
 		waterDebugMode_,
 		waterAtmosphereStrength_,
 		waterFarFlattenStrength_);
+	oceanRenderer_->SetFFTSettings(
+		fftTime_,
+		fftAmplitude_,
+		fftPatchLength_,
+		static_cast<uint32_t>((std::max)(fftSeed_, 0)),
+		fftPaused_,
+		fftDebugMode_,
+		fftDebugDisplayScale_);
 	oceanRenderer_->Update(
 		sceneTime_,
 		*camera_,
@@ -927,6 +944,16 @@ void GraphicsLabScene::DrawDebugWindow()
 			IM_ARRAYSIZE(oceanRenderers))) {
 			useDedicatedOceanRenderer_ = rendererMode == 1;
 		}
+		const char* waveSources[] = {
+			"Procedural",
+			"FFT Single Cascade"
+		};
+		ImGui::Combo(
+			"Wave source",
+			&oceanWaveSource_,
+			waveSources,
+			IM_ARRAYSIZE(waveSources));
+		ImGui::Checkbox("FFT pause", &fftPaused_);
 		const char* oceanModes[] = { "Calm", "Naval", "Arc Blanc" };
 		ImGui::Combo(
 			"Ocean mode",
@@ -979,6 +1006,42 @@ void GraphicsLabScene::DrawDebugWindow()
 			0.02f,
 			0.0f,
 			8.0f);
+		ImGui::DragFloat(
+			"FFT amplitude",
+			&fftAmplitude_,
+			0.00002f,
+			0.0f,
+			0.02f,
+			"%.6f");
+		ImGui::DragFloat(
+			"FFT patch length",
+			&fftPatchLength_,
+			1.0f,
+			32.0f,
+			2048.0f,
+			"%.0f m");
+		ImGui::InputInt("FFT seed", &fftSeed_);
+		const char* fftDebugModes[] = {
+			"None",
+			"Initial spectrum",
+			"Evolved spectrum",
+			"Height",
+			"Displacement X",
+			"Displacement Z",
+			"Slope X/Z",
+			"Final normal"
+		};
+		ImGui::Combo(
+			"Debug texture",
+			&fftDebugMode_,
+			fftDebugModes,
+			IM_ARRAYSIZE(fftDebugModes));
+		ImGui::DragFloat(
+			"Debug display scale",
+			&fftDebugDisplayScale_,
+			0.05f,
+			0.01f,
+			64.0f);
 		ImGui::DragFloat(
 			"Physical GGX sun specular",
 			&oceanSunSpecularStrength_,
