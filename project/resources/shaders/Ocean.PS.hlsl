@@ -1,6 +1,10 @@
 #include "OceanCommon.hlsli"
 
 TextureCube<float4> gEnvironmentMap : register(t0);
+Texture2D<float4> gFFTDisplacement : register(t1);
+Texture2D<float2> gFFTSlope : register(t2);
+Texture2D<float4> gFFTInitialSpectrum : register(t3);
+Texture2D<float4> gFFTEvolvedSpectrum : register(t4);
 SamplerState gEnvironmentSampler : register(s0);
 
 struct OceanPixelOutput
@@ -103,7 +107,19 @@ OceanPixelOutput main(OceanVertexOutput input)
     microSlope *= 0.68f + lerp(farDetailFade, foregroundDetail, 0.72f) * 0.32f;
     microSlope *= 1.08f - distantCalm * 0.20f;
 
-    float3 N = normalize(input.normal + float3(microSlope.x, 0.0f, microSlope.y));
+    float2 fftUv = worldXZ / max(gFFTPatchLength, 0.001f);
+    float2 normalPerturbation = microSlope;
+    if (gWaveSource >= 0.5f)
+    {
+        float4 fftDisplacement =
+            gFFTDisplacement.SampleLevel(gEnvironmentSampler, fftUv, 0.0f);
+        float2 fftSlope =
+            gFFTSlope.SampleLevel(gEnvironmentSampler, fftUv, 0.0f);
+        normalPerturbation = -fftSlope;
+        wave = fftDisplacement.y;
+    }
+    float3 N = normalize(
+        input.normal + float3(normalPerturbation.x, 0.0f, normalPerturbation.y));
     float NdotV = saturate(dot(N, V));
     float fresnel = pow(1.0f - NdotV, 4.2f);
     float lowAngleFresnel = pow(1.0f - NdotV, 6.0f);
@@ -149,6 +165,7 @@ OceanPixelOutput main(OceanVertexOutput input)
         farDetailFade * (0.35f + facing * 0.65f) * softPatchGate +
         arcCrestThread * crest * farDetailFade *
         (0.38f + foregroundDetail * 0.62f) * 0.052f);
+    foam *= 1.0f - step(0.5f, gWaveSource);
     float spectrumSheen = smoothstep(
         0.965f,
         1.0f,
@@ -233,6 +250,61 @@ OceanPixelOutput main(OceanVertexOutput input)
     color = lerp(color, farBlueAir, atmosphere * 0.74f);
     color += horizonSky * atmosphere * 0.085f;
     color *= gTint.rgb;
+
+    int fftDebugMode = (int)(gFFTDebugMode + 0.5f);
+    if (fftDebugMode > 0)
+    {
+        float debugScale = max(gFFTDebugScale, 0.001f);
+        float4 displacementDebug =
+            gFFTDisplacement.SampleLevel(gEnvironmentSampler, fftUv, 0.0f);
+        float2 slopeDebug =
+            gFFTSlope.SampleLevel(gEnvironmentSampler, fftUv, 0.0f);
+        float4 initialDebug =
+            gFFTInitialSpectrum.SampleLevel(gEnvironmentSampler, fftUv, 0.0f);
+        float4 evolvedDebug =
+            gFFTEvolvedSpectrum.SampleLevel(gEnvironmentSampler, fftUv, 0.0f);
+        if (fftDebugMode == 1)
+        {
+            float magnitude = log2(1.0f + length(initialDebug.xy) * debugScale * 64.0f);
+            color = float3(
+                0.5f + initialDebug.x * debugScale,
+                0.5f + initialDebug.y * debugScale,
+                saturate(magnitude));
+        }
+        else if (fftDebugMode == 2)
+        {
+            float magnitude = log2(1.0f + evolvedDebug.z * debugScale * 64.0f);
+            color = float3(
+                0.5f + evolvedDebug.x * debugScale,
+                0.5f + evolvedDebug.y * debugScale,
+                saturate(magnitude));
+        }
+        else if (fftDebugMode == 3)
+        {
+            color = (0.5f + displacementDebug.y * debugScale).xxx;
+        }
+        else if (fftDebugMode == 4)
+        {
+            color = (0.5f + displacementDebug.x * debugScale).xxx;
+        }
+        else if (fftDebugMode == 5)
+        {
+            color = (0.5f + displacementDebug.z * debugScale).xxx;
+        }
+        else if (fftDebugMode == 6)
+        {
+            color = float3(
+                0.5f + slopeDebug.x * debugScale,
+                0.5f + slopeDebug.y * debugScale,
+                0.5f);
+        }
+        else
+        {
+            color = N * 0.5f + 0.5f;
+        }
+        output.color = float4(saturate(color), 1.0f);
+        return output;
+    }
 
     int debugMode = (int)(gDebugMode + 0.5f);
     if (debugMode == 1)

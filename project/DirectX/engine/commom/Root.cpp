@@ -686,29 +686,99 @@ void Root::InitializeForOcean()
 	Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	Parameters_[0].Descriptor.ShaderRegister = 0;
 
-	// t0 contains the same environment cubemap used by the visible skybox.
-	descriptorRange_[0].BaseShaderRegister = 0;
-	descriptorRange_[0].NumDescriptors = 1;
-	descriptorRange_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	descriptorRange_[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	// t0: environment, t1: displacement, t2: slope,
+	// t3/t4: initial and evolved spectrum diagnostics.
+	for (uint32_t index = 0; index < 5; ++index) {
+		descriptorRange_[index].BaseShaderRegister = index;
+		descriptorRange_[index].NumDescriptors = 1;
+		descriptorRange_[index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		descriptorRange_[index].OffsetInDescriptorsFromTableStart =
+			D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	Parameters_[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	Parameters_[1].DescriptorTable.pDescriptorRanges = &descriptorRange_[0];
-	Parameters_[1].DescriptorTable.NumDescriptorRanges = 1;
+		Parameters_[1 + index].ParameterType =
+			D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		Parameters_[1 + index].ShaderVisibility =
+			index == 1
+			? D3D12_SHADER_VISIBILITY_ALL
+			: D3D12_SHADER_VISIBILITY_PIXEL;
+		Parameters_[1 + index].DescriptorTable.pDescriptorRanges =
+			&descriptorRange_[index];
+		Parameters_[1 + index].DescriptorTable.NumDescriptorRanges = 1;
+	}
 
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 2;
+	descriptionSignature_.NumParameters = 6;
 
 	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	staticSamplers_[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	staticSamplers_[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	staticSamplers_[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	staticSamplers_[0].ShaderRegister = 0;
-	staticSamplers_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	staticSamplers_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	descriptionSignature_.pStaticSamplers = staticSamplers_;
 	descriptionSignature_.NumStaticSamplers = 1;
+
+	HRESULT hr = D3D12SerializeRootSignature(
+		&descriptionSignature_,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		&signatureBlob_,
+		&errorBlob_);
+	if (FAILED(hr)) {
+		assert(false);
+	}
+}
+
+void Root::InitializeForOceanCompute()
+{
+	descriptionSignature_.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+
+	// Stable simulation parameters.
+	Parameters_[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	Parameters_[0].Descriptor.ShaderRegister = 0;
+
+	// Per-dispatch FFT stage and direction. Root constants avoid reusing an
+	// upload-buffer value across multiple dispatches in one command list.
+	Parameters_[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+	Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	Parameters_[1].Constants.ShaderRegister = 1;
+	Parameters_[1].Constants.Num32BitValues = 4;
+
+	// t0..t2 inputs.
+	for (uint32_t index = 0; index < 3; ++index) {
+		descriptorRange_[index].BaseShaderRegister = index;
+		descriptorRange_[index].NumDescriptors = 1;
+		descriptorRange_[index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		descriptorRange_[index].OffsetInDescriptorsFromTableStart =
+			D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		Parameters_[2 + index].ParameterType =
+			D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		Parameters_[2 + index].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		Parameters_[2 + index].DescriptorTable.pDescriptorRanges =
+			&descriptorRange_[index];
+		Parameters_[2 + index].DescriptorTable.NumDescriptorRanges = 1;
+	}
+
+	// u0..u3 outputs.
+	for (uint32_t index = 0; index < 4; ++index) {
+		descriptorRange_[3 + index].BaseShaderRegister = index;
+		descriptorRange_[3 + index].NumDescriptors = 1;
+		descriptorRange_[3 + index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+		descriptorRange_[3 + index].OffsetInDescriptorsFromTableStart =
+			D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		Parameters_[5 + index].ParameterType =
+			D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		Parameters_[5 + index].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		Parameters_[5 + index].DescriptorTable.pDescriptorRanges =
+			&descriptorRange_[3 + index];
+		Parameters_[5 + index].DescriptorTable.NumDescriptorRanges = 1;
+	}
+
+	descriptionSignature_.pParameters = Parameters_;
+	descriptionSignature_.NumParameters = 9;
+	descriptionSignature_.pStaticSamplers = nullptr;
+	descriptionSignature_.NumStaticSamplers = 0;
 
 	HRESULT hr = D3D12SerializeRootSignature(
 		&descriptionSignature_,
