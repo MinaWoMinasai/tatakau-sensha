@@ -9,6 +9,7 @@
 #include "Input.h"
 #include "IScene.h"
 #include "Object3d.h"
+#include "OceanRenderer.h"
 #include "PbrEnvironment.h"
 #include "SkinCluster.h"
 #include "Skybox.h"
@@ -76,12 +77,14 @@ private:
 		const Vector3& rotate,
 		const Vector3& scale);
 	void ApplyPbrSettingsToSkinnedObject(Object3d& object, float shadowReceiveStrength);
+	void UpdateDedicatedOcean();
 
 	Input* input_ = nullptr;
 	std::unique_ptr<Camera> camera_;
 	std::unique_ptr<DebugCamera> debugCamera_;
 	std::unique_ptr<Skybox> skybox_;
 	std::unique_ptr<Object3d> river_;
+	std::unique_ptr<OceanRenderer> oceanRenderer_;
 	std::unique_ptr<Object3d> sandBed_;
 	PbrEnvironment pbrEnvironment_;
 	std::vector<LabObject> metalObjects_;
@@ -94,6 +97,8 @@ private:
 	float finalDeltaTime_ = 1.0f / 60.0f;
 	float sceneTime_ = 0.0f;
 	bool pauseWater_ = false;
+	bool useDedicatedOceanRenderer_ = true;
+	int oceanMode_ = static_cast<int>(OceanRenderer::Mode::ArcBlanc);
 	bool waterTaaEnabled_ = true;
 	bool waterBloomEnabled_ = true;
 	bool waterSunPathEnabled_ = true;
@@ -104,6 +109,11 @@ private:
 	float waterHistoryWeight_ = 0.08f;
 	float waterAtmosphereStrength_ = 1.0f;
 	float waterFarFlattenStrength_ = 1.0f;
+	Vector2 oceanWindDirection_ = { 0.18f, 0.98f };
+	float oceanWindSpeed_ = 12.0f;
+	float oceanChoppiness_ = 3.10f;
+	float oceanSunSpecularStrength_ = 0.70f;
+	float oceanArtisticSunLaneStrength_ = 1.0f;
 	bool showSandBed_ = false;
 	bool showBeach_ = false;
 	bool showObstacles_ = false;
