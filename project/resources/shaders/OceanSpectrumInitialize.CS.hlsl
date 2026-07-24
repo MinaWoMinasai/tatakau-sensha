@@ -92,11 +92,14 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float radialSpectrum;
     float directionalSpectrum;
     float directionalNormalizationError;
-    float waveNumberSpectrum = EvaluateWaveNumberSpectrum(
+    float unfilteredWaveNumberSpectrum = EvaluateWaveNumberSpectrum(
         waveVector,
         radialSpectrum,
         directionalSpectrum,
         directionalNormalizationError);
+    float bandWeight = OceanCascadeBandWeight(length(waveVector));
+    float waveNumberSpectrum =
+        unfilteredWaveNumberSpectrum * bandWeight;
 
     // A normalized 2D IFFT computes (1 / N^2) sum(H[k] exp(i k x)).
     // Store N^2 times the physical Fourier-series coefficient so the final
@@ -118,11 +121,15 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float oppositeRadialSpectrum;
     float oppositeDirectionalSpectrum;
     float oppositeDirectionalNormalizationError;
-    float oppositeWaveNumberSpectrum = EvaluateWaveNumberSpectrum(
+    float oppositeUnfilteredWaveNumberSpectrum = EvaluateWaveNumberSpectrum(
         oppositeWaveVector,
         oppositeRadialSpectrum,
         oppositeDirectionalSpectrum,
         oppositeDirectionalNormalizationError);
+    float oppositeBandWeight =
+        OceanCascadeBandWeight(length(oppositeWaveVector));
+    float oppositeWaveNumberSpectrum =
+        oppositeUnfilteredWaveNumberSpectrum * oppositeBandWeight;
     float oppositeAmplitude =
         sqrt(max(oppositeWaveNumberSpectrum, 0.0f) * 0.25f) *
         deltaK * inverseTransformScale;
@@ -138,6 +145,6 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     gSpectrumDebug[coordinate] = float4(
         radialSpectrum,
         directionalSpectrum,
-        directionalNormalizationError,
+        bandWeight,
         waveNumberSpectrum);
 }

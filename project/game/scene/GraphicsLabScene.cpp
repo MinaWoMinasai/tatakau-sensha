@@ -708,7 +708,7 @@ void GraphicsLabScene::UpdateDedicatedOcean()
 	const int clampedWaveSource = (std::clamp)(
 		oceanWaveSource_,
 		static_cast<int>(OceanRenderer::WaveSource::Procedural),
-		static_cast<int>(OceanRenderer::WaveSource::FFTSingleCascade));
+		static_cast<int>(OceanRenderer::WaveSource::FFTThreeCascades));
 	oceanRenderer_->SetWaveSource(
 		static_cast<OceanRenderer::WaveSource>(clampedWaveSource));
 	oceanRenderer_->SetTint(riverTint_);
@@ -751,6 +751,17 @@ void GraphicsLabScene::UpdateDedicatedOcean()
 		fftSwellDirection_,
 		fftSwellAmount_,
 		fftOppositeWaveSuppression_);
+	const int clampedBandMode = (std::clamp)(
+		fftCascadeBandMode_,
+		static_cast<int>(OceanRenderer::CascadeBandMode::HardCutoff),
+		static_cast<int>(
+			OceanRenderer::CascadeBandMode::SmoothTransition));
+	oceanRenderer_->SetFFTCascadeSettings(
+		static_cast<OceanRenderer::CascadeBandMode>(clampedBandMode),
+		fftCascadeTransitionWidth_,
+		fftCascadeSettings_,
+		fftCascadeDisplayMode_,
+		fftDebugCascadeIndex_);
 	oceanRenderer_->Update(
 		sceneTime_,
 		*camera_,
@@ -960,7 +971,8 @@ void GraphicsLabScene::DrawDebugWindow()
 		}
 		const char* waveSources[] = {
 			"Procedural",
-			"FFT Single Cascade"
+			"FFT Single Cascade",
+			"FFT Three Cascades"
 		};
 		ImGui::Combo(
 			"Wave source",
@@ -1045,6 +1057,76 @@ void GraphicsLabScene::DrawDebugWindow()
 			2048.0f,
 			"%.0f m");
 		ImGui::InputInt("FFT seed", &fftSeed_);
+		const char* cascadeDisplays[] = {
+			"Combined",
+			"Large",
+			"Medium",
+			"Small"
+		};
+		ImGui::Combo(
+			"Cascade display",
+			&fftCascadeDisplayMode_,
+			cascadeDisplays,
+			IM_ARRAYSIZE(cascadeDisplays));
+		const char* bandModes[] = {
+			"Arc Blanc exact hard cutoff",
+			"Energy-conserving smooth transition"
+		};
+		ImGui::Combo(
+			"Cascade band mode",
+			&fftCascadeBandMode_,
+			bandModes,
+			IM_ARRAYSIZE(bandModes));
+		ImGui::DragFloat(
+			"Band transition width",
+			&fftCascadeTransitionWidth_,
+			0.01f,
+			0.001f,
+			8.0f,
+			"%.3f rad/m");
+		const char* cascadeNames[] = { "Large", "Medium", "Small" };
+		for (uint32_t cascadeIndex = 0;
+			cascadeIndex < OceanRenderer::kFFTCascadeCount;
+			++cascadeIndex) {
+			ImGui::PushID(static_cast<int>(cascadeIndex));
+			ImGui::Text("%s cascade", cascadeNames[cascadeIndex]);
+			auto& cascade = fftCascadeSettings_[cascadeIndex];
+			ImGui::Checkbox("Enabled", &cascade.enabled);
+			ImGui::DragFloat(
+				"Patch length",
+				&cascade.patchLength,
+				1.0f,
+				1.0f,
+				2048.0f,
+				"%.1f m");
+			ImGui::DragFloat(
+				"k min",
+				&cascade.minimumWaveNumber,
+				0.01f,
+				0.0f,
+				128.0f,
+				"%.4f rad/m");
+			ImGui::DragFloat(
+				"k max",
+				&cascade.maximumWaveNumber,
+				0.01f,
+				0.0f,
+				160.0f,
+				"%.4f rad/m");
+			ImGui::DragFloat(
+				"Displacement contribution",
+				&cascade.displacementContribution,
+				0.01f,
+				0.0f,
+				4.0f);
+			ImGui::DragFloat(
+				"Slope contribution",
+				&cascade.slopeContribution,
+				0.01f,
+				0.0f,
+				4.0f);
+			ImGui::PopID();
+		}
 		ImGui::DragFloat(
 			"JONSWAP fetch",
 			&fftFetch_,
@@ -1097,6 +1179,7 @@ void GraphicsLabScene::DrawDebugWindow()
 			"None",
 			"Radial spectrum",
 			"Directional spectrum",
+			"Band weight",
 			"Initial complex spectrum",
 			"Evolved spectrum",
 			"Final height",
@@ -1105,6 +1188,16 @@ void GraphicsLabScene::DrawDebugWindow()
 			"Final slope",
 			"Final normal"
 		};
+		const char* fftDebugCascades[] = {
+			"Large",
+			"Medium",
+			"Small"
+		};
+		ImGui::Combo(
+			"Debug cascade",
+			&fftDebugCascadeIndex_,
+			fftDebugCascades,
+			IM_ARRAYSIZE(fftDebugCascades));
 		ImGui::Combo(
 			"Debug texture",
 			&fftDebugMode_,
@@ -1127,6 +1220,85 @@ void GraphicsLabScene::DrawDebugWindow()
 			}
 			const auto& diagnostics = oceanRenderer_->GetFFTDiagnostics();
 			if (diagnostics.valid) {
+				if (diagnostics.threeCascades) {
+					const char* cascadeNames[] = {
+						"Large",
+						"Medium",
+						"Small"
+					};
+					bool numericalPass = true;
+					for (uint32_t cascadeIndex = 0;
+						cascadeIndex < OceanRenderer::kFFTCascadeCount;
+						++cascadeIndex) {
+						const auto& cascade =
+							diagnostics.cascades[cascadeIndex];
+						if (!cascade.valid) {
+							continue;
+						}
+						ImGui::Text(
+							"%s target/GPU variance: %.6e / %.6e m^2",
+							cascadeNames[cascadeIndex],
+							cascade.targetSpectrumVariance,
+							cascade.rgba16fVariance);
+						ImGui::Text(
+							"  RMS/Hs: %.6f / %.6f m   mean variance: %.6e",
+							cascade.heightRms,
+							cascade.significantWaveHeight,
+							cascade.seedMeanVariance);
+						ImGui::Text(
+							"  Hermitian/imaginary: %.3e / %.3e   NaN/Inf: %u",
+							cascade.hermitianSymmetryError,
+							cascade.ifftImaginaryResidual,
+							cascade.invalidValueCount);
+						ImGui::Text(
+							"  RGBA16F error: %.4f%%   GPU: %.3f ms",
+							cascade.rgba16fQuantizationError * 100.0f,
+							cascade.gpuTimeMilliseconds);
+						numericalPass =
+							numericalPass &&
+							cascade.invalidValueCount == 0 &&
+							cascade.hermitianSymmetryError <= 1.0e-4f &&
+							cascade.ifftImaginaryResidual <= 1.0e-4f;
+					}
+					const float meanVarianceError =
+						diagnostics.combinedTargetVariance > 1.0e-12f
+						? std::abs(
+							diagnostics.combinedSeedMeanVariance -
+							diagnostics.combinedTargetVariance) /
+							diagnostics.combinedTargetVariance
+						: 0.0f;
+					ImGui::Text(
+						"Combined target/GPU variance: %.6e / %.6e m^2",
+						diagnostics.combinedTargetVariance,
+						diagnostics.combinedGpuVariance);
+					ImGui::Text(
+						"Combined RMS/Hs: %.6f / %.6f m",
+						diagnostics.combinedHeightRms,
+						diagnostics.combinedSignificantWaveHeight);
+					ImGui::Text(
+						"32-seed mean variance: %.6e   error: %.3f%%",
+						diagnostics.combinedSeedMeanVariance,
+						meanVarianceError * 100.0f);
+					ImGui::Text(
+						"Single target / partition error: %.6e / %.3f%%",
+						diagnostics.singleReferenceTargetVariance,
+						diagnostics.energyPartitionError * 100.0f);
+					ImGui::Text(
+						"Band overlap/missing energy: %.3e / %.3e m^2",
+						diagnostics.bandOverlapEnergy,
+						diagnostics.bandMissingEnergy);
+					ImGui::Text(
+						"Current GPU vs Single: %.3f%%   total GPU: %.3f ms",
+						diagnostics.combinedVarianceRelativeError * 100.0f,
+						diagnostics.totalGpuTimeMilliseconds);
+					const bool variancePass =
+						diagnostics.energyPartitionError <= 0.05f &&
+						meanVarianceError <= 0.05f;
+					ImGui::Text(
+						"Acceptance: partition %s   numerical %s",
+						variancePass ? "PASS" : "FAIL",
+						numericalPass ? "PASS" : "FAIL");
+				} else {
 				ImGui::Text(
 					"Height RMS: %.6f m   Hs: %.6f m",
 					diagnostics.heightRms,
@@ -1209,6 +1381,7 @@ void GraphicsLabScene::DrawDebugWindow()
 					"Acceptance: variance %s   numerical %s",
 					variancePass ? "PASS" : "FAIL",
 					numericalPass ? "PASS" : "FAIL");
+				}
 			}
 		}
 		ImGui::DragFloat(

@@ -25,6 +25,7 @@ public:
 	enum class WaveSource : uint32_t {
 		Procedural = 0,
 		FFTSingleCascade = 1,
+		FFTThreeCascades = 2,
 	};
 
 	enum class SpectrumModel : uint32_t {
@@ -32,7 +33,23 @@ public:
 		JonswapDonelanBanner = 1,
 	};
 
-	struct OceanFFTDiagnostics {
+	enum class CascadeBandMode : uint32_t {
+		HardCutoff = 0,
+		SmoothTransition = 1,
+	};
+
+	static constexpr uint32_t kFFTCascadeCount = 3;
+
+	struct OceanCascadeSettings {
+		bool enabled = true;
+		float patchLength = 256.0f;
+		float minimumWaveNumber = 0.0f;
+		float maximumWaveNumber = 1.0f;
+		float displacementContribution = 1.0f;
+		float slopeContribution = 1.0f;
+	};
+
+	struct OceanCascadeDiagnostics {
 		bool valid = false;
 		float sampleTime = 0.0f;
 		float heightRms = 0.0f;
@@ -65,9 +82,28 @@ public:
 		float seedRmsMaximum = 0.0f;
 		float seedMeanRelativeError = 0.0f;
 		float seedMeanAbsoluteRelativeError = 0.0f;
+		float seedMeanVariance = 0.0f;
+		float rgba16fQuantizationError = 0.0f;
+		float gpuTimeMilliseconds = 0.0f;
 		uint32_t invalidValueCount = 0;
 		uint32_t gaussianSampleCount = 0;
 		uint32_t selfConjugateBinCount = 0;
+	};
+
+	struct OceanFFTDiagnostics : OceanCascadeDiagnostics {
+		bool threeCascades = false;
+		std::array<OceanCascadeDiagnostics, kFFTCascadeCount> cascades{};
+		float singleReferenceTargetVariance = 0.0f;
+		float combinedTargetVariance = 0.0f;
+		float combinedGpuVariance = 0.0f;
+		float combinedHeightRms = 0.0f;
+		float combinedSignificantWaveHeight = 0.0f;
+		float combinedSeedMeanVariance = 0.0f;
+		float combinedVarianceRelativeError = 0.0f;
+		float energyPartitionError = 0.0f;
+		float bandOverlapEnergy = 0.0f;
+		float bandMissingEnergy = 0.0f;
+		float totalGpuTimeMilliseconds = 0.0f;
 	};
 
 	struct alignas(16) OceanParameters {
@@ -99,6 +135,14 @@ public:
 		float fftPatchLength = 256.0f;
 		float fftDebugMode = 0.0f;
 		float fftDebugScale = 1.0f;
+		Vector4 cascadePatchLengths = { 256.0f, 16.0f, 4.0f, 256.0f };
+		Vector4 cascadeDisplacementContributions = { 1.0f, 1.0f, 0.0f, 0.0f };
+		Vector4 cascadeSlopeContributions = { 1.0f, 1.0f, 1.0f, 0.0f };
+		Vector4 cascadeEnabled = { 1.0f, 1.0f, 1.0f, 0.0f };
+		float cascadeDisplayMode = 0.0f;
+		float fftDebugPatchLength = 256.0f;
+		float fftDebugCascade = 0.0f;
+		float cascadePadding = 0.0f;
 	};
 
 	struct alignas(16) OceanFFTParameters {
@@ -119,7 +163,13 @@ public:
 		Vector2 swellDirection = { 0.60f, 0.80f };
 		float swellAmount = 0.20f;
 		float oppositeWaveSuppression = 0.85f;
-		Vector2 padding{};
+		float minimumWaveNumber = 0.0f;
+		float maximumWaveNumber = 1000000.0f;
+		float bandTransitionWidth = 0.25f;
+		uint32_t bandMode =
+			static_cast<uint32_t>(CascadeBandMode::HardCutoff);
+		uint32_t cascadeIndex = kFFTCascadeCount;
+		Vector3 padding{};
 	};
 
 	void Initialize(Model* gridModel, uint32_t environmentSrvIndex);
@@ -164,6 +214,12 @@ public:
 		const Vector2& swellDirection,
 		float swellAmount,
 		float oppositeWaveSuppression);
+	void SetFFTCascadeSettings(
+		CascadeBandMode bandMode,
+		float transitionWidth,
+		const std::array<OceanCascadeSettings, kFFTCascadeCount>& settings,
+		int displayMode,
+		int debugCascadeIndex);
 	void RequestFFTDiagnostics();
 	void SetEnvironmentSrvIndex(uint32_t environmentSrvIndex);
 
@@ -194,20 +250,64 @@ private:
 		uint64_t totalBytes = 0;
 	};
 
+	struct OceanCascade {
+		OceanFFTParameters parameters{};
+		OceanCascadeSettings settings{};
+		Microsoft::WRL::ComPtr<ID3D12Resource> parameterResource;
+		OceanFFTParameters* parameterData = nullptr;
+		FFTTexture initialSpectrum;
+		FFTTexture spectrumDebug;
+		FFTTexture evolvedSpectrumDebug;
+		std::array<FFTTexture, 2> spectrumA;
+		std::array<FFTTexture, 2> spectrumB;
+		std::array<FFTTexture, 2> spectrumC;
+		FFTTexture displacement;
+		FFTTexture slope;
+		FFTReadback displacementReadback;
+		FFTReadback slopeReadback;
+		FFTReadback initialSpectrumReadback;
+		FFTReadback evolvedSpectrumReadback;
+		FFTReadback finalSpectrumReadback;
+		FFTReadback spectrumDebugReadback;
+		OceanFFTParameters diagnosticsParameters{};
+		OceanCascadeDiagnostics diagnostics{};
+		uint32_t finalSpectrumIndex = 0;
+		bool initialSpectrumDirty = true;
+		bool outputDirty = true;
+		bool hasOutput = false;
+	};
+
 	void UploadParameters();
 	void InitializeFFT();
+	void InitializeCascade(
+		OceanCascade& cascade,
+		const OceanCascadeSettings& settings,
+		uint32_t cascadeIndex,
+		uint32_t seed);
+	void ApplyBaseParametersToCascades();
+	void MarkAllInitialSpectraDirty();
+	void MarkAllOutputsDirty();
 	void CreateFFTTexture(FFTTexture& texture, DXGI_FORMAT format);
 	void CreateFFTReadback(FFTReadback& readback, const FFTTexture& source);
 	void CreateComputePipeline(
 		const std::wstring& shaderPath,
 		Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipeline);
 	void RunFFT();
-	void QueueFFTDiagnosticsReadback();
+	void RunCascadeFFT(OceanCascade& cascade);
+	void QueueFFTDiagnosticsReadback(OceanCascade& cascade);
 	void ResolveFFTDiagnostics();
+	OceanCascadeDiagnostics ResolveCascadeDiagnostics(OceanCascade& cascade);
+	void ResolveGpuTimings();
+	void InitializeGpuTiming();
+	void BeginCascadeGpuTiming(uint32_t queryIndex);
+	void EndCascadeGpuTiming(uint32_t queryIndex);
+	void QueueGpuTimingReadback(uint32_t queryCount);
 	void CopyFFTTextureToReadback(
 		FFTTexture& source,
 		FFTReadback& destination);
-	void BindComputePipeline(ID3D12PipelineState* pipeline);
+	void BindComputePipeline(
+		ID3D12PipelineState* pipeline,
+		const OceanCascade& cascade);
 	void Transition(
 		FFTTexture& texture,
 		D3D12_RESOURCE_STATES nextState);
@@ -226,29 +326,21 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> spectrumEvolvePipeline_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> fftPipeline_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> fftOutputPipeline_;
-	Microsoft::WRL::ComPtr<ID3D12Resource> fftParameterResource_;
-	OceanFFTParameters* fftParameterData_ = nullptr;
 	OceanFFTParameters fftParameters_{};
-	FFTTexture initialSpectrum_;
-	FFTTexture spectrumDebug_;
-	FFTTexture evolvedSpectrumDebug_;
-	std::array<FFTTexture, 2> spectrumA_;
-	std::array<FFTTexture, 2> spectrumB_;
-	std::array<FFTTexture, 2> spectrumC_;
-	FFTTexture displacement_;
-	FFTTexture slope_;
-	FFTReadback displacementReadback_;
-	FFTReadback slopeReadback_;
-	FFTReadback initialSpectrumReadback_;
-	FFTReadback evolvedSpectrumReadback_;
-	FFTReadback finalSpectrumReadback_;
-	FFTReadback spectrumDebugReadback_;
-	OceanFFTParameters diagnosticsParameters_{};
+	OceanCascade singleCascade_{};
+	std::array<OceanCascade, kFFTCascadeCount> cascades_{};
+	std::array<OceanCascadeSettings, kFFTCascadeCount> cascadeSettings_{};
+	CascadeBandMode cascadeBandMode_ = CascadeBandMode::HardCutoff;
+	float cascadeTransitionWidth_ = 0.25f;
+	uint32_t cascadeDisplayMode_ = 0;
+	uint32_t debugCascadeIndex_ = 0;
 	OceanFFTDiagnostics fftDiagnostics_{};
-	uint32_t finalSpectrumIndex_ = 0;
-	bool fftInitialSpectrumDirty_ = true;
-	bool fftOutputDirty_ = true;
-	bool fftHasOutput_ = false;
+	Microsoft::WRL::ComPtr<ID3D12QueryHeap> fftTimestampQueryHeap_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> fftTimestampReadback_;
+	uint64_t fftTimestampFrequency_ = 0;
+	uint32_t fftTimestampQueryCount_ = 0;
+	std::array<float, kFFTCascadeCount> pendingGpuTimes_{};
+	bool diagnosticsThreeCascades_ = false;
 	bool fftPaused_ = false;
 	bool fftDiagnosticsRequested_ = false;
 	bool fftDiagnosticsPending_ = false;
