@@ -686,9 +686,9 @@ void Root::InitializeForOcean()
 	Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	Parameters_[0].Descriptor.ShaderRegister = 0;
 
-	// t0: environment, t1: displacement, t2: slope,
-	// t3/t4: initial/evolved complex spectra, t5: radial/directional data.
-	for (uint32_t index = 0; index < 6; ++index) {
+	// t0: environment. t1/t2, t3/t4 and t5/t6 are the three
+	// displacement/slope pairs. t7..t9 are the selected cascade's debug data.
+	for (uint32_t index = 0; index < 10; ++index) {
 		descriptorRange_[index].BaseShaderRegister = index;
 		descriptorRange_[index].NumDescriptors = 1;
 		descriptorRange_[index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -698,7 +698,7 @@ void Root::InitializeForOcean()
 		Parameters_[1 + index].ParameterType =
 			D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		Parameters_[1 + index].ShaderVisibility =
-			index == 1
+			index == 1 || index == 3 || index == 5
 			? D3D12_SHADER_VISIBILITY_ALL
 			: D3D12_SHADER_VISIBILITY_PIXEL;
 		Parameters_[1 + index].DescriptorTable.pDescriptorRanges =
@@ -707,7 +707,7 @@ void Root::InitializeForOcean()
 	}
 
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 7;
+	descriptionSignature_.NumParameters = 11;
 
 	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	staticSamplers_[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
