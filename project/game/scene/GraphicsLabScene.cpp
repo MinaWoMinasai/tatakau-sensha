@@ -711,6 +711,18 @@ void GraphicsLabScene::UpdateDedicatedOcean()
 		static_cast<int>(OceanRenderer::WaveSource::FFTThreeCascades));
 	oceanRenderer_->SetWaveSource(
 		static_cast<OceanRenderer::WaveSource>(clampedWaveSource));
+	const int clampedMeshMode = (std::clamp)(
+		oceanMeshMode_,
+		static_cast<int>(OceanRenderer::MeshMode::FixedGrid),
+		static_cast<int>(OceanRenderer::MeshMode::ProjectedGrid));
+	oceanRenderer_->SetMeshSettings(
+		static_cast<OceanRenderer::MeshMode>(clampedMeshMode),
+		static_cast<uint32_t>(
+			(std::max)(oceanProjectedGridResolution_, 1)),
+		oceanProjectedNearClamp_,
+		oceanProjectedFarClamp_,
+		oceanProjectedGridDebug_,
+		oceanProjectedWireframe_);
 	oceanRenderer_->SetTint(riverTint_);
 	oceanRenderer_->SetBaseHeight(-1.15f);
 	oceanRenderer_->SetWind(
@@ -979,6 +991,47 @@ void GraphicsLabScene::DrawDebugWindow()
 			&oceanWaveSource_,
 			waveSources,
 			IM_ARRAYSIZE(waveSources));
+		const char* meshModes[] = {
+			"Fixed grid",
+			"Projected grid"
+		};
+		ImGui::Combo(
+			"Mesh mode",
+			&oceanMeshMode_,
+			meshModes,
+			IM_ARRAYSIZE(meshModes));
+		ImGui::SliderInt(
+			"Grid resolution",
+			&oceanProjectedGridResolution_,
+			32,
+			512);
+		ImGui::DragFloat(
+			"Projected near clamp",
+			&oceanProjectedNearClamp_,
+			0.10f,
+			0.0f,
+			100.0f,
+			"%.1f m");
+		ImGui::DragFloat(
+			"Projected far clamp",
+			&oceanProjectedFarClamp_,
+			5.0f,
+			100.0f,
+			2400.0f,
+			"%.0f m");
+		ImGui::Checkbox(
+			"Projected grid debug",
+			&oceanProjectedGridDebug_);
+		ImGui::SameLine();
+		ImGui::Checkbox(
+			"Debug wireframe",
+			&oceanProjectedWireframe_);
+		ImGui::DragFloat(
+			"Small displacement contribution",
+			&fftCascadeSettings_[2].displacementContribution,
+			0.005f,
+			0.0f,
+			1.0f);
 		ImGui::Checkbox("FFT pause", &fftPaused_);
 		const char* oceanModes[] = { "Calm", "Naval", "Arc Blanc" };
 		ImGui::Combo(
@@ -1113,12 +1166,14 @@ void GraphicsLabScene::DrawDebugWindow()
 				0.0f,
 				160.0f,
 				"%.4f rad/m");
-			ImGui::DragFloat(
-				"Displacement contribution",
-				&cascade.displacementContribution,
-				0.01f,
-				0.0f,
-				4.0f);
+			if (cascadeIndex != 2u) {
+				ImGui::DragFloat(
+					"Displacement contribution",
+					&cascade.displacementContribution,
+					0.01f,
+					0.0f,
+					4.0f);
+			}
 			ImGui::DragFloat(
 				"Slope contribution",
 				&cascade.slopeContribution,

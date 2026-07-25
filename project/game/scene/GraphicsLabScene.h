@@ -102,6 +102,13 @@ private:
 	int oceanMode_ = static_cast<int>(OceanRenderer::Mode::ArcBlanc);
 	int oceanWaveSource_ =
 		static_cast<int>(OceanRenderer::WaveSource::FFTThreeCascades);
+	int oceanMeshMode_ =
+		static_cast<int>(OceanRenderer::MeshMode::ProjectedGrid);
+	int oceanProjectedGridResolution_ = 256;
+	float oceanProjectedNearClamp_ = 0.5f;
+	float oceanProjectedFarClamp_ = 1800.0f;
+	bool oceanProjectedGridDebug_ = false;
+	bool oceanProjectedWireframe_ = false;
 	bool waterTaaEnabled_ = true;
 	bool waterBloomEnabled_ = true;
 	bool waterSunPathEnabled_ = true;
