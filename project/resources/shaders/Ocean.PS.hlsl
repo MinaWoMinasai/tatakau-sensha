@@ -19,6 +19,46 @@ struct OceanPixelOutput
     float4 material : SV_TARGET2;
 };
 
+float3 ApplyProjectedGridDebug(float3 color, OceanVertexOutput input)
+{
+    if (gMeshMode < 0.5f)
+    {
+        return color;
+    }
+
+    if (gProjectedGridDebug > 0.5f)
+    {
+        float distanceRange = max(
+            gProjectedFarClamp - gProjectedNearClamp,
+            1.0f);
+        float normalizedDistance = saturate(
+            (input.projectedDistance - gProjectedNearClamp) /
+            distanceRange);
+        float3 densityColor = lerp(
+            float3(0.08f, 0.82f, 0.34f),
+            float3(0.92f, 0.18f, 0.06f),
+            sqrt(normalizedDistance));
+        color = lerp(color, densityColor, 0.52f);
+    }
+
+    if (gProjectedWireframe > 0.5f)
+    {
+        float2 cell = input.projectedGridCoord *
+            max(gProjectedGridResolution, 1.0f.xx);
+        float2 edgeDistance = min(frac(cell), 1.0f - frac(cell));
+        float2 pixelWidth = max(fwidth(cell) * 1.15f, 1.0e-4f.xx);
+        float gridLine = 1.0f - saturate(
+            min(
+                edgeDistance.x / pixelWidth.x,
+                edgeDistance.y / pixelWidth.y));
+        color = lerp(
+            color,
+            float3(1.0f, 0.82f, 0.12f),
+            gridLine * 0.88f);
+    }
+    return color;
+}
+
 OceanPixelOutput main(OceanVertexOutput input)
 {
     OceanPixelOutput output;
@@ -428,6 +468,7 @@ OceanPixelOutput main(OceanVertexOutput input)
         {
             color = N * 0.5f + 0.5f;
         }
+        color = ApplyProjectedGridDebug(color, input);
         output.color = float4(saturate(color), 1.0f);
         return output;
     }
@@ -456,6 +497,7 @@ OceanPixelOutput main(OceanVertexOutput input)
         color = 1.0f.xxx;
     }
 
+    color = ApplyProjectedGridDebug(color, input);
     output.color = float4(max(color, 0.0f), gTint.a);
     return output;
 }
