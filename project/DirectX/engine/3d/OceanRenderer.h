@@ -38,6 +38,11 @@ public:
 		SmoothTransition = 1,
 	};
 
+	enum class MeshMode : uint32_t {
+		FixedGrid = 0,
+		ProjectedGrid = 1,
+	};
+
 	static constexpr uint32_t kFFTCascadeCount = 3;
 
 	struct OceanCascadeSettings {
@@ -108,6 +113,7 @@ public:
 
 	struct alignas(16) OceanParameters {
 		Matrix4x4 viewProjection{};
+		Matrix4x4 inverseViewProjection{};
 		Vector4 tint = { 0.72f, 0.82f, 0.92f, 0.98f };
 		Vector3 cameraPosition{};
 		float time = 0.0f;
@@ -143,6 +149,13 @@ public:
 		float fftDebugPatchLength = 256.0f;
 		float fftDebugCascade = 0.0f;
 		float cascadePadding = 0.0f;
+		float meshMode = static_cast<float>(MeshMode::ProjectedGrid);
+		float projectedNearClamp = 0.5f;
+		float projectedFarClamp = 1800.0f;
+		float projectedHorizonNdcY = 1.0f;
+		Vector2 projectedGridResolution = { 256.0f, 144.0f };
+		float projectedGridDebug = 0.0f;
+		float projectedWireframe = 0.0f;
 	};
 
 	struct alignas(16) OceanFFTParameters {
@@ -220,6 +233,13 @@ public:
 		const std::array<OceanCascadeSettings, kFFTCascadeCount>& settings,
 		int displayMode,
 		int debugCascadeIndex);
+	void SetMeshSettings(
+		MeshMode mode,
+		uint32_t horizontalResolution,
+		float nearClamp,
+		float farClamp,
+		bool projectedGridDebug,
+		bool wireframe);
 	void RequestFFTDiagnostics();
 	void SetEnvironmentSrvIndex(uint32_t environmentSrvIndex);
 
@@ -314,12 +334,21 @@ private:
 	void InsertUAVBarrier(FFTTexture& texture);
 	void BindComputeSrv(uint32_t rootIndex, const FFTTexture& texture);
 	void BindComputeUav(uint32_t rootIndex, const FFTTexture& texture);
+	void CreateProjectedGridMesh(uint32_t horizontalResolution);
+	void DrawProjectedGrid();
 
 	Model* gridModel_ = nullptr;
 	uint32_t environmentSrvIndex_ = 0;
 	OceanParameters parameters_{};
 	Microsoft::WRL::ComPtr<ID3D12Resource> parameterResource_;
 	OceanParameters* parameterData_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> projectedGridVertexResource_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> projectedGridIndexResource_;
+	D3D12_VERTEX_BUFFER_VIEW projectedGridVertexBufferView_{};
+	D3D12_INDEX_BUFFER_VIEW projectedGridIndexBufferView_{};
+	uint32_t projectedGridIndexCount_ = 0;
+	uint32_t projectedGridHorizontalResolution_ = 0;
+	uint32_t projectedGridVerticalResolution_ = 0;
 
 	Root fftComputeRoot_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> spectrumInitializePipeline_;
