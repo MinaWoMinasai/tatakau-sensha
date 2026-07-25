@@ -5,11 +5,58 @@ Texture2D<float4> gFFTDisplacementMedium : register(t3);
 Texture2D<float4> gFFTDisplacementSmall : register(t5);
 SamplerState gOceanSampler : register(s0);
 
+float2 ProjectOceanGridToWorldXZ(float2 gridNdc)
+{
+    float2 ndc = float2(
+        gridNdc.x,
+        min(gridNdc.y, gProjectedHorizonNdcY));
+    float4 nearPosition = mul(
+        float4(ndc, 0.0f, 1.0f),
+        gInverseViewProjection);
+    float4 farPosition = mul(
+        float4(ndc, 1.0f, 1.0f),
+        gInverseViewProjection);
+    float safeNearW =
+        abs(nearPosition.w) > 1.0e-6f ? nearPosition.w : 1.0e-6f;
+    float safeFarW =
+        abs(farPosition.w) > 1.0e-6f ? farPosition.w : 1.0e-6f;
+    nearPosition.xyz /= safeNearW;
+    farPosition.xyz /= safeFarW;
+
+    float3 rayVector = farPosition.xyz - nearPosition.xyz;
+    float rayLength = length(rayVector);
+    float3 rayDirection =
+        rayLength > 1.0e-6f
+        ? rayVector / rayLength
+        : float3(0.0f, -1.0f, 0.0f);
+    float horizontalLength = length(rayDirection.xz);
+    float safeRayY =
+        abs(rayDirection.y) > 1.0e-5f ? rayDirection.y : -1.0e-5f;
+    float planeT =
+        (gBaseHeight - gCameraPosition.y) / safeRayY;
+    float planeDistance =
+        planeT > 0.0f && horizontalLength > 1.0e-5f
+        ? planeT * horizontalLength
+        : gProjectedFarClamp;
+    float clampedDistance = clamp(
+        planeDistance,
+        gProjectedNearClamp,
+        gProjectedFarClamp);
+    float2 horizontalDirection =
+        horizontalLength > 1.0e-5f
+        ? rayDirection.xz / horizontalLength
+        : float2(0.0f, 1.0f);
+    return gCameraPosition.xz + horizontalDirection * clampedDistance;
+}
+
 OceanVertexOutput main(OceanVertexInput input)
 {
     OceanVertexOutput output;
 
-    float2 worldXZ = input.position.xz + gGridOrigin.xz;
+    float2 worldXZ =
+        gMeshMode >= 0.5f
+        ? ProjectOceanGridToWorldXZ(input.position.xz)
+        : input.position.xz + gGridOrigin.xz;
     float2 p = worldXZ;
     float time = gTime * max(gWindSpeed, 0.01f) / 12.0f;
     float arcBlancMode = step(1.5f, gMode);
@@ -132,5 +179,7 @@ OceanVertexOutput main(OceanVertexInput input)
     output.texcoord = input.texcoord;
     output.normal = normalize(float3(-grad.x, 1.0f, -grad.y));
     output.worldPosition = worldPosition;
+    output.projectedGridCoord = input.texcoord;
+    output.projectedDistance = viewDistance;
     return output;
 }

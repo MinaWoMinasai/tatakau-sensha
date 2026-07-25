@@ -5,6 +5,7 @@
 #include <cmath>
 #include <complex>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <vector>
 
@@ -40,7 +41,9 @@ constexpr float kMediumSmallBoundary =
 constexpr float kSmallNyquist =
 	static_cast<float>(1.4142135623730951 * kOceanPi * 128.0 / 4.0);
 constexpr uint32_t kCascadeSeedStride = 1009;
+constexpr float kProjectedGridAspect = 9.0f / 16.0f;
 static_assert(sizeof(OceanRenderer::OceanFFTParameters) == 112);
+static_assert(sizeof(OceanRenderer::OceanParameters) == 400);
 
 struct SpectrumEvaluation {
 	double radial = 0.0;
@@ -618,6 +621,8 @@ void OceanRenderer::Initialize(Model* gridModel, uint32_t environmentSrvIndex)
 		AlignConstantBufferSize(sizeof(OceanParameters)));
 	parameterResource_->Map(0, nullptr, reinterpret_cast<void**>(&parameterData_));
 	UploadParameters();
+	CreateProjectedGridMesh(
+		static_cast<uint32_t>(parameters_.projectedGridResolution.x));
 	InitializeFFT();
 }
 
@@ -629,19 +634,59 @@ void OceanRenderer::Update(
 {
 	ResolveFFTDiagnostics();
 	parameters_.time = time;
+	Matrix4x4 unjitteredViewProjection{};
 	if (useDebugCamera) {
 		parameters_.viewProjection = debugCamera.GetViewProjectionMatrix();
+		unjitteredViewProjection =
+			debugCamera.GetUnjitteredViewProjectionMatrix();
 		parameters_.cameraPosition = debugCamera.GetEyePosition();
 	} else {
 		parameters_.viewProjection = camera.GetViewProjectionMatrix();
+		unjitteredViewProjection =
+			camera.GetUnjitteredViewProjectionMatrix();
 		parameters_.cameraPosition = camera.GetTranslate();
 	}
+	parameters_.inverseViewProjection = Inverse(unjitteredViewProjection);
 
 	// Only the finite grid follows the camera. Ocean.VS evaluates every wave
 	// from the resulting world position, so this movement cannot drag the pattern.
 	parameters_.gridOrigin.x = parameters_.cameraPosition.x;
 	parameters_.gridOrigin.y = parameters_.baseHeight;
 	parameters_.gridOrigin.z = parameters_.cameraPosition.z;
+	Vector4 nearCenter = TransformMatrix(
+		{ 0.0f, 0.0f, 0.0f, 1.0f },
+		parameters_.inverseViewProjection);
+	Vector4 farCenter = TransformMatrix(
+		{ 0.0f, 0.0f, 1.0f, 1.0f },
+		parameters_.inverseViewProjection);
+	if (std::abs(nearCenter.w) > 1.0e-6f &&
+		std::abs(farCenter.w) > 1.0e-6f) {
+		nearCenter /= nearCenter.w;
+		farCenter /= farCenter.w;
+		const Vector2 horizontalForward = NormalizeDirection(
+			{
+				farCenter.x - nearCenter.x,
+				farCenter.z - nearCenter.z,
+			},
+			{ 0.0f, 1.0f });
+		const Vector4 horizonPoint = {
+			parameters_.cameraPosition.x +
+				horizontalForward.x * parameters_.projectedFarClamp,
+			parameters_.baseHeight,
+			parameters_.cameraPosition.z +
+				horizontalForward.y * parameters_.projectedFarClamp,
+			1.0f,
+		};
+		const Vector4 horizonClip = TransformMatrix(
+			horizonPoint,
+			unjitteredViewProjection);
+		if (std::abs(horizonClip.w) > 1.0e-6f) {
+			parameters_.projectedHorizonNdcY = (std::clamp)(
+				horizonClip.y / horizonClip.w,
+				-1.0f,
+				1.0f);
+		}
+	}
 	parameters_.sunDirection = Object3dCommon::GetInstance()->GetLightDir();
 	UploadParameters();
 }
@@ -712,7 +757,13 @@ void OceanRenderer::Draw()
 	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
 		10,
 		debugCascade->spectrumDebug.srvIndex);
-	gridModel_->DrawOnlyMesh();
+	if (parameters_.meshMode >=
+			static_cast<float>(MeshMode::ProjectedGrid) - 0.5f &&
+		projectedGridIndexCount_ > 0) {
+		DrawProjectedGrid();
+	} else {
+		gridModel_->DrawOnlyMesh();
+	}
 }
 
 void OceanRenderer::SetMode(Mode mode)
@@ -934,6 +985,28 @@ void OceanRenderer::SetFFTCascadeSettings(
 	debugCascadeIndex_ =
 		static_cast<uint32_t>((std::clamp)(debugCascadeIndex, 0, 2));
 	ApplyBaseParametersToCascades();
+}
+
+void OceanRenderer::SetMeshSettings(
+	MeshMode mode,
+	uint32_t horizontalResolution,
+	float nearClamp,
+	float farClamp,
+	bool projectedGridDebug,
+	bool wireframe)
+{
+	const uint32_t normalizedResolution =
+		(std::clamp)(horizontalResolution, 32u, 512u);
+	if (normalizedResolution != projectedGridHorizontalResolution_) {
+		CreateProjectedGridMesh(normalizedResolution);
+	}
+	parameters_.meshMode = static_cast<float>(mode);
+	parameters_.projectedNearClamp = (std::max)(nearClamp, 0.0f);
+	parameters_.projectedFarClamp = (std::max)(
+		farClamp,
+		parameters_.projectedNearClamp + 1.0f);
+	parameters_.projectedGridDebug = projectedGridDebug ? 1.0f : 0.0f;
+	parameters_.projectedWireframe = wireframe ? 1.0f : 0.0f;
 }
 
 void OceanRenderer::RequestFFTDiagnostics()
@@ -2232,4 +2305,120 @@ void OceanRenderer::BindComputeUav(
 		SetComputeRootDescriptorTable(
 			rootIndex,
 			srvManager->GetGPUDescriptorHandle(texture.uavIndex));
+}
+
+void OceanRenderer::CreateProjectedGridMesh(uint32_t horizontalResolution)
+{
+	horizontalResolution =
+		(std::clamp)(horizontalResolution, 32u, 512u);
+	const uint32_t verticalResolution = (std::max)(
+		static_cast<uint32_t>(std::lround(
+			static_cast<float>(horizontalResolution) *
+			kProjectedGridAspect)),
+		18u);
+	if (horizontalResolution == projectedGridHorizontalResolution_ &&
+		verticalResolution == projectedGridVerticalResolution_ &&
+		projectedGridVertexResource_ &&
+		projectedGridIndexResource_) {
+		return;
+	}
+
+	std::vector<VertexData> vertices;
+	std::vector<uint32_t> indices;
+	vertices.reserve(
+		static_cast<size_t>(horizontalResolution + 1u) *
+		static_cast<size_t>(verticalResolution + 1u));
+	indices.reserve(
+		static_cast<size_t>(horizontalResolution) *
+		static_cast<size_t>(verticalResolution) * 6u);
+
+	for (uint32_t y = 0; y <= verticalResolution; ++y) {
+		const float v =
+			static_cast<float>(y) / static_cast<float>(verticalResolution);
+		const float ndcY = -1.0f + 2.0f * v;
+		for (uint32_t x = 0; x <= horizontalResolution; ++x) {
+			const float u =
+				static_cast<float>(x) /
+				static_cast<float>(horizontalResolution);
+			const float ndcX = -1.0f + 2.0f * u;
+			vertices.push_back({
+				{ ndcX, 0.0f, ndcY, 1.0f },
+				{ u, v },
+				{ 0.0f, 1.0f, 0.0f },
+				{ 1.0f, 0.0f, 0.0f, 1.0f },
+			});
+		}
+	}
+
+	const uint32_t stride = horizontalResolution + 1u;
+	for (uint32_t y = 0; y < verticalResolution; ++y) {
+		for (uint32_t x = 0; x < horizontalResolution; ++x) {
+			const uint32_t i0 = y * stride + x;
+			const uint32_t i1 = i0 + 1u;
+			const uint32_t i2 = i0 + stride;
+			const uint32_t i3 = i2 + 1u;
+			indices.push_back(i0);
+			indices.push_back(i2);
+			indices.push_back(i1);
+			indices.push_back(i2);
+			indices.push_back(i3);
+			indices.push_back(i1);
+		}
+	}
+
+	DirectXCommon* dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
+	projectedGridVertexResource_ = dxCommon->CreateBufferResource(
+		sizeof(VertexData) * vertices.size());
+	projectedGridIndexResource_ = dxCommon->CreateBufferResource(
+		sizeof(uint32_t) * indices.size());
+
+	void* mappedVertices = nullptr;
+	projectedGridVertexResource_->Map(0, nullptr, &mappedVertices);
+	std::memcpy(
+		mappedVertices,
+		vertices.data(),
+		sizeof(VertexData) * vertices.size());
+	projectedGridVertexResource_->Unmap(0, nullptr);
+
+	void* mappedIndices = nullptr;
+	projectedGridIndexResource_->Map(0, nullptr, &mappedIndices);
+	std::memcpy(
+		mappedIndices,
+		indices.data(),
+		sizeof(uint32_t) * indices.size());
+	projectedGridIndexResource_->Unmap(0, nullptr);
+
+	projectedGridVertexBufferView_.BufferLocation =
+		projectedGridVertexResource_->GetGPUVirtualAddress();
+	projectedGridVertexBufferView_.SizeInBytes =
+		static_cast<UINT>(sizeof(VertexData) * vertices.size());
+	projectedGridVertexBufferView_.StrideInBytes = sizeof(VertexData);
+	projectedGridIndexBufferView_.BufferLocation =
+		projectedGridIndexResource_->GetGPUVirtualAddress();
+	projectedGridIndexBufferView_.SizeInBytes =
+		static_cast<UINT>(sizeof(uint32_t) * indices.size());
+	projectedGridIndexBufferView_.Format = DXGI_FORMAT_R32_UINT;
+	projectedGridIndexCount_ = static_cast<uint32_t>(indices.size());
+	projectedGridHorizontalResolution_ = horizontalResolution;
+	projectedGridVerticalResolution_ = verticalResolution;
+	parameters_.projectedGridResolution = {
+		static_cast<float>(horizontalResolution),
+		static_cast<float>(verticalResolution),
+	};
+}
+
+void OceanRenderer::DrawProjectedGrid()
+{
+	auto commandList = Object3dCommon::GetInstance()->GetDxCommon()->GetList();
+	commandList->IASetVertexBuffers(
+		0,
+		1,
+		&projectedGridVertexBufferView_);
+	commandList->IASetIndexBuffer(&projectedGridIndexBufferView_);
+	commandList->DrawIndexedInstanced(
+		projectedGridIndexCount_,
+		1,
+		0,
+		0,
+		0);
 }

@@ -4,6 +4,7 @@
 cbuffer OceanParameters : register(b0)
 {
     float4x4 gViewProjection;
+    float4x4 gInverseViewProjection;
     float4 gTint;
     float3 gCameraPosition;
     float gTime;
@@ -39,6 +40,13 @@ cbuffer OceanParameters : register(b0)
     float gFFTDebugPatchLength;
     float gFFTDebugCascade;
     float gCascadePadding;
+    float gMeshMode;
+    float gProjectedNearClamp;
+    float gProjectedFarClamp;
+    float gProjectedHorizonNdcY;
+    float2 gProjectedGridResolution;
+    float gProjectedGridDebug;
+    float gProjectedWireframe;
 };
 
 struct OceanVertexInput
@@ -55,6 +63,8 @@ struct OceanVertexOutput
     float2 texcoord : TEXCOORD0;
     float3 normal : NORMAL0;
     float3 worldPosition : POSITION0;
+    noperspective float2 projectedGridCoord : TEXCOORD1;
+    float projectedDistance : TEXCOORD2;
 };
 
 float OceanDistributionGGX(float3 N, float3 H, float roughness)
