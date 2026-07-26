@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include "../runtime/GameProject.h"
+#include "../runtime/IGameModule.h"
 #include "SceneManager.h"
 #include "RenderTexture.h"
 #include "PostEffect.h"
@@ -18,11 +19,13 @@ public:
 
     const GameProject& GetActiveProject() const { return activeProject_; }
     bool IsActiveProjectLoadedFromFallback() const { return activeProjectLoadedFromFallback_; }
+    bool IsGameModuleUsingFallback() const { return gameModuleUsedFallback_; }
     bool IsStartupSceneUsingFallback() const { return startupSceneUsedFallback_; }
     const std::string& GetResolvedStartupScene() const { return resolvedStartupScene_; }
 
 private:
     void LoadActiveProject(const GameProjectCommandLineOptions& projectOptions);
+    bool ConfigureGameModuleAndSceneFactory();
     bool ResolveStartupScene();
     void InitializeEngine();
     void InitializeImGui();
@@ -36,9 +39,11 @@ private:
 
     std::unique_ptr<Bloom> bloom_;
     std::unique_ptr<Shadow> shadow_;
+    std::unique_ptr<IGameModule> activeGameModule_;
 
     GameProject activeProject_;
     bool activeProjectLoadedFromFallback_ = false;
+    bool gameModuleUsedFallback_ = false;
     bool startupSceneUsedFallback_ = false;
     std::string resolvedStartupScene_ = "TITLE";
 };
