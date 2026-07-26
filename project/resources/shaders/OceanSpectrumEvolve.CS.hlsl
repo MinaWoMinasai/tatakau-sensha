@@ -4,7 +4,8 @@ Texture2D<float4> gInitialSpectrum : register(t0);
 RWTexture2D<float4> gSpectrumA : register(u0);
 RWTexture2D<float4> gSpectrumB : register(u1);
 RWTexture2D<float4> gSpectrumC : register(u2);
-RWTexture2D<float4> gEvolvedSpectrumDebug : register(u3);
+RWTexture2D<float4> gSpectrumD : register(u3);
+RWTexture2D<float4> gEvolvedSpectrumDebug : register(u4);
 
 [numthreads(16, 16, 1)]
 void main(uint3 dispatchThreadId : SV_DispatchThreadID)
@@ -41,6 +42,12 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float2 slopeX = iHeight * waveVector.x;
     float2 slopeZ = iHeight * waveVector.y;
 
+    // Intrinsic derivatives of the potential displacement. Choppiness is
+    // applied once, alongside the rendered horizontal displacement.
+    float2 dDxDx = heightSpectrum * (waveVector.x * waveVector.x * inverseWaveNumber);
+    float2 dDxDz = heightSpectrum * (waveVector.x * waveVector.y * inverseWaveNumber);
+    float2 dDzDz = heightSpectrum * (waveVector.y * waveVector.y * inverseWaveNumber);
+
     // IFFT input is ifftshifted and bit-reversed here. Both axes are
     // reversed up front; horizontal and vertical DIT stages can then share CS.
     uint2 unshiftedCoordinate =
@@ -51,7 +58,8 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 
     gSpectrumA[fftCoordinate] = float4(heightSpectrum, displacementX);
     gSpectrumB[fftCoordinate] = float4(displacementZ, slopeX);
-    gSpectrumC[fftCoordinate] = float4(slopeZ, 0.0f, 0.0f);
+    gSpectrumC[fftCoordinate] = float4(slopeZ, dDxDx);
+    gSpectrumD[fftCoordinate] = float4(dDxDz, dDzDz);
     gEvolvedSpectrumDebug[coordinate] =
         float4(heightSpectrum, length(heightSpectrum), waveNumber);
 }

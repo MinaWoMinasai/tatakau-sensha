@@ -130,6 +130,12 @@ private:
 	Vector2 oceanWindDirection_ = { 0.18f, 0.98f };
 	float oceanWindSpeed_ = 12.0f;
 	float oceanChoppiness_ = 3.10f;
+	int oceanNormalMode_ = 1;
+	bool oceanBreakingPreviewEnabled_ = false;
+	float oceanJacobianThreshold_ = 0.72f;
+	float oceanJacobianBias_ = 0.0f;
+	float oceanBreakingSmoothWidth_ = 0.12f;
+	float oceanBreakingMaskIntensity_ = 0.25f;
 	float oceanSunSpecularStrength_ = 0.70f;
 	float oceanArtisticSunLaneStrength_ = 1.0f;
 	bool fftPaused_ = false;

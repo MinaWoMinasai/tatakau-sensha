@@ -687,8 +687,9 @@ void Root::InitializeForOcean()
 	Parameters_[0].Descriptor.ShaderRegister = 0;
 
 	// t0: environment. t1/t2, t3/t4 and t5/t6 are the three
-	// displacement/slope pairs. t7..t9 are the selected cascade's debug data.
-	for (uint32_t index = 0; index < 10; ++index) {
+	// displacement/slope pairs. t7..t9 are the selected cascade's debug data,
+	// and t10..t12 contain horizontal displacement derivatives.
+	for (uint32_t index = 0; index < 13; ++index) {
 		descriptorRange_[index].BaseShaderRegister = index;
 		descriptorRange_[index].NumDescriptors = 1;
 		descriptorRange_[index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -707,7 +708,7 @@ void Root::InitializeForOcean()
 	}
 
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 11;
+	descriptionSignature_.NumParameters = 14;
 
 	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	staticSamplers_[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -745,8 +746,9 @@ void Root::InitializeForOceanCompute()
 	Parameters_[1].Constants.ShaderRegister = 1;
 	Parameters_[1].Constants.Num32BitValues = 4;
 
-	// t0..t2 inputs.
-	for (uint32_t index = 0; index < 3; ++index) {
+	// t0..t3 inputs. A/B/C/D are transformed together so the derivative
+	// stream does not add another FFT dispatch.
+	for (uint32_t index = 0; index < 4; ++index) {
 		descriptorRange_[index].BaseShaderRegister = index;
 		descriptorRange_[index].NumDescriptors = 1;
 		descriptorRange_[index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -760,23 +762,23 @@ void Root::InitializeForOceanCompute()
 		Parameters_[2 + index].DescriptorTable.NumDescriptorRanges = 1;
 	}
 
-	// u0..u3 outputs.
-	for (uint32_t index = 0; index < 4; ++index) {
-		descriptorRange_[3 + index].BaseShaderRegister = index;
-		descriptorRange_[3 + index].NumDescriptors = 1;
-		descriptorRange_[3 + index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		descriptorRange_[3 + index].OffsetInDescriptorsFromTableStart =
+	// u0..u4 outputs.
+	for (uint32_t index = 0; index < 5; ++index) {
+		descriptorRange_[4 + index].BaseShaderRegister = index;
+		descriptorRange_[4 + index].NumDescriptors = 1;
+		descriptorRange_[4 + index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+		descriptorRange_[4 + index].OffsetInDescriptorsFromTableStart =
 			D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-		Parameters_[5 + index].ParameterType =
+		Parameters_[6 + index].ParameterType =
 			D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		Parameters_[5 + index].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		Parameters_[5 + index].DescriptorTable.pDescriptorRanges =
-			&descriptorRange_[3 + index];
-		Parameters_[5 + index].DescriptorTable.NumDescriptorRanges = 1;
+		Parameters_[6 + index].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		Parameters_[6 + index].DescriptorTable.pDescriptorRanges =
+			&descriptorRange_[4 + index];
+		Parameters_[6 + index].DescriptorTable.NumDescriptorRanges = 1;
 	}
 
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 9;
+	descriptionSignature_.NumParameters = 11;
 	descriptionSignature_.pStaticSamplers = nullptr;
 	descriptionSignature_.NumStaticSamplers = 0;
 

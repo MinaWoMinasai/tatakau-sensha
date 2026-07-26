@@ -3,9 +3,11 @@
 Texture2D<float4> gInputA : register(t0);
 Texture2D<float4> gInputB : register(t1);
 Texture2D<float4> gInputC : register(t2);
+Texture2D<float4> gInputD : register(t3);
 RWTexture2D<float4> gOutputA : register(u0);
 RWTexture2D<float4> gOutputB : register(u1);
 RWTexture2D<float4> gOutputC : register(u2);
+RWTexture2D<float4> gOutputD : register(u3);
 
 float4 ApplyTwiddle(float4 value, float2 twiddle)
 {
@@ -56,8 +58,11 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float4 b1 = ApplyTwiddle(gInputB.Load(int3(sourceCoordinate1, 0)), twiddle);
     float4 c0 = gInputC.Load(int3(sourceCoordinate0, 0));
     float4 c1 = ApplyTwiddle(gInputC.Load(int3(sourceCoordinate1, 0)), twiddle);
+    float4 d0 = gInputD.Load(int3(sourceCoordinate0, 0));
+    float4 d1 = ApplyTwiddle(gInputD.Load(int3(sourceCoordinate1, 0)), twiddle);
 
     gOutputA[outputCoordinate] = upperHalf ? a0 - a1 : a0 + a1;
     gOutputB[outputCoordinate] = upperHalf ? b0 - b1 : b0 + b1;
     gOutputC[outputCoordinate] = upperHalf ? c0 - c1 : c0 + c1;
+    gOutputD[outputCoordinate] = upperHalf ? d0 - d1 : d0 + d1;
 }

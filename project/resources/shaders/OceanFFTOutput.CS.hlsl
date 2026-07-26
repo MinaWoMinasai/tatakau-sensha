@@ -3,8 +3,10 @@
 Texture2D<float4> gSpectrumA : register(t0);
 Texture2D<float4> gSpectrumB : register(t1);
 Texture2D<float4> gSpectrumC : register(t2);
+Texture2D<float4> gSpectrumD : register(t3);
 RWTexture2D<float4> gDisplacement : register(u0);
 RWTexture2D<float2> gSlope : register(u1);
+RWTexture2D<float4> gDerivative : register(u2);
 
 [numthreads(16, 16, 1)]
 void main(uint3 dispatchThreadId : SV_DispatchThreadID)
@@ -18,6 +20,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float4 spectrumA = gSpectrumA.Load(int3(coordinate, 0));
     float4 spectrumB = gSpectrumB.Load(int3(coordinate, 0));
     float4 spectrumC = gSpectrumC.Load(int3(coordinate, 0));
+    float4 spectrumD = gSpectrumD.Load(int3(coordinate, 0));
 
     // The butterfly kernels intentionally perform an unnormalized inverse
     // transform. Apply the standard 2D IFFT normalization exactly once here.
@@ -27,7 +30,11 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float displacementZ = spectrumB.x * normalization;
     float slopeX = spectrumB.z * normalization;
     float slopeZ = spectrumC.x * normalization;
+    float dDxDx = spectrumC.z * normalization;
+    float dDxDz = spectrumD.x * normalization;
+    float dDzDz = spectrumD.z * normalization;
     gDisplacement[coordinate] =
         float4(displacementX, height, displacementZ, 1.0f);
     gSlope[coordinate] = float2(slopeX, slopeZ);
+    gDerivative[coordinate] = float4(dDxDx, dDxDz, dDzDz, dDxDz);
 }
