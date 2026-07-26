@@ -715,14 +715,34 @@ void GraphicsLabScene::UpdateDedicatedOcean()
 		oceanMeshMode_,
 		static_cast<int>(OceanRenderer::MeshMode::FixedGrid),
 		static_cast<int>(OceanRenderer::MeshMode::ProjectedGrid));
+	OceanRenderer::ProjectedGridSettings projectedGridSettings{};
+	projectedGridSettings.horizontalResolution =
+		static_cast<uint32_t>(
+			(std::max)(oceanProjectedGridResolution_, 1));
+	projectedGridSettings.nearClamp = oceanProjectedNearClamp_;
+	projectedGridSettings.farClamp = oceanProjectedFarClamp_;
+	projectedGridSettings.overscanX = oceanProjectedOverscanX_;
+	projectedGridSettings.overscanTop = oceanProjectedOverscanTop_;
+	projectedGridSettings.overscanBottom = oceanProjectedOverscanBottom_;
+	projectedGridSettings.nearDisplacementFadeEnabled =
+		oceanNearDisplacementFadeEnabled_;
+	projectedGridSettings.nearFadeWidth = oceanNearFadeWidth_;
+	projectedGridSettings.minimumSafeNearDistance =
+		oceanMinimumSafeNearDistance_;
+	projectedGridSettings.debugMode =
+		static_cast<OceanRenderer::ProjectedGridDebugMode>(
+			(std::clamp)(
+				oceanProjectedGridDebugMode_,
+				static_cast<int>(
+					OceanRenderer::ProjectedGridDebugMode::None),
+				static_cast<int>(
+					OceanRenderer::ProjectedGridDebugMode::Coverage)));
+	projectedGridSettings.wireframe = oceanProjectedWireframe_;
+	projectedGridSettings.outerWireframe =
+		oceanProjectedOuterWireframe_;
 	oceanRenderer_->SetMeshSettings(
 		static_cast<OceanRenderer::MeshMode>(clampedMeshMode),
-		static_cast<uint32_t>(
-			(std::max)(oceanProjectedGridResolution_, 1)),
-		oceanProjectedNearClamp_,
-		oceanProjectedFarClamp_,
-		oceanProjectedGridDebug_,
-		oceanProjectedWireframe_);
+		projectedGridSettings);
 	oceanRenderer_->SetTint(riverTint_);
 	oceanRenderer_->SetBaseHeight(-1.15f);
 	oceanRenderer_->SetWind(
@@ -1019,13 +1039,80 @@ void GraphicsLabScene::DrawDebugWindow()
 			100.0f,
 			2400.0f,
 			"%.0f m");
+		ImGui::DragFloat(
+			"Overscan X",
+			&oceanProjectedOverscanX_,
+			0.005f,
+			1.0f,
+			1.5f,
+			"%.3f");
+		ImGui::DragFloat(
+			"Overscan top",
+			&oceanProjectedOverscanTop_,
+			0.005f,
+			1.0f,
+			1.5f,
+			"%.3f");
+		ImGui::DragFloat(
+			"Overscan bottom",
+			&oceanProjectedOverscanBottom_,
+			0.005f,
+			1.0f,
+			1.5f,
+			"%.3f");
 		ImGui::Checkbox(
+			"Near displacement fade",
+			&oceanNearDisplacementFadeEnabled_);
+		ImGui::DragFloat(
+			"Near fade width",
+			&oceanNearFadeWidth_,
+			0.10f,
+			0.10f,
+			50.0f,
+			"%.1f m");
+		ImGui::DragFloat(
+			"Minimum safe near distance",
+			&oceanMinimumSafeNearDistance_,
+			0.10f,
+			0.0f,
+			50.0f,
+			"%.1f m");
+		const char* projectedDebugModes[] = {
+			"None",
+			"Grid density",
+			"Guard Band",
+			"Displacement fade",
+			"Near fade",
+			"Coverage warning"
+		};
+		ImGui::Combo(
 			"Projected grid debug",
-			&oceanProjectedGridDebug_);
-		ImGui::SameLine();
+			&oceanProjectedGridDebugMode_,
+			projectedDebugModes,
+			IM_ARRAYSIZE(projectedDebugModes));
 		ImGui::Checkbox(
 			"Debug wireframe",
 			&oceanProjectedWireframe_);
+		ImGui::SameLine();
+		ImGui::Checkbox(
+			"Outermost wireframe",
+			&oceanProjectedOuterWireframe_);
+		const bool overscanReady =
+			oceanProjectedOverscanX_ >= 1.01f &&
+			oceanProjectedOverscanTop_ >= 1.005f &&
+			oceanProjectedOverscanBottom_ >= 1.01f;
+		const bool nearGuardReady =
+			oceanNearDisplacementFadeEnabled_ &&
+			oceanProjectedNearClamp_ >= 3.0f &&
+			oceanMinimumSafeNearDistance_ >= 3.0f &&
+			oceanNearFadeWidth_ > 0.0f;
+		const bool coverageGuardReady = overscanReady && nearGuardReady;
+		ImGui::TextColored(
+			coverageGuardReady
+				? ImVec4(0.18f, 0.90f, 0.32f, 1.0f)
+				: ImVec4(1.0f, 0.30f, 0.16f, 1.0f),
+			"Screen-edge coverage guard: %s",
+			coverageGuardReady ? "READY" : "WARNING");
 		ImGui::DragFloat(
 			"Small displacement contribution",
 			&fftCascadeSettings_[2].displacementContribution,

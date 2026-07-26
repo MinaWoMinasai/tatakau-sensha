@@ -5,16 +5,48 @@ Texture2D<float4> gFFTDisplacementMedium : register(t3);
 Texture2D<float4> gFFTDisplacementSmall : register(t5);
 SamplerState gOceanSampler : register(s0);
 
-float2 ProjectOceanGridToWorldXZ(float2 gridNdc)
+struct ProjectedOceanPosition
 {
-    float2 ndc = float2(
-        gridNdc.x,
-        min(gridNdc.y, gProjectedHorizonNdcY));
+    float2 worldXZ;
+    float2 ndc;
+    float distance;
+    float guardBandFade;
+    float nearFade;
+};
+
+float ProjectedGuardAxisFade(float magnitude, float outerLimit)
+{
+    float safeLimit = max(outerLimit, 1.0001f);
+    float t = saturate(
+        (safeLimit - magnitude) / max(safeLimit - 1.0f, 0.0001f));
+    return magnitude <= 1.0f ? 1.0f : t * t * (3.0f - 2.0f * t);
+}
+
+ProjectedOceanPosition ProjectOceanGridToWorldXZ(float2 gridNdc)
+{
+    ProjectedOceanPosition result;
+    float jitterMargin = max(gProjectedOverscan.w, 0.0f);
+    float overscanX = max(gProjectedOverscan.x + jitterMargin, 1.0001f);
+    float overscanTop = max(gProjectedOverscan.y + jitterMargin, 1.0001f);
+    float overscanBottom = max(gProjectedOverscan.z + jitterMargin, 1.0001f);
+    float verticalT = gridNdc.y * 0.5f + 0.5f;
+    result.ndc = float2(
+        gridNdc.x * overscanX,
+        lerp(-overscanBottom, overscanTop, verticalT));
+
+    float fadeX = ProjectedGuardAxisFade(abs(result.ndc.x), overscanX);
+    float fadeTop = ProjectedGuardAxisFade(max(result.ndc.y, 0.0f), overscanTop);
+    float fadeBottom = ProjectedGuardAxisFade(max(-result.ndc.y, 0.0f), overscanBottom);
+    result.guardBandFade = min(fadeX, min(fadeTop, fadeBottom));
+
+    float2 projectionNdc = float2(
+        result.ndc.x,
+        min(result.ndc.y, gProjectedHorizonNdcY));
     float4 nearPosition = mul(
-        float4(ndc, 0.0f, 1.0f),
+        float4(projectionNdc, 0.0f, 1.0f),
         gInverseViewProjection);
     float4 farPosition = mul(
-        float4(ndc, 1.0f, 1.0f),
+        float4(projectionNdc, 1.0f, 1.0f),
         gInverseViewProjection);
     float safeNearW =
         abs(nearPosition.w) > 1.0e-6f ? nearPosition.w : 1.0e-6f;
@@ -46,17 +78,43 @@ float2 ProjectOceanGridToWorldXZ(float2 gridNdc)
         horizontalLength > 1.0e-5f
         ? rayDirection.xz / horizontalLength
         : float2(0.0f, 1.0f);
-    return gCameraPosition.xz + horizontalDirection * clampedDistance;
+    result.worldXZ =
+        gCameraPosition.xz + horizontalDirection * clampedDistance;
+    result.distance = clampedDistance;
+    float nearFadeWidth = max(gProjectedDisplacementGuard.y, 0.001f);
+    float minimumSafeDistance = max(
+        gProjectedDisplacementGuard.z,
+        gProjectedNearClamp);
+    float nearFade = smoothstep(
+        minimumSafeDistance,
+        minimumSafeDistance + nearFadeWidth,
+        clampedDistance);
+    result.nearFade = lerp(
+        1.0f,
+        nearFade,
+        saturate(gProjectedDisplacementGuard.x));
+    return result;
 }
 
 OceanVertexOutput main(OceanVertexInput input)
 {
     OceanVertexOutput output;
 
-    float2 worldXZ =
-        gMeshMode >= 0.5f
-        ? ProjectOceanGridToWorldXZ(input.position.xz)
-        : input.position.xz + gGridOrigin.xz;
+    bool projectedGrid = gMeshMode >= 0.5f;
+    ProjectedOceanPosition projectedPosition;
+    projectedPosition.worldXZ = input.position.xz + gGridOrigin.xz;
+    projectedPosition.ndc = input.position.xz;
+    projectedPosition.distance = length(
+        projectedPosition.worldXZ - gCameraPosition.xz);
+    projectedPosition.guardBandFade = 1.0f;
+    projectedPosition.nearFade = 1.0f;
+    if (projectedGrid)
+    {
+        projectedPosition = ProjectOceanGridToWorldXZ(input.position.xz);
+    }
+    float2 worldXZ = projectedPosition.worldXZ;
+    float projectedDisplacementFade =
+        projectedPosition.guardBandFade * projectedPosition.nearFade;
     float2 p = worldXZ;
     float time = gTime * max(gWindSpeed, 0.01f) / 12.0f;
     float arcBlancMode = step(1.5f, gMode);
@@ -129,9 +187,9 @@ OceanVertexOutput main(OceanVertexInput input)
 
     float2 choppyOffset = -grad * gChoppiness * arcBlancMode;
     float3 worldPosition = float3(
-        worldXZ.x + choppyOffset.x,
-        gBaseHeight + displacement,
-        worldXZ.y + choppyOffset.y);
+        worldXZ.x + choppyOffset.x * projectedDisplacementFade,
+        gBaseHeight + displacement * projectedDisplacementFade,
+        worldXZ.y + choppyOffset.y * projectedDisplacementFade);
     if (gWaveSource >= 0.5f)
     {
         float3 displayMask = 1.0f.xxx;
@@ -167,7 +225,7 @@ OceanVertexOutput main(OceanVertexInput input)
                 gOceanSampler,
                 uvSmall,
                 0.0f).xyz * displacementWeights.z;
-        fftDisplacement *= farFlatten;
+        fftDisplacement *= farFlatten * projectedDisplacementFade;
         worldPosition = float3(
             worldXZ.x + fftDisplacement.x,
             gBaseHeight + fftDisplacement.y,
@@ -180,6 +238,10 @@ OceanVertexOutput main(OceanVertexInput input)
     output.normal = normalize(float3(-grad.x, 1.0f, -grad.y));
     output.worldPosition = worldPosition;
     output.projectedGridCoord = input.texcoord;
-    output.projectedDistance = viewDistance;
+    output.projectedDistance =
+        projectedGrid ? projectedPosition.distance : viewDistance;
+    output.projectedNdc = projectedPosition.ndc;
+    output.guardBandFade = projectedPosition.guardBandFade;
+    output.nearDisplacementFade = projectedPosition.nearFade;
     return output;
 }
