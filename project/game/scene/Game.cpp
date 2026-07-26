@@ -3,9 +3,138 @@
 #include "Audio.h"
 #include "TextRenderer.h"
 #include <chrono>
+#include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
-bool Game::Initialize() {
+namespace {
+
+constexpr const char* kDefaultProjectFilePath = "resources/projects/default.project.json";
+constexpr const char* kFallbackSceneName = "TITLE";
+
+std::string GetProjectSourceLabel(const GameProject& project)
+{
+	return project.sourceFilePath.empty() ? "<built-in defaults>" : project.sourceFilePath;
+}
+
+std::string JoinSceneNames(const std::vector<std::string>& names)
+{
+	if (names.empty()) {
+		return "<none>";
+	}
+
+	std::string joinedNames;
+	for (std::size_t index = 0; index < names.size(); ++index) {
+		if (index != 0) {
+			joinedNames += ", ";
+		}
+		joinedNames += names[index];
+	}
+	return joinedNames;
+}
+
+void LogActiveProject(const GameProject& project, bool loadedFromFallback)
+{
+	LogWrite().Log(
+		"[GameProject] Active project: name='" + project.projectName +
+		"', source='" + GetProjectSourceLabel(project) +
+		"', startupScene='" + project.startupScene +
+		"', resourceRoot='" + project.resourceRoot +
+		"', loadedFromFallback=" + (loadedFromFallback ? "true" : "false") +
+		". resourceRoot is metadata only in this stage.\n");
+}
+
+}
+
+void Game::LoadActiveProject(const GameProjectCommandLineOptions& projectOptions)
+{
+	GameProjectLoader loader;
+	GameProject loadedProject;
+	bool defaultProjectAlreadyAttempted = false;
+
+	if (projectOptions.projectOptionProvided) {
+		if (projectOptions.projectFilePath.empty()) {
+			LogWrite().Log(
+				"[GameProject] The explicit --project path is empty. "
+				"Trying the default project file.\n");
+		} else if (loader.Load(projectOptions.projectFilePath, loadedProject)) {
+			activeProject_ = std::move(loadedProject);
+			activeProjectLoadedFromFallback_ = false;
+			LogActiveProject(activeProject_, activeProjectLoadedFromFallback_);
+			return;
+		} else {
+			defaultProjectAlreadyAttempted =
+				projectOptions.projectFilePath == kDefaultProjectFilePath;
+			if (defaultProjectAlreadyAttempted) {
+				LogWrite().Log(
+					"[GameProject] Explicit project file is the default project file and "
+					"failed to load. Using built-in safe defaults.\n");
+			} else {
+				LogWrite().Log(
+					"[GameProject] Explicit project file '" + projectOptions.projectFilePath +
+					"' failed to load. Trying '" + kDefaultProjectFilePath + "'.\n");
+			}
+		}
+	}
+
+	if (!defaultProjectAlreadyAttempted &&
+		loader.Load(kDefaultProjectFilePath, loadedProject)) {
+		activeProject_ = std::move(loadedProject);
+		activeProjectLoadedFromFallback_ = projectOptions.projectOptionProvided;
+		LogActiveProject(activeProject_, activeProjectLoadedFromFallback_);
+		return;
+	}
+
+	activeProject_ = GameProject{};
+	activeProjectLoadedFromFallback_ = true;
+	LogWrite().Log(
+		"[GameProject] Default project file could not be loaded. "
+		"Using built-in safe defaults.\n");
+	LogActiveProject(activeProject_, activeProjectLoadedFromFallback_);
+}
+
+bool Game::ResolveStartupScene()
+{
+	SceneManager* sceneManager = SceneManager::GetInstance();
+	resolvedStartupScene_ = activeProject_.startupScene;
+	startupSceneUsedFallback_ = false;
+
+	if (sceneManager->ContainsScene(resolvedStartupScene_)) {
+		return true;
+	}
+
+	const std::vector<std::string> registeredNames =
+		sceneManager->GetRegisteredSceneNames();
+	LogWrite().Log(
+		"[GameProject] Startup scene is not registered. projectName='" +
+		activeProject_.projectName + "', projectFile='" +
+		GetProjectSourceLabel(activeProject_) + "', startupScene='" +
+		activeProject_.startupScene + "', registeredScenes=[" +
+		JoinSceneNames(registeredNames) + "].\n");
+
+	if (sceneManager->ContainsScene(kFallbackSceneName)) {
+		resolvedStartupScene_ = kFallbackSceneName;
+		startupSceneUsedFallback_ = true;
+		LogWrite().Log(
+			"[GameProject] Falling back to startup scene 'TITLE'.\n");
+		return true;
+	}
+
+	resolvedStartupScene_.clear();
+	LogWrite().Log(
+		"[GameProject] FATAL: startup scene '" + activeProject_.startupScene +
+		"' is unavailable and fallback scene 'TITLE' is not registered. "
+		"The game will not enter the main loop.\n");
+	return false;
+}
+
+bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
+
+    LoadActiveProject(projectOptions);
+    if (!ResolveStartupScene()) {
+        return false;
+    }
 
     CoInitializeEx(0, COINIT_MULTITHREADED);
 
@@ -18,9 +147,26 @@ bool Game::Initialize() {
     InitializeImGui();
     LoadResources();
 
-    SceneManager::GetInstance()->Initialize("TITLE");
-    //SceneManager::GetInstance()->Initialize("GRAPHICS_LAB");
-    //SceneManager::GetInstance()->Initialize("ACTION3D");
+    SceneManager* sceneManager = SceneManager::GetInstance();
+    bool sceneInitialized = sceneManager->Initialize(resolvedStartupScene_);
+    if (!sceneInitialized &&
+        resolvedStartupScene_ != kFallbackSceneName &&
+        sceneManager->ContainsScene(kFallbackSceneName)) {
+        LogWrite().Log(
+            "[GameProject] Failed to create startup scene '" + resolvedStartupScene_ +
+            "'. Falling back to 'TITLE'.\n");
+        resolvedStartupScene_ = kFallbackSceneName;
+        startupSceneUsedFallback_ = true;
+        sceneInitialized = sceneManager->Initialize(resolvedStartupScene_);
+    }
+    if (!sceneInitialized) {
+        LogWrite().Log(
+            "[GameProject] FATAL: no startup scene could be initialized. "
+            "The game will not enter the main loop.\n");
+        return false;
+    }
+    LogWrite().Log(
+        "[GameProject] Startup scene initialized: '" + resolvedStartupScene_ + "'.\n");
 
     rtvManager_ = std::make_unique<RtvManager>();
     rtvManager_->Initialize(dxCommon_.get());

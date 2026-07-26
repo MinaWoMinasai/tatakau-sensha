@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "projectName": "Naval Prototype",
+  "startupScene": "NAVAL_BATTLE",
+  "resourceRoot": "resources"
+}
