@@ -26,7 +26,8 @@ float3 ApplyProjectedGridDebug(float3 color, OceanVertexOutput input)
         return color;
     }
 
-    if (gProjectedGridDebug > 0.5f)
+    int projectedDebugMode = (int)(gProjectedGridDebug + 0.5f);
+    if (projectedDebugMode == 1)
     {
         float distanceRange = max(
             gProjectedFarClamp - gProjectedNearClamp,
@@ -39,6 +40,46 @@ float3 ApplyProjectedGridDebug(float3 color, OceanVertexOutput input)
             float3(0.92f, 0.18f, 0.06f),
             sqrt(normalizedDistance));
         color = lerp(color, densityColor, 0.52f);
+    }
+    else if (projectedDebugMode == 2)
+    {
+        bool outsideVisible =
+            abs(input.projectedNdc.x) > 1.0f ||
+            input.projectedNdc.y > 1.0f ||
+            input.projectedNdc.y < -1.0f;
+        float3 regionColor = outsideVisible
+            ? float3(0.02f, 0.78f, 0.96f)
+            : float3(0.08f, 0.62f, 0.22f);
+        color = lerp(color, regionColor, outsideVisible ? 0.86f : 0.42f);
+    }
+    else if (projectedDebugMode == 3)
+    {
+        float displacementFade =
+            input.guardBandFade * input.nearDisplacementFade;
+        color = lerp(
+            float3(0.92f, 0.04f, 0.02f),
+            float3(0.04f, 0.88f, 0.24f),
+            displacementFade);
+    }
+    else if (projectedDebugMode == 4)
+    {
+        color = lerp(
+            float3(0.96f, 0.12f, 0.04f),
+            float3(0.08f, 0.42f, 1.0f),
+            input.nearDisplacementFade);
+    }
+    else if (projectedDebugMode == 5)
+    {
+        float edgeDistance = min(
+            1.0f - abs(input.projectedNdc.x),
+            min(1.0f - input.projectedNdc.y, input.projectedNdc.y + 1.0f));
+        float edgeBand = 1.0f - smoothstep(0.0f, 0.035f, edgeDistance);
+        float coverageFade =
+            input.guardBandFade * input.nearDisplacementFade;
+        float3 coverageColor = coverageFade > 0.98f
+            ? float3(0.04f, 0.92f, 0.24f)
+            : float3(1.0f, 0.05f, 0.02f);
+        color = lerp(color, coverageColor, edgeBand * 0.90f);
     }
 
     if (gProjectedWireframe > 0.5f)
@@ -55,6 +96,22 @@ float3 ApplyProjectedGridDebug(float3 color, OceanVertexOutput input)
             color,
             float3(1.0f, 0.82f, 0.12f),
             gridLine * 0.88f);
+    }
+    if (gProjectedDisplacementGuard.w > 0.5f)
+    {
+        float2 outerDistance = min(
+            input.projectedGridCoord,
+            1.0f - input.projectedGridCoord);
+        float edgeDistance = min(outerDistance.x, outerDistance.y);
+        float edgeWidth = max(
+            max(fwidth(input.projectedGridCoord.x),
+                fwidth(input.projectedGridCoord.y)) * 1.5f,
+            1.0e-5f);
+        float outerLine = 1.0f - saturate(edgeDistance / edgeWidth);
+        color = lerp(
+            color,
+            float3(1.0f, 0.08f, 0.02f),
+            outerLine * 0.95f);
     }
     return color;
 }

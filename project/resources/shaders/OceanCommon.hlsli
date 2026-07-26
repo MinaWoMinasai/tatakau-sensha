@@ -47,6 +47,10 @@ cbuffer OceanParameters : register(b0)
     float2 gProjectedGridResolution;
     float gProjectedGridDebug;
     float gProjectedWireframe;
+    // x/top/bottom overscan and an NDC margin for TAA jitter.
+    float4 gProjectedOverscan;
+    // near fade enabled, fade width, minimum safe distance, outer wireframe.
+    float4 gProjectedDisplacementGuard;
 };
 
 struct OceanVertexInput
@@ -65,6 +69,9 @@ struct OceanVertexOutput
     float3 worldPosition : POSITION0;
     noperspective float2 projectedGridCoord : TEXCOORD1;
     float projectedDistance : TEXCOORD2;
+    noperspective float2 projectedNdc : TEXCOORD3;
+    noperspective float guardBandFade : TEXCOORD4;
+    noperspective float nearDisplacementFade : TEXCOORD5;
 };
 
 float OceanDistributionGGX(float3 N, float3 H, float roughness)

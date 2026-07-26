@@ -105,10 +105,18 @@ private:
 	int oceanMeshMode_ =
 		static_cast<int>(OceanRenderer::MeshMode::ProjectedGrid);
 	int oceanProjectedGridResolution_ = 256;
-	float oceanProjectedNearClamp_ = 0.5f;
+	float oceanProjectedNearClamp_ = 3.0f;
 	float oceanProjectedFarClamp_ = 1800.0f;
-	bool oceanProjectedGridDebug_ = false;
+	float oceanProjectedOverscanX_ = 1.10f;
+	float oceanProjectedOverscanTop_ = 1.05f;
+	float oceanProjectedOverscanBottom_ = 1.15f;
+	bool oceanNearDisplacementFadeEnabled_ = true;
+	float oceanNearFadeWidth_ = 5.0f;
+	float oceanMinimumSafeNearDistance_ = 3.0f;
+	int oceanProjectedGridDebugMode_ =
+		static_cast<int>(OceanRenderer::ProjectedGridDebugMode::None);
 	bool oceanProjectedWireframe_ = false;
+	bool oceanProjectedOuterWireframe_ = false;
 	bool waterTaaEnabled_ = true;
 	bool waterBloomEnabled_ = true;
 	bool waterSunPathEnabled_ = true;

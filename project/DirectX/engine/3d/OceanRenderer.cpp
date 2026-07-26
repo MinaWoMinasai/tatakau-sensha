@@ -43,7 +43,7 @@ constexpr float kSmallNyquist =
 constexpr uint32_t kCascadeSeedStride = 1009;
 constexpr float kProjectedGridAspect = 9.0f / 16.0f;
 static_assert(sizeof(OceanRenderer::OceanFFTParameters) == 112);
-static_assert(sizeof(OceanRenderer::OceanParameters) == 400);
+static_assert(sizeof(OceanRenderer::OceanParameters) == 432);
 
 struct SpectrumEvaluation {
 	double radial = 0.0;
@@ -989,24 +989,33 @@ void OceanRenderer::SetFFTCascadeSettings(
 
 void OceanRenderer::SetMeshSettings(
 	MeshMode mode,
-	uint32_t horizontalResolution,
-	float nearClamp,
-	float farClamp,
-	bool projectedGridDebug,
-	bool wireframe)
+	const ProjectedGridSettings& settings)
 {
 	const uint32_t normalizedResolution =
-		(std::clamp)(horizontalResolution, 32u, 512u);
+		(std::clamp)(settings.horizontalResolution, 32u, 512u);
 	if (normalizedResolution != projectedGridHorizontalResolution_) {
 		CreateProjectedGridMesh(normalizedResolution);
 	}
 	parameters_.meshMode = static_cast<float>(mode);
-	parameters_.projectedNearClamp = (std::max)(nearClamp, 0.0f);
+	parameters_.projectedNearClamp = (std::max)(settings.nearClamp, 0.0f);
 	parameters_.projectedFarClamp = (std::max)(
-		farClamp,
+		settings.farClamp,
 		parameters_.projectedNearClamp + 1.0f);
-	parameters_.projectedGridDebug = projectedGridDebug ? 1.0f : 0.0f;
-	parameters_.projectedWireframe = wireframe ? 1.0f : 0.0f;
+	parameters_.projectedGridDebug =
+		static_cast<float>(settings.debugMode);
+	parameters_.projectedWireframe = settings.wireframe ? 1.0f : 0.0f;
+	parameters_.projectedOverscan = {
+		(std::max)(settings.overscanX, 1.0f),
+		(std::max)(settings.overscanTop, 1.0f),
+		(std::max)(settings.overscanBottom, 1.0f),
+		0.003f,
+	};
+	parameters_.projectedDisplacementGuard = {
+		settings.nearDisplacementFadeEnabled ? 1.0f : 0.0f,
+		(std::max)(settings.nearFadeWidth, 0.001f),
+		(std::max)(settings.minimumSafeNearDistance, 0.0f),
+		settings.outerWireframe ? 1.0f : 0.0f,
+	};
 }
 
 void OceanRenderer::RequestFFTDiagnostics()
