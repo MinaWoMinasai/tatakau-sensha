@@ -79,6 +79,24 @@ void ModelManager::CreateBoxModel(const std::string& modelName, const Vector3& s
 	models.insert(std::make_pair(modelName, std::move(model)));
 }
 
+void ModelManager::CreateFacetedCrystalModel(
+	const std::string& modelName,
+	float radius,
+	float height,
+	uint32_t sides)
+{
+	if (models.contains(modelName)) {
+		return;
+	}
+
+	std::unique_ptr<Model> model = std::make_unique<Model>();
+	model->InitializeFromModelData(
+		modelCommon.get(),
+		Model::CreateFacetedCrystal(radius, height, sides));
+
+	models.insert(std::make_pair(modelName, std::move(model)));
+}
+
 void ModelManager::CreateCylinderModel(const std::string& modelName, float radius, float height, uint32_t segments)
 {
 	if (models.contains(modelName)) {

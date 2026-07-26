@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <dxgi1_6.h>
@@ -106,7 +107,9 @@ struct OBB {
 	Vector3 orientation[3]; // 正規化済み
 };
 
-struct Material {
+// GPU constant-buffer layout. Keep this field order exactly synchronized with
+// Material in resources/shaders/Object3d.PS.hlsl.
+struct alignas(16) Material {
 	Vector4 color;
 	int32_t enableLighting;
 	int32_t lightingMode;
@@ -154,6 +157,41 @@ struct Material {
 	float characterSpecularStrength;
 	float characterSpecularPower;
 	float characterPadding;
+	float crystalEnabled;
+	float crystalFresnelPower;
+	float iridescenceFactor;
+	float iridescenceIor;
+	float iridescenceThicknessMinimumNm; // Thin-film thickness in nanometers.
+	float iridescenceThicknessMaximumNm; // Thin-film thickness in nanometers.
+	float crystalEdgeEmission;
+	float crystalCoreEmission;
+	Vector3 crystalCoreColor;
+	float crystalCorePadding;
+	Vector3 crystalEdgeColor;
+	float crystalEdgePadding;
+};
+
+static_assert(sizeof(Material) % 16 == 0, "Material constant buffer must be 16-byte aligned.");
+static_assert(sizeof(Material) == 336, "Update the HLSL Material layout when changing Material.");
+static_assert(offsetof(Material, uvTransform) == 32);
+static_assert(offsetof(Material, emissiveColor) == 144);
+static_assert(offsetof(Material, characterLightWrap) == 240);
+static_assert(offsetof(Material, crystalEnabled) == 272);
+static_assert(offsetof(Material, iridescenceThicknessMinimumNm) == 288);
+static_assert(offsetof(Material, crystalCoreColor) == 304);
+static_assert(offsetof(Material, crystalEdgeColor) == 320);
+
+struct CrystalMaterialSettings {
+	bool enabled = true;
+	float fresnelPower = 4.6f;
+	float iridescenceFactor = 0.72f;
+	float iridescenceIor = 1.52f;
+	float thicknessMinimumNm = 360.0f;
+	float thicknessMaximumNm = 720.0f;
+	float edgeEmission = 3.0f;
+	float coreEmission = 0.08f;
+	Vector3 coreColor = { 0.08f, 0.48f, 0.82f };
+	Vector3 edgeColor = { 0.92f, 0.20f, 0.72f };
 };
 
 struct OceanWakeData {
@@ -217,6 +255,18 @@ inline Material MakeDefaultMaterial()
 	material.characterSpecularStrength = 0.075f;
 	material.characterSpecularPower = 42.0f;
 	material.characterPadding = 0.0f;
+	material.crystalEnabled = 0.0f;
+	material.crystalFresnelPower = 4.6f;
+	material.iridescenceFactor = 0.72f;
+	material.iridescenceIor = 1.52f;
+	material.iridescenceThicknessMinimumNm = 360.0f;
+	material.iridescenceThicknessMaximumNm = 720.0f;
+	material.crystalEdgeEmission = 3.0f;
+	material.crystalCoreEmission = 0.08f;
+	material.crystalCoreColor = { 0.08f, 0.48f, 0.82f };
+	material.crystalCorePadding = 0.0f;
+	material.crystalEdgeColor = { 0.92f, 0.20f, 0.72f };
+	material.crystalEdgePadding = 0.0f;
 	return material;
 }
 

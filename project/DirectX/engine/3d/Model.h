@@ -21,6 +21,7 @@ public:
 	static ModelData CreatePlane(float width, float depth);
 	static ModelData CreateGrid(float width, float depth, uint32_t xSegments, uint32_t zSegments);
 	static ModelData CreateBox(const Vector3& size);
+	static ModelData CreateFacetedCrystal(float radius, float height, uint32_t sides = 8);
 	static ModelData CreateCylinder(float radius, float height, uint32_t segments = 64);
 	static ModelData CreateUvSphere(float radius, uint32_t latitudeSegments, uint32_t longitudeSegments);
 

@@ -279,6 +279,42 @@ void Object3d::SetOceanWakeData(
 	oceanWakeData_->parameters = parameters;
 }
 
+void Object3d::SetCrystalMaterial(const CrystalMaterialSettings& settings)
+{
+	if (!materialData_) {
+		return;
+	}
+
+	const float thicknessMinimumNm =
+		std::clamp(settings.thicknessMinimumNm, 1.0f, 5000.0f);
+	const float thicknessMaximumNm =
+		std::clamp(settings.thicknessMaximumNm, thicknessMinimumNm, 5000.0f);
+
+	materialData_->crystalEnabled = settings.enabled ? 1.0f : 0.0f;
+	materialData_->crystalFresnelPower =
+		std::clamp(settings.fresnelPower, 0.25f, 16.0f);
+	materialData_->iridescenceFactor =
+		std::clamp(settings.iridescenceFactor, 0.0f, 1.0f);
+	materialData_->iridescenceIor =
+		std::clamp(settings.iridescenceIor, 1.001f, 3.0f);
+	materialData_->iridescenceThicknessMinimumNm = thicknessMinimumNm;
+	materialData_->iridescenceThicknessMaximumNm = thicknessMaximumNm;
+	materialData_->crystalEdgeEmission =
+		std::clamp(settings.edgeEmission, 0.0f, 64.0f);
+	materialData_->crystalCoreEmission =
+		std::clamp(settings.coreEmission, 0.0f, 64.0f);
+	materialData_->crystalCoreColor = {
+		(std::max)(settings.coreColor.x, 0.0f),
+		(std::max)(settings.coreColor.y, 0.0f),
+		(std::max)(settings.coreColor.z, 0.0f),
+	};
+	materialData_->crystalEdgeColor = {
+		(std::max)(settings.edgeColor.x, 0.0f),
+		(std::max)(settings.edgeColor.y, 0.0f),
+		(std::max)(settings.edgeColor.z, 0.0f),
+	};
+}
+
 void Object3d::DrawShadow() {
 	auto list = object3dCommon_->GetDxCommon()->GetList();
 
