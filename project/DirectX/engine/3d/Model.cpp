@@ -1658,6 +1658,76 @@ ModelData Model::CreateBox(const Vector3& size)
 	return modelData;
 }
 
+ModelData Model::CreateFacetedCrystal(float radius, float height, uint32_t sides)
+{
+	constexpr float kPi = 3.14159265358979323846f;
+	radius = (std::max)(std::abs(radius), 0.001f);
+	height = (std::max)(std::abs(height), 0.001f);
+	sides = (std::clamp)(sides, 5u, 16u);
+
+	const float halfHeight = height * 0.5f;
+	const float upperY = height * 0.18f;
+	const float lowerY = -height * 0.18f;
+	const float upperRadius = radius * 0.76f;
+	const float lowerRadius = radius;
+	const float lowerPhaseOffset = kPi / static_cast<float>(sides);
+
+	std::vector<Vector3> upperRing(sides);
+	std::vector<Vector3> lowerRing(sides);
+	for (uint32_t side = 0; side < sides; ++side) {
+		const float phase =
+			static_cast<float>(side) * 2.0f * kPi / static_cast<float>(sides);
+		upperRing[side] = {
+			std::cos(phase) * upperRadius,
+			upperY,
+			std::sin(phase) * upperRadius,
+		};
+		lowerRing[side] = {
+			std::cos(phase + lowerPhaseOffset) * lowerRadius,
+			lowerY,
+			std::sin(phase + lowerPhaseOffset) * lowerRadius,
+		};
+	}
+
+	ModelData modelData;
+	modelData.material = MakeDefaultPrimitiveMaterial();
+	modelData.vertices.reserve(static_cast<size_t>(sides) * 12u);
+	modelData.indices.reserve(static_cast<size_t>(sides) * 24u);
+
+	auto addFacet = [&](Vector3 p0, Vector3 p1, Vector3 p2) {
+		Vector3 normal = NormalizeVector3(CrossVector3(
+			SubtractVector3(p1, p0),
+			SubtractVector3(p2, p0)));
+		const Vector3 center = {
+			(p0.x + p1.x + p2.x) / 3.0f,
+			(p0.y + p1.y + p2.y) / 3.0f,
+			(p0.z + p1.z + p2.z) / 3.0f,
+		};
+		if (DotVector3(normal, center) < 0.0f) {
+			std::swap(p1, p2);
+			normal = MultiplyVector3(normal, -1.0f);
+		}
+
+		const uint32_t base = static_cast<uint32_t>(modelData.vertices.size());
+		modelData.vertices.push_back({ MakePosition(p0.x, p0.y, p0.z), { 0.5f, 0.0f }, normal });
+		modelData.vertices.push_back({ MakePosition(p1.x, p1.y, p1.z), { 0.0f, 1.0f }, normal });
+		modelData.vertices.push_back({ MakePosition(p2.x, p2.y, p2.z), { 1.0f, 1.0f }, normal });
+		AddDoubleSidedTriangle(modelData.indices, base, base + 1u, base + 2u);
+	};
+
+	const Vector3 top = { 0.0f, halfHeight, 0.0f };
+	const Vector3 bottom = { 0.0f, -halfHeight, 0.0f };
+	for (uint32_t side = 0; side < sides; ++side) {
+		const uint32_t next = (side + 1u) % sides;
+		addFacet(top, upperRing[side], upperRing[next]);
+		addFacet(upperRing[side], lowerRing[side], lowerRing[next]);
+		addFacet(upperRing[side], lowerRing[next], upperRing[next]);
+		addFacet(bottom, lowerRing[next], lowerRing[side]);
+	}
+
+	return modelData;
+}
+
 ModelData Model::CreateCylinder(float radius, float height, uint32_t segments)
 {
 	constexpr float kPi = 3.14159265358979323846f;

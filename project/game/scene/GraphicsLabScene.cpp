@@ -19,6 +19,7 @@ const char* kPbrSphereModelName = "__primitive_pbr_sphere";
 const char* kPbrPlaneModelName = "__primitive_pbr_plane";
 const char* kPbrBoxModelName = "__primitive_pbr_box";
 const char* kPbrCylinderModelName = "__primitive_pbr_cylinder";
+const char* kCrystalModelName = "__primitive_faceted_crystal";
 const char* kArcBlancOceanGridModelName = "__arc_blanc_ocean_grid";
 
 #ifdef USE_IMGUI
@@ -200,6 +201,11 @@ void GraphicsLabScene::Initialize()
 	Object3dCommon::GetInstance()->GetLightDir() = { -0.12f, -0.26f, -0.96f };
 
 	ModelManager::GetInstance()->CreateGridModel(kArcBlancOceanGridModelName, 1800.0f, 1800.0f, 256, 256);
+	ModelManager::GetInstance()->CreateFacetedCrystalModel(
+		kCrystalModelName,
+		1.0f,
+		3.2f,
+		8);
 	if (showSandBed_) {
 		ModelManager::GetInstance()->LoadModel("graphicsSand.obj");
 	}
@@ -227,6 +233,34 @@ void GraphicsLabScene::Initialize()
 	} else {
 		appliedPbrEnvironmentDebugMode_ = pbrEnvironmentDebugMode_;
 	}
+
+	crystal_ = std::make_unique<Object3d>();
+	crystal_->Initialize();
+	crystal_->SetModel(kCrystalModelName);
+	crystal_->SetTranslate({ 0.0f, 5.4f, 180.0f });
+	crystal_->SetRotate({ 0.08f, crystalRotation_, -0.08f });
+	crystal_->SetScale({ 3.4f, 3.4f, 3.4f });
+	crystal_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+	crystal_->SetLighting(true);
+	crystal_->SetLightingMode(2);
+	crystal_->SetMetallic(0.0f);
+	crystal_->SetRoughness(0.16f);
+	crystal_->SetAmbientOcclusion(1.0f);
+	crystal_->SetEnvironmentMap(pbrEnvironmentSrv);
+	crystal_->SetEnvironmentCoefficient(0.94f);
+	crystal_->SetIBLIntensity(0.42f, pbrIblSpecularIntensity_);
+	crystal_->SetIBLMaxMipLevel(pbrIblMaxMipLevel_);
+	crystal_->SetPBREnvironmentMode(
+		(loadLookDevSamples_ || loadSkinnedPbrSamples_)
+			? pbrFilteredIblBlend_
+			: 0.0f);
+	crystal_->SetShadowReceiveStrength(0.0f);
+	crystal_->SetShadowFilter(
+		pbrShadowDepthBias_,
+		pbrShadowSlopeBias_,
+		pbrShadowPcfRadius_);
+	crystal_->SetInsensity(pbrDirectLightIntensity_);
+	crystal_->SetCrystalMaterial(crystalSettings_);
 
 	skybox_ = std::make_unique<Skybox>();
 	skybox_->Initialize("resources/skybox.dds");
@@ -507,6 +541,7 @@ void GraphicsLabScene::Initialize()
 	if (sandBed_) {
 		sandBed_->Update();
 	}
+	crystal_->Update();
 	river_->Update();
 	for (auto& object : sceneObjects_) {
 		object.object->Update();
@@ -565,6 +600,27 @@ void GraphicsLabScene::Update()
 	if (sandBed_) {
 		sandBed_->Update();
 	}
+	if (!pauseCrystalRotation_) {
+		crystalRotation_ += finalDeltaTime_ * 0.22f;
+	}
+	crystalSettings_.thicknessMinimumNm = std::clamp(
+		crystalSettings_.thicknessMinimumNm,
+		1.0f,
+		5000.0f);
+	crystalSettings_.thicknessMaximumNm = std::clamp(
+		crystalSettings_.thicknessMaximumNm,
+		crystalSettings_.thicknessMinimumNm,
+		5000.0f);
+	crystal_->SetRotate({ 0.08f, crystalRotation_, -0.08f });
+	crystal_->SetCrystalMaterial(crystalSettings_);
+	crystal_->SetIBLIntensity(0.42f, pbrIblSpecularIntensity_);
+	crystal_->SetIBLMaxMipLevel(pbrIblMaxMipLevel_);
+	crystal_->SetShadowFilter(
+		pbrShadowDepthBias_,
+		pbrShadowSlopeBias_,
+		pbrShadowPcfRadius_);
+	crystal_->SetInsensity(pbrDirectLightIntensity_);
+	crystal_->Update();
 
 	for (auto& object : sceneObjects_) {
 		object.object->SetEnvironmentCoefficient(object.environment);
@@ -662,6 +718,9 @@ void GraphicsLabScene::DrawPostEffect3D()
 	Object3dCommon::GetInstance()->PreDraw(kNone);
 	if (showSandBed_ && sandBed_) {
 		sandBed_->Draw();
+	}
+	if (showCrystal_ && crystal_) {
+		crystal_->Draw();
 	}
 	for (auto& object : sceneObjects_) {
 		if (ShouldDrawLabObject(object)) {
@@ -1675,6 +1734,78 @@ void GraphicsLabScene::DrawDebugWindow()
 			&waterDebugMode_,
 			waterDebugModes,
 			IM_ARRAYSIZE(waterDebugModes));
+	}
+	if (ImGui::CollapsingHeader(
+		"Crystal LookDev",
+		ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Show crystal", &showCrystal_);
+		ImGui::SameLine();
+		ImGui::Checkbox("Pause rotation", &pauseCrystalRotation_);
+		ImGui::DragFloat(
+			"Fresnel power",
+			&crystalSettings_.fresnelPower,
+			0.05f,
+			0.25f,
+			16.0f);
+		ImGui::DragFloat(
+			"Iridescence factor",
+			&crystalSettings_.iridescenceFactor,
+			0.01f,
+			0.0f,
+			1.0f);
+		ImGui::DragFloat(
+			"Iridescence IOR",
+			&crystalSettings_.iridescenceIor,
+			0.005f,
+			1.001f,
+			3.0f,
+			"%.3f");
+		if (ImGui::DragFloat(
+			"Thickness minimum",
+			&crystalSettings_.thicknessMinimumNm,
+			1.0f,
+			1.0f,
+			5000.0f,
+			"%.0f nm")) {
+			crystalSettings_.thicknessMinimumNm = (std::min)(
+				crystalSettings_.thicknessMinimumNm,
+				crystalSettings_.thicknessMaximumNm);
+		}
+		if (ImGui::DragFloat(
+			"Thickness maximum",
+			&crystalSettings_.thicknessMaximumNm,
+			1.0f,
+			1.0f,
+			5000.0f,
+			"%.0f nm")) {
+			crystalSettings_.thicknessMaximumNm = (std::max)(
+				crystalSettings_.thicknessMaximumNm,
+				crystalSettings_.thicknessMinimumNm);
+		}
+		crystalSettings_.thicknessMinimumNm = std::clamp(
+			crystalSettings_.thicknessMinimumNm,
+			1.0f,
+			crystalSettings_.thicknessMaximumNm);
+		crystalSettings_.thicknessMaximumNm = std::clamp(
+			crystalSettings_.thicknessMaximumNm,
+			crystalSettings_.thicknessMinimumNm,
+			5000.0f);
+		ImGui::ColorEdit3("Core color", &crystalSettings_.coreColor.x);
+		ImGui::ColorEdit3("Edge color", &crystalSettings_.edgeColor.x);
+		ImGui::DragFloat(
+			"Core emission",
+			&crystalSettings_.coreEmission,
+			0.01f,
+			0.0f,
+			16.0f);
+		ImGui::DragFloat(
+			"Edge emission",
+			&crystalSettings_.edgeEmission,
+			0.02f,
+			0.0f,
+			16.0f);
+		ImGui::TextUnformatted(
+			"Opaque PBR stage: thin-film reflection tint and HDR edge emission.");
 	}
 	ImGui::Checkbox("Show underwater sand", &showSandBed_);
 	ImGui::Checkbox("Show beach", &showBeach_);

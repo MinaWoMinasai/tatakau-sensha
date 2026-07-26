@@ -53,6 +53,18 @@ struct Material
     float32_t characterSpecularStrength;
     float32_t characterSpecularPower;
     float32_t characterPadding;
+    float32_t crystalEnabled;
+    float32_t crystalFresnelPower;
+    float32_t iridescenceFactor;
+    float32_t iridescenceIor;
+    float32_t iridescenceThicknessMinimumNm;
+    float32_t iridescenceThicknessMaximumNm;
+    float32_t crystalEdgeEmission;
+    float32_t crystalCoreEmission;
+    float32_t3 crystalCoreColor;
+    float32_t crystalCorePadding;
+    float32_t3 crystalEdgeColor;
+    float32_t crystalEdgePadding;
 };
 
 struct Camera
@@ -92,6 +104,7 @@ ConstantBuffer<PointLight> gPointLight : register(b3);
 TextureCube<float32_t4> gEnvironmentMap : register(t2); // register(t2)に追加
 
 #include "PbrLighting.hlsli"
+#include "materials/CrystalMaterial.hlsli"
 
 struct PixelShaderOutput
 {
@@ -830,7 +843,37 @@ PixelShaderOutput main(VertexShaderOutput input)
             output.material = EncodeMaterialTarget(roughness, metallic, ao, 1.0f);
 #endif
             float NdotV = saturate(dot(N, V));
-            float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedo, metallic);
+            const bool crystalEnabled = gMaterial.crystalEnabled > 0.5f;
+            CrystalMaterialResult crystalMaterial;
+            crystalMaterial.surfaceTint = albedo;
+            crystalMaterial.reflectionTint = float3(1.0f, 1.0f, 1.0f);
+            crystalMaterial.emission = float3(0.0f, 0.0f, 0.0f);
+            crystalMaterial.fresnel = 0.0f;
+            crystalMaterial.dielectricF0 = 0.04f;
+            crystalMaterial.edgeWeight = 0.0f;
+            if (crystalEnabled)
+            {
+                crystalMaterial = EvaluateOpaqueCrystal(
+                    N,
+                    V,
+                    gMaterial.crystalFresnelPower,
+                    gMaterial.iridescenceFactor,
+                    gMaterial.iridescenceIor,
+                    gMaterial.iridescenceThicknessMinimumNm,
+                    gMaterial.iridescenceThicknessMaximumNm,
+                    gMaterial.crystalEdgeEmission,
+                    gMaterial.crystalCoreEmission,
+                    gMaterial.crystalCoreColor,
+                    gMaterial.crystalEdgeColor);
+                albedo = crystalMaterial.surfaceTint;
+            }
+            const float dielectricF0 = crystalEnabled
+                ? crystalMaterial.dielectricF0
+                : 0.04f;
+            float3 F0 = lerp(
+                float3(dielectricF0, dielectricF0, dielectricF0),
+                albedo,
+                metallic);
             int materialDebugMode = (int)(gMaterial.materialDebugMode + 0.5f);
             if (materialDebugMode > 0)
             {
@@ -879,6 +922,11 @@ PixelShaderOutput main(VertexShaderOutput input)
             float3 ambientDiffuse = kD * albedo * diffuseIrradiance * ao * max(gMaterial.iblDiffuseIntensity, 0.0f);
             float3 ambientSpecular = specularIBL * envStrength * max(gMaterial.iblSpecularIntensity, 0.0f);
             float3 emissive = gMaterial.emissiveColor * max(gMaterial.emissiveIntensity, 0.0f);
+            if (crystalEnabled)
+            {
+                ambientSpecular *= crystalMaterial.reflectionTint;
+                emissive += crystalMaterial.emission;
+            }
 
             output.color.rgb = max(ambientDiffuse + ambientSpecular + Lo + emissive, 0.0f);
             output.color.a = gMaterial.color.a * textureColor.a;
