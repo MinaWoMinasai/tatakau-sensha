@@ -243,5 +243,6 @@ OceanVertexOutput main(OceanVertexInput input)
     output.projectedNdc = projectedPosition.ndc;
     output.guardBandFade = projectedPosition.guardBandFade;
     output.nearDisplacementFade = projectedPosition.nearFade;
+    output.undisplacedWorldXZ = worldXZ;
     return output;
 }

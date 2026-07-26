@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include <d3d12.h>
 #include <wrl.h>
@@ -114,6 +115,16 @@ public:
 		float seedMeanAbsoluteRelativeError = 0.0f;
 		float seedMeanVariance = 0.0f;
 		float rgba16fQuantizationError = 0.0f;
+		Vector3 derivativeMinimum{};
+		Vector3 derivativeMaximum{};
+		Vector3 derivativeMean{};
+		float jacobianMinimum = 1.0f;
+		float jacobianMaximum = 1.0f;
+		float jacobianMean = 1.0f;
+		float breakingAreaRatio = 0.0f;
+		float crossDerivativeSymmetryError = 0.0f;
+		float derivativeFiniteDifferenceRelativeError = 0.0f;
+		float derivativeQuantizationError = 0.0f;
 		float gpuTimeMilliseconds = 0.0f;
 		uint32_t invalidValueCount = 0;
 		uint32_t gaussianSampleCount = 0;
@@ -134,6 +145,10 @@ public:
 		float bandOverlapEnergy = 0.0f;
 		float bandMissingEnergy = 0.0f;
 		float totalGpuTimeMilliseconds = 0.0f;
+		float oceanDrawGpuTimeMilliseconds = 0.0f;
+		float totalGpuTimeIncludingDraw = 0.0f;
+		float fftBaselineGpuTimeMilliseconds = 6.1f;
+		float derivativeGpuIncreaseMilliseconds = 0.0f;
 	};
 
 	struct alignas(16) OceanParameters {
@@ -185,6 +200,8 @@ public:
 		Vector4 projectedDisplacementGuard = {
 			1.0f, 5.0f, 3.0f, 0.0f
 		};
+		Vector4 breakingParameters = { 0.72f, 0.0f, 0.12f, 0.25f };
+		Vector4 derivativeControls = { 1.0f, 0.0f, 0.0f, 0.0f };
 	};
 
 	struct alignas(16) OceanFFTParameters {
@@ -239,6 +256,13 @@ public:
 		int debugMode,
 		float atmosphereStrength,
 		float farFlattenStrength);
+	void SetDerivativeSettings(
+		int normalMode,
+		bool breakingPreviewEnabled,
+		float jacobianThreshold,
+		float jacobianBias,
+		float smoothWidth,
+		float maskIntensity);
 	void SetFFTSettings(
 		float time,
 		float amplitude,
@@ -306,14 +330,20 @@ private:
 		std::array<FFTTexture, 2> spectrumA;
 		std::array<FFTTexture, 2> spectrumB;
 		std::array<FFTTexture, 2> spectrumC;
+		std::array<FFTTexture, 2> spectrumD;
 		FFTTexture displacement;
 		FFTTexture slope;
+		FFTTexture derivative;
 		FFTReadback displacementReadback;
 		FFTReadback slopeReadback;
+		FFTReadback derivativeReadback;
 		FFTReadback initialSpectrumReadback;
 		FFTReadback evolvedSpectrumReadback;
 		FFTReadback finalSpectrumReadback;
+		FFTReadback finalSpectrumCReadback;
+		FFTReadback finalSpectrumDReadback;
 		FFTReadback spectrumDebugReadback;
+		std::vector<Vector4> diagnosticDerivativeSamples;
 		OceanFFTParameters diagnosticsParameters{};
 		OceanCascadeDiagnostics diagnostics{};
 		uint32_t finalSpectrumIndex = 0;
@@ -394,6 +424,9 @@ private:
 	uint64_t fftTimestampFrequency_ = 0;
 	uint32_t fftTimestampQueryCount_ = 0;
 	std::array<float, kFFTCascadeCount> pendingGpuTimes_{};
+	float pendingOceanDrawGpuTime_ = 0.0f;
+	uint32_t fftTimingQueryCountBeforeDraw_ = 0;
+	bool oceanDrawTimingPending_ = false;
 	bool diagnosticsThreeCascades_ = false;
 	bool fftPaused_ = false;
 	bool fftDiagnosticsRequested_ = false;

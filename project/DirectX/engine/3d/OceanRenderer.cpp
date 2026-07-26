@@ -43,7 +43,7 @@ constexpr float kSmallNyquist =
 constexpr uint32_t kCascadeSeedStride = 1009;
 constexpr float kProjectedGridAspect = 9.0f / 16.0f;
 static_assert(sizeof(OceanRenderer::OceanFFTParameters) == 112);
-static_assert(sizeof(OceanRenderer::OceanParameters) == 432);
+static_assert(sizeof(OceanRenderer::OceanParameters) == 464);
 
 struct SpectrumEvaluation {
 	double radial = 0.0;
@@ -757,12 +757,30 @@ void OceanRenderer::Draw()
 	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
 		10,
 		debugCascade->spectrumDebug.srvIndex);
+	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
+		11,
+		renderCascades[0]->derivative.srvIndex);
+	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
+		12,
+		renderCascades[1]->derivative.srvIndex);
+	Object3dCommon::GetInstance()->GetSrvManager()->SetGraphicsRootDescriptorTable(
+		13,
+		renderCascades[2]->derivative.srvIndex);
+	const bool measureOceanDraw = oceanDrawTimingPending_;
+	if (measureOceanDraw) {
+		BeginCascadeGpuTiming(fftTimingQueryCountBeforeDraw_);
+	}
 	if (parameters_.meshMode >=
 			static_cast<float>(MeshMode::ProjectedGrid) - 0.5f &&
 		projectedGridIndexCount_ > 0) {
 		DrawProjectedGrid();
 	} else {
 		gridModel_->DrawOnlyMesh();
+	}
+	if (measureOceanDraw) {
+		EndCascadeGpuTiming(fftTimingQueryCountBeforeDraw_ + 1);
+		QueueGpuTimingReadback(fftTimingQueryCountBeforeDraw_ + 2);
+		oceanDrawTimingPending_ = false;
 	}
 }
 
@@ -874,9 +892,31 @@ void OceanRenderer::SetFFTSettings(
 	fftPaused_ = paused;
 	parameters_.fftPatchLength = clampedPatchLength;
 	parameters_.fftDebugMode =
-		static_cast<float>((std::clamp)(debugMode, 0, 10));
+		static_cast<float>((std::clamp)(debugMode, 0, 19));
 	parameters_.fftDebugScale = (std::max)(debugDisplayScale, 0.001f);
 	ApplyBaseParametersToCascades();
+}
+
+void OceanRenderer::SetDerivativeSettings(
+	int normalMode,
+	bool breakingPreviewEnabled,
+	float jacobianThreshold,
+	float jacobianBias,
+	float smoothWidth,
+	float maskIntensity)
+{
+	parameters_.breakingParameters = {
+		(std::clamp)(jacobianThreshold, -2.0f, 2.0f),
+		(std::clamp)(jacobianBias, -2.0f, 2.0f),
+		(std::max)(smoothWidth, 0.0001f),
+		(std::clamp)(maskIntensity, 0.0f, 2.0f),
+	};
+	parameters_.derivativeControls = {
+		static_cast<float>((std::clamp)(normalMode, 0, 1)),
+		breakingPreviewEnabled ? 1.0f : 0.0f,
+		0.0f,
+		0.0f,
+	};
 }
 
 void OceanRenderer::SetFFTSpectrumSettings(
@@ -1147,15 +1187,22 @@ void OceanRenderer::InitializeCascade(
 		CreateFFTTexture(
 			cascade.spectrumC[index],
 			DXGI_FORMAT_R32G32B32A32_FLOAT);
+		CreateFFTTexture(
+			cascade.spectrumD[index],
+			DXGI_FORMAT_R32G32B32A32_FLOAT);
 	}
 	CreateFFTTexture(
 		cascade.displacement,
 		DXGI_FORMAT_R16G16B16A16_FLOAT);
 	CreateFFTTexture(cascade.slope, DXGI_FORMAT_R16G16_FLOAT);
+	CreateFFTTexture(
+		cascade.derivative,
+		DXGI_FORMAT_R16G16B16A16_FLOAT);
 	CreateFFTReadback(
 		cascade.displacementReadback,
 		cascade.displacement);
 	CreateFFTReadback(cascade.slopeReadback, cascade.slope);
+	CreateFFTReadback(cascade.derivativeReadback, cascade.derivative);
 	CreateFFTReadback(
 		cascade.initialSpectrumReadback,
 		cascade.initialSpectrum);
@@ -1165,6 +1212,12 @@ void OceanRenderer::InitializeCascade(
 	CreateFFTReadback(
 		cascade.finalSpectrumReadback,
 		cascade.spectrumA[0]);
+	CreateFFTReadback(
+		cascade.finalSpectrumCReadback,
+		cascade.spectrumC[0]);
+	CreateFFTReadback(
+		cascade.finalSpectrumDReadback,
+		cascade.spectrumD[0]);
 	CreateFFTReadback(
 		cascade.spectrumDebugReadback,
 		cascade.spectrumDebug);
@@ -1412,7 +1465,7 @@ void OceanRenderer::InitializeGpuTiming()
 {
 	DirectXCommon* dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
 	D3D12_QUERY_HEAP_DESC queryDescription{};
-	queryDescription.Count = kFFTCascadeCount * 2;
+	queryDescription.Count = kFFTCascadeCount * 2 + 2;
 	queryDescription.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
 	HRESULT hr = dxCommon->GetDevice()->CreateQueryHeap(
 		&queryDescription,
@@ -1424,7 +1477,7 @@ void OceanRenderer::InitializeGpuTiming()
 	D3D12_RESOURCE_DESC bufferDescription{};
 	bufferDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	bufferDescription.Width =
-		sizeof(uint64_t) * kFFTCascadeCount * 2;
+		sizeof(uint64_t) * (kFFTCascadeCount * 2 + 2);
 	bufferDescription.Height = 1;
 	bufferDescription.DepthOrArraySize = 1;
 	bufferDescription.MipLevels = 1;
@@ -1476,6 +1529,7 @@ void OceanRenderer::QueueGpuTimingReadback(uint32_t queryCount)
 void OceanRenderer::ResolveGpuTimings()
 {
 	pendingGpuTimes_.fill(0.0f);
+	pendingOceanDrawGpuTime_ = 0.0f;
 	if (fftTimestampQueryCount_ < 2 ||
 		fftTimestampFrequency_ == 0) {
 		return;
@@ -1494,10 +1548,9 @@ void OceanRenderer::ResolveGpuTimings()
 	assert(SUCCEEDED(hr));
 	const auto* timestamps =
 		static_cast<const uint64_t*>(mappedData);
-	const uint32_t timingCount =
-		(std::min)(
-			fftTimestampQueryCount_ / 2,
-			kFFTCascadeCount);
+	const uint32_t timingCount = (std::min)(
+		(fftTimestampQueryCount_ - 2) / 2,
+		kFFTCascadeCount);
 	for (uint32_t index = 0; index < timingCount; ++index) {
 		const uint64_t start = timestamps[index * 2];
 		const uint64_t end = timestamps[index * 2 + 1];
@@ -1510,6 +1563,13 @@ void OceanRenderer::ResolveGpuTimings()
 			!cascadeSettings_[index].enabled) {
 			pendingGpuTimes_[index] = 0.0f;
 		}
+	}
+	const uint64_t drawStart = timestamps[timingCount * 2];
+	const uint64_t drawEnd = timestamps[timingCount * 2 + 1];
+	if (drawEnd >= drawStart) {
+		pendingOceanDrawGpuTime_ = static_cast<float>(
+			static_cast<double>(drawEnd - drawStart) * 1000.0 /
+			static_cast<double>(fftTimestampFrequency_));
 	}
 	const D3D12_RANGE emptyWriteRange = { 0, 0 };
 	fftTimestampReadback_->Unmap(0, &emptyWriteRange);
@@ -1560,7 +1620,8 @@ void OceanRenderer::RunFFT()
 					QueueFFTDiagnosticsReadback(cascades_[index]);
 				}
 			}
-			QueueGpuTimingReadback(kFFTCascadeCount * 2);
+			fftTimingQueryCountBeforeDraw_ = kFFTCascadeCount * 2;
+			oceanDrawTimingPending_ = true;
 		}
 	} else {
 		if (fftDiagnosticsRequested_) {
@@ -1570,7 +1631,8 @@ void OceanRenderer::RunFFT()
 		if (fftDiagnosticsRequested_) {
 			EndCascadeGpuTiming(1);
 			QueueFFTDiagnosticsReadback(singleCascade_);
-			QueueGpuTimingReadback(2);
+			fftTimingQueryCountBeforeDraw_ = 2;
+			oceanDrawTimingPending_ = true;
 		}
 	}
 
@@ -1599,8 +1661,8 @@ void OceanRenderer::RunCascadeFFT(OceanCascade& cascade)
 			spectrumInitializePipeline_.Get(),
 			cascade);
 		commandList->SetComputeRoot32BitConstants(1, 4, zeroConstants, 0);
-		BindComputeUav(5, cascade.initialSpectrum);
-		BindComputeUav(6, cascade.spectrumDebug);
+		BindComputeUav(6, cascade.initialSpectrum);
+		BindComputeUav(7, cascade.spectrumDebug);
 		commandList->Dispatch(groupCount, groupCount, 1);
 		InsertUAVBarrier(cascade.initialSpectrum);
 		InsertUAVBarrier(cascade.spectrumDebug);
@@ -1612,24 +1674,28 @@ void OceanRenderer::RunCascadeFFT(OceanCascade& cascade)
 	Transition(cascade.spectrumA[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Transition(cascade.spectrumB[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Transition(cascade.spectrumC[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Transition(cascade.spectrumD[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Transition(
 		cascade.evolvedSpectrumDebug,
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	BindComputePipeline(spectrumEvolvePipeline_.Get(), cascade);
 	commandList->SetComputeRoot32BitConstants(1, 4, zeroConstants, 0);
 	BindComputeSrv(2, cascade.initialSpectrum);
-	BindComputeUav(5, cascade.spectrumA[0]);
-	BindComputeUav(6, cascade.spectrumB[0]);
-	BindComputeUav(7, cascade.spectrumC[0]);
-	BindComputeUav(8, cascade.evolvedSpectrumDebug);
+	BindComputeUav(6, cascade.spectrumA[0]);
+	BindComputeUav(7, cascade.spectrumB[0]);
+	BindComputeUav(8, cascade.spectrumC[0]);
+	BindComputeUav(9, cascade.spectrumD[0]);
+	BindComputeUav(10, cascade.evolvedSpectrumDebug);
 	commandList->Dispatch(groupCount, groupCount, 1);
 	InsertUAVBarrier(cascade.spectrumA[0]);
 	InsertUAVBarrier(cascade.spectrumB[0]);
 	InsertUAVBarrier(cascade.spectrumC[0]);
+	InsertUAVBarrier(cascade.spectrumD[0]);
 	InsertUAVBarrier(cascade.evolvedSpectrumDebug);
 	Transition(cascade.spectrumA[0], kShaderReadState);
 	Transition(cascade.spectrumB[0], kShaderReadState);
 	Transition(cascade.spectrumC[0], kShaderReadState);
+	Transition(cascade.spectrumD[0], kShaderReadState);
 	Transition(cascade.evolvedSpectrumDebug, kShaderReadState);
 
 	uint32_t currentIndex = 0;
@@ -1644,6 +1710,9 @@ void OceanRenderer::RunCascadeFFT(OceanCascade& cascade)
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 			Transition(
 				cascade.spectrumC[destinationIndex],
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			Transition(
+				cascade.spectrumD[destinationIndex],
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 			BindComputePipeline(fftPipeline_.Get(), cascade);
@@ -1661,16 +1730,20 @@ void OceanRenderer::RunCascadeFFT(OceanCascade& cascade)
 			BindComputeSrv(2, cascade.spectrumA[currentIndex]);
 			BindComputeSrv(3, cascade.spectrumB[currentIndex]);
 			BindComputeSrv(4, cascade.spectrumC[currentIndex]);
-			BindComputeUav(5, cascade.spectrumA[destinationIndex]);
-			BindComputeUav(6, cascade.spectrumB[destinationIndex]);
-			BindComputeUav(7, cascade.spectrumC[destinationIndex]);
+			BindComputeSrv(5, cascade.spectrumD[currentIndex]);
+			BindComputeUav(6, cascade.spectrumA[destinationIndex]);
+			BindComputeUav(7, cascade.spectrumB[destinationIndex]);
+			BindComputeUav(8, cascade.spectrumC[destinationIndex]);
+			BindComputeUav(9, cascade.spectrumD[destinationIndex]);
 			commandList->Dispatch(groupCount, groupCount, 1);
 			InsertUAVBarrier(cascade.spectrumA[destinationIndex]);
 			InsertUAVBarrier(cascade.spectrumB[destinationIndex]);
 			InsertUAVBarrier(cascade.spectrumC[destinationIndex]);
+			InsertUAVBarrier(cascade.spectrumD[destinationIndex]);
 			Transition(cascade.spectrumA[destinationIndex], kShaderReadState);
 			Transition(cascade.spectrumB[destinationIndex], kShaderReadState);
 			Transition(cascade.spectrumC[destinationIndex], kShaderReadState);
+			Transition(cascade.spectrumD[destinationIndex], kShaderReadState);
 			currentIndex = destinationIndex;
 		}
 	}
@@ -1678,18 +1751,23 @@ void OceanRenderer::RunCascadeFFT(OceanCascade& cascade)
 
 	Transition(cascade.displacement, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Transition(cascade.slope, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Transition(cascade.derivative, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	BindComputePipeline(fftOutputPipeline_.Get(), cascade);
 	commandList->SetComputeRoot32BitConstants(1, 4, zeroConstants, 0);
 	BindComputeSrv(2, cascade.spectrumA[cascade.finalSpectrumIndex]);
 	BindComputeSrv(3, cascade.spectrumB[cascade.finalSpectrumIndex]);
 	BindComputeSrv(4, cascade.spectrumC[cascade.finalSpectrumIndex]);
-	BindComputeUav(5, cascade.displacement);
-	BindComputeUav(6, cascade.slope);
+	BindComputeSrv(5, cascade.spectrumD[cascade.finalSpectrumIndex]);
+	BindComputeUav(6, cascade.displacement);
+	BindComputeUav(7, cascade.slope);
+	BindComputeUav(8, cascade.derivative);
 	commandList->Dispatch(groupCount, groupCount, 1);
 	InsertUAVBarrier(cascade.displacement);
 	InsertUAVBarrier(cascade.slope);
+	InsertUAVBarrier(cascade.derivative);
 	Transition(cascade.displacement, kShaderReadState);
 	Transition(cascade.slope, kShaderReadState);
+	Transition(cascade.derivative, kShaderReadState);
 	cascade.hasOutput = true;
 	cascade.outputDirty = false;
 }
@@ -1700,6 +1778,7 @@ void OceanRenderer::QueueFFTDiagnosticsReadback(OceanCascade& cascade)
 		cascade.displacement,
 		cascade.displacementReadback);
 	CopyFFTTextureToReadback(cascade.slope, cascade.slopeReadback);
+	CopyFFTTextureToReadback(cascade.derivative, cascade.derivativeReadback);
 	CopyFFTTextureToReadback(
 		cascade.initialSpectrum,
 		cascade.initialSpectrumReadback);
@@ -1709,6 +1788,12 @@ void OceanRenderer::QueueFFTDiagnosticsReadback(OceanCascade& cascade)
 	CopyFFTTextureToReadback(
 		cascade.spectrumA[cascade.finalSpectrumIndex],
 		cascade.finalSpectrumReadback);
+	CopyFFTTextureToReadback(
+		cascade.spectrumC[cascade.finalSpectrumIndex],
+		cascade.finalSpectrumCReadback);
+	CopyFFTTextureToReadback(
+		cascade.spectrumD[cascade.finalSpectrumIndex],
+		cascade.finalSpectrumDReadback);
 	CopyFFTTextureToReadback(
 		cascade.spectrumDebug,
 		cascade.spectrumDebugReadback);
@@ -1776,10 +1861,165 @@ void OceanRenderer::ResolveFFTDiagnostics()
 				diagnostics.directionalNormalizationError = (std::max)(
 					diagnostics.directionalNormalizationError,
 					cascadeDiagnostics.directionalNormalizationError);
+				diagnostics.crossDerivativeSymmetryError = (std::max)(
+					diagnostics.crossDerivativeSymmetryError,
+					cascadeDiagnostics.crossDerivativeSymmetryError);
+				diagnostics.derivativeFiniteDifferenceRelativeError = (std::max)(
+					diagnostics.derivativeFiniteDifferenceRelativeError,
+					cascadeDiagnostics.derivativeFiniteDifferenceRelativeError);
+				diagnostics.derivativeQuantizationError = (std::max)(
+					diagnostics.derivativeQuantizationError,
+					cascadeDiagnostics.derivativeQuantizationError);
 			}
 			diagnosticParameters[index] =
 				cascades_[index].parameters;
 		}
+
+		auto sampleDerivative = [](
+			const OceanCascade& cascade,
+			float worldX,
+			float worldZ) {
+			const float patchLength =
+				(std::max)(cascade.settings.patchLength, 0.001f);
+			auto wrapUnit = [](float value) {
+				return value - std::floor(value);
+			};
+			const float textureX =
+				wrapUnit(worldX / patchLength) * kFFTSize - 0.5f;
+			const float textureY =
+				wrapUnit(worldZ / patchLength) * kFFTSize - 0.5f;
+			const int32_t x0 = static_cast<int32_t>(std::floor(textureX));
+			const int32_t y0 = static_cast<int32_t>(std::floor(textureY));
+			const float blendX = textureX - std::floor(textureX);
+			const float blendY = textureY - std::floor(textureY);
+			auto wrapIndex = [](int32_t value) {
+				const int32_t size = static_cast<int32_t>(kFFTSize);
+				return static_cast<uint32_t>((value % size + size) % size);
+			};
+			auto sample = [&](int32_t x, int32_t y) -> const Vector4& {
+				return cascade.diagnosticDerivativeSamples[
+					static_cast<size_t>(wrapIndex(y)) * kFFTSize +
+					wrapIndex(x)];
+			};
+			const Vector4& p00 = sample(x0, y0);
+			const Vector4& p10 = sample(x0 + 1, y0);
+			const Vector4& p01 = sample(x0, y0 + 1);
+			const Vector4& p11 = sample(x0 + 1, y0 + 1);
+			auto bilinear = [&](float v00, float v10, float v01, float v11) {
+				const float row0 = v00 + (v10 - v00) * blendX;
+				const float row1 = v01 + (v11 - v01) * blendX;
+				return row0 + (row1 - row0) * blendY;
+			};
+			return Vector4{
+				bilinear(p00.x, p10.x, p01.x, p11.x),
+				bilinear(p00.y, p10.y, p01.y, p11.y),
+				bilinear(p00.z, p10.z, p01.z, p11.z),
+				bilinear(p00.w, p10.w, p01.w, p11.w),
+			};
+		};
+
+		diagnostics.derivativeMinimum = {
+			(std::numeric_limits<float>::max)(),
+			(std::numeric_limits<float>::max)(),
+			(std::numeric_limits<float>::max)(),
+		};
+		diagnostics.derivativeMaximum = {
+			(std::numeric_limits<float>::lowest)(),
+			(std::numeric_limits<float>::lowest)(),
+			(std::numeric_limits<float>::lowest)(),
+		};
+		diagnostics.jacobianMinimum = (std::numeric_limits<float>::max)();
+		diagnostics.jacobianMaximum = (std::numeric_limits<float>::lowest)();
+		Vector3 combinedDerivativeSum{};
+		double combinedJacobianSum = 0.0;
+		uint32_t combinedBreakingCount = 0;
+		constexpr uint32_t combinedDiagnosticSamples = kFFTSize * kFFTSize;
+		for (uint32_t sampleIndex = 0;
+			sampleIndex < combinedDiagnosticSamples;
+			++sampleIndex) {
+			const float worldX = static_cast<float>(
+				std::fmod(
+					(static_cast<double>(sampleIndex) + 0.5) *
+					0.6180339887498948,
+					1.0) * 256.0);
+			const float worldZ = static_cast<float>(
+				std::fmod(
+					(static_cast<double>(sampleIndex) + 0.5) *
+					0.7548776662466927,
+					1.0) * 256.0);
+			Vector4 combined{};
+			for (uint32_t cascadeIndex = 0;
+				cascadeIndex < kFFTCascadeCount;
+				++cascadeIndex) {
+				if (!cascadeSettings_[cascadeIndex].enabled) {
+					continue;
+				}
+				const Vector4 derivative = sampleDerivative(
+					cascades_[cascadeIndex],
+					worldX,
+					worldZ);
+				const float contribution =
+					cascadeSettings_[cascadeIndex].displacementContribution;
+				combined.x += derivative.x * contribution;
+				combined.y += derivative.y * contribution;
+				combined.z += derivative.z * contribution;
+				combined.w += derivative.w * contribution;
+			}
+			combined.x *= fftParameters_.choppiness;
+			combined.y *= fftParameters_.choppiness;
+			combined.z *= fftParameters_.choppiness;
+			combined.w *= fftParameters_.choppiness;
+			diagnostics.derivativeMinimum.x = (std::min)(
+				diagnostics.derivativeMinimum.x,
+				combined.x);
+			diagnostics.derivativeMinimum.y = (std::min)(
+				diagnostics.derivativeMinimum.y,
+				combined.y);
+			diagnostics.derivativeMinimum.z = (std::min)(
+				diagnostics.derivativeMinimum.z,
+				combined.z);
+			diagnostics.derivativeMaximum.x = (std::max)(
+				diagnostics.derivativeMaximum.x,
+				combined.x);
+			diagnostics.derivativeMaximum.y = (std::max)(
+				diagnostics.derivativeMaximum.y,
+				combined.y);
+			diagnostics.derivativeMaximum.z = (std::max)(
+				diagnostics.derivativeMaximum.z,
+				combined.z);
+			combinedDerivativeSum.x += combined.x;
+			combinedDerivativeSum.y += combined.y;
+			combinedDerivativeSum.z += combined.z;
+			const float jacobian =
+				(1.0f + combined.x) * (1.0f + combined.z) -
+				combined.y * combined.w;
+			if (std::isfinite(jacobian)) {
+				diagnostics.jacobianMinimum = (std::min)(
+					diagnostics.jacobianMinimum,
+					jacobian);
+				diagnostics.jacobianMaximum = (std::max)(
+					diagnostics.jacobianMaximum,
+					jacobian);
+				combinedJacobianSum += jacobian;
+				if (jacobian + parameters_.breakingParameters.y <
+					parameters_.breakingParameters.x) {
+					++combinedBreakingCount;
+				}
+			} else {
+				++diagnostics.invalidValueCount;
+			}
+		}
+		const float inverseCombinedCount =
+			1.0f / static_cast<float>(combinedDiagnosticSamples);
+		diagnostics.derivativeMean = {
+			combinedDerivativeSum.x * inverseCombinedCount,
+			combinedDerivativeSum.y * inverseCombinedCount,
+			combinedDerivativeSum.z * inverseCombinedCount,
+		};
+		diagnostics.jacobianMean = static_cast<float>(
+			combinedJacobianSum * inverseCombinedCount);
+		diagnostics.breakingAreaRatio =
+			combinedBreakingCount * inverseCombinedCount;
 
 		OceanFFTParameters singleReference = fftParameters_;
 		singleReference.cascadeIndex = kFFTCascadeCount;
@@ -1826,6 +2066,14 @@ void OceanRenderer::ResolveFFTDiagnostics()
 		diagnostics.gpuTimeMilliseconds =
 			diagnostics.totalGpuTimeMilliseconds;
 	}
+	diagnostics.oceanDrawGpuTimeMilliseconds = pendingOceanDrawGpuTime_;
+	diagnostics.totalGpuTimeIncludingDraw =
+		diagnostics.totalGpuTimeMilliseconds +
+		diagnostics.oceanDrawGpuTimeMilliseconds;
+	diagnostics.fftBaselineGpuTimeMilliseconds = 6.1f;
+	diagnostics.derivativeGpuIncreaseMilliseconds =
+		diagnostics.totalGpuTimeMilliseconds -
+		diagnostics.fftBaselineGpuTimeMilliseconds;
 
 	fftDiagnostics_ = diagnostics;
 	fftDiagnosticsPending_ = false;
@@ -1850,9 +2098,21 @@ OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
 		0,
 		static_cast<SIZE_T>(cascade.slopeReadback.totalBytes),
 	};
+	const D3D12_RANGE derivativeRange = {
+		0,
+		static_cast<SIZE_T>(cascade.derivativeReadback.totalBytes),
+	};
 	const D3D12_RANGE finalRange = {
 		0,
 		static_cast<SIZE_T>(cascade.finalSpectrumReadback.totalBytes),
+	};
+	const D3D12_RANGE finalCRange = {
+		0,
+		static_cast<SIZE_T>(cascade.finalSpectrumCReadback.totalBytes),
+	};
+	const D3D12_RANGE finalDRange = {
+		0,
+		static_cast<SIZE_T>(cascade.finalSpectrumDReadback.totalBytes),
 	};
 	const D3D12_RANGE debugRange = {
 		0,
@@ -1862,7 +2122,10 @@ OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
 	void* evolvedMapped = nullptr;
 	void* initialMapped = nullptr;
 	void* slopeMapped = nullptr;
+	void* derivativeMapped = nullptr;
 	void* finalMapped = nullptr;
+	void* finalCMapped = nullptr;
+	void* finalDMapped = nullptr;
 	void* debugMapped = nullptr;
 	HRESULT hr = cascade.displacementReadback.resource->Map(
 		0,
@@ -1873,6 +2136,11 @@ OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
 		0,
 		&slopeRange,
 		&slopeMapped);
+	assert(SUCCEEDED(hr));
+	hr = cascade.derivativeReadback.resource->Map(
+		0,
+		&derivativeRange,
+		&derivativeMapped);
 	assert(SUCCEEDED(hr));
 	hr = cascade.initialSpectrumReadback.resource->Map(
 		0,
@@ -1889,6 +2157,16 @@ OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
 		&finalRange,
 		&finalMapped);
 	assert(SUCCEEDED(hr));
+	hr = cascade.finalSpectrumCReadback.resource->Map(
+		0,
+		&finalCRange,
+		&finalCMapped);
+	assert(SUCCEEDED(hr));
+	hr = cascade.finalSpectrumDReadback.resource->Map(
+		0,
+		&finalDRange,
+		&finalDMapped);
+	assert(SUCCEEDED(hr));
 	hr = cascade.spectrumDebugReadback.resource->Map(
 		0,
 		&debugRange,
@@ -1899,13 +2177,29 @@ OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
 	const auto* evolvedData = static_cast<const uint8_t*>(evolvedMapped);
 	const auto* initialData = static_cast<const uint8_t*>(initialMapped);
 	const auto* slopeData = static_cast<const uint8_t*>(slopeMapped);
+	const auto* derivativeData =
+		static_cast<const uint8_t*>(derivativeMapped);
 	const auto* finalData = static_cast<const uint8_t*>(finalMapped);
+	const auto* finalCData = static_cast<const uint8_t*>(finalCMapped);
+	const auto* finalDData = static_cast<const uint8_t*>(finalDMapped);
 	const auto* debugData = static_cast<const uint8_t*>(debugMapped);
 
 	OceanCascadeDiagnostics diagnostics{};
 	diagnostics.sampleTime = cascade.diagnosticsParameters.time;
 	diagnostics.heightMinimum = (std::numeric_limits<float>::max)();
 	diagnostics.heightMaximum = (std::numeric_limits<float>::lowest)();
+	diagnostics.derivativeMinimum = {
+		(std::numeric_limits<float>::max)(),
+		(std::numeric_limits<float>::max)(),
+		(std::numeric_limits<float>::max)(),
+	};
+	diagnostics.derivativeMaximum = {
+		(std::numeric_limits<float>::lowest)(),
+		(std::numeric_limits<float>::lowest)(),
+		(std::numeric_limits<float>::lowest)(),
+	};
+	diagnostics.jacobianMinimum = (std::numeric_limits<float>::max)();
+	diagnostics.jacobianMaximum = (std::numeric_limits<float>::lowest)();
 	double heightSquaredSum = 0.0;
 	double ifftFloatSquaredSum = 0.0;
 	double imaginarySquaredSum = 0.0;
@@ -1916,6 +2210,13 @@ OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
 	double gaussianImaginarySquaredSum = 0.0;
 	double hermitianErrorSquaredSum = 0.0;
 	double hermitianMagnitudeSquaredSum = 0.0;
+	Vector3 derivativeSum{};
+	double derivativeQuantizationErrorSquaredSum = 0.0;
+	double derivativeQuantizationSignalSquaredSum = 0.0;
+	double crossDerivativeErrorSquaredSum = 0.0;
+	double crossDerivativeSignalSquaredSum = 0.0;
+	double jacobianSum = 0.0;
+	uint32_t breakingSampleCount = 0;
 	float maximumDirectionalError = 0.0f;
 	uint32_t validHeightCount = 0;
 	uint32_t validFloatHeightCount = 0;
@@ -1923,6 +2224,15 @@ OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
 	uint32_t validEvolvedCount = 0;
 	uint32_t validImaginaryCount = 0;
 	uint32_t validHermitianCount = 0;
+	uint32_t validDerivativeCount = 0;
+	const size_t spatialSampleCount =
+		static_cast<size_t>(kFFTSize) * kFFTSize;
+	cascade.diagnosticDerivativeSamples.assign(
+		spatialSampleCount,
+		Vector4{});
+	std::vector<Vector4> displacementSamples(
+		spatialSampleCount,
+		Vector4{});
 
 	auto readFloat4 = [](
 		const uint8_t* data,
@@ -1951,7 +2261,13 @@ OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
 			slopeData +
 			static_cast<size_t>(y) *
 			cascade.slopeReadback.footprint.Footprint.RowPitch;
+		const uint8_t* derivativeRow =
+			derivativeData +
+			static_cast<size_t>(y) *
+			cascade.derivativeReadback.footprint.Footprint.RowPitch;
 		for (uint32_t x = 0; x < kFFTSize; ++x) {
+			const size_t sampleIndex =
+				static_cast<size_t>(y) * kFFTSize + x;
 			const auto* displacementPixel =
 				reinterpret_cast<const uint16_t*>(
 					displacementRow + static_cast<size_t>(x) * sizeof(uint16_t) * 4);
@@ -1973,6 +2289,130 @@ OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
 				if (!std::isfinite(slopeValue)) {
 					++diagnostics.invalidValueCount;
 				}
+			}
+			const auto* derivativePixel =
+				reinterpret_cast<const uint16_t*>(
+					derivativeRow +
+					static_cast<size_t>(x) * sizeof(uint16_t) * 4);
+			float derivativeValues[4]{};
+			bool derivativeFinite = true;
+			for (uint32_t component = 0; component < 4; ++component) {
+				derivativeValues[component] =
+					DirectX::PackedVector::XMConvertHalfToFloat(
+						derivativePixel[component]);
+				if (!std::isfinite(derivativeValues[component])) {
+					++diagnostics.invalidValueCount;
+					derivativeFinite = false;
+				}
+			}
+			cascade.diagnosticDerivativeSamples[sampleIndex] = {
+				derivativeValues[0],
+				derivativeValues[1],
+				derivativeValues[2],
+				derivativeValues[3],
+			};
+			displacementSamples[sampleIndex] = {
+				displacementValues[0],
+				displacementValues[1],
+				displacementValues[2],
+				displacementValues[3],
+			};
+
+			const float* finalCPixel = readFloat4(
+				finalCData,
+				cascade.finalSpectrumCReadback,
+				x,
+				y);
+			const float* finalDPixel = readFloat4(
+				finalDData,
+				cascade.finalSpectrumDReadback,
+				x,
+				y);
+			for (uint32_t component = 0; component < 4; ++component) {
+				if (!std::isfinite(finalCPixel[component]) ||
+					!std::isfinite(finalDPixel[component])) {
+					++diagnostics.invalidValueCount;
+				}
+			}
+			const float floatDerivatives[4] = {
+				finalCPixel[2] * inverseTransformScale,
+				finalDPixel[0] * inverseTransformScale,
+				finalDPixel[2] * inverseTransformScale,
+				finalDPixel[0] * inverseTransformScale,
+			};
+			if (derivativeFinite) {
+				const float derivativeScale =
+					cascade.diagnosticsParameters.choppiness *
+					cascade.settings.displacementContribution;
+				const float effectiveDerivative[4] = {
+					derivativeValues[0] * derivativeScale,
+					derivativeValues[1] * derivativeScale,
+					derivativeValues[2] * derivativeScale,
+					derivativeValues[3] * derivativeScale,
+				};
+				diagnostics.derivativeMinimum.x = (std::min)(
+					diagnostics.derivativeMinimum.x,
+					effectiveDerivative[0]);
+				diagnostics.derivativeMinimum.y = (std::min)(
+					diagnostics.derivativeMinimum.y,
+					effectiveDerivative[1]);
+				diagnostics.derivativeMinimum.z = (std::min)(
+					diagnostics.derivativeMinimum.z,
+					effectiveDerivative[2]);
+				diagnostics.derivativeMaximum.x = (std::max)(
+					diagnostics.derivativeMaximum.x,
+					effectiveDerivative[0]);
+				diagnostics.derivativeMaximum.y = (std::max)(
+					diagnostics.derivativeMaximum.y,
+					effectiveDerivative[1]);
+				diagnostics.derivativeMaximum.z = (std::max)(
+					diagnostics.derivativeMaximum.z,
+					effectiveDerivative[2]);
+				derivativeSum.x += effectiveDerivative[0];
+				derivativeSum.y += effectiveDerivative[1];
+				derivativeSum.z += effectiveDerivative[2];
+				const float jacobian =
+					(1.0f + effectiveDerivative[0]) *
+					(1.0f + effectiveDerivative[2]) -
+					effectiveDerivative[1] * effectiveDerivative[3];
+				if (std::isfinite(jacobian)) {
+					diagnostics.jacobianMinimum = (std::min)(
+						diagnostics.jacobianMinimum,
+						jacobian);
+					diagnostics.jacobianMaximum = (std::max)(
+						diagnostics.jacobianMaximum,
+						jacobian);
+					jacobianSum += jacobian;
+					if (jacobian + parameters_.breakingParameters.y <
+						parameters_.breakingParameters.x) {
+						++breakingSampleCount;
+					}
+				} else {
+					++diagnostics.invalidValueCount;
+				}
+				for (uint32_t component = 0; component < 4; ++component) {
+					if (std::isfinite(floatDerivatives[component])) {
+						const double difference =
+							static_cast<double>(derivativeValues[component]) -
+							floatDerivatives[component];
+						derivativeQuantizationErrorSquaredSum +=
+							difference * difference;
+						derivativeQuantizationSignalSquaredSum +=
+							static_cast<double>(floatDerivatives[component]) *
+							floatDerivatives[component];
+					}
+				}
+				const double crossDifference =
+					static_cast<double>(derivativeValues[1]) -
+					derivativeValues[3];
+				crossDerivativeErrorSquaredSum +=
+					crossDifference * crossDifference;
+				crossDerivativeSignalSquaredSum +=
+					static_cast<double>(derivativeValues[1]) *
+					derivativeValues[1] +
+					static_cast<double>(derivativeValues[3]) *
+					derivativeValues[3];
+				++validDerivativeCount;
 			}
 			const float height = displacementValues[1];
 			if (std::isfinite(height)) {
@@ -2118,6 +2558,95 @@ OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
 		}
 	}
 
+	if (validDerivativeCount > 0) {
+		const float inverseCount = 1.0f / validDerivativeCount;
+		diagnostics.derivativeMean = {
+			derivativeSum.x * inverseCount,
+			derivativeSum.y * inverseCount,
+			derivativeSum.z * inverseCount,
+		};
+		diagnostics.jacobianMean =
+			static_cast<float>(jacobianSum * inverseCount);
+		diagnostics.breakingAreaRatio =
+			static_cast<float>(breakingSampleCount) * inverseCount;
+	} else {
+		diagnostics.derivativeMinimum = {};
+		diagnostics.derivativeMaximum = {};
+		diagnostics.jacobianMinimum = 1.0f;
+		diagnostics.jacobianMaximum = 1.0f;
+	}
+	diagnostics.crossDerivativeSymmetryError = static_cast<float>(std::sqrt(
+		crossDerivativeErrorSquaredSum /
+		(std::max)(crossDerivativeSignalSquaredSum, 1.0e-30)));
+	diagnostics.derivativeQuantizationError = static_cast<float>(std::sqrt(
+		derivativeQuantizationErrorSquaredSum /
+		(std::max)(derivativeQuantizationSignalSquaredSum, 1.0e-30)));
+
+	const float gridSpacing =
+		(std::max)(cascade.diagnosticsParameters.patchLength, 0.001f) /
+		static_cast<float>(kFFTSize);
+	const float inverseCentralDifference = 0.5f / gridSpacing;
+	const float finiteDifferenceContribution =
+		cascade.settings.displacementContribution;
+	const float derivativeScale =
+		cascade.diagnosticsParameters.choppiness *
+		cascade.settings.displacementContribution;
+	double finiteDifferenceErrorSquaredSum = 0.0;
+	double finiteDifferenceSignalSquaredSum = 0.0;
+	for (uint32_t y = 0; y < kFFTSize; ++y) {
+		const uint32_t previousY = (y + kFFTSize - 1) % kFFTSize;
+		const uint32_t nextY = (y + 1) % kFFTSize;
+		for (uint32_t x = 0; x < kFFTSize; ++x) {
+			const uint32_t previousX = (x + kFFTSize - 1) % kFFTSize;
+			const uint32_t nextX = (x + 1) % kFFTSize;
+			auto sample = [&](uint32_t sampleX, uint32_t sampleY) -> const Vector4& {
+				return displacementSamples[
+					static_cast<size_t>(sampleY) * kFFTSize + sampleX];
+			};
+			const Vector4& left = sample(previousX, y);
+			const Vector4& right = sample(nextX, y);
+			const Vector4& back = sample(x, previousY);
+			const Vector4& front = sample(x, nextY);
+			const float finiteDifference[4] = {
+				(right.x - left.x) * inverseCentralDifference *
+					finiteDifferenceContribution,
+				(front.x - back.x) * inverseCentralDifference *
+					finiteDifferenceContribution,
+				(front.z - back.z) * inverseCentralDifference *
+					finiteDifferenceContribution,
+				(right.z - left.z) * inverseCentralDifference *
+					finiteDifferenceContribution,
+			};
+			const Vector4& derivative =
+				cascade.diagnosticDerivativeSamples[
+					static_cast<size_t>(y) * kFFTSize + x];
+			const float analytical[4] = {
+				derivative.x * derivativeScale,
+				derivative.y * derivativeScale,
+				derivative.z * derivativeScale,
+				derivative.w * derivativeScale,
+			};
+			for (uint32_t component = 0; component < 4; ++component) {
+				if (std::isfinite(finiteDifference[component]) &&
+					std::isfinite(analytical[component])) {
+					const double difference =
+						static_cast<double>(finiteDifference[component]) -
+						analytical[component];
+					finiteDifferenceErrorSquaredSum += difference * difference;
+					finiteDifferenceSignalSquaredSum +=
+						static_cast<double>(analytical[component]) *
+						analytical[component];
+				} else {
+					++diagnostics.invalidValueCount;
+				}
+			}
+		}
+	}
+	diagnostics.derivativeFiniteDifferenceRelativeError =
+		static_cast<float>(std::sqrt(
+			finiteDifferenceErrorSquaredSum /
+			(std::max)(finiteDifferenceSignalSquaredSum, 1.0e-30)));
+
 	if (validHeightCount > 0) {
 		diagnostics.heightRms = static_cast<float>(
 			std::sqrt(heightSquaredSum / validHeightCount));
@@ -2222,9 +2751,12 @@ OceanRenderer::ResolveCascadeDiagnostics(OceanCascade& cascade)
 	const D3D12_RANGE emptyWriteRange = { 0, 0 };
 	cascade.displacementReadback.resource->Unmap(0, &emptyWriteRange);
 	cascade.slopeReadback.resource->Unmap(0, &emptyWriteRange);
+	cascade.derivativeReadback.resource->Unmap(0, &emptyWriteRange);
 	cascade.initialSpectrumReadback.resource->Unmap(0, &emptyWriteRange);
 	cascade.evolvedSpectrumReadback.resource->Unmap(0, &emptyWriteRange);
 	cascade.finalSpectrumReadback.resource->Unmap(0, &emptyWriteRange);
+	cascade.finalSpectrumCReadback.resource->Unmap(0, &emptyWriteRange);
+	cascade.finalSpectrumDReadback.resource->Unmap(0, &emptyWriteRange);
 	cascade.spectrumDebugReadback.resource->Unmap(0, &emptyWriteRange);
 	return diagnostics;
 }
