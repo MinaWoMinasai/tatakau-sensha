@@ -1,6 +1,7 @@
 #include "SceneManager.h"
-#include "SceneFactory.h"
 #include "LogWrite.h"
+
+#include <utility>
 
 SceneManager* SceneManager::GetInstance()
 {
@@ -8,32 +9,52 @@ SceneManager* SceneManager::GetInstance()
     return &instance;
 }
 
-void SceneManager::EnsureSceneFactory()
+bool SceneManager::SetSceneFactory(
+    std::unique_ptr<AbstractSceneFactory> sceneFactory)
 {
+    if (!sceneFactory) {
+        LogWrite().Log(
+            "[SceneManager] Rejected a nullptr scene factory. "
+            "The existing factory remains unchanged.\n");
+        return false;
+    }
+    if (currentScene_) {
+        LogWrite().Log(
+            "[SceneManager] Cannot set a scene factory after a scene has been initialized. "
+            "The existing factory remains unchanged.\n");
+        return false;
+    }
     if (sceneFactory_) {
-        return;
+        LogWrite().Log(
+            "[SceneManager] Cannot replace an already configured scene factory. "
+            "The existing factory remains unchanged.\n");
+        return false;
     }
 
-    auto sceneFactory = std::make_unique<SceneFactory>();
-    sceneRegistry_ = &sceneFactory->GetRegistry();
     sceneFactory_ = std::move(sceneFactory);
+    return true;
 }
 
-bool SceneManager::ContainsScene(std::string_view sceneName)
+bool SceneManager::ContainsScene(std::string_view sceneName) const
 {
-    EnsureSceneFactory();
-    return sceneRegistry_ && sceneRegistry_->Contains(sceneName);
+    return sceneFactory_ && sceneFactory_->ContainsScene(sceneName);
 }
 
-std::vector<std::string> SceneManager::GetRegisteredSceneNames()
+std::vector<std::string> SceneManager::GetRegisteredSceneNames() const
 {
-    EnsureSceneFactory();
-    return sceneRegistry_ ? sceneRegistry_->GetRegisteredNames() : std::vector<std::string>{};
+    return sceneFactory_
+        ? sceneFactory_->GetRegisteredSceneNames()
+        : std::vector<std::string>{};
 }
 
 bool SceneManager::Initialize(const std::string& firstSceneName) {
 
-    EnsureSceneFactory();
+    if (!sceneFactory_) {
+        LogWrite().Log(
+            "[SceneManager] Cannot initialize scene '" + firstSceneName +
+            "' because no scene factory has been configured.\n");
+        return false;
+    }
 
     // 最初のシーンを生成
     std::unique_ptr<IScene> firstScene = sceneFactory_->CreateScene(firstSceneName);

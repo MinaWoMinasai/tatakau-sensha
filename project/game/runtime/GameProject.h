@@ -6,6 +6,7 @@
 struct GameProject {
 	int schemaVersion = 1;
 	std::string projectName = "CG2 Default";
+	std::string gameModule = "builtin";
 	std::string startupScene = "TITLE";
 	std::string resourceRoot = "resources";
 	std::string sourceFilePath;

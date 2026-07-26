@@ -238,6 +238,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\exp\ExpEnemy.cpp" />
     <ClCompile Include="game\naval\rendering\NavalOceanRenderer.cpp" />
     <ClCompile Include="game\naval\scene\NavalBattleScene.cpp" />
+    <ClCompile Include="game\modules\BuiltInGameModule.cpp" />
+    <ClCompile Include="game\runtime\GameModuleRegistry.cpp" />
     <ClCompile Include="game\runtime\GameProject.cpp" />
     <ClCompile Include="game\runtime\SceneRegistry.cpp" />
     <ClCompile Include="game\scene\Game.cpp" />
@@ -494,7 +496,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\exp\ExpEnemy.h" />
     <ClInclude Include="game\naval\rendering\NavalOceanRenderer.h" />
     <ClInclude Include="game\naval\scene\NavalBattleScene.h" />
+    <ClInclude Include="game\modules\BuiltInGameModule.h" />
+    <ClInclude Include="game\runtime\GameModuleRegistry.h" />
     <ClInclude Include="game\runtime\GameProject.h" />
+    <ClInclude Include="game\runtime\IGameModule.h" />
     <ClInclude Include="game\runtime\SceneRegistry.h" />
     <ClInclude Include="game\scene\Game.h" />
     <ClInclude Include="game\scene\Action3DScene.h" />

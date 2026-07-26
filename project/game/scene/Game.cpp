@@ -1,5 +1,9 @@
 #include "Game.h"
+#include "SceneFactory.h"
 #include "SceneManager.h"
+#include "../modules/BuiltInGameModule.h"
+#include "../runtime/GameModuleRegistry.h"
+#include "../runtime/SceneRegistry.h"
 #include "Audio.h"
 #include "TextRenderer.h"
 #include <chrono>
@@ -39,6 +43,7 @@ void LogActiveProject(const GameProject& project, bool loadedFromFallback)
 	LogWrite().Log(
 		"[GameProject] Active project: name='" + project.projectName +
 		"', source='" + GetProjectSourceLabel(project) +
+		"', gameModule='" + project.gameModule +
 		"', startupScene='" + project.startupScene +
 		"', resourceRoot='" + project.resourceRoot +
 		"', loadedFromFallback=" + (loadedFromFallback ? "true" : "false") +
@@ -94,6 +99,77 @@ void Game::LoadActiveProject(const GameProjectCommandLineOptions& projectOptions
 	LogActiveProject(activeProject_, activeProjectLoadedFromFallback_);
 }
 
+bool Game::ConfigureGameModuleAndSceneFactory()
+{
+	GameModuleRegistry moduleRegistry;
+	const std::string builtInModuleId(BuiltInGameModule::kId);
+	if (!moduleRegistry.Register<BuiltInGameModule>(builtInModuleId)) {
+		LogWrite().Log(
+			"[GameModule] FATAL: failed to register the required built-in game module. "
+			"The game will not enter the main loop.\n");
+		return false;
+	}
+
+	gameModuleUsedFallback_ = false;
+	std::unique_ptr<IGameModule> selectedModule =
+		moduleRegistry.Create(activeProject_.gameModule);
+	if (!selectedModule) {
+		const std::vector<std::string> registeredModuleIds =
+			moduleRegistry.GetRegisteredIds();
+		LogWrite().Log(
+			"[GameModule] Requested game module is not available. projectName='" +
+			activeProject_.projectName + "', projectFile='" +
+			GetProjectSourceLabel(activeProject_) + "', requestedModule='" +
+			activeProject_.gameModule + "', registeredModules=[" +
+			JoinSceneNames(registeredModuleIds) + "].\n");
+
+		if (activeProject_.gameModule != builtInModuleId) {
+			LogWrite().Log(
+				"[GameModule] Falling back to game module '" + builtInModuleId + "'.\n");
+			selectedModule = moduleRegistry.Create(builtInModuleId);
+			gameModuleUsedFallback_ = true;
+		}
+	}
+
+	if (!selectedModule) {
+		LogWrite().Log(
+			"[GameModule] FATAL: requested game module '" +
+			activeProject_.gameModule + "' could not be created and required fallback "
+			"module '" + builtInModuleId +
+			"' is unavailable. The game will not enter the main loop.\n");
+		return false;
+	}
+
+	SceneRegistry sceneRegistry;
+	if (!selectedModule->RegisterScenes(sceneRegistry)) {
+		LogWrite().Log(
+			"[GameModule] FATAL: game module '" +
+			std::string(selectedModule->GetId()) +
+			"' failed to register its scenes. The game will not enter the main loop.\n");
+		return false;
+	}
+
+	const std::vector<std::string> registeredSceneNames =
+		sceneRegistry.GetRegisteredNames();
+	auto sceneFactory = std::make_unique<SceneFactory>(std::move(sceneRegistry));
+	if (!SceneManager::GetInstance()->SetSceneFactory(std::move(sceneFactory))) {
+		LogWrite().Log(
+			"[GameModule] FATAL: failed to inject the scene factory for game module '" +
+			std::string(selectedModule->GetId()) +
+			"'. The game will not enter the main loop.\n");
+		return false;
+	}
+
+	LogWrite().Log(
+		"[GameModule] Active module: id='" +
+		std::string(selectedModule->GetId()) + "', displayName='" +
+		std::string(selectedModule->GetDisplayName()) +
+		"', loadedFromFallback=" + (gameModuleUsedFallback_ ? "true" : "false") +
+		", registeredScenes=[" + JoinSceneNames(registeredSceneNames) + "].\n");
+	activeGameModule_ = std::move(selectedModule);
+	return true;
+}
+
 bool Game::ResolveStartupScene()
 {
 	SceneManager* sceneManager = SceneManager::GetInstance();
@@ -132,6 +208,9 @@ bool Game::ResolveStartupScene()
 bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
 
     LoadActiveProject(projectOptions);
+    if (!ConfigureGameModuleAndSceneFactory()) {
+        return false;
+    }
     if (!ResolveStartupScene()) {
         return false;
     }
