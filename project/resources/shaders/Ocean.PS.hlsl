@@ -10,6 +10,9 @@ Texture2D<float2> gFFTSlopeSmall : register(t6);
 Texture2D<float4> gFFTInitialSpectrum : register(t7);
 Texture2D<float4> gFFTEvolvedSpectrum : register(t8);
 Texture2D<float4> gFFTSpectrumDebug : register(t9);
+Texture2D<float4> gFFTDerivativeLarge : register(t10);
+Texture2D<float4> gFFTDerivativeMedium : register(t11);
+Texture2D<float4> gFFTDerivativeSmall : register(t12);
 SamplerState gEnvironmentSampler : register(s0);
 
 struct OceanPixelOutput
@@ -122,7 +125,9 @@ OceanPixelOutput main(OceanVertexOutput input)
 
     float3 V = normalize(gCameraPosition - input.worldPosition);
     float viewDistance = length(gCameraPosition - input.worldPosition);
-    float2 worldXZ = input.worldPosition.xz;
+    float2 worldXZ = gWaveSource >= 0.5f
+        ? input.undisplacedWorldXZ
+        : input.worldPosition.xz;
     float2 flowDir = normalize(gWindDirection + float2(0.0001f, 0.0001f));
     float2 crossDir = float2(flowDir.y, -flowDir.x);
     float flow = dot(worldXZ, flowDir);
@@ -212,6 +217,14 @@ OceanPixelOutput main(OceanVertexOutput input)
     float2 fftDebugUv = frac(
         worldXZ / max(gFFTDebugPatchLength, 0.001f));
     float2 normalPerturbation = microSlope;
+    float2 geometrySlope = 0.0f.xx;
+    float2 shadingDetailSlope = microSlope;
+    float3 combinedHorizontalDerivative = 0.0f.xxx;
+    float3 legacySlopeNormal = normalize(
+        input.normal + float3(normalPerturbation.x, 0.0f, normalPerturbation.y));
+    float3 displacedSurfaceNormal = legacySlopeNormal;
+    float jacobian = 1.0f;
+    float breakingMask = 0.0f;
     if (gWaveSource >= 0.5f)
     {
         float3 displayMask = 1.0f.xxx;
@@ -253,27 +266,105 @@ OceanPixelOutput main(OceanVertexOutput input)
                 gEnvironmentSampler,
                 uvSmall,
                 0.0f);
-        float2 combinedSlope =
-            gFFTSlopeLarge.SampleLevel(
-                gEnvironmentSampler,
-                uvLarge,
-                0.0f) * slopeWeights.x +
-            gFFTSlopeMedium.SampleLevel(
-                gEnvironmentSampler,
-                uvMedium,
-                0.0f) * slopeWeights.y +
-            gFFTSlopeSmall.SampleLevel(
-                gEnvironmentSampler,
-                uvSmall,
-                0.0f) * slopeWeights.z;
+        float2 slopeLarge = gFFTSlopeLarge.SampleLevel(
+            gEnvironmentSampler, uvLarge, 0.0f);
+        float2 slopeMedium = gFFTSlopeMedium.SampleLevel(
+            gEnvironmentSampler, uvMedium, 0.0f);
+        float2 slopeSmall = gFFTSlopeSmall.SampleLevel(
+            gEnvironmentSampler, uvSmall, 0.0f);
+        float4 derivativeLarge = gFFTDerivativeLarge.SampleLevel(
+            gEnvironmentSampler, uvLarge, 0.0f);
+        float4 derivativeMedium = gFFTDerivativeMedium.SampleLevel(
+            gEnvironmentSampler, uvMedium, 0.0f);
+        float4 derivativeSmall = gFFTDerivativeSmall.SampleLevel(
+            gEnvironmentSampler, uvSmall, 0.0f);
+
+        float3 shadingOnlyWeights = max(
+            slopeWeights - displacementWeights,
+            0.0f.xxx);
+        float guardNearFade =
+            input.guardBandFade * input.nearDisplacementFade;
+        float flattenControl =
+            saturate(gFarFlattenEnabled) * saturate(gFarFlattenStrength);
+        float geometryFarFlatten = lerp(
+            1.0f,
+            1.0f - smoothstep(360.0f, 900.0f, viewDistance) * 0.58f,
+            flattenControl * arcBlancMode);
+        float geometryFade = guardNearFade * geometryFarFlatten;
+
+        geometrySlope = (
+            slopeLarge * displacementWeights.x +
+            slopeMedium * displacementWeights.y +
+            slopeSmall * displacementWeights.z) * geometryFade;
+        shadingDetailSlope = (
+            slopeLarge * shadingOnlyWeights.x +
+            slopeMedium * shadingOnlyWeights.y +
+            slopeSmall * shadingOnlyWeights.z) * guardNearFade;
+        float2 combinedSlope = geometrySlope + shadingDetailSlope;
         normalPerturbation = -combinedSlope;
+
+        combinedHorizontalDerivative = (
+            derivativeLarge.xyz * displacementWeights.x +
+            derivativeMedium.xyz * displacementWeights.y +
+            derivativeSmall.xyz * displacementWeights.z) *
+            gChoppiness * geometryFade;
+        float crossDerivative = (
+            derivativeLarge.w * displacementWeights.x +
+            derivativeMedium.w * displacementWeights.y +
+            derivativeSmall.w * displacementWeights.z) *
+            gChoppiness * geometryFade;
+
+        float3 tangentX = float3(
+            1.0f + combinedHorizontalDerivative.x,
+            geometrySlope.x,
+            crossDerivative);
+        float3 tangentZ = float3(
+            combinedHorizontalDerivative.y,
+            geometrySlope.y,
+            1.0f + combinedHorizontalDerivative.z);
+        float3 geometryNormal = normalize(float3(
+            tangentZ.y * tangentX.z - tangentZ.z * tangentX.y,
+            tangentZ.z * tangentX.x - tangentZ.x * tangentX.z,
+            tangentZ.x * tangentX.y - tangentZ.y * tangentX.x));
+        if (geometryNormal.y < 0.0f)
+        {
+            geometryNormal = -geometryNormal;
+        }
+        displacedSurfaceNormal = normalize(
+            geometryNormal +
+            float3(-shadingDetailSlope.x, 0.0f, -shadingDetailSlope.y));
+        if (displacedSurfaceNormal.y < 0.0f)
+        {
+            displacedSurfaceNormal = -displacedSurfaceNormal;
+        }
+        legacySlopeNormal = normalize(float3(
+            -combinedSlope.x,
+            1.0f,
+            -combinedSlope.y));
+
+        jacobian =
+            (1.0f + combinedHorizontalDerivative.x) *
+            (1.0f + combinedHorizontalDerivative.z) -
+            combinedHorizontalDerivative.y * crossDerivative;
+        float thresholdLow =
+            gBreakingParameters.x - gBreakingParameters.z * 0.5f;
+        float thresholdHigh =
+            gBreakingParameters.x + gBreakingParameters.z * 0.5f;
+        breakingMask = 1.0f - smoothstep(
+            thresholdLow,
+            thresholdHigh,
+            jacobian + gBreakingParameters.y);
         wave =
             displacementLarge.y * displacementWeights.x +
             displacementMedium.y * displacementWeights.y +
             displacementSmall.y * displacementWeights.z;
     }
-    float3 N = normalize(
-        input.normal + float3(normalPerturbation.x, 0.0f, normalPerturbation.y));
+    float useDisplacedNormal =
+        step(0.5f, gDerivativeControls.x) * step(0.5f, gWaveSource);
+    float3 N = normalize(lerp(
+        legacySlopeNormal,
+        displacedSurfaceNormal,
+        useDisplacedNormal));
     float NdotV = saturate(dot(N, V));
     float fresnel = pow(1.0f - NdotV, 4.2f);
     float lowAngleFresnel = pow(1.0f - NdotV, 6.0f);
@@ -378,6 +469,11 @@ OceanPixelOutput main(OceanVertexOutput input)
     float reflectionMix = 0.085f + fresnel * 0.58f + lowAngleFresnel * 0.24f;
     float3 color = lerp(waterColor, reflection, saturate(reflectionMix));
     color += float3(0.78f, 0.92f, 1.0f) * foam * 0.090f;
+    float breakingPreview =
+        breakingMask * gBreakingParameters.w *
+        step(0.5f, gDerivativeControls.y) *
+        step(0.5f, gWaveSource);
+    color += float3(0.72f, 0.88f, 0.96f) * breakingPreview;
     color += float3(0.78f, 0.92f, 1.0f) * spectrumSheen * farDetailFade * 0.018f;
     color += physicalSunSpecular;
     color += gSunColor * artisticSunLane * 2.55f;
@@ -521,9 +617,51 @@ OceanPixelOutput main(OceanVertexOutput input)
                 0.5f + slopeDebug.y * debugScale,
                 0.5f);
         }
-        else
+        else if (fftDebugMode == 10)
         {
             color = N * 0.5f + 0.5f;
+        }
+        else if (fftDebugMode == 11)
+        {
+            color = legacySlopeNormal * 0.5f + 0.5f;
+        }
+        else if (fftDebugMode == 12)
+        {
+            color = displacedSurfaceNormal * 0.5f + 0.5f;
+        }
+        else if (fftDebugMode == 13)
+        {
+            color = (0.5f + combinedHorizontalDerivative.x * debugScale).xxx;
+        }
+        else if (fftDebugMode == 14)
+        {
+            color = (0.5f + combinedHorizontalDerivative.y * debugScale).xxx;
+        }
+        else if (fftDebugMode == 15)
+        {
+            color = (0.5f + combinedHorizontalDerivative.z * debugScale).xxx;
+        }
+        else if (fftDebugMode == 16)
+        {
+            color = (0.5f + (jacobian - 1.0f) * debugScale).xxx;
+        }
+        else if (fftDebugMode == 17)
+        {
+            color = breakingMask.xxx;
+        }
+        else if (fftDebugMode == 18)
+        {
+            color = float3(
+                0.5f + geometrySlope.x * debugScale,
+                0.5f + geometrySlope.y * debugScale,
+                0.5f);
+        }
+        else
+        {
+            color = float3(
+                0.5f + shadingDetailSlope.x * debugScale,
+                0.5f + shadingDetailSlope.y * debugScale,
+                0.5f);
         }
         color = ApplyProjectedGridDebug(color, input);
         output.color = float4(saturate(color), 1.0f);
