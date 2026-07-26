@@ -10,6 +10,15 @@
     <None Include="resources\levels\level_test.json">
       <Filter>リソース ファイル</Filter>
     </None>
+    <None Include="resources\projects\default.project.json">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="resources\projects\graphics_lab.project.json">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="resources\projects\naval.project.json">
+      <Filter>リソース ファイル</Filter>
+    </None>
     <None Include="resources\levels\prefab_dictionary.json">
       <Filter>リソース ファイル</Filter>
     </None>
@@ -259,6 +268,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\runtime\SceneRegistry.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\runtime\GameProject.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\scene\TitleScene.cpp">
@@ -560,6 +572,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\runtime\SceneRegistry.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\runtime\GameProject.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\collision\TriangleMeshGround.h">

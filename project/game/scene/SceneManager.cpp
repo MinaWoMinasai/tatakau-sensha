@@ -8,25 +8,48 @@ SceneManager* SceneManager::GetInstance()
     return &instance;
 }
 
-void SceneManager::Initialize(const std::string& firstSceneName) {
+void SceneManager::EnsureSceneFactory()
+{
+    if (sceneFactory_) {
+        return;
+    }
 
-    // Factory の生成
-    sceneFactory_ = std::make_unique<SceneFactory>();
+    auto sceneFactory = std::make_unique<SceneFactory>();
+    sceneRegistry_ = &sceneFactory->GetRegistry();
+    sceneFactory_ = std::move(sceneFactory);
+}
+
+bool SceneManager::ContainsScene(std::string_view sceneName)
+{
+    EnsureSceneFactory();
+    return sceneRegistry_ && sceneRegistry_->Contains(sceneName);
+}
+
+std::vector<std::string> SceneManager::GetRegisteredSceneNames()
+{
+    EnsureSceneFactory();
+    return sceneRegistry_ ? sceneRegistry_->GetRegisteredNames() : std::vector<std::string>{};
+}
+
+bool SceneManager::Initialize(const std::string& firstSceneName) {
+
+    EnsureSceneFactory();
 
     // 最初のシーンを生成
     std::unique_ptr<IScene> firstScene = sceneFactory_->CreateScene(firstSceneName);
     if (!firstScene) {
         LogWrite().Log(
             "[SceneManager] Failed to initialize first scene '" + firstSceneName +
-            "'. SceneManager will remain without an active scene.\n");
-        currentScene_.reset();
-        currentSceneName_.clear();
-        return;
+            "'. The existing active scene, if any, remains unchanged.\n");
+        return false;
     }
 
     currentScene_ = std::move(firstScene);
     currentSceneName_ = firstSceneName;
+    failedTransitionFromSceneName_.clear();
+    failedTransitionToSceneName_.clear();
     currentScene_->Initialize();
+    return true;
 }
 
 void SceneManager::Update() {
@@ -39,19 +62,31 @@ void SceneManager::Update() {
         // 次のシーン名をシーン自身から取得する
         std::string nextSceneName = currentScene_->GetNextSceneName();
 
-        // Factory に新しいシーンを作ってもらう
-        // ここで SceneManager は「何が作られるか」を具体的に知らなくて済む
-        std::unique_ptr<IScene> nextScene = sceneFactory_->CreateScene(nextSceneName);
+        const bool alreadyReported =
+            failedTransitionFromSceneName_ == currentSceneName_ &&
+            failedTransitionToSceneName_ == nextSceneName;
+        if (!alreadyReported) {
+            // Factory に新しいシーンを作ってもらう
+            // ここで SceneManager は「何が作られるか」を具体的に知らなくて済む
+            std::unique_ptr<IScene> nextScene = sceneFactory_->CreateScene(nextSceneName);
 
-        if (nextScene) {
-            currentScene_ = std::move(nextScene);
-            currentSceneName_ = nextSceneName;
-            currentScene_->Initialize();
-        } else {
-            LogWrite().Log(
-                "[SceneManager] Transition from '" + currentSceneName_ + "' to '" +
-                nextSceneName + "' failed. The current scene remains active.\n");
+            if (nextScene) {
+                currentScene_ = std::move(nextScene);
+                currentSceneName_ = nextSceneName;
+                failedTransitionFromSceneName_.clear();
+                failedTransitionToSceneName_.clear();
+                currentScene_->Initialize();
+            } else {
+                failedTransitionFromSceneName_ = currentSceneName_;
+                failedTransitionToSceneName_ = nextSceneName;
+                LogWrite().Log(
+                    "[SceneManager] Transition from '" + currentSceneName_ + "' to '" +
+                    nextSceneName + "' failed. The current scene remains active.\n");
+            }
         }
+    } else {
+        failedTransitionFromSceneName_.clear();
+        failedTransitionToSceneName_.clear();
     }
 
     currentScene_->Update();
