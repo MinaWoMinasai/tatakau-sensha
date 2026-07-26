@@ -106,6 +106,7 @@ public:
 		materialData_->emissiveIntensity = intensity;
 		userEmissiveOverride_ = true;
 	}
+	void SetCrystalMaterial(const CrystalMaterialSettings& settings);
 	void SetIBLIntensity(float diffuseIntensity, float specularIntensity) {
 		materialData_->iblDiffuseIntensity = diffuseIntensity;
 		materialData_->iblSpecularIntensity = specularIntensity;

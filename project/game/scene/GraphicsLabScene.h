@@ -87,6 +87,7 @@ private:
 	std::unique_ptr<Object3d> river_;
 	std::unique_ptr<OceanRenderer> oceanRenderer_;
 	std::unique_ptr<Object3d> sandBed_;
+	std::unique_ptr<Object3d> crystal_;
 	PbrEnvironment pbrEnvironment_;
 	std::vector<LabObject> metalObjects_;
 	std::vector<LabObject> validationObjects_;
@@ -190,6 +191,10 @@ private:
 	bool showObstacles_ = false;
 	bool showPbrSamples_ = false;
 	bool showValidationPrimitives_ = false;
+	bool showCrystal_ = true;
+	bool pauseCrystalRotation_ = false;
+	float crystalRotation_ = 0.38f;
+	CrystalMaterialSettings crystalSettings_{};
 	bool showSkinnedPbrSamples_ = false;
 	bool loadSkinnedPbrSamples_ = false;
 	bool loadLookDevSamples_ = false;
