@@ -122,10 +122,25 @@ bool GameProjectLoader::Load(const std::string& filePath, GameProject& outProjec
 			!ValidateRequiredString(json, "resourceRoot", filePath)) {
 			return false;
 		}
+		if (json.contains("gameModule")) {
+			if (!json["gameModule"].is_string()) {
+				LogProjectError(
+					"Field 'gameModule' must be a string in '" + filePath + "'.");
+				return false;
+			}
+			if (json["gameModule"].get_ref<const std::string&>().empty()) {
+				LogProjectError(
+					"Field 'gameModule' must not be empty in '" + filePath + "'.");
+				return false;
+			}
+		}
 
 		GameProject loadedProject;
 		loadedProject.schemaVersion = schemaVersion;
 		loadedProject.projectName = json["projectName"].get<std::string>();
+		if (json.contains("gameModule")) {
+			loadedProject.gameModule = json["gameModule"].get<std::string>();
+		}
 		loadedProject.startupScene = json["startupScene"].get<std::string>();
 		loadedProject.resourceRoot = json["resourceRoot"].get<std::string>();
 		loadedProject.sourceFilePath = filePath;

@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "projectName": "Naval Prototype",
+  "gameModule": "builtin",
   "startupScene": "NAVAL_BATTLE",
   "resourceRoot": "resources"
 }
