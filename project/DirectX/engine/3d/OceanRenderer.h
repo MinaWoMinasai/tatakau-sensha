@@ -43,6 +43,15 @@ public:
 		ProjectedGrid = 1,
 	};
 
+	enum class ProjectedGridDebugMode : uint32_t {
+		None = 0,
+		Density = 1,
+		GuardBand = 2,
+		DisplacementFade = 3,
+		NearFade = 4,
+		Coverage = 5,
+	};
+
 	static constexpr uint32_t kFFTCascadeCount = 3;
 
 	struct OceanCascadeSettings {
@@ -52,6 +61,22 @@ public:
 		float maximumWaveNumber = 1.0f;
 		float displacementContribution = 1.0f;
 		float slopeContribution = 1.0f;
+	};
+
+	struct ProjectedGridSettings {
+		uint32_t horizontalResolution = 256;
+		float nearClamp = 3.0f;
+		float farClamp = 1800.0f;
+		float overscanX = 1.10f;
+		float overscanTop = 1.05f;
+		float overscanBottom = 1.15f;
+		bool nearDisplacementFadeEnabled = true;
+		float nearFadeWidth = 5.0f;
+		float minimumSafeNearDistance = 3.0f;
+		ProjectedGridDebugMode debugMode =
+			ProjectedGridDebugMode::None;
+		bool wireframe = false;
+		bool outerWireframe = false;
 	};
 
 	struct OceanCascadeDiagnostics {
@@ -156,6 +181,10 @@ public:
 		Vector2 projectedGridResolution = { 256.0f, 144.0f };
 		float projectedGridDebug = 0.0f;
 		float projectedWireframe = 0.0f;
+		Vector4 projectedOverscan = { 1.10f, 1.05f, 1.15f, 0.003f };
+		Vector4 projectedDisplacementGuard = {
+			1.0f, 5.0f, 3.0f, 0.0f
+		};
 	};
 
 	struct alignas(16) OceanFFTParameters {
@@ -235,11 +264,7 @@ public:
 		int debugCascadeIndex);
 	void SetMeshSettings(
 		MeshMode mode,
-		uint32_t horizontalResolution,
-		float nearClamp,
-		float farClamp,
-		bool projectedGridDebug,
-		bool wireframe);
+		const ProjectedGridSettings& settings);
 	void RequestFFTDiagnostics();
 	void SetEnvironmentSrvIndex(uint32_t environmentSrvIndex);
 
