@@ -51,6 +51,10 @@ cbuffer OceanParameters : register(b0)
     float4 gProjectedOverscan;
     // near fade enabled, fade width, minimum safe distance, outer wireframe.
     float4 gProjectedDisplacementGuard;
+    // threshold, bias, smooth width and preview intensity.
+    float4 gBreakingParameters;
+    // normal mode, breaking preview enabled and reserved values.
+    float4 gDerivativeControls;
 };
 
 struct OceanVertexInput
@@ -72,6 +76,7 @@ struct OceanVertexOutput
     noperspective float2 projectedNdc : TEXCOORD3;
     noperspective float guardBandFade : TEXCOORD4;
     noperspective float nearDisplacementFade : TEXCOORD5;
+    float2 undisplacedWorldXZ : TEXCOORD6;
 };
 
 float OceanDistributionGGX(float3 N, float3 H, float roughness)

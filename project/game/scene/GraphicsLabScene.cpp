@@ -761,6 +761,13 @@ void GraphicsLabScene::UpdateDedicatedOcean()
 		waterDebugMode_,
 		waterAtmosphereStrength_,
 		waterFarFlattenStrength_);
+	oceanRenderer_->SetDerivativeSettings(
+		oceanNormalMode_,
+		oceanBreakingPreviewEnabled_,
+		oceanJacobianThreshold_,
+		oceanJacobianBias_,
+		oceanBreakingSmoothWidth_,
+		oceanBreakingMaskIntensity_);
 	oceanRenderer_->SetFFTSettings(
 		fftTime_,
 		fftAmplitude_,
@@ -1173,6 +1180,46 @@ void GraphicsLabScene::DrawDebugWindow()
 			0.02f,
 			0.0f,
 			8.0f);
+		const char* oceanNormalModes[] = {
+			"Legacy slope normal",
+			"Displaced-surface normal"
+		};
+		ImGui::Combo(
+			"FFT normal method",
+			&oceanNormalMode_,
+			oceanNormalModes,
+			IM_ARRAYSIZE(oceanNormalModes));
+		ImGui::Checkbox(
+			"Jacobian whitecap preview",
+			&oceanBreakingPreviewEnabled_);
+		ImGui::DragFloat(
+			"Jacobian threshold",
+			&oceanJacobianThreshold_,
+			0.005f,
+			-2.0f,
+			2.0f,
+			"%.3f");
+		ImGui::DragFloat(
+			"Jacobian bias",
+			&oceanJacobianBias_,
+			0.005f,
+			-2.0f,
+			2.0f,
+			"%.3f");
+		ImGui::DragFloat(
+			"Breaking smooth width",
+			&oceanBreakingSmoothWidth_,
+			0.005f,
+			0.001f,
+			1.0f,
+			"%.3f");
+		ImGui::DragFloat(
+			"Breaking mask intensity",
+			&oceanBreakingMaskIntensity_,
+			0.01f,
+			0.0f,
+			2.0f,
+			"%.2f");
 		const char* fftSpectrumModels[] = {
 			"Phillips",
 			"JONSWAP + Donelan-Banner"
@@ -1328,7 +1375,16 @@ void GraphicsLabScene::DrawDebugWindow()
 			"Displacement X",
 			"Displacement Z",
 			"Final slope",
-			"Final normal"
+			"Final normal",
+			"Legacy slope normal",
+			"Displaced-surface normal",
+			"dDx/dx",
+			"dDx/dz",
+			"dDz/dz",
+			"Jacobian",
+			"Breaking mask",
+			"Geometry slope",
+			"Shading detail slope"
 		};
 		const char* fftDebugCascades[] = {
 			"Large",
@@ -1396,6 +1452,29 @@ void GraphicsLabScene::DrawDebugWindow()
 							"  RGBA16F error: %.4f%%   GPU: %.3f ms",
 							cascade.rgba16fQuantizationError * 100.0f,
 							cascade.gpuTimeMilliseconds);
+						ImGui::Text(
+							"  lambda*dD min: %.3f / %.3f / %.3f",
+							cascade.derivativeMinimum.x,
+							cascade.derivativeMinimum.y,
+							cascade.derivativeMinimum.z);
+						ImGui::Text(
+							"  lambda*dD max: %.3f / %.3f / %.3f",
+							cascade.derivativeMaximum.x,
+							cascade.derivativeMaximum.y,
+							cascade.derivativeMaximum.z);
+						ImGui::Text(
+							"  Jacobian min/mean/max: %.3f / %.3f / %.3f",
+							cascade.jacobianMinimum,
+							cascade.jacobianMean,
+							cascade.jacobianMaximum);
+						ImGui::Text(
+							"  Breaking area: %.3f%%   cross symmetry: %.3e",
+							cascade.breakingAreaRatio * 100.0f,
+							cascade.crossDerivativeSymmetryError);
+						ImGui::Text(
+							"  Derivative finite-diff / half error: %.3e / %.3e",
+							cascade.derivativeFiniteDifferenceRelativeError,
+							cascade.derivativeQuantizationError);
 						numericalPass =
 							numericalPass &&
 							cascade.invalidValueCount == 0 &&
@@ -1433,6 +1512,23 @@ void GraphicsLabScene::DrawDebugWindow()
 						"Current GPU vs Single: %.3f%%   total GPU: %.3f ms",
 						diagnostics.combinedVarianceRelativeError * 100.0f,
 						diagnostics.totalGpuTimeMilliseconds);
+					ImGui::Text(
+						"Combined Jacobian min/mean/max: %.3f / %.3f / %.3f",
+						diagnostics.jacobianMinimum,
+						diagnostics.jacobianMean,
+						diagnostics.jacobianMaximum);
+					ImGui::Text(
+						"Combined breaking area: %.3f%%",
+						diagnostics.breakingAreaRatio * 100.0f);
+					ImGui::Text(
+						"FFT baseline/current/delta: %.3f / %.3f / %+.3f ms",
+						diagnostics.fftBaselineGpuTimeMilliseconds,
+						diagnostics.totalGpuTimeMilliseconds,
+						diagnostics.derivativeGpuIncreaseMilliseconds);
+					ImGui::Text(
+						"Ocean draw / FFT+draw: %.3f / %.3f ms",
+						diagnostics.oceanDrawGpuTimeMilliseconds,
+						diagnostics.totalGpuTimeIncludingDraw);
 					const bool variancePass =
 						diagnostics.energyPartitionError <= 0.05f &&
 						meanVarianceError <= 0.05f;
@@ -1511,6 +1607,34 @@ void GraphicsLabScene::DrawDebugWindow()
 					"NaN/Inf values: %u   sample time: %.3f s",
 					diagnostics.invalidValueCount,
 					diagnostics.sampleTime);
+				ImGui::Text(
+					"lambda*dD min: %.3f / %.3f / %.3f",
+					diagnostics.derivativeMinimum.x,
+					diagnostics.derivativeMinimum.y,
+					diagnostics.derivativeMinimum.z);
+				ImGui::Text(
+					"lambda*dD max: %.3f / %.3f / %.3f",
+					diagnostics.derivativeMaximum.x,
+					diagnostics.derivativeMaximum.y,
+					diagnostics.derivativeMaximum.z);
+				ImGui::Text(
+					"Jacobian min/mean/max: %.3f / %.3f / %.3f",
+					diagnostics.jacobianMinimum,
+					diagnostics.jacobianMean,
+					diagnostics.jacobianMaximum);
+				ImGui::Text(
+					"Breaking area / cross symmetry: %.3f%% / %.3e",
+					diagnostics.breakingAreaRatio * 100.0f,
+					diagnostics.crossDerivativeSymmetryError);
+				ImGui::Text(
+					"Derivative finite-diff / half error: %.3e / %.3e",
+					diagnostics.derivativeFiniteDifferenceRelativeError,
+					diagnostics.derivativeQuantizationError);
+				ImGui::Text(
+					"FFT / ocean draw / total: %.3f / %.3f / %.3f ms",
+					diagnostics.totalGpuTimeMilliseconds,
+					diagnostics.oceanDrawGpuTimeMilliseconds,
+					diagnostics.totalGpuTimeIncludingDraw);
 				const bool variancePass =
 					diagnostics.seedMeanRelativeError <= 0.05f;
 				const bool numericalPass =
