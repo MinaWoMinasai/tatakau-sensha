@@ -238,6 +238,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\exp\ExpEnemy.cpp" />
     <ClCompile Include="game\naval\rendering\NavalOceanRenderer.cpp" />
     <ClCompile Include="game\naval\scene\NavalBattleScene.cpp" />
+    <ClCompile Include="game\runtime\SceneRegistry.cpp" />
     <ClCompile Include="game\scene\Game.cpp" />
     <ClCompile Include="game\scene\Action3DScene.cpp" />
     <ClCompile Include="game\scene\GraphicsLabScene.cpp" />
@@ -255,6 +256,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\scene\Fade.cpp" />
     <ClCompile Include="game\scene\GameScene.cpp" />
     <ClCompile Include="game\scene\PlayerLabScene.cpp" />
+    <ClCompile Include="game\scene\SceneFactory.cpp" />
     <ClCompile Include="game\scene\SceneManager.cpp" />
     <ClCompile Include="game\scene\TitleScene.cpp" />
     <ClCompile Include="main.cpp">
@@ -491,6 +493,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\exp\ExpEnemy.h" />
     <ClInclude Include="game\naval\rendering\NavalOceanRenderer.h" />
     <ClInclude Include="game\naval\scene\NavalBattleScene.h" />
+    <ClInclude Include="game\runtime\SceneRegistry.h" />
     <ClInclude Include="game\scene\Game.h" />
     <ClInclude Include="game\scene\Action3DScene.h" />
     <ClInclude Include="game\scene\GraphicsLabScene.h" />
