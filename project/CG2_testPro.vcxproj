@@ -238,6 +238,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\exp\ExpEnemy.cpp" />
     <ClCompile Include="game\naval\rendering\NavalOceanRenderer.cpp" />
     <ClCompile Include="game\naval\scene\NavalBattleScene.cpp" />
+    <ClCompile Include="game\runtime\GameProject.cpp" />
     <ClCompile Include="game\runtime\SceneRegistry.cpp" />
     <ClCompile Include="game\scene\Game.cpp" />
     <ClCompile Include="game\scene\Action3DScene.cpp" />
@@ -493,6 +494,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\exp\ExpEnemy.h" />
     <ClInclude Include="game\naval\rendering\NavalOceanRenderer.h" />
     <ClInclude Include="game\naval\scene\NavalBattleScene.h" />
+    <ClInclude Include="game\runtime\GameProject.h" />
     <ClInclude Include="game\runtime\SceneRegistry.h" />
     <ClInclude Include="game\scene\Game.h" />
     <ClInclude Include="game\scene\Action3DScene.h" />
@@ -582,6 +584,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="resources\effects\hit_spark.json" />
     <None Include="resources\configs\gameText.json" />
     <None Include="resources\levels\level_test.json" />
+    <None Include="resources\projects\default.project.json" />
+    <None Include="resources\projects\graphics_lab.project.json" />
+    <None Include="resources\projects\naval.project.json" />
     <None Include="resources\levels\prefab_dictionary.json" />
     <None Include="resources\levels\ai_edit_prompt_template.md" />
     <None Include="resources\levels\ai_balance_handoff.md" />
