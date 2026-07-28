@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "enabled": true,
+  "virtualResolution": {
+    "x": 1280.0,
+    "y": 720.0
+  },
+  "safeMargin": 48.0,
+  "nodes": {
+    "Basic": {
+      "x": 0.5,
+      "y": 0.43
+    },
+    "Twin": {
+      "x": 0.33,
+      "y": 0.2
+    },
+    "MachineGun": {
+      "x": 0.67,
+      "y": 0.2
+    },
+    "Overseer": {
+      "x": 0.5,
+      "y": 0.7
+    },
+    "currentSize": {
+      "x": 200.0,
+      "y": 112.0
+    },
+    "candidateSize": {
+      "x": 172.0,
+      "y": 104.0
+    },
+    "scale": {
+      "normal": 1.0,
+      "hover": 1.05,
+      "selected": 1.08
+    }
+  },
+  "circuit": {
+    "outerGlowWidth": 18.0,
+    "middleGlowWidth": 8.0,
+    "coreWidth": 2.5,
+    "opacity": 0.78,
+    "outerAlpha": 0.14,
+    "middleAlpha": 0.34,
+    "coreAlpha": 0.9
+  },
+  "backgroundDimOpacity": 0.82,
+  "detailPanel": {
+    "anchor": {
+      "x": 0.5,
+      "y": 0.9
+    },
+    "size": {
+      "x": 1184.0,
+      "y": 118.0
+    }
+  },
+  "confirmButton": {
+    "size": {
+      "x": 186.0,
+      "y": 44.0
+    }
+  },
+  "text": {
+    "fontFamily": "Meiryo",
+    "titleSize": 30.0,
+    "classNameSize": 22.0,
+    "bodySize": 16.0,
+    "titleColor": [
+      0.74,
+      1.0,
+      0.92,
+      1.0
+    ],
+    "classNameColor": [
+      0.92,
+      1.0,
+      0.96,
+      1.0
+    ],
+    "bodyColor": [
+      0.84,
+      0.92,
+      1.0,
+      1.0
+    ],
+    "outlineColor": [
+      0.0,
+      0.025,
+      0.045,
+      0.96
+    ],
+    "outlineWidth": 2.0
+  },
+  "colors": {
+    "normal": [
+      0.12,
+      0.34,
+      0.42,
+      0.82
+    ],
+    "available": [
+      0.16,
+      0.64,
+      0.72,
+      0.92
+    ],
+    "hover": [
+      0.3,
+      0.94,
+      1.0,
+      1.0
+    ],
+    "selected": [
+      0.42,
+      1.0,
+      0.58,
+      1.0
+    ],
+    "locked": [
+      0.18,
+      0.22,
+      0.28,
+      0.68
+    ],
+    "panel": [
+      0.025,
+      0.055,
+      0.08,
+      0.94
+    ]
+  },
+  "fixedSelectedCandidate": 0
+}
