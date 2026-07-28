@@ -7,6 +7,7 @@
 #include <dxgidebug.h>
 #include <chrono>
 #include <thread>
+#include <unordered_map>
 #include "Root.h"
 #include "InputDesc.h"
 #include "Calculation.h"
@@ -465,6 +466,7 @@ private:
 	IDxcUtils* dxcUtils_ = nullptr;
 	IDxcCompiler3* dxcCompiler_ = nullptr;
 	IDxcIncludeHandler* includeHandler_ = nullptr;
+	std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<IDxcBlob>> shaderCache_;
 	
 	// FPS固定変数
 	//---------------------------------

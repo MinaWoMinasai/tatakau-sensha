@@ -1,4 +1,5 @@
 #include "TitleScene.h"
+#include "GameScene.h"
 #include "SceneManager.h"
 
 #include <numbers>
@@ -14,8 +15,8 @@ void TitleScene::Initialize() {
 	fade_->Initialize();
 	fade_->Start(Fade::Status::FadeIn, 1.0f);
 
-	const float screenW = 1280.0f;
-	const float screenH = 720.0f;
+	const float screenW = static_cast<float>(WinApp::GetInstance()->GetClientWidth());
+	const float screenH = static_cast<float>(WinApp::GetInstance()->GetClientHeight());
 
 	const int charCount = 8;
 
@@ -132,6 +133,30 @@ void TitleScene::Initialize() {
 	rule->SetPosition({ 640.0f, 360.0f });
 	rule->SetAnchorPoint({ 0.5f,0.5f });
 	rule->SetAlpha(0.50f);
+
+	TextStyle modeStyle{};
+	modeStyle.fontFamily = "Meiryo";
+	modeStyle.fontSize = 25.0f;
+	modeStyle.color = { 0.58f, 1.0f, 0.72f, 1.0f };
+	modeStyle.outlineColor = { 0.0f, 0.02f, 0.06f, 0.96f };
+	modeStyle.outlineThickness = 3.0f;
+	modeStyle.padding = 8.0f;
+	modeMenuText_ = std::make_unique<TextLabel>();
+	modeMenuText_->Initialize(SpriteCommon::GetInstance(), "", modeStyle);
+	modeMenuText_->SetAnchorPoint({ 0.5f, 0.5f });
+	modeMenuText_->SetPosition({ screenW * 0.5f, screenH * 0.80f });
+
+	TextStyle hintStyle = modeStyle;
+	hintStyle.fontSize = 16.0f;
+	hintStyle.color = { 0.82f, 0.90f, 1.0f, 0.90f };
+	hintStyle.outlineThickness = 2.0f;
+	startHintText_ = std::make_unique<TextLabel>();
+	startHintText_->Initialize(
+		SpriteCommon::GetInstance(),
+		"W/S or Arrow Keys: Select   Left Click / Enter: Start",
+		hintStyle);
+	startHintText_->SetAnchorPoint({ 0.5f, 0.5f });
+	startHintText_->SetPosition({ screenW * 0.5f, screenH * 0.91f });
 }
 
 void TitleScene::Update() {
@@ -152,7 +177,8 @@ void TitleScene::Update() {
 			phase_ = Phase::kMain;
 		}
 		break;
-	case Phase::kMain:
+	case Phase::kMain: {
+#ifdef USE_IMGUI
 		if (input_->IsTrigger(input_->GetKey()[DIK_F3], input_->GetPreKey()[DIK_F3])) {
 			if (StartTransitionIfAvailable("TEST", 0.35f)) {
 				break;
@@ -173,28 +199,36 @@ void TitleScene::Update() {
 				break;
 			}
 		}
+#endif // USE_IMGUI
 
-		// 左クリックでruleを表示
-		if (IsSceneAvailable("GAME") &&
-			input_->IsTrigger(
-				input_->GetMouseState().rgbButtons[0],
-				input_->GetPreMouseState().rgbButtons[0])) {
-			if (ruleGide) {
-				if (StartTransitionIfAvailable("GAME", 1.0f)) {
-					ruleGide = false;
-				}
-			} else {
-				ruleGide = true;
-			}
+		const bool up =
+			input_->IsTrigger(input_->GetKey()[DIK_W], input_->GetPreKey()[DIK_W]) ||
+			input_->IsTrigger(input_->GetKey()[DIK_UP], input_->GetPreKey()[DIK_UP]);
+		const bool down =
+			input_->IsTrigger(input_->GetKey()[DIK_S], input_->GetPreKey()[DIK_S]) ||
+			input_->IsTrigger(input_->GetKey()[DIK_DOWN], input_->GetPreKey()[DIK_DOWN]);
+		if (up || down) {
+			menuSelection_ = 1 - menuSelection_;
 		}
 
-		//if (!ruleGide) {
-		//	if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
-		//		fade_->Start(Fade::Status::FadeOut, 1.0f);
-		//		phase_ = Phase::kFadeOut;
-		//	}
-		//}
+		if (modeMenuText_) {
+			modeMenuText_->SetText(
+				std::string(menuSelection_ == 0 ? "> " : "  ") + "NORMAL MODE\n" +
+				(menuSelection_ == 1 ? "> " : "  ") + "SHOWCASE MODE");
+		}
+
+		const bool confirm =
+			input_->IsTrigger(input_->GetKey()[DIK_RETURN], input_->GetPreKey()[DIK_RETURN]) ||
+			input_->IsTrigger(input_->GetKey()[DIK_SPACE], input_->GetPreKey()[DIK_SPACE]) ||
+			input_->IsTrigger(
+				input_->GetMouseState().rgbButtons[0],
+				input_->GetPreMouseState().rgbButtons[0]);
+		if (IsSceneAvailable("GAME") && confirm) {
+			GameScene::SetNextShowcaseMode(menuSelection_ == 1);
+			StartTransitionIfAvailable("GAME", 0.75f);
+		}
 		break;
+	}
 	case Phase::kFadeOut:
 		fade_->Update();
 		if (fade_->IsFinished()) {
@@ -214,12 +248,13 @@ void TitleScene::DrawSprite() {
 	if (IsSceneAvailable("GAME")) {
 		startLogo.sprite->Draw();
 	}
-	//ruleLogo.sprite->Draw();
-	fade_->Draw();
-
-	if (ruleGide) {
-		rule->Draw();
+	if (modeMenuText_) {
+		modeMenuText_->Draw();
 	}
+	if (startHintText_) {
+		startHintText_->Draw();
+	}
+	fade_->Draw();
 }
 
 void TitleScene::UpdateLogoChar(LogoChar& c, float deltaTime)

@@ -5,7 +5,9 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -397,6 +399,7 @@ GameScene::GameScene() {}
 GameScene::~GameScene()
 {
 	ExpEnemy::SetEnemyKillCallback(nullptr);
+	ExpEnemy::SetPlayerDefeatCallback(nullptr);
 	ExpEnemy::SetShapeNeonRenderMode(0);
 }
 
@@ -405,6 +408,8 @@ void GameScene::Initialize() {
 	worldTransform_ = InitWorldTransform();
 
 	input_ = Input::GetInstance();
+	showcaseMode_ = nextShowcaseMode_;
+	screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json");
 
 	debugCamera = std::make_unique<DebugCamera>();
 
@@ -657,6 +662,11 @@ void GameScene::Initialize() {
 			enemy_->RegisterExpEnemyKill(expValue);
 		}
 	});
+	ExpEnemy::SetPlayerDefeatCallback([this](const Vector3& position) {
+		++defeatedEnemies_;
+		screenEffectDirector_.TriggerEnemyDefeat(WorldToScreenUv(position), 1.0f);
+		SetEventCallout("ENEMY BREAK", 0.55f);
+	});
 	if (hasLevelData) {
 		ApplyLevelData(levelData);
 	}
@@ -741,21 +751,35 @@ void GameScene::Initialize() {
 	postProfileText_->SetPosition({ 16.0f, 46.0f });
 
 	InitializeFollowHpBarBatch();
+	InitializeSubmissionUi();
+	previousPlayerHp_ = player_ ? player_->GetHp() : 0;
+	previousBossHp_ = enemy_ ? enemy_->GetHp() : 0;
 
 }
 
 void GameScene::Update() {
 	
 	// 通常は 1/60秒
-	float baseDeltaTime = 1.0f / 60.0f;
-
-	// プレイヤーがスローを要求していたら timeScale を下げる
-	if (player_->RequestSlow()) {
-		timeScale_ = 0.01f; // 100倍スロー
+	const float baseDeltaTime = 1.0f / 60.0f;
+	screenEffectDirector_.Update(baseDeltaTime);
+	if (eventCalloutTimer_ > 0.0f) {
+		eventCalloutTimer_ = (std::max)(0.0f, eventCalloutTimer_ - baseDeltaTime);
 	}
 
-	// 徐々に元の時間（1.0）に戻していく処理（Lerp）
-	timeScale_ += (1.0f - timeScale_) * 0.03f;
+	const bool justDodgeTriggered = player_->RequestSlow();
+	if (justDodgeTriggered) {
+		screenEffectDirector_.TriggerJustDodge(WorldToScreenUv(player_->GetWorldPosition()));
+		++justDodgeCount_;
+		SetEventCallout("JUST DODGE", 0.70f);
+		Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.25f);
+	}
+
+	const float requestedTimeScale = screenEffectDirector_.GetTimeScaleMultiplier();
+	if (requestedTimeScale < timeScale_) {
+		timeScale_ = requestedTimeScale;
+	} else {
+		timeScale_ += (1.0f - timeScale_) * 0.12f;
+	}
 
 	// 最終的な deltaTime
 	finalDeltaTime = baseDeltaTime * timeScale_;
@@ -773,7 +797,9 @@ void GameScene::Update() {
 	}
 	slowMotionPostActive_ = finalDeltaTime < baseDeltaTime * 0.98f;
 
-	if (player_->IsChangeMode()) {
+	if (player_->IsChangeMode() ||
+		gameFlowState_ == GameFlowState::StageClear ||
+		gameFlowState_ == GameFlowState::GameOver) {
 		finalDeltaTime = 0.0f;
 	}
 
@@ -826,6 +852,7 @@ void GameScene::Update() {
 	}
 #endif // USE_IMGUI
 
+#ifdef USE_IMGUI
 	if (input_->IsTrigger(input_->GetKey()[DIK_F8], input_->GetPreKey()[DIK_F8])) {
 		showPostProfileOverlay_ = !showPostProfileOverlay_;
 	}
@@ -841,6 +868,7 @@ void GameScene::Update() {
 	if (input_->IsTrigger(input_->GetKey()[DIK_F12], input_->GetPreKey()[DIK_F12])) {
 		showGameDebugConsole_ = !showGameDebugConsole_;
 	}
+#endif // USE_IMGUI
 
 	{
 		Vector3 playerPos = player_->GetWorldPosition();
@@ -886,52 +914,68 @@ void GameScene::Update() {
 	ball_->Update();
 	groundObj_->Update();
 
-	stage_->Update();
-	UpdateLevelItems();
-	
-	player_->SetDebugNoDamage(debugPlayerNoDamage_);
-	player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime);
-	for (const Player::LaserShotEvent& event : player_->ConsumeLaserShotEvents()) {
-		SpawnPlayerLaser(event);
-	}
-	for (const Player::MineDropEvent& event : player_->ConsumeMineDropEvents()) {
-		SpawnPlayerMine(event);
-	}
-	for (const Player::MeleeSlashEvent& event : player_->ConsumeMeleeSlashEvents()) {
-		SpawnPlayerMeleeSlash(event);
-	}
-	UpdatePlayerNeonAfterimages(baseDeltaTime);
-	UpdatePlayerLasers(baseDeltaTime);
-	UpdatePlayerMines(baseDeltaTime);
-	UpdatePlayerMeleeSlashes(baseDeltaTime);
-	UpdateNeonTriangleParticles(baseDeltaTime);
-	if (player_->IsDead() && !playerDeathShakeStarted_) {
-		playerDeathShakeStarted_ = true;
-	}
-	
-	enemy_->Update(finalDeltaTime);
-	UpdateLevelBossPhases();
-
-	enemyManager_->Update(*stage_, finalDeltaTime);
-	
-	bulletManager_->Update(*stage_, finalDeltaTime);
-	
-	// 衝突マネージャの更新
-	collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
-	if (showCollisionDebug_) {
-		for (Collider* collider : collisionManager_->GetColliders()) {
-			if (!collider) {
-				continue;
-			}
-			if (!showCollisionDebugBullets_ && IsBulletCollider(collider->GetCollisionAttribute())) {
-				continue;
-			}
-			EmitColliderDebugRings(*collisionDebugRingManager_, *collider);
+	if (gameFlowState_ == GameFlowState::Playing && phase_ == Phase::kMain) {
+		if (phase_ == Phase::kMain && !player_->IsChangeMode()) {
+			playTime_ += baseDeltaTime;
 		}
+		UpdateShowcaseMode(baseDeltaTime);
+		stage_->Update();
+		UpdateLevelItems();
+
+		player_->SetDebugNoDamage(debugPlayerNoDamage_);
+		player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime);
+		for (const Player::LaserShotEvent& event : player_->ConsumeLaserShotEvents()) {
+			SpawnPlayerLaser(event);
+		}
+		for (const Player::MineDropEvent& event : player_->ConsumeMineDropEvents()) {
+			SpawnPlayerMine(event);
+		}
+		for (const Player::MeleeSlashEvent& event : player_->ConsumeMeleeSlashEvents()) {
+			SpawnPlayerMeleeSlash(event);
+		}
+		UpdatePlayerNeonAfterimages(baseDeltaTime);
+		UpdatePlayerLasers(baseDeltaTime);
+		UpdatePlayerMines(baseDeltaTime);
+		UpdatePlayerMeleeSlashes(baseDeltaTime);
+		UpdateNeonTriangleParticles(baseDeltaTime);
+		if (player_->IsDead() && !playerDeathShakeStarted_) {
+			playerDeathShakeStarted_ = true;
+		}
+
+		enemy_->Update(finalDeltaTime);
+		UpdateLevelBossPhases();
+
+		enemyManager_->Update(*stage_, finalDeltaTime);
+
+		bulletManager_->Update(*stage_, finalDeltaTime);
+
+		// 衝突マネージャの更新
+		collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
+		if (showCollisionDebug_) {
+			for (Collider* collider : collisionManager_->GetColliders()) {
+				if (!collider) {
+					continue;
+				}
+				if (!showCollisionDebugBullets_ && IsBulletCollider(collider->GetCollisionAttribute())) {
+					continue;
+				}
+				EmitColliderDebugRings(*collisionDebugRingManager_, *collider);
+			}
+		} else {
+			collisionDebugRingManager_->Clear();
+		}
+		collisionDebugRingManager_->Update(finalDeltaTime);
+		UpdateGameplayEventEffects(baseDeltaTime, justDodgeTriggered);
 	} else {
 		collisionDebugRingManager_->Clear();
+		if (gameFlowState_ == GameFlowState::BossDefeatSequence && enemy_) {
+			enemy_->UpdateDefeatPresentation(baseDeltaTime);
+		}
+		if (gameFlowState_ == GameFlowState::GameOver && player_) {
+			player_->UpdateDefeatPresentation(baseDeltaTime);
+		}
 	}
-	collisionDebugRingManager_->Update(finalDeltaTime);
+	screenEffectDirector_.SetUpgradeMenuOpen(player_->IsChangeMode());
 	playerPostEffect_->Update(finalDeltaTime);
 	enemyPostEffect_->Update(finalDeltaTime);
 	expEnemyPostEffect_->Update(finalDeltaTime);
@@ -964,10 +1008,13 @@ void GameScene::Update() {
 #endif // USE_IMGUI
 
 	UpdateDeathPostPulse(baseDeltaTime);
-	ParticleManager::GetInstance()->Update(finalDeltaTime, camera.get(), debugCamera.get());
+	const float particleDeltaTime =
+		gameFlowState_ == GameFlowState::Playing ? finalDeltaTime : baseDeltaTime;
+	ParticleManager::GetInstance()->Update(particleDeltaTime, camera.get(), debugCamera.get());
 	for (const ParticleManager::ScreenPulseEvent& event : ParticleManager::GetInstance()->ConsumeScreenPulseEvents()) {
 		TriggerDeathPostPulse(event.position, event.strength);
 	}
+	UpdateGameFlow(baseDeltaTime);
 
 	switch (phase_) {
 	case Phase::kFadeIn:
@@ -975,24 +1022,20 @@ void GameScene::Update() {
 	
 		if (fade_->IsFinished()) {
 			phase_ = Phase::kMain;
+			if (!bossEntryTriggered_) {
+				bossEntryTriggered_ = true;
+				screenEffectDirector_.TriggerBossEntry();
+				SetEventCallout("WARNING: BOSS UNIT", 1.20f);
+			}
 		}
 		break;
 	case Phase::kMain:
-		if (input_->IsTrigger(input_->GetKey()[DIK_ESCAPE], input_->GetPreKey()[DIK_ESCAPE])) {
+		if (gameFlowState_ == GameFlowState::Playing &&
+			input_->IsTrigger(input_->GetKey()[DIK_ESCAPE], input_->GetPreKey()[DIK_ESCAPE])) {
+			nextSceneName_ = "TITLE";
 			fade_->Start(Fade::Status::FadeOut, 1.0f);
 			phase_ = Phase::kFadeOut;
 		}
-	
-		if (player_->isFinished()) {
-			fade_->Start(Fade::Status::FadeOut, 1.0f);
-			phase_ = Phase::kFadeOut;
-		}
-	
-		if (enemy_->isFinished()) {
-			fade_->Start(Fade::Status::FadeOut, 1.0f);
-			phase_ = Phase::kFadeOut;
-		}
-	
 		break;
 	case Phase::kFadeOut:
 		fade_->Update();
@@ -1007,6 +1050,329 @@ void GameScene::Update() {
 	dashGide->Update();
 	toTitleGide->Update();
 	
+}
+
+void GameScene::InitializeSubmissionUi()
+{
+	TextStyle bannerStyle{};
+	bannerStyle.fontFamily = "Meiryo";
+	bannerStyle.fontSize = 58.0f;
+	bannerStyle.color = { 0.78f, 1.0f, 0.96f, 1.0f };
+	bannerStyle.outlineColor = { 0.0f, 0.03f, 0.08f, 0.98f };
+	bannerStyle.outlineThickness = 5.0f;
+	bannerStyle.padding = 10.0f;
+	flowBannerText_ = std::make_unique<TextLabel>();
+	flowBannerText_->Initialize(SpriteCommon::GetInstance(), "STAGE CLEAR", bannerStyle);
+	flowBannerText_->SetAnchorPoint({ 0.5f, 0.5f });
+	flowBannerText_->SetPosition({ WinApp::kClientWidth * 0.5f, 170.0f });
+
+	TextStyle eventStyle = bannerStyle;
+	eventStyle.fontSize = 30.0f;
+	eventStyle.color = { 0.55f, 1.0f, 0.72f, 1.0f };
+	eventStyle.outlineThickness = 3.0f;
+	eventCalloutText_ = std::make_unique<TextLabel>();
+	eventCalloutText_->Initialize(SpriteCommon::GetInstance(), "JUST DODGE", eventStyle);
+	eventCalloutText_->SetAnchorPoint({ 0.5f, 0.5f });
+	eventCalloutText_->SetPosition({ WinApp::kClientWidth * 0.5f, 112.0f });
+
+	TextStyle resultStyle = bannerStyle;
+	resultStyle.fontSize = 25.0f;
+	resultStyle.color = { 0.90f, 0.96f, 1.0f, 1.0f };
+	resultStyle.outlineThickness = 3.0f;
+	resultSummaryText_ = std::make_unique<TextLabel>();
+	resultSummaryText_->Initialize(SpriteCommon::GetInstance(), "", resultStyle);
+	resultSummaryText_->SetAnchorPoint({ 0.5f, 0.5f });
+	resultSummaryText_->SetPosition({ WinApp::kClientWidth * 0.5f, 365.0f });
+
+	TextStyle menuStyle = resultStyle;
+	menuStyle.fontSize = 28.0f;
+	menuStyle.color = { 0.48f, 1.0f, 0.66f, 1.0f };
+	resultMenuText_ = std::make_unique<TextLabel>();
+	resultMenuText_->Initialize(SpriteCommon::GetInstance(), "", menuStyle);
+	resultMenuText_->SetAnchorPoint({ 0.5f, 0.5f });
+	resultMenuText_->SetPosition({ WinApp::kClientWidth * 0.5f, 555.0f });
+
+	TextStyle modeStyle = resultStyle;
+	modeStyle.fontSize = 17.0f;
+	modeStyle.color = { 1.0f, 0.78f, 0.28f, 0.92f };
+	modeStyle.outlineThickness = 2.0f;
+	showcaseModeText_ = std::make_unique<TextLabel>();
+	showcaseModeText_->Initialize(
+		SpriteCommon::GetInstance(),
+		"SHOWCASE MODE / GUIDED 60-90 SEC",
+		modeStyle);
+	showcaseModeText_->SetAnchorPoint({ 1.0f, 0.0f });
+	showcaseModeText_->SetPosition({ WinApp::kClientWidth - 18.0f, 16.0f });
+}
+
+void GameScene::UpdateGameplayEventEffects(float, bool)
+{
+	if (!player_ || !enemy_) {
+		return;
+	}
+
+	const int playerHp = player_->GetHp();
+	if (previousPlayerHp_ >= 0 && playerHp < previousPlayerHp_) {
+		const int damage = previousPlayerHp_ - playerHp;
+		damageTaken_ += damage;
+		const Vector3 hitDelta = player_->GetWorldPosition() - enemy_->GetWorldPosition();
+		Vector2 hitDirection{ hitDelta.x, hitDelta.y };
+		const float length = std::sqrt(hitDirection.x * hitDirection.x + hitDirection.y * hitDirection.y);
+		if (length > 0.0001f) {
+			hitDirection.x /= length;
+			hitDirection.y /= length;
+		}
+		screenEffectDirector_.TriggerPlayerDamage(hitDirection);
+		cameraShakeDuration_ = screenEffectDirector_.GetConfig().cameraShakeDuration;
+		cameraShakeTimer_ = cameraShakeDuration_;
+		cameraShakePower_ = (std::max)(
+			cameraShakePower_,
+			screenEffectDirector_.GetConfig().cameraShakeStrength);
+		SetEventCallout("ARMOR HIT", 0.42f);
+	}
+	previousPlayerHp_ = playerHp;
+
+	const float hpRatio = player_->GetMaxHp() > 0
+		? static_cast<float>(playerHp) / static_cast<float>(player_->GetMaxHp())
+		: 0.0f;
+	screenEffectDirector_.SetLowHpRatio(hpRatio);
+
+	const bool dashing = player_->IsDashing();
+	if (dashing && !previousDashing_) {
+		screenEffectDirector_.TriggerDash(WorldToScreenUv(player_->GetWorldPosition()));
+	}
+	previousDashing_ = dashing;
+
+	const bool upgradeMenuOpen = player_->IsChangeMode();
+	if (previousUpgradeMenuOpen_ && !upgradeMenuOpen) {
+		screenEffectDirector_.TriggerUpgradeConfirmed(WorldToScreenUv(player_->GetWorldPosition()));
+		SetEventCallout("EVOLUTION COMPLETE", 0.75f);
+	}
+	previousUpgradeMenuOpen_ = upgradeMenuOpen;
+
+	if (!bossEntryTriggered_ && phase_ == Phase::kMain && playTime_ >= 1.25f) {
+		bossEntryTriggered_ = true;
+		screenEffectDirector_.TriggerBossEntry();
+		SetEventCallout("WARNING: BOSS UNIT", 1.20f);
+	}
+
+	previousBossHp_ = enemy_->GetHp();
+	if (enemy_->IsDead() && !bossDefeatHandled_) {
+		BeginBossDefeatSequence();
+	} else if (player_->IsDead() && !playerDeathHandled_) {
+		BeginGameOver();
+	}
+}
+
+void GameScene::UpdateShowcaseMode(float baseDeltaTime)
+{
+	if (!showcaseMode_ || gameFlowState_ != GameFlowState::Playing || phase_ != Phase::kMain) {
+		return;
+	}
+	showcaseElapsed_ += baseDeltaTime * screenEffectDirector_.GetConfig().showcaseTimeScale;
+
+	auto cue = [this](size_t index, float time, const auto& action) {
+		if (index < showcaseCueTriggered_.size() &&
+			!showcaseCueTriggered_[index] &&
+			showcaseElapsed_ >= time) {
+			showcaseCueTriggered_[index] = true;
+			action();
+		}
+	};
+
+	cue(0, 7.0f, [this]() {
+		screenEffectDirector_.TriggerEnemyDefeat({ 0.38f, 0.48f }, 0.85f);
+		SetEventCallout("SHOWCASE: ENEMY BREAK", 0.85f);
+	});
+	cue(1, 14.0f, [this]() {
+		screenEffectDirector_.TriggerJustDodge(WorldToScreenUv(player_->GetWorldPosition()));
+		++justDodgeCount_;
+		SetEventCallout("SHOWCASE ASSIST: JUST DODGE", 0.95f);
+	});
+	cue(2, 21.0f, [this]() {
+		const uint32_t showcaseDamage = static_cast<uint32_t>((std::max)(1, player_->GetMaxHp() / 8));
+		player_->TakeDamage(showcaseDamage, 0.20f);
+	});
+	cue(3, 29.0f, [this]() {
+		while (player_->GetLevel() < 5) {
+			player_->AddExp(player_->GetNextLevelExpValue());
+		}
+		SetEventCallout("SHOWCASE: OPEN EVOLUTION TREE", 1.10f);
+	});
+	cue(4, 41.0f, [this]() {
+		screenEffectDirector_.TriggerBossEntry();
+		SetEventCallout("BOSS UNIT: NEON OVERLORD", 1.20f);
+	});
+	cue(5, 50.0f, [this]() {
+		screenEffectDirector_.TriggerBossPhaseChange();
+		SetEventCallout("PHASE SHIFT / EMP", 1.15f);
+	});
+	cue(6, 61.0f, [this]() {
+		if (enemy_ && !enemy_->IsDead()) {
+			enemy_->TakeDamage(static_cast<uint32_t>((std::max)(1, enemy_->GetHp())));
+		}
+	});
+}
+
+void GameScene::BeginBossDefeatSequence()
+{
+	bossDefeatHandled_ = true;
+	gameFlowState_ = GameFlowState::BossDefeatSequence;
+	if (flowBannerText_) {
+		flowBannerText_->SetText("BOSS DESTROYED");
+	}
+	gameFlowTimer_ = (std::clamp)(
+		2.30f / (std::max)(0.10f, screenEffectDirector_.GetConfig().dissolveSpeed),
+		1.10f,
+		2.20f);
+	bossDefeatSequenceDuration_ = gameFlowTimer_;
+	const Vector2 center = WorldToScreenUv(enemy_->GetWorldPosition());
+	screenEffectDirector_.TriggerBossDefeat(center);
+	TriggerDeathPostPulse(enemy_->GetWorldPosition(), 1.55f);
+	cameraShakeDuration_ = screenEffectDirector_.GetConfig().cameraShakeDuration * 4.5f;
+	cameraShakeTimer_ = cameraShakeDuration_;
+	cameraShakePower_ = screenEffectDirector_.GetConfig().cameraShakeStrength * 2.75f;
+	SetEventCallout("BOSS DESTROYED", 1.35f);
+}
+
+void GameScene::BeginGameOver()
+{
+	playerDeathHandled_ = true;
+	gameFlowState_ = GameFlowState::GameOver;
+	if (flowBannerText_) {
+		flowBannerText_->SetText("GAME OVER");
+	}
+	gameFlowTimer_ = screenEffectDirector_.GetConfig().gameOverDuration;
+	screenEffectDirector_.TriggerGameOver();
+	TriggerDeathPostPulse(player_->GetWorldPosition(), 1.10f);
+	cameraShakeDuration_ = 0.42f;
+	cameraShakeTimer_ = cameraShakeDuration_;
+	cameraShakePower_ = 0.75f;
+	SetEventCallout("PLAYER UNIT LOST", 0.85f);
+	UpdateResultText();
+}
+
+void GameScene::UpdateGameFlow(float baseDeltaTime)
+{
+	if (gameFlowState_ == GameFlowState::BossDefeatSequence) {
+		gameFlowTimer_ = (std::max)(0.0f, gameFlowTimer_ - baseDeltaTime);
+		if (gameFlowTimer_ <= 0.0f) {
+			EnterResultState(true);
+		}
+		return;
+	}
+
+	if (gameFlowState_ == GameFlowState::GameOver && gameFlowTimer_ > 0.0f) {
+		gameFlowTimer_ = (std::max)(0.0f, gameFlowTimer_ - baseDeltaTime);
+		if (gameFlowTimer_ <= 0.0f) {
+			UpdateResultText();
+		}
+		return;
+	}
+
+	if (gameFlowState_ != GameFlowState::StageClear &&
+		gameFlowState_ != GameFlowState::GameOver) {
+		return;
+	}
+
+	const bool up =
+		input_->IsTrigger(input_->GetKey()[DIK_W], input_->GetPreKey()[DIK_W]) ||
+		input_->IsTrigger(input_->GetKey()[DIK_UP], input_->GetPreKey()[DIK_UP]);
+	const bool down =
+		input_->IsTrigger(input_->GetKey()[DIK_S], input_->GetPreKey()[DIK_S]) ||
+		input_->IsTrigger(input_->GetKey()[DIK_DOWN], input_->GetPreKey()[DIK_DOWN]);
+	if (up || down) {
+		resultSelection_ = 1 - resultSelection_;
+		UpdateResultText();
+	}
+
+	const bool confirm =
+		input_->IsTrigger(input_->GetKey()[DIK_RETURN], input_->GetPreKey()[DIK_RETURN]) ||
+		input_->IsTrigger(input_->GetKey()[DIK_SPACE], input_->GetPreKey()[DIK_SPACE]) ||
+		input_->IsTrigger(
+			input_->GetMouseState().rgbButtons[0],
+			input_->GetPreMouseState().rgbButtons[0]);
+	if (confirm) {
+		ConfirmResultSelection();
+	}
+}
+
+void GameScene::EnterResultState(bool stageClear)
+{
+	gameFlowState_ = stageClear ? GameFlowState::StageClear : GameFlowState::GameOver;
+	if (flowBannerText_) {
+		flowBannerText_->SetText(stageClear ? "STAGE CLEAR" : "GAME OVER");
+	}
+	gameFlowTimer_ = 0.0f;
+	resultSelection_ = 0;
+	UpdateResultText();
+}
+
+void GameScene::ConfirmResultSelection()
+{
+	if (phase_ != Phase::kMain) {
+		return;
+	}
+	if (resultSelection_ == 0) {
+		nextSceneName_ = "GAME";
+		nextShowcaseMode_ = showcaseMode_;
+	} else {
+		nextSceneName_ = "TITLE";
+	}
+	fade_->Start(Fade::Status::FadeOut, 0.65f);
+	phase_ = Phase::kFadeOut;
+}
+
+void GameScene::UpdateResultText()
+{
+	if (!resultSummaryText_ || !resultMenuText_) {
+		return;
+	}
+	const int totalSeconds = static_cast<int>(playTime_);
+	const int minutes = totalSeconds / 60;
+	const int seconds = totalSeconds % 60;
+
+	std::ostringstream summary;
+	summary << "RESULT\n\n"
+		<< "Clear Time       " << std::setfill('0') << std::setw(2) << minutes
+		<< ":" << std::setw(2) << seconds << "\n"
+		<< "Just Dodge       " << justDodgeCount_ << "\n"
+		<< "Damage Taken     " << damageTaken_ << "\n"
+		<< "Defeated Enemies " << defeatedEnemies_;
+	resultSummaryText_->SetText(summary.str());
+
+	std::ostringstream menu;
+	menu << (resultSelection_ == 0 ? "> " : "  ") << "RETRY\n"
+		<< (resultSelection_ == 1 ? "> " : "  ") << "RETURN TO TITLE\n\n"
+		<< "W/S or Arrow Keys : Select   Enter/Click : Confirm";
+	resultMenuText_->SetText(menu.str());
+}
+
+void GameScene::SetEventCallout(const std::string& text, float duration)
+{
+	if (eventCalloutText_) {
+		eventCalloutText_->SetText(text);
+	}
+	eventCalloutTimer_ = (std::max)(0.0f, duration);
+}
+
+Vector2 GameScene::WorldToScreenUv(const Vector3& worldPos) const
+{
+	const Vector2 screen = WorldToScreen(worldPos);
+	return {
+		(std::clamp)(screen.x / static_cast<float>(WinApp::kClientWidth), 0.0f, 1.0f),
+		(std::clamp)(screen.y / static_cast<float>(WinApp::kClientHeight), 0.0f, 1.0f)
+	};
+}
+
+IScene::ScreenEffectState GameScene::GetScreenEffectState() const
+{
+	IScene::ScreenEffectState state{};
+	state.active = screenEffectDirector_.IsActive();
+	if (state.active) {
+		screenEffectDirector_.ApplyTo(state.param);
+	}
+	return state;
 }
 
 void GameScene::Draw() {
@@ -1070,7 +1436,9 @@ void GameScene::DrawPostEffect3D() {
 
 	profile("Base Objects", true, [&]() {
 		player_->Draw(playerNeonRenderMode_ == 0);
-		enemy_->Draw(bossNeonRenderMode_ == 0);
+		if (gameFlowState_ != GameFlowState::BossDefeatSequence) {
+			enemy_->Draw(bossNeonRenderMode_ == 0);
+		}
 		enemyManager_->Draw(true);
 		bulletManager_->Draw();
 		DrawLevelItems();
@@ -1139,7 +1507,9 @@ void GameScene::DrawPostEffect3D() {
 			if (usePlayerPost && playerNeonRenderMode_ == 0 && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
 				player_->DrawBodyOnly();
 			}
-			if (useEnemyPost && bossNeonRenderMode_ == 0) {
+			if (useEnemyPost &&
+				bossNeonRenderMode_ == 0 &&
+				gameFlowState_ != GameFlowState::BossDefeatSequence) {
 				enemy_->DrawBodyOnly();
 			}
 			if (useExpEnemyPost) {
@@ -1217,7 +1587,32 @@ void GameScene::UpdateDeathPostPulse(float deltaTime) {
 }
 
 void GameScene::DrawAfterPostEffect3D() {
-	if (!enablePlayerPostEffect_ || playerNeonRenderMode_ != 0 || !slowMotionPostActive_ || !keepPlayerColorDuringSlow_) {
+	if (gameFlowState_ == GameFlowState::BossDefeatSequence &&
+		enableEnemyPostEffect_ &&
+		bossNeonRenderMode_ == 0) {
+		BloomParam savedBossParam = enemyPostEffect_->GetParam();
+		BloomParam defeatParam = savedBossParam;
+		const float progress = bossDefeatSequenceDuration_ > 0.0f
+			? (std::clamp)(1.0f - gameFlowTimer_ / bossDefeatSequenceDuration_, 0.0f, 1.0f)
+			: 1.0f;
+		defeatParam.dissolveThreshold = progress;
+		defeatParam.dissolveEdgeWidth = 0.075f;
+		defeatParam.dissolveEdgeColor = { 1.0f, 0.22f, 0.08f };
+		defeatParam.intensity = (std::max)(defeatParam.intensity, 1.65f);
+		enemyPostEffect_->SetParam(defeatParam);
+		enemyPostEffect_->BeginCapture();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		enemy_->DrawBodyOnly();
+		enemyPostEffect_->EndCaptureToBackBuffer();
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		enemyPostEffect_->SetParam(savedBossParam);
+	}
+
+	if (!enablePlayerPostEffect_ ||
+		playerNeonRenderMode_ != 0 ||
+		!slowMotionPostActive_ ||
+		!keepPlayerColorDuringSlow_ ||
+		gameFlowState_ != GameFlowState::Playing) {
 		return;
 	}
 
@@ -2701,6 +3096,7 @@ void GameScene::AddPostProfileEntry(const char* name, float ms, bool active) {
 }
 
 void GameScene::UpdatePostProfileText() {
+#ifdef USE_IMGUI
 	++postProfileAccumulatedFrames_;
 	if (postProfileAccumulatedFrames_ < 15) {
 		return;
@@ -2730,6 +3126,7 @@ void GameScene::UpdatePostProfileText() {
 	SetWindowTextA(WinApp::GetInstance()->GetHwnd(), text);
 	postProfileAccumulatedMs_.fill(0.0f);
 	postProfileAccumulatedFrames_ = 0;
+#endif // USE_IMGUI
 }
 
 void GameScene::DrawPerformanceBreakdownImGui()
@@ -3696,6 +4093,10 @@ void GameScene::DrawGameSceneDebugImGui()
 			ImGui::Checkbox("弾HP/貫通力テーブルを表示", &showBulletStatusDebugTable_);
 			ImGui::DragInt("弾ラベル最大数", &bulletStatusDebugMaxLabels_, 1.0f, 1, 200);
 			ImGui::Checkbox("ポスト負荷表示を表示 (F8)", &showPostProfileOverlay_);
+			bool gameplayOutlines = screenEffectDirector_.IsOutlineEnabled();
+			if (ImGui::Checkbox("ゲーム用 Depth/Luminance Outline", &gameplayOutlines)) {
+				screenEffectDirector_.SetOutlineEnabled(gameplayOutlines);
+			}
 			ImGui::Text("F12: このコンソールを表示/非表示");
 			ImGui::EndTabItem();
 		}
@@ -4327,6 +4728,13 @@ void GameScene::UpdateLevelBossPhases()
 		}
 
 		runtimePhase.activated = true;
+		screenEffectDirector_.TriggerBossPhaseChange();
+		SetEventCallout(
+			runtimePhase.phase.name.empty() ? "BOSS PHASE SHIFT" : "PHASE: " + runtimePhase.phase.name,
+			1.10f);
+		cameraShakeTimer_ = (std::max)(cameraShakeTimer_, 0.30f);
+		cameraShakeDuration_ = 0.30f;
+		cameraShakePower_ = (std::max)(cameraShakePower_, 0.45f);
 		std::cerr << "[Level AI-ditor] Activate boss phase: " << runtimePhase.phase.name << std::endl;
 		if (!runtimePhase.phase.message.empty()) {
 			std::cerr << "[Level AI-ditor] " << runtimePhase.phase.message << std::endl;
@@ -4521,12 +4929,15 @@ void GameScene::DrawSprite() {
 	DrawHpBarBatches();
 	SpriteCommon::GetInstance()->PreDraw(kNormal);
 	player_->DrawSprite();
-	player_->DrawEncyclopedia();
+	if (gameFlowState_ == GameFlowState::Playing) {
+		player_->DrawEncyclopedia();
+	}
 	//shotGide->Draw();
-	if (controlGuideText_) {
+	if (controlGuideText_ && gameFlowState_ == GameFlowState::Playing) {
 		controlGuideText_->SetPosition(showControlGuide_ ? Vector2{ 22.0f, 636.0f } : Vector2{ 22.0f, 690.0f });
 		controlGuideText_->Draw();
 	}
+#ifdef USE_IMGUI
 	if (fpsText_) {
 		fpsText_->Draw();
 	}
@@ -4534,6 +4945,27 @@ void GameScene::DrawSprite() {
 		postProfileText_->Draw();
 	}
 	DrawBulletStatusDebugOverlay();
+#endif // USE_IMGUI
+	if (showcaseMode_ && showcaseModeText_) {
+		showcaseModeText_->Draw();
+	}
+	if (eventCalloutTimer_ > 0.0f && eventCalloutText_) {
+		eventCalloutText_->Draw();
+	}
+	if (flowBannerText_ && gameFlowState_ != GameFlowState::Playing) {
+		flowBannerText_->Draw();
+	}
+	const bool showResult =
+		gameFlowState_ == GameFlowState::StageClear ||
+		(gameFlowState_ == GameFlowState::GameOver && gameFlowTimer_ <= 0.0f);
+	if (showResult) {
+		if (resultSummaryText_) {
+			resultSummaryText_->Draw();
+		}
+		if (resultMenuText_) {
+			resultMenuText_->Draw();
+		}
+	}
 	if (phase_ != Phase::kFadeIn) {
 		fade_->Draw();
 	}
@@ -4759,5 +5191,5 @@ Vector2 GameScene::WorldToScreen(const Vector3& worldPos) const {
 
 std::string GameScene::GetNextSceneName() const
 {
-	return "TITLE";
+	return nextSceneName_;
 }
