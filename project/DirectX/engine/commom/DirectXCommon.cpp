@@ -902,6 +902,12 @@ void DirectXCommon::ExecuteCommandListAndWait()
 
 IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar_t* profile)
 {
+	const std::wstring cacheKey = filePath + L"|" + profile;
+	const auto cached = shaderCache_.find(cacheKey);
+	if (cached != shaderCache_.end() && cached->second) {
+		cached->second->AddRef();
+		return cached->second.Get();
+	}
 
 	// hlslファイルを読む
 	IDxcBlobEncoding* shaderSource = nullptr;
@@ -954,6 +960,7 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 	// もう使わないリソース
 	shaderSource->Release();
 	shaderResult->Release();
+	shaderCache_[cacheKey] = shaderBlob;
 	// 実行用のバイナリを返却
 	return shaderBlob;
 }

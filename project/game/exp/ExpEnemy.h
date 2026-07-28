@@ -33,6 +33,7 @@ public:
     static void SetBalanceConfig(const BalanceConfig& config);
     static void SetEnemyInteractionConfig(const EnemyInteractionConfig& config);
     static void SetEnemyKillCallback(std::function<void(uint32_t)> callback);
+	static void SetPlayerDefeatCallback(std::function<void(const Vector3&)> callback);
     static void SetShapeNeonBillboardEnabled(bool enabled);
     static void SetShapeNeonRenderMode(int mode);
     static bool IsHostileToBoss() { return enemyInteractionConfig_.hostileToBoss; }
@@ -88,6 +89,7 @@ private:
     static BalanceConfig balanceConfig_;
     static EnemyInteractionConfig enemyInteractionConfig_;
     static std::function<void(uint32_t)> enemyKillCallback_;
+	static std::function<void(const Vector3&)> playerDefeatCallback_;
     static bool shapeNeonBillboardEnabled_;
     static int shapeNeonRenderMode_;
 

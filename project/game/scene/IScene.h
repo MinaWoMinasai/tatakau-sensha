@@ -12,6 +12,10 @@ public:
 		float width = 0.05f;
 		float strength = 0.0f;
 	};
+	struct ScreenEffectState {
+		bool active = false;
+		BloomParam param{};
+	};
 	struct WaterPostProcessSettings {
 		bool diagnosticsEnabled = false;
 		bool taaEnabled = true;
@@ -53,6 +57,7 @@ public:
     virtual float GetFinalDeltaTime() const { return 1.0f / 60.0f; } // デフォルトは60FPS 
     virtual float GetPostGaussianIntensity() const { return 0.0f; }
     virtual PostEffectPulse GetPostEffectPulse() const { return {}; }
+	virtual ScreenEffectState GetScreenEffectState() const { return {}; }
 	virtual WaterPostProcessSettings GetWaterPostProcessSettings() const { return {}; }
     virtual void SetRenderProfile(const RenderProfile& profile) { (void)profile; }
 

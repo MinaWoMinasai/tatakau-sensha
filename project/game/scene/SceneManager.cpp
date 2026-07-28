@@ -157,6 +157,11 @@ IScene::PostEffectPulse SceneManager::GetPostEffectPulse()
 	return currentScene_ ? currentScene_->GetPostEffectPulse() : IScene::PostEffectPulse{};
 }
 
+IScene::ScreenEffectState SceneManager::GetScreenEffectState()
+{
+	return currentScene_ ? currentScene_->GetScreenEffectState() : IScene::ScreenEffectState{};
+}
+
 IScene::WaterPostProcessSettings SceneManager::GetWaterPostProcessSettings()
 {
 	return currentScene_

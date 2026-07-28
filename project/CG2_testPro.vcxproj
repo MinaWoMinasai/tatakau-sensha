@@ -250,6 +250,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\collision\Collider.cpp" />
     <ClCompile Include="game\collision\CollisionConfig.cpp" />
     <ClCompile Include="game\collision\CollisionManager.cpp" />
+    <ClCompile Include="game\effects\ScreenEffectDirector.cpp" />
     <ClCompile Include="game\enemy\actor\Enemy.cpp" />
     <ClCompile Include="game\mapchip\MapChip.cpp" />
     <ClCompile Include="game\player\actor\AttackController.cpp" />
@@ -511,6 +512,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\collision\Collider.h" />
     <ClInclude Include="game\collision\CollisionConfig.h" />
     <ClInclude Include="game\collision\CollisionManager.h" />
+    <ClInclude Include="game\effects\ScreenEffectDirector.h" />
     <ClInclude Include="game\enemy\actor\Enemy.h" />
     <ClInclude Include="game\mapchip\MapChip.h" />
     <ClInclude Include="game\player\actor\AttackController.h" />
@@ -592,6 +594,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </None>
     <None Include="resources\effects\hit_spark.json" />
     <None Include="resources\configs\gameText.json" />
+    <None Include="resources\configs\screenEffects.json" />
     <None Include="resources\levels\level_test.json" />
     <None Include="resources\projects\default.project.json" />
     <None Include="resources\projects\graphics_lab.project.json" />
