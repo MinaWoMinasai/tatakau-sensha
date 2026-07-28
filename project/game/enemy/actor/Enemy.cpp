@@ -1088,6 +1088,13 @@ bool Enemy::isFinished()
 	return false;
 }
 
+void Enemy::UpdateDefeatPresentation(float deltaTime)
+{
+	if (isExploding_) {
+		UpdateParticles((std::max)(0.0f, deltaTime));
+	}
+}
+
 void Enemy::SpawnParticles()
 {
 	Vector3 center = GetWorldPosition();

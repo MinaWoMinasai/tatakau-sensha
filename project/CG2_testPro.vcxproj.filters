@@ -258,6 +258,9 @@
     <ClCompile Include="game\scene\GameScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\effects\ScreenEffectDirector.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\scene\PlayerLabScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -533,6 +536,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\scene\GameScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\effects\ScreenEffectDirector.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\scene\PlayerLabScene.h">

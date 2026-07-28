@@ -1,11 +1,29 @@
 #include "WinApp.h"
 
+#include <algorithm>
+
 #pragma comment(lib, "winmm.lib")
 
 WinApp* WinApp::GetInstance()
 {
 	static WinApp instance;
 	return &instance;
+}
+
+int32_t WinApp::GetClientWidth() const
+{
+	RECT rect{};
+	return hwnd_ && GetClientRect(hwnd_, &rect)
+		? (std::max)(1L, rect.right - rect.left)
+		: kClientWidth;
+}
+
+int32_t WinApp::GetClientHeight() const
+{
+	RECT rect{};
+	return hwnd_ && GetClientRect(hwnd_, &rect)
+		? (std::max)(1L, rect.bottom - rect.top)
+		: kClientHeight;
 }
 
 LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -68,7 +86,7 @@ void WinApp::Initialize()
 	// ウィンドウの生成
 	hwnd_ = CreateWindow(
 		wc_.lpszClassName,
-		L"LE2C_25_ホリケ_ハヤト",
+		L"たたかうせんしゃ",
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,

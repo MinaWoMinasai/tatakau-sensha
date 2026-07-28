@@ -393,6 +393,7 @@ void Game::MainLoop() {
 		const auto engineUpdateStart = std::chrono::steady_clock::now();
         bloom_->Update();
 
+#ifdef USE_IMGUI
         if (input->IsPress(input->GetKey()[DIK_LSHIFT]) && input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
             if (Object3dCommon::GetInstance()->GetIsDebugCamera()) {
                 Object3dCommon::GetInstance()->SetIsDebugCamera(false);
@@ -400,6 +401,7 @@ void Game::MainLoop() {
                 Object3dCommon::GetInstance()->SetIsDebugCamera(true);
             }
         }
+#endif // USE_IMGUI
 
         Object3dCommon::GetInstance()->Update();
 		const float engineUpdateMs = elapsedMs(engineUpdateStart, std::chrono::steady_clock::now());
@@ -416,6 +418,7 @@ void Game::MainLoop() {
             postPulse.radius,
             postPulse.width,
             postPulse.strength);
+		bloom_->SetScreenEffectState(SceneManager::GetInstance()->GetScreenEffectState());
         
 		const auto imguiBuildStart = std::chrono::steady_clock::now();
 #ifdef USE_IMGUI
