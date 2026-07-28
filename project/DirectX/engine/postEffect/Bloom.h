@@ -19,6 +19,7 @@ public:
     void SetGaussianOverride(float intensity);
     void SetTransientPulse(float bloomBoost, float chromAbAmount, const Vector2& center,
         float radius, float width, float strength);
+	void SetScreenEffectState(const IScene::ScreenEffectState& state);
 
 private:
     // 便利関数：リソースバリアの切り替え
@@ -26,6 +27,8 @@ private:
     void UpdateFrameCameraParameters(bool advanceMotionHistory);
     void ApplyTemporalJitterToCameras();
     void ResetTemporalHistory();
+	void ComposeTransientEffects();
+	void CaptureScreenEffectBase();
 
 private:
     DirectXCommon* dxCommon_ = nullptr;
@@ -65,6 +68,9 @@ private:
     float baseChromAbAmount_ = 0.0f;
     float transientBloomBoost_ = 0.0f;
     float transientChromAbAmount_ = 0.0f;
+	IScene::PostEffectPulse transientPulse_{};
+	IScene::ScreenEffectState screenEffectState_{};
+	BloomParam screenEffectBaseParam_{};
     bool enableDepthOutline_ = true;
     bool enableDepthFog_ = false;
     bool enableSSAO_ = true;

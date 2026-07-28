@@ -41,6 +41,8 @@ public:
 
 	WNDCLASS GetWindowClass() { return wc_; };
 	HWND GetHwnd() { return hwnd_; }
+	int32_t GetClientWidth() const;
+	int32_t GetClientHeight() const;
 	bool IsActive() const { return isActive_; }
 	bool ConsumeActivationChanged();
 

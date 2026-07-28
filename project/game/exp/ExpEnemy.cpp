@@ -22,6 +22,7 @@ Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
 ExpEnemy::BalanceConfig ExpEnemy::balanceConfig_{};
 ExpEnemy::EnemyInteractionConfig ExpEnemy::enemyInteractionConfig_{};
 std::function<void(uint32_t)> ExpEnemy::enemyKillCallback_{};
+std::function<void(const Vector3&)> ExpEnemy::playerDefeatCallback_{};
 bool ExpEnemy::shapeNeonBillboardEnabled_ = false;
 int ExpEnemy::shapeNeonRenderMode_ = 0;
 
@@ -44,6 +45,11 @@ void ExpEnemy::SetEnemyInteractionConfig(const EnemyInteractionConfig& config)
 void ExpEnemy::SetEnemyKillCallback(std::function<void(uint32_t)> callback)
 {
     enemyKillCallback_ = std::move(callback);
+}
+
+void ExpEnemy::SetPlayerDefeatCallback(std::function<void(const Vector3&)> callback)
+{
+	playerDefeatCallback_ = std::move(callback);
 }
 
 void ExpEnemy::SetShapeNeonBillboardEnabled(bool enabled)
@@ -325,6 +331,9 @@ void ExpEnemy::OnCollision(Collider* other)
             }
         } else if (player_) {
             player_->AddExp(expValue_);
+			if (playerDefeatCallback_) {
+				playerDefeatCallback_(GetWorldPosition());
+			}
         }
     }
 
@@ -371,6 +380,9 @@ bool ExpEnemy::TakeDamageFromPlayer(uint32_t amount)
         if (player_) {
             player_->AddExp(expValue_);
         }
+		if (playerDefeatCallback_) {
+			playerDefeatCallback_(GetWorldPosition());
+		}
         return true;
     }
     return false;

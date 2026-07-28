@@ -213,6 +213,7 @@ public:
 	bool IsDead() const { return isDead_; }
 	int GetHp() const { return hp_; }
 	int GetMaxHp() const { return static_cast<int>(stats_.maxHp); }
+	void UpdateDefeatPresentation(float deltaTime);
 
 	bool IsOnGround() const { return isOnGround_; }
 	void SetOnGround(bool onGround) { isOnGround_ = onGround; }

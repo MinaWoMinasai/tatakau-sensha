@@ -1055,6 +1055,13 @@ bool Player::isFinished()
 	return false;
 }
 
+void Player::UpdateDefeatPresentation(float deltaTime)
+{
+	if (isExploding_) {
+		UpdateParticles((std::max)(0.0f, deltaTime));
+	}
+}
+
 int Player::GetNextLevelExp() const
 {
 	// 簡易的な計算式（必要に応じて調整）

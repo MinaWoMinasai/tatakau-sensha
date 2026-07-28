@@ -283,6 +283,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     baseBloomIntensity_ = bloomParam_.intensity;
     baseDistortionAmount_ = bloomParam_.distortionAmount;
     baseChromAbAmount_ = bloomParam_.chromAbAmount;
+	CaptureScreenEffectBase();
 
     bloomCB_->Update(bloomParam_);
 
@@ -609,13 +610,10 @@ void Bloom::Update() {
     bloomParam_.renderDebugMode = (enableMotionVector_ && bloomParam_.motionVectorScale < -0.5f)
         ? 15.0f
         : static_cast<float>(renderDebugMode_);
-    bloomParam_.intensity = baseBloomIntensity_ + transientBloomBoost_;
-    bloomParam_.distortionAmount = baseDistortionAmount_;
-    bloomParam_.chromAbAmount = baseChromAbAmount_ + transientChromAbAmount_;
-    const float manualGaussian = fullScreenSmoothingMode_ == 1 ? baseGaussianIntensity_ : 0.0f;
-    const float manualBox = fullScreenSmoothingMode_ == 2 ? baseFullScreenBoxBlurBlend_ : 0.0f;
-    bloomParam_.gaussianIntensity = (std::max)(manualGaussian, gaussianOverrideIntensity_);
-    bloomParam_.fullScreenBoxBlurBlend = manualBox;
+	if (!screenEffectState_.active) {
+		CaptureScreenEffectBase();
+	}
+	ComposeTransientEffects();
     bloomCB_->Update(bloomParam_);
     timer_ += SceneManager::GetInstance()->GetFinalDeltaTime();
     bloomParam_.timer = timer_;
@@ -713,15 +711,13 @@ void Bloom::ResetTemporalHistory() {
 
 void Bloom::SetGrayscaleEnabled(bool enabled) {
     forceGrayscale_ = enabled;
-    bloomParam_.isGrayscale = (manualGrayscale_ || forceGrayscale_) ? 1.0f : 0.0f;
+	ComposeTransientEffects();
     bloomCB_->Update(bloomParam_);
 }
 
 void Bloom::SetGaussianOverride(float intensity) {
     gaussianOverrideIntensity_ = (std::clamp)(intensity, 0.0f, 1.0f);
-    const float manualGaussian = fullScreenSmoothingMode_ == 1 ? baseGaussianIntensity_ : 0.0f;
-    bloomParam_.gaussianIntensity = (std::max)(manualGaussian, gaussianOverrideIntensity_);
-    bloomParam_.fullScreenBoxBlurBlend = fullScreenSmoothingMode_ == 2 ? baseFullScreenBoxBlurBlend_ : 0.0f;
+	ComposeTransientEffects();
     bloomCB_->Update(bloomParam_);
 }
 
@@ -732,16 +728,162 @@ void Bloom::SetTransientPulse(
     float radius,
     float width,
     float strength) {
+	transientPulse_.bloomBoost = (std::max)(0.0f, bloomBoost);
+	transientPulse_.chromAbAmount = (std::max)(0.0f, chromAbAmount);
+	transientPulse_.center = center;
+	transientPulse_.radius = (std::max)(0.0f, radius);
+	transientPulse_.width = (std::max)(0.001f, width);
+	transientPulse_.strength = (std::max)(0.0f, strength);
     transientBloomBoost_ = (std::max)(0.0f, bloomBoost);
     transientChromAbAmount_ = (std::max)(0.0f, chromAbAmount);
-    bloomParam_.intensity = baseBloomIntensity_ + transientBloomBoost_;
-    bloomParam_.distortionAmount = baseDistortionAmount_;
-    bloomParam_.chromAbAmount = baseChromAbAmount_ + transientChromAbAmount_;
-    bloomParam_.shockwaveCenter = center;
-    bloomParam_.shockwaveRadius = (std::max)(0.0f, radius);
-    bloomParam_.shockwaveWidth = (std::max)(0.001f, width);
-    bloomParam_.shockwaveStrength = (std::max)(0.0f, strength);
+	ComposeTransientEffects();
     bloomCB_->Update(bloomParam_);
+}
+
+void Bloom::SetScreenEffectState(const IScene::ScreenEffectState& state) {
+	const bool wasActive = screenEffectState_.active;
+	if (!wasActive) {
+		CaptureScreenEffectBase();
+	}
+	screenEffectState_ = state;
+	ComposeTransientEffects();
+	if (wasActive && !state.active) {
+		CaptureScreenEffectBase();
+	}
+	bloomCB_->Update(bloomParam_);
+}
+
+void Bloom::CaptureScreenEffectBase() {
+	screenEffectBaseParam_.vignetteIntensity = bloomParam_.vignetteIntensity;
+	screenEffectBaseParam_.vignetteScale = bloomParam_.vignetteScale;
+	screenEffectBaseParam_.noiseIntensity = bloomParam_.noiseIntensity;
+	screenEffectBaseParam_.scanlineIntensity = bloomParam_.scanlineIntensity;
+	screenEffectBaseParam_.scanlineFrequency = bloomParam_.scanlineFrequency;
+	screenEffectBaseParam_.glitchAmount = bloomParam_.glitchAmount;
+	screenEffectBaseParam_.boxBlurRadius = bloomParam_.boxBlurRadius;
+	screenEffectBaseParam_.radialBlurCenter = bloomParam_.radialBlurCenter;
+	screenEffectBaseParam_.radialBlurWidth = bloomParam_.radialBlurWidth;
+	screenEffectBaseParam_.radialBlurIntensity = bloomParam_.radialBlurIntensity;
+	screenEffectBaseParam_.randomIntensity = bloomParam_.randomIntensity;
+	screenEffectBaseParam_.randomScale = bloomParam_.randomScale;
+	screenEffectBaseParam_.randomTimeScale = bloomParam_.randomTimeScale;
+	screenEffectBaseParam_.exposure = bloomParam_.exposure;
+	screenEffectBaseParam_.outlineWidth = bloomParam_.outlineWidth;
+	screenEffectBaseParam_.outlineThreshold = bloomParam_.outlineThreshold;
+	screenEffectBaseParam_.outlineColor = bloomParam_.outlineColor;
+	screenEffectBaseParam_.depthOutlineEnabled = bloomParam_.depthOutlineEnabled;
+	screenEffectBaseParam_.depthOutlineScale = bloomParam_.depthOutlineScale;
+}
+
+void Bloom::ComposeTransientEffects() {
+	const BloomParam& effect = screenEffectState_.param;
+	const BloomParam& base = screenEffectBaseParam_;
+
+	bloomParam_.intensity = (std::clamp)(
+		baseBloomIntensity_ + transientBloomBoost_ + (screenEffectState_.active ? effect.intensity : 0.0f),
+		0.0f,
+		4.0f);
+	bloomParam_.distortionAmount = baseDistortionAmount_;
+	bloomParam_.chromAbAmount = (std::clamp)(
+		baseChromAbAmount_ + transientChromAbAmount_ +
+			(screenEffectState_.active ? effect.chromAbAmount : 0.0f),
+		0.0f,
+		0.20f);
+	bloomParam_.isGrayscale =
+		(manualGrayscale_ || forceGrayscale_ ||
+			(screenEffectState_.active && effect.isGrayscale > 0.5f))
+		? 1.0f
+		: 0.0f;
+
+	bloomParam_.vignetteIntensity = screenEffectState_.active
+		? (std::max)(base.vignetteIntensity, effect.vignetteIntensity)
+		: base.vignetteIntensity;
+	bloomParam_.vignetteScale = screenEffectState_.active
+		? (std::max)(base.vignetteScale, effect.vignetteScale)
+		: base.vignetteScale;
+	bloomParam_.noiseIntensity = screenEffectState_.active
+		? (std::max)(base.noiseIntensity, effect.noiseIntensity)
+		: base.noiseIntensity;
+	bloomParam_.scanlineIntensity = screenEffectState_.active
+		? (std::max)(base.scanlineIntensity, effect.scanlineIntensity)
+		: base.scanlineIntensity;
+	bloomParam_.scanlineFrequency =
+		screenEffectState_.active && effect.scanlineIntensity > 0.0f
+		? (std::max)(base.scanlineFrequency, effect.scanlineFrequency)
+		: base.scanlineFrequency;
+	bloomParam_.glitchAmount = screenEffectState_.active
+		? (std::max)(base.glitchAmount, effect.glitchAmount)
+		: base.glitchAmount;
+
+	const float manualGaussian = fullScreenSmoothingMode_ == 1 ? baseGaussianIntensity_ : 0.0f;
+	const float manualBox = fullScreenSmoothingMode_ == 2 ? baseFullScreenBoxBlurBlend_ : 0.0f;
+	bloomParam_.gaussianIntensity = (std::max)(
+		(std::max)(manualGaussian, gaussianOverrideIntensity_),
+		screenEffectState_.active ? effect.gaussianIntensity : 0.0f);
+	bloomParam_.fullScreenBoxBlurBlend = (std::max)(
+		manualBox,
+		screenEffectState_.active ? effect.fullScreenBoxBlurBlend : 0.0f);
+	bloomParam_.boxBlurRadius =
+		screenEffectState_.active && effect.fullScreenBoxBlurBlend > 0.0f
+		? (std::max)(base.boxBlurRadius, effect.boxBlurRadius)
+		: base.boxBlurRadius;
+
+	bloomParam_.radialBlurCenter =
+		screenEffectState_.active && effect.radialBlurIntensity > base.radialBlurIntensity
+		? effect.radialBlurCenter
+		: base.radialBlurCenter;
+	bloomParam_.radialBlurWidth =
+		screenEffectState_.active
+		? (std::max)(base.radialBlurWidth, effect.radialBlurWidth)
+		: base.radialBlurWidth;
+	bloomParam_.radialBlurIntensity =
+		screenEffectState_.active
+		? (std::max)(base.radialBlurIntensity, effect.radialBlurIntensity)
+		: base.radialBlurIntensity;
+	bloomParam_.randomIntensity =
+		screenEffectState_.active
+		? (std::max)(base.randomIntensity, effect.randomIntensity)
+		: base.randomIntensity;
+	bloomParam_.randomScale =
+		screenEffectState_.active && effect.randomIntensity > 0.0f
+		? (std::max)(base.randomScale, effect.randomScale)
+		: base.randomScale;
+	bloomParam_.randomTimeScale =
+		screenEffectState_.active && effect.randomIntensity > 0.0f
+		? (std::max)(base.randomTimeScale, effect.randomTimeScale)
+		: base.randomTimeScale;
+	bloomParam_.exposure = (std::clamp)(
+		base.exposure + (screenEffectState_.active ? effect.exposure : 0.0f),
+		0.05f,
+		4.0f);
+	if (screenEffectState_.active && effect.outlineWidth > 0.0f) {
+		bloomParam_.outlineWidth = effect.outlineWidth;
+		bloomParam_.outlineThreshold = effect.outlineThreshold;
+		bloomParam_.outlineColor = effect.outlineColor;
+		bloomParam_.depthOutlineEnabled = effect.depthOutlineEnabled;
+		bloomParam_.depthOutlineScale = effect.depthOutlineScale;
+	} else {
+		bloomParam_.outlineWidth = base.outlineWidth;
+		bloomParam_.outlineThreshold = base.outlineThreshold;
+		bloomParam_.outlineColor = base.outlineColor;
+		bloomParam_.depthOutlineEnabled = base.depthOutlineEnabled;
+		bloomParam_.depthOutlineScale = base.depthOutlineScale;
+	}
+
+	const bool useScreenShockwave =
+		screenEffectState_.active &&
+		effect.shockwaveStrength >= transientPulse_.strength;
+	if (useScreenShockwave) {
+		bloomParam_.shockwaveCenter = effect.shockwaveCenter;
+		bloomParam_.shockwaveRadius = effect.shockwaveRadius;
+		bloomParam_.shockwaveWidth = (std::max)(0.001f, effect.shockwaveWidth);
+		bloomParam_.shockwaveStrength = (std::max)(0.0f, effect.shockwaveStrength);
+	} else {
+		bloomParam_.shockwaveCenter = transientPulse_.center;
+		bloomParam_.shockwaveRadius = transientPulse_.radius;
+		bloomParam_.shockwaveWidth = transientPulse_.width;
+		bloomParam_.shockwaveStrength = transientPulse_.strength;
+	}
 }
 
 void Bloom::PreDraw() {
