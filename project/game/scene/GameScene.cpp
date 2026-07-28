@@ -923,7 +923,7 @@ void GameScene::Update() {
 		UpdateLevelItems();
 
 		player_->SetDebugNoDamage(debugPlayerNoDamage_);
-		player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime);
+		player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime, baseDeltaTime);
 		for (const Player::LaserShotEvent& event : player_->ConsumeLaserShotEvents()) {
 			SpawnPlayerLaser(event);
 		}
@@ -1143,12 +1143,13 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 	}
 	previousDashing_ = dashing;
 
-	const bool upgradeMenuOpen = player_->IsChangeMode();
-	if (previousUpgradeMenuOpen_ && !upgradeMenuOpen) {
+	if (player_->ConsumeEvolutionConfirmed()) {
 		screenEffectDirector_.TriggerUpgradeConfirmed(WorldToScreenUv(player_->GetWorldPosition()));
 		SetEventCallout("EVOLUTION COMPLETE", 0.75f);
 	}
-	previousUpgradeMenuOpen_ = upgradeMenuOpen;
+	if (player_->ConsumeEvolutionCancelled()) {
+		SetEventCallout("EVOLUTION CANCELLED", 0.45f);
+	}
 
 	if (!bossEntryTriggered_ && phase_ == Phase::kMain && playTime_ >= 1.25f) {
 		bossEntryTriggered_ = true;
@@ -4144,6 +4145,8 @@ void GameScene::DrawGameSceneDebugImGui()
 			ImGui::Separator();
 			if (player_) {
 				player_->DrawUpgradeHudDebugImGui();
+				ImGui::Separator();
+				player_->DrawEvolutionUiStyleEditor();
 				ImGui::Separator();
 			}
 			if (ImGui::CollapsingHeader("ネオングリッド", ImGuiTreeNodeFlags_DefaultOpen)) {

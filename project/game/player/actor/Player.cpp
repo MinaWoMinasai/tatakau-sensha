@@ -250,6 +250,46 @@ const std::array<const char*, 7>& UpgradeHudNames()
 	return names;
 }
 
+struct StaticEvolutionCandidateCopy {
+	const char* id;
+	const char* name;
+	const char* role;
+	std::array<const char*, 3> deltas;
+	const char* ability;
+	ClassType type;
+};
+
+const std::array<StaticEvolutionCandidateCopy, 3>& StaticEvolutionCandidates()
+{
+	static const std::array<StaticEvolutionCandidateCopy, 3> candidates = {{
+		{
+			"Twin",
+			"TWIN",
+			"役割: 高精度連射の万能型",
+			{ "砲身  1 → 2", "発射間隔  -60%", "拡散角  10° → 2°" },
+			"固有能力: 2門の砲身から交互に射撃",
+			ClassType::Twin
+		},
+		{
+			"MachineGun",
+			"MACHINE GUN",
+			"役割: 弾幕で押す近中距離制圧型",
+			{ "連射速度  +67%", "発射間隔  -40%", "拡散角  10° → 30°" },
+			"固有能力: 高速連射による継続的な弾幕",
+			ClassType::MachineGun
+		},
+		{
+			"Overseer",
+			"OVERSEER",
+			"役割: ドローンを操る支援制圧型",
+			{ "攻撃方式  弾 → ドローン", "最大展開数  0 → 32", "反動  0.01 → 0" },
+			"固有能力: 最大32機の自律ドローン",
+			ClassType::Overseer
+		}
+	}};
+	return candidates;
+}
+
 void SetLabel(std::unique_ptr<TextLabel>& label, SpriteCommon* spriteCommon, const std::string& text, const Vector2& position, const TextStyle& style)
 {
 	if (!label) {
@@ -612,13 +652,20 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	machineGunBtnSprite_->SetSize({ btnSize_ });
 
 	InitializeEncyclopedia();
+	LoadEvolutionUiStyle();
+	InitializeStaticEvolutionPrototype();
 	InitializeUpgradeHud();
 	LoadUpgradeHudConfig();
 	ApplyUpgradeHudLayout();
 
 }
 
-void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletManager, float deltaTime)
+void Player::Update(
+	Camera* viewProjection,
+	Stage& stage,
+	BulletManager* BulletManager,
+	float deltaTime,
+	float uiDeltaTime)
 {
 	sprite->Update();
 
@@ -626,11 +673,16 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 	GetCursorPos(&mousePos);
 	ScreenToClient(WinApp::GetInstance()->GetHwnd(), &mousePos);
 	mousePosition_ = { static_cast<float>(mousePos.x), static_cast<float>(mousePos.y) };
-	UpdateEncyclopedia();
+	UpdateEncyclopedia(uiDeltaTime);
 	UpdateUpgradeHud();
 
 	if (input_->IsTrigger(input_->GetKey()[DIK_C], input_->GetPreKey()[DIK_C])) {
-		isChangeMode = !isChangeMode;
+		if (isChangeMode) {
+			isChangeMode = false;
+			evolutionCancelledEvent_ = true;
+		} else {
+			isChangeMode = true;
+		}
 	}
 
 	if (skillPoints_ > 0) {
@@ -1192,6 +1244,54 @@ void Player::EvolveById(const std::string& classId)
 	UpdateBarrelLayout();
 
 	isChangeMode = false;
+}
+
+bool Player::CanEvolveTo(const std::string& classId) const
+{
+	const PlayerClassConfig* currentConfig = GetCurrentClassConfig();
+	const PlayerClassConfig* targetConfig = GetClassConfig(classId);
+	if (!currentConfig || !targetConfig || targetConfig->id == currentConfig->id) {
+		return false;
+	}
+
+	const int currentRank = GetRankFromLevel(level_);
+	if (currentRank < targetConfig->requiredRank) {
+		return false;
+	}
+
+	if (currentConfig->id == "Basic") {
+		return targetConfig->id == "Twin" ||
+			targetConfig->id == "MachineGun" ||
+			targetConfig->id == "Overseer";
+	}
+
+	// 上位ランクは個別の分岐定義がまだないため、少なくとも一段上の
+	// ランクへ進む場合だけを進化として扱う。
+	return targetConfig->requiredRank == currentConfig->requiredRank + 1;
+}
+
+bool Player::TryConfirmEvolutionById(const std::string& classId)
+{
+	if (!CanEvolveTo(classId)) {
+		return false;
+	}
+	EvolveById(classId);
+	evolutionConfirmedEvent_ = true;
+	return true;
+}
+
+bool Player::ConsumeEvolutionConfirmed()
+{
+	const bool confirmed = evolutionConfirmedEvent_;
+	evolutionConfirmedEvent_ = false;
+	return confirmed;
+}
+
+bool Player::ConsumeEvolutionCancelled()
+{
+	const bool cancelled = evolutionCancelledEvent_;
+	evolutionCancelledEvent_ = false;
+	return cancelled;
 }
 
 void Player::LoadPlayerClassConfigs(const std::string& path)
@@ -2530,6 +2630,866 @@ void Player::DrawUpgradeHudDebugImGui()
 #endif
 }
 
+bool Player::ShouldUseStaticEvolutionPrototype() const
+{
+	return evolutionUiStyle_.enabled && currentClassId_ == "Basic";
+}
+
+float Player::GetEvolutionRenderScale() const
+{
+	const float virtualWidth = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.x);
+	const float virtualHeight = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.y);
+	const float clientWidth = static_cast<float>(WinApp::GetInstance()->GetClientWidth());
+	const float clientHeight = static_cast<float>(WinApp::GetInstance()->GetClientHeight());
+	return (std::min)(
+		clientWidth / virtualWidth,
+		clientHeight / virtualHeight);
+}
+
+Vector2 Player::GetEvolutionRenderOffset() const
+{
+	const float scale = GetEvolutionRenderScale();
+	const float clientWidth = static_cast<float>(WinApp::GetInstance()->GetClientWidth());
+	const float clientHeight = static_cast<float>(WinApp::GetInstance()->GetClientHeight());
+	return {
+		(clientWidth - evolutionUiStyle_.virtualResolution.x * scale) * 0.5f,
+		(clientHeight - evolutionUiStyle_.virtualResolution.y * scale) * 0.5f
+	};
+}
+
+Vector2 Player::EvolutionAnchorToVirtual(const Vector2& normalizedAnchor) const
+{
+	const float safe = (std::clamp)(
+		evolutionUiStyle_.safeMargin,
+		0.0f,
+		(std::min)(evolutionUiStyle_.virtualResolution.x, evolutionUiStyle_.virtualResolution.y) * 0.45f);
+	const Vector2 usable = {
+		(std::max)(1.0f, evolutionUiStyle_.virtualResolution.x - safe * 2.0f),
+		(std::max)(1.0f, evolutionUiStyle_.virtualResolution.y - safe * 2.0f)
+	};
+	return {
+		safe + (std::clamp)(normalizedAnchor.x, 0.0f, 1.0f) * usable.x,
+		safe + (std::clamp)(normalizedAnchor.y, 0.0f, 1.0f) * usable.y
+	};
+}
+
+Vector2 Player::EvolutionVirtualToRender(const Vector2& virtualPosition) const
+{
+	const float scale = GetEvolutionRenderScale();
+	const Vector2 offset = GetEvolutionRenderOffset();
+	return { offset.x + virtualPosition.x * scale, offset.y + virtualPosition.y * scale };
+}
+
+Vector2 Player::EvolutionClientToVirtual(const Vector2& clientPosition) const
+{
+	const float clientWidth = static_cast<float>(WinApp::GetInstance()->GetClientWidth());
+	const float clientHeight = static_cast<float>(WinApp::GetInstance()->GetClientHeight());
+	const float virtualWidth = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.x);
+	const float virtualHeight = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.y);
+	const float scale = (std::max)(0.0001f, (std::min)(clientWidth / virtualWidth, clientHeight / virtualHeight));
+	const Vector2 offset = {
+		(clientWidth - virtualWidth * scale) * 0.5f,
+		(clientHeight - virtualHeight * scale) * 0.5f
+	};
+	return {
+		(clientPosition.x - offset.x) / scale,
+		(clientPosition.y - offset.y) / scale
+	};
+}
+
+void Player::InitializeStaticEvolutionPrototype()
+{
+	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
+	auto makeSprite = [spriteCommon](const std::string& texture, const Vector2& anchor) {
+		auto sprite = std::make_unique<Sprite>();
+		sprite->Initialize(spriteCommon, texture);
+		sprite->SetAnchorPoint(anchor);
+		return sprite;
+	};
+
+	staticEvolutionBackdropSprite_ = makeSprite("resources/white512x512.png", { 0.0f, 0.0f });
+	staticEvolutionDetailPanelSprite_ = makeSprite("resources/white512x512.png", { 0.5f, 0.5f });
+	staticEvolutionConfirmButtonSprite_ = makeSprite("resources/white512x512.png", { 0.5f, 0.5f });
+	for (int i = 0; i < 4; ++i) {
+		staticEvolutionNodeGlowSprites_[i] = makeSprite("resources/white512x512.png", { 0.5f, 0.5f });
+		staticEvolutionNodePanelSprites_[i] = makeSprite("resources/white512x512.png", { 0.5f, 0.5f });
+	}
+	staticEvolutionTankSprites_[0] = makeSprite(ClassTexturePath(ClassType::Basic), { 0.5f, 0.5f });
+	const auto& candidates = StaticEvolutionCandidates();
+	for (int i = 0; i < 3; ++i) {
+		staticEvolutionTankSprites_[i + 1] = makeSprite(ClassTexturePath(candidates[i].type), { 0.5f, 0.5f });
+	}
+	for (auto& line : staticEvolutionCircuitSprites_) {
+		line = makeSprite("resources/white512x512.png", { 0.0f, 0.5f });
+	}
+
+	UpdateStaticEvolutionPrototype();
+}
+
+void Player::UpdateStaticEvolutionPrototype()
+{
+	if (!staticEvolutionBackdropSprite_) {
+		return;
+	}
+
+	evolutionUiStyle_.fixedSelectedCandidate =
+		(std::clamp)(evolutionUiStyle_.fixedSelectedCandidate, 0, 2);
+	const float renderScale = GetEvolutionRenderScale();
+	const Vector2 renderOffset = GetEvolutionRenderOffset();
+	const Vector2 mouseVirtual = EvolutionClientToVirtual(mousePosition_);
+
+	for (int i = 0; i < 4; ++i) {
+		staticEvolutionNodeCentersVirtual_[i] = EvolutionAnchorToVirtual(evolutionUiStyle_.nodeAnchors[i]);
+		const Vector2 baseSize = i == 0
+			? evolutionUiStyle_.currentNodeSize
+			: evolutionUiStyle_.candidateNodeSize;
+		staticEvolutionNodeHitSizesVirtual_[i] = { baseSize.x + 16.0f, baseSize.y + 16.0f };
+	}
+
+	staticEvolutionHoveredNode_ = -1;
+	for (int i = 1; i < 4; ++i) {
+		const Vector2 center = staticEvolutionNodeCentersVirtual_[i];
+		const Vector2 hitSize = staticEvolutionNodeHitSizesVirtual_[i];
+		if (mouseVirtual.x >= center.x - hitSize.x * 0.5f &&
+			mouseVirtual.x <= center.x + hitSize.x * 0.5f &&
+			mouseVirtual.y >= center.y - hitSize.y * 0.5f &&
+			mouseVirtual.y <= center.y + hitSize.y * 0.5f) {
+			staticEvolutionHoveredNode_ = i;
+			break;
+		}
+	}
+
+	staticEvolutionBackdropSprite_->SetPosition({ 0.0f, 0.0f });
+	staticEvolutionBackdropSprite_->SetSize({
+		static_cast<float>(WinApp::GetInstance()->GetClientWidth()),
+		static_cast<float>(WinApp::GetInstance()->GetClientHeight())
+	});
+	staticEvolutionBackdropSprite_->SetColor({ 0.005f, 0.012f, 0.025f, evolutionUiStyle_.backgroundDimOpacity });
+	staticEvolutionBackdropSprite_->Update();
+
+	const int currentRank = GetRankFromLevel(level_);
+	const auto& candidates = StaticEvolutionCandidates();
+	for (int i = 0; i < 4; ++i) {
+		const bool selected = i > 0 && i - 1 == evolutionUiStyle_.fixedSelectedCandidate;
+		const bool hovered = i == staticEvolutionHoveredNode_;
+		const PlayerClassConfig* candidateConfig = i > 0 ? GetClassConfig(candidates[i - 1].id) : nullptr;
+		const bool locked = candidateConfig && currentRank < candidateConfig->requiredRank;
+		float stateScale = evolutionUiStyle_.normalScale;
+		if (selected) {
+			stateScale = evolutionUiStyle_.selectedScale;
+		} else if (hovered) {
+			stateScale = evolutionUiStyle_.hoverScale;
+		}
+		const Vector2 baseSize = i == 0
+			? evolutionUiStyle_.currentNodeSize
+			: evolutionUiStyle_.candidateNodeSize;
+		const Vector2 drawSize = {
+			(std::max)(1.0f, baseSize.x * stateScale),
+			(std::max)(1.0f, baseSize.y * stateScale)
+		};
+		staticEvolutionNodeDrawSizesVirtual_[i] = drawSize;
+
+		Vector4 stateColor = i == 0 ? evolutionUiStyle_.availableColor : evolutionUiStyle_.normalColor;
+		if (locked) {
+			stateColor = evolutionUiStyle_.lockedColor;
+		} else if (selected) {
+			stateColor = evolutionUiStyle_.selectedColor;
+		} else if (hovered) {
+			stateColor = evolutionUiStyle_.hoverColor;
+		} else if (i > 0) {
+			stateColor = evolutionUiStyle_.availableColor;
+		}
+
+		const Vector2 renderCenter = EvolutionVirtualToRender(staticEvolutionNodeCentersVirtual_[i]);
+		const Vector2 renderSize = { drawSize.x * renderScale, drawSize.y * renderScale };
+		Vector4 glowColor = stateColor;
+		glowColor.w *= selected ? 0.30f : hovered ? 0.22f : 0.12f;
+		staticEvolutionNodeGlowSprites_[i]->SetPosition(renderCenter);
+		staticEvolutionNodeGlowSprites_[i]->SetSize({ renderSize.x + 18.0f * renderScale, renderSize.y + 18.0f * renderScale });
+		staticEvolutionNodeGlowSprites_[i]->SetColor(glowColor);
+		staticEvolutionNodeGlowSprites_[i]->Update();
+
+		const float panelMix = selected ? 0.34f : hovered ? 0.26f : 0.16f;
+		Vector4 panelColor = LerpColor(evolutionUiStyle_.panelColor, stateColor, panelMix);
+		panelColor.w = evolutionUiStyle_.panelColor.w;
+		staticEvolutionNodePanelSprites_[i]->SetPosition(renderCenter);
+		staticEvolutionNodePanelSprites_[i]->SetSize(renderSize);
+		staticEvolutionNodePanelSprites_[i]->SetColor(panelColor);
+		staticEvolutionNodePanelSprites_[i]->Update();
+
+		staticEvolutionTankSprites_[i]->SetPosition({
+			renderCenter.x,
+			renderCenter.y - 23.0f * renderScale
+		});
+		staticEvolutionTankSprites_[i]->SetSize({
+			(i == 0 ? 118.0f : 100.0f) * stateScale * renderScale,
+			(i == 0 ? 40.0f : 34.0f) * stateScale * renderScale
+		});
+		staticEvolutionTankSprites_[i]->SetColor(
+			locked
+				? Vector4{ 0.30f, 0.34f, 0.38f, 0.60f }
+				: Vector4{ 1.0f, 1.0f, 1.0f, selected ? 1.0f : 0.90f });
+		staticEvolutionTankSprites_[i]->Update();
+	}
+
+	const Vector2 panelCenterVirtual = EvolutionAnchorToVirtual(evolutionUiStyle_.detailPanelAnchor);
+	staticEvolutionDetailPanelSprite_->SetPosition(EvolutionVirtualToRender(panelCenterVirtual));
+	staticEvolutionDetailPanelSprite_->SetSize({
+		evolutionUiStyle_.detailPanelSize.x * renderScale,
+		evolutionUiStyle_.detailPanelSize.y * renderScale
+	});
+	staticEvolutionDetailPanelSprite_->SetColor(evolutionUiStyle_.panelColor);
+	staticEvolutionDetailPanelSprite_->Update();
+
+	const Vector2 buttonCenterVirtual = {
+		panelCenterVirtual.x + evolutionUiStyle_.detailPanelSize.x * 0.405f,
+		panelCenterVirtual.y
+	};
+	staticEvolutionConfirmButtonSprite_->SetPosition(EvolutionVirtualToRender(buttonCenterVirtual));
+	staticEvolutionConfirmButtonSprite_->SetSize({
+		evolutionUiStyle_.confirmButtonSize.x * renderScale,
+		evolutionUiStyle_.confirmButtonSize.y * renderScale
+	});
+	Vector4 buttonColor = evolutionUiStyle_.selectedColor;
+	buttonColor.w = 0.78f;
+	staticEvolutionConfirmButtonSprite_->SetColor(buttonColor);
+	staticEvolutionConfirmButtonSprite_->Update();
+
+	UpdateStaticEvolutionCircuit();
+	UpdateStaticEvolutionText();
+	(void)renderOffset;
+}
+
+void Player::UpdateStaticEvolutionCircuit()
+{
+	const Vector2 current = staticEvolutionNodeCentersVirtual_[0];
+	for (int i = 0; i < 2; ++i) {
+		const Vector2 target = staticEvolutionNodeCentersVirtual_[i + 1];
+		const float middleY = (current.y + target.y) * 0.5f;
+		staticEvolutionCircuitControlPoints_[i] = {{
+			current,
+			{ current.x, middleY },
+			{ target.x, middleY },
+			target
+		}};
+		staticEvolutionCircuitControlPointCounts_[i] = 4;
+	}
+	staticEvolutionCircuitControlPoints_[2] = {{
+		current,
+		staticEvolutionNodeCentersVirtual_[3],
+		staticEvolutionNodeCentersVirtual_[3],
+		staticEvolutionNodeCentersVirtual_[3]
+	}};
+	staticEvolutionCircuitControlPointCounts_[2] = 2;
+
+	const auto& candidates = StaticEvolutionCandidates();
+	const int currentRank = GetRankFromLevel(level_);
+	const float renderScale = GetEvolutionRenderScale();
+	size_t spriteIndex = 0;
+	auto setLine = [&](Sprite* sprite, const Vector2& a, const Vector2& b, float width, const Vector4& color) {
+		const Vector2 renderA = EvolutionVirtualToRender(a);
+		const Vector2 renderB = EvolutionVirtualToRender(b);
+		const float dx = renderB.x - renderA.x;
+		const float dy = renderB.y - renderA.y;
+		const float length = std::sqrt(dx * dx + dy * dy);
+		sprite->SetPosition(renderA);
+		sprite->SetRotation(std::atan2(dy, dx));
+		sprite->SetSize({ length, (std::max)(0.5f, width * renderScale) });
+		sprite->SetColor(color);
+		sprite->Update();
+	};
+
+	for (int pathIndex = 0; pathIndex < 3; ++pathIndex) {
+		const bool selected = pathIndex == evolutionUiStyle_.fixedSelectedCandidate;
+		const bool hovered = pathIndex + 1 == staticEvolutionHoveredNode_;
+		const PlayerClassConfig* config = GetClassConfig(candidates[pathIndex].id);
+		const bool locked = config && currentRank < config->requiredRank;
+		Vector4 routeColor = evolutionUiStyle_.availableColor;
+		float brightness = 0.52f;
+		if (locked) {
+			routeColor = evolutionUiStyle_.lockedColor;
+			brightness = 0.20f;
+		} else if (selected) {
+			routeColor = evolutionUiStyle_.selectedColor;
+			brightness = 1.0f;
+		} else if (hovered) {
+			routeColor = evolutionUiStyle_.hoverColor;
+			brightness = 0.82f;
+		}
+
+		const int count = staticEvolutionCircuitControlPointCounts_[pathIndex];
+		for (int pointIndex = 0; pointIndex + 1 < count; ++pointIndex) {
+			const Vector2 a = staticEvolutionCircuitControlPoints_[pathIndex][pointIndex];
+			const Vector2 b = staticEvolutionCircuitControlPoints_[pathIndex][pointIndex + 1];
+			Vector4 outer = routeColor;
+			Vector4 middle = routeColor;
+			Vector4 core = routeColor;
+			const float opacity = evolutionUiStyle_.circuitOpacity * brightness;
+			outer.w = opacity * evolutionUiStyle_.circuitOuterAlpha;
+			middle.w = opacity * evolutionUiStyle_.circuitMiddleAlpha;
+			core.w = opacity * evolutionUiStyle_.circuitCoreAlpha;
+			if (spriteIndex + 2 < staticEvolutionCircuitSprites_.size()) {
+				setLine(staticEvolutionCircuitSprites_[spriteIndex++].get(), a, b, evolutionUiStyle_.circuitOuterGlowWidth, outer);
+				setLine(staticEvolutionCircuitSprites_[spriteIndex++].get(), a, b, evolutionUiStyle_.circuitMiddleGlowWidth, middle);
+				setLine(staticEvolutionCircuitSprites_[spriteIndex++].get(), a, b, evolutionUiStyle_.circuitCoreWidth, core);
+			}
+		}
+	}
+	while (spriteIndex < staticEvolutionCircuitSprites_.size()) {
+		Sprite* sprite = staticEvolutionCircuitSprites_[spriteIndex++].get();
+		sprite->SetSize({ 0.0f, 0.0f });
+		sprite->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+		sprite->Update();
+	}
+}
+
+void Player::UpdateStaticEvolutionText()
+{
+	const float renderScale = GetEvolutionRenderScale();
+	const float safe = evolutionUiStyle_.safeMargin;
+	const auto makeStyle = [&](float size, const Vector4& color) {
+		TextStyle style{};
+		style.fontFamily = evolutionUiStyle_.fontFamily;
+		style.fontSize = (std::max)(8.0f, size * renderScale);
+		style.color = color;
+		style.outlineColor = evolutionUiStyle_.textOutlineColor;
+		style.outlineThickness = (std::max)(0.0f, evolutionUiStyle_.textOutlineWidth * renderScale);
+		style.padding = 6.0f * renderScale;
+		return style;
+	};
+
+	const TextStyle titleStyle = makeStyle(evolutionUiStyle_.titleFontSize, evolutionUiStyle_.titleTextColor);
+	const TextStyle classStyle = makeStyle(evolutionUiStyle_.classNameFontSize, evolutionUiStyle_.classTextColor);
+	const TextStyle bodyStyle = makeStyle(evolutionUiStyle_.bodyFontSize, evolutionUiStyle_.bodyTextColor);
+	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
+
+	SetLabel(
+		staticEvolutionTitleLabel_,
+		spriteCommon,
+		"EVOLUTION CIRCUIT // BASIC BRANCH",
+		EvolutionVirtualToRender({ safe, safe * 0.62f }),
+		titleStyle);
+	SetLabel(
+		staticEvolutionPrototypeLabel_,
+		spriteCommon,
+		"STATIC VISUAL PROTOTYPE",
+		EvolutionVirtualToRender({ evolutionUiStyle_.virtualResolution.x - safe, safe * 0.72f }),
+		bodyStyle);
+	staticEvolutionPrototypeLabel_->SetAnchorPoint({ 1.0f, 0.0f });
+
+	const std::array<const char*, 4> names = { "BASIC", "TWIN", "MACHINE GUN", "OVERSEER" };
+	const auto& candidates = StaticEvolutionCandidates();
+	const int currentRank = GetRankFromLevel(level_);
+	for (int i = 0; i < 4; ++i) {
+		const bool selected = i > 0 && i - 1 == evolutionUiStyle_.fixedSelectedCandidate;
+		const bool hovered = i == staticEvolutionHoveredNode_;
+		const PlayerClassConfig* config = i > 0 ? GetClassConfig(candidates[i - 1].id) : nullptr;
+		const bool locked = config && currentRank < config->requiredRank;
+		Vector4 textColor = evolutionUiStyle_.classTextColor;
+		if (locked) {
+			textColor = evolutionUiStyle_.lockedColor;
+			textColor.w = 1.0f;
+		} else if (selected) {
+			textColor = evolutionUiStyle_.selectedColor;
+		} else if (hovered) {
+			textColor = evolutionUiStyle_.hoverColor;
+		}
+		TextStyle nodeClassStyle = makeStyle(evolutionUiStyle_.classNameFontSize, textColor);
+		TextStyle nodeRankStyle = makeStyle(evolutionUiStyle_.bodyFontSize * 0.76f, evolutionUiStyle_.bodyTextColor);
+		const Vector2 center = staticEvolutionNodeCentersVirtual_[i];
+		SetLabel(
+			staticEvolutionNodeNameLabels_[i],
+			spriteCommon,
+			names[i],
+			EvolutionVirtualToRender({ center.x, center.y + 8.0f }),
+			nodeClassStyle);
+		staticEvolutionNodeNameLabels_[i]->SetAnchorPoint({ 0.5f, 0.5f });
+		std::string rankText = i == 0 ? "CURRENT CLASS" : locked ? "LOCKED // RANK 2" : selected ? "SELECTED // RANK 2" : "AVAILABLE // RANK 2";
+		SetLabel(
+			staticEvolutionNodeRankLabels_[i],
+			spriteCommon,
+			rankText,
+			EvolutionVirtualToRender({ center.x, center.y + 36.0f }),
+			nodeRankStyle);
+		staticEvolutionNodeRankLabels_[i]->SetAnchorPoint({ 0.5f, 0.5f });
+	}
+
+	const StaticEvolutionCandidateCopy& selected =
+		candidates[static_cast<size_t>(evolutionUiStyle_.fixedSelectedCandidate)];
+	const Vector2 panelCenter = EvolutionAnchorToVirtual(evolutionUiStyle_.detailPanelAnchor);
+	const Vector2 panelTopLeft = {
+		panelCenter.x - evolutionUiStyle_.detailPanelSize.x * 0.5f,
+		panelCenter.y - evolutionUiStyle_.detailPanelSize.y * 0.5f
+	};
+	SetLabel(
+		staticEvolutionDetailClassLabel_,
+		spriteCommon,
+		selected.name,
+		EvolutionVirtualToRender({ panelTopLeft.x + 24.0f, panelTopLeft.y + 12.0f }),
+		classStyle);
+	SetLabel(
+		staticEvolutionRoleLabel_,
+		spriteCommon,
+		selected.role,
+		EvolutionVirtualToRender({ panelTopLeft.x + 24.0f, panelTopLeft.y + 56.0f }),
+		bodyStyle);
+	for (int i = 0; i < 3; ++i) {
+		SetLabel(
+			staticEvolutionDeltaLabels_[i],
+			spriteCommon,
+			selected.deltas[i],
+			EvolutionVirtualToRender({ panelTopLeft.x + 330.0f, panelTopLeft.y + 12.0f + static_cast<float>(i) * 30.0f }),
+			bodyStyle);
+	}
+	SetLabel(
+		staticEvolutionAbilityLabel_,
+		spriteCommon,
+		selected.ability,
+		EvolutionVirtualToRender({ panelTopLeft.x + 635.0f, panelTopLeft.y + 22.0f }),
+		bodyStyle);
+	const Vector2 buttonCenter = {
+		panelCenter.x + evolutionUiStyle_.detailPanelSize.x * 0.405f,
+		panelCenter.y
+	};
+	TextStyle buttonStyle = makeStyle(evolutionUiStyle_.bodyFontSize, { 0.02f, 0.09f, 0.04f, 1.0f });
+	SetLabel(
+		staticEvolutionConfirmLabel_,
+		spriteCommon,
+		"進化を確定（仮）",
+		EvolutionVirtualToRender(buttonCenter),
+		buttonStyle);
+	staticEvolutionConfirmLabel_->SetAnchorPoint({ 0.5f, 0.5f });
+}
+
+bool Player::LoadEvolutionUiStyle(const std::string& path)
+{
+	std::ifstream file(path);
+	if (!file.is_open()) {
+		evolutionUiStyleStatus_ = "進化UI設定が見つからないため初期値を使用します。";
+		return false;
+	}
+
+	nlohmann::json root{};
+	try {
+		file >> root;
+	} catch (...) {
+		evolutionUiStyleStatus_ = "進化UI設定JSONの読み込みに失敗しました。";
+		return false;
+	}
+	if (!root.is_object()) {
+		return false;
+	}
+
+	evolutionUiStyle_.enabled = root.value("enabled", evolutionUiStyle_.enabled);
+	evolutionUiStyle_.virtualResolution = ReadVector2Object(root.value("virtualResolution", nlohmann::json::object()), evolutionUiStyle_.virtualResolution);
+	evolutionUiStyle_.safeMargin = root.value("safeMargin", evolutionUiStyle_.safeMargin);
+	if (root.contains("nodes") && root["nodes"].is_object()) {
+		const nlohmann::json& nodes = root["nodes"];
+		const std::array<const char*, 4> keys = { "Basic", "Twin", "MachineGun", "Overseer" };
+		for (int i = 0; i < 4; ++i) {
+			evolutionUiStyle_.nodeAnchors[i] =
+				ReadVector2Object(nodes.value(keys[i], nlohmann::json::object()), evolutionUiStyle_.nodeAnchors[i]);
+		}
+		evolutionUiStyle_.currentNodeSize = ReadVector2Object(nodes.value("currentSize", nlohmann::json::object()), evolutionUiStyle_.currentNodeSize);
+		evolutionUiStyle_.candidateNodeSize = ReadVector2Object(nodes.value("candidateSize", nlohmann::json::object()), evolutionUiStyle_.candidateNodeSize);
+		if (nodes.contains("scale") && nodes["scale"].is_object()) {
+			const nlohmann::json& scale = nodes["scale"];
+			evolutionUiStyle_.normalScale = scale.value("normal", evolutionUiStyle_.normalScale);
+			evolutionUiStyle_.hoverScale = scale.value("hover", evolutionUiStyle_.hoverScale);
+			evolutionUiStyle_.selectedScale = scale.value("selected", evolutionUiStyle_.selectedScale);
+		}
+	}
+	if (root.contains("circuit") && root["circuit"].is_object()) {
+		const nlohmann::json& circuit = root["circuit"];
+		evolutionUiStyle_.circuitOuterGlowWidth = circuit.value("outerGlowWidth", evolutionUiStyle_.circuitOuterGlowWidth);
+		evolutionUiStyle_.circuitMiddleGlowWidth = circuit.value("middleGlowWidth", evolutionUiStyle_.circuitMiddleGlowWidth);
+		evolutionUiStyle_.circuitCoreWidth = circuit.value("coreWidth", evolutionUiStyle_.circuitCoreWidth);
+		evolutionUiStyle_.circuitOpacity = circuit.value("opacity", evolutionUiStyle_.circuitOpacity);
+		evolutionUiStyle_.circuitOuterAlpha = circuit.value("outerAlpha", evolutionUiStyle_.circuitOuterAlpha);
+		evolutionUiStyle_.circuitMiddleAlpha = circuit.value("middleAlpha", evolutionUiStyle_.circuitMiddleAlpha);
+		evolutionUiStyle_.circuitCoreAlpha = circuit.value("coreAlpha", evolutionUiStyle_.circuitCoreAlpha);
+	}
+	evolutionUiStyle_.backgroundDimOpacity = root.value("backgroundDimOpacity", evolutionUiStyle_.backgroundDimOpacity);
+	if (root.contains("detailPanel") && root["detailPanel"].is_object()) {
+		const nlohmann::json& panel = root["detailPanel"];
+		evolutionUiStyle_.detailPanelAnchor = ReadVector2Object(panel.value("anchor", nlohmann::json::object()), evolutionUiStyle_.detailPanelAnchor);
+		evolutionUiStyle_.detailPanelSize = ReadVector2Object(panel.value("size", nlohmann::json::object()), evolutionUiStyle_.detailPanelSize);
+	}
+	if (root.contains("confirmButton") && root["confirmButton"].is_object()) {
+		evolutionUiStyle_.confirmButtonSize = ReadVector2Object(root["confirmButton"].value("size", nlohmann::json::object()), evolutionUiStyle_.confirmButtonSize);
+	}
+	if (root.contains("text") && root["text"].is_object()) {
+		const nlohmann::json& text = root["text"];
+		evolutionUiStyle_.fontFamily = text.value("fontFamily", evolutionUiStyle_.fontFamily);
+		evolutionUiStyle_.titleFontSize = text.value("titleSize", evolutionUiStyle_.titleFontSize);
+		evolutionUiStyle_.classNameFontSize = text.value("classNameSize", evolutionUiStyle_.classNameFontSize);
+		evolutionUiStyle_.bodyFontSize = text.value("bodySize", evolutionUiStyle_.bodyFontSize);
+		evolutionUiStyle_.titleTextColor = ReadVector4(text.value("titleColor", nlohmann::json::array()), evolutionUiStyle_.titleTextColor);
+		evolutionUiStyle_.classTextColor = ReadVector4(text.value("classNameColor", nlohmann::json::array()), evolutionUiStyle_.classTextColor);
+		evolutionUiStyle_.bodyTextColor = ReadVector4(text.value("bodyColor", nlohmann::json::array()), evolutionUiStyle_.bodyTextColor);
+		evolutionUiStyle_.textOutlineColor = ReadVector4(text.value("outlineColor", nlohmann::json::array()), evolutionUiStyle_.textOutlineColor);
+		evolutionUiStyle_.textOutlineWidth = text.value("outlineWidth", evolutionUiStyle_.textOutlineWidth);
+	}
+	if (root.contains("colors") && root["colors"].is_object()) {
+		const nlohmann::json& colors = root["colors"];
+		evolutionUiStyle_.normalColor = ReadVector4(colors.value("normal", nlohmann::json::array()), evolutionUiStyle_.normalColor);
+		evolutionUiStyle_.availableColor = ReadVector4(colors.value("available", nlohmann::json::array()), evolutionUiStyle_.availableColor);
+		evolutionUiStyle_.hoverColor = ReadVector4(colors.value("hover", nlohmann::json::array()), evolutionUiStyle_.hoverColor);
+		evolutionUiStyle_.selectedColor = ReadVector4(colors.value("selected", nlohmann::json::array()), evolutionUiStyle_.selectedColor);
+		evolutionUiStyle_.lockedColor = ReadVector4(colors.value("locked", nlohmann::json::array()), evolutionUiStyle_.lockedColor);
+		evolutionUiStyle_.panelColor = ReadVector4(colors.value("panel", nlohmann::json::array()), evolutionUiStyle_.panelColor);
+	}
+	evolutionUiStyle_.fixedSelectedCandidate =
+		(std::clamp)(root.value("fixedSelectedCandidate", evolutionUiStyle_.fixedSelectedCandidate), 0, 2);
+	evolutionUiStyleStatus_ = "進化UI設定を読み込みました: " + path;
+	return true;
+}
+
+bool Player::SaveEvolutionUiStyle(const std::string& path) const
+{
+	std::filesystem::create_directories(std::filesystem::path(path).parent_path());
+	nlohmann::json root{};
+	root["version"] = 1;
+	root["enabled"] = evolutionUiStyle_.enabled;
+	root["virtualResolution"] = WriteVector2Object(evolutionUiStyle_.virtualResolution);
+	root["safeMargin"] = evolutionUiStyle_.safeMargin;
+	root["nodes"] = {
+		{ "Basic", WriteVector2Object(evolutionUiStyle_.nodeAnchors[0]) },
+		{ "Twin", WriteVector2Object(evolutionUiStyle_.nodeAnchors[1]) },
+		{ "MachineGun", WriteVector2Object(evolutionUiStyle_.nodeAnchors[2]) },
+		{ "Overseer", WriteVector2Object(evolutionUiStyle_.nodeAnchors[3]) },
+		{ "currentSize", WriteVector2Object(evolutionUiStyle_.currentNodeSize) },
+		{ "candidateSize", WriteVector2Object(evolutionUiStyle_.candidateNodeSize) },
+		{ "scale", {
+			{ "normal", evolutionUiStyle_.normalScale },
+			{ "hover", evolutionUiStyle_.hoverScale },
+			{ "selected", evolutionUiStyle_.selectedScale }
+		} }
+	};
+	root["circuit"] = {
+		{ "outerGlowWidth", evolutionUiStyle_.circuitOuterGlowWidth },
+		{ "middleGlowWidth", evolutionUiStyle_.circuitMiddleGlowWidth },
+		{ "coreWidth", evolutionUiStyle_.circuitCoreWidth },
+		{ "opacity", evolutionUiStyle_.circuitOpacity },
+		{ "outerAlpha", evolutionUiStyle_.circuitOuterAlpha },
+		{ "middleAlpha", evolutionUiStyle_.circuitMiddleAlpha },
+		{ "coreAlpha", evolutionUiStyle_.circuitCoreAlpha }
+	};
+	root["backgroundDimOpacity"] = evolutionUiStyle_.backgroundDimOpacity;
+	root["detailPanel"] = {
+		{ "anchor", WriteVector2Object(evolutionUiStyle_.detailPanelAnchor) },
+		{ "size", WriteVector2Object(evolutionUiStyle_.detailPanelSize) }
+	};
+	root["confirmButton"] = {
+		{ "size", WriteVector2Object(evolutionUiStyle_.confirmButtonSize) }
+	};
+	root["text"] = {
+		{ "fontFamily", evolutionUiStyle_.fontFamily },
+		{ "titleSize", evolutionUiStyle_.titleFontSize },
+		{ "classNameSize", evolutionUiStyle_.classNameFontSize },
+		{ "bodySize", evolutionUiStyle_.bodyFontSize },
+		{ "titleColor", Vector4ToJson(evolutionUiStyle_.titleTextColor) },
+		{ "classNameColor", Vector4ToJson(evolutionUiStyle_.classTextColor) },
+		{ "bodyColor", Vector4ToJson(evolutionUiStyle_.bodyTextColor) },
+		{ "outlineColor", Vector4ToJson(evolutionUiStyle_.textOutlineColor) },
+		{ "outlineWidth", evolutionUiStyle_.textOutlineWidth }
+	};
+	root["colors"] = {
+		{ "normal", Vector4ToJson(evolutionUiStyle_.normalColor) },
+		{ "available", Vector4ToJson(evolutionUiStyle_.availableColor) },
+		{ "hover", Vector4ToJson(evolutionUiStyle_.hoverColor) },
+		{ "selected", Vector4ToJson(evolutionUiStyle_.selectedColor) },
+		{ "locked", Vector4ToJson(evolutionUiStyle_.lockedColor) },
+		{ "panel", Vector4ToJson(evolutionUiStyle_.panelColor) }
+	};
+	root["fixedSelectedCandidate"] = evolutionUiStyle_.fixedSelectedCandidate;
+
+	std::ofstream file(path);
+	if (!file.is_open()) {
+		return false;
+	}
+	file << root.dump(2);
+	return true;
+}
+
+void Player::DrawEvolutionUiStyleEditor()
+{
+#ifdef USE_IMGUI
+	if (!ImGui::CollapsingHeader("進化UI 静的プロトタイプ", ImGuiTreeNodeFlags_DefaultOpen)) {
+		return;
+	}
+	ImGui::Checkbox("新しい静的UIを有効化", &evolutionUiStyle_.enabled);
+	const char* selectedNames[] = { "TWIN", "MACHINE GUN", "OVERSEER" };
+	ImGui::Combo("仮固定する候補", &evolutionUiStyle_.fixedSelectedCandidate, selectedNames, IM_ARRAYSIZE(selectedNames));
+	if (ImGui::Button("進化UI設定を保存")) {
+		evolutionUiStyleStatus_ = SaveEvolutionUiStyle()
+			? "進化UI設定を保存しました。"
+			: "進化UI設定の保存に失敗しました。";
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("進化UI設定を再読み込み")) {
+		LoadEvolutionUiStyle();
+	}
+	if (!evolutionUiStyleStatus_.empty()) {
+		ImGui::TextWrapped("%s", evolutionUiStyleStatus_.c_str());
+	}
+
+	const float clientWidth = static_cast<float>(WinApp::GetInstance()->GetClientWidth());
+	const float clientHeight = static_cast<float>(WinApp::GetInstance()->GetClientHeight());
+	const float actualScale = (std::min)(
+		clientWidth / (std::max)(1.0f, evolutionUiStyle_.virtualResolution.x),
+		clientHeight / (std::max)(1.0f, evolutionUiStyle_.virtualResolution.y));
+	ImGui::Text("実解像度: %.0f x %.0f / UI倍率: %.3f", clientWidth, clientHeight, actualScale);
+
+	ImGui::SeparatorText("仮想画面と配置");
+	ImGui::DragFloat2("仮想解像度", &evolutionUiStyle_.virtualResolution.x, 1.0f, 320.0f, 7680.0f);
+	ImGui::DragFloat("セーフマージン", &evolutionUiStyle_.safeMargin, 1.0f, 0.0f, 360.0f);
+	const char* nodeNames[] = { "Basic", "Twin", "MachineGun", "Overseer" };
+	for (int i = 0; i < 4; ++i) {
+		ImGui::PushID(i);
+		ImGui::DragFloat2(nodeNames[i], &evolutionUiStyle_.nodeAnchors[i].x, 0.005f, 0.0f, 1.0f);
+		ImGui::PopID();
+	}
+	ImGui::DragFloat2("現在ノードサイズ", &evolutionUiStyle_.currentNodeSize.x, 1.0f, 32.0f, 600.0f);
+	ImGui::DragFloat2("候補ノードサイズ", &evolutionUiStyle_.candidateNodeSize.x, 1.0f, 32.0f, 600.0f);
+	ImGui::DragFloat("通常拡大率", &evolutionUiStyle_.normalScale, 0.005f, 0.5f, 2.0f);
+	ImGui::DragFloat("ホバー拡大率", &evolutionUiStyle_.hoverScale, 0.005f, 0.5f, 2.0f);
+	ImGui::DragFloat("選択拡大率", &evolutionUiStyle_.selectedScale, 0.005f, 0.5f, 2.0f);
+	ImGui::DragFloat2("説明パネル位置（正規化）", &evolutionUiStyle_.detailPanelAnchor.x, 0.005f, 0.0f, 1.0f);
+	ImGui::DragFloat2("説明パネルサイズ", &evolutionUiStyle_.detailPanelSize.x, 1.0f, 64.0f, 2000.0f);
+	ImGui::DragFloat2("仮確定ボタンサイズ", &evolutionUiStyle_.confirmButtonSize.x, 1.0f, 32.0f, 600.0f);
+
+	ImGui::SeparatorText("ネオン回路");
+	ImGui::DragFloat("外光幅", &evolutionUiStyle_.circuitOuterGlowWidth, 0.25f, 0.5f, 80.0f);
+	ImGui::DragFloat("中光幅", &evolutionUiStyle_.circuitMiddleGlowWidth, 0.25f, 0.5f, 60.0f);
+	ImGui::DragFloat("中心線幅", &evolutionUiStyle_.circuitCoreWidth, 0.1f, 0.25f, 24.0f);
+	ImGui::SliderFloat("回路全体透明度", &evolutionUiStyle_.circuitOpacity, 0.0f, 1.0f);
+	ImGui::SliderFloat("外光透明度", &evolutionUiStyle_.circuitOuterAlpha, 0.0f, 1.0f);
+	ImGui::SliderFloat("中光透明度", &evolutionUiStyle_.circuitMiddleAlpha, 0.0f, 1.0f);
+	ImGui::SliderFloat("中心線透明度", &evolutionUiStyle_.circuitCoreAlpha, 0.0f, 1.0f);
+	ImGui::SliderFloat("背景暗転率", &evolutionUiStyle_.backgroundDimOpacity, 0.0f, 1.0f);
+
+	ImGui::SeparatorText("文字");
+	ImGui::DragFloat("タイトル文字サイズ", &evolutionUiStyle_.titleFontSize, 0.5f, 8.0f, 96.0f);
+	ImGui::DragFloat("クラス名文字サイズ", &evolutionUiStyle_.classNameFontSize, 0.5f, 8.0f, 72.0f);
+	ImGui::DragFloat("本文文字サイズ", &evolutionUiStyle_.bodyFontSize, 0.5f, 8.0f, 48.0f);
+	ImGui::ColorEdit4("タイトル文字色", &evolutionUiStyle_.titleTextColor.x);
+	ImGui::ColorEdit4("クラス名文字色", &evolutionUiStyle_.classTextColor.x);
+	ImGui::ColorEdit4("本文文字色", &evolutionUiStyle_.bodyTextColor.x);
+	ImGui::ColorEdit4("文字アウトライン色", &evolutionUiStyle_.textOutlineColor.x);
+	ImGui::DragFloat("文字アウトライン幅", &evolutionUiStyle_.textOutlineWidth, 0.1f, 0.0f, 12.0f);
+
+	ImGui::SeparatorText("状態色");
+	ImGui::ColorEdit4("通常色", &evolutionUiStyle_.normalColor.x);
+	ImGui::ColorEdit4("選択可能色", &evolutionUiStyle_.availableColor.x);
+	ImGui::ColorEdit4("ホバー色", &evolutionUiStyle_.hoverColor.x);
+	ImGui::ColorEdit4("選択色", &evolutionUiStyle_.selectedColor.x);
+	ImGui::ColorEdit4("ロック色", &evolutionUiStyle_.lockedColor.x);
+	ImGui::ColorEdit4("パネル色", &evolutionUiStyle_.panelColor.x);
+
+	ImGui::SeparatorText("デバッグ表示");
+	ImGui::Checkbox("仮想画面領域", &showEvolutionVirtualBounds_);
+	ImGui::Checkbox("セーフエリア", &showEvolutionSafeArea_);
+	ImGui::Checkbox("ノード描画領域", &showEvolutionNodeBounds_);
+	ImGui::Checkbox("マウス判定領域", &showEvolutionMouseBounds_);
+	ImGui::Checkbox("TextLabel領域", &showEvolutionTextBounds_);
+	ImGui::Checkbox("画面中央線", &showEvolutionCenterLines_);
+	ImGui::Checkbox("接続回路の制御点", &showEvolutionCircuitControlPoints_);
+	ImGui::Checkbox("実解像度とUI倍率", &showEvolutionResolutionInfo_);
+#endif
+}
+
+void Player::DrawStaticEvolutionPrototype()
+{
+	evolutionUiProfile_.visible = true;
+	const auto totalStart = std::chrono::steady_clock::now();
+	const auto spriteStart = totalStart;
+	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	auto drawSprite = [&](const std::unique_ptr<Sprite>& sprite) {
+		if (sprite && sprite->GetColor().w > 0.001f && sprite->GetSize().x > 0.0f && sprite->GetSize().y > 0.0f) {
+			sprite->Draw();
+			++evolutionUiProfile_.spriteDraws;
+		}
+	};
+
+	drawSprite(staticEvolutionBackdropSprite_);
+	for (const auto& line : staticEvolutionCircuitSprites_) {
+		drawSprite(line);
+	}
+	drawSprite(staticEvolutionDetailPanelSprite_);
+	for (int i = 0; i < 4; ++i) {
+		drawSprite(staticEvolutionNodeGlowSprites_[i]);
+		drawSprite(staticEvolutionNodePanelSprites_[i]);
+		drawSprite(staticEvolutionTankSprites_[i]);
+	}
+	drawSprite(staticEvolutionConfirmButtonSprite_);
+	const auto spriteEnd = std::chrono::steady_clock::now();
+
+	const auto textStart = spriteEnd;
+	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	auto drawLabel = [&](const std::unique_ptr<TextLabel>& label) {
+		if (label) {
+			label->Draw();
+			++evolutionUiProfile_.textDraws;
+		}
+	};
+	drawLabel(staticEvolutionTitleLabel_);
+	drawLabel(staticEvolutionPrototypeLabel_);
+	for (int i = 0; i < 4; ++i) {
+		drawLabel(staticEvolutionNodeNameLabels_[i]);
+		drawLabel(staticEvolutionNodeRankLabels_[i]);
+	}
+	drawLabel(staticEvolutionDetailClassLabel_);
+	drawLabel(staticEvolutionRoleLabel_);
+	for (const auto& label : staticEvolutionDeltaLabels_) {
+		drawLabel(label);
+	}
+	drawLabel(staticEvolutionAbilityLabel_);
+	drawLabel(staticEvolutionConfirmLabel_);
+	const auto textEnd = std::chrono::steady_clock::now();
+
+	DrawStaticEvolutionDebugOverlay();
+	const auto totalEnd = std::chrono::steady_clock::now();
+	evolutionUiProfile_.spriteMs = std::chrono::duration<float, std::milli>(spriteEnd - spriteStart).count();
+	evolutionUiProfile_.textMs = std::chrono::duration<float, std::milli>(textEnd - textStart).count();
+	evolutionUiProfile_.updateMs = 0.0f;
+	evolutionUiProfile_.totalMs = std::chrono::duration<float, std::milli>(totalEnd - totalStart).count();
+}
+
+void Player::DrawStaticEvolutionDebugOverlay()
+{
+#ifdef USE_IMGUI
+	if (!showEvolutionVirtualBounds_ &&
+		!showEvolutionSafeArea_ &&
+		!showEvolutionNodeBounds_ &&
+		!showEvolutionMouseBounds_ &&
+		!showEvolutionTextBounds_ &&
+		!showEvolutionCenterLines_ &&
+		!showEvolutionCircuitControlPoints_ &&
+		!showEvolutionResolutionInfo_) {
+		return;
+	}
+
+	ImDrawList* drawList = ImGui::GetForegroundDrawList();
+	const float clientWidth = static_cast<float>(WinApp::GetInstance()->GetClientWidth());
+	const float clientHeight = static_cast<float>(WinApp::GetInstance()->GetClientHeight());
+	const float virtualWidth = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.x);
+	const float virtualHeight = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.y);
+	const float scale = (std::max)(0.0001f, (std::min)(clientWidth / virtualWidth, clientHeight / virtualHeight));
+	const Vector2 offset = {
+		(clientWidth - virtualWidth * scale) * 0.5f,
+		(clientHeight - virtualHeight * scale) * 0.5f
+	};
+	auto toClient = [&](const Vector2& point) {
+		return ImVec2(offset.x + point.x * scale, offset.y + point.y * scale);
+	};
+	auto drawCenteredRect = [&](const Vector2& center, const Vector2& size, ImU32 color) {
+		const Vector2 minPoint{ center.x - size.x * 0.5f, center.y - size.y * 0.5f };
+		const Vector2 maxPoint{ center.x + size.x * 0.5f, center.y + size.y * 0.5f };
+		drawList->AddRect(toClient(minPoint), toClient(maxPoint), color, 0.0f, 0, 1.5f);
+	};
+
+	if (showEvolutionVirtualBounds_) {
+		drawList->AddRect(
+			toClient({ 0.0f, 0.0f }),
+			toClient(evolutionUiStyle_.virtualResolution),
+			IM_COL32(255, 210, 70, 230),
+			0.0f,
+			0,
+			2.0f);
+	}
+	if (showEvolutionSafeArea_) {
+		const float safe = evolutionUiStyle_.safeMargin;
+		drawList->AddRect(
+			toClient({ safe, safe }),
+			toClient({ virtualWidth - safe, virtualHeight - safe }),
+			IM_COL32(80, 255, 160, 230),
+			0.0f,
+			0,
+			2.0f);
+	}
+	if (showEvolutionCenterLines_) {
+		drawList->AddLine(ImVec2(clientWidth * 0.5f, 0.0f), ImVec2(clientWidth * 0.5f, clientHeight), IM_COL32(255, 80, 180, 180), 1.0f);
+		drawList->AddLine(ImVec2(0.0f, clientHeight * 0.5f), ImVec2(clientWidth, clientHeight * 0.5f), IM_COL32(255, 80, 180, 180), 1.0f);
+	}
+	for (int i = 0; i < 4; ++i) {
+		if (showEvolutionNodeBounds_) {
+			drawCenteredRect(staticEvolutionNodeCentersVirtual_[i], staticEvolutionNodeDrawSizesVirtual_[i], IM_COL32(75, 190, 255, 230));
+		}
+		if (showEvolutionMouseBounds_) {
+			drawCenteredRect(staticEvolutionNodeCentersVirtual_[i], staticEvolutionNodeHitSizesVirtual_[i], IM_COL32(255, 120, 70, 210));
+		}
+	}
+	if (showEvolutionCircuitControlPoints_) {
+		for (int pathIndex = 0; pathIndex < 3; ++pathIndex) {
+			const int count = staticEvolutionCircuitControlPointCounts_[pathIndex];
+			for (int i = 0; i < count; ++i) {
+				const ImVec2 p = toClient(staticEvolutionCircuitControlPoints_[pathIndex][i]);
+				drawList->AddCircleFilled(p, 4.0f, IM_COL32(255, 235, 90, 240), 12);
+				if (i + 1 < count) {
+					drawList->AddLine(p, toClient(staticEvolutionCircuitControlPoints_[pathIndex][i + 1]), IM_COL32(255, 235, 90, 150), 1.0f);
+				}
+			}
+		}
+	}
+	if (showEvolutionTextBounds_) {
+		auto drawTextBounds = [&](const std::unique_ptr<TextLabel>& label) {
+			if (!label || !label->GetSprite()) {
+				return;
+			}
+			Sprite* sprite = label->GetSprite();
+			const float renderScale = GetEvolutionRenderScale();
+			const Vector2 renderOffset = GetEvolutionRenderOffset();
+			const Vector2 renderPosition = sprite->GetPosition();
+			const Vector2 renderSize = sprite->GetSize();
+			const Vector2 anchor = sprite->GetAnchorPoint();
+			const Vector2 virtualPosition = {
+				(renderPosition.x - renderOffset.x) / renderScale,
+				(renderPosition.y - renderOffset.y) / renderScale
+			};
+			const Vector2 virtualSize = { renderSize.x / renderScale, renderSize.y / renderScale };
+			const Vector2 minPoint = {
+				virtualPosition.x - virtualSize.x * anchor.x,
+				virtualPosition.y - virtualSize.y * anchor.y
+			};
+			drawList->AddRect(
+				toClient(minPoint),
+				toClient({ minPoint.x + virtualSize.x, minPoint.y + virtualSize.y }),
+				IM_COL32(190, 110, 255, 220),
+				0.0f,
+				0,
+				1.0f);
+		};
+		drawTextBounds(staticEvolutionTitleLabel_);
+		drawTextBounds(staticEvolutionPrototypeLabel_);
+		for (int i = 0; i < 4; ++i) {
+			drawTextBounds(staticEvolutionNodeNameLabels_[i]);
+			drawTextBounds(staticEvolutionNodeRankLabels_[i]);
+		}
+		drawTextBounds(staticEvolutionDetailClassLabel_);
+		drawTextBounds(staticEvolutionRoleLabel_);
+		for (const auto& label : staticEvolutionDeltaLabels_) {
+			drawTextBounds(label);
+		}
+		drawTextBounds(staticEvolutionAbilityLabel_);
+		drawTextBounds(staticEvolutionConfirmLabel_);
+	}
+	if (showEvolutionResolutionInfo_) {
+		char buffer[160]{};
+		std::snprintf(
+			buffer,
+			sizeof(buffer),
+			"Evolution UI  %.0f x %.0f  scale %.3f  virtual %.0f x %.0f",
+			clientWidth,
+			clientHeight,
+			scale,
+			virtualWidth,
+			virtualHeight);
+		drawList->AddText(ImVec2(18.0f, clientHeight - 28.0f), IM_COL32(220, 250, 255, 255), buffer);
+	}
+#endif
+}
+
 void Player::SpawnParticles()
 {
 	Vector3 center = GetWorldPosition();
@@ -2556,7 +3516,7 @@ void Player::UpdateP(float deltaTime)
 	(void)deltaTime;
 }
 
-void Player::UpdateEncyclopedia()
+void Player::UpdateEncyclopedia(float uiDeltaTime)
 {
 	if (!isChangeMode) {
 		return;
@@ -2567,7 +3527,11 @@ void Player::UpdateEncyclopedia()
 	if (encyclopedia_.empty()) {
 		return;
 	}
-	evolutionUiTimer_ += dt_;
+	evolutionUiTimer_ += (std::max)(0.0f, uiDeltaTime);
+	if (ShouldUseStaticEvolutionPrototype()) {
+		UpdateStaticEvolutionPrototype();
+		return;
+	}
 	int currentRank = GetRankFromLevel(this->level_);
 
 	for (int i = 0; i < static_cast<int>(encyclopedia_.size()); ++i) {
@@ -2636,7 +3600,7 @@ void Player::UpdateEncyclopedia()
 		} else if (buttonHovered) {
 			evolutionChangeButtonSprite_->SetColor({ 0.36f, 1.0f, 0.58f, 0.96f });
 			if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
-				EvolveById(selectedTank.classId);
+				TryConfirmEvolutionById(selectedTank.classId);
 			}
 		} else {
 			evolutionChangeButtonSprite_->SetColor({ 0.24f, 0.86f, 0.44f, 0.92f });
@@ -2648,6 +3612,10 @@ void Player::UpdateEncyclopedia()
 void Player::DrawEncyclopedia() {
 
 	evolutionUiProfile_ = {};
+	if (isChangeMode && ShouldUseStaticEvolutionPrototype()) {
+		DrawStaticEvolutionPrototype();
+		return;
+	}
 	if (isChangeMode) {
 		evolutionUiProfile_.visible = true;
 		const auto totalStart = std::chrono::steady_clock::now();
@@ -3054,7 +4022,7 @@ void Player::DrawTankCodex()
 #endif
 }
 
-int Player::GetRankFromLevel(int level) {
+int Player::GetRankFromLevel(int level) const {
 	if (level >= 15) return 4;
 	if (level >= 10) return 3;
 	if (level >= 5) return 2;
