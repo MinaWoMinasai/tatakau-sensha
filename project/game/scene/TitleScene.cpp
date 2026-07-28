@@ -1,4 +1,6 @@
 #include "TitleScene.h"
+#include "SceneManager.h"
+
 #include <numbers>
 
 void TitleScene::Initialize() {
@@ -152,37 +154,33 @@ void TitleScene::Update() {
 		break;
 	case Phase::kMain:
 		if (input_->IsTrigger(input_->GetKey()[DIK_F3], input_->GetPreKey()[DIK_F3])) {
-			nextSceneName_ = "TEST";
-			fade_->Start(Fade::Status::FadeOut, 0.35f);
-			phase_ = Phase::kFadeOut;
-			break;
+			if (StartTransitionIfAvailable("TEST", 0.35f)) {
+				break;
+			}
 		}
 		if (input_->IsTrigger(input_->GetKey()[DIK_F2], input_->GetPreKey()[DIK_F2])) {
-			nextSceneName_ = "PLAYER_LAB";
-			fade_->Start(Fade::Status::FadeOut, 0.35f);
-			phase_ = Phase::kFadeOut;
-			break;
+			if (StartTransitionIfAvailable("PLAYER_LAB", 0.35f)) {
+				break;
+			}
 		}
 		if (input_->IsTrigger(input_->GetKey()[DIK_F4], input_->GetPreKey()[DIK_F4])) {
-			nextSceneName_ = "NAVAL_BATTLE";
-			fade_->Start(Fade::Status::FadeOut, 0.35f);
-			phase_ = Phase::kFadeOut;
-			break;
+			if (StartTransitionIfAvailable("NAVAL_BATTLE", 0.35f)) {
+				break;
+			}
 		}
 		if (input_->IsTrigger(input_->GetKey()[DIK_F5], input_->GetPreKey()[DIK_F5])) {
-			nextSceneName_ = "GRAPHICS_LAB";
-			fade_->Start(Fade::Status::FadeOut, 0.35f);
-			phase_ = Phase::kFadeOut;
-			break;
+			if (StartTransitionIfAvailable("GRAPHICS_LAB", 0.35f)) {
+				break;
+			}
 		}
 
 		// 左クリックでruleを表示
-		if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
+		if (IsSceneAvailable("GAME") &&
+			input_->IsTrigger(
+				input_->GetMouseState().rgbButtons[0],
+				input_->GetPreMouseState().rgbButtons[0])) {
 			if (ruleGide) {
-				if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
-					nextSceneName_ = "GAME";
-					fade_->Start(Fade::Status::FadeOut, 1.0f);
-					phase_ = Phase::kFadeOut;
+				if (StartTransitionIfAvailable("GAME", 1.0f)) {
 					ruleGide = false;
 				}
 			} else {
@@ -213,7 +211,9 @@ void TitleScene::DrawSprite() {
 	for (auto& c : logoChars) {
 		c.sprite->Draw();
 	}
-	startLogo.sprite->Draw();
+	if (IsSceneAvailable("GAME")) {
+		startLogo.sprite->Draw();
+	}
 	//ruleLogo.sprite->Draw();
 	fade_->Draw();
 
@@ -253,4 +253,23 @@ void TitleScene::UpdateLogoChar(LogoChar& c, float deltaTime)
 std::string TitleScene::GetNextSceneName() const
 {
 	return nextSceneName_;
+}
+
+bool TitleScene::IsSceneAvailable(std::string_view sceneName) const
+{
+	return SceneManager::GetInstance()->ContainsScene(sceneName);
+}
+
+bool TitleScene::StartTransitionIfAvailable(
+	std::string_view sceneName,
+	float fadeDuration)
+{
+	if (!IsSceneAvailable(sceneName)) {
+		return false;
+	}
+
+	nextSceneName_ = sceneName;
+	fade_->Start(Fade::Status::FadeOut, fadeDuration);
+	phase_ = Phase::kFadeOut;
+	return true;
 }
