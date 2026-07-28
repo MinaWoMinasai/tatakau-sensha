@@ -3,6 +3,8 @@
 #include "Fade.h"
 #include "IScene.h"
 
+#include <string_view>
+
 class TitleScene : public IScene {
 public:
 	
@@ -33,12 +35,17 @@ public:
 	std::string GetNextSceneName() const override;
 
 private:
+	bool IsSceneAvailable(std::string_view sceneName) const;
+	bool StartTransitionIfAvailable(
+		std::string_view sceneName,
+		float fadeDuration);
+
 	// ビュープロジェクション
 	std::unique_ptr<Camera> camera;
 
 	// 終了フラグ
 	bool finished_ = false;
-	std::string nextSceneName_ = "GAME";
+	std::string nextSceneName_;
 
 	// スプライト
 	std::unique_ptr<Sprite> rule;

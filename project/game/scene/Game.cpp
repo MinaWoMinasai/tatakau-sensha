@@ -1,7 +1,7 @@
 #include "Game.h"
 #include "SceneFactory.h"
 #include "SceneManager.h"
-#include "../modules/BuiltInGameModule.h"
+#include "../modules/GameModuleBootstrap.h"
 #include "../runtime/GameModuleRegistry.h"
 #include "../runtime/SceneRegistry.h"
 #include "Audio.h"
@@ -15,6 +15,7 @@
 namespace {
 
 constexpr const char* kDefaultProjectFilePath = "resources/projects/default.project.json";
+constexpr const char* kFallbackGameModuleId = "builtin";
 constexpr const char* kFallbackSceneName = "TITLE";
 
 std::string GetProjectSourceLabel(const GameProject& project)
@@ -102,10 +103,9 @@ void Game::LoadActiveProject(const GameProjectCommandLineOptions& projectOptions
 bool Game::ConfigureGameModuleAndSceneFactory()
 {
 	GameModuleRegistry moduleRegistry;
-	const std::string builtInModuleId(BuiltInGameModule::kId);
-	if (!moduleRegistry.Register<BuiltInGameModule>(builtInModuleId)) {
+	if (!RegisterAvailableGameModules(moduleRegistry)) {
 		LogWrite().Log(
-			"[GameModule] FATAL: failed to register the required built-in game module. "
+			"[GameModule] FATAL: failed to register the available game modules. "
 			"The game will not enter the main loop.\n");
 		return false;
 	}
@@ -123,10 +123,11 @@ bool Game::ConfigureGameModuleAndSceneFactory()
 			activeProject_.gameModule + "', registeredModules=[" +
 			JoinSceneNames(registeredModuleIds) + "].\n");
 
-		if (activeProject_.gameModule != builtInModuleId) {
+		if (activeProject_.gameModule != kFallbackGameModuleId) {
 			LogWrite().Log(
-				"[GameModule] Falling back to game module '" + builtInModuleId + "'.\n");
-			selectedModule = moduleRegistry.Create(builtInModuleId);
+				"[GameModule] Falling back to game module '" +
+				std::string(kFallbackGameModuleId) + "'.\n");
+			selectedModule = moduleRegistry.Create(kFallbackGameModuleId);
 			gameModuleUsedFallback_ = true;
 		}
 	}
@@ -135,7 +136,7 @@ bool Game::ConfigureGameModuleAndSceneFactory()
 		LogWrite().Log(
 			"[GameModule] FATAL: requested game module '" +
 			activeProject_.gameModule + "' could not be created and required fallback "
-			"module '" + builtInModuleId +
+			"module '" + std::string(kFallbackGameModuleId) +
 			"' is unavailable. The game will not enter the main loop.\n");
 		return false;
 	}
