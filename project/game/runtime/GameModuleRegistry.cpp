@@ -66,6 +66,24 @@ std::unique_ptr<IGameModule> GameModuleRegistry::Create(std::string_view id) con
 		LogRegistryError(
 			"Creator returned nullptr for module '" + std::string(id) +
 			"'. Registered modules: [" + FormatRegisteredIds(GetRegisteredIds()) + "].");
+		return nullptr;
+	}
+
+	const std::string registeredId = found->first;
+	const std::string moduleId(module->GetId());
+	const std::string displayName(module->GetDisplayName());
+	if (moduleId.empty()) {
+		LogRegistryError(
+			"Created module reported an empty ID. Registered ID: '" + registeredId +
+			"', module ID: '<empty>', display name: '" + displayName + "'.");
+		return nullptr;
+	}
+	if (moduleId != registeredId) {
+		LogRegistryError(
+			"Created module ID does not match its registration key. Registered ID: '" +
+			registeredId + "', module ID: '" + moduleId +
+			"', display name: '" + displayName + "'.");
+		return nullptr;
 	}
 	return module;
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "projectName": "Graphics Lab",
-  "gameModule": "builtin",
+  "gameModule": "graphics_lab",
   "startupScene": "GRAPHICS_LAB",
   "resourceRoot": "resources"
 }

@@ -276,6 +276,12 @@
     <ClCompile Include="game\modules\BuiltInGameModule.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\modules\GameModuleBootstrap.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\modules\GraphicsLabGameModule.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\runtime\GameProject.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -587,6 +593,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\modules\BuiltInGameModule.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\modules\GameModuleBootstrap.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\modules\GraphicsLabGameModule.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\runtime\GameProject.h">
