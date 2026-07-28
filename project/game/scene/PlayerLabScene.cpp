@@ -216,7 +216,7 @@ void PlayerLabScene::Update()
 	UpdateCamera();
 
 	stage_->Update();
-	player_->Update(camera_.get(), *stage_, bulletManager_.get(), finalDeltaTime_);
+	player_->Update(camera_.get(), *stage_, bulletManager_.get(), finalDeltaTime_, 1.0f / 60.0f);
 	for (auto& target : targets_) {
 		target->Update(*stage_, finalDeltaTime_);
 	}
