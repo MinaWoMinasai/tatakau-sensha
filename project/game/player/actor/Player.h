@@ -159,7 +159,12 @@ public:
 	/// <summary>
 	/// 更新
 	/// </summary>
-	void Update(Camera* viewProjection, Stage& stage, BulletManager* BulletManager, float deltaTime);
+	void Update(
+		Camera* viewProjection,
+		Stage& stage,
+		BulletManager* BulletManager,
+		float deltaTime,
+		float uiDeltaTime);
 
 	/// <summary>
 	/// 描画
@@ -279,7 +284,7 @@ public:
 
 	void InitializeEncyclopedia();
 
-	void UpdateEncyclopedia();
+	void UpdateEncyclopedia(float uiDeltaTime);
 
 	void DrawEncyclopedia();
 
@@ -287,6 +292,7 @@ public:
 
 	void DrawPlayerClassEditor();
 	void DrawUpgradeHudDebugImGui();
+	void DrawEvolutionUiStyleEditor();
 	struct UiProfileStats {
 		float updateMs = 0.0f;
 		float spriteMs = 0.0f;
@@ -302,9 +308,11 @@ public:
 	std::vector<MineDropEvent> ConsumeMineDropEvents();
 	std::vector<MeleeSlashEvent> ConsumeMeleeSlashEvents();
 
-	int GetRankFromLevel(int level);
+	int GetRankFromLevel(int level) const;
 
 	bool IsChangeMode() { return isChangeMode; }
+	bool ConsumeEvolutionConfirmed();
+	bool ConsumeEvolutionCancelled();
 
 private:
 	struct PlayerClassConfig {
@@ -445,6 +453,8 @@ private:
 	// 進化させる関数
 	void Evolve(ClassType newClass);
 	void EvolveById(const std::string& classId);
+	bool TryConfirmEvolutionById(const std::string& classId);
+	bool CanEvolveTo(const std::string& classId) const;
 	void LoadPlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json");
 	void SavePlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json") const;
 	PlayerClassConfig CreateDefaultClassConfig(ClassType type) const;
@@ -472,6 +482,20 @@ private:
 	void ApplyUpgradeHudLayout();
 	bool LoadUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json");
 	bool SaveUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json") const;
+	void InitializeStaticEvolutionPrototype();
+	void UpdateStaticEvolutionPrototype();
+	void DrawStaticEvolutionPrototype();
+	bool LoadEvolutionUiStyle(const std::string& path = "resources/configs/evolutionUiStyle.json");
+	bool SaveEvolutionUiStyle(const std::string& path = "resources/configs/evolutionUiStyle.json") const;
+	bool ShouldUseStaticEvolutionPrototype() const;
+	Vector2 EvolutionAnchorToVirtual(const Vector2& normalizedAnchor) const;
+	Vector2 EvolutionVirtualToRender(const Vector2& virtualPosition) const;
+	Vector2 EvolutionClientToVirtual(const Vector2& clientPosition) const;
+	float GetEvolutionRenderScale() const;
+	Vector2 GetEvolutionRenderOffset() const;
+	void UpdateStaticEvolutionCircuit();
+	void UpdateStaticEvolutionText();
+	void DrawStaticEvolutionDebugOverlay();
 	void RecalculateStatsFromBase(bool healToFull);
 	void SpawnCasing();
 	int shootBarrelIndex_ = 0; // 次に撃つ砲身の番号
@@ -546,6 +570,82 @@ private:
 	std::unique_ptr<TextLabel> evolutionRoleLabel_;
 	std::unique_ptr<TextLabel> evolutionChangeButtonLabel_;
 	std::array<std::unique_ptr<TextLabel>, 9> evolutionStatLabels_;
+	struct EvolutionUiStyleConfig {
+		bool enabled = true;
+		Vector2 virtualResolution{ 1280.0f, 720.0f };
+		float safeMargin = 48.0f;
+		std::array<Vector2, 4> nodeAnchors{ {
+			{ 0.50f, 0.43f },
+			{ 0.33f, 0.20f },
+			{ 0.67f, 0.20f },
+			{ 0.50f, 0.70f }
+		} };
+		Vector2 currentNodeSize{ 200.0f, 112.0f };
+		Vector2 candidateNodeSize{ 172.0f, 104.0f };
+		float normalScale = 1.0f;
+		float hoverScale = 1.05f;
+		float selectedScale = 1.08f;
+		float circuitOuterGlowWidth = 18.0f;
+		float circuitMiddleGlowWidth = 8.0f;
+		float circuitCoreWidth = 2.5f;
+		float circuitOpacity = 0.78f;
+		float circuitOuterAlpha = 0.14f;
+		float circuitMiddleAlpha = 0.34f;
+		float circuitCoreAlpha = 0.90f;
+		float backgroundDimOpacity = 0.82f;
+		Vector2 detailPanelAnchor{ 0.50f, 0.90f };
+		Vector2 detailPanelSize{ 1184.0f, 118.0f };
+		Vector2 confirmButtonSize{ 186.0f, 44.0f };
+		float titleFontSize = 30.0f;
+		float classNameFontSize = 22.0f;
+		float bodyFontSize = 16.0f;
+		std::string fontFamily = "Meiryo";
+		Vector4 normalColor{ 0.12f, 0.34f, 0.42f, 0.82f };
+		Vector4 availableColor{ 0.16f, 0.64f, 0.72f, 0.92f };
+		Vector4 hoverColor{ 0.30f, 0.94f, 1.00f, 1.0f };
+		Vector4 selectedColor{ 0.42f, 1.00f, 0.58f, 1.0f };
+		Vector4 lockedColor{ 0.18f, 0.22f, 0.28f, 0.68f };
+		Vector4 panelColor{ 0.025f, 0.055f, 0.080f, 0.94f };
+		Vector4 titleTextColor{ 0.74f, 1.00f, 0.92f, 1.0f };
+		Vector4 classTextColor{ 0.92f, 1.00f, 0.96f, 1.0f };
+		Vector4 bodyTextColor{ 0.84f, 0.92f, 1.00f, 1.0f };
+		Vector4 textOutlineColor{ 0.0f, 0.025f, 0.045f, 0.96f };
+		float textOutlineWidth = 2.0f;
+		int fixedSelectedCandidate = 0;
+	};
+	EvolutionUiStyleConfig evolutionUiStyle_{};
+	std::unique_ptr<Sprite> staticEvolutionBackdropSprite_;
+	std::unique_ptr<Sprite> staticEvolutionDetailPanelSprite_;
+	std::unique_ptr<Sprite> staticEvolutionConfirmButtonSprite_;
+	std::array<std::unique_ptr<Sprite>, 4> staticEvolutionNodeGlowSprites_;
+	std::array<std::unique_ptr<Sprite>, 4> staticEvolutionNodePanelSprites_;
+	std::array<std::unique_ptr<Sprite>, 4> staticEvolutionTankSprites_;
+	static constexpr size_t kStaticEvolutionCircuitSpriteCount = 27;
+	std::array<std::unique_ptr<Sprite>, kStaticEvolutionCircuitSpriteCount> staticEvolutionCircuitSprites_;
+	std::unique_ptr<TextLabel> staticEvolutionTitleLabel_;
+	std::unique_ptr<TextLabel> staticEvolutionPrototypeLabel_;
+	std::array<std::unique_ptr<TextLabel>, 4> staticEvolutionNodeNameLabels_;
+	std::array<std::unique_ptr<TextLabel>, 4> staticEvolutionNodeRankLabels_;
+	std::unique_ptr<TextLabel> staticEvolutionDetailClassLabel_;
+	std::unique_ptr<TextLabel> staticEvolutionRoleLabel_;
+	std::array<std::unique_ptr<TextLabel>, 3> staticEvolutionDeltaLabels_;
+	std::unique_ptr<TextLabel> staticEvolutionAbilityLabel_;
+	std::unique_ptr<TextLabel> staticEvolutionConfirmLabel_;
+	std::array<Vector2, 4> staticEvolutionNodeCentersVirtual_{};
+	std::array<Vector2, 4> staticEvolutionNodeDrawSizesVirtual_{};
+	std::array<Vector2, 4> staticEvolutionNodeHitSizesVirtual_{};
+	std::array<std::array<Vector2, 4>, 3> staticEvolutionCircuitControlPoints_{};
+	std::array<int, 3> staticEvolutionCircuitControlPointCounts_{};
+	int staticEvolutionHoveredNode_ = -1;
+	std::string evolutionUiStyleStatus_;
+	bool showEvolutionVirtualBounds_ = false;
+	bool showEvolutionSafeArea_ = false;
+	bool showEvolutionNodeBounds_ = false;
+	bool showEvolutionMouseBounds_ = false;
+	bool showEvolutionTextBounds_ = false;
+	bool showEvolutionCenterLines_ = false;
+	bool showEvolutionCircuitControlPoints_ = false;
+	bool showEvolutionResolutionInfo_ = false;
 	std::unique_ptr<Sprite> upgradeHudBackdropSprite_;
 	std::unique_ptr<Sprite> upgradeHudExpBackSprite_;
 	std::unique_ptr<Sprite> upgradeHudExpFillSprite_;
@@ -623,6 +723,8 @@ private:
 	Vector2 mousePosition_;
 
 	bool isChangeMode = false;
+	bool evolutionConfirmedEvent_ = false;
+	bool evolutionCancelledEvent_ = false;
 	int evolutionSelectedIndex_ = 0;
 	float evolutionUiTimer_ = 0.0f;
 	int editorSelectedClassIndex_ = 0;

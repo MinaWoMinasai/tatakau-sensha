@@ -382,7 +382,6 @@ private:
 	int previousPlayerHp_ = -1;
 	int previousBossHp_ = -1;
 	bool previousDashing_ = false;
-	bool previousUpgradeMenuOpen_ = false;
 	bool bossEntryTriggered_ = false;
 	bool bossDefeatHandled_ = false;
 	bool playerDeathHandled_ = false;
