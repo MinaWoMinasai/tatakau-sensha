@@ -124,6 +124,15 @@ void PlayerLabScene::Initialize()
 	player_ = std::make_unique<Player>();
 	player_->Initialize(playerObject_.get(), Vector3(26.0f, 30.0f, 0.0f));
 	player_->SetAttackControllerBulletManager(bulletManager_.get());
+	{
+		const std::array<const char*, 4> classIds = {{ "Basic", "Twin", "MachineGun", "Overseer" }};
+		std::array<TankButtonVisualData, 4> classVisuals{};
+		for (size_t i = 0; i < classIds.size(); ++i) {
+			player_->GetTankButtonVisualData(classIds[i], classVisuals[i]);
+		}
+		tankButtonGallery_ = std::make_unique<TankButtonGallery>();
+		tankButtonGallery_->Initialize(SpriteCommon::GetInstance(), classVisuals);
+	}
 
 	collisionManager_ = std::make_unique<CollisionManager>();
 	neonGridRenderer_ = std::make_unique<NeonGridRenderer>();
@@ -212,6 +221,9 @@ void PlayerLabScene::Update()
 		}
 	}
 	UpdateLabStatusText();
+	if (tankButtonGallery_) {
+		tankButtonGallery_->Update();
+	}
 
 	UpdateCamera();
 
@@ -309,6 +321,10 @@ void PlayerLabScene::DrawPostEffect3D()
 
 void PlayerLabScene::DrawSprite()
 {
+	if (tankButtonGallery_ && tankButtonGallery_->IsVisible()) {
+		tankButtonGallery_->Draw();
+		return;
+	}
 	if (fpsText_) {
 		fpsText_->Draw();
 	}
@@ -419,6 +435,12 @@ void PlayerLabScene::DrawNeonGridPass()
 void PlayerLabScene::DrawLabEditor()
 {
 #ifdef USE_IMGUI
+	if (tankButtonGallery_) {
+		tankButtonGallery_->DrawImGui();
+		if (tankButtonGallery_->IsVisible()) {
+			return;
+		}
+	}
 	ImGui::SetNextWindowSize(ImVec2(430.0f, 430.0f), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowPos(ImVec2(20.0f, 130.0f), ImGuiCond_FirstUseEver);
 	ImGui::Begin("プレイヤー機体プレビューラボ");
@@ -474,6 +496,13 @@ void PlayerLabScene::DrawLabEditor()
 
 	player_->DrawPlayerClassEditor();
 #endif
+}
+
+void PlayerLabScene::DrawAfterPostEffect3D()
+{
+	if (tankButtonGallery_ && tankButtonGallery_->IsVisible()) {
+		tankButtonGallery_->DrawAfterPostEffects();
+	}
 }
 
 void PlayerLabScene::UpdateLabStatusText()

@@ -752,6 +752,11 @@ void GameScene::Initialize() {
 
 	InitializeFollowHpBarBatch();
 	InitializeSubmissionUi();
+	gameTextNeonEffect_ = std::make_unique<NeonTextEffect>();
+	gameTextNeonEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager());
+	ApplyGameTextAppearance();
 	previousPlayerHp_ = player_ ? player_->GetHp() : 0;
 	previousBossHp_ = enemy_ ? enemy_->GetHp() : 0;
 
@@ -1369,6 +1374,9 @@ Vector2 GameScene::WorldToScreenUv(const Vector3& worldPos) const
 IScene::ScreenEffectState GameScene::GetScreenEffectState() const
 {
 	IScene::ScreenEffectState state{};
+	const bool evolutionUiOpen = player_ && player_->IsChangeMode();
+	state.bloomScale = evolutionUiOpen ? 0.38f : 1.0f;
+	state.suppressPostEffectDebugUi = evolutionUiOpen;
 	state.active = screenEffectDirector_.IsActive();
 	if (state.active) {
 		screenEffectDirector_.ApplyTo(state.param);
@@ -1588,6 +1596,10 @@ void GameScene::UpdateDeathPostPulse(float deltaTime) {
 }
 
 void GameScene::DrawAfterPostEffect3D() {
+	if (player_) {
+		player_->DrawEvolutionAfterPostEffects();
+	}
+	DrawGameTextBloom();
 	if (gameFlowState_ == GameFlowState::BossDefeatSequence &&
 		enableEnemyPostEffect_ &&
 		bossNeonRenderMode_ == 0) {
@@ -3800,10 +3812,83 @@ bool GameScene::SaveGamePostEffectConfig(const std::string& filePath) const
 	return true;
 }
 
+void GameScene::ApplyGameTextAppearance()
+{
+	TextFontOverride fontOverride{};
+	fontOverride.enabled = true;
+	if (gameTextFontMode_ == 0) {
+		fontOverride.fontFamily = "Meiryo";
+		fontOverride.fontWeight = 400;
+	} else {
+		fontOverride.fontFamily = "Zen Maru Gothic";
+		fontOverride.fontPath = "resources/fonts/ZenMaruGothic-Bold.ttf";
+		fontOverride.fontWeight = 700;
+		fontOverride.overrideOutline = true;
+		fontOverride.outlineColor = gameTextOutlineEnabled_
+			? gameTextOutlineColor_
+			: Vector4{ 0.0f, 0.0f, 0.0f, 0.0f };
+		fontOverride.outlineThickness = gameTextOutlineEnabled_
+			? gameTextOutlineThickness_
+			: 0.0f;
+	}
+	TextRenderer::GetInstance()->SetFontOverride(fontOverride);
+
+	gameTextNeonStyle_.enabled = gameTextNeonEnabled_;
+	if (gameTextNeonEffect_) {
+		gameTextNeonEffect_->SetStyle(gameTextNeonStyle_);
+	}
+}
+
+void GameScene::DrawGameTextBloom()
+{
+	if (!gameTextNeonEnabled_ || !gameTextNeonEffect_ || !player_ || player_->IsChangeMode()) {
+		return;
+	}
+
+	std::vector<TextLabel*> labels;
+	labels.reserve(10);
+	if (gameFlowState_ == GameFlowState::Playing) {
+		player_->AppendGameplayNeonTextLabels(labels);
+	}
+	if (eventCalloutTimer_ > 0.0f && eventCalloutText_) {
+		labels.push_back(eventCalloutText_.get());
+	}
+	if (showcaseMode_ && showcaseModeText_) {
+		labels.push_back(showcaseModeText_.get());
+	}
+	if (gameFlowState_ != GameFlowState::Playing && flowBannerText_) {
+		labels.push_back(flowBannerText_.get());
+	}
+	const bool showResult =
+		gameFlowState_ == GameFlowState::StageClear ||
+		(gameFlowState_ == GameFlowState::GameOver && gameFlowTimer_ <= 0.0f);
+	if (showResult) {
+		if (resultSummaryText_) {
+			labels.push_back(resultSummaryText_.get());
+		}
+		if (resultMenuText_) {
+			labels.push_back(resultMenuText_.get());
+		}
+	}
+	gameTextNeonEffect_->DrawBloom(labels);
+}
+
 nlohmann::json GameScene::BuildGameVisualConfig() const
 {
 	nlohmann::json config = nlohmann::json::object();
 	config["version"] = 1;
+	config["textAppearance"] = {
+		{ "fontMode", gameTextFontMode_ },
+		{ "neonEnabled", gameTextNeonEnabled_ },
+		{ "outlineEnabled", gameTextOutlineEnabled_ },
+		{ "outlineColor", WriteJsonVector4(gameTextOutlineColor_) },
+		{ "outlineThickness", gameTextOutlineThickness_ },
+		{ "glowColor", WriteJsonVector4(gameTextNeonStyle_.glowColor) },
+		{ "sourceBrightness", gameTextNeonStyle_.sourceBrightness },
+		{ "threshold", gameTextNeonStyle_.threshold },
+		{ "innerIntensity", gameTextNeonStyle_.innerIntensity },
+		{ "outerIntensity", gameTextNeonStyle_.outerIntensity }
+	};
 	config["neonGrid"] = {
 		{ "showWorldGrid", showNeonGrid_ },
 		{ "showActorLocalGrid", showActorLocalGrid_ },
@@ -3907,6 +3992,31 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 	if (!configJson.is_object()) {
 		return;
 	}
+	if (configJson.contains("textAppearance") && configJson["textAppearance"].is_object()) {
+		const nlohmann::json& textJson = configJson["textAppearance"];
+		gameTextFontMode_ = (std::clamp)(ReadCustomInt(textJson, "fontMode", gameTextFontMode_), 0, 1);
+		gameTextNeonEnabled_ = ReadCustomBool(textJson, "neonEnabled", gameTextNeonEnabled_);
+		gameTextOutlineEnabled_ = ReadCustomBool(
+			textJson, "outlineEnabled", gameTextOutlineEnabled_);
+		if (textJson.contains("outlineColor")) {
+			gameTextOutlineColor_ = ReadJsonVector4(
+				textJson["outlineColor"], gameTextOutlineColor_);
+		}
+		gameTextOutlineThickness_ = (std::max)(0.0f, ReadCustomFloat(
+			textJson, "outlineThickness", gameTextOutlineThickness_));
+		if (textJson.contains("glowColor")) {
+			gameTextNeonStyle_.glowColor = ReadJsonVector4(textJson["glowColor"], gameTextNeonStyle_.glowColor);
+		}
+		gameTextNeonStyle_.sourceBrightness = ReadCustomFloat(
+			textJson, "sourceBrightness", gameTextNeonStyle_.sourceBrightness);
+		gameTextNeonStyle_.threshold = ReadCustomFloat(
+			textJson, "threshold", gameTextNeonStyle_.threshold);
+		gameTextNeonStyle_.innerIntensity = ReadCustomFloat(
+			textJson, "innerIntensity", gameTextNeonStyle_.innerIntensity);
+		gameTextNeonStyle_.outerIntensity = ReadCustomFloat(
+			textJson, "outerIntensity", gameTextNeonStyle_.outerIntensity);
+	}
+	ApplyGameTextAppearance();
 	if (configJson.contains("neonGrid") && configJson["neonGrid"].is_object()) {
 		const nlohmann::json& gridJson = configJson["neonGrid"];
 		showNeonGrid_ = ReadCustomBool(gridJson, "showWorldGrid", showNeonGrid_);
@@ -4141,6 +4251,44 @@ void GameScene::DrawGameSceneDebugImGui()
 			}
 			if (!visualConfigStatus_.empty()) {
 				ImGui::TextWrapped("%s", visualConfigStatus_.c_str());
+			}
+			ImGui::Separator();
+			if (ImGui::CollapsingHeader("ゲーム文字 / ネオン", ImGuiTreeNodeFlags_DefaultOpen)) {
+				const char* fontModes[] = {
+					"オリジナルへ戻す (Meiryo)",
+					"Zen Maru Gothic Bold"
+				};
+				bool appearanceChanged = ImGui::Combo(
+					"ゲームフォント",
+					&gameTextFontMode_,
+					fontModes,
+					IM_ARRAYSIZE(fontModes));
+				appearanceChanged |= ImGui::Checkbox("文字ネオンを有効化", &gameTextNeonEnabled_);
+				appearanceChanged |= ImGui::Checkbox(
+					"黒アウトラインを表示", &gameTextOutlineEnabled_);
+				appearanceChanged |= ImGui::ColorEdit4(
+					"文字アウトライン色", &gameTextOutlineColor_.x);
+				appearanceChanged |= ImGui::DragFloat(
+					"文字アウトライン幅", &gameTextOutlineThickness_, 0.05f, 0.0f, 8.0f);
+				appearanceChanged |= ImGui::ColorEdit4("文字発光色", &gameTextNeonStyle_.glowColor.x);
+				appearanceChanged |= ImGui::DragFloat(
+					"文字発光源輝度", &gameTextNeonStyle_.sourceBrightness, 0.02f, 0.0f, 8.0f);
+				appearanceChanged |= ImGui::DragFloat(
+					"文字ブルームしきい値", &gameTextNeonStyle_.threshold, 0.01f, 0.0f, 4.0f);
+				appearanceChanged |= ImGui::DragFloat(
+					"文字内光強度", &gameTextNeonStyle_.innerIntensity, 0.01f, 0.0f, 4.0f);
+				appearanceChanged |= ImGui::DragFloat(
+					"文字外光強度", &gameTextNeonStyle_.outerIntensity, 0.01f, 0.0f, 4.0f);
+				if (ImGui::Button("文字表示を完全に元へ戻す")) {
+					gameTextFontMode_ = 0;
+					gameTextNeonEnabled_ = false;
+					gameTextOutlineEnabled_ = false;
+					appearanceChanged = true;
+				}
+				if (appearanceChanged) {
+					ApplyGameTextAppearance();
+				}
+				ImGui::TextDisabled("保存・再読込は上の見た目設定ボタンを使用します。 ");
 			}
 			ImGui::Separator();
 			if (player_) {
@@ -4936,7 +5084,7 @@ void GameScene::DrawSprite() {
 		player_->DrawEncyclopedia();
 	}
 	//shotGide->Draw();
-	if (controlGuideText_ && gameFlowState_ == GameFlowState::Playing) {
+	if (controlGuideText_ && gameFlowState_ == GameFlowState::Playing && !player_->IsChangeMode()) {
 		controlGuideText_->SetPosition(showControlGuide_ ? Vector2{ 22.0f, 636.0f } : Vector2{ 22.0f, 690.0f });
 		controlGuideText_->Draw();
 	}

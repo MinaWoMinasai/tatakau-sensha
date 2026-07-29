@@ -33,6 +33,7 @@
 #include "Skybox.h"
 #include "game/level/LevelLoader.h"
 #include "game/effects/ScreenEffectDirector.h"
+#include "game/ui/NeonTextEffect.h"
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -216,6 +217,8 @@ private:
 	bool SaveGameVisualConfig(const std::string& filePath = "resources/configs/gameVisuals.json") const;
 	nlohmann::json BuildGameVisualConfig() const;
 	void ApplyGameVisualConfig(const nlohmann::json& configJson);
+	void ApplyGameTextAppearance();
+	void DrawGameTextBloom();
 	void DrawLevelAIDitorBalanceLab(bool embedded = false);
 	void LoadBalanceEditorFromJson(const nlohmann::json& balanceJson);
 	nlohmann::json BuildBalanceJsonFromEditor() const;
@@ -337,6 +340,13 @@ private:
 	std::unique_ptr<TextLabel> resultMenuText_;
 	std::unique_ptr<TextLabel> eventCalloutText_;
 	std::unique_ptr<TextLabel> showcaseModeText_;
+	std::unique_ptr<NeonTextEffect> gameTextNeonEffect_;
+	int gameTextFontMode_ = 1;
+	bool gameTextNeonEnabled_ = true;
+	bool gameTextOutlineEnabled_ = false;
+	Vector4 gameTextOutlineColor_{ 0.0f, 0.0f, 0.0f, 0.9f };
+	float gameTextOutlineThickness_ = 1.0f;
+	NeonTextEffectStyle gameTextNeonStyle_{};
 	std::vector<FollowHpBar> followHpBars_;
 	std::array<std::vector<VertexData>, 4> hpBarBackgroundVertices_;
 	std::array<std::vector<VertexData>, 4> hpBarFillVertices_;

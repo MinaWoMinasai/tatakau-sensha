@@ -293,7 +293,8 @@ void Bloom::Update() {
 
 #ifdef USE_IMGUI
 
-    ImGui::Begin("BloomAndVignette");
+	if (!screenEffectState_.suppressPostEffectDebugUi) {
+		ImGui::Begin("BloomAndVignette");
 
     // --- 既存の項目 ---
     ImGui::Text("HDR Output");
@@ -555,7 +556,8 @@ void Bloom::Update() {
         invertFlag = false;
     }
 
-    ImGui::End();
+		ImGui::End();
+	}
 
 #endif // USE_IMGUI
 
@@ -780,7 +782,9 @@ void Bloom::ComposeTransientEffects() {
 	const BloomParam& base = screenEffectBaseParam_;
 
 	bloomParam_.intensity = (std::clamp)(
-		baseBloomIntensity_ + transientBloomBoost_ + (screenEffectState_.active ? effect.intensity : 0.0f),
+		(baseBloomIntensity_ + transientBloomBoost_) *
+			(std::clamp)(screenEffectState_.bloomScale, 0.0f, 1.0f) +
+			(screenEffectState_.active ? effect.intensity : 0.0f),
 		0.0f,
 		4.0f);
 	bloomParam_.distortionAmount = baseDistortionAmount_;

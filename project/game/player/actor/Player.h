@@ -19,6 +19,8 @@
 #include "Easing.h"
 #include "ParticleManager.h"
 #include "game/weapon/WeaponMount.h"
+#include "game/ui/TankButtonUI.h"
+#include "game/ui/NeonTextEffect.h"
 
 enum class ClassType {
 	
@@ -60,6 +62,7 @@ struct TankData {
 };
 
 class Stage;
+class ObjectPostEffect;
 
 /// <summary>
 /// 自キャラ
@@ -176,6 +179,8 @@ public:
 	/// スプライト描画
 	/// </summary>
 	void DrawSprite();
+	void DrawEvolutionAfterPostEffects();
+	void AppendGameplayNeonTextLabels(std::vector<TextLabel*>& labels) const;
 
 	// ドローンのゲッター
 	std::vector<PlayerDrone*> GetDronePtrs() const;
@@ -279,6 +284,7 @@ public:
 	bool ApplyStatUpgrade(int index);
 	bool RefundStatUpgrade(int index);
 	const PlayerStats& GetStats() const { return stats_; }
+	bool GetTankButtonVisualData(const std::string& classId, TankButtonVisualData& output) const;
 
 	bool RequestSlow();
 
@@ -494,8 +500,18 @@ private:
 	float GetEvolutionRenderScale() const;
 	Vector2 GetEvolutionRenderOffset() const;
 	void UpdateStaticEvolutionCircuit();
+	void UpdateStaticEvolutionNodeFrames();
+	void UpdateStaticEvolutionSilhouettes();
 	void UpdateStaticEvolutionText();
 	void DrawStaticEvolutionDebugOverlay();
+	void RefreshStaticEvolutionCandidates();
+	std::string GetEvolutionClassName(const std::string& classId) const;
+	std::string GetEvolutionShortRole(const PlayerClassConfig& config) const;
+	std::string GetEvolutionRole(const PlayerClassConfig& config) const;
+	std::array<std::string, 3> GetEvolutionDeltas(
+		const PlayerClassConfig& current,
+		const PlayerClassConfig& target) const;
+	std::string GetEvolutionAbility(const PlayerClassConfig& config) const;
 	void RecalculateStatsFromBase(bool healToFull);
 	void SpawnCasing();
 	int shootBarrelIndex_ = 0; // 次に撃つ砲身の番号
@@ -570,21 +586,36 @@ private:
 	std::unique_ptr<TextLabel> evolutionRoleLabel_;
 	std::unique_ptr<TextLabel> evolutionChangeButtonLabel_;
 	std::array<std::unique_ptr<TextLabel>, 9> evolutionStatLabels_;
+	static constexpr size_t kStaticEvolutionMaxCandidates = 4;
+	static constexpr size_t kStaticEvolutionMaxNodes = kStaticEvolutionMaxCandidates + 1;
+	static constexpr size_t kStaticEvolutionMaxPaths = kStaticEvolutionMaxCandidates + 1;
 	struct EvolutionUiStyleConfig {
 		bool enabled = true;
+		bool radialLayout = false;
 		Vector2 virtualResolution{ 1280.0f, 720.0f };
 		float safeMargin = 48.0f;
 		std::array<Vector2, 4> nodeAnchors{ {
+			{ 0.23f, 0.43f },
+			{ 0.67f, 0.22f },
+			{ 0.67f, 0.43f },
+			{ 0.67f, 0.64f }
+		} };
+		std::array<Vector2, 4> radialNodeAnchors{ {
 			{ 0.50f, 0.43f },
 			{ 0.33f, 0.20f },
 			{ 0.67f, 0.20f },
 			{ 0.50f, 0.70f }
 		} };
-		Vector2 currentNodeSize{ 200.0f, 112.0f };
-		Vector2 candidateNodeSize{ 172.0f, 104.0f };
+		Vector2 branchPointAnchor{ 0.49f, 0.43f };
+		Vector2 currentNodeSize{ 160.0f, 112.0f };
+		Vector2 candidateNodeSize{ 160.0f, 112.0f };
 		float normalScale = 1.0f;
 		float hoverScale = 1.05f;
 		float selectedScale = 1.08f;
+		float nodeCornerCut = 12.0f;
+		float nodeOutlineGlowWidth = 10.0f;
+		float nodeOutlineWidth = 2.0f;
+		float silhouetteScale = 1.0f;
 		float circuitOuterGlowWidth = 18.0f;
 		float circuitMiddleGlowWidth = 8.0f;
 		float circuitCoreWidth = 2.5f;
@@ -592,14 +623,18 @@ private:
 		float circuitOuterAlpha = 0.14f;
 		float circuitMiddleAlpha = 0.34f;
 		float circuitCoreAlpha = 0.90f;
-		float backgroundDimOpacity = 0.82f;
-		Vector2 detailPanelAnchor{ 0.50f, 0.90f };
-		Vector2 detailPanelSize{ 1184.0f, 118.0f };
+		float backgroundDimOpacity = 0.88f;
+		Vector2 detailPanelAnchor{ 0.50f, 0.88f };
+		Vector2 detailPanelSize{ 1088.0f, 134.0f };
 		Vector2 confirmButtonSize{ 186.0f, 44.0f };
-		float titleFontSize = 30.0f;
+		float titleFontSize = 26.0f;
 		float classNameFontSize = 22.0f;
 		float bodyFontSize = 16.0f;
+		float buttonFontSize = 17.0f;
 		std::string fontFamily = "Meiryo";
+		std::string fontPath;
+		int fontWeight = 400;
+		NeonTextEffectStyle neonText{};
 		Vector4 normalColor{ 0.12f, 0.34f, 0.42f, 0.82f };
 		Vector4 availableColor{ 0.16f, 0.64f, 0.72f, 0.92f };
 		Vector4 hoverColor{ 0.30f, 0.94f, 1.00f, 1.0f };
@@ -609,34 +644,51 @@ private:
 		Vector4 titleTextColor{ 0.74f, 1.00f, 0.92f, 1.0f };
 		Vector4 classTextColor{ 0.92f, 1.00f, 0.96f, 1.0f };
 		Vector4 bodyTextColor{ 0.84f, 0.92f, 1.00f, 1.0f };
+		Vector4 buttonTextColor{ 0.96f, 1.00f, 0.98f, 1.0f };
 		Vector4 textOutlineColor{ 0.0f, 0.025f, 0.045f, 0.96f };
-		float textOutlineWidth = 2.0f;
+		float titleOutlineWidth = 0.9f;
+		float classNameOutlineWidth = 1.0f;
+		float bodyOutlineWidth = 0.35f;
+		float buttonOutlineWidth = 0.5f;
 		int fixedSelectedCandidate = 0;
 	};
 	EvolutionUiStyleConfig evolutionUiStyle_{};
 	std::unique_ptr<Sprite> staticEvolutionBackdropSprite_;
+	std::unique_ptr<TankButtonUiStyle> tankButtonUiStyle_;
+	std::unique_ptr<ObjectPostEffect> staticEvolutionButtonBloomEffect_;
+	std::unique_ptr<NeonTextEffect> staticEvolutionTextEffect_;
+	std::array<std::unique_ptr<TankButtonUI>, kStaticEvolutionMaxNodes> staticEvolutionTankButtons_;
 	std::unique_ptr<Sprite> staticEvolutionDetailPanelSprite_;
 	std::unique_ptr<Sprite> staticEvolutionConfirmButtonSprite_;
-	std::array<std::unique_ptr<Sprite>, 4> staticEvolutionNodeGlowSprites_;
-	std::array<std::unique_ptr<Sprite>, 4> staticEvolutionNodePanelSprites_;
-	std::array<std::unique_ptr<Sprite>, 4> staticEvolutionTankSprites_;
+	std::array<std::unique_ptr<Sprite>, 8> staticEvolutionConfirmOutlineSprites_;
+	std::unique_ptr<Sprite> staticEvolutionBranchGlowSprite_;
+	std::unique_ptr<Sprite> staticEvolutionBranchCoreSprite_;
+	std::array<std::array<std::unique_ptr<Sprite>, 3>, kStaticEvolutionMaxNodes> staticEvolutionNodePanelSprites_;
+	static constexpr size_t kStaticEvolutionNodeFrameSpriteCount = 24;
+	std::array<std::array<std::unique_ptr<Sprite>, kStaticEvolutionNodeFrameSpriteCount>, kStaticEvolutionMaxNodes> staticEvolutionNodeFrameSprites_;
+	static constexpr size_t kStaticEvolutionSilhouetteSpriteCount = 32;
+	std::array<std::array<std::unique_ptr<Sprite>, kStaticEvolutionSilhouetteSpriteCount>, kStaticEvolutionMaxNodes> staticEvolutionSilhouetteSprites_;
 	static constexpr size_t kStaticEvolutionCircuitSpriteCount = 27;
 	std::array<std::unique_ptr<Sprite>, kStaticEvolutionCircuitSpriteCount> staticEvolutionCircuitSprites_;
 	std::unique_ptr<TextLabel> staticEvolutionTitleLabel_;
 	std::unique_ptr<TextLabel> staticEvolutionPrototypeLabel_;
-	std::array<std::unique_ptr<TextLabel>, 4> staticEvolutionNodeNameLabels_;
-	std::array<std::unique_ptr<TextLabel>, 4> staticEvolutionNodeRankLabels_;
+	std::array<std::unique_ptr<TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeNameLabels_;
+	std::array<std::unique_ptr<TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeRankLabels_;
 	std::unique_ptr<TextLabel> staticEvolutionDetailClassLabel_;
 	std::unique_ptr<TextLabel> staticEvolutionRoleLabel_;
 	std::array<std::unique_ptr<TextLabel>, 3> staticEvolutionDeltaLabels_;
 	std::unique_ptr<TextLabel> staticEvolutionAbilityLabel_;
 	std::unique_ptr<TextLabel> staticEvolutionConfirmLabel_;
-	std::array<Vector2, 4> staticEvolutionNodeCentersVirtual_{};
-	std::array<Vector2, 4> staticEvolutionNodeDrawSizesVirtual_{};
-	std::array<Vector2, 4> staticEvolutionNodeHitSizesVirtual_{};
-	std::array<std::array<Vector2, 4>, 3> staticEvolutionCircuitControlPoints_{};
-	std::array<int, 3> staticEvolutionCircuitControlPointCounts_{};
+	std::unique_ptr<TextLabel> staticEvolutionPanelHintLabel_;
+	std::array<Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeCentersVirtual_{};
+	std::array<Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeDrawSizesVirtual_{};
+	std::array<Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeHitSizesVirtual_{};
+	std::array<std::array<Vector2, 4>, kStaticEvolutionMaxPaths> staticEvolutionCircuitControlPoints_{};
+	std::array<int, kStaticEvolutionMaxPaths> staticEvolutionCircuitControlPointCounts_{};
+	std::array<std::string, kStaticEvolutionMaxCandidates> staticEvolutionCandidateIds_{};
+	size_t staticEvolutionCandidateCount_ = 0;
 	int staticEvolutionHoveredNode_ = -1;
+	bool staticEvolutionConfirmHovered_ = false;
 	std::string evolutionUiStyleStatus_;
 	bool showEvolutionVirtualBounds_ = false;
 	bool showEvolutionSafeArea_ = false;
