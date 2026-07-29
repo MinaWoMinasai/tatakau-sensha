@@ -74,9 +74,6 @@ private:
 	bool startVisibleRule = false;
 
 	bool ruleGide = false;
-	int menuSelection_ = 0;
-	std::unique_ptr<TextLabel> modeMenuText_;
-	std::unique_ptr<TextLabel> startHintText_;
 	std::unique_ptr<NeonTextEffect> titleTextNeonEffect_;
 	NeonTextEffectStyle titleTextNeonStyle_{};
 };

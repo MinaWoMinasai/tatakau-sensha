@@ -51,7 +51,6 @@ bool ScreenEffectDirector::LoadConfig(const std::string& filePath)
 		config_.gameOverDuration = ReadFloat(timing, "gameOver", config_.gameOverDuration, 0.20f, 4.0f);
 		config_.dashDuration = ReadFloat(timing, "dash", config_.dashDuration, 0.05f, 0.50f);
 		config_.upgradeConfirmDuration = ReadFloat(timing, "upgradeConfirm", config_.upgradeConfirmDuration, 0.05f, 1.0f);
-		config_.showcaseTimeScale = ReadFloat(timing, "showcaseTimeScale", config_.showcaseTimeScale, 0.25f, 12.0f);
 
 		config_.lowHpThreshold = ReadFloat(intensity, "lowHpThreshold", config_.lowHpThreshold, 0.05f, 0.80f);
 		config_.lowHpVignette = ReadFloat(intensity, "lowHpVignette", config_.lowHpVignette, 0.0f, 1.0f);

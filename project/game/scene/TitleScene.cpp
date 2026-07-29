@@ -1,5 +1,4 @@
 #include "TitleScene.h"
-#include "GameScene.h"
 #include "SceneManager.h"
 
 #include <algorithm>
@@ -177,30 +176,6 @@ void TitleScene::Initialize() {
 	rule->SetAnchorPoint({ 0.5f,0.5f });
 	rule->SetAlpha(0.50f);
 
-	TextStyle modeStyle{};
-	modeStyle.fontFamily = "Meiryo";
-	modeStyle.fontSize = 25.0f;
-	modeStyle.color = { 0.58f, 1.0f, 0.72f, 1.0f };
-	modeStyle.outlineColor = { 0.0f, 0.02f, 0.06f, 0.96f };
-	modeStyle.outlineThickness = 3.0f;
-	modeStyle.padding = 8.0f;
-	modeMenuText_ = std::make_unique<TextLabel>();
-	modeMenuText_->Initialize(SpriteCommon::GetInstance(), "", modeStyle);
-	modeMenuText_->SetAnchorPoint({ 0.5f, 0.5f });
-	modeMenuText_->SetPosition({ screenW * 0.5f, screenH * 0.80f });
-
-	TextStyle hintStyle = modeStyle;
-	hintStyle.fontSize = 16.0f;
-	hintStyle.color = { 0.82f, 0.90f, 1.0f, 0.90f };
-	hintStyle.outlineThickness = 2.0f;
-	startHintText_ = std::make_unique<TextLabel>();
-	startHintText_->Initialize(
-		SpriteCommon::GetInstance(),
-		"W/S or Arrow Keys: Select   Left Click / Enter: Start",
-		hintStyle);
-	startHintText_->SetAnchorPoint({ 0.5f, 0.5f });
-	startHintText_->SetPosition({ screenW * 0.5f, screenH * 0.91f });
-
 	titleTextNeonStyle_.enabled = true;
 	titleTextNeonStyle_.glowColor = { 0.18f, 1.0f, 0.48f, 1.0f };
 	titleTextNeonStyle_.sourceBrightness = 2.2f;
@@ -233,7 +208,7 @@ void TitleScene::Update() {
 		}
 		break;
 	case Phase::kMain: {
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) && !defined(NDEBUG)
 		if (input_->IsTrigger(input_->GetKey()[DIK_F3], input_->GetPreKey()[DIK_F3])) {
 			if (StartTransitionIfAvailable("TEST", 0.35f)) {
 				break;
@@ -254,23 +229,7 @@ void TitleScene::Update() {
 				break;
 			}
 		}
-#endif // USE_IMGUI
-
-		const bool up =
-			input_->IsTrigger(input_->GetKey()[DIK_W], input_->GetPreKey()[DIK_W]) ||
-			input_->IsTrigger(input_->GetKey()[DIK_UP], input_->GetPreKey()[DIK_UP]);
-		const bool down =
-			input_->IsTrigger(input_->GetKey()[DIK_S], input_->GetPreKey()[DIK_S]) ||
-			input_->IsTrigger(input_->GetKey()[DIK_DOWN], input_->GetPreKey()[DIK_DOWN]);
-		if (up || down) {
-			menuSelection_ = 1 - menuSelection_;
-		}
-
-		if (modeMenuText_) {
-			modeMenuText_->SetText(
-				std::string(menuSelection_ == 0 ? "> " : "  ") + "NORMAL MODE\n" +
-				(menuSelection_ == 1 ? "> " : "  ") + "SHOWCASE MODE");
-		}
+#endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
 		const bool confirm =
 			input_->IsTrigger(input_->GetKey()[DIK_RETURN], input_->GetPreKey()[DIK_RETURN]) ||
@@ -279,7 +238,6 @@ void TitleScene::Update() {
 				input_->GetMouseState().rgbButtons[0],
 				input_->GetPreMouseState().rgbButtons[0]);
 		if (IsSceneAvailable("GAME") && confirm) {
-			GameScene::SetNextShowcaseMode(menuSelection_ == 1);
 			StartTransitionIfAvailable("GAME", 0.75f);
 		}
 		break;
@@ -329,12 +287,6 @@ void TitleScene::DrawSprite() {
 		} else if (startLogo.sprite) {
 			startLogo.sprite->Draw();
 		}
-	}
-	if (modeMenuText_) {
-		modeMenuText_->Draw();
-	}
-	if (startHintText_) {
-		startHintText_->Draw();
 	}
 	fade_->Draw();
 }

@@ -503,6 +503,7 @@ private:
 	void UpdateStaticEvolutionNodeFrames();
 	void UpdateStaticEvolutionSilhouettes();
 	void UpdateStaticEvolutionText();
+	void PrepareStaticEvolutionTextTextures();
 	void DrawStaticEvolutionDebugOverlay();
 	void RefreshStaticEvolutionCandidates();
 	std::string GetEvolutionClassName(const std::string& classId) const;
