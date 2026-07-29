@@ -524,6 +524,9 @@ void Player::AddExp(int amount)
 
 		if (GetRankFromLevel(level_) > previousRank) {
 			isChangeMode = true;
+			// AddExpはPlayer::Update後の衝突処理から呼ばれる場合があるため、
+			// 同じフレームの初回描画より先に遅延フォント更新を完了させる。
+			PrepareStaticEvolutionTextTextures();
 		}
 
 		if (level_ >= kMaxLevel) {
@@ -647,6 +650,7 @@ void Player::Update(
 			evolutionCancelledEvent_ = true;
 		} else {
 			isChangeMode = true;
+			PrepareStaticEvolutionTextTextures();
 		}
 	}
 	// 進化UIを操作したクリックやキー入力を、そのまま射撃・移動へ流さない。
@@ -3165,6 +3169,9 @@ void Player::UpdateStaticEvolutionPrototype()
 	UpdateStaticEvolutionSilhouettes();
 	UpdateStaticEvolutionCircuit();
 	UpdateStaticEvolutionText();
+	// TextLabelのフォント差し替えはテクスチャ転送を伴う。描画中に遅延更新すると
+	// 転送処理がコマンドリストをResetするため、必ずUpdate段階で同期しておく。
+	PrepareStaticEvolutionTextTextures();
 
 	const bool confirmTriggered = input_ && input_->IsTrigger(
 		input_->GetKey()[DIK_RETURN],
@@ -3670,6 +3677,38 @@ void Player::UpdateStaticEvolutionText()
 		"ESC  戻る  /  ENTER  決定",
 		EvolutionVirtualToRender({ panelTopLeft.x + evolutionUiStyle_.detailPanelSize.x - 278.0f, panelTopLeft.y + 94.0f }),
 		bodyStyle);
+}
+
+void Player::PrepareStaticEvolutionTextTextures()
+{
+	auto prepare = [](TextLabel* label) {
+		if (label) {
+			label->PrepareForDraw();
+		}
+	};
+
+	prepare(staticEvolutionTitleLabel_.get());
+	prepare(staticEvolutionPrototypeLabel_.get());
+	prepare(staticEvolutionDetailClassLabel_.get());
+	prepare(staticEvolutionRoleLabel_.get());
+	for (const auto& label : staticEvolutionDeltaLabels_) {
+		prepare(label.get());
+	}
+	prepare(staticEvolutionAbilityLabel_.get());
+	prepare(staticEvolutionConfirmLabel_.get());
+	prepare(staticEvolutionPanelHintLabel_.get());
+
+	for (const auto& label : staticEvolutionNodeNameLabels_) {
+		prepare(label.get());
+	}
+	for (const auto& label : staticEvolutionNodeRankLabels_) {
+		prepare(label.get());
+	}
+	for (size_t i = 0; i < staticEvolutionCandidateCount_ + 1; ++i) {
+		if (staticEvolutionTankButtons_[i]) {
+			prepare(staticEvolutionTankButtons_[i]->GetLabel());
+		}
+	}
 }
 
 bool Player::LoadEvolutionUiStyle(const std::string& path)

@@ -86,8 +86,6 @@ public:
 	void SetRenderProfile(const IScene::RenderProfile& profile) override { renderProfile_ = profile; }
 	
 	std::string GetNextSceneName() const override;
-	static void SetNextShowcaseMode(bool enabled) { nextShowcaseMode_ = enabled; }
-	static bool GetNextShowcaseMode() { return nextShowcaseMode_; }
 
 private:
 	struct FollowHpBar {
@@ -241,7 +239,6 @@ private:
 	void InitializeSubmissionUi();
 	void UpdateGameFlow(float baseDeltaTime);
 	void UpdateGameplayEventEffects(float baseDeltaTime, bool justDodgeTriggered);
-	void UpdateShowcaseMode(float baseDeltaTime);
 	void BeginBossDefeatSequence();
 	void BeginGameOver();
 	void EnterResultState(bool stageClear);
@@ -339,7 +336,6 @@ private:
 	std::unique_ptr<TextLabel> resultSummaryText_;
 	std::unique_ptr<TextLabel> resultMenuText_;
 	std::unique_ptr<TextLabel> eventCalloutText_;
-	std::unique_ptr<TextLabel> showcaseModeText_;
 	std::unique_ptr<NeonTextEffect> gameTextNeonEffect_;
 	int gameTextFontMode_ = 1;
 	bool gameTextNeonEnabled_ = true;
@@ -384,7 +380,6 @@ private:
 	float bossDefeatSequenceDuration_ = 1.55f;
 	float playTime_ = 0.0f;
 	float eventCalloutTimer_ = 0.0f;
-	float showcaseElapsed_ = 0.0f;
 	int resultSelection_ = 0;
 	int justDodgeCount_ = 0;
 	int damageTaken_ = 0;
@@ -395,9 +390,6 @@ private:
 	bool bossEntryTriggered_ = false;
 	bool bossDefeatHandled_ = false;
 	bool playerDeathHandled_ = false;
-	bool showcaseMode_ = false;
-	std::array<bool, 8> showcaseCueTriggered_{};
-	static inline bool nextShowcaseMode_ = false;
 	std::chrono::steady_clock::time_point fpsLastSampleTime_{};
 	float fpsAccumulatedTime_ = 0.0f;
 	int fpsFrameCount_ = 0;
@@ -445,7 +437,7 @@ private:
 	bool showPlayerClassEditor_ = false;
 	bool showNeonGrid_ = true;
 	bool showActorLocalGrid_ = true;
-	bool showLevelAIDitorPreview_ = true;
+	bool showLevelAIDitorPreview_ = false;
 	bool enableNeonGridPostEffect_ = true;
 	bool enableBulletTrailPostEffect_ = true;
 	bool enableParticlePostEffect_ = true;
