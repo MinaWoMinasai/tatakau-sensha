@@ -16,20 +16,27 @@ public:
 		float playerDamageDuration = 0.16f;
 		float enemyDefeatDuration = 0.24f;
 		float bossEntryDuration = 1.10f;
-		float bossPhaseDuration = 0.75f;
+		float bossPhaseDuration = 0.90f;
 		float bossDefeatDuration = 1.35f;
 		float bossDefeatHitStop = 0.14f;
+		float bossDefeatImpactDelay = 0.18f;
 		float gameOverDuration = 1.10f;
-		float dashDuration = 0.14f;
+		float dashDuration = 0.18f;
 		float upgradeConfirmDuration = 0.24f;
 
 		float lowHpThreshold = 0.30f;
 		float lowHpVignette = 0.28f;
 		float upgradeGaussian = 0.34f;
-		float phaseBoxFilter = 0.18f;
+		float phaseBoxFilter = 0.20f;
+		float phaseNoiseIntensity = 0.15f;
+		float phaseRandomIntensity = 0.15f;
+		float phaseScanlineIntensity = 0.19f;
+		float phaseGlitchAmount = 0.048f;
 		float grayscaleStrength = 0.95f;
 		float playerDamageVignette = 0.48f;
 		float radialBlurIntensity = 0.22f;
+		float dashRadialBlurIntensity = 0.12f;
+		float dashRadialBlurWidth = 0.012f;
 		float shockwaveMaxRadius = 0.62f;
 		float shockwaveWidth = 0.045f;
 		float shockwaveStrength = 0.020f;
@@ -38,7 +45,7 @@ public:
 		float bloomBoost = 0.85f;
 		float cameraShakeDuration = 0.16f;
 		float cameraShakeStrength = 0.42f;
-		float dissolveSpeed = 1.60f;
+		float dissolveSpeed = 1.28f;
 		float maxBloomBoost = 1.80f;
 		float maxChromaticAberration = 0.065f;
 		float maxVignette = 0.72f;
@@ -48,7 +55,7 @@ public:
 		bool outlineEnabled = true;
 		float outlineWidth = 1.0f;
 		float outlineThreshold = 0.55f;
-		float depthOutlineScale = 0.18f;
+		float depthOutlineScale = 0.216f;
 	};
 
 	bool LoadConfig(const std::string& filePath);

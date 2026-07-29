@@ -1273,14 +1273,17 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 {
 	classConfigs_.clear();
 	classOrder_.clear();
-	for (ClassType type : EditableClassTypes()) {
-		PlayerClassConfig config = CreateDefaultClassConfig(type);
-		classOrder_.push_back(config.id);
-		classConfigs_[config.id] = config;
-	}
+	auto loadDefaultClasses = [this]() {
+		for (ClassType type : EditableClassTypes()) {
+			PlayerClassConfig config = CreateDefaultClassConfig(type);
+			classOrder_.push_back(config.id);
+			classConfigs_[config.id] = config;
+		}
+	};
 
 	std::ifstream file(path);
 	if (!file.is_open()) {
+		loadDefaultClasses();
 		return;
 	}
 
@@ -1288,6 +1291,7 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 	file >> root;
 	const nlohmann::json& classes = root.contains("classes") ? root["classes"] : root;
 	if (!classes.is_array()) {
+		loadDefaultClasses();
 		return;
 	}
 
@@ -1395,6 +1399,15 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 			classOrder_.push_back(config.id);
 		}
 		classConfigs_[config.id] = config;
+	}
+
+	// A valid configuration is authoritative: classes omitted from the JSON
+	// stay unavailable. Basic is the only mandatory fallback needed to keep the
+	// player in a valid state when an accidentally empty file is supplied.
+	if (classConfigs_.find("Basic") == classConfigs_.end()) {
+		PlayerClassConfig basic = CreateDefaultClassConfig(ClassType::Basic);
+		classOrder_.insert(classOrder_.begin(), basic.id);
+		classConfigs_[basic.id] = basic;
 	}
 
 	if (classConfigs_.find(currentClassId_) == classConfigs_.end()) {

@@ -1173,9 +1173,10 @@ void GameScene::BeginBossDefeatSequence()
 		1.10f,
 		2.20f);
 	bossDefeatSequenceDuration_ = gameFlowTimer_;
+	bossDefeatImpactDelayTimer_ = screenEffectDirector_.GetConfig().bossDefeatImpactDelay;
+	bossDefeatImpactTriggered_ = false;
 	const Vector2 center = WorldToScreenUv(enemy_->GetWorldPosition());
 	screenEffectDirector_.TriggerBossDefeat(center);
-	TriggerDeathPostPulse(enemy_->GetWorldPosition(), 1.55f);
 	cameraShakeDuration_ = screenEffectDirector_.GetConfig().cameraShakeDuration * 4.5f;
 	cameraShakeTimer_ = cameraShakeDuration_;
 	cameraShakePower_ = screenEffectDirector_.GetConfig().cameraShakeStrength * 2.75f;
@@ -1202,6 +1203,13 @@ void GameScene::BeginGameOver()
 void GameScene::UpdateGameFlow(float baseDeltaTime)
 {
 	if (gameFlowState_ == GameFlowState::BossDefeatSequence) {
+		if (!bossDefeatImpactTriggered_) {
+			bossDefeatImpactDelayTimer_ = (std::max)(0.0f, bossDefeatImpactDelayTimer_ - baseDeltaTime);
+			if (bossDefeatImpactDelayTimer_ <= 0.0f) {
+				bossDefeatImpactTriggered_ = true;
+				TriggerDeathPostPulse(enemy_->GetWorldPosition(), 1.55f);
+			}
+		}
 		gameFlowTimer_ = (std::max)(0.0f, gameFlowTimer_ - baseDeltaTime);
 		if (gameFlowTimer_ <= 0.0f) {
 			EnterResultState(true);
@@ -1551,7 +1559,9 @@ void GameScene::DrawAfterPostEffect3D() {
 		defeatParam.dissolveThreshold = progress;
 		defeatParam.dissolveEdgeWidth = 0.075f;
 		defeatParam.dissolveEdgeColor = { 1.0f, 0.22f, 0.08f };
-		defeatParam.intensity = (std::max)(defeatParam.intensity, 1.65f);
+		// Keep the dissolving silhouette readable; the delayed full-screen pulse
+		// supplies the later impact flash without washing out the dissolve edge.
+		defeatParam.intensity = savedBossParam.intensity * 0.80f;
 		enemyPostEffect_->SetParam(defeatParam);
 		enemyPostEffect_->BeginCapture();
 		Object3dCommon::GetInstance()->PreDraw(kNormal);
@@ -4142,7 +4152,7 @@ void GameScene::DrawGameSceneDebugImGui()
 			ImGui::DragInt("弾ラベル最大数", &bulletStatusDebugMaxLabels_, 1.0f, 1, 200);
 			ImGui::Checkbox("ポスト負荷表示を表示 (F8)", &showPostProfileOverlay_);
 			bool gameplayOutlines = screenEffectDirector_.IsOutlineEnabled();
-			if (ImGui::Checkbox("ゲーム用 Depth/Luminance Outline", &gameplayOutlines)) {
+			if (ImGui::Checkbox("ゲーム用 Depth Based Outline", &gameplayOutlines)) {
 				screenEffectDirector_.SetOutlineEnabled(gameplayOutlines);
 			}
 			ImGui::Text("F12: このコンソールを表示/非表示");
