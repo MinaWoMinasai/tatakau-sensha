@@ -9,7 +9,7 @@
     "bossPhase": 0.9,
     "bossDefeat": 1.35,
     "bossDefeatHitStop": 0.14,
-    "bossDefeatImpactDelay": 0.18,
+    "bossDefeatImpactDelay": 0.3,
     "gameOver": 1.1,
     "dash": 0.18,
     "upgradeConfirm": 0.24

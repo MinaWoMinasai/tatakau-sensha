@@ -123,6 +123,25 @@ std::string ReadCustomString(const nlohmann::json& customProperties, const char*
 	return customProperties[key].get<std::string>();
 }
 
+std::string GetBossPhaseDisplayName(const LevelBossPhase& phase)
+{
+	const std::string configuredDisplayName = ReadCustomString(phase.customProperties, "displayName", "");
+	if (!configuredDisplayName.empty()) {
+		return configuredDisplayName;
+	}
+
+	if (phase.name == "phase_75_add_exp_pressure") {
+		return "PHASE 2";
+	}
+	if (phase.name == "phase_50_add_hazard") {
+		return "HAZARD DEPLOYED";
+	}
+	if (phase.name == "phase_25_final_pressure") {
+		return "FINAL PHASE";
+	}
+	return "PHASE CHANGE";
+}
+
 Vector4 ReadJsonVector4(const nlohmann::json& json, const Vector4& fallback)
 {
 	if (!json.is_object()) {
@@ -1561,7 +1580,7 @@ void GameScene::DrawAfterPostEffect3D() {
 		defeatParam.dissolveEdgeColor = { 1.0f, 0.22f, 0.08f };
 		// Keep the dissolving silhouette readable; the delayed full-screen pulse
 		// supplies the later impact flash without washing out the dissolve edge.
-		defeatParam.intensity = savedBossParam.intensity * 0.80f;
+		defeatParam.intensity = savedBossParam.intensity * 0.70f;
 		enemyPostEffect_->SetParam(defeatParam);
 		enemyPostEffect_->BeginCapture();
 		Object3dCommon::GetInstance()->PreDraw(kNormal);
@@ -4827,9 +4846,7 @@ void GameScene::UpdateLevelBossPhases()
 
 		runtimePhase.activated = true;
 		screenEffectDirector_.TriggerBossPhaseChange();
-		SetEventCallout(
-			runtimePhase.phase.name.empty() ? "BOSS PHASE SHIFT" : "PHASE: " + runtimePhase.phase.name,
-			1.10f);
+		SetEventCallout(GetBossPhaseDisplayName(runtimePhase.phase), 1.10f);
 		cameraShakeTimer_ = (std::max)(cameraShakeTimer_, 0.30f);
 		cameraShakeDuration_ = 0.30f;
 		cameraShakePower_ = (std::max)(cameraShakePower_, 0.45f);
