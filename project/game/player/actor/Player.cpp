@@ -1,9 +1,13 @@
 #include "Player.h"
 #include "Stage.h"
 #include "Audio.h"
+#include "game/ui/TankButtonUI.h"
+#include "game/ui/NeonTextEffect.h"
+#include "ObjectPostEffect.h"
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -248,46 +252,6 @@ const std::array<const char*, 7>& UpgradeHudNames()
 		"移動速度"
 	};
 	return names;
-}
-
-struct StaticEvolutionCandidateCopy {
-	const char* id;
-	const char* name;
-	const char* role;
-	std::array<const char*, 3> deltas;
-	const char* ability;
-	ClassType type;
-};
-
-const std::array<StaticEvolutionCandidateCopy, 3>& StaticEvolutionCandidates()
-{
-	static const std::array<StaticEvolutionCandidateCopy, 3> candidates = {{
-		{
-			"Twin",
-			"TWIN",
-			"役割: 高精度連射の万能型",
-			{ "砲身  1 → 2", "発射間隔  -60%", "拡散角  10° → 2°" },
-			"固有能力: 2門の砲身から交互に射撃",
-			ClassType::Twin
-		},
-		{
-			"MachineGun",
-			"MACHINE GUN",
-			"役割: 弾幕で押す近中距離制圧型",
-			{ "連射速度  +67%", "発射間隔  -40%", "拡散角  10° → 30°" },
-			"固有能力: 高速連射による継続的な弾幕",
-			ClassType::MachineGun
-		},
-		{
-			"Overseer",
-			"OVERSEER",
-			"役割: ドローンを操る支援制圧型",
-			{ "攻撃方式  弾 → ドローン", "最大展開数  0 → 32", "反動  0.01 → 0" },
-			"固有能力: 最大32機の自律ドローン",
-			ClassType::Overseer
-		}
-	}};
-	return candidates;
 }
 
 void SetLabel(std::unique_ptr<TextLabel>& label, SpriteCommon* spriteCommon, const std::string& text, const Vector2& position, const TextStyle& style)
@@ -673,6 +637,7 @@ void Player::Update(
 	GetCursorPos(&mousePos);
 	ScreenToClient(WinApp::GetInstance()->GetHwnd(), &mousePos);
 	mousePosition_ = { static_cast<float>(mousePos.x), static_cast<float>(mousePos.y) };
+	const bool evolutionUiWasOpen = isChangeMode;
 	UpdateEncyclopedia(uiDeltaTime);
 	UpdateUpgradeHud();
 
@@ -683,6 +648,12 @@ void Player::Update(
 		} else {
 			isChangeMode = true;
 		}
+	}
+	// 進化UIを操作したクリックやキー入力を、そのまま射撃・移動へ流さない。
+	// 確定やキャンセルでこのフレーム中に閉じた場合も、次フレームまでゲーム入力を抑止する。
+	if (evolutionUiWasOpen || isChangeMode) {
+		machineGunBtnSprite_->Update();
+		return;
 	}
 
 	if (skillPoints_ > 0) {
@@ -1617,6 +1588,49 @@ const Player::PlayerClassConfig* Player::GetCurrentClassConfig() const
 	return GetClassConfig(currentClassId_);
 }
 
+bool Player::GetTankButtonVisualData(const std::string& classId, TankButtonVisualData& output) const
+{
+	const PlayerClassConfig* config = GetClassConfig(classId);
+	if (!config) {
+		return false;
+	}
+	output = {};
+	output.classId = config->id;
+	output.rank = (std::clamp)(config->requiredRank, 1, 4);
+	output.bodyScale = config->bodyScale;
+	output.bodyFillColor = config->bodyFillColor;
+	output.bodyOutlineColor = config->bodyOutlineColor;
+	output.weaponMounts = config->barrels;
+	output.usesDrone = config->usesDrone;
+	switch (config->bodyShape) {
+	case BodyShape::Box:
+		output.bodyShape = TankButtonBodyShape::Box;
+		break;
+	case BodyShape::Triangle:
+		output.bodyShape = TankButtonBodyShape::Triangle;
+		break;
+	case BodyShape::Pentagon:
+		output.bodyShape = TankButtonBodyShape::Pentagon;
+		break;
+	case BodyShape::Circle:
+	default:
+		output.bodyShape = TankButtonBodyShape::Circle;
+		break;
+	}
+	if (classId == "Twin") {
+		output.hiraganaName = "ついん";
+	} else if (classId == "MachineGun") {
+		output.hiraganaName = "ましんがん";
+	} else if (classId == "Overseer") {
+		output.hiraganaName = "おーばーしあ";
+	} else if (classId == "Basic") {
+		output.hiraganaName = "べーしっく";
+	} else {
+		output.hiraganaName = config->displayName;
+	}
+	return true;
+}
+
 Player::PlayerClassConfig* Player::GetMutableClassConfig(const std::string& classId)
 {
 	auto it = classConfigs_.find(classId);
@@ -2350,6 +2364,24 @@ void Player::DrawUpgradeHud()
 	upgradeHudProfile_.totalMs = std::chrono::duration<float, std::milli>(totalEnd - totalStart).count();
 }
 
+void Player::AppendGameplayNeonTextLabels(std::vector<TextLabel*>& labels) const
+{
+	if (isChangeMode) {
+		return;
+	}
+	if (upgradeHudDrawBottomText_ && upgradeHudLevelLabel_) {
+		labels.push_back(upgradeHudLevelLabel_.get());
+	}
+	if (upgradeHudListVisibility_ > 0.01f && upgradeHudDrawListText_) {
+		if (upgradeHudTitleLabel_) {
+			labels.push_back(upgradeHudTitleLabel_.get());
+		}
+		if (upgradeHudPointLabel_) {
+			labels.push_back(upgradeHudPointLabel_.get());
+		}
+	}
+}
+
 void Player::QueueUpgradeHudRect(std::vector<TrailVertex>& vertices, const Vector2& pos, const Vector2& size, const Vector4& color) const
 {
 	const float left = pos.x;
@@ -2632,7 +2664,141 @@ void Player::DrawUpgradeHudDebugImGui()
 
 bool Player::ShouldUseStaticEvolutionPrototype() const
 {
-	return evolutionUiStyle_.enabled && currentClassId_ == "Basic";
+	if (!evolutionUiStyle_.enabled) {
+		return false;
+	}
+	const PlayerClassConfig* current = GetCurrentClassConfig();
+	if (!current || current->requiredRank >= 4) {
+		return false;
+	}
+	const int targetRank = current->requiredRank + 1;
+	for (const std::string& id : classOrder_) {
+		const PlayerClassConfig* config = GetClassConfig(id);
+		if (config && config->requiredRank == targetRank) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void Player::RefreshStaticEvolutionCandidates()
+{
+	staticEvolutionCandidateCount_ = 0;
+	for (std::string& id : staticEvolutionCandidateIds_) {
+		id.clear();
+	}
+	const PlayerClassConfig* current = GetCurrentClassConfig();
+	if (!current) {
+		return;
+	}
+	const int targetRank = current->requiredRank + 1;
+	for (const std::string& id : classOrder_) {
+		const PlayerClassConfig* config = GetClassConfig(id);
+		if (!config || config->requiredRank != targetRank || config->id == current->id) {
+			continue;
+		}
+		if (staticEvolutionCandidateCount_ >= staticEvolutionCandidateIds_.size()) {
+			break;
+		}
+		staticEvolutionCandidateIds_[staticEvolutionCandidateCount_++] = config->id;
+	}
+	if (staticEvolutionCandidateCount_ == 0) {
+		evolutionUiStyle_.fixedSelectedCandidate = 0;
+	} else {
+		evolutionUiStyle_.fixedSelectedCandidate = (std::clamp)(
+			evolutionUiStyle_.fixedSelectedCandidate,
+			0,
+			static_cast<int>(staticEvolutionCandidateCount_ - 1));
+	}
+}
+
+std::string Player::GetEvolutionClassName(const std::string& classId) const
+{
+	static const std::unordered_map<std::string, std::string> names = {
+		{ "Basic", "BASIC" },
+		{ "Basic_Copy", "SWORD" },
+		{ "Twin", "TWIN" },
+		{ "MachineGun", "MACHINE GUN" },
+		{ "Overseer", "OVERSEER" },
+		{ "Triple", "TRIPLE" },
+		{ "Triple_Copy", "TRIPLE GUN" },
+		{ "Assassin", "ASSASSIN" },
+		{ "Bounder", "BOUNDER" },
+		{ "Ninja", "NINJA" },
+		{ "Smasher", "SMASHER" },
+		{ "Summoner", "SUMMONER" },
+	};
+	if (const auto it = names.find(classId); it != names.end()) {
+		return it->second;
+	}
+	std::string result = classId;
+	for (char& c : result) {
+		if (c == '_') {
+			c = ' ';
+		} else {
+			c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+		}
+	}
+	return result;
+}
+
+std::string Player::GetEvolutionShortRole(const PlayerClassConfig& config) const
+{
+	if (config.usesDrone || config.id == "Summoner") return "DRONE CONTROL";
+	if (config.reflect) return "RICOCHET";
+	if (config.id == "Ninja" || config.id == "Assassin") return "PRECISION";
+	if (config.id == "Smasher") return "IMPACT";
+	if (config.id == "Twin") return "DUAL FIRE";
+	if (config.id == "MachineGun") return "SUPPRESSION";
+	if (config.barrels.size() >= 3) return "MULTI BARREL";
+	return "ADVANCED";
+}
+
+std::string Player::GetEvolutionRole(const PlayerClassConfig& config) const
+{
+	if (config.usesDrone || config.id == "Summoner") return "役割: ドローンを展開する支援制圧型";
+	if (config.reflect) return "役割: 反射弾で空間を制圧する技巧型";
+	if (config.id == "Ninja" || config.id == "Assassin") return "役割: 高速攻撃を狙う精密射撃型";
+	if (config.id == "Smasher") return "役割: 高い衝撃力で押し切る近距離型";
+	if (config.id == "MachineGun") return "役割: 弾幕で押す近中距離制圧型";
+	if (config.barrels.size() >= 2) return "役割: 複数砲身を活かす連続射撃型";
+	return "役割: 基礎性能を強化した万能型";
+}
+
+std::array<std::string, 3> Player::GetEvolutionDeltas(
+	const PlayerClassConfig& current,
+	const PlayerClassConfig& target) const
+{
+	char reload[64]{};
+	const float currentReload = (std::max)(0.0001f, current.reloadScale);
+	const int reloadPercent = static_cast<int>(std::round((target.reloadScale / currentReload - 1.0f) * 100.0f));
+	std::snprintf(reload, sizeof(reload), "発射間隔  %+d%%", reloadPercent);
+	char spread[64]{};
+	std::snprintf(
+		spread,
+		sizeof(spread),
+		"拡散角  %.0f° → %.0f°",
+		current.spreadAngleDeg,
+		target.spreadAngleDeg);
+	return {
+		"砲身  " + std::to_string(current.barrels.size()) + " → " + std::to_string(target.barrels.size()),
+		std::string(reload),
+		std::string(spread)
+	};
+}
+
+std::string Player::GetEvolutionAbility(const PlayerClassConfig& config) const
+{
+	if (config.usesDrone || config.id == "Summoner") {
+		return "固有能力: 最大" + std::to_string(config.maxDrones) + "機のドローンを展開";
+	}
+	if (config.reflect) return "固有能力: 発射した弾が障害物で反射";
+	if (config.penetrate) return "固有能力: 敵を貫通する弾を発射";
+	if (config.fireAllBarrels) return "固有能力: 全砲身から同時射撃";
+	if (config.alternateBarrels) return "固有能力: 複数の砲身から交互に射撃";
+	if (config.bulletCount > 1) return "固有能力: 1回の射撃で複数弾を発射";
+	if (config.barrels.size() >= 2) return "固有能力: 複数砲身による多方向射撃";
+	return "固有能力: 機体固有の武装構成";
 }
 
 float Player::GetEvolutionRenderScale() const
@@ -2710,18 +2876,47 @@ void Player::InitializeStaticEvolutionPrototype()
 	staticEvolutionBackdropSprite_ = makeSprite("resources/white512x512.png", { 0.0f, 0.0f });
 	staticEvolutionDetailPanelSprite_ = makeSprite("resources/white512x512.png", { 0.5f, 0.5f });
 	staticEvolutionConfirmButtonSprite_ = makeSprite("resources/white512x512.png", { 0.5f, 0.5f });
-	for (int i = 0; i < 4; ++i) {
-		staticEvolutionNodeGlowSprites_[i] = makeSprite("resources/white512x512.png", { 0.5f, 0.5f });
-		staticEvolutionNodePanelSprites_[i] = makeSprite("resources/white512x512.png", { 0.5f, 0.5f });
+	staticEvolutionBranchGlowSprite_ = makeSprite("resources/white512x512.png", { 0.5f, 0.5f });
+	staticEvolutionBranchCoreSprite_ = makeSprite("resources/white512x512.png", { 0.5f, 0.5f });
+	for (auto& line : staticEvolutionConfirmOutlineSprites_) {
+		line = makeSprite("resources/white512x512.png", { 0.0f, 0.5f });
 	}
-	staticEvolutionTankSprites_[0] = makeSprite(ClassTexturePath(ClassType::Basic), { 0.5f, 0.5f });
-	const auto& candidates = StaticEvolutionCandidates();
-	for (int i = 0; i < 3; ++i) {
-		staticEvolutionTankSprites_[i + 1] = makeSprite(ClassTexturePath(candidates[i].type), { 0.5f, 0.5f });
+	for (auto& nodePanels : staticEvolutionNodePanelSprites_) {
+		for (auto& panel : nodePanels) {
+			panel = makeSprite("resources/white512x512.png", { 0.5f, 0.5f });
+		}
+	}
+	for (auto& nodeLines : staticEvolutionNodeFrameSprites_) {
+		for (auto& line : nodeLines) {
+			line = makeSprite("resources/white512x512.png", { 0.0f, 0.5f });
+		}
+	}
+	for (auto& nodeLines : staticEvolutionSilhouetteSprites_) {
+		for (auto& line : nodeLines) {
+			line = makeSprite("resources/white512x512.png", { 0.0f, 0.5f });
+		}
 	}
 	for (auto& line : staticEvolutionCircuitSprites_) {
 		line = makeSprite("resources/white512x512.png", { 0.0f, 0.5f });
 	}
+
+	tankButtonUiStyle_ = std::make_unique<TankButtonUiStyle>();
+	LoadTankButtonUiStyle(*tankButtonUiStyle_);
+	for (size_t classIndex = 0; classIndex < staticEvolutionTankButtons_.size(); ++classIndex) {
+		staticEvolutionTankButtons_[classIndex] = std::make_unique<TankButtonUI>();
+		staticEvolutionTankButtons_[classIndex]->Initialize(spriteCommon);
+	}
+	staticEvolutionButtonBloomEffect_ = std::make_unique<ObjectPostEffect>();
+	staticEvolutionButtonBloomEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr,
+		1.0f);
+	staticEvolutionTextEffect_ = std::make_unique<NeonTextEffect>();
+	staticEvolutionTextEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager());
+	staticEvolutionTextEffect_->SetStyle(evolutionUiStyle_.neonText);
 
 	UpdateStaticEvolutionPrototype();
 }
@@ -2732,14 +2927,47 @@ void Player::UpdateStaticEvolutionPrototype()
 		return;
 	}
 
-	evolutionUiStyle_.fixedSelectedCandidate =
-		(std::clamp)(evolutionUiStyle_.fixedSelectedCandidate, 0, 2);
-	const float renderScale = GetEvolutionRenderScale();
-	const Vector2 renderOffset = GetEvolutionRenderOffset();
-	const Vector2 mouseVirtual = EvolutionClientToVirtual(mousePosition_);
+	RefreshStaticEvolutionCandidates();
+	if (staticEvolutionCandidateCount_ == 0) {
+		return;
+	}
+	if (input_ && input_->IsTrigger(input_->GetKey()[DIK_ESCAPE], input_->GetPreKey()[DIK_ESCAPE])) {
+		isChangeMode = false;
+		evolutionCancelledEvent_ = true;
+		return;
+	}
 
-	for (int i = 0; i < 4; ++i) {
-		staticEvolutionNodeCentersVirtual_[i] = EvolutionAnchorToVirtual(evolutionUiStyle_.nodeAnchors[i]);
+	const size_t activeNodeCount = staticEvolutionCandidateCount_ + 1;
+	const float renderScale = GetEvolutionRenderScale();
+	const Vector2 mouseVirtual = EvolutionClientToVirtual(mousePosition_);
+	const auto& activeAnchors = evolutionUiStyle_.radialLayout
+		? evolutionUiStyle_.radialNodeAnchors
+		: evolutionUiStyle_.nodeAnchors;
+
+	staticEvolutionNodeCentersVirtual_[0] = EvolutionAnchorToVirtual(activeAnchors[0]);
+	for (size_t candidateIndex = 0; candidateIndex < staticEvolutionCandidateCount_; ++candidateIndex) {
+		Vector2 anchor{};
+		if (staticEvolutionCandidateCount_ == 3) {
+			anchor = activeAnchors[candidateIndex + 1];
+		} else if (evolutionUiStyle_.radialLayout) {
+			const float angle = -1.5707963268f +
+				static_cast<float>(candidateIndex) * 6.2831853072f /
+				static_cast<float>(staticEvolutionCandidateCount_);
+			anchor = {
+				0.50f + std::cos(angle) * 0.30f,
+				0.40f + std::sin(angle) * 0.27f
+			};
+		} else {
+			const float y = staticEvolutionCandidateCount_ == 1
+				? 0.43f
+				: 0.13f + static_cast<float>(candidateIndex) *
+					(0.54f / static_cast<float>(staticEvolutionCandidateCount_ - 1));
+			anchor = { activeAnchors[1].x, y };
+		}
+		staticEvolutionNodeCentersVirtual_[candidateIndex + 1] = EvolutionAnchorToVirtual(anchor);
+	}
+
+	for (size_t i = 0; i < activeNodeCount; ++i) {
 		const Vector2 baseSize = i == 0
 			? evolutionUiStyle_.currentNodeSize
 			: evolutionUiStyle_.candidateNodeSize;
@@ -2747,16 +2975,22 @@ void Player::UpdateStaticEvolutionPrototype()
 	}
 
 	staticEvolutionHoveredNode_ = -1;
-	for (int i = 1; i < 4; ++i) {
+	for (size_t i = 1; i < activeNodeCount; ++i) {
 		const Vector2 center = staticEvolutionNodeCentersVirtual_[i];
 		const Vector2 hitSize = staticEvolutionNodeHitSizesVirtual_[i];
 		if (mouseVirtual.x >= center.x - hitSize.x * 0.5f &&
 			mouseVirtual.x <= center.x + hitSize.x * 0.5f &&
 			mouseVirtual.y >= center.y - hitSize.y * 0.5f &&
 			mouseVirtual.y <= center.y + hitSize.y * 0.5f) {
-			staticEvolutionHoveredNode_ = i;
+			staticEvolutionHoveredNode_ = static_cast<int>(i);
 			break;
 		}
+	}
+	const bool primaryTriggered = input_ && input_->IsTrigger(
+		input_->GetMouseState().rgbButtons[0],
+		input_->GetPreMouseState().rgbButtons[0]);
+	if (primaryTriggered && staticEvolutionHoveredNode_ > 0) {
+		evolutionUiStyle_.fixedSelectedCandidate = staticEvolutionHoveredNode_ - 1;
 	}
 
 	staticEvolutionBackdropSprite_->SetPosition({ 0.0f, 0.0f });
@@ -2768,11 +3002,14 @@ void Player::UpdateStaticEvolutionPrototype()
 	staticEvolutionBackdropSprite_->Update();
 
 	const int currentRank = GetRankFromLevel(level_);
-	const auto& candidates = StaticEvolutionCandidates();
-	for (int i = 0; i < 4; ++i) {
+	for (size_t i = 0; i < activeNodeCount; ++i) {
 		const bool selected = i > 0 && i - 1 == evolutionUiStyle_.fixedSelectedCandidate;
 		const bool hovered = i == staticEvolutionHoveredNode_;
-		const PlayerClassConfig* candidateConfig = i > 0 ? GetClassConfig(candidates[i - 1].id) : nullptr;
+		const std::string& nodeClassId = i == 0
+			? currentClassId_
+			: staticEvolutionCandidateIds_[i - 1];
+		const PlayerClassConfig* candidateConfig = i > 0 ? GetClassConfig(nodeClassId) : nullptr;
+		const PlayerClassConfig* nodeConfig = GetClassConfig(nodeClassId);
 		const bool locked = candidateConfig && currentRank < candidateConfig->requiredRank;
 		float stateScale = evolutionUiStyle_.normalScale;
 		if (selected) {
@@ -2789,47 +3026,67 @@ void Player::UpdateStaticEvolutionPrototype()
 		};
 		staticEvolutionNodeDrawSizesVirtual_[i] = drawSize;
 
-		Vector4 stateColor = i == 0 ? evolutionUiStyle_.availableColor : evolutionUiStyle_.normalColor;
-		if (locked) {
-			stateColor = evolutionUiStyle_.lockedColor;
-		} else if (selected) {
-			stateColor = evolutionUiStyle_.selectedColor;
-		} else if (hovered) {
-			stateColor = evolutionUiStyle_.hoverColor;
-		} else if (i > 0) {
-			stateColor = evolutionUiStyle_.availableColor;
+		const float cut = (std::clamp)(evolutionUiStyle_.nodeCornerCut, 0.0f, drawSize.y * 0.30f);
+		Vector4 panelColor = evolutionUiStyle_.panelColor;
+		panelColor.w = locked ? 0.97f : 0.91f;
+		const std::array<Vector2, 3> panelPositions = {{
+			staticEvolutionNodeCentersVirtual_[i],
+			{ staticEvolutionNodeCentersVirtual_[i].x, staticEvolutionNodeCentersVirtual_[i].y - drawSize.y * 0.5f + cut * 0.5f },
+			{ staticEvolutionNodeCentersVirtual_[i].x, staticEvolutionNodeCentersVirtual_[i].y + drawSize.y * 0.5f - cut * 0.5f }
+		}};
+		const std::array<Vector2, 3> panelSizes = {{
+			{ drawSize.x, (std::max)(1.0f, drawSize.y - cut * 2.0f) },
+			{ (std::max)(1.0f, drawSize.x - cut * 2.0f), cut },
+			{ (std::max)(1.0f, drawSize.x - cut * 2.0f), cut }
+		}};
+		for (int panelIndex = 0; panelIndex < 3; ++panelIndex) {
+			Sprite* panel = staticEvolutionNodePanelSprites_[i][panelIndex].get();
+			panel->SetPosition(EvolutionVirtualToRender(panelPositions[panelIndex]));
+			panel->SetSize({ panelSizes[panelIndex].x * renderScale, panelSizes[panelIndex].y * renderScale });
+			panel->SetColor(panelColor);
+			panel->Update();
 		}
 
-		const Vector2 renderCenter = EvolutionVirtualToRender(staticEvolutionNodeCentersVirtual_[i]);
-		const Vector2 renderSize = { drawSize.x * renderScale, drawSize.y * renderScale };
-		Vector4 glowColor = stateColor;
-		glowColor.w *= selected ? 0.30f : hovered ? 0.22f : 0.12f;
-		staticEvolutionNodeGlowSprites_[i]->SetPosition(renderCenter);
-		staticEvolutionNodeGlowSprites_[i]->SetSize({ renderSize.x + 18.0f * renderScale, renderSize.y + 18.0f * renderScale });
-		staticEvolutionNodeGlowSprites_[i]->SetColor(glowColor);
-		staticEvolutionNodeGlowSprites_[i]->Update();
-
-		const float panelMix = selected ? 0.34f : hovered ? 0.26f : 0.16f;
-		Vector4 panelColor = LerpColor(evolutionUiStyle_.panelColor, stateColor, panelMix);
-		panelColor.w = evolutionUiStyle_.panelColor.w;
-		staticEvolutionNodePanelSprites_[i]->SetPosition(renderCenter);
-		staticEvolutionNodePanelSprites_[i]->SetSize(renderSize);
-		staticEvolutionNodePanelSprites_[i]->SetColor(panelColor);
-		staticEvolutionNodePanelSprites_[i]->Update();
-
-		staticEvolutionTankSprites_[i]->SetPosition({
-			renderCenter.x,
-			renderCenter.y - 23.0f * renderScale
-		});
-		staticEvolutionTankSprites_[i]->SetSize({
-			(i == 0 ? 118.0f : 100.0f) * stateScale * renderScale,
-			(i == 0 ? 40.0f : 34.0f) * stateScale * renderScale
-		});
-		staticEvolutionTankSprites_[i]->SetColor(
-			locked
-				? Vector4{ 0.30f, 0.34f, 0.38f, 0.60f }
-				: Vector4{ 1.0f, 1.0f, 1.0f, selected ? 1.0f : 0.90f });
-		staticEvolutionTankSprites_[i]->Update();
+		if (staticEvolutionTankButtons_[i] && tankButtonUiStyle_) {
+			TankButtonVisualData visualData{};
+			if (GetTankButtonVisualData(nodeClassId, visualData)) {
+				staticEvolutionTankButtons_[i]->SetVisualData(visualData);
+			}
+			TankButtonUiStyle renderedButtonStyle = *tankButtonUiStyle_;
+			renderedButtonStyle.buttonWidth = drawSize.x * renderScale;
+			renderedButtonStyle.buttonHeight = drawSize.y * renderScale;
+			renderedButtonStyle.cornerRadius = evolutionUiStyle_.nodeCornerCut * renderScale;
+			renderedButtonStyle.borderWidth = evolutionUiStyle_.nodeOutlineWidth * renderScale;
+			renderedButtonStyle.glowWidth = evolutionUiStyle_.nodeOutlineGlowWidth * renderScale;
+			renderedButtonStyle.iconOffsetY *= renderScale;
+			renderedButtonStyle.labelOffsetY *= renderScale;
+			renderedButtonStyle.labelFontSize *= renderScale;
+			renderedButtonStyle.labelOutlineWidth *= renderScale;
+			TankButtonState buttonState = TankButtonState::Normal;
+			if (locked) {
+				buttonState = TankButtonState::Locked;
+			} else if (selected) {
+				buttonState = TankButtonState::Selected;
+			} else if (hovered) {
+				buttonState = TankButtonState::Hover;
+			}
+			staticEvolutionTankButtons_[i]->SetRank(nodeConfig ? nodeConfig->requiredRank : 1);
+			staticEvolutionTankButtons_[i]->SetState(buttonState);
+			staticEvolutionTankButtons_[i]->Update(
+				EvolutionVirtualToRender(staticEvolutionNodeCentersVirtual_[i]),
+				renderedButtonStyle);
+		}
+	}
+	if (staticEvolutionButtonBloomEffect_ && tankButtonUiStyle_) {
+		BloomParam bloomParam = staticEvolutionButtonBloomEffect_->GetParam();
+		bloomParam.threshold = 0.0f;
+		bloomParam.intensity = 1.10f + tankButtonUiStyle_->bloomBoost * 2.5f;
+		bloomParam.outlineWidth = 0.0f;
+		staticEvolutionButtonBloomEffect_->SetParam(bloomParam);
+		staticEvolutionButtonBloomEffect_->Update(0.0f);
+	}
+	if (staticEvolutionTextEffect_) {
+		staticEvolutionTextEffect_->SetStyle(evolutionUiStyle_.neonText);
 	}
 
 	const Vector2 panelCenterVirtual = EvolutionAnchorToVirtual(evolutionUiStyle_.detailPanelAnchor);
@@ -2842,47 +3099,133 @@ void Player::UpdateStaticEvolutionPrototype()
 	staticEvolutionDetailPanelSprite_->Update();
 
 	const Vector2 buttonCenterVirtual = {
-		panelCenterVirtual.x + evolutionUiStyle_.detailPanelSize.x * 0.405f,
-		panelCenterVirtual.y
+		panelCenterVirtual.x + evolutionUiStyle_.detailPanelSize.x * 0.5f - evolutionUiStyle_.confirmButtonSize.x * 0.5f - 18.0f,
+		panelCenterVirtual.y - evolutionUiStyle_.detailPanelSize.y * 0.5f + 32.0f
 	};
+	staticEvolutionConfirmHovered_ =
+		mouseVirtual.x >= buttonCenterVirtual.x - evolutionUiStyle_.confirmButtonSize.x * 0.5f &&
+		mouseVirtual.x <= buttonCenterVirtual.x + evolutionUiStyle_.confirmButtonSize.x * 0.5f &&
+		mouseVirtual.y >= buttonCenterVirtual.y - evolutionUiStyle_.confirmButtonSize.y * 0.5f &&
+		mouseVirtual.y <= buttonCenterVirtual.y + evolutionUiStyle_.confirmButtonSize.y * 0.5f;
+	const std::string& selectedClassId = staticEvolutionCandidateIds_[
+		static_cast<size_t>(evolutionUiStyle_.fixedSelectedCandidate)];
+	const bool canConfirm = CanEvolveTo(selectedClassId);
 	staticEvolutionConfirmButtonSprite_->SetPosition(EvolutionVirtualToRender(buttonCenterVirtual));
 	staticEvolutionConfirmButtonSprite_->SetSize({
 		evolutionUiStyle_.confirmButtonSize.x * renderScale,
 		evolutionUiStyle_.confirmButtonSize.y * renderScale
 	});
-	Vector4 buttonColor = evolutionUiStyle_.selectedColor;
-	buttonColor.w = 0.78f;
+	Vector4 buttonColor = evolutionUiStyle_.panelColor;
+	buttonColor.x *= 0.72f;
+	buttonColor.y *= 0.72f;
+	buttonColor.z *= 0.72f;
+	buttonColor.w = 0.98f;
+	if (!canConfirm) {
+		buttonColor = {
+			buttonColor.x * evolutionUiStyle_.lockedColor.x,
+			buttonColor.y * evolutionUiStyle_.lockedColor.y,
+			buttonColor.z * evolutionUiStyle_.lockedColor.z,
+			buttonColor.w * evolutionUiStyle_.lockedColor.w
+		};
+	}
 	staticEvolutionConfirmButtonSprite_->SetColor(buttonColor);
 	staticEvolutionConfirmButtonSprite_->Update();
 
+	const float buttonCut = 7.0f;
+	const float halfButtonW = evolutionUiStyle_.confirmButtonSize.x * 0.5f;
+	const float halfButtonH = evolutionUiStyle_.confirmButtonSize.y * 0.5f;
+	const std::array<Vector2, 8> buttonPoints = {{
+		{ buttonCenterVirtual.x - halfButtonW + buttonCut, buttonCenterVirtual.y - halfButtonH },
+		{ buttonCenterVirtual.x + halfButtonW - buttonCut, buttonCenterVirtual.y - halfButtonH },
+		{ buttonCenterVirtual.x + halfButtonW, buttonCenterVirtual.y - halfButtonH + buttonCut },
+		{ buttonCenterVirtual.x + halfButtonW, buttonCenterVirtual.y + halfButtonH - buttonCut },
+		{ buttonCenterVirtual.x + halfButtonW - buttonCut, buttonCenterVirtual.y + halfButtonH },
+		{ buttonCenterVirtual.x - halfButtonW + buttonCut, buttonCenterVirtual.y + halfButtonH },
+		{ buttonCenterVirtual.x - halfButtonW, buttonCenterVirtual.y + halfButtonH - buttonCut },
+		{ buttonCenterVirtual.x - halfButtonW, buttonCenterVirtual.y - halfButtonH + buttonCut }
+	}};
+	for (int i = 0; i < 8; ++i) {
+		const Vector2 a = EvolutionVirtualToRender(buttonPoints[i]);
+		const Vector2 b = EvolutionVirtualToRender(buttonPoints[(i + 1) % 8]);
+		const float dx = b.x - a.x;
+		const float dy = b.y - a.y;
+		Sprite* line = staticEvolutionConfirmOutlineSprites_[i].get();
+		line->SetPosition(a);
+		line->SetRotation(std::atan2(dy, dx));
+		line->SetSize({ std::sqrt(dx * dx + dy * dy), (std::max)(1.0f, 1.6f * renderScale) });
+		Vector4 outlineColor = !canConfirm
+			? evolutionUiStyle_.lockedColor
+			: staticEvolutionConfirmHovered_ ? evolutionUiStyle_.hoverColor : evolutionUiStyle_.availableColor;
+		outlineColor.w = 0.90f;
+		line->SetColor(outlineColor);
+		line->Update();
+	}
+
+	UpdateStaticEvolutionNodeFrames();
+	UpdateStaticEvolutionSilhouettes();
 	UpdateStaticEvolutionCircuit();
 	UpdateStaticEvolutionText();
-	(void)renderOffset;
+
+	const bool confirmTriggered = input_ && input_->IsTrigger(
+		input_->GetKey()[DIK_RETURN],
+		input_->GetPreKey()[DIK_RETURN]);
+	if (canConfirm && (confirmTriggered || (primaryTriggered && staticEvolutionConfirmHovered_))) {
+		TryConfirmEvolutionById(selectedClassId);
+	}
 }
 
 void Player::UpdateStaticEvolutionCircuit()
 {
 	const Vector2 current = staticEvolutionNodeCentersVirtual_[0];
-	for (int i = 0; i < 2; ++i) {
-		const Vector2 target = staticEvolutionNodeCentersVirtual_[i + 1];
-		const float middleY = (current.y + target.y) * 0.5f;
-		staticEvolutionCircuitControlPoints_[i] = {{
-			current,
-			{ current.x, middleY },
-			{ target.x, middleY },
-			target
-		}};
-		staticEvolutionCircuitControlPointCounts_[i] = 4;
+	for (int& count : staticEvolutionCircuitControlPointCounts_) {
+		count = 0;
 	}
-	staticEvolutionCircuitControlPoints_[2] = {{
-		current,
-		staticEvolutionNodeCentersVirtual_[3],
-		staticEvolutionNodeCentersVirtual_[3],
-		staticEvolutionNodeCentersVirtual_[3]
-	}};
-	staticEvolutionCircuitControlPointCounts_[2] = 2;
+	int pathCount = 0;
+	if (evolutionUiStyle_.radialLayout) {
+		for (size_t candidateIndex = 0; candidateIndex < staticEvolutionCandidateCount_; ++candidateIndex) {
+			staticEvolutionCircuitControlPoints_[candidateIndex] = {{
+				current,
+				staticEvolutionNodeCentersVirtual_[candidateIndex + 1],
+				{},
+				{}
+			}};
+			staticEvolutionCircuitControlPointCounts_[candidateIndex] = 2;
+		}
+		pathCount = static_cast<int>(staticEvolutionCandidateCount_);
+		staticEvolutionBranchGlowSprite_->SetSize({ 0.0f, 0.0f });
+		staticEvolutionBranchCoreSprite_->SetSize({ 0.0f, 0.0f });
+	} else {
+		const Vector2 branch = EvolutionAnchorToVirtual(evolutionUiStyle_.branchPointAnchor);
+		staticEvolutionCircuitControlPoints_[0] = {{ current, branch, {}, {} }};
+		staticEvolutionCircuitControlPointCounts_[0] = 2;
+		for (size_t candidateIndex = 0; candidateIndex < staticEvolutionCandidateCount_; ++candidateIndex) {
+			staticEvolutionCircuitControlPoints_[candidateIndex + 1] = {{
+				branch,
+				staticEvolutionNodeCentersVirtual_[candidateIndex + 1],
+				{},
+				{}
+			}};
+			staticEvolutionCircuitControlPointCounts_[candidateIndex + 1] = 2;
+		}
+		pathCount = static_cast<int>(staticEvolutionCandidateCount_ + 1);
+		const float renderScale = GetEvolutionRenderScale();
+		const Vector2 renderBranch = EvolutionVirtualToRender(branch);
+		staticEvolutionBranchGlowSprite_->SetPosition(renderBranch);
+		staticEvolutionBranchGlowSprite_->SetRotation(0.785398163f);
+		staticEvolutionBranchGlowSprite_->SetSize({ 20.0f * renderScale, 20.0f * renderScale });
+		Vector4 branchGlow = evolutionUiStyle_.selectedColor;
+		branchGlow.w = 0.16f;
+		staticEvolutionBranchGlowSprite_->SetColor(branchGlow);
+		staticEvolutionBranchGlowSprite_->Update();
+		staticEvolutionBranchCoreSprite_->SetPosition(renderBranch);
+		staticEvolutionBranchCoreSprite_->SetRotation(0.785398163f);
+		staticEvolutionBranchCoreSprite_->SetSize({ 7.0f * renderScale, 7.0f * renderScale });
+		Vector4 branchCore = evolutionUiStyle_.selectedColor;
+		branchCore.w = 0.94f;
+		staticEvolutionBranchCoreSprite_->SetColor(branchCore);
+		staticEvolutionBranchCoreSprite_->Update();
+	}
 
-	const auto& candidates = StaticEvolutionCandidates();
 	const int currentRank = GetRankFromLevel(level_);
 	const float renderScale = GetEvolutionRenderScale();
 	size_t spriteIndex = 0;
@@ -2899,22 +3242,27 @@ void Player::UpdateStaticEvolutionCircuit()
 		sprite->Update();
 	};
 
-	for (int pathIndex = 0; pathIndex < 3; ++pathIndex) {
-		const bool selected = pathIndex == evolutionUiStyle_.fixedSelectedCandidate;
-		const bool hovered = pathIndex + 1 == staticEvolutionHoveredNode_;
-		const PlayerClassConfig* config = GetClassConfig(candidates[pathIndex].id);
+	for (int pathIndex = 0; pathIndex < pathCount; ++pathIndex) {
+		const bool trunk = !evolutionUiStyle_.radialLayout && pathIndex == 0;
+		const int candidateIndex = evolutionUiStyle_.radialLayout ? pathIndex : pathIndex - 1;
+		const bool selected = trunk || candidateIndex == evolutionUiStyle_.fixedSelectedCandidate;
+		const bool hovered = !trunk && candidateIndex + 1 == staticEvolutionHoveredNode_;
+		const PlayerClassConfig* config = trunk || candidateIndex < 0 ||
+			candidateIndex >= static_cast<int>(staticEvolutionCandidateCount_)
+			? nullptr
+			: GetClassConfig(staticEvolutionCandidateIds_[static_cast<size_t>(candidateIndex)]);
 		const bool locked = config && currentRank < config->requiredRank;
 		Vector4 routeColor = evolutionUiStyle_.availableColor;
-		float brightness = 0.52f;
+		float brightness = 0.38f;
 		if (locked) {
 			routeColor = evolutionUiStyle_.lockedColor;
-			brightness = 0.20f;
+			brightness = 0.14f;
 		} else if (selected) {
 			routeColor = evolutionUiStyle_.selectedColor;
 			brightness = 1.0f;
 		} else if (hovered) {
 			routeColor = evolutionUiStyle_.hoverColor;
-			brightness = 0.82f;
+			brightness = 0.84f;
 		}
 
 		const int count = staticEvolutionCircuitControlPointCounts_[pathIndex];
@@ -2943,48 +3291,292 @@ void Player::UpdateStaticEvolutionCircuit()
 	}
 }
 
+void Player::UpdateStaticEvolutionNodeFrames()
+{
+	const int currentRank = GetRankFromLevel(level_);
+	const float renderScale = GetEvolutionRenderScale();
+	auto setLine = [&](Sprite* sprite, const Vector2& a, const Vector2& b, float width, const Vector4& color) {
+		const Vector2 renderA = EvolutionVirtualToRender(a);
+		const Vector2 renderB = EvolutionVirtualToRender(b);
+		const float dx = renderB.x - renderA.x;
+		const float dy = renderB.y - renderA.y;
+		sprite->SetPosition(renderA);
+		sprite->SetRotation(std::atan2(dy, dx));
+		sprite->SetSize({ std::sqrt(dx * dx + dy * dy), (std::max)(0.5f, width * renderScale) });
+		sprite->SetColor(color);
+		sprite->Update();
+	};
+
+	const int activeNodeCount = static_cast<int>(staticEvolutionCandidateCount_ + 1);
+	for (int nodeIndex = 0; nodeIndex < activeNodeCount; ++nodeIndex) {
+		const bool selected = nodeIndex > 0 && nodeIndex - 1 == evolutionUiStyle_.fixedSelectedCandidate;
+		const bool hovered = nodeIndex == staticEvolutionHoveredNode_;
+		const PlayerClassConfig* config = nodeIndex > 0
+			? GetClassConfig(staticEvolutionCandidateIds_[static_cast<size_t>(nodeIndex - 1)])
+			: nullptr;
+		const bool locked = config && currentRank < config->requiredRank;
+		Vector4 stateColor = nodeIndex == 0 ? evolutionUiStyle_.normalColor : evolutionUiStyle_.availableColor;
+		float glowAlpha = nodeIndex == 0 ? 0.035f : 0.050f;
+		float middleAlpha = nodeIndex == 0 ? 0.12f : 0.18f;
+		float coreAlpha = nodeIndex == 0 ? 0.58f : 0.72f;
+		if (locked) {
+			stateColor = evolutionUiStyle_.lockedColor;
+			glowAlpha = 0.015f;
+			middleAlpha = 0.06f;
+			coreAlpha = 0.34f;
+		} else if (selected) {
+			stateColor = evolutionUiStyle_.selectedColor;
+			glowAlpha = 0.18f;
+			middleAlpha = 0.42f;
+			coreAlpha = 1.0f;
+		} else if (hovered) {
+			stateColor = evolutionUiStyle_.hoverColor;
+			glowAlpha = 0.14f;
+			middleAlpha = 0.34f;
+			coreAlpha = 0.94f;
+		}
+
+		const Vector2 center = staticEvolutionNodeCentersVirtual_[nodeIndex];
+		const Vector2 size = staticEvolutionNodeDrawSizesVirtual_[nodeIndex];
+		const float halfW = size.x * 0.5f;
+		const float halfH = size.y * 0.5f;
+		const float cut = (std::clamp)(evolutionUiStyle_.nodeCornerCut, 0.0f, halfH * 0.60f);
+		const std::array<Vector2, 8> points = {{
+			{ center.x - halfW + cut, center.y - halfH },
+			{ center.x + halfW - cut, center.y - halfH },
+			{ center.x + halfW, center.y - halfH + cut },
+			{ center.x + halfW, center.y + halfH - cut },
+			{ center.x + halfW - cut, center.y + halfH },
+			{ center.x - halfW + cut, center.y + halfH },
+			{ center.x - halfW, center.y + halfH - cut },
+			{ center.x - halfW, center.y - halfH + cut }
+		}};
+		for (int segmentIndex = 0; segmentIndex < 8; ++segmentIndex) {
+			Vector4 outer = stateColor;
+			Vector4 middle = stateColor;
+			Vector4 core = stateColor;
+			outer.w = glowAlpha;
+			middle.w = middleAlpha;
+			core.w = coreAlpha;
+			const Vector2 a = points[segmentIndex];
+			const Vector2 b = points[(segmentIndex + 1) % 8];
+			const size_t spriteIndex = static_cast<size_t>(segmentIndex * 3);
+			setLine(staticEvolutionNodeFrameSprites_[nodeIndex][spriteIndex].get(), a, b, evolutionUiStyle_.nodeOutlineGlowWidth, outer);
+			setLine(staticEvolutionNodeFrameSprites_[nodeIndex][spriteIndex + 1].get(), a, b, evolutionUiStyle_.nodeOutlineWidth * 2.2f, middle);
+			setLine(staticEvolutionNodeFrameSprites_[nodeIndex][spriteIndex + 2].get(), a, b, evolutionUiStyle_.nodeOutlineWidth, core);
+		}
+	}
+}
+
+void Player::UpdateStaticEvolutionSilhouettes()
+{
+	struct Segment {
+		Vector2 a{};
+		Vector2 b{};
+	};
+	const int currentRank = GetRankFromLevel(level_);
+	const float renderScale = GetEvolutionRenderScale();
+	constexpr float kTwoPi = 6.283185307f;
+
+	const int activeNodeCount = static_cast<int>(staticEvolutionCandidateCount_ + 1);
+	for (int nodeIndex = 0; nodeIndex < activeNodeCount; ++nodeIndex) {
+		const std::string& nodeClassId = nodeIndex == 0
+			? currentClassId_
+			: staticEvolutionCandidateIds_[static_cast<size_t>(nodeIndex - 1)];
+		const PlayerClassConfig* config = GetClassConfig(nodeClassId);
+		std::array<Segment, kStaticEvolutionSilhouetteSpriteCount> segments{};
+		size_t segmentCount = 0;
+		auto addSegment = [&](const Vector2& a, const Vector2& b) {
+			if (segmentCount < segments.size()) {
+				segments[segmentCount++] = { a, b };
+			}
+		};
+		if (config) {
+			const bool selected = nodeIndex > 0 && nodeIndex - 1 == evolutionUiStyle_.fixedSelectedCandidate;
+			const bool hovered = nodeIndex == staticEvolutionHoveredNode_;
+			const PlayerClassConfig* candidateConfig = nodeIndex > 0 ? config : nullptr;
+			const bool locked = candidateConfig && currentRank < candidateConfig->requiredRank;
+			float stateScale = evolutionUiStyle_.normalScale;
+			if (selected) {
+				stateScale = evolutionUiStyle_.selectedScale;
+			} else if (hovered) {
+				stateScale = evolutionUiStyle_.hoverScale;
+			}
+			const Vector2 nodeSize = staticEvolutionNodeDrawSizesVirtual_[nodeIndex];
+			const Vector2 center = {
+				staticEvolutionNodeCentersVirtual_[nodeIndex].x - nodeSize.x * 0.30f,
+				staticEvolutionNodeCentersVirtual_[nodeIndex].y - 2.0f
+			};
+			const float silhouetteScale = evolutionUiStyle_.silhouetteScale * stateScale;
+			const float radius = 18.0f * silhouetteScale;
+			int bodySegments = 14;
+			float bodyRotation = 0.0f;
+			switch (config->bodyShape) {
+			case BodyShape::Box:
+				bodySegments = 4;
+				bodyRotation = kTwoPi * 0.125f;
+				break;
+			case BodyShape::Triangle:
+				bodySegments = 3;
+				bodyRotation = -kTwoPi * 0.25f;
+				break;
+			case BodyShape::Pentagon:
+				bodySegments = 5;
+				bodyRotation = -kTwoPi * 0.25f;
+				break;
+			case BodyShape::Circle:
+			default:
+				break;
+			}
+			std::array<Vector2, 14> bodyPoints{};
+			for (int i = 0; i < bodySegments; ++i) {
+				const float angle = bodyRotation + static_cast<float>(i) * kTwoPi / static_cast<float>(bodySegments);
+				bodyPoints[i] = {
+					center.x + std::cos(angle) * radius * (std::clamp)(config->bodyScale.x, 0.45f, 1.80f),
+					center.y + std::sin(angle) * radius * (std::clamp)(config->bodyScale.y, 0.45f, 1.80f)
+				};
+			}
+			for (int i = 0; i < bodySegments; ++i) {
+				addSegment(bodyPoints[i], bodyPoints[(i + 1) % bodySegments]);
+			}
+
+			for (const WeaponMountConfig& mount : config->barrels) {
+				const float angle = mount.angleDeg * 3.1415926535f / 180.0f;
+				const Vector2 forward{ std::cos(angle), std::sin(angle) };
+				const Vector2 right{ -forward.y, forward.x };
+				float length = (std::max)(14.0f, mount.scale.x * 15.0f) * silhouetteScale;
+				float halfWidth = (std::max)(2.2f, mount.scale.y * 7.0f) * silhouetteScale;
+				if (mount.barrelShape == BarrelShape::Heavy) {
+					length *= 1.12f;
+					halfWidth *= 1.45f;
+				} else if (mount.barrelShape == BarrelShape::Short) {
+					length *= 0.58f;
+				} else if (mount.barrelShape == BarrelShape::Wide) {
+					length *= 0.86f;
+					halfWidth *= 1.80f;
+				}
+				const Vector2 mountCenter = {
+					center.x + mount.offset.x * radius * 0.55f + forward.x * length * 0.30f,
+					center.y + mount.offset.y * radius * 0.55f + forward.y * length * 0.30f
+				};
+				const float baseWidth = mount.barrelShape == BarrelShape::Trapezoid ? halfWidth * 1.28f : halfWidth;
+				const float tipWidth = mount.barrelShape == BarrelShape::Trapezoid ? halfWidth * 0.72f : halfWidth;
+				const Vector2 base = { mountCenter.x - forward.x * length * 0.5f, mountCenter.y - forward.y * length * 0.5f };
+				const Vector2 tip = { mountCenter.x + forward.x * length * 0.5f, mountCenter.y + forward.y * length * 0.5f };
+				const Vector2 p0{ base.x - right.x * baseWidth, base.y - right.y * baseWidth };
+				const Vector2 p1{ tip.x - right.x * tipWidth, tip.y - right.y * tipWidth };
+				const Vector2 p2{ tip.x + right.x * tipWidth, tip.y + right.y * tipWidth };
+				const Vector2 p3{ base.x + right.x * baseWidth, base.y + right.y * baseWidth };
+				addSegment(p0, p1);
+				addSegment(p1, p2);
+				addSegment(p2, p3);
+				addSegment(p3, p0);
+			}
+
+			if (config->usesDrone) {
+				for (float side : { -1.0f, 1.0f }) {
+					const Vector2 droneCenter{ center.x - 28.0f * silhouetteScale, center.y + side * 18.0f * silhouetteScale };
+					const float droneRadius = 5.0f * silhouetteScale;
+					const Vector2 top{ droneCenter.x, droneCenter.y - droneRadius };
+					const Vector2 rightPoint{ droneCenter.x + droneRadius, droneCenter.y };
+					const Vector2 bottom{ droneCenter.x, droneCenter.y + droneRadius };
+					const Vector2 leftPoint{ droneCenter.x - droneRadius, droneCenter.y };
+					addSegment(top, rightPoint);
+					addSegment(rightPoint, bottom);
+					addSegment(bottom, leftPoint);
+					addSegment(leftPoint, top);
+				}
+			}
+
+			Vector4 silhouetteColor = selected ? evolutionUiStyle_.selectedColor : evolutionUiStyle_.classTextColor;
+			if (hovered && !selected) {
+				silhouetteColor = evolutionUiStyle_.hoverColor;
+			}
+			silhouetteColor.w = locked ? 0.30f : selected ? 0.94f : 0.72f;
+			for (size_t i = 0; i < segmentCount; ++i) {
+				const Vector2 renderA = EvolutionVirtualToRender(segments[i].a);
+				const Vector2 renderB = EvolutionVirtualToRender(segments[i].b);
+				const float dx = renderB.x - renderA.x;
+				const float dy = renderB.y - renderA.y;
+				Sprite* line = staticEvolutionSilhouetteSprites_[nodeIndex][i].get();
+				line->SetPosition(renderA);
+				line->SetRotation(std::atan2(dy, dx));
+				line->SetSize({ std::sqrt(dx * dx + dy * dy), (std::max)(0.75f, 1.55f * renderScale) });
+				line->SetColor(silhouetteColor);
+				line->Update();
+			}
+		}
+		while (segmentCount < staticEvolutionSilhouetteSprites_[nodeIndex].size()) {
+			Sprite* line = staticEvolutionSilhouetteSprites_[nodeIndex][segmentCount++].get();
+			line->SetSize({ 0.0f, 0.0f });
+			line->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+			line->Update();
+		}
+	}
+}
+
 void Player::UpdateStaticEvolutionText()
 {
 	const float renderScale = GetEvolutionRenderScale();
 	const float safe = evolutionUiStyle_.safeMargin;
-	const auto makeStyle = [&](float size, const Vector4& color) {
+	const auto makeStyle = [&](float size, const Vector4& color, float outlineWidth) {
 		TextStyle style{};
 		style.fontFamily = evolutionUiStyle_.fontFamily;
+		style.fontPath = evolutionUiStyle_.fontPath;
+		style.fontWeight = evolutionUiStyle_.fontWeight;
 		style.fontSize = (std::max)(8.0f, size * renderScale);
 		style.color = color;
 		style.outlineColor = evolutionUiStyle_.textOutlineColor;
-		style.outlineThickness = (std::max)(0.0f, evolutionUiStyle_.textOutlineWidth * renderScale);
+		style.outlineThickness = (std::max)(0.0f, outlineWidth * renderScale);
 		style.padding = 6.0f * renderScale;
 		return style;
 	};
 
-	const TextStyle titleStyle = makeStyle(evolutionUiStyle_.titleFontSize, evolutionUiStyle_.titleTextColor);
-	const TextStyle classStyle = makeStyle(evolutionUiStyle_.classNameFontSize, evolutionUiStyle_.classTextColor);
-	const TextStyle bodyStyle = makeStyle(evolutionUiStyle_.bodyFontSize, evolutionUiStyle_.bodyTextColor);
+	const TextStyle titleStyle = makeStyle(
+		evolutionUiStyle_.titleFontSize,
+		evolutionUiStyle_.titleTextColor,
+		evolutionUiStyle_.titleOutlineWidth);
+	const TextStyle classNameStyle = makeStyle(
+		evolutionUiStyle_.classNameFontSize,
+		evolutionUiStyle_.classTextColor,
+		evolutionUiStyle_.classNameOutlineWidth);
+	const TextStyle bodyStyle = makeStyle(
+		evolutionUiStyle_.bodyFontSize,
+		evolutionUiStyle_.bodyTextColor,
+		evolutionUiStyle_.bodyOutlineWidth);
+	const TextStyle buttonStyle = makeStyle(
+		evolutionUiStyle_.buttonFontSize,
+		evolutionUiStyle_.buttonTextColor,
+		evolutionUiStyle_.buttonOutlineWidth);
 	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
 
 	SetLabel(
 		staticEvolutionTitleLabel_,
 		spriteCommon,
-		"EVOLUTION CIRCUIT // BASIC BRANCH",
+		"EVOLUTION CIRCUIT // RANK " +
+			std::to_string(GetCurrentClassConfig() ? GetCurrentClassConfig()->requiredRank : 1) +
+			" TO " +
+			std::to_string(GetCurrentClassConfig() ? GetCurrentClassConfig()->requiredRank + 1 : 2),
 		EvolutionVirtualToRender({ safe, safe * 0.62f }),
 		titleStyle);
 	SetLabel(
 		staticEvolutionPrototypeLabel_,
 		spriteCommon,
-		"STATIC VISUAL PROTOTYPE",
+		"INTERACTION DEBUG",
 		EvolutionVirtualToRender({ evolutionUiStyle_.virtualResolution.x - safe, safe * 0.72f }),
 		bodyStyle);
 	staticEvolutionPrototypeLabel_->SetAnchorPoint({ 1.0f, 0.0f });
 
-	const std::array<const char*, 4> names = { "BASIC", "TWIN", "MACHINE GUN", "OVERSEER" };
-	const auto& candidates = StaticEvolutionCandidates();
 	const int currentRank = GetRankFromLevel(level_);
-	for (int i = 0; i < 4; ++i) {
+	const int activeNodeCount = static_cast<int>(staticEvolutionCandidateCount_ + 1);
+	for (int i = 0; i < activeNodeCount; ++i) {
 		const bool selected = i > 0 && i - 1 == evolutionUiStyle_.fixedSelectedCandidate;
 		const bool hovered = i == staticEvolutionHoveredNode_;
-		const PlayerClassConfig* config = i > 0 ? GetClassConfig(candidates[i - 1].id) : nullptr;
-		const bool locked = config && currentRank < config->requiredRank;
+		const std::string& nodeClassId = i == 0
+			? currentClassId_
+			: staticEvolutionCandidateIds_[static_cast<size_t>(i - 1)];
+		const PlayerClassConfig* config = GetClassConfig(nodeClassId);
+		const bool locked = i > 0 && config && currentRank < config->requiredRank;
 		Vector4 textColor = evolutionUiStyle_.classTextColor;
 		if (locked) {
 			textColor = evolutionUiStyle_.lockedColor;
@@ -2994,28 +3586,42 @@ void Player::UpdateStaticEvolutionText()
 		} else if (hovered) {
 			textColor = evolutionUiStyle_.hoverColor;
 		}
-		TextStyle nodeClassStyle = makeStyle(evolutionUiStyle_.classNameFontSize, textColor);
-		TextStyle nodeRankStyle = makeStyle(evolutionUiStyle_.bodyFontSize * 0.76f, evolutionUiStyle_.bodyTextColor);
+		TextStyle nodeClassStyle = makeStyle(
+			evolutionUiStyle_.classNameFontSize,
+			textColor,
+			evolutionUiStyle_.classNameOutlineWidth);
+		Vector4 roleColor = evolutionUiStyle_.bodyTextColor;
+		roleColor.w = locked ? 0.42f : 0.72f;
+		TextStyle nodeRoleStyle = makeStyle(
+			evolutionUiStyle_.bodyFontSize * 0.78f,
+			roleColor,
+			evolutionUiStyle_.bodyOutlineWidth);
 		const Vector2 center = staticEvolutionNodeCentersVirtual_[i];
+		const float textX = center.x + 34.0f;
 		SetLabel(
 			staticEvolutionNodeNameLabels_[i],
 			spriteCommon,
-			names[i],
-			EvolutionVirtualToRender({ center.x, center.y + 8.0f }),
+			GetEvolutionClassName(nodeClassId),
+			EvolutionVirtualToRender({ textX, center.y - 12.0f }),
 			nodeClassStyle);
 		staticEvolutionNodeNameLabels_[i]->SetAnchorPoint({ 0.5f, 0.5f });
-		std::string rankText = i == 0 ? "CURRENT CLASS" : locked ? "LOCKED // RANK 2" : selected ? "SELECTED // RANK 2" : "AVAILABLE // RANK 2";
 		SetLabel(
 			staticEvolutionNodeRankLabels_[i],
 			spriteCommon,
-			rankText,
-			EvolutionVirtualToRender({ center.x, center.y + 36.0f }),
-			nodeRankStyle);
+			i == 0 ? "CURRENT CLASS" : config ? GetEvolutionShortRole(*config) : "UNKNOWN",
+			EvolutionVirtualToRender({ textX, center.y + 18.0f }),
+			nodeRoleStyle);
 		staticEvolutionNodeRankLabels_[i]->SetAnchorPoint({ 0.5f, 0.5f });
 	}
 
-	const StaticEvolutionCandidateCopy& selected =
-		candidates[static_cast<size_t>(evolutionUiStyle_.fixedSelectedCandidate)];
+	const std::string& selectedClassId = staticEvolutionCandidateIds_[
+		static_cast<size_t>(evolutionUiStyle_.fixedSelectedCandidate)];
+	const PlayerClassConfig* selected = GetClassConfig(selectedClassId);
+	const PlayerClassConfig* current = GetCurrentClassConfig();
+	if (!selected || !current) {
+		return;
+	}
+	const std::array<std::string, 3> deltas = GetEvolutionDeltas(*current, *selected);
 	const Vector2 panelCenter = EvolutionAnchorToVirtual(evolutionUiStyle_.detailPanelAnchor);
 	const Vector2 panelTopLeft = {
 		panelCenter.x - evolutionUiStyle_.detailPanelSize.x * 0.5f,
@@ -3024,41 +3630,46 @@ void Player::UpdateStaticEvolutionText()
 	SetLabel(
 		staticEvolutionDetailClassLabel_,
 		spriteCommon,
-		selected.name,
-		EvolutionVirtualToRender({ panelTopLeft.x + 24.0f, panelTopLeft.y + 12.0f }),
-		classStyle);
+		GetEvolutionClassName(selectedClassId),
+		EvolutionVirtualToRender({ panelTopLeft.x + 24.0f, panelTopLeft.y + 13.0f }),
+		classNameStyle);
 	SetLabel(
 		staticEvolutionRoleLabel_,
 		spriteCommon,
-		selected.role,
-		EvolutionVirtualToRender({ panelTopLeft.x + 24.0f, panelTopLeft.y + 56.0f }),
+		GetEvolutionRole(*selected),
+		EvolutionVirtualToRender({ panelTopLeft.x + 150.0f, panelTopLeft.y + 18.0f }),
 		bodyStyle);
 	for (int i = 0; i < 3; ++i) {
 		SetLabel(
 			staticEvolutionDeltaLabels_[i],
 			spriteCommon,
-			selected.deltas[i],
-			EvolutionVirtualToRender({ panelTopLeft.x + 330.0f, panelTopLeft.y + 12.0f + static_cast<float>(i) * 30.0f }),
+			deltas[i],
+			EvolutionVirtualToRender({ panelTopLeft.x + 24.0f + static_cast<float>(i) * 276.0f, panelTopLeft.y + 76.0f }),
 			bodyStyle);
 	}
 	SetLabel(
 		staticEvolutionAbilityLabel_,
 		spriteCommon,
-		selected.ability,
-		EvolutionVirtualToRender({ panelTopLeft.x + 635.0f, panelTopLeft.y + 22.0f }),
+		GetEvolutionAbility(*selected),
+		EvolutionVirtualToRender({ panelTopLeft.x + 400.0f, panelTopLeft.y + 18.0f }),
 		bodyStyle);
 	const Vector2 buttonCenter = {
-		panelCenter.x + evolutionUiStyle_.detailPanelSize.x * 0.405f,
-		panelCenter.y
+		panelCenter.x + evolutionUiStyle_.detailPanelSize.x * 0.5f - evolutionUiStyle_.confirmButtonSize.x * 0.5f - 18.0f,
+		panelCenter.y - evolutionUiStyle_.detailPanelSize.y * 0.5f + 32.0f
 	};
-	TextStyle buttonStyle = makeStyle(evolutionUiStyle_.bodyFontSize, { 0.02f, 0.09f, 0.04f, 1.0f });
 	SetLabel(
 		staticEvolutionConfirmLabel_,
 		spriteCommon,
-		"進化を確定（仮）",
+		CanEvolveTo(selectedClassId) ? "ENTER  進化決定" : "RANK不足",
 		EvolutionVirtualToRender(buttonCenter),
 		buttonStyle);
 	staticEvolutionConfirmLabel_->SetAnchorPoint({ 0.5f, 0.5f });
+	SetLabel(
+		staticEvolutionPanelHintLabel_,
+		spriteCommon,
+		"ESC  戻る  /  ENTER  決定",
+		EvolutionVirtualToRender({ panelTopLeft.x + evolutionUiStyle_.detailPanelSize.x - 278.0f, panelTopLeft.y + 94.0f }),
+		bodyStyle);
 }
 
 bool Player::LoadEvolutionUiStyle(const std::string& path)
@@ -3083,6 +3694,22 @@ bool Player::LoadEvolutionUiStyle(const std::string& path)
 	evolutionUiStyle_.enabled = root.value("enabled", evolutionUiStyle_.enabled);
 	evolutionUiStyle_.virtualResolution = ReadVector2Object(root.value("virtualResolution", nlohmann::json::object()), evolutionUiStyle_.virtualResolution);
 	evolutionUiStyle_.safeMargin = root.value("safeMargin", evolutionUiStyle_.safeMargin);
+	if (root.contains("layout") && root["layout"].is_object()) {
+		const nlohmann::json& layout = root["layout"];
+		evolutionUiStyle_.radialLayout = layout.value("mode", std::string("leftToRight")) == "radial";
+		evolutionUiStyle_.branchPointAnchor = ReadVector2Object(
+			layout.value("branchPoint", nlohmann::json::object()),
+			evolutionUiStyle_.branchPointAnchor);
+		if (layout.contains("radialNodes") && layout["radialNodes"].is_object()) {
+			const nlohmann::json& radialNodes = layout["radialNodes"];
+			const std::array<const char*, 4> keys = { "Basic", "Twin", "MachineGun", "Overseer" };
+			for (int i = 0; i < 4; ++i) {
+				evolutionUiStyle_.radialNodeAnchors[i] = ReadVector2Object(
+					radialNodes.value(keys[i], nlohmann::json::object()),
+					evolutionUiStyle_.radialNodeAnchors[i]);
+			}
+		}
+	}
 	if (root.contains("nodes") && root["nodes"].is_object()) {
 		const nlohmann::json& nodes = root["nodes"];
 		const std::array<const char*, 4> keys = { "Basic", "Twin", "MachineGun", "Overseer" };
@@ -3092,6 +3719,10 @@ bool Player::LoadEvolutionUiStyle(const std::string& path)
 		}
 		evolutionUiStyle_.currentNodeSize = ReadVector2Object(nodes.value("currentSize", nlohmann::json::object()), evolutionUiStyle_.currentNodeSize);
 		evolutionUiStyle_.candidateNodeSize = ReadVector2Object(nodes.value("candidateSize", nlohmann::json::object()), evolutionUiStyle_.candidateNodeSize);
+		evolutionUiStyle_.nodeCornerCut = nodes.value("cornerCut", evolutionUiStyle_.nodeCornerCut);
+		evolutionUiStyle_.nodeOutlineGlowWidth = nodes.value("outlineGlowWidth", evolutionUiStyle_.nodeOutlineGlowWidth);
+		evolutionUiStyle_.nodeOutlineWidth = nodes.value("outlineWidth", evolutionUiStyle_.nodeOutlineWidth);
+		evolutionUiStyle_.silhouetteScale = nodes.value("silhouetteScale", evolutionUiStyle_.silhouetteScale);
 		if (nodes.contains("scale") && nodes["scale"].is_object()) {
 			const nlohmann::json& scale = nodes["scale"];
 			evolutionUiStyle_.normalScale = scale.value("normal", evolutionUiStyle_.normalScale);
@@ -3121,14 +3752,37 @@ bool Player::LoadEvolutionUiStyle(const std::string& path)
 	if (root.contains("text") && root["text"].is_object()) {
 		const nlohmann::json& text = root["text"];
 		evolutionUiStyle_.fontFamily = text.value("fontFamily", evolutionUiStyle_.fontFamily);
+		evolutionUiStyle_.fontPath = text.value("fontPath", evolutionUiStyle_.fontPath);
+		evolutionUiStyle_.fontWeight = text.value("fontWeight", evolutionUiStyle_.fontWeight);
 		evolutionUiStyle_.titleFontSize = text.value("titleSize", evolutionUiStyle_.titleFontSize);
 		evolutionUiStyle_.classNameFontSize = text.value("classNameSize", evolutionUiStyle_.classNameFontSize);
 		evolutionUiStyle_.bodyFontSize = text.value("bodySize", evolutionUiStyle_.bodyFontSize);
+		evolutionUiStyle_.buttonFontSize = text.value("buttonSize", evolutionUiStyle_.buttonFontSize);
 		evolutionUiStyle_.titleTextColor = ReadVector4(text.value("titleColor", nlohmann::json::array()), evolutionUiStyle_.titleTextColor);
 		evolutionUiStyle_.classTextColor = ReadVector4(text.value("classNameColor", nlohmann::json::array()), evolutionUiStyle_.classTextColor);
 		evolutionUiStyle_.bodyTextColor = ReadVector4(text.value("bodyColor", nlohmann::json::array()), evolutionUiStyle_.bodyTextColor);
+		evolutionUiStyle_.buttonTextColor = ReadVector4(text.value("buttonColor", nlohmann::json::array()), evolutionUiStyle_.buttonTextColor);
 		evolutionUiStyle_.textOutlineColor = ReadVector4(text.value("outlineColor", nlohmann::json::array()), evolutionUiStyle_.textOutlineColor);
-		evolutionUiStyle_.textOutlineWidth = text.value("outlineWidth", evolutionUiStyle_.textOutlineWidth);
+		const float legacyOutline = text.value("outlineWidth", evolutionUiStyle_.classNameOutlineWidth);
+		evolutionUiStyle_.titleOutlineWidth = text.value("titleOutlineWidth", legacyOutline);
+		evolutionUiStyle_.classNameOutlineWidth = text.value("classNameOutlineWidth", legacyOutline);
+		evolutionUiStyle_.bodyOutlineWidth = text.value("bodyOutlineWidth", evolutionUiStyle_.bodyOutlineWidth);
+		evolutionUiStyle_.buttonOutlineWidth = text.value("buttonOutlineWidth", evolutionUiStyle_.buttonOutlineWidth);
+	}
+	if (root.contains("neonText") && root["neonText"].is_object()) {
+		const nlohmann::json& neon = root["neonText"];
+		evolutionUiStyle_.neonText.enabled = neon.value("enabled", evolutionUiStyle_.neonText.enabled);
+		evolutionUiStyle_.neonText.glowColor = ReadVector4(
+			neon.value("glowColor", nlohmann::json::array()),
+			evolutionUiStyle_.neonText.glowColor);
+		evolutionUiStyle_.neonText.sourceBrightness = neon.value(
+			"sourceBrightness", evolutionUiStyle_.neonText.sourceBrightness);
+		evolutionUiStyle_.neonText.threshold = neon.value(
+			"threshold", evolutionUiStyle_.neonText.threshold);
+		evolutionUiStyle_.neonText.innerIntensity = neon.value(
+			"innerIntensity", evolutionUiStyle_.neonText.innerIntensity);
+		evolutionUiStyle_.neonText.outerIntensity = neon.value(
+			"outerIntensity", evolutionUiStyle_.neonText.outerIntensity);
 	}
 	if (root.contains("colors") && root["colors"].is_object()) {
 		const nlohmann::json& colors = root["colors"];
@@ -3140,7 +3794,10 @@ bool Player::LoadEvolutionUiStyle(const std::string& path)
 		evolutionUiStyle_.panelColor = ReadVector4(colors.value("panel", nlohmann::json::array()), evolutionUiStyle_.panelColor);
 	}
 	evolutionUiStyle_.fixedSelectedCandidate =
-		(std::clamp)(root.value("fixedSelectedCandidate", evolutionUiStyle_.fixedSelectedCandidate), 0, 2);
+		(std::clamp)(
+			root.value("fixedSelectedCandidate", evolutionUiStyle_.fixedSelectedCandidate),
+			0,
+			static_cast<int>(kStaticEvolutionMaxCandidates - 1));
 	evolutionUiStyleStatus_ = "進化UI設定を読み込みました: " + path;
 	return true;
 }
@@ -3149,10 +3806,20 @@ bool Player::SaveEvolutionUiStyle(const std::string& path) const
 {
 	std::filesystem::create_directories(std::filesystem::path(path).parent_path());
 	nlohmann::json root{};
-	root["version"] = 1;
+	root["version"] = 2;
 	root["enabled"] = evolutionUiStyle_.enabled;
 	root["virtualResolution"] = WriteVector2Object(evolutionUiStyle_.virtualResolution);
 	root["safeMargin"] = evolutionUiStyle_.safeMargin;
+	root["layout"] = {
+		{ "mode", evolutionUiStyle_.radialLayout ? "radial" : "leftToRight" },
+		{ "branchPoint", WriteVector2Object(evolutionUiStyle_.branchPointAnchor) },
+		{ "radialNodes", {
+			{ "Basic", WriteVector2Object(evolutionUiStyle_.radialNodeAnchors[0]) },
+			{ "Twin", WriteVector2Object(evolutionUiStyle_.radialNodeAnchors[1]) },
+			{ "MachineGun", WriteVector2Object(evolutionUiStyle_.radialNodeAnchors[2]) },
+			{ "Overseer", WriteVector2Object(evolutionUiStyle_.radialNodeAnchors[3]) }
+		} }
+	};
 	root["nodes"] = {
 		{ "Basic", WriteVector2Object(evolutionUiStyle_.nodeAnchors[0]) },
 		{ "Twin", WriteVector2Object(evolutionUiStyle_.nodeAnchors[1]) },
@@ -3160,6 +3827,10 @@ bool Player::SaveEvolutionUiStyle(const std::string& path) const
 		{ "Overseer", WriteVector2Object(evolutionUiStyle_.nodeAnchors[3]) },
 		{ "currentSize", WriteVector2Object(evolutionUiStyle_.currentNodeSize) },
 		{ "candidateSize", WriteVector2Object(evolutionUiStyle_.candidateNodeSize) },
+		{ "cornerCut", evolutionUiStyle_.nodeCornerCut },
+		{ "outlineGlowWidth", evolutionUiStyle_.nodeOutlineGlowWidth },
+		{ "outlineWidth", evolutionUiStyle_.nodeOutlineWidth },
+		{ "silhouetteScale", evolutionUiStyle_.silhouetteScale },
 		{ "scale", {
 			{ "normal", evolutionUiStyle_.normalScale },
 			{ "hover", evolutionUiStyle_.hoverScale },
@@ -3185,14 +3856,29 @@ bool Player::SaveEvolutionUiStyle(const std::string& path) const
 	};
 	root["text"] = {
 		{ "fontFamily", evolutionUiStyle_.fontFamily },
+		{ "fontPath", evolutionUiStyle_.fontPath },
+		{ "fontWeight", evolutionUiStyle_.fontWeight },
 		{ "titleSize", evolutionUiStyle_.titleFontSize },
 		{ "classNameSize", evolutionUiStyle_.classNameFontSize },
 		{ "bodySize", evolutionUiStyle_.bodyFontSize },
+		{ "buttonSize", evolutionUiStyle_.buttonFontSize },
 		{ "titleColor", Vector4ToJson(evolutionUiStyle_.titleTextColor) },
 		{ "classNameColor", Vector4ToJson(evolutionUiStyle_.classTextColor) },
 		{ "bodyColor", Vector4ToJson(evolutionUiStyle_.bodyTextColor) },
+		{ "buttonColor", Vector4ToJson(evolutionUiStyle_.buttonTextColor) },
 		{ "outlineColor", Vector4ToJson(evolutionUiStyle_.textOutlineColor) },
-		{ "outlineWidth", evolutionUiStyle_.textOutlineWidth }
+		{ "titleOutlineWidth", evolutionUiStyle_.titleOutlineWidth },
+		{ "classNameOutlineWidth", evolutionUiStyle_.classNameOutlineWidth },
+		{ "bodyOutlineWidth", evolutionUiStyle_.bodyOutlineWidth },
+		{ "buttonOutlineWidth", evolutionUiStyle_.buttonOutlineWidth }
+	};
+	root["neonText"] = {
+		{ "enabled", evolutionUiStyle_.neonText.enabled },
+		{ "glowColor", Vector4ToJson(evolutionUiStyle_.neonText.glowColor) },
+		{ "sourceBrightness", evolutionUiStyle_.neonText.sourceBrightness },
+		{ "threshold", evolutionUiStyle_.neonText.threshold },
+		{ "innerIntensity", evolutionUiStyle_.neonText.innerIntensity },
+		{ "outerIntensity", evolutionUiStyle_.neonText.outerIntensity }
 	};
 	root["colors"] = {
 		{ "normal", Vector4ToJson(evolutionUiStyle_.normalColor) },
@@ -3215,12 +3901,23 @@ bool Player::SaveEvolutionUiStyle(const std::string& path) const
 void Player::DrawEvolutionUiStyleEditor()
 {
 #ifdef USE_IMGUI
-	if (!ImGui::CollapsingHeader("進化UI 静的プロトタイプ", ImGuiTreeNodeFlags_DefaultOpen)) {
+	if (!ImGui::CollapsingHeader("進化UI", ImGuiTreeNodeFlags_DefaultOpen)) {
 		return;
 	}
-	ImGui::Checkbox("新しい静的UIを有効化", &evolutionUiStyle_.enabled);
-	const char* selectedNames[] = { "TWIN", "MACHINE GUN", "OVERSEER" };
-	ImGui::Combo("仮固定する候補", &evolutionUiStyle_.fixedSelectedCandidate, selectedNames, IM_ARRAYSIZE(selectedNames));
+	ImGui::Checkbox("新しい進化UIを有効化", &evolutionUiStyle_.enabled);
+	RefreshStaticEvolutionCandidates();
+	if (staticEvolutionCandidateCount_ > 0) {
+		ImGui::SliderInt(
+			"選択中の候補",
+			&evolutionUiStyle_.fixedSelectedCandidate,
+			0,
+			static_cast<int>(staticEvolutionCandidateCount_ - 1));
+		ImGui::SameLine();
+		ImGui::TextDisabled(
+			"%s",
+			GetEvolutionClassName(staticEvolutionCandidateIds_[
+				static_cast<size_t>(evolutionUiStyle_.fixedSelectedCandidate)]).c_str());
+	}
 	if (ImGui::Button("進化UI設定を保存")) {
 		evolutionUiStyleStatus_ = SaveEvolutionUiStyle()
 			? "進化UI設定を保存しました。"
@@ -3244,20 +3941,39 @@ void Player::DrawEvolutionUiStyleEditor()
 	ImGui::SeparatorText("仮想画面と配置");
 	ImGui::DragFloat2("仮想解像度", &evolutionUiStyle_.virtualResolution.x, 1.0f, 320.0f, 7680.0f);
 	ImGui::DragFloat("セーフマージン", &evolutionUiStyle_.safeMargin, 1.0f, 0.0f, 360.0f);
+	int layoutMode = evolutionUiStyle_.radialLayout ? 1 : 0;
+	const char* layoutNames[] = { "左から右へ分岐", "放射型" };
+	if (ImGui::Combo("配置モード", &layoutMode, layoutNames, IM_ARRAYSIZE(layoutNames))) {
+		evolutionUiStyle_.radialLayout = layoutMode == 1;
+	}
 	const char* nodeNames[] = { "Basic", "Twin", "MachineGun", "Overseer" };
 	for (int i = 0; i < 4; ++i) {
 		ImGui::PushID(i);
-		ImGui::DragFloat2(nodeNames[i], &evolutionUiStyle_.nodeAnchors[i].x, 0.005f, 0.0f, 1.0f);
+		ImGui::DragFloat2(
+			evolutionUiStyle_.radialLayout ? "放射型アンカー" : nodeNames[i],
+			evolutionUiStyle_.radialLayout
+				? &evolutionUiStyle_.radialNodeAnchors[i].x
+				: &evolutionUiStyle_.nodeAnchors[i].x,
+			0.005f,
+			0.0f,
+			1.0f);
 		ImGui::PopID();
+	}
+	if (!evolutionUiStyle_.radialLayout) {
+		ImGui::DragFloat2("分岐点", &evolutionUiStyle_.branchPointAnchor.x, 0.005f, 0.0f, 1.0f);
 	}
 	ImGui::DragFloat2("現在ノードサイズ", &evolutionUiStyle_.currentNodeSize.x, 1.0f, 32.0f, 600.0f);
 	ImGui::DragFloat2("候補ノードサイズ", &evolutionUiStyle_.candidateNodeSize.x, 1.0f, 32.0f, 600.0f);
 	ImGui::DragFloat("通常拡大率", &evolutionUiStyle_.normalScale, 0.005f, 0.5f, 2.0f);
 	ImGui::DragFloat("ホバー拡大率", &evolutionUiStyle_.hoverScale, 0.005f, 0.5f, 2.0f);
 	ImGui::DragFloat("選択拡大率", &evolutionUiStyle_.selectedScale, 0.005f, 0.5f, 2.0f);
+	ImGui::DragFloat("角落とし", &evolutionUiStyle_.nodeCornerCut, 0.25f, 0.0f, 48.0f);
+	ImGui::DragFloat("ノード外光幅", &evolutionUiStyle_.nodeOutlineGlowWidth, 0.25f, 0.5f, 40.0f);
+	ImGui::DragFloat("ノード輪郭幅", &evolutionUiStyle_.nodeOutlineWidth, 0.1f, 0.5f, 12.0f);
+	ImGui::DragFloat("戦車シルエット倍率", &evolutionUiStyle_.silhouetteScale, 0.01f, 0.5f, 2.0f);
 	ImGui::DragFloat2("説明パネル位置（正規化）", &evolutionUiStyle_.detailPanelAnchor.x, 0.005f, 0.0f, 1.0f);
 	ImGui::DragFloat2("説明パネルサイズ", &evolutionUiStyle_.detailPanelSize.x, 1.0f, 64.0f, 2000.0f);
-	ImGui::DragFloat2("仮確定ボタンサイズ", &evolutionUiStyle_.confirmButtonSize.x, 1.0f, 32.0f, 600.0f);
+	ImGui::DragFloat2("決定ボタンサイズ", &evolutionUiStyle_.confirmButtonSize.x, 1.0f, 32.0f, 600.0f);
 
 	ImGui::SeparatorText("ネオン回路");
 	ImGui::DragFloat("外光幅", &evolutionUiStyle_.circuitOuterGlowWidth, 0.25f, 0.5f, 80.0f);
@@ -3270,14 +3986,28 @@ void Player::DrawEvolutionUiStyleEditor()
 	ImGui::SliderFloat("背景暗転率", &evolutionUiStyle_.backgroundDimOpacity, 0.0f, 1.0f);
 
 	ImGui::SeparatorText("文字");
+	ImGui::Text("Font: %s / weight %d", evolutionUiStyle_.fontFamily.c_str(), evolutionUiStyle_.fontWeight);
+	ImGui::TextDisabled("%s", evolutionUiStyle_.fontPath.c_str());
 	ImGui::DragFloat("タイトル文字サイズ", &evolutionUiStyle_.titleFontSize, 0.5f, 8.0f, 96.0f);
 	ImGui::DragFloat("クラス名文字サイズ", &evolutionUiStyle_.classNameFontSize, 0.5f, 8.0f, 72.0f);
 	ImGui::DragFloat("本文文字サイズ", &evolutionUiStyle_.bodyFontSize, 0.5f, 8.0f, 48.0f);
+	ImGui::DragFloat("ボタン文字サイズ", &evolutionUiStyle_.buttonFontSize, 0.5f, 8.0f, 48.0f);
 	ImGui::ColorEdit4("タイトル文字色", &evolutionUiStyle_.titleTextColor.x);
 	ImGui::ColorEdit4("クラス名文字色", &evolutionUiStyle_.classTextColor.x);
 	ImGui::ColorEdit4("本文文字色", &evolutionUiStyle_.bodyTextColor.x);
+	ImGui::ColorEdit4("ボタン文字色", &evolutionUiStyle_.buttonTextColor.x);
 	ImGui::ColorEdit4("文字アウトライン色", &evolutionUiStyle_.textOutlineColor.x);
-	ImGui::DragFloat("文字アウトライン幅", &evolutionUiStyle_.textOutlineWidth, 0.1f, 0.0f, 12.0f);
+	ImGui::DragFloat("タイトルアウトライン幅", &evolutionUiStyle_.titleOutlineWidth, 0.05f, 0.0f, 4.0f);
+	ImGui::DragFloat("クラス名アウトライン幅", &evolutionUiStyle_.classNameOutlineWidth, 0.05f, 0.0f, 4.0f);
+	ImGui::DragFloat("本文アウトライン幅", &evolutionUiStyle_.bodyOutlineWidth, 0.05f, 0.0f, 4.0f);
+	ImGui::DragFloat("ボタンアウトライン幅", &evolutionUiStyle_.buttonOutlineWidth, 0.05f, 0.0f, 4.0f);
+	ImGui::SeparatorText("文字ネオン");
+	ImGui::Checkbox("文字ネオンを有効化", &evolutionUiStyle_.neonText.enabled);
+	ImGui::ColorEdit4("文字発光色", &evolutionUiStyle_.neonText.glowColor.x);
+	ImGui::DragFloat("発光源輝度", &evolutionUiStyle_.neonText.sourceBrightness, 0.02f, 0.0f, 8.0f);
+	ImGui::DragFloat("抽出しきい値", &evolutionUiStyle_.neonText.threshold, 0.01f, 0.0f, 4.0f);
+	ImGui::DragFloat("内光強度", &evolutionUiStyle_.neonText.innerIntensity, 0.01f, 0.0f, 4.0f);
+	ImGui::DragFloat("外光強度", &evolutionUiStyle_.neonText.outerIntensity, 0.01f, 0.0f, 4.0f);
 
 	ImGui::SeparatorText("状態色");
 	ImGui::ColorEdit4("通常色", &evolutionUiStyle_.normalColor.x);
@@ -3312,17 +4042,21 @@ void Player::DrawStaticEvolutionPrototype()
 		}
 	};
 
-	drawSprite(staticEvolutionBackdropSprite_);
 	for (const auto& line : staticEvolutionCircuitSprites_) {
 		drawSprite(line);
 	}
+	drawSprite(staticEvolutionBranchGlowSprite_);
+	drawSprite(staticEvolutionBranchCoreSprite_);
 	drawSprite(staticEvolutionDetailPanelSprite_);
-	for (int i = 0; i < 4; ++i) {
-		drawSprite(staticEvolutionNodeGlowSprites_[i]);
-		drawSprite(staticEvolutionNodePanelSprites_[i]);
-		drawSprite(staticEvolutionTankSprites_[i]);
+	for (size_t i = 0; i < staticEvolutionCandidateCount_ + 1; ++i) {
+		if (staticEvolutionTankButtons_[i]) {
+			staticEvolutionTankButtons_[i]->Draw();
+		}
 	}
 	drawSprite(staticEvolutionConfirmButtonSprite_);
+	for (const auto& line : staticEvolutionConfirmOutlineSprites_) {
+		drawSprite(line);
+	}
 	const auto spriteEnd = std::chrono::steady_clock::now();
 
 	const auto textStart = spriteEnd;
@@ -3334,10 +4068,17 @@ void Player::DrawStaticEvolutionPrototype()
 		}
 	};
 	drawLabel(staticEvolutionTitleLabel_);
-	drawLabel(staticEvolutionPrototypeLabel_);
-	for (int i = 0; i < 4; ++i) {
-		drawLabel(staticEvolutionNodeNameLabels_[i]);
-		drawLabel(staticEvolutionNodeRankLabels_[i]);
+	const bool anyDebugOverlay =
+		showEvolutionVirtualBounds_ ||
+		showEvolutionSafeArea_ ||
+		showEvolutionNodeBounds_ ||
+		showEvolutionMouseBounds_ ||
+		showEvolutionTextBounds_ ||
+		showEvolutionCenterLines_ ||
+		showEvolutionCircuitControlPoints_ ||
+		showEvolutionResolutionInfo_;
+	if (anyDebugOverlay) {
+		drawLabel(staticEvolutionPrototypeLabel_);
 	}
 	drawLabel(staticEvolutionDetailClassLabel_);
 	drawLabel(staticEvolutionRoleLabel_);
@@ -3346,6 +4087,7 @@ void Player::DrawStaticEvolutionPrototype()
 	}
 	drawLabel(staticEvolutionAbilityLabel_);
 	drawLabel(staticEvolutionConfirmLabel_);
+	drawLabel(staticEvolutionPanelHintLabel_);
 	const auto textEnd = std::chrono::steady_clock::now();
 
 	DrawStaticEvolutionDebugOverlay();
@@ -3354,6 +4096,63 @@ void Player::DrawStaticEvolutionPrototype()
 	evolutionUiProfile_.textMs = std::chrono::duration<float, std::milli>(textEnd - textStart).count();
 	evolutionUiProfile_.updateMs = 0.0f;
 	evolutionUiProfile_.totalMs = std::chrono::duration<float, std::milli>(totalEnd - totalStart).count();
+}
+
+void Player::DrawEvolutionAfterPostEffects()
+{
+	if (!isChangeMode || !ShouldUseStaticEvolutionPrototype()) {
+		return;
+	}
+	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	if (staticEvolutionBackdropSprite_) {
+		staticEvolutionBackdropSprite_->Draw();
+	}
+	if (staticEvolutionButtonBloomEffect_) {
+		staticEvolutionButtonBloomEffect_->BeginCapture();
+		SpriteCommon::GetInstance()->PreDrawForScene(kNormal);
+		for (const auto& line : staticEvolutionCircuitSprites_) {
+			if (line &&
+				line->GetSize().x > 0.0f &&
+				line->GetSize().y > 0.0f &&
+				line->GetColor().w > 0.001f) {
+				line->Draw();
+			}
+		}
+		if (staticEvolutionBranchGlowSprite_ &&
+			staticEvolutionBranchGlowSprite_->GetSize().x > 0.0f &&
+			staticEvolutionBranchGlowSprite_->GetColor().w > 0.001f) {
+			staticEvolutionBranchGlowSprite_->Draw();
+		}
+		if (staticEvolutionBranchCoreSprite_ &&
+			staticEvolutionBranchCoreSprite_->GetSize().x > 0.0f &&
+			staticEvolutionBranchCoreSprite_->GetColor().w > 0.001f) {
+			staticEvolutionBranchCoreSprite_->Draw();
+		}
+		for (size_t i = 0; i < staticEvolutionCandidateCount_ + 1; ++i) {
+			if (staticEvolutionTankButtons_[i]) {
+				staticEvolutionTankButtons_[i]->DrawBloomSource();
+			}
+		}
+		staticEvolutionButtonBloomEffect_->EndCaptureBloomOnlyToBackBuffer();
+	}
+	if (staticEvolutionTextEffect_) {
+		std::vector<TextLabel*> neonLabels;
+		neonLabels.reserve(4);
+		if (staticEvolutionTitleLabel_) {
+			neonLabels.push_back(staticEvolutionTitleLabel_.get());
+		}
+		if (staticEvolutionDetailClassLabel_) {
+			neonLabels.push_back(staticEvolutionDetailClassLabel_.get());
+		}
+		if (staticEvolutionCandidateCount_ > 0) {
+			const size_t selectedNode = static_cast<size_t>(
+				(std::clamp)(evolutionUiStyle_.fixedSelectedCandidate, 0, static_cast<int>(staticEvolutionCandidateCount_ - 1))) + 1;
+			if (selectedNode < staticEvolutionTankButtons_.size() && staticEvolutionTankButtons_[selectedNode]) {
+				neonLabels.push_back(staticEvolutionTankButtons_[selectedNode]->GetLabel());
+			}
+		}
+		staticEvolutionTextEffect_->DrawBloom(neonLabels);
+	}
 }
 
 void Player::DrawStaticEvolutionDebugOverlay()
@@ -3412,7 +4211,7 @@ void Player::DrawStaticEvolutionDebugOverlay()
 		drawList->AddLine(ImVec2(clientWidth * 0.5f, 0.0f), ImVec2(clientWidth * 0.5f, clientHeight), IM_COL32(255, 80, 180, 180), 1.0f);
 		drawList->AddLine(ImVec2(0.0f, clientHeight * 0.5f), ImVec2(clientWidth, clientHeight * 0.5f), IM_COL32(255, 80, 180, 180), 1.0f);
 	}
-	for (int i = 0; i < 4; ++i) {
+	for (size_t i = 0; i < staticEvolutionCandidateCount_ + 1; ++i) {
 		if (showEvolutionNodeBounds_) {
 			drawCenteredRect(staticEvolutionNodeCentersVirtual_[i], staticEvolutionNodeDrawSizesVirtual_[i], IM_COL32(75, 190, 255, 230));
 		}
@@ -3421,7 +4220,7 @@ void Player::DrawStaticEvolutionDebugOverlay()
 		}
 	}
 	if (showEvolutionCircuitControlPoints_) {
-		for (int pathIndex = 0; pathIndex < 3; ++pathIndex) {
+		for (int pathIndex = 0; pathIndex < static_cast<int>(staticEvolutionCircuitControlPoints_.size()); ++pathIndex) {
 			const int count = staticEvolutionCircuitControlPointCounts_[pathIndex];
 			for (int i = 0; i < count; ++i) {
 				const ImVec2 p = toClient(staticEvolutionCircuitControlPoints_[pathIndex][i]);
@@ -3462,7 +4261,7 @@ void Player::DrawStaticEvolutionDebugOverlay()
 		};
 		drawTextBounds(staticEvolutionTitleLabel_);
 		drawTextBounds(staticEvolutionPrototypeLabel_);
-		for (int i = 0; i < 4; ++i) {
+		for (size_t i = 0; i < staticEvolutionCandidateCount_ + 1; ++i) {
 			drawTextBounds(staticEvolutionNodeNameLabels_[i]);
 			drawTextBounds(staticEvolutionNodeRankLabels_[i]);
 		}
@@ -3473,6 +4272,7 @@ void Player::DrawStaticEvolutionDebugOverlay()
 		}
 		drawTextBounds(staticEvolutionAbilityLabel_);
 		drawTextBounds(staticEvolutionConfirmLabel_);
+		drawTextBounds(staticEvolutionPanelHintLabel_);
 	}
 	if (showEvolutionResolutionInfo_) {
 		char buffer[160]{};

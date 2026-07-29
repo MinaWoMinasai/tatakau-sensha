@@ -2,7 +2,40 @@
 #include "GameScene.h"
 #include "SceneManager.h"
 
+#include <algorithm>
 #include <numbers>
+
+namespace {
+
+Sprite* GetLogoSprite(TitleScene::LogoChar& logo)
+{
+	if (logo.label) {
+		logo.label->PrepareForDraw();
+		return logo.label->GetSprite();
+	}
+	return logo.sprite.get();
+}
+
+Vector2 FitTextLabel(TextLabel& label, const Vector2& bounds)
+{
+	label.PrepareForDraw();
+	Sprite* sprite = label.GetSprite();
+	if (!sprite) {
+		return bounds;
+	}
+	const Vector2 naturalSize = sprite->GetSize();
+	const float scale = (std::min)(
+		bounds.x / (std::max)(1.0f, naturalSize.x),
+		bounds.y / (std::max)(1.0f, naturalSize.y));
+	const Vector2 fittedSize = {
+		naturalSize.x * scale,
+		naturalSize.y * scale
+	};
+	sprite->SetSize(fittedSize);
+	return fittedSize;
+}
+
+} // namespace
 
 void TitleScene::Initialize() {
 
@@ -32,21 +65,28 @@ void TitleScene::Initialize() {
 	float startY = -charSize.y - 50.0f;          // 画面外
 	const float targetY = screenH * 0.35f;              // 画面中央より少し上
 
-	std::vector<std::string> files = {
-		"ta.png","ta.png","ka.png","u.png",
-		"se.png","nn.png","si.png","ya.png"
+	std::vector<std::string> characters = {
+		"た", "た", "か", "う", "せ", "ん", "し", "ゃ"
 	};
+	TextStyle titleStyle{};
+	titleStyle.fontFamily = "Zen Maru Gothic";
+	titleStyle.fontPath = "resources/fonts/ZenMaruGothic-Bold.ttf";
+	titleStyle.fontWeight = 700;
+	titleStyle.fontSize = 88.0f;
+	titleStyle.color = { 0.94f, 1.0f, 0.97f, 1.0f };
+	titleStyle.outlineColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+	titleStyle.outlineThickness = 0.0f;
+	titleStyle.padding = 14.0f;
 
 	for (int i = 0; i < charCount; ++i) {
 
 		LogoChar c{};
-		c.sprite = std::make_unique<Sprite>();
-		c.sprite->Initialize(SpriteCommon::GetInstance(), "resources/" + files[i]);
-		c.sprite->SetAnchorPoint({ 0.5f, 0.5f });
+		c.label = std::make_unique<TextLabel>();
+		c.label->Initialize(SpriteCommon::GetInstance(), characters[i], titleStyle);
+		c.label->SetAnchorPoint({ 0.5f, 0.5f });
 
-		// サイズ設定
-		c.sprite->SetSize(charSize);
-		c.baseSize = charSize;
+		// 元の1文字96px枠に収め、既存の落下・拡縮演出をそのまま適用する。
+		c.baseSize = FitTextLabel(*c.label, charSize);
 
 		// Xは等間隔 + 微ランダム
 		float x = baseX + spacing * i + Rand(-6.0f, 6.0f);
@@ -62,7 +102,7 @@ void TitleScene::Initialize() {
 			targetY + Rand(-8.0f, 8.0f)
 		};
 
-		c.sprite->SetPosition(c.startPos);
+		c.label->SetPosition(c.startPos);
 
 		// 落下スピードに個性を出す
 		c.fallSpeed = Rand(550.0f, 750.0f);
@@ -79,21 +119,24 @@ void TitleScene::Initialize() {
 	// ロゴの少し下
 	startY = screenH * 0.55f + 120.0f;
 
-	startLogo.sprite = std::make_unique<Sprite>();
-	startLogo.sprite->Initialize(
+	TextStyle startStyle = titleStyle;
+	startStyle.fontSize = 40.0f;
+	startStyle.color = { 0.90f, 1.0f, 0.96f, 1.0f };
+	startStyle.padding = 12.0f;
+	startLogo.label = std::make_unique<TextLabel>();
+	startLogo.label->Initialize(
 		SpriteCommon::GetInstance(),
-		"resources/start.png"
-	);
-	startLogo.sprite->SetAnchorPoint({ 0.5f, 0.5f });
+		"左クリックでスタート",
+		startStyle);
+	startLogo.label->SetAnchorPoint({ 0.5f, 0.5f });
 
-	// サイズ
-	startLogo.sprite->SetSize({ 320.0f, 64.0f });
-	startLogo.baseSize = startLogo.sprite->GetSize();
+	// 従来のstart.pngと同じ表示枠へ収める。
+	startLogo.baseSize = FitTextLabel(*startLogo.label, { 320.0f, 64.0f });
 
 	// 位置
 	startLogo.startPos = { screenW * 0.5f, -100.0f };
 	startLogo.targetPos = { screenW * 0.5f, startY };
-	startLogo.sprite->SetPosition(startLogo.startPos);
+	startLogo.label->SetPosition(startLogo.startPos);
 
 	// ロゴより少し遅れて落ちる
 	startLogo.delay = 8 * 0.12f + 0.2f;
@@ -157,6 +200,18 @@ void TitleScene::Initialize() {
 		hintStyle);
 	startHintText_->SetAnchorPoint({ 0.5f, 0.5f });
 	startHintText_->SetPosition({ screenW * 0.5f, screenH * 0.91f });
+
+	titleTextNeonStyle_.enabled = true;
+	titleTextNeonStyle_.glowColor = { 0.18f, 1.0f, 0.48f, 1.0f };
+	titleTextNeonStyle_.sourceBrightness = 2.2f;
+	titleTextNeonStyle_.threshold = 0.0f;
+	titleTextNeonStyle_.innerIntensity = 0.82f;
+	titleTextNeonStyle_.outerIntensity = 0.48f;
+	titleTextNeonEffect_ = std::make_unique<NeonTextEffect>();
+	titleTextNeonEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager());
+	titleTextNeonEffect_->SetStyle(titleTextNeonStyle_);
 }
 
 void TitleScene::Update() {
@@ -240,13 +295,40 @@ void TitleScene::Update() {
 
 void TitleScene::Draw() {};
 
+void TitleScene::DrawAfterPostEffect3D()
+{
+	if (!titleTextNeonEffect_) {
+		return;
+	}
+
+	std::vector<TextLabel*> labels;
+	labels.reserve(logoChars.size() + 1);
+	for (auto& logo : logoChars) {
+		if (logo.label) {
+			labels.push_back(logo.label.get());
+		}
+	}
+	if (IsSceneAvailable("GAME") && startLogo.label) {
+		labels.push_back(startLogo.label.get());
+	}
+	titleTextNeonEffect_->DrawBloom(labels);
+}
+
 void TitleScene::DrawSprite() {
 	//sprite_->Draw();
 	for (auto& c : logoChars) {
-		c.sprite->Draw();
+		if (c.label) {
+			c.label->Draw();
+		} else if (c.sprite) {
+			c.sprite->Draw();
+		}
 	}
 	if (IsSceneAvailable("GAME")) {
-		startLogo.sprite->Draw();
+		if (startLogo.label) {
+			startLogo.label->Draw();
+		} else if (startLogo.sprite) {
+			startLogo.sprite->Draw();
+		}
 	}
 	if (modeMenuText_) {
 		modeMenuText_->Draw();
@@ -259,10 +341,15 @@ void TitleScene::DrawSprite() {
 
 void TitleScene::UpdateLogoChar(LogoChar& c, float deltaTime)
 {
+	Sprite* sprite = GetLogoSprite(c);
+	if (!sprite) {
+		return;
+	}
+
 	c.timer += deltaTime;
 	if (c.timer < c.delay) return;
 
-	Vector2 pos = c.sprite->GetPosition();
+	Vector2 pos = sprite->GetPosition();
 
 	if (!c.landed) {
 		pos.y += c.fallSpeed * deltaTime;
@@ -275,14 +362,14 @@ void TitleScene::UpdateLogoChar(LogoChar& c, float deltaTime)
 		float t = c.timer * 4.0f;
 		float scale = 1.0f + std::sin(t) * 0.12f;
 
-		c.sprite->SetSize({
+		sprite->SetSize({
 			c.baseSize.x * scale,
 			c.baseSize.y * scale
 			});
 	}
 
-	c.sprite->SetPosition(pos);
-	c.sprite->Update();
+	sprite->SetPosition(pos);
+	sprite->Update();
 }
 
 std::string TitleScene::GetNextSceneName() const

@@ -13,10 +13,12 @@ public:
 	void SetPosition(const Vector2& position);
 	void SetAnchorPoint(const Vector2& anchorPoint);
 	void SetAlpha(float alpha);
+	void PrepareForDraw();
 	void Draw();
 
 	const std::string& GetText() const { return text_; }
 	const TextStyle& GetStyle() const { return style_; }
+	const std::string& GetTexturePath() const { return texturePath_; }
 	Sprite* GetSprite() const { return sprite_.get(); }
 
 private:
@@ -26,8 +28,10 @@ private:
 	SpriteCommon* spriteCommon_ = nullptr;
 	std::unique_ptr<Sprite> sprite_;
 	std::string text_;
+	std::string texturePath_;
 	TextStyle style_{};
 	Vector2 position_ = { 0.0f, 0.0f };
 	Vector2 anchorPoint_ = { 0.0f, 0.0f };
 	float alpha_ = 1.0f;
+	unsigned long long builtFontRevision_ = 0;
 };

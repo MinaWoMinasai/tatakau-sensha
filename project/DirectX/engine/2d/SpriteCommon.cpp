@@ -25,3 +25,11 @@ void SpriteCommon::PreDraw(BlendMode blendMode)
 	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 }
+
+void SpriteCommon::PreDrawForScene(BlendMode blendMode)
+{
+	TextureManager::GetInstance()->PreDraw();
+	dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObjectForScene(blendMode).root_.GetSignature().Get());
+	dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObjectForScene(blendMode).graphicsState_.Get());
+	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}

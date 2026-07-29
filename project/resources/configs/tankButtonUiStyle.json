@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "shape": {
+    "buttonWidth": 150.0,
+    "buttonHeight": 150.0,
+    "cornerRadius": 16.0,
+    "borderWidth": 1.6
+  },
+  "glow": {
+    "glowWidth": 10.0,
+    "glowIntensity": 0.78,
+    "bloomBoost": 0.22,
+    "normalGlowMultiplier": 0.42,
+    "hoverGlowMultiplier": 0.78,
+    "selectedGlowMultiplier": 1.15,
+    "lockedGlowMultiplier": 0.1
+  },
+  "colors": {
+    "fillColor": [
+      0.012,
+      0.026,
+      0.052,
+      1.0
+    ],
+    "fillOpacity": 0.94,
+    "borderColorPerRank": [
+      [0.58, 1.0, 0.28, 1.0],
+      [0.22, 0.76, 1.0, 1.0],
+      [0.76, 0.36, 1.0, 1.0],
+      [1.0, 0.78, 0.24, 1.0]
+    ],
+    "glowColorPerRank": [
+      [0.48, 1.0, 0.24, 1.0],
+      [0.14, 0.7, 1.0, 1.0],
+      [0.7, 0.24, 1.0, 1.0],
+      [1.0, 0.66, 0.12, 1.0]
+    ],
+    "lockedTint": [
+      0.38,
+      0.44,
+      0.5,
+      0.62
+    ]
+  },
+  "tankIcon": {
+    "iconScale": 1.0,
+    "iconOffsetY": -22.0
+  },
+  "label": {
+    "labelOffsetY": 49.0,
+    "labelFontSize": 17.0,
+    "fontFamily": "Zen Maru Gothic",
+    "fontPath": "resources/fonts/ZenMaruGothic-Bold.ttf",
+    "fontWeight": 700,
+    "labelColor": [0.94, 0.98, 1.0, 1.0],
+    "labelOutlineColor": [0.0, 0.02, 0.05, 0.82],
+    "labelOutlineWidth": 0.45
+  },
+  "previewArea": {
+    "buttonSpacingX": 22.0,
+    "buttonSpacingY": 28.0,
+    "previewAreaOffset": [240.0, 132.0],
+    "previewAreaColumns": 4
+  }
+}

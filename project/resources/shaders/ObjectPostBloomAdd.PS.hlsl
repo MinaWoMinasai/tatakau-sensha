@@ -50,5 +50,9 @@ float4 main(PSInput input) : SV_TARGET
     {
         discard;
     }
-    return float4(color, saturate(bloom.a));
+    // This pass is already an additive light-energy composite.  Reusing the
+    // blurred coverage as SrcAlpha attenuates thin emitters a second time and
+    // makes one-pixel UI lines effectively disappear.  The energy test above
+    // keeps empty pixels out, so surviving bloom must be added at full weight.
+    return float4(color, 1.0f);
 }

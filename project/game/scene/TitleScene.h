@@ -2,6 +2,7 @@
 #include "Player.h"
 #include "Fade.h"
 #include "IScene.h"
+#include "game/ui/NeonTextEffect.h"
 
 #include <string_view>
 
@@ -10,6 +11,7 @@ public:
 	
 	struct LogoChar {
 		std::unique_ptr<Sprite> sprite;
+		std::unique_ptr<TextLabel> label;
 
 		Vector2 startPos;
 		Vector2 targetPos;
@@ -26,6 +28,7 @@ public:
 	void Update() override;
 
 	void Draw() override;
+	void DrawAfterPostEffect3D() override;
 	void DrawSprite() override;
 
 	// デスフラグのgetter
@@ -74,4 +77,6 @@ private:
 	int menuSelection_ = 0;
 	std::unique_ptr<TextLabel> modeMenuText_;
 	std::unique_ptr<TextLabel> startHintText_;
+	std::unique_ptr<NeonTextEffect> titleTextNeonEffect_;
+	NeonTextEffectStyle titleTextNeonStyle_{};
 };

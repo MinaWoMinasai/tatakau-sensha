@@ -54,6 +54,8 @@ bool TextLabel::InitializeFromJson(SpriteCommon* spriteCommon, const std::string
 	const nlohmann::json& label = root["labels"][labelId];
 	TextStyle style{};
 	style.fontFamily = label.value("fontFamily", style.fontFamily);
+	style.fontPath = label.value("fontPath", style.fontPath);
+	style.fontWeight = label.value("fontWeight", style.fontWeight);
 	style.fontSize = label.value("fontSize", style.fontSize);
 	style.color = ReadVector4(label.value("color", nlohmann::json::array()), style.color);
 	style.outlineColor = ReadVector4(label.value("outlineColor", nlohmann::json::array()), style.outlineColor);
@@ -111,11 +113,19 @@ void TextLabel::SetAlpha(float alpha)
 
 void TextLabel::Draw()
 {
+	PrepareForDraw();
 	if (!sprite_) {
 		return;
 	}
 	sprite_->Update();
 	sprite_->Draw();
+}
+
+void TextLabel::PrepareForDraw()
+{
+	if (builtFontRevision_ != TextRenderer::GetInstance()->GetFontRevision()) {
+		RebuildTexture();
+	}
 }
 
 void TextLabel::RebuildTexture()
@@ -124,17 +134,18 @@ void TextLabel::RebuildTexture()
 		return;
 	}
 
-	const std::string texturePath = TextRenderer::GetInstance()->GetOrCreateTexture(text_, style_);
+	texturePath_ = TextRenderer::GetInstance()->GetOrCreateTexture(text_, style_);
+	builtFontRevision_ = TextRenderer::GetInstance()->GetFontRevision();
 	if (!sprite_) {
 		sprite_ = std::make_unique<Sprite>();
-		sprite_->Initialize(spriteCommon_, texturePath);
+		sprite_->Initialize(spriteCommon_, texturePath_);
 		sprite_->SetPosition(position_);
 		sprite_->SetAnchorPoint(anchorPoint_);
 		sprite_->SetAlpha(alpha_);
 		return;
 	}
 
-	sprite_->SetTexture(texturePath);
+	sprite_->SetTexture(texturePath_);
 	sprite_->SetPosition(position_);
 	sprite_->SetAnchorPoint(anchorPoint_);
 	sprite_->SetAlpha(alpha_);
@@ -143,6 +154,8 @@ void TextLabel::RebuildTexture()
 bool TextLabel::IsSameStyle(const TextStyle& style) const
 {
 	return style_.fontFamily == style.fontFamily &&
+		style_.fontPath == style.fontPath &&
+		style_.fontWeight == style.fontWeight &&
 		style_.fontSize == style.fontSize &&
 		style_.color.x == style.color.x &&
 		style_.color.y == style.color.y &&
