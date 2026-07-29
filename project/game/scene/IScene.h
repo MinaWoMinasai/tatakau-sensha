@@ -14,6 +14,8 @@ public:
 	};
 	struct ScreenEffectState {
 		bool active = false;
+		float bloomScale = 1.0f;
+		bool suppressPostEffectDebugUi = false;
 		BloomParam param{};
 	};
 	struct WaterPostProcessSettings {
