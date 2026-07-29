@@ -12,6 +12,7 @@ public:
 
 	bool SetSceneFactory(std::unique_ptr<AbstractSceneFactory> sceneFactory);
 	bool Initialize(const std::string& firstSceneName);
+	void Finalize();
 	bool ContainsScene(std::string_view sceneName) const;
 	std::vector<std::string> GetRegisteredSceneNames() const;
 	const std::string& GetCurrentSceneName() const { return currentSceneName_; }

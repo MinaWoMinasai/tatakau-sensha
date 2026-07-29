@@ -22,7 +22,6 @@ public:
 		float gameOverDuration = 1.10f;
 		float dashDuration = 0.14f;
 		float upgradeConfirmDuration = 0.24f;
-		float showcaseTimeScale = 1.0f;
 
 		float lowHpThreshold = 0.30f;
 		float lowHpVignette = 0.28f;

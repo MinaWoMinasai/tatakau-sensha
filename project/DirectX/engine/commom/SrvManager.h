@@ -1,5 +1,6 @@
 #pragma once
 #include "DirectXCommon.h"
+#include <vector>
 
 class SrvManager
 {
@@ -8,6 +9,9 @@ public:
 	void Initialize(DirectXCommon* dxCommon);
 
 	uint32_t Allocate();
+	void Free(uint32_t index);
+	uint32_t GetAllocatedCount() const { return allocatedCount_; }
+	uint32_t GetHighWaterMark() const { return highWaterMark_; }
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(uint32_t index);
@@ -42,6 +46,10 @@ private:
 
 	// 次に使用するSRVインデックス
 	uint32_t useIndex_ = 0;
+	uint32_t allocatedCount_ = 0;
+	uint32_t highWaterMark_ = 0;
+	std::vector<uint32_t> freeIndices_;
+	std::vector<bool> allocatedIndices_;
 
 };
 

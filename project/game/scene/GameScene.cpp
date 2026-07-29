@@ -408,7 +408,6 @@ void GameScene::Initialize() {
 	worldTransform_ = InitWorldTransform();
 
 	input_ = Input::GetInstance();
-	showcaseMode_ = nextShowcaseMode_;
 	screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json");
 
 	debugCamera = std::make_unique<DebugCamera>();
@@ -730,6 +729,7 @@ void GameScene::Initialize() {
 		controlGuideStyle);
 	controlGuideText_->SetPosition({ 22.0f, 636.0f });
 
+#if !defined(NDEBUG)
 	TextStyle fpsStyle{};
 	fpsStyle.fontFamily = "Meiryo";
 	fpsStyle.fontSize = 24.0f;
@@ -749,6 +749,7 @@ void GameScene::Initialize() {
 	postProfileText_ = std::make_unique<TextLabel>();
 	postProfileText_->Initialize(SpriteCommon::GetInstance(), "Post Profile  F8:hide  F9:mode", profileStyle);
 	postProfileText_->SetPosition({ 16.0f, 46.0f });
+#endif // !defined(NDEBUG)
 
 	InitializeFollowHpBarBatch();
 	InitializeSubmissionUi();
@@ -812,6 +813,7 @@ void GameScene::Update() {
 	stageDamageBlockPulseTime_ += baseDeltaTime;
 	ExpEnemy::SetShapeNeonRenderMode(expEnemyNeonRenderMode_);
 
+#if !defined(NDEBUG)
 	{
 		const auto now = std::chrono::steady_clock::now();
 		const float realDeltaTime = std::chrono::duration<float>(now - fpsLastSampleTime_).count();
@@ -827,6 +829,7 @@ void GameScene::Update() {
 			fpsFrameCount_ = 0;
 		}
 	}
+#endif // !defined(NDEBUG)
 
 	if (sceneFadeBlurTimer_ > 0.0f) {
 		sceneFadeBlurTimer_ -= baseDeltaTime;
@@ -836,16 +839,16 @@ void GameScene::Update() {
 		sceneFadeBlurIntensity_ = 0.0f;
 	}
 
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) && !defined(NDEBUG)
 
 	DrawGameSceneDebugImGui();
 	if (showPlayerClassEditor_) {
 		player_->DrawPlayerClassEditor();
 	}
 
-#endif // USE_IMGUI
+#endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) && !defined(NDEBUG)
 	if (input_->IsTrigger(input_->GetKey()[DIK_F7], input_->GetPreKey()[DIK_F7])) {
 		showCollisionDebug_ = !showCollisionDebug_;
 	}
@@ -855,9 +858,9 @@ void GameScene::Update() {
 	if (input_->IsTrigger(input_->GetKey()[DIK_F6], input_->GetPreKey()[DIK_F6])) {
 		player_->AddExp(200);
 	}
-#endif // USE_IMGUI
+#endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) && !defined(NDEBUG)
 	if (input_->IsTrigger(input_->GetKey()[DIK_F8], input_->GetPreKey()[DIK_F8])) {
 		showPostProfileOverlay_ = !showPostProfileOverlay_;
 	}
@@ -873,7 +876,7 @@ void GameScene::Update() {
 	if (input_->IsTrigger(input_->GetKey()[DIK_F12], input_->GetPreKey()[DIK_F12])) {
 		showGameDebugConsole_ = !showGameDebugConsole_;
 	}
-#endif // USE_IMGUI
+#endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
 	{
 		Vector3 playerPos = player_->GetWorldPosition();
@@ -923,7 +926,6 @@ void GameScene::Update() {
 		if (phase_ == Phase::kMain && !player_->IsChangeMode()) {
 			playTime_ += baseDeltaTime;
 		}
-		UpdateShowcaseMode(baseDeltaTime);
 		stage_->Update();
 		UpdateLevelItems();
 
@@ -1097,17 +1099,6 @@ void GameScene::InitializeSubmissionUi()
 	resultMenuText_->SetAnchorPoint({ 0.5f, 0.5f });
 	resultMenuText_->SetPosition({ WinApp::kClientWidth * 0.5f, 555.0f });
 
-	TextStyle modeStyle = resultStyle;
-	modeStyle.fontSize = 17.0f;
-	modeStyle.color = { 1.0f, 0.78f, 0.28f, 0.92f };
-	modeStyle.outlineThickness = 2.0f;
-	showcaseModeText_ = std::make_unique<TextLabel>();
-	showcaseModeText_->Initialize(
-		SpriteCommon::GetInstance(),
-		"SHOWCASE MODE / GUIDED 60-90 SEC",
-		modeStyle);
-	showcaseModeText_->SetAnchorPoint({ 1.0f, 0.0f });
-	showcaseModeText_->SetPosition({ WinApp::kClientWidth - 18.0f, 16.0f });
 }
 
 void GameScene::UpdateGameplayEventEffects(float, bool)
@@ -1168,56 +1159,6 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 	} else if (player_->IsDead() && !playerDeathHandled_) {
 		BeginGameOver();
 	}
-}
-
-void GameScene::UpdateShowcaseMode(float baseDeltaTime)
-{
-	if (!showcaseMode_ || gameFlowState_ != GameFlowState::Playing || phase_ != Phase::kMain) {
-		return;
-	}
-	showcaseElapsed_ += baseDeltaTime * screenEffectDirector_.GetConfig().showcaseTimeScale;
-
-	auto cue = [this](size_t index, float time, const auto& action) {
-		if (index < showcaseCueTriggered_.size() &&
-			!showcaseCueTriggered_[index] &&
-			showcaseElapsed_ >= time) {
-			showcaseCueTriggered_[index] = true;
-			action();
-		}
-	};
-
-	cue(0, 7.0f, [this]() {
-		screenEffectDirector_.TriggerEnemyDefeat({ 0.38f, 0.48f }, 0.85f);
-		SetEventCallout("SHOWCASE: ENEMY BREAK", 0.85f);
-	});
-	cue(1, 14.0f, [this]() {
-		screenEffectDirector_.TriggerJustDodge(WorldToScreenUv(player_->GetWorldPosition()));
-		++justDodgeCount_;
-		SetEventCallout("SHOWCASE ASSIST: JUST DODGE", 0.95f);
-	});
-	cue(2, 21.0f, [this]() {
-		const uint32_t showcaseDamage = static_cast<uint32_t>((std::max)(1, player_->GetMaxHp() / 8));
-		player_->TakeDamage(showcaseDamage, 0.20f);
-	});
-	cue(3, 29.0f, [this]() {
-		while (player_->GetLevel() < 5) {
-			player_->AddExp(player_->GetNextLevelExpValue());
-		}
-		SetEventCallout("SHOWCASE: OPEN EVOLUTION TREE", 1.10f);
-	});
-	cue(4, 41.0f, [this]() {
-		screenEffectDirector_.TriggerBossEntry();
-		SetEventCallout("BOSS UNIT: NEON OVERLORD", 1.20f);
-	});
-	cue(5, 50.0f, [this]() {
-		screenEffectDirector_.TriggerBossPhaseChange();
-		SetEventCallout("PHASE SHIFT / EMP", 1.15f);
-	});
-	cue(6, 61.0f, [this]() {
-		if (enemy_ && !enemy_->IsDead()) {
-			enemy_->TakeDamage(static_cast<uint32_t>((std::max)(1, enemy_->GetHp())));
-		}
-	});
 }
 
 void GameScene::BeginBossDefeatSequence()
@@ -1321,7 +1262,6 @@ void GameScene::ConfirmResultSelection()
 	}
 	if (resultSelection_ == 0) {
 		nextSceneName_ = "GAME";
-		nextShowcaseMode_ = showcaseMode_;
 	} else {
 		nextSceneName_ = "TITLE";
 	}
@@ -3853,9 +3793,6 @@ void GameScene::DrawGameTextBloom()
 	if (eventCalloutTimer_ > 0.0f && eventCalloutText_) {
 		labels.push_back(eventCalloutText_.get());
 	}
-	if (showcaseMode_ && showcaseModeText_) {
-		labels.push_back(showcaseModeText_.get());
-	}
 	if (gameFlowState_ != GameFlowState::Playing && flowBannerText_) {
 		labels.push_back(flowBannerText_.get());
 	}
@@ -5088,7 +5025,7 @@ void GameScene::DrawSprite() {
 		controlGuideText_->SetPosition(showControlGuide_ ? Vector2{ 22.0f, 636.0f } : Vector2{ 22.0f, 690.0f });
 		controlGuideText_->Draw();
 	}
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) && !defined(NDEBUG)
 	if (fpsText_) {
 		fpsText_->Draw();
 	}
@@ -5096,10 +5033,7 @@ void GameScene::DrawSprite() {
 		postProfileText_->Draw();
 	}
 	DrawBulletStatusDebugOverlay();
-#endif // USE_IMGUI
-	if (showcaseMode_ && showcaseModeText_) {
-		showcaseModeText_->Draw();
-	}
+#endif // defined(USE_IMGUI) && !defined(NDEBUG)
 	if (eventCalloutTimer_ > 0.0f && eventCalloutText_) {
 		eventCalloutText_->Draw();
 	}

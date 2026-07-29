@@ -73,6 +73,18 @@ bool SceneManager::Initialize(const std::string& firstSceneName) {
     return true;
 }
 
+void SceneManager::Finalize()
+{
+    // Scene resources can refer to engine-owned managers such as SrvManager.
+    // Destroy them explicitly while those managers are still alive instead of
+    // relying on static-destruction order at process shutdown.
+    currentScene_.reset();
+    sceneFactory_.reset();
+    currentSceneName_.clear();
+    failedTransitionFromSceneName_.clear();
+    failedTransitionToSceneName_.clear();
+}
+
 void SceneManager::Update() {
     if (!currentScene_) {
         return;

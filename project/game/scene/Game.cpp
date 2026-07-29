@@ -495,6 +495,13 @@ void Game::MainLoop() {
 }
 
 void Game::Finalize() {
+	// The current scene owns RenderTextures and other GPU resources that keep
+	// non-owning pointers to SrvManager.  Release the scene before the Game
+	// members (and therefore SrvManager) begin their destruction.
+	if (dxCommon_) {
+		dxCommon_->ExecuteCommandListAndWait();
+	}
+	SceneManager::GetInstance()->Finalize();
 
 #ifdef USE_IMGUI
     // 実際のcommandListのImGuiの描画コマンドを組む

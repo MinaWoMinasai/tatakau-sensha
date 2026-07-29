@@ -1,29 +1,59 @@
 #include "SrvManager.h"
 
-const uint32_t SrvManager::kMaxSrvCount = 512;
+#include <algorithm>
+
+// 動的TextLabelと個別Bloom用RenderTextureを同じヒープで管理するため、
+// 従来の512では通常プレイ中にも枯渇する。
+const uint32_t SrvManager::kMaxSrvCount = 8192;
 
 void SrvManager::Initialize(DirectXCommon* dxCommon) {
 	dxCommon_ = dxCommon;
 
-	// SRV用のヒープでディスクリプタの数は128。SRVはShader内で触るものなので、ShaderVisibleはtrue
+	// SRVはShaderから参照するため、ShaderVisibleな共通ヒープを作成する。
 	descriptorHeap_ = dxCommon_->CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kMaxSrvCount, true);
 	// デスクリプタサイズを取得
 	descriptorSize = dxCommon_->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	useIndex_ = 1;
+	allocatedCount_ = 0;
+	highWaterMark_ = 0;
+	freeIndices_.clear();
+	allocatedIndices_.assign(kMaxSrvCount, false);
+	allocatedIndices_[0] = true;
 }
 
 uint32_t SrvManager::Allocate() {
+	uint32_t index = 0;
+	if (!freeIndices_.empty()) {
+		index = freeIndices_.back();
+		freeIndices_.pop_back();
+	} else {
+		assert(useIndex_ < kMaxSrvCount);
+		if (useIndex_ >= kMaxSrvCount) {
+			return 0;
+		}
+		index = useIndex_++;
+	}
 
-	// 最大数を超えたらerror
-	assert(useIndex_ < kMaxSrvCount);
-
-	// return する番号を一旦記録しておく
-	int index = useIndex_;
-	// 次回のために番号を1進める
-	useIndex_++;
-	// 上で記録した番号をreturn
+	assert(index > 0 && index < allocatedIndices_.size());
+	assert(!allocatedIndices_[index]);
+	allocatedIndices_[index] = true;
+	++allocatedCount_;
+	highWaterMark_ = (std::max)(highWaterMark_, allocatedCount_);
 	return index;
+}
 
+void SrvManager::Free(uint32_t index)
+{
+	if (index == 0 || index >= allocatedIndices_.size()) {
+		return;
+	}
+	assert(allocatedIndices_[index]);
+	if (!allocatedIndices_[index]) {
+		return;
+	}
+	allocatedIndices_[index] = false;
+	allocatedCount_ = allocatedCount_ > 0 ? allocatedCount_ - 1 : 0;
+	freeIndices_.push_back(index);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE SrvManager::GetCPUDescriptorHandle(uint32_t index)

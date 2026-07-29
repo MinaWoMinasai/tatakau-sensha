@@ -1,5 +1,20 @@
 #include "RenderTexture.h"
 
+RenderTexture::~RenderTexture()
+{
+	if (!srvManager_) {
+		return;
+	}
+	if (srvIndex_ != 0) {
+		srvManager_->Free(srvIndex_);
+		srvIndex_ = 0;
+	}
+	if (depthSrvIndex_ != 0) {
+		srvManager_->Free(depthSrvIndex_);
+		depthSrvIndex_ = 0;
+	}
+}
+
 void RenderTexture::Initialize(
     DirectXCommon* dxCommon,
     SrvManager* srvManager,
