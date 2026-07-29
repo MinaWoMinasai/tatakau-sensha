@@ -378,6 +378,8 @@ private:
 	ScreenEffectDirector screenEffectDirector_{};
 	float gameFlowTimer_ = 0.0f;
 	float bossDefeatSequenceDuration_ = 1.55f;
+	float bossDefeatImpactDelayTimer_ = 0.0f;
+	bool bossDefeatImpactTriggered_ = false;
 	float playTime_ = 0.0f;
 	float eventCalloutTimer_ = 0.0f;
 	int resultSelection_ = 0;

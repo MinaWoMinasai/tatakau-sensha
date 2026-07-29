@@ -48,6 +48,7 @@ bool ScreenEffectDirector::LoadConfig(const std::string& filePath)
 		config_.bossPhaseDuration = ReadFloat(timing, "bossPhase", config_.bossPhaseDuration, 0.10f, 3.0f);
 		config_.bossDefeatDuration = ReadFloat(timing, "bossDefeat", config_.bossDefeatDuration, 0.20f, 5.0f);
 		config_.bossDefeatHitStop = ReadFloat(timing, "bossDefeatHitStop", config_.bossDefeatHitStop, 0.0f, 0.50f);
+		config_.bossDefeatImpactDelay = ReadFloat(timing, "bossDefeatImpactDelay", config_.bossDefeatImpactDelay, 0.0f, 1.0f);
 		config_.gameOverDuration = ReadFloat(timing, "gameOver", config_.gameOverDuration, 0.20f, 4.0f);
 		config_.dashDuration = ReadFloat(timing, "dash", config_.dashDuration, 0.05f, 0.50f);
 		config_.upgradeConfirmDuration = ReadFloat(timing, "upgradeConfirm", config_.upgradeConfirmDuration, 0.05f, 1.0f);
@@ -56,9 +57,15 @@ bool ScreenEffectDirector::LoadConfig(const std::string& filePath)
 		config_.lowHpVignette = ReadFloat(intensity, "lowHpVignette", config_.lowHpVignette, 0.0f, 1.0f);
 		config_.upgradeGaussian = ReadFloat(intensity, "upgradeGaussian", config_.upgradeGaussian, 0.0f, 1.0f);
 		config_.phaseBoxFilter = ReadFloat(intensity, "phaseBoxFilter", config_.phaseBoxFilter, 0.0f, 0.65f);
+		config_.phaseNoiseIntensity = ReadFloat(intensity, "phaseNoiseIntensity", config_.phaseNoiseIntensity, 0.0f, 1.0f);
+		config_.phaseRandomIntensity = ReadFloat(intensity, "phaseRandomIntensity", config_.phaseRandomIntensity, 0.0f, 1.0f);
+		config_.phaseScanlineIntensity = ReadFloat(intensity, "phaseScanlineIntensity", config_.phaseScanlineIntensity, 0.0f, 1.0f);
+		config_.phaseGlitchAmount = ReadFloat(intensity, "phaseGlitchAmount", config_.phaseGlitchAmount, 0.0f, 0.08f);
 		config_.grayscaleStrength = ReadFloat(intensity, "grayscaleStrength", config_.grayscaleStrength, 0.0f, 1.0f);
 		config_.playerDamageVignette = ReadFloat(intensity, "playerDamageVignette", config_.playerDamageVignette, 0.0f, 1.0f);
 		config_.radialBlurIntensity = ReadFloat(intensity, "radialBlurIntensity", config_.radialBlurIntensity, 0.0f, 1.0f);
+		config_.dashRadialBlurIntensity = ReadFloat(intensity, "dashRadialBlurIntensity", config_.dashRadialBlurIntensity, 0.0f, 1.0f);
+		config_.dashRadialBlurWidth = ReadFloat(intensity, "dashRadialBlurWidth", config_.dashRadialBlurWidth, 0.0f, 0.10f);
 		config_.shockwaveMaxRadius = ReadFloat(intensity, "shockwaveMaxRadius", config_.shockwaveMaxRadius, 0.0f, 1.5f);
 		config_.shockwaveWidth = ReadFloat(intensity, "shockwaveWidth", config_.shockwaveWidth, 0.001f, 0.25f);
 		config_.shockwaveStrength = ReadFloat(intensity, "shockwaveStrength", config_.shockwaveStrength, 0.0f, 0.10f);
@@ -234,16 +241,22 @@ void ScreenEffectDirector::ApplyTo(BloomParam& param) const
 	}
 
 	if (bossPhase_.remaining > 0.0f) {
-		const float envelope = GetEnvelope(bossPhase_);
-		param.glitchAmount = (std::max)(param.glitchAmount, 0.045f * envelope);
-		param.noiseIntensity = (std::max)(param.noiseIntensity, 0.14f * envelope);
-		param.randomIntensity = (std::max)(param.randomIntensity, 0.14f * envelope);
+		const float progress = GetProgress(bossPhase_);
+		const float impactEnvelope = GetEnvelope(bossPhase_);
+		const float interferenceAttack = (std::clamp)((progress - 0.06f) / 0.12f, 0.0f, 1.0f);
+		const float interferenceRelease = (std::clamp)((1.0f - progress) / 0.30f, 0.0f, 1.0f);
+		const float interferenceEnvelope = interferenceAttack * interferenceRelease;
+		const float scanlineAttack = (std::clamp)((progress - 0.16f) / 0.12f, 0.0f, 1.0f);
+		const float scanlineEnvelope = scanlineAttack * interferenceRelease;
+		param.glitchAmount = (std::max)(param.glitchAmount, config_.phaseGlitchAmount * interferenceEnvelope);
+		param.noiseIntensity = (std::max)(param.noiseIntensity, config_.phaseNoiseIntensity * interferenceEnvelope);
+		param.randomIntensity = (std::max)(param.randomIntensity, config_.phaseRandomIntensity * interferenceEnvelope);
 		param.randomScale = 180.0f;
 		param.randomTimeScale = 18.0f;
-		param.scanlineIntensity = (std::max)(param.scanlineIntensity, 0.18f * envelope);
+		param.scanlineIntensity = (std::max)(param.scanlineIntensity, config_.phaseScanlineIntensity * scanlineEnvelope);
 		param.scanlineFrequency = 90.0f;
-		param.chromAbAmount += 0.034f * envelope;
-		param.fullScreenBoxBlurBlend = (std::max)(param.fullScreenBoxBlurBlend, config_.phaseBoxFilter * envelope);
+		param.chromAbAmount += 0.034f * impactEnvelope;
+		param.fullScreenBoxBlurBlend = (std::max)(param.fullScreenBoxBlurBlend, config_.phaseBoxFilter * interferenceEnvelope);
 		param.boxBlurRadius = (std::max)(param.boxBlurRadius, 2.0f);
 	}
 
@@ -274,8 +287,8 @@ void ScreenEffectDirector::ApplyTo(BloomParam& param) const
 		param.intensity += 0.18f * envelope;
 		param.chromAbAmount += 0.009f * envelope;
 		param.radialBlurCenter = dash_.center;
-		param.radialBlurWidth = (std::max)(param.radialBlurWidth, 0.010f);
-		param.radialBlurIntensity = (std::max)(param.radialBlurIntensity, 0.09f * envelope);
+		param.radialBlurWidth = (std::max)(param.radialBlurWidth, config_.dashRadialBlurWidth);
+		param.radialBlurIntensity = (std::max)(param.radialBlurIntensity, config_.dashRadialBlurIntensity * envelope);
 	}
 
 	if (upgradeConfirm_.remaining > 0.0f) {
