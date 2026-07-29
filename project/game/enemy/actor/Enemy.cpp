@@ -324,19 +324,28 @@ void Enemy::Draw(bool drawBody) {
 
 void Enemy::DrawBodyOnly() {
 	if (isDead_) {
-		if (deathChargeTimer_ <= 0.0f) {
+		if (!isExploding_) {
 			return;
 		}
 
-		const float progress = 1.0f - deathChargeTimer_ / deathChargeDuration_;
-		const float charge = progress * progress;
+		const float progress = deathChargeDuration_ > 0.0f
+			? (std::clamp)(1.0f - deathChargeTimer_ / deathChargeDuration_, 0.0f, 1.0f)
+			: 1.0f;
+		const float charge = deathChargeTimer_ > 0.0f
+			? std::sin(progress * 3.1415926535f)
+			: 0.0f;
 		Transform chargeTransform = worldTransform_;
-		chargeTransform.scale = worldTransform_.scale * (1.0f + charge * 0.65f);
+		chargeTransform.scale = worldTransform_.scale * (1.0f + charge * 0.18f);
 		const Vector4 savedColor = object_->GetColor();
 		const bool savedLighting = object_->IsLightingEnabled();
 		object_->SetTransform(chargeTransform);
 		object_->SetLighting(false);
-		object_->SetColor({ 2.4f, 2.4f, 2.4f, 1.0f });
+		const Vector4 dissolveBodyColor{ 0.72f, 0.08f, 0.035f, savedColor.w };
+		object_->SetColor({
+			dissolveBodyColor.x + (1.6f - dissolveBodyColor.x) * charge,
+			dissolveBodyColor.y + (1.6f - dissolveBodyColor.y) * charge,
+			dissolveBodyColor.z + (1.6f - dissolveBodyColor.z) * charge,
+			savedColor.w });
 		object_->Update();
 		object_->Draw();
 		object_->SetTransform(worldTransform_);

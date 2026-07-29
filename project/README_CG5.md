@@ -2,23 +2,12 @@
 
 ## ゲーム概要
 
-「たたかうせんしゃ」は、ネオングリッド上で通常敵を倒して経験値を集め、機体を強化・進化させながらボス撃破を目指す2Dシューティングゲームです。戦闘中の出来事とポストエフェクトを対応させ、成功・危険・戦況変化が画面から分かるようにしています。
+「たたかうせんしゃ」は、ネオングリッド上で敵を倒して経験値を集め、機体を強化・進化させながらボス撃破を目指す2Dシューティングゲームです。ポストエフェクトは常時画面を派手にするためではなく、移動速度、被弾、戦況変化、ボス撃破を視覚的に伝えるために使用しています。
 
-## 起動とモード選択
+## 起動方法
 
-1. `CG2.exe` を起動します。
-2. タイトルで `W/S` または上下キーを使い、`NORMAL MODE` / `SHOWCASE MODE` を選択します。
-3. 左クリックまたは Enter で開始します。
-
-タイトルの開始操作は1クリックです。ゲーム内にも常時操作ガイドを表示します。
-
-### NORMAL MODE
-
-従来の戦闘バランスで、通常戦闘、経験値獲得、進化、ボス戦をプレイします。
-
-### SHOWCASE MODE
-
-評価者が約60～90秒で主要演出を確認できるガイド付きモードです。通常の操作と戦闘を維持しながら、敵撃破、ジャスト回避、被弾、進化、ボス登場、フェーズ変更／EMP、ボス撃破が順番に起こりやすくなります。約61秒でボス撃破シーケンスへ進みます。
+1. `CG2.exe`を起動します。
+2. タイトル画面で左クリックすると通常ゲームを開始します。
 
 ## 操作方法
 
@@ -31,159 +20,128 @@
 | `1`～`7` | 対応する能力を強化 |
 | `H` | 操作ガイド表示切替 |
 | `Esc` | タイトルへ戻る |
-| 結果画面で `W/S` または上下 | Retry / Return to Title 選択 |
-| 結果画面で Enter／Space／左クリック | 決定 |
+| Resultで`W/S`または上下キー | Retry／Return to Title選択 |
+| ResultでEnter／Space／左クリック | 決定 |
 
-## クリア・ゲームオーバー
+## クリアとゲームオーバー
 
-- クリア条件: ボスのHPを0にする。
-- ゲームオーバー条件: プレイヤーのHPが0になる。
-- ボス撃破直後はタイトルへ戻らず、ボス撃破演出 → `STAGE CLEAR` → Result へ進みます。
-- プレイヤー死亡後は死亡演出 → `GAME OVER` → Result へ進みます。
-- Result には Clear Time、Just Dodge 回数、Damage Taken、Defeated Enemies を表示します。
-- Result から同じモードを Retry するか、タイトルへ戻れます。
+- ボスのHPを0にすると、ボス撃破演出、`STAGE CLEAR`、Resultの順に進みます。
+- プレイヤーのHPが0になると、死亡演出、`GAME OVER`、Resultの順に進みます。
+- Resultから同じゲームをRetryするか、タイトルへ戻れます。
 
-## 使用ポストエフェクト
+## ポストエフェクトの確認方法
 
-| エフェクト | 発生条件 | ゲーム上の目的 | 実装ファイル |
-|---|---|---|---|
-| Grayscale | ジャスト回避、進化ツリー、ゲームオーバー | 成功時の時間停止感、背景とUIの分離、敗北の明示 | `ScreenEffectDirector.cpp`, `Composite.PS.hlsl` |
-| Vignette | 被弾、低HP、ボス登場、ゲームオーバー | 危険度とダメージを画面周辺から伝える | `ScreenEffectDirector.cpp`, `Composite.PS.hlsl` |
-| Gaussian Filter | 進化ツリー表示中 | 背景を抑え、選択UIを読みやすくする | `ScreenEffectDirector.cpp`, `GaussianFilter.PS.hlsl` |
-| Box Filter | ボスフェーズ変更／EMP | 電子妨害による一時的な映像劣化 | `ScreenEffectDirector.cpp`, `Composite.PS.hlsl` |
-| Luminance Outline | ゲームシーン中の高輝度弾・ネオン対象 | 危険弾と発光物を背景から分離する | `ScreenEffectDirector.cpp`, `Composite.PS.hlsl` |
-| Depth Based Outline | ゲームシーン中のプレイヤー、ボス、壁 | 奥行きの不連続を使って主要形状を読みやすくする | `ScreenEffectDirector.cpp`, `Composite.PS.hlsl` |
-| Radial Blur | ダッシュ、ジャスト回避、ボス撃破 | 高速移動と衝撃の方向・強さを伝える | `ScreenEffectDirector.cpp`, `Composite.PS.hlsl` |
-| Shockwave | 敵撃破、ジャスト回避、進化決定、ボス撃破 | 発生位置と重要度をリング状の歪みで示す | `ScreenEffectDirector.cpp`, `Composite.PS.hlsl` |
-| Chromatic Aberration | ジャスト回避、被弾、フェーズ変更、ボス撃破 | 瞬間的な衝撃や異常を強調する | `ScreenEffectDirector.cpp`, `Composite.PS.hlsl` |
-| Random / Noise | 被弾、フェーズ変更／EMP、ゲームオーバー | ダメージや電子妨害を短時間で伝える | `ScreenEffectDirector.cpp`, `Random.PS.hlsl` |
-| Scanline / Glitch | ボスフェーズ変更／EMP、ゲームオーバー | ボスの攻撃変化とシステム異常を予告する | `ScreenEffectDirector.cpp`, `Composite.PS.hlsl` |
-| Bloom | 射撃、軌跡、パーティクル、各成功／撃破イベント | ネオン表現の維持と重要イベントの強弱付け | `Bloom.cpp`, `ObjectPostEffect.cpp`, Bloom系HLSL |
-| Dissolve | ボス撃破シーケンスのボス専用再描画 | 全画面ではなく、撃破対象の消失を表現する | `GameScene.cpp`, `ObjectPostComposite.PS.hlsl` |
+### Grayscale
 
-## イベントと演出の対応
+1. 発動条件: ジャスト回避、進化ツリー表示中、ゲームオーバー時に発動します。
+2. 見る場所: ジャスト回避時はゲーム世界全体、進化中はUIの背後を確認します。
+3. 見た目: 背景の彩度が下がります。進化UIや結果文字は全画面ポストエフェクト後に描画されるため鮮明なままです。
+4. 目的: 時間停止感を伝え、操作対象のUIや重要な状態を背景から分離します。
 
-- ジャスト回避: 0.20秒を基準に Grayscale、Time Scale 0.20、プレイヤーのみカラー再描画、Shockwave、弱い Radial Blur／Chromatic Aberration、Bloom boost、`JUST DODGE` 表示、既存SEを小音量で再利用。
-- 通常被弾: 赤系 Vignette、Chromatic Aberration、Noise／Random、小さな Camera Shake、`ARMOR HIT` 表示。
-- 低HP: HP比率30%未満から弱い Vignette。最大値をClampし、弾とUIの視認性を維持。
-- 進化ツリー: ゲーム時間停止、背景 Grayscale＋Gaussian、UIは後段で鮮明に描画。決定時は Bloom＋Shockwave。
-- 通常敵撃破: 既存ネオンパーティクル、小Shockwave、短いBloom、軽いChromatic Aberration。
-- ボス登場: フェードイン後に `WARNING: BOSS UNIT`、短いスロー、Vignette、Bloom。
-- ボスフェーズ変更／EMP: Glitch、Random／Noise、Scanline、Chromatic Aberration、Box Filter、Camera Shake、PHASE表示。
-- ボス撃破: Hit Stop、ボス中心の大型Shockwave、Bloom、Chromatic Aberration、Radial Blur、Camera Shake、パーティクル、ボス専用Dissolve、`BOSS DESTROYED`、`STAGE CLEAR`、Result。
-- ゲームオーバー: Grayscale、Vignette、Noise／Glitch、死亡パーティクル、`GAME OVER`、Result。
+### Vignetting
 
-## ScreenEffectDirector
+1. 発動条件: 通常被弾、低HP、ボス登場、ゲームオーバー時に発動します。
+2. 見る場所: 画面中央ではなく画面四隅と外周を確認します。
+3. 見た目: 画面周辺が暗くなり、危険度に応じて中央へ視線が集まります。
+4. 目的: 敵弾やUIを隠さず、ダメージと危険状態を伝えます。
 
-`game/effects/ScreenEffectDirector` はゲームロジックとレンダラーの間に置いたイベント演出管理クラスです。
+### Box Filter
 
-- ゲーム側は `TriggerJustDodge`、`TriggerPlayerDamage`、`TriggerEnemyDefeat`、`TriggerBossEntry`、`TriggerBossPhaseChange`、`TriggerBossDefeat` などの意味のあるイベントだけを通知します。
-- Director が効果時間、補間、排他効果の優先順位、加算／最大値合成、NaN防止、上限Clampを担当します。
-- 毎フレーム0から一時パラメータを合成し、`ApplyTo(BloomParam&)` でエンジンへ渡すため、イベント終了後は基準値へ戻ります。
-- `Bloom` 側ではシーン開始前の基準値を保存し、GameScene終了時に復元します。GraphicsLabScene、NavalBattleScene の設定を上書きしません。
-- 同一HLSLの重複コンパイルを避けるメモリ内シェーダーキャッシュを追加し、GameScene初回ロードを短縮しています。シェーダーそのものは重複実装していません。
+1. 発動条件: ボスHPがレベルデータのフェーズ変更しきい値へ到達すると発動します。
+2. 見る場所: ボスと背景グリッドの境界を確認します。
+3. 見た目: 色収差とカメラ揺れの直後、ゲーム世界が一時的に粗くぼけます。UIとフェーズ名は後段描画のためぼけません。
+4. 目的: EMPによる映像信号の乱れと、ボスの攻撃段階が変わったことを知らせます。
 
-## JSON調整
+### Gaussian Filter
 
-`resources/configs/screenEffects.json` で以下を調整できます。欠損時や不正値には安全な既定値とClampを使います。
+1. 発動条件: 進化ツリーを開いている間に発動します。
+2. 見る場所: 進化ノードではなく、その背後にあるゲーム世界を確認します。
+3. 見た目: 背景だけが滑らかにぼけ、進化ノードと説明文は鮮明に残ります。
+4. 目的: 戦闘画面の情報量を抑え、進化先の選択を読みやすくします。
 
-- ジャスト回避、被弾、敵撃破、ボス登場、フェーズ変更、ボス撃破、ゲームオーバー、ダッシュ、進化決定の時間
-- `showcaseTimeScale`（提出値は`1.0`。イベント列の短時間リグレッション確認にも利用）
-- Grayscale強度
-- Vignette強度、低HPしきい値
-- Gaussian強度
-- Box Filter強度
-- Radial Blur強度
-- Shockwave半径、幅、強度
-- Chromatic Aberration強度
-- Random強度
-- Bloom boost
-- Hit Stop時間
-- Camera Shake時間、強度
-- ボス消失速度
-- Depth／Luminance OutlineのON/OFF、幅、しきい値、深度倍率
+### Depth Based Outline
 
-## ON/OFF比較
+1. 発動条件: 通常ゲーム中は常時有効です。
+2. 見る場所: プレイヤー、敵、ボス、壁が前後に重なる境界を確認します。
+3. 見た目: ネオンBloomとは別に、深度バッファのView空間Z差分から水色の輪郭を抽出します。平坦な地面や遠景の小さな差はしきい値で除外します。
+4. 目的: 発光が重なった場面でも、主要オブジェクトと遮蔽物の前後関係を読みやすくします。
 
-- Developmentビルド: ImGui「ゲームデバッグコンソール」→「概要」→「ゲーム用 Depth/Luminance Outline」で輪郭を比較できます。
-- JSON: `screenEffects.json` の `outlineEnabled` を切り替えます。
-- 各イベント効果: 対応する強度を0にして比較できます。
-- `F8` はDevelopmentのPost Profile表示切替、`F9` は負荷比較モードです。Releaseでは無効です。
+Developmentビルドでは、ImGuiの「ゲームデバッグコンソール」→「概要」→「ゲーム用 Depth Based Outline」でON/OFF比較できます。この比較UIはReleaseには含まれません。
 
-## 描画順
+### Radial Blur
+
+1. 発動条件: 右クリックの通常ダッシュ、ジャスト回避、ボス撃破時に発動します。
+2. 見る場所: 発動時のプレイヤー位置を中心に、その周囲のグリッドとオブジェクトを確認します。
+3. 見た目: プレイヤー位置から外側へ画面が短時間流れます。通常ダッシュは控えめで、ジャスト回避とボス撃破はより強く表示されます。
+4. 目的: 通常移動との差を付け、ダッシュの速度感と重要イベントの衝撃を伝えます。
+
+### Dissolve
+
+1. 発動条件: ボスのHPを0にすると、ボス撃破シーケンス中に発動します。
+2. 見る場所: 全画面ではなく、ボス本体と橙赤色の消失境界を確認します。
+3. 見た目: ボス専用RenderTexture上で本体が徐々に欠けます。開始から0.18秒後に大型Shockwaveと発光が重なり、その後`STAGE CLEAR`へ進みます。
+4. 目的: 白い爆発だけで消すのではなく、撃破対象そのものが崩壊したことを示します。
+
+### Random / Noise
+
+1. 発動条件: 通常被弾、ボスフェーズ変更／EMP、ゲームオーバー時に発動します。
+2. 見る場所: ボス周辺だけでなくゲーム世界全体の明るさの細かな乱れを確認します。
+3. 見た目: ボスフェーズ変更時は、色収差の後にランダムノイズとGlitchが入り、終盤は走査線とともに弱まりながら通常画面へ戻ります。
+4. 目的: 被弾やEMPによる一時的な映像障害を表現し、ボスの状態変化を通知します。
+
+## 補助的に使用している効果
+
+- Shockwave: 敵撃破、ジャスト回避、進化決定、ボス撃破の発生位置をリング状の歪みで示します。
+- Chromatic Aberration: 被弾、回避、フェーズ変更、ボス撃破の瞬間的な衝撃を示します。
+- Scanline／Glitch: ボスフェーズ変更／EMPとゲームオーバー時の映像異常を示します。
+- Bloom: ネオンの弾、軌跡、キャラクター、パーティクルを発光させます。通常Bloomの基準値は今回変更していません。
+
+## 描画接続と描画順
+
+`game/effects/ScreenEffectDirector.cpp`がイベント時間、Envelope、優先順位、NaN防止、Clampを管理し、`GameScene::GetScreenEffectState()`から`Bloom::SetScreenEffectState()`へ毎フレーム値を渡します。全画面効果は`resources/shaders/Composite.PS.hlsl`の最終合成へ接続されています。
+
+Dissolveだけは全画面処理ではありません。`GameScene::DrawAfterPostEffect3D()`でボスを`ObjectPostEffect`の専用RenderTextureへ再描画し、`resources/shaders/ObjectPostComposite.PS.hlsl`でボスのピクセルだけを消失させます。
+
+描画順は次のとおりです。
 
 1. 3Dワールド、ステージ、敵、弾
 2. オブジェクトBloom、ネオングリッド、弾道トレイル、パーティクル
-3. 全画面Bloom／ScreenEffectDirectorの合成結果
-4. ジャスト回避時のプレイヤーカラー再描画、ボス撃破時のボスDissolve
-5. HPバー、操作ガイド、進化ツリー、イベント表示、Stage Clear／Game Over／Result
+3. 全画面BloomとScreenEffectDirectorの合成結果
+4. ジャスト回避時のプレイヤー再描画、ボス撃破時のボスDissolve
+5. HP、操作ガイド、進化UI、イベント表示、Stage Clear／Game Over／Result
 6. Fade
 
-UIを全画面ポストエフェクト後に描画する理由は、Gaussian、Box Filter、Radial Blur、Shockwave、Glitchで文字や選択肢がぼけたり歪んだりするのを防ぐためです。
+この順序により、Gaussian Filter、Box Filter、Radial Blur、Random、Glitchはゲーム世界へ適用されますが、HPや進化UI、Result文字はぼけたり歪んだりしません。
 
-## 主なC++ファイル
+## 設定ファイル
+
+`resources/configs/screenEffects.json`から、各イベントの時間、Depth Outline、通常ダッシュのRadial Blur、ボスフェーズ変更のBox Filter／Noise／Random／Scanline／Glitch、ボス撃破Dissolve速度と主要衝撃の遅延を調整できます。欠損値・非数・範囲外の値にはC++側の安全な既定値とClampを使用します。
+
+オブジェクト単位のBloom設定は`resources/configs/gamePostEffects.json`にあります。
+
+## 主な実装ファイル
 
 - `game/effects/ScreenEffectDirector.h/.cpp`
 - `game/scene/GameScene.h/.cpp`
-- `game/scene/TitleScene.h/.cpp`
+- `game/enemy/actor/Enemy.h/.cpp`
 - `game/scene/IScene.h`
 - `game/scene/SceneManager.h/.cpp`
 - `game/scene/Game.cpp`
-- `game/player/actor/Player.h/.cpp`
-- `game/enemy/actor/Enemy.h/.cpp`
-- `game/exp/ExpEnemy.h/.cpp`
 - `DirectX/engine/postEffect/Bloom.h/.cpp`
-- `DirectX/engine/commom/DirectXCommon.h/.cpp`
-- `DirectX/engine/commom/WinApp.h/.cpp`
-
-## 使用シェーダーファイル
-
-新しいポストエフェクトHLSLは追加せず、既存実装を再利用しています。
-
+- `DirectX/engine/postEffect/ObjectPostEffect.h/.cpp`
 - `resources/shaders/Composite.PS.hlsl`
-- `resources/shaders/GaussianFilter.PS.hlsl`
 - `resources/shaders/Random.PS.hlsl`
 - `resources/shaders/ObjectPostComposite.PS.hlsl`
-- `resources/shaders/ObjectPostBloomAdd.PS.hlsl`
-- `resources/shaders/ObjectPostOutlineAdd.PS.hlsl`
-- `resources/shaders/BloomExtract.PS.hlsl`
-- `resources/shaders/BloomDownsample.PS.hlsl`
-- `resources/shaders/BloomBlurH.PS.hlsl`
-- `resources/shaders/BloomBlurV.PS.hlsl`
 
-## 工夫した点・難しかった点
+## DevelopmentとRelease
 
-- 常時派手にするのではなく、「回避成功」「被弾」「フェーズ変更」「撃破」の理由が分かる短い演出にしました。
-- 通常敵、ジャスト回避、ボス撃破にShockwave優先順位を付け、同時発生時は重要なイベントを採用します。
-- Bloom、Chromatic Aberrationなどは加算後にClampし、GrayscaleやShockwave中心のような排他的値には優先順位を付けました。
-- UIとワールドの描画順を分け、進化ツリーと結果選択を常に読める状態にしました。
-- シーン固有の一時値とエンジン既定値を分離し、別ゲームモジュールへの回帰を防ぎました。
-- Releaseで残っていたTextLabelとウィンドウタイトルのPost Profile更新を除外しました。
+- DevelopmentではImGuiの既存調整UI、Depth Outline比較、Post Profileを使用できます。
+- Releaseでは`USE_IMGUI`を定義せず、ImGui、FPS、Post Profile、Collision Debug、F2～F12の開発操作を表示・処理しません。
+- DevelopmentとReleaseで、通常ゲームのポストエフェクト設定とボス撃破シーケンスは共通です。
 
-## ビルドと提出物
-
-確認構成:
+## ビルド対象
 
 - `Development|x64`
 - `Release|x64`
 
-提出時は次を同じフォルダ構成でまとめます。
-
-1. Release実行ファイルと `dxcompiler.dll` / `dxil.dll`
-2. `resources` フォルダ
-3. ビルド可能な `project` フォルダ一式
-4. 本README
-
-Releaseでは `USE_IMGUI` を定義せず、ImGui、FPS、Post Profile、Collision Debug、開発用ショートカットを表示しません。
-
-## 検証メモ
-
-- Developmentビルド: 成功
-- Releaseビルド: 成功
-- HLSL: Release起動時のコンパイル成功、タイトルとゲームシーンまで起動確認
-- Releaseタイトル: ImGui／FPS／Post Profile／Collision Debugなし
-- Releaseゲーム: 通常戦闘、操作ガイド、イベントコールアウトを実画面確認
-- Showcase: 敵撃破→ジャスト回避→被弾→進化→ボス登場→フェーズ変更→ボス撃破→Stage Clear→Resultまで完走確認
-- ボス撃破中の結果バナーは状態遷移時だけ再構築し、GPU使用中のTextLabelリソースを毎フレーム破棄しないことを確認
-- 通常描画では新規フルスクリーンパスを増やしていません。追加パスはボス撃破中の短いボス専用Dissolveのみです。
-- 変更前の同一環境GPUベースラインは未保存のため、厳密な変更前後比較値はありません。DevelopmentのPost Profileで継続比較します。
+提出時はRelease実行ファイル、`dxcompiler.dll`、`dxil.dll`、`resources`、ビルド可能な`project`一式、本READMEを同じ構成で含めます。
