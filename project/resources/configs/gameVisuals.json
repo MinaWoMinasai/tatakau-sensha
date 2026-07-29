@@ -1,4 +1,26 @@
 {
+  "textAppearance": {
+    "fontMode": 1,
+    "neonEnabled": true,
+    "outlineEnabled": false,
+    "outlineColor": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "w": 0.9
+    },
+    "outlineThickness": 1.0,
+    "glowColor": {
+      "x": 0.18,
+      "y": 1.0,
+      "z": 0.48,
+      "w": 1.0
+    },
+    "sourceBrightness": 2.2,
+    "threshold": 0.0,
+    "innerIntensity": 0.82,
+    "outerIntensity": 0.48
+  },
   "bulletTrail": {
     "colorCurvePower": 1.0,
     "enemyEndColor": {

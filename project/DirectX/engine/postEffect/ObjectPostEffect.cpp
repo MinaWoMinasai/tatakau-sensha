@@ -15,8 +15,10 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
 
     const std::array<float, 4> transparent = { 0.0f, 0.0f, 0.0f, 0.0f };
     const float safeScale = (std::clamp)(renderScale, 0.25f, 1.0f);
-    renderWidth_ = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(WinApp::kClientWidth) * safeScale));
-    renderHeight_ = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(WinApp::kClientHeight) * safeScale));
+    const uint32_t clientWidth = (std::max)(1, WinApp::GetInstance()->GetClientWidth());
+    const uint32_t clientHeight = (std::max)(1, WinApp::GetInstance()->GetClientHeight());
+    renderWidth_ = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(clientWidth) * safeScale));
+    renderHeight_ = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(clientHeight) * safeScale));
     halfWidth_ = (std::max)(1u, renderWidth_ / 2);
     halfHeight_ = (std::max)(1u, renderHeight_ / 2);
     bloomWidth_ = halfWidth_;
@@ -99,7 +101,9 @@ void ObjectPostEffect::BeginCaptureWithCurrentDepth() {
 
     Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-    if (restoreHasDsv_ && renderWidth_ == WinApp::kClientWidth && renderHeight_ == WinApp::kClientHeight) {
+    if (restoreHasDsv_ &&
+        renderWidth_ == static_cast<uint32_t>(WinApp::GetInstance()->GetClientWidth()) &&
+        renderHeight_ == static_cast<uint32_t>(WinApp::GetInstance()->GetClientHeight())) {
         dxCommon_->SetRenderTarget(objectRT_->GetRTVHandle(), restoreDsvHandle_);
     } else {
         dxCommon_->SetRenderTargetNoDepth(objectRT_->GetRTVHandle());
@@ -122,6 +126,10 @@ void ObjectPostEffect::EndCaptureAdditiveOnly() {
 
 void ObjectPostEffect::EndCaptureBloomOnly() {
     FinishCapture(FinishMode::BloomOnly, true);
+}
+
+void ObjectPostEffect::EndCaptureBloomOnlyToBackBuffer() {
+	FinishCapture(FinishMode::BloomOnly, false);
 }
 
 void ObjectPostEffect::EndCaptureBloomOnlyToCache() {
@@ -176,7 +184,9 @@ void ObjectPostEffect::FinishCapture(FinishMode mode, bool outputToHdr) {
     } else {
         dxCommon_->SetRenderTargetNoDepth(restoreRtvHandle_);
     }
-    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    dxCommon_->SetViewport(
+        static_cast<uint32_t>(WinApp::GetInstance()->GetClientWidth()),
+        static_cast<uint32_t>(WinApp::GetInstance()->GetClientHeight()));
     if (mode == FinishMode::BloomOnlyCache) {
         return;
     }

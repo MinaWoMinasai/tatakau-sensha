@@ -15,6 +15,7 @@
 #include "NeonGridRenderer.h"
 #include "RingManager.h"
 #include "TextLabel.h"
+#include "game/ui/TankButtonUI.h"
 
 class PlayerLabScene : public IScene {
 public:
@@ -22,6 +23,7 @@ public:
 	void Update() override;
 	void Draw() override;
 	void DrawPostEffect3D() override;
+	void DrawAfterPostEffect3D() override;
 	void DrawSprite() override;
 
 	bool IsFinished() const override { return finished_; }
@@ -62,6 +64,7 @@ private:
 	std::unique_ptr<TextLabel> labTitleText_;
 	std::unique_ptr<TextLabel> labGuideText_;
 	std::unique_ptr<TextLabel> labStatusText_;
+	std::unique_ptr<TankButtonGallery> tankButtonGallery_;
 
 	bool finished_ = false;
 	std::string nextSceneName_ = "TITLE";

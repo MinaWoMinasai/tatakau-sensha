@@ -16,6 +16,7 @@ public:
     void EndCaptureToBackBuffer();
     void EndCaptureAdditiveOnly();
     void EndCaptureBloomOnly();
+	void EndCaptureBloomOnlyToBackBuffer();
     void EndCaptureBloomOnlyToCache();
     void DrawCachedBloom(const Vector2& uvOffset);
 

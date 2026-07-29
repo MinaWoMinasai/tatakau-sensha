@@ -13,6 +13,7 @@ public:
 
 	// 共通描画設定
 	void PreDraw(BlendMode blendMode = kNone);
+	void PreDrawForScene(BlendMode blendMode = kNone);
 
 	DirectXCommon* GetDxCommon() { return dxCommon_; }
 
