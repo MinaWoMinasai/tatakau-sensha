@@ -6,21 +6,28 @@
     "playerDamage": 0.16,
     "enemyDefeat": 0.24,
     "bossEntry": 1.1,
-    "bossPhase": 0.75,
+    "bossPhase": 0.9,
     "bossDefeat": 1.35,
     "bossDefeatHitStop": 0.14,
+    "bossDefeatImpactDelay": 0.18,
     "gameOver": 1.1,
-    "dash": 0.14,
+    "dash": 0.18,
     "upgradeConfirm": 0.24
   },
   "intensity": {
     "lowHpThreshold": 0.3,
     "lowHpVignette": 0.28,
     "upgradeGaussian": 0.34,
-    "phaseBoxFilter": 0.18,
+    "phaseBoxFilter": 0.2,
+    "phaseNoiseIntensity": 0.15,
+    "phaseRandomIntensity": 0.15,
+    "phaseScanlineIntensity": 0.19,
+    "phaseGlitchAmount": 0.048,
     "grayscaleStrength": 0.95,
     "playerDamageVignette": 0.48,
     "radialBlurIntensity": 0.22,
+    "dashRadialBlurIntensity": 0.12,
+    "dashRadialBlurWidth": 0.012,
     "shockwaveMaxRadius": 0.62,
     "shockwaveWidth": 0.045,
     "shockwaveStrength": 0.02,
@@ -29,7 +36,7 @@
     "bloomBoost": 0.85,
     "cameraShakeDuration": 0.16,
     "cameraShakeStrength": 0.42,
-    "dissolveSpeed": 1.6,
+    "dissolveSpeed": 1.28,
     "maxBloomBoost": 1.8,
     "maxChromaticAberration": 0.065,
     "maxVignette": 0.72,
@@ -39,6 +46,6 @@
     "outlineEnabled": true,
     "outlineWidth": 1.0,
     "outlineThreshold": 0.55,
-    "depthOutlineScale": 0.18
+    "depthOutlineScale": 0.216
   }
 }
