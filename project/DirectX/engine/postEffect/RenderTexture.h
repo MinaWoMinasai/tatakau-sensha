@@ -5,6 +5,8 @@
 
 class RenderTexture {
 public:
+	~RenderTexture();
+
     void Initialize(
         DirectXCommon* dxCommon,
         SrvManager* srvManager,
@@ -31,7 +33,7 @@ public:
 private:
     Microsoft::WRL::ComPtr<ID3D12Resource> resource_;
     
-    uint32_t srvIndex_;
+	uint32_t srvIndex_ = 0;
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle_{};
 
     DirectXCommon* dxCommon_ = nullptr;

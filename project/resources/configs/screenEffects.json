@@ -11,8 +11,7 @@
     "bossDefeatHitStop": 0.14,
     "gameOver": 1.1,
     "dash": 0.14,
-    "upgradeConfirm": 0.24,
-    "showcaseTimeScale": 1.0
+    "upgradeConfirm": 0.24
   },
   "intensity": {
     "lowHpThreshold": 0.3,
