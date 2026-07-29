@@ -19,7 +19,7 @@ public:
 		float bossPhaseDuration = 0.90f;
 		float bossDefeatDuration = 1.35f;
 		float bossDefeatHitStop = 0.14f;
-		float bossDefeatImpactDelay = 0.18f;
+		float bossDefeatImpactDelay = 0.30f;
 		float gameOverDuration = 1.10f;
 		float dashDuration = 0.18f;
 		float upgradeConfirmDuration = 0.24f;
