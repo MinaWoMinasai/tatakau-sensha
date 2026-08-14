@@ -20,6 +20,8 @@
 #include "ParticleManager.h"
 #include "game/weapon/WeaponMount.h"
 #include "game/ui/TankButtonUI.h"
+#include "game/ui/NeonProgressBar.h"
+#include "game/ui/NeonSegmentedBar.h"
 #include "game/ui/NeonTextEffect.h"
 
 enum class ClassType {
@@ -180,6 +182,7 @@ public:
 	/// </summary>
 	void DrawSprite();
 	void DrawEvolutionAfterPostEffects();
+	void DrawUpgradeHudAfterPostEffects();
 	void AppendGameplayNeonTextLabels(std::vector<TextLabel*>& labels) const;
 
 	// ドローンのゲッター
@@ -480,7 +483,8 @@ private:
 	void SetVehicleAlpha(float alpha);
 	void TriggerDamageFeedback();
 	void InitializeUpgradeHud();
-	void UpdateUpgradeHud();
+	void ApplyUpgradeHudProgressBarStyles();
+	void UpdateUpgradeHud(float uiDeltaTime);
 	void DrawUpgradeHud();
 	void InitializeUpgradeHudBatch();
 	void DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float levelRatio, float listAlpha, float listOffsetX);
@@ -519,7 +523,7 @@ private:
 	int shootGroupIndex_ = 0;
 	std::vector<float> weaponGroupCooldowns_;
 
-	const int maxEnhancePoint = 5;
+	int maxEnhancePoint = 5;
 	std::array<int, 7> upgradeLevels_{};
 	int skillPoints_ = 0;
 	void UpdateStealth(float deltaTime);
@@ -704,6 +708,12 @@ private:
 	std::unique_ptr<Sprite> upgradeHudExpFillSprite_;
 	std::unique_ptr<Sprite> upgradeHudLevelBackSprite_;
 	std::unique_ptr<Sprite> upgradeHudLevelFillSprite_;
+	std::unique_ptr<NeonProgressBar> upgradeHudLevelProgressBar_;
+	std::unique_ptr<NeonProgressBar> upgradeHudExpProgressBar_;
+	std::array<std::unique_ptr<NeonSegmentedBar>, 7> upgradeHudSegmentBars_;
+	std::unique_ptr<ObjectPostEffect> upgradeHudBarBloomEffect_;
+	NeonProgressBarStyle upgradeHudLevelProgressStyle_{};
+	NeonProgressBarStyle upgradeHudExpProgressStyle_{};
 	std::unique_ptr<TextLabel> upgradeHudTitleLabel_;
 	std::unique_ptr<TextLabel> upgradeHudPointLabel_;
 	std::unique_ptr<TextLabel> upgradeHudExpLabel_;
@@ -738,16 +748,21 @@ private:
 	bool upgradeHudDrawBottomBars_ = true;
 	bool upgradeHudDrawBottomText_ = true;
 	bool upgradeHudUseRectBatch_ = true;
+	bool upgradeHudUseNeonProgressBars_ = true;
+	bool upgradeHudRoundedProgressBars_ = true;
+	bool upgradeHudUseSegmentedUpgradeBars_ = true;
+	Vector2 upgradeHudSegmentBarOffset_ = { 0.0f, 0.0f };
+	Vector2 upgradeHudSegmentBarSize_ = { 230.0f, 22.0f };
 	Vector2 upgradeHudPanelPos_ = { 18.0f, 338.0f };
 	Vector2 upgradeHudPanelSize_ = { 340.0f, 260.0f };
 	Vector2 upgradeHudRowStart_ = { 30.0f, 384.0f };
 	Vector2 upgradeHudButtonSize_ = { 286.0f, 22.0f };
-	Vector2 upgradeHudPlusSize_ = { 24.0f, 22.0f };
+	Vector2 upgradeHudPlusSize_ = { 32.0f, 18.0f };
 	float upgradeHudRowGap_ = 29.0f;
 	float upgradeHudNameX_ = 44.0f;
 	float upgradeHudLevelX_ = 184.0f;
 	float upgradeHudMinusX_ = 268.0f;
-	float upgradeHudPlusX_ = 304.0f;
+	float upgradeHudPlusX_ = 306.0f;
 	float upgradeHudMinusLabelX_ = 277.0f;
 	float upgradeHudPlusLabelX_ = 313.0f;
 	float upgradeHudNameTextOffsetY_ = 3.0f;
@@ -768,7 +783,10 @@ private:
 	int cachedUpgradeHudExp_ = -1;
 	int cachedUpgradeHudNextExp_ = -1;
 	int cachedUpgradeHudLevel_ = -1;
+	int upgradeHudAnimatedLevel_ = -1;
 	int cachedUpgradeHudSkillPoints_ = -1;
+	int cachedUpgradeHudMaxEnhancePoint_ = -1;
+	bool cachedUpgradeHudSegmentedBars_ = false;
 	std::string cachedUpgradeHudClassName_;
 	std::array<int, 7> cachedUpgradeHudLevels_{ -1, -1, -1, -1, -1, -1, -1 };
 	bool cachedUpgradeHudListVisible_ = false;
