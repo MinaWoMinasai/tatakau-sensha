@@ -395,6 +395,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				firedByClass = true;
 				if (!barrels_.empty()) {
 					barrels_[0].recoilOffset = 0.22f;
+					barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
 				}
 				
 				SpawnCasing(); // ここで呼び出す
@@ -413,6 +414,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 					firedByClass = true;
 					if (!barrels_.empty()) {
 						barrels_[0].recoilOffset = 0.22f;
+						barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
 					}
 					shootBarrelIndex_ = 1; // 次は右
 				} else {
@@ -421,6 +423,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 					firedByClass = true;
 					if (barrels_.size() > 1) {
 						barrels_[1].recoilOffset = 0.22f;
+						barrels_[1].muzzleFlashTimer = kMuzzleFlashDuration;
 					}
 					shootBarrelIndex_ = 0; // 次は左
 				}
@@ -436,6 +439,9 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				param.randomSpread = true;
 				attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
 				firedByClass = true;
+				if (!barrels_.empty()) {
+					barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
+				}
 				// リロード補正0.6倍
 				bulletCoolTime = baseReload * 0.6f;
 				break;
@@ -478,6 +484,9 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 
 			if (!firedByClass && currentClass_ != ClassType::Smasher) {
 				attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
+				if (!barrels_.empty()) {
+					barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
+				}
 				SpawnCasing();
 			}
 
@@ -1912,6 +1921,9 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 		} else {
 			mountParam.bulletSpeed *= barrelConfig.projectileSpeedScale;
 			attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
+			if (index < barrels_.size()) {
+				barrels_[index].muzzleFlashTimer = kMuzzleFlashDuration;
+			}
 			SpawnCasing();
 		}
 		if (index < barrels_.size()) {
@@ -1983,6 +1995,7 @@ void Player::UpdateBarrelLayout()
 		const bool active = config ? i < config->barrels.size() : i == 0;
 
 		barrel.recoilOffset = (std::max)(0.0f, barrel.recoilOffset - recoilReturn * dt_ * 60.0f);
+		barrel.muzzleFlashTimer = (std::max)(0.0f, barrel.muzzleFlashTimer - dt_);
 		barrel.localOffset = forward * (barrelConfig.offset.x - barrel.recoilOffset) + right * barrelConfig.offset.y + Vector3{ 0.0f, 0.0f, barrelConfig.offset.z };
 		barrel.transform.translate = worldTransform_.translate + barrel.localOffset;
 		barrel.transform.rotate = worldTransform_.rotate;
@@ -6235,7 +6248,13 @@ std::vector<Player::NeonBarrelLayout> Player::GetNeonBarrelLayouts() const
 	std::vector<NeonBarrelLayout> layouts;
 	const PlayerClassConfig* config = GetCurrentClassConfig();
 	if (!config) {
-		layouts.push_back({});
+		NeonBarrelLayout layout{};
+		if (!barrels_.empty()) {
+			layout.muzzleFlashRatio = kMuzzleFlashDuration > 0.0f
+				? (std::clamp)(barrels_[0].muzzleFlashTimer / kMuzzleFlashDuration, 0.0f, 1.0f)
+				: 0.0f;
+		}
+		layouts.push_back(layout);
 		return layouts;
 	}
 
@@ -6253,6 +6272,9 @@ std::vector<Player::NeonBarrelLayout> Player::GetNeonBarrelLayouts() const
 		layout.outlineColor = barrel.outlineColor;
 		if (i < barrels_.size()) {
 			layout.recoilOffset = barrels_[i].recoilOffset;
+			layout.muzzleFlashRatio = kMuzzleFlashDuration > 0.0f
+				? (std::clamp)(barrels_[i].muzzleFlashTimer / kMuzzleFlashDuration, 0.0f, 1.0f)
+				: 0.0f;
 		}
 		layouts.push_back(layout);
 	}

@@ -2510,7 +2510,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		return Vector3{ direction.x * c - direction.y * s, direction.x * s + direction.y * c, direction.z };
 	};
 
-	auto queueTankBillboard = [&](const Vector3& center, const Vector3& direction, float radius, float lineWidth, const Vector4& color, const Player::NeonBodyLayout* bodyLayout, const std::vector<Player::NeonBarrelLayout>* barrelLayouts, bool allowIdleMeleeSaber) {
+	auto queueTankBillboard = [&](const Vector3& center, const Vector3& direction, float radius, float lineWidth, const Vector4& color, const Player::NeonBodyLayout* bodyLayout, const std::vector<Player::NeonBarrelLayout>* barrelLayouts, bool allowIdleMeleeSaber, bool allowMuzzleFlash) {
 		constexpr float kTwoPi = 6.28318530718f;
 		auto queueBodyPolygon = [&](int segments, float rotation, const Vector2& scale, const Vector4& outlineColor) {
 			segments = (std::clamp)(segments, 3, 48);
@@ -2651,6 +2651,14 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 			const Vector3 base = barrelCenter - barrelForward * (length * 0.20f);
 			const Vector3 tip = barrelCenter + barrelForward * (length * 0.80f);
 			Vector4 barrelColor = groupColor(layout.fireGroup, layout.outlineColor.w > 0.001f ? layout.outlineColor : color);
+			const float muzzleFlashRatio = allowMuzzleFlash
+				? (std::clamp)(layout.muzzleFlashRatio, 0.0f, 1.0f)
+				: 0.0f;
+			const float muzzleFlash = muzzleFlashRatio * muzzleFlashRatio;
+			barrelColor = lerpColor(
+				barrelColor,
+				{ 1.80f, 1.80f, 1.50f, barrelColor.w },
+				muzzleFlash * 0.80f);
 			if (layout.shape == BarrelShape::Trapezoid) {
 				const float baseHalf = half * 1.28f;
 				const float tipHalf = half * 0.72f;
@@ -2663,6 +2671,39 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 				neonGridRenderer_->QueueLine(tip - barrelRight * half, tip + barrelRight * half, lineWidth, barrelColor);
 				neonGridRenderer_->QueueLine(tip + barrelRight * half, base + barrelRight * half, lineWidth, barrelColor);
 				neonGridRenderer_->QueueLine(base + barrelRight * half, base - barrelRight * half, lineWidth, barrelColor);
+			}
+
+			if (muzzleFlashRatio > 0.0f) {
+				auto queueMuzzleRing = [&](float ringRadius, int segments, float ringLineWidth, const Vector4& ringColor) {
+					Vector3 previous{};
+					for (int i = 0; i <= segments; ++i) {
+						const float angle = static_cast<float>(i % segments) * (kTwoPi / static_cast<float>(segments));
+						const Vector3 current = tip +
+							cameraRight * (std::cos(angle) * ringRadius) +
+							cameraUp * (std::sin(angle) * ringRadius);
+						if (i > 0) {
+							neonGridRenderer_->QueueLine(previous, current, ringLineWidth, ringColor);
+						}
+						previous = current;
+					}
+				};
+
+				const float coreRadius = radius * (0.08f + muzzleFlashRatio * 0.04f);
+				const float haloRadius = radius * (0.15f + muzzleFlashRatio * 0.09f);
+				const Vector4 coreColor{ 2.20f, 2.10f, 1.65f, muzzleFlashRatio };
+				const Vector4 haloColor{
+					1.35f + muzzleFlash * 0.45f,
+					1.55f + muzzleFlash * 0.35f,
+					0.75f + muzzleFlash * 0.35f,
+					muzzleFlashRatio * 0.42f };
+				queueMuzzleRing(haloRadius, 14, lineWidth * 0.65f, haloColor);
+				queueMuzzleRing(coreRadius, 10, lineWidth * 1.15f, coreColor);
+
+				const float sparkLength = radius * (0.10f + muzzleFlashRatio * 0.10f);
+				const Vector3 sparkTip = tip + barrelForward * sparkLength;
+				neonGridRenderer_->QueueLine(tip, sparkTip, lineWidth * 1.15f, coreColor);
+				neonGridRenderer_->QueueLine(tip, sparkTip + barrelRight * coreRadius, lineWidth * 0.72f, haloColor);
+				neonGridRenderer_->QueueLine(tip, sparkTip - barrelRight * coreRadius, lineWidth * 0.72f, haloColor);
 			}
 		};
 
@@ -2686,7 +2727,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		Vector4 color = playerGridColor_;
 		color.w *= playerAfterimageAlpha_ * lifeRatio;
 		const float radius = playerNeonBillboardRadius_ * (0.88f + lifeRatio * 0.12f);
-		queueTankBillboard(afterimage.position + Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, false);
+		queueTankBillboard(afterimage.position + Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, false, false);
 	}
 
 	if (playerNeonRenderMode_ == 1 && player_ && !player_->IsDead()) {
@@ -2697,7 +2738,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		if (player_->IsDashing()) {
 			color.w *= playerDashCurrentAlpha_;
 		}
-		queueTankBillboard(player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true);
+		queueTankBillboard(player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true);
 	}
 	if (bossNeonRenderMode_ == 1 && enemy_ && !enemy_->IsDead()) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
@@ -2712,7 +2753,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		bossBarrel.fireGroup = -1;
 		bossBarrel.outlineColor = color;
 		const std::vector<Player::NeonBarrelLayout> bossBarrels = { bossBarrel };
-		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + impact * 0.07f), actorNeonBillboardLineWidth_, color, &bossBody, &bossBarrels, false);
+		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + impact * 0.07f), actorNeonBillboardLineWidth_, color, &bossBody, &bossBarrels, false, false);
 	}
 }
 
