@@ -2701,8 +2701,8 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 	}
 	if (bossNeonRenderMode_ == 1 && enemy_ && !enemy_->IsDead()) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
-		const float pulse = std::sin(feedback * 3.14159265f) * 0.08f;
-		const Vector4 color = lerpColor(enemyGridColor_, { 1.8f, 1.8f, 1.8f, enemyGridColor_.w }, feedback * feedback * 0.65f);
+		const float impact = feedback * feedback;
+		const Vector4 color = lerpColor(enemyGridColor_, { 1.8f, 1.8f, 1.8f, enemyGridColor_.w }, (std::min)(1.0f, impact * 0.95f));
 		Player::NeonBodyLayout bossBody{};
 		bossBody.outlineColor = color;
 		Player::NeonBarrelLayout bossBarrel{};
@@ -2712,7 +2712,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		bossBarrel.fireGroup = -1;
 		bossBarrel.outlineColor = color;
 		const std::vector<Player::NeonBarrelLayout> bossBarrels = { bossBarrel };
-		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &bossBody, &bossBarrels, false);
+		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + impact * 0.07f), actorNeonBillboardLineWidth_, color, &bossBody, &bossBarrels, false);
 	}
 }
 
@@ -2786,10 +2786,10 @@ void GameScene::DrawActorNeonBodyFillPass() {
 	}
 	if (bossNeonRenderMode_ == 1 && enemy_ && !enemy_->IsDead()) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
-		const float pulse = std::sin(feedback * 3.14159265f) * 0.08f;
+		const float impact = feedback * feedback;
 		neonGridRenderer_->QueueBillboardDisc(
 			enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.345f },
-			bossNeonBillboardRadius_ * (1.0f + pulse) * 0.96f,
+			bossNeonBillboardRadius_ * (1.0f + impact * 0.07f) * 0.96f,
 			actorNeonBodyFillColor_, cameraRight, cameraUp);
 	}
 	const uint32_t fillCount = neonGridRenderer_->GetVertexCount() - fillStart;

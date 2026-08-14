@@ -302,7 +302,7 @@ private:
 	Vector3 baseScale_{ 1.0f, 1.0f, 1.0f };
 	Vector4 baseColor_{ 0.0f, 0.0f, 0.0f, 1.0f };
 	float damageFeedbackTimer_ = 0.0f;
-	float damageFeedbackDuration_ = 0.14f;
+	float damageFeedbackDuration_ = 0.10f;
 
 	bool isDead_ = false;
 

@@ -399,11 +399,21 @@ void ExpEnemy::ApplyDamageFeedback(float deltaTime)
         damageFeedbackTimer_ = (std::max)(0.0f, damageFeedbackTimer_ - deltaTime);
     }
 
-    const float t = damageFeedbackDuration_ > 0.0f ? damageFeedbackTimer_ / damageFeedbackDuration_ : 0.0f;
-    const float flash = t * t;
-    const float pulse = std::sin(t * 3.14159265f) * 0.16f;
-    worldTransform_.scale = baseScale_ * (1.0f + pulse);
-    visualColor_ = LerpColor(baseColor_, { 1.0f, 1.0f, 1.0f, baseColor_.w }, flash * 0.9f);
+    const float t =
+        damageFeedbackDuration_ > 0.0f
+        ? damageFeedbackTimer_ / damageFeedbackDuration_
+        : 0.0f;
+
+    const float impact = t * t;
+
+    worldTransform_.scale =
+        baseScale_ * (1.0f + impact * 0.10f);
+
+    visualColor_ = LerpColor(
+        baseColor_,
+        { 1.0f, 1.0f, 1.0f, baseColor_.w },
+        (std::min)(1.0f, impact));
+
     object_->SetColor(visualColor_);
 }
 
