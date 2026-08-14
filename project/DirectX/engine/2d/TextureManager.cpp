@@ -542,14 +542,14 @@ Float3 SampleFloatCube(const DirectX::ScratchImage& cubeImage, Float3 direction,
     return Lerp(SampleFloatCubeMip(cubeImage, direction, mip0), SampleFloatCubeMip(cubeImage, direction, mip1), mipT);
 }
 
-bool BuildProceduralEnvironmentCube(DirectX::ScratchImage& outCube)
+bool BuildProceduralEnvironmentCube(DirectX::ScratchImage& outCube, size_t cubeSize = 256)
 {
-    constexpr size_t kCubeSize = 256;
+    cubeSize = (std::max)(cubeSize, size_t{ 1 });
     DirectX::ScratchImage baseCube{};
     HRESULT hr = baseCube.InitializeCube(
         DXGI_FORMAT_R32G32B32A32_FLOAT,
-        kCubeSize,
-        kCubeSize,
+        cubeSize,
+        cubeSize,
         1,
         1);
     if (FAILED(hr)) {
@@ -559,9 +559,9 @@ bool BuildProceduralEnvironmentCube(DirectX::ScratchImage& outCube)
     for (size_t face = 0; face < 6; ++face) {
         const DirectX::Image* imageData = baseCube.GetImage(0, face, 0);
         assert(imageData != nullptr);
-        for (size_t y = 0; y < kCubeSize; ++y) {
-            for (size_t x = 0; x < kCubeSize; ++x) {
-                const Float3 direction = TexelDirectionForCubeFace(face, x, y, kCubeSize, kCubeSize);
+        for (size_t y = 0; y < cubeSize; ++y) {
+            for (size_t x = 0; x < cubeSize; ++x) {
+                const Float3 direction = TexelDirectionForCubeFace(face, x, y, cubeSize, cubeSize);
                 StoreFloatCubePixel(imageData, x, y, SampleProceduralPbrEnvironment(direction, 0.0f));
             }
         }
@@ -577,6 +577,12 @@ bool BuildProceduralEnvironmentCube(DirectX::ScratchImage& outCube)
         mipCube);
     outCube = SUCCEEDED(hr) ? std::move(mipCube) : std::move(baseCube);
     return true;
+}
+
+bool IsOptionalSkyboxTexture(const std::string& filePath)
+{
+    const std::string fileName = std::filesystem::path(filePath).filename().string();
+    return fileName == "skybox.dds" || fileName == "skyboxSky.dds";
 }
 
 bool BuildSolidColorCube(Float3 color, size_t cubeSize, size_t mipLevels, DirectX::ScratchImage& outCube)
@@ -810,7 +816,20 @@ void TextureManager::LoadTexture(const std::string& filePath, TextureColorSpace 
     } else {
         hr = DirectX::LoadFromWICFile(filePathW.c_str(), wicFlags, nullptr, image);
     }
+    if (FAILED(hr) && IsOptionalSkyboxTexture(filePath)) {
+        DirectX::ScratchImage fallbackCube{};
+        if (BuildProceduralEnvironmentCube(fallbackCube, 64)) {
+            StoreGeneratedTexture(filePath, colorSpace, fallbackCube, true);
+            LogWrite().Log(
+                "[TextureManager] Optional skybox was not found; using a generated fallback cubemap: " +
+                filePath + "\n");
+            return;
+        }
+    }
     assert(SUCCEEDED(hr));
+    if (FAILED(hr)) {
+        return;
+    }
 
     // ミップマップ生成（DDSにミップマップが含まれていない場合のみ実行するのが一般的ですが、ここでは簡略化）
     DirectX::ScratchImage mipImages{};
