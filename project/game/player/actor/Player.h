@@ -239,6 +239,7 @@ public:
 		Vector3 scale{ 1.25f, 0.24f, 0.24f };
 		float angleRad = 0.0f;
 		float recoilOffset = 0.0f;
+		float muzzleFlashRatio = 0.0f;
 		bool isMelee = false;
 		BarrelShape shape = BarrelShape::Box;
 		int fireGroup = 0;
@@ -365,7 +366,9 @@ private:
 		Transform transform;
 		Vector3 localOffset;
 		float recoilOffset = 0.0f;
+		float muzzleFlashTimer = 0.0f;
 	};
+	static constexpr float kMuzzleFlashDuration = 0.06f;
 	std::vector<BarrelModel> barrels_;
 	std::unordered_map<std::string, PlayerClassConfig> classConfigs_;
 	std::vector<std::string> classOrder_;
