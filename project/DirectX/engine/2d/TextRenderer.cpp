@@ -122,7 +122,7 @@ TextStyle TextRenderer::ResolveStyle(const TextStyle& style) const
 		resolved.fontFamily = fontOverride_.fontFamily;
 		resolved.fontPath = fontOverride_.fontPath;
 		resolved.fontWeight = fontOverride_.fontWeight;
-		if (fontOverride_.overrideOutline) {
+		if (fontOverride_.overrideOutline && !resolved.preserveOutline) {
 			resolved.outlineColor = fontOverride_.outlineColor;
 			resolved.outlineThickness = (std::max)(0.0f, fontOverride_.outlineThickness);
 		}
@@ -166,7 +166,8 @@ std::string TextRenderer::BuildCachePath(const std::string& utf8Text, const Text
 		<< style.color.x << ',' << style.color.y << ',' << style.color.z << ',' << style.color.w << '|'
 		<< style.outlineColor.x << ',' << style.outlineColor.y << ',' << style.outlineColor.z << ',' << style.outlineColor.w << '|'
 		<< style.outlineThickness << '|'
-		<< style.padding;
+		<< style.padding << '|'
+		<< style.preserveOutline;
 	if (!style.fontPath.empty()) {
 		std::error_code error{};
 		const auto modified = std::filesystem::last_write_time(

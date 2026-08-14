@@ -166,5 +166,6 @@ bool TextLabel::IsSameStyle(const TextStyle& style) const
 		style_.outlineColor.z == style.outlineColor.z &&
 		style_.outlineColor.w == style.outlineColor.w &&
 		style_.outlineThickness == style.outlineThickness &&
-		style_.padding == style.padding;
+		style_.padding == style.padding &&
+		style_.preserveOutline == style.preserveOutline;
 }

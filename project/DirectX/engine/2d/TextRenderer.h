@@ -13,6 +13,9 @@ struct TextStyle {
 	Vector4 outlineColor = { 0.0f, 0.0f, 0.0f, 0.75f };
 	float outlineThickness = 2.0f;
 	float padding = 8.0f;
+	// 全体のフォント設定がアウトラインを上書きしている場合でも、
+	// HUD上で個別に可読性を確保したい文字だけは指定値を優先する。
+	bool preserveOutline = false;
 };
 
 struct TextFontOverride {
