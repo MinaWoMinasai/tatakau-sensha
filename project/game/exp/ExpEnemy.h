@@ -130,6 +130,6 @@ private:
     float invincibleTimer_ = 0.0f;
     float shootInterval_ = 0.0f;
     float damageFeedbackTimer_ = 0.0f;
-    float damageFeedbackDuration_ = 0.16f;
+    float damageFeedbackDuration_ = 0.09f;
 
 };
