@@ -78,6 +78,16 @@ public:
     float GetVisualRotation() const { return worldTransform_.rotate.z; }
     const Vector3& GetVisualRotate() const { return worldTransform_.rotate; }
     const Vector3& GetVisualScale() const { return worldTransform_.scale; }
+    float GetShooterWarningRatio() const {
+        return type_ == ExpEnemyType::Shooter
+            ? (std::clamp)(shooterWarningRatio_, 0.0f, 1.0f)
+            : 0.0f;
+    }
+    float GetShooterMuzzleFlashRatio() const {
+        return type_ == ExpEnemyType::Shooter && kShooterMuzzleFlashDuration > 0.0f
+            ? (std::clamp)(shooterMuzzleFlashTimer_ / kShooterMuzzleFlashDuration, 0.0f, 1.0f)
+            : 0.0f;
+    }
     bool IsShapeNeonBillboardTarget() const;
     bool IsShapeNeonRenderTarget() const { return IsShapeNeonBillboardTarget(); }
 
@@ -129,6 +139,11 @@ private:
     // 無敵時間
     float invincibleTimer_ = 0.0f;
     float shootInterval_ = 0.0f;
+    float shooterWarningRatio_ = 0.0f;
+    float shooterMuzzleFlashTimer_ = 0.0f;
+    bool shooterHadVisibleTarget_ = false;
+    static constexpr float kShooterWarningDuration = 0.30f;
+    static constexpr float kShooterMuzzleFlashDuration = 0.08f;
     float damageFeedbackTimer_ = 0.0f;
     float damageFeedbackDuration_ = 0.09f;
 

@@ -179,6 +179,7 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 		return;
 	}
 	shootInterval_ = balanceConfig_.shooterFireInterval;
+	shooterMuzzleFlashTimer_ = (std::max)(0.0f, shooterMuzzleFlashTimer_ - deltaTime);
 
 	const Vector3 origin = GetWorldPosition();
 	Vector3 targetPosition{};
@@ -222,6 +223,7 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 		return true;
 	};
 
+	const bool canSeeTarget = hasTarget && hasLineOfSight(targetPosition);
 	if (hasTarget) {
 		const Vector3 desiredDirection = Normalize(targetPosition - origin);
 		const float turnT = (std::clamp)(balanceConfig_.shooterTurnSpeed * deltaTime, 0.0f, 1.0f);
@@ -230,8 +232,19 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 			aimDirection_ = Normalize(aimDirection_);
 		}
 		worldTransform_.rotate = { 0.0f, 0.0f, std::atan2(aimDirection_.x, -aimDirection_.y) };
+	}
+
+	if (canSeeTarget) {
+		if (!shooterHadVisibleTarget_ && bulletCoolTime <= 0.0f) {
+			bulletCoolTime = kShooterWarningDuration;
+		}
+		shooterHadVisibleTarget_ = true;
 		bulletCoolTime -= deltaTime;
-		if (bulletCoolTime <= 0.0f && hasLineOfSight(targetPosition)) {
+		if (bulletCoolTime > 0.0f) {
+			shooterWarningRatio_ = bulletCoolTime <= kShooterWarningDuration
+				? (std::clamp)(1.0f - bulletCoolTime / kShooterWarningDuration, 0.0f, 1.0f)
+				: 0.0f;
+		} else {
 			AttackParam param{};
 			param.bulletSpeed = balanceConfig_.shooterBulletSpeed;
 			param.bulletCount = 1;
@@ -240,9 +253,13 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 			param.damage = balanceConfig_.shooterBulletDamage;
 			attackController_.FireFromMuzzle(origin + aimDirection_ * 1.4f, aimDirection_, param, bulletOwner);
 			bulletCoolTime = shootInterval_;
+			shooterWarningRatio_ = 0.0f;
+			shooterMuzzleFlashTimer_ = kShooterMuzzleFlashDuration;
 		}
 	} else {
-		bulletCoolTime = (std::min)(bulletCoolTime, shootInterval_);
+		shooterHadVisibleTarget_ = false;
+		shooterWarningRatio_ = 0.0f;
+		bulletCoolTime = (std::max)(bulletCoolTime, kShooterWarningDuration);
 	}
 
 	object_->SetTransform(worldTransform_);

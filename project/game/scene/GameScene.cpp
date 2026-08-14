@@ -2940,8 +2940,31 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 		}
 	};
 
-	auto queueBillboardShooter = [&](const Vector3& center, float radius, float rotation, float lineWidth, const Vector4& color) {
-		queueBillboardPolygon(center, 20, radius, rotation, lineWidth, color);
+	auto queueBillboardShooter = [&](const Vector3& center, float radius, float rotation, float lineWidth, const Vector4& color, float warningRatio, float muzzleFlashRatio) {
+		warningRatio = (std::clamp)(warningRatio, 0.0f, 1.0f);
+		muzzleFlashRatio = (std::clamp)(muzzleFlashRatio, 0.0f, 1.0f);
+		const float warningImpact = warningRatio * warningRatio;
+		if (warningRatio > 0.0f) {
+			const float warningRadiusScale = 1.50f - warningRatio * 0.42f;
+			const Vector4 warningColor{
+				1.80f + warningImpact * 0.60f,
+				0.25f + warningImpact * 1.20f,
+				0.08f + warningImpact * 0.55f,
+				0.28f + warningRatio * 0.72f };
+			queueBillboardPolygon(center, 20, radius * warningRadiusScale, rotation, lineWidth * (0.75f + warningRatio * 0.55f), warningColor);
+		}
+
+		const Vector4 bodyColor{
+			color.x + warningImpact * 0.65f,
+			color.y + warningImpact * 0.85f,
+			color.z + warningImpact * 0.32f,
+			color.w };
+		const Vector4 barrelColor{
+			bodyColor.x + warningImpact * 0.35f,
+			bodyColor.y + warningImpact * 0.30f,
+			bodyColor.z + warningImpact * 0.12f,
+			bodyColor.w };
+		queueBillboardPolygon(center, 20, radius, rotation, lineWidth, bodyColor);
 		const float c = std::cos(rotation);
 		const float s = std::sin(rotation);
 		const Vector3 down = cameraRight * s + cameraUp * -c;
@@ -2949,10 +2972,18 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 		const Vector3 base = center + down * (radius * 0.65f);
 		const Vector3 tip = center + down * (radius * 1.45f);
 		const float half = radius * 0.18f;
-		neonGridRenderer_->QueueLine(base - side * half, tip - side * half, lineWidth, color);
-		neonGridRenderer_->QueueLine(tip - side * half, tip + side * half, lineWidth, color);
-		neonGridRenderer_->QueueLine(tip + side * half, base + side * half, lineWidth, color);
-		neonGridRenderer_->QueueLine(base + side * half, base - side * half, lineWidth, color);
+		neonGridRenderer_->QueueLine(base - side * half, tip - side * half, lineWidth, barrelColor);
+		neonGridRenderer_->QueueLine(tip - side * half, tip + side * half, lineWidth, barrelColor);
+		neonGridRenderer_->QueueLine(tip + side * half, base + side * half, lineWidth, barrelColor);
+		neonGridRenderer_->QueueLine(base + side * half, base - side * half, lineWidth, barrelColor);
+
+		if (muzzleFlashRatio > 0.0f) {
+			const float flashRadius = radius * (0.10f + muzzleFlashRatio * 0.18f);
+			const Vector4 flashColor{ 2.60f, 1.85f, 0.65f, muzzleFlashRatio };
+			queueBillboardPolygon(tip, 12, flashRadius, rotation, lineWidth * 1.40f, flashColor);
+			neonGridRenderer_->QueueLine(tip - side * flashRadius, tip + side * flashRadius, lineWidth * 1.20f, flashColor);
+			neonGridRenderer_->QueueLine(tip - down * flashRadius, tip + down * flashRadius, lineWidth * 1.20f, flashColor);
+		}
 	};
 
 	for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
@@ -2998,7 +3029,14 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 		} else if (expEnemy->GetType() == ExpEnemyType::Pentagon) {
 			queueBillboardPolygon(center, 5, expEnemyNeonPentagonRadius_ * scalePulse, expEnemy->GetVisualRotation(), expEnemyNeonLineWidth_, color);
 		} else if (expEnemy->GetType() == ExpEnemyType::Shooter) {
-			queueBillboardShooter(center, expEnemyNeonShooterRadius_ * scalePulse, expEnemy->GetVisualRotation(), expEnemyNeonLineWidth_, color);
+			queueBillboardShooter(
+				center,
+				expEnemyNeonShooterRadius_ * scalePulse,
+				expEnemy->GetVisualRotation(),
+				expEnemyNeonLineWidth_,
+				color,
+				expEnemy->GetShooterWarningRatio(),
+				expEnemy->GetShooterMuzzleFlashRatio());
 		} else {
 			neonGridRenderer_->QueueBillboardRectangle(
 				center,
