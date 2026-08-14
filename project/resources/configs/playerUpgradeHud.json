@@ -7,6 +7,9 @@
   "drawBottomBars": true,
   "drawBottomText": true,
   "useRectBatch": true,
+  "roundedProgressBars": true,
+  "segmentedUpgradeBars": true,
+  "maxEnhancePoint": 5,
   "listAnimSpeed": 10.0,
   "listSlideDistance": 260.0,
   "panelPos": {
@@ -26,14 +29,22 @@
     "y": 22.0
   },
   "plusSize": {
-    "x": 24.0,
+    "x": 32.0,
+    "y": 18.0
+  },
+  "segmentBarOffset": {
+    "x": 0.0,
+    "y": 0.0
+  },
+  "segmentBarSize": {
+    "x": 230.0,
     "y": 22.0
   },
   "rowGap": 29.0,
   "nameX": 44.0,
   "levelX": 184.0,
   "minusX": 268.0,
-  "plusX": 304.0,
+  "plusX": 306.0,
   "minusLabelX": 277.0,
   "plusLabelX": 313.0,
   "nameTextOffsetY": 3.0,

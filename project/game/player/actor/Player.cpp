@@ -254,6 +254,59 @@ const std::array<const char*, 7>& UpgradeHudNames()
 	return names;
 }
 
+const std::array<Vector4, 7>& UpgradeHudRowColors()
+{
+	// diepio風の能力ごとの色分け。ゲーム内のネオン表現と衝突しないよう、
+	// 発光は塗り全体ではなく、セルと細い外周に限定する。
+	static const std::array<Vector4, 7> colors = {{
+		{ 0.90f, 0.36f, 0.86f, 1.0f }, // 自動回復
+		{ 0.67f, 0.36f, 0.95f, 1.0f }, // 最大HP
+		{ 0.49f, 0.39f, 0.98f, 1.0f }, // 体当たり
+		{ 0.35f, 0.58f, 1.00f, 1.0f }, // 弾速
+		{ 1.00f, 0.86f, 0.24f, 1.0f }, // 弾ダメージ
+		{ 1.00f, 0.38f, 0.42f, 1.0f }, // リロード
+		{ 0.32f, 1.00f, 0.56f, 1.0f }  // 移動速度
+	}};
+	return colors;
+}
+
+NeonSegmentedBarStyle MakeUpgradeHudSegmentStyle(int index)
+{
+	const Vector4 baseColor = UpgradeHudRowColors()[(std::clamp)(index, 0, 6)];
+	NeonSegmentedBarStyle style{};
+	// 外周の半円部にも未取得セルと同じ不透明な色を入れ、端だけが薄く
+	// 見えないようにする。
+	style.backgroundColor = {
+		baseColor.x * 0.16f,
+		baseColor.y * 0.16f,
+		baseColor.z * 0.16f,
+		0.98f
+	};
+	style.emptyColor = {
+		baseColor.x * 0.16f,
+		baseColor.y * 0.16f,
+		baseColor.z * 0.16f,
+		0.92f
+	};
+	style.filledColor = baseColor;
+	style.outlineColor = {
+		baseColor.x * 0.82f + 0.12f,
+		baseColor.y * 0.82f + 0.12f,
+		baseColor.z * 0.82f + 0.12f,
+		0.94f
+	};
+	// 連続バーと同じく、丸端の外枠より内側へセルを収める。
+	// 枠へ重ねないため、端部のはみ出し・細い線の乱れを防ぐ。
+	style.innerPadding = 3.0f;
+	style.segmentGap = 1.5f;
+	style.bloomBrightness = 1.55f;
+	style.bloomAlpha = 0.58f;
+	style.backdropBloomBrightness = 1.70f;
+	style.backdropBloomAlpha = 0.18f;
+	style.roundedFrame = true;
+	return style;
+}
+
 void SetLabel(std::unique_ptr<TextLabel>& label, SpriteCommon* spriteCommon, const std::string& text, const Vector2& position, const TextStyle& style)
 {
 	if (!label) {
@@ -642,7 +695,7 @@ void Player::Update(
 	mousePosition_ = { static_cast<float>(mousePos.x), static_cast<float>(mousePos.y) };
 	const bool evolutionUiWasOpen = isChangeMode;
 	UpdateEncyclopedia(uiDeltaTime);
-	UpdateUpgradeHud();
+	UpdateUpgradeHud(uiDeltaTime);
 
 	if (input_->IsTrigger(input_->GetKey()[DIK_C], input_->GetPreKey()[DIK_C])) {
 		if (isChangeMode) {
@@ -2066,12 +2119,56 @@ void Player::InitializeUpgradeHud()
 		panel->SetColor(color);
 		return panel;
 	};
+	auto makePill = [spriteCommon](const Vector2& pos, const Vector2& size, const Vector4& color) {
+		auto pill = std::make_unique<Sprite>();
+		pill->Initialize(spriteCommon, "resources/hpBarFillMask.png");
+		pill->SetPosition(pos);
+		pill->SetSize(size);
+		pill->SetColor(color);
+		return pill;
+	};
 
 	upgradeHudBackdropSprite_ = makePanel(upgradeHudPanelPos_, upgradeHudPanelSize_, { 0.03f, 0.04f, 0.06f, 0.58f });
 	upgradeHudExpBackSprite_ = makePanel(upgradeHudExpBarPos_, upgradeHudExpBarSize_, { 0.04f, 0.04f, 0.05f, 0.82f });
 	upgradeHudExpFillSprite_ = makePanel(upgradeHudExpBarPos_, { 0.0f, upgradeHudExpBarSize_.y }, { 0.96f, 0.83f, 0.24f, 0.95f });
 	upgradeHudLevelBackSprite_ = makePanel(upgradeHudLevelBarPos_, upgradeHudLevelBarSize_, { 0.04f, 0.04f, 0.05f, 0.82f });
 	upgradeHudLevelFillSprite_ = makePanel({ 785.0f, 786.0f }, { 0.0f, 18.0f }, { 0.36f, 1.0f, 0.56f, 0.92f });
+
+	upgradeHudLevelProgressStyle_.backgroundColor = { 0.018f, 0.042f, 0.062f, 0.88f };
+	upgradeHudLevelProgressStyle_.delayedFillColor = { 0.20f, 0.72f, 1.00f, 0.52f };
+	upgradeHudLevelProgressStyle_.fillColor = { 0.36f, 1.00f, 0.56f, 0.94f };
+	upgradeHudLevelProgressStyle_.outlineColor = { 0.40f, 0.94f, 1.00f, 0.92f };
+	upgradeHudLevelProgressStyle_.outlineWidth = 1.5f;
+	upgradeHudLevelProgressStyle_.roundedEnds = upgradeHudRoundedProgressBars_;
+	upgradeHudExpProgressStyle_.backgroundColor = { 0.050f, 0.042f, 0.022f, 0.88f };
+	upgradeHudExpProgressStyle_.delayedFillColor = { 0.36f, 0.96f, 0.82f, 0.52f };
+	upgradeHudExpProgressStyle_.fillColor = { 1.00f, 0.82f, 0.22f, 0.96f };
+	upgradeHudExpProgressStyle_.outlineColor = { 1.00f, 0.92f, 0.48f, 0.92f };
+	upgradeHudExpProgressStyle_.outlineWidth = 1.5f;
+	upgradeHudExpProgressStyle_.roundedEnds = upgradeHudRoundedProgressBars_;
+	upgradeHudExpProgressBar_ = std::make_unique<NeonProgressBar>();
+	upgradeHudExpProgressBar_->Initialize(spriteCommon);
+	upgradeHudLevelProgressBar_ = std::make_unique<NeonProgressBar>();
+	upgradeHudLevelProgressBar_->Initialize(spriteCommon);
+	ApplyUpgradeHudProgressBarStyles();
+
+	for (size_t i = 0; i < upgradeHudSegmentBars_.size(); ++i) {
+		auto& segmentBar = upgradeHudSegmentBars_[i];
+		segmentBar = std::make_unique<NeonSegmentedBar>();
+		segmentBar->Initialize(spriteCommon);
+		segmentBar->SetStyle(MakeUpgradeHudSegmentStyle(static_cast<int>(i)));
+	}
+	upgradeHudBarBloomEffect_ = std::make_unique<ObjectPostEffect>();
+	upgradeHudBarBloomEffect_->Initialize(
+		Object3dCommon::GetInstance()->GetDxCommon(),
+		Object3dCommon::GetInstance()->GetSrvManager(),
+		nullptr,
+		0.75f);
+	BloomParam& barBloomParam = upgradeHudBarBloomEffect_->GetParam();
+	barBloomParam.threshold = 0.0f;
+	barBloomParam.intensity = 0.78f;
+	barBloomParam.outlineWidth = 0.0f;
+	barBloomParam.outlineBloomIntensity = 0.0f;
 
 	TextStyle titleStyle{};
 	titleStyle.fontFamily = "Meiryo";
@@ -2092,10 +2189,22 @@ void Player::InitializeUpgradeHud()
 	for (int i = 0; i < 7; ++i) {
 		const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
 		upgradeHudButtonSprites_[i] = makePanel({ upgradeHudRowStart_.x, y }, upgradeHudButtonSize_, { 0.10f, 0.12f, 0.15f, 0.84f });
-		upgradeHudMinusSprites_[i] = makePanel({ upgradeHudMinusX_, y }, upgradeHudPlusSize_, { 0.26f, 0.42f, 0.86f, 0.68f });
-		upgradeHudPlusSprites_[i] = makePanel({ upgradeHudPlusX_, y }, upgradeHudPlusSize_, { 0.34f, 0.95f, 0.64f, 0.88f });
+		upgradeHudMinusSprites_[i] = makePill({ upgradeHudMinusX_, y }, upgradeHudPlusSize_, { 0.26f, 0.42f, 0.86f, 0.68f });
+		upgradeHudPlusSprites_[i] = makePill({ upgradeHudPlusX_, y }, upgradeHudPlusSize_, { 0.34f, 0.95f, 0.64f, 0.88f });
 	}
 	InitializeUpgradeHudBatch();
+}
+
+void Player::ApplyUpgradeHudProgressBarStyles()
+{
+	upgradeHudLevelProgressStyle_.roundedEnds = upgradeHudRoundedProgressBars_;
+	upgradeHudExpProgressStyle_.roundedEnds = upgradeHudRoundedProgressBars_;
+	if (upgradeHudLevelProgressBar_) {
+		upgradeHudLevelProgressBar_->SetStyle(upgradeHudLevelProgressStyle_);
+	}
+	if (upgradeHudExpProgressBar_) {
+		upgradeHudExpProgressBar_->SetStyle(upgradeHudExpProgressStyle_);
+	}
 }
 
 void Player::InitializeUpgradeHudBatch()
@@ -2122,27 +2231,52 @@ void Player::InitializeUpgradeHudBatch()
 	upgradeHudBatchMaterialData_->shininess = 1.0f;
 }
 
-void Player::UpdateUpgradeHud()
+void Player::UpdateUpgradeHud(float uiDeltaTime)
 {
 	upgradeHudMouseCaptured_ = false;
 	if (!upgradeHudVisible_ || isChangeMode || isDead_) {
 		return;
 	}
+	const float safeUiDeltaTime = (std::max)(0.0f, uiDeltaTime);
 
 	for (float& timer : upgradeHudFlashTimers_) {
-		timer = (std::max)(0.0f, timer - dt_);
+		timer = (std::max)(0.0f, timer - safeUiDeltaTime);
 	}
 	for (float& timer : upgradeHudRefundFlashTimers_) {
-		timer = (std::max)(0.0f, timer - dt_);
+		timer = (std::max)(0.0f, timer - safeUiDeltaTime);
 	}
 	for (float& timer : upgradeHudMissFlashTimers_) {
-		timer = (std::max)(0.0f, timer - dt_);
+		timer = (std::max)(0.0f, timer - safeUiDeltaTime);
 	}
 
 	ApplyUpgradeHudLayout();
+	if (upgradeHudUseNeonProgressBars_) {
+		const int safeNextExp = (std::max)(1, nextLevelExp_);
+		const float expTarget = (std::clamp)(static_cast<float>(exp_) / static_cast<float>(safeNextExp), 0.0f, 1.0f);
+		const float levelTarget = (std::clamp)(
+			static_cast<float>(level_ - 1) / static_cast<float>((std::max)(1, kMaxLevel - 1)),
+			0.0f,
+			1.0f);
+		const bool levelChanged = upgradeHudAnimatedLevel_ != level_;
+		if (upgradeHudLevelProgressBar_) {
+			upgradeHudLevelProgressBar_->SetBounds(upgradeHudLevelBarPos_, upgradeHudLevelBarSize_);
+			upgradeHudLevelProgressBar_->SetTarget(levelTarget);
+			upgradeHudLevelProgressBar_->Update(safeUiDeltaTime);
+		}
+		if (upgradeHudExpProgressBar_) {
+			upgradeHudExpProgressBar_->SetBounds(upgradeHudExpBarPos_, upgradeHudExpBarSize_);
+			if (levelChanged) {
+				upgradeHudExpProgressBar_->BeginRollover(expTarget);
+			} else {
+				upgradeHudExpProgressBar_->SetTarget(expTarget);
+			}
+			upgradeHudExpProgressBar_->Update(safeUiDeltaTime);
+		}
+		upgradeHudAnimatedLevel_ = level_;
+	}
 	const bool wantsUpgradeList = !upgradeHudHideListWithoutPoints_ || skillPoints_ > 0;
 	const float targetListVisibility = wantsUpgradeList ? 1.0f : 0.0f;
-	const float listStep = dt_ * upgradeHudListAnimSpeed_;
+	const float listStep = safeUiDeltaTime * upgradeHudListAnimSpeed_;
 	if (upgradeHudListVisibility_ < targetListVisibility) {
 		upgradeHudListVisibility_ = (std::min)(targetListVisibility, upgradeHudListVisibility_ + listStep);
 	} else if (upgradeHudListVisibility_ > targetListVisibility) {
@@ -2159,11 +2293,29 @@ void Player::UpdateUpgradeHud()
 		if (upgradeHudLevelFillSprite_) upgradeHudLevelFillSprite_->Update();
 		return;
 	}
+	if (upgradeHudUseSegmentedUpgradeBars_) {
+		for (int i = 0; i < 7; ++i) {
+			if (!upgradeHudSegmentBars_[i]) {
+				continue;
+			}
+			const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
+			upgradeHudSegmentBars_[i]->SetBounds(
+				{ upgradeHudRowStart_.x + upgradeHudSegmentBarOffset_.x + listOffsetX,
+				  y + upgradeHudSegmentBarOffset_.y },
+				upgradeHudSegmentBarSize_);
+			upgradeHudSegmentBars_[i]->SetSegmentCount(maxEnhancePoint);
+			upgradeHudSegmentBars_[i]->SetFilledSegments(upgradeLevels_[i]);
+			upgradeHudSegmentBars_[i]->Update();
+		}
+	}
 
 	const bool canUpgrade = skillPoints_ > 0;
 	const bool click = input_ && input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0]);
 	for (int i = 0; i < 7; ++i) {
 		const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
+		const float controlOffsetY = upgradeHudUseSegmentedUpgradeBars_
+			? (std::max)(0.0f, (upgradeHudSegmentBarSize_.y - upgradeHudPlusSize_.y) * 0.5f)
+			: 0.0f;
 		Sprite* button = upgradeHudButtonSprites_[i].get();
 		Sprite* plus = upgradeHudPlusSprites_[i].get();
 		Sprite* minus = upgradeHudMinusSprites_[i].get();
@@ -2171,10 +2323,10 @@ void Player::UpdateUpgradeHud()
 			button->SetPosition({ upgradeHudRowStart_.x + listOffsetX, y });
 		}
 		if (minus) {
-			minus->SetPosition({ upgradeHudMinusX_ + listOffsetX, y });
+			minus->SetPosition({ upgradeHudMinusX_ + listOffsetX, y + controlOffsetY });
 		}
 		if (plus) {
-			plus->SetPosition({ upgradeHudPlusX_ + listOffsetX, y });
+			plus->SetPosition({ upgradeHudPlusX_ + listOffsetX, y + controlOffsetY });
 		}
 		const bool plusHovered = plus && plus->IsHovered(mousePosition_);
 		const bool minusHovered = minus && minus->IsHovered(mousePosition_);
@@ -2199,6 +2351,7 @@ void Player::UpdateUpgradeHud()
 		const float flash = (std::min)(1.0f, upgradeHudFlashTimers_[i] / 0.22f);
 		const float refundFlash = (std::min)(1.0f, upgradeHudRefundFlashTimers_[i] / 0.22f);
 		const float missFlash = (std::min)(1.0f, upgradeHudMissFlashTimers_[i] / 0.26f);
+		const Vector4 rowColor = UpgradeHudRowColors()[i];
 		if (button) {
 			if (maxed) {
 				button->SetColor({ 0.12f, 0.12f, 0.14f, 0.72f });
@@ -2213,9 +2366,10 @@ void Player::UpdateUpgradeHud()
 			if (upgradeLevels_[i] <= 0) {
 				minus->SetColor({ 0.12f + missFlash * 0.32f, 0.14f, 0.18f, 0.42f + missFlash * 0.32f });
 			} else {
-				minus->SetColor(minusHovered
-					? Vector4{ 0.48f + refundFlash * 0.18f, 0.66f + refundFlash * 0.20f, 1.0f, 0.96f }
-					: Vector4{ 0.26f + refundFlash * 0.25f, 0.42f + refundFlash * 0.22f, 0.86f, 0.70f });
+				minus->SetColor(LerpColor(
+					{ rowColor.x * 0.45f, rowColor.y * 0.45f, rowColor.z * 0.45f, 0.72f },
+					{ 0.88f, 0.94f, 1.0f, 0.98f },
+					minusHovered ? 0.62f + refundFlash * 0.25f : refundFlash * 0.35f));
 			}
 			minus->Update();
 		}
@@ -2223,7 +2377,10 @@ void Player::UpdateUpgradeHud()
 			if (maxed) {
 				plus->SetColor({ 0.18f + missFlash * 0.30f, 0.18f, 0.20f, 0.72f + missFlash * 0.20f });
 			} else if (canUpgrade) {
-				plus->SetColor(plusHovered ? Vector4{ 0.62f, 1.0f, 0.78f, 0.98f } : Vector4{ 0.34f + flash * 0.35f, 0.95f, 0.64f, 0.88f });
+				plus->SetColor(LerpColor(
+					{ rowColor.x * 0.82f, rowColor.y * 0.82f, rowColor.z * 0.82f, 0.90f },
+					{ 1.0f, 1.0f, 1.0f, 1.0f },
+					plusHovered ? 0.42f : flash * 0.35f));
 			} else {
 				plus->SetColor({ 0.15f + missFlash * 0.34f, 0.22f, 0.24f, 0.64f + missFlash * 0.25f });
 			}
@@ -2255,6 +2412,16 @@ void Player::DrawUpgradeHud()
 	smallStyle.outlineColor = { 0.0f, 0.03f, 0.05f, 0.95f };
 	smallStyle.outlineThickness = 2.0f;
 	smallStyle.padding = 5.0f;
+	TextStyle upgradeOverlayTextStyle = smallStyle;
+	upgradeOverlayTextStyle.outlineColor = { 0.0f, 0.0f, 0.0f, 0.92f };
+	upgradeOverlayTextStyle.outlineThickness = 1.0f;
+	upgradeOverlayTextStyle.padding = 3.0f;
+	upgradeOverlayTextStyle.preserveOutline = true;
+	TextStyle bottomBarTextStyle = smallStyle;
+	bottomBarTextStyle.outlineColor = { 0.0f, 0.0f, 0.0f, 0.92f };
+	bottomBarTextStyle.outlineThickness = 1.0f;
+	bottomBarTextStyle.padding = 3.0f;
+	bottomBarTextStyle.preserveOutline = true;
 
 	const int safeNextExp = (std::max)(1, nextLevelExp_);
 	const float expRatio = (std::clamp)(static_cast<float>(exp_) / static_cast<float>(safeNextExp), 0.0f, 1.0f);
@@ -2280,8 +2447,8 @@ void Player::DrawUpgradeHud()
 		cachedUpgradeHudLevel_ != level_ ||
 		cachedUpgradeHudClassName_ != className;
 	if (baseTextDirty) {
-		SetLabel(upgradeHudExpLabel_, spriteCommon, "EXP " + std::to_string(exp_) + " / " + std::to_string(nextLevelExp_), upgradeHudExpTextPos_, smallStyle);
-		SetLabel(upgradeHudLevelLabel_, spriteCommon, "Lv " + std::to_string(level_) + " " + className, upgradeHudLevelTextPos_, smallStyle);
+		SetLabel(upgradeHudExpLabel_, spriteCommon, "EXP " + std::to_string(exp_) + " / " + std::to_string(nextLevelExp_), upgradeHudExpTextPos_, bottomBarTextStyle);
+		SetLabel(upgradeHudLevelLabel_, spriteCommon, "Lv " + std::to_string(level_) + " " + className, upgradeHudLevelTextPos_, bottomBarTextStyle);
 		cachedUpgradeHudExp_ = exp_;
 		cachedUpgradeHudNextExp_ = nextLevelExp_;
 		cachedUpgradeHudLevel_ = level_;
@@ -2295,32 +2462,61 @@ void Player::DrawUpgradeHud()
 		const bool listDirty =
 			!cachedUpgradeHudListVisible_ ||
 			cachedUpgradeHudSkillPoints_ != skillPoints_ ||
+			cachedUpgradeHudMaxEnhancePoint_ != maxEnhancePoint ||
+			cachedUpgradeHudSegmentedBars_ != upgradeHudUseSegmentedUpgradeBars_ ||
 			cachedUpgradeHudLevels_ != upgradeLevels_;
 		if (listDirty) {
 			SetLabel(upgradeHudPointLabel_, spriteCommon, "x" + std::to_string(skillPoints_), { upgradeHudPointPos_.x + listOffsetX, upgradeHudPointPos_.y }, smallStyle);
 			SetLabel(upgradeHudTitleLabel_, spriteCommon, "強化", { upgradeHudTitlePos_.x + listOffsetX, upgradeHudTitlePos_.y }, smallStyle);
 			for (int i = 0; i < 7; ++i) {
 				const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
+				const bool compactGauge = upgradeHudUseSegmentedUpgradeBars_;
+				const float controlOffsetY = compactGauge
+					? (std::max)(0.0f, (upgradeHudSegmentBarSize_.y - upgradeHudPlusSize_.y) * 0.5f)
+					: 0.0f;
+				const Vector2 namePosition = compactGauge
+					? Vector2{ upgradeHudRowStart_.x + upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX, y + upgradeHudSegmentBarSize_.y * 0.5f }
+					: Vector2{ upgradeHudNameX_ + listOffsetX, y + upgradeHudNameTextOffsetY_ };
 				SetLabel(upgradeHudNameLabels_[i], spriteCommon, std::to_string(i + 1) + " " + names[i],
-					{ upgradeHudNameX_ + listOffsetX, y + upgradeHudNameTextOffsetY_ }, smallStyle);
+					namePosition, compactGauge ? upgradeOverlayTextStyle : smallStyle);
+				upgradeHudNameLabels_[i]->SetAnchorPoint(compactGauge ? Vector2{ 0.5f, 0.5f } : Vector2{ 0.0f, 0.0f });
 				SetLabel(upgradeHudLevelLabels_[i], spriteCommon, "Lv." + std::to_string(upgradeLevels_[i]),
 					{ upgradeHudLevelX_ + listOffsetX, y + upgradeHudLevelTextOffsetY_ }, smallStyle);
 				SetLabel(upgradeHudMinusLabels_[i], spriteCommon, "-",
-					{ upgradeHudMinusLabelX_ + listOffsetX, y + upgradeHudMinusTextOffsetY_ }, smallStyle);
+					compactGauge
+						? Vector2{ upgradeHudMinusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
+						: Vector2{ upgradeHudMinusLabelX_ + listOffsetX, y + upgradeHudMinusTextOffsetY_ }, compactGauge ? upgradeOverlayTextStyle : smallStyle);
+				upgradeHudMinusLabels_[i]->SetAnchorPoint(compactGauge ? Vector2{ 0.5f, 0.5f } : Vector2{ 0.0f, 0.0f });
 				SetLabel(upgradeHudPlusLabels_[i], spriteCommon, upgradeLevels_[i] >= maxEnhancePoint ? "済" : "+",
-					{ upgradeHudPlusLabelX_ + listOffsetX, y + upgradeHudPlusTextOffsetY_ }, smallStyle);
+					compactGauge
+						? Vector2{ upgradeHudPlusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
+						: Vector2{ upgradeHudPlusLabelX_ + listOffsetX, y + upgradeHudPlusTextOffsetY_ }, compactGauge ? upgradeOverlayTextStyle : smallStyle);
+				upgradeHudPlusLabels_[i]->SetAnchorPoint(compactGauge ? Vector2{ 0.5f, 0.5f } : Vector2{ 0.0f, 0.0f });
 			}
 			cachedUpgradeHudSkillPoints_ = skillPoints_;
+			cachedUpgradeHudMaxEnhancePoint_ = maxEnhancePoint;
+			cachedUpgradeHudSegmentedBars_ = upgradeHudUseSegmentedUpgradeBars_;
 			cachedUpgradeHudLevels_ = upgradeLevels_;
 		} else {
 			if (upgradeHudPointLabel_) upgradeHudPointLabel_->SetPosition({ upgradeHudPointPos_.x + listOffsetX, upgradeHudPointPos_.y });
 			if (upgradeHudTitleLabel_) upgradeHudTitleLabel_->SetPosition({ upgradeHudTitlePos_.x + listOffsetX, upgradeHudTitlePos_.y });
 			for (int i = 0; i < 7; ++i) {
 				const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
-				if (upgradeHudNameLabels_[i]) upgradeHudNameLabels_[i]->SetPosition({ upgradeHudNameX_ + listOffsetX, y + upgradeHudNameTextOffsetY_ });
+				const float controlOffsetY = upgradeHudUseSegmentedUpgradeBars_
+					? (std::max)(0.0f, (upgradeHudSegmentBarSize_.y - upgradeHudPlusSize_.y) * 0.5f)
+					: 0.0f;
+				if (upgradeHudNameLabels_[i]) {
+					upgradeHudNameLabels_[i]->SetPosition(upgradeHudUseSegmentedUpgradeBars_
+						? Vector2{ upgradeHudRowStart_.x + upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX, y + upgradeHudSegmentBarSize_.y * 0.5f }
+						: Vector2{ upgradeHudNameX_ + listOffsetX, y + upgradeHudNameTextOffsetY_ });
+				}
 				if (upgradeHudLevelLabels_[i]) upgradeHudLevelLabels_[i]->SetPosition({ upgradeHudLevelX_ + listOffsetX, y + upgradeHudLevelTextOffsetY_ });
-				if (upgradeHudMinusLabels_[i]) upgradeHudMinusLabels_[i]->SetPosition({ upgradeHudMinusLabelX_ + listOffsetX, y + upgradeHudMinusTextOffsetY_ });
-				if (upgradeHudPlusLabels_[i]) upgradeHudPlusLabels_[i]->SetPosition({ upgradeHudPlusLabelX_ + listOffsetX, y + upgradeHudPlusTextOffsetY_ });
+				if (upgradeHudMinusLabels_[i]) upgradeHudMinusLabels_[i]->SetPosition(upgradeHudUseSegmentedUpgradeBars_
+					? Vector2{ upgradeHudMinusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
+					: Vector2{ upgradeHudMinusLabelX_ + listOffsetX, y + upgradeHudMinusTextOffsetY_ });
+				if (upgradeHudPlusLabels_[i]) upgradeHudPlusLabels_[i]->SetPosition(upgradeHudUseSegmentedUpgradeBars_
+					? Vector2{ upgradeHudPlusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
+					: Vector2{ upgradeHudPlusLabelX_ + listOffsetX, y + upgradeHudPlusTextOffsetY_ });
 			}
 		}
 		if (upgradeHudPointLabel_) upgradeHudPointLabel_->SetAlpha(easedListAlpha);
@@ -2340,30 +2536,52 @@ void Player::DrawUpgradeHud()
 	} else {
 		SpriteCommon::GetInstance()->PreDraw(kNormal);
 		if (showUpgradeList && upgradeHudDrawListPanels_) {
-			if (upgradeHudBackdropSprite_) { upgradeHudBackdropSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
+			if (!upgradeHudUseSegmentedUpgradeBars_ && upgradeHudBackdropSprite_) { upgradeHudBackdropSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
 			for (int i = 0; i < 7; ++i) {
-			if (upgradeHudButtonSprites_[i]) { upgradeHudButtonSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
-				if (upgradeHudMinusSprites_[i]) { upgradeHudMinusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
-				if (upgradeHudPlusSprites_[i]) { upgradeHudPlusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+				if (!upgradeHudUseSegmentedUpgradeBars_ && upgradeHudButtonSprites_[i]) { upgradeHudButtonSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+				if (!upgradeHudUseSegmentedUpgradeBars_ && upgradeHudMinusSprites_[i]) { upgradeHudMinusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+				if (!upgradeHudUseSegmentedUpgradeBars_ && upgradeHudPlusSprites_[i]) { upgradeHudPlusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
 			}
 		}
-		if (upgradeHudDrawBottomBars_) {
+		if (upgradeHudDrawBottomBars_ && !upgradeHudUseNeonProgressBars_) {
 			if (upgradeHudLevelBackSprite_) { upgradeHudLevelBackSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
 			if (upgradeHudLevelFillSprite_) { upgradeHudLevelFillSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
 			if (upgradeHudExpBackSprite_) { upgradeHudExpBackSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
 			if (upgradeHudExpFillSprite_) { upgradeHudExpFillSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
 		}
 	}
+	if (showUpgradeList && upgradeHudDrawListPanels_ && upgradeHudUseSegmentedUpgradeBars_) {
+		SpriteCommon::GetInstance()->PreDraw(kNormal);
+		for (int i = 0; i < 7; ++i) {
+			if (upgradeHudMinusSprites_[i]) { upgradeHudMinusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+			if (upgradeHudPlusSprites_[i]) { upgradeHudPlusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
+		}
+	}
 	const auto spriteEnd = std::chrono::steady_clock::now();
 
 	const auto textStart = std::chrono::steady_clock::now();
+	if (showUpgradeList && upgradeHudUseSegmentedUpgradeBars_) {
+		SpriteCommon::GetInstance()->PreDraw(kNormal);
+		for (int i = 0; i < 7; ++i) {
+			if (upgradeHudSegmentBars_[i]) {
+				upgradeHudSegmentBars_[i]->Draw();
+			}
+		}
+		upgradeHudProfile_.spriteDraws += 7 * 11;
+	}
+	if (upgradeHudDrawBottomBars_ && upgradeHudUseNeonProgressBars_) {
+		SpriteCommon::GetInstance()->PreDraw(kNormal);
+		if (upgradeHudLevelProgressBar_) upgradeHudLevelProgressBar_->Draw();
+		if (upgradeHudExpProgressBar_) upgradeHudExpProgressBar_->Draw();
+		upgradeHudProfile_.spriteDraws += 10;
+	}
 	SpriteCommon::GetInstance()->PreDraw(kNormal);
 	if (showUpgradeList && upgradeHudDrawListText_) {
 		if (upgradeHudTitleLabel_) { upgradeHudTitleLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
 		if (upgradeHudPointLabel_) { upgradeHudPointLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
 		for (int i = 0; i < 7; ++i) {
 			if (upgradeHudNameLabels_[i]) { upgradeHudNameLabels_[i]->Draw(); ++upgradeHudProfile_.textDraws; }
-			if (upgradeHudLevelLabels_[i]) { upgradeHudLevelLabels_[i]->Draw(); ++upgradeHudProfile_.textDraws; }
+			if (!upgradeHudUseSegmentedUpgradeBars_ && upgradeHudLevelLabels_[i]) { upgradeHudLevelLabels_[i]->Draw(); ++upgradeHudProfile_.textDraws; }
 			if (upgradeHudMinusLabels_[i]) { upgradeHudMinusLabels_[i]->Draw(); ++upgradeHudProfile_.textDraws; }
 			if (upgradeHudPlusLabels_[i]) { upgradeHudPlusLabels_[i]->Draw(); ++upgradeHudProfile_.textDraws; }
 		}
@@ -2389,12 +2607,30 @@ void Player::AppendGameplayNeonTextLabels(std::vector<TextLabel*>& labels) const
 	if (upgradeHudDrawBottomText_ && upgradeHudLevelLabel_) {
 		labels.push_back(upgradeHudLevelLabel_.get());
 	}
+	if (upgradeHudDrawBottomText_ && upgradeHudExpLabel_) {
+		labels.push_back(upgradeHudExpLabel_.get());
+	}
 	if (upgradeHudListVisibility_ > 0.01f && upgradeHudDrawListText_) {
 		if (upgradeHudTitleLabel_) {
 			labels.push_back(upgradeHudTitleLabel_.get());
 		}
 		if (upgradeHudPointLabel_) {
 			labels.push_back(upgradeHudPointLabel_.get());
+		}
+		// 段数バーの上に重なる文字と操作記号だけは、黒アウトラインを保った
+		// ままネオンBloomの対象にする。タイトルや通常説明文には影響しない。
+		if (upgradeHudUseSegmentedUpgradeBars_) {
+			for (int i = 0; i < 7; ++i) {
+				if (upgradeHudNameLabels_[i]) {
+					labels.push_back(upgradeHudNameLabels_[i].get());
+				}
+				if (upgradeHudMinusLabels_[i]) {
+					labels.push_back(upgradeHudMinusLabels_[i].get());
+				}
+				if (upgradeHudPlusLabels_[i]) {
+					labels.push_back(upgradeHudPlusLabels_[i].get());
+				}
+			}
 		}
 	}
 }
@@ -2436,26 +2672,33 @@ void Player::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float
 	};
 
 	if (showUpgradeList && upgradeHudDrawListPanels_) {
-		QueueUpgradeHudRect(vertices, offsetListPos(upgradeHudPanelPos_), upgradeHudPanelSize_, withListAlpha({ 0.03f, 0.04f, 0.06f, 0.58f }));
+		if (!upgradeHudUseSegmentedUpgradeBars_) {
+			QueueUpgradeHudRect(vertices, offsetListPos(upgradeHudPanelPos_), upgradeHudPanelSize_, withListAlpha({ 0.03f, 0.04f, 0.06f, 0.58f }));
+		}
 		for (int i = 0; i < 7; ++i) {
 			const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
 			float flash = (std::min)(1.0f, upgradeHudFlashTimers_[i] / 0.22f);
 			const float refundFlash = (std::min)(1.0f, upgradeHudRefundFlashTimers_[i] / 0.22f);
 			const float missFlash = (std::min)(1.0f, upgradeHudMissFlashTimers_[i] / 0.26f);
+			const Vector4 rowColor = UpgradeHudRowColors()[i];
 			const Vector4 buttonColor = LerpColor({ 0.10f + missFlash * 0.20f, 0.12f, 0.15f + refundFlash * 0.16f, 0.84f }, { 0.35f, 0.90f, 0.72f, 0.96f }, flash);
 			const Vector4 minusColor = upgradeLevels_[i] > 0
-				? LerpColor({ 0.26f, 0.42f, 0.86f, 0.70f }, { 0.70f, 0.86f, 1.0f, 0.98f }, refundFlash)
+				? LerpColor({ rowColor.x * 0.45f, rowColor.y * 0.45f, rowColor.z * 0.45f, 0.72f }, { 0.88f, 0.94f, 1.0f, 0.98f }, refundFlash)
 				: Vector4{ 0.12f + missFlash * 0.30f, 0.14f, 0.18f, 0.42f + missFlash * 0.28f };
 			const Vector4 plusColor = skillPoints_ > 0
-				? LerpColor({ 0.34f, 0.95f, 0.64f, 0.88f }, { 1.0f, 1.0f, 0.46f, 1.0f }, flash)
+				? LerpColor({ rowColor.x * 0.82f, rowColor.y * 0.82f, rowColor.z * 0.82f, 0.90f }, { 1.0f, 1.0f, 1.0f, 1.0f }, flash)
 				: Vector4{ 0.18f + missFlash * 0.32f, 0.22f, 0.24f, 0.48f + missFlash * 0.28f };
-			QueueUpgradeHudRect(vertices, offsetListPos({ upgradeHudRowStart_.x, y }), upgradeHudButtonSize_, withListAlpha(buttonColor));
-			QueueUpgradeHudRect(vertices, offsetListPos({ upgradeHudMinusX_, y }), upgradeHudPlusSize_, withListAlpha(minusColor));
-			QueueUpgradeHudRect(vertices, offsetListPos({ upgradeHudPlusX_, y }), upgradeHudPlusSize_, withListAlpha(plusColor));
+			if (!upgradeHudUseSegmentedUpgradeBars_) {
+				QueueUpgradeHudRect(vertices, offsetListPos({ upgradeHudRowStart_.x, y }), upgradeHudButtonSize_, withListAlpha(buttonColor));
+			}
+			if (!upgradeHudUseSegmentedUpgradeBars_) {
+				QueueUpgradeHudRect(vertices, offsetListPos({ upgradeHudMinusX_, y }), upgradeHudPlusSize_, withListAlpha(minusColor));
+				QueueUpgradeHudRect(vertices, offsetListPos({ upgradeHudPlusX_, y }), upgradeHudPlusSize_, withListAlpha(plusColor));
+			}
 		}
 	}
 
-	if (upgradeHudDrawBottomBars_) {
+	if (upgradeHudDrawBottomBars_ && !upgradeHudUseNeonProgressBars_) {
 		QueueUpgradeHudRect(vertices, upgradeHudLevelBarPos_, upgradeHudLevelBarSize_, { 0.04f, 0.04f, 0.05f, 0.82f });
 		QueueUpgradeHudRect(vertices, upgradeHudLevelBarPos_, { upgradeHudLevelBarSize_.x * levelRatio, upgradeHudLevelBarSize_.y }, { 0.36f, 1.0f, 0.56f, 0.92f });
 		QueueUpgradeHudRect(vertices, upgradeHudExpBarPos_, upgradeHudExpBarSize_, { 0.04f, 0.04f, 0.05f, 0.82f });
@@ -2546,6 +2789,9 @@ bool Player::LoadUpgradeHudConfig(const std::string& path)
 	upgradeHudDrawBottomBars_ = json.value("drawBottomBars", upgradeHudDrawBottomBars_);
 	upgradeHudDrawBottomText_ = json.value("drawBottomText", upgradeHudDrawBottomText_);
 	upgradeHudUseRectBatch_ = json.value("useRectBatch", upgradeHudUseRectBatch_);
+	upgradeHudRoundedProgressBars_ = json.value("roundedProgressBars", upgradeHudRoundedProgressBars_);
+	upgradeHudUseSegmentedUpgradeBars_ = json.value("segmentedUpgradeBars", upgradeHudUseSegmentedUpgradeBars_);
+	maxEnhancePoint = (std::clamp)(json.value("maxEnhancePoint", maxEnhancePoint), 1, 10);
 	upgradeHudListAnimSpeed_ = json.value("listAnimSpeed", upgradeHudListAnimSpeed_);
 	upgradeHudListSlideDistance_ = json.value("listSlideDistance", upgradeHudListSlideDistance_);
 	upgradeHudPanelPos_ = ReadVector2Object(json.value("panelPos", nlohmann::json::object()), upgradeHudPanelPos_);
@@ -2553,6 +2799,8 @@ bool Player::LoadUpgradeHudConfig(const std::string& path)
 	upgradeHudRowStart_ = ReadVector2Object(json.value("rowStart", nlohmann::json::object()), upgradeHudRowStart_);
 	upgradeHudButtonSize_ = ReadVector2Object(json.value("buttonSize", nlohmann::json::object()), upgradeHudButtonSize_);
 	upgradeHudPlusSize_ = ReadVector2Object(json.value("plusSize", nlohmann::json::object()), upgradeHudPlusSize_);
+	upgradeHudSegmentBarOffset_ = ReadVector2Object(json.value("segmentBarOffset", nlohmann::json::object()), upgradeHudSegmentBarOffset_);
+	upgradeHudSegmentBarSize_ = ReadVector2Object(json.value("segmentBarSize", nlohmann::json::object()), upgradeHudSegmentBarSize_);
 	upgradeHudRowGap_ = json.value("rowGap", upgradeHudRowGap_);
 	upgradeHudNameX_ = json.value("nameX", upgradeHudNameX_);
 	upgradeHudLevelX_ = json.value("levelX", upgradeHudLevelX_);
@@ -2573,6 +2821,7 @@ bool Player::LoadUpgradeHudConfig(const std::string& path)
 	upgradeHudExpBarSize_ = ReadVector2Object(json.value("expBarSize", nlohmann::json::object()), upgradeHudExpBarSize_);
 	upgradeHudExpTextPos_ = ReadVector2Object(json.value("expTextPos", nlohmann::json::object()), upgradeHudExpTextPos_);
 	ApplyUpgradeHudLayout();
+	ApplyUpgradeHudProgressBarStyles();
 	upgradeHudConfigStatus_ = "HUD設定を読み込みました: " + path;
 	return true;
 }
@@ -2593,6 +2842,9 @@ bool Player::SaveUpgradeHudConfig(const std::string& path) const
 		{ "drawBottomBars", upgradeHudDrawBottomBars_ },
 		{ "drawBottomText", upgradeHudDrawBottomText_ },
 		{ "useRectBatch", upgradeHudUseRectBatch_ },
+		{ "roundedProgressBars", upgradeHudRoundedProgressBars_ },
+		{ "segmentedUpgradeBars", upgradeHudUseSegmentedUpgradeBars_ },
+		{ "maxEnhancePoint", maxEnhancePoint },
 		{ "listAnimSpeed", upgradeHudListAnimSpeed_ },
 		{ "listSlideDistance", upgradeHudListSlideDistance_ },
 		{ "panelPos", WriteVector2Object(upgradeHudPanelPos_) },
@@ -2600,6 +2852,8 @@ bool Player::SaveUpgradeHudConfig(const std::string& path) const
 		{ "rowStart", WriteVector2Object(upgradeHudRowStart_) },
 		{ "buttonSize", WriteVector2Object(upgradeHudButtonSize_) },
 		{ "plusSize", WriteVector2Object(upgradeHudPlusSize_) },
+		{ "segmentBarOffset", WriteVector2Object(upgradeHudSegmentBarOffset_) },
+		{ "segmentBarSize", WriteVector2Object(upgradeHudSegmentBarSize_) },
 		{ "rowGap", upgradeHudRowGap_ },
 		{ "nameX", upgradeHudNameX_ },
 		{ "levelX", upgradeHudLevelX_ },
@@ -2637,6 +2891,11 @@ void Player::DrawUpgradeHudDebugImGui()
 	ImGui::Checkbox("下部EXP/Levelバーを描画", &upgradeHudDrawBottomBars_);
 	ImGui::Checkbox("下部EXP/Level文字を描画", &upgradeHudDrawBottomText_);
 	ImGui::Checkbox("背景/バーを矩形バッチで描画", &upgradeHudUseRectBatch_);
+	if (ImGui::Checkbox("下部EXP/Levelバーを丸端にする", &upgradeHudRoundedProgressBars_)) {
+		ApplyUpgradeHudProgressBarStyles();
+	}
+	ImGui::Checkbox("強化段数ゲージを描画", &upgradeHudUseSegmentedUpgradeBars_);
+	ImGui::DragInt("1項目の最大強化段数", &maxEnhancePoint, 1.0f, 1, 10);
 	ImGui::Text("矩形Draw数: %d", upgradeHudProfile_.spriteDraws);
 	ImGui::DragFloat("リスト表示アニメ速度", &upgradeHudListAnimSpeed_, 0.1f, 1.0f, 30.0f);
 	ImGui::DragFloat("リストスライド距離", &upgradeHudListSlideDistance_, 1.0f, 0.0f, 500.0f);
@@ -2655,6 +2914,8 @@ void Player::DrawUpgradeHudDebugImGui()
 	ImGui::DragFloat2("強化行 開始位置", &upgradeHudRowStart_.x, 1.0f);
 	ImGui::DragFloat2("強化ボタンサイズ", &upgradeHudButtonSize_.x, 1.0f, 0.0f, 1000.0f);
 	ImGui::DragFloat2("プラスボタンサイズ", &upgradeHudPlusSize_.x, 1.0f, 0.0f, 300.0f);
+	ImGui::DragFloat2("段数ゲージ オフセット", &upgradeHudSegmentBarOffset_.x, 1.0f);
+	ImGui::DragFloat2("段数ゲージ サイズ", &upgradeHudSegmentBarSize_.x, 1.0f, 0.0f, 1000.0f);
 	ImGui::DragFloat("強化行 間隔", &upgradeHudRowGap_, 1.0f, 10.0f, 100.0f);
 	ImGui::DragFloat("項目名X", &upgradeHudNameX_, 1.0f);
 	ImGui::DragFloat("Lv表示X", &upgradeHudLevelX_, 1.0f);
@@ -4148,6 +4409,35 @@ void Player::DrawStaticEvolutionPrototype()
 	evolutionUiProfile_.textMs = std::chrono::duration<float, std::milli>(textEnd - textStart).count();
 	evolutionUiProfile_.updateMs = 0.0f;
 	evolutionUiProfile_.totalMs = std::chrono::duration<float, std::milli>(totalEnd - totalStart).count();
+}
+
+void Player::DrawUpgradeHudAfterPostEffects()
+{
+	const bool drawBottomBars = upgradeHudDrawBottomBars_ && upgradeHudUseNeonProgressBars_;
+	const bool drawSegmentBars = upgradeHudUseSegmentedUpgradeBars_ && upgradeHudListVisibility_ > 0.01f;
+	if (!upgradeHudVisible_ || isChangeMode || isDead_ || !upgradeHudBarBloomEffect_ ||
+		(!drawBottomBars && !drawSegmentBars)) {
+		return;
+	}
+
+	upgradeHudBarBloomEffect_->BeginCapture();
+	SpriteCommon::GetInstance()->PreDrawForScene(kNormal);
+	if (drawBottomBars) {
+		if (upgradeHudLevelProgressBar_) {
+			upgradeHudLevelProgressBar_->DrawBloomSource();
+		}
+		if (upgradeHudExpProgressBar_) {
+			upgradeHudExpProgressBar_->DrawBloomSource();
+		}
+	}
+	if (drawSegmentBars) {
+		for (int i = 0; i < 7; ++i) {
+			if (upgradeHudSegmentBars_[i]) {
+				upgradeHudSegmentBars_[i]->DrawBloomSource();
+			}
+		}
+	}
+	upgradeHudBarBloomEffect_->EndCaptureBloomOnlyToBackBuffer();
 }
 
 void Player::DrawEvolutionAfterPostEffects()

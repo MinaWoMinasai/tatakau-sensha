@@ -259,6 +259,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\player\actor\Player.cpp" />
     <ClCompile Include="game\player\actor\PlayerDrone.cpp" />
     <ClCompile Include="game\player\actor\Stage.cpp" />
+    <ClCompile Include="game\ui\NeonProgressBar.cpp" />
+    <ClCompile Include="game\ui\NeonSegmentedBar.cpp" />
     <ClCompile Include="game\ui\NeonTextEffect.cpp" />
     <ClCompile Include="game\ui\TankButtonUI.cpp" />
     <ClCompile Include="game\scene\Fade.cpp" />
@@ -523,6 +525,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\player\actor\Player.h" />
     <ClInclude Include="game\player\actor\PlayerDrone.h" />
     <ClInclude Include="game\player\actor\Stage.h" />
+    <ClInclude Include="game\ui\NeonProgressBar.h" />
+    <ClInclude Include="game\ui\NeonSegmentedBar.h" />
     <ClInclude Include="game\ui\NeonTextEffect.h" />
     <ClInclude Include="game\ui\TankButtonUI.h" />
     <ClInclude Include="game\scene\Fade.h" />

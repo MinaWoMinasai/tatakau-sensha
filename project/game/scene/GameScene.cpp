@@ -705,10 +705,13 @@ void GameScene::Initialize() {
 	sceneFadeBlurTimer_ = sceneFadeBlurDuration_;
 	sceneFadeBlurIntensity_ = 1.0f;
 
-	shotGide = std::make_unique<Sprite>();
-	shotGide->Initialize(SpriteCommon::GetInstance(), "resources/LivePhoto.png");
-	shotGide->SetPosition({ 100.0f, 100.0f });
-	//shotGide->SetSize({ 200.0f, 50.0f });
+	const std::filesystem::path shotGuideTexturePath = "resources/LivePhoto.png";
+	if (std::filesystem::exists(shotGuideTexturePath)) {
+		shotGide = std::make_unique<Sprite>();
+		shotGide->Initialize(SpriteCommon::GetInstance(), shotGuideTexturePath.string());
+		shotGide->SetPosition({ 100.0f, 100.0f });
+		//shotGide->SetSize({ 200.0f, 50.0f });
+	}
 
 	wasdGide = std::make_unique<Sprite>();
 	wasdGide->Initialize(SpriteCommon::GetInstance(), "resources/wasd.png");
@@ -1071,7 +1074,9 @@ void GameScene::Update() {
 		break;
 	}
 	
-	shotGide->Update();
+	if (shotGide) {
+		shotGide->Update();
+	}
 	wasdGide->Update();
 	dashGide->Update();
 	toTitleGide->Update();
@@ -1565,6 +1570,7 @@ void GameScene::UpdateDeathPostPulse(float deltaTime) {
 void GameScene::DrawAfterPostEffect3D() {
 	if (player_) {
 		player_->DrawEvolutionAfterPostEffects();
+		player_->DrawUpgradeHudAfterPostEffects();
 	}
 	DrawGameTextBloom();
 	if (gameFlowState_ == GameFlowState::BossDefeatSequence &&
@@ -3815,7 +3821,8 @@ void GameScene::DrawGameTextBloom()
 	}
 
 	std::vector<TextLabel*> labels;
-	labels.reserve(10);
+	// 強化段数バー表示中は、項目名と +/- のネオン源も追加される。
+	labels.reserve(32);
 	if (gameFlowState_ == GameFlowState::Playing) {
 		player_->AppendGameplayNeonTextLabels(labels);
 	}
