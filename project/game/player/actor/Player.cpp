@@ -6649,7 +6649,15 @@ bool Player::ApplyStatUpgrade(int index)
 	}
 
 	RecalculateStatsFromBase(false);
+	statUpgradePerformedEvent_ = true;
 	return true;
+}
+
+bool Player::ConsumeStatUpgradePerformedEvent()
+{
+	const bool performed = statUpgradePerformedEvent_;
+	statUpgradePerformedEvent_ = false;
+	return performed;
 }
 
 bool Player::RefundStatUpgrade(int index)

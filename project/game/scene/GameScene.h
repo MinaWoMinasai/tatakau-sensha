@@ -157,12 +157,16 @@ private:
 		Shoot,
 		Dash,
 		Phase1Complete,
+		Upgrade,
+		Evolution,
+		TutorialComplete,
 	};
 	struct TutorialConfig {
 		bool enabled = true;
 		float moveDistance = 3.0f;
 		float stepCompleteDelay = 0.35f;
 		float phase1CompleteDisplayDuration = 1.0f;
+		float tutorialCompleteDisplayDuration = 1.5f;
 	};
 
 	void InitializeFollowHpBars(size_t count);
@@ -254,6 +258,8 @@ private:
 	void UpdateTutorial(float deltaTime);
 	void EnterTutorialStep(TutorialStep step);
 	void CompleteTutorialStep();
+	void GrantTutorialUpgradeReward();
+	void GrantTutorialEvolutionReward();
 	void UpdateTutorialText();
 	void DrawTutorialUi();
 	bool IsTutorialCombatSuppressed() const { return tutorialConfig_.enabled; }
@@ -388,8 +394,12 @@ private:
 	bool tutorialUiVisible_ = false;
 	float tutorialStepCompleteTimer_ = 0.0f;
 	float tutorialPhase1CompleteTimer_ = 0.0f;
+	float tutorialCompleteTimer_ = 0.0f;
 	float tutorialMoveDistance_ = 0.0f;
 	Vector3 tutorialPreviousPlayerPosition_{};
+	bool tutorialUpgradeRewardGranted_ = false;
+	bool tutorialEvolutionRewardGranted_ = false;
+	bool tutorialEvolutionUiWasOpen_ = false;
 
 	// カメラ合わせフラグ
 	bool cameraFollow_ = true;

@@ -286,9 +286,11 @@ public:
 	int GetExp() const { return exp_; }
 	int GetNextLevelExpValue() const { return nextLevelExp_; }
 	int GetSkillPoints() const { return skillPoints_; }
+	int GetCurrentRank() const { return GetRankFromLevel(level_); }
 	int GetUpgradeLevel(int index) const;
 	const char* GetCurrentClassName() const;
 	bool ApplyStatUpgrade(int index);
+	bool ConsumeStatUpgradePerformedEvent();
 	bool RefundStatUpgrade(int index);
 	const PlayerStats& GetStats() const { return stats_; }
 	bool GetTankButtonVisualData(const std::string& classId, TankButtonVisualData& output) const;
@@ -841,6 +843,7 @@ private:
 	bool isChangeMode = false;
 	bool evolutionConfirmedEvent_ = false;
 	bool evolutionCancelledEvent_ = false;
+	bool statUpgradePerformedEvent_ = false;
 	int evolutionSelectedIndex_ = 0;
 	float evolutionUiTimer_ = 0.0f;
 	int editorSelectedClassIndex_ = 0;
