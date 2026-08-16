@@ -467,6 +467,7 @@ private:
 	void EvolveById(const std::string& classId);
 	bool TryConfirmEvolutionById(const std::string& classId);
 	bool CanEvolveTo(const std::string& classId) const;
+	bool HasEvolutionEdge(const std::string& from, const std::string& to) const;
 	void LoadPlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json");
 	void SavePlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json") const;
 	PlayerClassConfig CreateDefaultClassConfig(ClassType type) const;
@@ -716,6 +717,7 @@ private:
 	static constexpr size_t kEvolutionCircuitMaxLineSprites = 108;
 	std::vector<EvolutionCircuitNodeDefinition> evolutionCircuitNodes_;
 	std::vector<EvolutionCircuitEdgeDefinition> evolutionCircuitEdges_;
+	std::vector<std::string> evolutionHistory_;
 	std::array<Vector2, kEvolutionCircuitMaxNodes> evolutionCircuitNodeCentersVirtual_{};
 	std::array<std::unique_ptr<TankButtonUI>, kEvolutionCircuitMaxNodes> evolutionCircuitTankButtons_;
 	std::unique_ptr<TankButtonUI> evolutionCircuitDetailPreview_;
