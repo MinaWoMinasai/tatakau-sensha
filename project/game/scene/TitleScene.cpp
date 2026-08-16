@@ -1,4 +1,5 @@
 #include "TitleScene.h"
+#include "GameStartMode.h"
 #include "SceneManager.h"
 
 #include <algorithm>
@@ -115,8 +116,8 @@ void TitleScene::Initialize() {
 		logoChars.push_back(std::move(c));
 	}
 
-	// ロゴの少し下
-	startY = screenH * 0.55f + 120.0f;
+	// ロゴの下へ、通常プレイとチュートリアルの2項目を並べる。
+	startY = screenH * 0.67f;
 
 	TextStyle startStyle = titleStyle;
 	startStyle.fontSize = 40.0f;
@@ -125,12 +126,12 @@ void TitleScene::Initialize() {
 	startLogo.label = std::make_unique<TextLabel>();
 	startLogo.label->Initialize(
 		SpriteCommon::GetInstance(),
-		"左クリックでスタート",
+		"PLAY",
 		startStyle);
 	startLogo.label->SetAnchorPoint({ 0.5f, 0.5f });
 
 	// 従来のstart.pngと同じ表示枠へ収める。
-	startLogo.baseSize = FitTextLabel(*startLogo.label, { 320.0f, 64.0f });
+	startLogo.baseSize = FitTextLabel(*startLogo.label, { 280.0f, 58.0f });
 
 	// 位置
 	startLogo.startPos = { screenW * 0.5f, -100.0f };
@@ -143,6 +144,23 @@ void TitleScene::Initialize() {
 
 	startLogo.timer = 0.0f;
 	startLogo.landed = false;
+
+	tutorialLogo.label = std::make_unique<TextLabel>();
+	tutorialLogo.label->Initialize(
+		SpriteCommon::GetInstance(),
+		"TUTORIAL",
+		startStyle);
+	tutorialLogo.label->SetAnchorPoint({ 0.5f, 0.5f });
+	tutorialLogo.baseSize = FitTextLabel(*tutorialLogo.label, { 280.0f, 58.0f });
+	tutorialLogo.startPos = { screenW * 0.5f, -100.0f };
+	tutorialLogo.targetPos = { screenW * 0.5f, startY + 68.0f };
+	tutorialLogo.label->SetPosition(tutorialLogo.startPos);
+	tutorialLogo.delay = 9 * 0.12f + 0.2f;
+	tutorialLogo.fallSpeed = 700.0f;
+	tutorialLogo.timer = 0.0f;
+	tutorialLogo.landed = false;
+	menuSelection_ = 0;
+	UpdateMenuVisuals();
 
 	// ロゴの少し下
 	startY = screenH * 0.45f + 120.0f;
@@ -196,8 +214,17 @@ void TitleScene::Update() {
 	}
 
 	UpdateLogoChar(startLogo, deltaTime);
+	UpdateLogoChar(tutorialLogo, deltaTime);
 	UpdateLogoChar(ruleLogo, deltaTime);
 	rule->Update();
+	blinkTimer_ += deltaTime;
+	const float selectedAlpha = 0.90f + std::sin(blinkTimer_ * 3.5f) * 0.10f;
+	if (startLogo.label) {
+		startLogo.label->SetAlpha(menuSelection_ == 0 ? selectedAlpha : 0.66f);
+	}
+	if (tutorialLogo.label) {
+		tutorialLogo.label->SetAlpha(menuSelection_ == 1 ? selectedAlpha : 0.66f);
+	}
 
 	switch (phase_) {
 	case Phase::kFadeIn:
@@ -230,6 +257,16 @@ void TitleScene::Update() {
 			}
 		}
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
+		const bool selectPrevious =
+			input_->IsTrigger(input_->GetKey()[DIK_UP], input_->GetPreKey()[DIK_UP]) ||
+			input_->IsTrigger(input_->GetKey()[DIK_W], input_->GetPreKey()[DIK_W]);
+		const bool selectNext =
+			input_->IsTrigger(input_->GetKey()[DIK_DOWN], input_->GetPreKey()[DIK_DOWN]) ||
+			input_->IsTrigger(input_->GetKey()[DIK_S], input_->GetPreKey()[DIK_S]);
+		if (selectPrevious || selectNext) {
+			menuSelection_ = menuSelection_ == 0 ? 1 : 0;
+			UpdateMenuVisuals();
+		}
 
 		const bool confirm =
 			input_->IsTrigger(input_->GetKey()[DIK_RETURN], input_->GetPreKey()[DIK_RETURN]) ||
@@ -238,6 +275,8 @@ void TitleScene::Update() {
 				input_->GetMouseState().rgbButtons[0],
 				input_->GetPreMouseState().rgbButtons[0]);
 		if (IsSceneAvailable("GAME") && confirm) {
+			GameStartSession::SetMode(
+				menuSelection_ == 0 ? GameStartMode::Normal : GameStartMode::Tutorial);
 			StartTransitionIfAvailable("GAME", 0.75f);
 		}
 		break;
@@ -266,8 +305,13 @@ void TitleScene::DrawAfterPostEffect3D()
 			labels.push_back(logo.label.get());
 		}
 	}
-	if (IsSceneAvailable("GAME") && startLogo.label) {
-		labels.push_back(startLogo.label.get());
+	if (IsSceneAvailable("GAME")) {
+		TextLabel* selectedLabel = menuSelection_ == 0
+			? startLogo.label.get()
+			: tutorialLogo.label.get();
+		if (selectedLabel) {
+			labels.push_back(selectedLabel);
+		}
 	}
 	titleTextNeonEffect_->DrawBloom(labels);
 }
@@ -286,6 +330,11 @@ void TitleScene::DrawSprite() {
 			startLogo.label->Draw();
 		} else if (startLogo.sprite) {
 			startLogo.sprite->Draw();
+		}
+		if (tutorialLogo.label) {
+			tutorialLogo.label->Draw();
+		} else if (tutorialLogo.sprite) {
+			tutorialLogo.sprite->Draw();
 		}
 	}
 	fade_->Draw();
@@ -322,6 +371,23 @@ void TitleScene::UpdateLogoChar(LogoChar& c, float deltaTime)
 
 	sprite->SetPosition(pos);
 	sprite->Update();
+}
+
+void TitleScene::UpdateMenuVisuals()
+{
+	const auto applyStyle = [](TextLabel* label, bool selected) {
+		if (!label) {
+			return;
+		}
+		TextStyle style = label->GetStyle();
+		style.color = selected
+			? Vector4{ 0.48f, 1.0f, 0.72f, 1.0f }
+			: Vector4{ 0.74f, 0.88f, 0.92f, 0.82f };
+		label->SetStyle(style);
+		label->PrepareForDraw();
+	};
+	applyStyle(startLogo.label.get(), menuSelection_ == 0);
+	applyStyle(tutorialLogo.label.get(), menuSelection_ == 1);
 }
 
 std::string TitleScene::GetNextSceneName() const
