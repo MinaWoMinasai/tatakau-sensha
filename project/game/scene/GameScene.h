@@ -158,6 +158,7 @@ private:
 		Dash,
 		Phase1Complete,
 		Upgrade,
+		EvolutionUnlocked,
 		Evolution,
 		TutorialComplete,
 	};
@@ -166,6 +167,7 @@ private:
 		float moveDistance = 3.0f;
 		float stepCompleteDelay = 0.35f;
 		float phase1CompleteDisplayDuration = 1.0f;
+		float evolutionUnlockedDisplayDuration = 1.0f;
 		float tutorialCompleteDisplayDuration = 1.5f;
 	};
 
@@ -394,6 +396,7 @@ private:
 	bool tutorialUiVisible_ = false;
 	float tutorialStepCompleteTimer_ = 0.0f;
 	float tutorialPhase1CompleteTimer_ = 0.0f;
+	float tutorialEvolutionUnlockedTimer_ = 0.0f;
 	float tutorialCompleteTimer_ = 0.0f;
 	float tutorialMoveDistance_ = 0.0f;
 	Vector3 tutorialPreviousPlayerPosition_{};
