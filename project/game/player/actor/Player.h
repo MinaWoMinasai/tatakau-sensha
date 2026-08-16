@@ -234,6 +234,9 @@ public:
 	float GetAngle() const { return angle_; }
 	const Vector3& GetDirection() const { return dir_; }
 	bool IsDashing() const { return isDashing_; }
+	bool HasMovementInput() const { return Length(inputDir_) > 0.05f; }
+	bool ConsumePrimaryAttackPerformedEvent();
+	bool ConsumeDashStartedEvent();
 	struct NeonBarrelLayout {
 		Vector3 offset{};
 		Vector3 scale{ 1.25f, 0.24f, 0.24f };
@@ -552,6 +555,8 @@ private:
 
 	// ダッシュ関連
 	bool isDashing_ = false;
+	bool primaryAttackPerformedEvent_ = false;
+	bool dashStartedEvent_ = false;
 	float dashTimer_ = 0.0f;           // ダッシュ持続時間
 	float dashCooldown_ = 0.0f;        // 再使用までの時間
 	float movementParticleTimer_ = 0.0f;
