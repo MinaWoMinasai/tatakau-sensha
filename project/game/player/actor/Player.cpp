@@ -589,6 +589,7 @@ void Player::AddExp(int amount)
 			// AddExpはPlayer::Update後の衝突処理から呼ばれる場合があるため、
 			// 同じフレームの初回描画より先に遅延フォント更新を完了させる。
 			PrepareStaticEvolutionTextTextures();
+			PrepareEvolutionCircuitTextTextures();
 		}
 
 		if (level_ >= kMaxLevel) {
@@ -683,6 +684,7 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	InitializeEncyclopedia();
 	LoadEvolutionUiStyle();
 	InitializeStaticEvolutionPrototype();
+	InitializeEvolutionCircuitPrototype();
 	InitializeUpgradeHud();
 	LoadUpgradeHudConfig();
 	ApplyUpgradeHudLayout();
@@ -713,6 +715,7 @@ void Player::Update(
 		} else {
 			isChangeMode = true;
 			PrepareStaticEvolutionTextTextures();
+			PrepareEvolutionCircuitTextTextures();
 		}
 	}
 	// 進化UIを操作したクリックやキー入力を、そのまま射撃・移動へ流さない。
@@ -2953,6 +2956,392 @@ void Player::DrawUpgradeHudDebugImGui()
 #endif
 }
 
+bool Player::LoadEvolutionCircuitTree(const std::string& path)
+{
+	evolutionCircuitNodes_.clear();
+	evolutionCircuitEdges_.clear();
+	evolutionCircuitLoaded_ = false;
+
+	std::ifstream file(path);
+	if (!file.is_open()) {
+		return false;
+	}
+	try {
+		nlohmann::json json;
+		file >> json;
+		if (json.value("version", 0) != 1 || !json.contains("nodes") || !json["nodes"].is_array()) {
+			return false;
+		}
+		for (const auto& node : json["nodes"]) {
+			if (!node.is_object() || !node.contains("classId") || !node["classId"].is_string()) {
+				continue;
+			}
+			const std::string classId = node["classId"].get<std::string>();
+			if (!GetClassConfig(classId) || evolutionCircuitNodes_.size() >= kEvolutionCircuitMaxNodes) {
+				continue;
+			}
+			const float lane = node.value("lane", 0.5f);
+			evolutionCircuitNodes_.push_back({ classId, (std::clamp)(lane, 0.0f, 1.0f) });
+		}
+		if (json.contains("edges") && json["edges"].is_array()) {
+			for (const auto& edge : json["edges"]) {
+				if (!edge.is_object() || !edge.contains("from") || !edge.contains("to") ||
+					!edge["from"].is_string() || !edge["to"].is_string()) {
+					continue;
+				}
+				const std::string from = edge["from"].get<std::string>();
+				const std::string to = edge["to"].get<std::string>();
+				const auto hasNode = [&](const std::string& id) {
+					return std::any_of(evolutionCircuitNodes_.begin(), evolutionCircuitNodes_.end(),
+						[&](const EvolutionCircuitNodeDefinition& node) { return node.classId == id; });
+				};
+				if (hasNode(from) && hasNode(to)) {
+					evolutionCircuitEdges_.push_back({ from, to });
+				}
+			}
+		}
+	} catch (const std::exception&) {
+		evolutionCircuitNodes_.clear();
+		evolutionCircuitEdges_.clear();
+		return false;
+	}
+	evolutionCircuitLoaded_ = !evolutionCircuitNodes_.empty();
+	return evolutionCircuitLoaded_;
+}
+
+bool Player::ShouldUseEvolutionCircuitPrototype() const
+{
+	return evolutionUiStyle_.enabled && evolutionCircuitLoaded_ && !evolutionCircuitNodes_.empty();
+}
+
+void Player::InitializeEvolutionCircuitPrototype()
+{
+	if (!LoadEvolutionCircuitTree()) {
+		return;
+	}
+	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
+	auto makeSprite = [spriteCommon](const Vector2& anchor) {
+		auto sprite = std::make_unique<Sprite>();
+		sprite->Initialize(spriteCommon, "resources/white512x512.png");
+		sprite->SetAnchorPoint(anchor);
+		return sprite;
+	};
+	evolutionCircuitBackdropSprite_ = makeSprite({ 0.0f, 0.0f });
+	evolutionCircuitDetailPanelSprite_ = makeSprite({ 0.5f, 0.5f });
+	for (auto& line : evolutionCircuitLineSprites_) {
+		line = makeSprite({ 0.0f, 0.5f });
+	}
+	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
+		evolutionCircuitTankButtons_[i] = std::make_unique<TankButtonUI>();
+		evolutionCircuitTankButtons_[i]->Initialize(spriteCommon);
+	}
+	evolutionCircuitDetailPreview_ = std::make_unique<TankButtonUI>();
+	evolutionCircuitDetailPreview_->Initialize(spriteCommon);
+
+	evolutionCircuitSelectedNode_ = 0;
+	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
+		if (evolutionCircuitNodes_[i].classId == currentClassId_) {
+			evolutionCircuitSelectedNode_ = static_cast<int>(i);
+			break;
+		}
+	}
+	UpdateEvolutionCircuitPrototype();
+}
+
+void Player::UpdateEvolutionCircuitPrototype()
+{
+	if (!ShouldUseEvolutionCircuitPrototype()) {
+		return;
+	}
+	if (input_ && input_->IsTrigger(input_->GetKey()[DIK_ESCAPE], input_->GetPreKey()[DIK_ESCAPE])) {
+		isChangeMode = false;
+		evolutionCancelledEvent_ = true;
+		return;
+	}
+
+	constexpr float kTreeLeft = 174.0f;
+	constexpr float kTreeRight = 1106.0f;
+	constexpr float kTreeTop = 100.0f;
+	constexpr float kTreeBottom = 498.0f;
+	constexpr Vector2 kNodeSize{ 142.0f, 56.0f };
+	const float renderScale = GetEvolutionRenderScale();
+	const Vector2 mouseVirtual = EvolutionClientToVirtual(mousePosition_);
+	const auto findNodeIndex = [&](const std::string& id) -> int {
+		for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
+			if (evolutionCircuitNodes_[i].classId == id) return static_cast<int>(i);
+		}
+		return -1;
+	};
+
+	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
+		const PlayerClassConfig* config = GetClassConfig(evolutionCircuitNodes_[i].classId);
+		const int rank = config ? (std::clamp)(config->requiredRank, 1, 4) : 1;
+		const float rankRatio = static_cast<float>(rank - 1) / 3.0f;
+		evolutionCircuitNodeCentersVirtual_[i] = {
+			kTreeLeft + (kTreeRight - kTreeLeft) * rankRatio,
+			kTreeTop + (kTreeBottom - kTreeTop) * evolutionCircuitNodes_[i].lane
+		};
+	}
+
+	evolutionCircuitHoveredNode_ = -1;
+	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
+		const Vector2 center = evolutionCircuitNodeCentersVirtual_[i];
+		if (mouseVirtual.x >= center.x - kNodeSize.x * 0.5f && mouseVirtual.x <= center.x + kNodeSize.x * 0.5f &&
+			mouseVirtual.y >= center.y - kNodeSize.y * 0.5f && mouseVirtual.y <= center.y + kNodeSize.y * 0.5f) {
+			evolutionCircuitHoveredNode_ = static_cast<int>(i);
+			break;
+		}
+	}
+	const bool primaryTriggered = input_ && input_->IsTrigger(
+		input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0]);
+	if (primaryTriggered && evolutionCircuitHoveredNode_ >= 0) {
+		evolutionCircuitSelectedNode_ = evolutionCircuitHoveredNode_;
+	}
+	evolutionCircuitSelectedNode_ = (std::clamp)(
+		evolutionCircuitSelectedNode_, 0, static_cast<int>(evolutionCircuitNodes_.size()) - 1);
+
+	std::vector<bool> reachable(evolutionCircuitNodes_.size(), false);
+	std::vector<bool> currentPath(evolutionCircuitNodes_.size(), false);
+	std::vector<bool> selectedPath(evolutionCircuitNodes_.size(), false);
+	const int currentIndex = findNodeIndex(currentClassId_);
+	if (currentIndex >= 0) {
+		reachable[static_cast<size_t>(currentIndex)] = true;
+		currentPath[static_cast<size_t>(currentIndex)] = true;
+	}
+	for (size_t pass = 0; pass < evolutionCircuitNodes_.size(); ++pass) {
+		for (const auto& edge : evolutionCircuitEdges_) {
+			const int from = findNodeIndex(edge.from);
+			const int to = findNodeIndex(edge.to);
+			if (from >= 0 && to >= 0 && reachable[static_cast<size_t>(from)]) {
+				reachable[static_cast<size_t>(to)] = true;
+			}
+		}
+	}
+	selectedPath[static_cast<size_t>(evolutionCircuitSelectedNode_)] = true;
+	for (size_t pass = 0; pass < evolutionCircuitNodes_.size(); ++pass) {
+		for (const auto& edge : evolutionCircuitEdges_) {
+			const int from = findNodeIndex(edge.from);
+			const int to = findNodeIndex(edge.to);
+			if (from >= 0 && to >= 0 && currentPath[static_cast<size_t>(to)]) currentPath[static_cast<size_t>(from)] = true;
+			if (from >= 0 && to >= 0 && selectedPath[static_cast<size_t>(to)]) selectedPath[static_cast<size_t>(from)] = true;
+		}
+	}
+
+	evolutionCircuitBackdropSprite_->SetPosition({ 0.0f, 0.0f });
+	evolutionCircuitBackdropSprite_->SetSize({
+		static_cast<float>(WinApp::GetInstance()->GetClientWidth()),
+		static_cast<float>(WinApp::GetInstance()->GetClientHeight()) });
+	evolutionCircuitBackdropSprite_->SetColor({ 0.004f, 0.010f, 0.024f, 0.53f });
+	evolutionCircuitBackdropSprite_->Update();
+	evolutionCircuitDetailPanelSprite_->SetPosition(EvolutionVirtualToRender({ 640.0f, 611.0f }));
+	evolutionCircuitDetailPanelSprite_->SetSize({ 1160.0f * renderScale, 172.0f * renderScale });
+	evolutionCircuitDetailPanelSprite_->SetColor({ 0.012f, 0.030f, 0.052f, 0.96f });
+	evolutionCircuitDetailPanelSprite_->Update();
+
+	const float pulse = 0.82f + std::sin(evolutionUiTimer_ * 3.0f) * 0.18f;
+	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
+		const PlayerClassConfig* config = GetClassConfig(evolutionCircuitNodes_[i].classId);
+		if (!config || !evolutionCircuitTankButtons_[i] || !tankButtonUiStyle_) continue;
+		const bool isCurrent = evolutionCircuitNodes_[i].classId == currentClassId_;
+		const bool isSelected = static_cast<int>(i) == evolutionCircuitSelectedNode_;
+		const bool isHovered = static_cast<int>(i) == evolutionCircuitHoveredNode_;
+		Vector4 nodeColor{ 0.67f, 0.82f, 0.88f, 0.74f };
+		if (!reachable[i]) nodeColor = { 0.30f, 0.35f, 0.39f, 0.52f };
+		if (isSelected || isHovered) nodeColor = { 0.22f, 0.91f, 1.0f, pulse };
+		if (isCurrent) nodeColor = { 0.35f, 1.0f, 0.54f, 1.0f };
+
+		TankButtonVisualData visualData{};
+		if (GetTankButtonVisualData(config->id, visualData)) {
+			visualData.hiraganaName = config->displayName;
+			evolutionCircuitTankButtons_[i]->SetVisualData(visualData);
+		}
+		TankButtonUiStyle style = *tankButtonUiStyle_;
+		style.buttonWidth = kNodeSize.x * renderScale;
+		style.buttonHeight = kNodeSize.y * renderScale;
+		style.cornerRadius = 8.0f * renderScale;
+		style.borderWidth = 1.5f * renderScale;
+		style.glowWidth = (isCurrent || isSelected ? 8.0f : 4.0f) * renderScale;
+		style.glowIntensity = isCurrent ? 1.0f : isSelected ? pulse : 0.30f;
+		style.iconScale = 0.54f * renderScale;
+		style.iconOffsetY = -7.0f * renderScale;
+		style.labelOffsetY = 18.0f * renderScale;
+		style.labelFontSize = 11.5f * renderScale;
+		style.labelOutlineWidth *= renderScale;
+		style.fillColor = { 0.008f, 0.021f, 0.040f, 1.0f };
+		style.lockedTint = { 0.50f, 0.54f, 0.58f, 0.72f };
+		for (Vector4& color : style.borderColors) color = nodeColor;
+		for (Vector4& color : style.glowColors) color = nodeColor;
+		evolutionCircuitTankButtons_[i]->SetRank(config->requiredRank);
+		evolutionCircuitTankButtons_[i]->SetState(
+			isCurrent ? TankButtonState::Selected :
+			isSelected ? TankButtonState::Selected :
+			isHovered ? TankButtonState::Hover :
+			reachable[i] ? TankButtonState::Normal : TankButtonState::Locked);
+		evolutionCircuitTankButtons_[i]->Update(
+			EvolutionVirtualToRender(evolutionCircuitNodeCentersVirtual_[i]), style);
+	}
+
+	for (auto& line : evolutionCircuitLineSprites_) {
+		line->SetSize({ 0.0f, 0.0f });
+		line->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+		line->Update();
+	}
+	size_t lineIndex = 0;
+	auto queueSegment = [&](const Vector2& fromVirtual, const Vector2& toVirtual, const Vector4& color) {
+		const Vector2 from = EvolutionVirtualToRender(fromVirtual);
+		const Vector2 to = EvolutionVirtualToRender(toVirtual);
+		const float dx = to.x - from.x;
+		const float dy = to.y - from.y;
+		const float length = std::sqrt(dx * dx + dy * dy);
+		const std::array<float, 3> widths{ 9.0f, 4.0f, 1.5f };
+		const std::array<float, 3> alphas{ 0.07f, 0.22f, 0.72f };
+		for (size_t layer = 0; layer < widths.size() && lineIndex < evolutionCircuitLineSprites_.size(); ++layer) {
+			Sprite* line = evolutionCircuitLineSprites_[lineIndex++].get();
+			line->SetPosition(from);
+			line->SetSize({ length, widths[layer] * renderScale });
+			line->SetRotation(std::atan2(dy, dx));
+			Vector4 layerColor = color;
+			layerColor.w *= alphas[layer];
+			line->SetColor(layerColor);
+			line->Update();
+		}
+	};
+	for (const auto& edge : evolutionCircuitEdges_) {
+		const int fromIndex = findNodeIndex(edge.from);
+		const int toIndex = findNodeIndex(edge.to);
+		if (fromIndex < 0 || toIndex < 0) continue;
+		Vector4 color{ 0.50f, 0.62f, 0.68f, 0.52f };
+		if (currentPath[static_cast<size_t>(fromIndex)] && currentPath[static_cast<size_t>(toIndex)]) {
+			color = { 0.30f, 1.0f, 0.50f, 0.80f };
+		} else if (selectedPath[static_cast<size_t>(fromIndex)] && selectedPath[static_cast<size_t>(toIndex)]) {
+			color = { 0.20f, 0.90f, 1.0f, 0.78f };
+		}
+		const Vector2 start{ evolutionCircuitNodeCentersVirtual_[fromIndex].x + kNodeSize.x * 0.5f,
+			evolutionCircuitNodeCentersVirtual_[fromIndex].y };
+		const Vector2 end{ evolutionCircuitNodeCentersVirtual_[toIndex].x - kNodeSize.x * 0.5f,
+			evolutionCircuitNodeCentersVirtual_[toIndex].y };
+		const float midX = (start.x + end.x) * 0.5f;
+		queueSegment(start, { midX, start.y }, color);
+		queueSegment({ midX, start.y }, { midX, end.y }, color);
+		queueSegment({ midX, end.y }, end, color);
+	}
+
+	const PlayerClassConfig* selected = GetClassConfig(
+		evolutionCircuitNodes_[static_cast<size_t>(evolutionCircuitSelectedNode_)].classId);
+	const PlayerClassConfig* current = GetCurrentClassConfig();
+	if (selected && evolutionCircuitDetailPreview_ && tankButtonUiStyle_) {
+		TankButtonVisualData visualData{};
+		if (GetTankButtonVisualData(selected->id, visualData)) {
+			visualData.hiraganaName = selected->displayName;
+			evolutionCircuitDetailPreview_->SetVisualData(visualData);
+		}
+		TankButtonUiStyle style = *tankButtonUiStyle_;
+		style.buttonWidth = 205.0f * renderScale;
+		style.buttonHeight = 132.0f * renderScale;
+		style.iconScale = 0.78f * renderScale;
+		style.iconOffsetY = -18.0f * renderScale;
+		style.labelOffsetY = 43.0f * renderScale;
+		style.labelFontSize = 15.0f * renderScale;
+		style.labelOutlineWidth *= renderScale;
+		for (Vector4& color : style.borderColors) color = { 0.22f, 0.88f, 1.0f, 0.92f };
+		for (Vector4& color : style.glowColors) color = { 0.18f, 0.78f, 1.0f, 0.88f };
+		evolutionCircuitDetailPreview_->SetRank(selected->requiredRank);
+		evolutionCircuitDetailPreview_->SetState(TankButtonState::Selected);
+		evolutionCircuitDetailPreview_->Update(EvolutionVirtualToRender({ 188.0f, 611.0f }), style);
+	}
+
+	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
+	auto makeTextStyle = [&](float fontSize, const Vector4& color) {
+		TextStyle style{};
+		style.fontFamily = evolutionUiStyle_.fontFamily;
+		style.fontPath = evolutionUiStyle_.fontPath;
+		style.fontWeight = evolutionUiStyle_.fontWeight;
+		style.fontSize = fontSize * renderScale;
+		style.color = color;
+		style.outlineColor = evolutionUiStyle_.textOutlineColor;
+		style.outlineThickness = 1.0f * renderScale;
+		style.padding = 5.0f * renderScale;
+		return style;
+	};
+	TextStyle titleStyle = makeTextStyle(27.0f, { 0.72f, 1.0f, 0.94f, 1.0f });
+	SetLabel(evolutionCircuitTitleLabel_, spriteCommon, "EVOLUTION CIRCUIT",
+		EvolutionVirtualToRender({ 640.0f, 25.0f }), titleStyle);
+	evolutionCircuitTitleLabel_->SetAnchorPoint({ 0.5f, 0.0f });
+	for (int rank = 1; rank <= 4; ++rank) {
+		const float rankRatio = static_cast<float>(rank - 1) / 3.0f;
+		TextStyle rankStyle = makeTextStyle(15.0f, { 0.60f, 0.84f, 0.90f, 0.90f });
+		SetLabel(evolutionCircuitRankLabels_[static_cast<size_t>(rank - 1)], spriteCommon,
+			"RANK " + std::to_string(rank),
+			EvolutionVirtualToRender({ kTreeLeft + (kTreeRight - kTreeLeft) * rankRatio, 68.0f }), rankStyle);
+		evolutionCircuitRankLabels_[static_cast<size_t>(rank - 1)]->SetAnchorPoint({ 0.5f, 0.5f });
+	}
+	if (selected) {
+		TextStyle nameStyle = makeTextStyle(22.0f, { 0.88f, 1.0f, 0.96f, 1.0f });
+		TextStyle detailStyle = makeTextStyle(14.0f, { 0.72f, 0.86f, 0.94f, 0.94f });
+		SetLabel(evolutionCircuitDetailNameLabel_, spriteCommon, selected->displayName,
+			EvolutionVirtualToRender({ 320.0f, 544.0f }), nameStyle);
+		SetLabel(evolutionCircuitDetailMetaLabel_, spriteCommon,
+			"ID  " + selected->id + "    /    REQUIRED  RANK " + std::to_string(selected->requiredRank),
+			EvolutionVirtualToRender({ 320.0f, 579.0f }), detailStyle);
+		SetLabel(evolutionCircuitDetailRoleLabel_, spriteCommon, GetEvolutionShortRole(*selected),
+			EvolutionVirtualToRender({ 320.0f, 612.0f }), detailStyle);
+		auto formatFloatStat = [&](const char* name, float currentValue, float selectedValue) {
+			char text[96]{};
+			if (current && std::abs(currentValue - selectedValue) > 0.001f) {
+				std::snprintf(text, sizeof(text), "%s   %.2f  ->  %.2f", name, currentValue, selectedValue);
+			} else {
+				std::snprintf(text, sizeof(text), "%s   %.2f", name, selectedValue);
+			}
+			return std::string(text);
+		};
+		const int currentBarrels = current ? static_cast<int>(current->barrels.size()) : static_cast<int>(selected->barrels.size());
+		const int selectedBarrels = static_cast<int>(selected->barrels.size());
+		std::string barrelText = "BARRELS   " + std::to_string(selectedBarrels);
+		if (current && currentBarrels != selectedBarrels) {
+			barrelText = "BARRELS   " + std::to_string(currentBarrels) + "  ->  " + std::to_string(selectedBarrels);
+		}
+		const std::array<std::string, 3> stats = {
+			formatFloatStat("RELOAD", current ? current->reloadScale : selected->reloadScale, selected->reloadScale),
+			formatFloatStat("SPREAD", current ? current->spreadAngleDeg : selected->spreadAngleDeg, selected->spreadAngleDeg),
+			barrelText
+		};
+		for (size_t i = 0; i < stats.size(); ++i) {
+			SetLabel(evolutionCircuitDetailStatLabels_[i], spriteCommon, stats[i],
+				EvolutionVirtualToRender({ 665.0f, 553.0f + static_cast<float>(i) * 36.0f }), detailStyle);
+		}
+	}
+	TextStyle hintStyle = makeTextStyle(13.0f, { 0.50f, 0.76f, 0.82f, 0.84f });
+	SetLabel(evolutionCircuitHintLabel_, spriteCommon, "[ ENTER ]  PREVIEW ONLY     [ C / ESC ]  CLOSE",
+		EvolutionVirtualToRender({ 1188.0f, 675.0f }), hintStyle);
+	evolutionCircuitHintLabel_->SetAnchorPoint({ 1.0f, 0.5f });
+	PrepareEvolutionCircuitTextTextures();
+
+	if (staticEvolutionButtonBloomEffect_ && tankButtonUiStyle_) {
+		BloomParam bloomParam = staticEvolutionButtonBloomEffect_->GetParam();
+		bloomParam.threshold = 0.0f;
+		bloomParam.intensity = 0.92f + tankButtonUiStyle_->bloomBoost * 1.8f;
+		bloomParam.outlineWidth = 0.0f;
+		staticEvolutionButtonBloomEffect_->SetParam(bloomParam);
+		staticEvolutionButtonBloomEffect_->Update(0.0f);
+	}
+}
+
+void Player::PrepareEvolutionCircuitTextTextures()
+{
+	auto prepare = [](TextLabel* label) { if (label) label->PrepareForDraw(); };
+	prepare(evolutionCircuitTitleLabel_.get());
+	for (const auto& label : evolutionCircuitRankLabels_) prepare(label.get());
+	prepare(evolutionCircuitDetailNameLabel_.get());
+	prepare(evolutionCircuitDetailMetaLabel_.get());
+	prepare(evolutionCircuitDetailRoleLabel_.get());
+	for (const auto& label : evolutionCircuitDetailStatLabels_) prepare(label.get());
+	prepare(evolutionCircuitHintLabel_.get());
+	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
+		if (evolutionCircuitTankButtons_[i]) prepare(evolutionCircuitTankButtons_[i]->GetLabel());
+	}
+	if (evolutionCircuitDetailPreview_) prepare(evolutionCircuitDetailPreview_->GetLabel());
+}
+
 bool Player::ShouldUseStaticEvolutionPrototype() const
 {
 	if (!evolutionUiStyle_.enabled) {
@@ -4355,6 +4744,73 @@ void Player::DrawEvolutionUiStyleEditor()
 #endif
 }
 
+void Player::DrawEvolutionCircuitPrototype()
+{
+	evolutionUiProfile_.visible = true;
+	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	for (const auto& line : evolutionCircuitLineSprites_) {
+		if (line && line->GetSize().x > 0.0f && line->GetSize().y > 0.0f && line->GetColor().w > 0.001f) {
+			line->Draw();
+			++evolutionUiProfile_.spriteDraws;
+		}
+	}
+	if (evolutionCircuitDetailPanelSprite_) {
+		evolutionCircuitDetailPanelSprite_->Draw();
+		++evolutionUiProfile_.spriteDraws;
+	}
+	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
+		if (evolutionCircuitTankButtons_[i]) evolutionCircuitTankButtons_[i]->Draw();
+	}
+	if (evolutionCircuitDetailPreview_) evolutionCircuitDetailPreview_->Draw();
+
+	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	auto drawLabel = [&](const std::unique_ptr<TextLabel>& label) {
+		if (label) {
+			label->Draw();
+			++evolutionUiProfile_.textDraws;
+		}
+	};
+	drawLabel(evolutionCircuitTitleLabel_);
+	for (const auto& label : evolutionCircuitRankLabels_) drawLabel(label);
+	drawLabel(evolutionCircuitDetailNameLabel_);
+	drawLabel(evolutionCircuitDetailMetaLabel_);
+	drawLabel(evolutionCircuitDetailRoleLabel_);
+	for (const auto& label : evolutionCircuitDetailStatLabels_) drawLabel(label);
+	drawLabel(evolutionCircuitHintLabel_);
+}
+
+void Player::DrawEvolutionCircuitAfterPostEffects()
+{
+	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	if (evolutionCircuitBackdropSprite_) evolutionCircuitBackdropSprite_->Draw();
+	if (staticEvolutionButtonBloomEffect_) {
+		staticEvolutionButtonBloomEffect_->BeginCapture();
+		SpriteCommon::GetInstance()->PreDrawForScene(kNormal);
+		for (const auto& line : evolutionCircuitLineSprites_) {
+			if (line && line->GetSize().x > 0.0f && line->GetSize().y > 0.0f && line->GetColor().w > 0.001f) {
+				line->Draw();
+			}
+		}
+		for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
+			if (evolutionCircuitTankButtons_[i]) evolutionCircuitTankButtons_[i]->DrawBloomSource();
+		}
+		if (evolutionCircuitDetailPreview_) evolutionCircuitDetailPreview_->DrawBloomSource();
+		staticEvolutionButtonBloomEffect_->EndCaptureBloomOnlyToBackBuffer();
+	}
+	if (staticEvolutionTextEffect_) {
+		std::vector<TextLabel*> neonLabels;
+		neonLabels.reserve(4);
+		if (evolutionCircuitTitleLabel_) neonLabels.push_back(evolutionCircuitTitleLabel_.get());
+		if (evolutionCircuitDetailNameLabel_) neonLabels.push_back(evolutionCircuitDetailNameLabel_.get());
+		if (evolutionCircuitSelectedNode_ >= 0 &&
+			static_cast<size_t>(evolutionCircuitSelectedNode_) < evolutionCircuitTankButtons_.size() &&
+			evolutionCircuitTankButtons_[static_cast<size_t>(evolutionCircuitSelectedNode_)]) {
+			neonLabels.push_back(evolutionCircuitTankButtons_[static_cast<size_t>(evolutionCircuitSelectedNode_)]->GetLabel());
+		}
+		staticEvolutionTextEffect_->DrawBloom(neonLabels);
+	}
+}
+
 void Player::DrawStaticEvolutionPrototype()
 {
 	evolutionUiProfile_.visible = true;
@@ -4455,9 +4911,14 @@ void Player::DrawUpgradeHudAfterPostEffects()
 
 void Player::DrawEvolutionAfterPostEffects()
 {
-	if (!isChangeMode || !ShouldUseStaticEvolutionPrototype()) {
+	if (!isChangeMode) {
 		return;
 	}
+	if (ShouldUseEvolutionCircuitPrototype()) {
+		DrawEvolutionCircuitAfterPostEffects();
+		return;
+	}
+	if (!ShouldUseStaticEvolutionPrototype()) return;
 	SpriteCommon::GetInstance()->PreDraw(kNormal);
 	if (staticEvolutionBackdropSprite_) {
 		staticEvolutionBackdropSprite_->Draw();
@@ -4683,6 +5144,10 @@ void Player::UpdateEncyclopedia(float uiDeltaTime)
 		return;
 	}
 	evolutionUiTimer_ += (std::max)(0.0f, uiDeltaTime);
+	if (ShouldUseEvolutionCircuitPrototype()) {
+		UpdateEvolutionCircuitPrototype();
+		return;
+	}
 	if (ShouldUseStaticEvolutionPrototype()) {
 		UpdateStaticEvolutionPrototype();
 		return;
@@ -4767,6 +5232,10 @@ void Player::UpdateEncyclopedia(float uiDeltaTime)
 void Player::DrawEncyclopedia() {
 
 	evolutionUiProfile_ = {};
+	if (isChangeMode && ShouldUseEvolutionCircuitPrototype()) {
+		DrawEvolutionCircuitPrototype();
+		return;
+	}
 	if (isChangeMode && ShouldUseStaticEvolutionPrototype()) {
 		DrawStaticEvolutionPrototype();
 		return;

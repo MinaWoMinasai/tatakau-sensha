@@ -51,7 +51,8 @@ nlohmann::json WriteVector2(const Vector2& value)
 void ClampStyle(TankButtonUiStyle& style)
 {
 	style.buttonWidth = (std::clamp)(style.buttonWidth, 80.0f, 320.0f);
-	style.buttonHeight = (std::clamp)(style.buttonHeight, 80.0f, 320.0f);
+	// 全Rankを並べる進化回路のコンパクトカードも、同じネオン戦車描画を再利用する。
+	style.buttonHeight = (std::clamp)(style.buttonHeight, 48.0f, 320.0f);
 	style.cornerRadius = (std::clamp)(style.cornerRadius, 0.0f, (std::min)(style.buttonWidth, style.buttonHeight) * 0.48f);
 	style.borderWidth = (std::clamp)(style.borderWidth, 0.5f, 12.0f);
 	style.glowWidth = (std::clamp)(style.glowWidth, style.borderWidth, 40.0f);
