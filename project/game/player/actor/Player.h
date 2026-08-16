@@ -498,6 +498,13 @@ private:
 	void InitializeStaticEvolutionPrototype();
 	void UpdateStaticEvolutionPrototype();
 	void DrawStaticEvolutionPrototype();
+	bool LoadEvolutionCircuitTree(const std::string& path = "resources/configs/evolutionTree.json");
+	void InitializeEvolutionCircuitPrototype();
+	void UpdateEvolutionCircuitPrototype();
+	void DrawEvolutionCircuitPrototype();
+	void DrawEvolutionCircuitAfterPostEffects();
+	void PrepareEvolutionCircuitTextTextures();
+	bool ShouldUseEvolutionCircuitPrototype() const;
 	bool LoadEvolutionUiStyle(const std::string& path = "resources/configs/evolutionUiStyle.json");
 	bool SaveEvolutionUiStyle(const std::string& path = "resources/configs/evolutionUiStyle.json") const;
 	bool ShouldUseStaticEvolutionPrototype() const;
@@ -697,6 +704,34 @@ private:
 	size_t staticEvolutionCandidateCount_ = 0;
 	int staticEvolutionHoveredNode_ = -1;
 	bool staticEvolutionConfirmHovered_ = false;
+	struct EvolutionCircuitNodeDefinition {
+		std::string classId;
+		float lane = 0.5f;
+	};
+	struct EvolutionCircuitEdgeDefinition {
+		std::string from;
+		std::string to;
+	};
+	static constexpr size_t kEvolutionCircuitMaxNodes = 12;
+	static constexpr size_t kEvolutionCircuitMaxLineSprites = 108;
+	std::vector<EvolutionCircuitNodeDefinition> evolutionCircuitNodes_;
+	std::vector<EvolutionCircuitEdgeDefinition> evolutionCircuitEdges_;
+	std::array<Vector2, kEvolutionCircuitMaxNodes> evolutionCircuitNodeCentersVirtual_{};
+	std::array<std::unique_ptr<TankButtonUI>, kEvolutionCircuitMaxNodes> evolutionCircuitTankButtons_;
+	std::unique_ptr<TankButtonUI> evolutionCircuitDetailPreview_;
+	std::array<std::unique_ptr<Sprite>, kEvolutionCircuitMaxLineSprites> evolutionCircuitLineSprites_;
+	std::unique_ptr<Sprite> evolutionCircuitBackdropSprite_;
+	std::unique_ptr<Sprite> evolutionCircuitDetailPanelSprite_;
+	std::unique_ptr<TextLabel> evolutionCircuitTitleLabel_;
+	std::array<std::unique_ptr<TextLabel>, 4> evolutionCircuitRankLabels_;
+	std::unique_ptr<TextLabel> evolutionCircuitDetailNameLabel_;
+	std::unique_ptr<TextLabel> evolutionCircuitDetailMetaLabel_;
+	std::unique_ptr<TextLabel> evolutionCircuitDetailRoleLabel_;
+	std::array<std::unique_ptr<TextLabel>, 3> evolutionCircuitDetailStatLabels_;
+	std::unique_ptr<TextLabel> evolutionCircuitHintLabel_;
+	int evolutionCircuitSelectedNode_ = 0;
+	int evolutionCircuitHoveredNode_ = -1;
+	bool evolutionCircuitLoaded_ = false;
 	std::string evolutionUiStyleStatus_;
 	bool showEvolutionVirtualBounds_ = false;
 	bool showEvolutionSafeArea_ = false;
