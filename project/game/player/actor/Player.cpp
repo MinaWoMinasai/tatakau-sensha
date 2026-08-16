@@ -1293,21 +1293,22 @@ bool Player::CanEvolveTo(const std::string& classId) const
 	if (!currentConfig || !targetConfig || targetConfig->id == currentConfig->id) {
 		return false;
 	}
-
-	const int currentRank = GetRankFromLevel(level_);
-	if (currentRank < targetConfig->requiredRank) {
+	if (!evolutionCircuitLoaded_ ||
+		!HasEvolutionEdge(currentConfig->id, targetConfig->id) ||
+		targetConfig->requiredRank != currentConfig->requiredRank + 1) {
 		return false;
 	}
+	return GetRankFromLevel(level_) >= targetConfig->requiredRank;
+}
 
-	if (currentConfig->id == "Basic") {
-		return targetConfig->id == "Twin" ||
-			targetConfig->id == "MachineGun" ||
-			targetConfig->id == "Overseer";
-	}
-
-	// 上位ランクは個別の分岐定義がまだないため、少なくとも一段上の
-	// ランクへ進む場合だけを進化として扱う。
-	return targetConfig->requiredRank == currentConfig->requiredRank + 1;
+bool Player::HasEvolutionEdge(const std::string& from, const std::string& to) const
+{
+	return std::any_of(
+		evolutionCircuitEdges_.begin(),
+		evolutionCircuitEdges_.end(),
+		[&](const EvolutionCircuitEdgeDefinition& edge) {
+			return edge.from == from && edge.to == to;
+		});
 }
 
 bool Player::TryConfirmEvolutionById(const std::string& classId)
@@ -1315,7 +1316,13 @@ bool Player::TryConfirmEvolutionById(const std::string& classId)
 	if (!CanEvolveTo(classId)) {
 		return false;
 	}
+	const std::string previousClassId = currentClassId_;
 	EvolveById(classId);
+	if (evolutionHistory_.empty() || evolutionHistory_.back() != previousClassId) {
+		evolutionHistory_.clear();
+		evolutionHistory_.push_back(previousClassId);
+	}
+	evolutionHistory_.push_back(classId);
 	evolutionConfirmedEvent_ = true;
 	return true;
 }
@@ -3039,6 +3046,10 @@ void Player::InitializeEvolutionCircuitPrototype()
 	evolutionCircuitDetailPreview_->Initialize(spriteCommon);
 
 	evolutionCircuitSelectedNode_ = 0;
+	if (evolutionHistory_.empty() || evolutionHistory_.back() != currentClassId_) {
+		evolutionHistory_.clear();
+		evolutionHistory_.push_back(currentClassId_);
+	}
 	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
 		if (evolutionCircuitNodes_[i].classId == currentClassId_) {
 			evolutionCircuitSelectedNode_ = static_cast<int>(i);
@@ -3057,6 +3068,10 @@ void Player::UpdateEvolutionCircuitPrototype()
 		isChangeMode = false;
 		evolutionCancelledEvent_ = true;
 		return;
+	}
+	if (evolutionHistory_.empty() || evolutionHistory_.back() != currentClassId_) {
+		evolutionHistory_.clear();
+		evolutionHistory_.push_back(currentClassId_);
 	}
 
 	constexpr float kTreeLeft = 174.0f;
@@ -3099,30 +3114,21 @@ void Player::UpdateEvolutionCircuitPrototype()
 	}
 	evolutionCircuitSelectedNode_ = (std::clamp)(
 		evolutionCircuitSelectedNode_, 0, static_cast<int>(evolutionCircuitNodes_.size()) - 1);
+	const std::string& selectedClassId = evolutionCircuitNodes_[
+		static_cast<size_t>(evolutionCircuitSelectedNode_)].classId;
+	const bool confirmTriggered = input_ && input_->IsTrigger(
+		input_->GetKey()[DIK_RETURN], input_->GetPreKey()[DIK_RETURN]);
+	if (confirmTriggered && CanEvolveTo(selectedClassId)) {
+		TryConfirmEvolutionById(selectedClassId);
+		return;
+	}
 
-	std::vector<bool> reachable(evolutionCircuitNodes_.size(), false);
-	std::vector<bool> currentPath(evolutionCircuitNodes_.size(), false);
 	std::vector<bool> selectedPath(evolutionCircuitNodes_.size(), false);
-	const int currentIndex = findNodeIndex(currentClassId_);
-	if (currentIndex >= 0) {
-		reachable[static_cast<size_t>(currentIndex)] = true;
-		currentPath[static_cast<size_t>(currentIndex)] = true;
-	}
-	for (size_t pass = 0; pass < evolutionCircuitNodes_.size(); ++pass) {
-		for (const auto& edge : evolutionCircuitEdges_) {
-			const int from = findNodeIndex(edge.from);
-			const int to = findNodeIndex(edge.to);
-			if (from >= 0 && to >= 0 && reachable[static_cast<size_t>(from)]) {
-				reachable[static_cast<size_t>(to)] = true;
-			}
-		}
-	}
 	selectedPath[static_cast<size_t>(evolutionCircuitSelectedNode_)] = true;
 	for (size_t pass = 0; pass < evolutionCircuitNodes_.size(); ++pass) {
 		for (const auto& edge : evolutionCircuitEdges_) {
 			const int from = findNodeIndex(edge.from);
 			const int to = findNodeIndex(edge.to);
-			if (from >= 0 && to >= 0 && currentPath[static_cast<size_t>(to)]) currentPath[static_cast<size_t>(from)] = true;
 			if (from >= 0 && to >= 0 && selectedPath[static_cast<size_t>(to)]) selectedPath[static_cast<size_t>(from)] = true;
 		}
 	}
@@ -3145,8 +3151,12 @@ void Player::UpdateEvolutionCircuitPrototype()
 		const bool isCurrent = evolutionCircuitNodes_[i].classId == currentClassId_;
 		const bool isSelected = static_cast<int>(i) == evolutionCircuitSelectedNode_;
 		const bool isHovered = static_cast<int>(i) == evolutionCircuitHoveredNode_;
-		Vector4 nodeColor{ 0.57f, 0.70f, 0.76f, 0.62f };
-		if (!reachable[i]) nodeColor = { 0.27f, 0.31f, 0.35f, 0.46f };
+		const bool hasDirectEdge = HasEvolutionEdge(currentClassId_, config->id);
+		const bool available = CanEvolveTo(config->id);
+		const bool rankLocked = hasDirectEdge && GetRankFromLevel(level_) < config->requiredRank;
+		Vector4 nodeColor{ 0.30f, 0.36f, 0.40f, 0.48f };
+		if (available) nodeColor = { 0.58f, 0.78f, 0.84f, 0.76f };
+		if (rankLocked) nodeColor = { 0.30f, 0.33f, 0.36f, 0.50f };
 		if (isHovered) nodeColor = { 0.34f, 0.82f, 0.94f, 0.88f };
 		if (isSelected) nodeColor = { 0.22f, 0.91f, 1.0f, pulse };
 		if (isCurrent) nodeColor = { 0.35f, 1.0f, 0.54f, 1.0f };
@@ -3164,7 +3174,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 		style.glowWidth = (isCurrent || isSelected ? 8.0f : isHovered ? 6.0f : 4.0f) * renderScale;
 		style.glowIntensity = isCurrent
 			? (isHovered || isSelected ? 1.12f : 1.0f)
-			: isSelected ? pulse : isHovered ? 0.62f : 0.22f;
+			: isSelected ? pulse : isHovered ? 0.62f : available ? 0.34f : rankLocked ? 0.12f : 0.16f;
 		style.iconScale = 0.61f * renderScale;
 		style.iconOffsetY = -8.0f * renderScale;
 		style.labelOffsetY = 22.0f * renderScale;
@@ -3179,7 +3189,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 			isCurrent ? TankButtonState::Selected :
 			isSelected ? TankButtonState::Selected :
 			isHovered ? TankButtonState::Hover :
-			reachable[i] ? TankButtonState::Normal : TankButtonState::Locked);
+			rankLocked ? TankButtonState::Locked : TankButtonState::Normal);
 		evolutionCircuitTankButtons_[i]->Update(
 			EvolutionVirtualToRender(evolutionCircuitNodeCentersVirtual_[i]), style);
 	}
@@ -3217,7 +3227,14 @@ void Player::UpdateEvolutionCircuitPrototype()
 		if (fromIndex < 0 || toIndex < 0) continue;
 		Vector4 color{ 0.46f, 0.56f, 0.61f, 0.40f };
 		bool highlighted = false;
-		if (currentPath[static_cast<size_t>(fromIndex)] && currentPath[static_cast<size_t>(toIndex)]) {
+		bool traversed = false;
+		for (size_t historyIndex = 1; historyIndex < evolutionHistory_.size(); ++historyIndex) {
+			if (evolutionHistory_[historyIndex - 1] == edge.from && evolutionHistory_[historyIndex] == edge.to) {
+				traversed = true;
+				break;
+			}
+		}
+		if (traversed) {
 			color = { 0.30f, 1.0f, 0.50f, 0.80f };
 			highlighted = true;
 		} else if (selectedPath[static_cast<size_t>(fromIndex)] && selectedPath[static_cast<size_t>(toIndex)]) {
@@ -3319,8 +3336,19 @@ void Player::UpdateEvolutionCircuitPrototype()
 				EvolutionVirtualToRender({ 610.0f, 550.0f + static_cast<float>(i) * 39.0f }), detailStyle);
 		}
 	}
+	std::string stateHint = "PREVIEW MODE     ESC  閉じる";
+	if (selected && selected->id == currentClassId_) {
+		stateHint = "CURRENT CLASS     ESC  閉じる";
+	} else if (selected && CanEvolveTo(selected->id)) {
+		stateHint = "ENTER  進化     ESC  閉じる";
+	} else if (selected && current &&
+		HasEvolutionEdge(current->id, selected->id) &&
+		selected->requiredRank == current->requiredRank + 1 &&
+		GetRankFromLevel(level_) < selected->requiredRank) {
+		stateHint = "RANK " + std::to_string(selected->requiredRank) + " REQUIRED     ESC  閉じる";
+	}
 	TextStyle hintStyle = makeTextStyle(12.5f, { 0.46f, 0.68f, 0.74f, 0.76f });
-	SetLabel(evolutionCircuitHintLabel_, spriteCommon, "PREVIEW MODE     ESC  CLOSE",
+	SetLabel(evolutionCircuitHintLabel_, spriteCommon, stateHint,
 		EvolutionVirtualToRender({ 1150.0f, 650.0f }), hintStyle);
 	evolutionCircuitHintLabel_->SetAnchorPoint({ 1.0f, 0.5f });
 	PrepareEvolutionCircuitTextTextures();
