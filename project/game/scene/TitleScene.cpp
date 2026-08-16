@@ -369,7 +369,11 @@ void TitleScene::UpdateLogoChar(LogoChar& c, float deltaTime)
 			});
 	}
 
-	sprite->SetPosition(pos);
+	if (c.label) {
+		c.label->SetPosition(pos);
+	} else {
+		sprite->SetPosition(pos);
+	}
 	sprite->Update();
 }
 
