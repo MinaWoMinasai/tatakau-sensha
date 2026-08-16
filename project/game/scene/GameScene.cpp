@@ -1155,6 +1155,8 @@ bool GameScene::LoadTutorialConfig(const std::string& filePath)
 		tutorialConfig_.stepCompleteDelay = (std::max)(0.0f, configJson.value("stepCompleteDelay", tutorialConfig_.stepCompleteDelay));
 		tutorialConfig_.phase1CompleteDisplayDuration =
 			(std::max)(0.0f, configJson.value("phase1CompleteDisplayDuration", tutorialConfig_.phase1CompleteDisplayDuration));
+		tutorialConfig_.evolutionUnlockedDisplayDuration =
+			(std::max)(0.0f, configJson.value("evolutionUnlockedDisplayDuration", tutorialConfig_.evolutionUnlockedDisplayDuration));
 		tutorialConfig_.tutorialCompleteDisplayDuration =
 			(std::max)(0.0f, configJson.value("tutorialCompleteDisplayDuration", tutorialConfig_.tutorialCompleteDisplayDuration));
 		return true;
@@ -1239,16 +1241,23 @@ void GameScene::EnterTutorialStep(TutorialStep step)
 		} else if (step == TutorialStep::Upgrade) {
 			player_->ConsumeStatUpgradePerformedEvent();
 			GrantTutorialUpgradeReward();
+		} else if (step == TutorialStep::EvolutionUnlocked) {
+			GrantTutorialEvolutionReward();
+			player_->CloseEvolutionUiForTutorial();
+			player_->ConsumeEvolutionConfirmed();
+			player_->ConsumeEvolutionCancelled();
 		} else if (step == TutorialStep::Evolution) {
 			player_->ConsumeEvolutionConfirmed();
 			player_->ConsumeEvolutionCancelled();
-			GrantTutorialEvolutionReward();
 			tutorialEvolutionUiWasOpen_ = player_->IsChangeMode();
 		}
 	}
 
 	if (step == TutorialStep::Phase1Complete) {
 		tutorialPhase1CompleteTimer_ = tutorialConfig_.phase1CompleteDisplayDuration;
+		tutorialUiVisible_ = true;
+	} else if (step == TutorialStep::EvolutionUnlocked) {
+		tutorialEvolutionUnlockedTimer_ = tutorialConfig_.evolutionUnlockedDisplayDuration;
 		tutorialUiVisible_ = true;
 	} else if (step == TutorialStep::TutorialComplete) {
 		tutorialCompleteTimer_ = tutorialConfig_.tutorialCompleteDisplayDuration;
@@ -1315,6 +1324,16 @@ void GameScene::UpdateTutorial(float deltaTime)
 		}
 		return;
 	}
+	if (tutorialStep_ == TutorialStep::EvolutionUnlocked) {
+		if (player_->IsChangeMode()) {
+			player_->CloseEvolutionUiForTutorial();
+		}
+		tutorialEvolutionUnlockedTimer_ = (std::max)(0.0f, tutorialEvolutionUnlockedTimer_ - deltaTime);
+		if (tutorialEvolutionUnlockedTimer_ <= 0.0f) {
+			EnterTutorialStep(TutorialStep::Evolution);
+		}
+		return;
+	}
 	if (tutorialStep_ == TutorialStep::TutorialComplete) {
 		if (tutorialUiVisible_) {
 			tutorialCompleteTimer_ = (std::max)(0.0f, tutorialCompleteTimer_ - deltaTime);
@@ -1339,12 +1358,13 @@ void GameScene::UpdateTutorial(float deltaTime)
 				EnterTutorialStep(TutorialStep::Phase1Complete);
 				break;
 			case TutorialStep::Upgrade:
-				EnterTutorialStep(TutorialStep::Evolution);
+				EnterTutorialStep(TutorialStep::EvolutionUnlocked);
 				break;
 			case TutorialStep::Evolution:
 				EnterTutorialStep(TutorialStep::TutorialComplete);
 				break;
 			case TutorialStep::Phase1Complete:
+			case TutorialStep::EvolutionUnlocked:
 			case TutorialStep::TutorialComplete:
 				break;
 			}
@@ -1386,12 +1406,12 @@ void GameScene::UpdateTutorial(float deltaTime)
 		player_->ConsumeEvolutionCancelled();
 		if (player_->ConsumeEvolutionConfirmed()) {
 			screenEffectDirector_.TriggerUpgradeConfirmed(WorldToScreenUv(player_->GetWorldPosition()));
-			SetEventCallout("EVOLUTION COMPLETE", 0.75f);
 			CompleteTutorialStep();
 		}
 		break;
 	}
 	case TutorialStep::Phase1Complete:
+	case TutorialStep::EvolutionUnlocked:
 	case TutorialStep::TutorialComplete:
 		break;
 	}
@@ -1416,6 +1436,7 @@ void GameScene::UpdateTutorialText()
 		case TutorialStep::Shoot: tutorialTitleText_->SetText("SHOOT"); break;
 		case TutorialStep::Dash: tutorialTitleText_->SetText("DASH"); break;
 		case TutorialStep::Upgrade: tutorialTitleText_->SetText("UPGRADE"); break;
+		case TutorialStep::EvolutionUnlocked: tutorialTitleText_->SetText("RANK UP"); break;
 		case TutorialStep::Evolution: tutorialTitleText_->SetText("EVOLUTION"); break;
 		case TutorialStep::Phase1Complete: break;
 		case TutorialStep::TutorialComplete: break;
@@ -1448,6 +1469,11 @@ void GameScene::UpdateTutorialText()
 			tutorialTitleText_->SetText("UPGRADE");
 			tutorialInputText_->SetText("1 - 7 / CLICK +");
 			tutorialDescriptionText_->SetText("能力を1つ強化しよう");
+			break;
+		case TutorialStep::EvolutionUnlocked:
+			tutorialTitleText_->SetText("RANK UP");
+			tutorialInputText_->SetText("RANK 2");
+			tutorialDescriptionText_->SetText("EVOLUTION UNLOCKED");
 			break;
 		case TutorialStep::Evolution:
 			tutorialTitleText_->SetText("EVOLUTION");
