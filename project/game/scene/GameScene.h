@@ -403,6 +403,7 @@ private:
 	bool tutorialUpgradeRewardGranted_ = false;
 	bool tutorialEvolutionRewardGranted_ = false;
 	bool tutorialEvolutionUiWasOpen_ = false;
+	bool tutorialCompleteExitReady_ = false;
 
 	// カメラ合わせフラグ
 	bool cameraFollow_ = true;

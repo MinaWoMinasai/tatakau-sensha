@@ -42,6 +42,7 @@ private:
 	bool StartTransitionIfAvailable(
 		std::string_view sceneName,
 		float fadeDuration);
+	void UpdateMenuVisuals();
 
 	// ビュープロジェクション
 	std::unique_ptr<Camera> camera;
@@ -69,6 +70,8 @@ private:
 	const float deltaTime = 1.0f / 60.0f;
 
 	LogoChar startLogo;
+	LogoChar tutorialLogo;
+	int menuSelection_ = 0;
 	bool startVisible = false;
 	LogoChar ruleLogo;
 	bool startVisibleRule = false;
