@@ -2,5 +2,6 @@
   "enabled": true,
   "moveDistance": 3.0,
   "stepCompleteDelay": 0.35,
-  "phase1CompleteDisplayDuration": 1.0
+  "phase1CompleteDisplayDuration": 1.0,
+  "tutorialCompleteDisplayDuration": 1.5
 }
