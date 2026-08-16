@@ -1353,6 +1353,11 @@ bool Player::ConsumeEvolutionConfirmed()
 	return confirmed;
 }
 
+void Player::CloseEvolutionUiForTutorial()
+{
+	isChangeMode = false;
+}
+
 bool Player::ConsumeEvolutionCancelled()
 {
 	const bool cancelled = evolutionCancelledEvent_;
