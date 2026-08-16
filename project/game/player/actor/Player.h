@@ -326,6 +326,7 @@ public:
 	int GetRankFromLevel(int level) const;
 
 	bool IsChangeMode() { return isChangeMode; }
+	void CloseEvolutionUiForTutorial();
 	bool ConsumeEvolutionConfirmed();
 	bool ConsumeEvolutionCancelled();
 
