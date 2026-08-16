@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "GameStartMode.h"
 #include "CollisionConfig.h"
 #include <cmath>
 #include <cstdio>
@@ -428,6 +429,7 @@ void GameScene::Initialize() {
 
 	input_ = Input::GetInstance();
 	LoadTutorialConfig();
+	tutorialConfig_.enabled = GameStartSession::GetMode() == GameStartMode::Tutorial;
 	screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json");
 
 	debugCamera = std::make_unique<DebugCamera>();
@@ -1261,6 +1263,7 @@ void GameScene::EnterTutorialStep(TutorialStep step)
 		tutorialUiVisible_ = true;
 	} else if (step == TutorialStep::TutorialComplete) {
 		tutorialCompleteTimer_ = tutorialConfig_.tutorialCompleteDisplayDuration;
+		tutorialCompleteExitReady_ = false;
 		tutorialUiVisible_ = true;
 	}
 	UpdateTutorialText();
@@ -1335,11 +1338,18 @@ void GameScene::UpdateTutorial(float deltaTime)
 		return;
 	}
 	if (tutorialStep_ == TutorialStep::TutorialComplete) {
-		if (tutorialUiVisible_) {
+		if (!tutorialCompleteExitReady_) {
 			tutorialCompleteTimer_ = (std::max)(0.0f, tutorialCompleteTimer_ - deltaTime);
 			if (tutorialCompleteTimer_ <= 0.0f) {
-				tutorialUiVisible_ = false;
+				tutorialCompleteExitReady_ = true;
+				UpdateTutorialText();
 			}
+		}
+		if (tutorialCompleteExitReady_ &&
+			input_->IsTrigger(input_->GetKey()[DIK_RETURN], input_->GetPreKey()[DIK_RETURN])) {
+			nextSceneName_ = "TITLE";
+			fade_->Start(Fade::Status::FadeOut, 0.75f);
+			phase_ = Phase::kFadeOut;
 		}
 		return;
 	}
@@ -1488,7 +1498,8 @@ void GameScene::UpdateTutorialText()
 		case TutorialStep::TutorialComplete:
 			tutorialTitleText_->SetText("TUTORIAL");
 			tutorialInputText_->SetText("COMPLETE");
-			tutorialDescriptionText_->SetText("C : EVOLUTION TREE");
+			tutorialDescriptionText_->SetText(
+				tutorialCompleteExitReady_ ? "ENTER : TITLE" : "C : EVOLUTION TREE");
 			break;
 		}
 	}
