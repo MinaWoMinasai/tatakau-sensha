@@ -794,6 +794,7 @@ void GameScene::Update() {
 	
 	// 通常は 1/60秒
 	const float baseDeltaTime = 1.0f / 60.0f;
+	const bool evolutionUiWasOpenAtFrameStart = player_ && player_->IsChangeMode();
 	screenEffectDirector_.Update(baseDeltaTime);
 	if (eventCalloutTimer_ > 0.0f) {
 		eventCalloutTimer_ = (std::max)(0.0f, eventCalloutTimer_ - baseDeltaTime);
@@ -1072,6 +1073,7 @@ void GameScene::Update() {
 		break;
 	case Phase::kMain:
 		if (gameFlowState_ == GameFlowState::Playing &&
+			!evolutionUiWasOpenAtFrameStart &&
 			input_->IsTrigger(input_->GetKey()[DIK_ESCAPE], input_->GetPreKey()[DIK_ESCAPE])) {
 			nextSceneName_ = "TITLE";
 			fade_->Start(Fade::Status::FadeOut, 1.0f);
@@ -1153,6 +1155,8 @@ bool GameScene::LoadTutorialConfig(const std::string& filePath)
 		tutorialConfig_.stepCompleteDelay = (std::max)(0.0f, configJson.value("stepCompleteDelay", tutorialConfig_.stepCompleteDelay));
 		tutorialConfig_.phase1CompleteDisplayDuration =
 			(std::max)(0.0f, configJson.value("phase1CompleteDisplayDuration", tutorialConfig_.phase1CompleteDisplayDuration));
+		tutorialConfig_.tutorialCompleteDisplayDuration =
+			(std::max)(0.0f, configJson.value("tutorialCompleteDisplayDuration", tutorialConfig_.tutorialCompleteDisplayDuration));
 		return true;
 	} catch (const std::exception& exception) {
 		std::cerr << "[Tutorial] Invalid config: " << exception.what() << std::endl;
@@ -1208,6 +1212,9 @@ void GameScene::InitializeTutorialUi()
 	tutorialMoveDistance_ = 0.0f;
 	player_->ConsumePrimaryAttackPerformedEvent();
 	player_->ConsumeDashStartedEvent();
+	player_->ConsumeStatUpgradePerformedEvent();
+	player_->ConsumeEvolutionConfirmed();
+	player_->ConsumeEvolutionCancelled();
 	tutorialUiVisible_ = true;
 	EnterTutorialStep(TutorialStep::Move);
 }
@@ -1229,11 +1236,22 @@ void GameScene::EnterTutorialStep(TutorialStep step)
 			player_->ConsumeDashStartedEvent();
 		} else if (step == TutorialStep::Dash) {
 			player_->ConsumeDashStartedEvent();
+		} else if (step == TutorialStep::Upgrade) {
+			player_->ConsumeStatUpgradePerformedEvent();
+			GrantTutorialUpgradeReward();
+		} else if (step == TutorialStep::Evolution) {
+			player_->ConsumeEvolutionConfirmed();
+			player_->ConsumeEvolutionCancelled();
+			GrantTutorialEvolutionReward();
+			tutorialEvolutionUiWasOpen_ = player_->IsChangeMode();
 		}
 	}
 
 	if (step == TutorialStep::Phase1Complete) {
 		tutorialPhase1CompleteTimer_ = tutorialConfig_.phase1CompleteDisplayDuration;
+		tutorialUiVisible_ = true;
+	} else if (step == TutorialStep::TutorialComplete) {
+		tutorialCompleteTimer_ = tutorialConfig_.tutorialCompleteDisplayDuration;
 		tutorialUiVisible_ = true;
 	}
 	UpdateTutorialText();
@@ -1241,12 +1259,43 @@ void GameScene::EnterTutorialStep(TutorialStep step)
 
 void GameScene::CompleteTutorialStep()
 {
-	if (tutorialStepCompleting_ || tutorialStep_ == TutorialStep::Phase1Complete) {
+	if (tutorialStepCompleting_ || tutorialStep_ == TutorialStep::Phase1Complete ||
+		tutorialStep_ == TutorialStep::TutorialComplete) {
 		return;
 	}
 	tutorialStepCompleting_ = true;
 	tutorialStepCompleteTimer_ = tutorialConfig_.stepCompleteDelay;
 	UpdateTutorialText();
+}
+
+void GameScene::GrantTutorialUpgradeReward()
+{
+	if (!tutorialConfig_.enabled || tutorialUpgradeRewardGranted_ || !player_) {
+		return;
+	}
+	tutorialUpgradeRewardGranted_ = true;
+	if (player_->GetSkillPoints() > 0) {
+		return;
+	}
+
+	const int requiredExp = player_->GetNextLevelExpValue() - player_->GetExp();
+	player_->AddExp((std::max)(1, requiredExp));
+}
+
+void GameScene::GrantTutorialEvolutionReward()
+{
+	if (!tutorialConfig_.enabled || tutorialEvolutionRewardGranted_ || !player_) {
+		return;
+	}
+	tutorialEvolutionRewardGranted_ = true;
+	while (player_->GetCurrentRank() < 2) {
+		const int previousLevel = player_->GetLevel();
+		const int requiredExp = player_->GetNextLevelExpValue() - player_->GetExp();
+		player_->AddExp((std::max)(1, requiredExp));
+		if (player_->GetLevel() <= previousLevel) {
+			break;
+		}
+	}
 }
 
 void GameScene::UpdateTutorial(float deltaTime)
@@ -1260,9 +1309,16 @@ void GameScene::UpdateTutorial(float deltaTime)
 	tutorialPreviousPlayerPosition_ = currentPosition;
 
 	if (tutorialStep_ == TutorialStep::Phase1Complete) {
+		tutorialPhase1CompleteTimer_ = (std::max)(0.0f, tutorialPhase1CompleteTimer_ - deltaTime);
+		if (tutorialPhase1CompleteTimer_ <= 0.0f) {
+			EnterTutorialStep(TutorialStep::Upgrade);
+		}
+		return;
+	}
+	if (tutorialStep_ == TutorialStep::TutorialComplete) {
 		if (tutorialUiVisible_) {
-			tutorialPhase1CompleteTimer_ = (std::max)(0.0f, tutorialPhase1CompleteTimer_ - deltaTime);
-			if (tutorialPhase1CompleteTimer_ <= 0.0f) {
+			tutorialCompleteTimer_ = (std::max)(0.0f, tutorialCompleteTimer_ - deltaTime);
+			if (tutorialCompleteTimer_ <= 0.0f) {
 				tutorialUiVisible_ = false;
 			}
 		}
@@ -1282,7 +1338,14 @@ void GameScene::UpdateTutorial(float deltaTime)
 			case TutorialStep::Dash:
 				EnterTutorialStep(TutorialStep::Phase1Complete);
 				break;
+			case TutorialStep::Upgrade:
+				EnterTutorialStep(TutorialStep::Evolution);
+				break;
+			case TutorialStep::Evolution:
+				EnterTutorialStep(TutorialStep::TutorialComplete);
+				break;
 			case TutorialStep::Phase1Complete:
+			case TutorialStep::TutorialComplete:
 				break;
 			}
 		}
@@ -1308,7 +1371,28 @@ void GameScene::UpdateTutorial(float deltaTime)
 			CompleteTutorialStep();
 		}
 		break;
+	case TutorialStep::Upgrade:
+		if (player_->ConsumeStatUpgradePerformedEvent()) {
+			CompleteTutorialStep();
+		}
+		break;
+	case TutorialStep::Evolution:
+	{
+		const bool evolutionUiOpen = player_->IsChangeMode();
+		if (evolutionUiOpen != tutorialEvolutionUiWasOpen_) {
+			tutorialEvolutionUiWasOpen_ = evolutionUiOpen;
+			UpdateTutorialText();
+		}
+		player_->ConsumeEvolutionCancelled();
+		if (player_->ConsumeEvolutionConfirmed()) {
+			screenEffectDirector_.TriggerUpgradeConfirmed(WorldToScreenUv(player_->GetWorldPosition()));
+			SetEventCallout("EVOLUTION COMPLETE", 0.75f);
+			CompleteTutorialStep();
+		}
+		break;
+	}
 	case TutorialStep::Phase1Complete:
+	case TutorialStep::TutorialComplete:
 		break;
 	}
 }
@@ -1320,7 +1404,8 @@ void GameScene::UpdateTutorialText()
 	}
 
 	TextStyle inputStyle = tutorialInputText_->GetStyle();
-	inputStyle.color = tutorialStepCompleting_ || tutorialStep_ == TutorialStep::Phase1Complete
+	inputStyle.color = tutorialStepCompleting_ || tutorialStep_ == TutorialStep::Phase1Complete ||
+		tutorialStep_ == TutorialStep::TutorialComplete
 		? Vector4{ 0.42f, 1.0f, 0.62f, 1.0f }
 		: Vector4{ 0.90f, 1.0f, 1.0f, 1.0f };
 	tutorialInputText_->SetStyle(inputStyle);
@@ -1330,7 +1415,10 @@ void GameScene::UpdateTutorialText()
 		case TutorialStep::Move: tutorialTitleText_->SetText("MOVE"); break;
 		case TutorialStep::Shoot: tutorialTitleText_->SetText("SHOOT"); break;
 		case TutorialStep::Dash: tutorialTitleText_->SetText("DASH"); break;
+		case TutorialStep::Upgrade: tutorialTitleText_->SetText("UPGRADE"); break;
+		case TutorialStep::Evolution: tutorialTitleText_->SetText("EVOLUTION"); break;
 		case TutorialStep::Phase1Complete: break;
+		case TutorialStep::TutorialComplete: break;
 		}
 		tutorialInputText_->SetText("COMPLETE");
 		tutorialDescriptionText_->SetText("");
@@ -1356,6 +1444,26 @@ void GameScene::UpdateTutorialText()
 			tutorialInputText_->SetText("COMPLETE");
 			tutorialDescriptionText_->SetText("");
 			break;
+		case TutorialStep::Upgrade:
+			tutorialTitleText_->SetText("UPGRADE");
+			tutorialInputText_->SetText("1 - 7 / CLICK +");
+			tutorialDescriptionText_->SetText("能力を1つ強化しよう");
+			break;
+		case TutorialStep::Evolution:
+			tutorialTitleText_->SetText("EVOLUTION");
+			if (player_ && player_->IsChangeMode()) {
+				tutorialInputText_->SetText("SELECT + ENTER");
+				tutorialDescriptionText_->SetText("進化先を選ぼう");
+			} else {
+				tutorialInputText_->SetText("C");
+				tutorialDescriptionText_->SetText("進化ツリーを開こう");
+			}
+			break;
+		case TutorialStep::TutorialComplete:
+			tutorialTitleText_->SetText("TUTORIAL");
+			tutorialInputText_->SetText("COMPLETE");
+			tutorialDescriptionText_->SetText("C : EVOLUTION TREE");
+			break;
 		}
 	}
 
@@ -1366,14 +1474,37 @@ void GameScene::UpdateTutorialText()
 
 void GameScene::DrawTutorialUi()
 {
-	if (!tutorialConfig_.enabled || !tutorialUiVisible_ || !player_ || player_->IsChangeMode() ||
+	if (!tutorialConfig_.enabled || !tutorialUiVisible_ || !player_ ||
 		gameFlowState_ != GameFlowState::Playing) {
 		return;
+	}
+	const bool compactEvolutionHint =
+		tutorialStep_ == TutorialStep::Evolution && player_->IsChangeMode();
+	if (player_->IsChangeMode() && !compactEvolutionHint) {
+		return;
+	}
+	if (compactEvolutionHint) {
+		if (tutorialPanel_) {
+			tutorialPanel_->SetPosition({ 1090.0f, 38.0f });
+			tutorialPanel_->SetSize({ 300.0f, 62.0f });
+			tutorialPanel_->Update();
+		}
+		if (tutorialTitleText_) tutorialTitleText_->SetPosition({ 1090.0f, 23.0f });
+		if (tutorialInputText_) tutorialInputText_->SetPosition({ 1090.0f, 50.0f });
+	} else {
+		if (tutorialPanel_) {
+			tutorialPanel_->SetPosition({ WinApp::kClientWidth * 0.5f, 128.0f });
+			tutorialPanel_->SetSize({ 390.0f, 126.0f });
+			tutorialPanel_->Update();
+		}
+		if (tutorialTitleText_) tutorialTitleText_->SetPosition({ WinApp::kClientWidth * 0.5f, 91.0f });
+		if (tutorialInputText_) tutorialInputText_->SetPosition({ WinApp::kClientWidth * 0.5f, 128.0f });
+		if (tutorialDescriptionText_) tutorialDescriptionText_->SetPosition({ WinApp::kClientWidth * 0.5f, 160.0f });
 	}
 	if (tutorialPanel_) tutorialPanel_->Draw();
 	if (tutorialTitleText_) tutorialTitleText_->Draw();
 	if (tutorialInputText_) tutorialInputText_->Draw();
-	if (tutorialDescriptionText_) tutorialDescriptionText_->Draw();
+	if (!compactEvolutionHint && tutorialDescriptionText_) tutorialDescriptionText_->Draw();
 }
 
 void GameScene::UpdateGameplayEventEffects(float, bool)
