@@ -3063,7 +3063,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 	constexpr float kTreeRight = 1106.0f;
 	constexpr float kTreeTop = 100.0f;
 	constexpr float kTreeBottom = 498.0f;
-	constexpr Vector2 kNodeSize{ 142.0f, 56.0f };
+	constexpr Vector2 kNodeSize{ 158.0f, 64.0f };
 	const float renderScale = GetEvolutionRenderScale();
 	const Vector2 mouseVirtual = EvolutionClientToVirtual(mousePosition_);
 	const auto findNodeIndex = [&](const std::string& id) -> int {
@@ -3131,7 +3131,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 	evolutionCircuitBackdropSprite_->SetSize({
 		static_cast<float>(WinApp::GetInstance()->GetClientWidth()),
 		static_cast<float>(WinApp::GetInstance()->GetClientHeight()) });
-	evolutionCircuitBackdropSprite_->SetColor({ 0.004f, 0.010f, 0.024f, 0.53f });
+	evolutionCircuitBackdropSprite_->SetColor({ 0.004f, 0.010f, 0.024f, 0.65f });
 	evolutionCircuitBackdropSprite_->Update();
 	evolutionCircuitDetailPanelSprite_->SetPosition(EvolutionVirtualToRender({ 640.0f, 611.0f }));
 	evolutionCircuitDetailPanelSprite_->SetSize({ 1160.0f * renderScale, 172.0f * renderScale });
@@ -3145,9 +3145,10 @@ void Player::UpdateEvolutionCircuitPrototype()
 		const bool isCurrent = evolutionCircuitNodes_[i].classId == currentClassId_;
 		const bool isSelected = static_cast<int>(i) == evolutionCircuitSelectedNode_;
 		const bool isHovered = static_cast<int>(i) == evolutionCircuitHoveredNode_;
-		Vector4 nodeColor{ 0.67f, 0.82f, 0.88f, 0.74f };
-		if (!reachable[i]) nodeColor = { 0.30f, 0.35f, 0.39f, 0.52f };
-		if (isSelected || isHovered) nodeColor = { 0.22f, 0.91f, 1.0f, pulse };
+		Vector4 nodeColor{ 0.57f, 0.70f, 0.76f, 0.62f };
+		if (!reachable[i]) nodeColor = { 0.27f, 0.31f, 0.35f, 0.46f };
+		if (isHovered) nodeColor = { 0.34f, 0.82f, 0.94f, 0.88f };
+		if (isSelected) nodeColor = { 0.22f, 0.91f, 1.0f, pulse };
 		if (isCurrent) nodeColor = { 0.35f, 1.0f, 0.54f, 1.0f };
 
 		TankButtonVisualData visualData{};
@@ -3160,12 +3161,14 @@ void Player::UpdateEvolutionCircuitPrototype()
 		style.buttonHeight = kNodeSize.y * renderScale;
 		style.cornerRadius = 8.0f * renderScale;
 		style.borderWidth = 1.5f * renderScale;
-		style.glowWidth = (isCurrent || isSelected ? 8.0f : 4.0f) * renderScale;
-		style.glowIntensity = isCurrent ? 1.0f : isSelected ? pulse : 0.30f;
-		style.iconScale = 0.54f * renderScale;
-		style.iconOffsetY = -7.0f * renderScale;
-		style.labelOffsetY = 18.0f * renderScale;
-		style.labelFontSize = 11.5f * renderScale;
+		style.glowWidth = (isCurrent || isSelected ? 8.0f : isHovered ? 6.0f : 4.0f) * renderScale;
+		style.glowIntensity = isCurrent
+			? (isHovered || isSelected ? 1.12f : 1.0f)
+			: isSelected ? pulse : isHovered ? 0.62f : 0.22f;
+		style.iconScale = 0.61f * renderScale;
+		style.iconOffsetY = -8.0f * renderScale;
+		style.labelOffsetY = 22.0f * renderScale;
+		style.labelFontSize = 13.5f * renderScale;
 		style.labelOutlineWidth *= renderScale;
 		style.fillColor = { 0.008f, 0.021f, 0.040f, 1.0f };
 		style.lockedTint = { 0.50f, 0.54f, 0.58f, 0.72f };
@@ -3187,14 +3190,16 @@ void Player::UpdateEvolutionCircuitPrototype()
 		line->Update();
 	}
 	size_t lineIndex = 0;
-	auto queueSegment = [&](const Vector2& fromVirtual, const Vector2& toVirtual, const Vector4& color) {
+	auto queueSegment = [&](const Vector2& fromVirtual, const Vector2& toVirtual, const Vector4& color, bool highlighted) {
 		const Vector2 from = EvolutionVirtualToRender(fromVirtual);
 		const Vector2 to = EvolutionVirtualToRender(toVirtual);
 		const float dx = to.x - from.x;
 		const float dy = to.y - from.y;
 		const float length = std::sqrt(dx * dx + dy * dy);
 		const std::array<float, 3> widths{ 9.0f, 4.0f, 1.5f };
-		const std::array<float, 3> alphas{ 0.07f, 0.22f, 0.72f };
+		const std::array<float, 3> highlightedAlphas{ 0.07f, 0.22f, 0.72f };
+		const std::array<float, 3> normalAlphas{ 0.035f, 0.11f, 0.45f };
+		const auto& alphas = highlighted ? highlightedAlphas : normalAlphas;
 		for (size_t layer = 0; layer < widths.size() && lineIndex < evolutionCircuitLineSprites_.size(); ++layer) {
 			Sprite* line = evolutionCircuitLineSprites_[lineIndex++].get();
 			line->SetPosition(from);
@@ -3210,20 +3215,23 @@ void Player::UpdateEvolutionCircuitPrototype()
 		const int fromIndex = findNodeIndex(edge.from);
 		const int toIndex = findNodeIndex(edge.to);
 		if (fromIndex < 0 || toIndex < 0) continue;
-		Vector4 color{ 0.50f, 0.62f, 0.68f, 0.52f };
+		Vector4 color{ 0.46f, 0.56f, 0.61f, 0.40f };
+		bool highlighted = false;
 		if (currentPath[static_cast<size_t>(fromIndex)] && currentPath[static_cast<size_t>(toIndex)]) {
 			color = { 0.30f, 1.0f, 0.50f, 0.80f };
+			highlighted = true;
 		} else if (selectedPath[static_cast<size_t>(fromIndex)] && selectedPath[static_cast<size_t>(toIndex)]) {
 			color = { 0.20f, 0.90f, 1.0f, 0.78f };
+			highlighted = true;
 		}
 		const Vector2 start{ evolutionCircuitNodeCentersVirtual_[fromIndex].x + kNodeSize.x * 0.5f,
 			evolutionCircuitNodeCentersVirtual_[fromIndex].y };
 		const Vector2 end{ evolutionCircuitNodeCentersVirtual_[toIndex].x - kNodeSize.x * 0.5f,
 			evolutionCircuitNodeCentersVirtual_[toIndex].y };
 		const float midX = (start.x + end.x) * 0.5f;
-		queueSegment(start, { midX, start.y }, color);
-		queueSegment({ midX, start.y }, { midX, end.y }, color);
-		queueSegment({ midX, end.y }, end, color);
+		queueSegment(start, { midX, start.y }, color, highlighted);
+		queueSegment({ midX, start.y }, { midX, end.y }, color, highlighted);
+		queueSegment({ midX, end.y }, end, color, highlighted);
 	}
 
 	const PlayerClassConfig* selected = GetClassConfig(
@@ -3269,7 +3277,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 	evolutionCircuitTitleLabel_->SetAnchorPoint({ 0.5f, 0.0f });
 	for (int rank = 1; rank <= 4; ++rank) {
 		const float rankRatio = static_cast<float>(rank - 1) / 3.0f;
-		TextStyle rankStyle = makeTextStyle(15.0f, { 0.60f, 0.84f, 0.90f, 0.90f });
+		TextStyle rankStyle = makeTextStyle(19.0f, { 0.64f, 0.89f, 0.96f, 0.96f });
 		SetLabel(evolutionCircuitRankLabels_[static_cast<size_t>(rank - 1)], spriteCommon,
 			"RANK " + std::to_string(rank),
 			EvolutionVirtualToRender({ kTreeLeft + (kTreeRight - kTreeLeft) * rankRatio, 68.0f }), rankStyle);
@@ -3279,16 +3287,17 @@ void Player::UpdateEvolutionCircuitPrototype()
 		TextStyle nameStyle = makeTextStyle(22.0f, { 0.88f, 1.0f, 0.96f, 1.0f });
 		TextStyle detailStyle = makeTextStyle(14.0f, { 0.72f, 0.86f, 0.94f, 0.94f });
 		SetLabel(evolutionCircuitDetailNameLabel_, spriteCommon, selected->displayName,
-			EvolutionVirtualToRender({ 320.0f, 544.0f }), nameStyle);
+			EvolutionVirtualToRender({ 315.0f, 548.0f }), nameStyle);
 		SetLabel(evolutionCircuitDetailMetaLabel_, spriteCommon,
-			"ID  " + selected->id + "    /    REQUIRED  RANK " + std::to_string(selected->requiredRank),
-			EvolutionVirtualToRender({ 320.0f, 579.0f }), detailStyle);
+			"REQUIRED RANK " + std::to_string(selected->requiredRank),
+			EvolutionVirtualToRender({ 1115.0f, 554.0f }), detailStyle);
+		evolutionCircuitDetailMetaLabel_->SetAnchorPoint({ 1.0f, 0.5f });
 		SetLabel(evolutionCircuitDetailRoleLabel_, spriteCommon, GetEvolutionShortRole(*selected),
-			EvolutionVirtualToRender({ 320.0f, 612.0f }), detailStyle);
+			EvolutionVirtualToRender({ 315.0f, 587.0f }), detailStyle);
 		auto formatFloatStat = [&](const char* name, float currentValue, float selectedValue) {
 			char text[96]{};
 			if (current && std::abs(currentValue - selectedValue) > 0.001f) {
-				std::snprintf(text, sizeof(text), "%s   %.2f  ->  %.2f", name, currentValue, selectedValue);
+				std::snprintf(text, sizeof(text), "%s   %.2f  →  %.2f", name, currentValue, selectedValue);
 			} else {
 				std::snprintf(text, sizeof(text), "%s   %.2f", name, selectedValue);
 			}
@@ -3296,23 +3305,23 @@ void Player::UpdateEvolutionCircuitPrototype()
 		};
 		const int currentBarrels = current ? static_cast<int>(current->barrels.size()) : static_cast<int>(selected->barrels.size());
 		const int selectedBarrels = static_cast<int>(selected->barrels.size());
-		std::string barrelText = "BARRELS   " + std::to_string(selectedBarrels);
+		std::string barrelText = "砲身数   " + std::to_string(selectedBarrels);
 		if (current && currentBarrels != selectedBarrels) {
-			barrelText = "BARRELS   " + std::to_string(currentBarrels) + "  ->  " + std::to_string(selectedBarrels);
+			barrelText = "砲身数   " + std::to_string(currentBarrels) + "  →  " + std::to_string(selectedBarrels);
 		}
 		const std::array<std::string, 3> stats = {
-			formatFloatStat("RELOAD", current ? current->reloadScale : selected->reloadScale, selected->reloadScale),
-			formatFloatStat("SPREAD", current ? current->spreadAngleDeg : selected->spreadAngleDeg, selected->spreadAngleDeg),
+			formatFloatStat("発射間隔", current ? current->reloadScale : selected->reloadScale, selected->reloadScale),
+			formatFloatStat("拡散角", current ? current->spreadAngleDeg : selected->spreadAngleDeg, selected->spreadAngleDeg),
 			barrelText
 		};
 		for (size_t i = 0; i < stats.size(); ++i) {
 			SetLabel(evolutionCircuitDetailStatLabels_[i], spriteCommon, stats[i],
-				EvolutionVirtualToRender({ 665.0f, 553.0f + static_cast<float>(i) * 36.0f }), detailStyle);
+				EvolutionVirtualToRender({ 610.0f, 550.0f + static_cast<float>(i) * 39.0f }), detailStyle);
 		}
 	}
-	TextStyle hintStyle = makeTextStyle(13.0f, { 0.50f, 0.76f, 0.82f, 0.84f });
-	SetLabel(evolutionCircuitHintLabel_, spriteCommon, "[ ENTER ]  PREVIEW ONLY     [ C / ESC ]  CLOSE",
-		EvolutionVirtualToRender({ 1188.0f, 675.0f }), hintStyle);
+	TextStyle hintStyle = makeTextStyle(12.5f, { 0.46f, 0.68f, 0.74f, 0.76f });
+	SetLabel(evolutionCircuitHintLabel_, spriteCommon, "PREVIEW MODE     ESC  CLOSE",
+		EvolutionVirtualToRender({ 1150.0f, 650.0f }), hintStyle);
 	evolutionCircuitHintLabel_->SetAnchorPoint({ 1.0f, 0.5f });
 	PrepareEvolutionCircuitTextTextures();
 
@@ -4799,8 +4808,11 @@ void Player::DrawEvolutionCircuitAfterPostEffects()
 	}
 	if (staticEvolutionTextEffect_) {
 		std::vector<TextLabel*> neonLabels;
-		neonLabels.reserve(4);
+		neonLabels.reserve(8);
 		if (evolutionCircuitTitleLabel_) neonLabels.push_back(evolutionCircuitTitleLabel_.get());
+		for (const auto& rankLabel : evolutionCircuitRankLabels_) {
+			if (rankLabel) neonLabels.push_back(rankLabel.get());
+		}
 		if (evolutionCircuitDetailNameLabel_) neonLabels.push_back(evolutionCircuitDetailNameLabel_.get());
 		if (evolutionCircuitSelectedNode_ >= 0 &&
 			static_cast<size_t>(evolutionCircuitSelectedNode_) < evolutionCircuitTankButtons_.size() &&
