@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "nodes": [
+    { "classId": "Basic", "lane": 0.32 },
+    { "classId": "Basic_Copy", "lane": 0.72 },
+    { "classId": "Twin", "lane": 0.18 },
+    { "classId": "MachineGun", "lane": 0.40 },
+    { "classId": "Overseer", "lane": 0.70 },
+    { "classId": "Triple", "lane": 0.13 },
+    { "classId": "Triple_Copy", "lane": 0.28 },
+    { "classId": "Assassin", "lane": 0.48 },
+    { "classId": "Bounder", "lane": 0.72 },
+    { "classId": "Ninja", "lane": 0.20 },
+    { "classId": "Smasher", "lane": 0.48 },
+    { "classId": "Summoner", "lane": 0.72 }
+  ],
+  "edges": [
+    { "from": "Basic", "to": "Twin" },
+    { "from": "Basic", "to": "MachineGun" },
+    { "from": "Basic", "to": "Overseer" },
+    { "from": "Basic_Copy", "to": "Overseer" },
+    { "from": "Twin", "to": "Triple" },
+    { "from": "Twin", "to": "Triple_Copy" },
+    { "from": "MachineGun", "to": "Assassin" },
+    { "from": "Overseer", "to": "Bounder" },
+    { "from": "Triple", "to": "Ninja" },
+    { "from": "Triple_Copy", "to": "Ninja" },
+    { "from": "Assassin", "to": "Smasher" },
+    { "from": "Bounder", "to": "Summoner" }
+  ]
+}
