@@ -349,6 +349,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			Vector3 recoilDir = Normalize(dir_) * -1.0f;
 			float recoilPower = 0.01f;
 			if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
+				primaryAttackPerformedEvent_ = true;
 				velocity_ += recoilDir * recoilPower;
 				Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
 			}
@@ -490,10 +491,27 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				SpawnCasing();
 			}
 
+			if (firedByClass || currentClass_ != ClassType::Smasher) {
+				primaryAttackPerformedEvent_ = true;
+			}
 			velocity_ += recoilDir * recoilPower;
 			Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
 		}
 	}
+}
+
+bool Player::ConsumePrimaryAttackPerformedEvent()
+{
+	const bool performed = primaryAttackPerformedEvent_;
+	primaryAttackPerformedEvent_ = false;
+	return performed;
+}
+
+bool Player::ConsumeDashStartedEvent()
+{
+	const bool started = dashStartedEvent_;
+	dashStartedEvent_ = false;
+	return started;
 }
 
 void Player::DroneShoot(BulletManager* BulletManager)
@@ -1198,6 +1216,7 @@ bool Player::ActivatePerfectDodge(const PlayerClassConfig& config)
 
 	velocity_ = Normalize(dashDir) * kDashSpeed;
 	isDashing_ = true;
+	dashStartedEvent_ = true;
 	dashTimer_ = kDashDuration;
 	dashCooldown_ = kDashCooldown * (std::max)(0.05f, config.specialActionCooldownScale);
 	stats_.stamina = (std::max)(0.0f, stats_.stamina - staminaCost);

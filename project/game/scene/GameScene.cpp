@@ -427,6 +427,7 @@ void GameScene::Initialize() {
 	worldTransform_ = InitWorldTransform();
 
 	input_ = Input::GetInstance();
+	LoadTutorialConfig();
 	screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json");
 
 	debugCamera = std::make_unique<DebugCamera>();
@@ -668,6 +669,9 @@ void GameScene::Initialize() {
 			}
 		}
 	}
+	if (IsTutorialCombatSuppressed()) {
+		bossSpawnPosition = { -10000.0f, -10000.0f, 0.0f };
+	}
 	enemy_->Initialize(enemyObject_.get(), bossSpawnPosition, stage_.get());
 	enemy_->SetAttackControllerBulletManager(bulletManager_.get());
 
@@ -780,6 +784,7 @@ void GameScene::Initialize() {
 		Object3dCommon::GetInstance()->GetDxCommon(),
 		Object3dCommon::GetInstance()->GetSrvManager());
 	ApplyGameTextAppearance();
+	InitializeTutorialUi();
 	previousPlayerHp_ = player_ ? player_->GetHp() : 0;
 	previousBossHp_ = enemy_ ? enemy_->GetHp() : 0;
 
@@ -953,6 +958,7 @@ void GameScene::Update() {
 
 		player_->SetDebugNoDamage(debugPlayerNoDamage_);
 		player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime, baseDeltaTime);
+		UpdateTutorial(baseDeltaTime);
 		for (const Player::LaserShotEvent& event : player_->ConsumeLaserShotEvents()) {
 			SpawnPlayerLaser(event);
 		}
@@ -971,16 +977,20 @@ void GameScene::Update() {
 			playerDeathShakeStarted_ = true;
 		}
 
-		enemy_->Update(finalDeltaTime);
-		UpdateLevelBossPhases();
-
-		enemyManager_->Update(*stage_, finalDeltaTime);
+		const bool suppressTutorialCombat = IsTutorialCombatSuppressed();
+		if (!suppressTutorialCombat) {
+			enemy_->Update(finalDeltaTime);
+			UpdateLevelBossPhases();
+			enemyManager_->Update(*stage_, finalDeltaTime);
+		}
 
 		bulletManager_->Update(*stage_, finalDeltaTime);
 
 		// 衝突マネージャの更新
-		collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
-		if (showCollisionDebug_) {
+		if (!suppressTutorialCombat) {
+			collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
+		}
+		if (showCollisionDebug_ && !suppressTutorialCombat) {
 			for (Collider* collider : collisionManager_->GetColliders()) {
 				if (!collider) {
 					continue;
@@ -994,7 +1004,9 @@ void GameScene::Update() {
 			collisionDebugRingManager_->Clear();
 		}
 		collisionDebugRingManager_->Update(finalDeltaTime);
-		UpdateGameplayEventEffects(baseDeltaTime, justDodgeTriggered);
+		if (!suppressTutorialCombat) {
+			UpdateGameplayEventEffects(baseDeltaTime, justDodgeTriggered);
+		}
 	} else {
 		collisionDebugRingManager_->Clear();
 		if (gameFlowState_ == GameFlowState::BossDefeatSequence && enemy_) {
@@ -1051,7 +1063,7 @@ void GameScene::Update() {
 	
 		if (fade_->IsFinished()) {
 			phase_ = Phase::kMain;
-			if (!bossEntryTriggered_) {
+			if (!bossEntryTriggered_ && !IsTutorialCombatSuppressed()) {
 				bossEntryTriggered_ = true;
 				screenEffectDirector_.TriggerBossEntry();
 				SetEventCallout("WARNING: BOSS UNIT", 1.20f);
@@ -1123,6 +1135,245 @@ void GameScene::InitializeSubmissionUi()
 	resultMenuText_->SetAnchorPoint({ 0.5f, 0.5f });
 	resultMenuText_->SetPosition({ WinApp::kClientWidth * 0.5f, 555.0f });
 
+}
+
+bool GameScene::LoadTutorialConfig(const std::string& filePath)
+{
+	std::ifstream file(filePath);
+	if (!file.is_open()) {
+		std::cerr << "[Tutorial] Failed to open config: " << filePath << std::endl;
+		return false;
+	}
+
+	try {
+		nlohmann::json configJson;
+		file >> configJson;
+		tutorialConfig_.enabled = configJson.value("enabled", tutorialConfig_.enabled);
+		tutorialConfig_.moveDistance = (std::max)(0.1f, configJson.value("moveDistance", tutorialConfig_.moveDistance));
+		tutorialConfig_.stepCompleteDelay = (std::max)(0.0f, configJson.value("stepCompleteDelay", tutorialConfig_.stepCompleteDelay));
+		tutorialConfig_.phase1CompleteDisplayDuration =
+			(std::max)(0.0f, configJson.value("phase1CompleteDisplayDuration", tutorialConfig_.phase1CompleteDisplayDuration));
+		return true;
+	} catch (const std::exception& exception) {
+		std::cerr << "[Tutorial] Invalid config: " << exception.what() << std::endl;
+		return false;
+	}
+}
+
+void GameScene::InitializeTutorialUi()
+{
+	if (!tutorialConfig_.enabled || !player_) {
+		tutorialUiVisible_ = false;
+		return;
+	}
+
+	tutorialPanel_ = std::make_unique<Sprite>();
+	tutorialPanel_->Initialize(SpriteCommon::GetInstance(), "resources/white512x512.png");
+	tutorialPanel_->SetAnchorPoint({ 0.5f, 0.5f });
+	tutorialPanel_->SetPosition({ WinApp::kClientWidth * 0.5f, 128.0f });
+	tutorialPanel_->SetSize({ 390.0f, 126.0f });
+	tutorialPanel_->SetColor({ 0.004f, 0.012f, 0.030f, 0.78f });
+	tutorialPanel_->Update();
+
+	TextStyle titleStyle{};
+	titleStyle.fontFamily = "Meiryo";
+	titleStyle.fontSize = 28.0f;
+	titleStyle.color = { 0.42f, 1.0f, 0.82f, 1.0f };
+	titleStyle.outlineColor = { 0.0f, 0.03f, 0.08f, 0.96f };
+	titleStyle.outlineThickness = 3.0f;
+	titleStyle.padding = 7.0f;
+	tutorialTitleText_ = std::make_unique<TextLabel>();
+	tutorialTitleText_->Initialize(SpriteCommon::GetInstance(), "MOVE", titleStyle);
+	tutorialTitleText_->SetAnchorPoint({ 0.5f, 0.5f });
+	tutorialTitleText_->SetPosition({ WinApp::kClientWidth * 0.5f, 91.0f });
+
+	TextStyle inputStyle = titleStyle;
+	inputStyle.fontSize = 20.0f;
+	inputStyle.color = { 0.90f, 1.0f, 1.0f, 1.0f };
+	inputStyle.outlineThickness = 2.0f;
+	tutorialInputText_ = std::make_unique<TextLabel>();
+	tutorialInputText_->Initialize(SpriteCommon::GetInstance(), "W A S D", inputStyle);
+	tutorialInputText_->SetAnchorPoint({ 0.5f, 0.5f });
+	tutorialInputText_->SetPosition({ WinApp::kClientWidth * 0.5f, 128.0f });
+
+	TextStyle descriptionStyle = inputStyle;
+	descriptionStyle.fontSize = 15.0f;
+	descriptionStyle.color = { 0.78f, 0.86f, 0.92f, 0.92f };
+	tutorialDescriptionText_ = std::make_unique<TextLabel>();
+	tutorialDescriptionText_->Initialize(SpriteCommon::GetInstance(), "移動してみよう", descriptionStyle);
+	tutorialDescriptionText_->SetAnchorPoint({ 0.5f, 0.5f });
+	tutorialDescriptionText_->SetPosition({ WinApp::kClientWidth * 0.5f, 160.0f });
+
+	tutorialPreviousPlayerPosition_ = player_->GetWorldPosition();
+	tutorialMoveDistance_ = 0.0f;
+	player_->ConsumePrimaryAttackPerformedEvent();
+	player_->ConsumeDashStartedEvent();
+	tutorialUiVisible_ = true;
+	EnterTutorialStep(TutorialStep::Move);
+}
+
+void GameScene::EnterTutorialStep(TutorialStep step)
+{
+	tutorialStep_ = step;
+	tutorialStepCompleting_ = false;
+	tutorialStepCompleteTimer_ = 0.0f;
+
+	if (player_) {
+		if (step == TutorialStep::Move) {
+			tutorialMoveDistance_ = 0.0f;
+			tutorialPreviousPlayerPosition_ = player_->GetWorldPosition();
+			player_->ConsumePrimaryAttackPerformedEvent();
+			player_->ConsumeDashStartedEvent();
+		} else if (step == TutorialStep::Shoot) {
+			player_->ConsumePrimaryAttackPerformedEvent();
+			player_->ConsumeDashStartedEvent();
+		} else if (step == TutorialStep::Dash) {
+			player_->ConsumeDashStartedEvent();
+		}
+	}
+
+	if (step == TutorialStep::Phase1Complete) {
+		tutorialPhase1CompleteTimer_ = tutorialConfig_.phase1CompleteDisplayDuration;
+		tutorialUiVisible_ = true;
+	}
+	UpdateTutorialText();
+}
+
+void GameScene::CompleteTutorialStep()
+{
+	if (tutorialStepCompleting_ || tutorialStep_ == TutorialStep::Phase1Complete) {
+		return;
+	}
+	tutorialStepCompleting_ = true;
+	tutorialStepCompleteTimer_ = tutorialConfig_.stepCompleteDelay;
+	UpdateTutorialText();
+}
+
+void GameScene::UpdateTutorial(float deltaTime)
+{
+	if (!tutorialConfig_.enabled || !player_) {
+		return;
+	}
+
+	const Vector3 currentPosition = player_->GetWorldPosition();
+	const float actualMoveDistance = Length(currentPosition - tutorialPreviousPlayerPosition_);
+	tutorialPreviousPlayerPosition_ = currentPosition;
+
+	if (tutorialStep_ == TutorialStep::Phase1Complete) {
+		if (tutorialUiVisible_) {
+			tutorialPhase1CompleteTimer_ = (std::max)(0.0f, tutorialPhase1CompleteTimer_ - deltaTime);
+			if (tutorialPhase1CompleteTimer_ <= 0.0f) {
+				tutorialUiVisible_ = false;
+			}
+		}
+		return;
+	}
+
+	if (tutorialStepCompleting_) {
+		tutorialStepCompleteTimer_ = (std::max)(0.0f, tutorialStepCompleteTimer_ - deltaTime);
+		if (tutorialStepCompleteTimer_ <= 0.0f) {
+			switch (tutorialStep_) {
+			case TutorialStep::Move:
+				EnterTutorialStep(TutorialStep::Shoot);
+				break;
+			case TutorialStep::Shoot:
+				EnterTutorialStep(TutorialStep::Dash);
+				break;
+			case TutorialStep::Dash:
+				EnterTutorialStep(TutorialStep::Phase1Complete);
+				break;
+			case TutorialStep::Phase1Complete:
+				break;
+			}
+		}
+		return;
+	}
+
+	switch (tutorialStep_) {
+	case TutorialStep::Move:
+		if (player_->HasMovementInput() && !player_->IsDashing()) {
+			tutorialMoveDistance_ += actualMoveDistance;
+		}
+		if (tutorialMoveDistance_ >= tutorialConfig_.moveDistance) {
+			CompleteTutorialStep();
+		}
+		break;
+	case TutorialStep::Shoot:
+		if (player_->ConsumePrimaryAttackPerformedEvent()) {
+			CompleteTutorialStep();
+		}
+		break;
+	case TutorialStep::Dash:
+		if (player_->ConsumeDashStartedEvent()) {
+			CompleteTutorialStep();
+		}
+		break;
+	case TutorialStep::Phase1Complete:
+		break;
+	}
+}
+
+void GameScene::UpdateTutorialText()
+{
+	if (!tutorialTitleText_ || !tutorialInputText_ || !tutorialDescriptionText_) {
+		return;
+	}
+
+	TextStyle inputStyle = tutorialInputText_->GetStyle();
+	inputStyle.color = tutorialStepCompleting_ || tutorialStep_ == TutorialStep::Phase1Complete
+		? Vector4{ 0.42f, 1.0f, 0.62f, 1.0f }
+		: Vector4{ 0.90f, 1.0f, 1.0f, 1.0f };
+	tutorialInputText_->SetStyle(inputStyle);
+
+	if (tutorialStepCompleting_) {
+		switch (tutorialStep_) {
+		case TutorialStep::Move: tutorialTitleText_->SetText("MOVE"); break;
+		case TutorialStep::Shoot: tutorialTitleText_->SetText("SHOOT"); break;
+		case TutorialStep::Dash: tutorialTitleText_->SetText("DASH"); break;
+		case TutorialStep::Phase1Complete: break;
+		}
+		tutorialInputText_->SetText("COMPLETE");
+		tutorialDescriptionText_->SetText("");
+	} else {
+		switch (tutorialStep_) {
+		case TutorialStep::Move:
+			tutorialTitleText_->SetText("MOVE");
+			tutorialInputText_->SetText("W A S D");
+			tutorialDescriptionText_->SetText("移動してみよう");
+			break;
+		case TutorialStep::Shoot:
+			tutorialTitleText_->SetText("SHOOT");
+			tutorialInputText_->SetText("LEFT CLICK");
+			tutorialDescriptionText_->SetText("弾を撃とう");
+			break;
+		case TutorialStep::Dash:
+			tutorialTitleText_->SetText("DASH");
+			tutorialInputText_->SetText("RIGHT CLICK");
+			tutorialDescriptionText_->SetText("ダッシュしよう");
+			break;
+		case TutorialStep::Phase1Complete:
+			tutorialTitleText_->SetText("BASIC CONTROLS");
+			tutorialInputText_->SetText("COMPLETE");
+			tutorialDescriptionText_->SetText("");
+			break;
+		}
+	}
+
+	tutorialTitleText_->PrepareForDraw();
+	tutorialInputText_->PrepareForDraw();
+	tutorialDescriptionText_->PrepareForDraw();
+}
+
+void GameScene::DrawTutorialUi()
+{
+	if (!tutorialConfig_.enabled || !tutorialUiVisible_ || !player_ || player_->IsChangeMode() ||
+		gameFlowState_ != GameFlowState::Playing) {
+		return;
+	}
+	if (tutorialPanel_) tutorialPanel_->Draw();
+	if (tutorialTitleText_) tutorialTitleText_->Draw();
+	if (tutorialInputText_) tutorialInputText_->Draw();
+	if (tutorialDescriptionText_) tutorialDescriptionText_->Draw();
 }
 
 void GameScene::UpdateGameplayEventEffects(float, bool)
@@ -1417,10 +1668,12 @@ void GameScene::DrawPostEffect3D() {
 
 	profile("Base Objects", true, [&]() {
 		player_->Draw(playerNeonRenderMode_ == 0);
-		if (gameFlowState_ != GameFlowState::BossDefeatSequence) {
+		if (!IsTutorialCombatSuppressed() && gameFlowState_ != GameFlowState::BossDefeatSequence) {
 			enemy_->Draw(bossNeonRenderMode_ == 0);
 		}
-		enemyManager_->Draw(true);
+		if (!IsTutorialCombatSuppressed()) {
+			enemyManager_->Draw(true);
+		}
 		bulletManager_->Draw();
 		DrawLevelItems();
 		stage_->DrawVisible(GetActiveCameraPosition(camera.get(), debugCamera.get()), 38.0f, 24.0f, showStageNormalBlockBodies_);
@@ -1489,11 +1742,12 @@ void GameScene::DrawPostEffect3D() {
 				player_->DrawBodyOnly();
 			}
 			if (useEnemyPost &&
+				!IsTutorialCombatSuppressed() &&
 				bossNeonRenderMode_ == 0 &&
 				gameFlowState_ != GameFlowState::BossDefeatSequence) {
 				enemy_->DrawBodyOnly();
 			}
-			if (useExpEnemyPost) {
+			if (useExpEnemyPost && !IsTutorialCombatSuppressed()) {
 				enemyManager_->DrawBodyOnlyVisible(
 					currentCameraPos,
 					expEnemyPostVisibleHalfWidth_,
@@ -3401,8 +3655,10 @@ void GameScene::ApplyLevelData(const LevelData& levelData)
 	for (const LevelObject& object : levelData.objects) {
 		ApplyLevelObject(object, false);
 	}
-	for (const LevelSpawnArea& spawnArea : levelData.spawnAreas) {
-		AddLevelSpawnArea(spawnArea);
+	if (!IsTutorialCombatSuppressed()) {
+		for (const LevelSpawnArea& spawnArea : levelData.spawnAreas) {
+			AddLevelSpawnArea(spawnArea);
+		}
 	}
 	levelBossPhases_.clear();
 	levelBossPhases_.reserve(levelData.bossPhases.size());
@@ -3904,6 +4160,10 @@ void GameScene::DrawGameTextBloom()
 	labels.reserve(32);
 	if (gameFlowState_ == GameFlowState::Playing) {
 		player_->AppendGameplayNeonTextLabels(labels);
+		if (tutorialConfig_.enabled && tutorialUiVisible_) {
+			if (tutorialTitleText_) labels.push_back(tutorialTitleText_.get());
+			if (tutorialInputText_) labels.push_back(tutorialInputText_.get());
+		}
 	}
 	if (eventCalloutTimer_ > 0.0f && eventCalloutText_) {
 		labels.push_back(eventCalloutText_.get());
@@ -4868,11 +5128,17 @@ void GameScene::ApplyLevelObject(const LevelObject& levelObject, bool allowBossS
 		return;
 	}
 	if (levelObject.type == "Enemy") {
+		if (IsTutorialCombatSuppressed()) {
+			return;
+		}
 		const int hp = ReadCustomInt(levelObject.customProperties, "hp", -1);
 		enemyManager_->SpawnLevelEnemy(levelObject.transform.translate, levelObject.prefab, hp);
 		return;
 	}
 	if (levelObject.type == "SpawnArea") {
+		if (IsTutorialCombatSuppressed()) {
+			return;
+		}
 		AddLevelSpawnAreaFromObject(levelObject);
 		return;
 	}
@@ -5100,7 +5366,9 @@ void GameScene::DrawShadow() {
 
 void GameScene::DrawSprite() {
 
-	enemy_->DrawSprite();
+	if (!IsTutorialCombatSuppressed()) {
+		enemy_->DrawSprite();
+	}
 	followHpBarIndex_ = 0;
 	for (auto& vertices : hpBarBackgroundVertices_) { vertices.clear(); }
 	for (auto& vertices : hpBarFillVertices_) { vertices.clear(); }
@@ -5118,7 +5386,7 @@ void GameScene::DrawSprite() {
 				DrawFollowHpBar(drone, drone->GetWorldPosition(), drone->GetHp(), drone->GetMaxHp(), 42.0f, -1.45f);
 			}
 		}
-		if (!enemy_->IsDead()) {
+		if (!IsTutorialCombatSuppressed() && !enemy_->IsDead()) {
 			DrawFollowHpBar(enemy_.get(), enemy_->GetWorldPosition(), enemy_->GetHp(), enemy_->GetMaxHp(), 92.0f, -3.25f);
 		}
 		for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
@@ -5134,10 +5402,11 @@ void GameScene::DrawSprite() {
 		player_->DrawEncyclopedia();
 	}
 	//shotGide->Draw();
-	if (controlGuideText_ && gameFlowState_ == GameFlowState::Playing && !player_->IsChangeMode()) {
+	if (controlGuideText_ && !tutorialConfig_.enabled && gameFlowState_ == GameFlowState::Playing && !player_->IsChangeMode()) {
 		controlGuideText_->SetPosition(showControlGuide_ ? Vector2{ 22.0f, 636.0f } : Vector2{ 22.0f, 690.0f });
 		controlGuideText_->Draw();
 	}
+	DrawTutorialUi();
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	if (fpsText_) {
 		fpsText_->Draw();

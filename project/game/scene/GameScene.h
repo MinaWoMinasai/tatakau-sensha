@@ -152,6 +152,18 @@ private:
 		float bossAimTurnHalfSeconds = 1.0f;
 		std::string statusMessage;
 	};
+	enum class TutorialStep {
+		Move,
+		Shoot,
+		Dash,
+		Phase1Complete,
+	};
+	struct TutorialConfig {
+		bool enabled = true;
+		float moveDistance = 3.0f;
+		float stepCompleteDelay = 0.35f;
+		float phase1CompleteDisplayDuration = 1.0f;
+	};
 
 	void InitializeFollowHpBars(size_t count);
 	void InitializeFollowHpBarBatch();
@@ -237,6 +249,14 @@ private:
 	void DrawBulletStatusDebugOverlay();
 	void DrawBulletStatusDebugTable();
 	void InitializeSubmissionUi();
+	bool LoadTutorialConfig(const std::string& filePath = "resources/configs/tutorial.json");
+	void InitializeTutorialUi();
+	void UpdateTutorial(float deltaTime);
+	void EnterTutorialStep(TutorialStep step);
+	void CompleteTutorialStep();
+	void UpdateTutorialText();
+	void DrawTutorialUi();
+	bool IsTutorialCombatSuppressed() const { return tutorialConfig_.enabled; }
 	void UpdateGameFlow(float baseDeltaTime);
 	void UpdateGameplayEventEffects(float baseDeltaTime, bool justDodgeTriggered);
 	void BeginBossDefeatSequence();
@@ -336,6 +356,10 @@ private:
 	std::unique_ptr<TextLabel> resultSummaryText_;
 	std::unique_ptr<TextLabel> resultMenuText_;
 	std::unique_ptr<TextLabel> eventCalloutText_;
+	std::unique_ptr<Sprite> tutorialPanel_;
+	std::unique_ptr<TextLabel> tutorialTitleText_;
+	std::unique_ptr<TextLabel> tutorialInputText_;
+	std::unique_ptr<TextLabel> tutorialDescriptionText_;
 	std::unique_ptr<NeonTextEffect> gameTextNeonEffect_;
 	int gameTextFontMode_ = 1;
 	bool gameTextNeonEnabled_ = true;
@@ -358,6 +382,14 @@ private:
 	bool showFollowHpBars_ = true;
 	bool showPlayerStaminaBar_ = true;
 	bool showControlGuide_ = true;
+	TutorialConfig tutorialConfig_{};
+	TutorialStep tutorialStep_ = TutorialStep::Move;
+	bool tutorialStepCompleting_ = false;
+	bool tutorialUiVisible_ = false;
+	float tutorialStepCompleteTimer_ = 0.0f;
+	float tutorialPhase1CompleteTimer_ = 0.0f;
+	float tutorialMoveDistance_ = 0.0f;
+	Vector3 tutorialPreviousPlayerPosition_{};
 
 	// カメラ合わせフラグ
 	bool cameraFollow_ = true;
