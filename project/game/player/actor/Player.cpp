@@ -12,6 +12,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <nlohmann/json.hpp>
 
 #ifdef USE_IMGUI
@@ -676,7 +677,16 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	worldTransform_.translate = position;
 	object_->SetTransform(worldTransform_);
 	object_->Update();
-	LoadPlayerClassConfigs();
+	if (!LoadPlayerClassConfigs()) {
+		classConfigs_.clear();
+		classOrder_.clear();
+		for (ClassType type : EditableClassTypes()) {
+			PlayerClassConfig config = CreateDefaultClassConfig(type);
+			classOrder_.push_back(config.id);
+			classConfigs_[config.id] = std::move(config);
+		}
+		std::cerr << "[PlayerClass] Using built-in defaults." << std::endl;
+	}
 	InitializeBarrels();
 	UpdateBarrelLayout();
 
@@ -1365,34 +1375,39 @@ bool Player::ConsumeEvolutionCancelled()
 	return cancelled;
 }
 
-void Player::LoadPlayerClassConfigs(const std::string& path)
+bool Player::LoadPlayerClassConfigs(const std::string& path)
 {
-	classConfigs_.clear();
-	classOrder_.clear();
-	auto loadDefaultClasses = [this]() {
-		for (ClassType type : EditableClassTypes()) {
-			PlayerClassConfig config = CreateDefaultClassConfig(type);
-			classOrder_.push_back(config.id);
-			classConfigs_[config.id] = config;
-		}
+	std::unordered_map<std::string, PlayerClassConfig> loadedConfigs;
+	std::vector<std::string> loadedOrder;
+	auto reportFailure = [](const std::string& reason) {
+		std::cerr << "[PlayerClass] Reload failed: " << reason << std::endl;
+		return false;
 	};
 
 	std::ifstream file(path);
 	if (!file.is_open()) {
-		loadDefaultClasses();
-		return;
+		return reportFailure("could not open " + path);
 	}
 
-	nlohmann::json root;
-	file >> root;
-	const nlohmann::json& classes = root.contains("classes") ? root["classes"] : root;
-	if (!classes.is_array()) {
-		loadDefaultClasses();
-		return;
-	}
+	try {
+		nlohmann::json root;
+		file >> root;
+		if (!root.is_object() || !root.contains("classes") || !root["classes"].is_array()) {
+			return reportFailure("classes must be an array");
+		}
+		const nlohmann::json& classes = root["classes"];
+		if (classes.empty()) {
+			return reportFailure("classes must not be empty");
+		}
 
 	for (const nlohmann::json& item : classes) {
-		const std::string id = item.value("id", "Basic");
+		if (!item.is_object() || !item.contains("id") || !item["id"].is_string()) {
+			return reportFailure("each class requires a string id");
+		}
+		const std::string id = item["id"].get<std::string>();
+		if (id.empty()) {
+			return reportFailure("class id must not be empty");
+		}
 		PlayerClassConfig config = CreateDefaultClassConfig(ClassTypeFromString(id));
 		config.id = id;
 		config.type = ClassTypeFromString(id);
@@ -1437,8 +1452,15 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 		}
 		if (mountsJson) {
 			for (const nlohmann::json& barrelJson : *mountsJson) {
+				if (!barrelJson.is_object()) {
+					return reportFailure("weaponMounts entries must be objects: " + id);
+				}
 				WeaponMountConfig barrel{};
 				barrel.model = barrelJson.value("model", barrel.model);
+				if (barrel.model.empty() ||
+					!std::filesystem::exists(std::filesystem::path("resources") / barrel.model)) {
+					return reportFailure("weapon model not found: " + barrel.model);
+				}
 				barrel.barrelShape = BarrelShapeFromString(barrelJson.value("barrelShape", std::string(BarrelShapeToString(barrel.barrelShape))));
 				barrel.offset = ReadVector3(barrelJson.value("offset", nlohmann::json::array()), barrel.offset);
 				barrel.scale = ReadVector3(barrelJson.value("scale", nlohmann::json::array()), barrel.scale);
@@ -1491,25 +1513,54 @@ void Player::LoadPlayerClassConfigs(const std::string& path)
 			config.barrels = CreateDefaultClassConfig(config.type).barrels;
 		}
 
-		if (classConfigs_.find(config.id) == classConfigs_.end()) {
-			classOrder_.push_back(config.id);
+		if (loadedConfigs.find(config.id) == loadedConfigs.end()) {
+			loadedOrder.push_back(config.id);
 		}
-		classConfigs_[config.id] = config;
+		loadedConfigs[config.id] = config;
 	}
 
 	// A valid configuration is authoritative: classes omitted from the JSON
 	// stay unavailable. Basic is the only mandatory fallback needed to keep the
 	// player in a valid state when an accidentally empty file is supplied.
-	if (classConfigs_.find("Basic") == classConfigs_.end()) {
+	if (loadedConfigs.find("Basic") == loadedConfigs.end()) {
 		PlayerClassConfig basic = CreateDefaultClassConfig(ClassType::Basic);
-		classOrder_.insert(classOrder_.begin(), basic.id);
-		classConfigs_[basic.id] = basic;
+		loadedOrder.insert(loadedOrder.begin(), basic.id);
+		loadedConfigs[basic.id] = basic;
 	}
 
-	if (classConfigs_.find(currentClassId_) == classConfigs_.end()) {
-		currentClassId_ = "Basic";
-		currentClass_ = ClassType::Basic;
+	if (loadedConfigs.find(currentClassId_) == loadedConfigs.end()) {
+		return reportFailure("current class is missing: " + currentClassId_);
 	}
+	} catch (const std::exception& e) {
+		return reportFailure(e.what());
+	}
+	classConfigs_.swap(loadedConfigs);
+	classOrder_.swap(loadedOrder);
+	return true;
+}
+
+bool Player::ReloadPlayerClassConfigs(const std::string& path)
+{
+	const std::string activeClassId = currentClassId_;
+	if (!LoadPlayerClassConfigs(path)) {
+		return false;
+	}
+
+	const PlayerClassConfig* config = GetClassConfig(activeClassId);
+	if (!config) {
+		std::cerr << "[PlayerClass] Reload failed: current class is unavailable." << std::endl;
+		return false;
+	}
+	currentClassId_ = activeClassId;
+	currentClass_ = config->type;
+	shootBarrelIndex_ = 0;
+	shootGroupIndex_ = 0;
+	weaponGroupCooldowns_.clear();
+	InitializeBarrels();
+	UpdateBarrelLayout();
+	std::cerr << "[PlayerClass] Reload succeeded. Current class: "
+		<< currentClassId_ << std::endl;
+	return true;
 }
 
 Player::PlayerClassConfig Player::CreateDefaultClassConfig(ClassType type) const

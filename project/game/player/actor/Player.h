@@ -294,6 +294,8 @@ public:
 	bool RefundStatUpgrade(int index);
 	const PlayerStats& GetStats() const { return stats_; }
 	bool GetTankButtonVisualData(const std::string& classId, TankButtonVisualData& output) const;
+	bool ReloadPlayerClassConfigs(
+		const std::string& path = "resources/configs/playerClasses.json");
 
 	bool RequestSlow();
 
@@ -474,7 +476,7 @@ private:
 	bool TryConfirmEvolutionById(const std::string& classId);
 	bool CanEvolveTo(const std::string& classId) const;
 	bool HasEvolutionEdge(const std::string& from, const std::string& to) const;
-	void LoadPlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json");
+	bool LoadPlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json");
 	void SavePlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json") const;
 	PlayerClassConfig CreateDefaultClassConfig(ClassType type) const;
 	const PlayerClassConfig* GetClassConfig(ClassType type) const;
