@@ -16,7 +16,20 @@
       <p class="status-text">JSON連携試作: 読み込み / 機体選択 / 編集JSON保存</p>
     </header>
 
-    <section class="toolbar" aria-label="JSON操作">
+    <section class="direct-save-panel" aria-label="ゲーム用JSON保存">
+      <div class="direct-save-actions">
+        <button id="open-game-json-button" type="button">ゲーム用JSONを開く</button>
+        <button id="save-game-json-button" type="button" class="primary-button" disabled>ゲームへ保存</button>
+        <button id="export-json-button" type="button">別ファイルとして書き出す</button>
+      </div>
+      <div class="save-target-row">
+        <span class="save-target-label">現在の保存先</span>
+        <strong id="game-json-target">ゲーム用JSONが選択されていません</strong>
+        <span id="direct-save-support" class="direct-save-support" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <section class="toolbar" aria-label="編集操作">
       <label class="file-button">
         JSONを読み込む
         <input id="json-file-input" type="file" accept="application/json,.json">
@@ -27,8 +40,7 @@
       </label>
       <button id="new-class-button" type="button">新規機体</button>
       <button id="duplicate-class-button" type="button">機体を複製</button>
-      <button id="export-json-button" type="button">JSONを書き出す</button>
-      <span id="json-status" class="json-status">仮データを表示中</span>
+      <span id="json-status" class="json-status" role="status" aria-live="polite">仮データを表示中</span>
     </section>
 
     <section class="editor-layout">

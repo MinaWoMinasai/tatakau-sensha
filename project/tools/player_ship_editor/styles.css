@@ -38,6 +38,7 @@ body {
   padding-bottom: 18px;
 }
 
+.direct-save-panel,
 .toolbar {
   display: flex;
   align-items: center;
@@ -48,6 +49,46 @@ body {
   border: 1px solid var(--line);
   background: var(--panel);
   border-radius: 8px;
+}
+
+.direct-save-panel {
+  align-items: stretch;
+  justify-content: space-between;
+  border-color: rgba(125, 255, 154, 0.36);
+  background: linear-gradient(90deg, rgba(18, 38, 36, 0.92), var(--panel));
+}
+
+.direct-save-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.primary-button:not(:disabled) {
+  border-color: rgba(125, 255, 154, 0.78);
+  color: var(--green);
+  box-shadow: 0 0 14px rgba(125, 255, 154, 0.14);
+}
+
+.save-target-row {
+  display: flex;
+  min-width: 260px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.save-target-label,
+.direct-save-support {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#game-json-target {
+  overflow-wrap: anywhere;
+  color: var(--green);
 }
 
 .file-button,
@@ -283,6 +324,7 @@ dd {
   }
 
   .top-bar,
+  .direct-save-panel,
   .toolbar,
   .editor-layout {
     display: block;
@@ -292,8 +334,24 @@ dd {
     font-size: 22px;
   }
 
+  .direct-save-panel,
   .toolbar {
     padding: 10px;
+  }
+
+  .direct-save-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .direct-save-actions > *,
+  .save-target-row {
+    width: 100%;
+  }
+
+  .save-target-row {
+    min-width: 0;
+    margin-top: 12px;
   }
 
   .status-text {
