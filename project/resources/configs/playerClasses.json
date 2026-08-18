@@ -18,7 +18,7 @@
         1.0,
         1.0
       ],
-      "bodyShape": "Circle",
+      "bodyShape": "Triangle",
       "bulletCount": 1,
       "bulletDamageScale": 1.0,
       "bulletSpeedScale": 1.0,
