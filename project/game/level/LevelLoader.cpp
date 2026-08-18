@@ -2,6 +2,7 @@
 #include "Calculation.h"
 #include <fstream>
 #include <iostream>
+#include <numbers>
 
 namespace {
 
@@ -27,6 +28,20 @@ Vector3 ReadVector3Object(const nlohmann::json& json, const Vector3& fallback)
 		value.z = json["z"].get<float>();
 	}
 	return value;
+}
+
+Vector3 ReadVector3Array(const nlohmann::json& json, const Vector3& fallback)
+{
+	if (!json.is_array() || json.size() < 3 ||
+		!json[0].is_number() || !json[1].is_number() || !json[2].is_number()) {
+		return fallback;
+	}
+
+	return {
+		json[0].get<float>(),
+		json[1].get<float>(),
+		json[2].get<float>()
+	};
 }
 
 std::string ReadString(const nlohmann::json& json, const char* key, const std::string& fallback)
@@ -78,6 +93,45 @@ LevelObject ReadLevelObject(const nlohmann::json& objectJson)
 	return object;
 }
 
+LevelObject ReadBlenderLevelObject(const nlohmann::json& objectJson)
+{
+	LevelObject object{};
+	object.name = ReadString(objectJson, "name", "");
+	object.type = ReadString(objectJson, "type", "");
+	object.prefab = ReadString(objectJson, "file_name", "");
+	object.transform = InitWorldTransform();
+
+	const nlohmann::json transformJson =
+		objectJson.value("transform", nlohmann::json::object());
+	const Vector3 blenderTranslation = ReadVector3Array(
+		transformJson.value("translation", nlohmann::json::array()),
+		{ 0.0f, 0.0f, 0.0f });
+	const Vector3 blenderRotationDegrees = ReadVector3Array(
+		transformJson.value("rotation", nlohmann::json::array()),
+		{ 0.0f, 0.0f, 0.0f });
+	const Vector3 blenderScaling = ReadVector3Array(
+		transformJson.value("scaling", nlohmann::json::array()),
+		{ 1.0f, 1.0f, 1.0f });
+
+	object.transform.translate = {
+		blenderTranslation.x,
+		blenderTranslation.z,
+		blenderTranslation.y
+	};
+	object.transform.scale = {
+		blenderScaling.x,
+		blenderScaling.z,
+		blenderScaling.y
+	};
+	constexpr float kDegreesToRadians = std::numbers::pi_v<float> / 180.0f;
+	object.transform.rotate = {
+		-blenderRotationDegrees.x * kDegreesToRadians,
+		-blenderRotationDegrees.z * kDegreesToRadians,
+		-blenderRotationDegrees.y * kDegreesToRadians
+	};
+	return object;
+}
+
 LevelSpawnArea ReadSpawnArea(const nlohmann::json& areaJson)
 {
 	LevelSpawnArea area{};
@@ -116,6 +170,36 @@ bool LevelLoader::Load(const std::string& filePath, LevelData& outLevel) const
 	if (!json.is_object()) {
 		LogLevelWarning("Level root must be an object: " + filePath);
 		return false;
+	}
+
+	const bool isBlenderLevel = ReadString(json, "name", "") == "scene";
+	if (isBlenderLevel) {
+		outLevel = {};
+		outLevel.toolName = "Blender Level Editor";
+		outLevel.editorMode = "Blender";
+		outLevel.levelName = ReadString(json, "name", "scene");
+
+		if (json.contains("objects") && !json["objects"].is_array()) {
+			LogLevelWarning("Blender objects must be an array: " + filePath);
+			return false;
+		}
+		for (const auto& objectJson : json.value("objects", nlohmann::json::array())) {
+			if (!objectJson.is_object()) {
+				LogLevelWarning("Skipped non-object entry in Blender objects.");
+				continue;
+			}
+			if (ReadString(objectJson, "type", "") != "MESH") {
+				continue;
+			}
+
+			LevelObject object = ReadBlenderLevelObject(objectJson);
+			if (object.prefab.empty()) {
+				LogLevelWarning("Skipped Blender MESH without file_name: " + object.name);
+				continue;
+			}
+			outLevel.objects.push_back(std::move(object));
+		}
+		return true;
 	}
 
 	outLevel = {};

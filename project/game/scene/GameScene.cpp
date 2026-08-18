@@ -3767,7 +3767,27 @@ Vector2 GameScene::GetStagePostCacheUvOffset(const Vector3& currentCameraPos) co
 
 bool GameScene::LoadLevelFile(LevelData& outLevel) const
 {
-	return LevelLoader().Load("resources/levels/level_test.json", outLevel);
+	LevelLoader loader;
+	if (!loader.Load("resources/levels/level_test.json", outLevel)) {
+		return false;
+	}
+
+	constexpr const char* kBlenderLevelPath = "resources/levels/blender_scene.json";
+	if (!std::filesystem::exists(kBlenderLevelPath)) {
+		return true;
+	}
+
+	LevelData blenderLevel;
+	if (!loader.Load(kBlenderLevelPath, blenderLevel)) {
+		std::cerr << "[LevelLoader] Blender level was not appended: "
+			<< kBlenderLevelPath << std::endl;
+		return true;
+	}
+	outLevel.objects.insert(
+		outLevel.objects.end(),
+		blenderLevel.objects.begin(),
+		blenderLevel.objects.end());
+	return true;
 }
 
 void GameScene::ReloadLevelData(bool resetSpawnPositions)
@@ -5317,6 +5337,25 @@ void GameScene::ApplyLevelObject(const LevelObject& levelObject, bool allowBossS
 	}
 	if (levelObject.type == "Item") {
 		AddLevelItem(levelObject);
+		return;
+	}
+	if (levelObject.type == "MESH") {
+		const std::filesystem::path modelPath =
+			std::filesystem::path("resources") / levelObject.prefab;
+		if (levelObject.prefab.empty() || !std::filesystem::exists(modelPath)) {
+			std::cerr << "[LevelLoader] Skipped MESH with missing model: "
+				<< levelObject.prefab << " (" << levelObject.name << ")" << std::endl;
+			return;
+		}
+
+		LevelVisualObject visual{};
+		visual.name = levelObject.name;
+		visual.object = std::make_unique<Object3d>();
+		visual.object->Initialize();
+		visual.object->SetModel(levelObject.prefab);
+		visual.object->SetTransform(levelObject.transform);
+		visual.object->Update();
+		levelItems_.push_back(std::move(visual));
 		return;
 	}
 
