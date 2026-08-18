@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <filesystem>
 #include <vector>
 #include <unordered_map>
 #include <d3d12.h>
@@ -273,6 +274,9 @@ private:
 	void ConfirmResultSelection();
 	void UpdateResultText();
 	void SetEventCallout(const std::string& text, float duration);
+	void InitializePlayerClassConfigWatch();
+	void UpdatePlayerClassConfigWatch(float deltaTime);
+	bool ReloadPlayerClassConfig(bool automatic);
 	Vector2 WorldToScreenUv(const Vector3& worldPos) const;
 
 	struct HpBarVisibility {
@@ -428,6 +432,13 @@ private:
 	bool bossDefeatImpactTriggered_ = false;
 	float playTime_ = 0.0f;
 	float eventCalloutTimer_ = 0.0f;
+	std::filesystem::file_time_type playerClassConfigObservedWriteTime_{};
+	std::filesystem::file_time_type playerClassConfigLoadedWriteTime_{};
+	float playerClassConfigPollTimer_ = 0.0f;
+	float playerClassConfigDebounceTimer_ = 0.0f;
+	bool playerClassConfigHasObservedWriteTime_ = false;
+	bool playerClassConfigHasLoadedWriteTime_ = false;
+	bool playerClassConfigReloadPending_ = false;
 	int resultSelection_ = 0;
 	int justDodgeCount_ = 0;
 	int damageTaken_ = 0;
