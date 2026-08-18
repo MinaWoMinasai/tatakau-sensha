@@ -10,18 +10,18 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
-      "bodyShape": "Triangle",
+      "bodyShape": "Circle",
       "bulletCount": 1,
-      "bulletDamageScale": 1.0,
-      "bulletSpeedScale": 1.0,
+      "bulletDamageScale": 1,
+      "bulletSpeedScale": 1,
       "displayName": "ノーマル",
       "fireAllBarrels": false,
       "id": "Basic",
@@ -30,46 +30,46 @@
       "randomSpread": true,
       "recoilPower": 0.009999999776482582,
       "reflect": false,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "requiredRank": 1,
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 10.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 10,
       "usesDrone": false,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.1393986940383911,
-            1.0,
+            1,
             0.11196911334991455,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 172.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 172,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -81,24 +81,24 @@
           "meleeRange": 6.800000190734863,
           "meleeWidth": 0.019999999552965164,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
-            0.0,
-            0.0
+            0,
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -118,18 +118,18 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
       "bodyShape": "Circle",
       "bulletCount": 1,
-      "bulletDamageScale": 1.0,
-      "bulletSpeedScale": 1.0,
+      "bulletDamageScale": 1,
+      "bulletSpeedScale": 1,
       "displayName": "ツイン",
       "fireAllBarrels": false,
       "id": "Twin",
@@ -143,41 +143,41 @@
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 2.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 2,
       "usesDrone": false,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -189,24 +189,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
             -0.3400000035762787,
-            0.0
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -215,34 +215,34 @@
           "weaponType": "Projectile"
         },
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -254,24 +254,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
             0.3400000035762787,
-            0.0
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -291,18 +291,18 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
       "bodyShape": "Circle",
       "bulletCount": 1,
-      "bulletDamageScale": 1.0,
-      "bulletSpeedScale": 1.0,
+      "bulletDamageScale": 1,
+      "bulletSpeedScale": 1,
       "displayName": "マシンガン",
       "fireAllBarrels": false,
       "id": "MachineGun",
@@ -316,41 +316,41 @@
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 30.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 30,
       "usesDrone": false,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -362,24 +362,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
-            0.0,
-            0.0
+            0,
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -399,66 +399,66 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
       "bodyShape": "Circle",
       "bulletCount": 1,
-      "bulletDamageScale": 1.0,
-      "bulletSpeedScale": 1.0,
+      "bulletDamageScale": 1,
+      "bulletSpeedScale": 1,
       "displayName": "ドローン",
       "fireAllBarrels": false,
       "id": "Overseer",
       "maxDrones": 32,
       "penetrate": false,
       "randomSpread": true,
-      "recoilPower": 0.0,
+      "recoilPower": 0,
       "reflect": false,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "requiredRank": 2,
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 10.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 10,
       "usesDrone": true,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -470,24 +470,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
-            0.0,
-            0.0
+            0,
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -507,18 +507,18 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
       "bodyShape": "Circle",
       "bulletCount": 1,
-      "bulletDamageScale": 1.0,
-      "bulletSpeedScale": 1.0,
+      "bulletDamageScale": 1,
+      "bulletSpeedScale": 1,
       "displayName": "トリプル",
       "fireAllBarrels": true,
       "id": "Triple",
@@ -527,46 +527,46 @@
       "randomSpread": false,
       "recoilPower": 0.009999999776482582,
       "reflect": false,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "requiredRank": 3,
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 0.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 0,
       "usesDrone": false,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -578,24 +578,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.5078742504119873,
             -0.3556174039840698,
-            0.0
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -604,34 +604,34 @@
           "weaponType": "Projectile"
         },
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -643,24 +643,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.6200000047683716,
-            0.0,
-            0.0
+            0,
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -669,34 +669,34 @@
           "weaponType": "Projectile"
         },
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -708,24 +708,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.5078742504119873,
             0.3556174039840698,
-            0.0
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -745,17 +745,17 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
       "bodyShape": "Circle",
       "bulletCount": 1,
-      "bulletDamageScale": 1.0,
+      "bulletDamageScale": 1,
       "bulletSpeedScale": 1.5,
       "displayName": "アサシン",
       "fireAllBarrels": false,
@@ -765,46 +765,46 @@
       "randomSpread": true,
       "recoilPower": 0.009999999776482582,
       "reflect": false,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "requiredRank": 3,
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 10.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 10,
       "usesDrone": false,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -816,24 +816,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
-            0.0,
-            0.0
+            0,
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -853,18 +853,18 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
       "bodyShape": "Circle",
       "bulletCount": 1,
-      "bulletDamageScale": 1.0,
-      "bulletSpeedScale": 1.0,
+      "bulletDamageScale": 1,
+      "bulletSpeedScale": 1,
       "displayName": "バウンダー",
       "fireAllBarrels": false,
       "id": "Bounder",
@@ -873,46 +873,46 @@
       "randomSpread": true,
       "recoilPower": 0.009999999776482582,
       "reflect": true,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "requiredRank": 3,
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 10.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 10,
       "usesDrone": false,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -924,24 +924,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
-            0.0,
-            0.0
+            0,
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -961,18 +961,18 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
       "bodyShape": "Circle",
       "bulletCount": 3,
-      "bulletDamageScale": 1.0,
-      "bulletSpeedScale": 1.0,
+      "bulletDamageScale": 1,
+      "bulletSpeedScale": 1,
       "displayName": "ニンジャ",
       "fireAllBarrels": false,
       "id": "Ninja",
@@ -981,46 +981,46 @@
       "randomSpread": false,
       "recoilPower": 0.009999999776482582,
       "reflect": false,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "requiredRank": 4,
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 15.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 15,
       "usesDrone": false,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -1032,24 +1032,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
-            0.0,
-            0.0
+            0,
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -1069,18 +1069,18 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
       "bodyShape": "Circle",
       "bulletCount": 1,
-      "bulletDamageScale": 1.0,
-      "bulletSpeedScale": 1.0,
+      "bulletDamageScale": 1,
+      "bulletSpeedScale": 1,
       "displayName": "スマッシャー",
       "fireAllBarrels": false,
       "id": "Smasher",
@@ -1089,46 +1089,46 @@
       "randomSpread": true,
       "recoilPower": 0.009999999776482582,
       "reflect": false,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "requiredRank": 4,
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 10.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 10,
       "usesDrone": false,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -1140,24 +1140,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
-            0.0,
-            0.0
+            0,
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -1177,18 +1177,18 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
       "bodyShape": "Circle",
       "bulletCount": 1,
-      "bulletDamageScale": 1.0,
-      "bulletSpeedScale": 1.0,
+      "bulletDamageScale": 1,
+      "bulletSpeedScale": 1,
       "displayName": "サモナー",
       "fireAllBarrels": false,
       "id": "Summoner",
@@ -1197,46 +1197,46 @@
       "randomSpread": true,
       "recoilPower": 0.009999999776482582,
       "reflect": false,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "requiredRank": 4,
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 10.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 10,
       "usesDrone": false,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -1248,24 +1248,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
-            0.0,
-            0.0
+            0,
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -1285,18 +1285,18 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
       "bodyShape": "Circle",
       "bulletCount": 1,
-      "bulletDamageScale": 1.0,
-      "bulletSpeedScale": 1.0,
+      "bulletDamageScale": 1,
+      "bulletSpeedScale": 1,
       "displayName": "トリプルガン",
       "fireAllBarrels": false,
       "id": "Triple_Copy",
@@ -1305,46 +1305,46 @@
       "randomSpread": false,
       "recoilPower": 0.009999999776482582,
       "reflect": false,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "requiredRank": 3,
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 0.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 0,
       "usesDrone": false,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 105.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 105,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -1356,24 +1356,24 @@
           "meleeRange": 3.4000000953674316,
           "meleeWidth": 0.20000000298023224,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
-            0.0,
-            0.0
+            0,
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
@@ -1393,18 +1393,18 @@
       ],
       "bodyOutlineColor": [
         0.5,
-        1.0,
+        1,
         0.3499999940395355,
-        1.0
+        1
       ],
       "bodyScale": [
-        1.0,
-        1.0
+        1,
+        1
       ],
       "bodyShape": "Circle",
       "bulletCount": 1,
-      "bulletDamageScale": 1.0,
-      "bulletSpeedScale": 1.0,
+      "bulletDamageScale": 1,
+      "bulletSpeedScale": 1,
       "displayName": "ソード",
       "fireAllBarrels": false,
       "id": "Basic_Copy",
@@ -1413,46 +1413,46 @@
       "randomSpread": true,
       "recoilPower": 0.009999999776482582,
       "reflect": false,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "requiredRank": 1,
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
       "saberCounterWindow": 0.2800000011920929,
-      "specialActionCooldownScale": 1.0,
+      "specialActionCooldownScale": 1,
       "specialActionId": "perfect_dodge",
-      "specialActionStaminaCost": 1.0,
-      "spreadAngleDeg": 10.0,
+      "specialActionStaminaCost": 1,
+      "spreadAngleDeg": 10,
       "usesDrone": false,
       "weaponMounts": [
         {
-          "angleDeg": 0.0,
+          "angleDeg": 0,
           "barrelColor": [
             0.25,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
           "barrelShape": "Box",
-          "damageScale": 1.0,
+          "damageScale": 1,
           "effectColor": [
             0.1393986940383911,
-            1.0,
+            1,
             0.11196911334991455,
-            1.0
+            1
           ],
           "fireGroup": 0,
           "fires": true,
           "laserDamageInterval": 0.07999999821186066,
           "laserDuration": 0.11999999731779099,
-          "laserRange": 18.0,
+          "laserRange": 18,
           "laserWidth": 0.18000000715255737,
-          "meleeArcDeg": 172.0,
-          "meleeCombo1DamageScale": 1.0,
-          "meleeCombo1RangeScale": 1.0,
+          "meleeArcDeg": 172,
+          "meleeCombo1DamageScale": 1,
+          "meleeCombo1RangeScale": 1,
           "meleeCombo1Recovery": 0.10000000149011612,
           "meleeCombo1Windup": 0.07999999821186066,
-          "meleeCombo2DamageScale": 1.0,
-          "meleeCombo2RangeScale": 1.0,
+          "meleeCombo2DamageScale": 1,
+          "meleeCombo2RangeScale": 1,
           "meleeCombo2Recovery": 0.10999999940395355,
           "meleeCombo2Windup": 0.10000000149011612,
           "meleeCombo3DamageScale": 1.350000023841858,
@@ -1464,24 +1464,24 @@
           "meleeRange": 6.800000190734863,
           "meleeWidth": 0.019999999552965164,
           "mineFuseTime": 0.44999998807907104,
-          "mineLifeTime": 5.0,
+          "mineLifeTime": 5,
           "mineRadius": 3.200000047683716,
           "model": "gunBarrel.obj",
           "muzzleForward": 0.949999988079071,
           "offset": [
             0.7200000286102295,
-            0.0,
-            0.0
+            0,
+            0
           ],
           "outlineColor": [
             0.800000011920929,
-            1.0,
+            1,
             0.949999988079071,
-            1.0
+            1
           ],
-          "projectileSpeedScale": 1.0,
-          "recoilScale": 1.0,
-          "reloadScale": 1.0,
+          "projectileSpeedScale": 1,
+          "recoilScale": 1,
+          "reloadScale": 1,
           "scale": [
             1.25,
             0.23999999463558197,
