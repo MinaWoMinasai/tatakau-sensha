@@ -138,7 +138,7 @@
       "randomSpread": true,
       "recoilPower": 0.009999999776482582,
       "reflect": false,
-      "reloadScale": 0.75,
+      "reloadScale": 0.15,
       "requiredRank": 2,
       "saberCounterDamageScale": 2.5,
       "saberCounterRangeScale": 1.350000023841858,
