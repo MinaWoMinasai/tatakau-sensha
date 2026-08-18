@@ -3,6 +3,123 @@ const POSITION_SNAP_DEGREES = 360 / 16;
 const GAME_UNIT_TO_PIXEL = 80;
 const DRAFT_STORAGE_KEY = "playerShipEditorDraftV1";
 
+const PARAMETER_HELP = {
+  classId: {
+    name: "機体ID",
+    jsonKey: "id",
+    description: "進化ツリーやゲーム内部から機体を識別するための固有IDです。",
+    value: "半角英数字とアンダースコアを使用します。既存IDを変更すると進化経路との対応が外れる場合があります。",
+  },
+  displayName: {
+    name: "表示名",
+    jsonKey: "displayName",
+    description: "進化画面など、プレイヤー向けUIに表示する機体名です。",
+    value: "見た目の名前だけを変更し、機体IDや性能には影響しません。",
+  },
+  bodyShape: {
+    name: "機体形状",
+    jsonKey: "bodyShape",
+    description: "ネオン表示で使用する機体本体のシルエットを選びます。",
+    value: "表示は日本語ですが、JSONには Circle / Box / Triangle / Pentagon の値を保存します。",
+  },
+  requiredRank: {
+    name: "必要ランク",
+    jsonKey: "requiredRank",
+    description: "この機体へ進化するために必要なプレイヤーRankです。進化経路の直接edgeも別途必要です。",
+    value: "値が大きいほど、より後のRankで選択可能になります。単位はRankです。",
+  },
+  reloadScale: {
+    name: "リロード倍率",
+    jsonKey: "reloadScale",
+    description: "基本の射撃間隔に掛ける倍率です。ゲームでは基本間隔 × この値 × 砲塔個別倍率で計算します。",
+    value: "1.0が基準です。小さいほど射撃間隔が短くなり連射が速く、大きいほど遅くなります。",
+  },
+  bulletSpeedScale: {
+    name: "弾速倍率",
+    jsonKey: "bulletSpeedScale",
+    description: "プレイヤーの基本弾速に掛ける倍率です。通常弾の発射速度へ反映されます。",
+    value: "1.0が基準です。大きいほど弾が速く、小さいほど遅くなります。",
+  },
+  bulletDamageScale: {
+    name: "弾ダメージ倍率",
+    jsonKey: "bulletDamageScale",
+    description: "プレイヤーの基本攻撃ダメージに掛ける倍率です。各武器のダメージ計算の基準になります。",
+    value: "1.0が基準です。2.0なら基準の2倍です。最終ダメージは最低1に補正されます。",
+  },
+  bulletCount: {
+    name: "発射数",
+    jsonKey: "bulletCount",
+    description: "通常弾の砲塔が1回の攻撃で生成する弾数です。",
+    value: "1が単発です。2以上では拡散角度の範囲内へ複数の弾を配置します。",
+  },
+  spreadAngleDeg: {
+    name: "拡散角度",
+    jsonKey: "spreadAngleDeg",
+    description: "発射方向を中心として弾が広がる全体の角度幅です。",
+    value: "単位は度（°）です。大きいほど広範囲、小さいほど正面へ集中します。0なら拡散しません。",
+  },
+  fireAllBarrels: {
+    name: "全砲塔から発射",
+    jsonKey: "fireAllBarrels",
+    description: "ONにすると、発射可能なすべての砲塔を1回の射撃で同時に作動させます。",
+    value: "ONの場合は「砲塔を交互発射」よりこちらが優先されます。",
+  },
+  alternateBarrels: {
+    name: "砲塔を交互発射",
+    jsonKey: "alternateBarrels",
+    description: "ONにすると、複数砲塔または発射グループを射撃ごとに順番に切り替えます。",
+    value: "「全砲塔から発射」がOFFのときに有効です。",
+  },
+  mountPreset: {
+    name: "砲塔プリセット",
+    jsonKey: "weaponMounts / fireAllBarrels / alternateBarrels",
+    description: "よく使う砲塔数と配置をまとめて作成するエディター用機能です。",
+    value: "適用すると現在の砲塔配列と発射方式をプリセット内容で置き換えます。",
+  },
+  weaponType: {
+    name: "武器タイプ",
+    jsonKey: "weaponMounts[].weaponType",
+    description: "選択中の砲塔が実行する攻撃方式を指定します。",
+    value: "表示は日本語ですが、JSONには Projectile / Laser / Mine / Melee の値を保存します。",
+  },
+  barrelShape: {
+    name: "砲身形状",
+    jsonKey: "weaponMounts[].barrelShape",
+    description: "選択中の砲身をネオン表示するときの輪郭形状を選びます。",
+    value: "主に見た目へ反映されます。JSONには Box / Heavy / Short / Wide / Trapezoid を保存します。",
+  },
+  moveMode: {
+    name: "配置方法",
+    jsonKey: "エディター専用（結果は weaponMounts[].offset）",
+    description: "砲塔をドラッグするときの配置ルールです。外周固定は機体外周の16方向へ吸着し、自由移動は任意位置へ置けます。",
+    value: "配置方法自体はJSONへ保存せず、決定した座標だけをoffsetへ保存します。",
+  },
+  autoAim: {
+    name: "自動角度調整",
+    jsonKey: "エディター専用（結果は weaponMounts[].angleDeg）",
+    description: "ONにすると、砲塔を移動した方向に合わせて砲塔の向きも自動調整します。",
+    value: "OFFでは砲塔角度を直接入力または回転操作で変更できます。",
+  },
+  offsetX: {
+    name: "X座標",
+    jsonKey: "weaponMounts[].offset[0]",
+    description: "機体の向きを基準にした砲塔の前後位置です。",
+    value: "正の値で前方、負の値で後方へ移動します。単位はゲーム内world unitです。",
+  },
+  offsetY: {
+    name: "Y座標",
+    jsonKey: "weaponMounts[].offset[1]",
+    description: "機体の向きを基準にした砲塔の左右位置です。",
+    value: "正の値で右側、負の値で左側へ移動します。単位はゲーム内world unitです。",
+  },
+  angleDeg: {
+    name: "砲塔角度",
+    jsonKey: "weaponMounts[].angleDeg",
+    description: "機体の正面方向を0°とした、選択中砲塔の相対的な発射方向です。",
+    value: "単位は度（°）です。エディターでは15°刻みで調整します。",
+  },
+};
+
 const SAMPLE_ROOT = {
   version: 2,
   classes: [
@@ -66,6 +183,13 @@ const exportButton = document.getElementById("export-json-button");
 const gameJsonTarget = document.getElementById("game-json-target");
 const directSaveSupport = document.getElementById("direct-save-support");
 const statusText = document.getElementById("json-status");
+const parameterHelpPanel = document.getElementById("parameter-help-panel");
+const parameterHelpTitle = document.getElementById("parameter-help-title");
+const parameterHelpJsonKey = document.getElementById("parameter-help-json-key");
+const parameterHelpDescription = document.getElementById("parameter-help-description");
+const parameterHelpValue = document.getElementById("parameter-help-value");
+const parameterHelpClose = document.getElementById("parameter-help-close");
+let activeHelpTrigger = null;
 const classInputs = {
   id: document.getElementById("class-id-input"),
   name: document.getElementById("class-name-input"),
@@ -160,6 +284,54 @@ function updateDirectSaveUi() {
     directSaveSupport.textContent =
       "このブラウザは直接保存に未対応です。JSON読み込みと別ファイル書き出しをご利用ください。";
   }
+}
+
+function closeParameterHelp(restoreFocus = true) {
+  if (parameterHelpPanel.hidden) return;
+  parameterHelpPanel.hidden = true;
+  if (restoreFocus && activeHelpTrigger) {
+    activeHelpTrigger.focus({ preventScroll: true });
+  }
+  activeHelpTrigger = null;
+}
+
+function openParameterHelp(helpKey, trigger) {
+  const help = PARAMETER_HELP[helpKey];
+  if (!help) return;
+
+  parameterHelpTitle.textContent = help.name;
+  parameterHelpJsonKey.textContent = help.jsonKey;
+  parameterHelpDescription.textContent = help.description;
+  parameterHelpValue.textContent = help.value;
+  parameterHelpPanel.hidden = false;
+  activeHelpTrigger = trigger;
+  parameterHelpClose.focus({ preventScroll: true });
+}
+
+function initializeParameterHelp() {
+  document.querySelectorAll("[data-help-key]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openParameterHelp(button.dataset.helpKey, button);
+    });
+    button.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation();
+      openParameterHelp(button.dataset.helpKey, button);
+    });
+  });
+
+  parameterHelpClose.addEventListener("click", () => closeParameterHelp());
+  parameterHelpPanel.addEventListener("click", (event) => event.stopPropagation());
+  document.addEventListener("click", () => closeParameterHelp(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !parameterHelpPanel.hidden) {
+      event.preventDefault();
+      closeParameterHelp();
+    }
+  });
 }
 
 function saveDraft(reason = "編集内容") {
@@ -418,6 +590,16 @@ function updateReadout() {
   barrelShapeSelect.value = mount.barrelShape ?? "Box";
 }
 
+function getWeaponTypeLabel(weaponType) {
+  return {
+    Projectile: "通常弾",
+    Laser: "レーザー",
+    Mine: "地雷",
+    Melee: "近接攻撃",
+    Drone: "ドローン",
+  }[weaponType] ?? "未設定";
+}
+
 function refreshMountSelect() {
   const mounts = getMounts(getSelectedClass());
   mountSelect.innerHTML = "";
@@ -425,7 +607,7 @@ function refreshMountSelect() {
   mounts.forEach((mount, index) => {
     const option = document.createElement("option");
     option.value = String(index);
-    option.textContent = `${index}: ${mount.weaponType ?? "Mount"}`;
+    option.textContent = `${index}: ${getWeaponTypeLabel(mount.weaponType)}`;
     mountSelect.appendChild(option);
   });
 
@@ -1097,6 +1279,8 @@ function initializeEditor() {
 
   state.layer = new Konva.Layer();
   state.stage.add(state.layer);
+
+  initializeParameterHelp();
 
   stageContainer.addEventListener("touchmove", (event) => {
     event.preventDefault();

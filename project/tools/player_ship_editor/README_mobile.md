@@ -9,7 +9,7 @@ File System Access APIに対応したデスクトップ版Chrome / Edgeなどの
 1. ローカルサーバーを起動する
 
    ```powershell
-   cd C:\Users\k024g\OneDrive\デスクトップ\自作エンジン2\project\tools\player_ship_editor
+   cd project/tools/player_ship_editor
    python -m http.server 8000
    ```
 
@@ -22,6 +22,16 @@ File System Access APIに対応したデスクトップ版Chrome / Edgeなどの
 選択したファイルのハンドルは、ページを閉じるまでのセッション内だけ保持します。ページを再読み込みした場合は、もう一度 `ゲーム用JSONを開く` から選択してください。
 
 ブラウザがFile System Access APIに対応していない場合や、安全なコンテキストとして認識されない環境では直接保存ボタンが無効になります。その場合も、従来の `JSONを読み込む`、端末内の下書き保存、`別ファイルとして書き出す` は利用できます。
+
+## 項目の説明を見る
+
+主要な設定名の横にある `?` をクリックまたはタップすると、日本語の説明、基準値や増減方向、対応するJSONキーを確認できます。
+
+- PC：`?` をクリックするか、Tabキーで選択してEnterキーを押す
+- スマートフォン：`?` をタップする
+- 閉じる：右上の `×`、説明の外側、またはEscapeキー
+
+日本語化されている選択肢も、JSONへ保存する内部値は従来の英語値を維持します。
 
 ## スマホへ送るもの
 
@@ -66,7 +76,7 @@ PCの対応ブラウザでは `ゲームへ保存`、それ以外の環境では
 安定確認したい場合は、PCで簡易ローカルサーバーを立てて同じWi-Fiからアクセスしてください。
 
 ```powershell
-cd C:\Users\k024g\OneDrive\デスクトップ\自作エンジン2\project\tools\player_ship_editor
+cd project/tools/player_ship_editor
 python -m http.server 8000
 ```
 
