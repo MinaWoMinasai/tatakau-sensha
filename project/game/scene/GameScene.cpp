@@ -831,6 +831,9 @@ void GameScene::Update() {
 				: "H:操作説明ON");
 		}
 	}
+	if (input_->IsTrigger(input_->GetKey()[DIK_F5], input_->GetPreKey()[DIK_F5])) {
+		player_->ReloadPlayerClassConfigs();
+	}
 	slowMotionPostActive_ = finalDeltaTime < baseDeltaTime * 0.98f;
 
 	if (player_->IsChangeMode() ||
@@ -881,9 +884,6 @@ void GameScene::Update() {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	if (input_->IsTrigger(input_->GetKey()[DIK_F7], input_->GetPreKey()[DIK_F7])) {
 		showCollisionDebug_ = !showCollisionDebug_;
-	}
-	if (input_->IsTrigger(input_->GetKey()[DIK_F5], input_->GetPreKey()[DIK_F5])) {
-		player_->AddExp(player_->GetNextLevelExpValue());
 	}
 	if (input_->IsTrigger(input_->GetKey()[DIK_F6], input_->GetPreKey()[DIK_F6])) {
 		player_->AddExp(200);
