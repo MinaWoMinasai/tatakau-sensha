@@ -787,6 +787,7 @@ void GameScene::Initialize() {
 		Object3dCommon::GetInstance()->GetSrvManager());
 	ApplyGameTextAppearance();
 	InitializeTutorialUi();
+	InitializePlayerClassConfigWatch();
 	previousPlayerHp_ = player_ ? player_->GetHp() : 0;
 	previousBossHp_ = enemy_ ? enemy_->GetHp() : 0;
 
@@ -832,8 +833,9 @@ void GameScene::Update() {
 		}
 	}
 	if (input_->IsTrigger(input_->GetKey()[DIK_F5], input_->GetPreKey()[DIK_F5])) {
-		player_->ReloadPlayerClassConfigs();
+		ReloadPlayerClassConfig(false);
 	}
+	UpdatePlayerClassConfigWatch(baseDeltaTime);
 	slowMotionPostActive_ = finalDeltaTime < baseDeltaTime * 0.98f;
 
 	if (player_->IsChangeMode() ||
@@ -1751,6 +1753,97 @@ void GameScene::SetEventCallout(const std::string& text, float duration)
 		eventCalloutText_->SetText(text);
 	}
 	eventCalloutTimer_ = (std::max)(0.0f, duration);
+}
+
+void GameScene::InitializePlayerClassConfigWatch()
+{
+	constexpr const char* kConfigPath = "resources/configs/playerClasses.json";
+	playerClassConfigPollTimer_ = 0.0f;
+	playerClassConfigDebounceTimer_ = 0.0f;
+	playerClassConfigReloadPending_ = false;
+	playerClassConfigHasObservedWriteTime_ = false;
+	playerClassConfigHasLoadedWriteTime_ = false;
+
+	std::error_code error;
+	const auto writeTime = std::filesystem::last_write_time(kConfigPath, error);
+	if (error) {
+		return;
+	}
+	playerClassConfigObservedWriteTime_ = writeTime;
+	playerClassConfigLoadedWriteTime_ = writeTime;
+	playerClassConfigHasObservedWriteTime_ = true;
+	playerClassConfigHasLoadedWriteTime_ = true;
+}
+
+void GameScene::UpdatePlayerClassConfigWatch(float deltaTime)
+{
+	constexpr const char* kConfigPath = "resources/configs/playerClasses.json";
+	constexpr float kPollInterval = 0.10f;
+	constexpr float kDebounceDuration = 0.25f;
+
+	if (playerClassConfigReloadPending_) {
+		playerClassConfigDebounceTimer_ += (std::max)(0.0f, deltaTime);
+	}
+	playerClassConfigPollTimer_ += (std::max)(0.0f, deltaTime);
+	if (playerClassConfigPollTimer_ < kPollInterval) {
+		return;
+	}
+	playerClassConfigPollTimer_ = 0.0f;
+
+	std::error_code error;
+	const auto writeTime = std::filesystem::last_write_time(kConfigPath, error);
+	if (error) {
+		return;
+	}
+	if (!playerClassConfigHasObservedWriteTime_) {
+		playerClassConfigObservedWriteTime_ = writeTime;
+		playerClassConfigHasObservedWriteTime_ = true;
+		playerClassConfigReloadPending_ = true;
+		playerClassConfigDebounceTimer_ = 0.0f;
+		return;
+	}
+	if (writeTime != playerClassConfigObservedWriteTime_) {
+		playerClassConfigObservedWriteTime_ = writeTime;
+		playerClassConfigReloadPending_ = true;
+		playerClassConfigDebounceTimer_ = 0.0f;
+		return;
+	}
+	if (!playerClassConfigReloadPending_ ||
+		playerClassConfigDebounceTimer_ < kDebounceDuration) {
+		return;
+	}
+
+	ReloadPlayerClassConfig(true);
+}
+
+bool GameScene::ReloadPlayerClassConfig(bool automatic)
+{
+	constexpr const char* kConfigPath = "resources/configs/playerClasses.json";
+	const bool succeeded = player_ && player_->ReloadPlayerClassConfigs(kConfigPath);
+	playerClassConfigReloadPending_ = false;
+	playerClassConfigDebounceTimer_ = 0.0f;
+
+	std::error_code error;
+	const auto writeTime = std::filesystem::last_write_time(kConfigPath, error);
+	if (!error) {
+		playerClassConfigObservedWriteTime_ = writeTime;
+		playerClassConfigHasObservedWriteTime_ = true;
+		if (succeeded) {
+			playerClassConfigLoadedWriteTime_ = writeTime;
+			playerClassConfigHasLoadedWriteTime_ = true;
+		}
+	}
+
+	if (automatic) {
+		std::cerr << "[PlayerClass] Auto reload "
+			<< (succeeded ? "succeeded." : "failed.") << std::endl;
+	}
+	SetEventCallout(
+		succeeded
+			? (automatic ? "PLAYER CONFIG AUTO RELOADED" : "PLAYER CONFIG RELOADED")
+			: "PLAYER CONFIG RELOAD FAILED",
+		1.35f);
+	return succeeded;
 }
 
 Vector2 GameScene::WorldToScreenUv(const Vector3& worldPos) const
