@@ -1,4 +1,4 @@
-# Player Ship Editor Prototype
+# プレイヤー機体エディター
 
 PCまたはスマートフォンで機体JSONを編集するための試作ツールです。
 
