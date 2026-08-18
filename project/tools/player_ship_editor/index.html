@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Player Ship Editor Prototype</title>
+  <title>プレイヤー機体エディター</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <main class="app-shell">
     <header class="top-bar">
       <div>
-        <p class="eyebrow">Neon 2D Shooter</p>
-        <h1>Player Ship Editor Prototype</h1>
+        <p class="eyebrow">Player Ship Editor</p>
+        <h1>プレイヤー機体エディター</h1>
       </div>
-      <p class="status-text">JSON連携試作: 読み込み / 機体選択 / 編集JSON保存</p>
+      <p class="status-text">機体の見た目・射撃・砲塔配置を編集してゲームへ反映</p>
     </header>
 
     <section class="direct-save-panel" aria-label="ゲーム用JSON保存">
@@ -50,69 +50,72 @@
 
       <aside class="inspect-panel" aria-label="選択中砲塔の情報">
         <section class="panel-section">
-          <h2>Ship</h2>
+          <h2>機体設定</h2>
+          <h3 class="subsection-title">基本設定</h3>
           <label class="mount-picker">
-            ID
+            <span class="label-with-help">機体ID <button type="button" class="help-button" data-help-key="classId" aria-label="機体IDの説明">?</button></span>
             <input id="class-id-input" type="text" autocomplete="off">
           </label>
           <label class="mount-picker">
-            Display Name
+            <span class="label-with-help">表示名 <button type="button" class="help-button" data-help-key="displayName" aria-label="表示名の説明">?</button></span>
             <input id="class-name-input" type="text" autocomplete="off">
           </label>
           <label class="mount-picker">
-            Body Shape
+            <span class="label-with-help">機体形状 <button type="button" class="help-button" data-help-key="bodyShape" aria-label="機体形状の説明">?</button></span>
             <select id="body-shape-select">
-              <option value="Circle">Circle</option>
-              <option value="Box">Box</option>
-              <option value="Triangle">Triangle</option>
-              <option value="Pentagon">Pentagon</option>
+              <option value="Circle">円</option>
+              <option value="Box">四角形</option>
+              <option value="Triangle">三角形</option>
+              <option value="Pentagon">五角形</option>
             </select>
           </label>
-          <div class="mini-grid">
+          <label class="mount-picker">
+            <span class="label-with-help">必要ランク <button type="button" class="help-button" data-help-key="requiredRank" aria-label="必要ランクの説明">?</button></span>
+            <input id="required-rank-input" type="number" min="1" max="99" step="1" inputmode="numeric">
+          </label>
+
+          <h3 class="subsection-title">射撃設定</h3>
+          <div class="mini-grid parameter-grid">
             <label>
-              Rank
-              <input id="required-rank-input" type="number" min="1" max="99" step="1" inputmode="numeric">
-            </label>
-            <label>
-              Reload
+              <span class="label-with-help">リロード倍率 <button type="button" class="help-button" data-help-key="reloadScale" aria-label="リロード倍率の説明">?</button></span>
               <input id="reload-scale-input" type="number" min="0.05" step="0.05" inputmode="decimal">
             </label>
             <label>
-              Bullet Speed
+              <span class="label-with-help">弾速倍率 <button type="button" class="help-button" data-help-key="bulletSpeedScale" aria-label="弾速倍率の説明">?</button></span>
               <input id="bullet-speed-input" type="number" min="0.05" step="0.05" inputmode="decimal">
             </label>
             <label>
-              Bullet Damage
+              <span class="label-with-help">弾ダメージ倍率 <button type="button" class="help-button" data-help-key="bulletDamageScale" aria-label="弾ダメージ倍率の説明">?</button></span>
               <input id="bullet-damage-input" type="number" min="0.05" step="0.05" inputmode="decimal">
             </label>
             <label>
-              Bullet Count
+              <span class="label-with-help">発射数 <button type="button" class="help-button" data-help-key="bulletCount" aria-label="発射数の説明">?</button></span>
               <input id="bullet-count-input" type="number" min="1" step="1" inputmode="numeric">
             </label>
             <label>
-              Spread
+              <span class="label-with-help">拡散角度 <button type="button" class="help-button" data-help-key="spreadAngleDeg" aria-label="拡散角度の説明">?</button></span>
               <input id="spread-angle-input" type="number" min="0" step="1" inputmode="decimal">
             </label>
           </div>
-          <label class="check-row">
-            <input id="fire-all-checkbox" type="checkbox">
-            全砲塔から発射
-          </label>
-          <label class="check-row">
-            <input id="alternate-checkbox" type="checkbox">
-            砲塔を交互発射
-          </label>
+          <div class="check-field">
+            <label class="check-row"><input id="fire-all-checkbox" type="checkbox">全砲塔から発射</label>
+            <button type="button" class="help-button" data-help-key="fireAllBarrels" aria-label="全砲塔から発射の説明">?</button>
+          </div>
+          <div class="check-field">
+            <label class="check-row"><input id="alternate-checkbox" type="checkbox">砲塔を交互発射</label>
+            <button type="button" class="help-button" data-help-key="alternateBarrels" aria-label="砲塔を交互発射の説明">?</button>
+          </div>
         </section>
 
         <section class="panel-section">
-          <h2>Mount Tools</h2>
+          <h2>砲塔ツール</h2>
           <div class="button-grid">
             <button id="add-mount-button" type="button">砲塔追加</button>
             <button id="duplicate-mount-button" type="button">砲塔複製</button>
             <button id="delete-mount-button" type="button">砲塔削除</button>
           </div>
           <label class="mount-picker">
-            Preset
+            <span class="label-with-help">砲塔プリセット <button type="button" class="help-button" data-help-key="mountPreset" aria-label="砲塔プリセットの説明">?</button></span>
             <select id="mount-preset-select">
               <option value="single">単砲</option>
               <option value="twin">ツイン</option>
@@ -125,52 +128,52 @@
         </section>
 
         <section class="panel-section">
-          <h2>Selected Mount</h2>
+          <h2>選択中の砲塔</h2>
         <label class="mount-picker">
-          Mount
+          砲塔
           <select id="mount-select"></select>
         </label>
         <label class="mount-picker">
-          Weapon Type
+          <span class="label-with-help">武器タイプ <button type="button" class="help-button" data-help-key="weaponType" aria-label="武器タイプの説明">?</button></span>
           <select id="weapon-type-select">
-            <option value="Projectile">Projectile</option>
-            <option value="Laser">Laser</option>
-            <option value="Mine">Mine</option>
-            <option value="Melee">Melee</option>
+            <option value="Projectile">通常弾</option>
+            <option value="Laser">レーザー</option>
+            <option value="Mine">地雷</option>
+            <option value="Melee">近接攻撃</option>
           </select>
         </label>
         <label class="mount-picker">
-          Barrel Shape
+          <span class="label-with-help">砲身形状 <button type="button" class="help-button" data-help-key="barrelShape" aria-label="砲身形状の説明">?</button></span>
           <select id="barrel-shape-select">
-            <option value="Box">Box</option>
-            <option value="Heavy">Heavy</option>
-            <option value="Short">Short</option>
-            <option value="Wide">Wide</option>
-            <option value="Trapezoid">Trapezoid</option>
+            <option value="Box">標準</option>
+            <option value="Heavy">重砲身</option>
+            <option value="Short">短砲身</option>
+            <option value="Wide">幅広砲身</option>
+            <option value="Trapezoid">台形砲身</option>
           </select>
         </label>
         <label class="mount-picker">
-          Move Mode
+          <span class="label-with-help">配置方法 <button type="button" class="help-button" data-help-key="moveMode" aria-label="配置方法の説明">?</button></span>
           <select id="move-mode-select">
             <option value="ring">外周固定 16方向</option>
             <option value="free">自由移動</option>
           </select>
         </label>
-        <label class="check-row">
-          <input id="auto-aim-checkbox" type="checkbox" checked>
-          位置方向へ砲塔角度を追従
-        </label>
+        <div class="check-field">
+          <label class="check-row"><input id="auto-aim-checkbox" type="checkbox" checked>自動角度調整</label>
+          <button type="button" class="help-button" data-help-key="autoAim" aria-label="自動角度調整の説明">?</button>
+        </div>
         <dl class="value-grid">
           <div>
-            <dt>X</dt>
+            <dt><span class="label-with-help">X座標 <button type="button" class="help-button" data-help-key="offsetX" aria-label="X座標の説明">?</button></span></dt>
             <dd><input id="mount-x" type="number" step="0.01" inputmode="decimal"></dd>
           </div>
           <div>
-            <dt>Y</dt>
+            <dt><span class="label-with-help">Y座標 <button type="button" class="help-button" data-help-key="offsetY" aria-label="Y座標の説明">?</button></span></dt>
             <dd><input id="mount-y" type="number" step="0.01" inputmode="decimal"></dd>
           </div>
           <div>
-            <dt>Angle</dt>
+            <dt><span class="label-with-help">砲塔角度 <button type="button" class="help-button" data-help-key="angleDeg" aria-label="砲塔角度の説明">?</button></span></dt>
             <dd><input id="mount-angle" type="number" step="15" inputmode="decimal"></dd>
           </div>
         </dl>
@@ -179,6 +182,19 @@
       </aside>
     </section>
   </main>
+
+  <section id="parameter-help-panel" class="parameter-help-panel" role="dialog" aria-modal="false" aria-labelledby="parameter-help-title" hidden>
+    <div class="parameter-help-header">
+      <div>
+        <p class="parameter-help-eyebrow">パラメータ説明</p>
+        <h2 id="parameter-help-title"></h2>
+      </div>
+      <button id="parameter-help-close" type="button" class="help-close-button" aria-label="説明を閉じる">×</button>
+    </div>
+    <p class="parameter-help-json">JSON: <code id="parameter-help-json-key"></code></p>
+    <p id="parameter-help-description"></p>
+    <p id="parameter-help-value" class="parameter-help-value"></p>
+  </section>
 
   <script src="./vendor/konva.min.js"></script>
   <script>
