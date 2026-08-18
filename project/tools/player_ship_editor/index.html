@@ -10,7 +10,7 @@
   <main class="app-shell">
     <header class="top-bar">
       <div>
-        <p class="eyebrow">Player Ship Editor</p>
+        <p class="eyebrow">ゲーム制作支援ツール</p>
         <h1>プレイヤー機体エディター</h1>
       </div>
       <p class="status-text">機体の見た目・射撃・砲塔配置を編集してゲームへ反映</p>
@@ -45,7 +45,27 @@
 
     <section class="editor-layout">
       <div class="stage-panel">
-        <div id="stage-container" aria-label="機体編集領域"></div>
+        <div class="canvas-heading">
+          <div>
+            <h2>機体プレビュー・砲塔配置</h2>
+            <p id="canvas-mode-summary">外周固定：配置リング上の16方向へ吸着</p>
+          </div>
+          <button id="canvas-guide-toggle" type="button" aria-expanded="true" aria-controls="canvas-guide-panel">操作ガイドを隠す</button>
+        </div>
+        <div class="canvas-wrap">
+          <div id="stage-container" aria-label="機体プレビューと砲塔配置の編集領域"></div>
+          <aside id="canvas-guide-panel" class="canvas-guide-panel" aria-label="キャンバス操作ガイド">
+            <strong>キャンバスの見かた</strong>
+            <ul>
+              <li><span class="guide-symbol guide-front">▲</span><span><b>前マーク</b>：機体の正面方向</span></li>
+              <li data-ring-guide-only><span class="guide-symbol guide-ring"></span><span><b>破線リング</b>：砲塔を置ける外周</span></li>
+              <li data-ring-guide-only><span class="guide-symbol guide-dot"></span><span><b>小さな点</b>：16方向の配置候補</span></li>
+              <li><span class="guide-symbol guide-selected"></span><span><b>シアンの枠</b>：選択中の砲塔</span></li>
+              <li><span class="guide-symbol guide-rotate">↻</span><span><b>ピンクの印</b>：ドラッグで回転</span></li>
+            </ul>
+          </aside>
+          <p id="canvas-selection-hint" class="canvas-selection-hint">選択中：砲塔本体をドラッグで移動／ピンクの印をドラッグで回転</p>
+        </div>
       </div>
 
       <aside class="inspect-panel" aria-label="選択中砲塔の情報">
@@ -177,7 +197,7 @@
             <dd><input id="mount-angle" type="number" step="15" inputmode="decimal"></dd>
           </div>
         </dl>
-        <p class="hint">外周固定では16方向の接続点へ吸着します。角度追従ONなら砲塔も配置方向を向きます。</p>
+        <p class="hint">外周固定では16方向の配置候補へ吸着します。自動角度調整が有効なら砲塔も配置方向を向きます。</p>
         </section>
       </aside>
     </section>

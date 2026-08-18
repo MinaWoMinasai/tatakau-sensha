@@ -162,6 +162,10 @@ function isCoarsePointer() {
 }
 
 const stageContainer = document.getElementById("stage-container");
+const canvasGuideToggle = document.getElementById("canvas-guide-toggle");
+const canvasGuidePanel = document.getElementById("canvas-guide-panel");
+const canvasModeSummary = document.getElementById("canvas-mode-summary");
+const canvasSelectionHint = document.getElementById("canvas-selection-hint");
 const fileInput = document.getElementById("json-file-input");
 const classSelect = document.getElementById("class-select");
 const newClassButton = document.getElementById("new-class-button");
@@ -284,6 +288,30 @@ function updateDirectSaveUi() {
     directSaveSupport.textContent =
       "このブラウザは直接保存に未対応です。JSON読み込みと別ファイル書き出しをご利用ください。";
   }
+}
+
+function setCanvasGuideVisible(visible) {
+  canvasGuidePanel.hidden = !visible;
+  canvasGuideToggle.setAttribute("aria-expanded", String(visible));
+  canvasGuideToggle.textContent = visible ? "操作ガイドを隠す" : "操作ガイドを表示";
+}
+
+function updateCanvasGuideState() {
+  const ringMode = moveModeSelect.value === "ring";
+  canvasModeSummary.textContent = ringMode
+    ? "外周固定：配置リング上の16方向へ吸着"
+    : "自由移動：キャンバス内の任意位置へ配置";
+  document.querySelectorAll("[data-ring-guide-only]").forEach((item) => {
+    item.hidden = !ringMode;
+  });
+}
+
+function initializeCanvasGuide() {
+  setCanvasGuideVisible(window.innerWidth > 820);
+  updateCanvasGuideState();
+  canvasGuideToggle.addEventListener("click", () => {
+    setCanvasGuideVisible(canvasGuidePanel.hidden);
+  });
 }
 
 function closeParameterHelp(restoreFocus = true) {
@@ -642,6 +670,7 @@ function updateSelectedMountFromInputs() {
   view.group.position(gameToWebPosition(offset, state.center));
   view.group.rotation(gameAngleToWebRotation(mount.angleDeg));
   updateReadout();
+  renderGuideLayer();
   state.layer.batchDraw();
   saveDraft("砲塔");
 }
@@ -734,7 +763,7 @@ function duplicateSelectedClass() {
 
   const copy = cloneJson(source);
   copy.id = makeUniqueClassId(`${source.id || "CustomTank"}_Copy`);
-  copy.displayName = `${source.displayName || source.id || "CustomTank"} Copy`;
+  copy.displayName = `${source.displayName || source.id || "CustomTank"} のコピー`;
   getClasses().push(copy);
   state.selectedClassIndex = getClasses().length - 1;
   state.selectedMountIndex = 0;
@@ -849,16 +878,16 @@ function createGrid(width, height) {
   for (let x = 0; x <= width; x += step) {
     grid.add(new Konva.Line({
       points: [x, 0, x, height],
-      stroke: x === width / 2 ? "rgba(125,255,154,0.4)" : "rgba(125,241,255,0.08)",
-      strokeWidth: x === width / 2 ? 2 : 1,
+      stroke: x === width / 2 ? "rgba(125,241,255,0.16)" : "rgba(125,241,255,0.06)",
+      strokeWidth: 1,
     }));
   }
 
   for (let y = 0; y <= height; y += step) {
     grid.add(new Konva.Line({
       points: [0, y, width, y],
-      stroke: y === height / 2 ? "rgba(125,255,154,0.4)" : "rgba(125,241,255,0.08)",
-      strokeWidth: y === height / 2 ? 2 : 1,
+      stroke: y === height / 2 ? "rgba(125,241,255,0.16)" : "rgba(125,241,255,0.06)",
+      strokeWidth: 1,
     }));
   }
 
@@ -901,11 +930,33 @@ function createShip(playerClass) {
     }));
   }
 
-  ship.add(new Konva.Line({
-    points: [0, -82, 0, 82],
-    stroke: "rgba(125,255,154,0.45)",
-    strokeWidth: 2,
-    dash: [8, 8],
+  ship.add(new Konva.Arrow({
+    name: "front-guide",
+    points: [-88, 10, -88, -80],
+    stroke: "#7dff9a",
+    fill: "#7dff9a",
+    strokeWidth: 3,
+    pointerLength: 10,
+    pointerWidth: 10,
+    shadowColor: "#7dff9a",
+    shadowBlur: 10,
+    shadowOpacity: 0.6,
+  }));
+
+  ship.add(new Konva.Text({
+    name: "front-guide-label",
+    x: -106,
+    y: -108,
+    width: 36,
+    text: "前",
+    align: "center",
+    fill: "#7dff9a",
+    fontSize: 15,
+    fontStyle: "bold",
+    fontFamily: "Arial, Yu Gothic, Meiryo",
+    shadowColor: "#7dff9a",
+    shadowBlur: 8,
+    shadowOpacity: 0.45,
   }));
 
   state.layer.add(ship);
@@ -917,12 +968,13 @@ function createRingGuide(radius) {
   }
 
   state.layer.add(new Konva.Circle({
+    name: "ring-guide",
     x: state.center.x,
     y: state.center.y,
     radius: radius * GAME_UNIT_TO_PIXEL,
-    stroke: "rgba(255,255,255,0.18)",
-    strokeWidth: 1,
-    dash: [6, 8],
+    stroke: "rgba(220,235,242,0.36)",
+    strokeWidth: 1.5,
+    dash: [10, 7],
     listening: false,
   }));
 }
@@ -972,30 +1024,66 @@ function createMount(mountData, index) {
   });
 
   const selectionRing = new Konva.Circle({
+    name: "selection-highlight",
     x: 0,
     y: 0,
     radius: selectionRadius,
-    stroke: "rgba(255,255,255,0.75)",
-    strokeWidth: 1,
-    dash: [5, 5],
+    stroke: "#5ef5ff",
+    strokeWidth: 2,
+    dash: [10, 5],
+    shadowColor: "#5ef5ff",
+    shadowBlur: 12,
+    shadowOpacity: 0.65,
     visible: false,
     listening: false,
   });
 
-  const rotateHandle = new Konva.Circle({
+  const rotateConnector = new Konva.Line({
+    name: "rotate-connector",
+    points: [selectionRadius * 0.55, 0, handleOffset - handleRadius, 0],
+    stroke: "rgba(255,79,163,0.72)",
+    strokeWidth: 2,
+    dash: [4, 4],
+    visible: false,
+    listening: false,
+  });
+
+  const rotateHandle = new Konva.Group({
+    name: "rotate-handle",
     x: handleOffset,
     y: 0,
-    radius: handleRadius,
-    fill: "#ff4fa3",
-    stroke: "#ffffff",
-    strokeWidth: 2,
     visible: false,
   });
 
-  mount.add(barrel, core, selectionRing, rotateHandle);
+  rotateHandle.add(new Konva.Circle({
+    radius: handleRadius,
+    fill: "#17101c",
+    stroke: "#ff4fa3",
+    strokeWidth: 3,
+    shadowColor: "#ff4fa3",
+    shadowBlur: 14,
+    shadowOpacity: 0.72,
+  }));
+
+  rotateHandle.add(new Konva.Text({
+    x: -handleRadius,
+    y: -handleRadius + (touchMode ? 2 : 0),
+    width: handleRadius * 2,
+    height: handleRadius * 2,
+    text: "↻",
+    align: "center",
+    verticalAlign: "middle",
+    fill: "#ffffff",
+    fontSize: touchMode ? 22 : 15,
+    fontStyle: "bold",
+    fontFamily: "Arial, Yu Gothic, Meiryo",
+    listening: false,
+  }));
+
+  mount.add(barrel, core, selectionRing, rotateConnector, rotateHandle);
   state.layer.add(mount);
 
-  const view = { group: mount, selectionRing, rotateHandle, ringRadius };
+  const view = { group: mount, selectionRing, rotateConnector, rotateHandle, ringRadius };
   state.mountViews[index] = view;
 
   mount.on("click tap", () => selectMount(index));
@@ -1015,6 +1103,8 @@ function createMount(mountData, index) {
   });
 
   mount.on("dragend", () => {
+    renderGuideLayer();
+    state.layer.batchDraw();
     saveDraft("砲塔配置");
   });
 
@@ -1055,9 +1145,12 @@ function selectMount(index) {
   state.mountViews.forEach((view, viewIndex) => {
     const selected = viewIndex === index;
     view.selectionRing.visible(selected);
+    view.rotateConnector.visible(selected);
     view.rotateHandle.visible(selected);
     if (selected) view.group.moveToTop();
   });
+
+  canvasSelectionHint.hidden = state.mountViews.length === 0;
 
   updateReadout();
   refreshMountSelect();
@@ -1073,18 +1166,24 @@ function renderGuideLayer() {
     return;
   }
 
-  const guide = new Konva.Circle({
+  const guideGroup = new Konva.Group({
     name: "ring-guide",
-    x: state.center.x,
-    y: state.center.y,
-    radius: view.ringRadius * GAME_UNIT_TO_PIXEL,
-    stroke: "rgba(255,255,255,0.22)",
-    strokeWidth: 1,
-    dash: [6, 8],
     listening: false,
   });
-  state.layer.add(guide);
-  guide.moveToBottom();
+  const guideRadius = view.ringRadius * GAME_UNIT_TO_PIXEL;
+  guideGroup.add(new Konva.Circle({
+    x: state.center.x,
+    y: state.center.y,
+    radius: guideRadius,
+    stroke: "rgba(220,235,242,0.40)",
+    strokeWidth: 1.5,
+    dash: [10, 7],
+  }));
+
+  const selectedMount = getMounts(getSelectedClass())[state.selectedMountIndex];
+  const selectedOffset = readVector3(selectedMount?.offset, { x: 1, y: 0, z: 0 });
+  const selectedAngleDeg = Math.atan2(selectedOffset.y, selectedOffset.x) * 180 / Math.PI;
+  const selectedDirection = ((Math.round(selectedAngleDeg / POSITION_SNAP_DEGREES) % 16) + 16) % 16;
 
   for (let i = 0; i < 16; ++i) {
     const angle = i * POSITION_SNAP_DEGREES * Math.PI / 180;
@@ -1094,17 +1193,34 @@ function renderGuideLayer() {
       z: 0,
     };
     const pos = gameToWebPosition(offset, state.center);
-    const dot = new Konva.Circle({
-      name: "ring-guide",
+    const selected = i === selectedDirection;
+    guideGroup.add(new Konva.Circle({
       x: pos.x,
       y: pos.y,
-      radius: 3,
-      fill: "rgba(255,255,255,0.45)",
-      listening: false,
-    });
-    state.layer.add(dot);
-    dot.moveToBottom();
+      radius: selected ? 5 : 3,
+      fill: selected ? "#5ef5ff" : "rgba(220,235,242,0.52)",
+      stroke: selected ? "#ffffff" : undefined,
+      strokeWidth: selected ? 1 : 0,
+      shadowColor: selected ? "#5ef5ff" : undefined,
+      shadowBlur: selected ? 8 : 0,
+      shadowOpacity: selected ? 0.65 : 0,
+    }));
   }
+
+  guideGroup.add(new Konva.Text({
+    x: state.center.x + guideRadius + 8,
+    y: state.center.y - 17,
+    width: 108,
+    text: "配置リング\n16方向候補",
+    align: "left",
+    fill: "rgba(220,235,242,0.72)",
+    fontSize: 12,
+    lineHeight: 1.35,
+    fontFamily: "Arial, Yu Gothic, Meiryo",
+  }));
+
+  state.layer.add(guideGroup);
+  guideGroup.zIndex(1);
 }
 
 function renderEditor() {
@@ -1125,6 +1241,7 @@ function renderEditor() {
   if (mounts.length > 0) {
     selectMount(state.selectedMountIndex);
   } else {
+    canvasSelectionHint.hidden = true;
     updateReadout();
   }
 
@@ -1144,7 +1261,7 @@ function refreshClassSelect() {
   classes.forEach((playerClass, index) => {
     const option = document.createElement("option");
     option.value = String(index);
-    option.textContent = playerClass.displayName || playerClass.id || `Class ${index}`;
+    option.textContent = playerClass.displayName || playerClass.id || `機体 ${index}`;
     classSelect.appendChild(option);
   });
 
@@ -1262,7 +1379,7 @@ function exportJson() {
 
 function initializeEditor() {
   if (!window.Konva) {
-    stageContainer.textContent = "Konva.js を読み込めませんでした。ネット接続を確認してください。";
+    stageContainer.textContent = "描画ライブラリを読み込めませんでした。ネット接続を確認してください。";
     stageContainer.classList.add("load-error");
     return;
   }
@@ -1280,6 +1397,7 @@ function initializeEditor() {
   state.layer = new Konva.Layer();
   state.stage.add(state.layer);
 
+  initializeCanvasGuide();
   initializeParameterHelp();
 
   stageContainer.addEventListener("touchmove", (event) => {
@@ -1305,6 +1423,7 @@ function initializeEditor() {
   duplicateClassButton.addEventListener("click", duplicateSelectedClass);
 
   moveModeSelect.addEventListener("change", () => {
+    updateCanvasGuideState();
     renderGuideLayer();
     state.layer.batchDraw();
   });
