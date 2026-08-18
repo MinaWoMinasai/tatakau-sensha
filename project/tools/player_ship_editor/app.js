@@ -31,6 +31,7 @@ const SAMPLE_ROOT = {
 
 const state = {
   rootJson: JSON.parse(JSON.stringify(SAMPLE_ROOT)),
+  gameFileHandle: null,
   selectedClassIndex: 0,
   selectedMountIndex: 0,
   stage: null,
@@ -59,7 +60,11 @@ const mountPresetSelect = document.getElementById("mount-preset-select");
 const applyPresetButton = document.getElementById("apply-preset-button");
 const weaponTypeSelect = document.getElementById("weapon-type-select");
 const barrelShapeSelect = document.getElementById("barrel-shape-select");
+const openGameJsonButton = document.getElementById("open-game-json-button");
+const saveGameJsonButton = document.getElementById("save-game-json-button");
 const exportButton = document.getElementById("export-json-button");
+const gameJsonTarget = document.getElementById("game-json-target");
+const directSaveSupport = document.getElementById("direct-save-support");
 const statusText = document.getElementById("json-status");
 const classInputs = {
   id: document.getElementById("class-id-input"),
@@ -108,6 +113,53 @@ function getMounts(playerClass) {
 
 function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function validatePlayerClassesRoot(rootJson) {
+  if (!rootJson || typeof rootJson !== "object" || Array.isArray(rootJson)) {
+    throw new Error("JSONルートがオブジェクトではありません。");
+  }
+  if (!Array.isArray(rootJson.classes)) {
+    throw new Error("classes 配列が見つかりません。");
+  }
+  if (rootJson.classes.length === 0) {
+    throw new Error("classes 配列が空です。");
+  }
+
+  rootJson.classes.forEach((playerClass, index) => {
+    if (!playerClass || typeof playerClass !== "object" || Array.isArray(playerClass)) {
+      throw new Error(`classes[${index}] がオブジェクトではありません。`);
+    }
+    if (typeof playerClass.id !== "string" || playerClass.id.trim().length === 0) {
+      throw new Error(`classes[${index}].id が空です。`);
+    }
+  });
+}
+
+function applyLoadedJson(rootJson) {
+  validatePlayerClassesRoot(rootJson);
+  state.rootJson = rootJson;
+  state.selectedClassIndex = 0;
+  state.selectedMountIndex = 0;
+  refreshClassSelect();
+  renderEditor();
+}
+
+function updateDirectSaveUi() {
+  const supported = typeof window.showOpenFilePicker === "function";
+  openGameJsonButton.disabled = !supported;
+  saveGameJsonButton.disabled = !supported || !state.gameFileHandle;
+  gameJsonTarget.textContent = state.gameFileHandle?.name
+    ?? "ゲーム用JSONが選択されていません";
+
+  if (supported) {
+    directSaveSupport.textContent = state.gameFileHandle
+      ? "このファイルへ直接上書きできます"
+      : "最初にゲーム用JSONを選択してください";
+  } else {
+    directSaveSupport.textContent =
+      "このブラウザは直接保存に未対応です。JSON読み込みと別ファイル書き出しをご利用ください。";
+  }
 }
 
 function saveDraft(reason = "編集内容") {
@@ -924,23 +976,89 @@ function loadJsonFile(file) {
   reader.onload = () => {
     try {
       const parsed = JSON.parse(String(reader.result));
-      if (!Array.isArray(parsed.classes)) {
-        throw new Error("classes 配列が見つかりません。");
-      }
-
-      state.rootJson = parsed;
-      state.selectedClassIndex = 0;
-      state.selectedMountIndex = 0;
-      refreshClassSelect();
-      renderEditor();
-      statusText.textContent = `${file.name} を読み込みました`;
+      applyLoadedJson(parsed);
+      state.gameFileHandle = null;
+      updateDirectSaveUi();
       saveDraft(file.name);
+      statusText.textContent = `${file.name} を読み込みました。直接保存先は未選択です。`;
     } catch (error) {
       statusText.textContent = `読み込み失敗: ${error.message}`;
     }
   };
 
+  reader.onerror = () => {
+    statusText.textContent = `${file.name} を読み込めませんでした。編集内容は維持されています。`;
+  };
+
   reader.readAsText(file, "utf-8");
+}
+
+async function openGameJson() {
+  if (typeof window.showOpenFilePicker !== "function") {
+    updateDirectSaveUi();
+    return;
+  }
+
+  try {
+    const [fileHandle] = await window.showOpenFilePicker({
+      multiple: false,
+      types: [
+        {
+          description: "Player Classes JSON",
+          accept: { "application/json": [".json"] },
+        },
+      ],
+    });
+    if (!fileHandle) return;
+
+    const file = await fileHandle.getFile();
+    const parsed = JSON.parse(await file.text());
+    applyLoadedJson(parsed);
+    state.gameFileHandle = fileHandle;
+    updateDirectSaveUi();
+    saveDraft(file.name);
+    statusText.textContent = `${file.name} をゲーム用JSONとして読み込みました。`;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      statusText.textContent = "ゲーム用JSONの選択をキャンセルしました。編集内容は維持されています。";
+      return;
+    }
+    statusText.textContent = `ゲーム用JSONの読み込みに失敗しました: ${error.message}`;
+  }
+}
+
+async function saveGameJson() {
+  if (!state.gameFileHandle) {
+    statusText.textContent = "先にゲーム用JSONを選択してください。";
+    return;
+  }
+
+  let writable = null;
+  try {
+    validatePlayerClassesRoot(state.rootJson);
+    const text = `${JSON.stringify(state.rootJson, null, 2)}\n`;
+    writable = await state.gameFileHandle.createWritable();
+    await writable.write(text);
+    await writable.close();
+    writable = null;
+    saveDraft(state.gameFileHandle.name);
+    statusText.textContent =
+      `${state.gameFileHandle.name} へ保存しました。CG2は変更を自動再読み込みします。`;
+  } catch (error) {
+    if (writable) {
+      try {
+        await writable.abort();
+      } catch {
+        // 元の保存エラーを優先して表示する。
+      }
+    }
+    if (error?.name === "AbortError" || error?.name === "NotAllowedError") {
+      statusText.textContent =
+        "ゲームへの保存をキャンセルしたか、書き込みが許可されませんでした。編集内容は維持されています。";
+      return;
+    }
+    statusText.textContent = `ゲームへの保存に失敗しました: ${error.message}`;
+  }
 }
 
 function exportJson() {
@@ -988,6 +1106,9 @@ function initializeEditor() {
     const file = fileInput.files?.[0];
     if (file) loadJsonFile(file);
   });
+
+  openGameJsonButton.addEventListener("click", openGameJson);
+  saveGameJsonButton.addEventListener("click", saveGameJson);
 
   classSelect.addEventListener("change", () => {
     state.selectedClassIndex = Number(classSelect.value);
@@ -1045,6 +1166,7 @@ function initializeEditor() {
   window.addEventListener("resize", scheduleResize);
   window.addEventListener("orientationchange", scheduleResize);
 
+  updateDirectSaveUi();
   loadDraft();
   refreshClassSelect();
   renderEditor();
