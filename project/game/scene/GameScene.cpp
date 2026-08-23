@@ -3825,6 +3825,7 @@ void GameScene::DrawPerformanceCaptureImGui()
 {
 	ImGui::SeparatorText("パフォーマンスキャプチャ");
 	if (!performanceCaptureActive_) {
+		ImGui::InputText("計測名", performanceCaptureLabel_.data(), performanceCaptureLabel_.size());
 		ImGui::InputInt("計測フレーム数", &performanceCaptureFrameCount_);
 		performanceCaptureFrameCount_ = (std::clamp)(performanceCaptureFrameCount_, 5, 300);
 		if (ImGui::Button("計測開始")) {
@@ -3849,6 +3850,19 @@ void GameScene::DrawPerformanceCaptureImGui()
 void GameScene::StartPerformanceCapture()
 {
 	performanceCaptureFrameCount_ = (std::clamp)(performanceCaptureFrameCount_, 5, 300);
+	performanceCaptureConditions_ = {};
+	performanceCaptureConditions_.label = performanceCaptureLabel_.data();
+	performanceCaptureConditions_.postProfileMode = postProfileMode_;
+	performanceCaptureConditions_.postProfileModeName = GetPostProfileModeName();
+	performanceCaptureConditions_.gridPostEnabled = enableNeonGridPostEffect_ && IsPostProfileCategoryEnabled("Grid");
+	performanceCaptureConditions_.stagePostEnabled = enableStagePostEffect_ && IsPostProfileCategoryEnabled("Stage");
+	performanceCaptureConditions_.bulletTrailPostEnabled = enableBulletTrailPostEffect_ && IsPostProfileCategoryEnabled("BulletTrail");
+	performanceCaptureConditions_.playerPostEnabled = enablePlayerPostEffect_ && IsPostProfileCategoryEnabled("Player");
+	performanceCaptureConditions_.enemyPostEnabled = enableEnemyPostEffect_ && IsPostProfileCategoryEnabled("Enemy");
+	performanceCaptureConditions_.expEnemyPostEnabled = enableExpEnemyPostEffect_ && IsPostProfileCategoryEnabled("ExpEnemy");
+	if (player_) {
+		performanceCaptureConditions_.upgradeHud = player_->GetUpgradeHudDebugSnapshot();
+	}
 	performanceCaptureFrames_.clear();
 	performanceCaptureFrames_.reserve(static_cast<size_t>(performanceCaptureFrameCount_));
 	performanceCaptureStatus_.clear();
@@ -3875,6 +3889,10 @@ void GameScene::CapturePerformanceFrame()
 	if (player_) {
 		frame.upgradeHud = player_->GetUpgradeHudProfileStats();
 		frame.evolutionUi = player_->GetEvolutionUiProfileStats();
+		const Player::UpgradeHudDebugSnapshot hudSnapshot = player_->GetUpgradeHudDebugSnapshot();
+		frame.playerLevel = hudSnapshot.playerLevel;
+		frame.skillPoints = hudSnapshot.skillPoints;
+		frame.upgradeHudListVisible = hudSnapshot.listActuallyVisible;
 	}
 	frame.enemyCount = enemy_ && !enemy_->IsDead() ? 1 : 0;
 	frame.expEnemyCount = enemyManager_ ? enemyManager_->GetEnemyCount() : 0;
@@ -3922,13 +3940,38 @@ bool GameScene::WritePerformanceCaptureFiles()
 	localtime_s(&localTime, &time);
 	std::ostringstream timestamp;
 	timestamp << std::put_time(&localTime, "%Y%m%d_%H%M%S");
+	auto makeSafeFileComponent = [](const std::string& value) {
+		std::string result;
+		result.reserve(value.size());
+		bool previousUnderscore = false;
+		for (const unsigned char c : value) {
+			if (c >= 0x80 || std::isalnum(c) || c == '-' || c == '_') {
+				result.push_back(static_cast<char>(c));
+				previousUnderscore = c == '_';
+			} else if (!previousUnderscore) {
+				result.push_back('_');
+				previousUnderscore = true;
+			}
+		}
+		while (!result.empty() && result.front() == '_') {
+			result.erase(result.begin());
+		}
+		while (!result.empty() && result.back() == '_') {
+			result.pop_back();
+		}
+		return result;
+	};
+	const std::string safeLabel = makeSafeFileComponent(performanceCaptureConditions_.label);
 	std::string baseName = "performance_" + timestamp.str();
+	if (!safeLabel.empty()) {
+		baseName += "_" + safeLabel;
+	}
 	std::filesystem::path csvPath = outputDirectory / (baseName + ".csv");
 	std::filesystem::path summaryPath = outputDirectory / (baseName + "_summary.txt");
 	for (int suffix = 1; std::filesystem::exists(csvPath) || std::filesystem::exists(summaryPath); ++suffix) {
-		baseName = "performance_" + timestamp.str() + "_" + std::to_string(suffix);
-		csvPath = outputDirectory / (baseName + ".csv");
-		summaryPath = outputDirectory / (baseName + "_summary.txt");
+		const std::string suffixedBaseName = baseName + "_" + std::to_string(suffix);
+		csvPath = outputDirectory / (suffixedBaseName + ".csv");
+		summaryPath = outputDirectory / (suffixedBaseName + "_summary.txt");
 	}
 
 	std::vector<const char*> postNames;
@@ -3969,6 +4012,17 @@ bool GameScene::WritePerformanceCaptureFiles()
 		}
 		return nullptr;
 	};
+	auto escapeCsv = [](const std::string& value) {
+		std::string escaped = "\"";
+		for (const char c : value) {
+			escaped += c;
+			if (c == '\"') {
+				escaped += '\"';
+			}
+		}
+		escaped += '\"';
+		return escaped;
+	};
 
 	std::ofstream csv(csvPath);
 	if (!csv.is_open()) {
@@ -3984,7 +4038,14 @@ bool GameScene::WritePerformanceCaptureFiles()
 		"evolution_ui_update_ms,evolution_ui_sprite_ms,evolution_ui_text_ms,evolution_ui_sprite_draw_count,"
 		"evolution_ui_text_draw_count,enemy_count,exp_enemy_count,bullet_count,player_bullet_count,enemy_bullet_count,"
 		"hostile_exp_enemy_bullet_count,bullet_trail_count,player_laser_count,player_mine_count,player_melee_slash_count,"
-		"neon_triangle_particle_count";
+		"neon_triangle_particle_count,player_level,skill_points,upgrade_hud_list_visible,capture_label,"
+		"condition_post_profile_mode,condition_post_profile_mode_index,condition_upgrade_hud_visible,"
+		"condition_upgrade_hud_hide_list_without_points,condition_upgrade_hud_draw_list_panels,"
+		"condition_upgrade_hud_draw_list_text,condition_upgrade_hud_draw_bottom_bars,condition_upgrade_hud_draw_bottom_text,"
+		"condition_upgrade_hud_use_rect_batch,condition_upgrade_hud_use_neon_progress_bars,"
+		"condition_upgrade_hud_use_segmented_upgrade_bars,condition_upgrade_hud_max_enhance_point,"
+		"condition_grid_post_enabled,condition_stage_post_enabled,condition_bullet_trail_post_enabled,"
+		"condition_player_post_enabled,condition_enemy_post_enabled,condition_exp_enemy_post_enabled";
 	for (const char* name : postNames) {
 		const std::string column = makeColumnName(name);
 		csv << ',' << column << "_ms," << column << "_active";
@@ -3995,6 +4056,8 @@ bool GameScene::WritePerformanceCaptureFiles()
 		const auto& r = frame.render;
 		const auto& hud = frame.upgradeHud;
 		const auto& evo = frame.evolutionUi;
+		const auto& conditions = performanceCaptureConditions_;
+		const auto& hudConditions = conditions.upgradeHud;
 		csv << frame.frameIndex << ',' << frame.fps << ',' << r.frameTotalMs << ','
 			<< r.messagePumpMs << ',' << r.inputImGuiBeginMs << ',' << r.engineUpdateMs << ',' << r.sceneUpdateMs << ','
 			<< r.imguiBuildMs << ',' << r.drawSetupMs << ',' << r.drawRecordMs << ',' << r.imguiDrawMs << ',' << r.postDrawMs << ','
@@ -4005,7 +4068,17 @@ bool GameScene::WritePerformanceCaptureFiles()
 			<< evo.spriteMs << ',' << evo.textMs << ',' << evo.spriteDraws << ',' << evo.textDraws << ',' << frame.enemyCount << ','
 			<< frame.expEnemyCount << ',' << frame.bulletCount << ',' << frame.playerBulletCount << ',' << frame.enemyBulletCount << ','
 			<< frame.hostileExpEnemyBulletCount << ',' << frame.bulletTrailCount << ',' << frame.playerLaserCount << ','
-			<< frame.playerMineCount << ',' << frame.playerMeleeSlashCount << ',' << frame.neonTriangleParticleCount;
+			<< frame.playerMineCount << ',' << frame.playerMeleeSlashCount << ',' << frame.neonTriangleParticleCount << ','
+			<< frame.playerLevel << ',' << frame.skillPoints << ',' << (frame.upgradeHudListVisible ? 1 : 0) << ','
+			<< escapeCsv(conditions.label) << ',' << escapeCsv(conditions.postProfileModeName) << ',' << conditions.postProfileMode << ','
+			<< (hudConditions.visible ? 1 : 0) << ',' << (hudConditions.hideListWithoutPoints ? 1 : 0) << ','
+			<< (hudConditions.drawListPanels ? 1 : 0) << ',' << (hudConditions.drawListText ? 1 : 0) << ','
+			<< (hudConditions.drawBottomBars ? 1 : 0) << ',' << (hudConditions.drawBottomText ? 1 : 0) << ','
+			<< (hudConditions.useRectBatch ? 1 : 0) << ',' << (hudConditions.useNeonProgressBars ? 1 : 0) << ','
+			<< (hudConditions.useSegmentedUpgradeBars ? 1 : 0) << ',' << hudConditions.maxEnhancePoint << ','
+			<< (conditions.gridPostEnabled ? 1 : 0) << ',' << (conditions.stagePostEnabled ? 1 : 0) << ','
+			<< (conditions.bulletTrailPostEnabled ? 1 : 0) << ',' << (conditions.playerPostEnabled ? 1 : 0) << ','
+			<< (conditions.enemyPostEnabled ? 1 : 0) << ',' << (conditions.expEnemyPostEnabled ? 1 : 0);
 		for (const char* name : postNames) {
 			const PostProfileEntry* entry = findPostEntry(frame, name);
 			csv << ',' << (entry ? entry->ms : 0.0f) << ',' << (entry && entry->active ? 1 : 0);
@@ -4023,7 +4096,34 @@ bool GameScene::WritePerformanceCaptureFiles()
 		performanceCaptureStatus_ = "Summaryファイルを開けませんでした。";
 		return false;
 	}
-	summary << "=== Performance Capture Summary ===\n\nFrames: " << performanceCaptureFrames_.size() << "\n";
+	const auto& conditions = performanceCaptureConditions_;
+	const auto& hudConditions = conditions.upgradeHud;
+	auto boolText = [](bool value) { return value ? "true" : "false"; };
+	summary << "=== Performance Capture Summary ===\n\n"
+		<< "Capture Label: " << conditions.label << "\n"
+		<< "Frames: " << performanceCaptureFrames_.size() << "\n\n"
+		<< "=== Capture Conditions ===\n\n"
+		<< "Post Profile Mode: " << conditions.postProfileModeName << " (" << conditions.postProfileMode << ")\n\n"
+		<< "Player Level: " << hudConditions.playerLevel << "\n"
+		<< "Skill Points: " << hudConditions.skillPoints << "\n\n"
+		<< "Upgrade HUD Visible: " << boolText(hudConditions.visible) << "\n"
+		<< "Hide List Without Points: " << boolText(hudConditions.hideListWithoutPoints) << "\n"
+		<< "Upgrade List Actually Visible: " << boolText(hudConditions.listActuallyVisible) << "\n"
+		<< "Upgrade List Panels: " << boolText(hudConditions.drawListPanels) << "\n"
+		<< "Upgrade List Text: " << boolText(hudConditions.drawListText) << "\n"
+		<< "Segmented Upgrade Bars: " << boolText(hudConditions.useSegmentedUpgradeBars) << "\n"
+		<< "Bottom Bars: " << boolText(hudConditions.drawBottomBars) << "\n"
+		<< "Bottom Text: " << boolText(hudConditions.drawBottomText) << "\n"
+		<< "Rect Batch: " << boolText(hudConditions.useRectBatch) << "\n"
+		<< "Neon Progress Bars: " << boolText(hudConditions.useNeonProgressBars) << "\n"
+		<< "Max Enhance Point: " << hudConditions.maxEnhancePoint << "\n\n"
+		<< "Grid Post Enabled: " << boolText(conditions.gridPostEnabled) << "\n"
+		<< "Stage Post Enabled: " << boolText(conditions.stagePostEnabled) << "\n"
+		<< "Bullet Trail Post Enabled: " << boolText(conditions.bulletTrailPostEnabled) << "\n"
+		<< "Player Post Enabled: " << boolText(conditions.playerPostEnabled) << "\n"
+		<< "Enemy Post Enabled: " << boolText(conditions.enemyPostEnabled) << "\n"
+		<< "Exp Enemy Post Enabled: " << boolText(conditions.expEnemyPostEnabled) << "\n\n"
+		<< "=== Performance ===\n";
 	auto writeStats = [&](const char* label, const char* unit, auto getter) {
 		double total = 0.0;
 		double minimum = (std::numeric_limits<double>::max)();
@@ -4085,6 +4185,9 @@ bool GameScene::WritePerformanceCaptureFiles()
 	writeStats("Player Mine Count", "", [](const auto& f) { return f.playerMineCount; });
 	writeStats("Player Melee Slash Count", "", [](const auto& f) { return f.playerMeleeSlashCount; });
 	writeStats("Neon Triangle Particle Count", "", [](const auto& f) { return f.neonTriangleParticleCount; });
+	writeStats("Player Level", "", [](const auto& f) { return f.playerLevel; });
+	writeStats("Skill Points", "", [](const auto& f) { return f.skillPoints; });
+	writeStats("Upgrade HUD List Visible", "", [](const auto& f) { return f.upgradeHudListVisible ? 1 : 0; });
 	for (const char* name : postNames) {
 		writeStats(name, " ms", [&](const PerformanceCaptureFrame& frame) {
 			const PostProfileEntry* entry = findPostEntry(frame, name);
