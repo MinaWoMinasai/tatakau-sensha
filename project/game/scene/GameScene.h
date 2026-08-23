@@ -310,6 +310,7 @@ private:
 		bool playerPostEnabled = false;
 		bool enemyPostEnabled = false;
 		bool expEnemyPostEnabled = false;
+		bool trailAutoFireEnabled = false;
 	};
 
 	struct PerformanceCaptureFrame {
@@ -330,6 +331,7 @@ private:
 		size_t enemyBulletCount = 0;
 		size_t hostileExpEnemyBulletCount = 0;
 		size_t bulletTrailCount = 0;
+		TrailManager::DrawStats trailDrawStats{};
 		size_t playerLaserCount = 0;
 		size_t playerMineCount = 0;
 		size_t playerMeleeSlashCount = 0;
