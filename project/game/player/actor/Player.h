@@ -334,6 +334,8 @@ public:
 		bool useRectBatch = false;
 		bool useNeonProgressBars = false;
 		bool useSegmentedUpgradeBars = false;
+		bool segmentedBarBloomEnabled = true;
+		bool listTextBloomEnabled = true;
 		bool listActuallyVisible = false;
 		int maxEnhancePoint = 0;
 	};
@@ -343,6 +345,7 @@ public:
 			upgradeHudDrawListPanels_, upgradeHudDrawListText_, upgradeHudDrawBottomBars_,
 			upgradeHudDrawBottomText_, upgradeHudUseRectBatch_, upgradeHudUseNeonProgressBars_,
 			upgradeHudUseSegmentedUpgradeBars_,
+			upgradeHudSegmentedBarBloomEnabled_, upgradeHudListTextBloomEnabled_,
 			upgradeHudVisible_ && !isChangeMode && !isDead_ && upgradeHudListVisibility_ > 0.01f,
 			maxEnhancePoint
 		};
@@ -828,6 +831,10 @@ private:
 	bool upgradeHudUseNeonProgressBars_ = true;
 	bool upgradeHudRoundedProgressBars_ = true;
 	bool upgradeHudUseSegmentedUpgradeBars_ = true;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	bool upgradeHudSegmentedBarBloomEnabled_ = true;
+	bool upgradeHudListTextBloomEnabled_ = true;
+#endif
 	Vector2 upgradeHudSegmentBarOffset_ = { 0.0f, 0.0f };
 	Vector2 upgradeHudSegmentBarSize_ = { 230.0f, 22.0f };
 	Vector2 upgradeHudPanelPos_ = { 18.0f, 338.0f };
