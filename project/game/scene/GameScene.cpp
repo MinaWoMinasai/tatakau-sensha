@@ -4043,7 +4043,8 @@ bool GameScene::WritePerformanceCaptureFiles()
 		"condition_upgrade_hud_hide_list_without_points,condition_upgrade_hud_draw_list_panels,"
 		"condition_upgrade_hud_draw_list_text,condition_upgrade_hud_draw_bottom_bars,condition_upgrade_hud_draw_bottom_text,"
 		"condition_upgrade_hud_use_rect_batch,condition_upgrade_hud_use_neon_progress_bars,"
-		"condition_upgrade_hud_use_segmented_upgrade_bars,condition_upgrade_hud_max_enhance_point,"
+		"condition_upgrade_hud_use_segmented_upgrade_bars,condition_segmented_bar_bloom_enabled,"
+		"condition_upgrade_list_text_bloom_enabled,condition_upgrade_hud_max_enhance_point,"
 		"condition_grid_post_enabled,condition_stage_post_enabled,condition_bullet_trail_post_enabled,"
 		"condition_player_post_enabled,condition_enemy_post_enabled,condition_exp_enemy_post_enabled";
 	for (const char* name : postNames) {
@@ -4075,7 +4076,8 @@ bool GameScene::WritePerformanceCaptureFiles()
 			<< (hudConditions.drawListPanels ? 1 : 0) << ',' << (hudConditions.drawListText ? 1 : 0) << ','
 			<< (hudConditions.drawBottomBars ? 1 : 0) << ',' << (hudConditions.drawBottomText ? 1 : 0) << ','
 			<< (hudConditions.useRectBatch ? 1 : 0) << ',' << (hudConditions.useNeonProgressBars ? 1 : 0) << ','
-			<< (hudConditions.useSegmentedUpgradeBars ? 1 : 0) << ',' << hudConditions.maxEnhancePoint << ','
+			<< (hudConditions.useSegmentedUpgradeBars ? 1 : 0) << ',' << (hudConditions.segmentedBarBloomEnabled ? 1 : 0) << ','
+			<< (hudConditions.listTextBloomEnabled ? 1 : 0) << ',' << hudConditions.maxEnhancePoint << ','
 			<< (conditions.gridPostEnabled ? 1 : 0) << ',' << (conditions.stagePostEnabled ? 1 : 0) << ','
 			<< (conditions.bulletTrailPostEnabled ? 1 : 0) << ',' << (conditions.playerPostEnabled ? 1 : 0) << ','
 			<< (conditions.enemyPostEnabled ? 1 : 0) << ',' << (conditions.expEnemyPostEnabled ? 1 : 0);
@@ -4112,6 +4114,8 @@ bool GameScene::WritePerformanceCaptureFiles()
 		<< "Upgrade List Panels: " << boolText(hudConditions.drawListPanels) << "\n"
 		<< "Upgrade List Text: " << boolText(hudConditions.drawListText) << "\n"
 		<< "Segmented Upgrade Bars: " << boolText(hudConditions.useSegmentedUpgradeBars) << "\n"
+		<< "Segmented Bar Bloom: " << boolText(hudConditions.segmentedBarBloomEnabled) << "\n"
+		<< "Upgrade List Text Bloom: " << boolText(hudConditions.listTextBloomEnabled) << "\n"
 		<< "Bottom Bars: " << boolText(hudConditions.drawBottomBars) << "\n"
 		<< "Bottom Text: " << boolText(hudConditions.drawBottomText) << "\n"
 		<< "Rect Batch: " << boolText(hudConditions.useRectBatch) << "\n"
