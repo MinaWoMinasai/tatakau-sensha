@@ -3824,6 +3824,10 @@ void GameScene::DrawPerformanceBreakdownImGui()
 void GameScene::DrawPerformanceCaptureImGui()
 {
 	ImGui::SeparatorText("パフォーマンスキャプチャ");
+	bool trailAutoFire = player_ && player_->IsDebugAutoFireEnabled();
+	if (ImGui::Checkbox("Trailテスト: 自動射撃", &trailAutoFire) && player_) {
+		player_->SetDebugAutoFireEnabled(trailAutoFire);
+	}
 	if (!performanceCaptureActive_) {
 		ImGui::InputText("計測名", performanceCaptureLabel_.data(), performanceCaptureLabel_.size());
 		ImGui::InputInt("計測フレーム数", &performanceCaptureFrameCount_);
@@ -3862,6 +3866,7 @@ void GameScene::StartPerformanceCapture()
 	performanceCaptureConditions_.expEnemyPostEnabled = enableExpEnemyPostEffect_ && IsPostProfileCategoryEnabled("ExpEnemy");
 	if (player_) {
 		performanceCaptureConditions_.upgradeHud = player_->GetUpgradeHudDebugSnapshot();
+		performanceCaptureConditions_.trailAutoFireEnabled = player_->IsDebugAutoFireEnabled();
 	}
 	performanceCaptureFrames_.clear();
 	performanceCaptureFrames_.reserve(static_cast<size_t>(performanceCaptureFrameCount_));
@@ -3903,6 +3908,7 @@ void GameScene::CapturePerformanceFrame()
 		frame.hostileExpEnemyBulletCount = counts.hostileExpEnemy;
 		frame.enemyBulletCount = counts.enemy + counts.hostileExpEnemy;
 		frame.bulletTrailCount = bulletManager_->GetTrailInstanceCount();
+		frame.trailDrawStats = bulletManager_->GetTrailDrawStats();
 	}
 	frame.playerLaserCount = playerLaserBeams_.size();
 	frame.playerMineCount = playerMines_.size();
@@ -4037,7 +4043,10 @@ bool GameScene::WritePerformanceCaptureFiles()
 		"upgrade_hud_sprite_draw_count,upgrade_hud_text_draw_count,evolution_ui_visible,evolution_ui_total_ms,"
 		"evolution_ui_update_ms,evolution_ui_sprite_ms,evolution_ui_text_ms,evolution_ui_sprite_draw_count,"
 		"evolution_ui_text_draw_count,enemy_count,exp_enemy_count,bullet_count,player_bullet_count,enemy_bullet_count,"
-		"hostile_exp_enemy_bullet_count,bullet_trail_count,player_laser_count,player_mine_count,player_melee_slash_count,"
+		"hostile_exp_enemy_bullet_count,bullet_trail_count,trail_total_instances,trail_active_instances,"
+		"trail_drawable_instances,trail_total_points,trail_requested_vertices,trail_generated_vertices,trail_draw_calls,"
+		"trail_vertex_capacity,trail_capacity_hit,trail_truncated_vertices,trail_draw_cpu_ms,"
+		"player_laser_count,player_mine_count,player_melee_slash_count,"
 		"neon_triangle_particle_count,player_level,skill_points,upgrade_hud_list_visible,capture_label,"
 		"condition_post_profile_mode,condition_post_profile_mode_index,condition_upgrade_hud_visible,"
 		"condition_upgrade_hud_hide_list_without_points,condition_upgrade_hud_draw_list_panels,"
@@ -4046,7 +4055,8 @@ bool GameScene::WritePerformanceCaptureFiles()
 		"condition_upgrade_hud_use_segmented_upgrade_bars,condition_segmented_bar_bloom_enabled,"
 		"condition_upgrade_list_text_bloom_enabled,condition_upgrade_hud_max_enhance_point,"
 		"condition_grid_post_enabled,condition_stage_post_enabled,condition_bullet_trail_post_enabled,"
-		"condition_player_post_enabled,condition_enemy_post_enabled,condition_exp_enemy_post_enabled";
+		"condition_player_post_enabled,condition_enemy_post_enabled,condition_exp_enemy_post_enabled,"
+		"condition_trail_auto_fire_enabled";
 	for (const char* name : postNames) {
 		const std::string column = makeColumnName(name);
 		csv << ',' << column << "_ms," << column << "_active";
@@ -4057,6 +4067,7 @@ bool GameScene::WritePerformanceCaptureFiles()
 		const auto& r = frame.render;
 		const auto& hud = frame.upgradeHud;
 		const auto& evo = frame.evolutionUi;
+		const auto& trail = frame.trailDrawStats;
 		const auto& conditions = performanceCaptureConditions_;
 		const auto& hudConditions = conditions.upgradeHud;
 		csv << frame.frameIndex << ',' << frame.fps << ',' << r.frameTotalMs << ','
@@ -4068,7 +4079,10 @@ bool GameScene::WritePerformanceCaptureFiles()
 			<< hud.spriteDraws << ',' << hud.textDraws << ',' << (evo.visible ? 1 : 0) << ',' << evo.totalMs << ',' << evo.updateMs << ','
 			<< evo.spriteMs << ',' << evo.textMs << ',' << evo.spriteDraws << ',' << evo.textDraws << ',' << frame.enemyCount << ','
 			<< frame.expEnemyCount << ',' << frame.bulletCount << ',' << frame.playerBulletCount << ',' << frame.enemyBulletCount << ','
-			<< frame.hostileExpEnemyBulletCount << ',' << frame.bulletTrailCount << ',' << frame.playerLaserCount << ','
+			<< frame.hostileExpEnemyBulletCount << ',' << frame.bulletTrailCount << ','
+			<< trail.totalInstances << ',' << trail.activeInstances << ',' << trail.drawableInstances << ',' << trail.totalPoints << ','
+			<< trail.requestedVertices << ',' << trail.generatedVertices << ',' << trail.drawCalls << ',' << trail.vertexCapacity << ','
+			<< (trail.capacityHit ? 1 : 0) << ',' << trail.truncatedVertices << ',' << trail.drawCpuMs << ',' << frame.playerLaserCount << ','
 			<< frame.playerMineCount << ',' << frame.playerMeleeSlashCount << ',' << frame.neonTriangleParticleCount << ','
 			<< frame.playerLevel << ',' << frame.skillPoints << ',' << (frame.upgradeHudListVisible ? 1 : 0) << ','
 			<< escapeCsv(conditions.label) << ',' << escapeCsv(conditions.postProfileModeName) << ',' << conditions.postProfileMode << ','
@@ -4080,7 +4094,8 @@ bool GameScene::WritePerformanceCaptureFiles()
 			<< (hudConditions.listTextBloomEnabled ? 1 : 0) << ',' << hudConditions.maxEnhancePoint << ','
 			<< (conditions.gridPostEnabled ? 1 : 0) << ',' << (conditions.stagePostEnabled ? 1 : 0) << ','
 			<< (conditions.bulletTrailPostEnabled ? 1 : 0) << ',' << (conditions.playerPostEnabled ? 1 : 0) << ','
-			<< (conditions.enemyPostEnabled ? 1 : 0) << ',' << (conditions.expEnemyPostEnabled ? 1 : 0);
+			<< (conditions.enemyPostEnabled ? 1 : 0) << ',' << (conditions.expEnemyPostEnabled ? 1 : 0) << ','
+			<< (conditions.trailAutoFireEnabled ? 1 : 0);
 		for (const char* name : postNames) {
 			const PostProfileEntry* entry = findPostEntry(frame, name);
 			csv << ',' << (entry ? entry->ms : 0.0f) << ',' << (entry && entry->active ? 1 : 0);
@@ -4127,6 +4142,7 @@ bool GameScene::WritePerformanceCaptureFiles()
 		<< "Player Post Enabled: " << boolText(conditions.playerPostEnabled) << "\n"
 		<< "Enemy Post Enabled: " << boolText(conditions.enemyPostEnabled) << "\n"
 		<< "Exp Enemy Post Enabled: " << boolText(conditions.expEnemyPostEnabled) << "\n\n"
+		<< "Trail Test Auto Fire: " << boolText(conditions.trailAutoFireEnabled) << "\n\n"
 		<< "=== Performance ===\n";
 	auto writeStats = [&](const char* label, const char* unit, auto getter) {
 		double total = 0.0;
@@ -4185,6 +4201,22 @@ bool GameScene::WritePerformanceCaptureFiles()
 	writeStats("Enemy Bullet Count", "", [](const auto& f) { return f.enemyBulletCount; });
 	writeStats("Hostile Exp Enemy Bullet Count", "", [](const auto& f) { return f.hostileExpEnemyBulletCount; });
 	writeStats("Bullet Trail Count", "", [](const auto& f) { return f.bulletTrailCount; });
+	writeStats("Trail Total Instances", "", [](const auto& f) { return f.trailDrawStats.totalInstances; });
+	writeStats("Trail Active Instances", "", [](const auto& f) { return f.trailDrawStats.activeInstances; });
+	writeStats("Trail Drawable Instances", "", [](const auto& f) { return f.trailDrawStats.drawableInstances; });
+	writeStats("Trail Total Points", "", [](const auto& f) { return f.trailDrawStats.totalPoints; });
+	writeStats("Trail Requested Vertices", "", [](const auto& f) { return f.trailDrawStats.requestedVertices; });
+	writeStats("Trail Generated Vertices", "", [](const auto& f) { return f.trailDrawStats.generatedVertices; });
+	writeStats("Trail Draw Calls", "", [](const auto& f) { return f.trailDrawStats.drawCalls; });
+	writeStats("Trail Vertex Capacity", "", [](const auto& f) { return f.trailDrawStats.vertexCapacity; });
+	writeStats("Trail Capacity Hit", "", [](const auto& f) { return f.trailDrawStats.capacityHit ? 1 : 0; });
+	writeStats("Trail Truncated Vertices", "", [](const auto& f) { return f.trailDrawStats.truncatedVertices; });
+	writeStats("Trail Draw CPU", " ms", [](const auto& f) { return f.trailDrawStats.drawCpuMs; });
+	const size_t trailCapacityHitFrames = static_cast<size_t>(std::count_if(
+		performanceCaptureFrames_.begin(), performanceCaptureFrames_.end(),
+		[](const PerformanceCaptureFrame& frame) { return frame.trailDrawStats.capacityHit; }));
+	summary << "\nTrail Capacity Hit Frames\nCount: " << trailCapacityHitFrames
+		<< " / " << performanceCaptureFrames_.size() << "\n";
 	writeStats("Player Laser Count", "", [](const auto& f) { return f.playerLaserCount; });
 	writeStats("Player Mine Count", "", [](const auto& f) { return f.playerMineCount; });
 	writeStats("Player Melee Slash Count", "", [](const auto& f) { return f.playerMeleeSlashCount; });

@@ -343,7 +343,11 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 		cooldown = (std::max)(0.0f, cooldown - deltaTime);
 	}
 
-	if (input_->IsPress(input_->GetMouseState().rgbButtons[0]) && !upgradeHudMouseCaptured_) {
+	bool wantsPrimaryAttack = input_->IsPress(input_->GetMouseState().rgbButtons[0]);
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	wantsPrimaryAttack = wantsPrimaryAttack || debugAutoFireEnabled_;
+#endif
+	if (wantsPrimaryAttack && !upgradeHudMouseCaptured_) {
 
 		if (const PlayerClassConfig* config = GetCurrentClassConfig()) {
 			const float baseReload = isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f;
