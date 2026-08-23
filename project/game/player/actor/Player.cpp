@@ -2708,7 +2708,11 @@ void Player::AppendGameplayNeonTextLabels(std::vector<TextLabel*>& labels) const
 	if (upgradeHudDrawBottomText_ && upgradeHudExpLabel_) {
 		labels.push_back(upgradeHudExpLabel_.get());
 	}
-	if (upgradeHudListVisibility_ > 0.01f && upgradeHudDrawListText_) {
+	bool drawUpgradeListTextBloom = true;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	drawUpgradeListTextBloom = upgradeHudListTextBloomEnabled_;
+#endif
+	if (drawUpgradeListTextBloom && upgradeHudListVisibility_ > 0.01f && upgradeHudDrawListText_) {
 		if (upgradeHudTitleLabel_) {
 			labels.push_back(upgradeHudTitleLabel_.get());
 		}
@@ -2986,6 +2990,10 @@ void Player::DrawUpgradeHudDebugImGui()
 	ImGui::Checkbox("スキルポイントがない時は強化リストを隠す", &upgradeHudHideListWithoutPoints_);
 	ImGui::Checkbox("強化リスト背景/ボタンを描画", &upgradeHudDrawListPanels_);
 	ImGui::Checkbox("強化リスト文字を描画", &upgradeHudDrawListText_);
+#if !defined(NDEBUG)
+	ImGui::Checkbox("強化段数ゲージ Bloom を描画", &upgradeHudSegmentedBarBloomEnabled_);
+	ImGui::Checkbox("強化リスト文字 Bloom を描画", &upgradeHudListTextBloomEnabled_);
+#endif
 	ImGui::Checkbox("下部EXP/Levelバーを描画", &upgradeHudDrawBottomBars_);
 	ImGui::Checkbox("下部EXP/Level文字を描画", &upgradeHudDrawBottomText_);
 	ImGui::Checkbox("背景/バーを矩形バッチで描画", &upgradeHudUseRectBatch_);
@@ -4998,7 +5006,10 @@ void Player::DrawStaticEvolutionPrototype()
 void Player::DrawUpgradeHudAfterPostEffects()
 {
 	const bool drawBottomBars = upgradeHudDrawBottomBars_ && upgradeHudUseNeonProgressBars_;
-	const bool drawSegmentBars = upgradeHudUseSegmentedUpgradeBars_ && upgradeHudListVisibility_ > 0.01f;
+	bool drawSegmentBars = upgradeHudUseSegmentedUpgradeBars_ && upgradeHudListVisibility_ > 0.01f;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	drawSegmentBars = drawSegmentBars && upgradeHudSegmentedBarBloomEnabled_;
+#endif
 	if (!upgradeHudVisible_ || isChangeMode || isDead_ || !upgradeHudBarBloomEffect_ ||
 		(!drawBottomBars && !drawSegmentBars)) {
 		return;
