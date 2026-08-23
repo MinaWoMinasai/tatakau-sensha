@@ -299,6 +299,19 @@ private:
 	};
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
+	struct PerformanceCaptureConditions {
+		std::string label;
+		Player::UpgradeHudDebugSnapshot upgradeHud{};
+		int postProfileMode = 0;
+		std::string postProfileModeName;
+		bool gridPostEnabled = false;
+		bool stagePostEnabled = false;
+		bool bulletTrailPostEnabled = false;
+		bool playerPostEnabled = false;
+		bool enemyPostEnabled = false;
+		bool expEnemyPostEnabled = false;
+	};
+
 	struct PerformanceCaptureFrame {
 		uint32_t frameIndex = 0;
 		float fps = 0.0f;
@@ -307,6 +320,9 @@ private:
 		size_t postEntryCount = 0;
 		Player::UiProfileStats upgradeHud{};
 		Player::UiProfileStats evolutionUi{};
+		int playerLevel = 0;
+		int skillPoints = 0;
+		bool upgradeHudListVisible = false;
 		size_t enemyCount = 0;
 		size_t expEnemyCount = 0;
 		size_t bulletCount = 0;
@@ -499,8 +515,10 @@ private:
 	IScene::RenderProfile renderProfile_{};
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	int performanceCaptureFrameCount_ = 30;
+	std::array<char, 128> performanceCaptureLabel_{};
 	bool performanceCaptureActive_ = false;
 	bool performanceCaptureSkipCurrentFrame_ = false;
+	PerformanceCaptureConditions performanceCaptureConditions_{};
 	std::vector<PerformanceCaptureFrame> performanceCaptureFrames_;
 	std::string performanceCaptureLastCsvPath_;
 	std::string performanceCaptureStatus_;
