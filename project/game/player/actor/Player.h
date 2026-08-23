@@ -321,6 +321,33 @@ public:
 	};
 	const UiProfileStats& GetUpgradeHudProfileStats() const { return upgradeHudProfile_; }
 	const UiProfileStats& GetEvolutionUiProfileStats() const { return evolutionUiProfile_; }
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	struct UpgradeHudDebugSnapshot {
+		int playerLevel = 0;
+		int skillPoints = 0;
+		bool visible = false;
+		bool hideListWithoutPoints = false;
+		bool drawListPanels = false;
+		bool drawListText = false;
+		bool drawBottomBars = false;
+		bool drawBottomText = false;
+		bool useRectBatch = false;
+		bool useNeonProgressBars = false;
+		bool useSegmentedUpgradeBars = false;
+		bool listActuallyVisible = false;
+		int maxEnhancePoint = 0;
+	};
+	UpgradeHudDebugSnapshot GetUpgradeHudDebugSnapshot() const {
+		return {
+			level_, skillPoints_, upgradeHudVisible_, upgradeHudHideListWithoutPoints_,
+			upgradeHudDrawListPanels_, upgradeHudDrawListText_, upgradeHudDrawBottomBars_,
+			upgradeHudDrawBottomText_, upgradeHudUseRectBatch_, upgradeHudUseNeonProgressBars_,
+			upgradeHudUseSegmentedUpgradeBars_,
+			upgradeHudVisible_ && !isChangeMode && !isDead_ && upgradeHudListVisibility_ > 0.01f,
+			maxEnhancePoint
+		};
+	}
+#endif
 	std::vector<LaserShotEvent> ConsumeLaserShotEvents();
 	std::vector<MineDropEvent> ConsumeMineDropEvents();
 	std::vector<MeleeSlashEvent> ConsumeMeleeSlashEvents();
