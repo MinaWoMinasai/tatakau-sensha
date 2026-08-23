@@ -2,12 +2,14 @@
 #include "GameStartMode.h"
 #include "CollisionConfig.h"
 #include <cmath>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <sstream>
 
 #ifdef USE_IMGUI
@@ -413,6 +415,14 @@ Vector3 RotateVector2D(const Vector3& value, float angleRad) {
 }
 
 } // namespace
+
+void GameScene::SetRenderProfile(const IScene::RenderProfile& profile)
+{
+	renderProfile_ = profile;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	CapturePerformanceFrame();
+#endif
+}
 
 GameScene::GameScene() {}
 
@@ -3810,6 +3820,288 @@ void GameScene::DrawPerformanceBreakdownImGui()
 #endif
 }
 
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+void GameScene::DrawPerformanceCaptureImGui()
+{
+	ImGui::SeparatorText("パフォーマンスキャプチャ");
+	if (!performanceCaptureActive_) {
+		ImGui::InputInt("計測フレーム数", &performanceCaptureFrameCount_);
+		performanceCaptureFrameCount_ = (std::clamp)(performanceCaptureFrameCount_, 5, 300);
+		if (ImGui::Button("計測開始")) {
+			StartPerformanceCapture();
+		}
+	} else {
+		ImGui::Text("計測フレーム数: %d", performanceCaptureFrameCount_);
+		ImGui::Text("計測中: %zu / %d frames", performanceCaptureFrames_.size(), performanceCaptureFrameCount_);
+		ImGui::ProgressBar(
+			static_cast<float>(performanceCaptureFrames_.size()) /
+			static_cast<float>((std::max)(1, performanceCaptureFrameCount_)),
+			ImVec2(-1.0f, 0.0f));
+	}
+	if (!performanceCaptureLastCsvPath_.empty()) {
+		ImGui::TextWrapped("前回保存: %s", performanceCaptureLastCsvPath_.c_str());
+	}
+	if (!performanceCaptureStatus_.empty()) {
+		ImGui::TextWrapped("%s", performanceCaptureStatus_.c_str());
+	}
+}
+
+void GameScene::StartPerformanceCapture()
+{
+	performanceCaptureFrameCount_ = (std::clamp)(performanceCaptureFrameCount_, 5, 300);
+	performanceCaptureFrames_.clear();
+	performanceCaptureFrames_.reserve(static_cast<size_t>(performanceCaptureFrameCount_));
+	performanceCaptureStatus_.clear();
+	performanceCaptureSkipCurrentFrame_ = true;
+	performanceCaptureActive_ = true;
+}
+
+void GameScene::CapturePerformanceFrame()
+{
+	if (!performanceCaptureActive_) {
+		return;
+	}
+	if (performanceCaptureSkipCurrentFrame_) {
+		performanceCaptureSkipCurrentFrame_ = false;
+		return;
+	}
+
+	PerformanceCaptureFrame frame{};
+	frame.frameIndex = static_cast<uint32_t>(performanceCaptureFrames_.size() + 1);
+	frame.fps = ImGui::GetIO().Framerate;
+	frame.render = renderProfile_;
+	frame.postEntryCount = (std::min)(postProfileEntryCount_, frame.postEntries.size());
+	std::copy_n(postProfileEntries_.begin(), frame.postEntryCount, frame.postEntries.begin());
+	if (player_) {
+		frame.upgradeHud = player_->GetUpgradeHudProfileStats();
+		frame.evolutionUi = player_->GetEvolutionUiProfileStats();
+	}
+	frame.enemyCount = enemy_ && !enemy_->IsDead() ? 1 : 0;
+	frame.expEnemyCount = enemyManager_ ? enemyManager_->GetEnemyCount() : 0;
+	if (bulletManager_) {
+		const BulletManager::BulletCounts counts = bulletManager_->GetBulletCounts();
+		frame.bulletCount = bulletManager_->GetBulletCount();
+		frame.playerBulletCount = counts.player;
+		frame.hostileExpEnemyBulletCount = counts.hostileExpEnemy;
+		frame.enemyBulletCount = counts.enemy + counts.hostileExpEnemy;
+		frame.bulletTrailCount = bulletManager_->GetTrailInstanceCount();
+	}
+	frame.playerLaserCount = playerLaserBeams_.size();
+	frame.playerMineCount = playerMines_.size();
+	frame.playerMeleeSlashCount = playerMeleeSlashes_.size();
+	frame.neonTriangleParticleCount = neonTriangleParticles_.size();
+	performanceCaptureFrames_.push_back(frame);
+
+	if (performanceCaptureFrames_.size() >= static_cast<size_t>(performanceCaptureFrameCount_)) {
+		performanceCaptureActive_ = false;
+		if (WritePerformanceCaptureFiles()) {
+			performanceCaptureStatus_ = "CSVとSummaryを保存しました。";
+		} else if (performanceCaptureStatus_.empty()) {
+			performanceCaptureStatus_ = "パフォーマンス計測結果の保存に失敗しました。";
+		}
+	}
+}
+
+bool GameScene::WritePerformanceCaptureFiles()
+{
+	if (performanceCaptureFrames_.empty()) {
+		return false;
+	}
+
+	const std::filesystem::path outputDirectory = "logs/performance";
+	std::error_code directoryError;
+	std::filesystem::create_directories(outputDirectory, directoryError);
+	if (directoryError) {
+		performanceCaptureStatus_ = "logs/performanceフォルダを作成できませんでした。";
+		return false;
+	}
+
+	const auto now = std::chrono::system_clock::now();
+	const std::time_t time = std::chrono::system_clock::to_time_t(now);
+	std::tm localTime{};
+	localtime_s(&localTime, &time);
+	std::ostringstream timestamp;
+	timestamp << std::put_time(&localTime, "%Y%m%d_%H%M%S");
+	std::string baseName = "performance_" + timestamp.str();
+	std::filesystem::path csvPath = outputDirectory / (baseName + ".csv");
+	std::filesystem::path summaryPath = outputDirectory / (baseName + "_summary.txt");
+	for (int suffix = 1; std::filesystem::exists(csvPath) || std::filesystem::exists(summaryPath); ++suffix) {
+		baseName = "performance_" + timestamp.str() + "_" + std::to_string(suffix);
+		csvPath = outputDirectory / (baseName + ".csv");
+		summaryPath = outputDirectory / (baseName + "_summary.txt");
+	}
+
+	std::vector<const char*> postNames;
+	postNames.reserve(postProfileEntries_.size());
+	for (const PerformanceCaptureFrame& frame : performanceCaptureFrames_) {
+		for (size_t i = 0; i < frame.postEntryCount; ++i) {
+			const char* name = frame.postEntries[i].name;
+			const bool exists = std::any_of(postNames.begin(), postNames.end(), [name](const char* current) {
+				return std::strcmp(current, name) == 0;
+			});
+			if (!exists) {
+				postNames.push_back(name);
+			}
+		}
+	}
+	auto makeColumnName = [](const char* name) {
+		std::string result = "post_";
+		bool previousUnderscore = false;
+		for (const unsigned char c : std::string(name)) {
+			if (std::isalnum(c)) {
+				result.push_back(static_cast<char>(std::tolower(c)));
+				previousUnderscore = false;
+			} else if (!previousUnderscore) {
+				result.push_back('_');
+				previousUnderscore = true;
+			}
+		}
+		if (!result.empty() && result.back() == '_') {
+			result.pop_back();
+		}
+		return result;
+	};
+	auto findPostEntry = [](const PerformanceCaptureFrame& frame, const char* name) -> const PostProfileEntry* {
+		for (size_t i = 0; i < frame.postEntryCount; ++i) {
+			if (std::strcmp(frame.postEntries[i].name, name) == 0) {
+				return &frame.postEntries[i];
+			}
+		}
+		return nullptr;
+	};
+
+	std::ofstream csv(csvPath);
+	if (!csv.is_open()) {
+		performanceCaptureStatus_ = "CSVファイルを開けませんでした。";
+		return false;
+	}
+	csv << "frame,fps,frame_total_ms,windows_message_ms,input_imgui_begin_ms,engine_common_update_ms,"
+		"scene_update_ui_ms,imgui_build_ms,draw_setup_ms,draw_command_record_ms,imgui_draw_command_ms,"
+		"submit_present_wait_ms,scene_post_effect_3d_ms,global_bloom_post_ms,after_object_post_ms,sprite_pass_ms,"
+		"command_list_close_ms,execute_command_lists_ms,present_ms,gpu_fence_wait_ms,fps_limit_wait_ms,allocator_list_reset_ms,"
+		"upgrade_hud_visible,upgrade_hud_total_ms,upgrade_hud_update_ms,upgrade_hud_sprite_ms,upgrade_hud_text_ms,"
+		"upgrade_hud_sprite_draw_count,upgrade_hud_text_draw_count,evolution_ui_visible,evolution_ui_total_ms,"
+		"evolution_ui_update_ms,evolution_ui_sprite_ms,evolution_ui_text_ms,evolution_ui_sprite_draw_count,"
+		"evolution_ui_text_draw_count,enemy_count,exp_enemy_count,bullet_count,player_bullet_count,enemy_bullet_count,"
+		"hostile_exp_enemy_bullet_count,bullet_trail_count,player_laser_count,player_mine_count,player_melee_slash_count,"
+		"neon_triangle_particle_count";
+	for (const char* name : postNames) {
+		const std::string column = makeColumnName(name);
+		csv << ',' << column << "_ms," << column << "_active";
+	}
+	csv << '\n' << std::fixed << std::setprecision(4);
+
+	for (const PerformanceCaptureFrame& frame : performanceCaptureFrames_) {
+		const auto& r = frame.render;
+		const auto& hud = frame.upgradeHud;
+		const auto& evo = frame.evolutionUi;
+		csv << frame.frameIndex << ',' << frame.fps << ',' << r.frameTotalMs << ','
+			<< r.messagePumpMs << ',' << r.inputImGuiBeginMs << ',' << r.engineUpdateMs << ',' << r.sceneUpdateMs << ','
+			<< r.imguiBuildMs << ',' << r.drawSetupMs << ',' << r.drawRecordMs << ',' << r.imguiDrawMs << ',' << r.postDrawMs << ','
+			<< r.scenePostMs << ',' << r.globalBloomMs << ',' << r.afterPostMs << ',' << r.spriteMs << ',' << r.submitCloseMs << ','
+			<< r.submitExecuteMs << ',' << r.presentMs << ',' << r.fenceWaitMs << ',' << r.fpsLimitMs << ',' << r.submitResetMs << ','
+			<< (hud.visible ? 1 : 0) << ',' << hud.totalMs << ',' << hud.updateMs << ',' << hud.spriteMs << ',' << hud.textMs << ','
+			<< hud.spriteDraws << ',' << hud.textDraws << ',' << (evo.visible ? 1 : 0) << ',' << evo.totalMs << ',' << evo.updateMs << ','
+			<< evo.spriteMs << ',' << evo.textMs << ',' << evo.spriteDraws << ',' << evo.textDraws << ',' << frame.enemyCount << ','
+			<< frame.expEnemyCount << ',' << frame.bulletCount << ',' << frame.playerBulletCount << ',' << frame.enemyBulletCount << ','
+			<< frame.hostileExpEnemyBulletCount << ',' << frame.bulletTrailCount << ',' << frame.playerLaserCount << ','
+			<< frame.playerMineCount << ',' << frame.playerMeleeSlashCount << ',' << frame.neonTriangleParticleCount;
+		for (const char* name : postNames) {
+			const PostProfileEntry* entry = findPostEntry(frame, name);
+			csv << ',' << (entry ? entry->ms : 0.0f) << ',' << (entry && entry->active ? 1 : 0);
+		}
+		csv << '\n';
+	}
+	csv.close();
+	if (!csv) {
+		performanceCaptureStatus_ = "CSVファイルの書き込みに失敗しました。";
+		return false;
+	}
+
+	std::ofstream summary(summaryPath);
+	if (!summary.is_open()) {
+		performanceCaptureStatus_ = "Summaryファイルを開けませんでした。";
+		return false;
+	}
+	summary << "=== Performance Capture Summary ===\n\nFrames: " << performanceCaptureFrames_.size() << "\n";
+	auto writeStats = [&](const char* label, const char* unit, auto getter) {
+		double total = 0.0;
+		double minimum = (std::numeric_limits<double>::max)();
+		double maximum = (std::numeric_limits<double>::lowest)();
+		for (const PerformanceCaptureFrame& frame : performanceCaptureFrames_) {
+			const double value = static_cast<double>(getter(frame));
+			total += value;
+			minimum = (std::min)(minimum, value);
+			maximum = (std::max)(maximum, value);
+		}
+		summary << "\n" << label << "\nAverage: " << std::fixed << std::setprecision(3)
+			<< total / static_cast<double>(performanceCaptureFrames_.size()) << unit
+			<< "\nMin: " << minimum << unit << "\nMax: " << maximum << unit << "\n";
+	};
+
+	writeStats("FPS", "", [](const auto& f) { return f.fps; });
+	writeStats("Frame Time", " ms", [](const auto& f) { return f.render.frameTotalMs; });
+	writeStats("Windows Message", " ms", [](const auto& f) { return f.render.messagePumpMs; });
+	writeStats("Input + ImGui Begin", " ms", [](const auto& f) { return f.render.inputImGuiBeginMs; });
+	writeStats("Engine Common Update", " ms", [](const auto& f) { return f.render.engineUpdateMs; });
+	writeStats("Scene Update / UI Build", " ms", [](const auto& f) { return f.render.sceneUpdateMs; });
+	writeStats("ImGui Build", " ms", [](const auto& f) { return f.render.imguiBuildMs; });
+	writeStats("Draw Setup", " ms", [](const auto& f) { return f.render.drawSetupMs; });
+	writeStats("Draw Command Record", " ms", [](const auto& f) { return f.render.drawRecordMs; });
+	writeStats("ImGui Draw Command", " ms", [](const auto& f) { return f.render.imguiDrawMs; });
+	writeStats("Submit / Present / Wait", " ms", [](const auto& f) { return f.render.postDrawMs; });
+	writeStats("Scene PostEffect3D", " ms", [](const auto& f) { return f.render.scenePostMs; });
+	writeStats("Global Bloom/Post", " ms", [](const auto& f) { return f.render.globalBloomMs; });
+	writeStats("After Object Post", " ms", [](const auto& f) { return f.render.afterPostMs; });
+	writeStats("Sprite Pass", " ms", [](const auto& f) { return f.render.spriteMs; });
+	writeStats("CommandList Close", " ms", [](const auto& f) { return f.render.submitCloseMs; });
+	writeStats("ExecuteCommandLists", " ms", [](const auto& f) { return f.render.submitExecuteMs; });
+	writeStats("Present", " ms", [](const auto& f) { return f.render.presentMs; });
+	writeStats("GPU Fence Wait", " ms", [](const auto& f) { return f.render.fenceWaitMs; });
+	writeStats("FPS Limit Wait", " ms", [](const auto& f) { return f.render.fpsLimitMs; });
+	writeStats("Allocator/List Reset", " ms", [](const auto& f) { return f.render.submitResetMs; });
+	writeStats("Upgrade HUD Visible", "", [](const auto& f) { return f.upgradeHud.visible ? 1 : 0; });
+	writeStats("Upgrade HUD", " ms", [](const auto& f) { return f.upgradeHud.totalMs; });
+	writeStats("Upgrade HUD Update", " ms", [](const auto& f) { return f.upgradeHud.updateMs; });
+	writeStats("Upgrade HUD Sprite", " ms", [](const auto& f) { return f.upgradeHud.spriteMs; });
+	writeStats("Upgrade HUD Text", " ms", [](const auto& f) { return f.upgradeHud.textMs; });
+	writeStats("Upgrade HUD Sprite Draw Count", "", [](const auto& f) { return f.upgradeHud.spriteDraws; });
+	writeStats("Upgrade HUD Text Draw Count", "", [](const auto& f) { return f.upgradeHud.textDraws; });
+	writeStats("Evolution UI Visible", "", [](const auto& f) { return f.evolutionUi.visible ? 1 : 0; });
+	writeStats("Evolution UI", " ms", [](const auto& f) { return f.evolutionUi.totalMs; });
+	writeStats("Evolution UI Update", " ms", [](const auto& f) { return f.evolutionUi.updateMs; });
+	writeStats("Evolution UI Sprite", " ms", [](const auto& f) { return f.evolutionUi.spriteMs; });
+	writeStats("Evolution UI Text", " ms", [](const auto& f) { return f.evolutionUi.textMs; });
+	writeStats("Evolution UI Sprite Draw Count", "", [](const auto& f) { return f.evolutionUi.spriteDraws; });
+	writeStats("Evolution UI Text Draw Count", "", [](const auto& f) { return f.evolutionUi.textDraws; });
+	writeStats("Enemy Count", "", [](const auto& f) { return f.enemyCount; });
+	writeStats("Exp Enemy Count", "", [](const auto& f) { return f.expEnemyCount; });
+	writeStats("Bullet Count", "", [](const auto& f) { return f.bulletCount; });
+	writeStats("Player Bullet Count", "", [](const auto& f) { return f.playerBulletCount; });
+	writeStats("Enemy Bullet Count", "", [](const auto& f) { return f.enemyBulletCount; });
+	writeStats("Hostile Exp Enemy Bullet Count", "", [](const auto& f) { return f.hostileExpEnemyBulletCount; });
+	writeStats("Bullet Trail Count", "", [](const auto& f) { return f.bulletTrailCount; });
+	writeStats("Player Laser Count", "", [](const auto& f) { return f.playerLaserCount; });
+	writeStats("Player Mine Count", "", [](const auto& f) { return f.playerMineCount; });
+	writeStats("Player Melee Slash Count", "", [](const auto& f) { return f.playerMeleeSlashCount; });
+	writeStats("Neon Triangle Particle Count", "", [](const auto& f) { return f.neonTriangleParticleCount; });
+	for (const char* name : postNames) {
+		writeStats(name, " ms", [&](const PerformanceCaptureFrame& frame) {
+			const PostProfileEntry* entry = findPostEntry(frame, name);
+			return entry ? entry->ms : 0.0f;
+		});
+	}
+	summary.close();
+	if (!summary) {
+		performanceCaptureStatus_ = "Summaryファイルの書き込みに失敗しました。";
+		return false;
+	}
+
+	performanceCaptureLastCsvPath_ = csvPath.generic_string();
+	return true;
+}
+#endif
+
 bool GameScene::IsPostProfileCategoryEnabled(const char* category) const {
 	switch (postProfileMode_) {
 	case 1:
@@ -4769,6 +5061,7 @@ void GameScene::DrawGameSceneDebugImGui()
 					evo.visible ? "表示" : "非表示",
 					evo.totalMs, evo.updateMs, evo.spriteMs, evo.spriteDraws, evo.textMs, evo.textDraws);
 			}
+			DrawPerformanceCaptureImGui();
 			ImGui::SeparatorText("処理時間比較");
 			DrawPerformanceBreakdownImGui();
 			ImGui::Separator();
