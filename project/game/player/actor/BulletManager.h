@@ -8,6 +8,12 @@ class Stage;
 
 class BulletManager {
 public:
+    struct BulletCounts {
+        size_t player = 0;
+        size_t enemy = 0;
+        size_t hostileExpEnemy = 0;
+    };
+
     void Initialize(DirectXCommon* dxCommon, Object3dCommon* object3dCommon);
     void Add(std::unique_ptr<Bullet> bullet);
 
@@ -17,6 +23,8 @@ public:
 
     // 弾のゲッター
     std::vector<Bullet*> GetBulletPtrs() const;
+    size_t GetBulletCount() const { return bullets_.size(); }
+    BulletCounts GetBulletCounts() const;
     BulletTrailSettings& GetTrailSettings() { return trailSettings_; }
     size_t GetTrailInstanceCount() const;
 

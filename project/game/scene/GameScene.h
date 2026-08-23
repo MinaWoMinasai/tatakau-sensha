@@ -84,7 +84,7 @@ public:
 	float GetPostGaussianIntensity() const override { return sceneFadeBlurIntensity_; }
 	PostEffectPulse GetPostEffectPulse() const override { return deathPostPulse_; }
 	ScreenEffectState GetScreenEffectState() const override;
-	void SetRenderProfile(const IScene::RenderProfile& profile) override { renderProfile_ = profile; }
+	void SetRenderProfile(const IScene::RenderProfile& profile) override;
 	
 	std::string GetNextSceneName() const override;
 
@@ -216,6 +216,12 @@ private:
 	void AddPostProfileEntry(const char* name, float ms, bool active);
 	void UpdatePostProfileText();
 	void DrawPerformanceBreakdownImGui();
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	void DrawPerformanceCaptureImGui();
+	void StartPerformanceCapture();
+	void CapturePerformanceFrame();
+	bool WritePerformanceCaptureFiles();
+#endif
 	bool IsPostProfileCategoryEnabled(const char* category) const;
 	const char* GetPostProfileModeName() const;
 	Vector2 GetStagePostCacheUvOffset(const Vector3& currentCameraPos) const;
@@ -291,6 +297,29 @@ private:
 		float ms = 0.0f;
 		bool active = false;
 	};
+
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	struct PerformanceCaptureFrame {
+		uint32_t frameIndex = 0;
+		float fps = 0.0f;
+		IScene::RenderProfile render{};
+		std::array<PostProfileEntry, 16> postEntries{};
+		size_t postEntryCount = 0;
+		Player::UiProfileStats upgradeHud{};
+		Player::UiProfileStats evolutionUi{};
+		size_t enemyCount = 0;
+		size_t expEnemyCount = 0;
+		size_t bulletCount = 0;
+		size_t playerBulletCount = 0;
+		size_t enemyBulletCount = 0;
+		size_t hostileExpEnemyBulletCount = 0;
+		size_t bulletTrailCount = 0;
+		size_t playerLaserCount = 0;
+		size_t playerMineCount = 0;
+		size_t playerMeleeSlashCount = 0;
+		size_t neonTriangleParticleCount = 0;
+	};
+#endif
 
 
 	std::unique_ptr<DebugCamera> debugCamera;
@@ -468,6 +497,14 @@ private:
 	std::array<float, 16> postProfileAverageMs_{};
 	int postProfileAccumulatedFrames_ = 0;
 	IScene::RenderProfile renderProfile_{};
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	int performanceCaptureFrameCount_ = 30;
+	bool performanceCaptureActive_ = false;
+	bool performanceCaptureSkipCurrentFrame_ = false;
+	std::vector<PerformanceCaptureFrame> performanceCaptureFrames_;
+	std::string performanceCaptureLastCsvPath_;
+	std::string performanceCaptureStatus_;
+#endif
 	bool stagePostCacheValid_ = false;
 	Vector3 stagePostCacheCameraPos_{};
 	float stagePostCacheRefreshPixels_ = 48.0f;
