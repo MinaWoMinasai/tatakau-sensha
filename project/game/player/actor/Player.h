@@ -350,6 +350,8 @@ public:
 			maxEnhancePoint
 		};
 	}
+	void SetDebugAutoFireEnabled(bool enabled) { debugAutoFireEnabled_ = enabled; }
+	bool IsDebugAutoFireEnabled() const { return debugAutoFireEnabled_; }
 #endif
 	std::vector<LaserShotEvent> ConsumeLaserShotEvents();
 	std::vector<MineDropEvent> ConsumeMineDropEvents();
@@ -834,6 +836,7 @@ private:
 	bool upgradeHudListTextBloomEnabled_ = false;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	bool upgradeHudSegmentedBarBloomEnabled_ = true;
+	bool debugAutoFireEnabled_ = false;
 #endif
 	Vector2 upgradeHudSegmentBarOffset_ = { 0.0f, 0.0f };
 	Vector2 upgradeHudSegmentBarSize_ = { 230.0f, 22.0f };

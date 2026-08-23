@@ -27,6 +27,11 @@ public:
     BulletCounts GetBulletCounts() const;
     BulletTrailSettings& GetTrailSettings() { return trailSettings_; }
     size_t GetTrailInstanceCount() const;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+    TrailManager::DrawStats GetTrailDrawStats() const {
+        return trailManager_ ? trailManager_->GetDrawStats() : TrailManager::DrawStats{};
+    }
+#endif
 
 private:
     std::vector<std::unique_ptr<Bullet>> bullets_;
