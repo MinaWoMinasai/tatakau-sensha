@@ -3860,27 +3860,10 @@ Vector2 GameScene::GetStagePostCacheUvOffset(const Vector3& currentCameraPos) co
 
 bool GameScene::LoadLevelFile(LevelData& outLevel) const
 {
-	LevelLoader loader;
-	if (!loader.Load("resources/levels/level_test.json", outLevel)) {
-		return false;
-	}
-
-	constexpr const char* kBlenderLevelPath = "resources/levels/blender_scene.json";
-	if (!std::filesystem::exists(kBlenderLevelPath)) {
-		return true;
-	}
-
-	LevelData blenderLevel;
-	if (!loader.Load(kBlenderLevelPath, blenderLevel)) {
-		std::cerr << "[LevelLoader] Blender level was not appended: "
-			<< kBlenderLevelPath << std::endl;
-		return true;
-	}
-	outLevel.objects.insert(
-		outLevel.objects.end(),
-		blenderLevel.objects.begin(),
-		blenderLevel.objects.end());
-	return true;
+	return LevelLoader().Load(
+		"resources/levels/level_test.json",
+		outLevel
+	);
 }
 
 void GameScene::ReloadLevelData(bool resetSpawnPositions)
