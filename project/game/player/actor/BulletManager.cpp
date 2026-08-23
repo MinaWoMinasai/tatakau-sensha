@@ -63,6 +63,27 @@ std::vector<Bullet*> BulletManager::GetBulletPtrs() const {
     return result;
 }
 
+BulletManager::BulletCounts BulletManager::GetBulletCounts() const {
+    BulletCounts counts{};
+    for (const auto& bullet : bullets_) {
+        if (!bullet) {
+            continue;
+        }
+        switch (bullet->GetOwner()) {
+        case kPlayer:
+            ++counts.player;
+            break;
+        case kEnemy:
+            ++counts.enemy;
+            break;
+        case kExpEnemyHostile:
+            ++counts.hostileExpEnemy;
+            break;
+        }
+    }
+    return counts;
+}
+
 size_t BulletManager::GetTrailInstanceCount() const {
     return trailManager_ ? trailManager_->GetInstanceCount() : 0;
 }
