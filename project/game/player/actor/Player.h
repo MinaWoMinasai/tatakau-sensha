@@ -335,7 +335,7 @@ public:
 		bool useNeonProgressBars = false;
 		bool useSegmentedUpgradeBars = false;
 		bool segmentedBarBloomEnabled = true;
-		bool listTextBloomEnabled = true;
+		bool listTextBloomEnabled = false;
 		bool listActuallyVisible = false;
 		int maxEnhancePoint = 0;
 	};
@@ -831,9 +831,9 @@ private:
 	bool upgradeHudUseNeonProgressBars_ = true;
 	bool upgradeHudRoundedProgressBars_ = true;
 	bool upgradeHudUseSegmentedUpgradeBars_ = true;
+	bool upgradeHudListTextBloomEnabled_ = false;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	bool upgradeHudSegmentedBarBloomEnabled_ = true;
-	bool upgradeHudListTextBloomEnabled_ = true;
 #endif
 	Vector2 upgradeHudSegmentBarOffset_ = { 0.0f, 0.0f };
 	Vector2 upgradeHudSegmentBarSize_ = { 230.0f, 22.0f };

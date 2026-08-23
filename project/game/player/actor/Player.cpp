@@ -2708,11 +2708,7 @@ void Player::AppendGameplayNeonTextLabels(std::vector<TextLabel*>& labels) const
 	if (upgradeHudDrawBottomText_ && upgradeHudExpLabel_) {
 		labels.push_back(upgradeHudExpLabel_.get());
 	}
-	bool drawUpgradeListTextBloom = true;
-#if defined(USE_IMGUI) && !defined(NDEBUG)
-	drawUpgradeListTextBloom = upgradeHudListTextBloomEnabled_;
-#endif
-	if (drawUpgradeListTextBloom && upgradeHudListVisibility_ > 0.01f && upgradeHudDrawListText_) {
+	if (upgradeHudListTextBloomEnabled_ && upgradeHudListVisibility_ > 0.01f && upgradeHudDrawListText_) {
 		if (upgradeHudTitleLabel_) {
 			labels.push_back(upgradeHudTitleLabel_.get());
 		}
@@ -2893,6 +2889,7 @@ bool Player::LoadUpgradeHudConfig(const std::string& path)
 	upgradeHudUseRectBatch_ = json.value("useRectBatch", upgradeHudUseRectBatch_);
 	upgradeHudRoundedProgressBars_ = json.value("roundedProgressBars", upgradeHudRoundedProgressBars_);
 	upgradeHudUseSegmentedUpgradeBars_ = json.value("segmentedUpgradeBars", upgradeHudUseSegmentedUpgradeBars_);
+	upgradeHudListTextBloomEnabled_ = json.value("listTextBloom", false);
 	maxEnhancePoint = (std::clamp)(json.value("maxEnhancePoint", maxEnhancePoint), 1, 10);
 	upgradeHudListAnimSpeed_ = json.value("listAnimSpeed", upgradeHudListAnimSpeed_);
 	upgradeHudListSlideDistance_ = json.value("listSlideDistance", upgradeHudListSlideDistance_);
@@ -2946,6 +2943,7 @@ bool Player::SaveUpgradeHudConfig(const std::string& path) const
 		{ "useRectBatch", upgradeHudUseRectBatch_ },
 		{ "roundedProgressBars", upgradeHudRoundedProgressBars_ },
 		{ "segmentedUpgradeBars", upgradeHudUseSegmentedUpgradeBars_ },
+		{ "listTextBloom", upgradeHudListTextBloomEnabled_ },
 		{ "maxEnhancePoint", maxEnhancePoint },
 		{ "listAnimSpeed", upgradeHudListAnimSpeed_ },
 		{ "listSlideDistance", upgradeHudListSlideDistance_ },

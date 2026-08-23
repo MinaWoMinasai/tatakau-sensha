@@ -9,6 +9,7 @@
   "useRectBatch": true,
   "roundedProgressBars": true,
   "segmentedUpgradeBars": true,
+  "listTextBloom": false,
   "maxEnhancePoint": 5,
   "listAnimSpeed": 10.0,
   "listSlideDistance": 260.0,
