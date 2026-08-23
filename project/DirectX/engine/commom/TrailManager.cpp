@@ -1,6 +1,9 @@
 #include "TrailManager.h"
 #include "Calculation.h"
 #include <cmath>
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+#include <chrono>
+#endif
 
 void TrailManager::Initialize(DirectXCommon* dxcommon, Object3dCommon* object3dCommon, const std::string& textureFilePath) {
     dxCommon_ = dxcommon;
@@ -47,6 +50,12 @@ void TrailManager::Update(float deltaTime) {
 }
 
 void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+    const auto drawStart = std::chrono::steady_clock::now();
+    drawStats_ = {};
+    drawStats_.totalInstances = instances_.size();
+    drawStats_.vertexCapacity = kMaxVertices;
+#endif
     auto commandList = dxCommon_->GetList();
     *constData_ = viewProjection;
 
@@ -63,11 +72,20 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
 
     for (auto& instance : instances_) {
         const auto& points = instance->GetPoints();
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+        drawStats_.activeInstances += instance->IsActive() ? 1 : 0;
+        drawStats_.totalPoints += points.size();
+#endif
         if (points.size() < 4) continue;
 
         const auto& config = instance->GetConfig();
         uint32_t steps = (std::max)(1u, config.interpolationSteps);
         uint32_t instanceVertexCount = 0;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+        ++drawStats_.drawableInstances;
+        drawStats_.requestedVertices +=
+            static_cast<uint64_t>(points.size() - 1) * static_cast<uint64_t>(steps) * 2u;
+#endif
 
         // --- 頂点データの構築 ---
         for (size_t i = 0; i < points.size() - 1; ++i) {
@@ -111,8 +129,20 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
         if (instanceVertexCount > 0) {
             commandList->DrawInstanced(instanceVertexCount, 1, currentVertexOffset, 0);
             currentVertexOffset += instanceVertexCount;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+            ++drawStats_.drawCalls;
+#endif
         }
     }
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+    drawStats_.generatedVertices = currentVertexOffset;
+    drawStats_.truncatedVertices = drawStats_.requestedVertices > drawStats_.generatedVertices
+        ? drawStats_.requestedVertices - drawStats_.generatedVertices
+        : 0;
+    drawStats_.capacityHit = drawStats_.truncatedVertices > 0;
+    drawStats_.drawCpuMs = std::chrono::duration<float, std::milli>(
+        std::chrono::steady_clock::now() - drawStart).count();
+#endif
 }
 
 Vector3 TrailManager::CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t)
