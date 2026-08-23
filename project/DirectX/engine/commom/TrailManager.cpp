@@ -5,6 +5,29 @@
 #include <chrono>
 #endif
 
+namespace {
+struct CatmullRomCoefficients {
+    Vector3 a;
+    Vector3 b;
+    Vector3 c;
+    Vector3 d;
+};
+
+CatmullRomCoefficients MakeCatmullRomCoefficients(
+    const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3) {
+    return {
+        p1,
+        (-p0 + p2) * 0.5f,
+        (p0 * 2.0f - p1 * 5.0f + p2 * 4.0f - p3) * 0.5f,
+        (-p0 + p1 * 3.0f - p2 * 3.0f + p3) * 0.5f
+    };
+}
+
+Vector3 EvaluateCatmullRom(const CatmullRomCoefficients& coefficients, float t) {
+    return ((coefficients.d * t + coefficients.c) * t + coefficients.b) * t + coefficients.a;
+}
+}
+
 void TrailManager::Initialize(DirectXCommon* dxcommon, Object3dCommon* object3dCommon, const std::string& textureFilePath) {
     dxCommon_ = dxcommon;
     object3dCommon_ = object3dCommon;
@@ -79,33 +102,55 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
         if (points.size() < 4) continue;
 
         const auto& config = instance->GetConfig();
-        uint32_t steps = (std::max)(1u, config.interpolationSteps);
+        const size_t segmentCount = points.size() - 1;
+        const uint32_t steps = (std::max)(1u, config.interpolationSteps);
+        const float inverseSteps = 1.0f / static_cast<float>(steps);
+        const float inverseSampleCount =
+            1.0f / static_cast<float>(segmentCount * static_cast<size_t>(steps));
+        const float colorCurvePower = (std::max)(0.05f, config.colorCurvePower);
+        const float widthCurvePower = (std::max)(0.05f, config.widthCurvePower);
+        const bool useLinearColorCurve = colorCurvePower == 1.0f;
+        const bool useLinearWidthCurve = widthCurvePower == 1.0f;
+        const Vector4 startColor = config.startColor;
+        const Vector4 colorDelta = config.endColor - startColor;
+        const float startWidthScale = config.startWidthScale;
+        const float widthScaleDelta = config.endWidthScale - startWidthScale;
         uint32_t instanceVertexCount = 0;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
         ++drawStats_.drawableInstances;
         drawStats_.requestedVertices +=
-            static_cast<uint64_t>(points.size() - 1) * static_cast<uint64_t>(steps) * 2u;
+            static_cast<uint64_t>(segmentCount) * static_cast<uint64_t>(steps) * 2u;
 #endif
 
         // --- 頂点データの構築 ---
-        for (size_t i = 0; i < points.size() - 1; ++i) {
+        for (size_t i = 0; i < segmentCount; ++i) {
             size_t i0 = (i == 0) ? 0 : i - 1;
             size_t i1 = i;
             size_t i2 = i + 1;
-            size_t i3 = (i + 2 >= points.size()) ? points.size() - 1 : i + 2;
+            size_t i3 = (i + 2 >= points.size()) ? segmentCount : i + 2;
+            const CatmullRomCoefficients tipCoefficients = MakeCatmullRomCoefficients(
+                points[i0].tip, points[i1].tip, points[i2].tip, points[i3].tip);
+            const CatmullRomCoefficients baseCoefficients = MakeCatmullRomCoefficients(
+                points[i0].base, points[i1].base, points[i2].base, points[i3].base);
+            const size_t segmentSampleOffset = i * static_cast<size_t>(steps);
 
             for (uint32_t j = 0; j < steps; ++j) {
                 if (currentVertexOffset + instanceVertexCount + 2 >= kMaxVertices) break;
 
-                float t = (float)j / (float)steps;
-                float globalRatio = (float)(i * steps + j) / (float)((points.size() - 1) * steps);
+                const float t = static_cast<float>(j) * inverseSteps;
+                const float globalRatio =
+                    static_cast<float>(segmentSampleOffset + j) * inverseSampleCount;
 
-                const float colorRatio = std::pow(globalRatio, (std::max)(0.05f, config.colorCurvePower));
-                const float widthRatio = std::pow(globalRatio, (std::max)(0.05f, config.widthCurvePower));
-                Vector4 color = Lerp(config.startColor, config.endColor, colorRatio);
-                Vector3 tip = CatmullRom(points[i0].tip, points[i1].tip, points[i2].tip, points[i3].tip, t);
-                Vector3 base = CatmullRom(points[i0].base, points[i1].base, points[i2].base, points[i3].base, t);
-                float widthScale = config.startWidthScale + (config.endWidthScale - config.startWidthScale) * widthRatio;
+                const float colorRatio = useLinearColorCurve
+                    ? globalRatio
+                    : std::pow(globalRatio, colorCurvePower);
+                const float widthRatio = useLinearWidthCurve
+                    ? globalRatio
+                    : std::pow(globalRatio, widthCurvePower);
+                const Vector4 color = startColor + colorDelta * colorRatio;
+                Vector3 tip = EvaluateCatmullRom(tipCoefficients, t);
+                Vector3 base = EvaluateCatmullRom(baseCoefficients, t);
+                const float widthScale = startWidthScale + widthScaleDelta * widthRatio;
                 Vector3 center = (tip + base) * 0.5f;
                 Vector3 halfWidth = (tip - base) * (0.5f * widthScale);
                 tip = center + halfWidth;
