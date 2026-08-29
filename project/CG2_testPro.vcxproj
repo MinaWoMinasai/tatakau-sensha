@@ -248,6 +248,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\scene\Game.cpp" />
     <ClCompile Include="game\scene\Action3DScene.cpp" />
     <ClCompile Include="game\scene\GraphicsLabScene.cpp" />
+    <ClCompile Include="game\scene\VfxLabScene.cpp" />
     <ClCompile Include="game\collision\Collider.cpp" />
     <ClCompile Include="game\collision\CollisionConfig.cpp" />
     <ClCompile Include="game\collision\CollisionManager.cpp" />
@@ -445,6 +446,22 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="resources\shaders\VfxLabBackground.PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\VfxLabBackground.VS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectX\engine\audio\AudioManager.h" />
@@ -531,6 +548,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\scene\Game.h" />
     <ClInclude Include="game\scene\Action3DScene.h" />
     <ClInclude Include="game\scene\GraphicsLabScene.h" />
+    <ClInclude Include="game\scene\VfxLabScene.h" />
     <ClInclude Include="game\collision\Collider.h" />
     <ClInclude Include="game\collision\CollisionConfig.h" />
     <ClInclude Include="game\collision\CollisionManager.h" />
@@ -624,6 +642,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="resources\levels\level_test.json" />
     <None Include="resources\projects\default.project.json" />
     <None Include="resources\projects\graphics_lab.project.json" />
+    <None Include="resources\projects\vfx_lab.project.json" />
     <None Include="resources\projects\naval.project.json" />
     <None Include="resources\levels\prefab_dictionary.json" />
     <None Include="resources\levels\ai_edit_prompt_template.md" />

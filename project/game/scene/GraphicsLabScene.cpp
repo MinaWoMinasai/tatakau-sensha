@@ -262,10 +262,6 @@ void GraphicsLabScene::Initialize()
 	crystal_->SetInsensity(pbrDirectLightIntensity_);
 	crystal_->SetCrystalMaterial(crystalSettings_);
 
-	proceduralFlame_ = std::make_unique<ProceduralFlameRenderer>();
-	proceduralFlame_->Initialize(Object3dCommon::GetInstance()->GetDxCommon());
-	proceduralFlame_->SetParameters(proceduralFlameParameters_);
-
 	skybox_ = std::make_unique<Skybox>();
 	skybox_->Initialize("resources/skybox.dds");
 	skybox_->SetColor({ 1.0f, 1.0f, 1.0f, 2.0f });
@@ -577,17 +573,6 @@ void GraphicsLabScene::Update()
 			fftTime_ += finalDeltaTime_ * waterTimeScale_;
 		}
 	}
-	if (!pauseProceduralFlame_) {
-		flameTime_ += finalDeltaTime_;
-	}
-	proceduralFlameParameters_.time = flameTime_;
-	if (proceduralFlame_) {
-		proceduralFlame_->SetParameters(proceduralFlameParameters_);
-		if (!pauseProceduralFlame_) {
-			proceduralFlame_->Update(finalDeltaTime_);
-		}
-	}
-
 	if (loadLookDevSamples_ || loadSkinnedPbrSamples_) {
 		ApplyPbrEnvironmentDebugMode();
 	}
@@ -727,60 +712,43 @@ void GraphicsLabScene::DrawShadow()
 
 void GraphicsLabScene::DrawPostEffect3D()
 {
-	if (!proceduralFlameDarkBackground_) {
-		skybox_->Draw();
+	skybox_->Draw();
 
-		Object3dCommon::GetInstance()->PreDraw(kNone);
-		if (showSandBed_ && sandBed_) {
-			sandBed_->Draw();
+	Object3dCommon::GetInstance()->PreDraw(kNone);
+	if (showSandBed_ && sandBed_) {
+		sandBed_->Draw();
+	}
+	if (showCrystal_ && crystal_) {
+		crystal_->Draw();
+	}
+	for (auto& object : sceneObjects_) {
+		if (ShouldDrawLabObject(object)) {
+			object.object->Draw();
 		}
-		if (showCrystal_ && crystal_) {
-			crystal_->Draw();
+	}
+	if (showPbrSamples_) {
+		for (auto& object : metalObjects_) {
+			object.object->Draw();
 		}
-		for (auto& object : sceneObjects_) {
-			if (ShouldDrawLabObject(object)) {
-				object.object->Draw();
+	}
+	if (showValidationPrimitives_) {
+		for (auto& object : validationObjects_) {
+			object.object->Draw();
+		}
+	}
+	if (showSkinnedPbrSamples_) {
+		for (auto& object : skinnedLabObjects_) {
+			if (object.loaded && object.object && object.model) {
+				object.object->DrawSkinned(*object.model);
 			}
-		}
-		if (showPbrSamples_) {
-			for (auto& object : metalObjects_) {
-				object.object->Draw();
-			}
-		}
-		if (showValidationPrimitives_) {
-			for (auto& object : validationObjects_) {
-				object.object->Draw();
-			}
-		}
-		if (showSkinnedPbrSamples_) {
-			for (auto& object : skinnedLabObjects_) {
-				if (object.loaded && object.object && object.model) {
-					object.object->DrawSkinned(*object.model);
-				}
-			}
-		}
-
-		if (useDedicatedOceanRenderer_ && oceanRenderer_) {
-			oceanRenderer_->Draw();
-		} else {
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
-			river_->Draw();
 		}
 	}
 
-	if (showProceduralFlame_ && proceduralFlame_) {
-		const bool useDebugCamera = Object3dCommon::GetInstance()->GetIsDebugCamera();
-		const Matrix4x4 cameraWorld = useDebugCamera
-			? Inverse(debugCamera_->GetViewMatrix())
-			: camera_->GetWorldMatrix();
-		const Matrix4x4 viewProjection = useDebugCamera
-			? debugCamera_->GetViewProjectionMatrix()
-			: camera_->GetViewProjectionMatrix();
-		proceduralFlame_->Draw(
-			proceduralFlamePosition_,
-			proceduralFlameSize_,
-			cameraWorld,
-			viewProjection);
+	if (useDedicatedOceanRenderer_ && oceanRenderer_) {
+		oceanRenderer_->Draw();
+	} else {
+		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		river_->Draw();
 	}
 }
 
@@ -1765,75 +1733,6 @@ void GraphicsLabScene::DrawDebugWindow()
 			&waterDebugMode_,
 			waterDebugModes,
 			IM_ARRAYSIZE(waterDebugModes));
-	}
-	if (ImGui::CollapsingHeader(
-		"Outer Neon Contour",
-		ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::Checkbox("Show flame", &showProceduralFlame_);
-		ImGui::SameLine();
-		ImGui::Checkbox("Pause flame", &pauseProceduralFlame_);
-		ImGui::Checkbox("Dark VFX background", &proceduralFlameDarkBackground_);
-		const char* displayModes[] = {
-			"Rainbow Outer Contour",
-			"Scalar Field",
-			"Filled Mask",
-			"Contour Mask",
-		};
-		int displayMode = static_cast<int>(proceduralFlameParameters_.displayMode);
-		if (ImGui::Combo("Field display", &displayMode, displayModes, IM_ARRAYSIZE(displayModes))) {
-			proceduralFlameParameters_.displayMode =
-				static_cast<ProceduralFlameRenderer::DisplayMode>(displayMode);
-		}
-		if (ImGui::Button("Reset metaballs") && proceduralFlame_) {
-			proceduralFlame_->ResetMetaballs();
-		}
-		ImGui::DragFloat3("Flame position", &proceduralFlamePosition_.x, 0.25f);
-		ImGui::DragFloat2("Billboard size", &proceduralFlameSize_.x, 0.1f, 0.1f, 100.0f);
-		int activeMetaballs = static_cast<int>(proceduralFlameParameters_.activeMetaballCount);
-		if (ImGui::SliderInt("Active metaballs", &activeMetaballs, 6, 12)) {
-			proceduralFlameParameters_.activeMetaballCount =
-				static_cast<uint32_t>(activeMetaballs);
-		}
-		ImGui::DragFloat("Flow speed", &proceduralFlameParameters_.flowSpeed, 0.01f, 0.0f, 3.0f);
-		ImGui::DragFloat("Radius scale", &proceduralFlameParameters_.radiusScale, 0.01f, 0.35f, 2.0f);
-		ImGui::DragFloat("Lateral sway", &proceduralFlameParameters_.swayStrength, 0.01f, 0.0f, 3.0f);
-		ImGui::DragFloat("Spawn spread", &proceduralFlameParameters_.spawnSpread, 0.005f, 0.0f, 0.45f);
-		ImGui::DragFloat("Noise scale", &proceduralFlameParameters_.noiseScale, 0.05f, 0.1f, 16.0f);
-		ImGui::DragFloat("Noise speed", &proceduralFlameParameters_.noiseSpeed, 0.01f, 0.0f, 6.0f);
-		ImGui::DragFloat(
-			"Distortion strength",
-			&proceduralFlameParameters_.distortionStrength,
-			0.002f,
-			0.0f,
-			0.45f);
-		ImGui::DragFloat(
-			"Contour Threshold",
-			&proceduralFlameParameters_.contourThreshold,
-			0.01f,
-			0.1f,
-			4.0f);
-		ImGui::DragFloat(
-			"Contour Width",
-			&proceduralFlameParameters_.contourWidth,
-			0.001f,
-			0.002f,
-			0.35f);
-		ImGui::DragFloat(
-			"Contour Softness",
-			&proceduralFlameParameters_.contourSoftness,
-			0.001f,
-			0.001f,
-			0.2f);
-		ImGui::DragFloat("Field gain", &proceduralFlameParameters_.fieldGain, 0.01f, 0.05f, 4.0f);
-		ImGui::ColorEdit4("Contour tint", &proceduralFlameParameters_.color.x);
-		ImGui::DragFloat(
-			"Contour Emissive Intensity",
-			&proceduralFlameParameters_.contourEmissiveIntensity,
-			0.05f,
-			0.0f,
-			16.0f);
-		ImGui::Text("Time: %.2f s", flameTime_);
-		ImGui::TextUnformatted("Rainbow contour is the default; field and filled views remain diagnostic only.");
 	}
 	if (ImGui::CollapsingHeader(
 		"Crystal LookDev",
