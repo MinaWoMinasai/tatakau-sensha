@@ -59,6 +59,10 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 	parameters_.fieldGain = std::clamp(parameters_.fieldGain, 0.05f, 4.0f);
 	parameters_.contourEmissiveIntensity =
 		(std::max)(parameters_.contourEmissiveIntensity, 0.0f);
+	parameters_.innerLineWidth = std::clamp(parameters_.innerLineWidth, 0.001f, 0.12f);
+	parameters_.innerLineIntensity = std::clamp(parameters_.innerLineIntensity, 0.0f, 24.0f);
+	parameters_.outerGlowWidth = std::clamp(parameters_.outerGlowWidth, 0.01f, 0.5f);
+	parameters_.outerGlowIntensity = std::clamp(parameters_.outerGlowIntensity, 0.0f, 8.0f);
 	parameters_.flowSpeed = std::clamp(parameters_.flowSpeed, 0.0f, 3.0f);
 	parameters_.radiusScale = std::clamp(parameters_.radiusScale, 0.35f, 2.0f);
 	parameters_.swayStrength = std::clamp(parameters_.swayStrength, 0.0f, 3.0f);
@@ -187,6 +191,10 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
 	parameterData_->contourWidth = parameters_.contourWidth;
 	parameterData_->contourSoftness = parameters_.contourSoftness;
 	parameterData_->contourEmissiveIntensity = parameters_.contourEmissiveIntensity;
+	parameterData_->innerLineWidth = parameters_.innerLineWidth;
+	parameterData_->innerLineIntensity = parameters_.innerLineIntensity;
+	parameterData_->outerGlowWidth = parameters_.outerGlowWidth;
+	parameterData_->outerGlowIntensity = parameters_.outerGlowIntensity;
 	parameterData_->fieldGain = parameters_.fieldGain;
 	parameterData_->billboardAspect = (std::max)(billboardAspect, 0.001f);
 	parameterData_->compactSupportScale = parameters_.compactSupportScale;

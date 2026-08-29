@@ -34,6 +34,10 @@ public:
 		float contourSoftness = 0.015f;
 		float fieldGain = 1.0f;
 		float contourEmissiveIntensity = 5.0f;
+		float innerLineWidth = 0.012f;
+		float innerLineIntensity = 10.0f;
+		float outerGlowWidth = 0.14f;
+		float outerGlowIntensity = 1.15f;
 		float flowSpeed = 1.0f;
 		float radiusScale = 1.0f;
 		float swayStrength = 1.0f;
@@ -83,6 +87,10 @@ private:
 		float contourWidth = 0.045f;
 		float contourSoftness = 0.015f;
 		float contourEmissiveIntensity = 1.0f;
+		float innerLineWidth = 0.012f;
+		float innerLineIntensity = 10.0f;
+		float outerGlowWidth = 0.14f;
+		float outerGlowIntensity = 1.15f;
 		float fieldGain = 1.0f;
 		float billboardAspect = 1.0f;
 		float compactSupportScale = 2.35f;
