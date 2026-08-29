@@ -346,11 +346,23 @@ void VfxLabScene::DrawDebugWindow()
 			0.1f,
 			4.0f);
 		ImGui::DragFloat(
-			"Contour Width",
+			"Rainbow Band Width",
 			&proceduralFlameParameters_.contourWidth,
 			0.001f,
 			0.002f,
 			0.35f);
+		ImGui::DragFloat(
+			"Inner Line Width",
+			&proceduralFlameParameters_.innerLineWidth,
+			0.001f,
+			0.001f,
+			0.12f);
+		ImGui::DragFloat(
+			"Outer Glow Width",
+			&proceduralFlameParameters_.outerGlowWidth,
+			0.002f,
+			0.01f,
+			0.5f);
 		ImGui::DragFloat(
 			"Contour Softness",
 			&proceduralFlameParameters_.contourSoftness,
@@ -360,11 +372,23 @@ void VfxLabScene::DrawDebugWindow()
 		ImGui::DragFloat("Field Gain", &proceduralFlameParameters_.fieldGain, 0.01f, 0.05f, 4.0f);
 		ImGui::ColorEdit4("Contour Tint", &proceduralFlameParameters_.color.x);
 		ImGui::DragFloat(
-			"Contour Emissive Intensity",
+			"Rainbow Band Intensity",
 			&proceduralFlameParameters_.contourEmissiveIntensity,
 			0.05f,
 			0.0f,
 			16.0f);
+		ImGui::DragFloat(
+			"Inner Line Intensity",
+			&proceduralFlameParameters_.innerLineIntensity,
+			0.1f,
+			0.0f,
+			24.0f);
+		ImGui::DragFloat(
+			"Outer Glow Intensity",
+			&proceduralFlameParameters_.outerGlowIntensity,
+			0.05f,
+			0.0f,
+			8.0f);
 		ImGui::Text("Time: %.2f s", flameTime_);
 		ImGui::TreePop();
 	}
