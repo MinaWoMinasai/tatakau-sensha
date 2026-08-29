@@ -17,29 +17,29 @@ public:
 	static constexpr uint32_t kMaxMetaballs = 12;
 
 	enum class DisplayMode : uint32_t {
-		Emissive = 0,
+		OuterContour = 0,
 		Field = 1,
 		FilledMask = 2,
-		IsoBand = 3,
+		ContourMask = 3,
 	};
 
 	struct Parameters {
-		Vector4 color = { 1.0f, 0.82f, 0.50f, 1.0f };
+		Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
 		float time = 0.0f;
 		float noiseScale = 3.6f;
 		float noiseSpeed = 0.72f;
 		float distortionStrength = 0.12f;
-		float fieldThreshold = 1.05f;
-		float edgeSoftness = 0.06f;
-		float isoBandWidth = 0.10f;
+		float contourThreshold = 1.05f;
+		float contourWidth = 0.045f;
+		float contourSoftness = 0.015f;
 		float fieldGain = 1.0f;
-		float emissiveIntensity = 3.0f;
+		float contourEmissiveIntensity = 5.0f;
 		float flowSpeed = 1.0f;
 		float radiusScale = 1.0f;
 		float swayStrength = 1.0f;
 		float spawnSpread = 0.22f;
 		uint32_t activeMetaballCount = 10;
-		DisplayMode displayMode = DisplayMode::Emissive;
+		DisplayMode displayMode = DisplayMode::OuterContour;
 	};
 
 	void Initialize(DirectXCommon* dxCommon);
@@ -75,10 +75,10 @@ private:
 		float noiseScale = 1.0f;
 		float noiseSpeed = 1.0f;
 		float distortionStrength = 0.0f;
-		float fieldThreshold = 1.0f;
-		float edgeSoftness = 0.05f;
-		float isoBandWidth = 0.1f;
-		float emissiveIntensity = 1.0f;
+		float contourThreshold = 1.0f;
+		float contourWidth = 0.045f;
+		float contourSoftness = 0.015f;
+		float contourEmissiveIntensity = 1.0f;
 		float fieldGain = 1.0f;
 		float billboardAspect = 1.0f;
 		uint32_t displayMode = 0;
