@@ -53,11 +53,12 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 	parameters_.noiseScale = (std::max)(parameters_.noiseScale, 0.01f);
 	parameters_.noiseSpeed = (std::max)(parameters_.noiseSpeed, 0.0f);
 	parameters_.distortionStrength = std::clamp(parameters_.distortionStrength, 0.0f, 0.45f);
-	parameters_.fieldThreshold = std::clamp(parameters_.fieldThreshold, 0.1f, 4.0f);
-	parameters_.edgeSoftness = std::clamp(parameters_.edgeSoftness, 0.001f, 0.5f);
-	parameters_.isoBandWidth = std::clamp(parameters_.isoBandWidth, 0.002f, 0.5f);
+	parameters_.contourThreshold = std::clamp(parameters_.contourThreshold, 0.1f, 4.0f);
+	parameters_.contourWidth = std::clamp(parameters_.contourWidth, 0.002f, 0.35f);
+	parameters_.contourSoftness = std::clamp(parameters_.contourSoftness, 0.001f, 0.2f);
 	parameters_.fieldGain = std::clamp(parameters_.fieldGain, 0.05f, 4.0f);
-	parameters_.emissiveIntensity = (std::max)(parameters_.emissiveIntensity, 0.0f);
+	parameters_.contourEmissiveIntensity =
+		(std::max)(parameters_.contourEmissiveIntensity, 0.0f);
 	parameters_.flowSpeed = std::clamp(parameters_.flowSpeed, 0.0f, 3.0f);
 	parameters_.radiusScale = std::clamp(parameters_.radiusScale, 0.35f, 2.0f);
 	parameters_.swayStrength = std::clamp(parameters_.swayStrength, 0.0f, 3.0f);
@@ -66,8 +67,8 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 		parameters_.activeMetaballCount,
 		6u,
 		kMaxMetaballs);
-	if (static_cast<uint32_t>(parameters_.displayMode) > static_cast<uint32_t>(DisplayMode::IsoBand)) {
-		parameters_.displayMode = DisplayMode::Emissive;
+	if (static_cast<uint32_t>(parameters_.displayMode) > static_cast<uint32_t>(DisplayMode::ContourMask)) {
+		parameters_.displayMode = DisplayMode::OuterContour;
 	}
 }
 
@@ -146,10 +147,10 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
 	parameterData_->noiseScale = parameters_.noiseScale;
 	parameterData_->noiseSpeed = parameters_.noiseSpeed;
 	parameterData_->distortionStrength = parameters_.distortionStrength;
-	parameterData_->fieldThreshold = parameters_.fieldThreshold;
-	parameterData_->edgeSoftness = parameters_.edgeSoftness;
-	parameterData_->isoBandWidth = parameters_.isoBandWidth;
-	parameterData_->emissiveIntensity = parameters_.emissiveIntensity;
+	parameterData_->contourThreshold = parameters_.contourThreshold;
+	parameterData_->contourWidth = parameters_.contourWidth;
+	parameterData_->contourSoftness = parameters_.contourSoftness;
+	parameterData_->contourEmissiveIntensity = parameters_.contourEmissiveIntensity;
 	parameterData_->fieldGain = parameters_.fieldGain;
 	parameterData_->billboardAspect = (std::max)(billboardAspect, 0.001f);
 	parameterData_->displayMode = static_cast<uint32_t>(parameters_.displayMode);

@@ -1767,17 +1767,17 @@ void GraphicsLabScene::DrawDebugWindow()
 			IM_ARRAYSIZE(waterDebugModes));
 	}
 	if (ImGui::CollapsingHeader(
-		"Dynamic Metaball Aura Field",
+		"Outer Neon Contour",
 		ImGuiTreeNodeFlags_DefaultOpen)) {
 		ImGui::Checkbox("Show flame", &showProceduralFlame_);
 		ImGui::SameLine();
 		ImGui::Checkbox("Pause flame", &pauseProceduralFlame_);
 		ImGui::Checkbox("Dark VFX background", &proceduralFlameDarkBackground_);
 		const char* displayModes[] = {
-			"Emissive Filled",
+			"Rainbow Outer Contour",
 			"Scalar Field",
 			"Filled Mask",
-			"Outline / Iso-band",
+			"Contour Mask",
 		};
 		int displayMode = static_cast<int>(proceduralFlameParameters_.displayMode);
 		if (ImGui::Combo("Field display", &displayMode, displayModes, IM_ARRAYSIZE(displayModes))) {
@@ -1806,19 +1806,34 @@ void GraphicsLabScene::DrawDebugWindow()
 			0.002f,
 			0.0f,
 			0.45f);
-		ImGui::DragFloat("Field threshold", &proceduralFlameParameters_.fieldThreshold, 0.01f, 0.1f, 4.0f);
-		ImGui::DragFloat("Field gain", &proceduralFlameParameters_.fieldGain, 0.01f, 0.05f, 4.0f);
-		ImGui::DragFloat("Edge softness", &proceduralFlameParameters_.edgeSoftness, 0.002f, 0.001f, 0.5f);
-		ImGui::DragFloat("Iso-band width", &proceduralFlameParameters_.isoBandWidth, 0.002f, 0.002f, 0.5f);
-		ImGui::ColorEdit4("Flame color", &proceduralFlameParameters_.color.x);
 		ImGui::DragFloat(
-			"Emissive intensity",
-			&proceduralFlameParameters_.emissiveIntensity,
+			"Contour Threshold",
+			&proceduralFlameParameters_.contourThreshold,
+			0.01f,
+			0.1f,
+			4.0f);
+		ImGui::DragFloat(
+			"Contour Width",
+			&proceduralFlameParameters_.contourWidth,
+			0.001f,
+			0.002f,
+			0.35f);
+		ImGui::DragFloat(
+			"Contour Softness",
+			&proceduralFlameParameters_.contourSoftness,
+			0.001f,
+			0.001f,
+			0.2f);
+		ImGui::DragFloat("Field gain", &proceduralFlameParameters_.fieldGain, 0.01f, 0.05f, 4.0f);
+		ImGui::ColorEdit4("Contour tint", &proceduralFlameParameters_.color.x);
+		ImGui::DragFloat(
+			"Contour Emissive Intensity",
+			&proceduralFlameParameters_.contourEmissiveIntensity,
 			0.05f,
 			0.0f,
 			16.0f);
 		ImGui::Text("Time: %.2f s", flameTime_);
-		ImGui::TextUnformatted("One continuous field feeds filled, iso-band, and future core/contour layers.");
+		ImGui::TextUnformatted("Rainbow contour is the default; field and filled views remain diagnostic only.");
 	}
 	if (ImGui::CollapsingHeader(
 		"Crystal LookDev",
