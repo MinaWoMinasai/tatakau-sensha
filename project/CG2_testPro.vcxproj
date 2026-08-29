@@ -163,6 +163,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\audio\AudioManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\CylinderManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\NeonGridRenderer.cpp" />
+    <ClCompile Include="DirectX\engine\commom\ProceduralFlameRenderer.cpp" />
     <ClCompile Include="DirectX\engine\commom\RingManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\TrailInstance.cpp" />
     <ClCompile Include="DirectX\engine\commom\TrailManager.cpp" />
@@ -428,11 +429,28 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="resources\shaders\ProceduralFlame.PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\ProceduralFlame.VS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectX\engine\audio\AudioManager.h" />
     <ClInclude Include="DirectX\engine\commom\CylinderManager.h" />
     <ClInclude Include="DirectX\engine\commom\NeonGridRenderer.h" />
+    <ClInclude Include="DirectX\engine\commom\ProceduralFlameRenderer.h" />
     <ClInclude Include="DirectX\engine\commom\RingManager.h" />
     <ClInclude Include="DirectX\engine\commom\TrailInstance.h" />
     <ClInclude Include="DirectX\engine\commom\TrailManager.h" />
