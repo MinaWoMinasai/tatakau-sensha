@@ -5,10 +5,10 @@ cbuffer FlameParameters : register(b0)
     float gNoiseScale;
     float gNoiseSpeed;
     float gDistortionStrength;
-    float gFieldThreshold;
-    float gEdgeSoftness;
-    float gIsoBandWidth;
-    float gEmissiveIntensity;
+    float gContourThreshold;
+    float gContourWidth;
+    float gContourSoftness;
+    float gContourEmissiveIntensity;
     float gFieldGain;
     float gBillboardAspect;
     uint gDisplayMode;
@@ -66,6 +66,13 @@ float Fbm3(float2 p)
     return value;
 }
 
+float3 HsvToRgb(float3 hsv)
+{
+    const float3 rgbRamp = saturate(
+        abs(frac(hsv.x + float3(0.0f, 2.0f / 3.0f, 1.0f / 3.0f)) * 6.0f - 3.0f) - 1.0f);
+    return hsv.z * lerp(1.0f.xxx, rgbRamp, hsv.y);
+}
+
 float BuildAuraField(float2 uv)
 {
     float2 samplePosition = float2(uv.x, 1.0f - uv.y);
@@ -104,35 +111,57 @@ PixelShaderOutput main(PixelShaderInput input)
 {
     PixelShaderOutput output;
     const float field = BuildAuraField(input.uv);
-    const float antiAlias = max(fwidth(field), 0.001f);
-    const float maskSoftness = max(gEdgeSoftness, antiAlias);
+
+    // This low-frequency field changes line width gently along the contour
+    // and over time. It is deliberately independent of the shape warp so the
+    // contour breathes without turning into a jagged noise trace.
+    const float vertical = 1.0f - input.uv.y;
+    const float contourNoise = Fbm3(float2(
+        (input.uv.x - 0.5f) * 1.65f + 31.73f,
+        vertical * 1.20f - gTime * 0.075f + 17.19f));
+    const float localContourWidth = gContourWidth * lerp(0.78f, 1.22f, contourNoise);
+
+    const float antiAlias = max(fwidth(field), 0.0005f);
+    const float maskSoftness = max(gContourSoftness, antiAlias);
     const float filledMask = smoothstep(
-        gFieldThreshold - maskSoftness,
-        gFieldThreshold + maskSoftness,
+        gContourThreshold - maskSoftness,
+        gContourThreshold + maskSoftness,
         field);
-    const float distanceToIso = abs(field - gFieldThreshold);
-    const float isoBand = 1.0f - smoothstep(
-        max(gIsoBandWidth - antiAlias, 0.0f),
-        gIsoBandWidth + antiAlias,
+    const float distanceToIso = abs(field - gContourThreshold);
+    const float contourHalfWidth = max(localContourWidth, antiAlias * 0.45f);
+    const float contourFeather = max(gContourSoftness, antiAlias * 0.70f);
+    const float contourMask = 1.0f - smoothstep(
+        contourHalfWidth,
+        contourHalfWidth + contourFeather,
         distanceToIso);
 
     if (gDisplayMode == 1u)
     {
         // A bounded visualization that preserves useful contrast both below
         // and above the selected iso-value.
-        const float fieldView = field / (field + max(gFieldThreshold, 0.001f));
+        const float fieldView = field / (field + max(gContourThreshold, 0.001f));
         output.color = float4(fieldView.xxx, 1.0f);
     }
     else
     {
-        const float selectedMask = gDisplayMode == 3u ? isoBand : filledMask;
+        const float selectedMask = gDisplayMode == 2u ? filledMask : contourMask;
         if (selectedMask <= 0.001f)
         {
             discard;
         }
 
+        // Spatial position supplies the broad hue travel, while the same
+        // low-frequency field gives local variation. Time only drifts the
+        // palette, so multiple saturated hues coexist in every frame.
+        const float hue = frac(
+            0.52f
+            + vertical * 1.05f
+            + (input.uv.x - 0.5f) * 0.35f
+            + (contourNoise - 0.5f) * 0.20f
+            - gTime * 0.045f);
+        const float3 rainbow = HsvToRgb(float3(hue, 0.92f, 1.0f));
         const float3 displayColor = gDisplayMode == 0u
-            ? gColor.rgb * gEmissiveIntensity
+            ? rainbow * gColor.rgb * gContourEmissiveIntensity
             : selectedMask.xxx;
         output.color = float4(displayColor, selectedMask * gColor.a);
     }

@@ -103,7 +103,7 @@ private:
 	float flameTime_ = 0.0f;
 	bool showProceduralFlame_ = true;
 	bool pauseProceduralFlame_ = false;
-	bool proceduralFlameDarkBackground_ = false;
+	bool proceduralFlameDarkBackground_ = true;
 	Vector3 proceduralFlamePosition_ = { -13.0f, 1.0f, 174.0f };
 	Vector2 proceduralFlameSize_ = { 11.0f, 22.0f };
 	ProceduralFlameRenderer::Parameters proceduralFlameParameters_{};
