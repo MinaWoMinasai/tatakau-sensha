@@ -9,6 +9,10 @@ cbuffer FlameParameters : register(b0)
     float gContourWidth;
     float gContourSoftness;
     float gContourEmissiveIntensity;
+    float gInnerLineWidth;
+    float gInnerLineIntensity;
+    float gOuterGlowWidth;
+    float gOuterGlowIntensity;
     float gFieldGain;
     float gBillboardAspect;
     float gCompactSupportScale;
@@ -130,7 +134,8 @@ PixelShaderOutput main(PixelShaderInput input)
     const float contourNoise = Fbm3(float2(
         (input.uv.x - 0.5f) * 1.65f + 31.73f,
         vertical * 1.20f - gTime * 0.075f + 17.19f));
-    const float localContourWidth = gContourWidth * lerp(0.78f, 1.22f, contourNoise);
+    const float widthBreath = lerp(0.78f, 1.22f, contourNoise);
+    const float localContourWidth = gContourWidth * widthBreath;
 
     const float antiAlias = max(fwidth(field), 0.0005f);
     const float maskSoftness = max(gContourSoftness, antiAlias);
@@ -139,11 +144,29 @@ PixelShaderOutput main(PixelShaderInput input)
         gContourThreshold + maskSoftness,
         field);
     const float distanceToIso = abs(field - gContourThreshold);
-    const float contourHalfWidth = max(localContourWidth, antiAlias * 0.45f);
+    const float innerHalfWidth = max(
+        gInnerLineWidth * lerp(0.90f, 1.10f, contourNoise),
+        antiAlias * 0.28f);
+    const float contourHalfWidth = max(
+        localContourWidth,
+        innerHalfWidth + antiAlias * 0.35f);
+    const float outerGlowHalfWidth = max(
+        gOuterGlowWidth * lerp(0.88f, 1.12f, contourNoise),
+        contourHalfWidth + antiAlias);
+    const float innerFeather = max(gContourSoftness * 0.38f, antiAlias * 0.55f);
     const float contourFeather = max(gContourSoftness, antiAlias * 0.70f);
+    const float outerGlowFeather = max(gContourSoftness * 2.4f, antiAlias * 1.25f);
+    const float innerLineMask = 1.0f - smoothstep(
+        innerHalfWidth,
+        innerHalfWidth + innerFeather,
+        distanceToIso);
     const float contourMask = 1.0f - smoothstep(
         contourHalfWidth,
         contourHalfWidth + contourFeather,
+        distanceToIso);
+    const float outerGlowMask = 1.0f - smoothstep(
+        outerGlowHalfWidth,
+        outerGlowHalfWidth + outerGlowFeather,
         distanceToIso);
 
     if (gDisplayMode == 1u)
@@ -158,7 +181,10 @@ PixelShaderOutput main(PixelShaderInput input)
         const float selectedMask = gDisplayMode == 2u ? filledMask : contourMask;
         if (selectedMask <= 0.001f)
         {
-            discard;
+            if (gDisplayMode != 0u || outerGlowMask <= 0.001f)
+            {
+                discard;
+            }
         }
 
         // Spatial position supplies the broad hue travel, while the same
@@ -171,10 +197,29 @@ PixelShaderOutput main(PixelShaderInput input)
             + (contourNoise - 0.5f) * 0.20f
             - gTime * 0.045f);
         const float3 rainbow = HsvToRgb(float3(hue, 0.92f, 1.0f));
-        const float3 displayColor = gDisplayMode == 0u
-            ? rainbow * gColor.rgb * gContourEmissiveIntensity
-            : selectedMask.xxx;
-        output.color = float4(displayColor, selectedMask * gColor.a);
+        if (gDisplayMode == 0u)
+        {
+            const float3 tintedRainbow = rainbow * gColor.rgb;
+            const float3 hotLineColor = float3(0.82f, 0.97f, 1.0f)
+                * lerp(1.0f.xxx, gColor.rgb, 0.12f);
+            const float3 layerRadiance =
+                tintedRainbow * outerGlowMask * gOuterGlowIntensity
+                + tintedRainbow * contourMask * gContourEmissiveIntensity
+                + hotLineColor * innerLineMask * gInnerLineIntensity;
+
+            // The PSO uses straight-alpha blending. Divide by the composed
+            // coverage so the intended HDR radiance is not multiplied by the
+            // mask a second time when the blend unit applies SrcAlpha.
+            const float layerCoverage = saturate(max(innerLineMask, contourMask)
+                + outerGlowMask * 0.30f);
+            output.color = float4(
+                layerRadiance / max(layerCoverage, 0.001f),
+                layerCoverage * gColor.a);
+        }
+        else
+        {
+            output.color = float4(selectedMask.xxx, selectedMask * gColor.a);
+        }
     }
     output.normal = float4(0.5f, 0.5f, 1.0f, 0.0f);
     output.material = float4(1.0f, 0.0f, 1.0f, 0.0f);
