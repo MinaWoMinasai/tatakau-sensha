@@ -2,8 +2,27 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 
 using Microsoft::WRL::ComPtr;
+
+namespace {
+float Hash01(uint32_t value)
+{
+	value ^= value >> 16;
+	value *= 0x7feb352du;
+	value ^= value >> 15;
+	value *= 0x846ca68bu;
+	value ^= value >> 16;
+	return static_cast<float>(value & 0x00ffffffu) / 16777216.0f;
+}
+
+float SmoothStep01(float value)
+{
+	value = std::clamp(value, 0.0f, 1.0f);
+	return value * value * (3.0f - 2.0f * value);
+}
+} // namespace
 
 void ProceduralFlameRenderer::Initialize(DirectXCommon* dxCommon)
 {
@@ -21,10 +40,11 @@ void ProceduralFlameRenderer::Initialize(DirectXCommon* dxCommon)
 	viewProjectionResource_->Map(0, nullptr, reinterpret_cast<void**>(&viewProjectionData_));
 	*viewProjectionData_ = MakeIdentity4x4();
 
-	static_assert(sizeof(Parameters) % 16 == 0);
-	parameterResource_ = dxCommon_->CreateBufferResource(sizeof(Parameters));
+	static_assert(sizeof(GpuParameters) % 16 == 0);
+	parameterResource_ = dxCommon_->CreateBufferResource(sizeof(GpuParameters));
 	parameterResource_->Map(0, nullptr, reinterpret_cast<void**>(&parameterData_));
-	*parameterData_ = parameters_;
+	ResetMetaballs();
+	UploadParameters(1.0f);
 }
 
 void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
@@ -33,17 +53,128 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 	parameters_.noiseScale = (std::max)(parameters_.noiseScale, 0.01f);
 	parameters_.noiseSpeed = (std::max)(parameters_.noiseSpeed, 0.0f);
 	parameters_.distortionStrength = std::clamp(parameters_.distortionStrength, 0.0f, 0.45f);
-	parameters_.flameWidth = std::clamp(parameters_.flameWidth, 0.05f, 1.5f);
-	parameters_.flameHeight = std::clamp(parameters_.flameHeight, 0.05f, 1.0f);
-	parameters_.edgeSoftness = std::clamp(parameters_.edgeSoftness, 0.001f, 0.15f);
-	parameters_.threshold = std::clamp(parameters_.threshold, -0.2f, 0.2f);
+	parameters_.fieldThreshold = std::clamp(parameters_.fieldThreshold, 0.1f, 4.0f);
+	parameters_.edgeSoftness = std::clamp(parameters_.edgeSoftness, 0.001f, 0.5f);
+	parameters_.isoBandWidth = std::clamp(parameters_.isoBandWidth, 0.002f, 0.5f);
+	parameters_.fieldGain = std::clamp(parameters_.fieldGain, 0.05f, 4.0f);
 	parameters_.emissiveIntensity = (std::max)(parameters_.emissiveIntensity, 0.0f);
-	parameters_.debugMask = parameters_.debugMask > 0.5f ? 1.0f : 0.0f;
-	parameters_.bodyRoundness = std::clamp(parameters_.bodyRoundness, 0.5f, 1.5f);
-	parameters_.neckWidth = std::clamp(parameters_.neckWidth, 0.2f, 1.0f);
-	parameters_.tongueStrength = std::clamp(parameters_.tongueStrength, 0.0f, 1.5f);
-	if (parameterData_) {
-		*parameterData_ = parameters_;
+	parameters_.flowSpeed = std::clamp(parameters_.flowSpeed, 0.0f, 3.0f);
+	parameters_.radiusScale = std::clamp(parameters_.radiusScale, 0.35f, 2.0f);
+	parameters_.swayStrength = std::clamp(parameters_.swayStrength, 0.0f, 3.0f);
+	parameters_.spawnSpread = std::clamp(parameters_.spawnSpread, 0.0f, 0.45f);
+	parameters_.activeMetaballCount = std::clamp(
+		parameters_.activeMetaballCount,
+		6u,
+		kMaxMetaballs);
+	if (static_cast<uint32_t>(parameters_.displayMode) > static_cast<uint32_t>(DisplayMode::IsoBand)) {
+		parameters_.displayMode = DisplayMode::Emissive;
+	}
+}
+
+void ProceduralFlameRenderer::Update(float deltaTime)
+{
+	const float scaledDeltaTime = (std::max)(deltaTime, 0.0f) * parameters_.flowSpeed;
+	for (uint32_t index = 0; index < parameters_.activeMetaballCount; ++index) {
+		auto& metaball = metaballs_[index];
+		metaball.age += scaledDeltaTime;
+		metaball.baseX += metaball.velocity.x * scaledDeltaTime;
+		metaball.position.y += metaball.velocity.y * scaledDeltaTime;
+
+		const float swayTime = metaball.age * (1.15f + metaball.seed * 1.35f);
+		const float primarySway = std::sin(swayTime + metaball.phase);
+		const float secondarySway = std::sin(swayTime * 0.47f + metaball.phase * 1.73f);
+		metaball.position.x = metaball.baseX
+			+ (primarySway * 0.72f + secondarySway * 0.28f)
+			* metaball.lateralSway * parameters_.swayStrength;
+
+		if (metaball.age >= metaball.lifetime || metaball.position.y - metaball.radius > 1.12f) {
+			RespawnMetaball(index);
+		}
+	}
+}
+
+void ProceduralFlameRenderer::ResetMetaballs()
+{
+	for (uint32_t index = 0; index < kMaxMetaballs; ++index) {
+		metaballs_[index].generation = 0;
+		const float lifeFraction = (static_cast<float>(index) + 0.35f) /
+			static_cast<float>(kMaxMetaballs);
+		RespawnMetaball(index, lifeFraction);
+	}
+}
+
+void ProceduralFlameRenderer::RespawnMetaball(uint32_t index, float initialLifeFraction)
+{
+	auto& metaball = metaballs_[index];
+	const uint32_t generation = metaball.generation++;
+	const uint32_t key = 0x9e3779b9u * (index + 1u) + generation * 0x85ebca6bu;
+	const float sizeRandom = Hash01(key + 1u);
+	const float speedRandom = Hash01(key + 2u);
+	const float swayRandom = Hash01(key + 3u);
+	const float offsetRandom = Hash01(key + 4u);
+	metaball.seed = Hash01(key + 5u);
+	metaball.phase = Hash01(key + 6u) * 6.28318530718f;
+	metaball.lifetime = 3.8f + speedRandom * 1.8f;
+
+	// A minority of smaller, faster points naturally peel away near the top.
+	const bool satellite = metaball.seed > 0.70f;
+	metaball.baseRadius = (0.080f + sizeRandom * 0.048f) * (satellite ? 0.68f : 1.0f);
+	metaball.radius = metaball.baseRadius;
+	metaball.lateralSway = (0.030f + swayRandom * 0.070f) * (satellite ? 1.35f : 1.0f);
+	metaball.velocity.x = (Hash01(key + 7u) - 0.5f) * (satellite ? 0.030f : 0.014f);
+	metaball.velocity.y = (1.18f + metaball.baseRadius * 2.0f) / metaball.lifetime
+		* (satellite ? 1.08f : 1.0f);
+	metaball.baseX = 0.5f + (offsetRandom - 0.5f) * parameters_.spawnSpread;
+
+	const float progress = std::clamp(initialLifeFraction, 0.0f, 0.98f);
+	metaball.age = metaball.lifetime * progress;
+	metaball.position.y = -metaball.baseRadius +
+		progress * (1.18f + metaball.baseRadius * 2.0f);
+	metaball.baseX += metaball.velocity.x * metaball.age;
+	const float swayTime = metaball.age * (1.15f + metaball.seed * 1.35f);
+	metaball.position.x = metaball.baseX + std::sin(swayTime + metaball.phase)
+		* metaball.lateralSway * parameters_.swayStrength;
+}
+
+void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
+{
+	if (!parameterData_) {
+		return;
+	}
+	parameterData_->color = parameters_.color;
+	parameterData_->time = parameters_.time;
+	parameterData_->noiseScale = parameters_.noiseScale;
+	parameterData_->noiseSpeed = parameters_.noiseSpeed;
+	parameterData_->distortionStrength = parameters_.distortionStrength;
+	parameterData_->fieldThreshold = parameters_.fieldThreshold;
+	parameterData_->edgeSoftness = parameters_.edgeSoftness;
+	parameterData_->isoBandWidth = parameters_.isoBandWidth;
+	parameterData_->emissiveIntensity = parameters_.emissiveIntensity;
+	parameterData_->fieldGain = parameters_.fieldGain;
+	parameterData_->billboardAspect = (std::max)(billboardAspect, 0.001f);
+	parameterData_->displayMode = static_cast<uint32_t>(parameters_.displayMode);
+	parameterData_->activeMetaballCount = parameters_.activeMetaballCount;
+
+	for (uint32_t index = 0; index < kMaxMetaballs; ++index) {
+		if (index >= parameters_.activeMetaballCount) {
+			parameterData_->metaballs[index] = {};
+			continue;
+		}
+		auto& metaball = metaballs_[index];
+		const float life = std::clamp(metaball.age / metaball.lifetime, 0.0f, 1.0f);
+		const float fadeIn = SmoothStep01(life / 0.07f);
+		const float fadeOut = 1.0f - SmoothStep01((life - 0.82f) / 0.18f);
+		const float upperShrink = SmoothStep01((life - 0.58f) / 0.42f);
+		const float pulse = 0.91f + 0.09f * std::sin(
+			metaball.age * (2.2f + metaball.seed * 1.6f) + metaball.phase);
+		metaball.radius = metaball.baseRadius * parameters_.radiusScale * pulse
+			* (1.0f - upperShrink * 0.48f);
+		parameterData_->metaballs[index] = {
+			metaball.position.x,
+			metaball.position.y,
+			metaball.radius,
+			fadeIn * fadeOut,
+		};
 	}
 }
 
@@ -75,7 +206,7 @@ void ProceduralFlameRenderer::Draw(
 	vertexData_[4] = { topRight, white, { 1.0f, 0.0f } };
 	vertexData_[5] = { bottomRight, white, { 1.0f, 1.0f } };
 	*viewProjectionData_ = viewProjection;
-	*parameterData_ = parameters_;
+	UploadParameters(size.x / size.y);
 
 	auto commandList = dxCommon_->GetList();
 	commandList->SetGraphicsRootSignature(rootSignature_.Get());
