@@ -11,8 +11,10 @@ cbuffer FlameParameters : register(b0)
     float gContourEmissiveIntensity;
     float gFieldGain;
     float gBillboardAspect;
+    float gCompactSupportScale;
     uint gDisplayMode;
     uint gActiveMetaballCount;
+    float3 gPadding;
     // xy: normalized billboard position (y grows upward)
     // z: radius, w: lifetime contribution
     float4 gMetaballs[12];
@@ -98,10 +100,19 @@ float BuildAuraField(float2 uv)
             // Compensate for non-square billboards so a point's radius is
             // approximately circular in world space.
             delta.x *= gBillboardAspect;
-            const float radiusSquared = max(metaball.z * metaball.z, 1.0e-6f);
+            const float supportRadius = max(
+                metaball.z * gCompactSupportScale,
+                1.0e-4f);
+            const float supportRadiusSquared = supportRadius * supportRadius;
             const float distanceSquared = dot(delta, delta);
-            field += metaball.w * radiusSquared /
-                (distanceSquared + radiusSquared * 0.08f);
+            // Compact C2 falloff: unlike inverse-square influence, this is
+            // exactly zero outside the support radius. Nearby points still
+            // merge smoothly, but separated satellites cannot bridge the
+            // whole billboard with weak long-distance tails.
+            const float compactDistance = saturate(
+                1.0f - distanceSquared / supportRadiusSquared);
+            const float kernel = compactDistance * compactDistance * compactDistance;
+            field += metaball.w * 1.45f * kernel;
         }
     }
     return field * gFieldGain;
