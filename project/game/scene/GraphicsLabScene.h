@@ -12,6 +12,7 @@
 #include "Object3d.h"
 #include "OceanRenderer.h"
 #include "PbrEnvironment.h"
+#include "ProceduralFlameRenderer.h"
 #include "SkinCluster.h"
 #include "Skybox.h"
 
@@ -88,6 +89,7 @@ private:
 	std::unique_ptr<OceanRenderer> oceanRenderer_;
 	std::unique_ptr<Object3d> sandBed_;
 	std::unique_ptr<Object3d> crystal_;
+	std::unique_ptr<ProceduralFlameRenderer> proceduralFlame_;
 	PbrEnvironment pbrEnvironment_;
 	std::vector<LabObject> metalObjects_;
 	std::vector<LabObject> validationObjects_;
@@ -98,6 +100,12 @@ private:
 	std::string nextSceneName_ = "TITLE";
 	float finalDeltaTime_ = 1.0f / 60.0f;
 	float sceneTime_ = 0.0f;
+	float flameTime_ = 0.0f;
+	bool showProceduralFlame_ = true;
+	bool pauseProceduralFlame_ = false;
+	Vector3 proceduralFlamePosition_ = { -13.0f, 1.0f, 174.0f };
+	Vector2 proceduralFlameSize_ = { 11.0f, 22.0f };
+	ProceduralFlameRenderer::Parameters proceduralFlameParameters_{};
 	bool pauseWater_ = false;
 	bool useDedicatedOceanRenderer_ = true;
 	int oceanMode_ = static_cast<int>(OceanRenderer::Mode::ArcBlanc);
