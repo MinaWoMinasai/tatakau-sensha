@@ -262,6 +262,10 @@ void GraphicsLabScene::Initialize()
 	crystal_->SetInsensity(pbrDirectLightIntensity_);
 	crystal_->SetCrystalMaterial(crystalSettings_);
 
+	proceduralFlame_ = std::make_unique<ProceduralFlameRenderer>();
+	proceduralFlame_->Initialize(Object3dCommon::GetInstance()->GetDxCommon());
+	proceduralFlame_->SetParameters(proceduralFlameParameters_);
+
 	skybox_ = std::make_unique<Skybox>();
 	skybox_->Initialize("resources/skybox.dds");
 	skybox_->SetColor({ 1.0f, 1.0f, 1.0f, 2.0f });
@@ -573,6 +577,13 @@ void GraphicsLabScene::Update()
 			fftTime_ += finalDeltaTime_ * waterTimeScale_;
 		}
 	}
+	if (!pauseProceduralFlame_) {
+		flameTime_ += finalDeltaTime_;
+	}
+	proceduralFlameParameters_.time = flameTime_;
+	if (proceduralFlame_) {
+		proceduralFlame_->SetParameters(proceduralFlameParameters_);
+	}
 
 	if (loadLookDevSamples_ || loadSkinnedPbrSamples_) {
 		ApplyPbrEnvironmentDebugMode();
@@ -750,6 +761,21 @@ void GraphicsLabScene::DrawPostEffect3D()
 	} else {
 		Object3dCommon::GetInstance()->PreDraw(kNormal);
 		river_->Draw();
+	}
+
+	if (showProceduralFlame_ && proceduralFlame_) {
+		const bool useDebugCamera = Object3dCommon::GetInstance()->GetIsDebugCamera();
+		const Matrix4x4 cameraWorld = useDebugCamera
+			? Inverse(debugCamera_->GetViewMatrix())
+			: camera_->GetWorldMatrix();
+		const Matrix4x4 viewProjection = useDebugCamera
+			? debugCamera_->GetViewProjectionMatrix()
+			: camera_->GetViewProjectionMatrix();
+		proceduralFlame_->Draw(
+			proceduralFlamePosition_,
+			proceduralFlameSize_,
+			cameraWorld,
+			viewProjection);
 	}
 }
 
@@ -1734,6 +1760,40 @@ void GraphicsLabScene::DrawDebugWindow()
 			&waterDebugMode_,
 			waterDebugModes,
 			IM_ARRAYSIZE(waterDebugModes));
+	}
+	if (ImGui::CollapsingHeader(
+		"Procedural Flame Mask",
+		ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Show flame", &showProceduralFlame_);
+		ImGui::SameLine();
+		ImGui::Checkbox("Pause flame", &pauseProceduralFlame_);
+		bool debugMask = proceduralFlameParameters_.debugMask > 0.5f;
+		if (ImGui::Checkbox("Grayscale mask", &debugMask)) {
+			proceduralFlameParameters_.debugMask = debugMask ? 1.0f : 0.0f;
+		}
+		ImGui::DragFloat3("Flame position", &proceduralFlamePosition_.x, 0.25f);
+		ImGui::DragFloat2("Billboard size", &proceduralFlameSize_.x, 0.1f, 0.1f, 100.0f);
+		ImGui::DragFloat("Noise scale", &proceduralFlameParameters_.noiseScale, 0.05f, 0.1f, 16.0f);
+		ImGui::DragFloat("Noise speed", &proceduralFlameParameters_.noiseSpeed, 0.01f, 0.0f, 6.0f);
+		ImGui::DragFloat(
+			"Distortion strength",
+			&proceduralFlameParameters_.distortionStrength,
+			0.002f,
+			0.0f,
+			0.45f);
+		ImGui::DragFloat("Flame width", &proceduralFlameParameters_.flameWidth, 0.005f, 0.05f, 1.5f);
+		ImGui::DragFloat("Flame height", &proceduralFlameParameters_.flameHeight, 0.005f, 0.05f, 1.0f);
+		ImGui::DragFloat("Edge softness", &proceduralFlameParameters_.edgeSoftness, 0.001f, 0.001f, 0.15f);
+		ImGui::DragFloat("Mask threshold", &proceduralFlameParameters_.threshold, 0.001f, -0.2f, 0.2f);
+		ImGui::ColorEdit4("Flame color", &proceduralFlameParameters_.color.x);
+		ImGui::DragFloat(
+			"Emissive intensity",
+			&proceduralFlameParameters_.emissiveIntensity,
+			0.05f,
+			0.0f,
+			16.0f);
+		ImGui::Text("Time: %.2f s", flameTime_);
+		ImGui::TextUnformatted("One mask feeds alpha and HDR emissive; later phases can reuse it for core and edge bands.");
 	}
 	if (ImGui::CollapsingHeader(
 		"Crystal LookDev",
