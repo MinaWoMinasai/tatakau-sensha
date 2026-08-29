@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "projectName": "VFX Lab",
+  "gameModule": "builtin",
+  "startupScene": "VFX_LAB",
+  "resourceRoot": "resources"
+}

@@ -8,6 +8,9 @@
 #include "../scene/TestScene.h"
 #include "../scene/TitleScene.h"
 #include "../naval/scene/NavalBattleScene.h"
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+#include "../scene/VfxLabScene.h"
+#endif
 
 std::string_view BuiltInGameModule::GetId() const
 {
@@ -29,5 +32,8 @@ bool BuiltInGameModule::RegisterScenes(SceneRegistry& registry) const
 	success = registry.Register<Action3DScene>("ACTION3D") && success;
 	success = registry.Register<GraphicsLabScene>("GRAPHICS_LAB") && success;
 	success = registry.Register<NavalBattleScene>("NAVAL_BATTLE") && success;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	success = registry.Register<VfxLabScene>("VFX_LAB") && success;
+#endif
 	return success;
 }
