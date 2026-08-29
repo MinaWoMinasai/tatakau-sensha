@@ -583,6 +583,9 @@ void GraphicsLabScene::Update()
 	proceduralFlameParameters_.time = flameTime_;
 	if (proceduralFlame_) {
 		proceduralFlame_->SetParameters(proceduralFlameParameters_);
+		if (!pauseProceduralFlame_) {
+			proceduralFlame_->Update(finalDeltaTime_);
+		}
 	}
 
 	if (loadLookDevSamples_ || loadSkinnedPbrSamples_) {
@@ -1764,18 +1767,37 @@ void GraphicsLabScene::DrawDebugWindow()
 			IM_ARRAYSIZE(waterDebugModes));
 	}
 	if (ImGui::CollapsingHeader(
-		"Procedural Flame Mask",
+		"Dynamic Metaball Aura Field",
 		ImGuiTreeNodeFlags_DefaultOpen)) {
 		ImGui::Checkbox("Show flame", &showProceduralFlame_);
 		ImGui::SameLine();
 		ImGui::Checkbox("Pause flame", &pauseProceduralFlame_);
 		ImGui::Checkbox("Dark VFX background", &proceduralFlameDarkBackground_);
-		bool debugMask = proceduralFlameParameters_.debugMask > 0.5f;
-		if (ImGui::Checkbox("Grayscale mask", &debugMask)) {
-			proceduralFlameParameters_.debugMask = debugMask ? 1.0f : 0.0f;
+		const char* displayModes[] = {
+			"Emissive Filled",
+			"Scalar Field",
+			"Filled Mask",
+			"Outline / Iso-band",
+		};
+		int displayMode = static_cast<int>(proceduralFlameParameters_.displayMode);
+		if (ImGui::Combo("Field display", &displayMode, displayModes, IM_ARRAYSIZE(displayModes))) {
+			proceduralFlameParameters_.displayMode =
+				static_cast<ProceduralFlameRenderer::DisplayMode>(displayMode);
+		}
+		if (ImGui::Button("Reset metaballs") && proceduralFlame_) {
+			proceduralFlame_->ResetMetaballs();
 		}
 		ImGui::DragFloat3("Flame position", &proceduralFlamePosition_.x, 0.25f);
 		ImGui::DragFloat2("Billboard size", &proceduralFlameSize_.x, 0.1f, 0.1f, 100.0f);
+		int activeMetaballs = static_cast<int>(proceduralFlameParameters_.activeMetaballCount);
+		if (ImGui::SliderInt("Active metaballs", &activeMetaballs, 6, 12)) {
+			proceduralFlameParameters_.activeMetaballCount =
+				static_cast<uint32_t>(activeMetaballs);
+		}
+		ImGui::DragFloat("Flow speed", &proceduralFlameParameters_.flowSpeed, 0.01f, 0.0f, 3.0f);
+		ImGui::DragFloat("Radius scale", &proceduralFlameParameters_.radiusScale, 0.01f, 0.35f, 2.0f);
+		ImGui::DragFloat("Lateral sway", &proceduralFlameParameters_.swayStrength, 0.01f, 0.0f, 3.0f);
+		ImGui::DragFloat("Spawn spread", &proceduralFlameParameters_.spawnSpread, 0.005f, 0.0f, 0.45f);
 		ImGui::DragFloat("Noise scale", &proceduralFlameParameters_.noiseScale, 0.05f, 0.1f, 16.0f);
 		ImGui::DragFloat("Noise speed", &proceduralFlameParameters_.noiseSpeed, 0.01f, 0.0f, 6.0f);
 		ImGui::DragFloat(
@@ -1784,13 +1806,10 @@ void GraphicsLabScene::DrawDebugWindow()
 			0.002f,
 			0.0f,
 			0.45f);
-		ImGui::DragFloat("Flame width", &proceduralFlameParameters_.flameWidth, 0.005f, 0.05f, 1.5f);
-		ImGui::DragFloat("Flame height", &proceduralFlameParameters_.flameHeight, 0.005f, 0.05f, 1.0f);
-		ImGui::DragFloat("Edge softness", &proceduralFlameParameters_.edgeSoftness, 0.001f, 0.001f, 0.15f);
-		ImGui::DragFloat("Mask threshold", &proceduralFlameParameters_.threshold, 0.001f, -0.2f, 0.2f);
-		ImGui::DragFloat("Body roundness", &proceduralFlameParameters_.bodyRoundness, 0.01f, 0.5f, 1.5f);
-		ImGui::DragFloat("Neck width", &proceduralFlameParameters_.neckWidth, 0.01f, 0.2f, 1.0f);
-		ImGui::DragFloat("Tongue strength", &proceduralFlameParameters_.tongueStrength, 0.01f, 0.0f, 1.5f);
+		ImGui::DragFloat("Field threshold", &proceduralFlameParameters_.fieldThreshold, 0.01f, 0.1f, 4.0f);
+		ImGui::DragFloat("Field gain", &proceduralFlameParameters_.fieldGain, 0.01f, 0.05f, 4.0f);
+		ImGui::DragFloat("Edge softness", &proceduralFlameParameters_.edgeSoftness, 0.002f, 0.001f, 0.5f);
+		ImGui::DragFloat("Iso-band width", &proceduralFlameParameters_.isoBandWidth, 0.002f, 0.002f, 0.5f);
 		ImGui::ColorEdit4("Flame color", &proceduralFlameParameters_.color.x);
 		ImGui::DragFloat(
 			"Emissive intensity",
@@ -1799,7 +1818,7 @@ void GraphicsLabScene::DrawDebugWindow()
 			0.0f,
 			16.0f);
 		ImGui::Text("Time: %.2f s", flameTime_);
-		ImGui::TextUnformatted("One mask feeds alpha and HDR emissive; later phases can reuse it for core and edge bands.");
+		ImGui::TextUnformatted("One continuous field feeds filled, iso-band, and future core/contour layers.");
 	}
 	if (ImGui::CollapsingHeader(
 		"Crystal LookDev",
