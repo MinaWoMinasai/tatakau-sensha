@@ -63,6 +63,8 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 	parameters_.radiusScale = std::clamp(parameters_.radiusScale, 0.35f, 2.0f);
 	parameters_.swayStrength = std::clamp(parameters_.swayStrength, 0.0f, 3.0f);
 	parameters_.spawnSpread = std::clamp(parameters_.spawnSpread, 0.0f, 0.45f);
+	parameters_.compactSupportScale = std::clamp(parameters_.compactSupportScale, 1.25f, 4.0f);
+	parameters_.satelliteSeparation = std::clamp(parameters_.satelliteSeparation, 0.0f, 0.35f);
 	parameters_.activeMetaballCount = std::clamp(
 		parameters_.activeMetaballCount,
 		6u,
@@ -84,9 +86,14 @@ void ProceduralFlameRenderer::Update(float deltaTime)
 		const float swayTime = metaball.age * (1.15f + metaball.seed * 1.35f);
 		const float primarySway = std::sin(swayTime + metaball.phase);
 		const float secondarySway = std::sin(swayTime * 0.47f + metaball.phase * 1.73f);
+		const float life = std::clamp(metaball.age / metaball.lifetime, 0.0f, 1.0f);
+		const float separation = metaball.isSatellite
+			? SmoothStep01((life - 0.16f) / 0.58f) * parameters_.satelliteSeparation
+			: 0.0f;
 		metaball.position.x = metaball.baseX
 			+ (primarySway * 0.72f + secondarySway * 0.28f)
-			* metaball.lateralSway * parameters_.swayStrength;
+			* metaball.lateralSway * parameters_.swayStrength
+			+ metaball.separationDirection * separation;
 
 		if (metaball.age >= metaball.lifetime || metaball.position.y - metaball.radius > 1.12f) {
 			RespawnMetaball(index);
@@ -96,10 +103,24 @@ void ProceduralFlameRenderer::Update(float deltaTime)
 
 void ProceduralFlameRenderer::ResetMetaballs()
 {
+	uint32_t bodyOrdinal = 0;
+	uint32_t satelliteOrdinal = 0;
+	uint32_t bodyCount = 0;
+	uint32_t satelliteCount = 0;
+	for (uint32_t index = 0; index < kMaxMetaballs; ++index) {
+		if (index % 3u == 2u) {
+			++satelliteCount;
+		} else {
+			++bodyCount;
+		}
+	}
 	for (uint32_t index = 0; index < kMaxMetaballs; ++index) {
 		metaballs_[index].generation = 0;
-		const float lifeFraction = (static_cast<float>(index) + 0.35f) /
-			static_cast<float>(kMaxMetaballs);
+		const bool satellite = index % 3u == 2u;
+		const uint32_t ordinal = satellite ? satelliteOrdinal++ : bodyOrdinal++;
+		const uint32_t roleCount = satellite ? satelliteCount : bodyCount;
+		const float lifeFraction = (static_cast<float>(ordinal) + 0.35f) /
+			static_cast<float>(roleCount);
 		RespawnMetaball(index, lifeFraction);
 	}
 }
@@ -115,26 +136,41 @@ void ProceduralFlameRenderer::RespawnMetaball(uint32_t index, float initialLifeF
 	const float offsetRandom = Hash01(key + 4u);
 	metaball.seed = Hash01(key + 5u);
 	metaball.phase = Hash01(key + 6u) * 6.28318530718f;
-	metaball.lifetime = 3.8f + speedRandom * 1.8f;
 
-	// A minority of smaller, faster points naturally peel away near the top.
-	const bool satellite = metaball.seed > 0.70f;
-	metaball.baseRadius = (0.080f + sizeRandom * 0.048f) * (satellite ? 0.68f : 1.0f);
+	// Two deterministic roles keep the lower field dense while guaranteeing
+	// that a few smaller points can peel away above it. Positions remain fully
+	// animated and seeded; the roles define tendencies, not a fixed silhouette.
+	metaball.isSatellite = index % 3u == 2u;
+	const bool satellite = metaball.isSatellite;
+	metaball.lifetime = satellite
+		? 3.0f + speedRandom * 1.2f
+		: 4.8f + speedRandom * 1.5f;
+	metaball.baseRadius = satellite
+		? 0.048f + sizeRandom * 0.030f
+		: 0.105f + sizeRandom * 0.050f;
 	metaball.radius = metaball.baseRadius;
-	metaball.lateralSway = (0.030f + swayRandom * 0.070f) * (satellite ? 1.35f : 1.0f);
-	metaball.velocity.x = (Hash01(key + 7u) - 0.5f) * (satellite ? 0.030f : 0.014f);
-	metaball.velocity.y = (1.18f + metaball.baseRadius * 2.0f) / metaball.lifetime
-		* (satellite ? 1.08f : 1.0f);
-	metaball.baseX = 0.5f + (offsetRandom - 0.5f) * parameters_.spawnSpread;
+	metaball.lateralSway = satellite
+		? 0.070f + swayRandom * 0.065f
+		: 0.025f + swayRandom * 0.040f;
+	metaball.velocity.x = (Hash01(key + 7u) - 0.5f) * (satellite ? 0.020f : 0.008f);
+	const float verticalStart = satellite ? 0.40f : 0.13f;
+	const float verticalTravel = satellite ? 0.64f : 0.50f;
+	metaball.velocity.y = verticalTravel / metaball.lifetime;
+	metaball.baseX = 0.5f + (offsetRandom - 0.5f) * parameters_.spawnSpread
+		* (satellite ? 0.95f : 0.65f);
+	metaball.separationDirection = Hash01(key + 8u) < 0.5f ? -1.0f : 1.0f;
 
 	const float progress = std::clamp(initialLifeFraction, 0.0f, 0.98f);
 	metaball.age = metaball.lifetime * progress;
-	metaball.position.y = -metaball.baseRadius +
-		progress * (1.18f + metaball.baseRadius * 2.0f);
+	metaball.position.y = verticalStart + progress * verticalTravel;
 	metaball.baseX += metaball.velocity.x * metaball.age;
 	const float swayTime = metaball.age * (1.15f + metaball.seed * 1.35f);
+	const float separation = satellite
+		? SmoothStep01((progress - 0.16f) / 0.58f) * parameters_.satelliteSeparation
+		: 0.0f;
 	metaball.position.x = metaball.baseX + std::sin(swayTime + metaball.phase)
-		* metaball.lateralSway * parameters_.swayStrength;
+		* metaball.lateralSway * parameters_.swayStrength
+		+ metaball.separationDirection * separation;
 }
 
 void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
@@ -153,6 +189,7 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
 	parameterData_->contourEmissiveIntensity = parameters_.contourEmissiveIntensity;
 	parameterData_->fieldGain = parameters_.fieldGain;
 	parameterData_->billboardAspect = (std::max)(billboardAspect, 0.001f);
+	parameterData_->compactSupportScale = parameters_.compactSupportScale;
 	parameterData_->displayMode = static_cast<uint32_t>(parameters_.displayMode);
 	parameterData_->activeMetaballCount = parameters_.activeMetaballCount;
 
@@ -163,13 +200,17 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
 		}
 		auto& metaball = metaballs_[index];
 		const float life = std::clamp(metaball.age / metaball.lifetime, 0.0f, 1.0f);
-		const float fadeIn = SmoothStep01(life / 0.07f);
-		const float fadeOut = 1.0f - SmoothStep01((life - 0.82f) / 0.18f);
-		const float upperShrink = SmoothStep01((life - 0.58f) / 0.42f);
+		const float fadeIn = SmoothStep01(life / (metaball.isSatellite ? 0.10f : 0.07f));
+		const float fadeOutStart = metaball.isSatellite ? 0.78f : 0.88f;
+		const float fadeOut = 1.0f - SmoothStep01(
+			(life - fadeOutStart) / (1.0f - fadeOutStart));
+		const float upperShrinkStart = metaball.isSatellite ? 0.58f : 0.70f;
+		const float upperShrink = SmoothStep01(
+			(life - upperShrinkStart) / (1.0f - upperShrinkStart));
 		const float pulse = 0.91f + 0.09f * std::sin(
 			metaball.age * (2.2f + metaball.seed * 1.6f) + metaball.phase);
 		metaball.radius = metaball.baseRadius * parameters_.radiusScale * pulse
-			* (1.0f - upperShrink * 0.48f);
+			* (1.0f - upperShrink * (metaball.isSatellite ? 0.58f : 0.32f));
 		parameterData_->metaballs[index] = {
 			metaball.position.x,
 			metaball.position.y,

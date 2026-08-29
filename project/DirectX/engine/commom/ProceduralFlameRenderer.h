@@ -38,6 +38,8 @@ public:
 		float radiusScale = 1.0f;
 		float swayStrength = 1.0f;
 		float spawnSpread = 0.22f;
+		float compactSupportScale = 2.35f;
+		float satelliteSeparation = 0.12f;
 		uint32_t activeMetaballCount = 10;
 		DisplayMode displayMode = DisplayMode::OuterContour;
 	};
@@ -66,6 +68,8 @@ private:
 		float phase = 0.0f;
 		float baseX = 0.5f;
 		float baseRadius = 0.1f;
+		float separationDirection = 1.0f;
+		bool isSatellite = false;
 		uint32_t generation = 0;
 	};
 
@@ -81,8 +85,10 @@ private:
 		float contourEmissiveIntensity = 1.0f;
 		float fieldGain = 1.0f;
 		float billboardAspect = 1.0f;
+		float compactSupportScale = 2.35f;
 		uint32_t displayMode = 0;
 		uint32_t activeMetaballCount = 0;
+		float padding[3]{};
 		std::array<Vector4, kMaxMetaballs> metaballs{};
 	};
 

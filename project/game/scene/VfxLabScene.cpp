@@ -319,6 +319,18 @@ void VfxLabScene::DrawDebugWindow()
 		ImGui::DragFloat("Radius Scale", &proceduralFlameParameters_.radiusScale, 0.01f, 0.35f, 2.0f);
 		ImGui::DragFloat("Lateral Sway", &proceduralFlameParameters_.swayStrength, 0.01f, 0.0f, 3.0f);
 		ImGui::DragFloat("Spawn Spread", &proceduralFlameParameters_.spawnSpread, 0.005f, 0.0f, 0.45f);
+		ImGui::DragFloat(
+			"Compact Support Scale",
+			&proceduralFlameParameters_.compactSupportScale,
+			0.01f,
+			1.25f,
+			4.0f);
+		ImGui::DragFloat(
+			"Satellite Separation",
+			&proceduralFlameParameters_.satelliteSeparation,
+			0.005f,
+			0.0f,
+			0.35f);
 		ImGui::DragFloat("Noise Scale", &proceduralFlameParameters_.noiseScale, 0.05f, 0.1f, 16.0f);
 		ImGui::DragFloat("Noise Speed", &proceduralFlameParameters_.noiseSpeed, 0.01f, 0.0f, 6.0f);
 		ImGui::DragFloat(
