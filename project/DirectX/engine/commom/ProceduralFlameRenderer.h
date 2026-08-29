@@ -23,7 +23,10 @@ public:
 		float threshold = 0.0f;
 		float emissiveIntensity = 3.0f;
 		float debugMask = 0.0f;
-		float padding[2] = {};
+		float bodyRoundness = 1.0f;
+		float neckWidth = 0.50f;
+		float tongueStrength = 1.0f;
+		float padding[3] = {};
 	};
 
 	void Initialize(DirectXCommon* dxCommon);

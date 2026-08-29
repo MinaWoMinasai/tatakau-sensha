@@ -724,43 +724,45 @@ void GraphicsLabScene::DrawShadow()
 
 void GraphicsLabScene::DrawPostEffect3D()
 {
-	skybox_->Draw();
+	if (!proceduralFlameDarkBackground_) {
+		skybox_->Draw();
 
-	Object3dCommon::GetInstance()->PreDraw(kNone);
-	if (showSandBed_ && sandBed_) {
-		sandBed_->Draw();
-	}
-	if (showCrystal_ && crystal_) {
-		crystal_->Draw();
-	}
-	for (auto& object : sceneObjects_) {
-		if (ShouldDrawLabObject(object)) {
-			object.object->Draw();
+		Object3dCommon::GetInstance()->PreDraw(kNone);
+		if (showSandBed_ && sandBed_) {
+			sandBed_->Draw();
 		}
-	}
-	if (showPbrSamples_) {
-		for (auto& object : metalObjects_) {
-			object.object->Draw();
+		if (showCrystal_ && crystal_) {
+			crystal_->Draw();
 		}
-	}
-	if (showValidationPrimitives_) {
-		for (auto& object : validationObjects_) {
-			object.object->Draw();
-		}
-	}
-	if (showSkinnedPbrSamples_) {
-		for (auto& object : skinnedLabObjects_) {
-			if (object.loaded && object.object && object.model) {
-				object.object->DrawSkinned(*object.model);
+		for (auto& object : sceneObjects_) {
+			if (ShouldDrawLabObject(object)) {
+				object.object->Draw();
 			}
 		}
-	}
+		if (showPbrSamples_) {
+			for (auto& object : metalObjects_) {
+				object.object->Draw();
+			}
+		}
+		if (showValidationPrimitives_) {
+			for (auto& object : validationObjects_) {
+				object.object->Draw();
+			}
+		}
+		if (showSkinnedPbrSamples_) {
+			for (auto& object : skinnedLabObjects_) {
+				if (object.loaded && object.object && object.model) {
+					object.object->DrawSkinned(*object.model);
+				}
+			}
+		}
 
-	if (useDedicatedOceanRenderer_ && oceanRenderer_) {
-		oceanRenderer_->Draw();
-	} else {
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
-		river_->Draw();
+		if (useDedicatedOceanRenderer_ && oceanRenderer_) {
+			oceanRenderer_->Draw();
+		} else {
+			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			river_->Draw();
+		}
 	}
 
 	if (showProceduralFlame_ && proceduralFlame_) {
@@ -1767,6 +1769,7 @@ void GraphicsLabScene::DrawDebugWindow()
 		ImGui::Checkbox("Show flame", &showProceduralFlame_);
 		ImGui::SameLine();
 		ImGui::Checkbox("Pause flame", &pauseProceduralFlame_);
+		ImGui::Checkbox("Dark VFX background", &proceduralFlameDarkBackground_);
 		bool debugMask = proceduralFlameParameters_.debugMask > 0.5f;
 		if (ImGui::Checkbox("Grayscale mask", &debugMask)) {
 			proceduralFlameParameters_.debugMask = debugMask ? 1.0f : 0.0f;
@@ -1785,6 +1788,9 @@ void GraphicsLabScene::DrawDebugWindow()
 		ImGui::DragFloat("Flame height", &proceduralFlameParameters_.flameHeight, 0.005f, 0.05f, 1.0f);
 		ImGui::DragFloat("Edge softness", &proceduralFlameParameters_.edgeSoftness, 0.001f, 0.001f, 0.15f);
 		ImGui::DragFloat("Mask threshold", &proceduralFlameParameters_.threshold, 0.001f, -0.2f, 0.2f);
+		ImGui::DragFloat("Body roundness", &proceduralFlameParameters_.bodyRoundness, 0.01f, 0.5f, 1.5f);
+		ImGui::DragFloat("Neck width", &proceduralFlameParameters_.neckWidth, 0.01f, 0.2f, 1.0f);
+		ImGui::DragFloat("Tongue strength", &proceduralFlameParameters_.tongueStrength, 0.01f, 0.0f, 1.5f);
 		ImGui::ColorEdit4("Flame color", &proceduralFlameParameters_.color.x);
 		ImGui::DragFloat(
 			"Emissive intensity",
