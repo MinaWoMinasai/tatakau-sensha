@@ -39,6 +39,9 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 	parameters_.threshold = std::clamp(parameters_.threshold, -0.2f, 0.2f);
 	parameters_.emissiveIntensity = (std::max)(parameters_.emissiveIntensity, 0.0f);
 	parameters_.debugMask = parameters_.debugMask > 0.5f ? 1.0f : 0.0f;
+	parameters_.bodyRoundness = std::clamp(parameters_.bodyRoundness, 0.5f, 1.5f);
+	parameters_.neckWidth = std::clamp(parameters_.neckWidth, 0.2f, 1.0f);
+	parameters_.tongueStrength = std::clamp(parameters_.tongueStrength, 0.0f, 1.5f);
 	if (parameterData_) {
 		*parameterData_ = parameters_;
 	}
