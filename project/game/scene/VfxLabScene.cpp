@@ -445,6 +445,39 @@ void VfxLabScene::DrawDebugWindow()
 			0.01f,
 			0.2f,
 			8.0f);
+		ImGui::SeparatorText("Star Sparks");
+		ImGui::Checkbox(
+			"Enable Star Sparks",
+			&proceduralFlameParameters_.enableStarSparks);
+		int starSparkCount = static_cast<int>(proceduralFlameParameters_.starSparkCount);
+		if (ImGui::SliderInt("Star Spark Count", &starSparkCount, 3, 8)) {
+			proceduralFlameParameters_.starSparkCount =
+				static_cast<uint32_t>(starSparkCount);
+		}
+		ImGui::DragFloat(
+			"Star Spark Size",
+			&proceduralFlameParameters_.starSparkSize,
+			0.001f,
+			0.008f,
+			0.10f);
+		ImGui::DragFloat(
+			"Star Spark Intensity",
+			&proceduralFlameParameters_.starSparkIntensity,
+			0.1f,
+			0.0f,
+			24.0f);
+		ImGui::DragFloat(
+			"Star Spark Twinkle Speed",
+			&proceduralFlameParameters_.starSparkTwinkleSpeed,
+			0.01f,
+			0.05f,
+			4.0f);
+		ImGui::DragFloat(
+			"Star Spark Glow Strength",
+			&proceduralFlameParameters_.starSparkGlowStrength,
+			0.01f,
+			0.0f,
+			2.0f);
 		ImGui::Text("Time: %.2f s", flameTime_);
 		ImGui::TreePop();
 	}
