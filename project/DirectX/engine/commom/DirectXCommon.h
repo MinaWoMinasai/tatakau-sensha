@@ -137,6 +137,7 @@ public:
 	void ExecuteCommandListAndWait();
 	void ResetFixFPS();
 	const FrameSubmitProfile& GetFrameSubmitProfile() const { return frameSubmitProfile_; }
+	bool IsD3D12DebugLayerEnabled() const { return d3d12DebugLayerEnabled_; }
 	bool IsGpuBasedValidationEnabled() const { return gpuBasedValidationEnabled_; }
 
 	/// <summary>
@@ -441,6 +442,7 @@ private:
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc_{};
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence_ = nullptr;
 	FrameSubmitProfile frameSubmitProfile_{};
+	bool d3d12DebugLayerEnabled_ = false;
 	bool gpuBasedValidationEnabled_ = false;
 	HANDLE fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
 	uint64_t fenceValue_ = 0;
