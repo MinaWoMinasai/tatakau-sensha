@@ -3864,6 +3864,8 @@ void GameScene::StartPerformanceCapture()
 	performanceCaptureConditions_.playerPostEnabled = enablePlayerPostEffect_ && IsPostProfileCategoryEnabled("Player");
 	performanceCaptureConditions_.enemyPostEnabled = enableEnemyPostEffect_ && IsPostProfileCategoryEnabled("Enemy");
 	performanceCaptureConditions_.expEnemyPostEnabled = enableExpEnemyPostEffect_ && IsPostProfileCategoryEnabled("ExpEnemy");
+	performanceCaptureConditions_.d3d12DebugLayerEnabled =
+		Object3dCommon::GetInstance()->GetDxCommon()->IsD3D12DebugLayerEnabled();
 	if (player_) {
 		performanceCaptureConditions_.upgradeHud = player_->GetUpgradeHudDebugSnapshot();
 		performanceCaptureConditions_.trailAutoFireEnabled = player_->IsDebugAutoFireEnabled();
@@ -4144,6 +4146,7 @@ bool GameScene::WritePerformanceCaptureFiles()
 		<< "Player Post Enabled: " << boolText(conditions.playerPostEnabled) << "\n"
 		<< "Enemy Post Enabled: " << boolText(conditions.enemyPostEnabled) << "\n"
 		<< "Exp Enemy Post Enabled: " << boolText(conditions.expEnemyPostEnabled) << "\n\n"
+		<< "D3D12 Debug Layer: " << (conditions.d3d12DebugLayerEnabled ? "ON" : "OFF") << "\n\n"
 		<< "Trail Test Auto Fire: " << boolText(conditions.trailAutoFireEnabled) << "\n\n"
 		<< "=== Performance ===\n";
 	auto writeStats = [&](const char* label, const char* unit, auto getter) {

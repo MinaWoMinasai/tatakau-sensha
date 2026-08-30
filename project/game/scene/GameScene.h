@@ -311,6 +311,7 @@ private:
 		bool enemyPostEnabled = false;
 		bool expEnemyPostEnabled = false;
 		bool trailAutoFireEnabled = false;
+		bool d3d12DebugLayerEnabled = false;
 	};
 
 	struct PerformanceCaptureFrame {

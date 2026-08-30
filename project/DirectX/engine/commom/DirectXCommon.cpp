@@ -533,10 +533,18 @@ void DirectXCommon::InitializeDevice()
 {
 	HRESULT hr;
 
+	char debugLayerValue[8]{};
+	const DWORD debugLayerValueLength = GetEnvironmentVariableA(
+		"CG2_D3D12_DEBUG_LAYER", debugLayerValue, static_cast<DWORD>(std::size(debugLayerValue)));
+	// 未設定と "1" は従来どおりON。明示的な "0" だけOFFにする。
+	const bool debugLayerRequested =
+		!(debugLayerValueLength == 1 && debugLayerValue[0] == '0');
+
 	Microsoft::WRL::ComPtr<ID3D12Debug1> debugComtroller = nullptr;
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugComtroller)))) {
+	if (debugLayerRequested && SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugComtroller)))) {
 		// デバッグレイヤーを有効化する
 		debugComtroller->EnableDebugLayer();
+		d3d12DebugLayerEnabled_ = true;
 		// GPU-Based Validation は描画命令数に比例して極端に重くなるため、必要時のみ有効化する。
 		char gpuValidationValue[8]{};
 		const DWORD valueLength = GetEnvironmentVariableA(
