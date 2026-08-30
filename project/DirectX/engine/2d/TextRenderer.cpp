@@ -85,13 +85,23 @@ void TextRenderer::Finalize()
 
 std::string TextRenderer::GetOrCreateTexture(const std::string& utf8Text, const TextStyle& style)
 {
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	lastGetOrCreateTextureProfile_ = {};
+#endif
 	EnsureInitialized();
 	const TextStyle resolvedStyle = ResolveStyle(style);
 
 	const std::string path = BuildCachePath(utf8Text, resolvedStyle);
-	if (!std::filesystem::exists(path)) {
+	const bool cacheFileExisted = std::filesystem::exists(path);
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	lastGetOrCreateTextureProfile_.cacheFileExisted = cacheFileExisted;
+#endif
+	if (!cacheFileExisted) {
 		const std::wstring text = Utf8ToWide(utf8Text);
 		const bool saved = SaveTextPng(text, resolvedStyle, path);
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		lastGetOrCreateTextureProfile_.generatedPng = saved;
+#endif
 		assert(saved);
 	}
 	return path;

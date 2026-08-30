@@ -327,10 +327,20 @@ public:
 		float baseTextSetStyleMs = 0.0f;
 		float baseTextSetTextMs = 0.0f;
 		float baseTextSetTextRebuildMs = 0.0f;
+		float baseTextRebuildTextureMs = 0.0f;
+		float baseTextGetOrCreateTextureMs = 0.0f;
+		float baseTextSpriteSetTextureMs = 0.0f;
+		int baseTextCacheFileExistedCount = 0;
+		int baseTextGeneratedPngCount = 0;
 		float listTextRefreshMs = 0.0f;
 		float listTextSetStyleMs = 0.0f;
 		float listTextSetTextMs = 0.0f;
 		float listTextSetTextRebuildMs = 0.0f;
+		float listTextRebuildTextureMs = 0.0f;
+		float listTextGetOrCreateTextureMs = 0.0f;
+		float listTextSpriteSetTextureMs = 0.0f;
+		int listTextCacheFileExistedCount = 0;
+		int listTextGeneratedPngCount = 0;
 #endif
 	};
 	const UiProfileStats& GetUpgradeHudProfileStats() const { return upgradeHudProfile_; }

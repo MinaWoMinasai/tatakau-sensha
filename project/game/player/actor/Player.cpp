@@ -2579,6 +2579,11 @@ void Player::DrawUpgradeHud()
 		upgradeHudProfile_.baseTextSetStyleMs = textLabelStats.setStyleCpuMs;
 		upgradeHudProfile_.baseTextSetTextMs = textLabelStats.setTextCpuMs;
 		upgradeHudProfile_.baseTextSetTextRebuildMs = textLabelStats.setTextRebuildCpuMs;
+		upgradeHudProfile_.baseTextRebuildTextureMs = textLabelStats.rebuildTextureCpuMs;
+		upgradeHudProfile_.baseTextGetOrCreateTextureMs = textLabelStats.getOrCreateTextureCpuMs;
+		upgradeHudProfile_.baseTextSpriteSetTextureMs = textLabelStats.spriteSetTextureCpuMs;
+		upgradeHudProfile_.baseTextCacheFileExistedCount = static_cast<int>(textLabelStats.cacheFileExistedCount);
+		upgradeHudProfile_.baseTextGeneratedPngCount = static_cast<int>(textLabelStats.generatedPngCount);
 #endif
 	} else {
 		if (upgradeHudExpLabel_) upgradeHudExpLabel_->SetPosition(upgradeHudExpTextPos_);
@@ -2636,6 +2641,11 @@ void Player::DrawUpgradeHud()
 			upgradeHudProfile_.listTextSetStyleMs = textLabelStats.setStyleCpuMs;
 			upgradeHudProfile_.listTextSetTextMs = textLabelStats.setTextCpuMs;
 			upgradeHudProfile_.listTextSetTextRebuildMs = textLabelStats.setTextRebuildCpuMs;
+			upgradeHudProfile_.listTextRebuildTextureMs = textLabelStats.rebuildTextureCpuMs;
+			upgradeHudProfile_.listTextGetOrCreateTextureMs = textLabelStats.getOrCreateTextureCpuMs;
+			upgradeHudProfile_.listTextSpriteSetTextureMs = textLabelStats.spriteSetTextureCpuMs;
+			upgradeHudProfile_.listTextCacheFileExistedCount = static_cast<int>(textLabelStats.cacheFileExistedCount);
+			upgradeHudProfile_.listTextGeneratedPngCount = static_cast<int>(textLabelStats.generatedPngCount);
 #endif
 		} else {
 			if (upgradeHudPointLabel_) upgradeHudPointLabel_->SetPosition({ upgradeHudPointPos_.x + listOffsetX, upgradeHudPointPos_.y });
