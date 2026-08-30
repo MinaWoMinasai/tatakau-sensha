@@ -4057,6 +4057,10 @@ bool GameScene::WritePerformanceCaptureFiles()
 		"submit_present_wait_ms,scene_post_effect_3d_ms,global_bloom_post_ms,after_object_post_ms,sprite_pass_ms,"
 		"command_list_close_ms,execute_command_lists_ms,present_ms,gpu_fence_wait_ms,fps_limit_wait_ms,allocator_list_reset_ms,"
 		"upgrade_hud_visible,upgrade_hud_total_ms,upgrade_hud_update_ms,upgrade_hud_sprite_ms,upgrade_hud_text_ms,"
+		"upgrade_hud_base_text_refreshed,upgrade_hud_base_text_refresh_ms,upgrade_hud_exp_label_refresh_ms,"
+		"upgrade_hud_level_label_refresh_ms,upgrade_hud_base_text_set_style_ms,upgrade_hud_base_text_set_text_ms,"
+		"upgrade_hud_base_text_set_text_rebuild_ms,upgrade_hud_list_text_refreshed,upgrade_hud_list_text_refresh_ms,"
+		"upgrade_hud_list_text_set_style_ms,upgrade_hud_list_text_set_text_ms,upgrade_hud_list_text_set_text_rebuild_ms,"
 		"upgrade_hud_sprite_draw_count,upgrade_hud_text_draw_count,evolution_ui_visible,evolution_ui_total_ms,"
 		"evolution_ui_update_ms,evolution_ui_sprite_ms,evolution_ui_text_ms,evolution_ui_sprite_draw_count,"
 		"evolution_ui_text_draw_count,"
@@ -4107,6 +4111,10 @@ bool GameScene::WritePerformanceCaptureFiles()
 			<< r.scenePostMs << ',' << r.globalBloomMs << ',' << r.afterPostMs << ',' << r.spriteMs << ',' << r.submitCloseMs << ','
 			<< r.submitExecuteMs << ',' << r.presentMs << ',' << r.fenceWaitMs << ',' << r.fpsLimitMs << ',' << r.submitResetMs << ','
 			<< (hud.visible ? 1 : 0) << ',' << hud.totalMs << ',' << hud.updateMs << ',' << hud.spriteMs << ',' << hud.textMs << ','
+			<< (hud.baseTextRefreshed ? 1 : 0) << ',' << hud.baseTextRefreshMs << ',' << hud.expLabelRefreshMs << ','
+			<< hud.levelLabelRefreshMs << ',' << hud.baseTextSetStyleMs << ',' << hud.baseTextSetTextMs << ','
+			<< hud.baseTextSetTextRebuildMs << ',' << (hud.listTextRefreshed ? 1 : 0) << ',' << hud.listTextRefreshMs << ','
+			<< hud.listTextSetStyleMs << ',' << hud.listTextSetTextMs << ',' << hud.listTextSetTextRebuildMs << ','
 			<< hud.spriteDraws << ',' << hud.textDraws << ',' << (evo.visible ? 1 : 0) << ',' << evo.totalMs << ',' << evo.updateMs << ','
 			<< evo.spriteMs << ',' << evo.textMs << ',' << evo.spriteDraws << ',' << evo.textDraws << ','
 			<< hudAfterPlayerUpdate.playerLevel << ',' << hudAfterPlayerUpdate.exp << ',' << hudAfterPlayerUpdate.skillPoints << ','
@@ -4230,6 +4238,16 @@ bool GameScene::WritePerformanceCaptureFiles()
 	writeStats("Upgrade HUD Update", " ms", [](const auto& f) { return f.upgradeHud.updateMs; });
 	writeStats("Upgrade HUD Sprite", " ms", [](const auto& f) { return f.upgradeHud.spriteMs; });
 	writeStats("Upgrade HUD Text", " ms", [](const auto& f) { return f.upgradeHud.textMs; });
+	writeStats("Upgrade HUD Base Text Refresh", " ms", [](const auto& f) { return f.upgradeHud.baseTextRefreshMs; });
+	writeStats("Upgrade HUD EXP Label Refresh", " ms", [](const auto& f) { return f.upgradeHud.expLabelRefreshMs; });
+	writeStats("Upgrade HUD Level Label Refresh", " ms", [](const auto& f) { return f.upgradeHud.levelLabelRefreshMs; });
+	writeStats("Upgrade HUD Base Text SetStyle", " ms", [](const auto& f) { return f.upgradeHud.baseTextSetStyleMs; });
+	writeStats("Upgrade HUD Base Text SetText", " ms", [](const auto& f) { return f.upgradeHud.baseTextSetTextMs; });
+	writeStats("Upgrade HUD Base Text SetText Rebuild", " ms", [](const auto& f) { return f.upgradeHud.baseTextSetTextRebuildMs; });
+	writeStats("Upgrade HUD List Text Refresh", " ms", [](const auto& f) { return f.upgradeHud.listTextRefreshMs; });
+	writeStats("Upgrade HUD List Text SetStyle", " ms", [](const auto& f) { return f.upgradeHud.listTextSetStyleMs; });
+	writeStats("Upgrade HUD List Text SetText", " ms", [](const auto& f) { return f.upgradeHud.listTextSetTextMs; });
+	writeStats("Upgrade HUD List Text SetText Rebuild", " ms", [](const auto& f) { return f.upgradeHud.listTextSetTextRebuildMs; });
 	writeStats("Upgrade HUD Sprite Draw Count", "", [](const auto& f) { return f.upgradeHud.spriteDraws; });
 	writeStats("Upgrade HUD Text Draw Count", "", [](const auto& f) { return f.upgradeHud.textDraws; });
 	writeStats("Evolution UI Visible", "", [](const auto& f) { return f.evolutionUi.visible ? 1 : 0; });

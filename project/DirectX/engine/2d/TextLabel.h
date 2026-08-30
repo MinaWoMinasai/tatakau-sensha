@@ -6,6 +6,16 @@
 
 class TextLabel {
 public:
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	struct ProfileStats {
+		float setStyleCpuMs = 0.0f;
+		float setTextCpuMs = 0.0f;
+		float setTextRebuildCpuMs = 0.0f;
+	};
+	static void ResetProfileStats();
+	static const ProfileStats& GetProfileStats();
+#endif
+
 	void Initialize(SpriteCommon* spriteCommon, const std::string& text, const TextStyle& style = {});
 	bool InitializeFromJson(SpriteCommon* spriteCommon, const std::string& configPath, const std::string& labelId);
 	void SetText(const std::string& text);
@@ -34,4 +44,7 @@ private:
 	Vector2 anchorPoint_ = { 0.0f, 0.0f };
 	float alpha_ = 1.0f;
 	unsigned long long builtFontRevision_ = 0;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	static ProfileStats profileStats_;
+#endif
 };
