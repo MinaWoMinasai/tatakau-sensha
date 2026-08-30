@@ -807,6 +807,12 @@ void GameScene::Update() {
 	
 	// 通常は 1/60秒
 	const float baseDeltaTime = 1.0f / 60.0f;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	if (player_) {
+		upgradeHudAfterPlayerUpdate_ = player_->GetUpgradeHudDebugSnapshot();
+		upgradeHudAfterCollision_ = upgradeHudAfterPlayerUpdate_;
+	}
+#endif
 	const bool evolutionUiWasOpenAtFrameStart = player_ && player_->IsChangeMode();
 	screenEffectDirector_.Update(baseDeltaTime);
 	if (eventCalloutTimer_ > 0.0f) {
@@ -973,6 +979,9 @@ void GameScene::Update() {
 
 		player_->SetDebugNoDamage(debugPlayerNoDamage_);
 		player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime, baseDeltaTime);
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		upgradeHudAfterPlayerUpdate_ = player_->GetUpgradeHudDebugSnapshot();
+#endif
 		UpdateTutorial(baseDeltaTime);
 		for (const Player::LaserShotEvent& event : player_->ConsumeLaserShotEvents()) {
 			SpawnPlayerLaser(event);
@@ -1005,6 +1014,9 @@ void GameScene::Update() {
 		if (!suppressTutorialCombat) {
 			collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
 		}
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		upgradeHudAfterCollision_ = player_->GetUpgradeHudDebugSnapshot();
+#endif
 		if (showCollisionDebug_ && !suppressTutorialCombat) {
 			for (Collider* collider : collisionManager_->GetColliders()) {
 				if (!collider) {
@@ -3897,6 +3909,9 @@ void GameScene::CapturePerformanceFrame()
 		frame.upgradeHud = player_->GetUpgradeHudProfileStats();
 		frame.evolutionUi = player_->GetEvolutionUiProfileStats();
 		const Player::UpgradeHudDebugSnapshot hudSnapshot = player_->GetUpgradeHudDebugSnapshot();
+		frame.upgradeHudAfterPlayerUpdate = upgradeHudAfterPlayerUpdate_;
+		frame.upgradeHudAfterCollision = upgradeHudAfterCollision_;
+		frame.upgradeHudAtCapture = hudSnapshot;
 		frame.playerLevel = hudSnapshot.playerLevel;
 		frame.skillPoints = hudSnapshot.skillPoints;
 		frame.upgradeHudListVisible = hudSnapshot.listActuallyVisible;
@@ -4044,7 +4059,17 @@ bool GameScene::WritePerformanceCaptureFiles()
 		"upgrade_hud_visible,upgrade_hud_total_ms,upgrade_hud_update_ms,upgrade_hud_sprite_ms,upgrade_hud_text_ms,"
 		"upgrade_hud_sprite_draw_count,upgrade_hud_text_draw_count,evolution_ui_visible,evolution_ui_total_ms,"
 		"evolution_ui_update_ms,evolution_ui_sprite_ms,evolution_ui_text_ms,evolution_ui_sprite_draw_count,"
-		"evolution_ui_text_draw_count,enemy_count,exp_enemy_count,bullet_count,player_bullet_count,enemy_bullet_count,"
+		"evolution_ui_text_draw_count,"
+		"hud_after_player_update_level,hud_after_player_update_exp,hud_after_player_update_skill_points,"
+		"hud_after_player_update_visible,hud_after_player_update_list_visibility,hud_after_player_update_list_actually_visible,"
+		"hud_after_player_update_is_change_mode,hud_after_player_update_player_is_dead,"
+		"hud_after_collision_level,hud_after_collision_exp,hud_after_collision_skill_points,"
+		"hud_after_collision_visible,hud_after_collision_list_visibility,hud_after_collision_list_actually_visible,"
+		"hud_after_collision_is_change_mode,hud_after_collision_player_is_dead,"
+		"hud_at_capture_level,hud_at_capture_exp,hud_at_capture_skill_points,"
+		"hud_at_capture_visible,hud_at_capture_list_visibility,hud_at_capture_list_actually_visible,"
+		"hud_at_capture_is_change_mode,hud_at_capture_player_is_dead,"
+		"enemy_count,exp_enemy_count,bullet_count,player_bullet_count,enemy_bullet_count,"
 		"hostile_exp_enemy_bullet_count,bullet_trail_count,trail_total_instances,trail_active_instances,"
 		"trail_drawable_instances,trail_total_points,trail_requested_vertices,trail_generated_vertices,trail_draw_calls,"
 		"trail_vertex_capacity,trail_capacity_hit,trail_truncated_vertices,trail_draw_cpu_ms,"
@@ -4071,6 +4096,9 @@ bool GameScene::WritePerformanceCaptureFiles()
 		const auto& hud = frame.upgradeHud;
 		const auto& evo = frame.evolutionUi;
 		const auto& trail = frame.trailDrawStats;
+		const auto& hudAfterPlayerUpdate = frame.upgradeHudAfterPlayerUpdate;
+		const auto& hudAfterCollision = frame.upgradeHudAfterCollision;
+		const auto& hudAtCapture = frame.upgradeHudAtCapture;
 		const auto& conditions = performanceCaptureConditions_;
 		const auto& hudConditions = conditions.upgradeHud;
 		csv << frame.frameIndex << ',' << frame.fps << ',' << r.frameTotalMs << ','
@@ -4080,7 +4108,19 @@ bool GameScene::WritePerformanceCaptureFiles()
 			<< r.submitExecuteMs << ',' << r.presentMs << ',' << r.fenceWaitMs << ',' << r.fpsLimitMs << ',' << r.submitResetMs << ','
 			<< (hud.visible ? 1 : 0) << ',' << hud.totalMs << ',' << hud.updateMs << ',' << hud.spriteMs << ',' << hud.textMs << ','
 			<< hud.spriteDraws << ',' << hud.textDraws << ',' << (evo.visible ? 1 : 0) << ',' << evo.totalMs << ',' << evo.updateMs << ','
-			<< evo.spriteMs << ',' << evo.textMs << ',' << evo.spriteDraws << ',' << evo.textDraws << ',' << frame.enemyCount << ','
+			<< evo.spriteMs << ',' << evo.textMs << ',' << evo.spriteDraws << ',' << evo.textDraws << ','
+			<< hudAfterPlayerUpdate.playerLevel << ',' << hudAfterPlayerUpdate.exp << ',' << hudAfterPlayerUpdate.skillPoints << ','
+			<< (hudAfterPlayerUpdate.visible ? 1 : 0) << ',' << hudAfterPlayerUpdate.listVisibility << ','
+			<< (hudAfterPlayerUpdate.listActuallyVisible ? 1 : 0) << ',' << (hudAfterPlayerUpdate.isChangeMode ? 1 : 0) << ','
+			<< (hudAfterPlayerUpdate.playerIsDead ? 1 : 0) << ','
+			<< hudAfterCollision.playerLevel << ',' << hudAfterCollision.exp << ',' << hudAfterCollision.skillPoints << ','
+			<< (hudAfterCollision.visible ? 1 : 0) << ',' << hudAfterCollision.listVisibility << ','
+			<< (hudAfterCollision.listActuallyVisible ? 1 : 0) << ',' << (hudAfterCollision.isChangeMode ? 1 : 0) << ','
+			<< (hudAfterCollision.playerIsDead ? 1 : 0) << ','
+			<< hudAtCapture.playerLevel << ',' << hudAtCapture.exp << ',' << hudAtCapture.skillPoints << ','
+			<< (hudAtCapture.visible ? 1 : 0) << ',' << hudAtCapture.listVisibility << ','
+			<< (hudAtCapture.listActuallyVisible ? 1 : 0) << ',' << (hudAtCapture.isChangeMode ? 1 : 0) << ','
+			<< (hudAtCapture.playerIsDead ? 1 : 0) << ',' << frame.enemyCount << ','
 			<< frame.expEnemyCount << ',' << frame.bulletCount << ',' << frame.playerBulletCount << ',' << frame.enemyBulletCount << ','
 			<< frame.hostileExpEnemyBulletCount << ',' << frame.bulletTrailCount << ','
 			<< trail.totalInstances << ',' << trail.activeInstances << ',' << trail.drawableInstances << ',' << trail.totalPoints << ','

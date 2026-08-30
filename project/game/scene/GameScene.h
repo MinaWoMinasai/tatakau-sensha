@@ -325,6 +325,9 @@ private:
 		int playerLevel = 0;
 		int skillPoints = 0;
 		bool upgradeHudListVisible = false;
+		Player::UpgradeHudDebugSnapshot upgradeHudAfterPlayerUpdate{};
+		Player::UpgradeHudDebugSnapshot upgradeHudAfterCollision{};
+		Player::UpgradeHudDebugSnapshot upgradeHudAtCapture{};
 		size_t enemyCount = 0;
 		size_t expEnemyCount = 0;
 		size_t bulletCount = 0;
@@ -525,6 +528,8 @@ private:
 	std::vector<PerformanceCaptureFrame> performanceCaptureFrames_;
 	std::string performanceCaptureLastCsvPath_;
 	std::string performanceCaptureStatus_;
+	Player::UpgradeHudDebugSnapshot upgradeHudAfterPlayerUpdate_{};
+	Player::UpgradeHudDebugSnapshot upgradeHudAfterCollision_{};
 #endif
 	bool stagePostCacheValid_ = false;
 	Vector3 stagePostCacheCameraPos_{};
