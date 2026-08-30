@@ -21,6 +21,8 @@ public:
         bool capacityHit = false;
         uint64_t truncatedVertices = 0;
         float drawCpuMs = 0.0f;
+        float vertexBuildCpuMs = 0.0f;
+        float drawCommandCpuMs = 0.0f;
     };
 #endif
 

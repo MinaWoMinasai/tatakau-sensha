@@ -4046,6 +4046,7 @@ bool GameScene::WritePerformanceCaptureFiles()
 		"hostile_exp_enemy_bullet_count,bullet_trail_count,trail_total_instances,trail_active_instances,"
 		"trail_drawable_instances,trail_total_points,trail_requested_vertices,trail_generated_vertices,trail_draw_calls,"
 		"trail_vertex_capacity,trail_capacity_hit,trail_truncated_vertices,trail_draw_cpu_ms,"
+		"trail_vertex_build_cpu_ms,trail_draw_command_cpu_ms,"
 		"player_laser_count,player_mine_count,player_melee_slash_count,"
 		"neon_triangle_particle_count,player_level,skill_points,upgrade_hud_list_visible,capture_label,"
 		"condition_post_profile_mode,condition_post_profile_mode_index,condition_upgrade_hud_visible,"
@@ -4082,7 +4083,8 @@ bool GameScene::WritePerformanceCaptureFiles()
 			<< frame.hostileExpEnemyBulletCount << ',' << frame.bulletTrailCount << ','
 			<< trail.totalInstances << ',' << trail.activeInstances << ',' << trail.drawableInstances << ',' << trail.totalPoints << ','
 			<< trail.requestedVertices << ',' << trail.generatedVertices << ',' << trail.drawCalls << ',' << trail.vertexCapacity << ','
-			<< (trail.capacityHit ? 1 : 0) << ',' << trail.truncatedVertices << ',' << trail.drawCpuMs << ',' << frame.playerLaserCount << ','
+			<< (trail.capacityHit ? 1 : 0) << ',' << trail.truncatedVertices << ',' << trail.drawCpuMs << ','
+			<< trail.vertexBuildCpuMs << ',' << trail.drawCommandCpuMs << ',' << frame.playerLaserCount << ','
 			<< frame.playerMineCount << ',' << frame.playerMeleeSlashCount << ',' << frame.neonTriangleParticleCount << ','
 			<< frame.playerLevel << ',' << frame.skillPoints << ',' << (frame.upgradeHudListVisible ? 1 : 0) << ','
 			<< escapeCsv(conditions.label) << ',' << escapeCsv(conditions.postProfileModeName) << ',' << conditions.postProfileMode << ','
@@ -4212,6 +4214,12 @@ bool GameScene::WritePerformanceCaptureFiles()
 	writeStats("Trail Capacity Hit", "", [](const auto& f) { return f.trailDrawStats.capacityHit ? 1 : 0; });
 	writeStats("Trail Truncated Vertices", "", [](const auto& f) { return f.trailDrawStats.truncatedVertices; });
 	writeStats("Trail Draw CPU", " ms", [](const auto& f) { return f.trailDrawStats.drawCpuMs; });
+	writeStats("Trail Vertex Build CPU", " ms", [](const auto& f) { return f.trailDrawStats.vertexBuildCpuMs; });
+	writeStats("Trail Draw Command CPU", " ms", [](const auto& f) { return f.trailDrawStats.drawCommandCpuMs; });
+	writeStats("Trail Other CPU", " ms", [](const auto& f) {
+		return (std::max)(0.0f,
+			f.trailDrawStats.drawCpuMs - f.trailDrawStats.vertexBuildCpuMs - f.trailDrawStats.drawCommandCpuMs);
+		});
 	const size_t trailCapacityHitFrames = static_cast<size_t>(std::count_if(
 		performanceCaptureFrames_.begin(), performanceCaptureFrames_.end(),
 		[](const PerformanceCaptureFrame& frame) { return frame.trailDrawStats.capacityHit; }));
