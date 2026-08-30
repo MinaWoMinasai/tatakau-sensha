@@ -2549,12 +2549,37 @@ void Player::DrawUpgradeHud()
 		cachedUpgradeHudLevel_ != level_ ||
 		cachedUpgradeHudClassName_ != className;
 	if (baseTextDirty) {
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		upgradeHudProfile_.baseTextRefreshed = true;
+		TextLabel::ResetProfileStats();
+		const auto baseTextRefreshStart = std::chrono::steady_clock::now();
+		const auto expLabelRefreshStart = baseTextRefreshStart;
+#endif
 		SetLabel(upgradeHudExpLabel_, spriteCommon, "EXP " + std::to_string(exp_) + " / " + std::to_string(nextLevelExp_), upgradeHudExpTextPos_, bottomBarTextStyle);
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		const auto expLabelRefreshEnd = std::chrono::steady_clock::now();
+		const auto levelLabelRefreshStart = expLabelRefreshEnd;
+#endif
 		SetLabel(upgradeHudLevelLabel_, spriteCommon, "Lv " + std::to_string(level_) + " " + className, upgradeHudLevelTextPos_, bottomBarTextStyle);
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		const auto levelLabelRefreshEnd = std::chrono::steady_clock::now();
+#endif
 		cachedUpgradeHudExp_ = exp_;
 		cachedUpgradeHudNextExp_ = nextLevelExp_;
 		cachedUpgradeHudLevel_ = level_;
 		cachedUpgradeHudClassName_ = className;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		const TextLabel::ProfileStats& textLabelStats = TextLabel::GetProfileStats();
+		upgradeHudProfile_.baseTextRefreshMs = std::chrono::duration<float, std::milli>(
+			std::chrono::steady_clock::now() - baseTextRefreshStart).count();
+		upgradeHudProfile_.expLabelRefreshMs = std::chrono::duration<float, std::milli>(
+			expLabelRefreshEnd - expLabelRefreshStart).count();
+		upgradeHudProfile_.levelLabelRefreshMs = std::chrono::duration<float, std::milli>(
+			levelLabelRefreshEnd - levelLabelRefreshStart).count();
+		upgradeHudProfile_.baseTextSetStyleMs = textLabelStats.setStyleCpuMs;
+		upgradeHudProfile_.baseTextSetTextMs = textLabelStats.setTextCpuMs;
+		upgradeHudProfile_.baseTextSetTextRebuildMs = textLabelStats.setTextRebuildCpuMs;
+#endif
 	} else {
 		if (upgradeHudExpLabel_) upgradeHudExpLabel_->SetPosition(upgradeHudExpTextPos_);
 		if (upgradeHudLevelLabel_) upgradeHudLevelLabel_->SetPosition(upgradeHudLevelTextPos_);
@@ -2568,6 +2593,11 @@ void Player::DrawUpgradeHud()
 			cachedUpgradeHudSegmentedBars_ != upgradeHudUseSegmentedUpgradeBars_ ||
 			cachedUpgradeHudLevels_ != upgradeLevels_;
 		if (listDirty) {
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+			upgradeHudProfile_.listTextRefreshed = true;
+			TextLabel::ResetProfileStats();
+			const auto listTextRefreshStart = std::chrono::steady_clock::now();
+#endif
 			SetLabel(upgradeHudPointLabel_, spriteCommon, "x" + std::to_string(skillPoints_), { upgradeHudPointPos_.x + listOffsetX, upgradeHudPointPos_.y }, smallStyle);
 			SetLabel(upgradeHudTitleLabel_, spriteCommon, "強化", { upgradeHudTitlePos_.x + listOffsetX, upgradeHudTitlePos_.y }, smallStyle);
 			for (int i = 0; i < 7; ++i) {
@@ -2599,6 +2629,14 @@ void Player::DrawUpgradeHud()
 			cachedUpgradeHudMaxEnhancePoint_ = maxEnhancePoint;
 			cachedUpgradeHudSegmentedBars_ = upgradeHudUseSegmentedUpgradeBars_;
 			cachedUpgradeHudLevels_ = upgradeLevels_;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+			const TextLabel::ProfileStats& textLabelStats = TextLabel::GetProfileStats();
+			upgradeHudProfile_.listTextRefreshMs = std::chrono::duration<float, std::milli>(
+				std::chrono::steady_clock::now() - listTextRefreshStart).count();
+			upgradeHudProfile_.listTextSetStyleMs = textLabelStats.setStyleCpuMs;
+			upgradeHudProfile_.listTextSetTextMs = textLabelStats.setTextCpuMs;
+			upgradeHudProfile_.listTextSetTextRebuildMs = textLabelStats.setTextRebuildCpuMs;
+#endif
 		} else {
 			if (upgradeHudPointLabel_) upgradeHudPointLabel_->SetPosition({ upgradeHudPointPos_.x + listOffsetX, upgradeHudPointPos_.y });
 			if (upgradeHudTitleLabel_) upgradeHudTitleLabel_->SetPosition({ upgradeHudTitlePos_.x + listOffsetX, upgradeHudTitlePos_.y });

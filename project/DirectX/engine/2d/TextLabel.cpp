@@ -1,6 +1,23 @@
 #include "TextLabel.h"
 #include <fstream>
 #include <nlohmann/json.hpp>
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+#include <chrono>
+#endif
+
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+TextLabel::ProfileStats TextLabel::profileStats_{};
+
+void TextLabel::ResetProfileStats()
+{
+	profileStats_ = {};
+}
+
+const TextLabel::ProfileStats& TextLabel::GetProfileStats()
+{
+	return profileStats_;
+}
+#endif
 
 namespace {
 
@@ -71,20 +88,48 @@ bool TextLabel::InitializeFromJson(SpriteCommon* spriteCommon, const std::string
 
 void TextLabel::SetText(const std::string& text)
 {
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	const auto setTextStart = std::chrono::steady_clock::now();
+#endif
 	if (text_ == text) {
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		profileStats_.setTextCpuMs += std::chrono::duration<float, std::milli>(
+			std::chrono::steady_clock::now() - setTextStart).count();
+#endif
 		return;
 	}
 	text_ = text;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	const auto rebuildStart = std::chrono::steady_clock::now();
+#endif
 	RebuildTexture();
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	const auto setTextEnd = std::chrono::steady_clock::now();
+	profileStats_.setTextRebuildCpuMs += std::chrono::duration<float, std::milli>(
+		setTextEnd - rebuildStart).count();
+	profileStats_.setTextCpuMs += std::chrono::duration<float, std::milli>(
+		setTextEnd - setTextStart).count();
+#endif
 }
 
 void TextLabel::SetStyle(const TextStyle& style)
 {
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	const auto setStyleStart = std::chrono::steady_clock::now();
+#endif
 	if (IsSameStyle(style)) {
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		profileStats_.setStyleCpuMs += std::chrono::duration<float, std::milli>(
+			std::chrono::steady_clock::now() - setStyleStart).count();
+#endif
 		return;
 	}
 	style_ = style;
 	RebuildTexture();
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	profileStats_.setStyleCpuMs += std::chrono::duration<float, std::milli>(
+		std::chrono::steady_clock::now() - setStyleStart).count();
+#endif
 }
 
 void TextLabel::SetPosition(const Vector2& position)
