@@ -18,6 +18,10 @@ cbuffer FlameParameters : register(b0)
     float gCoreSoftness;
     float gCoreIntensity;
     float gCoreVerticalBias;
+    float gCoreBreakup;
+    float gCoreNoiseScale;
+    float gCoreHotThreshold;
+    float gCorePadding;
     float gFieldGain;
     float gBillboardAspect;
     float gCompactSupportScale;
@@ -174,24 +178,37 @@ PixelShaderOutput main(PixelShaderInput input)
         outerGlowHalfWidth + outerGlowFeather,
         distanceToIso);
 
-    // Core uses only the higher-density region of the same aura field. An
-    // isolated satellite normally remains below this threshold, while fused
-    // body metaballs create the brighter lower/central mass.
+    // Offset the shared aura field very slightly for the core only. The
+    // positive UV-y pull samples a lower part of the field and lets occasional
+    // noise peaks stretch upward without introducing a fixed flame shape.
+    const float2 coreNoiseDomain = float2(
+        (input.uv.x - 0.5f) * gCoreNoiseScale + 47.13f,
+        vertical * gCoreNoiseScale * 0.82f - gTime * 0.19f + 11.71f);
+    const float coreNoise = Fbm3(coreNoiseDomain);
+    const float coreSideNoise = Fbm3(coreNoiseDomain * 0.73f + float2(8.37f, -5.19f));
+    float2 coreUv = input.uv;
+    coreUv.x += (coreSideNoise - 0.5f) * gCoreBreakup * 0.035f;
+    coreUv.y += smoothstep(0.58f, 0.90f, coreNoise) * gCoreBreakup * 0.040f;
+    const float coreField = BuildAuraField(coreUv);
+
+    // Noise erosion and an upper-field penalty make the core a related but
+    // independently broken-up blob rather than a second filled outer mask.
+    const float coreErosion = (coreNoise - 0.56f) * 2.0f * gCoreBreakup;
+    const float upperCorePenalty = smoothstep(0.40f, 0.82f, vertical)
+        * gCoreVerticalBias * 1.55f;
+    const float shapedCoreField = coreField + coreErosion - upperCorePenalty;
     const float coreSoftness = max(gCoreSoftness, antiAlias);
-    const float coreFieldMask = smoothstep(
+    const float coreMask = smoothstep(
         gCoreThreshold - coreSoftness,
         gCoreThreshold + coreSoftness,
-        field);
-    const float upperCoreSuppression = 1.0f - smoothstep(0.42f, 0.88f, vertical);
-    const float coreVerticalWeight = lerp(
-        1.0f,
-        upperCoreSuppression,
-        saturate(gCoreVerticalBias));
-    const float coreMask = coreFieldMask * coreVerticalWeight;
-    const float coreDepth = smoothstep(
-        gCoreThreshold + coreSoftness * 0.35f,
-        gCoreThreshold + max(coreSoftness * 3.0f, 0.35f),
-        field);
+        shapedCoreField);
+    const float hotThreshold = max(
+        gCoreHotThreshold,
+        gCoreThreshold + coreSoftness);
+    const float coreHotMask = smoothstep(
+        hotThreshold - coreSoftness * 0.70f,
+        hotThreshold + coreSoftness * 0.70f,
+        shapedCoreField) * coreMask;
 
     if (gDisplayMode == 1u)
     {
@@ -202,7 +219,19 @@ PixelShaderOutput main(PixelShaderInput input)
     }
     else
     {
-        const float selectedMask = gDisplayMode == 2u ? filledMask : contourMask;
+        float selectedMask = contourMask;
+        if (gDisplayMode == 2u)
+        {
+            selectedMask = filledMask;
+        }
+        else if (gDisplayMode == 4u)
+        {
+            selectedMask = coreMask;
+        }
+        else if (gDisplayMode == 5u)
+        {
+            selectedMask = coreHotMask;
+        }
         if (selectedMask <= 0.001f)
         {
             if (gDisplayMode != 0u ||
@@ -230,11 +259,11 @@ PixelShaderOutput main(PixelShaderInput input)
             const float3 coreColor = lerp(
                 gCoreCyanTint.rgb,
                 float3(1.0f, 0.995f, 1.0f),
-                coreDepth);
-            const float3 coreRadiance = coreColor
-                * coreMask
-                * gCoreIntensity
-                * lerp(0.48f, 1.0f, coreDepth);
+                coreHotMask);
+            const float cyanFringeMask = coreMask * (1.0f - coreHotMask * 0.58f);
+            const float3 coreRadiance =
+                gCoreCyanTint.rgb * cyanFringeMask * gCoreIntensity * 0.52f
+                + coreColor * coreHotMask * gCoreIntensity;
             const float3 layerRadiance =
                 tintedRainbow * outerGlowMask * gOuterGlowIntensity
                 + tintedRainbow * contourMask * gContourEmissiveIntensity
@@ -246,7 +275,8 @@ PixelShaderOutput main(PixelShaderInput input)
             // mask a second time when the blend unit applies SrcAlpha.
             const float neonCoverage = saturate(max(innerLineMask, contourMask)
                 + outerGlowMask * 0.30f);
-            const float layerCoverage = max(neonCoverage, coreMask);
+            const float coreCoverage = max(coreMask * 0.70f, coreHotMask);
+            const float layerCoverage = max(neonCoverage, coreCoverage);
             output.color = float4(
                 layerRadiance / max(layerCoverage, 0.001f),
                 layerCoverage * gColor.a);

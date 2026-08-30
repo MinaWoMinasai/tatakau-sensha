@@ -293,6 +293,8 @@ void VfxLabScene::DrawDebugWindow()
 			"Scalar Field",
 			"Filled Mask",
 			"Contour Mask",
+			"Core Mask",
+			"Core Hot Mask",
 		};
 		int displayMode = static_cast<int>(proceduralFlameParameters_.displayMode);
 		if (ImGui::Combo(
@@ -414,6 +416,24 @@ void VfxLabScene::DrawDebugWindow()
 			&proceduralFlameParameters_.coreVerticalBias,
 			0.0f,
 			1.0f);
+		ImGui::DragFloat(
+			"Core Breakup",
+			&proceduralFlameParameters_.coreBreakup,
+			0.01f,
+			0.0f,
+			1.5f);
+		ImGui::DragFloat(
+			"Core Noise Scale",
+			&proceduralFlameParameters_.coreNoiseScale,
+			0.05f,
+			0.25f,
+			8.0f);
+		ImGui::DragFloat(
+			"Core Hot Threshold",
+			&proceduralFlameParameters_.coreHotThreshold,
+			0.01f,
+			0.2f,
+			8.0f);
 		ImGui::Text("Time: %.2f s", flameTime_);
 		ImGui::TreePop();
 	}
