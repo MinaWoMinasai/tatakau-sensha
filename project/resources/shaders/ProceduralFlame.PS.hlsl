@@ -14,6 +14,9 @@ cbuffer FlameParameters : register(b0)
     float gInnerLineIntensity;
     float gOuterGlowWidth;
     float gOuterGlowIntensity;
+    float gContourAaScale;
+    float gContourWidthModulation;
+    float2 gContourPadding;
     float gCoreThreshold;
     float gCoreSoftness;
     float gCoreIntensity;
@@ -143,7 +146,8 @@ PixelShaderOutput main(PixelShaderInput input)
     const float contourNoise = Fbm3(float2(
         (input.uv.x - 0.5f) * 1.65f + 31.73f,
         vertical * 1.20f - gTime * 0.075f + 17.19f));
-    const float widthBreath = lerp(0.78f, 1.22f, contourNoise);
+    const float widthBreath = 1.0f
+        + (contourNoise * 2.0f - 1.0f) * gContourWidthModulation;
     const float localContourWidth = gContourWidth * widthBreath;
 
     const float antiAlias = max(fwidth(field), 0.0005f);
@@ -155,10 +159,12 @@ PixelShaderOutput main(PixelShaderInput input)
     const float distanceToIso = abs(field - gContourThreshold);
     const float innerHalfWidth = max(
         gInnerLineWidth * lerp(0.90f, 1.10f, contourNoise),
-        antiAlias * 0.28f);
+        antiAlias * 0.45f);
     const float contourHalfWidth = max(
         localContourWidth,
-        innerHalfWidth + antiAlias * 0.35f);
+        max(
+            innerHalfWidth + antiAlias * 0.35f,
+            antiAlias * gContourAaScale));
     const float outerGlowHalfWidth = max(
         gOuterGlowWidth * lerp(0.88f, 1.12f, contourNoise),
         contourHalfWidth + antiAlias);
@@ -184,16 +190,16 @@ PixelShaderOutput main(PixelShaderInput input)
     const float2 coreNoiseDomain = float2(
         (input.uv.x - 0.5f) * gCoreNoiseScale + 47.13f,
         vertical * gCoreNoiseScale * 0.82f - gTime * 0.19f + 11.71f);
-    const float coreNoise = Fbm3(coreNoiseDomain);
-    const float coreSideNoise = Fbm3(coreNoiseDomain * 0.73f + float2(8.37f, -5.19f));
+    const float coreNoise = Fbm3(coreNoiseDomain * 0.72f);
+    const float coreSideNoise = Fbm3(coreNoiseDomain * 0.54f + float2(8.37f, -5.19f));
     float2 coreUv = input.uv;
-    coreUv.x += (coreSideNoise - 0.5f) * gCoreBreakup * 0.035f;
-    coreUv.y += smoothstep(0.58f, 0.90f, coreNoise) * gCoreBreakup * 0.040f;
+    coreUv.x += (coreSideNoise - 0.5f) * gCoreBreakup * 0.022f;
+    coreUv.y += smoothstep(0.58f, 0.90f, coreNoise) * gCoreBreakup * 0.025f;
     const float coreField = BuildAuraField(coreUv);
 
     // Noise erosion and an upper-field penalty make the core a related but
     // independently broken-up blob rather than a second filled outer mask.
-    const float coreErosion = (coreNoise - 0.56f) * 2.0f * gCoreBreakup;
+    const float coreErosion = (coreNoise - 0.54f) * 1.35f * gCoreBreakup;
     const float upperCorePenalty = smoothstep(0.40f, 0.82f, vertical)
         * gCoreVerticalBias * 1.55f;
     const float shapedCoreField = coreField + coreErosion - upperCorePenalty;
@@ -283,7 +289,10 @@ PixelShaderOutput main(PixelShaderInput input)
         }
         else
         {
-            output.color = float4(selectedMask.xxx, selectedMask * gColor.a);
+            // Straight-alpha blending applies coverage in the blend unit.
+            // Keeping RGB white avoids squaring the mask and falsely turning
+            // partially covered antialiased pixels into apparent gaps.
+            output.color = float4(1.0f.xxx, selectedMask * gColor.a);
         }
     }
     output.normal = float4(0.5f, 0.5f, 1.0f, 0.0f);
