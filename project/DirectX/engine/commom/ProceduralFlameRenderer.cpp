@@ -56,6 +56,11 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 	parameters_.contourThreshold = std::clamp(parameters_.contourThreshold, 0.1f, 4.0f);
 	parameters_.contourWidth = std::clamp(parameters_.contourWidth, 0.002f, 0.35f);
 	parameters_.contourSoftness = std::clamp(parameters_.contourSoftness, 0.001f, 0.2f);
+	parameters_.contourAaScale = std::clamp(parameters_.contourAaScale, 0.5f, 2.5f);
+	parameters_.contourWidthModulation = std::clamp(
+		parameters_.contourWidthModulation,
+		0.0f,
+		0.35f);
 	parameters_.fieldGain = std::clamp(parameters_.fieldGain, 0.05f, 4.0f);
 	parameters_.contourEmissiveIntensity =
 		(std::max)(parameters_.contourEmissiveIntensity, 0.0f);
@@ -203,6 +208,8 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
 	parameterData_->innerLineIntensity = parameters_.innerLineIntensity;
 	parameterData_->outerGlowWidth = parameters_.outerGlowWidth;
 	parameterData_->outerGlowIntensity = parameters_.outerGlowIntensity;
+	parameterData_->contourAaScale = parameters_.contourAaScale;
+	parameterData_->contourWidthModulation = parameters_.contourWidthModulation;
 	parameterData_->coreThreshold = parameters_.coreThreshold;
 	parameterData_->coreSoftness = parameters_.coreSoftness;
 	parameterData_->coreIntensity = parameters_.coreIntensity;
