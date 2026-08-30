@@ -122,6 +122,9 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
             static_cast<uint64_t>(segmentCount) * static_cast<uint64_t>(steps) * 2u;
 #endif
 
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+        const auto vertexBuildStart = std::chrono::steady_clock::now();
+#endif
         // --- 頂点データの構築 ---
         for (size_t i = 0; i < segmentCount; ++i) {
             size_t i0 = (i == 0) ? 0 : i - 1;
@@ -169,10 +172,21 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
                 instanceVertexCount += 2;
             }
         }
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+        drawStats_.vertexBuildCpuMs += std::chrono::duration<float, std::milli>(
+            std::chrono::steady_clock::now() - vertexBuildStart).count();
+#endif
 
         // インスタンスごとの描画命令
         if (instanceVertexCount > 0) {
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+            const auto drawCommandStart = std::chrono::steady_clock::now();
+#endif
             commandList->DrawInstanced(instanceVertexCount, 1, currentVertexOffset, 0);
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+            drawStats_.drawCommandCpuMs += std::chrono::duration<float, std::milli>(
+                std::chrono::steady_clock::now() - drawCommandStart).count();
+#endif
             currentVertexOffset += instanceVertexCount;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
             ++drawStats_.drawCalls;
