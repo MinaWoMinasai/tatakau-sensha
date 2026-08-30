@@ -32,6 +32,13 @@ struct TextRendererFontStore;
 
 class TextRenderer {
 public:
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	struct GetOrCreateTextureProfile {
+		bool cacheFileExisted = false;
+		bool generatedPng = false;
+	};
+#endif
+
 	static TextRenderer* GetInstance();
 	void Finalize();
 
@@ -39,6 +46,11 @@ public:
 	void SetFontOverride(const TextFontOverride& fontOverride);
 	const TextFontOverride& GetFontOverride() const { return fontOverride_; }
 	unsigned long long GetFontRevision() const { return fontRevision_; }
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	const GetOrCreateTextureProfile& GetLastGetOrCreateTextureProfile() const {
+		return lastGetOrCreateTextureProfile_;
+	}
+#endif
 
 private:
 	TextRenderer();
@@ -58,4 +70,7 @@ private:
 	std::unique_ptr<TextRendererFontStore> fontStore_;
 	TextFontOverride fontOverride_{};
 	unsigned long long fontRevision_ = 1;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	GetOrCreateTextureProfile lastGetOrCreateTextureProfile_{};
+#endif
 };
