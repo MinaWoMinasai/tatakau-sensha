@@ -16,11 +16,13 @@ class ProceduralFlameRenderer {
 public:
 	static constexpr uint32_t kMaxMetaballs = 12;
 
-	enum class DisplayMode : uint32_t {
+		enum class DisplayMode : uint32_t {
 		OuterContour = 0,
 		Field = 1,
 		FilledMask = 2,
 		ContourMask = 3,
+		CoreMask = 4,
+		CoreHotMask = 5,
 	};
 
 	struct Parameters {
@@ -38,10 +40,13 @@ public:
 		float innerLineIntensity = 10.0f;
 		float outerGlowWidth = 0.14f;
 		float outerGlowIntensity = 1.15f;
-		float coreThreshold = 1.70f;
-		float coreSoftness = 0.18f;
+		float coreThreshold = 3.0f;
+		float coreSoftness = 0.22f;
 		float coreIntensity = 7.5f;
-		float coreVerticalBias = 0.90f;
+		float coreVerticalBias = 0.95f;
+		float coreBreakup = 0.65f;
+		float coreNoiseScale = 2.4f;
+		float coreHotThreshold = 4.5f;
 		Vector4 coreCyanTint = { 0.24f, 0.82f, 1.0f, 1.0f };
 		float flowSpeed = 1.0f;
 		float radiusScale = 1.0f;
@@ -97,10 +102,14 @@ private:
 		float innerLineIntensity = 10.0f;
 		float outerGlowWidth = 0.14f;
 		float outerGlowIntensity = 1.15f;
-		float coreThreshold = 1.70f;
-		float coreSoftness = 0.18f;
+		float coreThreshold = 3.0f;
+		float coreSoftness = 0.22f;
 		float coreIntensity = 7.5f;
-		float coreVerticalBias = 0.90f;
+		float coreVerticalBias = 0.95f;
+		float coreBreakup = 0.65f;
+		float coreNoiseScale = 2.4f;
+		float coreHotThreshold = 4.5f;
+		float corePadding = 0.0f;
 		float fieldGain = 1.0f;
 		float billboardAspect = 1.0f;
 		float compactSupportScale = 2.35f;
