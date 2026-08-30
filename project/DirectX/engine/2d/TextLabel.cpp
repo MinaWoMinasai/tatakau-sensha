@@ -175,25 +175,60 @@ void TextLabel::PrepareForDraw()
 
 void TextLabel::RebuildTexture()
 {
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	const auto rebuildTextureStart = std::chrono::steady_clock::now();
+#endif
 	if (!spriteCommon_) {
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		profileStats_.rebuildTextureCpuMs += std::chrono::duration<float, std::milli>(
+			std::chrono::steady_clock::now() - rebuildTextureStart).count();
+#endif
 		return;
 	}
 
-	texturePath_ = TextRenderer::GetInstance()->GetOrCreateTexture(text_, style_);
-	builtFontRevision_ = TextRenderer::GetInstance()->GetFontRevision();
+	TextRenderer* textRenderer = TextRenderer::GetInstance();
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	const auto getOrCreateTextureStart = std::chrono::steady_clock::now();
+#endif
+	texturePath_ = textRenderer->GetOrCreateTexture(text_, style_);
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	const auto getOrCreateTextureEnd = std::chrono::steady_clock::now();
+	profileStats_.getOrCreateTextureCpuMs += std::chrono::duration<float, std::milli>(
+		getOrCreateTextureEnd - getOrCreateTextureStart).count();
+	const TextRenderer::GetOrCreateTextureProfile& textureProfile =
+		textRenderer->GetLastGetOrCreateTextureProfile();
+	profileStats_.cacheFileExistedCount += textureProfile.cacheFileExisted ? 1u : 0u;
+	profileStats_.generatedPngCount += textureProfile.generatedPng ? 1u : 0u;
+#endif
+	builtFontRevision_ = textRenderer->GetFontRevision();
 	if (!sprite_) {
 		sprite_ = std::make_unique<Sprite>();
 		sprite_->Initialize(spriteCommon_, texturePath_);
 		sprite_->SetPosition(position_);
 		sprite_->SetAnchorPoint(anchorPoint_);
 		sprite_->SetAlpha(alpha_);
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		profileStats_.rebuildTextureCpuMs += std::chrono::duration<float, std::milli>(
+			std::chrono::steady_clock::now() - rebuildTextureStart).count();
+#endif
 		return;
 	}
 
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	const auto spriteSetTextureStart = std::chrono::steady_clock::now();
+#endif
 	sprite_->SetTexture(texturePath_);
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	profileStats_.spriteSetTextureCpuMs += std::chrono::duration<float, std::milli>(
+		std::chrono::steady_clock::now() - spriteSetTextureStart).count();
+#endif
 	sprite_->SetPosition(position_);
 	sprite_->SetAnchorPoint(anchorPoint_);
 	sprite_->SetAlpha(alpha_);
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	profileStats_.rebuildTextureCpuMs += std::chrono::duration<float, std::milli>(
+		std::chrono::steady_clock::now() - rebuildTextureStart).count();
+#endif
 }
 
 bool TextLabel::IsSameStyle(const TextStyle& style) const
