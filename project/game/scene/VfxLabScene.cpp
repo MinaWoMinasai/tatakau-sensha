@@ -354,6 +354,17 @@ void VfxLabScene::DrawDebugWindow()
 			0.002f,
 			0.35f);
 		ImGui::DragFloat(
+			"Contour AA Scale",
+			&proceduralFlameParameters_.contourAaScale,
+			0.01f,
+			0.5f,
+			2.5f);
+		ImGui::SliderFloat(
+			"Contour Width Modulation",
+			&proceduralFlameParameters_.contourWidthModulation,
+			0.0f,
+			0.35f);
+		ImGui::DragFloat(
 			"Inner Line Width",
 			&proceduralFlameParameters_.innerLineWidth,
 			0.001f,
