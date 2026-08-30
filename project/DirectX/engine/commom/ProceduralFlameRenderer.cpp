@@ -67,6 +67,9 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 	parameters_.coreSoftness = std::clamp(parameters_.coreSoftness, 0.005f, 1.0f);
 	parameters_.coreIntensity = std::clamp(parameters_.coreIntensity, 0.0f, 24.0f);
 	parameters_.coreVerticalBias = std::clamp(parameters_.coreVerticalBias, 0.0f, 1.0f);
+	parameters_.coreBreakup = std::clamp(parameters_.coreBreakup, 0.0f, 1.5f);
+	parameters_.coreNoiseScale = std::clamp(parameters_.coreNoiseScale, 0.25f, 8.0f);
+	parameters_.coreHotThreshold = std::clamp(parameters_.coreHotThreshold, 0.2f, 8.0f);
 	parameters_.flowSpeed = std::clamp(parameters_.flowSpeed, 0.0f, 3.0f);
 	parameters_.radiusScale = std::clamp(parameters_.radiusScale, 0.35f, 2.0f);
 	parameters_.swayStrength = std::clamp(parameters_.swayStrength, 0.0f, 3.0f);
@@ -77,7 +80,7 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 		parameters_.activeMetaballCount,
 		6u,
 		kMaxMetaballs);
-	if (static_cast<uint32_t>(parameters_.displayMode) > static_cast<uint32_t>(DisplayMode::ContourMask)) {
+	if (static_cast<uint32_t>(parameters_.displayMode) > static_cast<uint32_t>(DisplayMode::CoreHotMask)) {
 		parameters_.displayMode = DisplayMode::OuterContour;
 	}
 }
@@ -204,6 +207,9 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
 	parameterData_->coreSoftness = parameters_.coreSoftness;
 	parameterData_->coreIntensity = parameters_.coreIntensity;
 	parameterData_->coreVerticalBias = parameters_.coreVerticalBias;
+	parameterData_->coreBreakup = parameters_.coreBreakup;
+	parameterData_->coreNoiseScale = parameters_.coreNoiseScale;
+	parameterData_->coreHotThreshold = parameters_.coreHotThreshold;
 	parameterData_->fieldGain = parameters_.fieldGain;
 	parameterData_->billboardAspect = (std::max)(billboardAspect, 0.001f);
 	parameterData_->compactSupportScale = parameters_.compactSupportScale;
