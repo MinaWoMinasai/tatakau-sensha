@@ -289,7 +289,7 @@ void VfxLabScene::DrawDebugWindow()
 		ImGui::Checkbox("Pause", &pauseProceduralFlame_);
 
 		const char* displayModes[] = {
-			"Rainbow Outer Contour",
+			"Neon + White/Cyan Core",
 			"Scalar Field",
 			"Filled Mask",
 			"Contour Mask",
@@ -389,6 +389,31 @@ void VfxLabScene::DrawDebugWindow()
 			0.05f,
 			0.0f,
 			8.0f);
+		ImGui::SeparatorText("White / Cyan Core");
+		ImGui::DragFloat(
+			"Core Threshold",
+			&proceduralFlameParameters_.coreThreshold,
+			0.01f,
+			0.2f,
+			6.0f);
+		ImGui::DragFloat(
+			"Core Softness",
+			&proceduralFlameParameters_.coreSoftness,
+			0.005f,
+			0.005f,
+			1.0f);
+		ImGui::DragFloat(
+			"Core Intensity",
+			&proceduralFlameParameters_.coreIntensity,
+			0.1f,
+			0.0f,
+			24.0f);
+		ImGui::ColorEdit3("Core Cyan Tint", &proceduralFlameParameters_.coreCyanTint.x);
+		ImGui::SliderFloat(
+			"Core Vertical Bias",
+			&proceduralFlameParameters_.coreVerticalBias,
+			0.0f,
+			1.0f);
 		ImGui::Text("Time: %.2f s", flameTime_);
 		ImGui::TreePop();
 	}

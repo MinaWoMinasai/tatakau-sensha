@@ -1,6 +1,7 @@
 cbuffer FlameParameters : register(b0)
 {
     float4 gColor;
+    float4 gCoreCyanTint;
     float gTime;
     float gNoiseScale;
     float gNoiseSpeed;
@@ -13,6 +14,10 @@ cbuffer FlameParameters : register(b0)
     float gInnerLineIntensity;
     float gOuterGlowWidth;
     float gOuterGlowIntensity;
+    float gCoreThreshold;
+    float gCoreSoftness;
+    float gCoreIntensity;
+    float gCoreVerticalBias;
     float gFieldGain;
     float gBillboardAspect;
     float gCompactSupportScale;
@@ -169,6 +174,25 @@ PixelShaderOutput main(PixelShaderInput input)
         outerGlowHalfWidth + outerGlowFeather,
         distanceToIso);
 
+    // Core uses only the higher-density region of the same aura field. An
+    // isolated satellite normally remains below this threshold, while fused
+    // body metaballs create the brighter lower/central mass.
+    const float coreSoftness = max(gCoreSoftness, antiAlias);
+    const float coreFieldMask = smoothstep(
+        gCoreThreshold - coreSoftness,
+        gCoreThreshold + coreSoftness,
+        field);
+    const float upperCoreSuppression = 1.0f - smoothstep(0.42f, 0.88f, vertical);
+    const float coreVerticalWeight = lerp(
+        1.0f,
+        upperCoreSuppression,
+        saturate(gCoreVerticalBias));
+    const float coreMask = coreFieldMask * coreVerticalWeight;
+    const float coreDepth = smoothstep(
+        gCoreThreshold + coreSoftness * 0.35f,
+        gCoreThreshold + max(coreSoftness * 3.0f, 0.35f),
+        field);
+
     if (gDisplayMode == 1u)
     {
         // A bounded visualization that preserves useful contrast both below
@@ -181,7 +205,8 @@ PixelShaderOutput main(PixelShaderInput input)
         const float selectedMask = gDisplayMode == 2u ? filledMask : contourMask;
         if (selectedMask <= 0.001f)
         {
-            if (gDisplayMode != 0u || outerGlowMask <= 0.001f)
+            if (gDisplayMode != 0u ||
+                (outerGlowMask <= 0.001f && coreMask <= 0.001f))
             {
                 discard;
             }
@@ -202,16 +227,26 @@ PixelShaderOutput main(PixelShaderInput input)
             const float3 tintedRainbow = rainbow * gColor.rgb;
             const float3 hotLineColor = float3(0.82f, 0.97f, 1.0f)
                 * lerp(1.0f.xxx, gColor.rgb, 0.12f);
+            const float3 coreColor = lerp(
+                gCoreCyanTint.rgb,
+                float3(1.0f, 0.995f, 1.0f),
+                coreDepth);
+            const float3 coreRadiance = coreColor
+                * coreMask
+                * gCoreIntensity
+                * lerp(0.48f, 1.0f, coreDepth);
             const float3 layerRadiance =
                 tintedRainbow * outerGlowMask * gOuterGlowIntensity
                 + tintedRainbow * contourMask * gContourEmissiveIntensity
-                + hotLineColor * innerLineMask * gInnerLineIntensity;
+                + hotLineColor * innerLineMask * gInnerLineIntensity
+                + coreRadiance;
 
             // The PSO uses straight-alpha blending. Divide by the composed
             // coverage so the intended HDR radiance is not multiplied by the
             // mask a second time when the blend unit applies SrcAlpha.
-            const float layerCoverage = saturate(max(innerLineMask, contourMask)
+            const float neonCoverage = saturate(max(innerLineMask, contourMask)
                 + outerGlowMask * 0.30f);
+            const float layerCoverage = max(neonCoverage, coreMask);
             output.color = float4(
                 layerRadiance / max(layerCoverage, 0.001f),
                 layerCoverage * gColor.a);
