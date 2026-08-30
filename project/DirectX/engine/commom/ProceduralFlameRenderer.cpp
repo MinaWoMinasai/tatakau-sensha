@@ -63,6 +63,10 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 	parameters_.innerLineIntensity = std::clamp(parameters_.innerLineIntensity, 0.0f, 24.0f);
 	parameters_.outerGlowWidth = std::clamp(parameters_.outerGlowWidth, 0.01f, 0.5f);
 	parameters_.outerGlowIntensity = std::clamp(parameters_.outerGlowIntensity, 0.0f, 8.0f);
+	parameters_.coreThreshold = std::clamp(parameters_.coreThreshold, 0.2f, 6.0f);
+	parameters_.coreSoftness = std::clamp(parameters_.coreSoftness, 0.005f, 1.0f);
+	parameters_.coreIntensity = std::clamp(parameters_.coreIntensity, 0.0f, 24.0f);
+	parameters_.coreVerticalBias = std::clamp(parameters_.coreVerticalBias, 0.0f, 1.0f);
 	parameters_.flowSpeed = std::clamp(parameters_.flowSpeed, 0.0f, 3.0f);
 	parameters_.radiusScale = std::clamp(parameters_.radiusScale, 0.35f, 2.0f);
 	parameters_.swayStrength = std::clamp(parameters_.swayStrength, 0.0f, 3.0f);
@@ -183,6 +187,7 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
 		return;
 	}
 	parameterData_->color = parameters_.color;
+	parameterData_->coreCyanTint = parameters_.coreCyanTint;
 	parameterData_->time = parameters_.time;
 	parameterData_->noiseScale = parameters_.noiseScale;
 	parameterData_->noiseSpeed = parameters_.noiseSpeed;
@@ -195,6 +200,10 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
 	parameterData_->innerLineIntensity = parameters_.innerLineIntensity;
 	parameterData_->outerGlowWidth = parameters_.outerGlowWidth;
 	parameterData_->outerGlowIntensity = parameters_.outerGlowIntensity;
+	parameterData_->coreThreshold = parameters_.coreThreshold;
+	parameterData_->coreSoftness = parameters_.coreSoftness;
+	parameterData_->coreIntensity = parameters_.coreIntensity;
+	parameterData_->coreVerticalBias = parameters_.coreVerticalBias;
 	parameterData_->fieldGain = parameters_.fieldGain;
 	parameterData_->billboardAspect = (std::max)(billboardAspect, 0.001f);
 	parameterData_->compactSupportScale = parameters_.compactSupportScale;
