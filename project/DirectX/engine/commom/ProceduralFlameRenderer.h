@@ -38,6 +38,11 @@ public:
 		float innerLineIntensity = 10.0f;
 		float outerGlowWidth = 0.14f;
 		float outerGlowIntensity = 1.15f;
+		float coreThreshold = 1.70f;
+		float coreSoftness = 0.18f;
+		float coreIntensity = 7.5f;
+		float coreVerticalBias = 0.90f;
+		Vector4 coreCyanTint = { 0.24f, 0.82f, 1.0f, 1.0f };
 		float flowSpeed = 1.0f;
 		float radiusScale = 1.0f;
 		float swayStrength = 1.0f;
@@ -79,6 +84,7 @@ private:
 
 	struct GpuParameters {
 		Vector4 color{};
+		Vector4 coreCyanTint = { 0.24f, 0.82f, 1.0f, 1.0f };
 		float time = 0.0f;
 		float noiseScale = 1.0f;
 		float noiseSpeed = 1.0f;
@@ -91,6 +97,10 @@ private:
 		float innerLineIntensity = 10.0f;
 		float outerGlowWidth = 0.14f;
 		float outerGlowIntensity = 1.15f;
+		float coreThreshold = 1.70f;
+		float coreSoftness = 0.18f;
+		float coreIntensity = 7.5f;
+		float coreVerticalBias = 0.90f;
 		float fieldGain = 1.0f;
 		float billboardAspect = 1.0f;
 		float compactSupportScale = 2.35f;
