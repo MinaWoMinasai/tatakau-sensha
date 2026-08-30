@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <memory>
 #include <string>
 #include "Sprite.h"
@@ -11,6 +12,11 @@ public:
 		float setStyleCpuMs = 0.0f;
 		float setTextCpuMs = 0.0f;
 		float setTextRebuildCpuMs = 0.0f;
+		float rebuildTextureCpuMs = 0.0f;
+		float getOrCreateTextureCpuMs = 0.0f;
+		float spriteSetTextureCpuMs = 0.0f;
+		uint32_t cacheFileExistedCount = 0;
+		uint32_t generatedPngCount = 0;
 	};
 	static void ResetProfileStats();
 	static const ProfileStats& GetProfileStats();

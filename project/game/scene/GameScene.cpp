@@ -4059,8 +4059,14 @@ bool GameScene::WritePerformanceCaptureFiles()
 		"upgrade_hud_visible,upgrade_hud_total_ms,upgrade_hud_update_ms,upgrade_hud_sprite_ms,upgrade_hud_text_ms,"
 		"upgrade_hud_base_text_refreshed,upgrade_hud_base_text_refresh_ms,upgrade_hud_exp_label_refresh_ms,"
 		"upgrade_hud_level_label_refresh_ms,upgrade_hud_base_text_set_style_ms,upgrade_hud_base_text_set_text_ms,"
-		"upgrade_hud_base_text_set_text_rebuild_ms,upgrade_hud_list_text_refreshed,upgrade_hud_list_text_refresh_ms,"
-		"upgrade_hud_list_text_set_style_ms,upgrade_hud_list_text_set_text_ms,upgrade_hud_list_text_set_text_rebuild_ms,"
+		"upgrade_hud_base_text_set_text_rebuild_ms,upgrade_hud_base_text_rebuild_texture_ms,"
+		"upgrade_hud_base_text_get_or_create_texture_ms,upgrade_hud_base_text_sprite_texture_update_ms,"
+		"upgrade_hud_base_text_cache_file_existed_count,upgrade_hud_base_text_generated_png_count,"
+		"upgrade_hud_list_text_refreshed,upgrade_hud_list_text_refresh_ms,upgrade_hud_list_text_set_style_ms,"
+		"upgrade_hud_list_text_set_text_ms,upgrade_hud_list_text_set_text_rebuild_ms,"
+		"upgrade_hud_list_text_rebuild_texture_ms,upgrade_hud_list_text_get_or_create_texture_ms,"
+		"upgrade_hud_list_text_sprite_texture_update_ms,upgrade_hud_list_text_cache_file_existed_count,"
+		"upgrade_hud_list_text_generated_png_count,"
 		"upgrade_hud_sprite_draw_count,upgrade_hud_text_draw_count,evolution_ui_visible,evolution_ui_total_ms,"
 		"evolution_ui_update_ms,evolution_ui_sprite_ms,evolution_ui_text_ms,evolution_ui_sprite_draw_count,"
 		"evolution_ui_text_draw_count,"
@@ -4113,8 +4119,13 @@ bool GameScene::WritePerformanceCaptureFiles()
 			<< (hud.visible ? 1 : 0) << ',' << hud.totalMs << ',' << hud.updateMs << ',' << hud.spriteMs << ',' << hud.textMs << ','
 			<< (hud.baseTextRefreshed ? 1 : 0) << ',' << hud.baseTextRefreshMs << ',' << hud.expLabelRefreshMs << ','
 			<< hud.levelLabelRefreshMs << ',' << hud.baseTextSetStyleMs << ',' << hud.baseTextSetTextMs << ','
-			<< hud.baseTextSetTextRebuildMs << ',' << (hud.listTextRefreshed ? 1 : 0) << ',' << hud.listTextRefreshMs << ','
-			<< hud.listTextSetStyleMs << ',' << hud.listTextSetTextMs << ',' << hud.listTextSetTextRebuildMs << ','
+			<< hud.baseTextSetTextRebuildMs << ',' << hud.baseTextRebuildTextureMs << ','
+			<< hud.baseTextGetOrCreateTextureMs << ',' << hud.baseTextSpriteSetTextureMs << ','
+			<< hud.baseTextCacheFileExistedCount << ',' << hud.baseTextGeneratedPngCount << ','
+			<< (hud.listTextRefreshed ? 1 : 0) << ',' << hud.listTextRefreshMs << ',' << hud.listTextSetStyleMs << ','
+			<< hud.listTextSetTextMs << ',' << hud.listTextSetTextRebuildMs << ',' << hud.listTextRebuildTextureMs << ','
+			<< hud.listTextGetOrCreateTextureMs << ',' << hud.listTextSpriteSetTextureMs << ','
+			<< hud.listTextCacheFileExistedCount << ',' << hud.listTextGeneratedPngCount << ','
 			<< hud.spriteDraws << ',' << hud.textDraws << ',' << (evo.visible ? 1 : 0) << ',' << evo.totalMs << ',' << evo.updateMs << ','
 			<< evo.spriteMs << ',' << evo.textMs << ',' << evo.spriteDraws << ',' << evo.textDraws << ','
 			<< hudAfterPlayerUpdate.playerLevel << ',' << hudAfterPlayerUpdate.exp << ',' << hudAfterPlayerUpdate.skillPoints << ','
@@ -4244,10 +4255,20 @@ bool GameScene::WritePerformanceCaptureFiles()
 	writeStats("Upgrade HUD Base Text SetStyle", " ms", [](const auto& f) { return f.upgradeHud.baseTextSetStyleMs; });
 	writeStats("Upgrade HUD Base Text SetText", " ms", [](const auto& f) { return f.upgradeHud.baseTextSetTextMs; });
 	writeStats("Upgrade HUD Base Text SetText Rebuild", " ms", [](const auto& f) { return f.upgradeHud.baseTextSetTextRebuildMs; });
+	writeStats("Upgrade HUD Base Text RebuildTexture", " ms", [](const auto& f) { return f.upgradeHud.baseTextRebuildTextureMs; });
+	writeStats("Upgrade HUD Base Text GetOrCreateTexture", " ms", [](const auto& f) { return f.upgradeHud.baseTextGetOrCreateTextureMs; });
+	writeStats("Upgrade HUD Base Text Sprite Texture Update", " ms", [](const auto& f) { return f.upgradeHud.baseTextSpriteSetTextureMs; });
+	writeStats("Upgrade HUD Base Text Cache File Existed Count", "", [](const auto& f) { return f.upgradeHud.baseTextCacheFileExistedCount; });
+	writeStats("Upgrade HUD Base Text Generated PNG Count", "", [](const auto& f) { return f.upgradeHud.baseTextGeneratedPngCount; });
 	writeStats("Upgrade HUD List Text Refresh", " ms", [](const auto& f) { return f.upgradeHud.listTextRefreshMs; });
 	writeStats("Upgrade HUD List Text SetStyle", " ms", [](const auto& f) { return f.upgradeHud.listTextSetStyleMs; });
 	writeStats("Upgrade HUD List Text SetText", " ms", [](const auto& f) { return f.upgradeHud.listTextSetTextMs; });
 	writeStats("Upgrade HUD List Text SetText Rebuild", " ms", [](const auto& f) { return f.upgradeHud.listTextSetTextRebuildMs; });
+	writeStats("Upgrade HUD List Text RebuildTexture", " ms", [](const auto& f) { return f.upgradeHud.listTextRebuildTextureMs; });
+	writeStats("Upgrade HUD List Text GetOrCreateTexture", " ms", [](const auto& f) { return f.upgradeHud.listTextGetOrCreateTextureMs; });
+	writeStats("Upgrade HUD List Text Sprite Texture Update", " ms", [](const auto& f) { return f.upgradeHud.listTextSpriteSetTextureMs; });
+	writeStats("Upgrade HUD List Text Cache File Existed Count", "", [](const auto& f) { return f.upgradeHud.listTextCacheFileExistedCount; });
+	writeStats("Upgrade HUD List Text Generated PNG Count", "", [](const auto& f) { return f.upgradeHud.listTextGeneratedPngCount; });
 	writeStats("Upgrade HUD Sprite Draw Count", "", [](const auto& f) { return f.upgradeHud.spriteDraws; });
 	writeStats("Upgrade HUD Text Draw Count", "", [](const auto& f) { return f.upgradeHud.textDraws; });
 	writeStats("Evolution UI Visible", "", [](const auto& f) { return f.evolutionUi.visible ? 1 : 0; });
