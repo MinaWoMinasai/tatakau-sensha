@@ -318,6 +318,20 @@ public:
 		int spriteDraws = 0;
 		int textDraws = 0;
 		bool visible = false;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+		bool baseTextRefreshed = false;
+		bool listTextRefreshed = false;
+		float baseTextRefreshMs = 0.0f;
+		float expLabelRefreshMs = 0.0f;
+		float levelLabelRefreshMs = 0.0f;
+		float baseTextSetStyleMs = 0.0f;
+		float baseTextSetTextMs = 0.0f;
+		float baseTextSetTextRebuildMs = 0.0f;
+		float listTextRefreshMs = 0.0f;
+		float listTextSetStyleMs = 0.0f;
+		float listTextSetTextMs = 0.0f;
+		float listTextSetTextRebuildMs = 0.0f;
+#endif
 	};
 	const UiProfileStats& GetUpgradeHudProfileStats() const { return upgradeHudProfile_; }
 	const UiProfileStats& GetEvolutionUiProfileStats() const { return evolutionUiProfile_; }
