@@ -15,6 +15,7 @@
 class ProceduralFlameRenderer {
 public:
 	static constexpr uint32_t kMaxMetaballs = 12;
+	static constexpr uint32_t kMaxStarSparks = 8;
 
 		enum class DisplayMode : uint32_t {
 		OuterContour = 0,
@@ -50,6 +51,12 @@ public:
 		float coreNoiseScale = 1.65f;
 		float coreHotThreshold = 4.5f;
 		Vector4 coreCyanTint = { 0.24f, 0.82f, 1.0f, 1.0f };
+		bool enableStarSparks = true;
+		uint32_t starSparkCount = 6;
+		float starSparkSize = 0.034f;
+		float starSparkIntensity = 9.0f;
+		float starSparkTwinkleSpeed = 0.72f;
+		float starSparkGlowStrength = 0.65f;
 		float flowSpeed = 1.0f;
 		float radiusScale = 1.0f;
 		float swayStrength = 1.0f;
@@ -121,6 +128,15 @@ private:
 		uint32_t displayMode = 0;
 		uint32_t activeMetaballCount = 0;
 		float padding[3]{};
+		uint32_t enableStarSparks = 1;
+		uint32_t starSparkCount = 6;
+		float starSparkSize = 0.034f;
+		float starSparkIntensity = 9.0f;
+		float starSparkTwinkleSpeed = 0.72f;
+		float starSparkGlowStrength = 0.65f;
+		float starSparkPadding[2]{};
+		std::array<Vector4, kMaxStarSparks> starSparkData{};
+		std::array<Vector4, kMaxStarSparks> starSparkColors{};
 		std::array<Vector4, kMaxMetaballs> metaballs{};
 	};
 

@@ -75,6 +75,20 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 	parameters_.coreBreakup = std::clamp(parameters_.coreBreakup, 0.0f, 1.5f);
 	parameters_.coreNoiseScale = std::clamp(parameters_.coreNoiseScale, 0.25f, 8.0f);
 	parameters_.coreHotThreshold = std::clamp(parameters_.coreHotThreshold, 0.2f, 8.0f);
+	parameters_.starSparkCount = std::clamp(
+		parameters_.starSparkCount,
+		1u,
+		kMaxStarSparks);
+	parameters_.starSparkSize = std::clamp(parameters_.starSparkSize, 0.008f, 0.10f);
+	parameters_.starSparkIntensity = std::clamp(parameters_.starSparkIntensity, 0.0f, 24.0f);
+	parameters_.starSparkTwinkleSpeed = std::clamp(
+		parameters_.starSparkTwinkleSpeed,
+		0.05f,
+		4.0f);
+	parameters_.starSparkGlowStrength = std::clamp(
+		parameters_.starSparkGlowStrength,
+		0.0f,
+		2.0f);
 	parameters_.flowSpeed = std::clamp(parameters_.flowSpeed, 0.0f, 3.0f);
 	parameters_.radiusScale = std::clamp(parameters_.radiusScale, 0.35f, 2.0f);
 	parameters_.swayStrength = std::clamp(parameters_.swayStrength, 0.0f, 3.0f);
@@ -222,6 +236,37 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
 	parameterData_->compactSupportScale = parameters_.compactSupportScale;
 	parameterData_->displayMode = static_cast<uint32_t>(parameters_.displayMode);
 	parameterData_->activeMetaballCount = parameters_.activeMetaballCount;
+	parameterData_->enableStarSparks = parameters_.enableStarSparks ? 1u : 0u;
+	parameterData_->starSparkCount = parameters_.starSparkCount;
+	parameterData_->starSparkSize = parameters_.starSparkSize;
+	parameterData_->starSparkIntensity = parameters_.starSparkIntensity;
+	parameterData_->starSparkTwinkleSpeed = parameters_.starSparkTwinkleSpeed;
+	parameterData_->starSparkGlowStrength = parameters_.starSparkGlowStrength;
+
+	// xy: normalized billboard position (y grows upward), z: size scale,
+	// w: twinkle phase. Slots are relative to the aura, not screen space.
+	static const std::array<Vector4, kMaxStarSparks> kStarSparkData = {
+		Vector4{ 0.18f, 0.34f, 1.12f, 0.07f },
+		Vector4{ 0.82f, 0.46f, 0.92f, 0.61f },
+		Vector4{ 0.28f, 0.63f, 0.78f, 0.29f },
+		Vector4{ 0.73f, 0.68f, 1.05f, 0.83f },
+		Vector4{ 0.15f, 0.78f, 0.72f, 0.46f },
+		Vector4{ 0.84f, 0.82f, 0.82f, 0.94f },
+		Vector4{ 0.38f, 0.52f, 0.58f, 0.17f },
+		Vector4{ 0.64f, 0.56f, 0.64f, 0.72f },
+	};
+	static const std::array<Vector4, kMaxStarSparks> kStarSparkColors = {
+		Vector4{ 1.00f, 0.82f, 0.18f, 1.0f },
+		Vector4{ 0.35f, 1.00f, 0.34f, 1.0f },
+		Vector4{ 0.22f, 0.92f, 1.00f, 1.0f },
+		Vector4{ 1.00f, 0.92f, 0.28f, 1.0f },
+		Vector4{ 0.42f, 1.00f, 0.50f, 1.0f },
+		Vector4{ 0.30f, 0.88f, 1.00f, 1.0f },
+		Vector4{ 1.00f, 0.48f, 0.78f, 1.0f },
+		Vector4{ 0.80f, 1.00f, 0.26f, 1.0f },
+	};
+	parameterData_->starSparkData = kStarSparkData;
+	parameterData_->starSparkColors = kStarSparkColors;
 
 	for (uint32_t index = 0; index < kMaxMetaballs; ++index) {
 		if (index >= parameters_.activeMetaballCount) {

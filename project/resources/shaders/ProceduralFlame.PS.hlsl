@@ -31,6 +31,16 @@ cbuffer FlameParameters : register(b0)
     uint gDisplayMode;
     uint gActiveMetaballCount;
     float3 gPadding;
+    uint gEnableStarSparks;
+    uint gStarSparkCount;
+    float gStarSparkSize;
+    float gStarSparkIntensity;
+    float gStarSparkTwinkleSpeed;
+    float gStarSparkGlowStrength;
+    float2 gStarSparkPadding;
+    // xy: normalized billboard position, z: size scale, w: phase
+    float4 gStarSparkData[8];
+    float4 gStarSparkColors[8];
     // xy: normalized billboard position (y grows upward)
     // z: radius, w: lifetime contribution
     float4 gMetaballs[12];
@@ -89,6 +99,66 @@ float3 HsvToRgb(float3 hsv)
     const float3 rgbRamp = saturate(
         abs(frac(hsv.x + float3(0.0f, 2.0f / 3.0f, 1.0f / 3.0f)) * 6.0f - 3.0f) - 1.0f);
     return hsv.z * lerp(1.0f.xxx, rgbRamp, hsv.y);
+}
+
+void BuildStarSparkLayer(
+    float2 samplePosition,
+    out float3 layerRadiance,
+    out float layerCoverage)
+{
+    layerRadiance = 0.0f.xxx;
+    layerCoverage = 0.0f;
+
+    if (gEnableStarSparks == 0u)
+    {
+        return;
+    }
+
+    [unroll]
+    for (uint index = 0; index < 8; ++index)
+    {
+        if (index < gStarSparkCount)
+        {
+            const float4 spark = gStarSparkData[index];
+            const float speedVariation = lerp(0.82f, 1.18f, frac(spark.w * 7.13f));
+            const float cycle = frac(
+                gTime * gStarSparkTwinkleSpeed * speedVariation + spark.w);
+            const float envelope = pow(saturate(sin(cycle * 3.14159265f)), 3.0f);
+            const float microTwinkle = 0.86f + 0.14f * sin(
+                gTime * (5.2f + speedVariation * 2.1f) + spark.w * 6.28318531f);
+            const float twinkle = envelope * microTwinkle;
+
+            float2 sparkCenter = spark.xy;
+            sparkCenter += float2(
+                sin(gTime * 0.31f + spark.w * 11.0f),
+                cos(gTime * 0.23f + spark.w * 13.0f)) * float2(0.010f, 0.007f);
+            const float sparkSize = max(
+                gStarSparkSize * spark.z * lerp(0.72f, 1.06f, envelope),
+                1.0e-4f);
+            float2 delta = samplePosition - sparkCenter;
+            delta.x *= gBillboardAspect;
+            const float2 local = delta / sparkSize;
+
+            const float horizontalRay = exp(-abs(local.x) * 3.4f)
+                * exp(-local.y * local.y * 180.0f);
+            const float verticalRay = exp(-abs(local.y) * 3.4f)
+                * exp(-local.x * local.x * 180.0f);
+            const float rayMask = max(horizontalRay, verticalRay);
+            const float centerMask = exp(-dot(local, local) * 52.0f);
+            const float glowMask = exp(-dot(local, local) * 7.5f);
+
+            const float3 sparkColor = gStarSparkColors[index].rgb;
+            const float intensity = gStarSparkIntensity * twinkle;
+            layerRadiance +=
+                sparkColor * (rayMask * 0.86f
+                    + glowMask * 0.16f * gStarSparkGlowStrength) * intensity
+                + float3(1.0f, 0.995f, 0.96f) * centerMask * intensity * 1.65f;
+            const float coverage = saturate(
+                (rayMask + centerMask) * envelope
+                + glowMask * envelope * 0.18f * gStarSparkGlowStrength);
+            layerCoverage = max(layerCoverage, coverage);
+        }
+    }
 }
 
 float BuildAuraField(float2 uv)
@@ -216,6 +286,13 @@ PixelShaderOutput main(PixelShaderInput input)
         hotThreshold + coreSoftness * 0.70f,
         shapedCoreField) * coreMask;
 
+    float3 starSparkRadiance;
+    float starSparkCoverage;
+    BuildStarSparkLayer(
+        float2(input.uv.x, vertical),
+        starSparkRadiance,
+        starSparkCoverage);
+
     if (gDisplayMode == 1u)
     {
         // A bounded visualization that preserves useful contrast both below
@@ -241,7 +318,8 @@ PixelShaderOutput main(PixelShaderInput input)
         if (selectedMask <= 0.001f)
         {
             if (gDisplayMode != 0u ||
-                (outerGlowMask <= 0.001f && coreMask <= 0.001f))
+                (outerGlowMask <= 0.001f && coreMask <= 0.001f &&
+                    starSparkCoverage <= 0.001f))
             {
                 discard;
             }
@@ -274,7 +352,8 @@ PixelShaderOutput main(PixelShaderInput input)
                 tintedRainbow * outerGlowMask * gOuterGlowIntensity
                 + tintedRainbow * contourMask * gContourEmissiveIntensity
                 + hotLineColor * innerLineMask * gInnerLineIntensity
-                + coreRadiance;
+                + coreRadiance
+                + starSparkRadiance;
 
             // The PSO uses straight-alpha blending. Divide by the composed
             // coverage so the intended HDR radiance is not multiplied by the
@@ -282,7 +361,9 @@ PixelShaderOutput main(PixelShaderInput input)
             const float neonCoverage = saturate(max(innerLineMask, contourMask)
                 + outerGlowMask * 0.30f);
             const float coreCoverage = max(coreMask * 0.70f, coreHotMask);
-            const float layerCoverage = max(neonCoverage, coreCoverage);
+            const float layerCoverage = max(
+                max(neonCoverage, coreCoverage),
+                starSparkCoverage);
             output.color = float4(
                 layerRadiance / max(layerCoverage, 0.001f),
                 layerCoverage * gColor.a);
