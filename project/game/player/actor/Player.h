@@ -324,8 +324,10 @@ public:
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	struct UpgradeHudDebugSnapshot {
 		int playerLevel = 0;
+		int exp = 0;
 		int skillPoints = 0;
 		bool visible = false;
+		float listVisibility = 0.0f;
 		bool hideListWithoutPoints = false;
 		bool drawListPanels = false;
 		bool drawListText = false;
@@ -337,16 +339,19 @@ public:
 		bool segmentedBarBloomEnabled = true;
 		bool listTextBloomEnabled = false;
 		bool listActuallyVisible = false;
+		bool isChangeMode = false;
+		bool playerIsDead = false;
 		int maxEnhancePoint = 0;
 	};
 	UpgradeHudDebugSnapshot GetUpgradeHudDebugSnapshot() const {
 		return {
-			level_, skillPoints_, upgradeHudVisible_, upgradeHudHideListWithoutPoints_,
+			level_, exp_, skillPoints_, upgradeHudVisible_, upgradeHudListVisibility_, upgradeHudHideListWithoutPoints_,
 			upgradeHudDrawListPanels_, upgradeHudDrawListText_, upgradeHudDrawBottomBars_,
 			upgradeHudDrawBottomText_, upgradeHudUseRectBatch_, upgradeHudUseNeonProgressBars_,
 			upgradeHudUseSegmentedUpgradeBars_,
 			upgradeHudSegmentedBarBloomEnabled_, upgradeHudListTextBloomEnabled_,
 			upgradeHudVisible_ && !isChangeMode && !isDead_ && upgradeHudListVisibility_ > 0.01f,
+			isChangeMode, isDead_,
 			maxEnhancePoint
 		};
 	}
