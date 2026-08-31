@@ -36,6 +36,8 @@ public:
 	Matrix4x4& GetUnjitteredProjectionMatrix() { return unjitteredProjectionMatrix_; }
 	Matrix4x4& GetUnjitteredViewProjectionMatrix() { return unjitteredViewProjectionMatrix_; }
 	Vector2& GetProjectionJitter() { return projectionJitter_; }
+	float GetNearClip() const { return nearClip_; }
+	float GetFarClip() const { return farClip_; }
 	void SetNearClip(float nearClip) { nearClip_ = nearClip; }
 	void SetFarClip(float farClip) { farClip_ = farClip; }
 	void SetProjectionJitter(const Vector2& jitter);
