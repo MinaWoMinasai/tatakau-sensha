@@ -765,6 +765,7 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	InitializeUpgradeHud();
 	LoadUpgradeHudConfig();
 	ApplyUpgradeHudLayout();
+	PrepareUpgradeHudSegmentBars();
 	PrepareUpgradeHudTextTextures();
 
 }
@@ -2536,6 +2537,24 @@ void Player::ApplyUpgradeHudProgressBarStyles()
 	}
 	if (upgradeHudExpProgressBar_) {
 		upgradeHudExpProgressBar_->SetStyle(upgradeHudExpProgressStyle_);
+	}
+}
+
+void Player::PrepareUpgradeHudSegmentBars()
+{
+	for (size_t i = 0; i < upgradeHudSegmentBars_.size(); ++i) {
+		NeonSegmentedBar* segmentBar = upgradeHudSegmentBars_[i].get();
+		if (!segmentBar) {
+			continue;
+		}
+		const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
+		segmentBar->SetBounds(
+			{ upgradeHudRowStart_.x + upgradeHudSegmentBarOffset_.x,
+			  y + upgradeHudSegmentBarOffset_.y },
+			upgradeHudSegmentBarSize_);
+		segmentBar->SetSegmentCount(maxEnhancePoint);
+		segmentBar->SetFilledSegments(0);
+		segmentBar->Update();
 	}
 }
 

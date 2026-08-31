@@ -564,6 +564,7 @@ private:
 	void ApplyUpgradeHudProgressBarStyles();
 	void UpdateUpgradeHud(float uiDeltaTime);
 	void DrawUpgradeHud();
+	void PrepareUpgradeHudSegmentBars();
 	void InitializeUpgradeHudBatch();
 	void DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float levelRatio, float listAlpha, float listOffsetX);
 	void QueueUpgradeHudRect(std::vector<TrailVertex>& vertices, const Vector2& pos, const Vector2& size, const Vector4& color) const;
