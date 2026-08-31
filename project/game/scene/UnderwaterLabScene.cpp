@@ -21,8 +21,10 @@ void UnderwaterLabScene::Initialize()
 	camera_ = std::make_unique<Camera>();
 	camera_->SetNearClip(0.1f);
 	camera_->SetFarClip(500.0f);
-	camera_->SetTranslate({ 0.0f, 9.0f, -28.0f });
-	camera_->SetRotate({ 0.055f, 0.0f, 0.0f });
+	// Keep the fixed camera high enough to show the floor across most of the
+	// frame while retaining near-to-far box comparisons.
+	camera_->SetTranslate({ 0.0f, 20.0f, -42.0f });
+	camera_->SetRotate({ 0.17f, 0.0f, 0.0f });
 	camera_->Update();
 
 	debugCamera_ = std::make_unique<DebugCamera>();
@@ -43,7 +45,7 @@ void UnderwaterLabScene::Initialize()
 		kFloorModelName,
 		{ 0.0f, 0.0f, 70.0f },
 		{ 1.0f, 1.0f, 1.0f },
-		{ 0.035f, 0.16f, 0.19f, 1.0f },
+		{ 0.72f, 0.67f, 0.56f, 1.0f },
 		false);
 
 	// Use existing geometry as a scene-local blue-green background. This avoids
@@ -61,11 +63,11 @@ void UnderwaterLabScene::Initialize()
 		Vector4 color;
 	};
 	const BoxPlacement placements[] = {
-		{ { -12.0f, 2.0f, 8.0f },   { 4.0f, 4.0f, 4.0f }, { 0.12f, 0.72f, 0.86f, 1.0f } },
-		{ {  10.0f, 3.0f, 30.0f },  { 6.0f, 6.0f, 6.0f }, { 0.08f, 0.92f, 1.35f, 1.0f } },
-		{ {  -8.0f, 4.0f, 58.0f },  { 8.0f, 8.0f, 8.0f }, { 0.10f, 0.52f, 0.72f, 1.0f } },
-		{ {  14.0f, 5.0f, 92.0f },  { 10.0f, 10.0f, 10.0f }, { 0.05f, 0.84f, 1.65f, 1.0f } },
-		{ {   0.0f, 6.0f, 132.0f }, { 12.0f, 12.0f, 12.0f }, { 0.08f, 0.38f, 0.56f, 1.0f } },
+		{ { -12.0f, 2.0f, 8.0f },   { 4.0f, 4.0f, 4.0f }, { 0.88f, 0.88f, 0.86f, 1.0f } },
+		{ {  10.0f, 3.0f, 30.0f },  { 6.0f, 6.0f, 6.0f }, { 0.84f, 0.54f, 0.38f, 1.0f } },
+		{ {  -8.0f, 4.0f, 58.0f },  { 8.0f, 8.0f, 8.0f }, { 0.76f, 0.78f, 0.78f, 1.0f } },
+		{ {  14.0f, 5.0f, 92.0f },  { 10.0f, 10.0f, 10.0f }, { 0.86f, 0.77f, 0.42f, 1.0f } },
+		{ {   0.0f, 6.0f, 132.0f }, { 12.0f, 12.0f, 12.0f }, { 0.68f, 0.71f, 0.72f, 1.0f } },
 	};
 
 	depthBoxes_.reserve(std::size(placements));
