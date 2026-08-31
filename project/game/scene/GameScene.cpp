@@ -4928,7 +4928,7 @@ void GameScene::ApplyGameTextAppearance()
 	}
 	TextRenderer::GetInstance()->SetFontOverride(fontOverride);
 	if (player_) {
-		player_->PrepareUpgradeHudExpGlyphs();
+		player_->PrepareUpgradeHudTextTextures();
 	}
 
 	gameTextNeonStyle_.enabled = gameTextNeonEnabled_;
