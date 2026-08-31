@@ -273,6 +273,9 @@
     <ClCompile Include="game\scene\VfxLabScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\scene\UnderwaterLabScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\scene\GameScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -578,6 +581,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\scene\VfxLabScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scene\UnderwaterLabScene.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\scene\GameScene.h">
