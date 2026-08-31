@@ -184,7 +184,7 @@ public:
 	void DrawEvolutionAfterPostEffects();
 	void DrawUpgradeHudAfterPostEffects();
 	void AppendGameplayNeonTextLabels(std::vector<TextLabel*>& labels) const;
-	void PrepareUpgradeHudExpGlyphs();
+	void PrepareUpgradeHudTextTextures();
 
 	// ドローンのゲッター
 	std::vector<PlayerDrone*> GetDronePtrs() const;
@@ -559,6 +559,8 @@ private:
 	void InitializeUpgradeHud();
 	void UpdateUpgradeHudExpGlyphs(const std::string& text, const TextStyle& style);
 	void PositionUpgradeHudExpGlyphs();
+	void UpdateUpgradeHudLevelLabels(int level, const std::string& className, const TextStyle& style);
+	void PositionUpgradeHudLevelLabels();
 	void ApplyUpgradeHudProgressBarStyles();
 	void UpdateUpgradeHud(float uiDeltaTime);
 	void DrawUpgradeHud();
@@ -831,11 +833,17 @@ private:
 	std::unique_ptr<TextLabel> upgradeHudTitleLabel_;
 	std::unique_ptr<TextLabel> upgradeHudPointLabel_;
 	std::unique_ptr<TextLabel> upgradeHudLevelLabel_;
+	std::unique_ptr<TextLabel> upgradeHudLevelClassLabel_;
 	std::unique_ptr<TextLabel> upgradeHudListLabel_;
 	static constexpr size_t kUpgradeHudExpGlyphSlotCount = 32;
 	std::array<std::unique_ptr<TextLabel>, kUpgradeHudExpGlyphSlotCount> upgradeHudExpGlyphLabels_;
 	size_t upgradeHudExpGlyphCount_ = 0;
-	unsigned long long upgradeHudExpGlyphFontRevision_ = 0;
+	static constexpr size_t kUpgradeHudLevelGlyphSlotCount = 2;
+	std::array<std::unique_ptr<TextLabel>, kUpgradeHudLevelGlyphSlotCount> upgradeHudLevelGlyphLabels_;
+	size_t upgradeHudLevelGlyphCount_ = 0;
+	unsigned long long upgradeHudTextFontRevision_ = 0;
+	bool upgradeHudTextPrepared_ = false;
+	bool upgradeHudTextPreparedForSegmentedBars_ = false;
 	std::array<std::unique_ptr<Sprite>, 7> upgradeHudButtonSprites_;
 	std::array<std::unique_ptr<Sprite>, 7> upgradeHudPlusSprites_;
 	std::array<std::unique_ptr<Sprite>, 7> upgradeHudMinusSprites_;
