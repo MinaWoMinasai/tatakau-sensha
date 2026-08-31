@@ -31,6 +31,8 @@ public:
 	Vector2& GetProjectionJitter() { return projectionJitter_; }
 	Vector3& GetRotate() { return transform_.rotate; }
 	Vector3& GetTranslate() { return transform_.translate; }
+	float GetNearClip() const { return nearClip_; }
+	float GetFarClip() const { return farClip_; }
 
 private:
 	void UpdateProjectionMatrices();

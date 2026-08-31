@@ -628,12 +628,18 @@ void Bloom::UpdateFrameCameraParameters(bool advanceMotionHistory) {
     Matrix4x4 currentMotionViewProjection = MakeIdentity4x4();
     bool usingDebugCamera = false;
     if (objectCommon->GetIsDebugCamera() && objectCommon->GetDebugCamera()) {
-        bloomParam_.ssrViewMatrix = objectCommon->GetDebugCamera()->GetViewMatrix();
-        currentMotionViewProjection = objectCommon->GetDebugCamera()->GetViewProjectionMatrix();
+        DebugCamera* debugCamera = objectCommon->GetDebugCamera();
+        bloomParam_.ssrViewMatrix = debugCamera->GetViewMatrix();
+        currentMotionViewProjection = debugCamera->GetViewProjectionMatrix();
+        bloomParam_.depthNearClip = debugCamera->GetNearClip();
+        bloomParam_.depthFarClip = debugCamera->GetFarClip();
         usingDebugCamera = true;
     } else if (objectCommon->GetDefaultCamera()) {
-        bloomParam_.ssrViewMatrix = objectCommon->GetDefaultCamera()->GetViewMatrix();
-        currentMotionViewProjection = objectCommon->GetDefaultCamera()->GetViewProjectionMatrix();
+        Camera* camera = objectCommon->GetDefaultCamera();
+        bloomParam_.ssrViewMatrix = camera->GetViewMatrix();
+        currentMotionViewProjection = camera->GetViewProjectionMatrix();
+        bloomParam_.depthNearClip = camera->GetNearClip();
+        bloomParam_.depthFarClip = camera->GetFarClip();
     }
 
     const bool resetHistory = !hasPreviousMotionViewProjection_ || previousMotionUsedDebugCamera_ != usingDebugCamera;
