@@ -261,6 +261,11 @@ void TitleScene::Update() {
 				break;
 			}
 		}
+		if (input_->IsTrigger(input_->GetKey()[DIK_F7], input_->GetPreKey()[DIK_F7])) {
+			if (StartTransitionIfAvailable("UNDERWATER_LAB", 0.35f)) {
+				break;
+			}
+		}
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
 		const bool selectPrevious =
 			input_->IsTrigger(input_->GetKey()[DIK_UP], input_->GetPreKey()[DIK_UP]) ||
