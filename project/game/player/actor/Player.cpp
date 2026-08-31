@@ -333,6 +333,38 @@ TextStyle MakeUpgradeHudBottomBarTextStyle()
 	return style;
 }
 
+TextStyle MakeUpgradeHudSmallTextStyle()
+{
+	TextStyle style{};
+	style.fontFamily = "Meiryo";
+	style.fontSize = 15.0f;
+	style.color = { 0.90f, 0.94f, 1.0f, 1.0f };
+	style.outlineColor = { 0.0f, 0.03f, 0.05f, 0.95f };
+	style.outlineThickness = 2.0f;
+	style.padding = 5.0f;
+	return style;
+}
+
+TextStyle MakeUpgradeHudOverlayTextStyle()
+{
+	TextStyle style = MakeUpgradeHudSmallTextStyle();
+	style.outlineColor = { 0.0f, 0.0f, 0.0f, 0.92f };
+	style.outlineThickness = 1.0f;
+	style.padding = 3.0f;
+	style.preserveOutline = true;
+	return style;
+}
+
+float GetUpgradeHudTextAdvance(const TextLabel* label, const TextStyle& style)
+{
+	if (!label || !label->GetSprite()) {
+		return style.fontSize * 0.55f;
+	}
+	const float padding = std::ceil(style.padding + style.outlineThickness);
+	const float fallback = style.fontSize * (label->GetText() == " " ? 0.34f : 0.55f);
+	return (std::max)(fallback, label->GetSprite()->GetSize().x - padding * 2.0f);
+}
+
 nlohmann::json Vector3ToJson(const Vector3& value)
 {
 	return nlohmann::json::array({ value.x, value.y, value.z });
@@ -733,6 +765,7 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	InitializeUpgradeHud();
 	LoadUpgradeHudConfig();
 	ApplyUpgradeHudLayout();
+	PrepareUpgradeHudTextTextures();
 
 }
 
@@ -2285,27 +2318,41 @@ void Player::InitializeUpgradeHud()
 	barBloomParam.outlineWidth = 0.0f;
 	barBloomParam.outlineBloomIntensity = 0.0f;
 
-	TextStyle titleStyle{};
-	titleStyle.fontFamily = "Meiryo";
-	titleStyle.fontSize = 18.0f;
-	titleStyle.color = { 0.84f, 1.0f, 0.94f, 1.0f };
-	titleStyle.outlineColor = { 0.0f, 0.03f, 0.05f, 0.95f };
-	titleStyle.outlineThickness = 2.0f;
-	titleStyle.padding = 5.0f;
-	SetLabel(upgradeHudTitleLabel_, spriteCommon, "TANK UPGRADES", upgradeHudTitlePos_, titleStyle);
-
-	TextStyle smallStyle = titleStyle;
-	smallStyle.fontSize = 15.0f;
-	smallStyle.color = { 0.90f, 0.94f, 1.0f, 1.0f };
-	SetLabel(upgradeHudPointLabel_, spriteCommon, "", upgradeHudPointPos_, smallStyle);
+	const TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
+	const TextStyle overlayTextStyle = MakeUpgradeHudOverlayTextStyle();
+	SetLabel(upgradeHudTitleLabel_, spriteCommon, "強化", upgradeHudTitlePos_, smallStyle);
+	SetLabel(upgradeHudPointLabel_, spriteCommon, "x0", upgradeHudPointPos_, smallStyle);
 	const TextStyle bottomBarTextStyle = MakeUpgradeHudBottomBarTextStyle();
-	SetLabel(upgradeHudLevelLabel_, spriteCommon, "", upgradeHudLevelTextPos_, bottomBarTextStyle);
-	PrepareUpgradeHudExpGlyphs();
+	SetLabel(upgradeHudLevelLabel_, spriteCommon, "Lv ", upgradeHudLevelTextPos_, bottomBarTextStyle);
+	SetLabel(upgradeHudLevelClassLabel_, spriteCommon, GetCurrentClassName(), upgradeHudLevelTextPos_, bottomBarTextStyle);
 	for (auto& glyphLabel : upgradeHudExpGlyphLabels_) {
 		glyphLabel = std::make_unique<TextLabel>();
 		glyphLabel->Initialize(spriteCommon, " ", bottomBarTextStyle);
 		glyphLabel->SetPosition(upgradeHudExpTextPos_);
 		glyphLabel->SetAlpha(0.0f);
+	}
+	for (auto& glyphLabel : upgradeHudLevelGlyphLabels_) {
+		glyphLabel = std::make_unique<TextLabel>();
+		glyphLabel->Initialize(spriteCommon, " ", bottomBarTextStyle);
+		glyphLabel->SetPosition(upgradeHudLevelTextPos_);
+		glyphLabel->SetAlpha(0.0f);
+	}
+
+	const auto& names = UpgradeHudNames();
+	for (int i = 0; i < 7; ++i) {
+		const float y = upgradeHudRowStart_.y + static_cast<float>(i) * upgradeHudRowGap_;
+		SetLabel(upgradeHudNameLabels_[i], spriteCommon, std::to_string(i + 1) + " " + names[i],
+			{ upgradeHudNameX_, y + upgradeHudNameTextOffsetY_ }, overlayTextStyle);
+		SetLabel(upgradeHudLevelLabels_[i], spriteCommon, "Lv.0",
+			{ upgradeHudLevelX_, y + upgradeHudLevelTextOffsetY_ }, smallStyle);
+		SetLabel(upgradeHudMinusLabels_[i], spriteCommon, "-",
+			{ upgradeHudMinusLabelX_, y + upgradeHudMinusTextOffsetY_ }, overlayTextStyle);
+		SetLabel(upgradeHudPlusLabels_[i], spriteCommon, "+",
+			{ upgradeHudPlusLabelX_, y + upgradeHudPlusTextOffsetY_ }, overlayTextStyle);
+		upgradeHudNameLabels_[i]->SetAlpha(0.0f);
+		upgradeHudLevelLabels_[i]->SetAlpha(0.0f);
+		upgradeHudMinusLabels_[i]->SetAlpha(0.0f);
+		upgradeHudPlusLabels_[i]->SetAlpha(0.0f);
 	}
 
 	for (int i = 0; i < 7; ++i) {
@@ -2317,25 +2364,90 @@ void Player::InitializeUpgradeHud()
 	InitializeUpgradeHudBatch();
 }
 
-void Player::PrepareUpgradeHudExpGlyphs()
+void Player::PrepareUpgradeHudTextTextures()
 {
 	TextRenderer* textRenderer = TextRenderer::GetInstance();
-	if (!textRenderer || upgradeHudExpGlyphFontRevision_ == textRenderer->GetFontRevision()) {
+	if (!textRenderer ||
+		(upgradeHudTextPrepared_ &&
+		 upgradeHudTextFontRevision_ == textRenderer->GetFontRevision() &&
+		 upgradeHudTextPreparedForSegmentedBars_ == upgradeHudUseSegmentedUpgradeBars_)) {
 		return;
 	}
 
-	const TextStyle style = MakeUpgradeHudBottomBarTextStyle();
+	const TextStyle bottomStyle = MakeUpgradeHudBottomBarTextStyle();
+	const TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
+	const TextStyle listControlStyle = upgradeHudUseSegmentedUpgradeBars_
+		? MakeUpgradeHudOverlayTextStyle()
+		: smallStyle;
+	auto preload = [textRenderer](const std::string& text, const TextStyle& style) {
+		const std::string texturePath = textRenderer->GetOrCreateTexture(text, style);
+		TextureManager::GetInstance()->LoadTexture(texturePath);
+	};
+
 	constexpr char kGlyphs[] = "0123456789EXP /";
 	for (const char glyph : kGlyphs) {
 		if (glyph == '\0') {
 			break;
 		}
-		const std::string texturePath = textRenderer->GetOrCreateTexture(std::string(1, glyph), style);
-		TextureManager::GetInstance()->LoadTexture(texturePath);
+		preload(std::string(1, glyph), bottomStyle);
 	}
-	upgradeHudExpGlyphFontRevision_ = textRenderer->GetFontRevision();
+	preload("Lv ", bottomStyle);
+	preload(GetCurrentClassName(), bottomStyle);
+
+	preload("強化", smallStyle);
+	for (int point = 0; point <= kMaxLevel; ++point) {
+		preload("x" + std::to_string(point), smallStyle);
+	}
+	for (int value = 0; value <= 10; ++value) {
+		preload("Lv." + std::to_string(value), smallStyle);
+	}
+	const auto& names = UpgradeHudNames();
+	for (int i = 0; i < 7; ++i) {
+		preload(std::to_string(i + 1) + " " + names[i], listControlStyle);
+	}
+	preload("-", listControlStyle);
+	preload("+", listControlStyle);
+	preload("済", listControlStyle);
+
+	if (upgradeHudTitleLabel_) {
+		upgradeHudTitleLabel_->SetStyle(smallStyle);
+		upgradeHudTitleLabel_->PrepareForDraw();
+	}
+	if (upgradeHudPointLabel_) {
+		upgradeHudPointLabel_->SetStyle(smallStyle);
+		upgradeHudPointLabel_->PrepareForDraw();
+	}
+	if (upgradeHudLevelLabel_) upgradeHudLevelLabel_->PrepareForDraw();
+	if (upgradeHudLevelClassLabel_) upgradeHudLevelClassLabel_->PrepareForDraw();
+	for (auto& label : upgradeHudExpGlyphLabels_) {
+		if (label) label->PrepareForDraw();
+	}
+	for (auto& label : upgradeHudLevelGlyphLabels_) {
+		if (label) label->PrepareForDraw();
+	}
+	for (int i = 0; i < 7; ++i) {
+		if (upgradeHudNameLabels_[i]) {
+			upgradeHudNameLabels_[i]->SetStyle(listControlStyle);
+			upgradeHudNameLabels_[i]->PrepareForDraw();
+		}
+		if (upgradeHudLevelLabels_[i]) upgradeHudLevelLabels_[i]->PrepareForDraw();
+		if (upgradeHudMinusLabels_[i]) {
+			upgradeHudMinusLabels_[i]->SetStyle(listControlStyle);
+			upgradeHudMinusLabels_[i]->PrepareForDraw();
+		}
+		if (upgradeHudPlusLabels_[i]) {
+			upgradeHudPlusLabels_[i]->SetStyle(listControlStyle);
+			upgradeHudPlusLabels_[i]->PrepareForDraw();
+		}
+	}
+
+	upgradeHudTextFontRevision_ = textRenderer->GetFontRevision();
+	upgradeHudTextPrepared_ = true;
+	upgradeHudTextPreparedForSegmentedBars_ = upgradeHudUseSegmentedUpgradeBars_;
 	// フォント上書きが変わった場合は、次のHUD描画でグリフ配置も更新する。
 	cachedUpgradeHudExp_ = -1;
+	cachedUpgradeHudLevel_ = -1;
+	cachedUpgradeHudListVisible_ = false;
 }
 
 void Player::UpdateUpgradeHudExpGlyphs(const std::string& text, const TextStyle& style)
@@ -2363,7 +2475,6 @@ void Player::UpdateUpgradeHudExpGlyphs(const std::string& text, const TextStyle&
 void Player::PositionUpgradeHudExpGlyphs()
 {
 	const TextStyle style = MakeUpgradeHudBottomBarTextStyle();
-	const float glyphPadding = std::ceil(style.padding + style.outlineThickness);
 	float x = upgradeHudExpTextPos_.x;
 	for (size_t i = 0; i < upgradeHudExpGlyphCount_; ++i) {
 		TextLabel* label = upgradeHudExpGlyphLabels_[i].get();
@@ -2371,9 +2482,48 @@ void Player::PositionUpgradeHudExpGlyphs()
 			continue;
 		}
 		label->SetPosition({ x, upgradeHudExpTextPos_.y });
-		const float textureWidth = label->GetSprite()->GetSize().x;
-		const float fallbackAdvance = style.fontSize * (label->GetText() == " " ? 0.34f : 0.55f);
-		x += (std::max)(fallbackAdvance, textureWidth - glyphPadding * 2.0f);
+		x += GetUpgradeHudTextAdvance(label, style);
+	}
+}
+
+void Player::UpdateUpgradeHudLevelLabels(int level, const std::string& className, const TextStyle& style)
+{
+	const std::string levelText = std::to_string(level);
+	const size_t glyphCount = (std::min)(levelText.size(), upgradeHudLevelGlyphLabels_.size());
+	for (size_t i = 0; i < glyphCount; ++i) {
+		TextLabel* label = upgradeHudLevelGlyphLabels_[i].get();
+		if (!label) continue;
+		label->SetStyle(style);
+		label->SetText(std::string(1, levelText[i]));
+		label->PrepareForDraw();
+		label->SetAlpha(1.0f);
+	}
+	for (size_t i = glyphCount; i < upgradeHudLevelGlyphCount_; ++i) {
+		if (upgradeHudLevelGlyphLabels_[i]) upgradeHudLevelGlyphLabels_[i]->SetAlpha(0.0f);
+	}
+	upgradeHudLevelGlyphCount_ = glyphCount;
+	SetLabel(upgradeHudLevelLabel_, SpriteCommon::GetInstance(), "Lv ", upgradeHudLevelTextPos_, style);
+	SetLabel(upgradeHudLevelClassLabel_, SpriteCommon::GetInstance(), className, upgradeHudLevelTextPos_, style);
+	PositionUpgradeHudLevelLabels();
+}
+
+void Player::PositionUpgradeHudLevelLabels()
+{
+	const TextStyle style = MakeUpgradeHudBottomBarTextStyle();
+	float x = upgradeHudLevelTextPos_.x;
+	if (upgradeHudLevelLabel_) {
+		upgradeHudLevelLabel_->SetPosition({ x, upgradeHudLevelTextPos_.y });
+		x += GetUpgradeHudTextAdvance(upgradeHudLevelLabel_.get(), style);
+	}
+	for (size_t i = 0; i < upgradeHudLevelGlyphCount_; ++i) {
+		TextLabel* label = upgradeHudLevelGlyphLabels_[i].get();
+		if (!label) continue;
+		label->SetPosition({ x, upgradeHudLevelTextPos_.y });
+		x += GetUpgradeHudTextAdvance(label, style);
+	}
+	x += style.fontSize * 0.34f;
+	if (upgradeHudLevelClassLabel_) {
+		upgradeHudLevelClassLabel_->SetPosition({ x, upgradeHudLevelTextPos_.y });
 	}
 }
 
@@ -2587,18 +2737,8 @@ void Player::DrawUpgradeHud()
 	const auto totalStart = std::chrono::steady_clock::now();
 
 	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
-	TextStyle smallStyle{};
-	smallStyle.fontFamily = "Meiryo";
-	smallStyle.fontSize = 15.0f;
-	smallStyle.color = { 0.90f, 0.94f, 1.0f, 1.0f };
-	smallStyle.outlineColor = { 0.0f, 0.03f, 0.05f, 0.95f };
-	smallStyle.outlineThickness = 2.0f;
-	smallStyle.padding = 5.0f;
-	TextStyle upgradeOverlayTextStyle = smallStyle;
-	upgradeOverlayTextStyle.outlineColor = { 0.0f, 0.0f, 0.0f, 0.92f };
-	upgradeOverlayTextStyle.outlineThickness = 1.0f;
-	upgradeOverlayTextStyle.padding = 3.0f;
-	upgradeOverlayTextStyle.preserveOutline = true;
+	const TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
+	const TextStyle upgradeOverlayTextStyle = MakeUpgradeHudOverlayTextStyle();
 	const TextStyle bottomBarTextStyle = MakeUpgradeHudBottomBarTextStyle();
 
 	const int safeNextExp = (std::max)(1, nextLevelExp_);
@@ -2638,7 +2778,7 @@ void Player::DrawUpgradeHud()
 		const auto expLabelRefreshEnd = std::chrono::steady_clock::now();
 		const auto levelLabelRefreshStart = expLabelRefreshEnd;
 #endif
-		SetLabel(upgradeHudLevelLabel_, spriteCommon, "Lv " + std::to_string(level_) + " " + className, upgradeHudLevelTextPos_, bottomBarTextStyle);
+		UpdateUpgradeHudLevelLabels(level_, className, bottomBarTextStyle);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 		const auto levelLabelRefreshEnd = std::chrono::steady_clock::now();
 #endif
@@ -2665,7 +2805,7 @@ void Player::DrawUpgradeHud()
 #endif
 	} else {
 		PositionUpgradeHudExpGlyphs();
-		if (upgradeHudLevelLabel_) upgradeHudLevelLabel_->SetPosition(upgradeHudLevelTextPos_);
+		PositionUpgradeHudLevelLabels();
 	}
 
 	if (showUpgradeList) {
@@ -2816,6 +2956,13 @@ void Player::DrawUpgradeHud()
 	}
 	if (upgradeHudDrawBottomText_) {
 		if (upgradeHudLevelLabel_) { upgradeHudLevelLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
+		for (size_t i = 0; i < upgradeHudLevelGlyphCount_; ++i) {
+			if (upgradeHudLevelGlyphLabels_[i]) {
+				upgradeHudLevelGlyphLabels_[i]->Draw();
+				++upgradeHudProfile_.textDraws;
+			}
+		}
+		if (upgradeHudLevelClassLabel_) { upgradeHudLevelClassLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
 		for (size_t i = 0; i < upgradeHudExpGlyphCount_; ++i) {
 			if (upgradeHudExpGlyphLabels_[i]) {
 				upgradeHudExpGlyphLabels_[i]->Draw();
@@ -2839,6 +2986,16 @@ void Player::AppendGameplayNeonTextLabels(std::vector<TextLabel*>& labels) const
 	}
 	if (upgradeHudDrawBottomText_ && upgradeHudLevelLabel_) {
 		labels.push_back(upgradeHudLevelLabel_.get());
+	}
+	if (upgradeHudDrawBottomText_) {
+		for (size_t i = 0; i < upgradeHudLevelGlyphCount_; ++i) {
+			if (upgradeHudLevelGlyphLabels_[i]) {
+				labels.push_back(upgradeHudLevelGlyphLabels_[i].get());
+			}
+		}
+		if (upgradeHudLevelClassLabel_) {
+			labels.push_back(upgradeHudLevelClassLabel_.get());
+		}
 	}
 	if (upgradeHudDrawBottomText_) {
 		for (size_t i = 0; i < upgradeHudExpGlyphCount_; ++i) {
