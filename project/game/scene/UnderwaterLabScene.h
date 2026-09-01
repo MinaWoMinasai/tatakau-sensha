@@ -29,6 +29,7 @@ private:
 		const Vector3& scale,
 		const Vector4& color,
 		bool lighting);
+	void ApplyCausticsSettings();
 	void DrawDebugWindow();
 
 	Input* input_ = nullptr;
@@ -41,4 +42,8 @@ private:
 	bool finished_ = false;
 	std::string nextSceneName_ = "TITLE";
 	float finalDeltaTime_ = 1.0f / 60.0f;
+	bool enableCaustics_ = true;
+	float causticsScale_ = 0.035f;
+	float causticsIntensity_ = 0.25f;
+	Vector3 causticsColor_ = { 0.75f, 0.92f, 1.0f };
 };
