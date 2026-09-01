@@ -3,6 +3,9 @@
 #include "ModelManager.h"
 #include "Object3dCommon.h"
 
+#include <algorithm>
+#include <cmath>
+
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
@@ -11,7 +14,7 @@ namespace {
 
 constexpr char kFloorModelName[] = "__underwater_lab_floor";
 constexpr char kBoxModelName[] = "__underwater_lab_box";
-constexpr char kCausticsTexturePath[] = "resources/UnderwaterCaustics.png";
+constexpr char kCausticsTexturePath[] = "resources/UnderwaterCausticsAtlas.png";
 
 } // namespace
 
@@ -88,6 +91,7 @@ void UnderwaterLabScene::Initialize()
 	for (auto& box : depthBoxes_) {
 		box->Update();
 	}
+	UpdateCausticsFrameState();
 }
 
 void UnderwaterLabScene::Update()
@@ -110,7 +114,9 @@ void UnderwaterLabScene::Update()
 		box->Update();
 	}
 
+	AdvanceCausticsAnimation();
 	DrawDebugWindow();
+	UpdateCausticsFrameState();
 	ApplyCausticsSettings();
 }
 
@@ -152,6 +158,55 @@ void UnderwaterLabScene::ApplyCausticsSettings()
 		causticsScale_,
 		causticsIntensity_,
 		causticsColor_);
+	floor_->SetCausticsAnimationSettings(
+		causticsAnimationEnabled_,
+		causticsPlaybackTime_,
+		causticsLoopDuration_,
+		causticsFrameCount_,
+		causticsAtlasColumns_,
+		causticsAtlasRows_);
+}
+
+void UnderwaterLabScene::AdvanceCausticsAnimation()
+{
+	const float safeLoopDuration = (std::max)(causticsLoopDuration_, 0.01f);
+	if (causticsAnimationEnabled_ && !causticsFreezeFrame_) {
+		causticsPlaybackTime_ = std::fmod(
+			causticsPlaybackTime_ + finalDeltaTime_,
+			safeLoopDuration);
+	}
+}
+
+void UnderwaterLabScene::UpdateCausticsFrameState()
+{
+	const uint32_t safeFrameCount = (std::max)(causticsFrameCount_, 1u);
+	const float safeLoopDuration = (std::max)(causticsLoopDuration_, 0.01f);
+	causticsManualFrameIndex_ = std::clamp(
+		causticsManualFrameIndex_,
+		0,
+		static_cast<int>(safeFrameCount - 1u));
+	if (causticsFreezeFrame_) {
+		causticsPlaybackTime_ =
+			safeLoopDuration * static_cast<float>(causticsManualFrameIndex_) /
+			static_cast<float>(safeFrameCount);
+	}
+
+	if (!causticsAnimationEnabled_ || safeFrameCount == 1u) {
+		causticsCurrentFrame_ = 0;
+		causticsNextFrame_ = 0;
+		causticsFrameBlend_ = 0.0f;
+		return;
+	}
+
+	const float normalizedTime = std::fmod(
+		(std::max)(causticsPlaybackTime_, 0.0f),
+		safeLoopDuration) / safeLoopDuration;
+	const float framePosition = normalizedTime * static_cast<float>(safeFrameCount);
+	causticsCurrentFrame_ = (std::min)(
+		static_cast<uint32_t>(std::floor(framePosition)),
+		safeFrameCount - 1u);
+	causticsNextFrame_ = (causticsCurrentFrame_ + 1u) % safeFrameCount;
+	causticsFrameBlend_ = framePosition - std::floor(framePosition);
 }
 
 void UnderwaterLabScene::DrawDebugWindow()
@@ -170,6 +225,20 @@ void UnderwaterLabScene::DrawDebugWindow()
 	ImGui::DragFloat("Intensity", &causticsIntensity_, 0.01f, 0.0f, 1.0f, "%.2f");
 	ImGui::ColorEdit3("Color", &causticsColor_.x);
 	ImGui::TextUnformatted("Projection: worldPosition.xz * Scale");
+	ImGui::SeparatorText("Caustics Animation");
+	ImGui::Checkbox("Animation Enabled", &causticsAnimationEnabled_);
+	ImGui::DragFloat("Loop Duration", &causticsLoopDuration_, 0.05f, 0.1f, 30.0f, "%.2f s");
+	ImGui::Checkbox("Freeze Frame", &causticsFreezeFrame_);
+	if (causticsFreezeFrame_) {
+		ImGui::SliderInt(
+			"Manual Frame",
+			&causticsManualFrameIndex_,
+			0,
+			static_cast<int>((std::max)(causticsFrameCount_, 1u) - 1u));
+	}
+	ImGui::Text("Current Frame: %u", causticsCurrentFrame_);
+	ImGui::Text("Next Frame: %u", causticsNextFrame_);
+	ImGui::Text("Frame Blend: %.3f", causticsFrameBlend_);
 	ImGui::End();
 #endif
 }

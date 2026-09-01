@@ -175,10 +175,17 @@ struct alignas(16) Material {
 	float causticsPadding;
 	Vector3 causticsColor;
 	float causticsColorPadding;
+	float causticsAnimationEnabled;
+	float causticsPlaybackTime;
+	float causticsLoopDuration;
+	float causticsFrameCount;
+	float causticsAtlasColumns;
+	float causticsAtlasRows;
+	float causticsAnimationPadding[2];
 };
 
 static_assert(sizeof(Material) % 16 == 0, "Material constant buffer must be 16-byte aligned.");
-static_assert(sizeof(Material) == 368, "Update the HLSL Material layout when changing Material.");
+static_assert(sizeof(Material) == 400, "Update the HLSL Material layout when changing Material.");
 static_assert(offsetof(Material, uvTransform) == 32);
 static_assert(offsetof(Material, emissiveColor) == 144);
 static_assert(offsetof(Material, characterLightWrap) == 240);
@@ -188,6 +195,8 @@ static_assert(offsetof(Material, crystalCoreColor) == 304);
 static_assert(offsetof(Material, crystalEdgeColor) == 320);
 static_assert(offsetof(Material, enableCaustics) == 336);
 static_assert(offsetof(Material, causticsColor) == 352);
+static_assert(offsetof(Material, causticsAnimationEnabled) == 368);
+static_assert(offsetof(Material, causticsAtlasColumns) == 384);
 
 struct CrystalMaterialSettings {
 	bool enabled = true;
@@ -281,6 +290,14 @@ inline Material MakeDefaultMaterial()
 	material.causticsPadding = 0.0f;
 	material.causticsColor = { 0.75f, 0.92f, 1.0f };
 	material.causticsColorPadding = 0.0f;
+	material.causticsAnimationEnabled = 0.0f;
+	material.causticsPlaybackTime = 0.0f;
+	material.causticsLoopDuration = 4.0f;
+	material.causticsFrameCount = 1.0f;
+	material.causticsAtlasColumns = 1.0f;
+	material.causticsAtlasRows = 1.0f;
+	material.causticsAnimationPadding[0] = 0.0f;
+	material.causticsAnimationPadding[1] = 0.0f;
 	return material;
 }
 

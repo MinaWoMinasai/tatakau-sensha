@@ -161,8 +161,8 @@ void Root::InitalizeForObject()
 	Parameters_[17].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	Parameters_[17].Descriptor.ShaderRegister = 3;
 
-	// [18] DescriptorTable (world-space caustics mask t10). Objects keep this
-	// disabled by default and bind a dedicated linear-data texture when enabled.
+	// [18] DescriptorTable (world-space caustics mask t10). Every Object3d binds
+	// a valid linear-data texture here; unused objects use the black fallback.
 	descriptorRange_[10].BaseShaderRegister = 10;
 	descriptorRange_[10].NumDescriptors = 1;
 	descriptorRange_[10].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
