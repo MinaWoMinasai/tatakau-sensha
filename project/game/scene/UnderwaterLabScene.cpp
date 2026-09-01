@@ -11,6 +11,7 @@ namespace {
 
 constexpr char kFloorModelName[] = "__underwater_lab_floor";
 constexpr char kBoxModelName[] = "__underwater_lab_box";
+constexpr char kCausticsTexturePath[] = "resources/UnderwaterCaustics.png";
 
 } // namespace
 
@@ -47,6 +48,8 @@ void UnderwaterLabScene::Initialize()
 		{ 1.0f, 1.0f, 1.0f },
 		{ 0.72f, 0.67f, 0.56f, 1.0f },
 		false);
+	floor_->SetCausticsTexture(kCausticsTexturePath);
+	ApplyCausticsSettings();
 
 	// Use existing geometry as a scene-local blue-green background. This avoids
 	// changing the engine clear color or leaking render state into other scenes.
@@ -108,6 +111,7 @@ void UnderwaterLabScene::Update()
 	}
 
 	DrawDebugWindow();
+	ApplyCausticsSettings();
 }
 
 void UnderwaterLabScene::DrawPostEffect3D()
@@ -137,6 +141,19 @@ std::unique_ptr<Object3d> UnderwaterLabScene::MakeObject(
 	return object;
 }
 
+void UnderwaterLabScene::ApplyCausticsSettings()
+{
+	if (!floor_) {
+		return;
+	}
+
+	floor_->SetCausticsSettings(
+		enableCaustics_,
+		causticsScale_,
+		causticsIntensity_,
+		causticsColor_);
+}
+
 void UnderwaterLabScene::DrawDebugWindow()
 {
 #ifdef USE_IMGUI
@@ -147,6 +164,12 @@ void UnderwaterLabScene::DrawDebugWindow()
 	ImGui::TextUnformatted("Use the existing BloomAndVignette window to adjust:");
 	ImGui::BulletText("Bloom / Distortion Amount");
 	ImGui::BulletText("Depth Fog");
+	ImGui::SeparatorText("Caustics");
+	ImGui::Checkbox("Enable", &enableCaustics_);
+	ImGui::DragFloat("Scale", &causticsScale_, 0.001f, 0.001f, 0.25f, "%.3f");
+	ImGui::DragFloat("Intensity", &causticsIntensity_, 0.01f, 0.0f, 1.0f, "%.2f");
+	ImGui::ColorEdit3("Color", &causticsColor_.x);
+	ImGui::TextUnformatted("Projection: worldPosition.xz * Scale");
 	ImGui::End();
 #endif
 }
