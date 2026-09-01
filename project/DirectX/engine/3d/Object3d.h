@@ -107,6 +107,12 @@ public:
 		userEmissiveOverride_ = true;
 	}
 	void SetCrystalMaterial(const CrystalMaterialSettings& settings);
+	void SetCausticsTexture(const std::string& filePath);
+	void SetCausticsSettings(
+		bool enabled,
+		float scale,
+		float intensity,
+		const Vector3& color);
 	void SetIBLIntensity(float diffuseIntensity, float specularIntensity) {
 		materialData_->iblDiffuseIntensity = diffuseIntensity;
 		materialData_->iblSpecularIntensity = specularIntensity;
@@ -224,6 +230,9 @@ private:
 	Matrix4x4 lightViewProjection_;
 
 	uint32_t environmentMapIndex_ = 0; // デフォルトのSRVインデックス
+	uint32_t causticsTextureIndex_ = 0;
+	bool hasCausticsTexture_ = false;
+	bool causticsRequestedEnabled_ = false;
 
 	bool userColorOverride_ = false;
 	bool userMetallicOverride_ = false;

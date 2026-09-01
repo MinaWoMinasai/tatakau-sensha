@@ -178,6 +178,9 @@ void Object3d::DrawSkinned(SkinnedModel& model) {
 	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(8, environmentMapIndex_);
 	commandList->SetGraphicsRootConstantBufferView(10, materialResource_->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(17, oceanWakeResource_->GetGPUVirtualAddress());
+	if (hasCausticsTexture_) {
+		object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(18, causticsTextureIndex_);
+	}
 	UpdateMaterialInstanceData(model.GetAsset().modelData);
 	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> materialCbvAddresses;
 	materialCbvAddresses.reserve(materialInstanceResources_.size());
@@ -252,6 +255,9 @@ void Object3d::Draw() {
 	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(8, environmentMapIndex_);
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(10, materialResource_->GetGPUVirtualAddress());
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(17, oceanWakeResource_->GetGPUVirtualAddress());
+	if (hasCausticsTexture_) {
+		object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(18, causticsTextureIndex_);
+	}
 
 	if (model_) {
 		UpdateMaterialInstanceData();
@@ -277,6 +283,38 @@ void Object3d::SetOceanWakeData(
 		oceanWakeData_->wakeDirections[index] = wakeDirections[index];
 	}
 	oceanWakeData_->parameters = parameters;
+}
+
+void Object3d::SetCausticsTexture(const std::string& filePath)
+{
+	if (filePath.empty()) {
+		hasCausticsTexture_ = false;
+		materialData_->enableCaustics = 0.0f;
+		return;
+	}
+
+	TextureManager* textureManager = TextureManager::GetInstance();
+	textureManager->LoadTexture(
+		filePath,
+		TextureManager::TextureColorSpace::LinearData);
+	causticsTextureIndex_ = textureManager->GetSrvIndex(
+		filePath,
+		TextureManager::TextureColorSpace::LinearData);
+	hasCausticsTexture_ = true;
+	materialData_->enableCaustics = causticsRequestedEnabled_ ? 1.0f : 0.0f;
+}
+
+void Object3d::SetCausticsSettings(
+	bool enabled,
+	float scale,
+	float intensity,
+	const Vector3& color)
+{
+	causticsRequestedEnabled_ = enabled;
+	materialData_->enableCaustics = enabled && hasCausticsTexture_ ? 1.0f : 0.0f;
+	materialData_->causticsScale = scale;
+	materialData_->causticsIntensity = intensity;
+	materialData_->causticsColor = color;
 }
 
 void Object3d::SetCrystalMaterial(const CrystalMaterialSettings& settings)

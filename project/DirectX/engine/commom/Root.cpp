@@ -160,9 +160,21 @@ void Root::InitalizeForObject()
 	Parameters_[17].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	Parameters_[17].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	Parameters_[17].Descriptor.ShaderRegister = 3;
+
+	// [18] DescriptorTable (world-space caustics mask t10). Objects keep this
+	// disabled by default and bind a dedicated linear-data texture when enabled.
+	descriptorRange_[10].BaseShaderRegister = 10;
+	descriptorRange_[10].NumDescriptors = 1;
+	descriptorRange_[10].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[10].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[18].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[18].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[18].DescriptorTable.pDescriptorRanges = &descriptorRange_[10];
+	Parameters_[18].DescriptorTable.NumDescriptorRanges = 1;
 	
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 18;
+	descriptionSignature_.NumParameters = 19;
 
 	// --- StaticSamplerの拡張 ---
 

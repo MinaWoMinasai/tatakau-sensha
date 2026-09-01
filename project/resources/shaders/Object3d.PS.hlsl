@@ -65,6 +65,12 @@ struct Material
     float32_t crystalCorePadding;
     float32_t3 crystalEdgeColor;
     float32_t crystalEdgePadding;
+    float32_t enableCaustics;
+    float32_t causticsScale;
+    float32_t causticsIntensity;
+    float32_t causticsPadding;
+    float32_t3 causticsColor;
+    float32_t causticsColorPadding;
 };
 
 struct Camera
@@ -92,6 +98,7 @@ Texture2D<float32_t4> gOcclusionMap : register(t6);
 Texture2D<float32_t4> gBrdfLut : register(t7);
 TextureCube<float32_t4> gIrradianceMap : register(t8);
 TextureCube<float32_t4> gPrefilteredEnvironmentMap : register(t9);
+Texture2D<float32_t4> gCausticsMap : register(t10);
 
 // シャドウマップ用
 Texture2D<float> gShadowMap : register(t1);
@@ -114,6 +121,24 @@ struct PixelShaderOutput
     float32_t4 material : SV_TARGET2;
 #endif
 };
+
+float32_t3 EvaluateWorldSpaceCaustics(VertexShaderOutput input)
+{
+    if (gMaterial.enableCaustics < 0.5f || gMaterial.causticsIntensity <= 0.0f)
+    {
+        return float32_t3(0.0f, 0.0f, 0.0f);
+    }
+
+    float2 causticsUV = input.worldPosition.xz * gMaterial.causticsScale;
+    float causticsMask = gCausticsMap.Sample(gSampler, causticsUV).r;
+    return max(gMaterial.causticsColor, 0.0f) *
+        max(gMaterial.causticsIntensity, 0.0f) * causticsMask;
+}
+
+void AddWorldSpaceCaustics(inout PixelShaderOutput output, VertexShaderOutput input)
+{
+    output.color.rgb += EvaluateWorldSpaceCaustics(input);
+}
 
 float32_t4 EncodeNormalTarget(float32_t3 normal, float32_t alpha)
 {
@@ -240,6 +265,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         output.material = EncodeMaterialTarget(0.86f - wet * 0.14f, 0.0f, 1.0f, 0.35f);
 #endif
         output.color = float4(saturate(color * gMaterial.color.rgb), gMaterial.color.a * textureColor.a);
+        AddWorldSpaceCaustics(output, input);
         return output;
     }
 
@@ -594,6 +620,7 @@ PixelShaderOutput main(VertexShaderOutput input)
                 debugColor = 1.0f.xxx;
             }
             output.color = float4(saturate(debugColor), 1.0f);
+            AddWorldSpaceCaustics(output, input);
             return output;
         }
 
@@ -602,6 +629,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         float oceanAlpha = 0.90f + fresnel * 0.08f + oceanDepth * 0.10f;
         float alpha = gMaterial.color.a * textureColor.a * saturate(lerp(riverAlpha, oceanAlpha, oceanMode));
         output.color = float4(max(color, 0.0f), alpha * edgeAlpha);
+        AddWorldSpaceCaustics(output, input);
         return output;
     }
 
@@ -685,6 +713,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         // restrained modern glints so ships and UI remain readable.
         color = max(color * gMaterial.color.rgb * 0.98f, 0.0f);
         output.color = float4(color, gMaterial.color.a * textureColor.a);
+        AddWorldSpaceCaustics(output, input);
         return output;
     }
 
@@ -805,6 +834,7 @@ PixelShaderOutput main(VertexShaderOutput input)
                     0.0f,
                     float4(0.0f, 0.78f, 0.0f, 1.0f),
                     transformedUV.xy), gMaterial.color.a * textureColor.a);
+                AddWorldSpaceCaustics(output, input);
                 return output;
             }
 
@@ -816,6 +846,7 @@ PixelShaderOutput main(VertexShaderOutput input)
             color += gMaterial.emissiveColor * max(gMaterial.emissiveIntensity, 0.0f);
             output.color.rgb = max(color, 0.0f);
             output.color.a = gMaterial.color.a * textureColor.a;
+            AddWorldSpaceCaustics(output, input);
             return output;
         }
 
@@ -894,6 +925,7 @@ PixelShaderOutput main(VertexShaderOutput input)
                     debugSSRMask,
                     metallicRoughnessSample,
                     transformedUV.xy), gMaterial.color.a * textureColor.a);
+                AddWorldSpaceCaustics(output, input);
                 return output;
             }
 
@@ -930,6 +962,7 @@ PixelShaderOutput main(VertexShaderOutput input)
 
             output.color.rgb = max(ambientDiffuse + ambientSpecular + Lo + emissive, 0.0f);
             output.color.a = gMaterial.color.a * textureColor.a;
+            AddWorldSpaceCaustics(output, input);
             return output;
         }
 
@@ -973,5 +1006,6 @@ PixelShaderOutput main(VertexShaderOutput input)
         output.color = gMaterial.color * textureColor;
     }
 
+    AddWorldSpaceCaustics(output, input);
     return output;
 }
