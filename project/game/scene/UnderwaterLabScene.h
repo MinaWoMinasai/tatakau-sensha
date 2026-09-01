@@ -30,6 +30,8 @@ private:
 		const Vector4& color,
 		bool lighting);
 	void ApplyCausticsSettings();
+	void AdvanceCausticsAnimation();
+	void UpdateCausticsFrameState();
 	void DrawDebugWindow();
 
 	Input* input_ = nullptr;
@@ -46,4 +48,15 @@ private:
 	float causticsScale_ = 0.035f;
 	float causticsIntensity_ = 0.25f;
 	Vector3 causticsColor_ = { 0.75f, 0.92f, 1.0f };
+	bool causticsAnimationEnabled_ = true;
+	float causticsPlaybackTime_ = 0.0f;
+	float causticsLoopDuration_ = 4.0f;
+	uint32_t causticsFrameCount_ = 24;
+	uint32_t causticsAtlasColumns_ = 6;
+	uint32_t causticsAtlasRows_ = 4;
+	bool causticsFreezeFrame_ = false;
+	int causticsManualFrameIndex_ = 0;
+	uint32_t causticsCurrentFrame_ = 0;
+	uint32_t causticsNextFrame_ = 1;
+	float causticsFrameBlend_ = 0.0f;
 };
