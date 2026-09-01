@@ -751,6 +751,12 @@ const std::string& TextureManager::GetFlatNormalTexturePath()
     return kFlatNormalTexturePath;
 }
 
+const std::string& TextureManager::GetBlackCausticsTexturePath()
+{
+    static const std::string kBlackCausticsTexturePath = "__engine/black_caustics";
+    return kBlackCausticsTexturePath;
+}
+
 const std::string& TextureManager::GetBrdfLutTexturePath()
 {
     static const std::string kBrdfLutTexturePath = "__engine/brdf_lut";
@@ -786,10 +792,36 @@ void TextureManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager)
 	dxCommon_ = dxCommon;
 	srvManager_ = srvManager;
 	textureDatas.reserve(SrvManager::kMaxSrvCount);
+	CreateBlackCausticsTexture();
 	CreateFlatNormalTexture();
 	CreateBrdfLutTexture();
 	CreatePbrIrradianceTexture();
 	CreatePbrPrefilteredEnvironmentTexture();
+}
+
+void TextureManager::CreateBlackCausticsTexture()
+{
+    const std::string& filePath = GetBlackCausticsTexturePath();
+    const std::string textureKey = MakeTextureKey(filePath, TextureColorSpace::LinearData);
+    if (textureDatas.contains(textureKey)) return;
+
+    DirectX::ScratchImage image{};
+    const HRESULT hr = image.Initialize2D(
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        1,
+        1,
+        1,
+        1);
+    assert(SUCCEEDED(hr));
+
+    const DirectX::Image* imageData = image.GetImage(0, 0, 0);
+    assert(imageData != nullptr);
+    imageData->pixels[0] = 0;
+    imageData->pixels[1] = 0;
+    imageData->pixels[2] = 0;
+    imageData->pixels[3] = 255;
+
+    StoreGeneratedTexture(filePath, TextureColorSpace::LinearData, image, false);
 }
 
 void TextureManager::Finalize() {

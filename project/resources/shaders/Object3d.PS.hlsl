@@ -71,6 +71,13 @@ struct Material
     float32_t causticsPadding;
     float32_t3 causticsColor;
     float32_t causticsColorPadding;
+    float32_t causticsAnimationEnabled;
+    float32_t causticsPlaybackTime;
+    float32_t causticsLoopDuration;
+    float32_t causticsFrameCount;
+    float32_t causticsAtlasColumns;
+    float32_t causticsAtlasRows;
+    float32_t2 causticsAnimationPadding;
 };
 
 struct Camera
@@ -122,6 +129,45 @@ struct PixelShaderOutput
 #endif
 };
 
+float SampleCausticsAtlasFrame(float2 worldSpaceUV, uint frameIndex)
+{
+    uint atlasColumns = max((uint)round(gMaterial.causticsAtlasColumns), 1u);
+    uint atlasRows = max((uint)round(gMaterial.causticsAtlasRows), 1u);
+    uint atlasCellCount = atlasColumns * atlasRows;
+    uint safeFrameIndex = min(frameIndex, atlasCellCount - 1u);
+    uint frameColumn = safeFrameIndex % atlasColumns;
+    uint frameRow = safeFrameIndex / atlasColumns;
+
+    float2 frameUVSize = 1.0f / float2(atlasColumns, atlasRows);
+    float2 localFrameUV = frac(worldSpaceUV);
+    float2 atlasUV = (float2(frameColumn, frameRow) + localFrameUV) * frameUVSize;
+    return gCausticsMap.Sample(gSampler, atlasUV).r;
+}
+
+float SampleAnimatedCaustics(float2 worldSpaceUV)
+{
+    uint atlasColumns = max((uint)round(gMaterial.causticsAtlasColumns), 1u);
+    uint atlasRows = max((uint)round(gMaterial.causticsAtlasRows), 1u);
+    uint atlasCellCount = atlasColumns * atlasRows;
+    uint frameCount = clamp((uint)round(gMaterial.causticsFrameCount), 1u, atlasCellCount);
+
+    if (gMaterial.causticsAnimationEnabled < 0.5f || frameCount <= 1u)
+    {
+        return SampleCausticsAtlasFrame(worldSpaceUV, 0u);
+    }
+
+    float loopDuration = max(gMaterial.causticsLoopDuration, 0.0001f);
+    float normalizedTime = frac(max(gMaterial.causticsPlaybackTime, 0.0f) / loopDuration);
+    float framePosition = normalizedTime * (float)frameCount;
+    uint currentFrameIndex = min((uint)floor(framePosition), frameCount - 1u);
+    uint nextFrameIndex = (currentFrameIndex + 1u) % frameCount;
+    float frameBlend = frac(framePosition);
+
+    float currentSample = SampleCausticsAtlasFrame(worldSpaceUV, currentFrameIndex);
+    float nextSample = SampleCausticsAtlasFrame(worldSpaceUV, nextFrameIndex);
+    return lerp(currentSample, nextSample, frameBlend);
+}
+
 float32_t3 EvaluateWorldSpaceCaustics(VertexShaderOutput input)
 {
     if (gMaterial.enableCaustics < 0.5f || gMaterial.causticsIntensity <= 0.0f)
@@ -130,7 +176,7 @@ float32_t3 EvaluateWorldSpaceCaustics(VertexShaderOutput input)
     }
 
     float2 causticsUV = input.worldPosition.xz * gMaterial.causticsScale;
-    float causticsMask = gCausticsMap.Sample(gSampler, causticsUV).r;
+    float causticsMask = SampleAnimatedCaustics(causticsUV);
     return max(gMaterial.causticsColor, 0.0f) *
         max(gMaterial.causticsIntensity, 0.0f) * causticsMask;
 }
