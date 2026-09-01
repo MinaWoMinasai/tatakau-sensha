@@ -169,10 +169,16 @@ struct alignas(16) Material {
 	float crystalCorePadding;
 	Vector3 crystalEdgeColor;
 	float crystalEdgePadding;
+	float enableCaustics;
+	float causticsScale;
+	float causticsIntensity;
+	float causticsPadding;
+	Vector3 causticsColor;
+	float causticsColorPadding;
 };
 
 static_assert(sizeof(Material) % 16 == 0, "Material constant buffer must be 16-byte aligned.");
-static_assert(sizeof(Material) == 336, "Update the HLSL Material layout when changing Material.");
+static_assert(sizeof(Material) == 368, "Update the HLSL Material layout when changing Material.");
 static_assert(offsetof(Material, uvTransform) == 32);
 static_assert(offsetof(Material, emissiveColor) == 144);
 static_assert(offsetof(Material, characterLightWrap) == 240);
@@ -180,6 +186,8 @@ static_assert(offsetof(Material, crystalEnabled) == 272);
 static_assert(offsetof(Material, iridescenceThicknessMinimumNm) == 288);
 static_assert(offsetof(Material, crystalCoreColor) == 304);
 static_assert(offsetof(Material, crystalEdgeColor) == 320);
+static_assert(offsetof(Material, enableCaustics) == 336);
+static_assert(offsetof(Material, causticsColor) == 352);
 
 struct CrystalMaterialSettings {
 	bool enabled = true;
@@ -267,6 +275,12 @@ inline Material MakeDefaultMaterial()
 	material.crystalCorePadding = 0.0f;
 	material.crystalEdgeColor = { 0.92f, 0.20f, 0.72f };
 	material.crystalEdgePadding = 0.0f;
+	material.enableCaustics = 0.0f;
+	material.causticsScale = 0.035f;
+	material.causticsIntensity = 0.25f;
+	material.causticsPadding = 0.0f;
+	material.causticsColor = { 0.75f, 0.92f, 1.0f };
+	material.causticsColorPadding = 0.0f;
 	return material;
 }
 
