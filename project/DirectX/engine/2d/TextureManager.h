@@ -20,6 +20,7 @@ public:
 	void Finalize();
 
 	void LoadTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
+	void CreateBlackCausticsTexture();
 	void CreateFlatNormalTexture();
 	void CreateBrdfLutTexture();
 	void CreatePbrIrradianceTexture();
@@ -52,6 +53,7 @@ public:
 
 	// SRVインデックスを取得
 	uint32_t GetSrvIndex(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
+	static const std::string& GetBlackCausticsTexturePath();
 	static const std::string& GetFlatNormalTexturePath();
 	static const std::string& GetBrdfLutTexturePath();
 	static const std::string& GetPbrEnvironmentTexturePath();

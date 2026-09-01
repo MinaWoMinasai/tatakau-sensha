@@ -113,6 +113,13 @@ public:
 		float scale,
 		float intensity,
 		const Vector3& color);
+	void SetCausticsAnimationSettings(
+		bool enabled,
+		float playbackTime,
+		float loopDuration,
+		uint32_t frameCount,
+		uint32_t atlasColumns,
+		uint32_t atlasRows);
 	void SetIBLIntensity(float diffuseIntensity, float specularIntensity) {
 		materialData_->iblDiffuseIntensity = diffuseIntensity;
 		materialData_->iblSpecularIntensity = specularIntensity;

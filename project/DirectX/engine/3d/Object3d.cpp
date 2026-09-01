@@ -124,6 +124,10 @@ void Object3d::Initialize()
 	// 書き込むためのアドレスを取得
 	materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
 	*materialData_ = MakeDefaultMaterial();
+	TextureManager* textureManager = TextureManager::GetInstance();
+	causticsTextureIndex_ = textureManager->GetSrvIndex(
+		TextureManager::GetBlackCausticsTexturePath(),
+		TextureManager::TextureColorSpace::LinearData);
 
 	oceanWakeResource_ = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(OceanWakeData));
 	oceanWakeResource_->Map(0, nullptr, reinterpret_cast<void**>(&oceanWakeData_));
@@ -178,9 +182,7 @@ void Object3d::DrawSkinned(SkinnedModel& model) {
 	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(8, environmentMapIndex_);
 	commandList->SetGraphicsRootConstantBufferView(10, materialResource_->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(17, oceanWakeResource_->GetGPUVirtualAddress());
-	if (hasCausticsTexture_) {
-		object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(18, causticsTextureIndex_);
-	}
+	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(18, causticsTextureIndex_);
 	UpdateMaterialInstanceData(model.GetAsset().modelData);
 	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> materialCbvAddresses;
 	materialCbvAddresses.reserve(materialInstanceResources_.size());
@@ -255,9 +257,7 @@ void Object3d::Draw() {
 	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(8, environmentMapIndex_);
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(10, materialResource_->GetGPUVirtualAddress());
 	object3dCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(17, oceanWakeResource_->GetGPUVirtualAddress());
-	if (hasCausticsTexture_) {
-		object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(18, causticsTextureIndex_);
-	}
+	object3dCommon_->GetSrvManager()->SetGraphicsRootDescriptorTable(18, causticsTextureIndex_);
 
 	if (model_) {
 		UpdateMaterialInstanceData();
@@ -288,6 +288,10 @@ void Object3d::SetOceanWakeData(
 void Object3d::SetCausticsTexture(const std::string& filePath)
 {
 	if (filePath.empty()) {
+		TextureManager* textureManager = TextureManager::GetInstance();
+		causticsTextureIndex_ = textureManager->GetSrvIndex(
+			TextureManager::GetBlackCausticsTexturePath(),
+			TextureManager::TextureColorSpace::LinearData);
 		hasCausticsTexture_ = false;
 		materialData_->enableCaustics = 0.0f;
 		return;
@@ -315,6 +319,22 @@ void Object3d::SetCausticsSettings(
 	materialData_->causticsScale = scale;
 	materialData_->causticsIntensity = intensity;
 	materialData_->causticsColor = color;
+}
+
+void Object3d::SetCausticsAnimationSettings(
+	bool enabled,
+	float playbackTime,
+	float loopDuration,
+	uint32_t frameCount,
+	uint32_t atlasColumns,
+	uint32_t atlasRows)
+{
+	materialData_->causticsAnimationEnabled = enabled ? 1.0f : 0.0f;
+	materialData_->causticsPlaybackTime = (std::max)(playbackTime, 0.0f);
+	materialData_->causticsLoopDuration = (std::max)(loopDuration, 0.0001f);
+	materialData_->causticsFrameCount = static_cast<float>((std::max)(frameCount, 1u));
+	materialData_->causticsAtlasColumns = static_cast<float>((std::max)(atlasColumns, 1u));
+	materialData_->causticsAtlasRows = static_cast<float>((std::max)(atlasRows, 1u));
 }
 
 void Object3d::SetCrystalMaterial(const CrystalMaterialSettings& settings)
