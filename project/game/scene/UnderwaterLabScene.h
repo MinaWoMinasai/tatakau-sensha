@@ -23,12 +23,19 @@ public:
 	std::string GetNextSceneName() const override { return nextSceneName_; }
 
 private:
+	enum class CausticsPreset : uint32_t {
+		ShallowFine,
+		DeepBroad,
+	};
+
 	std::unique_ptr<Object3d> MakeObject(
 		const std::string& modelName,
 		const Vector3& translate,
 		const Vector3& scale,
 		const Vector4& color,
 		bool lighting);
+	void ApplyCausticsPreset();
+	const char* GetCausticsTexturePath() const;
 	void ApplyCausticsSettings();
 	void AdvanceCausticsAnimation();
 	void UpdateCausticsFrameState();
@@ -44,6 +51,7 @@ private:
 	bool finished_ = false;
 	std::string nextSceneName_ = "TITLE";
 	float finalDeltaTime_ = 1.0f / 60.0f;
+	CausticsPreset causticsPreset_ = CausticsPreset::DeepBroad;
 	bool enableCaustics_ = true;
 	float causticsScale_ = 0.035f;
 	float causticsIntensity_ = 0.25f;
