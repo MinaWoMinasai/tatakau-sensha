@@ -14,7 +14,8 @@ namespace {
 
 constexpr char kFloorModelName[] = "__underwater_lab_floor";
 constexpr char kBoxModelName[] = "__underwater_lab_box";
-constexpr char kCausticsTexturePath[] = "resources/UnderwaterCausticsAtlas.png";
+constexpr char kShallowFineCausticsTexturePath[] = "resources/UnderwaterCausticsAtlas.png";
+constexpr char kDeepBroadCausticsTexturePath[] = "resources/UnderwaterCausticsDeepBroadAtlas.png";
 
 } // namespace
 
@@ -51,7 +52,7 @@ void UnderwaterLabScene::Initialize()
 		{ 1.0f, 1.0f, 1.0f },
 		{ 0.72f, 0.67f, 0.56f, 1.0f },
 		false);
-	floor_->SetCausticsTexture(kCausticsTexturePath);
+	ApplyCausticsPreset();
 	ApplyCausticsSettings();
 
 	// Use existing geometry as a scene-local blue-green background. This avoids
@@ -147,6 +148,26 @@ std::unique_ptr<Object3d> UnderwaterLabScene::MakeObject(
 	return object;
 }
 
+void UnderwaterLabScene::ApplyCausticsPreset()
+{
+	if (!floor_) {
+		return;
+	}
+
+	floor_->SetCausticsTexture(GetCausticsTexturePath());
+}
+
+const char* UnderwaterLabScene::GetCausticsTexturePath() const
+{
+	switch (causticsPreset_) {
+	case CausticsPreset::ShallowFine:
+		return kShallowFineCausticsTexturePath;
+	case CausticsPreset::DeepBroad:
+	default:
+		return kDeepBroadCausticsTexturePath;
+	}
+}
+
 void UnderwaterLabScene::ApplyCausticsSettings()
 {
 	if (!floor_) {
@@ -220,6 +241,19 @@ void UnderwaterLabScene::DrawDebugWindow()
 	ImGui::BulletText("Bloom / Distortion Amount");
 	ImGui::BulletText("Depth Fog");
 	ImGui::SeparatorText("Caustics");
+	constexpr const char* kCausticsPresetNames[] = {
+		"Shallow / Fine",
+		"Deep / Broad",
+	};
+	int causticsPresetIndex = static_cast<int>(causticsPreset_);
+	if (ImGui::Combo(
+		"Caustics Preset",
+		&causticsPresetIndex,
+		kCausticsPresetNames,
+		static_cast<int>(std::size(kCausticsPresetNames)))) {
+		causticsPreset_ = static_cast<CausticsPreset>(causticsPresetIndex);
+		ApplyCausticsPreset();
+	}
 	ImGui::Checkbox("Enable", &enableCaustics_);
 	ImGui::DragFloat("Scale", &causticsScale_, 0.001f, 0.001f, 0.25f, "%.3f");
 	ImGui::DragFloat("Intensity", &causticsIntensity_, 0.01f, 0.0f, 1.0f, "%.2f");
