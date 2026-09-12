@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <cstdio>
 #include <d3d12sdklayers.h>
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -15,12 +16,17 @@ namespace {
 Vector3 V(ink::Vec3 v) { return {v.x,v.y,v.z}; }
 ink::Vec3 I(Vector3 v) { return {v.x,v.y,v.z}; }
 const char* StateName(ink::PlayerState s) {
-    return s==ink::PlayerState::WallSwim ? "WALL SWIM" : s==ink::PlayerState::Swim ? "SWIM" : "HUMAN";
+    return s==ink::PlayerState::WallSwim ? "WALL SWIM" : s==ink::PlayerState::Swim ? "SWIM" : s==ink::PlayerState::Squid ? "SQUID" : "HUMAN";
 }
 constexpr Vector4 kInk={0.025f,0.86f,0.68f,1};
+constexpr Vector4 kLiquid={0.004f,0.39f,0.235f,1};
+const char* JapaneseState(ink::PlayerState state) {
+    return state==ink::PlayerState::WallSwim ? "壁を遊泳" : state==ink::PlayerState::Swim ? "インクに潜伏" : state==ink::PlayerState::Squid ? "イカ状態" : "人型";
+}
 }
 
 InkShooterScene::~InkShooterScene() {
+    audio_.Shutdown();
     SetCaptured(false);
     auto common=Object3dCommon::GetInstance();
     if (common->GetDefaultCamera()==camera_.get()) common->SetDefaultCamera(nullptr);
@@ -38,23 +44,32 @@ std::unique_ptr<Object3d> InkShooterScene::MakeObject(const char* model, Vector4
 
 void InkShooterScene::Initialize() {
     input_=Input::GetInstance(); camera_=std::make_unique<Camera>();
-    camera_->SetFovY(0.92f); camera_->SetNearClip(0.06f); camera_->SetFarClip(150);
+    camera_->SetFovY(fovY_); camera_->SetNearClip(0.06f); camera_->SetFarClip(150);
     auto common=Object3dCommon::GetInstance();
     common->SetDefaultCamera(camera_.get()); common->SetIsDebugCamera(false);
     previousDebugUi_=common->GetDebugUiEnabled(); common->SetDebugUiEnabled(false);
     common->SetDebugDefaultCamera(nullptr);
     simulation_.Reset();
+    InitializeWeapons();
     paint_.Initialize(common->GetDxCommon(),common->GetSrvManager(),simulation_.Surfaces());
+    liquid_.Initialize(common->GetDxCommon(),common->GetSrvManager());
+    reticle_.Initialize(common->GetDxCommon());
     ModelManager::GetInstance()->CreateBoxModel("__ink_box");
     ModelManager::GetInstance()->CreateUvSphereModel("__ink_sphere",1,12,18);
     for (size_t n=0;n<actor_.size();++n)
-        actor_[n]=MakeObject(n==1||n==9 ? "__ink_sphere" : "__ink_box", kInk);
+        actor_[n]=MakeObject(n==1||n>=9 ? "__ink_sphere" : "__ink_box", kInk);
     actor_[0]->SetColor({0.08f,0.12f,0.20f,1});
     actor_[2]->SetColor({0.02f,0.055f,0.09f,1});
     actor_[3]->SetColor({0.94f,0.56f,0.12f,1});
     actor_[4]->SetColor({0.06f,0.17f,0.20f,1});
     actor_[7]->SetColor({0.10f,0.14f,0.19f,1});
     actor_[8]->SetColor({0.10f,0.14f,0.19f,1});
+    actor_[9]->SetColor(kLiquid);
+    for (int n=10;n<12;++n) actor_[n]->SetColor({0.07f,0.11f,0.10f,1});
+    for(auto& part:bow_) part=MakeObject("__ink_box",{0.95f,0.57f,0.15f,1});
+    dummy_[0]=MakeObject("__ink_sphere",{0.94f,0.48f,0.12f,1});
+    dummy_[1]=MakeObject("__ink_box",{0.14f,0.19f,0.22f,1});
+    dummy_[2]=MakeObject("__ink_box",{0.97f,0.86f,0.51f,1});
     effects_=std::make_unique<NeonGridRenderer>();
     effects_->Initialize(common->GetDxCommon(),"resources/white512x512.png");
     effects_->SetLineStyle(0.2f,1.0f);
@@ -65,22 +80,34 @@ void InkShooterScene::Initialize() {
     TextStyle style{}; style.fontFamily="Meiryo"; style.fontSize=27;
     style.color={0.80f,1,0.95f,1}; style.outlineThickness=2; style.padding=5;
     title_=std::make_unique<TextLabel>();
-    title_->Initialize(SpriteCommon::GetInstance(),"INK / SHOOTER LAB",style);
+    title_->Initialize(SpriteCommon::GetInstance(),"インクシューター / 試射場",style);
     title_->SetPosition({28,19});
     style.fontSize=16; style.color={0.85f,0.91f,0.95f,1};
     guide_=std::make_unique<TextLabel>();
     guide_->Initialize(SpriteCommon::GetInstance(),
-        "WASD  移動    Mouse  照準    左クリック  射撃    Shift  インクに潜る    Space  ジャンプ\n"
-        "塗った壁 + Shift + W/S/A/D  壁を泳ぐ    Tab  マウス解放    F1  調整    R  リセット    F9  デモ    Esc  戻る",style);
-    guide_->SetPosition({28,646});
+        "WASD  移動    Mouse  照準    左クリック  射撃 / 長押しで弓をためる\n"
+        "Shift  イカ変身 / チャージ中断    Space  ジャンプ    1 / 2  ブキ切替    Q  次のブキ\n"
+        "塗った壁 + Shift + WASD  壁を泳ぐ    Tab  マウス解放    F1  日本語設定    R  初期化    F10  写真",style);
+    guide_->SetPosition({28,621});
     style.fontSize=19;
     stateText_=std::make_unique<TextLabel>();
-    stateText_->Initialize(SpriteCommon::GetInstance(),"HUMAN",style);
+    stateText_->Initialize(SpriteCommon::GetInstance(),"人型",style);
     stateText_->SetPosition({29,73});
+    style.fontSize=16; style.color={1,0.89f,0.64f,1};
+    dummyText_=std::make_unique<TextLabel>();
+    dummyText_->Initialize(SpriteCommon::GetInstance(),"試射ダミー  HP 100 / 100",style);
+    dummyText_->SetPosition({830,25});
+    style.color={0.85f,0.95f,1,1};
+    weaponText_=std::make_unique<TextLabel>();
+    weaponText_->Initialize(SpriteCommon::GetInstance(),simulation_.ActiveWeaponName(),style);
+    weaponText_->SetPosition({29,144});
     lastTime_=std::chrono::steady_clock::now();
     SetCaptured(true); UpdateCamera(1); UpdateModels(); UpdateHud();
     wchar_t automatic[8]{};
-    if (GetEnvironmentVariableW(L"CG2_INK_AUTOTEST",automatic,8)>0) StartReplay();
+    if (GetEnvironmentVariableW(L"CG2_INK_AUTOTEST",automatic,8)>0) {
+        extendedReplay_=automatic[0]==L'2'; fidelityReplay_=automatic[0]==L'3'; weaponsReplay_=automatic[0]==L'4'; feelReplay_=automatic[0]==L'5'; StartReplay();
+    }
+    if (GetEnvironmentVariableW(L"CG2_INK_SETTINGS",automatic,8)>0) { debug_=true; SetCaptured(false); }
 }
 
 void InkShooterScene::SetCaptured(bool captured) {
@@ -91,26 +118,32 @@ void InkShooterScene::SetCaptured(bool captured) {
 }
 
 void InkShooterScene::Reset() {
+    audio_.Stop();
     simulation_.Reset(); paint_.Clear(); accumulator_=0; jumpPending_=false;
     yaw_=0; pitch_=0.16f; cameraReady_=false;
+    bursts_.clear(); visualShotCount_=0; visualState_=ink::PlayerState::Human;
+    formAge_=10; visualKick_=0; wakeTime_=0;
 }
 
 void InkShooterScene::StartReplay() {
-    Reset(); replay_=true; replayTime_=0; logTime_=0;
+    debug_=false; SetCaptured(true);
+    if(!weaponsReplay_) EquipCatalogWeapon("splattershot");
+    Reset(); replay_=true; replayTime_=0; logTime_=0; replaySection_=-1;
     if (replayLog_.is_open()) replayLog_.close();
     std::filesystem::create_directories("generated");
     replayLog_.open("generated/ink_replay.csv",std::ios::trunc);
-    replayLog_ << "time,state,x,y,z,ink,ownInk,grounded,speed,projectiles,stamps,fps\n";
-    Microsoft::WRL::ComPtr<ID3D12InfoQueue> queue;
-    if (SUCCEEDED(Object3dCommon::GetInstance()->GetDxCommon()->GetDevice().As(&queue)))
-        gpuMessageStart_=queue->GetNumStoredMessagesAllowedByRetrievalFilter();
+    replayLog_ << "time,state,x,y,z,ink,ownInk,grounded,speed,projectiles,stamps,fps,dummyHp,damage,section,paintGpuMs,surfaceGpuMs,smoothing,particles,enemyInk,droplets,shots,weapon,charge,embedded,carry\n";
+    // Include pipeline/resource creation diagnostics from before this replay.
+    gpuMessageStart_=0;
 }
 
 void InkShooterScene::WriteGpuDiagnostics() {
+    audio_.WriteDiagnostics("generated/ink_audio_validation.txt");
     auto dx=Object3dCommon::GetInstance()->GetDxCommon();
     std::ofstream report("generated/ink_gpu_validation.txt",std::ios::trunc);
     report << "D3D12 debug layer: " << dx->IsD3D12DebugLayerEnabled()
-        << "\nGPU based validation: " << dx->IsGpuBasedValidationEnabled() << '\n';
+        << "\nGPU based validation: " << dx->IsGpuBasedValidationEnabled()
+        << "\nIncludes startup messages: 1\n";
     Microsoft::WRL::ComPtr<ID3D12InfoQueue> queue;
     if (FAILED(dx->GetDevice().As(&queue))) { report << "InfoQueue unavailable\n"; return; }
     uint64_t errors=0,warnings=0;
@@ -131,13 +164,17 @@ void InkShooterScene::WriteGpuDiagnostics() {
 ink::Controls InkShooterScene::ReadControls(float dt) {
     ink::Controls c{};
     if (replay_) {
+        if (feelReplay_) return ReadFeelValidationControls(dt);
+        if (weaponsReplay_) return ReadWeaponsValidationControls(dt);
+        if (fidelityReplay_) return ReadFidelityControls(dt);
+        if (extendedReplay_) return ReadValidationControls(dt);
         replayTime_+=dt; pitch_=0.19f;
         c.fire=replayTime_<3.5f || (replayTime_>7.5f && replayTime_<10);
         c.moveZ=(replayTime_>1 && replayTime_<7.5f)?1.0f:0.0f;
         c.swim=replayTime_>=3.5f && replayTime_<7.5f;
         c.jump=replayTime_>=8 && replayTime_-dt<8;
         if (replayTime_>12) { replay_=false; replayLog_.flush(); WriteGpuDiagnostics(); }
-    } else if (captured_) {
+    } else if (captured_ && !debug_ && GetForegroundWindow()==WinApp::GetInstance()->GetHwnd()) {
         const auto key=input_->GetKey();
         auto held=[&](int n) { return input_->IsPress(key[n]); };
         c.moveX=(held(DIK_D)?1.0f:0)-(held(DIK_A)?1.0f:0);
@@ -159,16 +196,17 @@ void InkShooterScene::UpdateCamera(float dt) {
     const auto& p=simulation_.Player();
     const ink::Vec3 forward={std::sin(yaw_)*std::cos(pitch_),-std::sin(pitch_),std::cos(yaw_)*std::cos(pitch_)};
     const ink::Vec3 right={std::cos(yaw_),0,-std::sin(yaw_)};
-    const Vector3 target=V(p.position+ink::Vec3{0,1.45f-0.30f*p.formBlend,0});
+    const Vector3 target=V(p.position+ink::Vec3{0,cameraHeight_-0.16f*p.formBlend,0});
     if (!cameraReady_) { cameraTarget_=target; cameraReady_=true; }
-    const float blend=1.0f-std::exp(-18.0f*dt);
+    const float blend=1.0f-std::exp(-followSharpness_*dt);
     cameraTarget_=cameraTarget_+(target-cameraTarget_)*blend;
     const ink::Vec3 pivot=I(cameraTarget_);
-    const ink::Vec3 desired=pivot-forward*cameraDistance_+right*0.58f;
+    const ink::Vec3 desired=pivot-forward*cameraDistance_+right*shoulderOffset_;
     const auto offset=desired-pivot;
     const auto collision=simulation_.Raycast(pivot,ink::Normalize(offset),ink::Length(offset),0.18f);
     const ink::Vec3 eye=collision.hit ? pivot+ink::Normalize(offset)*(std::max)(0.0f,collision.distance-0.12f) : desired;
     camera_->SetTranslate(V(eye)); camera_->SetRotate({pitch_,yaw_,0});
+    camera_->SetFovY(fovY_);
     auto window=WinApp::GetInstance();
     camera_->SetAspectRatio(static_cast<float>(window->GetClientWidth())/static_cast<float>((std::max)(1,window->GetClientHeight())));
     camera_->Update();
@@ -178,6 +216,7 @@ void InkShooterScene::UpdateCamera(float dt) {
 }
 
 void InkShooterScene::Update() {
+    FinishCapture();
     const auto now=std::chrono::steady_clock::now();
     const float wallDt=std::chrono::duration<float>(now-lastTime_).count(); lastTime_=now;
     const float dt=std::clamp(wallDt,0.0f,0.1f);
@@ -188,6 +227,14 @@ void InkShooterScene::Update() {
     if (triggered(DIK_F1)) { debug_=!debug_; SetCaptured(!debug_); }
     if (triggered(DIK_R)&&captured_) { replay_=false; Reset(); }
     if (triggered(DIK_F9)) { if (replay_) replay_=false; else StartReplay(); }
+    if (triggered(DIK_F10)) RequestCapture("manual");
+    if(captured_ && !replay_) {
+        if(triggered(DIK_1)) EquipCatalogWeapon("splattershot");
+        if(triggered(DIK_2)) EquipCatalogWeapon("tri_stringer");
+        if(triggered(DIK_Q)) CycleWeapon();
+    }
+    const bool inputFocused=replay_ || (captured_ && !debug_ && GetForegroundWindow()==WinApp::GetInstance()->GetHwnd());
+    if(!inputFocused) simulation_.CancelCharge();
     // This scene owns its camera: Shift+D is a gameplay chord, even in editor builds.
     Object3dCommon::GetInstance()->SetIsDebugCamera(false);
     if (captured_) {
@@ -197,6 +244,18 @@ void InkShooterScene::Update() {
         RECT clip={corners[0].x,corners[0].y,corners[1].x,corners[1].y}; ClipCursor(&clip);
     }
     controls_=ReadControls(dt); UpdateCamera(dt); controls_.aimPoint=aimPoint_;
+    // Repeatable validation scenes use explicit world targets; ordinary input
+    // always keeps the camera-ray to muzzle correction above.
+    if(replay_ && extendedReplay_ && replaySection_==3)
+        controls_.aimPoint={0,0.25f+(replayTime_-21)*1.48f,14};
+    if(replay_ && extendedReplay_ && replaySection_==5)
+        controls_.aimPoint=simulation_.Dummy().position;
+    if(replay_ && weaponsReplay_ && replaySection_==6)
+        controls_.aimPoint=simulation_.Dummy().position;
+    if(replay_ && weaponsReplay_ && replaySection_==7)
+        controls_.aimPoint={0,2,14};
+    if(replay_ && feelReplay_ && replaySection_==5)
+        controls_.aimPoint={0,2,14};
     jumpPending_=jumpPending_||controls_.jump;
     accumulator_+=dt;
     constexpr float step=1.0f/120.0f;
@@ -206,19 +265,27 @@ void InkShooterScene::Update() {
     }
     controls_.jump=false;
     paint_.QueueStamps(simulation_.TakePendingStamps());
+    paint_.SetEdgeSmoothing(wetEdges_);
     // Follow after movement, and update the render camera once before drawing actors.
-    UpdateCamera(0); UpdateModels(); UpdateHud(); DrawDebug();
-    if (replay_ && replayTime_-logTime_>=0.5f) {
+    UpdateCamera(0); audio_.Update(dt,simulation_,inputFocused && (replay_ || !debug_)); UpdateVisuals(dt); UpdateModels(); UpdateHud(); DrawDebug();
+    if (replay_ && replayTime_-logTime_>=(feelReplay_?0.05f:0.5f)) {
         logTime_=replayTime_; const auto& p=simulation_.Player();
         replayLog_<<replayTime_<<','<<StateName(p.state)<<','<<p.position.x<<','<<p.position.y<<','<<p.position.z<<','
-            <<p.ink<<','<<p.onOwnInk<<','<<p.grounded<<','<<p.speed<<','<<simulation_.Projectiles().size()<<','<<simulation_.StampCount()<<','<<fps_<<'\n';
+            <<p.ink<<','<<p.onOwnInk<<','<<p.grounded<<','<<p.speed<<','<<simulation_.Projectiles().size()<<','<<simulation_.StampCount()<<','<<fps_<<','
+            <<simulation_.Dummy().hp<<','<<simulation_.Dummy().lastDamage<<','<<replaySection_<<','
+            <<paint_.GetLastPaintGpuMs()<<','<<paint_.GetLastSurfaceGpuMs()<<','<<wetEdges_<<','<<liquid_.GetParticleCount()<<','
+            <<p.onEnemyInk<<','<<simulation_.Droplets().size()<<','<<simulation_.ShotsFired()<<','
+            <<simulation_.ActiveWeaponId()<<','<<simulation_.ChargeTime()<<','<<simulation_.EmbeddedArrows().size()<<','<<simulation_.DrySquidCarryRemaining()<<'\n';
         replayLog_.flush();
     }
 }
 
 void InkShooterScene::UpdateModels() {
     const auto& p=simulation_.Player();
-    const float f=p.formBlend, human=(std::max)(0.001f,1-f);
+    const float f=p.formBlend;
+    const float emerge=visualState_==ink::PlayerState::Human ? std::sin((std::min)(formAge_,0.20f)*15.7f)*std::exp(-formAge_*14)*0.16f : 0;
+    const float human=(std::max)(0.001f,(1-f)*(1+emerge));
+    const float humanWidth=f>0.98f ? 0.001f : 1-f*0.55f;
     const ink::Vec3 right={std::cos(yaw_),0,-std::sin(yaw_)};
     const ink::Vec3 forward={std::sin(yaw_),0,std::cos(yaw_)};
     auto part=[&](int n,ink::Vec3 offset,Vector3 scale,float pitch=0) {
@@ -226,33 +293,61 @@ void InkShooterScene::UpdateModels() {
         actor_[n]->SetScale(scale); actor_[n]->SetRotate({pitch,yaw_,0}); actor_[n]->Update();
     };
     const float stride=std::sin(elapsed_*13)*(std::min)(1.0f,p.speed/2.0f)*0.13f;
-    part(0,{0,0.94f*human,0},{0.49f*human,0.56f*human,0.32f*human});
-    part(1,{0,1.42f*human,0},{0.29f*human,0.29f*human,0.29f*human});
-    part(2,{0,1.43f*human,0.25f*human},{0.43f*human,0.13f*human,0.05f*human});
+    part(0,{0,0.94f*human-0.09f*f,0},{0.49f*humanWidth,0.56f*human,0.32f*humanWidth});
+    part(1,{0,1.42f*human-0.09f*f,0},{0.29f*humanWidth,0.29f*human,0.29f*humanWidth});
+    part(2,{0,1.43f*human-0.09f*f,0.25f*humanWidth},{0.43f*humanWidth,0.13f*human,0.05f*humanWidth});
     const auto muzzle=simulation_.Muzzle(controls_);
-    actor_[3]->SetTranslate(V(muzzle-forward*0.21f));
+    actor_[3]->SetTranslate(V(muzzle-forward*(0.21f+0.10f*visualKick_)-ink::Vec3{0,f*0.9f,0}));
     actor_[3]->SetScale({0.17f*human,0.20f*human,0.63f*human});
-    actor_[3]->SetRotate({pitch_,yaw_,0}); actor_[3]->Update();
+    actor_[3]->SetRotate({pitch_-0.08f*visualKick_,yaw_,0}); actor_[3]->Update();
     part(4,{0,0.95f*human,-0.30f*human},{0.28f*human,0.55f*human,0.21f*human});
     part(5,{-0.32f*human,0.96f*human,0.20f*human},{0.15f*human,0.33f*human,0.18f*human},-0.65f);
     part(6,{0.32f*human,0.96f*human,0.20f*human},{0.15f*human,0.33f*human,0.18f*human},-0.65f);
     part(7,{-0.16f*human,0.33f*human,stride},{0.19f*human,0.56f*human,0.23f*human});
     part(8,{0.16f*human,0.33f*human,-stride},{0.19f*human,0.56f*human,0.23f*human});
     const float swimScale=(std::max)(0.001f,f);
-    part(9,{0,0.13f,0},{0.38f*swimScale,0.13f*swimScale,0.58f*swimScale});
+    const bool exposed=p.state==ink::PlayerState::Squid;
+    const float bodyHeight=exposed?0.21f:0.045f;
+    const float bodyThickness=exposed?0.20f:0.085f;
+    const float airPitch=exposed && !p.grounded?std::clamp(-p.velocity.y*0.045f,-0.30f,0.30f):0;
+    part(9,{0,bodyHeight,0},{0.29f*swimScale,bodyThickness*swimScale,(exposed?0.43f:0.47f)*swimScale},airPitch);
+    part(10,{-0.105f*swimScale,bodyHeight+(exposed?0.09f:0.03f),0.30f*swimScale},{0.045f*swimScale,0.032f*swimScale,0.07f*swimScale});
+    part(11,{0.105f*swimScale,bodyHeight+(exposed?0.09f:0.03f),0.30f*swimScale},{0.045f*swimScale,0.032f*swimScale,0.07f*swimScale});
     if (p.state==ink::PlayerState::WallSwim) {
-        actor_[9]->SetScale({0.38f,0.5f,0.12f});
-        actor_[9]->SetTranslate(V(p.position+ink::Vec3{0,0.3f,0})); actor_[9]->Update();
+        const float wallYaw=std::atan2(p.wallNormal.x,p.wallNormal.z);
+        actor_[9]->SetScale({0.29f,0.43f,0.08f}); actor_[9]->SetRotate({0,wallYaw,0});
+        actor_[9]->SetTranslate(V(p.position-p.wallNormal*0.12f+ink::Vec3{0,0.3f,0})); actor_[9]->Update();
+        for(int n=10;n<12;++n) { actor_[n]->SetScale({0.001f,0.001f,0.001f}); actor_[n]->Update(); }
     }
+    const auto& target=simulation_.Dummy();
+    const float targetScale=target.hp>0?target.radius:target.radius*0.12f;
+    dummy_[0]->SetTranslate(V(target.position)); dummy_[0]->SetScale({targetScale,targetScale,targetScale});
+    dummy_[0]->SetColor(target.hp>0?Vector4{0.94f,0.48f,0.12f,1}:Vector4{0.16f,0.21f,0.23f,1});
+    dummy_[1]->SetTranslate(V(target.position+ink::Vec3{0,-0.6f,0})); dummy_[1]->SetScale({0.16f,0.7f,0.16f});
+    dummy_[2]->SetTranslate(V(target.position+ink::Vec3{0,0,-target.radius-0.008f})); dummy_[2]->SetScale({0.5f,0.08f,0.03f});
+    for(auto& object:dummy_) object->Update();
     effects_->BeginFrame();
+    liquid_.BeginFrame();
     const Vector3 cameraForward={std::sin(yaw_)*std::cos(pitch_),-std::sin(pitch_),std::cos(yaw_)*std::cos(pitch_)};
     for (const auto& shot:simulation_.Projectiles()) {
         const auto direction=ink::Normalize(shot.velocity);
-        effects_->QueueCameraFacingLine(V(shot.position-direction*0.44f),V(shot.position),0.12f,kInk,cameraForward);
+        const float speed=ink::Length(shot.velocity);
+        const bool arrow=shot.projectileKind==ink::ProjectileKind::StringerArrow;
+        const auto color=arrow && shot.explosive?Vector4{0.20f,0.95f,0.74f,1}:kLiquid;
+        liquid_.QueueBlob(V(shot.position),V(shot.velocity),arrow?0.065f:0.115f,color,arrow?3.4f:1.0f+(std::min)(1.15f,speed/65.0f));
+        liquid_.QueueBlob(V(shot.position-direction*(arrow?0.32f:0.24f)),V(shot.velocity),arrow?0.028f:0.052f,kLiquid,arrow?2.8f:1.7f,0,0,InkLiquidKind::Droplet);
     }
     for (const auto& drop:simulation_.Droplets()) {
-        effects_->QueueCameraFacingLine(V(drop.position+ink::Vec3{0,0.10f,0}),V(drop.position),0.065f,kInk,cameraForward);
+        const float widthRatio=drop.paintRadius/(std::max)(0.01f,drop.tuning.paintDropletRadius);
+        liquid_.QueueBlob(V(drop.position),V(drop.velocity),0.047f*std::clamp(widthRatio,0.65f,1.4f),kLiquid,1.55f,0,0,InkLiquidKind::Droplet);
     }
+    for(const auto& burst:bursts_) {
+        if(burst.ripple) liquid_.QueueRipple(V(burst.position),V(burst.normal),burst.radius+burst.age*0.65f,
+            {0.015f,0.48f,0.29f,0.62f},burst.age,burst.lifetime,0.09f);
+        else liquid_.QueueBlob(V(burst.position),V(burst.velocity),burst.radius,kLiquid,1.55f,burst.age,burst.lifetime,InkLiquidKind::Splash);
+    }
+    if(visualKick_>0.12f && human>0.3f)
+        liquid_.QueueBlob(V(muzzle),V(ink::Normalize(aimPoint_-muzzle)),0.15f*visualKick_,kLiquid,1.1f,0,0,InkLiquidKind::Muzzle);
     // World-space impact indicator supplements the screen crosshair at close obstructions.
     const auto muzzleHit=simulation_.Raycast(muzzle,ink::Normalize(aimPoint_-muzzle),ink::Length(aimPoint_-muzzle));
     if (muzzleHit.hit) {
@@ -263,24 +358,38 @@ void InkShooterScene::UpdateModels() {
         effects_->QueueCameraFacingLine(V(center-tangent*0.07f),V(center+tangent*0.07f),0.018f,{1,0.85f,0.3f,1},cameraForward);
         effects_->QueueCameraFacingLine(V(center-up*0.07f),V(center+up*0.07f),0.018f,{1,0.85f,0.3f,1},cameraForward);
     }
+    UpdateWeaponVisuals();
 }
 
 void InkShooterScene::UpdateHud() {
     const auto& p=simulation_.Player();
-    const bool swim=p.state!=ink::PlayerState::Human;
-    stateText_->SetText(replay_ ? std::string("DEMO / ")+StateName(p.state) : !captured_ ? "PAUSED INPUT / Tab to play" :
-        std::string(StateName(p.state))+(p.onOwnInk?" / OWN INK":" / DRY")+(p.ink<0.01f?" / EMPTY":""));
+    stateText_->SetText(replay_ ? std::string("動作デモ / ")+JapaneseState(p.state) : !captured_ ? "設定中 / Tabで操作に戻る" :
+        std::string(JapaneseState(p.state))+(p.onOwnInk?" / 自分のインク":p.onEnemyInk?" / 相手のインク":!p.grounded?" / 空中":" / 未塗装")+(p.ink<0.01f?" / インク切れ":""));
+    if(elapsed_>=dummyTextTime_) {
+        dummyTextTime_=elapsed_+0.20f;
+        const auto& target=simulation_.Dummy(); char text[256]{};
+        std::snprintf(text,sizeof(text),"試射ダミー  HP %.0f / 100\n直前のダメージ %.1f   命中距離 %.2f\n撃破まで %u 発 / 撃破数 %u",
+            target.hp,target.lastDamage,target.lastHitDistance,target.lastShotsToKill,target.kills);
+        dummyText_->SetText(text);
+        std::string weaponLine=simulation_.ActiveWeaponName();
+        if(simulation_.ActiveWeaponClass()==ink::WeaponClass::Stringer) {
+            const auto charge=simulation_.ChargeProfile(); char chargeText[160]{};
+            std::snprintf(chargeText,sizeof(chargeText),"\n%s%d本 / チャージ %.0f%% / %s",
+                p.grounded?"横":"縦",simulation_.stringer.arrowCount,charge.normalizedCharge*100,
+                charge.explosive?"着弾後に爆発":"離すと発射");
+            weaponLine+=chargeText;
+        } else weaponLine+="\n中央：照準 / 外側：左右の拡散範囲";
+        weaponText_->SetText(weaponLine);
+    }
     auto rect=[&](int n,float x,float y,float w,float h,Vector4 color) {
         hud_[n]->SetPosition({x,y}); hud_[n]->SetSize({(std::max)(w,0.01f),h}); hud_[n]->SetColor(color); hud_[n]->Update();
     };
     rect(0,23,69,280,70,{0.015f,0.028f,0.05f,0.85f});
     rect(1,33,112,256,10,{0.11f,0.18f,0.24f,1});
     rect(2,33,112,256*p.ink,10,p.ink<0.12f?Vector4{1,0.32f,0.15f,1}:kInk);
-    const float gap=7+p.accuracy*0.8f;
-    const Vector4 cross=swim?Vector4{0.04f,0.9f,0.75f,0.65f}:Vector4{1,1,1,0.92f};
-    rect(3,640-gap-8,359,8,2,cross); rect(4,640+gap,359,8,2,cross);
-    rect(5,639,360-gap-8,2,8,cross); rect(6,639,360+gap,2,8,cross);
-    rect(7,639,359,2,2,cross);
+    // The reticle has its own antialiased procedural pass. The old cross-shaped
+    // HUD sprites remain transparent so no rectangle approximates the new ring.
+    for(int n=3;n<8;++n) rect(n,0,0,1,1,{0,0,0,0});
 }
 
 void InkShooterScene::DrawPostEffect3D() {
@@ -288,71 +397,28 @@ void InkShooterScene::DrawPostEffect3D() {
     Object3dCommon::GetInstance()->PreDraw(kNone);
     // Bloom applies the current frame's projection jitter just before this pass.
     for (auto& object:actor_) { object->Update(); object->Draw(); }
+    for (auto& object:bow_) { object->Update(); object->Draw(); }
+    for (auto& object:dummy_) { object->Update(); object->Draw(); }
+    const Vector3 right={std::cos(yaw_),0,-std::sin(yaw_)};
+    const Vector3 up={std::sin(yaw_)*std::sin(pitch_),std::cos(pitch_),std::cos(yaw_)*std::sin(pitch_)};
+    liquid_.Draw(camera_->GetViewProjectionMatrix(),camera_->GetTranslate(),right,up);
     effects_->DrawAll(camera_->GetViewProjectionMatrix());
 }
 
 void InkShooterScene::DrawSprite() {
     for (auto& sprite:hud_) sprite->Draw();
-    title_->Draw(); guide_->Draw(); stateText_->Draw();
-}
-
-void InkShooterScene::DrawDebug() {
-#ifdef USE_IMGUI
-    if (!debug_) return;
-    ImGui::SetNextWindowPos({900,25},ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize({365,580},ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Ink shooter / F1",&debug_)) {
-        const auto& p=simulation_.Player();
-        ImGui::Text("FPS %.1f | fixed simulation 120 Hz",fps_);
-        ImGui::Text("State: %s",StateName(p.state));
-        ImGui::ProgressBar(p.ink,{-1,0},"Ink tank");
-        ImGui::Text("Own ink %s | Grounded %s",p.onOwnInk?"yes":"no",p.grounded?"yes":"no");
-        ImGui::Text("Speed %.2f | XYZ %.2f %.2f %.2f",p.speed,p.position.x,p.position.y,p.position.z);
-        ImGui::Text("Spread cone %.2f degrees",p.accuracy);
-        ImGui::Text("Projectiles %zu | Paint stamps %zu",simulation_.Projectiles().size(),simulation_.StampCount());
-        ImGui::TextUnformatted("Weapon: Splattershot-inspired / 11.3.0");
-        auto& w=simulation_.weapon;
-        ImGui::Text("Fire interval %.3fs | %.1f shots/s",w.FireInterval(),1.0f/w.FireInterval());
-        if (ImGui::CollapsingHeader("Weapon and movement tuning")) {
-            ImGui::SliderFloat("Repeat frames",&w.repeatFrame,3,15,"%.1f");
-            ImGui::SliderFloat("Ink / shot",&w.inkConsume,0.001f,0.04f,"%.4f");
-            ImGui::SliderFloat("Recovery lock",&w.inkRecoverStop,0,1,"%.3fs");
-            ImGui::SliderFloat("Projectile speed",&w.projectileSpeed,20,100);
-            ImGui::SliderFloat("Ground spread",&w.groundSpread,0,15);
-            ImGui::SliderFloat("Jump spread",&w.jumpSpread,0,30);
-            ImGui::SliderFloat("Droplet spacing",&w.paintDropletSpacing,0.3f,3);
-            ImGui::SliderFloat("Impact radius",&w.impactPaintRadius,0.2f,2);
-            ImGui::SliderFloat("Human speed",&simulation_.movement.humanSpeed,1,6);
-            ImGui::SliderFloat("Swim speed",&simulation_.movement.swimSpeed,2,12);
-        }
-        ImGui::SliderFloat("Mouse sensitivity",&sensitivity_,0.0005f,0.008f,"%.4f");
-        ImGui::Checkbox("Invert mouse pitch",&invertPitch_);
-        ImGui::SliderFloat("Camera distance",&cameraDistance_,2,7);
-        if (ImGui::Button("Reset stage / R")) Reset();
-        ImGui::SameLine(); if (ImGui::Button("Run demo / F9")) StartReplay();
-        if (ImGui::Button("Paint climb lane (debug)")) {
-            const auto& surfaces=simulation_.Surfaces();
-            for (uint32_t n=0;n<static_cast<uint32_t>(surfaces.size());++n) {
-                const auto& s=surfaces[n];
-                if (!s.inkable) continue;
-                for (float y=0;y<s.height;y+=0.6f) {
-                    for (float x=0;x<s.width;x+=0.6f) {
-                        const auto world=s.origin+s.u*x+s.v*y;
-                        if (std::abs(world.x)<1.2f && world.z>-9 && world.z<15)
-                            simulation_.Paint({n,x,y,0.6f,0.6f,0,1});
-                    }
-                }
-            }
-        }
-        ImGui::Separator();
-        ImGui::TextUnformatted("Gyro unavailable (no sensor backend)");
-        ImGui::TextUnformatted("Raw X/Y/Z: -- / -- / --");
-        ImGui::TextWrapped("Mouse is fully supported. SDL3 sensor input is documented as the next optional step.");
-        if (ImGui::CollapsingHeader("GPU paint atlas")) {
-            const auto handle=Object3dCommon::GetInstance()->GetSrvManager()->GetGPUDescriptorHandle(paint_.GetMaskSrvIndex());
-            ImGui::Image(static_cast<ImTextureID>(handle.ptr),{300,300});
-        }
-    }
-    ImGui::End();
-#endif
+    title_->Draw(); guide_->Draw(); stateText_->Draw(); dummyText_->Draw(); weaponText_->Draw();
+    InkReticleState state;
+    state.stringer=simulation_.ActiveWeaponClass()==ink::WeaponClass::Stringer;
+    state.projectileCount=simulation_.stringer.arrowCount;
+    state.spreadDegrees=simulation_.Player().accuracy;
+    state.submerged=ink::IsSubmerged(simulation_.Player().state);
+    state.vertical=!simulation_.Player().grounded;
+    const auto profile=simulation_.ChargeProfile();
+    state.charge=simulation_.IsCharging()?profile.normalizedCharge:0;
+    state.firstChargeRatio=simulation_.stringer.midChargeTime/(std::max)(0.001f,simulation_.stringer.fullChargeTime);
+    state.outOfInk=simulation_.Player().ink<(state.stringer?profile.inkConsume:simulation_.weapon.inkConsume);
+    const auto viewport=Object3dCommon::GetInstance()->GetDxCommon()->GetViewportRect();
+    reticle_.Draw(state,viewport.Width,viewport.Height,fovY_);
+    CopyCapture();
 }
