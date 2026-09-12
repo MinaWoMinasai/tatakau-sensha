@@ -41,6 +41,8 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		// メッセージに応じてゲーム固有の処理を行う
 		switch (msg) {
 		case WM_ACTIVATEAPP:
+			// A captured gameplay mouse must never trap the cursor after Alt+Tab.
+			if (!wparam) ClipCursor(nullptr);
 			WinApp::GetInstance()->isActive_ = wparam != FALSE;
 			WinApp::GetInstance()->activationChanged_ = true;
 			return 0;
