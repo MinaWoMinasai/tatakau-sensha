@@ -25,9 +25,9 @@ struct ShooterWeaponParams {
     float freeAirResistance = 0.02f;
     float effectiveRange = 11.56f * 0.5f; // community empirical target-hit range, angle dependent
     float projectileLifetime = 2.0f; // prototype cleanup limit
-    float playerHitRadius = 0.285f * 0.5f; // reserved for future targets
+    float playerHitRadius = 0.285f * 0.5f;
     float stageHitRadius = 0.2f * 0.5f;
-    float baseDamage = 36.0f; // reserved; this prototype has no damageable targets
+    float baseDamage = 36.0f;
     float minimumDamage = 18.0f;
     float damageFalloffStart = 8.0f / 60.0f;
     float damageFalloffEnd = 40.0f / 60.0f;
@@ -43,23 +43,52 @@ struct ShooterWeaponParams {
     float jumpAccuracyRecoveryEnd = 70.0f / 60.0f;
     float moveSpeedWhileFiring = 0.072f * 60.0f * 0.5f;
     // Source SplashSpawn spacing=9.2 raw, nearest=1.2 raw, SpawnNum=1.5,
-    // SplitNum=8. Their native spawn algorithm is unavailable: distribute eight
-    // visible falling drops over this prototype's shortened ballistic path.
-    int paintDropletCount = 8;
+    // SplitNum=8. Native phase order and fractional-count rounding are unknown.
+    // CG2 stratifies eight phases and alternates a 1/2-drop emission budget.
+    int paintDropletCount = 12; // allocation cap; zero disables flight drops
     float sourcePaintDropletSpacing = 9.2f * 0.5f;
     float sourcePaintDropletSpawnCount = 1.5f;
-    float paintDropletSpacing = 1.15f; // prototype distribution
+    float paintDropletSpacing = 9.2f * 0.5f;
     float firstPaintDropletDistance = 1.2f * 0.5f;
     float paintDropletRadius = 1.472f * 0.5f;
     float nearestPaintDropletRadius = 2.0608f * 0.5f;
     float impactPaintRadius = 1.93f * 0.5f;
     float distantImpactPaintRadius = 1.71f * 0.5f;
+    // 11.3.0 SplashPaint/ImpactPaint source values. Width is a brush envelope;
+    // opaque core fill and the lobe placement below remain CG2 approximations.
+    float sourceImpactDepthScaleMin = 1.31f;
+    float sourceImpactDepthScaleMax = 2.24f;
+    float sourceBreakFreeDepthScaleMin = 1.12f;
+    float sourceBreakFreeDepthScaleMax = 2.24f;
+    float sourceDepthAngleMin = 35.0f; // shared source degree threshold, from tangent
+    float sourceDepthAngleMax = 10.0f;
+    float sourceImpactWidthHalfMiddle = 1.93f * 0.5f;
+    float sourceImpactDistanceMiddle = 1.1f * 0.5f;
+    int sourcePaintDropletSplitCount = 8;
+    int sourceForceNearestAddCount = 4;
+    float sourceDropletDepthMaxDropHeight = 3.0f * 0.5f;
+    float sourceDropletDepthMinDropHeight = 10.0f * 0.5f;
+    float impactCoreScale = 0.68f; // CG2 envelope-to-solid-core approximation
+    float dropletCoreScale = 0.55f;
+    float footCoreScale = 0.43f;
+    float scatterRadiusScale = 0.11f;
+    float impactNormalDepthScale = 1.0f; // CG2 normal-incidence roundness (not source)
+    int footRescueEveryShots = 4; // CG2 dry-foot condition, not an interpretation of the source array
     float FireInterval() const { return repeatFrame / 60.0f; }
 };
 
 struct MovementParams {
     float humanSpeed = 0.096f * 60.0f * 0.5f;
     float swimSpeed = 0.192f * 60.0f * 0.5f;
+    float enemyInkSpeed = 0.024f * 60.0f * 0.5f;
+    float enemyInkShotSpeed = 0.012f * 60.0f * 0.5f;
+    float enemyInkJumpSpeed = 0.08f * 60.0f * 0.5f;
+    float drySquidSpeed = 0.9f; // CG2 exposed-form crawl, native value unverified
+    // CG2 boundary inertia: only carry existing floor-swim velocity onto dry
+    // ground. Native friction/timing are unverified; these are explicit tuning.
+    float drySquidCarryDeceleration = 9.0f;
+    float drySquidCarryMaxTime = 0.60f;
+    float drySquidCarryBrakeMultiplier = 2.2f;
     float humanInkRecovery = 1.0f / 10.0f;
     float swimInkRecovery = 1.0f / 3.0f;
     // Collision, acceleration, jump and form timings below are prototype tuning.

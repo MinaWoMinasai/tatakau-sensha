@@ -1,6 +1,8 @@
 #pragma once
 #include <cmath>
 #include <cstdint>
+#include "InkEmissionPattern.h"
+#include "ShooterWeaponParams.h"
 
 namespace ink {
 struct Vec3 {
@@ -24,12 +26,14 @@ struct Surface {
     bool inkable=true;
     Vec3 color={0.38f,0.43f,0.48f};
 };
+enum class PaintKind { Main, Droplet, Scatter, Foot, Explosion };
 // Local surface coordinates in WORLD units. Both masks consume identical stamps.
 // Union of rotated ellipses builds an irregular splash without visual/query disagreement.
 struct PaintStamp {
     uint32_t surface=0;
     float u=0, v=0, radiusU=0.4f, radiusV=0.4f, angle=0;
     uint32_t team=1;
+    PaintKind kind=PaintKind::Main; // metadata only: CPU and GPU use the same ellipse
 };
 struct RayHit {
     bool hit=false;
@@ -42,17 +46,56 @@ struct Controls {
     bool fire=false, swim=false, jump=false;
     Vec3 aimPoint={0,1,10};
 };
-enum class PlayerState { Human, Swim, WallSwim };
+// Form is independent of whether ink covers the supporting surface.
+enum class PlayerState { Human, Squid, Swim, WallSwim };
+inline bool IsSubmerged(PlayerState state) { return state==PlayerState::Swim || state==PlayerState::WallSwim; }
 struct PlayerStatus {
     Vec3 position={0,0,-8}, velocity;
     PlayerState state=PlayerState::Human;
-    bool grounded=true, onOwnInk=false;
+    bool grounded=true, onOwnInk=false, onEnemyInk=false;
     float ink=1, speed=0, accuracy=0, formBlend=0;
     Vec3 wallNormal={0,0,-1};
 };
+enum class ProjectileKind { Shooter, StringerArrow };
 struct Projectile {
     Vec3 position, velocity;
     float age=0, distance=0, nextDroplet=0;
     int droplets=0;
+    PaintKind kind=PaintKind::Main;
+    float paintRadius=0;
+    ShotEmissionPlan emission;
+    // Fired shots retain their own physics and brush values through edits/equip.
+    ShooterWeaponParams tuning;
+    ProjectileKind projectileKind=ProjectileKind::Shooter;
+    float directDamage=0, explosionDelay=0, explosionDamage=0, explosionRadius=0, explosionPaintRadius=0,explosionOffset=0;
+    float brakeDuration=0, freeGravity=0, freeDrag=0;
+    bool explosive=false;
+};
+struct EmbeddedArrow {
+    Vec3 position,normal,direction;
+    uint32_t surface=0;
+    float remaining=0,duration=0,damage=0,radius=0,paintRadius=0,offset=0;
+    ShooterWeaponParams tuning;
+};
+// Cosmetic consumers drain these independently of persistent owner-mask stamps.
+struct ImpactEvent {
+    uint64_t sequence=0;
+    Vec3 position, normal, velocity;
+    float radius=0;
+    PaintKind kind=PaintKind::Main;
+};
+// Drained independently of paint/visual events. Emitted by successful gameplay
+// transitions, so low render FPS cannot turn a release into three shot sounds.
+enum class AudioCue { ShooterShot, StringerShot, ChargeStart, ChargeFirst, ChargeFull,
+    ChargeCancel, ArrowStick, ArrowBurst, Empty };
+struct AudioEvent {
+    AudioCue cue=AudioCue::ShooterShot;
+    Vec3 position;
+    int chargeLevel=0;
+};
+struct DummyStatus {
+    Vec3 position={3,1.1f,1};
+    float radius=0.5f, hp=100, lastDamage=0, lastHitDistance=0, resetRemaining=0;
+    uint32_t hits=0, lastShotsToKill=0, kills=0;
 };
 } // namespace ink

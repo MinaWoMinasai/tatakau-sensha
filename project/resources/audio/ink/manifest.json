@@ -1,0 +1,211 @@
+{
+  "version": "ink-original-synthesis-1.0",
+  "original_procedural_synthesis": true,
+  "recorded_audio_read_or_mixed": false,
+  "auditory_review_performed": false,
+  "sample_rate": 48000,
+  "channels": 1,
+  "format": "signed 16-bit PCM",
+  "seed": 574211,
+  "numpy_version": "2.3.5",
+  "script": "project/tools/generate_ink_audio.py",
+  "script_sha256": "b25b6937b163933e8e16a506275db3a34886ee9798cac873df32f0594dae24e4",
+  "design_reference": "Only qualitative envelope, wet/plucked character and gameplay timing from user-provided videos. No audio waveform samples used.",
+  "parameters": {
+    "shot_peak_limit": 0.65,
+    "cue_impact_peak_limit": 0.4,
+    "charge_loop_peak": 0.36,
+    "charge_loop_period_seconds": 0.12,
+    "modal_ratios": [
+      1,
+      1.437,
+      2.193,
+      2.713,
+      3.871
+    ],
+    "charge_loop_cycles": [
+      48,
+      96,
+      159,
+      264,
+      360,
+      528
+    ]
+  },
+  "assets": [
+    {
+      "file": "shooter_shot.wav",
+      "seed": 3864424386,
+      "algorithm": "shooter",
+      "duration_seconds": 0.12,
+      "peak_linear": 0.65,
+      "rms_dbfs": -17.660827540138392,
+      "sha256": "a67220bfd14919e325fda66f53b360df4bc3b0359d58db1e6b2077125cd00499",
+      "loop": false
+    },
+    {
+      "file": "stringer_tap.wav",
+      "seed": 3634367557,
+      "algorithm": "stringer_tap",
+      "duration_seconds": 0.2,
+      "peak_linear": 0.65,
+      "rms_dbfs": -19.728763155002753,
+      "sha256": "0397b1fc47cceb7e288078fb9d0cdaa9ed0e5b22a4de801e034688189c144c2c",
+      "loop": false
+    },
+    {
+      "file": "stringer_mid.wav",
+      "seed": 424987343,
+      "algorithm": "stringer_mid",
+      "duration_seconds": 0.26,
+      "peak_linear": 0.65,
+      "rms_dbfs": -19.576896419138063,
+      "sha256": "c4b7420bd03f3995b90b7a94392e05416906d0324121d11e42efa676f68b9d49",
+      "loop": false
+    },
+    {
+      "file": "stringer_full.wav",
+      "seed": 237077618,
+      "algorithm": "stringer_full",
+      "duration_seconds": 0.32,
+      "peak_linear": 0.65,
+      "rms_dbfs": -20.955661307108624,
+      "sha256": "ede62c206321caf906f371325a92b19a8e741a84a135072d00812a20662ad65a",
+      "loop": false
+    },
+    {
+      "file": "charge_loop.wav",
+      "seed": 3918836530,
+      "algorithm": "charging_loop",
+      "duration_seconds": 0.12,
+      "peak_linear": 0.36000000000000004,
+      "rms_dbfs": -17.802339330293353,
+      "sha256": "5cc9e6fb11bc8811b734d0a7a1fe8d2c124eece2c031cae1d6b52e5de852e587",
+      "loop": true
+    },
+    {
+      "file": "charge_first.wav",
+      "seed": 2220695932,
+      "algorithm": "charge_first",
+      "duration_seconds": 0.12,
+      "peak_linear": 0.4,
+      "rms_dbfs": -22.602225410949615,
+      "sha256": "48a607fe1e9817ae3f43853bd71885a839719c13c7e4fca5e2b12858c89b8144",
+      "loop": false
+    },
+    {
+      "file": "charge_full.wav",
+      "seed": 2830400124,
+      "algorithm": "charge_full",
+      "duration_seconds": 0.18,
+      "peak_linear": 0.4,
+      "rms_dbfs": -22.981491803226742,
+      "sha256": "ba3c9f073e6ba4d03f9624e6134981dc8d4e251dd250b3a5514e5d5d07cd0017",
+      "loop": false
+    },
+    {
+      "file": "arrow_stick.wav",
+      "seed": 2189016766,
+      "algorithm": "stick",
+      "duration_seconds": 0.075,
+      "peak_linear": 0.4,
+      "rms_dbfs": -24.7178709199361,
+      "sha256": "7e835cb6548ff8009968f6726bfe31673dd322aa8cc82f1117944e19b898c8aa",
+      "loop": false
+    },
+    {
+      "file": "arrow_burst.wav",
+      "seed": 2969318620,
+      "algorithm": "burst",
+      "duration_seconds": 0.3,
+      "peak_linear": 0.4,
+      "rms_dbfs": -24.1221274205148,
+      "sha256": "808f82ec27818bcf6966b2e64e0cc60ee403995e1a0481238ba9fb4da343f9d8",
+      "loop": false
+    }
+  ],
+  "preview": {
+    "file": "preview_stringer_sequence.wav",
+    "duration_seconds": 6.8,
+    "master": 0.55,
+    "shot_volume": 0.8,
+    "charge_volume": 0.38,
+    "impact_volume": 0.55,
+    "pitch_ratio": ".8 + .35 * charge_progress",
+    "peak_linear": 0.28600000000000003,
+    "events": [
+      {
+        "asset": "stringer_tap.wav",
+        "start_seconds": 0.2,
+        "duration_seconds": 0.2,
+        "volume_before_master": 0.8
+      },
+      {
+        "asset": "charge_loop.wav",
+        "start_seconds": 1.1,
+        "duration_seconds": 0.6,
+        "volume_before_master": 0.38
+      },
+      {
+        "asset": "charge_first.wav",
+        "start_seconds": 1.6,
+        "duration_seconds": 0.12,
+        "volume_before_master": 0.38
+      },
+      {
+        "asset": "stringer_mid.wav",
+        "start_seconds": 1.76,
+        "duration_seconds": 0.26,
+        "volume_before_master": 0.8
+      },
+      {
+        "asset": "arrow_stick.wav",
+        "start_seconds": 1.94,
+        "duration_seconds": 0.075,
+        "volume_before_master": 0.55
+      },
+      {
+        "asset": "arrow_burst.wav",
+        "start_seconds": 2.66,
+        "duration_seconds": 0.3,
+        "volume_before_master": 0.55
+      },
+      {
+        "asset": "charge_loop.wav",
+        "start_seconds": 3.3,
+        "duration_seconds": 1.2,
+        "volume_before_master": 0.38
+      },
+      {
+        "asset": "charge_first.wav",
+        "start_seconds": 3.8,
+        "duration_seconds": 0.12,
+        "volume_before_master": 0.38
+      },
+      {
+        "asset": "charge_full.wav",
+        "start_seconds": 4.5,
+        "duration_seconds": 0.18,
+        "volume_before_master": 0.38
+      },
+      {
+        "asset": "stringer_full.wav",
+        "start_seconds": 4.66,
+        "duration_seconds": 0.32,
+        "volume_before_master": 0.8
+      },
+      {
+        "asset": "arrow_stick.wav",
+        "start_seconds": 4.84,
+        "duration_seconds": 0.075,
+        "volume_before_master": 0.55
+      },
+      {
+        "asset": "arrow_burst.wav",
+        "start_seconds": 5.56,
+        "duration_seconds": 0.3,
+        "volume_before_master": 0.55
+      }
+    ]
+  }
+}

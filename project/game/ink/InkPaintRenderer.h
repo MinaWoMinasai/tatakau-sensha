@@ -35,12 +35,18 @@ public:
     uint32_t GetMaskSrvIndex() const { return maskSrvIndex_; }
     uint32_t GetLastStampCount() const { return lastStampCount_; }
     uint32_t GetSurfaceCount() const { return static_cast<uint32_t>(surfaces_.size()); }
+    void SetEdgeSmoothing(bool enabled) { edgeSmoothing_ = enabled; }
+    bool GetEdgeSmoothing() const { return edgeSmoothing_; }
+    // Previous completed frame, sampled after the engine's existing fence.
+    float GetLastPaintGpuMs() const { return lastPaintGpuMs_; }
+    float GetLastSurfaceGpuMs() const { return lastSurfaceGpuMs_; }
 
 private:
     void Release();
     void CreatePipelines();
     void FlushStamps();
     void TransitionMask(D3D12_RESOURCE_STATES state);
+    void ReadGpuTimings();
 
     DirectXCommon* dxCommon_ = nullptr;
     SrvManager* srvManager_ = nullptr;
@@ -53,9 +59,16 @@ private:
     Microsoft::WRL::ComPtr<ID3D12RootSignature> surfaceRoot_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> paintPso_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> surfacePso_;
+    Microsoft::WRL::ComPtr<ID3D12QueryHeap> timestampHeap_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> timestampReadback_;
     uint32_t maskSrvIndex_ = 0;
     uint32_t maskUavIndex_ = 0;
     uint32_t lastStampCount_ = 0;
     bool clearPending_ = true;
+    bool edgeSmoothing_ = true;
+    bool timestampsReady_ = false;
+    uint64_t timestampFrequency_ = 0;
+    float lastPaintGpuMs_ = 0;
+    float lastSurfaceGpuMs_ = 0;
     D3D12_RESOURCE_STATES maskState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 };
