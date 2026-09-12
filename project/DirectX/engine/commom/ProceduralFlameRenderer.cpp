@@ -106,28 +106,21 @@ void ProceduralFlameRenderer::SetParameters(const Parameters& parameters)
 
 void ProceduralFlameRenderer::Update(float deltaTime)
 {
-	const float scaledDeltaTime = (std::max)(deltaTime, 0.0f) * parameters_.flowSpeed;
+	const float scaledDeltaTime = std::isfinite(deltaTime)
+		? (std::max)(deltaTime, 0.0f) * parameters_.flowSpeed
+		: 0.0f;
 	for (uint32_t index = 0; index < parameters_.activeMetaballCount; ++index) {
 		auto& metaball = metaballs_[index];
 		metaball.age += scaledDeltaTime;
-		metaball.baseX += metaball.velocity.x * scaledDeltaTime;
-		metaball.position.y += metaball.velocity.y * scaledDeltaTime;
-
-		const float swayTime = metaball.age * (1.15f + metaball.seed * 1.35f);
-		const float primarySway = std::sin(swayTime + metaball.phase);
-		const float secondarySway = std::sin(swayTime * 0.47f + metaball.phase * 1.73f);
-		const float life = std::clamp(metaball.age / metaball.lifetime, 0.0f, 1.0f);
-		const float separation = metaball.isSatellite
-			? SmoothStep01((life - 0.16f) / 0.58f) * parameters_.satelliteSeparation
-			: 0.0f;
-		metaball.position.x = metaball.baseX
-			+ (primarySway * 0.72f + secondarySway * 0.28f)
-			* metaball.lateralSway * parameters_.swayStrength
-			+ metaball.separationDirection * separation;
-
-		if (metaball.age >= metaball.lifetime || metaball.position.y - metaball.radius > 1.12f) {
+		// The two roots never disappear. Rising lobes retain every fraction of
+		// elapsed time across respawns, including multiple generations in a
+		// long frame, so their seeded trajectory does not depend on frame rate.
+		while (index >= 2u && metaball.age >= metaball.lifetime) {
+			const float remainingAge = metaball.age - metaball.lifetime;
 			RespawnMetaball(index);
+			metaball.age = remainingAge;
 		}
+		EvaluateMetaball(index);
 	}
 }
 
@@ -137,7 +130,7 @@ void ProceduralFlameRenderer::ResetMetaballs()
 	uint32_t satelliteOrdinal = 0;
 	uint32_t bodyCount = 0;
 	uint32_t satelliteCount = 0;
-	for (uint32_t index = 0; index < kMaxMetaballs; ++index) {
+	for (uint32_t index = 2; index < parameters_.activeMetaballCount; ++index) {
 		if (index % 3u == 2u) {
 			++satelliteCount;
 		} else {
@@ -146,10 +139,14 @@ void ProceduralFlameRenderer::ResetMetaballs()
 	}
 	for (uint32_t index = 0; index < kMaxMetaballs; ++index) {
 		metaballs_[index].generation = 0;
+		if (index < 2u) {
+			RespawnMetaball(index);
+			continue;
+		}
 		const bool satellite = index % 3u == 2u;
 		const uint32_t ordinal = satellite ? satelliteOrdinal++ : bodyOrdinal++;
-		const uint32_t roleCount = satellite ? satelliteCount : bodyCount;
-		const float lifeFraction = (static_cast<float>(ordinal) + 0.35f) /
+		const uint32_t roleCount = (std::max)(satellite ? satelliteCount : bodyCount, 1u);
+		const float lifeFraction = (static_cast<float>(ordinal % roleCount) + 0.35f) /
 			static_cast<float>(roleCount);
 		RespawnMetaball(index, lifeFraction);
 	}
@@ -167,40 +164,75 @@ void ProceduralFlameRenderer::RespawnMetaball(uint32_t index, float initialLifeF
 	metaball.seed = Hash01(key + 5u);
 	metaball.phase = Hash01(key + 6u) * 6.28318530718f;
 
-	// Two deterministic roles keep the lower field dense while guaranteeing
-	// that a few smaller points can peel away above it. Positions remain fully
-	// animated and seeded; the roles define tendencies, not a fixed silhouette.
+	// Two permanent roots feed larger rising tongues and short-lived embers.
+	// Every respawn uses its own seed, so detached lobes do not repeat one
+	// rigid loop or settle into the evenly spaced bubbles of a lava lamp.
+	const bool root = index < 2u;
 	metaball.isSatellite = index % 3u == 2u;
 	const bool satellite = metaball.isSatellite;
 	metaball.lifetime = satellite
-		? 3.0f + speedRandom * 1.2f
-		: 4.8f + speedRandom * 1.5f;
+		? 1.65f + speedRandom * 0.95f
+		: 2.75f + speedRandom * 1.15f;
 	metaball.baseRadius = satellite
-		? 0.048f + sizeRandom * 0.030f
-		: 0.105f + sizeRandom * 0.050f;
+		? 0.047f + sizeRandom * 0.032f
+		: 0.092f + sizeRandom * 0.039f;
+	if (root) {
+		metaball.baseRadius = index == 0u ? 0.114f : 0.096f;
+	}
 	metaball.radius = metaball.baseRadius;
 	metaball.lateralSway = satellite
-		? 0.070f + swayRandom * 0.065f
-		: 0.025f + swayRandom * 0.040f;
-	metaball.velocity.x = (Hash01(key + 7u) - 0.5f) * (satellite ? 0.020f : 0.008f);
-	const float verticalStart = satellite ? 0.40f : 0.13f;
-	const float verticalTravel = satellite ? 0.64f : 0.50f;
+		? 0.065f + swayRandom * 0.055f
+		: 0.040f + swayRandom * 0.065f;
+	metaball.velocity.x = (Hash01(key + 7u) - 0.5f) * (satellite ? 0.037f : 0.018f);
+	const float verticalTravel = 0.61f;
 	metaball.velocity.y = verticalTravel / metaball.lifetime;
 	metaball.baseX = 0.5f + (offsetRandom - 0.5f) * parameters_.spawnSpread
-		* (satellite ? 0.95f : 0.65f);
+		* (satellite ? 1.05f : 0.72f);
+	if (root) {
+		metaball.baseX = index == 0u ? 0.48f : 0.525f;
+	}
 	metaball.separationDirection = Hash01(key + 8u) < 0.5f ? -1.0f : 1.0f;
 
 	const float progress = std::clamp(initialLifeFraction, 0.0f, 0.98f);
 	metaball.age = metaball.lifetime * progress;
-	metaball.position.y = verticalStart + progress * verticalTravel;
-	metaball.baseX += metaball.velocity.x * metaball.age;
-	const float swayTime = metaball.age * (1.15f + metaball.seed * 1.35f);
-	const float separation = satellite
-		? SmoothStep01((progress - 0.16f) / 0.58f) * parameters_.satelliteSeparation
-		: 0.0f;
-	metaball.position.x = metaball.baseX + std::sin(swayTime + metaball.phase)
-		* metaball.lateralSway * parameters_.swayStrength
-		+ metaball.separationDirection * separation;
+	EvaluateMetaball(index);
+}
+
+void ProceduralFlameRenderer::EvaluateMetaball(uint32_t index)
+{
+	auto& metaball = metaballs_[index];
+	const bool root = index < 2u;
+	const float life = std::clamp(metaball.age / metaball.lifetime, 0.0f, 1.0f);
+	const float swayTime = metaball.age * (1.85f + metaball.seed * 1.75f);
+	const float primarySway = std::sin(swayTime + metaball.phase);
+	const float secondarySway = std::sin(swayTime * 0.57f + metaball.phase * 1.73f);
+	const float sway = primarySway * 0.72f + secondarySway * 0.28f;
+	if (root) {
+		metaball.position.x = metaball.baseX + sway * 0.018f * parameters_.swayStrength;
+		metaball.position.y = (index == 0u ? 0.145f : 0.245f)
+			+ std::sin(swayTime * 0.69f + metaball.phase) * 0.009f;
+	} else {
+		const float lift = life * (0.44f + 0.56f * life);
+		const float verticalStart = metaball.isSatellite
+			? 0.37f + metaball.seed * 0.08f
+			: 0.17f + metaball.seed * 0.04f;
+		metaball.position.y = verticalStart
+			+ metaball.velocity.y * metaball.lifetime * lift;
+		const float separation = metaball.isSatellite
+			? SmoothStep01((life - 0.08f) / 0.62f) * parameters_.satelliteSeparation
+			: 0.0f;
+		metaball.position.x = metaball.baseX + metaball.velocity.x * metaball.age
+			+ sway * metaball.lateralSway * parameters_.swayStrength
+			* (0.32f + 0.68f * SmoothStep01(life))
+			+ metaball.separationDirection * separation;
+	}
+	const float upperShrinkStart = metaball.isSatellite ? 0.35f : 0.43f;
+	const float upperShrink = root ? 0.0f : SmoothStep01(
+		(life - upperShrinkStart) / (1.0f - upperShrinkStart));
+	const float pulse = 0.96f + 0.04f * std::sin(
+		metaball.age * (2.9f + metaball.seed * 1.6f) + metaball.phase);
+	metaball.radius = metaball.baseRadius * parameters_.radiusScale * pulse
+		* (1.0f - upperShrink * (metaball.isSatellite ? 0.53f : 0.48f));
 }
 
 void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
@@ -262,8 +294,8 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
 		Vector4{ 1.00f, 0.92f, 0.28f, 1.0f },
 		Vector4{ 0.42f, 1.00f, 0.50f, 1.0f },
 		Vector4{ 0.30f, 0.88f, 1.00f, 1.0f },
-		Vector4{ 1.00f, 0.48f, 0.78f, 1.0f },
-		Vector4{ 0.80f, 1.00f, 0.26f, 1.0f },
+		Vector4{ 1.00f, 0.12f, 0.72f, 1.0f },
+		Vector4{ 0.72f, 0.28f, 1.00f, 1.0f },
 	};
 	parameterData_->starSparkData = kStarSparkData;
 	parameterData_->starSparkColors = kStarSparkColors;
@@ -273,24 +305,23 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
 			parameterData_->metaballs[index] = {};
 			continue;
 		}
-		auto& metaball = metaballs_[index];
+		// Re-evaluate while paused as well so radius/sway controls respond at
+		// the frozen time without changing the seeded animation state.
+		EvaluateMetaball(index);
+		const auto& metaball = metaballs_[index];
 		const float life = std::clamp(metaball.age / metaball.lifetime, 0.0f, 1.0f);
-		const float fadeIn = SmoothStep01(life / (metaball.isSatellite ? 0.10f : 0.07f));
-		const float fadeOutStart = metaball.isSatellite ? 0.78f : 0.88f;
+		const float fadeIn = SmoothStep01(life / (metaball.isSatellite ? 0.14f : 0.10f));
+		const float fadeOutStart = metaball.isSatellite ? 0.74f : 0.77f;
 		const float fadeOut = 1.0f - SmoothStep01(
 			(life - fadeOutStart) / (1.0f - fadeOutStart));
-		const float upperShrinkStart = metaball.isSatellite ? 0.58f : 0.70f;
-		const float upperShrink = SmoothStep01(
-			(life - upperShrinkStart) / (1.0f - upperShrinkStart));
-		const float pulse = 0.91f + 0.09f * std::sin(
-			metaball.age * (2.2f + metaball.seed * 1.6f) + metaball.phase);
-		metaball.radius = metaball.baseRadius * parameters_.radiusScale * pulse
-			* (1.0f - upperShrink * (metaball.isSatellite ? 0.58f : 0.32f));
+		const float contribution = index < 2u
+			? (index == 0u ? 1.36f : 1.08f)
+			: fadeIn * fadeOut;
 		parameterData_->metaballs[index] = {
 			metaball.position.x,
 			metaball.position.y,
 			metaball.radius,
-			fadeIn * fadeOut,
+			contribution,
 		};
 	}
 }
