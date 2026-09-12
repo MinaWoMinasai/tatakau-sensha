@@ -68,15 +68,28 @@ float Hash21(float2 p)
 
 // Smooth lattice value noise. This is intentionally compact and authored for
 // this renderer; no third-party shader code is embedded here.
+float LatticeHash(int2 cell)
+{
+    // Integer arithmetic gives a shared corner exactly the same value from
+    // either adjacent cell, including negative coordinates and fused math.
+    uint key = asuint(cell.x) * 0x9e3779b9u ^ asuint(cell.y) * 0x85ebca6bu;
+    key ^= key >> 16;
+    key *= 0x7feb352du;
+    key ^= key >> 15;
+    key *= 0x846ca68bu;
+    key ^= key >> 16;
+    return float(key & 0x00ffffffu) / 16777216.0f;
+}
+
 float ValueNoise(float2 p)
 {
-    const float2 cell = floor(p);
+    const int2 cell = int2(floor(p));
     const float2 local = frac(p);
     const float2 blend = local * local * (3.0f - 2.0f * local);
-    const float a = Hash21(cell);
-    const float b = Hash21(cell + float2(1.0f, 0.0f));
-    const float c = Hash21(cell + float2(0.0f, 1.0f));
-    const float d = Hash21(cell + 1.0f);
+    const float a = LatticeHash(cell);
+    const float b = LatticeHash(cell + int2(1, 0));
+    const float c = LatticeHash(cell + int2(0, 1));
+    const float d = LatticeHash(cell + int2(1, 1));
     return lerp(lerp(a, b, blend.x), lerp(c, d, blend.x), blend.y);
 }
 
@@ -101,18 +114,20 @@ float3 HsvToRgb(float3 hsv)
     return hsv.z * lerp(1.0f.xxx, rgbRamp, hsv.y);
 }
 
-void BuildStarSparkLayer(
-    float2 samplePosition,
-    out float3 layerRadiance,
-    out float layerCoverage)
+// These distances are in billboard-height units, including aspect correction.
+// Give subpixel features analytic coverage instead of forcing every line to a
+// full pixel (which used to wash the entire rainbow contour towards white).
+float StrokeMask(float distanceToLine, float halfWidth, float aa)
 {
-    layerRadiance = 0.0f.xxx;
-    layerCoverage = 0.0f;
+    return (1.0f - smoothstep(max(halfWidth - aa, 0.0f), halfWidth + aa, distanceToLine))
+        * saturate(halfWidth / max(aa, 1.0e-5f));
+}
 
-    if (gEnableStarSparks == 0u)
-    {
-        return;
-    }
+void BuildStarSparkLayer(float2 p, float pixelSize, out float3 radiance, out float coverage)
+{
+    radiance = 0.0f.xxx;
+    coverage = 0.0f;
+    if (gEnableStarSparks == 0u) return;
 
     [unroll]
     for (uint index = 0; index < 8; ++index)
@@ -120,60 +135,80 @@ void BuildStarSparkLayer(
         if (index < gStarSparkCount)
         {
             const float4 spark = gStarSparkData[index];
-            const float speedVariation = lerp(0.82f, 1.18f, frac(spark.w * 7.13f));
-            const float cycle = frac(
-                gTime * gStarSparkTwinkleSpeed * speedVariation + spark.w);
+            const float clock = gTime * gStarSparkTwinkleSpeed
+                * lerp(0.72f, 1.24f, frac(spark.w * 7.13f)) + spark.w;
+            const float cycle = frac(clock);
+            const float generation = floor(clock);
+            const float seed = Hash21(float2(index + 19.0f, generation));
             const float envelope = pow(saturate(sin(cycle * 3.14159265f)), 3.0f);
-            const float microTwinkle = 0.86f + 0.14f * sin(
-                gTime * (5.2f + speedVariation * 2.1f) + spark.w * 6.28318531f);
-            const float twinkle = envelope * microTwinkle;
-
-            float2 sparkCenter = spark.xy;
-            sparkCenter += float2(
-                sin(gTime * 0.31f + spark.w * 11.0f),
-                cos(gTime * 0.23f + spark.w * 13.0f)) * float2(0.010f, 0.007f);
-            const float sparkSize = max(
-                gStarSparkSize * spark.z * lerp(0.72f, 1.06f, envelope),
-                1.0e-4f);
-            float2 delta = samplePosition - sparkCenter;
+            // New position at each invisible end of the twinkle. The flash
+            // rises a little with the plume, rather than marking fixed slots.
+            float2 center = spark.xy;
+            center.x = lerp(0.18f, 0.82f, seed);
+            center.y = lerp(0.27f, 0.77f, Hash21(float2(generation + 8.0f, index + 3.0f)));
+            center += float2(sin(gTime * 1.1f + seed * 12.0f) * 0.025f, cycle * 0.07f);
+            float2 delta = p - center;
             delta.x *= gBillboardAspect;
-            const float2 local = delta / sparkSize;
-
-            const float horizontalRay = exp(-abs(local.x) * 3.4f)
-                * exp(-local.y * local.y * 180.0f);
-            const float verticalRay = exp(-abs(local.y) * 3.4f)
-                * exp(-local.x * local.x * 180.0f);
-            const float rayMask = max(horizontalRay, verticalRay);
-            const float centerMask = exp(-dot(local, local) * 52.0f);
-            const float glowMask = exp(-dot(local, local) * 7.5f);
-
-            const float3 sparkColor = gStarSparkColors[index].rgb;
-            const float intensity = gStarSparkIntensity * twinkle;
-            layerRadiance +=
-                sparkColor * (rayMask * 0.86f
-                    + glowMask * 0.16f * gStarSparkGlowStrength) * intensity
-                + float3(1.0f, 0.995f, 0.96f) * centerMask * intensity * 1.65f;
-            const float coverage = saturate(
-                (rayMask + centerMask) * envelope
-                + glowMask * envelope * 0.18f * gStarSparkGlowStrength);
-            layerCoverage = max(layerCoverage, coverage);
+            const float size = max(gStarSparkSize * spark.z * lerp(0.32f, 0.92f, envelope), 0.0001f);
+            const float2 q = abs(delta) / size;
+            const float rayWidth = max(0.020f, pixelSize * 0.55f / size);
+            const float horizontal = exp(-q.x * 3.0f) * exp(-q.y * q.y / (rayWidth * rayWidth));
+            const float vertical = exp(-q.y * 2.5f) * exp(-q.x * q.x / (rayWidth * rayWidth));
+            const float rays = max(horizontal, vertical);
+            const float pointMask = exp(-dot(q, q) * 160.0f);
+            const float glow = exp(-dot(q, q) * 8.0f);
+            const float3 color = gStarSparkColors[index].rgb;
+            const float intensity = gStarSparkIntensity * envelope;
+            radiance += color * (rays + glow * 0.18f * gStarSparkGlowStrength) * intensity
+                + 1.0f.xxx * pointMask * intensity * 0.9f;
+            coverage = max(coverage, saturate((rays + pointMask + glow * 0.12f) * envelope));
         }
+    }
+
+    // Small hollow embers and pinpoints give scale to the larger glints. Every
+    // slot has its own birth, drift and fade; no textures or particle buffers.
+    [loop]
+    for (uint ember = 0; ember < 28; ++ember)
+    {
+        const float slot = float(ember);
+        const float clock = gTime * lerp(0.19f, 0.36f, Hash21(float2(slot, 5.0f))) + slot * 0.618034f;
+        const float life = frac(clock);
+        const float seed = Hash21(float2(slot + 27.0f, floor(clock)));
+        const float fade = smoothstep(0.0f, 0.12f, life) * (1.0f - smoothstep(0.58f, 1.0f, life));
+        float2 center = float2(0.5f + (seed - 0.5f) * 0.70f, 0.13f + life * 0.82f);
+        center.x += sin(life * 6.0f + seed * 20.0f) * 0.045f * life;
+        float2 delta = (p - center) * float2(gBillboardAspect, 1.0f);
+        const float radius = lerp(0.0016f, 0.0052f, Hash21(float2(slot + 3.0f, floor(clock) + 7.0f)))
+            * lerp(1.0f, 0.45f, life);
+        const float d = length(delta);
+        const bool ring = ember % 3u != 0u;
+        const float mask = ring
+            ? StrokeMask(abs(d - radius), radius * 0.22f, pixelSize * 0.65f)
+            : (1.0f - smoothstep(radius * 0.2f, radius + pixelSize * 0.65f, d));
+        const float glow = exp(-dot(delta, delta) / max(radius * radius * 5.0f, 1.0e-7f));
+        const float3 emberColor = lerp(float3(0.55f, 0.80f, 1.0f),
+            HsvToRgb(float3(frac(seed + life * 0.27f), 0.75f, 1.0f)), 0.55f);
+        const float intensity = min(gStarSparkIntensity * 0.16f, 2.4f);
+        radiance += (emberColor * mask + emberColor * glow * 0.07f * gStarSparkGlowStrength)
+            * intensity * fade;
+        coverage = max(coverage, mask * fade * 0.60f);
     }
 }
 
 float BuildAuraField(float2 uv)
 {
-    float2 samplePosition = float2(uv.x, 1.0f - uv.y);
-
-    // Retain the existing upward-flowing fBM domain warp, but apply it to the
-    // field sample rather than to a hard-coded silhouette.
-    const float2 flowDomain = float2(
-        (samplePosition.x - 0.5f) * gNoiseScale,
-        samplePosition.y * gNoiseScale * 1.35f - gTime * gNoiseSpeed);
-    const float2 warpDomain = flowDomain * 0.62f + float2(13.17f, -7.31f);
-    const float warpX = Fbm3(warpDomain) - 0.5f;
-    const float warpY = Fbm3(warpDomain + float2(5.23f, 9.41f)) - 0.5f;
-    samplePosition += float2(warpX * 0.30f, warpY * 0.10f) * gDistortionStrength;
+    float2 p = float2(uv.x, 1.0f - uv.y);
+    const float height = p.y;
+    const float2 flow = float2((p.x - 0.5f) * gNoiseScale,
+        height * gNoiseScale * 1.35f - gTime * gNoiseSpeed);
+    const float2 warp = flow * 0.62f + float2(13.17f, -7.31f);
+    const float2 turbulence = float2(Fbm3(warp), Fbm3(warp + float2(5.23f, 9.41f))) - 0.5f;
+    // Preserve a rounded foot; ascending lobes curl, pinch off and tear.
+    const float breakup = smoothstep(0.17f, 0.73f, height);
+    p += turbulence * float2(0.34f, 0.18f) * gDistortionStrength * lerp(0.48f, 1.7f, breakup);
+    p.x += sin(height * 17.0f - gTime * 1.8f) * 0.012f * breakup;
+    const float detail = Fbm3(flow * 2.4f + float2(31.8f, 7.3f)) - 0.5f;
+    p += float2(detail * 0.08f, detail * 0.045f) * gDistortionStrength * lerp(0.35f, 1.0f, breakup);
 
     float field = 0.0f;
     [unroll]
@@ -181,200 +216,123 @@ float BuildAuraField(float2 uv)
     {
         if (index < gActiveMetaballCount)
         {
-            const float4 metaball = gMetaballs[index];
-            float2 delta = samplePosition - metaball.xy;
-            // Compensate for non-square billboards so a point's radius is
-            // approximately circular in world space.
-            delta.x *= gBillboardAspect;
-            const float supportRadius = max(
-                metaball.z * gCompactSupportScale,
-                1.0e-4f);
-            const float supportRadiusSquared = supportRadius * supportRadius;
-            const float distanceSquared = dot(delta, delta);
-            // Compact C2 falloff: unlike inverse-square influence, this is
-            // exactly zero outside the support radius. Nearby points still
-            // merge smoothly, but separated satellites cannot bridge the
-            // whole billboard with weak long-distance tails.
-            const float compactDistance = saturate(
-                1.0f - distanceSquared / supportRadiusSquared);
-            const float kernel = compactDistance * compactDistance * compactDistance;
-            field += metaball.w * 1.45f * kernel;
+            const float4 ball = gMetaballs[index];
+            const float2 delta = (p - ball.xy) * float2(gBillboardAspect, 1.0f);
+            const float radius = max(ball.z * gCompactSupportScale, 0.0001f);
+            const float compact = saturate(1.0f - dot(delta, delta) / (radius * radius));
+            field += ball.w * 1.45f * compact * compact * compact;
         }
     }
-    return field * gFieldGain;
+    // Multiplicative erosion cannot create disconnected noise outside the
+    // compact support. The upper edge has more detail than the quiet base.
+    return field * gFieldGain * max(0.25f,
+        1.0f + detail * gDistortionStrength * lerp(0.8f, 3.8f, breakup));
 }
 
 PixelShaderOutput main(PixelShaderInput input)
 {
     PixelShaderOutput output;
-    const float field = BuildAuraField(input.uv);
-
-    // This low-frequency field changes line width gently along the contour
-    // and over time. It is deliberately independent of the shape warp so the
-    // contour breathes without turning into a jagged noise trace.
     const float vertical = 1.0f - input.uv.y;
-    const float contourNoise = Fbm3(float2(
-        (input.uv.x - 0.5f) * 1.65f + 31.73f,
-        vertical * 1.20f - gTime * 0.075f + 17.19f));
-    const float widthBreath = 1.0f
-        + (contourNoise * 2.0f - 1.0f) * gContourWidthModulation;
-    const float localContourWidth = gContourWidth * widthBreath;
+    const float2 p = float2(input.uv.x, vertical);
+    const float2 metric = float2(input.uv.x * gBillboardAspect, vertical);
+    const float pixelSize = max(max(length(ddx(metric)), length(ddy(metric))), 1.0e-5f);
+    const float field = BuildAuraField(input.uv);
+    const float fieldAa = max(fwidth(field), 0.001f);
+    const float gradient = max(length(float2(ddx(field), ddy(field))) / pixelSize, 0.5f);
+    const float distanceToIso = abs(field - gContourThreshold) / gradient;
+    const float contourNoise = Fbm3(float2((p.x - 0.5f) * 4.1f + 31.73f,
+        vertical * 3.4f - gTime * 0.24f));
+    const float widthBreath = 1.0f + (contourNoise * 2.0f - 1.0f) * gContourWidthModulation;
+    const float aa = max(pixelSize * 0.65f * gContourAaScale, gContourSoftness * 0.016f);
+    const float contourWidth = gContourWidth * 0.065f * widthBreath;
+    const float contourMask = StrokeMask(distanceToIso, contourWidth, aa);
+    const float innerLineMask = StrokeMask(distanceToIso, gInnerLineWidth * 0.055f, aa);
+    const float glowWidth = max(gOuterGlowWidth * 0.11f, contourWidth + aa);
+    const float outerGlowMask = exp(-distanceToIso * distanceToIso / (glowWidth * glowWidth) * 2.0f)
+        * smoothstep(0.02f, gContourThreshold * 0.8f, field);
+    const float filledMask = smoothstep(gContourThreshold - fieldAa, gContourThreshold + fieldAa, field);
 
-    const float antiAlias = max(fwidth(field), 0.0005f);
-    const float maskSoftness = max(gContourSoftness, antiAlias);
-    const float filledMask = smoothstep(
-        gContourThreshold - maskSoftness,
-        gContourThreshold + maskSoftness,
-        field);
-    const float distanceToIso = abs(field - gContourThreshold);
-    const float innerHalfWidth = max(
-        gInnerLineWidth * lerp(0.90f, 1.10f, contourNoise),
-        antiAlias * 0.45f);
-    const float contourHalfWidth = max(
-        localContourWidth,
-        max(
-            innerHalfWidth + antiAlias * 0.35f,
-            antiAlias * gContourAaScale));
-    const float outerGlowHalfWidth = max(
-        gOuterGlowWidth * lerp(0.88f, 1.12f, contourNoise),
-        contourHalfWidth + antiAlias);
-    const float innerFeather = max(gContourSoftness * 0.38f, antiAlias * 0.55f);
-    const float contourFeather = max(gContourSoftness, antiAlias * 0.70f);
-    const float outerGlowFeather = max(gContourSoftness * 2.4f, antiAlias * 1.25f);
-    const float innerLineMask = 1.0f - smoothstep(
-        innerHalfWidth,
-        innerHalfWidth + innerFeather,
-        distanceToIso);
-    const float contourMask = 1.0f - smoothstep(
-        contourHalfWidth,
-        contourHalfWidth + contourFeather,
-        distanceToIso);
-    const float outerGlowMask = 1.0f - smoothstep(
-        outerGlowHalfWidth,
-        outerGlowHalfWidth + outerGlowFeather,
-        distanceToIso);
-
-    // Offset the shared aura field very slightly for the core only. The
-    // positive UV-y pull samples a lower part of the field and lets occasional
-    // noise peaks stretch upward without introducing a fixed flame shape.
-    const float2 coreNoiseDomain = float2(
-        (input.uv.x - 0.5f) * gCoreNoiseScale + 47.13f,
-        vertical * gCoreNoiseScale * 0.82f - gTime * 0.19f + 11.71f);
-    const float coreNoise = Fbm3(coreNoiseDomain * 0.72f);
-    const float coreSideNoise = Fbm3(coreNoiseDomain * 0.54f + float2(8.37f, -5.19f));
+    // A separate advected erosion field carves the white heat into small
+    // connected lobes. The outer contour still comes from the original field.
+    const float2 coreDomain = float2((p.x - 0.5f) * gCoreNoiseScale * 1.55f + 47.13f,
+        vertical * gCoreNoiseScale * 1.25f - gTime * gNoiseSpeed * 1.35f + 11.71f);
+    const float coreNoise = Fbm3(coreDomain);
+    const float fineCoreNoise = Fbm3(coreDomain * 2.7f + float2(8.3f, -5.2f));
     float2 coreUv = input.uv;
-    coreUv.x += (coreSideNoise - 0.5f) * gCoreBreakup * 0.022f;
-    coreUv.y += smoothstep(0.58f, 0.90f, coreNoise) * gCoreBreakup * 0.025f;
+    coreUv.x += (fineCoreNoise - 0.5f) * gCoreBreakup * 0.045f;
+    coreUv.y += (coreNoise - 0.5f) * gCoreBreakup * 0.026f;
     const float coreField = BuildAuraField(coreUv);
+    const float upperPenalty = smoothstep(0.17f, 0.49f, vertical) * gCoreVerticalBias * 4.2f;
+    const float2 rootDelta = (float2(coreUv.x, 1.0f - coreUv.y) - gMetaballs[0].xy)
+        * float2(gBillboardAspect, 1.0f);
+    const float rootRadius = max(gMetaballs[0].z * 0.55f, 0.001f);
+    // The heat source follows the animated root and is eroded by the same
+    // noise. It keeps a small live coal when all of the rising lobes separate.
+    const float rootHeat = exp(-dot(rootDelta, rootDelta) / (rootRadius * rootRadius))
+        * gMetaballs[0].w * 4.5f * gFieldGain;
+    const float shapedCore = max(coreField - upperPenalty, rootHeat) + ((coreNoise - 0.5f) * 2.8f
+        + (fineCoreNoise - 0.5f) * 1.5f) * gCoreBreakup;
+    const float coreAa = max(fwidth(shapedCore), gCoreSoftness);
+    const float coreMask = smoothstep(gCoreThreshold - coreAa, gCoreThreshold + coreAa, shapedCore)
+        * filledMask;
+    const float hotThreshold = max(gCoreHotThreshold, gCoreThreshold + gCoreSoftness);
+    const float coreHotMask = smoothstep(hotThreshold - coreAa, hotThreshold + coreAa, shapedCore)
+        * coreMask;
 
-    // Noise erosion and an upper-field penalty make the core a related but
-    // independently broken-up blob rather than a second filled outer mask.
-    const float coreErosion = (coreNoise - 0.54f) * 1.35f * gCoreBreakup;
-    const float upperCorePenalty = smoothstep(0.40f, 0.82f, vertical)
-        * gCoreVerticalBias * 1.55f;
-    const float shapedCoreField = coreField + coreErosion - upperCorePenalty;
-    const float coreSoftness = max(gCoreSoftness, antiAlias);
-    const float coreMask = smoothstep(
-        gCoreThreshold - coreSoftness,
-        gCoreThreshold + coreSoftness,
-        shapedCoreField);
-    const float hotThreshold = max(
-        gCoreHotThreshold,
-        gCoreThreshold + coreSoftness);
-    const float coreHotMask = smoothstep(
-        hotThreshold - coreSoftness * 0.70f,
-        hotThreshold + coreSoftness * 0.70f,
-        shapedCoreField) * coreMask;
+    // Translucent iridescent tongues take over above the white heat. Their
+    // palette travels across the shape so several colors coexist each frame.
+    // Bias the density, not opacity: a vertical alpha ramp would leave a
+    // stationary horizontal band across the moving flame.
+    const float ribbonField = field + (coreNoise - 0.50f) * 4.2f + (fineCoreNoise - 0.5f) * 1.6f
+        - (1.0f - smoothstep(0.32f, 0.65f, vertical)) * 3.0f;
+    const float ribbonThreshold = gContourThreshold + 0.45f;
+    const float ribbonAa = max(fwidth(ribbonField), 0.05f);
+    const float ribbonMask = smoothstep(ribbonThreshold - ribbonAa, ribbonThreshold + ribbonAa, ribbonField)
+        * filledMask;
+    const float huePhase = 0.12f + vertical * 1.55f + (p.x - 0.5f) * 0.72f
+        + (contourNoise - 0.5f) * 0.32f - gTime * 0.065f;
+    const float3 rainbow = HsvToRgb(float3(frac(huePhase), 0.98f, 1.0f));
+    const float ribbonHue = 0.13f + (vertical - 0.45f) * 0.70f + (p.x - 0.5f) * 0.32f
+        + 0.06f * sin(gTime * 0.37f + coreNoise * 2.0f);
+    const float3 ribbonColor = HsvToRgb(float3(frac(ribbonHue), 0.70f, 1.0f));
 
-    float3 starSparkRadiance;
-    float starSparkCoverage;
-    BuildStarSparkLayer(
-        float2(input.uv.x, vertical),
-        starSparkRadiance,
-        starSparkCoverage);
+    float3 sparks;
+    float sparkCoverage;
+    BuildStarSparkLayer(p, pixelSize, sparks, sparkCoverage);
 
     if (gDisplayMode == 1u)
     {
-        // A bounded visualization that preserves useful contrast both below
-        // and above the selected iso-value.
         const float fieldView = field / (field + max(gContourThreshold, 0.001f));
         output.color = float4(fieldView.xxx, 1.0f);
     }
+    else if (gDisplayMode != 0u)
+    {
+        float mask = contourMask;
+        if (gDisplayMode == 2u) mask = filledMask;
+        if (gDisplayMode == 4u) mask = coreMask;
+        if (gDisplayMode == 5u) mask = coreHotMask;
+        if (mask < 0.001f) discard;
+        output.color = float4(1.0f.xxx, mask * gColor.a);
+    }
     else
     {
-        float selectedMask = contourMask;
-        if (gDisplayMode == 2u)
-        {
-            selectedMask = filledMask;
-        }
-        else if (gDisplayMode == 4u)
-        {
-            selectedMask = coreMask;
-        }
-        else if (gDisplayMode == 5u)
-        {
-            selectedMask = coreHotMask;
-        }
-        if (selectedMask <= 0.001f)
-        {
-            if (gDisplayMode != 0u ||
-                (outerGlowMask <= 0.001f && coreMask <= 0.001f &&
-                    starSparkCoverage <= 0.001f))
-            {
-                discard;
-            }
-        }
-
-        // Spatial position supplies the broad hue travel, while the same
-        // low-frequency field gives local variation. Time only drifts the
-        // palette, so multiple saturated hues coexist in every frame.
-        const float hue = frac(
-            0.52f
-            + vertical * 1.05f
-            + (input.uv.x - 0.5f) * 0.35f
-            + (contourNoise - 0.5f) * 0.20f
-            - gTime * 0.045f);
-        const float3 rainbow = HsvToRgb(float3(hue, 0.92f, 1.0f));
-        if (gDisplayMode == 0u)
-        {
-            const float3 tintedRainbow = rainbow * gColor.rgb;
-            const float3 hotLineColor = float3(0.82f, 0.97f, 1.0f)
-                * lerp(1.0f.xxx, gColor.rgb, 0.12f);
-            const float3 coreColor = lerp(
-                gCoreCyanTint.rgb,
-                float3(1.0f, 0.995f, 1.0f),
-                coreHotMask);
-            const float cyanFringeMask = coreMask * (1.0f - coreHotMask * 0.58f);
-            const float3 coreRadiance =
-                gCoreCyanTint.rgb * cyanFringeMask * gCoreIntensity * 0.52f
-                + coreColor * coreHotMask * gCoreIntensity;
-            const float3 layerRadiance =
-                tintedRainbow * outerGlowMask * gOuterGlowIntensity
-                + tintedRainbow * contourMask * gContourEmissiveIntensity
-                + hotLineColor * innerLineMask * gInnerLineIntensity
-                + coreRadiance
-                + starSparkRadiance;
-
-            // The PSO uses straight-alpha blending. Divide by the composed
-            // coverage so the intended HDR radiance is not multiplied by the
-            // mask a second time when the blend unit applies SrcAlpha.
-            const float neonCoverage = saturate(max(innerLineMask, contourMask)
-                + outerGlowMask * 0.30f);
-            const float coreCoverage = max(coreMask * 0.70f, coreHotMask);
-            const float layerCoverage = max(
-                max(neonCoverage, coreCoverage),
-                starSparkCoverage);
-            output.color = float4(
-                layerRadiance / max(layerCoverage, 0.001f),
-                layerCoverage * gColor.a);
-        }
-        else
-        {
-            // Straight-alpha blending applies coverage in the blend unit.
-            // Keeping RGB white avoids squaring the mask and falsely turning
-            // partially covered antialiased pixels into apparent gaps.
-            output.color = float4(1.0f.xxx, selectedMask * gColor.a);
-        }
+        // Keep the cyan transition narrow: it fringes the white heat instead
+        // of filling the whole interior with an opaque pale oval.
+        const float heat = smoothstep(0.0f, 0.38f, coreHotMask);
+        const float3 heatColor = lerp(gCoreCyanTint.rgb, float3(1.0f, 0.98f, 0.88f), heat);
+        const float3 coreRadiance = heatColor * coreMask * gCoreIntensity * lerp(0.20f, 1.0f, heat);
+        const float glint = pow(saturate(contourNoise * 1.3f), 4.0f);
+        const float3 radiance = (rainbow * contourMask * gContourEmissiveIntensity
+            + lerp(rainbow, 1.0f.xxx, 0.22f) * innerLineMask * gInnerLineIntensity * (0.35f + glint)
+            + rainbow * outerGlowMask * gOuterGlowIntensity * 0.40f
+            + ribbonColor * ribbonMask * min(gContourEmissiveIntensity * 0.30f, 1.6f)
+            + coreRadiance + sparks) * gColor.rgb;
+        const float coverage = saturate(max(max(contourMask, outerGlowMask * 0.08f),
+            max(max(coreMask, ribbonMask * 0.86f), sparkCoverage)));
+        if (coverage < 0.001f) discard;
+        // Straight alpha PSO: encode accumulated radiance once. Coverage
+        // attenuates the background, not the already-masked HDR emission.
+        output.color = float4(radiance / max(coverage, 0.001f), coverage * gColor.a);
     }
     output.normal = float4(0.5f, 0.5f, 1.0f, 0.0f);
     output.material = float4(1.0f, 0.0f, 1.0f, 0.0f);

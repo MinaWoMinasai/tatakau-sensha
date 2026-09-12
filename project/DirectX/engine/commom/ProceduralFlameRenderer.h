@@ -17,7 +17,7 @@ public:
 	static constexpr uint32_t kMaxMetaballs = 12;
 	static constexpr uint32_t kMaxStarSparks = 8;
 
-		enum class DisplayMode : uint32_t {
+	enum class DisplayMode : uint32_t {
 		OuterContour = 0,
 		Field = 1,
 		FilledMask = 2,
@@ -29,41 +29,41 @@ public:
 	struct Parameters {
 		Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
 		float time = 0.0f;
-		float noiseScale = 3.6f;
-		float noiseSpeed = 0.72f;
-		float distortionStrength = 0.12f;
+		float noiseScale = 7.2f;
+		float noiseSpeed = 0.95f;
+		float distortionStrength = 0.29f;
 		float contourThreshold = 1.05f;
-		float contourWidth = 0.045f;
-		float contourSoftness = 0.015f;
+		float contourWidth = 0.032f;
+		float contourSoftness = 0.010f;
 		float contourAaScale = 1.05f;
-		float contourWidthModulation = 0.10f;
+		float contourWidthModulation = 0.22f;
 		float fieldGain = 1.0f;
-		float contourEmissiveIntensity = 5.0f;
-		float innerLineWidth = 0.012f;
-		float innerLineIntensity = 10.0f;
-		float outerGlowWidth = 0.14f;
-		float outerGlowIntensity = 1.15f;
-		float coreThreshold = 3.2f;
-		float coreSoftness = 0.22f;
-		float coreIntensity = 7.5f;
+		float contourEmissiveIntensity = 3.8f;
+		float innerLineWidth = 0.005f;
+		float innerLineIntensity = 0.75f;
+		float outerGlowWidth = 0.095f;
+		float outerGlowIntensity = 0.38f;
+		float coreThreshold = 3.7f;
+		float coreSoftness = 0.16f;
+		float coreIntensity = 4.8f;
 		float coreVerticalBias = 0.95f;
-		float coreBreakup = 0.32f;
-		float coreNoiseScale = 1.65f;
-		float coreHotThreshold = 4.5f;
+		float coreBreakup = 1.0f;
+		float coreNoiseScale = 5.4f;
+		float coreHotThreshold = 4.65f;
 		Vector4 coreCyanTint = { 0.24f, 0.82f, 1.0f, 1.0f };
 		bool enableStarSparks = true;
-		uint32_t starSparkCount = 6;
-		float starSparkSize = 0.034f;
-		float starSparkIntensity = 9.0f;
-		float starSparkTwinkleSpeed = 0.72f;
-		float starSparkGlowStrength = 0.65f;
+		uint32_t starSparkCount = 8;
+		float starSparkSize = 0.040f;
+		float starSparkIntensity = 7.2f;
+		float starSparkTwinkleSpeed = 1.15f;
+		float starSparkGlowStrength = 0.55f;
 		float flowSpeed = 1.0f;
 		float radiusScale = 1.0f;
 		float swayStrength = 1.0f;
-		float spawnSpread = 0.22f;
-		float compactSupportScale = 2.35f;
-		float satelliteSeparation = 0.12f;
-		uint32_t activeMetaballCount = 10;
+		float spawnSpread = 0.20f;
+		float compactSupportScale = 2.2f;
+		float satelliteSeparation = 0.14f;
+		uint32_t activeMetaballCount = 12;
 		DisplayMode displayMode = DisplayMode::OuterContour;
 	};
 
@@ -142,6 +142,7 @@ private:
 
 	void CreatePipeline();
 	void RespawnMetaball(uint32_t index, float initialLifeFraction = 0.0f);
+	void EvaluateMetaball(uint32_t index);
 	void UploadParameters(float billboardAspect);
 
 	DirectXCommon* dxCommon_ = nullptr;
