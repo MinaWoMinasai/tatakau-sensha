@@ -79,8 +79,9 @@ static_assert(sizeof(StampConstants) == 64);
 struct FrameConstants {
     Matrix4x4 viewProjection;
     Vector4 eye;
+    Vector4 renderOptions;
 };
-static_assert(sizeof(FrameConstants) == 80);
+static_assert(sizeof(FrameConstants) == 96);
 
 void UavBarrier(ID3D12GraphicsCommandList* list, ID3D12Resource* resource) {
     D3D12_RESOURCE_BARRIER barrier{};
@@ -107,6 +108,11 @@ void InkPaintRenderer::Release() {
     surfacePso_.Reset();
     paintRoot_.Reset();
     surfaceRoot_.Reset();
+    timestampHeap_.Reset();
+    timestampReadback_.Reset();
+    timestampsReady_ = false;
+    timestampFrequency_ = 0;
+    lastPaintGpuMs_ = lastSurfaceGpuMs_ = 0;
     pendingStamps_.clear();
     surfaces_.clear();
     dxCommon_ = nullptr;
@@ -178,6 +184,23 @@ void InkPaintRenderer::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
             };
         }
         surfaceBuffer_->Unmap(0, nullptr);
+        D3D12_QUERY_HEAP_DESC queryDesc{};
+        queryDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+        queryDesc.Count = 4;
+        Check(device->CreateQueryHeap(&queryDesc, IID_PPV_ARGS(&timestampHeap_)), "create paint GPU timers");
+        D3D12_HEAP_PROPERTIES readbackHeap{};
+        readbackHeap.Type = D3D12_HEAP_TYPE_READBACK;
+        D3D12_RESOURCE_DESC readbackDesc{};
+        readbackDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        readbackDesc.Width = 4 * sizeof(uint64_t);
+        readbackDesc.Height = 1;
+        readbackDesc.DepthOrArraySize = 1;
+        readbackDesc.MipLevels = 1;
+        readbackDesc.SampleDesc.Count = 1;
+        readbackDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        Check(device->CreateCommittedResource(&readbackHeap, D3D12_HEAP_FLAG_NONE, &readbackDesc,
+            D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&timestampReadback_)), "create timestamp readback");
+        Check(dxCommon_->GetQueue()->GetTimestampFrequency(&timestampFrequency_), "get GPU timestamp frequency");
         clearPending_ = true;
         lastStampCount_ = 0;
     } catch (...) {
@@ -323,16 +346,42 @@ void InkPaintRenderer::FlushStamps() {
 
 void InkPaintRenderer::Draw(const Matrix4x4& viewProjection, const Vector3& eyePosition) {
     if (!mask_ || surfaces_.empty()) { return; }
+    ReadGpuTimings();
     auto* list = dxCommon_->GetList().Get();
     ID3D12DescriptorHeap* heaps[] = { srvManager_->GetSrvHeap().Get() };
     list->SetDescriptorHeaps(1, heaps);
+    list->EndQuery(timestampHeap_.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
     FlushStamps();
-    const FrameConstants frame{ viewProjection, { eyePosition.x, eyePosition.y, eyePosition.z, 1.0f } };
+    list->EndQuery(timestampHeap_.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
+    const FrameConstants frame{ viewProjection, { eyePosition.x, eyePosition.y, eyePosition.z, 1.0f },
+        { edgeSmoothing_ ? 1.0f : 0.0f, 0, 0, 0 } };
     list->SetGraphicsRootSignature(surfaceRoot_.Get());
     list->SetPipelineState(surfacePso_.Get());
     list->SetGraphicsRoot32BitConstants(0, sizeof(frame) / 4, &frame, 0);
     list->SetGraphicsRootShaderResourceView(1, surfaceBuffer_->GetGPUVirtualAddress());
     list->SetGraphicsRootDescriptorTable(2, srvManager_->GetGPUDescriptorHandle(maskSrvIndex_));
     list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    list->EndQuery(timestampHeap_.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 2);
     list->DrawInstanced(6, static_cast<UINT>(surfaces_.size()), 0, 0);
+    list->EndQuery(timestampHeap_.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 3);
+    list->ResolveQueryData(timestampHeap_.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 4, timestampReadback_.Get(), 0);
+    timestampsReady_ = true;
+}
+
+void InkPaintRenderer::ReadGpuTimings() {
+    if (!timestampsReady_ || timestampFrequency_ == 0) { return; }
+    // Only four timestamps (32 bytes), never any paint texels. Game::PostDraw
+    // waits for every submitted frame, so these previous results are complete.
+    uint64_t* timestamps = nullptr;
+    const D3D12_RANGE readRange{ 0, 4 * sizeof(uint64_t) };
+    Check(timestampReadback_->Map(0, &readRange, reinterpret_cast<void**>(&timestamps)), "read paint GPU timers");
+    const double millisecondsPerTick = 1000.0 / static_cast<double>(timestampFrequency_);
+    if (timestamps[1] >= timestamps[0]) {
+        lastPaintGpuMs_ = static_cast<float>(static_cast<double>(timestamps[1] - timestamps[0]) * millisecondsPerTick);
+    }
+    if (timestamps[3] >= timestamps[2]) {
+        lastSurfaceGpuMs_ = static_cast<float>(static_cast<double>(timestamps[3] - timestamps[2]) * millisecondsPerTick);
+    }
+    const D3D12_RANGE noWrite{ 0, 0 };
+    timestampReadback_->Unmap(0, &noWrite);
 }

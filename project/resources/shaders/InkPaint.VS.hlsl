@@ -11,6 +11,7 @@ cbuffer Frame : register(b0)
 {
     row_major float4x4 viewProjection;
     float4 eye;
+    float4 renderOptions;
 };
 StructuredBuffer<Surface> surfaces : register(t1);
 

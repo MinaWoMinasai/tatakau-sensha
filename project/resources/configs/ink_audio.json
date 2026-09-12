@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "master": 0.55,
+  "shot": 0.8,
+  "charge": 0.38,
+  "impact": 0.55
+}
