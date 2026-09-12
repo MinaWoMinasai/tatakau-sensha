@@ -17,6 +17,8 @@ public:
 	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, ShadowMap* shadowMap);
 
 	void Update();
+	void SetDebugUiEnabled(bool enabled) { debugUiEnabled_ = enabled; }
+	bool GetDebugUiEnabled() const { return debugUiEnabled_; }
 
 	// 共通描画設定
 	void PreDraw(BlendMode blendMode);
@@ -53,6 +55,7 @@ private:
 	DebugCamera* debugDefaultCamera_ = nullptr;
 
 	bool isDebugCamera_ = false;
+	bool debugUiEnabled_ = true;
 	Matrix4x4 lightViewProjection_;
 	SrvManager* srvManager_ = nullptr;
 	ShadowMap* shadowMap_ = nullptr;

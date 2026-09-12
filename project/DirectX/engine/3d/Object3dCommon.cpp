@@ -24,9 +24,11 @@ void Object3dCommon::Update() {
 
 #ifdef USE_IMGUI
 
-    ImGui::Begin("light");
-    ImGui::DragFloat3("dir", &lightDir_.x, 0.01f);
-    ImGui::End();
+    if (debugUiEnabled_) {
+        ImGui::Begin("light");
+        ImGui::DragFloat3("dir", &lightDir_.x, 0.01f);
+        ImGui::End();
+    }
 
     lightDir_ = Normalize(lightDir_);
 

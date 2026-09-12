@@ -669,4 +669,19 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </Target>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <ItemGroup>
+    <ClCompile Include="game\scene\InkShooterScene.cpp" />
+    <ClCompile Include="game\ink\InkSimulation.cpp" />
+    <ClCompile Include="game\ink\InkPaintRenderer.cpp" />
+    <ClInclude Include="game\scene\InkShooterScene.h" />
+    <ClInclude Include="game\ink\InkTypes.h" />
+    <ClInclude Include="game\ink\InkSimulation.h" />
+    <ClInclude Include="game\ink\ShooterWeaponParams.h" />
+    <ClInclude Include="game\ink\InkPaintRenderer.h" />
+    <None Include="resources\projects\ink_shooter.project.json" />
+    <None Include="resources\shaders\InkPaint*.hlsl" />
+    <None Include="tools\run_ink_shooter.ps1" />
+    <None Include="tools\test_ink_simulation.ps1" />
+    <None Include="tools\ink_simulation_tests.cpp" />
+  </ItemGroup>
 </Project>
