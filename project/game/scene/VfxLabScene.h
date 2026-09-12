@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <memory>
 #include <string>
 
@@ -38,6 +39,7 @@ private:
 
 	void UpdateCamera();
 	void DrawDebugWindow();
+	void RestartFlame();
 
 	Input* input_ = nullptr;
 	std::unique_ptr<Camera> camera_;
@@ -47,22 +49,28 @@ private:
 
 	bool finished_ = false;
 	std::string nextSceneName_ = "TITLE";
+	// The main loop also interprets this as the gameplay slow-motion flag.
+	// Keep the effect's measured animation time separate from that contract.
 	float finalDeltaTime_ = 1.0f / 60.0f;
+	float frameDeltaTime_ = 1.0f / 60.0f;
+	std::chrono::steady_clock::time_point lastFrameTime_{};
 
 	BackgroundMode backgroundMode_ = BackgroundMode::Checker;
-	float checkerScale_ = 14.0f;
-	Vector4 checkerDarkColor_ = { 0.025f, 0.028f, 0.035f, 1.0f };
-	Vector4 checkerLightColor_ = { 0.075f, 0.080f, 0.095f, 1.0f };
+	float checkerScale_ = 12.0f;
+	Vector4 checkerDarkColor_ = { 0.026f, 0.026f, 0.028f, 1.0f };
+	Vector4 checkerLightColor_ = { 0.038f, 0.038f, 0.040f, 1.0f };
 
 	float flameTime_ = 0.0f;
 	bool showProceduralFlame_ = true;
 	bool pauseProceduralFlame_ = false;
+	bool showControls_ = true;
+	bool restartRequested_ = false;
 	Vector3 proceduralFlamePosition_ = { 0.0f, 0.0f, 0.0f };
 	Vector2 proceduralFlameSize_ = { 8.0f, 16.0f };
 	ProceduralFlameRenderer::Parameters proceduralFlameParameters_{};
 
 	float cameraYaw_ = 0.0f;
 	float cameraPitch_ = 0.04f;
-	float cameraDistance_ = 27.0f;
+	float cameraDistance_ = 42.0f;
 	Vector3 cameraTarget_ = { 0.0f, 8.0f, 0.0f };
 };

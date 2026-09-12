@@ -163,36 +163,80 @@ void VfxLabScene::Initialize()
 	backgroundRenderer_->Initialize(dxCommon);
 	proceduralFlame_ = std::make_unique<ProceduralFlameRenderer>();
 	proceduralFlame_->Initialize(dxCommon);
-	proceduralFlame_->SetParameters(proceduralFlameParameters_);
+	RestartFlame();
+	lastFrameTime_ = std::chrono::steady_clock::now();
 }
 
 void VfxLabScene::Update()
 {
+	const auto now = std::chrono::steady_clock::now();
+	const float elapsed = std::chrono::duration<float>(now - lastFrameTime_).count();
+	lastFrameTime_ = now;
+	// Bound focus changes and debugger stalls; paused frames still sample the clock.
+	frameDeltaTime_ = std::clamp(elapsed, 0.0f, 0.1f);
+
 	if (input_->IsTrigger(input_->GetKey()[DIK_ESCAPE], input_->GetPreKey()[DIK_ESCAPE])) {
 		finished_ = true;
 		nextSceneName_ = "TITLE";
 		return;
 	}
 
-	if (!pauseProceduralFlame_) {
-		flameTime_ += finalDeltaTime_;
+	bool acceptShortcuts = true;
+#ifdef USE_IMGUI
+	acceptShortcuts = !ImGui::GetIO().WantTextInput;
+#endif
+	if (acceptShortcuts) {
+		if (input_->IsTrigger(input_->GetKey()[DIK_SPACE], input_->GetPreKey()[DIK_SPACE])) {
+			pauseProceduralFlame_ = !pauseProceduralFlame_;
+		}
+		if (input_->IsTrigger(input_->GetKey()[DIK_R], input_->GetPreKey()[DIK_R])) {
+			restartRequested_ = true;
+		}
+		if (input_->IsTrigger(input_->GetKey()[DIK_H], input_->GetPreKey()[DIK_H])) {
+			showControls_ = !showControls_;
+		}
 	}
-	proceduralFlameParameters_.time = flameTime_;
-	if (proceduralFlame_) {
-		proceduralFlame_->SetParameters(proceduralFlameParameters_);
+
+	DrawDebugWindow();
+	if (restartRequested_) {
+		RestartFlame();
+		restartRequested_ = false;
+	} else {
 		if (!pauseProceduralFlame_) {
-			proceduralFlame_->Update(finalDeltaTime_);
+			flameTime_ += frameDeltaTime_ * std::clamp(proceduralFlameParameters_.flowSpeed, 0.0f, 3.0f);
+		}
+		proceduralFlameParameters_.time = flameTime_;
+		if (proceduralFlame_) {
+			proceduralFlame_->SetParameters(proceduralFlameParameters_);
+			if (!pauseProceduralFlame_) {
+				proceduralFlame_->Update(frameDeltaTime_);
+			}
 		}
 	}
 
 	if (!Object3dCommon::GetInstance()->GetIsDebugCamera()) {
 		UpdateCamera();
 	}
+	DIMOUSESTATE cameraMouse = input_->GetMouseState();
+#ifdef USE_IMGUI
+	if (ImGui::GetIO().WantCaptureMouse) {
+		cameraMouse = {};
+	}
+#endif
 	debugCamera_->Update(
-		input_->GetMouseState(),
+		cameraMouse,
 		input_->GetKey(),
 		input_->GetLeftStick());
-	DrawDebugWindow();
+}
+
+void VfxLabScene::RestartFlame()
+{
+	flameTime_ = 0.0f;
+	proceduralFlameParameters_.time = 0.0f;
+	if (proceduralFlame_) {
+		proceduralFlame_->SetParameters(proceduralFlameParameters_);
+		proceduralFlame_->ResetMetaballs();
+	}
 }
 
 void VfxLabScene::DrawPostEffect3D()
@@ -225,18 +269,26 @@ void VfxLabScene::DrawPostEffect3D()
 
 void VfxLabScene::UpdateCamera()
 {
-	cameraYaw_ += (input_->IsPress(input_->GetKey()[DIK_D]) ? 1.0f : 0.0f)
-		* finalDeltaTime_ * 0.9f;
-	cameraYaw_ -= (input_->IsPress(input_->GetKey()[DIK_A]) ? 1.0f : 0.0f)
-		* finalDeltaTime_ * 0.9f;
-	cameraPitch_ += (input_->IsPress(input_->GetKey()[DIK_W]) ? 1.0f : 0.0f)
-		* finalDeltaTime_ * 0.55f;
-	cameraPitch_ -= (input_->IsPress(input_->GetKey()[DIK_S]) ? 1.0f : 0.0f)
-		* finalDeltaTime_ * 0.55f;
+	bool acceptKeyboard = true;
+	bool acceptMouse = true;
+#ifdef USE_IMGUI
+	acceptKeyboard = !ImGui::GetIO().WantCaptureKeyboard;
+	acceptMouse = !ImGui::GetIO().WantCaptureMouse;
+#endif
+	if (acceptKeyboard) {
+		cameraYaw_ += (input_->IsPress(input_->GetKey()[DIK_D]) ? 1.0f : 0.0f)
+			* frameDeltaTime_ * 0.9f;
+		cameraYaw_ -= (input_->IsPress(input_->GetKey()[DIK_A]) ? 1.0f : 0.0f)
+			* frameDeltaTime_ * 0.9f;
+		cameraPitch_ += (input_->IsPress(input_->GetKey()[DIK_W]) ? 1.0f : 0.0f)
+			* frameDeltaTime_ * 0.55f;
+		cameraPitch_ -= (input_->IsPress(input_->GetKey()[DIK_S]) ? 1.0f : 0.0f)
+			* frameDeltaTime_ * 0.55f;
+	}
 	cameraPitch_ = std::clamp(cameraPitch_, -0.35f, 0.75f);
 
 	const float wheel = static_cast<float>(input_->GetMouseState().lZ);
-	if (std::abs(wheel) > 0.0f) {
+	if (acceptMouse && std::abs(wheel) > 0.0f) {
 		cameraDistance_ = std::clamp(cameraDistance_ - wheel * 0.012f, 12.0f, 80.0f);
 	}
 
@@ -263,9 +315,23 @@ void VfxLabScene::UpdateCamera()
 void VfxLabScene::DrawDebugWindow()
 {
 #ifdef USE_IMGUI
-	ImGui::Begin("VFX Lab");
-	ImGui::Text("A,D: Orbit  W,S: Pitch  Mouse wheel: Zoom  Esc: Title");
-	ImGui::Text("Shift+D: Debug camera  MMB: Orbit  Shift+MMB: Pan  Wheel: Zoom");
+	if (!showControls_) {
+		return;
+	}
+	const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+	const float panelWidth = (std::min)(420.0f, (std::max)(320.0f, displaySize.x * 0.34f));
+	ImGui::SetNextWindowPos(ImVec2(16.0f, 16.0f), ImGuiCond_Once);
+	ImGui::SetNextWindowSize(
+		ImVec2(panelWidth, (std::max)(260.0f, displaySize.y - 32.0f)), ImGuiCond_Once);
+	if (!ImGui::Begin("VFX Lab")) {
+		ImGui::End();
+		return;
+	}
+	ImGui::PushItemWidth(150.0f);
+	ImGui::TextUnformatted("Rainbow Flame / Sparkles");
+	ImGui::TextWrapped("Space: Pause  R: Restart  H: Hide VFX controls  Esc: Title");
+	ImGui::TextWrapped("A,D: Orbit  W,S: Pitch  Mouse wheel: Zoom");
+	ImGui::TextWrapped("Shift+D: Debug camera  MMB: Orbit  Shift+MMB: Pan");
 
 	const char* backgroundModes[] = { "Black", "Neutral Dark Gray", "Checker" };
 	int backgroundMode = static_cast<int>(backgroundMode_);
@@ -289,7 +355,7 @@ void VfxLabScene::DrawDebugWindow()
 		ImGui::Checkbox("Pause", &pauseProceduralFlame_);
 
 		const char* displayModes[] = {
-			"Neon + White/Cyan Core",
+			"Rainbow + Core + Sparkles",
 			"Scalar Field",
 			"Filled Mask",
 			"Contour Mask",
@@ -305,8 +371,8 @@ void VfxLabScene::DrawDebugWindow()
 			proceduralFlameParameters_.displayMode =
 				static_cast<ProceduralFlameRenderer::DisplayMode>(displayMode);
 		}
-		if (ImGui::Button("Reset Metaballs") && proceduralFlame_) {
-			proceduralFlame_->ResetMetaballs();
+		if (ImGui::Button("Restart Flame (R)")) {
+			restartRequested_ = true;
 		}
 
 		ImGui::DragFloat3("Position", &proceduralFlamePosition_.x, 0.1f);
@@ -478,9 +544,10 @@ void VfxLabScene::DrawDebugWindow()
 			0.01f,
 			0.0f,
 			2.0f);
-		ImGui::Text("Time: %.2f s", flameTime_);
+		ImGui::Text("Time: %.2f s%s", flameTime_, pauseProceduralFlame_ ? " (paused)" : "");
 		ImGui::TreePop();
 	}
+	ImGui::PopItemWidth();
 	ImGui::End();
 #endif
 }

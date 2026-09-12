@@ -22,7 +22,7 @@ float4 main(PixelShaderInput input) : SV_TARGET0
     }
     if (gMode < 1.5f)
     {
-        return float4(0.035f, 0.038f, 0.045f, 1.0f);
+        return float4(0.032f, 0.032f, 0.034f, 1.0f);
     }
 
     const float2 checkerCoordinate = input.uv * float2(
