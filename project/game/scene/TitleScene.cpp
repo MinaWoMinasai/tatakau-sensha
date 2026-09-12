@@ -257,12 +257,12 @@ void TitleScene::Update() {
 			}
 		}
 		if (input_->IsTrigger(input_->GetKey()[DIK_F6], input_->GetPreKey()[DIK_F6])) {
-			if (StartTransitionIfAvailable("VFX_LAB", 0.35f)) {
+			if (StartTransitionIfAvailable("UNDERWATER_LAB", 0.35f)) {
 				break;
 			}
 		}
 		if (input_->IsTrigger(input_->GetKey()[DIK_F7], input_->GetPreKey()[DIK_F7])) {
-			if (StartTransitionIfAvailable("UNDERWATER_LAB", 0.35f)) {
+			if (StartTransitionIfAvailable("VFX_LAB", 0.35f)) {
 				break;
 			}
 		}
