@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "projectName": "Ink Shooter Lab",
+  "gameModule": "builtin",
+  "startupScene": "INK_SHOOTER_LAB",
+  "resourceRoot": "resources"
+}

@@ -235,6 +235,11 @@ void TitleScene::Update() {
 		}
 		break;
 	case Phase::kMain: {
+		if (input_->IsTrigger(input_->GetKey()[DIK_F8], input_->GetPreKey()[DIK_F8])) {
+			if (StartTransitionIfAvailable("INK_SHOOTER_LAB", 0.35f)) {
+				break;
+			}
+		}
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 		if (input_->IsTrigger(input_->GetKey()[DIK_F3], input_->GetPreKey()[DIK_F3])) {
 			if (StartTransitionIfAvailable("TEST", 0.35f)) {
