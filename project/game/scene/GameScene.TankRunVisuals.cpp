@@ -58,6 +58,14 @@ void GameScene::InitializeTankRunVisuals() {
     restoreEmitterBloom(bulletTrailPostEffect_.get(), 2.0f);
     restoreEmitterBloom(particlePostEffect_.get(), 1.65f);
     restoreEmitterBloom(neonGridPostEffect_.get(), 1.0f);
+    if(expeditionRun_&&bulletManager_) {
+        // Keep emitter bloom and enemy shots bright; only shorten/narrow the
+        // player's overlapping trails so telegraphs remain visible in a volley.
+        auto& trail=bulletManager_->GetTrailSettings();
+        trail.playerHalfWidth=(std::min)(trail.playerHalfWidth,0.17f);
+        trail.playerTrailLifetimeScale=0.55f;
+        trail.playerTrailAlphaScale=0.68f;
+    }
 
     gameTextOutlineEnabled_ = false;
     gameTextNeonEnabled_ = true;

@@ -151,31 +151,29 @@ void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset) {
 void ObjectPostEffect::FinishCapture(FinishMode mode, bool outputToHdr) {
     Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
+    // These opaque full-target filters replace every pixel, including alpha.
+    // Keep the capture clear in BeginCapture, but do not clear filter outputs.
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
     dxCommon_->SetViewport(halfWidth_, halfHeight_);
-    ClearTransparent(bloomRT_Half_->GetRTVHandle());
     postEffect_->Draw(objectRT_->GetGPUHandle(), kAdd_Bloom_Extract);
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
     dxCommon_->SetViewport(bloomWidth_, bloomHeight_);
-    ClearTransparent(bloomRT_A_->GetRTVHandle());
     postEffect_->Draw(bloomRT_Half_->GetGPUHandle(), kAdd_Bloom_Downsample);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     Transition(bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_B_->GetRTVHandle());
     dxCommon_->SetViewport(bloomWidth_, bloomHeight_);
-    ClearTransparent(bloomRT_B_->GetRTVHandle());
     postEffect_->Draw(bloomRT_A_->GetGPUHandle(), kAdd_Bloom_BlurH);
     Transition(bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
     dxCommon_->SetViewport(bloomWidth_, bloomHeight_);
-    ClearTransparent(bloomRT_A_->GetRTVHandle());
     postEffect_->Draw(bloomRT_B_->GetGPUHandle(), kAdd_Bloom_BlurV);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 

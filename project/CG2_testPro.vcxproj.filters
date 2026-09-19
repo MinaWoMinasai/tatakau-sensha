@@ -279,6 +279,9 @@
     <ClCompile Include="game\scene\GameScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\scene\GameScene.TankExpedition.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\scene\GameScene.TankRun.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -565,6 +568,17 @@
     <ClInclude Include="game\player\TankRunModifiers.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\run\TankRunCopy.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankExpeditionAudio.h" />
+    <ClInclude Include="game\run\TankExpeditionEncounters.h" />
+    <ClInclude Include="game\player\TankExpeditionLoadout.h" />
+    <ClInclude Include="game\exp\ExpEnemyCombatCycle.h" />
+    <ClInclude Include="game\exp\ExpEnemyNavigation.h" />
+    <ClInclude Include="game\run\TankExpeditionDirector.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\run\TankRunDirector.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -800,4 +814,9 @@
     <None Include="tools\test_ink_simulation.ps1" />
     <None Include="tools\ink_simulation_tests.cpp" />
   </ItemGroup>
-</Project>
+  <ItemGroup>
+    <ClCompile Include="DirectX\engine\commom\RuntimeProfiler.cpp" />
+    <ClInclude Include="DirectX\engine\commom\RuntimeProfiler.h" />
+    <ClInclude Include="DirectX\engine\commom\FramePacer.h" />
+    <ClInclude Include="DirectX\engine\commom\TrailStressFixture.h" />
+  </ItemGroup></Project>

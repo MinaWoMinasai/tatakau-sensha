@@ -382,6 +382,7 @@ Player::~Player() {
 }
 
 void Player::Attack(BulletManager* bulletManager, float deltaTime) {
+	if (runModifiers_.enabled && runRoomAwaitInputRelease_) return;
 
 	// 弾のクールタイムを計算する
 	bulletCoolTime = (std::max)(0.0f, bulletCoolTime - deltaTime);
@@ -401,9 +402,11 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			Vector3 recoilDir = Normalize(dir_) * -1.0f;
 			float recoilPower = 0.01f;
 			if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
-				primaryAttackPerformedEvent_ = true;
+				// Spawning a companion is not a shot. Expedition drone volleys
+				// raise this event below only when they actually create bullets.
+				if (!runCheckpointEvolution_ || !config->usesDrone) primaryAttackPerformedEvent_ = true;
 				velocity_ += recoilDir * recoilPower;
-				Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
+				if (!runCheckpointEvolution_) Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
 			}
 			return;
 		}
@@ -549,7 +552,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				primaryAttackPerformedEvent_ = true;
 			}
 			velocity_ += recoilDir * recoilPower;
-			Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
+			if (!runCheckpointEvolution_) Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
 		}
 	}
 }
@@ -579,8 +582,9 @@ void Player::DroneShoot(BulletManager* BulletManager)
 	const PlayerClassConfig* config = GetCurrentClassConfig();
 	int droneLimit = (std::max)(0, config ? config->maxDrones : 7);
 	if (runModifiers_.enabled) {
-		droneLimit = (std::min)(droneLimit, 6) + (runModifiers_.drones ? 2 : 0)
-			+ (runModifiers_.core == TankRunCore::Drone ? 2 : 0);
+		droneLimit = TankExpeditionDroneLimit(runEvolutionActive_ ?
+			FindTankExpeditionSpecialization(runEvolutionConfig_.id) : nullptr,
+			droneLimit, runModifiers_.drones, runModifiers_.core == TankRunCore::Drone);
 	}
 	const size_t maxDrones = static_cast<size_t>(droneLimit);
 	if (drones_.size() >= maxDrones) {
@@ -662,7 +666,7 @@ void Player::AddExp(int amount)
 		// 次の必要経験値を再計算（例: レベル * 100 + 補正）
 		nextLevelExp_ = GetNextLevelExp();
 
-		if (GetRankFromLevel(level_) > previousRank) {
+		if (GetRankFromLevel(level_) > previousRank && !(runModifiers_.enabled && runCheckpointEvolution_)) {
 			isChangeMode = true;
 			// AddExpはPlayer::Update後の衝突処理から呼ばれる場合があるため、
 			// 同じフレームの初回描画より先に遅延フォント更新を完了させる。
@@ -797,7 +801,8 @@ void Player::Update(
 	UpdateEncyclopedia(uiDeltaTime);
 	UpdateUpgradeHud(uiDeltaTime);
 
-	if (input_->IsTrigger(input_->GetKey()[DIK_C], input_->GetPreKey()[DIK_C])) {
+	if (!(runModifiers_.enabled && runCheckpointEvolution_) &&
+		input_->IsTrigger(input_->GetKey()[DIK_C], input_->GetPreKey()[DIK_C])) {
 		if (isChangeMode) {
 			isChangeMode = false;
 			evolutionCancelledEvent_ = true;
@@ -812,6 +817,11 @@ void Player::Update(
 	if (evolutionUiWasOpen || isChangeMode) {
 		machineGunBtnSprite_->Update();
 		return;
+	}
+	if (runModifiers_.enabled && runRoomAwaitInputRelease_ &&
+		!input_->IsPress(input_->GetMouseState().rgbButtons[0]) &&
+		!input_->IsPress(input_->GetMouseState().rgbButtons[1])) {
+		runRoomAwaitInputRelease_ = false;
 	}
 
 	if (!runModifiers_.enabled && skillPoints_ > 0) {
@@ -895,7 +905,8 @@ void Player::Update(
 		if (input_->IsPress(input_->GetKey()[DIK_S])) inputDir_.y -= 1.0f;
 		RotateToMouse(viewProjection);
 	}
-	if (input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1])) {
+	if ((!runModifiers_.enabled || !runRoomAwaitInputRelease_) &&
+		input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1])) {
 		TryActivateSpecialAction();
 	}
 	if (saberCounterTimer_ > 0.0f) {
@@ -1001,7 +1012,7 @@ void Player::Update(
 		const PlayerClassConfig* activeClass = GetCurrentClassConfig();
 		const size_t supportLimit = (runModifiers_.drones ? 2u : 0u)
 			+ (runModifiers_.core == TankRunCore::Drone ? 2u : 0u);
-		if (runModifiers_.enabled && supportLimit > 0 &&
+		if (runModifiers_.enabled && !runRoomAwaitInputRelease_ && supportLimit > 0 &&
 			(!activeClass || !activeClass->usesDrone)) {
 			runSupportDroneTimer_ = (std::max)(0.0f, runSupportDroneTimer_ - deltaTime);
 			if (drones_.size() < supportLimit && runSupportDroneTimer_ <= 0.0f) {
@@ -1013,12 +1024,16 @@ void Player::Update(
 				runSupportDroneTimer_ = 1.2f;
 			}
 		}
+		const size_t bulletsBeforeDroneUpdates = BulletManager->GetBulletCount();
 		for (auto& drone : drones_) {
 			if (runModifiers_.enabled) {
 				ConfigureRunDrone(*drone);
 			}
 			drone->Update(viewProjection, stage, worldTransform_.translate,
 				runModifiers_.enabled ? deltaTime : 1.0f / 60.0f);
+		}
+		if (runModifiers_.enabled && runCheckpointEvolution_ && BulletManager->GetBulletCount() > bulletsBeforeDroneUpdates) {
+			primaryAttackPerformedEvent_ = true;
 		}
 
 		drones_.erase(
@@ -1246,7 +1261,10 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
 	//	return;
 	//}
 
-	hp_ -= static_cast<int>(amount);
+	const uint32_t appliedDamage = runModifiers_.enabled && runCheckpointEvolution_
+		? runMaintenance_.MitigateDamage(amount) : amount;
+	// Clamp before converting to signed HP, including extreme debug damage.
+	hp_ -= static_cast<int>((std::min)(appliedDamage, static_cast<uint32_t>((std::max)(0, hp_))));
 	if (hp_ < 0) {
 		hp_ = 0;
 	}
@@ -1285,6 +1303,11 @@ void Player::SetRunModifiers(const TankRunModifiers& modifiers)
 {
 	const bool wasEnabled = runModifiers_.enabled;
 	runModifiers_ = modifiers;
+	if (!wasEnabled || !runModifiers_.enabled) {
+		runMaintenance_ = {};
+		runEvolutionActive_ = false;
+		runEvolutionPrepared_ = false;
+	}
 	if (runModifiers_.enabled) {
 		upgradeHudListVisibility_ = 0.0f;
 		upgradeHudMouseCaptured_ = false;
@@ -1298,7 +1321,13 @@ void Player::SetRunModifiers(const TankRunModifiers& modifiers)
 		runOverdriveTimer_ = 0.0f;
 		runOverdriveCooldown_ = 0.0f;
 		runDashBurstPending_ = false;
+		runRoomAwaitInputRelease_ = false;
+		runCheckpointEvolution_ = false;
 		runHomingTargets_.clear();
+		if (object_) {
+			InitializeBarrels();
+			UpdateBarrelLayout();
+		}
 	}
 }
 
@@ -1307,6 +1336,10 @@ void Player::ConfigurePrototypeLoadout(int archetype)
 	if (!runModifiers_.enabled) {
 		return;
 	}
+	runMaintenance_ = {};
+	runEvolutionActive_ = false;
+	runEvolutionPrepared_ = false;
+	RecalculateStatsFromBase(false);
 	// Starting loadouts are rank two. Their next evolution becomes available
 	// at rank three, rather than opening a locked menu at the first rank-up.
 	if (level_ < 5) {
@@ -1324,6 +1357,247 @@ void Player::HealRunPlayer(int amount)
 		return;
 	}
 	hp_ += (std::min)(amount, (std::max)(0, GetMaxHp() - hp_));
+}
+
+bool Player::SpendRunHealth(int amount)
+{
+	if (!runModifiers_.enabled || isDead_ || amount <= 0 || hp_ <= amount) return false;
+	// A chosen event cost is not an incoming hit and cannot be dodged or lethal.
+	hp_ -= amount;
+	return true;
+}
+
+std::vector<RunEvolutionChoice> Player::GetRunEvolutionChoices() const
+{
+	std::vector<RunEvolutionChoice> choices;
+	if (!runModifiers_.enabled || isDead_) return choices;
+	if (runCheckpointEvolution_) {
+		if (!runEvolutionPrepared_ || runEvolutionActive_) return choices;
+		for (const auto& specialization : kTankExpeditionSpecializations) {
+			if (currentClassId_ == specialization.starter) {
+				choices.push_back({ specialization.id, specialization.name, specialization.description });
+			}
+		}
+		return choices;
+	}
+	const PlayerClassConfig* current = GetCurrentClassConfig();
+	if (!current) return choices;
+	const auto firingMode = [](const PlayerClassConfig& config) {
+		if (config.usesDrone) return "ドローン上限" + std::to_string(config.maxDrones) + "機";
+		const auto guns = std::count_if(config.barrels.begin(), config.barrels.end(),
+			[](const WeaponMountConfig& mount) { return mount.fires && mount.weaponType == WeaponType::Projectile; });
+		return std::to_string(guns) + "砲" + (guns > 1 ?
+			(config.alternateBarrels && !config.fireAllBarrels ? "交互" : "同時") : "射撃");
+	};
+	const auto scale = [](float value) {
+		char text[24]{};
+		std::snprintf(text, sizeof(text), "x%.2f", value);
+		return std::string(text);
+	};
+	for (const std::string& id : classOrder_) {
+		// The editor's temporary copy has no firing advantage over Twin. Keep it
+		// in the original C tree, but omit it from expedition checkpoint rewards.
+		if (id == "Triple_Copy" || !CanEvolveTo(id)) continue;
+		const PlayerClassConfig* config = GetClassConfig(id);
+		if (!config) continue;
+		std::string description = "機体の基本性能を比較\n" + firingMode(*current) + "→" + firingMode(*config);
+		description += "\n威力 " + scale(current->bulletDamageScale) + "→" + scale(config->bulletDamageScale);
+		description += "\n発射間隔 " + scale(current->reloadScale) + "→" + scale(config->reloadScale);
+		if (current->reflect != config->reflect) {
+			description += std::string("\n壁反射 ") + (current->reflect ? "あり→なし" : "なし→あり");
+		} else if (current->bulletCount != config->bulletCount) {
+			description += "\n砲ごとの弾数 " + std::to_string(current->bulletCount) + "→" + std::to_string(config->bulletCount);
+		} else if (current->bulletSpeedScale != config->bulletSpeedScale) {
+			description += "\n弾速 " + scale(current->bulletSpeedScale) + "→" + scale(config->bulletSpeedScale);
+		}
+		description += "\n主軸・改造は引き継ぎ";
+		choices.push_back({ config->id, config->displayName, std::move(description) });
+		if (choices.size() == 3) break;
+	}
+	return choices;
+}
+
+void Player::PrepareRunEvolution()
+{
+	if (!runModifiers_.enabled || isDead_) return;
+	isChangeMode = false;
+	evolutionConfirmedEvent_ = false;
+	evolutionCancelledEvent_ = false;
+	if (runCheckpointEvolution_) {
+		// A checkpoint specialization is independent of the arena's level/tree.
+		runEvolutionPrepared_ = !runEvolutionActive_;
+		return;
+	}
+	const PlayerClassConfig* current = GetCurrentClassConfig();
+	if (!current || !evolutionCircuitLoaded_) return;
+	const int targetRank = current->requiredRank + 1;
+	if (targetRank > GetRankFromLevel(kMaxLevel)) return;
+	const bool hasSuccessor = std::any_of(classOrder_.begin(), classOrder_.end(), [&](const std::string& id) {
+		if (id == "Triple_Copy") return false; // Match the checkpoint candidate filter above.
+		const PlayerClassConfig* config = GetClassConfig(id);
+		return config && config->requiredRank == targetRank &&
+			HasEvolutionEdge(current->id, id) && IsRunCompatibleClass(*config);
+	});
+	if (!hasSuccessor) return;
+	// Grant only the checkpoint's required rank. HP, partial XP, and the build
+	// remain untouched; normal level-up rewards and the legacy C popup do not run.
+	while (level_ < kMaxLevel && GetRankFromLevel(level_) < targetRank) ++level_;
+	nextLevelExp_ = GetNextLevelExp();
+}
+
+bool Player::ChooseRunEvolution(const std::string& id)
+{
+	if (!runModifiers_.enabled || isDead_) return false;
+	const auto choices = GetRunEvolutionChoices();
+	if (std::none_of(choices.begin(), choices.end(), [&](const RunEvolutionChoice& choice) { return choice.id == id; })) {
+		return false;
+	}
+	if (runCheckpointEvolution_) {
+		const auto* specialization = FindTankExpeditionSpecialization(id);
+		const auto* starter = GetClassConfig(currentClassId_);
+		if (!specialization || !starter || starter->barrels.empty()) return false;
+		runEvolutionConfig_ = *starter;
+		auto& config = runEvolutionConfig_;
+		config.id = specialization->id;
+		config.displayName = specialization->name;
+		config.requiredRank = 3;
+		config.usesDrone = specialization->drones > 0;
+		config.maxDrones = specialization->drones;
+		config.reloadScale *= specialization->reloadScale;
+		config.bulletDamageScale *= specialization->damageScale;
+		config.bulletSpeedScale *= specialization->speedScale;
+		config.bulletCount = 1;
+		config.spreadAngleDeg = specialization->randomSpread;
+		config.randomSpread = specialization->randomSpread > 0.0f;
+		config.reflect = starter->reflect || specialization->reflect;
+		config.alternateBarrels = specialization->alternate;
+		config.fireAllBarrels = !specialization->alternate;
+		const WeaponMountConfig prototype = starter->barrels.front();
+		config.barrels.assign(static_cast<size_t>(specialization->barrels), prototype);
+		for (size_t i = 0; i < config.barrels.size(); ++i) {
+			auto& barrel = config.barrels[i];
+			const float position = static_cast<float>(i) - static_cast<float>(config.barrels.size() - 1) * 0.5f;
+			barrel.offset = { 0.72f, position * 0.50f, 0.0f };
+			barrel.angleDeg = position * specialization->fanAngle;
+			barrel.fires = true;
+			barrel.weaponType = WeaponType::Projectile;
+			barrel.fireGroup = 0;
+			barrel.reloadScale = 1.0f;
+			barrel.damageScale = 1.0f;
+			barrel.projectileSpeedScale = 1.0f;
+			if (specialization->speedScale > 1.2f) barrel.scale.x *= 1.25f;
+		}
+		runEvolutionActive_ = true;
+		runEvolutionPrepared_ = false;
+		bulletCoolTime = 0.0f;
+		shootBarrelIndex_ = 0;
+		shootGroupIndex_ = 0;
+		weaponGroupCooldowns_.clear();
+		drones_.clear();
+		runSupportDroneTimer_ = 0.0f;
+		InitializeBarrels();
+		UpdateBarrelLayout();
+		isChangeMode = false;
+		evolutionConfirmedEvent_ = true;
+		return true;
+	}
+	return TryConfirmEvolutionById(id);
+}
+
+bool Player::AwardRunMaintenancePoint(int clearedRoom)
+{
+	return runModifiers_.enabled && runCheckpointEvolution_ && !isDead_ && runMaintenance_.AwardRoom(clearedRoom);
+}
+
+std::array<RunMaintenanceChoice, 3> Player::GetRunMaintenanceChoices() const
+{
+	std::array<RunMaintenanceChoice, 3> choices{{
+		{ 0, "機動整備", "1段階ごとに移動速度 +6%\n敵の射線を外しやすくする" },
+		{ 1, "装填整備", "1段階ごとに発射間隔 -7%\n主砲とドローンの両方に有効" },
+		{ 2, "装甲整備", "1段階ごとに被ダメージ -8%\n最大24%・最低1ダメージ\nイベントのHP支払いは対象外" }
+	}};
+	for (auto& choice : choices) {
+		choice.rank = runMaintenance_.Rank(choice.id);
+		choice.canSpend = runModifiers_.enabled && runCheckpointEvolution_ && !isDead_ &&
+			runMaintenance_.Points() > 0 && choice.rank < choice.maxRank;
+	}
+	return choices;
+}
+
+bool Player::SpendRunMaintenancePoint(int stat)
+{
+	if (!runModifiers_.enabled || !runCheckpointEvolution_ || isDead_ || !runMaintenance_.Spend(stat)) return false;
+	const int previousHp = hp_;
+	RecalculateStatsFromBase(false);
+	// Maintenance changes never heal, including while the player is at full HP.
+	hp_ = (std::min)(previousHp, GetMaxHp());
+	return true;
+}
+
+bool Player::RefundRunMaintenancePoint(int stat)
+{
+	if (!runModifiers_.enabled || !runCheckpointEvolution_ || isDead_ || !runMaintenance_.Refund(stat)) return false;
+	const int previousHp = hp_;
+	RecalculateStatsFromBase(false);
+	hp_ = (std::min)(previousHp, GetMaxHp());
+	return true;
+}
+
+void Player::ResetRunRoomState(const Vector3& position)
+{
+	if (!runModifiers_.enabled || isDead_) return;
+	velocity_ = {};
+	move_ = {};
+	inputDir_ = {};
+	bulletCoolTime = 0.0f;
+	shootBarrelIndex_ = 0;
+	shootGroupIndex_ = 0;
+	weaponGroupCooldowns_.clear();
+	pendingLaserShots_.clear();
+	pendingMineDrops_.clear();
+	pendingMeleeSlashes_.clear();
+	drones_.clear();
+	runHomingTargets_.clear();
+	runSupportDroneTimer_ = 0.0f;
+	runDashAttackTimer_ = 0.0f;
+	runOverdriveTimer_ = 0.0f;
+	runOverdriveCooldown_ = 0.0f;
+	runDashBurstPending_ = false;
+	runRoomAwaitInputRelease_ = true;
+	isDashing_ = false;
+	dashTimer_ = 0.0f;
+	dashCooldown_ = 0.0f;
+	isJustEvaded_ = false;
+	isBuffActive_ = false;
+	buffTimer_ = 0.0f;
+	requestSlow_ = false;
+	isSmash_ = false;
+	smashCharge_ = 0.0f;
+	smashDir_ = {};
+	meleeComboStep_ = 0;
+	meleeComboTimer_ = 0.0f;
+	saberCounterTimer_ = 0.0f;
+	isStealth_ = false;
+	stealthTimer_ = 0.0f;
+	stealthAlpha_ = 1.0f;
+	summonTimer_ = 0.0f;
+	stats_.stamina = stats_.maxStamina;
+	invincibleTimer_ = 0.45f;
+	damageFeedbackTimer_ = 0.0f;
+	movementParticleTimer_ = 0.0f;
+	primaryAttackPerformedEvent_ = false;
+	dashStartedEvent_ = false;
+	statUpgradePerformedEvent_ = false;
+	evolutionConfirmedEvent_ = false;
+	evolutionCancelledEvent_ = false;
+	isChangeMode = false;
+	upgradeHudMouseCaptured_ = false;
+	for (auto& barrel : barrels_) {
+		barrel.recoilOffset = 0.0f;
+		barrel.muzzleFlashTimer = 0.0f;
+	}
+	SetWorldPosition(position);
+	UpdateBarrelLayout();
 }
 
 void Player::ApplyRunProjectileRules(AttackParam& param, bool applyFan) const
@@ -1403,8 +1677,8 @@ void Player::ConfigureRunDrone(PlayerDrone& drone) const
 	AttackParam param{};
 	param.bulletSpeed = stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f);
 	param.bulletCount = 1;
-	param.spreadAngleDeg = isSwarm ? 10.0f : 6.0f;
-	param.randomSpread = true;
+	param.spreadAngleDeg = isSwarm && runEvolutionActive_ ? config->spreadAngleDeg : (isSwarm ? 10.0f : 6.0f);
+	param.randomSpread = param.spreadAngleDeg > 0.0f;
 	param.reflect = config && config->reflect;
 	param.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(
 		stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * (isSwarm ? 0.6f : 0.35f))));
@@ -1414,8 +1688,10 @@ void Player::ConfigureRunDrone(PlayerDrone& drone) const
 	ApplyRunProjectileRules(param);
 	const float reloadRatio = stats_.reloadSpeed / (std::max)(0.05f, baseStats_.reloadSpeed);
 	const float coreRate = runModifiers_.core == TankRunCore::Drone ? 0.8f : 1.0f;
+	const auto* specialization = runEvolutionActive_ ? FindTankExpeditionSpecialization(runEvolutionConfig_.id) : nullptr;
 	const float interval = (isSwarm ? 0.5f : 0.75f) * reloadRatio * coreRate
-		* (isBuffActive_ ? 0.7f : 1.0f) * GetRunFireIntervalScale();
+		* (isBuffActive_ ? 0.7f : 1.0f) * GetRunFireIntervalScale()
+		* (isSwarm && specialization ? specialization->reloadScale : 1.0f);
 	drone.ConfigureRunAttack(param, interval);
 }
 
@@ -2054,6 +2330,7 @@ const Player::PlayerClassConfig* Player::GetClassConfig(const std::string& class
 
 const Player::PlayerClassConfig* Player::GetCurrentClassConfig() const
 {
+	if (runModifiers_.enabled && runEvolutionActive_) return &runEvolutionConfig_;
 	return GetClassConfig(currentClassId_);
 }
 
@@ -7368,6 +7645,8 @@ void Player::RecalculateStatsFromBase(bool healToFull)
 	stats_.staminaRecovery *= runTuning.staminaRecovery;
 	stats_.maxHp *= runTuning.maxHp;
 	if (runModifiers_.enabled) {
+		stats_.moveSpeed *= runMaintenance_.MoveScale();
+		stats_.reloadSpeed *= runMaintenance_.ReloadScale();
 		stats_.stamina = previousStamina;
 	}
 	stats_.maxHp = (std::max)(1.0f, stats_.maxHp);

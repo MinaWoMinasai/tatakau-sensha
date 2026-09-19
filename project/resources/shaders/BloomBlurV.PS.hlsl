@@ -58,16 +58,18 @@ float4 main(PSInput input) : SV_TARGET
     }
     else
     {
-        // Pre-normalized Gaussian weights for radius 4, sigma 1.75.
+        // Pair the original adjacent Gaussian taps with bilinear sampling.
+        // Preserve radius, normalization and intensity while using 5 fetches
+        // instead of 9. The horizontal pass uses the identical kernel.
+        const float pairedWeight12 = 0.19541357f + 0.11973994f;
+        const float pairedWeight34 = 0.05293135f + 0.01688015f;
+        const float pairedOffset12 = (0.19541357f + 2.0f * 0.11973994f) / pairedWeight12;
+        const float pairedOffset34 = (3.0f * 0.05293135f + 4.0f * 0.01688015f) / pairedWeight34;
         col = sceneTex.Sample(samp, input.uv) * 0.23006997f;
-        col += sceneTex.Sample(samp, input.uv + float2(0.0f, texel.y * 1.0f)) * 0.19541357f;
-        col += sceneTex.Sample(samp, input.uv - float2(0.0f, texel.y * 1.0f)) * 0.19541357f;
-        col += sceneTex.Sample(samp, input.uv + float2(0.0f, texel.y * 2.0f)) * 0.11973994f;
-        col += sceneTex.Sample(samp, input.uv - float2(0.0f, texel.y * 2.0f)) * 0.11973994f;
-        col += sceneTex.Sample(samp, input.uv + float2(0.0f, texel.y * 3.0f)) * 0.05293135f;
-        col += sceneTex.Sample(samp, input.uv - float2(0.0f, texel.y * 3.0f)) * 0.05293135f;
-        col += sceneTex.Sample(samp, input.uv + float2(0.0f, texel.y * 4.0f)) * 0.01688015f;
-        col += sceneTex.Sample(samp, input.uv - float2(0.0f, texel.y * 4.0f)) * 0.01688015f;
+        col += sceneTex.Sample(samp, input.uv + float2(0.0f, texel.y * pairedOffset12)) * pairedWeight12;
+        col += sceneTex.Sample(samp, input.uv - float2(0.0f, texel.y * pairedOffset12)) * pairedWeight12;
+        col += sceneTex.Sample(samp, input.uv + float2(0.0f, texel.y * pairedOffset34)) * pairedWeight34;
+        col += sceneTex.Sample(samp, input.uv - float2(0.0f, texel.y * pairedOffset34)) * pairedWeight34;
     }
 
     float blurIntensity = (gaussianIntensity > 0.0f || fullScreenBoxBlurBlend > 0.0f) ? 1.0f : intensity;

@@ -85,7 +85,7 @@ void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager*
 	}
 
 	// 敵を登録
-	colliders_.push_back(enemy);
+	if (enemy) colliders_.push_back(enemy);
 
 	// 弾を登録
 	for (Bullet* bullet : bulletManager->GetBulletPtrs()) {
