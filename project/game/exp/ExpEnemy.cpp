@@ -74,6 +74,9 @@ bool ExpEnemy::IsShapeNeonBillboardTarget() const
 
 void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType type)
 {
+    isDead_ = false;
+    isRunResource_ = false;
+    runResourceClaimCallback_ = {};
     object_ = std::make_unique<Object3d>();
     object_->Initialize();
 
@@ -99,10 +102,28 @@ void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType 
 void ExpEnemy::RefreshCollisionMask()
 {
     uint32_t mask = kCollisionAttributePlayer | kCollisionAttributePlayerBullet | kCollisionAttributePlayerDrone;
-    if (enemyInteractionConfig_.hostileToBoss) {
+    if (enemyInteractionConfig_.hostileToBoss || isRunResource_) {
         mask |= kCollisionAttributeEnemy;
     }
+    if (isRunResource_) mask |= kCollisionAttributeEnemyBullet;
     SetCollisionMask(mask);
+}
+
+void ExpEnemy::SetRunResource(std::function<void(bool playerOwned)> onClaim)
+{
+    isRunResource_ = true;
+    runResourceClaimCallback_ = std::move(onClaim);
+    velocity_ = {};
+    baseScale_ = { 1.5f, 1.5f, 1.5f };
+    worldTransform_.scale = baseScale_;
+    baseColor_ = { 1.0f, 0.74f, 0.20f, 1.0f };
+    visualColor_ = baseColor_;
+    damageFeedbackDuration_ = 0.14f;
+    SetDamage(0);
+    RefreshCollisionMask();
+    object_->SetColor(visualColor_);
+    object_->SetTransform(worldTransform_);
+    object_->Update();
 }
 
 void ExpEnemy::ApplyTypeParams()
@@ -152,6 +173,15 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 
     invincibleTimer_ -= deltaTime;
     ApplyDamageFeedback(deltaTime);
+
+    if (isRunResource_) {
+        // Cores stay at their marked contest point even when struck or rammed.
+        velocity_ = {};
+        worldTransform_.rotate.z += 0.35f * deltaTime;
+        object_->SetTransform(worldTransform_);
+        object_->Update();
+        return;
+    }
 
     // --- 慣性処理 ---
     velocity_ += (velocity_ * -1.0f) * 0.98f * deltaTime;
@@ -251,6 +281,7 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 			param.spreadAngleDeg = 3.0f;
 			param.randomSpread = true;
 			param.damage = balanceConfig_.shooterBulletDamage;
+			param.canClaimRunResource = false;
 			attackController_.FireFromMuzzle(origin + aimDirection_ * 1.4f, aimDirection_, param, bulletOwner);
 			bulletCoolTime = shootInterval_;
 			shooterWarningRatio_ = 0.0f;
@@ -301,6 +332,20 @@ void ExpEnemy::DrawNeonFillBodyOnly() {
 
 void ExpEnemy::OnCollision(Collider* other)
 {
+    // Collision pairs are collected before processing. A later projectile in
+    // the same frame must not award a second kill for this defeated resource.
+    if (isDead_) {
+        return;
+    }
+    const uint32_t otherAttribute = other->GetCollisionAttribute();
+    if (isRunResource_ && (otherAttribute == kCollisionAttributePlayer || otherAttribute == kCollisionAttributeEnemy ||
+        otherAttribute == kCollisionAttributePlayerDrone)) {
+        return;
+    }
+    if (isRunResource_) {
+        const auto* bullet = dynamic_cast<const Bullet*>(other);
+        if (bullet && !bullet->CanClaimRunResource()) return;
+    }
     Vector3 hitDir =
         worldTransform_.translate - other->GetWorldPosition();
 
@@ -311,7 +356,7 @@ void ExpEnemy::OnCollision(Collider* other)
 
     const float kKnockBackPower = 0.05f;
 
-    velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
+    if (!isRunResource_) velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
     
     if (other->GetCollisionAttribute() == kCollisionAttributeEnemy) {
         return;
@@ -321,7 +366,7 @@ void ExpEnemy::OnCollision(Collider* other)
         other->GetCollisionAttribute() == kCollisionAttributePlayer ||
         other->GetCollisionAttribute() == kCollisionAttributePlayerBullet ||
         other->GetCollisionAttribute() == kCollisionAttributePlayerDrone ||
-        (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet && IsHostileToBoss());
+        (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet && (IsHostileToBoss() || isRunResource_));
     if (!canTakeDamage) {
         return;
     }
@@ -331,28 +376,8 @@ void ExpEnemy::OnCollision(Collider* other)
     }
 
     const bool killedByEnemy =
-        other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet && IsHostileToBoss();
-
-    hp_ -= other->GetDamage();
-    TriggerDamageFeedback();
-    if (hp_ <= 0) {
-        isDead_ = true;
-        ParticleManager::GetInstance()->EmitNeonDeathEffect(
-            GetWorldPosition(),
-            { 1.20f, 0.32f, 1.35f, 1.0f },
-            { 0.18f, 1.10f, 1.35f, 0.0f },
-            0.32f);
-        if (killedByEnemy) {
-            if (enemyKillCallback_) {
-                enemyKillCallback_(expValue_);
-            }
-        } else if (player_) {
-            player_->AddExp(expValue_);
-			if (playerDefeatCallback_) {
-				playerDefeatCallback_(GetWorldPosition());
-			}
-        }
-    }
+        other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet && (IsHostileToBoss() || isRunResource_);
+    ApplyDamage(other->GetDamage(), !killedByEnemy, true);
 
     if (other->GetCollisionAttribute() == kCollisionAttributePlayer) {
         invincibleTimer_ = 0.5f;
@@ -361,45 +386,39 @@ void ExpEnemy::OnCollision(Collider* other)
 
 bool ExpEnemy::TakeDamageFromEnemy(uint32_t amount)
 {
-    if (isDead_ || amount == 0) {
-        return false;
-    }
-
-    hp_ -= static_cast<int>(amount);
-    TriggerDamageFeedback();
-    if (hp_ <= 0) {
-        isDead_ = true;
-        ParticleManager::GetInstance()->EmitNeonDeathEffect(
-            GetWorldPosition(),
-            { 1.20f, 0.32f, 1.35f, 1.0f },
-            { 0.18f, 1.10f, 1.35f, 0.0f },
-            0.32f);
-        return true;
-    }
-    return false;
+    // The existing enemy contact caller awards ordinary feeding itself.
+    return ApplyDamage(amount, false, false);
 }
 
 bool ExpEnemy::TakeDamageFromPlayer(uint32_t amount)
 {
+    return ApplyDamage(amount, true, false);
+}
+
+bool ExpEnemy::ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinaryEnemyKill)
+{
     if (isDead_ || amount == 0) {
         return false;
     }
-
-    hp_ -= static_cast<int>(amount);
+    hp_ -= static_cast<int>((std::min)(amount, static_cast<uint32_t>((std::max)(0, hp_))));
     TriggerDamageFeedback();
     if (hp_ <= 0) {
+        // Commit the result before invoking user callbacks: reentrant or later
+        // same-frame damage cannot claim the same shared HP pool twice.
         isDead_ = true;
         ParticleManager::GetInstance()->EmitNeonDeathEffect(
             GetWorldPosition(),
-            { 1.20f, 0.32f, 1.35f, 1.0f },
+            isRunResource_ ? Vector4{ 1.35f, 0.92f, 0.28f, 1.0f } : Vector4{ 1.20f, 0.32f, 1.35f, 1.0f },
             { 0.18f, 1.10f, 1.35f, 0.0f },
-            0.32f);
-        if (player_) {
-            player_->AddExp(expValue_);
+            isRunResource_ ? 0.46f : 0.32f);
+        if (isRunResource_) {
+            if (runResourceClaimCallback_) runResourceClaimCallback_(playerOwned);
+        } else if (playerOwned) {
+            if (player_) player_->AddExp(expValue_);
+            if (playerDefeatCallback_) playerDefeatCallback_(GetWorldPosition());
+        } else if (reportOrdinaryEnemyKill && enemyKillCallback_) {
+            enemyKillCallback_(expValue_);
         }
-		if (playerDefeatCallback_) {
-			playerDefeatCallback_(GetWorldPosition());
-		}
         return true;
     }
     return false;
@@ -424,7 +443,7 @@ void ExpEnemy::ApplyDamageFeedback(float deltaTime)
     const float impact = t * t;
 
     worldTransform_.scale =
-        baseScale_ * (1.0f + impact * 0.10f);
+        baseScale_ * (1.0f + impact * (isRunResource_ ? 0.22f : 0.10f));
 
     visualColor_ = LerpColor(
         baseColor_,

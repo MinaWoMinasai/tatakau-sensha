@@ -424,7 +424,7 @@ void GameScene::SetRenderProfile(const IScene::RenderProfile& profile)
 #endif
 }
 
-GameScene::GameScene() {}
+GameScene::GameScene(bool prototypeRun) : prototypeRun_(prototypeRun) {}
 
 GameScene::~GameScene()
 {
@@ -439,7 +439,7 @@ void GameScene::Initialize() {
 
 	input_ = Input::GetInstance();
 	LoadTutorialConfig();
-	tutorialConfig_.enabled = GameStartSession::GetMode() == GameStartMode::Tutorial;
+	tutorialConfig_.enabled = !prototypeRun_ && GameStartSession::GetMode() == GameStartMode::Tutorial;
 	screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json");
 
 	debugCamera = std::make_unique<DebugCamera>();
@@ -698,6 +698,7 @@ void GameScene::Initialize() {
 	});
 	ExpEnemy::SetPlayerDefeatCallback([this](const Vector3& position) {
 		++defeatedEnemies_;
+		if (prototypeRun_) { OnTankRunEnemyDefeated(position); return; }
 		screenEffectDirector_.TriggerEnemyDefeat(WorldToScreenUv(position), 1.0f);
 		SetEventCallout("ENEMY BREAK", 0.55f);
 	});
@@ -798,6 +799,7 @@ void GameScene::Initialize() {
 	ApplyGameTextAppearance();
 	InitializeTutorialUi();
 	InitializePlayerClassConfigWatch();
+	if (prototypeRun_) InitializeTankRun();
 	previousPlayerHp_ = player_ ? player_->GetHp() : 0;
 	previousBossHp_ = enemy_ ? enemy_->GetHp() : 0;
 
@@ -807,6 +809,7 @@ void GameScene::Update() {
 	
 	// 通常は 1/60秒
 	const float baseDeltaTime = 1.0f / 60.0f;
+	if (prototypeRun_) { FinishTankRunCapture(); UpdateTankRun(baseDeltaTime); }
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	if (player_) {
 		upgradeHudAfterPlayerUpdate_ = player_->GetUpgradeHudDebugSnapshot();
@@ -854,7 +857,7 @@ void GameScene::Update() {
 	UpdatePlayerClassConfigWatch(baseDeltaTime);
 	slowMotionPostActive_ = finalDeltaTime < baseDeltaTime * 0.98f;
 
-	if (player_->IsChangeMode() ||
+	if (IsTankRunMenuOpen() || player_->IsChangeMode() ||
 		gameFlowState_ == GameFlowState::StageClear ||
 		gameFlowState_ == GameFlowState::GameOver) {
 		finalDeltaTime = 0.0f;
@@ -903,7 +906,7 @@ void GameScene::Update() {
 	if (input_->IsTrigger(input_->GetKey()[DIK_F7], input_->GetPreKey()[DIK_F7])) {
 		showCollisionDebug_ = !showCollisionDebug_;
 	}
-	if (input_->IsTrigger(input_->GetKey()[DIK_F6], input_->GetPreKey()[DIK_F6])) {
+	if (!prototypeRun_ && input_->IsTrigger(input_->GetKey()[DIK_F6], input_->GetPreKey()[DIK_F6])) {
 		player_->AddExp(200);
 	}
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
@@ -916,7 +919,8 @@ void GameScene::Update() {
 		postProfileMode_ = (postProfileMode_ + 1) % 8;
 	}
 	if (input_->IsTrigger(input_->GetKey()[DIK_F10], input_->GetPreKey()[DIK_F10])) {
-		ReloadLevelData(true);
+		if (prototypeRun_) RequestTankRunCapture("manual");
+		else ReloadLevelData(true);
 	}
 	if (input_->IsTrigger(input_->GetKey()[DIK_F11], input_->GetPreKey()[DIK_F11])) {
 		showLevelAIDitorPreview_ = !showLevelAIDitorPreview_;
@@ -970,7 +974,7 @@ void GameScene::Update() {
 	ball_->Update();
 	groundObj_->Update();
 
-	if (gameFlowState_ == GameFlowState::Playing && phase_ == Phase::kMain) {
+	if (gameFlowState_ == GameFlowState::Playing && phase_ == Phase::kMain && !IsTankRunMenuOpen()) {
 		if (phase_ == Phase::kMain && !player_->IsChangeMode()) {
 			playTime_ += baseDeltaTime;
 		}
@@ -978,10 +982,19 @@ void GameScene::Update() {
 		UpdateLevelItems();
 
 		player_->SetDebugNoDamage(debugPlayerNoDamage_);
+		if (prototypeRun_ && !player_->IsChangeMode()) {
+			std::vector<Vector3> targets;
+			if (!enemy_->IsDead()) targets.push_back(enemy_->GetWorldPosition());
+			for (const auto* actor : enemyManager_->GetEnemyPtrs())
+				if (actor && !actor->IsDead()) targets.push_back(actor->GetWorldPosition());
+			player_->SetRunHomingTargets(targets);
+		}
 		player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime, baseDeltaTime);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 		upgradeHudAfterPlayerUpdate_ = player_->GetUpgradeHudDebugSnapshot();
 #endif
+		// The evolution menu updates its own input, but the world must stay frozen.
+		if (!prototypeRun_ || (!player_->IsChangeMode() && !evolutionUiWasOpenAtFrameStart)) {
 		UpdateTutorial(baseDeltaTime);
 		for (const Player::LaserShotEvent& event : player_->ConsumeLaserShotEvents()) {
 			SpawnPlayerLaser(event);
@@ -1004,7 +1017,7 @@ void GameScene::Update() {
 		const bool suppressTutorialCombat = IsTutorialCombatSuppressed();
 		if (!suppressTutorialCombat) {
 			enemy_->Update(finalDeltaTime);
-			UpdateLevelBossPhases();
+			if (!prototypeRun_) UpdateLevelBossPhases();
 			enemyManager_->Update(*stage_, finalDeltaTime);
 		}
 
@@ -1034,6 +1047,7 @@ void GameScene::Update() {
 		if (!suppressTutorialCombat) {
 			UpdateGameplayEventEffects(baseDeltaTime, justDodgeTriggered);
 		}
+		}
 	} else {
 		collisionDebugRingManager_->Clear();
 		if (gameFlowState_ == GameFlowState::BossDefeatSequence && enemy_) {
@@ -1043,7 +1057,7 @@ void GameScene::Update() {
 			player_->UpdateDefeatPresentation(baseDeltaTime);
 		}
 	}
-	screenEffectDirector_.SetUpgradeMenuOpen(player_->IsChangeMode());
+	screenEffectDirector_.SetUpgradeMenuOpen(player_->IsChangeMode() || IsTankRunMenuOpen());
 	playerPostEffect_->Update(finalDeltaTime);
 	enemyPostEffect_->Update(finalDeltaTime);
 	expEnemyPostEffect_->Update(finalDeltaTime);
@@ -1059,7 +1073,7 @@ void GameScene::Update() {
 	ImGuiIO& io = ImGui::GetIO();
 
 	// アプリ側のクリック処理を行う前にチェック
-	if (!io.WantCaptureMouse) {
+	if (!io.WantCaptureMouse && !prototypeRun_) {
 		// 左クリックしたらパーティクル追加
 		if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
 			Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera() ? debugCamera->GetViewMatrix() : camera->GetViewMatrix();
@@ -1099,6 +1113,7 @@ void GameScene::Update() {
 		break;
 	case Phase::kMain:
 		if (gameFlowState_ == GameFlowState::Playing &&
+			!prototypeRun_ &&
 			!evolutionUiWasOpenAtFrameStart &&
 			input_->IsTrigger(input_->GetKey()[DIK_ESCAPE], input_->GetPreKey()[DIK_ESCAPE])) {
 			nextSceneName_ = "TITLE";
@@ -1630,6 +1645,7 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 
 void GameScene::BeginBossDefeatSequence()
 {
+	if (prototypeRun_) { tankRun_.CompleteBoss(); RefreshTankRunUi(); }
 	bossDefeatHandled_ = true;
 	gameFlowState_ = GameFlowState::BossDefeatSequence;
 	if (flowBannerText_) {
@@ -1652,6 +1668,7 @@ void GameScene::BeginBossDefeatSequence()
 
 void GameScene::BeginGameOver()
 {
+	if (prototypeRun_) { tankRun_.MarkDead(); RefreshTankRunUi(); }
 	playerDeathHandled_ = true;
 	gameFlowState_ = GameFlowState::GameOver;
 	if (flowBannerText_) {
@@ -1696,6 +1713,25 @@ void GameScene::UpdateGameFlow(float baseDeltaTime)
 		gameFlowState_ != GameFlowState::GameOver) {
 		return;
 	}
+	if (prototypeRun_) {
+		const auto triggered = [this](int key) { return input_->IsTrigger(input_->GetKey()[key], input_->GetPreKey()[key]); };
+		if (triggered(DIK_W) || triggered(DIK_S) || triggered(DIK_UP) || triggered(DIK_DOWN) ||
+			triggered(DIK_LEFT) || triggered(DIK_RIGHT)) resultSelection_ = 1 - resultSelection_;
+		bool confirm = triggered(DIK_RETURN) || triggered(DIK_SPACE);
+		for (int i = 0; i < 2; ++i) if (triggered(DIK_1 + i)) { resultSelection_ = i; confirm = true; }
+		const auto mouse = input_->GetMousePosition();
+		const auto motion = input_->GetMouseState();
+		for (int i = 0; i < 2; ++i) {
+			const float x = 64.0f + static_cast<float>(i) * 388.0f;
+			if (mouse.x < x || mouse.x > x + 368 || mouse.y < 280 || mouse.y > 560) continue;
+			if (motion.lX || motion.lY) resultSelection_ = i;
+			if (input_->IsTrigger(motion.rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
+				resultSelection_ = i; confirm = true;
+			}
+		}
+		if (confirm) ConfirmResultSelection();
+		return;
+	}
 
 	const bool up =
 		input_->IsTrigger(input_->GetKey()[DIK_W], input_->GetPreKey()[DIK_W]) ||
@@ -1736,7 +1772,7 @@ void GameScene::ConfirmResultSelection()
 		return;
 	}
 	if (resultSelection_ == 0) {
-		nextSceneName_ = "GAME";
+		nextSceneName_ = prototypeRun_ ? "TANK_RUN" : "GAME";
 	} else {
 		nextSceneName_ = "TITLE";
 	}
@@ -1767,6 +1803,7 @@ void GameScene::UpdateResultText()
 		<< (resultSelection_ == 1 ? "> " : "  ") << "RETURN TO TITLE\n\n"
 		<< "W/S or Arrow Keys : Select   Enter/Click : Confirm";
 	resultMenuText_->SetText(menu.str());
+	if (prototypeRun_ && tankRunHeading_) RefreshTankRunUi();
 }
 
 void GameScene::SetEventCallout(const std::string& text, float duration)
@@ -1883,6 +1920,7 @@ IScene::ScreenEffectState GameScene::GetScreenEffectState() const
 	const bool evolutionUiOpen = player_ && player_->IsChangeMode();
 	state.bloomScale = evolutionUiOpen ? 0.38f : 1.0f;
 	state.suppressPostEffectDebugUi = evolutionUiOpen;
+	state.suppressOutlines = prototypeRun_;
 	state.active = screenEffectDirector_.IsActive();
 	if (state.active) {
 		screenEffectDirector_.ApplyTo(state.param);
@@ -1899,6 +1937,11 @@ void GameScene::Draw() {
 void GameScene::DrawPostEffect3D() {
 
 	ResetPostProfileEntries();
+	if (player_) {
+		for (PlayerDrone* drone : player_->GetDronePtrs()) {
+			if (drone) drone->SetNeonVisual(prototypeRun_ && playerNeonRenderMode_ == 1);
+		}
+	}
 	ExpEnemy::SetShapeNeonRenderMode(expEnemyNeonRenderMode_);
 	if (skybox_) {
 		//skybox_->Draw();
@@ -2205,6 +2248,7 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 	if (showLevelAIDitorPreview_) {
 		QueueLevelEditorPreview();
 	}
+	if (prototypeRun_) QueueTankRunTelegraph();
 	if (includeStageBlockOutlines && (showStageBlockNeonOutlines_ || showStageDamageBlockNeonOutlines_)) {
 		QueueStageBlockNeonOutlines();
 	}
@@ -3292,6 +3336,34 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		const std::vector<Player::NeonBarrelLayout> bossBarrels = { bossBarrel };
 		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + impact * 0.07f), actorNeonBillboardLineWidth_, color, &bossBody, &bossBarrels, false, false);
 	}
+	if (prototypeRun_ && player_ && playerNeonRenderMode_ == 1) {
+		for (PlayerDrone* drone : player_->GetDronePtrs()) {
+			if (!drone || !drone->IsVisualVisible()) continue;
+			constexpr float radius = 0.78f;
+			const Vector3 center = drone->GetWorldPosition() + Vector3{0.0f, 0.0f, 0.35f};
+			const Vector4 color{0.24f, 1.0f, 0.78f, 0.95f};
+			Player::NeonBodyLayout droneBody{};
+			droneBody.outlineColor = color;
+			Player::NeonBarrelLayout droneBarrel{};
+			droneBarrel.offset = {0.86f, 0.0f, 0.0f};
+			droneBarrel.scale = {0.72f, 0.18f, 0.18f};
+			droneBarrel.fireGroup = -1;
+			droneBarrel.outlineColor = color;
+			droneBarrel.muzzleFlashRatio = drone->GetNeonMuzzleFlashRatio();
+			const std::vector<Player::NeonBarrelLayout> droneBarrels{droneBarrel};
+			queueTankBillboard(center, drone->GetAimDirection(), radius,
+				actorNeonBillboardLineWidth_ * 0.75f, color, &droneBody, &droneBarrels, false, true);
+			// A short thrust streak reads motion without painting a large glowing disk.
+			const Vector3 motion = drone->GetMove();
+			const float speed = Length(motion);
+			if (drawBarrels && speed > 0.03f) {
+				const Vector3 backward = motion / speed;
+				neonGridRenderer_->QueueLine(center - backward * radius,
+					center - backward * (radius + (std::min)(0.9f, speed * 3.0f)),
+					0.055f, {0.20f, 0.88f, 1.1f, 0.24f});
+			}
+		}
+	}
 }
 
 void GameScene::DrawActorNeonBodyFillPass() {
@@ -3369,6 +3441,14 @@ void GameScene::DrawActorNeonBodyFillPass() {
 			enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.345f },
 			bossNeonBillboardRadius_ * (1.0f + impact * 0.07f) * 0.96f,
 			actorNeonBodyFillColor_, cameraRight, cameraUp);
+	}
+	if (prototypeRun_ && player_ && playerNeonRenderMode_ == 1) {
+		for (PlayerDrone* drone : player_->GetDronePtrs()) {
+			if (!drone || !drone->IsVisualVisible()) continue;
+			neonGridRenderer_->QueueBillboardDisc(
+				drone->GetWorldPosition() + Vector3{0.0f, 0.0f, 0.345f}, 0.78f * 0.96f,
+				actorNeonBodyFillColor_, cameraRight, cameraUp);
+		}
 	}
 	const uint32_t fillCount = neonGridRenderer_->GetVertexCount() - fillStart;
 	neonGridRenderer_->DrawRangeSolid(fillStart, fillCount, vp);
@@ -4382,7 +4462,7 @@ Vector2 GameScene::GetStagePostCacheUvOffset(const Vector3& currentCameraPos) co
 bool GameScene::LoadLevelFile(LevelData& outLevel) const
 {
 	return LevelLoader().Load(
-		"resources/levels/level_test.json",
+		prototypeRun_ ? "resources/levels/tank_run.json" : "resources/levels/level_test.json",
 		outLevel
 	);
 }
@@ -6210,13 +6290,13 @@ void GameScene::DrawSprite() {
 		player_->DrawEncyclopedia();
 	}
 	//shotGide->Draw();
-	if (controlGuideText_ && !tutorialConfig_.enabled && gameFlowState_ == GameFlowState::Playing && !player_->IsChangeMode()) {
+	if (controlGuideText_ && !prototypeRun_ && !tutorialConfig_.enabled && gameFlowState_ == GameFlowState::Playing && !player_->IsChangeMode()) {
 		controlGuideText_->SetPosition(showControlGuide_ ? Vector2{ 22.0f, 636.0f } : Vector2{ 22.0f, 690.0f });
 		controlGuideText_->Draw();
 	}
 	DrawTutorialUi();
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	if (fpsText_) {
+	if (fpsText_ && !prototypeRun_) {
 		fpsText_->Draw();
 	}
 	if (showPostProfileOverlay_ && postProfileText_) {
@@ -6227,13 +6307,13 @@ void GameScene::DrawSprite() {
 	if (eventCalloutTimer_ > 0.0f && eventCalloutText_) {
 		eventCalloutText_->Draw();
 	}
-	if (flowBannerText_ && gameFlowState_ != GameFlowState::Playing) {
-		flowBannerText_->Draw();
-	}
 	const bool showResult =
 		gameFlowState_ == GameFlowState::StageClear ||
 		(gameFlowState_ == GameFlowState::GameOver && gameFlowTimer_ <= 0.0f);
-	if (showResult) {
+	if (flowBannerText_ && gameFlowState_ != GameFlowState::Playing && !(prototypeRun_ && showResult)) {
+		flowBannerText_->Draw();
+	}
+	if (showResult && !prototypeRun_) {
 		if (resultSummaryText_) {
 			resultSummaryText_->Draw();
 		}
@@ -6242,8 +6322,10 @@ void GameScene::DrawSprite() {
 		}
 	}
 	if (phase_ != Phase::kFadeIn) {
+		if (prototypeRun_) DrawTankRunUi();
 		fade_->Draw();
 	}
+	if (prototypeRun_) CopyTankRunCapture();
 }
 
 void GameScene::InitializeFollowHpBars(size_t count) {

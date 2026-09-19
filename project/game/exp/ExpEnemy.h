@@ -48,7 +48,7 @@ public:
 
     // Collider必須関数
     Vector3 GetWorldPosition() const override { return worldTransform_.translate; }
-    float GetRadius() const override { return 0.8f; } // 見た目は少し大きくても判定はこのくらい
+    float GetRadius() const override { return isRunResource_ ? 1.2f : 0.8f; }
 
     void SetAttackControllerBulletManager(BulletManager* bulletManager) {
         attackController_.SetBulletManager(bulletManager);
@@ -68,6 +68,8 @@ public:
     int GetHp() const { return hp_; }
     int GetMaxHp() const { return maxHp_; }
     void SetHp(int hp) { hp_ = hp; maxHp_ = hp; }
+    void SetRunResource(std::function<void(bool playerOwned)> onClaim);
+    bool IsRunResource() const { return isRunResource_; }
     bool TakeDamageFromPlayer(uint32_t amount);
     bool TakeDamageFromEnemy(uint32_t amount);
     void RefreshCollisionMask();
@@ -92,6 +94,7 @@ public:
     bool IsShapeNeonRenderTarget() const { return IsShapeNeonBillboardTarget(); }
 
 private:
+    bool ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinaryEnemyKill);
     void ApplyTypeParams();
     void TriggerDamageFeedback();
     void ApplyDamageFeedback(float deltaTime);
@@ -125,6 +128,8 @@ private:
     static inline const float kHeight = 1.6f;
 
     bool isDead_ = false;
+    bool isRunResource_ = false;
+    std::function<void(bool playerOwned)> runResourceClaimCallback_;
 
     uint32_t expValue_ = 10;
     ExpEnemyType type_ = ExpEnemyType::Square;

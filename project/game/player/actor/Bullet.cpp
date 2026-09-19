@@ -8,6 +8,7 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 	object_->Initialize();
 
 	owner_ = owner;
+	canClaimRunResource_ = true;
 	isReflectable_ = reflectable;
 	bulletHp_ = (std::max)(0.1f, bulletHp);
 	bulletPenetration_ = (std::max)(0.1f, bulletPenetration);
@@ -83,9 +84,8 @@ void Bullet::OnCollision(Collider* other) {
 	}
 	Bullet* otherBullet = dynamic_cast<Bullet*>(other);
 	if (otherBullet) {
-		if (otherBullet->IsDead()) {
-			return;
-		}
+		// CollisionManager checked both bullets before this pair. The first
+		// callback may consume one, but both sides still exchange durability.
 		if (otherBullet->GetOwner() == owner_) {
 			return;
 		}

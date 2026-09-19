@@ -23,6 +23,7 @@
 #include "game/ui/NeonProgressBar.h"
 #include "game/ui/NeonSegmentedBar.h"
 #include "game/ui/NeonTextEffect.h"
+#include "game/player/TankRunModifiers.h"
 
 enum class ClassType {
 	
@@ -216,6 +217,10 @@ public:
 	void Damage(uint32_t amount = kDamageBlockDamage);
 	void TakeDamage(uint32_t amount, float invincibleTime = 0.45f);
 	void ApplyBalanceConfig(const BalanceConfig& config);
+	void SetRunModifiers(const TankRunModifiers& modifiers);
+	void ConfigurePrototypeLoadout(int archetype); // 0: Twin, 1: MachineGun, 2: Overseer
+	void HealRunPlayer(int amount);
+	void SetRunHomingTargets(const std::vector<Vector3>& targets);
 	void SetDebugNoDamage(bool enabled) { debugNoDamage_ = enabled; }
 	bool IsDebugNoDamage() const { return debugNoDamage_; }
 
@@ -521,6 +526,17 @@ private:
 
 	PlayerStats stats_;
 	PlayerStats baseStats_;
+	TankRunModifiers runModifiers_{};
+	float runSupportDroneTimer_ = 0.0f;
+	float runDashAttackTimer_ = 0.0f;
+	float runOverdriveTimer_ = 0.0f;
+	float runOverdriveCooldown_ = 0.0f;
+	bool runDashBurstPending_ = false;
+	std::vector<Vector3> runHomingTargets_;
+	void ConfigureRunDrone(PlayerDrone& drone) const;
+	void ApplyRunProjectileRules(AttackParam& param, bool applyFan = true) const;
+	float GetRunFireIntervalScale() const;
+	void UpdateRunProjectiles(BulletManager* bulletManager, float deltaTime);
 	float healthRegenUpgradeRate_ = 0.08f;
 	float maxHpUpgradeRate_ = 0.10f;
 	float bodyDamageUpgradeRate_ = 0.10f;
@@ -537,6 +553,8 @@ private:
 	void EvolveById(const std::string& classId);
 	bool TryConfirmEvolutionById(const std::string& classId);
 	bool CanEvolveTo(const std::string& classId) const;
+	bool IsRunCompatibleClass(const PlayerClassConfig& config) const;
+	bool IsEvolutionClassVisible(const std::string& classId) const;
 	bool HasEvolutionEdge(const std::string& from, const std::string& to) const;
 	bool LoadPlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json");
 	void SavePlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json") const;
