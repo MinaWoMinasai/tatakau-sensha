@@ -58,16 +58,18 @@ float4 main(PSInput input) : SV_TARGET
     }
     else
     {
-        // Pre-normalized Gaussian weights for radius 4, sigma 1.75.
+        // The same radius-4, sigma-1.75 Gaussian. These passes have matching
+        // input/output sizes and a linear-clamp sampler, so two adjacent taps
+        // can share one bilinear fetch without changing the kernel or radius.
+        const float pairedWeight12 = 0.19541357f + 0.11973994f;
+        const float pairedWeight34 = 0.05293135f + 0.01688015f;
+        const float pairedOffset12 = (0.19541357f + 2.0f * 0.11973994f) / pairedWeight12;
+        const float pairedOffset34 = (3.0f * 0.05293135f + 4.0f * 0.01688015f) / pairedWeight34;
         col = sceneTex.Sample(samp, input.uv) * 0.23006997f;
-        col += sceneTex.Sample(samp, input.uv + float2(texel.x * 1.0f, 0.0f)) * 0.19541357f;
-        col += sceneTex.Sample(samp, input.uv - float2(texel.x * 1.0f, 0.0f)) * 0.19541357f;
-        col += sceneTex.Sample(samp, input.uv + float2(texel.x * 2.0f, 0.0f)) * 0.11973994f;
-        col += sceneTex.Sample(samp, input.uv - float2(texel.x * 2.0f, 0.0f)) * 0.11973994f;
-        col += sceneTex.Sample(samp, input.uv + float2(texel.x * 3.0f, 0.0f)) * 0.05293135f;
-        col += sceneTex.Sample(samp, input.uv - float2(texel.x * 3.0f, 0.0f)) * 0.05293135f;
-        col += sceneTex.Sample(samp, input.uv + float2(texel.x * 4.0f, 0.0f)) * 0.01688015f;
-        col += sceneTex.Sample(samp, input.uv - float2(texel.x * 4.0f, 0.0f)) * 0.01688015f;
+        col += sceneTex.Sample(samp, input.uv + float2(texel.x * pairedOffset12, 0.0f)) * pairedWeight12;
+        col += sceneTex.Sample(samp, input.uv - float2(texel.x * pairedOffset12, 0.0f)) * pairedWeight12;
+        col += sceneTex.Sample(samp, input.uv + float2(texel.x * pairedOffset34, 0.0f)) * pairedWeight34;
+        col += sceneTex.Sample(samp, input.uv - float2(texel.x * pairedOffset34, 0.0f)) * pairedWeight34;
     }
 
     float blurIntensity = (gaussianIntensity > 0.0f || fullScreenBoxBlurBlend > 0.0f) ? 1.0f : intensity;

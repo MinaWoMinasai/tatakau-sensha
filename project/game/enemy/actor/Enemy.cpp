@@ -53,6 +53,7 @@ float NormalizeAngleRad(float angle)
 Enemy::~Enemy() {}
 
 void Enemy::Fire() {
+	if (!runEncounterEnabled_) return;
 
 	assert(player_);
 
@@ -91,6 +92,7 @@ void Enemy::Fire() {
 
 void Enemy::ShotgunFire()
 {
+	if (!runEncounterEnabled_) return;
 	assert(player_);
 
 	// 発射位置
@@ -155,6 +157,8 @@ void Enemy::ShotgunFire()
 }
 
 void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) {
+	runEncounterEnabled_ = true;
+	runEncounterBaselineCaptured_ = false;
 	prototypeCombatEnabled_ = false;
 	prototypeResourceFocus_ = false;
 	prototypeResourceTargetActive_ = false;
@@ -251,6 +255,7 @@ void Enemy::SetEnemyProgressConfig(const EnemyProgressConfig& config)
 
 void Enemy::RegisterExpEnemyKill(uint32_t expValue)
 {
+	if (!runEncounterEnabled_) return;
 	if (prototypeCombatEnabled_ && (isDead_ || hp_ <= 0)) return;
 	expEnemyKillCount_++;
 	if (prototypeCombatEnabled_ && prototypeResourceFocus_) {
@@ -293,7 +298,7 @@ void Enemy::AdvanceFeedingLevel()
 
 void Enemy::RegisterRunResourceClaim()
 {
-	if (!prototypeCombatEnabled_ || !prototypeResourceFocus_ || isDead_ || hp_ <= 0) return;
+	if (!runEncounterEnabled_ || !prototypeCombatEnabled_ || !prototypeResourceFocus_ || isDead_ || hp_ <= 0) return;
 	HealFromFeeding(enemyProgressConfig_.healOnExpEnemyKill);
 	AdvanceFeedingLevel();
 }
@@ -322,7 +327,7 @@ void Enemy::SetPrototypeMaxHp(int maxHp, bool healToFull)
 Enemy::PrototypeTelegraph Enemy::GetPrototypeTelegraph() const
 {
 	PrototypeTelegraph result{};
-	result.active = prototypeCombatEnabled_ && !isDead_ && hp_ > 0 &&
+	result.active = runEncounterEnabled_ && prototypeCombatEnabled_ && !isDead_ && hp_ > 0 &&
 		prototypeCombat_.GetPhase() == PrototypeBossCombat::Phase::Telegraph;
 	result.attackType = prototypeCombat_.GetAttackType();
 	const float angle = prototypeCombat_.GetAimAngle();
@@ -330,6 +335,68 @@ Enemy::PrototypeTelegraph Enemy::GetPrototypeTelegraph() const
 	result.progress = prototypeCombat_.GetProgress();
 	result.spreadAngleDeg = prototypeCombat_.GetSpreadAngleDeg();
 	return result;
+}
+
+void Enemy::SetRunEncounterEnabled(bool enabled)
+{
+	runEncounterEnabled_ = enabled;
+	if (!enabled) {
+		velocity_ = {};
+		levelingModeActive_ = false;
+		prototypeResourceTargetActive_ = false;
+		prototypeCombat_.Reset();
+	}
+}
+
+void Enemy::ResetRunEncounter(const Vector3& position, int hp, int pressure, bool resourceFocus)
+{
+	if (!object_) return;
+	if (!runEncounterBaselineCaptured_) {
+		runEncounterBaseContactDamage_ = GetDamage();
+		runEncounterBaseBulletDamage_ = bossAttackConfig_.damage;
+		runEncounterBaselineCaptured_ = true;
+	}
+	runEncounterEnabled_ = true;
+	isDead_ = false;
+	isExploding_ = false;
+	radius_ = 2.0f;
+	deathChargeTimer_ = deathEffectTimer_ = damageFeedbackTimer_ = 0.0f;
+	enemyLevel_ = 1;
+	expEnemyKillCount_ = 0;
+	enemyExp_ = 0;
+	SetDamage(runEncounterBaseContactDamage_);
+	bossAttackConfig_.damage = runEncounterBaseBulletDamage_;
+	prototypeCombatEnabled_ = true;
+	prototypeResourceFocus_ = resourceFocus;
+	prototypeResourceTargetActive_ = false;
+	prototypeCombat_.Reset();
+	SetPrototypePressure(pressure);
+	SetPrototypeMaxHp(hp, true);
+	EnemyProgressConfig progress = enemyProgressConfig_;
+	progress.levelingModeEnabled = resourceFocus;
+	SetEnemyProgressConfig(progress);
+	levelingModeActive_ = false;
+	currentMoveTargetPosition_ = position;
+	velocity_ = dir_ = evadeVec = wanderVec = wallFollowDir_ = {};
+	steeringDir_ = { 1.0f, 0.0f, 0.0f };
+	steeringNoise_ = {};
+	aiState_ = AIState::Wander;
+	attackPower = evadePower = wanderPower = 0.0f;
+	isWallFollowing_ = false;
+	wallFollowTimer_ = steeringNoiseTimer_ = hesitationTimer_ = 0.0f;
+	hesitationCooldown_ = wanderChangeTimer = 1.0f;
+	fireIntervalTimer = 0;
+	time_ = 60;
+	bulletCooldown_ = 0.5f;
+	fireTimer_ = kFireTimerMax_;
+	alternatingShotIndex_ = 0;
+	worldTransform_.translate = position;
+	worldTransform_.rotate = {};
+	worldTransform_.scale = baseScale_;
+	object_->SetColor(baseColor_);
+	object_->SetTransform(worldTransform_);
+	object_->Update();
+	UpdateHPBar();
 }
 
 void Enemy::UpdatePrototypeCombat(float deltaTime)
@@ -372,6 +439,7 @@ void Enemy::UpdatePrototypeCombat(float deltaTime)
 }
 
 void Enemy::Update(float deltaTime) {
+	if (!runEncounterEnabled_) return;
 
 	UpdateHPBar();
 	ApplyDamageFeedback(deltaTime);
@@ -436,6 +504,7 @@ void Enemy::Draw(bool drawBody) {
 }
 
 void Enemy::DrawBodyOnly() {
+	if (!runEncounterEnabled_) return;
 	if (isDead_) {
 		if (!isExploding_) {
 			return;
@@ -475,6 +544,7 @@ void Enemy::DrawBodyOnly() {
 
 void Enemy::DrawSprite()
 {
+	if (!runEncounterEnabled_) return;
 	//bossHpRed->Draw();
 	//sprite->Draw();
 	//bossHpFont->Draw();
@@ -503,6 +573,7 @@ Vector3 Enemy::GetWorldPosition() const {
 }
 
 void Enemy::OnCollision(Collider* other) {
+	if (!runEncounterEnabled_) return;
 	
 	if (other->GetCollisionAttribute() == kCollisionAttributeExpEnemy) {
 		if (!enemyProgressConfig_.expEnemyHostile) {
@@ -550,7 +621,7 @@ void Enemy::OnCollision(Collider* other) {
 
 void Enemy::TakeDamage(uint32_t amount)
 {
-	if (isDead_ || amount == 0) {
+	if (!runEncounterEnabled_ || isDead_ || amount == 0) {
 		return;
 	}
 	hp_ -= static_cast<int>(amount);
@@ -1214,7 +1285,7 @@ bool Enemy::HasLineOfSightToTarget(const Vector3& targetPos) const {
 
 void Enemy::Die()
 {
-	if (isDead_) return;
+	if (!runEncounterEnabled_ || isDead_) return;
 
 	isDead_ = true;
 	isExploding_ = true;
@@ -1235,6 +1306,7 @@ bool Enemy::isFinished()
 
 void Enemy::UpdateDefeatPresentation(float deltaTime)
 {
+	if (!runEncounterEnabled_) return;
 	if (isExploding_) {
 		UpdateParticles((std::max)(0.0f, deltaTime));
 	}
@@ -1287,7 +1359,7 @@ void Enemy::UpdateHPBar()
 
 void Enemy::HPBarDraw()
 {
-	if (!isDead_) {
+	if (runEncounterEnabled_ && !isDead_) {
 		hpBarBG_->Draw();
 		hpBarFill_->Draw();
 	}

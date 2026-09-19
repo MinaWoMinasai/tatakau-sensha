@@ -33,7 +33,14 @@ $tankCollisionMethods = @(
     (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::HealFromFeeding('),
     (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::AdvanceFeedingLevel('),
     (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::RegisterRunResourceClaim('),
-    (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'Vector3 Enemy::ResolveMoveTargetPosition(')
+    (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'Vector3 Enemy::ResolveMoveTargetPosition('),
+    (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::SetRunEncounterEnabled('),
+    (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::ResetRunEncounter('),
+    (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::SetPrototypeMaxHp('),
+    (Read-ProductionMethod 'project/game/exp/EnemyManager.cpp' 'void EnemyManager::ClearRunActors('),
+    (Read-ProductionMethod 'project/game/exp/EnemyManager.cpp' 'void EnemyManager::ClearLevelData('),
+    (Read-ProductionMethod 'project/game/player/actor/BulletManager.cpp' 'void BulletManager::ClearAll('),
+    (Read-ProductionMethod 'project/game/player/actor/Stage.cpp' 'bool Stage::LoadRunMap(')
 )
 [IO.File]::WriteAllText((Join-Path $tankCollisionOutput 'tank_collision_methods.inc'), ($tankCollisionMethods -join "`n`n"), [Text.UTF8Encoding]::new($false))
 if (!$VisualStudioPath) {

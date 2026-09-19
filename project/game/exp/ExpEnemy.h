@@ -2,17 +2,21 @@
 #include "Collider.h"
 #include "Object3d.h"
 #include "AttackController.h"
+#include "ExpEnemyCombatCycle.h"
 #include <functional>
 
 class Player;
 class Stage;
 class Enemy;
+class NeonGridRenderer;
 
 enum class ExpEnemyType {
     Square,
     Triangle,
     Pentagon,
     Shooter,
+    Charger,
+    Sniper,
 };
 
 class ExpEnemy : public Collider {
@@ -70,6 +74,21 @@ public:
     void SetHp(int hp) { hp_ = hp; maxHp_ = hp; }
     void SetRunResource(std::function<void(bool playerOwned)> onClaim);
     bool IsRunResource() const { return isRunResource_; }
+    bool IsCombatThreat() const {
+        return !isDead_ && !isRunResource_ &&
+            (type_ == ExpEnemyType::Shooter || IsExpeditionCombatRole());
+    }
+    bool IsExpeditionCombatRole() const {
+        return type_ == ExpEnemyType::Charger || type_ == ExpEnemyType::Sniper;
+    }
+    ExpEnemyCombatPhase GetCombatPhase() const { return combatCycle_.GetPhase(); }
+    float GetAttackTelegraphRatio() const { return combatCycle_.GetWarningRatio(); }
+    bool IsAttackAimLocked() const { return combatCycle_.IsAimLocked(); }
+    const Vector3& GetAimDirection() const { return aimDirection_; }
+    const Vector3& GetTelegraphEnd() const { return telegraphEnd_; }
+    // Called from the scene's existing neon pass for the two explicit prefab roles.
+    void QueueCombatVisuals(NeonGridRenderer& renderer, const Vector3& cameraRight,
+        const Vector3& cameraUp, const Vector3& cameraForward, float lineWidth) const;
     bool TakeDamageFromPlayer(uint32_t amount);
     bool TakeDamageFromEnemy(uint32_t amount);
     void RefreshCollisionMask();
@@ -98,6 +117,10 @@ private:
     void ApplyTypeParams();
     void TriggerDamageFeedback();
     void ApplyDamageFeedback(float deltaTime);
+    void UpdateExpeditionCombat(Stage& stage, float deltaTime);
+    bool MoveCombatActor(Stage& stage, const Vector3& displacement);
+    Vector3 FindCombatWaypoint(Stage& stage, const Vector3& target) const;
+    Vector3 ClipCombatRay(Stage& stage, const Vector3& origin, const Vector3& direction, float distance) const;
 
     static BalanceConfig balanceConfig_;
     static EnemyInteractionConfig enemyInteractionConfig_;
@@ -151,5 +174,9 @@ private:
     static constexpr float kShooterMuzzleFlashDuration = 0.08f;
     float damageFeedbackTimer_ = 0.0f;
     float damageFeedbackDuration_ = 0.09f;
+    ExpEnemyCombatCycle combatCycle_{};
+    Vector3 telegraphEnd_{};
+    Vector3 combatWaypoint_{};
+    float combatRepathTimer_ = 0.0f;
 
 };

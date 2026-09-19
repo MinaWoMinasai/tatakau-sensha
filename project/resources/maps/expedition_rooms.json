@@ -1,0 +1,72 @@
+{
+  "format": "45 columns x 30 rows; CSV 0=empty, 1=wall, 2=damage wall; world x=column*2, y=(29-row)*2",
+  "roomBounds": {
+    "min": [
+      20,
+      14
+    ],
+    "max": [
+      68,
+      44
+    ]
+  },
+  "playerSpawn": [
+    26,
+    28,
+    0
+  ],
+  "rivalSpawn": [
+    62,
+    30,
+    0
+  ],
+  "resourcePosition": [
+    44,
+    30,
+    0
+  ],
+  "shooterSpawns": [
+    [
+      28,
+      20,
+      0
+    ],
+    [
+      60,
+      20,
+      0
+    ],
+    [
+      28,
+      38,
+      0
+    ],
+    [
+      60,
+      38,
+      0
+    ]
+  ],
+  "rooms": [
+    {
+      "id": "crossfire",
+      "csv": "resources/maps/expedition_crossfire.csv",
+      "description": "Offset cover: cross the center or flank the two staggered barricades."
+    },
+    {
+      "id": "resource_fork",
+      "csv": "resources/maps/expedition_resource_fork.csv",
+      "description": "Shared center core with a direct lane and wider north/south approaches."
+    },
+    {
+      "id": "hazard_lane",
+      "csv": "resources/maps/expedition_hazard_lane.csv",
+      "description": "Two broken hazard strips punish broad circles while leaving a safe center lane."
+    },
+    {
+      "id": "final_duel",
+      "csv": "resources/maps/expedition_final_duel.csv",
+      "description": "Symmetric corner cover around an open duel floor."
+    }
+  ]
+}

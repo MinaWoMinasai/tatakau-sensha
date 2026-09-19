@@ -25,6 +25,14 @@ bool TryGetExpEnemyType(const std::string& prefab, ExpEnemyType& type)
         type = ExpEnemyType::Shooter;
         return true;
     }
+    if (prefab == "Charger") {
+        type = ExpEnemyType::Charger;
+        return true;
+    }
+    if (prefab == "Sniper") {
+        type = ExpEnemyType::Sniper;
+        return true;
+    }
     return false;
 }
 
@@ -160,6 +168,13 @@ void EnemyManager::ClearLevelData()
     spawnTimer_ = 0.0f;
 }
 
+void EnemyManager::ClearRunActors()
+{
+    ClearLevelData();
+    defaultRandomSpawnEnabled_ = false;
+    // Static player/boss reward callbacks belong to the scene and stay installed.
+}
+
 void EnemyManager::SetExpEnemyHostileToBoss(bool hostile)
 {
     ExpEnemy::EnemyInteractionConfig config{};
@@ -177,7 +192,7 @@ ExpEnemy* EnemyManager::FindNearestEnemy(const Vector3& position, float maxDista
     ExpEnemy* nearest = nullptr;
     float bestDistance = maxDistance;
     for (const auto& enemy : enemies_) {
-        if (!enemy || enemy->IsDead() || (!includeShooters && enemy->GetType() == ExpEnemyType::Shooter)) {
+        if (!enemy || enemy->IsDead() || (!includeShooters && enemy->IsCombatThreat())) {
             continue;
         }
         const float distance = Length(enemy->GetWorldPosition() - position);

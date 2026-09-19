@@ -27,6 +27,9 @@ struct Block {
 class Stage {
 public:
 	void Initialize();
+	// A validated 45 x 30 CSV replaces the map atomically before block generation.
+	// Call between frames; returns false without replacing an invalid map.
+	bool LoadRunMap(const std::string& csvPath);
 	void Update();
 	void Draw();
 	void DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks = true);

@@ -8,6 +8,11 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include "../game/enemy/actor/PrototypeBossCombat.h"
+#include "../game/exp/ExpEnemyCombatCycle.h"
 
 struct Vector3 { float x=0,y=0,z=0; Vector3& operator+=(Vector3 b) { x+=b.x;y+=b.y;z+=b.z;return *this; } };
 struct Vector4 { float x=0,y=0,z=0,w=0; };
@@ -53,6 +58,8 @@ struct Bullet : Collider {
     bool CanClaimRunResource() const { return canClaimRunResource_; }
     Vector4 GetBulletColor() const { return {}; }
     void Die() { isDead_=true; }
+    void ReleaseTrail() { if (trailReleases) ++*trailReleases; }
+    int* trailReleases=nullptr;
     bool isDead_=false;
     bool canClaimRunResource_=true;
     int owner_;
@@ -60,12 +67,16 @@ struct Bullet : Collider {
     Vector3 velocity_{1,0,0};
 };
 struct DummyPlayer { int xp=0; Vector3 position{30,0,0}; void AddExp(int value) { xp+=value; } Vector3 GetWorldPosition() const { return position; } };
-enum class ExpEnemyType { Square, Triangle, Pentagon, Shooter };
+enum class ExpEnemyType { Square, Triangle, Pentagon, Shooter, Charger, Sniper };
 struct ExpEnemy : Collider {
     void OnCollision(Collider*) override;
     bool IsHostileToBoss() const { return hostileToBoss_; }
     bool IsDead() const { return isDead_; }
     bool IsRunResource() const { return isRunResource_; }
+    bool IsCombatThreat() const {
+        return !isDead_ && !isRunResource_ && (type_ == ExpEnemyType::Shooter ||
+            type_ == ExpEnemyType::Charger || type_ == ExpEnemyType::Sniper);
+    }
     ExpEnemyType GetType() const { return type_; }
     Vector3 GetWorldPosition() const override { return worldTransform_.translate; }
     bool ApplyDamage(uint32_t,bool,bool);
@@ -77,6 +88,7 @@ struct ExpEnemy : Collider {
     int hp_=8,expValue_=7;
     struct { Vector3 translate; } worldTransform_;
     Vector3 velocity_;
+    ExpEnemyCombatCycle combatCycle_{};
     float dt_=1.0f/60.0f,invincibleTimer_=0;
     DummyPlayer* player_=nullptr;
     std::function<void(uint32_t)> enemyKillCallback_;
@@ -88,6 +100,18 @@ struct EnemyManager {
     ExpEnemy* FindNearestEnemy(const Vector3&,float,bool includeShooters=true) const;
     ExpEnemy* FindNearestRunResource(const Vector3&,float) const;
     std::vector<std::unique_ptr<ExpEnemy>> enemies_;
+    void ClearRunActors();
+    void ClearLevelData();
+    std::vector<int> spawnAreas_;
+    float spawnTimer_=0;
+    bool defaultRandomSpawnEnabled_=true;
+};
+struct TestTransform { Vector3 translate,rotate,scale; };
+struct TestObject {
+    void SetColor(Vector4) {}
+    void SetTransform(TestTransform value) { transform=value; }
+    void Update() {}
+    TestTransform transform;
 };
 struct Enemy {
     void RegisterExpEnemyKill(uint32_t);
@@ -98,7 +122,7 @@ struct Enemy {
     Vector3 GetWorldPosition() const { return {}; }
     uint32_t GetDamage() const { return damage_; }
     void SetDamage(uint32_t value) { damage_=value; }
-    struct { int healOnExpEnemyKill=6,killsPerLevel=4,maxHpGainPerLevel=35; uint32_t damageGainPerLevel=0;
+    struct EnemyProgressConfig { int healOnExpEnemyKill=6,killsPerLevel=4,maxHpGainPerLevel=35; uint32_t damageGainPerLevel=0;
         bool expEnemyHostile=true,levelingModeEnabled=true;
         float levelingEnterPlayerDistance=22,levelingExitPlayerDistance=14,levelingSearchRadius=80;
     } enemyProgressConfig_;
@@ -110,8 +134,50 @@ struct Enemy {
     int hp_=500,maxHP_=1000,prototypeBaseMaxHp_=1000,prototypeFeedingHealBudget_=500;
     int expEnemyKillCount_=0,enemyLevel_=1;
     uint32_t enemyExp_=0,damage_=6;
+    void SetRunEncounterEnabled(bool);
+    void ResetRunEncounter(const Vector3&,int,int,bool);
+    void SetPrototypeMaxHp(int,bool=true);
+    void SetPrototypePressure(int value) { prototypePressure_=std::clamp(value,0,4); }
+    void SetEnemyProgressConfig(EnemyProgressConfig value) { enemyProgressConfig_=value; }
+    void UpdateHPBar() {}
+    bool runEncounterEnabled_=true,runEncounterBaselineCaptured_=false,isExploding_=false,isWallFollowing_=false;
+    uint32_t runEncounterBaseContactDamage_=0,runEncounterBaseBulletDamage_=0,time_=0;
+    PrototypeBossCombat prototypeCombat_;
+    int prototypePressure_=0,fireIntervalTimer=0,alternatingShotIndex_=0;
+    float radius_=2,deathChargeTimer_=0,deathEffectTimer_=0,damageFeedbackTimer_=0;
+    float attackPower=0,evadePower=0,wanderPower=0,wallFollowTimer_=0,steeringNoiseTimer_=0,hesitationTimer_=0;
+    float hesitationCooldown_=0,wanderChangeTimer=0,bulletCooldown_=0,fireTimer_=0,kFireTimerMax_=0.15f;
+    Vector3 currentMoveTargetPosition_,velocity_,dir_,evadeVec,wanderVec,wallFollowDir_,steeringDir_,steeringNoise_,baseScale_{1,1,1};
+    enum class AIState { Wander,Attack };
+    AIState aiState_=AIState::Wander;
+    Vector4 baseColor_;
+    TestTransform worldTransform_;
+    TestObject* object_=nullptr;
 };
 struct Contact : Collider { void OnCollision(Collider*) override {} };
+struct TestTrailManager {
+    void ClearInstances() { assert(!releaseCounter || *releaseCounter==2); ++clearCalls; }
+    int clearCalls=0;
+    int* releaseCounter=nullptr;
+};
+struct BulletManager {
+    void ClearAll();
+    std::vector<std::unique_ptr<Bullet>> bullets_;
+    std::unique_ptr<TestTrailManager> trailManager_;
+};
+enum class MapChipType { Blank,Wall,Hazard };
+struct MapChip {
+    static constexpr uint32_t kNumBlockHorizontal=45,kNumBlockVirtical=30;
+    struct { std::vector<std::vector<MapChipType>> data; } mapChipData_;
+    void ResetMapChipData() { mapChipData_.data.assign(30,std::vector<MapChipType>(45,MapChipType::Blank)); }
+};
+struct Stage {
+    bool LoadRunMap(const std::string&);
+    void ClearBlocksForPreview() { ++clears; }
+    void GenerateBlocks() { ++generates; }
+    std::unique_ptr<MapChip> mapChip_;
+    int clears=0,generates=0;
+};
 
 #include "tank_collision_methods.inc"
 
@@ -242,5 +308,51 @@ int main() {
         for(int i=0;i<4;++i) legacy.RegisterExpEnemyKill(7);
         assert(legacy.enemyLevel_==2 && legacy.enemyExp_==28); // Focus disabled retains old feeding.
     }
-    std::cout<<"Production collision/resource methods: interception, single kill/claim, shared HP, weapon ownership, target filtering and capped rival growth passed.\n";
+    {
+        Enemy rival; TestObject object; rival.object_=&object;
+        rival.ResetRunEncounter({26,28,0},300,2,true);
+        rival.RegisterRunResourceClaim();
+        rival.isDead_=rival.isExploding_=true; rival.radius_=0; rival.deathEffectTimer_=2;
+        rival.velocity_={9,8,0}; rival.damageFeedbackTimer_=1;
+        for(int i=0;i<15;++i) rival.prototypeCombat_.Step(.1f,true,1,1,2,false);
+        rival.ResetRunEncounter({62,30,0},650,9,false);
+        assert(!rival.isDead_ && !rival.isExploding_ && rival.radius_==2);
+        assert(rival.hp_==650 && rival.maxHP_==650 && rival.enemyLevel_==1 && rival.expEnemyKillCount_==0);
+        assert(rival.prototypePressure_==4 && rival.prototypeCombat_.GetPhase()==PrototypeBossCombat::Phase::Recovery);
+        assert(!rival.prototypeResourceFocus_ && !rival.enemyProgressConfig_.levelingModeEnabled);
+        assert(rival.velocity_.x==0 && rival.damageFeedbackTimer_==0 && rival.deathEffectTimer_==0);
+        assert(object.transform.translate.x==62 && object.transform.translate.y==30);
+        rival.SetRunEncounterEnabled(false);
+        const auto hp=rival.hp_; rival.RegisterExpEnemyKill(100); rival.RegisterRunResourceClaim();
+        assert(!rival.runEncounterEnabled_ && !rival.isDead_ && rival.hp_==hp && rival.enemyLevel_==1);
+        EnemyManager actors; actors.enemies_.push_back(std::make_unique<ExpEnemy>()); actors.spawnAreas_.push_back(1);
+        actors.ClearRunActors(); assert(actors.enemies_.empty() && actors.spawnAreas_.empty() && !actors.defaultRandomSpawnEnabled_);
+    }
+    {
+        BulletManager bullets; int released=0;
+        bullets.trailManager_=std::make_unique<TestTrailManager>(); bullets.trailManager_->releaseCounter=&released;
+        for(int i=0;i<2;++i) { auto b=std::make_unique<Bullet>(1.0f,1.0f,0); b->trailReleases=&released; bullets.bullets_.push_back(std::move(b)); }
+        bullets.ClearAll(); assert(bullets.bullets_.empty() && released==2 && bullets.trailManager_->clearCalls==1);
+    }
+    {
+        Stage stage;
+        for(const char* name : {"crossfire","resource_fork","hazard_lane","final_duel"}) {
+            assert(stage.LoadRunMap(std::string("../../project/resources/maps/expedition_")+name+".csv"));
+            assert(stage.mapChip_->mapChipData_.data.size()==30 && stage.mapChip_->mapChipData_.data[0].size()==45);
+        }
+        const auto* previous=stage.mapChip_.get();
+        assert(stage.mapChip_->mapChipData_.data[10][18]==MapChipType::Blank);
+        assert(stage.mapChip_->mapChipData_.data[10][16]==MapChipType::Wall);
+        std::ofstream("invalid_room.csv")<<"0,1,2\n";
+        assert(!stage.LoadRunMap("invalid_room.csv") && previous==stage.mapChip_.get() && stage.clears==4 && stage.generates==4);
+        assert(!stage.LoadRunMap("missing_room.csv") && previous==stage.mapChip_.get());
+        std::ostringstream invalid;
+        for(int y=0;y<30;++y) {
+            for(int x=0;x<45;++x) invalid<<(x?",":"")<<(x==44&&y==29?9:0);
+            invalid<<'\n';
+        }
+        std::ofstream("invalid_room.csv")<<invalid.str();
+        assert(!stage.LoadRunMap("invalid_room.csv") && previous==stage.mapChip_.get() && stage.clears==4);
+    }
+    std::cout<<"Production collision/resource/encounter methods: rewards, ownership, capped growth, reset, cleanup and map replacement passed.\n";
 }

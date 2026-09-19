@@ -1,0 +1,182 @@
+{
+  "source": "original procedural synthesis; no external recordings or samples",
+  "auditioned": false,
+  "music": "original 8-bar electro prototype; D minor; 128 BPM",
+  "combined_stems_peak_dbfs": -8.0,
+  "files": [
+    {
+      "file": "shot.wav",
+      "seconds": 0.12,
+      "channels": 1,
+      "sample_rate": 48000,
+      "bits": 16,
+      "peak_dbfs": -6.0,
+      "rms_dbfs": -18.93,
+      "clipped_samples": 0,
+      "first_samples": [
+        0
+      ],
+      "last_samples": [
+        0
+      ]
+    },
+    {
+      "file": "hit.wav",
+      "seconds": 0.175,
+      "channels": 1,
+      "sample_rate": 48000,
+      "bits": 16,
+      "peak_dbfs": -6.0,
+      "rms_dbfs": -23.96,
+      "clipped_samples": 0,
+      "first_samples": [
+        0
+      ],
+      "last_samples": [
+        0
+      ]
+    },
+    {
+      "file": "kill.wav",
+      "seconds": 0.53,
+      "channels": 1,
+      "sample_rate": 48000,
+      "bits": 16,
+      "peak_dbfs": -5.0,
+      "rms_dbfs": -20.4,
+      "clipped_samples": 0,
+      "first_samples": [
+        0
+      ],
+      "last_samples": [
+        0
+      ]
+    },
+    {
+      "file": "warning.wav",
+      "seconds": 0.29,
+      "channels": 1,
+      "sample_rate": 48000,
+      "bits": 16,
+      "peak_dbfs": -7.0,
+      "rms_dbfs": -17.91,
+      "clipped_samples": 0,
+      "first_samples": [
+        0
+      ],
+      "last_samples": [
+        0
+      ]
+    },
+    {
+      "file": "dash.wav",
+      "seconds": 0.235,
+      "channels": 1,
+      "sample_rate": 48000,
+      "bits": 16,
+      "peak_dbfs": -7.0,
+      "rms_dbfs": -23.18,
+      "clipped_samples": 0,
+      "first_samples": [
+        0
+      ],
+      "last_samples": [
+        0
+      ]
+    },
+    {
+      "file": "upgrade.wav",
+      "seconds": 0.68,
+      "channels": 1,
+      "sample_rate": 48000,
+      "bits": 16,
+      "peak_dbfs": -6.0,
+      "rms_dbfs": -18.74,
+      "clipped_samples": 0,
+      "first_samples": [
+        0
+      ],
+      "last_samples": [
+        0
+      ]
+    },
+    {
+      "file": "armor_break.wav",
+      "seconds": 0.38,
+      "channels": 1,
+      "sample_rate": 48000,
+      "bits": 16,
+      "peak_dbfs": -6.0,
+      "rms_dbfs": -23.96,
+      "clipped_samples": 0,
+      "first_samples": [
+        0
+      ],
+      "last_samples": [
+        0
+      ]
+    },
+    {
+      "file": "music_base.wav",
+      "seconds": 15.0,
+      "channels": 2,
+      "sample_rate": 48000,
+      "bits": 16,
+      "peak_dbfs": -10.22,
+      "rms_dbfs": -26.61,
+      "clipped_samples": 0,
+      "loop_beats": 32,
+      "bpm": 128,
+      "seam_jump": 3.0517578125e-05,
+      "sample_delta_p99": 0.00274658203125,
+      "first_samples": [
+        -215,
+        -287
+      ],
+      "last_samples": [
+        -215,
+        -286
+      ]
+    },
+    {
+      "file": "music_intensity.wav",
+      "seconds": 15.0,
+      "channels": 2,
+      "sample_rate": 48000,
+      "bits": 16,
+      "peak_dbfs": -12.76,
+      "rms_dbfs": -37.21,
+      "clipped_samples": 0,
+      "loop_beats": 32,
+      "bpm": 128,
+      "seam_jump": 0.0,
+      "sample_delta_p99": 0.029083251953125,
+      "first_samples": [
+        0,
+        0
+      ],
+      "last_samples": [
+        0,
+        0
+      ]
+    },
+    {
+      "file": "preview.wav",
+      "seconds": 15.0,
+      "channels": 2,
+      "sample_rate": 48000,
+      "bits": 16,
+      "peak_dbfs": -9.93,
+      "rms_dbfs": -30.69,
+      "clipped_samples": 0,
+      "first_samples": [
+        0,
+        0
+      ],
+      "last_samples": [
+        0,
+        0
+      ]
+    }
+  ]
+}

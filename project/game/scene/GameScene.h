@@ -36,6 +36,8 @@
 #include "game/effects/ScreenEffectDirector.h"
 #include "game/ui/NeonTextEffect.h"
 #include "game/run/TankRunDirector.h"
+#include "game/run/TankExpeditionDirector.h"
+#include "game/run/TankExpeditionAudio.h"
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -45,7 +47,7 @@ public:
 	/// <summary>
 	/// コンストラクタ
 	/// </summary>
-	explicit GameScene(bool prototypeRun = false);
+	explicit GameScene(bool prototypeRun = false, bool expeditionRun = false);
 
 	/// <summary>
 	/// デストラクタ
@@ -90,6 +92,40 @@ public:
 	std::string GetNextSceneName() const override;
 
 private:
+	void InitializeTankExpedition();
+	void UpdateTankExpedition(float dt);
+	void StartTankExpeditionRoom();
+	void FinishTankExpeditionRoom();
+	void SelectTankExpeditionOption(int index);
+	void RefreshTankExpeditionUi();
+	void DrawTankExpeditionUi();
+	void UpdateTankExpeditionAudio(float dt);
+	bool IsRunRivalActive() const { return !expeditionRun_ || tankExpeditionRivalActive_; }
+	int GetTankExpeditionOptionCount() const;
+	bool expeditionRun_ = false;
+	tankexp::ExpeditionDirector tankExpedition_{};
+	bool tankExpeditionRivalActive_ = false;
+	bool tankExpeditionRoomPending_ = false;
+	bool tankExpeditionResourceWon_ = false;
+	bool tankExpeditionRewardOpen_ = false;
+	bool tankExpeditionMaintenanceOpen_ = false;
+	bool tankExpeditionResourceReleased_ = false;
+	int tankExpeditionAutoMaintainedRoom_ = -1;
+	int tankExpeditionValidationErrors_ = 0;
+	bool tankExpeditionMusicEnabled_ = true;
+	bool tankExpeditionEffectsEnabled_ = true;
+	TankExpeditionAudio tankExpeditionAudio_;
+	std::unordered_map<const ExpEnemy*,int> tankExpeditionEnemyHp_;
+	std::unordered_map<const ExpEnemy*,bool> tankExpeditionEnemyWarning_;
+	int tankExpeditionNodes_ = 0;
+	int tankExpeditionSpawned_ = 0;
+	int tankExpeditionAutoVariant_ = 0;
+	int tankExpeditionCaptureIndex_ = 0;
+	float tankExpeditionArrival_ = 0;
+	std::vector<RunEvolutionChoice> tankExpeditionEvolutions_;
+	std::unique_ptr<TextLabel> tankExpeditionMapText_;
+	std::unique_ptr<TextLabel> tankExpeditionMaintenanceText_;
+	std::unique_ptr<Sprite> tankExpeditionMaintenanceButton_;
 	void InitializeTankRun();
 	void InitializeTankRunVisuals();
 	void UpdateTankRun(float dt);

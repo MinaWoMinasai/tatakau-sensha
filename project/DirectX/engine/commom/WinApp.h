@@ -12,7 +12,7 @@
 #include "externals/DirectXTex/DirectXTex.h"
 #include "externals/DirectXTex/d3dx12.h"
 
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 

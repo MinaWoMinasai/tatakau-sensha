@@ -224,7 +224,7 @@ void InkShooterScene::Update() {
     auto triggered=[&](int n) { return input_->IsTrigger(input_->GetKey()[n],input_->GetPreKey()[n]); };
     if (triggered(DIK_ESCAPE)) { SetCaptured(false); finished_=true; return; }
     if (triggered(DIK_TAB)) SetCaptured(!captured_);
-    if (triggered(DIK_F1)) { debug_=!debug_; SetCaptured(!debug_); }
+    if (triggered(DIK_F1) && !input_->GetKey()[DIK_LSHIFT] && !input_->GetKey()[DIK_RSHIFT]) { debug_=!debug_; SetCaptured(!debug_); }
     if (triggered(DIK_R)&&captured_) { replay_=false; Reset(); }
     if (triggered(DIK_F9)) { if (replay_) replay_=false; else StartReplay(); }
     if (triggered(DIK_F10)) RequestCapture("manual");

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "projectName": "Tank Branching Expedition Prototype",
+  "gameModule": "builtin",
+  "startupScene": "TANK_EXPEDITION",
+  "resourceRoot": "resources"
+}

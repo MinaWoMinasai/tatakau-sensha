@@ -13,6 +13,7 @@
 #include "Calculation.h"
 #include "Struct.h"
 #include "Texture.h"
+#include "FramePacer.h"
 
 struct D3DResouceLeakCheaker {
 	~D3DResouceLeakCheaker()
@@ -136,6 +137,9 @@ public:
 
 	void ExecuteCommandListAndWait();
 	void ResetFixFPS();
+	void SetFrameLimitEnabled(bool enabled) { framePacer_.SetEnabled(enabled); }
+	bool IsFrameLimitEnabled() const { return framePacer_.IsEnabled(); }
+	const FramePacer::Stats& GetFramePacingStats() const { return framePacer_.GetStats(); }
 	const FrameSubmitProfile& GetFrameSubmitProfile() const { return frameSubmitProfile_; }
 	bool IsD3D12DebugLayerEnabled() const { return d3d12DebugLayerEnabled_; }
 	bool IsGpuBasedValidationEnabled() const { return gpuBasedValidationEnabled_; }
@@ -473,8 +477,7 @@ private:
 	// FPS固定変数
 	//---------------------------------
 	
-	// 記録時間
-	std::chrono::steady_clock::time_point reference_;
+	FramePacer framePacer_;
 	
 	PSO objectPSO_None;
 	PSO objectPSO_Alpha;

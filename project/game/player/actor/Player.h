@@ -24,6 +24,7 @@
 #include "game/ui/NeonSegmentedBar.h"
 #include "game/ui/NeonTextEffect.h"
 #include "game/player/TankRunModifiers.h"
+#include "game/player/TankExpeditionLoadout.h"
 
 enum class ClassType {
 	
@@ -62,6 +63,12 @@ struct TankData {
 	std::unique_ptr<Sprite> sprite; // 各戦車専用のスプライト
 	std::unique_ptr<TextLabel> nameLabel;
 	std::unique_ptr<TextLabel> rankLabel;
+};
+
+struct RunEvolutionChoice {
+	std::string id;
+	std::string name;
+	std::string description;
 };
 
 class Stage;
@@ -220,7 +227,19 @@ public:
 	void SetRunModifiers(const TankRunModifiers& modifiers);
 	void ConfigurePrototypeLoadout(int archetype); // 0: Twin, 1: MachineGun, 2: Overseer
 	void HealRunPlayer(int amount);
+	bool SpendRunHealth(int amount);
+	void SetRunCheckpointEvolution(bool enabled) { runCheckpointEvolution_ = enabled; }
 	void SetRunHomingTargets(const std::vector<Vector3>& targets);
+	std::vector<RunEvolutionChoice> GetRunEvolutionChoices() const;
+	void PrepareRunEvolution();
+	bool ChooseRunEvolution(const std::string& id);
+	bool AwardRunMaintenancePoint(int clearedRoom);
+	int GetRunMaintenancePoints() const { return runMaintenance_.Points(); }
+	int GetRunMaintenanceRank(int stat) const { return runMaintenance_.Rank(stat); }
+	std::array<RunMaintenanceChoice, 3> GetRunMaintenanceChoices() const;
+	bool SpendRunMaintenancePoint(int stat);
+	bool RefundRunMaintenancePoint(int stat);
+	void ResetRunRoomState(const Vector3& position);
 	void SetDebugNoDamage(bool enabled) { debugNoDamage_ = enabled; }
 	bool IsDebugNoDamage() const { return debugNoDamage_; }
 
@@ -527,11 +546,17 @@ private:
 	PlayerStats stats_;
 	PlayerStats baseStats_;
 	TankRunModifiers runModifiers_{};
+	TankExpeditionMaintenance runMaintenance_{};
+	PlayerClassConfig runEvolutionConfig_{};
+	bool runEvolutionActive_ = false;
+	bool runEvolutionPrepared_ = false;
 	float runSupportDroneTimer_ = 0.0f;
 	float runDashAttackTimer_ = 0.0f;
 	float runOverdriveTimer_ = 0.0f;
 	float runOverdriveCooldown_ = 0.0f;
 	bool runDashBurstPending_ = false;
+	bool runRoomAwaitInputRelease_ = false;
+	bool runCheckpointEvolution_ = false;
 	std::vector<Vector3> runHomingTargets_;
 	void ConfigureRunDrone(PlayerDrone& drone) const;
 	void ApplyRunProjectileRules(AttackParam& param, bool applyFan = true) const;
