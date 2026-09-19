@@ -211,6 +211,10 @@ public:
 	void SetPrototypeResourceFocus(bool enabled) { prototypeResourceFocus_ = enabled; }
 	void RegisterRunResourceClaim();
 	PrototypeTelegraph GetPrototypeTelegraph() const;
+	void SetRunEncounterEnabled(bool enabled);
+	bool IsRunEncounterEnabled() const { return runEncounterEnabled_; }
+	// Call after Initialize, outside actor updates/collision callbacks.
+	void ResetRunEncounter(const Vector3& position, int hp, int pressure, bool resourceFocus);
 
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
 		bulletManager_ = bulletManager;
@@ -297,6 +301,10 @@ private:
 	BossAttackConfig bossAttackConfig_{};
 	EnemyProgressConfig enemyProgressConfig_{};
 	bool prototypeCombatEnabled_ = false;
+	bool runEncounterEnabled_ = true;
+	bool runEncounterBaselineCaptured_ = false;
+	uint32_t runEncounterBaseContactDamage_ = 0;
+	uint32_t runEncounterBaseBulletDamage_ = 0;
 	bool prototypeResourceFocus_ = false;
 	bool prototypeResourceTargetActive_ = false;
 	PrototypeBossCombat prototypeCombat_{};

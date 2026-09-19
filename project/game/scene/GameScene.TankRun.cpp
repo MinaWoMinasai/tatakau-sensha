@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "game/run/TankRunCopy.h"
 #include "game/player/TankRunModifiers.h"
 #include "externals/DirectXTex/DirectXTex.h"
 #include "ParticleManager.h"
@@ -9,31 +10,7 @@
 
 namespace {
 using RunPhase = tankrun::Phase;
-struct CardCopy { const char* title; const char* body; };
-constexpr CardCopy kRunCards[] = {
-    {"反射コーティング", "壁で弾が反射する。\n反射コアなら弾速 +20%。\n\nドローンの弾にも適用。\n壁際の射線を使いこなす。"},
-    {"重い弾頭", "弾の威力 +70%\n弾速 -28% / 発射間隔 +20%\n\n散弾をまとめて当てるか、\n誘導で命中を補う。"},
-    {"高速装填", "発射間隔 -35%\n弾の威力 -20%\n\n手数で進路を制する。\nオーバードライブとも重なる。"},
-    {"軽量スラスター", "移動速度 +18%\nダッシュ速度・回復力 +25%\nダッシュ待ち時間 -20%\n\n資源の先取りと離脱に。"},
-    {"回避コンデンサ", "ジャスト回避で\nHP 4・スタミナ 1 回復。\n射撃強化が 3.5 秒続く。\n\n敵弾を読んで反撃する。"},
-    {"予備装甲", "最大HP +25%\n選んだ瞬間に HP 30 回復。\n\n近距離戦を続ける備えに。"},
-    {"援護ドローン", "援護ドローンが 2 機増える。\n弾の改造効果も引き継ぐ。\n\nドローンコアなら最大10機。\n他の機体でも援護が付く。"},
-    {"迎撃弾", "敵弾を消す力が 1 → 3。\n敵へのダメージは同じ。\n\n弾幕を撃ち抜いて進む。"},
-    {"RARE  分裂砲口", "弾数 +2 / 1発の威力 -25%\n扇状に弾を広げる。\n\n反射・誘導・重い弾頭と\n組み合わせて射線を増やす。"},
-    {"RARE  弱誘導弾", "前方の近い敵へ弾が曲がる。\n射程内の目標を狙って撃つ。\n\n散弾や遅い弾を当てやすく。\n壁の向こうへは届かない。"},
-    {"RARE  ダッシュバースト", "ダッシュ開始時に\n8方向へ弾を発射。\n\n移動そのものが攻撃になる。\nスラスター・反射と好相性。"},
-    {"RARE  オーバードライブ", "ダッシュ後1.2秒、連射2倍。\n発動間隔は4秒。\nジャスト回避なら2.4秒。\n\n踏み込んで一気に撃ち込む。"}
-};
-constexpr CardCopy kLoadouts[] = {
-    {"ツイン / 集中射撃", "2つの砲口で狙いを絞る。\n扱いやすい標準機体。\n\n次の画面で主軸コアを選ぶ。\nCキーで上位機体へ進化。"},
-    {"マシンガン / 弾幕", "広がる弾を高速で撃つ。\n近距離で多くの弾を当てる。\n\n次の画面で主軸コアを選ぶ。\n突撃や誘導と組み合わせる。"},
-    {"オーバーシア / 指揮", "ドローンを照準位置へ指揮。\n本体は回避と位置取りに集中。\n\n次の画面で主軸コアを選ぶ。\n反射・誘導も弾に適用。"}
-};
-constexpr CardCopy kCores[] = {
-    {"反射コア / 跳弾", "反射する細い扇状弾。\n弾数 +2 / 弾速 +25%\n1発の威力 55%\n\n壁を使って複数の射線を作る。"},
-    {"突撃コア / 散弾", "弾数 +4 / 1発の威力 45%\n通常の連射は遅くなる。\nダッシュ後1秒、弾が集中し\n発射間隔が短くなる。\n近づく → 撃つ → 離脱する。"},
-    {"指揮コア / 群体", "ドローン機体は最大8機。\n他の機体には援護が2機。\nダッシュで次の一斉射撃を促す。\n\n反射・誘導を群れへ組み込む。"}
-};
+using namespace tankrun::copy;
 bool IsDecision(RunPhase phase) { return phase==RunPhase::Loadout || phase==RunPhase::CoreChoice || phase==RunPhase::Draft; }
 std::string RunClock(double time) {
     const int seconds=static_cast<int>((std::max)(0.0,time));
@@ -47,6 +24,7 @@ std::string DirectionTo(const Vector3& delta) {
 }
 
 bool GameScene::IsTankRunMenuOpen() const {
+    if(expeditionRun_ && tankExpedition_.GetPhase()!=tankexp::Phase::Dormant && !tankExpedition_.IsCombat()) return true;
     return prototypeRun_ && (tankRunPaused_ || IsDecision(tankRun_.GetPhase()) || tankRunMenuAge_<0);
 }
 
@@ -54,6 +32,7 @@ void GameScene::InitializeTankRun() {
     wchar_t automatic[16]{};
     tankRunAutoTest_=GetEnvironmentVariableW(L"CG2_TANK_AUTOTEST",automatic,16)>0 && automatic[0]==L'1';
     tankrun::Config config; if(tankRunAutoTest_) config.combatSeconds=24;
+    if(expeditionRun_) config.combatSeconds=1000000;
     tankRun_=tankrun::RunDirector(tankRunAutoTest_?20260919u:static_cast<uint32_t>(GetTickCount64()),config);
     TankRunModifiers modifiers{}; modifiers.enabled=true; player_->SetRunModifiers(modifiers);
     enemy_->SetPrototypeMaxHp(1050); enemy_->EnablePrototypeCombat(true);
@@ -61,7 +40,7 @@ void GameScene::InitializeTankRun() {
     debugPlayerNoDamage_=tankRunAutoTest_;
     showPostProfileOverlay_=false; showLevelAIDitorPreview_=false; showGameDebugConsole_=false;
     InitializeTankRunVisuals();
-    if(tankRunAutoTest_) {
+    if(tankRunAutoTest_ && !expeditionRun_) {
         std::filesystem::create_directories("generated/tank_run");
         std::ofstream("generated/tank_run/validation.json")<<"{\"completed\":false,\"testMode\":true}\n";
     }
@@ -90,6 +69,7 @@ void GameScene::InitializeTankRun() {
         tankRunCardTitles_[i]=label(20,{x+16,303},{0.82f,1,0.94f,1});
         tankRunCardBodies_[i]=label(18,{x+16,362},{0.84f,0.90f,0.96f,1});
     }
+    if(expeditionRun_) { InitializeTankExpedition(); RefreshTankRunUi(); return; }
     const std::array<Vector3,3> centers={Vector3{25,18,0},Vector3{43,38,0},Vector3{65,20,0}};
     for(size_t i=0;i<centers.size();++i) {
         auto& resource=tankRunResources_[i]; resource.position=centers[i];
@@ -128,13 +108,27 @@ void GameScene::OnTankRunEnemyDefeated(const Vector3& position) {
     tankRunComboTime_=2; tankRunBestCombo_=(std::max)(tankRunBestCombo_,tankRunCombo_);
     if(tankRunBursts_.size()<24) tankRunBursts_.push_back({position,0,false});
     screenEffectDirector_.TriggerEnemyDefeat(WorldToScreenUv(position),0.20f);
-    if(tankRunCombo_%5==0) SetEventCallout(std::to_string(tankRunCombo_)+" CHAIN / 資材 +1",0.55f);
+    if(expeditionRun_) {
+        tankExpeditionAudio_.Kill(tankRunCombo_);
+        ParticleManager::GetInstance()->EmitNeonImpactEffect(position,{0,1,0},{0.22f,1.1f,0.82f,1},10);
+    }
+    if(tankRunCombo_%5==0) SetEventCallout(std::to_string(tankRunCombo_)+(expeditionRun_?" CHAIN":" CHAIN / 資材 +1"),0.55f);
     tankRunHudTimer_=0;
 }
 
 void GameScene::OnTankRunResourceClaim(size_t index,bool playerOwned) {
     if(index>=tankRunResources_.size()||!tankRunResources_[index].active) return;
     auto& resource=tankRunResources_[index]; resource.active=false; resource.respawn=20;
+    if(expeditionRun_) {
+        ++tankExpeditionNodes_;
+        tankExpeditionResourceWon_|=playerOwned;
+        if(playerOwned) {player_->AddExp(30);player_->HealRunPlayer(8);}
+        if(tankExpedition_.GetRoomKind()==tankexp::RoomKind::Resource || tankExpeditionNodes_>=3) tankExpeditionRoomPending_=true;
+        SetEventCallout(playerOwned?"動力コア確保":"ライバルがコアを確保 / 次のエリアへ",1.0f);
+        tankExpeditionAudio_.Kill();
+        if(tankRunBursts_.size()<24) tankRunBursts_.push_back({resource.position,0,true});
+        return;
+    }
     if(!tankRun_.ClaimResource(playerOwned)) return;
     if(playerOwned) {
         player_->AddExp(30); player_->HealRunPlayer(12);
@@ -169,6 +163,7 @@ void GameScene::UpdateTankRunResources(float dt) {
 }
 
 void GameScene::SelectTankRunOption(int index) {
+    if(expeditionRun_ && !tankRunPaused_ && tankExpedition_.GetPhase()!=tankexp::Phase::Dormant) {SelectTankExpeditionOption(index);return;}
     const auto phase=tankRun_.GetPhase();
     if(tankRunPaused_) {
         if(index==0) tankRunPaused_=false;
@@ -178,8 +173,9 @@ void GameScene::SelectTankRunOption(int index) {
         player_->ConfigurePrototypeLoadout(index);
     } else if(phase==RunPhase::CoreChoice) {
         if(!tankRun_.ChooseCore(index)) return;
-        ApplyTankRunCards(); UpdateTankRunResources(0);
-        SetEventCallout("金色のコアを狙おう / 資材で E 改造",1.5f);
+        ApplyTankRunCards();
+        if(expeditionRun_) {tankExpedition_.Start();StartTankExpeditionRoom();}
+        else {UpdateTankRunResources(0);SetEventCallout("金色のコアを狙おう / 資材で E 改造",1.5f);}
     } else if(phase==RunPhase::Draft) {
         if(index<0||static_cast<size_t>(index)>=tankRun_.GetOfferCount()) return;
         const auto chosen=tankRun_.GetOffers()[static_cast<size_t>(index)];
@@ -192,6 +188,7 @@ void GameScene::SelectTankRunOption(int index) {
 }
 
 void GameScene::UpdateTankRun(float dt) {
+    if(expeditionRun_) {UpdateTankExpedition(dt);return;}
     if(phase_!=Phase::kMain) return;
     tankRunMenuAge_+=dt; tankRunAutoTime_+=dt;
     const auto triggered=[this](int key){return input_->IsTrigger(input_->GetKey()[key],input_->GetPreKey()[key]);};
@@ -268,6 +265,7 @@ void GameScene::UpdateTankRun(float dt) {
 }
 
 void GameScene::RefreshTankRunUi() {
+    if(expeditionRun_ && tankExpedition_.GetPhase()!=tankexp::Phase::Dormant) {RefreshTankExpeditionUi();return;}
     const auto phase=tankRun_.GetPhase(); std::ostringstream hud;
     hud<<"コア争奪戦  /  "<<(phase==RunPhase::Clear?"勝利":phase==RunPhase::Dead?"戦闘終了":phase==RunPhase::Boss?"最終決戦":"決戦まで "+RunClock(tankRun_.GetContestSecondsRemaining()))<<"\n";
     hud<<"HP "<<player_->GetHp()<<" / "<<player_->GetMaxHp()<<"    ";
@@ -326,15 +324,29 @@ void GameScene::RefreshTankRunUi() {
     }
     if(copies) for(int i=0;i<3;++i) {tankRunCardTitles_[i]->SetText(std::to_string(i+1)+"  "+copies[i].title);tankRunCardBodies_[i]->SetText(copies[i].body);}
     tankRunFooter_->SetText("数字キー / クリック: 決定   ← → + Enter: 選択   Esc: 一時停止\nWASD: 移動   マウス: 照準   左クリック: 射撃   右クリック: ダッシュ   E: 改造   C: 進化");
+    if(expeditionRun_) {
+        tankRunHud_->SetText("分岐遠征 / 地下施設を突破せよ\n機体 → 主軸 → 戦闘 → 改造 → 分岐 → 進化 → ボス");
+        tankRunBossText_->SetText("全5戦闘エリア\n所持改造とHPを次の部屋へ引き継ぐ");
+        if(!tankRunPaused_&&phase==RunPhase::Loadout) {
+            tankRunDescription_->SetText("短い戦闘を突破し、改造と進路を選んで最深部へ。\n中間地点にはイベントと機体進化。ボスまでに構成を育てよう。");
+            tankRunCardBodies_[0]->SetText("2つの砲口で狙いを絞る。\n扱いやすい標準機体。\n\n次の画面で主軸コアを選ぶ。\n中間地点で2種類から進化。");
+        } else if(!tankRunPaused_&&phase==RunPhase::CoreChoice) {
+            tankRunDescription_->SetText("選んだ軸に、区画突破後の改造を組み合わせる。進化後も効果を引き継ぎます。\n指揮機体の弾にも反射・誘導・分裂が適用されます。");
+        }
+        tankRunFooter_->SetText("数字 / クリック: 決定   ← → + Enter: 選択   Esc: 一時停止\nWASD: 移動   マウス: 照準   左: 射撃   右: ダッシュ   報酬で Tab: 整備");
+    }
 }
 
 void GameScene::DrawTankRunUi() {
+    if(expeditionRun_ && tankExpedition_.GetPhase()!=tankexp::Phase::Dormant) {DrawTankExpeditionUi();return;}
     if(player_->IsChangeMode()) return;
     SpriteCommon::GetInstance()->PreDraw(kNormal); const auto phase=tankRun_.GetPhase();
     const bool result=gameFlowState_==GameFlowState::StageClear||(gameFlowState_==GameFlowState::GameOver&&gameFlowTimer_<=0);
     const bool decision=IsDecision(phase)||tankRunPaused_;
     if(decision||result) tankRunDimmer_->Draw();
-    tankRunHudPanel_->Draw();tankRunHud_->Draw();tankRunBossText_->Draw();tankRunBossTrack_->Draw();tankRunBossFill_->Draw();tankRunBuildText_->Draw();
+    tankRunHudPanel_->Draw();tankRunHud_->Draw();tankRunBossText_->Draw();
+    if(!expeditionRun_) {tankRunBossTrack_->Draw();tankRunBossFill_->Draw();}
+    tankRunBuildText_->Draw();
     if(!decision&&!result) {tankRunObjectiveText_->Draw();return;}
     tankRunHeading_->Draw();tankRunDescription_->Draw();
     const size_t options=result||tankRunPaused_?2:phase==RunPhase::Draft?tankRun_.GetOfferCount():3;
@@ -369,8 +381,14 @@ void GameScene::QueueTankRunTelegraph() {
     for(const auto& burst:tankRunBursts_) {
         const float duration=burst.resource?0.7f:0.35f; const float t=burst.age/duration;
         circle(burst.position,0.7f+t*(burst.resource?5.0f:2.2f),0.09f*(1-t),burst.resource?Vector4{1,0.72f,0.15f,1-t}:Vector4{0.25f,1,0.8f,1-t},20);
+        if(expeditionRun_&&!burst.resource) for(int i=0;i<8;++i) {
+            const float a=static_cast<float>(i)*pi/4+burst.position.x;
+            const Vector3 direction{std::cos(a),std::sin(a),0};
+            const Vector3 start=burst.position+direction*(0.6f+3.8f*t)+Vector3{0,0,-0.35f};
+            neonGridRenderer_->QueueLine(start,start+direction*(0.45f*(1-t)),0.075f*(1-t),{0.45f,1.2f,0.85f,1-t});
+        }
     }
-    if(enemy_->IsDead()) return;
+    if(!IsRunRivalActive() || enemy_->IsDead()) return;
     const auto telegraph=enemy_->GetPrototypeTelegraph();if(!telegraph.active) return;
     Vector3 origin=enemy_->GetWorldPosition();origin.z=-0.3f;
     const float base=std::atan2(telegraph.direction.y,telegraph.direction.x),half=telegraph.spreadAngleDeg*pi/360;
@@ -395,8 +413,9 @@ void GameScene::QueueTankRunTelegraph() {
 
 void GameScene::RequestTankRunCapture(const std::string& name) {
     if(!tankRunCapturePath_.empty()) return;
-    std::filesystem::create_directories("generated/tank_run");
-    tankRunCapturePath_="generated/tank_run/"+name+".png";
+    const std::string directory=expeditionRun_?"generated/tank_expedition/variant_"+std::to_string(tankExpeditionAutoVariant_):"generated/tank_run";
+    std::filesystem::create_directories(directory);
+    tankRunCapturePath_=directory+"/"+name+".png";
 }
 
 void GameScene::CopyTankRunCapture() {

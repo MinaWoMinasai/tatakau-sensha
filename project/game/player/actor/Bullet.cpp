@@ -216,6 +216,11 @@ TrailConfig Bullet::MakeTrailConfig() const {
 		config.endWidthScale = (std::max)(0.0f, trailSettings_->tailWidthScale);
 		config.widthCurvePower = (std::max)(0.05f, trailSettings_->widthCurvePower);
 		config.colorCurvePower = (std::max)(0.05f, trailSettings_->colorCurvePower);
+		if(owner_==kPlayer) {
+			config.lifetime*=(std::clamp)(trailSettings_->playerTrailLifetimeScale,0.1f,1.0f);
+			config.startColor.w*=(std::clamp)(trailSettings_->playerTrailAlphaScale,0.1f,1.0f);
+			config.endColor.w*=(std::clamp)(trailSettings_->playerTrailAlphaScale,0.1f,1.0f);
+		}
 	} else {
 		config.startColor = { 1.0f, 0.98f, 0.78f, 1.0f };
 		config.endColor = { color.x, color.y, color.z, 0.0f };

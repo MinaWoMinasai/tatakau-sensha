@@ -945,7 +945,8 @@ void Bloom::PreDraw() {
 }
 
 void Bloom::PostDraw() {
-    auto commandList = dxCommon_->GetList();
+    // All resolve/filter draws below overwrite their full target with depth
+    // and blending disabled. Only a skipped resolve needs a fallback clear.
 
     // --- A. SceneRT の描画終了 (RT -> SRV) ---
     Transition(sceneRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -962,7 +963,6 @@ void Bloom::PostDraw() {
 		Transition(randomRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		dxCommon_->SetRenderTargetNoDepth(randomRT_->GetRTVHandle());
 		dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
-		dxCommon_->ClearRenderTarget(randomRT_->GetRTVHandle());
 		postEffect_->Draw(sceneRT_->GetGPUHandle(), kRandom);
 		Transition(randomRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		sceneSource = randomRT_->GetGPUHandle();
@@ -973,9 +973,10 @@ void Bloom::PostDraw() {
     dxCommon_->SetRenderTargetNoDepth(motionVectorRT_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
     const float motionClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    dxCommon_->ClearRenderTarget(motionVectorRT_->GetRTVHandle(), motionClearColor);
     if (enableMotionVector_) {
         postEffect_->DrawMotionVectorResolve(sceneRT_->GetDepthGPUHandle());
+    } else {
+        dxCommon_->ClearRenderTarget(motionVectorRT_->GetRTVHandle(), motionClearColor);
     }
     Transition(motionVectorRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -1001,8 +1002,6 @@ void Bloom::PostDraw() {
             D3D12_RESOURCE_STATE_RENDER_TARGET);
         dxCommon_->SetRenderTargetNoDepth(temporalHistoryRT_[writeHistoryIndex]->GetRTVHandle());
         dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
-        const float temporalClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-        dxCommon_->ClearRenderTarget(temporalHistoryRT_[writeHistoryIndex]->GetRTVHandle(), temporalClearColor);
         postEffect_->DrawTemporalResolve(
             sceneSource,
             historySource,
@@ -1030,12 +1029,13 @@ void Bloom::PostDraw() {
     dxCommon_->SetRenderTargetNoDepth(ssaoResolveRT_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
     const float aoClearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-    dxCommon_->ClearRenderTarget(ssaoResolveRT_->GetRTVHandle(), aoClearColor);
     if (enableSSAO_) {
         postEffect_->DrawSSAOResolve(
             sceneRT_->GetDepthGPUHandle(),
             normalRT_->GetGPUHandle(),
             materialRT_->GetGPUHandle());
+    } else {
+        dxCommon_->ClearRenderTarget(ssaoResolveRT_->GetRTVHandle(), aoClearColor);
     }
     Transition(ssaoResolveRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -1044,7 +1044,6 @@ void Bloom::PostDraw() {
         Transition(ssaoDenoiseRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
         dxCommon_->SetRenderTargetNoDepth(ssaoDenoiseRT_->GetRTVHandle());
         dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
-        dxCommon_->ClearRenderTarget(ssaoDenoiseRT_->GetRTVHandle(), aoClearColor);
         postEffect_->DrawSSAODenoise(
             ssaoResolveRT_->GetGPUHandle(),
             sceneRT_->GetDepthGPUHandle(),
@@ -1059,13 +1058,14 @@ void Bloom::PostDraw() {
     dxCommon_->SetRenderTargetNoDepth(ssrResolveRT_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
     const float ssrClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    dxCommon_->ClearRenderTarget(ssrResolveRT_->GetRTVHandle(), ssrClearColor);
     if (enableSSR_) {
         postEffect_->DrawSSRResolve(
             sceneSource,
             sceneRT_->GetDepthGPUHandle(),
             normalRT_->GetGPUHandle(),
             materialRT_->GetGPUHandle());
+    } else {
+        dxCommon_->ClearRenderTarget(ssrResolveRT_->GetRTVHandle(), ssrClearColor);
     }
     Transition(ssrResolveRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -1074,7 +1074,6 @@ void Bloom::PostDraw() {
         Transition(ssrDenoiseRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
         dxCommon_->SetRenderTargetNoDepth(ssrDenoiseRT_->GetRTVHandle());
         dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
-        dxCommon_->ClearRenderTarget(ssrDenoiseRT_->GetRTVHandle(), ssrClearColor);
         postEffect_->DrawSSRDenoise(
             ssrResolveRT_->GetGPUHandle(),
             sceneRT_->GetDepthGPUHandle(),
@@ -1088,7 +1087,6 @@ void Bloom::PostDraw() {
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
-    dxCommon_->ClearRenderTarget(bloomRT_Half_->GetRTVHandle());
 
     // Full-screen smoothing modes skip bright-pass extraction and blur the whole scene.
     if (bloomParam_.gaussianIntensity > 0.0f || bloomParam_.fullScreenBoxBlurBlend > 0.0f) {
@@ -1103,7 +1101,6 @@ void Bloom::PostDraw() {
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
-    dxCommon_->ClearRenderTarget(bloomRT_A_->GetRTVHandle());
 
     postEffect_->Draw(bloomRT_Half_->GetGPUHandle(), kAdd_Bloom_Downsample);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

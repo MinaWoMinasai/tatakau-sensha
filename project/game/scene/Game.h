@@ -10,6 +10,7 @@
 #include "TitleScene.h"
 #include "Bloom.h"
 #include "Shadow.h"
+#include "TrailStressFixture.h"
 
 class Game {
 public:
@@ -46,4 +47,6 @@ private:
     bool gameModuleUsedFallback_ = false;
     bool startupSceneUsedFallback_ = false;
     std::string resolvedStartupScene_ = "TITLE";
+    bool imguiInitialized_ = false;
+    std::unique_ptr<TrailStressFixture> trailStress_;
 };

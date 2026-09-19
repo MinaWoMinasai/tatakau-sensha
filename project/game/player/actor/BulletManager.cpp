@@ -15,6 +15,14 @@ void BulletManager::Add(std::unique_ptr<Bullet> bullet) {
     bullets_.push_back(std::move(bullet));
 }
 
+void BulletManager::ClearAll()
+{
+    // Release each pointer before destroying the trail instances it refers to.
+    for (auto& bullet : bullets_) if (bullet) bullet->ReleaseTrail();
+    bullets_.clear();
+    if (trailManager_) trailManager_->ClearInstances();
+}
+
 void BulletManager::Update(Stage& stage, float deltaTime) {
 
     for (auto& bullet : bullets_) {
