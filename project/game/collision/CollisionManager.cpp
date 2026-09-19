@@ -35,6 +35,13 @@ void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletMa
 }
 
 void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* colliderB) {
+	// Earlier pairs may have consumed a projectile. Check only at entry: the
+	// first valid impact must still deliver both callbacks if one kills a bullet.
+	const Bullet* bulletA = dynamic_cast<const Bullet*>(colliderA);
+	const Bullet* bulletB = dynamic_cast<const Bullet*>(colliderB);
+	if ((bulletA && bulletA->IsDead()) || (bulletB && bulletB->IsDead())) {
+		return;
+	}
 
 	bool hit = false;
 

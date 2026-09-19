@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "projectName": "Tank Arena Expedition Prototype",
+  "gameModule": "builtin",
+  "startupScene": "TANK_RUN",
+  "resourceRoot": "resources"
+}

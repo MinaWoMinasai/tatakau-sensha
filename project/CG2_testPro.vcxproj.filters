@@ -279,6 +279,12 @@
     <ClCompile Include="game\scene\GameScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\scene\GameScene.TankRun.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\scene\GameScene.TankRunVisuals.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\effects\ScreenEffectDirector.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -538,6 +544,9 @@
     <ClInclude Include="game\enemy\actor\Enemy.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\enemy\actor\PrototypeBossCombat.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\mapchip\MapChip.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -551,6 +560,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\player\actor\Player.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\TankRunModifiers.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankRunDirector.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\player\actor\PlayerDrone.h">

@@ -16,6 +16,8 @@ public:
 		bool active = false;
 		float bloomScale = 1.0f;
 		bool suppressPostEffectDebugUi = false;
+		// Suppress generated screen-space edges, preserving authored neon geometry.
+		bool suppressOutlines = false;
 		BloomParam param{};
 	};
 	struct WaterPostProcessSettings {

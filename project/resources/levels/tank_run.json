@@ -1,0 +1,119 @@
+{
+  "balance": {
+    "bossAttackDefault": {
+      "bulletCount": 1,
+      "bulletHp": 5,
+      "bulletPenetration": 3,
+      "bulletSpeed": 0.4000000059604645,
+      "cooldown": 0.5,
+      "damage": 6,
+      "pattern": 0,
+      "randomSpread": true,
+      "spreadAngleDeg": 30.0
+    },
+    "damage": {
+      "bossContact": 18,
+      "damageBlock": 15,
+      "expEnemyContact": 6,
+      "shooterBullet": 6,
+      "shooterBulletSpeed": 0.22,
+      "shooterContact": 10,
+      "shooterDetectionRadius": 20,
+      "shooterFireInterval": 2.1,
+      "shooterTurnSpeed": 5.5
+    },
+    "defaultRandomSpawnEnabled": false,
+    "enemySystem": {
+      "bossAimTurnHalfSeconds": 1.0,
+      "bossDamageGainPerLevel": 0,
+      "bossExpEnemyDamage": 14,
+      "bossHealOnExpEnemyKill": 1,
+      "bossKillsPerLevel": 4,
+      "bossLevelingEnterDistance": 22,
+      "bossLevelingExitDistance": 14,
+      "bossLevelingModeEnabled": true,
+      "bossLevelingSearchRadius": 80,
+      "bossMaxHpGainPerLevel": 35,
+      "expEnemyHostileToBoss": true
+    },
+    "notes": "trueなら従来のランダムEXP敵スポーンも残す。falseならspawnAreas中心の調整にできる。",
+    "player": {
+      "bodyDamage": 5,
+      "bulletDamage": 5,
+      "bulletSpeed": 0.38,
+      "healToFull": true,
+      "maxHp": 150,
+      "maxStamina": 3.0,
+      "moveSpeed": 0.29,
+      "reloadSpeed": 18,
+      "staminaRecovery": 1.45
+    },
+    "playerUpgrades": {
+      "bodyDamage": 0.10000000149011612,
+      "bulletDamage": 0.20000000298023224,
+      "bulletSpeed": 0.07999999821186066,
+      "healthRegen": 0.07999999821186066,
+      "maxHp": 0.10000000149011612,
+      "minReloadSpeed": 3.0,
+      "moveSpeed": 0.05999999865889549,
+      "reloadSpeed": 0.07000000029802322
+    }
+  },
+  "bossPhases": [],
+  "editorMode": "ArenaBattle",
+  "levelName": "Core Clash / Build Arena",
+  "objects": [
+    {
+      "customProperties": {
+        "levelType": "PlayerSpawn",
+        "prefab": "Default",
+        "sourceName": "PlayerSpawn_001"
+      },
+      "name": "PlayerSpawn_001",
+      "position": {
+        "x": 30,
+        "y": 30,
+        "z": 0
+      },
+      "prefab": "Default",
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "type": "PlayerSpawn"
+    },
+    {
+      "customProperties": {
+        "levelType": "BossSpawn",
+        "prefab": "Default",
+        "sourceName": "BossSpawn_001"
+      },
+      "name": "BossSpawn_001",
+      "position": {
+        "x": 62,
+        "y": 30,
+        "z": 0
+      },
+      "prefab": "Default",
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "type": "BossSpawn"
+    }
+  ],
+  "spawnAreas": [],
+  "toolName": "Level AI-ditor"
+}
