@@ -140,6 +140,19 @@ void EnemyManager::AddLevelSpawnArea(const SpawnArea& spawnArea)
     spawnAreas_.push_back(area);
 }
 
+ExpEnemy* EnemyManager::SpawnRunResource(const Vector3& position, int hp, std::function<void(bool playerOwned)> onClaim)
+{
+    auto resource = std::make_unique<ExpEnemy>();
+    resource->Initialize(position, player_, ExpEnemyType::Pentagon);
+    resource->SetBossTarget(boss_);
+    resource->SetAttackControllerBulletManager(bulletManager_);
+    resource->SetHp((std::max)(1, hp));
+    resource->SetRunResource(std::move(onClaim));
+    ExpEnemy* result = resource.get();
+    enemies_.push_back(std::move(resource));
+    return result;
+}
+
 void EnemyManager::ClearLevelData()
 {
     spawnAreas_.clear();
@@ -159,14 +172,29 @@ void EnemyManager::SetExpEnemyHostileToBoss(bool hostile)
     }
 }
 
-ExpEnemy* EnemyManager::FindNearestEnemy(const Vector3& position, float maxDistance) const
+ExpEnemy* EnemyManager::FindNearestEnemy(const Vector3& position, float maxDistance, bool includeShooters) const
 {
     ExpEnemy* nearest = nullptr;
     float bestDistance = maxDistance;
     for (const auto& enemy : enemies_) {
-        if (!enemy || enemy->IsDead()) {
+        if (!enemy || enemy->IsDead() || (!includeShooters && enemy->GetType() == ExpEnemyType::Shooter)) {
             continue;
         }
+        const float distance = Length(enemy->GetWorldPosition() - position);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            nearest = enemy.get();
+        }
+    }
+    return nearest;
+}
+
+ExpEnemy* EnemyManager::FindNearestRunResource(const Vector3& position, float maxDistance) const
+{
+    ExpEnemy* nearest = nullptr;
+    float bestDistance = maxDistance;
+    for (const auto& enemy : enemies_) {
+        if (!enemy || enemy->IsDead() || !enemy->IsRunResource()) continue;
         const float distance = Length(enemy->GetWorldPosition() - position);
         if (distance < bestDistance) {
             bestDistance = distance;

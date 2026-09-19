@@ -71,6 +71,8 @@ public:
 	BulletOwner GetOwner() const { return owner_; }
 	float GetBulletHp() const { return bulletHp_; }
 	float GetBulletPenetration() const { return bulletPenetration_; }
+	bool CanClaimRunResource() const { return canClaimRunResource_; }
+	void SetCanClaimRunResource(bool enabled) { canClaimRunResource_ = enabled; }
 	void ApplyBulletDurabilityDamage(float amount);
 
 	void Die();
@@ -107,6 +109,7 @@ private:
 	BulletOwner owner_;
 	float bulletHp_ = 1.0f;
 	float bulletPenetration_ = 1.0f;
+	bool canClaimRunResource_ = true;
 	TrailInstance* trail_ = nullptr;
 	BulletTrailSettings* trailSettings_ = nullptr;
 };

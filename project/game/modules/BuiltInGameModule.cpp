@@ -30,6 +30,7 @@ bool BuiltInGameModule::RegisterScenes(SceneRegistry& registry) const
 	success = registry.Register<TitleScene>("TITLE") && success;
 	success = registry.Register<TestScene>("TEST") && success;
 	success = registry.Register<GameScene>("GAME") && success;
+	success = registry.Register("TANK_RUN", []() { return std::make_unique<GameScene>(true); }) && success;
 	success = registry.Register<PlayerLabScene>("PLAYER_LAB") && success;
 	success = registry.Register<Action3DScene>("ACTION3D") && success;
 	success = registry.Register<GraphicsLabScene>("GRAPHICS_LAB") && success;

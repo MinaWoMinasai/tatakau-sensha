@@ -155,6 +155,11 @@ void Enemy::ShotgunFire()
 }
 
 void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) {
+	prototypeCombatEnabled_ = false;
+	prototypeResourceFocus_ = false;
+	prototypeResourceTargetActive_ = false;
+	prototypeCombat_.Reset();
+	prototypePressure_ = 0;
 
 	hpBarFill_ = std::make_unique<Object3d>();
 	hpBarFill_->Initialize();
@@ -246,17 +251,123 @@ void Enemy::SetEnemyProgressConfig(const EnemyProgressConfig& config)
 
 void Enemy::RegisterExpEnemyKill(uint32_t expValue)
 {
+	if (prototypeCombatEnabled_ && (isDead_ || hp_ <= 0)) return;
 	expEnemyKillCount_++;
-	enemyExp_ += expValue;
-	if (enemyProgressConfig_.healOnExpEnemyKill > 0) {
-		hp_ = (std::min)(maxHP_, hp_ + enemyProgressConfig_.healOnExpEnemyKill);
+	if (prototypeCombatEnabled_ && prototypeResourceFocus_) {
+		// Ordinary shapes sustain the rival slightly; only contested cores
+		// advance its level in the resource-rivalry mode.
+		HealFromFeeding((std::min)(1, enemyProgressConfig_.healOnExpEnemyKill));
+		return;
 	}
+	enemyExp_ += expValue;
+	HealFromFeeding(enemyProgressConfig_.healOnExpEnemyKill);
 	if (expEnemyKillCount_ % enemyProgressConfig_.killsPerLevel == 0) {
-		enemyLevel_++;
-		maxHP_ += enemyProgressConfig_.maxHpGainPerLevel;
-		hp_ = (std::min)(maxHP_, hp_ + enemyProgressConfig_.maxHpGainPerLevel);
-		SetDamage(GetDamage() + enemyProgressConfig_.damageGainPerLevel);
-		bossAttackConfig_.damage += enemyProgressConfig_.damageGainPerLevel;
+		AdvanceFeedingLevel();
+	}
+}
+
+void Enemy::HealFromFeeding(int amount)
+{
+	amount = (std::max)(0, (std::min)(amount, maxHP_ - hp_));
+	if (prototypeCombatEnabled_) {
+		amount = (std::min)(amount, prototypeFeedingHealBudget_);
+		prototypeFeedingHealBudget_ -= amount;
+	}
+	hp_ += amount;
+}
+
+void Enemy::AdvanceFeedingLevel()
+{
+	if (prototypeCombatEnabled_ && enemyLevel_ >= 6) return;
+	enemyLevel_++;
+	int hpGain = enemyProgressConfig_.maxHpGainPerLevel;
+	if (prototypeCombatEnabled_) {
+		const int hpLimit = prototypeBaseMaxHp_ + prototypeBaseMaxHp_ / 2;
+		hpGain = (std::max)(0, (std::min)(hpGain, hpLimit - maxHP_));
+	}
+	maxHP_ += hpGain;
+	HealFromFeeding(hpGain);
+	SetDamage(GetDamage() + enemyProgressConfig_.damageGainPerLevel);
+	bossAttackConfig_.damage += enemyProgressConfig_.damageGainPerLevel;
+}
+
+void Enemy::RegisterRunResourceClaim()
+{
+	if (!prototypeCombatEnabled_ || !prototypeResourceFocus_ || isDead_ || hp_ <= 0) return;
+	HealFromFeeding(enemyProgressConfig_.healOnExpEnemyKill);
+	AdvanceFeedingLevel();
+}
+
+void Enemy::EnablePrototypeCombat(bool enabled)
+{
+	if (prototypeCombatEnabled_ == enabled) return;
+	prototypeCombatEnabled_ = enabled;
+	prototypeCombat_.Reset();
+	fireTimer_ = kFireTimerMax_;
+	if (enabled) {
+		prototypeBaseMaxHp_ = (std::max)(1, maxHP_);
+		prototypeFeedingHealBudget_ = prototypeBaseMaxHp_ / 2;
+	}
+}
+
+void Enemy::SetPrototypeMaxHp(int maxHp, bool healToFull)
+{
+	prototypeBaseMaxHp_ = (std::clamp)(maxHp, 1, 1000000);
+	maxHP_ = prototypeBaseMaxHp_;
+	prototypeFeedingHealBudget_ = prototypeBaseMaxHp_ / 2;
+	// Configuring HP does not revive a defeated actor.
+	hp_ = isDead_ ? 0 : (healToFull ? maxHP_ : (std::clamp)(hp_, 0, maxHP_));
+}
+
+Enemy::PrototypeTelegraph Enemy::GetPrototypeTelegraph() const
+{
+	PrototypeTelegraph result{};
+	result.active = prototypeCombatEnabled_ && !isDead_ && hp_ > 0 &&
+		prototypeCombat_.GetPhase() == PrototypeBossCombat::Phase::Telegraph;
+	result.attackType = prototypeCombat_.GetAttackType();
+	const float angle = prototypeCombat_.GetAimAngle();
+	result.direction = { std::cos(angle), std::sin(angle), 0.0f };
+	result.progress = prototypeCombat_.GetProgress();
+	result.spreadAngleDeg = prototypeCombat_.GetSpreadAngleDeg();
+	return result;
+}
+
+void Enemy::UpdatePrototypeCombat(float deltaTime)
+{
+	if (!player_ || !bulletManager_ || isDead_ || hp_ <= 0) return;
+	Vector3 direction = currentMoveTargetPosition_ - GetWorldPosition();
+	if (Length(direction) <= 0.001f) direction = GetAimDirection();
+	const float targetAngle = std::atan2(direction.y, direction.x);
+	const float hpRatio = static_cast<float>(hp_) / static_cast<float>((std::max)(1, maxHP_));
+	const int effectivePressure = (std::clamp)(prototypePressure_ + (enemyLevel_ - 1) / 2, 0, 4);
+	const auto shot = prototypeCombat_.Step(deltaTime,
+		HasLineOfSightToTarget(currentMoveTargetPosition_), targetAngle, hpRatio,
+		effectivePressure, levelingModeActive_);
+	if (prototypeCombat_.HoldsPosition()) {
+		// The visible origin and aim stay fixed throughout the warning/attack.
+		velocity_ = {};
+		worldTransform_.rotate.z = prototypeCombat_.GetAimAngle();
+	}
+	if (!shot.fire) return;
+
+	AttackParam param{};
+	param.bulletCount = 1;
+	param.randomSpread = false;
+	param.spreadAngleDeg = 0.0f;
+	param.bulletSpeed = (shot.type == PrototypeAttackType::GapRing ? 0.20f : 0.24f) + 0.01f * shot.pressure;
+	param.damage = static_cast<uint32_t>(6 + shot.pressure);
+	// Damage pressure must not also make incoming bullets impossible to cancel.
+	param.bulletHp = 5.0f;
+	param.bulletPenetration = 3.0f;
+	param.reflect = false;
+	param.penetrate = false;
+	const Vector3 baseDirection{ std::cos(shot.angleRadians), std::sin(shot.angleRadians), 0.0f };
+	const int count = PrototypeBossCombat::GetProjectileCount(shot.type);
+	for (int i = 0; i < count; ++i) {
+		const Vector3 shotDirection = RotateDirection2D(baseDirection,
+			PrototypeBossCombat::GetProjectileOffsetDeg(shot.type, i));
+		attackController_.FireFromMuzzle(GetWorldPosition() + shotDirection * 1.75f,
+			shotDirection, param, BulletOwner::kEnemy);
 	}
 }
 
@@ -267,7 +378,9 @@ void Enemy::Update(float deltaTime) {
 
 	Move(deltaTime);
 
-	if (!isDead_){
+	if (prototypeCombatEnabled_) {
+		UpdatePrototypeCombat(deltaTime);
+	} else if (!isDead_){
 		if (HasLineOfSightToTarget(currentMoveTargetPosition_)) {
 			fireTimer_ -= deltaTime;
 			if (fireTimer_ <= 0.0f) {
@@ -396,7 +509,7 @@ void Enemy::OnCollision(Collider* other) {
 			return;
 		}
 		ExpEnemy* expEnemy = dynamic_cast<ExpEnemy*>(other);
-		if (!expEnemy || expEnemy->IsDead()) {
+		if (!expEnemy || expEnemy->IsDead() || expEnemy->IsRunResource()) {
 			return;
 		}
 		Vector3 dir = worldTransform_.translate - other->GetWorldPosition();
@@ -504,6 +617,13 @@ void Enemy::Move(float deltaTime) {
 	currentMoveTargetPosition_ = moveTargetPos;
 	Vector3 toTarget = moveTargetPos - GetWorldPosition();
 	toTarget.z = 0.0f;
+	if (prototypeResourceTargetActive_ && Length(toTarget) <= 8.0f && HasLineOfSightToTarget(moveTargetPos)) {
+		// Keep the muzzle outside the core instead of walking through a fixed
+		// target and spawning projectiles on its far side.
+		velocity_ = {};
+		RotateTowardTarget(moveTargetPos, deltaTime);
+		return;
+	}
 	Vector3 attackVec = Length(toTarget) > 0.001f ? Normalize(toTarget) * attackPower : Vector3{ 0.0f, 0.0f, 0.0f };
 	std::optional<Vector3> pathDir = FindPathDirectionToTarget(moveTargetPos);
 
@@ -603,6 +723,7 @@ std::optional<Vector3> Enemy::FindPathDirectionToPlayer()
 
 Vector3 Enemy::ResolveMoveTargetPosition()
 {
+	prototypeResourceTargetActive_ = false;
 	if (!player_) {
 		levelingModeActive_ = false;
 		return GetWorldPosition();
@@ -628,12 +749,17 @@ Vector3 Enemy::ResolveMoveTargetPosition()
 		return playerPos;
 	}
 
-	ExpEnemy* target = enemyManager_->FindNearestEnemy(GetWorldPosition(), enemyProgressConfig_.levelingSearchRadius);
+	const bool resourceFocus = prototypeCombatEnabled_ && prototypeResourceFocus_;
+	ExpEnemy* target = resourceFocus
+		? enemyManager_->FindNearestRunResource(GetWorldPosition(), enemyProgressConfig_.levelingSearchRadius)
+		: nullptr;
+	if (!target) target = enemyManager_->FindNearestEnemy(GetWorldPosition(), enemyProgressConfig_.levelingSearchRadius, !resourceFocus);
 	if (!target) {
 		levelingModeActive_ = false;
 		return playerPos;
 	}
 
+	prototypeResourceTargetActive_ = resourceFocus && target->IsRunResource();
 	return target->GetWorldPosition();
 }
 

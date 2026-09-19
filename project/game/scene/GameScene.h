@@ -35,6 +35,7 @@
 #include "game/level/LevelLoader.h"
 #include "game/effects/ScreenEffectDirector.h"
 #include "game/ui/NeonTextEffect.h"
+#include "game/run/TankRunDirector.h"
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -44,7 +45,7 @@ public:
 	/// <summary>
 	/// コンストラクタ
 	/// </summary>
-	GameScene();
+	explicit GameScene(bool prototypeRun = false);
 
 	/// <summary>
 	/// デストラクタ
@@ -89,6 +90,58 @@ public:
 	std::string GetNextSceneName() const override;
 
 private:
+	void InitializeTankRun();
+	void InitializeTankRunVisuals();
+	void UpdateTankRun(float dt);
+	void DrawTankRunUi();
+	void QueueTankRunTelegraph();
+	void ApplyTankRunCards();
+	void UpdateTankRunResources(float dt);
+	void OnTankRunResourceClaim(size_t index, bool playerOwned);
+	void OnTankRunEnemyDefeated(const Vector3& position);
+	void SelectTankRunOption(int index);
+	void RefreshTankRunUi();
+	bool IsTankRunMenuOpen() const;
+	void RequestTankRunCapture(const std::string& name);
+	void CopyTankRunCapture();
+	void FinishTankRunCapture();
+	bool prototypeRun_ = false;
+	tankrun::RunDirector tankRun_{};
+	int tankRunSelection_ = 0;
+	struct RunResource { Vector3 position{}; float respawn = 0; bool active = false; };
+	struct RunBurst { Vector3 position{}; float age = 0; bool resource = false; };
+	std::array<RunResource, 3> tankRunResources_{};
+	std::vector<RunBurst> tankRunBursts_;
+	int tankRunCombo_ = 0;
+	int tankRunBestCombo_ = 0;
+	float tankRunComboTime_ = 0;
+	int tankRunLastBossLevel_ = 1;
+	float tankRunMenuAge_ = 0.0f;
+	float tankRunHudTimer_ = 0.0f;
+	bool tankRunPaused_ = false;
+	bool tankRunFinalStarted_ = false;
+	bool tankRunAutoTest_ = false;
+	float tankRunAutoTime_ = 0.0f;
+	int tankRunAutoStep_ = 0;
+	int tankRunAutoMenuIndex_ = 0;
+	std::unique_ptr<Sprite> tankRunDimmer_;
+	std::unique_ptr<Sprite> tankRunHudPanel_;
+	std::unique_ptr<Sprite> tankRunBossTrack_;
+	std::unique_ptr<Sprite> tankRunBossFill_;
+	std::array<std::unique_ptr<Sprite>, 3> tankRunCards_;
+	std::array<std::unique_ptr<TextLabel>, 3> tankRunCardTitles_;
+	std::array<std::unique_ptr<TextLabel>, 3> tankRunCardBodies_;
+	std::unique_ptr<TextLabel> tankRunHeading_;
+	std::unique_ptr<TextLabel> tankRunDescription_;
+	std::unique_ptr<TextLabel> tankRunFooter_;
+	std::unique_ptr<TextLabel> tankRunHud_;
+	std::unique_ptr<TextLabel> tankRunBuildText_;
+	std::unique_ptr<TextLabel> tankRunObjectiveText_;
+	std::unique_ptr<TextLabel> tankRunBossText_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> tankRunCaptureReadback_;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT tankRunCaptureLayout_{};
+	std::string tankRunCapturePath_;
+	bool tankRunCaptureCopied_ = false;
 	struct FollowHpBar {
 		std::unique_ptr<Sprite> outline;
 		std::unique_ptr<Sprite> background;

@@ -8,6 +8,7 @@
 #include "Object3d.h"
 #include "Sprite.h"
 #include "AttackController.h"
+#include "PrototypeBossCombat.h"
 
 class Player;
 class Stage;
@@ -194,6 +195,23 @@ public:
 	bool IsLevelingModeActive() const { return levelingModeActive_; }
 	void RegisterExpEnemyKill(uint32_t expValue);
 
+	using PrototypeAttackType = PrototypeBossCombat::AttackType;
+	struct PrototypeTelegraph {
+		bool active = false;
+		PrototypeAttackType attackType = PrototypeAttackType::AimedSpread;
+		Vector3 direction{ 1.0f, 0.0f, 0.0f };
+		float progress = 0.0f;
+		// GapRing: width of the safe opening around direction. Others: danger cone.
+		float spreadAngleDeg = 44.0f;
+	};
+	void EnablePrototypeCombat(bool enabled);
+	bool IsPrototypeCombatEnabled() const { return prototypeCombatEnabled_; }
+	void SetPrototypePressure(int pressure) { prototypePressure_ = (std::clamp)(pressure, 0, 4); }
+	void SetPrototypeMaxHp(int maxHp, bool healToFull = true);
+	void SetPrototypeResourceFocus(bool enabled) { prototypeResourceFocus_ = enabled; }
+	void RegisterRunResourceClaim();
+	PrototypeTelegraph GetPrototypeTelegraph() const;
+
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
 		bulletManager_ = bulletManager;
 		attackController_.SetBulletManager(bulletManager);
@@ -221,6 +239,9 @@ private:
 	Vector3 ApplyHumanLikeSteering(const Vector3& desiredDir, bool usingPath, float deltaTime);
 	Vector3 ResolveMoveTargetPosition();
 	void RotateTowardTarget(const Vector3& targetPos, float deltaTime);
+	void UpdatePrototypeCombat(float deltaTime);
+	void HealFromFeeding(int amount);
+	void AdvanceFeedingLevel();
 
 	// ワールド変換データ
 	Transform worldTransform_;
@@ -275,6 +296,13 @@ private:
 	float fireTimer_ = 0.0f;
 	BossAttackConfig bossAttackConfig_{};
 	EnemyProgressConfig enemyProgressConfig_{};
+	bool prototypeCombatEnabled_ = false;
+	bool prototypeResourceFocus_ = false;
+	bool prototypeResourceTargetActive_ = false;
+	PrototypeBossCombat prototypeCombat_{};
+	int prototypePressure_ = 0;
+	int prototypeBaseMaxHp_ = 200;
+	int prototypeFeedingHealBudget_ = 100;
 	int enemyLevel_ = 1;
 	int expEnemyKillCount_ = 0;
 	uint32_t enemyExp_ = 0;
@@ -314,7 +342,7 @@ private:
 	// 攻撃コントローラ
 	AttackController attackController_;
 
-	BulletManager* bulletManager_;
+	BulletManager* bulletManager_ = nullptr;
 
 	// HPバーモデル
 	Transform hpBarFillTransform_;

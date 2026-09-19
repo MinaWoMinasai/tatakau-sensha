@@ -268,6 +268,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\ui\TankButtonUI.cpp" />
     <ClCompile Include="game\scene\Fade.cpp" />
     <ClCompile Include="game\scene\GameScene.cpp" />
+    <ClCompile Include="game\scene\GameScene.TankRun.cpp" />
+    <ClCompile Include="game\scene\GameScene.TankRunVisuals.cpp" />
     <ClCompile Include="game\scene\PlayerLabScene.cpp" />
     <ClCompile Include="game\scene\SceneFactory.cpp" />
     <ClCompile Include="game\scene\SceneManager.cpp" />
@@ -569,6 +571,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\ui\TankButtonUI.h" />
     <ClInclude Include="game\scene\Fade.h" />
     <ClInclude Include="game\scene\GameScene.h" />
+    <ClInclude Include="game\run\TankRunDirector.h" />
+    <ClInclude Include="game\player\TankRunModifiers.h" />
+    <ClInclude Include="game\enemy\actor\PrototypeBossCombat.h" />
     <ClInclude Include="game\scene\PlayerLabScene.h" />
     <ClInclude Include="game\scene\SceneManager.h" />
     <ClInclude Include="game\scene\TitleScene.h" />

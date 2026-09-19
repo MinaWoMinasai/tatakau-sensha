@@ -1,11 +1,30 @@
 #include "PlayerDrone.h"
 #include "Stage.h"
+#include "game/exp/ExpEnemy.h"
 
 PlayerDrone::~PlayerDrone() {
 
 }
 
-void PlayerDrone::Attack() {
+void PlayerDrone::ConfigureRunAttack(const AttackParam& param, float reloadSeconds)
+{
+	runAttackEnabled_ = true;
+	runAttackParam_ = param;
+	runReloadSeconds_ = (std::max)(0.05f, reloadSeconds);
+}
+
+void PlayerDrone::Attack(float deltaTime) {
+	if (runAttackEnabled_) {
+		runShotCooldown_ = (std::max)(0.0f, runShotCooldown_ - deltaTime);
+		const bool wantsAttack = runRallyShotPending_ || input_->IsPress(input_->GetMouseState().rgbButtons[0]);
+		if (runShotCooldown_ <= 0.0f && wantsAttack && runBulletManager_ &&
+			runBulletManager_->GetBulletCounts().player + static_cast<size_t>(runAttackParam_.bulletCount) <= 240) {
+			attackController_.Fire(GetWorldPosition(), dir, runAttackParam_, BulletOwner::kPlayer);
+			runShotCooldown_ = runReloadSeconds_;
+			runRallyShotPending_ = false;
+		}
+		return;
+	}
 
 	// 弾のクールタイムを計算する
 	bulletCoolTime--;
@@ -79,6 +98,7 @@ void PlayerDrone::RotateToMouse(Camera* viewProjection) {
 
 void PlayerDrone::Initialize(const Vector3& position, const Vector3& velocity) {
 	
+	neonVisual_ = false;
 	object_ = std::make_unique<Object3d>();
 	object_->Initialize();
 
@@ -102,31 +122,34 @@ void PlayerDrone::Initialize(const Vector3& position, const Vector3& velocity) {
 	SetCollisionMask(kCollisionAttributePlayerDrone | kCollisionAttributeEnemyBullet | kCollisionAttributeEnemy | kCollisionAttributeExpEnemy);
 }
 
-void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& playerPosition)
+void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& playerPosition, float deltaTime)
 {
-	invincibleTimer_ -= 1.0f / 60.0f;
+	const float dt = runAttackEnabled_ ? (std::max)(0.0f, deltaTime) : 1.0f / 60.0f;
+	invincibleTimer_ -= dt;
 
 	RotateToMouse(viewProjection);
 
 	Vector3 toPlayer = playerPosition - worldTransform_.translate;
 
 	float distance = Length(toPlayer);
-	if (distance < 0.01f) {
+	if (distance < 0.01f && !runAttackEnabled_) {
 		return;
 	}
 
-	Vector3 dir = Normalize(toPlayer);
+	// Run companions must still shoot when resting directly over their owner.
+	Vector3 dir = distance < 0.01f ? Vector3{} : Normalize(toPlayer);
 	
 	// --- 目標速度 ---
-	Vector3 targetVelocity = dir * maxSpeed_;
+	// Keep companions close enough to contribute even while the run player boosts.
+	const float followSpeed = runAttackEnabled_ ? (std::min)(0.62f, 0.25f + distance * 0.035f) : maxSpeed_;
+	Vector3 targetVelocity = dir * followSpeed;
 
 	// --- 慣性処理 ---
-	float dt = 1.0f / 60.0f;
-	float accel = (Length(dir) > 0.0f) ? accel_ : decel_;
+	float accel = runAttackEnabled_ ? 5.0f : ((Length(dir) > 0.0f) ? accel_ : decel_);
 
 	velocity_ += (targetVelocity - velocity_) * accel * dt;
 
-	Vector3 frameMove = GetMove();
+	Vector3 frameMove = GetMove() * (dt * 60.0f);
 	const float maxStep = 0.30f;
 	const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(frameMove.x), std::abs(frameMove.y)) / maxStep) + 1);
 	Vector3 stepMove = frameMove / static_cast<float>(subStepCount);
@@ -166,7 +189,7 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 
 	if (!isDead_) {
 		// 攻撃処理
-		Attack();
+		Attack(dt);
 	}
 
 	if (hp_ <= 0) {
@@ -174,18 +197,12 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 	}
 }
 
+bool PlayerDrone::IsVisualVisible() const {
+	return !isDead_ && !(invincibleTimer_ > 0.0f && static_cast<int>(invincibleTimer_ * 10) % 2 == 0);
+}
+
 void PlayerDrone::Draw() {
-
-	if (!isDead_) {
-		// 無敵時間中は点滅
-
-		if (invincibleTimer_ > 0.0f) {
-			if (static_cast<int>(invincibleTimer_ * 10) % 2 == 0) {
-				return;
-			}
-		}
-		object_->Draw();
-	}
+	if (!neonVisual_ && IsVisualVisible()) object_->Draw();
 }
 
 void PlayerDrone::DrawSprite()
@@ -205,6 +222,9 @@ Vector3 PlayerDrone::GetWorldPosition() const {
 }
 
 void PlayerDrone::OnCollision(Collider* other) {
+	if (const auto* resource = dynamic_cast<const ExpEnemy*>(other); resource && resource->IsRunResource()) {
+		return;
+	}
 
 	if (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet ||
 		other->GetCollisionAttribute() == kCollisionAttributeEnemy ||
