@@ -3,6 +3,8 @@
 #include "Player.h"
 #include "ParticleManager.h"
 #include "Stage.h"
+#include "NeonGridRenderer.h"
+#include "ExpEnemyNavigation.h"
 #include <algorithm>
 #include <cmath>
 
@@ -69,7 +71,7 @@ bool ExpEnemy::IsShapeNeonBillboardTarget() const
     return type_ == ExpEnemyType::Square ||
         type_ == ExpEnemyType::Triangle ||
         type_ == ExpEnemyType::Pentagon ||
-        type_ == ExpEnemyType::Shooter;
+        type_ == ExpEnemyType::Shooter || IsExpeditionCombatRole();
 }
 
 void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType type)
@@ -87,6 +89,17 @@ void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType 
 
     type_ = type;
     ApplyTypeParams();
+    if (IsExpeditionCombatRole()) {
+        ExpEnemyCombatCycle::Timing timing{};
+        if (type_ == ExpEnemyType::Sniper) {
+            timing = { 0.85f, 0.38f, 0.10f, 1.50f, 0.65f };
+        }
+        // Authored spawn positions deterministically stagger attack openings.
+        const float stagger = std::fmod(std::abs(position.x * 0.173f + position.y * 0.319f), 0.85f);
+        combatCycle_.Reset(timing, 0.55f + stagger);
+        telegraphEnd_ = position;
+        object_->SetLighting(false);
+    }
 
     // 衝突属性を設定
     SetCollisionAttribute(kCollisionAttributeExpEnemy);
@@ -157,6 +170,20 @@ void ExpEnemy::ApplyTypeParams()
         expValue_ = 22;
         shootInterval_ = balanceConfig_.shooterFireInterval;
         break;
+    case ExpEnemyType::Charger:
+        object_->SetModel("expTriangle.obj");
+        baseColor_ = { 1.60f, 0.36f, 0.10f, 1.0f };
+        baseScale_ = { 1.05f, 1.05f, 1.05f };
+        hp_ = 30;
+        expValue_ = 28;
+        break;
+    case ExpEnemyType::Sniper:
+        object_->SetModel("expEnemy.obj");
+        baseColor_ = { 1.40f, 0.16f, 0.72f, 1.0f };
+        baseScale_ = { 0.90f, 1.10f, 0.90f };
+        hp_ = 24;
+        expValue_ = 30;
+        break;
     }
     object_->SetColor(baseColor_);
     visualColor_ = baseColor_;
@@ -178,6 +205,12 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
         // Cores stay at their marked contest point even when struck or rammed.
         velocity_ = {};
         worldTransform_.rotate.z += 0.35f * deltaTime;
+        object_->SetTransform(worldTransform_);
+        object_->Update();
+        return;
+    }
+    if (IsExpeditionCombatRole()) {
+        UpdateExpeditionCombat(stage, deltaTime);
         object_->SetTransform(worldTransform_);
         object_->Update();
         return;
@@ -224,7 +257,7 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 			hasTarget = true;
 		}
 	}
-	if (IsHostileToBoss() && boss_ && !boss_->IsDead()) {
+	if (IsHostileToBoss() && boss_ && boss_->IsRunEncounterEnabled() && !boss_->IsDead()) {
 		const float distance = Length(boss_->GetWorldPosition() - origin);
 		if (distance < nearestDistance) {
 			targetPosition = boss_->GetWorldPosition();
@@ -297,6 +330,240 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 	object_->Update();
 }
 
+Vector3 ExpEnemy::ClipCombatRay(Stage& stage, const Vector3& origin, const Vector3& direction, float distance) const
+{
+    float nearest = distance;
+    for (const auto& row : stage.GetBlocks()) {
+        for (const Block& block : row) {
+            if (!block.isActive) continue;
+            float enter = 0.0f;
+            float leave = nearest;
+            auto clipAxis = [&](float start, float speed, float minimum, float maximum) {
+                if (std::abs(speed) < 0.0001f) return start >= minimum && start <= maximum;
+                float nearT = (minimum - start) / speed;
+                float farT = (maximum - start) / speed;
+                if (nearT > farT) std::swap(nearT, farT);
+                enter = (std::max)(enter, nearT);
+                leave = (std::min)(leave, farT);
+                return enter <= leave;
+            };
+            if (clipAxis(origin.x, direction.x, block.aabb.min.x, block.aabb.max.x) &&
+                clipAxis(origin.y, direction.y, block.aabb.min.y, block.aabb.max.y)) {
+                nearest = (std::max)(0.0f, enter);
+            }
+        }
+    }
+    return origin + direction * nearest;
+}
+
+bool ExpEnemy::MoveCombatActor(Stage& stage, const Vector3& displacement)
+{
+    // Collision is discrete; small substeps prevent a dash from skipping thin walls.
+    const int steps = (std::max)(1, static_cast<int>(std::ceil(Length(displacement) / 0.35f)));
+    const Vector3 step = displacement / static_cast<float>(steps);
+    bool blocked = false;
+    for (int i = 0; i < steps; ++i) {
+        const Vector3 before = GetWorldPosition();
+        Vector3 desired = before;
+        desired.x += step.x;
+        SetWorldPosition(desired);
+        stage.ResolveExpEnemyCollision(*this, X);
+        blocked = blocked || std::abs(GetWorldPosition().x - desired.x) > 0.005f;
+        desired = GetWorldPosition();
+        desired.y += step.y;
+        SetWorldPosition(desired);
+        stage.ResolveExpEnemyCollision(*this, Y);
+        blocked = blocked || std::abs(GetWorldPosition().y - desired.y) > 0.005f;
+        if (blocked && combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active) break;
+    }
+    return blocked;
+}
+
+Vector3 ExpEnemy::FindCombatWaypoint(Stage& stage, const Vector3& target) const
+{
+    constexpr int width = MapChip::kNumBlockHorizontal;
+    constexpr int height = MapChip::kNumBlockVirtical;
+    constexpr float cellSize = 2.0f;
+    std::array<bool, width * height> blocked{};
+    for (const auto& row : stage.GetBlocks()) {
+        for (const Block& block : row) {
+            if (!block.isActive) continue;
+            // Inflate by the actor half-width, not the point-sized targeting ray.
+            const int minX = (std::max)(0, static_cast<int>(std::ceil((block.aabb.min.x - 0.85f) / cellSize)));
+            const int maxX = (std::min)(width - 1, static_cast<int>(std::floor((block.aabb.max.x + 0.85f) / cellSize)));
+            const int minY = (std::max)(0, static_cast<int>(std::ceil((block.aabb.min.y - 0.85f) / cellSize)));
+            const int maxY = (std::min)(height - 1, static_cast<int>(std::floor((block.aabb.max.y + 0.85f) / cellSize)));
+            for (int y = minY; y <= maxY; ++y) for (int x = minX; x <= maxX; ++x) blocked[y * width + x] = true;
+        }
+    }
+    auto cell = [&](const Vector3& position) {
+        const int x = (std::clamp)(static_cast<int>(std::round(position.x / cellSize)), 0, width - 1);
+        const int y = (std::clamp)(static_cast<int>(std::round(position.y / cellSize)), 0, height - 1);
+        return y * width + x;
+    };
+    const int next = FindExpEnemyNextCell<width, height>(blocked, cell(GetWorldPosition()), cell(target));
+    return next >= 0 ? Vector3{ static_cast<float>(next % width) * cellSize,
+        static_cast<float>(next / width) * cellSize, 0.0f } : GetWorldPosition();
+}
+
+void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
+{
+    if (isDead_) return;
+    const float dt = (std::clamp)(deltaTime, 0.0f, 0.20f);
+    combatRepathTimer_ -= dt;
+    shooterMuzzleFlashTimer_ = (std::max)(0.0f, shooterMuzzleFlashTimer_ - dt);
+    const Vector3 origin = GetWorldPosition();
+    Vector3 toTarget{};
+    float distance = 0.0f;
+    const bool hasTarget = player_ && !player_->IsDead();
+    if (hasTarget) {
+        toTarget = player_->GetWorldPosition() - origin;
+        toTarget.z = 0.0f;
+        distance = Length(toTarget);
+    }
+    const Vector3 desiredDirection = distance > 0.001f ? toTarget / distance : aimDirection_;
+    if (hasTarget && !combatCycle_.IsAimLocked() && combatCycle_.GetPhase() != ExpEnemyCombatPhase::Recovery) {
+        aimDirection_ = desiredDirection;
+    }
+    const bool visible = hasTarget && distance <= (type_ == ExpEnemyType::Sniper ? 64.0f : 38.0f) &&
+        Length(ClipCombatRay(stage, origin, desiredDirection, distance) - origin) >= distance - 0.05f;
+    const bool canAttack = visible && (type_ == ExpEnemyType::Sniper || distance < 13.0f);
+    const bool attackStarted = combatCycle_.Advance(dt, canAttack);
+    const ExpEnemyCombatPhase phase = combatCycle_.GetPhase();
+
+    if (type_ == ExpEnemyType::Charger) {
+        if (phase == ExpEnemyCombatPhase::Active) {
+            velocity_ = {};
+            if (MoveCombatActor(stage, aimDirection_ * (32.0f * dt))) {
+                combatCycle_.EnterRecovery();
+                ParticleManager::GetInstance()->EmitNeonDeathEffect(
+                    GetWorldPosition(), { 1.8f, 0.7f, 0.15f, 1.0f }, { 0.8f, 0.2f, 0.1f, 0.0f }, 0.12f);
+            }
+        } else if (phase == ExpEnemyCombatPhase::Cooldown && hasTarget && distance > 2.2f) {
+            // Modest pursuit keeps a charger relevant between attacks. A cached
+            // grid route prevents oscillation at concave cover and narrow gaps.
+            Vector3 moveDirection = desiredDirection;
+            if (!visible || stage.IsCollisionWithAnyBlock(origin + moveDirection * 1.6f, 0.85f)) {
+                if (combatRepathTimer_ <= 0.0f || Length(combatWaypoint_ - origin) < 0.30f) {
+                    combatWaypoint_ = FindCombatWaypoint(stage, player_->GetWorldPosition());
+                    combatRepathTimer_ = 0.35f;
+                }
+                const Vector3 toWaypoint = combatWaypoint_ - origin;
+                moveDirection = Length(toWaypoint) > 0.10f ? Normalize(toWaypoint) : Vector3{};
+            }
+            MoveCombatActor(stage, moveDirection * (4.0f * dt));
+        }
+        SetDamage(combatCycle_.GetPhase() == ExpEnemyCombatPhase::Recovery ? 0u :
+            combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active ? 22u : 8u);
+    } else {
+        SetDamage(8);
+        if (attackStarted) {
+            AttackParam param{};
+            param.bulletSpeed = 0.60f;
+            param.bulletCount = 1;
+            param.spreadAngleDeg = 0.0f;
+            param.randomSpread = false;
+            param.damage = 20;
+            param.bulletHp = 32.0f;
+            param.bulletPenetration = 1.0f;
+            param.canClaimRunResource = false;
+            // Stop the muzzle at nearby cover rather than spawning through it.
+            const Vector3 muzzle = ClipCombatRay(stage, origin, aimDirection_, 1.35f);
+            if (Length(muzzle - origin) >= 1.25f) {
+                attackController_.FireFromMuzzle(muzzle, aimDirection_, param, BulletOwner::kEnemy);
+                shooterMuzzleFlashTimer_ = 0.15f;
+            }
+        }
+    }
+    if (combatCycle_.GetPhase() == ExpEnemyCombatPhase::Locked) {
+        // Commitment freezes both the direction and the ray origin. Repeated
+        // hits must not sweep the locked warning sideways just before firing.
+        velocity_ = {};
+    } else if (Length(velocity_) > 0.001f && combatCycle_.GetPhase() != ExpEnemyCombatPhase::Active) {
+        // Preserve hit reaction, but cap repeated pellets so the locked telegraph
+        // cannot be swept across the arena by an accumulated knockback impulse.
+        if (Length(velocity_) > 0.07f) velocity_ = Normalize(velocity_) * 0.07f;
+        MoveCombatActor(stage, velocity_ * (dt * 60.0f));
+        velocity_ = velocity_ * (std::max)(0.0f, 1.0f - dt * 9.0f);
+    }
+    worldTransform_.rotate = { 0.0f, 0.0f, std::atan2(aimDirection_.x, -aimDirection_.y) };
+    telegraphEnd_ = ClipCombatRay(stage, GetWorldPosition(), aimDirection_,
+        type_ == ExpEnemyType::Charger ? 13.44f : 64.0f);
+    if (combatCycle_.GetPhase() == ExpEnemyCombatPhase::Recovery) {
+        visualColor_ = LerpColor(visualColor_, { 0.25f, 0.70f, 0.85f, 1.0f }, 0.65f);
+        object_->SetColor(visualColor_);
+    }
+}
+
+void ExpEnemy::QueueCombatVisuals(NeonGridRenderer& renderer, const Vector3& cameraRight,
+    const Vector3& cameraUp, const Vector3& cameraForward, float lineWidth) const
+{
+    if (!IsExpeditionCombatRole() || isDead_) return;
+    const Vector3 center = GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.38f };
+    const Vector3 forward = aimDirection_;
+    const Vector3 side{ -forward.y, forward.x, 0.0f };
+    const float width = (std::max)(0.045f, lineWidth);
+    auto line = [&](const Vector3& a, const Vector3& b, float thickness, const Vector4& color) {
+        renderer.QueueCameraFacingLine(a, b, thickness, color, cameraForward);
+    };
+    const float pulse = 1.0f + GetAttackTelegraphRatio() * 0.10f;
+    if (type_ == ExpEnemyType::Charger) {
+        const Vector3 nose = center + forward * (1.18f * pulse);
+        const Vector3 left = center - forward * (0.72f * pulse) + side * (0.82f * pulse);
+        const Vector3 right = center - forward * (0.72f * pulse) - side * (0.82f * pulse);
+        line(nose, left, width, visualColor_);
+        line(left, right, width, visualColor_);
+        line(right, nose, width, visualColor_);
+        line(center - side * 0.42f, center + forward * 0.48f, width * 0.80f, visualColor_);
+        line(center + forward * 0.48f, center + side * 0.42f, width * 0.80f, visualColor_);
+    } else {
+        constexpr float pi = 3.14159265f;
+        for (int i = 0; i < 6; ++i) {
+            const float a = static_cast<float>(i) * pi / 3.0f;
+            const float b = static_cast<float>(i + 1) * pi / 3.0f;
+            line(center + (side * std::cos(a) + forward * std::sin(a)) * (0.82f * pulse),
+                center + (side * std::cos(b) + forward * std::sin(b)) * (0.82f * pulse), width, visualColor_);
+        }
+        line(center + side * 0.20f, center + forward * 1.35f + side * 0.12f, width, visualColor_);
+        line(center - side * 0.20f, center + forward * 1.35f - side * 0.12f, width, visualColor_);
+        line(center - side * 0.36f, center + side * 0.36f, width, visualColor_);
+    }
+    const ExpEnemyCombatPhase phase = combatCycle_.GetPhase();
+    if (phase == ExpEnemyCombatPhase::Tracking || phase == ExpEnemyCombatPhase::Locked) {
+        const bool locked = phase == ExpEnemyCombatPhase::Locked;
+        const Vector4 warning = locked ? Vector4{ 2.1f, 1.45f, 0.75f, 0.95f } :
+            type_ == ExpEnemyType::Sniper ? Vector4{ 1.8f, 0.20f, 0.62f, 0.52f } : Vector4{ 1.8f, 0.50f, 0.12f, 0.52f };
+        const float distance = Length(telegraphEnd_ - GetWorldPosition());
+        const float start = (std::min)(1.5f, distance);
+        if (type_ == ExpEnemyType::Sniper) {
+            for (float t = start; t < distance; t += locked ? 1.6f : 2.0f) {
+                line(center + forward * t, center + forward * (std::min)(distance, t + (locked ? 1.30f : 0.85f)),
+                    locked ? width * 0.85f : width * 0.60f, warning);
+            }
+        } else {
+            for (float t = start; t < distance; t += 2.0f) {
+                const Vector3 marker = center + forward * t;
+                line(marker - forward * 0.50f + side * 0.40f, marker, width * 0.80f, warning);
+                line(marker - forward * 0.50f - side * 0.40f, marker, width * 0.80f, warning);
+            }
+        }
+        const Vector3 end = center + forward * distance;
+        line(end - side * 0.55f, end + side * 0.55f, width, warning);
+    }
+    if (phase == ExpEnemyCombatPhase::Recovery) {
+        const Vector4 recovery{ 0.25f, 1.0f, 1.2f, 0.75f };
+        const float radius = 1.15f + combatCycle_.GetRecoveryRatio() * 0.15f;
+        line(center + cameraRight * radius - cameraUp * 0.25f, center + cameraRight * radius + cameraUp * 0.25f, width, recovery);
+        line(center - cameraRight * radius - cameraUp * 0.25f, center - cameraRight * radius + cameraUp * 0.25f, width, recovery);
+    }
+    if (shooterMuzzleFlashTimer_ > 0.0f) {
+        const Vector3 muzzle = center + forward * 1.45f;
+        const Vector4 flash{ 2.4f, 1.6f, 0.9f, 1.0f };
+        line(muzzle - side * 0.35f, muzzle + side * 0.35f, width * 1.5f, flash);
+        line(muzzle - forward * 0.28f, muzzle + forward * 0.28f, width * 1.5f, flash);
+    }
+}
+
 void ExpEnemy::Draw(bool drawBody) {
     if (!drawBody) {
         return;
@@ -357,6 +624,12 @@ void ExpEnemy::OnCollision(Collider* other)
     const float kKnockBackPower = 0.05f;
 
     if (!isRunResource_) velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
+    if (type_ == ExpEnemyType::Charger && otherAttribute == kCollisionAttributePlayer &&
+        combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active) {
+        combatCycle_.EnterRecovery();
+        velocity_ = {};
+        // Keep this frame's committed contact damage for the other collider's callback.
+    }
     
     if (other->GetCollisionAttribute() == kCollisionAttributeEnemy) {
         return;

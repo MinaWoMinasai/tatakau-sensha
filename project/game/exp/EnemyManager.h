@@ -34,6 +34,8 @@ public:
     ExpEnemy* SpawnRunResource(const Vector3& position, int hp, std::function<void(bool playerOwned)> onClaim);
     void AddLevelSpawnArea(const SpawnArea& spawnArea);
     void ClearLevelData();
+    // Only between frames: existing actor pointers/collision lists are invalidated.
+    void ClearRunActors();
     void SetDefaultRandomSpawnEnabled(bool enabled) { defaultRandomSpawnEnabled_ = enabled; }
     void SetExpEnemyHostileToBoss(bool hostile);
     ExpEnemy* FindNearestEnemy(const Vector3& position, float maxDistance, bool includeShooters = true) const;

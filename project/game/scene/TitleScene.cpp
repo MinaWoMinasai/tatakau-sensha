@@ -132,7 +132,7 @@ void TitleScene::Initialize() {
 	runLogo.label = std::make_unique<TextLabel>();
 	runLogo.label->Initialize(
 		SpriteCommon::GetInstance(),
-		"コア争奪戦（試作）",
+		"分岐遠征（試作）",
 		startStyle);
 	runLogo.label->SetAnchorPoint({ 0.5f, 0.5f });
 	runLogo.baseSize = FitTextLabel(*runLogo.label, { 440.0f, 64.0f });
@@ -180,17 +180,18 @@ void TitleScene::Initialize() {
 	tutorialLogo.fallSpeed = 700.0f;
 	tutorialLogo.timer = 0.0f;
 	tutorialLogo.landed = false;
-	menuSelection_ = IsSceneAvailable("TANK_RUN") ? 0 : 1;
+	menuSelection_ = IsSceneAvailable("TANK_EXPEDITION") ? 0 : 1;
 	UpdateMenuVisuals();
 	TextStyle hintStyle = startStyle;
 	hintStyle.fontSize = 20.0f;
+	hintStyle.padding = 4.0f;
 	hintStyle.color = { 0.61f, 0.76f, 0.80f, 1.0f };
 	menuHint_ = std::make_unique<TextLabel>();
 	menuHint_->Initialize(SpriteCommon::GetInstance(),
-		"↑↓ / W S：選択    Enter / Space / クリック：決定    F9：遠征", hintStyle);
+		"↑↓ / W S：選択    Enter / Space / クリック：決定\nF9：分岐遠征    F10：コア争奪戦", hintStyle);
 	menuHint_->SetAnchorPoint({ 0.5f, 0.5f });
-	menuHint_->SetPosition({ screenW * 0.5f, screenH - 52.0f });
-	FitTextLabel(*menuHint_, { screenW * 0.84f, 36.0f });
+	menuHint_->SetPosition({ screenW * 0.5f, screenH - 46.0f });
+	FitTextLabel(*menuHint_, { screenW * 0.84f, 58.0f });
 
 	// ロゴの少し下
 	startY = screenH * 0.45f + 120.0f;
@@ -267,6 +268,11 @@ void TitleScene::Update() {
 		break;
 	case Phase::kMain: {
 		if (input_->IsTrigger(input_->GetKey()[DIK_F9], input_->GetPreKey()[DIK_F9])) {
+			if (StartTransitionIfAvailable("TANK_EXPEDITION", 0.35f)) {
+				break;
+			}
+		}
+		if (input_->IsTrigger(input_->GetKey()[DIK_F10], input_->GetPreKey()[DIK_F10])) {
 			if (StartTransitionIfAvailable("TANK_RUN", 0.35f)) {
 				break;
 			}
@@ -341,7 +347,7 @@ void TitleScene::Update() {
 			input_->IsTrigger(input_->GetKey()[DIK_SPACE], input_->GetPreKey()[DIK_SPACE]);
 		if (IsMenuAvailable(menuSelection_) && (keyboardConfirm || (mouseClicked && hovered >= 0))) {
 			if (menuSelection_ == 0) {
-				StartTransitionIfAvailable("TANK_RUN", 0.75f);
+				StartTransitionIfAvailable("TANK_EXPEDITION", 0.75f);
 			} else {
 				GameStartSession::SetMode(
 					menuSelection_ == 1 ? GameStartMode::Normal : GameStartMode::Tutorial);
@@ -463,7 +469,7 @@ void TitleScene::UpdateMenuVisuals()
 
 bool TitleScene::IsMenuAvailable(int selection) const
 {
-	if (selection == 0) return IsSceneAvailable("TANK_RUN");
+	if (selection == 0) return IsSceneAvailable("TANK_EXPEDITION");
 	if (selection == 1 || selection == 2) return IsSceneAvailable("GAME");
 	return false;
 }

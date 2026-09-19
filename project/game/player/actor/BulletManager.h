@@ -16,6 +16,8 @@ public:
 
     void Initialize(DirectXCommon* dxCommon, Object3dCommon* object3dCommon);
     void Add(std::unique_ptr<Bullet> bullet);
+    // Call between frames, before moving actors or replacing the stage.
+    void ClearAll();
 
     void Update(Stage& stage, float deltaTime);
     void Draw();
@@ -27,11 +29,12 @@ public:
     BulletCounts GetBulletCounts() const;
     BulletTrailSettings& GetTrailSettings() { return trailSettings_; }
     size_t GetTrailInstanceCount() const;
-#if defined(USE_IMGUI) && !defined(NDEBUG)
+    bool HasDrawableTrails() const {
+        return trailManager_ && trailManager_->HasDrawableInstances();
+    }
     TrailManager::DrawStats GetTrailDrawStats() const {
         return trailManager_ ? trailManager_->GetDrawStats() : TrailManager::DrawStats{};
     }
-#endif
 
 private:
     std::vector<std::unique_ptr<Bullet>> bullets_;

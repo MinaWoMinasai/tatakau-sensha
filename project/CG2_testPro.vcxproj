@@ -105,7 +105,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;USE_RUNTIME_PROFILER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -202,25 +202,25 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </ClCompile>
     <ClCompile Include="DirectX\engine\particle\EffectSequencer.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui_demo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui_draw.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui_impl_dx12.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui_impl_win32.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui_tables.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="DirectX\engine\input\Input.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
@@ -269,6 +269,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\scene\Fade.cpp" />
     <ClCompile Include="game\scene\GameScene.cpp" />
     <ClCompile Include="game\scene\GameScene.TankRun.cpp" />
+    <ClCompile Include="game\scene\GameScene.TankExpedition.cpp" />
     <ClCompile Include="game\scene\GameScene.TankRunVisuals.cpp" />
     <ClCompile Include="game\scene\PlayerLabScene.cpp" />
     <ClCompile Include="game\scene\SceneFactory.cpp" />
@@ -572,6 +573,13 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\scene\Fade.h" />
     <ClInclude Include="game\scene\GameScene.h" />
     <ClInclude Include="game\run\TankRunDirector.h" />
+    <ClInclude Include="game\run\TankRunCopy.h" />
+    <ClInclude Include="game\run\TankExpeditionDirector.h" />
+    <ClInclude Include="game\run\TankExpeditionEncounters.h" />
+    <ClInclude Include="game\run\TankExpeditionAudio.h" />
+    <ClInclude Include="game\player\TankExpeditionLoadout.h" />
+    <ClInclude Include="game\exp\ExpEnemyCombatCycle.h" />
+    <ClInclude Include="game\exp\ExpEnemyNavigation.h" />
     <ClInclude Include="game\player\TankRunModifiers.h" />
     <ClInclude Include="game\enemy\actor\PrototypeBossCombat.h" />
     <ClInclude Include="game\scene\PlayerLabScene.h" />
@@ -728,4 +736,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="tools\test_ink_simulation.ps1" />
     <None Include="tools\ink_simulation_tests.cpp" />
   </ItemGroup>
-</Project>
+  <ItemGroup>
+    <ClCompile Include="DirectX\engine\commom\RuntimeProfiler.cpp" />
+    <ClInclude Include="DirectX\engine\commom\RuntimeProfiler.h" />
+    <ClInclude Include="DirectX\engine\commom\FramePacer.h" />
+    <ClInclude Include="DirectX\engine\commom\TrailStressFixture.h" />
+  </ItemGroup></Project>

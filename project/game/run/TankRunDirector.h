@@ -62,24 +62,18 @@ public:
     bool TryOpenDraft() {
         if(!CanOpenDraft()) return false;
         resumePhase_=phase_; phase_=Phase::Draft;
-        salvage_-=GetRefitCost(); ClearOffers();
+        salvage_-=GetRefitCost();
         // A contested cache guarantees one unowned rare option.
-        if(rareCredits_>0) {
-            std::array<CardId,4> rare{}; std::size_t count=0;
-            for(std::size_t i=8;i<CardCount;++i) if(!cards_[i]) rare[count++]=static_cast<CardId>(i);
-            if(count) offers_[offerCount_++]=rare[RandomIndex(count)];
-            --rareCredits_;
-        }
-        while(offerCount_<offers_.size()) {
-            std::array<CardId,CardCount> eligible{}; std::size_t count=0;
-            for(std::size_t i=0;i<CardCount;++i) {
-                const auto card=static_cast<CardId>(i); bool present=false;
-                for(std::size_t j=0;j<offerCount_;++j) present|=offers_[j]==card;
-                if(!cards_[i]&&!present) eligible[count++]=card;
-            }
-            if(!count) break;
-            offers_[offerCount_++]=eligible[RandomIndex(count)];
-        }
+        BuildOffers(rareCredits_>0,CardId::Count);
+        if(rareCredits_>0) --rareCredits_;
+        return true;
+    }
+    // Expedition room rewards use the same card pool without spending salvage
+    // or consuming the arena's banked rare credits. The scene controls the rooms.
+    bool OpenRewardDraft(bool rare,CardId preferred=CardId::Count) {
+        if(!IsCombat()||drafts_>=config_.maxDrafts) return false;
+        resumePhase_=Phase::Combat; phase_=Phase::Draft;
+        BuildOffers(rare,preferred);
         return true;
     }
     bool ChooseCard(std::size_t index) {
@@ -110,6 +104,31 @@ public:
     int GetCardCount(CardId card) const { const auto i=static_cast<std::size_t>(card); return i<CardCount?cards_[i]:0; }
     std::uint32_t GetSeed() const { return seed_; }
 private:
+    void BuildOffers(bool guaranteeRare,CardId preferred) {
+        ClearOffers();
+        const auto preferredIndex=static_cast<std::size_t>(preferred);
+        if(preferredIndex<CardCount&&!cards_[preferredIndex]) offers_[offerCount_++]=preferred;
+        bool rarePresent=false;
+        for(std::size_t i=0;i<offerCount_;++i) rarePresent|=IsRare(offers_[i]);
+        if(guaranteeRare&&!rarePresent) {
+            std::array<CardId,CardCount> rare{}; std::size_t count=0;
+            for(std::size_t i=0;i<CardCount;++i) {
+                const auto card=static_cast<CardId>(i);
+                if(IsRare(card)&&!cards_[i]) rare[count++]=card;
+            }
+            if(count) offers_[offerCount_++]=rare[RandomIndex(count)];
+        }
+        while(offerCount_<offers_.size()) {
+            std::array<CardId,CardCount> eligible{}; std::size_t count=0;
+            for(std::size_t i=0;i<CardCount;++i) {
+                const auto card=static_cast<CardId>(i); bool present=false;
+                for(std::size_t j=0;j<offerCount_;++j) present|=offers_[j]==card;
+                if(!cards_[i]&&!present) eligible[count++]=card;
+            }
+            if(!count) break;
+            offers_[offerCount_++]=eligible[RandomIndex(count)];
+        }
+    }
     std::uint32_t NextRandom() { randomState_^=randomState_<<13; randomState_^=randomState_>>17; randomState_^=randomState_<<5; return randomState_; }
     std::size_t RandomIndex(std::size_t count) {
         const auto bound=static_cast<std::uint32_t>(count); const auto threshold=(0u-bound)%bound;

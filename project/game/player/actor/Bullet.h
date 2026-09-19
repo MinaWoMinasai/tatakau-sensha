@@ -22,6 +22,8 @@ struct BulletTrailSettings {
 	float trailTailIntensity = 0.45f;
 	float trailHeadAlpha = 1.0f;
 	float trailTailAlpha = 0.0f;
+	float playerTrailLifetimeScale = 1.0f;
+	float playerTrailAlphaScale = 1.0f;
 	Vector4 playerObjectColor = { 1.0f, 0.78f, 0.28f, 1.0f };
 	Vector4 enemyObjectColor = { 1.0f, 0.22f, 0.38f, 1.0f };
 	Vector4 reflectableObjectColor = { 1.0f, 1.0f, 0.0f, 1.0f };

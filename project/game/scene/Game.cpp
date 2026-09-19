@@ -6,6 +6,7 @@
 #include "../runtime/SceneRegistry.h"
 #include "Audio.h"
 #include "TextRenderer.h"
+#include "RuntimeProfiler.h"
 #include <chrono>
 #include <string>
 #include <thread>
@@ -253,6 +254,14 @@ bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
 
     bloom_ = std::make_unique<Bloom>();
 	bloom_->Initialize(dxCommon_.get(), srvManager_.get(), rtvManager_.get());
+    char stressCount[16]{};
+    if (GetEnvironmentVariableA("CG2_PERF_STRESS_TRAILS", stressCount, sizeof(stressCount)) > 0) {
+        const unsigned count = static_cast<unsigned>((std::clamp)(std::atoi(stressCount), 0, 512));
+        if (count > 0) {
+            trailStress_ = std::make_unique<TrailStressFixture>();
+            trailStress_->Initialize(dxCommon_.get(), Object3dCommon::GetInstance(), count);
+        }
+    }
 
     ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
 
@@ -271,6 +280,11 @@ void Game::InitializeEngine() {
 
     dxCommon_ = std::make_unique<DirectXCommon>();
     dxCommon_->Initialize(WinApp::GetInstance());
+    RuntimeProfiler::Get().Initialize(dxCommon_.get());
+    char frameLimit[8]{};
+    if (GetEnvironmentVariableA("CG2_FRAME_LIMIT", frameLimit, sizeof(frameLimit)) == 1 && frameLimit[0] == '0') {
+        dxCommon_->SetFrameLimitEnabled(false);
+    }
 
     srvManager_ = std::make_unique<SrvManager>();
     srvManager_->Initialize(dxCommon_.get());
@@ -293,14 +307,22 @@ void Game::InitializeEngine() {
 void Game::InitializeImGui() {
 
 
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
+#if !defined(USE_IMGUI)
+    if (!RuntimeProfiler::Get().IsAllowed()) return;
+#endif
 
     // Imguiの初期化
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    imguiInitialized_ = true;
     {
         ImGuiIO& io = ImGui::GetIO();
+#ifdef USE_IMGUI
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+#else
+        io.IniFilename = nullptr;
+#endif
 
         ImFontConfig fontConfig{};
         fontConfig.MergeMode = false;
@@ -355,6 +377,10 @@ void Game::MainLoop() {
 
 		const auto messageStart = std::chrono::steady_clock::now();
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_KEYDOWN && msg.wParam == VK_F1 && !(msg.lParam & (1LL << 30))) {
+                RuntimeProfiler::Get().HandleShortcut((GetKeyState(VK_SHIFT) & 0x8000) != 0,
+                    SceneManager::GetInstance()->GetCurrentSceneName() == "INK_SHOOTER_LAB");
+            }
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
@@ -379,13 +405,20 @@ void Game::MainLoop() {
 		const auto inputImGuiStart = std::chrono::steady_clock::now();
 		// 前のフレームのキー状態を保存
         input->BeforeFrameData();
+        auto& runtime = RuntimeProfiler::Get();
+        runtime.BeginFrame();
+        const int gpuFrame = runtime.BeginGpu("GPU frame");
 
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
+        if (imguiInitialized_) {
 
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
+#ifdef USE_IMGUI
         ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
+#endif
+        }
 
 #endif // USE_IMGUI
 		const float inputImGuiBeginMs = elapsedMs(inputImGuiStart, std::chrono::steady_clock::now());
@@ -407,6 +440,10 @@ void Game::MainLoop() {
 		const float engineUpdateMs = elapsedMs(engineUpdateStart, std::chrono::steady_clock::now());
 		const auto sceneUpdateStart = std::chrono::steady_clock::now();
         SceneManager::GetInstance()->Update();
+        if (trailStress_) {
+            RuntimeProfiler::CpuScope scope("Stress trails update");
+            trailStress_->Update(1.0f/60.0f);
+        }
 		const float sceneUpdateMs = elapsedMs(sceneUpdateStart, std::chrono::steady_clock::now());
         bloom_->SetGrayscaleEnabled(SceneManager::GetInstance()->GetFinalDeltaTime() < (1.0f / 60.0f) * 0.98f);
         bloom_->SetGaussianOverride(SceneManager::GetInstance()->GetPostGaussianIntensity());
@@ -421,9 +458,12 @@ void Game::MainLoop() {
 		bloom_->SetScreenEffectState(SceneManager::GetInstance()->GetScreenEffectState());
         
 		const auto imguiBuildStart = std::chrono::steady_clock::now();
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
+        if (imguiInitialized_) {
+        runtime.DrawOverlay(dxCommon_->IsFrameLimitEnabled(), SceneManager::GetInstance()->GetCurrentSceneName().c_str());
         // ImGuiの内部コマンドを生成する
         ImGui::Render();
+        }
 
 #endif // USE_IMGUI
 		const float imguiBuildMs = elapsedMs(imguiBuildStart, std::chrono::steady_clock::now());
@@ -447,18 +487,33 @@ void Game::MainLoop() {
 
 		const auto drawRecordStart = std::chrono::steady_clock::now();
 		renderProfile.scenePostMs = measureMs([&]() {
+            RuntimeProfiler::GpuScope scope("Scene 3D (includes effects)");
             SceneManager::GetInstance()->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
+            if (trailStress_) {
+                RuntimeProfiler::CpuScope cpuScope("Stress trails");
+                RuntimeProfiler::GpuScope gpuScope("Stress trails");
+                trailStress_->Draw();
+                const auto& stats = trailStress_->GetStats();
+                runtime.SetCounter("Stress trails", static_cast<double>(stats.drawableInstances));
+                runtime.SetCounter("Stress vertices", static_cast<double>(stats.generatedVertices));
+                runtime.SetCounter("Stress draw calls", stats.drawCalls);
+                runtime.SetCounter("Stress upload bytes", static_cast<double>(stats.uploadedBytes));
+                runtime.SetCounter("Stress truncated vertices", static_cast<double>(stats.truncatedVertices));
+            }
         });
 
         renderProfile.globalBloomMs = measureMs([&]() {
+            RuntimeProfiler::GpuScope scope("Global Bloom / Post");
             bloom_->PostDraw();
         });
 
         renderProfile.afterPostMs = measureMs([&]() {
+            RuntimeProfiler::GpuScope scope("After Post / Text Glow");
             SceneManager::GetInstance()->DrawAfterPostEffect3D();
         });
 
         renderProfile.spriteMs = measureMs([&]() {
+            RuntimeProfiler::GpuScope scope("2D / Game UI");
             SpriteCommon::GetInstance()->PreDraw(kNormal);
             SceneManager::GetInstance()->DrawSprite();
         });
@@ -466,12 +521,17 @@ void Game::MainLoop() {
 
 
 		const auto imguiDrawStart = std::chrono::steady_clock::now();
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
+        if (imguiInitialized_) {
+        RuntimeProfiler::GpuScope scope("Diagnostics UI");
         // 実際のcommandListのImGuiの描画コマンドを組む
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon_->GetList().Get());
+        }
 
 #endif // USE_IMGUI
 		renderProfile.imguiDrawMs = elapsedMs(imguiDrawStart, std::chrono::steady_clock::now());
+        runtime.EndGpu(gpuFrame);
+        runtime.ResolveGpu();
 
 		const auto postDrawStart = std::chrono::steady_clock::now();
         dxCommon_->PostDraw();
@@ -491,6 +551,17 @@ void Game::MainLoop() {
 		renderProfile.drawSetupMs = drawSetupMs;
 		renderProfile.frameTotalMs = elapsedMs(frameStart, std::chrono::steady_clock::now());
 		SceneManager::GetInstance()->SetRenderProfile(renderProfile);
+        runtime.AddCpu("Scene Update (total)", sceneUpdateMs);
+        runtime.AddCpu("Engine Update", engineUpdateMs);
+        runtime.AddCpu("Draw Record (total)", renderProfile.drawRecordMs);
+        runtime.AddCpu("Global Bloom record", renderProfile.globalBloomMs);
+        runtime.AddCpu("2D / UI record", renderProfile.spriteMs);
+        runtime.AddCpu("Diagnostics UI", imguiBuildMs + renderProfile.imguiDrawMs);
+        runtime.FinishFrame(dxCommon_->GetFramePacingStats().frameMs, submit.presentMs, submit.fenceWaitMs, submit.fpsLimitMs);
+        char exitAfterCapture[8]{};
+        if (runtime.IsCaptureComplete() && GetEnvironmentVariableA("CG2_PERF_EXIT_AFTER_CAPTURE", exitAfterCapture, sizeof(exitAfterCapture)) == 1 && exitAfterCapture[0] == '1') {
+            PostQuitMessage(0);
+        }
     }
 }
 
@@ -502,12 +573,17 @@ void Game::Finalize() {
 		dxCommon_->ExecuteCommandListAndWait();
 	}
 	SceneManager::GetInstance()->Finalize();
+    trailStress_.reset();
+    RuntimeProfiler::Get().Shutdown();
 
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
+    if (imguiInitialized_) {
     // 実際のcommandListのImGuiの描画コマンドを組む
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+    imguiInitialized_ = false;
+    }
 
 #endif // USE_IMGUI
 

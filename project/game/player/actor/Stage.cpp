@@ -1,6 +1,8 @@
 #include "Stage.h"
 #include <algorithm>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 namespace {
 
@@ -26,6 +28,40 @@ void Stage::Initialize() {
 	mapChip_ = std::make_unique<MapChip>();
 	mapChip_->LoadMapChipCsv("resources/map.csv");
 	GenerateBlocks();
+}
+
+bool Stage::LoadRunMap(const std::string& csvPath)
+{
+	std::ifstream input(csvPath);
+	if (!input) return false;
+	auto nextMap = std::make_unique<MapChip>();
+	nextMap->ResetMapChipData();
+	std::string line;
+	for (uint32_t y = 0; y < MapChip::kNumBlockVirtical; ++y) {
+		if (!std::getline(input, line)) return false;
+		std::istringstream row(line);
+		for (uint32_t x = 0; x < MapChip::kNumBlockHorizontal; ++x) {
+			std::string token;
+			if (!std::getline(row, token, ',')) return false;
+			std::istringstream cell(token);
+			int value = -1;
+			if (!(cell >> value) || value < 0 || value > 2) return false;
+			cell >> std::ws;
+			if (!cell.eof()) return false;
+			nextMap->mapChipData_.data[y][x] = static_cast<MapChipType>(value);
+		}
+		// Reject extra cells (including a trailing comma) rather than shifting a map.
+		if (!row.eof()) return false;
+	}
+	while (std::getline(input, line)) {
+		if (line.find_first_not_of(" \t\r") != std::string::npos) return false;
+	}
+	mapChip_ = std::move(nextMap);
+	// GenerateBlocks alone resizes existing cells, so stale active blocks must
+	// be cleared first when a previous room had walls where this room is open.
+	ClearBlocksForPreview();
+	GenerateBlocks();
+	return true;
 }
 
 void Stage::Update() {}

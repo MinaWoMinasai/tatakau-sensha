@@ -10,7 +10,7 @@
 .\project\tools\run_tank_run.ps1
 ```
 
-通常のタイトルでは「コア争奪戦（試作）」を選ぶか、F9を押します。上下キー／W・Sで選択し、Enter／Space／項目のクリックで決定します。
+通常のタイトルではF10で「コア争奪戦（試作）」を起動します。先頭の「分岐遠征（試作）」とF9は別の部屋進行モードです。タイトルの項目は上下キー／W・Sで選択し、Enter／Space／項目のクリックで決定します。
 
 既定はDevelopment版です。Release版は `-Configuration Release` を指定します。Debug指定で実行ファイルがない場合はDevelopment版を使用します。未ビルドの場合は、Visual Studioで `project/CG2.sln` を対象構成・x64でビルドしてください。
 

@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "RuntimeProfiler.h"
 #include "GameStartMode.h"
 #include "CollisionConfig.h"
 #include <cmath>
@@ -424,10 +425,11 @@ void GameScene::SetRenderProfile(const IScene::RenderProfile& profile)
 #endif
 }
 
-GameScene::GameScene(bool prototypeRun) : prototypeRun_(prototypeRun) {}
+GameScene::GameScene(bool prototypeRun, bool expeditionRun) : expeditionRun_(expeditionRun), prototypeRun_(prototypeRun || expeditionRun) {}
 
 GameScene::~GameScene()
 {
+	tankExpeditionAudio_.Shutdown();
 	ExpEnemy::SetEnemyKillCallback(nullptr);
 	ExpEnemy::SetPlayerDefeatCallback(nullptr);
 	ExpEnemy::SetShapeNeonRenderMode(0);
@@ -827,7 +829,8 @@ void GameScene::Update() {
 		screenEffectDirector_.TriggerJustDodge(WorldToScreenUv(player_->GetWorldPosition()));
 		++justDodgeCount_;
 		SetEventCallout("JUST DODGE", 0.70f);
-		Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.25f);
+		if(expeditionRun_) tankExpeditionAudio_.Upgrade();
+		else Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.25f);
 	}
 
 	const float requestedTimeScale = screenEffectDirector_.GetTimeScaleMultiplier();
@@ -984,12 +987,15 @@ void GameScene::Update() {
 		player_->SetDebugNoDamage(debugPlayerNoDamage_);
 		if (prototypeRun_ && !player_->IsChangeMode()) {
 			std::vector<Vector3> targets;
-			if (!enemy_->IsDead()) targets.push_back(enemy_->GetWorldPosition());
+			if ((IsRunRivalActive() && !enemy_->IsDead())) targets.push_back(enemy_->GetWorldPosition());
 			for (const auto* actor : enemyManager_->GetEnemyPtrs())
 				if (actor && !actor->IsDead()) targets.push_back(actor->GetWorldPosition());
 			player_->SetRunHomingTargets(targets);
 		}
-		player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime, baseDeltaTime);
+        {
+            RuntimeProfiler::CpuScope scope("Player / Drones Update");
+		    player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime, baseDeltaTime);
+        }
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 		upgradeHudAfterPlayerUpdate_ = player_->GetUpgradeHudDebugSnapshot();
 #endif
@@ -1016,16 +1022,21 @@ void GameScene::Update() {
 
 		const bool suppressTutorialCombat = IsTutorialCombatSuppressed();
 		if (!suppressTutorialCombat) {
-			enemy_->Update(finalDeltaTime);
+			RuntimeProfiler::CpuScope scope("Enemy AI Update");
+			if (IsRunRivalActive()) enemy_->Update(finalDeltaTime);
 			if (!prototypeRun_) UpdateLevelBossPhases();
 			enemyManager_->Update(*stage_, finalDeltaTime);
 		}
 
-		bulletManager_->Update(*stage_, finalDeltaTime);
+        {
+            RuntimeProfiler::CpuScope scope("Bullets / Trails / Wall Collision");
+		    bulletManager_->Update(*stage_, finalDeltaTime);
+        }
 
 		// 衝突マネージャの更新
 		if (!suppressTutorialCombat) {
-			collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get(), enemyManager_.get());
+			RuntimeProfiler::CpuScope scope("Actor / Bullet Collision");
+			collisionManager_->CheckAllCollisions(player_.get(), IsRunRivalActive() ? enemy_.get() : nullptr, bulletManager_.get(), enemyManager_.get());
 		}
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 		upgradeHudAfterCollision_ = player_->GetUpgradeHudDebugSnapshot();
@@ -1092,7 +1103,10 @@ void GameScene::Update() {
 	UpdateDeathPostPulse(baseDeltaTime);
 	const float particleDeltaTime =
 		gameFlowState_ == GameFlowState::Playing ? finalDeltaTime : baseDeltaTime;
-	ParticleManager::GetInstance()->Update(particleDeltaTime, camera.get(), debugCamera.get());
+    {
+        RuntimeProfiler::CpuScope scope("Particles Update");
+	    ParticleManager::GetInstance()->Update(particleDeltaTime, camera.get(), debugCamera.get());
+    }
 	for (const ParticleManager::ScreenPulseEvent& event : ParticleManager::GetInstance()->ConsumeScreenPulseEvents()) {
 		TriggerDeathPostPulse(event.position, event.strength);
 	}
@@ -1588,6 +1602,7 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 	if (!player_ || !enemy_) {
 		return;
 	}
+	if(expeditionRun_&&player_->ConsumePrimaryAttackPerformedEvent()) tankExpeditionAudio_.Shot();
 
 	const int playerHp = player_->GetHp();
 	if (previousPlayerHp_ >= 0 && playerHp < previousPlayerHp_) {
@@ -1607,6 +1622,7 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 			cameraShakePower_,
 			screenEffectDirector_.GetConfig().cameraShakeStrength);
 		SetEventCallout("ARMOR HIT", 0.42f);
+		if(expeditionRun_) tankExpeditionAudio_.ArmorBreak();
 	}
 	previousPlayerHp_ = playerHp;
 
@@ -1618,25 +1634,31 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 	const bool dashing = player_->IsDashing();
 	if (dashing && !previousDashing_) {
 		screenEffectDirector_.TriggerDash(WorldToScreenUv(player_->GetWorldPosition()));
+		if(expeditionRun_) tankExpeditionAudio_.Dash();
 	}
 	previousDashing_ = dashing;
 
 	if (player_->ConsumeEvolutionConfirmed()) {
 		screenEffectDirector_.TriggerUpgradeConfirmed(WorldToScreenUv(player_->GetWorldPosition()));
+		if(expeditionRun_) tankExpeditionAudio_.Upgrade();
 		SetEventCallout("EVOLUTION COMPLETE", 0.75f);
 	}
 	if (player_->ConsumeEvolutionCancelled()) {
 		SetEventCallout("EVOLUTION CANCELLED", 0.45f);
 	}
 
-	if (!bossEntryTriggered_ && phase_ == Phase::kMain && playTime_ >= 1.25f) {
+	if (!expeditionRun_ && !bossEntryTriggered_ && phase_ == Phase::kMain && playTime_ >= 1.25f) {
 		bossEntryTriggered_ = true;
 		screenEffectDirector_.TriggerBossEntry();
 		SetEventCallout("WARNING: BOSS UNIT", 1.20f);
 	}
 
+	if(expeditionRun_&&IsRunRivalActive()&&enemy_->GetHp()<previousBossHp_) tankExpeditionAudio_.Hit();
 	previousBossHp_ = enemy_->GetHp();
-	if (enemy_->IsDead() && !bossDefeatHandled_) {
+	if (expeditionRun_ && player_->IsDead() && !playerDeathHandled_) {
+		BeginGameOver();
+	} else if (IsRunRivalActive() && enemy_->IsDead() && !bossDefeatHandled_ &&
+		(!expeditionRun_ || tankExpedition_.GetRoomKind() == tankexp::RoomKind::Boss)) {
 		BeginBossDefeatSequence();
 	} else if (player_->IsDead() && !playerDeathHandled_) {
 		BeginGameOver();
@@ -1645,6 +1667,7 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 
 void GameScene::BeginBossDefeatSequence()
 {
+	if (expeditionRun_) tankExpedition_.CompleteRoom();
 	if (prototypeRun_) { tankRun_.CompleteBoss(); RefreshTankRunUi(); }
 	bossDefeatHandled_ = true;
 	gameFlowState_ = GameFlowState::BossDefeatSequence;
@@ -1668,6 +1691,7 @@ void GameScene::BeginBossDefeatSequence()
 
 void GameScene::BeginGameOver()
 {
+	if (expeditionRun_) tankExpedition_.MarkDead();
 	if (prototypeRun_) { tankRun_.MarkDead(); RefreshTankRunUi(); }
 	playerDeathHandled_ = true;
 	gameFlowState_ = GameFlowState::GameOver;
@@ -1772,7 +1796,7 @@ void GameScene::ConfirmResultSelection()
 		return;
 	}
 	if (resultSelection_ == 0) {
-		nextSceneName_ = prototypeRun_ ? "TANK_RUN" : "GAME";
+		nextSceneName_ = expeditionRun_ ? "TANK_EXPEDITION" : prototypeRun_ ? "TANK_RUN" : "GAME";
 	} else {
 		nextSceneName_ = "TITLE";
 	}
@@ -1954,11 +1978,13 @@ void GameScene::DrawPostEffect3D() {
 	const bool useEnemyPost = enableEnemyPostEffect_ && IsPostProfileCategoryEnabled("Enemy");
 	const bool useExpEnemyPost = enableExpEnemyPostEffect_ && IsPostProfileCategoryEnabled("ExpEnemy");
 	auto profile = [this](const char* name, bool active, auto&& drawFunc) {
+		RuntimeProfiler::GpuScope gpuScope(name);
 		const auto start = std::chrono::steady_clock::now();
 		drawFunc();
 		const auto end = std::chrono::steady_clock::now();
 		const float ms = std::chrono::duration<float, std::milli>(end - start).count();
 		AddPostProfileEntry(name, ms, active);
+		RuntimeProfiler::Get().AddCpu(name, ms);
 	};
 
 	if (expEnemyNeonRenderMode_ == 3) {
@@ -2028,7 +2054,9 @@ void GameScene::DrawPostEffect3D() {
 		Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewProjectionMatrix()
 			: camera->GetViewProjectionMatrix();
-		if (useBulletTrailPost) {
+        const bool hasTrailContent = bulletManager_->GetBulletCount() != 0 || bulletManager_->HasDrawableTrails() ||
+            (enablePlayerMeleeRibbonTrail_ && playerMeleeTrailManager_ && playerMeleeTrailManager_->HasDrawableInstances());
+		if (useBulletTrailPost && hasTrailContent) {
 			profile("Trail Post", true, [&]() {
 				bulletTrailPostEffect_->BeginCapture();
 				bulletManager_->DrawTrails(vp);
@@ -2108,7 +2136,20 @@ void GameScene::DrawPostEffect3D() {
 			ParticleManager::GetInstance()->Draw();
 		});
 	}
-
+    auto& diagnostics = RuntimeProfiler::Get();
+    if (diagnostics.IsRecording()) {
+        const auto counts = bulletManager_->GetBulletCounts();
+        const auto trails = bulletManager_->GetTrailDrawStats();
+        diagnostics.SetCounter("Bullets: player", static_cast<double>(counts.player));
+        diagnostics.SetCounter("Bullets: enemy", static_cast<double>(counts.enemy + counts.hostileExpEnemy));
+        diagnostics.SetCounter("Enemies", static_cast<double>(enemyManager_->GetEnemyCount()));
+        diagnostics.SetCounter("Particle count", ParticleManager::GetInstance()->GetActiveCount());
+        diagnostics.SetCounter("Trails (drawable)", static_cast<double>(trails.drawableInstances));
+        diagnostics.SetCounter("Trail vertices", static_cast<double>(trails.generatedVertices));
+        diagnostics.SetCounter("Trail draw calls", trails.drawCalls);
+        diagnostics.SetCounter("Trail upload bytes", static_cast<double>(trails.uploadedBytes));
+        diagnostics.SetCounter("Trail truncated vertices", static_cast<double>(trails.truncatedVertices));
+    }
 }
 
 void GameScene::TriggerDeathPostPulse(const Vector3& worldPosition, float strength) {
@@ -2228,7 +2269,7 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 		if (!player_->IsDead()) {
 			neonGridRenderer_->QueueLocalGridClipped(player_->GetWorldPosition(), actorGridRadius_, actorGridSpacing_, actorGridLineWidth_, playerGridColor_, fieldMinX, fieldMaxX, fieldMinY, fieldMaxY);
 		}
-		if (!enemy_->IsDead()) {
+		if ((IsRunRivalActive() && !enemy_->IsDead())) {
 			neonGridRenderer_->QueueLocalGridClipped(enemy_->GetWorldPosition(), actorGridRadius_ * 1.15f, actorGridSpacing_, actorGridLineWidth_, enemyGridColor_, fieldMinX, fieldMaxX, fieldMinY, fieldMaxY);
 		}
 		int expEnemyLocalGridCount = 0;
@@ -2504,7 +2545,7 @@ void GameScene::SpawnPlayerLaser(const Player::LaserShotEvent& event)
 	playerLaserBeams_.push_back(beam);
 
 	bool emittedImpact = false;
-	if (enemy_ && !enemy_->IsDead()) {
+	if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead())) {
 		float t = 0.0f;
 		const float distance = DistancePointToSegment2D(enemy_->GetWorldPosition(), event.origin, end, &t);
 		if (distance <= enemy_->GetRadius() + beam.width * 0.75f) {
@@ -2596,7 +2637,7 @@ void GameScene::UpdatePlayerMines(float deltaTime)
 
 		bool shouldDetonate = mine.life <= 0.0f;
 		if (!shouldDetonate && mine.fuse <= 0.0f) {
-			if (enemy_ && !enemy_->IsDead() && Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
+			if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
 				shouldDetonate = true;
 			}
 			if (!shouldDetonate && enemyManager_) {
@@ -2624,7 +2665,7 @@ void GameScene::DetonatePlayerMine(size_t index)
 	}
 
 	const PlayerMine mine = playerMines_[index];
-	if (enemy_ && !enemy_->IsDead() && Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
+	if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
 		enemy_->TakeDamage(mine.damage);
 	}
 	if (enemyManager_) {
@@ -2784,7 +2825,7 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 				return distance <= 0.0001f ||
 					(distance <= slash.range + targetRadius && Dot(Normalize(toTarget), slash.direction) >= minDot);
 			};
-			if (enemy_ && !enemy_->IsDead() && hitTarget(enemy_->GetWorldPosition(), enemy_->GetRadius())) {
+			if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && hitTarget(enemy_->GetWorldPosition(), enemy_->GetRadius())) {
 				enemy_->TakeDamage(slash.damage);
 				ParticleManager::GetInstance()->EmitNeonImpactEffect(enemy_->GetWorldPosition(), slash.direction * -1.0f, slash.color, 10);
 			}
@@ -3321,7 +3362,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		}
 		queueTankBillboard(player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true);
 	}
-	if (bossNeonRenderMode_ == 1 && enemy_ && !enemy_->IsDead()) {
+	if (bossNeonRenderMode_ == 1 && enemy_ && (IsRunRivalActive() && !enemy_->IsDead())) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
 		const float impact = feedback * feedback;
 		const Vector4 color = lerpColor(enemyGridColor_, { 1.8f, 1.8f, 1.8f, enemyGridColor_.w }, (std::min)(1.0f, impact * 0.95f));
@@ -3434,7 +3475,7 @@ void GameScene::DrawActorNeonBodyFillPass() {
 			player_->GetNeonBodyLayout(),
 			actorNeonBodyFillColor_);
 	}
-	if (bossNeonRenderMode_ == 1 && enemy_ && !enemy_->IsDead()) {
+	if (bossNeonRenderMode_ == 1 && enemy_ && (IsRunRivalActive() && !enemy_->IsDead())) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
 		const float impact = feedback * feedback;
 		neonGridRenderer_->QueueBillboardDisc(
@@ -3646,6 +3687,10 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 
 	for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
 		if (!expEnemy || expEnemy->IsDead() || !expEnemy->IsShapeNeonRenderTarget()) {
+			continue;
+		}
+		if(expEnemy->IsExpeditionCombatRole()) {
+			expEnemy->QueueCombatVisuals(*neonGridRenderer_,cameraRight,cameraUp,cameraForward,expEnemyNeonLineWidth_);
 			continue;
 		}
 		const Vector3 visualScale = expEnemy->GetVisualScale();
@@ -3996,7 +4041,7 @@ void GameScene::CapturePerformanceFrame()
 		frame.skillPoints = hudSnapshot.skillPoints;
 		frame.upgradeHudListVisible = hudSnapshot.listActuallyVisible;
 	}
-	frame.enemyCount = enemy_ && !enemy_->IsDead() ? 1 : 0;
+	frame.enemyCount = enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) ? 1 : 0;
 	frame.expEnemyCount = enemyManager_ ? enemyManager_->GetEnemyCount() : 0;
 	if (bulletManager_) {
 		const BulletManager::BulletCounts counts = bulletManager_->GetBulletCounts();
@@ -6274,7 +6319,7 @@ void GameScene::DrawSprite() {
 				DrawFollowHpBar(drone, drone->GetWorldPosition(), drone->GetHp(), drone->GetMaxHp(), 42.0f, -1.45f);
 			}
 		}
-		if (!IsTutorialCombatSuppressed() && !enemy_->IsDead()) {
+		if (!IsTutorialCombatSuppressed() && (IsRunRivalActive() && !enemy_->IsDead())) {
 			DrawFollowHpBar(enemy_.get(), enemy_->GetWorldPosition(), enemy_->GetHp(), enemy_->GetMaxHp(), 92.0f, -3.25f);
 		}
 		for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
@@ -6285,7 +6330,7 @@ void GameScene::DrawSprite() {
 	}
 	DrawHpBarBatches();
 	SpriteCommon::GetInstance()->PreDraw(kNormal);
-	player_->DrawSprite();
+	if (!expeditionRun_ || (!IsTankRunMenuOpen() && gameFlowState_ == GameFlowState::Playing)) player_->DrawSprite();
 	if (gameFlowState_ == GameFlowState::Playing) {
 		player_->DrawEncyclopedia();
 	}

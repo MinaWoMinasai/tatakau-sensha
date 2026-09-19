@@ -66,8 +66,9 @@ public:
     // ゲッター
     const std::deque<SwordSection>& GetPoints() const { return points_; }
     const TrailConfig& GetConfig() const { return config_; }
-    void SetConfig(const TrailConfig& config) { config_ = config; }
-    void Clear() { points_.clear(); }
+    void SetConfig(const TrailConfig& config);
+    void Clear() { if (!points_.empty()) { points_.clear(); ++geometryRevision_; } }
+    uint64_t GetGeometryRevision() const { return geometryRevision_; }
 
     void SetActive(bool active) { isActive_ = active; }
     bool IsActive() const { return isActive_; }
@@ -77,6 +78,7 @@ public:
 private:
     std::deque<SwordSection> points_;
     TrailConfig config_;
+    uint64_t geometryRevision_ = 1;
     bool isActive_ = true;
     bool isPermanent_ = false; // 追加：trueなら中身が空でも削除しない
 };
