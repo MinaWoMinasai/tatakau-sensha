@@ -43,6 +43,8 @@ private:
 		std::string_view sceneName,
 		float fadeDuration);
 	void UpdateMenuVisuals();
+	bool IsMenuAvailable(int selection) const;
+	int HitTestMenu(const Vector2& mousePosition);
 
 	// ビュープロジェクション
 	std::unique_ptr<Camera> camera;
@@ -69,9 +71,12 @@ private:
 
 	const float deltaTime = 1.0f / 60.0f;
 
+	LogoChar runLogo;
 	LogoChar startLogo;
 	LogoChar tutorialLogo;
 	int menuSelection_ = 0;
+	Vector2 previousMousePosition_{};
+	std::unique_ptr<TextLabel> menuHint_;
 	bool startVisible = false;
 	LogoChar ruleLogo;
 	bool startVisibleRule = false;

@@ -30,11 +30,14 @@ public:
     void DrawBodyOnly();
     void DrawBodyOnlyVisible(const Vector3& cameraPos, float halfWidth, float halfHeight);
     bool SpawnLevelEnemy(const Vector3& position, const std::string& prefab, int hp = -1);
+    // The actor address is stable until the defeated actor is removed by Update.
+    ExpEnemy* SpawnRunResource(const Vector3& position, int hp, std::function<void(bool playerOwned)> onClaim);
     void AddLevelSpawnArea(const SpawnArea& spawnArea);
     void ClearLevelData();
     void SetDefaultRandomSpawnEnabled(bool enabled) { defaultRandomSpawnEnabled_ = enabled; }
     void SetExpEnemyHostileToBoss(bool hostile);
-    ExpEnemy* FindNearestEnemy(const Vector3& position, float maxDistance) const;
+    ExpEnemy* FindNearestEnemy(const Vector3& position, float maxDistance, bool includeShooters = true) const;
+    ExpEnemy* FindNearestRunResource(const Vector3& position, float maxDistance) const;
 
     // 衝突判定のためにリストを公開
     std::vector<ExpEnemy*> GetEnemyPtrs() const;

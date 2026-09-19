@@ -66,6 +66,7 @@ void AttackController::FireInternal(const Vector3& origin, const Vector3& baseDi
             param.bulletPenetration > 0.0f ? param.bulletPenetration : static_cast<float>((std::max)(1u, param.damage))
         );
 
-        bulletManager_->Add(std::move(bullet));
+		bullet->SetCanClaimRunResource(param.canClaimRunResource);
+		bulletManager_->Add(std::move(bullet));
     }
 }

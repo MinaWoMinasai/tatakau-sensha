@@ -776,11 +776,16 @@ void Bloom::CaptureScreenEffectBase() {
 	screenEffectBaseParam_.randomScale = bloomParam_.randomScale;
 	screenEffectBaseParam_.randomTimeScale = bloomParam_.randomTimeScale;
 	screenEffectBaseParam_.exposure = bloomParam_.exposure;
-	screenEffectBaseParam_.outlineWidth = bloomParam_.outlineWidth;
-	screenEffectBaseParam_.outlineThreshold = bloomParam_.outlineThreshold;
-	screenEffectBaseParam_.outlineColor = bloomParam_.outlineColor;
-	screenEffectBaseParam_.depthOutlineEnabled = bloomParam_.depthOutlineEnabled;
-	screenEffectBaseParam_.depthOutlineScale = bloomParam_.depthOutlineScale;
+	// A scene-local suppression must not become the next scene's saved baseline.
+	if (!screenEffectState_.suppressOutlines) {
+		screenEffectBaseParam_.outlineWidth = bloomParam_.outlineWidth;
+		screenEffectBaseParam_.outlineThreshold = bloomParam_.outlineThreshold;
+		screenEffectBaseParam_.outlineColor = bloomParam_.outlineColor;
+		screenEffectBaseParam_.outlineBloomIntensity = bloomParam_.outlineBloomIntensity;
+		screenEffectBaseParam_.outlineBloomWidth = bloomParam_.outlineBloomWidth;
+		screenEffectBaseParam_.depthOutlineEnabled = bloomParam_.depthOutlineEnabled;
+		screenEffectBaseParam_.depthOutlineScale = bloomParam_.depthOutlineScale;
+	}
 }
 
 void Bloom::ComposeTransientEffects() {
@@ -879,6 +884,8 @@ void Bloom::ComposeTransientEffects() {
 		bloomParam_.depthOutlineEnabled = base.depthOutlineEnabled;
 		bloomParam_.depthOutlineScale = base.depthOutlineScale;
 	}
+	bloomParam_.outlineBloomIntensity = base.outlineBloomIntensity;
+	bloomParam_.outlineBloomWidth = base.outlineBloomWidth;
 
 	const bool useScreenShockwave =
 		screenEffectState_.active &&
@@ -893,6 +900,13 @@ void Bloom::ComposeTransientEffects() {
 		bloomParam_.shockwaveRadius = transientPulse_.radius;
 		bloomParam_.shockwaveWidth = transientPulse_.width;
 		bloomParam_.shockwaveStrength = transientPulse_.strength;
+	}
+	if (screenEffectState_.suppressOutlines) {
+		bloomParam_.outlineWidth = 0.0f;
+		bloomParam_.outlineBloomIntensity = 0.0f;
+		bloomParam_.outlineBloomWidth = 0.0f;
+		bloomParam_.depthOutlineEnabled = 0.0f;
+		bloomParam_.depthOutlineScale = 0.0f;
 	}
 }
 

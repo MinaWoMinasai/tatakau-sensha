@@ -40,6 +40,12 @@ Vector2 FitTextLabel(TextLabel& label, const Vector2& bounds)
 void TitleScene::Initialize() {
 
 	input_ = Input::GetInstance();
+	finished_ = false;
+	nextSceneName_.clear();
+	phase_ = Phase::kFadeIn;
+	blinkTimer_ = 0.0f;
+	logoChars.clear();
+	previousMousePosition_ = input_->GetMousePosition();
 
 	camera = std::make_unique<Camera>();
 	camera->SetTranslate(Vector3(17.0f, 21.0f, -80.0f));
@@ -116,17 +122,32 @@ void TitleScene::Initialize() {
 		logoChars.push_back(std::move(c));
 	}
 
-	// ロゴの下へ、通常プレイとチュートリアルの2項目を並べる。
-	startY = screenH * 0.67f;
+	// 1280x720では425 / 501 / 577px。タイトルと操作案内の間に収める。
+	startY = screenH * 0.59f;
 
 	TextStyle startStyle = titleStyle;
 	startStyle.fontSize = 40.0f;
 	startStyle.color = { 0.90f, 1.0f, 0.96f, 1.0f };
 	startStyle.padding = 12.0f;
+	runLogo.label = std::make_unique<TextLabel>();
+	runLogo.label->Initialize(
+		SpriteCommon::GetInstance(),
+		"コア争奪戦（試作）",
+		startStyle);
+	runLogo.label->SetAnchorPoint({ 0.5f, 0.5f });
+	runLogo.baseSize = FitTextLabel(*runLogo.label, { 440.0f, 64.0f });
+	runLogo.startPos = { screenW * 0.5f, -100.0f };
+	runLogo.targetPos = { screenW * 0.5f, startY };
+	runLogo.label->SetPosition(runLogo.startPos);
+	runLogo.delay = 8 * 0.12f + 0.2f;
+	runLogo.fallSpeed = 700.0f;
+	runLogo.timer = 0.0f;
+	runLogo.landed = false;
+
 	startLogo.label = std::make_unique<TextLabel>();
 	startLogo.label->Initialize(
 		SpriteCommon::GetInstance(),
-		"PLAY",
+		"フリープレイ",
 		startStyle);
 	startLogo.label->SetAnchorPoint({ 0.5f, 0.5f });
 
@@ -135,11 +156,11 @@ void TitleScene::Initialize() {
 
 	// 位置
 	startLogo.startPos = { screenW * 0.5f, -100.0f };
-	startLogo.targetPos = { screenW * 0.5f, startY };
+	startLogo.targetPos = { screenW * 0.5f, startY + 76.0f };
 	startLogo.label->SetPosition(startLogo.startPos);
 
 	// ロゴより少し遅れて落ちる
-	startLogo.delay = 8 * 0.12f + 0.2f;
+	startLogo.delay = 9 * 0.12f + 0.2f;
 	startLogo.fallSpeed = 700.0f;
 
 	startLogo.timer = 0.0f;
@@ -153,14 +174,23 @@ void TitleScene::Initialize() {
 	tutorialLogo.label->SetAnchorPoint({ 0.5f, 0.5f });
 	tutorialLogo.baseSize = FitTextLabel(*tutorialLogo.label, { 280.0f, 58.0f });
 	tutorialLogo.startPos = { screenW * 0.5f, -100.0f };
-	tutorialLogo.targetPos = { screenW * 0.5f, startY + 68.0f };
+	tutorialLogo.targetPos = { screenW * 0.5f, startY + 152.0f };
 	tutorialLogo.label->SetPosition(tutorialLogo.startPos);
-	tutorialLogo.delay = 9 * 0.12f + 0.2f;
+	tutorialLogo.delay = 10 * 0.12f + 0.2f;
 	tutorialLogo.fallSpeed = 700.0f;
 	tutorialLogo.timer = 0.0f;
 	tutorialLogo.landed = false;
-	menuSelection_ = 0;
+	menuSelection_ = IsSceneAvailable("TANK_RUN") ? 0 : 1;
 	UpdateMenuVisuals();
+	TextStyle hintStyle = startStyle;
+	hintStyle.fontSize = 20.0f;
+	hintStyle.color = { 0.61f, 0.76f, 0.80f, 1.0f };
+	menuHint_ = std::make_unique<TextLabel>();
+	menuHint_->Initialize(SpriteCommon::GetInstance(),
+		"↑↓ / W S：選択    Enter / Space / クリック：決定    F9：遠征", hintStyle);
+	menuHint_->SetAnchorPoint({ 0.5f, 0.5f });
+	menuHint_->SetPosition({ screenW * 0.5f, screenH - 52.0f });
+	FitTextLabel(*menuHint_, { screenW * 0.84f, 36.0f });
 
 	// ロゴの少し下
 	startY = screenH * 0.45f + 120.0f;
@@ -213,17 +243,18 @@ void TitleScene::Update() {
 		UpdateLogoChar(c, deltaTime);
 	}
 
+	UpdateLogoChar(runLogo, deltaTime);
 	UpdateLogoChar(startLogo, deltaTime);
 	UpdateLogoChar(tutorialLogo, deltaTime);
 	UpdateLogoChar(ruleLogo, deltaTime);
 	rule->Update();
 	blinkTimer_ += deltaTime;
 	const float selectedAlpha = 0.90f + std::sin(blinkTimer_ * 3.5f) * 0.10f;
-	if (startLogo.label) {
-		startLogo.label->SetAlpha(menuSelection_ == 0 ? selectedAlpha : 0.66f);
-	}
-	if (tutorialLogo.label) {
-		tutorialLogo.label->SetAlpha(menuSelection_ == 1 ? selectedAlpha : 0.66f);
+	LogoChar* menuLogos[] = { &runLogo, &startLogo, &tutorialLogo };
+	for (int i = 0; i < 3; ++i) {
+		if (menuLogos[i]->label) {
+			menuLogos[i]->label->SetAlpha(menuSelection_ == i ? selectedAlpha : 0.66f);
+		}
 	}
 
 	switch (phase_) {
@@ -235,6 +266,11 @@ void TitleScene::Update() {
 		}
 		break;
 	case Phase::kMain: {
+		if (input_->IsTrigger(input_->GetKey()[DIK_F9], input_->GetPreKey()[DIK_F9])) {
+			if (StartTransitionIfAvailable("TANK_RUN", 0.35f)) {
+				break;
+			}
+		}
 		if (input_->IsTrigger(input_->GetKey()[DIK_F8], input_->GetPreKey()[DIK_F8])) {
 			if (StartTransitionIfAvailable("INK_SHOOTER_LAB", 0.35f)) {
 				break;
@@ -278,21 +314,39 @@ void TitleScene::Update() {
 		const bool selectNext =
 			input_->IsTrigger(input_->GetKey()[DIK_DOWN], input_->GetPreKey()[DIK_DOWN]) ||
 			input_->IsTrigger(input_->GetKey()[DIK_S], input_->GetPreKey()[DIK_S]);
-		if (selectPrevious || selectNext) {
-			menuSelection_ = menuSelection_ == 0 ? 1 : 0;
-			UpdateMenuVisuals();
+		const int oldSelection = menuSelection_;
+		if (selectPrevious != selectNext) {
+			const int direction = selectPrevious ? -1 : 1;
+			for (int attempt = 0; attempt < 3; ++attempt) {
+				menuSelection_ = (menuSelection_ + direction + 3) % 3;
+				if (IsMenuAvailable(menuSelection_)) break;
+			}
 		}
 
-		const bool confirm =
+		const Vector2 mousePosition = input_->GetMousePosition();
+		const bool mouseMoved = mousePosition.x != previousMousePosition_.x ||
+			mousePosition.y != previousMousePosition_.y;
+		previousMousePosition_ = mousePosition;
+		const int hovered = HitTestMenu(mousePosition);
+		const bool mouseClicked = input_->IsTrigger(
+			input_->GetMouseState().rgbButtons[0],
+			input_->GetPreMouseState().rgbButtons[0]);
+		// A stationary pointer must not undo keyboard selection.
+		if (hovered >= 0 && (mouseClicked || (mouseMoved && !selectPrevious && !selectNext))) {
+			menuSelection_ = hovered;
+		}
+		if (oldSelection != menuSelection_) UpdateMenuVisuals();
+		const bool keyboardConfirm =
 			input_->IsTrigger(input_->GetKey()[DIK_RETURN], input_->GetPreKey()[DIK_RETURN]) ||
-			input_->IsTrigger(input_->GetKey()[DIK_SPACE], input_->GetPreKey()[DIK_SPACE]) ||
-			input_->IsTrigger(
-				input_->GetMouseState().rgbButtons[0],
-				input_->GetPreMouseState().rgbButtons[0]);
-		if (IsSceneAvailable("GAME") && confirm) {
-			GameStartSession::SetMode(
-				menuSelection_ == 0 ? GameStartMode::Normal : GameStartMode::Tutorial);
-			StartTransitionIfAvailable("GAME", 0.75f);
+			input_->IsTrigger(input_->GetKey()[DIK_SPACE], input_->GetPreKey()[DIK_SPACE]);
+		if (IsMenuAvailable(menuSelection_) && (keyboardConfirm || (mouseClicked && hovered >= 0))) {
+			if (menuSelection_ == 0) {
+				StartTransitionIfAvailable("TANK_RUN", 0.75f);
+			} else {
+				GameStartSession::SetMode(
+					menuSelection_ == 1 ? GameStartMode::Normal : GameStartMode::Tutorial);
+				StartTransitionIfAvailable("GAME", 0.75f);
+			}
 		}
 		break;
 	}
@@ -320,10 +374,9 @@ void TitleScene::DrawAfterPostEffect3D()
 			labels.push_back(logo.label.get());
 		}
 	}
-	if (IsSceneAvailable("GAME")) {
-		TextLabel* selectedLabel = menuSelection_ == 0
-			? startLogo.label.get()
-			: tutorialLogo.label.get();
+	if (IsMenuAvailable(menuSelection_)) {
+		LogoChar* menuLogos[] = { &runLogo, &startLogo, &tutorialLogo };
+		TextLabel* selectedLabel = menuLogos[menuSelection_]->label.get();
 		if (selectedLabel) {
 			labels.push_back(selectedLabel);
 		}
@@ -340,18 +393,13 @@ void TitleScene::DrawSprite() {
 			c.sprite->Draw();
 		}
 	}
-	if (IsSceneAvailable("GAME")) {
-		if (startLogo.label) {
-			startLogo.label->Draw();
-		} else if (startLogo.sprite) {
-			startLogo.sprite->Draw();
-		}
-		if (tutorialLogo.label) {
-			tutorialLogo.label->Draw();
-		} else if (tutorialLogo.sprite) {
-			tutorialLogo.sprite->Draw();
-		}
+	LogoChar* menuLogos[] = { &runLogo, &startLogo, &tutorialLogo };
+	for (int i = 0; i < 3; ++i) {
+		if (!IsMenuAvailable(i)) continue;
+		if (menuLogos[i]->label) menuLogos[i]->label->Draw();
+		else if (menuLogos[i]->sprite) menuLogos[i]->sprite->Draw();
 	}
+	if (menuHint_) menuHint_->Draw();
 	fade_->Draw();
 }
 
@@ -394,19 +442,47 @@ void TitleScene::UpdateLogoChar(LogoChar& c, float deltaTime)
 
 void TitleScene::UpdateMenuVisuals()
 {
-	const auto applyStyle = [](TextLabel* label, bool selected) {
+	const auto applyStyle = [](LogoChar& logo, bool selected) {
+		TextLabel* label = logo.label.get();
 		if (!label) {
 			return;
 		}
+		const Vector2 currentSize = label->GetSprite() ? label->GetSprite()->GetSize() : logo.baseSize;
 		TextStyle style = label->GetStyle();
 		style.color = selected
 			? Vector4{ 0.48f, 1.0f, 0.72f, 1.0f }
 			: Vector4{ 0.74f, 0.88f, 0.92f, 0.82f };
 		label->SetStyle(style);
 		label->PrepareForDraw();
+		if (label->GetSprite()) label->GetSprite()->SetSize(currentSize);
 	};
-	applyStyle(startLogo.label.get(), menuSelection_ == 0);
-	applyStyle(tutorialLogo.label.get(), menuSelection_ == 1);
+	applyStyle(runLogo, menuSelection_ == 0);
+	applyStyle(startLogo, menuSelection_ == 1);
+	applyStyle(tutorialLogo, menuSelection_ == 2);
+}
+
+bool TitleScene::IsMenuAvailable(int selection) const
+{
+	if (selection == 0) return IsSceneAvailable("TANK_RUN");
+	if (selection == 1 || selection == 2) return IsSceneAvailable("GAME");
+	return false;
+}
+
+int TitleScene::HitTestMenu(const Vector2& mousePosition)
+{
+	LogoChar* menuLogos[] = { &runLogo, &startLogo, &tutorialLogo };
+	for (int i = 0; i < 3; ++i) {
+		LogoChar& logo = *menuLogos[i];
+		if (!IsMenuAvailable(i) || !logo.landed) continue;
+		Sprite* sprite = GetLogoSprite(logo);
+		if (!sprite) continue;
+		const Vector2 center = sprite->GetPosition();
+		const float halfWidth = (std::max)(150.0f, logo.baseSize.x * 0.56f + 12.0f);
+		const float halfHeight = logo.baseSize.y * 0.56f;
+		if (mousePosition.x >= center.x - halfWidth && mousePosition.x <= center.x + halfWidth &&
+			mousePosition.y >= center.y - halfHeight && mousePosition.y <= center.y + halfHeight) return i;
+	}
+	return -1;
 }
 
 std::string TitleScene::GetNextSceneName() const

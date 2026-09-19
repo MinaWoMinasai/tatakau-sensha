@@ -551,6 +551,8 @@ struct AttackParam {
 	uint32_t damage = 0;
 	float bulletHp = 0.0f;
 	float bulletPenetration = 0.0f;
+	// Neutral Shooter projectiles must not claim a rival's shared resource.
+	bool canClaimRunResource = true;
 };
 
 enum BulletOwner {

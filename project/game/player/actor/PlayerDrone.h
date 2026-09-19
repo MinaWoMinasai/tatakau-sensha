@@ -28,7 +28,9 @@ public:
 	/// <summary>
 	/// 攻撃
 	/// </summary>
-	void Attack();
+	void Attack(float deltaTime = 1.0f / 60.0f);
+	void ConfigureRunAttack(const AttackParam& param, float reloadSeconds);
+	void RallyRunAttack() { runShotCooldown_ = 0.0f; runRallyShotPending_ = true; }
 
 	/// <summary>
 	/// マウスの方を向く
@@ -47,12 +49,22 @@ public:
 	/// <summary>
 	/// 更新
 	/// </summary>
-	void Update(Camera* viewProjection, Stage& stage, const Vector3& playerPosition);
+	void Update(Camera* viewProjection, Stage& stage, const Vector3& playerPosition, float deltaTime = 1.0f / 60.0f);
 
 	/// <summary>
 	/// 描画
 	/// </summary>
 	void Draw();
+	// The arena renders companions with the same authored neon geometry as tanks.
+	void SetNeonVisual(bool enabled) { neonVisual_ = enabled; }
+	bool UsesNeonVisual() const { return neonVisual_; }
+	bool IsVisualVisible() const;
+	const Vector3& GetAimDirection() const { return dir; }
+	float GetNeonMuzzleFlashRatio() const {
+		if (!runAttackEnabled_ || runShotCooldown_ <= 0.0f) return 0.0f;
+		const float flashSeconds = (std::min)(0.075f, runReloadSeconds_);
+		return (std::clamp)((runShotCooldown_ - runReloadSeconds_ + flashSeconds) / flashSeconds, 0.0f, 1.0f);
+	}
 
 	/// <summary>
 	/// スプライト描画
@@ -93,6 +105,7 @@ public:
 
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
 		attackController_.SetBulletManager(bulletManager);
+		runBulletManager_ = bulletManager;
 	}
 
 private:
@@ -118,6 +131,12 @@ private:
 
 	const int kBulletTime = 30;
 	int bulletCoolTime = 0;
+	bool runAttackEnabled_ = false;
+	AttackParam runAttackParam_{};
+	float runReloadSeconds_ = 0.5f;
+	float runShotCooldown_ = 0.0f;
+	bool runRallyShotPending_ = false;
+	BulletManager* runBulletManager_ = nullptr;
 
 	// キャラクターの当たり判定サイズ
 	static inline const float kWidth = 1.6f;
@@ -138,6 +157,7 @@ private:
 	float invincibleTimer_ = 0.0f;
 
 	bool isDead_ = false;
+	bool neonVisual_ = false;
 
 	// 攻撃コントローラ
 	AttackController attackController_;

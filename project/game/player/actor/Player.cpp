@@ -1,5 +1,6 @@
 #include "Player.h"
 #include "Stage.h"
+#include "game/exp/ExpEnemy.h"
 #include "Audio.h"
 #include "game/ui/TankButtonUI.h"
 #include "game/ui/NeonTextEffect.h"
@@ -395,7 +396,8 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 	if (wantsPrimaryAttack && !upgradeHudMouseCaptured_) {
 
 		if (const PlayerClassConfig* config = GetCurrentClassConfig()) {
-			const float baseReload = isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f;
+			const float baseReload = (isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f)
+				* GetRunFireIntervalScale();
 			Vector3 recoilDir = Normalize(dir_) * -1.0f;
 			float recoilPower = 0.01f;
 			if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
@@ -422,13 +424,15 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			param.penetrate = false;
 			param.cooldown = 1.0f;
 			param.damage = static_cast<uint32_t>(stats_.bulletDamage);
+			ApplyRunProjectileRules(param);
 			bool firedByClass = false;
 
 			Vector3 recoilDir = Normalize(dir_) * -1.0f;
 			float recoilPower = 0.01f; // 弾の重さ（慣性の強さ）
 
 			// 個別にクールタイムを設定するために先に設定
-			float baseReload = isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f;
+			float baseReload = (isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f)
+				* GetRunFireIntervalScale();
 			bulletCoolTime = baseReload;
 
 			switch (currentClass_) {
@@ -573,7 +577,12 @@ void Player::DroneShoot(BulletManager* BulletManager)
 	//if (input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
 
 	const PlayerClassConfig* config = GetCurrentClassConfig();
-	const size_t maxDrones = static_cast<size_t>((std::max)(0, config ? config->maxDrones : 7));
+	int droneLimit = (std::max)(0, config ? config->maxDrones : 7);
+	if (runModifiers_.enabled) {
+		droneLimit = (std::min)(droneLimit, 6) + (runModifiers_.drones ? 2 : 0)
+			+ (runModifiers_.core == TankRunCore::Drone ? 2 : 0);
+	}
+	const size_t maxDrones = static_cast<size_t>(droneLimit);
 	if (drones_.size() >= maxDrones) {
 		bulletCoolTime = 0.0f;
 		return;
@@ -588,6 +597,7 @@ void Player::DroneShoot(BulletManager* BulletManager)
 		auto drone = std::make_unique<PlayerDrone>();
 		drone->Initialize(dir_ * 0.3f + worldTransform_.translate, velocity);
 		drone->SetAttackControllerBulletManager(BulletManager);
+		ConfigureRunDrone(*drone);
 		drones_.push_back(std::move(drone));
 
 		bulletCoolTime = 1.0f;
@@ -804,7 +814,7 @@ void Player::Update(
 		return;
 	}
 
-	if (skillPoints_ > 0) {
+	if (!runModifiers_.enabled && skillPoints_ > 0) {
 		if (input_->IsTrigger(input_->GetKey()[DIK_1], input_->GetPreKey()[DIK_1])) ApplyStatUpgrade(0);
 		if (input_->IsTrigger(input_->GetKey()[DIK_2], input_->GetPreKey()[DIK_2])) ApplyStatUpgrade(1);
 		if (input_->IsTrigger(input_->GetKey()[DIK_3], input_->GetPreKey()[DIK_3])) ApplyStatUpgrade(2);
@@ -814,6 +824,11 @@ void Player::Update(
 		if (input_->IsTrigger(input_->GetKey()[DIK_7], input_->GetPreKey()[DIK_7])) ApplyStatUpgrade(6);
 	}
 
+	if (runModifiers_.enabled) {
+		runDashAttackTimer_ = (std::max)(0.0f, runDashAttackTimer_ - deltaTime);
+		runOverdriveTimer_ = (std::max)(0.0f, runOverdriveTimer_ - deltaTime);
+		runOverdriveCooldown_ = (std::max)(0.0f, runOverdriveCooldown_ - deltaTime);
+	}
 	//SetDamage(int(stats_.bodyDamage));
 
 	//maxCharge_ -= deltaTime;
@@ -870,6 +885,16 @@ void Player::Update(
 	}
 
 	// 右クリックは機体ごとの特殊行動スロットとして扱う。
+	if (runModifiers_.enabled) {
+		// Read the current direction before a dash; a newly pressed movement
+		// key should redirect the boost immediately, not on the following frame.
+		inputDir_ = {};
+		if (input_->IsPress(input_->GetKey()[DIK_A])) inputDir_.x -= 1.0f;
+		if (input_->IsPress(input_->GetKey()[DIK_D])) inputDir_.x += 1.0f;
+		if (input_->IsPress(input_->GetKey()[DIK_W])) inputDir_.y += 1.0f;
+		if (input_->IsPress(input_->GetKey()[DIK_S])) inputDir_.y -= 1.0f;
+		RotateToMouse(viewProjection);
+	}
 	if (input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1])) {
 		TryActivateSpecialAction();
 	}
@@ -910,7 +935,13 @@ void Player::Update(
 	// --- 慣性処理 ---
 	float accel = (Length(inputDir_) > 0.0f) ? accel_ : decel_;
 
-	velocity_ += (targetVelocity - velocity_) * accel * deltaTime;
+	if (runModifiers_.enabled) {
+		// Keep steering crisp without immediately cancelling the dash impulse.
+		const float response = isDashing_ ? 1.5f : (Length(inputDir_) > 0.0f ? 20.0f : 28.0f);
+		velocity_ += (targetVelocity - velocity_) * (1.0f - std::exp(-response * deltaTime));
+	} else {
+		velocity_ += (targetVelocity - velocity_) * accel * deltaTime;
+	}
 
 	float timeWeight = deltaTime * 60.0f;
 
@@ -947,6 +978,19 @@ void Player::Update(
 
 	if (!isDead_) {
 		// 攻撃処理
+		if (runModifiers_.enabled && runDashBurstPending_) {
+			runDashBurstPending_ = false;
+			if (BulletManager->GetBulletCounts().player <= 232) {
+				AttackParam burst{};
+				burst.bulletSpeed = stats_.bulletSpeed * 0.9f;
+				burst.bulletCount = 8;
+				burst.spreadAngleDeg = 315.0f;
+				burst.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * 0.8f)));
+				ApplyRunProjectileRules(burst, false);
+				attackController_.FireFromMuzzle(GetWorldPosition(), dir_, burst, BulletOwner::kPlayer);
+				ParticleManager::GetInstance()->Emit("CasingSpark", GetWorldPosition(), 8);
+			}
+		}
 
 		if (currentClass_ == ClassType::Smasher) {
 			Smash(deltaTime);
@@ -954,8 +998,27 @@ void Player::Update(
 			Attack(BulletManager, deltaTime);
 		}//DroneShoot(BulletManager);
 
+		const PlayerClassConfig* activeClass = GetCurrentClassConfig();
+		const size_t supportLimit = (runModifiers_.drones ? 2u : 0u)
+			+ (runModifiers_.core == TankRunCore::Drone ? 2u : 0u);
+		if (runModifiers_.enabled && supportLimit > 0 &&
+			(!activeClass || !activeClass->usesDrone)) {
+			runSupportDroneTimer_ = (std::max)(0.0f, runSupportDroneTimer_ - deltaTime);
+			if (drones_.size() < supportLimit && runSupportDroneTimer_ <= 0.0f) {
+				auto drone = std::make_unique<PlayerDrone>();
+				drone->Initialize(worldTransform_.translate + dir_ * 0.8f, dir_ * 0.1f);
+				drone->SetAttackControllerBulletManager(BulletManager);
+				ConfigureRunDrone(*drone);
+				drones_.push_back(std::move(drone));
+				runSupportDroneTimer_ = 1.2f;
+			}
+		}
 		for (auto& drone : drones_) {
-			drone->Update(viewProjection, stage, worldTransform_.translate);
+			if (runModifiers_.enabled) {
+				ConfigureRunDrone(*drone);
+			}
+			drone->Update(viewProjection, stage, worldTransform_.translate,
+				runModifiers_.enabled ? deltaTime : 1.0f / 60.0f);
 		}
 
 		drones_.erase(
@@ -966,6 +1029,7 @@ void Player::Update(
 					return drone->IsDead();
 				}),
 			drones_.end());
+		UpdateRunProjectiles(BulletManager, deltaTime);
 
 	}
 
@@ -984,7 +1048,7 @@ void Player::Draw(bool drawBody) {
 
 	// ドローンの描画
 	for (auto& drone : drones_) {
-		drone->Draw();
+		if (!drone->UsesNeonVisual()) drone->Draw();
 	}
 
 	if (drawBody) {
@@ -1086,6 +1150,9 @@ Vector3 Player::GetWorldPosition() const {
 }
 
 void Player::OnCollision(Collider* other) {
+	if (const auto* resource = dynamic_cast<const ExpEnemy*>(other); resource && resource->IsRunResource()) {
+		return;
+	}
 
 	if (currentClass_ == ClassType::Assassin) {
 		isStealth_ = false;
@@ -1104,6 +1171,15 @@ void Player::OnCollision(Collider* other) {
 		isJustEvaded_ = true;
 		invincibleTimer_ = dashTimer_;
 		buffTimer_ = kBuffDuration;
+		if (runModifiers_.enabled && runModifiers_.capacitor) {
+			buffTimer_ = 3.5f;
+			stats_.stamina = (std::min)(stats_.maxStamina, stats_.stamina + 1.0f);
+			HealRunPlayer(4);
+		}
+		if (runModifiers_.enabled && runModifiers_.overdrive) {
+			runOverdriveTimer_ = 2.4f;
+			runOverdriveCooldown_ = 4.0f;
+		}
 		isBuffActive_ = true;
 		// 演出として色を変える（例：金色っぽく）
 		//object_->SetColor({ 0.0f, 1.0f, 0.0f, 1.0f });
@@ -1205,6 +1281,144 @@ void Player::ApplyBalanceConfig(const BalanceConfig& config)
 	RecalculateStatsFromBase(config.healToFull);
 }
 
+void Player::SetRunModifiers(const TankRunModifiers& modifiers)
+{
+	const bool wasEnabled = runModifiers_.enabled;
+	runModifiers_ = modifiers;
+	if (runModifiers_.enabled) {
+		upgradeHudListVisibility_ = 0.0f;
+		upgradeHudMouseCaptured_ = false;
+	}
+	RecalculateStatsFromBase(false);
+	if (wasEnabled && !runModifiers_.enabled) {
+		// A run's support units and attack configuration must not escape its mode.
+		drones_.clear();
+		runSupportDroneTimer_ = 0.0f;
+		runDashAttackTimer_ = 0.0f;
+		runOverdriveTimer_ = 0.0f;
+		runOverdriveCooldown_ = 0.0f;
+		runDashBurstPending_ = false;
+		runHomingTargets_.clear();
+	}
+}
+
+void Player::ConfigurePrototypeLoadout(int archetype)
+{
+	if (!runModifiers_.enabled) {
+		return;
+	}
+	// Starting loadouts are rank two. Their next evolution becomes available
+	// at rank three, rather than opening a locked menu at the first rank-up.
+	if (level_ < 5) {
+		level_ = 5;
+		exp_ = 0;
+		nextLevelExp_ = GetNextLevelExp();
+	}
+	const char* classIds[] = { "Twin", "MachineGun", "Overseer" };
+	EvolveById(classIds[(std::clamp)(archetype, 0, 2)]);
+}
+
+void Player::HealRunPlayer(int amount)
+{
+	if (!runModifiers_.enabled || isDead_ || amount <= 0) {
+		return;
+	}
+	hp_ += (std::min)(amount, (std::max)(0, GetMaxHp() - hp_));
+}
+
+void Player::ApplyRunProjectileRules(AttackParam& param, bool applyFan) const
+{
+	if (!runModifiers_.enabled) {
+		return;
+	}
+	const TankRunTuning tuning = MakeTankRunTuning(runModifiers_);
+	param.reflect = param.reflect || tuning.reflects;
+	param.bulletHp = tuning.bulletHp;
+	param.bulletPenetration = tuning.bulletInterception;
+	if (applyFan && tuning.extraProjectiles > 0) {
+		param.bulletCount = (std::min)(7, param.bulletCount + tuning.extraProjectiles);
+		param.spreadAngleDeg = (std::max)(param.spreadAngleDeg, tuning.minimumSpread);
+		param.randomSpread = false;
+		if (runModifiers_.core == TankRunCore::Assault && runDashAttackTimer_ > 0.0f) {
+			param.spreadAngleDeg *= 0.5f;
+		}
+	}
+}
+
+float Player::GetRunFireIntervalScale() const
+{
+	if (!runModifiers_.enabled) return 1.0f;
+	float scale = runOverdriveTimer_ > 0.0f ? 0.5f : 1.0f;
+	if (runModifiers_.core == TankRunCore::Assault && runDashAttackTimer_ > 0.0f) scale *= 0.65f;
+	return scale;
+}
+
+void Player::SetRunHomingTargets(const std::vector<Vector3>& targets)
+{
+	const size_t count = (std::min)(targets.size(), size_t{48});
+	runHomingTargets_.assign(targets.begin(), targets.begin() + count);
+}
+
+void Player::UpdateRunProjectiles(BulletManager* bulletManager, float deltaTime)
+{
+	if (!runModifiers_.enabled || !runModifiers_.homing || deltaTime <= 0.0f || runHomingTargets_.empty()) return;
+	size_t steered = 0;
+	for (Bullet* bullet : bulletManager->GetBulletPtrs()) {
+		if (!bullet || bullet->IsDead() || bullet->GetOwner() != BulletOwner::kPlayer) continue;
+		if (++steered > 240) break;
+		Vector3 direction = bullet->GetMove();
+		const float speed = Length(direction);
+		if (speed < 0.001f) continue;
+		direction = direction / speed;
+		float nearestSquared = 14.0f * 14.0f;
+		Vector3 targetDirection{};
+		bool found = false;
+		for (const Vector3& target : runHomingTargets_) {
+			Vector3 offset = target - bullet->GetWorldPosition();
+			offset.z = 0.0f;
+			const float distanceSquared = offset.x * offset.x + offset.y * offset.y;
+			if (distanceSquared < 0.04f || distanceSquared >= nearestSquared) continue;
+			const Vector3 candidate = offset / std::sqrt(distanceSquared);
+			if (direction.x * candidate.x + direction.y * candidate.y < 0.35f) continue;
+			nearestSquared = distanceSquared;
+			targetDirection = candidate;
+			found = true;
+		}
+		if (!found) continue;
+		const float dot = (std::clamp)(direction.x * targetDirection.x + direction.y * targetDirection.y, -1.0f, 1.0f);
+		const float turn = (std::min)(std::acos(dot), 1.6f * deltaTime);
+		const float cross = direction.x * targetDirection.y - direction.y * targetDirection.x;
+		const float signedDegrees = turn * (cross < 0.0f ? -1.0f : 1.0f) * (180.0f / 3.1415926535f);
+		bullet->SetVelocity(RotateDirection(direction, signedDegrees) * speed);
+	}
+}
+
+void Player::ConfigureRunDrone(PlayerDrone& drone) const
+{
+	if (!runModifiers_.enabled) {
+		return;
+	}
+	const PlayerClassConfig* config = GetCurrentClassConfig();
+	const bool isSwarm = config && config->usesDrone;
+	AttackParam param{};
+	param.bulletSpeed = stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f);
+	param.bulletCount = 1;
+	param.spreadAngleDeg = isSwarm ? 10.0f : 6.0f;
+	param.randomSpread = true;
+	param.reflect = config && config->reflect;
+	param.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(
+		stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * (isSwarm ? 0.6f : 0.35f))));
+	if (isBuffActive_) {
+		param.reflect = true;
+	}
+	ApplyRunProjectileRules(param);
+	const float reloadRatio = stats_.reloadSpeed / (std::max)(0.05f, baseStats_.reloadSpeed);
+	const float coreRate = runModifiers_.core == TankRunCore::Drone ? 0.8f : 1.0f;
+	const float interval = (isSwarm ? 0.5f : 0.75f) * reloadRatio * coreRate
+		* (isBuffActive_ ? 0.7f : 1.0f) * GetRunFireIntervalScale();
+	drone.ConfigureRunAttack(param, interval);
+}
+
 void Player::Die()
 {
 	if (isDead_) return;
@@ -1275,12 +1489,28 @@ bool Player::ActivatePerfectDodge(const PlayerClassConfig& config)
 		return false;
 	}
 
-	velocity_ = Normalize(dashDir) * kDashSpeed;
+	const TankRunTuning runTuning = MakeTankRunTuning(runModifiers_);
+	velocity_ = Normalize(dashDir) * kDashSpeed * runTuning.dashSpeed;
 	isDashing_ = true;
 	dashStartedEvent_ = true;
 	dashTimer_ = kDashDuration;
-	dashCooldown_ = kDashCooldown * (std::max)(0.05f, config.specialActionCooldownScale);
+	dashCooldown_ = kDashCooldown * (std::max)(0.05f, config.specialActionCooldownScale) * runTuning.dashCooldown;
 	stats_.stamina = (std::max)(0.0f, stats_.stamina - staminaCost);
+	if (runModifiers_.enabled) {
+		runDashAttackTimer_ = 1.0f;
+		runDashBurstPending_ = runModifiers_.dashBurst;
+		if (runModifiers_.core == TankRunCore::Assault) {
+			bulletCoolTime = 0.0f;
+			std::fill(weaponGroupCooldowns_.begin(), weaponGroupCooldowns_.end(), 0.0f);
+		}
+		if (runModifiers_.overdrive && runOverdriveCooldown_ <= 0.0f) {
+			runOverdriveTimer_ = 1.2f;
+			runOverdriveCooldown_ = 4.0f;
+		}
+		if (runModifiers_.core == TankRunCore::Drone) {
+			for (auto& drone : drones_) drone->RallyRunAttack();
+		}
+	}
 	return true;
 }
 
@@ -1333,7 +1563,7 @@ void Player::TriggerSaberCounter(const PlayerClassConfig& config)
 void Player::EvolveById(const std::string& classId)
 {
 	const PlayerClassConfig* config = GetClassConfig(classId);
-	if (!config) {
+	if (!config || !IsRunCompatibleClass(*config)) {
 		return;
 	}
 
@@ -1343,6 +1573,10 @@ void Player::EvolveById(const std::string& classId)
 	shootBarrelIndex_ = 0;
 	shootGroupIndex_ = 0;
 	weaponGroupCooldowns_.clear();
+	if (runModifiers_.enabled) {
+		drones_.clear();
+		runSupportDroneTimer_ = 0.0f;
+	}
 	
 	// 進化時に特殊状態をリセットする
 	isSmash_ = false;
@@ -1366,11 +1600,31 @@ void Player::EvolveById(const std::string& classId)
 	isChangeMode = false;
 }
 
+bool Player::IsRunCompatibleClass(const PlayerClassConfig& config) const
+{
+	if (!runModifiers_.enabled) return true;
+	// Smasher bypasses the configured guns and always performs a melee attack.
+	if (config.type == ClassType::Smasher) return false;
+	if (config.usesDrone) return true;
+	return std::any_of(config.barrels.begin(), config.barrels.end(), [](const WeaponMountConfig& mount) {
+		return mount.fires && mount.weaponType == WeaponType::Projectile;
+	});
+}
+
+bool Player::IsEvolutionClassVisible(const std::string& classId) const
+{
+	// Keep the current node visible if an editor changes its weapon configuration.
+	if (!runModifiers_.enabled || classId == currentClassId_) return true;
+	const PlayerClassConfig* config = GetClassConfig(classId);
+	return config && IsRunCompatibleClass(*config);
+}
+
 bool Player::CanEvolveTo(const std::string& classId) const
 {
 	const PlayerClassConfig* currentConfig = GetCurrentClassConfig();
 	const PlayerClassConfig* targetConfig = GetClassConfig(classId);
-	if (!currentConfig || !targetConfig || targetConfig->id == currentConfig->id) {
+	if (!currentConfig || !targetConfig || targetConfig->id == currentConfig->id ||
+		!IsRunCompatibleClass(*targetConfig)) {
 		return false;
 	}
 	if (!evolutionCircuitLoaded_ ||
@@ -1887,6 +2141,7 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 		bulletCoolTime = baseReload * config.reloadScale;
 		return true;
 	}
+	if (runModifiers_.enabled && bulletManager->GetBulletCounts().player >= 240) return false;
 
 	AttackParam param{};
 	param.bulletSpeed = stats_.bulletSpeed * config.bulletSpeedScale;
@@ -1896,7 +2151,9 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 	param.reflect = config.reflect;
 	param.penetrate = config.penetrate;
 	param.cooldown = 1.0f;
-	param.damage = static_cast<uint32_t>((std::max)(1.0f, stats_.bulletDamage * config.bulletDamageScale));
+	const float shotDamage = stats_.bulletDamage * config.bulletDamageScale;
+	param.damage = static_cast<uint32_t>((std::max)(1.0f, runModifiers_.enabled ? std::round(shotDamage) : shotDamage));
+	ApplyRunProjectileRules(param);
 
 	if (isBuffActive_) {
 		param.reflect = true;
@@ -2055,6 +2312,11 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 			pendingMeleeSlashes_.push_back(event);
 			meleeActionDuration = (std::max)(meleeActionDuration, meleeWindup + barrelConfig.meleeDuration + meleeRecovery);
 		} else {
+			if (runModifiers_.enabled) {
+				const size_t active = bulletManager->GetBulletCounts().player;
+				if (active >= 240) break;
+				mountParam.bulletCount = (std::min)(mountParam.bulletCount, static_cast<int>(240 - active));
+			}
 			mountParam.bulletSpeed *= barrelConfig.projectileSpeedScale;
 			attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
 			if (index < barrels_.size()) {
@@ -2625,7 +2887,7 @@ void Player::UpdateUpgradeHud(float uiDeltaTime)
 		}
 		upgradeHudAnimatedLevel_ = level_;
 	}
-	const bool wantsUpgradeList = !upgradeHudHideListWithoutPoints_ || skillPoints_ > 0;
+	const bool wantsUpgradeList = !runModifiers_.enabled && (!upgradeHudHideListWithoutPoints_ || skillPoints_ > 0);
 	const float targetListVisibility = wantsUpgradeList ? 1.0f : 0.0f;
 	const float listStep = safeUiDeltaTime * upgradeHudListAnimSpeed_;
 	if (upgradeHudListVisibility_ < targetListVisibility) {
@@ -3479,7 +3741,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 	const Vector2 mouseVirtual = EvolutionClientToVirtual(mousePosition_);
 	const auto findNodeIndex = [&](const std::string& id) -> int {
 		for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
-			if (evolutionCircuitNodes_[i].classId == id) return static_cast<int>(i);
+			if (evolutionCircuitNodes_[i].classId == id && IsEvolutionClassVisible(id)) return static_cast<int>(i);
 		}
 		return -1;
 	};
@@ -3496,6 +3758,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 
 	evolutionCircuitHoveredNode_ = -1;
 	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
+		if (!IsEvolutionClassVisible(evolutionCircuitNodes_[i].classId)) continue;
 		const Vector2 center = evolutionCircuitNodeCentersVirtual_[i];
 		if (mouseVirtual.x >= center.x - kNodeSize.x * 0.5f && mouseVirtual.x <= center.x + kNodeSize.x * 0.5f &&
 			mouseVirtual.y >= center.y - kNodeSize.y * 0.5f && mouseVirtual.y <= center.y + kNodeSize.y * 0.5f) {
@@ -3510,6 +3773,10 @@ void Player::UpdateEvolutionCircuitPrototype()
 	}
 	evolutionCircuitSelectedNode_ = (std::clamp)(
 		evolutionCircuitSelectedNode_, 0, static_cast<int>(evolutionCircuitNodes_.size()) - 1);
+	if (!IsEvolutionClassVisible(evolutionCircuitNodes_[static_cast<size_t>(evolutionCircuitSelectedNode_)].classId)) {
+		const int currentNode = findNodeIndex(currentClassId_);
+		if (currentNode >= 0) evolutionCircuitSelectedNode_ = currentNode;
+	}
 	const std::string& selectedClassId = evolutionCircuitNodes_[
 		static_cast<size_t>(evolutionCircuitSelectedNode_)].classId;
 	const bool confirmTriggered = input_ && input_->IsTrigger(
@@ -3544,6 +3811,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
 		const PlayerClassConfig* config = GetClassConfig(evolutionCircuitNodes_[i].classId);
 		if (!config || !evolutionCircuitTankButtons_[i] || !tankButtonUiStyle_) continue;
+		if (!IsEvolutionClassVisible(config->id)) continue;
 		const bool isCurrent = evolutionCircuitNodes_[i].classId == currentClassId_;
 		const bool isSelected = static_cast<int>(i) == evolutionCircuitSelectedNode_;
 		const bool isHovered = static_cast<int>(i) == evolutionCircuitHoveredNode_;
@@ -3787,7 +4055,7 @@ bool Player::ShouldUseStaticEvolutionPrototype() const
 	const int targetRank = current->requiredRank + 1;
 	for (const std::string& id : classOrder_) {
 		const PlayerClassConfig* config = GetClassConfig(id);
-		if (config && config->requiredRank == targetRank) {
+		if (config && config->requiredRank == targetRank && IsRunCompatibleClass(*config)) {
 			return true;
 		}
 	}
@@ -3807,7 +4075,8 @@ void Player::RefreshStaticEvolutionCandidates()
 	const int targetRank = current->requiredRank + 1;
 	for (const std::string& id : classOrder_) {
 		const PlayerClassConfig* config = GetClassConfig(id);
-		if (!config || config->requiredRank != targetRank || config->id == current->id) {
+		if (!config || config->requiredRank != targetRank || config->id == current->id ||
+			!IsRunCompatibleClass(*config)) {
 			continue;
 		}
 		if (staticEvolutionCandidateCount_ >= staticEvolutionCandidateIds_.size()) {
@@ -5192,7 +5461,9 @@ void Player::DrawEvolutionCircuitPrototype()
 		++evolutionUiProfile_.spriteDraws;
 	}
 	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
-		if (evolutionCircuitTankButtons_[i]) evolutionCircuitTankButtons_[i]->Draw();
+		if (IsEvolutionClassVisible(evolutionCircuitNodes_[i].classId) && evolutionCircuitTankButtons_[i]) {
+			evolutionCircuitTankButtons_[i]->Draw();
+		}
 	}
 	if (evolutionCircuitDetailPreview_) evolutionCircuitDetailPreview_->Draw();
 
@@ -5225,7 +5496,9 @@ void Player::DrawEvolutionCircuitAfterPostEffects()
 			}
 		}
 		for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
-			if (evolutionCircuitTankButtons_[i]) evolutionCircuitTankButtons_[i]->DrawBloomSource();
+			if (IsEvolutionClassVisible(evolutionCircuitNodes_[i].classId) && evolutionCircuitTankButtons_[i]) {
+				evolutionCircuitTankButtons_[i]->DrawBloomSource();
+			}
 		}
 		if (evolutionCircuitDetailPreview_) evolutionCircuitDetailPreview_->DrawBloomSource();
 		staticEvolutionButtonBloomEffect_->EndCaptureBloomOnlyToBackBuffer();
@@ -5595,6 +5868,7 @@ void Player::UpdateEncyclopedia(float uiDeltaTime)
 
 	for (int i = 0; i < static_cast<int>(encyclopedia_.size()); ++i) {
 		auto& tank = encyclopedia_[i];
+		if (!IsEvolutionClassVisible(tank.classId)) continue;
 		bool isAvailable = (currentRank >= tank.requiredRank);
 		const bool selected = (i == evolutionSelectedIndex_);
 		const bool hovered = tank.cardSprite && tank.cardSprite->IsHovered(mousePosition_);
@@ -5627,6 +5901,14 @@ void Player::UpdateEncyclopedia(float uiDeltaTime)
 	}
 
 	evolutionSelectedIndex_ = (std::clamp)(evolutionSelectedIndex_, 0, static_cast<int>(encyclopedia_.size()) - 1);
+	if (!IsEvolutionClassVisible(encyclopedia_[evolutionSelectedIndex_].classId)) {
+		for (size_t i = 0; i < encyclopedia_.size(); ++i) {
+			if (encyclopedia_[i].classId == currentClassId_) {
+				evolutionSelectedIndex_ = static_cast<int>(i);
+				break;
+			}
+		}
+	}
 	const TankData& selectedTank = encyclopedia_[evolutionSelectedIndex_];
 	const PlayerClassConfig* selectedConfig = GetClassConfig(selectedTank.classId);
 	if (!selectedConfig) {
@@ -5763,6 +6045,7 @@ void Player::DrawEncyclopedia() {
 		if (evolutionPreviewTankSprite_) { evolutionPreviewTankSprite_->Draw(); ++evolutionUiProfile_.spriteDraws; }
 
 		for (auto& tank : encyclopedia_) {
+			if (!IsEvolutionClassVisible(tank.classId)) continue;
 			if (tank.cardSprite) { tank.cardSprite->Draw(); ++evolutionUiProfile_.spriteDraws; }
 			tank.sprite->Draw(); // 各スプライトが持つ位置で描画
 			++evolutionUiProfile_.spriteDraws;
@@ -5780,6 +6063,7 @@ void Player::DrawEncyclopedia() {
 		if (evolutionRoleLabel_) { evolutionRoleLabel_->Draw(); ++evolutionUiProfile_.textDraws; }
 
 		for (auto& tank : encyclopedia_) {
+			if (!IsEvolutionClassVisible(tank.classId)) continue;
 			if (tank.nameLabel) { tank.nameLabel->Draw(); ++evolutionUiProfile_.textDraws; }
 			if (tank.rankLabel) { tank.rankLabel->Draw(); ++evolutionUiProfile_.textDraws; }
 		}
@@ -7001,6 +7285,9 @@ const char* Player::GetCurrentClassName() const
 
 bool Player::ApplyStatUpgrade(int index)
 {
+	if (runModifiers_.enabled) {
+		return false;
+	}
 	if (skillPoints_ <= 0 || index < 0 || index >= static_cast<int>(upgradeLevels_.size())) {
 		return false;
 	}
@@ -7042,6 +7329,9 @@ bool Player::ConsumeStatUpgradePerformedEvent()
 
 bool Player::RefundStatUpgrade(int index)
 {
+	if (runModifiers_.enabled) {
+		return false;
+	}
 	if (index < 0 || index >= static_cast<int>(upgradeLevels_.size())) {
 		return false;
 	}
@@ -7059,6 +7349,7 @@ void Player::RecalculateStatsFromBase(bool healToFull)
 {
 	const int oldMaxHp = GetMaxHp();
 	const bool wasFullHp = oldMaxHp > 0 && hp_ >= oldMaxHp;
+	const float previousStamina = stats_.stamina;
 
 	stats_ = baseStats_;
 	stats_.staminaRecovery *= 1.0f + healthRegenUpgradeRate_ * static_cast<float>(upgradeLevels_[0]);
@@ -7069,6 +7360,16 @@ void Player::RecalculateStatsFromBase(bool healToFull)
 	stats_.reloadSpeed *= (std::max)(0.05f, 1.0f - reloadUpgradeRate_ * static_cast<float>(upgradeLevels_[5]));
 	stats_.reloadSpeed = (std::max)(minReloadSpeed_, stats_.reloadSpeed);
 	stats_.moveSpeed *= 1.0f + moveSpeedUpgradeRate_ * static_cast<float>(upgradeLevels_[6]);
+	const TankRunTuning runTuning = MakeTankRunTuning(runModifiers_);
+	stats_.bulletDamage *= runTuning.damage;
+	stats_.bulletSpeed *= runTuning.bulletSpeed;
+	stats_.reloadSpeed *= runTuning.reloadInterval;
+	stats_.moveSpeed *= runTuning.moveSpeed;
+	stats_.staminaRecovery *= runTuning.staminaRecovery;
+	stats_.maxHp *= runTuning.maxHp;
+	if (runModifiers_.enabled) {
+		stats_.stamina = previousStamina;
+	}
 	stats_.maxHp = (std::max)(1.0f, stats_.maxHp);
 	stats_.reloadSpeed = (std::max)(0.05f, stats_.reloadSpeed);
 	stats_.bulletDamage = (std::max)(0.1f, stats_.bulletDamage);
