@@ -31,8 +31,8 @@ public:
     }
     int Points() const { return points_; }
     int Rank(int stat) const { return stat >= 0 && stat < kStatCount ? ranks_[stat] : 0; }
-    float MoveScale() const { return 1.0f + 0.06f * static_cast<float>(ranks_[0]); }
-    float ReloadScale() const { return 1.0f - 0.07f * static_cast<float>(ranks_[1]); }
+    float MoveScale() const { return 1.0f + 0.12f * static_cast<float>(ranks_[0]); }
+    float ReloadScale() const { return 1.0f - 0.14f * static_cast<float>(ranks_[1]); }
     float DamageScale() const { return 1.0f - 0.08f * static_cast<float>(ranks_[2]); }
     uint32_t MitigateDamage(uint32_t amount) const {
         if (amount == 0 || ranks_[2] == 0) return amount;

@@ -47,6 +47,8 @@ void Input::Initialize(const WNDCLASS& wc, const HWND& hwnd)
 
 void Input::BeforeFrameData()
 {
+	memcpy(frameKeyPress_, pendingKeyPress_, sizeof(frameKeyPress_));
+	ZeroMemory(pendingKeyPress_, sizeof(pendingKeyPress_));
 	// 前のフレームのキー状態を保存
 	memcpy(preKey_, key_, sizeof(key_));
 	if (keyboard_) {
@@ -93,10 +95,24 @@ void Input::OnFocusChanged(bool active)
 
 	ZeroMemory(key_, sizeof(key_));
 	ZeroMemory(preKey_, sizeof(preKey_));
+	ZeroMemory(pendingKeyPress_, sizeof(pendingKeyPress_));
+	ZeroMemory(frameKeyPress_, sizeof(frameKeyPress_));
 	ZeroMemory(&mouseState_, sizeof(mouseState_));
 	ZeroMemory(&preMouseState_, sizeof(preMouseState_));
 	ZeroMemory(&currentGamepadState_, sizeof(currentGamepadState_));
 	ZeroMemory(&previousGamepadState_, sizeof(previousGamepadState_));
+}
+
+void Input::RecordKeyDown(unsigned int scanCode, bool repeated)
+{
+	if (!repeated && scanCode < 256) pendingKeyPress_[scanCode] = true;
+}
+
+bool Input::IsKeyTriggered(uint8_t scanCode) const
+{
+	// UI edges have one source. Mixing the polled device edge with a message
+	// arriving next frame can otherwise toggle the same menu twice.
+	return frameKeyPress_[scanCode];
 }
 
 bool Input::IsPress(const uint8_t key)

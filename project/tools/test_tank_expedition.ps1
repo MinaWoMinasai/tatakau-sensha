@@ -36,19 +36,25 @@ $tankExpBatch = @'
 @echo off
 call "%TANK_EXP_TEST_VS_DEV_CMD%" -no_logo -arch=x64 -host_arch=x64
 if errorlevel 1 exit /b %errorlevel%
-cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /Fe:tank_expedition_tests.exe /Fo:.\ "%TANK_EXP_TEST_SOURCE%"
+cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /I"%TANK_EXP_TEST_INCLUDE%" /Fe:tank_expedition_tests.exe /Fo:.\ "%TANK_EXP_TEST_SOURCE%"
 if errorlevel 1 exit /b %errorlevel%
 tank_expedition_tests.exe
 if errorlevel 1 exit /b %errorlevel%
 cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /Fe:tank_expedition_loadout_tests.exe /Fo:.\ "%TANK_EXP_LOADOUT_TEST_SOURCE%"
 if errorlevel 1 exit /b %errorlevel%
 tank_expedition_loadout_tests.exe
+if errorlevel 1 exit /b %errorlevel%
+cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /I"%TANK_EXP_TEST_INCLUDE%" /Fe:tank_expedition_balance_tests.exe /Fo:.\ "%TANK_EXP_BALANCE_TEST_SOURCE%"
+if errorlevel 1 exit /b %errorlevel%
+tank_expedition_balance_tests.exe
 exit /b %errorlevel%
 '@
 [System.IO.File]::WriteAllText($tankExpBuildCmd, $tankExpBatch, [System.Text.Encoding]::ASCII)
 $tankExpEnvironment = @{
     TANK_EXP_TEST_VS_DEV_CMD = $tankExpDevCmd
+    TANK_EXP_TEST_INCLUDE = Join-Path $tankExpRepoDir 'project\externals'
     TANK_EXP_TEST_SOURCE = Join-Path $PSScriptRoot 'tank_expedition_tests.cpp'
+    TANK_EXP_BALANCE_TEST_SOURCE = Join-Path $PSScriptRoot 'tank_expedition_balance_tests.cpp'
     TANK_EXP_LOADOUT_TEST_SOURCE = Join-Path $PSScriptRoot 'tank_expedition_loadout_tests.cpp'
 }
 $tankExpPreviousEnvironment = @{}

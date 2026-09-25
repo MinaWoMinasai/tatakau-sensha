@@ -804,6 +804,7 @@ void GameScene::Initialize() {
 	if (prototypeRun_) InitializeTankRun();
 	previousPlayerHp_ = player_ ? player_->GetHp() : 0;
 	previousBossHp_ = enemy_ ? enemy_->GetHp() : 0;
+	if (titleDemo_) InitializeTitleDemo();
 
 }
 
@@ -811,6 +812,12 @@ void GameScene::Update() {
 	
 	// 通常は 1/60秒
 	const float baseDeltaTime = 1.0f / 60.0f;
+	if (titleDemo_) UpdateTitleDemo(baseDeltaTime);
+	if (expeditionRun_ && !titleDemo_) {
+		UpdateTankExpeditionBalanceEditor();
+		DrawTankExpeditionBalanceEditor();
+		if(expeditionMapEnabled_) UpdateExpeditionAuthoring();
+	}
 	if (prototypeRun_) { FinishTankRunCapture(); UpdateTankRun(baseDeltaTime); }
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	if (player_) {
@@ -846,7 +853,7 @@ void GameScene::Update() {
 	if (finalDeltaTime * 60.0f > 0.95f) {
 		finalDeltaTime = baseDeltaTime;
 	}
-	if (input_->IsTrigger(input_->GetKey()[DIK_H], input_->GetPreKey()[DIK_H])) {
+	if (!titleDemo_ && input_->IsTrigger(input_->GetKey()[DIK_H], input_->GetPreKey()[DIK_H])) {
 		showControlGuide_ = !showControlGuide_;
 		if (controlGuideText_) {
 			controlGuideText_->SetText(showControlGuide_
@@ -854,7 +861,7 @@ void GameScene::Update() {
 				: "H:操作説明ON");
 		}
 	}
-	if (input_->IsTrigger(input_->GetKey()[DIK_F5], input_->GetPreKey()[DIK_F5])) {
+	if (!titleDemo_ && !expeditionMapEnabled_ && input_->IsTrigger(input_->GetKey()[DIK_F5], input_->GetPreKey()[DIK_F5])) {
 		ReloadPlayerClassConfig(false);
 	}
 	UpdatePlayerClassConfigWatch(baseDeltaTime);
@@ -898,15 +905,15 @@ void GameScene::Update() {
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 
-	DrawGameSceneDebugImGui();
-	if (showPlayerClassEditor_) {
+	if (!titleDemo_) DrawGameSceneDebugImGui();
+	if (!titleDemo_ && showPlayerClassEditor_) {
 		player_->DrawPlayerClassEditor();
 	}
 
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	if (input_->IsTrigger(input_->GetKey()[DIK_F7], input_->GetPreKey()[DIK_F7])) {
+	if (!titleDemo_ && input_->IsTrigger(input_->GetKey()[DIK_F7], input_->GetPreKey()[DIK_F7])) {
 		showCollisionDebug_ = !showCollisionDebug_;
 	}
 	if (!prototypeRun_ && input_->IsTrigger(input_->GetKey()[DIK_F6], input_->GetPreKey()[DIK_F6])) {
@@ -915,20 +922,20 @@ void GameScene::Update() {
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	if (input_->IsTrigger(input_->GetKey()[DIK_F8], input_->GetPreKey()[DIK_F8])) {
+	if (!titleDemo_ && input_->IsTrigger(input_->GetKey()[DIK_F8], input_->GetPreKey()[DIK_F8])) {
 		showPostProfileOverlay_ = !showPostProfileOverlay_;
 	}
-	if (input_->IsTrigger(input_->GetKey()[DIK_F9], input_->GetPreKey()[DIK_F9])) {
+	if (!titleDemo_ && input_->IsTrigger(input_->GetKey()[DIK_F9], input_->GetPreKey()[DIK_F9])) {
 		postProfileMode_ = (postProfileMode_ + 1) % 8;
 	}
-	if (input_->IsTrigger(input_->GetKey()[DIK_F10], input_->GetPreKey()[DIK_F10])) {
+	if (!titleDemo_ && input_->IsTrigger(input_->GetKey()[DIK_F10], input_->GetPreKey()[DIK_F10])) {
 		if (prototypeRun_) RequestTankRunCapture("manual");
 		else ReloadLevelData(true);
 	}
-	if (input_->IsTrigger(input_->GetKey()[DIK_F11], input_->GetPreKey()[DIK_F11])) {
+	if (!titleDemo_ && input_->IsTrigger(input_->GetKey()[DIK_F11], input_->GetPreKey()[DIK_F11])) {
 		showLevelAIDitorPreview_ = !showLevelAIDitorPreview_;
 	}
-	if (input_->IsTrigger(input_->GetKey()[DIK_F12], input_->GetPreKey()[DIK_F12])) {
+	if (!titleDemo_ && input_->IsTrigger(input_->GetKey()[DIK_F12], input_->GetPreKey()[DIK_F12])) {
 		showGameDebugConsole_ = !showGameDebugConsole_;
 	}
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
@@ -1118,7 +1125,7 @@ void GameScene::Update() {
 	
 		if (fade_->IsFinished()) {
 			phase_ = Phase::kMain;
-			if (!bossEntryTriggered_ && !IsTutorialCombatSuppressed()) {
+			if (!expeditionRun_ && !bossEntryTriggered_ && !IsTutorialCombatSuppressed()) {
 				bossEntryTriggered_ = true;
 				screenEffectDirector_.TriggerBossEntry();
 				SetEventCallout("WARNING: BOSS UNIT", 1.20f);
@@ -1149,6 +1156,7 @@ void GameScene::Update() {
 	wasdGide->Update();
 	dashGide->Update();
 	toTitleGide->Update();
+	if (!titleDemo_) VerifyTitleDemoTransition(baseDeltaTime);
 	
 }
 
@@ -1667,6 +1675,7 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 
 void GameScene::BeginBossDefeatSequence()
 {
+	if(expeditionMapEnabled_) expeditionMapRun_.CompleteCombat();
 	if (expeditionRun_) tankExpedition_.CompleteRoom();
 	if (prototypeRun_) { tankRun_.CompleteBoss(); RefreshTankRunUi(); }
 	bossDefeatHandled_ = true;
@@ -1691,6 +1700,7 @@ void GameScene::BeginBossDefeatSequence()
 
 void GameScene::BeginGameOver()
 {
+	if(expeditionMapEnabled_) expeditionMapRun_.MarkDead();
 	if (expeditionRun_) tankExpedition_.MarkDead();
 	if (prototypeRun_) { tankRun_.MarkDead(); RefreshTankRunUi(); }
 	playerDeathHandled_ = true;
@@ -1733,12 +1743,14 @@ void GameScene::UpdateGameFlow(float baseDeltaTime)
 		return;
 	}
 
+	if (titleDemo_) return;
 	if (gameFlowState_ != GameFlowState::StageClear &&
 		gameFlowState_ != GameFlowState::GameOver) {
 		return;
 	}
 	if (prototypeRun_) {
-		const auto triggered = [this](int key) { return input_->IsTrigger(input_->GetKey()[key], input_->GetPreKey()[key]); };
+		if(expeditionMapEnabled_ && (tankExpeditionBalanceEditorOpen_ || expeditionRoomEditorOpen_ || expeditionMapEditorOpen_ || expeditionContentEditorOpen_)) return;
+		const auto triggered = [this](int key) { return input_->IsKeyTriggered(static_cast<uint8_t>(key)); };
 		if (triggered(DIK_W) || triggered(DIK_S) || triggered(DIK_UP) || triggered(DIK_DOWN) ||
 			triggered(DIK_LEFT) || triggered(DIK_RIGHT)) resultSelection_ = 1 - resultSelection_;
 		bool confirm = triggered(DIK_RETURN) || triggered(DIK_SPACE);
@@ -2191,7 +2203,7 @@ void GameScene::UpdateDeathPostPulse(float deltaTime) {
 void GameScene::DrawAfterPostEffect3D() {
 	if (player_) {
 		player_->DrawEvolutionAfterPostEffects();
-		player_->DrawUpgradeHudAfterPostEffects();
+		if (!expeditionRun_) player_->DrawUpgradeHudAfterPostEffects();
 	}
 	DrawGameTextBloom();
 	if (gameFlowState_ == GameFlowState::BossDefeatSequence &&
@@ -4504,6 +4516,15 @@ Vector2 GameScene::GetStagePostCacheUvOffset(const Vector3& currentCameraPos) co
 	};
 }
 
+void GameScene::ApplyTankExpeditionRoomGeometry()
+{
+	// Learn movement and single shots on an open floor before cover and hazards.
+	if (expeditionRun_ && tankExpedition_.GetRoomIndex() == 0) {
+		stage_->LoadRunMap("resources/maps/expedition_outskirts.csv");
+		stagePostCacheValid_ = false;
+	}
+}
+
 bool GameScene::LoadLevelFile(LevelData& outLevel) const
 {
 	return LevelLoader().Load(
@@ -5072,7 +5093,7 @@ void GameScene::DrawGameTextBloom()
 	// 強化段数バー表示中は、項目名と +/- のネオン源も追加される。
 	labels.reserve(32);
 	if (gameFlowState_ == GameFlowState::Playing) {
-		player_->AppendGameplayNeonTextLabels(labels);
+		if (!expeditionRun_) player_->AppendGameplayNeonTextLabels(labels);
 		if (tutorialConfig_.enabled && tutorialUiVisible_) {
 			if (tutorialTitleText_) labels.push_back(tutorialTitleText_.get());
 			if (tutorialInputText_) labels.push_back(tutorialInputText_.get());
@@ -5087,7 +5108,7 @@ void GameScene::DrawGameTextBloom()
 	const bool showResult =
 		gameFlowState_ == GameFlowState::StageClear ||
 		(gameFlowState_ == GameFlowState::GameOver && gameFlowTimer_ <= 0.0f);
-	if (showResult) {
+	if (showResult && !prototypeRun_) {
 		if (resultSummaryText_) {
 			labels.push_back(resultSummaryText_.get());
 		}
@@ -6299,7 +6320,7 @@ void GameScene::DrawShadow() {
 
 void GameScene::DrawSprite() {
 
-	if (!IsTutorialCombatSuppressed()) {
+	if (!expeditionRun_ && !IsTutorialCombatSuppressed()) {
 		enemy_->DrawSprite();
 	}
 	followHpBarIndex_ = 0;
@@ -6307,7 +6328,7 @@ void GameScene::DrawSprite() {
 	for (auto& vertices : hpBarFillVertices_) { vertices.clear(); }
 	for (auto& vertices : hpBarOutlineVertices_) { vertices.clear(); }
 	if (showFollowHpBars_) {
-		if (!player_->IsDead()) {
+		if (!player_->IsDead() && !expeditionRun_) {
 			DrawFollowHpBar(player_.get(), player_->GetWorldPosition(), player_->GetHp(), player_->GetMaxHp(), 58.0f, -1.55f);
 			if (showPlayerStaminaBar_) {
 				const Player::PlayerStats& stats = player_->GetStats();
@@ -6330,7 +6351,7 @@ void GameScene::DrawSprite() {
 	}
 	DrawHpBarBatches();
 	SpriteCommon::GetInstance()->PreDraw(kNormal);
-	if (!expeditionRun_ || (!IsTankRunMenuOpen() && gameFlowState_ == GameFlowState::Playing)) player_->DrawSprite();
+	if (!expeditionRun_) player_->DrawSprite();
 	if (gameFlowState_ == GameFlowState::Playing) {
 		player_->DrawEncyclopedia();
 	}

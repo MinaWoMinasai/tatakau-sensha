@@ -409,7 +409,7 @@ void Enemy::UpdatePrototypeCombat(float deltaTime)
 	const int effectivePressure = (std::clamp)(prototypePressure_ + (enemyLevel_ - 1) / 2, 0, 4);
 	const auto shot = prototypeCombat_.Step(deltaTime,
 		HasLineOfSightToTarget(currentMoveTargetPosition_), targetAngle, hpRatio,
-		effectivePressure, levelingModeActive_);
+		effectivePressure, levelingModeActive_, prototypeTuningEnabled_ ? bossAttackConfig_.cooldown / 1.10f : 1.0f);
 	if (prototypeCombat_.HoldsPosition()) {
 		// The visible origin and aim stay fixed throughout the warning/attack.
 		velocity_ = {};
@@ -423,16 +423,25 @@ void Enemy::UpdatePrototypeCombat(float deltaTime)
 	param.spreadAngleDeg = 0.0f;
 	param.bulletSpeed = (shot.type == PrototypeAttackType::GapRing ? 0.20f : 0.24f) + 0.01f * shot.pressure;
 	param.damage = static_cast<uint32_t>(6 + shot.pressure);
+    if(prototypeTuningEnabled_) {
+        param.bulletSpeed=bossAttackConfig_.bulletSpeed * (shot.type==PrototypeAttackType::GapRing ? 0.84f : 1.0f);
+        param.damage=bossAttackConfig_.damage;
+    }
 	// Damage pressure must not also make incoming bullets impossible to cancel.
 	param.bulletHp = 5.0f;
 	param.bulletPenetration = 3.0f;
 	param.reflect = false;
 	param.penetrate = false;
 	const Vector3 baseDirection{ std::cos(shot.angleRadians), std::sin(shot.angleRadians), 0.0f };
-	const int count = PrototypeBossCombat::GetProjectileCount(shot.type);
+	int count = PrototypeBossCombat::GetProjectileCount(shot.type);
+    if(prototypeTuningEnabled_ && shot.type!=PrototypeAttackType::Sweep)
+        count=(std::clamp)(static_cast<int>(std::round(count*bossAttackConfig_.bulletCount/5.0f)),1,64);
 	for (int i = 0; i < count; ++i) {
 		const Vector3 shotDirection = RotateDirection2D(baseDirection,
-			PrototypeBossCombat::GetProjectileOffsetDeg(shot.type, i));
+			prototypeTuningEnabled_ ? (count==1 ? 0.0f : shot.type==PrototypeAttackType::GapRing ?
+                35.0f+290.0f*static_cast<float>(i)/static_cast<float>(count-1) :
+                -22.0f+44.0f*static_cast<float>(i)/static_cast<float>(count-1)) :
+                PrototypeBossCombat::GetProjectileOffsetDeg(shot.type, i));
 		attackController_.FireFromMuzzle(GetWorldPosition() + shotDirection * 1.75f,
 			shotDirection, param, BulletOwner::kEnemy);
 	}

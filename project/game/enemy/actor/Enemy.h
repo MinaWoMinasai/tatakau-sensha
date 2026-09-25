@@ -208,6 +208,7 @@ public:
 	bool IsPrototypeCombatEnabled() const { return prototypeCombatEnabled_; }
 	void SetPrototypePressure(int pressure) { prototypePressure_ = (std::clamp)(pressure, 0, 4); }
 	void SetPrototypeMaxHp(int maxHp, bool healToFull = true);
+    void SetPrototypeAttackTuning(const BossAttackConfig& config) { SetBossAttackConfig(config); prototypeTuningEnabled_=true; }
 	void SetPrototypeResourceFocus(bool enabled) { prototypeResourceFocus_ = enabled; }
 	void RegisterRunResourceClaim();
 	PrototypeTelegraph GetPrototypeTelegraph() const;
@@ -301,6 +302,7 @@ private:
 	BossAttackConfig bossAttackConfig_{};
 	EnemyProgressConfig enemyProgressConfig_{};
 	bool prototypeCombatEnabled_ = false;
+    bool prototypeTuningEnabled_ = false;
 	bool runEncounterEnabled_ = true;
 	bool runEncounterBaselineCaptured_ = false;
 	uint32_t runEncounterBaseContactDamage_ = 0;

@@ -8,6 +8,15 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 	object_->Initialize();
 
 	owner_ = owner;
+	isDead_ = false;
+	deathTimer_ = kLifeTime;
+	usesRunProjectileRules_ = false;
+	remainingWallBounces_ = -1;
+	remainingActorPierces_ = 0;
+	impactSplitCount_ = 0;
+	pendingImpactSplitCount_ = 0;
+	hitActorIds_.clear();
+	growthEvents_ = {};
 	canClaimRunResource_ = true;
 	isReflectable_ = reflectable;
 	bulletHp_ = (std::max)(0.1f, bulletHp);
@@ -52,6 +61,7 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 }
 
 void Bullet::Update(float deltaTime) {
+	if (isDead_) return;
 
 	// 座標を移動させる
 	worldTransform_.translate += velocity_ * (deltaTime * 60.0f);
@@ -96,10 +106,105 @@ void Bullet::OnCollision(Collider* other) {
 		return;
 	}
 
+	if (!CanHitActor(other)) return;
+	hitActorIds_.push_back(other->GetCollisionId());
+	QueueImpactSplit(velocity_);
 	Vector3 impactNormal = velocity_ * -1.0f;
 	ParticleManager::GetInstance()->EmitNeonImpactEffect(
 		GetWorldPosition(), impactNormal, GetBulletColor(), 11);
-	Die();
+	if (remainingActorPierces_ > 0) {
+		--remainingActorPierces_;
+		++growthEvents_.actorPierces;
+	} else {
+		Die();
+	}
+}
+
+void Bullet::ConfigureGrowth(int maxWallBounces, int actorPierceCount, int impactSplitCount,
+	float impactSplitDamageScale)
+{
+	remainingWallBounces_ = (std::clamp)(maxWallBounces, -1, 32);
+	remainingActorPierces_ = (std::clamp)(actorPierceCount, 0, 8);
+	impactSplitCount_ = (std::clamp)(impactSplitCount, 0, 2);
+	impactSplitDamageScale_ = std::isfinite(impactSplitDamageScale)
+		? (std::clamp)(impactSplitDamageScale, 0.1f, 0.95f) : 0.55f;
+	usesRunProjectileRules_ = maxWallBounces >= 0 || remainingActorPierces_ > 0 || impactSplitCount_ > 0;
+}
+
+bool Bullet::CanHitActor(const Collider* actor) const
+{
+	return actor && std::find(hitActorIds_.begin(), hitActorIds_.end(), actor->GetCollisionId()) == hitActorIds_.end();
+}
+
+void Bullet::QueueImpactSplit(const Vector3& direction)
+{
+	if (impactSplitCount_ <= 0 || deathTimer_ <= 0.0f) return;
+	const float speed = Length(direction);
+	if (!std::isfinite(speed) || speed <= 0.0001f) return;
+	pendingImpactSplitCount_ = impactSplitCount_;
+	impactSplitCount_ = 0;
+	pendingImpactDirection_ = direction;
+	pendingImpactPosition_ = GetWorldPosition();
+	pendingImpactWallNormal_ = {};
+}
+
+void Bullet::OnWallImpact(const Vector3& safePosition, const Vector3& normal)
+{
+	if (isDead_) return;
+	SetWorldPosition(safePosition);
+	const float normalLength = Length(normal);
+	if (!std::isfinite(normalLength) || normalLength <= 0.0001f) {
+		Die();
+		return;
+	}
+	const Vector3 unitNormal = normal / normalLength;
+	const Vector3 reflected = velocity_ - 2.0f * Dot(velocity_, unitNormal) * unitNormal;
+	if (!std::isfinite(Length(reflected))) {
+		Die();
+		return;
+	}
+	const bool canReflect = isReflectable_ && remainingWallBounces_ != 0;
+	if (canReflect && remainingWallBounces_ > 0) --remainingWallBounces_;
+	if (canReflect && usesRunProjectileRules_) ++growthEvents_.wallBounces;
+	// Split away from the surface even when the parent has no ricochet card.
+	const bool splitAtWall = impactSplitCount_ > 0;
+	QueueImpactSplit(reflected);
+	if (splitAtWall) pendingImpactWallNormal_ = unitNormal;
+	if (canReflect) {
+		SetVelocity(reflected);
+	} else {
+		Die();
+	}
+}
+
+void Bullet::AppendImpactChildren(std::vector<std::unique_ptr<Bullet>>& children, size_t availableSlots)
+{
+	const int count = (std::min)(pendingImpactSplitCount_, static_cast<int>((std::min)(availableSlots, size_t{2})));
+	pendingImpactSplitCount_ = 0; // A saturated budget drops this impact, never retries later.
+	if (count <= 0 || deathTimer_ <= 0.0f) return;
+	const float speed = Length(pendingImpactDirection_);
+	if (!std::isfinite(speed) || speed <= 0.0001f) return;
+	const Vector3 base = pendingImpactDirection_ / speed;
+	for (int index = 0; index < count; ++index) {
+		const float angle = count == 1 ? 0.0f : (index == 0 ? -0.42f : 0.42f);
+		const float cosine = std::cos(angle), sine = std::sin(angle);
+		Vector3 direction = {base.x * cosine - base.y * sine, base.x * sine + base.y * cosine, base.z};
+		// An oblique fork must not start by flying back into the wall.
+		const float outward = Dot(direction, pendingImpactWallNormal_);
+		if (outward < 0.1f && Length(pendingImpactWallNormal_) > 0.5f) {
+			direction = Normalize(direction + pendingImpactWallNormal_ * (0.1f - outward));
+		}
+		auto child = std::make_unique<Bullet>();
+		const uint32_t childDamage = static_cast<uint32_t>((std::max)(1.0, std::round(static_cast<double>(GetDamage()) * impactSplitDamageScale_)));
+		child->Initialize(pendingImpactPosition_ + direction * (radius_ + 0.1f), direction * (speed * 0.9f),
+			childDamage, owner_, isReflectable_, bulletHp_, bulletPenetration_);
+		child->ConfigureGrowth(remainingWallBounces_, remainingActorPierces_, 0, impactSplitDamageScale_);
+		child->usesRunProjectileRules_ = true;
+		child->deathTimer_ = deathTimer_;
+		child->canClaimRunResource_ = canClaimRunResource_;
+		child->hitActorIds_ = hitActorIds_;
+		children.push_back(std::move(child));
+	}
 }
 
 void Bullet::ApplyBulletDurabilityDamage(float amount)

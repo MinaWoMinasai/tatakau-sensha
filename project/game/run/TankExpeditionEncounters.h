@@ -1,6 +1,7 @@
 #pragma once
 #include "TankExpeditionDirector.h"
 #include <array>
+#include "TankExpeditionBalance.h"
 
 namespace tankexp {
 struct EncounterUnit { const char* prefab; float x; float y; int hp; };
@@ -9,10 +10,10 @@ struct Encounter {
     int count=0;
     const char* hint="";
 };
-inline Encounter GetEncounter(RoomKind room) {
+inline Encounter GetBaseEncounter(RoomKind room) {
     switch(room) {
     case RoomKind::Skirmish:
-        return {{{{"Charger",38,22,24},{"Charger",46,36,24},{"Sniper",57,28,28}}},3,
+        return {{{{"Charger",38,22,24},{"Charger",50,34,24}}},2,
             "赤い突進は横へ回避 / 金色の照準線が止まったら射線の外へ"};
     case RoomKind::Resource:
         return {{{{"Charger",37,35,30},{"Sniper",52,23,34}}},2,
@@ -38,6 +39,15 @@ inline Encounter GetEncounter(RoomKind room) {
             "護衛を先に崩す / ボスの予告を見てダッシュで抜けよう"};
     }
     return {};
+}
+inline Encounter GetEncounter(RoomKind room,int roomIndex=0) {
+    auto result=GetBaseEncounter(room);
+    const auto scale=GetRoomBalance(roomIndex);
+    for(int i=0;i<result.count;++i) result.units[i].hp=(std::max)(4,static_cast<int>(std::round(result.units[i].hp*scale.hpScale)));
+    if(roomIndex>=2 && result.count<6) result.units[result.count++]={"Shooter",48,28,static_cast<int>(28*scale.hpScale)};
+    if(roomIndex>=3 && room!=RoomKind::Boss && result.count<6)
+        result.units[result.count++]={"Sniper",62,34,static_cast<int>(34*scale.hpScale)};
+    return result;
 }
 // Passive salvage never blocks a combat room. A core objective cannot bypass
 // its guards, while the final rival remains the boss-room objective.

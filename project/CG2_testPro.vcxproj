@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -741,4 +741,25 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\RuntimeProfiler.h" />
     <ClInclude Include="DirectX\engine\commom\FramePacer.h" />
     <ClInclude Include="DirectX\engine\commom\TrailStressFixture.h" />
-  </ItemGroup></Project>
+  </ItemGroup>  <ItemGroup>
+    <ClCompile Include="game\scene\GameScene.Balance.cpp" />
+    <ClCompile Include="game\scene\GameScene.TitleDemo.cpp" />
+    <ClInclude Include="game\run\TankExpeditionBalance.h" />
+    <ClInclude Include="game\run\TankExpeditionTutorial.h" />
+    <None Include="resources\configs\tankExpeditionBalance.json" />
+    <None Include="resources\maps\expedition_outskirts.csv" />
+    <None Include="resources\projects\tank_game.project.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="game\scene\GameScene.ExpeditionMap.cpp" />
+    <ClCompile Include="game\editor\ExpeditionRoomEditor.cpp" />
+    <ClCompile Include="game\editor\ExpeditionMapEditor.cpp" />
+    <ClCompile Include="game\editor\ExpeditionContentEditor.cpp" />
+    <ClInclude Include="game\run\TankExpeditionMap.h" />
+    <ClInclude Include="game\run\TankExpeditionRooms.h" />
+    <ClInclude Include="game\run\TankExpeditionContent.h" />
+    <ClInclude Include="game\editor\ExpeditionRoomEditor.h" />
+    <ClInclude Include="game\editor\ExpeditionMapEditor.h" />
+    <ClInclude Include="game\editor\ExpeditionContentEditor.h" />
+  </ItemGroup>
+</Project>

@@ -4,6 +4,7 @@
 #include "AttackController.h"
 #include "ExpEnemyCombatCycle.h"
 #include <functional>
+#include "game/run/TankExpeditionContent.h"
 
 class Player;
 class Stage;
@@ -43,6 +44,8 @@ public:
     static bool IsHostileToBoss() { return enemyInteractionConfig_.hostileToBoss; }
 
     void Initialize(const Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
+    void ApplyAuthoredDefinition(const tankcontent::Enemy& definition);
+    bool HasAuthoredDefinition() const { return hasAuthoredDefinition_; }
     void Update(Stage& stage,float deltaTime);
     void Draw(bool drawBody = true);
     void DrawBodyOnly();
@@ -156,6 +159,9 @@ private:
 
     uint32_t expValue_ = 10;
     ExpEnemyType type_ = ExpEnemyType::Square;
+    bool hasAuthoredDefinition_=false;
+    uint32_t authoredContactDamage_=0,authoredBulletDamage_=1;
+    float authoredMoveSpeedScale_=1,authoredFireIntervalScale_=1;
 
     Vector3 velocity_;
 

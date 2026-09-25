@@ -24,13 +24,15 @@ std::string DirectionTo(const Vector3& delta) {
 }
 
 bool GameScene::IsTankRunMenuOpen() const {
+    if(expeditionMapEnabled_ && (expeditionMapPreview_ || expeditionRoomEditorOpen_ || expeditionMapEditorOpen_ || expeditionContentEditorOpen_)) return true;
+    if(expeditionRun_ && (tankExpeditionDetailsOpen_ || tankExpeditionBalanceEditorOpen_)) return true;
     if(expeditionRun_ && tankExpedition_.GetPhase()!=tankexp::Phase::Dormant && !tankExpedition_.IsCombat()) return true;
     return prototypeRun_ && (tankRunPaused_ || IsDecision(tankRun_.GetPhase()) || tankRunMenuAge_<0);
 }
 
 void GameScene::InitializeTankRun() {
     wchar_t automatic[16]{};
-    tankRunAutoTest_=GetEnvironmentVariableW(L"CG2_TANK_AUTOTEST",automatic,16)>0 && automatic[0]==L'1';
+    tankRunAutoTest_=!titleDemo_ && GetEnvironmentVariableW(L"CG2_TANK_AUTOTEST",automatic,16)>0 && automatic[0]==L'1';
     tankrun::Config config; if(tankRunAutoTest_) config.combatSeconds=24;
     if(expeditionRun_) config.combatSeconds=1000000;
     tankRun_=tankrun::RunDirector(tankRunAutoTest_?20260919u:static_cast<uint32_t>(GetTickCount64()),config);
@@ -93,8 +95,9 @@ void GameScene::InitializeTankRun() {
 }
 
 void GameScene::ApplyTankRunCards() {
-    TankRunModifiers m{}; m.enabled=true;
-    if(tankRun_.GetCore()!=tankrun::CoreId::Count) m.core=static_cast<TankRunCore>(static_cast<int>(tankRun_.GetCore())+1);
+    TankRunModifiers m{}; m.enabled=true; m.expedition=expeditionRun_;
+    if(tankRun_.GetCore()!=tankrun::CoreId::Count && (!expeditionRun_ || tankRun_.GetDraftCount()>=2))
+        m.core=static_cast<TankRunCore>(static_cast<int>(tankRun_.GetCore())+1);
     const auto& c=tankRun_.GetCardCounts();
     m.ricochet=c[0]>0; m.heavy=c[1]>0; m.rapid=c[2]>0; m.thrusters=c[3]>0;
     m.capacitor=c[4]>0; m.repair=c[5]>0; m.drones=c[6]>0; m.pierce=c[7]>0;
@@ -122,7 +125,7 @@ void GameScene::OnTankRunResourceClaim(size_t index,bool playerOwned) {
     if(expeditionRun_) {
         ++tankExpeditionNodes_;
         tankExpeditionResourceWon_|=playerOwned;
-        if(playerOwned) {player_->AddExp(30);player_->HealRunPlayer(8);}
+        if(playerOwned) {player_->AddExp(30);player_->HealRunPlayer(8);if(expeditionMapEnabled_) tankExpeditionTutorial_.RecordKill();}
         if(tankExpedition_.GetRoomKind()==tankexp::RoomKind::Resource || tankExpeditionNodes_>=3) tankExpeditionRoomPending_=true;
         SetEventCallout(playerOwned?"動力コア確保":"ライバルがコアを確保 / 次のエリアへ",1.0f);
         tankExpeditionAudio_.Kill();
@@ -325,15 +328,19 @@ void GameScene::RefreshTankRunUi() {
     if(copies) for(int i=0;i<3;++i) {tankRunCardTitles_[i]->SetText(std::to_string(i+1)+"  "+copies[i].title);tankRunCardBodies_[i]->SetText(copies[i].body);}
     tankRunFooter_->SetText("数字キー / クリック: 決定   ← → + Enter: 選択   Esc: 一時停止\nWASD: 移動   マウス: 照準   左クリック: 射撃   右クリック: ダッシュ   E: 改造   C: 進化");
     if(expeditionRun_) {
-        tankRunHud_->SetText("分岐遠征 / 地下施設を突破せよ\n機体 → 主軸 → 戦闘 → 改造 → 分岐 → 進化 → ボス");
+        tankRunHud_->SetText("分岐遠征 / 地下施設を突破せよ\n単発の戦車から、改造・進化で自分だけのビルドへ");
         tankRunBossText_->SetText("全5戦闘エリア\n所持改造とHPを次の部屋へ引き継ぐ");
         if(!tankRunPaused_&&phase==RunPhase::Loadout) {
-            tankRunDescription_->SetText("短い戦闘を突破し、改造と進路を選んで最深部へ。\n中間地点にはイベントと機体進化。ボスまでに構成を育てよう。");
-            tankRunCardBodies_[0]->SetText("2つの砲口で狙いを絞る。\n扱いやすい標準機体。\n\n次の画面で主軸コアを選ぶ。\n中間地点で2種類から進化。");
+            tankRunHeading_->SetText("将来の進化系統を選ぶ");
+            tankRunDescription_->SetText("どの系統も、砲身1本の標準戦車で出発します。\n2区画目の突破後、選んだ系統の2種類から機体を進化させます。");
+            tankRunCardBodies_[0]->SetText("集中射撃の進化設計図。\n\n序盤は単発の標準戦車。\n中間地点で多砲身や\n跳弾機体へ進化できる。");
+            tankRunCardBodies_[1]->SetText("連射と弾幕の進化設計図。\n\n序盤は単発の標準戦車。\n中間地点で高速連射や\n広角射撃へ進化できる。");
+            tankRunCardBodies_[2]->SetText("群体と援護の進化設計図。\n\n序盤は単発の標準戦車。\n中間地点でドローンを\n指揮する機体へ進化できる。");
         } else if(!tankRunPaused_&&phase==RunPhase::CoreChoice) {
-            tankRunDescription_->SetText("選んだ軸に、区画突破後の改造を組み合わせる。進化後も効果を引き継ぎます。\n指揮機体の弾にも反射・誘導・分裂が適用されます。");
+            tankRunHeading_->SetText("成長させる主軸コアを選ぶ");
+            tankRunDescription_->SetText("主軸は改造を2つ取得すると起動します。出発時は通常弾だけのシンプルな戦車。\nまずは1区画目の改造で強くなり、進化と主軸を組み合わせよう。");
         }
-        tankRunFooter_->SetText("数字 / クリック: 決定   ← → + Enter: 選択   Esc: 一時停止\nWASD: 移動   マウス: 照準   左: 射撃   右: ダッシュ   報酬で Tab: 整備");
+        tankRunFooter_->SetText("数字 / クリック: 決定   ← → + Enter: 選択\n操作は出発後に順番に案内します。改造の詳細は戦闘中に TAB。");
     }
 }
 

@@ -64,6 +64,42 @@ static_assert(ValidateRunModifierCombinations(TankRunCore::Assault, 1), "Assault
 static_assert(ValidateRunModifierCombinations(TankRunCore::Drone, 1), "Drone core contract.");
 }
 
+constexpr bool CheckSynergyUnlocks() {
+    TankRunModifiers m{};
+    m.homing=true;m.overdrive=true;m.heavy=true;m.dashBurst=true;
+    if(MakeTankRunSynergy(m,true).homingTurnRate!=0 || MakeTankRunSynergy(m,true).dashExplosion) return false;
+    m.enabled=true;
+    if(MakeTankRunSynergy(m,true).homingTurnRate!=1.6f || MakeTankRunSynergy(m,true).dashExplosion) return false;
+    m.expedition=true;
+    if(MakeTankRunSynergy(m,false).homingTurnRate!=1.6f || MakeTankRunSynergy(m,true).homingTurnRate!=3.2f) return false;
+    if(!MakeTankRunSynergy(m,true).dashExplosion) return false;
+    m.overdrive=false;
+    if(MakeTankRunSynergy(m,true).homingTurnRate!=1.6f) return false;
+    m.homing=false;
+    if(MakeTankRunSynergy(m,true).homingTurnRate!=0) return false;
+    m.heavy=false;
+    if(MakeTankRunSynergy(m,true).dashExplosion) return false;
+    m.heavy=true;m.dashBurst=false;
+    if(MakeTankRunSynergy(m,true).dashExplosion) return false;
+    return true;
+}
+constexpr bool CheckProjectileGrowthUnlocks() {
+    TankRunModifiers m{};m.enabled=true;m.expedition=true;
+    auto p=MakeTankRunTuning(m);
+    if(p.maxWallBounces!=0||p.actorPierceCount||p.impactSplitCount) return false;
+    m.ricochet=true;
+    if(MakeTankRunTuning(m).maxWallBounces!=1) return false;
+    m.ricochet=false;m.core=TankRunCore::Ricochet;
+    if(MakeTankRunTuning(m).maxWallBounces!=2) return false;
+    m.ricochet=true;m.pierce=true;m.scatterShot=true;
+    p=MakeTankRunTuning(m);
+    if(p.maxWallBounces!=4||p.actorPierceCount!=1||p.impactSplitCount!=2) return false;
+    m.expedition=false;p=MakeTankRunTuning(m);
+    return p.maxWallBounces==-1 && p.actorPierceCount==0 && p.impactSplitCount==0;
+}
+static_assert(CheckProjectileGrowthUnlocks(), "Expedition earns bounded bounce, actor piercing, and nonrecursive split; arena is unchanged.");
+static_assert(CheckSynergyUnlocks(), "Strong homing is transient, explosions require both cards, and arena stays unchanged.");
+
 int main()
 {
 	for (int core = 0; core < 4; ++core) {
