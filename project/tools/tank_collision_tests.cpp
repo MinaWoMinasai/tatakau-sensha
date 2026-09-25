@@ -28,6 +28,9 @@ constexpr uint32_t kCollisionAttributePlayer=1, kCollisionAttributePlayerBullet=
     kCollisionAttributePlayerDrone=4,kCollisionAttributeEnemy=8,kCollisionAttributeEnemyBullet=16;
 
 struct Collider {
+    inline static uint64_t nextCollisionId=0;
+    uint64_t collisionId=++nextCollisionId;
+    uint64_t GetCollisionId() const { return collisionId; }
     virtual ~Collider()=default;
     virtual void OnCollision(Collider*)=0;
     virtual Vector3 GetWorldPosition() const { return {}; }
@@ -52,6 +55,13 @@ struct Bullet : Collider {
     }
     void OnCollision(Collider*) override;
     void ApplyBulletDurabilityDamage(float);
+    bool CanHitActor(const Collider*) const;
+    // This suite exercises legacy collision/resource rules. Impact children
+    // use the complete production Bullet/Manager in test_tank_projectiles.ps1.
+    void QueueImpactSplit(const Vector3&) {}
+    std::vector<uint64_t> hitActorIds_;
+    int remainingActorPierces_=0;
+    struct { uint32_t actorPierces=0; } growthEvents_;
     bool IsDead() const { return isDead_; }
     int GetOwner() const { return owner_; }
     float GetBulletPenetration() const { return penetration_; }
@@ -164,6 +174,7 @@ struct BulletManager {
     void ClearAll();
     std::vector<std::unique_ptr<Bullet>> bullets_;
     std::unique_ptr<TestTrailManager> trailManager_;
+    struct { uint64_t wallBounces=0,actorPierces=0,impactSplits=0,splitChildrenSpawned=0; } growthStats_;
 };
 enum class MapChipType { Blank,Wall,Hazard };
 struct MapChip {

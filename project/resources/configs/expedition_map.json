@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "startingCurrency": 20,
+  "startNodes": [
+    "outskirts"
+  ],
+  "nodes": [
+    {
+      "id": "outskirts",
+      "label": "外縁戦闘",
+      "kind": "combat",
+      "column": 0,
+      "row": 2,
+      "combatStage": 0,
+      "roomTemplate": "outskirts",
+      "clearReward": 30,
+      "serviceCost": 0,
+      "next": [
+        "first_upgrade"
+      ]
+    },
+    {
+      "id": "first_upgrade",
+      "label": "最初の改造",
+      "kind": "upgrade",
+      "column": 1,
+      "row": 2,
+      "combatStage": -1,
+      "roomTemplate": "",
+      "clearReward": 0,
+      "serviceCost": 30,
+      "next": [
+        "salvage",
+        "elite"
+      ]
+    },
+    {
+      "id": "salvage",
+      "label": "資源争奪",
+      "kind": "combat",
+      "column": 2,
+      "row": 1,
+      "combatStage": 1,
+      "roomTemplate": "resource_fork",
+      "clearReward": 35,
+      "serviceCost": 0,
+      "next": [
+        "field_repair",
+        "workshop"
+      ]
+    },
+    {
+      "id": "elite",
+      "label": "精鋭部隊",
+      "kind": "elite",
+      "column": 2,
+      "row": 3,
+      "combatStage": 1,
+      "roomTemplate": "crossfire",
+      "clearReward": 55,
+      "serviceCost": 0,
+      "next": [
+        "field_repair",
+        "workshop"
+      ]
+    },
+    {
+      "id": "field_repair",
+      "label": "応急修理",
+      "kind": "heal",
+      "column": 3,
+      "row": 1,
+      "combatStage": -1,
+      "roomTemplate": "",
+      "clearReward": 0,
+      "serviceCost": 0,
+      "next": [
+        "evolution"
+      ]
+    },
+    {
+      "id": "workshop",
+      "label": "改造工房",
+      "kind": "upgrade",
+      "column": 3,
+      "row": 3,
+      "combatStage": -1,
+      "roomTemplate": "",
+      "clearReward": 0,
+      "serviceCost": 45,
+      "next": [
+        "evolution"
+      ]
+    },
+    {
+      "id": "evolution",
+      "label": "機体進化",
+      "kind": "evolution",
+      "column": 4,
+      "row": 2,
+      "combatStage": -1,
+      "roomTemplate": "",
+      "clearReward": 0,
+      "serviceCost": 0,
+      "next": [
+        "ricochet",
+        "drone"
+      ]
+    },
+    {
+      "id": "ricochet",
+      "label": "反射回廊",
+      "kind": "combat",
+      "column": 5,
+      "row": 1,
+      "combatStage": 2,
+      "roomTemplate": "hazard_lane",
+      "clearReward": 40,
+      "serviceCost": 0,
+      "next": [
+        "arsenal",
+        "repair"
+      ]
+    },
+    {
+      "id": "drone",
+      "label": "無人機部隊",
+      "kind": "combat",
+      "column": 5,
+      "row": 3,
+      "combatStage": 2,
+      "roomTemplate": "crossfire",
+      "clearReward": 40,
+      "serviceCost": 0,
+      "next": [
+        "arsenal",
+        "repair"
+      ]
+    },
+    {
+      "id": "arsenal",
+      "label": "武装強化",
+      "kind": "upgrade",
+      "column": 6,
+      "row": 1,
+      "combatStage": -1,
+      "roomTemplate": "",
+      "clearReward": 0,
+      "serviceCost": 65,
+      "next": [
+        "gatekeeper"
+      ]
+    },
+    {
+      "id": "repair",
+      "label": "修理ドック",
+      "kind": "heal",
+      "column": 6,
+      "row": 3,
+      "combatStage": -1,
+      "roomTemplate": "",
+      "clearReward": 0,
+      "serviceCost": 40,
+      "next": [
+        "gatekeeper"
+      ]
+    },
+    {
+      "id": "gatekeeper",
+      "label": "中枢防衛隊",
+      "kind": "elite",
+      "column": 7,
+      "row": 2,
+      "combatStage": 3,
+      "roomTemplate": "gatekeeper",
+      "clearReward": 50,
+      "serviceCost": 0,
+      "next": [
+        "final_upgrade",
+        "final_repair"
+      ]
+    },
+    {
+      "id": "final_upgrade",
+      "label": "最終改造",
+      "kind": "upgrade",
+      "column": 8,
+      "row": 1,
+      "combatStage": -1,
+      "roomTemplate": "",
+      "clearReward": 0,
+      "serviceCost": 85,
+      "next": [
+        "core"
+      ]
+    },
+    {
+      "id": "final_repair",
+      "label": "最終修理",
+      "kind": "heal",
+      "column": 8,
+      "row": 3,
+      "combatStage": -1,
+      "roomTemplate": "",
+      "clearReward": 0,
+      "serviceCost": 50,
+      "next": [
+        "core"
+      ]
+    },
+    {
+      "id": "core",
+      "label": "中枢ボス",
+      "kind": "boss",
+      "column": 9,
+      "row": 2,
+      "combatStage": 4,
+      "roomTemplate": "final_duel",
+      "clearReward": 0,
+      "serviceCost": 0,
+      "next": []
+    }
+  ]
+}

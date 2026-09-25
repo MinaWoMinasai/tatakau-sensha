@@ -78,13 +78,13 @@ void TestEveryExpeditionPath() {
         Check(run.Start(),"start expedition");
         CheckRoom(run,0,RoomKind::Skirmish); combatSnapshots.push_back(run);
         Check(run.CompleteRoom(),"first room objective completed");
-        CheckReward(run,false,CardId::Count);
-        Check(run.GetPhase()==Phase::Route&&run.GetRouteRound()==0,"first reward opens first route");
+        Check(run.GetPhase()==Phase::Route&&run.GetRouteRound()==0,"first clear opens route before first upgrade");
         CheckPaused(run);
         Check(!run.ChooseRoute(-1)&&!run.ChooseRoute(2)&&!run.ChooseRoute((std::numeric_limits<int>::max)()),
             "invalid first route has no effect");
         Check(!run.ChooseEvent(0)&&!run.CompleteEvolution()&&!run.MarkDead(),"route rejects unrelated selections");
         Check(run.ChooseRoute(first)&&run.GetRouteChoice(0)==first,"first route recorded");
+        CheckReward(run,false,CardId::Rapid);
         CheckRoom(run,1,first==0?RoomKind::Resource:RoomKind::Elite); combatSnapshots.push_back(run);
         Check(run.CompleteRoom(),"second room objective completed");
         CheckReward(run,first==1,CardId::Count);

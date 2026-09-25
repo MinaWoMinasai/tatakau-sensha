@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 namespace tankrun {
 enum class Phase { Loadout, CoreChoice, Combat, Draft, Boss, Clear, Dead };
@@ -76,11 +77,33 @@ public:
         BuildOffers(rare,preferred);
         return true;
     }
+    // The first room always offers a noticeable foundation; special behavior
+    // enters the pool after the player has learned movement and single shots.
+    bool OpenExpeditionRewardDraft(int roomIndex,bool rare,CardId preferred=CardId::Count) {
+        if(!OpenRewardDraft(rare,preferred)) return false;
+        if(roomIndex==0 && drafts_==0) {
+            offers_={CardId::Rapid,CardId::Heavy,CardId::Thrusters}; offerCount_=3;
+        }
+        return true;
+    }
     bool ChooseCard(std::size_t index) {
         if(phase_!=Phase::Draft||index>=offerCount_) return false;
         const auto card=static_cast<std::size_t>(offers_[index]);
         if(card>=CardCount||cards_[card]) return false;
         ++cards_[card]; ++drafts_; phase_=resumePhase_; ClearOffers(); return true;
+    }
+    // A catalog entry can bundle several existing modules. Grant the complete
+    // bundle atomically; already owned modules never stack or consume a slot.
+    bool GrantExpeditionModules(const std::vector<CardId>& effects) {
+        if(!IsCombat()||effects.empty()) return false;
+        for(auto id:effects) if(static_cast<std::size_t>(id)>=CardCount) return false;
+        bool changed=false;
+        for(auto id:effects) {
+            auto& count=cards_[static_cast<std::size_t>(id)];
+            if(!count) {count=1;changed=true;}
+        }
+        if(changed) ++drafts_;
+        return changed;
     }
     bool CompleteBoss() { if(!IsCombat()) return false; phase_=Phase::Clear; return true; }
     bool MarkDead() { if(!IsCombat()) return false; phase_=Phase::Dead; return true; }

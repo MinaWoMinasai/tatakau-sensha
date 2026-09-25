@@ -7,7 +7,7 @@
 
 namespace tankexp {
 
-enum class Phase { Dormant, Combat, Reward, Route, Event, Evolution, Clear, Dead };
+enum class Phase { Dormant, Combat, Reward, Route, Event, Evolution, Clear, Dead, Map };
 enum class RoomKind { Skirmish, Resource, Elite, Reflection, Drone, Guard, Boss };
 
 // A short expedition has five fights, two route choices, and one event.
@@ -16,6 +16,16 @@ enum class RoomKind { Skirmish, Resource, Elite, Reflection, Drone, Guard, Boss 
 class ExpeditionDirector {
 public:
     void Reset() { *this=ExpeditionDirector{}; }
+    // Authored expeditions use the same combat clocks/objectives, with their
+    // routing and economy owned by ExpeditionMapRun.
+    bool OpenMap() {
+        if(phase_==Phase::Clear||phase_==Phase::Dead) return false;
+        phase_=Phase::Map; return true;
+    }
+    bool BeginMapRoom(int index,RoomKind kind) {
+        if(phase_!=Phase::Map||index<0||index>31) return false;
+        EnterRoom(index,kind); return true;
+    }
     bool Start() {
         if(phase_!=Phase::Dormant) return false;
         EnterRoom(0,RoomKind::Skirmish);
@@ -34,6 +44,7 @@ public:
             phase_=Phase::Clear;
             return true;
         }
+        if(roomIndex_==0) { routeRound_=0; phase_=Phase::Route; return true; }
         const bool rare=roomKind_==RoomKind::Elite||roomKind_==RoomKind::Guard;
         tankrun::CardId affinity=tankrun::CardId::Count;
         if(roomKind_==RoomKind::Reflection) affinity=tankrun::CardId::Ricochet;
@@ -47,7 +58,7 @@ public:
         rewardRare_=false;
         rewardAffinity_=tankrun::CardId::Count;
         if(rewardOrigin_==RewardOrigin::Event) phase_=Phase::Evolution;
-        else if(roomIndex_==0) { routeRound_=0; phase_=Phase::Route; }
+        else if(roomIndex_==0) EnterRoom(1,visitedRoutes_[0]==0?RoomKind::Resource:RoomKind::Elite);
         else if(roomIndex_==1) phase_=Phase::Event;
         else if(roomIndex_==2) EnterRoom(3,RoomKind::Guard);
         else if(roomIndex_==3) EnterRoom(4,RoomKind::Boss);
@@ -56,7 +67,7 @@ public:
     bool ChooseRoute(int index) {
         if(phase_!=Phase::Route||index<0||index>1) return false;
         visitedRoutes_[static_cast<std::size_t>(routeRound_)]=index;
-        if(routeRound_==0) EnterRoom(1,index==0?RoomKind::Resource:RoomKind::Elite);
+        if(routeRound_==0) BeginReward(false,tankrun::CardId::Rapid,RewardOrigin::Room);
         else EnterRoom(2,index==0?RoomKind::Reflection:RoomKind::Drone);
         return true;
     }

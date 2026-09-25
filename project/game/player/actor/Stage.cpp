@@ -502,11 +502,26 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 
 			// ★修正ポイント：完全に埋まっている（中心がブロック内）場合
 			if (dist < 0.0001f) {
-				// 中心が埋まっている＝即死させるのが一番安全
-				bullet->Die();
-
-				// もう死んだので計算終了フラグを立ててループを抜ける
-				isCollided = false;
+				if (!bullet->UsesRunProjectileRules()) {
+					// Preserve the arena's embedded-projectile behavior.
+					bullet->Die();
+					isCollided = false;
+					break;
+				}
+				// A fast expedition shot can finish its step inside a block.
+				// Use the nearest XY face instead of normalizing a zero vector,
+				// allowing its first impact to split outside the surface.
+				const float distances[4] = {bulletPos.x - block.aabb.min.x, block.aabb.max.x - bulletPos.x,
+					bulletPos.y - block.aabb.min.y, block.aabb.max.y - bulletPos.y};
+				int face = 0;
+				for (int index = 1; index < 4; ++index) if (distances[index] < distances[face]) face = index;
+				nearestClosestPoint = bulletPos;
+				nearestNormal = {};
+				if (face == 0) { nearestClosestPoint.x = block.aabb.min.x; nearestNormal.x = -1.0f; }
+				if (face == 1) { nearestClosestPoint.x = block.aabb.max.x; nearestNormal.x = 1.0f; }
+				if (face == 2) { nearestClosestPoint.y = block.aabb.min.y; nearestNormal.y = -1.0f; }
+				if (face == 3) { nearestClosestPoint.y = block.aabb.max.y; nearestNormal.y = 1.0f; }
+				isCollided = true;
 				break;
 			}
 
@@ -527,18 +542,7 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 		if (isCollided) {
 			bulletPos = nearestClosestPoint + nearestNormal * (radius + 0.01f);
 
-			Vector3 vel = bullet->GetMove();
-			vel = vel - 2.0f * Dot(vel, nearestNormal) * nearestNormal;
-
-			if (bullet->IsReflectable()) {
-
-				bullet->SetVelocity(vel);
-				bullet->SetWorldPosition(bulletPos);
-			} else {
-				// 反射しない弾は消滅
-				bullet->SetWorldPosition(bulletPos);
-				bullet->Die();
-			}
+			bullet->OnWallImpact(bulletPos, nearestNormal);
 		}
 	}
 }

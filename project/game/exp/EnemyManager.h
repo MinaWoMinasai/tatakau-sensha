@@ -30,6 +30,7 @@ public:
     void DrawBodyOnly();
     void DrawBodyOnlyVisible(const Vector3& cameraPos, float halfWidth, float halfHeight);
     bool SpawnLevelEnemy(const Vector3& position, const std::string& prefab, int hp = -1);
+    void SetExpeditionContent(const tankcontent::Catalog& catalog) { expeditionContent_=catalog;useExpeditionContent_=true; }
     // The actor address is stable until the defeated actor is removed by Update.
     ExpEnemy* SpawnRunResource(const Vector3& position, int hp, std::function<void(bool playerOwned)> onClaim);
     void AddLevelSpawnArea(const SpawnArea& spawnArea);
@@ -51,6 +52,8 @@ private:
     int CountEnemiesInArea(const SpawnArea& spawnArea) const;
 
     std::vector<std::unique_ptr<ExpEnemy>> enemies_;
+    tankcontent::Catalog expeditionContent_;
+    bool useExpeditionContent_=false;
     std::vector<SpawnArea> spawnAreas_;
     Player* player_ = nullptr;
     BulletManager* bulletManager_ = nullptr;

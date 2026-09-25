@@ -553,6 +553,12 @@ struct AttackParam {
 	float bulletPenetration = 0.0f;
 	// Neutral Shooter projectiles must not claim a rival's shared resource.
 	bool canClaimRunResource = true;
+	// Expedition growth is opt-in. Existing arena shots retain unlimited
+	// reflection when reflect=true and no actor piercing/impact splitting.
+	int maxWallBounces = -1;
+	int actorPierceCount = 0;
+	int impactSplitCount = 0;
+	float impactSplitDamageScale = 0.55f;
 };
 
 enum BulletOwner {
