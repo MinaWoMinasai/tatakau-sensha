@@ -805,10 +805,8 @@ void Bloom::ComposeTransientEffects() {
 		0.0f,
 		0.20f);
 	bloomParam_.isGrayscale =
-		(manualGrayscale_ || forceGrayscale_ ||
-			(screenEffectState_.active && effect.isGrayscale > 0.5f))
-		? 1.0f
-		: 0.0f;
+		(manualGrayscale_ || forceGrayscale_) ? 1.0f :
+		(screenEffectState_.active ? (std::clamp)(effect.isGrayscale, 0.0f, 1.0f) : 0.0f);
 
 	bloomParam_.vignetteIntensity = screenEffectState_.active
 		? (std::max)(base.vignetteIntensity, effect.vignetteIntensity)

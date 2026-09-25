@@ -49,6 +49,11 @@
   ],
   "rooms": [
     {
+      "id": "outskirts",
+      "csv": "resources/maps/expedition_outskirts.csv",
+      "description": "First room: open floor for movement, single shots and the dash tutorial."
+    },
+    {
       "id": "crossfire",
       "csv": "resources/maps/expedition_crossfire.csv",
       "description": "Offset cover: cross the center or flank the two staggered barricades."

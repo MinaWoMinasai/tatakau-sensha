@@ -32,6 +32,7 @@ void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletMa
 			CheckCollisionPair(colliderA, colliderB);
 		}
 	}
+	bulletManager->FlushPendingSplits();
 }
 
 void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* colliderB) {
@@ -42,6 +43,10 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 	if ((bulletA && bulletA->IsDead()) || (bulletB && bulletB->IsDead())) {
 		return;
 	}
+	// A penetrating bullet may overlap an actor for several frames. Suppress
+	// both callbacks so that neither damage nor impact effects repeat.
+	if ((bulletA && !bulletB && !bulletA->CanHitActor(colliderB)) ||
+		(bulletB && !bulletA && !bulletB->CanHitActor(colliderA))) return;
 
 	bool hit = false;
 

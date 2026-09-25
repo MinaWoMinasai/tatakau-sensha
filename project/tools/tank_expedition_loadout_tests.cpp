@@ -25,13 +25,13 @@ static void MaintenanceEconomy() {
     }
     assert(!maintenance.Spend(0));
     assert(maintenance.Points() == 1);
-    assert(Near(maintenance.MoveScale(), 1.18f));
+    assert(Near(maintenance.MoveScale(), 1.36f));
     assert(maintenance.Spend(1));
     assert(!maintenance.Spend(2));
     assert(maintenance.Refund(0));
     assert(maintenance.Spend(2));
-    assert(Near(maintenance.MoveScale(), 1.12f));
-    assert(Near(maintenance.ReloadScale(), 0.93f));
+    assert(Near(maintenance.MoveScale(), 1.24f));
+    assert(Near(maintenance.ReloadScale(), 0.86f));
     assert(Near(maintenance.DamageScale(), 0.92f));
     assert(maintenance.MitigateDamage(0) == 0);
     assert(maintenance.MitigateDamage(1) == 1);

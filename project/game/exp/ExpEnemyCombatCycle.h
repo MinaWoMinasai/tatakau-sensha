@@ -46,13 +46,14 @@ public:
             EnterRecovery();
             break;
         case ExpEnemyCombatPhase::Recovery:
-            Enter(ExpEnemyCombatPhase::Cooldown, timing_.cooldown);
+            Enter(ExpEnemyCombatPhase::Cooldown, timing_.cooldown * recoveryScale_);
             break;
         }
         return false;
     }
 
-    void EnterRecovery() { Enter(ExpEnemyCombatPhase::Recovery, timing_.recovery); }
+    void SetRecoveryScale(float scale) { recoveryScale_=(std::clamp)(scale,0.20f,8.0f); }
+    void EnterRecovery() { Enter(ExpEnemyCombatPhase::Recovery, timing_.recovery * recoveryScale_); }
     ExpEnemyCombatPhase GetPhase() const { return phase_; }
     bool IsAimLocked() const {
         return phase_ == ExpEnemyCombatPhase::Locked || phase_ == ExpEnemyCombatPhase::Active;
@@ -64,7 +65,7 @@ public:
     }
     float GetRecoveryRatio() const {
         return phase_ == ExpEnemyCombatPhase::Recovery
-            ? (std::clamp)(remaining_ / (std::max)(0.001f, timing_.recovery), 0.0f, 1.0f) : 0.0f;
+            ? (std::clamp)(remaining_ / (std::max)(0.001f, timing_.recovery * recoveryScale_), 0.0f, 1.0f) : 0.0f;
     }
 
 private:
@@ -75,4 +76,5 @@ private:
     Timing timing_{};
     ExpEnemyCombatPhase phase_ = ExpEnemyCombatPhase::Cooldown;
     float remaining_ = 0.0f;
+    float recoveryScale_ = 1.0f;
 };

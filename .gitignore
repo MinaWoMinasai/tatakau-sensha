@@ -343,3 +343,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Local expedition tutorial progress (not game balance settings)
+project/resources/configs/expedition_user.json
+project/resources/configs/expedition_user.json.tmp

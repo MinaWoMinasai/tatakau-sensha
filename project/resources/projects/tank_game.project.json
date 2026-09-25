@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "projectName": "たたかうせんしゃ",
+  "gameModule": "builtin",
+  "startupScene": "TITLE",
+  "resourceRoot": "resources"
+}

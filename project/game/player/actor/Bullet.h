@@ -1,6 +1,7 @@
 #pragma once
 #include <Windows.h>
 #include <algorithm>
+#include <vector>
 #include "Calculation.h"
 #include "Collider.h"
 #include "CollisionConfig.h"
@@ -36,6 +37,10 @@ struct BulletTrailSettings {
 class Bullet : public Collider {
 
 public:
+	struct GrowthEvents {
+		uint32_t wallBounces = 0;
+		uint32_t actorPierces = 0;
+	};
 
 	void Initialize(const Vector3& position, const Vector3& velocity, const uint32_t& damage, BulletOwner owner,
 		bool reflectable, float bulletHp = 1.0f, float bulletPenetration = 1.0f);
@@ -76,6 +81,18 @@ public:
 	bool CanClaimRunResource() const { return canClaimRunResource_; }
 	void SetCanClaimRunResource(bool enabled) { canClaimRunResource_ = enabled; }
 	void ApplyBulletDurabilityDamage(float amount);
+	void ConfigureGrowth(int maxWallBounces, int actorPierceCount, int impactSplitCount,
+		float impactSplitDamageScale = 0.55f);
+	bool UsesRunProjectileRules() const { return usesRunProjectileRules_; }
+	bool CanHitActor(const Collider* actor) const;
+	void OnWallImpact(const Vector3& safePosition, const Vector3& normal);
+	// Drain only outside collision iteration. Children cannot split again and
+	// share the parent's expiry time and actor hit history.
+	void AppendImpactChildren(std::vector<std::unique_ptr<Bullet>>& children, size_t availableSlots);
+	int GetRemainingWallBounces() const { return remainingWallBounces_; }
+	int GetRemainingActorPierces() const { return remainingActorPierces_; }
+	float GetRemainingLifetime() const { return deathTimer_; }
+	GrowthEvents ConsumeGrowthEvents() { const auto events = growthEvents_; growthEvents_ = {}; return events; }
 
 	void Die();
 
@@ -84,6 +101,7 @@ private:
 	void UpdateTrail(float deltaTime);
 	TrailConfig MakeTrailConfig() const;
 	Vector4 GetBulletColor() const;
+	void QueueImpactSplit(const Vector3& direction);
 
 	std::unique_ptr<Object3d> object_;
 
@@ -112,6 +130,17 @@ private:
 	float bulletHp_ = 1.0f;
 	float bulletPenetration_ = 1.0f;
 	bool canClaimRunResource_ = true;
+	bool usesRunProjectileRules_ = false;
+	int remainingWallBounces_ = -1;
+	int remainingActorPierces_ = 0;
+	int impactSplitCount_ = 0;
+	int pendingImpactSplitCount_ = 0;
+	float impactSplitDamageScale_ = 0.55f;
+	Vector3 pendingImpactDirection_{};
+	Vector3 pendingImpactPosition_{};
+	Vector3 pendingImpactWallNormal_{};
+	std::vector<uint64_t> hitActorIds_;
+	GrowthEvents growthEvents_{};
 	TrailInstance* trail_ = nullptr;
 	BulletTrailSettings* trailSettings_ = nullptr;
 };

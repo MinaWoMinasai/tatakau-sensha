@@ -1,6 +1,7 @@
 #include "AttackController.h"
 #include <DirectXMath.h>
 #include <algorithm>
+#include <cmath>
 using namespace DirectX;
 
 void AttackController::Fire(const Vector3& origin, const Vector3& baseDir, const AttackParam& param, BulletOwner owner)
@@ -17,7 +18,9 @@ void AttackController::FireInternal(const Vector3& origin, const Vector3& baseDi
 {
 
     assert(bulletManager_);
-    Vector3 dirNorm = Normalize(baseDir);
+    const float directionLength = Length(baseDir);
+    if (!std::isfinite(directionLength) || directionLength <= 0.0001f || !std::isfinite(param.bulletSpeed)) return;
+    Vector3 dirNorm = baseDir / directionLength;
 
     float halfSpread = param.spreadAngleDeg * 0.5f;
 
@@ -67,6 +70,7 @@ void AttackController::FireInternal(const Vector3& origin, const Vector3& baseDi
         );
 
 		bullet->SetCanClaimRunResource(param.canClaimRunResource);
+		bullet->ConfigureGrowth(param.maxWallBounces, param.actorPierceCount, param.impactSplitCount, param.impactSplitDamageScale);
 		bulletManager_->Add(std::move(bullet));
     }
 }

@@ -76,6 +76,7 @@ bool ExpEnemy::IsShapeNeonBillboardTarget() const
 
 void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType type)
 {
+    hasAuthoredDefinition_=false;authoredMoveSpeedScale_=authoredFireIntervalScale_=1;
     isDead_ = false;
     isRunResource_ = false;
     runResourceClaimCallback_ = {};
@@ -110,6 +111,19 @@ void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType 
     object_->SetTransform(worldTransform_);
     object_->Update();
 
+}
+
+void ExpEnemy::ApplyAuthoredDefinition(const tankcontent::Enemy& definition)
+{
+    hasAuthoredDefinition_=true;
+    hp_=maxHp_=(std::clamp)(definition.hp,1,9999);
+    authoredContactDamage_=static_cast<uint32_t>((std::clamp)(definition.contactDamage,0,999));
+    authoredBulletDamage_=static_cast<uint32_t>((std::clamp)(definition.bulletDamage,1,999));
+    authoredMoveSpeedScale_=(std::clamp)(definition.moveSpeedScale,0.1f,3.0f);
+    authoredFireIntervalScale_=(std::clamp)(definition.fireIntervalScale,0.3f,4.0f);
+    expValue_=static_cast<uint32_t>((std::clamp)(definition.creditDrop,0,999)*5);
+    baseColor_={definition.color[0],definition.color[1],definition.color[2],definition.color[3]};
+    visualColor_=baseColor_;object_->SetColor(baseColor_);SetDamage(authoredContactDamage_);
 }
 
 void ExpEnemy::RefreshCollisionMask()
@@ -241,7 +255,7 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 		object_->Update();
 		return;
 	}
-	shootInterval_ = balanceConfig_.shooterFireInterval;
+	shootInterval_ = balanceConfig_.shooterFireInterval * authoredFireIntervalScale_;
 	shooterMuzzleFlashTimer_ = (std::max)(0.0f, shooterMuzzleFlashTimer_ - deltaTime);
 
 	const Vector3 origin = GetWorldPosition();
@@ -313,7 +327,7 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 			param.bulletCount = 1;
 			param.spreadAngleDeg = 3.0f;
 			param.randomSpread = true;
-			param.damage = balanceConfig_.shooterBulletDamage;
+			param.damage = hasAuthoredDefinition_ ? authoredBulletDamage_ : balanceConfig_.shooterBulletDamage;
 			param.canClaimRunResource = false;
 			attackController_.FireFromMuzzle(origin + aimDirection_ * 1.4f, aimDirection_, param, bulletOwner);
 			bulletCoolTime = shootInterval_;
@@ -428,13 +442,14 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
     const bool visible = hasTarget && distance <= (type_ == ExpEnemyType::Sniper ? 64.0f : 38.0f) &&
         Length(ClipCombatRay(stage, origin, desiredDirection, distance) - origin) >= distance - 0.05f;
     const bool canAttack = visible && (type_ == ExpEnemyType::Sniper || distance < 13.0f);
+    combatCycle_.SetRecoveryScale(balanceConfig_.shooterFireInterval * authoredFireIntervalScale_ / 1.6f);
     const bool attackStarted = combatCycle_.Advance(dt, canAttack);
     const ExpEnemyCombatPhase phase = combatCycle_.GetPhase();
 
     if (type_ == ExpEnemyType::Charger) {
         if (phase == ExpEnemyCombatPhase::Active) {
             velocity_ = {};
-            if (MoveCombatActor(stage, aimDirection_ * (32.0f * dt))) {
+            if (MoveCombatActor(stage, aimDirection_ * (32.0f * authoredMoveSpeedScale_ * dt))) {
                 combatCycle_.EnterRecovery();
                 ParticleManager::GetInstance()->EmitNeonDeathEffect(
                     GetWorldPosition(), { 1.8f, 0.7f, 0.15f, 1.0f }, { 0.8f, 0.2f, 0.1f, 0.0f }, 0.12f);
@@ -451,19 +466,20 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
                 const Vector3 toWaypoint = combatWaypoint_ - origin;
                 moveDirection = Length(toWaypoint) > 0.10f ? Normalize(toWaypoint) : Vector3{};
             }
-            MoveCombatActor(stage, moveDirection * (4.0f * dt));
+            MoveCombatActor(stage, moveDirection * (4.0f * authoredMoveSpeedScale_ * dt));
         }
         SetDamage(combatCycle_.GetPhase() == ExpEnemyCombatPhase::Recovery ? 0u :
-            combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active ? 22u : 8u);
+            (hasAuthoredDefinition_ ? authoredContactDamage_ : balanceConfig_.contactDamage) *
+            (combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active ? 2u : 1u));
     } else {
-        SetDamage(8);
+        SetDamage(hasAuthoredDefinition_ ? authoredContactDamage_ : balanceConfig_.shooterContactDamage);
         if (attackStarted) {
             AttackParam param{};
-            param.bulletSpeed = 0.60f;
+            param.bulletSpeed = balanceConfig_.shooterBulletSpeed * 1.30f;
             param.bulletCount = 1;
             param.spreadAngleDeg = 0.0f;
             param.randomSpread = false;
-            param.damage = 20;
+            param.damage = hasAuthoredDefinition_ ? authoredBulletDamage_ : balanceConfig_.shooterBulletDamage;
             param.bulletHp = 32.0f;
             param.bulletPenetration = 1.0f;
             param.canClaimRunResource = false;

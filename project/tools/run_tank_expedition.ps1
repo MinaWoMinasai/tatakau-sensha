@@ -2,7 +2,8 @@ param(
     [ValidateSet('Development', 'Debug', 'Release')][string]$Configuration = 'Development',
     [switch]$Validate,
     [ValidateRange(0, 5)][int]$Variant = 0,
-    [switch]$Wait
+    [switch]$Wait,
+    [switch]$SkipTitle
 )
 $ErrorActionPreference = 'Stop'
 $tankExpProjectDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -18,16 +19,22 @@ if (!(Test-Path -LiteralPath $tankExpExe)) {
 
 $tankExpPreviousEnvironment = @{
     CG2_TANK_AUTOTEST = [Environment]::GetEnvironmentVariable('CG2_TANK_AUTOTEST', 'Process')
+    CG2_TANK_MAP_AUTOTEST = [Environment]::GetEnvironmentVariable('CG2_TANK_MAP_AUTOTEST', 'Process')
     CG2_TANK_EXPEDITION_VARIANT = [Environment]::GetEnvironmentVariable('CG2_TANK_EXPEDITION_VARIANT', 'Process')
+    CG2_TITLE_AUTOTEST = [Environment]::GetEnvironmentVariable('CG2_TITLE_AUTOTEST', 'Process')
+    CG2_TANK_TUTORIAL_AUTOTEST = [Environment]::GetEnvironmentVariable('CG2_TANK_TUTORIAL_AUTOTEST', 'Process')
 }
 try {
+    [Environment]::SetEnvironmentVariable('CG2_TANK_MAP_AUTOTEST', $null, 'Process')
+    [Environment]::SetEnvironmentVariable('CG2_TITLE_AUTOTEST', $null, 'Process')
+    [Environment]::SetEnvironmentVariable('CG2_TANK_TUTORIAL_AUTOTEST', $null, 'Process')
     # Ordinary launches are interactive even when a parent shell has test flags.
     [Environment]::SetEnvironmentVariable('CG2_TANK_AUTOTEST', $(if ($Validate) { '1' } else { $null }), 'Process')
     [Environment]::SetEnvironmentVariable('CG2_TANK_EXPEDITION_VARIANT', $(if ($Validate) { [string]$Variant } else { $null }), 'Process')
     $tankExpStartOptions = @{
         FilePath = $tankExpExe
         WorkingDirectory = $tankExpProjectDir
-        ArgumentList = @('--project', 'resources/projects/tank_expedition.project.json')
+        ArgumentList = @('--project', $(if ($Validate -or $SkipTitle) { 'resources/projects/tank_expedition.project.json' } else { 'resources/projects/tank_game.project.json' }))
         PassThru = $true
     }
     $tankExpStartOptions.WindowStyle = $(if ($Validate) { 'Hidden' } else { 'Normal' })

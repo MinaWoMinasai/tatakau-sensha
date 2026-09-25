@@ -13,9 +13,20 @@ public:
         size_t enemy = 0;
         size_t hostileExpEnemy = 0;
     };
+    struct GrowthStats {
+        uint64_t wallBounces = 0;
+        uint64_t actorPierces = 0;
+        uint64_t impactSplits = 0;
+        uint64_t splitChildrenSpawned = 0;
+    };
+    // Actual player-owned growth events since ClearAll (enemy shots excluded).
+    const GrowthStats& GetGrowthStats() const { return growthStats_; }
 
     void Initialize(DirectXCommon* dxCommon, Object3dCommon* object3dCommon);
     void Add(std::unique_ptr<Bullet> bullet);
+    static constexpr size_t kMaxRunProjectilesPerOwner = 240;
+    // Called after a complete collision pass, never from an individual callback.
+    void FlushPendingSplits();
     // Call between frames, before moving actors or replacing the stage.
     void ClearAll();
 
@@ -40,4 +51,5 @@ private:
     std::vector<std::unique_ptr<Bullet>> bullets_;
     std::unique_ptr<TrailManager> trailManager_;
     BulletTrailSettings trailSettings_;
+    GrowthStats growthStats_{};
 };

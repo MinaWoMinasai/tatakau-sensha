@@ -119,13 +119,16 @@ void EnemyManager::DrawBodyOnly() {
 bool EnemyManager::SpawnLevelEnemy(const Vector3& position, const std::string& prefab, int hp)
 {
     ExpEnemyType type = ExpEnemyType::Square;
-    if (!TryGetExpEnemyType(prefab, type)) {
+    const auto* authored=useExpeditionContent_?tankcontent::FindEnemy(expeditionContent_,prefab):nullptr;
+    if(authored)type=static_cast<ExpEnemyType>(authored->behavior);
+    else if (!TryGetExpEnemyType(prefab, type)) {
         std::cerr << "[LevelLoader] Unsupported Enemy prefab: " << prefab << std::endl;
         return false;
     }
 
     auto newEnemy = std::make_unique<ExpEnemy>();
     newEnemy->Initialize(position, player_, type);
+	if(authored)newEnemy->ApplyAuthoredDefinition(*authored);
 	newEnemy->SetBossTarget(boss_);
     newEnemy->SetAttackControllerBulletManager(bulletManager_);
     if (hp > 0) {
