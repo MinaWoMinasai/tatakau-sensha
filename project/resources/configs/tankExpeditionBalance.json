@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "bossMaxHp": 900,
+  "defaultRandomSpawnEnabled": false,
+  "player": {
+    "maxHp": 120,
+    "bulletDamage": 4.0,
+    "bulletSpeed": 0.27,
+    "reloadSpeed": 20.0,
+    "moveSpeed": 0.23,
+    "maxStamina": 3.0,
+    "staminaRecovery": 0.9,
+    "bodyDamage": 3,
+    "healToFull": false
+  },
+  "playerUpgrades": {
+    "maxHp": 0.35,
+    "bulletDamage": 0.8,
+    "bulletSpeed": 0.2,
+    "reloadSpeed": 0.4,
+    "moveSpeed": 0.25,
+    "healthRegen": 0.12,
+    "bodyDamage": 0.1,
+    "minReloadSpeed": 3.0
+  },
+  "damage": {
+    "damageBlock": 12,
+    "bossContact": 18,
+    "expEnemyContact": 8,
+    "shooterContact": 8,
+    "shooterBullet": 12,
+    "shooterBulletSpeed": 0.4,
+    "shooterFireInterval": 1.6,
+    "shooterDetectionRadius": 64.0,
+    "shooterTurnSpeed": 5.5
+  },
+  "bossAttackDefault": {
+    "bulletSpeed": 0.24,
+    "bulletCount": 5,
+    "cooldown": 1.1,
+    "damage": 9,
+    "spreadAngleDeg": 44.0,
+    "bulletHp": 5.0,
+    "bulletPenetration": 3.0,
+    "randomSpread": false,
+    "pattern": 0
+  },
+  "enemySystem": {
+    "expEnemyHostileToBoss": false,
+    "bossExpEnemyDamage": 6,
+    "bossHealOnExpEnemyKill": 0,
+    "bossKillsPerLevel": 10,
+    "bossMaxHpGainPerLevel": 0,
+    "bossDamageGainPerLevel": 0,
+    "bossLevelingModeEnabled": false,
+    "bossLevelingEnterDistance": 12.0,
+    "bossLevelingExitDistance": 8.0,
+    "bossLevelingSearchRadius": 40.0,
+    "bossAimTurnHalfSeconds": 1.0
+  }
+}

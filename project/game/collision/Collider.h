@@ -1,5 +1,6 @@
 #pragma once
 #include "Struct.h"
+#include <atomic>
 
 // 判定図形
 enum class ColliderShape { Sphere, Capsule };
@@ -7,6 +8,7 @@ enum class ColliderShape { Sphere, Capsule };
 class Collider {
 
 public:
+	uint64_t GetCollisionId() const { return identity_.value; }
 	// 半径を取得
 	virtual float GetRadius() const { return radius_; }
 
@@ -53,6 +55,16 @@ public:
 	void SetDamage(const uint32_t& damage) { damage_ = damage; }
 
 private:
+	// Actor allocations may reuse an address while a piercing projectile lives.
+	// Copies get a new identity; assigning state does not change an actor's ID.
+	struct Identity {
+		static inline std::atomic<uint64_t> next{1};
+		uint64_t value = next.fetch_add(1, std::memory_order_relaxed);
+		Identity() = default;
+		Identity(const Identity&) : Identity() {}
+		Identity& operator=(const Identity&) { return *this; }
+	};
+	Identity identity_{};
 	// 衝突半径
 	float radius_ = 0.8f;
 

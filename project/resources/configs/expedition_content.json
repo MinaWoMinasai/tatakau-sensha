@@ -1,0 +1,421 @@
+{
+  "enemies": [
+    {
+      "behavior": "Square",
+      "bulletDamage": 10,
+      "color": [
+        1.0,
+        0.8600000143051147,
+        0.20000000298023224,
+        1.0
+      ],
+      "contactDamage": 8,
+      "creditDrop": 2,
+      "fireIntervalScale": 1.0,
+      "hp": 6,
+      "id": "Square",
+      "moveSpeedScale": 1.0,
+      "name": "四角資源"
+    },
+    {
+      "behavior": "Triangle",
+      "bulletDamage": 10,
+      "color": [
+        1.0,
+        0.30000001192092896,
+        0.3499999940395355,
+        1.0
+      ],
+      "contactDamage": 8,
+      "creditDrop": 3,
+      "fireIntervalScale": 1.0,
+      "hp": 10,
+      "id": "Triangle",
+      "moveSpeedScale": 1.0,
+      "name": "三角資源"
+    },
+    {
+      "behavior": "Pentagon",
+      "bulletDamage": 10,
+      "color": [
+        0.3499999940395355,
+        0.47999998927116394,
+        1.0,
+        1.0
+      ],
+      "contactDamage": 8,
+      "creditDrop": 7,
+      "fireIntervalScale": 1.0,
+      "hp": 24,
+      "id": "Pentagon",
+      "moveSpeedScale": 1.0,
+      "name": "五角資源"
+    },
+    {
+      "behavior": "Shooter",
+      "bulletDamage": 10,
+      "color": [
+        0.949999988079071,
+        0.25,
+        0.18000000715255737,
+        1.0
+      ],
+      "contactDamage": 8,
+      "creditDrop": 5,
+      "fireIntervalScale": 1.0,
+      "hp": 14,
+      "id": "Shooter",
+      "moveSpeedScale": 1.0,
+      "name": "射撃砲台"
+    },
+    {
+      "behavior": "Charger",
+      "bulletDamage": 10,
+      "color": [
+        1.600000023841858,
+        0.36000001430511475,
+        0.10000000149011612,
+        1.0
+      ],
+      "contactDamage": 8,
+      "creditDrop": 6,
+      "fireIntervalScale": 1.0,
+      "hp": 30,
+      "id": "Charger",
+      "moveSpeedScale": 1.0,
+      "name": "突進兵"
+    },
+    {
+      "behavior": "Sniper",
+      "bulletDamage": 10,
+      "color": [
+        1.399999976158142,
+        0.1599999964237213,
+        0.7200000286102295,
+        1.0
+      ],
+      "contactDamage": 8,
+      "creditDrop": 6,
+      "fireIntervalScale": 1.0,
+      "hp": 24,
+      "id": "Sniper",
+      "moveSpeedScale": 1.0,
+      "name": "狙撃兵"
+    },
+    {
+      "behavior": "Charger",
+      "bulletDamage": 10,
+      "color": [
+        1.399999976158142,
+        0.800000011920929,
+        0.10000000149011612,
+        1.0
+      ],
+      "contactDamage": 8,
+      "creditDrop": 12,
+      "fireIntervalScale": 1.0,
+      "hp": 65,
+      "id": "ArmoredCharger",
+      "moveSpeedScale": 0.75,
+      "name": "重装突進兵"
+    },
+    {
+      "behavior": "Sniper",
+      "bulletDamage": 10,
+      "color": [
+        0.5,
+        0.30000001192092896,
+        1.7000000476837158,
+        1.0
+      ],
+      "contactDamage": 8,
+      "creditDrop": 10,
+      "fireIntervalScale": 0.7200000286102295,
+      "hp": 32,
+      "id": "RapidSniper",
+      "moveSpeedScale": 1.0,
+      "name": "高速狙撃兵"
+    }
+  ],
+  "players": [
+    {
+      "alternate": false,
+      "barrels": 2,
+      "baseClass": "Twin",
+      "bodyShape": 0,
+      "bulletCount": 1,
+      "bulletSpeedScale": 1.0,
+      "color": [
+        0.30000001192092896,
+        1.5,
+        1.2999999523162842,
+        1.0
+      ],
+      "damageScale": 1.0,
+      "description": "2門を同時発射。直線火力を伸ばす。",
+      "drones": 0,
+      "fanAngle": 0.0,
+      "id": "TwinBattery",
+      "name": "ツイン砲台",
+      "penetrate": false,
+      "price": 40,
+      "reflect": false,
+      "reloadScale": 1.0
+    },
+    {
+      "alternate": false,
+      "barrels": 3,
+      "baseClass": "Twin",
+      "bodyShape": 0,
+      "bulletCount": 1,
+      "bulletSpeedScale": 1.0,
+      "color": [
+        0.30000001192092896,
+        1.5,
+        1.2999999523162842,
+        1.0
+      ],
+      "damageScale": 0.7799999713897705,
+      "description": "3門を扇状に発射。広い範囲を制圧。",
+      "drones": 0,
+      "fanAngle": 14.0,
+      "id": "FanBattery",
+      "name": "扇形砲台",
+      "penetrate": false,
+      "price": 48,
+      "reflect": false,
+      "reloadScale": 1.0
+    },
+    {
+      "alternate": true,
+      "barrels": 2,
+      "baseClass": "MachineGun",
+      "bodyShape": 0,
+      "bulletCount": 1,
+      "bulletSpeedScale": 1.0,
+      "color": [
+        0.30000001192092896,
+        1.100000023841858,
+        1.7999999523162842,
+        1.0
+      ],
+      "damageScale": 0.800000011920929,
+      "description": "交互射撃で切れ目なく攻撃。",
+      "drones": 0,
+      "fanAngle": 0.0,
+      "id": "RapidBattery",
+      "name": "速射機体",
+      "penetrate": false,
+      "price": 40,
+      "reflect": false,
+      "reloadScale": 0.6499999761581421
+    },
+    {
+      "alternate": false,
+      "barrels": 3,
+      "baseClass": "Twin",
+      "bodyShape": 1,
+      "bulletCount": 1,
+      "bulletSpeedScale": 1.0,
+      "color": [
+        1.600000023841858,
+        0.4000000059604645,
+        1.2000000476837158,
+        1.0
+      ],
+      "damageScale": 0.8500000238418579,
+      "description": "3門から反射弾を発射。",
+      "drones": 0,
+      "fanAngle": 0.0,
+      "id": "BankshotBattery",
+      "name": "反射機体",
+      "penetrate": false,
+      "price": 48,
+      "reflect": true,
+      "reloadScale": 1.0
+    },
+    {
+      "alternate": false,
+      "barrels": 1,
+      "baseClass": "Overseer",
+      "bodyShape": 3,
+      "bulletCount": 1,
+      "bulletSpeedScale": 1.0,
+      "color": [
+        0.5,
+        1.600000023841858,
+        0.699999988079071,
+        1.0
+      ],
+      "damageScale": 1.0,
+      "description": "砲撃に支援ドローンを組み合わせる。",
+      "drones": 3,
+      "fanAngle": 0.0,
+      "id": "DroneCarrier",
+      "name": "ドローン母艦",
+      "penetrate": false,
+      "price": 40,
+      "reflect": false,
+      "reloadScale": 1.0
+    }
+  ],
+  "schemaVersion": 1,
+  "upgrades": [
+    {
+      "description": "壁で弾が反射する。角度を使って敵を狙う。",
+      "effects": [
+        "Ricochet"
+      ],
+      "id": "Ricochet",
+      "maxPurchases": 1,
+      "name": "壁反射",
+      "price": 24,
+      "rarity": 0
+    },
+    {
+      "description": "威力を増やす。速射や貫通との組み合わせに。",
+      "effects": [
+        "Heavy"
+      ],
+      "id": "Heavy",
+      "maxPurchases": 1,
+      "name": "重弾",
+      "price": 24,
+      "rarity": 0
+    },
+    {
+      "description": "発射間隔を短縮する。",
+      "effects": [
+        "Rapid"
+      ],
+      "id": "Rapid",
+      "maxPurchases": 1,
+      "name": "速射",
+      "price": 24,
+      "rarity": 0
+    },
+    {
+      "description": "移動とダッシュを強化する。",
+      "effects": [
+        "Thrusters"
+      ],
+      "id": "Thrusters",
+      "maxPurchases": 1,
+      "name": "推進器",
+      "price": 24,
+      "rarity": 0
+    },
+    {
+      "description": "スタミナの余裕を増やす。",
+      "effects": [
+        "Capacitor"
+      ],
+      "id": "Capacitor",
+      "maxPurchases": 1,
+      "name": "蓄電池",
+      "price": 24,
+      "rarity": 0
+    },
+    {
+      "description": "最大HPを増やし、その増加分を修復する。",
+      "effects": [
+        "Repair"
+      ],
+      "id": "Repair",
+      "maxPurchases": 1,
+      "name": "装甲修復",
+      "price": 24,
+      "rarity": 0
+    },
+    {
+      "description": "支援ドローンを追加する。",
+      "effects": [
+        "Drones"
+      ],
+      "id": "Drones",
+      "maxPurchases": 1,
+      "name": "支援ドローン",
+      "price": 24,
+      "rarity": 0
+    },
+    {
+      "description": "弾が敵を貫く。",
+      "effects": [
+        "Pierce"
+      ],
+      "id": "Pierce",
+      "maxPurchases": 1,
+      "name": "貫通",
+      "price": 24,
+      "rarity": 0
+    },
+    {
+      "description": "弾数が増え、最初の命中で小弾に分裂。",
+      "effects": [
+        "ScatterShot"
+      ],
+      "id": "ScatterShot",
+      "maxPurchases": 1,
+      "name": "分裂弾",
+      "price": 42,
+      "rarity": 1
+    },
+    {
+      "description": "弾が近くの敵を追う。",
+      "effects": [
+        "Homing"
+      ],
+      "id": "Homing",
+      "maxPurchases": 1,
+      "name": "追尾",
+      "price": 42,
+      "rarity": 1
+    },
+    {
+      "description": "ダッシュ中に攻撃。重弾と組み合わせると爆発。",
+      "effects": [
+        "DashBurst"
+      ],
+      "id": "DashBurst",
+      "maxPurchases": 1,
+      "name": "ダッシュ攻撃",
+      "price": 42,
+      "rarity": 1
+    },
+    {
+      "description": "連続攻撃を強化。追尾との組み合わせで旋回も強化。",
+      "effects": [
+        "Overdrive"
+      ],
+      "id": "Overdrive",
+      "maxPurchases": 1,
+      "name": "過負荷",
+      "price": 42,
+      "rarity": 1
+    },
+    {
+      "description": "反射と分裂をまとめた複合改造。",
+      "effects": [
+        "Ricochet",
+        "ScatterShot"
+      ],
+      "id": "BankshotKit",
+      "maxPurchases": 1,
+      "name": "反射散弾キット",
+      "price": 58,
+      "rarity": 1
+    },
+    {
+      "description": "重弾とダッシュ攻撃を組み合わせ、突進先で爆発。",
+      "effects": [
+        "Heavy",
+        "DashBurst"
+      ],
+      "id": "DashBomberKit",
+      "maxPurchases": 1,
+      "name": "突撃爆破キット",
+      "price": 58,
+      "rarity": 1
+    }
+  ]
+}

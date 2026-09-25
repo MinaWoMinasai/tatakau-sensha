@@ -25,6 +25,7 @@
 #include "game/ui/NeonTextEffect.h"
 #include "game/player/TankRunModifiers.h"
 #include "game/player/TankExpeditionLoadout.h"
+#include "game/run/TankExpeditionContent.h"
 
 enum class ClassType {
 	
@@ -225,6 +226,20 @@ public:
 	void TakeDamage(uint32_t amount, float invincibleTime = 0.45f);
 	void ApplyBalanceConfig(const BalanceConfig& config);
 	void SetRunModifiers(const TankRunModifiers& modifiers);
+    struct RunCombatSnapshot {
+        int barrels = 0, projectilesPerBarrel = 1, activeDrones = 0;
+        int maxWallBounces = -1, actorPierceCount = 0, impactSplitCount = 0;
+        bool reflects = false, homing = false, dashBurst = false, dashExplosion = false;
+        float homingTurnRate = 0;
+        uint32_t dashExplosionsEmitted = 0;
+        float shotDamage = 0, reloadSeconds = 0;
+    };
+    RunCombatSnapshot GetRunCombatSnapshot() const;
+    bool IsDemoInputEnabled() const { return demoInputEnabled_; }
+    void SetDemoInput(bool enabled, const Vector2& move, const Vector3& aimWorld, bool shoot, bool dash) {
+        demoInputEnabled_=enabled; demoMove_=move; demoAim_=aimWorld; demoShoot_=shoot; demoDash_=dash;
+        if(enabled) { isChangeMode=false; runRoomAwaitInputRelease_=false; }
+    }
 	void ConfigurePrototypeLoadout(int archetype); // 0: Twin, 1: MachineGun, 2: Overseer
 	void HealRunPlayer(int amount);
 	bool SpendRunHealth(int amount);
@@ -307,6 +322,13 @@ public:
 
 	// 経験値を加算する関数
 	void AddExp(int amount);
+	// The map owns the wallet. Kills enqueue credits instead of advancing level.
+	void SetRunCurrencyMode(bool enabled);
+	bool IsRunCurrencyMode() const { return runCurrencyMode_; }
+	int TakeRunCurrencyEarned() { const int earned=runCurrencyEarned_;runCurrencyEarned_=0;return earned; }
+	void InstallRunAuthoredClasses(const tankcontent::Catalog& catalog);
+	std::vector<RunEvolutionChoice> GetRunAuthoredEvolutionChoices() const;
+	bool ChooseRunAuthoredClass(const std::string& id);
 	int GetLevel() const { return level_; }
 	int GetExp() const { return exp_; }
 	int GetNextLevelExpValue() const { return nextLevelExp_; }
@@ -465,6 +487,11 @@ private:
 	static constexpr float kMuzzleFlashDuration = 0.06f;
 	std::vector<BarrelModel> barrels_;
 	std::unordered_map<std::string, PlayerClassConfig> classConfigs_;
+	std::unordered_map<std::string, PlayerClassConfig> runAuthoredClasses_;
+	std::vector<RunEvolutionChoice> runAuthoredChoices_;
+	bool runCurrencyMode_=false;
+	bool runAuthoredEvolutionActive_=false;
+	int runCurrencyEarned_=0;
 	std::vector<std::string> classOrder_;
 	// テクスチャハンドル
 	uint32_t textureHandle_ = 0u;
@@ -546,6 +573,13 @@ private:
 	PlayerStats stats_;
 	PlayerStats baseStats_;
 	TankRunModifiers runModifiers_{};
+    TankRunGrowth runGrowth_{};
+    uint32_t runDashExplosionsEmitted_ = 0;
+    std::string runStarterBranch_ = "Twin";
+    PlayerClassConfig runStarterConfig_{};
+    bool demoInputEnabled_ = false, demoShoot_ = false, demoDash_ = false;
+    Vector2 demoMove_{};
+    Vector3 demoAim_{};
 	TankExpeditionMaintenance runMaintenance_{};
 	PlayerClassConfig runEvolutionConfig_{};
 	bool runEvolutionActive_ = false;

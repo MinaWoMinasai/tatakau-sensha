@@ -367,7 +367,14 @@ void Game::Run() {
 }
 
 void Game::MainLoop() {
-
+    const auto testEnabled = [](const char* name) {
+        char flag[8]{};
+        return GetEnvironmentVariableA(name, flag, sizeof(flag)) == 1 && flag[0] == '1';
+    };
+    // Hidden deterministic verification must not pause when the user switches
+    // applications. Ordinary interactive play still suspends on lost focus.
+    const bool backgroundValidation = testEnabled("CG2_TITLE_AUTOTEST") ||
+        testEnabled("CG2_TANK_TUTORIAL_AUTOTEST") || testEnabled("CG2_TANK_AUTOTEST") || testEnabled("CG2_TANK_MAP_AUTOTEST");
     MSG msg{};
     while (msg.message != WM_QUIT) {
 		const auto frameStart = std::chrono::steady_clock::now();
@@ -377,12 +384,31 @@ void Game::MainLoop() {
 
 		const auto messageStart = std::chrono::steady_clock::now();
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN) {
+                // DIK scan codes use bit 7 for extended keys (arrows, numpad Enter).
+                unsigned int rawScan = static_cast<unsigned int>((msg.lParam >> 16) & 0xff);
+                bool extended = (msg.lParam & (1LL << 24)) != 0;
+                // Software keyboards can supply only a virtual key. Preserve
+                // the same menu behavior when the hardware scan code is absent.
+                if (!rawScan) {
+                    rawScan = MapVirtualKeyW(static_cast<UINT>(msg.wParam), MAPVK_VK_TO_VSC_EX);
+                    extended = (rawScan & 0xff00u) == 0xe000u;
+                }
+                const unsigned int scanCode = (rawScan & 0x7fu) | (extended ? 0x80u : 0u);
+                Input::GetInstance()->RecordKeyDown(scanCode, (msg.lParam & (1LL << 30)) != 0);
+            }
             if (msg.message == WM_KEYDOWN && msg.wParam == VK_F1 && !(msg.lParam & (1LL << 30))) {
                 RuntimeProfiler::Get().HandleShortcut((GetKeyState(VK_SHIFT) & 0x8000) != 0,
                     SceneManager::GetInstance()->GetCurrentSceneName() == "INK_SHOOTER_LAB");
             }
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+            // Clear stale keys at the focus event itself, before any subsequent
+            // key-down in the same message batch can be recorded.
+            if (WinApp::GetInstance()->ConsumeActivationChanged()) {
+                Input::GetInstance()->OnFocusChanged(WinApp::GetInstance()->IsActive());
+                dxCommon_->ResetFixFPS();
+            }
         }
         if (msg.message == WM_QUIT) {
             break;
@@ -392,11 +418,7 @@ void Game::MainLoop() {
         Input* input = Input::GetInstance();
         WinApp* winApp = WinApp::GetInstance();
 
-        if (winApp->ConsumeActivationChanged()) {
-            input->OnFocusChanged(winApp->IsActive());
-            dxCommon_->ResetFixFPS();
-        }
-        if (!winApp->IsActive()) {
+        if (!winApp->IsActive() && !backgroundValidation) {
             dxCommon_->ResetFixFPS();
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
             continue;
@@ -427,7 +449,7 @@ void Game::MainLoop() {
         bloom_->Update();
 
 #ifdef USE_IMGUI
-        if (input->IsPress(input->GetKey()[DIK_LSHIFT]) && input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
+        if (input->IsPress(input->GetKey()[DIK_LCONTROL]) && input->IsPress(input->GetKey()[DIK_LSHIFT]) && input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
             if (Object3dCommon::GetInstance()->GetIsDebugCamera()) {
                 Object3dCommon::GetInstance()->SetIsDebugCamera(false);
             } else {

@@ -70,10 +70,10 @@ float3 ApplyColorModifiers(float3 color)
 {
     if (isInverted > 0.5f)
         color = 1.0f - color;
-    if (isGrayscale > 0.5f)
+    if (isGrayscale > 0.0f)
     {
         float gray = dot(color, float3(0.2126, 0.7152, 0.0722));
-        color = float3(gray, gray, gray);
+        color = lerp(color, float3(gray, gray, gray), saturate(isGrayscale));
     }
     return color;
 }

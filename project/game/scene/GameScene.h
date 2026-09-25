@@ -38,6 +38,13 @@
 #include "game/run/TankRunDirector.h"
 #include "game/run/TankExpeditionDirector.h"
 #include "game/run/TankExpeditionAudio.h"
+#include "game/run/TankExpeditionTutorial.h"
+#include "game/run/TankExpeditionMap.h"
+#include "game/run/TankExpeditionRooms.h"
+#include "game/run/TankExpeditionContent.h"
+#include "game/editor/ExpeditionRoomEditor.h"
+#include "game/editor/ExpeditionMapEditor.h"
+#include "game/editor/ExpeditionContentEditor.h"
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -88,10 +95,100 @@ public:
 	PostEffectPulse GetPostEffectPulse() const override { return deathPostPulse_; }
 	ScreenEffectState GetScreenEffectState() const override;
 	void SetRenderProfile(const IScene::RenderProfile& profile) override;
+	struct TitleDemoStatus {
+		int stage = 0;
+		float stageSeconds = 0, totalSeconds = 0;
+		uint32_t stagesVisitedMask = 0;
+		int shots = 0, dashes = 0, kills = 0, rewards = 0, routes = 0, maxPlayerBullets = 0;
+	};
+	void EnableTitleDemo() { titleDemo_ = true; }
+	bool IsTitleDemo() const { return titleDemo_; }
+	const TitleDemoStatus& GetTitleDemoStatus() const { return titleDemoStatus_; }
+	void RequestTitleDemoCapture(const std::string& name);
+	void CopyTitleDemoCapture();
+	void FlushTitleDemoCapture();
+	nlohmann::json GetTitleDemoBuild() const;
 	
 	std::string GetNextSceneName() const override;
 
 private:
+	void InitializeTitleDemo();
+	void UpdateTitleDemo(float dt);
+	void ResetTitleDemoStage(int stage);
+	void VerifyTitleDemoTransition(float dt);
+	float titleDemoTransitionTimer_ = 0;
+	bool titleDemoTransitionVerified_ = false;
+	bool titleDemo_ = false;
+	TitleDemoStatus titleDemoStatus_{};
+	bool titleDemoPreviousDash_ = false;
+	size_t titleDemoPreviousBulletCount_ = 0;
+	float titleDemoNavigationTimer_ = 0;
+	Vector3 titleDemoMoveTarget_{};
+	std::vector<Vector3> titleDemoPath_;
+	void ApplyTankExpeditionRoomGeometry();
+	void InitializeTankExpeditionBalance();
+	void ApplyTankExpeditionRoomBalance();
+	void UpdateTankExpeditionBalanceEditor();
+	void DrawTankExpeditionBalanceEditor();
+	bool tankExpeditionBalanceEditorOpen_ = false;
+	void InitializeExpeditionMap();
+	void UpdateExpeditionMap(float dt);
+	void UpdateExpeditionAuthoring();
+	void RefreshExpeditionMapUi();
+	void DrawExpeditionMapUi();
+	void EnterExpeditionMapNode(const std::string& id);
+	void SelectExpeditionService(int option);
+	void CompleteExpeditionMapCombat();
+	bool StartAuthoredExpeditionRoom();
+	void RefreshExpeditionServiceOffers();
+	void SetExpeditionBlueprint(int index);
+	void UpdateExpeditionMapValidation(float dt);
+	bool expeditionMapEnabled_ = false;
+	bool expeditionRoomEditorOpen_ = false, expeditionMapEditorOpen_ = false, expeditionContentEditorOpen_ = false;
+	tankexp::MapDefinition expeditionMapDefinition_;
+	tankexp::ExpeditionMapRun expeditionMapRun_;
+	tankexp::RoomCatalog expeditionRooms_;
+	tankcontent::Catalog expeditionContent_;
+	tankexp::ExpeditionRoomEditor expeditionRoomEditor_;
+	tankexp::MapEditor expeditionMapEditor_;
+	tankcontent::ContentEditor expeditionContentEditor_;
+	std::string expeditionMapSelection_, expeditionMapStatus_;
+	std::vector<std::string> expeditionServiceOffers_;
+	std::unordered_map<std::string,int> expeditionPurchases_;
+	int expeditionServicePage_ = 0, expeditionBlueprint_ = 0;
+	float expeditionMapScroll_ = 0;
+	bool expeditionMapPreview_ = false;
+	struct MapNodeVisual {
+		Vector2 center{};
+		std::unique_ptr<Sprite> halo, rim, fill;
+		std::unique_ptr<TextLabel> icon, label, state;
+	};
+	struct MapEdgeVisual {std::string from,to;std::unique_ptr<Sprite> glow,line;};
+	std::vector<MapNodeVisual> expeditionMapVisuals_;
+	std::vector<MapEdgeVisual> expeditionMapEdges_;
+	std::vector<std::unique_ptr<Sprite>> expeditionMapGrid_;
+	std::unique_ptr<TextLabel> expeditionMapTitle_, expeditionMapSubtitle_, expeditionMapInfo_, expeditionMapLegend_, expeditionMapHelp_;
+	std::array<std::unique_ptr<TextLabel>,3> expeditionBlueprintLabels_;
+	std::array<std::unique_ptr<Sprite>,3> expeditionBlueprintButtons_;
+	bool expeditionMapAutoTest_ = false;
+	float expeditionMapTestElapsed_ = 0, expeditionMapTestAge_ = 0;
+	std::string expeditionMapTestState_;
+	std::vector<std::string> expeditionMapTestVisited_;
+	int expeditionMapTestPurchases_ = 0, expeditionMapTestHeals_ = 0, expeditionMapTestEvolutions_ = 0;
+	nlohmann::json tankExpeditionBalance_;
+	void UpdateTankExpeditionTutorial(float dt);
+	void UpdateTankExpeditionTutorialValidation(float dt);
+	tankexp::TutorialValidationState tankExpeditionTutorialValidation_{};
+	void DrawTankExpeditionTutorial();
+	void RefreshTankExpeditionTutorialUi();
+	tankexp::ExpeditionTutorial tankExpeditionTutorial_{};
+	bool tankExpeditionTutorialSaved_ = false;
+	bool tankExpeditionDetailsOpen_ = false;
+	int tankExpeditionTutorialKills_ = 0;
+	Vector3 tankExpeditionTutorialPrevious_{};
+	std::unique_ptr<Sprite> tankExpeditionHpTrack_, tankExpeditionHpFill_;
+	std::unique_ptr<Sprite> tankExpeditionExpTrack_, tankExpeditionExpFill_, tankExpeditionBuildPanel_;
+	std::unique_ptr<TextLabel> tankExpeditionExpText_, tankExpeditionDetailsText_;
 	void InitializeTankExpedition();
 	void UpdateTankExpedition(float dt);
 	void StartTankExpeditionRoom();
@@ -221,6 +318,7 @@ private:
 		float shooterFireInterval = 1.25f;
 		float shooterBulletSpeed = 0.20f;
 		float bossBulletSpeed = 0.4f;
+		int bossMaxHp = 1050;
 		int bossBulletCount = 2;
 		float bossSpreadAngleDeg = 30.0f;
 		float bossCooldown = 0.15f;

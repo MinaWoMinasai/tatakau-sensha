@@ -23,6 +23,9 @@ public:
 	/// </summary>
 	void BeforeFrameData();
 	void OnFocusChanged(bool active);
+	// Retain short key presses that begin and end between two game frames.
+	void RecordKeyDown(unsigned int scanCode, bool repeated);
+	bool IsKeyTriggered(uint8_t scanCode) const;
 
 	// キーが押されている状態か
 	bool IsPress(const uint8_t key);
@@ -54,6 +57,8 @@ private:
 	// キーの配列
 	BYTE key_[256] = {};
 	BYTE preKey_[256] = {};
+	bool pendingKeyPress_[256] = {};
+	bool frameKeyPress_[256] = {};
 
 	// マウスの状態を格納する構造体
 	DIMOUSESTATE mouseState_;

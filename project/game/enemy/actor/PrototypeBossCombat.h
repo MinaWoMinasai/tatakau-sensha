@@ -28,13 +28,13 @@ public:
 	}
 	bool HoldsPosition() const { return phase_ != Phase::Recovery; }
 
-	Shot Step(float dt, bool canBeginAttack, float targetAngle, float hpRatio, int pressure, bool foraging) {
+	Shot Step(float dt, bool canBeginAttack, float targetAngle, float hpRatio, int pressure, bool foraging, float recoveryScale = 1.0f) {
 		Shot shot{};
 		if (!std::isfinite(dt) || dt <= 0.0f) return shot;
 		// A hitch must not skip the visible warning or release a burst of shots.
 		elapsed_ += (std::min)(dt, 0.10f);
 		if (phase_ == Phase::Recovery) {
-			if (elapsed_ < recoveryDuration_ || !canBeginAttack) return shot;
+			if (elapsed_ < recoveryDuration_ * (std::clamp)(recoveryScale, 0.20f, 10.0f) || !canBeginAttack) return shot;
 			pressure_ = (std::clamp)(pressure, 0, 4);
 			aimAngle_ = std::isfinite(targetAngle) ? targetAngle : 0.0f;
 			type_ = AttackType::AimedSpread;
