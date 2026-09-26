@@ -35,19 +35,19 @@ $tankExpBuildCmd = Join-Path $tankExpOutputDir 'build_tank_expedition_map_tests.
 $tankExpBatch = @'
 @echo off
 call "%TANK_EXP_TEST_VS_DEV_CMD%" -no_logo -arch=x64 -host_arch=x64
-if errorlevel 1 exit /b %errorlevel%
+if not "%errorlevel%"=="0" exit /b %errorlevel%
 cl /nologo /std:c++17 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /I"%TANK_EXP_TEST_INCLUDE%" /Fe:tank_expedition_map_tests.exe /Fo:.\ "%TANK_EXP_TEST_SOURCE%"
-if errorlevel 1 exit /b %errorlevel%
+if not "%errorlevel%"=="0" exit /b %errorlevel%
 cl /nologo /std:c++17 /utf-8 /EHsc /W4 /WX /O2 /DUSE_RUNTIME_PROFILER /I"%TANK_EXP_TEST_INCLUDE%" /I"%TANK_EXP_PROJECT%" /c /Fo:expedition_map_editor.obj "%TANK_EXP_EDITOR_SOURCE%"
-if errorlevel 1 exit /b %errorlevel%
+if not "%errorlevel%"=="0" exit /b %errorlevel%
 tank_expedition_map_tests.exe "%TANK_EXP_MAP_JSON%"
-if errorlevel 1 exit /b %errorlevel%
+if not "%errorlevel%"=="0" exit /b %errorlevel%
 cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /I"%TANK_EXP_TEST_INCLUDE%" /Fe:tank_expedition_map_tests_cpp20.exe /Fo:.\ "%TANK_EXP_TEST_SOURCE%"
-if errorlevel 1 exit /b %errorlevel%
+if not "%errorlevel%"=="0" exit /b %errorlevel%
 cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /DUSE_RUNTIME_PROFILER /I"%TANK_EXP_TEST_INCLUDE%" /I"%TANK_EXP_PROJECT%" /c /Fo:expedition_map_editor_cpp20.obj "%TANK_EXP_EDITOR_SOURCE%"
-if errorlevel 1 exit /b %errorlevel%
+if not "%errorlevel%"=="0" exit /b %errorlevel%
 tank_expedition_map_tests_cpp20.exe "%TANK_EXP_MAP_JSON%"
-if errorlevel 1 exit /b %errorlevel%
+if not "%errorlevel%"=="0" exit /b %errorlevel%
 exit /b %errorlevel%
 '@
 [System.IO.File]::WriteAllText($tankExpBuildCmd, $tankExpBatch, [System.Text.Encoding]::ASCII)

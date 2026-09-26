@@ -5,7 +5,8 @@ namespace tankexp {
 class ExpeditionRoomEditor {
 public:
     // An accepted Apply/Save/Reload returns true. Invalid edits never replace applied.
-    bool Draw(bool* open,RoomCatalog& applied,const std::vector<std::string>& enemyIds);
+    bool Draw(bool* open,RoomCatalog& applied,const std::vector<std::string>& enemyIds,
+        const MapDefinition* map=nullptr,const MapDefinition* activeMap=nullptr);
     const std::string& GetSelectedRoomId() const;
     void ResetDraft() { initialized_=false; }
 private:

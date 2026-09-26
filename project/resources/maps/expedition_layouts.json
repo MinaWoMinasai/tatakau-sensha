@@ -12,18 +12,25 @@
       ],
       "spawns": [
         {
-          "hp": 16,
+          "hp": 24,
           "id": "enemy_1",
           "type": "Charger",
           "x": 38.0,
           "y": 22.0
         },
         {
-          "hp": 16,
+          "hp": 24,
           "id": "enemy_2",
-          "type": "Charger",
+          "type": "Skirmisher",
           "x": 50.0,
           "y": 34.0
+        },
+        {
+          "hp": 24,
+          "id": "enemy_3",
+          "type": "Skirmisher",
+          "x": 58.0,
+          "y": 22.0
         }
       ],
       "tiles": [
@@ -70,25 +77,32 @@
       ],
       "spawns": [
         {
-          "hp": 28,
+          "hp": 0,
           "id": "enemy_1",
-          "type": "Charger",
+          "type": "Flanker",
           "x": 42.0,
           "y": 24.0
         },
         {
-          "hp": 28,
+          "hp": 0,
           "id": "enemy_2",
-          "type": "Shooter",
+          "type": "Skirmisher",
           "x": 58.0,
           "y": 34.0
         },
         {
-          "hp": 26,
+          "hp": 0,
           "id": "enemy_3",
           "type": "Sniper",
           "x": 60.0,
           "y": 20.0
+        },
+        {
+          "hp": 0,
+          "id": "enemy_4",
+          "type": "Skirmisher",
+          "x": 46.0,
+          "y": 38.0
         }
       ],
       "tiles": [
@@ -135,25 +149,32 @@
       ],
       "spawns": [
         {
-          "hp": 32,
+          "hp": 0,
           "id": "enemy_1",
           "type": "Charger",
           "x": 34.0,
           "y": 24.0
         },
         {
-          "hp": 34,
+          "hp": 0,
           "id": "enemy_2",
-          "type": "Sniper",
+          "type": "Flanker",
           "x": 56.0,
           "y": 36.0
         },
         {
-          "hp": 30,
+          "hp": 0,
           "id": "enemy_3",
-          "type": "Shooter",
+          "type": "Suppressor",
           "x": 62.0,
           "y": 28.0
+        },
+        {
+          "hp": 0,
+          "id": "enemy_4",
+          "type": "Skirmisher",
+          "x": 44.0,
+          "y": 22.0
         }
       ],
       "tiles": [
@@ -200,16 +221,16 @@
       ],
       "spawns": [
         {
-          "hp": 36,
+          "hp": 0,
           "id": "enemy_1",
-          "type": "Charger",
+          "type": "Flanker",
           "x": 34.0,
           "y": 22.0
         },
         {
-          "hp": 36,
+          "hp": 0,
           "id": "enemy_2",
-          "type": "Charger",
+          "type": "Skirmisher",
           "x": 46.0,
           "y": 28.0
         },
@@ -221,9 +242,9 @@
           "y": 38.0
         },
         {
-          "hp": 32,
+          "hp": 0,
           "id": "enemy_4",
-          "type": "Shooter",
+          "type": "Suppressor",
           "x": 60.0,
           "y": 24.0
         }
@@ -277,16 +298,16 @@
       ],
       "spawns": [
         {
-          "hp": 32,
+          "hp": 0,
           "id": "enemy_1",
-          "type": "Charger",
+          "type": "Flanker",
           "x": 42.0,
           "y": 22.0
         },
         {
-          "hp": 32,
+          "hp": 0,
           "id": "enemy_2",
-          "type": "Charger",
+          "type": "Skirmisher",
           "x": 46.0,
           "y": 38.0
         }
@@ -355,18 +376,25 @@
           "y": 24.0
         },
         {
-          "hp": 34,
+          "hp": 0,
           "id": "enemy_2",
-          "type": "Sniper",
+          "type": "Flanker",
           "x": 56.0,
           "y": 36.0
         },
         {
-          "hp": 30,
+          "hp": 0,
           "id": "enemy_3",
-          "type": "Shooter",
+          "type": "Suppressor",
           "x": 62.0,
           "y": 28.0
+        },
+        {
+          "hp": 0,
+          "id": "enemy_4",
+          "type": "Skirmisher",
+          "x": 44.0,
+          "y": 22.0
         }
       ],
       "tiles": [

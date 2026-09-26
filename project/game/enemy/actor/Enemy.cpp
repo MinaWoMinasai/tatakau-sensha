@@ -327,6 +327,15 @@ void Enemy::SetPrototypeMaxHp(int maxHp, bool healToFull)
 Enemy::PrototypeTelegraph Enemy::GetPrototypeTelegraph() const
 {
 	PrototypeTelegraph result{};
+	if (expeditionRivalEnabled_) {
+		const auto status = GetRivalCombatStatus();
+		result.active = status.enabled && (status.phase == RivalBossCombat::Phase::Tracking || status.phase == RivalBossCombat::Phase::Locked);
+		result.attackType = status.pattern == RivalBossCombat::Pattern::Sweep ? PrototypeAttackType::Sweep : PrototypeAttackType::AimedSpread;
+		result.direction = status.direction;
+		result.progress = status.phase == RivalBossCombat::Phase::Locked ? 1.0f : status.progress;
+		result.spreadAngleDeg = RivalBossCombat::WarningHalfAngle(status.pattern) * 2.0f;
+		return result;
+	}
 	result.active = runEncounterEnabled_ && prototypeCombatEnabled_ && !isDead_ && hp_ > 0 &&
 		prototypeCombat_.GetPhase() == PrototypeBossCombat::Phase::Telegraph;
 	result.attackType = prototypeCombat_.GetAttackType();
@@ -342,6 +351,7 @@ void Enemy::SetRunEncounterEnabled(bool enabled)
 	runEncounterEnabled_ = enabled;
 	if (!enabled) {
 		velocity_ = {};
+		impactVelocity_ = {};
 		levelingModeActive_ = false;
 		prototypeResourceTargetActive_ = false;
 		prototypeCombat_.Reset();
@@ -351,6 +361,7 @@ void Enemy::SetRunEncounterEnabled(bool enabled)
 void Enemy::ResetRunEncounter(const Vector3& position, int hp, int pressure, bool resourceFocus)
 {
 	if (!object_) return;
+	expeditionRivalEnabled_ = false;
 	if (!runEncounterBaselineCaptured_) {
 		runEncounterBaseContactDamage_ = GetDamage();
 		runEncounterBaseBulletDamage_ = bossAttackConfig_.damage;
@@ -378,6 +389,7 @@ void Enemy::ResetRunEncounter(const Vector3& position, int hp, int pressure, boo
 	levelingModeActive_ = false;
 	currentMoveTargetPosition_ = position;
 	velocity_ = dir_ = evadeVec = wanderVec = wallFollowDir_ = {};
+	impactVelocity_ = {};
 	steeringDir_ = { 1.0f, 0.0f, 0.0f };
 	steeringNoise_ = {};
 	aiState_ = AIState::Wander;
@@ -397,6 +409,170 @@ void Enemy::ResetRunEncounter(const Vector3& position, int hp, int pressure, boo
 	object_->SetTransform(worldTransform_);
 	object_->Update();
 	UpdateHPBar();
+}
+
+void Enemy::EnableExpeditionRival(bool enabled)
+{
+	expeditionRivalEnabled_ = enabled;
+	rivalCombat_.Reset();
+	rivalDashDirection_ = { 0.0f, 1.0f, 0.0f };
+	rivalPathDirection_ = {};
+	rivalPathTimer_ = rivalDashDistance_ = 0.0f;
+	rivalStrafeSign_ = 1.0f;
+	velocity_ = {};
+	impactVelocity_ = {};
+	if (enabled) {
+		// This encounter is a duel: fighting/feeding on the boss's own guards
+		// would distract it from the player and silently replenish its health.
+		prototypeResourceFocus_ = prototypeResourceTargetActive_ = levelingModeActive_ = false;
+		EnemyProgressConfig progress = enemyProgressConfig_;
+		progress.expEnemyHostile = progress.levelingModeEnabled = false;
+		SetEnemyProgressConfig(progress);
+	}
+}
+
+Enemy::RivalCombatStatus Enemy::GetRivalCombatStatus() const
+{
+	RivalCombatStatus status{};
+	status.enabled = expeditionRivalEnabled_ && runEncounterEnabled_ && !isDead_ && hp_ > 0;
+	status.phase2 = rivalCombat_.IsPhaseTwo();
+	status.phase = rivalCombat_.GetPhase();
+	status.pattern = rivalCombat_.GetPattern();
+	status.progress = rivalCombat_.GetProgress();
+	status.ammo = rivalCombat_.GetAmmo();
+	status.capacity = rivalCombat_.GetCapacity();
+	status.shotsFired = rivalCombat_.GetShotsFired();
+	status.dashCount = rivalCombat_.GetDashCount();
+	status.reloadCount = rivalCombat_.GetReloadCount();
+	const float angle = rivalCombat_.GetAimAngle();
+	status.direction = { std::cos(angle), std::sin(angle), 0.0f };
+	status.dashDirection = rivalDashDirection_;
+	status.dashDistance = rivalDashDistance_;
+	return status;
+}
+
+void Enemy::SelectRivalDashDirection(const Vector3& towardPlayer)
+{
+	const Vector3 side{ -towardPlayer.y * rivalStrafeSign_, towardPlayer.x * rivalStrafeSign_, 0.0f };
+	const bool close = Length(player_->GetWorldPosition() - GetWorldPosition()) < 14.0f;
+	const Vector3 radial = towardPlayer * (close ? -0.55f : 0.35f);
+	const std::array<Vector3, 6> candidates{
+		Normalize(side + radial), Normalize(-side + radial), side, -side, -towardPlayer, towardPlayer
+	};
+	rivalDashDirection_ = candidates.front();
+	rivalDashDistance_ = 0.0f;
+	// Pick a genuinely traversable flank, including the rival's body width.
+	// A blocked arena never turns a dash into a teleport through a wall.
+	for (float scale : { 1.0f, 0.70f, 0.40f }) {
+		for (const auto& candidate : candidates) {
+			const float distance = rivalCombat_.GetDashDistance() * scale;
+			if (HasClearMoveRouteToTarget(GetWorldPosition() + candidate * distance)) {
+				rivalDashDirection_ = candidate;
+				rivalDashDistance_ = distance;
+				return;
+			}
+		}
+	}
+}
+
+Vector3 Enemy::ResolveRivalMove(const Vector3& desired, const Vector3& towardPlayer, float deltaTime)
+{
+	rivalPathTimer_ -= deltaTime;
+	const Vector3 position = GetWorldPosition();
+	if (!HasClearMoveRouteToTarget(player_->GetWorldPosition())) {
+		if (rivalPathTimer_ <= 0.0f) {
+			const auto path = FindPathDirectionToPlayer();
+			rivalPathDirection_ = path.value_or(Vector3{});
+			rivalPathTimer_ = 0.25f;
+		}
+		if (Length(rivalPathDirection_) > 0.001f) return rivalPathDirection_;
+	}
+	if (HasClearMoveRouteToTarget(position + desired * 3.0f)) return desired;
+	const Vector3 mirrored = towardPlayer * Dot(desired, towardPlayer) -
+		(desired - towardPlayer * Dot(desired, towardPlayer));
+	if (HasClearMoveRouteToTarget(position + mirrored * 3.0f)) {
+		rivalStrafeSign_ *= -1.0f;
+		return mirrored;
+	}
+	if (HasClearMoveRouteToTarget(position - towardPlayer * 3.0f)) return -towardPlayer;
+	if (HasClearMoveRouteToTarget(position + towardPlayer * 3.0f)) return towardPlayer;
+	return {};
+}
+
+void Enemy::UpdateRivalCombat(float deltaTime)
+{
+	if (!player_ || !bulletManager_ || !stage_ || isDead_ || hp_ <= 0 || !std::isfinite(deltaTime) || deltaTime <= 0.0f) {
+		velocity_ = {};
+		return;
+	}
+	using Phase = RivalBossCombat::Phase;
+	currentMoveTargetPosition_ = player_->GetWorldPosition();
+	Vector3 toward = currentMoveTargetPosition_ - GetWorldPosition();
+	toward.z = 0.0f;
+	const float distance = Length(toward);
+	toward = distance > 0.001f ? toward / distance : Vector3{ 1.0f, 0.0f, 0.0f };
+	// Short prediction rewards changing direction; aim stops following after lock.
+	const Vector3 aimTarget = currentMoveTargetPosition_ + player_->GetMove() * 12.0f;
+	const Vector3 aim = aimTarget - GetWorldPosition();
+	bool threat = false;
+	if (rivalCombat_.GetPhase() == Phase::Reposition) {
+		for (Bullet* bullet : bulletManager_->GetBulletPtrs()) {
+			if (!bullet || bullet->IsDead() || bullet->GetCollisionAttribute() != kCollisionAttributePlayerBullet) continue;
+			const Vector3 relative = bullet->GetWorldPosition() - GetWorldPosition();
+			const Vector3 speed = bullet->GetMove();
+			if (RivalBossCombat::IsIncomingThreat(relative.x, relative.y, speed.x, speed.y, radius_ + bullet->GetRadius() + 0.5f)) {
+				threat = true;
+				break;
+			}
+		}
+	}
+	const Phase previousPhase = rivalCombat_.GetPhase();
+	const auto shot = rivalCombat_.Step(deltaTime, HasLineOfSightToPlayer(), std::atan2(aim.y, aim.x),
+		static_cast<float>(hp_) / static_cast<float>((std::max)(1, maxHP_)), threat);
+	const Phase phase = rivalCombat_.GetPhase();
+	if (phase == Phase::DashWarning && previousPhase != phase) SelectRivalDashDirection(toward);
+	if (phase == Phase::Reposition && previousPhase == Phase::Reload) rivalStrafeSign_ = rivalCombat_.GetStrafeSign();
+	if (phase == Phase::Dash) {
+		if (rivalDashDistance_ <= 0.05f) {
+			rivalCombat_.FinishDash();
+			velocity_ = {};
+		} else {
+			const float frames = (std::max)(0.001f, deltaTime * 60.0f);
+			const float speed = (std::min)(rivalCombat_.GetDashSpeed(), rivalDashDistance_ / frames);
+			velocity_ = rivalDashDirection_ * speed;
+			rivalDashDistance_ = (std::max)(0.0f, rivalDashDistance_ - speed * frames);
+		}
+	} else if (phase == Phase::Reposition || phase == Phase::Tracking || phase == Phase::Reload) {
+		const Vector3 side{ -toward.y * rivalStrafeSign_, toward.x * rivalStrafeSign_, 0.0f };
+		const float desiredDistance = phase == Phase::Reload ? 23.0f : 18.0f;
+		const float radial = (std::clamp)((distance - desiredDistance) / 9.0f, -0.90f, 1.0f);
+		Vector3 desired = Normalize(side * (phase == Phase::Reload ? 0.20f : 0.90f) + toward * radial);
+		desired = ResolveRivalMove(desired, toward, deltaTime);
+		const float speed = phase == Phase::Reload ? 0.035f : (rivalCombat_.IsPhaseTwo() ? 0.18f : 0.15f);
+		velocity_ += (desired * speed - velocity_) * (1.0f - std::exp(-2.5f * deltaTime));
+	} else {
+		// Coast while aiming; the telegraph follows the live muzzle, while its
+		// committed direction remains fixed and readable.
+		velocity_ = velocity_ * std::exp(-3.5f * deltaTime);
+	}
+	dir_ = Length(velocity_) > 0.001f ? Normalize(velocity_) : Vector3{};
+	worldTransform_.rotate.z = (phase == Phase::Locked || phase == Phase::Volley || phase == Phase::Tracking)
+		? rivalCombat_.GetAimAngle() : std::atan2(toward.y, toward.x);
+	if (!shot.fire) return;
+	AttackParam param{};
+	param.bulletCount = 1;
+	param.randomSpread = false;
+	param.bulletSpeed = prototypeTuningEnabled_ ? (std::clamp)(bossAttackConfig_.bulletSpeed, 0.24f, 0.46f) : 0.32f;
+	if (shot.pattern == RivalBossCombat::Pattern::FanBurst) param.bulletSpeed *= 0.90f;
+	param.damage = prototypeTuningEnabled_ ? bossAttackConfig_.damage : 9u;
+	param.bulletHp = 5.0f;
+	param.bulletPenetration = 3.0f;
+	param.reflect = param.penetrate = param.canClaimRunResource = false;
+	const Vector3 base{ std::cos(shot.angle), std::sin(shot.angle), 0.0f };
+	for (int i = 0; i < RivalBossCombat::ProjectileCount(shot.pattern); ++i) {
+		const Vector3 direction = RotateDirection2D(base, RivalBossCombat::ProjectileOffset(shot.pattern, i, shot.round, rivalCombat_.GetCapacity()));
+		attackController_.FireFromMuzzle(GetWorldPosition() + direction * 1.9f, direction, param, BulletOwner::kEnemy);
+	}
 }
 
 void Enemy::UpdatePrototypeCombat(float deltaTime)
@@ -453,9 +629,15 @@ void Enemy::Update(float deltaTime) {
 	UpdateHPBar();
 	ApplyDamageFeedback(deltaTime);
 
-	Move(deltaTime);
+	if (expeditionRivalEnabled_) {
+		UpdateRivalCombat(deltaTime);
+	} else {
+		Move(deltaTime);
+	}
 
-	if (prototypeCombatEnabled_) {
+	if (expeditionRivalEnabled_) {
+		// Finite rival magazines own their shots; do not run the legacy emitter.
+	} else if (prototypeCombatEnabled_) {
 		UpdatePrototypeCombat(deltaTime);
 	} else if (!isDead_){
 		if (HasLineOfSightToTarget(currentMoveTargetPosition_)) {
@@ -473,11 +655,13 @@ void Enemy::Update(float deltaTime) {
 		}
 	}
 
-	Vector3 move = GetMove() * (deltaTime * 60.0f);
+	Vector3 move = (GetMove() + impactVelocity_) * (deltaTime * 60.0f);
+	impactVelocity_ = impactVelocity_ * std::exp(-5.0f * deltaTime);
 	const float maxStep = 0.35f;
 	const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(move.x), std::abs(move.y)) / maxStep) + 1);
 	Vector3 stepMove = move / static_cast<float>(subStepCount);
 	for (int i = 0; i < subStepCount; ++i) {
+		const Vector3 before = GetWorldPosition();
 		Vector3 pos = GetWorldPosition();
 		pos.x += stepMove.x;
 		SetWorldPosition(pos);
@@ -487,6 +671,14 @@ void Enemy::Update(float deltaTime) {
 		pos.y += stepMove.y;
 		SetWorldPosition(pos);
 		stage_->ResolveEnemyCollision(*this, Y);
+		if (expeditionRivalEnabled_ && rivalCombat_.GetPhase() == RivalBossCombat::Phase::Dash &&
+			Length(GetWorldPosition() - (before + stepMove)) > 0.015f) {
+			// Wall impact ends the dash and starts the full punishable reload.
+			rivalCombat_.FinishDash();
+			velocity_ = {};
+			rivalDashDistance_ = 0.0f;
+			break;
+		}
 	}
 
 	object_->SetTransform(worldTransform_);
@@ -635,6 +827,14 @@ void Enemy::TakeDamage(uint32_t amount)
 	}
 	hp_ -= static_cast<int>(amount);
 	TriggerDamageFeedback();
+}
+
+void Enemy::ApplyKnockback(const Vector3& direction, float power)
+{
+	if (!runEncounterEnabled_ || isDead_ || !std::isfinite(power) || power <= 0.0f || Length(direction) < 0.001f) return;
+	// The boss yields visibly but its committed attack is not stun-locked.
+	impactVelocity_ += Normalize(direction) * ((std::min)(0.95f,power) * 0.35f);
+	if (Length(impactVelocity_) > 0.34f) impactVelocity_ = Normalize(impactVelocity_) * 0.34f;
 }
 
 void Enemy::TriggerDamageFeedback()

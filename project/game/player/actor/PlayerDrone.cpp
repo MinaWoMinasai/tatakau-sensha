@@ -10,13 +10,15 @@ void PlayerDrone::ConfigureRunAttack(const AttackParam& param, float reloadSecon
 {
 	runAttackEnabled_ = true;
 	runAttackParam_ = param;
+	runAttackParam_.bulletCount = 1;
 	runReloadSeconds_ = (std::max)(0.05f, reloadSeconds);
 }
 
 void PlayerDrone::Attack(float deltaTime) {
 	if (runAttackEnabled_) {
 		runShotCooldown_ = (std::max)(0.0f, runShotCooldown_ - deltaTime);
-		const bool wantsAttack = runRallyShotPending_ || input_->IsPress(input_->GetMouseState().rgbButtons[0]);
+		const bool wantsAttack = runInputOverride_ ? runWantsAttack_
+			: (runRallyShotPending_ || input_->IsPress(input_->GetMouseState().rgbButtons[0]));
 		if (runShotCooldown_ <= 0.0f && wantsAttack && runBulletManager_ &&
 			runBulletManager_->GetBulletCounts().player + static_cast<size_t>(runAttackParam_.bulletCount) <= 240) {
 			attackController_.Fire(GetWorldPosition(), dir, runAttackParam_, BulletOwner::kPlayer);
@@ -61,6 +63,14 @@ void PlayerDrone::Attack(float deltaTime) {
 }
 
 void PlayerDrone::RotateToMouse(Camera* viewProjection) {
+	if (runAttackEnabled_ && runInputOverride_) {
+		const Vector3 aim = runAimTarget_ - worldTransform_.translate;
+		if (Length(aim) > 0.001f) dir = Normalize(aim);
+		angle_ = std::atan2(dir.y, dir.x);
+		worldTransform_.rotate.z = angle_;
+		object_->SetRotate(worldTransform_.rotate);
+		return;
+	}
 	// --- 1. マウス座標取得 ---
 	POINT mousePosition;
 	GetCursorPos(&mousePosition);
@@ -129,7 +139,7 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 
 	RotateToMouse(viewProjection);
 
-	Vector3 toPlayer = playerPosition - worldTransform_.translate;
+	Vector3 toPlayer = playerPosition + (runAttackEnabled_ ? runFollowOffset_ : Vector3{}) - worldTransform_.translate;
 
 	float distance = Length(toPlayer);
 	if (distance < 0.01f && !runAttackEnabled_) {
@@ -141,13 +151,13 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 	
 	// --- 目標速度 ---
 	// Keep companions close enough to contribute even while the run player boosts.
-	const float followSpeed = runAttackEnabled_ ? (std::min)(0.62f, 0.25f + distance * 0.035f) : maxSpeed_;
-	Vector3 targetVelocity = dir * followSpeed;
+	const float followSpeed = runAttackEnabled_ ? (std::min)(runCatchupSpeed_, runFollowSpeed_ + distance * 0.035f) : maxSpeed_;
+	Vector3 targetVelocity = dir * (runAttackEnabled_ ? followSpeed * (std::min)(1.0f, distance / 1.2f) : followSpeed);
 
 	// --- 慣性処理 ---
-	float accel = runAttackEnabled_ ? 5.0f : ((Length(dir) > 0.0f) ? accel_ : decel_);
+	float accel = runAttackEnabled_ ? runFollowResponse_ : ((Length(dir) > 0.0f) ? accel_ : decel_);
 
-	velocity_ += (targetVelocity - velocity_) * accel * dt;
+	velocity_ += (targetVelocity - velocity_) * (runAttackEnabled_ ? 1.0f-std::exp(-accel*dt) : accel*dt);
 
 	Vector3 frameMove = GetMove() * (dt * 60.0f);
 	const float maxStep = 0.30f;

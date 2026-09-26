@@ -30,6 +30,13 @@ public:
 	/// </summary>
 	void Attack(float deltaTime = 1.0f / 60.0f);
 	void ConfigureRunAttack(const AttackParam& param, float reloadSeconds);
+	void SetRunInput(const Vector3& target, bool attack) {
+		runInputOverride_ = true; runAimTarget_ = target; runWantsAttack_ = attack;
+	}
+	void SetRunFollowOffset(const Vector3& offset) { runFollowOffset_ = offset; }
+	void SetRunFollowTuning(float speed,float catchup,float response) {
+		runFollowSpeed_=speed;runCatchupSpeed_=catchup;runFollowResponse_=response;
+	}
 	void RallyRunAttack() { runShotCooldown_ = 0.0f; runRallyShotPending_ = true; }
 
 	/// <summary>
@@ -137,6 +144,9 @@ private:
 	float runShotCooldown_ = 0.0f;
 	bool runRallyShotPending_ = false;
 	BulletManager* runBulletManager_ = nullptr;
+	bool runInputOverride_ = false, runWantsAttack_ = false;
+	Vector3 runAimTarget_{}, runFollowOffset_{};
+	float runFollowSpeed_=0.25f,runCatchupSpeed_=0.62f,runFollowResponse_=5.0f;
 
 	// キャラクターの当たり判定サイズ
 	static inline const float kWidth = 1.6f;

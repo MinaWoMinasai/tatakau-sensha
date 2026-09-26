@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <None Include="resources\effects\hit_spark.json">
@@ -830,14 +830,33 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="game\scene\GameScene.ExpeditionMap.cpp" />
+    <ClCompile Include="game\scene\GameScene.ExpeditionBuild.cpp" />
+    <ClCompile Include="game\ui\TankRewardCard.cpp" />
+    <ClInclude Include="game\ui\TankRewardCard.h" />
+    <ClInclude Include="game\ui\TankRewardCardDemo.h" />
+    <ClInclude Include="game\run\TankBuildStyle.h" />
+    <ClCompile Include="game\scene\GameScene.CombatValidation.cpp" />
+    <ClCompile Include="game\scene\GameScene.ExpeditionExperience.cpp" />
+    <ClCompile Include="game\scene\GameScene.ExperienceValidation.cpp" />
     <ClCompile Include="game\editor\ExpeditionRoomEditor.cpp" />
     <ClCompile Include="game\editor\ExpeditionMapEditor.cpp" />
     <ClCompile Include="game\editor\ExpeditionContentEditor.cpp" />
     <ClInclude Include="game\run\TankExpeditionMap.h" />
+    <ClInclude Include="game\run\TankExpeditionTransition.h" />
+    <ClInclude Include="game\run\TankGuidedCombatTutorial.h" />
+    <ClInclude Include="game\exp\ExpEnemyMagazineCycle.h" />
+    <ClInclude Include="game\enemy\actor\RivalBossCombat.h" />
     <ClInclude Include="game\run\TankExpeditionRooms.h" />
     <ClInclude Include="game\run\TankExpeditionContent.h" />
     <ClInclude Include="game\editor\ExpeditionRoomEditor.h" />
     <ClInclude Include="game\editor\ExpeditionMapEditor.h" />
     <ClInclude Include="game\editor\ExpeditionContentEditor.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="game\scene\GameScene.Authoring.cpp" />
+    <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp" />
+    <ClInclude Include="game\ui\TankRewardPreviewRenderer.h" />
+    <ClInclude Include="game\ui\TankCombatNeonGeometry.h" />
+    <ClInclude Include="game\player\TankCombatStyleBalance.h" />
   </ItemGroup>
 </Project>

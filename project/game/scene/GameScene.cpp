@@ -1,6 +1,7 @@
 #include "GameScene.h"
 #include "RuntimeProfiler.h"
 #include "GameStartMode.h"
+#include "game/ui/TankCombatNeonGeometry.h"
 #include "CollisionConfig.h"
 #include <cmath>
 #include <cctype>
@@ -814,11 +815,13 @@ void GameScene::Update() {
 	const float baseDeltaTime = 1.0f / 60.0f;
 	if (titleDemo_) UpdateTitleDemo(baseDeltaTime);
 	if (expeditionRun_ && !titleDemo_) {
+		if(expeditionMapEnabled_) UpdateExpeditionAuthoringHub();
 		UpdateTankExpeditionBalanceEditor();
 		DrawTankExpeditionBalanceEditor();
 		if(expeditionMapEnabled_) UpdateExpeditionAuthoring();
 	}
 	if (prototypeRun_) { FinishTankRunCapture(); UpdateTankRun(baseDeltaTime); }
+	if(expeditionMapEnabled_) RefreshGuidedExpeditionUi();
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	if (player_) {
 		upgradeHudAfterPlayerUpdate_ = player_->GetUpgradeHudDebugSnapshot();
@@ -849,8 +852,9 @@ void GameScene::Update() {
 
 	// 最終的な deltaTime
 	finalDeltaTime = baseDeltaTime * timeScale_;
+	if(expeditionImpactHold_>0) {expeditionImpactHold_=(std::max)(0.0f,expeditionImpactHold_-baseDeltaTime);finalDeltaTime*=0.08f;}
 	// 一定まで速度が戻ったら完全に戻す
-	if (finalDeltaTime * 60.0f > 0.95f) {
+	if (finalDeltaTime * 60.0f > 0.95f && expeditionImpactHold_<=0) {
 		finalDeltaTime = baseDeltaTime;
 	}
 	if (!titleDemo_ && input_->IsTrigger(input_->GetKey()[DIK_H], input_->GetPreKey()[DIK_H])) {
@@ -1021,7 +1025,7 @@ void GameScene::Update() {
 		UpdatePlayerNeonAfterimages(baseDeltaTime);
 		UpdatePlayerLasers(baseDeltaTime);
 		UpdatePlayerMines(baseDeltaTime);
-		UpdatePlayerMeleeSlashes(baseDeltaTime);
+		UpdatePlayerMeleeSlashes(finalDeltaTime);
 		UpdateNeonTriangleParticles(baseDeltaTime);
 		if (player_->IsDead() && !playerDeathShakeStarted_) {
 			playerDeathShakeStarted_ = true;
@@ -1044,6 +1048,7 @@ void GameScene::Update() {
 		if (!suppressTutorialCombat) {
 			RuntimeProfiler::CpuScope scope("Actor / Bullet Collision");
 			collisionManager_->CheckAllCollisions(player_.get(), IsRunRivalActive() ? enemy_.get() : nullptr, bulletManager_.get(), enemyManager_.get());
+			for(const auto& impact:player_->ConsumeDashImpactEvents()) QueueExpeditionImpact(impact.origin,impact.direction,impact.powered);
 		}
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 		upgradeHudAfterCollision_ = player_->GetUpgradeHudDebugSnapshot();
@@ -1109,7 +1114,7 @@ void GameScene::Update() {
 
 	UpdateDeathPostPulse(baseDeltaTime);
 	const float particleDeltaTime =
-		gameFlowState_ == GameFlowState::Playing ? finalDeltaTime : baseDeltaTime;
+		gameFlowState_ == GameFlowState::Playing && !expeditionTransition_.IsActive() ? finalDeltaTime : baseDeltaTime;
     {
         RuntimeProfiler::CpuScope scope("Particles Update");
 	    ParticleManager::GetInstance()->Update(particleDeltaTime, camera.get(), debugCamera.get());
@@ -1675,7 +1680,7 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 
 void GameScene::BeginBossDefeatSequence()
 {
-	if(expeditionMapEnabled_) expeditionMapRun_.CompleteCombat();
+	if(expeditionMapEnabled_) expeditionCollectAll_=true;
 	if (expeditionRun_) tankExpedition_.CompleteRoom();
 	if (prototypeRun_) { tankRun_.CompleteBoss(); RefreshTankRunUi(); }
 	bossDefeatHandled_ = true;
@@ -1730,6 +1735,10 @@ void GameScene::UpdateGameFlow(float baseDeltaTime)
 		}
 		gameFlowTimer_ = (std::max)(0.0f, gameFlowTimer_ - baseDeltaTime);
 		if (gameFlowTimer_ <= 0.0f) {
+			if(expeditionMapEnabled_) {
+				if(!expeditionCredits_.empty()) return;
+				expeditionMapRun_.CompleteCombat();expeditionCollectAll_=false;
+			}
 			EnterResultState(true);
 		}
 		return;
@@ -2742,7 +2751,7 @@ TrailConfig GameScene::MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash,
 	headColor.x *= 1.45f;
 	headColor.y *= 1.45f;
 	headColor.z *= 1.45f;
-	headColor.w *= 0.70f * alphaScale;
+	headColor.w *= 0.48f * alphaScale;
 	config.startColor = headColor;
 	config.endColor = {
 		slash.color.x * 0.45f,
@@ -2769,7 +2778,8 @@ void GameScene::ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, fl
 	const Vector3 bladeDir = RotateVector2D(slash.direction, angle);
 	const Vector3 right = { -slash.direction.y, slash.direction.x, 0.0f };
 	const Vector3 hilt = slash.origin - slash.direction * (slash.range * 0.08f) + right * (slash.range * slash.hiltSideOffset);
-	base = hilt + bladeDir * (slash.range * 0.06f);
+	// Keep the ribbon on the outer blade so targets remain visible inside the arc.
+	base = hilt + bladeDir * (slash.range * slash.bladeLengthScale * 0.62f);
 	tip = hilt + bladeDir * (slash.range * slash.bladeLengthScale * (0.92f + x * 0.08f));
 }
 
@@ -2790,6 +2800,8 @@ void GameScene::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event)
 	slash.swingDuration = (std::max)(0.03f, event.duration);
 	slash.recoveryDuration = (std::max)(0.0f, event.recoveryDuration);
 	slash.damage = event.damage;
+	slash.knockback=event.knockback;slash.finisher=event.comboStep%3==2;
+	if(expeditionRun_) tankExpeditionAudio_.Slash();
 	slash.life = slash.windupDuration + slash.swingDuration + slash.recoveryDuration;
 	slash.color = event.color;
 	if (!playerMeleeComboVisuals_.empty()) {
@@ -2809,6 +2821,10 @@ void GameScene::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event)
 		slash.color.z *= profile.colorScale.z;
 		slash.color.w *= profile.colorScale.w;
 	}
+	if(player_&&player_->IsMeleeBuild()) {
+		const float sign=event.comboStep%3==1?-1.0f:1.0f;
+		slash.startAngleDeg=-slash.arcDeg*0.5f*sign;slash.endAngleDeg=slash.arcDeg*0.5f*sign;slash.bladeLengthScale=1;
+	}
 	slash.maxLife = slash.life;
 	playerMeleeSlashes_.push_back(slash);
 }
@@ -2826,25 +2842,30 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 		}
 		slash.elapsed += deltaTime;
 		slash.life -= deltaTime;
-		if (!slash.hitApplied && slash.elapsed >= slash.windupDuration) {
-			slash.hitApplied = true;
+		if (slash.elapsed >= slash.windupDuration && slash.elapsed <= slash.windupDuration+slash.swingDuration) {
 			const float halfArcRad = slash.arcDeg * 0.5f * 3.1415926535f / 180.0f;
 			const float minDot = slash.arcDeg >= 359.0f ? -1.0f : std::cos(halfArcRad);
 			auto hitTarget = [&](const Vector3& targetPos, float targetRadius) {
 				Vector3 toTarget = targetPos - slash.origin;
 				toTarget.z = 0.0f;
 				const float distance = Length(toTarget);
+				if(distance>0.001f) for(float t=0.6f;t<distance-targetRadius;t+=0.6f)
+					if(stage_->IsCollisionWithAnyBlock(slash.origin+toTarget*(t/distance),0.12f)) return false;
 				return distance <= 0.0001f ||
 					(distance <= slash.range + targetRadius && Dot(Normalize(toTarget), slash.direction) >= minDot);
 			};
-			if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && hitTarget(enemy_->GetWorldPosition(), enemy_->GetRadius())) {
+			if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && std::find(slash.hitTargets.begin(),slash.hitTargets.end(),enemy_.get())==slash.hitTargets.end() && hitTarget(enemy_->GetWorldPosition(), enemy_->GetRadius())) {
+				slash.hitTargets.push_back(enemy_.get());enemy_->ApplyKnockback(slash.direction,slash.knockback);
 				enemy_->TakeDamage(slash.damage);
+				if(!slash.hitApplied) {QueueExpeditionImpact(enemy_->GetWorldPosition(),slash.direction,slash.finisher);slash.hitApplied=true;}
 				ParticleManager::GetInstance()->EmitNeonImpactEffect(enemy_->GetWorldPosition(), slash.direction * -1.0f, slash.color, 10);
 			}
 			if (enemyManager_) {
 				for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
-					if (expEnemy && !expEnemy->IsDead() && hitTarget(expEnemy->GetWorldPosition(), expEnemy->GetRadius())) {
+					if (expEnemy && !expEnemy->IsDead() && std::find(slash.hitTargets.begin(),slash.hitTargets.end(),expEnemy)==slash.hitTargets.end() && hitTarget(expEnemy->GetWorldPosition(), expEnemy->GetRadius())) {
+						slash.hitTargets.push_back(expEnemy);expEnemy->ApplyKnockback(slash.direction,slash.knockback);
 						expEnemy->TakeDamageFromPlayer(slash.damage);
+						if(!slash.hitApplied) {QueueExpeditionImpact(expEnemy->GetWorldPosition(),slash.direction,slash.finisher);slash.hitApplied=true;}
 						ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(), slash.direction * -1.0f, slash.color, 8);
 					}
 				}
@@ -2896,36 +2917,8 @@ void GameScene::QueuePlayerMeleeSlashes()
 		return RotateVector2D(slash.direction, angle);
 	};
 	auto queueBlade = [&](const Vector3& hilt, const Vector3& bladeDir, float length, float width, const Vector4& color, float coreAlpha) {
-		const Vector3 tip = hilt + bladeDir * length;
-		Vector4 outerColor = color;
-		outerColor.x *= 1.20f;
-		outerColor.y *= 1.20f;
-		outerColor.z *= 1.20f;
-		outerColor.w *= 0.30f;
-		neonGridRenderer_->QueueLine(hilt, tip, width * playerMeleeBladeOuterWidthScale_, outerColor);
-
-		Vector4 haloColor = color;
-		haloColor.x *= 1.35f;
-		haloColor.y *= 1.35f;
-		haloColor.z *= 1.35f;
-		haloColor.w *= 0.78f;
-		neonGridRenderer_->QueueLine(hilt + bladeDir * (length * 0.03f), tip, width * playerMeleeBladeHaloWidthScale_, haloColor);
-
-		Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w * coreAlpha };
-		neonGridRenderer_->QueueLine(hilt + bladeDir * (length * 0.08f), tip, width * playerMeleeBladeCoreWidthScale_, coreColor);
-
-		const Vector3 guardRight = { -bladeDir.y, bladeDir.x, 0.0f };
-		Vector4 guardColor = color;
-		guardColor.w *= 0.62f;
-		neonGridRenderer_->QueueLine(
-			hilt - guardRight * (width * 1.9f),
-			hilt + guardRight * (width * 1.9f),
-			width * 0.42f,
-			guardColor);
-
-		Vector4 tipColor = color;
-		tipColor.w *= 0.58f;
-		neonGridRenderer_->QueueLine(tip - guardRight * (width * 0.90f), tip + guardRight * (width * 0.90f), width * 0.34f, tipColor);
+        tankneon::QueueMeleeBlade(*neonGridRenderer_,hilt,bladeDir,length,width,color,coreAlpha,
+            {playerMeleeBladeOuterWidthScale_,playerMeleeBladeHaloWidthScale_,playerMeleeBladeCoreWidthScale_});
 	};
 	auto queueTipTrail = [&](const PlayerMeleeSlash& slash, const Vector3& hilt, float startProgress, float endProgress, const Vector4& color) {
 		const int segments = 12;
@@ -2975,14 +2968,27 @@ void GameScene::QueuePlayerMeleeSlashes()
 		const Vector3 hilt = isWindup ? lerpPosition(idleHilt, attackHilt, windupProgress) :
 			(isSwinging ? attackHilt : lerpPosition(attackHilt, idleHilt, recoveryProgress));
 		Vector4 color = slash.color;
-		color.x *= 1.18f;
-		color.y *= 1.18f;
-		color.z *= 1.18f;
-		color.w *= (0.25f + t * 0.75f);
+		color.x *= 1.18f*playerNeonEmission_;
+		color.y *= 1.18f*playerNeonEmission_;
+		color.z *= 1.18f*playerNeonEmission_;
+		color.w *= (0.25f + t * 0.75f)*(std::min)(1.0f,playerNeonEmission_);
 
 		const Vector3 bladeDir = RotateVector2D(slash.direction, displayAngleDeg * kPi / 180.0f);
 		if (isSwinging) {
 			queueTipTrail(slash, hilt, (std::max)(0.0f, swingProgress - 0.42f), swingProgress, color);
+			// Three nested crescent trails give the top-down slash depth without
+			// hiding the center of the fight behind a full-screen flash.
+			for(int band=1;band<=3;++band) {
+				const float radius=slash.range*(1.0f-static_cast<float>(band)*0.09f);
+				const float start=(std::max)(0.0f,swingProgress-0.30f);
+				Vector3 previous=hilt+directionAt(slash,start)*radius;
+				for(int segment=1;segment<=9;++segment) {
+					const float q=static_cast<float>(segment)/9.0f;
+					const Vector3 point=hilt+directionAt(slash,start+(swingProgress-start)*q)*radius;
+					Vector4 glow=color;glow.w*=q*(0.32f-0.06f*band);
+					neonGridRenderer_->QueueLine(previous,point,slash.width*(1.25f-band*0.2f),glow);previous=point;
+				}
+			}
 		}
 
 		for (int i = 4; isSwinging && i >= 1; --i) {
@@ -2991,10 +2997,10 @@ void GameScene::QueuePlayerMeleeSlashes()
 				continue;
 			}
 			Vector4 afterColor = slash.color;
-			afterColor.x *= 1.08f;
-			afterColor.y *= 1.08f;
-			afterColor.z *= 1.08f;
-			afterColor.w *= t * (0.10f + 0.07f * static_cast<float>(5 - i)) * playerMeleeAfterimageAlphaScale_;
+			afterColor.x *= 1.08f*playerNeonEmission_;
+			afterColor.y *= 1.08f*playerNeonEmission_;
+			afterColor.z *= 1.08f*playerNeonEmission_;
+			afterColor.w *= (std::min)(1.0f,playerNeonEmission_)*t * (0.10f + 0.07f * static_cast<float>(5 - i)) * playerMeleeAfterimageAlphaScale_;
 			const float afterLength = slash.range * slash.bladeLengthScale * (0.78f + 0.04f * static_cast<float>(5 - i));
 			queueBlade(hilt, directionAt(slash, sampleProgress), afterLength, slash.width * 0.46f, afterColor, 0.20f);
 		}
@@ -3144,21 +3150,11 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		return Vector3{ direction.x * c - direction.y * s, direction.x * s + direction.y * c, direction.z };
 	};
 
-	auto queueTankBillboard = [&](const Vector3& center, const Vector3& direction, float radius, float lineWidth, const Vector4& color, const Player::NeonBodyLayout* bodyLayout, const std::vector<Player::NeonBarrelLayout>* barrelLayouts, bool allowIdleMeleeSaber, bool allowMuzzleFlash) {
+	auto queueTankBillboard = [&](const Vector3& center, const Vector3& direction, float radius, float lineWidth, const Vector4& color, const Player::NeonBodyLayout* bodyLayout, const std::vector<Player::NeonBarrelLayout>* barrelLayouts, bool allowIdleMeleeSaber, bool allowMuzzleFlash, float emission) {
 		constexpr float kTwoPi = 6.28318530718f;
 		auto queueBodyPolygon = [&](int segments, float rotation, const Vector2& scale, const Vector4& outlineColor) {
-			segments = (std::clamp)(segments, 3, 48);
-			Vector3 previous{};
-			for (int i = 0; i <= segments; ++i) {
-				const float angle = rotation + static_cast<float>(i % segments) * (kTwoPi / static_cast<float>(segments));
-				const Vector3 current = center +
-					cameraRight * (std::cos(angle) * radius * scale.x) +
-					cameraUp * (std::sin(angle) * radius * scale.y);
-				if (i > 0) {
-					neonGridRenderer_->QueueLine(previous, current, lineWidth, outlineColor);
-				}
-				previous = current;
-			}
+            Vector4 emitted=outlineColor;emitted.x*=emission;emitted.y*=emission;emitted.z*=emission;
+            tankneon::QueueBodyOutline(*neonGridRenderer_,center,radius,lineWidth,segments,rotation,scale,emitted,cameraRight,cameraUp);
 		};
 
 		Vector3 mainDirection = direction;
@@ -3293,19 +3289,8 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 				barrelColor,
 				{ 1.80f, 1.80f, 1.50f, barrelColor.w },
 				muzzleFlash * 0.80f);
-			if (layout.shape == BarrelShape::Trapezoid) {
-				const float baseHalf = half * 1.28f;
-				const float tipHalf = half * 0.72f;
-				neonGridRenderer_->QueueLine(base - barrelRight * baseHalf, tip - barrelRight * tipHalf, lineWidth, barrelColor);
-				neonGridRenderer_->QueueLine(tip - barrelRight * tipHalf, tip + barrelRight * tipHalf, lineWidth, barrelColor);
-				neonGridRenderer_->QueueLine(tip + barrelRight * tipHalf, base + barrelRight * baseHalf, lineWidth, barrelColor);
-				neonGridRenderer_->QueueLine(base + barrelRight * baseHalf, base - barrelRight * baseHalf, lineWidth, barrelColor);
-			} else {
-				neonGridRenderer_->QueueLine(base - barrelRight * half, tip - barrelRight * half, lineWidth, barrelColor);
-				neonGridRenderer_->QueueLine(tip - barrelRight * half, tip + barrelRight * half, lineWidth, barrelColor);
-				neonGridRenderer_->QueueLine(tip + barrelRight * half, base + barrelRight * half, lineWidth, barrelColor);
-				neonGridRenderer_->QueueLine(base + barrelRight * half, base - barrelRight * half, lineWidth, barrelColor);
-			}
+            barrelColor.x*=emission;barrelColor.y*=emission;barrelColor.z*=emission;
+            tankneon::QueueBarrelOutline(*neonGridRenderer_,base,tip,barrelRight,half,lineWidth,barrelColor,layout.shape==BarrelShape::Trapezoid);
 
 			if (muzzleFlashRatio > 0.0f) {
 				auto queueMuzzleRing = [&](float ringRadius, int segments, float ringLineWidth, const Vector4& ringColor) {
@@ -3361,7 +3346,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		Vector4 color = playerGridColor_;
 		color.w *= playerAfterimageAlpha_ * lifeRatio;
 		const float radius = playerNeonBillboardRadius_ * (0.88f + lifeRatio * 0.12f);
-		queueTankBillboard(afterimage.position + Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, false, false);
+		queueTankBillboard(afterimage.position + Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, false, false, playerNeonEmission_);
 	}
 
 	if (playerNeonRenderMode_ == 1 && player_ && !player_->IsDead()) {
@@ -3372,7 +3357,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		if (player_->IsDashing()) {
 			color.w *= playerDashCurrentAlpha_;
 		}
-		queueTankBillboard(player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true);
+		queueTankBillboard(player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true, playerNeonEmission_);
 	}
 	if (bossNeonRenderMode_ == 1 && enemy_ && (IsRunRivalActive() && !enemy_->IsDead())) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
@@ -3387,7 +3372,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		bossBarrel.fireGroup = -1;
 		bossBarrel.outlineColor = color;
 		const std::vector<Player::NeonBarrelLayout> bossBarrels = { bossBarrel };
-		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + impact * 0.07f), actorNeonBillboardLineWidth_, color, &bossBody, &bossBarrels, false, false);
+		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + impact * 0.07f), actorNeonBillboardLineWidth_, color, &bossBody, &bossBarrels, false, false, bossNeonEmission_);
 	}
 	if (prototypeRun_ && player_ && playerNeonRenderMode_ == 1) {
 		for (PlayerDrone* drone : player_->GetDronePtrs()) {
@@ -3405,7 +3390,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 			droneBarrel.muzzleFlashRatio = drone->GetNeonMuzzleFlashRatio();
 			const std::vector<Player::NeonBarrelLayout> droneBarrels{droneBarrel};
 			queueTankBillboard(center, drone->GetAimDirection(), radius,
-				actorNeonBillboardLineWidth_ * 0.75f, color, &droneBody, &droneBarrels, false, true);
+				actorNeonBillboardLineWidth_ * 0.75f, color, &droneBody, &droneBarrels, false, true, playerNeonEmission_);
 			// A short thrust streak reads motion without painting a large glowing disk.
 			const Vector3 motion = drone->GetMove();
 			const float speed = Length(motion);
@@ -5179,6 +5164,7 @@ nlohmann::json GameScene::BuildGameVisualConfig() const
 		{ "playerNeonBillboardRadius", playerNeonBillboardRadius_ },
 		{ "bossNeonBillboardRadius", bossNeonBillboardRadius_ },
 		{ "actorNeonBillboardLineWidth", actorNeonBillboardLineWidth_ },
+        { "playerNeonEmission", playerNeonEmission_ },{ "bossNeonEmission", bossNeonEmission_ },
 		{ "bossNeonBarrelForwardOffset", bossNeonBarrelForwardOffset_ },
 		{ "bossNeonBarrelSideOffset", bossNeonBarrelSideOffset_ },
 		{ "bossNeonBarrelLengthScale", bossNeonBarrelLengthScale_ },
@@ -5316,6 +5302,8 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 		playerNeonBillboardRadius_ = ReadCustomFloat(gridJson, "playerNeonBillboardRadius", playerNeonBillboardRadius_);
 		bossNeonBillboardRadius_ = ReadCustomFloat(gridJson, "bossNeonBillboardRadius", bossNeonBillboardRadius_);
 		actorNeonBillboardLineWidth_ = ReadCustomFloat(gridJson, "actorNeonBillboardLineWidth", actorNeonBillboardLineWidth_);
+        playerNeonEmission_=(std::clamp)(ReadCustomFloat(gridJson,"playerNeonEmission",playerNeonEmission_),0.0f,4.0f);
+        bossNeonEmission_=(std::clamp)(ReadCustomFloat(gridJson,"bossNeonEmission",bossNeonEmission_),0.0f,4.0f);
 		bossNeonBarrelForwardOffset_ = ReadCustomFloat(gridJson, "bossNeonBarrelForwardOffset", bossNeonBarrelForwardOffset_);
 		bossNeonBarrelSideOffset_ = ReadCustomFloat(gridJson, "bossNeonBarrelSideOffset", bossNeonBarrelSideOffset_);
 		bossNeonBarrelLengthScale_ = ReadCustomFloat(gridJson, "bossNeonBarrelLengthScale", bossNeonBarrelLengthScale_);
@@ -6326,13 +6314,14 @@ void GameScene::DrawSprite() {
 	followHpBarIndex_ = 0;
 	for (auto& vertices : hpBarBackgroundVertices_) { vertices.clear(); }
 	for (auto& vertices : hpBarFillVertices_) { vertices.clear(); }
+	staminaBarFillVertices_.clear();
 	for (auto& vertices : hpBarOutlineVertices_) { vertices.clear(); }
 	if (showFollowHpBars_) {
-		if (!player_->IsDead() && !expeditionRun_) {
-			DrawFollowHpBar(player_.get(), player_->GetWorldPosition(), player_->GetHp(), player_->GetMaxHp(), 58.0f, -1.55f);
+		if (!player_->IsDead() && (!expeditionRun_||tankExpedition_.IsCombat())) {
+			DrawFollowHpBar(player_.get(), player_->GetWorldPosition(), player_->GetHp(), player_->GetMaxHp(), 58.0f, -1.65f);
 			if (showPlayerStaminaBar_) {
 				const Player::PlayerStats& stats = player_->GetStats();
-				DrawFollowStaminaBar(player_->GetWorldPosition(), stats.stamina, stats.maxStamina, 54.0f, -1.83f);
+				DrawFollowStaminaBar(player_->GetWorldPosition(), stats.stamina, stats.maxStamina, 54.0f, -2.35f);
 			}
 		}
 		for (PlayerDrone* drone : player_->GetDronePtrs()) {
@@ -6371,6 +6360,7 @@ void GameScene::DrawSprite() {
 	DrawBulletStatusDebugOverlay();
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
 	if (eventCalloutTimer_ > 0.0f && eventCalloutText_) {
+		eventCalloutText_->SetPosition({WinApp::kClientWidth*0.5f,expeditionMapEnabled_?155.0f:112.0f});
 		eventCalloutText_->Draw();
 	}
 	const bool showResult =
@@ -6389,6 +6379,8 @@ void GameScene::DrawSprite() {
 	}
 	if (phase_ != Phase::kFadeIn) {
 		if (prototypeRun_) DrawTankRunUi();
+		if (expeditionMapEnabled_) {DrawExpeditionCredits();DrawGuidedExpedition();}
+		if (expeditionMapEnabled_) DrawExpeditionPresentation();
 		fade_->Draw();
 	}
 	if (prototypeRun_) CopyTankRunCapture();
@@ -6442,6 +6434,7 @@ void GameScene::InitializeFollowHpBarBatch() {
 		hpBarMaterials_[i * 3 + 1].data->color = { 0.46f, 1.0f, 0.56f, alpha };
 		hpBarMaterials_[i * 3 + 2].data->color = { 0.92f, 1.0f, 0.94f, 0.98f * alpha };
 	}
+	hpBarMaterials_[12].data->color={1.0f,0.82f,0.12f,1};
 
 	hpBarTransformResource_ = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
 	hpBarTransformResource_->Map(0, nullptr, reinterpret_cast<void**>(&hpBarTransformData_));
@@ -6468,7 +6461,8 @@ void GameScene::DrawFollowHpBar(const void* ownerKey, const Vector3& worldPos, i
 	visibility.lastHp = hp;
 	visibility.lastMaxHp = maxHp;
 
-	const float targetAlpha = hp < maxHp || visibility.visibleTimer > 0.0f ? 1.0f : 0.0f;
+	const float targetAlpha = ownerKey==player_.get() || hp < maxHp || visibility.visibleTimer > 0.0f ? 1.0f : 0.0f;
+	if(ownerKey==player_.get()) visibility.alpha=1.0f;
 	const float fadeSpeed = targetAlpha > visibility.alpha ? 10.0f : 4.0f;
 	if (visibility.alpha < targetAlpha) {
 		visibility.alpha = (std::min)(targetAlpha, visibility.alpha + finalDeltaTime * fadeSpeed);
@@ -6527,7 +6521,7 @@ void GameScene::DrawFollowStaminaBar(const Vector3& worldPos, float stamina, flo
 	QueueHpBarQuad(hpBarBackgroundVertices_[kOpaqueBucket], screenPos, { innerWidth, innerHeight });
 	if (fillWidth > 0.0f) {
 		QueueHpBarQuad(
-			hpBarFillVertices_[kOpaqueBucket],
+			staminaBarFillVertices_,
 			{ screenPos.x - innerWidth * 0.5f + fillWidth * 0.5f, screenPos.y },
 			{ fillWidth, innerHeight });
 	}
@@ -6570,7 +6564,7 @@ void GameScene::DrawHpBarBatches() {
 		const HpBarMaterialBuffer* material = nullptr;
 	};
 
-	std::array<HpBarDrawCommand, 12> drawCommands{};
+	std::array<HpBarDrawCommand, 13> drawCommands{};
 	uint32_t currentVertex = 0;
 	auto appendVertices = [&](const std::vector<VertexData>& vertices, const char* textureFilePath, const HpBarMaterialBuffer& material, size_t commandIndex) {
 		if (vertices.empty() || currentVertex >= 4096u) {
@@ -6587,6 +6581,7 @@ void GameScene::DrawHpBarBatches() {
 		appendVertices(hpBarFillVertices_[i], "resources/hpBarFillMask.png", hpBarMaterials_[i * 3 + 1], i * 3 + 1);
 		appendVertices(hpBarOutlineVertices_[i], "resources/hpBarOutlineMask.png", hpBarMaterials_[i * 3 + 2], i * 3 + 2);
 	}
+	appendVertices(staminaBarFillVertices_,"resources/hpBarFillMask.png",hpBarMaterials_[12],12);
 	if (currentVertex == 0) {
 		return;
 	}

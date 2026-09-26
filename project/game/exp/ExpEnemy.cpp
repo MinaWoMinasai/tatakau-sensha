@@ -77,6 +77,8 @@ bool ExpEnemy::IsShapeNeonBillboardTarget() const
 void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType type)
 {
     hasAuthoredDefinition_=false;authoredMoveSpeedScale_=authoredFireIntervalScale_=1;
+    combatShotsFired_ = combatDashCount_ = 0;
+    combatRepathTimer_ = dashWarningTimer_ = dashTimer_ = 0;
     isDead_ = false;
     isRunResource_ = false;
     runResourceClaimCallback_ = {};
@@ -91,13 +93,13 @@ void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType 
     type_ = type;
     ApplyTypeParams();
     if (IsExpeditionCombatRole()) {
-        ExpEnemyCombatCycle::Timing timing{};
-        if (type_ == ExpEnemyType::Sniper) {
-            timing = { 0.85f, 0.38f, 0.10f, 1.50f, 0.65f };
-        }
+        const ExpEnemyCombatCycle::Timing timing{ 0.36f, 0.23f, 0.30f, 0.70f, 0.23f };
         // Authored spawn positions deterministically stagger attack openings.
-        const float stagger = std::fmod(std::abs(position.x * 0.173f + position.y * 0.319f), 0.85f);
-        combatCycle_.Reset(timing, 0.55f + stagger);
+        combatStagger_ = std::fmod(std::abs(position.x * 0.173f + position.y * 0.319f), 0.85f);
+        combatCycle_.Reset(timing, 0.55f + combatStagger_);
+        orbitSign_ = static_cast<int>(std::abs(position.x + position.y)) % 4 < 2 ? -1.0f : 1.0f;
+        dashCooldown_ = 2.3f + combatStagger_;
+        ResetMagazine();
         telegraphEnd_ = position;
         object_->SetLighting(false);
     }
@@ -121,6 +123,7 @@ void ExpEnemy::ApplyAuthoredDefinition(const tankcontent::Enemy& definition)
     authoredBulletDamage_=static_cast<uint32_t>((std::clamp)(definition.bulletDamage,1,999));
     authoredMoveSpeedScale_=(std::clamp)(definition.moveSpeedScale,0.1f,3.0f);
     authoredFireIntervalScale_=(std::clamp)(definition.fireIntervalScale,0.3f,4.0f);
+    if (IsExpeditionCombatRole()) ResetMagazine(definition.magazineSize, definition.reloadSeconds);
     expValue_=static_cast<uint32_t>((std::clamp)(definition.creditDrop,0,999)*5);
     baseColor_={definition.color[0],definition.color[1],definition.color[2],definition.color[3]};
     visualColor_=baseColor_;object_->SetColor(baseColor_);SetDamage(authoredContactDamage_);
@@ -141,6 +144,8 @@ void ExpEnemy::SetRunResource(std::function<void(bool playerOwned)> onClaim)
     isRunResource_ = true;
     runResourceClaimCallback_ = std::move(onClaim);
     velocity_ = {};
+	combatMoveVelocity_ = {};
+	combatWasDashing_ = false;
     baseScale_ = { 1.5f, 1.5f, 1.5f };
     worldTransform_.scale = baseScale_;
     baseColor_ = { 1.0f, 0.74f, 0.20f, 1.0f };
@@ -198,11 +203,37 @@ void ExpEnemy::ApplyTypeParams()
         hp_ = 24;
         expValue_ = 30;
         break;
+    case ExpEnemyType::Skirmisher:
+        object_->SetModel("expEnemy.obj");
+        baseColor_ = { 0.20f, 1.45f, 1.75f, 1.0f };
+        hp_ = 28; expValue_ = 30;
+        break;
+    case ExpEnemyType::Flanker:
+        object_->SetModel("expTriangle.obj");
+        baseColor_ = { 1.75f, 0.25f, 0.80f, 1.0f };
+        hp_ = 32; expValue_ = 35;
+        break;
+    case ExpEnemyType::Suppressor:
+        object_->SetModel("expPentagon.obj");
+        baseColor_ = { 1.60f, 0.95f, 0.16f, 1.0f };
+        hp_ = 42; expValue_ = 45;
+        break;
     }
     object_->SetColor(baseColor_);
     visualColor_ = baseColor_;
     maxHp_ = hp_;
     SetDamage(type_ == ExpEnemyType::Shooter ? balanceConfig_.shooterContactDamage : balanceConfig_.contactDamage);
+}
+
+void ExpEnemy::ResetMagazine(int rounds, float reloadSeconds)
+{
+    ExpEnemyMagazineCycle::Timing timing{};
+    if (type_ == ExpEnemyType::Sniper) timing = { 2, 0.52f, 0.26f, 0.20f, 1.55f };
+    else if (type_ == ExpEnemyType::Flanker) timing = { 2, 0.24f, 0.17f, 0.22f, 1.55f };
+    else if (type_ == ExpEnemyType::Suppressor) timing = { 5, 0.18f, 0.14f, 0.16f, 2.00f };
+    if (rounds > 0) timing.rounds = rounds;
+    if (reloadSeconds > 0) timing.reload = reloadSeconds;
+    magazineCycle_.Reset(timing, 0.55f + combatStagger_);
 }
 
 void ExpEnemy::Update(Stage& stage, float deltaTime) {
@@ -235,17 +266,9 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 
     float timeWeight = deltaTime * 60.0f;
 
-    // X移動
-    Vector3 pos = GetWorldPosition();
-    pos.x += velocity_.x * timeWeight;
-    SetWorldPosition(pos);
-    stage.ResolveExpEnemyCollision(*this, X);
-
-    // Y移動
-    pos = GetWorldPosition();
-    pos.y += velocity_.y * timeWeight;
-    SetWorldPosition(pos);
-    stage.ResolveExpEnemyCollision(*this, Y);
+    // Shapes and stationary shooters can also be slammed. Their original
+    // inertia remains, with the same anti-tunnelling wall steps as mobile AI.
+    MoveCombatActor(stage, velocity_ * timeWeight);
 
 	if (type_ != ExpEnemyType::Shooter) {
 		worldTransform_.rotate.y += 0.2f * deltaTime;
@@ -388,7 +411,7 @@ bool ExpEnemy::MoveCombatActor(Stage& stage, const Vector3& displacement)
         SetWorldPosition(desired);
         stage.ResolveExpEnemyCollision(*this, Y);
         blocked = blocked || std::abs(GetWorldPosition().y - desired.y) > 0.005f;
-        if (blocked && combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active) break;
+        if (blocked && IsDashing()) break;
     }
     return blocked;
 }
@@ -422,91 +445,141 @@ Vector3 ExpEnemy::FindCombatWaypoint(Stage& stage, const Vector3& target) const
 
 void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
 {
-    if (isDead_) return;
+    if (isDead_ || !std::isfinite(deltaTime)) return;
     const float dt = (std::clamp)(deltaTime, 0.0f, 0.20f);
+    if (dt <= 0) return;
     combatRepathTimer_ -= dt;
+    dashCooldown_ -= dt;
     shooterMuzzleFlashTimer_ = (std::max)(0.0f, shooterMuzzleFlashTimer_ - dt);
     const Vector3 origin = GetWorldPosition();
-    Vector3 toTarget{};
-    float distance = 0.0f;
     const bool hasTarget = player_ && !player_->IsDead();
-    if (hasTarget) {
-        toTarget = player_->GetWorldPosition() - origin;
-        toTarget.z = 0.0f;
-        distance = Length(toTarget);
-    }
+    Vector3 toTarget = hasTarget ? player_->GetWorldPosition() - origin : Vector3{};
+    toTarget.z = 0;
+    const float distance = Length(toTarget);
     const Vector3 desiredDirection = distance > 0.001f ? toTarget / distance : aimDirection_;
-    if (hasTarget && !combatCycle_.IsAimLocked() && combatCycle_.GetPhase() != ExpEnemyCombatPhase::Recovery) {
-        aimDirection_ = desiredDirection;
-    }
-    const bool visible = hasTarget && distance <= (type_ == ExpEnemyType::Sniper ? 64.0f : 38.0f) &&
-        Length(ClipCombatRay(stage, origin, desiredDirection, distance) - origin) >= distance - 0.05f;
-    const bool canAttack = visible && (type_ == ExpEnemyType::Sniper || distance < 13.0f);
-    combatCycle_.SetRecoveryScale(balanceConfig_.shooterFireInterval * authoredFireIntervalScale_ / 1.6f);
-    const bool attackStarted = combatCycle_.Advance(dt, canAttack);
-    const ExpEnemyCombatPhase phase = combatCycle_.GetPhase();
+    const Vector3 tangent{ -desiredDirection.y * orbitSign_, desiredDirection.x * orbitSign_, 0 };
+    const bool visible = hasTarget && Length(ClipCombatRay(stage, origin, desiredDirection, distance) - origin) >= distance - 0.05f;
+    const bool charger = type_ == ExpEnemyType::Charger;
+    const bool sniper = type_ == ExpEnemyType::Sniper;
+    const bool flanker = type_ == ExpEnemyType::Flanker;
+    const bool suppressor = type_ == ExpEnemyType::Suppressor;
+    if (hasTarget && !IsAttackAimLocked() && dashTimer_ <= 0 && dashWarningTimer_ <= 0) aimDirection_ = desiredDirection;
 
-    if (type_ == ExpEnemyType::Charger) {
-        if (phase == ExpEnemyCombatPhase::Active) {
-            velocity_ = {};
-            if (MoveCombatActor(stage, aimDirection_ * (32.0f * authoredMoveSpeedScale_ * dt))) {
-                combatCycle_.EnterRecovery();
-                ParticleManager::GetInstance()->EmitNeonDeathEffect(
-                    GetWorldPosition(), { 1.8f, 0.7f, 0.15f, 1.0f }, { 0.8f, 0.2f, 0.1f, 0.0f }, 0.12f);
+    // Navigation is shared by every mobile role. Clear sight is insufficient
+    // for a body-sized actor; route around cover with a cached inflated grid.
+    Vector3 desiredMoveVelocity{};
+    bool movingToTarget = false;
+    auto navigate = [&](Vector3 desired, float speed, bool pathToTarget) {
+        if (Length(desired) < 0.01f || !hasTarget) return;
+        desired = Normalize(desired);
+        if (pathToTarget && (!visible || stage.IsCollisionWithAnyBlock(origin + desired * 1.7f, 0.85f))) {
+            if (combatRepathTimer_ <= 0 || Length(combatWaypoint_ - origin) < 0.35f) {
+                combatWaypoint_ = FindCombatWaypoint(stage, player_->GetWorldPosition());
+                combatRepathTimer_ = 0.32f;
             }
-        } else if (phase == ExpEnemyCombatPhase::Cooldown && hasTarget && distance > 2.2f) {
-            // Modest pursuit keeps a charger relevant between attacks. A cached
-            // grid route prevents oscillation at concave cover and narrow gaps.
-            Vector3 moveDirection = desiredDirection;
-            if (!visible || stage.IsCollisionWithAnyBlock(origin + moveDirection * 1.6f, 0.85f)) {
-                if (combatRepathTimer_ <= 0.0f || Length(combatWaypoint_ - origin) < 0.30f) {
-                    combatWaypoint_ = FindCombatWaypoint(stage, player_->GetWorldPosition());
-                    combatRepathTimer_ = 0.35f;
-                }
-                const Vector3 toWaypoint = combatWaypoint_ - origin;
-                moveDirection = Length(toWaypoint) > 0.10f ? Normalize(toWaypoint) : Vector3{};
-            }
-            MoveCombatActor(stage, moveDirection * (4.0f * authoredMoveSpeedScale_ * dt));
+            const Vector3 waypoint = combatWaypoint_ - origin;
+            desired = Length(waypoint) > 0.08f ? Normalize(waypoint) : Vector3{};
         }
-        SetDamage(combatCycle_.GetPhase() == ExpEnemyCombatPhase::Recovery ? 0u :
+        desiredMoveVelocity = desired * (speed * authoredMoveSpeedScale_);
+        movingToTarget = pathToTarget;
+    };
+
+    if (charger) {
+        combatCycle_.SetRecoveryScale((std::max)(0.8f, authoredFireIntervalScale_));
+        const bool started = combatCycle_.Advance(dt, visible && distance < 13.0f);
+        if (started) ++combatDashCount_;
+        const auto phase = combatCycle_.GetPhase();
+        if (phase == ExpEnemyCombatPhase::Active) {
+            if (MoveCombatActor(stage, aimDirection_ * (30.0f * authoredMoveSpeedScale_ * dt))) {
+                combatCycle_.EnterRecovery();
+                ParticleManager::GetInstance()->EmitNeonDeathEffect(GetWorldPosition(),
+                    { 1.8f, 0.7f, 0.15f, 1 }, { 0.8f, 0.2f, 0.1f, 0 }, 0.12f);
+            }
+        } else if (hasTarget && distance > 2.2f &&
+            (phase == ExpEnemyCombatPhase::Cooldown || phase == ExpEnemyCombatPhase::Tracking)) {
+            navigate(desiredDirection + tangent * 0.18f, phase == ExpEnemyCombatPhase::Tracking ? 3.0f : 6.8f, true);
+        }
+        SetDamage(phase == ExpEnemyCombatPhase::Recovery ? 0u :
             (hasAuthoredDefinition_ ? authoredContactDamage_ : balanceConfig_.contactDamage) *
-            (combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active ? 2u : 1u));
+            (phase == ExpEnemyCombatPhase::Active ? 2u : 1u));
     } else {
-        SetDamage(hasAuthoredDefinition_ ? authoredContactDamage_ : balanceConfig_.shooterContactDamage);
-        if (attackStarted) {
+        const float preferred = sniper ? 23.0f : flanker ? 6.5f : suppressor ? 17.5f : 12.5f;
+        const float speed = sniper ? 5.5f : flanker ? 8.0f : suppressor ? 4.2f : 6.8f;
+        const float range = sniper ? 64.0f : flanker ? 11.5f : suppressor ? 29.0f : 24.0f;
+        const auto previousPhase = magazineCycle_.GetPhase();
+        // Dashes are timed decisions, not perfect projectile dodges. The short
+        // arrow windup and distance cap make their destination readable.
+        if (hasTarget && visible && !suppressor && previousPhase == ExpEnemyCombatPhase::Cooldown &&
+            dashCooldown_ <= 0 && dashTimer_ <= 0 && dashWarningTimer_ <= 0 && (!sniper || distance < 15)) {
+            dashDirection_ = sniper ? desiredDirection * -1.0f : flanker ?
+                Normalize(desiredDirection * (distance > 8 ? 1.0f : -0.65f) + tangent * 0.60f) : tangent;
+            const Vector3 destination = origin + dashDirection_ * 4.2f;
+            if (!stage.IsCollisionWithAnyBlock(destination, 0.9f) &&
+                Length(ClipCombatRay(stage, origin, dashDirection_, 4.2f) - origin) >= 4.1f) {
+                dashWarningTimer_ = 0.18f;
+            }
+            dashCooldown_ = 2.8f + combatStagger_;
+        }
+        const bool maneuvering = dashWarningTimer_ > 0 || dashTimer_ > 0;
+        if (dashWarningTimer_ > 0) {
+            dashWarningTimer_ = (std::max)(0.0f, dashWarningTimer_ - dt);
+            if (dashWarningTimer_ <= 0) { dashTimer_ = 0.18f; ++combatDashCount_; }
+        } else if (dashTimer_ > 0) {
+            const float stepTime = (std::min)(dt, dashTimer_);
+            if (MoveCombatActor(stage, dashDirection_ * (21.0f * stepTime))) dashTimer_ = 0;
+            else dashTimer_ = (std::max)(0.0f, dashTimer_ - dt);
+        }
+        magazineCycle_.SetIntervalScale(authoredFireIntervalScale_);
+        const bool shot = !maneuvering && magazineCycle_.Advance(dt, visible && distance <= range);
+        const auto phase = magazineCycle_.GetPhase();
+        if (!maneuvering && hasTarget && phase != ExpEnemyCombatPhase::Locked && phase != ExpEnemyCombatPhase::Active) {
+            const float mobility = phase == ExpEnemyCombatPhase::Recovery ? 0.25f :
+                phase == ExpEnemyCombatPhase::Tracking ? (sniper ? 0.0f : 0.45f) : 1.0f;
+            if (!visible || distance > preferred + 2.5f) navigate(desiredDirection + tangent * 0.22f, speed * mobility, true);
+            else if (distance < preferred - 2.5f) navigate(desiredDirection * -0.85f + tangent * 0.65f, speed * mobility, false);
+            else navigate(tangent, speed * mobility * (sniper ? 0.6f : 0.85f), false);
+        }
+        SetDamage(magazineCycle_.IsReloading() ? 0u : (hasAuthoredDefinition_ ? authoredContactDamage_ : balanceConfig_.shooterContactDamage));
+        if (shot) {
             AttackParam param{};
-            param.bulletSpeed = balanceConfig_.shooterBulletSpeed * 1.30f;
-            param.bulletCount = 1;
-            param.spreadAngleDeg = 0.0f;
+            param.bulletSpeed = balanceConfig_.shooterBulletSpeed * (sniper ? 1.30f : flanker ? 0.85f : 0.95f);
+            param.bulletCount = flanker ? 5 : suppressor ? 3 : 1;
+            param.spreadAngleDeg = flanker ? 50.0f : suppressor ? 32.0f : 0.0f;
             param.randomSpread = false;
             param.damage = hasAuthoredDefinition_ ? authoredBulletDamage_ : balanceConfig_.shooterBulletDamage;
-            param.bulletHp = 32.0f;
+            param.bulletHp = sniper ? 24.0f : 6.0f;
             param.bulletPenetration = 1.0f;
             param.canClaimRunResource = false;
-            // Stop the muzzle at nearby cover rather than spawning through it.
-            const Vector3 muzzle = ClipCombatRay(stage, origin, aimDirection_, 1.35f);
-            if (Length(muzzle - origin) >= 1.25f) {
+            const Vector3 shotOrigin = GetWorldPosition();
+            const Vector3 muzzle = ClipCombatRay(stage, shotOrigin, aimDirection_, 1.35f);
+            if (Length(muzzle - shotOrigin) >= 1.25f) {
                 attackController_.FireFromMuzzle(muzzle, aimDirection_, param, BulletOwner::kEnemy);
-                shooterMuzzleFlashTimer_ = 0.15f;
+                shooterMuzzleFlashTimer_ = 0.12f;
+                ++combatShotsFired_;
             }
         }
     }
-    if (combatCycle_.GetPhase() == ExpEnemyCombatPhase::Locked) {
-        // Commitment freezes both the direction and the ray origin. Repeated
-        // hits must not sweep the locked warning sideways just before firing.
-        velocity_ = {};
-    } else if (Length(velocity_) > 0.001f && combatCycle_.GetPhase() != ExpEnemyCombatPhase::Active) {
-        // Preserve hit reaction, but cap repeated pellets so the locked telegraph
-        // cannot be swept across the arena by an accumulated knockback impulse.
-        if (Length(velocity_) > 0.07f) velocity_ = Normalize(velocity_) * 0.07f;
-        MoveCombatActor(stage, velocity_ * (dt * 60.0f));
-        velocity_ = velocity_ * (std::max)(0.0f, 1.0f - dt * 9.0f);
+    const bool dashing = IsDashing();
+    if (dashing && !combatWasDashing_) combatMoveVelocity_ = combatMoveVelocity_ * 0.20f;
+    const float response = Length(desiredMoveVelocity) > 0.01f ? 2.5f : 3.5f;
+    combatMoveVelocity_ += (desiredMoveVelocity - combatMoveVelocity_) * (1.0f - std::exp(-response * dt));
+    if (MoveCombatActor(stage, combatMoveVelocity_ * dt)) {
+        if (!movingToTarget) orbitSign_ = -orbitSign_;
+        combatRepathTimer_ = 0;
+        combatMoveVelocity_ = combatMoveVelocity_ * 0.35f;
     }
-    worldTransform_.rotate = { 0.0f, 0.0f, std::atan2(aimDirection_.x, -aimDirection_.y) };
-    telegraphEnd_ = ClipCombatRay(stage, GetWorldPosition(), aimDirection_,
-        type_ == ExpEnemyType::Charger ? 13.44f : 64.0f);
-    if (combatCycle_.GetPhase() == ExpEnemyCombatPhase::Recovery) {
-        visualColor_ = LerpColor(visualColor_, { 0.25f, 0.70f, 0.85f, 1.0f }, 0.65f);
+    combatWasDashing_ = dashing;
+    // External impact momentum persists through aim/reload states and resolves
+    // against the same substepped walls as locomotion and dashes.
+    if (Length(velocity_) > 0.001f) {
+        if (Length(velocity_) > 0.95f) velocity_ = Normalize(velocity_) * 0.95f;
+        MoveCombatActor(stage, velocity_ * (dt * 60.0f));
+        velocity_ = velocity_ * std::exp(-5.0f * dt);
+    }
+    worldTransform_.rotate = { 0, 0, std::atan2(aimDirection_.x, -aimDirection_.y) };
+    telegraphEnd_ = ClipCombatRay(stage, GetWorldPosition(), aimDirection_, charger ? 9.0f * authoredMoveSpeedScale_ : sniper ? 64.0f : flanker ? 11.5f : 24.0f);
+    if (GetCombatPhase() == ExpEnemyCombatPhase::Recovery) {
+        visualColor_ = LerpColor(visualColor_, { 0.25f, 0.70f, 0.85f, 1 }, 0.65f);
         object_->SetColor(visualColor_);
     }
 }
@@ -534,17 +607,26 @@ void ExpEnemy::QueueCombatVisuals(NeonGridRenderer& renderer, const Vector3& cam
         line(center + forward * 0.48f, center + side * 0.42f, width * 0.80f, visualColor_);
     } else {
         constexpr float pi = 3.14159265f;
-        for (int i = 0; i < 6; ++i) {
-            const float a = static_cast<float>(i) * pi / 3.0f;
-            const float b = static_cast<float>(i + 1) * pi / 3.0f;
+        const int sides = type_ == ExpEnemyType::Flanker ? 3 : type_ == ExpEnemyType::Skirmisher ? 4 : type_ == ExpEnemyType::Suppressor ? 5 : 6;
+        for (int i = 0; i < sides; ++i) {
+            const float a = static_cast<float>(i) * 2 * pi / static_cast<float>(sides);
+            const float b = static_cast<float>(i + 1) * 2 * pi / static_cast<float>(sides);
             line(center + (side * std::cos(a) + forward * std::sin(a)) * (0.82f * pulse),
                 center + (side * std::cos(b) + forward * std::sin(b)) * (0.82f * pulse), width, visualColor_);
         }
         line(center + side * 0.20f, center + forward * 1.35f + side * 0.12f, width, visualColor_);
         line(center - side * 0.20f, center + forward * 1.35f - side * 0.12f, width, visualColor_);
         line(center - side * 0.36f, center + side * 0.36f, width, visualColor_);
+        // Short rear rails distinguish magazine weapons from the rammer.
+        const int ammo = magazineCycle_.GetAmmo(), capacity = magazineCycle_.GetCapacity();
+        for (int i = 0; i < capacity; ++i) {
+            const float offset = (static_cast<float>(i) - static_cast<float>(capacity - 1) * 0.5f) * 0.25f;
+            const Vector3 tick = center - forward * 1.15f + side * offset;
+            line(tick, tick - forward * 0.24f, width * 0.8f,
+                i < ammo ? Vector4{ 1.6f, 1.5f, 0.6f, 0.95f } : Vector4{ 0.14f, 0.18f, 0.22f, 0.5f });
+        }
     }
-    const ExpEnemyCombatPhase phase = combatCycle_.GetPhase();
+    const ExpEnemyCombatPhase phase = GetCombatPhase();
     if (phase == ExpEnemyCombatPhase::Tracking || phase == ExpEnemyCombatPhase::Locked) {
         const bool locked = phase == ExpEnemyCombatPhase::Locked;
         const Vector4 warning = locked ? Vector4{ 2.1f, 1.45f, 0.75f, 0.95f } :
@@ -556,21 +638,49 @@ void ExpEnemy::QueueCombatVisuals(NeonGridRenderer& renderer, const Vector3& cam
                 line(center + forward * t, center + forward * (std::min)(distance, t + (locked ? 1.30f : 0.85f)),
                     locked ? width * 0.85f : width * 0.60f, warning);
             }
-        } else {
+        } else if (type_ == ExpEnemyType::Charger) {
             for (float t = start; t < distance; t += 2.0f) {
                 const Vector3 marker = center + forward * t;
                 line(marker - forward * 0.50f + side * 0.40f, marker, width * 0.80f, warning);
                 line(marker - forward * 0.50f - side * 0.40f, marker, width * 0.80f, warning);
             }
+        } else {
+            // A local muzzle warning keeps several mobile roles legible without
+            // covering the whole arena with laser sight lines.
+            const float reach = (std::min)(distance, type_ == ExpEnemyType::Skirmisher ? 3.5f : 6.0f);
+            const float fan = type_ == ExpEnemyType::Flanker ? 0.46f : type_ == ExpEnemyType::Suppressor ? 0.27f : 0.0f;
+            line(center + forward * start, center + forward * reach + side * (reach * fan), width * 0.75f, warning);
+            if (fan > 0) line(center + forward * start, center + forward * reach - side * (reach * fan), width * 0.75f, warning);
         }
-        const Vector3 end = center + forward * distance;
-        line(end - side * 0.55f, end + side * 0.55f, width, warning);
+        if (type_ == ExpEnemyType::Charger || type_ == ExpEnemyType::Sniper) {
+            const Vector3 end = center + forward * distance;
+            line(end - side * 0.55f, end + side * 0.55f, width, warning);
+        }
     }
     if (phase == ExpEnemyCombatPhase::Recovery) {
         const Vector4 recovery{ 0.25f, 1.0f, 1.2f, 0.75f };
-        const float radius = 1.15f + combatCycle_.GetRecoveryRatio() * 0.15f;
+        const float ratio = type_ == ExpEnemyType::Charger ? combatCycle_.GetRecoveryRatio() : 1.0f - magazineCycle_.GetReloadProgress();
+        const float radius = 1.15f + ratio * 0.15f;
         line(center + cameraRight * radius - cameraUp * 0.25f, center + cameraRight * radius + cameraUp * 0.25f, width, recovery);
         line(center - cameraRight * radius - cameraUp * 0.25f, center - cameraRight * radius + cameraUp * 0.25f, width, recovery);
+        if (type_ != ExpEnemyType::Charger) {
+            const Vector3 start = center - cameraUp * 1.5f - cameraRight * 0.9f;
+            line(start, start + cameraRight * 1.8f, width * 0.7f, { 0.12f, 0.3f, 0.4f, 0.6f });
+            line(start, start + cameraRight * (1.8f * magazineCycle_.GetReloadProgress()), width * 1.5f, recovery);
+        }
+    }
+    if (dashWarningTimer_ > 0 || dashTimer_ > 0) {
+        const Vector3 dashSide{ -dashDirection_.y, dashDirection_.x, 0 };
+        const Vector4 dashColor{ 0.4f, 1.6f, 2.0f, 0.75f };
+        for (int i = 1; i <= 2; ++i) {
+            const Vector3 marker = center + dashDirection_ * (static_cast<float>(i) * 1.5f);
+            line(marker - dashDirection_ * 0.45f + dashSide * 0.35f, marker, width, dashColor);
+            line(marker - dashDirection_ * 0.45f - dashSide * 0.35f, marker, width, dashColor);
+        }
+        if (dashTimer_ > 0) {
+            line(center + dashSide * 0.5f, center + dashSide * 0.5f - dashDirection_ * 2.2f, width * 1.5f, dashColor);
+            line(center - dashSide * 0.5f, center - dashSide * 0.5f - dashDirection_ * 2.2f, width * 1.5f, dashColor);
+        }
     }
     if (shooterMuzzleFlashTimer_ > 0.0f) {
         const Vector3 muzzle = center + forward * 1.45f;
@@ -682,6 +792,20 @@ bool ExpEnemy::TakeDamageFromEnemy(uint32_t amount)
 bool ExpEnemy::TakeDamageFromPlayer(uint32_t amount)
 {
     return ApplyDamage(amount, true, false);
+}
+
+void ExpEnemy::ApplyKnockback(const Vector3& direction, float power)
+{
+    if (isDead_ || isRunResource_ || !std::isfinite(power) || power <= 0.0f || Length(direction) < 0.001f) return;
+    velocity_ += Normalize(direction) * (std::min)(0.95f, power);
+    if (Length(velocity_) > 0.95f) velocity_ = Normalize(velocity_) * 0.95f;
+    // A committed impact can interrupt a light enemy, but does not reset its
+    // magazine or grant an instant shot when it recovers.
+    if (power >= 0.30f) {
+        if (type_ == ExpEnemyType::Charger) combatCycle_.EnterRecovery();
+        dashTimer_ = dashWarningTimer_ = 0.0f;
+        dashCooldown_ = (std::max)(dashCooldown_, 0.65f);
+    }
 }
 
 bool ExpEnemy::ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinaryEnemyKill)

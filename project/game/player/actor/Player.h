@@ -24,8 +24,10 @@
 #include "game/ui/NeonSegmentedBar.h"
 #include "game/ui/NeonTextEffect.h"
 #include "game/player/TankRunModifiers.h"
+#include "game/player/TankCombatStyleBalance.h"
 #include "game/player/TankExpeditionLoadout.h"
 #include "game/run/TankExpeditionContent.h"
+#include "game/run/TankBuildStyle.h"
 
 enum class ClassType {
 	
@@ -147,9 +149,27 @@ public:
 		float windupDuration = 0.08f;
 		float recoveryDuration = 0.10f;
 		int comboStep = 0;
+		float knockback = 0.16f;
 		uint32_t damage = 1;
 		Vector4 color{ 0.55f, 1.25f, 1.0f, 1.0f };
 	};
+	struct DashImpactEvent {
+		Vector3 origin{}, direction{1.0f, 0.0f, 0.0f};
+		bool boss = false;
+		bool powered = false;
+	};
+	bool TryDashImpact(Collider* target);
+	std::vector<DashImpactEvent> ConsumeDashImpactEvents();
+	uint32_t GetDashStartedCount() const { return dashStartedCount_; }
+	uint32_t GetDamageTakenCount() const { return damageTakenCount_; }
+	uint32_t GetPrimaryAttackCount() const { return primaryAttackCount_; }
+	bool IsMeleeBuild() const { return runModifiers_.enabled && (expeditionCombatStyleSelected_
+		? expeditionCombatStyle_ == tankbuild::Style::Melee : runModifiers_.meleeBlade); }
+	bool IsDroneBuild() const { return runModifiers_.enabled && expeditionCombatStyleSelected_
+		&& expeditionCombatStyle_ == tankbuild::Style::Drone; }
+	bool SetExpeditionCombatStyle(tankbuild::Style style);
+	tankbuild::Style GetExpeditionCombatStyle() const { return expeditionCombatStyle_; }
+	bool HasExpeditionCombatStyle() const { return expeditionCombatStyleSelected_; }
 
 	/// <summary>
 	/// デストラクタ
@@ -225,9 +245,21 @@ public:
 	void Damage(uint32_t amount = kDamageBlockDamage);
 	void TakeDamage(uint32_t amount, float invincibleTime = 0.45f);
 	void ApplyBalanceConfig(const BalanceConfig& config);
+	void ApplyCombatStyleBalance(const TankCombatStyleBalances& profiles);
+	const TankCombatStyleProfile& GetCombatStyleProfile(tankbuild::Style style) const {
+		return combatStyleBalances_[tankbuild::Valid(style)?static_cast<size_t>(style):0];
+	}
 	void SetRunModifiers(const TankRunModifiers& modifiers);
     struct RunCombatSnapshot {
         int barrels = 0, projectilesPerBarrel = 1, activeDrones = 0;
+		tankbuild::Style style = tankbuild::Style::Shooter;
+		bool hasStyle = false, melee = false;
+		int droneLimit = 0;
+		std::string classId;
+		float classDamageScale = 1.0f, classReloadScale = 1.0f, classBulletSpeedScale = 1.0f;
+		bool classReflects = false, classPenetrates = false, isAuthored = false;
+		int classDroneCount = 0;
+		int baseDroneCount = 3;
         int maxWallBounces = -1, actorPierceCount = 0, impactSplitCount = 0;
         bool reflects = false, homing = false, dashBurst = false, dashExplosion = false;
         float homingTurnRate = 0;
@@ -301,6 +333,8 @@ public:
 
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
 		attackController_.SetBulletManager(bulletManager);
+		runBulletManager_ = bulletManager;
+		EnsureExpeditionDrones();
 	}
 
 	/// <summary>
@@ -488,6 +522,7 @@ private:
 	std::vector<BarrelModel> barrels_;
 	std::unordered_map<std::string, PlayerClassConfig> classConfigs_;
 	std::unordered_map<std::string, PlayerClassConfig> runAuthoredClasses_;
+	std::unordered_map<std::string, tankbuild::Style> runAuthoredStyles_;
 	std::vector<RunEvolutionChoice> runAuthoredChoices_;
 	bool runCurrencyMode_=false;
 	bool runAuthoredEvolutionActive_=false;
@@ -556,6 +591,10 @@ private:
 	std::vector<LaserShotEvent> pendingLaserShots_;
 	std::vector<MineDropEvent> pendingMineDrops_;
 	std::vector<MeleeSlashEvent> pendingMeleeSlashes_;
+	std::vector<DashImpactEvent> pendingDashImpacts_;
+	std::vector<uint64_t> dashImpactTargets_;
+	uint32_t dashStartedCount_ = 0, damageTakenCount_ = 0;
+	uint32_t primaryAttackCount_ = 0;
 	int meleeComboStep_ = 0;
 	float meleeComboTimer_ = 0.0f;
 	float saberCounterTimer_ = 0.0f;
@@ -573,6 +612,11 @@ private:
 	PlayerStats stats_;
 	PlayerStats baseStats_;
 	TankRunModifiers runModifiers_{};
+	TankCombatStyleBalances combatStyleBalances_=DefaultTankCombatStyleBalances();
+	float GetRunBaseReloadFrames() const;
+	tankbuild::Style expeditionCombatStyle_ = tankbuild::Style::Shooter;
+	bool expeditionCombatStyleSelected_ = false;
+	BulletManager* runBulletManager_ = nullptr;
     TankRunGrowth runGrowth_{};
     uint32_t runDashExplosionsEmitted_ = 0;
     std::string runStarterBranch_ = "Twin";
@@ -580,6 +624,7 @@ private:
     bool demoInputEnabled_ = false, demoShoot_ = false, demoDash_ = false;
     Vector2 demoMove_{};
     Vector3 demoAim_{};
+	Vector3 runAimWorld_{};
 	TankExpeditionMaintenance runMaintenance_{};
 	PlayerClassConfig runEvolutionConfig_{};
 	bool runEvolutionActive_ = false;
@@ -593,6 +638,8 @@ private:
 	bool runCheckpointEvolution_ = false;
 	std::vector<Vector3> runHomingTargets_;
 	void ConfigureRunDrone(PlayerDrone& drone) const;
+	void EnsureExpeditionDrones();
+	int GetExpeditionDroneLimit() const;
 	void ApplyRunProjectileRules(AttackParam& param, bool applyFan = true) const;
 	float GetRunFireIntervalScale() const;
 	void UpdateRunProjectiles(BulletManager* bulletManager, float deltaTime);

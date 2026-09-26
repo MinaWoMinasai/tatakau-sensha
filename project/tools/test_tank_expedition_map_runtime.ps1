@@ -7,6 +7,8 @@ $mapDirectory = Join-Path $mapProject 'generated/expedition_map'
 $mapResultPath = Join-Path $mapDirectory 'validation.json'
 if (!(Test-Path -LiteralPath $mapExe)) { throw 'Build the requested configuration first.' }
 $mapSettings = @{
+    CG2_TANK_EXPERIENCE_AUTOTEST = $null
+    CG2_TANK_COMBAT_AUTOTEST = $null
     CG2_TANK_MAP_AUTOTEST = '1'
     CG2_TANK_AUTOTEST = $null
     CG2_TANK_TUTORIAL_AUTOTEST = $null
@@ -48,7 +50,7 @@ try {
         $mapResult.visited[0] -ne 'outskirts' -or $mapResult.visited[-1] -ne 'core') {
         throw "Map runtime evidence is incomplete: $mapResultPath"
     }
-    foreach ($mapState in @('map_','outskirts','first_upgrade','field_repair','evolution','gatekeeper','core')) {
+    foreach ($mapState in @('map_','outskirts','first_upgrade','field_repair','evolution','gatekeeper','core','transition_1','transition_2','transition_3')) {
         $mapCapture = Join-Path $mapDirectory "$mapState.png"
         if (!(Test-Path -LiteralPath $mapCapture) -or (Get-Item -LiteralPath $mapCapture).LastWriteTimeUtc -lt $mapStart -or
             (Get-Item -LiteralPath $mapCapture).Length -lt 512) {
