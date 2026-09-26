@@ -21,6 +21,9 @@ function Read-ProductionMethod([string]$relativePath, [string]$signature) {
 }
 $tankCollisionMethods = @(
     (Read-ProductionMethod 'project/game/collision/CollisionManager.cpp' 'void CollisionManager::CheckCollisionPair('),
+    (Read-ProductionMethod 'project/game/player/actor/Player.cpp' 'bool Player::TryDashImpact('),
+    (Read-ProductionMethod 'project/game/exp/ExpEnemy.cpp' 'void ExpEnemy::ApplyKnockback('),
+    (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::ApplyKnockback('),
     (Read-ProductionMethod 'project/game/player/actor/Bullet.cpp' 'void Bullet::OnCollision('),
     (Read-ProductionMethod 'project/game/player/actor/Bullet.cpp' 'bool Bullet::CanHitActor('),
     (Read-ProductionMethod 'project/game/player/actor/Bullet.cpp' 'void Bullet::ApplyBulletDurabilityDamage('),

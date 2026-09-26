@@ -45,6 +45,16 @@ $projectileMethods = foreach ($path in @('project/game/player/actor/Bullet.cpp',
     Remove-ProjectileIncludes (Read-ProjectileSource $path)
 }
 $projectileMethods += Read-ProjectileMethod 'project/game/player/actor/Stage.cpp' 'void Stage::ResolveBulletsCollision('
+$projectileMethods += Read-ProjectileMethod 'project/game/player/actor/Player.cpp' 'void Player::ApplyRunProjectileRules('
+foreach ($signature in @('bool Player::SetExpeditionCombatStyle(', 'int Player::GetExpeditionDroneLimit(',
+    'void Player::EnsureExpeditionDrones(', 'void Player::ConfigureRunDrone(', 'float Player::GetRunFireIntervalScale(',
+    'std::vector<RunEvolutionChoice> Player::GetRunAuthoredEvolutionChoices(', 'bool Player::ChooseRunAuthoredClass(',
+    'void Player::ApplyCombatStyleBalance(', 'float Player::GetRunBaseReloadFrames(', 'void Player::RecalculateStatsFromBase(', 'void Player::SetRunModifiers(')) {
+    $projectileMethods += Read-ProjectileMethod 'project/game/player/actor/Player.cpp' $signature
+}
+foreach ($signature in @('void PlayerDrone::ConfigureRunAttack(', 'void PlayerDrone::Attack(')) {
+    $projectileMethods += Read-ProjectileMethod 'project/game/player/actor/PlayerDrone.cpp' $signature
+}
 [IO.File]::WriteAllText((Join-Path $projectileOutput 'projectile_methods.inc'), ($projectileMethods -join "`n"), [Text.UTF8Encoding]::new($false))
 if (!$VisualStudioPath) {
     $projectileVsWhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'

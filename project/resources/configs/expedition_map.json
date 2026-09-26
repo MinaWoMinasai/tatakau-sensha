@@ -1,5 +1,7 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
+  "procedural": true,
+  "generationSeed": 0,
   "startingCurrency": 20,
   "startNodes": [
     "outskirts"
@@ -220,5 +222,67 @@
       "serviceCost": 0,
       "next": []
     }
-  ]
+  ],
+  "generation": {
+    "rooms": [
+      {
+        "firstColumn": 2,
+        "weight": 4,
+        "lastColumn": 7,
+        "roomTemplate": "outskirts",
+        "kind": "combat"
+      },
+      {
+        "firstColumn": 2,
+        "weight": 1,
+        "lastColumn": 7,
+        "roomTemplate": "crossfire",
+        "kind": "combat"
+      },
+      {
+        "firstColumn": 8,
+        "weight": 2,
+        "lastColumn": 13,
+        "roomTemplate": "crossfire",
+        "kind": "combat"
+      },
+      {
+        "firstColumn": 8,
+        "weight": 2,
+        "lastColumn": 13,
+        "roomTemplate": "resource_fork",
+        "kind": "combat"
+      },
+      {
+        "firstColumn": 14,
+        "weight": 2,
+        "lastColumn": 31,
+        "roomTemplate": "hazard_lane",
+        "kind": "combat"
+      },
+      {
+        "firstColumn": 14,
+        "weight": 1,
+        "lastColumn": 31,
+        "roomTemplate": "crossfire",
+        "kind": "combat"
+      },
+      {
+        "firstColumn": 2,
+        "weight": 1,
+        "lastColumn": 31,
+        "roomTemplate": "gatekeeper",
+        "kind": "elite"
+      },
+      {
+        "firstColumn": 2,
+        "weight": 1,
+        "lastColumn": 31,
+        "roomTemplate": "final_duel",
+        "kind": "boss"
+      }
+    ],
+    "minColumns": 18,
+    "maxColumns": 22
+  }
 }

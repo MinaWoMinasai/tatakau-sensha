@@ -21,6 +21,25 @@ int main(int argc,char** argv) {
     assert(ValidateRoomCatalog(original,error,&enemyIds));
     const auto route=DefaultExpeditionMap();
     assert(ValidateExpeditionMap(route,error));
+    assert(ValidateExpeditionMapRooms(route,original,error,&enemyIds));
+    auto invalidRoute=route;invalidRoute.nodes.front().roomTemplate="missing_room";
+    assert(!ValidateExpeditionMapRooms(invalidRoute,original,error,&enemyIds)&&error.find("missing_room")!=std::string::npos);
+    invalidRoute=route;invalidRoute.nodes.front().roomTemplate="final_duel";
+    assert(!ValidateExpeditionMapRooms(invalidRoute,original,error,&enemyIds));
+    invalidRoute=route;invalidRoute.nodes.back().roomTemplate="outskirts";
+    assert(!ValidateExpeditionMapRooms(invalidRoute,original,error,&enemyIds));
+    invalidRoute=route;invalidRoute.procedural=true;invalidRoute.generationRooms[0].roomTemplate="missing_candidate";
+    assert(!ValidateExpeditionMapRooms(invalidRoute,original,error,&enemyIds)&&error.find("missing_candidate")!=std::string::npos);
+    invalidRoute.generationRooms[0].roomTemplate="final_duel";
+    assert(!ValidateExpeditionMapRooms(invalidRoute,original,error,&enemyIds));
+    invalidRoute=route;invalidRoute.procedural=true;invalidRoute.generationRooms.back().roomTemplate="outskirts";
+    assert(!ValidateExpeditionMapRooms(invalidRoute,original,error,&enemyIds));
+    auto unknownEnemy=original;unknownEnemy.rooms[0].spawns[0].type="missing_enemy";
+    assert(!ValidateExpeditionMapRooms(route,unknownEnemy,error,&enemyIds)&&error.find("missing_enemy")!=std::string::npos);
+    auto tutorialRooms=original;auto tutorial=MakeEmptyRoom("tutorial_training","訓練");
+    tutorial.spawns={{"target","Square",44,30,12}};tutorialRooms.rooms.push_back(tutorial);
+    const auto generated=GenerateExpeditionMap(17);
+    assert(ValidateExpeditionMapRooms(generated,tutorialRooms,error,&enemyIds));
     for(const auto& node:route.nodes) if(IsCombatNode(node.kind)) {
         const auto* room=FindRoom(original,node.roomTemplate);assert(room);
         assert((node.kind==NodeKind::Boss)==(room->objective=="boss"));
@@ -63,7 +82,7 @@ int main(int argc,char** argv) {
     assert(!ValidateRoomCatalog(bad,error)); // Radius1.2 resource overlaps neighboring wall.
     bad=original;bad.rooms.push_back(bad.rooms[0]);assert(!ValidateRoomCatalog(bad,error));
     bad=original;bad.rooms[0].spawns[1].id=bad.rooms[0].spawns[0].id;assert(!ValidateRoomCatalog(bad,error));
-    const std::vector<std::string> known={"Charger","Shooter","Sniper","ArmoredCharger","RapidSniper"};
+    const std::vector<std::string> known=enemyIds;
     bad=original;bad.rooms[0].spawns[0].type="ArmoredCharger";assert(ValidateRoomCatalog(bad,error,&known));
     bad.rooms[0].spawns[0].type="Unknown";assert(!ValidateRoomCatalog(bad,error,&known));
     const auto before=RoomCatalogToJson(parsed);

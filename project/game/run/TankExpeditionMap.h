@@ -1,11 +1,13 @@
 #pragma once
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <set>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -19,7 +21,24 @@ inline std::filesystem::path ExpeditionMapPath(const std::string& path) {
     return std::filesystem::u8path(path);
 #endif
 }
-enum class NodeKind { Combat, Elite, Upgrade, Evolution, Heal, Boss };
+enum class NodeKind { Combat, Elite, Upgrade, Evolution, Heal, Boss, Currency };
+enum class NodeRole { None, TutorialCombat, TutorialSkip, TutorialUpgrade, IntroUpgrade };
+inline const char* NodeRoleId(NodeRole role) {
+    switch(role) {
+    case NodeRole::None:return "none";
+    case NodeRole::TutorialCombat:return "tutorial_combat";
+    case NodeRole::TutorialSkip:return "tutorial_skip";
+    case NodeRole::TutorialUpgrade:return "tutorial_upgrade";
+    case NodeRole::IntroUpgrade:return "intro_upgrade";
+    }
+    return "invalid";
+}
+inline bool ParseNodeRole(const std::string& text,NodeRole& output) {
+    for(const auto role:{NodeRole::None,NodeRole::TutorialCombat,NodeRole::TutorialSkip,NodeRole::TutorialUpgrade,NodeRole::IntroUpgrade})
+        if(text==NodeRoleId(role)) {output=role;return true;}
+    return false;
+}
+inline bool IsIntroUpgrade(NodeRole role) {return role==NodeRole::TutorialUpgrade||role==NodeRole::IntroUpgrade;}
 
 inline const char* NodeKindId(NodeKind kind) {
     switch(kind) {
@@ -29,11 +48,12 @@ inline const char* NodeKindId(NodeKind kind) {
     case NodeKind::Evolution:return "evolution";
     case NodeKind::Heal:return "heal";
     case NodeKind::Boss:return "boss";
+    case NodeKind::Currency:return "currency";
     }
     return "invalid";
 }
 inline bool ParseNodeKind(const std::string& text,NodeKind& output) {
-    for(const auto kind:{NodeKind::Combat,NodeKind::Elite,NodeKind::Upgrade,NodeKind::Evolution,NodeKind::Heal,NodeKind::Boss}) {
+    for(const auto kind:{NodeKind::Combat,NodeKind::Elite,NodeKind::Upgrade,NodeKind::Evolution,NodeKind::Heal,NodeKind::Boss,NodeKind::Currency}) {
         if(text==NodeKindId(kind)) {output=kind;return true;}
     }
     return false;
@@ -52,11 +72,29 @@ struct MapNode {
     int clearReward=0;
     int serviceCost=0;
     std::vector<std::string> next;
+    NodeRole role=NodeRole::None;
 };
+struct GenerationRoomRule {
+    NodeKind kind=NodeKind::Combat;
+    int firstColumn=2,lastColumn=31,weight=1;
+    std::string roomTemplate;
+};
+inline std::vector<GenerationRoomRule> DefaultGenerationRooms() {
+    return {
+        {NodeKind::Combat,2,7,4,"outskirts"},{NodeKind::Combat,2,7,1,"crossfire"},
+        {NodeKind::Combat,8,13,2,"crossfire"},{NodeKind::Combat,8,13,2,"resource_fork"},
+        {NodeKind::Combat,14,31,2,"hazard_lane"},{NodeKind::Combat,14,31,1,"crossfire"},
+        {NodeKind::Elite,2,31,1,"gatekeeper"},{NodeKind::Boss,2,31,1,"final_duel"}};
+}
 struct MapDefinition {
     int startingCurrency=20;
     std::vector<std::string> startNodes;
     std::vector<MapNode> nodes;
+    // Old files remain authored. Only an explicit opt-in regenerates next run.
+    bool procedural=false;
+    uint32_t generationSeed=0;
+    int generationMinColumns=18,generationMaxColumns=22;
+    std::vector<GenerationRoomRule> generationRooms=DefaultGenerationRooms();
 };
 inline const MapNode* FindMapNode(const MapDefinition& map,const std::string& id) {
     const auto it=std::find_if(map.nodes.begin(),map.nodes.end(),[&](const MapNode& node){return node.id==id;});
@@ -68,12 +106,52 @@ inline bool IsMapIdentifier(const std::string& text) {
         return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='_'||c=='-';
     });
 }
+inline bool HasThreeConsecutiveNodeKinds(const MapDefinition& map) {
+    for(const auto& first:map.nodes) for(const auto& secondId:first.next) {
+        const auto* second=FindMapNode(map,secondId);
+        if(!second||second->kind!=first.kind) continue;
+        for(const auto& thirdId:second->next) {
+            const auto* third=FindMapNode(map,thirdId);
+            if(third&&third->kind==first.kind) return true;
+        }
+    }
+    return false;
+}
+inline bool ValidateGenerationSettings(const MapDefinition& map,std::string& error) {
+    auto fail=[&](const std::string& text){error=text;return false;};
+    if(map.generationMinColumns<8||map.generationMaxColumns>32||map.generationMinColumns>map.generationMaxColumns)
+        return fail("生成する列数は8～32、最小列数は最大列数以下にしてください。");
+    if(map.generationRooms.empty()||map.generationRooms.size()>128)
+        return fail("生成用の部屋候補は1～128件必要です。");
+    std::set<std::tuple<NodeKind,int,int,std::string>> duplicates;
+    for(const auto& rule:map.generationRooms) {
+        if(!IsCombatNode(rule.kind)||!IsMapIdentifier(rule.roomTemplate)||rule.firstColumn<2||rule.lastColumn>31||
+            rule.firstColumn>rule.lastColumn||rule.weight<1||rule.weight>1000)
+            return fail("生成候補「"+rule.roomTemplate+"」: 戦闘/精鋭/ボス、左から3～32列目、開始≦終了、重み1～1000で指定してください。");
+        if(!duplicates.emplace(rule.kind,rule.firstColumn,rule.lastColumn,rule.roomTemplate).second)
+            return fail("同じ範囲・種類・部屋の生成候補が重複しています: "+rule.roomTemplate);
+    }
+    // Every possible generated combat column must have an explicit candidate.
+    // The two introductory columns never use these rules.
+    for(const auto kind:{NodeKind::Combat,NodeKind::Elite,NodeKind::Boss}) {
+        const int first=kind==NodeKind::Boss?map.generationMinColumns-1:kind==NodeKind::Elite?3:2;
+        const int last=kind==NodeKind::Boss?map.generationMaxColumns-1:map.generationMaxColumns-2;
+        for(int column=first;column<=last;++column) {
+            const bool covered=std::any_of(map.generationRooms.begin(),map.generationRooms.end(),[&](const auto& rule){
+                return rule.kind==kind&&rule.firstColumn<=column&&column<=rule.lastColumn;
+            });
+            if(!covered) return fail("左から "+std::to_string(column+1)+" 列目の "+NodeKindId(kind)+" に部屋候補がありません。範囲をつないでください。");
+        }
+    }
+    error.clear();return true;
+}
 inline bool ValidateExpeditionMap(const MapDefinition& map,std::string& error) {
     auto fail=[&](const std::string& text){error=text;return false;};
     if(map.startingCurrency<0||map.startingCurrency>kExpeditionCurrencyLimit)
         return fail("Starting currency must be between 0 and 999999.");
     if(map.nodes.empty()||map.nodes.size()>96) return fail("A map needs 1 to 96 nodes.");
     if(map.startNodes.empty()||map.startNodes.size()>5) return fail("A map needs 1 to 5 starting nodes.");
+    if(!ValidateGenerationSettings(map,error))return false;
     std::set<std::string> identifiers;
     std::set<std::pair<int,int>> positions;
     int bosses=0;
@@ -86,12 +164,19 @@ inline bool ValidateExpeditionMap(const MapDefinition& map,std::string& error) {
         if(!positions.insert({node.column,node.row}).second) return fail("Two nodes share the same position: "+node.id);
         NodeKind validKind=NodeKind::Combat;
         if(!ParseNodeKind(NodeKindId(node.kind),validKind)) return fail("Unknown node kind: "+node.id);
+        NodeRole validRole=NodeRole::None;
+        if(!ParseNodeRole(NodeRoleId(node.role),validRole)) return fail("Unknown node role: "+node.id);
+        if((node.role==NodeRole::TutorialCombat&&node.kind!=NodeKind::Combat)||
+           (node.role==NodeRole::TutorialSkip&&node.kind!=NodeKind::Currency)||
+           (IsIntroUpgrade(node.role)&&node.kind!=NodeKind::Upgrade))
+            return fail("The introductory role does not match this node kind: "+node.id);
         if(node.clearReward<0||node.clearReward>kExpeditionCurrencyLimit||node.serviceCost<0||node.serviceCost>kExpeditionCurrencyLimit)
             return fail("Rewards and prices must be between 0 and 999999: "+node.id);
         if(IsCombatNode(node.kind)) {
             if(node.combatStage<0||node.combatStage>31||!IsMapIdentifier(node.roomTemplate)||node.serviceCost!=0)
                 return fail("Combat needs a stage 0..31, room template, and zero service cost: "+node.id);
-        } else if(node.combatStage!=-1||!node.roomTemplate.empty()||node.clearReward!=0) {
+        } else if(node.combatStage!=-1||!node.roomTemplate.empty()||
+            (node.kind!=NodeKind::Currency&&node.clearReward!=0)||(node.kind==NodeKind::Currency&&node.serviceCost!=0)) {
             return fail("Service nodes cannot contain a combat stage, room, or clear reward: "+node.id);
         }
         if(node.kind==NodeKind::Boss) {
@@ -125,6 +210,7 @@ inline bool ValidateExpeditionMap(const MapDefinition& map,std::string& error) {
         pending.insert(pending.end(),node->next.begin(),node->next.end());
     }
     if(reached.size()!=map.nodes.size()) return fail("Every node, including the boss, must be reachable from the start.");
+    if(map.procedural&&HasThreeConsecutiveNodeKinds(map)) return fail("Procedural routes cannot contain three consecutive nodes of the same kind.");
     // With a finite forward graph and no other terminal, every route reaches the boss.
     error.clear();return true;
 }
@@ -150,13 +236,135 @@ inline MapDefinition DefaultExpeditionMap() {
     };
     return map;
 }
+// Stable integer PRNG makes a captured seed reproduce identically across builds.
+inline MapDefinition GenerateExpeditionMapUnchecked(uint32_t seed,const MapDefinition& settings,int tutorialCombatClearReward,int tutorialEnemyCredits) {
+    uint32_t random=seed^0x9e3779b9u;
+    auto draw=[&](uint32_t count) {
+        random+=0x9e3779b9u;
+        uint32_t mixed=random;
+        mixed=(mixed^(mixed>>16))*0x85ebca6bu;
+        mixed=(mixed^(mixed>>13))*0xc2b2ae35u;
+        mixed^=mixed>>16;
+        return count?mixed%count:0u;
+    };
+    MapDefinition map;map.procedural=true;map.generationSeed=seed;
+    map.startingCurrency=settings.startingCurrency;
+    map.generationMinColumns=settings.generationMinColumns;map.generationMaxColumns=settings.generationMaxColumns;
+    map.generationRooms=settings.generationRooms;
+    const int reward=(std::clamp)(tutorialCombatClearReward,0,kExpeditionCurrencyLimit);
+    const int drops=(std::clamp)(tutorialEnemyCredits,0,kExpeditionCurrencyLimit-reward);
+    map.startNodes={"tutorial_combat","tutorial_skip"};
+    map.nodes={
+        {"tutorial_combat","操作訓練",NodeKind::Combat,0,1,0,"tutorial_training",reward,0,{"tutorial_upgrade"},NodeRole::TutorialCombat},
+        {"tutorial_skip","訓練を省略 / 資材支給",NodeKind::Currency,0,3,-1,"",reward+drops,0,{"skip_upgrade"},NodeRole::TutorialSkip},
+        {"tutorial_upgrade","訓練後の改造",NodeKind::Upgrade,1,1,-1,"",0,15,{},NodeRole::TutorialUpgrade},
+        {"skip_upgrade","初期改造",NodeKind::Upgrade,1,3,-1,"",0,15,{},NodeRole::IntroUpgrade}
+    };
+    const int length=map.generationMinColumns+static_cast<int>(draw(static_cast<uint32_t>(map.generationMaxColumns-map.generationMinColumns+1)));
+    std::vector<size_t> previous{2,3};
+    auto pickRoom=[&](NodeKind kind,int column) {
+        unsigned total=0;
+        for(const auto& rule:map.generationRooms) if(rule.kind==kind&&rule.firstColumn<=column&&column<=rule.lastColumn)total+=static_cast<unsigned>(rule.weight);
+        unsigned value=draw(total);
+        for(const auto& rule:map.generationRooms) if(rule.kind==kind&&rule.firstColumn<=column&&column<=rule.lastColumn) {
+            if(value<static_cast<unsigned>(rule.weight))return rule.roomTemplate;
+            value-=static_cast<unsigned>(rule.weight);
+        }
+        return std::string{};
+    };
+    for(int column=2;column<length;++column) {
+        const bool final=column==length-1;
+        const bool evolution=column==5||column==length-5;
+        int width=column==2||final?1:evolution||column==length-2?2:1+static_cast<int>(draw(3));
+        const size_t first=map.nodes.size();
+        for(int lane=0;lane<width;++lane) {
+            MapNode node;
+            node.id=final?"core":"route_"+std::to_string(column)+"_"+std::to_string(lane);
+            node.column=column;node.row=width==1?2:width==2?1+lane*2:lane*2;
+            map.nodes.push_back(std::move(node));
+        }
+        // Connect neighbouring lanes, then repair uncovered lanes. Every source
+        // gets an exit and every destination is reachable without dense crossings.
+        auto connect=[&](size_t source,int lane) {
+            auto& edges=map.nodes[source].next;const auto& id=map.nodes[first+static_cast<size_t>(lane)].id;
+            if(std::find(edges.begin(),edges.end(),id)==edges.end()) edges.push_back(id);
+        };
+        for(size_t p=0;p<previous.size();++p) {
+            const int nearest=previous.size()==1?width/2:static_cast<int>((p*static_cast<size_t>(width-1)+(previous.size()-1)/2)/(previous.size()-1));
+            connect(previous[p],nearest);
+            if(evolution) {connect(previous[p],0);connect(previous[p],1);}
+            else if(width>1&&draw(100)<65) connect(previous[p],nearest==width-1?nearest-1:nearest+1);
+        }
+        for(int lane=0;lane<width;++lane) {
+            const auto& id=map.nodes[first+static_cast<size_t>(lane)].id;
+            bool incoming=false;for(const auto p:previous)
+                incoming|=std::find(map.nodes[p].next.begin(),map.nodes[p].next.end(),id)!=map.nodes[p].next.end();
+            if(!incoming) connect(previous[static_cast<size_t>(lane)*previous.size()/static_cast<size_t>(width)],lane);
+        }
+        for(int lane=0;lane<width;++lane) {
+            auto& node=map.nodes[first+static_cast<size_t>(lane)];
+            auto allowed=[&](NodeKind kind) {
+                for(const auto p:previous) {
+                    const auto& parent=map.nodes[p];
+                    if(parent.kind!=kind||std::find(parent.next.begin(),parent.next.end(),node.id)==parent.next.end()) continue;
+                    for(size_t g=0;g<first;++g) {
+                        const auto& grand=map.nodes[g];
+                        if(grand.kind==kind&&std::find(grand.next.begin(),grand.next.end(),parent.id)!=grand.next.end()) return false;
+                    }
+                }
+                return true;
+            };
+            if(final) node.kind=NodeKind::Boss;
+            else if(column==2) node.kind=NodeKind::Combat;
+            else if(evolution&&lane==0) node.kind=NodeKind::Evolution;
+            else {
+                std::vector<NodeKind> choices;
+                if(evolution||column==length-2) choices={NodeKind::Upgrade,NodeKind::Heal};
+                else if(column%3==2) choices={NodeKind::Combat,NodeKind::Combat,NodeKind::Elite};
+                else if(column%3==0) choices={NodeKind::Upgrade,NodeKind::Upgrade,NodeKind::Heal};
+                else choices={NodeKind::Combat,NodeKind::Elite,NodeKind::Upgrade,NodeKind::Heal};
+                choices.erase(std::remove_if(choices.begin(),choices.end(),[&](NodeKind kind){return !allowed(kind);}),choices.end());
+                if(choices.empty()) for(const auto kind:{NodeKind::Combat,NodeKind::Elite,NodeKind::Upgrade,NodeKind::Heal})
+                    if(allowed(kind)) choices.push_back(kind);
+                node.kind=choices[draw(static_cast<uint32_t>(choices.size()))];
+            }
+            if(IsCombatNode(node.kind)) {
+                node.combatStage=final?4:(std::min)(4,1+(column-2)/4);
+                node.roomTemplate=pickRoom(node.kind,column);
+                node.clearReward=final?0:(node.kind==NodeKind::Elite?45:28)+column*3;
+            } else {
+                node.combatStage=-1;
+                node.serviceCost=node.kind==NodeKind::Upgrade?30+column*2:node.kind==NodeKind::Heal?20+column:0;
+            }
+            const char* label=node.kind==NodeKind::Boss?"中枢ボス":node.kind==NodeKind::Combat?"戦闘区画":
+                node.kind==NodeKind::Elite?"精鋭部隊":node.kind==NodeKind::Upgrade?"改造工房":node.kind==NodeKind::Evolution?"機体進化":"修理ドック";
+            node.label=final?label:std::string(label)+" "+std::to_string(column-1);
+        }
+        previous.clear();for(int lane=0;lane<width;++lane) previous.push_back(first+static_cast<size_t>(lane));
+    }
+    return map;
+}
+inline bool GenerateExpeditionMap(const MapDefinition& settings,uint32_t seed,MapDefinition& output,std::string& error,
+    int tutorialCombatClearReward=30,int tutorialEnemyCredits=8) {
+    if(!ValidateGenerationSettings(settings,error))return false;
+    auto generated=GenerateExpeditionMapUnchecked(seed,settings,tutorialCombatClearReward,tutorialEnemyCredits);
+    if(!ValidateExpeditionMap(generated,error))return false;
+    output=std::move(generated);error.clear();return true;
+}
+inline MapDefinition GenerateExpeditionMap(uint32_t seed,int tutorialCombatClearReward=30,int tutorialEnemyCredits=8) {
+    return GenerateExpeditionMapUnchecked(seed,MapDefinition{},tutorialCombatClearReward,tutorialEnemyCredits);
+}
 inline nlohmann::json ExpeditionMapJson(const MapDefinition& map) {
-    nlohmann::json result={{"schemaVersion",1},{"startingCurrency",map.startingCurrency},{"startNodes",map.startNodes},{"nodes",nlohmann::json::array()}};
+    nlohmann::json result={{"schemaVersion",3},{"startingCurrency",map.startingCurrency},{"startNodes",map.startNodes},
+        {"procedural",map.procedural},{"generationSeed",map.generationSeed},{"nodes",nlohmann::json::array()}};
+    result["generation"]={{"minColumns",map.generationMinColumns},{"maxColumns",map.generationMaxColumns},{"rooms",nlohmann::json::array()}};
+    for(const auto& rule:map.generationRooms)result["generation"]["rooms"].push_back({{"kind",NodeKindId(rule.kind)},
+        {"firstColumn",rule.firstColumn},{"lastColumn",rule.lastColumn},{"weight",rule.weight},{"roomTemplate",rule.roomTemplate}});
     for(const auto& node:map.nodes) result["nodes"].push_back({
         {"id",node.id},{"label",node.label},{"kind",NodeKindId(node.kind)},
         {"column",node.column},{"row",node.row},{"combatStage",node.combatStage},
         {"roomTemplate",node.roomTemplate},{"clearReward",node.clearReward},
-        {"serviceCost",node.serviceCost},{"next",node.next}});
+        {"serviceCost",node.serviceCost},{"next",node.next},{"role",NodeRoleId(node.role)}});
     return result;
 }
 inline bool ParseExpeditionMap(const nlohmann::json& input,MapDefinition& output,std::string& error) {
@@ -178,11 +386,37 @@ inline bool ParseExpeditionMap(const nlohmann::json& input,MapDefinition& output
     try {
         MapDefinition parsed;
         int version=0;
-        if(!input.is_object()||!integer(input,"schemaVersion",1,1,version)||
+        if(!input.is_object()||!integer(input,"schemaVersion",1,3,version)||
             !integer(input,"startingCurrency",0,kExpeditionCurrencyLimit,parsed.startingCurrency)||
             !strings(input,"startNodes",parsed.startNodes)||!input.contains("nodes")||
             !input["nodes"].is_array()||input["nodes"].empty()||input["nodes"].size()>96) {
-            error="Invalid map header. Expected schemaVersion 1, startingCurrency, startNodes and nodes.";return false;
+            error="Invalid map header. Expected schemaVersion 1, 2 or 3, startingCurrency, startNodes and nodes.";return false;
+        }
+        if(input.contains("procedural")) {
+            if(!input["procedural"].is_boolean()) {error="procedural must be boolean.";return false;}
+            parsed.procedural=input["procedural"].get<bool>();
+        }
+        if(input.contains("generationSeed")) {
+            const auto& value=input["generationSeed"];
+            if(!value.is_number_integer()||value.get<double>()<0||value.get<double>()>4294967295.0) {error="generationSeed must be uint32.";return false;}
+            parsed.generationSeed=value.get<uint32_t>();
+        }
+        if(version>=3||input.contains("generation")) {
+            const auto& generation=input.at("generation");
+            if(!generation.is_object()||!integer(generation,"minColumns",8,32,parsed.generationMinColumns)||
+                !integer(generation,"maxColumns",8,32,parsed.generationMaxColumns)||!generation.contains("rooms")||
+                !generation["rooms"].is_array()||generation["rooms"].empty()||generation["rooms"].size()>128)
+                {error="生成設定の列数または部屋候補一覧が不正です。";return false;}
+            parsed.generationRooms.clear();
+            for(const auto& value:generation["rooms"]) {
+                GenerationRoomRule rule;
+                if(!value.is_object()||!value.contains("kind")||!value["kind"].is_string()||!ParseNodeKind(value["kind"].get<std::string>(),rule.kind)||
+                    !value.contains("roomTemplate")||!value["roomTemplate"].is_string()||
+                    !integer(value,"firstColumn",2,31,rule.firstColumn)||!integer(value,"lastColumn",2,31,rule.lastColumn)||!integer(value,"weight",1,1000,rule.weight))
+                    {error="生成候補の種類・部屋ID・列範囲・重みが不正です。";return false;}
+                rule.roomTemplate=value["roomTemplate"].get<std::string>();parsed.generationRooms.push_back(std::move(rule));
+            }
+            if(!ValidateGenerationSettings(parsed,error))return false;
         }
         for(const auto& value:input["nodes"]) {
             MapNode node;
@@ -199,6 +433,9 @@ inline bool ParseExpeditionMap(const nlohmann::json& input,MapDefinition& output
             }
             node.id=value["id"].get<std::string>();node.label=value["label"].get<std::string>();
             node.roomTemplate=value["roomTemplate"].get<std::string>();
+            if(value.contains("role")&&(!value["role"].is_string()||!ParseNodeRole(value["role"].get<std::string>(),node.role))) {
+                error="Unknown node role: "+node.id;return false;
+            }
             if(!ParseNodeKind(value["kind"].get<std::string>(),node.kind)) {error="Unknown node kind: "+node.id;return false;}
             parsed.nodes.push_back(std::move(node));
         }
@@ -277,17 +514,23 @@ public:
         if(IsComplete()||IsDead()||!CanAfford(amount)) return false;
         currency_-=amount;return true;
     }
-    bool CompleteCombat() {
+    bool CompleteCombat(bool grantReward=true) {
         const auto* node=GetActiveNode();
         if(phase_!=MapRunPhase::ActiveNode||!node||!IsCombatNode(node->kind)) return false;
-        if(node->clearReward>0) EarnCurrency(node->clearReward);
+        if(grantReward&&node->clearReward>0) EarnCurrency(node->clearReward);
         const bool boss=node->kind==NodeKind::Boss;
         CompleteActiveNode();if(boss) phase_=MapRunPhase::Clear;return true;
     }
     bool CompleteService(bool purchase=true) {
         const auto* node=GetActiveNode();
-        if(phase_!=MapRunPhase::ActiveNode||!node||IsCombatNode(node->kind)) return false;
+        if(phase_!=MapRunPhase::ActiveNode||!node||IsCombatNode(node->kind)||node->kind==NodeKind::Currency) return false;
         if(purchase&&!TrySpendCurrency(node->serviceCost)) return false;
+        CompleteActiveNode();return true;
+    }
+    bool CompleteCurrencyGrant(bool grantReward=true) {
+        const auto* node=GetActiveNode();
+        if(phase_!=MapRunPhase::ActiveNode||!node||node->kind!=NodeKind::Currency) return false;
+        if(grantReward&&node->clearReward>0) EarnCurrency(node->clearReward);
         CompleteActiveNode();return true;
     }
     bool MarkDead() {

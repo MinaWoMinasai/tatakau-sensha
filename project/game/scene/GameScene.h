@@ -35,11 +35,14 @@
 #include "game/level/LevelLoader.h"
 #include "game/effects/ScreenEffectDirector.h"
 #include "game/ui/NeonTextEffect.h"
+#include "game/ui/TankRewardCard.h"
 #include "game/run/TankRunDirector.h"
 #include "game/run/TankExpeditionDirector.h"
 #include "game/run/TankExpeditionAudio.h"
 #include "game/run/TankExpeditionTutorial.h"
+#include "game/run/TankGuidedCombatTutorial.h"
 #include "game/run/TankExpeditionMap.h"
+#include "game/run/TankExpeditionTransition.h"
 #include "game/run/TankExpeditionRooms.h"
 #include "game/run/TankExpeditionContent.h"
 #include "game/editor/ExpeditionRoomEditor.h"
@@ -130,6 +133,12 @@ private:
 	void ApplyTankExpeditionRoomBalance();
 	void UpdateTankExpeditionBalanceEditor();
 	void DrawTankExpeditionBalanceEditor();
+	void UpdateExpeditionAuthoringHub();
+	bool expeditionAuthoringHubOpen_ = false;
+	nlohmann::json expeditionPostDraft_;
+	nlohmann::json expeditionVisualDraft_;
+	std::string expeditionAuthoringStatus_;
+	nlohmann::json expeditionStyleBalanceDraft_;
 	bool tankExpeditionBalanceEditorOpen_ = false;
 	void InitializeExpeditionMap();
 	void UpdateExpeditionMap(float dt);
@@ -137,12 +146,56 @@ private:
 	void RefreshExpeditionMapUi();
 	void DrawExpeditionMapUi();
 	void EnterExpeditionMapNode(const std::string& id);
+	void RequestExpeditionMapNode(const std::string& id);
+	void BeginExpeditionPresentation(int action, const std::string& title, const std::string& detail, const Vector4& color);
+	void UpdateExpeditionPresentation(float dt);
+	void DrawExpeditionPresentation();
 	void SelectExpeditionService(int option);
 	void CompleteExpeditionMapCombat();
 	bool StartAuthoredExpeditionRoom();
 	void RefreshExpeditionServiceOffers();
+	void InitializeExpeditionBuildCards();
+	void RefreshExpeditionBuildCards();
+	void UpdateExpeditionBuildCards(float dt);
+	void SelectExpeditionBuildStyle(int index);
+	bool IsExpeditionBuildCardScreen() const;
+	void InitializeExpeditionExperience();
+	void SpawnExpeditionCredits(const Vector3& position, int amount, bool flyImmediately = false);
+	void UpdateExpeditionCredits(float dt, bool collectAll = false);
+	void DrawExpeditionCredits();
+	void DrawExpeditionVitals();
+	void UpdateGuidedExpedition(float dt);
+	void AcknowledgeGuidedExpedition();
+	void DrawGuidedExpedition();
+	void RefreshGuidedExpeditionUi();
+	bool IsGuidedExpeditionPaused() const;
+	void QueueExpeditionImpact(const Vector3& position, const Vector3& direction, bool finisher);
+	void DrawExpeditionPointer(Vector2 target, bool right = true);
+	bool IsIntroExpeditionService() const;
+	int ExpeditionServicePrice(const std::string& id) const;
 	void SetExpeditionBlueprint(int index);
 	void UpdateExpeditionMapValidation(float dt);
+	void InitializeCombatValidationFixture();
+	bool UpdateCombatValidation(float dt);
+	void BeginCombatValidationProbe(int index);
+	void FinishCombatValidationProbe();
+	void WriteCombatValidationReport(bool completed);
+	void CaptureCombatValidation(const std::string& name);
+	bool combatValidationEnabled_ = false, combatValidationRequested_ = false, combatValidationPhase2Injected_ = false;
+	float combatValidationElapsed_ = 0;
+	int combatValidationIndex_ = -1;
+	struct CombatValidationProbe {
+		std::string id;
+		float age = 0, pathLength = 0, maxStep = 0, reloadSeconds = 0, sampleAge = 0;
+		Vector3 previousPosition{};
+		bool hasPrevious = false, previousReload = false, phase2 = false;
+		unsigned shots = 0, dashes = 0, reloads = 0, phases = 0, patterns = 0;
+		int previousAmmo = 0, reloadViolations = 0, wallIntersections = 0, tunnelingViolations = 0, playerBulletSamples = 0;
+		size_t projectileSamples = 0, maxProjectiles = 0;
+		nlohmann::json trace = nlohmann::json::array();
+	} combatValidationProbe_;
+	nlohmann::json combatValidationResults_ = nlohmann::json::array();
+	std::vector<std::string> combatValidationErrors_, combatValidationCaptures_;
 	bool expeditionMapEnabled_ = false;
 	bool expeditionRoomEditorOpen_ = false, expeditionMapEditorOpen_ = false, expeditionContentEditorOpen_ = false;
 	tankexp::MapDefinition expeditionMapDefinition_;
@@ -154,22 +207,71 @@ private:
 	tankcontent::ContentEditor expeditionContentEditor_;
 	std::string expeditionMapSelection_, expeditionMapStatus_;
 	std::vector<std::string> expeditionServiceOffers_;
+	std::vector<std::string> expeditionIntroOffers_;
+	uint32_t expeditionSeed_ = 0;
 	std::unordered_map<std::string,int> expeditionPurchases_;
+	// Retain purchased effects if their source is renamed/deleted while authoring.
+	std::unordered_map<std::string,tankcontent::Upgrade> expeditionPurchasedModules_;
+	std::array<float,tankrun::CardCount> ExpeditionEffectPowers() const;
 	int expeditionServicePage_ = 0, expeditionBlueprint_ = 0;
 	float expeditionMapScroll_ = 0;
 	bool expeditionMapPreview_ = false;
+	bool expeditionBuildChoice_ = false, expeditionBuildChosen_ = false;
+	tankbuild::Style expeditionBuildStyle_ = tankbuild::Style::Shooter;
+	int expeditionPendingBuild_ = -1;
+	std::array<std::unique_ptr<TankRewardCard>,3> expeditionRewardCards_;
+	tankexp::PresentationTransition expeditionTransition_;
+	int expeditionTransitionAction_ = 0;
+	int expeditionPendingService_ = -1;
+	std::string expeditionPendingNode_;
+	Vector4 expeditionTransitionColor_{0.3f,0.9f,1,1};
+	std::unique_ptr<Sprite> expeditionCurtain_, expeditionTransitionPanel_, expeditionTransitionRail_, expeditionTransitionProgress_;
+	std::unique_ptr<TextLabel> expeditionTransitionTitle_, expeditionTransitionDetail_;
+	float expeditionPresentationClock_ = 0, expeditionUiErrorAge_ = 0;
+	struct ExpeditionHitSpark {Vector3 position{},direction{};float age=0;};
+	std::vector<ExpeditionHitSpark> expeditionHitSparks_;
+	float expeditionHitSparkCooldown_=0;
+	bool expeditionBossPhase2Seen_=false;
+	std::string expeditionLastFocus_;
+	std::array<float,3> expeditionCardFocus_{};
 	struct MapNodeVisual {
 		Vector2 center{};
+		float focus = 0;
 		std::unique_ptr<Sprite> halo, rim, fill;
 		std::unique_ptr<TextLabel> icon, label, state;
 	};
-	struct MapEdgeVisual {std::string from,to;std::unique_ptr<Sprite> glow,line;};
+	struct MapEdgeVisual {std::string from,to;std::unique_ptr<Sprite> glow,line,pulse;};
 	std::vector<MapNodeVisual> expeditionMapVisuals_;
 	std::vector<MapEdgeVisual> expeditionMapEdges_;
 	std::vector<std::unique_ptr<Sprite>> expeditionMapGrid_;
 	std::unique_ptr<TextLabel> expeditionMapTitle_, expeditionMapSubtitle_, expeditionMapInfo_, expeditionMapLegend_, expeditionMapHelp_;
 	std::array<std::unique_ptr<TextLabel>,3> expeditionBlueprintLabels_;
 	std::array<std::unique_ptr<Sprite>,3> expeditionBlueprintButtons_;
+	struct ExpeditionCreditOrb {
+		Vector3 position{}, velocity{};
+		Vector2 launch{};
+		float age = 0, flight = 0;
+		int value = 0;
+		bool flying = false;
+		std::unique_ptr<Sprite> sprite;
+	};
+	std::vector<ExpeditionCreditOrb> expeditionCredits_;
+	std::unique_ptr<Sprite> expeditionCreditIcon_, expeditionCreditPulse_, expeditionStaminaTrack_, expeditionStaminaFill_;
+	std::unique_ptr<TextLabel> expeditionCreditText_;
+	std::unique_ptr<NeonTextEffect> expeditionCompleteGlow_;
+	std::array<std::unique_ptr<Sprite>,4> expeditionSpotlight_;
+	std::array<std::unique_ptr<Sprite>,6> expeditionPointer_;
+	std::unique_ptr<Sprite> expeditionContinueButton_, expeditionSkipButton_;
+	std::unique_ptr<TextLabel> expeditionContinueText_, expeditionSkipText_;
+	float expeditionCreditPulseAge_ = 0, expeditionImpactHold_ = 0;
+	int expeditionCreditsCollected_ = 0;
+	bool expeditionCollectAll_ = false, expeditionClearRewardQueued_ = false;
+	bool expeditionGuideActive_ = false, expeditionGuideShooterSpawned_ = false;
+	tankexp::GuidedCombatTutorial expeditionGuide_;
+	int expeditionGuideLastKills_ = 0;
+	uint32_t expeditionGuideDamageCount_ = 0;
+	uint32_t expeditionGuideAttackCount_ = 0;
+	float expeditionGuideAge_ = 0;
 	bool expeditionMapAutoTest_ = false;
 	float expeditionMapTestElapsed_ = 0, expeditionMapTestAge_ = 0;
 	std::string expeditionMapTestState_;
@@ -620,9 +722,10 @@ private:
 	std::vector<FollowHpBar> followHpBars_;
 	std::array<std::vector<VertexData>, 4> hpBarBackgroundVertices_;
 	std::array<std::vector<VertexData>, 4> hpBarFillVertices_;
+	std::vector<VertexData> staminaBarFillVertices_;
 	std::array<std::vector<VertexData>, 4> hpBarOutlineVertices_;
 	std::unordered_map<const void*, HpBarVisibility> hpBarVisibility_;
-	std::array<HpBarMaterialBuffer, 12> hpBarMaterials_;
+	std::array<HpBarMaterialBuffer, 13> hpBarMaterials_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> hpBarVertexResource_;
 	D3D12_VERTEX_BUFFER_VIEW hpBarVertexBufferView_{};
 	VertexData* hpBarVertexData_ = nullptr;
@@ -798,6 +901,7 @@ private:
 	float playerNeonBillboardRadius_ = 1.05f;
 	float bossNeonBillboardRadius_ = 1.35f;
 	float actorNeonBillboardLineWidth_ = 0.12f;
+	float playerNeonEmission_ = 1.0f, bossNeonEmission_ = 1.0f;
 	float bossNeonBarrelForwardOffset_ = 0.92f;
 	float bossNeonBarrelSideOffset_ = 0.0f;
 	float bossNeonBarrelLengthScale_ = 1.15f;
@@ -879,6 +983,9 @@ private:
 		float elapsed = 0.0f;
 		uint32_t damage = 1;
 		bool hitApplied = false;
+		float knockback = 0;
+		bool finisher = false;
+		std::vector<const Collider*> hitTargets;
 		float life = 0.18f;
 		float maxLife = 0.18f;
 		Vector4 color{ 0.55f, 1.25f, 1.0f, 1.0f };
@@ -931,4 +1038,29 @@ private:
 	float neonTriangleDemoRotation_ = 0.0f;
 	Vector4 neonTriangleDemoColor_ = { 0.15f, 0.95f, 1.0f, 1.0f };
 
+	// Opt-in end-to-end experience validation; ordinary play never enters it.
+	void InitializeExperienceValidation();
+	bool UpdateExperienceValidation(float dt);
+	void CaptureExperienceValidation(const std::string& name);
+	void WriteExperienceValidationReport(bool completed);
+	void BeginExperienceMeleeProbe();
+	int experienceValidationVariant_ = 0;
+	int experienceValidationStyle_ = 2, experiencePreviewRarity_ = 0;
+	bool experienceBuildPreserved_ = false;
+	bool experienceEvolutionVerified_ = false;
+	int experienceDroneSamples_ = 0;
+	float experienceValidationElapsed_ = 0, experienceValidationStateAge_ = 0, experienceMeleeAge_ = 0;
+	std::string experienceValidationState_;
+	std::vector<std::string> experienceValidationCaptures_, experienceValidationErrors_;
+	std::vector<std::string> experienceValidationIntroOffers_;
+	bool experienceMeleeStarted_ = false, experienceMeleeDone_ = false;
+	bool experienceCreditArrivalEligible_ = false, experienceCreditDelivered_ = false;
+	int experienceEarlyFlightSamples_ = 0, experiencePrematureCredits_ = 0, experienceGroundOrbSamples_ = 0;
+	int experienceIntroWallet_ = -1, experienceAfterIntroWallet_ = -1, experienceInitialKills_ = 0;
+	int experienceForcedLaterClears_ = 0, experiencePlayerBulletSamples_ = 0;
+	int experienceMeleeMinHp_ = 500, experienceMeleeSlashSamples_ = 0, experienceMeleeBulletSamples_ = 0;
+	float experienceMeleeDisplacement_ = 0;
+	Vector3 experienceMeleeTargetStart_{};
+	unsigned experienceGuideStageMask_ = 0, experienceSuccessfulDashes_ = 0;
+	nlohmann::json experienceIntroOfferDetails_ = nlohmann::json::array();
 };

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "bossMaxHp": 900,
   "defaultRandomSpawnEnabled": false,
   "player": {
@@ -14,11 +14,11 @@
     "healToFull": false
   },
   "playerUpgrades": {
-    "maxHp": 0.35,
-    "bulletDamage": 0.8,
+    "maxHp": 0.15,
+    "bulletDamage": 0.25,
     "bulletSpeed": 0.2,
-    "reloadSpeed": 0.4,
-    "moveSpeed": 0.25,
+    "reloadSpeed": 0.25,
+    "moveSpeed": 0.12,
     "healthRegen": 0.12,
     "bodyDamage": 0.1,
     "minReloadSpeed": 3.0
@@ -57,5 +57,58 @@
     "bossLevelingExitDistance": 8.0,
     "bossLevelingSearchRadius": 40.0,
     "bossAimTurnHalfSeconds": 1.0
+  },
+  "combatStyles": {
+    "shooter": {
+      "maxHp": 120,
+      "moveSpeed": 0.23,
+      "maxStamina": 3,
+      "staminaRecovery": 0.9,
+      "bodyDamage": 3,
+      "attackDamage": 4,
+      "attackIntervalSeconds": 0.3333333333,
+      "bulletSpeed": 0.27,
+      "meleeRange": 4.3,
+      "meleeKnockback": 0.16,
+      "droneCount": 3,
+      "droneFollowSpeed": 0.25,
+      "droneCatchupSpeed": 0.62,
+      "droneResponse": 5,
+      "droneFormationRadius": 1.5
+    },
+    "drone": {
+      "maxHp": 120,
+      "moveSpeed": 0.23,
+      "maxStamina": 3,
+      "staminaRecovery": 0.9,
+      "bodyDamage": 3,
+      "attackDamage": 4,
+      "attackIntervalSeconds": 0.5,
+      "bulletSpeed": 0.27,
+      "meleeRange": 4.3,
+      "meleeKnockback": 0.16,
+      "droneCount": 3,
+      "droneFollowSpeed": 0.25,
+      "droneCatchupSpeed": 0.62,
+      "droneResponse": 5,
+      "droneFormationRadius": 1.5
+    },
+    "melee": {
+      "maxHp": 120,
+      "moveSpeed": 0.23,
+      "maxStamina": 3,
+      "staminaRecovery": 0.9,
+      "bodyDamage": 3,
+      "attackDamage": 15.2,
+      "attackIntervalSeconds": 0.33,
+      "bulletSpeed": 0.27,
+      "meleeRange": 4.3,
+      "meleeKnockback": 0.16,
+      "droneCount": 3,
+      "droneFollowSpeed": 0.25,
+      "droneCatchupSpeed": 0.62,
+      "droneResponse": 5,
+      "droneFormationRadius": 1.5
+    }
   }
 }

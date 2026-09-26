@@ -13,6 +13,8 @@ call "%ROOMS_TEST_DEV%" -no_logo -arch=x64 -host_arch=x64
 if errorlevel 1 exit /b %errorlevel%
 cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /I"%ROOMS_TEST_INCLUDE%" /Fe:room_tests.exe /Fo:.\ "%ROOMS_TEST_SOURCE%"
 if errorlevel 1 exit /b %errorlevel%
+cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /DUSE_RUNTIME_PROFILER /I"%ROOMS_TEST_INCLUDE%" /I"%ROOMS_TEST_PROJECT%" /c /Fo:expedition_room_editor.obj "%ROOMS_EDITOR_SOURCE%"
+if errorlevel 1 exit /b %errorlevel%
 room_tests.exe %ROOMS_TEST_WRITE%
 exit /b %errorlevel%
 '@
@@ -21,6 +23,8 @@ $roomsVariables=@{
     ROOMS_TEST_DEV=$roomsDev
     ROOMS_TEST_INCLUDE=(Join-Path $roomsRepo 'project\externals')
     ROOMS_TEST_SOURCE=(Join-Path $PSScriptRoot 'tank_expedition_rooms_tests.cpp')
+    ROOMS_TEST_PROJECT=(Join-Path $roomsRepo 'project')
+    ROOMS_EDITOR_SOURCE=(Join-Path $roomsRepo 'project\game\editor\ExpeditionRoomEditor.cpp')
     ROOMS_TEST_WRITE=$(if($WriteDefaults){'"../../project/resources/maps/expedition_layouts.json"'}else{''})
 }
 $roomsPrevious=@{}
