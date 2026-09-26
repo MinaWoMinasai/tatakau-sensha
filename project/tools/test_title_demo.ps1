@@ -4,7 +4,7 @@ $titleProject=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $titleRoot=[IO.Path]::GetFullPath((Join-Path $titleProject '..'))
 $titleExe=Join-Path $titleRoot "generated/outputs/$Configuration/CG2.exe"
 if(!(Test-Path -LiteralPath $titleExe)) {throw "Build $Configuration first."}
-$titleVariables=@('CG2_TITLE_AUTOTEST','CG2_TANK_AUTOTEST','CG2_TANK_TUTORIAL_AUTOTEST','CG2_TANK_MAP_AUTOTEST','CG2_PERF_EXIT_AFTER_CAPTURE','CG2_PERF_STRESS_TRAILS','CG2_FRAME_LIMIT')
+$titleVariables=@('CG2_TITLE_AUTOTEST','CG2_TANK_AUTOTEST','CG2_TANK_TUTORIAL_AUTOTEST','CG2_TANK_MAP_AUTOTEST','CG2_TANK_COMBAT_AUTOTEST','CG2_TANK_EXPERIENCE_AUTOTEST','CG2_PERF_EXIT_AFTER_CAPTURE','CG2_PERF_STRESS_TRAILS','CG2_FRAME_LIMIT')
 $titleSaved=@{}
 foreach($name in $titleVariables) {$titleSaved[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 try {

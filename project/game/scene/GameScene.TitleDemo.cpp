@@ -91,7 +91,7 @@ void GameScene::ResetTitleDemoStage(int stage) {
     player_->SetRunCheckpointEvolution(true);
     // Each showcase starts from a reproducible build, then plays normal combat.
     const std::array<tankrun::CardId, 5> lateCards{{tankrun::CardId::Rapid, tankrun::CardId::Ricochet,
-        tankrun::CardId::ScatterShot, tankrun::CardId::Homing, tankrun::CardId::DashBurst}};
+        tankrun::CardId::Heavy, tankrun::CardId::Homing, tankrun::CardId::DashBurst}};
     const std::array<tankrun::CardId, 5> bossCards{{tankrun::CardId::Heavy, tankrun::CardId::Homing,
         tankrun::CardId::Overdrive, tankrun::CardId::Pierce, tankrun::CardId::DashBurst}};
     const auto& cards = stage == 3 ? bossCards : lateCards;

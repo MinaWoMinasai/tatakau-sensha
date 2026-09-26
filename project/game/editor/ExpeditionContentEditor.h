@@ -6,7 +6,7 @@ namespace tankcontent {
 class ContentEditor {
 public:
     void Open(const Catalog& live){draft_=live;selectedUpgrade_=selectedEnemy_=selectedPlayer_=0;status_.clear();}
-    bool Draw(bool& open,Catalog& live);
+    bool Draw(bool& open,Catalog& live,const std::vector<std::string>& usedEnemyIds={});
 private:
     Catalog draft_=DefaultCatalog();
     int selectedUpgrade_=0,selectedEnemy_=0,selectedPlayer_=0;

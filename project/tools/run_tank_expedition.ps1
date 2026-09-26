@@ -18,6 +18,8 @@ if (!(Test-Path -LiteralPath $tankExpExe)) {
 }
 
 $tankExpPreviousEnvironment = @{
+    CG2_TANK_EXPERIENCE_AUTOTEST = [Environment]::GetEnvironmentVariable('CG2_TANK_EXPERIENCE_AUTOTEST', 'Process')
+    CG2_TANK_COMBAT_AUTOTEST = [Environment]::GetEnvironmentVariable('CG2_TANK_COMBAT_AUTOTEST', 'Process')
     CG2_TANK_AUTOTEST = [Environment]::GetEnvironmentVariable('CG2_TANK_AUTOTEST', 'Process')
     CG2_TANK_MAP_AUTOTEST = [Environment]::GetEnvironmentVariable('CG2_TANK_MAP_AUTOTEST', 'Process')
     CG2_TANK_EXPEDITION_VARIANT = [Environment]::GetEnvironmentVariable('CG2_TANK_EXPEDITION_VARIANT', 'Process')
@@ -25,6 +27,8 @@ $tankExpPreviousEnvironment = @{
     CG2_TANK_TUTORIAL_AUTOTEST = [Environment]::GetEnvironmentVariable('CG2_TANK_TUTORIAL_AUTOTEST', 'Process')
 }
 try {
+    [Environment]::SetEnvironmentVariable('CG2_TANK_EXPERIENCE_AUTOTEST', $null, 'Process')
+    [Environment]::SetEnvironmentVariable('CG2_TANK_COMBAT_AUTOTEST', $null, 'Process')
     [Environment]::SetEnvironmentVariable('CG2_TANK_MAP_AUTOTEST', $null, 'Process')
     [Environment]::SetEnvironmentVariable('CG2_TITLE_AUTOTEST', $null, 'Process')
     [Environment]::SetEnvironmentVariable('CG2_TANK_TUTORIAL_AUTOTEST', $null, 'Process')

@@ -1,4 +1,5 @@
 #pragma once
+#include "TankExpeditionMap.h"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <array>
@@ -123,11 +124,27 @@ inline RoomDefinition* FindRoom(RoomCatalog& catalog,const std::string& id) {
     for(auto& room:catalog.rooms) if(room.id==id) return &room;
     return nullptr;
 }
+inline bool ValidateExpeditionMapRooms(const MapDefinition& map,const RoomCatalog& rooms,std::string& error,
+    const std::vector<std::string>* enemyIds=nullptr) {
+    if(!ValidateExpeditionMap(map,error)||!ValidateRoomCatalog(rooms,error,enemyIds))return false;
+    auto check=[&](const std::string& id,NodeKind kind,const std::string& context) {
+        const auto* room=FindRoom(rooms,id);
+        if(!room) {error=context+": 部屋が見つかりません: "+id;return false;}
+        if((kind==NodeKind::Boss)!=(room->objective=="boss")) {
+            error=context+": ボス地点にはボス目標の部屋、通常/精鋭には殲滅または制圧の部屋が必要です: "+id;return false;
+        }
+        return true;
+    };
+    for(const auto& node:map.nodes)if(IsCombatNode(node.kind)&&!check(node.roomTemplate,node.kind,"地点 "+node.id))return false;
+    if(map.procedural)for(const auto& rule:map.generationRooms)
+        if(!check(rule.roomTemplate,rule.kind,"生成候補 "+std::to_string(rule.firstColumn+1)+"～"+std::to_string(rule.lastColumn+1)+"列目"))return false;
+    error.clear();return true;
+}
 inline RoomDefinition MakeEmptyRoom(const std::string& id,const std::string& name) {
     RoomDefinition room;room.id=id;room.name=name;room.grid.resize(kRoomColumns*kRoomRows);
     for(int row=kRoomTop;row<=kRoomBottom;++row) for(int col=kRoomLeft;col<=kRoomRight;++col)
         if(row==kRoomTop||row==kRoomBottom||col==kRoomLeft||col==kRoomRight) room.grid[static_cast<size_t>(row*kRoomColumns+col)]=1;
-    room.spawns={{"enemy_1","Charger",38,22,16},{"enemy_2","Charger",50,34,16}};
+    room.spawns={{"enemy_1","Charger",38,22,24},{"enemy_2","Skirmisher",50,34,24},{"enemy_3","Skirmisher",58,22,24}};
     return room;
 }
 inline RoomCatalog DefaultRoomCatalog() {
@@ -140,12 +157,12 @@ inline RoomCatalog DefaultRoomCatalog() {
     for(int r:{9,10,11,17,18,19}) for(int c:{19,25}) set(2,c,r,1);
     for(int r:{11,17}) for(int c:{19,20,21,23,24,25}) set(3,c,r,2);
     for(int r:{10,11,18,19}) for(int c:{16,17,27,28}) set(4,c,r,1);
-    catalog.rooms[1].spawns={{"enemy_1","Charger",42,24,28},{"enemy_2","Shooter",58,34,28},{"enemy_3","Sniper",60,20,26}};
+    catalog.rooms[1].spawns={{"enemy_1","Flanker",42,24,0},{"enemy_2","Skirmisher",58,34,0},{"enemy_3","Sniper",60,20,0},{"enemy_4","Skirmisher",46,38,0}};
     catalog.rooms[2].objective="control";catalog.rooms[2].objectiveTargets={{44,30},{32,38},{58,20}};
-    catalog.rooms[2].spawns={{"enemy_1","Charger",34,24,32},{"enemy_2","Sniper",56,36,34},{"enemy_3","Shooter",62,28,30}};
-    catalog.rooms[3].spawns={{"enemy_1","Charger",34,22,36},{"enemy_2","Charger",46,28,36},{"enemy_3","RapidSniper",58,38,0},{"enemy_4","Shooter",60,24,32}};
+    catalog.rooms[2].spawns={{"enemy_1","Charger",34,24,0},{"enemy_2","Flanker",56,36,0},{"enemy_3","Suppressor",62,28,0},{"enemy_4","Skirmisher",44,22,0}};
+    catalog.rooms[3].spawns={{"enemy_1","Flanker",34,22,0},{"enemy_2","Skirmisher",46,28,0},{"enemy_3","RapidSniper",58,38,0},{"enemy_4","Suppressor",60,24,0}};
     catalog.rooms[4].objective="boss";catalog.rooms[4].objectiveTargets={{62,30}};
-    catalog.rooms[4].spawns={{"enemy_1","Charger",42,22,32},{"enemy_2","Charger",46,38,32}};
+    catalog.rooms[4].spawns={{"enemy_1","Flanker",42,22,0},{"enemy_2","Skirmisher",46,38,0}};
     catalog.rooms.push_back(catalog.rooms[2]);catalog.rooms.back().id="gatekeeper";catalog.rooms.back().name="防衛装置区画";
     catalog.rooms.back().spawns[0].type="ArmoredCharger";catalog.rooms.back().spawns[0].hp=0;
     catalog.rooms[2].objective="eliminate";catalog.rooms[2].objectiveTargets.clear();
@@ -204,7 +221,7 @@ inline bool RoomCatalogFromJson(const nlohmann::json& data,RoomCatalog& output,s
 }
 inline bool LoadRoomCatalog(const std::string& path,RoomCatalog& output,std::string& error) {
     try {
-        std::ifstream file(std::filesystem::path(std::u8string(path.begin(),path.end())),std::ios::binary|std::ios::ate);
+        std::ifstream file(ExpeditionMapPath(path),std::ios::binary|std::ios::ate);
         if(!file) {error="部屋ファイルを開けません: "+path;return false;}
         if(file.tellg()>8*1024*1024) {error="部屋ファイルが8MBを超えています。";return false;}
         file.seekg(0);nlohmann::json data;file>>data;return RoomCatalogFromJson(data,output,error);
@@ -212,7 +229,7 @@ inline bool LoadRoomCatalog(const std::string& path,RoomCatalog& output,std::str
 }
 inline bool SaveRoomCatalog(const std::string& path,const RoomCatalog& catalog,std::string& error) {
     if(!ValidateRoomCatalog(catalog,error)) return false;
-    const std::filesystem::path target(std::u8string(path.begin(),path.end()));
+    const std::filesystem::path target=ExpeditionMapPath(path);
     auto temporary=target;temporary+=".tmp";
     try {
         {std::ofstream file(temporary,std::ios::binary|std::ios::trunc);if(!file) {error="保存先を開けません。";return false;}

@@ -24,6 +24,9 @@ std::string DirectionTo(const Vector3& delta) {
 }
 
 bool GameScene::IsTankRunMenuOpen() const {
+    if(expeditionAuthoringHubOpen_) return true;
+    if(IsGuidedExpeditionPaused()||expeditionCollectAll_) return true;
+    if(expeditionMapEnabled_ && expeditionTransition_.IsActive()) return true;
     if(expeditionMapEnabled_ && (expeditionMapPreview_ || expeditionRoomEditorOpen_ || expeditionMapEditorOpen_ || expeditionContentEditorOpen_)) return true;
     if(expeditionRun_ && (tankExpeditionDetailsOpen_ || tankExpeditionBalanceEditorOpen_)) return true;
     if(expeditionRun_ && tankExpedition_.GetPhase()!=tankexp::Phase::Dormant && !tankExpedition_.IsCombat()) return true;
@@ -94,19 +97,35 @@ void GameScene::InitializeTankRun() {
     RefreshTankRunUi();
 }
 
+std::array<float,tankrun::CardCount> GameScene::ExpeditionEffectPowers() const {
+    std::array<float,tankrun::CardCount> power{};power.fill(1);
+    for(const auto& [id,purchased]:expeditionPurchasedModules_) {
+        const auto* live=tankcontent::FindUpgrade(expeditionContent_,id);
+        for(const auto effect:purchased.effects) {
+            const auto index=static_cast<std::size_t>(effect);
+            if(index<power.size())power[index]=live?live->effectPower[index]:purchased.effectPower[index];
+        }
+    }
+    return power;
+}
+
 void GameScene::ApplyTankRunCards() {
     TankRunModifiers m{}; m.enabled=true; m.expedition=expeditionRun_;
-    if(tankRun_.GetCore()!=tankrun::CoreId::Count && (!expeditionRun_ || tankRun_.GetDraftCount()>=2))
+    if(!expeditionMapEnabled_ && tankRun_.GetCore()!=tankrun::CoreId::Count && (!expeditionRun_ || tankRun_.GetDraftCount()>=2))
         m.core=static_cast<TankRunCore>(static_cast<int>(tankRun_.GetCore())+1);
     const auto& c=tankRun_.GetCardCounts();
     m.ricochet=c[0]>0; m.heavy=c[1]>0; m.rapid=c[2]>0; m.thrusters=c[3]>0;
     m.capacitor=c[4]>0; m.repair=c[5]>0; m.drones=c[6]>0; m.pierce=c[7]>0;
     m.scatterShot=c[8]>0; m.homing=c[9]>0; m.dashBurst=c[10]>0; m.overdrive=c[11]>0;
+    m.meleeBlade=c[12]>0;m.bladeReach=c[13]>0;m.impactDrive=c[14]>0;m.perfectDodge=c[15]>0;
+    m.droneFocus=c[16]>0;m.droneGuard=c[17]>0;m.meleeTempo=c[18]>0;m.finisherCharge=c[19]>0;
+    if(expeditionMapEnabled_) m.effectPower=ExpeditionEffectPowers();
     player_->SetRunModifiers(m);
 }
 
 void GameScene::OnTankRunEnemyDefeated(const Vector3& position) {
     if(!tankRun_.IsCombat()) return;
+    if(expeditionMapEnabled_) SpawnExpeditionCredits(position,player_->TakeRunCurrencyEarned());
     tankRun_.AddSalvage(1); tankRunCombo_=(tankRunComboTime_>0?tankRunCombo_:0)+1;
     tankRunComboTime_=2; tankRunBestCombo_=(std::max)(tankRunBestCombo_,tankRunCombo_);
     if(tankRunBursts_.size()<24) tankRunBursts_.push_back({position,0,false});
@@ -114,6 +133,7 @@ void GameScene::OnTankRunEnemyDefeated(const Vector3& position) {
     if(expeditionRun_) {
         tankExpeditionAudio_.Kill(tankRunCombo_);
         ParticleManager::GetInstance()->EmitNeonImpactEffect(position,{0,1,0},{0.22f,1.1f,0.82f,1},10);
+        if(expeditionMapEnabled_&&cameraShakeTimer_<=0) {cameraShakeDuration_=0.08f;cameraShakeTimer_=0.08f;cameraShakePower_=0.055f;}
     }
     if(tankRunCombo_%5==0) SetEventCallout(std::to_string(tankRunCombo_)+(expeditionRun_?" CHAIN":" CHAIN / 資材 +1"),0.55f);
     tankRunHudTimer_=0;
@@ -125,7 +145,7 @@ void GameScene::OnTankRunResourceClaim(size_t index,bool playerOwned) {
     if(expeditionRun_) {
         ++tankExpeditionNodes_;
         tankExpeditionResourceWon_|=playerOwned;
-        if(playerOwned) {player_->AddExp(30);player_->HealRunPlayer(8);if(expeditionMapEnabled_) tankExpeditionTutorial_.RecordKill();}
+        if(playerOwned) {player_->AddExp(30);player_->HealRunPlayer(8);if(expeditionMapEnabled_) {SpawnExpeditionCredits(resource.position,player_->TakeRunCurrencyEarned());tankExpeditionTutorial_.RecordKill();}}
         if(tankExpedition_.GetRoomKind()==tankexp::RoomKind::Resource || tankExpeditionNodes_>=3) tankExpeditionRoomPending_=true;
         SetEventCallout(playerOwned?"動力コア確保":"ライバルがコアを確保 / 次のエリアへ",1.0f);
         tankExpeditionAudio_.Kill();
@@ -395,7 +415,70 @@ void GameScene::QueueTankRunTelegraph() {
             neonGridRenderer_->QueueLine(start,start+direction*(0.45f*(1-t)),0.075f*(1-t),{0.45f,1.2f,0.85f,1-t});
         }
     }
+    for(const auto& hit:expeditionHitSparks_) {
+        const float t=hit.age/0.18f;
+        const Vector3 center=hit.position+Vector3{0,0,-0.35f};
+        for(int i=0;i<5;++i) {
+            const float a=std::atan2(hit.direction.y,hit.direction.x)+(i-2)*0.55f;
+            const Vector3 ray{std::cos(a),std::sin(a),0};
+            const auto start=center+ray*(0.50f+t*1.5f);
+            neonGridRenderer_->QueueLine(start,start+ray*(0.40f*(1-t)),0.08f*(1-t),{1.9f,1.4f,0.65f,1-t});
+        }
+    }
     if(!IsRunRivalActive() || enemy_->IsDead()) return;
+    if(enemy_->IsExpeditionRivalEnabled()) {
+        const auto status=enemy_->GetRivalCombatStatus();using P=RivalBossCombat::Phase;
+        const Vector3 origin=enemy_->GetWorldPosition()+Vector3{0,0,-0.35f};
+        const bool reload=status.phase==P::Reload;
+        for(int i=0;i<status.capacity;++i) {
+            const float x=(static_cast<float>(i)-(status.capacity-1)*0.5f)*0.65f;
+            const bool full=i<status.ammo;
+            neonGridRenderer_->QueueLine(origin+Vector3{x,3.2f,0},origin+Vector3{x,3.6f,0},0.16f,
+                reload?Vector4{0.2f,1.2f,1.1f,1}:full?Vector4{1.5f,0.65f,0.25f,1}:Vector4{0.20f,0.16f,0.16f,0.7f});
+        }
+        if(reload) {
+            const int segments=static_cast<int>(32*status.progress);
+            for(int i=0;i<segments;++i) {
+                const float a=2*pi*i/32,b=2*pi*(i+1)/32;
+                neonGridRenderer_->QueueLine(origin+Vector3{std::cos(a)*2.5f,std::sin(a)*2.5f,0},
+                    origin+Vector3{std::cos(b)*2.5f,std::sin(b)*2.5f,0},0.13f,{0.25f,1.2f,1,0.9f});
+            }
+        }
+        if(status.phase==P::DashWarning||status.phase==P::Dash) {
+            const Vector3 side{-status.dashDirection.y,status.dashDirection.x,0};
+            const Vector3 end=origin+status.dashDirection*status.dashDistance;
+            const Vector4 tint{1.5f,0.45f,0.16f,0.65f+0.3f*status.progress};
+            for(float offset:{-1.4f,1.4f}) neonGridRenderer_->QueueLine(origin+side*offset,end+side*offset,0.10f,tint);
+            neonGridRenderer_->QueueLine(end-side*1.4f,end+side*1.4f,0.10f,tint);
+            if(status.phase==P::Dash) for(int i=1;i<=3;++i) circle(origin-status.dashDirection*(0.85f*i),2.0f,0.10f,{1,0.35f,0.12f,0.4f/i},16);
+        }
+        if(status.phase==P::Tracking||status.phase==P::Locked||status.phase==P::Volley) {
+            const float base=std::atan2(status.direction.y,status.direction.x);
+            const float half=RivalBossCombat::WarningHalfAngle(status.pattern)*pi/180;
+            const Vector4 tint{1.4f,0.45f+0.3f*status.progress,0.14f,status.phase==P::Volley?0.32f:0.65f};
+            auto clipDistance=[&](const Vector3& ray) {
+                float nearest=24.0f;
+                for(const auto& row:stage_->GetBlocks()) for(const auto& block:row) if(block.isActive) {
+                    float enter=0,leave=nearest;
+                    auto slab=[&](float start,float direction,float low,float high) {
+                        low-=0.15f;high+=0.15f;
+                        if(std::abs(direction)<0.0001f) return start>=low&&start<=high;
+                        float a=(low-start)/direction,b=(high-start)/direction;
+                        if(a>b) std::swap(a,b);enter=(std::max)(enter,a);leave=(std::min)(leave,b);
+                        return enter<=leave;
+                    };
+                    if(slab(origin.x,ray.x,block.aabb.min.x,block.aabb.max.x)&&slab(origin.y,ray.y,block.aabb.min.y,block.aabb.max.y)) nearest=(std::max)(0.0f,enter);
+                }
+                return nearest;
+            };
+            for(int i=0;i<3;++i) {
+                const float angle=base+half*(i-1);const Vector3 ray{std::cos(angle),std::sin(angle),0};
+                const float distance=clipDistance(ray);
+                if(distance>1.8f) neonGridRenderer_->QueueLine(origin+ray*1.8f,origin+ray*distance,0.06f,tint);
+            }
+        }
+        return;
+    }
     const auto telegraph=enemy_->GetPrototypeTelegraph();if(!telegraph.active) return;
     Vector3 origin=enemy_->GetWorldPosition();origin.z=-0.3f;
     const float base=std::atan2(telegraph.direction.y,telegraph.direction.x),half=telegraph.spreadAngleDeg*pi/360;

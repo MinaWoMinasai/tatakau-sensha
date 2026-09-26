@@ -13,6 +13,7 @@
 #include <string>
 #include "../game/enemy/actor/PrototypeBossCombat.h"
 #include "../game/exp/ExpEnemyCombatCycle.h"
+#include "../game/player/TankRunModifiers.h"
 
 struct Vector3 { float x=0,y=0,z=0; Vector3& operator+=(Vector3 b) { x+=b.x;y+=b.y;z+=b.z;return *this; } };
 struct Vector4 { float x=0,y=0,z=0,w=0; };
@@ -92,6 +93,7 @@ struct ExpEnemy : Collider {
     bool ApplyDamage(uint32_t,bool,bool);
     bool TakeDamageFromPlayer(uint32_t);
     bool TakeDamageFromEnemy(uint32_t);
+    void ApplyKnockback(const Vector3&,float);
     void TriggerDamageFeedback() {}
     bool isDead_=false,isRunResource_=false,hostileToBoss_=true;
     ExpEnemyType type_=ExpEnemyType::Square;
@@ -100,6 +102,7 @@ struct ExpEnemy : Collider {
     Vector3 velocity_;
     ExpEnemyCombatCycle combatCycle_{};
     float dt_=1.0f/60.0f,invincibleTimer_=0;
+    float dashTimer_=0,dashWarningTimer_=0,dashCooldown_=0;
     DummyPlayer* player_=nullptr;
     std::function<void(uint32_t)> enemyKillCallback_;
     std::function<void(Vector3)> playerDefeatCallback_;
@@ -123,7 +126,12 @@ struct TestObject {
     void Update() {}
     TestTransform transform;
 };
-struct Enemy {
+struct Enemy : Collider {
+    void OnCollision(Collider*) override {}
+    bool IsDead() const { return isDead_; }
+    bool IsRunEncounterEnabled() const { return runEncounterEnabled_; }
+    void TakeDamage(uint32_t amount) { hp_-=static_cast<int>(amount); }
+    void ApplyKnockback(const Vector3&,float);
     void RegisterExpEnemyKill(uint32_t);
     void HealFromFeeding(int);
     void AdvanceFeedingLevel();
@@ -137,7 +145,7 @@ struct Enemy {
         float levelingEnterPlayerDistance=22,levelingExitPlayerDistance=14,levelingSearchRadius=80;
     } enemyProgressConfig_;
     struct { uint32_t damage=6; } bossAttackConfig_;
-    bool prototypeCombatEnabled_=true,prototypeResourceFocus_=false,isDead_=false;
+    bool prototypeCombatEnabled_=true,prototypeResourceFocus_=false,isDead_=false,expeditionRivalEnabled_=false;
     bool prototypeResourceTargetActive_=false,levelingModeActive_=false;
     DummyPlayer* player_=nullptr;
     EnemyManager* enemyManager_=nullptr;
@@ -158,11 +166,26 @@ struct Enemy {
     float attackPower=0,evadePower=0,wanderPower=0,wallFollowTimer_=0,steeringNoiseTimer_=0,hesitationTimer_=0;
     float hesitationCooldown_=0,wanderChangeTimer=0,bulletCooldown_=0,fireTimer_=0,kFireTimerMax_=0.15f;
     Vector3 currentMoveTargetPosition_,velocity_,dir_,evadeVec,wanderVec,wallFollowDir_,steeringDir_,steeringNoise_,baseScale_{1,1,1};
+    Vector3 impactVelocity_;
     enum class AIState { Wander,Attack };
     AIState aiState_=AIState::Wander;
     Vector4 baseColor_;
     TestTransform worldTransform_;
     TestObject* object_=nullptr;
+};
+struct Player : Collider {
+    void OnCollision(Collider*) override { ++contactCallbacks; }
+    Vector3 GetWorldPosition() const override { return {}; }
+    bool TryDashImpact(Collider*);
+    struct DashImpactEvent { Vector3 origin,direction; bool boss=false,powered=false; };
+    std::vector<DashImpactEvent> pendingDashImpacts_;
+    std::vector<uint64_t> dashImpactTargets_;
+    bool isDead_=false,isDashing_=true;
+    float kDashDuration=.3f,kJustEvadeWindow=.2f,dashTimer_=.25f;
+    Vector3 velocity_{.6f,0,0};
+    TankRunModifiers runModifiers_{};
+    struct { float bulletDamage=10,bodyDamage=3; } stats_;
+    int contactCallbacks=0;
 };
 struct Contact : Collider { void OnCollision(Collider*) override {} };
 struct TestTrailManager {
@@ -194,6 +217,28 @@ struct Stage {
 
 int main() {
     CollisionManager collisions;
+    for(bool reverse : {false,true}) {
+        Player tank; tank.attribute=kCollisionAttributePlayer;
+        ExpEnemy target; target.hp_=200; target.attribute=32;
+        for(int frame=0;frame<120;++frame) {
+            collisions.CheckCollisionPair(reverse?static_cast<Collider*>(&target):&tank,
+                                          reverse?static_cast<Collider*>(&tank):&target);
+        }
+        assert(target.hp_==172 && tank.pendingDashImpacts_.size()==1 && tank.contactCallbacks==0);
+        assert(target.velocity_.x>.61f && target.velocity_.x<.63f);
+        tank.dashTimer_=.01f;
+        assert(tank.TryDashImpact(&target)); // Remnant overlap stays resolved for this dash.
+        ExpEnemy second; second.hp_=200;
+        assert(!tank.TryDashImpact(&second)); // Late contact cannot create another slam.
+        tank.dashImpactTargets_.clear(); tank.dashTimer_=.25f;
+        assert(tank.TryDashImpact(&target) && target.hp_==144);
+        Bullet projectile(5,1,1); assert(!tank.TryDashImpact(&projectile));
+        ExpEnemy resource;resource.isRunResource_=true;assert(!tank.TryDashImpact(&resource));
+        Enemy boss; const int oldHp=boss.hp_;
+        assert(tank.TryDashImpact(&boss) && boss.hp_==oldHp-28);
+        assert(boss.impactVelocity_.x>.21f && boss.impactVelocity_.x<.23f);
+        tank.isDashing_=false;assert(!tank.TryDashImpact(&second));
+    }
     for(bool reverse:{false,true}) {
         Bullet player(1,3,0),boss(5,3,1);
         collisions.CheckCollisionPair(reverse?static_cast<Collider*>(&boss):&player,

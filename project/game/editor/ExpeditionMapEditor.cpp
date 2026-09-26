@@ -3,9 +3,11 @@
 #include "externals/imgui/imgui.h"
 #include <array>
 #include <cstdio>
+#include <map>
 
 namespace {
-constexpr const char* kNodeNames[]={"戦闘","精鋭戦闘","強化","進化","回復","最終ボス"};
+constexpr const char* kNodeNames[]={"戦闘","精鋭戦闘","強化","進化","回復","最終ボス","資材支給"};
+constexpr const char* kRoleNames[]={"通常","操作訓練の戦闘","訓練スキップ支給","訓練後の改造","スキップ後の初期改造"};
 ImU32 MapColor(tankexp::NodeKind kind,int alpha=255) {
     switch(kind) {
     case tankexp::NodeKind::Combat:return IM_COL32(38,202,247,alpha);
@@ -14,6 +16,7 @@ ImU32 MapColor(tankexp::NodeKind kind,int alpha=255) {
     case tankexp::NodeKind::Evolution:return IM_COL32(182,114,255,alpha);
     case tankexp::NodeKind::Heal:return IM_COL32(81,240,164,alpha);
     case tankexp::NodeKind::Boss:return IM_COL32(255,76,123,alpha);
+    case tankexp::NodeKind::Currency:return IM_COL32(246,216,84,alpha);
     }
     return IM_COL32(255,255,255,alpha);
 }
@@ -27,14 +30,71 @@ std::string NewId(const tankexp::MapDefinition& map) {
         if(!tankexp::FindMapNode(map,id)) return id;
     }
 }
-bool ValidateRooms(const tankexp::MapDefinition& map,const std::vector<std::string>& roomIds,std::string& error) {
-    if(!tankexp::ValidateExpeditionMap(map,error)) return false;
-    for(const auto& node:map.nodes) {
-        if(tankexp::IsCombatNode(node.kind)&&std::find(roomIds.begin(),roomIds.end(),node.roomTemplate)==roomIds.end()) {
-            error="部屋が見つかりません: "+node.id+" → "+node.roomTemplate;return false;
+bool RebuildPreview(tankexp::MapDefinition& map,int& selected,std::string& error) {
+    tankexp::MapDefinition preview;
+    if(!tankexp::GenerateExpeditionMap(map,map.generationSeed,preview,error))return false;
+    map=std::move(preview);selected=0;return true;
+}
+bool GenerationRules(tankexp::MapDefinition& map,int& selected,const tankexp::RoomCatalog& rooms) {
+    bool changed=false;
+    ImGui::SeparatorText("出現する区画と敵編成 / 左からの列で指定");
+    ImGui::TextWrapped("左から1列目は訓練/スキップ、2列目は初期改造に固定。3列目以降の戦闘を設定します。同じ種類・列に重なる候補は重みで抽選されます。敵の配置はF4、敵の種類・性能はF6で編集します。");
+    ImGui::SetNextItemWidth(150);changed|=ImGui::InputInt("最小列数",&map.generationMinColumns);
+    ImGui::SameLine();ImGui::SetNextItemWidth(150);changed|=ImGui::InputInt("最大列数",&map.generationMaxColumns);
+    ImGui::TextWrapped("最後の列が最終ボスです。通常戦闘の候補は3列目～最大列数−1、精鋭は4列目～最大列数−1を覆うように設定してください。重み4と1なら、その列での抽選はおよそ80%と20%です。");
+    if(ImGui::BeginListBox("生成候補",{-1,130})) {
+        for(size_t i=0;i<map.generationRooms.size();++i) {
+            const auto& rule=map.generationRooms[i];ImGui::PushID(static_cast<int>(i));
+            const auto* room=tankexp::FindRoom(rooms,rule.roomTemplate);
+            const std::string text=std::to_string(rule.firstColumn+1)+"～"+std::to_string(rule.lastColumn+1)+"列目 / "+kNodeNames[static_cast<int>(rule.kind)]+
+                " / "+(room?room->name:rule.roomTemplate)+" / 重み"+std::to_string(rule.weight);
+            if(ImGui::Selectable(text.c_str(),selected==static_cast<int>(i)))selected=static_cast<int>(i);
+            ImGui::PopID();
         }
+        ImGui::EndListBox();
     }
-    return true;
+    ImGui::BeginDisabled(map.generationRooms.size()>=128);
+    if(ImGui::Button("部屋候補を追加")) {
+        tankexp::GenerationRoomRule rule;
+        for(const auto& room:rooms.rooms)if(room.objective!="boss") {rule.roomTemplate=room.id;break;}
+        map.generationRooms.push_back(std::move(rule));selected=static_cast<int>(map.generationRooms.size())-1;changed=true;
+    }
+    ImGui::EndDisabled();ImGui::SameLine();
+    ImGui::BeginDisabled(map.generationRooms.empty());
+    if(ImGui::Button("選択した候補を削除")) {
+        selected=(std::clamp)(selected,0,static_cast<int>(map.generationRooms.size())-1);
+        map.generationRooms.erase(map.generationRooms.begin()+selected);changed=true;
+    }
+    ImGui::EndDisabled();
+    if(map.generationRooms.empty())return changed;
+    selected=(std::clamp)(selected,0,static_cast<int>(map.generationRooms.size())-1);
+    auto& rule=map.generationRooms[static_cast<size_t>(selected)];
+    const char* kinds[]={"通常戦闘","精鋭戦闘","最終ボス"};int kind=rule.kind==tankexp::NodeKind::Boss?2:rule.kind==tankexp::NodeKind::Elite?1:0;
+    if(ImGui::Combo("配置先の種類",&kind,kinds,3)) {rule.kind=kind==2?tankexp::NodeKind::Boss:kind==1?tankexp::NodeKind::Elite:tankexp::NodeKind::Combat;changed=true;}
+    int firstColumn=rule.firstColumn+1,lastColumn=rule.lastColumn+1;
+    ImGui::SetNextItemWidth(135);if(ImGui::InputInt("開始列目",&firstColumn)){rule.firstColumn=firstColumn-1;changed=true;}ImGui::SameLine();
+    ImGui::SetNextItemWidth(135);if(ImGui::InputInt("終了列目",&lastColumn)){rule.lastColumn=lastColumn-1;changed=true;}ImGui::SameLine();
+    ImGui::SetNextItemWidth(135);changed|=ImGui::InputInt("重み",&rule.weight);
+    if(ImGui::BeginCombo("部屋 / 敵編成",rule.roomTemplate.c_str())) {
+        for(const auto& room:rooms.rooms) {
+            if((rule.kind==tankexp::NodeKind::Boss)!=(room.objective=="boss"))continue;
+            const auto text=room.name+" / "+room.id+" / 敵"+std::to_string(room.spawns.size())+"体";
+            if(ImGui::Selectable(text.c_str(),rule.roomTemplate==room.id)){rule.roomTemplate=room.id;changed=true;}
+        }
+        ImGui::EndCombo();
+    }
+    if(const auto* room=tankexp::FindRoom(rooms,rule.roomTemplate)) {
+        std::map<std::string,int> counts;for(const auto& spawn:room->spawns)++counts[spawn.type];
+        std::string composition;for(const auto& entry:counts)composition+=entry.first+"×"+std::to_string(entry.second)+"  ";
+        ImGui::TextWrapped("編成: %s",composition.empty()?"配置なし":composition.c_str());
+    }
+    unsigned total=0,roomWeight=0;for(const auto& candidate:map.generationRooms)
+        if(candidate.kind==rule.kind&&candidate.firstColumn<=rule.firstColumn&&rule.firstColumn<=candidate.lastColumn&&candidate.weight>0) {
+            total+=static_cast<unsigned>(candidate.weight);
+            if(candidate.roomTemplate==rule.roomTemplate)roomWeight+=static_cast<unsigned>(candidate.weight);
+        }
+    if(total)ImGui::Text("開始列でこの部屋が選ばれる割合: %.1f%% (同種戦闘が選ばれた場合)",100.0*roomWeight/total);
+    return changed;
 }
 void Preview(tankexp::MapDefinition& map,int& selected) {
     ImGui::TextUnformatted("経路プレビュー / ノードをクリックして編集・横スクロール");
@@ -42,7 +102,7 @@ void Preview(tankexp::MapDefinition& map,int& selected) {
         auto* draw=ImGui::GetWindowDrawList();const auto origin=ImGui::GetCursorScreenPos();
         auto point=[&](const tankexp::MapNode& node) {
             return ImVec2(origin.x+20+static_cast<float>((std::clamp)(node.column,0,31))*130,
-                origin.y+12+static_cast<float>((std::clamp)(node.row,0,4))*34);
+                origin.y+30+static_cast<float>((std::clamp)(node.row,0,4))*34);
         };
         int columns=1;
         for(const auto& node:map.nodes) {
@@ -51,6 +111,10 @@ void Preview(tankexp::MapDefinition& map,int& selected) {
                 const auto to=point(*target);
                 draw->AddLine({from.x+96,from.y+14},{to.x,to.y+14},IM_COL32(45,119,143,180),2);
             }
+        }
+        for(int column=0;column<columns;++column) {
+            const auto text=std::to_string(column+1)+"列目";
+            draw->AddText({origin.x+20+column*130.0f,origin.y+4},IM_COL32(146,186,202,255),text.c_str());
         }
         for(std::size_t i=0;i<map.nodes.size();++i) {
             const auto& node=map.nodes[i];const auto p=point(node);const bool active=selected==static_cast<int>(i);
@@ -63,38 +127,41 @@ void Preview(tankexp::MapDefinition& map,int& selected) {
             draw->AddText({p.x+6,p.y+5},IM_COL32(222,244,250,255),label.c_str());draw->PopClipRect();
             if(ImGui::IsItemHovered()) {
                 ImGui::BeginTooltip();ImGui::TextUnformatted(node.label.c_str());
-                ImGui::Text("ID: %s / %s",node.id.c_str(),tankexp::NodeKindId(node.kind));ImGui::EndTooltip();
+                ImGui::Text("ID: %s / %s / %d列目",node.id.c_str(),tankexp::NodeKindId(node.kind),node.column+1);
+                if(tankexp::IsCombatNode(node.kind))ImGui::Text("部屋: %s",node.roomTemplate.c_str());
+                ImGui::EndTooltip();
             }
             ImGui::PopID();
         }
         ImGui::SetCursorScreenPos(origin);
-        ImGui::Dummy({static_cast<float>((std::clamp)(columns,1,32))*130+20,184});
+        ImGui::Dummy({static_cast<float>((std::clamp)(columns,1,32))*130+20,208});
     }
     ImGui::EndChild();
 }
 }
 #endif
 
-bool tankexp::MapEditor::Draw(bool& open,MapDefinition& live,const std::vector<std::string>& roomIds) {
+bool tankexp::MapEditor::Draw(bool& open,MapDefinition& live,const RoomCatalog& rooms,const std::vector<std::string>* enemyIds) {
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
     if(!open||!ImGui::GetCurrentContext()) return false;
     if(!initialized_) Open(live);
+    std::vector<std::string> roomIds;for(const auto& room:rooms.rooms)roomIds.push_back(room.id);
     bool committed=false;
     ImGui::SetNextWindowPos({120,40},ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({1040,650},ImGuiCond_FirstUseEver);
     if(!ImGui::Begin("遠征の経路エディター / F5で再開",&open)) {ImGui::End();return false;}
     ImGui::TextWrapped("戦闘・強化・進化・回復のつながりを編集します。適用・保存した経路は次の遠征開始から反映され、現在の所持金や進行は保持します。");
     if(ImGui::Button("適用 / Apply")) {
-        if(ValidateRooms(draft_,roomIds,status_)) {live=draft_;committed=true;status_="適用しました。次の遠征開始から反映します。保存前でも次の遠征に使えます。";}
+        if((!draft_.procedural||RebuildPreview(draft_,selected_,status_))&&ValidateExpeditionMapRooms(draft_,rooms,status_,enemyIds)) {live=draft_;committed=true;status_="適用しました。次の遠征開始から反映します。保存前でも次の遠征に使えます。";}
     }
     ImGui::SameLine();if(ImGui::Button("保存 / Save")) {
-        if(ValidateRooms(draft_,roomIds,status_)&&SaveExpeditionMap(kExpeditionMapPath,draft_,status_)) {
+        if((!draft_.procedural||RebuildPreview(draft_,selected_,status_))&&ValidateExpeditionMapRooms(draft_,rooms,status_,enemyIds)&&SaveExpeditionMap(kExpeditionMapPath,draft_,status_)) {
             live=draft_;committed=true;status_="経路を保存しました。次の遠征開始から反映します。";
         }
     }
     ImGui::SameLine();if(ImGui::Button("再読込 / Reload")) {
         MapDefinition loaded;
-        if(LoadExpeditionMap(kExpeditionMapPath,loaded,status_)&&ValidateRooms(loaded,roomIds,status_)) {
+        if(LoadExpeditionMap(kExpeditionMapPath,loaded,status_)&&ValidateExpeditionMapRooms(loaded,rooms,status_,enemyIds)) {
             draft_=loaded;live=loaded;selected_=0;committed=true;status_="保存済みの経路を読込みました。次の遠征開始から反映します。";
         }
     }
@@ -105,11 +172,30 @@ bool tankexp::MapEditor::Draw(bool& open,MapDefinition& live,const std::vector<s
         ImGui::SameLine();if(ImGui::Button("キャンセル")) ImGui::CloseCurrentPopup();ImGui::EndPopup();
     }
     ImGui::SameLine();if(ImGui::Button("検証 / Validate")) {
-        if(ValidateRooms(draft_,roomIds,status_)) status_="有効な経路です。どの分岐も最終ボスへ到達し、施設は所持金ゼロでも通過できます。";
+        if(ValidateExpeditionMapRooms(draft_,rooms,status_,enemyIds)) status_="有効な経路です。部屋参照とボス目標の一致を確認しました。どの分岐も最終ボスへ到達します。";
     }
     ImGui::TextWrapped("%s",status_.c_str());
+    bool procedural=draft_.procedural;
+    if(ImGui::Checkbox("新規遠征ごとにランダム生成",&procedural)) {
+        draft_.procedural=procedural;
+        if(procedural)RebuildPreview(draft_,selected_,status_);
+    }
+    if(draft_.procedural) {
+        ImGui::TextWrapped("同種3連続を避け、進化には迂回路があります。以下は確認用シードのプレビューです。チェックを外すと、この経路を固定して編集できます。");
+        ImGui::SetNextItemWidth(180);
+        if(ImGui::InputScalar("プレビュー用シード",ImGuiDataType_U32,&draft_.generationSeed)) {
+            RebuildPreview(draft_,selected_,status_);
+        }
+        ImGui::SameLine();if(ImGui::Button("別の経路をプレビュー")) {
+            draft_.generationSeed+=0x9e3779b9u;RebuildPreview(draft_,selected_,status_);
+        }
+        if(GenerationRules(draft_,ruleSelected_,rooms))RebuildPreview(draft_,selected_,status_);
+        std::string validation;
+        if(!ValidateExpeditionMapRooms(draft_,rooms,validation,enemyIds))ImGui::TextColored({1,.45f,.35f,1},"保存できません: %s",validation.c_str());
+    }
     ImGui::SetNextItemWidth(180);ImGui::InputInt("開始時の所持金 (CR)",&draft_.startingCurrency);
     Preview(draft_,selected_);
+    if(draft_.procedural) {ImGui::End();return committed;}
     if(draft_.nodes.empty()) {ImGui::TextUnformatted("ノードがありません。標準へ戻してください。");ImGui::End();return committed;}
     selected_=(std::clamp)(selected_,0,static_cast<int>(draft_.nodes.size())-1);
     if(ImGui::BeginCombo("編集するノード",draft_.nodes[static_cast<std::size_t>(selected_)].label.c_str())) {
@@ -180,27 +266,38 @@ bool tankexp::MapEditor::Draw(bool& open,MapDefinition& live,const std::vector<s
         }
         TextField("表示名",node.label);
         int kind=static_cast<int>(node.kind);
-        if(ImGui::Combo("種類",&kind,kNodeNames,6)) {
+        if(ImGui::Combo("種類",&kind,kNodeNames,7)) {
             node.kind=static_cast<NodeKind>(kind);
+            node.role=NodeRole::None;
             if(IsCombatNode(node.kind)) {
                 node.combatStage=(std::max)(0,node.combatStage);node.serviceCost=0;
                 if(node.roomTemplate.empty()&&!roomIds.empty()) node.roomTemplate=roomIds.front();
                 if(node.clearReward==0) node.clearReward=60;
-            } else {node.combatStage=-1;node.roomTemplate.clear();node.clearReward=0;}
+            } else {node.combatStage=-1;node.roomTemplate.clear();node.clearReward=0;if(node.kind==NodeKind::Currency) node.serviceCost=0;}
         }
-        ImGui::InputInt("列 (0〜31)",&node.column);ImGui::InputInt("段 (0〜4)",&node.row);
+        int role=static_cast<int>(node.role);
+        if(ImGui::Combo("導入の役割",&role,kRoleNames,5)) node.role=static_cast<NodeRole>(role);
+        int displayColumn=node.column+1;if(ImGui::InputInt("左から何列目 (1〜32)",&displayColumn))node.column=displayColumn-1;
+        ImGui::InputInt("段 (0〜4)",&node.row);
         bool start=std::find(draft_.startNodes.begin(),draft_.startNodes.end(),node.id)!=draft_.startNodes.end();
-        if(ImGui::Checkbox("開始地点にする (列0)",&start)) {
+        if(ImGui::Checkbox("開始地点にする (1列目)",&start)) {
             if(start) draft_.startNodes.push_back(node.id);
             else draft_.startNodes.erase(std::remove(draft_.startNodes.begin(),draft_.startNodes.end(),node.id),draft_.startNodes.end());
         }
         if(IsCombatNode(node.kind)) {
             if(ImGui::BeginCombo("使用する部屋",node.roomTemplate.c_str())) {
-                for(const auto& id:roomIds) if(ImGui::Selectable(id.c_str(),id==node.roomTemplate)) node.roomTemplate=id;
+                for(const auto& room:rooms.rooms) {
+                    if((node.kind==NodeKind::Boss)!=(room.objective=="boss"))continue;
+                    const auto text=room.name+" / "+room.id;
+                    if(ImGui::Selectable(text.c_str(),room.id==node.roomTemplate))node.roomTemplate=room.id;
+                }
                 ImGui::EndCombo();
             }
             ImGui::InputInt("戦闘の段階 (0始まり)",&node.combatStage);ImGui::InputInt("クリア報酬 (CR)",&node.clearReward);
             ImGui::TextWrapped("敵・ブロック・達成目標は、部屋エディターでこの部屋を編集します。");
+        } else if(node.kind==NodeKind::Currency) {
+            ImGui::InputInt("支給する資材 (CR)",&node.clearReward);
+            ImGui::TextWrapped("このノードを完了すると一度だけ資材を受け取ります。購入価格はありません。");
         } else {
             ImGui::InputInt(node.kind==NodeKind::Upgrade?"最低購入価格 (CR)":"施設の価格 (CR)",&node.serviceCost);
             ImGui::TextWrapped("強化は種類の価格と最低購入価格の高い方を使用。施設は利用せず通過できます。0なら無料です。");
@@ -213,7 +310,7 @@ bool tankexp::MapEditor::Draw(bool& open,MapDefinition& live,const std::vector<s
                 auto it=std::find(node.next.begin(),node.next.end(),target.id);bool connected=it!=node.next.end();
                 const bool allowed=target.column>node.column&&node.next.size()<5&&node.kind!=NodeKind::Boss;
                 ImGui::BeginDisabled(!connected&&!allowed);ImGui::PushID(target.id.c_str());
-                const auto label=target.label+" ["+std::to_string(target.column)+"]";
+                const auto label=target.label+" ["+std::to_string(target.column+1)+"列目]";
                 if(ImGui::Checkbox(label.c_str(),&connected)) {
                     if(connected) node.next.push_back(target.id);else node.next.erase(it);
                 }
@@ -224,6 +321,6 @@ bool tankexp::MapEditor::Draw(bool& open,MapDefinition& live,const std::vector<s
     }
     ImGui::End();return committed;
 #else
-    (void)open;(void)live;(void)roomIds;return false;
+    (void)open;(void)live;(void)rooms;(void)enemyIds;return false;
 #endif
 }

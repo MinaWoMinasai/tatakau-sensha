@@ -82,6 +82,12 @@ public:
     void Dash() { Play(DashClip,0.12f,0.56f); }
     void Upgrade() { Play(UpgradeClip,0.18f,0.68f); }
     void ArmorBreak() { Play(ArmorBreakClip,0.10f,0.67f); }
+    void UiHover() { Play(HitClip,0.09f,0.13f,1.65f); }
+    void UiConfirm() { Play(DashClip,0.14f,0.32f,1.25f); }
+    void UiDenied() { Play(ArmorBreakClip,0.20f,0.25f,0.75f); }
+    void Collect(int amount) { Play(HitClip,0.045f,0.23f,1.35f+0.035f*static_cast<float>(std::clamp(amount,1,8))); }
+    void Slash() { Play(DashClip,0.12f,0.38f,1.45f); }
+    void Slam(bool finisher=false) { Play(ArmorBreakClip,0.12f,finisher?0.80f:0.58f,finisher?0.72f:0.92f); }
 
     size_t LoadedClipCount() const {
         return static_cast<size_t>(std::count(loaded_.begin(),loaded_.end(),true));

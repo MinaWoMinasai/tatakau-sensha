@@ -4,16 +4,61 @@
 #include <cmath>
 #include <fstream>
 #include <string>
+#include "../player/TankCombatStyleBalance.h"
 
 namespace tankexp {
 inline constexpr const char* kBalancePath="resources/configs/tankExpeditionBalance.json";
+inline constexpr std::array<std::pair<const char*,float TankCombatStyleProfile::*>,13> kStyleFloatFields{{
+    {"maxHp",&TankCombatStyleProfile::maxHp},{"moveSpeed",&TankCombatStyleProfile::moveSpeed},
+    {"maxStamina",&TankCombatStyleProfile::maxStamina},{"staminaRecovery",&TankCombatStyleProfile::staminaRecovery},
+    {"bodyDamage",&TankCombatStyleProfile::bodyDamage},{"attackDamage",&TankCombatStyleProfile::attackDamage},
+    {"attackIntervalSeconds",&TankCombatStyleProfile::attackIntervalSeconds},{"bulletSpeed",&TankCombatStyleProfile::bulletSpeed},
+    {"meleeRange",&TankCombatStyleProfile::meleeRange},{"meleeKnockback",&TankCombatStyleProfile::meleeKnockback},
+    {"droneFollowSpeed",&TankCombatStyleProfile::droneFollowSpeed},{"droneCatchupSpeed",&TankCombatStyleProfile::droneCatchupSpeed},
+    {"droneResponse",&TankCombatStyleProfile::droneResponse}
+}};
+inline nlohmann::json CombatStylesToJson(const TankCombatStyleBalances& profiles) {
+    nlohmann::json result=nlohmann::json::object();
+    for(size_t i=0;i<profiles.size();++i) {
+        auto& out=result[tankbuild::Ids[i]];const auto& p=profiles[i];
+        for(const auto& field:kStyleFloatFields)out[field.first]=p.*(field.second);
+        out["droneCount"]=p.droneCount;out["droneFormationRadius"]=p.droneFormationRadius;
+    }
+    return result;
+}
+inline TankCombatStyleBalances ReadCombatStyleBalances(const nlohmann::json& source) {
+    const auto defaults=DefaultTankCombatStyleBalances();auto profiles=defaults;
+    auto read=[](const nlohmann::json& object,const char* key,float fallback) {
+        if(!object.is_object()||!object.contains(key)||!object[key].is_number())return fallback;
+        const double value=object[key].get<double>();return std::isfinite(value)?static_cast<float>(value):fallback;
+    };
+    const auto styles=source.is_object()?source.value("combatStyles",nlohmann::json::object()):nlohmann::json::object();
+    const auto legacy=source.is_object()?source.value("player",nlohmann::json::object()):nlohmann::json::object();
+    for(size_t i=0;i<profiles.size();++i) {
+        auto& p=profiles[i];
+        if(!source.is_object()||!source.contains("combatStyles")) {
+            p.maxHp=read(legacy,"maxHp",p.maxHp);p.moveSpeed=read(legacy,"moveSpeed",p.moveSpeed);
+            p.maxStamina=read(legacy,"maxStamina",p.maxStamina);p.staminaRecovery=read(legacy,"staminaRecovery",p.staminaRecovery);
+            p.bodyDamage=read(legacy,"bodyDamage",p.bodyDamage);p.bulletSpeed=read(legacy,"bulletSpeed",p.bulletSpeed);
+            p.attackDamage=read(legacy,"bulletDamage",4.0f)*(i==2?3.8f:1.0f);
+            if(i==0)p.attackIntervalSeconds=read(legacy,"reloadSpeed",20.0f)/60.0f;
+        }
+        const auto entry=styles.is_object()?styles.value(tankbuild::Ids[i],nlohmann::json::object()):nlohmann::json::object();
+        for(const auto& field:kStyleFloatFields)p.*(field.second)=read(entry,field.first,p.*(field.second));
+        p.droneCount=static_cast<int>((std::clamp)(read(entry,"droneCount",static_cast<float>(p.droneCount)),1.0f,12.0f));
+        p.droneFormationRadius=read(entry,"droneFormationRadius",p.droneFormationRadius);
+        p=SanitizeTankCombatStyleProfile(p,defaults[i]);
+    }
+    return profiles;
+}
 inline nlohmann::json DefaultBalance() {
     return {
-        {"schemaVersion",1}, {"bossMaxHp",900}, {"defaultRandomSpawnEnabled",false},
+        {"schemaVersion",2}, {"bossMaxHp",900}, {"defaultRandomSpawnEnabled",false},
+        {"combatStyles",CombatStylesToJson(DefaultTankCombatStyleBalances())},
         {"player",{{"maxHp",120},{"bulletDamage",4.0f},{"bulletSpeed",0.27f},{"reloadSpeed",20.0f},
             {"moveSpeed",0.23f},{"maxStamina",3.0f},{"staminaRecovery",0.9f},{"bodyDamage",3},{"healToFull",false}}},
-        {"playerUpgrades",{{"maxHp",0.35f},{"bulletDamage",0.80f},{"bulletSpeed",0.20f},
-            {"reloadSpeed",0.40f},{"moveSpeed",0.25f},{"healthRegen",0.12f},{"bodyDamage",0.10f},{"minReloadSpeed",3.0f}}},
+        {"playerUpgrades",{{"maxHp",0.15f},{"bulletDamage",0.25f},{"bulletSpeed",0.20f},
+            {"reloadSpeed",0.25f},{"moveSpeed",0.12f},{"healthRegen",0.12f},{"bodyDamage",0.10f},{"minReloadSpeed",3.0f}}},
         {"damage",{{"damageBlock",12},{"bossContact",18},{"expEnemyContact",8},{"shooterContact",8},
             {"shooterBullet",12},{"shooterBulletSpeed",0.40f},{"shooterFireInterval",1.6f},
             {"shooterDetectionRadius",64.0f},{"shooterTurnSpeed",5.5f}}},
@@ -47,6 +92,14 @@ inline nlohmann::json SanitizeBalance(const nlohmann::json& source) {
     for(const char* key:{"maxHp","bulletDamage","bulletSpeed","moveSpeed","healthRegen","bodyDamage"})
         number("playerUpgrades",key,0,3);
     number("playerUpgrades","reloadSpeed",0,0.9); number("playerUpgrades","minReloadSpeed",1,60);
+    result["combatStyles"]=CombatStylesToJson(ReadCombatStyleBalances(source));
+    // Migrate only the former shipped values. Authored values are retained and
+    // now take effect instead of being silently limited by the old starter caps.
+    const bool oldSchema=!source.contains("schemaVersion")||!source["schemaVersion"].is_number_integer()||source["schemaVersion"].get<int>()<2;
+    if(oldSchema)for(const auto& item:std::array<std::pair<const char*,float>,4>{{{"maxHp",.35f},{"bulletDamage",.8f},{"reloadSpeed",.4f},{"moveSpeed",.25f}}}) {
+        if(std::abs(result["playerUpgrades"][item.first].get<float>()-item.second)<.00001f)
+            result["playerUpgrades"][item.first]=DefaultBalance()["playerUpgrades"][item.first];
+    }
     for(const char* key:{"damageBlock","bossContact","expEnemyContact","shooterContact","shooterBullet"})
         number("damage",key,1,999);
     number("damage","shooterBulletSpeed",0.05,2); number("damage","shooterFireInterval",0.3,10);
