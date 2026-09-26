@@ -1,6 +1,7 @@
 #include "../game/exp/ExpEnemyCombatCycle.h"
 #include "../game/exp/ExpEnemyMagazineCycle.h"
 #include "../game/exp/ExpEnemyNavigation.h"
+#include "../game/exp/ExpGuardCombat.h"
 #include <cassert>
 #include <cmath>
 #include <iostream>
@@ -17,6 +18,78 @@ void Tick(ExpEnemyCombatCycle& cycle, float seconds, bool visible = true) {
 }
 
 int main() {
+    // This is the same directional armor calculation used by both actor
+    // damage and incoming (including reflected) bullets in ExpEnemy.
+    assert(expguard::ShieldDamage(100, 1, 0, 3, 0) == 15);
+    assert(expguard::ShieldDamage(100, 1, 0, -3, 0) == 100);
+    assert(expguard::ShieldDamage(100, 1, 0, 0, 3) == 100);
+    assert(expguard::ShieldDamage(100, 1, 0, 3, 0, true) == 40);
+    assert(expguard::ShieldDamage(100, 1, 0, -3, 0, true) == 100);
+    assert(expguard::ShieldDamage(6, 1, 0, 3, 0) == 1);
+    assert(expguard::ShieldDamage(0, 1, 0, 3, 0) == 0);
+    assert(expguard::ShieldDamage(100, 1, 0, 0, 0) == 100);
+    assert(expguard::ShieldDamage(100, 0, 0, 3, 0) == 100);
+    assert(expguard::ShieldDamage(100, 1, 0, std::cos(54.0f * 3.14159265f / 180),
+        std::sin(54.0f * 3.14159265f / 180)) == 15);
+    assert(expguard::ShieldDamage(100, 1, 0, std::cos(56.0f * 3.14159265f / 180),
+        std::sin(56.0f * 3.14159265f / 180)) == 100);
+
+    expguard::BladeCycle blade;
+    blade.Reset(0);
+    blade.SetIntervalScale(0.3f); // Authoring cannot erase the recovery opening.
+    assert(!blade.Advance(0.01f, false));
+    assert(blade.GetPhase() == Phase::Cooldown);
+    assert(!blade.Advance(0.01f, true));
+    assert(blade.GetPhase() == Phase::Locked && blade.IsCommitted());
+    for (int i = 0; i < 44; ++i) {
+        assert(!blade.Advance(0.01f, false));
+        assert(blade.GetPhase() == Phase::Locked);
+        assert(!blade.TryHit(1, 0, 2, 0, 0.8f, true));
+    }
+    assert(blade.Advance(0.02f, false)); // Committed swing can miss a dodging player.
+    assert(blade.GetPhase() == Phase::Active && blade.SwingCount() == 1);
+    assert(!blade.TryHit(1, 0, 2, 0, 0.8f, false)); // Cover cannot be cut through.
+    assert(!blade.TryHit(1, 0, -2, 0, 0.8f, true)); // Dash behind it.
+    assert(!blade.TryHit(1, 0, 8, 0, 0.8f, true));
+    assert(blade.TryHit(1, 0, 2, 0, 0.8f, true));
+    for (int i = 0; i < 12; ++i) {
+        assert(!blade.Advance(0.01f, true));
+        assert(!blade.TryHit(1, 0, 2, 0, 0.8f, true)); // One hit per whole sweep.
+    }
+    assert(blade.GetPhase() == Phase::Active);
+    assert(!blade.Advance(0.03f, true));
+    assert(blade.GetPhase() == Phase::Recovery);
+    for (int i = 0; i < 89; ++i) {
+        assert(!blade.Advance(0.01f, true));
+        assert(blade.GetPhase() == Phase::Recovery);
+        assert(!blade.TryHit(1, 0, 2, 0, 0.8f, true));
+    }
+    assert(!blade.Advance(0.02f, true));
+    assert(blade.GetPhase() == Phase::Cooldown);
+
+    blade.Reset(0);
+    float elapsed = 0, lastHit = -100;
+    unsigned hits = 0;
+    for (int frame = 0; frame < 3000; ++frame) {
+        elapsed += 0.01f;
+        blade.Advance(0.01f, true);
+        if (blade.TryHit(1, 0, 2, 0, 0.8f, true)) {
+            assert(elapsed - lastHit >= 1.63f);
+            lastHit = elapsed;
+            ++hits;
+        }
+    }
+    assert(hits >= 16 && hits <= 19);
+    blade.Reset(0);
+    assert(!blade.Advance(10, true));
+    assert(blade.GetPhase() == Phase::Locked);
+    assert(blade.Advance(10, true)); // Never skips to another instant swing.
+    assert(!blade.Advance(10, true));
+    assert(blade.GetPhase() == Phase::Recovery);
+    assert(!blade.Advance(std::numeric_limits<float>::quiet_NaN(), true));
+    assert(!blade.Advance(0, true));
+    assert(blade.GetPhase() == Phase::Recovery);
+
     // Finite clips create a real punish window. This checks actual temporal
     // behavior (including lost sight and frame stalls), not getters alone.
     ExpEnemyMagazineCycle magazine;

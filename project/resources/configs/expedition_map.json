@@ -96,8 +96,8 @@
     },
     {
       "id": "evolution",
-      "label": "機体進化",
-      "kind": "evolution",
+      "label": "換装工房",
+      "kind": "upgrade",
       "column": 4,
       "row": 2,
       "combatStage": -1,
@@ -280,6 +280,13 @@
         "lastColumn": 31,
         "roomTemplate": "final_duel",
         "kind": "boss"
+      },
+      {
+        "kind": "combat",
+        "firstColumn": 8,
+        "lastColumn": 31,
+        "weight": 2,
+        "roomTemplate": "guard_patrol"
       }
     ],
     "minColumns": 18,

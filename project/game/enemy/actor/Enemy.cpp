@@ -565,7 +565,9 @@ void Enemy::UpdateRivalCombat(float deltaTime)
 	param.bulletSpeed = prototypeTuningEnabled_ ? (std::clamp)(bossAttackConfig_.bulletSpeed, 0.24f, 0.46f) : 0.32f;
 	if (shot.pattern == RivalBossCombat::Pattern::FanBurst) param.bulletSpeed *= 0.90f;
 	param.damage = prototypeTuningEnabled_ ? bossAttackConfig_.damage : 9u;
-	param.bulletHp = 5.0f;
+	// This method runs only for the expedition rival. The old arena/prototype
+	// remains at its original durability; expedition bosses resist one parry/wave.
+	param.bulletHp = (std::max)(tankspecial::kBossEnemyBulletHp, bossAttackConfig_.bulletHp);
 	param.bulletPenetration = 3.0f;
 	param.reflect = param.penetrate = param.canClaimRunResource = false;
 	const Vector3 base{ std::cos(shot.angle), std::sin(shot.angle), 0.0f };

@@ -11,6 +11,9 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 	isDead_ = false;
 	deathTimer_ = kLifeTime;
 	usesRunProjectileRules_ = false;
+	specialKind_ = SpecialKind::None;
+	specialImpacts_.clear();
+	previousPosition_ = position;
 	remainingWallBounces_ = -1;
 	remainingActorPierces_ = 0;
 	impactSplitCount_ = 0;
@@ -62,6 +65,7 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 
 void Bullet::Update(float deltaTime) {
 	if (isDead_) return;
+	previousPosition_ = GetWorldPosition();
 
 	// 座標を移動させる
 	worldTransform_.translate += velocity_ * (deltaTime * 60.0f);
@@ -99,6 +103,11 @@ void Bullet::OnCollision(Collider* other) {
 		if (otherBullet->GetOwner() == owner_) {
 			return;
 		}
+		if (specialKind_ == SpecialKind::SlashWave) {
+			if (!CanHitActor(otherBullet)) return;
+			hitActorIds_.push_back(otherBullet->GetCollisionId());
+			if(specialImpacts_.size()<8)specialImpacts_.push_back({specialKind_,GetWorldPosition(),velocity_,true});
+		}
 		Vector3 impactNormal = velocity_ * -1.0f;
 		ParticleManager::GetInstance()->EmitNeonImpactEffect(
 			GetWorldPosition(), impactNormal, GetBulletColor(), 7);
@@ -108,6 +117,7 @@ void Bullet::OnCollision(Collider* other) {
 
 	if (!CanHitActor(other)) return;
 	hitActorIds_.push_back(other->GetCollisionId());
+	if(specialKind_!=SpecialKind::None&&specialImpacts_.size()<8)specialImpacts_.push_back({specialKind_,other->GetWorldPosition(),velocity_,false});
 	QueueImpactSplit(velocity_);
 	Vector3 impactNormal = velocity_ * -1.0f;
 	ParticleManager::GetInstance()->EmitNeonImpactEffect(
@@ -118,6 +128,13 @@ void Bullet::OnCollision(Collider* other) {
 	} else {
 		Die();
 	}
+}
+
+void Bullet::ConfigureSpecial(SpecialKind kind, float radius, float lifetime)
+{
+	specialKind_=kind;
+	radius_=(std::clamp)(radius,.1f,2.5f);
+	deathTimer_=(std::clamp)(lifetime,.05f,kLifeTime);
 }
 
 void Bullet::ConfigureGrowth(int maxWallBounces, int actorPierceCount, int impactSplitCount,
@@ -256,6 +273,9 @@ void Bullet::AttachTrail(TrailManager* trailManager, BulletTrailSettings* trailS
 }
 
 Vector4 Bullet::GetBulletColor() const {
+	if(specialKind_==SpecialKind::Rail)return {.32f,1.30f,1.70f,1};
+	if(specialKind_==SpecialKind::SlashWave)return {.30f,1.50f,1.15f,.80f};
+	if(specialKind_==SpecialKind::ParryReflection)return {1.5f,1.15f,.25f,1};
 	if (trailSettings_) {
 		if (owner_ == kPlayer && isReflectable_) {
 			return trailSettings_->reflectableObjectColor;
@@ -333,6 +353,10 @@ TrailConfig Bullet::MakeTrailConfig() const {
 		config.maxPoints = 22;
 		config.lifetime = 0.24f;
 	}
+	if(specialKind_==SpecialKind::Rail) {config.lifetime=(std::max)(config.lifetime,.30f);config.maxPoints=(std::max)(config.maxPoints,24u);}
+	// The crescent is drawn by the neon pass. Keep its wake narrow and faint
+	// so a wide opaque ribbon does not turn the blade into a glowing ball.
+	if(specialKind_==SpecialKind::SlashWave) {config.lifetime=.10f;config.startColor.w*=.16f;config.endColor.w*=.10f;}
 	return config;
 }
 
@@ -354,6 +378,8 @@ void Bullet::UpdateTrail(float deltaTime) {
 	if (trailSettings_) {
 		halfWidth = (owner_ == kPlayer) ? trailSettings_->playerHalfWidth : trailSettings_->enemyHalfWidth;
 	}
+	if(specialKind_==SpecialKind::Rail)halfWidth=(std::max)(halfWidth,radius_*.85f);
+	if(specialKind_==SpecialKind::SlashWave)halfWidth=radius_*.20f;
 	const Vector3 center = { worldTransform_.translate.x, worldTransform_.translate.y, worldTransform_.translate.z - 0.015f };
 	const Vector3 tip = center + side * halfWidth;
 	const Vector3 base = center - side * halfWidth;

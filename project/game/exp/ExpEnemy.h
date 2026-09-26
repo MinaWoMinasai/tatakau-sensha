@@ -4,6 +4,7 @@
 #include "AttackController.h"
 #include "ExpEnemyCombatCycle.h"
 #include "ExpEnemyMagazineCycle.h"
+#include "ExpGuardCombat.h"
 #include <functional>
 #include "game/run/TankExpeditionContent.h"
 
@@ -22,6 +23,8 @@ enum class ExpEnemyType {
     Skirmisher,
     Flanker,
     Suppressor,
+    ShieldGuard,
+    BladeGuard,
 };
 
 class ExpEnemy : public Collider {
@@ -86,23 +89,26 @@ public:
             (type_ == ExpEnemyType::Shooter || IsExpeditionCombatRole());
     }
     bool IsExpeditionCombatRole() const {
-        return type_ >= ExpEnemyType::Charger && type_ <= ExpEnemyType::Suppressor;
+        return type_ >= ExpEnemyType::Charger && type_ <= ExpEnemyType::BladeGuard;
     }
-    ExpEnemyCombatPhase GetCombatPhase() const { return type_ == ExpEnemyType::Charger ? combatCycle_.GetPhase() : magazineCycle_.GetPhase(); }
-    float GetAttackTelegraphRatio() const { return type_ == ExpEnemyType::Charger ? combatCycle_.GetWarningRatio() : magazineCycle_.GetWarningRatio(); }
-    bool IsAttackAimLocked() const { return type_ == ExpEnemyType::Charger ? combatCycle_.IsAimLocked() : magazineCycle_.IsAimLocked(); }
-    bool IsReloading() const { return IsExpeditionCombatRole() && type_ != ExpEnemyType::Charger && magazineCycle_.IsReloading(); }
-    int GetAmmoRemaining() const { return type_ == ExpEnemyType::Charger ? 0 : magazineCycle_.GetAmmo(); }
+    ExpEnemyCombatPhase GetCombatPhase() const { return type_ == ExpEnemyType::BladeGuard ? bladeCycle_.GetPhase() : type_ == ExpEnemyType::Charger ? combatCycle_.GetPhase() : magazineCycle_.GetPhase(); }
+    float GetAttackTelegraphRatio() const { return type_ == ExpEnemyType::BladeGuard ? bladeCycle_.WarningRatio() : type_ == ExpEnemyType::Charger ? combatCycle_.GetWarningRatio() : magazineCycle_.GetWarningRatio(); }
+    bool IsAttackAimLocked() const { return type_ == ExpEnemyType::BladeGuard ? bladeCycle_.IsCommitted() : type_ == ExpEnemyType::Charger ? combatCycle_.IsAimLocked() : magazineCycle_.IsAimLocked(); }
+    bool IsReloading() const { return IsExpeditionCombatRole() && type_ != ExpEnemyType::Charger && type_ != ExpEnemyType::BladeGuard && magazineCycle_.IsReloading(); }
+    int GetAmmoRemaining() const { return type_ == ExpEnemyType::Charger || type_ == ExpEnemyType::BladeGuard ? 0 : magazineCycle_.GetAmmo(); }
     bool IsDashing() const { return dashTimer_ > 0 || (type_ == ExpEnemyType::Charger && combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active); }
     uint32_t GetCombatShotsFired() const { return combatShotsFired_; }
     uint32_t GetCombatDashCount() const { return combatDashCount_; }
     uint32_t GetCombatReloadCount() const { return magazineCycle_.GetReloadCount(); }
+    uint32_t GetShieldBlockCount() const { return shieldBlockCount_; }
+    uint32_t GetBladeSwingCount() const { return bladeCycle_.SwingCount(); }
     const Vector3& GetAimDirection() const { return aimDirection_; }
     const Vector3& GetTelegraphEnd() const { return telegraphEnd_; }
     // Called from the scene's existing neon pass for all mobile combat roles.
     void QueueCombatVisuals(NeonGridRenderer& renderer, const Vector3& cameraRight,
         const Vector3& cameraUp, const Vector3& cameraForward, float lineWidth) const;
     bool TakeDamageFromPlayer(uint32_t amount);
+    bool TakeDirectionalDamage(uint32_t amount, const Vector3& attackSource, bool melee = false);
 	void ApplyKnockback(const Vector3& direction, float power);
     bool TakeDamageFromEnemy(uint32_t amount);
     void RefreshCollisionMask();
@@ -136,6 +142,7 @@ private:
     bool MoveCombatActor(Stage& stage, const Vector3& displacement);
     Vector3 FindCombatWaypoint(Stage& stage, const Vector3& target) const;
     Vector3 ClipCombatRay(Stage& stage, const Vector3& origin, const Vector3& direction, float distance) const;
+    uint32_t ResolveShieldDamage(uint32_t amount, const Vector3& attackSource, bool melee);
 
     static BalanceConfig balanceConfig_;
     static EnemyInteractionConfig enemyInteractionConfig_;
@@ -196,6 +203,9 @@ private:
     float damageFeedbackDuration_ = 0.09f;
     ExpEnemyCombatCycle combatCycle_{};
     ExpEnemyMagazineCycle magazineCycle_{};
+    expguard::BladeCycle bladeCycle_{};
+    float shieldFlashTimer_ = 0.0f;
+    uint32_t shieldBlockCount_ = 0;
     float combatStagger_ = 0.0f, orbitSign_ = 1.0f;
     float dashCooldown_ = 0.0f, dashWarningTimer_ = 0.0f, dashTimer_ = 0.0f;
     Vector3 dashDirection_{};

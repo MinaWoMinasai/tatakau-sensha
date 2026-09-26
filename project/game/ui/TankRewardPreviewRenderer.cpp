@@ -1,6 +1,7 @@
 #include "TankRewardPreviewRenderer.h"
 #include "Calculation.h"
 #include "StartupTrace.h"
+#include "../effects/TankSpecialNeonGeometry.h"
 #include <cmath>
 #include <tuple>
 
@@ -113,11 +114,12 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
         tankneon::QueueBodyOutline(*neon_,at,r,appearance_.lineWidth,segments,angle,bodyScale,color,kRight,kUp);
         const auto forward=Direction(angle),right=Vector3{-forward.y,forward.x,0};
         for(int b=0;b<barrels;++b) {
+            const auto barrelForward=Direction(angle-(barrels==s.barrelCount?s.barrelAngles[b]:0));
             const float side=(static_cast<float>(b)-static_cast<float>(barrels-1)*0.5f)*0.48f*r;
             const auto center=at+forward*(0.86f*r)+right*side;
             const float length=r*0.90f,half=r*0.18f;
-            const auto base=center-forward*(length*0.20f),tip=center+forward*(length*0.80f);
-            tankneon::QueueBarrelOutline(*neon_,base,tip,right,half,appearance_.lineWidth,
+            const auto base=center-barrelForward*(length*0.20f),tip=center+barrelForward*(length*0.80f);
+            tankneon::QueueBarrelOutline(*neon_,base,tip,{-barrelForward.y,barrelForward.x,0},half,appearance_.lineWidth,
                 color,false);
             if(muzzle>0) {
                 tankneon::QueueBodyOutline(*neon_,tip,r*0.18f,appearance_.lineWidth*0.7f,14,0,{1,1},
@@ -155,6 +157,22 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
         }
     }
     if(fill)return;
+    if(s.railCharge>0)tankspecialfx::Charge(*neon_,player+Direction(aim)*radius*1.4f,s.railCharge,elapsed_,.65f);
+    if(s.railFlash>0) {
+        const auto start=player+Direction(aim)*radius*1.4f;
+        neon_->QueueLine(start,Position(lane,{.92f,.54f}),.12f,{.55f,1.65f,2.0f,s.railFlash*.3f});
+        tankspecialfx::Ring(*neon_,start,.38f,.07f,{1.8f,1.7f,2.0f,s.railFlash*.7f});
+    }
+    if(s.links)for(int i=0;i<(s.droneCount==2?1:s.droneCount);++i) {
+        tankspecialfx::Link(*neon_,Position(lane,s.drones[i]),Position(lane,s.drones[(i+1)%s.droneCount]),.65f);
+        if(s.linkContact[i])tankspecialfx::Contact(*neon_,Position(lane,s.targets[1]),.06f,.45f,true);
+    }
+    if(s.wave)tankspecialfx::Crescent(*neon_,Position(lane,s.wavePosition),{1,0,0},s.waveRadius*(compare_?8.5f:17.5f));
+    if(s.hostileBullet) {
+        const auto p=Position(lane,s.hostilePosition);
+        neon_->QueueLine(p+Vector3{.22f,0,0},p,.07f,{2.0f,.4f,.15f,.9f});
+    }
+    if(s.parryFlash>0)tankspecialfx::Contact(*neon_,Position(lane,s.parryPosition),(1-s.parryFlash)*.24f,.7f,s.perfectParry);
     // The same idle blade and layered swing blade as the gameplay pass. These
     // are world-space neon vertices, not a sprite substitute for the actor.
     if(melee_&&s.barrelCount==0) {
@@ -198,7 +216,7 @@ void TankRewardPreviewRenderer::PrepareTrails(int lane,const tankreward::DemoSna
     for(std::size_t i=0;i<s.bullets.size();++i) {
         const auto& bullet=s.bullets[i];auto* trail=trailInstances_[static_cast<std::size_t>(lane)*6+i];
         if(!bullet.visible)continue;
-        const auto right=Vector3{std::sin(bullet.angle),std::cos(bullet.angle),0}*source.playerHalfWidth;
+        const auto right=Vector3{std::sin(bullet.angle),std::cos(bullet.angle),0}*(source.playerHalfWidth*(s.rail?2.2f:1.0f));
         for(std::size_t p=0;p<bullet.trailCount;++p) {
             const auto pos=Position(lane,bullet.trail[p]);trail->Update(0,pos+right,pos-right,config);
         }

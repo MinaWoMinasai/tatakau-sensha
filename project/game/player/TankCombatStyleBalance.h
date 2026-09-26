@@ -8,7 +8,7 @@
 // modifiers compose on top; they never overwrite this authoring configuration.
 struct TankCombatStyleProfile {
     float maxHp=120.0f,moveSpeed=0.23f,maxStamina=3.0f,staminaRecovery=0.9f,bodyDamage=3.0f;
-    float attackDamage=4.0f,attackIntervalSeconds=1.0f/3.0f,bulletSpeed=0.27f;
+    float attackDamage=6.0f,attackIntervalSeconds=0.30f,bulletSpeed=0.27f;
     float meleeRange=4.3f,meleeKnockback=0.16f;
     int droneCount=3;
     float droneFollowSpeed=0.25f,droneCatchupSpeed=0.62f,droneResponse=5.0f,droneFormationRadius=1.5f;
@@ -16,7 +16,7 @@ struct TankCombatStyleProfile {
 using TankCombatStyleBalances=std::array<TankCombatStyleProfile,3>;
 inline constexpr TankCombatStyleBalances DefaultTankCombatStyleBalances() {
     TankCombatStyleBalances profiles{};
-    profiles[1].attackIntervalSeconds=0.5f;
+    profiles[1].attackDamage=3.0f;profiles[1].attackIntervalSeconds=0.5f;
     profiles[2].attackDamage=15.2f;profiles[2].attackIntervalSeconds=0.33f;
     return profiles;
 }

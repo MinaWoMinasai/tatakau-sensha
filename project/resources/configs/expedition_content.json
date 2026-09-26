@@ -208,6 +208,44 @@
       "moveSpeedScale": 1.0,
       "name": "高速狙撃兵",
       "reloadSeconds": 0.0
+    },
+    {
+      "id": "ShieldGuard",
+      "name": "シールド兵",
+      "behavior": "ShieldGuard",
+      "hp": 80,
+      "contactDamage": 8,
+      "bulletDamage": 8,
+      "creditDrop": 12,
+      "moveSpeedScale": 1.0,
+      "fireIntervalScale": 1.0,
+      "magazineSize": 0,
+      "reloadSeconds": 0.0,
+      "color": [
+        0.18,
+        1.2,
+        1.6,
+        1
+      ]
+    },
+    {
+      "id": "BladeGuard",
+      "name": "ブレード兵",
+      "behavior": "BladeGuard",
+      "hp": 65,
+      "contactDamage": 18,
+      "bulletDamage": 10,
+      "creditDrop": 12,
+      "moveSpeedScale": 1.0,
+      "fireIntervalScale": 1.0,
+      "magazineSize": 0,
+      "reloadSeconds": 0.0,
+      "color": [
+        1.6,
+        0.38,
+        0.12,
+        1
+      ]
     }
   ],
   "players": [
@@ -420,7 +458,7 @@
       "style": "melee"
     }
   ],
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "upgrades": [
     {
       "description": "壁で弾が反射する。1砲門1発のまま、角度を使って敵を狙う。",
@@ -909,6 +947,178 @@
         "Homing": 1.0,
         "Overdrive": 1.0
       }
+    },
+    {
+      "id": "RailCannon",
+      "name": "レールキャノン",
+      "description": "左クリック長押しで約1秒チャージ、離して貫通レール弾。短押しも可能。チャージ中は移動が少し遅くなる。",
+      "price": 58,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [
+        "RailCannon"
+      ],
+      "compatibleStyles": [
+        "shooter"
+      ],
+      "effectPower": {
+        "RailCannon": 1.0
+      }
+    },
+    {
+      "id": "DroneLaserLink",
+      "name": "レーザーリンク",
+      "description": "ドローンを輪状のレーザーで接続。隊形と位置取りで敵へ重ねて継続ダメージ。壁越しには届かない。",
+      "price": 58,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [
+        "DroneLaserLink"
+      ],
+      "compatibleStyles": [
+        "drone"
+      ],
+      "effectPower": {
+        "DroneLaserLink": 1.0
+      }
+    },
+    {
+      "id": "SlashWave",
+      "name": "斬撃波",
+      "description": "近接3段目から斬撃波を放つ。敵を貫き、弱い敵弾を削る。刃先延長・終撃増幅と組み合わせ可能。",
+      "price": 42,
+      "maxPurchases": 1,
+      "rarity": 2,
+      "effects": [
+        "SlashWave"
+      ],
+      "compatibleStyles": [
+        "melee"
+      ],
+      "effectPower": {
+        "SlashWave": 1.0
+      }
+    },
+    {
+      "id": "ParryBlade",
+      "name": "パリィブレード",
+      "description": "斬撃で低耐久の敵弾を斬る。振り始めはPERFECT PARRYとなり、弾を跳ね返す。高耐久弾は耐久を削る。",
+      "price": 58,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [
+        "ParryBlade"
+      ],
+      "compatibleStyles": [
+        "melee"
+      ],
+      "effectPower": {
+        "ParryBlade": 1.0
+      }
+    },
+    {
+      "id": "Refit_TwinBattery",
+      "name": "ツイン砲台",
+      "description": "2門を同時発射。直線火力を伸ばす。",
+      "price": 56,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [],
+      "compatibleStyles": [
+        "shooter"
+      ],
+      "refitPlayer": "TwinBattery"
+    },
+    {
+      "id": "Refit_FanBattery",
+      "name": "扇形砲台",
+      "description": "3門を扇状に発射。広い範囲を制圧。",
+      "price": 56,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [],
+      "compatibleStyles": [
+        "shooter"
+      ],
+      "refitPlayer": "FanBattery"
+    },
+    {
+      "id": "Refit_RapidBattery",
+      "name": "速射機体",
+      "description": "交互射撃で切れ目なく攻撃。",
+      "price": 56,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [],
+      "compatibleStyles": [
+        "shooter"
+      ],
+      "refitPlayer": "RapidBattery"
+    },
+    {
+      "id": "Refit_BankshotBattery",
+      "name": "反射機体",
+      "description": "3門から反射弾を発射。",
+      "price": 56,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [],
+      "compatibleStyles": [
+        "shooter"
+      ],
+      "refitPlayer": "BankshotBattery"
+    },
+    {
+      "id": "Refit_DroneCarrier",
+      "name": "ドローン母艦",
+      "description": "3機のドローンで継続攻撃。各機の発射間隔15%短縮。",
+      "price": 56,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [],
+      "compatibleStyles": [
+        "drone"
+      ],
+      "refitPlayer": "DroneCarrier"
+    },
+    {
+      "id": "Refit_DroneArtillery",
+      "name": "重射撃編隊",
+      "description": "2機の重ドローン。威力45%増、発射間隔20%増。",
+      "price": 56,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [],
+      "compatibleStyles": [
+        "drone"
+      ],
+      "refitPlayer": "DroneArtillery"
+    },
+    {
+      "id": "Refit_MeleeSweeper",
+      "name": "旋回ブレード",
+      "description": "近接連撃の動作を15%短縮。威力5%減。",
+      "price": 56,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [],
+      "compatibleStyles": [
+        "melee"
+      ],
+      "refitPlayer": "MeleeSweeper"
+    },
+    {
+      "id": "Refit_MeleeBreaker",
+      "name": "重撃ブレード",
+      "description": "近接威力45%増、各動作18%増。重い一撃を狙う。",
+      "price": 56,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [],
+      "compatibleStyles": [
+        "melee"
+      ],
+      "refitPlayer": "MeleeBreaker"
     }
   ]
 }

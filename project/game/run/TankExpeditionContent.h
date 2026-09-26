@@ -25,13 +25,14 @@ namespace tankcontent {
 inline constexpr const char* kCatalogPath="resources/configs/expedition_content.json";
 inline constexpr std::size_t kMaxDefinitions=128;
 inline std::filesystem::path Utf8Path(const std::string& path){return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(path.data()),path.size()));}
-enum class EnemyBehavior { Square,Triangle,Pentagon,Shooter,Charger,Sniper,Skirmisher,Flanker,Suppressor };
+enum class EnemyBehavior { Square,Triangle,Pentagon,Shooter,Charger,Sniper,Skirmisher,Flanker,Suppressor,ShieldGuard,BladeGuard };
 struct Upgrade {
     std::string id,name,description;
     int price=25,maxPurchases=1,rarity=0;
     std::vector<tankrun::CardId> effects{tankrun::CardId::Rapid};
     unsigned compatibleStyles=tankbuild::AllStyles;
     std::array<float,tankrun::CardCount> effectPower=[] {std::array<float,tankrun::CardCount> p{};p.fill(1);return p;}();
+    std::string refitPlayer; // A workshop card backed by the authored players table.
 };
 struct Enemy {
     std::string id,name;
@@ -55,13 +56,13 @@ struct Catalog { std::vector<Upgrade> upgrades;std::vector<Enemy> enemies;std::v
 inline constexpr std::array<const char*,tankrun::CardCount> kEffectIds{
     "Ricochet","Heavy","Rapid","Thrusters","Capacitor","Repair","Drones","Pierce",
     "ScatterShot","Homing","DashBurst","Overdrive","MeleeBlade","BladeReach","ImpactDrive","PerfectDodge",
-    "DroneFocus","DroneGuard","MeleeTempo","FinisherCharge"};
+    "DroneFocus","DroneGuard","MeleeTempo","FinisherCharge","RailCannon","DroneLaserLink","SlashWave","ParryBlade"};
 inline constexpr std::array<const char*,tankrun::CardCount> kEffectNames{
     "壁反射","攻撃力","攻撃速度","推進器","蓄電池","装甲修復","支援ドローン","貫通",
     "廃止済み","追尾","衝撃放電","過負荷","ネオンブレード","刃先延長","衝突増幅","ジャスト回避",
-    "精密ドローン","防衛ドローン","連撃加速","終撃増幅"};
-inline constexpr std::array<const char*,9> kBehaviorIds{"Square","Triangle","Pentagon","Shooter","Charger","Sniper","Skirmisher","Flanker","Suppressor"};
-inline constexpr std::array<const char*,9> kBehaviorNames{"四角資源","三角資源","五角資源","射撃砲台","突進兵","狙撃兵","機動射撃兵","接近散弾兵","制圧射撃兵"};
+    "精密ドローン","防衛ドローン","連撃加速","終撃増幅","レールキャノン","レーザーリンク","斬撃波","パリィブレード"};
+inline constexpr std::array<const char*,11> kBehaviorIds{"Square","Triangle","Pentagon","Shooter","Charger","Sniper","Skirmisher","Flanker","Suppressor","ShieldGuard","BladeGuard"};
+inline constexpr std::array<const char*,11> kBehaviorNames{"四角資源","三角資源","五角資源","射撃砲台","突進兵","狙撃兵","機動射撃兵","接近散弾兵","制圧射撃兵","シールド兵","ブレード兵"};
 inline int CreditsFromExperience(int amount) { return amount<=0?0:(std::clamp)(amount/5,1,100000); }
 template<class T> inline const T* FindDefinition(const std::vector<T>& items,const std::string& id) {
     const auto it=std::find_if(items.begin(),items.end(),[&](const T& item){return item.id==id;});
@@ -70,6 +71,20 @@ template<class T> inline const T* FindDefinition(const std::vector<T>& items,con
 inline const Upgrade* FindUpgrade(const Catalog& c,const std::string& id){return FindDefinition(c.upgrades,id);}
 inline const Enemy* FindEnemy(const Catalog& c,const std::string& id){return FindDefinition(c.enemies,id);}
 inline const PlayerVariant* FindPlayer(const Catalog& c,const std::string& id){return FindDefinition(c.players,id);}
+// Old catalogs need no duplicate authoring: every saved player design becomes
+// a card. Existing manually authored refit cards retain their price/rarity.
+inline void EnsureRefitCards(Catalog& catalog) {
+    for(auto& u:catalog.upgrades)if(const auto* p=FindPlayer(catalog,u.refitPlayer))u.compatibleStyles=tankbuild::Mask(p->style);
+    for(const auto& player:catalog.players) {
+        const bool exists=std::any_of(catalog.upgrades.begin(),catalog.upgrades.end(),[&](const Upgrade& u){return u.refitPlayer==player.id;});
+        if(exists||catalog.upgrades.size()>=kMaxDefinitions)continue;
+        Upgrade u;u.id="Refit_"+player.id.substr(0,58);
+        for(int suffix=1;FindUpgrade(catalog,u.id);++suffix)u.id="Refit_"+player.id.substr(0,51)+"_"+std::to_string(suffix);u.name=player.name;u.description=player.description;
+        u.price=(std::max)(56,player.price);u.rarity=(std::max)(3,player.rarity);
+        u.compatibleStyles=tankbuild::Mask(player.style);u.effects.clear();u.refitPlayer=player.id;
+        catalog.upgrades.push_back(std::move(u));
+    }
+}
 inline bool MeetsUpgradeRequirements(const Upgrade& upgrade,const tankrun::CardCounts& owned) {
     auto has=[&](tankrun::CardId id){return owned[static_cast<std::size_t>(id)]>0||std::find(upgrade.effects.begin(),upgrade.effects.end(),id)!=upgrade.effects.end();};
     for(const auto effect:upgrade.effects) {
@@ -83,19 +98,21 @@ inline unsigned EffectStyles(tankrun::CardId effect) {
     using C=tankrun::CardId;
     if(!tankrun::IsAvailableCard(effect))return 0;
     switch(effect) {
+    case C::RailCannon:return tankbuild::Mask(tankbuild::Style::Shooter);
     case C::Ricochet:case C::Pierce:case C::Homing:return 3;
-    case C::Drones:case C::DroneFocus:case C::DroneGuard:return tankbuild::Mask(tankbuild::Style::Drone);
-    case C::MeleeBlade:case C::BladeReach:case C::MeleeTempo:case C::FinisherCharge:return tankbuild::Mask(tankbuild::Style::Melee);
+    case C::Drones:case C::DroneFocus:case C::DroneGuard:case C::DroneLaserLink:return tankbuild::Mask(tankbuild::Style::Drone);
+    case C::MeleeBlade:case C::BladeReach:case C::MeleeTempo:case C::FinisherCharge:case C::SlashWave:case C::ParryBlade:return tankbuild::Mask(tankbuild::Style::Melee);
     default:return tankbuild::AllStyles;
     }
 }
 inline unsigned CompatibleEffectStyles(const Upgrade& upgrade) {
+    if(!upgrade.refitPlayer.empty())return upgrade.compatibleStyles;
     unsigned mask=tankbuild::AllStyles;
     for(const auto effect:upgrade.effects)mask&=EffectStyles(effect);
     return upgrade.effects.empty()?0:mask;
 }
 inline bool EligibleUpgrade(const Upgrade& upgrade,tankbuild::Style style,const tankrun::CardCounts& owned) {
-    if(!tankbuild::Valid(style)||!tankbuild::ValidRarity(upgrade.rarity)||upgrade.effects.empty()||
+    if(!tankbuild::Valid(style)||!tankbuild::ValidRarity(upgrade.rarity)||(upgrade.effects.empty()&&upgrade.refitPlayer.empty())||
        !(upgrade.compatibleStyles&tankbuild::Mask(style))||!(CompatibleEffectStyles(upgrade)&tankbuild::Mask(style)))return false;
     auto effectiveOwned=owned;
     if(style==tankbuild::Style::Melee)effectiveOwned[static_cast<std::size_t>(tankrun::CardId::MeleeBlade)]=1;
@@ -105,13 +122,32 @@ inline bool EligibleUpgrade(const Upgrade& upgrade,tankbuild::Style style,const 
     }
     return MeetsUpgradeRequirements(upgrade,effectiveOwned);
 }
+inline bool IsBehaviorUpgrade(const Upgrade& upgrade) {
+    if(!upgrade.refitPlayer.empty())return true;
+    using C=tankrun::CardId;
+    for(const auto effect:upgrade.effects)switch(effect) {
+    case C::RailCannon:case C::DroneLaserLink:case C::SlashWave:case C::ParryBlade:
+    case C::Homing:case C::Ricochet:case C::Pierce:case C::Overdrive:case C::Drones:
+    case C::DroneGuard:case C::DroneFocus:case C::BladeReach:case C::ImpactDrive:
+    case C::FinisherCharge:case C::DashBurst:case C::PerfectDodge:return true;
+    default:break;
+    }
+    return false;
+}
 inline std::vector<std::string> BuildShopOffers(const Catalog& catalog,tankbuild::Style style,const tankrun::CardCounts& owned,
-    const std::unordered_map<std::string,int>& purchased,std::uint32_t seed) {
-    std::vector<const Upgrade*> general,special;
+    const std::unordered_map<std::string,int>& purchased,std::uint32_t seed,bool refitPurchased=false) {
+    std::vector<const Upgrade*> eligible,special;
+    for(const auto& [id,count]:purchased)if(count>0) {
+        const auto* u=FindUpgrade(catalog,id);if((u&&!u->refitPlayer.empty())||id.rfind("Refit_",0)==0)refitPurchased=true;
+    }
     for(const auto& upgrade:catalog.upgrades) {
         const auto purchase=purchased.find(upgrade.id);
         if((purchase!=purchased.end()&&purchase->second>=upgrade.maxPurchases)||!EligibleUpgrade(upgrade,style,owned))continue;
-        (upgrade.compatibleStyles==tankbuild::AllStyles&&CompatibleEffectStyles(upgrade)==tankbuild::AllStyles?general:special).push_back(&upgrade);
+        if(!upgrade.refitPlayer.empty()) {
+            const auto* player=FindPlayer(catalog,upgrade.refitPlayer);
+            if(refitPurchased||!player||player->style!=style)continue;
+        }
+        eligible.push_back(&upgrade);if(IsBehaviorUpgrade(upgrade))special.push_back(&upgrade);
     }
     std::uint32_t state=seed?seed:0x9e3779b9u;
     auto draw=[&](unsigned limit){state^=state<<13;state^=state>>17;state^=state<<5;return state%limit;};
@@ -123,9 +159,11 @@ inline std::vector<std::string> BuildShopOffers(const Catalog& catalog,tankbuild
         while(value>=tankbuild::RarityWeights[static_cast<unsigned>(pool[chosen]->rarity)])value-=tankbuild::RarityWeights[static_cast<unsigned>(pool[chosen++]->rarity)];
         result.push_back(pool[chosen]->id);pool.erase(pool.begin()+static_cast<std::ptrdiff_t>(chosen));
     };
-    pick(special);pick(special);pick(general);
-    general.insert(general.end(),special.begin(),special.end());
-    while(result.size()<3&&!general.empty())pick(general);
+    // Exactly one priority draw, then two ordinary weighted draws. Remove the
+    // chosen entry from both pools; no duplicate or already owned card appears.
+    pick(special);
+    if(!result.empty())std::erase_if(eligible,[&](const Upgrade* u){return u->id==result.front();});
+    while(result.size()<3&&!eligible.empty())pick(eligible);
     return result;
 }
 // Both introduction paths share one run seed and the same three foundations.
@@ -160,7 +198,11 @@ inline Catalog DefaultCatalog() {
         "ドローンの威力+40%、発射間隔+15%。一撃を重くする。",
         "ドローン弾の耐久と敵弾を消す力を3へ強化。弾幕を切り開く。",
         "近接連撃の各動作を18%短縮。攻撃速度の改造と組み合わせ可能。",
-        "近接3段目の威力+50%、押し出し+20%。連撃の締めを強化する。"};
+        "近接3段目の威力+50%、押し出し+20%。連撃の締めを強化する。",
+        "左クリック長押しで約1秒チャージ、離して貫通レール弾。短押しも可能。チャージ中は移動が少し遅くなる。",
+        "ドローンを輪状のレーザーで接続。隊形と位置取りで敵へ重ねて継続ダメージ。壁越しには届かない。",
+        "近接3段目から斬撃波を放つ。敵を貫き、弱い敵弾を削る。刃先延長・終撃増幅と組み合わせ可能。",
+        "斬撃で低耐久の敵弾を斬る。振り始めはPERFECT PARRYとなり、弾を跳ね返す。高耐久弾は耐久を削る。"};
     for(std::size_t i=0;i<kEffectIds.size();++i) {
         if(!tankrun::IsAvailableCard(static_cast<tankrun::CardId>(i))||static_cast<tankrun::CardId>(i)==tankrun::CardId::MeleeBlade)continue;
         Upgrade u;u.id=kEffectIds[i];u.name=kEffectNames[i];u.description=descriptions[i];
@@ -168,6 +210,7 @@ inline Catalog DefaultCatalog() {
         u.rarity=tankrun::IsRare(effect)?2:0;
         if(effect==tankrun::CardId::Ricochet||effect==tankrun::CardId::Drones||effect==tankrun::CardId::DashBurst||effect==tankrun::CardId::BladeReach||effect==tankrun::CardId::DroneGuard||effect==tankrun::CardId::MeleeTempo)u.rarity=1;
         u.price=u.rarity==2?42:u.rarity==1?28:24;u.compatibleStyles=EffectStyles(effect);u.effects={effect};c.upgrades.push_back(u);
+        if(effect==tankrun::CardId::RailCannon||effect==tankrun::CardId::DroneLaserLink||effect==tankrun::CardId::ParryBlade){c.upgrades.back().rarity=3;c.upgrades.back().price=58;}
     }
     c.upgrades.push_back({"BankshotKit","反射貫通キット","弾数を増やさず反射と貫通を組み合わせる。",58,1,2,{tankrun::CardId::Ricochet,tankrun::CardId::Pierce},3});
     c.upgrades.push_back({"DashBomberKit","突撃爆破キット","攻撃力と衝撃放電を組み合わせ、突進先で爆発。",58,1,2,{tankrun::CardId::Heavy,tankrun::CardId::DashBurst}});
@@ -177,13 +220,15 @@ inline Catalog DefaultCatalog() {
     c.upgrades.push_back({"SeekingWingKit","追撃編隊","ドローンを追加し、追尾と貫通を付与する。",68,1,3,{tankrun::CardId::Drones,tankrun::CardId::Homing,tankrun::CardId::Pierce},2});
     c.upgrades.push_back({"SeekingRicochetKit","追尾反射回路","壁反射と追尾を組み合わせ、射線の外まで弾を導く。",64,1,3,{tankrun::CardId::Ricochet,tankrun::CardId::Homing},3});
     c.upgrades.push_back({"PredatorCircuit","追撃過負荷回路","貫通・追尾・過負荷を装備。ダッシュ後の連射で追い詰める。",78,1,4,{tankrun::CardId::Pierce,tankrun::CardId::Homing,tankrun::CardId::Overdrive},3});
-    const int hp[]={6,10,24,14,30,24,28,32,42};const int drops[]={2,3,7,5,6,6,6,7,9};
-    const std::array<std::array<float,4>,9> colors{{{1,0.86f,0.2f,1},{1,0.3f,0.35f,1},{0.35f,0.48f,1,1},{0.95f,0.25f,0.18f,1},{1.6f,0.36f,0.1f,1},{1.4f,0.16f,0.72f,1},{0.2f,1.45f,1.75f,1},{1.75f,0.25f,0.8f,1},{1.6f,0.95f,0.16f,1}}};
+    const int hp[]={6,10,24,14,30,24,28,32,42,80,65};const int drops[]={2,3,7,5,6,6,6,7,9,12,12};
+    const std::array<std::array<float,4>,11> colors{{{1,0.86f,0.2f,1},{1,0.3f,0.35f,1},{0.35f,0.48f,1,1},{0.95f,0.25f,0.18f,1},{1.6f,0.36f,0.1f,1},{1.4f,0.16f,0.72f,1},{0.2f,1.45f,1.75f,1},{1.75f,0.25f,0.8f,1},{1.6f,0.95f,0.16f,1},{.18f,1.2f,1.6f,1},{1.6f,.38f,.12f,1}}};
     for(std::size_t i=0;i<kBehaviorIds.size();++i) {
         Enemy e;e.id=kBehaviorIds[i];e.name=kBehaviorNames[i];e.behavior=static_cast<EnemyBehavior>(i);
         e.hp=hp[i];e.creditDrop=drops[i];e.color=colors[i];
         if(e.behavior==EnemyBehavior::Flanker)e.bulletDamage=6;
         if(e.behavior==EnemyBehavior::Suppressor)e.bulletDamage=7;
+        if(e.behavior==EnemyBehavior::ShieldGuard)e.bulletDamage=8;
+        if(e.behavior==EnemyBehavior::BladeGuard)e.contactDamage=18;
         c.enemies.push_back(e);
     }
     auto armored=c.enemies[4];armored.id="ArmoredCharger";armored.name="重装突進兵";armored.hp=65;armored.moveSpeedScale=0.75f;armored.creditDrop=12;armored.color={1.4f,0.8f,0.1f,1};c.enemies.push_back(armored);
@@ -197,7 +242,7 @@ inline Catalog DefaultCatalog() {
     p.id="DroneArtillery";p.name="重射撃編隊";p.description="2機の重ドローン。威力45%増、発射間隔20%増。";p.price=56;p.drones=2;p.damageScale=1.45f;p.reloadScale=1.2f;p.rarity=2;c.players.push_back(p);
     p={};p.id="MeleeSweeper";p.name="旋回ブレード";p.description="近接連撃の動作を15%短縮。威力5%減。";p.baseClass="Basic";p.barrels=1;p.damageScale=0.95f;p.reloadScale=0.85f;p.style=tankbuild::Style::Melee;p.rarity=1;p.color={0.3f,1.4f,1.7f,1};c.players.push_back(p);
     p.id="MeleeBreaker";p.name="重撃ブレード";p.description="近接威力45%増、各動作18%増。重い一撃を狙う。";p.price=56;p.damageScale=1.45f;p.reloadScale=1.18f;p.rarity=2;p.color={1.65f,0.55f,0.15f,1};c.players.push_back(p);
-    return c;
+    EnsureRefitCards(c);return c;
 }
 inline bool ValidId(const std::string& id) {
     return !id.empty()&&id.size()<=64&&std::all_of(id.begin(),id.end(),[](unsigned char ch){return (ch>='a'&&ch<='z')||(ch>='A'&&ch<='Z')||(ch>='0'&&ch<='9')||ch=='_'||ch=='-';});
@@ -215,11 +260,15 @@ inline bool ValidateCatalog(const Catalog& c,std::string& error) {
     auto bounded=[](float v,float lo,float hi){return std::isfinite(v)&&v>=lo&&v<=hi;};
     auto colorValid=[&](const auto& color){return bounded(color[0],0,4)&&bounded(color[1],0,4)&&bounded(color[2],0,4)&&bounded(color[3],0.05f,1);};
     for(const auto& u:c.upgrades) {
-        if(u.description.size()>768||u.price<0||u.price>9999||u.maxPurchases!=1||!tankbuild::ValidRarity(u.rarity)||u.compatibleStyles==0||(u.compatibleStyles&~tankbuild::AllStyles)||u.effects.empty()||u.effects.size()>4)return fail("強化: 価格・効果数・系統・レア度が範囲外です。購入上限は1です。");
+        if(u.description.size()>768||u.price<0||u.price>9999||u.maxPurchases!=1||!tankbuild::ValidRarity(u.rarity)||u.compatibleStyles==0||(u.compatibleStyles&~tankbuild::AllStyles)||(u.effects.empty()&&u.refitPlayer.empty())||u.effects.size()>4)return fail("強化: 価格・効果数・系統・レア度が範囲外です。購入上限は1です。");
+        if(!u.refitPlayer.empty()) {
+            const auto* player=FindPlayer(c,u.refitPlayer);
+            if(!player||!u.effects.empty()||u.compatibleStyles!=tankbuild::Mask(player->style)||u.rarity<3)return fail("換装: 実在する同じ系統の機体・エピック以上・通常効果なしで指定してください。");
+        }
         std::set<int> effects;for(const auto effect:u.effects)if(!tankrun::IsAvailableCard(effect)||!effects.insert(static_cast<int>(effect)).second)return fail("強化: 効果が不正・廃止済み、または重複しています。");
         for(float power:u.effectPower)if(!bounded(power,0.1f,5))return fail("強化: 効果倍率は0.1〜5.0の有限値です。");
     }
-    for(const auto& e:c.enemies) if(e.behavior<EnemyBehavior::Square||e.behavior>EnemyBehavior::Suppressor||e.hp<1||e.hp>9999||e.contactDamage<0||e.contactDamage>999||e.bulletDamage<1||e.bulletDamage>999||e.creditDrop<0||e.creditDrop>999||!bounded(e.moveSpeedScale,0.1f,3)||!bounded(e.fireIntervalScale,0.3f,4)||e.magazineSize<0||e.magazineSize>8||!bounded(e.reloadSeconds,0,8)||(e.reloadSeconds>0&&e.reloadSeconds<0.8f)||!colorValid(e.color))return fail("敵: HP・速度・ダメージ・色が範囲外です。");
+    for(const auto& e:c.enemies) if(e.behavior<EnemyBehavior::Square||e.behavior>EnemyBehavior::BladeGuard||e.hp<1||e.hp>9999||e.contactDamage<0||e.contactDamage>999||e.bulletDamage<1||e.bulletDamage>999||e.creditDrop<0||e.creditDrop>999||!bounded(e.moveSpeedScale,0.1f,3)||!bounded(e.fireIntervalScale,0.3f,4)||e.magazineSize<0||e.magazineSize>8||!bounded(e.reloadSeconds,0,8)||(e.reloadSeconds>0&&e.reloadSeconds<0.8f)||!colorValid(e.color))return fail("敵: HP・速度・ダメージ・色が範囲外です。");
     for(const auto& p:c.players) {
         if(p.id.rfind("exp_",0)==0)return fail("機体: exp_ で始まるIDは標準進化用に予約されています。");
         if(!tankbuild::Valid(p.style)||!tankbuild::ValidRarity(p.rarity)||(p.style==tankbuild::Style::Drone&&p.drones<1)||
@@ -229,8 +278,8 @@ inline bool ValidateCatalog(const Catalog& c,std::string& error) {
     error.clear();return true;
 }
 inline nlohmann::json CatalogToJson(const Catalog& c) {
-    nlohmann::json j={{"schemaVersion",3},{"upgrades",nlohmann::json::array()},{"enemies",nlohmann::json::array()},{"players",nlohmann::json::array()}};
-    for(const auto& u:c.upgrades){auto powers=nlohmann::json::object();for(std::size_t i=0;i<kEffectIds.size();++i)powers[kEffectIds[i]]=u.effectPower[i];auto effects=nlohmann::json::array(),styles=nlohmann::json::array();for(auto e:u.effects)effects.push_back(kEffectIds[static_cast<std::size_t>(e)]);for(const auto style:{tankbuild::Style::Shooter,tankbuild::Style::Drone,tankbuild::Style::Melee})if(u.compatibleStyles&tankbuild::Mask(style))styles.push_back(tankbuild::Id(style));j["upgrades"].push_back({{"id",u.id},{"name",u.name},{"description",u.description},{"price",u.price},{"maxPurchases",u.maxPurchases},{"rarity",u.rarity},{"effects",effects},{"compatibleStyles",styles},{"effectPower",powers}});}
+    nlohmann::json j={{"schemaVersion",4},{"upgrades",nlohmann::json::array()},{"enemies",nlohmann::json::array()},{"players",nlohmann::json::array()}};
+    for(const auto& u:c.upgrades){auto powers=nlohmann::json::object();for(std::size_t i=0;i<kEffectIds.size();++i)powers[kEffectIds[i]]=u.effectPower[i];auto effects=nlohmann::json::array(),styles=nlohmann::json::array();for(auto e:u.effects)effects.push_back(kEffectIds[static_cast<std::size_t>(e)]);for(const auto style:{tankbuild::Style::Shooter,tankbuild::Style::Drone,tankbuild::Style::Melee})if(u.compatibleStyles&tankbuild::Mask(style))styles.push_back(tankbuild::Id(style));j["upgrades"].push_back({{"id",u.id},{"name",u.name},{"description",u.description},{"price",u.price},{"maxPurchases",u.maxPurchases},{"rarity",u.rarity},{"effects",effects},{"compatibleStyles",styles},{"effectPower",powers},{"refitPlayer",u.refitPlayer}});}
     for(const auto& e:c.enemies)j["enemies"].push_back({{"id",e.id},{"name",e.name},{"behavior",kBehaviorIds[static_cast<std::size_t>(e.behavior)]},{"hp",e.hp},{"contactDamage",e.contactDamage},{"bulletDamage",e.bulletDamage},{"creditDrop",e.creditDrop},{"moveSpeedScale",e.moveSpeedScale},{"fireIntervalScale",e.fireIntervalScale},{"magazineSize",e.magazineSize},{"reloadSeconds",e.reloadSeconds},{"color",e.color}});
     for(const auto& p:c.players)j["players"].push_back({{"id",p.id},{"name",p.name},{"description",p.description},{"baseClass",p.baseClass},{"price",p.price},{"barrels",p.barrels},{"bulletCount",p.bulletCount},{"bodyShape",p.bodyShape},{"drones",p.drones},{"damageScale",p.damageScale},{"reloadScale",p.reloadScale},{"bulletSpeedScale",p.bulletSpeedScale},{"fanAngle",p.fanAngle},{"alternate",p.alternate},{"reflect",p.reflect},{"penetrate",p.penetrate},{"color",p.color},{"style",tankbuild::Id(p.style)},{"rarity",p.rarity}});
     return j;
@@ -241,13 +290,13 @@ inline bool CatalogFromJson(const nlohmann::json& j,Catalog& output,std::string&
         if(!j.is_object())throw std::runtime_error("Catalog object required");
         integers(j,{"schemaVersion"});
         const int version=j.at("schemaVersion").get<int>();
-        if(version!=1&&version!=2&&version!=3)throw std::runtime_error("Unsupported catalog version");
+        if(version!=1&&version!=2&&version!=3&&version!=4)throw std::runtime_error("Unsupported catalog version");
         for(const char* key:{"upgrades","enemies","players"})if(!j.at(key).is_array()||j.at(key).size()>kMaxDefinitions)throw std::runtime_error("Invalid catalog collection");
         for(const auto& value:j.at("upgrades"))integers(value,{"price","maxPurchases","rarity"});
         for(const auto& value:j.at("enemies")){integers(value,{"hp","contactDamage","bulletDamage","creditDrop"});if(value.contains("magazineSize"))integers(value,{"magazineSize"});}
         for(const auto& value:j.at("players")){integers(value,{"price","barrels","bulletCount","bodyShape","drones"});if(version>=2)integers(value,{"rarity"});}
         Catalog c;
-        for(const auto& v:j.at("upgrades")){Upgrade u;u.id=v.at("id").get<std::string>();u.name=v.at("name").get<std::string>();u.description=v.at("description").get<std::string>();u.price=v.at("price").get<int>();u.maxPurchases=v.at("maxPurchases").get<int>();u.rarity=v.at("rarity").get<int>();u.effects.clear();if(!v.at("effects").is_array())throw std::runtime_error("Invalid effects");for(const auto& effect:v.at("effects")){const auto id=effect.get<std::string>();const auto it=std::find(kEffectIds.begin(),kEffectIds.end(),id);if(it==kEffectIds.end())throw std::runtime_error("Unknown effect: "+id);u.effects.push_back(static_cast<tankrun::CardId>(it-kEffectIds.begin()));}c.upgrades.push_back(std::move(u));}
+        for(const auto& v:j.at("upgrades")){Upgrade u;u.id=v.at("id").get<std::string>();u.name=v.at("name").get<std::string>();u.description=v.at("description").get<std::string>();u.price=v.at("price").get<int>();u.maxPurchases=v.at("maxPurchases").get<int>();u.rarity=v.at("rarity").get<int>();u.refitPlayer=v.value("refitPlayer",std::string{});u.effects.clear();if(!v.at("effects").is_array())throw std::runtime_error("Invalid effects");for(const auto& effect:v.at("effects")){const auto id=effect.get<std::string>();const auto it=std::find(kEffectIds.begin(),kEffectIds.end(),id);if(it==kEffectIds.end())throw std::runtime_error("Unknown effect: "+id);u.effects.push_back(static_cast<tankrun::CardId>(it-kEffectIds.begin()));}c.upgrades.push_back(std::move(u));}
         for(const auto& v:j.at("enemies")){Enemy e;e.id=v.at("id").get<std::string>();e.name=v.at("name").get<std::string>();const auto behavior=v.at("behavior").get<std::string>();const auto it=std::find(kBehaviorIds.begin(),kBehaviorIds.end(),behavior);if(it==kBehaviorIds.end())throw std::runtime_error("Unknown behavior: "+behavior);e.behavior=static_cast<EnemyBehavior>(it-kBehaviorIds.begin());e.hp=v.at("hp").get<int>();e.contactDamage=v.at("contactDamage").get<int>();e.bulletDamage=v.at("bulletDamage").get<int>();e.creditDrop=v.at("creditDrop").get<int>();e.moveSpeedScale=v.at("moveSpeedScale").get<float>();e.fireIntervalScale=v.at("fireIntervalScale").get<float>();e.magazineSize=v.value("magazineSize",0);e.reloadSeconds=v.value("reloadSeconds",0.0f);e.color=v.at("color").get<std::array<float,4>>();c.enemies.push_back(std::move(e));}
         for(const auto& v:j.at("players")){PlayerVariant p;p.id=v.at("id").get<std::string>();p.name=v.at("name").get<std::string>();p.description=v.at("description").get<std::string>();p.baseClass=v.at("baseClass").get<std::string>();p.price=v.at("price").get<int>();p.barrels=v.at("barrels").get<int>();p.bulletCount=v.at("bulletCount").get<int>();p.bodyShape=v.at("bodyShape").get<int>();p.drones=v.at("drones").get<int>();p.damageScale=v.at("damageScale").get<float>();p.reloadScale=v.at("reloadScale").get<float>();p.bulletSpeedScale=v.at("bulletSpeedScale").get<float>();p.fanAngle=v.at("fanAngle").get<float>();p.alternate=v.at("alternate").get<bool>();p.reflect=v.at("reflect").get<bool>();p.penetrate=v.at("penetrate").get<bool>();p.color=v.at("color").get<std::array<float,4>>();c.players.push_back(std::move(p));}
         for(std::size_t i=0;i<c.upgrades.size();++i) {
@@ -281,7 +330,7 @@ inline bool CatalogFromJson(const nlohmann::json& j,Catalog& output,std::string&
         for(auto& upgrade:c.upgrades) {
             const auto oldSize=upgrade.effects.size();
             const std::set<tankrun::CardId> uniqueEffects(upgrade.effects.begin(),upgrade.effects.end());
-            if(oldSize==0||oldSize>4||uniqueEffects.size()!=oldSize) {error="強化: 効果数が不正、または重複しています。";return false;}
+            if((oldSize==0&&upgrade.refitPlayer.empty())||oldSize>4||uniqueEffects.size()!=oldSize) {error="強化: 効果数が不正、または重複しています。";return false;}
             if(version==1)std::erase(upgrade.effects,tankrun::CardId::ScatterShot);
             if(oldSize==upgrade.effects.size()||upgrade.effects.empty())continue;
             if(upgrade.id=="BankshotKit") {
@@ -295,12 +344,12 @@ inline bool CatalogFromJson(const nlohmann::json& j,Catalog& output,std::string&
                 }
             }
         }
-        std::erase_if(c.upgrades,[](const Upgrade& upgrade){return upgrade.effects.empty();});
+        std::erase_if(c.upgrades,[](const Upgrade& upgrade){return upgrade.effects.empty()&&upgrade.refitPlayer.empty();});
         if(version==1) {
             for(auto& upgrade:c.upgrades) {const unsigned mask=CompatibleEffectStyles(upgrade);upgrade.compatibleStyles=mask?mask:tankbuild::AllStyles;}
             for(auto& player:c.players)if(player.bulletCount>=2&&player.bulletCount<=5)player.bulletCount=1;
         }
-        if(!ValidateCatalog(c,error))return false;output=std::move(c);error.clear();return true;
+        EnsureRefitCards(c);if(!ValidateCatalog(c,error))return false;output=std::move(c);error.clear();return true;
     }catch(const std::exception& ex){error=ex.what();return false;}
 }
 inline bool LoadCatalog(const std::string& path,Catalog& output,std::string& error) {

@@ -6,7 +6,7 @@
 #include <iostream>
 
 namespace {
-static_assert(static_cast<int>(ExpEnemyType::Suppressor) == static_cast<int>(tankcontent::EnemyBehavior::Suppressor),
+static_assert(static_cast<int>(ExpEnemyType::BladeGuard) == static_cast<int>(tankcontent::EnemyBehavior::BladeGuard),
     "Authored behavior IDs must keep the same enum order as runtime enemies");
 
 bool TryGetExpEnemyType(const std::string& prefab, ExpEnemyType& type)
@@ -38,6 +38,8 @@ bool TryGetExpEnemyType(const std::string& prefab, ExpEnemyType& type)
     if (prefab == "Skirmisher") { type = ExpEnemyType::Skirmisher; return true; }
     if (prefab == "Flanker") { type = ExpEnemyType::Flanker; return true; }
     if (prefab == "Suppressor") { type = ExpEnemyType::Suppressor; return true; }
+    if (prefab == "ShieldGuard") { type = ExpEnemyType::ShieldGuard; return true; }
+    if (prefab == "BladeGuard") { type = ExpEnemyType::BladeGuard; return true; }
     return false;
 }
 

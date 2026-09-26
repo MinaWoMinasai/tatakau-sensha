@@ -7,6 +7,7 @@ $combatDirectory = Join-Path $combatProject 'generated/combat_validation'
 $combatResultPath = Join-Path $combatDirectory 'validation.json'
 if (!(Test-Path -LiteralPath $combatExe)) { throw 'Build the requested configuration first.' }
 $combatSettings = @{
+    CG2_TANK_SPECIAL_AUTOTEST = $null
     CG2_TANK_COMBAT_AUTOTEST = '1'
     CG2_TANK_EXPERIENCE_AUTOTEST = $null
     CG2_TANK_MAP_AUTOTEST = $null

@@ -15,7 +15,7 @@ if (!$CacheDirectory) { $CacheDirectory = Join-Path $OutputDirectory 'cache' }
 $CacheDirectory = [IO.Path]::GetFullPath($CacheDirectory)
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $startupVariables = @('CG2_STARTUP_AUTOTEST','CG2_STARTUP_CACHE','CG2_STARTUP_TRACE','CG2_STARTUP_TRACE_PATH','CG2_SHADER_CACHE_DIR','CG2_TEXTURE_CACHE_DIR',
-    'CG2_TITLE_AUTOTEST','CG2_TANK_AUTOTEST','CG2_TANK_TUTORIAL_AUTOTEST','CG2_TANK_MAP_AUTOTEST','CG2_TANK_COMBAT_AUTOTEST','CG2_TANK_EXPERIENCE_AUTOTEST',
+    'CG2_TITLE_AUTOTEST','CG2_TANK_AUTOTEST','CG2_TANK_TUTORIAL_AUTOTEST','CG2_TANK_MAP_AUTOTEST','CG2_TANK_COMBAT_AUTOTEST','CG2_TANK_EXPERIENCE_AUTOTEST','CG2_TANK_SPECIAL_AUTOTEST',
     'CG2_PERF_EXIT_AFTER_CAPTURE','CG2_PERF_STRESS_TRAILS','CG2_FRAME_LIMIT')
 $startupSaved = @{}
 foreach ($name in $startupVariables) { $startupSaved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }

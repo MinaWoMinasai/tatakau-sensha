@@ -87,6 +87,10 @@ public:
     void UiDenied() { Play(ArmorBreakClip,0.20f,0.25f,0.75f); }
     void Collect(int amount) { Play(HitClip,0.045f,0.23f,1.35f+0.035f*static_cast<float>(std::clamp(amount,1,8))); }
     void Slash() { Play(DashClip,0.12f,0.38f,1.45f); }
+    // Keep the enemy warning voice/cooldown free while the player charges.
+    void RailCharge(bool full) { Play(UpgradeClip,0.25f,full?0.25f:0.14f,full?1.6f:1.15f); }
+    void RailShot() { Play(ArmorBreakClip,0.12f,0.60f,0.78f); }
+    void Parry(bool perfect) { Play(ArmorBreakClip,0.10f,perfect?0.58f:0.34f,perfect?1.65f:1.30f); }
     void Slam(bool finisher=false) { Play(ArmorBreakClip,0.12f,finisher?0.80f:0.58f,finisher?0.72f:0.92f); }
 
     size_t LoadedClipCount() const {
