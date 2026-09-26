@@ -217,6 +217,11 @@ private:
 	float expeditionMapScroll_ = 0;
 	bool expeditionMapPreview_ = false;
 	bool expeditionBuildChoice_ = false, expeditionBuildChosen_ = false;
+	bool expeditionRefitPurchased_ = false;
+	bool specialValidationEnabled_ = false;
+	nlohmann::json specialValidation_;
+	void InitializeSpecialValidationFixture();
+	bool UpdateSpecialValidation(float dt);
 	tankbuild::Style expeditionBuildStyle_ = tankbuild::Style::Shooter;
 	int expeditionPendingBuild_ = -1;
 	std::array<std::unique_ptr<TankRewardCard>,3> expeditionRewardCards_;
@@ -316,6 +321,7 @@ private:
 	TankExpeditionAudio tankExpeditionAudio_;
 	std::unordered_map<const ExpEnemy*,int> tankExpeditionEnemyHp_;
 	std::unordered_map<const ExpEnemy*,bool> tankExpeditionEnemyWarning_;
+	std::unordered_map<const ExpEnemy*,std::pair<uint64_t,uint64_t>> guardAudioCounts_;
 	int tankExpeditionNodes_ = 0;
 	int tankExpeditionSpawned_ = 0;
 	int tankExpeditionAutoVariant_ = 0;
@@ -496,6 +502,17 @@ private:
 	void SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event);
 	void UpdatePlayerMeleeSlashes(float deltaTime);
 	void QueuePlayerMeleeSlashes();
+	void UpdateSpecialCombatPresentation(float deltaTime);
+	void QueueSpecialCombatPresentation();
+	struct SpecialCombatFlash {
+		Player::SpecialCombatEvent event;
+		float age=0;
+		Vector3 end{};
+	};
+	std::vector<SpecialCombatFlash> specialCombatFlashes_;
+	struct SpecialProjectileVisual {Vector3 position,direction;float radius;Bullet::SpecialKind kind;};
+	std::vector<SpecialProjectileVisual> specialProjectileVisuals_;
+	float railChargeAudioAge_=0;
 	TrailConfig MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale = 1.0f) const;
 	void ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, Vector3& base, Vector3& tip) const;
 	void UpdateNeonTriangleParticles(float deltaTime);

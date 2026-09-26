@@ -30,6 +30,36 @@ if (!$tankExpDevCmd) {
 }
 
 New-Item -ItemType Directory -Path $tankExpOutputDir -Force | Out-Null
+# Exercise the production AI update and damage callbacks with graphics-free
+# adapters, in addition to the pure timing/navigation contracts.
+function Read-GuardMethod([string]$signature) {
+    $guardSource = Get-Content -LiteralPath (Join-Path $tankExpRepoDir 'project/game/exp/ExpEnemy.cpp') -Raw
+    $guardStart = $guardSource.IndexOf($signature, [StringComparison]::Ordinal)
+    if ($guardStart -lt 0) { throw "Missing guard production method: $signature" }
+    $guardOpen = $guardSource.IndexOf('{', $guardStart)
+    $guardDepth = 0
+    for ($guardIndex = $guardOpen; $guardIndex -lt $guardSource.Length; ++$guardIndex) {
+        if ($guardSource[$guardIndex] -eq '{') { ++$guardDepth }
+        if ($guardSource[$guardIndex] -eq '}') {
+            --$guardDepth
+            if ($guardDepth -eq 0) { return $guardSource.Substring($guardStart, $guardIndex - $guardStart + 1) }
+        }
+    }
+    throw "Unclosed guard method: $signature"
+}
+function Read-GuardDeclarations([string]$relativePath) {
+    $guardSource = Get-Content -LiteralPath (Join-Path $tankExpRepoDir $relativePath) -Raw
+    [regex]::Replace($guardSource, '(?m)^\s*#(?:include|pragma)[^\r\n]*\r?\n', '').Replace('private:', 'public:')
+}
+$guardEncoding = [Text.UTF8Encoding]::new($false)
+[IO.File]::WriteAllText((Join-Path $tankExpOutputDir 'guard_collider.inc'), (Read-GuardDeclarations 'project/game/collision/Collider.h'), $guardEncoding)
+[IO.File]::WriteAllText((Join-Path $tankExpOutputDir 'guard_enemy_declarations.inc'), (Read-GuardDeclarations 'project/game/exp/ExpEnemy.h'), $guardEncoding)
+$guardMethods = foreach ($signature in @('void ExpEnemy::Initialize(', 'void ExpEnemy::ApplyTypeParams(',
+    'void ExpEnemy::ResetMagazine(', 'void ExpEnemy::RefreshCollisionMask(', 'Vector3 ExpEnemy::ClipCombatRay(',
+    'void ExpEnemy::UpdateExpeditionCombat(', 'void ExpEnemy::OnCollision(', 'bool ExpEnemy::TakeDamageFromPlayer(',
+    'bool ExpEnemy::TakeDirectionalDamage(', 'uint32_t ExpEnemy::ResolveShieldDamage(',
+    'bool ExpEnemy::ApplyDamage(', 'void ExpEnemy::TriggerDamageFeedback(')) { Read-GuardMethod $signature }
+[IO.File]::WriteAllText((Join-Path $tankExpOutputDir 'guard_enemy_methods.inc'), ($guardMethods -join "`n"), $guardEncoding)
 $tankExpBuildCmd = Join-Path $tankExpOutputDir 'build_tank_enemy_combat_tests.cmd'
 # Pass Unicode source paths through process environment variables.
 $tankExpBatch = @'
@@ -39,12 +69,18 @@ if errorlevel 1 exit /b %errorlevel%
 cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /Fe:tank_enemy_combat_tests.exe /Fo:.\ "%TANK_EXP_TEST_SOURCE%"
 if errorlevel 1 exit /b %errorlevel%
 tank_enemy_combat_tests.exe
+if errorlevel 1 exit /b %errorlevel%
+cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /I"%TANK_GUARD_TEST_INCLUDE%" /Fe:tank_guard_integration_tests.exe /Fo:.\ "%TANK_GUARD_TEST_SOURCE%"
+if errorlevel 1 exit /b %errorlevel%
+tank_guard_integration_tests.exe
 exit /b %errorlevel%
 '@
 [System.IO.File]::WriteAllText($tankExpBuildCmd, $tankExpBatch, [System.Text.Encoding]::ASCII)
 $tankExpEnvironment = @{
     TANK_EXP_TEST_VS_DEV_CMD = $tankExpDevCmd
     TANK_EXP_TEST_SOURCE = Join-Path $PSScriptRoot 'tank_enemy_combat_tests.cpp'
+    TANK_GUARD_TEST_SOURCE = Join-Path $PSScriptRoot 'tank_guard_integration_tests.cpp'
+    TANK_GUARD_TEST_INCLUDE = $tankExpOutputDir
 }
 $tankExpPreviousEnvironment = @{}
 foreach ($tankExpName in $tankExpEnvironment.Keys) {

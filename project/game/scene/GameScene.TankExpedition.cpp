@@ -462,7 +462,7 @@ void GameScene::RefreshTankExpeditionUi() {
     tankExpeditionBuildPanel_->SetSize({280,static_cast<float>(shown+3)*21});tankExpeditionBuildPanel_->Update();
     if(!expeditionMapEnabled_) details<<"\n\n整備: 機動 "<<player_->GetRunMaintenanceRank(0)<<" / 装填 "<<player_->GetRunMaintenanceRank(1)
         <<" / 装甲 "<<player_->GetRunMaintenanceRank(2)<<"   残り "<<player_->GetRunMaintenancePoints()<<" pt";
-    if(expeditionMapEnabled_) details<<"\n\n回収資材: "<<expeditionMapRun_.GetCurrency()<<" Cr\n改造工房 / 進化 / 修理の各地点で使用\n[G] 作戦マップで次の目的地を確認";
+    if(expeditionMapEnabled_) details<<"\n\n回収資材: "<<expeditionMapRun_.GetCurrency()<<" Cr\n改造工房・換装カード / 修理で使用\n[G] 作戦マップで次の目的地を確認";
     tankExpeditionDetailsText_->SetText(details.str());
     std::string route="外周 → ";
     route+=tankExpedition_.GetRouteChoice(0)<0?"[資源 / 精鋭]":tankExpedition_.GetRouteChoice(0)==0?"資源":"精鋭";
@@ -678,7 +678,14 @@ void GameScene::UpdateTankExpeditionAudio(float dt) {
     }
     std::unordered_map<const ExpEnemy*,int> hp;
     std::unordered_map<const ExpEnemy*,bool> warning;
+    std::unordered_map<const ExpEnemy*,std::pair<uint64_t,uint64_t>> guardCounts;
     for(auto* actor:enemyManager_->GetEnemyPtrs()) if(actor&&!actor->IsDead()) {
+        const auto counts=std::make_pair(actor->GetShieldBlockCount(),actor->GetBladeSwingCount());
+        const auto oldGuard=guardAudioCounts_.find(actor);
+        const auto before=oldGuard==guardAudioCounts_.end()?std::pair<uint64_t,uint64_t>{}:oldGuard->second;
+        if(counts.first>before.first)tankExpeditionAudio_.ArmorBreak();
+        if(counts.second>before.second)tankExpeditionAudio_.Slash();
+        guardCounts[actor]=counts;
         const auto previous=tankExpeditionEnemyHp_.find(actor);
         if(previous!=tankExpeditionEnemyHp_.end()&&actor->GetHp()<previous->second) {
             tankExpeditionAudio_.Hit();
@@ -695,4 +702,5 @@ void GameScene::UpdateTankExpeditionAudio(float dt) {
         warning[actor]=locked;
     }
     tankExpeditionEnemyHp_=std::move(hp);tankExpeditionEnemyWarning_=std::move(warning);
+    guardAudioCounts_=std::move(guardCounts);
 }

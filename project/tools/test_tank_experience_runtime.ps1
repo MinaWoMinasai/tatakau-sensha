@@ -9,6 +9,7 @@ $experienceRepo = [IO.Path]::GetFullPath((Join-Path $experienceProject '..'))
 $experienceExe = Join-Path $experienceRepo "generated/outputs/$Configuration/CG2.exe"
 if (!(Test-Path -LiteralPath $experienceExe)) { throw 'Build the requested configuration first.' }
 $experienceSettings = @{
+    CG2_TANK_SPECIAL_AUTOTEST = $null
     CG2_TANK_EXPERIENCE_AUTOTEST = '1'
     CG2_TANK_EXPERIENCE_STYLE = [string](@('Shooter','Drone','Melee').IndexOf($Style))
     CG2_TANK_COMBAT_AUTOTEST = $null
@@ -61,7 +62,7 @@ try {
         $experienceExpectedWallet = if ($experienceVariant -eq 1) { 43 } else { 58 }
         if ($experienceResult.introWallet -ne 58 -or $experienceResult.afterIntroWallet -ne $experienceExpectedWallet -or
             @($experienceResult.introOffers).Count -ne 3 -or $experienceResult.prematureCredits -ne 0 -or
-            $experienceResult.earlyFlightSamples -lt 1 -or !$experienceResult.meleeProbeCompleted -or !$experienceResult.buildPreserved -or !$experienceResult.evolutionVerified -or
+            $experienceResult.earlyFlightSamples -lt 1 -or !$experienceResult.meleeProbeCompleted -or !$experienceResult.buildPreserved -or !$experienceResult.refitVerified -or
             $experienceResult.meleeTargetHp -ge 500 -or $experienceResult.buildStyle -ne $Style.ToLowerInvariant() -or
             @($experienceResult.visited).Count -lt 18 -or @($experienceResult.visited).Count -gt 22) {
             throw "Currency, offer, route or melee evidence incomplete: $experienceResultPath"

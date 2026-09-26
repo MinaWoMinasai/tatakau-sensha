@@ -3,6 +3,7 @@
 #include "StartupTrace.h"
 #include "GameStartMode.h"
 #include "game/ui/TankCombatNeonGeometry.h"
+#include "game/effects/TankSpecialNeonGeometry.h"
 #include "CollisionConfig.h"
 #include <cmath>
 #include <cctype>
@@ -1058,6 +1059,7 @@ void GameScene::Update() {
 		// 衝突マネージャの更新
 		if (!suppressTutorialCombat) {
 			RuntimeProfiler::CpuScope scope("Actor / Bullet Collision");
+			player_->UpdateSpecialCombat(*stage_,bulletManager_.get(),IsRunRivalActive()?enemy_.get():nullptr,enemyManager_.get(),finalDeltaTime);
 			collisionManager_->CheckAllCollisions(player_.get(), IsRunRivalActive() ? enemy_.get() : nullptr, bulletManager_.get(), enemyManager_.get());
 			for(const auto& impact:player_->ConsumeDashImpactEvents()) QueueExpeditionImpact(impact.origin,impact.direction,impact.powered);
 		}
@@ -1091,6 +1093,7 @@ void GameScene::Update() {
 			player_->UpdateDefeatPresentation(baseDeltaTime);
 		}
 	}
+	UpdateSpecialCombatPresentation(baseDeltaTime);
 	screenEffectDirector_.SetUpgradeMenuOpen(player_->IsChangeMode() || IsTankRunMenuOpen());
 	playerPostEffect_->Update(finalDeltaTime);
 	enemyPostEffect_->Update(finalDeltaTime);
@@ -2360,6 +2363,7 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 		}
 	}
 
+	QueueSpecialCombatPresentation();
 	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
@@ -2594,7 +2598,7 @@ void GameScene::SpawnPlayerLaser(const Player::LaserShotEvent& event)
 			float t = 0.0f;
 			const float distance = DistancePointToSegment2D(expEnemy->GetWorldPosition(), event.origin, end, &t);
 			if (distance <= expEnemy->GetRadius() + beam.width * 0.75f) {
-				expEnemy->TakeDamageFromPlayer(event.damage);
+				expEnemy->TakeDirectionalDamage(event.damage,event.origin);
 				if (!emittedImpact) {
 					ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f, event.color, 8);
 					emittedImpact = true;
@@ -2703,7 +2707,7 @@ void GameScene::DetonatePlayerMine(size_t index)
 	if (enemyManager_) {
 		for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
 			if (expEnemy && !expEnemy->IsDead() && Length(expEnemy->GetWorldPosition() - mine.position) <= mine.radius + expEnemy->GetRadius()) {
-				expEnemy->TakeDamageFromPlayer(mine.damage);
+				expEnemy->TakeDirectionalDamage(mine.damage,mine.position);
 			}
 		}
 	}
@@ -2825,7 +2829,9 @@ void GameScene::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event)
 		slash.windupAngleDeg = profile.windupAngleDeg;
 		slash.returnAngleDeg = profile.returnAngleDeg;
 		slash.width *= (std::max)(0.05f, profile.bladeWidthScale);
-		slash.swingDuration *= (std::max)(0.05f, profile.durationScale);
+		// Expedition melee uses the same active window for damage, parry and
+		// third-hit waves; a visual profile must not extend its combat window.
+		if(!player_||!player_->IsMeleeBuild())slash.swingDuration *= (std::max)(0.05f, profile.durationScale);
 		slash.life = slash.windupDuration + slash.swingDuration + slash.recoveryDuration;
 		slash.color.x *= profile.colorScale.x;
 		slash.color.y *= profile.colorScale.y;
@@ -2875,7 +2881,7 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 				for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
 					if (expEnemy && !expEnemy->IsDead() && std::find(slash.hitTargets.begin(),slash.hitTargets.end(),expEnemy)==slash.hitTargets.end() && hitTarget(expEnemy->GetWorldPosition(), expEnemy->GetRadius())) {
 						slash.hitTargets.push_back(expEnemy);expEnemy->ApplyKnockback(slash.direction,slash.knockback);
-						expEnemy->TakeDamageFromPlayer(slash.damage);
+						expEnemy->TakeDirectionalDamage(slash.damage,slash.origin,true);
 						if(!slash.hitApplied) {QueueExpeditionImpact(expEnemy->GetWorldPosition(),slash.direction,slash.finisher);slash.hitApplied=true;}
 						ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(), slash.direction * -1.0f, slash.color, 8);
 					}
@@ -2909,6 +2915,73 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 		playerMeleeSlashes_.end());
 	if (enablePlayerMeleeRibbonTrail_ && playerMeleeTrailManager_) {
 		playerMeleeTrailManager_->Update(deltaTime);
+	}
+}
+
+void GameScene::UpdateSpecialCombatPresentation(float dt)
+{
+	for(auto& flash:specialCombatFlashes_)flash.age+=dt;
+	std::erase_if(specialCombatFlashes_,[](const auto& flash){return flash.age>.24f;});
+	specialProjectileVisuals_.clear();
+	if(!player_||!bulletManager_)return;
+	for(const auto& event:player_->ConsumeSpecialCombatEvents()) {
+		Vector3 end=event.origin;
+		if(event.kind==Player::SpecialEventKind::RailShot) {
+			for(float distance=.4f;distance<22;distance+=.4f) {
+				const auto next=event.origin+event.direction*distance;
+				if(stage_->IsCollisionWithAnyBlock(next,.12f))break;end=next;
+			}
+			cameraShakeDuration_=.10f;cameraShakeTimer_=.10f;cameraShakePower_=(std::max)(cameraShakePower_,.09f);
+			if(expeditionRun_)tankExpeditionAudio_.RailShot();
+		} else if(event.kind==Player::SpecialEventKind::PerfectParry) {
+			// A single short hold per successful cut; ordinary slashes stay fluid.
+			expeditionImpactHold_=(std::max)(expeditionImpactHold_,.035f);
+			SetEventCallout("PARRY!",.42f);if(expeditionRun_)tankExpeditionAudio_.Parry(true);
+		} else if(event.kind==Player::SpecialEventKind::Parry) {
+			if(expeditionRun_)tankExpeditionAudio_.Parry(false);
+		} else if(event.kind==Player::SpecialEventKind::LinkHit&&expeditionRun_)tankExpeditionAudio_.Hit();
+		if(specialCombatFlashes_.size()<64)specialCombatFlashes_.push_back({event,0,end});
+	}
+	for(const auto& hit:bulletManager_->ConsumeSpecialImpacts()) {
+		Player::SpecialCombatEvent event{};
+		event.kind=hit.bulletCut?Player::SpecialEventKind::Parry:Player::SpecialEventKind::LinkHit;
+		event.origin=hit.position;event.direction=hit.direction;
+		if(specialCombatFlashes_.size()<64)specialCombatFlashes_.push_back({event,0,hit.position});
+		if(hit.bulletCut&&expeditionRun_)tankExpeditionAudio_.Parry(false);
+	}
+	const float charge=player_->GetRailChargeRatio();
+	railChargeAudioAge_+=dt;
+	if(charge>0&&railChargeAudioAge_>.30f&&!IsTankRunMenuOpen()) {
+		if(expeditionRun_)tankExpeditionAudio_.RailCharge(charge>=.999f);railChargeAudioAge_=0;
+	}
+	if(bulletManager_->GetBulletCount()>0)for(const auto* bullet:bulletManager_->GetBulletPtrs()) {
+		if(!bullet||bullet->IsDead()||bullet->GetSpecialKind()==Bullet::SpecialKind::None)continue;
+		auto direction=bullet->GetMove();direction=Length(direction)>.0001f?Normalize(direction):Vector3{1,0,0};
+		specialProjectileVisuals_.push_back({bullet->GetWorldPosition(),direction,bullet->GetRadius(),bullet->GetSpecialKind()});
+	}
+}
+
+void GameScene::QueueSpecialCombatPresentation()
+{
+	if(!neonGridRenderer_||!player_||IsTankRunMenuOpen())return;
+	tankspecialfx::Charge(*neonGridRenderer_,player_->GetRailChargeMuzzle(),player_->GetRailChargeRatio(),playTime_);
+	for(const auto& link:player_->GetDroneLaserLinks())tankspecialfx::Link(*neonGridRenderer_,link.start,link.end);
+	for(const auto& visual:specialProjectileVisuals_) {
+		if(visual.kind==Bullet::SpecialKind::SlashWave)
+			tankspecialfx::Crescent(*neonGridRenderer_,visual.position,visual.direction,visual.radius);
+		else if(visual.kind==Bullet::SpecialKind::Rail) {
+			neonGridRenderer_->QueueLine(visual.position-visual.direction*3.5f,visual.position,.15f,{.6f,1.6f,2.1f,.65f});
+			neonGridRenderer_->QueueLine(visual.position-visual.direction*1.2f,visual.position,.06f,{1.8f,2.0f,2.2f,.9f});
+		}
+	}
+	for(const auto& flash:specialCombatFlashes_) {
+		const auto& event=flash.event;
+		if(event.kind==Player::SpecialEventKind::RailShot) {
+			const float alpha=1-flash.age/.24f;
+			neonGridRenderer_->QueueLine(event.origin,flash.end,.12f,{.3f,1.1f,1.8f,alpha*.26f});
+			tankspecialfx::Ring(*neonGridRenderer_,event.origin,.25f+flash.age*4,.09f,{1.3f,1.5f,2.0f,alpha*.7f});
+		} else tankspecialfx::Contact(*neonGridRenderer_,event.origin,flash.age,
+			event.kind==Player::SpecialEventKind::LinkHit?.6f:1.0f,event.kind==Player::SpecialEventKind::PerfectParry);
 	}
 }
 

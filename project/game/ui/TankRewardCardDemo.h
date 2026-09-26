@@ -6,6 +6,7 @@
 #include <cstdint>
 #include "../player/TankRunModifiers.h"
 #include "../player/TankCombatStyleBalance.h"
+#include "../player/TankSpecialCombat.h"
 
 // A bounded illustration, not a second game world. All coordinates are local to
 // one card lane; this code never touches actors, economy, input or random state.
@@ -16,19 +17,22 @@ inline float Saturate(float v) { return (std::clamp)(v,0.0f,1.0f); }
 inline float Ease(float v) { v=Saturate(v);return v*v*(3.0f-2.0f*v); }
 inline float Length(Point p) {return std::sqrt(p.x*p.x+p.y*p.y);}
 inline constexpr float kCycleSeconds=2.8f;
-enum class DemoKind { Shooter,Drone,Melee,Homing,Ricochet,Pierce,BladeReach,ImpactDrive,Info };
+enum class DemoKind { Shooter,Drone,Melee,Homing,Ricochet,Pierce,BladeReach,ImpactDrive,Info,
+    RailCannon,DroneLaserLink,SlashWave,ParryBlade };
 struct DemoConfig {
     DemoKind kind=DemoKind::Shooter;
     bool homing=false,ricochet=false,pierce=false,bladeReach=false,impactDrive=false;
     bool droneFocus=false,droneGuard=false,meleeTempo=false,finisherCharge=false;
     bool heavy=false,rapid=false,thrusters=false,repair=false;
     bool meleeStyle=false;
+    bool railCannon=false,droneLaserLink=false,slashWave=false,parryBlade=false;
     float damageScale=1.0f,reloadScale=1.0f,bulletSpeedScale=1.0f;
     int droneCount=3,barrels=1;
+    float fanAngle=0;bool alternate=false;
     bool useProfile=false;
     TankCombatStyleProfile profile{};
     TankRunGrowth growth{};
-    std::array<float,20> effectPower{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+    decltype(TankRunModifiers{}.effectPower) effectPower=TankRunModifiers{}.effectPower;
 };
 struct Bullet {
     Point position{};
@@ -45,6 +49,7 @@ struct DemoSnapshot {
     std::array<float,3> damage{};
     std::array<Point,6> drones{};
     std::array<Bullet,6> bullets{};
+    std::array<float,6> barrelAngles{};
     int targetCount=1,droneCount=0,barrelCount=1;
     bool leftClick=false,slashing=false,dashing=false,wall=false;
     int comboStep=0;
@@ -53,6 +58,10 @@ struct DemoSnapshot {
     float muzzleFlash=0.0f;
     int shots=0;
     bool reinforcedProjectiles=false;
+    float railCharge=0,railFlash=0,waveRadius=0,parryFlash=0;
+    bool rail=false,links=false,wave=false,perfectParry=false,hostileBullet=false;
+    Point wavePosition{},parryPosition{},hostilePosition{};
+    std::array<bool,6> linkContact{};
 };
 inline float HitPulse(float now,float at) {return at>=0.0f?Saturate(1.0f-(now-at)/0.28f)*(now>=at?1.0f:0.0f):0.0f;}
 inline bool WithinLane(Point p) {return std::isfinite(p.x)&&std::isfinite(p.y)&&p.x>=0.05f&&p.x<=0.95f&&p.y>=0.08f&&p.y<=0.92f;}
@@ -107,7 +116,7 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input,float time) {
     if(c.useProfile) {
         c.profile=SanitizeTankCombatStyleProfile(c.profile);
         c.damageScale*=c.profile.attackDamage/(c.meleeStyle?15.2f:4.0f);
-        c.reloadScale*=c.profile.attackIntervalSeconds/(c.meleeStyle?.33f:c.kind==DemoKind::Drone?.5f:1.0f/3.0f);
+        c.reloadScale*=c.profile.attackIntervalSeconds/(c.meleeStyle?.33f:(c.kind==DemoKind::Drone||c.kind==DemoKind::DroneLaserLink)?.5f:1.0f/3.0f);
         c.bulletSpeedScale*=c.profile.bulletSpeed/.27f;
     }
     TankRunModifiers modifiers;modifiers.enabled=true;modifiers.expedition=true;modifiers.effectPower=c.effectPower;
@@ -120,7 +129,7 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input,float time) {
     const float t=std::fmod((std::max)(0.0f,time),kCycleSeconds);s.progress=t/kCycleSeconds;
     s.leftClick=t>=0.45f&&t<2.15f;
     if(c.kind==DemoKind::Info)return s;
-    if(c.kind==DemoKind::Melee||c.kind==DemoKind::BladeReach||
+    if(c.kind==DemoKind::Melee||c.kind==DemoKind::BladeReach||c.kind==DemoKind::SlashWave||c.kind==DemoKind::ParryBlade||
        (c.kind==DemoKind::ImpactDrive&&c.meleeStyle)) {
         s.barrelCount=0;
         s.player={0.23f,0.52f};s.cursor={0.76f,0.52f};s.targets[0]={0.45f,0.52f};
@@ -140,6 +149,33 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input,float time) {
                 s.slashAngle=(i==1?-1.0f:1.0f)*(p-0.5f)*s.slashArc;
             }
             const float impactAt=at+duration*0.4f;
+            if(i==2&&c.slashWave) {
+                const float age=t-at;
+                const float start=s.player.x+reach*.5f;
+                const float range=(std::min)(.65f,reach*1.5f);
+                s.waveRadius=(std::min)(.12f,reach*.28f);
+                s.wave=age>=0&&age<range/.9f;
+                s.wavePosition={(std::clamp)(start+.9f*(std::max)(0.0f,age),.05f,.94f),.52f};
+                s.targets[1]={.77f,.52f};s.targetCount=2;
+                const float hitAt=at+(.77f-start)/.9f;
+                if(.77f-start<=range+.03f&&t>=hitAt) {
+                    s.damage[1]+=.55f*tuning.damage*c.damageScale*.17f;s.hit[1]=HitPulse(t,hitAt);
+                }
+            }
+            // Incoming bullet reaches the real attack cone just after the
+            // first windup, then either passes through or is cut/reflected.
+            if(i==0&&c.kind==DemoKind::ParryBlade) {
+                const float contact=at+.06f;
+                s.parryPosition={s.player.x+(std::min)(reach,.25f),.52f};
+                s.hostilePosition={(std::clamp)(s.parryPosition.x+(contact-t)*.72f,.08f,.92f),.52f};
+                s.hostileBullet=t>=.15f&&t<contact+(c.parryBlade?0:.35f);
+                if(c.parryBlade) {
+                    s.perfectParry=t>=contact&&t<contact+.28f;s.parryFlash=HitPulse(t,contact);
+                    int mask=0;s.bullets[1]=SampleProjectile(s.parryPosition,{.79f,.52f},t-contact,0,false,false,false,&mask,1.5f);
+                    s.targets[1]={.79f,.52f};s.targetCount=2;
+                    if(mask){s.damage[1]=.3f*c.damageScale;s.hit[1]=.6f;}
+                }
+            }
             for(int n=0;n<s.targetCount;++n) {
                 if(s.targets[n].x-s.player.x>reach+0.02f)continue;
                 const float force=tuning.knockback*0.15f*(c.useProfile?c.profile.meleeKnockback/.16f:1.0f);
@@ -156,11 +192,11 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input,float time) {
         s.targets[0]={(std::min)(.90f,0.55f+.15f*(c.impactDrive?1+.5f*c.effectPower[14]:1)*Ease((t-0.98f)/0.24f)),0.54f};
         s.hit[0]=HitPulse(t,0.98f);return s;
     }
-    if(c.kind==DemoKind::Drone) {
+    if(c.kind==DemoKind::Drone||c.kind==DemoKind::DroneLaserLink) {
         const float move=(c.useProfile?(std::clamp)(c.profile.moveSpeed/.23f,.1f,3.0f):1.0f)*runTuning.moveSpeed;
-        const float formation=c.useProfile?(std::clamp)(c.profile.droneFormationRadius/1.5f,0.0f,1.5f):1.0f;
+        const float formation=(std::clamp)(((c.useProfile?c.profile.droneFormationRadius:1.5f)+(c.droneLaserLink?2.0f:0.0f))/1.5f,0.0f,3.0f);
         const float lag=c.useProfile?(std::clamp)(.1f*.25f/c.profile.droneFollowSpeed*5/c.profile.droneResponse,.015f,.45f):.1f;
-        auto owner=[&](float at){return Point{.22f+.055f*std::sin(at*2*move),.56f+.1f*std::sin(at*2.5f*move)};};
+        auto owner=[&](float at){return Point{(c.droneLaserLink?.32f:.22f)+.055f*std::sin(at*2*move),.56f+.1f*std::sin(at*2.5f*move)};};
         auto follower=[&](float at,float angle) {
             auto p=owner(at-lag);p.x+=.11f*formation*std::cos(angle);p.y+=.16f*formation*std::sin(angle);
             // Large authored formations are cropped to the miniature arena.
@@ -185,6 +221,46 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input,float time) {
                 std::atan2(target.y-launch.y,target.x-launch.x),c.homing,false,false,&mask,c.bulletSpeedScale,c.effectPower[9]);
             if(mask) {s.hit[0]=(std::max)(s.hit[0],HitPulse(t,at+Length({target.x-launch.x,target.y-launch.y})/(0.57f*c.bulletSpeedScale)));s.damage[0]+=0.15f*c.damageScale*droneTuning.damageScale;}
         }
+        s.links=c.droneLaserLink&&s.droneCount>=2;
+        if(c.kind==DemoKind::DroneLaserLink) {
+            // The enemy crosses the moving formation; contact uses segment
+            // distance, with only one tick per enemy even at a shared vertex.
+            auto crossing=[](float at){return Point{.08f+.48f*Ease((at-.3f)/1.8f),.56f};};
+            s.targets[1]=crossing(t);s.targetCount=2;
+            bool touching=false;const int count=tankspecial::LinkCount(s.droneCount);
+            for(int n=0;s.links&&n<count;++n) {
+                const auto a=s.drones[n],b=s.drones[(n+1)%s.droneCount],p=s.targets[1];
+                s.linkContact[n]=tankspecial::SegmentTouches(a.x,a.y,b.x,b.y,p.x,p.y,.036f);
+                touching|=s.linkContact[n];
+            }
+            if(touching)s.hit[1]=.8f;
+            for(float tick=0;s.links&&tick<=t;tick+=.20f) {
+                const auto p=crossing(tick);bool hit=false;
+                for(int n=0;n<count&&!hit;++n) {
+                    const auto a=follower(tick,n*6.2831853f/s.droneCount),b=follower(tick,((n+1)%s.droneCount)*6.2831853f/s.droneCount);
+                    hit=tankspecial::SegmentTouches(a.x,a.y,b.x,b.y,p.x,p.y,.036f);
+                }
+                if(hit)s.damage[1]+=.10f*c.damageScale;
+            }
+        }
+        return s;
+    }
+    if(c.railCannon) {
+        const float release=1.45f;
+        s.rail=true;s.barrelCount=(std::clamp)(c.barrels,1,6);s.targetCount=2;
+        s.targets[0]={.57f,.54f};s.targets[1]={.83f,.54f};
+        s.leftClick=t>=.35f&&t<release;s.railCharge=s.leftClick?Saturate((t-.35f)/1.0f):0;
+        s.railFlash=HitPulse(t,release);s.muzzleFlash=s.railFlash;
+        int hits=0;
+        for(int n=0;n<s.barrelCount;++n) {
+            const float offset=(n-(s.barrelCount-1)*.5f);
+            s.barrelAngles[n]=offset*c.fanAngle*.0174532925f;
+            int mask=0;auto origin=s.player;origin.y+=offset*.035f;
+            s.bullets[n]=SampleProjectile(origin,s.targets[0],t-release,s.barrelAngles[n],false,false,true,&mask,2);
+            hits|=mask;
+        }
+        if(t>=release)s.shots=s.barrelCount;
+        for(int n=0;n<2;++n)if(hits&(1<<n)){s.damage[n]=.4f*c.damageScale*tankspecial::RailDamageScale(1,c.effectPower[20]);s.hit[n]=.8f;}
         return s;
     }
     Point launch=s.player;float angle=0.0f;
@@ -197,13 +273,16 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input,float time) {
     s.barrelCount=c.kind==DemoKind::Shooter?(std::clamp)(c.barrels,1,6):1;
     const float shotAt=.45f+.10f*c.reloadScale;
     if(shotAt>=2.15f)return s;
-    if(t>=shotAt)s.shots=s.barrelCount;
     s.muzzleFlash=HitPulse(t,shotAt);
     int hits=0;
     for(int n=0;n<s.barrelCount;++n) {
         int shotHits=0;Point origin=launch;
         origin.y+=(static_cast<float>(n)-static_cast<float>(s.barrelCount-1)*0.5f)*0.035f;
-        s.bullets[n]=SampleProjectile(origin,s.targets[0],t-shotAt,angle,c.homing,c.ricochet,c.pierce,&shotHits,c.bulletSpeedScale,c.effectPower[9]);
+        const float at=shotAt+(c.alternate?static_cast<float>(n)*.16f*c.reloadScale:0);
+        s.barrelAngles[n]=(static_cast<float>(n)-static_cast<float>(s.barrelCount-1)*.5f)*c.fanAngle*.0174532925f;
+        if(t>=at)++s.shots;
+        if(at>=2.15f)continue;
+        s.bullets[n]=SampleProjectile(origin,s.targets[0],t-at,angle+s.barrelAngles[n],c.homing,c.ricochet,c.pierce,&shotHits,c.bulletSpeedScale,c.effectPower[9]);
         hits|=shotHits;
     }
     // Hit visualization is taken from the simulation, including the stopping

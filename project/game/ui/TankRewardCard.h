@@ -24,13 +24,15 @@ struct TankRewardCardModel {
     bool reflect=false,penetrate=false;
     int currentDrones=3,currentBarrels=1;
     bool currentReflect=false,currentPenetrate=false;
+    float fanAngle=0,currentFanAngle=0;
+    bool alternate=false,currentAlternate=false;
     float damageScale=1.0f,reloadScale=1.0f,bulletSpeedScale=1.0f;
     float currentDamageScale=1.0f,currentReloadScale=1.0f,currentBulletSpeedScale=1.0f;
     bool previewKnown=true;
     TankCombatStyleProfile profile{};
     TankRunGrowth growth{};
-    std::array<float,20> effectPower{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-    std::array<float,20> ownedEffectPower{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+    decltype(TankRunModifiers{}.effectPower) effectPower=TankRunModifiers{}.effectPower;
+    decltype(TankRunModifiers{}.effectPower) ownedEffectPower=TankRunModifiers{}.effectPower;
 };
 
 class TankRewardCard {

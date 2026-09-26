@@ -31,6 +31,8 @@ $tankCollisionMethods = @(
     (Read-ProductionMethod 'project/game/exp/ExpEnemy.cpp' 'bool ExpEnemy::ApplyDamage('),
     (Read-ProductionMethod 'project/game/exp/ExpEnemy.cpp' 'bool ExpEnemy::TakeDamageFromEnemy('),
     (Read-ProductionMethod 'project/game/exp/ExpEnemy.cpp' 'bool ExpEnemy::TakeDamageFromPlayer('),
+	(Read-ProductionMethod 'project/game/exp/ExpEnemy.cpp' 'bool ExpEnemy::TakeDirectionalDamage('),
+	(Read-ProductionMethod 'project/game/exp/ExpEnemy.cpp' 'uint32_t ExpEnemy::ResolveShieldDamage('),
     (Read-ProductionMethod 'project/game/exp/EnemyManager.cpp' 'ExpEnemy* EnemyManager::FindNearestEnemy('),
     (Read-ProductionMethod 'project/game/exp/EnemyManager.cpp' 'ExpEnemy* EnemyManager::FindNearestRunResource('),
     (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::RegisterExpEnemyKill('),

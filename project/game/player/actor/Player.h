@@ -24,10 +24,14 @@
 #include "game/ui/NeonSegmentedBar.h"
 #include "game/ui/NeonTextEffect.h"
 #include "game/player/TankRunModifiers.h"
+#include "game/player/TankSpecialCombat.h"
 #include "game/player/TankCombatStyleBalance.h"
 #include "game/player/TankExpeditionLoadout.h"
 #include "game/run/TankExpeditionContent.h"
 #include "game/run/TankBuildStyle.h"
+
+class EnemyManager;
+class Enemy;
 
 enum class ClassType {
 	
@@ -158,6 +162,21 @@ public:
 		bool boss = false;
 		bool powered = false;
 	};
+	struct DroneLaserLink { Vector3 start{},end{}; bool contact=false; };
+	enum class SpecialEventKind { RailShot, Parry, PerfectParry, LinkHit };
+	struct SpecialCombatEvent {
+		SpecialEventKind kind=SpecialEventKind::RailShot;
+		Vector3 origin{},direction{1,0,0};
+		float strength=1;
+	};
+	struct SpecialCombatStats { uint32_t railShots=0,slashWaves=0,parries=0,perfectParries=0,linkTicks=0; };
+	float GetRailChargeRatio() const { return railCharge_.held ? railCharge_.seconds : 0.0f; }
+	Vector3 GetRailChargeMuzzle() const;
+	const std::vector<DroneLaserLink>& GetDroneLaserLinks() const { return droneLaserLinks_; }
+	const SpecialCombatStats& GetSpecialCombatStats() const { return specialCombatStats_; }
+	std::vector<SpecialCombatEvent> ConsumeSpecialCombatEvents();
+	// Called once after bullet movement and before body/bullet collision resolution.
+	void UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss,EnemyManager* enemies,float dt);
 	bool TryDashImpact(Collider* target);
 	std::vector<DashImpactEvent> ConsumeDashImpactEvents();
 	uint32_t GetDashStartedCount() const { return dashStartedCount_; }
@@ -600,6 +619,16 @@ private:
 	int meleeComboStep_ = 0;
 	float meleeComboTimer_ = 0.0f;
 	float saberCounterTimer_ = 0.0f;
+	tankspecial::RailCharge railCharge_{};
+	tankspecial::LinkDamageClock linkDamageClock_{};
+	std::vector<DroneLaserLink> droneLaserLinks_;
+	std::vector<SpecialCombatEvent> pendingSpecialCombatEvents_;
+	SpecialCombatStats specialCombatStats_{};
+	MeleeSlashEvent specialMeleeSwing_{};
+	float specialMeleeElapsed_=-1;
+	bool specialWaveEmitted_=false,specialPerfectFeedback_=false;
+	std::vector<uint64_t> specialParriedBullets_;
+	void AttackRailCannon(BulletManager* bullets,bool pressed,float dt);
 
 	// プレイヤーの経験値とレベル
 	int exp_ = 0;

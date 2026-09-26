@@ -17,7 +17,7 @@ void GameScene::InitializeExpeditionBuildCards() {
     // Authored maps without the two introductory branches still offer a style
     // before their first encounter. The isolated AI fixture has no map input.
     const auto& nodes=expeditionMapRun_.GetDefinition().nodes;
-    expeditionBuildChoice_=!combatValidationEnabled_&&std::none_of(nodes.begin(),nodes.end(),[](const auto& n){return tankexp::IsIntroUpgrade(n.role);});
+    expeditionBuildChoice_=!combatValidationEnabled_&&!specialValidationEnabled_&&std::none_of(nodes.begin(),nodes.end(),[](const auto& n){return tankexp::IsIntroUpgrade(n.role);});
     RefreshExpeditionBuildCards();
     UpdateExpeditionBuildCards(0);
 }
@@ -48,20 +48,23 @@ void GameScene::SelectExpeditionBuildStyle(int index) {
 
 void GameScene::RefreshExpeditionBuildCards() {
     if(!IsExpeditionBuildCardScreen()||!expeditionRewardCards_[0]) return;
-    const auto* node=expeditionMapRun_.GetActiveNode();
     const auto current=player_->GetRunCombatSnapshot();
     for(int i=0;i<3;++i) {
         TankRewardCardModel model;model.style=expeditionBuildStyle_;model.ownedEffects=tankRun_.GetCardCounts();
         model.profile=player_->GetCombatStyleProfile(model.style);model.ownedEffectPower=ExpeditionEffectPowers();
         const auto& growth=tankExpeditionBalance_["playerUpgrades"];
         model.growth={growth.value("maxHp",.15f),growth.value("bulletDamage",.25f),growth.value("bulletSpeed",.2f),growth.value("reloadSpeed",.25f),growth.value("moveSpeed",.12f)};
-        model.drones=model.style==tankbuild::Style::Drone?current.baseDroneCount:0;
+        model.drones=model.style==tankbuild::Style::Drone?(std::clamp)(current.baseDroneCount+(current.isAuthored?current.classDroneCount-3:0),1,12):0;
         model.currentDamageScale=model.damageScale=current.classDamageScale;
         model.currentReloadScale=model.reloadScale=current.classReloadScale;
         model.currentBulletSpeedScale=model.bulletSpeedScale=current.classBulletSpeedScale;
         model.barrels=(std::max)(1,current.barrels);model.reflect=current.classReflects;model.penetrate=current.classPenetrates;
         model.currentBarrels=model.barrels;model.currentDrones=model.drones;
         model.currentReflect=current.classReflects;model.currentPenetrate=current.classPenetrates;
+        if(const auto* variant=tankcontent::FindPlayer(expeditionContent_,current.classId)) {
+            model.fanAngle=model.currentFanAngle=variant->fanAngle;
+            model.alternate=model.currentAlternate=variant->alternate;
+        }
         if(expeditionBuildChoice_) {
             model.style=static_cast<tankbuild::Style>(i);model.profile=player_->GetCombatStyleProfile(model.style);model.styleChoice=true;model.rarity=0;
             model.id=std::string("style_")+tankbuild::Id(model.style);model.title=tankbuild::Name(model.style);
@@ -70,6 +73,7 @@ void GameScene::RefreshExpeditionBuildCards() {
                      "左クリックで3段斬り。間合い・連撃・フィニッシュを育てる。";
             model.footer="左クリックで選択";model.drones=i==1?model.profile.droneCount:0;
             model.currentDrones=model.drones;model.barrels=model.currentBarrels=1;
+            model.fanAngle=model.currentFanAngle=0;model.alternate=model.currentAlternate=false;
             model.currentDamageScale=model.damageScale=model.currentReloadScale=model.reloadScale=model.currentBulletSpeedScale=model.bulletSpeedScale=1.0f;
         } else {
             const size_t index=static_cast<size_t>(expeditionServicePage_*3+i);
@@ -80,20 +84,15 @@ void GameScene::RefreshExpeditionBuildCards() {
                 model.id=expeditionServiceOffers_[index];
                 const int price=ExpeditionServicePrice(model.id);
                 model.footer=std::to_string(price)+" Cr"+(expeditionMapRun_.CanAfford(price)?"  / 左クリックで装備":"  / 通貨不足");
-                if(node->kind==tankexp::NodeKind::Upgrade) {
-                    if(const auto* u=tankcontent::FindUpgrade(expeditionContent_,model.id)) {
-                        model.title=u->name;model.description=u->description;model.rarity=u->rarity;model.effects=u->effects;model.effectPower=u->effectPower;
+                if(const auto* u=tankcontent::FindUpgrade(expeditionContent_,model.id)) {
+                    model.title=u->name;model.description=u->description;model.rarity=u->rarity;model.effects=u->effects;model.effectPower=u->effectPower;
+                    if(const auto* p=tankcontent::FindPlayer(expeditionContent_,u->refitPlayer)) {
+                        model.authoredVariant=p->id;
+                        model.barrels=p->barrels;model.drones=p->style==tankbuild::Style::Drone?(std::clamp)(model.profile.droneCount+p->drones-3,1,12):p->drones;
+                        model.reflect=p->reflect;model.penetrate=p->penetrate;
+                        model.fanAngle=p->fanAngle;model.alternate=p->alternate;
+                        model.damageScale=p->damageScale;model.reloadScale=p->reloadScale;model.bulletSpeedScale=p->bulletSpeedScale;
                     }
-                } else if(const auto* p=tankcontent::FindPlayer(expeditionContent_,model.id)) {
-                    model.title=p->name;model.description=p->description;model.rarity=p->rarity;model.authoredVariant=p->id;
-                    model.barrels=p->barrels;model.drones=p->style==tankbuild::Style::Drone?(std::clamp)(model.profile.droneCount+p->drones-3,1,12):p->drones;model.reflect=p->reflect;model.penetrate=p->penetrate;
-                    model.damageScale=p->damageScale;model.reloadScale=p->reloadScale;model.bulletSpeedScale=p->bulletSpeedScale;
-                } else {
-                    for(const auto& e:tankExpeditionEvolutions_) if(e.id==model.id) {model.title=e.name;model.description=e.description;break;}
-                    // Built-in evolution depth and rarity are independent; these
-                    // legacy forms have no rarity metadata and remain common.
-                    model.rarity=0;
-                    model.previewKnown=false;
                 }
             }
         }

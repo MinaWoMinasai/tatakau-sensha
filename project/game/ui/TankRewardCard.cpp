@@ -34,6 +34,7 @@ bool SameModel(const TankRewardCardModel& a,const TankRewardCardModel& b) {
         a.currentBulletSpeedScale==b.currentBulletSpeedScale&&a.previewKnown==b.previewKnown&&
         a.currentDrones==b.currentDrones&&a.currentBarrels==b.currentBarrels&&
         a.currentReflect==b.currentReflect&&a.currentPenetrate==b.currentPenetrate&&sameProfile&&
+        a.fanAngle==b.fanAngle&&a.currentFanAngle==b.currentFanAngle&&a.alternate==b.alternate&&a.currentAlternate==b.currentAlternate&&
         a.effectPower==b.effectPower&&a.ownedEffectPower==b.ownedEffectPower&&
         a.growth.hp==b.growth.hp&&a.growth.damage==b.growth.damage&&a.growth.bulletSpeed==b.growth.bulletSpeed&&
         a.growth.reload==b.growth.reload&&a.growth.move==b.growth.move;
@@ -68,6 +69,10 @@ tankreward::DemoKind Kind(const TankRewardCardModel& m) {
     using C=tankrun::CardId;using D=tankreward::DemoKind;
     if(!m.previewKnown)return D::Info;
     if(m.styleChoice)return m.style==tankbuild::Style::Drone?D::Drone:m.style==tankbuild::Style::Melee?D::Melee:D::Shooter;
+    if(Offers(m,C::RailCannon))return D::RailCannon;
+    if(Offers(m,C::DroneLaserLink))return D::DroneLaserLink;
+    if(Offers(m,C::SlashWave))return D::SlashWave;
+    if(Offers(m,C::ParryBlade))return D::ParryBlade;
     if(Offers(m,C::BladeReach))return D::BladeReach;
     if(Offers(m,C::ImpactDrive))return D::ImpactDrive;
     if(Offers(m,C::MeleeBlade)||Offers(m,C::MeleeTempo)||Offers(m,C::FinisherCharge))return D::Melee;
@@ -84,6 +89,10 @@ std::string DemoNote(const TankRewardCardModel& m) {
     if(!m.previewKnown)return "詳細は上の説明を確認してください";
     if(!m.authoredVariant.empty())return "模式実演 / 動作速度・威力を比較";
     switch(Kind(m)) {
+    case D::RailCannon:return "左長押しでチャージ → 離して貫通射撃";
+    case D::DroneLaserLink:return "隊形を重ね、レーザー線で敵を捉える";
+    case D::SlashWave:return "3段目で斬撃波 / 奥の敵にも届く";
+    case D::ParryBlade:return "斬撃で弾を切る / 開始直後は反射";
     case D::Shooter:return "左クリックで射撃 / 1砲門につき1発";
     case D::Drone:return "左クリック中だけ発射 / カーソルで照準";
     case D::Melee:return "左クリックで3連斬 / 3段目で押し出す";
@@ -150,6 +159,8 @@ tankreward::DemoConfig TankRewardCard::DemoConfig(bool after)const {
     c.pierce=has(C::Pierce)||(after?model_.penetrate:model_.currentPenetrate);c.bladeReach=has(C::BladeReach);
     c.impactDrive=has(C::ImpactDrive);c.droneFocus=has(C::DroneFocus);c.droneGuard=has(C::DroneGuard);
     c.meleeTempo=has(C::MeleeTempo);c.finisherCharge=has(C::FinisherCharge);
+    c.railCannon=has(C::RailCannon);c.droneLaserLink=has(C::DroneLaserLink);
+    c.slashWave=has(C::SlashWave);c.parryBlade=has(C::ParryBlade);
     c.heavy=has(C::Heavy);c.rapid=has(C::Rapid);c.thrusters=has(C::Thrusters);c.repair=has(C::Repair);
     c.growth=model_.growth;
     c.meleeStyle=model_.style==tankbuild::Style::Melee;
@@ -161,6 +172,7 @@ tankreward::DemoConfig TankRewardCard::DemoConfig(bool after)const {
     c.profile=SanitizeTankCombatStyleProfile(model_.profile);c.useProfile=true;
     c.droneCount=(std::max)(1,(after?model_.drones:model_.currentDrones)+(has(C::Drones)?static_cast<int>(std::lround(2*c.effectPower[6])):0));
     c.barrels=(std::max)(1,after?model_.barrels:model_.currentBarrels);
+    c.fanAngle=after?model_.fanAngle:model_.currentFanAngle;c.alternate=after?model_.alternate:model_.currentAlternate;
     // The card describes the changed behavior in isolation. For reflection and
     // piercing comparisons, unrelated steering must not mask the difference.
     if(c.kind==tankreward::DemoKind::Ricochet||c.kind==tankreward::DemoKind::Pierce)c.homing=false;
