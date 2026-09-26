@@ -2,6 +2,7 @@
 #include "GameScene.h"
 #include "GameStartMode.h"
 #include "SceneManager.h"
+#include "StartupTrace.h"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -19,12 +20,14 @@ void Fit(TextLabel& label,const Vector2& bounds) {
 TitleScene::TitleScene()=default;
 TitleScene::~TitleScene()=default;
 void TitleScene::Initialize() {
+    StartupTrace::Scope startupScope("TitleScene.Initialize");
     input_=Input::GetInstance();
     finished_=false;demoFrozen_=false;nextSceneName_.clear();
     phase_=Phase::kFadeIn;blinkTimer_=0;capturedStages_=0;
     previousMousePosition_=input_->GetMousePosition();
     wchar_t test[8]{};
     autoTest_=GetEnvironmentVariableW(L"CG2_TITLE_AUTOTEST",test,8)>0&&test[0]==L'1';
+    startupAutoTest_=GetEnvironmentVariableW(L"CG2_STARTUP_AUTOTEST",test,8)>0&&test[0]==L'1';
     if(autoTest_) {
         std::filesystem::create_directories("generated/title_demo");
         std::ofstream("generated/title_demo/validation.json")<<"{\"completed\":false}\n";
@@ -32,7 +35,8 @@ void TitleScene::Initialize() {
     // The title owns a real game scene with explicit demo controls. Process
     // input and environment remain untouched throughout the attract sequence.
     demo_=std::make_unique<GameScene>(false,true);
-    demo_->EnableTitleDemo();demo_->Initialize();
+    demo_->EnableTitleDemo();
+    { StartupTrace::Scope scope("TitleScene.GameplayDemo"); demo_->Initialize(); }
     stageSamples_={};stageSamples_[0].build=demo_->GetTitleDemoBuild().dump();
     fade_=std::make_unique<Fade>();fade_->Initialize();fade_->Start(Fade::Status::FadeIn,0.65f);
     const float w=static_cast<float>(WinApp::GetInstance()->GetClientWidth());
@@ -101,6 +105,8 @@ void TitleScene::Update() {
             else {GameStartSession::SetMode(menuSelection_==1?GameStartMode::Normal:GameStartMode::Tutorial);StartTransitionIfAvailable("GAME",0.65f);}
         }
         if(autoTest_&&capturedStages_==15&&demo_->GetTitleDemoStatus().totalSeconds>=81.0f)
+            StartTransitionIfAvailable("TANK_EXPEDITION",0.65f);
+        if(startupAutoTest_&&blinkTimer_>=1.0f)
             StartTransitionIfAvailable("TANK_EXPEDITION",0.65f);
     }
     const auto before=demo_->GetTitleDemoStatus();
@@ -173,6 +179,7 @@ int TitleScene::HitTestMenu(const Vector2& mouse)const{
 }
 bool TitleScene::StartTransitionIfAvailable(std::string_view name,float duration){
     if(!IsSceneAvailable(name)||phase_==Phase::kFadeOut)return false;
+    StartupTrace::Mark("transition.request."+std::string(name));
     demoFrozen_=true;frozenAt_=demo_->GetTitleDemoStatus().totalSeconds;nextSceneName_=name;
     if(name=="TANK_EXPEDITION")GameStartSession::SetMode(GameStartMode::Normal);
     fade_->Start(Fade::Status::FadeOut,duration);phase_=Phase::kFadeOut;return true;

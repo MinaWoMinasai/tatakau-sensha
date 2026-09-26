@@ -1,4 +1,6 @@
 #include "TextureManager.h"
+#include "StartupTrace.h"
+#include "GeneratedTextureCache.h"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -789,6 +791,7 @@ TextureManager* TextureManager::GetInstance() {
 }
 
 void TextureManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager) {
+    StartupTrace::Scope startupScope("Textures.Initialize");
 	dxCommon_ = dxCommon;
 	srvManager_ = srvManager;
 	textureDatas.reserve(SrvManager::kMaxSrvCount);
@@ -832,6 +835,9 @@ void TextureManager::Finalize() {
 void TextureManager::LoadTexture(const std::string& filePath, TextureColorSpace colorSpace) {
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
     if (textureDatas.contains(textureKey)) return;
+
+    StartupTrace::Scope startupScope("Texture.Load." + filePath);
+    StartupTrace::Count("Textures.LoadedFromFile");
 
     assert(textureDatas.size() + kSRVIndexTop < SrvManager::kMaxSrvCount);
 
@@ -1238,6 +1244,7 @@ void TextureManager::CreateFlatNormalTexture()
 
 void TextureManager::CreateBrdfLutTexture()
 {
+    StartupTrace::Scope startupScope("Textures.BrdfLut");
     const std::string& filePath = GetBrdfLutTexturePath();
     const std::string textureKey = MakeTextureKey(filePath, TextureColorSpace::LinearData);
     if (textureDatas.contains(textureKey)) return;
@@ -1246,28 +1253,33 @@ void TextureManager::CreateBrdfLutTexture()
 
     constexpr size_t kTextureSize = 128;
     DirectX::ScratchImage image{};
-    HRESULT hr = image.Initialize2D(
-        DXGI_FORMAT_R32G32B32A32_FLOAT,
-        kTextureSize,
-        kTextureSize,
-        1,
-        1);
-    assert(SUCCEEDED(hr));
+    if (!GeneratedTextureCache::Load(L"brdf-lut", kTextureSize, 1, false, image)) {
+        StartupTrace::Count("Textures.GeneratedCache.Generated");
+        HRESULT hr = image.Initialize2D(
+            DXGI_FORMAT_R32G32B32A32_FLOAT,
+            kTextureSize,
+            kTextureSize,
+            1,
+            1);
+        assert(SUCCEEDED(hr));
 
-    const DirectX::Image* imageData = image.GetImage(0, 0, 0);
-    assert(imageData != nullptr);
-    for (size_t y = 0; y < kTextureSize; ++y) {
-        const float roughness = (static_cast<float>(y) + 0.5f) / static_cast<float>(kTextureSize);
-        uint8_t* row = imageData->pixels + imageData->rowPitch * y;
-        for (size_t x = 0; x < kTextureSize; ++x) {
-            const float nDotV = (static_cast<float>(x) + 0.5f) / static_cast<float>(kTextureSize);
-            const Float2 integratedBrdf = IntegrateBrdf(nDotV, roughness);
-            float* pixel = reinterpret_cast<float*>(row + x * sizeof(float) * 4);
-            pixel[0] = integratedBrdf.x;
-            pixel[1] = integratedBrdf.y;
-            pixel[2] = 0.0f;
-            pixel[3] = 1.0f;
+        const DirectX::Image* imageData = image.GetImage(0, 0, 0);
+        assert(imageData != nullptr);
+        for (size_t y = 0; y < kTextureSize; ++y) {
+            const float roughness = (static_cast<float>(y) + 0.5f) / static_cast<float>(kTextureSize);
+            uint8_t* row = imageData->pixels + imageData->rowPitch * y;
+            for (size_t x = 0; x < kTextureSize; ++x) {
+                const float nDotV = (static_cast<float>(x) + 0.5f) / static_cast<float>(kTextureSize);
+                const Float2 integratedBrdf = IntegrateBrdf(nDotV, roughness);
+                float* pixel = reinterpret_cast<float*>(row + x * sizeof(float) * 4);
+                pixel[0] = integratedBrdf.x;
+                pixel[1] = integratedBrdf.y;
+                pixel[2] = 0.0f;
+                pixel[3] = 1.0f;
+            }
         }
+
+        GeneratedTextureCache::Store(L"brdf-lut", image);
     }
 
     TextureData& textureData = textureDatas[textureKey];
@@ -1292,6 +1304,7 @@ void TextureManager::CreateBrdfLutTexture()
 
 void TextureManager::CreatePbrIrradianceTexture()
 {
+    StartupTrace::Scope startupScope("Textures.Irradiance");
     const std::string& filePath = GetPbrIrradianceTexturePath();
     const std::string textureKey = MakeTextureKey(filePath, TextureColorSpace::LinearData);
     if (textureDatas.contains(textureKey)) return;
@@ -1301,29 +1314,34 @@ void TextureManager::CreatePbrIrradianceTexture()
     constexpr size_t kTextureSize = 32;
     constexpr uint32_t kSampleCount = 96;
     DirectX::ScratchImage image{};
-    HRESULT hr = image.InitializeCube(
-        DXGI_FORMAT_R32G32B32A32_FLOAT,
-        kTextureSize,
-        kTextureSize,
-        1,
-        1);
-    assert(SUCCEEDED(hr));
+    if (!GeneratedTextureCache::Load(L"irradiance", kTextureSize, 1, true, image)) {
+        StartupTrace::Count("Textures.GeneratedCache.Generated");
+        HRESULT hr = image.InitializeCube(
+            DXGI_FORMAT_R32G32B32A32_FLOAT,
+            kTextureSize,
+            kTextureSize,
+            1,
+            1);
+        assert(SUCCEEDED(hr));
 
-    for (size_t face = 0; face < 6; ++face) {
-        const DirectX::Image* imageData = image.GetImage(0, face, 0);
-        assert(imageData != nullptr);
-        for (size_t y = 0; y < kTextureSize; ++y) {
-            for (size_t x = 0; x < kTextureSize; ++x) {
-                const Float3 normal = TexelDirectionForCubeFace(face, x, y, kTextureSize, kTextureSize);
-                Float3 color{};
-                for (uint32_t sampleIndex = 0; sampleIndex < kSampleCount; ++sampleIndex) {
-                    const Float2 xi = Hammersley(sampleIndex, kSampleCount);
-                    const Float3 sampleDirection = CosineSampleHemisphere(xi, normal);
-                    color = color + SampleProceduralPbrEnvironment(sampleDirection, 7.0f);
+        for (size_t face = 0; face < 6; ++face) {
+            const DirectX::Image* imageData = image.GetImage(0, face, 0);
+            assert(imageData != nullptr);
+            for (size_t y = 0; y < kTextureSize; ++y) {
+                for (size_t x = 0; x < kTextureSize; ++x) {
+                    const Float3 normal = TexelDirectionForCubeFace(face, x, y, kTextureSize, kTextureSize);
+                    Float3 color{};
+                    for (uint32_t sampleIndex = 0; sampleIndex < kSampleCount; ++sampleIndex) {
+                        const Float2 xi = Hammersley(sampleIndex, kSampleCount);
+                        const Float3 sampleDirection = CosineSampleHemisphere(xi, normal);
+                        color = color + SampleProceduralPbrEnvironment(sampleDirection, 7.0f);
+                    }
+                    StoreFloatCubePixel(imageData, x, y, color / static_cast<float>(kSampleCount));
                 }
-                StoreFloatCubePixel(imageData, x, y, color / static_cast<float>(kSampleCount));
             }
         }
+
+        GeneratedTextureCache::Store(L"irradiance", image);
     }
 
     TextureData& textureData = textureDatas[textureKey];
@@ -1348,6 +1366,7 @@ void TextureManager::CreatePbrIrradianceTexture()
 
 void TextureManager::CreatePbrPrefilteredEnvironmentTexture()
 {
+    StartupTrace::Scope startupScope("Textures.PrefilteredEnvironment");
     const std::string& filePath = GetPbrPrefilteredEnvironmentTexturePath();
     const std::string textureKey = MakeTextureKey(filePath, TextureColorSpace::LinearData);
     if (textureDatas.contains(textureKey)) return;
@@ -1358,45 +1377,50 @@ void TextureManager::CreatePbrPrefilteredEnvironmentTexture()
     constexpr size_t kMipLevels = 8;
     constexpr uint32_t kSampleCount = 96;
     DirectX::ScratchImage image{};
-    HRESULT hr = image.InitializeCube(
-        DXGI_FORMAT_R32G32B32A32_FLOAT,
-        kTextureSize,
-        kTextureSize,
-        1,
-        kMipLevels);
-    assert(SUCCEEDED(hr));
+    if (!GeneratedTextureCache::Load(L"prefiltered-environment", kTextureSize, kMipLevels, true, image)) {
+        StartupTrace::Count("Textures.GeneratedCache.Generated");
+        HRESULT hr = image.InitializeCube(
+            DXGI_FORMAT_R32G32B32A32_FLOAT,
+            kTextureSize,
+            kTextureSize,
+            1,
+            kMipLevels);
+        assert(SUCCEEDED(hr));
 
-    for (size_t mip = 0; mip < kMipLevels; ++mip) {
-        const float roughness = static_cast<float>(mip) / static_cast<float>(kMipLevels - 1);
-        for (size_t face = 0; face < 6; ++face) {
-            const DirectX::Image* imageData = image.GetImage(mip, face, 0);
-            assert(imageData != nullptr);
-            for (size_t y = 0; y < imageData->height; ++y) {
-                for (size_t x = 0; x < imageData->width; ++x) {
-                    const Float3 reflection = TexelDirectionForCubeFace(
-                        face, x, y, imageData->width, imageData->height);
-                    const Float3 normal = reflection;
-                    const Float3 view = reflection;
-                    Float3 color{};
-                    float totalWeight = 0.0f;
-                    for (uint32_t sampleIndex = 0; sampleIndex < kSampleCount; ++sampleIndex) {
-                        const Float2 xi = Hammersley(sampleIndex, kSampleCount);
-                        const Float3 halfVector = ImportanceSampleGGX(xi, normal, (std::max)(roughness, 0.04f));
-                        const Float3 light = Normalize(halfVector * (2.0f * Dot(view, halfVector)) - view);
-                        const float nDotL = Saturate(Dot(normal, light));
-                        if (nDotL > 0.0f) {
-                            color = color + SampleProceduralPbrEnvironment(light, roughness * 7.0f) * nDotL;
-                            totalWeight += nDotL;
+        for (size_t mip = 0; mip < kMipLevels; ++mip) {
+            const float roughness = static_cast<float>(mip) / static_cast<float>(kMipLevels - 1);
+            for (size_t face = 0; face < 6; ++face) {
+                const DirectX::Image* imageData = image.GetImage(mip, face, 0);
+                assert(imageData != nullptr);
+                for (size_t y = 0; y < imageData->height; ++y) {
+                    for (size_t x = 0; x < imageData->width; ++x) {
+                        const Float3 reflection = TexelDirectionForCubeFace(
+                            face, x, y, imageData->width, imageData->height);
+                        const Float3 normal = reflection;
+                        const Float3 view = reflection;
+                        Float3 color{};
+                        float totalWeight = 0.0f;
+                        for (uint32_t sampleIndex = 0; sampleIndex < kSampleCount; ++sampleIndex) {
+                            const Float2 xi = Hammersley(sampleIndex, kSampleCount);
+                            const Float3 halfVector = ImportanceSampleGGX(xi, normal, (std::max)(roughness, 0.04f));
+                            const Float3 light = Normalize(halfVector * (2.0f * Dot(view, halfVector)) - view);
+                            const float nDotL = Saturate(Dot(normal, light));
+                            if (nDotL > 0.0f) {
+                                color = color + SampleProceduralPbrEnvironment(light, roughness * 7.0f) * nDotL;
+                                totalWeight += nDotL;
+                            }
                         }
-                    }
 
-                    if (totalWeight > 0.00001f) {
-                        color = color / totalWeight;
+                        if (totalWeight > 0.00001f) {
+                            color = color / totalWeight;
+                        }
+                        StoreFloatCubePixel(imageData, x, y, color);
                     }
-                    StoreFloatCubePixel(imageData, x, y, color);
                 }
             }
         }
+
+        GeneratedTextureCache::Store(L"prefiltered-environment", image);
     }
 
     TextureData& textureData = textureDatas[textureKey];

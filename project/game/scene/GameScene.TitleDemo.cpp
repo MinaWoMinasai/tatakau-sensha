@@ -256,26 +256,40 @@ void GameScene::VerifyTitleDemoTransition(float dt) {
         {"hp", player_->GetHp()}, {"maxHp", player_->GetMaxHp()}, {"level", player_->GetLevel()},
         {"class", player_->GetCurrentClassName()}, {"bullets", bulletManager_->GetBulletCount()}};
     bool buildsValid = false, allStagesShoot = false, activeSynergiesObserved = false, projectileGrowthObserved = false;
+    bool singleProjectilePerBarrel = false, noSplitInDemoBuilds = false;
     if (report.contains("stageSamples") && report["stageSamples"].is_array() && report["stageSamples"].size() == 4) {
         const auto& samples = report["stageSamples"];
         const auto& early = samples[0]["build"]; const auto& late = samples[2]["build"]; const auto& boss = samples[3]["build"];
-        buildsValid = early.value("cards", -1) == 0 && early.value("barrels", 0) == 1 &&
-            early.value("projectilesPerBarrel", 0) == 1 && !early.value("reflects", true) &&
+        // The current game has one shot per barrel; this showcase gains barrels
+        // through evolution and changes projectile behavior through its cards.
+        // None of its fixed loadouts contains the retired split/multishot card.
+        singleProjectilePerBarrel = std::all_of(samples.begin(), samples.end(), [](const auto& sample) {
+            return sample["build"].value("projectilesPerBarrel", 0) == 1;
+        });
+        noSplitInDemoBuilds = std::all_of(samples.begin(), samples.end(), [](const auto& sample) {
+            return sample["build"].value("impactSplitCount", -1) == 0 &&
+                sample.value("splitChildrenObserved", uint64_t{1}) == 0;
+        });
+        buildsValid = singleProjectilePerBarrel && noSplitInDemoBuilds &&
+            early.value("cards", -1) == 0 && early.value("barrels", 0) == 1 && !early.value("reflects", true) &&
             !early.value("homing", true) && !early.value("dashBurst", true) &&
-            late.value("cards", 0) == 5 && late.value("barrels", 0) * late.value("projectilesPerBarrel", 0) >= 9 &&
+            late.value("cards", 0) == 5 && late.value("barrels", 0) > early.value("barrels", 0) &&
             late.value("reflects", false) && late.value("homing", false) && late.value("dashBurst", false) &&
-            late.value("impactSplitCount", 0) >= 2 && late.value("maxWallBounces", 0) >= 4 &&
-            boss.value("cards", 0) == 5 && boss.value("actorPierceCount", 0) >= 1 && boss.value("dashExplosion", false);
+            late.value("maxWallBounces", 0) >= 4 && boss.value("cards", 0) == 5 &&
+            boss.value("barrels", 0) > early.value("barrels", 0) &&
+            boss.value("actorPierceCount", 0) >= 1 && boss.value("dashExplosion", false);
         activeSynergiesObserved = samples[3].value("maxHomingTurnRate", 0.0f) >= 3.0f &&
             samples[3].value("maxDashExplosionsEmitted", 0u) > 0 && samples[3].value("dashes", 0) > 0;
         projectileGrowthObserved = samples[2].value("wallBouncesObserved", uint64_t{0}) > 0 &&
-            samples[2].value("splitChildrenObserved", uint64_t{0}) > 0 &&
+            late.value("barrels", 0) > early.value("barrels", 0) &&
             samples[3].value("actorPiercesObserved", uint64_t{0}) > 0;
         allStagesShoot = std::all_of(samples.begin(), samples.end(), [](const auto& sample) {
             return sample.value("projectileEmissionSamples", 0) > 0;
         });
     }
     report["fixedBuildsValid"] = buildsValid; report["allStagesShoot"] = allStagesShoot;
+    report["singleProjectilePerBarrel"] = singleProjectilePerBarrel;
+    report["noSplitInDemoBuilds"] = noSplitInDemoBuilds;
     report["activeSynergiesObserved"] = activeSynergiesObserved;
     report["projectileGrowthObserved"] = projectileGrowthObserved;
     const bool completed = fresh && report.value("stagesVisited", 0) == 15 && report.value("capturedStages", 0) == 15 &&

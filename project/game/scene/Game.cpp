@@ -7,6 +7,7 @@
 #include "Audio.h"
 #include "TextRenderer.h"
 #include "RuntimeProfiler.h"
+#include "StartupTrace.h"
 #include <chrono>
 #include <string>
 #include <thread>
@@ -208,6 +209,7 @@ bool Game::ResolveStartupScene()
 }
 
 bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
+    StartupTrace::Scope startupScope("Game.Initialize");
 
     LoadActiveProject(projectOptions);
     if (!ConfigureGameModuleAndSceneFactory()) {
@@ -277,9 +279,11 @@ bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
 }
 
 void Game::InitializeEngine() {
+    StartupTrace::Scope startupScope("Engine.Initialize");
+    const auto timed = [](const char* name, auto&& action) { StartupTrace::Scope scope(name); action(); };
 
     dxCommon_ = std::make_unique<DirectXCommon>();
-    dxCommon_->Initialize(WinApp::GetInstance());
+    timed("Engine.DirectX", [&] { dxCommon_->Initialize(WinApp::GetInstance()); });
     RuntimeProfiler::Get().Initialize(dxCommon_.get());
     char frameLimit[8]{};
     if (GetEnvironmentVariableA("CG2_FRAME_LIMIT", frameLimit, sizeof(frameLimit)) == 1 && frameLimit[0] == '0') {
@@ -290,13 +294,13 @@ void Game::InitializeEngine() {
     srvManager_->Initialize(dxCommon_.get());
     
     shadow_ = std::make_unique<Shadow>();
-    shadow_->Initialize(dxCommon_.get(), srvManager_.get());
+    timed("Engine.Shadow", [&] { shadow_->Initialize(dxCommon_.get(), srvManager_.get()); });
 
     TextureManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
     ModelManager::GetInstance()->Initialize(dxCommon_.get());
 
-    Object3dCommon::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get(), shadow_->GetShadowMap());
-    SpriteCommon::GetInstance()->Initialize(dxCommon_.get());
+    timed("Engine.Object3d", [&] { Object3dCommon::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get(), shadow_->GetShadowMap()); });
+    timed("Engine.Sprite", [&] { SpriteCommon::GetInstance()->Initialize(dxCommon_.get()); });
 
     Input::GetInstance()->Initialize(
         WinApp::GetInstance()->GetWindowClass(),
@@ -305,6 +309,7 @@ void Game::InitializeEngine() {
 }
 
 void Game::InitializeImGui() {
+    StartupTrace::Scope startupScope("Engine.ImGui");
 
 
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
@@ -373,9 +378,12 @@ void Game::MainLoop() {
     };
     // Hidden deterministic verification must not pause when the user switches
     // applications. Ordinary interactive play still suspends on lost focus.
-    const bool backgroundValidation = testEnabled("CG2_TITLE_AUTOTEST") ||
+    const bool startupValidation = testEnabled("CG2_STARTUP_AUTOTEST");
+    const bool backgroundValidation = startupValidation || testEnabled("CG2_TITLE_AUTOTEST") ||
         testEnabled("CG2_TANK_TUTORIAL_AUTOTEST") || testEnabled("CG2_TANK_AUTOTEST") || testEnabled("CG2_TANK_MAP_AUTOTEST");
     MSG msg{};
+    std::string lastPresentedScene;
+    unsigned startupValidationFrames = 0;
     while (msg.message != WM_QUIT) {
 		const auto frameStart = std::chrono::steady_clock::now();
 		auto elapsedMs = [](auto start, auto end) {
@@ -557,6 +565,16 @@ void Game::MainLoop() {
 
 		const auto postDrawStart = std::chrono::steady_clock::now();
         dxCommon_->PostDraw();
+
+        const auto& presentedScene = SceneManager::GetInstance()->GetCurrentSceneName();
+        if (lastPresentedScene != presentedScene) {
+            StartupTrace::Mark("first_frame." + presentedScene);
+            StartupTrace::Flush();
+            lastPresentedScene = presentedScene;
+        }
+        if (startupValidation && presentedScene == "TANK_EXPEDITION" && ++startupValidationFrames >= 3) {
+            PostQuitMessage(0);
+        }
 		renderProfile.postDrawMs = elapsedMs(postDrawStart, std::chrono::steady_clock::now());
 		const auto& submit = dxCommon_->GetFrameSubmitProfile();
 		renderProfile.submitCloseMs = submit.closeMs;

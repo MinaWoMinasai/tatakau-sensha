@@ -1,5 +1,6 @@
 #include "SceneManager.h"
 #include "LogWrite.h"
+#include "StartupTrace.h"
 
 #include <utility>
 
@@ -48,6 +49,7 @@ std::vector<std::string> SceneManager::GetRegisteredSceneNames() const
 }
 
 bool SceneManager::Initialize(const std::string& firstSceneName) {
+    StartupTrace::Scope startupScope("Scene.Initialize." + firstSceneName);
 
     if (!sceneFactory_) {
         LogWrite().Log(
@@ -104,11 +106,20 @@ void SceneManager::Update() {
             std::unique_ptr<IScene> nextScene = sceneFactory_->CreateScene(nextSceneName);
 
             if (nextScene) {
-                currentScene_ = std::move(nextScene);
+                StartupTrace::Mark("transition.begin." + currentSceneName_ + "." + nextSceneName);
+                {
+                    StartupTrace::Scope scope("Scene.DestroyPrevious." + currentSceneName_);
+                    currentScene_ = std::move(nextScene);
+                }
                 currentSceneName_ = nextSceneName;
                 failedTransitionFromSceneName_.clear();
                 failedTransitionToSceneName_.clear();
-                currentScene_->Initialize();
+                {
+                    StartupTrace::Scope scope("Scene.Initialize." + nextSceneName);
+                    currentScene_->Initialize();
+                }
+                StartupTrace::Mark("transition.initialized." + nextSceneName);
+                StartupTrace::Flush();
             } else {
                 failedTransitionFromSceneName_ = currentSceneName_;
                 failedTransitionToSceneName_ = nextSceneName;

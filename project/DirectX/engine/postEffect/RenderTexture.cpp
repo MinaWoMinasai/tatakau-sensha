@@ -1,4 +1,5 @@
 #include "RenderTexture.h"
+#include "StartupTrace.h"
 
 RenderTexture::~RenderTexture()
 {
@@ -25,9 +26,18 @@ void RenderTexture::Initialize(
     bool createDepth,
     DXGI_FORMAT colorFormat
 ) {
+    StartupTrace::Scope startupScope("RenderTexture.Initialize");
+    StartupTrace::Count("render_texture.created");
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
     rtvManager_ = rtvManager;
+
+    // Empty render targets have no upload work. Start in the state expected by
+    // BeginRender instead of submitting and waiting for a one-off transition.
+    // Keep the original path available for like-for-like startup measurements.
+    char cacheSetting[8]{};
+    const DWORD cacheLength = GetEnvironmentVariableA("CG2_STARTUP_CACHE", cacheSetting, sizeof(cacheSetting));
+    const bool directInitialState = cacheLength != 1 || cacheSetting[0] != '0';
 
     // RenderTarget用テクスチャ作成
     D3D12_CLEAR_VALUE clearValue{};
@@ -42,7 +52,8 @@ void RenderTexture::Initialize(
         height,
         colorFormat,
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
-        &clearValue
+        &clearValue,
+        directInitialState ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_RENDER_TARGET
     );
 
     // RTV（← ここが RtvManager）
@@ -86,7 +97,7 @@ void RenderTexture::Initialize(
 
         HRESULT hr = dxCommon->GetDevice()->CreateCommittedResource(
             &heapProps, D3D12_HEAP_FLAG_NONE, &depthDesc,
-            D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue,
+            directInitialState ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue,
             IID_PPV_ARGS(&depthResource_)
         );
         assert(SUCCEEDED(hr));
@@ -101,6 +112,11 @@ void RenderTexture::Initialize(
 
         depthSrvIndex_ = srvManager_->Allocate();
         srvManager_->CreateSRVforShadowMap(depthSrvIndex_, depthResource_.Get());
+    }
+
+    if (directInitialState) {
+        StartupTrace::Count("render_texture.initial_wait_avoided");
+        return;
     }
 
     // --- ここを追加 ---
@@ -128,6 +144,7 @@ void RenderTexture::Initialize(
     // このコマンドを即座に実行するか、あるいはコマンドリストを Close/Execute する仕組みが必要です
     // TextureManager などと同様に、初期化用のコマンドリスト実行を呼んでください
     dxCommon_->ExecuteCommandListAndWait();
+    StartupTrace::Count("render_texture.initial_wait");
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE RenderTexture::GetGPUHandle()

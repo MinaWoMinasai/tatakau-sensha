@@ -56,6 +56,7 @@ public:
     bool IsAcquireAnimating()const{return acquireTime_>=0.0f&&acquireTime_<0.62f;}
 private:
     static constexpr std::size_t kSolidCapacity=420,kGlowCapacity=80,kLabelCount=8;
+    void EnsureSprite(std::unique_ptr<Sprite>& sprite,const char* texture);
     void RefreshText();
     void BuildFrame();
     void BuildDemo();

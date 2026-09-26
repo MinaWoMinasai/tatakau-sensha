@@ -739,6 +739,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   <ItemGroup>
     <ClCompile Include="DirectX\engine\commom\RuntimeProfiler.cpp" />
     <ClInclude Include="DirectX\engine\commom\RuntimeProfiler.h" />
+    <ClInclude Include="DirectX\engine\commom\StartupTrace.h" />
+    <ClInclude Include="DirectX\engine\commom\ShaderDiskCache.h" />
+    <ClInclude Include="DirectX\engine\2d\GeneratedTextureCache.h" />
     <ClInclude Include="DirectX\engine\commom\FramePacer.h" />
     <ClInclude Include="DirectX\engine\commom\TrailStressFixture.h" />
   </ItemGroup>  <ItemGroup>

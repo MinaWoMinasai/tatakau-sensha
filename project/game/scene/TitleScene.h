@@ -46,7 +46,7 @@ private:
     std::unique_ptr<NeonTextEffect> titleTextNeonEffect_;
     Phase phase_=Phase::kFadeIn;
     std::string nextSceneName_;
-    bool finished_=false,demoFrozen_=false,autoTest_=false;
+    bool finished_=false,demoFrozen_=false,autoTest_=false,startupAutoTest_=false;
     uint32_t capturedStages_=0;
     float frozenAt_=0,blinkTimer_=0;
     int menuSelection_=0;
