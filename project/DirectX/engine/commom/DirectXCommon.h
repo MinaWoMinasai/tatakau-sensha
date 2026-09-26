@@ -327,7 +327,8 @@ public:
 		uint32_t height,
 		DXGI_FORMAT format,
 		D3D12_RESOURCE_FLAGS flags,
-		const D3D12_CLEAR_VALUE* clearValue
+		const D3D12_CLEAR_VALUE* clearValue,
+		D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_RENDER_TARGET
 	);
 
 	void SetRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);

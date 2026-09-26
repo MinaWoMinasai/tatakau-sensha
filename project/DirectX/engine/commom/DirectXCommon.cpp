@@ -2,6 +2,8 @@
 
 #include <cassert>
 #include "Bloom.h"
+#include "ShaderDiskCache.h"
+#include "StartupTrace.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -12,13 +14,14 @@ using namespace Microsoft::WRL;
 
 void DirectXCommon::Initialize(WinApp* winApp)
 {
+	StartupTrace::Scope startupScope("DirectXCommon.Initialize");
 	assert(winApp);
 	winApp_ = winApp;
 
 	// FPS固定初期化
 	InitializeFixFPS();
 
-	InitializeDevice();
+	{ StartupTrace::Scope scope("DirectXCommon.Device"); InitializeDevice(); }
 	InititalizeCommand();
 	CreateSwapChain();
 	CreateDepthBuffer();
@@ -31,7 +34,7 @@ void DirectXCommon::Initialize(WinApp* winApp)
 	CreateDXCCompiler();
 	InitializeImGui();
 
-	CreateShader();
+	{ StartupTrace::Scope scope("DirectXCommon.AllPipelines"); CreateShader(); }
 }
 
 void DirectXCommon::PreDraw()
@@ -191,9 +194,15 @@ void DirectXCommon::CreateShaderCommon(
 		break;
 	default: assert(false); break;
 	}
+	const std::string pipelineName = std::filesystem::path(
+		pso.psFilePath_.empty() ? pso.vsFilePath_ : pso.psFilePath_).filename().string()
+		+ "/format=" + std::to_string(renderTargetFormat) + "/blend=" + std::to_string(blendMode)
+		+ (doubleSided ? "/doubleSided" : "");
+	StartupTrace::Scope pipelineScope("Pipeline.Prepare/" + pipelineName);
+	StartupTrace::Count("pipeline.graphics.created");
 
 	// 2. ルートシグネチャ生成
-	pso.root_.Create(device_);
+	{ StartupTrace::Scope scope("Pipeline.RootSignature"); pso.root_.Create(device_); }
 
 	// 3. シェーダーコンパイル
 	pso.vertexShaderBlob_ = CompileShader(pso.vsFilePath_, L"vs_6_0");
@@ -367,12 +376,16 @@ void DirectXCommon::CreateShaderCommon(
 	pso.graphicsDesc_.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
 	// 7. PSO生成
+	StartupTrace::Scope createScope("Pipeline.DriverGraphics/" + pipelineName);
 	HRESULT hr = device_->CreateGraphicsPipelineState(&pso.graphicsDesc_, IID_PPV_ARGS(&pso.graphicsState_));
 	assert(SUCCEEDED(hr));
 }
 
 void DirectXCommon::CreateComputeShaderCommon(PSO& pso, const std::wstring& shaderPath)
 {
+	const std::string pipelineName = std::filesystem::path(shaderPath).filename().string();
+	StartupTrace::Scope pipelineScope("Pipeline.Prepare/" + pipelineName);
+	StartupTrace::Count("pipeline.compute.created");
 	pso.root_.InitializeForComputeParticle();
 	pso.root_.Create(device_);
 	pso.computeShaderBlob_ = CompileShader(shaderPath, L"cs_6_0");
@@ -385,6 +398,7 @@ void DirectXCommon::CreateComputeShaderCommon(PSO& pso, const std::wstring& shad
 		pso.computeShaderBlob_->GetBufferSize()
 	};
 
+	StartupTrace::Scope createScope("Pipeline.DriverCompute/" + pipelineName);
 	HRESULT hr = device_->CreateComputePipelineState(&pso.computeDesc_, IID_PPV_ARGS(&pso.computeState_));
 	assert(SUCCEEDED(hr));
 }
@@ -913,64 +927,84 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 	const std::wstring cacheKey = filePath + L"|" + profile;
 	const auto cached = shaderCache_.find(cacheKey);
 	if (cached != shaderCache_.end() && cached->second) {
+		StartupTrace::Count("shader.memoryHit");
 		cached->second->AddRef();
 		return cached->second.Get();
 	}
 
-	// hlslファイルを読む
-	IDxcBlobEncoding* shaderSource = nullptr;
+	const auto shaderNameUtf8 = std::filesystem::path(filePath).filename().u8string();
+	const std::string shaderName(reinterpret_cast<const char*>(shaderNameUtf8.data()), shaderNameUtf8.size());
+	Microsoft::WRL::ComPtr<IDxcBlobEncoding> shaderSource;
 	HRESULT hr = dxcUtils_->LoadFile(filePath.c_str(), nullptr, &shaderSource);
-	// 読めなかったら止める
-	assert(SUCCEEDED(hr));
-	// 読み込んだファイルの内容を設定する
-	DxcBuffer shaderSourceBuffer;
+	if (FAILED(hr) || !shaderSource) {
+		OutputDebugStringW((L"Shader source could not be read: " + filePath + L"\n").c_str());
+		assert(false);
+		return nullptr;
+	}
+	DxcBuffer shaderSourceBuffer{};
 	shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
 	shaderSourceBuffer.Size = shaderSource->GetBufferSize();
-	shaderSourceBuffer.Encoding = DXC_CP_UTF8; // UTF8の文字コードであることを確認
+	shaderSourceBuffer.Encoding = DXC_CP_UTF8;
 
 	LPCWSTR arguments[] = {
-		filePath.c_str(), // コンパイル対象のhlslファイル名
-		L"-E", L"main", // エントリーポイントの指定。基本的にmain以外にはしない
-		L"-T",profile, // ShaderProfileの設定
+		filePath.c_str(),
+		L"-E", L"main",
+		L"-T", profile,
 #ifdef _DEBUG
-		L"-Zi", L"-Qembed_debug", // デバッグ陽男情報を埋め込む
-		L"-Od", // 最適化を外しておく
+		L"-Zi", L"-Qembed_debug",
+		L"-Od",
 #else
 		L"-O3",
 #endif
-		L"-Zpr" // メモリレイアウトは行優先
+		L"-Zpr"
 	};
-	// 実際にShaderをコンパイルする
-	IDxcResult* shaderResult = nullptr;
-	hr = dxcCompiler_->Compile(
-		&shaderSourceBuffer, // 読み込んだファイル
-		arguments, // コンパイルオプション
-		_countof(arguments), // コンパイルオプションの数
-		includeHandler_, // includeが含まれた諸々
-		IID_PPV_ARGS(&shaderResult) // コンパイル結果
-	);
-	// コンパイルエラーではなく dxcが起動できないなど致命的な状況
-	assert(SUCCEEDED(hr));
 
-	// 警告・エラーが出てたらログに出して止める
-	IDxcBlobUtf8* shaderError = nullptr;
-	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
-	if (shaderError != nullptr && shaderError->GetStringLength() != 0) {
-		// 警告・エラーダメ絶対
-		assert(false);
+	static ShaderDiskCache diskCache;
+	std::string diskKey;
+	if (ShaderDiskCache::Enabled()) {
+		StartupTrace::Scope cacheScope("ShaderCache::" + shaderName);
+		diskKey = diskCache.MakeKey(filePath, shaderSourceBuffer.Ptr, shaderSourceBuffer.Size,
+			arguments, _countof(arguments));
+		auto diskBlob = diskCache.Load(diskKey, includeHandler_, dxcUtils_);
+		if (diskBlob) {
+			StartupTrace::Count("shader.diskHit");
+			shaderCache_[cacheKey] = diskBlob;
+			return diskBlob.Detach();
+		}
+		StartupTrace::Count("shader.diskMiss");
 	}
 
-	// コンパイル結果から実行用にバイナリ部分を取得
-	IDxcBlob* shaderBlob = nullptr;
+	Microsoft::WRL::ComPtr<ShaderDiskCache::IncludeRecorder> includes;
+	if (!diskKey.empty()) includes.Attach(new ShaderDiskCache::IncludeRecorder(includeHandler_));
+	Microsoft::WRL::ComPtr<IDxcResult> shaderResult;
+	{
+		StartupTrace::Scope compileScope("CompileShader::" + shaderName);
+		StartupTrace::Count("shader.compile");
+		hr = dxcCompiler_->Compile(&shaderSourceBuffer, arguments, _countof(arguments),
+			includes ? includes.Get() : includeHandler_, IID_PPV_ARGS(&shaderResult));
+	}
+	if (FAILED(hr) || !shaderResult) {
+		assert(false);
+		return nullptr;
+	}
+	Microsoft::WRL::ComPtr<IDxcBlobUtf8> shaderError;
+	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
+	if (shaderError && shaderError->GetStringLength() != 0) {
+		OutputDebugStringA(shaderError->GetStringPointer());
+		assert(false);
+	}
+	HRESULT compileStatus = E_FAIL;
+	shaderResult->GetStatus(&compileStatus);
+	if (FAILED(compileStatus)) return nullptr;
+	Microsoft::WRL::ComPtr<IDxcBlob> shaderBlob;
 	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
-	assert(SUCCEEDED(hr));
-
-	// もう使わないリソース
-	shaderSource->Release();
-	shaderResult->Release();
+	if (FAILED(hr) || !shaderBlob) {
+		assert(false);
+		return nullptr;
+	}
+	if (includes) diskCache.Store(diskKey, *includes.Get(), shaderBlob.Get());
 	shaderCache_[cacheKey] = shaderBlob;
-	// 実行用のバイナリを返却
-	return shaderBlob;
+	return shaderBlob.Detach();
 }
 
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible)
@@ -988,7 +1022,7 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap
 	return descriptorHeap;
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, const D3D12_CLEAR_VALUE* clearValue)
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, const D3D12_CLEAR_VALUE* clearValue, D3D12_RESOURCE_STATES initialState)
 {
 	D3D12_RESOURCE_DESC desc{};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -1009,7 +1043,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(uint
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		initialState,
 		clearValue,
 		IID_PPV_ARGS(&resource)
 	);

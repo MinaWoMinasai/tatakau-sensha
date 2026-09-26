@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "StartupTrace.h"
 
 bool GameScene::IsExpeditionBuildCardScreen() const {
     if(!expeditionMapEnabled_||tankRunPaused_||expeditionMapPreview_) return false;
@@ -8,6 +9,7 @@ bool GameScene::IsExpeditionBuildCardScreen() const {
 }
 
 void GameScene::InitializeExpeditionBuildCards() {
+    StartupTrace::Scope scope("Expedition.BuildCards");
     for(auto& card:expeditionRewardCards_) {
         card=std::make_unique<TankRewardCard>();card->Initialize(SpriteCommon::GetInstance());
         card->InitializePreview(Object3dCommon::GetInstance()->GetSrvManager());

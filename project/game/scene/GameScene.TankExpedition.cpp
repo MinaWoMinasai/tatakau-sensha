@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "StartupTrace.h"
 #include "game/run/TankRunCopy.h"
 #include "game/run/TankExpeditionEncounters.h"
 #include <fstream>
@@ -30,6 +31,7 @@ const char* TutorialSettingsPath() { return "resources/configs/expedition_user.j
 }
 
 void GameScene::InitializeTankExpedition() {
+    StartupTrace::Scope scope("Expedition.Initialize");
     player_->SetRunCheckpointEvolution(true);
     enemy_->SetRunEncounterEnabled(false);
     enemyManager_->ClearRunActors();

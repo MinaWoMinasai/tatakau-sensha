@@ -1,4 +1,5 @@
 #include "TextRenderer.h"
+#include "StartupTrace.h"
 #include <Windows.h>
 #include <gdiplus.h>
 #include <algorithm>
@@ -198,6 +199,8 @@ std::string TextRenderer::BuildCachePath(const std::string& utf8Text, const Text
 
 bool TextRenderer::SaveTextPng(const std::wstring& text, const TextStyle& style, const std::string& path)
 {
+	StartupTrace::Scope startupScope("Text.GeneratePng");
+	StartupTrace::Count("Text.GeneratedPng");
 	std::filesystem::create_directories(std::filesystem::path(path).parent_path());
 
 	const std::wstring fontName = Utf8ToWide(style.fontFamily);

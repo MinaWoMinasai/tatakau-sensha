@@ -1,6 +1,7 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include "Game.h"
 #include "LogWrite.h"
+#include "StartupTrace.h"
 
 #include <shellapi.h>
 
@@ -46,6 +47,8 @@ std::vector<std::string> GetUtf8CommandLineArguments()
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
+    StartupTrace::Mark("process.entry");
+
     D3DResouceLeakCheaker leakCheck;
 
     const GameProjectCommandLineOptions projectOptions =
@@ -53,11 +56,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     Game game;
     if (!game.Initialize(projectOptions)) {
+        StartupTrace::Mark("initialization.failed");
+        StartupTrace::Flush();
         return -1;
     }
 
+    StartupTrace::Mark("initialization.ready");
+    StartupTrace::Flush();
+
     game.Run();
     game.Finalize();
+    StartupTrace::Mark("process.finalized");
+    StartupTrace::Flush();
 
     return 0;
 }
