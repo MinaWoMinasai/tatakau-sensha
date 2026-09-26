@@ -9,6 +9,7 @@
 #include "Sprite.h"
 #include "AttackController.h"
 #include "PrototypeBossCombat.h"
+#include "RivalBossCombat.h"
 
 class Player;
 class Stage;
@@ -186,6 +187,7 @@ public:
 	int GetMaxHp() const { return maxHP_; }
 	void UpdateDefeatPresentation(float deltaTime);
 	void TakeDamage(uint32_t amount);
+	void ApplyKnockback(const Vector3& direction, float power);
 	void SetBossAttackConfig(const BossAttackConfig& config);
 	const BossAttackConfig& GetBossAttackConfig() const { return bossAttackConfig_; }
 	void SetEnemyProgressConfig(const EnemyProgressConfig& config);
@@ -216,6 +218,23 @@ public:
 	bool IsRunEncounterEnabled() const { return runEncounterEnabled_; }
 	// Call after Initialize, outside actor updates/collision callbacks.
 	void ResetRunEncounter(const Vector3& position, int hp, int pressure, bool resourceFocus);
+	struct RivalCombatStatus {
+		bool enabled = false;
+		bool phase2 = false;
+		RivalBossCombat::Phase phase = RivalBossCombat::Phase::Reposition;
+		RivalBossCombat::Pattern pattern = RivalBossCombat::Pattern::AimedBurst;
+		float progress = 0.0f;
+		int ammo = 0;
+		int capacity = 0;
+		unsigned shotsFired = 0, dashCount = 0, reloadCount = 0;
+		Vector3 direction{ 1.0f, 0.0f, 0.0f };
+		Vector3 dashDirection{ 0.0f, 1.0f, 0.0f };
+		float dashDistance = 0.0f;
+	};
+	// Opt in after ResetRunEncounter. Arena and the title demo retain their AI.
+	void EnableExpeditionRival(bool enabled);
+	bool IsExpeditionRivalEnabled() const { return expeditionRivalEnabled_; }
+	RivalCombatStatus GetRivalCombatStatus() const;
 
 	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
 		bulletManager_ = bulletManager;
@@ -245,6 +264,9 @@ private:
 	Vector3 ResolveMoveTargetPosition();
 	void RotateTowardTarget(const Vector3& targetPos, float deltaTime);
 	void UpdatePrototypeCombat(float deltaTime);
+	void UpdateRivalCombat(float deltaTime);
+	void SelectRivalDashDirection(const Vector3& towardPlayer);
+	Vector3 ResolveRivalMove(const Vector3& desired, const Vector3& towardPlayer, float deltaTime);
 	void HealFromFeeding(int amount);
 	void AdvanceFeedingLevel();
 
@@ -310,6 +332,13 @@ private:
 	bool prototypeResourceFocus_ = false;
 	bool prototypeResourceTargetActive_ = false;
 	PrototypeBossCombat prototypeCombat_{};
+	bool expeditionRivalEnabled_ = false;
+	RivalBossCombat rivalCombat_{};
+	Vector3 rivalDashDirection_{ 0.0f, 1.0f, 0.0f };
+	Vector3 rivalPathDirection_{};
+	float rivalPathTimer_ = 0.0f;
+	float rivalDashDistance_ = 0.0f;
+	float rivalStrafeSign_ = 1.0f;
 	int prototypePressure_ = 0;
 	int prototypeBaseMaxHp_ = 200;
 	int prototypeFeedingHealBudget_ = 100;
@@ -321,6 +350,7 @@ private:
 	Vector3 currentMoveTargetPosition_{ 0.0f, 0.0f, 0.0f };
 	
 	Vector3 velocity_{ 0, 0, 0 };
+	Vector3 impactVelocity_{};
 
 	float maxSpeed_ = 0.06f;
 	float accel_ = 0.008f;

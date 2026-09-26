@@ -75,6 +75,11 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 	if (!(canA || canB))
 		return;
 
+	// A successful early-dash body hit replaces both contact callbacks. The
+	// player owns the per-dash target ledger, preventing repeated overlap damage.
+	if (auto* player = dynamic_cast<Player*>(colliderA); player && player->TryDashImpact(colliderB)) return;
+	if (auto* player = dynamic_cast<Player*>(colliderB); player && player->TryDashImpact(colliderA)) return;
+
 	colliderA->OnCollision(colliderB);
 	colliderB->OnCollision(colliderA);
 }

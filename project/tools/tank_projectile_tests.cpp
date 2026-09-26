@@ -11,7 +11,12 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
+#include "../game/player/TankRunModifiers.h"
+#include "../game/player/TankExpeditionLoadout.h"
+#include "../game/player/TankCombatStyleBalance.h"
+#include "../game/run/TankBuildStyle.h"
 
 struct Vector3 {
     float x=0,y=0,z=0;
@@ -92,11 +97,92 @@ struct TestActor : Collider {
     void OnCollision(Collider* other) override { damageReceived+=other->GetDamage(); ++hits; }
     Vector3 GetWorldPosition() const override { return position; }
 };
-class PlayerDrone : public TestActor {};
+struct TestInput {
+    struct Mouse { unsigned char rgbButtons[3]{}; } mouse;
+    const Mouse& GetMouseState() const {return mouse;}
+    bool IsPress(unsigned char value) const {return value!=0;}
+};
+class PlayerDrone : public TestActor {
+public:
+    void Initialize(Vector3 start,Vector3) {position=start;}
+    void SetAttackControllerBulletManager(BulletManager* manager) {runBulletManager_=manager;attackController_.SetBulletManager(manager);}
+    void SetRunInput(Vector3 target,bool shoot) {runInputOverride_=true;runWantsAttack_=shoot;dir=Length(target-position)>.001f?Normalize(target-position):Vector3{1,0,0};}
+    void ConfigureRunAttack(const AttackParam&,float);
+    float followSpeed=.25f,catchupSpeed=.62f,followResponse=5;
+    void SetRunFollowTuning(float speed,float catchup,float response) {followSpeed=speed;catchupSpeed=catchup;followResponse=response;}
+    void Attack(float);
+    bool runAttackEnabled_=false,runRallyShotPending_=false,runInputOverride_=false,runWantsAttack_=false;
+    AttackParam runAttackParam_{};
+    float runReloadSeconds_=.5f,runShotCooldown_=0;
+    BulletManager* runBulletManager_=nullptr;
+    AttackController attackController_;
+    TestInput input;
+    TestInput* input_=&input;
+    Vector3 dir{1,0,0};
+    int bulletCoolTime=0;
+    static constexpr int kBulletTime=30;
+};
+enum class WeaponType {Projectile};
+struct RunEvolutionChoice {std::string id,name,description;};
 class Player : public TestActor {
 public:
     Player() { position={-100,-100,0}; SetCollisionAttribute(kCollisionAttributePlayer); SetCollisionMask(kCollisionAttributeEnemyBullet); }
     std::vector<PlayerDrone*> GetDronePtrs() { return {}; }
+    bool TryDashImpact(Collider*) { return false; } // Body-slam production path covered by collision suite.
+    void ApplyRunProjectileRules(AttackParam&,bool=true) const;
+    struct Mount {bool fires=true;WeaponType weaponType=WeaponType::Projectile;float angleDeg=0,damageScale=1,reloadScale=1,projectileSpeedScale=1;Vector3 offset;};
+    struct PlayerClassConfig {
+        bool reflect=false,penetrate=false,usesDrone=false,randomSpread=false;
+        int maxDrones=0,bulletCount=1;
+        float bulletSpeedScale=1,bulletDamageScale=1,reloadScale=1,spreadAngleDeg=0;
+        std::string id="Basic",displayName="Basic";
+        std::vector<Mount> barrels{Mount{}};
+    } authoredConfig,runStarterConfig_,runEvolutionConfig_;
+    const PlayerClassConfig* GetClassConfig(const std::string& id) const {return id=="Basic"?&authoredConfig:nullptr;}
+    const PlayerClassConfig* GetCurrentClassConfig() const { return runEvolutionActive_?&runEvolutionConfig_:expeditionCombatStyleSelected_?&runStarterConfig_:&authoredConfig; }
+    bool IsDroneBuild() const {return runModifiers_.enabled&&expeditionCombatStyleSelected_&&expeditionCombatStyle_==tankbuild::Style::Drone;}
+    bool SetExpeditionCombatStyle(tankbuild::Style);
+    int GetExpeditionDroneLimit() const;
+    void EnsureExpeditionDrones();
+    void ConfigureRunDrone(PlayerDrone&) const;
+    float GetRunFireIntervalScale() const;
+    float GetRunBaseReloadFrames() const;
+    void ApplyCombatStyleBalance(const TankCombatStyleBalances&);
+    void SetRunModifiers(const TankRunModifiers&);
+    void SetRunCurrencyMode(bool enabled) {if(!enabled)runCurrencyEarned_=0;}
+    float upgradeHudListVisibility_=0,runOverdriveCooldown_=0;
+    bool upgradeHudMouseCaptured_=false,runRoomAwaitInputRelease_=false,runDashBurstPending_=false,runCheckpointEvolution_=false;
+    std::vector<Vector3> runHomingTargets_;
+    TankCombatStyleBalances combatStyleBalances_=DefaultTankCombatStyleBalances();
+    const TankCombatStyleProfile& GetCombatStyleProfile(tankbuild::Style style) const {return combatStyleBalances_[static_cast<size_t>(style)];}
+    std::vector<RunEvolutionChoice> GetRunAuthoredEvolutionChoices() const;
+    bool ChooseRunAuthoredClass(const std::string&);
+    std::vector<RunEvolutionChoice> runAuthoredChoices_;
+    std::unordered_map<std::string,tankbuild::Style> runAuthoredStyles_;
+    std::unordered_map<std::string,PlayerClassConfig> runAuthoredClasses_;
+    void RecalculateStatsFromBase(bool);
+    int GetMaxHp() const {return static_cast<int>(stats_.maxHp);}
+    std::array<int,7> upgradeLevels_{};
+    float healthRegenUpgradeRate_=.08f,maxHpUpgradeRate_=.1f,bodyDamageUpgradeRate_=.1f,bulletSpeedUpgradeRate_=.08f;
+    float bulletDamageUpgradeRate_=.1f,reloadUpgradeRate_=.07f,moveSpeedUpgradeRate_=.06f,minReloadSpeed_=3;
+    TankExpeditionMaintenance runMaintenance_;
+    bool isChangeMode=false,evolutionConfirmedEvent_=false;
+    void InitializeBarrels() {}
+    void UpdateBarrelLayout() {}
+    tankbuild::Style expeditionCombatStyle_=tankbuild::Style::Shooter;
+    bool expeditionCombatStyleSelected_=false,isDead_=false,runEvolutionActive_=false,runAuthoredEvolutionActive_=false,runEvolutionPrepared_=false;
+    int dummyObject=1;
+    int* object_=&dummyObject;
+    BulletManager* runBulletManager_=nullptr;
+    float bulletCoolTime=0,meleeComboTimer_=0,runSupportDroneTimer_=0,runOverdriveTimer_=0,runDashAttackTimer_=0;
+    int meleeComboStep_=0,shootBarrelIndex_=0,shootGroupIndex_=0,hp_=73,runCurrencyEarned_=91;
+    struct Stats {float bulletDamage=4,bulletSpeed=.5f,reloadSpeed=30,stamina=3,maxStamina=3,staminaRecovery=.9f,maxHp=120,moveSpeed=.23f,bodyDamage=3;} stats_,baseStats_;
+    std::vector<float> weaponGroupCooldowns_,pendingMeleeSlashes_,pendingLaserShots_,pendingMineDrops_;
+    std::vector<std::unique_ptr<PlayerDrone>> drones_;
+    Vector3 runAimWorld_{20,0,0};
+    TankRunModifiers runModifiers_;
+    TankRunGrowth runGrowth_;
+    bool isBuffActive_=false;
 };
 class Enemy : public TestActor {};
 class ExpEnemy : public TestActor {};
@@ -123,6 +209,131 @@ std::vector<Bullet*> Living(BulletManager& manager) {
 }
 int main() {
     CollisionManager collisions;
+    {
+        Player player;TankRunModifiers mods{};mods.enabled=mods.expedition=true;
+        player.SetRunModifiers(mods);player.hp_=player.GetMaxHp();const int hp=player.hp_;
+        mods.repair=true;player.SetRunModifiers(mods);
+        assert(player.hp_==hp&&player.GetMaxHp()>hp); // Intro editing cannot heal even previously full HP.
+        mods.effectPower[5]=2;player.SetRunModifiers(mods);assert(player.hp_==hp);
+        assert(player.SetExpeditionCombatStyle(tankbuild::Style::Melee));
+        mods.effectPower[5]=5;player.SetRunModifiers(mods);assert(player.hp_==hp&&player.runCurrencyEarned_==91);
+        mods.effectPower[11]=3;mods.overdrive=true;player.SetRunModifiers(mods);player.runOverdriveTimer_=1;
+        assert(Near(player.GetRunFireIntervalScale(),.25f));
+    }
+    // Execute real equipment switching and drone firing logic with graphics
+    // adapters. This catches healing/reset leaks and nonfunctional base styles.
+    {
+        Player player;BulletManager manager;player.runBulletManager_=&manager;
+        auto& mods=player.runModifiers_;mods.enabled=mods.expedition=true;mods.heavy=mods.rapid=true;
+        player.stats_.stamina=1.25f;player.stats_.bulletDamage=5;player.stats_.reloadSpeed=24;
+        assert(!player.SetExpeditionCombatStyle(static_cast<tankbuild::Style>(99)));
+        for(auto style:{tankbuild::Style::Shooter,tankbuild::Style::Drone,tankbuild::Style::Melee}) {
+            assert(player.SetExpeditionCombatStyle(style));
+            assert(player.hp_==73&&player.runCurrencyEarned_==91&&Near(player.stats_.stamina,1.25f));
+            assert(mods.heavy&&mods.rapid);
+            if(style==tankbuild::Style::Drone) {
+                assert(player.drones_.size()==3&&player.GetExpeditionDroneLimit()==3);
+                assert(!player.GetCurrentClassConfig()->barrels.front().fires);
+                auto* first=player.drones_.front().get();
+                assert(first->runAttackParam_.damage==5&&Near(first->runAttackParam_.bulletSpeed,.324f));
+                assert(Near(first->runReloadSeconds_,.4125f));
+                for(auto& drone:player.drones_) {drone->runRallyShotPending_=true;drone->Attack(.5f);}
+                assert(manager.GetBulletCount()==0); // Dash cannot fire without left-click.
+                for(auto& drone:player.drones_) {drone->SetRunInput({20,0,0},true);drone->Attack(.5f);}
+                assert(manager.GetBulletCount()==3); // One shot each, no main-gun volley.
+                assert(player.SetExpeditionCombatStyle(style)&&player.drones_.front().get()==first);
+                mods.droneFocus=mods.droneGuard=true;
+                player.ConfigureRunDrone(*first);
+                assert(first->runAttackParam_.damage==7&&Near(first->runReloadSeconds_,.474375f));
+                assert(first->runAttackParam_.bulletHp==3&&first->runAttackParam_.bulletPenetration==3&&first->runAttackParam_.bulletCount==1);
+                // Evolution authored scaling composes with the owned foundation.
+                player.runEvolutionConfig_=player.runStarterConfig_;player.runEvolutionActive_=true;
+                player.runEvolutionConfig_.bulletDamageScale=1.4f;player.runEvolutionConfig_.reloadScale=1.2f;
+                player.runEvolutionConfig_.maxDrones=2;player.ConfigureRunDrone(*first);player.EnsureExpeditionDrones();
+                assert(player.drones_.size()==2&&first->runAttackParam_.damage==10&&Near(first->runReloadSeconds_,.56925f));
+                mods.drones=true;player.EnsureExpeditionDrones();assert(player.drones_.size()==4);
+                player.runEvolutionConfig_.maxDrones=50;player.EnsureExpeditionDrones();assert(player.drones_.size()==12);
+            } else assert(player.drones_.empty());
+        }
+        mods.enabled=false;
+        assert(!player.SetExpeditionCombatStyle(tankbuild::Style::Drone));
+    }
+    {
+        Player player;BulletManager manager;player.runBulletManager_=&manager;
+        auto& mods=player.runModifiers_;mods.enabled=mods.expedition=mods.heavy=mods.rapid=true;
+        assert(player.SetExpeditionCombatStyle(tankbuild::Style::Drone));
+        player.runEvolutionConfig_=player.runStarterConfig_;player.runEvolutionActive_=player.runAuthoredEvolutionActive_=true;
+        player.runEvolutionConfig_.id="evolved";player.runEvolutionConfig_.maxDrones=2;
+        player.runEvolutionConfig_.bulletDamageScale=1.4f;player.runEvolutionConfig_.reloadScale=1.2f;
+        player.stats_.stamina=1.25f;
+        auto profiles=DefaultTankCombatStyleBalances();auto& p=profiles[1];
+        p.maxHp=175;p.maxStamina=5;p.attackDamage=11;p.attackIntervalSeconds=.8f;p.droneCount=9;
+        p.moveSpeed=.4f;p.bulletSpeed=.65f;p.droneFollowSpeed=.8f;p.droneCatchupSpeed=1.5f;p.droneResponse=12;
+        player.ApplyCombatStyleBalance(profiles);
+        assert(player.hp_==73&&player.runCurrencyEarned_==91&&Near(player.stats_.stamina,1.25f)&&player.GetMaxHp()==175);
+        assert(player.runEvolutionConfig_.id=="evolved"&&player.runEvolutionActive_&&mods.heavy&&mods.rapid);
+        assert(player.drones_.size()==8&&Near(player.stats_.moveSpeed,.4f));
+        const auto& drone=*player.drones_.front();
+        assert(drone.runAttackParam_.damage==19&&Near(drone.runReloadSeconds_,.792f)&&Near(drone.runAttackParam_.bulletSpeed,.78f));
+        assert(Near(drone.followSpeed,.8f)&&Near(drone.catchupSpeed,1.5f)&&Near(drone.followResponse,12));
+        player.ApplyCombatStyleBalance(profiles);
+        assert(player.hp_==73&&Near(drone.runReloadSeconds_,.792f)); // Repeated Apply never stacks.
+        profiles[1].maxHp=50;profiles[1].maxStamina=.5f;player.ApplyCombatStyleBalance(profiles);
+        assert(player.hp_==50&&Near(player.stats_.stamina,.5f));
+        // All three families read independent bases, including selected evolutions.
+        profiles[0].attackDamage=20;profiles[0].attackIntervalSeconds=.2f;
+        profiles[2].attackDamage=38;profiles[2].attackIntervalSeconds=.8f;
+        player.ApplyCombatStyleBalance(profiles);
+        assert(player.SetExpeditionCombatStyle(tankbuild::Style::Shooter));
+        assert(Near(player.stats_.bulletDamage,25)&&Near(player.stats_.reloadSpeed,.2f*60*.825f));
+        assert(player.SetExpeditionCombatStyle(tankbuild::Style::Melee));
+        assert(Near(player.stats_.bulletDamage*3.8f,47.5f)&&Near(player.GetRunBaseReloadFrames(),48));
+    }
+    {
+        Player player;player.runModifiers_.enabled=player.runModifiers_.expedition=true;
+        for(auto style:{tankbuild::Style::Shooter,tankbuild::Style::Drone,tankbuild::Style::Melee}) {
+            const std::string id=tankbuild::Id(style);
+            player.runAuthoredChoices_.push_back({id,id,id});
+            player.runAuthoredStyles_[id]=style;
+            player.runAuthoredClasses_[id].id=id;
+        }
+        for(auto style:{tankbuild::Style::Shooter,tankbuild::Style::Drone,tankbuild::Style::Melee}) {
+            assert(player.SetExpeditionCombatStyle(style));
+            const auto choices=player.GetRunAuthoredEvolutionChoices();
+            assert(choices.size()==1&&choices.front().id==tankbuild::Id(style));
+            for(auto other:{tankbuild::Style::Shooter,tankbuild::Style::Drone,tankbuild::Style::Melee})
+                if(other!=style)assert(!player.ChooseRunAuthoredClass(tankbuild::Id(other)));
+            assert(player.ChooseRunAuthoredClass(tankbuild::Id(style)));
+            assert(player.hp_==73&&player.runCurrencyEarned_==91&&player.GetRunAuthoredEvolutionChoices().empty());
+            // A live authoring edit changing a queued offer's family is rejected.
+            player.runAuthoredStyles_[tankbuild::Id(style)]=static_cast<tankbuild::Style>((static_cast<int>(style)+1)%3);
+            assert(!player.ChooseRunAuthoredClass(tankbuild::Id(style)));
+            player.runAuthoredStyles_[tankbuild::Id(style)]=style;
+        }
+    }
+    // Production player rules sanitize legacy per-turret counts and retired
+    // split cards before the real emitter runs. Separate mounts remain valid.
+    for(bool enabled : {false,true}) for(bool expedition : {false,true})
+    for(int core=0;core<4;++core) for(int bits=0;bits<8;++bits)
+    for(int legacyCount : {0,1,3,5,16}) {
+        Player player;
+        auto& m=player.runModifiers_;
+        m.enabled=enabled;m.expedition=expedition;m.core=static_cast<TankRunCore>(core);
+        m.scatterShot=(bits&1)!=0;m.ricochet=(bits&2)!=0;m.pierce=(bits&4)!=0;
+        player.authoredConfig.reflect=(bits&2)!=0;player.authoredConfig.penetrate=(bits&4)!=0;
+        AttackParam param{};param.bulletCount=legacyCount;param.impactSplitCount=2;
+        param.damage=20;param.bulletSpeed=1;
+        player.ApplyRunProjectileRules(param);
+        assert(param.bulletCount==1 && param.impactSplitCount==0);
+        BulletManager manager;AttackController attack;attack.SetBulletManager(&manager);
+        attack.FireFromMuzzle({}, {1,0,0},param,kPlayer);
+        assert(manager.GetBulletCount()==1);
+        attack.FireFromMuzzle({0,1,0}, {1,0,0},param,kPlayer);
+        assert(manager.GetBulletCount()==2); // Two authored turrets, one round each.
+        for(auto* bullet:manager.GetBulletPtrs()) bullet->OnWallImpact({}, {-1,0,0});
+        manager.FlushPendingSplits();
+        assert(manager.GetGrowthStats().splitChildrenSpawned==0);
+    }
     // Growth defaults preserve the arena's unlimited reflect/no fork behavior.
     AttackParam defaults{};
     assert(defaults.maxWallBounces==-1 && defaults.actorPierceCount==0 && defaults.impactSplitCount==0);
@@ -287,5 +498,5 @@ int main() {
         attack.FireFromMuzzle({}, {std::numeric_limits<float>::quiet_NaN(),0,0},param,kPlayer);
         assert(manager.GetBulletCount()==9);
     }
-    std::cout << "Production projectile growth PASS: 0/1/2/3/4/unlimited bounces; repeated actor/allocator reuse guards; interception; deferred first-impact forks; owner/resource/lifetime conservation; no recursion; cap; Stage embedded/grazing contacts; AttackParam wiring.\n";
+    std::cout << "Production projectile growth PASS: style equipment/HP/stamina/wallet preservation, baseline 3-drone firing/input/cap/evolution composition; 640 player one-round-per-mount legacy/core/card combinations, no player split children; 0/1/2/3/4/unlimited bounces; repeated actor/allocator reuse guards; interception; deferred engine forks; owner/resource/lifetime conservation; no recursion; cap; Stage embedded/grazing contacts; AttackParam wiring.\n";
 }

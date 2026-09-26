@@ -3,6 +3,7 @@
 #include "Object3d.h"
 #include "AttackController.h"
 #include "ExpEnemyCombatCycle.h"
+#include "ExpEnemyMagazineCycle.h"
 #include <functional>
 #include "game/run/TankExpeditionContent.h"
 
@@ -18,6 +19,9 @@ enum class ExpEnemyType {
     Shooter,
     Charger,
     Sniper,
+    Skirmisher,
+    Flanker,
+    Suppressor,
 };
 
 class ExpEnemy : public Collider {
@@ -82,17 +86,24 @@ public:
             (type_ == ExpEnemyType::Shooter || IsExpeditionCombatRole());
     }
     bool IsExpeditionCombatRole() const {
-        return type_ == ExpEnemyType::Charger || type_ == ExpEnemyType::Sniper;
+        return type_ >= ExpEnemyType::Charger && type_ <= ExpEnemyType::Suppressor;
     }
-    ExpEnemyCombatPhase GetCombatPhase() const { return combatCycle_.GetPhase(); }
-    float GetAttackTelegraphRatio() const { return combatCycle_.GetWarningRatio(); }
-    bool IsAttackAimLocked() const { return combatCycle_.IsAimLocked(); }
+    ExpEnemyCombatPhase GetCombatPhase() const { return type_ == ExpEnemyType::Charger ? combatCycle_.GetPhase() : magazineCycle_.GetPhase(); }
+    float GetAttackTelegraphRatio() const { return type_ == ExpEnemyType::Charger ? combatCycle_.GetWarningRatio() : magazineCycle_.GetWarningRatio(); }
+    bool IsAttackAimLocked() const { return type_ == ExpEnemyType::Charger ? combatCycle_.IsAimLocked() : magazineCycle_.IsAimLocked(); }
+    bool IsReloading() const { return IsExpeditionCombatRole() && type_ != ExpEnemyType::Charger && magazineCycle_.IsReloading(); }
+    int GetAmmoRemaining() const { return type_ == ExpEnemyType::Charger ? 0 : magazineCycle_.GetAmmo(); }
+    bool IsDashing() const { return dashTimer_ > 0 || (type_ == ExpEnemyType::Charger && combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active); }
+    uint32_t GetCombatShotsFired() const { return combatShotsFired_; }
+    uint32_t GetCombatDashCount() const { return combatDashCount_; }
+    uint32_t GetCombatReloadCount() const { return magazineCycle_.GetReloadCount(); }
     const Vector3& GetAimDirection() const { return aimDirection_; }
     const Vector3& GetTelegraphEnd() const { return telegraphEnd_; }
-    // Called from the scene's existing neon pass for the two explicit prefab roles.
+    // Called from the scene's existing neon pass for all mobile combat roles.
     void QueueCombatVisuals(NeonGridRenderer& renderer, const Vector3& cameraRight,
         const Vector3& cameraUp, const Vector3& cameraForward, float lineWidth) const;
     bool TakeDamageFromPlayer(uint32_t amount);
+	void ApplyKnockback(const Vector3& direction, float power);
     bool TakeDamageFromEnemy(uint32_t amount);
     void RefreshCollisionMask();
 
@@ -121,6 +132,7 @@ private:
     void TriggerDamageFeedback();
     void ApplyDamageFeedback(float deltaTime);
     void UpdateExpeditionCombat(Stage& stage, float deltaTime);
+    void ResetMagazine(int rounds = 0, float reloadSeconds = 0.0f);
     bool MoveCombatActor(Stage& stage, const Vector3& displacement);
     Vector3 FindCombatWaypoint(Stage& stage, const Vector3& target) const;
     Vector3 ClipCombatRay(Stage& stage, const Vector3& origin, const Vector3& direction, float distance) const;
@@ -164,6 +176,8 @@ private:
     float authoredMoveSpeedScale_=1,authoredFireIntervalScale_=1;
 
     Vector3 velocity_;
+	Vector3 combatMoveVelocity_{};
+	bool combatWasDashing_ = false;
 
     float decel_ = 3.5f; // 減速（ブレーキ）
 
@@ -181,6 +195,11 @@ private:
     float damageFeedbackTimer_ = 0.0f;
     float damageFeedbackDuration_ = 0.09f;
     ExpEnemyCombatCycle combatCycle_{};
+    ExpEnemyMagazineCycle magazineCycle_{};
+    float combatStagger_ = 0.0f, orbitSign_ = 1.0f;
+    float dashCooldown_ = 0.0f, dashWarningTimer_ = 0.0f, dashTimer_ = 0.0f;
+    Vector3 dashDirection_{};
+    uint32_t combatShotsFired_ = 0, combatDashCount_ = 0;
     Vector3 telegraphEnd_{};
     Vector3 combatWaypoint_{};
     float combatRepathTimer_ = 0.0f;

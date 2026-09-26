@@ -10,11 +10,15 @@ namespace tankrun {
 enum class Phase { Loadout, CoreChoice, Combat, Draft, Boss, Clear, Dead };
 enum class CoreId { Ricochet, Assault, Drone, Count };
 enum class CardId { Ricochet, Heavy, Rapid, Thrusters, Capacitor, Repair, Drones, Pierce,
-    ScatterShot, Homing, DashBurst, Overdrive, Count };
+    ScatterShot, Homing, DashBurst, Overdrive, MeleeBlade, BladeReach, ImpactDrive, PerfectDodge,
+    DroneFocus, DroneGuard, MeleeTempo, FinisherCharge, Count };
 constexpr std::size_t CardCount=static_cast<std::size_t>(CardId::Count);
+// Preserve legacy numeric IDs, but never offer the retired multi-shot module.
+constexpr bool IsAvailableCard(CardId card) { return card>=CardId::Ricochet&&card<CardId::Count&&card!=CardId::ScatterShot; }
+constexpr std::size_t AvailableCardCount=CardCount-1;
 using CardCounts=std::array<int,CardCount>;
 using CardOffers=std::array<CardId,3>;
-constexpr bool IsRare(CardId card) { return card>=CardId::ScatterShot && card<CardId::Count; }
+constexpr bool IsRare(CardId card) { return IsAvailableCard(card)&&card>=CardId::Homing&&card!=CardId::MeleeBlade; }
 struct Config { float combatSeconds=150.0f; int maxDrafts=6; };
 
 // Resources earn optional refits; waiting never awards a card.
@@ -23,7 +27,7 @@ class RunDirector {
 public:
     explicit RunDirector(std::uint32_t seed=1,Config config={}) : config_(config) {
         if(!std::isfinite(config_.combatSeconds)||config_.combatSeconds<=0) config_.combatSeconds=150;
-        config_.maxDrafts=(std::clamp)(config_.maxDrafts,1,static_cast<int>(CardCount));
+        config_.maxDrafts=(std::clamp)(config_.maxDrafts,1,static_cast<int>(AvailableCardCount));
         Reset(seed);
     }
     void Reset(std::uint32_t seed) {
@@ -96,7 +100,7 @@ public:
     // bundle atomically; already owned modules never stack or consume a slot.
     bool GrantExpeditionModules(const std::vector<CardId>& effects) {
         if(!IsCombat()||effects.empty()) return false;
-        for(auto id:effects) if(static_cast<std::size_t>(id)>=CardCount) return false;
+        for(auto id:effects) if(!IsAvailableCard(id)) return false;
         bool changed=false;
         for(auto id:effects) {
             auto& count=cards_[static_cast<std::size_t>(id)];
@@ -130,7 +134,7 @@ private:
     void BuildOffers(bool guaranteeRare,CardId preferred) {
         ClearOffers();
         const auto preferredIndex=static_cast<std::size_t>(preferred);
-        if(preferredIndex<CardCount&&!cards_[preferredIndex]) offers_[offerCount_++]=preferred;
+        if(IsAvailableCard(preferred)&&!cards_[preferredIndex]) offers_[offerCount_++]=preferred;
         bool rarePresent=false;
         for(std::size_t i=0;i<offerCount_;++i) rarePresent|=IsRare(offers_[i]);
         if(guaranteeRare&&!rarePresent) {
@@ -146,7 +150,7 @@ private:
             for(std::size_t i=0;i<CardCount;++i) {
                 const auto card=static_cast<CardId>(i); bool present=false;
                 for(std::size_t j=0;j<offerCount_;++j) present|=offers_[j]==card;
-                if(!cards_[i]&&!present) eligible[count++]=card;
+                if(IsAvailableCard(card)&&!cards_[i]&&!present) eligible[count++]=card;
             }
             if(!count) break;
             offers_[offerCount_++]=eligible[RandomIndex(count)];

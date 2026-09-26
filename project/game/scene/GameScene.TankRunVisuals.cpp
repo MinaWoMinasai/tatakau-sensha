@@ -1,5 +1,6 @@
 #include "GameScene.h"
 #include <initializer_list>
+#include <fstream>
 
 void GameScene::InitializeTankRunVisuals() {
     if (!prototypeRun_) return;
@@ -70,5 +71,19 @@ void GameScene::InitializeTankRunVisuals() {
     gameTextOutlineEnabled_ = false;
     gameTextNeonEnabled_ = true;
     ApplyGameTextAppearance();
+    // Run defaults above remain the migration baseline. Explicit F3 saves win
+    // after those defaults, so authoring survives restart without changing the
+    // appearance of older installations that have never saved this editor.
+    if(expeditionRun_) {
+        auto authored=[](const char* path) {
+            try {std::ifstream file(path);nlohmann::json j;file>>j;
+                if(j.is_object()&&j.value("expeditionAuthored",false))return j;
+            }catch(...) {}
+            return nlohmann::json::object();
+        };
+        ApplyGamePostEffectConfig(authored("resources/configs/gamePostEffects.json"));
+        const auto visual=authored("resources/configs/gameVisuals.json");
+        if(!visual.empty())ApplyGameVisualConfig(visual);
+    }
     stagePostCacheValid_ = false;
 }

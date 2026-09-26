@@ -1,6 +1,7 @@
 #include "Player.h"
 #include "Stage.h"
 #include "game/exp/ExpEnemy.h"
+#include "game/enemy/actor/Enemy.h"
 #include "Audio.h"
 #include "game/ui/TankButtonUI.h"
 #include "game/ui/NeonTextEffect.h"
@@ -395,6 +396,41 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 	wantsPrimaryAttack = wantsPrimaryAttack || debugAutoFireEnabled_;
 #endif
 	if (wantsPrimaryAttack && !upgradeHudMouseCaptured_) {
+		// Carrier fire is handled by the companion actors; its body has no gun.
+		if (IsDroneBuild()) return;
+		if (IsMeleeBuild()) {
+			if (bulletCoolTime > 0.0f) return;
+			const int step = meleeComboTimer_ > 0.0f ? meleeComboStep_ : 0;
+			const auto combo = MakeTankMeleeCombo(step, runModifiers_);
+			const auto* config = GetCurrentClassConfig();
+			const auto& profile=GetCombatStyleProfile(tankbuild::Style::Melee);
+			const float timing = (std::max)(0.05f/(combo.windup+combo.duration+combo.recovery),
+				stats_.reloadSpeed / GetRunBaseReloadFrames() * (config ? config->reloadScale : 1.0f)
+				* GetRunFireIntervalScale() * (expeditionCombatStyleSelected_?profile.attackIntervalSeconds/0.33f:1.0f));
+			MeleeSlashEvent event{};
+			event.origin = GetWorldPosition();
+			event.direction = Length(dir_) > 0.001f ? Normalize(dir_) : Vector3{1,0,0};
+			event.range = (expeditionCombatStyleSelected_?profile.meleeRange:4.3f) * combo.range;
+			event.arcDeg = combo.arc;
+			event.width = step == 2 ? 0.38f : 0.26f;
+			event.windupDuration = combo.windup * timing;
+			event.duration = combo.duration * timing;
+			event.recoveryDuration = combo.recovery * timing;
+			event.comboStep = step;
+			event.knockback = combo.knockback * (expeditionCombatStyleSelected_?profile.meleeKnockback/0.16f:1.0f);
+			event.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * 3.8f * combo.damage
+				* (config ? config->bulletDamageScale : 1.0f))));
+			event.color = step == 2 ? Vector4{1.8f,0.85f,0.25f,1.0f} : Vector4{0.25f,1.50f,1.75f,1.0f};
+			pendingMeleeSlashes_.push_back(event);
+			meleeComboStep_ = (step + 1) % 3;
+			bulletCoolTime = event.windupDuration + event.duration + event.recoveryDuration;
+			meleeComboTimer_ = bulletCoolTime + 0.65f;
+			// Small forward follow-through preserves steering and never teleports.
+			velocity_ += event.direction * (step == 2 ? 0.055f : 0.025f);
+			primaryAttackPerformedEvent_ = true;
+			++primaryAttackCount_;
+			return;
+		}
 
 		if (const PlayerClassConfig* config = GetCurrentClassConfig()) {
 			const float baseReload = (isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f)
@@ -404,7 +440,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
 				// Spawning a companion is not a shot. Expedition drone volleys
 				// raise this event below only when they actually create bullets.
-				if (!runCheckpointEvolution_ || !config->usesDrone) primaryAttackPerformedEvent_ = true;
+				if (!runCheckpointEvolution_ || !config->usesDrone) { primaryAttackPerformedEvent_ = true; ++primaryAttackCount_; }
 				velocity_ += recoilDir * recoilPower;
 				if (!runCheckpointEvolution_) Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
 			}
@@ -516,7 +552,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				
 				break;
 			case ClassType::Triple:
-				param.bulletCount = 3;
+				param.bulletCount = 1;
 				param.spreadAngleDeg = 45.0f; // 扇状に広がる
 				break;
 
@@ -534,7 +570,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 
 			case ClassType::Ninja:
 				// 手裏剣風に3つ拡散
-				param.bulletCount = 3;
+				param.bulletCount = 1;
 				param.spreadAngleDeg = 15.0f;
 				// ステルス解除はしない(仕様通りなら攻撃中も維持)
 				break;
@@ -550,6 +586,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 
 			if (firedByClass || currentClass_ != ClassType::Smasher) {
 				primaryAttackPerformedEvent_ = true;
+				++primaryAttackCount_;
 			}
 			velocity_ += recoilDir * recoilPower;
 			if (!runCheckpointEvolution_) Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
@@ -695,16 +732,15 @@ void Player::SetRunCurrencyMode(bool enabled)
 void Player::InstallRunAuthoredClasses(const tankcontent::Catalog& catalog)
 {
 	std::string error;if(!tankcontent::ValidateCatalog(catalog,error))return;
-	runAuthoredClasses_.clear();runAuthoredChoices_.clear();
+	runAuthoredClasses_.clear();runAuthoredChoices_.clear();runAuthoredStyles_.clear();
 	for(const auto& authored:catalog.players){
 		const auto* base=GetClassConfig(authored.baseClass);
 		if(!base||base->barrels.empty())continue;
 		PlayerClassConfig config=*base;
 		config.id=authored.id;config.displayName=authored.name;config.requiredRank=1;
 		config.reloadScale=authored.reloadScale;config.bulletDamageScale=authored.damageScale;
-		config.bulletSpeedScale=authored.bulletSpeedScale;config.bulletCount=authored.bulletCount;
-		// Carrier variants retain their conventional barrel as well as drones.
-		config.usesDrone=false;config.maxDrones=authored.drones;
+		config.bulletSpeedScale=authored.bulletSpeedScale;config.bulletCount=1;
+		config.usesDrone=authored.style==tankbuild::Style::Drone;config.maxDrones=authored.drones;
 		config.reflect=authored.reflect;config.penetrate=authored.penetrate;
 		config.alternateBarrels=authored.alternate;config.fireAllBarrels=!authored.alternate;
 		config.randomSpread=false;config.spreadAngleDeg=10;
@@ -718,8 +754,19 @@ void Player::InstallRunAuthoredClasses(const tankcontent::Catalog& catalog)
 			barrel.fires=true;barrel.weaponType=WeaponType::Projectile;barrel.fireGroup=0;
 			barrel.reloadScale=1;barrel.damageScale=1;barrel.projectileSpeedScale=1;
 		}
+		runAuthoredStyles_[authored.id]=authored.style;
 		runAuthoredClasses_.emplace(authored.id,std::move(config));
 		runAuthoredChoices_.push_back({authored.id,authored.name,authored.description});
+	}
+	if(runEvolutionActive_&&runAuthoredEvolutionActive_) {
+		const auto active=runAuthoredClasses_.find(runEvolutionConfig_.id);
+		const auto style=runAuthoredStyles_.find(runEvolutionConfig_.id);
+		if(active!=runAuthoredClasses_.end()&&(!expeditionCombatStyleSelected_||
+			(style!=runAuthoredStyles_.end()&&style->second==expeditionCombatStyle_))) {
+			runEvolutionConfig_=active->second;
+			InitializeBarrels();UpdateBarrelLayout();EnsureExpeditionDrones();
+			for(auto& drone:drones_)ConfigureRunDrone(*drone);
+		}
 	}
 }
 
@@ -727,7 +774,11 @@ std::vector<RunEvolutionChoice> Player::GetRunAuthoredEvolutionChoices() const
 {
 	if(!runModifiers_.enabled||isDead_)return {};
 	std::vector<RunEvolutionChoice> result;
-	for(const auto& choice:runAuthoredChoices_)if(!runEvolutionActive_||choice.id!=runEvolutionConfig_.id)result.push_back(choice);
+	for(const auto& choice:runAuthoredChoices_) {
+		const auto style=runAuthoredStyles_.find(choice.id);
+		if(expeditionCombatStyleSelected_ && (style==runAuthoredStyles_.end() || style->second!=expeditionCombatStyle_))continue;
+		if(!runEvolutionActive_||choice.id!=runEvolutionConfig_.id)result.push_back(choice);
+	}
 	return result;
 }
 
@@ -735,12 +786,14 @@ bool Player::ChooseRunAuthoredClass(const std::string& id)
 {
 	if(!runModifiers_.enabled||isDead_)return false;
 	const auto it=runAuthoredClasses_.find(id);if(it==runAuthoredClasses_.end())return false;
+	const auto style=runAuthoredStyles_.find(id);
+	if(expeditionCombatStyleSelected_ && (style==runAuthoredStyles_.end() || style->second!=expeditionCombatStyle_))return false;
 	const int previousHp=hp_;
 	runEvolutionConfig_=it->second;runEvolutionActive_=true;runAuthoredEvolutionActive_=true;runEvolutionPrepared_=false;
 	bulletCoolTime=0;shootBarrelIndex_=0;shootGroupIndex_=0;weaponGroupCooldowns_.clear();
 	drones_.clear();runSupportDroneTimer_=0;isChangeMode=false;
 	RecalculateStatsFromBase(false);hp_=(std::clamp)(previousHp,0,GetMaxHp());
-	InitializeBarrels();UpdateBarrelLayout();evolutionConfirmedEvent_=true;
+	InitializeBarrels();UpdateBarrelLayout();EnsureExpeditionDrones();evolutionConfirmedEvent_=true;
 	return true;
 }
 
@@ -756,6 +809,7 @@ bool Player::RequestSlow()
 
 void Player::RotateToMouse(Camera* viewProjection) {
     if (demoInputEnabled_) {
+        runAimWorld_=demoAim_;
         const Vector3 offset=demoAim_-worldTransform_.translate;
         if(Length(offset)>0.001f) dir_=Normalize(offset);
         angle_=std::atan2(dir_.y,dir_.x); worldTransform_.rotate.z=angle_;
@@ -784,6 +838,7 @@ void Player::RotateToMouse(Camera* viewProjection) {
 	Vector3 rayDir = Normalize(mouseDirection);
 	float t = -posNear.z / rayDir.z;
 	Vector3 target = posNear + rayDir * t;
+	runAimWorld_ = target;
 
 	// --- 5. プレイヤーの位置と方向ベクトル ---
 	Vector3 playerPos = worldTransform_.translate;
@@ -976,9 +1031,7 @@ void Player::Update(
 	}
 	if ((!runModifiers_.enabled || !runRoomAwaitInputRelease_) &&
 		(demoInputEnabled_ ? demoDash_ :
-            (input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1]) ||
-             (runCheckpointEvolution_ && (input_->IsTrigger(input_->GetKey()[DIK_LSHIFT],input_->GetPreKey()[DIK_LSHIFT]) ||
-              input_->IsTrigger(input_->GetKey()[DIK_RSHIFT],input_->GetPreKey()[DIK_RSHIFT])))))) {
+            input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1]))) {
         demoDash_=false;
 		TryActivateSpecialAction();
 	}
@@ -1021,8 +1074,8 @@ void Player::Update(
 	float accel = (Length(inputDir_) > 0.0f) ? accel_ : decel_;
 
 	if (runModifiers_.enabled) {
-		// Keep steering crisp without immediately cancelling the dash impulse.
-		const float response = isDashing_ ? 1.5f : (Length(inputDir_) > 0.0f ? 20.0f : 28.0f);
+		// Restore the original acceleration / coast rates using a stable timestep.
+		const float response = isDashing_ ? 1.5f : accel;
 		velocity_ += (targetVelocity - velocity_) * (1.0f - std::exp(-response * deltaTime));
 	} else {
 		velocity_ += (targetVelocity - velocity_) * accel * deltaTime;
@@ -1066,7 +1119,7 @@ void Player::Update(
 		if (runModifiers_.enabled && runDashBurstPending_) {
 			runDashBurstPending_ = false;
             const auto synergy=MakeTankRunSynergy(runModifiers_,runOverdriveTimer_>0.0f);
-            if(synergy.dashExplosion) {
+            {
                 MineDropEvent explosion{};
                 explosion.position=GetWorldPosition();
                 explosion.radius=synergy.explosionRadius;
@@ -1078,19 +1131,9 @@ void Player::Update(
                 pendingMineDrops_.push_back(explosion);
                 ++runDashExplosionsEmitted_;
             }
-			if (BulletManager->GetBulletCounts().player <= 232) {
-				AttackParam burst{};
-				burst.bulletSpeed = stats_.bulletSpeed * 0.9f;
-				burst.bulletCount = 8;
-				burst.spreadAngleDeg = 315.0f;
-				burst.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * 0.8f)));
-				ApplyRunProjectileRules(burst, false);
-				attackController_.FireFromMuzzle(GetWorldPosition(), dir_, burst, BulletOwner::kPlayer);
-				ParticleManager::GetInstance()->Emit("CasingSpark", GetWorldPosition(), 8);
-			}
 		}
 
-		if (currentClass_ == ClassType::Smasher) {
+		if (currentClass_ == ClassType::Smasher && !IsMeleeBuild()) {
 			Smash(deltaTime);
 		} else {
 			Attack(BulletManager, deltaTime);
@@ -1099,9 +1142,13 @@ void Player::Update(
 		const PlayerClassConfig* activeClass = GetCurrentClassConfig();
 		const size_t authoredSupport = runEvolutionActive_ && runAuthoredEvolutionActive_
 			? static_cast<size_t>((std::max)(0,runEvolutionConfig_.maxDrones)) : 0u;
-		const size_t supportLimit = authoredSupport + (runModifiers_.drones ? 2u : 0u)
+		const size_t supportLimit = authoredSupport + (runModifiers_.drones ? static_cast<size_t>(TankEffectCount(runModifiers_,6,2)) : 0u)
 			+ (runModifiers_.core == TankRunCore::Drone ? 2u : 0u);
-		if (runModifiers_.enabled && !runRoomAwaitInputRelease_ && supportLimit > 0 &&
+		if (IsDroneBuild()) {
+			runBulletManager_ = BulletManager;
+			runSupportDroneTimer_ = (std::max)(0.0f, runSupportDroneTimer_ - deltaTime);
+			if (runSupportDroneTimer_ <= 0.0f) EnsureExpeditionDrones();
+		} else if (runModifiers_.enabled && !runRoomAwaitInputRelease_ && supportLimit > 0 &&
 			(!activeClass || !activeClass->usesDrone)) {
 			runSupportDroneTimer_ = (std::max)(0.0f, runSupportDroneTimer_ - deltaTime);
 			if (drones_.size() < supportLimit && runSupportDroneTimer_ <= 0.0f) {
@@ -1114,15 +1161,26 @@ void Player::Update(
 			}
 		}
 		const size_t bulletsBeforeDroneUpdates = BulletManager->GetBulletCount();
+		size_t companionIndex=0;
 		for (auto& drone : drones_) {
 			if (runModifiers_.enabled) {
 				ConfigureRunDrone(*drone);
+				const bool wantsAttack = !runRoomAwaitInputRelease_ && !upgradeHudMouseCaptured_
+					&& (demoInputEnabled_ ? demoShoot_ : input_->IsPress(input_->GetMouseState().rgbButtons[0]));
+				if(expeditionCombatStyleSelected_ || demoInputEnabled_)drone->SetRunInput(runAimWorld_,wantsAttack);
+				if(IsDroneBuild()) {
+					const float orbit = static_cast<float>(companionIndex) * 6.2831853f / static_cast<float>((std::max)(size_t{1},drones_.size()));
+					const float radius=GetCombatStyleProfile(tankbuild::Style::Drone).droneFormationRadius;
+					drone->SetRunFollowOffset({std::cos(orbit)*radius,std::sin(orbit)*radius,0});
+				}
 			}
+			++companionIndex;
 			drone->Update(viewProjection, stage, worldTransform_.translate,
 				runModifiers_.enabled ? deltaTime : 1.0f / 60.0f);
 		}
 		if (runModifiers_.enabled && runCheckpointEvolution_ && BulletManager->GetBulletCount() > bulletsBeforeDroneUpdates) {
 			primaryAttackPerformedEvent_ = true;
+			++primaryAttackCount_;
 		}
 
 		drones_.erase(
@@ -1133,6 +1191,8 @@ void Player::Update(
 					return drone->IsDead();
 				}),
 			drones_.end());
+		if(IsDroneBuild() && drones_.size()<static_cast<size_t>(GetExpeditionDroneLimit()) && runSupportDroneTimer_<=0.0f)
+			runSupportDroneTimer_=1.2f;
 		UpdateRunProjectiles(BulletManager, deltaTime);
 
 	}
@@ -1270,18 +1330,21 @@ void Player::OnCollision(Collider* other) {
 		}
 	}
 
-	if (!isJustEvaded_ && isDashing_ && (kDashDuration - dashTimer_) <= kJustEvadeWindow) {
+	if (!isJustEvaded_ && isDashing_ && TankCanPerfectDodge(
+		runModifiers_.enabled && runModifiers_.perfectDodge,
+		other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet, kDashDuration - dashTimer_,TankEffectPower(runModifiers_,15))) {
 		requestSlow_ = true;
 		isJustEvaded_ = true;
 		invincibleTimer_ = dashTimer_;
-		buffTimer_ = kBuffDuration;
+		buffTimer_ = kBuffDuration*TankEffectPower(runModifiers_,15);
 		if (runModifiers_.enabled && runModifiers_.capacitor) {
-			buffTimer_ = 3.5f;
-			stats_.stamina = (std::min)(stats_.maxStamina, stats_.stamina + 1.0f);
-			HealRunPlayer(4);
+			const float power=TankEffectPower(runModifiers_,4);
+			buffTimer_ += 1.5f*power;
+			stats_.stamina = (std::min)(stats_.maxStamina, stats_.stamina + power);
+			HealRunPlayer((std::max)(1,static_cast<int>(std::round(4.0f*power))));
 		}
 		if (runModifiers_.enabled && runModifiers_.overdrive) {
-			runOverdriveTimer_ = 2.4f;
+			runOverdriveTimer_ = 2.4f*TankEffectPower(runModifiers_,11);
 			runOverdriveCooldown_ = 4.0f;
 		}
 		isBuffActive_ = !runCheckpointEvolution_ || runModifiers_.capacitor;
@@ -1313,6 +1376,45 @@ void Player::OnCollision(Collider* other) {
 		other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
 		TakeDamage(other->GetDamage(), 0.45f);
 	}
+}
+
+bool Player::TryDashImpact(Collider* target)
+{
+	if (!target || isDead_ || !isDashing_) return false;
+	auto* regular = dynamic_cast<ExpEnemy*>(target);
+	auto* boss = dynamic_cast<Enemy*>(target);
+	if ((!regular && !boss) || (regular && (regular->IsDead() || regular->IsRunResource())) ||
+		(boss && (!boss->IsRunEncounterEnabled() || boss->IsDead()))) return false;
+	const uint64_t id = target->GetCollisionId();
+	if (std::find(dashImpactTargets_.begin(), dashImpactTargets_.end(), id) != dashImpactTargets_.end()) {
+		// This dash has already resolved the body contact. Neither side may deal
+		// a second contact hit while the same bodies still overlap.
+		return true;
+	}
+	if (kDashDuration - dashTimer_ > kJustEvadeWindow) return false;
+	dashImpactTargets_.push_back(id);
+	Vector3 direction = target->GetWorldPosition() - GetWorldPosition();
+	if (Length(direction) < 0.001f) direction = velocity_;
+	if (Length(direction) < 0.001f) direction = {1,0,0};
+	direction = Normalize(direction);
+	const bool powered = runModifiers_.enabled && runModifiers_.impactDrive;
+	const float strength = powered ? 1.0f+0.5f*TankEffectPower(runModifiers_,14) : 1.0f;
+	const uint32_t damage = static_cast<uint32_t>((std::max)(1.0f,
+		std::round((stats_.bulletDamage * 2.5f + stats_.bodyDamage) * strength)));
+	// Knockback is integrated by each actor through its normal wall-safe mover.
+	if (regular) { regular->ApplyKnockback(direction, 0.62f * strength); regular->TakeDamageFromPlayer(damage); }
+	if (boss) { boss->ApplyKnockback(direction, 0.62f * strength); boss->TakeDamage(damage); }
+	pendingDashImpacts_.push_back({target->GetWorldPosition(), direction, boss != nullptr, powered});
+	velocity_ = velocity_ * 0.72f;
+	// No perfect-dodge state, slow-motion request, or bullet immunity is granted.
+	return true;
+}
+
+std::vector<Player::DashImpactEvent> Player::ConsumeDashImpactEvents()
+{
+	auto events = std::move(pendingDashImpacts_);
+	pendingDashImpacts_.clear();
+	return events;
 }
 
 AABB Player::GetAABB() {
@@ -1352,6 +1454,7 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
 
 	const uint32_t appliedDamage = runModifiers_.enabled && runCheckpointEvolution_
 		? runMaintenance_.MitigateDamage(amount) : amount;
+	++damageTakenCount_;
 	// Clamp before converting to signed HP, including extreme debug damage.
 	hp_ -= static_cast<int>((std::min)(appliedDamage, static_cast<uint32_t>((std::max)(0, hp_))));
 	if (hp_ < 0) {
@@ -1398,8 +1501,11 @@ void Player::ApplyBalanceConfig(const BalanceConfig& config)
 void Player::SetRunModifiers(const TankRunModifiers& modifiers)
 {
 	const bool wasEnabled = runModifiers_.enabled;
+	const int previousHp=hp_;
 	runModifiers_ = modifiers;
 	if (!wasEnabled || !runModifiers_.enabled) {
+		expeditionCombatStyleSelected_ = false;
+		expeditionCombatStyle_ = tankbuild::Style::Shooter;
 		runMaintenance_ = {};
 		runEvolutionActive_ = false;
 		runAuthoredEvolutionActive_ = false;
@@ -1410,6 +1516,10 @@ void Player::SetRunModifiers(const TankRunModifiers& modifiers)
 		upgradeHudMouseCaptured_ = false;
 	}
 	RecalculateStatsFromBase(false);
+	// Refitting edited modules is not healing. A purchased repair grants its
+	// explicit recovery in the scene, including before the style is selected.
+	if(wasEnabled&&runModifiers_.enabled&&runModifiers_.expedition)
+		hp_=(std::clamp)(previousHp,0,GetMaxHp());
 	if (wasEnabled && !runModifiers_.enabled) {
 		SetRunCurrencyMode(false);
 		// A run's support units and attack configuration must not escape its mode.
@@ -1429,12 +1539,87 @@ void Player::SetRunModifiers(const TankRunModifiers& modifiers)
 	}
 }
 
+void Player::ApplyCombatStyleBalance(const TankCombatStyleBalances& profiles)
+{
+	const int hp=hp_;const float stamina=stats_.stamina;
+	const auto defaults=DefaultTankCombatStyleBalances();
+	for(size_t i=0;i<profiles.size();++i)combatStyleBalances_[i]=SanitizeTankCombatStyleProfile(profiles[i],defaults[i]);
+	RecalculateStatsFromBase(false);
+	hp_=(std::clamp)(hp,0,GetMaxHp());stats_.stamina=(std::clamp)(stamina,0.0f,stats_.maxStamina);
+	EnsureExpeditionDrones();
+	for(auto& drone:drones_)ConfigureRunDrone(*drone);
+}
+
+float Player::GetRunBaseReloadFrames() const
+{
+	return (std::max)(0.05f,runModifiers_.enabled&&expeditionCombatStyleSelected_
+		?GetCombatStyleProfile(expeditionCombatStyle_).attackIntervalSeconds*60.0f:baseStats_.reloadSpeed);
+}
+
+bool Player::SetExpeditionCombatStyle(tankbuild::Style style)
+{
+	if(!runModifiers_.enabled || !runModifiers_.expedition || isDead_ || !tankbuild::Valid(style)) return false;
+	if(expeditionCombatStyleSelected_ && expeditionCombatStyle_==style) return true;
+	const auto* basic=GetClassConfig("Basic");
+	if(!basic || basic->barrels.empty()) return false;
+	// Changing equipment must never rebuild the run or refill health/stamina.
+	runStarterConfig_=*basic;
+	runStarterConfig_.displayName=tankbuild::Name(style);
+	runStarterConfig_.usesDrone=style==tankbuild::Style::Drone;
+	runStarterConfig_.maxDrones=style==tankbuild::Style::Drone ? 3 : 0;
+	runStarterConfig_.bulletCount=1;
+	runStarterConfig_.reloadScale=runStarterConfig_.bulletDamageScale=runStarterConfig_.bulletSpeedScale=1.0f;
+	runStarterConfig_.randomSpread=false;runStarterConfig_.spreadAngleDeg=0;
+	runStarterConfig_.reflect=runStarterConfig_.penetrate=false;
+	runStarterConfig_.barrels.resize(1);
+	auto& mount=runStarterConfig_.barrels.front();
+	mount.fires=style==tankbuild::Style::Shooter;mount.weaponType=WeaponType::Projectile;
+	mount.angleDeg=0;mount.offset={.72f,0,0};mount.damageScale=mount.reloadScale=mount.projectileSpeedScale=1.0f;
+	const int previousHp=hp_;const float previousStamina=stats_.stamina;
+	expeditionCombatStyle_=style;expeditionCombatStyleSelected_=true;
+	RecalculateStatsFromBase(false);
+	hp_=(std::clamp)(previousHp,0,GetMaxHp());stats_.stamina=(std::min)(previousStamina,stats_.maxStamina);
+	runEvolutionActive_=runAuthoredEvolutionActive_=runEvolutionPrepared_=false;
+	bulletCoolTime=0;meleeComboStep_=0;meleeComboTimer_=0;
+	shootBarrelIndex_=shootGroupIndex_=0;weaponGroupCooldowns_.clear();
+	drones_.clear();runSupportDroneTimer_=0;
+	pendingMeleeSlashes_.clear();pendingLaserShots_.clear();pendingMineDrops_.clear();
+	if(object_) {InitializeBarrels();UpdateBarrelLayout();EnsureExpeditionDrones();}
+	return true;
+}
+
+int Player::GetExpeditionDroneLimit() const
+{
+	if(!IsDroneBuild()) return 0;
+	const auto* config=GetCurrentClassConfig();
+	return TankCombatStyleDroneCount(GetCombatStyleProfile(tankbuild::Style::Drone).droneCount,
+		config?config->maxDrones:3,runEvolutionActive_,runModifiers_.drones?TankEffectCount(runModifiers_,6,2):0);
+}
+
+void Player::EnsureExpeditionDrones()
+{
+	if(!IsDroneBuild() || !object_ || !runBulletManager_ || isDead_) return;
+	const size_t limit=static_cast<size_t>(GetExpeditionDroneLimit());
+	if(drones_.size()>limit)drones_.resize(limit);
+	while(drones_.size()<limit) {
+		auto drone=std::make_unique<PlayerDrone>();
+		// Spawn at the owner; normal wall-aware movement forms the escort.
+		drone->Initialize(GetWorldPosition(),{});
+		drone->SetAttackControllerBulletManager(runBulletManager_);
+		ConfigureRunDrone(*drone);
+		drone->SetRunInput(runAimWorld_,false);
+		drones_.push_back(std::move(drone));
+	}
+}
+
 void Player::ConfigurePrototypeLoadout(int archetype)
 {
 	if (!runModifiers_.enabled) {
 		return;
 	}
 	runMaintenance_ = {};
+	expeditionCombatStyleSelected_=false;
+	expeditionCombatStyle_=tankbuild::Style::Shooter;
 	runEvolutionActive_ = false;
 	runAuthoredEvolutionActive_ = false;
 	runEvolutionPrepared_ = false;
@@ -1493,10 +1678,11 @@ std::vector<RunEvolutionChoice> Player::GetRunEvolutionChoices() const
 {
 	std::vector<RunEvolutionChoice> choices;
 	if (!runModifiers_.enabled || isDead_) return choices;
+	if (expeditionCombatStyleSelected_ && expeditionCombatStyle_!=tankbuild::Style::Shooter) return choices;
 	if (runCheckpointEvolution_) {
 		if (!runEvolutionPrepared_ || runEvolutionActive_) return choices;
 		for (const auto& specialization : kTankExpeditionSpecializations) {
-			if (runStarterBranch_ == specialization.starter) {
+			if (expeditionCombatStyleSelected_ ? specialization.drones==0 : runStarterBranch_ == specialization.starter) {
 				choices.push_back({ specialization.id, specialization.name, specialization.description });
 			}
 		}
@@ -1576,7 +1762,7 @@ bool Player::ChooseRunEvolution(const std::string& id)
 	}
 	if (runCheckpointEvolution_) {
 		const auto* specialization = FindTankExpeditionSpecialization(id);
-		const auto* starter = GetClassConfig(runStarterBranch_);
+		const auto* starter = GetClassConfig(expeditionCombatStyleSelected_ && specialization ? specialization->starter : runStarterBranch_);
 		if (!specialization || !starter || starter->barrels.empty()) return false;
 		runEvolutionConfig_ = *starter;
 		auto& config = runEvolutionConfig_;
@@ -1679,6 +1865,8 @@ void Player::ResetRunRoomState(const Vector3& position)
 	pendingLaserShots_.clear();
 	pendingMineDrops_.clear();
 	pendingMeleeSlashes_.clear();
+	pendingDashImpacts_.clear();
+	dashImpactTargets_.clear();
 	drones_.clear();
 	runHomingTargets_.clear();
 	runSupportDroneTimer_ = 0.0f;
@@ -1721,6 +1909,7 @@ void Player::ResetRunRoomState(const Vector3& position)
 	}
 	SetWorldPosition(position);
 	UpdateBarrelLayout();
+	EnsureExpeditionDrones();
 }
 
 Player::RunCombatSnapshot Player::GetRunCombatSnapshot() const
@@ -1728,7 +1917,15 @@ Player::RunCombatSnapshot Player::GetRunCombatSnapshot() const
     RunCombatSnapshot result{};
     const auto* config=GetCurrentClassConfig();
     if(!config) return result;
-    result.barrels=static_cast<int>(config->barrels.size());
+    result.style=expeditionCombatStyle_;result.hasStyle=expeditionCombatStyleSelected_;
+    result.melee=IsMeleeBuild();result.droneLimit=GetExpeditionDroneLimit();
+    result.classId=config->id;result.classDamageScale=config->bulletDamageScale;
+    result.classReloadScale=config->reloadScale;result.classBulletSpeedScale=config->bulletSpeedScale;
+    result.classReflects=config->reflect;result.classPenetrates=config->penetrate;
+    result.isAuthored=runEvolutionActive_&&runAuthoredEvolutionActive_;
+    result.classDroneCount=config->usesDrone||result.isAuthored?(std::max)(0,config->maxDrones):0;
+    result.baseDroneCount=GetCombatStyleProfile(tankbuild::Style::Drone).droneCount;
+    result.barrels=IsDroneBuild()||IsMeleeBuild()?0:static_cast<int>(config->barrels.size());
     result.activeDrones=static_cast<int>(drones_.size());
     AttackParam attack{};attack.bulletCount=config->bulletCount;attack.reflect=config->reflect;
     ApplyRunProjectileRules(attack);
@@ -1745,11 +1942,26 @@ Player::RunCombatSnapshot Player::GetRunCombatSnapshot() const
     result.dashExplosionsEmitted=runDashExplosionsEmitted_;
     result.shotDamage=(std::max)(1.0f,std::round(stats_.bulletDamage*config->bulletDamageScale));
     result.reloadSeconds=stats_.reloadSpeed/60.0f*config->reloadScale*GetRunFireIntervalScale()*(isBuffActive_?0.7f:1.0f);
+    if(IsDroneBuild()) {
+        const auto tuning=MakeTankDroneTuning(runModifiers_,true);
+        result.shotDamage=(std::max)(1.0f,std::round(stats_.bulletDamage*config->bulletDamageScale*tuning.damageScale));
+        result.reloadSeconds=(std::max)(.05f,GetCombatStyleProfile(tankbuild::Style::Drone).attackIntervalSeconds*tuning.reloadSeconds/.5f*stats_.reloadSpeed/GetRunBaseReloadFrames()
+            *config->reloadScale*GetRunFireIntervalScale()*(isBuffActive_?.7f:1.0f)
+            *(runModifiers_.core==TankRunCore::Drone?.8f:1.0f));
+    } else if(IsMeleeBuild()) {
+        const auto combo=MakeTankMeleeCombo(0,runModifiers_);
+        result.shotDamage=(std::max)(1.0f,std::round(stats_.bulletDamage*config->bulletDamageScale*3.8f*combo.damage));
+        result.reloadSeconds=(std::max)(.05f,(combo.windup+combo.duration+combo.recovery)*stats_.reloadSpeed/GetRunBaseReloadFrames()
+            *config->reloadScale*GetRunFireIntervalScale()*(expeditionCombatStyleSelected_?GetCombatStyleProfile(tankbuild::Style::Melee).attackIntervalSeconds/.33f:1.0f));
+    }
     return result;
 }
 
 void Player::ApplyRunProjectileRules(AttackParam& param, bool applyFan) const
 {
+	(void)applyFan; // Kept for callers of the legacy API; fans are no longer emitted.
+	param.bulletCount = 1;
+	param.impactSplitCount = 0;
 	if (!runModifiers_.enabled) {
 		return;
 	}
@@ -1767,20 +1979,12 @@ void Player::ApplyRunProjectileRules(AttackParam& param, bool applyFan) const
         param.impactSplitCount=tuning.impactSplitCount;
         param.impactSplitDamageScale=0.55f;
     }
-	if (applyFan && tuning.extraProjectiles > 0) {
-		param.bulletCount = (std::min)(7, param.bulletCount + tuning.extraProjectiles);
-		param.spreadAngleDeg = (std::max)(param.spreadAngleDeg, tuning.minimumSpread);
-		param.randomSpread = false;
-		if (runModifiers_.core == TankRunCore::Assault && runDashAttackTimer_ > 0.0f) {
-			param.spreadAngleDeg *= 0.5f;
-		}
-	}
 }
 
 float Player::GetRunFireIntervalScale() const
 {
 	if (!runModifiers_.enabled) return 1.0f;
-	float scale = runOverdriveTimer_ > 0.0f ? 0.5f : 1.0f;
+	float scale = runOverdriveTimer_ > 0.0f ? 1.0f/(1.0f+TankEffectPower(runModifiers_,11)) : 1.0f;
 	if (runModifiers_.core == TankRunCore::Assault && runDashAttackTimer_ > 0.0f) scale *= 0.65f;
 	return scale;
 }
@@ -1832,26 +2036,37 @@ void Player::ConfigureRunDrone(PlayerDrone& drone) const
 		return;
 	}
 	const PlayerClassConfig* config = GetCurrentClassConfig();
+	const bool primaryStyle=IsDroneBuild();
 	const bool isSwarm = config && config->usesDrone;
+	auto droneTuning=MakeTankDroneTuning(runModifiers_,primaryStyle);
+	if(!primaryStyle && isSwarm) {droneTuning.damageScale*=0.6f/0.35f;droneTuning.reloadSeconds*=0.5f/0.75f;}
 	AttackParam param{};
 	param.bulletSpeed = stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f);
 	param.bulletCount = 1;
-	param.spreadAngleDeg = isSwarm && runEvolutionActive_ ? config->spreadAngleDeg : (isSwarm ? 10.0f : 6.0f);
+	param.spreadAngleDeg = primaryStyle || runModifiers_.droneFocus ? droneTuning.spreadDegrees
+		: isSwarm && runEvolutionActive_ ? config->spreadAngleDeg : (isSwarm ? 10.0f : 6.0f);
 	param.randomSpread = param.spreadAngleDeg > 0.0f;
 	param.reflect = config && config->reflect;
 	param.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(
-		stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * (isSwarm ? 0.6f : 0.35f))));
+		stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * droneTuning.damageScale)));
 	if (isBuffActive_) {
 		param.reflect = true;
 	}
 	ApplyRunProjectileRules(param);
-	const float reloadRatio = stats_.reloadSpeed / (std::max)(0.05f, baseStats_.reloadSpeed);
+	param.bulletHp=(std::max)(param.bulletHp,droneTuning.bulletHp);
+	param.bulletPenetration=(std::max)(param.bulletPenetration,droneTuning.interception);
+	const float reloadRatio = stats_.reloadSpeed / GetRunBaseReloadFrames();
 	const float coreRate = runModifiers_.core == TankRunCore::Drone ? 0.8f : 1.0f;
 	const auto* specialization = runEvolutionActive_ ? FindTankExpeditionSpecialization(runEvolutionConfig_.id) : nullptr;
-	const float interval = (isSwarm ? 0.5f : 0.75f) * reloadRatio * coreRate
+	const float interval = droneTuning.reloadSeconds * reloadRatio * coreRate
 		* (isBuffActive_ ? 0.7f : 1.0f) * GetRunFireIntervalScale()
-		* (isSwarm && specialization ? specialization->reloadScale : 1.0f);
+		* (primaryStyle && config ? config->reloadScale : isSwarm && specialization ? specialization->reloadScale : 1.0f)
+		* (primaryStyle?GetCombatStyleProfile(tankbuild::Style::Drone).attackIntervalSeconds/.5f:1.0f);
 	drone.ConfigureRunAttack(param, interval);
+	if(primaryStyle) {
+		const auto& profile=GetCombatStyleProfile(tankbuild::Style::Drone);
+		drone.SetRunFollowTuning(profile.droneFollowSpeed,profile.droneCatchupSpeed,profile.droneResponse);
+	}
 }
 
 void Player::Die()
@@ -1896,9 +2111,11 @@ void Player::Evolve(ClassType newClass)
 bool Player::TryActivateSpecialAction()
 {
 	const PlayerClassConfig* config = GetCurrentClassConfig();
-	if (!config || config->specialActionId == "none" || dashCooldown_ > 0.0f) {
+	if (!config || dashCooldown_ > 0.0f) {
 		return false;
 	}
+	if (runModifiers_.enabled) return ActivatePerfectDodge(*config);
+	if (config->specialActionId == "none") return false;
 	if (config->specialActionId == "perfect_dodge") {
 		return ActivatePerfectDodge(*config);
 	}
@@ -1925,7 +2142,12 @@ bool Player::ActivatePerfectDodge(const PlayerClassConfig& config)
 	}
 
 	const TankRunTuning runTuning = MakeTankRunTuning(runModifiers_, runGrowth_);
-	velocity_ = Normalize(dashDir) * kDashSpeed * runTuning.dashSpeed;
+	const Vector3 direction = Normalize(dashDir);
+	const float speed = kDashSpeed * runTuning.dashSpeed;
+	velocity_ = {TankDashMomentum(velocity_.x,direction.x,speed),
+		TankDashMomentum(velocity_.y,direction.y,speed),0};
+	dashImpactTargets_.clear();
+	++dashStartedCount_;
 	isDashing_ = true;
 	dashStartedEvent_ = true;
 	dashTimer_ = kDashDuration;
@@ -1939,7 +2161,7 @@ bool Player::ActivatePerfectDodge(const PlayerClassConfig& config)
 			std::fill(weaponGroupCooldowns_.begin(), weaponGroupCooldowns_.end(), 0.0f);
 		}
 		if (runModifiers_.overdrive && runOverdriveCooldown_ <= 0.0f) {
-			runOverdriveTimer_ = 1.2f;
+			runOverdriveTimer_ = 1.2f*TankEffectPower(runModifiers_,11);
 			runOverdriveCooldown_ = 4.0f;
 		}
 		if (runModifiers_.core == TankRunCore::Drone) {
@@ -2158,7 +2380,7 @@ bool Player::LoadPlayerClassConfigs(const std::string& path)
 		config.reloadScale = item.value("reloadScale", config.reloadScale);
 		config.bulletSpeedScale = item.value("bulletSpeedScale", config.bulletSpeedScale);
 		config.bulletDamageScale = item.value("bulletDamageScale", config.bulletDamageScale);
-		config.bulletCount = item.value("bulletCount", config.bulletCount);
+		config.bulletCount = 1; // Legacy authoring data cannot restore multishot.
 		config.spreadAngleDeg = item.value("spreadAngleDeg", config.spreadAngleDeg);
 		config.randomSpread = item.value("randomSpread", config.randomSpread);
 		config.reflect = item.value("reflect", config.reflect);
@@ -2355,7 +2577,7 @@ Player::PlayerClassConfig Player::CreateDefaultClassConfig(ClassType type) const
 	}
 	if (type == ClassType::Triple) {
 		config.requiredRank = 3;
-		config.bulletCount = 3;
+		config.bulletCount = 1;
 		config.spreadAngleDeg = 45.0f;
 		config.randomSpread = false;
 	}
@@ -2369,7 +2591,7 @@ Player::PlayerClassConfig Player::CreateDefaultClassConfig(ClassType type) const
 	}
 	if (type == ClassType::Ninja) {
 		config.requiredRank = 4;
-		config.bulletCount = 3;
+		config.bulletCount = 1;
 		config.spreadAngleDeg = 15.0f;
 		config.randomSpread = false;
 	}
@@ -2490,6 +2712,7 @@ const Player::PlayerClassConfig* Player::GetClassConfig(const std::string& class
 const Player::PlayerClassConfig* Player::GetCurrentClassConfig() const
 {
 	if (runModifiers_.enabled && runEvolutionActive_) return &runEvolutionConfig_;
+	if (runModifiers_.enabled && expeditionCombatStyleSelected_) return &runStarterConfig_;
     if (runModifiers_.enabled && runCheckpointEvolution_ && !runStarterConfig_.barrels.empty()) return &runStarterConfig_;
 	return GetClassConfig(currentClassId_);
 }
@@ -2582,7 +2805,7 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 
 	AttackParam param{};
 	param.bulletSpeed = stats_.bulletSpeed * config.bulletSpeedScale;
-	param.bulletCount = config.bulletCount;
+	param.bulletCount = 1;
 	param.spreadAngleDeg = config.spreadAngleDeg;
 	param.randomSpread = config.randomSpread;
 	param.reflect = config.reflect;
@@ -2766,7 +2989,8 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 		}
 	}
 
-	const float reloadTime = (std::max)(baseReload * config.reloadScale * firedReloadScale, meleeActionDuration);
+	const float reloadTime = (std::max)({baseReload * config.reloadScale * firedReloadScale, meleeActionDuration,
+		expeditionCombatStyleSelected_?0.05f:0.0f});
 	if (usesGroupCooldowns && selectedGroupSlot >= 0 && static_cast<size_t>(selectedGroupSlot) < weaponGroupCooldowns_.size()) {
 		weaponGroupCooldowns_[static_cast<size_t>(selectedGroupSlot)] = reloadTime;
 		bulletCoolTime = 0.0f;
@@ -7094,7 +7318,8 @@ void Player::DrawPlayerClassEditor()
 	}
 
 	if (ImGui::CollapsingHeader("砲性能", ImGuiTreeNodeFlags_DefaultOpen)) {
-		editedThisFrame |= ImGui::DragInt("同時発射弾数", &config->bulletCount, 1.0f, 1, 16);
+		config->bulletCount = 1;
+		ImGui::TextUnformatted("各砲塔の発射数: 1");
 		DrawEditorHelp("1回の射撃で出る弾の数です。");
 		editedThisFrame |= ImGui::DragFloat("拡散角度", &config->spreadAngleDeg, 0.1f, 0.0f, 180.0f);
 		DrawEditorHelp("複数弾を撃つときの広がり角度です。");
@@ -7789,13 +8014,21 @@ void Player::RecalculateStatsFromBase(bool healToFull)
 	const float previousStamina = stats_.stamina;
 
 	stats_ = baseStats_;
+	if(runModifiers_.enabled&&expeditionCombatStyleSelected_) {
+		const auto& profile=GetCombatStyleProfile(expeditionCombatStyle_);
+		stats_.maxHp=profile.maxHp;stats_.moveSpeed=profile.moveSpeed;
+		stats_.maxStamina=profile.maxStamina;stats_.staminaRecovery=profile.staminaRecovery;
+		stats_.bodyDamage=profile.bodyDamage;stats_.bulletSpeed=profile.bulletSpeed;
+		stats_.bulletDamage=profile.attackDamage/(expeditionCombatStyle_==tankbuild::Style::Melee?3.8f:1.0f);
+		stats_.reloadSpeed=profile.attackIntervalSeconds*60.0f;
+	}
 	stats_.staminaRecovery *= 1.0f + healthRegenUpgradeRate_ * static_cast<float>(upgradeLevels_[0]);
 	stats_.maxHp *= 1.0f + maxHpUpgradeRate_ * static_cast<float>(upgradeLevels_[1]);
 	stats_.bodyDamage *= 1.0f + bodyDamageUpgradeRate_ * static_cast<float>(upgradeLevels_[2]);
 	stats_.bulletSpeed *= 1.0f + bulletSpeedUpgradeRate_ * static_cast<float>(upgradeLevels_[3]);
 	stats_.bulletDamage *= 1.0f + bulletDamageUpgradeRate_ * static_cast<float>(upgradeLevels_[4]);
 	stats_.reloadSpeed *= (std::max)(0.05f, 1.0f - reloadUpgradeRate_ * static_cast<float>(upgradeLevels_[5]));
-	stats_.reloadSpeed = (std::max)(minReloadSpeed_, stats_.reloadSpeed);
+	if(!expeditionCombatStyleSelected_)stats_.reloadSpeed = (std::max)(minReloadSpeed_, stats_.reloadSpeed);
 	stats_.moveSpeed *= 1.0f + moveSpeedUpgradeRate_ * static_cast<float>(upgradeLevels_[6]);
 	const TankRunTuning runTuning = MakeTankRunTuning(runModifiers_, runGrowth_);
 	stats_.bulletDamage *= runTuning.damage;
@@ -7902,6 +8135,18 @@ void Player::SpawnAfterimage() {
 std::vector<Player::NeonBarrelLayout> Player::GetNeonBarrelLayouts() const
 {
 	std::vector<NeonBarrelLayout> layouts;
+	if (IsDroneBuild()) return layouts;
+	if (IsMeleeBuild()) {
+		NeonBarrelLayout blade{};
+		blade.isMelee = true;
+		blade.offset = {0.60f,-0.40f,0.0f};
+		blade.scale = {runModifiers_.bladeReach ? 2.4f : 1.85f,0.22f,0.22f};
+		blade.angleRad = -0.22f;
+		blade.barrelColor = {0.18f,1.35f,1.70f,1.0f};
+		blade.outlineColor = {0.65f,1.6f,1.75f,1.0f};
+		layouts.push_back(blade);
+		return layouts;
+	}
 	const PlayerClassConfig* config = GetCurrentClassConfig();
 	if (!config) {
 		NeonBarrelLayout layout{};

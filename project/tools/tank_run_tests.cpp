@@ -28,9 +28,10 @@ void CheckNoOffers(const RunDirector& run) {
 
 void CheckOffers(const RunDirector& run) {
     std::size_t unowned = 0;
-    for (const int count : run.GetCardCounts()) {
+    for (std::size_t i=0;i<CardCount;++i) {
+        const int count=run.GetCardCounts()[i];
         Check(count == 0 || count == 1, "cards never stack beyond one");
-        if (count == 0) ++unowned;
+        if (IsAvailableCard(static_cast<CardId>(i))&&count == 0) ++unowned;
     }
     Check(run.GetPhase() == Phase::Draft, "offers belong to draft phase");
     Check(run.GetOfferCount() == (std::min)(unowned, run.GetOffers().size()), "fill every available offer slot");
@@ -38,6 +39,7 @@ void CheckOffers(const RunDirector& run) {
     for (std::size_t i = 0; i < run.GetOfferCount(); ++i) {
         const auto card = run.GetOffers()[i];
         Check(static_cast<std::size_t>(card) < CardCount, "real offered card");
+        Check(IsAvailableCard(card), "retired multi-shot is never offered");
         Check(run.GetCardCount(card) == 0, "owned card never offered");
         for (std::size_t j = 0; j < i; ++j) Check(run.GetOffers()[j] != card, "offered cards are distinct");
     }
@@ -92,7 +94,10 @@ void TestSelectionAndInvalidInputs() {
     Check(!run.AddSalvage(0) && !run.AddSalvage(-1) && !run.AddSalvage((std::numeric_limits<int>::min)()), "nonpositive salvage rejected");
     Check(!run.CanOpenDraft() && !run.TryOpenDraft(), "unfunded refit rejected");
     Check(run.GetCardCount(CardId::Count) == 0 && run.GetCardCount(static_cast<CardId>(-1)) == 0, "invalid card lookup is safe");
-    Check(!IsRare(CardId::Pierce) && IsRare(CardId::ScatterShot) && IsRare(CardId::Overdrive), "rare category boundaries");
+    Check(!IsRare(CardId::Pierce) && !IsRare(CardId::ScatterShot) && IsRare(CardId::Overdrive), "rare category boundaries");
+    Check(!IsAvailableCard(CardId::ScatterShot)&&IsAvailableCard(CardId::MeleeBlade)&&IsRare(CardId::PerfectDodge), "new modules replace retired spread");
+    const auto before=run.GetCardCounts();
+    Check(!run.GrantExpeditionModules({CardId::Rapid,CardId::ScatterShot})&&run.GetCardCounts()==before, "retired effects reject whole bundle atomically");
     Check(!IsRare(CardId::Count) && !IsRare(static_cast<CardId>(-1)), "invalid cards are not rare");
 }
 
@@ -166,7 +171,7 @@ void TestCombatTimerAndPausedRefits() {
 
 void TestRareCreditBankAndExhaustion() {
     Config config;
-    config.maxDrafts = static_cast<int>(CardCount);
+    config.maxDrafts = static_cast<int>(AvailableCardCount);
     bool observedCreditCap = false;
     for (std::uint32_t seed = 0; seed < 64; ++seed) {
         RunDirector ordinary(seed, config), rivalClaim(seed, config);
@@ -212,13 +217,13 @@ void TestRareCreditBankAndExhaustion() {
     Check(observedCreditCap, "credit-cap test includes a case where seventh credit changes the offer");
     RunDirector exhausted(14, config);
     Start(exhausted);
-    for (int i = 0; i < 4; ++i) {
+    while (HasUnownedRare(exhausted)) {
         Check(exhausted.ClaimResource(true), "earn rare acquisition credit");
         OpenFundedDraft(exhausted);
         Check(FindRareOffer(exhausted) < exhausted.GetOfferCount(), "unowned rare is guaranteed");
         Check(exhausted.ChooseCard(FindRareOffer(exhausted)), "acquire guaranteed rare");
     }
-    Check(!HasUnownedRare(exhausted), "all four rare cards acquired");
+    Check(!HasUnownedRare(exhausted), "all available rare cards acquired");
     Check(exhausted.ClaimResource(true), "resource claim remains valid after rare exhaustion");
     OpenFundedDraft(exhausted);
     for (std::size_t i = 0; i < exhausted.GetOfferCount(); ++i)
@@ -227,7 +232,7 @@ void TestRareCreditBankAndExhaustion() {
 
 void TestSeedReproducibilityAndCaps() {
     Config config;
-    config.maxDrafts = static_cast<int>(CardCount);
+    config.maxDrafts = static_cast<int>(AvailableCardCount);
     CardOffers firstSeedOffers{};
     bool differentSeedsDiffer = false;
     for (std::uint32_t seed = 0; seed < 128; ++seed) {
@@ -250,8 +255,8 @@ void TestSeedReproducibilityAndCaps() {
             Check(a.GetCardCount(chosen) == 1 && a.GetCardCounts() == b.GetCardCounts(), "chosen card stays capped and reproducible");
             CheckNoOffers(a);
         }
-        Check(a.GetDraftCount() == static_cast<int>(CardCount), "config permits acquiring every distinct card");
-        for (const int count : a.GetCardCounts()) Check(count == 1, "entire card pool can be exhausted without duplicates");
+        Check(a.GetDraftCount() == static_cast<int>(AvailableCardCount), "config permits acquiring every available card");
+        for (std::size_t i=0;i<CardCount;++i) Check(a.GetCardCounts()[i] == (IsAvailableCard(static_cast<CardId>(i))?1:0), "available pool exhausts while retired slot stays empty");
         const int salvage = a.GetSalvage();
         Check(!a.AddSalvage(100) && !a.CanOpenDraft() && !a.TryOpenDraft(), "completed draft cap blocks further refits");
         Check(a.ClaimResource(true) && a.ClaimResource(false), "contest claims still count after all refits");
@@ -330,7 +335,7 @@ void TestInvalidConfig() {
     config.maxDrafts = (std::numeric_limits<int>::max)();
     config.combatSeconds = 0.5f;
     RunDirector upper(1, config);
-    Check(upper.GetMaxDrafts() == static_cast<int>(CardCount) && upper.GetCombatSeconds() == 0.5f, "large draft cap clamps to pool and valid fractional duration is preserved");
+    Check(upper.GetMaxDrafts() == static_cast<int>(AvailableCardCount) && upper.GetCombatSeconds() == 0.5f, "large draft cap clamps to available pool and valid fractional duration is preserved");
     Start(upper);
     Check(!upper.Update(0.25) && upper.Update(0.25), "fractional duration reaches boss exactly");
 }

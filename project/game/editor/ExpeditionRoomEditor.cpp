@@ -9,28 +9,37 @@ const std::string& ExpeditionRoomEditor::GetSelectedRoomId() const {
     static const std::string empty;
     return roomIndex_>=0&&roomIndex_<static_cast<int>(draft_.rooms.size())?draft_.rooms[static_cast<size_t>(roomIndex_)].id:empty;
 }
-bool ExpeditionRoomEditor::Draw(bool* open,RoomCatalog& applied,const std::vector<std::string>& enemyIds) {
+bool ExpeditionRoomEditor::Draw(bool* open,RoomCatalog& applied,const std::vector<std::string>& enemyIds,const MapDefinition* map,const MapDefinition* activeMap) {
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
     if(!open||!*open||!ImGui::GetCurrentContext()) return false;
     if(!initialized_) {draft_=applied;initialized_=true;dirty_=false;}
+    auto validate=[&](const RoomCatalog& catalog,std::string& error) {
+        if(map?!ValidateExpeditionMapRooms(*map,catalog,error,&enemyIds):!ValidateRoomCatalog(catalog,error,&enemyIds))return false;
+        return !activeMap||ValidateExpeditionMapRooms(*activeMap,catalog,error,&enemyIds);
+    };
     bool committed=false;
     ImGui::SetNextWindowPos({46,38},ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({1188,640},ImGuiCond_FirstUseEver);
     if(!ImGui::Begin("区画エディター / F4で戻る",open)) {ImGui::End();return false;}
-    ImGui::TextUnformatted("壁・敵・開始位置・達成目標を配置。適用した部屋は次の入場から使われます。");
+    ImGui::TextWrapped("F4: 部屋の敵・壁・達成目標 / F5: 出現する列と部屋の抽選 / F6: 敵の種類・性能。適用した配置は次の部屋入場から有効です。戦闘中の敵は変わりません。");
     if(ImGui::Button("Apply / 適用")) {
-        if(ValidateRoomCatalog(draft_,status_,&enemyIds)) {applied=draft_;dirty_=false;committed=true;status_="適用しました。次の入場から有効です。保存すると次回起動にも反映します。";}
+        if(validate(draft_,status_)) {applied=draft_;dirty_=false;committed=true;status_="適用しました。次の入場から有効です。保存すると次回起動にも反映します。";}
     }
     ImGui::SameLine();
     if(ImGui::Button("Save / 保存")) {
-        if(ValidateRoomCatalog(draft_,status_,&enemyIds)&&SaveRoomCatalog(kRoomCatalogPath,draft_,status_)) {
+        if(validate(draft_,status_)&&SaveRoomCatalog(kRoomCatalogPath,draft_,status_)) {
             applied=draft_;dirty_=false;committed=true;status_="保存・適用しました: "+std::string(kRoomCatalogPath);
         }
     }
     ImGui::SameLine();
     if(ImGui::Button("Reload / 再読込")) {
         RoomCatalog loaded;
-        if(LoadRoomCatalog(kRoomCatalogPath,loaded,status_)&&ValidateRoomCatalog(loaded,status_,&enemyIds)) {
+        const bool loadedFile=LoadRoomCatalog(kRoomCatalogPath,loaded,status_);
+        // Legacy catalogs predate the scene-injected introductory room. Reload
+        // those files without dropping the reserved room from an active map.
+        if(loadedFile&&!FindRoom(loaded,"tutorial_training"))
+            if(const auto* tutorial=FindRoom(applied,"tutorial_training"))loaded.rooms.push_back(*tutorial);
+        if(loadedFile&&validate(loaded,status_)) {
             draft_=loaded;applied=std::move(loaded);roomIndex_=0;spawnIndex_=-1;dirty_=false;committed=true;status_="保存済みの部屋を再読込・適用しました。";
         }
     }
@@ -52,12 +61,26 @@ bool ExpeditionRoomEditor::Draw(bool* open,RoomCatalog& applied,const std::vecto
         }
         auto nextId=[&]() {int number=1;while(FindRoom(draft_,"room_"+std::to_string(number))) ++number;return "room_"+std::to_string(number);};
         if(draft_.rooms.size()<128) {
-            if(ImGui::Button("新しい区画")) {draft_.rooms.push_back(MakeEmptyRoom(nextId(),"新しい区画"));roomIndex_=static_cast<int>(draft_.rooms.size())-1;spawnIndex_=-1;dirty_=true;}
+            if(ImGui::Button("新しい区画")) {
+                auto added=MakeEmptyRoom(nextId(),"新しい区画");
+                if(!enemyIds.empty())for(auto& spawn:added.spawns){spawn.type=enemyIds.front();spawn.hp=0;}
+                draft_.rooms.push_back(std::move(added));roomIndex_=static_cast<int>(draft_.rooms.size())-1;spawnIndex_=-1;dirty_=true;
+            }
             ImGui::SameLine();
             if(ImGui::Button("区画を複製")) {auto clone=draft_.rooms[static_cast<size_t>(roomIndex_)];clone.id=nextId();clone.name+=" コピー";draft_.rooms.push_back(std::move(clone));roomIndex_=static_cast<int>(draft_.rooms.size())-1;spawnIndex_=-1;dirty_=true;}
         }
         auto& room=draft_.rooms[static_cast<size_t>(roomIndex_)];
         ImGui::Text("ID: %s",room.id.c_str());
+        if(map) {
+            bool used=false;
+            if(map->procedural)for(const auto& rule:map->generationRooms)if(rule.roomTemplate==room.id) {
+                ImGui::Text("抽選: %d～%d列目 / %s / 重み%d",rule.firstColumn+1,rule.lastColumn+1,NodeKindId(rule.kind),rule.weight);used=true;
+            }
+            if(!map->procedural)for(const auto& node:map->nodes)if(node.roomTemplate==room.id) {
+                ImGui::Text("固定配置: %d列目 / %s",node.column+1,node.id.c_str());used=true;
+            }
+            if(!used)ImGui::TextWrapped("通常経路では未使用。F5でこの部屋を列・抽選候補へ追加してください。");
+        }
         std::array<char,193> name{};std::memcpy(name.data(),room.name.data(),(std::min)(room.name.size(),name.size()-1));
         if(ImGui::InputText("名前",name.data(),name.size())) {room.name=name.data();dirty_=true;}
         const char* objectiveNames[]={"配置した敵・資源をすべて破壊","装置3個と敵・資源を破壊","ボスを倒す"};
@@ -104,7 +127,7 @@ bool ExpeditionRoomEditor::Draw(bool* open,RoomCatalog& applied,const std::vecto
             if(ImGui::Button("選択した敵を削除")) {room.spawns.erase(room.spawns.begin()+spawnIndex_);spawnIndex_=-1;dirty_=true;}
         }
         std::string validation;
-        if(!ValidateRoomCatalog(draft_,validation,&enemyIds)) {ImGui::PushStyleColor(ImGuiCol_Text,{1.0f,0.48f,0.37f,1});ImGui::TextWrapped("%s",validation.c_str());ImGui::PopStyleColor();}
+        if(!validate(draft_,validation)) {ImGui::PushStyleColor(ImGuiCol_Text,{1.0f,0.48f,0.37f,1});ImGui::TextWrapped("保存できません: %s",validation.c_str());ImGui::PopStyleColor();}
         else ImGui::TextColored({0.35f,0.95f,0.72f,1},"配置チェック OK / 敵 %d体",static_cast<int>(room.spawns.size()));
     }
     ImGui::EndChild();ImGui::SameLine();
@@ -171,7 +194,7 @@ bool ExpeditionRoomEditor::Draw(bool* open,RoomCatalog& applied,const std::vecto
     }
     ImGui::EndChild();ImGui::End();return committed;
 #else
-    (void)open;(void)applied;(void)enemyIds;return false;
+    (void)open;(void)applied;(void)enemyIds;(void)map;(void)activeMap;return false;
 #endif
 }
 } // namespace tankexp

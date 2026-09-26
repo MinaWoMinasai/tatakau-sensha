@@ -1,4 +1,5 @@
 #include "../game/exp/ExpEnemyCombatCycle.h"
+#include "../game/exp/ExpEnemyMagazineCycle.h"
 #include "../game/exp/ExpEnemyNavigation.h"
 #include <cassert>
 #include <cmath>
@@ -16,6 +17,59 @@ void Tick(ExpEnemyCombatCycle& cycle, float seconds, bool visible = true) {
 }
 
 int main() {
+    // Finite clips create a real punish window. This checks actual temporal
+    // behavior (including lost sight and frame stalls), not getters alone.
+    ExpEnemyMagazineCycle magazine;
+    const ExpEnemyMagazineCycle::Timing magTiming{3,0.26f,0.16f,0.16f,1.50f};
+    magazine.Reset(magTiming,0);
+    int roundsFired=0;
+    float reloadTime=0;
+    bool sawReload=false;
+    for(int frame=0;frame<1200;++frame) {
+        const bool wasReloading=magazine.IsReloading();
+        const int beforeAmmo=magazine.GetAmmo();
+        const bool fired=magazine.Advance(0.01f,true);
+        if(fired) {++roundsFired;assert(magazine.GetAmmo()==beforeAmmo-1);}
+        if(magazine.IsReloading()) {
+            assert(!fired&&magazine.GetAmmo()==0);
+            sawReload=true;reloadTime+=0.01f;
+        }
+        if(wasReloading&&!magazine.IsReloading()) {
+            assert(reloadTime>=1.49f);
+            assert(roundsFired%3==0&&magazine.GetAmmo()==3);
+            reloadTime=0;
+        }
+    }
+    assert(sawReload&&roundsFired>=9&&roundsFired<=12);
+    assert(magazine.GetReloadCount()>=3);
+    magazine.Reset(magTiming,0);
+    assert(!magazine.Advance(0.01f,true));
+    assert(magazine.GetPhase()==Phase::Tracking);
+    assert(!magazine.Advance(0.10f,false));
+    assert(magazine.GetPhase()==Phase::Cooldown&&magazine.GetAmmo()==3);
+    for(int frame=0;frame<100;++frame)assert(!magazine.Advance(0.1f,false));
+    assert(magazine.GetAmmo()==3); // No blind shooting, no gratuitous refill.
+    assert(!magazine.Advance(10.0f,true));
+    assert(magazine.GetPhase()==Phase::Tracking);
+    assert(!magazine.Advance(10.0f,true));
+    assert(magazine.GetPhase()==Phase::Locked);
+    assert(magazine.Advance(10.0f,false)); // Commitment survives lost sight.
+    assert(magazine.GetAmmo()==2&&magazine.GetPhase()==Phase::Active);
+    assert(!magazine.Advance(10.0f,true)); // One call never catches up multiple shots.
+    // Even the fastest authored variant retains its warning and reload opening.
+    magazine.Reset({1,0.26f,0.16f,0.16f,1.5f},0);
+    magazine.SetIntervalScale(0.3f);
+    assert(!magazine.Advance(100,true));assert(!magazine.Advance(100,true));
+    assert(magazine.Advance(100,true));assert(!magazine.Advance(100,true));
+    assert(magazine.IsReloading());
+    for(int i=0;i<79;++i) {assert(!magazine.Advance(0.01f,false));assert(magazine.IsReloading());}
+    assert(!magazine.Advance(0,false));
+    assert(!magazine.Advance(-1,false));
+    assert(!magazine.Advance(std::numeric_limits<float>::quiet_NaN(),false));
+    assert(magazine.IsReloading());
+    assert(!magazine.Advance(0.02f,false));
+    assert(!magazine.IsReloading()&&magazine.GetAmmo()==1);
+
     ExpEnemyCombatCycle cycle;
     const ExpEnemyCombatCycle::Timing timing{ 0.60f, 0.30f, 0.42f, 1.10f, 0.55f };
     cycle.Reset(timing, 0.10f);
@@ -108,5 +162,5 @@ int main() {
     assert((FindExpEnemyNextCell<7, 7>(grid, 1 * 7 + 1, goal) == -1));
     grid.fill(true);
     assert((FindExpEnemyNextCell<7, 7>(grid, 0, 48) == -1));
-    std::cout << "Expedition enemy timing: tracking, cover cancellation, aim lock, recovery, frame stalls and sniper cadence passed.\n";
+    std::cout << "Expedition enemy timing: finite magazines, mandatory reload, cover cancellation, aim lock, frame stalls, dash recovery and navigation passed.\n";
 }
