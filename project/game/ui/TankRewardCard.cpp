@@ -1,4 +1,5 @@
 #include "TankRewardCard.h"
+#include "StartupTrace.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -98,9 +99,22 @@ std::string DemoNote(const TankRewardCardModel& m) {
 
 void TankRewardCard::Initialize(SpriteCommon* spriteCommon) {
     if(spriteCommon_)return;
+    StartupTrace::Scope scope("RewardCard.Initialize");
     spriteCommon_=spriteCommon;
-    for(auto& sprite:solids_) {sprite=std::make_unique<Sprite>();sprite->Initialize(spriteCommon,kWhite);sprite->SetAnchorPoint({0.5f,0.5f});}
-    for(auto& sprite:glows_) {sprite=std::make_unique<Sprite>();sprite->Initialize(spriteCommon,kGlow);sprite->SetAnchorPoint({0.5f,0.5f});}
+    {
+        StartupTrace::Scope poolScope("RewardCard.SpritePool");
+        wchar_t flag[8]{};
+        const bool baseline=GetEnvironmentVariableW(L"CG2_STARTUP_CACHE",flag,8)>0&&flag[0]==L'0';
+        // The HDR preview replaced the sprite-based demonstration. Its frame
+        // needs at most 85 solids and 28 glows, including legendary acquisition.
+        // Reserve above those bounds so opening any rarity adds no allocations.
+        // The legacy fallback may grow the existing pool only during Update.
+        const std::size_t solidReserve=baseline?kSolidCapacity:96;
+        const std::size_t glowReserve=baseline?kGlowCapacity:32;
+        for(std::size_t i=0;i<solidReserve;++i) EnsureSprite(solids_[i],kWhite);
+        for(std::size_t i=0;i<glowReserve;++i) EnsureSprite(glows_[i],kGlow);
+        StartupTrace::Count("rewardCard.reservedSprites",static_cast<double>(solidReserve+glowReserve));
+    }
     for(std::size_t i=0;i<labels_.size();++i) {
         TextStyle style;style.fontSize=i==1?24.0f:i==2?16.0f:i==3?18.0f:12.0f;
         style.fontWeight=i==1||i==3?700:400;style.padding=2;style.outlineThickness=0;
@@ -117,6 +131,7 @@ void TankRewardCard::SetModel(const TankRewardCardModel& model) {
 }
 void TankRewardCard::InitializePreview(SrvManager* srvManager) {
     if(preview_||!spriteCommon_||!srvManager)return;
+    StartupTrace::Scope scope("RewardCard.InitializePreview");
     preview_=std::make_unique<TankRewardPreviewRenderer>();preview_->Initialize(spriteCommon_->GetDxCommon(),srvManager);
     previewSprite_=std::make_unique<Sprite>();previewSprite_->Initialize(spriteCommon_,preview_->GetSrvIndex(),srvManager);
     previewSprite_->SetAnchorPoint({.5f,.5f});previewSprite_->SetColor({1,1,1,1});previewDirty_=true;
@@ -183,7 +198,7 @@ void TankRewardCard::Update(const Vector2& center,const Vector2& size,float dt,b
 }
 void TankRewardCard::Rect(Vector2 center,Vector2 size,Vector4 color,float rotation) {
     if(solidCount_>=solids_.size())return;
-    auto& s=solids_[solidCount_++];s->SetPosition(center);s->SetSize(size);s->SetRotation(rotation);
+    auto& s=solids_[solidCount_++];EnsureSprite(s,kWhite);s->SetPosition(center);s->SetSize(size);s->SetRotation(rotation);
     s->SetColor(Tint(color,alpha_));s->Update();
 }
 void TankRewardCard::Line(Vector2 a,Vector2 b,float width,Vector4 color) {
@@ -192,8 +207,13 @@ void TankRewardCard::Line(Vector2 a,Vector2 b,float width,Vector4 color) {
 }
 void TankRewardCard::Glow(Vector2 center,Vector2 size,Vector4 color,float rotation) {
     if(glowCount_>=glows_.size())return;
-    auto& s=glows_[glowCount_++];s->SetPosition(center);s->SetSize(size);s->SetRotation(rotation);
+    auto& s=glows_[glowCount_++];EnsureSprite(s,kGlow);s->SetPosition(center);s->SetSize(size);s->SetRotation(rotation);
     s->SetColor(Tint(color,alpha_));s->Update();
+}
+void TankRewardCard::EnsureSprite(std::unique_ptr<Sprite>& sprite,const char* texture) {
+    if(sprite)return;
+    sprite=std::make_unique<Sprite>();sprite->Initialize(spriteCommon_,texture);sprite->SetAnchorPoint({0.5f,0.5f});
+    StartupTrace::Count("rewardCard.allocatedSprites");
 }
 void TankRewardCard::Label(std::size_t index,Vector2 position,float maxWidth,float maxHeight,float alpha) {
     auto& label=labels_[index];label->SetPosition(position);label->SetAlpha(alpha*alpha_);label->PrepareForDraw();
