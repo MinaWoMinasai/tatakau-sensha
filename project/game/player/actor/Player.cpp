@@ -1,4 +1,5 @@
 #include "Player.h"
+#include "StartupTrace.h"
 #include "Stage.h"
 #include "game/exp/ExpEnemy.h"
 #include "game/enemy/actor/Enemy.h"
@@ -707,7 +708,7 @@ void Player::AddExp(int amount)
 		// 次の必要経験値を再計算（例: レベル * 100 + 補正）
 		nextLevelExp_ = GetNextLevelExp();
 
-		if (GetRankFromLevel(level_) > previousRank && !(runModifiers_.enabled && runCheckpointEvolution_)) {
+		if (arenaUiEnabled_ && GetRankFromLevel(level_) > previousRank && !(runModifiers_.enabled && runCheckpointEvolution_)) {
 			isChangeMode = true;
 			// AddExpはPlayer::Update後の衝突処理から呼ばれる場合があるため、
 			// 同じフレームの初回描画より先に遅延フォント更新を完了させる。
@@ -851,7 +852,11 @@ void Player::RotateToMouse(Camera* viewProjection) {
 	object_->SetRotate(worldTransform_.rotate);
 }
 
-void Player::Initialize(Object3d* object, const Vector3& position) {
+void Player::Initialize(Object3d* object, const Vector3& position, bool arenaUi) {
+    StartupTrace::Scope scope("Player.Initialize");
+	wchar_t startupCacheFlag[8]{};
+	const bool baseline = GetEnvironmentVariableW(L"CG2_STARTUP_CACHE", startupCacheFlag, 8) > 0 && startupCacheFlag[0] == L'0';
+	arenaUiEnabled_ = arenaUi || baseline;
 
 	sprite = std::make_unique<Sprite>();
 	sprite->Initialize(SpriteCommon::GetInstance(), "resources/fade.png");
@@ -896,15 +901,22 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	machineGunBtnSprite_->SetPosition({ btnPos_ });
 	machineGunBtnSprite_->SetSize({ btnSize_ });
 
-	InitializeEncyclopedia();
 	LoadEvolutionUiStyle();
-	InitializeStaticEvolutionPrototype();
-	InitializeEvolutionCircuitPrototype();
-	InitializeUpgradeHud();
-	LoadUpgradeHudConfig();
-	ApplyUpgradeHudLayout();
-	PrepareUpgradeHudSegmentBars();
-	PrepareUpgradeHudTextTextures();
+	if (arenaUiEnabled_) {
+		InitializeEncyclopedia();
+		InitializeStaticEvolutionPrototype();
+		InitializeEvolutionCircuitPrototype();
+		InitializeUpgradeHud();
+		LoadUpgradeHudConfig();
+		ApplyUpgradeHudLayout();
+		PrepareUpgradeHudSegmentBars();
+		PrepareUpgradeHudTextTextures();
+	} else {
+		// Keep authored progression rules available for combat/evolution logic.
+		// Only the legacy arena's invisible UI is omitted, never deferred.
+		LoadEvolutionCircuitTree();
+		StartupTrace::Count("player.unusedArenaUiSkipped");
+	}
 
 }
 
@@ -922,9 +934,9 @@ void Player::Update(
 	ScreenToClient(WinApp::GetInstance()->GetHwnd(), &mousePos);
 	mousePosition_ = { static_cast<float>(mousePos.x), static_cast<float>(mousePos.y) };
 	const bool evolutionUiWasOpen = isChangeMode;
-	if(!demoInputEnabled_) { UpdateEncyclopedia(uiDeltaTime); UpdateUpgradeHud(uiDeltaTime); }
+	if(!demoInputEnabled_ && arenaUiEnabled_) { UpdateEncyclopedia(uiDeltaTime); UpdateUpgradeHud(uiDeltaTime); }
 
-	if (!demoInputEnabled_ && !(runModifiers_.enabled && runCheckpointEvolution_) &&
+	if (arenaUiEnabled_ && !demoInputEnabled_ && !(runModifiers_.enabled && runCheckpointEvolution_) &&
 		input_->IsTrigger(input_->GetKey()[DIK_C], input_->GetPreKey()[DIK_C])) {
 		if (isChangeMode) {
 			isChangeMode = false;
@@ -3100,6 +3112,7 @@ void Player::TriggerDamageFeedback()
 
 void Player::InitializeEncyclopedia()
 {
+    StartupTrace::Scope scope("Player.EncyclopediaUi");
 	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
 	auto makePanel = [spriteCommon](const Vector2& pos, const Vector2& size, const Vector4& color) {
 		auto panel = std::make_unique<Sprite>();
@@ -3182,6 +3195,7 @@ void Player::InitializeEncyclopedia()
 
 void Player::InitializeUpgradeHud()
 {
+    StartupTrace::Scope scope("Player.UpgradeHud");
 	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
 	auto makePanel = [spriteCommon](const Vector2& pos, const Vector2& size, const Vector4& color) {
 		auto panel = std::make_unique<Sprite>();
@@ -3290,6 +3304,7 @@ void Player::InitializeUpgradeHud()
 
 void Player::PrepareUpgradeHudTextTextures()
 {
+	if (!arenaUiEnabled_) return;
 	TextRenderer* textRenderer = TextRenderer::GetInstance();
 	if (!textRenderer ||
 		(upgradeHudTextPrepared_ &&
@@ -3297,6 +3312,7 @@ void Player::PrepareUpgradeHudTextTextures()
 		 upgradeHudTextPreparedForSegmentedBars_ == upgradeHudUseSegmentedUpgradeBars_)) {
 		return;
 	}
+	StartupTrace::Scope scope("Player.UpgradeHudTextPrewarm");
 
 	const TextStyle bottomStyle = MakeUpgradeHudBottomBarTextStyle();
 	const TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
@@ -3508,7 +3524,7 @@ void Player::InitializeUpgradeHudBatch()
 void Player::UpdateUpgradeHud(float uiDeltaTime)
 {
 	upgradeHudMouseCaptured_ = false;
-	if (!upgradeHudVisible_ || isChangeMode || isDead_) {
+	if (!arenaUiEnabled_ || !upgradeHudVisible_ || isChangeMode || isDead_) {
 		return;
 	}
 	const float safeUiDeltaTime = (std::max)(0.0f, uiDeltaTime);
@@ -3672,7 +3688,7 @@ void Player::UpdateUpgradeHud(float uiDeltaTime)
 void Player::DrawUpgradeHud()
 {
 	upgradeHudProfile_ = {};
-	if (!upgradeHudVisible_ || isChangeMode || isDead_) {
+	if (!arenaUiEnabled_ || !upgradeHudVisible_ || isChangeMode || isDead_) {
 		return;
 	}
 	upgradeHudProfile_.visible = true;
@@ -4342,6 +4358,7 @@ bool Player::ShouldUseEvolutionCircuitPrototype() const
 
 void Player::InitializeEvolutionCircuitPrototype()
 {
+    StartupTrace::Scope scope("Player.EvolutionCircuitUi");
 	if (!LoadEvolutionCircuitTree()) {
 		return;
 	}
@@ -4908,6 +4925,7 @@ Vector2 Player::EvolutionClientToVirtual(const Vector2& clientPosition) const
 
 void Player::InitializeStaticEvolutionPrototype()
 {
+    StartupTrace::Scope scope("Player.StaticEvolutionUi");
 	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
 	auto makeSprite = [spriteCommon](const std::string& texture, const Vector2& anchor) {
 		auto sprite = std::make_unique<Sprite>();
@@ -5978,6 +5996,7 @@ bool Player::SaveEvolutionUiStyle(const std::string& path) const
 
 void Player::DrawEvolutionUiStyleEditor()
 {
+	if (!arenaUiEnabled_) return;
 #ifdef USE_IMGUI
 	if (!ImGui::CollapsingHeader("進化UI", ImGuiTreeNodeFlags_DefaultOpen)) {
 		return;
@@ -6252,6 +6271,7 @@ void Player::DrawStaticEvolutionPrototype()
 
 void Player::DrawUpgradeHudAfterPostEffects()
 {
+	if (!arenaUiEnabled_) return;
 	const bool drawBottomBars = upgradeHudDrawBottomBars_ && upgradeHudUseNeonProgressBars_;
 	bool drawSegmentBars = upgradeHudUseSegmentedUpgradeBars_ && upgradeHudListVisibility_ > 0.01f;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
@@ -6284,7 +6304,7 @@ void Player::DrawUpgradeHudAfterPostEffects()
 
 void Player::DrawEvolutionAfterPostEffects()
 {
-	if (!isChangeMode) {
+	if (!arenaUiEnabled_ || !isChangeMode) {
 		return;
 	}
 	if (ShouldUseEvolutionCircuitPrototype()) {
@@ -6507,7 +6527,7 @@ void Player::UpdateP(float deltaTime)
 
 void Player::UpdateEncyclopedia(float uiDeltaTime)
 {
-	if (!isChangeMode) {
+	if (!arenaUiEnabled_ || !isChangeMode) {
 		return;
 	}
 	if (encyclopedia_.size() != classOrder_.size()) {
@@ -6612,6 +6632,7 @@ void Player::UpdateEncyclopedia(float uiDeltaTime)
 }
 
 void Player::DrawEncyclopedia() {
+	if (!arenaUiEnabled_) return;
 
 	evolutionUiProfile_ = {};
 	if (isChangeMode && ShouldUseEvolutionCircuitPrototype()) {

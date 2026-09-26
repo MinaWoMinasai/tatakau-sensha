@@ -858,5 +858,8 @@
     <ClInclude Include="game\ui\TankRewardPreviewRenderer.h" />
     <ClInclude Include="game\ui\TankCombatNeonGeometry.h" />
     <ClInclude Include="game\player\TankCombatStyleBalance.h" />
+    <ClInclude Include="DirectX\engine\commom\StartupTrace.h" />
+    <ClInclude Include="DirectX\engine\commom\ShaderDiskCache.h" />
+    <ClInclude Include="DirectX\engine\2d\GeneratedTextureCache.h" />
   </ItemGroup>
 </Project>

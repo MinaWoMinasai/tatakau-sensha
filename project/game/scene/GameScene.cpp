@@ -1,5 +1,6 @@
 #include "GameScene.h"
 #include "RuntimeProfiler.h"
+#include "StartupTrace.h"
 #include "GameStartMode.h"
 #include "game/ui/TankCombatNeonGeometry.h"
 #include "CollisionConfig.h"
@@ -437,6 +438,7 @@ GameScene::~GameScene()
 }
 
 void GameScene::Initialize() {
+    StartupTrace::Scope startupScope(titleDemo_ ? "GameScene.Initialize.Demo" : "GameScene.Initialize.Play");
 
 	worldTransform_ = InitWorldTransform();
 
@@ -454,6 +456,8 @@ void GameScene::Initialize() {
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
 	Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera.get());
 
+	{
+	StartupTrace::Scope scope("GameScene.ObjectPostEffects");
 	playerPostEffect_ = std::make_unique<ObjectPostEffect>();
 	playerPostEffect_->Initialize(
 		Object3dCommon::GetInstance()->GetDxCommon(),
@@ -596,7 +600,10 @@ void GameScene::Initialize() {
 		objectBloomPost.outlineBloomWidth = 0.0f;
 	}
 	LoadGamePostEffectConfig();
+	}
 
+	{
+	StartupTrace::Scope scope("GameScene.WorldAndActors");
 	enemyObject_ = std::make_unique<Object3d>();
 	enemyObject_->Initialize();
 
@@ -665,7 +672,7 @@ void GameScene::Initialize() {
 	}
 
 	player_ = std::make_unique<Player>();
-	player_->Initialize(playerObject_.get(), playerSpawnPosition);
+	player_->Initialize(playerObject_.get(), playerSpawnPosition, !expeditionRun_);
 	player_->SetAttackControllerBulletManager(bulletManager_.get());
 
 	// 敵キャラの生成
@@ -708,7 +715,10 @@ void GameScene::Initialize() {
 	if (hasLevelData) {
 		ApplyLevelData(levelData);
 	}
+	}
 
+	{
+	StartupTrace::Scope scope("GameScene.PresentationAndUi");
 	// 衝突マネージャの生成
 	collisionManager_ = std::make_unique<CollisionManager>();
 	collisionDebugRingManager_ = std::make_unique<RingManager>();
@@ -802,6 +812,7 @@ void GameScene::Initialize() {
 	ApplyGameTextAppearance();
 	InitializeTutorialUi();
 	InitializePlayerClassConfigWatch();
+	}
 	if (prototypeRun_) InitializeTankRun();
 	previousPlayerHp_ = player_ ? player_->GetHp() : 0;
 	previousBossHp_ = enemy_ ? enemy_->GetHp() : 0;

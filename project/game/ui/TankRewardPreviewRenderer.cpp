@@ -1,5 +1,6 @@
 #include "TankRewardPreviewRenderer.h"
 #include "Calculation.h"
+#include "StartupTrace.h"
 #include <cmath>
 #include <tuple>
 
@@ -38,6 +39,7 @@ bool Equal(const TankRewardPreviewAppearance& a,const TankRewardPreviewAppearanc
 }
 void TankRewardPreviewRenderer::Initialize(DirectXCommon* dx,SrvManager* srv) {
     if(dx_)return;dx_=dx;srv_=srv;
+    StartupTrace::Scope scope("RewardPreview.Initialize");
     rtv_=std::make_unique<RtvManager>();rtv_->Initialize(dx);
     auto make=[&](std::unique_ptr<RenderTexture>& rt,uint32_t w,uint32_t h,DXGI_FORMAT format) {
         rt=std::make_unique<RenderTexture>();rt->Initialize(dx,srv,rtv_.get(),w,h,{0,0,0,1},false,format);

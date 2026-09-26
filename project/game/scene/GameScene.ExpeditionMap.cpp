@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "StartupTrace.h"
 #include <fstream>
 #include <iomanip>
 #include <numeric>
@@ -63,6 +64,7 @@ bool Inside(Vector2 mouse,float x,float y,float w,float h) {return mouse.x>=x&&m
 }
 
 void GameScene::InitializeExpeditionMap() {
+    StartupTrace::Scope scope("Expedition.Map");
     expeditionMapEnabled_=true;
     expeditionMapDefinition_=tankexp::DefaultExpeditionMap();expeditionRooms_=tankexp::DefaultRoomCatalog();
     expeditionContent_=tankcontent::DefaultCatalog();std::string error;

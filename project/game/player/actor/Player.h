@@ -188,7 +188,9 @@ public:
 	/// <param name="model">モデル</param>
 	/// <param name="camera">カメラ</param>
 	/// <param name="position">初期座標</param>
-	void Initialize(Object3d* objectBullet, const Vector3& position);
+	// Expedition owns its own map, reward cards and HUD. Arena UI resources are
+	// optional, while class/evolution data and all combat behavior remain shared.
+	void Initialize(Object3d* objectBullet, const Vector3& position, bool arenaUi = true);
 
 	/// <summary>
 	/// 更新
@@ -991,6 +993,7 @@ private:
 	float upgradeHudListAnimSpeed_ = 10.0f;
 	float upgradeHudListSlideDistance_ = 260.0f;
 	bool upgradeHudMouseCaptured_ = false;
+	bool arenaUiEnabled_ = true;
 	bool upgradeHudVisible_ = true;
 	bool upgradeHudHideListWithoutPoints_ = true;
 	bool upgradeHudDrawListPanels_ = true;

@@ -1,4 +1,5 @@
 #include "ModelManager.h"
+#include "StartupTrace.h"
 
 ModelManager* ModelManager::instance = nullptr;
 
@@ -30,6 +31,7 @@ void ModelManager::LoadModel(const std::string& filePath)
 	}
 
 	// モデルの生成とファイルの読み込み
+	StartupTrace::Scope startupScope("Model.Load." + filePath);
 	std::unique_ptr<Model> model = std::make_unique<Model>();
 	model->Initialize(modelCommon.get(), "resources", filePath);
 
