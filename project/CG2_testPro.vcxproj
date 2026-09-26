@@ -763,6 +763,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\scene\GameScene.CombatValidation.cpp" />
     <ClCompile Include="game\scene\GameScene.ExpeditionExperience.cpp" />
     <ClCompile Include="game\scene\GameScene.ExperienceValidation.cpp" />
+    <ClCompile Include="game\scene\GameScene.SpecialValidation.cpp" />
     <ClCompile Include="game\editor\ExpeditionRoomEditor.cpp" />
     <ClCompile Include="game\editor\ExpeditionMapEditor.cpp" />
     <ClCompile Include="game\editor\ExpeditionContentEditor.cpp" />
@@ -782,6 +783,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp" />
     <ClInclude Include="game\ui\TankRewardPreviewRenderer.h" />
     <ClInclude Include="game\ui\TankCombatNeonGeometry.h" />
+    <ClInclude Include="game\effects\TankSpecialNeonGeometry.h" />
+    <ClInclude Include="game\player\TankSpecialCombat.h" />
+    <ClInclude Include="game\exp\ExpGuardCombat.h" />
     <ClInclude Include="game\player\TankCombatStyleBalance.h" />
   </ItemGroup>
 </Project>

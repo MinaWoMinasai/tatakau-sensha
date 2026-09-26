@@ -44,7 +44,7 @@ void GameScene::WriteExperienceValidationReport(bool completed) {
         {"meleeModuleGrantedForProbe",false},{"meleeFixtureReplacesFirstNormalRoomEnemies",true},
         {"buildStyle",tankbuild::Id(static_cast<tankbuild::Style>(experienceValidationStyle_))},{"buildPreserved",experienceBuildPreserved_},
         {"droneSamples",experienceDroneSamples_},{"rarityScreensAreVisualFixtures",true},
-        {"evolutionVerified",experienceEvolutionVerified_},
+        {"refitVerified",experienceEvolutionVerified_},{"refitOfferSeedIsFixture",true},
         {"initialKills",experienceInitialKills_},{"initialPlayerBulletSamples",experiencePlayerBulletSamples_},
         {"guideStageMask",experienceGuideStageMask_},{"successfulDashes",experienceSuccessfulDashes_},
         {"introWallet",experienceIntroWallet_},{"afterIntroWallet",experienceAfterIntroWallet_},
@@ -127,7 +127,7 @@ bool GameScene::UpdateExperienceValidation(float dt) {
             experienceValidationErrors_.push_back("Actual projectile attack evidence incomplete");
         if(experienceValidationStyle_==1&&experienceDroneSamples_==0) experienceValidationErrors_.push_back("Drone style did not create immediate companions");
         if(!experienceBuildPreserved_) experienceValidationErrors_.push_back("Build selection preservation not verified");
-        if(!experienceEvolutionVerified_) experienceValidationErrors_.push_back("Same-family evolution purchase and preservation not verified");
+        if(!experienceEvolutionVerified_) experienceValidationErrors_.push_back("Same-style workshop refit purchase and preservation not verified");
         if(experienceValidationVariant_==1&&(experienceInitialKills_<2||experiencePlayerBulletSamples_==0||experienceSuccessfulDashes_==0||experienceGroundOrbSamples_==0))
             experienceValidationErrors_.push_back("Real tutorial shooting/pickup/dash evidence incomplete");
         if(player_->GetLevel()!=1||player_->GetExp()!=0) experienceValidationErrors_.push_back("Expedition leaked level/EXP progression");
@@ -159,8 +159,8 @@ bool GameScene::UpdateExperienceValidation(float dt) {
         if(expeditionMapRun_.GetVisitedNodeIds().empty()) id=experienceValidationVariant_==1?"tutorial_combat":"tutorial_skip";
         else for(const auto& option:options) {
             const auto* candidate=tankexp::FindMapNode(expeditionMapRun_.GetDefinition(),option);
-            if(candidate&&candidate->kind==tankexp::NodeKind::Evolution&&!experienceEvolutionVerified_) {id=option;break;}
-            if(candidate&&candidate->kind!=tankexp::NodeKind::Evolution) id=option;
+            if(candidate&&candidate->kind==tankexp::NodeKind::Upgrade&&!experienceEvolutionVerified_) {id=option;break;}
+            if(candidate) id=option;
         }
         RequestExpeditionMapNode(id);return false;
     }
@@ -252,12 +252,23 @@ bool GameScene::UpdateExperienceValidation(float dt) {
             if(!offer||!tankcontent::EligibleUpgrade(*offer,expeditionBuildStyle_,tankRun_.GetCardCounts()))
                 experienceValidationErrors_.push_back("Incompatible upgrade leaked into runtime shop: "+id);
         }
-        if(node->kind==tankexp::NodeKind::Evolution) {
-            for(const auto& id:expeditionServiceOffers_) if(const auto* p=tankcontent::FindPlayer(expeditionContent_,id);p&&p->style!=expeditionBuildStyle_)
-                experienceValidationErrors_.push_back("Cross-family evolution leaked into runtime shop: "+id);
-            CaptureExperienceValidation("evolution");
-            if(experienceValidationStateAge_>0.8f&&tankRunCapturePath_.empty()&&!experienceEvolutionVerified_&&!expeditionServiceOffers_.empty()&&expeditionMapRun_.CanAfford(ExpeditionServicePrice(expeditionServiceOffers_.front()))) {
-                SelectExpeditionService(0);return false;
+        if(node->kind==tankexp::NodeKind::Upgrade&&!experienceEvolutionVerified_&&node->role==tankexp::NodeRole::None) {
+            // Deterministic offer seed isolates purchase preservation from luck.
+            // The real weighted generator, eligibility and card transaction run.
+            if(experienceValidationStateAge_<0.7f)for(uint32_t fixtureSeed=1;fixtureSeed<512;++fixtureSeed) {
+                auto offers=tankcontent::BuildShopOffers(expeditionContent_,expeditionBuildStyle_,tankRun_.GetCardCounts(),expeditionPurchases_,fixtureSeed,expeditionRefitPurchased_);
+                const bool refit=std::any_of(offers.begin(),offers.end(),[&](const std::string& id){const auto* u=tankcontent::FindUpgrade(expeditionContent_,id);return u&&!u->refitPlayer.empty();});
+                if(refit){expeditionServiceOffers_=std::move(offers);RefreshExpeditionBuildCards();break;}
+            }
+            for(size_t i=0;i<expeditionServiceOffers_.size();++i) {
+                const auto* u=tankcontent::FindUpgrade(expeditionContent_,expeditionServiceOffers_[i]);
+                if(!u||u->refitPlayer.empty())continue;
+                const auto* p=tankcontent::FindPlayer(expeditionContent_,u->refitPlayer);
+                if(!p||p->style!=expeditionBuildStyle_)experienceValidationErrors_.push_back("Cross-style refit leaked into workshop");
+                CaptureExperienceValidation("refit");
+                if(experienceValidationStateAge_>0.8f&&tankRunCapturePath_.empty()&&expeditionMapRun_.CanAfford(ExpeditionServicePrice(u->id))) {
+                    SelectExpeditionService(static_cast<int>(i));return false;
+                }
             }
         }
         if(experienceValidationStateAge_>0.9f) SelectExpeditionService(3);

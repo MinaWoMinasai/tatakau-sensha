@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 #include "../game/player/TankRunModifiers.h"
+#include "../game/player/TankSpecialCombat.h"
 #include "../game/player/TankExpeditionLoadout.h"
 #include "../game/player/TankCombatStyleBalance.h"
 #include "../game/run/TankBuildStyle.h"
@@ -104,6 +105,7 @@ struct TestInput {
 };
 class PlayerDrone : public TestActor {
 public:
+	bool IsDead() const { return false; }
     void Initialize(Vector3 start,Vector3) {position=start;}
     void SetAttackControllerBulletManager(BulletManager* manager) {runBulletManager_=manager;attackController_.SetBulletManager(manager);}
     void SetRunInput(Vector3 target,bool shoot) {runInputOverride_=true;runWantsAttack_=shoot;dir=Length(target-position)>.001f?Normalize(target-position):Vector3{1,0,0};}
@@ -124,13 +126,14 @@ public:
 };
 enum class WeaponType {Projectile};
 struct RunEvolutionChoice {std::string id,name,description;};
+class Enemy;class EnemyManager;
 class Player : public TestActor {
 public:
     Player() { position={-100,-100,0}; SetCollisionAttribute(kCollisionAttributePlayer); SetCollisionMask(kCollisionAttributeEnemyBullet); }
     std::vector<PlayerDrone*> GetDronePtrs() { return {}; }
     bool TryDashImpact(Collider*) { return false; } // Body-slam production path covered by collision suite.
     void ApplyRunProjectileRules(AttackParam&,bool=true) const;
-    struct Mount {bool fires=true;WeaponType weaponType=WeaponType::Projectile;float angleDeg=0,damageScale=1,reloadScale=1,projectileSpeedScale=1;Vector3 offset;};
+    struct Mount {bool fires=true;WeaponType weaponType=WeaponType::Projectile;float angleDeg=0,damageScale=1,reloadScale=1,projectileSpeedScale=1,muzzleForward=1.7f;Vector3 offset;};
     struct PlayerClassConfig {
         bool reflect=false,penetrate=false,usesDrone=false,randomSpread=false;
         int maxDrones=0,bulletCount=1;
@@ -141,6 +144,34 @@ public:
     const PlayerClassConfig* GetClassConfig(const std::string& id) const {return id=="Basic"?&authoredConfig:nullptr;}
     const PlayerClassConfig* GetCurrentClassConfig() const { return runEvolutionActive_?&runEvolutionConfig_:expeditionCombatStyleSelected_?&runStarterConfig_:&authoredConfig; }
     bool IsDroneBuild() const {return runModifiers_.enabled&&expeditionCombatStyleSelected_&&expeditionCombatStyle_==tankbuild::Style::Drone;}
+	bool IsMeleeBuild() const {return runModifiers_.enabled&&expeditionCombatStyleSelected_&&expeditionCombatStyle_==tankbuild::Style::Melee;}
+	struct MeleeSlashEvent {
+		Vector3 origin{},direction{1,0,0};float range=4.3f,arcDeg=120,duration=.14f,windupDuration=.05f;
+		int comboStep=0;uint32_t damage=20;
+	};
+	struct DroneLaserLink {Vector3 start{},end{};bool contact=false;};
+	enum class SpecialEventKind { RailShot, Parry, PerfectParry, LinkHit };
+	struct SpecialCombatEvent {SpecialEventKind kind;Vector3 origin,direction;float strength;};
+	struct SpecialCombatStats {uint32_t railShots=0,slashWaves=0,parries=0,perfectParries=0,linkTicks=0;};
+	struct Barrel {float muzzleFlashTimer=0,recoilOffset=0;};
+	std::vector<Barrel> barrels_;
+	static constexpr float kMuzzleFlashDuration=.075f;
+	Vector3 dir_{1,0,0},velocity_{};
+	tankspecial::RailCharge railCharge_;
+	tankspecial::LinkDamageClock linkDamageClock_;
+	std::vector<DroneLaserLink> droneLaserLinks_;
+	std::vector<SpecialCombatEvent> pendingSpecialCombatEvents_;
+	SpecialCombatStats specialCombatStats_;
+	MeleeSlashEvent specialMeleeSwing_;
+	float specialMeleeElapsed_=-1;
+	bool specialWaveEmitted_=false,specialPerfectFeedback_=false,primaryAttackPerformedEvent_=false;
+	uint32_t primaryAttackCount_=0;
+	std::vector<uint64_t> specialParriedBullets_;
+	Vector3 RotateDirection(Vector3 dir,float degrees) const {const float a=degrees*.01745329252f;return {dir.x*std::cos(a)-dir.y*std::sin(a),dir.x*std::sin(a)+dir.y*std::cos(a),dir.z};}
+	void AttackRailCannon(BulletManager*,bool,float);
+	void UpdateSpecialCombat(Stage&,BulletManager*,Enemy*,EnemyManager*,float);
+	Vector3 GetRailChargeMuzzle() const;
+	std::vector<SpecialCombatEvent> ConsumeSpecialCombatEvents();
     bool SetExpeditionCombatStyle(tankbuild::Style);
     int GetExpeditionDroneLimit() const;
     void EnsureExpeditionDrones();
@@ -184,13 +215,14 @@ public:
     TankRunGrowth runGrowth_;
     bool isBuffActive_=false;
 };
-class Enemy : public TestActor {};
-class ExpEnemy : public TestActor {};
+class Enemy : public TestActor {public:bool IsDead()const{return false;}void TakeDamage(uint32_t d){damageReceived+=d;++hits;}};
+class ExpEnemy : public TestActor {public:bool IsDead()const{return false;}bool IsRunResource()const{return false;}void TakeDirectionalDamage(uint32_t d,Vector3){damageReceived+=d;++hits;}};
 class EnemyManager { public: std::vector<ExpEnemy*> actors; std::vector<ExpEnemy*> GetEnemyPtrs() { return actors; } };
 class Stage {
 public:
     struct MergedBlock { AABB aabb; };
     std::vector<MergedBlock> mergedBlocks_;
+	const std::vector<MergedBlock>& GetMergedBlocks() const {return mergedBlocks_;}
     void ResolveBulletsCollision(const std::vector<Bullet*>&);
 };
 #include "projectile_methods.inc"
@@ -209,6 +241,86 @@ std::vector<Bullet*> Living(BulletManager& manager) {
 }
 int main() {
     CollisionManager collisions;
+	// Real Player ability methods, with only GPU/actor drawing replaced above.
+	{
+		Player player;player.position={};BulletManager bullets;
+		player.runModifiers_.enabled=player.runModifiers_.expedition=player.runModifiers_.railCannon=true;
+		assert(player.SetExpeditionCombatStyle(tankbuild::Style::Shooter));
+		for(int i=0;i<30;++i)player.AttackRailCannon(&bullets,true,1.0f/60.0f);
+		assert(bullets.GetBulletCount()==0&&Near(player.railCharge_.seconds,.5f));
+		for(int i=0;i<90;++i)player.AttackRailCannon(&bullets,true,1.0f/60.0f);
+		assert(Near(player.railCharge_.seconds,1)&&bullets.GetBulletCount()==0);
+		player.AttackRailCannon(&bullets,false,1.0f/60.0f);
+		assert(bullets.GetBulletCount()==1&&player.specialCombatStats_.railShots==1&&player.bulletCoolTime>.1f);
+		auto* rail=bullets.GetBulletPtrs().front();assert(rail->GetDamage()==30&&rail->GetRemainingActorPierces()==3);
+		const auto muzzle=rail->GetWorldPosition();rail->Update(.1f);
+		std::array<ExpEnemy,4> targets;
+		for(size_t i=0;i<targets.size();++i) {targets[i].position=muzzle+Vector3{1.0f+static_cast<float>(i),0,0};collisions.CheckCollisionPair(rail,&targets[i]);assert(targets[i].damageReceived==30);}
+		assert(rail->IsDead()); // One fast shot reaches four distinct actors, including swept contacts.
+		bullets.ClearAll();player.bulletCoolTime=0;
+		player.AttackRailCannon(&bullets,true,.016f);player.AttackRailCannon(&bullets,false,.016f);
+		assert(bullets.GetBulletCount()==1&&bullets.GetBulletPtrs().front()->GetDamage()<6);
+		for(auto style:{tankbuild::Style::Drone,tankbuild::Style::Melee}) {
+			bullets.ClearAll();assert(player.SetExpeditionCombatStyle(style));
+			player.AttackRailCannon(&bullets,true,1);player.AttackRailCannon(&bullets,false,.016f);assert(bullets.GetBulletCount()==0);
+		}
+	}
+	for(int count:{1,2,3,4,12}) {
+		Player player;player.position={};BulletManager bullets;Stage stage;EnemyManager enemies;ExpEnemy target;
+		player.runModifiers_.enabled=player.runModifiers_.expedition=player.runModifiers_.droneLaserLink=true;
+		player.expeditionCombatStyleSelected_=true;player.expeditionCombatStyle_=tankbuild::Style::Drone;
+		player.stats_.bulletDamage=3;
+		for(int i=0;i<count;++i) {auto drone=std::make_unique<PlayerDrone>();const float a=6.2831853f*static_cast<float>(i)/static_cast<float>(count);drone->position={std::cos(a)*2,std::sin(a)*2,0};player.drones_.push_back(std::move(drone));}
+		target.position=count>1?(player.drones_[0]->position+player.drones_[1]->position)*.5f:Vector3{};enemies.actors.push_back(&target);
+		player.UpdateSpecialCombat(stage,&bullets,nullptr,&enemies,.016f);
+		assert(player.droneLaserLinks_.size()==static_cast<size_t>(tankspecial::LinkCount(count)));
+		assert(target.hits==(count>1?1:0)); // Overlapping neighboring edges share the same target clock.
+		for(int i=0;i<10;++i)player.UpdateSpecialCombat(stage,&bullets,nullptr,&enemies,.016f);
+		assert(target.hits==(count>1?1:0));
+		player.UpdateSpecialCombat(stage,&bullets,nullptr,&enemies,.05f);assert(target.hits==(count>1?2:0));
+		const auto hits=target.hits;stage.mergedBlocks_.push_back({{{-3,-3,-1},{3,3,1}}});
+		player.UpdateSpecialCombat(stage,&bullets,nullptr,&enemies,.5f);assert(player.droneLaserLinks_.empty()&&target.hits==hits);
+		stage.mergedBlocks_.clear();player.expeditionCombatStyle_=tankbuild::Style::Shooter;
+		player.UpdateSpecialCombat(stage,&bullets,nullptr,&enemies,.5f);assert(player.droneLaserLinks_.empty()&&target.hits==hits);
+	}
+	for(int combo:{0,1,2}) {
+		Player player;player.position={};BulletManager bullets;Stage stage;
+		player.runModifiers_.enabled=player.runModifiers_.slashWave=true;player.expeditionCombatStyleSelected_=true;player.expeditionCombatStyle_=tankbuild::Style::Melee;
+		player.specialMeleeElapsed_=0;player.specialMeleeSwing_.comboStep=combo;player.specialMeleeSwing_.damage=40;
+		player.UpdateSpecialCombat(stage,&bullets,nullptr,nullptr,.02f);assert(bullets.GetBulletCount()==0);
+		player.UpdateSpecialCombat(stage,&bullets,nullptr,nullptr,.04f);assert(bullets.GetBulletCount()==(combo==2?1u:0u));
+		if(combo!=2)continue;
+		auto* wave=bullets.GetBulletPtrs().front();assert(wave->GetDamage()==22&&wave->GetRemainingActorPierces()==2);
+		ExpEnemy target;target.position=wave->GetWorldPosition();collisions.CheckCollisionPair(wave,&target);assert(target.damageReceived==22);
+		auto weak=MakeBullet(0,0,0,kEnemy);weak->SetWorldPosition(wave->GetWorldPosition());weak->ApplyBulletDurabilityDamage(6);
+		collisions.CheckCollisionPair(wave,weak.get());assert(weak->IsDead());
+		auto strong=MakeBullet(0,0,0,kEnemy);strong->SetWorldPosition(wave->GetWorldPosition());
+		collisions.CheckCollisionPair(wave,strong.get());assert(!strong->IsDead()&&Near(strong->GetBulletHp(),6.0f));
+		const float remaining=strong->GetBulletHp();collisions.CheckCollisionPair(wave,strong.get());assert(Near(strong->GetBulletHp(),remaining));
+		player.UpdateSpecialCombat(stage,&bullets,nullptr,nullptr,.03f);assert(player.specialCombatStats_.slashWaves==1);
+	}
+	for(bool perfect:{false,true})for(float durability:{1.0f,6.0f,12.0f,24.0f}) {
+		Player player;player.position={};BulletManager bullets;Stage stage;
+		player.runModifiers_.enabled=player.runModifiers_.parryBlade=true;player.expeditionCombatStyleSelected_=true;player.expeditionCombatStyle_=tankbuild::Style::Melee;
+		player.specialMeleeElapsed_=perfect?.05f:.18f;
+		auto incoming=std::make_unique<Bullet>();incoming->Initialize({2,0,0},{-.2f,0,0},7,kEnemy,false,durability,1);auto* ptr=incoming.get();bullets.Add(std::move(incoming));
+		player.UpdateSpecialCombat(stage,&bullets,nullptr,nullptr,.005f);
+		assert(ptr->IsDead()==(durability<=6));
+		if(durability>6)assert(Near(ptr->GetBulletHp(),perfect?durability-8:durability));
+		assert(bullets.GetBulletCount()==(perfect&&durability<=6?2u:1u));
+		if(perfect&&durability<=6) {auto* reflected=bullets.GetBulletPtrs().back();assert(reflected->GetOwner()==kPlayer&&reflected->GetMove().x>0&&reflected->GetSpecialKind()==Bullet::SpecialKind::ParryReflection);}
+		const auto hp=ptr->GetBulletHp();player.UpdateSpecialCombat(stage,&bullets,nullptr,nullptr,.001f);assert(Near(ptr->GetBulletHp(),hp));
+	}
+	for(auto style:{tankbuild::Style::Shooter,tankbuild::Style::Drone}) {
+		Player player;player.position={};BulletManager bullets;Stage stage;
+		player.runModifiers_.enabled=player.runModifiers_.slashWave=player.runModifiers_.parryBlade=true;
+		player.expeditionCombatStyleSelected_=true;player.expeditionCombatStyle_=style;
+		player.specialMeleeElapsed_=.05f;player.specialMeleeSwing_.comboStep=2;
+		auto incoming=std::make_unique<Bullet>();incoming->Initialize({2,0,0},{-.2f,0,0},7,kEnemy,false,6,1);auto* ptr=incoming.get();bullets.Add(std::move(incoming));
+		player.UpdateSpecialCombat(stage,&bullets,nullptr,nullptr,.016f);
+		assert(bullets.GetBulletCount()==1&&Near(ptr->GetBulletHp(),6)&&player.specialCombatStats_.slashWaves==0&&player.specialCombatStats_.parries==0);
+	}
+	std::cout << "Production specials PASS: 1s hold/release and tap rail, 5x damage, recovery, swept multi-target pierce; 1/2/3/4/12-drone links, 200ms per-enemy cooldown and walls; third-only wave damage and weak/strong bullet durability; normal/perfect parry and owned reflection.\n";
     {
         Player player;TankRunModifiers mods{};mods.enabled=mods.expedition=true;
         player.SetRunModifiers(mods);player.hp_=player.GetMaxHp();const int hp=player.hp_;
@@ -235,7 +347,7 @@ int main() {
                 assert(player.drones_.size()==3&&player.GetExpeditionDroneLimit()==3);
                 assert(!player.GetCurrentClassConfig()->barrels.front().fires);
                 auto* first=player.drones_.front().get();
-                assert(first->runAttackParam_.damage==5&&Near(first->runAttackParam_.bulletSpeed,.324f));
+                assert(first->runAttackParam_.damage==4&&Near(first->runAttackParam_.bulletSpeed,.324f));
                 assert(Near(first->runReloadSeconds_,.4125f));
                 for(auto& drone:player.drones_) {drone->runRallyShotPending_=true;drone->Attack(.5f);}
                 assert(manager.GetBulletCount()==0); // Dash cannot fire without left-click.
@@ -244,13 +356,13 @@ int main() {
                 assert(player.SetExpeditionCombatStyle(style)&&player.drones_.front().get()==first);
                 mods.droneFocus=mods.droneGuard=true;
                 player.ConfigureRunDrone(*first);
-                assert(first->runAttackParam_.damage==7&&Near(first->runReloadSeconds_,.474375f));
+                assert(first->runAttackParam_.damage==5&&Near(first->runReloadSeconds_,.474375f));
                 assert(first->runAttackParam_.bulletHp==3&&first->runAttackParam_.bulletPenetration==3&&first->runAttackParam_.bulletCount==1);
                 // Evolution authored scaling composes with the owned foundation.
                 player.runEvolutionConfig_=player.runStarterConfig_;player.runEvolutionActive_=true;
                 player.runEvolutionConfig_.bulletDamageScale=1.4f;player.runEvolutionConfig_.reloadScale=1.2f;
                 player.runEvolutionConfig_.maxDrones=2;player.ConfigureRunDrone(*first);player.EnsureExpeditionDrones();
-                assert(player.drones_.size()==2&&first->runAttackParam_.damage==10&&Near(first->runReloadSeconds_,.56925f));
+                assert(player.drones_.size()==2&&first->runAttackParam_.damage==7&&Near(first->runReloadSeconds_,.56925f));
                 mods.drones=true;player.EnsureExpeditionDrones();assert(player.drones_.size()==4);
                 player.runEvolutionConfig_.maxDrones=50;player.EnsureExpeditionDrones();assert(player.drones_.size()==12);
             } else assert(player.drones_.empty());

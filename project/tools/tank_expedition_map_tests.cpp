@@ -20,6 +20,15 @@ void CheckInvalid(MapDefinition map) {
 void Validation() {
     auto original=DefaultExpeditionMap();std::string error;
     assert(ValidateExpeditionMap(original,error));
+    // Legacy authored JSON still accepts evolution, but the active run enters
+    // an ordinary workshop without changing edges, prices or route length.
+    auto legacyJson=ExpeditionMapJson(original);
+    for(auto& node:legacyJson["nodes"])if(node["id"]=="evolution")node["kind"]="evolution";
+    MapDefinition legacy;assert(ParseExpeditionMap(legacyJson,legacy,error));
+    ExpeditionMapRun migrated;assert(migrated.Reset(legacy,error));
+    const auto* workshop=FindMapNode(migrated.GetDefinition(),"evolution");
+    assert(workshop&&workshop->kind==NodeKind::Upgrade&&workshop->next==FindMapNode(original,"evolution")->next);
+    assert(migrated.GetDefinition().nodes.size()==original.nodes.size()&&migrated.GetCurrency()==original.startingCurrency);
     auto map=original;map.nodes[0].next={"missing"};CheckInvalid(map);
     map=original;map.nodes[1].next={"outskirts"};CheckInvalid(map);
     map=original;map.nodes[1].next={"first_upgrade"};CheckInvalid(map);
@@ -161,7 +170,7 @@ int WalkAllPaths(ExpeditionMapRun run,bool skipAll,int fights=0,bool hadEvolutio
             assert(branch.GetCurrency()==before+node.clearReward);
             assert(!branch.CompleteCombat());
         } else {
-            evolution=evolution||node.kind==NodeKind::Evolution;
+            evolution=evolution||node.id=="evolution";assert(node.kind!=NodeKind::Evolution);
             // The foundation upgrade, evolution and first repair stay accessible.
             // Later spending requires a route tradeoff or salvage from enemy kills.
             if(node.id=="first_upgrade"||node.id=="evolution"||node.id=="field_repair") assert(branch.CanAfford(node.serviceCost));
@@ -224,7 +233,7 @@ void ProceduralProperties() {
         }
         edgeCounts.insert(edges);
         const size_t b=static_cast<size_t>(boss-map.nodes.data());
-        assert(minimum[b]==length&&maximum[b]==length&&noEvolution[b]&&evolutionNodes==2);
+        assert(minimum[b]==length&&maximum[b]==length&&noEvolution[b]&&evolutionNodes==0);
         if(seed<64) for(int branch=0;branch<4;++branch) {
             ExpeditionMapRun run;assert(run.Reset(map,error));
             while(!run.IsComplete()) {

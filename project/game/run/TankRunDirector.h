@@ -11,11 +11,16 @@ enum class Phase { Loadout, CoreChoice, Combat, Draft, Boss, Clear, Dead };
 enum class CoreId { Ricochet, Assault, Drone, Count };
 enum class CardId { Ricochet, Heavy, Rapid, Thrusters, Capacitor, Repair, Drones, Pierce,
     ScatterShot, Homing, DashBurst, Overdrive, MeleeBlade, BladeReach, ImpactDrive, PerfectDodge,
-    DroneFocus, DroneGuard, MeleeTempo, FinisherCharge, Count };
+    DroneFocus, DroneGuard, MeleeTempo, FinisherCharge, RailCannon, DroneLaserLink, SlashWave, ParryBlade, Count };
 constexpr std::size_t CardCount=static_cast<std::size_t>(CardId::Count);
 // Preserve legacy numeric IDs, but never offer the retired multi-shot module.
 constexpr bool IsAvailableCard(CardId card) { return card>=CardId::Ricochet&&card<CardId::Count&&card!=CardId::ScatterShot; }
 constexpr std::size_t AvailableCardCount=CardCount-1;
+// The old arena/prototype draft has no combat-style filter. Its original pool
+// stays unchanged; expedition workshops grant the new effects through catalog
+// eligibility and GrantExpeditionModules instead.
+constexpr bool IsDraftCard(CardId card) {return IsAvailableCard(card)&&card<=CardId::FinisherCharge;}
+constexpr std::size_t DraftCardCount=static_cast<std::size_t>(CardId::FinisherCharge);
 using CardCounts=std::array<int,CardCount>;
 using CardOffers=std::array<CardId,3>;
 constexpr bool IsRare(CardId card) { return IsAvailableCard(card)&&card>=CardId::Homing&&card!=CardId::MeleeBlade; }
@@ -27,7 +32,7 @@ class RunDirector {
 public:
     explicit RunDirector(std::uint32_t seed=1,Config config={}) : config_(config) {
         if(!std::isfinite(config_.combatSeconds)||config_.combatSeconds<=0) config_.combatSeconds=150;
-        config_.maxDrafts=(std::clamp)(config_.maxDrafts,1,static_cast<int>(AvailableCardCount));
+        config_.maxDrafts=(std::clamp)(config_.maxDrafts,1,static_cast<int>(DraftCardCount));
         Reset(seed);
     }
     void Reset(std::uint32_t seed) {
@@ -134,14 +139,14 @@ private:
     void BuildOffers(bool guaranteeRare,CardId preferred) {
         ClearOffers();
         const auto preferredIndex=static_cast<std::size_t>(preferred);
-        if(IsAvailableCard(preferred)&&!cards_[preferredIndex]) offers_[offerCount_++]=preferred;
+        if(IsDraftCard(preferred)&&!cards_[preferredIndex]) offers_[offerCount_++]=preferred;
         bool rarePresent=false;
         for(std::size_t i=0;i<offerCount_;++i) rarePresent|=IsRare(offers_[i]);
         if(guaranteeRare&&!rarePresent) {
             std::array<CardId,CardCount> rare{}; std::size_t count=0;
             for(std::size_t i=0;i<CardCount;++i) {
                 const auto card=static_cast<CardId>(i);
-                if(IsRare(card)&&!cards_[i]) rare[count++]=card;
+                if(IsDraftCard(card)&&IsRare(card)&&!cards_[i]) rare[count++]=card;
             }
             if(count) offers_[offerCount_++]=rare[RandomIndex(count)];
         }
@@ -150,7 +155,7 @@ private:
             for(std::size_t i=0;i<CardCount;++i) {
                 const auto card=static_cast<CardId>(i); bool present=false;
                 for(std::size_t j=0;j<offerCount_;++j) present|=offers_[j]==card;
-                if(IsAvailableCard(card)&&!cards_[i]&&!present) eligible[count++]=card;
+                if(IsDraftCard(card)&&!cards_[i]&&!present) eligible[count++]=card;
             }
             if(!count) break;
             offers_[offerCount_++]=eligible[RandomIndex(count)];

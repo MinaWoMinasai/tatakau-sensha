@@ -29,7 +29,11 @@ struct TankRunModifiers {
 	bool droneGuard = false;
 	bool meleeTempo = false;
 	bool finisherCharge = false;
-	std::array<float,20> effectPower{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+	bool railCannon = false;
+	bool droneLaserLink = false;
+	bool slashWave = false;
+	bool parryBlade = false;
+	std::array<float,24> effectPower{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
 };
 
 inline constexpr float TankEffectPower(const TankRunModifiers& modifiers,size_t index) {

@@ -31,6 +31,7 @@ void BulletManager::FlushPendingSplits()
     std::vector<std::unique_ptr<Bullet>> children;
     for (const auto& bullet : bullets_) {
         const auto events = bullet->ConsumeGrowthEvents();
+		for(const auto& impact:bullet->ConsumeSpecialImpacts())if(specialImpacts_.size()<64)specialImpacts_.push_back(impact);
         if (bullet->GetOwner() == kPlayer) {
             growthStats_.wallBounces += events.wallBounces;
             growthStats_.actorPierces += events.actorPierces;
@@ -56,6 +57,7 @@ void BulletManager::ClearAll()
     for (auto& bullet : bullets_) if (bullet) bullet->ReleaseTrail();
     bullets_.clear();
     growthStats_ = {};
+	specialImpacts_.clear();
     if (trailManager_) trailManager_->ClearInstances();
 }
 

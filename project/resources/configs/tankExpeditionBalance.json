@@ -13,7 +13,7 @@
   "bossMaxHp": 900,
   "combatStyles": {
     "drone": {
-      "attackDamage": 4.0,
+      "attackDamage": 3.0,
       "attackIntervalSeconds": 0.5,
       "bodyDamage": 3.0,
       "bulletSpeed": 0.27000001072883606,
@@ -47,8 +47,8 @@
       "staminaRecovery": 0.8999999761581421
     },
     "shooter": {
-      "attackDamage": 4.0,
-      "attackIntervalSeconds": 0.3333333432674408,
+      "attackDamage": 6.0,
+      "attackIntervalSeconds": 0.3,
       "bodyDamage": 3.0,
       "bulletSpeed": 0.27000001072883606,
       "droneCatchupSpeed": 0.6200000047683716,

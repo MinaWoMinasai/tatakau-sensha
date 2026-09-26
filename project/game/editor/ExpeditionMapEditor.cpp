@@ -6,7 +6,7 @@
 #include <map>
 
 namespace {
-constexpr const char* kNodeNames[]={"戦闘","精鋭戦闘","強化","進化","回復","最終ボス","資材支給"};
+constexpr const char* kNodeNames[]={"戦闘","精鋭戦闘","強化","工房（旧進化）","回復","最終ボス","資材支給"};
 constexpr const char* kRoleNames[]={"通常","操作訓練の戦闘","訓練スキップ支給","訓練後の改造","スキップ後の初期改造"};
 ImU32 MapColor(tankexp::NodeKind kind,int alpha=255) {
     switch(kind) {
@@ -150,7 +150,7 @@ bool tankexp::MapEditor::Draw(bool& open,MapDefinition& live,const RoomCatalog& 
     ImGui::SetNextWindowPos({120,40},ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({1040,650},ImGuiCond_FirstUseEver);
     if(!ImGui::Begin("遠征の経路エディター / F5で再開",&open)) {ImGui::End();return false;}
-    ImGui::TextWrapped("戦闘・強化・進化・回復のつながりを編集します。適用・保存した経路は次の遠征開始から反映され、現在の所持金や進行は保持します。");
+    ImGui::TextWrapped("戦闘・工房・回復のつながりを編集します。適用・保存した経路は次の遠征開始から反映され、現在の所持金や進行は保持します。");
     if(ImGui::Button("適用 / Apply")) {
         if((!draft_.procedural||RebuildPreview(draft_,selected_,status_))&&ValidateExpeditionMapRooms(draft_,rooms,status_,enemyIds)) {live=draft_;committed=true;status_="適用しました。次の遠征開始から反映します。保存前でも次の遠征に使えます。";}
     }
@@ -181,7 +181,7 @@ bool tankexp::MapEditor::Draw(bool& open,MapDefinition& live,const RoomCatalog& 
         if(procedural)RebuildPreview(draft_,selected_,status_);
     }
     if(draft_.procedural) {
-        ImGui::TextWrapped("同種3連続を避け、進化には迂回路があります。以下は確認用シードのプレビューです。チェックを外すと、この経路を固定して編集できます。");
+        ImGui::TextWrapped("同種3連続を避け、工房と回復を挟んで進みます。以下は確認用シードのプレビューです。チェックを外すと、この経路を固定して編集できます。");
         ImGui::SetNextItemWidth(180);
         if(ImGui::InputScalar("プレビュー用シード",ImGuiDataType_U32,&draft_.generationSeed)) {
             RebuildPreview(draft_,selected_,status_);

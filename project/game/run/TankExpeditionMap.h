@@ -82,7 +82,7 @@ struct GenerationRoomRule {
 inline std::vector<GenerationRoomRule> DefaultGenerationRooms() {
     return {
         {NodeKind::Combat,2,7,4,"outskirts"},{NodeKind::Combat,2,7,1,"crossfire"},
-        {NodeKind::Combat,8,13,2,"crossfire"},{NodeKind::Combat,8,13,2,"resource_fork"},
+        {NodeKind::Combat,8,31,2,"guard_patrol"},{NodeKind::Combat,8,13,2,"crossfire"},{NodeKind::Combat,8,13,2,"resource_fork"},
         {NodeKind::Combat,14,31,2,"hazard_lane"},{NodeKind::Combat,14,31,1,"crossfire"},
         {NodeKind::Elite,2,31,1,"gatekeeper"},{NodeKind::Boss,2,31,1,"final_duel"}};
 }
@@ -224,7 +224,7 @@ inline MapDefinition DefaultExpeditionMap() {
         {"elite","精鋭部隊",NodeKind::Elite,2,3,1,"crossfire",55,0,{"field_repair","workshop"}},
         {"field_repair","応急修理",NodeKind::Heal,3,1,-1,"",0,0,{"evolution"}},
         {"workshop","改造工房",NodeKind::Upgrade,3,3,-1,"",0,45,{"evolution"}},
-        {"evolution","機体進化",NodeKind::Evolution,4,2,-1,"",0,0,{"ricochet","drone"}},
+        {"evolution","換装工房",NodeKind::Upgrade,4,2,-1,"",0,0,{"ricochet","drone"}},
         {"ricochet","反射回廊",NodeKind::Combat,5,1,2,"hazard_lane",40,0,{"arsenal","repair"}},
         {"drone","無人機部隊",NodeKind::Combat,5,3,2,"crossfire",40,0,{"arsenal","repair"}},
         {"arsenal","武装強化",NodeKind::Upgrade,6,1,-1,"",0,65,{"gatekeeper"}},
@@ -274,8 +274,8 @@ inline MapDefinition GenerateExpeditionMapUnchecked(uint32_t seed,const MapDefin
     };
     for(int column=2;column<length;++column) {
         const bool final=column==length-1;
-        const bool evolution=column==5||column==length-5;
-        int width=column==2||final?1:evolution||column==length-2?2:1+static_cast<int>(draw(3));
+        const bool workshop=column==5||column==length-5;
+        int width=column==2||final?1:workshop||column==length-2?2:1+static_cast<int>(draw(3));
         const size_t first=map.nodes.size();
         for(int lane=0;lane<width;++lane) {
             MapNode node;
@@ -292,7 +292,7 @@ inline MapDefinition GenerateExpeditionMapUnchecked(uint32_t seed,const MapDefin
         for(size_t p=0;p<previous.size();++p) {
             const int nearest=previous.size()==1?width/2:static_cast<int>((p*static_cast<size_t>(width-1)+(previous.size()-1)/2)/(previous.size()-1));
             connect(previous[p],nearest);
-            if(evolution) {connect(previous[p],0);connect(previous[p],1);}
+            if(workshop) {connect(previous[p],0);connect(previous[p],1);}
             else if(width>1&&draw(100)<65) connect(previous[p],nearest==width-1?nearest-1:nearest+1);
         }
         for(int lane=0;lane<width;++lane) {
@@ -316,10 +316,10 @@ inline MapDefinition GenerateExpeditionMapUnchecked(uint32_t seed,const MapDefin
             };
             if(final) node.kind=NodeKind::Boss;
             else if(column==2) node.kind=NodeKind::Combat;
-            else if(evolution&&lane==0) node.kind=NodeKind::Evolution;
+            else if(workshop&&lane==0&&allowed(NodeKind::Upgrade)) node.kind=NodeKind::Upgrade;
             else {
                 std::vector<NodeKind> choices;
-                if(evolution||column==length-2) choices={NodeKind::Upgrade,NodeKind::Heal};
+                if(workshop||column==length-2) choices={NodeKind::Upgrade,NodeKind::Heal};
                 else if(column%3==2) choices={NodeKind::Combat,NodeKind::Combat,NodeKind::Elite};
                 else if(column%3==0) choices={NodeKind::Upgrade,NodeKind::Upgrade,NodeKind::Heal};
                 else choices={NodeKind::Combat,NodeKind::Elite,NodeKind::Upgrade,NodeKind::Heal};
@@ -337,7 +337,7 @@ inline MapDefinition GenerateExpeditionMapUnchecked(uint32_t seed,const MapDefin
                 node.serviceCost=node.kind==NodeKind::Upgrade?30+column*2:node.kind==NodeKind::Heal?20+column:0;
             }
             const char* label=node.kind==NodeKind::Boss?"中枢ボス":node.kind==NodeKind::Combat?"戦闘区画":
-                node.kind==NodeKind::Elite?"精鋭部隊":node.kind==NodeKind::Upgrade?"改造工房":node.kind==NodeKind::Evolution?"機体進化":"修理ドック";
+                node.kind==NodeKind::Elite?"精鋭部隊":node.kind==NodeKind::Upgrade?"改造工房":"修理ドック";
             node.label=final?label:std::string(label)+" "+std::to_string(column-1);
         }
         previous.clear();for(int lane=0;lane<width;++lane) previous.push_back(first+static_cast<size_t>(lane));
@@ -475,7 +475,8 @@ public:
     ExpeditionMapRun():definition_(DefaultExpeditionMap()),currency_(definition_.startingCurrency) {}
     bool Reset(const MapDefinition& definition,std::string& error) {
         if(!ValidateExpeditionMap(definition,error)) return false;
-        definition_=definition;currency_=definition_.startingCurrency;phase_=MapRunPhase::Choosing;
+        definition_=definition;for(auto& node:definition_.nodes)if(node.kind==NodeKind::Evolution)node.kind=NodeKind::Upgrade;
+        currency_=definition_.startingCurrency;phase_=MapRunPhase::Choosing;
         activeId_.clear();currentId_.clear();visited_.clear();chosen_.clear();return true;
     }
     void Reset() {std::string ignored;Reset(DefaultExpeditionMap(),ignored);}
