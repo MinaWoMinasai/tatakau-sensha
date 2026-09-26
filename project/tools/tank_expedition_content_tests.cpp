@@ -34,15 +34,14 @@ void ShopContracts() {
         assert(std::set<std::string>(offers.begin(),offers.end()).size()==3);
         for(std::size_t i=0;i<offers.size();++i) {
             const auto* item=FindUpgrade(catalog,offers[i]);assert(item&&EligibleUpgrade(*item,style,{}));
-            const bool general=item->compatibleStyles==tankbuild::AllStyles&&CompatibleEffectStyles(*item)==tankbuild::AllStyles;
-            assert(general==(i==2)); // Default pools supply two compatible specialization choices and one general choice.
+            if(i==0)assert(IsBehaviorUpgrade(*item)); // One behavioral option is guaranteed; the rest retain normal weights.
         }
     }
     purchased["Heavy"]=1;
     for(unsigned seed=0;seed<32;++seed){const auto ids=BuildShopOffers(catalog,S::Shooter,{},purchased,seed);assert(std::find(ids.begin(),ids.end(),"Heavy")==ids.end());}
     for(const auto& item:catalog.upgrades)purchased[item.id]=1;
     assert(BuildShopOffers(catalog,S::Melee,{},purchased,2).empty());
-    owned.fill(1);assert(BuildShopOffers(catalog,S::Drone,owned,{},2).empty());
+    owned.fill(1);assert(BuildShopOffers(catalog,S::Drone,owned,{},2,true).empty());
     auto scarce=catalog;scarce.upgrades={*FindUpgrade(catalog,"Heavy")};
     assert(BuildShopOffers(scarce,S::Shooter,{}, {},5)==std::vector<std::string>{"Heavy"});
     auto weighted=catalog;weighted.upgrades.clear();
@@ -52,12 +51,48 @@ void ShopContracts() {
     for(std::size_t i=1;i<selected.size();++i)assert(selected[i-1]>selected[i]&&selected[i]>0);
 }
 
+void SpecialAndRefitContracts() {
+    using namespace tankcontent;using S=tankbuild::Style;
+    const auto catalog=DefaultCatalog();
+    std::set<std::string> seen;
+    for(const auto style:{S::Shooter,S::Drone,S::Melee}) {
+        for(const auto* id:{"RailCannon","DroneLaserLink","SlashWave","ParryBlade"}) {
+            const auto* u=FindUpgrade(catalog,id);assert(u);
+            const auto expected=std::string(id)=="RailCannon"?S::Shooter:std::string(id)=="DroneLaserLink"?S::Drone:S::Melee;
+            assert(EligibleUpgrade(*u,style,{})==(expected==style));
+        }
+        for(unsigned seed=0;seed<1024;++seed) {
+            const auto offers=BuildShopOffers(catalog,style,{}, {},seed);
+            assert(IsBehaviorUpgrade(*FindUpgrade(catalog,offers[0])));
+            for(const auto& id:offers) {
+                seen.insert(id);
+                const auto* u=FindUpgrade(catalog,id);
+                if(!u->refitPlayer.empty())assert(FindPlayer(catalog,u->refitPlayer)->style==style&&u->rarity>=3);
+            }
+            for(const auto& id:BuildShopOffers(catalog,style,{}, {},seed,true))assert(FindUpgrade(catalog,id)->refitPlayer.empty());
+        }
+    }
+    for(const auto* id:{"RailCannon","DroneLaserLink","SlashWave","ParryBlade"})assert(seen.count(id)>0);
+    for(const auto& p:catalog.players) {
+        const auto* refit=FindUpgrade(catalog,"Refit_"+p.id);assert(refit&&refit->effects.empty());
+        assert(seen.count(refit->id)>0);
+        std::unordered_map<std::string,int> bought{{refit->id,1}};
+        for(const auto& id:BuildShopOffers(catalog,p.style,{},bought,7))assert(FindUpgrade(catalog,id)->refitPlayer.empty());
+    }
+    auto legacy=CatalogToJson(catalog);legacy["schemaVersion"]=3;
+    auto& upgrades=legacy["upgrades"];upgrades.erase(std::remove_if(upgrades.begin(),upgrades.end(),[](const auto& u){return !u.at("refitPlayer").template get<std::string>().empty();}),upgrades.end());
+    Catalog migrated;std::string error;assert(CatalogFromJson(legacy,migrated,error));
+    assert(migrated.players.size()==catalog.players.size());
+    for(const auto& p:migrated.players)assert(FindUpgrade(migrated,"Refit_"+p.id));
+}
+
 int main(int argc,char** argv){
     using namespace tankcontent;
     auto original=DefaultCatalog();std::string error;
     assert(ValidateCatalog(original,error));
-    assert(original.upgrades.size()==26&&original.players.size()==8&&original.enemies.size()==11);
+    assert(original.upgrades.size()==38&&original.players.size()==8&&original.enemies.size()==13);
     ShopContracts();
+    SpecialAndRefitContracts();
     assert(!FindUpgrade(original,"ScatterShot"));
     for(const auto& upgrade:original.upgrades)for(const auto effect:upgrade.effects)assert(tankrun::IsAvailableCard(effect));
     for(const auto& player:original.players)assert(player.bulletCount==1);
@@ -77,6 +112,7 @@ int main(int argc,char** argv){
     // Older schema-1 catalog files omit the new optional magazine fields.
     auto legacy=before;legacy["schemaVersion"]=1;
     for(auto& e:legacy["enemies"]){e.erase("magazineSize");e.erase("reloadSeconds");}
+    legacy["upgrades"].erase(std::remove_if(legacy["upgrades"].begin(),legacy["upgrades"].end(),[](const auto& u){return !u.at("refitPlayer").template get<std::string>().empty();}),legacy["upgrades"].end());
     for(auto& u:legacy["upgrades"]){u["rarity"]=u["rarity"].get<int>()/2;u.erase("compatibleStyles");}
     for(auto& p:legacy["players"]){p.erase("style");p.erase("rarity");}
     Catalog oldFile;assert(CatalogFromJson(legacy,oldFile,error));
@@ -132,6 +168,9 @@ int main(int argc,char** argv){
     j=before;j["enemies"][0]["reloadSeconds"]=0.2;rejected(j);
     j=before;j["enemies"][0]["reloadSeconds"]=(std::numeric_limits<double>::quiet_NaN)();rejected(j);
     j=before;j["upgrades"][0]["effects"]={"NotImplemented"};rejected(j);
+    j=before;j["upgrades"].back()["refitPlayer"]="MissingPlayer";rejected(j);
+    j=before;j["upgrades"].back()["effects"]={"RailCannon"};rejected(j);
+    j=before;j["upgrades"].back()["rarity"]=2;rejected(j);
     j=before;j["upgrades"][0]["effects"]={"Rapid","Rapid"};rejected(j);
     j=before;j["upgrades"][0]["effects"]=nlohmann::json::array();rejected(j);
     j=before;j["upgrades"][0]["effects"]={"ScatterShot","ScatterShot"};rejected(j);
@@ -144,7 +183,7 @@ int main(int argc,char** argv){
     j=before;j["players"]=nlohmann::json::object();rejected(j);
     j=before;j["players"]=nlohmann::json::array();rejected(j);
     j=before;j["enemies"][0]["color"]={1,1};rejected(j);
-    j=before;j["schemaVersion"]=4;rejected(j);
+    j=before;j["schemaVersion"]=5;rejected(j);
     j=before;j["upgrades"][0]["rarity"]=5;rejected(j);
     j=before;j["upgrades"][0]["compatibleStyles"]={"shooter","shooter"};rejected(j);
     j=before;j["upgrades"][0]["compatibleStyles"]={"invalid"};rejected(j);
@@ -158,6 +197,7 @@ int main(int argc,char** argv){
     auto player=added.players.front();player.id="MyNewTank";player.barrels=6;player.fanAngle=12;added.players.push_back(player);
     auto upgrade=added.upgrades.front();upgrade.id="MyCombo";upgrade.effects={tankrun::CardId::Homing,tankrun::CardId::Pierce};added.upgrades.push_back(upgrade);
     assert(ValidateCatalog(added,error));
+    EnsureRefitCards(added);
     const auto testFile=std::filesystem::path("content_roundtrip.json");
     assert(SaveCatalog(testFile.string(),added,error));Catalog disk;assert(LoadCatalog(testFile.string(),disk,error));assert(CatalogToJson(disk)==CatalogToJson(added));
     auto invalid=added;invalid.enemies[0].hp=-4;assert(!SaveCatalog(testFile.string(),invalid,error));assert(LoadCatalog(testFile.string(),disk,error));assert(CatalogToJson(disk)==CatalogToJson(added));

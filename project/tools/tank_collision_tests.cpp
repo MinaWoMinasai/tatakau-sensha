@@ -14,10 +14,13 @@
 #include "../game/enemy/actor/PrototypeBossCombat.h"
 #include "../game/exp/ExpEnemyCombatCycle.h"
 #include "../game/player/TankRunModifiers.h"
+#include "../game/player/TankSpecialCombat.h"
+#include "../game/exp/ExpGuardCombat.h"
 
 struct Vector3 { float x=0,y=0,z=0; Vector3& operator+=(Vector3 b) { x+=b.x;y+=b.y;z+=b.z;return *this; } };
 struct Vector4 { float x=0,y=0,z=0,w=0; };
 Vector3 operator-(Vector3 a,Vector3 b) { return {a.x-b.x,a.y-b.y,a.z-b.z}; }
+Vector3 operator+(Vector3 a,Vector3 b) { return {a.x+b.x,a.y+b.y,a.z+b.z}; }
 Vector3 operator*(Vector3 a,float b) { return {a.x*b,a.y*b,a.z*b}; }
 float Length(Vector3 a) { return std::sqrt(a.x*a.x+a.y*a.y+a.z*a.z); }
 Vector3 Normalize(Vector3 a) { return a*(1.0f/Length(a)); }
@@ -51,6 +54,13 @@ struct ParticleManager {
     void EmitNeonDeathEffect(Vector3,Vector4,Vector4,float) {}
 };
 struct Bullet : Collider {
+	enum class SpecialKind {None,Rail,SlashWave,ParryReflection};
+	struct SpecialImpact {SpecialKind kind;Vector3 position,direction;bool bulletCut;};
+	SpecialKind specialKind_=SpecialKind::None;
+	std::vector<SpecialImpact> specialImpacts_;
+	SpecialKind GetSpecialKind() const {return specialKind_;}
+	Vector3 GetPreviousWorldPosition() const {return {};}
+	Vector3 GetMove() const {return velocity_;}
     Bullet(float hp,float penetration,int owner) : owner_(owner),bulletHp_(hp),penetration_(penetration) {
         attribute=owner==0?kCollisionAttributePlayerBullet:kCollisionAttributeEnemyBullet;
     }
@@ -78,7 +88,7 @@ struct Bullet : Collider {
     Vector3 velocity_{1,0,0};
 };
 struct DummyPlayer { int xp=0; Vector3 position{30,0,0}; void AddExp(int value) { xp+=value; } Vector3 GetWorldPosition() const { return position; } };
-enum class ExpEnemyType { Square, Triangle, Pentagon, Shooter, Charger, Sniper };
+enum class ExpEnemyType { Square, Triangle, Pentagon, Shooter, Charger, Sniper, ShieldGuard };
 struct ExpEnemy : Collider {
     void OnCollision(Collider*) override;
     bool IsHostileToBoss() const { return hostileToBoss_; }
@@ -92,6 +102,9 @@ struct ExpEnemy : Collider {
     Vector3 GetWorldPosition() const override { return worldTransform_.translate; }
     bool ApplyDamage(uint32_t,bool,bool);
     bool TakeDamageFromPlayer(uint32_t);
+	bool TakeDirectionalDamage(uint32_t,const Vector3&,bool=false);
+	uint32_t ResolveShieldDamage(uint32_t,const Vector3&,bool);
+	Vector3 aimDirection_{1,0,0};float shieldFlashTimer_=0;uint32_t shieldBlockCount_=0;
     bool TakeDamageFromEnemy(uint32_t);
     void ApplyKnockback(const Vector3&,float);
     void TriggerDamageFeedback() {}
@@ -196,6 +209,7 @@ struct TestTrailManager {
 struct BulletManager {
     void ClearAll();
     std::vector<std::unique_ptr<Bullet>> bullets_;
+	std::vector<Bullet::SpecialImpact> specialImpacts_;
     std::unique_ptr<TestTrailManager> trailManager_;
     struct { uint64_t wallBounces=0,actorPierces=0,impactSplits=0,splitChildrenSpawned=0; } growthStats_;
 };

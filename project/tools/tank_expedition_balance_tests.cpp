@@ -28,7 +28,7 @@ void PersistenceAndValidation() {
     assert(loaded["bossAttackDefault"]["bulletCount"]==9);
     const auto profiles=tankexp::ReadCombatStyleBalances(loaded);
     assert(profiles[2].attackDamage==45&&profiles[2].attackIntervalSeconds==.75f&&profiles[1].droneCount==9);
-    assert(profiles[0].attackDamage==4); // Editing a family never leaks into others.
+    assert(profiles[0].attackDamage==6); // Editing a family never leaks into others.
     std::ofstream("balance_bad.json")<<"{broken";
     const auto before=loaded;
     assert(!tankexp::LoadBalance("balance_bad.json",loaded,error)&&loaded==before);

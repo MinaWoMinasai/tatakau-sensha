@@ -49,7 +49,8 @@ $projectileMethods += Read-ProjectileMethod 'project/game/player/actor/Player.cp
 foreach ($signature in @('bool Player::SetExpeditionCombatStyle(', 'int Player::GetExpeditionDroneLimit(',
     'void Player::EnsureExpeditionDrones(', 'void Player::ConfigureRunDrone(', 'float Player::GetRunFireIntervalScale(',
     'std::vector<RunEvolutionChoice> Player::GetRunAuthoredEvolutionChoices(', 'bool Player::ChooseRunAuthoredClass(',
-    'void Player::ApplyCombatStyleBalance(', 'float Player::GetRunBaseReloadFrames(', 'void Player::RecalculateStatsFromBase(', 'void Player::SetRunModifiers(')) {
+    'void Player::ApplyCombatStyleBalance(', 'float Player::GetRunBaseReloadFrames(', 'void Player::RecalculateStatsFromBase(', 'void Player::SetRunModifiers(',
+    'void Player::AttackRailCannon(', 'void Player::UpdateSpecialCombat(', 'Vector3 Player::GetRailChargeMuzzle(', 'std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents(')) {
     $projectileMethods += Read-ProjectileMethod 'project/game/player/actor/Player.cpp' $signature
 }
 foreach ($signature in @('void PlayerDrone::ConfigureRunAttack(', 'void PlayerDrone::Attack(')) {

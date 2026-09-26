@@ -24,17 +24,17 @@ std::unique_ptr<TextLabel> MapLabel(float size,Vector2 p,Vector4 color) {
 Vector4 NodeColor(NK kind) {
     switch(kind) {
     case NK::Combat:return {0.28f,0.78f,1,1};case NK::Elite:return {1,0.49f,0.28f,1};
-    case NK::Upgrade:return {1,0.83f,0.27f,1};case NK::Evolution:return {0.79f,0.49f,1,1};
+    case NK::Upgrade:case NK::Evolution:return {1,0.83f,0.27f,1};
     case NK::Heal:return {0.27f,1,0.63f,1};case NK::Currency:return {1,0.82f,0.27f,1};default:return {1,0.25f,0.45f,1};
     }
 }
 const char* NodeIcon(NK kind) {
     switch(kind) {case NK::Combat:return "戦";case NK::Elite:return "強";case NK::Upgrade:return "改";
-    case NK::Evolution:return "進";case NK::Heal:return "+";case NK::Currency:return "〇";default:return "核";}
+    case NK::Evolution:return "改";case NK::Heal:return "+";case NK::Currency:return "〇";default:return "核";}
 }
 const char* NodeName(NK kind) {
     switch(kind) {case NK::Combat:return "戦闘";case NK::Elite:return "精鋭戦闘";case NK::Upgrade:return "改造工房";
-    case NK::Evolution:return "機体進化";case NK::Heal:return "修理";case NK::Currency:return "通貨を受け取る";default:return "最終決戦";}
+    case NK::Evolution:return "改造工房";case NK::Heal:return "修理";case NK::Currency:return "通貨を受け取る";default:return "最終決戦";}
 }
 std::string ShortMapName(const std::string& name) {
     size_t pos=0;int chars=0;
@@ -101,6 +101,7 @@ void GameScene::InitializeExpeditionMap() {
     if(!tankexp::ValidateExpeditionMapRooms(expeditionMapDefinition_,expeditionRooms_,error,&knownEnemies))expeditionMapStatus_="F4/F5/F6で参照を確認: "+error;
     InitializeCombatValidationFixture();
     InitializeExperienceValidation();
+    InitializeSpecialValidationFixture();
     expeditionContentEditor_.Open(expeditionContent_);
     expeditionMapRun_.Reset(expeditionMapDefinition_,error);
     enemyManager_->SetExpeditionContent(expeditionContent_);player_->InstallRunAuthoredClasses(expeditionContent_);
@@ -257,11 +258,7 @@ void GameScene::UpdateExpeditionAuthoring() {
         enemyManager_->SetExpeditionContent(expeditionContent_);player_->InstallRunAuthoredClasses(expeditionContent_);
         expeditionIntroOffers_=tankcontent::IntroUpgradeIds(expeditionContent_,expeditionSeed_);
         sessionContent=expeditionContent_;ApplyTankRunCards();
-        if(const auto* active=expeditionMapRun_.GetActiveNode();active&&active->kind==NK::Evolution) {
-            tankExpeditionEvolutions_=player_->GetRunEvolutionChoices();const auto custom=player_->GetRunAuthoredEvolutionChoices();
-            tankExpeditionEvolutions_.insert(tankExpeditionEvolutions_.end(),custom.begin(),custom.end());
-        }
-        expeditionMapStatus_="種類を適用しました。次の敵出現・工房・進化で選択できます。";RefreshExpeditionServiceOffers();
+        expeditionMapStatus_="種類を適用しました。次の敵出現・工房で選択できます。";RefreshExpeditionServiceOffers();
     }
 }
 
@@ -301,10 +298,6 @@ void GameScene::EnterExpeditionMapNode(const std::string& id) {
         }
     } else {
         if(node->kind==NK::Currency) {SpawnExpeditionCredits(player_->GetWorldPosition(),node->clearReward,true);expeditionCollectAll_=true;}
-        if(node->kind==NK::Evolution) {
-            player_->PrepareRunEvolution();tankExpeditionEvolutions_=player_->GetRunEvolutionChoices();
-            const auto custom=player_->GetRunAuthoredEvolutionChoices();tankExpeditionEvolutions_.insert(tankExpeditionEvolutions_.end(),custom.begin(),custom.end());
-        }
         RefreshExpeditionServiceOffers();
     }
     RefreshTankExpeditionUi();
@@ -373,10 +366,9 @@ void GameScene::RefreshExpeditionServiceOffers() {
         if(IsIntroExpeditionService()) expeditionServiceOffers_=expeditionIntroOffers_;
         else {
             uint32_t state=expeditionSeed_;for(const unsigned char c:node->id) state=(state^c)*16777619u;
-            expeditionServiceOffers_=tankcontent::BuildShopOffers(expeditionContent_,expeditionBuildStyle_,tankRun_.GetCardCounts(),expeditionPurchases_,state);
+            expeditionServiceOffers_=tankcontent::BuildShopOffers(expeditionContent_,expeditionBuildStyle_,tankRun_.GetCardCounts(),expeditionPurchases_,state,expeditionRefitPurchased_);
         }
     }
-    if(node->kind==NK::Evolution) for(const auto& evolution:tankExpeditionEvolutions_) expeditionServiceOffers_.push_back(evolution.id);
     expeditionServicePage_=(std::clamp)(expeditionServicePage_,0,(std::max)(0,(static_cast<int>(expeditionServiceOffers_.size())-1)/3));
 }
 
@@ -411,7 +403,7 @@ void GameScene::SelectExpeditionService(int option) {
         }
         expeditionPendingService_=option;
         if(option<3&&IsExpeditionBuildCardScreen()) expeditionRewardCards_[option]->PlayAcquire();
-        BeginExpeditionPresentation(3,option==3?"ROUTE / 次の地点へ":node->kind==NK::Heal?"REPAIR / 装甲修理":node->kind==NK::Evolution?"EVOLVE / 機体進化":"INSTALL / 改造",
+        BeginExpeditionPresentation(3,option==3?"ROUTE / 次の地点へ":node->kind==NK::Heal?"REPAIR / 装甲修理":"INSTALL / 改造",
             option==3?"残り通貨を持って先へ進みます":std::to_string(price)+" Cr / システム更新中",NodeColor(node->kind));
         return;
     }
@@ -433,7 +425,17 @@ void GameScene::SelectExpeditionService(int option) {
             const int price=ExpeditionServicePrice(id);
             if(!expeditionMapRun_.CanAfford(price)) {expeditionMapStatus_="通貨不足 / 必要 "+std::to_string(price)+" Cr。別の改造を選ぶか次へ進めます。";reject();return;}
             const int hpBeforeUpgrade=player_->GetHp(),maxHpBeforeUpgrade=player_->GetMaxHp();
-            if(!tankRun_.GrantExpeditionModules(upgrade->effects)) {expeditionMapStatus_="この改造の効果はすでにすべて装備済みです。";return;}
+            if(!upgrade->refitPlayer.empty()) {
+                const auto* variant=tankcontent::FindPlayer(expeditionContent_,upgrade->refitPlayer);
+                if(expeditionRefitPurchased_||!variant||variant->style!=expeditionBuildStyle_) {expeditionMapStatus_="換装は同じ系統の機体へ1ラン1回です。";reject();return;}
+                const int beforeCredits=expeditionMapRun_.GetCurrency();const auto beforeCards=tankRun_.GetCardCounts();
+                if(!player_->ChooseRunAuthoredClass(variant->id)) {expeditionMapStatus_="換装できませんでした。";reject();return;}
+                expeditionRefitPurchased_=true;++expeditionMapTestEvolutions_;
+                if(experienceValidationVariant_) {
+                    experienceEvolutionVerified_=player_->GetHp()==hpBeforeUpgrade&&beforeCredits==expeditionMapRun_.GetCurrency()&&beforeCards==tankRun_.GetCardCounts()&&player_->GetExpeditionCombatStyle()==expeditionBuildStyle_;
+                    if(!experienceEvolutionVerified_)experienceValidationErrors_.push_back("Refit changed health, currency, modules or selected style before payment");
+                }
+            } else if(!tankRun_.GrantExpeditionModules(upgrade->effects)) {expeditionMapStatus_="この改造の効果はすでにすべて装備済みです。";return;}
             expeditionMapRun_.TrySpendCurrency(price);++expeditionPurchases_[id];++expeditionMapTestPurchases_;
             expeditionPurchasedModules_[id]=*upgrade;
             ApplyTankRunCards();
@@ -444,19 +446,6 @@ void GameScene::SelectExpeditionService(int option) {
             tankExpeditionTutorial_.RecordUpgrade();
             expeditionMapStatus_=upgrade->name+"を装備 / -"+std::to_string(price)+" Cr";
             complete=expeditionMapRun_.CompleteService(false);
-        } else if(node->kind==NK::Evolution) {
-            const auto* authored=tankcontent::FindPlayer(expeditionContent_,id);
-            const int price=(std::max)(authored?authored->price:0,node->serviceCost);
-            if(!expeditionMapRun_.CanAfford(price)) {expeditionMapStatus_="進化に必要な通貨が不足しています。";reject();return;}
-            const int previousHp=player_->GetHp();const auto previousCards=tankRun_.GetCardCounts();
-            const bool changed=authored?player_->ChooseRunAuthoredClass(id):player_->ChooseRunEvolution(id);
-            if(!changed) {expeditionMapStatus_="この機体へは進化できませんでした。";return;}
-            expeditionMapRun_.TrySpendCurrency(price);complete=expeditionMapRun_.CompleteService(false);++expeditionMapTestEvolutions_;
-            if(experienceValidationVariant_) {
-                experienceEvolutionVerified_=player_->GetHp()==previousHp&&tankRun_.GetCardCounts()==previousCards&&player_->GetExpeditionCombatStyle()==expeditionBuildStyle_;
-                if(!experienceEvolutionVerified_) experienceValidationErrors_.push_back("Evolution changed current HP, modules or selected family");
-            }
-            expeditionMapStatus_="機体を進化しました。取得済みの改造と現在HPを引き継ぎます。";
         }
     }
     if(complete) {
@@ -465,7 +454,7 @@ void GameScene::SelectExpeditionService(int option) {
         tankExpeditionAudio_.Upgrade();tankRunSelection_=0;tankRunMenuAge_=0;
         const auto next=expeditionMapRun_.GetAvailableNodeIds();if(!next.empty()) expeditionMapSelection_=next.front();
         if(const auto* focus=tankexp::FindMapNode(expeditionMapRun_.GetDefinition(),expeditionMapSelection_)) expeditionMapScroll_=(std::max)(0.0f,120.0f*(focus->column-8));
-        expeditionTransitionTitle_->SetText(option==3?"ROUTE / 次の地点へ":node->kind==NK::Heal?"REPAIRED / 装甲回復":node->kind==NK::Evolution?"EVOLVED / 進化完了":"INSTALLED / 改造完了");
+        expeditionTransitionTitle_->SetText(option==3?"ROUTE / 次の地点へ":node->kind==NK::Heal?"REPAIRED / 装甲回復":"INSTALLED / 改造完了");
         expeditionTransitionDetail_->SetText(option==3?"残り通貨を持って先へ進みます":WrapMapText(expeditionMapStatus_,46,2));
         expeditionTransitionTitle_->PrepareForDraw();expeditionTransitionDetail_->PrepareForDraw();
     }
@@ -486,11 +475,10 @@ void GameScene::RefreshExpeditionMapUi() {
     expeditionMapTitle_->SetText(service?NodeName(active->kind):" ");
     expeditionMapSubtitle_->SetText(" ");expeditionMapHelp_->SetText(" ");
     expeditionMapLegend_->SetPosition({46,111});
-    expeditionMapLegend_->SetText("戦  戦闘     強  精鋭     改  改造     進  進化     +  修理     核  最終決戦");
+    expeditionMapLegend_->SetText("戦  戦闘     強  精鋭     改  改造     +  修理     核  最終決戦");
     if(service) {
         tankRunDescription_->SetPosition({64,209});
         tankRunDescription_->SetText(active->kind==NK::Currency?"チュートリアルと同じ通貨を回収しています。次の地点で同じ強化を選べます。":active->kind==NK::Heal?"次の戦いに備え、最大HPの50%を修理できます。満タンなら支払い不要です。":
-            active->kind==NK::Evolution?"同じ系統の機体へ進化します。現在HP・取得した改造・残り通貨は引き継ぎます。":
             "3つの候補から1つ装備できます。購入せず進むこともできます。");
         if(expeditionGuideActive_&&active->role==tankexp::NodeRole::TutorialUpgrade&&!expeditionGuide_.IsComplete())
             tankRunDescription_->SetText(" ");
@@ -504,10 +492,6 @@ void GameScene::RefreshExpeditionMapUi() {
                 if(active->kind==NK::Upgrade) {
                     const auto* u=tankcontent::FindUpgrade(expeditionContent_,id);
                     if(u) {title=(u->rarity?"RARE / ":"")+u->name;price=ExpeditionServicePrice(id);body=u->description;}
-                } else if(active->kind==NK::Evolution) {
-                    const auto* p=tankcontent::FindPlayer(expeditionContent_,id);
-                    if(p) {title=p->name;price=(std::max)(p->price,active->serviceCost);body=p->description;}
-                    else for(const auto& evolution:tankExpeditionEvolutions_) if(evolution.id==id) {title=evolution.name;body=evolution.description;price=active->serviceCost;break;}
                 }
             }
             const std::string legacyMaintenance="・整備";
@@ -525,7 +509,6 @@ void GameScene::RefreshExpeditionMapUi() {
             info=NodeName(selected->kind);
             info+=tankexp::IsCombatNode(selected->kind)?"   突破報酬 +"+std::to_string(selected->clearReward)+" Cr":
                 selected->kind==NK::Upgrade?"   改造 "+std::to_string(selected->serviceCost)+" Cr〜":
-                selected->kind==NK::Evolution?"   基本進化 "+std::to_string(selected->serviceCost)+" Cr / 追加機体は個別価格":
                 selected->kind==NK::Currency?"   +"+std::to_string(selected->clearReward)+" Cr":"   HP50%修理 / "+std::to_string(selected->serviceCost)+" Cr";
             if(!expeditionMapRun_.CanSelectNode(selected->id)&&!expeditionMapPreview_) info+="   / まだ選択できません";
         }
@@ -638,6 +621,7 @@ void GameScene::DrawExpeditionMapUi() {
 
 void GameScene::UpdateExpeditionMap(float dt) {
     if(phase_!=Phase::kMain) return;
+    if(UpdateSpecialValidation(dt)) return;
     if(UpdateExperienceValidation(dt)) return;
     if(UpdateCombatValidation(dt)) return;
     const int earnings=player_->TakeRunCurrencyEarned();if(earnings>0) SpawnExpeditionCredits(player_->GetWorldPosition(),earnings);
@@ -776,7 +760,7 @@ void GameScene::UpdateExpeditionMapValidation(float dt) {
         nlohmann::json report={{"completed",success},{"testMode",true},{"forcedCombatClear",true},{"elapsed",expeditionMapTestElapsed_},
             {"visited",expeditionMapRun_.GetVisitedNodeIds()},{"credits",expeditionMapRun_.GetCurrency()},
             {"level",player_->GetLevel()},{"experience",player_->GetExp()},{"purchases",expeditionMapTestPurchases_},
-            {"evolutions",expeditionMapTestEvolutions_},{"repairs",expeditionMapTestHeals_},{"class",player_->GetCurrentClassName()},
+            {"refits",expeditionMapTestEvolutions_},{"evolutions",0},{"repairs",expeditionMapTestHeals_},{"class",player_->GetCurrentClassName()},
             {"cards",tankRun_.GetCardCounts()},{"roomTemplates",expeditionRooms_.rooms.size()},
             {"upgradeTypes",expeditionContent_.upgrades.size()},{"enemyTypes",expeditionContent_.enemies.size()},{"playerTypes",expeditionContent_.players.size()}};
         std::ofstream("generated/expedition_map/validation.json")<<std::setw(2)<<report<<'\n';PostQuitMessage(success?0:4);return;
@@ -786,7 +770,7 @@ void GameScene::UpdateExpeditionMapValidation(float dt) {
     if(expeditionMapRun_.IsChoosing()) {
         auto options=expeditionMapRun_.GetAvailableNodeIds();if(options.empty()) return;
         std::string id=options.front();
-        // Exercise a repair, an authored evolution and a final paid upgrade.
+        // Exercise a repair, an authored refit card and a final paid upgrade.
         for(const auto& choice:options) if(choice=="field_repair"||choice=="arsenal"||choice=="final_upgrade") id=choice;
         RequestExpeditionMapNode(id);return;
     }
@@ -797,6 +781,11 @@ void GameScene::UpdateExpeditionMapValidation(float dt) {
             if(node->kind==NK::Boss) enemy_->TakeDamage(100000);
         }
     } else if(node->kind==NK::Heal) {player_->SpendRunHealth(20);SelectExpeditionService(0);}
-    else if(node->kind==NK::Evolution) {expeditionServicePage_=0;SelectExpeditionService(expeditionServiceOffers_.empty()?3:0);}
+    else if(node->kind==NK::Upgrade&&node->id=="evolution"&&!expeditionRefitPurchased_) {
+        // Deterministic offer fixture; purchase still goes through the real card transaction.
+        for(const auto& u:expeditionContent_.upgrades)if(!u.refitPlayer.empty()&&tankcontent::EligibleUpgrade(u,expeditionBuildStyle_,tankRun_.GetCardCounts())) {
+            expeditionServiceOffers_={u.id};RefreshExpeditionBuildCards();SelectExpeditionService(0);break;
+        }
+    }
     else SelectExpeditionService(0);
 }

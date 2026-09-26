@@ -4,6 +4,7 @@
 #include "Bullet.h"
 #include "BulletManager.h"
 #include "EnemyManager.h"
+#include "game/player/TankSpecialCombat.h"
 
 void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager) {
 
@@ -47,6 +48,8 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 	// both callbacks so that neither damage nor impact effects repeat.
 	if ((bulletA && !bulletB && !bulletA->CanHitActor(colliderB)) ||
 		(bulletB && !bulletA && !bulletB->CanHitActor(colliderA))) return;
+	if((bulletA&&bulletA->GetSpecialKind()==Bullet::SpecialKind::SlashWave&&!bulletA->CanHitActor(colliderB))||
+		(bulletB&&bulletB->GetSpecialKind()==Bullet::SpecialKind::SlashWave&&!bulletB->CanHitActor(colliderA)))return;
 
 	bool hit = false;
 
@@ -54,6 +57,13 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 	if (colliderA->GetShape() == ColliderShape::Sphere && colliderB->GetShape() == ColliderShape::Sphere) {
 		float dist = Length(colliderA->GetWorldPosition() - colliderB->GetWorldPosition());
 		hit = dist < (colliderA->GetRadius() + colliderB->GetRadius());
+		// Large, fast special shots must not tunnel through a target between frames.
+		auto swept=[&](const Bullet* shot,Collider* target) {
+			if(!shot||shot->GetSpecialKind()==Bullet::SpecialKind::None)return false;
+			const auto a=shot->GetPreviousWorldPosition(),b=shot->GetWorldPosition(),p=target->GetWorldPosition();
+			return tankspecial::SegmentTouches(a.x,a.y,b.x,b.y,p.x,p.y,shot->GetRadius()+target->GetRadius());
+		};
+		hit=hit||swept(bulletA,colliderB)||swept(bulletB,colliderA);
 	}
 
 	// --- Capsule（Laser） × Sphere ---
@@ -95,7 +105,7 @@ void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager*
 	}
 
 	// 敵を登録
-	if (enemy) colliders_.push_back(enemy);
+	if (enemy && !enemy->IsDead()) colliders_.push_back(enemy);
 
 	// 弾を登録
 	for (Bullet* bullet : bulletManager->GetBulletPtrs()) {
@@ -104,7 +114,7 @@ void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager*
 
 	if (enemyManager) {
 		for (ExpEnemy* expEnemy : enemyManager->GetEnemyPtrs()) {
-			colliders_.push_back(expEnemy);
+			if(expEnemy&&!expEnemy->IsDead())colliders_.push_back(expEnemy);
 		}
 	}
 	

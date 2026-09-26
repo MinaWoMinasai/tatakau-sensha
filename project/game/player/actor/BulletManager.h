@@ -21,6 +21,7 @@ public:
     };
     // Actual player-owned growth events since ClearAll (enemy shots excluded).
     const GrowthStats& GetGrowthStats() const { return growthStats_; }
+	std::vector<Bullet::SpecialImpact> ConsumeSpecialImpacts() {auto events=std::move(specialImpacts_);specialImpacts_.clear();return events;}
 
     void Initialize(DirectXCommon* dxCommon, Object3dCommon* object3dCommon);
     void Add(std::unique_ptr<Bullet> bullet);
@@ -52,4 +53,5 @@ private:
     std::unique_ptr<TrailManager> trailManager_;
     BulletTrailSettings trailSettings_;
     GrowthStats growthStats_{};
+	std::vector<Bullet::SpecialImpact> specialImpacts_;
 };

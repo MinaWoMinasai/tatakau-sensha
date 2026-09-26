@@ -143,31 +143,31 @@ void StartCards(tankrun::RunDirector& cards) {
 void CheckOffers(const tankrun::RunDirector& cards,bool rare,CardId preferred) {
     std::size_t available=0;
     bool rareAvailable=false,hasRare=false;
-    for(std::size_t i=0;i<tankrun::CardCount;++i) if(tankrun::IsAvailableCard(static_cast<CardId>(i))&&cards.GetCardCount(static_cast<CardId>(i))==0) {
+    for(std::size_t i=0;i<tankrun::CardCount;++i) if(tankrun::IsDraftCard(static_cast<CardId>(i))&&cards.GetCardCount(static_cast<CardId>(i))==0) {
         ++available; rareAvailable|=tankrun::IsRare(static_cast<CardId>(i));
     }
     Check(cards.GetOfferCount()==(std::min)(available,std::size_t{3}),"reward fills available distinct choices");
     for(std::size_t i=0;i<cards.GetOfferCount();++i) {
         const auto card=cards.GetOffers()[i];
-        Check(tankrun::IsAvailableCard(card)&&cards.GetCardCount(card)==0,"reward offers only unowned available cards");
+        Check(tankrun::IsDraftCard(card)&&cards.GetCardCount(card)==0,"reward offers only unowned available cards");
         for(std::size_t j=0;j<i;++j) Check(cards.GetOffers()[j]!=card,"reward options never duplicate");
         hasRare|=tankrun::IsRare(card);
     }
     if(rare&&rareAvailable) Check(hasRare,"rare reward guarantees unowned rare when available");
-    if(tankrun::IsAvailableCard(preferred)&&cards.GetCardCount(preferred)==0)
+    if(tankrun::IsDraftCard(preferred)&&cards.GetCardCount(preferred)==0)
         Check(cards.GetOffers()[0]==preferred,"route affinity is offered first when unowned");
 }
 
 void TestFreeRewardDrafts() {
     tankrun::Config config;
-    config.maxDrafts=static_cast<int>(tankrun::AvailableCardCount);
+    config.maxDrafts=static_cast<int>(tankrun::DraftCardCount);
     for(std::uint32_t seed=0;seed<64;++seed) for(int requested=-1;requested<=static_cast<int>(tankrun::CardCount);++requested) {
         tankrun::RunDirector cards(seed,config),replay(seed,config);
         Check(!cards.OpenRewardDraft(true),"cannot grant reward before class and core");
         StartCards(cards); StartCards(replay);
         Check(cards.AddSalvage(37)&&replay.AddSalvage(37),"bank resources before free rewards");
         const auto preferred=static_cast<CardId>(requested);
-        for(std::size_t round=0;round<tankrun::AvailableCardCount;++round) {
+        for(std::size_t round=0;round<tankrun::DraftCardCount;++round) {
             const bool rare=round%2==0;
             Check(cards.OpenRewardDraft(rare,preferred)&&replay.OpenRewardDraft(rare,preferred),"free room reward opens without funding");
             CheckOffers(cards,rare,preferred);
@@ -189,7 +189,7 @@ void TestFreeRewardDrafts() {
     StartCards(allRare);
     for(int i=static_cast<int>(CardId::ScatterShot);i<static_cast<int>(CardId::Count);++i) {
         const auto preferred=static_cast<CardId>(i);
-        if(!tankrun::IsRare(preferred))continue;
+        if(!tankrun::IsDraftCard(preferred)||!tankrun::IsRare(preferred))continue;
         Check(allRare.OpenRewardDraft(true,preferred),"specific rare reward opens");
         CheckOffers(allRare,true,preferred);
         Check(allRare.ChooseCard(0),"acquire preferred rare");

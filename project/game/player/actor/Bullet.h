@@ -37,6 +37,12 @@ struct BulletTrailSettings {
 class Bullet : public Collider {
 
 public:
+	enum class SpecialKind { None, Rail, SlashWave, ParryReflection };
+	struct SpecialImpact { SpecialKind kind=SpecialKind::None;Vector3 position{},direction{};bool bulletCut=false; };
+	std::vector<SpecialImpact> ConsumeSpecialImpacts() {auto events=std::move(specialImpacts_);specialImpacts_.clear();return events;}
+	void ConfigureSpecial(SpecialKind kind, float radius, float lifetime);
+	SpecialKind GetSpecialKind() const { return specialKind_; }
+	const Vector3& GetPreviousWorldPosition() const { return previousPosition_; }
 	struct GrowthEvents {
 		uint32_t wallBounces = 0;
 		uint32_t actorPierces = 0;
@@ -61,7 +67,7 @@ public:
 	// ワールド座標を取得
 	Vector3 GetWorldPosition() const override;
 
-	Vector3 GetMove() { return velocity_; }
+	Vector3 GetMove() const { return velocity_; }
 
 	// セッター
 	void SetWorldPosition(const Vector3& pos) {
@@ -110,6 +116,9 @@ private:
 
 	// 速度
 	Vector3 velocity_;
+	Vector3 previousPosition_{};
+	SpecialKind specialKind_ = SpecialKind::None;
+	std::vector<SpecialImpact> specialImpacts_;
 
 	// 寿命
 	const float kLifeTime = 3.0f;

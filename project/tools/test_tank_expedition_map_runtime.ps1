@@ -7,6 +7,7 @@ $mapDirectory = Join-Path $mapProject 'generated/expedition_map'
 $mapResultPath = Join-Path $mapDirectory 'validation.json'
 if (!(Test-Path -LiteralPath $mapExe)) { throw 'Build the requested configuration first.' }
 $mapSettings = @{
+    CG2_TANK_SPECIAL_AUTOTEST = $null
     CG2_TANK_EXPERIENCE_AUTOTEST = $null
     CG2_TANK_COMBAT_AUTOTEST = $null
     CG2_TANK_MAP_AUTOTEST = '1'
@@ -42,10 +43,10 @@ try {
     }
     $mapResult = Get-Content -LiteralPath $mapResultPath -Raw -Encoding UTF8 | ConvertFrom-Json
     # This scenario intentionally exercises the shipped ten-node route, including
-    # purchases, one authored evolution and a repair. Combat is cleared by the test.
+    # purchases, one authored workshop refit and a repair. Combat is cleared by the test.
     if (!$mapResult.completed -or !$mapResult.testMode -or !$mapResult.forcedCombatClear -or
         $mapResult.level -ne 1 -or $mapResult.experience -ne 0 -or $mapResult.credits -lt 0 -or
-        $mapResult.purchases -lt 1 -or $mapResult.evolutions -lt 1 -or $mapResult.repairs -lt 1 -or
+        $mapResult.purchases -lt 1 -or $mapResult.refits -lt 1 -or $mapResult.repairs -lt 1 -or
         @($mapResult.visited).Count -ne 10 -or @($mapResult.visited | Select-Object -Unique).Count -ne 10 -or
         $mapResult.visited[0] -ne 'outskirts' -or $mapResult.visited[-1] -ne 'core') {
         throw "Map runtime evidence is incomplete: $mapResultPath"
@@ -57,7 +58,7 @@ try {
             throw "Missing fresh map screenshot: $mapCapture"
         }
     }
-    Write-Host "PASS: fresh map, ten visited nodes, currency purchases, authored evolution, repair, boss clear, level 1 / EXP 0. Combat was forced for flow validation."
+    Write-Host "PASS: fresh map, ten visited nodes, currency purchases, authored workshop refit, repair, boss clear, level 1 / EXP 0. Combat was forced for flow validation."
     Write-Output $mapResultPath
 } finally {
     if ($mapProcess -and !$mapProcess.HasExited) { Stop-Process -Id $mapProcess.Id -ErrorAction SilentlyContinue }

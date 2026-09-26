@@ -10,7 +10,11 @@ int main(int argc,char** argv) {
     std::string error;
     const auto original=DefaultRoomCatalog();
     if(!ValidateRoomCatalog(original,error)) {std::cerr<<error<<'\n';return 1;}
-    assert(original.rooms.size()==6);
+    assert(original.rooms.size()==7);
+    assert(FindRoom(original,"guard_patrol")->spawns[0].type=="ShieldGuard");
+    assert(FindRoom(original,"guard_patrol")->spawns[1].type=="BladeGuard");
+    for(const auto& rule:DefaultGenerationRooms())if(rule.roomTemplate=="guard_patrol")assert(rule.firstColumn>=8);
+    for(const auto& spawn:FindRoom(original,"outskirts")->spawns)assert(spawn.type!="ShieldGuard"&&spawn.type!="BladeGuard");
     assert(FindRoom(original,"gatekeeper")->objectiveTargets.size()==3);
     assert(FindRoom(original,"final_duel")->objective=="boss");
     assert(FindRoom(original,"hazard_lane")->spawns[2].type=="RapidSniper"&&FindRoom(original,"hazard_lane")->spawns[2].hp==0);
@@ -96,5 +100,5 @@ int main(int argc,char** argv) {
     assert(std::count(csv.begin(),csv.end(),'\n')==kRoomRows);
     assert(std::count(csv.begin(),csv.end(),',')==kRoomRows*(kRoomColumns-1));
     if(argc>1) {assert(SaveRoomCatalog(argv[1],original,error));}
-    std::cout<<"Room authoring: six defaults, map/content contracts, roundtrip, atomic replace, bounds, overlaps, reachability, reference validation passed.\n";
+    std::cout<<"Room authoring: seven defaults including midgame guards, map/content contracts, roundtrip, atomic replace, bounds, overlaps, reachability, reference validation passed.\n";
 }

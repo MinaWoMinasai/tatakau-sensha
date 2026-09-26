@@ -2,6 +2,22 @@
 
 通常どおり Release を起動すれば改善が有効になります。ゲーム設定や操作を変更する必要はありません。
 
+## 特殊能力・工房統合後の回帰測定（2026-09-27）
+
+同じPC・Release・`generated/startup-comparison/cache` を使用し、実装前後にWarm条件を各1回測定しました。測定中にビルドや別のゲーム実行は行っていません。
+
+| 区間 | 今回の変更前 | 変更後 |
+|---|---:|---:|
+| タイトルの最初のフレーム | 3.634秒 | 2.285秒 |
+| ゲーム開始要求→作戦マップ | 2.307秒 | 2.198秒 |
+| 本編scene initialize | 1.491秒 | 1.414秒 |
+
+秒単位の遅延の再発は確認していません。各1回の値なので、差にはOSのファイルキャッシュや実行ごとの揺らぎも含まれます。元データは `generated/abilities-startup-before/summary.json`・`warm.json` と `generated/abilities-startup-after/summary.json`・`warm.json` です。
+
+生成量とキャッシュも変更前後で一致しています。未使用アリーナUIの生成省略2件、シェーダーディスクヒット40件、生成テクスチャヒット3件、RenderTexture122枚、カード装飾スプライト384個、graphics PSO47個・compute PSO4個です。新能力の線・リング・三日月は既存のネオン描画に追加し、既存の軌跡・音源・カード用HDR描画を再利用します。能力別のUI・描画ターゲット・テクスチャを起動時に追加生成していません。
+
+`test_title_demo.ps1 -Configuration Release` も成功し、4段階の実戦デモ、フェード中の停止、新しい遠征への遷移を確認しました。特殊能力の実装とテストは `docs/tank-special-builds.md` を参照してください。
+
 ## 今回の実測（2026-09-26）
 
 同一 PC・同一 Release 実行ファイルで各条件を１回ずつ測定しました。比較対象は `tank_game.project.json` のタイトルからローグライト本編への遷移です。
