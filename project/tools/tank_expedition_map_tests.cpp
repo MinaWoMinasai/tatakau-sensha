@@ -364,11 +364,11 @@ void GuidedTutorial() {
     for(int i=0;i<1000;++i) guide.ObserveDash(false,100);
     assert(guide.GetStage()==Stage::Dash&&!guide.IsCombatReadyToClear());
     guide.ObserveDash(true,100);guide.ObserveDash(true,95);guide.ObserveDash(false,100);
-    assert(guide.GetStage()==Stage::Dash&&guide.GetFailedDashAttempts()==1);
+    assert(guide.GetStage()==Stage::Dash&&guide.GetCompletedDashes()==1);
     guide.RecordDamage();guide.ObserveDash(true,95);guide.ObserveDash(false,95);
-    assert(guide.GetStage()==Stage::Dash&&guide.GetFailedDashAttempts()==2); // first-frame hit is not lost
+    assert(guide.GetStage()==Stage::Dash&&guide.GetCompletedDashes()==2); // damage does not invalidate practice
     guide.ObserveDash(true,95);guide.RecordDamage();guide.ObserveDash(true,95);guide.ObserveDash(false,95);
-    assert(guide.GetStage()==Stage::Dash&&guide.GetFailedDashAttempts()==3); // damage/heal between samples
+    assert(guide.GetStage()==Stage::Upgrade&&guide.GetCompletedDashes()==3); // exactly three completed dashes
     guide.ObserveDash(true,95);guide.ObserveDash(true,95);guide.ObserveDash(false,95);
     assert(guide.GetStage()==Stage::Upgrade&&guide.IsCombatReadyToClear()&&!guide.IsComplete());
     assert(guide.ResolveUpgrade(false)&&guide.IsComplete()&&!guide.DidPurchaseUpgrade()&&!guide.ResolveUpgrade(true));
@@ -393,5 +393,5 @@ int main(int argc,char** argv) {
         assert(LoadExpeditionMap(std::string(reinterpret_cast<const char*>(path.data()),path.size()),authored,error));
         assert(ValidateExpeditionMap(authored,error));
     }
-    std::cout<<"Expedition map passed: 2048 generated seeds/all-path properties, equal intro economy, guided damage-free dash, 32 legacy routes, transactional JSON and atomic modules.\n";
+    std::cout<<"Expedition map passed: 2048 generated seeds/all-path properties, equal intro economy, three completed practice dashes, 32 legacy routes, transactional JSON and atomic modules.\n";
 }

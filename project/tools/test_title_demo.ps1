@@ -23,7 +23,8 @@ try {
     }
     $titleReport=Get-Content -LiteralPath $titleResult -Raw -Encoding UTF8 | ConvertFrom-Json
     if($titleProcess.ExitCode -ne 0 -or !$titleReport.completed) {throw "Title demo failed: $titleResult"}
-    foreach($shot in @('stage_0','stage_1','stage_2','stage_3','new_game')) {
+    if(!$titleReport.sceneFadeCaptured -or $titleReport.maxBurstAge -gt 0.701) {throw 'Demo scene fade or death-effect lifetime regression.'}
+    foreach($shot in @('stage_0','stage_1','stage_2','stage_3','new_game','scene_fade_out','scene_fade_in')) {
         $titleImage=Join-Path $titleProject "generated/title_demo/$shot.png"
         if(!(Test-Path -LiteralPath $titleImage) -or (Get-Item -LiteralPath $titleImage).LastWriteTimeUtc -lt $titleStarted) {
             throw "Missing fresh screenshot: $shot"

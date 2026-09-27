@@ -6,6 +6,7 @@
 #include <shellapi.h>
 
 #include <exception>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -49,10 +50,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     StartupTrace::Mark("process.entry");
 
-    D3DResouceLeakCheaker leakCheck;
-
     const GameProjectCommandLineOptions projectOptions =
         ParseGameProjectCommandLine(GetUtf8CommandLineArguments());
+
+    // A distributed EXE can be launched from a shortcut or an unrelated cwd.
+    // Explicit project paths and existing development resource roots keep their cwd.
+    std::error_code resourcePathError;
+    if (projectOptions.projectFilePath.empty() && !std::filesystem::is_directory(L"resources", resourcePathError)) {
+        wchar_t executablePath[32768]{};
+        const DWORD length=GetModuleFileNameW(nullptr,executablePath,32768);
+        if(length>0&&length<32768) {
+            const auto directory=std::filesystem::path(executablePath).parent_path();
+            if(std::filesystem::is_directory(directory/L"resources",resourcePathError))
+                std::filesystem::current_path(directory,resourcePathError);
+        }
+    }
+
+    D3DResouceLeakCheaker leakCheck;
 
     Game game;
     if (!game.Initialize(projectOptions)) {
