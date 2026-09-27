@@ -15,6 +15,7 @@
 #include "../game/exp/ExpEnemyCombatCycle.h"
 #include "../game/player/TankRunModifiers.h"
 #include "../game/player/TankSpecialCombat.h"
+#include "../game/player/TankShooterAbilities.h"
 #include "../game/exp/ExpGuardCombat.h"
 
 struct Vector3 { float x=0,y=0,z=0; Vector3& operator+=(Vector3 b) { x+=b.x;y+=b.y;z+=b.z;return *this; } };
@@ -45,6 +46,7 @@ struct Collider {
     uint32_t GetCollisionMask() const { return 0xffffffffu; }
     uint32_t GetCollisionAttribute() const { return attribute; }
     uint32_t GetDamage() const { return damage; }
+    void SetDamage(uint32_t value) {damage=value;}
     float GetHitPower() const { return 1; }
     uint32_t attribute=0,damage=8;
 };
@@ -53,6 +55,9 @@ struct ParticleManager {
     void EmitNeonImpactEffect(Vector3,Vector3,Vector4,int) {}
     void EmitNeonDeathEffect(Vector3,Vector4,Vector4,float) {}
 };
+struct Player;
+struct BulletManager;
+constexpr int kPlayer=0;
 struct Bullet : Collider {
 	enum class SpecialKind {None,Rail,SlashWave,ParryReflection};
 	struct SpecialImpact {SpecialKind kind;Vector3 position,direction;bool bulletCut;};
@@ -61,6 +66,11 @@ struct Bullet : Collider {
 	SpecialKind GetSpecialKind() const {return specialKind_;}
 	Vector3 GetPreviousWorldPosition() const {return {};}
 	Vector3 GetMove() const {return velocity_;}
+    bool IsBoomerang() const {return shooter_.boomerang;}
+    bool WasArmorReflected() const {return false;}
+    Player* GetSourcePlayer() const {return nullptr;}
+    int GetSourceDroneIndex() const {return -1;}
+    struct {bool boomerang=false;} shooter_;
     Bullet(float hp,float penetration,int owner) : owner_(owner),bulletHp_(hp),penetration_(penetration) {
         attribute=owner==0?kCollisionAttributePlayerBullet:kCollisionAttributeEnemyBullet;
     }
@@ -94,6 +104,8 @@ struct ExpEnemy : Collider {
     bool IsHostileToBoss() const { return hostileToBoss_; }
     bool IsDead() const { return isDead_; }
     bool IsRunResource() const { return isRunResource_; }
+    bool IsSummonedUnit() const {return false;}
+    bool TryReflectProjectile(const Vector3&) {return false;}
     bool IsCombatThreat() const {
         return !isDead_ && !isRunResource_ && (type_ == ExpEnemyType::Shooter ||
             type_ == ExpEnemyType::Charger || type_ == ExpEnemyType::Sniper);
@@ -116,12 +128,13 @@ struct ExpEnemy : Collider {
     ExpEnemyCombatCycle combatCycle_{};
     float dt_=1.0f/60.0f,invincibleTimer_=0;
     float dashTimer_=0,dashWarningTimer_=0,dashCooldown_=0;
+    float wallImpactArmedTimer_=0;
     DummyPlayer* player_=nullptr;
     std::function<void(uint32_t)> enemyKillCallback_;
     std::function<void(Vector3)> playerDefeatCallback_;
     std::function<void(bool)> runResourceClaimCallback_;
 };
-struct CollisionManager { void CheckCollisionPair(Collider*,Collider*); };
+struct CollisionManager { void CheckCollisionPair(Collider*,Collider*); BulletManager* activeBulletManager_=nullptr; };
 struct EnemyManager {
     ExpEnemy* FindNearestEnemy(const Vector3&,float,bool includeShooters=true) const;
     ExpEnemy* FindNearestRunResource(const Vector3&,float) const;
@@ -142,6 +155,7 @@ struct TestObject {
 struct Enemy : Collider {
     void OnCollision(Collider*) override {}
     bool IsDead() const { return isDead_; }
+    int GetHp() const {return hp_;}
     bool IsRunEncounterEnabled() const { return runEncounterEnabled_; }
     void TakeDamage(uint32_t amount) { hp_-=static_cast<int>(amount); }
     void ApplyKnockback(const Vector3&,float);
@@ -190,6 +204,8 @@ struct Player : Collider {
     void OnCollision(Collider*) override { ++contactCallbacks; }
     Vector3 GetWorldPosition() const override { return {}; }
     bool TryDashImpact(Collider*);
+    void ArmWallSmash(ExpEnemy*,float=1) {}
+    uint32_t NotifyDroneHit(int,Collider*,uint32_t amount) {return amount;}
     struct DashImpactEvent { Vector3 origin,direction; bool boss=false,powered=false; };
     std::vector<DashImpactEvent> pendingDashImpacts_;
     std::vector<uint64_t> dashImpactTargets_;
@@ -212,6 +228,12 @@ struct BulletManager {
 	std::vector<Bullet::SpecialImpact> specialImpacts_;
     std::unique_ptr<TestTrailManager> trailManager_;
     struct { uint64_t wallBounces=0,actorPierces=0,impactSplits=0,splitChildrenSpawned=0; } growthStats_;
+    void QueueArmorReflection(const Bullet&,const Vector3&) {}
+    void NotifyPlayerHit(Bullet&,Collider&,bool) {}
+    std::vector<int> pendingBuildShots_,buildEvents_;
+    tankshooter::MarkLedger marks_{};
+    struct {uint64_t count=0;} shooterStats_;
+    void* combatPlayer_=nullptr;void* combatBoss_=nullptr;void* combatEnemies_=nullptr;void* combatStage_=nullptr;
 };
 enum class MapChipType { Blank,Wall,Hazard };
 struct MapChip {

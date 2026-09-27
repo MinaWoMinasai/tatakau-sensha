@@ -83,6 +83,8 @@ inline std::vector<GenerationRoomRule> DefaultGenerationRooms() {
     return {
         {NodeKind::Combat,2,7,4,"outskirts"},{NodeKind::Combat,2,7,1,"crossfire"},
         {NodeKind::Combat,8,31,2,"guard_patrol"},{NodeKind::Combat,8,13,2,"crossfire"},{NodeKind::Combat,8,13,2,"resource_fork"},
+        {NodeKind::Combat,7,31,2,"command_post"},{NodeKind::Combat,10,31,2,"emp_patrol"},
+        {NodeKind::Combat,13,31,2,"reflect_bastion"},
         {NodeKind::Combat,14,31,2,"hazard_lane"},{NodeKind::Combat,14,31,1,"crossfire"},
         {NodeKind::Elite,2,31,1,"gatekeeper"},{NodeKind::Boss,2,31,1,"final_duel"}};
 }

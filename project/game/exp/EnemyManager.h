@@ -49,6 +49,8 @@ public:
 private:
     void Spawn(Stage& stage);
     void UpdateLevelSpawnAreas(Stage& stage, float deltaTime);
+    void UpdateSummonedUnits(Stage& stage);
+    void DismissOrphanedSummons();
     int CountEnemiesInArea(const SpawnArea& spawnArea) const;
 
     std::vector<std::unique_ptr<ExpEnemy>> enemies_;

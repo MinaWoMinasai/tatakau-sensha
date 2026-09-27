@@ -69,6 +69,20 @@ tankreward::DemoKind Kind(const TankRewardCardModel& m) {
     using C=tankrun::CardId;using D=tankreward::DemoKind;
     if(!m.previewKnown)return D::Info;
     if(m.styleChoice)return m.style==tankbuild::Style::Drone?D::Drone:m.style==tankbuild::Style::Melee?D::Melee:D::Shooter;
+    if(Offers(m,C::ChainLightning))return D::ChainLightning;
+    if(Offers(m,C::MarkDetonation))return D::MarkDetonation;
+    if(Offers(m,C::BoomerangShell))return D::BoomerangShell;
+    if(Offers(m,C::KillBurst))return D::KillBurst;
+    if(Offers(m,C::DroneCharge))return D::DroneCharge;
+    if(Offers(m,C::DroneRebuildBomb))return D::DroneRebuildBomb;
+    if(Offers(m,C::TargetPainter))return D::TargetPainter;
+    if(Offers(m,C::AutonomousSpread))return D::AutonomousSpread;
+    if(Offers(m,C::DashSlash))return D::DashSlash;
+    if(Offers(m,C::SpinBlade))return D::SpinBlade;
+    if(Offers(m,C::WallSmash))return D::WallSmash;
+    if(Offers(m,C::ExtraBarrel1)||Offers(m,C::ExtraBarrel2)||Offers(m,C::FanMount)||Offers(m,C::AlternatingFire))return D::Shooter;
+    if(Offers(m,C::HeavyDroneCore))return D::Drone;
+    if(Offers(m,C::LightBladeActuator)||Offers(m,C::HeavyBladeEdge))return D::Melee;
     if(Offers(m,C::RailCannon))return D::RailCannon;
     if(Offers(m,C::DroneLaserLink))return D::DroneLaserLink;
     if(Offers(m,C::SlashWave))return D::SlashWave;
@@ -89,6 +103,17 @@ std::string DemoNote(const TankRewardCardModel& m) {
     if(!m.previewKnown)return "詳細は上の説明を確認してください";
     if(!m.authoredVariant.empty())return "模式実演 / 動作速度・威力を比較";
     switch(Kind(m)) {
+    case D::ChainLightning:return "命中した敵から近くの2体へ放電";
+    case D::MarkDetonation:return "4回当てる → マーカーが起爆";
+    case D::BoomerangShell:return "行きと帰りで命中 / 自機へ回収";
+    case D::KillBurst:return "撃破地点から6方向へ小型弾";
+    case D::DroneCharge:return "予告 → 突撃 → 自機へ帰還";
+    case D::DroneRebuildBomb:return "自爆 → 一時離脱 → 再構築（短縮実演）";
+    case D::TargetPainter:return "複数機で集中攻撃 → ロック";
+    case D::AutonomousSpread:return "左クリック中、別々の敵へ分散";
+    case D::DashSlash:return "ダッシュ中に攻撃 → 2段目へ接続";
+    case D::SpinBlade:return "3段目の後も長押し → 回転攻撃";
+    case D::WallSmash:return "壁へ吹き飛ばす → 衝撃波";
     case D::RailCannon:return "左長押しでチャージ → 離して貫通射撃";
     case D::DroneLaserLink:return "隊形を重ね、レーザー線で敵を捉える";
     case D::SlashWave:return "3段目で斬撃波 / 奥の敵にも届く";
@@ -161,6 +186,11 @@ tankreward::DemoConfig TankRewardCard::DemoConfig(bool after)const {
     c.meleeTempo=has(C::MeleeTempo);c.finisherCharge=has(C::FinisherCharge);
     c.railCannon=has(C::RailCannon);c.droneLaserLink=has(C::DroneLaserLink);
     c.slashWave=has(C::SlashWave);c.parryBlade=has(C::ParryBlade);
+    c.extraBarrel1=has(C::ExtraBarrel1);c.extraBarrel2=has(C::ExtraBarrel2);c.fanMount=has(C::FanMount);c.alternatingFire=has(C::AlternatingFire);
+    c.heavyDroneCore=has(C::HeavyDroneCore);c.lightBladeActuator=has(C::LightBladeActuator);c.heavyBladeEdge=has(C::HeavyBladeEdge);
+    c.chainLightning=has(C::ChainLightning);c.markDetonation=has(C::MarkDetonation);c.boomerangShell=has(C::BoomerangShell);c.killBurst=has(C::KillBurst);
+    c.droneCharge=has(C::DroneCharge);c.droneRebuildBomb=has(C::DroneRebuildBomb);c.targetPainter=has(C::TargetPainter);c.autonomousSpread=has(C::AutonomousSpread);
+    c.dashSlash=has(C::DashSlash);c.spinBlade=has(C::SpinBlade);c.wallSmash=has(C::WallSmash);
     c.heavy=has(C::Heavy);c.rapid=has(C::Rapid);c.thrusters=has(C::Thrusters);c.repair=has(C::Repair);
     c.growth=model_.growth;
     c.meleeStyle=model_.style==tankbuild::Style::Melee;
@@ -173,6 +203,14 @@ tankreward::DemoConfig TankRewardCard::DemoConfig(bool after)const {
     c.droneCount=(std::max)(1,(after?model_.drones:model_.currentDrones)+(has(C::Drones)?static_cast<int>(std::lround(2*c.effectPower[6])):0));
     c.barrels=(std::max)(1,after?model_.barrels:model_.currentBarrels);
     c.fanAngle=after?model_.fanAngle:model_.currentFanAngle;c.alternate=after?model_.alternate:model_.currentAlternate;
+    if(model_.style==tankbuild::Style::Shooter) {
+        const int ownedAdditions=(model_.ownedEffects[24]>0?1:0)+(model_.ownedEffects[25]>0?1:0);
+        c.barrels=(std::clamp)(c.barrels-ownedAdditions+(c.extraBarrel1?1:0)+(c.extraBarrel2?1:0),1,6);
+        if(c.fanMount&&c.barrels>=2)c.fanAngle=c.barrels==2?16.0f:14.0f;
+        c.alternate|=c.alternatingFire&&c.barrels>=2;
+        // Extra barrels spread a modest total gain over the same base shot.
+        c.damageScale*=c.barrels==2?.65f:c.barrels>=3?.50f:1.0f;
+    }
     // The card describes the changed behavior in isolation. For reflection and
     // piercing comparisons, unrelated steering must not mask the difference.
     if(c.kind==tankreward::DemoKind::Ricochet||c.kind==tankreward::DemoKind::Pierce)c.homing=false;

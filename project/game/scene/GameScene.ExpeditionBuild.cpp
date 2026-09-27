@@ -86,13 +86,6 @@ void GameScene::RefreshExpeditionBuildCards() {
                 model.footer=std::to_string(price)+" Cr"+(expeditionMapRun_.CanAfford(price)?"  / 左クリックで装備":"  / 通貨不足");
                 if(const auto* u=tankcontent::FindUpgrade(expeditionContent_,model.id)) {
                     model.title=u->name;model.description=u->description;model.rarity=u->rarity;model.effects=u->effects;model.effectPower=u->effectPower;
-                    if(const auto* p=tankcontent::FindPlayer(expeditionContent_,u->refitPlayer)) {
-                        model.authoredVariant=p->id;
-                        model.barrels=p->barrels;model.drones=p->style==tankbuild::Style::Drone?(std::clamp)(model.profile.droneCount+p->drones-3,1,12):p->drones;
-                        model.reflect=p->reflect;model.penetrate=p->penetrate;
-                        model.fanAngle=p->fanAngle;model.alternate=p->alternate;
-                        model.damageScale=p->damageScale;model.reloadScale=p->reloadScale;model.bulletSpeedScale=p->bulletSpeedScale;
-                    }
                 }
             }
         }

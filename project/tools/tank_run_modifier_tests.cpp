@@ -156,7 +156,7 @@ constexpr bool CheckAuthoredEffectPower() {
         if(!Near(combo.knockback/base.knockback,(1+.5f*p)*(1+.2f*p)))return false;
         if(!Near(combo.recovery/base.recovery,(std::max)(.05f,1-.18f*p)))return false;
         m.droneFocus=m.droneGuard=true;const auto drone=MakeTankDroneTuning(m,true);
-        if(!Near(drone.damageScale,1+.4f*p)||!Near(drone.reloadSeconds,.5f*(1+.15f*p))||!Near(drone.bulletHp,1+2*p))return false;
+        if(!Near(drone.damageScale,1+.15f*p)||!Near(drone.reloadSeconds,.5f)||!Near(drone.bulletHp,1+2*p))return false;
         m.homing=m.dashBurst=true;const auto synergy=MakeTankRunSynergy(m,false);
         if(!Near(synergy.homingTurnRate,1.6f*p)||!Near(synergy.explosionDamageScale,1.4f*p))return false;
         if(!TankCanPerfectDodge(true,true,(std::min)(.3f,.2f*p),p)||TankCanPerfectDodge(true,true,.301f,p))return false;
@@ -167,6 +167,19 @@ constexpr bool CheckAuthoredEffectPower() {
     return Near(t.damage,1.8f)&&Near(t.maxHp,1.7f)&&Near(t.moveSpeed,1.6f);
 }
 static_assert(CheckAuthoredEffectPower(), "F6 effect multipliers must alter every numeric combat effect, preserve bounded integers and remove hidden foundation caps.");
+
+constexpr bool CheckAdditiveParts() {
+    TankRunModifiers mods{};mods.enabled=mods.expedition=true;
+    const auto base=MakeTankMeleeCombo(2,mods);mods.lightBladeActuator=true;
+    auto blade=MakeTankMeleeCombo(2,mods);
+    if(!Near(blade.damage/base.damage,.95f)||!Near(blade.duration/base.duration,.85f))return false;
+    mods.heavyBladeEdge=true;blade=MakeTankMeleeCombo(2,mods);
+    if(!Near(blade.damage/base.damage,.95f*1.45f)||!Near(blade.duration/base.duration,.85f*1.18f))return false;
+    mods.heavyDroneCore=mods.droneFocus=mods.drones=true;
+    const auto drone=MakeTankDroneTuning(mods,true);
+    return Near(drone.damageScale,1.45f*1.15f)&&Near(drone.reloadSeconds,.6f)&&drone.sizeScale>1&&mods.drones;
+}
+static_assert(CheckAdditiveParts(), "New parts compose without replacing prior upgrades or companion count.");
 
 int main()
 {

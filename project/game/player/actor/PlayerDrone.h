@@ -10,6 +10,7 @@
 #include "Sprite.h"
 #include "AttackController.h"
 #include "PlayerDrone.h"
+#include "game/player/TankSpecialCombat.h"
 
 class Stage;
 
@@ -30,6 +31,7 @@ public:
 	/// </summary>
 	void Attack(float deltaTime = 1.0f / 60.0f);
 	void ConfigureRunAttack(const AttackParam& param, float reloadSeconds);
+	void SetRunExactDamage(float amount) {runExactDamage_=(std::max)(0.0f,amount);}
 	void SetRunInput(const Vector3& target, bool attack) {
 		runInputOverride_ = true; runAimTarget_ = target; runWantsAttack_ = attack;
 	}
@@ -38,6 +40,15 @@ public:
 		runFollowSpeed_=speed;runCatchupSpeed_=catchup;runFollowResponse_=response;
 	}
 	void RallyRunAttack() { runShotCooldown_ = 0.0f; runRallyShotPending_ = true; }
+	void SetRunOwner(Player* player,int index) {runAttackParam_.sourcePlayer=player;runAttackParam_.sourceDroneIndex=index;}
+	bool StartRunMission(const Vector3& target,bool bomb) {
+		if(!mission_.Start(bomb))return false;missionTarget_=target;return true;
+	}
+	const tankspecial::DroneMission& GetRunMission() const {return mission_;}
+	const Vector3& GetRunMissionTarget() const {return missionTarget_;}
+	bool IsRunAvailable() const {return !isDead_&&mission_.Available();}
+	bool ConsumeRunMissionImpact() {const bool hit=mission_.impact;mission_.impact=false;return hit;}
+	bool ConsumeRunRebuilt() {const bool value=rebuilt_;rebuilt_=false;return value;}
 
 	/// <summary>
 	/// マウスの方を向く
@@ -140,6 +151,7 @@ private:
 	int bulletCoolTime = 0;
 	bool runAttackEnabled_ = false;
 	AttackParam runAttackParam_{};
+	float runExactDamage_=0,runDamageRemainder_=0;
 	float runReloadSeconds_ = 0.5f;
 	float runShotCooldown_ = 0.0f;
 	bool runRallyShotPending_ = false;
@@ -168,6 +180,9 @@ private:
 
 	bool isDead_ = false;
 	bool neonVisual_ = false;
+	tankspecial::DroneMission mission_{};
+	Vector3 missionTarget_{};
+	bool rebuilt_=false;
 
 	// 攻撃コントローラ
 	AttackController attackController_;

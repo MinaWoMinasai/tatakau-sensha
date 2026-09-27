@@ -4,9 +4,10 @@
 #include "Calculation.h"
 #include <algorithm>
 #include <iostream>
+#include <unordered_set>
 
 namespace {
-static_assert(static_cast<int>(ExpEnemyType::BladeGuard) == static_cast<int>(tankcontent::EnemyBehavior::BladeGuard),
+static_assert(static_cast<int>(ExpEnemyType::ReflectArmor) == static_cast<int>(tankcontent::EnemyBehavior::ReflectArmor),
     "Authored behavior IDs must keep the same enum order as runtime enemies");
 
 bool TryGetExpEnemyType(const std::string& prefab, ExpEnemyType& type)
@@ -40,6 +41,9 @@ bool TryGetExpEnemyType(const std::string& prefab, ExpEnemyType& type)
     if (prefab == "Suppressor") { type = ExpEnemyType::Suppressor; return true; }
     if (prefab == "ShieldGuard") { type = ExpEnemyType::ShieldGuard; return true; }
     if (prefab == "BladeGuard") { type = ExpEnemyType::BladeGuard; return true; }
+    if (prefab == "SummonerCommander") { type = ExpEnemyType::SummonerCommander; return true; }
+    if (prefab == "EMPJammer") { type = ExpEnemyType::EMPJammer; return true; }
+    if (prefab == "ReflectArmor") { type = ExpEnemyType::ReflectArmor; return true; }
     return false;
 }
 
@@ -61,15 +65,64 @@ void EnemyManager::Update(Stage& stage, float deltaTime) {
         spawnTimer_ = kSpawnInterval;
     }
     UpdateLevelSpawnAreas(stage, deltaTime);
+    DismissOrphanedSummons();
 
     // 2. 全ての敵を更新 & デスフラグが立ったら削除
     for (auto it = enemies_.begin(); it != enemies_.end(); ) {
-        (*it)->Update(stage, deltaTime);
+        if (!(*it)->IsDead()) (*it)->Update(stage, deltaTime);
 
         if ((*it)->IsDead()) {
             it = enemies_.erase(it); // 削除
         } else {
             ++it;
+        }
+    }
+    UpdateSummonedUnits(stage);
+}
+
+void EnemyManager::DismissOrphanedSummons()
+{
+    std::unordered_set<uint64_t> commanders;
+    for (const auto& actor : enemies_) if (actor && !actor->IsDead() &&
+        actor->GetType() == ExpEnemyType::SummonerCommander) commanders.insert(actor->GetCollisionId());
+    for (auto& actor : enemies_) if (actor && actor->IsSummonedUnit() &&
+        !commanders.contains(actor->GetSummonerId())) actor->DismissSummonedUnit();
+}
+
+void EnemyManager::UpdateSummonedUnits(Stage& stage)
+{
+    // Collect pointers before adding: vector growth must never invalidate the
+    // enemy update loop. Summons are finite, unrewarded actors, not spawn areas.
+    std::vector<ExpEnemy*> commanders;
+    size_t liveSummons = 0;
+    for (const auto& actor : enemies_) if (actor && !actor->IsDead()) {
+        if (actor->IsSummonedUnit()) ++liveSummons;
+        if (actor->GetType() == ExpEnemyType::SummonerCommander && actor->ConsumeSummonRequest()) commanders.push_back(actor.get());
+    }
+    for (auto* commander : commanders) {
+        int owned = 0;
+        for (const auto& actor : enemies_) if (actor && !actor->IsDead() && actor->GetSummonerId() == commander->GetCollisionId()) ++owned;
+        const int slots = expguard::SummonSlots(owned, commander->GetSummonTotal());
+        for (int slot = 0; slot < slots && liveSummons < 24 && enemies_.size() < 128; ++slot) {
+            bool spawned = false;
+            for (int candidate = 0; candidate < 12; ++candidate) {
+                const float angle = (static_cast<float>(candidate) + slot * 4.0f) * 0.52359878f;
+                const Vector3 position = commander->GetWorldPosition() + Vector3{std::cos(angle) * 2.8f, std::sin(angle) * 2.8f, 0};
+                if (stage.IsCollisionWithAnyBlock(position, 0.85f) ||
+                    (player_ && Length(position - player_->GetWorldPosition()) < 3.0f)) continue;
+                bool occupied = false;
+                for (const auto& actor : enemies_) if (actor && !actor->IsDead() && Length(position - actor->GetWorldPosition()) < 1.8f) { occupied = true; break; }
+                if (occupied) continue;
+                auto unit = std::make_unique<ExpEnemy>();
+                unit->Initialize(position, player_, ExpEnemyType::Charger);
+                unit->SetBossTarget(boss_);
+                unit->SetAttackControllerBulletManager(bulletManager_);
+                unit->ConfigureSummonedUnit(commander->GetCollisionId());
+                enemies_.push_back(std::move(unit));
+                commander->RecordSummonedUnit(); ++liveSummons; spawned = true;
+                break;
+            }
+            if (!spawned) break; // No free location: retry only on the next pulse.
         }
     }
 }
