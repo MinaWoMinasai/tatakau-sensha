@@ -1,7 +1,10 @@
 #include "../game/run/TankExpeditionTutorial.h"
+#include "../game/run/TankTutorialCopy.h"
+#include "../game/run/TankRunCopy.h"
 #include <cassert>
 #include <iostream>
 #include <limits>
+#include <string>
 
 using tankexp::ExpeditionTutorial;
 using tankexp::TutorialStep;
@@ -13,6 +16,32 @@ static void Next(ExpeditionTutorial& tutorial) {
 }
 
 int main() {
+    for(int i=0;i<=static_cast<int>(tankexp::GuidedCombatTutorial::Stage::Complete);++i) {
+        const auto copy=tankexp::GuidedTutorialCopy(static_cast<tankexp::GuidedCombatTutorial::Stage>(i));
+        assert(copy.heading&&copy.detail);
+        assert(std::string(copy.heading).size()<=90&&std::string(copy.detail).size()<=150);
+        for(const auto* retired:{"進化","換装","キット"})assert(std::string(copy.detail).find(retired)==std::string::npos);
+    }
+    assert(tankexp::ShouldSaveTutorialCompletion(false,false,false));
+    assert(!tankexp::ShouldSaveTutorialCompletion(false,true,false));
+    assert(tankexp::ShouldSaveTutorialCompletion(false,true,true));
+    assert(!tankexp::ShouldSaveTutorialCompletion(true,true,true));
+    assert(!tankexp::ShouldSaveTutorialCompletion(true,false,false));
+    for(int i=0;i<static_cast<int>(tankrun::CardCount);++i) {
+        if(i==8||i==12)continue;
+        const auto copy=tankrun::copy::ExpeditionCardCopy(i);
+        const std::string title=copy.title,body=copy.body;
+        assert(!title.empty()&&body.size()<360);
+        const auto firstLine=body.find('\n');assert(firstLine!=std::string::npos&&firstLine>0);
+        assert(std::count(body.begin(),body.end(),'\n')<=3);
+        for(const auto* retired:{"進化","換装","キット","LOCK","PERFECT","RARE","SYNERGY"}) {
+            assert(body.find(retired)==std::string::npos&&title.find(retired)==std::string::npos);
+        }
+    }
+    // Expedition wording must not overwrite arena-only damage/tradeoff copy.
+    assert(std::string(tankrun::copy::kRunCards[1].body).find("+70%")!=std::string::npos);
+    assert(std::string(tankrun::copy::ExpeditionCardCopy(-1).body).size()>0);
+    assert(std::string(tankrun::copy::ExpeditionCardCopy(999).body).size()>0);
     ExpeditionTutorial tutorial;
     tutorial.Reset(false);
     assert(!tutorial.Skip());

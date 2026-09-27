@@ -1,4 +1,5 @@
 #include "../game/run/TankExpeditionContent.h"
+#include "../game/run/TankRunCopy.h"
 #include <cassert>
 #include <iostream>
 #include <limits>
@@ -109,6 +110,11 @@ int main(int argc,char** argv){
     auto original=DefaultCatalog();std::string error;
     assert(ValidateCatalog(original,error));
     assert(original.upgrades.size()==40&&original.players.size()==8&&original.enemies.size()==16);
+    for(const auto& upgrade:original.upgrades) {
+        assert(upgrade.effects.size()==1);
+        const auto copy=tankrun::copy::ExpeditionCardCopy(static_cast<int>(upgrade.effects.front()));
+        assert(upgrade.description==copy.body&&upgrade.name==copy.title);
+    }
     ShopContracts();
     SpecialAndAdditiveContracts();
     assert(!FindUpgrade(original,"ScatterShot"));
@@ -220,6 +226,8 @@ int main(int argc,char** argv){
     const std::string shipped="../../project/resources/configs/expedition_content.json";
     if(std::filesystem::exists(shipped)) {
         Catalog production;assert(LoadCatalog(shipped,production,error));
+        for(const auto& shippedUpgrade:production.upgrades)if(const auto* standard=FindUpgrade(original,shippedUpgrade.id))
+            assert(shippedUpgrade.description==standard->description);
         for(const auto* id:{"BladeReach","ImpactDrive","PerfectDodge","LightBladeActuator","HeavyBladeEdge"})assert(FindUpgrade(production,id));
         assert(!FindUpgrade(production,"ScatterShot")&&IntroUpgradeIds(production,1).size()==3);
         for(const auto* id:{"DroneFocus","DroneGuard","MeleeTempo","FinisherCharge","HeavyDroneCore","ChainLightning"})assert(FindUpgrade(production,id));

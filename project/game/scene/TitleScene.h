@@ -34,7 +34,7 @@ private:
     std::unique_ptr<Sprite> backgroundVeil_;
     Input* input_=nullptr;
     std::unique_ptr<TextLabel> title_,subtitle_,hint_,demoCaption_;
-    std::array<std::unique_ptr<TextLabel>,3> menu_;
+    std::array<std::unique_ptr<TextLabel>,1> menu_;
     struct DemoSample {
         std::string build;
         int shots=0,kills=0,dashes=0;
@@ -47,8 +47,12 @@ private:
     Phase phase_=Phase::kFadeIn;
     std::string nextSceneName_;
     bool finished_=false,demoFrozen_=false,autoTest_=false,startupAutoTest_=false;
+    bool submissionCaptured_=false;
+    bool capturedSceneFadeOut_=false,capturedSceneFadeIn_=false;
+    float maxObservedBurstAge_=0;
     uint32_t capturedStages_=0;
     float frozenAt_=0,blinkTimer_=0;
     int menuSelection_=0;
+    bool menuHovered_=false;
     Vector2 previousMousePosition_{};
 };

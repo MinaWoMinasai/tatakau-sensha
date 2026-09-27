@@ -29,17 +29,12 @@ Vector4 NodeColor(NK kind) {
     }
 }
 const char* NodeIcon(NK kind) {
-    switch(kind) {case NK::Combat:return "戦";case NK::Elite:return "強";case NK::Upgrade:return "改";
+    switch(kind) {case NK::Combat:return "戦";case NK::Elite:return "宝";case NK::Upgrade:return "改";
     case NK::Evolution:return "改";case NK::Heal:return "+";case NK::Currency:return "〇";default:return "核";}
 }
 const char* NodeName(NK kind) {
-    switch(kind) {case NK::Combat:return "戦闘";case NK::Elite:return "精鋭戦闘";case NK::Upgrade:return "改造工房";
-    case NK::Evolution:return "改造工房";case NK::Heal:return "修理";case NK::Currency:return "通貨を受け取る";default:return "最終決戦";}
-}
-std::string ShortMapName(const std::string& name) {
-    size_t pos=0;int chars=0;
-    while(pos<name.size()&&chars<8) {const auto c=static_cast<unsigned char>(name[pos]);pos+=c<128?1:c<224?2:c<240?3:4;++chars;}
-    return pos<name.size()?name.substr(0,pos)+"…":name;
+    switch(kind) {case NK::Combat:return "戦闘";case NK::Elite:return "宝物庫";case NK::Upgrade:return "強化工房";
+    case NK::Evolution:return "強化工房";case NK::Heal:return "修理";case NK::Currency:return "通貨を受け取る";default:return "最終決戦";}
 }
 std::string WrapMapText(const std::string& text,float width,int maxLines) {
     std::string result;float used=0;int line=1;
@@ -107,7 +102,11 @@ void GameScene::InitializeExpeditionMap() {
     enemyManager_->SetExpeditionContent(expeditionContent_);player_->InstallRunAuthoredClasses(expeditionContent_);
     SetExpeditionBlueprint(0);player_->SetRunCurrencyMode(true);tankExpedition_.OpenMap();
     tankExpeditionTutorial_.Skip();InitializeExpeditionExperience();
-    expeditionMapSelection_=expeditionMapRun_.GetAvailableNodeIds().front();
+    const auto initialNodes=expeditionMapRun_.GetAvailableNodeIds();
+    if(!initialNodes.empty()) expeditionMapSelection_=initialNodes.front();
+    // Prefer learning the controls even when an authored map lists skip first.
+    for(const auto& id:initialNodes) if(const auto* n=tankexp::FindMapNode(expeditionMapRun_.GetDefinition(),id);
+        n&&n->role==tankexp::NodeRole::TutorialCombat) {expeditionMapSelection_=id;break;}
     const Vector4 white{0.83f,0.96f,1,1},muted{0.42f,0.64f,0.75f,1};
     expeditionMapTitle_=MapLabel(32,{44,85},white);
     expeditionMapSubtitle_=MapLabel(16,{46,133},muted);
@@ -137,10 +136,9 @@ void GameScene::InitializeExpeditionMap() {
             edge.glow->SetAnchorPoint({0,0.5f});edge.line->SetAnchorPoint({0,0.5f});expeditionMapEdges_.push_back(std::move(edge));
         }
     }
-    const char* plans[]={"CYCLE 01 / 跳弾設計","CYCLE 02 / 突撃設計","CYCLE 03 / 群体設計"};
     for(int i=0;i<3;++i) {
         const float x=46.0f+i*394.0f;expeditionBlueprintButtons_[i]=MapRect({x,650},{378,34},{0.035f,0.11f,0.16f,1});
-        expeditionBlueprintLabels_[i]=MapLabel(15,{x+12,654},white);expeditionBlueprintLabels_[i]->SetText(plans[i]);
+        expeditionBlueprintLabels_[i]=MapLabel(15,{x+12,654},white);expeditionBlueprintLabels_[i]->SetText(i==0?"←":i==1?"→":" ");
     }
     wchar_t flag[8]{};expeditionMapAutoTest_=GetEnvironmentVariableW(L"CG2_TANK_MAP_AUTOTEST",flag,8)>0&&flag[0]==L'1';
     if(expeditionMapAutoTest_) {
@@ -172,8 +170,8 @@ void GameScene::RequestExpeditionMapNode(const std::string& id) {
         expeditionBuildChoice_=true;tankRunMenuAge_=0;RefreshTankExpeditionUi();return;
     }
     expeditionPendingNode_=id;
-    BeginExpeditionPresentation(1,tankexp::IsCombatNode(node->kind)?"DEPLOY / 出撃":"DOCK / 入場",
-        node->role==tankexp::NodeRole::TutorialCombat?"チュートリアル・戦闘":node->role==tankexp::NodeRole::TutorialSkip?"説明をスキップ / 同じ通貨を受け取ります":NodeName(node->kind),NodeColor(node->kind));
+    BeginExpeditionPresentation(1,tankexp::IsCombatNode(node->kind)?"出撃":"入場",
+        node->role==tankexp::NodeRole::TutorialCombat?"操作を学ぶ":node->role==tankexp::NodeRole::TutorialSkip?"説明をスキップ / 同じ通貨を受け取ります":NodeName(node->kind),NodeColor(node->kind));
 }
 
 void GameScene::UpdateExpeditionPresentation(float dt) {
@@ -271,10 +269,10 @@ void GameScene::EnterExpeditionMapNode(const std::string& id) {
         std::string error;
         if(!tankexp::ValidateRoomCatalog(expeditionRooms_,error)) {expeditionMapStatus_=error;return;}
         for(const auto& spawn:room->spawns) if(!tankcontent::FindEnemy(expeditionContent_,spawn.type)) {
-            expeditionMapStatus_="敵の種類がありません: "+spawn.type+" / F6で追加してください。";return;
+            expeditionMapStatus_="必要な敵の設定が見つかりません。F4 / F6で設定を確認してください。";return;
         }
         if((node->kind==NK::Boss)!=(room->objective=="boss")) {
-            expeditionMapStatus_="最終決戦ノードにはボス目標の部屋、それ以外には通常目標の部屋を指定してください。";return;
+            expeditionMapStatus_="最終決戦にはボス目標の部屋、それ以外には通常目標の部屋を指定してください。";return;
         }
     }
     const auto before=expeditionMapRun_;const auto beforeDirector=tankExpedition_;
@@ -344,7 +342,7 @@ bool GameScene::StartAuthoredExpeditionRoom() {
     // global balancing pass (otherwise authored enemy contact damage is lost).
     ApplyTankExpeditionRoomBalance();
     previousPlayerHp_=player_->GetHp();previousBossHp_=enemy_->GetHp();bossDefeatHandled_=false;
-    if(!expeditionTransition_.IsActive()) SetEventCallout(node->label+" / "+(room->objective=="control"?"制御装置を3つ確保":room->objective=="boss"?"最深部のライバルを撃破":"敵を全滅"),1.4f);
+    if(!expeditionTransition_.IsActive()) SetEventCallout(std::string(NodeName(node->kind))+" / "+(room->objective=="control"?"通貨ボックスを3つ壊そう":room->objective=="boss"?"ボスを撃破":"敵を全滅"),1.4f);
     return true;
 }
 
@@ -355,14 +353,14 @@ void GameScene::CompleteExpeditionMapCombat() {
     if(!expeditionMapRun_.CompleteCombat(false)) return;
     tankExpedition_.OpenMap();tankExpeditionTutorial_.RecordRoomClear();
     expeditionMapSelection_=expeditionMapRun_.GetAvailableNodeIds().front();
-    expeditionMapStatus_="区画突破 / +"+std::to_string(reward)+" Cr を回収。光る地点から次の目的地を選べます。";
+    expeditionMapStatus_="戦闘クリア！ 光る地点を選んで進もう。";
     if(const auto* next=tankexp::FindMapNode(expeditionMapRun_.GetDefinition(),expeditionMapSelection_)) expeditionMapScroll_=(std::max)(0.0f,120.0f*(next->column-8));
     tankExpeditionAudio_.Upgrade();tankRunMenuAge_=0;RefreshTankExpeditionUi();
 }
 
 void GameScene::RefreshExpeditionServiceOffers() {
     expeditionServiceOffers_.clear();const auto* node=expeditionMapRun_.GetActiveNode();if(!node) return;
-    if(node->kind==NK::Upgrade) {
+    if(node->kind==NK::Upgrade||node->kind==NK::Evolution) {
         if(IsIntroExpeditionService()) expeditionServiceOffers_=expeditionIntroOffers_;
         else {
             uint32_t state=expeditionSeed_;for(const unsigned char c:node->id) state=(state^c)*16777619u;
@@ -379,8 +377,8 @@ bool GameScene::IsIntroExpeditionService() const {
 int GameScene::ExpeditionServicePrice(const std::string& id) const {
     const auto* node=expeditionMapRun_.GetActiveNode();if(!node) return 0;
     if(IsIntroExpeditionService()) return node->serviceCost;
-    if(node->kind==NK::Upgrade) {const auto* u=tankcontent::FindUpgrade(expeditionContent_,id);return (std::max)(u?u->price:0,node->serviceCost);}
-    const auto* p=tankcontent::FindPlayer(expeditionContent_,id);return (std::max)(p?p->price:0,node->serviceCost);
+    if(node->kind==NK::Upgrade||node->kind==NK::Evolution) {const auto* u=tankcontent::FindUpgrade(expeditionContent_,id);return (std::max)(u?u->price:0,node->serviceCost);}
+    return node->serviceCost;
 }
 
 void GameScene::SelectExpeditionService(int option) {
@@ -391,7 +389,7 @@ void GameScene::SelectExpeditionService(int option) {
         if(option!=3) {
             if(node->kind==NK::Heal) {
                 if(option!=0) return;
-                if(player_->GetHp()>=player_->GetMaxHp()) {expeditionMapStatus_="装甲は完全です。「購入せず次へ」で進めます。";reject();return;}
+                if(player_->GetHp()>=player_->GetMaxHp()) {expeditionMapStatus_="HPは満タンです。「修理せず進む」を選んでください。";reject();return;}
                 price=node->serviceCost;
             } else {
                 const size_t index=static_cast<size_t>(expeditionServicePage_*3+option);
@@ -399,36 +397,36 @@ void GameScene::SelectExpeditionService(int option) {
                 const auto& id=expeditionServiceOffers_[index];
                 price=ExpeditionServicePrice(id);
             }
-            if(!expeditionMapRun_.CanAfford(price)) {expeditionMapStatus_="通貨不足 / 必要 "+std::to_string(price)+" Cr。購入せず次へ進むこともできます。";reject();return;}
+            if(!expeditionMapRun_.CanAfford(price)) {expeditionMapStatus_=std::string("通貨が足りません。")+(node->kind==NK::Heal?"修理せず進めます。":"購入せず進めます。");reject();return;}
         }
         expeditionPendingService_=option;
         if(option<3&&IsExpeditionBuildCardScreen()) expeditionRewardCards_[option]->PlayAcquire();
-        BeginExpeditionPresentation(3,option==3?"ROUTE / 次の地点へ":node->kind==NK::Heal?"REPAIR / 装甲修理":"INSTALL / 改造",
-            option==3?"残り通貨を持って先へ進みます":std::to_string(price)+" Cr / システム更新中",NodeColor(node->kind));
+        BeginExpeditionPresentation(3,option==3?"次の地点へ":node->kind==NK::Heal?"装甲を修理":"強化を装備",
+            option==3?"残りの通貨を持って先へ進みます":(node->kind==NK::Heal?"修理しています":"装備しています"),NodeColor(node->kind));
         return;
     }
     bool complete=false;
     if(option==3) complete=expeditionMapRun_.CompleteService(false);
     else if(node->kind==NK::Heal) {
         if(option!=0) return;
-        if(player_->GetHp()>=player_->GetMaxHp()) {expeditionMapStatus_="装甲は完全です。通貨を使わず「次へ」で進めます。";reject();return;}
-        const int cost=node->serviceCost;
-        if(!expeditionMapRun_.CompleteService(true)) {expeditionMapStatus_="通貨が不足しています。購入せず次へ進めます。";reject();return;}
+        if(player_->GetHp()>=player_->GetMaxHp()) {expeditionMapStatus_="HPは満タンです。「修理せず進む」を選んでください。";reject();return;}
+
+        if(!expeditionMapRun_.CompleteService(true)) {expeditionMapStatus_="通貨が足りません。修理せず進めます。";reject();return;}
         player_->HealRunPlayer((std::max)(1,player_->GetMaxHp()/2));previousPlayerHp_=player_->GetHp();
-        expeditionMapStatus_="装甲を50%修理 / -"+std::to_string(cost)+" Cr";complete=true;++expeditionMapTestHeals_;
+        expeditionMapStatus_="HPを50%回復しました";complete=true;++expeditionMapTestHeals_;
     } else {
         const size_t index=static_cast<size_t>(expeditionServicePage_*3+option);if(index>=expeditionServiceOffers_.size()) return;
         const auto id=expeditionServiceOffers_[index];
-        if(node->kind==NK::Upgrade) {
+        if(node->kind==NK::Upgrade||node->kind==NK::Evolution) {
             const auto* upgrade=tankcontent::FindUpgrade(expeditionContent_,id);if(!upgrade) return;
-            if(!tankcontent::EligibleUpgrade(*upgrade,expeditionBuildStyle_,tankRun_.GetCardCounts())) {expeditionMapStatus_="この機体には装備できない改造です。";reject();return;}
+            if(!tankcontent::EligibleUpgrade(*upgrade,expeditionBuildStyle_,tankRun_.GetCardCounts())) {expeditionMapStatus_="このスタイルには装備できない強化です。";reject();return;}
             const int price=ExpeditionServicePrice(id);
-            if(!expeditionMapRun_.CanAfford(price)) {expeditionMapStatus_="通貨不足 / 必要 "+std::to_string(price)+" Cr。別の改造を選ぶか次へ進めます。";reject();return;}
+            if(!expeditionMapRun_.CanAfford(price)) {expeditionMapStatus_="通貨が足りません。別の強化を選ぶか次へ進めます。";reject();return;}
             const int hpBeforeUpgrade=player_->GetHp(),maxHpBeforeUpgrade=player_->GetMaxHp();
             const int creditsBeforeUpgrade=expeditionMapRun_.GetCurrency();
             const auto cardsBeforeUpgrade=tankRun_.GetCardCounts();
             const auto classBeforeUpgrade=player_->GetCurrentClassName();
-            if(!tankRun_.GrantExpeditionModules(upgrade->effects)) {expeditionMapStatus_="この改造の効果はすでにすべて装備済みです。";return;}
+            if(!tankRun_.GrantExpeditionModules(upgrade->effects)) {expeditionMapStatus_="この強化の効果はすでにすべて装備済みです。";return;}
             expeditionMapRun_.TrySpendCurrency(price);++expeditionPurchases_[id];++expeditionMapTestPurchases_;
             expeditionPurchasedModules_[id]=*upgrade;
             ApplyTankRunCards();
@@ -446,29 +444,34 @@ void GameScene::SelectExpeditionService(int option) {
                 if(!preserved&&experienceValidationVariant_)experienceValidationErrors_.push_back("Upgrade replaced class, lost modules, changed health or charged incorrect currency");
             }
             tankExpeditionTutorial_.RecordUpgrade();
-            expeditionMapStatus_=upgrade->name+"を装備 / -"+std::to_string(price)+" Cr";
+            expeditionMapStatus_=upgrade->name+"を装備しました";
             complete=expeditionMapRun_.CompleteService(false);
         }
     }
     if(complete) {
-        if(expeditionGuideActive_&&tankexp::IsIntroUpgrade(node->role)) expeditionGuide_.ResolveUpgrade(option!=3);
+        if(expeditionGuideActive_&&tankexp::IsIntroUpgrade(node->role)) {
+            expeditionGuide_.ResolveUpgrade(option!=3);
+            if(expeditionGuide_.IsComplete()) SaveExpeditionTutorialCompletion();
+        }
         if(tankexp::IsIntroUpgrade(node->role)&&!expeditionBuildChosen_) expeditionBuildChoice_=true;
         tankExpeditionAudio_.Upgrade();tankRunSelection_=0;tankRunMenuAge_=0;
         const auto next=expeditionMapRun_.GetAvailableNodeIds();if(!next.empty()) expeditionMapSelection_=next.front();
         if(const auto* focus=tankexp::FindMapNode(expeditionMapRun_.GetDefinition(),expeditionMapSelection_)) expeditionMapScroll_=(std::max)(0.0f,120.0f*(focus->column-8));
-        expeditionTransitionTitle_->SetText(option==3?"ROUTE / 次の地点へ":node->kind==NK::Heal?"REPAIRED / 装甲回復":"INSTALLED / 改造完了");
-        expeditionTransitionDetail_->SetText(option==3?"残り通貨を持って先へ進みます":WrapMapText(expeditionMapStatus_,46,2));
+        expeditionTransitionTitle_->SetText(option==3?"次の地点へ":node->kind==NK::Heal?"修理完了":"強化を装備しました");
+        expeditionTransitionDetail_->SetText(option==3?"残りの通貨を持って先へ進みます":WrapMapText(expeditionMapStatus_,46,2));
         expeditionTransitionTitle_->PrepareForDraw();expeditionTransitionDetail_->PrepareForDraw();
     }
     RefreshTankExpeditionUi();
 }
 
 void GameScene::RefreshExpeditionMapUi() {
-    if(!expeditionMapTitle_) return;
+    // The hidden map must not overwrite the pause menu's focus or emit hover
+    // audio. Both screens share expeditionLastFocus_; only the visible one owns it.
+    if(!expeditionMapTitle_||tankRunPaused_) return;
     if(expeditionBuildChoice_&&!tankRunPaused_) {
-        expeditionMapTitle_->SetText("機体の系統を選ぼう");expeditionMapTitle_->PrepareForDraw();
-        expeditionMapSubtitle_->SetText("取得した強化・現在HP・通貨はそのまま。カーソルを合わせて動きを確認できます。");expeditionMapSubtitle_->PrepareForDraw();
-        tankRunDescription_->SetText("汎用＋選んだ系統の強化で、自分の戦い方を育てよう。");tankRunDescription_->SetPosition({64,209});tankRunDescription_->PrepareForDraw();
+        expeditionMapTitle_->SetText("戦闘スタイルを選ぼう");expeditionMapTitle_->PrepareForDraw();
+        expeditionMapSubtitle_->SetText("カーソルを合わせると攻撃方法を確認できます。");expeditionMapSubtitle_->PrepareForDraw();
+        tankRunDescription_->SetText("選んだスタイルに合う強化が工房に並びます。");tankRunDescription_->SetPosition({64,209});tankRunDescription_->PrepareForDraw();
         RefreshExpeditionBuildCards();return;
     }
     const auto& definition=expeditionMapRun_.GetDefinition();
@@ -477,30 +480,29 @@ void GameScene::RefreshExpeditionMapUi() {
     expeditionMapTitle_->SetText(service?NodeName(active->kind):" ");
     expeditionMapSubtitle_->SetText(" ");expeditionMapHelp_->SetText(" ");
     expeditionMapLegend_->SetPosition({46,111});
-    expeditionMapLegend_->SetText("戦  戦闘     強  精鋭     改  改造     +  修理     核  最終決戦");
+    expeditionMapLegend_->SetText("戦  戦闘     宝  宝物庫     改  工房     +  修理     核  最終決戦");
     if(service) {
         tankRunDescription_->SetPosition({64,209});
-        tankRunDescription_->SetText(active->kind==NK::Currency?"チュートリアルと同じ通貨を回収しています。次の地点で同じ強化を選べます。":active->kind==NK::Heal?"次の戦いに備え、最大HPの50%を修理できます。満タンなら支払い不要です。":
-            "3つの候補から1つ装備できます。購入せず進むこともできます。");
+        tankRunDescription_->SetText(active->kind==NK::Currency?"操作を学ぶルートと同じ通貨を受け取っています。次の工房で同じ強化を選べます。":active->kind==NK::Heal?"次の戦いに備えて、装甲を修理できます。":
+            expeditionServiceOffers_.empty()?"ここで購入できる強化はありません。次の地点へ進めます。":"強化を1つ購入できます。購入せず進むこともできます。");
         if(expeditionGuideActive_&&active->role==tankexp::NodeRole::TutorialUpgrade&&!expeditionGuide_.IsComplete())
             tankRunDescription_->SetText(" ");
-        for(int i=0;i<3;++i) {
-            std::string title="候補なし",body="ほかのページを確認するか、\n次の地点へ進みましょう。";
-            int price=0;
-            const size_t index=static_cast<size_t>(expeditionServicePage_*3+i);
-            if(active->kind==NK::Heal&&i==0) {title="装甲を修理";price=active->serviceCost;body="最大HPの50%を回復\n\n現在HP "+std::to_string(player_->GetHp())+" / "+std::to_string(player_->GetMaxHp());}
-            else if(index<expeditionServiceOffers_.size()) {
-                const auto& id=expeditionServiceOffers_[index];
-                if(active->kind==NK::Upgrade) {
-                    const auto* u=tankcontent::FindUpgrade(expeditionContent_,id);
-                    if(u) {title=(u->rarity?"RARE / ":"")+u->name;price=ExpeditionServicePrice(id);body=u->description;}
-                }
-            }
-            const std::string legacyMaintenance="・整備";
-            if(const auto at=body.find(legacyMaintenance);at!=std::string::npos) body.erase(at,legacyMaintenance.size());
-            tankRunCardTitles_[i]->SetText(WrapMapText(title,15.5f,2));
-            tankRunCardBodies_[i]->SetText(WrapMapText(std::to_string(price)+" Cr"+(expeditionMapRun_.CanAfford(price)?"":"  / 通貨不足")+"\n\n"+body,17.5f,8));
+        if(active->kind==NK::Heal) {
+            const bool full=player_->GetHp()>=player_->GetMaxHp(),affordable=expeditionMapRun_.CanAfford(active->serviceCost);
+            tankRunCardTitles_[0]->SetText("装甲を修理");
+            tankRunCardBodies_[0]->SetText("最大HPの50%を回復\n価格        "+std::to_string(active->serviceCost)+"\n\n現在HP  "+
+                std::to_string(player_->GetHp())+" / "+std::to_string(player_->GetMaxHp())+"\n\n"+
+                (full?"HPが満タンのため修理できません":!affordable?"通貨が足りないため修理できません":"左クリックで修理"));
         }
+        const bool repair=active->kind==NK::Heal;
+        expeditionSkipButton_->SetPosition(repair?Vector2{490,560}:Vector2{966,620});
+        expeditionSkipButton_->SetSize(repair?Vector2{300,52}:Vector2{242,44});
+        expeditionSkipText_->SetPosition(repair?Vector2{640,574}:Vector2{1087,629});
+        expeditionSkipText_->SetText(repair?"修理せず進む":"購入せず進む");
+        const auto mouse=input_->GetMousePosition();
+        const bool skipFocus=tankRunSelection_==3||Inside(mouse,repair?490.0f:966.0f,repair?560.0f:620.0f,repair?300.0f:242.0f,repair?52.0f:44.0f);
+        expeditionSkipButton_->SetColor(skipFocus?Vector4{0.065f,0.19f,0.22f,1}:Vector4{0.045f,0.09f,0.13f,1});
+        expeditionSkipButton_->Update();expeditionSkipText_->PrepareForDraw();
         expeditionMapInfo_->SetPosition({46,674});
         expeditionMapInfo_->SetText(WrapMapText(expeditionMapStatus_,60,1));
     } else {
@@ -508,16 +510,18 @@ void GameScene::RefreshExpeditionMapUi() {
         const auto* selected=tankexp::FindMapNode(definition,expeditionMapSelection_);
         std::string info;
         if(selected) {
-            info=NodeName(selected->kind);
-            info+=tankexp::IsCombatNode(selected->kind)?"   突破報酬 +"+std::to_string(selected->clearReward)+" Cr":
-                selected->kind==NK::Upgrade?"   改造 "+std::to_string(selected->serviceCost)+" Cr〜":
-                selected->kind==NK::Currency?"   +"+std::to_string(selected->clearReward)+" Cr":"   HP50%修理 / "+std::to_string(selected->serviceCost)+" Cr";
+            info="       ";
+            info+=tankexp::IsCombatNode(selected->kind)?std::to_string(selected->clearReward)+"  / "+NodeName(selected->kind)+(selected->kind==NK::Elite?"：通貨を多く獲得":"のクリア報酬"):
+                selected->kind==NK::Upgrade||selected->kind==NK::Evolution?std::to_string(selected->serviceCost)+"〜  / 強化工房":
+                selected->kind==NK::Currency?std::to_string(selected->clearReward)+"  / 通貨を受け取る":std::to_string(selected->serviceCost)+"  / HPを50%修理";
             if(!expeditionMapRun_.CanSelectNode(selected->id)&&!expeditionMapPreview_) info+="   / まだ選択できません";
         }
-        expeditionMapInfo_->SetText(info+"\n"+expeditionMapStatus_);
+        expeditionMapInfo_->SetText(info);
+        expeditionMapHelp_->SetPosition({218,630});expeditionMapHelp_->SetText(WrapMapText(expeditionMapStatus_,48,1));
     }
     auto position=[this](const tankexp::MapNode& n){return Vector2{90+120.0f*n.column-expeditionMapScroll_,186+84.0f*n.row};};
     const auto available=expeditionMapRun_.GetAvailableNodeIds();
+    EnsureExpeditionPointers((std::max)(size_t{6},available.size()*6));
     const auto* current=tankexp::FindMapNode(definition,expeditionMapRun_.GetCurrentNodeId());
     std::set<std::string> future;std::vector<std::string> pending=available;
     if(active) pending=active->next;
@@ -526,21 +530,27 @@ void GameScene::RefreshExpeditionMapUi() {
         const auto& n=definition.nodes[i];auto& v=expeditionMapVisuals_[i];v.center=position(n);
         const bool reachable=expeditionMapRun_.CanSelectNode(n.id),visited=expeditionMapRun_.HasVisited(n.id);
         const bool selected=n.id==expeditionMapSelection_;
+        const bool intro=n.role==tankexp::NodeRole::TutorialCombat||n.role==tankexp::NodeRole::TutorialSkip;
+        const bool learning=reachable&&n.role==tankexp::NodeRole::TutorialCombat;
         const bool abandoned=!visited&&!reachable&&!future.contains(n.id)&&current;
         auto tint=visited?Vector4{0.25f,1.35f,0.62f,1}:NodeColor(n.kind);tint.w=abandoned?0.09f:reachable||selected?1.0f:visited?0.9f:0.35f;
         const float pulse=0.5f+0.5f*std::sin(expeditionPresentationClock_*3.8f-static_cast<float>(i)*0.4f);
         const float focus=v.focus;
         if(selected&&expeditionUiErrorAge_>0) tint={1,0.25f,0.25f,1};
-        v.rim->SetColor(tint);auto halo=tint;halo.w=abandoned?0:visited?0.18f:0.02f+focus*0.23f+(reachable?0.08f*pulse:0);v.halo->SetColor(halo);
-        v.halo->SetSize({55+focus*10+pulse*3,55+focus*10+pulse*3});
+        v.rim->SetColor(tint);auto halo=tint;halo.w=abandoned?0:visited?0.18f:0.02f+focus*0.23f+(reachable?0.08f*pulse:0)+(learning?0.06f*pulse:0);v.halo->SetColor(halo);
+        v.halo->SetSize({55+focus*10+pulse*(learning?5.0f:3.0f),55+focus*10+pulse*(learning?5.0f:3.0f)});
         v.rim->SetSize({46+focus*5,46+focus*5});v.fill->SetSize({42+focus*5,42+focus*5});
         v.fill->SetColor(visited?Vector4{0.03f,0.14f,0.16f,1}:Vector4{0.016f,0.040f,0.065f,1});
         for(auto* s:{v.halo.get(),v.rim.get(),v.fill.get()}) {s->SetPosition(v.center);s->Update();}
         auto style=v.icon->GetStyle();style.color=visited?Vector4{0.3f,1.4f,0.65f,1}:NodeColor(n.kind);v.icon->SetStyle(style);
         v.icon->SetText(visited?"完":NodeIcon(n.kind));v.icon->SetPosition({v.center.x,v.center.y-2});v.icon->SetAlpha(abandoned?0.13f:reachable||visited||selected?1.0f:0.48f);
-        v.label->SetText(n.role==tankexp::NodeRole::TutorialCombat?"説明あり":n.role==tankexp::NodeRole::TutorialSkip?"説明をスキップ":" ");v.label->SetPosition({v.center.x,v.center.y+39});v.label->SetAlpha(abandoned?0.2f:0.85f);
-        v.state->SetText(" ");
-        v.state->SetPosition({v.center.x,v.center.y-54});
+        v.label->SetText(n.role==tankexp::NodeRole::TutorialCombat?"操作を学ぶ":n.role==tankexp::NodeRole::TutorialSkip?"説明をスキップ":" ");
+        // Reuse each node's existing labels; keep both introductory captions in
+        // the visible map even at the left edge without allocating new UI.
+        const float captionX=intro?(std::max)(112.0f,v.center.x):v.center.x;
+        v.label->SetPosition({captionX,v.center.y+39});v.label->SetAlpha(abandoned?0.2f:reachable&&intro?1.0f:0.85f);
+        v.state->SetText(n.role==tankexp::NodeRole::TutorialCombat?"初回プレイにおすすめ":n.role==tankexp::NodeRole::TutorialSkip?"操作を知っている人向け":" ");
+        v.state->SetPosition({captionX,v.center.y+60});v.state->SetAlpha(abandoned?0.2f:reachable?0.95f:0.48f);
         v.icon->PrepareForDraw();v.label->PrepareForDraw();v.state->PrepareForDraw();
     }
     for(auto& edge:expeditionMapEdges_) {
@@ -562,12 +572,16 @@ void GameScene::RefreshExpeditionMapUi() {
         expeditionBlueprintLabels_[i]->SetText(i==0?"←":i==1?"→":" ");
         expeditionBlueprintButtons_[i]->SetPosition({i==0?46.0f:130.0f,620});expeditionBlueprintButtons_[i]->SetSize({68,44});expeditionBlueprintButtons_[i]->Update();
         expeditionBlueprintLabels_[i]->SetPosition({i==0?68.0f:152.0f,628});
-        expeditionBlueprintButtons_[i]->SetColor(i==expeditionBlueprint_?Vector4{0.04f,0.21f,0.24f,1}:Vector4{0.025f,0.07f,0.11f,1});
+        expeditionBlueprintButtons_[i]->SetColor(Inside(input_->GetMousePosition(),i==0?46.0f:130.0f,620,68,44)?Vector4{0.04f,0.21f,0.24f,1}:Vector4{0.025f,0.07f,0.11f,1});
         expeditionBlueprintLabels_[i]->PrepareForDraw();
     }
     for(auto* t:{expeditionMapTitle_.get(),expeditionMapSubtitle_.get(),expeditionMapLegend_.get(),expeditionMapInfo_.get(),expeditionMapHelp_.get()}) t->PrepareForDraw();
-    if(service) {tankRunDescription_->PrepareForDraw();for(int i=0;i<3;++i) {tankRunCardTitles_[i]->PrepareForDraw();tankRunCardBodies_[i]->PrepareForDraw();}}
-    const std::string focus=service?active->id+":"+std::to_string(expeditionServicePage_)+":"+std::to_string(tankRunSelection_):expeditionMapSelection_;
+    if(service) {
+        tankRunDescription_->PrepareForDraw();
+        if(active->kind==NK::Heal) {tankRunCardTitles_[0]->PrepareForDraw();tankRunCardBodies_[0]->PrepareForDraw();}
+    }
+    std::string focus=service?active->id+":"+std::to_string(expeditionServicePage_)+":"+std::to_string(tankRunSelection_):expeditionMapSelection_;
+    if(!service||expeditionServiceOffers_.size()>3) for(int i=0;i<2;++i) if(Inside(input_->GetMousePosition(),i==0?46.0f:130.0f,620,68,44)) focus="scroll:"+std::to_string(i);
     if(focus!=expeditionLastFocus_) {
         if(!expeditionLastFocus_.empty()&&!expeditionTransition_.IsActive()) tankExpeditionAudio_.UiHover();
         expeditionLastFocus_=focus;
@@ -576,7 +590,11 @@ void GameScene::RefreshExpeditionMapUi() {
 }
 
 void GameScene::DrawExpeditionMapUi() {
-    if(IsExpeditionBuildCardScreen())for(auto& card:expeditionRewardCards_)if(card)card->PreparePreviewRender();
+    const auto cardPresent=[this](int i) {
+        const size_t index=static_cast<size_t>(expeditionServicePage_*3+i);
+        return expeditionBuildChoice_||(index<expeditionServiceOffers_.size()&&tankcontent::FindUpgrade(expeditionContent_,expeditionServiceOffers_[index]));
+    };
+    if(IsExpeditionBuildCardScreen())for(int i=0;i<3;++i)if(cardPresent(i)&&expeditionRewardCards_[i])expeditionRewardCards_[i]->PreparePreviewRender();
     SpriteCommon::GetInstance()->PreDraw(kNormal);tankRunDimmer_->Draw();
     tankRunHudPanel_->Draw();tankRunHud_->Draw();tankExpeditionHpTrack_->Draw();tankExpeditionHpFill_->Draw();
     DrawExpeditionVitals();
@@ -591,16 +609,18 @@ void GameScene::DrawExpeditionMapUi() {
     if(service) {
         tankRunDescription_->Draw();
         if(active->kind==NK::Currency) return;
-        if(IsExpeditionBuildCardScreen()) {for(auto& card:expeditionRewardCards_) card->Draw();}
-        else for(int i=0;i<3;++i) {
-            const float focus=expeditionCardFocus_[i],lift=-5*focus;
-            const float x=64+i*388.0f;
-            tankRunCards_[i]->SetPosition({x,280+lift});
-            tankRunCardTitles_[i]->SetPosition({x+16,303+lift});tankRunCardBodies_[i]->SetPosition({x+16,362+lift});
-            tankRunCards_[i]->SetColor({0.028f+0.012f*focus,0.045f+0.125f*focus,0.075f+0.125f*focus,1});
-            if(i==tankRunSelection_&&expeditionUiErrorAge_>0) tankRunCards_[i]->SetColor({0.25f,0.05f,0.07f,1});
-            tankRunCards_[i]->Update();tankRunCards_[i]->Draw();tankRunCardTitles_[i]->Draw();tankRunCardBodies_[i]->Draw();
-            tankRunCards_[i]->SetPosition({x,280});tankRunCardTitles_[i]->SetPosition({x+16,303});tankRunCardBodies_[i]->SetPosition({x+16,362});
+        if(IsExpeditionBuildCardScreen()) {for(int i=0;i<3;++i)if(cardPresent(i))expeditionRewardCards_[i]->Draw();}
+        else if(active->kind==NK::Heal) {
+            const bool enabled=player_->GetHp()<player_->GetMaxHp()&&expeditionMapRun_.CanAfford(active->serviceCost);
+            const float focus=enabled?expeditionCardFocus_[0]:0;
+            tankRunCards_[0]->SetPosition({424,270});tankRunCards_[0]->SetSize({432,260});
+            tankRunCards_[0]->SetColor(enabled?Vector4{0.028f+0.012f*focus,0.065f+0.105f*focus,0.075f+0.105f*focus,1}:Vector4{0.025f,0.035f,0.045f,1});
+            tankRunCardTitles_[0]->SetPosition({446,292});tankRunCardBodies_[0]->SetPosition({446,338});
+            tankRunCards_[0]->Update();tankRunCards_[0]->Draw();tankRunCardTitles_[0]->Draw();tankRunCardBodies_[0]->Draw();DrawCurrencyIcon({506,383},28);
+            // These UI objects also serve the pause/result screens. Restore
+            // their normal layout immediately after the dedicated repair draw.
+            tankRunCards_[0]->SetPosition({64,280});tankRunCards_[0]->SetSize({368,280});
+            tankRunCardTitles_[0]->SetPosition({80,303});tankRunCardBodies_[0]->SetPosition({80,362});
         }
         if(expeditionServiceOffers_.size()>3) for(int i=0;i<2;++i) {expeditionBlueprintButtons_[i]->Draw();expeditionBlueprintLabels_[i]->Draw();}
         if(active->kind!=NK::Currency) {expeditionSkipButton_->Draw();expeditionSkipText_->Draw();}
@@ -614,9 +634,14 @@ void GameScene::DrawExpeditionMapUi() {
         for(auto& n:expeditionMapVisuals_) if(n.center.x>=66&&n.center.x<=1214) {n.halo->Draw();n.rim->Draw();n.fill->Draw();n.icon->Draw();n.label->Draw();n.state->Draw();}
         expeditionMapLegend_->Draw();
         for(int i=0;i<2;++i) {expeditionBlueprintButtons_[i]->Draw();expeditionBlueprintLabels_[i]->Draw();}
-        for(size_t i=0;i<expeditionMapVisuals_.size();++i) if(expeditionMapRun_.CanSelectNode(expeditionMapRun_.GetDefinition().nodes[i].id)) {
-            const auto p=expeditionMapVisuals_[i].center;if(p.x>=66&&p.x<=1214) {DrawExpeditionPointer({p.x-35,p.y});break;}
-        }
+        const auto drawPointer=[this,&nodes]() {
+            for(size_t i=0;i<expeditionMapVisuals_.size();++i) if(expeditionMapRun_.CanSelectNode(nodes[i].id)) {
+                const auto p=expeditionMapVisuals_[i].center;if(p.x>=66&&p.x<=1214) {DrawExpeditionPointer({p.x-35,p.y});}
+            }
+            return false;
+        };
+        drawPointer();
+        DrawCurrencyIcon({58,604});
     }
     expeditionMapInfo_->Draw();expeditionMapHelp_->Draw();
 }
@@ -643,14 +668,23 @@ void GameScene::UpdateExpeditionMap(float dt) {
     }
     if(Press(input_,DIK_ESCAPE)) {
         if(expeditionMapPreview_||tankExpeditionDetailsOpen_) {expeditionMapPreview_=false;tankExpeditionDetailsOpen_=false;return;}
-        tankRunPaused_=!tankRunPaused_;tankRunSelection_=0;tankRunMenuAge_=0;RefreshTankExpeditionUi();return;
+        tankRunPaused_=!tankRunPaused_;tankRunSelection_=0;tankRunMenuAge_=0;expeditionLastFocus_.clear();RefreshTankExpeditionUi();return;
     }
     const auto mouse=input_->GetMousePosition();const auto motion=input_->GetMouseState();
     const bool click=input_->IsTrigger(motion.rgbButtons[0],input_->GetPreMouseState().rgbButtons[0]);
     if(tankRunPaused_) {
-        if(Press(input_,DIK_LEFT)||Press(input_,DIK_RIGHT)) tankRunSelection_=1-tankRunSelection_;
+        int hovered=-1;
+        for(int i=0;i<2;++i) if(Inside(mouse,64+i*388.0f,280,368,280)) hovered=i;
+        const std::string focus="pause:"+std::to_string(hovered);
+        if(focus!=expeditionLastFocus_) {
+            if(hovered>=0) {tankRunSelection_=hovered;tankExpeditionAudio_.UiHover();}
+            expeditionLastFocus_=focus;
+        }
+        if(hovered>=0&&(motion.lX||motion.lY||click)) tankRunSelection_=hovered;
+        if(Press(input_,DIK_LEFT)||Press(input_,DIK_RIGHT)) {tankRunSelection_=1-tankRunSelection_;tankExpeditionAudio_.UiHover();}
         for(int i=0;i<2;++i) if(Press(input_,DIK_1+i)||(click&&Inside(mouse,64+i*388.0f,280,368,280))) {SelectTankRunOption(i);return;}
-        if(Press(input_,DIK_RETURN)) SelectTankRunOption(tankRunSelection_);return;
+        if(Press(input_,DIK_RETURN)) SelectTankRunOption(tankRunSelection_);
+        RefreshTankExpeditionUi();return;
     }
     if(tankExpeditionDetailsOpen_) return;
     UpdateGuidedExpedition(dt);
@@ -691,8 +725,8 @@ void GameScene::UpdateExpeditionMap(float dt) {
             if(enter) {RequestExpeditionMapNode(expeditionMapSelection_);return;}
         }
         int lastColumn=0;for(const auto& n:expeditionMapRun_.GetDefinition().nodes) lastColumn=(std::max)(lastColumn,n.column);
-        if(Press(input_,DIK_Q)||(click&&Inside(mouse,46,620,68,44))) expeditionMapScroll_-=360;
-        if(Press(input_,DIK_E)||(click&&Inside(mouse,130,620,68,44))) expeditionMapScroll_+=360;
+        if(Press(input_,DIK_Q)||(click&&Inside(mouse,46,620,68,44))) {expeditionMapScroll_-=360;tankExpeditionAudio_.UiConfirm();}
+        if(Press(input_,DIK_E)||(click&&Inside(mouse,130,620,68,44))) {expeditionMapScroll_+=360;tankExpeditionAudio_.UiConfirm();}
         if(motion.lZ) expeditionMapScroll_-=static_cast<float>(motion.lZ);
         expeditionMapScroll_=(std::clamp)(expeditionMapScroll_,0.0f,(std::max)(0.0f,120.0f*(lastColumn-9)));
         if(!expeditionMapPreview_) UpdateTankExpeditionTutorial(dt);
@@ -708,16 +742,36 @@ void GameScene::UpdateExpeditionMap(float dt) {
             }
             RefreshTankExpeditionUi();return;
         }
+        if(active->kind==NK::Heal) {
+            if(tankRunMenuAge_>0.15f) {
+                if(Press(input_,DIK_LEFT)||Press(input_,DIK_RIGHT)||Press(input_,DIK_UP)||Press(input_,DIK_DOWN)) tankRunSelection_=tankRunSelection_==0?3:0;
+                const bool repairHovered=Inside(mouse,424,270,432,260),skipHovered=Inside(mouse,490,560,300,52);
+                if(motion.lX||motion.lY) {if(repairHovered)tankRunSelection_=0;else if(skipHovered)tankRunSelection_=3;}
+                if(Press(input_,DIK_1)||(click&&repairHovered)) {SelectExpeditionService(0);return;}
+                if(Press(input_,DIK_2)||(click&&skipHovered)) {SelectExpeditionService(3);return;}
+                if(Press(input_,DIK_RETURN)||Press(input_,DIK_SPACE)) {SelectExpeditionService(tankRunSelection_==3?3:0);return;}
+            }
+            RefreshTankExpeditionUi();return;
+        }
         if(tankRunMenuAge_>0.15f) {
             const int pages=(std::max)(1,(static_cast<int>(expeditionServiceOffers_.size())+2)/3);
             if(Press(input_,DIK_Q)||(click&&Inside(mouse,46,620,68,44))) expeditionServicePage_=(expeditionServicePage_+pages-1)%pages;
             if(Press(input_,DIK_E)||(click&&Inside(mouse,130,620,68,44))) expeditionServicePage_=(expeditionServicePage_+1)%pages;
             if(click&&Inside(mouse,966,620,242,44)) {SelectExpeditionService(3);return;}
-            if(Press(input_,DIK_LEFT)) tankRunSelection_=(tankRunSelection_+2)%3;
-            if(Press(input_,DIK_RIGHT)) tankRunSelection_=(tankRunSelection_+1)%3;
+            std::vector<int> selectable;
             for(int i=0;i<3;++i) {
+                const size_t index=static_cast<size_t>(expeditionServicePage_*3+i);
+                if(index>=expeditionServiceOffers_.size()||!tankcontent::FindUpgrade(expeditionContent_,expeditionServiceOffers_[index])) continue;
+                selectable.push_back(i);
                 if(Inside(mouse,64+i*388.0f,260,368,330)&&(motion.lX||motion.lY)) tankRunSelection_=i;
                 if(Press(input_,DIK_1+i)||(click&&Inside(mouse,64+i*388.0f,260,368,330))) {SelectExpeditionService(i);return;}
+            }
+            selectable.push_back(3);
+            if(std::find(selectable.begin(),selectable.end(),tankRunSelection_)==selectable.end())tankRunSelection_=selectable.front();
+            if(Press(input_,DIK_LEFT)||Press(input_,DIK_RIGHT)) {
+                const int selected=static_cast<int>(std::find(selectable.begin(),selectable.end(),tankRunSelection_)-selectable.begin());
+                const int count=static_cast<int>(selectable.size());
+                tankRunSelection_=selectable[(selected+(Press(input_,DIK_LEFT)?count-1:1))%count];
             }
             if(Press(input_,DIK_RETURN)||Press(input_,DIK_SPACE)) {SelectExpeditionService(tankRunSelection_);return;}
         }
@@ -736,7 +790,7 @@ void GameScene::UpdateExpeditionMap(float dt) {
             }
             if(!expeditionCredits_.empty()) {RefreshTankExpeditionUi();return;}
             expeditionCollectAll_=false;
-            BeginExpeditionPresentation(2,"SECTOR CLEAR / 区画突破",
+            BeginExpeditionPresentation(2,"戦闘クリア",
                 cleared?"通貨を回収しました / 次の地点へ":"次の目的地を選ぼう",{0.25f,1,0.72f,1});
             return;
         }

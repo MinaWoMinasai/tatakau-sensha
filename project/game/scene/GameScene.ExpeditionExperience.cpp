@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "game/run/TankTutorialCopy.h"
 #include <cmath>
 
 namespace {
@@ -23,7 +24,9 @@ void GameScene::InitializeExpeditionExperience() {
     expeditionStaminaTrack_=ExperienceSprite("resources/white512x512.png",{24,66},{230,5},{0.17f,0.14f,0.05f,0.9f});
     expeditionStaminaFill_=ExperienceSprite("resources/white512x512.png",{24,66},{230,5},{1,0.80f,0.16f,1});
     for(auto& shade:expeditionSpotlight_) shade=ExperienceSprite("resources/white512x512.png",{0,0},{1,1},{0.002f,0.006f,0.014f,0.82f});
-    for(auto& line:expeditionPointer_) {line=ExperienceSprite("resources/white512x512.png",{0,0},{17,3},{0.45f,1.15f,1.1f,1});line->SetAnchorPoint({0,0.5f});}
+    EnsureExpeditionPointers(6);
+    expeditionPriceIcon_=ExperienceSprite("resources/ui/salvage_orb.png",{0,0},{30,30},{1.5f,1.15f,0.34f,1});
+    expeditionPriceIcon_->SetAnchorPoint({0.5f,0.5f});
     expeditionContinueButton_=ExperienceSprite("resources/white512x512.png",{502,530},{276,48},{0.035f,0.20f,0.22f,1});
     expeditionContinueText_=ExperienceText(18,{640,542},"左クリックで続ける",{0.76f,1,0.94f,1});expeditionContinueText_->SetAnchorPoint({0.5f,0});
     expeditionSkipButton_=ExperienceSprite("resources/white512x512.png",{966,620},{242,44},{0.045f,0.09f,0.13f,1});
@@ -103,13 +106,37 @@ void GameScene::DrawExpeditionCredits() {
 }
 
 void GameScene::DrawExpeditionPointer(Vector2 target,bool right) {
+    target.x=(std::clamp)(target.x,64.0f,1216.0f);
     const float sign=right?1.0f:-1.0f;
     const float motion=std::sin(expeditionPresentationClock_*5.0f)*5;
     for(int i=0;i<3;++i) for(int side=0;side<2;++side) {
-        auto& line=expeditionPointer_[static_cast<size_t>(i*2+side)];
+        if(expeditionPointerCursor_>=expeditionPointer_.size()||!expeditionPointer_[expeditionPointerCursor_]) return;
+        auto& line=expeditionPointer_[expeditionPointerCursor_];
+        auto& halo=expeditionPointerGlow_[expeditionPointerCursor_++];
         line->SetPosition({target.x-sign*(24+i*14-motion)+(side?sign*13.0f:0),target.y+(side?0:-11)});
         line->SetRotation(side?(right?2.44f:0.70f):(right?0.70f:2.44f));
-        line->SetColor({0.4f,1.15f,1.1f,0.95f-i*0.18f});line->Update();line->Draw();
+        // UI is drawn after post processing. Reuse the cached soft neon orb as
+        // an additive halo, without allocating a render target for each arrow.
+        const auto p=line->GetPosition();const float angle=side?(right?2.44f:0.70f):(right?0.70f:2.44f);
+        halo->SetPosition({p.x+std::cos(angle)*8.5f,p.y+std::sin(angle)*8.5f});
+        halo->SetSize({42,22});halo->SetRotation(angle);
+        halo->SetColor({0.15f,0.8f,0.85f,0.45f-i*0.08f});halo->Update();
+        SpriteCommon::GetInstance()->PreDraw(kAdd);halo->Draw();
+        SpriteCommon::GetInstance()->PreDraw(kNormal);
+        line->SetColor({0.65f,1.15f,1.1f,0.95f-i*0.18f});line->Update();line->Draw();
+    }
+}
+
+void GameScene::DrawCurrencyIcon(Vector2 center,float size) {
+    expeditionPriceIcon_->SetPosition(center);expeditionPriceIcon_->SetSize({size,size});expeditionPriceIcon_->Update();expeditionPriceIcon_->Draw();
+}
+
+void GameScene::EnsureExpeditionPointers(size_t count) {
+    for(size_t i=0;i<(std::min)(count,expeditionPointer_.size());++i) if(!expeditionPointer_[i]) {
+        expeditionPointer_[i]=ExperienceSprite("resources/white512x512.png",{0,0},{17,3},{1,1,1,1});
+        expeditionPointer_[i]->SetAnchorPoint({0,0.5f});
+        expeditionPointerGlow_[i]=ExperienceSprite("resources/ui/salvage_orb.png",{0,0},{42,22},{1,1,1,1});
+        expeditionPointerGlow_[i]->SetAnchorPoint({0.5f,0.5f});
     }
 }
 
@@ -180,17 +207,17 @@ void GameScene::DrawGuidedExpedition() {
     if(step==S::ShootKill||step==S::Briefing) {
         for(auto* e:enemyManager_->GetEnemyPtrs()) if(e&&!e->IsDead()) {target=WorldToScreen(e->GetWorldPosition());break;}
     } else if(step==S::Collect&&!expeditionCredits_.empty()) target=WorldToScreen(expeditionCredits_.front().position);
-    else if(step==S::Vitals) target={266,58};
+    else if(step==S::Vitals) target={264,72};
     else if(step==S::Upgrade) target={70,405};
     if(IsGuidedExpeditionPaused()) {
         const bool vitals=step==S::Vitals;
         const float x=vitals?12:(std::clamp)(target.x-74,12.0f,1110.0f),y=vitals?8:(std::clamp)(target.y-74,90.0f,480.0f);
-        const float w=vitals?380.0f:148.0f,h=vitals?78.0f:148.0f;
+        const float w=vitals?252.0f:148.0f,h=vitals?78.0f:148.0f;
         const Vector2 positions[]={{0,0},{0,y},{x+w,y},{0,y+h}};
         const Vector2 sizes[]={{1280,y},{x,h},{1280-x-w,h},{1280,720-y-h}};
         for(int i=0;i<4;++i) {expeditionSpotlight_[i]->SetPosition(positions[i]);expeditionSpotlight_[i]->SetSize(sizes[i]);expeditionSpotlight_[i]->Update();expeditionSpotlight_[i]->Draw();}
     }
-    DrawExpeditionPointer(target);
+    if(step!=S::Upgrade) DrawExpeditionPointer(target,step!=S::Vitals);
     tutorialPanel_->Draw();tutorialTitleText_->Draw();tutorialInputText_->Draw();tutorialDescriptionText_->Draw();
     if(IsGuidedExpeditionPaused()) {expeditionContinueButton_->Draw();expeditionContinueText_->Draw();}
 }
@@ -200,16 +227,11 @@ void GameScene::RefreshGuidedExpeditionUi() {
     if(!expeditionGuideActive_) return;
     using S=tankexp::GuidedCombatTutorial::Stage;
     const auto step=expeditionGuide_.GetStage();
-    const char* heading=step==S::Briefing||step==S::ShootKill?"左クリックで敵を倒そう":step==S::Collect?"光る通貨に近づいて回収しよう":
-        step==S::Vitals?"緑はHP、黄色はスタミナ":step==S::Dash?"敵の攻撃を右クリックのダッシュで回避しよう":"強化を1つ選んでみよう";
-    const char* detail=step==S::Briefing||step==S::ShootKill?"WASDで移動 / マウスで狙う / 左クリックで攻撃":step==S::Collect?"回収した通貨は上の丸いアイコンへ。改造・進化・修理に使えます。":
-        step==S::Vitals?"HPが0になると終了。ダッシュはスタミナを使い、時間で回復します。":step==S::Dash?
-        (expeditionGuide_.GetFailedDashAttempts()>0?"被弾しました。射線を外し、右クリックでもう一度！":"ダッシュを終えるまで被弾せずに避けよう。成功したら残った敵を撃破。"):
-        "候補は3つ。購入せず進むこともできます。取得した効果はこの遠征中ずっと有効です。";
+    const auto copy=tankexp::GuidedTutorialCopy(step,expeditionGuide_.GetFailedDashAttempts()>0);
     const float y=IsGuidedExpeditionPaused()?422.0f:step==S::Upgrade?124.0f:594.0f;
     tutorialPanel_->SetPosition({260,y});tutorialPanel_->SetSize({760,104});tutorialPanel_->SetColor({0.007f,0.025f,0.04f,0.94f});tutorialPanel_->Update();
     tutorialTitleText_->SetText("チュートリアル");tutorialTitleText_->SetPosition({640,y+5});
-    tutorialInputText_->SetText(heading);tutorialInputText_->SetPosition({640,y+28});
-    tutorialDescriptionText_->SetText(detail);tutorialDescriptionText_->SetPosition({640,y+67});
+    tutorialInputText_->SetText(copy.heading);tutorialInputText_->SetPosition({640,y+28});
+    tutorialDescriptionText_->SetText(step==S::Dash?std::to_string(expeditionGuide_.GetCompletedDashes())+" / 3回  ・  "+copy.detail:copy.detail);tutorialDescriptionText_->SetPosition({640,y+67});
     tutorialTitleText_->PrepareForDraw();tutorialInputText_->PrepareForDraw();tutorialDescriptionText_->PrepareForDraw();
 }

@@ -107,6 +107,7 @@ public:
 	void EnableTitleDemo() { titleDemo_ = true; }
 	bool IsTitleDemo() const { return titleDemo_; }
 	const TitleDemoStatus& GetTitleDemoStatus() const { return titleDemoStatus_; }
+    float GetTitleDemoFade() const;
 	void RequestTitleDemoCapture(const std::string& name);
 	void CopyTitleDemoCapture();
 	void FlushTitleDemoCapture();
@@ -125,6 +126,7 @@ private:
 	TitleDemoStatus titleDemoStatus_{};
 	bool titleDemoPreviousDash_ = false;
 	size_t titleDemoPreviousBulletCount_ = 0;
+    float titleDemoRoomFade_ = 0;
 	float titleDemoNavigationTimer_ = 0;
 	Vector3 titleDemoMoveTarget_{};
 	std::vector<Vector3> titleDemoPath_;
@@ -170,7 +172,7 @@ private:
 	void RefreshGuidedExpeditionUi();
 	bool IsGuidedExpeditionPaused() const;
 	void QueueExpeditionImpact(const Vector3& position, const Vector3& direction, bool finisher);
-	void DrawExpeditionPointer(Vector2 target, bool right = true);
+	void DrawExpeditionPointer(Vector2 target, bool right = true); void DrawCurrencyIcon(Vector2 center, float size = 30);
 	bool IsIntroExpeditionService() const;
 	int ExpeditionServicePrice(const std::string& id) const;
 	void SetExpeditionBlueprint(int index);
@@ -264,7 +266,10 @@ private:
 	std::unique_ptr<TextLabel> expeditionCreditText_;
 	std::unique_ptr<NeonTextEffect> expeditionCompleteGlow_;
 	std::array<std::unique_ptr<Sprite>,4> expeditionSpotlight_;
-	std::array<std::unique_ptr<Sprite>,6> expeditionPointer_;
+    std::array<std::unique_ptr<Sprite>,24> expeditionPointer_, expeditionPointerGlow_;
+    std::unique_ptr<Sprite> expeditionPriceIcon_;
+    size_t expeditionPointerCursor_=0;
+    void EnsureExpeditionPointers(size_t count);
 	std::unique_ptr<Sprite> expeditionContinueButton_, expeditionSkipButton_;
 	std::unique_ptr<TextLabel> expeditionContinueText_, expeditionSkipText_;
 	float expeditionCreditPulseAge_ = 0, expeditionImpactHold_ = 0;
@@ -283,12 +288,14 @@ private:
 	int expeditionMapTestPurchases_ = 0, expeditionMapTestHeals_ = 0, expeditionMapTestEvolutions_ = 0;
 	nlohmann::json tankExpeditionBalance_;
 	void UpdateTankExpeditionTutorial(float dt);
+	void SaveExpeditionTutorialCompletion();
 	void UpdateTankExpeditionTutorialValidation(float dt);
 	tankexp::TutorialValidationState tankExpeditionTutorialValidation_{};
 	void DrawTankExpeditionTutorial();
 	void RefreshTankExpeditionTutorialUi();
 	tankexp::ExpeditionTutorial tankExpeditionTutorial_{};
 	bool tankExpeditionTutorialSaved_ = false;
+	bool expeditionTutorialPreviouslyCompleted_ = false;
 	bool tankExpeditionDetailsOpen_ = false;
 	int tankExpeditionTutorialKills_ = 0;
 	Vector3 tankExpeditionTutorialPrevious_{};
@@ -1058,6 +1065,8 @@ private:
 
 	// Opt-in end-to-end experience validation; ordinary play never enters it.
 	void InitializeExperienceValidation();
+	void RecordSubmissionUi(const std::string& screen);
+	bool UpdateSubmissionValidation(float dt);
 	bool UpdateExperienceValidation(float dt);
 	void CaptureExperienceValidation(const std::string& name);
 	void WriteExperienceValidationReport(bool completed);

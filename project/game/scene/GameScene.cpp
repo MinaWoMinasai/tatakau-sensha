@@ -711,7 +711,7 @@ void GameScene::Initialize() {
 		++defeatedEnemies_;
 		if (prototypeRun_) { OnTankRunEnemyDefeated(position); return; }
 		screenEffectDirector_.TriggerEnemyDefeat(WorldToScreenUv(position), 1.0f);
-		SetEventCallout("ENEMY BREAK", 0.55f);
+		SetEventCallout("敵を撃破", 0.55f);
 	});
 	if (hasLevelData) {
 		ApplyLevelData(levelData);
@@ -850,7 +850,7 @@ void GameScene::Update() {
 	if (justDodgeTriggered) {
 		screenEffectDirector_.TriggerJustDodge(WorldToScreenUv(player_->GetWorldPosition()));
 		++justDodgeCount_;
-		SetEventCallout("JUST DODGE", 0.70f);
+		SetEventCallout("ジャスト回避", 0.70f);
 		if(expeditionRun_) tankExpeditionAudio_.Upgrade();
 		else Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.25f);
 	}
@@ -1007,7 +1007,7 @@ void GameScene::Update() {
 		stage_->Update();
 		UpdateLevelItems();
 
-		player_->SetDebugNoDamage(debugPlayerNoDamage_);
+		player_->SetDebugNoDamage(debugPlayerNoDamage_ || (expeditionMapEnabled_ && expeditionMapRun_.GetActiveNode() && expeditionMapRun_.GetActiveNode()->role==tankexp::NodeRole::TutorialCombat));
 		if (prototypeRun_ && !player_->IsChangeMode()) {
 			std::vector<Vector3> targets;
 			if ((IsRunRivalActive() && !enemy_->IsDead())) targets.push_back(enemy_->GetWorldPosition());
@@ -1147,7 +1147,7 @@ void GameScene::Update() {
 			if (!expeditionRun_ && !bossEntryTriggered_ && !IsTutorialCombatSuppressed()) {
 				bossEntryTriggered_ = true;
 				screenEffectDirector_.TriggerBossEntry();
-				SetEventCallout("WARNING: BOSS UNIT", 1.20f);
+				SetEventCallout("ボス出現", 1.20f);
 			}
 		}
 		break;
@@ -1198,7 +1198,7 @@ void GameScene::InitializeSubmissionUi()
 	eventStyle.color = { 0.55f, 1.0f, 0.72f, 1.0f };
 	eventStyle.outlineThickness = 3.0f;
 	eventCalloutText_ = std::make_unique<TextLabel>();
-	eventCalloutText_->Initialize(SpriteCommon::GetInstance(), "JUST DODGE", eventStyle);
+	eventCalloutText_->Initialize(SpriteCommon::GetInstance(), "ジャスト回避", eventStyle);
 	eventCalloutText_->SetAnchorPoint({ 0.5f, 0.5f });
 	eventCalloutText_->SetPosition({ WinApp::kClientWidth * 0.5f, 112.0f });
 
@@ -1648,7 +1648,7 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 		cameraShakePower_ = (std::max)(
 			cameraShakePower_,
 			screenEffectDirector_.GetConfig().cameraShakeStrength);
-		SetEventCallout("ARMOR HIT", 0.42f);
+		SetEventCallout("ダメージ", 0.42f);
 		if(expeditionRun_) tankExpeditionAudio_.ArmorBreak();
 	}
 	previousPlayerHp_ = playerHp;
@@ -1677,7 +1677,7 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 	if (!expeditionRun_ && !bossEntryTriggered_ && phase_ == Phase::kMain && playTime_ >= 1.25f) {
 		bossEntryTriggered_ = true;
 		screenEffectDirector_.TriggerBossEntry();
-		SetEventCallout("WARNING: BOSS UNIT", 1.20f);
+		SetEventCallout("ボス出現", 1.20f);
 	}
 
 	if(expeditionRun_&&IsRunRivalActive()&&enemy_->GetHp()<previousBossHp_) tankExpeditionAudio_.Hit();
@@ -1700,7 +1700,7 @@ void GameScene::BeginBossDefeatSequence()
 	bossDefeatHandled_ = true;
 	gameFlowState_ = GameFlowState::BossDefeatSequence;
 	if (flowBannerText_) {
-		flowBannerText_->SetText("BOSS DESTROYED");
+		flowBannerText_->SetText("ボス撃破");
 	}
 	gameFlowTimer_ = (std::clamp)(
 		2.30f / (std::max)(0.10f, screenEffectDirector_.GetConfig().dissolveSpeed),
@@ -1714,7 +1714,7 @@ void GameScene::BeginBossDefeatSequence()
 	cameraShakeDuration_ = screenEffectDirector_.GetConfig().cameraShakeDuration * 4.5f;
 	cameraShakeTimer_ = cameraShakeDuration_;
 	cameraShakePower_ = screenEffectDirector_.GetConfig().cameraShakeStrength * 2.75f;
-	SetEventCallout("BOSS DESTROYED", 1.35f);
+	SetEventCallout("ボス撃破", 1.35f);
 }
 
 void GameScene::BeginGameOver()
@@ -1733,7 +1733,7 @@ void GameScene::BeginGameOver()
 	cameraShakeDuration_ = 0.42f;
 	cameraShakeTimer_ = cameraShakeDuration_;
 	cameraShakePower_ = 0.75f;
-	SetEventCallout("PLAYER UNIT LOST", 0.85f);
+	SetEventCallout("戦闘不能", 0.85f);
 	UpdateResultText();
 }
 
@@ -1818,7 +1818,7 @@ void GameScene::EnterResultState(bool stageClear)
 {
 	gameFlowState_ = stageClear ? GameFlowState::StageClear : GameFlowState::GameOver;
 	if (flowBannerText_) {
-		flowBannerText_->SetText(stageClear ? "STAGE CLEAR" : "GAME OVER");
+		flowBannerText_->SetText(expeditionRun_ ? (stageClear ? "遠征クリア" : "遠征終了") : (stageClear ? "STAGE CLEAR" : "GAME OVER"));
 	}
 	gameFlowTimer_ = 0.0f;
 	resultSelection_ = 0;
@@ -1869,6 +1869,7 @@ void GameScene::SetEventCallout(const std::string& text, float duration)
 {
 	if (eventCalloutText_) {
 		eventCalloutText_->SetText(text);
+        auto style=eventCalloutText_->GetStyle();style.color=(text=="ダメージ"||text=="戦闘不能")?Vector4{1,0.23f,0.16f,1}:Vector4{0.68f,1,0.88f,1};eventCalloutText_->SetStyle(style);
 	}
 	eventCalloutTimer_ = (std::max)(0.0f, duration);
 }
@@ -2943,7 +2944,7 @@ void GameScene::UpdateSpecialCombatPresentation(float dt)
 		} else if(event.kind==Player::SpecialEventKind::PerfectParry) {
 			// A single short hold per successful cut; ordinary slashes stay fluid.
 			expeditionImpactHold_=(std::max)(expeditionImpactHold_,.035f);
-			SetEventCallout("PARRY!",.42f);if(expeditionRun_)tankExpeditionAudio_.Parry(true);
+			SetEventCallout("パリィ成功！",.42f);if(expeditionRun_)tankExpeditionAudio_.Parry(true);
 		} else if(event.kind==Player::SpecialEventKind::Parry) {
 			if(expeditionRun_)tankExpeditionAudio_.Parry(false);
 		} else if(event.kind==Player::SpecialEventKind::LinkHit&&expeditionRun_)tankExpeditionAudio_.Hit();
@@ -5227,6 +5228,7 @@ void GameScene::DrawGameTextBloom()
 	std::vector<TextLabel*> labels;
 	// 強化段数バー表示中は、項目名と +/- のネオン源も追加される。
 	labels.reserve(32);
+    if(expeditionMapEnabled_&&tankExpedition_.IsCombat()&&!tankRunPaused_&&tankRunObjectiveText_) labels.push_back(tankRunObjectiveText_.get());
 	if (gameFlowState_ == GameFlowState::Playing) {
 		if (!expeditionRun_) player_->AppendGameplayNeonTextLabels(labels);
 		if (tutorialConfig_.enabled && tutorialUiVisible_) {
@@ -5251,7 +5253,8 @@ void GameScene::DrawGameTextBloom()
 			labels.push_back(resultMenuText_.get());
 		}
 	}
-	gameTextNeonEffect_->DrawBloom(labels);
+	auto glow=gameTextNeonStyle_;if(eventCalloutTimer_>0&&eventCalloutText_&&(eventCalloutText_->GetText()=="ダメージ"||eventCalloutText_->GetText()=="戦闘不能")) glow.glowColor={1,0.08f,0.025f,1};
+    gameTextNeonEffect_->SetStyle(glow);gameTextNeonEffect_->DrawBloom(labels);gameTextNeonEffect_->SetStyle(gameTextNeonStyle_);
 }
 
 nlohmann::json GameScene::BuildGameVisualConfig() const
@@ -6457,6 +6460,7 @@ void GameScene::DrawShadow() {
 }
 
 void GameScene::DrawSprite() {
+    expeditionPointerCursor_=0;
 
 	if (!expeditionRun_ && !IsTutorialCombatSuppressed()) {
 		enemy_->DrawSprite();
