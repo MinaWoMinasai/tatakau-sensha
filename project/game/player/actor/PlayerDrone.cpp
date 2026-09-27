@@ -17,11 +17,17 @@ void PlayerDrone::ConfigureRunAttack(const AttackParam& param, float reloadSecon
 void PlayerDrone::Attack(float deltaTime) {
 	if (runAttackEnabled_) {
 		runShotCooldown_ = (std::max)(0.0f, runShotCooldown_ - deltaTime);
+		if(mission_.phase!=tankspecial::DronePhase::Escort)return;
 		const bool wantsAttack = runInputOverride_ ? runWantsAttack_
 			: (runRallyShotPending_ || input_->IsPress(input_->GetMouseState().rgbButtons[0]));
 		if (runShotCooldown_ <= 0.0f && wantsAttack && runBulletManager_ &&
 			runBulletManager_->GetBulletCounts().player + static_cast<size_t>(runAttackParam_.bulletCount) <= 240) {
-			attackController_.Fire(GetWorldPosition(), dir, runAttackParam_, BulletOwner::kPlayer);
+			auto shot=runAttackParam_;
+			if(runExactDamage_>=1) {
+				const float accrued=runExactDamage_+runDamageRemainder_;
+				shot.damage=static_cast<uint32_t>(std::floor(accrued));runDamageRemainder_=accrued-static_cast<float>(shot.damage);
+			}
+			attackController_.Fire(GetWorldPosition(), dir, shot, BulletOwner::kPlayer);
 			runShotCooldown_ = runReloadSeconds_;
 			runRallyShotPending_ = false;
 		}
@@ -136,10 +142,23 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 {
 	const float dt = runAttackEnabled_ ? (std::max)(0.0f, deltaTime) : 1.0f / 60.0f;
 	invincibleTimer_ -= dt;
+	if(runAttackEnabled_) {
+		const auto previous=mission_.phase;
+		const bool home=Length(playerPosition+runFollowOffset_-GetWorldPosition())<1.2f;
+		if(mission_.Step(dt,home)){rebuilt_=true;hp_=kMaxHp;SetWorldPosition(playerPosition);}
+		if(previous==tankspecial::DronePhase::Rebuilding) {
+			SetWorldPosition(playerPosition+runFollowOffset_*.45f);velocity_={};return;
+		}
+	}
 
 	RotateToMouse(viewProjection);
 
 	Vector3 toPlayer = playerPosition + (runAttackEnabled_ ? runFollowOffset_ : Vector3{}) - worldTransform_.translate;
+	if(runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Warning)toPlayer={};
+	if(runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Charging) {
+		toPlayer=missionTarget_-GetWorldPosition();
+		if(Length(toPlayer)<1.1f){mission_.Arrive();toPlayer={};}
+	}
 
 	float distance = Length(toPlayer);
 	if (distance < 0.01f && !runAttackEnabled_) {
@@ -151,19 +170,23 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 	
 	// --- 目標速度 ---
 	// Keep companions close enough to contribute even while the run player boosts.
-	const float followSpeed = runAttackEnabled_ ? (std::min)(runCatchupSpeed_, runFollowSpeed_ + distance * 0.035f) : maxSpeed_;
+	const float followSpeed = runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Charging ? .90f
+		: runAttackEnabled_ ? (std::min)(runCatchupSpeed_, runFollowSpeed_ + distance * 0.035f) : maxSpeed_;
 	Vector3 targetVelocity = dir * (runAttackEnabled_ ? followSpeed * (std::min)(1.0f, distance / 1.2f) : followSpeed);
 
 	// --- 慣性処理 ---
 	float accel = runAttackEnabled_ ? runFollowResponse_ : ((Length(dir) > 0.0f) ? accel_ : decel_);
 
 	velocity_ += (targetVelocity - velocity_) * (runAttackEnabled_ ? 1.0f-std::exp(-accel*dt) : accel*dt);
+	if(runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Charging)velocity_=targetVelocity;
+	if(runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Warning)velocity_={};
 
 	Vector3 frameMove = GetMove() * (dt * 60.0f);
 	const float maxStep = 0.30f;
 	const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(frameMove.x), std::abs(frameMove.y)) / maxStep) + 1);
 	Vector3 stepMove = frameMove / static_cast<float>(subStepCount);
 	for (int i = 0; i < subStepCount; ++i) {
+		const Vector3 previous=GetWorldPosition();
 		Vector3 playerPos = GetWorldPosition();
 		playerPos.x += stepMove.x;
 		SetWorldPosition(playerPos);
@@ -173,6 +196,10 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 		playerPos.y += stepMove.y;
 		SetWorldPosition(playerPos);
 		stage.ResolvePlayerDroneCollision(*this, Y);
+		if(runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Charging) {
+			const auto p=GetWorldPosition();
+			if(tankspecial::SegmentTouches(previous.x,previous.y,p.x,p.y,missionTarget_.x,missionTarget_.y,1.1f))mission_.Arrive();
+		}
 	}
 	
 	Vector3 pos = GetWorldPosition();
@@ -208,7 +235,7 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 }
 
 bool PlayerDrone::IsVisualVisible() const {
-	return !isDead_ && !(invincibleTimer_ > 0.0f && static_cast<int>(invincibleTimer_ * 10) % 2 == 0);
+	return !isDead_ && mission_.Available() && !(invincibleTimer_ > 0.0f && static_cast<int>(invincibleTimer_ * 10) % 2 == 0);
 }
 
 void PlayerDrone::Draw() {
@@ -232,6 +259,7 @@ Vector3 PlayerDrone::GetWorldPosition() const {
 }
 
 void PlayerDrone::OnCollision(Collider* other) {
+	if(!mission_.Available())return;
 	if (const auto* resource = dynamic_cast<const ExpEnemy*>(other); resource && resource->IsRunResource()) {
 		return;
 	}

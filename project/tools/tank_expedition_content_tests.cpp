@@ -7,7 +7,7 @@ void ShopContracts() {
     using namespace tankcontent;using S=tankbuild::Style;using C=tankrun::CardId;
     auto catalog=DefaultCatalog();tankrun::CardCounts owned{};
     assert(!FindUpgrade(catalog,"MeleeBlade"));
-    for(auto style:{S::Shooter,S::Drone,S::Melee})for(int rarity=3;rarity<=4;++rarity) {
+    for(auto style:{S::Shooter,S::Drone,S::Melee})for(int rarity=3;rarity<=3;++rarity) {
         assert(std::any_of(catalog.upgrades.begin(),catalog.upgrades.end(),[&](const Upgrade& item){return item.rarity==rarity&&EligibleUpgrade(item,style,{});}));
     }
     assert(EligibleUpgrade(*FindUpgrade(catalog,"BladeReach"),S::Melee,owned));
@@ -21,7 +21,7 @@ void ShopContracts() {
     assert(!EligibleUpgrade(*FindUpgrade(catalog,"Capacitor"),S::Melee,owned));
     owned[static_cast<std::size_t>(C::PerfectDodge)]=1;
     assert(EligibleUpgrade(*FindUpgrade(catalog,"Capacitor"),S::Melee,owned));
-    auto composite=*FindUpgrade(catalog,"BankshotKit");composite.compatibleStyles=tankbuild::AllStyles;
+    auto composite=*FindUpgrade(catalog,"Ricochet");composite.id="MyComposite";composite.effects={C::Ricochet,C::Pierce};composite.compatibleStyles=tankbuild::AllStyles;
     assert(!EligibleUpgrade(composite,S::Melee,{})); // Author tags cannot make projectile-only effects work on swords.
     owned[static_cast<std::size_t>(C::Ricochet)]=1;
     assert(!EligibleUpgrade(composite,S::Shooter,owned)); // No partly redundant full-price kit.
@@ -41,7 +41,7 @@ void ShopContracts() {
     for(unsigned seed=0;seed<32;++seed){const auto ids=BuildShopOffers(catalog,S::Shooter,{},purchased,seed);assert(std::find(ids.begin(),ids.end(),"Heavy")==ids.end());}
     for(const auto& item:catalog.upgrades)purchased[item.id]=1;
     assert(BuildShopOffers(catalog,S::Melee,{},purchased,2).empty());
-    owned.fill(1);assert(BuildShopOffers(catalog,S::Drone,owned,{},2,true).empty());
+    owned.fill(1);assert(BuildShopOffers(catalog,S::Drone,owned,{},2).empty());
     auto scarce=catalog;scarce.upgrades={*FindUpgrade(catalog,"Heavy")};
     assert(BuildShopOffers(scarce,S::Shooter,{}, {},5)==std::vector<std::string>{"Heavy"});
     auto weighted=catalog;weighted.upgrades.clear();
@@ -51,48 +51,66 @@ void ShopContracts() {
     for(std::size_t i=1;i<selected.size();++i)assert(selected[i-1]>selected[i]&&selected[i]>0);
 }
 
-void SpecialAndRefitContracts() {
-    using namespace tankcontent;using S=tankbuild::Style;
+void SpecialAndAdditiveContracts() {
+    using namespace tankcontent;using S=tankbuild::Style;using C=tankrun::CardId;
     const auto catalog=DefaultCatalog();
+    const std::array<const char*,8> retired{"BankshotKit","DashBomberKit","BreachBladeKit","ArcBladeKit","DroneBastionKit","SeekingWingKit","SeekingRicochetKit","PredatorCircuit"};
+    for(const auto* id:retired)assert(!FindUpgrade(catalog,id));
+    for(const auto& p:catalog.players)assert(!FindUpgrade(catalog,"Refit_"+p.id));
+    for(const auto& u:catalog.upgrades)assert(u.effects.size()==1&&u.refitPlayer.empty());
     std::set<std::string> seen;
     for(const auto style:{S::Shooter,S::Drone,S::Melee}) {
-        for(const auto* id:{"RailCannon","DroneLaserLink","SlashWave","ParryBlade"}) {
-            const auto* u=FindUpgrade(catalog,id);assert(u);
-            const auto expected=std::string(id)=="RailCannon"?S::Shooter:std::string(id)=="DroneLaserLink"?S::Drone:S::Melee;
-            assert(EligibleUpgrade(*u,style,{})==(expected==style));
-        }
-        for(unsigned seed=0;seed<1024;++seed) {
-            const auto offers=BuildShopOffers(catalog,style,{}, {},seed);
-            assert(IsBehaviorUpgrade(*FindUpgrade(catalog,offers[0])));
+        tankrun::CardCounts prerequisites{};
+        if(style==S::Shooter)prerequisites[static_cast<std::size_t>(C::ExtraBarrel1)]=1;
+        for(unsigned seed=0;seed<2048;++seed)for(const auto owned:{tankrun::CardCounts{},prerequisites}) {
+            const auto offers=BuildShopOffers(catalog,style,owned,{},seed);
+            assert(offers.size()==3&&IsBehaviorUpgrade(*FindUpgrade(catalog,offers[0])));
             for(const auto& id:offers) {
-                seen.insert(id);
-                const auto* u=FindUpgrade(catalog,id);
-                if(!u->refitPlayer.empty())assert(FindPlayer(catalog,u->refitPlayer)->style==style&&u->rarity>=3);
+                seen.insert(id);const auto* u=FindUpgrade(catalog,id);
+                assert(u&&u->refitPlayer.empty()&&!IsRetiredStandardUpgrade(id)&&EligibleUpgrade(*u,style,owned));
             }
-            for(const auto& id:BuildShopOffers(catalog,style,{}, {},seed,true))assert(FindUpgrade(catalog,id)->refitPlayer.empty());
         }
     }
-    for(const auto* id:{"RailCannon","DroneLaserLink","SlashWave","ParryBlade"})assert(seen.count(id)>0);
-    for(const auto& p:catalog.players) {
-        const auto* refit=FindUpgrade(catalog,"Refit_"+p.id);assert(refit&&refit->effects.empty());
-        assert(seen.count(refit->id)>0);
-        std::unordered_map<std::string,int> bought{{refit->id,1}};
-        for(const auto& id:BuildShopOffers(catalog,p.style,{},bought,7))assert(FindUpgrade(catalog,id)->refitPlayer.empty());
+    for(std::size_t i=static_cast<std::size_t>(C::RailCannon);i<tankrun::CardCount;++i) {
+        const auto* u=FindUpgrade(catalog,kEffectIds[i]);assert(u&&seen.count(u->id));
+        const auto effect=static_cast<C>(i);const unsigned style=EffectStyles(effect);
+        for(const auto candidate:{S::Shooter,S::Drone,S::Melee})if(!(style&tankbuild::Mask(candidate)))assert(!EligibleUpgrade(*u,candidate,{}));
     }
-    auto legacy=CatalogToJson(catalog);legacy["schemaVersion"]=3;
-    auto& upgrades=legacy["upgrades"];upgrades.erase(std::remove_if(upgrades.begin(),upgrades.end(),[](const auto& u){return !u.at("refitPlayer").template get<std::string>().empty();}),upgrades.end());
-    Catalog migrated;std::string error;assert(CatalogFromJson(legacy,migrated,error));
-    assert(migrated.players.size()==catalog.players.size());
-    for(const auto& p:migrated.players)assert(FindUpgrade(migrated,"Refit_"+p.id));
+    tankrun::RunDirector run;assert(run.ChooseLoadout(0)&&run.ChooseCore(0));
+    auto check=[&](const char* id,bool eligible){assert(EligibleUpgrade(*FindUpgrade(catalog,id),S::Shooter,run.GetCardCounts())==eligible);};
+    check("ExtraBarrel1",true);check("ExtraBarrel2",false);check("FanMount",false);check("AlternatingFire",false);
+    assert(run.GrantExpeditionModules({C::ExtraBarrel1}));
+    check("ExtraBarrel1",false);check("ExtraBarrel2",true);check("FanMount",true);check("AlternatingFire",true);
+    assert(run.GrantExpeditionModules({C::ExtraBarrel2,C::FanMount,C::AlternatingFire}));
+    for(auto effect:{C::ExtraBarrel1,C::ExtraBarrel2,C::FanMount,C::AlternatingFire})assert(run.GetCardCount(effect)==1);
+    // Every supported legacy schema removes known retired cards before parsing
+    // their old payload, preserving unrelated custom composites and designs.
+    for(int version=1;version<=5;++version) {
+        auto legacy=CatalogToJson(catalog);legacy["schemaVersion"]=version;
+        if(version==1) {
+            for(auto& u:legacy["upgrades"]){u["rarity"]=u["rarity"].get<int>()/2;u.erase("compatibleStyles");}
+            for(auto& p:legacy["players"]){p.erase("style");p.erase("rarity");}
+        }
+        for(const auto* id:retired)legacy["upgrades"].push_back({{"id",id}});
+        for(const auto& p:catalog.players)legacy["upgrades"].push_back({{"id","Refit_"+p.id},{"refitPlayer",p.id}});
+        auto custom=legacy["upgrades"][0];custom["id"]="MyCombo";custom["effects"]={"Ricochet","Homing"};custom["refitPlayer"]="OldAuthoredTank";legacy["upgrades"].push_back(custom);
+        auto oldRefit=custom;oldRefit["id"]="MyOldRefit";oldRefit["effects"]=nlohmann::json::array();legacy["upgrades"].push_back(oldRefit);
+        Catalog migrated;std::string error;assert(CatalogFromJson(legacy,migrated,error));
+        assert(migrated.players.size()==catalog.players.size());
+        assert(FindUpgrade(migrated,"MyCombo")->effects.size()==2&&FindUpgrade(migrated,"MyCombo")->refitPlayer.empty());
+        assert(!FindUpgrade(migrated,"MyOldRefit"));
+        for(const auto& u:migrated.upgrades)assert(!IsRetiredStandardUpgrade(u.id)&&u.refitPlayer.empty());
+        Catalog roundtrip;assert(CatalogFromJson(CatalogToJson(migrated),roundtrip,error));assert(CatalogToJson(migrated)==CatalogToJson(roundtrip));
+    }
 }
 
 int main(int argc,char** argv){
     using namespace tankcontent;
     auto original=DefaultCatalog();std::string error;
     assert(ValidateCatalog(original,error));
-    assert(original.upgrades.size()==38&&original.players.size()==8&&original.enemies.size()==13);
+    assert(original.upgrades.size()==40&&original.players.size()==8&&original.enemies.size()==16);
     ShopContracts();
-    SpecialAndRefitContracts();
+    SpecialAndAdditiveContracts();
     assert(!FindUpgrade(original,"ScatterShot"));
     for(const auto& upgrade:original.upgrades)for(const auto effect:upgrade.effects)assert(tankrun::IsAvailableCard(effect));
     for(const auto& player:original.players)assert(player.bulletCount==1);
@@ -112,7 +130,6 @@ int main(int argc,char** argv){
     // Older schema-1 catalog files omit the new optional magazine fields.
     auto legacy=before;legacy["schemaVersion"]=1;
     for(auto& e:legacy["enemies"]){e.erase("magazineSize");e.erase("reloadSeconds");}
-    legacy["upgrades"].erase(std::remove_if(legacy["upgrades"].begin(),legacy["upgrades"].end(),[](const auto& u){return !u.at("refitPlayer").template get<std::string>().empty();}),legacy["upgrades"].end());
     for(auto& u:legacy["upgrades"]){u["rarity"]=u["rarity"].get<int>()/2;u.erase("compatibleStyles");}
     for(auto& p:legacy["players"]){p.erase("style");p.erase("rarity");}
     Catalog oldFile;assert(CatalogFromJson(legacy,oldFile,error));
@@ -134,7 +151,7 @@ int main(int argc,char** argv){
     tankrun::CardCounts owned{};
     assert(!MeetsUpgradeRequirements(*FindUpgrade(original,"BladeReach"),owned));
     assert(!MeetsUpgradeRequirements(*FindUpgrade(original,"Capacitor"),owned));
-    assert(EligibleUpgrade(*FindUpgrade(original,"ArcBladeKit"),tankbuild::Style::Melee,owned));
+    assert(EligibleUpgrade(*FindUpgrade(original,"LightBladeActuator"),tankbuild::Style::Melee,owned));
     assert(MeetsUpgradeRequirements(*FindUpgrade(original,"ImpactDrive"),owned));
     owned[static_cast<std::size_t>(tankrun::CardId::MeleeBlade)]=1;
     owned[static_cast<std::size_t>(tankrun::CardId::PerfectDodge)]=1;
@@ -168,9 +185,6 @@ int main(int argc,char** argv){
     j=before;j["enemies"][0]["reloadSeconds"]=0.2;rejected(j);
     j=before;j["enemies"][0]["reloadSeconds"]=(std::numeric_limits<double>::quiet_NaN)();rejected(j);
     j=before;j["upgrades"][0]["effects"]={"NotImplemented"};rejected(j);
-    j=before;j["upgrades"].back()["refitPlayer"]="MissingPlayer";rejected(j);
-    j=before;j["upgrades"].back()["effects"]={"RailCannon"};rejected(j);
-    j=before;j["upgrades"].back()["rarity"]=2;rejected(j);
     j=before;j["upgrades"][0]["effects"]={"Rapid","Rapid"};rejected(j);
     j=before;j["upgrades"][0]["effects"]=nlohmann::json::array();rejected(j);
     j=before;j["upgrades"][0]["effects"]={"ScatterShot","ScatterShot"};rejected(j);
@@ -183,7 +197,7 @@ int main(int argc,char** argv){
     j=before;j["players"]=nlohmann::json::object();rejected(j);
     j=before;j["players"]=nlohmann::json::array();rejected(j);
     j=before;j["enemies"][0]["color"]={1,1};rejected(j);
-    j=before;j["schemaVersion"]=5;rejected(j);
+    j=before;j["schemaVersion"]=6;rejected(j);
     j=before;j["upgrades"][0]["rarity"]=5;rejected(j);
     j=before;j["upgrades"][0]["compatibleStyles"]={"shooter","shooter"};rejected(j);
     j=before;j["upgrades"][0]["compatibleStyles"]={"invalid"};rejected(j);
@@ -197,7 +211,6 @@ int main(int argc,char** argv){
     auto player=added.players.front();player.id="MyNewTank";player.barrels=6;player.fanAngle=12;added.players.push_back(player);
     auto upgrade=added.upgrades.front();upgrade.id="MyCombo";upgrade.effects={tankrun::CardId::Homing,tankrun::CardId::Pierce};added.upgrades.push_back(upgrade);
     assert(ValidateCatalog(added,error));
-    EnsureRefitCards(added);
     const auto testFile=std::filesystem::path("content_roundtrip.json");
     assert(SaveCatalog(testFile.string(),added,error));Catalog disk;assert(LoadCatalog(testFile.string(),disk,error));assert(CatalogToJson(disk)==CatalogToJson(added));
     auto invalid=added;invalid.enemies[0].hp=-4;assert(!SaveCatalog(testFile.string(),invalid,error));assert(LoadCatalog(testFile.string(),disk,error));assert(CatalogToJson(disk)==CatalogToJson(added));
@@ -207,9 +220,9 @@ int main(int argc,char** argv){
     const std::string shipped="../../project/resources/configs/expedition_content.json";
     if(std::filesystem::exists(shipped)) {
         Catalog production;assert(LoadCatalog(shipped,production,error));
-        for(const auto* id:{"BladeReach","ImpactDrive","PerfectDodge","BreachBladeKit","ArcBladeKit"})assert(FindUpgrade(production,id));
+        for(const auto* id:{"BladeReach","ImpactDrive","PerfectDodge","LightBladeActuator","HeavyBladeEdge"})assert(FindUpgrade(production,id));
         assert(!FindUpgrade(production,"ScatterShot")&&IntroUpgradeIds(production,1).size()==3);
-        for(const auto* id:{"DroneFocus","DroneGuard","MeleeTempo","FinisherCharge","SeekingRicochetKit","PredatorCircuit"})assert(FindUpgrade(production,id));
+        for(const auto* id:{"DroneFocus","DroneGuard","MeleeTempo","FinisherCharge","HeavyDroneCore","ChainLightning"})assert(FindUpgrade(production,id));
         for(auto style:{tankbuild::Style::Shooter,tankbuild::Style::Drone,tankbuild::Style::Melee}) {
             const auto offers=BuildShopOffers(production,style,{}, {},23);assert(offers.size()==3);
             assert(std::count_if(production.players.begin(),production.players.end(),[&](const PlayerVariant& p){return p.style==style;})>=2);
@@ -217,5 +230,5 @@ int main(int argc,char** argv){
         for(const auto& playerType:production.players)assert(playerType.bulletCount==1);
     }
     if(argc>1){assert(SaveCatalog(argv[1],original,error));}
-    std::cout<<"Content catalog: variants, composites, strict validation, non-destructive load, atomic save and currency conversion passed.\n";
+    std::cout<<"Content catalog: schema1-5 migration, no standard kits/refits, additive prerequisites, 18 new effects, weighted eligibility, custom composites and atomic save passed.\n";
 }

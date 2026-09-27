@@ -217,7 +217,6 @@ private:
 	float expeditionMapScroll_ = 0;
 	bool expeditionMapPreview_ = false;
 	bool expeditionBuildChoice_ = false, expeditionBuildChosen_ = false;
-	bool expeditionRefitPurchased_ = false;
 	bool specialValidationEnabled_ = false;
 	nlohmann::json specialValidation_;
 	void InitializeSpecialValidationFixture();
@@ -510,6 +509,8 @@ private:
 		Vector3 end{};
 	};
 	std::vector<SpecialCombatFlash> specialCombatFlashes_;
+	struct BuildCombatFlash {BulletManager::BuildEvent event;float age=0;};
+	std::vector<BuildCombatFlash> buildCombatFlashes_;
 	struct SpecialProjectileVisual {Vector3 position,direction;float radius;Bullet::SpecialKind kind;};
 	std::vector<SpecialProjectileVisual> specialProjectileVisuals_;
 	float railChargeAudioAge_=0;

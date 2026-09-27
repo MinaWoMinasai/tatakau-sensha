@@ -44,6 +44,8 @@ $projectileMethods = foreach ($path in @('project/game/player/actor/Bullet.cpp',
     'project/game/player/actor/AttackController.cpp', 'project/game/collision/CollisionManager.cpp')) {
     Remove-ProjectileIncludes (Read-ProjectileSource $path)
 }
+$projectileMethods += Remove-ProjectileIncludes (Read-ProjectileSource 'project/game/player/actor/Player.SpecialAbilities.cpp')
+$projectileMethods += Read-ProjectileMethod 'project/game/exp/ExpEnemy.cpp' 'bool ExpEnemy::TryReflectProjectile('
 $projectileMethods += Read-ProjectileMethod 'project/game/player/actor/Stage.cpp' 'void Stage::ResolveBulletsCollision('
 $projectileMethods += Read-ProjectileMethod 'project/game/player/actor/Player.cpp' 'void Player::ApplyRunProjectileRules('
 foreach ($signature in @('bool Player::SetExpeditionCombatStyle(', 'int Player::GetExpeditionDroneLimit(',

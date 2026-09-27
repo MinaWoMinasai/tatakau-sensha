@@ -2881,6 +2881,7 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 				for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
 					if (expEnemy && !expEnemy->IsDead() && std::find(slash.hitTargets.begin(),slash.hitTargets.end(),expEnemy)==slash.hitTargets.end() && hitTarget(expEnemy->GetWorldPosition(), expEnemy->GetRadius())) {
 						slash.hitTargets.push_back(expEnemy);expEnemy->ApplyKnockback(slash.direction,slash.knockback);
+						player_->ArmWallSmash(expEnemy);
 						expEnemy->TakeDirectionalDamage(slash.damage,slash.origin,true);
 						if(!slash.hitApplied) {QueueExpeditionImpact(expEnemy->GetWorldPosition(),slash.direction,slash.finisher);slash.hitApplied=true;}
 						ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(), slash.direction * -1.0f, slash.color, 8);
@@ -2920,10 +2921,16 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 
 void GameScene::UpdateSpecialCombatPresentation(float dt)
 {
+	for(auto& flash:buildCombatFlashes_)flash.age+=dt;
+	std::erase_if(buildCombatFlashes_,[](const auto& flash){return flash.age>.30f;});
 	for(auto& flash:specialCombatFlashes_)flash.age+=dt;
 	std::erase_if(specialCombatFlashes_,[](const auto& flash){return flash.age>.24f;});
 	specialProjectileVisuals_.clear();
 	if(!player_||!bulletManager_)return;
+	for(const auto& event:bulletManager_->ConsumeBuildEvents()) {
+		if(buildCombatFlashes_.size()<64)buildCombatFlashes_.push_back({event,0});
+		if(expeditionRun_)tankExpeditionAudio_.Hit();
+	}
 	for(const auto& event:player_->ConsumeSpecialCombatEvents()) {
 		Vector3 end=event.origin;
 		if(event.kind==Player::SpecialEventKind::RailShot) {
@@ -2940,6 +2947,12 @@ void GameScene::UpdateSpecialCombatPresentation(float dt)
 		} else if(event.kind==Player::SpecialEventKind::Parry) {
 			if(expeditionRun_)tankExpeditionAudio_.Parry(false);
 		} else if(event.kind==Player::SpecialEventKind::LinkHit&&expeditionRun_)tankExpeditionAudio_.Hit();
+		else if(event.kind==Player::SpecialEventKind::WallSmash||event.kind==Player::SpecialEventKind::DroneBomb) {
+			if(expeditionRun_)tankExpeditionAudio_.ArmorBreak();
+			cameraShakeDuration_=cameraShakeTimer_=.09f;cameraShakePower_=(std::max)(cameraShakePower_,.07f);
+		} else if(event.kind==Player::SpecialEventKind::DashSlash||event.kind==Player::SpecialEventKind::SpinBlade) {
+			if(expeditionRun_)tankExpeditionAudio_.Slash();
+		} else if(expeditionRun_)tankExpeditionAudio_.Hit();
 		if(specialCombatFlashes_.size()<64)specialCombatFlashes_.push_back({event,0,end});
 	}
 	for(const auto& hit:bulletManager_->ConsumeSpecialImpacts()) {
@@ -2966,6 +2979,40 @@ void GameScene::QueueSpecialCombatPresentation()
 	if(!neonGridRenderer_||!player_||IsTankRunMenuOpen())return;
 	tankspecialfx::Charge(*neonGridRenderer_,player_->GetRailChargeMuzzle(),player_->GetRailChargeRatio(),playTime_);
 	for(const auto& link:player_->GetDroneLaserLinks())tankspecialfx::Link(*neonGridRenderer_,link.start,link.end);
+	for(const auto& mark:bulletManager_->GetMarkVisuals())for(int i=0;i<mark.stacks;++i) {
+		const float angle=playTime_*1.6f+static_cast<float>(i)*1.5707963f;
+		const auto p=mark.position+Vector3{std::cos(angle)*1.3f,std::sin(angle)*1.3f,.04f};
+		tankspecialfx::Ring(*neonGridRenderer_,p,.13f,.04f,{1.4f,.45f,.9f,.7f});
+	}
+	for(const auto& lock:player_->GetTargetLockVisuals()) {
+		const float radius=1.45f+(lock.remaining>0?.08f*std::sin(playTime_*9):.22f);
+		tankspecialfx::Ring(*neonGridRenderer_,lock.position,radius,.045f,{.25f,1.3f,1.5f,lock.remaining>0?.6f:.25f});
+		for(int i=0;i<4;++i) {
+			const float a=i*1.5707963f;const Vector3 d{std::cos(a),std::sin(a),0};
+			neonGridRenderer_->QueueLine(lock.position+d*radius,lock.position+d*(radius+.25f),.045f,{.35f,1.6f,1.8f,.7f});
+		}
+	}
+	for(const auto& drone:player_->GetDroneAbilityVisuals()) {
+		using Phase=tankspecial::DronePhase;
+		if(drone.phase==Phase::Warning) {
+			const float pulse=.45f+.3f*std::sin(playTime_*28);
+			tankspecialfx::Ring(*neonGridRenderer_,drone.position,.65f+drone.progress*.25f,.05f,
+				drone.bomb?Vector4{1.7f,.35f,.6f,pulse}:Vector4{1.5f,1.0f,.25f,pulse});
+			neonGridRenderer_->QueueLine(drone.position,drone.target,.018f,{.6f,.9f,1.2f,.20f});
+		} else if(drone.phase==Phase::Rebuilding) {
+			tankspecialfx::Ring(*neonGridRenderer_,drone.position,.32f+drone.progress*.3f,.025f,{.3f,1.3f,1.6f,.25f+drone.progress*.4f});
+			for(int i=0;i<3;++i) {const float a=playTime_*3+i*2.0944f;const Vector3 d{std::cos(a),std::sin(a),0};
+				neonGridRenderer_->QueueLine(drone.position+d*.8f,drone.position+d*(.8f-.45f*drone.progress),.035f,{.4f,1.5f,1.8f,.5f});}
+		} else if(drone.phase==Phase::Charging) {
+			const auto v=drone.target-drone.position;if(Length(v)>.001f)
+				neonGridRenderer_->QueueLine(drone.position-Normalize(v)*1.3f,drone.position,.09f,{.4f,1.4f,1.7f,.5f});
+		}
+	}
+	if(player_->GetEmpRatio()>0) {
+		const auto center=player_->GetWorldPosition();
+		for(int i=0;i<3;++i){const float a=playTime_*7+i*2.0944f;const Vector3 d{std::cos(a),std::sin(a),0};
+			neonGridRenderer_->QueueLine(center+d*1.6f,center+d*1.85f,.035f,{.7f,.4f,1.5f,.32f});}
+	}
 	for(const auto& visual:specialProjectileVisuals_) {
 		if(visual.kind==Bullet::SpecialKind::SlashWave)
 			tankspecialfx::Crescent(*neonGridRenderer_,visual.position,visual.direction,visual.radius);
@@ -2980,8 +3027,27 @@ void GameScene::QueueSpecialCombatPresentation()
 			const float alpha=1-flash.age/.24f;
 			neonGridRenderer_->QueueLine(event.origin,flash.end,.12f,{.3f,1.1f,1.8f,alpha*.26f});
 			tankspecialfx::Ring(*neonGridRenderer_,event.origin,.25f+flash.age*4,.09f,{1.3f,1.5f,2.0f,alpha*.7f});
+		} else if(event.kind==Player::SpecialEventKind::DroneBomb||event.kind==Player::SpecialEventKind::WallSmash) {
+			const float fade=1-flash.age/.24f;
+			tankspecialfx::Ring(*neonGridRenderer_,event.origin,.3f+flash.age*event.strength*4,.075f,{1.6f,.55f,.9f,fade*.7f});
+			tankspecialfx::Contact(*neonGridRenderer_,event.origin,flash.age,1.0f,false);
+		} else if(event.kind==Player::SpecialEventKind::DashSlash) {
+			const auto d=Length(event.direction)>.001f?Normalize(event.direction):Vector3{1,0,0};
+			neonGridRenderer_->QueueLine(event.origin-d*3,event.origin+d*2,.10f,{.55f,1.4f,1.9f,(1-flash.age/.24f)*.6f});
 		} else tankspecialfx::Contact(*neonGridRenderer_,event.origin,flash.age,
 			event.kind==Player::SpecialEventKind::LinkHit?.6f:1.0f,event.kind==Player::SpecialEventKind::PerfectParry);
+	}
+	for(const auto& flash:buildCombatFlashes_) {
+		const auto& e=flash.event;const float alpha=(1-flash.age/.30f);
+		if(e.kind==BulletManager::BuildEventKind::Chain) {
+			const auto delta=e.end-e.start;const auto side=Length(delta)>.001f?Normalize(Vector3{-delta.y,delta.x,0}):Vector3{0,1,0};
+			auto previous=e.start;
+			for(int i=1;i<=5;++i) {const auto next=e.start+delta*(i/5.0f)+side*(i==5?0:(i%2?.18f:-.18f));
+				neonGridRenderer_->QueueLine(previous,next,.045f,{.45f,1.5f,1.9f,alpha*.75f});previous=next;}
+		} else {
+			const auto color=e.kind==BulletManager::BuildEventKind::Reflection?Vector4{1.5f,.25f,1.2f,alpha*.7f}:Vector4{1.5f,.8f,.35f,alpha*.65f};
+			tankspecialfx::Ring(*neonGridRenderer_,e.start,.3f+flash.age*e.strength*5,.055f,color);
+		}
 	}
 }
 

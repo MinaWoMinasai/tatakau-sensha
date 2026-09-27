@@ -18,14 +18,15 @@ try {
     $specialProcess=Start-Process -FilePath $specialExe -WorkingDirectory $specialProject -ArgumentList @('--project','resources/projects/tank_expedition.project.json') -WindowStyle Hidden -PassThru
     Write-Host "Special abilities runtime started (PID $($specialProcess.Id), $Configuration)."
     while(!$specialProcess.WaitForExit(10000)) {
-        if(([DateTime]::UtcNow-$specialStarted).TotalSeconds -gt 100){Stop-Process -Id $specialProcess.Id -ErrorAction SilentlyContinue;throw 'Special runtime timeout.'}
+        if(([DateTime]::UtcNow-$specialStarted).TotalSeconds -gt 180){Stop-Process -Id $specialProcess.Id -ErrorAction SilentlyContinue;throw 'Special runtime timeout.'}
     }
     $specialDirectory=Join-Path $specialProject 'generated/special_validation'
     $specialReport=Join-Path $specialDirectory 'validation.json'
     if(!(Test-Path -LiteralPath $specialReport) -or (Get-Item -LiteralPath $specialReport).LastWriteTimeUtc -lt $specialStarted){throw "No fresh report (exit $($specialProcess.ExitCode))."}
     $result=Get-Content -LiteralPath $specialReport -Raw -Encoding UTF8|ConvertFrom-Json
-    if($specialProcess.ExitCode -ne 0 -or !$result.completed -or !$result.testMode -or $result.forcedDamage -or @($result.errors).Count -ne 0 -or @($result.probes).Count -ne 4){throw "Special runtime failed (exit $($specialProcess.ExitCode)): $($result.errors -join '; '). Report: $specialReport"}
-    foreach($name in @('rail_charge','rail_fire','drone_link','slash_wave','parry_normal','parry_perfect')) {
+    if($specialProcess.ExitCode -ne 0 -or !$result.completed -or !$result.testMode -or $result.forcedDamage -or @($result.errors).Count -ne 0 -or @($result.probes).Count -ne 15){throw "Special runtime failed (exit $($specialProcess.ExitCode)): $($result.errors -join '; '). Report: $specialReport"}
+    foreach($name in @('rail_charge','rail_fire','drone_link','slash_wave','parry_normal','parry_perfect',
+        'chain_lightning','mark_detonation','boomerang_shell','kill_burst','drone_charge','drone_bomb','drone_rebuild','target_painter','autonomous_spread','dash_slash','spin_blade','wall_smash')) {
         $capture=Join-Path $specialDirectory "$name.png"
         if(!(Test-Path -LiteralPath $capture) -or (Get-Item -LiteralPath $capture).LastWriteTimeUtc -lt $specialStarted -or (Get-Item -LiteralPath $capture).Length -lt 512){throw "Missing fresh special screenshot: $capture"}
     }

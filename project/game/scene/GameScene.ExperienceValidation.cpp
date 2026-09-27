@@ -44,7 +44,7 @@ void GameScene::WriteExperienceValidationReport(bool completed) {
         {"meleeModuleGrantedForProbe",false},{"meleeFixtureReplacesFirstNormalRoomEnemies",true},
         {"buildStyle",tankbuild::Id(static_cast<tankbuild::Style>(experienceValidationStyle_))},{"buildPreserved",experienceBuildPreserved_},
         {"droneSamples",experienceDroneSamples_},{"rarityScreensAreVisualFixtures",true},
-        {"refitVerified",experienceEvolutionVerified_},{"refitOfferSeedIsFixture",true},
+        {"additiveGrowthVerified",experienceEvolutionVerified_},{"growthOfferSeedIsFixture",true},
         {"initialKills",experienceInitialKills_},{"initialPlayerBulletSamples",experiencePlayerBulletSamples_},
         {"guideStageMask",experienceGuideStageMask_},{"successfulDashes",experienceSuccessfulDashes_},
         {"introWallet",experienceIntroWallet_},{"afterIntroWallet",experienceAfterIntroWallet_},
@@ -127,7 +127,7 @@ bool GameScene::UpdateExperienceValidation(float dt) {
             experienceValidationErrors_.push_back("Actual projectile attack evidence incomplete");
         if(experienceValidationStyle_==1&&experienceDroneSamples_==0) experienceValidationErrors_.push_back("Drone style did not create immediate companions");
         if(!experienceBuildPreserved_) experienceValidationErrors_.push_back("Build selection preservation not verified");
-        if(!experienceEvolutionVerified_) experienceValidationErrors_.push_back("Same-style workshop refit purchase and preservation not verified");
+        if(!experienceEvolutionVerified_) experienceValidationErrors_.push_back("Additive workshop upgrade and preservation not verified");
         if(experienceValidationVariant_==1&&(experienceInitialKills_<2||experiencePlayerBulletSamples_==0||experienceSuccessfulDashes_==0||experienceGroundOrbSamples_==0))
             experienceValidationErrors_.push_back("Real tutorial shooting/pickup/dash evidence incomplete");
         if(player_->GetLevel()!=1||player_->GetExp()!=0) experienceValidationErrors_.push_back("Expedition leaked level/EXP progression");
@@ -256,16 +256,14 @@ bool GameScene::UpdateExperienceValidation(float dt) {
             // Deterministic offer seed isolates purchase preservation from luck.
             // The real weighted generator, eligibility and card transaction run.
             if(experienceValidationStateAge_<0.7f)for(uint32_t fixtureSeed=1;fixtureSeed<512;++fixtureSeed) {
-                auto offers=tankcontent::BuildShopOffers(expeditionContent_,expeditionBuildStyle_,tankRun_.GetCardCounts(),expeditionPurchases_,fixtureSeed,expeditionRefitPurchased_);
-                const bool refit=std::any_of(offers.begin(),offers.end(),[&](const std::string& id){const auto* u=tankcontent::FindUpgrade(expeditionContent_,id);return u&&!u->refitPlayer.empty();});
-                if(refit){expeditionServiceOffers_=std::move(offers);RefreshExpeditionBuildCards();break;}
+                auto offers=tankcontent::BuildShopOffers(expeditionContent_,expeditionBuildStyle_,tankRun_.GetCardCounts(),expeditionPurchases_,fixtureSeed);
+                const bool additive=std::any_of(offers.begin(),offers.end(),[&](const std::string& id){const auto* u=tankcontent::FindUpgrade(expeditionContent_,id);return u&&std::any_of(u->effects.begin(),u->effects.end(),[](auto effect){return effect>=tankrun::CardId::ExtraBarrel1;});});
+                if(additive){expeditionServiceOffers_=std::move(offers);RefreshExpeditionBuildCards();break;}
             }
             for(size_t i=0;i<expeditionServiceOffers_.size();++i) {
                 const auto* u=tankcontent::FindUpgrade(expeditionContent_,expeditionServiceOffers_[i]);
-                if(!u||u->refitPlayer.empty())continue;
-                const auto* p=tankcontent::FindPlayer(expeditionContent_,u->refitPlayer);
-                if(!p||p->style!=expeditionBuildStyle_)experienceValidationErrors_.push_back("Cross-style refit leaked into workshop");
-                CaptureExperienceValidation("refit");
+                if(!u||!std::any_of(u->effects.begin(),u->effects.end(),[](auto effect){return effect>=tankrun::CardId::ExtraBarrel1;}))continue;
+                CaptureExperienceValidation("additive_upgrade");
                 if(experienceValidationStateAge_>0.8f&&tankRunCapturePath_.empty()&&expeditionMapRun_.CanAfford(ExpeditionServicePrice(u->id))) {
                     SelectExpeditionService(static_cast<int>(i));return false;
                 }

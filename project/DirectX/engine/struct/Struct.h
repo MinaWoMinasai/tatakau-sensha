@@ -537,7 +537,13 @@ enum Phase {
 	kFadeOut,
 };
 
+class Player;
 struct AttackParam {
+    int sourceDroneIndex=-1;
+    Player* sourcePlayer=nullptr;
+    bool shooterChain=false,shooterMark=false,shooterBoomerang=false,shooterKillBurst=false;
+    float shooterChainPower=1,shooterMarkPower=1,shooterBoomerangPower=1,shooterKillBurstPower=1;
+    float bulletVisualScale=1,bulletTrailScale=1;
 	float bulletSpeed = 0.0f;
 	int bulletCount = 1;
 	float spreadAngleDeg = 0.0f;

@@ -32,8 +32,8 @@ if (!$tankExpDevCmd) {
 New-Item -ItemType Directory -Path $tankExpOutputDir -Force | Out-Null
 # Exercise the production AI update and damage callbacks with graphics-free
 # adapters, in addition to the pure timing/navigation contracts.
-function Read-GuardMethod([string]$signature) {
-    $guardSource = Get-Content -LiteralPath (Join-Path $tankExpRepoDir 'project/game/exp/ExpEnemy.cpp') -Raw
+function Read-GuardMethod([string]$signature, [string]$relativePath='project/game/exp/ExpEnemy.cpp') {
+    $guardSource = Get-Content -LiteralPath (Join-Path $tankExpRepoDir $relativePath) -Raw
     $guardStart = $guardSource.IndexOf($signature, [StringComparison]::Ordinal)
     if ($guardStart -lt 0) { throw "Missing guard production method: $signature" }
     $guardOpen = $guardSource.IndexOf('{', $guardStart)
@@ -58,8 +58,13 @@ $guardMethods = foreach ($signature in @('void ExpEnemy::Initialize(', 'void Exp
     'void ExpEnemy::ResetMagazine(', 'void ExpEnemy::RefreshCollisionMask(', 'Vector3 ExpEnemy::ClipCombatRay(',
     'void ExpEnemy::UpdateExpeditionCombat(', 'void ExpEnemy::OnCollision(', 'bool ExpEnemy::TakeDamageFromPlayer(',
     'bool ExpEnemy::TakeDirectionalDamage(', 'uint32_t ExpEnemy::ResolveShieldDamage(',
-    'bool ExpEnemy::ApplyDamage(', 'void ExpEnemy::TriggerDamageFeedback(')) { Read-GuardMethod $signature }
+    'bool ExpEnemy::ApplyDamage(', 'void ExpEnemy::TriggerDamageFeedback(', 'void ExpEnemy::ConfigureSummonedUnit(',
+    'bool ExpEnemy::TryReflectProjectile(', 'void ExpEnemy::ApplyKnockback(', 'bool ExpEnemy::MoveCombatActor(')) { Read-GuardMethod $signature }
 [IO.File]::WriteAllText((Join-Path $tankExpOutputDir 'guard_enemy_methods.inc'), ($guardMethods -join "`n"), $guardEncoding)
+$guardManagerMethods = foreach ($signature in @('void EnemyManager::DismissOrphanedSummons(', 'void EnemyManager::UpdateSummonedUnits(')) {
+    Read-GuardMethod $signature 'project/game/exp/EnemyManager.cpp'
+}
+[IO.File]::WriteAllText((Join-Path $tankExpOutputDir 'guard_manager_methods.inc'), ($guardManagerMethods -join "`n"), $guardEncoding)
 $tankExpBuildCmd = Join-Path $tankExpOutputDir 'build_tank_enemy_combat_tests.cmd'
 # Pass Unicode source paths through process environment variables.
 $tankExpBatch = @'

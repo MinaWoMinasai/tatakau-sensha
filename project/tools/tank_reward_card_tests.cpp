@@ -15,7 +15,7 @@ int main() {
     clock.Update(100,true);assert(Near(clock.Elapsed(),0.1f));
     // Every demo, both lanes, all modifier combinations, and a full loop remain
     // finite and inside the local illustration bounds. No random input exists.
-    for(int kind=0;kind<=static_cast<int>(DemoKind::ParryBlade);++kind)for(int flags=0;flags<256;++flags) {
+    for(int kind=0;kind<=static_cast<int>(DemoKind::WallSmash);++kind)for(int flags=0;flags<256;++flags) {
         DemoConfig c;c.kind=static_cast<DemoKind>(kind);c.homing=(flags&1)!=0;c.ricochet=(flags&2)!=0;
         c.pierce=(flags&4)!=0;c.bladeReach=(flags&8)!=0;c.impactDrive=(flags&16)!=0;
         c.meleeTempo=(flags&32)!=0;c.finisherCharge=(flags&64)!=0;c.droneFocus=(flags&128)!=0;
@@ -24,6 +24,9 @@ int main() {
         c.droneLaserLink=kind==static_cast<int>(DemoKind::DroneLaserLink)&&(flags&1);
         c.slashWave=kind==static_cast<int>(DemoKind::SlashWave)&&(flags&1);
         c.parryBlade=kind==static_cast<int>(DemoKind::ParryBlade)&&(flags&1);
+        c.chainLightning=c.markDetonation=c.boomerangShell=c.killBurst=(flags&1)!=0;
+        c.droneCharge=c.droneRebuildBomb=c.targetPainter=c.autonomousSpread=(flags&1)!=0;
+        c.dashSlash=c.spinBlade=c.wallSmash=(flags&1)!=0;
         for(int step=0;step<168;++step) {
             const auto s=SampleDemo(c,static_cast<float>(step)/60);
             assert(WithinLane(s.player));assert(WithinLane(s.cursor));
@@ -33,6 +36,9 @@ int main() {
             assert(s.shots<=3); // no projectile multiplication from hover/effects
             if(s.wave)assert(WithinLane(s.wavePosition));
             if(s.hostileBullet)assert(WithinLane(s.hostilePosition));
+            assert(s.chainCount<=3&&std::isfinite(s.blast)&&std::isfinite(s.spin));
+            for(int n=0;n<s.chainCount;++n)assert(WithinLane(s.chainPoints[n]));
+            if(s.blast>0)assert(WithinLane(s.blastPosition));
         }
     }
     DemoConfig base; base.kind=DemoKind::Homing;auto improved=base;improved.homing=true;
@@ -64,6 +70,10 @@ int main() {
     assert(SampleDemo(moreDrones,1.3f).shots==5&&SampleDemo(moreDrones,1.3f).droneCount==5);
     DemoConfig multiBarrel;multiBarrel.barrels=3;
     assert(SampleDemo(multiBarrel,1.0f).shots==3);
+    DemoConfig single;auto twin=single;twin.barrels=2;twin.damageScale=.65f;
+    auto triple=single;triple.barrels=3;triple.damageScale=.50f;
+    assert(SampleDemo(twin,2.2f).damage[0]>SampleDemo(single,2.2f).damage[0]);
+    assert(SampleDemo(triple,2.2f).damage[0]>SampleDemo(twin,2.2f).damage[0]);
     auto repeated=SampleDemo(base,1.7f);auto again=SampleDemo(base,1.7f);
     assert(repeated.player.x==again.player.x&&repeated.bullets[0].position.x==again.bullets[0].position.x);
     // F2 profile changes and authored effect powers use the shared combat
@@ -113,5 +123,26 @@ int main() {
     DemoConfig fan;fan.barrels=3;fan.fanAngle=14;
     const auto spread=SampleDemo(fan,.7f);assert(spread.barrelAngles[0]<0&&spread.barrelAngles[2]>0);
     fan.alternate=true;assert(SampleDemo(fan,.7f).shots<3);
-    std::cout<<"Reward card demos passed: 559104 bounded samples, all four special previews, refit geometry, modifier comparisons and inactive clocks.\n";
+    DemoConfig added;
+    added.kind=DemoKind::ChainLightning;added.chainLightning=true;
+    assert(SampleDemo(added,1.4f).chainCount==3&&SampleDemo(added,1.4f).damage[2]>0);
+    added={};added.kind=DemoKind::MarkDetonation;added.markDetonation=true;
+    assert(SampleDemo(added,.8f).marks[0]>0&&SampleDemo(added,1.55f).blast>0);
+    added={};added.kind=DemoKind::BoomerangShell;added.boomerangShell=true;
+    assert(!SampleDemo(added,.9f).returning&&SampleDemo(added,1.5f).returning);
+    assert(SampleDemo(added,1.6f).damage[0]>SampleDemo(added,.9f).damage[0]);
+    added={};added.kind=DemoKind::KillBurst;added.killBurst=true;
+    int children=0;for(const auto& b:SampleDemo(added,1.4f).bullets)children+=b.visible?1:0;assert(children==6);
+    added={};added.kind=DemoKind::DroneCharge;added.droneCharge=true;
+    assert(SampleDemo(added,.7f).droneChargeGlow>0&&SampleDemo(added,1.05f).drones[0].x>.6f);
+    assert(SampleDemo(added,1.8f).drones[0].x<.5f);
+    added.kind=DemoKind::DroneRebuildBomb;added.droneRebuildBomb=true;
+    assert(SampleDemo(added,1.25f).droneDisabled[0]&&SampleDemo(added,2.1f).rebuild>0);
+    added={};added.kind=DemoKind::TargetPainter;added.targetPainter=true;assert(SampleDemo(added,1.6f).lock==1);
+    added={};added.kind=DemoKind::AutonomousSpread;added.autonomousSpread=true;
+    const auto distributed=SampleDemo(added,2);assert(distributed.damage[0]>0&&distributed.damage[1]>0&&distributed.damage[2]>0);
+    added={};added.kind=DemoKind::DashSlash;added.dashSlash=true;assert(SampleDemo(added,.7f).dashing&&SampleDemo(added,.7f).slashing);
+    added={};added.kind=DemoKind::SpinBlade;added.spinBlade=true;assert(SampleDemo(added,2.2f).spin>0&&SampleDemo(added,2.2f).slashArc>6);
+    added={};added.kind=DemoKind::WallSmash;added.wallSmash=true;assert(SampleDemo(added,1.55f).blast>0&&SampleDemo(added,1.55f).damage[1]>0);
+    std::cout<<"Reward card demos passed: 1032192 bounded samples, all 15 special previews, additive geometry, modifier comparisons and inactive clocks.\n";
 }

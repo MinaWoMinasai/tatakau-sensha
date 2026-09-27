@@ -25,6 +25,9 @@ enum class ExpEnemyType {
     Suppressor,
     ShieldGuard,
     BladeGuard,
+    SummonerCommander,
+    EMPJammer,
+    ReflectArmor,
 };
 
 class ExpEnemy : public Collider {
@@ -89,19 +92,31 @@ public:
             (type_ == ExpEnemyType::Shooter || IsExpeditionCombatRole());
     }
     bool IsExpeditionCombatRole() const {
-        return type_ >= ExpEnemyType::Charger && type_ <= ExpEnemyType::BladeGuard;
+        return type_ >= ExpEnemyType::Charger && type_ <= ExpEnemyType::ReflectArmor;
     }
-    ExpEnemyCombatPhase GetCombatPhase() const { return type_ == ExpEnemyType::BladeGuard ? bladeCycle_.GetPhase() : type_ == ExpEnemyType::Charger ? combatCycle_.GetPhase() : magazineCycle_.GetPhase(); }
-    float GetAttackTelegraphRatio() const { return type_ == ExpEnemyType::BladeGuard ? bladeCycle_.WarningRatio() : type_ == ExpEnemyType::Charger ? combatCycle_.GetWarningRatio() : magazineCycle_.GetWarningRatio(); }
-    bool IsAttackAimLocked() const { return type_ == ExpEnemyType::BladeGuard ? bladeCycle_.IsCommitted() : type_ == ExpEnemyType::Charger ? combatCycle_.IsAimLocked() : magazineCycle_.IsAimLocked(); }
-    bool IsReloading() const { return IsExpeditionCombatRole() && type_ != ExpEnemyType::Charger && type_ != ExpEnemyType::BladeGuard && magazineCycle_.IsReloading(); }
-    int GetAmmoRemaining() const { return type_ == ExpEnemyType::Charger || type_ == ExpEnemyType::BladeGuard ? 0 : magazineCycle_.GetAmmo(); }
+    bool IsSupportRole() const { return type_ == ExpEnemyType::SummonerCommander || type_ == ExpEnemyType::EMPJammer; }
+    ExpEnemyCombatPhase GetCombatPhase() const { return IsSupportRole() ? (supportPulse_.IsWarning() ? ExpEnemyCombatPhase::Locked : ExpEnemyCombatPhase::Cooldown) : type_ == ExpEnemyType::BladeGuard ? bladeCycle_.GetPhase() : type_ == ExpEnemyType::Charger ? combatCycle_.GetPhase() : magazineCycle_.GetPhase(); }
+    float GetAttackTelegraphRatio() const { return IsSupportRole() ? supportPulse_.WarningRatio() : type_ == ExpEnemyType::BladeGuard ? bladeCycle_.WarningRatio() : type_ == ExpEnemyType::Charger ? combatCycle_.GetWarningRatio() : magazineCycle_.GetWarningRatio(); }
+    bool IsAttackAimLocked() const { return IsSupportRole() ? supportPulse_.IsWarning() : type_ == ExpEnemyType::BladeGuard ? bladeCycle_.IsCommitted() : type_ == ExpEnemyType::Charger ? combatCycle_.IsAimLocked() : magazineCycle_.IsAimLocked(); }
+    bool IsReloading() const { return IsExpeditionCombatRole() && !IsSupportRole() && type_ != ExpEnemyType::Charger && type_ != ExpEnemyType::BladeGuard && magazineCycle_.IsReloading(); }
+    int GetAmmoRemaining() const { return IsSupportRole() || type_ == ExpEnemyType::Charger || type_ == ExpEnemyType::BladeGuard ? 0 : magazineCycle_.GetAmmo(); }
     bool IsDashing() const { return dashTimer_ > 0 || (type_ == ExpEnemyType::Charger && combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active); }
     uint32_t GetCombatShotsFired() const { return combatShotsFired_; }
     uint32_t GetCombatDashCount() const { return combatDashCount_; }
     uint32_t GetCombatReloadCount() const { return magazineCycle_.GetReloadCount(); }
     uint32_t GetShieldBlockCount() const { return shieldBlockCount_; }
     uint32_t GetBladeSwingCount() const { return bladeCycle_.SwingCount(); }
+    uint32_t GetWallCollisionCount() const { return wallCollisionCount_; }
+    bool TryReflectProjectile(const Vector3& attackSource);
+    uint32_t GetReflectionCount() const { return reflectionCount_; }
+    uint32_t GetEmpPulseCount() const { return empPulseCount_; }
+    bool ConsumeSummonRequest() { const bool request = summonRequested_; summonRequested_ = false; return request; }
+    int GetSummonTotal() const { return summonTotal_; }
+    void RecordSummonedUnit() { ++summonTotal_; }
+    void ConfigureSummonedUnit(uint64_t commanderId);
+    uint64_t GetSummonerId() const { return summonerId_; }
+    bool IsSummonedUnit() const { return summonerId_ != 0; }
+    void DismissSummonedUnit() { if (IsSummonedUnit()) { isDead_ = true; hp_ = 0; } }
     const Vector3& GetAimDirection() const { return aimDirection_; }
     const Vector3& GetTelegraphEnd() const { return telegraphEnd_; }
     // Called from the scene's existing neon pass for all mobile combat roles.
@@ -206,6 +221,12 @@ private:
     expguard::BladeCycle bladeCycle_{};
     float shieldFlashTimer_ = 0.0f;
     uint32_t shieldBlockCount_ = 0;
+    expguard::PulseCycle supportPulse_{};
+    bool summonRequested_ = false;
+    int summonTotal_ = 0;
+    uint64_t summonerId_ = 0;
+    float summonLifetime_ = 0, supportFlashTimer_ = 0, wallImpactArmedTimer_ = 0;
+    uint32_t reflectionCount_ = 0, empPulseCount_ = 0, wallCollisionCount_ = 0;
     float combatStagger_ = 0.0f, orbitSign_ = 1.0f;
     float dashCooldown_ = 0.0f, dashWarningTimer_ = 0.0f, dashTimer_ = 0.0f;
     Vector3 dashDirection_{};
