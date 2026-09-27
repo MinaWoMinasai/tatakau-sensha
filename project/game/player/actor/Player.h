@@ -32,6 +32,7 @@
 
 class EnemyManager;
 class Enemy;
+class ExpEnemy;
 
 enum class ClassType {
 	
@@ -163,13 +164,27 @@ public:
 		bool powered = false;
 	};
 	struct DroneLaserLink { Vector3 start{},end{}; bool contact=false; };
-	enum class SpecialEventKind { RailShot, Parry, PerfectParry, LinkHit };
+	enum class SpecialEventKind { RailShot, Parry, PerfectParry, LinkHit, DroneCharge, DroneBomb, DroneRebuild, TargetLock, DashSlash, SpinBlade, WallSmash };
 	struct SpecialCombatEvent {
 		SpecialEventKind kind=SpecialEventKind::RailShot;
 		Vector3 origin{},direction{1,0,0};
 		float strength=1;
 	};
-	struct SpecialCombatStats { uint32_t railShots=0,slashWaves=0,parries=0,perfectParries=0,linkTicks=0; };
+	struct SpecialCombatStats {
+		uint32_t railShots=0,slashWaves=0,parries=0,perfectParries=0,linkTicks=0;
+		uint32_t droneCharges=0,droneChargeHits=0,droneBombs=0,droneRebuilds=0,targetLocks=0,spreadTargets=0;
+		uint32_t dashSlashes=0,dashSlashHits=0,spinTicks=0,wallSmashes=0;
+	};
+	struct DroneAbilityVisual {Vector3 position{},target{};tankspecial::DronePhase phase=tankspecial::DronePhase::Escort;float progress=0;bool bomb=false;};
+	struct TargetLockVisual {Vector3 position{};int stacks=0;float remaining=0;};
+	std::vector<DroneAbilityVisual> GetDroneAbilityVisuals() const;
+	const std::vector<TargetLockVisual>& GetTargetLockVisuals() const {return targetLockVisuals_;}
+	float GetSpinBladeRatio() const {return spinCycle_.remaining/.8f;}
+	float GetEmpRatio() const {return empJammerTimer_/2.5f;}
+	void ApplyEmpJammer(float seconds=2.5f) {if(runModifiers_.enabled)empJammerTimer_=tankspecial::EmpDuration(empJammerTimer_,seconds);}
+	uint32_t NotifyDroneHit(int drone,Collider* target,uint32_t originalDamage);
+	float GetDroneTargetDamageScale(const Collider* target,bool boss) const;
+	void ArmWallSmash(ExpEnemy* target,float strength=1);
 	float GetRailChargeRatio() const { return railCharge_.held ? railCharge_.seconds : 0.0f; }
 	Vector3 GetRailChargeMuzzle() const;
 	const std::vector<DroneLaserLink>& GetDroneLaserLinks() const { return droneLaserLinks_; }
@@ -629,6 +644,22 @@ private:
 	bool specialWaveEmitted_=false,specialPerfectFeedback_=false;
 	std::vector<uint64_t> specialParriedBullets_;
 	void AttackRailCannon(BulletManager* bullets,bool pressed,float dt);
+	void RefreshAdditiveArmaments();
+	void ResetAdditionalAbilities();
+	void UpdateAdditionalAbilities(Stage& stage,BulletManager* bullets,Enemy* boss,EnemyManager* enemies,float dt);
+	bool TryStartSpinBlade(bool pressed);
+	float empJammerTimer_=0,droneChargeCooldown_=1.5f,droneBombCooldown_=4.0f,recentDashTimer_=0;
+	size_t nextMissionDrone_=0;
+	std::array<tankspecial::PainterLock,128> painterLocks_{};
+	std::vector<TargetLockVisual> targetLockVisuals_;
+	tankspecial::SpinCycle spinCycle_{};
+	bool finisherSpinReady_=false,dashSlashActive_=false;
+	Vector3 dashSlashPrevious_{},dashSlashDirection_{1,0,0};
+	float dashSlashTimer_=0;
+	uint32_t dashSlashDamage_=1;
+	std::vector<uint64_t> dashSlashTargets_;
+	struct WallSmashTarget {uint64_t id=0;uint32_t collision=0;float seconds=0,strength=1;};
+	std::array<WallSmashTarget,128> wallSmashTargets_{};
 
 	// プレイヤーの経験値とレベル
 	int exp_ = 0;

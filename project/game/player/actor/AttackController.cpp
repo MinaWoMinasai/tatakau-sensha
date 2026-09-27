@@ -71,6 +71,12 @@ void AttackController::FireInternal(const Vector3& origin, const Vector3& baseDi
 
 		bullet->SetCanClaimRunResource(param.canClaimRunResource);
 		bullet->ConfigureGrowth(param.maxWallBounces, param.actorPierceCount, param.impactSplitCount, param.impactSplitDamageScale);
+		if(owner==kPlayer) {
+			bullet->ConfigureShooterAbilities(param.shooterChain,param.shooterMark,param.shooterBoomerang,param.shooterKillBurst,
+				param.shooterChainPower,param.shooterMarkPower,param.shooterBoomerangPower,param.shooterKillBurstPower);
+			bullet->ConfigureDroneSource(param.sourceDroneIndex,param.sourcePlayer);
+			bullet->ConfigureVisualScale(param.bulletVisualScale,param.bulletTrailScale);
+		}
 		bulletManager_->Add(std::move(bullet));
     }
 }

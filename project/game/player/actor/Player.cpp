@@ -406,7 +406,9 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 		// Carrier fire is handled by the companion actors; its body has no gun.
 		if (IsDroneBuild()) return;
 		if (IsMeleeBuild()) {
+			if(spinCycle_.remaining>0)return;
 			if (bulletCoolTime > 0.0f) return;
+			if(TryStartSpinBlade(wantsPrimaryAttack))return;
 			const int step = meleeComboTimer_ > 0.0f ? meleeComboStep_ : 0;
 			const auto combo = MakeTankMeleeCombo(step, runModifiers_);
 			const auto* config = GetCurrentClassConfig();
@@ -428,10 +430,21 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			event.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * 3.8f * combo.damage
 				* (config ? config->bulletDamageScale : 1.0f))));
 			event.color = step == 2 ? Vector4{1.8f,0.85f,0.25f,1.0f} : Vector4{0.25f,1.50f,1.75f,1.0f};
-			pendingMeleeSlashes_.push_back(event);
+			const bool dashSlash=tankspecial::CanDashSlash(runModifiers_.dashSlash,isDashing_,recentDashTimer_)&&!dashSlashActive_;
+			if(dashSlash) {
+				event.comboStep=0;event.windupDuration=0;event.duration=.18f;event.recoveryDuration=.12f;
+				event.direction=Length(velocity_)>.001f?Normalize(velocity_):event.direction;
+				dashSlashActive_=true;dashSlashTimer_=.22f;dashSlashPrevious_=GetWorldPosition();dashSlashDirection_=event.direction;
+				dashSlashDamage_=static_cast<uint32_t>((std::max)(1.0f,std::round(stats_.bulletDamage*3.8f*MakeTankMeleeCombo(0,runModifiers_).damage
+					*(config?config->bulletDamageScale:1.0f)*1.2f*TankEffectPower(runModifiers_,39))));
+				dashSlashTargets_.clear();velocity_+=event.direction*.28f;recentDashTimer_=0;
+				++specialCombatStats_.dashSlashes;
+				if(pendingSpecialCombatEvents_.size()<32)pendingSpecialCombatEvents_.push_back({SpecialEventKind::DashSlash,event.origin,event.direction,event.range});
+			} else pendingMeleeSlashes_.push_back(event);
 			specialMeleeSwing_=event;specialMeleeElapsed_=0;
 			specialWaveEmitted_=false;specialPerfectFeedback_=false;specialParriedBullets_.clear();
-			meleeComboStep_ = (step + 1) % 3;
+			meleeComboStep_ = dashSlash ? 1 : (step + 1) % 3;
+			finisherSpinReady_=!dashSlash&&step==2;
 			bulletCoolTime = event.windupDuration + event.duration + event.recoveryDuration;
 			meleeComboTimer_ = bulletCoolTime + 0.65f;
 			// Small forward follow-through preserves steering and never teleports.
@@ -601,6 +614,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			if (!runCheckpointEvolution_) Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
 		}
 	}
+	else if(!wantsPrimaryAttack)finisherSpinReady_=false;
 }
 
 bool Player::ConsumePrimaryAttackPerformedEvent()
@@ -1015,6 +1029,8 @@ void Player::Update(
 	//}
 
 	dt_ = deltaTime;
+	empJammerTimer_=(std::max)(0.0f,empJammerTimer_-deltaTime);
+	recentDashTimer_=(std::max)(0.0f,recentDashTimer_-deltaTime);
 
 	invincibleTimer_ -= deltaTime;
 	if (damageFeedbackTimer_ > 0.0f) {
@@ -1062,7 +1078,7 @@ void Player::Update(
 
 	// スタミナ回復
 	if (!isDashing_) {
-		stats_.stamina += stats_.staminaRecovery * deltaTime;
+		stats_.stamina += stats_.staminaRecovery * deltaTime * (empJammerTimer_>0?.6f:1.0f);
 		if (stats_.stamina > stats_.maxStamina) {
 			stats_.stamina = stats_.maxStamina;
 		}
@@ -1091,6 +1107,7 @@ void Player::Update(
 	// --- 目標速度 ---
 	Vector3 targetVelocity = inputDir_ * stats_.moveSpeed;
 	if(railCharge_.held && !isDashing_) targetVelocity=targetVelocity*.78f;
+	if(spinCycle_.remaining>0 && !isDashing_)targetVelocity=targetVelocity*.55f;
 
 	// --- 慣性処理 ---
 	float accel = (Length(inputDir_) > 0.0f) ? accel_ : decel_;
@@ -1184,12 +1201,25 @@ void Player::Update(
 		}
 		const size_t bulletsBeforeDroneUpdates = BulletManager->GetBulletCount();
 		size_t companionIndex=0;
+		std::array<bool,48> spreadUsed{};
 		for (auto& drone : drones_) {
 			if (runModifiers_.enabled) {
 				ConfigureRunDrone(*drone);
+				drone->SetRunOwner(this,static_cast<int>(companionIndex));
 				const bool wantsAttack = !runRoomAwaitInputRelease_ && !upgradeHudMouseCaptured_
 					&& (demoInputEnabled_ ? demoShoot_ : input_->IsPress(input_->GetMouseState().rgbButtons[0]));
-				if(expeditionCombatStyleSelected_ || demoInputEnabled_)drone->SetRunInput(runAimWorld_,wantsAttack);
+				Vector3 aim=runAimWorld_;
+				if(IsDroneBuild()&&!runHomingTargets_.empty()&&(runModifiers_.autonomousSpread||runModifiers_.droneFocus)) {
+					std::array<float,48> distances{};const auto from=runModifiers_.autonomousSpread?drone->GetWorldPosition():runAimWorld_;
+					const int count=static_cast<int>((std::min)(runHomingTargets_.size(),distances.size()));
+					for(int n=0;n<count;++n)distances[static_cast<size_t>(n)]=Length(runHomingTargets_[static_cast<size_t>(n)]-from);
+					const int chosen=tankspecial::ChooseSpreadTarget(distances.data(),spreadUsed.data(),count);
+					if(chosen>=0&&(runModifiers_.autonomousSpread||distances[static_cast<size_t>(chosen)]<6.0f)) {
+						aim=runHomingTargets_[static_cast<size_t>(chosen)];
+						if(runModifiers_.autonomousSpread) {spreadUsed[static_cast<size_t>(chosen)]=true;if(wantsAttack)specialCombatStats_.spreadTargets|=uint32_t{1}<<(chosen%32);}
+					}
+				}
+				if(expeditionCombatStyleSelected_ || demoInputEnabled_)drone->SetRunInput(aim,wantsAttack);
 				if(IsDroneBuild()) {
 					const float orbit = static_cast<float>(companionIndex) * 6.2831853f / static_cast<float>((std::max)(size_t{1},drones_.size()));
 					const float radius=GetCombatStyleProfile(tankbuild::Style::Drone).droneFormationRadius+(runModifiers_.droneLaserLink?2.0f:0.0f);
@@ -1424,7 +1454,7 @@ bool Player::TryDashImpact(Collider* target)
 	const uint32_t damage = static_cast<uint32_t>((std::max)(1.0f,
 		std::round((stats_.bulletDamage * 2.5f + stats_.bodyDamage) * strength)));
 	// Knockback is integrated by each actor through its normal wall-safe mover.
-	if (regular) { regular->ApplyKnockback(direction, 0.62f * strength); regular->TakeDirectionalDamage(damage,GetWorldPosition(),true); }
+	if (regular) { regular->ApplyKnockback(direction, 0.62f * strength); ArmWallSmash(regular,strength);regular->TakeDirectionalDamage(damage,GetWorldPosition(),true); }
 	if (boss) { boss->ApplyKnockback(direction, 0.62f * strength); boss->TakeDamage(damage); }
 	pendingDashImpacts_.push_back({target->GetWorldPosition(), direction, boss != nullptr, powered});
 	velocity_ = velocity_ * 0.72f;
@@ -1525,8 +1555,10 @@ void Player::SetRunModifiers(const TankRunModifiers& modifiers)
 	const bool wasEnabled = runModifiers_.enabled;
 	const int previousHp=hp_;
 	runModifiers_ = modifiers;
+	RefreshAdditiveArmaments();
 	if(!modifiers.enabled||!modifiers.railCannon)railCharge_.Reset();
 	if (!wasEnabled || !runModifiers_.enabled) {
+		ResetAdditionalAbilities();
 		expeditionCombatStyleSelected_ = false;
 		expeditionCombatStyle_ = tankbuild::Style::Shooter;
 		runMaintenance_ = {};
@@ -1600,6 +1632,7 @@ bool Player::SetExpeditionCombatStyle(tankbuild::Style style)
 	mount.angleDeg=0;mount.offset={.72f,0,0};mount.damageScale=mount.reloadScale=mount.projectileSpeedScale=1.0f;
 	const int previousHp=hp_;const float previousStamina=stats_.stamina;
 	expeditionCombatStyle_=style;expeditionCombatStyleSelected_=true;
+	ResetAdditionalAbilities();RefreshAdditiveArmaments();
 	railCharge_.Reset();specialMeleeElapsed_=-1;specialParriedBullets_.clear();droneLaserLinks_.clear();pendingSpecialCombatEvents_.clear();
 	RecalculateStatsFromBase(false);
 	hp_=(std::clamp)(previousHp,0,GetMaxHp());stats_.stamina=(std::min)(previousStamina,stats_.maxStamina);
@@ -1879,6 +1912,7 @@ bool Player::RefundRunMaintenancePoint(int stat)
 void Player::ResetRunRoomState(const Vector3& position)
 {
 	if (!runModifiers_.enabled || isDead_) return;
+	ResetAdditionalAbilities();
 	railCharge_.Reset();linkDamageClock_={};droneLaserLinks_.clear();pendingSpecialCombatEvents_.clear();
 	specialMeleeElapsed_=-1;specialParriedBullets_.clear();
 	velocity_ = {};
@@ -1967,13 +2001,15 @@ Player::RunCombatSnapshot Player::GetRunCombatSnapshot() const
     result.homingTurnRate=synergy.homingTurnRate;
     result.dashExplosionsEmitted=runDashExplosionsEmitted_;
     result.shotDamage=(std::max)(1.0f,std::round(stats_.bulletDamage*config->bulletDamageScale));
+    if(!IsDroneBuild()&&!IsMeleeBuild()&&!config->barrels.empty())result.shotDamage=(std::max)(1.0f,std::round(result.shotDamage*config->barrels.front().damageScale));
     result.reloadSeconds=stats_.reloadSpeed/60.0f*config->reloadScale*GetRunFireIntervalScale()*(isBuffActive_?0.7f:1.0f);
     if(IsDroneBuild()) {
         const auto tuning=MakeTankDroneTuning(runModifiers_,true);
-        result.shotDamage=(std::max)(1.0f,std::round(stats_.bulletDamage*config->bulletDamageScale*tuning.damageScale));
+        result.shotDamage=(std::max)(1.0f,stats_.bulletDamage*config->bulletDamageScale*tuning.damageScale
+            *(runModifiers_.autonomousSpread?(std::max)(.2f,1.0f-.18f*TankEffectPower(runModifiers_,38)):1.0f));
         result.reloadSeconds=(std::max)(.05f,GetCombatStyleProfile(tankbuild::Style::Drone).attackIntervalSeconds*tuning.reloadSeconds/.5f*stats_.reloadSpeed/GetRunBaseReloadFrames()
             *config->reloadScale*GetRunFireIntervalScale()*(isBuffActive_?.7f:1.0f)
-            *(runModifiers_.core==TankRunCore::Drone?.8f:1.0f));
+            *(runModifiers_.core==TankRunCore::Drone?.8f:1.0f)*(empJammerTimer_>0?1.5f:1.0f));
     } else if(IsMeleeBuild()) {
         const auto combo=MakeTankMeleeCombo(0,runModifiers_);
         result.shotDamage=(std::max)(1.0f,std::round(stats_.bulletDamage*config->bulletDamageScale*3.8f*combo.damage));
@@ -1992,6 +2028,12 @@ void Player::ApplyRunProjectileRules(AttackParam& param, bool applyFan) const
 		return;
 	}
 	const TankRunTuning tuning = MakeTankRunTuning(runModifiers_, runGrowth_);
+	if(expeditionCombatStyleSelected_&&expeditionCombatStyle_==tankbuild::Style::Shooter) {
+		param.shooterChain=runModifiers_.chainLightning;param.shooterMark=runModifiers_.markDetonation;
+		param.shooterBoomerang=runModifiers_.boomerangShell;param.shooterKillBurst=runModifiers_.killBurst;
+		param.shooterChainPower=TankEffectPower(runModifiers_,31);param.shooterMarkPower=TankEffectPower(runModifiers_,32);
+		param.shooterBoomerangPower=TankEffectPower(runModifiers_,33);param.shooterKillBurstPower=TankEffectPower(runModifiers_,34);
+	}
 	param.reflect = param.reflect || tuning.reflects;
 	param.bulletHp = tuning.bulletHp;
 	param.bulletPenetration = tuning.bulletInterception;
@@ -2043,8 +2085,11 @@ void Player::AttackRailCannon(BulletManager* bullets,bool pressed,float dt)
 	param.reflect=config&&config->reflect;param.penetrate=true;ApplyRunProjectileRules(param);
 	param.actorPierceCount=(std::max)(3,param.actorPierceCount);
 	param.bulletHp=(std::max)(2.0f+charge*3.0f,param.bulletHp);
-	const size_t count=config&&!config->barrels.empty()?(std::min)(config->barrels.size(),size_t{8}):1;
-	for(size_t index=0;index<count;++index) {
+	const size_t barrelCount=config&&!config->barrels.empty()?(std::min)(config->barrels.size(),size_t{8}):1;
+	const bool alternate=config&&config->alternateBarrels&&barrelCount>1;
+	const size_t count=alternate?1:barrelCount;
+	for(size_t shot=0;shot<count;++shot) {
+		const size_t index=alternate?static_cast<size_t>(shootBarrelIndex_)%barrelCount:shot;
 		Vector3 fire=aim,muzzle=GetWorldPosition()+aim*1.7f;float damageScale=1,speedScale=1;
 		if(config&&!config->barrels.empty()) {
 			const auto& mount=config->barrels[index];if(!mount.fires)continue;
@@ -2052,15 +2097,21 @@ void Player::AttackRailCannon(BulletManager* bullets,bool pressed,float dt)
 			muzzle=GetWorldPosition()+aim*mount.offset.x+side*mount.offset.y+fire*mount.muzzleForward;
 			damageScale=mount.damageScale;speedScale=mount.projectileSpeedScale;
 		}
+		// A charged alternating shot concentrates the compensated volley energy
+		// into one barrel; every release advances to the next installed barrel.
+		if(alternate)damageScale*=static_cast<float>(barrelCount);
 		auto bullet=std::make_unique<Bullet>();
 		bullet->Initialize(muzzle,fire*param.bulletSpeed*speedScale,
 			static_cast<uint32_t>((std::max)(1.0f,std::round(static_cast<float>(param.damage)*damageScale))),kPlayer,param.reflect,param.bulletHp,param.bulletPenetration);
 		bullet->ConfigureGrowth(param.maxWallBounces,param.actorPierceCount,0);
 		bullet->ConfigureSpecial(Bullet::SpecialKind::Rail,.35f+.30f*charge,1.6f);
+		bullet->ConfigureShooterAbilities(param.shooterChain,param.shooterMark,param.shooterBoomerang,param.shooterKillBurst,
+			param.shooterChainPower,param.shooterMarkPower,param.shooterBoomerangPower,param.shooterKillBurstPower);
 		bullets->Add(std::move(bullet));
 		if(index<barrels_.size()) {barrels_[index].muzzleFlashTimer=kMuzzleFlashDuration;barrels_[index].recoilOffset=.32f;}
 		if(pendingSpecialCombatEvents_.size()<32)pendingSpecialCombatEvents_.push_back({SpecialEventKind::RailShot,muzzle,fire,charge});
 	}
+	if(alternate)shootBarrelIndex_=static_cast<int>((static_cast<size_t>(shootBarrelIndex_)+1)%barrelCount);
 	bulletCoolTime=tankspecial::RailRecovery(stats_.reloadSpeed/60.0f*(config?config->reloadScale:1.0f)*GetRunFireIntervalScale());
 	velocity_+=aim*(-.04f-.035f*charge);
 	primaryAttackPerformedEvent_=true;++primaryAttackCount_;++specialCombatStats_.railShots;
@@ -2075,6 +2126,7 @@ void Player::UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss
 {
 	droneLaserLinks_.clear();
 	if(!runModifiers_.enabled||isDead_||!bullets||dt<=0)return;
+	UpdateAdditionalAbilities(stage,bullets,boss,enemies,dt);
 	linkDamageClock_.Advance(dt);
 	auto blocked=[&](const Vector3& a,const Vector3& b) {
 		for(const auto& block:stage.GetMergedBlocks()) {
@@ -2087,7 +2139,7 @@ void Player::UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss
 	};
 	if(IsDroneBuild()&&runModifiers_.droneLaserLink) {
 		std::vector<Vector3> positions;positions.reserve(drones_.size());
-		for(const auto& drone:drones_)if(drone&&!drone->IsDead())positions.push_back(drone->GetWorldPosition());
+		for(const auto& drone:drones_)if(drone&&drone->IsRunAvailable())positions.push_back(drone->GetWorldPosition());
 		const int count=tankspecial::LinkCount(static_cast<int>(positions.size()));
 		for(int i=0;i<count;++i) {
 			const auto& a=positions[static_cast<size_t>(i)];const auto& b=positions[(static_cast<size_t>(i)+1)%positions.size()];
@@ -2107,7 +2159,7 @@ void Player::UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss
 				if(blocked(nearest,p))continue;
 				link.contact=true;
 				if(linkDamageClock_.Claim(target->GetCollisionId())) {
-					const auto damage=static_cast<uint32_t>((std::max)(1.0f,std::round(baseDamage*(bossTarget?.65f:1.0f))));
+					const auto damage=static_cast<uint32_t>((std::max)(1.0f,std::round(baseDamage*(bossTarget?.65f:1.0f)*GetDroneTargetDamageScale(target,bossTarget))));
 					if(bossTarget)static_cast<Enemy*>(target)->TakeDamage(damage);
 					else static_cast<ExpEnemy*>(target)->TakeDirectionalDamage(damage,nearest);
 					++specialCombatStats_.linkTicks;emit(SpecialEventKind::LinkHit,nearest,Normalize(link.end-link.start),.5f);
@@ -2136,7 +2188,7 @@ void Player::UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss
 	}
 	if(active>swing.duration) {specialMeleeElapsed_=-1;return;}
 	if(!runModifiers_.parryBlade)return;
-	const bool perfect=tankspecial::IsPerfectParry(active);
+	const bool perfect=swing.comboStep>=0&&tankspecial::IsPerfectParry(active);
 	const Vector3 origin=GetWorldPosition();
 	const float minDot=std::cos(swing.arcDeg*.5f*3.1415926535f/180.0f);
 	for(auto* bullet:bullets->GetBulletPtrs()) {
@@ -2156,7 +2208,7 @@ void Player::UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss
 				auto shot=std::make_unique<Bullet>();
 				const auto damage=static_cast<uint32_t>((std::max)(1.0f,(std::min)(static_cast<float>(bullet->GetDamage()),stats_.bulletDamage*3.8f)));
 				shot->Initialize(p,reflected*(std::max)(.25f,Length(incoming)),damage,kPlayer,false,1,1);
-				shot->ConfigureGrowth(0,0,0);shot->ConfigureSpecial(Bullet::SpecialKind::ParryReflection,.35f,1.4f);bullets->Add(std::move(shot));
+				shot->ConfigureGrowth(0,0,0);shot->ConfigureSpecial(Bullet::SpecialKind::ParryReflection,.35f,1.4f);shot->SetArmorReflected(bullet->WasArmorReflected());bullets->Add(std::move(shot));
 			}
 			if(!specialPerfectFeedback_) {emit(SpecialEventKind::PerfectParry,p,swing.direction);specialPerfectFeedback_=true;}
 			else emit(SpecialEventKind::Parry,p,swing.direction,.5f);
@@ -2172,11 +2224,13 @@ void Player::SetRunHomingTargets(const std::vector<Vector3>& targets)
 
 void Player::UpdateRunProjectiles(BulletManager* bulletManager, float deltaTime)
 {
-	if (!runModifiers_.enabled || !runModifiers_.homing || deltaTime <= 0.0f || runHomingTargets_.empty()) return;
-	const float homingTurnRate=MakeTankRunSynergy(runModifiers_,runOverdriveTimer_>0.0f).homingTurnRate;
+	if (!runModifiers_.enabled || (!runModifiers_.homing&&!runModifiers_.droneFocus&&!runModifiers_.targetPainter) || deltaTime <= 0.0f || runHomingTargets_.empty()) return;
+	const float homingTurnRate=(std::max)(MakeTankRunSynergy(runModifiers_,runOverdriveTimer_>0.0f).homingTurnRate,
+		IsDroneBuild()&&runModifiers_.droneFocus?.70f:0.0f)*(empJammerTimer_>0?.55f:1.0f);
 	size_t steered = 0;
 	for (Bullet* bullet : bulletManager->GetBulletPtrs()) {
 		if (!bullet || bullet->IsDead() || bullet->GetOwner() != BulletOwner::kPlayer) continue;
+		if(bullet->GetIsReturning())continue;
 		if (++steered > 240) break;
 		Vector3 direction = bullet->GetMove();
 		const float speed = Length(direction);
@@ -2198,7 +2252,15 @@ void Player::UpdateRunProjectiles(BulletManager* bulletManager, float deltaTime)
 		}
 		if (!found) continue;
 		const float dot = (std::clamp)(direction.x * targetDirection.x + direction.y * targetDirection.y, -1.0f, 1.0f);
-		const float turn = (std::min)(std::acos(dot), homingTurnRate * deltaTime);
+		float targetTurn=homingTurnRate;
+		if(IsDroneBuild()&&runModifiers_.targetPainter&&bullet->GetSourceDroneIndex()>=0) {
+			for(const auto& lock:targetLockVisuals_)if(lock.remaining>0) {
+				const auto offset=lock.position-bullet->GetWorldPosition();
+				if(Length(offset)>.001f&&Length(Normalize(offset)-targetDirection)<.1f)
+					targetTurn=(std::max)(targetTurn,1.05f*(empJammerTimer_>0?.55f:1.0f));
+			}
+		}
+		const float turn = (std::min)(std::acos(dot), targetTurn * deltaTime);
 		const float cross = direction.x * targetDirection.y - direction.y * targetDirection.x;
 		const float signedDegrees = turn * (cross < 0.0f ? -1.0f : 1.0f) * (180.0f / 3.1415926535f);
 		bullet->SetVelocity(RotateDirection(direction, signedDegrees) * speed);
@@ -2217,27 +2279,34 @@ void Player::ConfigureRunDrone(PlayerDrone& drone) const
 	if(!primaryStyle && isSwarm) {droneTuning.damageScale*=0.6f/0.35f;droneTuning.reloadSeconds*=0.5f/0.75f;}
 	AttackParam param{};
 	param.bulletSpeed = stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f);
+	if(primaryStyle&&runModifiers_.droneFocus)param.bulletSpeed*=1.15f;
 	param.bulletCount = 1;
 	param.spreadAngleDeg = primaryStyle || runModifiers_.droneFocus ? droneTuning.spreadDegrees
 		: isSwarm && runEvolutionActive_ ? config->spreadAngleDeg : (isSwarm ? 10.0f : 6.0f);
 	param.randomSpread = param.spreadAngleDeg > 0.0f;
 	param.reflect = config && config->reflect;
 	param.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(
-		stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * droneTuning.damageScale)));
+		stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * droneTuning.damageScale
+		* (primaryStyle&&runModifiers_.autonomousSpread?(std::max)(.2f,1.0f-.18f*TankEffectPower(runModifiers_,38)):1.0f))));
 	if (isBuffActive_) {
 		param.reflect = true;
 	}
 	ApplyRunProjectileRules(param);
 	param.bulletHp=(std::max)(param.bulletHp,droneTuning.bulletHp);
 	param.bulletPenetration=(std::max)(param.bulletPenetration,droneTuning.interception);
+	param.bulletVisualScale=droneTuning.sizeScale;param.bulletTrailScale=droneTuning.trailScale;
 	const float reloadRatio = stats_.reloadSpeed / GetRunBaseReloadFrames();
 	const float coreRate = runModifiers_.core == TankRunCore::Drone ? 0.8f : 1.0f;
 	const auto* specialization = runEvolutionActive_ ? FindTankExpeditionSpecialization(runEvolutionConfig_.id) : nullptr;
 	const float interval = droneTuning.reloadSeconds * reloadRatio * coreRate
 		* (isBuffActive_ ? 0.7f : 1.0f) * GetRunFireIntervalScale()
 		* (primaryStyle && config ? config->reloadScale : isSwarm && specialization ? specialization->reloadScale : 1.0f)
-		* (primaryStyle?GetCombatStyleProfile(tankbuild::Style::Drone).attackIntervalSeconds/.5f:1.0f);
+		* (primaryStyle?GetCombatStyleProfile(tankbuild::Style::Drone).attackIntervalSeconds/.5f:1.0f)*(empJammerTimer_>0?1.5f:1.0f);
 	drone.ConfigureRunAttack(param, interval);
+	// Preserve fractional tradeoffs at low base damage (3 x .82 must not
+	// silently become a 33% damage loss after integer rounding).
+	drone.SetRunExactDamage(primaryStyle?(std::max)(1.0f,stats_.bulletDamage*(config?config->bulletDamageScale:1.0f)*droneTuning.damageScale
+		*(runModifiers_.autonomousSpread?(std::max)(.2f,1.0f-.18f*TankEffectPower(runModifiers_,38)):1.0f)):0.0f);
 	if(primaryStyle) {
 		const auto& profile=GetCombatStyleProfile(tankbuild::Style::Drone);
 		drone.SetRunFollowTuning(profile.droneFollowSpeed,profile.droneCatchupSpeed,profile.droneResponse);
@@ -2326,6 +2395,7 @@ bool Player::ActivatePerfectDodge(const PlayerClassConfig& config)
 	isDashing_ = true;
 	dashStartedEvent_ = true;
 	dashTimer_ = kDashDuration;
+	recentDashTimer_=.30f;
 	dashCooldown_ = kDashCooldown * (std::max)(0.05f, config.specialActionCooldownScale) * runTuning.dashCooldown;
 	stats_.stamina = (std::max)(0.0f, stats_.stamina - staminaCost);
 	if (runModifiers_.enabled) {
@@ -3094,7 +3164,8 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 			Vector3{ 0.0f, 0.0f, barrelConfig.offset.z };
 		const Vector3 muzzle = mountBase + fireDir * barrelConfig.muzzleForward;
 		AttackParam mountParam = param;
-		mountParam.damage = static_cast<uint32_t>((std::max)(1.0f, static_cast<float>(param.damage) * barrelConfig.damageScale));
+		mountParam.damage = static_cast<uint32_t>((std::max)(1.0f,runModifiers_.expedition?
+			std::round(static_cast<float>(param.damage)*barrelConfig.damageScale):static_cast<float>(param.damage)*barrelConfig.damageScale));
 		if (barrelConfig.weaponType == WeaponType::Laser) {
 			LaserShotEvent event{};
 			event.origin = muzzle;

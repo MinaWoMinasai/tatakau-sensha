@@ -9,6 +9,39 @@ namespace expguard {
 inline constexpr float kShieldHalfAngle = 55.0f * 3.14159265f / 180.0f;
 inline constexpr float kBladeHalfAngle = 55.0f * 3.14159265f / 180.0f;
 inline constexpr float kBladeReach = 3.3f;
+inline constexpr float kReflectHalfAngle = 50.0f * 3.14159265f / 180.0f;
+inline constexpr float kEmpRadius = 8.0f;
+inline constexpr int kSummonAliveLimit = 3;
+inline constexpr int kSummonLifetimeLimit = 6;
+inline constexpr float kSummonLifetimeSeconds = 16.0f;
+
+// Fixed update timing: a long frame cannot skip the entire warning or emit
+// several waves. No render resources are associated with this ability state.
+class PulseCycle {
+public:
+    void Reset(float period, float warning, float initialDelay) {
+        warningSeconds_ = (std::max)(0.25f, warning);
+        cooldownSeconds_ = (std::max)(0.5f, period - warningSeconds_);
+        remaining_ = (std::max)(0.0f, initialDelay);
+        warning_ = false;
+    }
+    bool Advance(float dt, bool canStart) {
+        if (!std::isfinite(dt) || dt <= 0) return false;
+        remaining_ = (std::max)(0.0f, remaining_ - dt);
+        if (remaining_ > 0) return false;
+        if (warning_) { warning_ = false; remaining_ = cooldownSeconds_; return true; }
+        if (canStart) { warning_ = true; remaining_ = warningSeconds_; }
+        return false;
+    }
+    bool IsWarning() const { return warning_; }
+    float WarningRatio() const { return warning_ ? (std::clamp)(1 - remaining_ / warningSeconds_, 0.0f, 1.0f) : 0; }
+private:
+    float remaining_ = 0, warningSeconds_ = 1, cooldownSeconds_ = 4;
+    bool warning_ = false;
+};
+inline int SummonSlots(int alive, int total) {
+    return (std::max)(0, (std::min)(kSummonAliveLimit - alive, kSummonLifetimeLimit - total));
+}
 
 inline bool InFacingCone(float facingX, float facingY, float offsetX, float offsetY,
     float halfAngle, float targetRadius = 0.0f) {

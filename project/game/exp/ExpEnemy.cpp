@@ -80,6 +80,9 @@ void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType 
     combatShotsFired_ = combatDashCount_ = 0;
     shieldFlashTimer_ = 0.0f;
     shieldBlockCount_ = 0;
+    reflectionCount_ = empPulseCount_ = wallCollisionCount_ = 0;
+    summonRequested_ = false; summonTotal_ = 0; summonerId_ = 0;
+    summonLifetime_ = supportFlashTimer_ = wallImpactArmedTimer_ = 0;
     combatRepathTimer_ = dashWarningTimer_ = dashTimer_ = 0;
     isDead_ = false;
     isRunResource_ = false;
@@ -100,6 +103,9 @@ void ExpEnemy::Initialize(const Vector3& position, Player* player, ExpEnemyType 
         combatStagger_ = std::fmod(std::abs(position.x * 0.173f + position.y * 0.319f), 0.85f);
         combatCycle_.Reset(timing, 0.55f + combatStagger_);
         bladeCycle_.Reset(0.35f + combatStagger_);
+        supportPulse_.Reset(type_ == ExpEnemyType::EMPJammer ? 6.0f : 5.0f,
+            type_ == ExpEnemyType::EMPJammer ? 1.0f : 0.75f,
+            type_ == ExpEnemyType::EMPJammer ? 2.0f + combatStagger_ : 4.25f);
         orbitSign_ = static_cast<int>(std::abs(position.x + position.y)) % 4 < 2 ? -1.0f : 1.0f;
         dashCooldown_ = 2.3f + combatStagger_;
         ResetMagazine();
@@ -140,6 +146,35 @@ void ExpEnemy::RefreshCollisionMask()
     }
     if (isRunResource_) mask |= kCollisionAttributeEnemyBullet;
     SetCollisionMask(mask);
+}
+
+void ExpEnemy::ConfigureSummonedUnit(uint64_t commanderId)
+{
+    summonerId_ = commanderId;
+    summonLifetime_ = expguard::kSummonLifetimeSeconds;
+    hp_ = maxHp_ = 12;
+    expValue_ = 0;
+    hasAuthoredDefinition_ = true;
+    authoredContactDamage_ = 6;
+    authoredMoveSpeedScale_ = 0.85f;
+    authoredFireIntervalScale_ = 1.3f;
+    baseScale_ = {0.70f, 0.70f, 0.70f};
+    baseColor_ = {0.85f, 0.40f, 1.4f, 0.75f};
+    visualColor_ = baseColor_;
+    SetDamage(authoredContactDamage_);
+}
+
+bool ExpEnemy::TryReflectProjectile(const Vector3& attackSource)
+{
+    if (isDead_ || type_ != ExpEnemyType::ReflectArmor) return false;
+    const Vector3 source = attackSource - GetWorldPosition();
+    if (Length(source) < 0.0001f || !expguard::InFacingCone(aimDirection_.x, aimDirection_.y,
+        source.x, source.y, expguard::kReflectHalfAngle)) return false;
+    ++reflectionCount_; ++shieldBlockCount_;
+    if (shieldFlashTimer_ <= 0) ParticleManager::GetInstance()->EmitNeonImpactEffect(
+        GetWorldPosition() + Normalize(source) * 1.2f, Normalize(source), {1.7f, 0.20f, 1.3f, 1}, 4);
+    shieldFlashTimer_ = 0.13f;
+    return true;
 }
 
 void ExpEnemy::SetRunResource(std::function<void(bool playerOwned)> onClaim)
@@ -232,6 +267,21 @@ void ExpEnemy::ApplyTypeParams()
         baseColor_ = { 1.60f, 0.38f, 0.12f, 1.0f };
         hp_ = 65; expValue_ = 45;
         break;
+    case ExpEnemyType::SummonerCommander:
+        object_->SetModel("expPentagon.obj");
+        baseColor_ = {0.85f, 0.45f, 1.7f, 1};
+        hp_ = 75; expValue_ = 60;
+        break;
+    case ExpEnemyType::EMPJammer:
+        object_->SetModel("expBlock.obj");
+        baseColor_ = {0.3f, 0.9f, 1.7f, 1};
+        hp_ = 60; expValue_ = 60;
+        break;
+    case ExpEnemyType::ReflectArmor:
+        object_->SetModel("expPentagon.obj");
+        baseColor_ = {1.5f, 0.25f, 0.9f, 1};
+        hp_ = 90; expValue_ = 70;
+        break;
     }
     object_->SetColor(baseColor_);
     visualColor_ = baseColor_;
@@ -246,7 +296,7 @@ void ExpEnemy::ResetMagazine(int rounds, float reloadSeconds)
     if (type_ == ExpEnemyType::Sniper) timing = { 2, 0.52f, 0.26f, 0.20f, 1.55f };
     else if (type_ == ExpEnemyType::Flanker) timing = { 2, 0.24f, 0.17f, 0.22f, 1.55f };
     else if (type_ == ExpEnemyType::Suppressor) timing = { 5, 0.18f, 0.14f, 0.16f, 2.00f };
-    else if (type_ == ExpEnemyType::ShieldGuard) timing = { 2, 0.38f, 0.18f, 0.28f, 1.60f };
+    else if (type_ == ExpEnemyType::ShieldGuard || type_ == ExpEnemyType::ReflectArmor) timing = { 2, 0.38f, 0.18f, 0.28f, 1.60f };
     if (rounds > 0) timing.rounds = rounds;
     if (reloadSeconds > 0) timing.reload = reloadSeconds;
     magazineCycle_.Reset(timing, 0.55f + combatStagger_);
@@ -261,6 +311,12 @@ void ExpEnemy::Update(Stage& stage, float deltaTime) {
 
     invincibleTimer_ -= deltaTime;
     shieldFlashTimer_ = (std::max)(0.0f, shieldFlashTimer_ - deltaTime);
+    supportFlashTimer_ = (std::max)(0.0f, supportFlashTimer_ - deltaTime);
+    wallImpactArmedTimer_ = (std::max)(0.0f, wallImpactArmedTimer_ - deltaTime);
+    if (IsSummonedUnit()) {
+        summonLifetime_ -= deltaTime;
+        if (summonLifetime_ <= 0) { DismissSummonedUnit(); return; }
+    }
     ApplyDamageFeedback(deltaTime);
 
     if (isRunResource_) {
@@ -430,6 +486,10 @@ bool ExpEnemy::MoveCombatActor(Stage& stage, const Vector3& displacement)
         blocked = blocked || std::abs(GetWorldPosition().y - desired.y) > 0.005f;
         if (blocked && IsDashing()) break;
     }
+    if (blocked && wallImpactArmedTimer_ > 0 && Length(velocity_) > 0.01f) {
+        ++wallCollisionCount_;
+        wallImpactArmedTimer_ = 0;
+    }
     return blocked;
 }
 
@@ -480,7 +540,7 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
     const bool sniper = type_ == ExpEnemyType::Sniper;
     const bool flanker = type_ == ExpEnemyType::Flanker;
     const bool suppressor = type_ == ExpEnemyType::Suppressor;
-    const bool shield = type_ == ExpEnemyType::ShieldGuard;
+    const bool shield = type_ == ExpEnemyType::ShieldGuard || type_ == ExpEnemyType::ReflectArmor;
     const bool blade = type_ == ExpEnemyType::BladeGuard;
     if (hasTarget && !IsAttackAimLocked() && dashTimer_ <= 0 && dashWarningTimer_ <= 0) {
         if (shield) {
@@ -512,7 +572,25 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
         movingToTarget = pathToTarget;
     };
 
-    if (blade) {
+    if (IsSupportRole()) {
+        const bool jammer = type_ == ExpEnemyType::EMPJammer;
+        const bool mayPulse = hasTarget && distance < (jammer ? 15.0f : 32.0f) &&
+            (jammer || summonTotal_ < expguard::kSummonLifetimeLimit);
+        if (supportPulse_.Advance(dt, mayPulse)) {
+            supportFlashTimer_ = 0.32f;
+            if (jammer) {
+                ++empPulseCount_;
+                if (visible && distance <= expguard::kEmpRadius + player_->GetRadius()) player_->ApplyEmpJammer(2.5f);
+            } else summonRequested_ = true;
+        }
+        if (hasTarget && !supportPulse_.IsWarning()) {
+            const float preferred = jammer ? 6.4f : 15.0f;
+            if (!visible || distance > preferred + 2) navigate(desiredDirection + tangent * 0.18f, jammer ? 4.0f : 3.1f, true);
+            else if (distance < preferred - 2) navigate(desiredDirection * -0.75f + tangent * 0.35f, 3.0f, false);
+            else navigate(tangent, 1.2f, false);
+        }
+        SetDamage(hasAuthoredDefinition_ ? authoredContactDamage_ : 8u);
+    } else if (blade) {
         bladeCycle_.SetIntervalScale(authoredFireIntervalScale_);
         bladeCycle_.Advance(dt, visible && distance <= expguard::kBladeReach + 0.45f);
         const auto phase = bladeCycle_.GetPhase();
@@ -610,7 +688,8 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
     }
     const bool dashing = IsDashing();
     if (dashing && !combatWasDashing_) combatMoveVelocity_ = combatMoveVelocity_ * 0.20f;
-    const float response = blade && bladeCycle_.GetPhase() != ExpEnemyCombatPhase::Cooldown ? 12.0f :
+    const float response = ((blade && bladeCycle_.GetPhase() != ExpEnemyCombatPhase::Cooldown) ||
+        (IsSupportRole() && supportPulse_.IsWarning())) ? 12.0f :
         Length(desiredMoveVelocity) > 0.01f ? 2.5f : 3.5f;
     combatMoveVelocity_ += (desiredMoveVelocity - combatMoveVelocity_) * (1.0f - std::exp(-response * dt));
     if (MoveCombatActor(stage, combatMoveVelocity_ * dt)) {
@@ -648,6 +727,43 @@ void ExpEnemy::QueueCombatVisuals(NeonGridRenderer& renderer, const Vector3& cam
     auto arcPoint = [&](float angle, float radius) {
         return center + (forward * std::cos(angle) + side * std::sin(angle)) * radius;
     };
+    if (IsSupportRole()) {
+        const bool emp = type_ == ExpEnemyType::EMPJammer;
+        const bool warning = supportPulse_.IsWarning();
+        const float charge = supportPulse_.WarningRatio();
+        const Vector4 signal = emp ? Vector4{ 0.35f, 1.3f, 2.0f, 0.80f } : Vector4{ 1.65f, 0.45f, 2.0f, 0.80f };
+        constexpr float tau = 6.283185307f;
+        const int sides = emp ? 4 : 6;
+        for (int i = 0; i < sides; ++i) {
+            const float a = tau * static_cast<float>(i) / sides;
+            const float b = tau * static_cast<float>(i + 1) / sides;
+            line(arcPoint(a, 0.90f), arcPoint(b, 0.90f), width, visualColor_);
+            line(arcPoint(a, 0.55f), arcPoint(a, 1.20f + charge * 0.20f), width, signal);
+        }
+        // Supports use their existing line batch: no effect actors, meshes or
+        // textures are allocated for a new warning or an individual summon.
+        const float radius = emp ? expguard::kEmpRadius : 2.8f;
+        if (warning || supportFlashTimer_ > 0.0f) {
+            const float flash = (std::clamp)(supportFlashTimer_ / 0.32f, 0.0f, 1.0f);
+            const float growing = warning ? 0.25f + 0.75f * charge : 1.0f;
+            constexpr int segments = 32;
+            for (int i = 0; i < segments; ++i) {
+                const float a = tau * static_cast<float>(i) / segments;
+                const float b = tau * static_cast<float>(i + 1) / segments;
+                line(arcPoint(a, radius), arcPoint(b, radius), width * (0.65f + flash),
+                    { signal.x, signal.y, signal.z, warning ? 0.30f + 0.30f * charge : flash * 0.7f });
+                if (warning) line(arcPoint(a, radius * growing), arcPoint(b, radius * growing), width * 0.60f,
+                    { signal.x, signal.y, signal.z, 0.18f + charge * 0.24f });
+            }
+            if (!emp) for (int i = 0; i < 3; ++i) {
+                const float angle = tau * static_cast<float>(i) / 3.0f;
+                const Vector3 marker = arcPoint(angle, radius);
+                line(marker - side * 0.30f, marker + side * 0.30f, width, signal);
+                line(marker - forward * 0.30f, marker + forward * 0.30f, width, signal);
+            }
+        }
+        return;
+    }
     if (type_ == ExpEnemyType::BladeGuard) {
         const auto phase = bladeCycle_.GetPhase();
         const bool recovery = phase == ExpEnemyCombatPhase::Recovery;
@@ -695,21 +811,24 @@ void ExpEnemy::QueueCombatVisuals(NeonGridRenderer& renderer, const Vector3& cam
         }
         return;
     }
-    if (type_ == ExpEnemyType::ShieldGuard) {
+    if (type_ == ExpEnemyType::ShieldGuard || type_ == ExpEnemyType::ReflectArmor) {
+        const bool reflect = type_ == ExpEnemyType::ReflectArmor;
+        const float halfAngle = reflect ? expguard::kReflectHalfAngle : expguard::kShieldHalfAngle;
         const float flash = shieldFlashTimer_ / 0.13f;
-        const Vector4 shieldColor{ 0.25f + 1.1f * flash, 1.15f + 0.8f * flash, 1.65f + 0.5f * flash, 0.58f + 0.35f * flash };
+        const Vector4 shieldColor = reflect ? Vector4{ 1.7f + flash, 0.25f + 0.45f * flash, 1.6f + 0.55f * flash, 0.58f + 0.35f * flash } :
+            Vector4{ 0.25f + 1.1f * flash, 1.15f + 0.8f * flash, 1.65f + 0.5f * flash, 0.58f + 0.35f * flash };
         constexpr int segments = 8;
         for (int i = 0; i < segments; ++i) {
-            const float a = -expguard::kShieldHalfAngle + 2.0f * expguard::kShieldHalfAngle * static_cast<float>(i) / segments;
-            const float b = -expguard::kShieldHalfAngle + 2.0f * expguard::kShieldHalfAngle * static_cast<float>(i + 1) / segments;
+            const float a = -halfAngle + 2.0f * halfAngle * static_cast<float>(i) / segments;
+            const float b = -halfAngle + 2.0f * halfAngle * static_cast<float>(i + 1) / segments;
             line(arcPoint(a, 1.45f), arcPoint(b, 1.45f), width * (1.3f + flash), shieldColor);
             // A transparent second band communicates its surface without
             // filling the body, player bullets or the aiming reticle.
             line(arcPoint(a, 1.33f), arcPoint(b, 1.33f), 0.22f,
                 { shieldColor.x, shieldColor.y, shieldColor.z, 0.12f + 0.16f * flash });
         }
-        line(arcPoint(-expguard::kShieldHalfAngle, 1.2f), arcPoint(-expguard::kShieldHalfAngle, 1.55f), width, shieldColor);
-        line(arcPoint(expguard::kShieldHalfAngle, 1.2f), arcPoint(expguard::kShieldHalfAngle, 1.55f), width, shieldColor);
+        line(arcPoint(-halfAngle, 1.2f), arcPoint(-halfAngle, 1.55f), width, shieldColor);
+        line(arcPoint(halfAngle, 1.2f), arcPoint(halfAngle, 1.55f), width, shieldColor);
     }
     const float pulse = 1.0f + GetAttackTelegraphRatio() * 0.10f;
     if (type_ == ExpEnemyType::Charger) {
@@ -899,7 +1018,9 @@ void ExpEnemy::OnCollision(Collider* other)
         if (auto* bullet = dynamic_cast<Bullet*>(other)) {
             // Current incoming direction correctly handles ricochets and
             // projectiles which already crossed the actor centre this frame.
-            const Vector3 movement = bullet->GetMove();
+            const Vector3 sweptMovement = bullet->GetWorldPosition() - bullet->GetPreviousWorldPosition();
+            const Vector3 movement = bullet->GetSpecialKind() != Bullet::SpecialKind::None && Length(sweptMovement) > 0.0001f ?
+                sweptMovement : bullet->GetMove();
             if (Length(movement) > 0.0001f) source = GetWorldPosition() - Normalize(movement);
             melee = bullet->GetSpecialKind() == Bullet::SpecialKind::SlashWave;
         }
@@ -949,6 +1070,7 @@ void ExpEnemy::ApplyKnockback(const Vector3& direction, float power)
 {
     if (isDead_ || isRunResource_ || !std::isfinite(power) || power <= 0.0f || Length(direction) < 0.001f) return;
     velocity_ += Normalize(direction) * (std::min)(0.95f, power);
+    if (power >= 0.16f) wallImpactArmedTimer_ = 1.0f;
     if (Length(velocity_) > 0.95f) velocity_ = Normalize(velocity_) * 0.95f;
     // A committed impact can interrupt a light enemy, but does not reset its
     // magazine or grant an instant shot when it recovers.
@@ -977,10 +1099,10 @@ bool ExpEnemy::ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinar
             isRunResource_ ? 0.46f : 0.32f);
         if (isRunResource_) {
             if (runResourceClaimCallback_) runResourceClaimCallback_(playerOwned);
-        } else if (playerOwned) {
+        } else if (playerOwned && !IsSummonedUnit()) {
             if (player_) player_->AddExp(expValue_);
             if (playerDefeatCallback_) playerDefeatCallback_(GetWorldPosition());
-        } else if (reportOrdinaryEnemyKill && enemyKillCallback_) {
+        } else if (!IsSummonedUnit() && reportOrdinaryEnemyKill && enemyKillCallback_) {
             enemyKillCallback_(expValue_);
         }
         return true;

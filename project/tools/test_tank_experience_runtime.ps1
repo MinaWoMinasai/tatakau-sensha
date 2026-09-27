@@ -62,7 +62,7 @@ try {
         $experienceExpectedWallet = if ($experienceVariant -eq 1) { 43 } else { 58 }
         if ($experienceResult.introWallet -ne 58 -or $experienceResult.afterIntroWallet -ne $experienceExpectedWallet -or
             @($experienceResult.introOffers).Count -ne 3 -or $experienceResult.prematureCredits -ne 0 -or
-            $experienceResult.earlyFlightSamples -lt 1 -or !$experienceResult.meleeProbeCompleted -or !$experienceResult.buildPreserved -or !$experienceResult.refitVerified -or
+            $experienceResult.earlyFlightSamples -lt 1 -or !$experienceResult.meleeProbeCompleted -or !$experienceResult.buildPreserved -or !$experienceResult.additiveGrowthVerified -or
             $experienceResult.meleeTargetHp -ge 500 -or $experienceResult.buildStyle -ne $Style.ToLowerInvariant() -or
             @($experienceResult.visited).Count -lt 18 -or @($experienceResult.visited).Count -gt 22) {
             throw "Currency, offer, route or melee evidence incomplete: $experienceResultPath"

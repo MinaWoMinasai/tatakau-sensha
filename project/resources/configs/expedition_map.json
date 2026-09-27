@@ -287,6 +287,27 @@
         "lastColumn": 31,
         "weight": 2,
         "roomTemplate": "guard_patrol"
+      },
+      {
+        "kind": "combat",
+        "firstColumn": 7,
+        "lastColumn": 31,
+        "weight": 2,
+        "roomTemplate": "command_post"
+      },
+      {
+        "kind": "combat",
+        "firstColumn": 10,
+        "lastColumn": 31,
+        "weight": 2,
+        "roomTemplate": "emp_patrol"
+      },
+      {
+        "kind": "combat",
+        "firstColumn": 13,
+        "lastColumn": 31,
+        "weight": 2,
+        "roomTemplate": "reflect_bastion"
       }
     ],
     "minColumns": 18,

@@ -7,6 +7,8 @@
 #include "game/player/TankSpecialCombat.h"
 
 void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager) {
+	activeBulletManager_=bulletManager;
+	bulletManager->SetCombatContext(player,enemy,enemyManager);
 
 	// 衝突マネージャのリストをクリア
 	colliders_.clear();
@@ -34,6 +36,7 @@ void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletMa
 		}
 	}
 	bulletManager->FlushPendingSplits();
+	activeBulletManager_=nullptr;
 }
 
 void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* colliderB) {
@@ -43,6 +46,11 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 	const Bullet* bulletB = dynamic_cast<const Bullet*>(colliderB);
 	if ((bulletA && bulletA->IsDead()) || (bulletB && bulletB->IsDead())) {
 		return;
+	}
+	// Chain damage can defeat later actors in this same collision pass.
+	for(auto* actor:{colliderA,colliderB}) {
+		if(auto* enemy=dynamic_cast<ExpEnemy*>(actor);enemy&&enemy->IsDead())return;
+		if(auto* boss=dynamic_cast<Enemy*>(actor);boss&&(boss->IsDead()||boss->GetHp()<=0))return;
 	}
 	// A penetrating bullet may overlap an actor for several frames. Suppress
 	// both callbacks so that neither damage nor impact effects repeat.
@@ -59,7 +67,7 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 		hit = dist < (colliderA->GetRadius() + colliderB->GetRadius());
 		// Large, fast special shots must not tunnel through a target between frames.
 		auto swept=[&](const Bullet* shot,Collider* target) {
-			if(!shot||shot->GetSpecialKind()==Bullet::SpecialKind::None)return false;
+			if(!shot||(shot->GetSpecialKind()==Bullet::SpecialKind::None&&!shot->IsBoomerang()))return false;
 			const auto a=shot->GetPreviousWorldPosition(),b=shot->GetWorldPosition(),p=target->GetWorldPosition();
 			return tankspecial::SegmentTouches(a.x,a.y,b.x,b.y,p.x,p.y,shot->GetRadius()+target->GetRadius());
 		};
@@ -90,8 +98,35 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 	if (auto* player = dynamic_cast<Player*>(colliderA); player && player->TryDashImpact(colliderB)) return;
 	if (auto* player = dynamic_cast<Player*>(colliderB); player && player->TryDashImpact(colliderA)) return;
 
+	Bullet* shot=dynamic_cast<Bullet*>(colliderA);
+	Collider* victim=colliderB;
+	if(!shot){shot=dynamic_cast<Bullet*>(colliderB);victim=colliderA;}
+	const bool playerHit=shot&&shot->GetOwner()==kPlayer&&!dynamic_cast<Bullet*>(victim)&&
+		(dynamic_cast<ExpEnemy*>(victim)||dynamic_cast<Enemy*>(victim));
+	if(playerHit&&activeBulletManager_&&!shot->WasArmorReflected()&&
+		(shot->GetSpecialKind()==Bullet::SpecialKind::None||shot->GetSpecialKind()==Bullet::SpecialKind::Rail)) {
+		if(auto* armor=dynamic_cast<ExpEnemy*>(victim)) {
+			Vector3 movement=shot->GetWorldPosition()-shot->GetPreviousWorldPosition();
+			if(Length(movement)<.0001f)movement=shot->GetMove();
+			const Vector3 source=victim->GetWorldPosition()-(Length(movement)>.0001f?Normalize(movement):Vector3{1,0,0});
+			if(armor->TryReflectProjectile(source)) {
+				activeBulletManager_->QueueArmorReflection(*shot,victim->GetWorldPosition());shot->Die();return;
+			}
+		}
+	}
+	const uint32_t originalDamage=shot?shot->GetDamage():0;
+	if(playerHit&&shot->GetSourcePlayer()&&shot->GetSourceDroneIndex()>=0)
+		shot->SetDamage(shot->GetSourcePlayer()->NotifyDroneHit(shot->GetSourceDroneIndex(),victim,originalDamage));
+
 	colliderA->OnCollision(colliderB);
 	colliderB->OnCollision(colliderA);
+	if(playerHit&&activeBulletManager_) {
+		bool killed=false;
+		if(auto* regular=dynamic_cast<ExpEnemy*>(victim))killed=regular->IsDead();
+		else if(auto* boss=dynamic_cast<Enemy*>(victim))killed=boss->GetHp()<=0;
+		activeBulletManager_->NotifyPlayerHit(*shot,*victim,killed);
+	}
+	if(shot)shot->SetDamage(originalDamage);
 }
 
 void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager) {
@@ -101,7 +136,7 @@ void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager*
 
 	// プレイヤードローンを登録
 	for (PlayerDrone* drone : player->GetDronePtrs()) {
-		colliders_.push_back(drone);
+		if(drone&&drone->IsRunAvailable())colliders_.push_back(drone);
 	}
 
 	// 敵を登録

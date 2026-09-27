@@ -260,6 +260,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\player\actor\Bullet.cpp" />
     <ClCompile Include="game\player\actor\BulletManager.cpp" />
     <ClCompile Include="game\player\actor\Player.cpp" />
+    <ClCompile Include="game\player\actor\Player.SpecialAbilities.cpp" />
     <ClCompile Include="game\player\actor\PlayerDrone.cpp" />
     <ClCompile Include="game\player\actor\Stage.cpp" />
     <ClCompile Include="game\ui\NeonProgressBar.cpp" />

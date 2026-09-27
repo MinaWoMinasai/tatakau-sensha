@@ -33,7 +33,25 @@ struct TankRunModifiers {
 	bool droneLaserLink = false;
 	bool slashWave = false;
 	bool parryBlade = false;
-	std::array<float,24> effectPower{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+	bool extraBarrel1 = false;
+	bool extraBarrel2 = false;
+	bool fanMount = false;
+	bool alternatingFire = false;
+	bool heavyDroneCore = false;
+	bool lightBladeActuator = false;
+	bool heavyBladeEdge = false;
+	bool chainLightning = false;
+	bool markDetonation = false;
+	bool boomerangShell = false;
+	bool killBurst = false;
+	bool droneCharge = false;
+	bool droneRebuildBomb = false;
+	bool targetPainter = false;
+	bool autonomousSpread = false;
+	bool dashSlash = false;
+	bool spinBlade = false;
+	bool wallSmash = false;
+	std::array<float,42> effectPower=[] {std::array<float,42> p{};p.fill(1);return p;}();
 };
 
 inline constexpr float TankEffectPower(const TankRunModifiers& modifiers,size_t index) {
@@ -154,6 +172,8 @@ inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step,const TankRunM
     if(modifiers.impactDrive)result.knockback*=1.0f+.5f*TankEffectPower(modifiers,14);
     if(modifiers.meleeTempo) {const float rate=(std::max)(.05f,1.0f-.18f*TankEffectPower(modifiers,18));result.windup*=rate;result.duration*=rate;result.recovery*=rate;}
     if(modifiers.finisherCharge&&step==2) {const float p=TankEffectPower(modifiers,19);result.damage*=1.0f+.5f*p;result.knockback*=1.0f+.2f*p;}
+    if(modifiers.lightBladeActuator) {const float p=TankEffectPower(modifiers,29);result.damage*=(std::max)(.1f,1-.05f*p);const float speed=(std::max)(.2f,1-.15f*p);result.windup*=speed;result.duration*=speed;result.recovery*=speed;}
+    if(modifiers.heavyBladeEdge) {const float p=TankEffectPower(modifiers,30);result.damage*=1+.45f*p;const float speed=1+.18f*p;result.windup*=speed;result.duration*=speed;result.recovery*=speed;}
     return result;
 }
 
@@ -162,12 +182,14 @@ inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step,const TankRunM
 struct TankDroneTuning {
     float damageScale=0.35f, reloadSeconds=0.75f, spreadDegrees=6.0f;
     float bulletHp=1.0f, interception=1.0f;
+    float sizeScale=1.0f,trailScale=1.0f;
 };
 inline constexpr TankDroneTuning MakeTankDroneTuning(const TankRunModifiers& modifiers, bool primaryStyle) {
     TankDroneTuning result{};
     if(primaryStyle) { result.damageScale=1.0f; result.reloadSeconds=0.5f; result.spreadDegrees=0.0f; }
     if(!modifiers.enabled) return result;
-    if(modifiers.droneFocus) {const float p=TankEffectPower(modifiers,16);result.damageScale*=1.0f+.4f*p;result.reloadSeconds*=1.0f+.15f*p;result.spreadDegrees=0;}
+    if(modifiers.droneFocus) {const float p=TankEffectPower(modifiers,16);result.damageScale*=1.0f+(modifiers.expedition?.15f:.4f)*p;if(!modifiers.expedition)result.reloadSeconds*=1.0f+.15f*p;result.spreadDegrees=0;}
+    if(modifiers.heavyDroneCore) {const float p=TankEffectPower(modifiers,28);result.damageScale*=1.0f+.45f*p;result.reloadSeconds*=1.0f+.2f*p;result.sizeScale=1+.2f*p;result.trailScale=1+.25f*p;}
     if(modifiers.droneGuard) {result.bulletHp=1.0f+2.0f*TankEffectPower(modifiers,17);result.interception=result.bulletHp;}
     return result;
 }

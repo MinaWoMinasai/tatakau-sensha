@@ -7,6 +7,9 @@
 #include "CollisionConfig.h"
 #include <Object3d.h>
 #include "TrailManager.h"
+#include "game/player/TankShooterAbilities.h"
+
+class Player;
 
 struct BulletTrailSettings {
 	float playerHalfWidth = 0.26f;
@@ -37,7 +40,21 @@ struct BulletTrailSettings {
 class Bullet : public Collider {
 
 public:
-	enum class SpecialKind { None, Rail, SlashWave, ParryReflection };
+	enum class SpecialKind { None, Rail, SlashWave, ParryReflection, ArmorReflection };
+	struct ShooterAbilities {bool chain=false,mark=false,boomerang=false,killBurst=false;float chainPower=1,markPower=1,boomerangPower=1,burstPower=1;};
+	void ConfigureShooterAbilities(bool chain,bool mark,bool boomerang,bool killBurst,float chainPower=1,float markPower=1,float boomerangPower=1,float burstPower=1);
+	const ShooterAbilities& GetShooterAbilities() const {return shooter_;}
+	void ConfigureDroneSource(int index,Player* player) {sourceDroneIndex_=index;sourcePlayer_=player;}
+	int GetSourceDroneIndex() const {return sourceDroneIndex_;}
+	Player* GetSourcePlayer() const {return sourcePlayer_;}
+	bool GetIsReturning() const {return returnFlight_.returning;}
+	bool IsBoomerang() const {return shooter_.boomerang;}
+	void SetReturnTarget(const Vector3& target) {returnTarget_=target;}
+	void SetArmorReflected(bool value) {armorReflected_=value;}
+	bool WasArmorReflected() const {return armorReflected_;}
+	bool IsBurstChild() const {return burstChild_;}
+	void SetBurstChild(bool value) {burstChild_=value;}
+	void ConfigureVisualScale(float size,float trail) {radius_=.5f*(std::clamp)(size,.5f,2.0f);visualTrailScale_=(std::clamp)(trail,.5f,2.0f);}
 	struct SpecialImpact { SpecialKind kind=SpecialKind::None;Vector3 position{},direction{};bool bulletCut=false; };
 	std::vector<SpecialImpact> ConsumeSpecialImpacts() {auto events=std::move(specialImpacts_);specialImpacts_.clear();return events;}
 	void ConfigureSpecial(SpecialKind kind, float radius, float lifetime);
@@ -108,6 +125,14 @@ private:
 	TrailConfig MakeTrailConfig() const;
 	Vector4 GetBulletColor() const;
 	void QueueImpactSplit(const Vector3& direction);
+	void BeginReturn();
+	ShooterAbilities shooter_{};
+	tankshooter::ReturnFlight returnFlight_{};
+	Vector3 returnTarget_{};
+	Player* sourcePlayer_=nullptr;
+	int sourceDroneIndex_=-1;
+	bool armorReflected_=false,burstChild_=false;
+	float visualTrailScale_=1;
 
 	std::unique_ptr<Object3d> object_;
 

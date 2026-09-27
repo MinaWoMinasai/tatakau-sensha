@@ -4,39 +4,39 @@
       "behavior": "Square",
       "bulletDamage": 10,
       "color": [
-        1.0,
+        1,
         0.8600000143051147,
         0.20000000298023224,
-        1.0
+        1
       ],
       "contactDamage": 8,
       "creditDrop": 2,
-      "fireIntervalScale": 1.0,
+      "fireIntervalScale": 1,
       "hp": 6,
       "id": "Square",
       "magazineSize": 0,
-      "moveSpeedScale": 1.0,
+      "moveSpeedScale": 1,
       "name": "四角資源",
-      "reloadSeconds": 0.0
+      "reloadSeconds": 0
     },
     {
       "behavior": "Triangle",
       "bulletDamage": 10,
       "color": [
-        1.0,
+        1,
         0.30000001192092896,
         0.3499999940395355,
-        1.0
+        1
       ],
       "contactDamage": 8,
       "creditDrop": 3,
-      "fireIntervalScale": 1.0,
+      "fireIntervalScale": 1,
       "hp": 10,
       "id": "Triangle",
       "magazineSize": 0,
-      "moveSpeedScale": 1.0,
+      "moveSpeedScale": 1,
       "name": "三角資源",
-      "reloadSeconds": 0.0
+      "reloadSeconds": 0
     },
     {
       "behavior": "Pentagon",
@@ -44,18 +44,18 @@
       "color": [
         0.3499999940395355,
         0.47999998927116394,
-        1.0,
-        1.0
+        1,
+        1
       ],
       "contactDamage": 8,
       "creditDrop": 7,
-      "fireIntervalScale": 1.0,
+      "fireIntervalScale": 1,
       "hp": 24,
       "id": "Pentagon",
       "magazineSize": 0,
-      "moveSpeedScale": 1.0,
+      "moveSpeedScale": 1,
       "name": "五角資源",
-      "reloadSeconds": 0.0
+      "reloadSeconds": 0
     },
     {
       "behavior": "Shooter",
@@ -64,17 +64,17 @@
         0.949999988079071,
         0.25,
         0.18000000715255737,
-        1.0
+        1
       ],
       "contactDamage": 8,
       "creditDrop": 5,
-      "fireIntervalScale": 1.0,
+      "fireIntervalScale": 1,
       "hp": 14,
       "id": "Shooter",
       "magazineSize": 0,
-      "moveSpeedScale": 1.0,
+      "moveSpeedScale": 1,
       "name": "射撃砲台",
-      "reloadSeconds": 0.0
+      "reloadSeconds": 0
     },
     {
       "behavior": "Charger",
@@ -83,17 +83,17 @@
         1.600000023841858,
         0.36000001430511475,
         0.10000000149011612,
-        1.0
+        1
       ],
       "contactDamage": 8,
       "creditDrop": 6,
-      "fireIntervalScale": 1.0,
+      "fireIntervalScale": 1,
       "hp": 30,
       "id": "Charger",
       "magazineSize": 0,
-      "moveSpeedScale": 1.0,
+      "moveSpeedScale": 1,
       "name": "突進兵",
-      "reloadSeconds": 0.0
+      "reloadSeconds": 0
     },
     {
       "behavior": "Sniper",
@@ -102,17 +102,17 @@
         1.399999976158142,
         0.1599999964237213,
         0.7200000286102295,
-        1.0
+        1
       ],
       "contactDamage": 8,
       "creditDrop": 6,
-      "fireIntervalScale": 1.0,
+      "fireIntervalScale": 1,
       "hp": 24,
       "id": "Sniper",
       "magazineSize": 0,
-      "moveSpeedScale": 1.0,
+      "moveSpeedScale": 1,
       "name": "狙撃兵",
-      "reloadSeconds": 0.0
+      "reloadSeconds": 0
     },
     {
       "behavior": "Skirmisher",
@@ -121,17 +121,17 @@
         0.20000000298023224,
         1.4500000476837158,
         1.75,
-        1.0
+        1
       ],
       "contactDamage": 8,
       "creditDrop": 6,
-      "fireIntervalScale": 1.0,
+      "fireIntervalScale": 1,
       "hp": 28,
       "id": "Skirmisher",
       "magazineSize": 0,
-      "moveSpeedScale": 1.0,
+      "moveSpeedScale": 1,
       "name": "機動射撃兵",
-      "reloadSeconds": 0.0
+      "reloadSeconds": 0
     },
     {
       "behavior": "Flanker",
@@ -140,17 +140,17 @@
         1.75,
         0.25,
         0.800000011920929,
-        1.0
+        1
       ],
       "contactDamage": 8,
       "creditDrop": 7,
-      "fireIntervalScale": 1.0,
+      "fireIntervalScale": 1,
       "hp": 32,
       "id": "Flanker",
       "magazineSize": 0,
-      "moveSpeedScale": 1.0,
+      "moveSpeedScale": 1,
       "name": "接近散弾兵",
-      "reloadSeconds": 0.0
+      "reloadSeconds": 0
     },
     {
       "behavior": "Suppressor",
@@ -159,17 +159,17 @@
         1.600000023841858,
         0.949999988079071,
         0.1599999964237213,
-        1.0
+        1
       ],
       "contactDamage": 8,
       "creditDrop": 9,
-      "fireIntervalScale": 1.0,
+      "fireIntervalScale": 1,
       "hp": 42,
       "id": "Suppressor",
       "magazineSize": 0,
-      "moveSpeedScale": 1.0,
+      "moveSpeedScale": 1,
       "name": "制圧射撃兵",
-      "reloadSeconds": 0.0
+      "reloadSeconds": 0
     },
     {
       "behavior": "Charger",
@@ -178,17 +178,17 @@
         1.399999976158142,
         0.800000011920929,
         0.10000000149011612,
-        1.0
+        1
       ],
       "contactDamage": 8,
       "creditDrop": 12,
-      "fireIntervalScale": 1.0,
+      "fireIntervalScale": 1,
       "hp": 65,
       "id": "ArmoredCharger",
       "magazineSize": 0,
       "moveSpeedScale": 0.75,
       "name": "重装突進兵",
-      "reloadSeconds": 0.0
+      "reloadSeconds": 0
     },
     {
       "behavior": "Sniper",
@@ -197,7 +197,7 @@
         0.5,
         0.30000001192092896,
         1.7000000476837158,
-        1.0
+        1
       ],
       "contactDamage": 8,
       "creditDrop": 10,
@@ -205,9 +205,9 @@
       "hp": 32,
       "id": "RapidSniper",
       "magazineSize": 0,
-      "moveSpeedScale": 1.0,
+      "moveSpeedScale": 1,
       "name": "高速狙撃兵",
-      "reloadSeconds": 0.0
+      "reloadSeconds": 0
     },
     {
       "id": "ShieldGuard",
@@ -217,10 +217,10 @@
       "contactDamage": 8,
       "bulletDamage": 8,
       "creditDrop": 12,
-      "moveSpeedScale": 1.0,
-      "fireIntervalScale": 1.0,
+      "moveSpeedScale": 1,
+      "fireIntervalScale": 1,
       "magazineSize": 0,
-      "reloadSeconds": 0.0,
+      "reloadSeconds": 0,
       "color": [
         0.18,
         1.2,
@@ -236,16 +236,73 @@
       "contactDamage": 18,
       "bulletDamage": 10,
       "creditDrop": 12,
-      "moveSpeedScale": 1.0,
-      "fireIntervalScale": 1.0,
+      "moveSpeedScale": 1,
+      "fireIntervalScale": 1,
       "magazineSize": 0,
-      "reloadSeconds": 0.0,
+      "reloadSeconds": 0,
       "color": [
         1.6,
         0.38,
         0.12,
         1
       ]
+    },
+    {
+      "id": "SummonerCommander",
+      "name": "召喚指揮兵",
+      "behavior": "SummonerCommander",
+      "hp": 75,
+      "contactDamage": 8,
+      "bulletDamage": 5,
+      "creditDrop": 12,
+      "color": [
+        0.85,
+        0.45,
+        1.7,
+        1
+      ],
+      "moveSpeedScale": 1,
+      "fireIntervalScale": 1,
+      "magazineSize": 0,
+      "reloadSeconds": 0
+    },
+    {
+      "id": "EMPJammer",
+      "name": "EMP妨害兵",
+      "behavior": "EMPJammer",
+      "hp": 60,
+      "contactDamage": 8,
+      "bulletDamage": 10,
+      "creditDrop": 12,
+      "color": [
+        0.3,
+        0.9,
+        1.7,
+        1
+      ],
+      "moveSpeedScale": 1,
+      "fireIntervalScale": 1,
+      "magazineSize": 0,
+      "reloadSeconds": 0
+    },
+    {
+      "id": "ReflectArmor",
+      "name": "反射装甲兵",
+      "behavior": "ReflectArmor",
+      "hp": 90,
+      "contactDamage": 10,
+      "bulletDamage": 8,
+      "creditDrop": 14,
+      "color": [
+        1.5,
+        0.25,
+        0.9,
+        1
+      ],
+      "moveSpeedScale": 1,
+      "fireIntervalScale": 1,
+      "magazineSize": 0,
+      "reloadSeconds": 0
     }
   ],
   "players": [
@@ -255,23 +312,23 @@
       "baseClass": "Twin",
       "bodyShape": 0,
       "bulletCount": 1,
-      "bulletSpeedScale": 1.0,
+      "bulletSpeedScale": 1,
       "color": [
         0.30000001192092896,
         1.5,
         1.2999999523162842,
-        1.0
+        1
       ],
-      "damageScale": 1.0,
+      "damageScale": 1,
       "description": "2門を同時発射。直線火力を伸ばす。",
       "drones": 0,
-      "fanAngle": 0.0,
+      "fanAngle": 0,
       "id": "TwinBattery",
       "name": "ツイン砲台",
       "penetrate": false,
       "price": 40,
       "reflect": false,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "style": "shooter",
       "rarity": 1
     },
@@ -281,23 +338,23 @@
       "baseClass": "Twin",
       "bodyShape": 0,
       "bulletCount": 1,
-      "bulletSpeedScale": 1.0,
+      "bulletSpeedScale": 1,
       "color": [
         0.30000001192092896,
         1.5,
         1.2999999523162842,
-        1.0
+        1
       ],
       "damageScale": 0.7799999713897705,
       "description": "3門を扇状に発射。広い範囲を制圧。",
       "drones": 0,
-      "fanAngle": 14.0,
+      "fanAngle": 14,
       "id": "FanBattery",
       "name": "扇形砲台",
       "penetrate": false,
       "price": 48,
       "reflect": false,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "style": "shooter",
       "rarity": 1
     },
@@ -307,17 +364,17 @@
       "baseClass": "MachineGun",
       "bodyShape": 0,
       "bulletCount": 1,
-      "bulletSpeedScale": 1.0,
+      "bulletSpeedScale": 1,
       "color": [
         0.30000001192092896,
         1.100000023841858,
         1.7999999523162842,
-        1.0
+        1
       ],
       "damageScale": 0.800000011920929,
       "description": "交互射撃で切れ目なく攻撃。",
       "drones": 0,
-      "fanAngle": 0.0,
+      "fanAngle": 0,
       "id": "RapidBattery",
       "name": "速射機体",
       "penetrate": false,
@@ -333,23 +390,23 @@
       "baseClass": "Twin",
       "bodyShape": 1,
       "bulletCount": 1,
-      "bulletSpeedScale": 1.0,
+      "bulletSpeedScale": 1,
       "color": [
         1.600000023841858,
         0.4000000059604645,
         1.2000000476837158,
-        1.0
+        1
       ],
       "damageScale": 0.8500000238418579,
       "description": "3門から反射弾を発射。",
       "drones": 0,
-      "fanAngle": 0.0,
+      "fanAngle": 0,
       "id": "BankshotBattery",
       "name": "反射機体",
       "penetrate": false,
       "price": 48,
       "reflect": true,
-      "reloadScale": 1.0,
+      "reloadScale": 1,
       "style": "shooter",
       "rarity": 2
     },
@@ -359,17 +416,17 @@
       "baseClass": "Overseer",
       "bodyShape": 3,
       "bulletCount": 1,
-      "bulletSpeedScale": 1.0,
+      "bulletSpeedScale": 1,
       "color": [
         0.5,
         1.600000023841858,
         0.699999988079071,
-        1.0
+        1
       ],
-      "damageScale": 1.0,
+      "damageScale": 1,
       "description": "3機のドローンで継続攻撃。各機の発射間隔15%短縮。",
       "drones": 3,
-      "fanAngle": 0.0,
+      "fanAngle": 0,
       "id": "DroneCarrier",
       "name": "ドローン母艦",
       "penetrate": false,
@@ -385,17 +442,17 @@
       "baseClass": "Overseer",
       "bodyShape": 3,
       "bulletCount": 1,
-      "bulletSpeedScale": 1.0,
+      "bulletSpeedScale": 1,
       "color": [
         0.5,
         1.600000023841858,
         0.699999988079071,
-        1.0
+        1
       ],
       "damageScale": 1.4500000476837158,
       "description": "2機の重ドローン。威力45%増、発射間隔20%増。",
       "drones": 2,
-      "fanAngle": 0.0,
+      "fanAngle": 0,
       "id": "DroneArtillery",
       "name": "重射撃編隊",
       "penetrate": false,
@@ -411,17 +468,17 @@
       "baseClass": "Basic",
       "bodyShape": 0,
       "bulletCount": 1,
-      "bulletSpeedScale": 1.0,
+      "bulletSpeedScale": 1,
       "color": [
         0.30000001192092896,
         1.399999976158142,
         1.7000000476837158,
-        1.0
+        1
       ],
       "damageScale": 0.949999988079071,
       "description": "近接連撃の動作を15%短縮。威力5%減。",
       "drones": 0,
-      "fanAngle": 0.0,
+      "fanAngle": 0,
       "id": "MeleeSweeper",
       "name": "旋回ブレード",
       "penetrate": false,
@@ -437,17 +494,17 @@
       "baseClass": "Basic",
       "bodyShape": 0,
       "bulletCount": 1,
-      "bulletSpeedScale": 1.0,
+      "bulletSpeedScale": 1,
       "color": [
         1.649999976158142,
         0.550000011920929,
         0.15000000596046448,
-        1.0
+        1
       ],
       "damageScale": 1.4500000476837158,
       "description": "近接威力45%増、各動作18%増。重い一撃を狙う。",
       "drones": 0,
-      "fanAngle": 0.0,
+      "fanAngle": 0,
       "id": "MeleeBreaker",
       "name": "重撃ブレード",
       "penetrate": false,
@@ -458,7 +515,7 @@
       "style": "melee"
     }
   ],
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "upgrades": [
     {
       "description": "壁で弾が反射する。1砲門1発のまま、角度を使って敵を狙う。",
@@ -475,7 +532,7 @@
         "drone"
       ],
       "effectPower": {
-        "Ricochet": 1.0
+        "Ricochet": 1
       }
     },
     {
@@ -494,7 +551,7 @@
         "melee"
       ],
       "effectPower": {
-        "Heavy": 1.0
+        "Heavy": 1
       }
     },
     {
@@ -513,7 +570,7 @@
         "melee"
       ],
       "effectPower": {
-        "Rapid": 1.0
+        "Rapid": 1
       }
     },
     {
@@ -532,7 +589,7 @@
         "melee"
       ],
       "effectPower": {
-        "Thrusters": 1.0
+        "Thrusters": 1
       }
     },
     {
@@ -551,7 +608,7 @@
         "melee"
       ],
       "effectPower": {
-        "Capacitor": 1.0
+        "Capacitor": 1
       }
     },
     {
@@ -570,7 +627,7 @@
         "melee"
       ],
       "effectPower": {
-        "Repair": 1.0
+        "Repair": 1
       }
     },
     {
@@ -587,7 +644,7 @@
         "drone"
       ],
       "effectPower": {
-        "Drones": 1.0
+        "Drones": 1
       }
     },
     {
@@ -605,7 +662,7 @@
         "drone"
       ],
       "effectPower": {
-        "Pierce": 1.0
+        "Pierce": 1
       }
     },
     {
@@ -623,7 +680,7 @@
         "drone"
       ],
       "effectPower": {
-        "Homing": 1.0
+        "Homing": 1
       }
     },
     {
@@ -642,7 +699,7 @@
         "melee"
       ],
       "effectPower": {
-        "DashBurst": 1.0
+        "DashBurst": 1
       }
     },
     {
@@ -661,48 +718,7 @@
         "melee"
       ],
       "effectPower": {
-        "Overdrive": 1.0
-      }
-    },
-    {
-      "description": "弾数を増やさず反射と貫通を組み合わせる。",
-      "effects": [
-        "Ricochet",
-        "Pierce"
-      ],
-      "id": "BankshotKit",
-      "maxPurchases": 1,
-      "name": "反射貫通キット",
-      "price": 58,
-      "rarity": 2,
-      "compatibleStyles": [
-        "shooter",
-        "drone"
-      ],
-      "effectPower": {
-        "Ricochet": 1.0,
-        "Pierce": 1.0
-      }
-    },
-    {
-      "description": "攻撃力と衝撃放電を組み合わせ、突進先で爆発。",
-      "effects": [
-        "Heavy",
-        "DashBurst"
-      ],
-      "id": "DashBomberKit",
-      "maxPurchases": 1,
-      "name": "突撃爆破キット",
-      "price": 58,
-      "rarity": 2,
-      "compatibleStyles": [
-        "shooter",
-        "drone",
-        "melee"
-      ],
-      "effectPower": {
-        "Heavy": 1.0,
-        "DashBurst": 1.0
+        "Overdrive": 1
       }
     },
     {
@@ -719,7 +735,7 @@
         "melee"
       ],
       "effectPower": {
-        "BladeReach": 1.0
+        "BladeReach": 1
       }
     },
     {
@@ -738,7 +754,7 @@
         "melee"
       ],
       "effectPower": {
-        "ImpactDrive": 1.0
+        "ImpactDrive": 1
       }
     },
     {
@@ -757,52 +773,14 @@
         "melee"
       ],
       "effectPower": {
-        "PerfectDodge": 1.0
-      }
-    },
-    {
-      "description": "体当たりと近接3段目を強化。押し込んで締めの一撃へ。",
-      "effects": [
-        "ImpactDrive",
-        "FinisherCharge"
-      ],
-      "id": "BreachBladeKit",
-      "maxPurchases": 1,
-      "name": "突破ブレードキット",
-      "price": 58,
-      "rarity": 4,
-      "compatibleStyles": [
-        "melee"
-      ],
-      "effectPower": {
-        "ImpactDrive": 1.0,
-        "FinisherCharge": 1.0
-      }
-    },
-    {
-      "description": "近接の間合いを伸ばし、連撃を18%加速する。",
-      "effects": [
-        "BladeReach",
-        "MeleeTempo"
-      ],
-      "id": "ArcBladeKit",
-      "maxPurchases": 1,
-      "name": "長刃ブレードキット",
-      "price": 58,
-      "rarity": 3,
-      "compatibleStyles": [
-        "melee"
-      ],
-      "effectPower": {
-        "BladeReach": 1.0,
-        "MeleeTempo": 1.0
+        "PerfectDodge": 1
       }
     },
     {
       "compatibleStyles": [
         "drone"
       ],
-      "description": "ドローンの威力+40%、発射間隔+15%。一撃を重くする。",
+      "description": "ドローンの精度・照準追従を強化。威力+15%、弾速+15%。集中射撃を当てやすくする。",
       "effects": [
         "DroneFocus"
       ],
@@ -812,7 +790,7 @@
       "price": 42,
       "rarity": 2,
       "effectPower": {
-        "DroneFocus": 1.0
+        "DroneFocus": 1
       }
     },
     {
@@ -829,7 +807,7 @@
       "price": 28,
       "rarity": 1,
       "effectPower": {
-        "DroneGuard": 1.0
+        "DroneGuard": 1
       }
     },
     {
@@ -846,7 +824,7 @@
       "price": 28,
       "rarity": 1,
       "effectPower": {
-        "MeleeTempo": 1.0
+        "MeleeTempo": 1
       }
     },
     {
@@ -863,89 +841,7 @@
       "price": 42,
       "rarity": 2,
       "effectPower": {
-        "FinisherCharge": 1.0
-      }
-    },
-    {
-      "compatibleStyles": [
-        "drone"
-      ],
-      "description": "ドローン弾を高威力・高耐久に。攻防を兼ねた編隊へ。",
-      "effects": [
-        "DroneFocus",
-        "DroneGuard"
-      ],
-      "id": "DroneBastionKit",
-      "maxPurchases": 1,
-      "name": "防衛精密編隊",
-      "price": 72,
-      "rarity": 4,
-      "effectPower": {
-        "DroneFocus": 1.0,
-        "DroneGuard": 1.0
-      }
-    },
-    {
-      "compatibleStyles": [
-        "drone"
-      ],
-      "description": "ドローンを追加し、追尾と貫通を付与する。",
-      "effects": [
-        "Drones",
-        "Homing",
-        "Pierce"
-      ],
-      "id": "SeekingWingKit",
-      "maxPurchases": 1,
-      "name": "追撃編隊",
-      "price": 68,
-      "rarity": 3,
-      "effectPower": {
-        "Drones": 1.0,
-        "Homing": 1.0,
-        "Pierce": 1.0
-      }
-    },
-    {
-      "compatibleStyles": [
-        "shooter",
-        "drone"
-      ],
-      "description": "壁反射と追尾を組み合わせ、射線の外まで弾を導く。",
-      "effects": [
-        "Ricochet",
-        "Homing"
-      ],
-      "id": "SeekingRicochetKit",
-      "maxPurchases": 1,
-      "name": "追尾反射回路",
-      "price": 64,
-      "rarity": 3,
-      "effectPower": {
-        "Ricochet": 1.0,
-        "Homing": 1.0
-      }
-    },
-    {
-      "compatibleStyles": [
-        "shooter",
-        "drone"
-      ],
-      "description": "貫通・追尾・過負荷を装備。ダッシュ後の連射で追い詰める。",
-      "effects": [
-        "Pierce",
-        "Homing",
-        "Overdrive"
-      ],
-      "id": "PredatorCircuit",
-      "maxPurchases": 1,
-      "name": "追撃過負荷回路",
-      "price": 78,
-      "rarity": 4,
-      "effectPower": {
-        "Pierce": 1.0,
-        "Homing": 1.0,
-        "Overdrive": 1.0
+        "FinisherCharge": 1
       }
     },
     {
@@ -962,7 +858,7 @@
         "shooter"
       ],
       "effectPower": {
-        "RailCannon": 1.0
+        "RailCannon": 1
       }
     },
     {
@@ -979,7 +875,7 @@
         "drone"
       ],
       "effectPower": {
-        "DroneLaserLink": 1.0
+        "DroneLaserLink": 1
       }
     },
     {
@@ -996,7 +892,7 @@
         "melee"
       ],
       "effectPower": {
-        "SlashWave": 1.0
+        "SlashWave": 1
       }
     },
     {
@@ -1013,112 +909,314 @@
         "melee"
       ],
       "effectPower": {
-        "ParryBlade": 1.0
+        "ParryBlade": 1
       }
     },
     {
-      "id": "Refit_TwinBattery",
-      "name": "ツイン砲台",
-      "description": "2門を同時発射。直線火力を伸ばす。",
-      "price": 56,
+      "id": "ExtraBarrel1",
+      "name": "追加砲門",
+      "description": "主砲を1門追加して2門に。各弾の威力は65%。砲門そのものを増設する。",
+      "price": 28,
       "maxPurchases": 1,
-      "rarity": 3,
-      "effects": [],
+      "rarity": 1,
+      "effects": [
+        "ExtraBarrel1"
+      ],
       "compatibleStyles": [
         "shooter"
       ],
-      "refitPlayer": "TwinBattery"
+      "effectPower": {
+        "ExtraBarrel1": 1
+      }
     },
     {
-      "id": "Refit_FanBattery",
-      "name": "扇形砲台",
-      "description": "3門を扇状に発射。広い範囲を制圧。",
-      "price": 56,
+      "id": "ExtraBarrel2",
+      "name": "追加砲門II",
+      "description": "追加砲門が必要。さらに1門追加して3門に。各弾の威力は50%。取得済みの部品は残る。",
+      "price": 42,
       "maxPurchases": 1,
-      "rarity": 3,
-      "effects": [],
+      "rarity": 2,
+      "effects": [
+        "ExtraBarrel2"
+      ],
       "compatibleStyles": [
         "shooter"
       ],
-      "refitPlayer": "FanBattery"
+      "effectPower": {
+        "ExtraBarrel2": 1
+      }
     },
     {
-      "id": "Refit_RapidBattery",
-      "name": "速射機体",
-      "description": "交互射撃で切れ目なく攻撃。",
-      "price": 56,
+      "id": "FanMount",
+      "name": "扇形砲架",
+      "description": "2門以上が必要。2門は左右8度、3門は左右14度へ主砲を開く。射撃範囲を広げる。",
+      "price": 28,
       "maxPurchases": 1,
-      "rarity": 3,
-      "effects": [],
+      "rarity": 1,
+      "effects": [
+        "FanMount"
+      ],
       "compatibleStyles": [
         "shooter"
       ],
-      "refitPlayer": "RapidBattery"
+      "effectPower": {
+        "FanMount": 1
+      }
     },
     {
-      "id": "Refit_BankshotBattery",
-      "name": "反射機体",
-      "description": "3門から反射弾を発射。",
-      "price": 56,
+      "id": "AlternatingFire",
+      "name": "交互射撃機構",
+      "description": "2門以上が必要。砲門を順番に発射。同時射撃と同じ総火力で切れ目を減らす。",
+      "price": 42,
       "maxPurchases": 1,
-      "rarity": 3,
-      "effects": [],
+      "rarity": 2,
+      "effects": [
+        "AlternatingFire"
+      ],
       "compatibleStyles": [
         "shooter"
       ],
-      "refitPlayer": "BankshotBattery"
+      "effectPower": {
+        "AlternatingFire": 1
+      }
     },
     {
-      "id": "Refit_DroneCarrier",
-      "name": "ドローン母艦",
-      "description": "3機のドローンで継続攻撃。各機の発射間隔15%短縮。",
-      "price": 56,
+      "id": "HeavyDroneCore",
+      "name": "重装ドローン",
+      "description": "全ドローンの威力+45%、攻撃間隔+20%。大きな弾を撃つ。機数は減らない。",
+      "price": 42,
       "maxPurchases": 1,
-      "rarity": 3,
-      "effects": [],
+      "rarity": 2,
+      "effects": [
+        "HeavyDroneCore"
+      ],
       "compatibleStyles": [
         "drone"
       ],
-      "refitPlayer": "DroneCarrier"
+      "effectPower": {
+        "HeavyDroneCore": 1
+      }
     },
     {
-      "id": "Refit_DroneArtillery",
-      "name": "重射撃編隊",
-      "description": "2機の重ドローン。威力45%増、発射間隔20%増。",
-      "price": 56,
+      "id": "LightBladeActuator",
+      "name": "軽量ブレード機構",
+      "description": "近接の攻撃動作を15%短縮、威力5%減。重装ブレードとも積み重なる。",
+      "price": 28,
+      "maxPurchases": 1,
+      "rarity": 1,
+      "effects": [
+        "LightBladeActuator"
+      ],
+      "compatibleStyles": [
+        "melee"
+      ],
+      "effectPower": {
+        "LightBladeActuator": 1
+      }
+    },
+    {
+      "id": "HeavyBladeEdge",
+      "name": "重装ブレード",
+      "description": "近接威力+45%、攻撃動作18%増。軽量ブレード機構とも積み重なる。",
+      "price": 42,
+      "maxPurchases": 1,
+      "rarity": 2,
+      "effects": [
+        "HeavyBladeEdge"
+      ],
+      "compatibleStyles": [
+        "melee"
+      ],
+      "effectPower": {
+        "HeavyBladeEdge": 1
+      }
+    },
+    {
+      "id": "ChainLightning",
+      "name": "連鎖放電",
+      "description": "射撃命中から半径7以内の別敵へ最大2回放電。元弾の威力の48%。同じ敵へは戻らない。",
+      "price": 42,
+      "maxPurchases": 1,
+      "rarity": 2,
+      "effects": [
+        "ChainLightning"
+      ],
+      "compatibleStyles": [
+        "shooter"
+      ],
+      "effectPower": {
+        "ChainLightning": 1
+      }
+    },
+    {
+      "id": "MarkDetonation",
+      "name": "爆裂マーカー",
+      "description": "射撃を4回当てると起爆。マークは4秒持続、威力は基礎弾の1.8倍。ボスは6回で起爆。",
+      "price": 58,
       "maxPurchases": 1,
       "rarity": 3,
-      "effects": [],
+      "effects": [
+        "MarkDetonation"
+      ],
+      "compatibleStyles": [
+        "shooter"
+      ],
+      "effectPower": {
+        "MarkDetonation": 1
+      }
+    },
+    {
+      "id": "BoomerangShell",
+      "name": "往復弾",
+      "description": "弾が飛翔後に自機へ折り返す。往路・復路でそれぞれ同じ敵へ1回命中。戻ると消える。",
+      "price": 58,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [
+        "BoomerangShell"
+      ],
+      "compatibleStyles": [
+        "shooter"
+      ],
+      "effectPower": {
+        "BoomerangShell": 1
+      }
+    },
+    {
+      "id": "KillBurst",
+      "name": "撃破バースト",
+      "description": "射撃で撃破すると6方向へ威力35%の小型弾。小型弾から追加バーストは起こらない。",
+      "price": 42,
+      "maxPurchases": 1,
+      "rarity": 2,
+      "effects": [
+        "KillBurst"
+      ],
+      "compatibleStyles": [
+        "shooter"
+      ],
+      "effectPower": {
+        "KillBurst": 1
+      }
+    },
+    {
+      "id": "DroneCharge",
+      "name": "突撃ドローン",
+      "description": "準備できたドローンが発光して標的へ突撃。命中で押し出し、自機へ帰還する。",
+      "price": 42,
+      "maxPurchases": 1,
+      "rarity": 2,
+      "effects": [
+        "DroneCharge"
+      ],
       "compatibleStyles": [
         "drone"
       ],
-      "refitPlayer": "DroneArtillery"
+      "effectPower": {
+        "DroneCharge": 1
+      }
     },
     {
-      "id": "Refit_MeleeSweeper",
-      "name": "旋回ブレード",
-      "description": "近接連撃の動作を15%短縮。威力5%減。",
-      "price": 56,
+      "id": "DroneRebuildBomb",
+      "name": "自爆再構築",
+      "description": "ドローン1機が点滅して突撃・自爆。約5.5秒使えなくなり、自機の近くで再構築する。",
+      "price": 78,
       "maxPurchases": 1,
-      "rarity": 3,
-      "effects": [],
+      "rarity": 4,
+      "effects": [
+        "DroneRebuildBomb"
+      ],
+      "compatibleStyles": [
+        "drone"
+      ],
+      "effectPower": {
+        "DroneRebuildBomb": 1
+      }
+    },
+    {
+      "id": "TargetPainter",
+      "name": "ターゲットペインター",
+      "description": "複数のドローンで同じ敵を攻撃するとLOCK。4秒間ドローンの威力+35%、ボスは+18%。",
+      "price": 42,
+      "maxPurchases": 1,
+      "rarity": 2,
+      "effects": [
+        "TargetPainter"
+      ],
+      "compatibleStyles": [
+        "drone"
+      ],
+      "effectPower": {
+        "TargetPainter": 1
+      }
+    },
+    {
+      "id": "AutonomousSpread",
+      "name": "自律分散モード",
+      "description": "左クリック中、それぞれのドローンが別の近い敵を狙う。各機の威力は18%減。",
+      "price": 78,
+      "maxPurchases": 1,
+      "rarity": 4,
+      "effects": [
+        "AutonomousSpread"
+      ],
+      "compatibleStyles": [
+        "drone"
+      ],
+      "effectPower": {
+        "AutonomousSpread": 1
+      }
+    },
+    {
+      "id": "DashSlash",
+      "name": "ダッシュ斬り",
+      "description": "ダッシュ中の攻撃が突進斬りに。斬り抜けから通常2段目、3段目へつながる。",
+      "price": 42,
+      "maxPurchases": 1,
+      "rarity": 2,
+      "effects": [
+        "DashSlash"
+      ],
       "compatibleStyles": [
         "melee"
       ],
-      "refitPlayer": "MeleeSweeper"
+      "effectPower": {
+        "DashSlash": 1
+      }
     },
     {
-      "id": "Refit_MeleeBreaker",
-      "name": "重撃ブレード",
-      "description": "近接威力45%増、各動作18%増。重い一撃を狙う。",
-      "price": 56,
+      "id": "SpinBlade",
+      "name": "回転ブレード",
+      "description": "3段目後も左クリックを押し続けると約0.8秒回転斬り。移動が低下。パリィで通常弾を斬れる。",
+      "price": 58,
       "maxPurchases": 1,
       "rarity": 3,
-      "effects": [],
+      "effects": [
+        "SpinBlade"
+      ],
       "compatibleStyles": [
         "melee"
       ],
-      "refitPlayer": "MeleeBreaker"
+      "effectPower": {
+        "SpinBlade": 1
+      }
+    },
+    {
+      "id": "WallSmash",
+      "name": "壁砕き",
+      "description": "強く吹き飛ばした敵が壁へ当たると基礎近接威力の1.75倍の追加ダメージと半径2.8の衝撃波。",
+      "price": 78,
+      "maxPurchases": 1,
+      "rarity": 4,
+      "effects": [
+        "WallSmash"
+      ],
+      "compatibleStyles": [
+        "melee"
+      ],
+      "effectPower": {
+        "WallSmash": 1
+      }
     }
   ]
 }

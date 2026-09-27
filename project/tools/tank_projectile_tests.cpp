@@ -15,6 +15,8 @@
 #include <vector>
 #include "../game/player/TankRunModifiers.h"
 #include "../game/player/TankSpecialCombat.h"
+#include "../game/player/TankShooterAbilities.h"
+#include "../game/exp/ExpGuardCombat.h"
 #include "../game/player/TankExpeditionLoadout.h"
 #include "../game/player/TankCombatStyleBalance.h"
 #include "../game/run/TankBuildStyle.h"
@@ -46,6 +48,7 @@ bool IsCollision(AABB box,Sphere sphere) {
         std::clamp(sphere.center.y,box.min.y,box.max.y),std::clamp(sphere.center.z,box.min.z,box.max.z)};
     return Length(sphere.center-closest)<=sphere.radius;
 }
+class Player;
 #include "projectile_types.inc"
 
 struct Object3d {
@@ -110,9 +113,19 @@ public:
     void SetAttackControllerBulletManager(BulletManager* manager) {runBulletManager_=manager;attackController_.SetBulletManager(manager);}
     void SetRunInput(Vector3 target,bool shoot) {runInputOverride_=true;runWantsAttack_=shoot;dir=Length(target-position)>.001f?Normalize(target-position):Vector3{1,0,0};}
     void ConfigureRunAttack(const AttackParam&,float);
+    float runExactDamage_=0,runDamageRemainder_=0;
+    void SetRunExactDamage(float amount){runExactDamage_=(std::max)(0.0f,amount);}
     float followSpeed=.25f,catchupSpeed=.62f,followResponse=5;
     void SetRunFollowTuning(float speed,float catchup,float response) {followSpeed=speed;catchupSpeed=catchup;followResponse=response;}
     void Attack(float);
+    tankspecial::DroneMission mission_;
+    Vector3 missionTarget_{};bool rebuilt_=false;
+    bool IsRunAvailable()const{return mission_.Available();}
+    const tankspecial::DroneMission& GetRunMission()const{return mission_;}
+    const Vector3& GetRunMissionTarget()const{return missionTarget_;}
+    bool StartRunMission(const Vector3& target,bool bomb){if(!mission_.Start(bomb))return false;missionTarget_=target;return true;}
+    bool ConsumeRunMissionImpact(){const bool hit=mission_.impact;mission_.impact=false;return hit;}
+    bool ConsumeRunRebuilt(){const bool result=rebuilt_;rebuilt_=false;return result;}
     bool runAttackEnabled_=false,runRallyShotPending_=false,runInputOverride_=false,runWantsAttack_=false;
     AttackParam runAttackParam_{};
     float runReloadSeconds_=.5f,runShotCooldown_=0;
@@ -126,16 +139,16 @@ public:
 };
 enum class WeaponType {Projectile};
 struct RunEvolutionChoice {std::string id,name,description;};
-class Enemy;class EnemyManager;
+class Enemy;class ExpEnemy;class EnemyManager;
 class Player : public TestActor {
 public:
     Player() { position={-100,-100,0}; SetCollisionAttribute(kCollisionAttributePlayer); SetCollisionMask(kCollisionAttributeEnemyBullet); }
     std::vector<PlayerDrone*> GetDronePtrs() { return {}; }
     bool TryDashImpact(Collider*) { return false; } // Body-slam production path covered by collision suite.
     void ApplyRunProjectileRules(AttackParam&,bool=true) const;
-    struct Mount {bool fires=true;WeaponType weaponType=WeaponType::Projectile;float angleDeg=0,damageScale=1,reloadScale=1,projectileSpeedScale=1,muzzleForward=1.7f;Vector3 offset;};
+    struct Mount {bool fires=true;WeaponType weaponType=WeaponType::Projectile;float angleDeg=0,damageScale=1,reloadScale=1,projectileSpeedScale=1,muzzleForward=1.7f;Vector3 offset;int fireGroup=0;};
     struct PlayerClassConfig {
-        bool reflect=false,penetrate=false,usesDrone=false,randomSpread=false;
+        bool reflect=false,penetrate=false,usesDrone=false,randomSpread=false,alternateBarrels=false,fireAllBarrels=true;
         int maxDrones=0,bulletCount=1;
         float bulletSpeedScale=1,bulletDamageScale=1,reloadScale=1,spreadAngleDeg=0;
         std::string id="Basic",displayName="Basic";
@@ -146,13 +159,13 @@ public:
     bool IsDroneBuild() const {return runModifiers_.enabled&&expeditionCombatStyleSelected_&&expeditionCombatStyle_==tankbuild::Style::Drone;}
 	bool IsMeleeBuild() const {return runModifiers_.enabled&&expeditionCombatStyleSelected_&&expeditionCombatStyle_==tankbuild::Style::Melee;}
 	struct MeleeSlashEvent {
-		Vector3 origin{},direction{1,0,0};float range=4.3f,arcDeg=120,duration=.14f,windupDuration=.05f;
+		Vector3 origin{},direction{1,0,0};float range=4.3f,arcDeg=120,duration=.14f,windupDuration=.05f,recoveryDuration=0,knockback=0;Vector4 color{};
 		int comboStep=0;uint32_t damage=20;
 	};
 	struct DroneLaserLink {Vector3 start{},end{};bool contact=false;};
-	enum class SpecialEventKind { RailShot, Parry, PerfectParry, LinkHit };
+	enum class SpecialEventKind { RailShot, Parry, PerfectParry, LinkHit, DroneCharge, DroneBomb, DroneRebuild, TargetLock, DashSlash, SpinBlade, WallSmash };
 	struct SpecialCombatEvent {SpecialEventKind kind;Vector3 origin,direction;float strength;};
-	struct SpecialCombatStats {uint32_t railShots=0,slashWaves=0,parries=0,perfectParries=0,linkTicks=0;};
+	struct SpecialCombatStats {uint32_t railShots=0,slashWaves=0,parries=0,perfectParries=0,linkTicks=0;uint32_t droneCharges=0,droneChargeHits=0,droneBombs=0,droneRebuilds=0,targetLocks=0,spreadTargets=0,dashSlashes=0,dashSlashHits=0,spinTicks=0,wallSmashes=0;};
 	struct Barrel {float muzzleFlashTimer=0,recoilOffset=0;};
 	std::vector<Barrel> barrels_;
 	static constexpr float kMuzzleFlashDuration=.075f;
@@ -208,21 +221,54 @@ public:
     float bulletCoolTime=0,meleeComboTimer_=0,runSupportDroneTimer_=0,runOverdriveTimer_=0,runDashAttackTimer_=0;
     int meleeComboStep_=0,shootBarrelIndex_=0,shootGroupIndex_=0,hp_=73,runCurrencyEarned_=91;
     struct Stats {float bulletDamage=4,bulletSpeed=.5f,reloadSpeed=30,stamina=3,maxStamina=3,staminaRecovery=.9f,maxHp=120,moveSpeed=.23f,bodyDamage=3;} stats_,baseStats_;
-    std::vector<float> weaponGroupCooldowns_,pendingMeleeSlashes_,pendingLaserShots_,pendingMineDrops_;
+    std::vector<float> weaponGroupCooldowns_,pendingLaserShots_,pendingMineDrops_;std::vector<MeleeSlashEvent> pendingMeleeSlashes_;
     std::vector<std::unique_ptr<PlayerDrone>> drones_;
     Vector3 runAimWorld_{20,0,0};
     TankRunModifiers runModifiers_;
     TankRunGrowth runGrowth_;
     bool isBuffActive_=false;
+    struct DroneAbilityVisual {Vector3 position{},target{};tankspecial::DronePhase phase=tankspecial::DronePhase::Escort;float progress=0;bool bomb=false;};
+    struct TargetLockVisual {Vector3 position{};int stacks=0;float remaining=0;};
+    std::vector<DroneAbilityVisual> GetDroneAbilityVisuals()const;
+    uint32_t NotifyDroneHit(int,Collider*,uint32_t);
+    float GetDroneTargetDamageScale(const Collider*,bool)const;
+    void ArmWallSmash(ExpEnemy*,float=1);
+    void RefreshAdditiveArmaments();void ResetAdditionalAbilities();
+    void UpdateAdditionalAbilities(Stage&,BulletManager*,Enemy*,EnemyManager*,float);
+    bool TryStartSpinBlade(bool);
+    float empJammerTimer_=0,droneChargeCooldown_=1.5f,droneBombCooldown_=4.0f,recentDashTimer_=0;
+    size_t nextMissionDrone_=0;
+    std::array<tankspecial::PainterLock,128> painterLocks_{};
+    std::vector<TargetLockVisual> targetLockVisuals_;
+    tankspecial::SpinCycle spinCycle_{};
+    bool finisherSpinReady_=false,dashSlashActive_=false;
+    Vector3 dashSlashPrevious_{},dashSlashDirection_{1,0,0};
+    float dashSlashTimer_=0;uint32_t dashSlashDamage_=1;
+    std::vector<uint64_t> dashSlashTargets_;
+    struct WallSmashTarget {uint64_t id=0;uint32_t collision=0;float seconds=0,strength=1;};
+    std::array<WallSmashTarget,128> wallSmashTargets_{};
+    bool demoInputEnabled_=false,demoShoot_=false;TestInput input;TestInput* input_=&input;
+
 };
-class Enemy : public TestActor {public:bool IsDead()const{return false;}void TakeDamage(uint32_t d){damageReceived+=d;++hits;}};
-class ExpEnemy : public TestActor {public:bool IsDead()const{return false;}bool IsRunResource()const{return false;}void TakeDirectionalDamage(uint32_t d,Vector3){damageReceived+=d;++hits;}};
+class Enemy : public TestActor {public:int hp=100000;bool IsDead()const{return hp<=0;}int GetHp()const{return hp;}void TakeDamage(uint32_t d){damageReceived+=d;++hits;hp-=(std::min)(hp,static_cast<int>(d));}void ApplyKnockback(Vector3,float){}void OnCollision(Collider* other)override{TakeDamage(other->GetDamage());}};
+enum class ExpEnemyType {Basic,ReflectArmor};
+class ExpEnemy : public TestActor {public:
+    int hp=100000;bool isDead_=false;ExpEnemyType type_=ExpEnemyType::Basic;Vector3 aimDirection_{1,0,0};
+    uint32_t reflectionCount_=0,shieldBlockCount_=0,wallCollisions=0;float shieldFlashTimer_=0;
+    bool IsDead()const{return hp<=0||isDead_;}bool IsRunResource()const{return false;}
+    bool TakeDirectionalDamage(uint32_t d,Vector3,bool=false){const bool living=!IsDead();damageReceived+=d;++hits;hp-=(std::min)(hp,static_cast<int>(d));return living&&IsDead();}
+    bool TakeDamageFromPlayer(uint32_t d){return TakeDirectionalDamage(d,{});}
+    void ApplyKnockback(Vector3,float){}uint32_t GetWallCollisionCount()const{return wallCollisions;}
+    bool TryReflectProjectile(const Vector3&);
+    void OnCollision(Collider* other)override{TakeDirectionalDamage(other->GetDamage(),other->GetWorldPosition());}
+};
 class EnemyManager { public: std::vector<ExpEnemy*> actors; std::vector<ExpEnemy*> GetEnemyPtrs() { return actors; } };
 class Stage {
 public:
     struct MergedBlock { AABB aabb; };
     std::vector<MergedBlock> mergedBlocks_;
 	const std::vector<MergedBlock>& GetMergedBlocks() const {return mergedBlocks_;}
+    bool IsCollisionWithAnyBlock(Vector3 p,float radius)const{for(const auto& b:mergedBlocks_)if(IsCollision(b.aabb,Sphere{p,radius}))return true;return false;}
     void ResolveBulletsCollision(const std::vector<Bullet*>&);
 };
 #include "projectile_methods.inc"
@@ -239,7 +285,101 @@ std::vector<Bullet*> Living(BulletManager& manager) {
     std::erase_if(bullets,[](const auto* bullet) { return bullet->IsDead(); });
     return bullets;
 }
+
+void ShooterBuildContracts() {
+    // Full production firing, collision pass and deferred events, including
+    // real frontal reflection logic. Actors only replace health and rendering.
+    auto fire=[](BulletManager& bullets,Vector3 point,bool chain,bool mark,bool burst) {
+        AttackParam p{};p.damage=10;p.bulletSpeed=.25f;p.maxWallBounces=0;
+        p.shooterChain=chain;p.shooterMark=mark;p.shooterKillBurst=burst;
+        AttackController attack;attack.SetBulletManager(&bullets);attack.FireFromMuzzle(point,{1,0,0},p,kPlayer);
+    };
+    {
+        Player player;BulletManager bullets;CollisionManager collisions;EnemyManager enemies;
+        std::array<ExpEnemy,4> targets;
+        for(size_t i=0;i<targets.size();++i){targets[i].position={static_cast<float>(i)*3,0,0};enemies.actors.push_back(&targets[i]);}
+        fire(bullets,{},true,false,false);collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);
+        assert(targets[0].damageReceived==10&&targets[1].damageReceived==5&&targets[2].damageReceived==5&&targets[3].damageReceived==0);
+        assert(targets[0].hits==1&&targets[1].hits==1&&targets[2].hits==1&&bullets.GetShooterStats().chainHits==2);
+        collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);assert(bullets.GetShooterStats().chainHits==2);
+        bullets.ClearAll();Enemy boss;fire(bullets,{},true,false,false);
+        collisions.CheckAllCollisions(&player,&boss,&bullets,nullptr);assert(boss.damageReceived==10&&bullets.GetShooterStats().chainHits==0);
+    }
+    {
+        Player player;BulletManager bullets;Stage stage;CollisionManager collisions;EnemyManager enemies;ExpEnemy target,splash;
+        splash.position={2,0,0};enemies.actors={&target,&splash};
+        for(int i=0;i<3;++i){fire(bullets,{},false,true,false);collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);}
+        assert(target.damageReceived==30&&bullets.GetShooterStats().detonations==0&&bullets.GetMarkVisuals().front().stacks==3);
+        bullets.Update(stage,4.01f);assert(bullets.GetMarkVisuals().empty());
+        fire(bullets,{},false,true,false);collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);
+        assert(bullets.GetMarkVisuals().front().stacks==1&&bullets.GetShooterStats().detonations==0);
+        for(int i=0;i<3;++i){fire(bullets,{},false,true,false);collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);}
+        assert(bullets.GetShooterStats().detonations==1&&target.damageReceived==88&&splash.damageReceived==9&&bullets.GetMarkVisuals().empty());
+        bullets.ClearAll();Enemy boss;
+        for(int i=0;i<5;++i){fire(bullets,{},false,true,false);collisions.CheckAllCollisions(&player,&boss,&bullets,nullptr);}
+        assert(bullets.GetShooterStats().detonations==0&&boss.damageReceived==50);
+        fire(bullets,{},false,true,false);collisions.CheckAllCollisions(&player,&boss,&bullets,nullptr);
+        assert(bullets.GetShooterStats().detonations==1&&boss.damageReceived==71);
+    }
+    {
+        Player player;player.position={-5,0,0};BulletManager bullets;Stage stage;CollisionManager collisions;EnemyManager enemies;ExpEnemy target;
+        target.position={2,0,0};enemies.actors={&target};
+        auto shot=MakeBullet(2,0,0,kPlayer,true);shot->ConfigureShooterAbilities(false,false,true,false);auto* ptr=shot.get();bullets.Add(std::move(shot));
+        bullets.SetCombatContext(&player,nullptr,&enemies);
+        ptr->SetWorldPosition(target.position);
+        for(int i=0;i<8;++i)collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);
+        assert(target.hits==1&&target.damageReceived==20&&!ptr->IsDead());
+        bullets.Update(stage,.30f);assert(!ptr->GetIsReturning());
+        bullets.Update(stage,.30f);assert(ptr->GetIsReturning()&&bullets.GetShooterStats().returns==1);
+        ptr->SetWorldPosition(target.position);
+        for(int i=0;i<8;++i)collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);
+        assert(target.hits==2&&target.damageReceived==40);
+        for(int i=0;i<300&&!Living(bullets).empty();++i)bullets.Update(stage,.016f);
+        assert(Living(bullets).empty()&&bullets.GetShooterStats().returns==1);
+        // Ricochet can fold an outward leg early, but cannot restart a return.
+        auto wall=MakeBullet(0);wall->ConfigureShooterAbilities(false,false,true,false);wall->SetReturnTarget({-10,0,0});
+        wall->OnWallImpact({}, {-1,0,0});assert(wall->GetIsReturning()&&!wall->IsDead());
+        wall->OnWallImpact({}, {-1,0,0});assert(wall->IsDead());
+    }
+    {
+        Player player;BulletManager bullets;CollisionManager collisions;EnemyManager enemies;ExpEnemy target;target.hp=1;enemies.actors={&target};
+        fire(bullets,{},false,false,true);collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);
+        assert(target.IsDead()&&bullets.GetShooterStats().burstTriggers==1&&bullets.GetShooterStats().burstChildren==6);
+        ExpEnemy childVictim;childVictim.hp=1;enemies.actors={&childVictim};
+        for(auto* child:Living(bullets)){assert(child->IsBurstChild()&&child->GetDamage()==4);child->ConfigureShooterAbilities(true,true,false,true);}
+        collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);
+        assert(childVictim.IsDead()&&bullets.GetShooterStats().burstTriggers==1&&bullets.GetShooterStats().burstChildren==6&&bullets.GetShooterStats().chainHits==0);
+    }
+    for(bool front:{false,true}) {
+        Player player;BulletManager bullets;CollisionManager collisions;EnemyManager enemies;ExpEnemy armor;
+        armor.type_=ExpEnemyType::ReflectArmor;armor.aimDirection_=front?Vector3{-1,0,0}:Vector3{1,0,0};enemies.actors={&armor};
+        fire(bullets,{},false,false,false);collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);
+        assert(armor.damageReceived==(front?0u:10u)&&bullets.GetShooterStats().reflections==(front?1u:0u));
+        if(front){auto reflected=Living(bullets);assert(reflected.size()==1&&reflected[0]->GetOwner()==kEnemy&&reflected[0]->WasArmorReflected()&&reflected[0]->GetDamage()==5);bullets.QueueArmorReflection(*reflected[0],{});bullets.FlushPendingSplits();assert(bullets.GetShooterStats().reflections==1);}
+    }
+    {
+        Player player;BulletManager bullets;CollisionManager collisions;EnemyManager enemies;ExpEnemy armor;
+        armor.type_=ExpEnemyType::ReflectArmor;armor.aimDirection_={-1,0,0};enemies.actors={&armor};
+        auto wave=MakeBullet();wave->ConfigureSpecial(Bullet::SpecialKind::SlashWave,1,1);bullets.Add(std::move(wave));
+        collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);assert(armor.damageReceived==20&&bullets.GetShooterStats().reflections==0);
+        bullets.ClearAll();fire(bullets,{},false,false,false);bullets.GetBulletPtrs().front()->SetArmorReflected(true);
+        collisions.CheckAllCollisions(&player,nullptr,&bullets,&enemies);assert(armor.damageReceived==30&&bullets.GetShooterStats().reflections==0);
+    }
+    {
+        Player player;TankRunModifiers mods{};mods.enabled=mods.expedition=true;player.SetRunModifiers(mods);assert(player.SetExpeditionCombatStyle(tankbuild::Style::Shooter));
+        const int hp=player.hp_,cr=player.runCurrencyEarned_;mods.extraBarrel1=true;player.SetRunModifiers(mods);
+        assert(player.runStarterConfig_.barrels.size()==2&&Near(player.runStarterConfig_.barrels[0].damageScale,.65f));
+        mods.extraBarrel2=mods.fanMount=mods.alternatingFire=true;player.SetRunModifiers(mods);
+        assert(mods.extraBarrel1&&player.runStarterConfig_.barrels.size()==3&&Near(player.runStarterConfig_.barrels[0].damageScale,.5f));
+        assert(Near(player.runStarterConfig_.barrels[0].angleDeg,-14)&&Near(player.runStarterConfig_.barrels[2].angleDeg,14)&&player.runStarterConfig_.alternateBarrels);
+        assert(Near(player.runStarterConfig_.reloadScale,1.0f/3)&&player.hp_==hp&&player.runCurrencyEarned_==cr);
+        player.SetRunModifiers(mods);assert(player.runStarterConfig_.barrels.size()==3);
+    }
+    std::cout<<"New production shooter contracts passed: chains, marks/expiry/boss, finite two-leg return, nonrecursive bursts, directional armor reflection, cumulative 1/2/3 barrels.\n";
+}
+
 int main() {
+    ShooterBuildContracts();
     CollisionManager collisions;
 	// Real Player ability methods, with only GPU/actor drawing replaced above.
 	{
@@ -356,13 +496,13 @@ int main() {
                 assert(player.SetExpeditionCombatStyle(style)&&player.drones_.front().get()==first);
                 mods.droneFocus=mods.droneGuard=true;
                 player.ConfigureRunDrone(*first);
-                assert(first->runAttackParam_.damage==5&&Near(first->runReloadSeconds_,.474375f));
+                assert(first->runAttackParam_.damage==4&&Near(first->runReloadSeconds_,.4125f));
                 assert(first->runAttackParam_.bulletHp==3&&first->runAttackParam_.bulletPenetration==3&&first->runAttackParam_.bulletCount==1);
                 // Evolution authored scaling composes with the owned foundation.
                 player.runEvolutionConfig_=player.runStarterConfig_;player.runEvolutionActive_=true;
                 player.runEvolutionConfig_.bulletDamageScale=1.4f;player.runEvolutionConfig_.reloadScale=1.2f;
                 player.runEvolutionConfig_.maxDrones=2;player.ConfigureRunDrone(*first);player.EnsureExpeditionDrones();
-                assert(player.drones_.size()==2&&first->runAttackParam_.damage==7&&Near(first->runReloadSeconds_,.56925f));
+                assert(player.drones_.size()==2&&first->runAttackParam_.damage==6&&Near(first->runReloadSeconds_,.495f));
                 mods.drones=true;player.EnsureExpeditionDrones();assert(player.drones_.size()==4);
                 player.runEvolutionConfig_.maxDrones=50;player.EnsureExpeditionDrones();assert(player.drones_.size()==12);
             } else assert(player.drones_.empty());
