@@ -66,4 +66,70 @@ inline float ParryDurabilityDamage(float hp,bool perfect,float power=1) {
     if(perfect)return 8.0f*(std::clamp)(power,.1f,5.0f);
     return hp<=kOrdinaryEnemyBulletHp?hp:0.0f;
 }
+
+// Run-local, bounded state shared by the real actors and headless tests.
+enum class DronePhase { Escort, Warning, Charging, Returning, Rebuilding };
+struct DroneMission {
+    DronePhase phase=DronePhase::Escort;
+    float elapsed=0;
+    bool bomb=false, impact=false;
+    bool Start(bool explosive) {
+        if(phase!=DronePhase::Escort)return false;
+        phase=DronePhase::Warning;elapsed=0;bomb=explosive;impact=false;return true;
+    }
+    void Arrive() {
+        if(phase!=DronePhase::Charging)return;
+        impact=true;phase=bomb?DronePhase::Rebuilding:DronePhase::Returning;elapsed=0;
+    }
+    bool Step(float dt,bool home=false) {
+        elapsed+=(std::max)(0.0f,dt);
+        if(phase==DronePhase::Warning&&elapsed>=(bomb?.65f:.30f)) {phase=DronePhase::Charging;elapsed=0;}
+        else if(phase==DronePhase::Charging&&elapsed>=1.0f) {phase=DronePhase::Returning;elapsed=0;}
+        else if(phase==DronePhase::Returning&&(home||elapsed>=2.5f)) {phase=DronePhase::Escort;elapsed=0;}
+        else if(phase==DronePhase::Rebuilding&&elapsed>=5.5f) {phase=DronePhase::Escort;elapsed=0;return true;}
+        return false;
+    }
+    bool Available() const {return phase!=DronePhase::Rebuilding;}
+};
+struct PainterLock {
+    uint64_t id=0;
+    uint32_t droneMask=0;
+    int hits=0;
+    float remaining=0, buildup=0;
+    void Advance(float dt) {
+        remaining=(std::max)(0.0f,remaining-dt);buildup=(std::max)(0.0f,buildup-dt);
+        if(buildup==0&&remaining==0){droneMask=0;hits=0;}
+    }
+    bool Hit(int drone) {
+        if(remaining>0||drone<0||drone>=32)return false;
+        droneMask|=uint32_t{1}<<drone;++hits;buildup=2.0f;
+        const bool distinct=(droneMask&(droneMask-1))!=0;
+        if(distinct&&hits>=4) {remaining=4.0f;return true;}return false;
+    }
+    float DamageScale(bool boss,float power=1) const {return remaining>0?1.0f+(boss?.18f:.35f)*power:1.0f;}
+};
+inline int ChooseSpreadTarget(const float* distances,const bool* used,int count) {
+    int selected=-1;float best=1e30f;
+    for(int pass=0;pass<2&&selected<0;++pass)for(int i=0;i<count;++i) {
+        if(pass==0&&used[i])continue;
+        if(distances[i]<best){best=distances[i];selected=i;}
+    }
+    return selected;
+}
+struct SpinCycle {
+    float remaining=0,nextTick=0;
+    int tickCount=0;
+    bool Start(bool held,bool afterFinisher,float& stamina) {
+        if(remaining>0||!held||!afterFinisher||stamina<1)return false;
+        stamina-=1;remaining=.8f;nextTick=0;tickCount=0;return true;
+    }
+    bool Step(float dt) {
+        if(remaining<=0)return false;
+        remaining=(std::max)(0.0f,remaining-dt);nextTick-=dt;
+        if(nextTick<=0&&tickCount<4){nextTick+=.20f;++tickCount;return true;}return false;
+    }
+};
+inline float EmpDuration(float current,float requested) {return (std::max)(current,(std::clamp)(requested,0.0f,3.0f));}
+inline bool CanDashSlash(bool enabled,bool dashing,float recentDash) {return enabled&&(dashing||recentDash>0);}
+inline float WallSmashDamage(float melee,float power=1) {return (std::max)(1.0f,std::round(melee*1.75f*power));}
 }

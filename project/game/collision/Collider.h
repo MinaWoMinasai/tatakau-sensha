@@ -51,7 +51,7 @@ public:
 	float GetHitPower() const { return hitPower_; }
 	void SetHitPower(float power) { hitPower_ = power; }
 
-	uint32_t GetDamage() { return damage_; };
+	uint32_t GetDamage() const { return damage_; };
 	void SetDamage(const uint32_t& damage) { damage_ = damage; }
 
 private:

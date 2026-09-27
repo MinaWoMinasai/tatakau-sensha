@@ -130,14 +130,17 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
     };
     tank(player,radius,aim,playerColor,s.barrelCount,bodySegments,bodyScale);
     for(int i=0;i<s.droneCount;++i) {
+        if(s.droneDisabled[i])continue;
         const auto pos=Position(lane,s.drones[i]);
         tank(pos,radius*0.61f,std::atan2(cursor.y-pos.y,cursor.x-pos.x),appearance_.droneColor,1,28,{1,1});
     }
     if(s.wall) {
-        const auto start=Position(lane,{.35f,.18f}),end=Position(lane,{.71f,.18f});
+        const auto start=Position(lane,s.verticalWall?tankreward::Point{.94f,.25f}:tankreward::Point{.35f,.18f});
+        const auto end=Position(lane,s.verticalWall?tankreward::Point{.94f,.80f}:tankreward::Point{.71f,.18f});
         const auto center=(start+end)*0.5f;const float length=Length(end-start);
-        if(fill)neon_->QueueBillboardRegularPolygonFill(center,4,1,.78539816f,{length*.70710678f,.32f},{.025f,.055f,.064f,1},kRight,kUp);
-        else neon_->QueueBillboardRectangle(center,{length,.45f},0,.055f,{.2f,.65f,.75f,1},kRight,kUp,kForward);
+        const Vector2 size=s.verticalWall?Vector2{.45f,length}:Vector2{length,.45f};
+        if(fill)neon_->QueueBillboardRegularPolygonFill(center,4,1,.78539816f,{size.x*.70710678f,size.y*.70710678f},{.025f,.055f,.064f,1},kRight,kUp);
+        else neon_->QueueBillboardRectangle(center,size,0,.055f,{.2f,.65f,.75f,1},kRight,kUp,kForward);
     }
     for(int i=0;i<s.targetCount;++i) {
         const auto center=Position(lane,s.targets[i]);const float r=radius*0.72f;
@@ -157,15 +160,35 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
         }
     }
     if(fill)return;
+    if(s.chainCount>1)for(int i=1;i<s.chainCount;++i) {
+        const auto a=Position(lane,s.chainPoints[i-1]),b=Position(lane,s.chainPoints[i]);
+        const auto mid=(a+b)*.5f+Vector3{0,.16f,0};
+        neon_->QueueLine(a,mid,.04f,{.4f,1.6f,2.0f,.8f});neon_->QueueLine(mid,b,.04f,{.4f,1.6f,2.0f,.8f});
+    }
+    for(int n=0;n<s.targetCount;++n)for(int i=0;i<s.marks[n];++i) {
+        const auto at=Position(lane,s.targets[n])+Direction(i*1.5707963f+elapsed_)*radius*1.2f;
+        tankspecialfx::Ring(*neon_,at,.12f,.035f,{1.8f,.5f,1.0f,.8f});
+    }
+    if(s.lock>0)tankspecialfx::Ring(*neon_,Position(lane,s.targets[0]),radius*(1.3f+.15f*std::sin(elapsed_*8)),.045f,{.4f,1.5f,1.7f,s.lock*.7f});
+    if(s.blast>0)tankspecialfx::Ring(*neon_,Position(lane,s.blastPosition),radius*(.4f+(1-s.blast)*2.4f),.065f,{1.7f,.55f,.35f,s.blast*.8f});
+    if(s.droneChargeGlow>0)tankspecialfx::Ring(*neon_,Position(lane,s.drones[0]),radius*.85f,.05f,{1.7f,.8f,.25f,s.droneChargeGlow});
+    if(s.rebuild>0) {
+        const auto at=Position(lane,s.drones[0]);
+        tankneon::QueueBodyOutline(*neon_,at,radius*.61f,.025f,6,elapsed_,{1,1},{.2f,1.1f,1.7f,s.rebuild*.6f},kRight,kUp);
+    }
+    if(s.spin>0)tankspecialfx::Ring(*neon_,player,radius*2,.05f,{.5f,1.4f,1.2f,.3f});
     if(s.railCharge>0)tankspecialfx::Charge(*neon_,player+Direction(aim)*radius*1.4f,s.railCharge,elapsed_,.65f);
     if(s.railFlash>0) {
         const auto start=player+Direction(aim)*radius*1.4f;
         neon_->QueueLine(start,Position(lane,{.92f,.54f}),.12f,{.55f,1.65f,2.0f,s.railFlash*.3f});
         tankspecialfx::Ring(*neon_,start,.38f,.07f,{1.8f,1.7f,2.0f,s.railFlash*.7f});
     }
-    if(s.links)for(int i=0;i<(s.droneCount==2?1:s.droneCount);++i) {
-        tankspecialfx::Link(*neon_,Position(lane,s.drones[i]),Position(lane,s.drones[(i+1)%s.droneCount]),.65f);
-        if(s.linkContact[i])tankspecialfx::Contact(*neon_,Position(lane,s.targets[1]),.06f,.45f,true);
+    std::array<int,6> available{};int availableCount=0;
+    for(int i=0;i<s.droneCount;++i)if(!s.droneDisabled[i])available[availableCount++]=i;
+    if(s.links)for(int i=0;i<tankspecial::LinkCount(availableCount);++i) {
+        const int from=available[i],to=available[(i+1)%availableCount];
+        tankspecialfx::Link(*neon_,Position(lane,s.drones[from]),Position(lane,s.drones[to]),.65f);
+        if(s.linkContact[from])tankspecialfx::Contact(*neon_,Position(lane,s.targets[1]),.06f,.45f,true);
     }
     if(s.wave)tankspecialfx::Crescent(*neon_,Position(lane,s.wavePosition),{1,0,0},s.waveRadius*(compare_?8.5f:17.5f));
     if(s.hostileBullet) {
@@ -206,7 +229,7 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
 }
 void TankRewardPreviewRenderer::PrepareTrails(int lane,const tankreward::DemoSnapshot& s,bool reflects) {
     const auto& source=appearance_.bulletTrail;
-    const auto color=reflects?source.reflectableObjectColor:source.playerObjectColor;
+    const auto color=s.returning?Vector4{.55f,1.6f,.85f,1}:reflects?source.reflectableObjectColor:source.playerObjectColor;
     TrailConfig config{};
     config.startColor=source.useObjectColorForTrail?Vector4{color.x*source.trailHeadIntensity,color.y*source.trailHeadIntensity,color.z*source.trailHeadIntensity,source.trailHeadAlpha*source.playerTrailAlphaScale}:source.startColor;
     config.endColor=source.useObjectColorForTrail?Vector4{color.x*source.trailTailIntensity,color.y*source.trailTailIntensity,color.z*source.trailTailIntensity,source.trailTailAlpha}:reflects?source.reflectableEndColor:source.playerEndColor;
@@ -216,7 +239,7 @@ void TankRewardPreviewRenderer::PrepareTrails(int lane,const tankreward::DemoSna
     for(std::size_t i=0;i<s.bullets.size();++i) {
         const auto& bullet=s.bullets[i];auto* trail=trailInstances_[static_cast<std::size_t>(lane)*6+i];
         if(!bullet.visible)continue;
-        const auto right=Vector3{std::sin(bullet.angle),std::cos(bullet.angle),0}*(source.playerHalfWidth*(s.rail?2.2f:1.0f));
+        const auto right=Vector3{std::sin(bullet.angle),std::cos(bullet.angle),0}*(source.playerHalfWidth*(s.rail?2.2f:s.heavyProjectiles?1.3f:1.0f));
         for(std::size_t p=0;p<bullet.trailCount;++p) {
             const auto pos=Position(lane,bullet.trail[p]);trail->Update(0,pos+right,pos-right,config);
         }

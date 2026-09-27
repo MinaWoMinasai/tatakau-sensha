@@ -120,6 +120,11 @@ void GameScene::ApplyTankRunCards() {
     m.meleeBlade=c[12]>0;m.bladeReach=c[13]>0;m.impactDrive=c[14]>0;m.perfectDodge=c[15]>0;
     m.droneFocus=c[16]>0;m.droneGuard=c[17]>0;m.meleeTempo=c[18]>0;m.finisherCharge=c[19]>0;
     m.railCannon=c[20]>0;m.droneLaserLink=c[21]>0;m.slashWave=c[22]>0;m.parryBlade=c[23]>0;
+    m.extraBarrel1=c[24]>0;m.extraBarrel2=c[25]>0;m.fanMount=c[26]>0;m.alternatingFire=c[27]>0;
+    m.heavyDroneCore=c[28]>0;m.lightBladeActuator=c[29]>0;m.heavyBladeEdge=c[30]>0;
+    m.chainLightning=c[31]>0;m.markDetonation=c[32]>0;m.boomerangShell=c[33]>0;m.killBurst=c[34]>0;
+    m.droneCharge=c[35]>0;m.droneRebuildBomb=c[36]>0;m.targetPainter=c[37]>0;m.autonomousSpread=c[38]>0;
+    m.dashSlash=c[39]>0;m.spinBlade=c[40]>0;m.wallSmash=c[41]>0;
     if(expeditionMapEnabled_) m.effectPower=ExpeditionEffectPowers();
     player_->SetRunModifiers(m);
 }

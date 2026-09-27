@@ -168,6 +168,12 @@ inline RoomCatalog DefaultRoomCatalog() {
     catalog.rooms[2].objective="eliminate";catalog.rooms[2].objectiveTargets.clear();
     catalog.rooms.push_back(catalog.rooms[1]);catalog.rooms.back().id="guard_patrol";catalog.rooms.back().name="盾剣巡回部隊";
     catalog.rooms.back().spawns[0].type="ShieldGuard";catalog.rooms.back().spawns[1].type="BladeGuard";
+    catalog.rooms.push_back(catalog.rooms[1]);catalog.rooms.back().id="command_post";catalog.rooms.back().name="召喚指揮所";
+    catalog.rooms.back().spawns[0].type="BladeGuard";catalog.rooms.back().spawns[1].type="SummonerCommander";
+    catalog.rooms.push_back(catalog.rooms[1]);catalog.rooms.back().id="emp_patrol";catalog.rooms.back().name="妨害巡回部隊";
+    catalog.rooms.back().spawns[0].type="EMPJammer";catalog.rooms.back().spawns[1].type="ShieldGuard";
+    catalog.rooms.push_back(catalog.rooms[1]);catalog.rooms.back().id="reflect_bastion";catalog.rooms.back().name="反射防衛陣";
+    catalog.rooms.back().spawns[0].type="ReflectArmor";catalog.rooms.back().spawns[1].type="BladeGuard";
     return catalog;
 }
 inline nlohmann::json RoomCatalogToJson(const RoomCatalog& catalog) {

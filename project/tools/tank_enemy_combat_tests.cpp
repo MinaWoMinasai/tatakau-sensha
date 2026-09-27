@@ -18,6 +18,18 @@ void Tick(ExpEnemyCombatCycle& cycle, float seconds, bool visible = true) {
 }
 
 int main() {
+    expguard::PulseCycle pulse;
+    pulse.Reset(5,.75f,0);
+    assert(!pulse.Advance(10,true) && pulse.IsWarning());
+    assert(!pulse.Advance(0,true));
+    assert(!pulse.Advance(std::numeric_limits<float>::quiet_NaN(),true));
+    for (int i = 0; i < 74; ++i) assert(!pulse.Advance(.01f,true));
+    assert(pulse.Advance(.02f,true) && !pulse.IsWarning());
+    for (int i = 0; i < 420; ++i) assert(!pulse.Advance(.01f,true));
+    assert(!pulse.IsWarning());
+    assert(!pulse.Advance(.06f,true) && pulse.IsWarning());
+    assert(expguard::SummonSlots(0,0)==3 && expguard::SummonSlots(3,3)==0);
+    assert(expguard::SummonSlots(1,5)==1 && expguard::SummonSlots(0,6)==0);
     // This is the same directional armor calculation used by both actor
     // damage and incoming (including reflected) bullets in ExpEnemy.
     assert(expguard::ShieldDamage(100, 1, 0, 3, 0) == 15);

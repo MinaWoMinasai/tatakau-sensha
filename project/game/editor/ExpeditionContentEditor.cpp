@@ -37,10 +37,6 @@ bool tankcontent::ContentEditor::Draw(bool& open,Catalog& live,const std::vector
             if(!FindEnemy(candidate,id))if(const auto* builtin=FindEnemy(live,id))candidate.enemies.push_back(*builtin);
     };
     auto valid=[&](Catalog& candidate) {
-        // Deleting or renaming a player removes its generated workshop card.
-        // Hand-authored references still fail validation instead of disappearing.
-        std::erase_if(candidate.upgrades,[&](const Upgrade& u){return u.id.rfind("Refit_",0)==0&&!u.refitPlayer.empty()&&!FindPlayer(candidate,u.refitPlayer);});
-        EnsureRefitCards(candidate);
         if(!ValidateCatalog(candidate,status_))return false;
         for(const char* id:{"tutorial_target","tutorial_shooter","tutorial_retry"})
             if(FindEnemy(live,id)&&!FindEnemy(candidate,id)){status_=std::string("操作訓練に必要な予約IDは削除できません: ")+id;return false;}
@@ -50,7 +46,7 @@ bool tankcontent::ContentEditor::Draw(bool& open,Catalog& live,const std::vector
     ImGui::SetNextWindowPos({165,55},ImGuiCond_FirstUseEver);ImGui::SetNextWindowSize({930,610},ImGuiCond_FirstUseEver);
     if(!ImGui::Begin("遠征の種類エディター / F6で再開",&open)){ImGui::End();return false;}
     ImGui::TextWrapped("新規作成・複製で種類を増やせます。適用後、工房や敵配置に登場します。保存すると次回も使用します。");
-    if(ImGui::Button("適用 / Apply")){if(valid(draft_)){live=draft_;changed=true;status_="適用しました。敵は次回の部屋開始から反映。機体は換装カードとして工房に出ます。";}}
+    if(ImGui::Button("適用 / Apply")){if(valid(draft_)){live=draft_;changed=true;status_="適用しました。敵は次回の部屋開始から反映。強化は工房へ追加されます。";}}
     ImGui::SameLine();if(ImGui::Button("保存 / Save")){if(valid(draft_)&&SaveCatalog(kCatalogPath,draft_,status_)){live=draft_;changed=true;status_="保存・適用しました。";}}
     ImGui::SameLine();if(ImGui::Button("再読込 / Reload")){Catalog loaded;if(LoadCatalog(kCatalogPath,loaded,status_)){preserveTraining(loaded);if(valid(loaded)){draft_=loaded;live=loaded;changed=true;status_="保存済みデータに戻しました。";}}}
     ImGui::SameLine();if(ImGui::Button("標準へ戻す..."))ImGui::OpenPopup("標準データの確認");
@@ -62,9 +58,6 @@ bool tankcontent::ContentEditor::Draw(bool& open,Catalog& live,const std::vector
     if(ImGui::BeginTabBar("種類")){
         if(ImGui::BeginTabItem("強化")){
             SelectDefinition(draft_.upgrades,selectedUpgrade_,"Upgrade_");auto& u=draft_.upgrades[static_cast<std::size_t>(selectedUpgrade_)];TextField("説明",u.description,true);ImGui::InputInt("価格 (CR)",&u.price);ImGui::Combo("レア度",&u.rarity,tankbuild::RarityNames.data(),static_cast<int>(tankbuild::RarityNames.size()));
-            const bool refit=!u.refitPlayer.empty();
-            if(refit)ImGui::TextWrapped("機体換装: %s / 同系統のみ、1ラン1回。性能は自機・換装タブで編集します。",u.refitPlayer.c_str());
-            ImGui::BeginDisabled(refit);
             ImGui::TextUnformatted("提示する系統（複数選択可。全て選択すると汎用枠）");
             for(int i=0;i<3;++i) {const auto style=static_cast<tankbuild::Style>(i);bool selected=(u.compatibleStyles&tankbuild::Mask(style))!=0;if(ImGui::Checkbox(tankbuild::Name(style),&selected)) {if(selected)u.compatibleStyles|=tankbuild::Mask(style);else u.compatibleStyles&=~tankbuild::Mask(style);}if(i<2)ImGui::SameLine();}
             ImGui::TextUnformatted("効果を1〜4個組み合わせます。各効果の重複取得は不可。購入上限: 1回");
@@ -81,8 +74,8 @@ bool tankcontent::ContentEditor::Draw(bool& open,Catalog& live,const std::vector
             const unsigned usable=u.compatibleStyles&CompatibleEffectStyles(u);
             if(!usable)ImGui::TextColored({1,0.45f,0.3f,1},"全効果が働く系統がありません。この組合せは工房に提示されません。");
             else {std::string shown="全効果が働く系統: ";for(int i=0;i<3;++i)if(usable&tankbuild::Mask(static_cast<tankbuild::Style>(i)))shown+=std::string(tankbuild::Name(static_cast<tankbuild::Style>(i)))+" ";ImGui::TextWrapped("%s",shown.c_str());}
-            ImGui::TextWrapped("近接の基本ブレードは系統選択で取得。旧ネオンブレード効果を含む商品は工房に提示されません。蓄電池にはジャスト回避が必要です。複合商品は全効果が未所持のときだけ提示されます。");
-            ImGui::EndDisabled();ImGui::EndTabItem();
+            ImGui::TextWrapped("近接の基本ブレードは系統選択で取得。旧ネオンブレード効果を含む商品は工房に提示されません。蓄電池にはジャスト回避が必要です。追加砲門II・扇形砲架・交互射撃には追加砲門が必要。自作複合商品は全効果が未所持のときだけ提示されます。");
+            ImGui::EndTabItem();
         }
         if(ImGui::BeginTabItem("敵")){
             SelectDefinition(draft_.enemies,selectedEnemy_,"Enemy_");auto& e=draft_.enemies[static_cast<std::size_t>(selectedEnemy_)];int behavior=static_cast<int>(e.behavior);ImGui::Combo("行動型",&behavior,kBehaviorNames.data(),static_cast<int>(kBehaviorNames.size()));e.behavior=static_cast<EnemyBehavior>(behavior);
@@ -91,13 +84,14 @@ bool tankcontent::ContentEditor::Draw(bool& open,Catalog& live,const std::vector
             if(e.behavior>=EnemyBehavior::Sniper&&e.behavior<=EnemyBehavior::Suppressor){ImGui::SliderInt("弾倉の発射回数 (0=標準)",&e.magazineSize,0,8);ImGui::SliderFloat("装填秒数 (0=標準、0.8以上)",&e.reloadSeconds,0,8,"%.2f");}
             ImGui::TextWrapped("機動射撃兵: 横移動とダッシュ。接近散弾兵: 接近して散弾、離脱。制圧射撃兵: 扇状連射、長い装填。水色ゲージは装填中の隙です。");
             ImGui::TextWrapped("シールド兵: 正面を軽減、側背面が弱点。ブレード兵: 扇形予告の後に薙ぎ払い、攻撃後が隙。接触ダメージが近接威力の基準です。");
+            ImGui::TextWrapped("召喚指揮兵: 最大3機の無報酬護衛を召喚。EMP妨害兵: 円形予告から一時妨害。反射装甲兵: 正面の通常弾を反射、側背面と近接が有効。");
             ImGui::TextWrapped("新しいIDを部屋エディターの敵パレットから配置できます。四角・三角・五角は動かない資源です。");ImGui::EndTabItem();
         }
-        if(ImGui::BeginTabItem("自機・換装")){
-            SelectDefinition(draft_.players,selectedPlayer_,"Player_");auto& p=draft_.players[static_cast<std::size_t>(selectedPlayer_)];TextField("説明",p.description,true);ImGui::InputInt("換装価格の初期値 (CR)",&p.price);
-            int style=static_cast<int>(p.style);if(ImGui::Combo("換装の系統",&style,tankbuild::Names.data(),static_cast<int>(tankbuild::Names.size()))) {p.style=static_cast<tankbuild::Style>(style);if(p.style==tankbuild::Style::Drone&&p.drones<1)p.drones=3;if(p.style==tankbuild::Style::Melee){p.drones=0;p.reflect=false;p.penetrate=false;}}
-            ImGui::Combo("換装レア度の初期値 (エピック以上)",&p.rarity,tankbuild::RarityNames.data(),static_cast<int>(tankbuild::RarityNames.size()));
-            ImGui::TextUnformatted("工房に同じ系統の換装カードとして登場。1ラン1回。カードの価格・レア度は強化タブで編集。");
+        if(ImGui::BeginTabItem("機体データ（旧互換）")){
+            SelectDefinition(draft_.players,selectedPlayer_,"Player_");auto& p=draft_.players[static_cast<std::size_t>(selectedPlayer_)];TextField("説明",p.description,true);ImGui::InputInt("旧機体価格 (CR)",&p.price);
+            int style=static_cast<int>(p.style);if(ImGui::Combo("機体の系統",&style,tankbuild::Names.data(),static_cast<int>(tankbuild::Names.size()))) {p.style=static_cast<tankbuild::Style>(style);if(p.style==tankbuild::Style::Drone&&p.drones<1)p.drones=3;if(p.style==tankbuild::Style::Melee){p.drones=0;p.reflect=false;p.penetrate=false;}}
+            ImGui::Combo("旧機体レア度",&p.rarity,tankbuild::RarityNames.data(),static_cast<int>(tankbuild::RarityNames.size()));
+            ImGui::TextUnformatted("制作データと旧モード互換のため保持しています。遠征では機体交換を行いません。基本性能はF2、部品追加は強化タブで編集します。");
             const char* bases[]={"Basic","Twin","MachineGun","Overseer"};int base=0;for(int i=0;i<4;++i)if(p.baseClass==bases[i])base=i;if(ImGui::Combo("基本型",&base,bases,4))p.baseClass=bases[base];
             p.bulletCount=1;
             ImGui::SliderFloat("攻撃力倍率",&p.damageScale,0.2f,4);ImGui::SliderFloat(p.style==tankbuild::Style::Melee?"近接の動作時間倍率":"発射間隔倍率",&p.reloadScale,0.25f,4);

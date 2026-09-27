@@ -33,6 +33,7 @@ public:
 	const std::list<Collider*>& GetColliders() const { return colliders_; }
 
 private:
+	BulletManager* activeBulletManager_=nullptr;
 	// コライダーリスト
 	std::list<Collider*> colliders_;
 };

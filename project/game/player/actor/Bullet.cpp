@@ -21,6 +21,7 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 	hitActorIds_.clear();
 	growthEvents_ = {};
 	canClaimRunResource_ = true;
+	shooter_={};returnFlight_={};returnTarget_=position;sourcePlayer_=nullptr;sourceDroneIndex_=-1;armorReflected_=burstChild_=false;visualTrailScale_=1;
 	isReflectable_ = reflectable;
 	bulletHp_ = (std::max)(0.1f, bulletHp);
 	bulletPenetration_ = (std::max)(0.1f, bulletPenetration);
@@ -66,6 +67,16 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 void Bullet::Update(float deltaTime) {
 	if (isDead_) return;
 	previousPosition_ = GetWorldPosition();
+	if(shooter_.boomerang) {
+		const float flightScale=(std::clamp)(.75f+.25f*shooter_.boomerangPower,.60f,2.0f);
+		if(returnFlight_.Step(deltaTime/flightScale))BeginReturn();
+		if(returnFlight_.returning) {
+			const Vector3 toOwner=returnTarget_-GetWorldPosition();
+			const float speed=Length(velocity_);
+			if(Length(toOwner)<(std::max)(.9f,speed*deltaTime*60.0f)){Die();return;}
+			velocity_=Normalize(toOwner)*speed;
+		}
+	}
 
 	// 座標を移動させる
 	worldTransform_.translate += velocity_ * (deltaTime * 60.0f);
@@ -122,7 +133,10 @@ void Bullet::OnCollision(Collider* other) {
 	Vector3 impactNormal = velocity_ * -1.0f;
 	ParticleManager::GetInstance()->EmitNeonImpactEffect(
 		GetWorldPosition(), impactNormal, GetBulletColor(), 11);
-	if (remainingActorPierces_ > 0) {
+	if(shooter_.boomerang) {
+		// Each leg uses its own hit ledger. The return is finite and cannot fork.
+		++growthEvents_.actorPierces;
+	} else if (remainingActorPierces_ > 0) {
 		--remainingActorPierces_;
 		++growthEvents_.actorPierces;
 	} else {
@@ -135,6 +149,20 @@ void Bullet::ConfigureSpecial(SpecialKind kind, float radius, float lifetime)
 	specialKind_=kind;
 	radius_=(std::clamp)(radius,.1f,2.5f);
 	deathTimer_=(std::clamp)(lifetime,.05f,kLifeTime);
+}
+
+void Bullet::ConfigureShooterAbilities(bool chain,bool mark,bool boomerang,bool killBurst,float chainPower,float markPower,float boomerangPower,float burstPower)
+{
+	shooter_={chain,mark,boomerang,killBurst,chainPower,markPower,boomerangPower,burstPower};
+	if(chain||mark||boomerang||killBurst)usesRunProjectileRules_=true;
+}
+
+void Bullet::BeginReturn()
+{
+	returnFlight_.returning=true;
+	hitActorIds_.clear();
+	impactSplitCount_=0;
+	if(specialImpacts_.size()<8)specialImpacts_.push_back({specialKind_,GetWorldPosition(),velocity_,false});
 }
 
 void Bullet::ConfigureGrowth(int maxWallBounces, int actorPierceCount, int impactSplitCount,
@@ -190,7 +218,8 @@ void Bullet::OnWallImpact(const Vector3& safePosition, const Vector3& normal)
 	if (canReflect) {
 		SetVelocity(reflected);
 	} else {
-		Die();
+		if(shooter_.boomerang&&!returnFlight_.returning)BeginReturn();
+		else Die();
 	}
 }
 
@@ -220,6 +249,9 @@ void Bullet::AppendImpactChildren(std::vector<std::unique_ptr<Bullet>>& children
 		child->deathTimer_ = deathTimer_;
 		child->canClaimRunResource_ = canClaimRunResource_;
 		child->hitActorIds_ = hitActorIds_;
+		child->armorReflected_=armorReflected_;
+		child->burstChild_=true;
+		child->sourcePlayer_=sourcePlayer_;child->sourceDroneIndex_=sourceDroneIndex_;
 		children.push_back(std::move(child));
 	}
 }
@@ -273,6 +305,8 @@ void Bullet::AttachTrail(TrailManager* trailManager, BulletTrailSettings* trailS
 }
 
 Vector4 Bullet::GetBulletColor() const {
+	if(armorReflected_)return {1.5f,.18f,1.0f,1};
+	if(shooter_.boomerang&&returnFlight_.returning)return {.55f,1.6f,.85f,1};
 	if(specialKind_==SpecialKind::Rail)return {.32f,1.30f,1.70f,1};
 	if(specialKind_==SpecialKind::SlashWave)return {.30f,1.50f,1.15f,.80f};
 	if(specialKind_==SpecialKind::ParryReflection)return {1.5f,1.15f,.25f,1};
@@ -380,6 +414,7 @@ void Bullet::UpdateTrail(float deltaTime) {
 	}
 	if(specialKind_==SpecialKind::Rail)halfWidth=(std::max)(halfWidth,radius_*.85f);
 	if(specialKind_==SpecialKind::SlashWave)halfWidth=radius_*.20f;
+	halfWidth*=visualTrailScale_;
 	const Vector3 center = { worldTransform_.translate.x, worldTransform_.translate.y, worldTransform_.translate.z - 0.015f };
 	const Vector3 tip = center + side * halfWidth;
 	const Vector3 base = center - side * halfWidth;

@@ -11,7 +11,10 @@ enum class Phase { Loadout, CoreChoice, Combat, Draft, Boss, Clear, Dead };
 enum class CoreId { Ricochet, Assault, Drone, Count };
 enum class CardId { Ricochet, Heavy, Rapid, Thrusters, Capacitor, Repair, Drones, Pierce,
     ScatterShot, Homing, DashBurst, Overdrive, MeleeBlade, BladeReach, ImpactDrive, PerfectDodge,
-    DroneFocus, DroneGuard, MeleeTempo, FinisherCharge, RailCannon, DroneLaserLink, SlashWave, ParryBlade, Count };
+    DroneFocus, DroneGuard, MeleeTempo, FinisherCharge, RailCannon, DroneLaserLink, SlashWave, ParryBlade,
+    ExtraBarrel1, ExtraBarrel2, FanMount, AlternatingFire, HeavyDroneCore, LightBladeActuator, HeavyBladeEdge,
+    ChainLightning, MarkDetonation, BoomerangShell, KillBurst, DroneCharge, DroneRebuildBomb, TargetPainter,
+    AutonomousSpread, DashSlash, SpinBlade, WallSmash, Count };
 constexpr std::size_t CardCount=static_cast<std::size_t>(CardId::Count);
 // Preserve legacy numeric IDs, but never offer the retired multi-shot module.
 constexpr bool IsAvailableCard(CardId card) { return card>=CardId::Ricochet&&card<CardId::Count&&card!=CardId::ScatterShot; }

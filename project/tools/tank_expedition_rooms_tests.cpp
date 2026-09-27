@@ -10,7 +10,15 @@ int main(int argc,char** argv) {
     std::string error;
     const auto original=DefaultRoomCatalog();
     if(!ValidateRoomCatalog(original,error)) {std::cerr<<error<<'\n';return 1;}
-    assert(original.rooms.size()==7);
+    assert(original.rooms.size()==10);
+    assert(FindRoom(original,"command_post")->spawns[1].type=="SummonerCommander");
+    assert(FindRoom(original,"emp_patrol")->spawns[0].type=="EMPJammer");
+    assert(FindRoom(original,"reflect_bastion")->spawns[0].type=="ReflectArmor");
+    for(const auto& rule:DefaultGenerationRooms()) {
+        if(rule.roomTemplate=="command_post") assert(rule.firstColumn>=7);
+        if(rule.roomTemplate=="emp_patrol") assert(rule.firstColumn>=10);
+        if(rule.roomTemplate=="reflect_bastion") assert(rule.firstColumn>=13);
+    }
     assert(FindRoom(original,"guard_patrol")->spawns[0].type=="ShieldGuard");
     assert(FindRoom(original,"guard_patrol")->spawns[1].type=="BladeGuard");
     for(const auto& rule:DefaultGenerationRooms())if(rule.roomTemplate=="guard_patrol")assert(rule.firstColumn>=8);
@@ -100,5 +108,5 @@ int main(int argc,char** argv) {
     assert(std::count(csv.begin(),csv.end(),'\n')==kRoomRows);
     assert(std::count(csv.begin(),csv.end(),',')==kRoomRows*(kRoomColumns-1));
     if(argc>1) {assert(SaveRoomCatalog(argv[1],original,error));}
-    std::cout<<"Room authoring: seven defaults including midgame guards, map/content contracts, roundtrip, atomic replace, bounds, overlaps, reachability, reference validation passed.\n";
+    std::cout<<"Room authoring: ten defaults including support/reflect enemies, map/content contracts, roundtrip, atomic replace, bounds, overlaps, reachability, reference validation passed.\n";
 }
