@@ -129,6 +129,10 @@ void GameScene::ResetTitleDemoStage(int stage) {
 
 void GameScene::UpdateTitleDemo(float dt) {
     if (!titleDemo_) return;
+    // Attract mode bypasses the ordinary expedition update (including burst cleanup).
+    for(auto& burst:tankRunBursts_) burst.age+=dt;
+    std::erase_if(tankRunBursts_,[](const RunBurst& b){return b.age>(b.resource?0.7f:0.35f);});
+    titleDemoRoomFade_=(std::clamp)(titleDemoRoomFade_+(tankExpedition_.IsCombat()?-dt:dt)/0.5f,0.0f,1.0f);
     const size_t playerBullets = bulletManager_->GetBulletCounts().player;
     if (playerBullets > titleDemoPreviousBulletCount_)
         titleDemoStatus_.shots += static_cast<int>(playerBullets - titleDemoPreviousBulletCount_);
@@ -145,7 +149,7 @@ void GameScene::UpdateTitleDemo(float dt) {
     const auto phase = tankExpedition_.GetPhase();
     if (phase != tankexp::Phase::Combat) {
         player_->SetDemoInput(true, {}, player_->GetWorldPosition() + Vector3{1,0,0}, false, false);
-        if (tankRunMenuAge_ > 0.35f) {
+        if (tankRunMenuAge_ > 0.35f && titleDemoRoomFade_>=1.0f) {
             const int option = phase == tankexp::Phase::Route && tankExpedition_.GetRouteRound() == 0 ? 1 : 0;
             SelectTankExpeditionOption(option);
             if (phase == tankexp::Phase::Reward) ++titleDemoStatus_.rewards;
@@ -214,9 +218,10 @@ void GameScene::CopyTitleDemoCapture() { if (titleDemo_) CopyTankRunCapture(); }
 void GameScene::FlushTitleDemoCapture() { if (titleDemo_) FinishTankRunCapture(); }
 
 nlohmann::json GameScene::GetTitleDemoBuild() const {
+    float oldestBurstAge=0;for(const auto& burst:tankRunBursts_)oldestBurstAge=(std::max)(oldestBurstAge,burst.age);
     const auto combat = player_->GetRunCombatSnapshot();
     const auto growth = bulletManager_->GetGrowthStats();
-    return {{"stage",titleDemoStatus_.stage}, {"class",player_->GetCurrentClassName()},
+    return {{"oldestBurstAge",oldestBurstAge},{"stage",titleDemoStatus_.stage}, {"class",player_->GetCurrentClassName()},
         {"cards",tankRun_.GetDraftCount()}, {"barrels",combat.barrels},
         {"projectilesPerBarrel",combat.projectilesPerBarrel}, {"activeDrones",combat.activeDrones},
         {"reflects",combat.reflects}, {"homing",combat.homing}, {"dashBurst",combat.dashBurst},
@@ -301,4 +306,11 @@ void GameScene::VerifyTitleDemoTransition(float dt) {
     std::ofstream output(path); output << report.dump(2) << '\n'; output.close();
     titleDemoTransitionVerified_ = true;
     PostQuitMessage(completed ? 0 : 1);
+}
+
+float GameScene::GetTitleDemoFade() const {
+    const float t=titleDemoStatus_.stageSeconds;
+    const float edge=(std::max)((std::clamp)((0.55f-t)/0.55f,0.0f,1.0f),(std::clamp)((t-19.45f)/0.55f,0.0f,1.0f));
+    const float a=(std::max)(edge,titleDemoRoomFade_);
+    return a*a*(3-2*a);
 }

@@ -141,7 +141,7 @@ void GameScene::OnTankRunEnemyDefeated(const Vector3& position) {
         ParticleManager::GetInstance()->EmitNeonImpactEffect(position,{0,1,0},{0.22f,1.1f,0.82f,1},10);
         if(expeditionMapEnabled_&&cameraShakeTimer_<=0) {cameraShakeDuration_=0.08f;cameraShakeTimer_=0.08f;cameraShakePower_=0.055f;}
     }
-    if(tankRunCombo_%5==0) SetEventCallout(std::to_string(tankRunCombo_)+(expeditionRun_?" CHAIN":" CHAIN / 資材 +1"),0.55f);
+    if(tankRunCombo_%5==0) SetEventCallout(std::to_string(tankRunCombo_)+(expeditionRun_?"連続撃破":" CHAIN / 資材 +1"),0.55f);
     tankRunHudTimer_=0;
 }
 
@@ -153,7 +153,7 @@ void GameScene::OnTankRunResourceClaim(size_t index,bool playerOwned) {
         tankExpeditionResourceWon_|=playerOwned;
         if(playerOwned) {player_->AddExp(30);player_->HealRunPlayer(8);if(expeditionMapEnabled_) {SpawnExpeditionCredits(resource.position,player_->TakeRunCurrencyEarned());tankExpeditionTutorial_.RecordKill();}}
         if(tankExpedition_.GetRoomKind()==tankexp::RoomKind::Resource || tankExpeditionNodes_>=3) tankExpeditionRoomPending_=true;
-        SetEventCallout(playerOwned?"動力コア確保":"ライバルがコアを確保 / 次のエリアへ",1.0f);
+        SetEventCallout(playerOwned?"通貨を回収！":"相手が通貨を回収 / 次の戦闘へ",1.0f);
         tankExpeditionAudio_.Kill();
         if(tankRunBursts_.size()<24) tankRunBursts_.push_back({resource.position,0,true});
         return;
@@ -195,6 +195,7 @@ void GameScene::SelectTankRunOption(int index) {
     if(expeditionRun_ && !tankRunPaused_ && tankExpedition_.GetPhase()!=tankexp::Phase::Dormant) {SelectTankExpeditionOption(index);return;}
     const auto phase=tankRun_.GetPhase();
     if(tankRunPaused_) {
+        if(expeditionMapEnabled_) {tankExpeditionAudio_.UiConfirm();expeditionLastFocus_.clear();}
         if(index==0) tankRunPaused_=false;
         else { nextSceneName_="TITLE"; fade_->Start(Fade::Status::FadeOut,0.4f); phase_=Phase::kFadeOut; }
     } else if(phase==RunPhase::Loadout) {

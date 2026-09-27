@@ -1,5 +1,6 @@
 #include "GameScene.h"
 #include "StartupTrace.h"
+#include "game/run/TankSubmissionValidation.h"
 
 bool GameScene::IsExpeditionBuildCardScreen() const {
     if(!expeditionMapEnabled_||tankRunPaused_||expeditionMapPreview_) return false;
@@ -50,6 +51,9 @@ void GameScene::RefreshExpeditionBuildCards() {
     if(!IsExpeditionBuildCardScreen()||!expeditionRewardCards_[0]) return;
     const auto current=player_->GetRunCombatSnapshot();
     for(int i=0;i<3;++i) {
+        const size_t offerIndex=static_cast<size_t>(expeditionServicePage_*3+i);
+        if(!expeditionBuildChoice_&&(offerIndex>=expeditionServiceOffers_.size()||
+            !tankcontent::FindUpgrade(expeditionContent_,expeditionServiceOffers_[offerIndex]))) continue;
         TankRewardCardModel model;model.style=expeditionBuildStyle_;model.ownedEffects=tankRun_.GetCardCounts();
         model.profile=player_->GetCombatStyleProfile(model.style);model.ownedEffectPower=ExpeditionEffectPowers();
         const auto& growth=tankExpeditionBalance_["playerUpgrades"];
@@ -76,20 +80,13 @@ void GameScene::RefreshExpeditionBuildCards() {
             model.fanAngle=model.currentFanAngle=0;model.alternate=model.currentAlternate=false;
             model.currentDamageScale=model.damageScale=model.currentReloadScale=model.reloadScale=model.currentBulletSpeedScale=model.bulletSpeedScale=1.0f;
         } else {
-            const size_t index=static_cast<size_t>(expeditionServicePage_*3+i);
-            model.id="empty_"+std::to_string(i);model.title="候補なし";model.description="購入せず次の地点へ進めます。";
-            model.footer="—";model.previewKnown=false;
-            if(index<expeditionServiceOffers_.size()) {
-                model.previewKnown=true;
-                model.id=expeditionServiceOffers_[index];
-                const int price=ExpeditionServicePrice(model.id);
-                model.footer=std::to_string(price)+" Cr"+(expeditionMapRun_.CanAfford(price)?"  / 左クリックで装備":"  / 通貨不足");
-                if(const auto* u=tankcontent::FindUpgrade(expeditionContent_,model.id)) {
-                    model.title=u->name;model.description=u->description;model.rarity=u->rarity;model.effects=u->effects;model.effectPower=u->effectPower;
-                }
-            }
+            model.id=expeditionServiceOffers_[offerIndex];
+            const int price=ExpeditionServicePrice(model.id);
+            model.footer=std::to_string(price)+(expeditionMapRun_.CanAfford(price)?"  / 左クリックで装備":"  / 通貨が足りません");
+            const auto* u=tankcontent::FindUpgrade(expeditionContent_,model.id);
+            model.title=u->name;model.description=u->description;model.rarity=u->rarity;model.effects=u->effects;model.effectPower=u->effectPower;
         }
-        if(experienceValidationVariant_&&expeditionBuildChoice_&&experienceValidationStateAge_>0.55f) {
+        if(experienceValidationVariant_&&!tanksubmission::Enabled()&&expeditionBuildChoice_&&experienceValidationStateAge_>0.55f) {
             model.rarity=experiencePreviewRarity_;model.styleChoice=false;model.authoredVariant="visual_fixture";
         }
         TankRewardPreviewAppearance appearance;
@@ -122,11 +119,17 @@ void GameScene::RefreshExpeditionBuildCards() {
 void GameScene::UpdateExpeditionBuildCards(float dt) {
     if(!IsExpeditionBuildCardScreen()||!expeditionRewardCards_[0]) return;
     const auto mouse=input_->GetMousePosition();int hovered=-1;
-    for(int i=0;i<3;++i) if(mouse.x>=64+i*388&&mouse.x<=432+i*388&&mouse.y>=260&&mouse.y<=590) hovered=i;
+    for(int i=0;i<3;++i) {
+        const size_t index=static_cast<size_t>(expeditionServicePage_*3+i);
+        const bool present=expeditionBuildChoice_||(index<expeditionServiceOffers_.size()&&tankcontent::FindUpgrade(expeditionContent_,expeditionServiceOffers_[index]));
+        if(present&&mouse.x>=64+i*388&&mouse.x<=432+i*388&&mouse.y>=260&&mouse.y<=590) hovered=i;
+    }
     if(experienceValidationVariant_) hovered=expeditionBuildChoice_?experienceValidationStyle_:tankRunSelection_;
     for(int i=0;i<3;++i) {
-        const bool present=expeditionBuildChoice_||static_cast<size_t>(expeditionServicePage_*3+i)<expeditionServiceOffers_.size();
-        expeditionRewardCards_[i]->Update({248.0f+i*388.0f,425},{368,330},dt,i==hovered&&!expeditionTransition_.IsActive(),present);
+        const size_t index=static_cast<size_t>(expeditionServicePage_*3+i);
+        const bool present=expeditionBuildChoice_||(index<expeditionServiceOffers_.size()&&tankcontent::FindUpgrade(expeditionContent_,expeditionServiceOffers_[index]));
+        if(!present) continue;
+        expeditionRewardCards_[i]->Update({248.0f+i*388.0f,425},{368,330},dt,i==hovered&&!expeditionTransition_.IsActive(),true);
     }
     const std::string focus="card_"+std::to_string(hovered);
     if(expeditionBuildChoice_&&focus!=expeditionLastFocus_) {

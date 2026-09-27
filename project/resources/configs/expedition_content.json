@@ -518,7 +518,7 @@
   "schemaVersion": 5,
   "upgrades": [
     {
-      "description": "壁で弾が反射する。1砲門1発のまま、角度を使って敵を狙う。",
+      "description": "壁に当たった弾が跳ね返る。\n反射は1回。角度を変えて敵を狙う。",
       "effects": [
         "Ricochet"
       ],
@@ -536,7 +536,7 @@
       }
     },
     {
-      "description": "射撃とブレードの威力を強化。重い一撃と衝撃放電の組み合わせに。",
+      "description": "攻撃の一発を重くする。\n威力+25% / 弾速+20%\n攻撃間隔+10%。",
       "effects": [
         "Heavy"
       ],
@@ -555,7 +555,7 @@
       }
     },
     {
-      "description": "攻撃間隔を短縮。射撃・ドローン・近接のすべてに有効。",
+      "description": "攻撃の間隔を短くする。\n射撃・ドローン・近接に有効。\n攻撃間隔-25%。",
       "effects": [
         "Rapid"
       ],
@@ -574,7 +574,7 @@
       }
     },
     {
-      "description": "移動とダッシュを強化する。",
+      "description": "移動とダッシュを強化する。\n移動+12% / ダッシュ速度+25%\nスタミナ回復+25%、待ち時間-20%。",
       "effects": [
         "Thrusters"
       ],
@@ -593,7 +593,7 @@
       }
     },
     {
-      "description": "ジャスト回避成功でHPとスタミナを回復。ジャスト回避の取得が必要。",
+      "description": "ジャスト回避でHPとスタミナを回復。\nHP+4 / スタミナ+1。\n「ジャスト回避」の取得が必要。",
       "effects": [
         "Capacitor"
       ],
@@ -612,7 +612,7 @@
       }
     },
     {
-      "description": "最大HPを増やし、その増加分を修復する。",
+      "description": "最大HPを増やし、増加分を回復。\n最大HP+15%。",
       "effects": [
         "Repair"
       ],
@@ -631,7 +631,7 @@
       }
     },
     {
-      "description": "支援ドローンを追加する。",
+      "description": "攻撃するドローンが2機増える。\n取得済みの弾の強化も引き継ぐ。",
       "effects": [
         "Drones"
       ],
@@ -648,7 +648,7 @@
       }
     },
     {
-      "description": "弾が敵を貫く。",
+      "description": "敵を貫き、その先の敵にも命中。\n敵1体を貫通。敵弾を消す力は3倍。",
       "effects": [
         "Pierce"
       ],
@@ -666,7 +666,7 @@
       }
     },
     {
-      "description": "弾が近くの敵を追う。",
+      "description": "前方の近い敵へ弾が曲がる。\n自分で狙い、飛翔中に軌道を補正。",
       "effects": [
         "Homing"
       ],
@@ -684,7 +684,7 @@
       }
     },
     {
-      "description": "ダッシュ開始時に近くの敵へ衝撃波。攻撃力の改造と組み合わせると衝撃を強化。",
+      "description": "ダッシュ開始時に周囲へ衝撃波。\n半径3.2 / 弾の基礎威力の1.4倍。\n重い弾頭があると2倍。",
       "effects": [
         "DashBurst"
       ],
@@ -703,7 +703,7 @@
       }
     },
     {
-      "description": "ダッシュ後の攻撃を加速。追尾との組み合わせで旋回も強化。",
+      "description": "ダッシュ直後、攻撃が速くなる。\n1.2秒間、攻撃間隔が半分。\n再使用4秒 / ジャスト回避時2.4秒。",
       "effects": [
         "Overdrive"
       ],
@@ -722,7 +722,7 @@
       }
     },
     {
-      "description": "ブレードの射程+30%、威力+20%。近接系統専用。",
+      "description": "刃が伸び、遠くの敵にも届く。\n近接射程+30% / 威力+20%。",
       "effects": [
         "BladeReach"
       ],
@@ -739,7 +739,7 @@
       }
     },
     {
-      "description": "ダッシュ体当たりの威力と押し出し+50%。ブレードの押し出しも+50%。",
+      "description": "体当たりで敵を強く吹き飛ばす。\n体当たりの威力・押し出し+50%。\n近接の押し出しも+50%。",
       "effects": [
         "ImpactDrive"
       ],
@@ -758,7 +758,7 @@
       }
     },
     {
-      "description": "敵弾をダッシュ開始直後に避けるとジャスト回避。短いスローと反撃強化を解放。体当たりはSLAM。",
+      "description": "ダッシュ開始直後に敵弾を回避。\n成功すると短いスローが発生。\n敵本体への体当たりは対象外。",
       "effects": [
         "PerfectDodge"
       ],
@@ -780,7 +780,7 @@
       "compatibleStyles": [
         "drone"
       ],
-      "description": "ドローンの精度・照準追従を強化。威力+15%、弾速+15%。集中射撃を当てやすくする。",
+      "description": "ドローンが照準付近の敵を狙いやすく。\n弾の軌道を補正する。\n威力+15% / 弾速+15%。",
       "effects": [
         "DroneFocus"
       ],
@@ -797,7 +797,7 @@
       "compatibleStyles": [
         "drone"
       ],
-      "description": "ドローン弾の耐久と敵弾を消す力を3へ強化。弾幕を切り開く。",
+      "description": "ドローン弾で敵弾を迎撃しやすく。\n弾の耐久と敵弾を消す力が1→3。",
       "effects": [
         "DroneGuard"
       ],
@@ -814,7 +814,7 @@
       "compatibleStyles": [
         "melee"
       ],
-      "description": "近接連撃の各動作を18%短縮。攻撃速度の改造と組み合わせ可能。",
+      "description": "近接の3段斬りを速くつなぐ。\n予備動作・斬撃・硬直を18%短縮。",
       "effects": [
         "MeleeTempo"
       ],
@@ -831,7 +831,7 @@
       "compatibleStyles": [
         "melee"
       ],
-      "description": "近接3段目の威力+50%、押し出し+20%。連撃の締めを強化する。",
+      "description": "近接3段目の一撃を強化する。\n威力+50% / 押し出し+20%。",
       "effects": [
         "FinisherCharge"
       ],
@@ -847,7 +847,7 @@
     {
       "id": "RailCannon",
       "name": "レールキャノン",
-      "description": "左クリック長押しで約1秒チャージ、離して貫通レール弾。短押しも可能。チャージ中は移動が少し遅くなる。",
+      "description": "長押しでため、離すと貫通弾。\n最大1秒で威力は約5倍。\nためている間は移動が遅くなる。",
       "price": 58,
       "maxPurchases": 1,
       "rarity": 3,
@@ -864,7 +864,7 @@
     {
       "id": "DroneLaserLink",
       "name": "レーザーリンク",
-      "description": "ドローンを輪状のレーザーで接続。隊形と位置取りで敵へ重ねて継続ダメージ。壁越しには届かない。",
+      "description": "ドローン間を攻撃用レーザーで接続。\n2機以上で有効。敵へ重ねて攻撃。\n壁を越えては届かない。",
       "price": 58,
       "maxPurchases": 1,
       "rarity": 3,
@@ -881,7 +881,7 @@
     {
       "id": "SlashWave",
       "name": "斬撃波",
-      "description": "近接3段目から斬撃波を放つ。敵を貫き、弱い敵弾を削る。刃先延長・終撃増幅と組み合わせ可能。",
+      "description": "近接3段目から斬撃波を放つ。\n射程は近接の約2倍 / 威力は3段目の55%。\n最大3体を貫き、弱い敵弾も切る。",
       "price": 42,
       "maxPurchases": 1,
       "rarity": 2,
@@ -898,7 +898,7 @@
     {
       "id": "ParryBlade",
       "name": "パリィブレード",
-      "description": "斬撃で低耐久の敵弾を斬る。振り始めはPERFECT PARRYとなり、弾を跳ね返す。高耐久弾は耐久を削る。",
+      "description": "斬撃で弱い敵弾を切る。\n開始0.12秒以内なら弾を跳ね返す。\n硬い敵弾は完全には防げない。",
       "price": 58,
       "maxPurchases": 1,
       "rarity": 3,
@@ -915,7 +915,7 @@
     {
       "id": "ExtraBarrel1",
       "name": "追加砲門",
-      "description": "主砲を1門追加して2門に。各弾の威力は65%。砲門そのものを増設する。",
+      "description": "主砲を1門増やし、2門で撃つ。\n各弾の威力は元の65%。",
       "price": 28,
       "maxPurchases": 1,
       "rarity": 1,
@@ -932,7 +932,7 @@
     {
       "id": "ExtraBarrel2",
       "name": "追加砲門II",
-      "description": "追加砲門が必要。さらに1門追加して3門に。各弾の威力は50%。取得済みの部品は残る。",
+      "description": "さらに主砲を増やし、3門で撃つ。\n「追加砲門」の取得が必要。\n各弾の威力は元の50%。",
       "price": 42,
       "maxPurchases": 1,
       "rarity": 2,
@@ -949,7 +949,7 @@
     {
       "id": "FanMount",
       "name": "扇形砲架",
-      "description": "2門以上が必要。2門は左右8度、3門は左右14度へ主砲を開く。射撃範囲を広げる。",
+      "description": "主砲を開き、広い範囲へ撃つ。\n2門以上が必要。\n2門なら左右8度、3門なら左右14度。",
       "price": 28,
       "maxPurchases": 1,
       "rarity": 1,
@@ -966,7 +966,7 @@
     {
       "id": "AlternatingFire",
       "name": "交互射撃機構",
-      "description": "2門以上が必要。砲門を順番に発射。同時射撃と同じ総火力で切れ目を減らす。",
+      "description": "主砲を順番に撃ち、切れ目を減らす。\n2門以上が必要。総火力は同じ。\nレール弾は1門に威力を集中する。",
       "price": 42,
       "maxPurchases": 1,
       "rarity": 2,
@@ -983,7 +983,7 @@
     {
       "id": "HeavyDroneCore",
       "name": "重装ドローン",
-      "description": "全ドローンの威力+45%、攻撃間隔+20%。大きな弾を撃つ。機数は減らない。",
+      "description": "全ドローンが重い弾を撃つ。\n威力+45% / 攻撃間隔+20%。\nドローンの数は減らない。",
       "price": 42,
       "maxPurchases": 1,
       "rarity": 2,
@@ -1000,7 +1000,7 @@
     {
       "id": "LightBladeActuator",
       "name": "軽量ブレード機構",
-      "description": "近接の攻撃動作を15%短縮、威力5%減。重装ブレードとも積み重なる。",
+      "description": "近接の攻撃動作を軽くする。\n動作時間-15% / 威力-5%。",
       "price": 28,
       "maxPurchases": 1,
       "rarity": 1,
@@ -1017,7 +1017,7 @@
     {
       "id": "HeavyBladeEdge",
       "name": "重装ブレード",
-      "description": "近接威力+45%、攻撃動作18%増。軽量ブレード機構とも積み重なる。",
+      "description": "近接が重い一撃に変わる。\n威力+45% / 動作時間+18%。",
       "price": 42,
       "maxPurchases": 1,
       "rarity": 2,
@@ -1034,7 +1034,7 @@
     {
       "id": "ChainLightning",
       "name": "連鎖放電",
-      "description": "射撃命中から半径7以内の別敵へ最大2回放電。元弾の威力の48%。同じ敵へは戻らない。",
+      "description": "命中した敵から別の敵へ放電する。\n半径7以内、追加で最大2体。\n威力は弾の48%。同じ敵へは戻らない。",
       "price": 42,
       "maxPurchases": 1,
       "rarity": 2,
@@ -1051,7 +1051,7 @@
     {
       "id": "MarkDetonation",
       "name": "爆裂マーカー",
-      "description": "射撃を4回当てると起爆。マークは4秒持続、威力は基礎弾の1.8倍。ボスは6回で起爆。",
+      "description": "命中した敵に印を付け、まとめて爆破。\n4発で起爆。印は4秒で消える。\n威力は弾の1.75倍。ボスは6発・威力軽減。",
       "price": 58,
       "maxPurchases": 1,
       "rarity": 3,
@@ -1068,7 +1068,7 @@
     {
       "id": "BoomerangShell",
       "name": "往復弾",
-      "description": "弾が飛翔後に自機へ折り返す。往路・復路でそれぞれ同じ敵へ1回命中。戻ると消える。",
+      "description": "撃った弾が折り返し、自機へ戻る。\n0.6秒後に折り返し、戻ると消える。\n同じ敵に往路・復路で1回ずつ命中。",
       "price": 58,
       "maxPurchases": 1,
       "rarity": 3,
@@ -1085,7 +1085,7 @@
     {
       "id": "KillBurst",
       "name": "撃破バースト",
-      "description": "射撃で撃破すると6方向へ威力35%の小型弾。小型弾から追加バーストは起こらない。",
+      "description": "撃破した敵から6方向へ小型弾を放つ。\n威力は元の弾の35%。\n小型弾からは再発動しない。",
       "price": 42,
       "maxPurchases": 1,
       "rarity": 2,
@@ -1102,7 +1102,7 @@
     {
       "id": "DroneCharge",
       "name": "突撃ドローン",
-      "description": "準備できたドローンが発光して標的へ突撃。命中で押し出し、自機へ帰還する。",
+      "description": "ドローン1機が敵へ突撃して帰還する。\n発光予告の後、ドローン弾の3倍の威力。\n再使用まで2.8秒。",
       "price": 42,
       "maxPurchases": 1,
       "rarity": 2,
@@ -1119,7 +1119,7 @@
     {
       "id": "DroneRebuildBomb",
       "name": "自爆再構築",
-      "description": "ドローン1機が点滅して突撃・自爆。約5.5秒使えなくなり、自機の近くで再構築する。",
+      "description": "ドローン1機が突撃して自爆する。\n通常敵へドローン弾の8倍の威力。\n自爆後は5.5秒間使えない。",
       "price": 78,
       "maxPurchases": 1,
       "rarity": 4,
@@ -1136,7 +1136,7 @@
     {
       "id": "TargetPainter",
       "name": "ターゲットペインター",
-      "description": "複数のドローンで同じ敵を攻撃するとLOCK。4秒間ドローンの威力+35%、ボスは+18%。",
+      "description": "同じ敵への集中攻撃でロックする。\n2機以上で4発当てると4秒間、\n威力+35%（ボスは+18%）。",
       "price": 42,
       "maxPurchases": 1,
       "rarity": 2,
@@ -1153,7 +1153,7 @@
     {
       "id": "AutonomousSpread",
       "name": "自律分散モード",
-      "description": "左クリック中、それぞれのドローンが別の近い敵を狙う。各機の威力は18%減。",
+      "description": "各ドローンが別の近い敵を狙う。\n左クリック中に自動で分散。\n1発の威力-18%。",
       "price": 78,
       "maxPurchases": 1,
       "rarity": 4,
@@ -1170,7 +1170,7 @@
     {
       "id": "DashSlash",
       "name": "ダッシュ斬り",
-      "description": "ダッシュ中の攻撃が突進斬りに。斬り抜けから通常2段目、3段目へつながる。",
+      "description": "ダッシュ中の攻撃が突進斬りになる。\n通った敵に近接の1.2倍の威力。\n続けて2段目・3段目につながる。",
       "price": 42,
       "maxPurchases": 1,
       "rarity": 2,
@@ -1187,7 +1187,7 @@
     {
       "id": "SpinBlade",
       "name": "回転ブレード",
-      "description": "3段目後も左クリックを押し続けると約0.8秒回転斬り。移動が低下。パリィで通常弾を斬れる。",
+      "description": "3段目の後も押し続けると回転斬り。\nスタミナ1で0.8秒、全方向を4回攻撃。\n移動速度低下。パリィブレード所持で弱い弾も切る。",
       "price": 58,
       "maxPurchases": 1,
       "rarity": 3,
@@ -1204,7 +1204,7 @@
     {
       "id": "WallSmash",
       "name": "壁砕き",
-      "description": "強く吹き飛ばした敵が壁へ当たると基礎近接威力の1.75倍の追加ダメージと半径2.8の衝撃波。",
+      "description": "吹き飛ばした敵が壁で衝撃波を起こす。\n追加威力は近接の1.75倍 / 半径2.8。\n周囲の敵にも40%の威力。",
       "price": 78,
       "maxPurchases": 1,
       "rarity": 4,

@@ -3,6 +3,7 @@
 #include "GameStartMode.h"
 #include "SceneManager.h"
 #include "StartupTrace.h"
+#include "game/run/TankSubmissionValidation.h"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -56,15 +57,19 @@ void TitleScene::Initialize() {
     };
     title_=label("たたかうせんしゃ",100,{w*0.5f,h*0.32f},{0.91f,1,0.96f,1},true);
     Fit(*title_,{w*0.76f,118});
-    subtitle_=label("分岐・改造型ローグライトシューティング",23,{w*0.5f,h*0.44f},{0.73f,0.91f,0.94f,1});
+    subtitle_=label("強化を重ねて最深部を目指す、ローグライトアクション",23,{w*0.5f,h*0.44f},{0.73f,0.91f,0.94f,1});
     Fit(*subtitle_,{w*0.78f,42});
-    menu_[0]=label("PRESS ENTER  /  ゲームスタート",31,{w*0.5f,h*0.60f},{0.47f,1,0.76f,1});
-    menu_[1]=label("フリープレイ",20,{w*0.5f,h*0.72f},{0.78f,0.88f,0.91f,1});
-    menu_[2]=label("基本操作チュートリアル",20,{w*0.5f,h*0.79f},{0.78f,0.88f,0.91f,1});
+    menu_[0]=label("遠征をはじめる",31,{w*0.5f,h*0.60f},{0.47f,1,0.76f,1});
     for(auto& item:menu_) Fit(*item,{w*0.72f,58});
-    hint_=label("↑↓ 選択    Enter / Space 決定    F10 コア争奪戦",15,{w*0.5f,h-36},{0.57f,0.71f,0.77f,1});
+    hint_=label("クリックで決定",15,{w*0.5f,h-36},{0.57f,0.71f,0.77f,1});
     demoCaption_=label(" ",13,{w-130,30},{0.47f,0.62f,0.67f,1});
-    menuSelection_=IsSceneAvailable("TANK_EXPEDITION")?0:1;UpdateMenuVisuals();
+    menuSelection_=0;menuHovered_=HitTestMenu(input_->GetMousePosition())==0;UpdateMenuVisuals();
+    if(tanksubmission::Enabled()) {
+        ++tanksubmission::state.titles;
+        tanksubmission::state.returned=tanksubmission::state.titles==2;
+        tanksubmission::state.screens["title"]=nlohmann::json::array({title_->GetText(),subtitle_->GetText(),menu_[0]->GetText(),hint_->GetText()});
+        tanksubmission::Write();
+    }
     NeonTextEffectStyle neon{};neon.enabled=true;neon.glowColor={0.18f,1,0.56f,1};
     neon.sourceBrightness=1.55f;neon.threshold=0;neon.innerIntensity=0.48f;neon.outerIntensity=0.22f;
     titleTextNeonEffect_=std::make_unique<NeonTextEffect>();
@@ -78,20 +83,12 @@ void TitleScene::Update() {
     // Confirmation is evaluated before the background simulation. The first
     // input therefore cannot shoot, move, or select a reward inside the demo.
     if(phase_!=Phase::kFadeOut) {
-        const bool previous=triggered(DIK_UP)||triggered(DIK_W),next=triggered(DIK_DOWN)||triggered(DIK_S);
-        if(previous!=next) {
-            for(int i=0;i<3;++i) {menuSelection_=(menuSelection_+(previous?-1:1)+3)%3;if(IsMenuAvailable(menuSelection_)) break;}
-            UpdateMenuVisuals();
-        }
         const Vector2 mouse=input_->GetMousePosition();
-        const bool moved=mouse.x!=previousMousePosition_.x||mouse.y!=previousMousePosition_.y;
         previousMousePosition_=mouse;
         const bool click=input_->IsTrigger(input_->GetMouseState().rgbButtons[0],input_->GetPreMouseState().rgbButtons[0]);
         const int hovered=HitTestMenu(mouse);
-        if(hovered>=0&&((moved&&!previous&&!next)||click)) {menuSelection_=hovered;UpdateMenuVisuals();}
+        if(menuHovered_!=(hovered==0)) {menuHovered_=hovered==0;UpdateMenuVisuals();}
         if(triggered(DIK_F9)) StartTransitionIfAvailable("TANK_EXPEDITION",0.5f);
-        else if(triggered(DIK_F10)) StartTransitionIfAvailable("TANK_RUN",0.5f);
-        else if(triggered(DIK_F8)) StartTransitionIfAvailable("INK_SHOOTER_LAB",0.5f);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
         else if(triggered(DIK_F2)) StartTransitionIfAvailable("PLAYER_LAB",0.5f);
         else if(triggered(DIK_F3)) StartTransitionIfAvailable("TEST",0.5f);
@@ -102,18 +99,25 @@ void TitleScene::Update() {
 #endif
         else if(triggered(DIK_RETURN)||triggered(DIK_SPACE)||(click&&hovered>=0)) {
             if(menuSelection_==0) StartTransitionIfAvailable("TANK_EXPEDITION",0.65f);
-            else {GameStartSession::SetMode(menuSelection_==1?GameStartMode::Normal:GameStartMode::Tutorial);StartTransitionIfAvailable("GAME",0.65f);}
         }
         if(autoTest_&&capturedStages_==15&&demo_->GetTitleDemoStatus().totalSeconds>=81.0f)
             StartTransitionIfAvailable("TANK_EXPEDITION",0.65f);
         if(startupAutoTest_&&blinkTimer_>=1.0f)
             StartTransitionIfAvailable("TANK_EXPEDITION",0.65f);
+        if(tanksubmission::Enabled()) {
+            if(!submissionCaptured_&&blinkTimer_>=0.8f) {
+                demo_->RequestTitleDemoCapture("submission_title_"+std::to_string(tanksubmission::state.titles));
+                submissionCaptured_=true;
+            }
+            if(blinkTimer_>=1.5f) StartTransitionIfAvailable("TANK_EXPEDITION",0.65f);
+        }
     }
     const auto before=demo_->GetTitleDemoStatus();
     // Capture transient effects before the game can restore the next fixed
     // scene. A single still at six seconds cannot prove an Overdrive trigger.
     if(autoTest_) {
         const auto combat=demo_->GetTitleDemoBuild();
+        maxObservedBurstAge_=(std::max)(maxObservedBurstAge_,combat.value("oldestBurstAge",0.0f));
         auto& observed=stageSamples_[before.stage];
         observed.maxHomingTurnRate=(std::max)(observed.maxHomingTurnRate,combat.value("homingTurnRate",0.0f));
         observed.maxDashExplosionsEmitted=(std::max)(observed.maxDashExplosionsEmitted,combat.value("dashExplosionsEmitted",0u));
@@ -123,17 +127,23 @@ void TitleScene::Update() {
     }
     if(!demoFrozen_) demo_->Update();
     const auto& status=demo_->GetTitleDemoStatus();
+    if(autoTest_&&status.stage==0&&status.stageSeconds>19.85f&&!capturedSceneFadeOut_) {
+        demo_->RequestTitleDemoCapture("scene_fade_out");capturedSceneFadeOut_=true;
+    }
+    if(autoTest_&&status.stage==1&&status.stageSeconds<0.10f&&!capturedSceneFadeIn_) {
+        demo_->RequestTitleDemoCapture("scene_fade_in");capturedSceneFadeIn_=true;
+    }
     auto& sample=stageSamples_[before.stage];
     sample.shots+=(std::max)(0,status.shots-before.shots);
     sample.kills+=(std::max)(0,status.kills-before.kills);
     sample.dashes+=(std::max)(0,status.dashes-before.dashes);
     if(stageSamples_[status.stage].build.empty()) stageSamples_[status.stage].build=demo_->GetTitleDemoBuild().dump();
-    const char* captions[]={"DEMO / 序盤","DEMO / 反射・分裂","DEMO / 完成ビルド","DEMO / ボス戦"};
+    const char* captions[]={"プレイ例 / 序盤","プレイ例 / 反射・分裂","プレイ例 / 強化した戦車","プレイ例 / ボス戦"};
     demoCaption_->SetText(captions[status.stage]);
     if(autoTest_&&status.stageSeconds>=6&&!(capturedStages_&(1u<<status.stage))) {
         demo_->RequestTitleDemoCapture("stage_"+std::to_string(status.stage));capturedStages_|=1u<<status.stage;WriteDemoValidation(false);
     }
-    menu_[menuSelection_]->SetAlpha(0.90f+std::sin(blinkTimer_*3.2f)*0.10f);
+    menu_[menuSelection_]->SetAlpha(menuHovered_?0.90f+std::sin(blinkTimer_*3.2f)*0.10f:1.0f);
     if(phase_==Phase::kFadeIn||phase_==Phase::kFadeOut) {
         fade_->Update();
         if(fade_->IsFinished()) {
@@ -149,12 +159,16 @@ void TitleScene::DrawAfterPostEffect3D(){
     // Dim only the game background; both text glow and sharp source glyphs
     // follow this veil, so moving walls/volleys cannot wash out menu labels.
     SpriteCommon::GetInstance()->PreDraw(kNormal);
+    backgroundVeil_->SetColor({0.004f,0.009f,0.016f,0.42f+0.58f*demo_->GetTitleDemoFade()});backgroundVeil_->Update();
     backgroundVeil_->Draw();
-    if(titleTextNeonEffect_) titleTextNeonEffect_->DrawBloom({title_.get(),menu_[menuSelection_].get()});
+    if(titleTextNeonEffect_) {
+        if(menuHovered_) titleTextNeonEffect_->DrawBloom({title_.get(),menu_[0].get()});
+        else titleTextNeonEffect_->DrawBloom({title_.get()});
+    }
 }
 void TitleScene::DrawSprite(){
     title_->Draw();subtitle_->Draw();
-    for(int i=0;i<3;++i) if(IsMenuAvailable(i)) menu_[i]->Draw();
+    for(int i=0;i<1;++i) if(IsMenuAvailable(i)) menu_[i]->Draw();
     hint_->Draw();demoCaption_->Draw();fade_->Draw();demo_->CopyTitleDemoCapture();
 }
 IScene::ScreenEffectState TitleScene::GetScreenEffectState()const {
@@ -163,16 +177,16 @@ IScene::ScreenEffectState TitleScene::GetScreenEffectState()const {
     state.param.vignetteIntensity=0.30f;state.param.vignetteScale=1.2f;return state;
 }
 void TitleScene::UpdateMenuVisuals(){
-    for(int i=0;i<3;++i){
+    for(int i=0;i<1;++i){
         const auto size=menu_[i]->GetSprite()->GetSize();auto style=menu_[i]->GetStyle();
-        style.color=i==menuSelection_?Vector4{0.47f,1,0.76f,1}:Vector4{0.78f,0.88f,0.92f,0.96f};
+        style.color=menuHovered_?Vector4{0.47f,1,0.76f,1}:Vector4{0.48f,0.52f,0.55f,1};
         menu_[i]->SetStyle(style);menu_[i]->PrepareForDraw();menu_[i]->GetSprite()->SetSize(size);
     }
 }
 bool TitleScene::IsSceneAvailable(std::string_view name)const{return SceneManager::GetInstance()->ContainsScene(name);}
 bool TitleScene::IsMenuAvailable(int selection)const{return selection==0?IsSceneAvailable("TANK_EXPEDITION"):IsSceneAvailable("GAME");}
 int TitleScene::HitTestMenu(const Vector2& mouse)const{
-    for(int i=0;i<3;++i)if(IsMenuAvailable(i)){
+    for(int i=0;i<1;++i)if(IsMenuAvailable(i)){
         auto* sprite=menu_[i]->GetSprite();const auto center=sprite->GetPosition(),size=sprite->GetSize();
         if(std::abs(mouse.x-center.x)<=(std::max)(150.0f,size.x*0.5f)&&std::abs(mouse.y-center.y)<=28)return i;
     }return -1;
@@ -187,6 +201,7 @@ bool TitleScene::StartTransitionIfAvailable(std::string_view name,float duration
 void TitleScene::WriteDemoValidation(bool fadeComplete){
     const auto& s=demo_->GetTitleDemoStatus();std::ofstream report("generated/title_demo/validation.json");
     report<<"{\"completed\":false,\"testMode\":true,\"fixedSeed\":20260925,\"stagesVisited\":"<<s.stagesVisitedMask
+        <<",\"sceneFadeCaptured\":"<<(capturedSceneFadeOut_&&capturedSceneFadeIn_?"true":"false")<<",\"maxBurstAge\":"<<maxObservedBurstAge_
         <<",\"capturedStages\":"<<capturedStages_<<",\"seconds\":"<<s.totalSeconds
         <<",\"projectileEmissionSamples\":"<<s.shots<<",\"dashes\":"<<s.dashes<<",\"kills\":"<<s.kills
         <<",\"rewards\":"<<s.rewards<<",\"routes\":"<<s.routes<<",\"maxPlayerBullets\":"<<s.maxPlayerBullets

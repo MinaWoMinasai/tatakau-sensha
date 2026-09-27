@@ -20,6 +20,7 @@ public:
     bool IsComplete() const {return stage_==Stage::Complete;}
     bool IsCombatReadyToClear() const {return stage_==Stage::Upgrade||stage_==Stage::Complete;}
     int GetFailedDashAttempts() const {return failedDashes_;}
+    int GetCompletedDashes() const {return completedDashes_;}
     int GetKills() const {return kills_;}
     int GetCollectedCredits() const {return credits_;}
     bool HasFired() const {return fired_;}
@@ -58,8 +59,8 @@ public:
         if(hp<dashStartHp_||hp<=0) dashDamaged_=true;
         if(actualDashing) return;
         dashAttempt_=false;
-        if(dashDamaged_) ++failedDashes_;
-        else stage_=Stage::Upgrade;
+        // Practice counts completed movements, never asks beginners to survive hits.
+        if(++completedDashes_>=3) stage_=Stage::Upgrade;
     }
     bool ResolveUpgrade(bool purchased) {
         if(stage_!=Stage::Upgrade) return false;
@@ -71,7 +72,7 @@ private:
         if(stage_==Stage::Collect&&credits_>=requiredCredits_) stage_=Stage::Vitals;
     }
     Stage stage_=Stage::Briefing;
-    int requiredKills_=1,requiredCredits_=4,kills_=0,credits_=0,failedDashes_=0,dashStartHp_=0;
+    int requiredKills_=1,requiredCredits_=4,kills_=0,credits_=0,failedDashes_=0,dashStartHp_=0,completedDashes_=0;
     bool fired_=false,dashAttempt_=false,dashDamaged_=false,damageObserved_=false,purchased_=false;
 };
 }

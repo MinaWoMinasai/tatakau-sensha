@@ -1,23 +1,54 @@
 #include "GameScene.h"
 #include "Enemy.h"
+#include "game/run/TankSubmissionValidation.h"
+#include <functional>
 #include <fstream>
 #include <iomanip>
 
 namespace {
 constexpr uint32_t kExperienceSeed=20260926;
 std::string ExperienceDirectory(int variant) {
+    if(tanksubmission::Enabled()) return "generated/submission_validation/";
     return std::string("generated/experience_validation/")+(variant==1?"upper/":"lower/");
 }
 }
 
 void GameScene::InitializeExperienceValidation() {
     wchar_t flag[8]{};
-    if(titleDemo_||GetEnvironmentVariableW(L"CG2_TANK_EXPERIENCE_AUTOTEST",flag,8)==0||(flag[0]!=L'1'&&flag[0]!=L'2')) return;
+    if(titleDemo_) return;
+    const bool submission=tanksubmission::Enabled();
+    if(!submission&&(GetEnvironmentVariableW(L"CG2_TANK_EXPERIENCE_AUTOTEST",flag,8)==0||(flag[0]!=L'1'&&flag[0]!=L'2'))) return;
+    if(submission) {
+        flag[0]=L'1';
+        ++tanksubmission::state.runs;
+        if(tanksubmission::state.runs==2) {experienceValidationVariant_=1;return;}
+    }
     experienceValidationVariant_=flag[0]==L'1'?1:2;
     wchar_t styleFlag[8]{};
     if(GetEnvironmentVariableW(L"CG2_TANK_EXPERIENCE_STYLE",styleFlag,8)>0&&styleFlag[0]>=L'0'&&styleFlag[0]<=L'2') experienceValidationStyle_=styleFlag[0]-L'0';
     expeditionSeed_=kExperienceSeed;
     expeditionMapDefinition_=tankexp::GenerateExpeditionMap(expeditionSeed_,30,8);
+    if(submission) {
+        // Use the real generated graph. Pick a route with repair/workshop stops,
+        // then select existing standard rooms to guarantee all three enemy views.
+        std::function<int(const std::string&)> score=[&](const std::string& id) {
+            const auto* n=tankexp::FindMapNode(expeditionMapDefinition_,id);if(!n)return 0;
+            int next=0;for(const auto& to:n->next)next=(std::max)(next,score(to));
+            return next+(n->kind==tankexp::NodeKind::Heal?50:n->kind==tankexp::NodeKind::Upgrade?10:1);
+        };
+        std::string id="tutorial_combat";int enemyRoom=0;
+        const char* rooms[]={"command_post","emp_patrol","reflect_bastion"};
+        const int firstColumns[]={7,10,13};
+        while(!id.empty()) {
+            tanksubmission::state.path.push_back(id);
+            auto it=std::find_if(expeditionMapDefinition_.nodes.begin(),expeditionMapDefinition_.nodes.end(),[&](const auto& n){return n.id==id;});
+            if(it==expeditionMapDefinition_.nodes.end())break;
+            if(enemyRoom<3&&it->kind==tankexp::NodeKind::Combat&&it->column>=firstColumns[enemyRoom])it->roomTemplate=rooms[enemyRoom++];
+            std::string next;int best=-1;
+            for(const auto& to:it->next)if(const int value=score(to);value>best){best=value;next=to;}
+            id=next;
+        }
+    }
     expeditionIntroOffers_=tankcontent::IntroUpgradeIds(expeditionContent_,expeditionSeed_);
     expeditionMapAutoTest_=tankRunAutoTest_=combatValidationEnabled_=false;
     tutorialConfig_.enabled=false;
@@ -32,6 +63,7 @@ void GameScene::CaptureExperienceValidation(const std::string& name) {
     if(!tankRunCapturePath_.empty()||std::find(experienceValidationCaptures_.begin(),experienceValidationCaptures_.end(),name)!=experienceValidationCaptures_.end()) return;
     experienceValidationCaptures_.push_back(name);
     tankRunCapturePath_=ExperienceDirectory(experienceValidationVariant_)+name+".png";
+    if(tanksubmission::Enabled()) RecordSubmissionUi(name);
 }
 
 void GameScene::WriteExperienceValidationReport(bool completed) {
@@ -40,10 +72,10 @@ void GameScene::WriteExperienceValidationReport(bool completed) {
         {"completed",completed},{"testMode",true},{"variant",experienceValidationVariant_},{"seed",expeditionSeed_},
         {"elapsed",experienceValidationElapsed_},{"state",experienceValidationState_},
         {"forcedTutorialClear",false},{"forcedLaterCombat",true},{"forcedLaterClears",experienceForcedLaterClears_},
-        {"tutorialInvulnerable",false},{"laterInvulnerable",true},
+        {"tutorialInvulnerable",true},{"laterInvulnerable",true},
         {"meleeModuleGrantedForProbe",false},{"meleeFixtureReplacesFirstNormalRoomEnemies",true},
         {"buildStyle",tankbuild::Id(static_cast<tankbuild::Style>(experienceValidationStyle_))},{"buildPreserved",experienceBuildPreserved_},
-        {"droneSamples",experienceDroneSamples_},{"rarityScreensAreVisualFixtures",true},
+        {"droneSamples",experienceDroneSamples_},{"rarityScreensAreVisualFixtures",!tanksubmission::Enabled()},
         {"additiveGrowthVerified",experienceEvolutionVerified_},{"growthOfferSeedIsFixture",true},
         {"initialKills",experienceInitialKills_},{"initialPlayerBulletSamples",experiencePlayerBulletSamples_},
         {"guideStageMask",experienceGuideStageMask_},{"successfulDashes",experienceSuccessfulDashes_},
@@ -58,7 +90,8 @@ void GameScene::WriteExperienceValidationReport(bool completed) {
         {"credits",expeditionMapRun_.GetCurrency()},{"level",player_->GetLevel()},{"experience",player_->GetExp()},
         {"errors",experienceValidationErrors_},{"captures",experienceValidationCaptures_}
     };
-    std::ofstream(ExperienceDirectory(experienceValidationVariant_)+"validation.json")<<std::setw(2)<<report<<'\n';
+    if(tanksubmission::Enabled()){tanksubmission::state.experience=std::move(report);tanksubmission::Write();}
+    else std::ofstream(ExperienceDirectory(experienceValidationVariant_)+"validation.json")<<std::setw(2)<<report<<'\n';
 }
 
 void GameScene::BeginExperienceMeleeProbe() {
@@ -84,6 +117,10 @@ void GameScene::BeginExperienceMeleeProbe() {
 
 bool GameScene::UpdateExperienceValidation(float dt) {
     if(!experienceValidationVariant_) return false;
+    if(tanksubmission::Enabled()) {
+        if(tanksubmission::state.runs==2) {UpdateSubmissionValidation(dt);return false;}
+        if(UpdateSubmissionValidation(dt))return true;
+    }
     using S=tankexp::GuidedCombatTutorial::Stage;
     experienceValidationElapsed_+=dt;
     const auto* node=expeditionMapRun_.GetActiveNode();
@@ -108,8 +145,9 @@ bool GameScene::UpdateExperienceValidation(float dt) {
         if(!experienceCreditArrivalEligible_) ++experiencePrematureCredits_;
         experienceCreditDelivered_=true;
     }
-    if(experienceValidationElapsed_>115.0f||player_->IsDead()||!experienceValidationErrors_.empty()) {
-        if(experienceValidationElapsed_>115.0f) experienceValidationErrors_.push_back("Experience runtime timed out");
+    const float timeLimit=tanksubmission::Enabled()?160.0f:115.0f;
+    if(experienceValidationElapsed_>timeLimit||player_->IsDead()||!experienceValidationErrors_.empty()) {
+        if(experienceValidationElapsed_>timeLimit) experienceValidationErrors_.push_back("Experience runtime timed out");
         if(player_->IsDead()) experienceValidationErrors_.push_back("Tutorial player died");
         WriteExperienceValidationReport(false);PostQuitMessage(7);return true;
     }
@@ -128,10 +166,16 @@ bool GameScene::UpdateExperienceValidation(float dt) {
         if(experienceValidationStyle_==1&&experienceDroneSamples_==0) experienceValidationErrors_.push_back("Drone style did not create immediate companions");
         if(!experienceBuildPreserved_) experienceValidationErrors_.push_back("Build selection preservation not verified");
         if(!experienceEvolutionVerified_) experienceValidationErrors_.push_back("Additive workshop upgrade and preservation not verified");
-        if(experienceValidationVariant_==1&&(experienceInitialKills_<2||experiencePlayerBulletSamples_==0||experienceSuccessfulDashes_==0||experienceGroundOrbSamples_==0))
+        if(experienceValidationVariant_==1&&(experienceInitialKills_<2||experiencePlayerBulletSamples_==0||experienceSuccessfulDashes_<3||experienceGroundOrbSamples_==0))
             experienceValidationErrors_.push_back("Real tutorial shooting/pickup/dash evidence incomplete");
         if(player_->GetLevel()!=1||player_->GetExp()!=0) experienceValidationErrors_.push_back("Expedition leaked level/EXP progression");
         WriteExperienceValidationReport(experienceValidationErrors_.empty());
+        if(tanksubmission::Enabled()&&experienceValidationErrors_.empty()) {
+            auto& check=tanksubmission::state;
+            check.tutorialSaved=tanksubmission::TutorialSaved();
+            if(!check.tutorialSaved||!check.repairDone||check.newEnemies!=7)check.errors.push_back("Missing persisted tutorial, repair transaction, or standard enemy rooms");
+            check.finished=true;resultSelection_=1;ConfirmResultSelection();tanksubmission::Write();return true;
+        }
         PostQuitMessage(experienceValidationErrors_.empty()?0:7);return true;
     }
     if(expeditionTransition_.IsActive()) {
@@ -156,6 +200,11 @@ bool GameScene::UpdateExperienceValidation(float dt) {
         if(experienceValidationStateAge_<0.45f||!tankRunCapturePath_.empty()) return false;
         auto options=expeditionMapRun_.GetAvailableNodeIds();if(options.empty()) return false;
         std::string id=options.front();
+        if(tanksubmission::Enabled()) {
+            const auto index=expeditionMapRun_.GetVisitedNodeIds().size();
+            if(index<tanksubmission::state.path.size())id=tanksubmission::state.path[index];
+            RequestExpeditionMapNode(id);return false;
+        }
         if(expeditionMapRun_.GetVisitedNodeIds().empty()) id=experienceValidationVariant_==1?"tutorial_combat":"tutorial_skip";
         else for(const auto& option:options) {
             const auto* candidate=tankexp::FindMapNode(expeditionMapRun_.GetDefinition(),option);
@@ -175,12 +224,12 @@ bool GameScene::UpdateExperienceValidation(float dt) {
         if(stage==S::Dash) {
             if(player_->IsDashing()) CaptureExperienceValidation("dash");
             const auto bullets=bulletManager_->GetBulletCounts();
-            const bool request=experienceValidationStateAge_>0.6f&&!player_->IsDashing()&&bullets.enemy+bullets.hostileExpEnemy>0;
+            const bool request=experienceValidationStateAge_>0.6f&&!player_->IsDashing();
             const Vector2 move=(request||player_->IsDashing())?Vector2{0,1}:Vector2{};
             player_->SetDemoInput(true,move,player_->GetWorldPosition()+Vector3{0,1,0},false,request);
             return false;
         }
-        if(stage==S::Upgrade) experienceSuccessfulDashes_=player_->GetDashStartedCount();
+        if(stage==S::Upgrade) { experienceSuccessfulDashes_=expeditionGuide_.GetCompletedDashes(); if(player_->GetHp()!=player_->GetMaxHp()) experienceValidationErrors_.push_back("Tutorial practice reduced HP"); }
         if(stage==S::Collect) {
             CaptureExperienceValidation("collect");
             if(!expeditionCredits_.empty()) {
@@ -240,10 +289,13 @@ bool GameScene::UpdateExperienceValidation(float dt) {
             }
             return false;
         }
-        if(experienceValidationStateAge_>0.4f) {
+        if(experienceValidationStateAge_>(tanksubmission::Enabled()?2.0f:0.4f)) {
             bool cleared=false;
             for(auto* actor:enemyManager_->GetEnemyPtrs()) if(actor&&!actor->IsDead()) {actor->TakeDamageFromPlayer(100000);cleared=true;}
-            if(node->kind==tankexp::NodeKind::Boss&&!enemy_->IsDead()) {CaptureExperienceValidation("boss");enemy_->TakeDamage(100000);cleared=true;}
+            if(node->kind==tankexp::NodeKind::Boss&&!enemy_->IsDead()) {
+                CaptureExperienceValidation("boss");
+                if(!tanksubmission::Enabled()||tankRunCapturePath_.empty()){enemy_->TakeDamage(100000);cleared=true;}
+            }
             if(cleared) ++experienceForcedLaterClears_;
         }
     } else {
@@ -272,4 +324,123 @@ bool GameScene::UpdateExperienceValidation(float dt) {
         if(experienceValidationStateAge_>0.9f) SelectExpeditionService(3);
     }
     return false;
+}
+
+void GameScene::RecordSubmissionUi(const std::string& screen) {
+    auto& check=tanksubmission::state;
+    auto text=nlohmann::json::array();
+    auto add=[&](const TextLabel* label){if(label&&!label->GetText().empty())text.push_back(label->GetText());};
+    const bool mapScreen=expeditionMapRun_.IsChoosing()||IsExpeditionBuildCardScreen()||
+        (expeditionMapRun_.GetActiveNode()&&!tankexp::IsCombatNode(expeditionMapRun_.GetActiveNode()->kind));
+    add(tankRunHud_.get());add(tankRunObjectiveText_.get());
+    if(mapScreen) {
+        add(expeditionMapTitle_.get());add(expeditionMapSubtitle_.get());
+        add(expeditionMapInfo_.get());add(expeditionMapHelp_.get());
+    }
+    if(!expeditionMapRun_.IsChoosing()){add(tankRunHeading_.get());add(tankRunDescription_.get());}
+    if(tankExpeditionRivalActive_)add(tankRunBossText_.get());
+    if(expeditionMapRun_.IsChoosing()) {
+        add(expeditionMapLegend_.get());
+        for(const auto& n:expeditionMapVisuals_){add(n.label.get());add(n.state.get());}
+    }
+    const auto* active=expeditionMapRun_.GetActiveNode();
+    if(expeditionGuideActive_){add(tutorialInputText_.get());add(tutorialDescriptionText_.get());}
+    if(IsExpeditionBuildCardScreen()) {
+        if(!expeditionBuildChoice_)add(expeditionSkipText_.get());
+        for(int i=0;i<3;++i) if(expeditionBuildChoice_||static_cast<size_t>(expeditionServicePage_*3+i)<expeditionServiceOffers_.size()) {
+            const auto& model=expeditionRewardCards_[i]->GetModel();
+            text.push_back(model.title);text.push_back(model.description);text.push_back(model.footer);
+        }
+    } else if(active&&active->kind==tankexp::NodeKind::Heal) {
+        add(tankRunCardTitles_[0].get());add(tankRunCardBodies_[0].get());add(expeditionSkipText_.get());
+    } else if(gameFlowState_==GameFlowState::StageClear) {
+        add(tankRunFooter_.get());
+        for(int i=0;i<2;++i){add(tankRunCardTitles_[i].get());add(tankRunCardBodies_[i].get());}
+    }
+    if(expeditionTransition_.IsActive()){add(expeditionTransitionTitle_.get());add(expeditionTransitionDetail_.get());}
+    for(const auto& entry:text) {
+        const auto value=entry.get<std::string>();
+        for(const char* forbidden:{"候補なし","進化","換装","キット","DEPLOY","DOCK","INSTALL","REPAIR","ROUTE","システム更新中","AUTOTEST","SPECIAL VALIDATION","F2 数値"})
+            if(value.find(forbidden)!=std::string::npos)check.errors.push_back(screen+": visible obsolete/developer text: "+value);
+    }
+    check.screens[screen]=std::move(text);tanksubmission::Write();
+}
+
+bool GameScene::UpdateSubmissionValidation(float dt) {
+    auto& check=tanksubmission::state;
+    if(check.runs==2) {
+        experienceValidationElapsed_+=dt;
+        if(experienceValidationElapsed_>0.5f&&!check.secondFresh) {
+            check.secondFresh=expeditionMapRun_.GetCurrency()==20&&expeditionMapRun_.GetVisitedNodeIds().empty()&&
+                !expeditionBuildChosen_&&std::all_of(tankRun_.GetCardCounts().begin(),tankRun_.GetCardCounts().end(),[](int n){return n==0;});
+            if(!check.secondFresh||!tanksubmission::TutorialSaved()||!expeditionTutorialPreviouslyCompleted_)check.errors.push_back("New expedition did not retain completion and reset run progress");
+            CaptureExperienceValidation("new_expedition");
+        }
+        if(experienceValidationElapsed_>1.2f&&expeditionMapRun_.GetVisitedNodeIds().empty()&&
+            expeditionMapRun_.IsChoosing()&&!expeditionTransition_.IsActive()&&tankRunCapturePath_.empty())
+            RequestExpeditionMapNode("tutorial_skip");
+        if(expeditionMapRun_.GetCurrentNodeId()=="tutorial_skip"&&expeditionMapRun_.IsChoosing()&&!expeditionTransition_.IsActive()) {
+            check.skipWorks=expeditionMapRun_.GetCurrency()==58&&!expeditionGuideActive_;
+            CaptureExperienceValidation("completed_user_skip");
+            if(!tankRunCapturePath_.empty())return true;
+            if(!check.skipWorks)check.errors.push_back("Completed user skip or equivalent currency grant failed");
+            tanksubmission::Write(check.errors.empty()&&check.firstFresh&&check.secondFresh&&check.returned);
+            PostQuitMessage(check.errors.empty()?0:9);
+        }
+        if(experienceValidationElapsed_>20){check.errors.push_back("New expedition verification timeout");tanksubmission::Write();PostQuitMessage(9);}
+        return true;
+    }
+    if(check.finished)return true;
+    if(!check.firstFresh&&expeditionMapRun_.IsChoosing()) {
+        check.firstFresh=expeditionMapRun_.GetCurrency()==20&&!tanksubmission::TutorialSaved()&&
+            expeditionMapSelection_=="tutorial_combat"&&std::all_of(tankRun_.GetCardCounts().begin(),tankRun_.GetCardCounts().end(),[](int n){return n==0;});
+        if(!check.firstFresh)check.errors.push_back("First profile did not start empty with tutorial selected");
+    }
+    if(expeditionTransition_.IsActive())return false;
+    if(check.repairStep==4&&!check.repairDone&&expeditionMapRun_.IsChoosing()) {
+        check.repairDone=player_->GetHp()==check.repairHp&&expeditionMapRun_.GetCurrency()==check.repairWallet-check.repairCost;
+        if(!check.repairDone)check.errors.push_back("Repair did not restore exactly 50% max HP or charge its price");
+        tanksubmission::Write();
+    }
+    const auto* node=expeditionMapRun_.GetActiveNode();
+    if(!node)return false;
+    if(tankexp::IsCombatNode(node->kind)) {
+        for(const auto* actor:enemyManager_->GetEnemyPtrs()) {
+            if(!actor||actor->IsDead())continue;
+            const auto type=actor->GetType();
+            const unsigned bit=type==ExpEnemyType::SummonerCommander?1u:type==ExpEnemyType::EMPJammer?2u:type==ExpEnemyType::ReflectArmor?4u:0u;
+            if(bit&&experienceValidationStateAge_>0.8f){check.newEnemies|=bit;CaptureExperienceValidation("enemy_"+std::to_string(bit));}
+        }
+    }
+    if(node->kind!=tankexp::NodeKind::Heal||check.repairDone)return false;
+    check.repairAge+=dt;
+    if(check.repairStep==0) {
+        player_->HealRunPlayer(player_->GetMaxHp());
+        check.repairWallet=expeditionMapRun_.GetCurrency();check.repairCost=node->serviceCost;
+        SelectExpeditionService(0);
+        check.fullBlocked=!expeditionTransition_.IsActive()&&expeditionMapRun_.GetCurrency()==check.repairWallet;
+        if(!check.fullBlocked)check.errors.push_back("Full HP repair was purchasable");
+        check.repairStep=1;check.repairAge=0;
+    } else if(check.repairStep==1&&check.repairAge>0.6f) {
+        CaptureExperienceValidation("repair_full");
+        if(!tankRunCapturePath_.empty())return true;
+        player_->SpendRunHealth((std::max)(1,player_->GetMaxHp()*3/5));
+        expeditionMapRun_.TrySpendCurrency(expeditionMapRun_.GetCurrency());
+        SelectExpeditionService(0);
+        check.poorBlocked=!expeditionTransition_.IsActive()&&expeditionMapRun_.GetCurrency()==0;
+        if(!check.poorBlocked)check.errors.push_back("Repair accepted insufficient Cr");
+        check.repairStep=2;check.repairAge=0;
+    } else if(check.repairStep==2&&check.repairAge>0.6f) {
+        CaptureExperienceValidation("repair_insufficient");
+        if(!tankRunCapturePath_.empty())return true;
+        expeditionMapRun_.EarnCurrency(check.repairWallet);expeditionMapStatus_.clear();
+        check.repairStep=3;check.repairAge=0;
+    } else if(check.repairStep==3&&check.repairAge>0.6f) {
+        CaptureExperienceValidation("repair_available");
+        if(!tankRunCapturePath_.empty())return true;
+        check.repairHp=(std::min)(player_->GetMaxHp(),player_->GetHp()+(std::max)(1,player_->GetMaxHp()/2));
+        SelectExpeditionService(0);check.repairStep=4;
+    }
+    RefreshTankExpeditionUi();
+    return check.repairStep<4;
 }

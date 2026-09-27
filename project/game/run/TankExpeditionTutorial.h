@@ -5,6 +5,11 @@
 #include "TankRunDirector.h"
 
 namespace tankexp {
+// Automated gameplay probes normally must not alter the player's local history.
+// Submission validation opts in only inside its isolated staged game directory.
+inline constexpr bool ShouldSaveTutorialCompletion(bool demo,bool validation,bool isolatedSubmission) {
+    return !demo&&(!validation||isolatedSubmission);
+}
 enum class TutorialStep { Move, Shoot, Dash, ClearRoom, Route, Upgrade, Complete, Hidden };
 struct TutorialValidationState {
     bool enabled=false;
