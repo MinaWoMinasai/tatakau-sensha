@@ -78,7 +78,7 @@ try {
         $experienceCaptures += if ($Style -eq 'Melee') { 'melee' } else { 'build_attack' }
         if ($experienceVariant -eq 1) {
             if ($experienceResult.initialKills -lt 2 -or $experienceResult.initialPlayerBulletSamples -lt 1 -or
-                $experienceResult.successfulDashes -lt 1 -or $experienceResult.groundOrbSamples -lt 1 -or
+                $experienceResult.successfulDashes -ne 3 -or !$experienceResult.tutorialInvulnerable -or $experienceResult.groundOrbSamples -lt 1 -or
                 ($experienceResult.guideStageMask -band 127) -ne 127) {
                 throw 'Actual guided shooting/pickup/dash sequence was not completed.'
             }

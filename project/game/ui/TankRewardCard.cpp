@@ -244,6 +244,7 @@ void TankRewardCard::Update(const Vector2& center,const Vector2& size,float dt,b
     Label(1,{center_.x,top+51},size_.x-38,49);
     Label(2,{center_.x,top+106},size_.x-40,64);
     Label(3,{center_.x,top+size_.y-22},size_.x-46,23);
+    if(!model_.styleChoice&&!model_.footer.empty()&&model_.footer.front()>='0'&&model_.footer.front()<='9') { const auto size=labels_[3]->GetSprite()->GetSize(); Glow({center_.x-size.x*0.5f-10,top+size_.y-22},{30,30},{1.5f,1.15f,0.34f,1}); }
     Label(4,{center_.x,top+size_.y-58},size_.x-38,17,0.66f+0.20f*hoverBlend_);
 }
 void TankRewardCard::Rect(Vector2 center,Vector2 size,Vector4 color,float rotation) {
