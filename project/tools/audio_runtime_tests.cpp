@@ -1,7 +1,7 @@
 // Standalone audio tests. Including this implementation deliberately exposes only
 // its translation-unit parser helpers to CPU tests; do not also link Audio.cpp.
 // Native checks play a silent PCM waveform; the optional MP3 check uses gain zero.
-// Run via tools/test_ink_audio_runtime.ps1; temporary outputs stay in generated/.
+// Run via tools/test_audio_runtime.ps1; temporary outputs stay in generated/.
 #include "../DirectX/engine/audio/Audio.cpp"
 #include <cassert>
 #include <chrono>

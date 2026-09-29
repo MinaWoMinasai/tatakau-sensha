@@ -173,7 +173,7 @@ bool Audio::TryLoadPcmWave(const std::wstring& soundName, const std::wstring& so
     }
 }
 
-// Existing MP3/other Media Foundation callers remain supported. Generated Ink
+// Existing MP3/other Media Foundation callers remain supported. PCM16 WAV
 // sounds use TryLoadPcmWave instead, so missing codecs cannot affect that path.
 void Audio::LoadAudio(const std::wstring soundName, const std::wstring filePath, size_t maxConcurrency) {
     if (!IsReady() || !mediaFoundationStarted_ || soundName.empty()) return;

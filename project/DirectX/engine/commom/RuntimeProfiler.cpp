@@ -88,16 +88,8 @@ void RuntimeProfiler::Shutdown() {
     capture_.close();recording_=false;queryHeap_.Reset();readback_.Reset();dx_=nullptr;frequency_=0;
 }
 
-void RuntimeProfiler::HandleShortcut(bool shift,bool inkScene) {
+void RuntimeProfiler::HandleShortcut(bool shift) {
     if(!allowed_) return;
-    // Ink lab already uses plain F1. Shift+F1 is its diagnostics shortcut.
-    if(inkScene) {
-        if(shift) {
-            if(displayMode_==0) {displayMode_=2;page_=0;}
-            else if(++page_>=4) {displayMode_=0;page_=0;}
-        }
-        return;
-    }
     if(shift) { page_=(page_+1)%4;displayMode_=2; }
     else displayMode_=(displayMode_+1)%3;
 }
