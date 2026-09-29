@@ -360,3 +360,12 @@ id_rsa
 id_ed25519
 # Additional local progress backups created by tools.
 project/resources/configs/expedition_user.json.*
+
+# Local archives and retired source assets (see docs/public-assets-audit.md).
+*.zip
+*.7z
+*.rar
+/project/resources/Player_Mixamo.fbx
+/project/resources/BGM_shining_star.mp3
+/project/resources/models/player/testModel.glb
+/project/resources/models/player/animations/*.fbx

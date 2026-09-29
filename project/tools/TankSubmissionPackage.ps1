@@ -7,7 +7,8 @@ function Get-TankSubmissionNoticePaths {
         'docs/third-party/README.md', 'docs/third-party/DirectXTex-LICENSE.txt',
         'docs/third-party/nlohmann-json-LICENSE.MIT', 'docs/third-party/Konva-LICENSE.txt',
         'docs/third-party/Abseil-LICENSE.txt', 'docs/third-party/stb-LICENSE.txt',
-        'docs/third-party/RapidJSON-LICENSE.txt', 'docs/third-party/zlib-LICENSE.txt')
+        'docs/third-party/RapidJSON-LICENSE.txt', 'docs/third-party/zlib-LICENSE.txt',
+        'docs/third-party/Hedley-CC0-1.0.txt')
 }
 
 function Test-TankSubmissionPreparedTextPath([string]$RelativePath) {
@@ -45,10 +46,15 @@ function Get-TankSubmissionPreparedTextFiles([string]$Directory, [string]$Author
 function Test-TankSubmissionExcludedPath([string]$RelativePath, [bool]$AllowPreparedTextCache = $false) {
     $path = $RelativePath.Replace('\', '/')
     if ($AllowPreparedTextCache -and (Test-TankSubmissionPreparedTextPath $path)) { return $false }
+    # Private source assets may still exist locally; never copy them back into a public package.
+    # Accept both a resources-relative source path and a package-relative destination path.
+    $resourcePath = $path -replace '^resources/', ''
+    if ($resourcePath -match '^(Player_Mixamo\.fbx|BGM_shining_star\.mp3|models/player/testModel\.glb)$' -or
+        $resourcePath -match '^models/player/animations/[^/]+\.fbx$') { return $true }
     return $path -match '(^|/)(generated|logs|Dumps|\.git|\.vs|\.deps|vcpkg_installed)(/|$)' -or
         $path -match '(^|/)expedition_user\.json($|\.)' -or
         $path -match '(^|/)(imgui\.ini|startup_trace\.json)$' -or
-        $path -match '\.(log|tmp|pdb|ilk|py|ps1|obj\.ilk|dmp|bak)$'
+        $path -match '\.(log|tmp|pdb|ilk|py|ps1|obj\.ilk|dmp|bak|zip|7z|rar)$'
 }
 
 function Get-TankSubmissionFiles([string]$Root) {
