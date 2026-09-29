@@ -10,7 +10,9 @@ Releaseビルド後に、リポジトリのルートから実行します。開�
 
 `generated/submission/TatakauSensha_<日時>_<識別子>` に新しいフォルダーを作成します。`-OutputDirectory <新規フォルダー>` で保存先を指定できます。既存フォルダーへの上書き、素材・ビルド・ツール・ドキュメントの中への出力は拒否します。元の調整データ、チュートリアル履修記録、キャッシュは削除・変更しません。
 
-配布物は `CG2.exe`、AssimpのランタイムDLL、`dxcompiler.dll`、`dxil.dll`、`resources`、[提出用README](submission-README.md)、既存のAssimp・ImGuiライセンス表示、相対パスとSHA256だけを記録するマニフェストです。ゲームに必要なモデル、音声、フォントとライセンス、JSON、CSV、HLSLとincludeを保持します。SDK、vcpkg、ソースコード、PDB、開発用LIBはコピーしません。
+配布物は `CG2.exe`、AssimpのランタイムDLL、`dxcompiler.dll`、`dxil.dll`、`resources`、[提出用README](submission-README.md)、`COPYRIGHT.md`、`THIRD_PARTY_NOTICES.md`、既存のAssimp・ImGuiライセンス表示、`docs/third-party/` の補完ライセンス本文、相対パスとSHA256だけを記録するマニフェストです。ゲームに必要なモデル、音声、フォントとライセンス、JSON、CSV、HLSLとincludeを保持します。SDK、vcpkg、ソースコード、PDB、開発用LIBはコピーしません。
+
+公開前に [監査の要確認項目](public-release-audit.md) と [第三者素材の確認事項](../THIRD_PARTY_NOTICES.md) を解決してください。このツールは既存の旧モード用素材もコピーするため、ゲームが起動できることと全素材の再配布条件を満たすことは別の確認です。
 
 `resources/configs/expedition_user.json` と派生ファイル、作者の `generated`、`logs`、`Dumps`、一時ファイル、ImGui設定は除外します。シェーダー・生成テクスチャのキャッシュは配布先の初回起動時に必要に応じて生成されます。文字画像に限り、次の手順で作った履歴のない描画成果物を明示的に同梱できます。作者PCのWarm起動時間と配布先の初回時間は区別して測定してください。
 

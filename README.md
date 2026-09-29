@@ -1,74 +1,162 @@
-[![DebugBuild](https://github.com/MinaWoMinasai/CG2/actions/workflows/DebugBuild.yml/badge.svg)](https://github.com/MinaWoMinasai/CG2/actions/workflows/DebugBuild.yml)
-[![ReleaseBuild](https://github.com/MinaWoMinasai/CG2/actions/workflows/ReleaseBuild.yml/badge.svg)](https://github.com/MinaWoMinasai/CG2/actions/workflows/ReleaseBuild.yml)
-[![DevelopmentBuild](https://github.com/MinaWoMinasai/CG2/actions/workflows/DevelopmentBuild.yml/badge.svg)](https://github.com/MinaWoMinasai/CG2/actions/workflows/DevelopmentBuild.yml)
-[![CheckUnwantedFiles](https://github.com/MinaWoMinasai/CG2/actions/workflows/CheckUnwantedFiles.yml/badge.svg)](https://github.com/MinaWoMinasai/CG2/actions/workflows/CheckUnwantedFiles.yml)
+# たたかうせんしゃ
 
-## Local dependencies
+**戦車を操り、強化を組み合わせながら最深部のボスを目指す、見下ろし型ローグライトアクション。**
 
-Generated build outputs and binary libraries are intentionally not committed to
-this repository. In particular, Assimp must exist only as local generated files.
-After downloading the project ZIP from GitHub, run:
+C++ / DirectX 12 による自作エンジンで制作しています。毎回変わる作戦ルートから進路を選び、戦闘で回収した通貨を改造・進化・修理へ振り分けて攻略します。
+
+作者：**MinaWoMinasai**
+公式リポジトリ：[MinaWoMinasai/tatakau-sensha](https://github.com/MinaWoMinasai/tatakau-sensha)
+
+このリポジトリは作品紹介・ソースレビューのために公開するものです。自作部分の利用条件は [COPYRIGHT.md](COPYRIGHT.md)、外部コード・素材については [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
+
+## ゲームの特徴
+
+- **進路を選ぶ遠征**：戦闘、精鋭、改造工房、進化、修理などをつないだ分岐ルートを進みます。経路と部屋の組み合わせが変化し、地形には制作済みの部屋テンプレートを使います。
+- **3つの戦闘スタイル**：導入の訓練・強化の後に、シューター・ドローン・近接から選択します。
+- **挑戦中に作るビルド**：敵から得た通貨 Cr で強化を購入。現在の系統に有効な効果を重ね、同系統の進化や修理との配分を考えます。
+- **攻撃と回避の手触り**：マウスで狙い、スタミナを使うダッシュや体当たりを組み合わせます。近接には連撃・パリィ、射撃には追尾・反射・貫通などの強化があります。
+- **選択を伝える演出**：強化カードのレア度表示と動作プレビュー、ネオン表現、通貨回収のアニメーション、実際のゲーム処理を使ったタイトル背景デモを実装しています。
+- **導入チュートリアル**：操作を学ぶ経路と、訓練を省略して進む経路を選べます。
+
+### 戦車タイプと成長
+
+| 系統 | 基本攻撃 | 強化の例 |
+| --- | --- | --- |
+| シューター | 照準方向への主砲射撃 | 追尾、壁反射、敵の貫通、射撃性能 |
+| ドローン | 自機に追従するドローンからの射撃 | 支援機追加、集中射撃、迎撃弾 |
+| 近接 | 3段の斬撃コンボ | 間合い、連撃速度、3段目の威力 |
+
+改造の候補には汎用強化と系統別強化があり、取得済み効果や前提条件によって候補が変わります。進化せずに改造を重ねる選択もできます。
+
+**通貨・強化は遠征ごとの成長です。次の遠征に通貨を持ち越す永続強化システムではありません。** チュートリアルの履修状態はローカルに保存します。詳しい遊び方は [戦闘と作戦ルート](docs/tank-action-and-route-guide.md) を参照してください。
+
+## 操作方法
+
+キーボードとマウスを使用します。
+
+| 入力 | 操作 |
+| --- | --- |
+| WASD | 移動 |
+| マウス | 照準 |
+| 左クリック／長押し | 攻撃。メニューでは選択・決定 |
+| 右クリック | スタミナを使ってダッシュ |
+| Esc | ポーズ／開いている情報画面を閉じる |
+| G（戦闘中） | 作戦マップを確認 |
+| Tab（戦闘中） | ビルド詳細を確認 |
+| M / N | BGM / SE の切り替え |
+
+タイトルの「遠征をはじめる」から開始します。制作向けの F1～F6 は通常の Release では無効です。詳細は [制作版と提出版の切り替え](docs/developer-tools-switch.md) にまとめています。
+
+## スクリーンショット
+
+実プレイ画像の掲載場所です。画像を `docs/images/` に追加して、下のコメントを外すと表示できます。撮影する場面の案は [画像の追加案内](docs/images/README.md) を参照してください。
+
+<!-- 実際の画像を追加してから有効にしてください。
+![戦闘画面](docs/images/combat.png)
+![作戦ルート](docs/images/route.png)
+![強化の選択](docs/images/upgrades.png)
+-->
+
+## 開発環境・ビルド方法
+
+Windows / x64、C++20、DirectX 12 を使用します。DirectInput、XInput、XAudio2、Media Foundation、DirectWrite など Windows の API に依存します。
+
+- プロジェクト既定：**Visual Studio 2026 / MSVC v145**。
+- 既存 CI と依存ライブラリの標準準備手順：**Visual Studio 2022 / MSVC v143**。
+- 「C++ によるデスクトップ開発」、Windows SDK、CMake / Ninja をインストールしてください。実行には DirectX 12 対応環境が必要です。
+- 同梱の日本語フォントに加え、UI の一部で Windows の Meiryo を使用します。
+
+### 1. 外部依存を準備する
+
+リポジトリのルートで実行します。初回は Assimp のダウンロードにネットワーク接続が必要です。
 
 ```powershell
 .\project\tools\bootstrap_dependencies.ps1
 ```
 
-Then open `project/CG2.sln` in Visual Studio 2022 and build the solution.
+標準スクリプトは VS 2022 の C++ / CMake / Ninja を探し、Assimp v5.4.3 の GLTF importer をビルドします。生成する `.lib` / `.dll` は Git 管理対象外です。既存のローカルバイナリがある場合は処理を省略します。VS 2026 のみの環境や別の importer が必要な場合は [Assimp の案内](project/externals/assimp/README.md) と `project/tools/build_assimp_vs2026.ps1` を確認してください。
 
-The bootstrap step creates files such as:
+初回準備では Assimp ヘッダーもコピーされるため、実行後は差分を確認してください。通常のゲームビルドに `-Force` は不要です。
 
-- `project/externals/assimp/lib/assimp-vc143-mt.lib`
-- `project/externals/assimp/runtime/assimp-vc143-mt.dll`
+### 2. Release をビルドする
 
-Do not add generated `.lib` or `.dll` files to Git; the repository health check
-expects them to stay untracked.
-
-## Ink Shooter Lab
-
-「撃つ → 塗る → 潜る → 高速移動・補給」を試せるシーンを追加しています。
-Development または Release をビルドし、タイトルで **F8** を押すか、リポジトリのルートで起動します。
+Visual Studio の Developer PowerShell で、リポジトリのルートから実行します。
 
 ```powershell
-.\project\tools\run_ink_shooter.ps1
-# 12秒の動作確認デモ
-.\project\tools\run_ink_shooter.ps1 -Demo
-# 日本語の設定画面から起動（Development）
-.\project\tools\run_ink_shooter.ps1 -Settings
-# 45秒の動作・負荷検証と比較画像の保存
-.\project\tools\run_ink_shooter.ps1 -Validate
-# 27秒の変身・飛沫・敵インク検証と比較画像の保存
-.\project\tools\run_ink_shooter.ps1 -Fidelity
-# 35秒のレティクル・トライストリンガー検証と画像保存
-.\project\tools\run_ink_shooter.ps1 -Weapons
-# 23秒のイカ慣性・合成SEの検証
-.\project\tools\run_ink_shooter.ps1 -Feel
-# DirectXを起動せず、移動・塗り・射撃の回帰テストを実行
-.\project\tools\test_ink_simulation.ps1
+# VS 2022 / 既存 CI と同じ指定
+MSBuild.exe project/CG2.sln /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:CG2DeveloperTools=false
+
+# VS 2026 / プロジェクト既定の v145 を使用
+MSBuild.exe project/CG2.sln /m /p:Configuration=Release /p:Platform=x64 /p:CG2DeveloperTools=false
 ```
 
-WASD: 移動、マウス: 照準、左クリック: シューターは長押し連射／ストリンガーは溜めて離すと発射、Shift: イカ変身（自インクで潜伏・遊泳）・チャージ中断、Space: ジャンプ。
-1: シューター、2: トライストリンガー、Q: 登録した次のブキ。ストリンガーは地上で横3本、空中で縦3本を撃ち、1段階以上の矢は地形着弾から0.75秒後に爆発します。
-塗った壁へ Shift + W で登れます。Tab でマウス解放、F1 で日本語調整（Development）、R でリセット。
-F10 で画面を `project/generated/ink_phase5/manual.png` に保存します（`-Validate` は `ink_phase2`、`-Fidelity` は `ink_phase3`、`-Weapons` は `ink_phase4`）。
-オレンジ色のダミーは HP 100。直前のダメージ・命中距離・撃破弾数を表示し、撃破後2秒で復活します。
-未塗装・空中・インク切れでもイカに変身できます。日本語設定の「相手インクの試験帯を置く」で減速・低いジャンプ・塗り返しを試せます。
+使用する環境に合う一方を実行してください。GUI では `project/CG2.sln` を開き、Release / x64 を選びます。VS 2022 では両プロジェクトのツールセットを v143 に合わせる必要があるため、上記のコマンド指定が簡単です。
 
-F1 の「ブキを選ぶ・作る」で、日本語名やブキの数値を編集し、「このブキで試し撃ち」で適用できます。「複製して新しいブキを作る」で同種のブキを増やし、「ブキ一覧をファイルに保存」で `project/resources/configs/ink_weapons.json` に保存します。編集・適用・保存はそれぞれ独立しています。
+| ソリューション構成 | 実際のプロジェクト構成 | 開発機能の標準値 |
+| --- | --- | --- |
+| Release / x64 | Release | OFF |
+| Development / x64 | Development | ON |
+| Debug / x64 | **Development に割り当て済み** | ON |
 
-イカで自色インクから未塗装へ出ると、直前の速度を残して滑らかに減速します。F1 の「イカの慣性」で余韻・減速・切り返しの制動を調整できます。数値はCG2の操作感調整です。
-「SE・音量」には独自合成した発射・チャージ・着弾・爆発音の試聴と音量調整があり、音量は `project/resources/configs/ink_audio.json` に保存できます。元動画の波形はSE素材に使っていません。
+`.vcxproj` 自体には Debug 定義もありますが、`CG2.sln` から Debug を選ぶと両プロジェクトとも Development をビルドします。既存設定を維持しており、Debug と Development を独立した検証結果として扱わないでください。
 
-第5段階の操作・検証・試聴は [慣性と独自合成SEの実装報告](docs/ink_phase5_implementation.md)、詳細は
-[移動の調査](docs/ink_phase5_movement.md)、[音の調査と合成](docs/ink_phase5_audio_research.md)、[音声ランタイム](docs/ink_phase5_audio_runtime.md) を参照してください。
+### 3. 起動する
 
-第4段階の操作・設計・検証は [レティクルと複数ブキの実装報告](docs/ink_phase4_implementation.md)、根拠は
-[レティクル](docs/ink_phase4_reticle_research.md)、[トライストリンガー](docs/ink_phase4_stringer_research.md)、[ブキ編集基盤](docs/ink_phase4_weapon_architecture.md) を参照してください。
+出力は `generated/outputs/Release/CG2.exe` です。ソースからの起動では、素材の相対パスを解決できるよう作業ディレクトリを `project` にします。
 
-第3段階の変更・検証は [追加再現の実装報告](docs/ink_shooter_phase3_implementation.md)、根拠は
-[移動](docs/ink_shooter_phase3_movement_research.md)、[飛沫・足元塗り](docs/ink_shooter_phase3_paint_research.md)、[射撃](docs/ink_shooter_phase3_shooting_research.md) に整理しています。
+```powershell
+Push-Location project
+try {
+    & ..\generated\outputs\Release\CG2.exe --project resources/projects/tank_game.project.json
+} finally {
+    Pop-Location
+}
+```
 
-第2段階の変更・検証・比較画像は [再現度向上の実装報告](docs/ink_shooter_phase2_implementation.md)、
-塗りパラメータと任意メッシュへの拡張案は [第2段階の調査](docs/ink_shooter_phase2_research.md) を参照してください。
+実行ファイルだけを別の場所へコピーしても動作しません。Assimp、DXC / DXIL の DLL と `resources` が必要です。配布フォルダーの作成方法は [提出用 Release](docs/submission-package.md) を参照してください。**旧素材を含む再配布条件は調査中です。公開・配布前に [監査の要確認項目](docs/public-release-audit.md) を確認してください。**
 
-仕様・パラメータ・既知の制約は [実装報告](docs/ink_shooter_implementation.md)、
-原作値と独自の近似の区別は [調査資料](docs/ink_shooter_research.md) を参照してください。
+### 4. 既存テスト
+
+以下はリポジトリのルートから実行できます。C++ テストには Visual Studio の C++ ツールが必要です。
+
+```powershell
+.\project\tools\test_tank_expedition_map.ps1
+.\project\tools\test_tank_reward_pool.ps1
+.\project\tools\test_tank_submission_packaging.ps1
+# Release / Development のビルド後に実行
+.\project\tools\test_developer_tools_profile.ps1
+```
+
+自動テストの成功は実機での操作感や難易度の評価を意味しません。今回の実行結果と制約は [公開準備の監査記録](docs/public-release-audit.md) に記載しています。
+
+## リポジトリ構成・ソースの読み方
+
+| 場所 | 内容 |
+| --- | --- |
+| `project/main.cpp` | 起動、プロジェクト選択、終了処理 |
+| `project/game/scene/TitleScene.*` | タイトルと背景のゲームデモ |
+| `project/game/scene/GameScene.Expedition*.cpp` | 作戦マップ、通貨回収、進行・演出 |
+| `project/game/run/` | 遠征ルート、部屋、強化候補、チュートリアル |
+| `project/game/player/`・`enemy/`・`exp/` | 戦車の攻撃・移動、敵・ボス |
+| `project/game/ui/`・`editor/` | 強化カードと制作ツール |
+| `project/DirectX/engine/` | 描画、入力、音声、シーン管理などのエンジン |
+| `project/resources/` | シェーダー、設定、モデル、画像、音声、フォント |
+| `project/externals/` | 第三者ライブラリ。作者の自作部分とは区別 |
+| `project/tools/` | 依存準備、既存回帰テスト、配布用ツール |
+| `docs/` | [資料一覧](docs/README.md)、遊び方、実装資料、公開監査 |
+| `.github/workflows/` | 3構成のビルドと不要ファイル検査 |
+| `generated/` | ビルド・テスト成果物。Git 管理対象外 |
+
+まず [作戦ルート](project/game/run/TankExpeditionMap.h)、[強化候補](project/game/run/TankExpeditionContent.h)、[プレイヤー](project/game/player/actor/Player.cpp) を読むと、ゲーム進行と戦闘の関係を追えます。
+
+旧インクシューター、海戦、3D アクションなどの実験実装も残っています。ビルド・シーン登録との依存があるため今回の整理では保持しました。現行作品の紹介対象と過去の実験資料は [資料一覧](docs/README.md) で区別しています。
+
+## 作者・著作権・Third-party software
+
+**Copyright © 2025-2026 MinaWoMinasai. All Rights Reserved.**
+
+この表示は作者が権利を持つ自作部分に適用します。プロジェクト全体に MIT / Apache / GPL などを新規適用するものではありません。自作ソース・自作素材の無断再配布、販売、別作品への流用、改変版の配布を許諾していません。法令上認められる利用、GitHub の利用規約に基づく利用、第三者のライセンスによる権利は妨げません。
+
+- [著作権と利用条件](COPYRIGHT.md)
+- [Third-party software・素材の表示と確認事項](THIRD_PARTY_NOTICES.md)
+- [作者情報・実行ファイルへの表示案](docs/credits.md)

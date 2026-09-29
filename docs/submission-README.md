@@ -11,7 +11,7 @@
 | 移動 | WASD |
 | 照準 | マウス |
 | 攻撃 | 左クリック |
-| ダッシュ | 右クリック・Shift |
+| ダッシュ | 右クリック |
 | ポーズ | Esc |
 
 ## ゲーム概要
@@ -27,3 +27,12 @@
 - F2～F6の制作ツール（制作版のみ。提出版では無効）
 - 起動処理・シェーダーキャッシュ・生成テクスチャキャッシュの最適化
 - 自動回帰テスト
+
+## 作者と権利
+
+作者：MinaWoMinasai
+公式リポジトリ：[MinaWoMinasai/tatakau-sensha](https://github.com/MinaWoMinasai/tatakau-sensha)
+
+Copyright © 2025-2026 MinaWoMinasai. All Rights Reserved.
+
+自作部分の利用条件は同梱の `COPYRIGHT.md`、第三者製コード・素材は `THIRD_PARTY_NOTICES.md` と各ライセンス本文を参照してください。

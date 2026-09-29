@@ -4,15 +4,15 @@
 
 レンダラーのC++構文検証とHLSLコンパイル、Simulationの追加回帰テスト、Development / ReleaseのフルビルドはPASS。最終材質で両構成の約45秒の実機検証デモを実行した。Releaseは起動時から45秒のプレイまで、Developmentは45秒のプレイと追加の起動時診断で、D3D12 Debug LayerのERROR 0／WARNING 0を確認した。 GPU based validationは無効で実施している。
 
-前段階の仕様は[初期実装報告](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/docs/ink_shooter_implementation.md)、数値の根拠は[既存調査](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/docs/ink_shooter_research.md)、今回の再照合と任意メッシュ拡張案は[第2段階調査](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/docs/ink_shooter_phase2_research.md)を参照。
+前段階の仕様は[初期実装報告](ink_shooter_implementation.md)、数値の根拠は[既存調査](ink_shooter_research.md)、今回の再照合と任意メッシュ拡張案は[第2段階調査](ink_shooter_phase2_research.md)を参照。
 
 ## 1. 参考動画と旧実装との差
 
-[参考動画](C:/Users/k024g/Downloads/スプラシューター参考動画.mp4)と、変更前のInk Shooter Lab録画から抽出したコンタクトシートを確認した。参考動画は30fpsのため、連射間隔・弾速・補給時間などの数値計測には使っていない。
+参考動画（ローカル参考資料・非同梱）と、変更前のInk Shooter Lab録画から抽出したコンタクトシートを確認した。参考動画は30fpsのため、連射間隔・弾速・補給時間などの数値計測には使っていない。
 
-![参考動画の視覚比較](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_phase2/reference_contact.jpg)
+![参考動画の視覚比較](../generated/ink_phase2/reference_contact.jpg)
 
-![変更前のInk Shooter Lab](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_phase2/before_contact.jpg)
+![変更前のInk Shooter Lab](../generated/ink_phase2/before_contact.jpg)
 
 差が大きい順に、次の問題を優先した。参考動画の紫色とラボの緑色はそのまま比較せず、形・濃淡・ハイライト・弾の見え方を比較している。
 
@@ -26,11 +26,11 @@
 | 6 | 射撃時に銃と身体の状態変化が少なく、照準と飛沫のつながりが読みにくい | 弾道に影響しない銃の後退・回転、銃口の色付き飛沫 |
 | 7 | カメラ位置と画角、肩越しの見通し、追従の印象が異なる | 距離・高さ・肩オフセット・FOV・追従係数を独立した設定へ |
 
-![第2段階・約10秒の床射撃後](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2/01_floor_fire.png)
+![第2段階・約10秒の床射撃後](../project/generated/ink_phase2/01_floor_fire.png)
 
 最終実機画像では、旧版の大きい円状の明るい塗りから、射撃方向へつながる細い道と離れた粒、暗い色へ変わったことを確認した。中間版では光源と視線が同じ側を向き、床のハイライトがほぼ消えていたため、光源方向とハイライトの幅を追加調整した。最終版では弱い濡れた濃淡が見える。参考動画の強い局所的な反射・複雑な輪郭・人物アニメーションまで一致したとは扱わない。
 
-比較用に[床遊泳](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2/02_swim.png)、[ジャンプ射撃](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2/03_jump_fire.png)、[坂](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2/04_ramp.png)、[壁塗り](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2/05_wall_paint.png)、[壁泳ぎ](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2/06_wall_swim.png)を保存した。旧録画と新シナリオは全場面で視点・射撃履歴が完全に一致する比較ではない。境界ON/OFFは同じatlas・カメラで比較している。
+比較用に[床遊泳](../project/generated/ink_phase2/02_swim.png)、[ジャンプ射撃](../project/generated/ink_phase2/03_jump_fire.png)、[坂](../project/generated/ink_phase2/04_ramp.png)、[壁塗り](../project/generated/ink_phase2/05_wall_paint.png)、[壁泳ぎ](../project/generated/ink_phase2/06_wall_swim.png)を保存した。旧録画と新シナリオは全場面で視点・射撃履歴が完全に一致する比較ではない。境界ON/OFFは同じatlas・カメラで比較している。
 
 ## 2. 改善した項目と使い方
 
@@ -50,7 +50,7 @@
 .\project\tools\run_ink_shooter.ps1 -Demo
 ```
 
-F1で日本語設定（Development）、Tabでマウス解放／操作復帰、F9でデモ、F10で比較画像を保存する。F10の保存先は[project/generated/ink_phase2](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2)。起動スクリプトはビルドを実行しない。Tabは入力の解放であり、Simulation全体の停止ではない。
+F1で日本語設定（Development）、Tabでマウス解放／操作復帰、F9でデモ、F10で比較画像を保存する。F10の保存先は[project/generated/ink_phase2](../project/generated/ink_phase2)。起動スクリプトはビルドを実行しない。Tabは入力の解放であり、Simulation全体の停止ではない。
 
 DevelopmentのImGuiは項目名・状態・説明を日本語化した。インク消費量は0.0092ではなく0.92％と表示し、カメラや塗りの形を調整できる。調査済みの基準値は通常読み取り専用で、実験用の変更を有効化した場合だけ編集する。メイリオ／MSゴシックとImGuiの字形範囲を照合し、設定画面の日本語330種類に欠落はなかった。
 
@@ -58,20 +58,20 @@ DevelopmentのImGuiは項目名・状態・説明を日本語化した。イン�
 
 | ファイル | 内容 |
 | --- | --- |
-| [InkTypes.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/ink/InkTypes.h) | 塗りの役割を示すPaintKind、描画用ImpactEvent、DummyStatus |
-| [ShooterWeaponParams.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/ink/ShooterWeaponParams.h) | 再確認した塗りの公開値と、コア幅・足元救済などCG2近似値の明示 |
-| [InkSimulation.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/ink/InkSimulation.h) / [InkSimulation.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/ink/InkSimulation.cpp) | 入射角ブラシ、役割別飛沫、弾道と塗りの乱数分離、試射ダミー |
-| [InkPaintRenderer.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/ink/InkPaintRenderer.h) / [InkPaintRenderer.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/ink/InkPaintRenderer.cpp) | 表示の境界補間切り替え、GPUタイムスタンプ計測 |
-| [InkPaint.VS.hlsl](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/resources/shaders/InkPaint.VS.hlsl) / [InkPaint.PS.hlsl](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/resources/shaders/InkPaint.PS.hlsl) | 表示用の被覆率補間、暗い顔料色、控えめな濡れた陰影 |
-| [InkLiquidRenderer.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/ink/InkLiquidRenderer.h) / [InkLiquidRenderer.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/ink/InkLiquidRenderer.cpp) | 新規。液体の塊・飛沫・波紋の小規模な専用バッチ描画 |
-| [InkLiquid.VS.hlsl](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/resources/shaders/InkLiquid.VS.hlsl) / [InkLiquid.PS.hlsl](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/resources/shaders/InkLiquid.PS.hlsl) | 新規。速度方向の伸縮、涙滴輪郭、濃い中心、弱いハイライト |
-| [InkShooterScene.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/scene/InkShooterScene.h) / [InkShooterScene.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/scene/InkShooterScene.cpp) | 液体描画の統合、変身・銃の演出、カメラ、日本語HUD／設定、比較撮影・検証デモ |
-| [InkShooterScene.Visuals.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/scene/InkShooterScene.Visuals.cpp) | 新規。飛沫・波紋・銃の表示用状態、約45秒のシナリオ別検証デモ |
-| [InkShooterScene.Debug.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/scene/InkShooterScene.Debug.cpp) / [InkShooterScene.Capture.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/scene/InkShooterScene.Capture.cpp) | 新規。日本語設定とGPU計測表示、F10撮影 |
-| [ink_simulation_tests.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/tools/ink_simulation_tests.cpp) | 入射方向、塗りの種別、乱数独立性、公開値維持、ダメージの回帰検証 |
-| [run_ink_shooter.ps1](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/tools/run_ink_shooter.ps1) | 設定開始と長い検証デモのオプション |
-| [CG2_testPro.vcxproj](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/CG2_testPro.vcxproj) / [filters](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/CG2_testPro.vcxproj.filters) | 新規レンダラーとシェーダーの登録 |
-| [第2段階調査](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/docs/ink_shooter_phase2_research.md) / 本書 | 根拠・近似・比較・検証結果の記録 |
+| [InkTypes.h](../project/game/ink/InkTypes.h) | 塗りの役割を示すPaintKind、描画用ImpactEvent、DummyStatus |
+| [ShooterWeaponParams.h](../project/game/ink/ShooterWeaponParams.h) | 再確認した塗りの公開値と、コア幅・足元救済などCG2近似値の明示 |
+| [InkSimulation.h](../project/game/ink/InkSimulation.h) / [InkSimulation.cpp](../project/game/ink/InkSimulation.cpp) | 入射角ブラシ、役割別飛沫、弾道と塗りの乱数分離、試射ダミー |
+| [InkPaintRenderer.h](../project/game/ink/InkPaintRenderer.h) / [InkPaintRenderer.cpp](../project/game/ink/InkPaintRenderer.cpp) | 表示の境界補間切り替え、GPUタイムスタンプ計測 |
+| [InkPaint.VS.hlsl](../project/resources/shaders/InkPaint.VS.hlsl) / [InkPaint.PS.hlsl](../project/resources/shaders/InkPaint.PS.hlsl) | 表示用の被覆率補間、暗い顔料色、控えめな濡れた陰影 |
+| [InkLiquidRenderer.h](../project/game/ink/InkLiquidRenderer.h) / [InkLiquidRenderer.cpp](../project/game/ink/InkLiquidRenderer.cpp) | 新規。液体の塊・飛沫・波紋の小規模な専用バッチ描画 |
+| [InkLiquid.VS.hlsl](../project/resources/shaders/InkLiquid.VS.hlsl) / [InkLiquid.PS.hlsl](../project/resources/shaders/InkLiquid.PS.hlsl) | 新規。速度方向の伸縮、涙滴輪郭、濃い中心、弱いハイライト |
+| [InkShooterScene.h](../project/game/scene/InkShooterScene.h) / [InkShooterScene.cpp](../project/game/scene/InkShooterScene.cpp) | 液体描画の統合、変身・銃の演出、カメラ、日本語HUD／設定、比較撮影・検証デモ |
+| [InkShooterScene.Visuals.cpp](../project/game/scene/InkShooterScene.Visuals.cpp) | 新規。飛沫・波紋・銃の表示用状態、約45秒のシナリオ別検証デモ |
+| [InkShooterScene.Debug.cpp](../project/game/scene/InkShooterScene.Debug.cpp) / [InkShooterScene.Capture.cpp](../project/game/scene/InkShooterScene.Capture.cpp) | 新規。日本語設定とGPU計測表示、F10撮影 |
+| [ink_simulation_tests.cpp](../project/tools/ink_simulation_tests.cpp) | 入射方向、塗りの種別、乱数独立性、公開値維持、ダメージの回帰検証 |
+| [run_ink_shooter.ps1](../project/tools/run_ink_shooter.ps1) | 設定開始と長い検証デモのオプション |
+| [CG2_testPro.vcxproj](../project/CG2_testPro.vcxproj) / [filters](../project/CG2_testPro.vcxproj.filters) | 新規レンダラーとシェーダーの登録 |
+| [第2段階調査](ink_shooter_phase2_research.md) / 本書 | 根拠・近似・比較・検証結果の記録 |
 
 `InkPaint.CS.hlsl`の楕円式、GPUアトラス形式、CPU所有者の基本形式は変更していない。上表は第2段階の対象であり、前段階で追加済みのすべてのファイルを再列挙したものではない。
 
@@ -79,7 +79,7 @@ DevelopmentのImGuiは項目名・状態・説明を日本語化した。イン�
 
 主着弾の長軸は、着弾直前の速度を面の接線方向へ射影して決める。法線をn、入射方向をdとして面に対する角度を`asin(abs(dot(d,n)))`で求める。面に沿う入射は0度、正対する入射は90度となる。射影がほぼゼロなら、安定した面内方向を使用する。
 
-再確認したDepthScaleMin/Maxの1.31／2.24と、解析資料が説明する35度／10度の境界を用い、浅いほど長い主着弾を生成する。35度より正対する範囲はCG2独自に丸い形へ近づけ、90度で縦横比1となる。これは公開値から確認できる区間と、原作のブラシを持たない部分の近似を組み合わせたものである。[塗りパラメータの再調査と確度](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/docs/ink_shooter_phase2_research.md)
+再確認したDepthScaleMin/Maxの1.31／2.24と、解析資料が説明する35度／10度の境界を用い、浅いほど長い主着弾を生成する。35度より正対する範囲はCG2独自に丸い形へ近づけ、90度で縦横比1となる。これは公開値から確認できる区間と、原作のブラシを持たない部分の近似を組み合わせたものである。[塗りパラメータの再調査と確度](ink_shooter_phase2_research.md)
 
 公開のWidthHalfを基準となる幅として保持し、完全に塗りつぶす中心部分の倍率は主着弾0.68、途中飛沫0.55、足元0.43として分ける。旧来の丸い膨らみを均等に並べる方式から、不均等な細い付加楕円と、浅い主着弾の先端、離れた小粒へ変更する。コア倍率・付加楕円の位置・粒の乱数分布はCG2の近似値である。
 
@@ -98,7 +98,7 @@ DevelopmentのImGuiは項目名・状態・説明を日本語化した。イン�
 
 通常の飛沫は引き続き距離の通過点から落下させ、掃引で最初に当たる面に塗る。壁を通過した位置や地下へ無条件に床塗りを投影しない。足元救済は接地中かつ足元が自インクでない場合、独自の4発ごとの条件で小さい落下飛沫を追加する。
 
-公開値の`SpawnNum=1.5`、`SplitNum=8`、`SpawnBetweenLength=9.2`、`ForceSpawnNearestAddNumArray=[4]`を再照合して保持する。ただし現在の「最大8個」「0.95±14%の途中間隔」「乾いた足元へ4発ごとの救済」は、その内部アルゴリズムを解読した結果ではない。途中間隔は旧版のCG2近似値1.15から0.95へ調整し、小さくした飛沫の道のつながりを補う。公開値を換算した4.6は別フィールドのまま維持する。`[4]`がその救済条件を意味するとは断定しない。BreakFreeや落下高さの関連値も保持するが、完全な状態判定・補間規則まで実装済みとはしない。[公開値と未確認部分](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/docs/ink_shooter_phase2_research.md)
+公開値の`SpawnNum=1.5`、`SplitNum=8`、`SpawnBetweenLength=9.2`、`ForceSpawnNearestAddNumArray=[4]`を再照合して保持する。ただし現在の「最大8個」「0.95±14%の途中間隔」「乾いた足元へ4発ごとの救済」は、その内部アルゴリズムを解読した結果ではない。途中間隔は旧版のCG2近似値1.15から0.95へ調整し、小さくした飛沫の道のつながりを補う。公開値を換算した4.6は別フィールドのまま維持する。`[4]`がその救済条件を意味するとは断定しない。BreakFreeや落下高さの関連値も保持するが、完全な状態判定・補間規則まで実装済みとはしない。[公開値と未確認部分](ink_shooter_phase2_research.md)
 
 塗り形状・飛沫の乱数列を主弾の拡散乱数から分離した。ブラシの粒数や途中飛沫の設定を変えても、その後の主弾の拡散と飛行軌跡が変わらないことをテストする。
 
@@ -130,7 +130,7 @@ DevelopmentのImGuiは項目名・状態・説明を日本語化した。イン�
 
 状態の切り替えには7個の小さい飛沫と波紋を付け、泳いでいる面の向きに波紋を配置する。飛沫と姿勢補間は描画側の演出であり、入力受理・実際の状態変更・速度・補給開始を演出の終了まで待たせない。既存の`formBlend`と120Hzのゲーム状態を基準に、表示だけを補間する。
 
-検証デモでは自色遊泳の速度5.76、壁泳ぎ4.32、壁上端を越えて高さ6へ移ることを確認した。[床遊泳の画像](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2/02_swim.png)と[壁泳ぎの画像](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2/06_wall_swim.png)を最終材質でも保存した。床遊泳は旧版より小さい姿となり、波紋が面上に残る。
+検証デモでは自色遊泳の速度5.76、壁泳ぎ4.32、壁上端を越えて高さ6へ移ることを確認した。[床遊泳の画像](../project/generated/ink_phase2/02_swim.png)と[壁泳ぎの画像](../project/generated/ink_phase2/06_wall_swim.png)を最終材質でも保存した。床遊泳は旧版より小さい姿となり、波紋が面上に残る。
 
 ## 9. カメラと射撃感の変更
 
@@ -159,7 +159,7 @@ Bloomが描画直前に設定する現在フレームの投影ジッターに合
 
 回帰テストでは近距離の36×3発、最小値の18×6発、補間中間値27、地形による遮蔽、弾の被弾半径、自動復帰を検証する。18×6発の統合テストは遅い直進弾を使う診断条件であり、製品初期値を変更して実現したものではない。原作の距離による最終ダメージの完全一致を保証するテストとも区別する。
 
-検証デモの初期弾速・重力による近距離射撃でも、36ダメージでHP100から0へ進むことを確認し、[ダミーの画像](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2/07_dummy.png)を保存した。原作の減衰関数全体の確定、複数標的、敵AI、プレイヤーへのダメージは今回の範囲外。
+検証デモの初期弾速・重力による近距離射撃でも、36ダメージでHP100から0へ進むことを確認し、[ダミーの画像](../project/generated/ink_phase2/07_dummy.png)を保存した。原作の減衰関数全体の確定、複数標的、敵AI、プレイヤーへのダメージは今回の範囲外。
 
 ## 11. パフォーマンスと解像度の判断
 
@@ -189,7 +189,7 @@ GPU時間は4タイムスタンプで塗り更新と地形描画を分けて計�
 | Development検証デモのFPS | 通常おおむね56～58。CSV平均56.94、記録最小55.86／最大59.80 |
 | Releaseでの性能 | 45秒デモ完走。CSV平均57.01 FPS、記録最小55.87／最大58.85。採録粒子数は最大66個 |
 
-同一atlas・同一カメラ・静止状態で補間ON/OFFを交互に切り替え、切り替え付近を除いた0.5秒周期のCSV値を集計した。平均ではONが約0.001434ms小さかったが、中央値は一致し、この測定ではノイズと区別できる差を確認しなかった。「補間すると高速化する」「すべてのGPU・画角で無料」とは一般化しない。FPSだけで判定せず、GPU時間と画面を合わせて評価する。現在のタイマーは塗り更新と地形描画を計測するもので、液体シェーダー単独のGPU時間ではない。最終記録は[Development検証CSV](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_phase2/development_replay.csv)と[集計JSON](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_phase2/metrics.json)に保存した。
+同一atlas・同一カメラ・静止状態で補間ON/OFFを交互に切り替え、切り替え付近を除いた0.5秒周期のCSV値を集計した。平均ではONが約0.001434ms小さかったが、中央値は一致し、この測定ではノイズと区別できる差を確認しなかった。「補間すると高速化する」「すべてのGPU・画角で無料」とは一般化しない。FPSだけで判定せず、GPU時間と画面を合わせて評価する。現在のタイマーは塗り更新と地形描画を計測するもので、液体シェーダー単独のGPU時間ではない。最終記録は[Development検証CSV](../generated/ink_phase2/development_replay.csv)と[集計JSON](../generated/ink_phase2/metrics.json)に保存した。
 
 ## 12. テスト結果と確認手順
 
@@ -197,10 +197,10 @@ GPU時間は4タイムスタンプで塗り更新と地形描画を分けて計�
 | --- | --- |
 | InkPaint / InkLiquidのC++構文、MSVC C++20 `/Zs /W4 /WX` | PASS |
 | InkPaint CS/VS/PS、InkLiquid VS/PS、DXC SM6.0 `-O3 -WX -Zpr` | PASS、全5シェーダー |
-| Simulationの回帰テスト | PASS。生成した[テスト実行ファイル](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_tests/ink_simulation_tests.exe)で実施 |
-| Development x64フルビルド | PASS。[ビルドログ](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_phase2_development_build.log) |
-| Release x64フルビルド | PASS。[ビルドログ](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_phase2_release_build.log)。最終版の実機45秒デモもPASS |
-| 統合シーンのD3D12 Debug Layer | 有効。最終材質で約45秒のデモを再実行しERROR 0／WARNING 0。[保存済み検証ログ](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_phase2/development_gpu_validation.txt) |
+| Simulationの回帰テスト | PASS。生成した[テスト実行ファイル](../generated/ink_tests/ink_simulation_tests.exe)で実施 |
+| Development x64フルビルド | PASS。[ビルドログ](../generated/ink_phase2_development_build.log) |
+| Release x64フルビルド | PASS。[ビルドログ](../generated/ink_phase2_release_build.log)。最終版の実機45秒デモもPASS |
+| 統合シーンのD3D12 Debug Layer | 有効。最終材質で約45秒のデモを再実行しERROR 0／WARNING 0。[保存済み検証ログ](../generated/ink_phase2/development_gpu_validation.txt) |
 | GPU based validation | 無効。この追加検証までPASSしたとは扱わない |
 | 変更前／変更後の視覚比較 | 旧録画コンタクトシートと最終材質の9比較画像を保存。境界補間ON/OFFは同条件 |
 
@@ -219,9 +219,9 @@ CPUマスクの各画素をGPUシェーダーと同じ楕円式と画素中心�
 | 潜伏・高速移動・補給 | 自色条件、速度、回復停止時間を維持し、演出で遅延しない | PASS、遊泳速度5.76と補給 |
 | 壁泳ぎと上端 | 壁上の波紋・姿勢・塗り判定が合い、上端の支持を確認する | PASS、壁泳ぎ4.32、高さ6へ乗り上げ |
 | ダミー射撃 | HP・命中ダメージ・3発撃破・自動復帰の表示 | PASS、36ダメージ、HP100→0 |
-| Tab／F1／Alt+Tab／終了 | 設定操作とマウス解放、描画リソースの終了処理が正常 | [日本語設定画像](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2/10_japanese_settings.jpg)を保存。項目展開と終了を実機確認。F1／Tabの短いキー入力は自動化では捕捉を確認できず、手動キーボード操作一式の網羅検証は未実施 |
+| Tab／F1／Alt+Tab／終了 | 設定操作とマウス解放、描画リソースの終了処理が正常 | [日本語設定画像](../project/generated/ink_phase2/10_japanese_settings.jpg)を保存。項目展開と終了を実機確認。F1／Tabの短いキー入力は自動化では捕捉を確認できず、手動キーボード操作一式の網羅検証は未実施 |
 
-追加の起動時診断では、集計開始位置を0にし、描画パイプライン／リソース作成時のメッセージも対象にした。[Development起動時診断](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_phase2/development_startup_gpu_validation.txt)と[Release起動～45秒診断](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_phase2/release_gpu_validation.txt)はいずれもERROR 0／WARNING 0。[Release検証CSV](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_phase2/release_replay.csv)も保存した。
+追加の起動時診断では、集計開始位置を0にし、描画パイプライン／リソース作成時のメッセージも対象にした。[Development起動時診断](../generated/ink_phase2/development_startup_gpu_validation.txt)と[Release起動～45秒診断](../generated/ink_phase2/release_gpu_validation.txt)はいずれもERROR 0／WARNING 0。[Release検証CSV](../generated/ink_phase2/release_replay.csv)も保存した。
 
 最終Simulation試験は7200ステップ（120Hz、60秒）、377発。最大主弾6・落下飛沫31・スタンプ16件／ステップだった。5種類の乱数開始状態×5方向の25条件で、足元から4.4ワールド単位以上先まで所有者マスクが4近傍で連結することを検証し、細い飛沫へ変更した際の道の隙間を修正した。
 
@@ -240,9 +240,9 @@ CPUマスクの各画素をGPUシェーダーと同じ楕円式と画素中心�
 | 弾の対人半径 | 0.285×0.5。ダミーの掃引判定で使用 |
 | 塗りの幅／伸びの基準 | 既存の公開WidthHalfと、再確認したDepthScaleの値を保持 |
 
-上表には武器JSONで直接確認した値と、共通初期値として解析資料を根拠にした値がある。詳細の確度は[既存調査](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/docs/ink_shooter_research.md)を維持する。距離縮尺0.5、秒への換算、CG2の120Hz積分を含むため、これらがそのまま任天堂の内部ワールド単位という意味ではない。今回の見た目の調整のために、これらのゲーム基準を変更しない。
+上表には武器JSONで直接確認した値と、共通初期値として解析資料を根拠にした値がある。詳細の確度は[既存調査](ink_shooter_research.md)を維持する。距離縮尺0.5、秒への換算、CG2の120Hz積分を含むため、これらがそのまま任天堂の内部ワールド単位という意味ではない。今回の見た目の調整のために、これらのゲーム基準を変更しない。
 
-再照合した塗りの根拠は[Leanny 11.3.0の武器データ](https://github.com/Leanny/splat3/blob/7280ff9cde8bb1c5dcef46c700c326471584d2e6/data/parameter/1130/weapon/WeaponShooterNormal.game__GameParameterTable.json)。解析者による意味の説明と、確認できなかったアルゴリズムは[第2段階調査](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/docs/ink_shooter_phase2_research.md)に分けて記録する。
+再照合した塗りの根拠は[Leanny 11.3.0の武器データ](https://github.com/Leanny/splat3/blob/7280ff9cde8bb1c5dcef46c700c326471584d2e6/data/parameter/1130/weapon/WeaponShooterNormal.game__GameParameterTable.json)。解析者による意味の説明と、確認できなかったアルゴリズムは[第2段階調査](ink_shooter_phase2_research.md)に分けて記録する。
 
 ## 14. CG2独自の近似
 
@@ -260,13 +260,13 @@ CPUマスクの各画素をGPUシェーダーと同じ楕円式と画素中心�
 
 ステージは16枚の有限長方形面で、原作の練習場の照明・素材・広さ・障害物・細かな地形を再現するものではない。移動の加減速・壁の角・任意メッシュ・天井、入力デバイスの違いも残る。対戦、ギア、サブ、スペシャル、敵AI、ネットワーク、ジャイロ、イカロール／イカノボリは今回追加しない。
 
-最終画像では道の方向性と明るさを改善した一方、床インクのハイライトは参考動画より弱く、人物とステージの単純さも目立つ。小粒は遠方で数画素となるため、30fps動画上での読みやすさは静止画像だけでは十分に評価できない。壁へ近づいた[壁泳ぎ画像](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_phase2/06_wall_swim.png)では、境界補間後も512グリッド由来の階段が残る。最小の粒と極端に浅い観察角、暗い壁での液体の見え方は引き続き調整余地がある。
+最終画像では道の方向性と明るさを改善した一方、床インクのハイライトは参考動画より弱く、人物とステージの単純さも目立つ。小粒は遠方で数画素となるため、30fps動画上での読みやすさは静止画像だけでは十分に評価できない。壁へ近づいた[壁泳ぎ画像](../project/generated/ink_phase2/06_wall_swim.png)では、境界補間後も512グリッド由来の階段が残る。最小の粒と極端に浅い観察角、暗い壁での液体の見え方は引き続き調整余地がある。
 
 ## 16. 次の優先改善項目と任意メッシュへの設計案
 
 まずReleaseの実機確認と最終操作の追試を完了する。次の実装では、今回の画像・GPU時間を基準に、入射角・落下高さ別の塗り道と飛沫の配置、独自キャラクターの射撃・潜伏アニメーション、カメラの障害物付近の追従を優先する。未確定の飛沫内部アルゴリズムは、資料の根拠が得られた箇所から置き換える。
 
-任意のステージモデルへの塗りは次段階の設計に留める。[各方式の比較](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/docs/ink_shooter_phase2_research.md)では、次の経路を第一候補とする。
+任意のステージモデルへの塗りは次段階の設計に留める。[各方式の比較](ink_shooter_phase2_research.md)では、次の経路を第一候補とする。
 
 1. 衝突ヒットからメッシュID・三角形ID・重心座標・法線を返す。
 2. 重複しない塗り用UVへ変換し、メッシュごとの小さい塗りテクスチャ、または共有UV atlasへ書く。
