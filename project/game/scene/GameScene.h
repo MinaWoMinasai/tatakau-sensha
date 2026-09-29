@@ -1,4 +1,5 @@
 #pragma once
+#include "DeveloperTools.h"
 #define NOMINMAX
 #include <algorithm>
 #include <array>
