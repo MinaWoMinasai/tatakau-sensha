@@ -8,6 +8,7 @@
 | `nlohmann-json-LICENSE.MIT` | [nlohmann/json の公式 LICENSE.MIT](https://raw.githubusercontent.com/nlohmann/json/develop/LICENSE.MIT)。vendor の 2013-2026 表示と照合 |
 | `Konva-LICENSE.txt` | [konvajs/konva 9.3.22](https://raw.githubusercontent.com/konvajs/konva/9.3.22/LICENSE)。同梱 JS のバージョンと照合 |
 | `Abseil-LICENSE.txt` | [ソース内で参照される Abseil コミット](https://raw.githubusercontent.com/abseil/abseil-cpp/10cb35e459f5ecca5b2ff107635da0bfa41011b4/LICENSE) |
+| `Hedley-CC0-1.0.txt` | [Creative Commons 公式 CC0 1.0 原文](https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt)。`nlohmann/thirdparty/hedley/hedley.hpp` の CC0-1.0 表示に対応し、無改変コピーを同梱 |
 | `stb-LICENSE.txt` | `project/externals/imgui/imstb_*.h` 3ファイル末尾の同一ライセンス本文を、そのまま抜粋 |
 | `RapidJSON-LICENSE.txt` | ローカル Assimp ソース `project/.deps/assimp/source/contrib/rapidjson/license.txt` から無改変コピー |
 | `zlib-LICENSE.txt` | ローカル Assimp ソース `project/.deps/assimp/source/contrib/zlib/LICENSE` から無改変コピー |

@@ -113,7 +113,7 @@ try {
 }
 ```
 
-実行ファイルだけを別の場所へコピーしても動作しません。Assimp、DXC / DXIL の DLL と `resources` が必要です。配布フォルダーの作成方法は [提出用 Release](docs/submission-package.md) を参照してください。**旧素材を含む再配布条件は調査中です。公開・配布前に [監査の要確認項目](docs/public-release-audit.md) を確認してください。**
+実行ファイルだけを別の場所へコピーしても動作しません。Assimp、DXC / DXIL の DLL と `resources` が必要です。配布フォルダーの作成方法は [提出用 Release](docs/submission-package.md) を参照してください。**旧素材を含む再配布条件は調査中です。公開・配布前に [素材監査の要確認項目](docs/public-assets-audit.md) を確認してください。**
 
 ### 4. 既存テスト
 
@@ -127,7 +127,7 @@ try {
 .\project\tools\test_developer_tools_profile.ps1
 ```
 
-自動テストの成功は実機での操作感や難易度の評価を意味しません。今回の実行結果と制約は [公開準備の監査記録](docs/public-release-audit.md) に記載しています。
+自動テストの成功は実機での操作感や難易度の評価を意味しません。今回の実行結果と制約は [素材監査記録](docs/public-assets-audit.md)、前回の結果は [公開準備の監査記録](docs/public-release-audit.md) に記載しています。
 
 ## リポジトリ構成・ソースの読み方
 
