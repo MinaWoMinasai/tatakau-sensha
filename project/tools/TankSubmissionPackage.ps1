@@ -1,6 +1,15 @@
 # Shared, read-only package policy. Dot-source from the packaging and audit scripts.
 Set-StrictMode -Version Latest
 
+function Get-TankSubmissionNoticePaths {
+    # Keep repository-relative paths so supplemental license links also work in packages.
+    return @('COPYRIGHT.md', 'THIRD_PARTY_NOTICES.md',
+        'docs/third-party/README.md', 'docs/third-party/DirectXTex-LICENSE.txt',
+        'docs/third-party/nlohmann-json-LICENSE.MIT', 'docs/third-party/Konva-LICENSE.txt',
+        'docs/third-party/Abseil-LICENSE.txt', 'docs/third-party/stb-LICENSE.txt',
+        'docs/third-party/RapidJSON-LICENSE.txt', 'docs/third-party/zlib-LICENSE.txt')
+}
+
 function Test-TankSubmissionPreparedTextPath([string]$RelativePath) {
     return $RelativePath.Replace('\', '/') -cmatch '^resources/generated/text/text_[0-9a-f]{16}\.png$'
 }
@@ -91,6 +100,9 @@ function Assert-TankSubmissionPackage([string]$PackageDirectory) {
         $paths[$relative] = $file
     }
     if ($hasPreparedText -and $preparedTextCount -ne $manifest.preparedTextCache.fileCount) { throw 'Prepared text cache file count does not match manifest.' }
+    foreach ($notice in Get-TankSubmissionNoticePaths) {
+        if (!$paths.ContainsKey($notice)) { throw "Required copyright/license notice is missing: $notice" }
+    }
     foreach ($required in @('CG2.exe', 'dxcompiler.dll', 'dxil.dll', 'README.md', 'licenses/assimp-LICENSE.txt', 'licenses/imgui-LICENSE.txt',
             'resources/projects/default.project.json', 'resources/projects/tank_game.project.json',
             'resources/configs/expedition_content.json', 'resources/configs/tankExpeditionBalance.json',
@@ -149,6 +161,7 @@ function New-TankSubmissionPackage([string]$SourceRoot, [string]$OutputDirectory
         (Join-Path $resources 'configs/expedition_content.json'),
         (Join-Path $resources 'configs/tankExpeditionBalance.json'),
         (Join-Path $resources 'configs/expedition_map.json'))
+    $required += @(Get-TankSubmissionNoticePaths | ForEach-Object { Join-Path $source $_ })
     foreach ($file in $required) { if (!(Test-Path -LiteralPath $file -PathType Leaf)) { throw "Missing source file: $file" } }
     $preparedTextFiles = @()
     if ($PreparedTextCacheDirectory) {
@@ -186,6 +199,11 @@ function New-TankSubmissionPackage([string]$SourceRoot, [string]$OutputDirectory
     [IO.Directory]::CreateDirectory((Join-Path $destination 'licenses')) | Out-Null
     Copy-Item -LiteralPath (Join-Path $source 'project/externals/assimp/LICENSE.txt') -Destination (Join-Path $destination 'licenses/assimp-LICENSE.txt')
     Copy-Item -LiteralPath (Join-Path $source 'project/externals/imgui/LICENSE.txt') -Destination (Join-Path $destination 'licenses/imgui-LICENSE.txt')
+    foreach ($notice in Get-TankSubmissionNoticePaths) {
+        $noticeTarget = Join-Path $destination $notice
+        [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($noticeTarget)) | Out-Null
+        Copy-Item -LiteralPath (Join-Path $source $notice) -Destination $noticeTarget
+    }
     $entries = @(Get-TankSubmissionFiles $destination | Sort-Object FullName | ForEach-Object {
         [ordered]@{ path = Get-TankSubmissionRelativePath $destination $_.FullName; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
     })
