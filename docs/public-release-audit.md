@@ -2,6 +2,8 @@
 
 > 初回整理時の記録です。この後の素材削除・ZIP内部情報の整理・Hedley本文の補完と現在の保留事項は、[素材・埋め込み情報の監査](public-assets-audit.md)を優先してください。下記の「保持」「削除なし」は初回作業時点の結果です。
 
+> さらに[旧シーンの除去](remove-ink-shooter-audit.md)を実施済みです。Ink Shooter専用実装・資料は現在は含みません。以下の当時の分類を、現在の同梱ファイル一覧として扱わないでください。
+
 調査日：2026-09-29。対象は作業開始時点の追跡ファイル 954 件と現在の作業ツリーです。開始時のブランチは `chore/public-release-prep`、既存の作業差分はありませんでした。
 
 **ゲーム本体を保持したまま、作品紹介・文書・ライセンス同梱を整理しました。素材の権利・埋め込み情報など、公開前に作者が確認する項目が残っています。**
@@ -45,9 +47,9 @@
 
 | 対象 | 保留理由 / 次の確認 |
 | --- | --- |
-| `project/game/ink/`, `InkShooterScene.*`, `game/naval/`, 3D / 各 Lab シーン | `BuiltInGameModule.cpp` と `.vcxproj` で参照。旧機能でも現在のビルド対象。除去する場合はシーン登録・共有ロード・素材・全構成の動作検証が必要 |
+| `game/naval/`, 3D / 各 Lab シーン | `BuiltInGameModule.cpp` と `.vcxproj` で参照。除去する場合はシーン登録・共有ロード・素材・全構成の動作検証が必要。初回に保留したInk Shooter部分は後続作業で除去済み |
 | 旧アリーナ用部分、`GameScene.TankRun.cpp` など | 遠征とプレイヤー・UI・タイトルデモを共有。ファイル名だけで未使用と判定できない |
-| `docs/ink_*.md`, `docs/naval_game/`, 旧プロトタイプ・検証資料 | 現行作品紹介からは切り分けたが、旧実装の根拠や出典を含むため保持。資料索引で過去資料と明記 |
+| `docs/naval_game/`, 旧プロトタイプ・検証資料 | 現行作品紹介からは切り分けたが、旧実装の根拠や出典を含むため保持。資料索引で過去資料と明記。Ink専用資料は後続作業で削除し、共通音声テストの説明は独立した文書へ整理済み |
 | `docs/public_submission/REPOSITORY_SPLIT_PLAN.md` | 学校課題向けの旧計画。今回と異なる方針のため、実施しない旨を冒頭に追記 |
 | `project/tools/player_ship_editor_mobile.zip` | 現在の展開済みファイルと比較し、改行差を除いてもアプリ・HTML等が一致しない。単なる重複として消せない。既存 CI の `*.zip` 禁止に該当。内部の `player_ship_editor/README_mobile.md` にも個人用パス形式の情報あり |
 | `project/resources/BGM_shining_star.mp3` | 使用行はコメントアウト。ただし著作権・出典・Public での素材収録条件が未確認。5.27 MiB |

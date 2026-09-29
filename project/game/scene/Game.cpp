@@ -405,8 +405,7 @@ void Game::MainLoop() {
                 Input::GetInstance()->RecordKeyDown(scanCode, (msg.lParam & (1LL << 30)) != 0);
             }
             if (msg.message == WM_KEYDOWN && msg.wParam == VK_F1 && !(msg.lParam & (1LL << 30))) {
-                RuntimeProfiler::Get().HandleShortcut((GetKeyState(VK_SHIFT) & 0x8000) != 0,
-                    SceneManager::GetInstance()->GetCurrentSceneName() == "INK_SHOOTER_LAB");
+                RuntimeProfiler::Get().HandleShortcut((GetKeyState(VK_SHIFT) & 0x8000) != 0);
             }
             TranslateMessage(&msg);
             DispatchMessage(&msg);

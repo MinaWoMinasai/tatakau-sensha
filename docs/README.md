@@ -13,10 +13,12 @@
 | [提出用 Release](submission-package.md) | 実行用フォルダー作成と既存検査 |
 | [起動処理](startup-performance.md) | 起動計測・キャッシュ |
 | [性能表示](tank-performance-monitor.md) | フレーム計測 |
+| [共通音声テスト](audio-runtime-tests.md) | PCM/WAV・MP3と音声ハンドルの回帰検査 |
 | [画像の追加](images/README.md) | README に載せる実プレイ画像 |
 | [作者情報](credits.md) | 作者・公式 URL、Version Info の調査 |
 | [素材・埋め込み情報の監査](public-assets-audit.md) | 最新の A/B/C/D 分類、削除素材、権利・個人情報の保留事項と検証 |
-| [保持素材の確認台帳](public-assets-inventory.md) | 保持275件の分類・サイズ・参照候補。出典照合の対象一覧 |
+| [保持素材の確認台帳](public-assets-inventory.md) | 現存素材の分類・サイズ・参照候補。出典照合の対象一覧 |
+| [旧シーンの除去記録](remove-ink-shooter-audit.md) | Ink Shooter専用部分の除去と共通機能の保持、検証 |
 | [初回の公開準備記録](public-release-audit.md) | 初回整理時の A/B/C 分類と検証。当時の素材保留事項は最新監査を優先 |
 
 ## 過去の実装・検証資料
@@ -24,7 +26,6 @@
 以下は開発経緯を残した資料です。記載された試験結果・キー割り当て・数値は、その資料作成時点のものです。現在の仕様と異なる場合はコード・設定と上の現行ガイドを優先してください。
 
 - `tank-*-prototype.md`、`tank-mode-comparison-*.md`、`tank-build-variety-v5.md` など：以前の遠征・アリーナ仕様と検証記録。
-- `ink_*.md`：旧インクシューター実験と調査資料。今回の作品紹介の中心には含めていません。
 - `naval_game/`：海戦モードの企画・エンジン調査。
 - `vfx_flame.md`：エフェクト試験。
 - [旧 Public 分離計画](public_submission/REPOSITORY_SPLIT_PLAN.md)：学校課題向けの過去案。今回の「たたかうせんしゃ」公開方針とは異なり、実施対象ではありません。

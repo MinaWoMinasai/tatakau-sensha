@@ -19,7 +19,7 @@ public:
     bool IsAllowed() const { return allowed_; }
     bool IsVisible() const { return displayMode_ != 0; }
     bool IsRecording() const { return recording_; }
-    void HandleShortcut(bool shift, bool inkScene);
+    void HandleShortcut(bool shift);
     void BeginFrame();
     void AddCpu(const char* name, double ms);
     void SetCounter(const char* name, double value);
