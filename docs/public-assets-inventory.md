@@ -1,6 +1,6 @@
 # 保持素材の確認台帳
 
-2026-09-29、素材整理後の `project/resources/` 追跡ファイル一覧です。[監査本文](public-assets-audit.md)の分類・根拠・制約と合わせて使用してください。削除18件は本文に記録しています。
+2026-09-29、素材整理後の `project/resources/` 追跡ファイル一覧です。[監査本文](public-assets-audit.md)の分類・根拠・制約と合わせて使用してください。最初の素材整理18件の削除は監査本文、続く専用リソース21件の削除は[旧シーン除去記録](remove-ink-shooter-audit.md)に記録しています。
 
 **A**：自作設定・コード、または制作記録のある遠征用合成音声。**C**：OFL条件・表示を維持するフォント一式。**D**：制作経緯・出典・素材単体の再配布条件を作者が確認するもの。Dを自作・許諾済みと認定していません。ディレクトリ別の分類は既存の説明と実装に基づき、個々の制作経緯を証明するものではありません。
 
@@ -8,7 +8,7 @@
 
 素材パスは `project/resources/` 相対、参照パスは `project/` 相対です。画像・バイナリの内容や個人情報候補の値は記録していません。
 
-保持275件（A 111件、C 2件、D 162件）。
+保持254件（A 100件、C 2件、D 152件）。
 
 | 素材パス | 分類 | bytes | 参照候補（最大3箇所） |
 | --- | --- | ---: | --- |
@@ -23,16 +23,6 @@
 | `UnderwaterCausticsAtlas.png` | D | 1,745,716 | `game/scene/UnderwaterLabScene.cpp` |
 | `UnderwaterCausticsDeepBroadAtlas.png` | D | 2,841,299 | `game/scene/UnderwaterLabScene.cpp` |
 | `animation/assimp_test.gltf` | D | 914 | `game/scene/TestScene.cpp` |
-| `audio/ink/arrow_burst.wav` | D | 28,844 | `CG2_testPro.vcxproj`, `game/ink/InkAudioDirector.cpp`, `resources/audio/ink/manifest.json` |
-| `audio/ink/arrow_stick.wav` | D | 7,244 | `CG2_testPro.vcxproj`, `game/ink/InkAudioDirector.cpp`, `resources/audio/ink/manifest.json` |
-| `audio/ink/charge_first.wav` | D | 11,564 | `CG2_testPro.vcxproj`, `game/ink/InkAudioDirector.cpp`, `resources/audio/ink/manifest.json` |
-| `audio/ink/charge_full.wav` | D | 17,324 | `CG2_testPro.vcxproj`, `game/ink/InkAudioDirector.cpp`, `resources/audio/ink/manifest.json` |
-| `audio/ink/charge_loop.wav` | D | 11,564 | `CG2_testPro.vcxproj`, `game/ink/InkAudioDirector.cpp`, `resources/audio/ink/manifest.json` |
-| `audio/ink/manifest.json` | D | 6,074 | `CG2_testPro.vcxproj`, `tools/generate_ink_audio.py` |
-| `audio/ink/shooter_shot.wav` | D | 11,564 | `CG2_testPro.vcxproj`, `game/ink/InkAudioDirector.cpp`, `resources/audio/ink/manifest.json` |
-| `audio/ink/stringer_full.wav` | D | 30,764 | `CG2_testPro.vcxproj`, `game/ink/InkAudioDirector.cpp`, `resources/audio/ink/manifest.json` |
-| `audio/ink/stringer_mid.wav` | D | 25,004 | `CG2_testPro.vcxproj`, `game/ink/InkAudioDirector.cpp`, `resources/audio/ink/manifest.json` |
-| `audio/ink/stringer_tap.wav` | D | 19,244 | `CG2_testPro.vcxproj`, `game/ink/InkAudioDirector.cpp`, `resources/audio/ink/manifest.json` |
 | `audio/tank_expedition/README.md` | A | 5,834 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `externals/DirectXTex/DirectXTex_GDK_2019.vcxproj` 他5件 |
 | `audio/tank_expedition/armor_break.wav` | A | 36,524 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
 | `audio/tank_expedition/dash.wav` | A | 22,604 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
@@ -61,7 +51,7 @@
 | `bossHPRed.png` | D | 191 | `game/enemy/actor/Enemy.cpp` |
 | `bullet.mtl` | D | 250 | `resources/bullet.obj` |
 | `bullet.obj` | D | 5,185 | `game/naval/scene/NavalBattleScene.cpp`, `game/player/actor/Bullet.cpp` |
-| `bulletShoot.mp3` | D | 17,553 | `game/scene/Game.cpp`, `tools/test_ink_audio_runtime.ps1` |
+| `bulletShoot.mp3` | D | 17,553 | `game/scene/Game.cpp`, `tools/test_audio_runtime.ps1` |
 | `checkerBoard.png` | D | 1,166 | 文字列一致なし／動的使用は未確定 |
 | `circle.png` | D | 27,583 | `resources/plane.mtl` |
 | `configs/evolutionTree.json` | A | 1,147 | `game/player/actor/Player.h` |
@@ -71,8 +61,6 @@
 | `configs/gamePostEffects.json` | A | 7,599 | `game/scene/GameScene.Authoring.cpp`, `game/scene/GameScene.TankRunVisuals.cpp`, `game/scene/GameScene.cpp` 他1件 |
 | `configs/gameText.json` | A | 981 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `game/scene/GameScene.cpp` |
 | `configs/gameVisuals.json` | A | 7,716 | `game/scene/GameScene.Authoring.cpp`, `game/scene/GameScene.TankRunVisuals.cpp`, `game/scene/GameScene.cpp` 他1件 |
-| `configs/ink_audio.json` | A | 121 | `CG2_testPro.vcxproj`, `game/ink/InkAudioDirector.cpp` |
-| `configs/ink_weapons.json` | A | 5,779 | `CG2_testPro.vcxproj`, `game/scene/InkShooterScene.Weapons.cpp`, `game/scene/InkShooterScene.h` |
 | `configs/playerClasses.json` | A | 45,261 | `game/player/actor/Player.h`, `game/scene/GameScene.cpp` |
 | `configs/playerUpgradeHud.json` | A | 1,496 | `game/player/actor/Player.h` |
 | `configs/screenEffects.json` | A | 1,371 | `CG2_testPro.vcxproj`, `game/scene/GameScene.TitleDemo.cpp`, `game/scene/GameScene.cpp` |
@@ -190,7 +178,6 @@
 | `playerParticle.png` | D | 169 | `resources/playerParticle.mtl` |
 | `projects/default.project.json` | A | 149 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `game/scene/Game.cpp` 他2件 |
 | `projects/graphics_lab.project.json` | A | 162 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
-| `projects/ink_shooter.project.json` | A | 163 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `tools/run_ink_shooter.ps1` |
 | `projects/naval.project.json` | A | 160 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
 | `projects/tank_expedition.project.json` | A | 183 | `tools/measure_tank_performance.ps1`, `tools/run_tank_expedition.ps1`, `tools/test_tank_combat_runtime.ps1` 他4件 |
 | `projects/tank_game.project.json` | A | 162 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `tools/TankSubmissionPackage.ps1` 他4件 |
@@ -207,44 +194,36 @@
 | `shaders/Composite.PS.hlsl` | A | 18,966 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/FullScreen.VS.hlsl` | A | 422 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/GaussianFilter.PS.hlsl` | A | 1,567 | `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/InkLiquid.PS.hlsl` | A | 3,633 | `game/ink/InkLiquidRenderer.cpp` |
-| `shaders/InkLiquid.VS.hlsl` | A | 2,821 | `game/ink/InkLiquidRenderer.cpp` |
-| `shaders/InkPaint.CS.hlsl` | A | 1,114 | `game/ink/InkPaintRenderer.cpp` |
-| `shaders/InkPaint.PS.hlsl` | A | 6,016 | `game/ink/InkPaintRenderer.cpp` |
-| `shaders/InkPaint.VS.hlsl` | A | 1,517 | `game/ink/InkPaintRenderer.cpp` |
-| `shaders/InkReticle.PS.hlsl` | A | 3,239 | `game/ink/InkReticleRenderer.cpp` |
-| `shaders/InkReticle.VS.hlsl` | A | 483 | `game/ink/InkReticleRenderer.cpp` |
-| `shaders/InkReticle.hlsli` | A | 269 | `CG2_testPro.vcxproj` |
-| `shaders/ModelParticle.PS.hlsl` | A | 3,421 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
+| `shaders/ModelParticle.PS.hlsl` | A | 3,421 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` 他1件 |
 | `shaders/ModelParticle.Scene.PS.hlsl` | A | 65 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/ModelParticle.VS.hlsl` | A | 1,240 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/ModelParticle.hlsli` | A | 219 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
+| `shaders/ModelParticle.hlsli` | A | 219 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `resources/shaders/ModelParticle.PS.hlsl` 他1件 |
 | `shaders/MotionVectorResolve.PS.hlsl` | A | 1,452 | `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/Object3d.PS.hlsl` | A | 60,683 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
+| `shaders/Object3d.PS.hlsl` | A | 60,683 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` 他1件 |
 | `shaders/Object3d.Scene.PS.hlsl` | A | 60 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/Object3d.VS.hlsl` | A | 12,302 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/Object3d.hlsli` | A | 464 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
+| `shaders/Object3d.hlsli` | A | 464 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `resources/shaders/Object3d.PS.hlsl` 他2件 |
 | `shaders/ObjectPostBloomAdd.PS.hlsl` | A | 1,581 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/ObjectPostComposite.PS.hlsl` | A | 7,533 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/ObjectPostOutlineAdd.PS.hlsl` | A | 4,865 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/Ocean.PS.hlsl` | A | 29,992 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/Ocean.VS.hlsl` | A | 10,080 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/OceanCommon.hlsli` | A | 3,607 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
+| `shaders/OceanCommon.hlsli` | A | 3,607 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `resources/shaders/Ocean.PS.hlsl` 他1件 |
 | `shaders/OceanFFT.CS.hlsl` | A | 2,586 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/3d/OceanRenderer.cpp` |
-| `shaders/OceanFFTCommon.hlsli` | A | 9,456 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
+| `shaders/OceanFFTCommon.hlsli` | A | 9,456 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `resources/shaders/OceanFFT.CS.hlsl` 他3件 |
 | `shaders/OceanFFTOutput.CS.hlsl` | A | 1,685 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/3d/OceanRenderer.cpp` |
 | `shaders/OceanSpectrumEvolve.CS.hlsl` | A | 2,993 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/3d/OceanRenderer.cpp` |
 | `shaders/OceanSpectrumInitialize.CS.hlsl` | A | 5,529 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/3d/OceanRenderer.cpp` |
 | `shaders/Particle.PS.hlsl` | A | 828 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/Particle.VS.hlsl` | A | 611 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/Particle.hlsli` | A | 175 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
-| `shaders/ParticleCompute.hlsli` | A | 502 | 文字列一致なし／動的使用は未確定 |
+| `shaders/Particle.hlsli` | A | 175 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `resources/shaders/Particle.PS.hlsl` 他1件 |
+| `shaders/ParticleCompute.hlsli` | A | 502 | `resources/shaders/ParticleEmit.CS.hlsl`, `resources/shaders/ParticleEmitBatch.CS.hlsl`, `resources/shaders/ParticleInitialize.CS.hlsl` 他1件 |
 | `shaders/ParticleEmit.CS.hlsl` | A | 3,342 | `DirectX/engine/commom/DirectXCommon.cpp`, `DirectX/engine/particle/ParticleManager.h` |
 | `shaders/ParticleEmitBatch.CS.hlsl` | A | 883 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/ParticleInitialize.CS.hlsl` | A | 642 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/ParticleUpdate.CS.hlsl` | A | 6,455 | `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/PbrLighting.hlsli` | A | 7,035 | 文字列一致なし／動的使用は未確定 |
-| `shaders/PostEffectCommon.hlsli` | A | 4,825 | 文字列一致なし／動的使用は未確定 |
+| `shaders/PbrLighting.hlsli` | A | 7,035 | `resources/shaders/Object3d.PS.hlsl` |
+| `shaders/PostEffectCommon.hlsli` | A | 4,825 | `resources/shaders/BloomExtract.PS.hlsl`, `resources/shaders/Composite.PS.hlsl`, `resources/shaders/MotionVectorResolve.PS.hlsl` 他5件 |
 | `shaders/ProceduralFlame.PS.hlsl` | A | 16,006 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/ProceduralFlameRenderer.cpp` |
 | `shaders/ProceduralFlame.VS.hlsl` | A | 560 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/ProceduralFlameRenderer.cpp` |
 | `shaders/Random.PS.hlsl` | A | 2,783 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
@@ -256,17 +235,17 @@
 | `shaders/Shadow.VS.hlsl` | A | 423 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/SkinningObject3d.VS.hlsl` | A | 2,242 | `CG2_testPro.vcxproj`, `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/SkinningShadow.VS.hlsl` | A | 1,087 | `CG2_testPro.vcxproj`, `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/Skybox.PS.hlsl` | A | 2,206 | `DirectX/engine/commom/DirectXCommon.cpp` |
+| `shaders/Skybox.PS.hlsl` | A | 2,206 | `DirectX/engine/commom/DirectXCommon.cpp`, `resources/shaders/Skybox.Scene.PS.hlsl` |
 | `shaders/Skybox.Scene.PS.hlsl` | A | 58 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/Skybox.VS.hlsl` | A | 823 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/TemporalResolve.PS.hlsl` | A | 2,436 | `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/Trail.PS.hlsl` | A | 1,167 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
+| `shaders/Trail.PS.hlsl` | A | 1,167 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` 他1件 |
 | `shaders/Trail.Scene.PS.hlsl` | A | 57 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/Trail.VS.hlsl` | A | 685 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/Trail.hlsli` | A | 130 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
+| `shaders/Trail.hlsli` | A | 130 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `resources/shaders/Trail.PS.hlsl` 他1件 |
 | `shaders/VfxLabBackground.PS.hlsl` | A | 835 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `game/scene/VfxLabScene.cpp` |
 | `shaders/VfxLabBackground.VS.hlsl` | A | 572 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `game/scene/VfxLabScene.cpp` |
-| `shaders/materials/CrystalMaterial.hlsli` | A | 4,222 | 文字列一致なし／動的使用は未確定 |
+| `shaders/materials/CrystalMaterial.hlsli` | A | 4,222 | `resources/shaders/Object3d.PS.hlsl` |
 | `si.png` | D | 936 | 文字列一致なし／動的使用は未確定 |
 | `start.png` | D | 6,021 | 文字列一致なし／動的使用は未確定 |
 | `ta.png` | D | 1,239 | 文字列一致なし／動的使用は未確定 |
@@ -285,5 +264,5 @@
 | `wasd.png` | D | 7,767 | `game/scene/GameScene.cpp` |
 | `weapon.mtl` | D | 255 | `resources/weapon.obj` |
 | `weapon.obj` | D | 194,001 | `game/scene/Action3DScene.cpp` |
-| `white512x512.png` | D | 2,248 | `DirectX/engine/3d/Model.cpp`, `DirectX/engine/3d/SkinCluster.cpp`, `DirectX/engine/commom/TrailStressFixture.h` 他39件 |
+| `white512x512.png` | D | 2,248 | `DirectX/engine/3d/Model.cpp`, `DirectX/engine/3d/SkinCluster.cpp`, `DirectX/engine/commom/TrailStressFixture.h` 他38件 |
 | `ya.png` | D | 1,228 | 文字列一致なし／動的使用は未確定 |
