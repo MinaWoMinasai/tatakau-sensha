@@ -782,7 +782,7 @@ void GameScene::Initialize() {
 		controlGuideStyle);
 	controlGuideText_->SetPosition({ 22.0f, 636.0f });
 
-#if !defined(NDEBUG)
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 	TextStyle fpsStyle{};
 	fpsStyle.fontFamily = "Meiryo";
 	fpsStyle.fontSize = 24.0f;
@@ -812,7 +812,7 @@ void GameScene::Initialize() {
 		Object3dCommon::GetInstance()->GetSrvManager());
 	ApplyGameTextAppearance();
 	InitializeTutorialUi();
-	InitializePlayerClassConfigWatch();
+	if(cg2::kDeveloperTools) InitializePlayerClassConfigWatch();
 	}
 	if (prototypeRun_) InitializeTankRun();
 	previousPlayerHp_ = player_ ? player_->GetHp() : 0;
@@ -877,10 +877,10 @@ void GameScene::Update() {
 				: "H:操作説明ON");
 		}
 	}
-	if (!titleDemo_ && !expeditionMapEnabled_ && input_->IsTrigger(input_->GetKey()[DIK_F5], input_->GetPreKey()[DIK_F5])) {
+	if (cg2::kDeveloperTools && !titleDemo_ && !expeditionMapEnabled_ && input_->IsTrigger(input_->GetKey()[DIK_F5], input_->GetPreKey()[DIK_F5])) {
 		ReloadPlayerClassConfig(false);
 	}
-	UpdatePlayerClassConfigWatch(baseDeltaTime);
+	if(cg2::kDeveloperTools) UpdatePlayerClassConfigWatch(baseDeltaTime);
 	slowMotionPostActive_ = finalDeltaTime < baseDeltaTime * 0.98f;
 
 	if (IsTankRunMenuOpen() || player_->IsChangeMode() ||
@@ -893,7 +893,7 @@ void GameScene::Update() {
 	stageDamageBlockPulseTime_ += baseDeltaTime;
 	ExpEnemy::SetShapeNeonRenderMode(expEnemyNeonRenderMode_);
 
-#if !defined(NDEBUG)
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 	{
 		const auto now = std::chrono::steady_clock::now();
 		const float realDeltaTime = std::chrono::duration<float>(now - fpsLastSampleTime_).count();

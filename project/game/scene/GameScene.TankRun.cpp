@@ -222,7 +222,7 @@ void GameScene::UpdateTankRun(float dt) {
     if(phase_!=Phase::kMain) return;
     tankRunMenuAge_+=dt; tankRunAutoTime_+=dt;
     const auto triggered=[this](int key){return input_->IsTrigger(input_->GetKey()[key],input_->GetPreKey()[key]);};
-    if(triggered(DIK_F10)) RequestTankRunCapture("manual");
+    if(cg2::kDeveloperTools&&triggered(DIK_F10)) RequestTankRunCapture("manual");
     if(gameFlowState_==GameFlowState::Playing&&!player_->IsChangeMode()&&triggered(DIK_ESCAPE)) {
         tankRunPaused_=!tankRunPaused_; tankRunSelection_=0; tankRunMenuAge_=0; RefreshTankRunUi();
     }

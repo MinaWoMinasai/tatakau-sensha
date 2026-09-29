@@ -20,6 +20,9 @@ function Assert-Throws([scriptblock]$Action, [string]$Message) {
 foreach ($name in @('CG2.exe', 'dxcompiler.dll', 'dxil.dll', 'assimp-vc145-mt.dll', 'CG2.pdb', 'DirectXTex.lib')) {
     Write-Fixture "generated/outputs/Release/$name"
 }
+$fixtureHash = (Get-FileHash -LiteralPath (Join-Path $tankPackageFixture 'generated/outputs/Release/CG2.exe')).Hash
+$safeBuildProfile = @{ configuration = 'Release'; developerTools = $false; sha256 = $fixtureHash } | ConvertTo-Json
+Write-Fixture 'generated/outputs/Release/CG2.build.json' $safeBuildProfile
 Write-Fixture 'docs/submission-README.md' '# たたかうせんしゃ'
 Write-Fixture 'project/externals/assimp/LICENSE.txt' 'Assimp notice'
 Write-Fixture 'project/externals/imgui/LICENSE.txt' 'ImGui notice'
@@ -37,6 +40,12 @@ foreach ($name in @('configs/expedition_user.json', 'configs/expedition_user.jso
         'imgui.ini', 'configs/local.tmp', 'audio/generate.py')) {
     Write-Fixture "project/resources/$name" '{"tutorialCompleted":true,"authorHistory":"must stay private"}'
 }
+# Reject a tool-enabled Release and a stale build profile before creating output.
+Write-Fixture 'generated/outputs/Release/CG2.build.json' (@{ configuration = 'Release'; developerTools = $true; sha256 = $fixtureHash } | ConvertTo-Json)
+Assert-Throws { New-TankSubmissionPackage $tankPackageFixture (Join-Path $tankPackageTestRoot 'tools_enabled') } 'Developer-enabled Release was accepted.'
+Write-Fixture 'generated/outputs/Release/CG2.build.json' (@{ configuration = 'Release'; developerTools = $false; sha256 = 'stale' } | ConvertTo-Json)
+Assert-Throws { New-TankSubmissionPackage $tankPackageFixture (Join-Path $tankPackageTestRoot 'stale_profile') } 'Stale build profile was accepted.'
+Write-Fixture 'generated/outputs/Release/CG2.build.json' $safeBuildProfile
 $before = @{}
 Get-TankSubmissionFiles $tankPackageFixture | ForEach-Object { $before[$_.FullName] = (Get-FileHash -LiteralPath $_.FullName).Hash }
 $cleanOutput = Join-Path $tankPackageTestRoot 'clean'

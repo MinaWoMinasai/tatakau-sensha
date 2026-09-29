@@ -88,7 +88,7 @@ void TitleScene::Update() {
         const bool click=input_->IsTrigger(input_->GetMouseState().rgbButtons[0],input_->GetPreMouseState().rgbButtons[0]);
         const int hovered=HitTestMenu(mouse);
         if(menuHovered_!=(hovered==0)) {menuHovered_=hovered==0;UpdateMenuVisuals();}
-        if(triggered(DIK_F9)) StartTransitionIfAvailable("TANK_EXPEDITION",0.5f);
+        if(cg2::kDeveloperTools&&triggered(DIK_F9)) StartTransitionIfAvailable("TANK_EXPEDITION",0.5f);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
         else if(triggered(DIK_F2)) StartTransitionIfAvailable("PLAYER_LAB",0.5f);
         else if(triggered(DIK_F3)) StartTransitionIfAvailable("TEST",0.5f);
