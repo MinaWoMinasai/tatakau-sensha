@@ -347,3 +347,16 @@ FodyWeavers.xsd
 # Local expedition tutorial progress (not game balance settings)
 project/resources/configs/expedition_user.json
 project/resources/configs/expedition_user.json.tmp
+
+# Local agent settings and private credentials (never repository assets).
+.agents/
+.codex/
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+id_rsa
+id_ed25519
+# Additional local progress backups created by tools.
+project/resources/configs/expedition_user.json.*

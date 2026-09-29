@@ -71,4 +71,4 @@ HPの横にある**光る丸と数字**が所持通貨Crです。撃破時に出
 
 初期機体でも改造を組み合わせて攻略でき、進化を必須にしない設計です。敵の強さ、近接の間合い、通貨量を含む難易度は引き続き調整対象です。このガイドは実装内容の説明であり、各ビルドでのクリアや難易度の検証完了を意味しません。
 
-編集・保存の詳細は[作戦マップと遠征エディター](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/docs/tank-expedition-map-editor.md)を参照してください。実装の参照先は[プレイヤーの攻撃・移動](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/player/actor/Player.cpp)、[ルート生成](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/run/TankExpeditionMap.h)、[通貨回収・チュートリアル表示](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/scene/GameScene.ExpeditionExperience.cpp)です。
+編集・保存の詳細は[作戦マップと遠征エディター](tank-expedition-map-editor.md)を参照してください。実装の参照先は[プレイヤーの攻撃・移動](../project/game/player/actor/Player.cpp)、[ルート生成](../project/game/run/TankExpeditionMap.h)、[通貨回収・チュートリアル表示](../project/game/scene/GameScene.ExpeditionExperience.cpp)です。

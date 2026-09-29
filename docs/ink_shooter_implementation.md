@@ -32,7 +32,7 @@ Tabによるマウス解放は入力を止めるもので、ゲーム時間全�
 
 公式で確認できた最新の **Ver.11.3.0（2026-08-20配信）**を基準に、対戦用スプラシューター、ギアなしのパラメータを調べた。主な基準は6フレームごとの連射、1発0.92%のインク消費、射撃後20フレームの回復停止、地上4.86°・ジャンプ直後11.66°の拡散、自インクでの高速移動と補給である。[任天堂 更新データ](https://support.nintendo.com/jp/switch/software_support/av5ja/index.html)
 
-時間は原作の60 Hz、生データ距離1をCG2距離0.5として換算した。録画30 fpsの参考動画から数値を測定していない。動画では弾道の下の飛沫、伸びと膨らみを持つ輪郭、小粒の飛散、連続した道、壁の塗りを視覚的に参考にした。正確な原作値・共通初期値・独自近似の区分は[調査文書](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/docs/ink_shooter_research.md)にまとめている。
+時間は原作の60 Hz、生データ距離1をCG2距離0.5として換算した。録画30 fpsの参考動画から数値を測定していない。動画では弾道の下の飛沫、伸びと膨らみを持つ輪郭、小粒の飛散、連続した道、壁の塗りを視覚的に参考にした。正確な原作値・共通初期値・独自近似の区分は[調査文書](ink_shooter_research.md)にまとめている。
 
 ## 2. 主な情報源
 
@@ -41,7 +41,7 @@ Tabによるマウス解放は入力を止めるもので、ゲーム時間全�
 - [Leanny 11.3.0 移動・補給データ](https://raw.githubusercontent.com/Leanny/splat3/main/data/parameter/1130/misc/params.json): ギアなしの速度と回復時間。
 - [Inkipedia Splattershot](https://splatoonwiki.org/wiki/Splattershot) / [Shooterパラメータ説明](https://splatoonwiki.org/wiki/Template:Shooter_data_S3): 初弾動作、連射・回復の共通値、弾道状態の説明。
 - [任天堂 移動の基本](https://splatoon.nintendo.com/en/news/up-your-game-in-splatoon-3-with-these-quick-tips/): 塗りと移動の関係。
-- ユーザーの参考動画: `C:/Users/k024g/Downloads/スプラシューター参考動画.mp4`。約16.33秒、1920×1080、30 fps。
+- ユーザーの参考動画: `ローカル参考資料（非同梱）`。約16.33秒、1920×1080、30 fps。
 
 ## 3. 採用した方式
 
@@ -86,7 +86,7 @@ Tabによるマウス解放は入力を止めるもので、ゲーム時間全�
 
 ## 6. シューターの現在のパラメータ
 
-初期値の定義は[ShooterWeaponParams.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/ink/ShooterWeaponParams.h)。速度・距離はCG2ワールド単位。0～1のインク量をHUDではゲージで表示する。
+初期値の定義は[ShooterWeaponParams.h](../project/game/ink/ShooterWeaponParams.h)。速度・距離はCG2ワールド単位。0～1のインク量をHUDではゲージで表示する。
 
 | 項目 | 現在値 |
 | --- | --- |
@@ -171,9 +171,9 @@ Shiftを押し、自分のインク上にいる間は遊泳状態へ入る。速
 
 CSVの代表例では約3.6秒に遊泳へ入り、約4.1秒で速度5.76、約4.6秒でインク約95%、約5.1秒には未塗装面に出て人型・速度2.88へ戻っている。計測は小さなテストステージの短時間GPUデモであり、長時間・大規模ステージのGPU性能測定は未実施。60秒相当の負荷試験は描画を伴わないロジック試験。
 
-確認資料: [Developmentビルドログ](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_development_build.log)、[自動デモCSV](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_replay.csv)。CSVはF9デモで再生成・上書きされる生成物で、Git管理対象外。
+確認資料: [Developmentビルドログ](../generated/ink_development_build.log)、[自動デモCSV](../project/generated/ink_replay.csv)。CSVはF9デモで再生成・上書きされる生成物で、Git管理対象外。
 
-[Releaseビルドログ](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_release_build.log)、[テストログ](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/generated/ink_simulation_test.log)、[GPU検証ログ](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/generated/ink_gpu_validation.txt)も生成した。デモの最後に、その実行中に蓄積したD3D12の警告・エラーを記録する。
+[Releaseビルドログ](../generated/ink_release_build.log)、[テストログ](../generated/ink_simulation_test.log)、[GPU検証ログ](../project/generated/ink_gpu_validation.txt)も生成した。デモの最後に、その実行中に蓄積したD3D12の警告・エラーを記録する。
 
 テストの再実行はワークスペースルートで `./project/tools/test_ink_simulation.ps1`。コンパイル済みテスト・中間ファイルは `generated/ink_tests` に出力される。Visual Studioの既存C++ツールを使用し、新しい依存関係はインストールしない。
 
