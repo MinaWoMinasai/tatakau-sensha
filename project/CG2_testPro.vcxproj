@@ -59,6 +59,14 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
+    <CG2DeveloperTools Condition="'$(CG2DeveloperTools)'=='' and '$(Configuration)'=='Release'">false</CG2DeveloperTools>
+    <CG2DeveloperTools Condition="'$(CG2DeveloperTools)'==''">true</CG2DeveloperTools>
+    <CG2DeveloperToolsValue Condition="'$(CG2DeveloperTools)'=='true'">1</CG2DeveloperToolsValue>
+    <CG2DeveloperToolsValue Condition="'$(CG2DeveloperTools)'!='true'">0</CG2DeveloperToolsValue>
+    <CG2DeveloperUiDefines Condition="'$(CG2DeveloperTools)'=='true' and '$(Configuration)'=='Release'">USE_RUNTIME_PROFILER;</CG2DeveloperUiDefines>
+    <CG2DeveloperUiDefines Condition="'$(CG2DeveloperTools)'=='true' and '$(Configuration)'!='Release'">USE_IMGUI;</CG2DeveloperUiDefines>
+  </PropertyGroup>
+  <PropertyGroup>
     <AssimpLibraryName>assimp-vc145-mt</AssimpLibraryName>
     <AssimpLibraryName Condition="Exists('$(ProjectDir)externals\assimp\lib\assimp-vc143-mt.lib') and !Exists('$(ProjectDir)externals\assimp\lib\assimp-vc145-mt.lib')">assimp-vc143-mt</AssimpLibraryName>
   </PropertyGroup>
@@ -79,7 +87,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;USE_IMGUI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;CG2_DEVELOPER_TOOLS=$(CG2DeveloperToolsValue);$(CG2DeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -105,7 +113,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;USE_RUNTIME_PROFILER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;CG2_DEVELOPER_TOOLS=$(CG2DeveloperToolsValue);$(CG2DeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -134,7 +142,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_WINDOWS;USE_IMGUI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDOWS;CG2_DEVELOPER_TOOLS=$(CG2DeveloperToolsValue);$(CG2DeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -789,4 +797,14 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\exp\ExpGuardCombat.h" />
     <ClInclude Include="game\player\TankCombatStyleBalance.h" />
   </ItemGroup>
+  <Target Name="ValidateDeveloperToolsSetting" BeforeTargets="ClCompile">
+    <Error Condition="'$(CG2DeveloperTools)'!='true' and '$(CG2DeveloperTools)'!='false'" Text="CG2DeveloperTools must be true or false." />
+  </Target>
+  <Target Name="WriteGameBuildProfile" AfterTargets="Build">
+    <GetFileHash Files="$(TargetPath)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="GameBuildHash" />
+    </GetFileHash>
+    <WriteLinesToFile File="$(TargetDir)CG2.build.json" Overwrite="true" Encoding="UTF-8"
+      Lines="{ &quot;configuration&quot;: &quot;$(Configuration)&quot;, &quot;developerTools&quot;: $(CG2DeveloperTools), &quot;sha256&quot;: &quot;%(GameBuildHash.FileHash)&quot; }" />
+  </Target>
 </Project>

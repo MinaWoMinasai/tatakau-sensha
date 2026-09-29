@@ -260,7 +260,7 @@ void GameScene::UpdateTankExpedition(float dt) {
     UpdateTankExpeditionAudio(dt);
     if(expeditionMapEnabled_) {UpdateExpeditionMap(dt);return;}
     if(phase_!=Phase::kMain) return;
-    if(tankExpeditionBalanceEditorOpen_||input_->IsKeyTriggered(DIK_F2)) return;
+    if(tankExpeditionBalanceEditorOpen_||(cg2::kDeveloperTools&&input_->IsKeyTriggered(DIK_F2))) return;
     tankRunMenuAge_+=dt;tankRunAutoTime_+=dt;
     if(tankExpeditionTutorialValidation_.enabled) UpdateTankExpeditionTutorialValidation(dt);
     const auto triggered=[this](int key){return input_->IsKeyTriggered(static_cast<uint8_t>(key));};
@@ -272,7 +272,7 @@ void GameScene::UpdateTankExpedition(float dt) {
         return;
     }
     if(!tankRunPaused_&&gameFlowState_==GameFlowState::Playing) UpdateTankExpeditionTutorial(dt);
-    if(triggered(DIK_F10)) RequestTankRunCapture("manual");
+    if(cg2::kDeveloperTools&&triggered(DIK_F10)) RequestTankRunCapture("manual");
     if(triggered(DIK_M)) {
         tankExpeditionMusicEnabled_=!tankExpeditionMusicEnabled_;
         tankExpeditionAudio_.SetMusicVolume(tankExpeditionMusicEnabled_?0.55f:0.0f);
@@ -577,7 +577,7 @@ void GameScene::UpdateTankExpeditionTutorial(float dt) {
         if(player_->IsDashing()) tankExpeditionTutorial_.RecordDash();
     }
     tankExpeditionTutorialPrevious_=position;tankExpeditionTutorialKills_=defeatedEnemies_;
-    if(input_->IsKeyTriggered(DIK_F3)) tankExpeditionTutorial_.Skip();
+    if(cg2::kDeveloperTools&&input_->IsKeyTriggered(DIK_F3)) tankExpeditionTutorial_.Skip();
     tankExpeditionTutorial_.Update(dt);
     if(tankExpeditionTutorial_.IsComplete())SaveExpeditionTutorialCompletion();
     RefreshTankExpeditionTutorialUi();
