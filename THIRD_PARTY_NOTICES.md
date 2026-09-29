@@ -16,7 +16,7 @@
 | Assimp / `project/externals/assimp/` | assimp team。既存 LICENSE は 2006-2021、各ヘッダーには別年の表示もある | BSD 3-Clause。[既存 LICENSE](project/externals/assimp/LICENSE.txt) を改変せず保持。ソース表示・バイナリ配布時の文書への表示・推奨への名称使用制限を確認。既存ファイル内の Poly2Tri 表示も保持 |
 | RapidJSON / ローカル生成 Assimp の依存 | THL A29 Limited / Milo Yip ほか | MIT および原文に記された第三者条件。[同じローカル Assimp ソースにある本文](docs/third-party/RapidJSON-LICENSE.txt) を追加。本文中の他コンポーネントの記載だけで、それら全てが本ゲームへリンクされると断定しない |
 | zlib / ローカル生成 Assimp の依存 | Jean-loup Gailly / Mark Adler | zlib license。[同じローカル Assimp ソースにある本文](docs/third-party/zlib-LICENSE.txt) を追加。ビルドスクリプトで `ASSIMP_BUILD_ZLIB=ON` |
-| Konva / `project/tools/player_ship_editor/vendor/konva.min.js` と旧モバイル ZIP 内 | Eric Rowell (KineticJS), Anton Lavrenov (Konva) | 配置済み JS のヘッダーは v9.3.22 / MIT。[同タグの公式 LICENSE](docs/third-party/Konva-LICENSE.txt) を追加。ゲームではなく制作ツールの依存 |
+| Konva / `project/tools/player_ship_editor/vendor/konva.min.js` | Eric Rowell (KineticJS), Anton Lavrenov (Konva) | 配置済み JS のヘッダーは v9.3.22 / MIT。[同タグの公式 LICENSE](docs/third-party/Konva-LICENSE.txt) を保持。ゲームではなく制作ツールの依存 |
 | Zen Maru Gothic Bold / `project/resources/fonts/` | Copyright 2021 The Zen Maru Gothic Project Authors | SIL Open Font License 1.1。[既存 OFL 原文](project/resources/fonts/ZenMaruGothic-OFL.txt) とフォントを保持。フォントの配布時は著作権・ライセンス表示を同梱。名称等の制限は原文に従う |
 
 ## nlohmann/json 内の追加の表示
@@ -25,7 +25,7 @@
 
 - `detail/conversions/to_chars.hpp`：Copyright (c) 2009 Florian Loitsch、MIT の記載。
 - `detail/output/serializer.hpp`：Copyright (c) 2008-2009 Bjoern Hoehrmann。UTF-8 decoder の由来・変更についてコメントあり。
-- `thirdparty/hedley/hedley.hpp`：Evan Nemerson、2016-2021 の表示。上位ヘッダーの MIT 表示に加え、元 Hedley の CC0-1.0 表示あり。CC0 本文の照合・同梱要否は公開前確認事項。
+- `thirdparty/hedley/hedley.hpp`：Evan Nemerson、2016-2021 の表示。上位ヘッダーの MIT 表示に加え、元 Hedley の CC0-1.0 表示あり。[Creative Commons の公式 CC0 本文](docs/third-party/Hedley-CC0-1.0.txt) を補完し、既存ヘッダーも保持。
 - `detail/meta/cpp_future.hpp`：2018 The Abseil Authors。C++11 向け分岐に Apache-2.0 由来のコードとの明記があるため、参照先コミットの [Apache 原文](docs/third-party/Abseil-LICENSE.txt) も追加。現在のゲームビルドは C++20 ですが、ソースとして収録されている表示も保持。
 
 ## Windows と開発用依存
@@ -42,10 +42,10 @@ Assimp の `include/assimp/fast_atof.h` には Nikolaus Gebhardt、Irrlicht / ir
 
 | パス | 調査結果 / 確認事項 |
 | --- | --- |
-| `project/resources/BGM_shining_star.mp3` | 同梱の出典・利用条件を確認できない。`Game.cpp` のロード行はコメントアウトされているが、ファイルの Public 公開可否は別途確認が必要 |
-| `project/resources/Player_Mixamo.fbx` | Mixamo 関連素材。利用元・権利者・素材単体の再配布可否を確認する。埋め込みパス情報も要確認 |
-| `project/resources/models/player/` | VRoid / Mixamo 関連を示すコード・ツールがある。モデル、アニメーション、同梱テクスチャごとに出典と公開条件を確認する |
-| `project/resources/models/human/`, `animation/` | サンプルモデル・アニメーションの出典と条件の記録を確認する |
+| `project/resources/models/player/testModel_animated.glb` | 旧 Test / GraphicsLab シーンで使用。VRoid / Mixamo 関連を示すコードがある。モデル、衣装、内蔵画像と13アニメーションそれぞれの出典・素材単体の公開条件を確認する |
+| `project/resources/models/human/`, `models/simpleSkin/` | 旧シーンから参照されるサンプルモデル。外部バッファ・画像も含め出典と条件を確認する |
+| `project/resources/animation/assimp_test.gltf` | プロジェクトのテスト用という generator 表示がある小さい自己完結データ。制作経緯の確認を作者に残す。名前だけで Assimp の配布ライセンスを適用しない |
+| `project/resources/bulletShoot.mp3` | 共通起動処理で使用。入手元・素材再配布条件の確認または差し替えが必要 |
 | その他の既存画像・モデル・音声 | ファイル名や同梱だけでは自作と断定できない。作者の制作記録・入手元・利用許諾との照合が必要 |
 
 `project/resources/audio/tank_expedition/` は [同梱説明](project/resources/audio/tank_expedition/README.md)、`generate_audio.py`、`measurements.json` に、このプロジェクト向けの波形合成で外部録音・サンプルを使わない旨の記録があります。これは当該音声の根拠であり、`resources/` 全体の出典を保証するものではありません。
@@ -54,4 +54,4 @@ Assimp の `include/assimp/fast_atof.h` には Nikolaus Gebhardt、Irrlicht / ir
 
 配布ツールは `COPYRIGHT.md`、本書、既存 Assimp / ImGui の LICENSE、`docs/third-party/` の補完本文を同梱します。フォントの OFL は `resources/fonts/` 内に保持します。ソース用の相対リンクは公式リポジトリで参照し、配布フォルダーでは同梱の `licenses/` と `docs/third-party/` の本文を確認してください。
 
-この同梱処理やパッケージテストの成功は、未確認素材の権利処理が完了したことを意味しません。作者が確認する項目は [公開準備の監査](docs/public-release-audit.md) に記載しています。
+この同梱処理やパッケージテストの成功は、未確認素材の権利処理が完了したことを意味しません。現在残る素材と作者の確認事項、除外した未使用素材の記録は [素材・埋め込み情報の監査](docs/public-assets-audit.md) に記載しています。

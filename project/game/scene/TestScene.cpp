@@ -272,7 +272,7 @@ void TestScene::Initialize() {
 		vrmTestStatus_ = "VRoid + Mixamo: Idle / Walk / Run loaded";
 		showHumanSkinning_ = false;
 	} catch (const std::exception& error) {
-		vrmTestStatus_ = std::string("VRoid testModel.glb: failed / ") + error.what();
+		vrmTestStatus_ = std::string("VRoid testModel_animated.glb: failed / ") + error.what();
 	}
 
 	// 2. 剣に見立てた細長いブロックを作る
