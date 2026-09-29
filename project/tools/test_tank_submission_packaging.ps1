@@ -35,6 +35,11 @@ foreach ($name in @('expedition_content', 'tankExpeditionBalance', 'expedition_m
 Write-Fixture 'project/resources/shaders/common.hlsli'
 Write-Fixture 'project/resources/shaders/main.hlsl'
 Write-Fixture 'project/resources/models/tank.obj'
+Write-Fixture 'project/resources/models/player/testModel_animated.glb' 'Existing runtime model'
+Write-Fixture 'project/resources/models/human/walk.bin' 'Existing runtime buffer'
+$retiredAssets = @('Player_Mixamo.fbx', 'BGM_shining_star.mp3', 'models/player/testModel.glb',
+    'models/player/animations/Idle.fbx', 'archives/source.zip', 'archives/source.7z', 'archives/source.rar')
+foreach ($name in $retiredAssets) { Write-Fixture "project/resources/$name" 'Private local input' }
 Write-Fixture 'project/resources/fonts/OFL.txt' 'Font notice'
 foreach ($name in @('configs/expedition_user.json', 'configs/expedition_user.json.tmp', 'configs/expedition_user.json.backup',
         'generated/text/text_123.png', 'generated/cache.json', 'logs/local.log', 'Dumps/crash.dmp',
@@ -53,10 +58,18 @@ $cleanOutput = Join-Path $tankPackageTestRoot 'clean'
 $result = New-TankSubmissionPackage $tankPackageFixture $cleanOutput
 Assert-True ($result.TutorialState -eq 'fresh') 'Missing progress file must produce a fresh package.'
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/tank.obj')) 'Runtime model .obj was incorrectly excluded.'
+foreach ($name in @('models/player/testModel_animated.glb', 'models/human/walk.bin')) {
+    Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput "resources/$name")) "Runtime asset was incorrectly excluded: $name"
+}
+foreach ($name in $retiredAssets) {
+    Assert-True (!(Test-Path -LiteralPath (Join-Path $cleanOutput "resources/$name"))) "Retired/local asset was copied: $name"
+    Assert-True (Test-TankSubmissionExcludedPath "resources/$name") "Package verification permits a retired/local asset: $name"
+}
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/shaders/common.hlsli')) 'Shader include was not copied.'
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/fonts/OFL.txt')) 'Asset notice was not preserved.'
 foreach ($notice in @('COPYRIGHT.md', 'THIRD_PARTY_NOTICES.md', 'docs/third-party/DirectXTex-LICENSE.txt',
-        'docs/third-party/nlohmann-json-LICENSE.MIT', 'docs/third-party/Abseil-LICENSE.txt', 'docs/third-party/stb-LICENSE.txt')) {
+        'docs/third-party/nlohmann-json-LICENSE.MIT', 'docs/third-party/Abseil-LICENSE.txt', 'docs/third-party/stb-LICENSE.txt',
+        'docs/third-party/Hedley-CC0-1.0.txt')) {
     Assert-True ((Get-FileHash -LiteralPath (Join-Path $cleanOutput $notice)).Hash -eq
         (Get-FileHash -LiteralPath (Join-Path $tankPackageFixture $notice)).Hash) "Notice not copied intact: $notice"
 }

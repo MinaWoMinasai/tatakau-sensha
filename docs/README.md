@@ -15,7 +15,9 @@
 | [性能表示](tank-performance-monitor.md) | フレーム計測 |
 | [画像の追加](images/README.md) | README に載せる実プレイ画像 |
 | [作者情報](credits.md) | 作者・公式 URL、Version Info の調査 |
-| [公開準備の監査](public-release-audit.md) | A/B/C 分類、セキュリティ、検証・保留事項 |
+| [素材・埋め込み情報の監査](public-assets-audit.md) | 最新の A/B/C/D 分類、削除素材、権利・個人情報の保留事項と検証 |
+| [保持素材の確認台帳](public-assets-inventory.md) | 保持275件の分類・サイズ・参照候補。出典照合の対象一覧 |
+| [初回の公開準備記録](public-release-audit.md) | 初回整理時の A/B/C 分類と検証。当時の素材保留事項は最新監査を優先 |
 
 ## 過去の実装・検証資料
 
