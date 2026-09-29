@@ -61,7 +61,7 @@
 
 ## 添付動画の観察
 
-対象: `C:/Users/k024g/Downloads/トライストリンガー参考動画.MP4`。29.6秒、1920×1080、平均約30.03fps。映像の1枚をゲーム内部の1Fと見なさない。抽出物は `generated/ink_phase4/stringer_reference/`。
+対象: `ローカル参考資料（非同梱）`。29.6秒、1920×1080、平均約30.03fps。映像の1枚をゲーム内部の1Fと見なさない。抽出物は `generated/ink_phase4/stringer_reference/`。
 
 | 抽出 | 観察 |
 |---|---|

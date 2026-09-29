@@ -6,7 +6,9 @@ Visual Studio上部の構成選択だけで切り替えられます。
 |---|---|---|
 | Release | 開発機能OFF | 提出・配布 |
 | Development | 開発機能ON | F1性能表示、F2～F6制作ツール、ImGuiで調整 |
-| Debug | 開発機能ON | デバッガを用いた開発 |
+| Debug | 開発機能ON | 現在のソリューションでは Development へ割り当て |
+
+`CG2.sln` の Debug は、ゲームと DirectXTex の両方で Development を参照します。`.vcxproj` 単体の Debug 定義とは区別してください。公開準備では既存の構成割り当てを変更していません。
 
 切り替え後はビルドしてください。実行中のキー操作や配布先JSONでは開発機能を復活できません。
 

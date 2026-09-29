@@ -26,6 +26,7 @@ Write-Fixture 'generated/outputs/Release/CG2.build.json' $safeBuildProfile
 Write-Fixture 'docs/submission-README.md' '# たたかうせんしゃ'
 Write-Fixture 'project/externals/assimp/LICENSE.txt' 'Assimp notice'
 Write-Fixture 'project/externals/imgui/LICENSE.txt' 'ImGui notice'
+foreach ($notice in Get-TankSubmissionNoticePaths) { Write-Fixture $notice "Notice fixture: $notice" }
 Write-Fixture 'project/resources/projects/tank_game.project.json' '{"schemaVersion":1,"projectName":"たたかうせんしゃ","startupScene":"TITLE","gameModule":"builtin","resourceRoot":"resources"}'
 Write-Fixture 'project/resources/projects/default.project.json' '{"original":"untouched"}'
 foreach ($name in @('expedition_content', 'tankExpeditionBalance', 'expedition_map')) {
@@ -54,6 +55,20 @@ Assert-True ($result.TutorialState -eq 'fresh') 'Missing progress file must prod
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/tank.obj')) 'Runtime model .obj was incorrectly excluded.'
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/shaders/common.hlsli')) 'Shader include was not copied.'
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/fonts/OFL.txt')) 'Asset notice was not preserved.'
+foreach ($notice in @('COPYRIGHT.md', 'THIRD_PARTY_NOTICES.md', 'docs/third-party/DirectXTex-LICENSE.txt',
+        'docs/third-party/nlohmann-json-LICENSE.MIT', 'docs/third-party/Abseil-LICENSE.txt', 'docs/third-party/stb-LICENSE.txt')) {
+    Assert-True ((Get-FileHash -LiteralPath (Join-Path $cleanOutput $notice)).Hash -eq
+        (Get-FileHash -LiteralPath (Join-Path $tankPackageFixture $notice)).Hash) "Notice not copied intact: $notice"
+}
+# An incomplete notice set must fail before a package directory is created.
+$noticePath = Join-Path $tankPackageFixture 'COPYRIGHT.md'
+$noticeText = [IO.File]::ReadAllText($noticePath)
+try {
+    Remove-Item -LiteralPath $noticePath
+    $missingNoticeOutput = Join-Path $tankPackageTestRoot 'missing_notice'
+    Assert-Throws { New-TankSubmissionPackage $tankPackageFixture $missingNoticeOutput } 'Missing copyright notice was accepted.'
+    Assert-True (!(Test-Path -LiteralPath $missingNoticeOutput)) 'Incomplete package directory was created.'
+} finally { [IO.File]::WriteAllText($noticePath, $noticeText) }
 Assert-True (!(Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/generated'))) 'Generated author cache was copied.'
 Assert-True (!(Test-Path -LiteralPath (Join-Path $cleanOutput 'CG2.pdb'))) 'Debug symbols were copied.'
 Assert-True (!(Test-Path -LiteralPath (Join-Path $cleanOutput 'DirectXTex.lib'))) 'Development library was copied.'
