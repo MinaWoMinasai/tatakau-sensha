@@ -1,4 +1,5 @@
 #include "Game.h"
+#include "DeveloperTools.h"
 #include "SceneFactory.h"
 #include "SceneManager.h"
 #include "../modules/GameModuleBootstrap.h"
@@ -228,6 +229,8 @@ bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
 
     InitializeEngine();
     InitializeImGui();
+    StartupTrace::Count("build.developer_tools", cg2::kDeveloperTools ? 1 : 0);
+    StartupTrace::Count("ui.imgui_initialized", imguiInitialized_ ? 1 : 0);
     LoadResources();
 
     SceneManager* sceneManager = SceneManager::GetInstance();
@@ -257,7 +260,7 @@ bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
     bloom_ = std::make_unique<Bloom>();
 	bloom_->Initialize(dxCommon_.get(), srvManager_.get(), rtvManager_.get());
     char stressCount[16]{};
-    if (GetEnvironmentVariableA("CG2_PERF_STRESS_TRAILS", stressCount, sizeof(stressCount)) > 0) {
+    if (cg2::kDeveloperTools && GetEnvironmentVariableA("CG2_PERF_STRESS_TRAILS", stressCount, sizeof(stressCount)) > 0) {
         const unsigned count = static_cast<unsigned>((std::clamp)(std::atoi(stressCount), 0, 512));
         if (count > 0) {
             trailStress_ = std::make_unique<TrailStressFixture>();

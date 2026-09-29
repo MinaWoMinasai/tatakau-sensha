@@ -63,8 +63,19 @@ function Get-TankSubmissionRelativePath([string]$Root, [string]$Path) {
     return $full.Substring($prefix.Length).Replace('\', '/')
 }
 
+function Assert-TankSubmissionBuild([string]$BuildDirectory) {
+    $profile = Get-Content -LiteralPath (Join-Path $BuildDirectory 'CG2.build.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($profile.configuration -ne 'Release' -or $profile.developerTools -isnot [bool] -or $profile.developerTools) {
+        throw 'Submission requires Release with CG2DeveloperTools=false. Rebuild before packaging.'
+    }
+    if ($profile.sha256 -ne (Get-FileHash -LiteralPath (Join-Path $BuildDirectory 'CG2.exe') -Algorithm SHA256).Hash) {
+        throw 'Build profile does not match CG2.exe. Rebuild before packaging.'
+    }
+}
+
 function Assert-TankSubmissionPackage([string]$PackageDirectory) {
     $package = [IO.Path]::GetFullPath($PackageDirectory)
+    Assert-TankSubmissionBuild $package
     $files = @(Get-TankSubmissionFiles $package)
     $manifest = Get-Content -LiteralPath (Join-Path $package 'submission_manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $hasPreparedText = $null -ne $manifest.PSObject.Properties['preparedTextCache']
@@ -125,7 +136,8 @@ function New-TankSubmissionPackage([string]$SourceRoot, [string]$OutputDirectory
         }
     }
     if (Test-Path -LiteralPath $destination) { throw "Output already exists; choose a new directory: $destination" }
-    $runtime = @('CG2.exe', 'dxcompiler.dll', 'dxil.dll')
+    Assert-TankSubmissionBuild $build
+    $runtime = @('CG2.exe', 'CG2.build.json', 'dxcompiler.dll', 'dxil.dll')
     $assimp = @(Get-ChildItem -LiteralPath $build -File -Filter 'assimp-vc*-mt.dll')
     if (!$assimp.Count) { throw "Assimp runtime DLL is missing in $build" }
     $runtime += @($assimp.Name)

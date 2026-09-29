@@ -658,7 +658,7 @@ void GameScene::UpdateExpeditionMap(float dt) {
     if(wasTransitioning) {RefreshTankExpeditionUi();return;}
     tankRunMenuAge_+=dt;tankRunAutoTime_+=dt;
     if(expeditionMapAutoTest_) UpdateExpeditionMapValidation(dt);
-    if(Press(input_,DIK_F10)) RequestTankRunCapture("map_manual");
+    if(cg2::kDeveloperTools&&Press(input_,DIK_F10)) RequestTankRunCapture("map_manual");
     if(Press(input_,DIK_M)) {tankExpeditionMusicEnabled_=!tankExpeditionMusicEnabled_;tankExpeditionAudio_.SetMusicVolume(tankExpeditionMusicEnabled_?0.55f:0);}
     if(Press(input_,DIK_N)) {tankExpeditionEffectsEnabled_=!tankExpeditionEffectsEnabled_;tankExpeditionAudio_.SetEffectsVolume(tankExpeditionEffectsEnabled_?0.8f:0);}
     if(gameFlowState_!=GameFlowState::Playing) {UpdateExpeditionCredits(dt,true);RefreshTankExpeditionUi();return;}

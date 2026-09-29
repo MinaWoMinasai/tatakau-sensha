@@ -1,4 +1,6 @@
 #include "RuntimeProfiler.h"
+#include "DeveloperTools.h"
+#include "StartupTrace.h"
 #include "DirectXCommon.h"
 #include "externals/imgui/imgui.h"
 #include <algorithm>
@@ -50,7 +52,8 @@ void RuntimeProfiler::Initialize(DirectXCommon* dx) {
     fps_=0;windowFrames_=0;windowGpuFrames_=0;shownGpuValid_=false;windowMs_=0;maxFrameMs_=0;shownMaxMs_=0;
     frameSum_=presentSum_=fenceSum_=limitSum_=cpuSum_=0;frameHistory_.fill(0);historyCursor_=0;
     dx_=dx;
-    allowed_=Environment("CG2_PERF_DISABLED")!="1";
+    allowed_=cg2::kDeveloperTools&&Environment("CG2_PERF_DISABLED")!="1";
+    StartupTrace::Count("ui.runtime_profiler_allowed", allowed_ ? 1 : 0);
     displayMode_=allowed_ ? EnvironmentInt("CG2_PERF_OVERLAY",0,2) : 0;
     captureFrames_=allowed_ ? EnvironmentInt("CG2_PERF_CAPTURE_FRAMES",0,36000) : 0;
     captureWarmup_=EnvironmentInt("CG2_PERF_CAPTURE_WARMUP",60,36000);
