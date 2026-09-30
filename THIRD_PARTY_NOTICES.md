@@ -56,4 +56,4 @@ Assimp の `include/assimp/fast_atof.h` には Nikolaus Gebhardt、Irrlicht / ir
 
 この同梱処理やパッケージテストの成功は、未確認素材の権利処理が完了したことを意味しません。現在残る素材と作者の確認事項、除外した未使用素材の記録は [素材・埋め込み情報の監査](docs/public-assets-audit.md) に記載しています。
 
-その後の専用シーン除去に伴う現在の収録範囲は [保持素材の確認台帳](docs/public-assets-inventory.md) と [除去記録](docs/remove-ink-shooter-audit.md) を参照してください。共用ライブラリ・フォントと上記の既存ライセンス本文は引き続き保持しています。
+その後の専用シーン除去に伴う現在の収録範囲は [保持素材の確認台帳](docs/public-assets-inventory.md)、[Ink Shooter除去記録](docs/remove-ink-shooter-audit.md)、[Naval Prototype除去記録](docs/remove-naval-prototype-audit.md) を参照してください。共用ライブラリ・フォントと上記の既存ライセンス本文は引き続き保持しています。
