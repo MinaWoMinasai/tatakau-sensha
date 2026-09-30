@@ -89,11 +89,6 @@ void TitleScene::Update() {
         const int hovered=HitTestMenu(mouse);
         if(menuHovered_!=(hovered==0)) {menuHovered_=hovered==0;UpdateMenuVisuals();}
         if(cg2::kDeveloperTools&&triggered(DIK_F9)) StartTransitionIfAvailable("TANK_EXPEDITION",0.5f);
-#if defined(USE_IMGUI) && !defined(NDEBUG)
-        else if(triggered(DIK_F5)) StartTransitionIfAvailable("GRAPHICS_LAB",0.5f);
-        else if(triggered(DIK_F6)) StartTransitionIfAvailable("UNDERWATER_LAB",0.5f);
-        else if(triggered(DIK_F7)) StartTransitionIfAvailable("VFX_LAB",0.5f);
-#endif
         else if(triggered(DIK_RETURN)||triggered(DIK_SPACE)||(click&&hovered>=0)) {
             if(menuSelection_==0) StartTransitionIfAvailable("TANK_EXPEDITION",0.65f);
         }

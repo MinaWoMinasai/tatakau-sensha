@@ -35,10 +35,10 @@ foreach ($name in @('expedition_content', 'tankExpeditionBalance', 'expedition_m
 Write-Fixture 'project/resources/shaders/common.hlsli'
 Write-Fixture 'project/resources/shaders/main.hlsl'
 Write-Fixture 'project/resources/models/tank.obj'
-Write-Fixture 'project/resources/models/player/testModel_animated.glb' 'Existing runtime model'
-Write-Fixture 'project/resources/models/human/walk.bin' 'Existing runtime buffer'
+$sharedTankAssets = @('player3D.obj', 'player3D.mtl', 'ground.obj', 'ground.mtl', 'cube.obj', 'cube.mtl', 'white512x512.png')
+foreach ($name in $sharedTankAssets) { Write-Fixture "project/resources/$name" 'Shared Tank runtime asset' }
 $retiredAssets = @('Player_Mixamo.fbx', 'BGM_shining_star.mp3', 'models/player/testModel.glb',
-    'models/player/animations/Idle.fbx', 'archives/source.zip', 'archives/source.7z', 'archives/source.rar')
+    'models/player/animations/Idle.fbx', 'archives/source.zip', 'archives/source.7z', 'archives/source.rar') + @(Get-TankSubmissionRetiredLabResourcePaths)
 foreach ($name in $retiredAssets) { Write-Fixture "project/resources/$name" 'Private local input' }
 Write-Fixture 'project/resources/fonts/OFL.txt' 'Font notice'
 foreach ($name in @('configs/expedition_user.json', 'configs/expedition_user.json.tmp', 'configs/expedition_user.json.backup',
@@ -58,7 +58,7 @@ $cleanOutput = Join-Path $tankPackageTestRoot 'clean'
 $result = New-TankSubmissionPackage $tankPackageFixture $cleanOutput
 Assert-True ($result.TutorialState -eq 'fresh') 'Missing progress file must produce a fresh package.'
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/tank.obj')) 'Runtime model .obj was incorrectly excluded.'
-foreach ($name in @('models/player/testModel_animated.glb', 'models/human/walk.bin')) {
+foreach ($name in $sharedTankAssets) {
     Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput "resources/$name")) "Runtime asset was incorrectly excluded: $name"
 }
 foreach ($name in $retiredAssets) {
@@ -149,5 +149,5 @@ $missingFixture = Join-Path $tankPackageTestRoot 'missing_source'
 $missingOutput = Join-Path $tankPackageTestRoot 'missing_output'
 Assert-Throws { New-TankSubmissionPackage $missingFixture $missingOutput } 'Missing dependency was accepted.'
 Assert-True (!(Test-Path -LiteralPath $missingOutput)) 'Dependency failure created an incomplete output.'
-Write-Host 'PASS: source preservation, fresh tutorial state, runtime dependencies, prepared text PNG allowlist/manifest, author/invalid/mixed cache rejection, history exclusion, protected output, tamper detection.'
+Write-Host 'PASS: source preservation, shared Tank runtime assets, retired Lab asset exclusion, fresh tutorial state, runtime dependencies, prepared text PNG allowlist/manifest, author/invalid/mixed cache rejection, history exclusion, protected output, tamper detection.'
 Write-Host "Fixtures retained: $tankPackageTestRoot"
