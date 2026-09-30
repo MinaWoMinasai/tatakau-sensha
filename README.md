@@ -149,7 +149,7 @@ try {
 
 まず [作戦ルート](project/game/run/TankExpeditionMap.h)、[強化候補](project/game/run/TankExpeditionContent.h)、[プレイヤー](project/game/player/actor/Player.cpp) を読むと、ゲーム進行と戦闘の関係を追えます。
 
-海戦、3D アクションなどの実験実装も残っています。現行作品の紹介対象と過去の実験資料は [資料一覧](docs/README.md) で区別しています。旧Ink Shooter Labの専用実装・素材・導線は除去し、共用するエンジン機能は保持しました。[除去範囲と検証記録](docs/remove-ink-shooter-audit.md)
+3D アクションやGraphics Labなどの実験実装も残っています。現行作品の紹介対象と過去の実験資料は [資料一覧](docs/README.md) で区別しています。旧Ink Shooter LabとNaval Prototypeの専用実装・素材・導線は除去し、共用するエンジン機能とGraphics Labの水面描画は保持しました。除去範囲と検証記録：[Ink Shooter](docs/remove-ink-shooter-audit.md)、[Naval Prototype](docs/remove-naval-prototype-audit.md)。
 
 ## 作者・著作権・Third-party software
 

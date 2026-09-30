@@ -92,7 +92,6 @@ void TitleScene::Update() {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
         else if(triggered(DIK_F2)) StartTransitionIfAvailable("PLAYER_LAB",0.5f);
         else if(triggered(DIK_F3)) StartTransitionIfAvailable("TEST",0.5f);
-        else if(triggered(DIK_F4)) StartTransitionIfAvailable("NAVAL_BATTLE",0.5f);
         else if(triggered(DIK_F5)) StartTransitionIfAvailable("GRAPHICS_LAB",0.5f);
         else if(triggered(DIK_F6)) StartTransitionIfAvailable("UNDERWATER_LAB",0.5f);
         else if(triggered(DIK_F7)) StartTransitionIfAvailable("VFX_LAB",0.5f);
