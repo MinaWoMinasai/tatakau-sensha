@@ -127,7 +127,7 @@ try {
 .\project\tools\test_developer_tools_profile.ps1
 ```
 
-自動テストの成功は実機での操作感や難易度の評価を意味しません。今回の実行結果と制約は [素材監査記録](docs/public-assets-audit.md)、前回の結果は [公開準備の監査記録](docs/public-release-audit.md) に記載しています。
+自動テストの成功は実機での操作感や難易度の評価を意味しません。今回の実行結果と制約は [旧テスト3シーンの除去記録](docs/remove-legacy-test-scenes-audit.md)、素材整理時の結果は [素材監査記録](docs/public-assets-audit.md)、初回の結果は [公開準備の監査記録](docs/public-release-audit.md) に記載しています。
 
 ## リポジトリ構成・ソースの読み方
 
@@ -149,7 +149,7 @@ try {
 
 まず [作戦ルート](project/game/run/TankExpeditionMap.h)、[強化候補](project/game/run/TankExpeditionContent.h)、[プレイヤー](project/game/player/actor/Player.cpp) を読むと、ゲーム進行と戦闘の関係を追えます。
 
-3D アクションやGraphics Labなどの実験実装も残っています。現行作品の紹介対象と過去の実験資料は [資料一覧](docs/README.md) で区別しています。旧Ink Shooter LabとNaval Prototypeの専用実装・素材・導線は除去し、共用するエンジン機能とGraphics Labの水面描画は保持しました。除去範囲と検証記録：[Ink Shooter](docs/remove-ink-shooter-audit.md)、[Naval Prototype](docs/remove-naval-prototype-audit.md)。
+Graphics Lab、Underwater Lab、Vfx Labの実験実装は保持しています。旧TestScene・PlayerLabScene・Action3DSceneの実装と専用部分は除去しました。共有GLB・humanモデル・player3D・groundとエンジン機能は保持しています。[旧テスト3シーンの除去範囲と検証](docs/remove-legacy-test-scenes-audit.md)。現行作品の紹介対象と過去の実験資料は [資料一覧](docs/README.md) で区別しています。旧Ink Shooter LabとNaval Prototypeの専用実装・素材・導線は除去し、共用するエンジン機能とGraphics Labの水面描画は保持しました。除去範囲と検証記録：[Ink Shooter](docs/remove-ink-shooter-audit.md)、[Naval Prototype](docs/remove-naval-prototype-audit.md)。
 
 ## 作者・著作権・Third-party software
 

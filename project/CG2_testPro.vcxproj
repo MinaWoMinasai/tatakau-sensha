@@ -252,7 +252,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\runtime\GameProject.cpp" />
     <ClCompile Include="game\runtime\SceneRegistry.cpp" />
     <ClCompile Include="game\scene\Game.cpp" />
-    <ClCompile Include="game\scene\Action3DScene.cpp" />
     <ClCompile Include="game\scene\GraphicsLabScene.cpp" />
     <ClCompile Include="game\scene\VfxLabScene.cpp" />
     <ClCompile Include="game\scene\UnderwaterLabScene.cpp" />
@@ -278,7 +277,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\scene\GameScene.TankRun.cpp" />
     <ClCompile Include="game\scene\GameScene.TankExpedition.cpp" />
     <ClCompile Include="game\scene\GameScene.TankRunVisuals.cpp" />
-    <ClCompile Include="game\scene\PlayerLabScene.cpp" />
     <ClCompile Include="game\scene\SceneFactory.cpp" />
     <ClCompile Include="game\scene\SceneManager.cpp" />
     <ClCompile Include="game\scene\TitleScene.cpp" />
@@ -323,8 +321,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\commom\SrvManager.cpp" />
     <ClCompile Include="DirectX\engine\particle\ParticleManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\ShadowMap.cpp" />
-    <ClCompile Include="game\collision\TriangleMeshGround.cpp" />
-    <ClCompile Include="game\scene\TestScene.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp" />
     <ClCompile Include="DirectX\engine\3d\Skybox.cpp" />
   </ItemGroup>
@@ -555,7 +551,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\runtime\IGameModule.h" />
     <ClInclude Include="game\runtime\SceneRegistry.h" />
     <ClInclude Include="game\scene\Game.h" />
-    <ClInclude Include="game\scene\Action3DScene.h" />
     <ClInclude Include="game\scene\GraphicsLabScene.h" />
     <ClInclude Include="game\scene\VfxLabScene.h" />
     <ClInclude Include="game\scene\UnderwaterLabScene.h" />
@@ -587,7 +582,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\exp\ExpEnemyNavigation.h" />
     <ClInclude Include="game\player\TankRunModifiers.h" />
     <ClInclude Include="game\enemy\actor\PrototypeBossCombat.h" />
-    <ClInclude Include="game\scene\PlayerLabScene.h" />
     <ClInclude Include="game\scene\SceneManager.h" />
     <ClInclude Include="game\scene\TitleScene.h" />
     <ClInclude Include="DirectX\engine\particle\ParticleManager.h" />
@@ -595,8 +589,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\level\LevelLoader.h" />
     <ClInclude Include="game\scene\IScene.h" />
     <ClInclude Include="game\scene\SceneFactory.h" />
-    <ClInclude Include="game\collision\TriangleMeshGround.h" />
-    <ClInclude Include="game\scene\TestScene.h" />
     <ClInclude Include="DirectX\engine\postEffect\Shadow.h" />
     <ClInclude Include="DirectX\engine\3d\Skybox.h" />
   </ItemGroup>
