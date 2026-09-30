@@ -8,7 +8,6 @@
 #include "../scene/TestScene.h"
 #include "../scene/TitleScene.h"
 #include "../scene/UnderwaterLabScene.h"
-#include "../naval/scene/NavalBattleScene.h"
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 #include "../scene/VfxLabScene.h"
 #endif
@@ -34,7 +33,6 @@ bool BuiltInGameModule::RegisterScenes(SceneRegistry& registry) const
 	success = registry.Register<PlayerLabScene>("PLAYER_LAB") && success;
 	success = registry.Register<Action3DScene>("ACTION3D") && success;
 	success = registry.Register<GraphicsLabScene>("GRAPHICS_LAB") && success;
-	success = registry.Register<NavalBattleScene>("NAVAL_BATTLE") && success;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	success = registry.Register<VfxLabScene>("VFX_LAB") && success;
 	success = registry.Register<UnderwaterLabScene>("UNDERWATER_LAB") && success;

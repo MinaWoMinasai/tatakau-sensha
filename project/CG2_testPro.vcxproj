@@ -245,8 +245,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\level\LevelLoader.cpp" />
     <ClCompile Include="game\exp\EnemyManager.cpp" />
     <ClCompile Include="game\exp\ExpEnemy.cpp" />
-    <ClCompile Include="game\naval\rendering\NavalOceanRenderer.cpp" />
-    <ClCompile Include="game\naval\scene\NavalBattleScene.cpp" />
     <ClCompile Include="game\modules\BuiltInGameModule.cpp" />
     <ClCompile Include="game\modules\GameModuleBootstrap.cpp" />
     <ClCompile Include="game\modules\GraphicsLabGameModule.cpp" />
@@ -549,8 +547,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\SrvManager.h" />
     <ClInclude Include="game\exp\EnemyManager.h" />
     <ClInclude Include="game\exp\ExpEnemy.h" />
-    <ClInclude Include="game\naval\rendering\NavalOceanRenderer.h" />
-    <ClInclude Include="game\naval\scene\NavalBattleScene.h" />
     <ClInclude Include="game\modules\BuiltInGameModule.h" />
     <ClInclude Include="game\modules\GameModuleBootstrap.h" />
     <ClInclude Include="game\modules\GraphicsLabGameModule.h" />
@@ -667,7 +663,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="resources\projects\default.project.json" />
     <None Include="resources\projects\graphics_lab.project.json" />
     <None Include="resources\projects\vfx_lab.project.json" />
-    <None Include="resources\projects\naval.project.json" />
     <None Include="resources\levels\prefab_dictionary.json" />
     <None Include="resources\levels\ai_edit_prompt_template.md" />
     <None Include="resources\levels\ai_balance_handoff.md" />

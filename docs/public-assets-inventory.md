@@ -1,6 +1,6 @@
 # 保持素材の確認台帳
 
-2026-09-29、素材整理後の `project/resources/` 追跡ファイル一覧です。[監査本文](public-assets-audit.md)の分類・根拠・制約と合わせて使用してください。最初の素材整理18件の削除は監査本文、続く専用リソース21件の削除は[旧シーン除去記録](remove-ink-shooter-audit.md)に記録しています。
+2026-09-29、素材整理後の `project/resources/` 追跡ファイル一覧です。[監査本文](public-assets-audit.md)の分類・根拠・制約と合わせて使用してください。最初の素材整理18件の削除は監査本文、続く専用リソース21件の削除は[Ink Shooter除去記録](remove-ink-shooter-audit.md)、7件の削除は[Naval Prototype除去記録](remove-naval-prototype-audit.md)に記録しています。
 
 **A**：自作設定・コード、または制作記録のある遠征用合成音声。**C**：OFL条件・表示を維持するフォント一式。**D**：制作経緯・出典・素材単体の再配布条件を作者が確認するもの。Dを自作・許諾済みと認定していません。ディレクトリ別の分類は既存の説明と実装に基づき、個々の制作経緯を証明するものではありません。
 
@@ -8,7 +8,7 @@
 
 素材パスは `project/resources/` 相対、参照パスは `project/` 相対です。画像・バイナリの内容や個人情報候補の値は記録していません。
 
-保持254件（A 100件、C 2件、D 152件）。
+保持247件（A 99件、C 2件、D 146件）。
 
 | 素材パス | 分類 | bytes | 参照候補（最大3箇所） |
 | --- | --- | ---: | --- |
@@ -50,7 +50,7 @@
 | `bossHPGreen1.png` | D | 207 | `resources/playerHPBarGreen.mtl`, `resources/playerHPBarGreenLong.mtl` |
 | `bossHPRed.png` | D | 191 | `game/enemy/actor/Enemy.cpp` |
 | `bullet.mtl` | D | 250 | `resources/bullet.obj` |
-| `bullet.obj` | D | 5,185 | `game/naval/scene/NavalBattleScene.cpp`, `game/player/actor/Bullet.cpp` |
+| `bullet.obj` | D | 5,185 | `game/player/actor/Bullet.cpp` |
 | `bulletShoot.mp3` | D | 17,553 | `game/scene/Game.cpp`, `tools/test_audio_runtime.ps1` |
 | `checkerBoard.png` | D | 1,166 | 文字列一致なし／動的使用は未確定 |
 | `circle.png` | D | 27,583 | `resources/plane.mtl` |
@@ -68,7 +68,7 @@
 | `configs/tankExpeditionBalance.json` | A | 3,370 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `game/run/TankExpeditionBalance.h` 他1件 |
 | `configs/tutorial.json` | A | 207 | `game/scene/GameScene.h` |
 | `cube.mtl` | D | 264 | `resources/cube.obj` |
-| `cube.obj` | D | 639 | `DirectX/engine/3d/Skybox.cpp`, `game/naval/scene/NavalBattleScene.cpp`, `game/player/actor/Stage.cpp` 他2件 |
+| `cube.obj` | D | 639 | `DirectX/engine/3d/Skybox.cpp`, `game/player/actor/Stage.cpp`, `game/scene/GraphicsLabScene.cpp` 他1件 |
 | `cube.png` | D | 1,594 | `resources/cube.mtl` |
 | `cubeDamage.mtl` | D | 241 | `resources/cubeDamage.obj` |
 | `cubeDamage.obj` | D | 854 | `game/player/actor/Stage.cpp` |
@@ -108,7 +108,7 @@
 | `graphicsWater.mtl` | D | 220 | `resources/graphicsWater.obj` |
 | `graphicsWater.obj` | D | 1,021,912 | 文字列一致なし／動的使用は未確定 |
 | `ground.mtl` | D | 246 | `resources/ground.obj` |
-| `ground.obj` | D | 399 | `game/naval/scene/NavalBattleScene.cpp`, `game/scene/Action3DScene.cpp`, `game/scene/GameScene.cpp` 他1件 |
+| `ground.obj` | D | 399 | `game/scene/Action3DScene.cpp`, `game/scene/GameScene.cpp`, `game/scene/TestScene.cpp` |
 | `gunBarrel.mtl` | D | 250 | `resources/gunBarrel.obj` |
 | `gunBarrel.obj` | D | 9,558 | `game/player/actor/Player.cpp`, `game/weapon/WeaponMount.h`, `resources/configs/playerClasses.json` 他1件 |
 | `hpBarFillMask.png` | D | 425 | `game/player/actor/Player.cpp`, `game/scene/GameScene.cpp`, `game/ui/NeonProgressBar.cpp` 他1件 |
@@ -149,10 +149,6 @@
 | `models/simpleSkin/simpleSkin.gltf` | D | 5,593 | `game/scene/TestScene.cpp` |
 | `models/simpleSkin/uvChecker.png` | D | 106,081 | `resources/models/simpleSkin/simpleSkin.gltf` |
 | `monsterBall.png` | D | 18,232 | `resources/ball.mtl` |
-| `navalHullBox.mtl` | D | 291 | `resources/navalHullBox.obj` |
-| `navalHullBox.obj` | D | 904 | `game/naval/scene/NavalBattleScene.cpp` |
-| `navalWhiteBlock.mtl` | D | 369 | `resources/navalWhiteBlock.obj` |
-| `navalWhiteBlock.obj` | D | 1,111 | 文字列一致なし／動的使用は未確定 |
 | `neonTriangleParticle.mtl` | D | 214 | `resources/neonTriangleParticle.obj` |
 | `neonTriangleParticle.obj` | D | 830 | `DirectX/engine/particle/ParticleManager.cpp`, `game/scene/Action3DScene.cpp` |
 | `nn.png` | D | 1,045 | 文字列一致なし／動的使用は未確定 |
@@ -178,7 +174,6 @@
 | `playerParticle.png` | D | 169 | `resources/playerParticle.mtl` |
 | `projects/default.project.json` | A | 149 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `game/scene/Game.cpp` 他2件 |
 | `projects/graphics_lab.project.json` | A | 162 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
-| `projects/naval.project.json` | A | 160 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
 | `projects/tank_expedition.project.json` | A | 183 | `tools/measure_tank_performance.ps1`, `tools/run_tank_expedition.ps1`, `tools/test_tank_combat_runtime.ps1` 他4件 |
 | `projects/tank_game.project.json` | A | 162 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `tools/TankSubmissionPackage.ps1` 他4件 |
 | `projects/tank_run.project.json` | A | 172 | `tools/run_tank_run.ps1` |
@@ -186,7 +181,7 @@
 | `rule.png` | D | 40,128 | 文字列一致なし／動的使用は未確定 |
 | `se.png` | D | 802 | 文字列一致なし／動的使用は未確定 |
 | `sea.mtl` | D | 246 | `resources/sea.obj` |
-| `sea.obj` | D | 986,638 | `game/naval/scene/NavalBattleScene.cpp` |
+| `sea.obj` | D | 986,638 | 文字列一致なし／動的使用は未確定 |
 | `shaders/BloomBlurH.PS.hlsl` | A | 2,786 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/BloomBlurV.PS.hlsl` | A | 2,745 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/BloomDownsample.PS.hlsl` | A | 1,200 | `DirectX/engine/commom/DirectXCommon.cpp` |
@@ -251,8 +246,6 @@
 | `ta.png` | D | 1,239 | 文字列一致なし／動的使用は未確定 |
 | `testBox.mtl` | D | 243 | `resources/testBox.obj` |
 | `testBox.obj` | D | 847 | 文字列一致なし／動的使用は未確定 |
-| `testShip.mtl` | D | 378 | `resources/testShip.obj` |
-| `testShip.obj` | D | 41,272 | `game/naval/scene/NavalBattleScene.cpp` |
 | `toRule.png` | D | 4,525 | 文字列一致なし／動的使用は未確定 |
 | `toTitle.png` | D | 5,659 | `game/scene/GameScene.cpp` |
 | `triangleParticle.mtl` | D | 250 | `resources/triangleParticle.obj` |
@@ -264,5 +257,5 @@
 | `wasd.png` | D | 7,767 | `game/scene/GameScene.cpp` |
 | `weapon.mtl` | D | 255 | `resources/weapon.obj` |
 | `weapon.obj` | D | 194,001 | `game/scene/Action3DScene.cpp` |
-| `white512x512.png` | D | 2,248 | `DirectX/engine/3d/Model.cpp`, `DirectX/engine/3d/SkinCluster.cpp`, `DirectX/engine/commom/TrailStressFixture.h` 他38件 |
+| `white512x512.png` | D | 2,248 | `DirectX/engine/3d/Model.cpp`, `DirectX/engine/3d/SkinCluster.cpp`, `DirectX/engine/commom/TrailStressFixture.h` 他35件 |
 | `ya.png` | D | 1,228 | 文字列一致なし／動的使用は未確定 |
