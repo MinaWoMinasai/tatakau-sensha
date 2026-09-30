@@ -43,12 +43,44 @@ function Get-TankSubmissionPreparedTextFiles([string]$Directory, [string]$Author
     return $files
 }
 
+function Get-TankSubmissionRetiredLabResourcePaths {
+    # Exact retired Lab assets only; shared Tank/Engine resources stay eligible.
+    return @(
+        'projects/graphics_lab.project.json',
+        'projects/vfx_lab.project.json',
+        'shaders/VfxLabBackground.VS.hlsl',
+        'shaders/VfxLabBackground.PS.hlsl',
+        'UnderwaterCausticsAtlas.png',
+        'UnderwaterCausticsDeepBroadAtlas.png',
+        'models/player/testModel_animated.glb',
+        'models/human/walk.gltf',
+        'models/human/walk.bin',
+        'models/human/white.png',
+        'TestBlock.obj',
+        'TestBlock.mtl',
+        'material_tests/TestBlock_albedo.png',
+        'material_tests/TestBlock_normal.png',
+        'material_tests/TestBlock_roughness.png',
+        'material_tests/TestBlock_metallic.png',
+        'material_tests/TestBlock_ao.png',
+        'graphicsSand.obj',
+        'graphicsSand.mtl',
+        'graphicsBeach.obj',
+        'graphicsBeach.mtl',
+        'graphicsOcean.obj',
+        'graphicsOcean.mtl',
+        'graphicsWater.obj',
+        'graphicsWater.mtl'
+    )
+}
+
 function Test-TankSubmissionExcludedPath([string]$RelativePath, [bool]$AllowPreparedTextCache = $false) {
     $path = $RelativePath.Replace('\', '/')
     if ($AllowPreparedTextCache -and (Test-TankSubmissionPreparedTextPath $path)) { return $false }
     # Private source assets may still exist locally; never copy them back into a public package.
     # Accept both a resources-relative source path and a package-relative destination path.
     $resourcePath = $path -replace '^resources/', ''
+    if ($resourcePath -in (Get-TankSubmissionRetiredLabResourcePaths)) { return $true }
     if ($resourcePath -match '^(Player_Mixamo\.fbx|BGM_shining_star\.mp3|models/player/testModel\.glb)$' -or
         $resourcePath -match '^models/player/animations/[^/]+\.fbx$') { return $true }
     return $path -match '(^|/)(generated|logs|Dumps|\.git|\.vs|\.deps|vcpkg_installed)(/|$)' -or

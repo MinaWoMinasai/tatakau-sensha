@@ -21,6 +21,7 @@
 | [Ink Shooterの除去記録](remove-ink-shooter-audit.md) | 専用部分の除去と共通機能の保持、検証 |
 | [Naval Prototypeの除去記録](remove-naval-prototype-audit.md) | 海戦専用部分の除去と水面描画・共用素材の保持、検証 |
 | [旧テスト3シーンの除去記録](remove-legacy-test-scenes-audit.md) | Test / PlayerLab / Action3Dと専用部分の除去、共有素材・エンジン保持と検証 |
+| [Graphics / Underwater / VFX Labの除去記録](remove-graphics-labs-audit.md) | 旧Labと専用素材の除去、Ocean等の汎用Engine保持、検証 |
 | [初回の公開準備記録](public-release-audit.md) | 初回整理時の A/B/C 分類と検証。当時の素材保留事項は最新監査を優先 |
 
 ## 過去の実装・検証資料
@@ -28,7 +29,6 @@
 以下は開発経緯を残した資料です。記載された試験結果・キー割り当て・数値は、その資料作成時点のものです。現在の仕様と異なる場合はコード・設定と上の現行ガイドを優先してください。
 
 - `tank-*-prototype.md`、`tank-mode-comparison-*.md`、`tank-build-variety-v5.md` など：以前の遠征・アリーナ仕様と検証記録。
-- `vfx_flame.md`：エフェクト試験。
 - [旧 Public 分離計画](public_submission/REPOSITORY_SPLIT_PLAN.md)：学校課題向けの過去案。今回の「たたかうせんしゃ」公開方針とは異なり、実施対象ではありません。
 
 古い資料内の `generated/` への参照はローカル検証成果物です。GitHub には画像・ログ本体を含めていません。これらの記録だけで現在の全構成の動作確認済みとは扱いません。

@@ -42,8 +42,6 @@ Assimp の `include/assimp/fast_atof.h` には Nikolaus Gebhardt、Irrlicht / ir
 
 | パス | 調査結果 / 確認事項 |
 | --- | --- |
-| `project/resources/models/player/testModel_animated.glb` | GraphicsLabシーンで使用。旧TestScene除去後も保持。VRoid / Mixamo 関連を示すコードがある。モデル、衣装、内蔵画像と13アニメーションそれぞれの出典・素材単体の公開条件を確認する |
-| `project/resources/models/human/walk.gltf`, `walk.bin`, `white.png` | GraphicsLabから参照されるサンプルモデル。旧Test / Action3D除去後も3件を保持。外部バッファ・画像も含め出典と条件を確認する |
 | `project/resources/bulletShoot.mp3` | 共通起動処理で使用。入手元・素材再配布条件の確認または差し替えが必要 |
 | その他の既存画像・モデル・音声 | ファイル名や同梱だけでは自作と断定できない。作者の制作記録・入手元・利用許諾との照合が必要 |
 
@@ -55,4 +53,4 @@ Assimp の `include/assimp/fast_atof.h` には Nikolaus Gebhardt、Irrlicht / ir
 
 この同梱処理やパッケージテストの成功は、未確認素材の権利処理が完了したことを意味しません。現在残る素材と作者の確認事項、除外した未使用素材の記録は [素材・埋め込み情報の監査](docs/public-assets-audit.md) に記載しています。
 
-その後の専用シーン除去に伴う現在の収録範囲は [保持素材の確認台帳](docs/public-assets-inventory.md)、[Ink Shooter除去記録](docs/remove-ink-shooter-audit.md)、[Naval Prototype除去記録](docs/remove-naval-prototype-audit.md)、[旧テスト3シーン除去記録](docs/remove-legacy-test-scenes-audit.md)を参照してください。assimp_test.gltfの1件とmodels/simpleSkin内の3件は専用シーンと一緒に除去済みです。共用ライブラリ・フォントと上記の既存ライセンス本文は引き続き保持しています。
+その後の専用シーン除去に伴う現在の収録範囲は [保持素材の確認台帳](docs/public-assets-inventory.md)、[Ink Shooter除去記録](docs/remove-ink-shooter-audit.md)、[Naval Prototype除去記録](docs/remove-naval-prototype-audit.md)、[旧テスト3シーン除去記録](docs/remove-legacy-test-scenes-audit.md)を参照してください。assimp_test.gltfの1件とmodels/simpleSkin内の3件は専用シーンと一緒に除去済みです。続く[Lab除去記録](docs/remove-graphics-labs-audit.md)で、Lab専用のアニメーション付きGLB・humanモデル・PBR見本・地形・Caustics Atlasも除去しました。これらは現在の同梱対象ではありません。用途未確定のUnderwaterCaustics.pngとその他の保持素材の出典確認は残ります。共用ライブラリ・フォントと上記の既存ライセンス本文は引き続き保持しています。
