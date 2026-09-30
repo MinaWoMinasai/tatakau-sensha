@@ -1,6 +1,6 @@
 # Public 素材・埋め込み情報の監査
 
-> 素材整理時点の記録です。その後の[Ink Shooter除去](remove-ink-shooter-audit.md)で専用リソース21件、[Naval Prototype除去](remove-naval-prototype-audit.md)で7件、[旧テスト3シーン除去](remove-legacy-test-scenes-audit.md)で4件を追加で除去しました。本書の275件・配布294件などは当時の検証値です。[保持素材の確認台帳](public-assets-inventory.md)は除去後の現存243件へ更新しています。
+> 素材整理時点の記録です。その後の[Ink Shooter除去](remove-ink-shooter-audit.md)で専用リソース21件、[Naval Prototype除去](remove-naval-prototype-audit.md)で7件、[旧テスト3シーン除去](remove-legacy-test-scenes-audit.md)で4件、[Lab除去](remove-graphics-labs-audit.md)で25件を追加で除去しました。本書の275件・配布294件などは当時の検証値です。[保持素材の確認台帳](public-assets-inventory.md)は除去後の現存218件へ更新しています。
 
 調査日：2026-09-29。対象は今回の作業開始時の追跡ファイル968件と、その後の追加・変更です。ゲーム本体の機能削除は行わず、素材の読み込み・ビルド・配布・ツールの依存を確認して整理しました。[前回の公開準備記録](public-release-audit.md) に残っていた素材の保留事項は、本書を優先してください。
 
@@ -21,14 +21,15 @@ A：今回の根拠で Public に残せるもの。B：Public から除外する
 | `BGM_shining_star.mp3` | B・削除対象 | `Game.cpp` のロードはコメントアウトのみ。音声設定・音声一覧・他ソースに参照なし。出典・Public での素材再配布条件の記録なし。不要なロード・再生コメントも除去 |
 | `models/player/testModel.glb` | B・削除対象 | 非アニメーション版。ロード参照なし。`TestScene.cpp` の失敗メッセージのみ残っていたため、実際にロードする `testModel_animated.glb` に修正。ライセンス記録なし。アニメーション版からこのファイルへの外部参照もなし |
 | `models/player/animations/*.fbx` 14本 | B・削除対象 | Mixamo 関連の骨格文字列を確認。素材単体の公開条件は未確認。ゲーム・設定・ビルドに参照なし。リターゲットツールは入力を引数で指定する汎用ツールで、このディレクトリを自動読み込みしない。既存GLBの実行に元FBXは不要。モデル再生成には、作者が手元の権利確認済み入力を用意する必要がある |
-| `models/player/testModel_animated.glb` | D・保持 | `GraphicsLabScene.cpp` がロード。TestSceneは除去済みだがGraphicsLabのモデル選択・skinningに必要なため保持。13アニメーションと23画像を内蔵し、外部 URI なし。VRoid / Mixamo 関連を示す実装があるが、モデル・衣装・画像・アニメーションそれぞれの入手元と素材再配布条件は未確認 |
-| `models/human/walk.gltf`, `walk.bin`, `white.png` | D・3件とも保持 | GraphicsLabで使用。Test / Action3Dの除去後も3件を保持。gltf が残り2件を相対参照するため一体で保持。出典・条件が未記録。ローグライトで使わないという理由だけで削除しない |
+| `models/player/testModel_animated.glb` | 旧D・現在は削除済み | 2026-09-30のLab除去でGraphicsLabだけの実ロードと確認し除去。旧Packaging testの保持条件は現行Tank素材へ置換。モデル・衣装・内蔵画像・アニメーションの素材単体の許諾を認定したものではない |
+| `models/human/walk.gltf`, `walk.bin`, `white.png` | 旧D・現在は3件削除済み | Lab除去で唯一の実ロードを失ったglTFと相対依存のBIN・PNGを一体で除去。Tank / Editor / Engineに当該素材のruntime依存なし。出典確認済みとは認定していない |
 | `animation/assimp_test.gltf` | 旧D・現在は削除済み | 全参照確認でTestScene専用の自己完結アニメーションデータと判定し、2026-09-30にシーンと一緒に除去。出典・許諾確認済みと認定したものではない |
 | `models/simpleSkin/` | 旧D・現在は3件削除済み | TestSceneだけがロードするglTFと、その相対URIが指定するBIN・PNGを2026-09-30に除去。ルートの同名uvChecker.pngは判断保留で保持 |
 | `bulletShoot.mp3` | D・保持 | `Game.cpp` の共通起動処理で実際にロードされる。出典・素材再配布条件が不明。権利確認または共通ロードと一緒に代替音への差し替えが必要 |
-| `ball.obj`, `ball.mtl`, `monsterBall.png`、`skybox.dds` 等 | D・保持 | GameScene / エフェクト等の参照と、OBJ→MTL→画像の依存がある。自作と断定せず、入手元と利用許諾の確認を残す |
-| `graphicsOcean.obj`, `graphicsWater.obj` と対応 MTL | D・保持 | ファイル名によるロード参照は見つからないが、入手元・再生成手段を確認できない。旧編集用途・素材選択機能への影響と制作経緯が不明のため、サイズだけで削除しない |
-| 海岸・砂・海中・その他旧画像、モデル、音声 | D・保持 | 旧 Lab シーン等の参照済み素材と、参照不明の素材が混在。共通処理・選択式ツールも残るため一括削除しない。各素材の制作記録・出典照合が必要 |
+| `ball.obj`, `ball.mtl`, `monsterBall.png`等 | D・保持 | GameScene / エフェクト等の参照と、OBJ→MTL→画像の依存がある。自作と断定せず、入手元と利用許諾の確認を残す |
+| `graphicsOcean.obj`, `graphicsWater.obj` と対応 MTL | 旧D・現在は4件削除済み | Lab除去時に全参照とOBJ / MTL内のGraphics lab専用生成メッシュ表記を確認して除去。独立したOceanRenderer / shader / FFTと汎用メッシュ生成APIは保持 |
+| `TestBlock.obj` / `.mtl`, `material_tests/` 5画像、graphicsSand / BeachのOBJ / MTL、Caustics Atlas2画像 | 旧D・現在は13件削除済み | Labだけのロードと材質依存を確認して除去。白画像等の共通素材、用途未確定のUnderwaterCaustics.pngは保持。[分類・一覧](remove-graphics-labs-audit.md) |
+| 海岸・砂・海中・その他旧画像、モデル、音声 | D・保持 | 旧Lab専用と確定したものは除去済み。残る参照不明の素材は、動的選択・制作経緯の判断を保留して一括削除しない。各素材の制作記録・出典照合が必要 |
 | `audio/tank_expedition/` | A・保持 | 同梱 README・波形合成スクリプト・測定記録に外部録音・サンプルを使わない旨がある。実行用音声と試聴用 `preview.wav` を区別。後者は約2.75 MiBで説明・試聴に用途あり |
 | 自作ゲームソース、設定、HLSL、制作ツール | A・保持 | 現行ビルド・実行・制作のため保持。第三者コードの表示は別途保持し、自作扱いしない |
 | ImGui、DirectXTex、nlohmann/json、Assimp、Konva、フォント等 | C・保持 | 各ライセンス・著作権表示を維持する条件。[Third-party一覧](../THIRD_PARTY_NOTICES.md) を参照。Assimp の追加由来コードおよび実際に配る SDK/DXC DLL の条件確認は別途残る |
@@ -66,7 +67,7 @@ project/resources/models/player/animations/Walk.fbx
 
 ## Third-party 文書
 
-- `THIRD_PARTY_NOTICES.md` から削除素材を現在の同梱物として列挙する記載を除き、残存GLB・human・共通効果音などの確認事項を具体化しました。削除の経緯は本書へ集約しています。
+- `THIRD_PARTY_NOTICES.md` から削除素材を現在の同梱物として列挙する記載を除き、共通効果音・その他保持素材などの確認事項を具体化しました。削除の経緯は本書へ集約しています。
 - Hedley のヘッダーにある CC0-1.0 表示に対応し、[公式原文のコピー](third-party/Hedley-CC0-1.0.txt) を追加しました。出典を `docs/third-party/README.md` に記録し、配布ツールにも同梱を追加しました。
 - 既存の vendor、ライセンス本文、権利者表示、現行エディターと Konva は無改変です。ゲーム全体への新たなオープンソースライセンス適用は行っていません。Assimpの追加由来コード・SDK/DXCの未解決事項は保持しています。
 
