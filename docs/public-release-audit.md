@@ -2,7 +2,7 @@
 
 > 初回整理時の記録です。この後の素材削除・ZIP内部情報の整理・Hedley本文の補完と現在の保留事項は、[素材・埋め込み情報の監査](public-assets-audit.md)を優先してください。下記の「保持」「削除なし」は初回作業時点の結果です。
 
-> さらに[Ink Shooterの除去](remove-ink-shooter-audit.md)と[Naval Prototypeの除去](remove-naval-prototype-audit.md)に加え、2026-09-30に[旧テスト3シーン除去](remove-legacy-test-scenes-audit.md)を実施済みです。TestScene / PlayerLabScene / Action3DSceneと専用補助コード・素材も現在は含みません。GraphicsLabで使うGLB・humanモデルとTankの共用素材・エンジンは保持しています。以下の当時の分類を、現在の同梱ファイル一覧として扱わないでください。
+> さらに[Ink Shooterの除去](remove-ink-shooter-audit.md)と[Naval Prototypeの除去](remove-naval-prototype-audit.md)に加え、2026-09-30に[旧テスト3シーン除去](remove-legacy-test-scenes-audit.md)を実施済みです。TestScene / PlayerLabScene / Action3DSceneと専用補助コード・素材も現在は含みません。続く[Lab除去](remove-graphics-labs-audit.md)でGraphics / Underwater / VFX Lab、独立module、専用起動設定・素材も除去しました。GLB・humanモデルもLab専用と確認して除去済みで、Tank共用素材と汎用Engineは保持しています。以下の当時の分類を、現在の同梱ファイル一覧として扱わないでください。
 
 調査日：2026-09-29。対象は作業開始時点の追跡ファイル 954 件と現在の作業ツリーです。開始時のブランチは `chore/public-release-prep`、既存の作業差分はありませんでした。
 
