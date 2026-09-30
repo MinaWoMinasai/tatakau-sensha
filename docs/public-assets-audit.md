@@ -1,6 +1,6 @@
 # Public 素材・埋め込み情報の監査
 
-> 素材整理時点の記録です。その後の[Ink Shooter除去](remove-ink-shooter-audit.md)により、専用リソース21件を追加で除去しました。本書の275件・配布294件などは当時の検証値です。[保持素材の確認台帳](public-assets-inventory.md)は除去後の現存254件へ更新しています。
+> 素材整理時点の記録です。その後の[Ink Shooter除去](remove-ink-shooter-audit.md)で専用リソース21件、[Naval Prototype除去](remove-naval-prototype-audit.md)で7件を追加で除去しました。本書の275件・配布294件などは当時の検証値です。[保持素材の確認台帳](public-assets-inventory.md)は除去後の現存247件へ更新しています。
 
 調査日：2026-09-29。対象は今回の作業開始時の追跡ファイル968件と、その後の追加・変更です。ゲーム本体の機能削除は行わず、素材の読み込み・ビルド・配布・ツールの依存を確認して整理しました。[前回の公開準備記録](public-release-audit.md) に残っていた素材の保留事項は、本書を優先してください。
 

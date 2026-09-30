@@ -1,5 +1,7 @@
 # Ink Shooter Lab の除去記録
 
+> Ink Shooter整理時点の記録です。この後、[Naval Prototypeの専用実装・資料・素材を除去](remove-naval-prototype-audit.md)しました。以下の「海戦を保持」やファイル件数は当時の結果です。
+
 2026-09-29。開始ブランチは `refactor/remove-ink-shooter`、作業開始時の追跡ファイルは953件、既存差分なし。削除前に全追跡ファイルからファイル名・include・シーンID・namespace・環境変数・設定・リソースパスを検索し、参照を分類しました。専用81ファイルを除去し、共通音声テスト2ファイルは汎用名へ移動しました。
 
 ## 削除前の分類
