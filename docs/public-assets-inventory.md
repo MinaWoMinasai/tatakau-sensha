@@ -1,6 +1,6 @@
 # 保持素材の確認台帳
 
-2026-09-29、素材整理後の `project/resources/` 追跡ファイル一覧です。[監査本文](public-assets-audit.md)の分類・根拠・制約と合わせて使用してください。最初の素材整理18件の削除は監査本文、続く専用リソース21件の削除は[Ink Shooter除去記録](remove-ink-shooter-audit.md)、7件の削除は[Naval Prototype除去記録](remove-naval-prototype-audit.md)に記録しています。
+2026-09-30、旧テスト3シーン除去後の `project/resources/` 追跡ファイル一覧です。[監査本文](public-assets-audit.md)の分類・根拠・制約と合わせて使用してください。最初の素材整理18件の削除は監査本文、続く専用リソース21件の削除は[Ink Shooter除去記録](remove-ink-shooter-audit.md)、7件の削除は[Naval Prototype除去記録](remove-naval-prototype-audit.md)、旧テスト専用4件の削除は[3シーン除去記録](remove-legacy-test-scenes-audit.md)に記録しています。
 
 **A**：自作設定・コード、または制作記録のある遠征用合成音声。**C**：OFL条件・表示を維持するフォント一式。**D**：制作経緯・出典・素材単体の再配布条件を作者が確認するもの。Dを自作・許諾済みと認定していません。ディレクトリ別の分類は既存の説明と実装に基づき、個々の制作経緯を証明するものではありません。
 
@@ -8,7 +8,7 @@
 
 素材パスは `project/resources/` 相対、参照パスは `project/` 相対です。画像・バイナリの内容や個人情報候補の値は記録していません。
 
-保持247件（A 99件、C 2件、D 146件）。
+保持243件（A 99件、C 2件、D 142件）。
 
 | 素材パス | 分類 | bytes | 参照候補（最大3箇所） |
 | --- | --- | ---: | --- |
@@ -22,7 +22,6 @@
 | `UnderwaterCaustics.png` | D | 108,371 | 文字列一致なし／動的使用は未確定 |
 | `UnderwaterCausticsAtlas.png` | D | 1,745,716 | `game/scene/UnderwaterLabScene.cpp` |
 | `UnderwaterCausticsDeepBroadAtlas.png` | D | 2,841,299 | `game/scene/UnderwaterLabScene.cpp` |
-| `animation/assimp_test.gltf` | D | 914 | `game/scene/TestScene.cpp` |
 | `audio/tank_expedition/README.md` | A | 5,834 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `externals/DirectXTex/DirectXTex_GDK_2019.vcxproj` 他5件 |
 | `audio/tank_expedition/armor_break.wav` | A | 36,524 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
 | `audio/tank_expedition/dash.wav` | A | 22,604 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
@@ -42,7 +41,7 @@
 | `block.obj` | D | 1,084 | 文字列一致なし／動的使用は未確定 |
 | `block.png` | D | 35,158 | `resources/block.mtl` |
 | `bloomBall.mtl` | D | 243 | `resources/bloomBall.obj` |
-| `bloomBall.obj` | D | 339,860 | `game/scene/GameScene.cpp`, `game/scene/TestScene.cpp` |
+| `bloomBall.obj` | D | 339,860 | `game/scene/GameScene.cpp` |
 | `bloomBall.png` | D | 164 | `resources/bloomBall.mtl`, `resources/bloomBlock.mtl` |
 | `bloomBlock.mtl` | D | 236 | `resources/bloomBlock.obj` |
 | `bloomBlock.obj` | D | 1,074 | `game/scene/GameScene.cpp` |
@@ -97,8 +96,8 @@
 | `fade.png` | D | 2,780 | `game/player/actor/Player.cpp`, `game/scene/Fade.cpp` |
 | `fonts/ZenMaruGothic-Bold.ttf` | C | 3,778,984 | `game/scene/GameScene.cpp`, `game/scene/TitleScene.cpp`, `resources/configs/evolutionUiStyle.json` 他2件 |
 | `fonts/ZenMaruGothic-OFL.txt` | C | 4,496 | 文字列一致なし／動的使用は未確定 |
-| `gradation.png` | D | 2,371 | `game/scene/TestScene.cpp`, `resources/weapon.mtl` |
-| `gradationLine.png` | D | 314,004 | `game/scene/GameScene.cpp`, `game/scene/TestScene.cpp` |
+| `gradation.png` | D | 2,371 | `resources/weapon.mtl` |
+| `gradationLine.png` | D | 314,004 | `game/scene/GameScene.cpp` |
 | `graphicsBeach.mtl` | D | 215 | `resources/graphicsBeach.obj` |
 | `graphicsBeach.obj` | D | 451,780 | `game/scene/GraphicsLabScene.cpp` |
 | `graphicsOcean.mtl` | D | 221 | `resources/graphicsOcean.obj` |
@@ -108,7 +107,7 @@
 | `graphicsWater.mtl` | D | 220 | `resources/graphicsWater.obj` |
 | `graphicsWater.obj` | D | 1,021,912 | 文字列一致なし／動的使用は未確定 |
 | `ground.mtl` | D | 246 | `resources/ground.obj` |
-| `ground.obj` | D | 399 | `game/scene/Action3DScene.cpp`, `game/scene/GameScene.cpp`, `game/scene/TestScene.cpp` |
+| `ground.obj` | D | 399 | `game/scene/GameScene.cpp` |
 | `gunBarrel.mtl` | D | 250 | `resources/gunBarrel.obj` |
 | `gunBarrel.obj` | D | 9,558 | `game/player/actor/Player.cpp`, `game/weapon/WeaponMount.h`, `resources/configs/playerClasses.json` 他1件 |
 | `hpBarFillMask.png` | D | 425 | `game/player/actor/Player.cpp`, `game/scene/GameScene.cpp`, `game/ui/NeonProgressBar.cpp` 他1件 |
@@ -125,7 +124,7 @@
 | `levels/tank_dictionary.json` | D | 3,541 | `tools/level_aiditor/level_aiditor.py` |
 | `levels/tank_run.json` | D | 3,005 | `game/scene/GameScene.cpp` |
 | `light.mtl` | D | 246 | `resources/light.obj` |
-| `light.obj` | D | 9,586 | `game/scene/TestScene.cpp` |
+| `light.obj` | D | 9,586 | 文字列一致なし／動的使用は未確定 |
 | `machineGun.png` | D | 2,140 | `game/player/actor/Player.cpp` |
 | `map.csv` | D | 2,730 | `game/player/actor/Stage.cpp` |
 | `maps/README.md` | A | 1,921 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `externals/DirectXTex/DirectXTex_GDK_2019.vcxproj` 他5件 |
@@ -142,15 +141,12 @@
 | `material_tests/TestBlock_normal.png` | D | 183,932 | `resources/TestBlock.mtl` |
 | `material_tests/TestBlock_roughness.png` | D | 73,100 | `resources/TestBlock.mtl` |
 | `models/human/walk.bin` | D | 914,472 | `resources/models/human/walk.gltf`, `tools/test_tank_submission_packaging.ps1` |
-| `models/human/walk.gltf` | D | 96,256 | `game/scene/Action3DScene.cpp`, `game/scene/GraphicsLabScene.cpp`, `game/scene/TestScene.cpp` |
+| `models/human/walk.gltf` | D | 96,256 | `game/scene/GraphicsLabScene.cpp` |
 | `models/human/white.png` | D | 135 | `resources/models/human/walk.gltf` |
-| `models/player/testModel_animated.glb` | D | 11,881,700 | `game/scene/GraphicsLabScene.cpp`, `game/scene/TestScene.cpp`, `tools/test_tank_submission_packaging.ps1` |
-| `models/simpleSkin/simpleSkin.bin` | D | 3,492 | `resources/models/simpleSkin/simpleSkin.gltf` |
-| `models/simpleSkin/simpleSkin.gltf` | D | 5,593 | `game/scene/TestScene.cpp` |
-| `models/simpleSkin/uvChecker.png` | D | 106,081 | `resources/models/simpleSkin/simpleSkin.gltf` |
+| `models/player/testModel_animated.glb` | D | 11,881,700 | `game/scene/GraphicsLabScene.cpp`, `tools/test_tank_submission_packaging.ps1` |
 | `monsterBall.png` | D | 18,232 | `resources/ball.mtl` |
 | `neonTriangleParticle.mtl` | D | 214 | `resources/neonTriangleParticle.obj` |
-| `neonTriangleParticle.obj` | D | 830 | `DirectX/engine/particle/ParticleManager.cpp`, `game/scene/Action3DScene.cpp` |
+| `neonTriangleParticle.obj` | D | 830 | `DirectX/engine/particle/ParticleManager.cpp` |
 | `nn.png` | D | 1,045 | 文字列一致なし／動的使用は未確定 |
 | `normalTank.png` | D | 1,224 | `game/player/actor/Player.cpp` |
 | `plane.mtl` | D | 237 | `resources/plane.obj` |
@@ -158,7 +154,7 @@
 | `player.mtl` | D | 240 | `resources/player.obj` |
 | `player.obj` | D | 3,159 | 文字列一致なし／動的使用は未確定 |
 | `player3D.mtl` | D | 250 | `resources/player3D.obj` |
-| `player3D.obj` | D | 78,108 | `game/scene/GameScene.cpp`, `game/scene/PlayerLabScene.cpp` |
+| `player3D.obj` | D | 78,108 | `game/scene/GameScene.cpp` |
 | `playerBullet.mtl` | D | 246 | `resources/playerBullet.obj` |
 | `playerBullet.obj` | D | 2,583 | 文字列一致なし／動的使用は未確定 |
 | `playerHPBar.mtl` | D | 250 | `resources/playerHPBar.obj` |
@@ -253,9 +249,9 @@
 | `twin.png` | D | 1,284 | `game/player/actor/Player.cpp` |
 | `u.png` | D | 824 | 文字列一致なし／動的使用は未確定 |
 | `ui/salvage_orb.png` | D | 2,878 | `game/scene/GameScene.ExpeditionExperience.cpp`, `game/ui/TankRewardCard.cpp` |
-| `uvChecker.png` | D | 106,081 | `resources/models/simpleSkin/simpleSkin.gltf` |
+| `uvChecker.png` | D | 106,081 | 旧simpleSkin内の同名画像とは別。参照未確定のため保持 |
 | `wasd.png` | D | 7,767 | `game/scene/GameScene.cpp` |
 | `weapon.mtl` | D | 255 | `resources/weapon.obj` |
-| `weapon.obj` | D | 194,001 | `game/scene/Action3DScene.cpp` |
+| `weapon.obj` | D | 194,001 | 文字列一致なし／動的使用は未確定 |
 | `white512x512.png` | D | 2,248 | `DirectX/engine/3d/Model.cpp`, `DirectX/engine/3d/SkinCluster.cpp`, `DirectX/engine/commom/TrailStressFixture.h` 他35件 |
 | `ya.png` | D | 1,228 | 文字列一致なし／動的使用は未確定 |
