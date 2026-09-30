@@ -20,6 +20,7 @@
 | [保持素材の確認台帳](public-assets-inventory.md) | 現存素材の分類・サイズ・参照候補。出典照合の対象一覧 |
 | [Ink Shooterの除去記録](remove-ink-shooter-audit.md) | 専用部分の除去と共通機能の保持、検証 |
 | [Naval Prototypeの除去記録](remove-naval-prototype-audit.md) | 海戦専用部分の除去と水面描画・共用素材の保持、検証 |
+| [旧テスト3シーンの除去記録](remove-legacy-test-scenes-audit.md) | Test / PlayerLab / Action3Dと専用部分の除去、共有素材・エンジン保持と検証 |
 | [初回の公開準備記録](public-release-audit.md) | 初回整理時の A/B/C 分類と検証。当時の素材保留事項は最新監査を優先 |
 
 ## 過去の実装・検証資料

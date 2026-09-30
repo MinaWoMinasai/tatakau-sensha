@@ -14,7 +14,7 @@ Releaseビルド後に、リポジトリのルートから実行します。開�
 
 公開前に [素材監査の要確認項目](public-assets-audit.md) と [第三者素材の確認事項](../THIRD_PARTY_NOTICES.md) を解決してください。このツールは既存の旧モード用素材もコピーするため、ゲームが起動できることと全素材の再配布条件を満たすことは別の確認です。
 
-[素材監査で除外した元データ](public-assets-audit.md#削除前に確定した一覧) と ZIP / 7z / RAR は、ローカルに置き直しても配布物へコピーしません。実行用の `testModel_animated.glb`、humanモデルの `.bin`、`.obj` は除外対象ではありません。
+[素材監査で除外した元データ](public-assets-audit.md#削除前に確定した一覧) と ZIP / 7z / RAR は、ローカルに置き直しても配布物へコピーしません。GraphicsLabで引き続き使用する `models/player/testModel_animated.glb` と `models/human/walk.gltf` / `walk.bin` / `white.png`、GameScene等が使う `player3D.obj` / `.mtl`、`ground.obj` / `.mtl` は保持します。旧Test / PlayerLab / Action3Dは除去済みで、専用の `animation/assimp_test.gltf` と `models/simpleSkin/` の3件は現在のソースにありません。[除去記録](remove-legacy-test-scenes-audit.md)。既存Packaging testの共有GLB・BIN保持条件は維持しています。
 
 `resources/configs/expedition_user.json` と派生ファイル、作者の `generated`、`logs`、`Dumps`、一時ファイル、ImGui設定は除外します。シェーダー・生成テクスチャのキャッシュは配布先の初回起動時に必要に応じて生成されます。文字画像に限り、次の手順で作った履歴のない描画成果物を明示的に同梱できます。作者PCのWarm起動時間と配布先の初回時間は区別して測定してください。
 
