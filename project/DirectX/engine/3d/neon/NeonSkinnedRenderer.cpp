@@ -1,0 +1,191 @@
+#include "NeonSkinnedRenderer.h"
+
+#include "DirectXCommon.h"
+#include "InputDesc.h"
+#include "SkinCluster.h"
+#include "SrvManager.h"
+#include <algorithm>
+#include <iterator>
+#include <stdexcept>
+#include <utility>
+
+using Microsoft::WRL::ComPtr;
+
+namespace {
+constexpr UINT kTransformRootParameter = 0;
+constexpr UINT kNeonRootParameter = 1;
+constexpr UINT kPaletteRootParameter = 2;
+
+void CheckResult(HRESULT hr, const char* message) {
+	if (FAILED(hr)) {
+		throw std::runtime_error(message);
+	}
+}
+}
+
+void NeonSkinnedRenderer::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager) {
+	if (!dxCommon || !srvManager || !dxCommon->GetDevice()) {
+		throw std::invalid_argument("NeonSkinnedRenderer requires an initialized DirectXCommon and SrvManager.");
+	}
+	dxCommon_ = dxCommon;
+	srvManager_ = srvManager;
+	CreatePipeline();
+	drawConstantBuffers_.clear();
+	nextDrawIndex_ = 0;
+}
+
+void NeonSkinnedRenderer::BeginFrame() {
+	if (!dxCommon_) {
+		throw std::logic_error("Initialize NeonSkinnedRenderer before BeginFrame.");
+	}
+	// 現エンジンはフレーム終端でFenceを待つ。将来Frames-in-flight化する場合も
+	// 実行中のCBを再利用しないよう、この契約またはフレーム別の領域管理を維持する。
+	const auto fence = dxCommon_->GetFence();
+	if (fence && fence->GetCompletedValue() < dxCommon_->GetFenceValue()) {
+		throw std::logic_error("Wait for the previous GPU submission before NeonSkinnedRenderer::BeginFrame.");
+	}
+	nextDrawIndex_ = 0;
+}
+
+void NeonSkinnedRenderer::SetParams(const NeonSkinnedParams& params) {
+	params_ = params;
+	params_.emissiveIntensity = (std::max)(params_.emissiveIntensity, 0.0f);
+	params_.rimStrength = (std::max)(params_.rimStrength, 0.0f);
+	params_.rimPower = (std::max)(params_.rimPower, 0.001f);
+}
+
+NeonSkinnedRenderer::DrawConstantBuffer& NeonSkinnedRenderer::AcquireDrawConstantBuffer() {
+	if (nextDrawIndex_ == drawConstantBuffers_.size()) {
+		DrawConstantBuffer buffer;
+		// Root CBVの256byte alignmentとGPUが読む領域を確保する。
+		buffer.resource = dxCommon_->CreateBufferResource(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+		if (!buffer.resource) {
+			throw std::runtime_error("Failed to allocate NeonSkinnedRenderer constants.");
+		}
+		const D3D12_RANGE noCpuReads{ 0, 0 };
+		CheckResult(buffer.resource->Map(0, &noCpuReads, reinterpret_cast<void**>(&buffer.mapped)),
+			"Failed to map NeonSkinnedRenderer constants.");
+		drawConstantBuffers_.push_back(std::move(buffer));
+	}
+	return drawConstantBuffers_[nextDrawIndex_++];
+}
+
+void NeonSkinnedRenderer::Draw(const SkinnedModel& model,
+	D3D12_GPU_VIRTUAL_ADDRESS transformationCbv, const Vector3& cameraWorldPosition) {
+	if (!rootSignature_ || !pipelineState_ || !doubleSidedPipelineState_) {
+		throw std::logic_error("Initialize NeonSkinnedRenderer before Draw.");
+	}
+	if (transformationCbv == 0 || transformationCbv % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT != 0) {
+		throw std::invalid_argument("NeonSkinnedRenderer requires a valid aligned transform CBV.");
+	}
+	if (model.GetSubmeshCount() == 0) {
+		return;
+	}
+
+	DrawConstantBuffer& constants = AcquireDrawConstantBuffer();
+	*constants.mapped = { params_, cameraWorldPosition, 0.0f };
+
+	auto commandList = dxCommon_->GetList();
+	srvManager_->PreDraw();
+	commandList->SetGraphicsRootSignature(rootSignature_.Get());
+	commandList->SetPipelineState(pipelineState_.Get());
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	commandList->SetGraphicsRootConstantBufferView(kTransformRootParameter, transformationCbv);
+	commandList->SetGraphicsRootConstantBufferView(kNeonRootParameter, constants.resource->GetGPUVirtualAddress());
+	model.BindGeometry();
+	model.BindSkinningPalette(kPaletteRootParameter);
+	for (size_t index = 0; index < model.GetSubmeshCount(); ++index) {
+		commandList->SetPipelineState(model.GetSubmesh(index).doubleSided
+			? doubleSidedPipelineState_.Get() : pipelineState_.Get());
+		model.DrawSubmesh(index);
+	}
+}
+
+void NeonSkinnedRenderer::CreatePipeline() {
+	D3D12_DESCRIPTOR_RANGE paletteRange{};
+	paletteRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	paletteRange.NumDescriptors = 1;
+	paletteRange.BaseShaderRegister = 3;
+	paletteRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	D3D12_ROOT_PARAMETER rootParameters[3]{};
+	rootParameters[kTransformRootParameter].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[kTransformRootParameter].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParameters[kTransformRootParameter].Descriptor.ShaderRegister = 0;
+	rootParameters[kNeonRootParameter].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[kNeonRootParameter].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[kNeonRootParameter].Descriptor.ShaderRegister = 1;
+	rootParameters[kPaletteRootParameter].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[kPaletteRootParameter].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParameters[kPaletteRootParameter].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[kPaletteRootParameter].DescriptorTable.pDescriptorRanges = &paletteRange;
+
+	D3D12_ROOT_SIGNATURE_DESC rootDesc{};
+	rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	rootDesc.NumParameters = static_cast<UINT>(std::size(rootParameters));
+	rootDesc.pParameters = rootParameters;
+	ComPtr<ID3DBlob> signatureBlob;
+	ComPtr<ID3DBlob> errorBlob;
+	const HRESULT serializeResult = D3D12SerializeRootSignature(&rootDesc,
+		D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
+	if (errorBlob) {
+		OutputDebugStringA(static_cast<const char*>(errorBlob->GetBufferPointer()));
+	}
+	CheckResult(serializeResult, "Failed to serialize NeonSkinnedRenderer root signature.");
+	CheckResult(dxCommon_->GetDevice()->CreateRootSignature(0,
+		signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature_)),
+		"Failed to create NeonSkinnedRenderer root signature.");
+
+	ComPtr<IDxcBlob> vertexShader;
+	ComPtr<IDxcBlob> pixelShader;
+	vertexShader.Attach(dxCommon_->CompileShader(L"resources/shaders/NeonSkinned.VS.hlsl", L"vs_6_0"));
+	pixelShader.Attach(dxCommon_->CompileShader(L"resources/shaders/NeonSkinned.PS.hlsl", L"ps_6_0"));
+	if (!vertexShader || !pixelShader) {
+		throw std::runtime_error("Failed to compile NeonSkinnedRenderer shaders.");
+	}
+
+	// InputDescの既存Skinning用レイアウトをそのまま共有する。
+	InputDesc inputDesc;
+	inputDesc.InitializeForSkinning();
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
+	desc.pRootSignature = rootSignature_.Get();
+	desc.VS = { vertexShader->GetBufferPointer(), vertexShader->GetBufferSize() };
+	desc.PS = { pixelShader->GetBufferPointer(), pixelShader->GetBufferSize() };
+	desc.InputLayout = inputDesc.GetLayout();
+	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+	desc.SampleDesc.Count = 1;
+	desc.NumRenderTargets = 3;
+	desc.RTVFormats[0] = DirectXCommon::kSceneRenderTargetFormat;
+	desc.RTVFormats[1] = DirectXCommon::kNormalBufferFormat;
+	desc.RTVFormats[2] = DirectXCommon::kMaterialBufferFormat;
+	desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	desc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	desc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	desc.RasterizerState.DepthClipEnable = TRUE;
+	desc.DepthStencilState.DepthEnable = TRUE;
+	desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	desc.DepthStencilState.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+	desc.DepthStencilState.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+	desc.DepthStencilState.FrontFace = { D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP,
+		D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS };
+	desc.DepthStencilState.BackFace = desc.DepthStencilState.FrontFace;
+	// 不透明Dark Body + HDR emission。加算ブレンドではなくShader内で合成する。
+	for (UINT target = 0; target < desc.NumRenderTargets; ++target) {
+		auto& blend = desc.BlendState.RenderTarget[target];
+		blend.SrcBlend = D3D12_BLEND_ONE;
+		blend.DestBlend = D3D12_BLEND_ZERO;
+		blend.BlendOp = D3D12_BLEND_OP_ADD;
+		blend.SrcBlendAlpha = D3D12_BLEND_ONE;
+		blend.DestBlendAlpha = D3D12_BLEND_ZERO;
+		blend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		blend.LogicOp = D3D12_LOGIC_OP_NOOP;
+		blend.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	}
+	CheckResult(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineState_)),
+		"Failed to create NeonSkinnedRenderer back-cull PSO.");
+	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	CheckResult(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&doubleSidedPipelineState_)),
+		"Failed to create NeonSkinnedRenderer double-sided PSO.");
+}
