@@ -24,6 +24,8 @@
 | [Graphics / Underwater / VFX Labの除去記録](remove-graphics-labs-audit.md) | 旧Labと専用素材の除去、Ocean等の汎用Engine保持、検証 |
 | [初回の公開準備記録](public-release-audit.md) | 初回整理時の A/B/C 分類と検証。当時の素材保留事項は最新監査を優先 |
 
+全追跡ファイルの現在の保持判断は[最終クリーンアップ監査](final-public-cleanup-audit.md)と[818件の分類表](final-public-cleanup-files.tsv)を参照してください。出典未確認の素材と汎用Engineの保留事項、音声・旧モード・配布検証をまとめています。
+
 ## 過去の実装・検証資料
 
 以下は開発経緯を残した資料です。記載された試験結果・キー割り当て・数値は、その資料作成時点のものです。現在の仕様と異なる場合はコード・設定と上の現行ガイドを優先してください。

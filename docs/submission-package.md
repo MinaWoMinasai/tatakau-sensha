@@ -1,5 +1,7 @@
 # 提出用Releaseの作成
 
+最終整理では試聴専用の`resources/audio/tank_expedition/preview.wav`を実行用配布から除外します。ソースの制作・試聴記録は保持し、遠征の実行用WAVとbulletShoot.mp3は引き続き同梱します。[最終監査と検証](final-public-cleanup-audit.md)を参照してください。
+
 Releaseビルド後に、リポジトリのルートから実行します。開発機能は標準でOFFです。制作時に変更した場合は `/p:CG2DeveloperTools=false` で再ビルドしてください。[切り替え方法](developer-tools-switch.md)
 
 ビルドが生成する `CG2.build.json` の構成・開発機能OFF・exeのSHA256を検証し、制作機能ONや古いビルド情報では配布作成を拒否します。このファイルも配布物に含めますが、実行時の切り替え設定ではありません。
