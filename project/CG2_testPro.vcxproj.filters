@@ -753,4 +753,21 @@
     <ClInclude Include="DirectX\engine\commom\ShaderDiskCache.h" />
     <ClInclude Include="DirectX\engine\2d\GeneratedTextureCache.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClInclude Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.h">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClInclude>
+    <None Include="resources\shaders\NeonSkinned.hlsli">
+      <Filter>DirectX\shaders</Filter>
+    </None>
+    <FxCompile Include="resources\shaders\NeonSkinned.VS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinned.PS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
 </Project>
