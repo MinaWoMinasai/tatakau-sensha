@@ -24,7 +24,9 @@
 | [Graphics / Underwater / VFX Labの除去記録](remove-graphics-labs-audit.md) | 旧Labと専用素材の除去、Ocean等の汎用Engine保持、検証 |
 | [初回の公開準備記録](public-release-audit.md) | 初回整理時の A/B/C 分類と検証。当時の素材保留事項は最新監査を優先 |
 
-全追跡ファイルの現在の保持判断は[最終クリーンアップ監査](final-public-cleanup-audit.md)と[818件の分類表](final-public-cleanup-files.tsv)を参照してください。出典未確認の素材と汎用Engineの保留事項、音声・旧モード・配布検証をまとめています。
+2026-09-30時点の全追跡ファイルの保持判断は[最終クリーンアップ監査](final-public-cleanup-audit.md)と[818件の分類表](final-public-cleanup-files.tsv)を参照してください。出典未確認の素材と汎用Engineの保留事項、音声・旧モード・配布検証をまとめています。
+
+[旧GAME / TANK_RUN起動口の廃止監査](retire-legacy-run-entrypoints-audit.md)に、登録・専用設定/ランチャーの除去と、遠征・タイトルデモが使う共有実装/単体テストの保持を記録しています。旧prototype資料の起動方法は当時の記録です。
 
 ## 過去の実装・検証資料
 

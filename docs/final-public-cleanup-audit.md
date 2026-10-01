@@ -1,5 +1,7 @@
 # Public版の最終クリーンアップ監査
 
+> 2026-09-30時点の監査記録です。その後の[旧起動口廃止](retire-legacy-run-entrypoints-audit.md)でGAME / TANK_RUNの登録と専用起動ファイル2件を除去しました。本文の登録・起動可能性・resource件数は当時の状態です。共有TankRun実装とbulletShootは引き続き保持しています。
+
 2026-09-30、`chore/final-public-cleanup`。開始時の追跡818ファイルすべてを[ファイル別分類](final-public-cleanup-files.tsv)へ記録しました。削除前の分類でBは0件です。用途・出典・動的利用に判断が残るものを削除せず、ゲームとEngineのコード・設定・素材・Visual Studio登録を保持します。
 
 ## 分類と作業範囲

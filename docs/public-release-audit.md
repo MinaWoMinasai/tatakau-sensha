@@ -1,5 +1,7 @@
 # Public 公開準備の調査・変更記録
 
+> 現行のPublic起動経路はTITLE→TANK_EXPEDITIONです。[2026-10-01の旧起動口廃止](retire-legacy-run-entrypoints-audit.md)でGAME / TANK_RUNの外部登録・専用project・ランチャーを除去しました。共有GameScene・TankRun基盤と音声は保持し、下記の旧モードの説明は当時の記録として残します。
+
 > 2026-09-30の[最終クリーンアップ監査](final-public-cleanup-audit.md)で全追跡ファイルを再確認しました。追加のファイル削除はなく、参照・出典未確定素材とGAME / TANK_RUN・Engineを保持し、試聴用preview.wavだけを実行用配布から除外しています。本書の過去の結果と最新検証を区別してください。
 
 > 初回整理時の記録です。この後の素材削除・ZIP内部情報の整理・Hedley本文の補完と現在の保留事項は、[素材・埋め込み情報の監査](public-assets-audit.md)を優先してください。下記の「保持」「削除なし」は初回作業時点の結果です。
