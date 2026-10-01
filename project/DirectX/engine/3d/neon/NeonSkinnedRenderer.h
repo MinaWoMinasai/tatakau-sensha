@@ -20,19 +20,34 @@ struct NeonSkinnedParams {
 	float rimPower = 3.0f;
 	float outlineWidthPixels = 1.75f;
 	uint32_t outlineEnabled = 1;
+	uint32_t internalLineEnabled = 0; // 既存呼び出しは外周のみ。Preview等で明示的に有効化する。
+	float internalLineWidthPixels = 1.0f;
+	float internalLineIntensity = 8.0f;
+	float internalLineThreshold = 0.12f;
 };
 
-static_assert(sizeof(NeonSkinnedParams) == 48);
+static_assert(sizeof(NeonSkinnedParams) == 64);
 static_assert(offsetof(NeonSkinnedParams, emissiveColor) == 16);
 static_assert(offsetof(NeonSkinnedParams, rimStrength) == 32);
 static_assert(offsetof(NeonSkinnedParams, outlineWidthPixels) == 40);
 static_assert(offsetof(NeonSkinnedParams, outlineEnabled) == 44);
+static_assert(offsetof(NeonSkinnedParams, internalLineEnabled) == 48);
+
+// Texture由来の特徴線と任意のAlpha Cutout。空の設定では通常の不透明Neonを維持する。
+// alphaCutoff=0はCutoutなし。BLENDのソート/半透明合成は実装しない。
+struct NeonSkinnedSubmeshParams {
+	float lineStrength = 1.0f;
+	float alphaCutoff = 0.0f;
+};
+static_assert(sizeof(NeonSkinnedSubmeshParams) == 8);
 
 // 既存SkinnedModelのGeometryと更新済みPaletteのみを利用する、独立した不透明Sceneパス。
 // 通常の3枚のScene MRT (HDR / Normal / Material) + D24S8を呼び出し側でBindすること。
 // モデルは同じDirectXCommon / SrvManagerでInitializeされている必要がある。
 // 現在のDSVのStencil bit 0x80をこのパス用に予約する。他の7bitは保持する。
-// このbitはDrawの前後で消去し、内部線・Submesh境界には輪郭を描かない。
+// このbitはDrawの前後で消去し、Hullはモデル全体の外側に描く。
+// 内部の特徴線はBody Shaderで既存BaseColor Texture / UVから生成する。
+// SkinnedModel::Initialize済みのMaterialのSRV indexも同じSrvManagerのHeapに属すること。
 class NeonSkinnedRenderer {
 public:
 	NeonSkinnedRenderer() = default;
@@ -44,6 +59,8 @@ public:
 	void BeginFrame();
 	void SetParams(const NeonSkinnedParams& params);
 	const NeonSkinnedParams& GetParams() const { return params_; }
+	// 空または描くモデルのSubmesh数と同じ長さ。各DrawのRoot Constantsへ記録する。
+	void SetSubmeshParams(const std::vector<NeonSkinnedSubmeshParams>& params);
 
 	// transformationCbvはObject3d::Update()等で更新済みのTransformationMatrix(WithShadow)を指す。
 	// 例: object.GetTransformationResource()->GetGPUVirtualAddress()。World / WVPは再計算しない。
@@ -64,9 +81,9 @@ private:
 		Vector2 viewportSize{};
 		float viewportPadding[2]{};
 	};
-	static_assert(sizeof(GpuConstants) == 80);
-	static_assert(offsetof(GpuConstants, cameraWorldPosition) == 48);
-	static_assert(offsetof(GpuConstants, viewportSize) == 64);
+	static_assert(sizeof(GpuConstants) == 96);
+	static_assert(offsetof(GpuConstants, cameraWorldPosition) == 64);
+	static_assert(offsetof(GpuConstants, viewportSize) == 80);
 
 	struct DrawConstantBuffer {
 		Microsoft::WRL::ComPtr<ID3D12Resource> resource;
@@ -76,6 +93,7 @@ private:
 	void CreatePipeline();
 	DrawConstantBuffer& AcquireDrawConstantBuffer();
 	void ClearOutlineStencil();
+	void BindSubmeshSurface(const SkinnedModel& model, size_t index);
 
 	DirectXCommon* dxCommon_ = nullptr;
 	SrvManager* srvManager_ = nullptr;
@@ -86,6 +104,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> doubleSidedOutlinePipelineState_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> stencilClearPipelineState_;
 	NeonSkinnedParams params_;
+	std::vector<NeonSkinnedSubmeshParams> submeshParams_;
 	std::vector<DrawConstantBuffer> drawConstantBuffers_;
 	size_t nextDrawIndex_ = 0;
 };

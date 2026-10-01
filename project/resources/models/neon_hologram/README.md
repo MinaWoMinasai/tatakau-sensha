@@ -40,7 +40,7 @@ PowerShellや起動引数は不要です。Visual Studioで`project/CG2.sln`を�
 
 Previewは開いただけでは有効になりません。下記の`Preview Enable`をオンにしてください。
 
-`Preview Enable`で初めてモデル・GPU資源を読み込みます。`Normal`は既存`Object3d::DrawSkinned()`、`Neon`は既存`NeonSkinnedRenderer::Draw()`を使い、同じモデル・Skeleton / Palette / Object3dのTransformを共有します。位置・回転（radian）・ScaleとNeonパラメータを操作できます。`Place in front of camera`で現在のCameraの前へ移動します。無効化してもGPU資源は保持し、フレーム途中で破棄しません。
+`Preview Enable`で初めてモデル・GPU資源を読み込みます。`Normal`は既存`Object3d::DrawSkinned()`、`Neon`は既存`NeonSkinnedRenderer::Draw()`を使い、同じモデル・Skeleton / Palette / Object3dのTransformを共有します。位置・回転（radian）・ScaleとNeonパラメータを操作できます。初期回転は正面（Y=0）です。`Place in front of camera`で現在のCameraの35単位前へ移動します。無効化してもGPU資源は保持し、フレーム途中で破棄しません。
 
 初期状態はPreview無効です。タイトルのデモにはPreviewを作りません。ReleaseではPreviewクラスをビルド対象から外し、GameSceneの呼び出しもコンパイル時に無効にします。Downloadsはコピー時にのみ参照し、実行時はRepository内の`resources/models/neon_hologram/AvatarSample_B.glb`だけを使用します。
 
@@ -50,7 +50,7 @@ Previewは開いただけでは有効になりません。下記の`Preview Enab
 
 `Neon`の既定表示は暗い紫の本体と細いピンクの外周線です。以前の本体全体の固定発光を外し、同じSkinning Paletteで膨張したHullを追加描画します。既存のScene BloomへHDR発光を渡すので、専用Bloomや起動方法の変更は不要です。
 
-- `Reset: dark body + pink outline`: 色・強度・線幅を既定値へ戻す。
+- `Reset: dark body + neon lines`: 色・強度・線幅を既定値へ戻し、内部線を有効にする。
 - `Outline Enable`: 外周線のオン／オフ。
 - `Outline width (pixels)`: 0〜8px、既定1.75px。0は線を描かない。
 - `Neon line color` / `Neon line intensity (HDR)`: 線の色と発光強度。既定はピンク／12.0。細い線も既存Bloomの半解像度・輝度しきい値へ届きやすい値を使い、Scene全体のBloom設定は変更しない。
@@ -61,13 +61,28 @@ Previewは開いただけでは有効になりません。下記の`Preview Enab
 
 `Draw(model, transformCbv, cameraPosition)`は既存の1280×720 Sceneサイズを使います。別サイズのRender Targetへ描く場合は`Draw(model, transformCbv, cameraPosition, viewportSize)`で実際のViewport寸法を渡してください。線幅は法線を画面方向へ投影して作るため、ハードエッジ・分割法線・正面を向いた薄い面などでは途切れや太さの差が出る場合があります。
 
-今回は外周線までです。参考イラストの髪の束、瞳、口などの内部線は、この外周線だけでは再現できません。次の段階でTexture / Material由来の特徴線マスク等を検討します。Barycentricで全三角形を描くとモデルのポリゴン分割が出るため、イラストの線とは分けて設計してください。VRMのalphaをまだ使わないため、透明部分も不透明Geometryとしてマスク・輪郭に含まれます。
+## Texture由来の内部特徴線
 
-`project/tools/test_neon_skinned_pipeline.ps1`は実DXC・WARPで5種類のPSOを生成し、合成Skinned Geometryを実際に描画して、暗い本体、外周のみのHDR発光、線幅、Depth遮蔽、MRT / Stencil保持、Palette追従、同一フレームのDrawごとの定数を検証します。実機でのAvatarSample_B + Scene Bloomの見た目は上記のPreviewで確認してください。
+更新済みPaletteと同じVertex UVを使い、既存BaseColor Textureの色・alphaの境界をNeonのBody PSで検出します。画面微分から上下左右のTextureを`SampleGrad`で読み、暗い本体にHDR発光を追加します。三角形の分割線は描きません。モデル・Textureのバイナリや通常Skinning Shaderは変更しません。
+
+- `Internal Line Enable`: 内部線だけのオン／オフ。外周線とは独立。
+- `Internal width (pixels)`: 境界検出のサンプル間隔、既定1.0px（0〜4px）。線の正確な幾何幅を保証する値ではない。
+- `Internal intensity (HDR)`: 内部線の発光強度、既定8.0。色は外周と同じ`Neon line color`。
+- `Internal edge threshold`: 色・alpha差の閾値、既定0.12。陰影や細かい模様を拾いすぎる場合は0.2程度へ上げ、太く見える場合は幅を0.65程度へ下げて比較する。
+- `Texture alpha cutout`: Neonだけに簡易Cutoutを適用。Previewは既定オン。MASKは元の`alphaCutoff`、BLENDは0.03を初期値とする。
+- `Submesh / Material diagnostics`: Submeshごとの`Line strength`と`Alpha cutoff`を調整。不要な模様のSubmeshは強度0で内部線だけを止められる。
+
+Root Signatureは既存のTransform `b0`（VS）、Neon/Camera/Viewport `b1`（ALL）、Palette `t3`（VS）に、BaseColor `t0`（PS）、Submesh用2 DWORDのRoot Constants `b2`（PS）、linear clamp sampler `s0`を追加します。Neon定数は96 bytes、CBV領域は256 bytes、Submesh定数は8 bytesです。Material SRVは同じSrvManagerで初期化済みのSkinnedModelから共有し、DrawごとにCB内容とRoot Constantsを記録します。`SetSubmeshParams()`は空またはモデルのSubmesh数に一致する配列を渡してください。Renderer単体の既定値は内部線オフ・Cutoutなしのため、既存呼び出しは外周のみの表示を維持します。
+
+参考イラストの描き込みをTexture境界だけで完全再現するものではありません。塗りの境界やハイライトも線になり、モデルに描かれていない髪の線・口の形を自動生成しません。遠距離の小さな顔、UV seam、細い髪のalpha境界では途切れやちらつきが残ります。次段階で線を厳密に指定する場合は専用Feature Maskを検討してください。Barycentricで全三角形を描く方式とは分けて設計します。
+
+`project/tools/test_neon_skinned_pipeline.ps1`は実DXC・WARPで5種類のPSOを生成し、合成Skinned Geometryを実際に描画して、暗い本体、外周のHDR発光、線幅、Depth遮蔽、MRT / Stencil保持、Palette追従、同一フレームのDrawごとの定数、Texture内部線・無効化・Submesh強度・透明部分のDepth非書き込みを検証します。Development実機でもAvatarSample_Bを表示し、Normal / Neon切替、内部線オン／オフ、幅・閾値・Cutoutの操作とScene Bloomを確認しました（Animationは0のためBindPose）。
 
 ## Materialの制約
 
-現在のNeonパスは不透明描画で、VRM / MToonのTexture alpha、MASK / BLEND、Morph Target、Spring Bone、Expressionを再現しません。Normal側も既存の汎用Skinning Materialをそのまま使用し、MToon再現ではありません。板ポリゴン・髪・顔の差はMaterial診断と分けて確認してください。
+現在のNeonパスは簡易Alpha Cutout付きの不透明描画です。透明部分は本体のDepth / StencilとHullの両方から除外します。BLENDもCutoutで近似するため、半透明合成・ソートやMToon、Morph Target、Spring Bone、Expressionを再現しません。Normal側は既存の汎用Skinning Materialをそのまま使用します。
+
+実機では`Face (merged).baked-2` / `N00_000_00_EyeHighlight_00_EYE (Instance)`（BLEND、doubleSided=true）の透明な板がCutoutなしでは瞳を覆い、顔の細部が失われます。NeonのCutoutで軽減しますが、小さな瞳や髪の端では線が密になり、Hairの描かれたハイライトも特徴線に含まれます。通常描画の顔が白く見える点も既存Material経路の制約です。Skinning不具合と区別し、大規模なVRM Material対応は行っていません。
 
 | Submesh（Assimp名） | Material | alpha mode | doubleSided |
 | --- | --- | --- | --- |
