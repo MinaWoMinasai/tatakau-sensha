@@ -82,6 +82,9 @@ function Test-TankSubmissionExcludedPath([string]$RelativePath, [bool]$AllowPrep
     $resourcePath = $path -replace '^resources/', ''
     # The documented listening preview belongs in the source archive, not the runtime package.
     if ($resourcePath -eq 'audio/tank_expedition/preview.wav') { return $true }
+    # Repository-owned Developer Preview input; not used by the Release runtime yet.
+    # Remove this exact-file exclusion when the avatar becomes a shipped Boss asset.
+    if ($resourcePath -eq 'models/neon_hologram/AvatarSample_B.glb') { return $true }
     # Retired standalone startup project only; levels/tank_run.json remains shared.
     if ($resourcePath -eq 'projects/tank_run.project.json') { return $true }
     if ($resourcePath -in (Get-TankSubmissionRetiredLabResourcePaths)) { return $true }

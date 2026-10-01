@@ -757,12 +757,36 @@
     <ClCompile Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.cpp">
       <Filter>DirectX\engine\3d</Filter>
     </ClCompile>
+    <ClCompile Include="game\debug\NeonSkinnedPreview.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClInclude Include="game\debug\NeonSkinnedPreview.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <None Include="resources\models\neon_hologram\AvatarSample_B.glb">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="resources\models\neon_hologram\README.md">
+      <Filter>リソース ファイル</Filter>
+    </None>
     <ClInclude Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.h">
       <Filter>DirectX\engine\3d</Filter>
     </ClInclude>
     <None Include="resources\shaders\NeonSkinned.hlsli">
       <Filter>DirectX\shaders</Filter>
     </None>
+    <None Include="resources\shaders\NeonSkinnedSkinning.hlsli">
+      <Filter>DirectX\shaders</Filter>
+    </None>
+    <FxCompile Include="resources\shaders\NeonSkinnedOutline.VS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinnedOutline.PS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinnedStencilClear.VS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </FxCompile>
     <FxCompile Include="resources\shaders\NeonSkinned.VS.hlsl">
       <Filter>DirectX\shaders</Filter>
     </FxCompile>

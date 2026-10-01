@@ -35,6 +35,13 @@ void GameScene::UpdateExpeditionAuthoringHub() {
     ImGui::SameLine();if(ImGui::Button("F4 部屋・敵配置")){expeditionRoomEditorOpen_=true;expeditionAuthoringHubOpen_=false;}
     ImGui::SameLine();if(ImGui::Button("F5 出現時期・ルート")){expeditionMapEditorOpen_=true;expeditionAuthoringHubOpen_=false;}
     ImGui::SameLine();if(ImGui::Button("F6 強化・進化・敵の種類")){expeditionContentEditorOpen_=true;expeditionAuthoringHubOpen_=false;}
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if(neonSkinnedPreview_ && ImGui::Button("Neon Skinned Previewを開く")) {
+        showGameDebugConsole_=true;
+        selectNeonSkinnedPreviewTab_=true;
+        expeditionAuthoringHubOpen_=false;
+    }
+#endif
     ImGui::SeparatorText("見た目・ポストエフェクト");
     auto apply=[&] {
         ApplyGamePostEffectConfig(expeditionPostDraft_);ApplyGameVisualConfig(expeditionVisualDraft_);
