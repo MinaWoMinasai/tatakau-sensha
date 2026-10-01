@@ -942,12 +942,32 @@ void SkinnedModel::UpdateBlended(
 		sizeof(SkinningPaletteEntry) * skinCluster_.GetPalette().size());
 }
 
-void SkinnedModel::Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses) {
+void SkinnedModel::BindGeometry() const {
+	assert(dxCommon_ != nullptr);
+	assert(vertexResource_ != nullptr && influenceResource_ != nullptr && indexResource_ != nullptr);
 	auto commandList = dxCommon_->GetList();
 	commandList->IASetVertexBuffers(0, 2, vertexBufferViews_);
 	commandList->IASetIndexBuffer(&indexBufferView_);
-	srvManager_->SetGraphicsRootDescriptorTable(9, paletteSrvIndex_);
-	for (const SkinningModelAsset::Submesh& submesh : asset_.submeshes) {
+}
+
+void SkinnedModel::BindSkinningPalette(uint32_t rootParameterIndex) const {
+	assert(srvManager_ != nullptr && paletteResource_ != nullptr);
+	srvManager_->SetGraphicsRootDescriptorTable(rootParameterIndex, paletteSrvIndex_);
+}
+
+void SkinnedModel::DrawSubmesh(size_t index) const {
+	const SkinningModelAsset::Submesh& submesh = GetSubmesh(index);
+	assert(dxCommon_ != nullptr);
+	dxCommon_->GetList()->DrawIndexedInstanced(
+		submesh.indexCount, 1, submesh.indexStart, 0, 0);
+}
+
+void SkinnedModel::Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses) {
+	auto commandList = dxCommon_->GetList();
+	BindGeometry();
+	BindSkinningPalette(9);
+	for (size_t submeshIndex = 0; submeshIndex < GetSubmeshCount(); ++submeshIndex) {
+		const SkinningModelAsset::Submesh& submesh = GetSubmesh(submeshIndex);
 		const uint32_t materialIndex = submesh.materialIndex < asset_.modelData.materials.size()
 			? submesh.materialIndex
 			: 0u;
@@ -996,16 +1016,14 @@ void SkinnedModel::Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCb
 			TextureManager::GetInstance()->GetSrvHandleGPU(
 				TextureManager::GetPbrPrefilteredEnvironmentTexturePath(),
 				TextureManager::TextureColorSpace::LinearData));
-		commandList->DrawIndexedInstanced(
-			submesh.indexCount, 1, submesh.indexStart, 0, 0);
+		DrawSubmesh(submeshIndex);
 	}
 }
 
 void SkinnedModel::DrawShadow() {
 	auto commandList = dxCommon_->GetList();
-	commandList->IASetVertexBuffers(0, 2, vertexBufferViews_);
-	commandList->IASetIndexBuffer(&indexBufferView_);
-	srvManager_->SetGraphicsRootDescriptorTable(1, paletteSrvIndex_);
+	BindGeometry();
+	BindSkinningPalette(1);
 	commandList->DrawIndexedInstanced(static_cast<UINT>(asset_.modelData.indices.size()), 1, 0, 0, 0);
 }
 
