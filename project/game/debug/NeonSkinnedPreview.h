@@ -1,0 +1,50 @@
+#pragma once
+#include "DeveloperTools.h"
+
+// Releaseでは明示的なDeveloperTools overrideがあってもPreviewをコンパイルしない。
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include "Object3d.h"
+#include "SkinCluster.h"
+#include "DirectX/engine/3d/neon/NeonSkinnedRenderer.h"
+#include <memory>
+#include <string>
+#include <vector>
+
+// GameSceneのDeveloper UIからのみ使用。初期状態は無効、GPU資源は有効化時に作成する。
+class NeonSkinnedPreview {
+public:
+	void Initialize(Camera* camera, DebugCamera* debugCamera);
+	// 前フレームのFence完了後、Camera更新後に1フレーム1回呼ぶ。
+	void Update(float deltaTime);
+	// Bloom::PreDraw直後のScene HDR / Normal / Material + D24S8内でのみ呼ぶ。
+	void Draw();
+	void DrawImGui();
+
+private:
+	struct SourceMaterial {
+		std::string meshName;
+		std::string materialName;
+		std::string alphaMode;
+	};
+	void Load();
+	void PlaceInFrontOfCamera();
+	Vector3 GetCameraPosition() const;
+
+	Camera* camera_ = nullptr;
+	DebugCamera* debugCamera_ = nullptr;
+	bool enabled_ = false;
+	bool neonMode_ = true;
+	bool ready_ = false;
+	Transform transform_{ { 8.0f, 8.0f, 8.0f }, { 0.0f, 3.14159265f, 0.0f }, {} };
+	NeonSkinnedParams params_;
+	std::unique_ptr<SkinnedModel> model_;
+	std::unique_ptr<Object3d> object_;
+	NeonSkinnedRenderer renderer_;
+	std::vector<SourceMaterial> sourceMaterials_;
+	size_t sourceAnimationCount_ = 0;
+	std::string loadError_;
+};
+#endif

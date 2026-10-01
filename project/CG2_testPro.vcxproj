@@ -78,6 +78,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
     <IntDir>$(SolutionDir)..\generated\obj\$(ProjectName)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)..\generated\outputs\$(Configuration)\</OutDir>
+    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IntDir>$(SolutionDir)..\generated\obj\$(ProjectName)\$(Configuration)\</IntDir>
@@ -707,8 +708,27 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.cpp" />
+    <ClCompile Include="game\debug\NeonSkinnedPreview.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClInclude Include="game\debug\NeonSkinnedPreview.h" />
+    <None Include="resources\models\neon_hologram\AvatarSample_B.glb" />
+    <None Include="resources\models\neon_hologram\README.md" />
     <ClInclude Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.h" />
     <None Include="resources\shaders\NeonSkinned.hlsli" />
+    <None Include="resources\shaders\NeonSkinnedSkinning.hlsli" />
+    <FxCompile Include="resources\shaders\NeonSkinnedOutline.VS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinnedOutline.PS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinnedStencilClear.VS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="resources\shaders\NeonSkinned.VS.hlsl">
       <ShaderType>Vertex</ShaderType>
       <ExcludedFromBuild>true</ExcludedFromBuild>

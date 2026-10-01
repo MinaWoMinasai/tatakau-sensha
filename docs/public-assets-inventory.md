@@ -1,5 +1,7 @@
 # 保持素材の確認台帳
 
+2026-10-01追加分：Developer Preview用の第三者モデル`models/neon_hologram/AvatarSample_B.glb`（28,333,772 bytes）と同ディレクトリの`README.md`を新規収録しました。作者提供VRMのbyte-for-byteコピーで、VRoid ProjectのAvatarSample利用条件を記録しています。CC0ではありません。[モデルの出典・条件・SHA-256・用途](../project/resources/models/neon_hologram/README.md)、[第三者表示](../THIRD_PARTY_NOTICES.md)を参照してください。このGLBだけを現在のRelease提出パッケージから除外します。以下の220件の台帳は追加前の監査時点の記録として保持します。
+
 2026-09-30の[最終監査](final-public-cleanup-audit.md)時点では218件を保持しました。出典分類と今回の用途によるA/B/C/Dは異なります。音声の制作記録preview.wavはリポジトリに保持し、実行用配布からだけ除外します。
 
 2026-10-01、旧起動口廃止後の `project/resources/` 追跡ファイル一覧です。[監査本文](public-assets-audit.md)の分類・根拠・制約と合わせて使用してください。最初の素材整理18件の削除は監査本文、続く専用リソース21件の削除は[Ink Shooter除去記録](remove-ink-shooter-audit.md)、7件の削除は[Naval Prototype除去記録](remove-naval-prototype-audit.md)、旧テスト専用4件の削除は[3シーン除去記録](remove-legacy-test-scenes-audit.md)、Lab専用25件の削除は[Lab除去記録](remove-graphics-labs-audit.md)に記録しています。

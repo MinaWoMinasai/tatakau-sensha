@@ -456,6 +456,12 @@ void GameScene::Initialize() {
 
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
 	Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera.get());
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+	if (!titleDemo_) {
+		neonSkinnedPreview_ = std::make_unique<NeonSkinnedPreview>();
+		neonSkinnedPreview_->Initialize(camera.get(), debugCamera.get());
+	}
+#endif
 
 	{
 	StartupTrace::Scope scope("GameScene.ObjectPostEffects");
@@ -982,6 +988,9 @@ void GameScene::Update() {
 
 	camera->Update();
 	debugCamera->Update(input_->GetMouseState(), input_->GetKey(), input_->GetLeftStick());
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+	if (neonSkinnedPreview_) neonSkinnedPreview_->Update(baseDeltaTime);
+#endif
 	if (skybox_) {
 		skybox_->Update(camera.get(), debugCamera.get());
 	}
@@ -1997,6 +2006,10 @@ void GameScene::Draw() {
 void GameScene::DrawPostEffect3D() {
 
 	ResetPostProfileEntries();
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+	// Bloom::PreDraw直後は3枚のScene MRT + D24S8。ObjectPostEffect captureより先に描く。
+	if (neonSkinnedPreview_) neonSkinnedPreview_->Draw();
+#endif
 	if (player_) {
 		for (PlayerDrone* drone : player_->GetDronePtrs()) {
 			if (drone) drone->SetNeonVisual(prototypeRun_ && playerNeonRenderMode_ == 1);
@@ -5564,6 +5577,15 @@ void GameScene::DrawGameSceneDebugImGui()
 	}
 
 	if (ImGui::BeginTabBar("GameDebugTabs")) {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+		const ImGuiTabItemFlags previewTabFlags = selectNeonSkinnedPreviewTab_
+			? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
+		selectNeonSkinnedPreviewTab_ = false;
+		if (neonSkinnedPreview_ && ImGui::BeginTabItem("Neon Preview", nullptr, previewTabFlags)) {
+			neonSkinnedPreview_->DrawImGui();
+			ImGui::EndTabItem();
+		}
+#endif
 		if (ImGui::BeginTabItem("概要")) {
 			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
 			ImGui::Text("デルタタイム: %.8f", finalDeltaTime * 60.0f);
@@ -5942,6 +5964,10 @@ void GameScene::DrawGameSceneDebugImGui()
 			ImGui::DragInt("画面上ラベル最大数", &bulletStatusDebugMaxLabels_, 1.0f, 1, 200);
 			DrawBulletStatusDebugTable();
 			ImGui::Separator();
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+			if (neonSkinnedPreview_) neonSkinnedPreview_->DrawImGui();
+			ImGui::Separator();
+#endif
 			if (shotGide) {
 				ImGui::SliderFloat2("射撃ガイド位置", &shotGide->GetPosition().x, 0.0f, 3000.0f, "%.1f");
 			}

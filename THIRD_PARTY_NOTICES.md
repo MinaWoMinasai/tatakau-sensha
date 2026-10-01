@@ -38,6 +38,10 @@ Windows SDK の DirectX、DirectInput、XInput、XAudio2、DirectWrite、Media F
 
 Assimp の `include/assimp/fast_atof.h` には Nikolaus Gebhardt、Irrlicht / irrXML 由来の表示がありますが、参照される `irrlicht.h` / `irrXML.h` の条件本文は vendor 内に見つかりませんでした。Assimp の全依存を既存の BSD 表示だけで一括して扱わず、使用版の原文確認を残しています。
 
+## VRoid Project: AvatarSample_B
+
+`project/resources/models/neon_hologram/AvatarSample_B.glb`はVRoid Projectのサンプルモデルです。[公式のAvatarSample A〜Z利用条件](https://vroid.pixiv.help/hc/ja/articles/4402394424089-AvatarSample-A-Z)に従い扱います。CC0ではなく、Repositoryのコードライセンスの対象でもありません。作者提供のVRMを2026-10-01にバイト列を変えずGLB名へコピーしました。取得経路、SHA-256、用途、利用条件の記録は[モデルREADME](project/resources/models/neon_hologram/README.md)を参照してください。現在はDeveloper Preview専用で、Release提出パッケージからこのGLBだけを除外します。
+
 ## 素材の出典・公開条件を確認する必要があるもの
 
 | パス | 調査結果 / 確認事項 |
