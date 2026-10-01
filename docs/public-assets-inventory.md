@@ -1,8 +1,8 @@
 # 保持素材の確認台帳
 
-[最終監査](final-public-cleanup-audit.md)でも以下の218件を保持しました。出典分類と今回の用途によるA/B/C/Dは異なります。音声の制作記録preview.wavはリポジトリに保持し、実行用配布からだけ除外します。
+2026-09-30の[最終監査](final-public-cleanup-audit.md)時点では218件を保持しました。出典分類と今回の用途によるA/B/C/Dは異なります。音声の制作記録preview.wavはリポジトリに保持し、実行用配布からだけ除外します。
 
-2026-09-30、Lab除去後の `project/resources/` 追跡ファイル一覧です。[監査本文](public-assets-audit.md)の分類・根拠・制約と合わせて使用してください。最初の素材整理18件の削除は監査本文、続く専用リソース21件の削除は[Ink Shooter除去記録](remove-ink-shooter-audit.md)、7件の削除は[Naval Prototype除去記録](remove-naval-prototype-audit.md)、旧テスト専用4件の削除は[3シーン除去記録](remove-legacy-test-scenes-audit.md)、Lab専用25件の削除は[Lab除去記録](remove-graphics-labs-audit.md)に記録しています。
+2026-10-01、旧起動口廃止後の `project/resources/` 追跡ファイル一覧です。[監査本文](public-assets-audit.md)の分類・根拠・制約と合わせて使用してください。最初の素材整理18件の削除は監査本文、続く専用リソース21件の削除は[Ink Shooter除去記録](remove-ink-shooter-audit.md)、7件の削除は[Naval Prototype除去記録](remove-naval-prototype-audit.md)、旧テスト専用4件の削除は[3シーン除去記録](remove-legacy-test-scenes-audit.md)、Lab専用25件の削除は[Lab除去記録](remove-graphics-labs-audit.md)に記録しています。
 
 **A**：自作設定・コード、または制作記録のある遠征用合成音声。**C**：OFL条件・表示を維持するフォント一式。**D**：制作経緯・出典・素材単体の再配布条件を作者が確認するもの。Dを自作・許諾済みと認定していません。ディレクトリ別の分類は既存の説明と実装に基づき、個々の制作経緯を証明するものではありません。
 
@@ -10,7 +10,7 @@
 
 素材パスは `project/resources/` 相対、参照パスは `project/` 相対です。画像・バイナリの内容や個人情報候補の値は記録していません。
 
-保持218件（A 95件、C 2件、D 121件）。
+保持220件（A 97件、C 2件、D 121件）。旧起動用project1件を除去し、前回監査後に追加されたNeonSkinned shader3件を台帳へ補完しています。renderer・shader・pipeline test自体は変更していません。[起動口廃止監査](retire-legacy-run-entrypoints-audit.md)。
 
 | 素材パス | 分類 | bytes | 参照候補（最大3箇所） |
 | --- | --- | ---: | --- |
@@ -112,7 +112,7 @@
 | `levels/level_test.json` | D | 15,103 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `game/scene/GameScene.cpp` 他3件 |
 | `levels/prefab_dictionary.json` | D | 11,110 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
 | `levels/tank_dictionary.json` | D | 3,541 | `tools/level_aiditor/level_aiditor.py` |
-| `levels/tank_run.json` | D | 3,005 | `game/scene/GameScene.cpp` |
+| `levels/tank_run.json` | D | 3,005 | `game/scene/GameScene.cpp`, `tools/TankSubmissionPackage.ps1`, `tools/test_tank_submission_packaging.ps1` |
 | `light.mtl` | D | 246 | `resources/light.obj` |
 | `light.obj` | D | 9,586 | 文字列一致なし／動的使用は未確定 |
 | `machineGun.png` | D | 2,140 | `game/player/actor/Player.cpp` |
@@ -150,9 +150,8 @@
 | `playerParticle.obj` | D | 601 | 文字列一致なし／動的使用は未確定 |
 | `playerParticle.png` | D | 169 | `resources/playerParticle.mtl` |
 | `projects/default.project.json` | A | 149 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `game/scene/Game.cpp` 他2件 |
-| `projects/tank_expedition.project.json` | A | 183 | `tools/measure_tank_performance.ps1`, `tools/run_tank_expedition.ps1`, `tools/test_tank_combat_runtime.ps1` 他4件 |
+| `projects/tank_expedition.project.json` | A | 183 | `tools/measure_tank_performance.ps1`, `tools/run_tank_expedition.ps1`, `tools/test_tank_combat_runtime.ps1` 他5件 |
 | `projects/tank_game.project.json` | A | 162 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `tools/TankSubmissionPackage.ps1` 他4件 |
-| `projects/tank_run.project.json` | A | 172 | `tools/run_tank_run.ps1` |
 | `rule.png` | D | 40,128 | 文字列一致なし／動的使用は未確定 |
 | `se.png` | D | 802 | 文字列一致なし／動的使用は未確定 |
 | `sea.mtl` | D | 246 | `resources/sea.obj` |
@@ -169,9 +168,12 @@
 | `shaders/ModelParticle.VS.hlsl` | A | 1,240 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/ModelParticle.hlsli` | A | 219 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `resources/shaders/ModelParticle.PS.hlsl` 他1件 |
 | `shaders/MotionVectorResolve.PS.hlsl` | A | 1,452 | `DirectX/engine/commom/DirectXCommon.cpp` |
+| `shaders/NeonSkinned.PS.hlsl` | A | 1,584 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/3d/neon/NeonSkinnedRenderer.cpp` 他1件 |
+| `shaders/NeonSkinned.VS.hlsl` | A | 1,890 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/3d/neon/NeonSkinnedRenderer.cpp` |
+| `shaders/NeonSkinned.hlsli` | A | 217 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `resources/shaders/NeonSkinned.PS.hlsl` 他1件 |
 | `shaders/Object3d.PS.hlsl` | A | 60,683 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` 他2件 |
 | `shaders/Object3d.Scene.PS.hlsl` | A | 60 | `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/Object3d.VS.hlsl` | A | 12,302 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
+| `shaders/Object3d.VS.hlsl` | A | 12,302 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` 他1件 |
 | `shaders/Object3d.hlsli` | A | 464 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `resources/shaders/Object3d.PS.hlsl` 他2件 |
 | `shaders/ObjectPostBloomAdd.PS.hlsl` | A | 1,581 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/ObjectPostComposite.PS.hlsl` | A | 7,533 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
@@ -202,9 +204,9 @@
 | `shaders/SSRDenoise.PS.hlsl` | A | 3,773 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/SSRResolve.PS.hlsl` | A | 5,979 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/Shadow.PS.hlsl` | A | 14 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters` |
-| `shaders/Shadow.VS.hlsl` | A | 423 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/SkinningObject3d.VS.hlsl` | A | 2,242 | `CG2_testPro.vcxproj`, `DirectX/engine/commom/DirectXCommon.cpp` |
-| `shaders/SkinningShadow.VS.hlsl` | A | 1,087 | `CG2_testPro.vcxproj`, `DirectX/engine/commom/DirectXCommon.cpp` |
+| `shaders/Shadow.VS.hlsl` | A | 423 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `DirectX/engine/commom/DirectXCommon.cpp` 他1件 |
+| `shaders/SkinningObject3d.VS.hlsl` | A | 2,242 | `CG2_testPro.vcxproj`, `DirectX/engine/commom/DirectXCommon.cpp`, `tools/neon_skinned_pipeline_tests.cpp` |
+| `shaders/SkinningShadow.VS.hlsl` | A | 1,087 | `CG2_testPro.vcxproj`, `DirectX/engine/commom/DirectXCommon.cpp`, `tools/neon_skinned_pipeline_tests.cpp` |
 | `shaders/Skybox.PS.hlsl` | A | 2,206 | `DirectX/engine/commom/DirectXCommon.cpp`, `resources/shaders/Skybox.Scene.PS.hlsl` |
 | `shaders/Skybox.Scene.PS.hlsl` | A | 58 | `DirectX/engine/commom/DirectXCommon.cpp` |
 | `shaders/Skybox.VS.hlsl` | A | 823 | `DirectX/engine/commom/DirectXCommon.cpp` |

@@ -1,8 +1,10 @@
 # Public 素材・埋め込み情報の監査
 
+> 現存する起動登録・project設定と素材件数は[旧起動口廃止監査](retire-legacy-run-entrypoints-audit.md)を優先してください。2026-10-01にtank_run.project.jsonだけを除去し、共有レベルデータ・音声・モデルを保持しています。
+
 > 2026-09-30の[最終クリーンアップ監査](final-public-cleanup-audit.md)で全追跡ファイルを再確認しました。追加のファイル削除はなく、参照・出典未確定素材とGAME / TANK_RUN・Engineを保持し、試聴用preview.wavだけを実行用配布から除外しています。本書の過去の結果と最新検証を区別してください。
 
-> 素材整理時点の記録です。その後の[Ink Shooter除去](remove-ink-shooter-audit.md)で専用リソース21件、[Naval Prototype除去](remove-naval-prototype-audit.md)で7件、[旧テスト3シーン除去](remove-legacy-test-scenes-audit.md)で4件、[Lab除去](remove-graphics-labs-audit.md)で25件を追加で除去しました。本書の275件・配布294件などは当時の検証値です。[保持素材の確認台帳](public-assets-inventory.md)は除去後の現存218件へ更新しています。
+> 素材整理時点の記録です。その後の[Ink Shooter除去](remove-ink-shooter-audit.md)で専用リソース21件、[Naval Prototype除去](remove-naval-prototype-audit.md)で7件、[旧テスト3シーン除去](remove-legacy-test-scenes-audit.md)で4件、[Lab除去](remove-graphics-labs-audit.md)で25件を追加で除去しました。本書の275件・配布294件などは当時の検証値です。現存ファイル一覧と最新の件数は[保持素材の確認台帳](public-assets-inventory.md)を参照してください。
 
 調査日：2026-09-29。対象は今回の作業開始時の追跡ファイル968件と、その後の追加・変更です。ゲーム本体の機能削除は行わず、素材の読み込み・ビルド・配布・ツールの依存を確認して整理しました。[前回の公開準備記録](public-release-audit.md) に残っていた素材の保留事項は、本書を優先してください。
 

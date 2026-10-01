@@ -1,5 +1,7 @@
 # コア争奪戦（試作）の遊び方
 
+> 過去の設計・制作記録です。2026-10-01に旧GAME / TANK_RUNの外部起動口・専用project・ランチャーをPublic版から除去しました。本文のF10による旧モード起動、run_tank_run.ps1やそのvalidationは当時の記録で、現在のPublic版では起動しません。現行のTITLE→TANK_EXPEDITIONは[README](../README.md)、変更理由は[起動口廃止監査](retire-legacy-run-entrypoints-audit.md)を参照してください。
+
 図形を倒して資材を集め、金色の共有コアをライバルと奪い合いながら戦車を改造する、リアルタイムのアリーナ戦です。ライバルを倒すと勝利します。
 
 ## 起動
