@@ -1,5 +1,7 @@
 # 保持素材の確認台帳
 
+[最終監査](final-public-cleanup-audit.md)でも以下の218件を保持しました。出典分類と今回の用途によるA/B/C/Dは異なります。音声の制作記録preview.wavはリポジトリに保持し、実行用配布からだけ除外します。
+
 2026-09-30、Lab除去後の `project/resources/` 追跡ファイル一覧です。[監査本文](public-assets-audit.md)の分類・根拠・制約と合わせて使用してください。最初の素材整理18件の削除は監査本文、続く専用リソース21件の削除は[Ink Shooter除去記録](remove-ink-shooter-audit.md)、7件の削除は[Naval Prototype除去記録](remove-naval-prototype-audit.md)、旧テスト専用4件の削除は[3シーン除去記録](remove-legacy-test-scenes-audit.md)、Lab専用25件の削除は[Lab除去記録](remove-graphics-labs-audit.md)に記録しています。
 
 **A**：自作設定・コード、または制作記録のある遠征用合成音声。**C**：OFL条件・表示を維持するフォント一式。**D**：制作経緯・出典・素材単体の再配布条件を作者が確認するもの。Dを自作・許諾済みと認定していません。ディレクトリ別の分類は既存の説明と実装に基づき、個々の制作経緯を証明するものではありません。
@@ -25,10 +27,10 @@
 | `audio/tank_expedition/hit.wav` | A | 16,844 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
 | `audio/tank_expedition/kill.wav` | A | 50,924 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
 | `audio/tank_expedition/measurements.json` | A | 3,696 | `resources/audio/tank_expedition/generate_audio.py` |
-| `audio/tank_expedition/music_base.wav` | A | 2,880,044 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
+| `audio/tank_expedition/music_base.wav` | A | 2,880,044 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` 他1件 |
 | `audio/tank_expedition/music_intensity.wav` | A | 2,880,044 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
-| `audio/tank_expedition/preview.wav` | A | 2,880,044 | `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
-| `audio/tank_expedition/shot.wav` | A | 11,564 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
+| `audio/tank_expedition/preview.wav` | A | 2,880,044 | `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json`, `tools/TankSubmissionPackage.ps1` 他1件 |
+| `audio/tank_expedition/shot.wav` | A | 11,564 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` 他1件 |
 | `audio/tank_expedition/upgrade.wav` | A | 65,324 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
 | `audio/tank_expedition/warning.wav` | A | 27,884 | `game/run/TankExpeditionAudio.h`, `resources/audio/tank_expedition/generate_audio.py`, `resources/audio/tank_expedition/measurements.json` |
 | `ball.mtl` | D | 245 | `resources/ball.obj`, `resources/bloomBall.obj` |
@@ -46,7 +48,7 @@
 | `bossHPRed.png` | D | 191 | `game/enemy/actor/Enemy.cpp` |
 | `bullet.mtl` | D | 250 | `resources/bullet.obj`, `resources/enemyBullet.obj`, `resources/playerBullet.obj` |
 | `bullet.obj` | D | 5,185 | `game/player/actor/Bullet.cpp` |
-| `bulletShoot.mp3` | D | 17,553 | `game/scene/Game.cpp`, `tools/test_audio_runtime.ps1` |
+| `bulletShoot.mp3` | D | 17,553 | `game/scene/Game.cpp`, `tools/test_audio_runtime.ps1`, `tools/test_tank_submission_packaging.ps1` |
 | `checkerBoard.png` | D | 1,166 | 文字列一致なし／動的使用は未確定 |
 | `circle.png` | D | 27,583 | `resources/plane.mtl` |
 | `configs/evolutionTree.json` | A | 1,147 | `game/player/actor/Player.h` |
@@ -62,8 +64,8 @@
 | `configs/tankButtonUiStyle.json` | A | 1,453 | `game/ui/TankButtonUI.cpp`, `game/ui/TankButtonUI.h` |
 | `configs/tankExpeditionBalance.json` | A | 3,370 | `CG2_testPro.vcxproj`, `CG2_testPro.vcxproj.filters`, `game/run/TankExpeditionBalance.h` 他1件 |
 | `configs/tutorial.json` | A | 207 | `game/scene/GameScene.h` |
-| `cube.mtl` | D | 264 | `resources/cube.obj` |
-| `cube.obj` | D | 639 | `DirectX/engine/3d/Skybox.cpp`, `game/player/actor/Stage.cpp`, `resources/levels/prefab_dictionary.json` |
+| `cube.mtl` | D | 264 | `resources/cube.obj`, `tools/test_tank_submission_packaging.ps1` |
+| `cube.obj` | D | 639 | `DirectX/engine/3d/Skybox.cpp`, `game/player/actor/Stage.cpp`, `resources/levels/prefab_dictionary.json` 他1件 |
 | `cube.png` | D | 1,594 | `resources/cube.mtl` |
 | `cubeDamage.mtl` | D | 241 | `resources/cubeDamage.obj` |
 | `cubeDamage.obj` | D | 854 | `game/player/actor/Stage.cpp`, `resources/levels/prefab_dictionary.json` |

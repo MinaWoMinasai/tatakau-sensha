@@ -1,0 +1,819 @@
+path	class	reason
+.gitattributes	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+.github/workflows/CheckUnwantedFiles.yml	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+.github/workflows/DebugBuild.yml	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+.github/workflows/DevelopmentBuild.yml	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+.github/workflows/ReleaseBuild.yml	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+.gitignore	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+COPYRIGHT.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+README.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+THIRD_PARTY_NOTICES.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/README.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/audio-runtime-tests.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/credits.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/developer-tools-switch.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/frame-pacing-validation-2026-09-19.md	D	以前の企画・調査・制作記録。制作経緯の価値を保留し削除しない
+docs/images/README.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/public-assets-audit.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/public-assets-inventory.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/public-release-audit.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/public_submission/REPOSITORY_SPLIT_PLAN.md	D	以前の企画・調査・制作記録。制作経緯の価値を保留し削除しない
+docs/remove-graphics-labs-audit.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/remove-ink-shooter-audit.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/remove-legacy-test-scenes-audit.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/remove-naval-prototype-audit.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/startup-performance.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/submission-README.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/submission-package.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/submission-ux.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/tank-action-and-route-guide.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/tank-build-variety-v5.md	D	以前の企画・調査・制作記録。制作経緯の価値を保留し削除しない
+docs/tank-combat-feel-research.md	D	以前の企画・調査・制作記録。制作経緯の価値を保留し削除しない
+docs/tank-expedition-authoring-guide.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/tank-expedition-balance.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/tank-expedition-map-editor.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/tank-expedition-next-direction-and-audio-2026-09-19.md	D	以前の企画・調査・制作記録。制作経緯の価値を保留し削除しない
+docs/tank-expedition-prototype.md	D	以前の企画・調査・制作記録。制作経緯の価値を保留し削除しない
+docs/tank-melee-build-research-2026-09-26.md	D	以前の企画・調査・制作記録。制作経緯の価値を保留し削除しない
+docs/tank-mode-comparison-2026-09-19.md	D	以前の企画・調査・制作記録。制作経緯の価値を保留し削除しない
+docs/tank-performance-monitor.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/tank-polish-2026-09-25.md	D	以前の企画・調査・制作記録。制作経緯の価値を保留し削除しない
+docs/tank-run-prototype.md	D	以前の企画・調査・制作記録。制作経緯の価値を保留し削除しない
+docs/tank-special-builds.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/tank-title-demo.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/third-party/Abseil-LICENSE.txt	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/third-party/DirectXTex-LICENSE.txt	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/third-party/Hedley-CC0-1.0.txt	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/third-party/Konva-LICENSE.txt	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/third-party/README.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/third-party/RapidJSON-LICENSE.txt	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/third-party/nlohmann-json-LICENSE.MIT	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/third-party/stb-LICENSE.txt	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/third-party/zlib-LICENSE.txt	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+docs/ux-detail-polish.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/.editorconfig	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/.gitignore	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/CG2.sln	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/CG2_testPro.vcxproj	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/CG2_testPro.vcxproj.filters	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/2d/GeneratedTextureCache.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/2d/Sprite.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/2d/Sprite.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/2d/SpriteCommon.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/2d/SpriteCommon.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/2d/TextLabel.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/2d/TextLabel.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/2d/TextRenderer.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/2d/TextRenderer.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/2d/TextureManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/2d/TextureManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/Animation.cpp	C	現行ゲーム呼出しなし。独立した汎用Engine実装・公開API・ビルド対象を保持
+project/DirectX/engine/3d/Animation.h	C	現行ゲーム呼出しなし。独立した汎用Engine実装・公開API・ビルド対象を保持
+project/DirectX/engine/3d/Model.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/Model.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/ModelCommon.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/ModelCommon.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/ModelManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/ModelManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/Object3d.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/Object3d.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/Object3dCommon.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/Object3dCommon.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/OceanRenderer.cpp	C	現行ゲーム呼出しなし。独立した汎用Engine実装・公開API・ビルド対象を保持
+project/DirectX/engine/3d/OceanRenderer.h	C	現行ゲーム呼出しなし。独立した汎用Engine実装・公開API・ビルド対象を保持
+project/DirectX/engine/3d/PbrEnvironment.h	C	現行ゲーム呼出しなし。独立した汎用Engine実装・公開API・ビルド対象を保持
+project/DirectX/engine/3d/Skeleton.cpp	C	現行ゲーム呼出しなし。独立した汎用Engine実装・公開API・ビルド対象を保持
+project/DirectX/engine/3d/Skeleton.h	C	現行ゲーム呼出しなし。独立した汎用Engine実装・公開API・ビルド対象を保持
+project/DirectX/engine/3d/SkinCluster.cpp	C	現行ゲーム呼出しなし。独立した汎用Engine実装・公開API・ビルド対象を保持
+project/DirectX/engine/3d/SkinCluster.h	C	現行ゲーム呼出しなし。独立した汎用Engine実装・公開API・ビルド対象を保持
+project/DirectX/engine/3d/Skybox.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/3d/Skybox.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/audio/Audio.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/audio/Audio.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/audio/AudioManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/audio/AudioManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/calc/Calculation.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/calc/Calculation.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/CylinderManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/CylinderManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/DeveloperTools.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/DirectXCommon.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/DirectXCommon.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/FramePacer.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/InputDesc.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/InputDesc.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/LogWrite.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/LogWrite.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/NeonGridRenderer.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/NeonGridRenderer.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/ProceduralFlameRenderer.cpp	C	現行ゲーム呼出しなし。独立した汎用Engine実装・公開API・ビルド対象を保持
+project/DirectX/engine/commom/ProceduralFlameRenderer.h	C	現行ゲーム呼出しなし。独立した汎用Engine実装・公開API・ビルド対象を保持
+project/DirectX/engine/commom/Resource.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/Resource.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/RingManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/RingManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/Root.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/Root.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/RtvManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/RtvManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/RuntimeProfiler.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/RuntimeProfiler.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/ShaderDiskCache.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/ShadowMap.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/ShadowMap.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/SrvManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/SrvManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/StartupTrace.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/Texture.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/Texture.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/TrailInstance.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/TrailInstance.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/TrailManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/TrailManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/TrailStressFixture.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/WinApp.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/commom/WinApp.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/debugCamera/Camera.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/debugCamera/Camera.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/debugCamera/DebugCamera.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/debugCamera/DebugCamera.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/dumpClass/Dump.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/dumpClass/Dump.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/easing/Easing.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/easing/Easing.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/input/Input.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/input/Input.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/particle/EffectSequencer.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/particle/EffectSequencer.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/particle/ParticleManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/particle/ParticleManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/Bloom.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/Bloom.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/BloomConstantBuffer.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/BloomConstantBuffer.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/ObjectPostEffect.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/ObjectPostEffect.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/PostEffect.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/PostEffect.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/RenderTexture.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/RenderTexture.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/Shadow.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/postEffect/Shadow.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/DirectX/engine/struct/Struct.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/BC.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/BC.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/BC4BC5.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/BC6HBC7.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/BCDirectCompute.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/BCDirectCompute.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DDS.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex.inl	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexCompress.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexCompressGPU.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexConvert.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexD3D11.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexD3D12.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexDDS.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexFlipRotate.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexHDR.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexImage.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexMipmaps.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexMisc.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexNormalMaps.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexP.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexPMAlpha.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexResize.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexTGA.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexUtil.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTexWIC.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Desktop_2019.vcxproj	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Desktop_2019.vcxproj.filters	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Desktop_2019_Win10.vcxproj	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Desktop_2019_Win10.vcxproj.filters	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Desktop_2022.vcxproj	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Desktop_2022.vcxproj.filters	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Desktop_2022_Win10.vcxproj	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Desktop_2022_Win10.vcxproj.filters	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_GDK_2019.vcxproj	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_GDK_2019.vcxproj.filters	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_GDK_2022.vcxproj	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_GDK_2022.vcxproj.filters	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Windows10_2019.vcxproj	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Windows10_2019.vcxproj.filters	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Windows10_2022.vcxproj	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/DirectXTex_Windows10_2022.vcxproj.filters	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/BC6HEncode.hlsl	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/BC7Encode.hlsl	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/CompileShaders.cmd	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC6HEncode_EncodeBlockCS.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC6HEncode_EncodeBlockCS_cs40.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC6HEncode_TryModeG10CS.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC6HEncode_TryModeG10CS_cs40.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC6HEncode_TryModeLE10CS.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC6HEncode_TryModeLE10CS_cs40.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC7Encode_EncodeBlockCS.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC7Encode_EncodeBlockCS_cs40.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC7Encode_TryMode02CS.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC7Encode_TryMode02CS_cs40.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC7Encode_TryMode137CS.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC7Encode_TryMode137CS_cs40.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC7Encode_TryMode456CS.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/Shaders/Compiled/BC7Encode_TryMode456CS_cs40.inc	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/d3dx12.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/filters.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/DirectXTex/scoped.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/LICENSE.txt	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/README.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/.editorconfig	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/AssertHandler.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Base64.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/BaseImporter.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Bitmap.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/BlobIOSystem.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/ByteSwapper.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/ColladaMetaData.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Compiler/poppack1.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Compiler/pstdint.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Compiler/pushpack1.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/CreateAnimMesh.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/DefaultIOStream.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/DefaultIOSystem.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/DefaultLogger.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Exceptional.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Exporter.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/GenericProperty.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/GltfMaterial.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Hash.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/IOStream.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/IOStreamBuffer.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/IOSystem.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Importer.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/LineSplitter.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/LogAux.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/LogStream.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Logger.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/MathFunctions.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/MemoryIOWrapper.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/NullLogger.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/ObjMaterial.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/ParsingUtils.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Profiler.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/ProgressHandler.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/RemoveComments.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/SGSpatialSort.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/SceneCombiner.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/SkeletonMeshBuilder.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/SmallVector.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/SmoothingGroups.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/SmoothingGroups.inl	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/SpatialSort.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/StandardShapes.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/StreamReader.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/StreamWriter.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/StringComparison.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/StringUtils.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Subdivision.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/TinyFormatter.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/Vertex.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/XMLTools.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/XmlParser.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/ZipArchiveIOSystem.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/aabb.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/ai_assert.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/anim.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/camera.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/cexport.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/cfileio.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/cimport.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/color4.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/color4.inl	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/commonMetaData.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/config.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/config.h.in	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/defs.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/fast_atof.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/importerdesc.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/light.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/material.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/material.inl	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/matrix3x3.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/matrix3x3.inl	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/matrix4x4.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/matrix4x4.inl	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/mesh.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/metadata.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/module.modulemap	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/pbrmaterial.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/port/AndroidJNI/AndroidJNIIOSystem.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/port/AndroidJNI/BundledAssetIOSystem.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/postprocess.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/qnan.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/quaternion.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/quaternion.inl	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/revision.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/revision.h.in	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/scene.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/texture.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/types.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/vector2.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/vector2.inl	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/vector3.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/vector3.inl	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/assimp/include/assimp/version.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/LICENSE.txt	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imconfig.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imgui.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imgui.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imgui_demo.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imgui_draw.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imgui_impl_dx12.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imgui_impl_dx12.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imgui_impl_win32.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imgui_impl_win32.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imgui_internal.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imgui_tables.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imgui_widgets.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imstb_rectpack.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imstb_textedit.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/imgui/imstb_truetype.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/adl_serializer.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/byte_container_with_subtype.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/abi_macros.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/conversions/from_json.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/conversions/to_chars.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/conversions/to_json.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/exceptions.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/hash.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/input/binary_reader.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/input/input_adapters.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/input/json_sax.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/input/lexer.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/input/parser.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/input/position_t.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/iterators/internal_iterator.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/iterators/iter_impl.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/iterators/iteration_proxy.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/iterators/iterator_traits.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/iterators/json_reverse_iterator.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/iterators/primitive_iterator.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/json_custom_base_class.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/json_pointer.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/json_ref.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/macro_scope.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/macro_unscope.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/meta/call_std/begin.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/meta/call_std/end.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/meta/cpp_future.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/meta/detected.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/meta/identity_tag.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/meta/is_sax.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/meta/std_fs.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/meta/type_traits.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/meta/void_t.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/output/binary_writer.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/output/output_adapters.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/output/serializer.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/string_concat.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/string_escape.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/string_utils.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/detail/value_t.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/json.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/json_fwd.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/ordered_map.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/thirdparty/hedley/hedley.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/externals/nlohmann/thirdparty/hedley/hedley_undef.hpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/collision/Collider.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/collision/Collider.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/collision/CollisionConfig.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/collision/CollisionConfig.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/collision/CollisionManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/collision/CollisionManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/editor/ExpeditionContentEditor.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/editor/ExpeditionContentEditor.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/editor/ExpeditionMapEditor.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/editor/ExpeditionMapEditor.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/editor/ExpeditionRoomEditor.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/editor/ExpeditionRoomEditor.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/effects/ScreenEffectDirector.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/effects/ScreenEffectDirector.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/effects/TankSpecialNeonGeometry.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/actor/Enemy.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/actor/Enemy.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/actor/PrototypeBossCombat.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/actor/RivalBossCombat.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/ApproachState.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/ApproachState.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/BaseEnemyState.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/BaseEnemyState.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/FallState.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/FallState.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/LeaveState.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/LeaveState.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/SniperState.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/SniperState.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/TimeCall.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/TimeCall.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/WaveState.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/enemy/state/WaveState.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/exp/EnemyManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/exp/EnemyManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/exp/ExpEnemy.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/exp/ExpEnemy.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/exp/ExpEnemyCombatCycle.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/exp/ExpEnemyMagazineCycle.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/exp/ExpEnemyNavigation.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/exp/ExpGuardCombat.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/level/LevelLoader.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/level/LevelLoader.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/mapchip/MapChip.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/mapchip/MapChip.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/modules/BuiltInGameModule.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/modules/BuiltInGameModule.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/modules/GameModuleBootstrap.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/modules/GameModuleBootstrap.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/TankCombatStyleBalance.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/TankExpeditionLoadout.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/TankRunModifiers.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/TankShooterAbilities.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/TankSpecialCombat.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/AttackController.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/AttackController.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/Bullet.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/Bullet.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/BulletManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/BulletManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/Player.SpecialAbilities.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/Player.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/Player.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/PlayerDrone.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/PlayerDrone.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/Stage.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/player/actor/Stage.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankBuildStyle.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankExpeditionAudio.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankExpeditionBalance.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankExpeditionContent.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankExpeditionDirector.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankExpeditionEncounters.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankExpeditionMap.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankExpeditionRooms.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankExpeditionTransition.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankExpeditionTutorial.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankGuidedCombatTutorial.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankRunCopy.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankRunDirector.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankSubmissionValidation.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/run/TankTutorialCopy.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/runtime/GameModuleRegistry.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/runtime/GameModuleRegistry.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/runtime/GameProject.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/runtime/GameProject.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/runtime/IGameModule.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/runtime/SceneRegistry.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/runtime/SceneRegistry.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/AbstractSceneFactory.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/Fade.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/Fade.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/Game.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/Game.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.Authoring.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.Balance.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.CombatValidation.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.ExpeditionBuild.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.ExpeditionExperience.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.ExpeditionMap.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.ExperienceValidation.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.SpecialValidation.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.TankExpedition.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.TankRun.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.TankRunVisuals.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.TitleDemo.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameScene.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/GameStartMode.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/IScene.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/SceneFactory.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/SceneFactory.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/SceneManager.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/SceneManager.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/TitleScene.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/scene/TitleScene.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/NeonProgressBar.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/NeonProgressBar.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/NeonSegmentedBar.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/NeonSegmentedBar.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/NeonTextEffect.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/NeonTextEffect.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/TankButtonUI.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/TankButtonUI.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/TankCombatNeonGeometry.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/TankRewardCard.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/TankRewardCard.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/TankRewardCardDemo.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/TankRewardPreviewRenderer.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/ui/TankRewardPreviewRenderer.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/game/weapon/WeaponMount.h	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/main.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/resources/BossHP.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/Enemy.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/HPBarCurrent.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/Player.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/PlayerBullet.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/UnderwaterCaustics.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/audio/tank_expedition/README.md	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/armor_break.wav	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/dash.wav	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/generate_audio.py	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/hit.wav	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/kill.wav	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/measurements.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/music_base.wav	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/music_intensity.wav	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/preview.wav	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/shot.wav	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/upgrade.wav	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/audio/tank_expedition/warning.wav	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/ball.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/ball.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/block.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/block.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/block.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/bloomBall.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/bloomBall.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/bloomBall.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/bloomBlock.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/bloomBlock.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/bossHPGreen.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/bossHPGreen1.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/bossHPRed.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/bullet.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/bullet.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/bulletShoot.mp3	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/checkerBoard.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/circle.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/configs/evolutionTree.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/evolutionUiStyle.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/expedition_content.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/expedition_map.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/gamePostEffects.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/gameText.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/gameVisuals.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/playerClasses.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/playerUpgradeHud.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/screenEffects.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/tankButtonUiStyle.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/tankExpeditionBalance.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/configs/tutorial.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/cube.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/cube.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/cube.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/cubeDamage.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/cubeDamage.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/cubeDamage.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/dashGide.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/deathParticle.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/drone.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/effects/hit_spark.json	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/enemy.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/enemy.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/enemy3D.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/enemy3D.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/enemyBullet.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/enemyBullet.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/enemyParticle.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/enemyParticle.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/enemyParticle.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/expBlock.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/expBlock.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/expEnemy.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/expEnemy.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/expPentagon.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/expPentagon.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/expTriangle.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/expTriangle.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/fade.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/fonts/ZenMaruGothic-Bold.ttf	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/fonts/ZenMaruGothic-OFL.txt	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/gradation.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/gradationLine.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/ground.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/ground.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/gunBarrel.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/gunBarrel.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/hpBarFillMask.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/hpBarFrame.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/hpBarMask.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/hpBarOutlineMask.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/jewelry.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/jewelry.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/ka.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/levels/ai_balance_handoff.md	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/levels/ai_edit_prompt_template.md	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/levels/level_test.json	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/levels/prefab_dictionary.json	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/levels/tank_dictionary.json	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/levels/tank_run.json	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/light.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/light.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/machineGun.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/map.csv	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/maps/README.md	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/maps/expedition_crossfire.csv	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/maps/expedition_final_duel.csv	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/maps/expedition_hazard_lane.csv	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/maps/expedition_layouts.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/maps/expedition_outskirts.csv	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/maps/expedition_resource_fork.csv	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/maps/expedition_rooms.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/monsterBall.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/neonTriangleParticle.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/neonTriangleParticle.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/nn.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/normalTank.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/plane.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/plane.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/player.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/player.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/player3D.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/player3D.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerBullet.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerBullet.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerHPBar.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerHPBar.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerHPBarGreen.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerHPBarGreen.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerHPBarGreenLong.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerHPBarGreenLong.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerHPBarLong.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerHPBarLong.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerParticle.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerParticle.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/playerParticle.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/projects/default.project.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/projects/tank_expedition.project.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/projects/tank_game.project.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/projects/tank_run.project.json	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/rule.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/se.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/sea.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/sea.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/shaders/BloomBlurH.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/BloomBlurV.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/BloomDownsample.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/BloomExtract.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Composite.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/FullScreen.VS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/GaussianFilter.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ModelParticle.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ModelParticle.Scene.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ModelParticle.VS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ModelParticle.hlsli	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/MotionVectorResolve.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Object3d.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Object3d.Scene.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Object3d.VS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Object3d.hlsli	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ObjectPostBloomAdd.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ObjectPostComposite.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ObjectPostOutlineAdd.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Ocean.PS.hlsl	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/Ocean.VS.hlsl	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/OceanCommon.hlsli	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/OceanFFT.CS.hlsl	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/OceanFFTCommon.hlsli	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/OceanFFTOutput.CS.hlsl	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/OceanSpectrumEvolve.CS.hlsl	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/OceanSpectrumInitialize.CS.hlsl	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/Particle.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Particle.VS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Particle.hlsli	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ParticleCompute.hlsli	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ParticleEmit.CS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ParticleEmitBatch.CS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ParticleInitialize.CS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ParticleUpdate.CS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/PbrLighting.hlsli	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/PostEffectCommon.hlsli	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/ProceduralFlame.PS.hlsl	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/ProceduralFlame.VS.hlsl	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/Random.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/SSAODenoise.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/SSAOResolve.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/SSRDenoise.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/SSRResolve.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Shadow.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Shadow.VS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/SkinningObject3d.VS.hlsl	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/SkinningShadow.VS.hlsl	C	Tankでの描画呼出しは未確認。独立したEngine経路・PSO・shaderを保持
+project/resources/shaders/Skybox.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Skybox.Scene.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Skybox.VS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/TemporalResolve.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Trail.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Trail.Scene.PS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Trail.VS.hlsl	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/Trail.hlsli	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/shaders/materials/CrystalMaterial.hlsli	A	設定・合成音声制作記録・フォントとOFL・Engine shaderとして保持
+project/resources/si.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/start.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/ta.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/testBox.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/testBox.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/toRule.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/toTitle.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/triangleParticle.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/triangleParticle.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/twin.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/u.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/ui/salvage_orb.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/uvChecker.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/wasd.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/weapon.mtl	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/weapon.obj	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/white512x512.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/resources/ya.png	D	用途候補と出典を区別。出典・制作記録または動的利用の確認を作者に保留
+project/tools/TankSubmissionPackage.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/audio_runtime_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/blender/README.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/blender/export_level_test.py	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/blender/import_level_test.py	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/bootstrap_dependencies.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/build_assimp_vs2026.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/compare_retarget_rotations.py	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/find_animation_phase_offset.py	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/frame_pacer_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/generated_texture_cache_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/inspect_retarget_pose.py	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/inspect_root_rotation.py	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/inspect_vrm_materials.py	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/level_aiditor/README.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/level_aiditor/level_aiditor.py	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/list_finger_bones.py	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/measure_startup.cmd	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/measure_startup.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/measure_tank_performance.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/package_tank_submission.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/player_ship_editor/README.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/player_ship_editor/README_mobile.md	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/player_ship_editor/app.js	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/player_ship_editor/index.html	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/player_ship_editor/styles.css	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/player_ship_editor/vendor/konva.min.js	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/prepare_tank_submission_text.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/prototype_boss_combat_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/render_animation_preview.py	C	入力を明示指定する汎用制作ツール。現在の同梱モデルなしでも保持
+project/tools/retarget_mixamo_to_vroid.py	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/rival_boss_combat_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/run_tank_expedition.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/run_tank_run.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/shader_disk_cache_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/startup_trace_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_additional_abilities_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_collision_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_enemy_combat_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_expedition_balance_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_expedition_content_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_expedition_loadout_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_expedition_map_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_expedition_rooms_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_expedition_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_expedition_tutorial_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_guard_integration_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_presentation_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_projectile_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_reward_card_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_run_modifier_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_run_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/tank_trail_tests.cpp	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_audio_runtime.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_developer_tools_profile.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_frame_pacer.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_generated_texture_cache.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_rival_boss_combat.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_shader_disk_cache.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_startup_trace.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_additional_abilities.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_collisions.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_combat_runtime.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_enemy_combat.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_expedition.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_expedition_content.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_expedition_map.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_expedition_map_runtime.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_expedition_rooms.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_expedition_tutorial.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_experience_runtime.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_presentation.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_projectiles.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_reward_cards.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_reward_pool.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_run.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_special_runtime.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_submission.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_submission_packaging.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_submission_runtime.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_trails.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_tank_tutorial_runtime.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/test_title_demo.ps1	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
+project/tools/validate_animated_glb.py	A	現行ソース・ビルド・開発ツール・公開説明または第三者表示として保持
