@@ -705,6 +705,19 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\exp\ExpGuardCombat.h" />
     <ClInclude Include="game\player\TankCombatStyleBalance.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.cpp" />
+    <ClInclude Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.h" />
+    <None Include="resources\shaders\NeonSkinned.hlsli" />
+    <FxCompile Include="resources\shaders\NeonSkinned.VS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinned.PS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
+  </ItemGroup>
   <Target Name="ValidateDeveloperToolsSetting" BeforeTargets="ClCompile">
     <Error Condition="'$(CG2DeveloperTools)'!='true' and '$(CG2DeveloperTools)'!='false'" Text="CG2DeveloperTools must be true or false." />
   </Target>
