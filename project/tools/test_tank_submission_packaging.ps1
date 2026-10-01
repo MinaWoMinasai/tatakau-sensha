@@ -37,6 +37,9 @@ Write-Fixture 'project/resources/shaders/main.hlsl'
 Write-Fixture 'project/resources/models/tank.obj'
 $sharedTankAssets = @('player3D.obj', 'player3D.mtl', 'ground.obj', 'ground.mtl', 'cube.obj', 'cube.mtl', 'white512x512.png')
 foreach ($name in $sharedTankAssets) { Write-Fixture "project/resources/$name" 'Shared Tank runtime asset' }
+$runtimeAudio = @('audio/tank_expedition/shot.wav', 'audio/tank_expedition/music_base.wav', 'bulletShoot.mp3')
+foreach ($name in $runtimeAudio) { Write-Fixture "project/resources/$name" 'Shared runtime audio' }
+Write-Fixture 'project/resources/audio/tank_expedition/preview.wav' 'Listening preview for source documentation'
 $retiredAssets = @('Player_Mixamo.fbx', 'BGM_shining_star.mp3', 'models/player/testModel.glb',
     'models/player/animations/Idle.fbx', 'archives/source.zip', 'archives/source.7z', 'archives/source.rar') + @(Get-TankSubmissionRetiredLabResourcePaths)
 foreach ($name in $retiredAssets) { Write-Fixture "project/resources/$name" 'Private local input' }
@@ -61,6 +64,12 @@ Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/ta
 foreach ($name in $sharedTankAssets) {
     Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput "resources/$name")) "Runtime asset was incorrectly excluded: $name"
 }
+foreach ($name in $runtimeAudio) {
+    Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput "resources/$name")) "Runtime audio was incorrectly excluded: $name"
+}
+Assert-True (!(Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/audio/tank_expedition/preview.wav'))) 'Listening preview was copied into the runtime package.'
+Assert-True (Test-TankSubmissionExcludedPath 'resources/audio/tank_expedition/preview.wav') 'Package verification permits the listening preview.'
+Assert-True (Test-TankSubmissionExcludedPath 'audio/tank_expedition/preview.wav') 'Source copy permits the listening preview.'
 foreach ($name in $retiredAssets) {
     Assert-True (!(Test-Path -LiteralPath (Join-Path $cleanOutput "resources/$name"))) "Retired/local asset was copied: $name"
     Assert-True (Test-TankSubmissionExcludedPath "resources/$name") "Package verification permits a retired/local asset: $name"
