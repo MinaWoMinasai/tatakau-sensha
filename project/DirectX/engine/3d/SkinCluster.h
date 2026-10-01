@@ -3,6 +3,7 @@
 #include "Skeleton.h"
 #include "Struct.h"
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -89,6 +90,21 @@ public:
 		float blendFactor);
 	void Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses = {});
 	void DrawShadow();
+
+	// Initialize時のDirectXCommonのCommand Listへ記録する低レベル描画API。
+	// Root Signature / PSO / Material / Texture / Topology / Descriptor Heapは変更しない。
+	// 呼び出し側で互換性のある描画設定を行い、モデルをGPU実行完了まで保持すること。
+	// Slot 0: VertexData、Slot 1: VertexInfluence、Index: R32_UINT。
+	void BindGeometry() const;
+	// SrvManagerの共通Heapを事前にBindし、指定Root Parameterに単一SRVの
+	// Descriptor Tableを用意すること。先頭にSkinningPaletteEntryのStructuredBufferを設定する。
+	void BindSkinningPalette(uint32_t rootParameterIndex) const;
+	size_t GetSubmeshCount() const { return asset_.submeshes.size(); }
+	// 範囲外のindexはstd::out_of_range。返す参照はモデルの再Initializeまで有効。
+	const SkinningModelAsset::Submesh& GetSubmesh(size_t index) const { return asset_.submeshes.at(index); }
+	// Geometry / Paletteと各パスの設定をBind済みであること。範囲外はstd::out_of_range。
+	void DrawSubmesh(size_t index) const;
+
 	bool SetAnimation(const std::string& name, bool restart = true);
 	bool SetAnimation(size_t index, bool restart = true);
 	bool TransitionToAnimation(
