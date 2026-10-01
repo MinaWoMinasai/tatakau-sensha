@@ -80,6 +80,8 @@ function Test-TankSubmissionExcludedPath([string]$RelativePath, [bool]$AllowPrep
     # Private source assets may still exist locally; never copy them back into a public package.
     # Accept both a resources-relative source path and a package-relative destination path.
     $resourcePath = $path -replace '^resources/', ''
+    # The documented listening preview belongs in the source archive, not the runtime package.
+    if ($resourcePath -eq 'audio/tank_expedition/preview.wav') { return $true }
     if ($resourcePath -in (Get-TankSubmissionRetiredLabResourcePaths)) { return $true }
     if ($resourcePath -match '^(Player_Mixamo\.fbx|BGM_shining_star\.mp3|models/player/testModel\.glb)$' -or
         $resourcePath -match '^models/player/animations/[^/]+\.fbx$') { return $true }

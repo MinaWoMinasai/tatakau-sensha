@@ -54,3 +54,5 @@ Assimp の `include/assimp/fast_atof.h` には Nikolaus Gebhardt、Irrlicht / ir
 この同梱処理やパッケージテストの成功は、未確認素材の権利処理が完了したことを意味しません。現在残る素材と作者の確認事項、除外した未使用素材の記録は [素材・埋め込み情報の監査](docs/public-assets-audit.md) に記載しています。
 
 その後の専用シーン除去に伴う現在の収録範囲は [保持素材の確認台帳](docs/public-assets-inventory.md)、[Ink Shooter除去記録](docs/remove-ink-shooter-audit.md)、[Naval Prototype除去記録](docs/remove-naval-prototype-audit.md)、[旧テスト3シーン除去記録](docs/remove-legacy-test-scenes-audit.md)を参照してください。assimp_test.gltfの1件とmodels/simpleSkin内の3件は専用シーンと一緒に除去済みです。続く[Lab除去記録](docs/remove-graphics-labs-audit.md)で、Lab専用のアニメーション付きGLB・humanモデル・PBR見本・地形・Caustics Atlasも除去しました。これらは現在の同梱対象ではありません。用途未確定のUnderwaterCaustics.pngとその他の保持素材の出典確認は残ります。共用ライブラリ・フォントと上記の既存ライセンス本文は引き続き保持しています。
+
+2026-09-30の[最終監査](docs/final-public-cleanup-audit.md)でも同梱素材218件と既存の第三者表示を保持しました。bulletShootは共通ロードとGAME / TANK_RUNの再生経路が残るため保持し、出典・素材単体の再配布条件は未確認です。試聴専用preview.wavはリポジトリに保持し、実行用配布からだけ除外します。
