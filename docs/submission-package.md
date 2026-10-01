@@ -1,5 +1,7 @@
 # 提出用Releaseの作成
 
+旧GAME / TANK_RUNの外部登録と専用起動設定を除去しました。配布projectはdefault / tank_game / tank_expeditionの3件です。旧tank_run.project.jsonの再混入を拒否し、共有levels/tank_run.jsonは保持します。[起動口廃止監査](retire-legacy-run-entrypoints-audit.md)を参照してください。
+
 最終整理では試聴専用の`resources/audio/tank_expedition/preview.wav`を実行用配布から除外します。ソースの制作・試聴記録は保持し、遠征の実行用WAVとbulletShoot.mp3は引き続き同梱します。[最終監査と検証](final-public-cleanup-audit.md)を参照してください。
 
 Releaseビルド後に、リポジトリのルートから実行します。開発機能は標準でOFFです。制作時に変更した場合は `/p:CG2DeveloperTools=false` で再ビルドしてください。[切り替え方法](developer-tools-switch.md)

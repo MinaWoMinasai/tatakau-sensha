@@ -176,7 +176,7 @@ void TitleScene::UpdateMenuVisuals(){
     }
 }
 bool TitleScene::IsSceneAvailable(std::string_view name)const{return SceneManager::GetInstance()->ContainsScene(name);}
-bool TitleScene::IsMenuAvailable(int selection)const{return selection==0?IsSceneAvailable("TANK_EXPEDITION"):IsSceneAvailable("GAME");}
+bool TitleScene::IsMenuAvailable(int selection)const{return selection==0&&IsSceneAvailable("TANK_EXPEDITION");}
 int TitleScene::HitTestMenu(const Vector2& mouse)const{
     for(int i=0;i<1;++i)if(IsMenuAvailable(i)){
         auto* sprite=menu_[i]->GetSprite();const auto center=sprite->GetPosition(),size=sprite->GetSize();
