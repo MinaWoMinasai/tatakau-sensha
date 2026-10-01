@@ -1,6 +1,9 @@
 #pragma once
 #include "DeveloperTools.h"
 #define NOMINMAX
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#include "game/debug/NeonSkinnedPreview.h"
+#endif
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -661,6 +664,10 @@ private:
 
 	std::unique_ptr<DebugCamera> debugCamera;
 	std::unique_ptr<Camera> camera;
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+	std::unique_ptr<NeonSkinnedPreview> neonSkinnedPreview_;
+	bool selectNeonSkinnedPreviewTab_ = false;
+#endif
 	
 	//std::unique_ptr<Object3d> object3d;
 	std::unique_ptr<Object3d> enemyObject_;

@@ -35,6 +35,9 @@ foreach ($name in @('expedition_content', 'tankExpeditionBalance', 'expedition_m
 Write-Fixture 'project/resources/shaders/common.hlsli'
 Write-Fixture 'project/resources/shaders/main.hlsl'
 Write-Fixture 'project/resources/models/tank.obj'
+Write-Fixture 'project/resources/models/neon_hologram/AvatarSample_B.glb' 'Developer preview model'
+Write-Fixture 'project/resources/models/neon_hologram/shipped_neighbor.glb' 'Unrelated runtime model'
+Write-Fixture 'project/resources/models/neon_hologram/README.md' 'Model attribution'
 $sharedTankAssets = @('player3D.obj', 'player3D.mtl', 'ground.obj', 'ground.mtl', 'cube.obj', 'cube.mtl', 'white512x512.png', 'levels/tank_run.json')
 foreach ($name in $sharedTankAssets) { Write-Fixture "project/resources/$name" 'Shared Tank runtime asset' }
 $runtimeAudio = @('audio/tank_expedition/shot.wav', 'audio/tank_expedition/music_base.wav', 'bulletShoot.mp3')
@@ -62,6 +65,11 @@ $cleanOutput = Join-Path $tankPackageTestRoot 'clean'
 $result = New-TankSubmissionPackage $tankPackageFixture $cleanOutput
 Assert-True ($result.TutorialState -eq 'fresh') 'Missing progress file must produce a fresh package.'
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/tank.obj')) 'Runtime model .obj was incorrectly excluded.'
+Assert-True (!(Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/neon_hologram/AvatarSample_B.glb'))) 'Developer avatar was copied into Release.'
+Assert-True (Test-TankSubmissionExcludedPath 'resources/models/neon_hologram/AvatarSample_B.glb') 'Package verification permits the Developer avatar.'
+Assert-True (Test-TankSubmissionExcludedPath 'models/neon_hologram/AvatarSample_B.glb') 'Source copy permits the Developer avatar.'
+Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/neon_hologram/shipped_neighbor.glb')) 'Avatar exclusion affected a different model.'
+Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/neon_hologram/README.md')) 'Avatar attribution was incorrectly excluded.'
 foreach ($name in $sharedTankAssets) {
     Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput "resources/$name")) "Runtime asset was incorrectly excluded: $name"
 }
@@ -119,6 +127,10 @@ $extraOutput = Join-Path $tankPackageTestRoot 'with_extra'
 New-TankSubmissionPackage $tankPackageFixture $extraOutput | Out-Null
 Set-Content -LiteralPath (Join-Path $extraOutput 'personal.json') -Value '{}'
 Assert-Throws { Assert-TankSubmissionPackage $extraOutput } 'Unlisted file was accepted.'
+$avatarOutput = Join-Path $tankPackageTestRoot 'with_developer_avatar'
+New-TankSubmissionPackage $tankPackageFixture $avatarOutput | Out-Null
+Copy-Item -LiteralPath (Join-Path $tankPackageFixture 'project/resources/models/neon_hologram/AvatarSample_B.glb') -Destination (Join-Path $avatarOutput 'resources/models/neon_hologram/AvatarSample_B.glb')
+Assert-Throws { Assert-TankSubmissionPackage $avatarOutput } 'Injected Developer avatar was accepted.'
 
 # Only an explicitly prepared, flat PNG directory may bypass the generated exclusion.
 $preparedDirectory = Join-Path $tankPackageTestRoot 'prepared_text'
