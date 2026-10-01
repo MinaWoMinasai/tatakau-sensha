@@ -30,6 +30,7 @@ nlohmann::json ReadGlbMetadata() {
 void NeonSkinnedPreview::Initialize(Camera* camera, DebugCamera* debugCamera) {
 	camera_ = camera;
 	debugCamera_ = debugCamera;
+	params_.internalLineEnabled = 1;
 }
 
 void NeonSkinnedPreview::Load() {
@@ -42,13 +43,24 @@ void NeonSkinnedPreview::Load() {
 		for (const auto& mesh : metadata.at("meshes")) {
 			for (const auto& primitive : mesh.at("primitives")) {
 				const auto& material = metadata.at("materials").at(primitive.at("material").get<size_t>());
+				const std::string alphaMode = material.value("alphaMode", "OPAQUE");
 				sourceMaterials_.push_back({ mesh.value("name", "unnamed"),
-					material.value("name", "unnamed"), material.value("alphaMode", "OPAQUE") });
+					material.value("name", "unnamed"), alphaMode,
+					alphaMode == "MASK" ? material.value("alphaCutoff", 0.5f) : alphaMode == "BLEND" ? 0.03f : 0.0f });
 			}
 		}
 		auto* common = Object3dCommon::GetInstance();
 		model_ = std::make_unique<SkinnedModel>();
 		model_->Initialize(common->GetDxCommon(), common->GetSrvManager(), kPreviewModelPath);
+		submeshParams_.assign(model_->GetSubmeshCount(), NeonSkinnedSubmeshParams{});
+		for (size_t index = 0; index < model_->GetSubmeshCount(); ++index) {
+			for (const auto& source : sourceMaterials_) {
+				if (source.materialName == model_->GetSubmesh(index).materialName) {
+					submeshParams_[index].alphaCutoff = source.alphaCutoff;
+					break;
+				}
+			}
+		}
 		object_ = std::make_unique<Object3d>();
 		object_->Initialize();
 		object_->SetCamera(camera_);
@@ -79,7 +91,7 @@ void NeonSkinnedPreview::PlaceInFrontOfCamera() {
 	const Vector3 forward{ world.m[2][0], world.m[2][1], world.m[2][2] };
 	const Vector3 up{ world.m[1][0], world.m[1][1], world.m[1][2] };
 	// 足元原点の約1.6mのモデルを画面中央へ置く。ゲーム側のCameraには変更を加えない。
-	transform_.translate = GetCameraPosition() + forward * 25.0f - up * (0.8f * transform_.scale.y);
+	transform_.translate = GetCameraPosition() + forward * 35.0f - up * (0.8f * transform_.scale.y);
 }
 
 void NeonSkinnedPreview::Update(float deltaTime) {
@@ -92,6 +104,9 @@ void NeonSkinnedPreview::Update(float deltaTime) {
 	object_->SetTransform(transform_);
 	object_->Update(); // World/WVP・Camera CBVは既存Object3dで一度だけ更新する。
 	renderer_.SetParams(params_);
+	auto surfaces = submeshParams_;
+	if (!alphaCutoutEnabled_) for (auto& surface : surfaces) surface.alphaCutoff = 0.0f;
+	renderer_.SetSubmeshParams(surfaces);
 }
 
 void NeonSkinnedPreview::Draw() {
@@ -121,26 +136,36 @@ void NeonSkinnedPreview::DrawImGui() {
 	ImGui::DragFloat3("Rotation (radians)", &transform_.rotate.x, 0.01f);
 	ImGui::DragFloat3("Scale", &transform_.scale.x, 0.05f, 0.01f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 	if (ImGui::Button("Place in front of camera")) PlaceInFrontOfCamera();
-	if (ImGui::Button("Reset: dark body + pink outline")) params_ = NeonSkinnedParams{};
+	if (ImGui::Button("Reset: dark body + neon lines")) {
+		params_ = NeonSkinnedParams{};
+		params_.internalLineEnabled = 1;
+	}
 	ImGui::ColorEdit3("bodyColor", &params_.bodyColor.x);
 	bool outlineEnabled = params_.outlineEnabled != 0;
 	if (ImGui::Checkbox("Outline Enable", &outlineEnabled)) params_.outlineEnabled = outlineEnabled ? 1u : 0u;
 	ImGui::DragFloat("Outline width (pixels)", &params_.outlineWidthPixels, 0.05f, 0.0f, 8.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 	ImGui::ColorEdit3("Neon line color", &params_.emissiveColor.x);
 	ImGui::DragFloat("Neon line intensity (HDR)", &params_.emissiveIntensity, 0.05f, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+	bool internalEnabled = params_.internalLineEnabled != 0;
+	if (ImGui::Checkbox("Internal Line Enable", &internalEnabled)) params_.internalLineEnabled = internalEnabled ? 1u : 0u;
+	ImGui::DragFloat("Internal width (pixels)", &params_.internalLineWidthPixels, 0.05f, 0.0f, 4.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+	ImGui::DragFloat("Internal intensity (HDR)", &params_.internalLineIntensity, 0.05f, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+	ImGui::DragFloat("Internal edge threshold", &params_.internalLineThreshold, 0.005f, 0.001f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+	ImGui::Checkbox("Texture alpha cutout", &alphaCutoutEnabled_);
 	if (ImGui::TreeNode("Optional body rim")) {
 		ImGui::DragFloat("rimStrength", &params_.rimStrength, 0.02f, 0.0f, 2.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 		ImGui::DragFloat("rimPower", &params_.rimPower, 0.05f, 0.05f, 20.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 		ImGui::TreePop();
 	}
-	ImGui::TextWrapped("Neon is an opaque preview. VRM/MToon alpha, morph targets and spring bones are not rendered.");
+	ImGui::TextWrapped("Neon supports alpha cutout. BLEND is approximated by cutout; MToon, morph targets and spring bones are not rendered.");
 	if (!ready_) return;
-	ImGui::TextWrapped("Outline draws the exterior silhouette. Hair strands, eyes and mouth lines need a later feature-line pass.");
+	ImGui::TextWrapped("Internal lines follow the existing texture details of hair, eyes, mouth and clothes. Higher threshold removes faint shading edges.");
 	ImGui::Text("Submeshes: %zu / Joints: %zu / Weight assignments: %u", model_->GetSubmeshCount(),
 		model_->GetSkeleton().joints.size(), model_->GetSkinCluster().GetAssignedInfluenceCount());
 	ImGui::Text("Source animations: %zu / Current: %s", sourceAnimationCount_, model_->GetAnimation().name.c_str());
 	if (ImGui::TreeNode("Submesh / Material diagnostics")) {
 		for (size_t i = 0; i < model_->GetSubmeshCount(); ++i) {
+			ImGui::PushID(static_cast<int>(i));
 			const auto& submesh = model_->GetSubmesh(i);
 			const SourceMaterial* source = nullptr;
 			for (const auto& candidate : sourceMaterials_) {
@@ -149,6 +174,9 @@ void NeonSkinnedPreview::DrawImGui() {
 			ImGui::Text("[%zu] %s", i, source ? source->meshName.c_str() : "Unknown mesh");
 			ImGui::TextWrapped("%s / alpha=%s / doubleSided=%s", submesh.materialName.c_str(),
 				source ? source->alphaMode.c_str() : "Unknown", submesh.doubleSided ? "true" : "false");
+			ImGui::DragFloat("Line strength", &submeshParams_[i].lineStrength, 0.02f, 0.0f, 2.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::DragFloat("Alpha cutoff", &submeshParams_[i].alphaCutoff, 0.01f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::PopID();
 		}
 		ImGui::TreePop();
 	}

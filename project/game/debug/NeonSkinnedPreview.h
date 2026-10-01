@@ -28,6 +28,7 @@ private:
 		std::string meshName;
 		std::string materialName;
 		std::string alphaMode;
+		float alphaCutoff = 0.0f;
 	};
 	void Load();
 	void PlaceInFrontOfCamera();
@@ -38,12 +39,14 @@ private:
 	bool enabled_ = false;
 	bool neonMode_ = true;
 	bool ready_ = false;
-	Transform transform_{ { 8.0f, 8.0f, 8.0f }, { 0.0f, 3.14159265f, 0.0f }, {} };
+	bool alphaCutoutEnabled_ = true;
+	Transform transform_{ { 8.0f, 8.0f, 8.0f }, {}, {} }; // 正面から顔の内部線を比較する。
 	NeonSkinnedParams params_;
 	std::unique_ptr<SkinnedModel> model_;
 	std::unique_ptr<Object3d> object_;
 	NeonSkinnedRenderer renderer_;
 	std::vector<SourceMaterial> sourceMaterials_;
+	std::vector<NeonSkinnedSubmeshParams> submeshParams_;
 	size_t sourceAnimationCount_ = 0;
 	std::string loadError_;
 };

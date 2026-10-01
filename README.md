@@ -100,7 +100,7 @@ MSBuild.exe project/CG2.sln /m /p:Configuration=Release /p:Platform=x64 /p:CG2De
 
 `.vcxproj` 自体には Debug 定義もありますが、`CG2.sln` から Debug を選ぶと両プロジェクトとも Development をビルドします。既存設定を維持しており、Debug と Development を独立した検証結果として扱わないでください。
 
-Neon Skinned PreviewはPowerShell不要で確認できます。Visual StudioでDevelopment / x64を選び、F5またはCtrl+F5で通常起動 → タイトルの「遠征をはじめる」 → F3「制作ツール」の「Neon Skinned Previewを開く」 → `Preview Enable`をオンにします。F12の「Neon Preview」タブからも開けます。`Normal` / `Neon`で同じAvatarSample_Bの描画を比較できます。Neonの既定表示は暗い本体 + ピンクの外周線で、線幅・色・HDR強度を調整できます。[操作・モデル情報](project/resources/models/neon_hologram/README.md)。Releaseでは無効です。
+Neon Skinned PreviewはPowerShell不要で確認できます。Visual StudioでDevelopment / x64を選び、F5またはCtrl+F5で通常起動 → タイトルの「遠征をはじめる」 → F3「制作ツール」の「Neon Skinned Previewを開く」 → `Preview Enable`をオンにします。F12の「Neon Preview」タブからも開けます。`Normal` / `Neon`で同じAvatarSample_Bの描画を比較できます。Neonの既定表示は暗い本体 + ピンクの外周線 + Texture由来の内部特徴線で、線幅・色・HDR強度・内部線の閾値を調整できます。[操作・モデル情報](project/resources/models/neon_hologram/README.md)。Releaseでは無効です。
 
 ### 3. 起動する
 

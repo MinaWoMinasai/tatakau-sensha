@@ -1,4 +1,5 @@
 #include "NeonSkinned.hlsli"
+#include "NeonSkinnedSurface.hlsli"
 
 struct PixelShaderOutput
 {
@@ -9,6 +10,12 @@ struct PixelShaderOutput
 
 PixelShaderOutput main(NeonSkinnedVertexOutput input, bool isFrontFace : SV_IsFrontFace)
 {
+    // 微分はclipより前に計算し、Cutout境界でも隣接pixelのLODを安定させる。
+    float2 uvDx = ddx(input.texcoord);
+    float2 uvDy = ddy(input.texcoord);
+    float4 surface = SampleNeonSurface(input.texcoord, uvDx, uvDy);
+    float internalLine = NeonInternalLine(input.texcoord, uvDx, uvDy, surface);
+    ApplyNeonAlphaCutout(surface.a);
     float3 normal = input.worldNormal * rsqrt(max(dot(input.worldNormal, input.worldNormal), 1.0e-8f));
     normal = isFrontFace ? normal : -normal;
     float3 toCamera = gCameraWorldPosition - input.worldPosition;
@@ -18,6 +25,7 @@ PixelShaderOutput main(NeonSkinnedVertexOutput input, bool isFrontFace : SV_IsFr
     // 面全体の固定発光は行わない。Rimは任意の弱い補助で、外周は専用パスで描く。
     float3 emission = max(gEmissiveColor, 0.0f) * max(gEmissiveIntensity, 0.0f)
         * max(gRimStrength, 0.0f) * rim;
+    emission += max(gEmissiveColor, 0.0f) * max(gInternalLineIntensity, 0.0f) * internalLine;
     PixelShaderOutput output;
     output.color = float4(max(gBodyColor.rgb, 0.0f) + emission, saturate(gBodyColor.a));
     // 現在のScene MRT encoding。反射用SSR mask=0、roughness=1、metallic=0、AO=1。
