@@ -17,6 +17,8 @@ namespace {
 constexpr UINT kTransformRootParameter = 0;
 constexpr UINT kNeonRootParameter = 1;
 constexpr UINT kPaletteRootParameter = 2;
+constexpr UINT kSurfaceRootParameter = 3;
+constexpr UINT kSubmeshRootParameter = 4;
 constexpr UINT8 kOutlineStencilMask = 0x80;
 
 void CheckResult(HRESULT hr, const char* message) {
@@ -35,6 +37,7 @@ void NeonSkinnedRenderer::Initialize(DirectXCommon* dxCommon, SrvManager* srvMan
 	CreatePipeline();
 	drawConstantBuffers_.clear();
 	nextDrawIndex_ = 0;
+	submeshParams_.clear();
 }
 
 void NeonSkinnedRenderer::BeginFrame() {
@@ -58,6 +61,38 @@ void NeonSkinnedRenderer::SetParams(const NeonSkinnedParams& params) {
 	params_.outlineWidthPixels = std::isfinite(params_.outlineWidthPixels)
 		? (std::clamp)(params_.outlineWidthPixels, 0.0f, 8.0f) : 0.0f;
 	params_.outlineEnabled = params_.outlineEnabled ? 1u : 0u;
+	params_.internalLineEnabled = params_.internalLineEnabled ? 1u : 0u;
+	params_.internalLineWidthPixels = std::isfinite(params_.internalLineWidthPixels)
+		? (std::clamp)(params_.internalLineWidthPixels, 0.0f, 4.0f) : 0.0f;
+	params_.internalLineIntensity = std::isfinite(params_.internalLineIntensity)
+		? (std::max)(params_.internalLineIntensity, 0.0f) : 0.0f;
+	params_.internalLineThreshold = std::isfinite(params_.internalLineThreshold)
+		? (std::clamp)(params_.internalLineThreshold, 0.001f, 1.0f) : 1.0f;
+}
+
+void NeonSkinnedRenderer::SetSubmeshParams(const std::vector<NeonSkinnedSubmeshParams>& params) {
+	submeshParams_ = params;
+	for (auto& submesh : submeshParams_) {
+		submesh.lineStrength = std::isfinite(submesh.lineStrength)
+			? (std::clamp)(submesh.lineStrength, 0.0f, 2.0f) : 0.0f;
+		submesh.alphaCutoff = std::isfinite(submesh.alphaCutoff)
+			? (std::clamp)(submesh.alphaCutoff, 0.0f, 1.0f) : 0.0f;
+	}
+}
+
+void NeonSkinnedRenderer::BindSubmeshSurface(const SkinnedModel& model, size_t index) {
+	const auto& asset = model.GetAsset();
+	const auto& submesh = model.GetSubmesh(index);
+	const auto& materials = asset.modelData.materials;
+	const auto& material = materials.empty() ? asset.modelData.material
+		: materials[submesh.materialIndex < materials.size() ? submesh.materialIndex : 0];
+	// SkinnedModel::Initializeで既に読み込まれたBaseColor SRVを共有する。
+	auto commandList = dxCommon_->GetList();
+	commandList->SetGraphicsRootDescriptorTable(kSurfaceRootParameter,
+		srvManager_->GetGPUDescriptorHandle(material.textureIndex));
+	const auto surface = submeshParams_.empty() ? NeonSkinnedSubmeshParams{} : submeshParams_[index];
+	commandList->SetGraphicsRoot32BitConstants(kSubmeshRootParameter,
+		sizeof(surface) / sizeof(uint32_t), &surface, 0);
 }
 
 NeonSkinnedRenderer::DrawConstantBuffer& NeonSkinnedRenderer::AcquireDrawConstantBuffer() {
@@ -101,6 +136,9 @@ void NeonSkinnedRenderer::Draw(const SkinnedModel& model,
 	if (model.GetSubmeshCount() == 0) {
 		return;
 	}
+	if (!submeshParams_.empty() && submeshParams_.size() != model.GetSubmeshCount()) {
+		throw std::invalid_argument("Neon surface settings must match the model submesh count.");
+	}
 	if (!dxCommon_->HasCurrentDSV() || !std::isfinite(viewportSize.x) || !std::isfinite(viewportSize.y) ||
 		viewportSize.x <= 0.0f || viewportSize.y <= 0.0f) {
 		throw std::invalid_argument("Neon outline requires the Scene D24S8 target and a valid viewport size.");
@@ -122,12 +160,14 @@ void NeonSkinnedRenderer::Draw(const SkinnedModel& model,
 	ClearOutlineStencil();
 	commandList->OMSetStencilRef(kOutlineStencilMask);
 	for (size_t index = 0; index < model.GetSubmeshCount(); ++index) {
+		BindSubmeshSurface(model, index);
 		commandList->SetPipelineState(model.GetSubmesh(index).doubleSided
 			? doubleSidedPipelineState_.Get() : pipelineState_.Get());
 		model.DrawSubmesh(index);
 	}
 	if (params_.outlineEnabled && params_.outlineWidthPixels > 0.0f && params_.emissiveIntensity > 0.0f) {
 		for (size_t index = 0; index < model.GetSubmeshCount(); ++index) {
+			BindSubmeshSurface(model, index);
 			commandList->SetPipelineState(model.GetSubmesh(index).doubleSided
 				? doubleSidedOutlinePipelineState_.Get() : outlinePipelineState_.Get());
 			model.DrawSubmesh(index);
@@ -143,7 +183,12 @@ void NeonSkinnedRenderer::CreatePipeline() {
 	paletteRange.BaseShaderRegister = 3;
 	paletteRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	D3D12_ROOT_PARAMETER rootParameters[3]{};
+	D3D12_DESCRIPTOR_RANGE surfaceRange{};
+	surfaceRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	surfaceRange.NumDescriptors = 1;
+	surfaceRange.BaseShaderRegister = 0;
+	surfaceRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	D3D12_ROOT_PARAMETER rootParameters[5]{};
 	rootParameters[kTransformRootParameter].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[kTransformRootParameter].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	rootParameters[kTransformRootParameter].Descriptor.ShaderRegister = 0;
@@ -154,11 +199,27 @@ void NeonSkinnedRenderer::CreatePipeline() {
 	rootParameters[kPaletteRootParameter].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	rootParameters[kPaletteRootParameter].DescriptorTable.NumDescriptorRanges = 1;
 	rootParameters[kPaletteRootParameter].DescriptorTable.pDescriptorRanges = &paletteRange;
+	rootParameters[kSurfaceRootParameter].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[kSurfaceRootParameter].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[kSurfaceRootParameter].DescriptorTable = { 1, &surfaceRange };
+	rootParameters[kSubmeshRootParameter].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+	rootParameters[kSubmeshRootParameter].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[kSubmeshRootParameter].Constants.ShaderRegister = 2;
+	rootParameters[kSubmeshRootParameter].Constants.Num32BitValues = sizeof(NeonSkinnedSubmeshParams) / sizeof(uint32_t);
+	D3D12_STATIC_SAMPLER_DESC sampler{};
+	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	sampler.MaxAnisotropy = 1;
+	sampler.MaxLOD = D3D12_FLOAT32_MAX;
+	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 	D3D12_ROOT_SIGNATURE_DESC rootDesc{};
 	rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rootDesc.NumParameters = static_cast<UINT>(std::size(rootParameters));
 	rootDesc.pParameters = rootParameters;
+	rootDesc.NumStaticSamplers = 1;
+	rootDesc.pStaticSamplers = &sampler;
 	ComPtr<ID3DBlob> signatureBlob;
 	ComPtr<ID3DBlob> errorBlob;
 	const HRESULT serializeResult = D3D12SerializeRootSignature(&rootDesc,
@@ -176,12 +237,14 @@ void NeonSkinnedRenderer::CreatePipeline() {
 	ComPtr<IDxcBlob> outlineVertexShader;
 	ComPtr<IDxcBlob> outlinePixelShader;
 	ComPtr<IDxcBlob> stencilClearVertexShader;
+	ComPtr<IDxcBlob> stencilClearPixelShader;
 	vertexShader.Attach(dxCommon_->CompileShader(L"resources/shaders/NeonSkinned.VS.hlsl", L"vs_6_0"));
 	pixelShader.Attach(dxCommon_->CompileShader(L"resources/shaders/NeonSkinned.PS.hlsl", L"ps_6_0"));
 	outlineVertexShader.Attach(dxCommon_->CompileShader(L"resources/shaders/NeonSkinnedOutline.VS.hlsl", L"vs_6_0"));
 	outlinePixelShader.Attach(dxCommon_->CompileShader(L"resources/shaders/NeonSkinnedOutline.PS.hlsl", L"ps_6_0"));
 	stencilClearVertexShader.Attach(dxCommon_->CompileShader(L"resources/shaders/NeonSkinnedStencilClear.VS.hlsl", L"vs_6_0"));
-	if (!vertexShader || !pixelShader || !outlineVertexShader || !outlinePixelShader || !stencilClearVertexShader) {
+	stencilClearPixelShader.Attach(dxCommon_->CompileShader(L"resources/shaders/NeonSkinnedStencilClear.PS.hlsl", L"ps_6_0"));
+	if (!vertexShader || !pixelShader || !outlineVertexShader || !outlinePixelShader || !stencilClearVertexShader || !stencilClearPixelShader) {
 		throw std::runtime_error("Failed to compile NeonSkinnedRenderer shaders.");
 	}
 
@@ -252,6 +315,7 @@ void NeonSkinnedRenderer::CreatePipeline() {
 
 	// Fullscreen triangleで予約bitのみを消去。他のStencil利用者を壊さない。
 	desc.VS = { stencilClearVertexShader->GetBufferPointer(), stencilClearVertexShader->GetBufferSize() };
+	desc.PS = { stencilClearPixelShader->GetBufferPointer(), stencilClearPixelShader->GetBufferSize() };
 	desc.InputLayout = {};
 	desc.DepthStencilState.DepthEnable = FALSE;
 	desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
