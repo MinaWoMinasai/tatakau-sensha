@@ -83,6 +83,10 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 			{ "gRimPower", static_cast<UINT>(offsetof(NeonSkinnedParams, rimPower)) },
 			{ "gOutlineWidthPixels", static_cast<UINT>(offsetof(NeonSkinnedParams, outlineWidthPixels)) },
 			{ "gOutlineEnabled", static_cast<UINT>(offsetof(NeonSkinnedParams, outlineEnabled)) },
+			{ "gInternalLineEnabled", static_cast<UINT>(offsetof(NeonSkinnedParams, internalLineEnabled)) },
+			{ "gInternalLineWidthPixels", static_cast<UINT>(offsetof(NeonSkinnedParams, internalLineWidthPixels)) },
+			{ "gInternalLineIntensity", static_cast<UINT>(offsetof(NeonSkinnedParams, internalLineIntensity)) },
+			{ "gInternalLineThreshold", static_cast<UINT>(offsetof(NeonSkinnedParams, internalLineThreshold)) },
 			{ "gCameraWorldPosition", sizeof(NeonSkinnedParams) },
 			{ "gViewportSize", sizeof(NeonSkinnedParams) + 16 },
 		};
@@ -149,9 +153,15 @@ void SrvManager::PreDraw() {
 	testDx->GetList()->SetDescriptorHeaps(1, heaps);
 }
 
+D3D12_GPU_DESCRIPTOR_HANDLE SrvManager::GetGPUDescriptorHandle(uint32_t index) {
+	auto handle = testSrvHeap->GetGPUDescriptorHandleForHeapStart();
+	handle.ptr += static_cast<UINT64>(index) * testDx->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	return handle;
+}
+
 // 素材を追加せず、滑らかな球を二つのSubmeshに分けたSkinning Geometryを準備する。
 // 本テストのサービスだけで使用。ProductionのSkinnedModel実装には変更を加えない。
-void SkinnedModel::Initialize(DirectXCommon* dx, SrvManager*, const std::string&) {
+void SkinnedModel::Initialize(DirectXCommon* dx, SrvManager*, const std::string& fixtureName) {
 	dxCommon_ = dx;
 	constexpr uint32_t rings = 24, segments = 48;
 	std::vector<VertexData> vertices;
@@ -162,7 +172,8 @@ void SkinnedModel::Initialize(DirectXCommon* dx, SrvManager*, const std::string&
 			const float longitude = static_cast<float>(column) * 6.2831853f / segments;
 			const Vector3 normal{ std::sin(latitude) * std::cos(longitude), std::cos(latitude),
 				std::sin(latitude) * std::sin(longitude) };
-			vertices.push_back({ { normal.x * 0.5f, normal.y * 0.5f, normal.z * 0.5f, 1.0f }, {}, normal });
+			vertices.push_back({ { normal.x * 0.5f, normal.y * 0.5f, normal.z * 0.5f, 1.0f },
+				{ static_cast<float>(column) / segments, static_cast<float>(row) / rings }, normal });
 		}
 	}
 	for (uint32_t row = 0; row < rings; ++row) {
@@ -190,6 +201,8 @@ void SkinnedModel::Initialize(DirectXCommon* dx, SrvManager*, const std::string&
 	indexBufferView_ = { indexResource_->GetGPUVirtualAddress(), static_cast<UINT>(indices.size() * sizeof(uint32_t)), DXGI_FORMAT_R32_UINT };
 	const UINT half = static_cast<UINT>(indices.size() / 2);
 	asset_.submeshes = { { 0, half, 0, "single-sided", {}, false }, { half, half, 0, "double-sided", {}, true } };
+	asset_.modelData.materials = { MaterialData{} };
+	asset_.modelData.materials[0].textureIndex = fixtureName == "feature fixture" ? 2 : 1;
 	paletteResource_ = dx->CreateBufferResource(sizeof(SkinningPaletteEntry));
 	Check(paletteResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedPalette_)), "Map palette");
 	Update(0.0f);
@@ -230,6 +243,57 @@ void Transition(ID3D12GraphicsCommandList* list, ID3D12Resource* resource,
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Transition = { resource, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, before, after };
 	list->ResourceBarrier(1, &barrier);
+}
+
+ComPtr<ID3D12Resource> CreateTestTexture(DirectXCommon& dx, SrvManager& srv, UINT index, bool patterned) {
+	constexpr UINT size = 64;
+	D3D12_RESOURCE_DESC desc{};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	desc.Width = size;
+	desc.Height = size;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.SampleDesc.Count = 1;
+	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	D3D12_HEAP_PROPERTIES heap{};
+	heap.Type = D3D12_HEAP_TYPE_DEFAULT;
+	ComPtr<ID3D12Resource> resource;
+	Check(dx.GetDevice()->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+		D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource)), "Feature texture");
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
+	UINT64 total = 0;
+	dx.GetDevice()->GetCopyableFootprints(&desc, 0, 1, 0, &footprint, nullptr, nullptr, &total);
+	auto upload = dx.CreateBufferResource(static_cast<size_t>(total));
+	uint8_t* data = nullptr;
+	Check(upload->Map(0, nullptr, reinterpret_cast<void**>(&data)), "Texture upload map");
+	for (UINT y = 0; y < size; ++y) for (UINT x = 0; x < size; ++x) {
+		auto* pixel = data + footprint.Offset + y * footprint.Footprint.RowPitch + x * 4;
+		// 不透明の色境界と透明な穴を別々に含む、回帰用の小さなTexture。
+		const uint8_t color = patterned && ((x / 8) % 2 == 0) ? 0 : 255;
+		pixel[0] = pixel[1] = pixel[2] = color;
+		pixel[3] = patterned && y > 24 && y < 40 ? 0 : 255;
+	}
+	upload->Unmap(0, nullptr);
+	D3D12_TEXTURE_COPY_LOCATION source{};
+	source.pResource = upload.Get();
+	source.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	source.PlacedFootprint = footprint;
+	D3D12_TEXTURE_COPY_LOCATION destination{};
+	destination.pResource = resource.Get();
+	destination.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	dx.GetList()->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+	Transition(dx.GetList().Get(), resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	dx.PostDraw(); // Upload resourceを破棄する前にGPUを待つ。
+	D3D12_SHADER_RESOURCE_VIEW_DESC view{};
+	view.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	view.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	view.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	view.Texture2D.MipLevels = 1;
+	auto handle = testSrvHeap->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += index * dx.GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	dx.GetDevice()->CreateShaderResourceView(resource.Get(), &view, handle);
+	(void)srv;
+	return resource;
 }
 
 struct Capture {
@@ -368,9 +432,11 @@ void TestDraw(DirectXCommon& dx, SrvManager& srv, NeonSkinnedRenderer& renderer)
 	dx.Initialize(nullptr);
 	D3D12_DESCRIPTOR_HEAP_DESC heap{};
 	heap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	heap.NumDescriptors = 1;
+	heap.NumDescriptors = 3;
 	heap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	Check(dx.GetDevice()->CreateDescriptorHeap(&heap, IID_PPV_ARGS(&testSrvHeap)), "SRV heap");
+	auto whiteTexture = CreateTestTexture(dx, srv, 1, false);
+	auto featureTexture = CreateTestTexture(dx, srv, 2, true);
 	SkinnedModel model;
 	model.Initialize(&dx, &srv, "synthetic test fixture");
 	OffscreenScene scene(dx);
@@ -461,6 +527,49 @@ void TestDraw(DirectXCommon& dx, SrvManager& srv, NeonSkinnedRenderer& renderer)
 	std::cout << "PASS: GPU draw checks dark interiors, single/double-sided submeshes, HDR exterior outline ("
 		<< thinPixels << " / " << widePixels << " pixels), width, depth occlusion, MRT preservation, "
 		"stencil cleanup / other bits, palette motion and per-draw constants.\n";
+
+	// 同じGeometryでTexture由来の内部線のみを切り替える。
+	SkinnedModel featureModel;
+	featureModel.Initialize(&dx, &srv, "feature fixture");
+	*transform = { Identity(), Identity(), Identity() };
+	transform->WVP.m[2][2] = 0.4f;
+	transform->WVP.m[3][2] = 0.5f;
+	params = NeonSkinnedParams{};
+	params.outlineEnabled = 0;
+	params.internalLineEnabled = 1;
+	auto renderFeatures = [&]() {
+		renderer.BeginFrame();
+		renderer.SetParams(params);
+		scene.Begin();
+		renderer.Draw(featureModel, transformResource->GetGPUVirtualAddress(), { 0, 0, -2 }, viewport);
+		scene.End();
+	};
+	renderFeatures();
+	UINT internalPixels = 0, darkPixels = 0;
+	for (UINT y = 0; y < kSize; ++y) for (UINT x = 0; x < kSize; ++x) {
+		const float red = scene.captures[0].Float(x, y, 0);
+		if (red > 1.0f) ++internalPixels;
+		else if (red > 0.001f) ++darkPixels;
+	}
+	Require(internalPixels > 50 && darkPixels > 500, "Texture edges must emit HDR while flat body stays dark");
+	params.internalLineEnabled = 0;
+	renderFeatures();
+	for (UINT y = 0; y < kSize; ++y) for (UINT x = 0; x < kSize; ++x)
+		Require(scene.captures[0].Float(x, y, 0) < 1.0f, "Internal line disable must restore the dark body");
+	Require(scene.captures[0].Float(64, 64, 0) > 0.001f, "Default Neon must keep the legacy opaque surface");
+	renderer.SetSubmeshParams({ { 1.0f, 0.5f }, { 1.0f, 0.5f } });
+	renderFeatures();
+	Require(scene.captures[0].Float(64, 64, 0) == 0.0f, "Alpha cutout must expose transparent texels");
+	uint32_t holeDepth;
+	std::memcpy(&holeDepth, scene.captures[3].Pixel(64, 64), sizeof(holeDepth));
+	Require((holeDepth & 0xffffff) == 0xffffff, "Alpha cutout must not write depth in transparent holes");
+	params.internalLineEnabled = 1;
+	renderer.SetSubmeshParams({ { 0.0f, 0.0f }, { 0.0f, 0.0f } });
+	renderFeatures();
+	for (UINT y = 0; y < kSize; ++y) for (UINT x = 0; x < kSize; ++x)
+		Require(scene.captures[0].Float(x, y, 0) < 1.0f, "Submesh strength zero must disable its feature lines");
+	std::cout << "PASS: texture feature lines (" << internalPixels << " HDR pixels), dark flat regions, "
+		"toggle, per-submesh strength and opt-in alpha cutout / transparent depth.\n";
 }
 }
 
@@ -477,7 +586,7 @@ int main() {
 		SrvManager srv;
 		NeonSkinnedRenderer renderer;
 		renderer.Initialize(&dx, &srv);
-		Require(compiledNeonShaders == 5, "Neon shaders were not compiled by the actual Renderer");
+		Require(compiledNeonShaders == 6, "Neon shaders were not compiled by the actual Renderer");
 		// 通常Skinning / ShadowのShaderも同じDXC条件でコンパイルできることを確認する。
 		ComPtr<IDxcBlob> standard;
 		ComPtr<IDxcBlob> shadow;

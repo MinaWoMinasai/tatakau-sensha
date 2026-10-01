@@ -778,6 +778,12 @@
     <None Include="resources\shaders\NeonSkinnedSkinning.hlsli">
       <Filter>DirectX\shaders</Filter>
     </None>
+    <None Include="resources\shaders\NeonSkinnedSurface.hlsli">
+      <Filter>DirectX\shaders</Filter>
+    </None>
+    <FxCompile Include="resources\shaders\NeonSkinnedStencilClear.PS.hlsl">
+      <Filter>DirectX\shaders</Filter>
+    </FxCompile>
     <FxCompile Include="resources\shaders\NeonSkinnedOutline.VS.hlsl">
       <Filter>DirectX\shaders</Filter>
     </FxCompile>
