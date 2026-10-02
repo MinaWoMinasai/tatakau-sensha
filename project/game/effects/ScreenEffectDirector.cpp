@@ -8,6 +8,7 @@
 
 namespace {
 
+/// @brief 浮動小数を読み取る。
 float ReadFloat(
 	const nlohmann::json& object,
 	const char* key,

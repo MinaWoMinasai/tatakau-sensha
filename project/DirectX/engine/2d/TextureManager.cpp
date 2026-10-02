@@ -15,12 +15,14 @@ uint32_t TextureManager::kSRVIndexTop = 1;
 
 namespace
 {
+/// @brief テクスチャ生成用の2成分の計算値を表す。
 struct Float2
 {
     float x;
     float y;
 };
 
+/// @brief テクスチャ生成用の3成分の計算値を表す。
 struct Float3
 {
     float x;
@@ -28,6 +30,7 @@ struct Float3
     float z;
 };
 
+/// @brief テクスチャ生成用の4成分の計算値を表す。
 struct Float4
 {
     float x;
@@ -38,6 +41,7 @@ struct Float4
 
 constexpr float kPi = 3.14159265358979323846f;
 
+/// @brief 入力値を0〜1の範囲へ制限する。
 float Saturate(float value)
 {
     return (std::min)((std::max)(value, 0.0f), 1.0f);
@@ -106,6 +110,7 @@ Float3 Normalize(Float3 value)
     return value * invLength;
 }
 
+/// @brief 接空間の方向を指定した法線のワールド空間へ変換する。
 Float3 TangentToWorld(Float3 localDirection, Float3 normal)
 {
     const Float3 up = std::fabs(normal.z) < 0.999f
@@ -116,6 +121,7 @@ Float3 TangentToWorld(Float3 localDirection, Float3 normal)
     return Normalize(tangent * localDirection.x + bitangent * localDirection.y + normal * localDirection.z);
 }
 
+/// @brief ビットを反転してVan der Corput列の値を求める。
 float RadicalInverseVdc(uint32_t bits)
 {
     bits = (bits << 16u) | (bits >> 16u);
@@ -126,6 +132,7 @@ float RadicalInverseVdc(uint32_t bits)
     return static_cast<float>(bits) * 2.3283064365386963e-10f;
 }
 
+/// @brief 低偏差の2次元サンプル点を求める。
 Float2 Hammersley(uint32_t index, uint32_t sampleCount)
 {
     return {
@@ -134,6 +141,7 @@ Float2 Hammersley(uint32_t index, uint32_t sampleCount)
     };
 }
 
+/// @brief anceサンプルGGXを取り込む。
 Float3 ImportanceSampleGGX(Float2 xi, Float3 normal, float roughness)
 {
     const float a = roughness * roughness;
@@ -151,6 +159,7 @@ Float3 ImportanceSampleGGX(Float2 xi, Float3 normal, float roughness)
     return TangentToWorld(halfVector, normal);
 }
 
+/// @brief 余弦で重み付けした半球方向をサンプリングする。
 Float3 CosineSampleHemisphere(Float2 xi, Float3 normal)
 {
     const float radius = std::sqrt(xi.x);
@@ -163,6 +172,7 @@ Float3 CosineSampleHemisphere(Float2 xi, Float3 normal)
     return TangentToWorld(localDirection, normal);
 }
 
+/// @brief キューブマップの面と画素位置を方向ベクトルへ変換する。
 Float3 TexelDirectionForCubeFace(size_t face, size_t x, size_t y, size_t width, size_t height)
 {
     const float u = (2.0f * (static_cast<float>(x) + 0.5f) / static_cast<float>(width)) - 1.0f;
@@ -185,6 +195,7 @@ Float3 TexelDirectionForCubeFace(size_t face, size_t x, size_t y, size_t width, 
     }
 }
 
+/// @brief ProceduralPBR環境をサンプリングする。
 Float3 SampleProceduralPbrEnvironment(Float3 direction, float lod)
 {
     const Float3 dir = Normalize(direction);
@@ -223,6 +234,7 @@ Float3 SampleProceduralPbrEnvironment(Float3 direction, float lod)
     };
 }
 
+/// @brief キューブマップの指定画素へ浮動小数の色を書き込む。
 void StoreFloatCubePixel(const DirectX::Image* imageData, size_t x, size_t y, Float3 color)
 {
     assert(imageData != nullptr);
@@ -234,6 +246,7 @@ void StoreFloatCubePixel(const DirectX::Image* imageData, size_t x, size_t y, Fl
     pixel[3] = 1.0f;
 }
 
+/// @brief 浮動小数キューブPixelを読み取る。
 Float3 ReadFloatCubePixel(const DirectX::Image* imageData, size_t x, size_t y)
 {
     assert(imageData != nullptr);
@@ -244,6 +257,7 @@ Float3 ReadFloatCubePixel(const DirectX::Image* imageData, size_t x, size_t y)
     return { pixel[0], pixel[1], pixel[2] };
 }
 
+/// @brief 浮動小数キューブ画像双線形補間をサンプリングする。
 Float3 SampleFloatCubeImageBilinear(const DirectX::Image* imageData, float u, float v)
 {
     assert(imageData != nullptr);
@@ -267,6 +281,7 @@ Float3 SampleFloatCubeImageBilinear(const DirectX::Image* imageData, float u, fl
     return Lerp(Lerp(c00, c10, tx), Lerp(c01, c11, tx), ty);
 }
 
+/// @brief 浮動小数2D画像双線形補間をサンプリングする。
 Float3 SampleFloat2DImageBilinear(const DirectX::Image* imageData, float u, float v, bool wrapU)
 {
     assert(imageData != nullptr);
@@ -299,6 +314,7 @@ Float3 SampleFloat2DImageBilinear(const DirectX::Image* imageData, float u, floa
     return Lerp(Lerp(c00, c10, tx), Lerp(c01, c11, tx), ty);
 }
 
+/// @brief 浮動小数4Pixelを読み取る。
 Float4 ReadFloat4Pixel(const DirectX::Image* imageData, size_t x, size_t y)
 {
     assert(imageData != nullptr);
@@ -309,6 +325,7 @@ Float4 ReadFloat4Pixel(const DirectX::Image* imageData, size_t x, size_t y)
     return { pixel[0], pixel[1], pixel[2], pixel[3] };
 }
 
+/// @brief 浮動小数4画像双線形補間をサンプリングする。
 Float4 SampleFloat4ImageBilinear(const DirectX::Image* imageData, float u, float v)
 {
     assert(imageData != nullptr);
@@ -334,6 +351,7 @@ Float4 SampleFloat4ImageBilinear(const DirectX::Image* imageData, float u, float
     return Lerp(Lerp(c00, c10, tx), Lerp(c01, c11, tx), ty);
 }
 
+/// @brief チャンネルを選択する。
 float SelectChannel(Float4 value, float channel)
 {
     if (channel < 0.5f) {
@@ -348,11 +366,13 @@ float SelectChannel(Float4 value, float channel)
     return value.w;
 }
 
+/// @brief 浮動小数の色成分を8ビット値へ変換する。
 uint8_t FloatToByte(float value)
 {
     return static_cast<uint8_t>(std::lround(Saturate(value) * 255.0f));
 }
 
+/// @brief テクスチャ2DAs浮動小数を読み込む。
 bool LoadTexture2DAsFloat(const std::string& filePath, DirectX::ScratchImage& outImage)
 {
     if (filePath.empty()) {
@@ -414,6 +434,7 @@ bool LoadTexture2DAsFloat(const std::string& filePath, DirectX::ScratchImage& ou
     return true;
 }
 
+/// @brief LatLong環境をサンプリングする。
 Float3 SampleLatLongEnvironment(const DirectX::Image* imageData, Float3 direction)
 {
     const Float3 dir = Normalize(direction);
@@ -424,6 +445,7 @@ Float3 SampleLatLongEnvironment(const DirectX::Image* imageData, Float3 directio
     return SampleFloat2DImageBilinear(imageData, u, v, true);
 }
 
+/// @brief キューブからのLatLongテクスチャを組み立てる。
 bool BuildCubeFromLatLongTexture(const DirectX::ScratchImage& latLongImage, DirectX::ScratchImage& outCube)
 {
     const DirectX::Image* sourceImage = latLongImage.GetImage(0, 0, 0);
@@ -466,6 +488,7 @@ bool BuildCubeFromLatLongTexture(const DirectX::ScratchImage& latLongImage, Dire
     return true;
 }
 
+/// @brief 方向ベクトルをキューブマップの面とUVへ変換する。
 bool DirectionToCubeFaceUv(Float3 direction, size_t& face, float& u, float& v)
 {
     const Float3 dir = Normalize(direction);
@@ -511,6 +534,7 @@ bool DirectionToCubeFaceUv(Float3 direction, size_t& face, float& u, float& v)
     return true;
 }
 
+/// @brief 浮動小数キューブMipをサンプリングする。
 Float3 SampleFloatCubeMip(const DirectX::ScratchImage& cubeImage, Float3 direction, size_t mip)
 {
     const DirectX::TexMetadata& metadata = cubeImage.GetMetadata();
@@ -530,6 +554,7 @@ Float3 SampleFloatCubeMip(const DirectX::ScratchImage& cubeImage, Float3 directi
     return SampleFloatCubeImageBilinear(imageData, u, v);
 }
 
+/// @brief 浮動小数キューブをサンプリングする。
 Float3 SampleFloatCube(const DirectX::ScratchImage& cubeImage, Float3 direction, float mipLevel)
 {
     const DirectX::TexMetadata& metadata = cubeImage.GetMetadata();
@@ -544,6 +569,7 @@ Float3 SampleFloatCube(const DirectX::ScratchImage& cubeImage, Float3 direction,
     return Lerp(SampleFloatCubeMip(cubeImage, direction, mip0), SampleFloatCubeMip(cubeImage, direction, mip1), mipT);
 }
 
+/// @brief Procedural環境キューブを組み立てる。
 bool BuildProceduralEnvironmentCube(DirectX::ScratchImage& outCube, size_t cubeSize = 256)
 {
     cubeSize = (std::max)(cubeSize, size_t{ 1 });
@@ -581,12 +607,14 @@ bool BuildProceduralEnvironmentCube(DirectX::ScratchImage& outCube, size_t cubeS
     return true;
 }
 
+/// @brief Optional背景テクスチャであるか判定する。
 bool IsOptionalSkyboxTexture(const std::string& filePath)
 {
     const std::string fileName = std::filesystem::path(filePath).filename().string();
     return fileName == "skybox.dds" || fileName == "skyboxSky.dds";
 }
 
+/// @brief 単色色キューブを組み立てる。
 bool BuildSolidColorCube(Float3 color, size_t cubeSize, size_t mipLevels, DirectX::ScratchImage& outCube)
 {
     HRESULT hr = outCube.InitializeCube(
@@ -615,6 +643,7 @@ bool BuildSolidColorCube(Float3 color, size_t cubeSize, size_t mipLevels, Direct
     return true;
 }
 
+/// @brief 環境キューブAs浮動小数を読み込む。
 bool LoadEnvironmentCubeAsFloat(const std::string& filePath, DirectX::ScratchImage& outImage)
 {
     DirectX::ScratchImage loaded{};
@@ -685,6 +714,7 @@ bool LoadEnvironmentCubeAsFloat(const std::string& filePath, DirectX::ScratchIma
     return false;
 }
 
+/// @brief 環境光用のSchlick-GGXによる幾何減衰を求める。
 float GeometrySchlickGGXForIBL(float nDotV, float roughness)
 {
     const float a = roughness;
@@ -692,6 +722,7 @@ float GeometrySchlickGGXForIBL(float nDotV, float roughness)
     return nDotV / (nDotV * (1.0f - k) + k);
 }
 
+/// @brief 環境光用のSmithによる遮蔽・マスキング項を求める。
 float GeometrySmithForIBL(Float3 normal, Float3 view, Float3 light, float roughness)
 {
     const float nDotV = Saturate(Dot(normal, view));
@@ -699,6 +730,7 @@ float GeometrySmithForIBL(Float3 normal, Float3 view, Float3 light, float roughn
     return GeometrySchlickGGXForIBL(nDotV, roughness) * GeometrySchlickGGXForIBL(nDotL, roughness);
 }
 
+/// @brief PBR環境光で使うBRDFの積分値をサンプルから求める。
 Float2 IntegrateBrdf(float nDotV, float roughness)
 {
     nDotV = (std::max)(nDotV, 0.001f);
@@ -1501,7 +1533,7 @@ uint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filePath, 
 	if (textureDatas.contains(textureKey)) {
 		return textureDatas[textureKey].srvIndex;
 	}
-	
+
 	assert(0);
 	return false;
 }
@@ -1510,7 +1542,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE TextureManager::GetSrvHandleGPU(const std::string& f
 {
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
 	// 範囲外指定違反チェック
-	//assert(textureIndex > textureDatas.size());
+
 	TextureData& textureData = textureDatas[textureKey];
 	return textureData.srvHandleGPU;
 }
@@ -1518,7 +1550,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE TextureManager::GetSrvHandleGPU(const std::string& f
 const DirectX::TexMetadata& TextureManager::GetMetaData(const std::string& filePath, TextureColorSpace colorSpace)
 {
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
-	
+
 	TextureData& textureData = textureDatas[textureKey];
 	return textureData.metaData;
 }

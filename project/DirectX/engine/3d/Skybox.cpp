@@ -3,7 +3,7 @@
 namespace cg2 {
 
 void Skybox::Initialize(const std::string& textureFilePath) {
-    
+
     object3dCommon_ = Object3dCommon::GetInstance();
     dxCommon_ = object3dCommon_->GetDxCommon();
     srvManager_ = object3dCommon_->GetSrvManager();

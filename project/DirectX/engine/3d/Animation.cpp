@@ -11,6 +11,7 @@ namespace cg2 {
 
 namespace {
 
+/// @brief 曲線値を計算して返す。
 template <typename TValue, typename TInterpolate>
 TValue CalculateCurveValue(
 	const AnimationCurve<TValue>& curve,
@@ -35,10 +36,12 @@ TValue CalculateCurveValue(
 	return curve.keyframes.back().value;
 }
 
+/// @brief アニメーションの時刻を秒へ変換するための係数を返す。
 float TicksPerSecond(const aiAnimation& animation) {
 	return animation.mTicksPerSecond > 0.0 ? static_cast<float>(animation.mTicksPerSecond) : 1.0f;
 }
 
+/// @brief アニメーションを変換する。
 Animation ConvertAnimation(const aiAnimation& source, uint32_t index) {
 	Animation result;
 	result.name = source.mName.length > 0 ? source.mName.C_Str() : "Animation_" + std::to_string(index);

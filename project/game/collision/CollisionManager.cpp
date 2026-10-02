@@ -15,7 +15,7 @@ void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletMa
 
 	// コライダーをリストに登録
 	SetColliders(player, enemy, bulletManager, enemyManager);
-	
+
 	// リスト内のペアの総当たり
 	std::list<Collider*>::iterator itrA = colliders_.begin();
 	for (; itrA != colliders_.end(); ++itrA) {
@@ -152,5 +152,5 @@ void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager*
 			if(expEnemy&&!expEnemy->IsDead())colliders_.push_back(expEnemy);
 		}
 	}
-	
+
 }

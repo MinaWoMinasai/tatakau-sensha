@@ -5,7 +5,7 @@ namespace cg2 {
 const uint32_t RtvManager::kMaxRtvCount = 16;
 
 void RtvManager::Initialize(DirectXCommon* dxCommon) {
-    
+
     dxCommon_ = dxCommon;
 
     heap_ = dxCommon_->CreateDescriptorHeap(

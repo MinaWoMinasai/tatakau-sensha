@@ -9,6 +9,7 @@ constexpr const char* kFillMaskTexture = "resources/hpBarFillMask.png";
 constexpr float kFillMaskWidth = 128.0f;
 constexpr float kFillMaskHeight = 24.0f;
 
+/// @brief 単色スプライトを設定する。
 void SetSolidSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2::Vector2& size, const cg2::Vector4& color)
 {
 	if (!sprite) {

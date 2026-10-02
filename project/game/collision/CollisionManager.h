@@ -8,32 +8,29 @@ class PlayerDrone;
 class BulletManager;
 class EnemyManager;
 
+/// @brief 登録済みのコライダーを組み合わせ、衝突判定と通知を実行する。
 class CollisionManager {
 
 public:
-	/// <summary>
-	/// 衝突判定と応答
-	/// </summary>
-	void CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager = nullptr);
+    /// @brief 衝突判定と応答
+    void CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager = nullptr);
 
-	/// <summary>
-	/// コライダー二つの衝突判定と応答
-	/// </summary>
-	/// <param name="colliderA">コライダーA</param>
-	/// <param name="colliderB">コライダーB</param>
-	void CheckCollisionPair(Collider* colliderA, Collider* colliderB);
+    /// @brief コライダー二つの衝突判定と応答
+    /// @param colliderA コライダーA
+    /// @param colliderB コライダーB
+    void CheckCollisionPair(Collider* colliderA, Collider* colliderB);
 
-	/// <summary>
-	/// コライダーを設定する
-	/// </summary>
-	/// <param name="player"></param>
-	/// <param name="enemy"></param>
-	void SetColliders(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager = nullptr);
+    /// @brief コライダーを設定する
+    void SetColliders(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager = nullptr);
 
-	const std::list<Collider*>& GetColliders() const { return colliders_; }
+    /// @brief Collidersを返す。
+    const std::list<Collider*>& GetColliders() const
+    {
+        return colliders_;
+    }
 
 private:
-	BulletManager* activeBulletManager_=nullptr;
-	// コライダーリスト
-	std::list<Collider*> colliders_;
+    BulletManager* activeBulletManager_ = nullptr;
+    // コライダーリスト
+    std::list<Collider*> colliders_;
 };

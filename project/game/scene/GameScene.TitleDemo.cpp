@@ -11,6 +11,7 @@ namespace {
 constexpr uint32_t kTitleSeed = 20260925u;
 constexpr float kDemoStageSeconds = 20.0f;
 
+/// @brief 射撃を消去する。
 bool ClearShot(Stage& stage, const cg2::Vector3& from, const cg2::Vector3& to) {
     const cg2::Vector3 delta = to - from;
     const int steps = (std::max)(1, static_cast<int>(cg2::Length(delta) / 0.6f));
@@ -21,6 +22,7 @@ bool ClearShot(Stage& stage, const cg2::Vector3& from, const cg2::Vector3& to) {
 
 // A tiny fixed-grid path is enough to prevent the attract player from spending
 // its whole scene shooting a wall. Combat, bullets and collisions remain real.
+/// @brief デモパスを検索する。
 std::vector<cg2::Vector3> FindDemoPath(Stage& stage, const cg2::Vector3& from, const cg2::Vector3& target) {
     constexpr int width = 44, height = 28, count = width * height;
     const auto position = [](int cell) { return cg2::Vector3{1.0f + 2.0f * (cell % width), 1.0f + 2.0f * (cell / width), 0}; };

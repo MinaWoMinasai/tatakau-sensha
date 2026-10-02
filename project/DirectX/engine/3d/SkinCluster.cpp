@@ -24,6 +24,7 @@ namespace cg2 {
 
 namespace {
 
+/// @brief 姿勢を変換する。
 QuaternionTransform ConvertTransform(const aiMatrix4x4& matrix) {
 	aiVector3D scale;
 	aiVector3D translate;
@@ -36,6 +37,7 @@ QuaternionTransform ConvertTransform(const aiMatrix4x4& matrix) {
 	};
 }
 
+/// @brief ノードを読み取る。
 SkeletonNode ReadNode(const aiNode& source) {
 	SkeletonNode node;
 	node.name = source.mName.C_Str();
@@ -47,6 +49,7 @@ SkeletonNode ReadNode(const aiNode& source) {
 	return node;
 }
 
+/// @brief 逆行列結合姿勢を変換する。
 Matrix4x4 ConvertInverseBindPose(const aiMatrix4x4& sourceOffsetMatrix) {
 	aiMatrix4x4 bindPose = sourceOffsetMatrix;
 	bindPose.Inverse();
@@ -54,26 +57,32 @@ Matrix4x4 ConvertInverseBindPose(const aiMatrix4x4& sourceOffsetMatrix) {
 	return Inverse(MakeAffineMatrix(transform.scale, transform.rotate, transform.translate));
 }
 
+/// @brief 入力を0〜1の範囲に制限して返す。
 float Clamp01(float value) {
 	return std::clamp(value, 0.0f, 1.0f);
 }
 
+/// @brief ベクトルの最大成分を返す。
 float MaxComponent(const Vector3& value) {
 	return (std::max)((std::max)(value.x, value.y), value.z);
 }
 
+/// @brief Assimp方向を変換する。
 Vector3 ConvertAssimpDirection(const aiVector3D& direction) {
 	return { -direction.x, direction.y, direction.z };
 }
 
+/// @brief 入力の3成分をエンジンのVector3へ変換する。
 Vector3 ToVector3(const Vector4& value) {
 	return { value.x, value.y, value.z };
 }
 
+/// @brief 2つの3Dベクトルの差を返す。
 Vector3 SubtractVector3(const Vector3& a, const Vector3& b) {
 	return { a.x - b.x, a.y - b.y, a.z - b.z };
 }
 
+/// @brief 2つの3Dベクトルの外積を返す。
 Vector3 CrossVector3(const Vector3& a, const Vector3& b) {
 	return {
 		a.y * b.z - a.z * b.y,
@@ -82,14 +91,17 @@ Vector3 CrossVector3(const Vector3& a, const Vector3& b) {
 	};
 }
 
+/// @brief 2つの3Dベクトルの内積を返す。
 float DotVector3(const Vector3& a, const Vector3& b) {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
+/// @brief 3Dベクトルの長さを返す。
 float LengthVector3(const Vector3& value) {
 	return std::sqrt(DotVector3(value, value));
 }
 
+/// @brief ベクトル3局所を正規化する。
 Vector3 NormalizeVector3Local(const Vector3& value) {
 	const float length = LengthVector3(value);
 	if (length <= 0.00001f) {
@@ -98,19 +110,23 @@ Vector3 NormalizeVector3Local(const Vector3& value) {
 	return { value.x / length, value.y / length, value.z / length };
 }
 
+/// @brief 3Dベクトルへ指定倍率を掛けて返す。
 Vector3 MultiplyVector3(const Vector3& value, float scalar) {
 	return { value.x * scalar, value.y * scalar, value.z * scalar };
 }
 
+/// @brief ベクトル3を追加する。
 Vector3 AddVector3(const Vector3& a, const Vector3& b) {
 	return { a.x + b.x, a.y + b.y, a.z + b.z };
 }
 
+/// @brief Fallback接線を組み立てる。
 Vector3 BuildFallbackTangent(const Vector3& normal) {
 	const Vector3 up = std::abs(normal.y) < 0.95f ? Vector3{ 0.0f, 1.0f, 0.0f } : Vector3{ 1.0f, 0.0f, 0.0f };
 	return NormalizeVector3Local(CrossVector3(up, normal));
 }
 
+/// @brief マテリアルの名前などから描画用途を推定する。
 MaterialSemantic InferMaterialSemantic(const MaterialData& material) {
 	const std::string text = ToLowerAscii(
 		material.materialName + " " +
@@ -154,6 +170,7 @@ MaterialSemantic InferMaterialSemantic(const MaterialData& material) {
 	return MaterialSemantic::GenericPbr;
 }
 
+/// @brief 既定値骨格変形材質を作成して返す。
 MaterialData MakeDefaultSkinnedMaterial() {
 	MaterialData material;
 	material.materialName = "default";
@@ -165,6 +182,7 @@ MaterialData MakeDefaultSkinnedMaterial() {
 	return material;
 }
 
+/// @brief Embeddedテクスチャキーを作成して返す。
 std::string MakeEmbeddedTextureKey(
 	const std::filesystem::path& sourcePath,
 	const aiString& texturePath,
@@ -176,6 +194,7 @@ std::string MakeEmbeddedTextureKey(
 	return key;
 }
 
+/// @brief スキニングテクスチャパスを解決する。
 std::string ResolveSkinningTexturePath(
 	SkinningModelAsset& asset,
 	const aiScene& scene,
@@ -215,6 +234,7 @@ std::string ResolveSkinningTexturePath(
 	return resolvedPath.lexically_normal().generic_string();
 }
 
+/// @brief スキニング材質テクスチャを返す。
 std::string GetSkinningMaterialTexture(
 	SkinningModelAsset& asset,
 	const aiScene& scene,
@@ -229,6 +249,7 @@ std::string GetSkinningMaterialTexture(
 	return ResolveSkinningTexturePath(asset, scene, sourcePath, texturePath, colorSpace);
 }
 
+/// @brief スキニング基準色を読み取る。
 void ReadSkinningBaseColor(const aiMaterial& sourceMaterial, MaterialData& materialData) {
 	aiColor4D color{};
 	if (aiGetMaterialColor(&sourceMaterial, AI_MATKEY_BASE_COLOR, &color) == AI_SUCCESS ||
@@ -238,6 +259,7 @@ void ReadSkinningBaseColor(const aiMaterial& sourceMaterial, MaterialData& mater
 	}
 }
 
+/// @brief スキニングPBRFactorsを読み取る。
 void ReadSkinningPbrFactors(const aiMaterial& sourceMaterial, MaterialData& materialData) {
 	float metallic = 0.0f;
 	if (sourceMaterial.Get(AI_MATKEY_METALLIC_FACTOR, metallic) == AI_SUCCESS) {
@@ -258,6 +280,7 @@ void ReadSkinningPbrFactors(const aiMaterial& sourceMaterial, MaterialData& mate
 	}
 }
 
+/// @brief スキニング自己発光を読み取る。
 void ReadSkinningEmissive(const aiMaterial& sourceMaterial, MaterialData& materialData) {
 	aiColor4D emissive{};
 	if (aiGetMaterialColor(&sourceMaterial, AI_MATKEY_COLOR_EMISSIVE, &emissive) != AI_SUCCESS) {
@@ -282,6 +305,7 @@ void ReadSkinningEmissive(const aiMaterial& sourceMaterial, MaterialData& materi
 	materialData.hasEmissive = true;
 }
 
+/// @brief スキニングMaterialsを読み込む。
 std::vector<MaterialData> LoadSkinningMaterials(
 	SkinningModelAsset& asset,
 	const aiScene& scene,
@@ -379,6 +403,7 @@ std::vector<MaterialData> LoadSkinningMaterials(
 	return materials;
 }
 
+/// @brief スキニングモデルの頂点位置とUVから接線を生成する。
 void GenerateSkinningTangents(ModelData& modelData) {
 	std::vector<Vector3> tangentSums(modelData.vertices.size(), {});
 	std::vector<Vector3> bitangentSums(modelData.vertices.size(), {});
@@ -449,6 +474,7 @@ void GenerateSkinningTangents(ModelData& modelData) {
 	}
 }
 
+/// @brief スキニング材質をGPUへ渡せる状態へ整える。
 void PrepareSkinningMaterialForGpu(MaterialData& material) {
 	if (material.textureFilePath.empty()) {
 		material.textureFilePath = "resources/white512x512.png";
@@ -498,6 +524,7 @@ void PrepareSkinningMaterialForGpu(MaterialData& material) {
 	}
 }
 
+/// @brief 頂点の関節と重みを利用可能な影響枠へ追加する。
 void InsertInfluence(VertexInfluence& influence, float weight, int32_t jointIndex) {
 	for (size_t slot = 0; slot < influence.weights.size(); ++slot) {
 		if (influence.weights[slot] == 0.0f) {

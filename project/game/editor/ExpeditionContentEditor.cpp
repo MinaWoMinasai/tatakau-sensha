@@ -3,11 +3,13 @@
 #include "externals/imgui/imgui.h"
 #include <cstdio>
 namespace {
+/// @brief 編集用の文字入力とstd::stringを対応させる。
 void TextField(const char* label,std::string& value,bool multi=false){
     std::array<char,1024> buffer{};std::snprintf(buffer.data(),buffer.size(),"%s",value.c_str());
     const bool changed=multi?ImGui::InputTextMultiline(label,buffer.data(),buffer.size(),{430,65}):ImGui::InputText(label,buffer.data(),buffer.size());
     if(changed)value=buffer.data();
 }
+/// @brief 定義を選択する。
 template<class T> void SelectDefinition(std::vector<T>& items,int& selected,const char* prefix){
     selected=(std::clamp)(selected,0,static_cast<int>(items.size())-1);
     if(ImGui::BeginCombo("編集する種類",items[static_cast<std::size_t>(selected)].name.c_str())){

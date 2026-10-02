@@ -23,6 +23,7 @@
 
 namespace {
 
+/// @brief 衝突開発表示色を返す。
 cg2::Vector4 GetCollisionDebugColor(uint32_t attribute) {
 	if (attribute & kCollisionAttributePlayer) {
 		return { 0.15f, 1.0f, 0.95f, 0.85f };
@@ -48,10 +49,12 @@ cg2::Vector4 GetCollisionDebugColor(uint32_t attribute) {
 	return { 1.0f, 1.0f, 1.0f, 0.7f };
 }
 
+/// @brief 弾Colliderであるか判定する。
 bool IsBulletCollider(uint32_t attribute) {
 	return (attribute & (kCollisionAttributePlayerBullet | kCollisionAttributeEnemyBullet | kCollisionAttributeHostileExpEnemyBullet)) != 0;
 }
 
+/// @brief 弾の所有者を表示用の名前へ変換する。
 const char* BulletOwnerName(BulletOwner owner)
 {
 	switch (owner) {
@@ -67,6 +70,7 @@ const char* BulletOwnerName(BulletOwner owner)
 }
 
 #ifdef USE_IMGUI
+/// @brief 弾の所有者に対応する開発表示の色を返す。
 ImU32 BulletOwnerDebugColor(BulletOwner owner)
 {
 	switch (owner) {
@@ -82,6 +86,7 @@ ImU32 BulletOwnerDebugColor(BulletOwner owner)
 }
 #endif
 
+/// @brief 独自設定整数を読み取る。
 int ReadCustomInt(const nlohmann::json& customProperties, const char* key, int fallback)
 {
 	if (!customProperties.is_object() || !customProperties.contains(key) || !customProperties[key].is_number()) {
@@ -90,6 +95,7 @@ int ReadCustomInt(const nlohmann::json& customProperties, const char* key, int f
 	return customProperties[key].get<int>();
 }
 
+/// @brief 項目モデルを取得を試みる。
 bool TryGetItemModel(const std::string& prefab, std::string& model)
 {
 	if (prefab == "Default" || prefab == "Heal") {
@@ -107,6 +113,7 @@ bool TryGetItemModel(const std::string& prefab, std::string& model)
 	return false;
 }
 
+/// @brief 独自設定Boolを読み取る。
 bool ReadCustomBool(const nlohmann::json& customProperties, const char* key, bool fallback)
 {
 	if (!customProperties.is_object() || !customProperties.contains(key) || !customProperties[key].is_boolean()) {
@@ -115,6 +122,7 @@ bool ReadCustomBool(const nlohmann::json& customProperties, const char* key, boo
 	return customProperties[key].get<bool>();
 }
 
+/// @brief 独自設定浮動小数を読み取る。
 float ReadCustomFloat(const nlohmann::json& customProperties, const char* key, float fallback)
 {
 	if (!customProperties.is_object() || !customProperties.contains(key) || !customProperties[key].is_number()) {
@@ -123,6 +131,7 @@ float ReadCustomFloat(const nlohmann::json& customProperties, const char* key, f
 	return customProperties[key].get<float>();
 }
 
+/// @brief 独自設定文字列を読み取る。
 std::string ReadCustomString(const nlohmann::json& customProperties, const char* key, const std::string& fallback)
 {
 	if (!customProperties.is_object() || !customProperties.contains(key) || !customProperties[key].is_string()) {
@@ -131,6 +140,7 @@ std::string ReadCustomString(const nlohmann::json& customProperties, const char*
 	return customProperties[key].get<std::string>();
 }
 
+/// @brief ボス段階表示名前を返す。
 std::string GetBossPhaseDisplayName(const LevelBossPhase& phase)
 {
 	const std::string configuredDisplayName = ReadCustomString(phase.customProperties, "displayName", "");
@@ -150,6 +160,7 @@ std::string GetBossPhaseDisplayName(const LevelBossPhase& phase)
 	return "PHASE CHANGE";
 }
 
+/// @brief Jsonベクトル4を読み取る。
 cg2::Vector4 ReadJsonVector4(const nlohmann::json& json, const cg2::Vector4& fallback)
 {
 	if (!json.is_object()) {
@@ -164,6 +175,7 @@ cg2::Vector4 ReadJsonVector4(const nlohmann::json& json, const cg2::Vector4& fal
 	return value;
 }
 
+/// @brief Jsonベクトル3を読み取る。
 cg2::Vector3 ReadJsonVector3(const nlohmann::json& json, const cg2::Vector3& fallback)
 {
 	if (!json.is_object()) {
@@ -177,6 +189,7 @@ cg2::Vector3 ReadJsonVector3(const nlohmann::json& json, const cg2::Vector3& fal
 	return value;
 }
 
+/// @brief Jsonベクトル2を読み取る。
 cg2::Vector2 ReadJsonVector2(const nlohmann::json& json, const cg2::Vector2& fallback)
 {
 	if (!json.is_object()) {
@@ -189,6 +202,7 @@ cg2::Vector2 ReadJsonVector2(const nlohmann::json& json, const cg2::Vector2& fal
 	return value;
 }
 
+/// @brief Jsonベクトル2を書き込む。
 nlohmann::json WriteJsonVector2(const cg2::Vector2& value)
 {
 	return {
@@ -197,6 +211,7 @@ nlohmann::json WriteJsonVector2(const cg2::Vector2& value)
 	};
 }
 
+/// @brief Jsonベクトル3を書き込む。
 nlohmann::json WriteJsonVector3(const cg2::Vector3& value)
 {
 	return {
@@ -206,6 +221,7 @@ nlohmann::json WriteJsonVector3(const cg2::Vector3& value)
 	};
 }
 
+/// @brief Jsonベクトル4を書き込む。
 nlohmann::json WriteJsonVector4(const cg2::Vector4& value)
 {
 	return {
@@ -216,6 +232,7 @@ nlohmann::json WriteJsonVector4(const cg2::Vector4& value)
 	};
 }
 
+/// @brief 弾軌跡設定Jsonを書き込む。
 nlohmann::json WriteBulletTrailSettingsJson(const BulletTrailSettings& settings)
 {
 	return {
@@ -243,6 +260,7 @@ nlohmann::json WriteBulletTrailSettingsJson(const BulletTrailSettings& settings)
 	};
 }
 
+/// @brief 弾軌跡設定Jsonを読み取る。
 void ReadBulletTrailSettingsJson(const nlohmann::json& json, BulletTrailSettings& settings)
 {
 	if (!json.is_object()) {
@@ -271,6 +289,7 @@ void ReadBulletTrailSettingsJson(const nlohmann::json& json, BulletTrailSettings
 	if (json.contains("reflectableEndColor")) settings.reflectableEndColor = ReadJsonVector4(json["reflectableEndColor"], settings.reflectableEndColor);
 }
 
+/// @brief ブルームパラメーターJsonを書き込む。
 nlohmann::json WriteBloomParamJson(const cg2::BloomParam& param)
 {
 	return {
@@ -310,6 +329,7 @@ nlohmann::json WriteBloomParamJson(const cg2::BloomParam& param)
 	};
 }
 
+/// @brief ブルームパラメーターJsonを読み取る。
 void ReadBloomParamJson(const nlohmann::json& json, cg2::BloomParam& param)
 {
 	if (!json.is_object()) {
@@ -356,6 +376,7 @@ void ReadBloomParamJson(const nlohmann::json& json, cg2::BloomParam& param)
 	param.dissolveNoiseSpeed = ReadCustomFloat(json, "dissolveNoiseSpeed", param.dissolveNoiseSpeed);
 }
 
+/// @brief 衝突Ring設定を作成して返す。
 cg2::RingEffectConfig MakeCollisionRingConfig(float radius, const cg2::Vector4& color) {
 	cg2::RingEffectConfig config{};
 	config.lifeTime = 0.045f;
@@ -370,6 +391,7 @@ cg2::RingEffectConfig MakeCollisionRingConfig(float radius, const cg2::Vector4& 
 	return config;
 }
 
+/// @brief Collider開発表示Ringsを発生させる。
 void EmitColliderDebugRings(cg2::RingManager& ringManager, Collider& collider) {
 	const cg2::Vector4 color = GetCollisionDebugColor(collider.GetCollisionAttribute());
 	if (collider.GetShape() == ColliderShape::Capsule) {
@@ -387,12 +409,14 @@ void EmitColliderDebugRings(cg2::RingManager& ringManager, Collider& collider) {
 	ringManager.Emit(collider.GetWorldPosition(), MakeCollisionRingConfig(collider.GetRadius(), color));
 }
 
+/// @brief 有効カメラ位置を返す。
 cg2::Vector3 GetActiveCameraPosition(cg2::Camera* camera, cg2::DebugCamera* debugCamera) {
 	return cg2::Object3dCommon::GetInstance()->GetIsDebugCamera() && debugCamera
 		? debugCamera->GetEyePosition()
 		: camera->GetTranslate();
 }
 
+/// @brief 2Dの点と有限線分の最短距離を返す。
 float DistancePointToSegment2D(const cg2::Vector3& point, const cg2::Vector3& start, const cg2::Vector3& end, float* outT = nullptr) {
 	const cg2::Vector3 segment = end - start;
 	const cg2::Vector3 toPoint = point - start;
@@ -409,6 +433,7 @@ float DistancePointToSegment2D(const cg2::Vector3& point, const cg2::Vector3& st
 	return std::sqrt(diff.x * diff.x + diff.y * diff.y);
 }
 
+/// @brief XY平面上のベクトルを指定角度だけ回転する。
 cg2::Vector3 RotateVector2D(const cg2::Vector3& value, float angleRad) {
 	const float c = std::cos(angleRad);
 	const float s = std::sin(angleRad);
@@ -642,7 +667,7 @@ void GameScene::Initialize() {
 	skybox_ = std::make_unique<cg2::Skybox>();
 	skybox_->Initialize("resources/skybox.dds");
 	const uint32_t skyboxTextureIndex = cg2::TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
-	
+
 	enemyObject_->SetModel("enemy3D.obj");
 	enemyObject_->SetLighting(true);
 	enemyObject_->SetEnvironmentMap(skyboxTextureIndex);
@@ -650,11 +675,11 @@ void GameScene::Initialize() {
 	object3d3->SetModel("plane.obj");
 	playerObject_->SetModel("player3D.obj");
 	playerObject_->SetColor(cg2::Vector4(0.48f, 0.86f, 0.22f, 1.0f));
-	//playerObject_->SetLighting(true);
+
 	ballObj_->SetModel("bloomBlock.obj");
 	ballObj_->SetColor(cg2::Vector4(0.06f, 0.45f, 0.08f, 1.0f));
 	ballObj_->SetLighting(true);
-	
+
 	ball_->SetModel("jewelry.obj");
 
 	stage_ = std::make_unique<Stage>();
@@ -748,7 +773,7 @@ void GameScene::Initialize() {
 		shotGide = std::make_unique<cg2::Sprite>();
 		shotGide->Initialize(cg2::SpriteCommon::GetInstance(), shotGuideTexturePath.string());
 		shotGide->SetPosition({ 100.0f, 100.0f });
-		//shotGide->SetSize({ 200.0f, 50.0f });
+
 	}
 
 	wasdGide = std::make_unique<cg2::Sprite>();
@@ -829,7 +854,7 @@ void GameScene::Initialize() {
 }
 
 void GameScene::Update() {
-	
+
 	// 通常は 1/60秒
 	const float baseDeltaTime = 1.0f / 60.0f;
 	if (titleDemo_) UpdateTitleDemo(baseDeltaTime);
@@ -995,17 +1020,13 @@ void GameScene::Update() {
 	if (skybox_) {
 		skybox_->Update(camera.get(), debugCamera.get());
 	}
-	
+
 
 	direction = cg2::Normalize(direction);
 	ball_->SetDirectionalLightDirection(direction);
 	ball_->SetInsensity(insensity);
 	ball_->SetShininess(shininess);
 
-	//worldTransform_.translate.y += 0.01f;
-
-
-	//ballObj_->SetTranslate(worldTransform_.translate);
 	ballObj_->Update();
 	ball_->Update();
 	groundObj_->Update();
@@ -1151,7 +1172,7 @@ void GameScene::Update() {
 	switch (phase_) {
 	case Phase::kFadeIn:
 		fade_->Update();
-	
+
 		if (fade_->IsFinished()) {
 			phase_ = Phase::kMain;
 			if (!expeditionRun_ && !bossEntryTriggered_ && !IsTutorialCombatSuppressed()) {
@@ -1178,7 +1199,7 @@ void GameScene::Update() {
 		}
 		break;
 	}
-	
+
 	if (shotGide) {
 		shotGide->Update();
 	}
@@ -1186,7 +1207,7 @@ void GameScene::Update() {
 	dashGide->Update();
 	toTitleGide->Update();
 	if (!titleDemo_) VerifyTitleDemoTransition(baseDeltaTime);
-	
+
 }
 
 void GameScene::InitializeSubmissionUi()
@@ -2018,7 +2039,7 @@ void GameScene::DrawPostEffect3D() {
 	}
 	ExpEnemy::SetShapeNeonRenderMode(expEnemyNeonRenderMode_);
 	if (skybox_) {
-		//skybox_->Draw();
+
 	}
 	cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 	const bool useGridPost = enableNeonGridPostEffect_ && IsPostProfileCategoryEnabled("Grid");
@@ -2099,7 +2120,7 @@ void GameScene::DrawPostEffect3D() {
 	} else {
 		AddPostProfileEntry("Stage Block Neon", 0.0f, false);
 	}
-	
+
 	{
 		cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewProjectionMatrix()
@@ -6485,12 +6506,10 @@ void GameScene::DrawLevelItems()
 
 void GameScene::DrawShadow() {
 	// 影用の共通設定（PSOの切り替えなど）は Object3dCommon 側で行う
-	//Object3dCommon::GetInstance()->PreDraw(kShadow);
+
 
 	// 影を落としたいモデルだけを描画
-	//ballObj_->DrawShadow();
-	//ball_->DrawShadow();
-	//groundObj_->DrawShadow();
+
 }
 
 void GameScene::DrawSprite() {
@@ -6532,7 +6551,7 @@ void GameScene::DrawSprite() {
 	if (gameFlowState_ == GameFlowState::Playing) {
 		player_->DrawEncyclopedia();
 	}
-	//shotGide->Draw();
+
 	if (controlGuideText_ && !prototypeRun_ && !tutorialConfig_.enabled && gameFlowState_ == GameFlowState::Playing && !player_->IsChangeMode()) {
 		controlGuideText_->SetPosition(showControlGuide_ ? cg2::Vector2{ 22.0f, 636.0f } : cg2::Vector2{ 22.0f, 690.0f });
 		controlGuideText_->Draw();
@@ -6745,6 +6764,7 @@ void GameScene::DrawHpBarBatch(uint32_t startVertex, uint32_t vertexCount, const
 }
 
 void GameScene::DrawHpBarBatches() {
+	/// @brief HPバーの一括描画へ渡す位置・サイズ・色を表す。
 	struct HpBarDrawCommand {
 		uint32_t startVertex = 0;
 		uint32_t vertexCount = 0;

@@ -9,6 +9,7 @@ constexpr const char* kCombatProbeDirectory = "generated/combat_validation/";
 constexpr std::array<const char*, 6> kCombatProbeNames{
     "Charger", "Sniper", "Skirmisher", "Flanker", "Suppressor", "Rival"
 };
+/// @brief 指定した形状が地形の壁と重なるか判定する。
 bool OverlapsWall(const Stage& stage, const cg2::AABB& body) {
     // Resolved bodies have 0.01-unit separation. Ignore only floating point noise.
     for (const auto& row : stage.GetBlocks()) for (const auto& block : row) {

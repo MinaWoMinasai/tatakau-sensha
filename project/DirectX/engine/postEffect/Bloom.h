@@ -4,33 +4,43 @@
 #include "RenderTexture.h"
 #include "Struct.h"
 #include "PostEffect.h"
-#include "BloomConstantBuffer.h" 
+#include "BloomConstantBuffer.h"
 #include "RtvManager.h"
 #include "SceneManager.h"
 #include <cstdint>
 
 namespace cg2 {
 
+/// @brief シーン画像からブルーム・画面効果・時間方向の合成を実行する。
 class Bloom {
 public:
+    /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager);
+    /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update();   // ImGuiと定数バッファ更新
     void PreDraw();  // 1. SceneRTをセット
     void PostDraw(); // 2. 抽出・ぼかし・合成を実行
     void SetGrayscaleEnabled(bool enabled);
+    /// @brief ガウシアン上書き設定を設定する。
     void SetGaussianOverride(float intensity);
-    void SetTransientPulse(float bloomBoost, float chromAbAmount, const Vector2& center,
-        float radius, float width, float strength);
-	void SetScreenEffectState(const IScene::ScreenEffectState& state);
+    /// @brief Transientパルスを設定する。
+    void SetTransientPulse(float bloomBoost, float chromAbAmount, const Vector2& center, float radius, float width, float strength);
+    /// @brief 画面演出状態を設定する。
+    void SetScreenEffectState(const IScene::ScreenEffectState& state);
 
 private:
     // 便利関数：リソースバリアの切り替え
     void Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
+    /// @brief フレームカメラパラメーターを更新する。
     void UpdateFrameCameraParameters(bool advanceMotionHistory);
+    /// @brief 時間方向射影ジッターへのCamerasを現在の状態へ適用する。
     void ApplyTemporalJitterToCameras();
+    /// @brief 時間方向Historyを初期状態へ戻す。
     void ResetTemporalHistory();
-	void ComposeTransientEffects();
-	void CaptureScreenEffectBase();
+    /// @brief 一時的な画面効果を基準の設定と合成する。
+    void ComposeTransientEffects();
+    /// @brief 画面演出基準を記録する。
+    void CaptureScreenEffectBase();
 
 private:
     DirectXCommon* dxCommon_ = nullptr;
@@ -70,9 +80,9 @@ private:
     float baseChromAbAmount_ = 0.0f;
     float transientBloomBoost_ = 0.0f;
     float transientChromAbAmount_ = 0.0f;
-	IScene::PostEffectPulse transientPulse_{};
-	IScene::ScreenEffectState screenEffectState_{};
-	BloomParam screenEffectBaseParam_{};
+    IScene::PostEffectPulse transientPulse_{};
+    IScene::ScreenEffectState screenEffectState_{};
+    BloomParam screenEffectBaseParam_{};
     bool enableDepthOutline_ = true;
     bool enableDepthFog_ = false;
     bool enableSSAO_ = true;
@@ -85,8 +95,8 @@ private:
     bool hasTemporalHistory_ = false;
     int temporalHistoryIndex_ = 0;
     uint32_t temporalFrameIndex_ = 0;
-    Vector2 temporalJitter_ = { 0.0f, 0.0f };
-    Vector2 previousTemporalJitter_ = { 0.0f, 0.0f };
+    Vector2 temporalJitter_ = {0.0f, 0.0f};
+    Vector2 previousTemporalJitter_ = {0.0f, 0.0f};
     float temporalJitterScale_ = 1.0f;
     bool hasPreviousMotionViewProjection_ = false;
     bool previousMotionUsedDebugCamera_ = false;

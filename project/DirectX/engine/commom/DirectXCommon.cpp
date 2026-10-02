@@ -31,8 +31,8 @@ void DirectXCommon::Initialize(WinApp* winApp)
 	CreateSwapChainRtv();
 	InitializeDepthStencilView();
 	InitializeFence();
-	//InitializeViewport();
-	//InitializeSissorRect();
+
+
 	CreateDXCCompiler();
 	InitializeImGui();
 
@@ -65,7 +65,7 @@ void DirectXCommon::PreDraw()
 	list_->OMSetRenderTargets(1, &rtvHandles_[backBufferIndex], false, &dsvHandle);
 	// 指定した色で画面全体をクリアする
 	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	//float clearColor[] = { 0.1f, 0.25f, 0.5f, 1.0f };
+
 	list_->ClearRenderTargetView(rtvHandles_[backBufferIndex], clearColor, 0, nullptr);
 	// 指定して深度で画面全体をクリアする
 	list_->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
@@ -249,14 +249,14 @@ void DirectXCommon::CreateShaderCommon(
 	// [DepthStencilState] のデフォルト設定
 	pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
 	pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	
+
 	if (blendMode == kNormal || blendMode == kAdd) {
 		// 半透明描画時は深度バッファを書き換えない
 		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	} else {
 		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	}
-	
+
 	// --- 統合ここまで ---
 
 	// 5. 個別設定の上書き (Shadow / PostEffect / Normal)
@@ -339,8 +339,6 @@ void DirectXCommon::CreateShaderCommon(
 		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	}
-
-	
 
 	// 6. 残りの共通設定
 	if (doubleSided) {
@@ -568,7 +566,7 @@ void DirectXCommon::InitializeDevice()
 		gpuBasedValidationEnabled_ = valueLength > 0 && gpuValidationValue[0] == '1';
 		debugComtroller->SetEnableGPUBasedValidation(gpuBasedValidationEnabled_ ? TRUE : FALSE);
 	}
-	
+
 	hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
 	assert(SUCCEEDED(hr));
 
@@ -583,7 +581,7 @@ void DirectXCommon::InitializeDevice()
 		// ソフトウェアアダプタでなければ採用!
 		if (!(adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE)) {
 			// 採用したアダプタの情報をログに出力。wstringのほうなので注意
-			//Log(ConvertString(std::format(L"Use Adapter:{}\n", adapterDesc.Description)));
+
 			break;
 		}
 		useAdapter_ = nullptr; // ソフトウェアアダプタの場合は見なかったことにする
@@ -603,7 +601,7 @@ void DirectXCommon::InitializeDevice()
 		// 指定した操縦レベルでデバイスが生成できたかを確認
 		if (SUCCEEDED(hr)) {
 			// 生成できたのでログ出力を行ってループを抜ける
-			//Log(std::format("FeatureLevel : {}\n", featureLevelStrings[i]));
+
 			break;
 		}
 	}
@@ -768,7 +766,7 @@ void DirectXCommon::InitializeDepthStencilView()
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D; // 2dTexture
 	// DSVHeapの先頭にDSVをつくる
 	device_->CreateDepthStencilView(depthStencilResource_.Get(), &dsvDesc, dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart());
-	
+
 	// DSVヒープの先頭ハンドルを取得して保持
 	dsvHandle_ = dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 
@@ -792,7 +790,7 @@ void DirectXCommon::InitializeFence()
 
 void DirectXCommon::InitializeViewport()
 {
-	
+
 	//クライアント領域のサイズと一緒にして画面全体に表示
 	viewportRect_.Width = FLOAT(WinApp::kClientWidth);
 	viewportRect_.Height = FLOAT(WinApp::kClientHeight);
@@ -831,17 +829,7 @@ void DirectXCommon::CreateDXCCompiler()
 
 void DirectXCommon::InitializeImGui()
 {
-	// imgui の初期化
-	//IMGUI_CHECKVERSION();
-	//ImGui::CreateContext();
-	//ImGui::StyleColorsDark();
-	//ImGui_ImplWin32_Init(winApp_->GetHwnd());
-	//ImGui_ImplDX12_Init(device_.Get(),
-	//	swapChainDesc_.BufferCount,
-	//	rtvDesc_.Format,
-	//	srvDescriptorHeap_.Get(),
-	//	srvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(),
-	//	srvDescriptorHeap_->GetGPUDescriptorHandleForHeapStart());
+	// 互換用の空の窓口。実際の初期化はGame::InitializeImGuiが担当する。
 }
 
 void DirectXCommon::CommandListExecuteAndReset()

@@ -17,6 +17,7 @@ using namespace DirectX;
 static constexpr float kDeltaTime = 1.0f / 60.0f;
 
 namespace {
+/// @brief 係数を0〜1に制限し、2つのRGBA色を線形補間して返す。
 cg2::Vector4 LerpColor(const cg2::Vector4& a, const cg2::Vector4& b, float t)
 {
 	t = (std::clamp)(t, 0.0f, 1.0f);
@@ -28,6 +29,7 @@ cg2::Vector4 LerpColor(const cg2::Vector4& a, const cg2::Vector4& b, float t)
 	};
 }
 
+/// @brief 2D方向を指定角度だけ回転する。
 cg2::Vector3 RotateDirection2D(const cg2::Vector3& dir, float angleDeg)
 {
 	const float rad = angleDeg * 3.1415926535f / 180.0f;
@@ -38,6 +40,7 @@ cg2::Vector3 RotateDirection2D(const cg2::Vector3& dir, float angleDeg)
 	};
 }
 
+/// @brief 角度ラジアンを正規化する。
 float NormalizeAngleRad(float angle)
 {
 	constexpr float twoPi = 6.283185307f;
@@ -206,11 +209,11 @@ void Enemy::Initialize(cg2::Object3d* object, const cg2::Vector3& position, Stag
 	SetDamage(35);
 
 	stage_ = stage;
-	
+
 	sprite = std::make_unique<cg2::Sprite>();
 	sprite->Initialize(cg2::SpriteCommon::GetInstance(), "resources/bossHPGreen.png");
 	sprite->SetPosition({ 20.0f, 210.0f });
-	
+
 	bossHpRed = std::make_unique<cg2::Sprite>();
 	bossHpRed->Initialize(cg2::SpriteCommon::GetInstance(), "resources/bossHPRed.png");
 	bossHpRed->SetPosition({ 20.0f, 210.0f });
@@ -753,9 +756,7 @@ void Enemy::DrawBodyOnly() {
 void Enemy::DrawSprite()
 {
 	if (!runEncounterEnabled_) return;
-	//bossHpRed->Draw();
-	//sprite->Draw();
-	//bossHpFont->Draw();
+
 }
 
 void Enemy::ApproachToPlayer(cg2::Vector3& startPos, cg2::Vector3& targetPos) {
@@ -782,7 +783,7 @@ cg2::Vector3 Enemy::GetWorldPosition() const {
 
 void Enemy::OnCollision(Collider* other) {
 	if (!runEncounterEnabled_) return;
-	
+
 	if (other->GetCollisionAttribute() == kCollisionAttributeExpEnemy) {
 		if (!enemyProgressConfig_.expEnemyHostile) {
 			return;
@@ -895,7 +896,7 @@ void Enemy::AIStateMovePower() {
 }
 
 void Enemy::Move(float deltaTime) {
-	
+
 	UpdateAIState();
 
 	AIStateMovePower();
@@ -1072,9 +1073,11 @@ std::optional<cg2::Vector3> Enemy::FindPathDirectionToTarget(const cg2::Vector3&
 		return std::abs(a.x - b.x) + std::abs(a.y - b.y);
 	};
 
+	/// @brief 探索キューの座標と優先度を保持する。
 	struct QueueNode {
 		int id = 0;
 		int f = 0;
+		/// @brief operator>の演算を提供する。
 		bool operator>(const QueueNode& other) const { return f > other.f; }
 	};
 
@@ -1316,7 +1319,7 @@ void Enemy::UpdateAIState() {
 	// プレイヤー弾の危険判定
 	bool bulletDanger = false;
 	for (Bullet* bullet : bulletManager_->GetBulletPtrs()) {
-		
+
 		// 敵の弾は無視
 		if (bullet->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
 			continue;
@@ -1378,7 +1381,7 @@ bool Enemy::IsBlockNearByRay() {
 	const float kRayLength = 3.0f;
 
 	cg2::Segment ray = MakeForwardRay(kRayLength);
-	
+
 	for (const auto& row : stage_->GetBlocks()) {
 		for (const Block& block : row) {
 
@@ -1406,14 +1409,14 @@ cg2::Vector3 Enemy::WallAvoidByRay() {
 	cg2::Vector3 forward = cg2::Normalize(dir_);
 
 	if (IsBlockNearByRay() && !isWallFollowing_) {
-		
+
 		cg2::Vector3 left(-forward.y, forward.x, 0);
 		cg2::Vector3 right(forward.y, -forward.x, 0);
 
 		float leftScore = ScoreDir(left);
 		float rightScore = ScoreDir(right);
 
-		
+
 		isWallFollowing_ = true;
 		wallFollowTimer_ = 1.2f; // この時間は壁沿い優先
 		wallFollowDir_ = (leftScore < rightScore) ? left : right;
@@ -1507,7 +1510,7 @@ void Enemy::Die()
 	isExploding_ = true;
 
 	SpawnParticles();
-	//bullets_.clear();
+
 
 	radius_ = 0.0f;
 }
@@ -1566,7 +1569,7 @@ void Enemy::UpdateHPBar()
 	hpBarFillTransform_.scale.x = 1.0f * hpPercent;
 
 	// ゲージが左端から縮むように、少し位置をずらす調整をするとより綺麗です
-	//hpBarFillTransform_.translate.x -= 3.0f * (1.0f - hpPercent) * 0.5f;
+
 
 	hpBarFill_->SetTransform(hpBarFillTransform_);
 	hpBarFill_->Update();
