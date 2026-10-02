@@ -116,7 +116,7 @@ public:
 		float duration,
 		bool synchronizeNormalizedTime = false);
 
-	Skeleton& GetSkeleton() { return skeleton_; }
+	const Skeleton& GetSkeleton() const { return skeleton_; }
 	void SetAnimationLoop(bool loop) { animationPlayer_.SetLoop(loop); }
 	void SetAnimationPlaybackSpeed(float speed) { animationPlayer_.SetPlaybackSpeed(speed); }
 	void SeekCurrentAnimation(float time) { animationPlayer_.Seek(time); }
@@ -127,7 +127,7 @@ public:
 	bool IsCurrentAnimationPlaying() const { return animationPlayer_.IsPlaying(); }
 	bool IsCurrentAnimationLooping() const { return animationPlayer_.IsLooping(); }
 	const SkinCluster& GetSkinCluster() const { return skinCluster_; }
-	AnimationPlayer& GetAnimationPlayer() { return animationPlayer_; }
+	const AnimationPlayer& GetAnimationPlayer() const { return animationPlayer_; }
 	const Animation& GetAnimation() const { return animations_[currentAnimationIndex_]; }
 	const std::vector<Animation>& GetAnimations() const { return animations_; }
 	size_t GetCurrentAnimationIndex() const { return currentAnimationIndex_; }

@@ -22,15 +22,15 @@ public:
 	void SetProjectionJitter(const Vector2& jitter);
 
 	// getter
-	Matrix4x4& GetWorldMatrix() { return worldMatrix_; }
-	Matrix4x4& GetViewMatrix() { return viewMatrix_; }
-	Matrix4x4& GetProjectionMatrix() { return projectionMatrix_; }
-	Matrix4x4& GetViewProjectionMatrix() { return viewProjectionMatrix_; }
-	Matrix4x4& GetUnjitteredProjectionMatrix() { return unjitteredProjectionMatrix_; }
-	Matrix4x4& GetUnjitteredViewProjectionMatrix() { return unjitteredViewProjectionMatrix_; }
-	Vector2& GetProjectionJitter() { return projectionJitter_; }
-	Vector3& GetRotate() { return transform_.rotate; }
-	Vector3& GetTranslate() { return transform_.translate; }
+	const Matrix4x4& GetWorldMatrix() const { return worldMatrix_; }
+	const Matrix4x4& GetViewMatrix() const { return viewMatrix_; }
+	const Matrix4x4& GetProjectionMatrix() const { return projectionMatrix_; }
+	const Matrix4x4& GetViewProjectionMatrix() const { return viewProjectionMatrix_; }
+	const Matrix4x4& GetUnjitteredProjectionMatrix() const { return unjitteredProjectionMatrix_; }
+	const Matrix4x4& GetUnjitteredViewProjectionMatrix() const { return unjitteredViewProjectionMatrix_; }
+	const Vector2& GetProjectionJitter() const { return projectionJitter_; }
+	const Vector3& GetRotate() const { return transform_.rotate; }
+	const Vector3& GetTranslate() const { return transform_.translate; }
 	float GetNearClip() const { return nearClip_; }
 	float GetFarClip() const { return farClip_; }
 

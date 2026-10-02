@@ -84,7 +84,8 @@ public:
     bool IsDead() const { return isDead_; }
     int GetHp() const { return hp_; }
     int GetMaxHp() const { return maxHp_; }
-    void SetHp(int hp) { hp_ = hp; maxHp_ = hp; }
+    // Spawn configuration: damage and death are handled by ApplyDamage.
+    void SetHp(int hp) { hp_ = maxHp_ = (std::max)(1, hp); }
     void SetRunResource(std::function<void(bool playerOwned)> onClaim);
     bool IsRunResource() const { return isRunResource_; }
     bool IsCombatThreat() const {

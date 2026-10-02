@@ -51,7 +51,8 @@ public:
     std::vector<Bullet*> GetBulletPtrs() const;
     size_t GetBulletCount() const { return bullets_.size(); }
     BulletCounts GetBulletCounts() const;
-    BulletTrailSettings& GetTrailSettings() { return trailSettings_; }
+    const BulletTrailSettings& GetTrailSettings() const { return trailSettings_; }
+    void SetTrailSettings(const BulletTrailSettings& settings);
     size_t GetTrailInstanceCount() const;
     bool HasDrawableTrails() const {
         return trailManager_ && trailManager_->HasDrawableInstances();

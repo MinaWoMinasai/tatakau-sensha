@@ -26,30 +26,8 @@ public:
     // phase or emits multiple shots; each phase retains its complete duration.
     bool Advance(float deltaTime, bool canTrackTarget) {
         if (!std::isfinite(deltaTime) || deltaTime <= 0.0f) return false;
-        if (phase_ == ExpEnemyCombatPhase::Tracking && !canTrackTarget) {
-            Enter(ExpEnemyCombatPhase::Cooldown, 0.40f);
-            return false;
-        }
-        remaining_ = (std::max)(0.0f, remaining_ - deltaTime);
-        if (remaining_ > 0.0f) return false;
-        switch (phase_) {
-        case ExpEnemyCombatPhase::Cooldown:
-            if (canTrackTarget) Enter(ExpEnemyCombatPhase::Tracking, timing_.tracking);
-            break;
-        case ExpEnemyCombatPhase::Tracking:
-            Enter(ExpEnemyCombatPhase::Locked, timing_.locked);
-            break;
-        case ExpEnemyCombatPhase::Locked:
-            Enter(ExpEnemyCombatPhase::Active, timing_.active);
-            return true;
-        case ExpEnemyCombatPhase::Active:
-            EnterRecovery();
-            break;
-        case ExpEnemyCombatPhase::Recovery:
-            Enter(ExpEnemyCombatPhase::Cooldown, timing_.cooldown * recoveryScale_);
-            break;
-        }
-        return false;
+        const State& state = GetState(phase_);
+        return state.Update(*this, deltaTime, canTrackTarget);
     }
 
     void SetRecoveryScale(float scale) { recoveryScale_=(std::clamp)(scale,0.20f,8.0f); }
@@ -69,6 +47,71 @@ public:
     }
 
 private:
+    // Immutable state objects are shared; each enemy keeps its own timers here.
+    // Nested classes use the private transition API without friend declarations.
+    class State {
+    public:
+        virtual ~State() = default;
+        virtual bool Update(ExpEnemyCombatCycle& cycle, float dt, bool canTrack) const = 0;
+    };
+    class CooldownState final : public State {
+    public:
+        bool Update(ExpEnemyCombatCycle& cycle, float dt, bool canTrack) const override {
+            if (cycle.Elapse(dt) && canTrack)
+                cycle.Enter(ExpEnemyCombatPhase::Tracking, cycle.timing_.tracking);
+            return false;
+        }
+    };
+    class TrackingState final : public State {
+    public:
+        bool Update(ExpEnemyCombatCycle& cycle, float dt, bool canTrack) const override {
+            if (!canTrack) cycle.Enter(ExpEnemyCombatPhase::Cooldown, 0.40f);
+            else if (cycle.Elapse(dt)) cycle.Enter(ExpEnemyCombatPhase::Locked, cycle.timing_.locked);
+            return false;
+        }
+    };
+    class LockedState final : public State {
+    public:
+        bool Update(ExpEnemyCombatCycle& cycle, float dt, bool) const override {
+            if (!cycle.Elapse(dt)) return false;
+            cycle.Enter(ExpEnemyCombatPhase::Active, cycle.timing_.active);
+            return true;
+        }
+    };
+    class ActiveState final : public State {
+    public:
+        bool Update(ExpEnemyCombatCycle& cycle, float dt, bool) const override {
+            if (cycle.Elapse(dt)) cycle.EnterRecovery();
+            return false;
+        }
+    };
+    class RecoveryState final : public State {
+    public:
+        bool Update(ExpEnemyCombatCycle& cycle, float dt, bool) const override {
+            if (cycle.Elapse(dt))
+                cycle.Enter(ExpEnemyCombatPhase::Cooldown, cycle.timing_.cooldown * cycle.recoveryScale_);
+            return false;
+        }
+    };
+    static const State& GetState(ExpEnemyCombatPhase phase) {
+        static const CooldownState cooldown;
+        static const TrackingState tracking;
+        static const LockedState locked;
+        static const ActiveState active;
+        static const RecoveryState recovery;
+        // This switch only selects an object; states decide behavior/transitions.
+        switch (phase) {
+        case ExpEnemyCombatPhase::Tracking: return tracking;
+        case ExpEnemyCombatPhase::Locked: return locked;
+        case ExpEnemyCombatPhase::Active: return active;
+        case ExpEnemyCombatPhase::Recovery: return recovery;
+        default: return cooldown;
+        }
+    }
+    bool Elapse(float dt) {
+        remaining_ = (std::max)(0.0f, remaining_ - dt);
+        return remaining_ <= 0.0f;
+    }
     void Enter(ExpEnemyCombatPhase phase, float duration) {
         phase_ = phase;
         remaining_ = (std::max)(0.001f, duration);

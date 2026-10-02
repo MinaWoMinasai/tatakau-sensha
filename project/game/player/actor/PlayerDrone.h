@@ -47,7 +47,7 @@ public:
 	const tankspecial::DroneMission& GetRunMission() const {return mission_;}
 	const Vector3& GetRunMissionTarget() const {return missionTarget_;}
 	bool IsRunAvailable() const {return !isDead_&&mission_.Available();}
-	bool ConsumeRunMissionImpact() {const bool hit=mission_.impact;mission_.impact=false;return hit;}
+	bool ConsumeRunMissionImpact() { return mission_.ConsumeImpact(); }
 	bool ConsumeRunRebuilt() {const bool value=rebuilt_;rebuilt_=false;return value;}
 
 	/// <summary>

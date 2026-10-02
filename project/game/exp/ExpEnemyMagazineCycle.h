@@ -27,39 +27,8 @@ public:
     void SetIntervalScale(float scale) { intervalScale_ = (std::clamp)(scale, 0.3f, 4.0f); }
     bool Advance(float dt, bool canTrack) {
         if (!std::isfinite(dt) || dt <= 0) return false;
-        if (phase_ == ExpEnemyCombatPhase::Tracking && !canTrack) {
-            Enter(ExpEnemyCombatPhase::Cooldown, 0.14f);
-            return false;
-        }
-        remaining_ = (std::max)(0.0f, remaining_ - dt);
-        if (remaining_ > 0) return false;
-        switch (phase_) {
-        case ExpEnemyCombatPhase::Cooldown:
-            if (canTrack) Enter(ExpEnemyCombatPhase::Tracking, timing_.tracking);
-            break;
-        case ExpEnemyCombatPhase::Tracking:
-            Enter(ExpEnemyCombatPhase::Locked, timing_.locked);
-            break;
-        case ExpEnemyCombatPhase::Locked:
-            if (ammo_ > 0) {
-                --ammo_;
-                Enter(ExpEnemyCombatPhase::Active, (std::max)(0.08f, timing_.cadence * intervalScale_));
-                return true;
-            }
-            break;
-        case ExpEnemyCombatPhase::Active:
-            if (ammo_ == 0) {
-                ++reloadCount_;
-                reloadDuration_ = (std::max)(0.80f, timing_.reload * intervalScale_);
-                Enter(ExpEnemyCombatPhase::Recovery, reloadDuration_);
-            } else Enter(ExpEnemyCombatPhase::Cooldown, 0.01f);
-            break;
-        case ExpEnemyCombatPhase::Recovery:
-            ammo_ = timing_.rounds;
-            Enter(ExpEnemyCombatPhase::Cooldown, 0.10f);
-            break;
-        }
-        return false;
+        const State& state = GetState(phase_);
+        return state.Update(*this, dt, canTrack);
     }
     ExpEnemyCombatPhase GetPhase() const { return phase_; }
     bool IsAimLocked() const { return phase_ == ExpEnemyCombatPhase::Locked || phase_ == ExpEnemyCombatPhase::Active; }
@@ -75,6 +44,77 @@ public:
         return IsReloading() ? (std::clamp)(1 - remaining_ / reloadDuration_, 0.0f, 1.0f) : 0;
     }
 private:
+    class State {
+    public:
+        virtual ~State() = default;
+        virtual bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool canTrack) const = 0;
+    };
+    class CooldownState final : public State {
+    public:
+        bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool canTrack) const override {
+            if (cycle.Elapse(dt) && canTrack)
+                cycle.Enter(ExpEnemyCombatPhase::Tracking, cycle.timing_.tracking);
+            return false;
+        }
+    };
+    class TrackingState final : public State {
+    public:
+        bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool canTrack) const override {
+            if (!canTrack) cycle.Enter(ExpEnemyCombatPhase::Cooldown, 0.14f);
+            else if (cycle.Elapse(dt)) cycle.Enter(ExpEnemyCombatPhase::Locked, cycle.timing_.locked);
+            return false;
+        }
+    };
+    class LockedState final : public State {
+    public:
+        bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool) const override {
+            if (!cycle.Elapse(dt) || cycle.ammo_ <= 0) return false;
+            --cycle.ammo_;
+            cycle.Enter(ExpEnemyCombatPhase::Active,
+                (std::max)(0.08f, cycle.timing_.cadence * cycle.intervalScale_));
+            return true;
+        }
+    };
+    class ActiveState final : public State {
+    public:
+        bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool) const override {
+            if (!cycle.Elapse(dt)) return false;
+            if (cycle.ammo_ == 0) {
+                ++cycle.reloadCount_;
+                cycle.reloadDuration_ = (std::max)(0.80f, cycle.timing_.reload * cycle.intervalScale_);
+                cycle.Enter(ExpEnemyCombatPhase::Recovery, cycle.reloadDuration_);
+            } else cycle.Enter(ExpEnemyCombatPhase::Cooldown, 0.01f);
+            return false;
+        }
+    };
+    class RecoveryState final : public State {
+    public:
+        bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool) const override {
+            if (cycle.Elapse(dt)) {
+                cycle.ammo_ = cycle.timing_.rounds;
+                cycle.Enter(ExpEnemyCombatPhase::Cooldown, 0.10f);
+            }
+            return false;
+        }
+    };
+    static const State& GetState(ExpEnemyCombatPhase phase) {
+        static const CooldownState cooldown;
+        static const TrackingState tracking;
+        static const LockedState locked;
+        static const ActiveState active;
+        static const RecoveryState recovery;
+        switch (phase) {
+        case ExpEnemyCombatPhase::Tracking: return tracking;
+        case ExpEnemyCombatPhase::Locked: return locked;
+        case ExpEnemyCombatPhase::Active: return active;
+        case ExpEnemyCombatPhase::Recovery: return recovery;
+        default: return cooldown;
+        }
+    }
+    bool Elapse(float dt) {
+        remaining_ = (std::max)(0.0f, remaining_ - dt);
+        return remaining_ <= 0.0f;
+    }
     void Enter(ExpEnemyCombatPhase phase, float time) { phase_ = phase; remaining_ = time; }
     Timing timing_{};
     ExpEnemyCombatPhase phase_ = ExpEnemyCombatPhase::Cooldown;

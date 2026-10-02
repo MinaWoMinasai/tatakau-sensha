@@ -44,60 +44,8 @@ public:
         dodgeCooldown_ = (std::max)(0.0f, dodgeCooldown_ - step);
         if (std::isfinite(hpRatio) && hpRatio <= 0.5f) phaseTwoPending_ = true;
         const float aim = std::isfinite(targetAngle) ? targetAngle : aimAngle_;
-        switch (phase_) {
-        case Phase::Reposition:
-            if (incomingThreat && dodgeCooldown_ <= 0.0f && lineOfSight) {
-                reactiveDash_ = true;
-                dodgeCooldown_ = 5.5f;
-                Enter(Phase::DashWarning);
-                break;
-            }
-            if (elapsed_ >= Duration() && lineOfSight) {
-                // Upgrade only at a magazine boundary, never refill mid-volley.
-                phaseTwo_ = phaseTwoPending_;
-                capacity_ = phaseTwo_ ? 5 : 4;
-                ammo_ = capacity_;
-                pattern_ = cycle_ % 3 == 1 ? Pattern::FanBurst :
-                    (cycle_ % 3 == 2 ? Pattern::Sweep : Pattern::AimedBurst);
-                aimAngle_ = aim;
-                Enter(Phase::Tracking);
-            }
-            break;
-        case Phase::Tracking:
-            aimAngle_ = aim;
-            if (!lineOfSight) { Enter(Phase::Reposition); break; }
-            if (elapsed_ >= Duration()) Enter(Phase::Locked);
-            break;
-        case Phase::Locked:
-            if (elapsed_ >= Duration()) {
-                Enter(Phase::Volley);
-                result = FireRound();
-            }
-            break;
-        case Phase::Volley:
-            if (elapsed_ < Duration()) break;
-            if (ammo_ > 0) result = FireRound();
-            else {
-                reactiveDash_ = false;
-                dodgeCooldown_ = (std::max)(dodgeCooldown_, 2.0f);
-                Enter(Phase::DashWarning);
-            }
-            break;
-        case Phase::DashWarning:
-            if (elapsed_ >= Duration()) Enter(Phase::Dash);
-            break;
-        case Phase::Dash:
-            if (elapsed_ >= Duration()) FinishDash();
-            break;
-        case Phase::Reload:
-            if (elapsed_ >= Duration()) {
-                ++cycle_;
-                ammo_ = capacity_;
-                Enter(Phase::Reposition);
-            }
-            break;
-        }
-        return result;
+        const State& state = GetState(phase_);
+        return state.Update(*this, lineOfSight, aim, incomingThreat);
     }
 
     static int ProjectileCount(Pattern pattern) { return pattern == Pattern::AimedBurst ? 2 : 3; }
@@ -125,6 +73,102 @@ public:
     }
 
 private:
+    class State {
+    public:
+        virtual ~State() = default;
+        virtual Shot Update(RivalBossCombat& boss, bool visible, float aim, bool threat) const = 0;
+    };
+    class RepositionState final : public State {
+    public:
+        Shot Update(RivalBossCombat& boss, bool visible, float aim, bool threat) const override {
+            if (threat && boss.dodgeCooldown_ <= 0.0f && visible) {
+                boss.reactiveDash_ = true;
+                boss.dodgeCooldown_ = 5.5f;
+                boss.Enter(Phase::DashWarning);
+            } else if (boss.elapsed_ >= boss.Duration() && visible) {
+                // Upgrade only at a magazine boundary, never refill mid-volley.
+                boss.phaseTwo_ = boss.phaseTwoPending_;
+                boss.capacity_ = boss.phaseTwo_ ? 5 : 4;
+                boss.ammo_ = boss.capacity_;
+                boss.pattern_ = boss.cycle_ % 3 == 1 ? Pattern::FanBurst :
+                    (boss.cycle_ % 3 == 2 ? Pattern::Sweep : Pattern::AimedBurst);
+                boss.aimAngle_ = aim;
+                boss.Enter(Phase::Tracking);
+            }
+            return {};
+        }
+    };
+    class TrackingState final : public State {
+    public:
+        Shot Update(RivalBossCombat& boss, bool visible, float aim, bool) const override {
+            boss.aimAngle_ = aim;
+            if (!visible) boss.Enter(Phase::Reposition);
+            else if (boss.elapsed_ >= boss.Duration()) boss.Enter(Phase::Locked);
+            return {};
+        }
+    };
+    class LockedState final : public State {
+    public:
+        Shot Update(RivalBossCombat& boss, bool, float, bool) const override {
+            if (boss.elapsed_ < boss.Duration()) return {};
+            boss.Enter(Phase::Volley);
+            return boss.FireRound();
+        }
+    };
+    class VolleyState final : public State {
+    public:
+        Shot Update(RivalBossCombat& boss, bool, float, bool) const override {
+            if (boss.elapsed_ < boss.Duration()) return {};
+            if (boss.ammo_ > 0) return boss.FireRound();
+            boss.reactiveDash_ = false;
+            boss.dodgeCooldown_ = (std::max)(boss.dodgeCooldown_, 2.0f);
+            boss.Enter(Phase::DashWarning);
+            return {};
+        }
+    };
+    class DashWarningState final : public State {
+    public:
+        Shot Update(RivalBossCombat& boss, bool, float, bool) const override {
+            if (boss.elapsed_ >= boss.Duration()) boss.Enter(Phase::Dash);
+            return {};
+        }
+    };
+    class DashState final : public State {
+    public:
+        Shot Update(RivalBossCombat& boss, bool, float, bool) const override {
+            if (boss.elapsed_ >= boss.Duration()) boss.FinishDash();
+            return {};
+        }
+    };
+    class ReloadState final : public State {
+    public:
+        Shot Update(RivalBossCombat& boss, bool, float, bool) const override {
+            if (boss.elapsed_ >= boss.Duration()) {
+                ++boss.cycle_;
+                boss.ammo_ = boss.capacity_;
+                boss.Enter(Phase::Reposition);
+            }
+            return {};
+        }
+    };
+    static const State& GetState(Phase phase) {
+        static const RepositionState reposition;
+        static const TrackingState tracking;
+        static const LockedState locked;
+        static const VolleyState volley;
+        static const DashWarningState dashWarning;
+        static const DashState dash;
+        static const ReloadState reload;
+        switch (phase) {
+        case Phase::Tracking: return tracking;
+        case Phase::Locked: return locked;
+        case Phase::Volley: return volley;
+        case Phase::DashWarning: return dashWarning;
+        case Phase::Dash: return dash;
+        case Phase::Reload: return reload;
+        default: return reposition;
+        }
+    }
     void Enter(Phase next) {
         phase_ = next; elapsed_ = 0.0f;
         if (next == Phase::Dash) ++dashCount_;

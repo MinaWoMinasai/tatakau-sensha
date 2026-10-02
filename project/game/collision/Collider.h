@@ -1,6 +1,7 @@
 #pragma once
 #include "Struct.h"
 #include <atomic>
+#include <cmath>
 
 // 判定図形
 enum class ColliderShape { Sphere, Capsule };
@@ -8,12 +9,13 @@ enum class ColliderShape { Sphere, Capsule };
 class Collider {
 
 public:
+	virtual ~Collider() = default;
 	uint64_t GetCollisionId() const { return identity_.value; }
 	// 半径を取得
 	virtual float GetRadius() const { return radius_; }
 
 	// 半径を設定
-	void SetRadius(float radius) { radius_ = radius; }
+	void SetRadius(float radius) { if (std::isfinite(radius) && radius >= 0.0f) radius_ = radius; }
 
 	/// <summary>
 	/// ワールド座標の取得
@@ -42,6 +44,7 @@ public:
 	void SetShape(ColliderShape shape) { shape_ = shape; }
 
 	void SetCapsule(const Segment& seg, float r) {
+		if (!std::isfinite(r) || r < 0.0f) return;
 		segment_ = seg;
 		capsuleRadius_ = r;
 	}
