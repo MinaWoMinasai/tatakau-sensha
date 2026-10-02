@@ -137,7 +137,7 @@ bool GameScene::UpdateSpecialValidation(float dt) {
     player_->SetDemoInput(true,{},index==14?Vector3{68,29,0}:index>=8&&index<=11?Vector3{38,29,0}:Vector3{50,29,0},shoot,dash);
     if(index>=8&&index<=11) {
         int available=0;bool escort=true;
-        for(auto* drone:player_->GetDronePtrs()) {if(drone->IsRunAvailable())++available;if(drone->GetRunMission().phase!=tankspecial::DronePhase::Escort)escort=false;}
+        for(auto* drone:player_->GetDronePtrs()) {if(drone->IsRunAvailable())++available;if(drone->GetRunMission().GetPhase()!=tankspecial::DronePhase::Escort)escort=false;}
         specialValidation_["minAvailable"]=(std::min)(specialValidation_.value("minAvailable",99),available);
         if(escort&&stats.droneChargeHits>before.value("droneChargeHits",0u))specialValidation_["returnedEscort"]=true;
     }

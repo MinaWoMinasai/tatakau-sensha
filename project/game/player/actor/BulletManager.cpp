@@ -12,6 +12,30 @@ void BulletManager::Initialize(DirectXCommon* dxCommon, Object3dCommon* object3d
     trailManager_->Initialize(dxCommon, object3dCommon, "resources/white512x512.png");
 }
 
+void BulletManager::SetTrailSettings(const BulletTrailSettings& settings) {
+    trailSettings_ = settings;
+    const BulletTrailSettings defaults{};
+    const auto bounded = [](float value, float fallback, float lower, float upper) {
+        return std::isfinite(value) ? (std::clamp)(value, lower, upper) : fallback;
+    };
+    auto& trail = trailSettings_;
+    trail.playerHalfWidth = bounded(trail.playerHalfWidth, defaults.playerHalfWidth, 0.01f, 1.5f);
+    trail.enemyHalfWidth = bounded(trail.enemyHalfWidth, defaults.enemyHalfWidth, 0.01f, 1.5f);
+    trail.lifetime = bounded(trail.lifetime, defaults.lifetime, 0.02f, 1.5f);
+    trail.maxPoints = (std::clamp)(trail.maxPoints, 2, 80);
+    trail.interpolationSteps = (std::clamp)(trail.interpolationSteps, 1, 12);
+    trail.headWidthScale = bounded(trail.headWidthScale, defaults.headWidthScale, 0.0f, 4.0f);
+    trail.tailWidthScale = bounded(trail.tailWidthScale, defaults.tailWidthScale, 0.0f, 4.0f);
+    trail.widthCurvePower = bounded(trail.widthCurvePower, defaults.widthCurvePower, 0.05f, 6.0f);
+    trail.colorCurvePower = bounded(trail.colorCurvePower, defaults.colorCurvePower, 0.05f, 6.0f);
+    trail.trailHeadIntensity = bounded(trail.trailHeadIntensity, defaults.trailHeadIntensity, 0.0f, 5.0f);
+    trail.trailTailIntensity = bounded(trail.trailTailIntensity, defaults.trailTailIntensity, 0.0f, 5.0f);
+    trail.trailHeadAlpha = bounded(trail.trailHeadAlpha, defaults.trailHeadAlpha, 0.0f, 1.0f);
+    trail.trailTailAlpha = bounded(trail.trailTailAlpha, defaults.trailTailAlpha, 0.0f, 1.0f);
+    trail.playerTrailLifetimeScale = bounded(trail.playerTrailLifetimeScale, defaults.playerTrailLifetimeScale, 0.0f, 4.0f);
+    trail.playerTrailAlphaScale = bounded(trail.playerTrailAlphaScale, defaults.playerTrailAlphaScale, 0.0f, 1.0f);
+}
+
 void BulletManager::Add(std::unique_ptr<Bullet> bullet) {
     if (!bullet) return;
     if (bullet->UsesRunProjectileRules()) {

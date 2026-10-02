@@ -23,36 +23,36 @@ public:
 	/// <param name="textureFilePath"></param>
 	void SetTexture(std::string textureFilePath);
 
-	Vector2& GetPosition() { return position_; }
+	const Vector2& GetPosition() const { return position_; }
 	void SetPosition(const Vector2& position) { position_ = position; }
 
-	float& GetRotation() { return rotation_; }
+	float GetRotation() const { return rotation_; }
 	void SetRotation(float rotation) { rotation_ = rotation; }
 
-	Vector4& GetColor() { return materialData->color; }
+	const Vector4& GetColor() const { return materialData->color; }
 	void SetColor(const Vector4& color) { materialData->color = color; }
 
 	void SetAlpha(const float alpha){ materialData->color.w = alpha; }
 
-	Vector2& GetSize() { return size_; }
+	const Vector2& GetSize() const { return size_; }
 	void SetSize(const Vector2& size) { size_ = size; }
 
-	Transform& GetUvTransform() { return uvTransform_; }
+	const Transform& GetUvTransform() const { return uvTransform_; }
 	void SetUvTransform(const Transform& uvTransform) { uvTransform_ = uvTransform; }
 
-	Vector2& GetAnchorPoint() { return anchorPoint_; }
+	const Vector2& GetAnchorPoint() const { return anchorPoint_; }
 	void SetAnchorPoint(const Vector2& anchorPoint) { anchorPoint_ = anchorPoint; }
 
-	bool& GetIsFlipX() { return isFlipX_; }
+	bool GetIsFlipX() const { return isFlipX_; }
 	void SetIsFlipX(bool isFlipX) { isFlipX_ = isFlipX; }
 
-	bool& GetIsFlipY() { return isFlipY_; }
+	bool GetIsFlipY() const { return isFlipY_; }
 	void SetIsFlipY(bool isFlipY) { isFlipY_ = isFlipY; }
 
-	Vector2& GetTextureLeftTop() { return textureLeftTop_; }
+	const Vector2& GetTextureLeftTop() const { return textureLeftTop_; }
 	void SetTextureLeftTop(const Vector2& textureLeftTop) { textureLeftTop_ = textureLeftTop; }
 
-	Vector2& GetTextureSize() { return textureSize_; }
+	const Vector2& GetTextureSize() const { return textureSize_; }
 	void SetTextureSize(const Vector2& textureSize) { textureSize_ = textureSize; }
 
 	void SetBlendMode(BlendMode blendMode);

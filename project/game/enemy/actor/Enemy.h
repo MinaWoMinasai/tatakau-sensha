@@ -60,7 +60,7 @@ public:
 	/// <summary>
 	/// デストラクタ
 	/// </summary>
-	~Enemy();
+	~Enemy() override;
 
 	/// <summary>
 	/// 初期化
@@ -102,7 +102,7 @@ public:
 	void ApproachToPlayer(Vector3& startPos, Vector3& targetPos);
 
 	// 状態クラス用 Getter/Setter
-	Transform& GetWorldTransform() { return worldTransform_; }
+	const Transform& GetWorldTransform() const { return worldTransform_; }
 
 	Vector3 GetWorldPosition() const override;
 

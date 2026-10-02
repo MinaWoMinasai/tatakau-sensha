@@ -69,10 +69,13 @@ inline float ParryDurabilityDamage(float hp,bool perfect,float power=1) {
 
 // Run-local, bounded state shared by the real actors and headless tests.
 enum class DronePhase { Escort, Warning, Charging, Returning, Rebuilding };
-struct DroneMission {
-    DronePhase phase=DronePhase::Escort;
-    float elapsed=0;
-    bool bomb=false, impact=false;
+class DroneMission {
+public:
+    DronePhase GetPhase() const { return phase; }
+    float GetElapsed() const { return elapsed; }
+    bool IsBomb() const { return bomb; }
+    bool HasImpact() const { return impact; }
+    bool ConsumeImpact() { const bool hit = impact; impact = false; return hit; }
     bool Start(bool explosive) {
         if(phase!=DronePhase::Escort)return false;
         phase=DronePhase::Warning;elapsed=0;bomb=explosive;impact=false;return true;
@@ -83,13 +86,67 @@ struct DroneMission {
     }
     bool Step(float dt,bool home=false) {
         elapsed+=(std::max)(0.0f,dt);
-        if(phase==DronePhase::Warning&&elapsed>=(bomb?.65f:.30f)) {phase=DronePhase::Charging;elapsed=0;}
-        else if(phase==DronePhase::Charging&&elapsed>=1.0f) {phase=DronePhase::Returning;elapsed=0;}
-        else if(phase==DronePhase::Returning&&(home||elapsed>=2.5f)) {phase=DronePhase::Escort;elapsed=0;}
-        else if(phase==DronePhase::Rebuilding&&elapsed>=5.5f) {phase=DronePhase::Escort;elapsed=0;return true;}
-        return false;
+        const State& state = GetState(phase);
+        return state.Update(*this, home);
     }
     bool Available() const {return phase!=DronePhase::Rebuilding;}
+private:
+    class State {
+    public:
+        virtual ~State() = default;
+        virtual bool Update(DroneMission& mission, bool home) const = 0;
+    };
+    class EscortState final : public State {
+    public:
+        bool Update(DroneMission&, bool) const override { return false; }
+    };
+    class WarningState final : public State {
+    public:
+        bool Update(DroneMission& mission, bool) const override {
+            if (mission.elapsed >= (mission.bomb ? .65f : .30f)) mission.Enter(DronePhase::Charging);
+            return false;
+        }
+    };
+    class ChargingState final : public State {
+    public:
+        bool Update(DroneMission& mission, bool) const override {
+            if (mission.elapsed >= 1.0f) mission.Enter(DronePhase::Returning);
+            return false;
+        }
+    };
+    class ReturningState final : public State {
+    public:
+        bool Update(DroneMission& mission, bool home) const override {
+            if (home || mission.elapsed >= 2.5f) mission.Enter(DronePhase::Escort);
+            return false;
+        }
+    };
+    class RebuildingState final : public State {
+    public:
+        bool Update(DroneMission& mission, bool) const override {
+            if (mission.elapsed < 5.5f) return false;
+            mission.Enter(DronePhase::Escort);
+            return true;
+        }
+    };
+    static const State& GetState(DronePhase phase) {
+        static const EscortState escort;
+        static const WarningState warning;
+        static const ChargingState charging;
+        static const ReturningState returning;
+        static const RebuildingState rebuilding;
+        switch (phase) {
+        case DronePhase::Warning: return warning;
+        case DronePhase::Charging: return charging;
+        case DronePhase::Returning: return returning;
+        case DronePhase::Rebuilding: return rebuilding;
+        default: return escort;
+        }
+    }
+    void Enter(DronePhase next) { phase = next; elapsed = 0; }
+    DronePhase phase=DronePhase::Escort;
+    float elapsed=0;
+    bool bomb=false, impact=false;
 };
 struct PainterLock {
     uint64_t id=0;

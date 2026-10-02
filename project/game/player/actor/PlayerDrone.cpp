@@ -17,7 +17,7 @@ void PlayerDrone::ConfigureRunAttack(const AttackParam& param, float reloadSecon
 void PlayerDrone::Attack(float deltaTime) {
 	if (runAttackEnabled_) {
 		runShotCooldown_ = (std::max)(0.0f, runShotCooldown_ - deltaTime);
-		if(mission_.phase!=tankspecial::DronePhase::Escort)return;
+		if(mission_.GetPhase()!=tankspecial::DronePhase::Escort)return;
 		const bool wantsAttack = runInputOverride_ ? runWantsAttack_
 			: (runRallyShotPending_ || input_->IsPress(input_->GetMouseState().rgbButtons[0]));
 		if (runShotCooldown_ <= 0.0f && wantsAttack && runBulletManager_ &&
@@ -143,7 +143,7 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 	const float dt = runAttackEnabled_ ? (std::max)(0.0f, deltaTime) : 1.0f / 60.0f;
 	invincibleTimer_ -= dt;
 	if(runAttackEnabled_) {
-		const auto previous=mission_.phase;
+		const auto previous=mission_.GetPhase();
 		const bool home=Length(playerPosition+runFollowOffset_-GetWorldPosition())<1.2f;
 		if(mission_.Step(dt,home)){rebuilt_=true;hp_=kMaxHp;SetWorldPosition(playerPosition);}
 		if(previous==tankspecial::DronePhase::Rebuilding) {
@@ -154,8 +154,8 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 	RotateToMouse(viewProjection);
 
 	Vector3 toPlayer = playerPosition + (runAttackEnabled_ ? runFollowOffset_ : Vector3{}) - worldTransform_.translate;
-	if(runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Warning)toPlayer={};
-	if(runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Charging) {
+	if(runAttackEnabled_&&mission_.GetPhase()==tankspecial::DronePhase::Warning)toPlayer={};
+	if(runAttackEnabled_&&mission_.GetPhase()==tankspecial::DronePhase::Charging) {
 		toPlayer=missionTarget_-GetWorldPosition();
 		if(Length(toPlayer)<1.1f){mission_.Arrive();toPlayer={};}
 	}
@@ -170,7 +170,7 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 	
 	// --- 目標速度 ---
 	// Keep companions close enough to contribute even while the run player boosts.
-	const float followSpeed = runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Charging ? .90f
+	const float followSpeed = runAttackEnabled_&&mission_.GetPhase()==tankspecial::DronePhase::Charging ? .90f
 		: runAttackEnabled_ ? (std::min)(runCatchupSpeed_, runFollowSpeed_ + distance * 0.035f) : maxSpeed_;
 	Vector3 targetVelocity = dir * (runAttackEnabled_ ? followSpeed * (std::min)(1.0f, distance / 1.2f) : followSpeed);
 
@@ -178,8 +178,8 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 	float accel = runAttackEnabled_ ? runFollowResponse_ : ((Length(dir) > 0.0f) ? accel_ : decel_);
 
 	velocity_ += (targetVelocity - velocity_) * (runAttackEnabled_ ? 1.0f-std::exp(-accel*dt) : accel*dt);
-	if(runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Charging)velocity_=targetVelocity;
-	if(runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Warning)velocity_={};
+	if(runAttackEnabled_&&mission_.GetPhase()==tankspecial::DronePhase::Charging)velocity_=targetVelocity;
+	if(runAttackEnabled_&&mission_.GetPhase()==tankspecial::DronePhase::Warning)velocity_={};
 
 	Vector3 frameMove = GetMove() * (dt * 60.0f);
 	const float maxStep = 0.30f;
@@ -196,7 +196,7 @@ void PlayerDrone::Update(Camera* viewProjection, Stage& stage, const Vector3& pl
 		playerPos.y += stepMove.y;
 		SetWorldPosition(playerPos);
 		stage.ResolvePlayerDroneCollision(*this, Y);
-		if(runAttackEnabled_&&mission_.phase==tankspecial::DronePhase::Charging) {
+		if(runAttackEnabled_&&mission_.GetPhase()==tankspecial::DronePhase::Charging) {
 			const auto p=GetWorldPosition();
 			if(tankspecial::SegmentTouches(previous.x,previous.y,p.x,p.y,missionTarget_.x,missionTarget_.y,1.1f))mission_.Arrive();
 		}
