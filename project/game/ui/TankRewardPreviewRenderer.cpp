@@ -10,9 +10,13 @@ namespace {
 constexpr float kWorldWidth=18.0f;
 constexpr float kWorldHeight=kWorldWidth*static_cast<float>(TankRewardPreviewRenderer::kHeight)/TankRewardPreviewRenderer::kWidth;
 constexpr cg2::Vector3 kRight{1,0,0},kUp{0,1,0},kForward{0,0,1};
+/// @brief 攻撃または移動に使う方向を返す。
 cg2::Vector3 Direction(float angle){return {std::cos(angle),std::sin(angle),0};}
+/// @brief 2つの設定値が等しいか判定する。
 bool Equal(cg2::Vector2 a,cg2::Vector2 b){return a.x==b.x&&a.y==b.y;}
+/// @brief 2つの設定値が等しいか判定する。
 bool Equal(const cg2::Vector4& a,const cg2::Vector4& b){return a.x==b.x&&a.y==b.y&&a.z==b.z&&a.w==b.w;}
+/// @brief 2つの設定値が等しいか判定する。
 bool Equal(const BulletTrailSettings& a,const BulletTrailSettings& b) {
     return std::tie(a.playerHalfWidth,a.enemyHalfWidth,a.lifetime,a.maxPoints,a.interpolationSteps,
         a.headWidthScale,a.tailWidthScale,a.widthCurvePower,a.colorCurvePower,a.useObjectColorForTrail,
@@ -27,6 +31,7 @@ bool Equal(const BulletTrailSettings& a,const BulletTrailSettings& b) {
         Equal(a.playerEndColor,b.playerEndColor)&&Equal(a.enemyEndColor,b.enemyEndColor)&&
         Equal(a.reflectableEndColor,b.reflectableEndColor);
 }
+/// @brief 2つの設定値が等しいか判定する。
 bool Equal(const TankRewardPreviewAppearance& a,const TankRewardPreviewAppearance& b) {
     return Equal(a.playerColor,b.playerColor)&&Equal(a.bodyFill,b.bodyFill)&&Equal(a.droneColor,b.droneColor)&&
         Equal(a.meleeColor,b.meleeColor)&&Equal(a.gridColor,b.gridColor)&&Equal(a.enemyColor,b.enemyColor)&&

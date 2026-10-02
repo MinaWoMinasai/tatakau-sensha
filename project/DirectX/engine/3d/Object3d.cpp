@@ -7,6 +7,7 @@ namespace cg2 {
 
 namespace {
 
+/// @brief キャラクターSemantic材質を現在の状態へ適用する。
 void ApplyCharacterSemanticMaterial(
 	Material& material,
 	const MaterialData& sourceMaterial,
@@ -99,7 +100,7 @@ void ApplyCharacterSemanticMaterial(
 void Object3d::Initialize()
 {
 	object3dCommon_ = Object3dCommon::GetInstance();
-	
+
 	// 用のTransformationMatrixWithShadow用のリソースを作る。Matrix4x41つ分のサイズを用意する
 	transformationMatrixResource = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(TransformationMatrixWithShadow));
 	// 書き込むためのアドレスを取得
@@ -134,7 +135,7 @@ void Object3d::Initialize()
 	oceanWakeResource_ = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(OceanWakeData));
 	oceanWakeResource_->Map(0, nullptr, reinterpret_cast<void**>(&oceanWakeData_));
 	*oceanWakeData_ = {};
-	
+
 	// ポイントライトリソース作成
 	pointLightResource = texture.CreateBufferResource(object3dCommon_->GetDxCommon()->GetDevice(), sizeof(PointLightData));
 	pointLightResource->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData));
@@ -146,7 +147,7 @@ void Object3d::Initialize()
 	pointLightData->radius = 10.0f;
 	pointLightData->decay = 1.0f;
 	transform_ = { {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
-	
+
 	// カメラ用 CBV を作成
 	cameraResource_ = texture.CreateBufferResource(
 		object3dCommon_->GetDxCommon()->GetDevice(),
@@ -236,7 +237,7 @@ void Object3d::UpdateMatrixConstants(const Matrix4x4& worldMatrix) {
 		worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
 		cameraData_->worldPosition = camera_->GetTranslate();
 	}
-	
+
 	transformationMatrixData->WVP = worldViewProjectionMatrix;
 	transformationMatrixData->World = worldMatrix;
 	transformationMatrixData->WorldInverseTranspose = worldInverseTransposeMatrix;

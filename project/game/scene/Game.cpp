@@ -21,11 +21,13 @@ constexpr const char* kDefaultProjectFilePath = "resources/projects/default.proj
 constexpr const char* kFallbackGameModuleId = "builtin";
 constexpr const char* kFallbackSceneName = "TITLE";
 
+/// @brief プロジェクト元データ文字を返す。
 std::string GetProjectSourceLabel(const GameProject& project)
 {
 	return project.sourceFilePath.empty() ? "<built-in defaults>" : project.sourceFilePath;
 }
 
+/// @brief シーン名の一覧を診断用の文字列にする。
 std::string JoinSceneNames(const std::vector<std::string>& names)
 {
 	if (names.empty()) {
@@ -42,6 +44,7 @@ std::string JoinSceneNames(const std::vector<std::string>& names)
 	return joinedNames;
 }
 
+/// @brief 有効プロジェクトを診断ログへ出力する。
 void LogActiveProject(const GameProject& project, bool loadedFromFallback)
 {
 	cg2::LogWrite().Log(
@@ -291,7 +294,7 @@ void Game::InitializeEngine() {
 
     srvManager_ = std::make_unique<cg2::SrvManager>();
     srvManager_->Initialize(dxCommon_.get());
-    
+
     shadow_ = std::make_unique<cg2::Shadow>();
     timed("Engine.Shadow", [&] { shadow_->Initialize(dxCommon_.get(), srvManager_.get()); });
 
@@ -484,7 +487,7 @@ void Game::MainLoop() {
             postPulse.width,
             postPulse.strength);
 		bloom_->SetScreenEffectState(SceneManager::GetInstance()->GetScreenEffectState());
-        
+
 		const auto imguiBuildStart = std::chrono::steady_clock::now();
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
         if (imguiInitialized_) {
@@ -499,9 +502,9 @@ void Game::MainLoop() {
 		const auto drawSetupStart = std::chrono::steady_clock::now();
         dxCommon_->PreDraw(); // バックバッファのバリアはここで行われている
         srvManager_->PreDraw();
-       
+
         shadow_->PreDraw();
-        
+
         bloom_->PreDraw();
 		const float drawSetupMs = elapsedMs(drawSetupStart, std::chrono::steady_clock::now());
 

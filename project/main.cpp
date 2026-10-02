@@ -12,6 +12,7 @@
 
 namespace {
 
+/// @brief Utf8コマンド線引数を返す。
 std::vector<std::string> GetUtf8CommandLineArguments()
 {
 	int argumentCount = 0;
@@ -46,6 +47,7 @@ std::vector<std::string> GetUtf8CommandLineArguments()
 
 }
 
+/// @brief Windowsアプリの入口としてゲームを起動し、終了コードを返す。
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     cg2::StartupTrace::Mark("process.entry");

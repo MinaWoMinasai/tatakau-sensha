@@ -6,11 +6,13 @@
 
 namespace {
 
+/// @brief レベル予告を診断ログへ出力する。
 void LogLevelWarning(const std::string& message)
 {
 	std::cerr << "[LevelLoader] " << message << std::endl;
 }
 
+/// @brief ベクトル3オブジェクトを読み取る。
 cg2::Vector3 ReadVector3Object(const nlohmann::json& json, const cg2::Vector3& fallback)
 {
 	if (!json.is_object()) {
@@ -30,6 +32,7 @@ cg2::Vector3 ReadVector3Object(const nlohmann::json& json, const cg2::Vector3& f
 	return value;
 }
 
+/// @brief ベクトル3配列を読み取る。
 cg2::Vector3 ReadVector3Array(const nlohmann::json& json, const cg2::Vector3& fallback)
 {
 	if (!json.is_array() || json.size() < 3 ||
@@ -44,6 +47,7 @@ cg2::Vector3 ReadVector3Array(const nlohmann::json& json, const cg2::Vector3& fa
 	};
 }
 
+/// @brief 文字列を読み取る。
 std::string ReadString(const nlohmann::json& json, const char* key, const std::string& fallback)
 {
 	if (!json.contains(key) || !json[key].is_string()) {
@@ -52,6 +56,7 @@ std::string ReadString(const nlohmann::json& json, const char* key, const std::s
 	return json[key].get<std::string>();
 }
 
+/// @brief 浮動小数を読み取る。
 float ReadFloat(const nlohmann::json& json, const char* key, float fallback)
 {
 	if (!json.contains(key) || !json[key].is_number()) {
@@ -60,6 +65,7 @@ float ReadFloat(const nlohmann::json& json, const char* key, float fallback)
 	return json[key].get<float>();
 }
 
+/// @brief 整数を読み取る。
 int ReadInt(const nlohmann::json& json, const char* key, int fallback)
 {
 	if (!json.contains(key) || !json[key].is_number()) {
@@ -68,6 +74,7 @@ int ReadInt(const nlohmann::json& json, const char* key, int fallback)
 	return json[key].get<int>();
 }
 
+/// @brief Boolを読み取る。
 bool ReadBool(const nlohmann::json& json, const char* key, bool fallback)
 {
 	if (!json.contains(key) || !json[key].is_boolean()) {
@@ -76,6 +83,7 @@ bool ReadBool(const nlohmann::json& json, const char* key, bool fallback)
 	return json[key].get<bool>();
 }
 
+/// @brief レベルオブジェクトを読み取る。
 LevelObject ReadLevelObject(const nlohmann::json& objectJson)
 {
 	LevelObject object{};
@@ -93,6 +101,7 @@ LevelObject ReadLevelObject(const nlohmann::json& objectJson)
 	return object;
 }
 
+/// @brief Blenderレベルオブジェクトを読み取る。
 LevelObject ReadBlenderLevelObject(const nlohmann::json& objectJson)
 {
 	LevelObject object{};
@@ -132,6 +141,7 @@ LevelObject ReadBlenderLevelObject(const nlohmann::json& objectJson)
 	return object;
 }
 
+/// @brief 出現範囲を読み取る。
 LevelSpawnArea ReadSpawnArea(const nlohmann::json& areaJson)
 {
 	LevelSpawnArea area{};

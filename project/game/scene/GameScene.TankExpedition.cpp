@@ -12,6 +12,7 @@ namespace {
 using EPhase=tankexp::Phase;
 using Room=tankexp::RoomKind;
 using namespace tankrun::copy;
+/// @brief 現在の部屋の表示名を返す。
 const char* RoomName(Room room) {
     switch(room) {
     case Room::Skirmish:return "外周警備";
@@ -23,12 +24,15 @@ const char* RoomName(Room room) {
     default:return "最深部 / 最終決戦";
     }
 }
+/// @brief 生存している戦闘対象の数を返す。
 int LivingThreats(EnemyManager* manager) {
     int count=0;
     for(auto* actor:manager->GetEnemyPtrs()) if(actor&&actor->IsCombatThreat()) ++count;
     return count;
 }
+/// @brief 遠征検証の出力先ディレクトリーを返す。
 std::string ExpeditionDirectory(int variant) {return "generated/tank_expedition/variant_"+std::to_string(variant);}
+/// @brief チュートリアル設定の保存先パスを返す。
 const char* TutorialSettingsPath() { return "resources/configs/expedition_user.json"; }
 }
 

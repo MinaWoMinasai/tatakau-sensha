@@ -52,6 +52,7 @@ void BulletManager::Add(std::unique_ptr<Bullet> bullet) {
 
 void BulletManager::FlushPendingSplits()
 {
+    // 衝突通知で予約した弾を先に退避する。生成後の弾をこの予約列で再帰処理しない。
     auto pending=std::move(pendingBuildShots_);pendingBuildShots_.clear();
     for(const auto& spec:pending) {
         auto shot=std::make_unique<Bullet>();
@@ -69,6 +70,7 @@ void BulletManager::FlushPendingSplits()
     for (const auto& bullet : bullets_) {
         if (!bullet->IsDead()) ++liveCounts[static_cast<size_t>(bullet->GetOwner())];
     }
+    // 元の弾を走査しきるまで子弾を別配列へ集め、bullets_の再確保で走査が壊れるのを防ぐ。
     std::vector<std::unique_ptr<Bullet>> children;
     for (const auto& bullet : bullets_) {
         const auto events = bullet->ConsumeGrowthEvents();
@@ -94,7 +96,7 @@ void BulletManager::FlushPendingSplits()
 
 void BulletManager::ClearAll()
 {
-    // Release each pointer before destroying the trail instances it refers to.
+    // 弾が保持する軌跡への参照を先に外し、その後に所有側の軌跡を破棄する。
     for (auto& bullet : bullets_) if (bullet) bullet->ReleaseTrail();
     bullets_.clear();
     growthStats_ = {};
@@ -123,6 +125,7 @@ void BulletManager::Update(Stage& stage, float deltaTime) {
     // 弾とブロックの当たり判定
     stage.ResolveBulletsCollision(GetBulletPtrs());
 
+    // 地形との衝突通知が終わった時点で、予約された追加生成を反映する。
     FlushPendingSplits();
 
     bullets_.erase(

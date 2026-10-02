@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 
 namespace {
+/// @brief ベクトル3を読み取る。
 cg2::Vector3 ReadVector3(const nlohmann::json& json, const cg2::Vector3& fallback)
 {
 	if (!json.is_array() || json.size() < 3) {
@@ -20,6 +21,7 @@ cg2::Vector3 ReadVector3(const nlohmann::json& json, const cg2::Vector3& fallbac
 	};
 }
 
+/// @brief ベクトル2を読み取る。
 cg2::Vector2 ReadVector2(const nlohmann::json& json, const cg2::Vector2& fallback)
 {
 	if (!json.is_array() || json.size() < 2) {
@@ -34,6 +36,7 @@ cg2::Vector2 ReadVector2(const nlohmann::json& json, const cg2::Vector2& fallbac
 	};
 }
 
+/// @brief JSON配列から4成分を読む。要素数が不足する場合はfallbackを返す。
 cg2::Vector4 ReadVector4(const nlohmann::json& json, const cg2::Vector4& fallback)
 {
 	if (!json.is_array() || json.size() < 4) {
@@ -47,6 +50,7 @@ cg2::Vector4 ReadVector4(const nlohmann::json& json, const cg2::Vector4& fallbac
 	};
 }
 
+/// @brief JSONの機体識別子を従来の機体種類へ変換する。
 ClassType ClassTypeFromString(const std::string& id)
 {
 	if (id == "Twin") return ClassType::Twin;
@@ -61,6 +65,7 @@ ClassType ClassTypeFromString(const std::string& id)
 	return ClassType::Basic;
 }
 
+/// @brief 編集画面で選べる機体種類の一覧を返す。
 const std::array<ClassType, 10>& EditableClassTypes()
 {
 	static const std::array<ClassType, 10> types = {
@@ -78,6 +83,7 @@ const std::array<ClassType, 10>& EditableClassTypes()
 	return types;
 }
 
+/// @brief 武器種類を文字列から変換する。
 WeaponType WeaponTypeFromString(const std::string& id)
 {
 	if (id == "Laser") return WeaponType::Laser;
@@ -87,6 +93,7 @@ WeaponType WeaponTypeFromString(const std::string& id)
 	return WeaponType::Projectile;
 }
 
+/// @brief 武器種類を文字列へ変換して返す。
 const char* WeaponTypeToString(WeaponType type)
 {
 	switch (type) {
@@ -99,6 +106,7 @@ const char* WeaponTypeToString(WeaponType type)
 	return "Projectile";
 }
 
+/// @brief 砲塔形状を文字列から変換する。
 BarrelShape BarrelShapeFromString(const std::string& id)
 {
 	if (id == "Heavy") return BarrelShape::Heavy;
@@ -108,6 +116,7 @@ BarrelShape BarrelShapeFromString(const std::string& id)
 	return BarrelShape::Box;
 }
 
+/// @brief 砲塔形状を文字列へ変換して返す。
 const char* BarrelShapeToString(BarrelShape shape)
 {
 	switch (shape) {
@@ -120,6 +129,7 @@ const char* BarrelShapeToString(BarrelShape shape)
 	return "Box";
 }
 
+/// @brief 機体形状を文字列から変換する。
 PlayerBodyShape BodyShapeFromString(const std::string& id)
 {
 	if (id == "Box") return PlayerBodyShape::Box;
@@ -128,6 +138,7 @@ PlayerBodyShape BodyShapeFromString(const std::string& id)
 	return PlayerBodyShape::Circle;
 }
 
+/// @brief 機体形状を文字列へ変換して返す。
 const char* BodyShapeToString(PlayerBodyShape shape)
 {
 	switch (shape) {
@@ -139,11 +150,13 @@ const char* BodyShapeToString(PlayerBodyShape shape)
 	return "Circle";
 }
 
+/// @brief ベクトル3を保存用のJSONへ変換する。
 nlohmann::json Vector3ToJson(const cg2::Vector3& value)
 {
 	return nlohmann::json::array({ value.x, value.y, value.z });
 }
 
+/// @brief ベクトル4を保存用のJSONへ変換する。
 nlohmann::json Vector4ToJson(const cg2::Vector4& value)
 {
 	return nlohmann::json::array({ value.x, value.y, value.z, value.w });
@@ -169,6 +182,7 @@ const char* ClassTypeToString(ClassType type)
 
 bool PlayerClassCatalog::Load(const std::string& path)
 {
+	// JSONの途中で型エラーが出ても現在の設定と借用ポインターを保つため、作業用へ読み込む。
 	std::unordered_map<std::string, PlayerClassConfig> loadedConfigs;
 	std::vector<std::string> loadedOrder;
 	auto reportFailure = [](const std::string& reason) {
@@ -210,7 +224,7 @@ bool PlayerClassCatalog::Load(const std::string& path)
 		config.reloadScale = item.value("reloadScale", config.reloadScale);
 		config.bulletSpeedScale = item.value("bulletSpeedScale", config.bulletSpeedScale);
 		config.bulletDamageScale = item.value("bulletDamageScale", config.bulletDamageScale);
-		config.bulletCount = 1; // Legacy authoring data cannot restore multishot.
+		config.bulletCount = 1; // 旧JSONの複数弾設定で、現在の1砲塔1発の規則を上書きさせない。
 		config.spreadAngleDeg = item.value("spreadAngleDeg", config.spreadAngleDeg);
 		config.randomSpread = item.value("randomSpread", config.randomSpread);
 		config.reflect = item.value("reflect", config.reflect);
@@ -305,15 +319,15 @@ bool PlayerClassCatalog::Load(const std::string& path)
 			config.barrels = CreateDefaultConfig(config.type).barrels;
 		}
 
+		// 重複IDは最後の値を採用し、表示位置は最初に出現した位置を保つ。
 		if (loadedConfigs.find(config.id) == loadedConfigs.end()) {
 			loadedOrder.push_back(config.id);
 		}
 		loadedConfigs[config.id] = config;
 	}
 
-	// A valid configuration is authoritative: classes omitted from the JSON
-	// stay unavailable. Basic is the only mandatory fallback needed to keep the
-	// player in a valid state when an accidentally empty file is supplied.
+	// 有効なJSONの一覧を正として扱い、省略された機体を勝手に復活させない。
+	// 安全な初期機体として必要なBasicだけを補完する。空配列は上で読み込みを拒否する。
 	if (loadedConfigs.find("Basic") == loadedConfigs.end()) {
 		PlayerClassConfig basic = CreateDefaultConfig(ClassType::Basic);
 		loadedOrder.insert(loadedOrder.begin(), basic.id);
@@ -323,6 +337,7 @@ bool PlayerClassCatalog::Load(const std::string& path)
 	} catch (const std::exception& e) {
 		return reportFailure(e.what());
 	}
+	// 全件の読み取りと補完が成功してから、値と表示順をまとめて確定する。
 	classConfigs_.swap(loadedConfigs);
 	classOrder_.swap(loadedOrder);
 	return true;

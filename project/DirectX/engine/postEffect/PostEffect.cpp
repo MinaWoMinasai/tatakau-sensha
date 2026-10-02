@@ -15,7 +15,7 @@ void PostEffect::Draw(D3D12_GPU_DESCRIPTOR_HANDLE inputSRV, BlendMode blendMode,
 	dxCommon_->GetList()->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
 	dxCommon_->GetList()->SetPipelineState(pso.graphicsState_.Get());
 	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	
+
 	dxCommon_->GetList()->SetGraphicsRootConstantBufferView(0, bloomCB_->GetGPUAddress());
 
 	dxCommon_->GetList()->SetGraphicsRootDescriptorTable(1, inputSRV);
@@ -62,7 +62,7 @@ void PostEffect::DrawComposite(
     D3D12_GPU_DESCRIPTOR_HANDLE materialSRV,
     D3D12_GPU_DESCRIPTOR_HANDLE ssaoSRV,
     D3D12_GPU_DESCRIPTOR_HANDLE motionVectorSRV) {
-    
+
     dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject(kAdd_Bloom_Composite).root_.GetSignature().Get());
 
     dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObject(kAdd_Bloom_Composite).graphicsState_.Get());

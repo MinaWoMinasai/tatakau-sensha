@@ -10,6 +10,7 @@
 #include <cmath>
 
 namespace {
+/// @brief 係数を0〜1に制限し、2つのRGBA色を線形補間して返す。
 cg2::Vector4 LerpColor(const cg2::Vector4& a, const cg2::Vector4& b, float t)
 {
     t = (std::clamp)(t, 0.0f, 1.0f);
@@ -306,7 +307,7 @@ void ExpEnemy::ResetMagazine(int rounds, float reloadSeconds)
 void ExpEnemy::Update(Stage& stage, float deltaTime) {
 
     // 座標を移動させる
-    //worldTransform_.translate += velocity_ * (deltaTime * 60.0f);
+
 
     dt_ = deltaTime;
 
@@ -992,7 +993,7 @@ void ExpEnemy::OnCollision(Collider* other)
         velocity_ = {};
         // Keep this frame's committed contact damage for the other collider's callback.
     }
-    
+
     if (other->GetCollisionAttribute() == kCollisionAttributeEnemy) {
         return;
     }

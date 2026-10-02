@@ -8,6 +8,7 @@
 
 namespace {
 
+/// @brief 登録済みシーン名を診断用の文字列にする。
 std::string FormatRegisteredNames(const std::vector<std::string>& names)
 {
 	if (names.empty()) {
@@ -24,6 +25,7 @@ std::string FormatRegisteredNames(const std::vector<std::string>& names)
 	return result;
 }
 
+/// @brief Registryエラーを診断ログへ出力する。
 void LogRegistryError(const std::string& message)
 {
 	cg2::LogWrite().Log("[SceneRegistry] " + message + "\n");

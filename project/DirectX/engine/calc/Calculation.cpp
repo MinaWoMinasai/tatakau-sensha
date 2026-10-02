@@ -66,7 +66,7 @@ Vector4 Subtract(const Vector4& v1, const Vector4& v2)
 	result.x = v1.x - v2.x;
 	result.y = v1.y - v2.y;
 	result.z = v1.z - v2.z;
-	//result.w = v1.w - v2.w;
+
 
 	return result;
 }
@@ -77,7 +77,7 @@ Vector2 Multiply(float scalar, const Vector2& v)
 	Vector2 result;
 	result.x = scalar * v.x;
 	result.y = scalar * v.y;
-	
+
 	return result;
 
 }
@@ -598,28 +598,7 @@ Matrix4x4 MakeRotateMatrix(const Quaternion& quaternion) {
 }
 
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
-
-	//Matrix4x4 translateMatrix = MakeTranslateMatrix(translate);
-	//Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
-	//Matrix4x4 rotateXMatrix = MakeRotateXMatrix(rotate.x);
-	//Matrix4x4 rotateYMatrix = MakeRotateYMatrix(rotate.y);
-	//Matrix4x4 rotateZMatrix = MakeRotateZMatrix(rotate.z);
-
-	//return Multiply(Multiply(scaleMatrix, Multiply(rotateXMatrix, Multiply(rotateYMatrix, rotateZMatrix))), translateMatrix);
-
-		//Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
-		//Matrix4x4 rotateXMatrix = MakeRotateXMatrix(rotate.x);
-		//Matrix4x4 rotateYMatrix = MakeRotateYMatrix(rotate.y);
-		//Matrix4x4 rotateZMatrix = MakeRotateZMatrix(rotate.z);
-		//Matrix4x4 rotateMatrix = Multiply(rotateZMatrix, Multiply(rotateXMatrix, rotateYMatrix));
-		//Matrix4x4 translateMatrix = MakeTranslateMatrix(translate);
-
-		//// 正しい順序：Scale → RotateZ → RotateY → RotateX → Translate
-		//Matrix4x4 worldMatrix = Multiply(scaleMatrix, rotateMatrix);
-		//worldMatrix = Multiply(worldMatrix, translateMatrix);  // ← Translate は最後に！
-
-		//return worldMatrix;
-
+	// 行ベクトルの規約に従い、拡大・回転を合成してから最終行へ平行移動を格納する。
 	Matrix4x4 result = { 0 };
 	Matrix4x4 rotateXYZMatrix = Multiply(MakeRotateXMatrix(rotate.x), Multiply(MakeRotateYMatrix(rotate.y), MakeRotateZMatrix(rotate.z)));
 	result.m[0][0] = scale.x * rotateXYZMatrix.m[0][0];
@@ -796,7 +775,7 @@ Vector4 Rand(const Vector4& min, const Vector4& max) {
 
 Particle MakeParticle(const Vector3& position, const Vector4& baseColor) {
 	Particle particle;
-	
+
 	particle.transform.scale = { 1.0f, 1.0f, 1.0f };
 	particle.transform.rotate = { 0.0f, 0.0f, 0.0f };
 	particle.transform.translate = position + Rand(Vector3(-0.05f, -0.05f, -0.05f), Vector3(0.05f, 0.05f, 0.05f));
@@ -915,6 +894,7 @@ bool IsCollision(const AABB& aabb1, const AABB& aabb2) {
 	return false;
 }
 
+/// @brief 重なりを返す。
 Vector3 GetOverlap(const AABB& a, const AABB& b) {
 	Vector3 overlap = { std::min(a.max.x, b.max.x) - std::max(a.min.x, b.min.x), std::min(a.max.y, b.max.y) - std::max(a.min.y, b.min.y), std::min(a.max.z, b.max.z) - std::max(a.min.z, b.min.z) };
 	return overlap;
@@ -1126,7 +1106,7 @@ CollisionResult CheckSphereVsOBB(const Sphere& s, const OBB& o)
 	};
 
 	Vector3 diff = local - closest;
-	
+
 	float distSq = Dot(diff, diff);
 
 	if (distSq > s.radius * s.radius) {
@@ -1149,6 +1129,7 @@ CollisionResult CheckSphereVsOBB(const Sphere& s, const OBB& o)
 	return r;
 }
 
+/// @brief 指定した中心・軸の周囲で位置を回転する。
 Vector2 RotateAround(
 	const Vector2& point,
 	const Vector2& pivot,

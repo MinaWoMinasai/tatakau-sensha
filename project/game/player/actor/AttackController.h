@@ -4,37 +4,25 @@
 #include "Bullet.h"
 #include "BulletManager.h"
 
-class AttackController
-{
+/// @brief 機体の発射設定から弾を作り、BulletManagerへ所有権を渡す。
+class AttackController {
 public:
-
-    void SetBulletManager(BulletManager* manager) {
+    /// @brief 弾管理を設定する。
+    void SetBulletManager(BulletManager* manager)
+    {
         bulletManager_ = manager;
     }
 
-    void Fire(
-        const cg2::Vector3& origin,
-        const cg2::Vector3& baseDir,
-        const AttackParam& param,
-        BulletOwner owner
-    );
+    /// @brief 指定した攻撃または演出の発射を開始する。
+    void Fire(const cg2::Vector3& origin, const cg2::Vector3& baseDir, const AttackParam& param, BulletOwner owner);
 
-    void FireFromMuzzle(
-        const cg2::Vector3& muzzlePosition,
-        const cg2::Vector3& baseDir,
-        const AttackParam& param,
-        BulletOwner owner
-    );
+    /// @brief からの銃口を発射する。
+    void FireFromMuzzle(const cg2::Vector3& muzzlePosition, const cg2::Vector3& baseDir, const AttackParam& param, BulletOwner owner);
 
 private:
-    void FireInternal(
-        const cg2::Vector3& origin,
-        const cg2::Vector3& baseDir,
-        const AttackParam& param,
-        BulletOwner owner,
-        bool originIsMuzzle
-    );
+    /// @brief Internalを発射する。
+    void FireInternal(const cg2::Vector3& origin, const cg2::Vector3& baseDir, const AttackParam& param, BulletOwner owner,
+                      bool originIsMuzzle);
 
     BulletManager* bulletManager_ = nullptr;
 };
-

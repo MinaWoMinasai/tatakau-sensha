@@ -8,6 +8,7 @@
 
 namespace {
 
+/// @brief 登録済みIDの一覧を診断用の文字列にする。
 std::string FormatRegisteredIds(const std::vector<std::string>& ids)
 {
 	if (ids.empty()) {
@@ -24,6 +25,7 @@ std::string FormatRegisteredIds(const std::vector<std::string>& ids)
 	return result;
 }
 
+/// @brief Registryエラーを診断ログへ出力する。
 void LogRegistryError(const std::string& message)
 {
 	cg2::LogWrite().Log("[GameModuleRegistry] " + message + "\n");

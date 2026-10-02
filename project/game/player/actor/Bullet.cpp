@@ -26,7 +26,7 @@ void Bullet::Initialize(const cg2::Vector3& position, const cg2::Vector3& veloci
 	isReflectable_ = reflectable;
 	bulletHp_ = (std::max)(0.1f, bulletHp);
 	bulletPenetration_ = (std::max)(0.1f, bulletPenetration);
-	
+
 
 	// モデル切り替え（見た目差分）
 	if (owner_ == kPlayer) {
@@ -99,8 +99,6 @@ void Bullet::Update(float deltaTime) {
 }
 
 void Bullet::Draw() {
-
-	//object_->Draw();
 
 }
 
