@@ -800,4 +800,15 @@
       <Filter>DirectX\shaders</Filter>
     </FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="game\player\PlayerClassCatalog.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClInclude Include="game\player\PlayerClassConfig.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\PlayerClassCatalog.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>

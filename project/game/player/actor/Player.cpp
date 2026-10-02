@@ -68,32 +68,6 @@ cg2::Vector4 LerpColor(const cg2::Vector4& a, const cg2::Vector4& b, float t)
 	};
 }
 
-cg2::Vector3 ReadVector3(const nlohmann::json& json, const cg2::Vector3& fallback)
-{
-	if (!json.is_array() || json.size() < 3) {
-		return fallback;
-	}
-	return {
-		json[0].get<float>(),
-		json[1].get<float>(),
-		json[2].get<float>()
-	};
-}
-
-cg2::Vector2 ReadVector2(const nlohmann::json& json, const cg2::Vector2& fallback)
-{
-	if (!json.is_array() || json.size() < 2) {
-		return fallback;
-	}
-	if (!json[0].is_number() || !json[1].is_number()) {
-		return fallback;
-	}
-	return {
-		json[0].get<float>(),
-		json[1].get<float>()
-	};
-}
-
 cg2::Vector4 ReadVector4(const nlohmann::json& json, const cg2::Vector4& fallback)
 {
 	if (!json.is_array() || json.size() < 4) {
@@ -124,115 +98,6 @@ nlohmann::json WriteVector2Object(const cg2::Vector2& value)
 		{ "x", value.x },
 		{ "y", value.y }
 	};
-}
-
-ClassType ClassTypeFromString(const std::string& id)
-{
-	if (id == "Twin") return ClassType::Twin;
-	if (id == "MachineGun") return ClassType::MachineGun;
-	if (id == "Overseer") return ClassType::Overseer;
-	if (id == "Triple") return ClassType::Triple;
-	if (id == "Assassin") return ClassType::Assassin;
-	if (id == "Bounder") return ClassType::Bounder;
-	if (id == "Ninja") return ClassType::Ninja;
-	if (id == "Smasher") return ClassType::Smasher;
-	if (id == "Summoner") return ClassType::Summoner;
-	return ClassType::Basic;
-}
-
-const std::array<ClassType, 10>& EditableClassTypes()
-{
-	static const std::array<ClassType, 10> types = {
-		ClassType::Basic,
-		ClassType::Twin,
-		ClassType::MachineGun,
-		ClassType::Overseer,
-		ClassType::Triple,
-		ClassType::Assassin,
-		ClassType::Bounder,
-		ClassType::Ninja,
-		ClassType::Smasher,
-		ClassType::Summoner
-	};
-	return types;
-}
-
-const char* ClassTypeToString(ClassType type)
-{
-	switch (type) {
-	case ClassType::Basic: return "Basic";
-	case ClassType::Twin: return "Twin";
-	case ClassType::MachineGun: return "MachineGun";
-	case ClassType::Overseer: return "Overseer";
-	case ClassType::Triple: return "Triple";
-	case ClassType::Assassin: return "Assassin";
-	case ClassType::Bounder: return "Bounder";
-	case ClassType::Ninja: return "Ninja";
-	case ClassType::Smasher: return "Smasher";
-	case ClassType::Summoner: return "Summoner";
-	}
-	return "Unknown";
-}
-
-WeaponType WeaponTypeFromString(const std::string& id)
-{
-	if (id == "Laser") return WeaponType::Laser;
-	if (id == "Mine") return WeaponType::Mine;
-	if (id == "Drone") return WeaponType::Drone;
-	if (id == "Melee") return WeaponType::Melee;
-	return WeaponType::Projectile;
-}
-
-const char* WeaponTypeToString(WeaponType type)
-{
-	switch (type) {
-	case WeaponType::Projectile: return "Projectile";
-	case WeaponType::Laser: return "Laser";
-	case WeaponType::Mine: return "Mine";
-	case WeaponType::Drone: return "Drone";
-	case WeaponType::Melee: return "Melee";
-	}
-	return "Projectile";
-}
-
-BarrelShape BarrelShapeFromString(const std::string& id)
-{
-	if (id == "Heavy") return BarrelShape::Heavy;
-	if (id == "Short") return BarrelShape::Short;
-	if (id == "Wide") return BarrelShape::Wide;
-	if (id == "Trapezoid") return BarrelShape::Trapezoid;
-	return BarrelShape::Box;
-}
-
-const char* BarrelShapeToString(BarrelShape shape)
-{
-	switch (shape) {
-	case BarrelShape::Box: return "Box";
-	case BarrelShape::Heavy: return "Heavy";
-	case BarrelShape::Short: return "Short";
-	case BarrelShape::Wide: return "Wide";
-	case BarrelShape::Trapezoid: return "Trapezoid";
-	}
-	return "Box";
-}
-
-Player::BodyShape BodyShapeFromString(const std::string& id)
-{
-	if (id == "Box") return Player::BodyShape::Box;
-	if (id == "Triangle") return Player::BodyShape::Triangle;
-	if (id == "Pentagon") return Player::BodyShape::Pentagon;
-	return Player::BodyShape::Circle;
-}
-
-const char* BodyShapeToString(Player::BodyShape shape)
-{
-	switch (shape) {
-	case Player::BodyShape::Circle: return "Circle";
-	case Player::BodyShape::Box: return "Box";
-	case Player::BodyShape::Triangle: return "Triangle";
-	case Player::BodyShape::Pentagon: return "Pentagon";
-	}
-	return "Circle";
 }
 
 const char* ClassTexturePath(ClassType type)
@@ -368,11 +233,6 @@ float GetUpgradeHudTextAdvance(const cg2::TextLabel* label, const cg2::TextStyle
 	const float padding = std::ceil(style.padding + style.outlineThickness);
 	const float fallback = style.fontSize * (label->GetText() == " " ? 0.34f : 0.55f);
 	return (std::max)(fallback, label->GetSprite()->GetSize().x - padding * 2.0f);
-}
-
-nlohmann::json Vector3ToJson(const cg2::Vector3& value)
-{
-	return nlohmann::json::array({ value.x, value.y, value.z });
 }
 
 nlohmann::json Vector4ToJson(const cg2::Vector4& value)
@@ -894,13 +754,7 @@ void Player::Initialize(cg2::Object3d* object, const cg2::Vector3& position, boo
 	object_->SetTransform(worldTransform_);
 	object_->Update();
 	if (!LoadPlayerClassConfigs()) {
-		classConfigs_.clear();
-		classOrder_.clear();
-		for (ClassType type : EditableClassTypes()) {
-			PlayerClassConfig config = CreateDefaultClassConfig(type);
-			classOrder_.push_back(config.id);
-			classConfigs_[config.id] = std::move(config);
-		}
+		classCatalog_.ResetToDefaults();
 		std::cerr << "[PlayerClass] Using built-in defaults." << std::endl;
 	}
 	InitializeBarrels();
@@ -1760,7 +1614,7 @@ std::vector<RunEvolutionChoice> Player::GetRunEvolutionChoices() const
 		std::snprintf(text, sizeof(text), "x%.2f", value);
 		return std::string(text);
 	};
-	for (const std::string& id : classOrder_) {
+	for (const std::string& id : classCatalog_.OrderedIds()) {
 		// The editor's temporary copy has no firing advantage over Twin. Keep it
 		// in the original C tree, but omit it from expedition checkpoint rewards.
 		if (id == "Triple_Copy" || !CanEvolveTo(id)) continue;
@@ -1798,7 +1652,7 @@ void Player::PrepareRunEvolution()
 	if (!current || !evolutionCircuitLoaded_) return;
 	const int targetRank = current->requiredRank + 1;
 	if (targetRank > GetRankFromLevel(kMaxLevel)) return;
-	const bool hasSuccessor = std::any_of(classOrder_.begin(), classOrder_.end(), [&](const std::string& id) {
+	const bool hasSuccessor = std::any_of(classCatalog_.OrderedIds().begin(), classCatalog_.OrderedIds().end(), [&](const std::string& id) {
 		if (id == "Triple_Copy") return false; // Match the checkpoint candidate filter above.
 		const PlayerClassConfig* config = GetClassConfig(id);
 		return config && config->requiredRank == targetRank &&
@@ -2585,165 +2439,13 @@ bool Player::ConsumeEvolutionCancelled()
 
 bool Player::LoadPlayerClassConfigs(const std::string& path)
 {
-	std::unordered_map<std::string, PlayerClassConfig> loadedConfigs;
-	std::vector<std::string> loadedOrder;
-	auto reportFailure = [](const std::string& reason) {
-		std::cerr << "[PlayerClass] Reload failed: " << reason << std::endl;
+	PlayerClassCatalog loadedCatalog;
+	if (!loadedCatalog.Load(path)) return false;
+	if (!loadedCatalog.Find(currentClassId_)) {
+		std::cerr << "[PlayerClass] Reload failed: current class is missing: " << currentClassId_ << std::endl;
 		return false;
-	};
-
-	std::ifstream file(path);
-	if (!file.is_open()) {
-		return reportFailure("could not open " + path);
 	}
-
-	try {
-		nlohmann::json root;
-		file >> root;
-		if (!root.is_object() || !root.contains("classes") || !root["classes"].is_array()) {
-			return reportFailure("classes must be an array");
-		}
-		const nlohmann::json& classes = root["classes"];
-		if (classes.empty()) {
-			return reportFailure("classes must not be empty");
-		}
-
-	for (const nlohmann::json& item : classes) {
-		if (!item.is_object() || !item.contains("id") || !item["id"].is_string()) {
-			return reportFailure("each class requires a string id");
-		}
-		const std::string id = item["id"].get<std::string>();
-		if (id.empty()) {
-			return reportFailure("class id must not be empty");
-		}
-		PlayerClassConfig config = CreateDefaultClassConfig(ClassTypeFromString(id));
-		config.id = id;
-		config.type = ClassTypeFromString(id);
-		config.displayName = item.value("displayName", config.displayName);
-		config.requiredRank = item.value("requiredRank", config.requiredRank);
-		config.usesDrone = item.value("usesDrone", config.usesDrone);
-		config.maxDrones = item.value("maxDrones", config.maxDrones);
-		config.reloadScale = item.value("reloadScale", config.reloadScale);
-		config.bulletSpeedScale = item.value("bulletSpeedScale", config.bulletSpeedScale);
-		config.bulletDamageScale = item.value("bulletDamageScale", config.bulletDamageScale);
-		config.bulletCount = 1; // Legacy authoring data cannot restore multishot.
-		config.spreadAngleDeg = item.value("spreadAngleDeg", config.spreadAngleDeg);
-		config.randomSpread = item.value("randomSpread", config.randomSpread);
-		config.reflect = item.value("reflect", config.reflect);
-		config.penetrate = item.value("penetrate", config.penetrate);
-		config.fireAllBarrels = item.value("fireAllBarrels", config.fireAllBarrels);
-		config.alternateBarrels = item.value("alternateBarrels", config.alternateBarrels);
-		config.recoilPower = item.value("recoilPower", config.recoilPower);
-		config.specialActionId = item.value("specialActionId", config.specialActionId);
-		config.specialActionCooldownScale = (std::max)(0.05f, item.value("specialActionCooldownScale", config.specialActionCooldownScale));
-		config.specialActionStaminaCost = (std::max)(0.0f, item.value("specialActionStaminaCost", item.value("specialActionStaminaRequirement", config.specialActionStaminaCost)));
-		config.saberCounterWindow = (std::max)(0.01f, item.value("saberCounterWindow", config.saberCounterWindow));
-		config.saberCounterDamageScale = (std::max)(0.0f, item.value("saberCounterDamageScale", config.saberCounterDamageScale));
-		config.saberCounterRangeScale = (std::max)(0.1f, item.value("saberCounterRangeScale", config.saberCounterRangeScale));
-		config.bodyShape = BodyShapeFromString(item.value("bodyShape", std::string(BodyShapeToString(config.bodyShape))));
-		if (item.contains("bodyScale")) {
-			config.bodyScale = ReadVector2(item["bodyScale"], config.bodyScale);
-		}
-		if (item.contains("bodyFillColor")) {
-			config.bodyFillColor = ReadVector4(item["bodyFillColor"], config.bodyFillColor);
-		}
-		if (item.contains("bodyOutlineColor")) {
-			config.bodyOutlineColor = ReadVector4(item["bodyOutlineColor"], config.bodyOutlineColor);
-		}
-
-		config.barrels.clear();
-		const nlohmann::json* mountsJson = nullptr;
-		if (item.contains("weaponMounts") && item["weaponMounts"].is_array()) {
-			mountsJson = &item["weaponMounts"];
-		} else if (item.contains("barrels") && item["barrels"].is_array()) {
-			mountsJson = &item["barrels"];
-		}
-		if (mountsJson) {
-			for (const nlohmann::json& barrelJson : *mountsJson) {
-				if (!barrelJson.is_object()) {
-					return reportFailure("weaponMounts entries must be objects: " + id);
-				}
-				WeaponMountConfig barrel{};
-				barrel.model = barrelJson.value("model", barrel.model);
-				if (barrel.model.empty() ||
-					!std::filesystem::exists(std::filesystem::path("resources") / barrel.model)) {
-					return reportFailure("weapon model not found: " + barrel.model);
-				}
-				barrel.barrelShape = BarrelShapeFromString(barrelJson.value("barrelShape", std::string(BarrelShapeToString(barrel.barrelShape))));
-				barrel.offset = ReadVector3(barrelJson.value("offset", nlohmann::json::array()), barrel.offset);
-				barrel.scale = ReadVector3(barrelJson.value("scale", nlohmann::json::array()), barrel.scale);
-				barrel.angleDeg = barrelJson.value("angleDeg", barrel.angleDeg);
-				barrel.muzzleForward = barrelJson.value("muzzleForward", barrel.muzzleForward);
-				barrel.fires = barrelJson.value("fires", barrel.fires);
-				barrel.weaponType = WeaponTypeFromString(barrelJson.value("weaponType", std::string("Projectile")));
-				barrel.damageScale = (std::max)(0.0f, barrelJson.value("damageScale", barrel.damageScale));
-				barrel.projectileSpeedScale = (std::max)(0.01f, barrelJson.value("projectileSpeedScale", barrel.projectileSpeedScale));
-				barrel.fireGroup = (std::max)(0, barrelJson.value("fireGroup", barrel.fireGroup));
-				barrel.reloadScale = (std::max)(0.05f, barrelJson.value("reloadScale", barrel.reloadScale));
-				barrel.recoilScale = (std::max)(0.0f, barrelJson.value("recoilScale", barrel.recoilScale));
-				if (barrelJson.contains("barrelColor")) {
-					barrel.barrelColor = ReadVector4(barrelJson["barrelColor"], barrel.barrelColor);
-				}
-				if (barrelJson.contains("outlineColor")) {
-					barrel.outlineColor = ReadVector4(barrelJson["outlineColor"], barrel.outlineColor);
-				}
-				if (barrelJson.contains("effectColor")) {
-					barrel.effectColor = ReadVector4(barrelJson["effectColor"], barrel.effectColor);
-				}
-				barrel.laserRange = (std::max)(0.1f, barrelJson.value("laserRange", barrel.laserRange));
-				barrel.laserWidth = (std::max)(0.01f, barrelJson.value("laserWidth", barrel.laserWidth));
-				barrel.laserDuration = (std::max)(0.01f, barrelJson.value("laserDuration", barrel.laserDuration));
-				barrel.laserDamageInterval = (std::max)(0.01f, barrelJson.value("laserDamageInterval", barrel.laserDamageInterval));
-				barrel.mineRadius = (std::max)(0.1f, barrelJson.value("mineRadius", barrel.mineRadius));
-				barrel.mineFuseTime = (std::max)(0.0f, barrelJson.value("mineFuseTime", barrel.mineFuseTime));
-				barrel.mineLifeTime = (std::max)(0.1f, barrelJson.value("mineLifeTime", barrel.mineLifeTime));
-				barrel.meleeRange = (std::max)(0.1f, barrelJson.value("meleeRange", barrel.meleeRange));
-				barrel.meleeArcDeg = (std::clamp)(barrelJson.value("meleeArcDeg", barrel.meleeArcDeg), 5.0f, 360.0f);
-				barrel.meleeWidth = (std::max)(0.01f, barrelJson.value("meleeWidth", barrel.meleeWidth));
-				barrel.meleeDuration = (std::max)(0.01f, barrelJson.value("meleeDuration", barrel.meleeDuration));
-				barrel.meleeComboResetTime = (std::max)(0.05f, barrelJson.value("meleeComboResetTime", barrel.meleeComboResetTime));
-				barrel.meleeCombo1DamageScale = (std::max)(0.0f, barrelJson.value("meleeCombo1DamageScale", barrel.meleeCombo1DamageScale));
-				barrel.meleeCombo2DamageScale = (std::max)(0.0f, barrelJson.value("meleeCombo2DamageScale", barrel.meleeCombo2DamageScale));
-				barrel.meleeCombo3DamageScale = (std::max)(0.0f, barrelJson.value("meleeCombo3DamageScale", barrel.meleeCombo3DamageScale));
-				barrel.meleeCombo1RangeScale = (std::max)(0.05f, barrelJson.value("meleeCombo1RangeScale", barrel.meleeCombo1RangeScale));
-				barrel.meleeCombo2RangeScale = (std::max)(0.05f, barrelJson.value("meleeCombo2RangeScale", barrel.meleeCombo2RangeScale));
-				barrel.meleeCombo3RangeScale = (std::max)(0.05f, barrelJson.value("meleeCombo3RangeScale", barrel.meleeCombo3RangeScale));
-				barrel.meleeCombo1Windup = (std::max)(0.0f, barrelJson.value("meleeCombo1Windup", barrel.meleeCombo1Windup));
-				barrel.meleeCombo2Windup = (std::max)(0.0f, barrelJson.value("meleeCombo2Windup", barrel.meleeCombo2Windup));
-				barrel.meleeCombo3Windup = (std::max)(0.0f, barrelJson.value("meleeCombo3Windup", barrel.meleeCombo3Windup));
-				barrel.meleeCombo1Recovery = (std::max)(0.0f, barrelJson.value("meleeCombo1Recovery", barrel.meleeCombo1Recovery));
-				barrel.meleeCombo2Recovery = (std::max)(0.0f, barrelJson.value("meleeCombo2Recovery", barrel.meleeCombo2Recovery));
-				barrel.meleeCombo3Recovery = (std::max)(0.0f, barrelJson.value("meleeCombo3Recovery", barrel.meleeCombo3Recovery));
-				config.barrels.push_back(barrel);
-			}
-		}
-		if (config.barrels.empty()) {
-			config.barrels = CreateDefaultClassConfig(config.type).barrels;
-		}
-
-		if (loadedConfigs.find(config.id) == loadedConfigs.end()) {
-			loadedOrder.push_back(config.id);
-		}
-		loadedConfigs[config.id] = config;
-	}
-
-	// A valid configuration is authoritative: classes omitted from the JSON
-	// stay unavailable. Basic is the only mandatory fallback needed to keep the
-	// player in a valid state when an accidentally empty file is supplied.
-	if (loadedConfigs.find("Basic") == loadedConfigs.end()) {
-		PlayerClassConfig basic = CreateDefaultClassConfig(ClassType::Basic);
-		loadedOrder.insert(loadedOrder.begin(), basic.id);
-		loadedConfigs[basic.id] = basic;
-	}
-
-	if (loadedConfigs.find(currentClassId_) == loadedConfigs.end()) {
-		return reportFailure("current class is missing: " + currentClassId_);
-	}
-	} catch (const std::exception& e) {
-		return reportFailure(e.what());
-	}
-	classConfigs_.swap(loadedConfigs);
-	classOrder_.swap(loadedOrder);
+	classCatalog_.Swap(loadedCatalog);
 	return true;
 }
 
@@ -2773,186 +2475,22 @@ bool Player::ReloadPlayerClassConfigs(const std::string& path)
 
 Player::PlayerClassConfig Player::CreateDefaultClassConfig(ClassType type) const
 {
-	PlayerClassConfig config{};
-	config.type = type;
-	config.id = ClassTypeToString(type);
-	config.displayName = ClassTypeToString(type);
-	config.requiredRank = 1;
-	config.spreadAngleDeg = 10.0f;
-	config.randomSpread = true;
-	config.reloadScale = 1.0f;
-	config.alternateBarrels = false;
-	auto makeBarrel = [](const cg2::Vector3& offset, const cg2::Vector3& scale, float angleDeg) {
-		WeaponMountConfig barrel{};
-		barrel.model = "gunBarrel.obj";
-		barrel.offset = offset;
-		barrel.scale = scale;
-		barrel.angleDeg = angleDeg;
-		barrel.muzzleForward = 0.95f;
-		barrel.fires = true;
-		return barrel;
-	};
-	config.barrels = {
-		makeBarrel({ 0.72f, 0.0f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f)
-	};
-
-	if (type == ClassType::Twin) {
-		config.id = "Twin";
-		config.displayName = "Twin";
-		config.requiredRank = 2;
-		config.spreadAngleDeg = 2.0f;
-		config.randomSpread = true;
-		config.reloadScale = 1.0f / 2.5f;
-		config.alternateBarrels = true;
-		config.barrels = {
-			makeBarrel({ 0.72f, -0.34f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f),
-			makeBarrel({ 0.72f,  0.34f, 0.0f }, { 1.25f, 0.24f, 0.24f }, 0.0f)
-		};
-		return config;
-	}
-
-	if (type == ClassType::MachineGun) {
-		config.requiredRank = 2;
-		config.spreadAngleDeg = 30.0f;
-		config.reloadScale = 0.6f;
-	}
-	if (type == ClassType::Overseer) {
-		config.requiredRank = 2;
-		config.usesDrone = true;
-		config.recoilPower = 0.0f;
-	}
-	if (type == ClassType::Triple) {
-		config.requiredRank = 3;
-		config.bulletCount = 1;
-		config.spreadAngleDeg = 45.0f;
-		config.randomSpread = false;
-	}
-	if (type == ClassType::Bounder) {
-		config.requiredRank = 3;
-		config.reflect = true;
-	}
-	if (type == ClassType::Assassin) {
-		config.requiredRank = 3;
-		config.bulletSpeedScale = 1.5f;
-	}
-	if (type == ClassType::Ninja) {
-		config.requiredRank = 4;
-		config.bulletCount = 1;
-		config.spreadAngleDeg = 15.0f;
-		config.randomSpread = false;
-	}
-	if (type == ClassType::Smasher || type == ClassType::Summoner) {
-		config.requiredRank = 4;
-	}
-
-	return config;
+	return PlayerClassCatalog::CreateDefaultConfig(type);
 }
 
 void Player::SavePlayerClassConfigs(const std::string& path) const
 {
-	nlohmann::json classes = nlohmann::json::array();
-	for (const std::string& id : classOrder_) {
-		const PlayerClassConfig* config = GetClassConfig(id);
-		if (!config) {
-			continue;
-		}
-
-		nlohmann::json item;
-		item["id"] = config->id;
-		item["displayName"] = config->displayName;
-		item["requiredRank"] = config->requiredRank;
-		item["usesDrone"] = config->usesDrone;
-		item["maxDrones"] = config->maxDrones;
-		item["reloadScale"] = config->reloadScale;
-		item["bulletSpeedScale"] = config->bulletSpeedScale;
-		item["bulletDamageScale"] = config->bulletDamageScale;
-		item["bulletCount"] = config->bulletCount;
-		item["spreadAngleDeg"] = config->spreadAngleDeg;
-		item["randomSpread"] = config->randomSpread;
-		item["reflect"] = config->reflect;
-		item["penetrate"] = config->penetrate;
-		item["fireAllBarrels"] = config->fireAllBarrels;
-		item["alternateBarrels"] = config->alternateBarrels;
-		item["recoilPower"] = config->recoilPower;
-		item["specialActionId"] = config->specialActionId;
-		item["specialActionCooldownScale"] = config->specialActionCooldownScale;
-		item["specialActionStaminaCost"] = config->specialActionStaminaCost;
-		item["saberCounterWindow"] = config->saberCounterWindow;
-		item["saberCounterDamageScale"] = config->saberCounterDamageScale;
-		item["saberCounterRangeScale"] = config->saberCounterRangeScale;
-		item["bodyShape"] = BodyShapeToString(config->bodyShape);
-		item["bodyScale"] = nlohmann::json::array({ config->bodyScale.x, config->bodyScale.y });
-		item["bodyFillColor"] = Vector4ToJson(config->bodyFillColor);
-		item["bodyOutlineColor"] = Vector4ToJson(config->bodyOutlineColor);
-		item["weaponMounts"] = nlohmann::json::array();
-		for (const WeaponMountConfig& barrel : config->barrels) {
-			nlohmann::json barrelJson;
-			barrelJson["model"] = barrel.model;
-			barrelJson["barrelShape"] = BarrelShapeToString(barrel.barrelShape);
-			barrelJson["offset"] = Vector3ToJson(barrel.offset);
-			barrelJson["scale"] = Vector3ToJson(barrel.scale);
-			barrelJson["angleDeg"] = barrel.angleDeg;
-			barrelJson["muzzleForward"] = barrel.muzzleForward;
-			barrelJson["fires"] = barrel.fires;
-			barrelJson["weaponType"] = WeaponTypeToString(barrel.weaponType);
-			barrelJson["damageScale"] = barrel.damageScale;
-			barrelJson["projectileSpeedScale"] = barrel.projectileSpeedScale;
-			barrelJson["fireGroup"] = barrel.fireGroup;
-			barrelJson["reloadScale"] = barrel.reloadScale;
-			barrelJson["recoilScale"] = barrel.recoilScale;
-			barrelJson["barrelColor"] = Vector4ToJson(barrel.barrelColor);
-			barrelJson["outlineColor"] = Vector4ToJson(barrel.outlineColor);
-			barrelJson["effectColor"] = Vector4ToJson(barrel.effectColor);
-			barrelJson["laserRange"] = barrel.laserRange;
-			barrelJson["laserWidth"] = barrel.laserWidth;
-			barrelJson["laserDuration"] = barrel.laserDuration;
-			barrelJson["laserDamageInterval"] = barrel.laserDamageInterval;
-			barrelJson["mineRadius"] = barrel.mineRadius;
-			barrelJson["mineFuseTime"] = barrel.mineFuseTime;
-			barrelJson["mineLifeTime"] = barrel.mineLifeTime;
-			barrelJson["meleeRange"] = barrel.meleeRange;
-			barrelJson["meleeArcDeg"] = barrel.meleeArcDeg;
-			barrelJson["meleeWidth"] = barrel.meleeWidth;
-			barrelJson["meleeDuration"] = barrel.meleeDuration;
-			barrelJson["meleeComboResetTime"] = barrel.meleeComboResetTime;
-			barrelJson["meleeCombo1DamageScale"] = barrel.meleeCombo1DamageScale;
-			barrelJson["meleeCombo2DamageScale"] = barrel.meleeCombo2DamageScale;
-			barrelJson["meleeCombo3DamageScale"] = barrel.meleeCombo3DamageScale;
-			barrelJson["meleeCombo1RangeScale"] = barrel.meleeCombo1RangeScale;
-			barrelJson["meleeCombo2RangeScale"] = barrel.meleeCombo2RangeScale;
-			barrelJson["meleeCombo3RangeScale"] = barrel.meleeCombo3RangeScale;
-			barrelJson["meleeCombo1Windup"] = barrel.meleeCombo1Windup;
-			barrelJson["meleeCombo2Windup"] = barrel.meleeCombo2Windup;
-			barrelJson["meleeCombo3Windup"] = barrel.meleeCombo3Windup;
-			barrelJson["meleeCombo1Recovery"] = barrel.meleeCombo1Recovery;
-			barrelJson["meleeCombo2Recovery"] = barrel.meleeCombo2Recovery;
-			barrelJson["meleeCombo3Recovery"] = barrel.meleeCombo3Recovery;
-			item["weaponMounts"].push_back(barrelJson);
-		}
-		classes.push_back(item);
-	}
-
-	nlohmann::json root;
-	root["version"] = 2;
-	root["classes"] = classes;
-	std::ofstream file(path);
-	if (file.is_open()) {
-		file << root.dump(2);
-	}
+	classCatalog_.Save(path);
 }
 
 const Player::PlayerClassConfig* Player::GetClassConfig(ClassType type) const
 {
-	return GetClassConfig(ClassTypeToString(type));
+	return classCatalog_.Find(type);
 }
 
 const Player::PlayerClassConfig* Player::GetClassConfig(const std::string& classId) const
 {
-	auto it = classConfigs_.find(classId);
-	if (it == classConfigs_.end()) {
-		return nullptr;
-	}
-	return &it->second;
+	return classCatalog_.Find(classId);
 }
 
 const Player::PlayerClassConfig* Player::GetCurrentClassConfig() const
@@ -3008,11 +2546,7 @@ bool Player::GetTankButtonVisualData(const std::string& classId, TankButtonVisua
 
 Player::PlayerClassConfig* Player::GetMutableClassConfig(const std::string& classId)
 {
-	auto it = classConfigs_.find(classId);
-	if (it == classConfigs_.end()) {
-		return nullptr;
-	}
-	return &it->second;
+	return classCatalog_.FindMutable(classId);
 }
 
 std::vector<Player::LaserShotEvent> Player::ConsumeLaserShotEvents()
@@ -3392,8 +2926,8 @@ void Player::InitializeEncyclopedia()
 	const float cardGapY = 12.0f;
 	const cg2::Vector2 cardBase = { 416.0f, 112.0f };
 
-	for (int i = 0; i < static_cast<int>(classOrder_.size()); ++i) {
-		const PlayerClassConfig* config = GetClassConfig(classOrder_[i]);
+	for (int i = 0; i < static_cast<int>(classCatalog_.OrderedIds().size()); ++i) {
+		const PlayerClassConfig* config = GetClassConfig(classCatalog_.OrderedIds()[i]);
 		if (!config) {
 			continue;
 		}
@@ -4965,7 +4499,7 @@ bool Player::ShouldUseStaticEvolutionPrototype() const
 		return false;
 	}
 	const int targetRank = current->requiredRank + 1;
-	for (const std::string& id : classOrder_) {
+	for (const std::string& id : classCatalog_.OrderedIds()) {
 		const PlayerClassConfig* config = GetClassConfig(id);
 		if (config && config->requiredRank == targetRank && IsRunCompatibleClass(*config)) {
 			return true;
@@ -4985,7 +4519,7 @@ void Player::RefreshStaticEvolutionCandidates()
 		return;
 	}
 	const int targetRank = current->requiredRank + 1;
-	for (const std::string& id : classOrder_) {
+	for (const std::string& id : classCatalog_.OrderedIds()) {
 		const PlayerClassConfig* config = GetClassConfig(id);
 		if (!config || config->requiredRank != targetRank || config->id == current->id ||
 			!IsRunCompatibleClass(*config)) {
@@ -6764,7 +6298,7 @@ void Player::UpdateEncyclopedia(float uiDeltaTime)
 	if (!arenaUiEnabled_ || !isChangeMode) {
 		return;
 	}
-	if (encyclopedia_.size() != classOrder_.size()) {
+	if (encyclopedia_.size() != classCatalog_.OrderedIds().size()) {
 		InitializeEncyclopedia();
 	}
 	if (encyclopedia_.empty()) {
@@ -7007,15 +6541,15 @@ void Player::DrawEncyclopedia() {
 void Player::DrawTankCodex()
 {
 #ifdef USE_IMGUI
-	if (classOrder_.empty()) {
+	if (classCatalog_.OrderedIds().empty()) {
 		LoadPlayerClassConfigs();
 	}
-	if (classOrder_.empty()) {
+	if (classCatalog_.OrderedIds().empty()) {
 		return;
 	}
 
-	codexSelectedClassIndex_ = (std::clamp)(codexSelectedClassIndex_, 0, static_cast<int>(classOrder_.size()) - 1);
-	const std::string selectedId = classOrder_[codexSelectedClassIndex_];
+	codexSelectedClassIndex_ = (std::clamp)(codexSelectedClassIndex_, 0, static_cast<int>(classCatalog_.OrderedIds().size()) - 1);
+	const std::string selectedId = classCatalog_.OrderedIds()[codexSelectedClassIndex_];
 	const PlayerClassConfig* selectedConfig = GetClassConfig(selectedId);
 	if (!selectedConfig) {
 		return;
@@ -7041,8 +6575,8 @@ void Player::DrawTankCodex()
 	for (int rank = 1; rank <= 4; ++rank) {
 		ImGui::Text("Rank %d", rank);
 		ImGui::Indent(14.0f);
-		for (int i = 0; i < static_cast<int>(classOrder_.size()); ++i) {
-			const PlayerClassConfig* config = GetClassConfig(classOrder_[i]);
+		for (int i = 0; i < static_cast<int>(classCatalog_.OrderedIds().size()); ++i) {
+			const PlayerClassConfig* config = GetClassConfig(classCatalog_.OrderedIds()[i]);
 			if (!config || config->requiredRank != rank) {
 				continue;
 			}
@@ -7310,11 +6844,11 @@ void Player::DrawPlayerClassEditor()
 	ImGui::TextWrapped("目的: C++を直接編集してビルドし直す手間を減らし、JSON化したプレイヤー機体データを画面上で確認・編集・保存できるようにする。");
 	ImGui::Separator();
 
-	if (classOrder_.empty()) {
+	if (classCatalog_.OrderedIds().empty()) {
 		LoadPlayerClassConfigs();
 	}
-	editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classOrder_.size()) - 1);
-	std::string selectedId = classOrder_[editorSelectedClassIndex_];
+	editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classCatalog_.OrderedIds().size()) - 1);
+	std::string selectedId = classCatalog_.OrderedIds()[editorSelectedClassIndex_];
 	PlayerClassConfig* config = GetMutableClassConfig(selectedId);
 	if (!config) {
 		ImGui::Text("機体設定が見つかりません。");
@@ -7331,7 +6865,7 @@ void Player::DrawPlayerClassEditor()
 	auto refreshEditorBaselines = [&]() {
 		editorBaselineConfigs.clear();
 		editorBaselineLabels.clear();
-		for (const std::string& id : classOrder_) {
+		for (const std::string& id : classCatalog_.OrderedIds()) {
 			if (const PlayerClassConfig* baselineConfig = GetClassConfig(id)) {
 				editorBaselineConfigs[id] = *baselineConfig;
 				editorBaselineLabels[id] = "JSON保存時";
@@ -7344,12 +6878,12 @@ void Player::DrawPlayerClassEditor()
 	}
 	auto makeUniqueId = [this](const std::string& baseId) {
 		const std::string prefix = baseId.empty() ? "CustomTank" : baseId;
-		if (classConfigs_.find(prefix) == classConfigs_.end()) {
+		if (!classCatalog_.Find(prefix)) {
 			return prefix;
 		}
 		for (int i = 1; i < 1000; ++i) {
 			const std::string candidate = prefix + "_" + std::to_string(i);
-			if (classConfigs_.find(candidate) == classConfigs_.end()) {
+			if (!classCatalog_.Find(candidate)) {
 				return candidate;
 			}
 		}
@@ -7368,9 +6902,8 @@ void Player::DrawPlayerClassEditor()
 			PlayerClassConfig newConfig = CreateDefaultClassConfig(ClassType::Basic);
 			newConfig.id = makeUniqueId("CustomTank");
 			newConfig.displayName = newConfig.id;
-			classOrder_.push_back(newConfig.id);
-			classConfigs_[newConfig.id] = newConfig;
-			editorSelectedClassIndex_ = static_cast<int>(classOrder_.size()) - 1;
+			classCatalog_.InsertOrAssign(newConfig);
+			editorSelectedClassIndex_ = static_cast<int>(classCatalog_.OrderedIds().size()) - 1;
 			selectedId = newConfig.id;
 			config = GetMutableClassConfig(selectedId);
 			editorBaselineConfigs[newConfig.id] = newConfig;
@@ -7383,9 +6916,8 @@ void Player::DrawPlayerClassEditor()
 			PlayerClassConfig newConfig = *config;
 			newConfig.id = makeUniqueId(config->id + "_Copy");
 			newConfig.displayName = newConfig.id;
-			classOrder_.push_back(newConfig.id);
-			classConfigs_[newConfig.id] = newConfig;
-			editorSelectedClassIndex_ = static_cast<int>(classOrder_.size()) - 1;
+			classCatalog_.InsertOrAssign(newConfig);
+			editorSelectedClassIndex_ = static_cast<int>(classCatalog_.OrderedIds().size()) - 1;
 			selectedId = newConfig.id;
 			config = GetMutableClassConfig(selectedId);
 			editorBaselineConfigs[newConfig.id] = sourceConfig;
@@ -7397,11 +6929,10 @@ void Player::DrawPlayerClassEditor()
 		if (!isLegacyId && ImGui::Button("削除")) {
 			const std::string deletingId = config->id;
 			const bool deletingCurrent = currentClassId_ == deletingId;
-			classConfigs_.erase(deletingId);
+			classCatalog_.Erase(deletingId);
 			editorBaselineConfigs.erase(deletingId);
 			editorBaselineLabels.erase(deletingId);
-			classOrder_.erase(classOrder_.begin() + editorSelectedClassIndex_);
-			editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classOrder_.size()) - 1);
+			editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classCatalog_.OrderedIds().size()) - 1);
 			if (deletingCurrent) {
 				EvolveById("Basic");
 			}
@@ -7419,8 +6950,8 @@ void Player::DrawPlayerClassEditor()
 			LoadPlayerClassConfigs();
 			// Loading replaces the catalog. Keep the index-based editor selection,
 			// but acquire its config again before continuing this frame.
-			editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classOrder_.size()) - 1);
-			selectedId = classOrder_[editorSelectedClassIndex_];
+			editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classCatalog_.OrderedIds().size()) - 1);
+			selectedId = classCatalog_.OrderedIds()[editorSelectedClassIndex_];
 			config = GetMutableClassConfig(selectedId);
 			refreshEditorBaselines();
 			rebuildBarrels = true;
@@ -7525,8 +7056,8 @@ void Player::DrawPlayerClassEditor()
 
 	if (ImGui::CollapsingHeader("基本情報", ImGuiTreeNodeFlags_DefaultOpen)) {
 		if (ImGui::BeginCombo("編集する機体", config->displayName.c_str())) {
-			for (int i = 0; i < static_cast<int>(classOrder_.size()); ++i) {
-				const std::string& id = classOrder_[i];
+			for (int i = 0; i < static_cast<int>(classCatalog_.OrderedIds().size()); ++i) {
+				const std::string& id = classCatalog_.OrderedIds()[i];
 				const PlayerClassConfig* itemConfig = GetClassConfig(id);
 				const char* label = itemConfig ? itemConfig->displayName.c_str() : id.c_str();
 				const bool selected = i == editorSelectedClassIndex_;
