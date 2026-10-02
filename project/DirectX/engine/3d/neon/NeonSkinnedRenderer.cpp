@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <utility>
 
+namespace cg2 {
+
 using Microsoft::WRL::ComPtr;
 
 namespace {
@@ -327,3 +329,5 @@ void NeonSkinnedRenderer::CreatePipeline() {
 	CheckResult(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&stencilClearPipelineState_)),
 		"Failed to create NeonSkinnedRenderer stencil-clear PSO.");
 }
+
+} // namespace cg2

@@ -6,6 +6,7 @@
 
 namespace fs = std::filesystem;
 using Microsoft::WRL::ComPtr;
+using cg2::ShaderDiskCache;
 
 static void Write(const fs::path& path, const std::string& text) {
     fs::create_directories(path.parent_path());
@@ -43,7 +44,7 @@ int main() {
     assert(!key.empty());
     assert(!cache.Load(key, defaultIncludes.Get(), utils.Get()));
     ComPtr<ShaderDiskCache::IncludeRecorder> includes;
-    includes.Attach(new ShaderDiskCache::IncludeRecorder(defaultIncludes.Get()));
+    includes = Microsoft::WRL::Make<ShaderDiskCache::IncludeRecorder>(defaultIncludes.Get());
     DxcBuffer input{ source.data(), source.size(), DXC_CP_UTF8 };
     ComPtr<IDxcResult> result;
     assert(SUCCEEDED(compiler->Compile(&input, args, _countof(args), includes.Get(), IID_PPV_ARGS(&result))));

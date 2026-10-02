@@ -12,6 +12,8 @@
 // A texture-free billboard renderer driven by a small set of persistent,
 // CPU-animated metaballs. Coloring is deliberately separate from the scalar
 // field so later layers can share the same contour source.
+namespace cg2 {
+
 class ProceduralFlameRenderer {
 public:
 	static constexpr uint32_t kMaxMetaballs = 12;
@@ -158,3 +160,5 @@ private:
 	Parameters parameters_{};
 	std::array<MetaballState, kMaxMetaballs> metaballs_{};
 };
+
+} // namespace cg2

@@ -6,6 +6,8 @@
 #include "DirectXCommon.h"
 
 #include <filesystem>
+namespace cg2 {
+
 namespace fs = std::filesystem;
 
 struct AudioConfig {
@@ -65,3 +67,5 @@ private:
     std::vector<std::string> audioFileList_;
     const std::string kAudioDirPath = "resources/audio/";
 };
+
+} // namespace cg2

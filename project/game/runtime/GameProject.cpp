@@ -13,7 +13,7 @@ namespace {
 
 void LogProjectError(const std::string& message)
 {
-	LogWrite().Log("[GameProject] " + message + "\n");
+	cg2::LogWrite().Log("[GameProject] " + message + "\n");
 }
 
 std::filesystem::path MakeUtf8Path(const std::string& path)

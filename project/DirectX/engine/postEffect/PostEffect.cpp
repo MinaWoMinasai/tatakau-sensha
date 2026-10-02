@@ -1,5 +1,7 @@
 #include "PostEffect.h"
 
+namespace cg2 {
+
 void PostEffect::Initialize(DirectXCommon* dxCommon, BloomConstantBuffer* bloomCB) {
 	dxCommon_ = dxCommon;
 	bloomCB_ = bloomCB;
@@ -284,3 +286,5 @@ void PostEffect::DrawObjectBloomAdd(D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV, bool o
 
     dxCommon_->GetList()->DrawInstanced(3, 1, 0, 0);
 }
+
+} // namespace cg2

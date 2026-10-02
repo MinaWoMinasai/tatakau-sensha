@@ -2,17 +2,20 @@
 
 #pragma region イージングの種類
 
-float easeInSine(float t) { return 1.0f - cosf(float(t * M_PI) / 2.0f); }
+namespace cg2 {
+namespace { constexpr double kEasingPi = 3.141592653589793; }
 
-float easeInQuad(float t) { return t * t; }
+float EaseInSine(float t) { return 1.0f - cosf(float(t * kEasingPi) / 2.0f); }
 
-float easeInCubic(float t) { return t * t * t; }
+float EaseInQuad(float t) { return t * t; }
 
-float easeInQuart(float t) { return t * t * t * t; }
+float EaseInCubic(float t) { return t * t * t; }
 
-float easeInQuint(float t) { return t * t * t * t * t; }
+float EaseInQuart(float t) { return t * t * t * t; }
 
-float easeInExpo(float t) {
+float EaseInQuint(float t) { return t * t * t * t * t; }
+
+float EaseInExpo(float t) {
 	if (t == 0.0f) {
 		return 0.0f;
 	} else {
@@ -20,26 +23,26 @@ float easeInExpo(float t) {
 	}
 }
 
-float easeInCirc(float t) { return 1.0f - sqrtf(1.0f - powf(t, 2.0f)); }
+float EaseInCirc(float t) { return 1.0f - sqrtf(1.0f - powf(t, 2.0f)); }
 
-float easeInBack(float t) {
+float EaseInBack(float t) {
 	const float c1 = 1.70158f;
 	const float c3 = c1 + 1.0f;
 
 	return c3 * t * t * t - c1 * t * t;
 }
 
-float easeOutSine(float t) { return sinf(float(t * M_PI) / 2.0f); }
+float EaseOutSine(float t) { return sinf(float(t * kEasingPi) / 2.0f); }
 
-float easeOutQuad(float t) { return 1.0f - (1.0f - t) * (1.0f - t); }
+float EaseOutQuad(float t) { return 1.0f - (1.0f - t) * (1.0f - t); }
 
-float easeOutCubic(float t) { return 1.0f - powf(1.0f - t, 3.0f); }
+float EaseOutCubic(float t) { return 1.0f - powf(1.0f - t, 3.0f); }
 
-float easeOutQuart(float t) { return 1.0f - powf(1.0f - t, 4.0f); }
+float EaseOutQuart(float t) { return 1.0f - powf(1.0f - t, 4.0f); }
 
-float easeOutQuint(float t) { return 1.0f - powf(1.0f - t, 5.0f); }
+float EaseOutQuint(float t) { return 1.0f - powf(1.0f - t, 5.0f); }
 
-float easeOutExpo(float t) {
+float EaseOutExpo(float t) {
 	if (t == 1.0f) {
 		return 1.0f;
 	} else {
@@ -47,18 +50,18 @@ float easeOutExpo(float t) {
 	}
 }
 
-float easeOutCirc(float t) { return sqrtf(1.0f - powf(t - 1.0f, 2.0f)); }
+float EaseOutCirc(float t) { return sqrtf(1.0f - powf(t - 1.0f, 2.0f)); }
 
-float easeOutBack(float t) {
+float EaseOutBack(float t) {
 	const float c1 = 1.70158f;
 	const float c3 = c1 + 1.0f;
 
 	return 1.0f + c3 * powf(t - 1.0f, 3.0f) + c1 * powf(t - 1.0f, 2.0f);
 }
 
-float easeInOutSine(float t) { return -(cosf(float(M_PI) * t) - 1.0f) / 2.0f; }
+float EaseInOutSine(float t) { return -(cosf(float(kEasingPi) * t) - 1.0f) / 2.0f; }
 
-float easeInOutQuad(float t) {
+float EaseInOutQuad(float t) {
 	if (t < 0.5f) {
 		return 2.0f * t * t;
 	} else {
@@ -66,7 +69,7 @@ float easeInOutQuad(float t) {
 	}
 }
 
-float easeInOutCubic(float t) {
+float EaseInOutCubic(float t) {
 	if (t < 0.5f) {
 		return 4.0f * t * t * t;
 	} else {
@@ -74,7 +77,7 @@ float easeInOutCubic(float t) {
 	}
 }
 
-float easeInOutQuart(float t) {
+float EaseInOutQuart(float t) {
 	if (t < 0.5f) {
 		return 8.0f * t * t * t * t;
 	} else {
@@ -82,7 +85,7 @@ float easeInOutQuart(float t) {
 	}
 }
 
-float easeInOutQuint(float t) {
+float EaseInOutQuint(float t) {
 	if (t < 0.5f) {
 		return 16.0f * t * t * t * t * t;
 	} else {
@@ -90,7 +93,7 @@ float easeInOutQuint(float t) {
 	}
 }
 
-float easeInOutExpo(float t) {
+float EaseInOutExpo(float t) {
 	if (t == 0.0f) {
 		return 0.0f;
 	} else if (t == 1.0f) {
@@ -102,7 +105,7 @@ float easeInOutExpo(float t) {
 	}
 }
 
-float easeInOutCirc(float t) {
+float EaseInOutCirc(float t) {
 	if (t < 0.5f) {
 		return (1.0f - sqrtf(1.0f - powf(2.0f * t, 2.0f))) / 2.0f;
 	} else {
@@ -110,7 +113,7 @@ float easeInOutCirc(float t) {
 	}
 }
 
-float easeInOutBack(float t) {
+float EaseInOutBack(float t) {
 	const float c1 = 1.70158f;
 	const float c2 = c1 * 1.525f;
 
@@ -121,8 +124,8 @@ float easeInOutBack(float t) {
 	}
 }
 
-float easeInElastic(float t) {
-	const float c4 = (2.0f * float(M_PI)) / 3.0f;
+float EaseInElastic(float t) {
+	const float c4 = (2.0f * float(kEasingPi)) / 3.0f;
 
 	if (t == 0.0f) {
 		return 0.0f;
@@ -133,8 +136,8 @@ float easeInElastic(float t) {
 	}
 }
 
-float easeOutElastic(float t) {
-	const float c4 = (2.0f * float(M_PI)) / 3.0f;
+float EaseOutElastic(float t) {
+	const float c4 = (2.0f * float(kEasingPi)) / 3.0f;
 
 	if (t == 0.0f) {
 		return 0.0f;
@@ -145,8 +148,8 @@ float easeOutElastic(float t) {
 	}
 }
 
-float easeInOutElastic(float t) {
-	const float c5 = (2.0f * float(M_PI)) / 4.5f;
+float EaseInOutElastic(float t) {
+	const float c5 = (2.0f * float(kEasingPi)) / 4.5f;
 
 	if (t == 0.0f) {
 		return 0.0f;
@@ -159,9 +162,9 @@ float easeInOutElastic(float t) {
 	}
 }
 
-float easeInBounce(float t) { return 1.0f - easeOutBounce(1.0f - t); }
+float EaseInBounce(float t) { return 1.0f - EaseOutBounce(1.0f - t); }
 
-float easeOutBounce(float t) {
+float EaseOutBounce(float t) {
 	if (t < (1.0f / 2.75f)) {
 		return 7.5625f * t * t;
 	} else if (t < (2.0f / 2.75f)) {
@@ -176,15 +179,15 @@ float easeOutBounce(float t) {
 	}
 }
 
-float easeInOutBounce(float t) {
+float EaseInOutBounce(float t) {
 	if (t < 0.5f) {
-		return (1.0f - easeOutBounce(1.0f - 2.0f * t)) / 2.0f;
+		return (1.0f - EaseOutBounce(1.0f - 2.0f * t)) / 2.0f;
 	} else {
-		return (1.0f + easeOutBounce(2.0f * t - 1.0f)) / 2.0f;
+		return (1.0f + EaseOutBounce(2.0f * t - 1.0f)) / 2.0f;
 	}
 }
 
-float Lerp(const float& start, const float& end, const float t) {
+float Lerp(float start, float end, float t) {
 
 	// 線形補間
 	return start + (end - start) * t;
@@ -207,3 +210,5 @@ Vector4 Lerp(const Vector4& start, const Vector4& end, float t)
 }
 
 #pragma endregion
+
+} // namespace cg2

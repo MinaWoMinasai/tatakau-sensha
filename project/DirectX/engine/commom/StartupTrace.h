@@ -15,6 +15,8 @@
 // CPU wall-clock loading diagnostics, available in Release without the frame
 // profiler. Nested inclusive times must not be added together; selfMs excludes
 // nested scopes. No disk I/O occurs per frame. Diagnostics never prevent loading.
+namespace cg2 {
+
 class StartupTrace {
     using Clock = std::chrono::steady_clock;
     static std::string Environment(const char* name) {
@@ -140,3 +142,5 @@ public:
         } catch (...) { }
     }
 };
+
+} // namespace cg2

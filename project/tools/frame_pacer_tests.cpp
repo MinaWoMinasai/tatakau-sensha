@@ -5,6 +5,8 @@
 #include <iomanip>
 #include <iostream>
 
+using cg2::FramePacer;
+
 namespace {
 double ThreadCpuMs() {
     FILETIME created{}, exited{}, kernel{}, user{};

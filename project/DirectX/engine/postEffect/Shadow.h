@@ -4,6 +4,8 @@
 #include "SceneManager.h"
 #include "ShadowMap.h"
 
+namespace cg2 {
+
 class Shadow {
 public:
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
@@ -22,3 +24,5 @@ private:
 
     std::unique_ptr<ShadowMap> shadowMap_;
 };
+
+} // namespace cg2

@@ -2,6 +2,8 @@
 #include "Calculation.h"
 #include <Easing.h>
 
+namespace cg2 {
+
 std::mt19937 rng(std::random_device{}());
 
 Vector2 Add(const Vector2& v1, const Vector2& v2)
@@ -822,7 +824,7 @@ Particle MakeParticle(const Vector3& position, const Vector4& baseColor) {
 	return particle;
 }
 
-TornadoParticle MakeTornadoParticle(Vector3 center)
+TornadoParticle MakeTornadoParticle(const Vector3& center)
 {
 	TornadoParticle p;
 
@@ -1075,7 +1077,7 @@ bool IsCollision(const Segment& seg, const Sphere& sphere, float capsuleRadius) 
 }
 
 Vector3 RandomUnitVector() {
-	float theta = Rand(0.0f, 2.0f * float(M_PI));   // 0〜2π の角度
+	float theta = Rand(0.0f, 2.0f * pi);   // 0〜2π の角度
 	float phi = acosf(Rand(-1.0f, 1.0f));           // -1〜1を使ってφを決定
 
 	Vector3 dir;
@@ -1171,3 +1173,5 @@ Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, cons
 		(p0 * 2.0f - p1 * 5.0f + p2 * 4.0f - p3) * t2 +
 		(-p0 + p1 * 3.0f - p2 * 3.0f + p3) * t3) * 0.5f;
 }
+
+} // namespace cg2

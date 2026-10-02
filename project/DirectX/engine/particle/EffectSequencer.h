@@ -6,6 +6,8 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 
+namespace cg2 {
+
 class Object3d;
 class Object3dCommon;
 class DirectXCommon;
@@ -129,3 +131,5 @@ private:
     std::function<void()> onHitCallback_;
     char profileFilename_[128] = "effect_default.json";
 };
+
+} // namespace cg2

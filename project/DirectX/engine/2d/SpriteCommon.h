@@ -1,6 +1,8 @@
 #pragma once
 #include "DirectXCommon.h"
 
+namespace cg2 {
+
 class SpriteCommon
 {
 public:
@@ -21,3 +23,5 @@ private:
 
 	DirectXCommon* dxCommon_ = nullptr;
 };
+
+} // namespace cg2

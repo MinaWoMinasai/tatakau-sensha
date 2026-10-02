@@ -1,3 +1,4 @@
+#include "game/weapon/CombatTypes.h"
 #include "Player.h"
 #include "StartupTrace.h"
 #include "Stage.h"
@@ -56,7 +57,7 @@ void DrawEditorHelp(const char* text)
 }
 #endif
 
-Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
+cg2::Vector4 LerpColor(const cg2::Vector4& a, const cg2::Vector4& b, float t)
 {
 	t = (std::clamp)(t, 0.0f, 1.0f);
 	return {
@@ -67,7 +68,7 @@ Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
 	};
 }
 
-Vector3 ReadVector3(const nlohmann::json& json, const Vector3& fallback)
+cg2::Vector3 ReadVector3(const nlohmann::json& json, const cg2::Vector3& fallback)
 {
 	if (!json.is_array() || json.size() < 3) {
 		return fallback;
@@ -79,7 +80,7 @@ Vector3 ReadVector3(const nlohmann::json& json, const Vector3& fallback)
 	};
 }
 
-Vector2 ReadVector2(const nlohmann::json& json, const Vector2& fallback)
+cg2::Vector2 ReadVector2(const nlohmann::json& json, const cg2::Vector2& fallback)
 {
 	if (!json.is_array() || json.size() < 2) {
 		return fallback;
@@ -93,7 +94,7 @@ Vector2 ReadVector2(const nlohmann::json& json, const Vector2& fallback)
 	};
 }
 
-Vector4 ReadVector4(const nlohmann::json& json, const Vector4& fallback)
+cg2::Vector4 ReadVector4(const nlohmann::json& json, const cg2::Vector4& fallback)
 {
 	if (!json.is_array() || json.size() < 4) {
 		return fallback;
@@ -106,18 +107,18 @@ Vector4 ReadVector4(const nlohmann::json& json, const Vector4& fallback)
 	};
 }
 
-Vector2 ReadVector2Object(const nlohmann::json& json, const Vector2& fallback)
+cg2::Vector2 ReadVector2Object(const nlohmann::json& json, const cg2::Vector2& fallback)
 {
 	if (!json.is_object()) {
 		return fallback;
 	}
-	Vector2 value = fallback;
+	cg2::Vector2 value = fallback;
 	if (json.contains("x") && json["x"].is_number()) value.x = json["x"].get<float>();
 	if (json.contains("y") && json["y"].is_number()) value.y = json["y"].get<float>();
 	return value;
 }
 
-nlohmann::json WriteVector2Object(const Vector2& value)
+nlohmann::json WriteVector2Object(const cg2::Vector2& value)
 {
 	return {
 		{ "x", value.x },
@@ -259,11 +260,11 @@ const std::array<const char*, 7>& UpgradeHudNames()
 	return names;
 }
 
-const std::array<Vector4, 7>& UpgradeHudRowColors()
+const std::array<cg2::Vector4, 7>& UpgradeHudRowColors()
 {
 	// diepio風の能力ごとの色分け。ゲーム内のネオン表現と衝突しないよう、
 	// 発光は塗り全体ではなく、セルと細い外周に限定する。
-	static const std::array<Vector4, 7> colors = {{
+	static const std::array<cg2::Vector4, 7> colors = {{
 		{ 0.90f, 0.36f, 0.86f, 1.0f }, // 自動回復
 		{ 0.67f, 0.36f, 0.95f, 1.0f }, // 最大HP
 		{ 0.49f, 0.39f, 0.98f, 1.0f }, // 体当たり
@@ -277,7 +278,7 @@ const std::array<Vector4, 7>& UpgradeHudRowColors()
 
 NeonSegmentedBarStyle MakeUpgradeHudSegmentStyle(int index)
 {
-	const Vector4 baseColor = UpgradeHudRowColors()[(std::clamp)(index, 0, 6)];
+	const cg2::Vector4 baseColor = UpgradeHudRowColors()[(std::clamp)(index, 0, 6)];
 	NeonSegmentedBarStyle style{};
 	// 外周の半円部にも未取得セルと同じ不透明な色を入れ、端だけが薄く
 	// 見えないようにする。
@@ -312,10 +313,10 @@ NeonSegmentedBarStyle MakeUpgradeHudSegmentStyle(int index)
 	return style;
 }
 
-void SetLabel(std::unique_ptr<TextLabel>& label, SpriteCommon* spriteCommon, const std::string& text, const Vector2& position, const TextStyle& style)
+void SetLabel(std::unique_ptr<cg2::TextLabel>& label, cg2::SpriteCommon* spriteCommon, const std::string& text, const cg2::Vector2& position, const cg2::TextStyle& style)
 {
 	if (!label) {
-		label = std::make_unique<TextLabel>();
+		label = std::make_unique<cg2::TextLabel>();
 		label->Initialize(spriteCommon, text, style);
 	} else {
 		label->SetStyle(style);
@@ -324,9 +325,9 @@ void SetLabel(std::unique_ptr<TextLabel>& label, SpriteCommon* spriteCommon, con
 	label->SetPosition(position);
 }
 
-TextStyle MakeUpgradeHudBottomBarTextStyle()
+cg2::TextStyle MakeUpgradeHudBottomBarTextStyle()
 {
-	TextStyle style{};
+	cg2::TextStyle style{};
 	style.fontFamily = "Meiryo";
 	style.fontSize = 15.0f;
 	style.color = { 0.90f, 0.94f, 1.0f, 1.0f };
@@ -337,9 +338,9 @@ TextStyle MakeUpgradeHudBottomBarTextStyle()
 	return style;
 }
 
-TextStyle MakeUpgradeHudSmallTextStyle()
+cg2::TextStyle MakeUpgradeHudSmallTextStyle()
 {
-	TextStyle style{};
+	cg2::TextStyle style{};
 	style.fontFamily = "Meiryo";
 	style.fontSize = 15.0f;
 	style.color = { 0.90f, 0.94f, 1.0f, 1.0f };
@@ -349,9 +350,9 @@ TextStyle MakeUpgradeHudSmallTextStyle()
 	return style;
 }
 
-TextStyle MakeUpgradeHudOverlayTextStyle()
+cg2::TextStyle MakeUpgradeHudOverlayTextStyle()
 {
-	TextStyle style = MakeUpgradeHudSmallTextStyle();
+	cg2::TextStyle style = MakeUpgradeHudSmallTextStyle();
 	style.outlineColor = { 0.0f, 0.0f, 0.0f, 0.92f };
 	style.outlineThickness = 1.0f;
 	style.padding = 3.0f;
@@ -359,7 +360,7 @@ TextStyle MakeUpgradeHudOverlayTextStyle()
 	return style;
 }
 
-float GetUpgradeHudTextAdvance(const TextLabel* label, const TextStyle& style)
+float GetUpgradeHudTextAdvance(const cg2::TextLabel* label, const cg2::TextStyle& style)
 {
 	if (!label || !label->GetSprite()) {
 		return style.fontSize * 0.55f;
@@ -369,12 +370,12 @@ float GetUpgradeHudTextAdvance(const TextLabel* label, const TextStyle& style)
 	return (std::max)(fallback, label->GetSprite()->GetSize().x - padding * 2.0f);
 }
 
-nlohmann::json Vector3ToJson(const Vector3& value)
+nlohmann::json Vector3ToJson(const cg2::Vector3& value)
 {
 	return nlohmann::json::array({ value.x, value.y, value.z });
 }
 
-nlohmann::json Vector4ToJson(const Vector4& value)
+nlohmann::json Vector4ToJson(const cg2::Vector4& value)
 {
 	return nlohmann::json::array({ value.x, value.y, value.z, value.w });
 }
@@ -418,7 +419,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				* GetRunFireIntervalScale() * (expeditionCombatStyleSelected_?profile.attackIntervalSeconds/0.33f:1.0f));
 			MeleeSlashEvent event{};
 			event.origin = GetWorldPosition();
-			event.direction = Length(dir_) > 0.001f ? Normalize(dir_) : Vector3{1,0,0};
+			event.direction = cg2::Length(dir_) > 0.001f ? cg2::Normalize(dir_) : cg2::Vector3{1,0,0};
 			event.range = (expeditionCombatStyleSelected_?profile.meleeRange:4.3f) * combo.range;
 			event.arcDeg = combo.arc;
 			event.width = step == 2 ? 0.38f : 0.26f;
@@ -429,11 +430,11 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			event.knockback = combo.knockback * (expeditionCombatStyleSelected_?profile.meleeKnockback/0.16f:1.0f);
 			event.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * 3.8f * combo.damage
 				* (config ? config->bulletDamageScale : 1.0f))));
-			event.color = step == 2 ? Vector4{1.8f,0.85f,0.25f,1.0f} : Vector4{0.25f,1.50f,1.75f,1.0f};
+			event.color = step == 2 ? cg2::Vector4{1.8f,0.85f,0.25f,1.0f} : cg2::Vector4{0.25f,1.50f,1.75f,1.0f};
 			const bool dashSlash=tankspecial::CanDashSlash(runModifiers_.dashSlash,isDashing_,recentDashTimer_)&&!dashSlashActive_;
 			if(dashSlash) {
 				event.comboStep=0;event.windupDuration=0;event.duration=.18f;event.recoveryDuration=.12f;
-				event.direction=Length(velocity_)>.001f?Normalize(velocity_):event.direction;
+				event.direction=cg2::Length(velocity_)>.001f?cg2::Normalize(velocity_):event.direction;
 				dashSlashActive_=true;dashSlashTimer_=.22f;dashSlashPrevious_=GetWorldPosition();dashSlashDirection_=event.direction;
 				dashSlashDamage_=static_cast<uint32_t>((std::max)(1.0f,std::round(stats_.bulletDamage*3.8f*MakeTankMeleeCombo(0,runModifiers_).damage
 					*(config?config->bulletDamageScale:1.0f)*1.2f*TankEffectPower(runModifiers_,39))));
@@ -457,14 +458,14 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 		if (const PlayerClassConfig* config = GetCurrentClassConfig()) {
 			const float baseReload = (isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f)
 				* GetRunFireIntervalScale();
-			Vector3 recoilDir = Normalize(dir_) * -1.0f;
+			cg2::Vector3 recoilDir = cg2::Normalize(dir_) * -1.0f;
 			float recoilPower = 0.01f;
 			if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
 				// Spawning a companion is not a shot. Expedition drone volleys
 				// raise this event below only when they actually create bullets.
 				if (!runCheckpointEvolution_ || !config->usesDrone) { primaryAttackPerformedEvent_ = true; ++primaryAttackCount_; }
 				velocity_ += recoilDir * recoilPower;
-				if (!runCheckpointEvolution_) Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
+				if (!runCheckpointEvolution_) cg2::Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
 			}
 			return;
 		}
@@ -472,7 +473,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 		if (bulletCoolTime <= 0.0f) {
 
 			// 発射位置
-			Vector3 origin = GetWorldPosition();
+			cg2::Vector3 origin = GetWorldPosition();
 
 			// 攻撃パラメータを設定
 			AttackParam param{};
@@ -488,7 +489,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 			ApplyRunProjectileRules(param);
 			bool firedByClass = false;
 
-			Vector3 recoilDir = Normalize(dir_) * -1.0f;
+			cg2::Vector3 recoilDir = cg2::Normalize(dir_) * -1.0f;
 			float recoilPower = 0.01f; // 弾の重さ（慣性の強さ）
 
 			// 個別にクールタイムを設定するために先に設定
@@ -522,7 +523,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				param.spreadAngleDeg = 2.0f;
 				param.randomSpread = true;
 				float offsetValue = 0.6f; // 砲身の横幅
-				Vector3 rightDir = { -dir_.y, dir_.x, 0.0f }; // dir_に垂直なベクトル（右方向）
+				cg2::Vector3 rightDir = { -dir_.y, dir_.x, 0.0f }; // dir_に垂直なベクトル（右方向）
 
 				if (shootBarrelIndex_ == 0) {
 					// 左から発射
@@ -611,7 +612,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				++primaryAttackCount_;
 			}
 			velocity_ += recoilDir * recoilPower;
-			if (!runCheckpointEvolution_) Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
+			if (!runCheckpointEvolution_) cg2::Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
 		}
 	}
 	else if(!wantsPrimaryAttack)finisherSpinReady_=false;
@@ -656,7 +657,7 @@ void Player::DroneShoot(BulletManager* BulletManager)
 
 		// 弾の速度
 		const float kBulletSpeed = 0.2f;
-		Vector3 velocity = dir_ * kBulletSpeed;
+		cg2::Vector3 velocity = dir_ * kBulletSpeed;
 
 		auto drone = std::make_unique<PlayerDrone>();
 		drone->Initialize(dir_ * 0.3f + worldTransform_.translate, velocity);
@@ -680,8 +681,8 @@ void Player::Smash(float deltaTime)
 	if (input_->IsMomentRelease(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
 		smashDir_ = dir_;
 		isSmash_ = true;
-		Vector3 recoilDir = Normalize(smashDir_);
-		float recoilPower = easeInQuad(smashCharge_) / 2.0f; // 弾の重さ（慣性の強さ）
+		cg2::Vector3 recoilDir = cg2::Normalize(smashDir_);
+		float recoilPower = cg2::EaseInQuad(smashCharge_) / 2.0f; // 弾の重さ（慣性の強さ）
 		recoilPower = std::min(recoilPower, 0.7f);
 		velocity_ = recoilDir * recoilPower;
 		return;
@@ -700,9 +701,9 @@ void Player::Smash(float deltaTime)
 	}
 }
 
-Sphere Player::GetSphere() const
+cg2::Sphere Player::GetSphere() const
 {
-	Sphere s{};
+	cg2::Sphere s{};
 	s.center = GetWorldPosition();
 
 	// 半径は「横幅基準」が安定
@@ -831,43 +832,43 @@ bool Player::RequestSlow()
 }
 
 
-void Player::RotateToMouse(Camera* viewProjection) {
+void Player::RotateToMouse(cg2::Camera* viewProjection) {
     if (demoInputEnabled_) {
         runAimWorld_=demoAim_;
-        const Vector3 offset=demoAim_-worldTransform_.translate;
-        if(Length(offset)>0.001f) dir_=Normalize(offset);
+        const cg2::Vector3 offset=demoAim_-worldTransform_.translate;
+        if(cg2::Length(offset)>0.001f) dir_=cg2::Normalize(offset);
         angle_=std::atan2(dir_.y,dir_.x); worldTransform_.rotate.z=angle_;
         object_->SetRotate(worldTransform_.rotate); return;
     }
 	// --- 1. マウス座標取得 ---
 	POINT mousePosition;
 	GetCursorPos(&mousePosition);
-	HWND hwnd = WinApp::GetInstance()->GetHwnd();
+	HWND hwnd = cg2::WinApp::GetInstance()->GetHwnd();
 	ScreenToClient(hwnd, &mousePosition);
 
 	// --- 2. 逆変換用の行列を準備 ---
-	Matrix4x4 matViewport = MakeViewportMatrix(0, 0, WinApp::kClientWidth, WinApp::kClientHeight, 0, 1);
-	Matrix4x4 matVPV = viewProjection->GetViewMatrix() * viewProjection->GetProjectionMatrix() * matViewport;
-	Matrix4x4 matInverseVPV = Inverse(matVPV);
+	cg2::Matrix4x4 matViewport = cg2::MakeViewportMatrix(0, 0, cg2::WinApp::kClientWidth, cg2::WinApp::kClientHeight, 0, 1);
+	cg2::Matrix4x4 matVPV = viewProjection->GetViewMatrix() * viewProjection->GetProjectionMatrix() * matViewport;
+	cg2::Matrix4x4 matInverseVPV = cg2::Inverse(matVPV);
 
 	// --- 3. マウス座標をワールドに変換 ---
-	Vector3 posNear = Vector3((float)mousePosition.x, (float)mousePosition.y, 0);
-	Vector3 posFar = Vector3((float)mousePosition.x, (float)mousePosition.y, 1);
+	cg2::Vector3 posNear = cg2::Vector3((float)mousePosition.x, (float)mousePosition.y, 0);
+	cg2::Vector3 posFar = cg2::Vector3((float)mousePosition.x, (float)mousePosition.y, 1);
 
-	posNear = TransformMatrix(posNear, matInverseVPV);
-	posFar = TransformMatrix(posFar, matInverseVPV);
+	posNear = cg2::TransformMatrix(posNear, matInverseVPV);
+	posFar = cg2::TransformMatrix(posFar, matInverseVPV);
 
 	// --- 4. レイと Z=0 平面の交差 ---
-	Vector3 mouseDirection = posFar - posNear;
-	Vector3 rayDir = Normalize(mouseDirection);
+	cg2::Vector3 mouseDirection = posFar - posNear;
+	cg2::Vector3 rayDir = cg2::Normalize(mouseDirection);
 	float t = -posNear.z / rayDir.z;
-	Vector3 target = posNear + rayDir * t;
+	cg2::Vector3 target = posNear + rayDir * t;
 	runAimWorld_ = target;
 
 	// --- 5. プレイヤーの位置と方向ベクトル ---
-	Vector3 playerPos = worldTransform_.translate;
-	Vector3 targetPos = target - playerPos;
-	dir_ = Normalize(targetPos);
+	cg2::Vector3 playerPos = worldTransform_.translate;
+	cg2::Vector3 targetPos = target - playerPos;
+	dir_ = cg2::Normalize(targetPos);
 
 	// --- 6. 回転角度を算出 ---
 	angle_ = atan2(dir_.y, dir_.x);
@@ -875,20 +876,20 @@ void Player::RotateToMouse(Camera* viewProjection) {
 	object_->SetRotate(worldTransform_.rotate);
 }
 
-void Player::Initialize(Object3d* object, const Vector3& position, bool arenaUi) {
-    StartupTrace::Scope scope("Player.Initialize");
+void Player::Initialize(cg2::Object3d* object, const cg2::Vector3& position, bool arenaUi) {
+    cg2::StartupTrace::Scope scope("Player.Initialize");
 	wchar_t startupCacheFlag[8]{};
 	const bool baseline = GetEnvironmentVariableW(L"CG2_STARTUP_CACHE", startupCacheFlag, 8) > 0 && startupCacheFlag[0] == L'0';
 	arenaUiEnabled_ = arenaUi || baseline;
 
-	sprite = std::make_unique<Sprite>();
-	sprite->Initialize(SpriteCommon::GetInstance(), "resources/fade.png");
-	sprite->SetColor(Vector4(1.0f, 1.0f, 1.0f, 0.8f));
+	sprite = std::make_unique<cg2::Sprite>();
+	sprite->Initialize(cg2::SpriteCommon::GetInstance(), "resources/fade.png");
+	sprite->SetColor(cg2::Vector4(1.0f, 1.0f, 1.0f, 0.8f));
 
 	object_ = object;
 	baseVehicleColor_ = object_->GetColor();
 
-	worldTransform_ = InitWorldTransform();
+	worldTransform_ = cg2::InitWorldTransform();
 	worldTransform_.translate = position;
 	object_->SetTransform(worldTransform_);
 	object_->Update();
@@ -906,7 +907,7 @@ void Player::Initialize(Object3d* object, const Vector3& position, bool arenaUi)
 	UpdateBarrelLayout();
 
 	// シングルトンインスタンス
-	input_ = Input::GetInstance();
+	input_ = cg2::Input::GetInstance();
 
 	// 衝突属性を設定
 	SetCollisionAttribute(kCollisionAttributePlayer);
@@ -919,8 +920,8 @@ void Player::Initialize(Object3d* object, const Vector3& position, bool arenaUi)
 	nextLevelExp_ = GetNextLevelExp();
 	hp_ = GetMaxHp();
 
-	machineGunBtnSprite_ = std::make_unique<Sprite>();
-	machineGunBtnSprite_->Initialize(SpriteCommon::GetInstance(), "resources/white512x512.png");
+	machineGunBtnSprite_ = std::make_unique<cg2::Sprite>();
+	machineGunBtnSprite_->Initialize(cg2::SpriteCommon::GetInstance(), "resources/white512x512.png");
 	machineGunBtnSprite_->SetPosition({ btnPos_ });
 	machineGunBtnSprite_->SetSize({ btnSize_ });
 
@@ -938,13 +939,13 @@ void Player::Initialize(Object3d* object, const Vector3& position, bool arenaUi)
 		// Keep authored progression rules available for combat/evolution logic.
 		// Only the legacy arena's invisible UI is omitted, never deferred.
 		LoadEvolutionCircuitTree();
-		StartupTrace::Count("player.unusedArenaUiSkipped");
+		cg2::StartupTrace::Count("player.unusedArenaUiSkipped");
 	}
 
 }
 
 void Player::Update(
-	Camera* viewProjection,
+	cg2::Camera* viewProjection,
 	Stage& stage,
 	BulletManager* BulletManager,
 	float deltaTime,
@@ -954,7 +955,7 @@ void Player::Update(
 
 	POINT mousePos;
 	GetCursorPos(&mousePos);
-	ScreenToClient(WinApp::GetInstance()->GetHwnd(), &mousePos);
+	ScreenToClient(cg2::WinApp::GetInstance()->GetHwnd(), &mousePos);
 	mousePosition_ = { static_cast<float>(mousePos.x), static_cast<float>(mousePos.y) };
 	const bool evolutionUiWasOpen = isChangeMode;
 	if(!demoInputEnabled_ && arenaUiEnabled_) { UpdateEncyclopedia(uiDeltaTime); UpdateUpgradeHud(uiDeltaTime); }
@@ -1100,17 +1101,17 @@ void Player::Update(
 	if (input_->IsPress(input_->GetKey()[DIK_S])) inputDir_.y -= 1.0f;
 
     if(demoInputEnabled_) inputDir_={demoMove_.x,demoMove_.y,0};
-	if (Length(inputDir_) > 1.0f) {
-		inputDir_ = Normalize(inputDir_);
+	if (cg2::Length(inputDir_) > 1.0f) {
+		inputDir_ = cg2::Normalize(inputDir_);
 	}
 
 	// --- 目標速度 ---
-	Vector3 targetVelocity = inputDir_ * stats_.moveSpeed;
+	cg2::Vector3 targetVelocity = inputDir_ * stats_.moveSpeed;
 	if(railCharge_.held && !isDashing_) targetVelocity=targetVelocity*.78f;
 	if(spinCycle_.remaining>0 && !isDashing_)targetVelocity=targetVelocity*.55f;
 
 	// --- 慣性処理 ---
-	float accel = (Length(inputDir_) > 0.0f) ? accel_ : decel_;
+	float accel = (cg2::Length(inputDir_) > 0.0f) ? accel_ : decel_;
 
 	if (runModifiers_.enabled) {
 		// Restore the original acceleration / coast rates using a stable timestep.
@@ -1122,23 +1123,23 @@ void Player::Update(
 
 	float timeWeight = deltaTime * 60.0f;
 
-	Vector3 frameMove = velocity_ * timeWeight;
+	cg2::Vector3 frameMove = velocity_ * timeWeight;
 	const float maxStep = 0.35f;
 	const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(frameMove.x), std::abs(frameMove.y)) / maxStep) + 1);
-	Vector3 stepMove = frameMove / static_cast<float>(subStepCount);
+	cg2::Vector3 stepMove = frameMove / static_cast<float>(subStepCount);
 	for (int i = 0; i < subStepCount; ++i) {
-		Vector3 pos = GetWorldPosition();
+		cg2::Vector3 pos = GetWorldPosition();
 		pos.x += stepMove.x;
 		SetWorldPosition(pos);
-		stage.ResolvePlayerCollision(*this, X);
+		stage.ResolvePlayerCollision(*this, cg2::X);
 
 		pos = GetWorldPosition();
 		pos.y += stepMove.y;
 		SetWorldPosition(pos);
-		stage.ResolvePlayerCollision(*this, Y);
+		stage.ResolvePlayerCollision(*this, cg2::Y);
 	}
 
-	if (!isDead_ && !isDashing_ && Length(inputDir_) > 0.05f) {
+	if (!isDead_ && !isDashing_ && cg2::Length(inputDir_) > 0.05f) {
 		movementParticleTimer_ -= deltaTime;
 		if (movementParticleTimer_ <= 0.0f) {
 			SpawnAfterimage();
@@ -1208,11 +1209,11 @@ void Player::Update(
 				drone->SetRunOwner(this,static_cast<int>(companionIndex));
 				const bool wantsAttack = !runRoomAwaitInputRelease_ && !upgradeHudMouseCaptured_
 					&& (demoInputEnabled_ ? demoShoot_ : input_->IsPress(input_->GetMouseState().rgbButtons[0]));
-				Vector3 aim=runAimWorld_;
+				cg2::Vector3 aim=runAimWorld_;
 				if(IsDroneBuild()&&!runHomingTargets_.empty()&&(runModifiers_.autonomousSpread||runModifiers_.droneFocus)) {
 					std::array<float,48> distances{};const auto from=runModifiers_.autonomousSpread?drone->GetWorldPosition():runAimWorld_;
 					const int count=static_cast<int>((std::min)(runHomingTargets_.size(),distances.size()));
-					for(int n=0;n<count;++n)distances[static_cast<size_t>(n)]=Length(runHomingTargets_[static_cast<size_t>(n)]-from);
+					for(int n=0;n<count;++n)distances[static_cast<size_t>(n)]=cg2::Length(runHomingTargets_[static_cast<size_t>(n)]-from);
 					const int chosen=tankspecial::ChooseSpreadTarget(distances.data(),spreadUsed.data(),count);
 					if(chosen>=0&&(runModifiers_.autonomousSpread||distances[static_cast<size_t>(chosen)]<6.0f)) {
 						aim=runHomingTargets_[static_cast<size_t>(chosen)];
@@ -1281,9 +1282,9 @@ void Player::DrawBodyOnly() {
 
 		const float progress = 1.0f - deathChargeTimer_ / deathChargeDuration_;
 		const float charge = progress * progress;
-		Transform chargeTransform = worldTransform_;
+		cg2::Transform chargeTransform = worldTransform_;
 		chargeTransform.scale = worldTransform_.scale * (1.0f + charge * 0.65f);
-		const Vector4 savedColor = object_->GetColor();
+		const cg2::Vector4 savedColor = object_->GetColor();
 		const bool savedLighting = object_->IsLightingEnabled();
 		object_->SetTransform(chargeTransform);
 		object_->SetLighting(false);
@@ -1309,7 +1310,7 @@ void Player::DrawBodyOnly() {
 					SetVehicleAlpha(0.5f);
 				}
 				if (damageFeedbackTimer_ > 0.0f) {
-					Transform drawTransform = worldTransform_;
+					cg2::Transform drawTransform = worldTransform_;
 					const float t = damageFeedbackTimer_ / damageFeedbackDuration_;
 					const float pulse = std::sin(t * 3.14159265f) * 0.10f;
 					drawTransform.scale = worldTransform_.scale * (1.0f + pulse);
@@ -1325,7 +1326,7 @@ void Player::DrawBodyOnly() {
 			SetVehicleAlpha(1.0f);
 		}
 		if (damageFeedbackTimer_ > 0.0f) {
-			Transform drawTransform = worldTransform_;
+			cg2::Transform drawTransform = worldTransform_;
 			const float t = damageFeedbackTimer_ / damageFeedbackDuration_;
 			const float pulse = std::sin(t * 3.14159265f) * 0.10f;
 			drawTransform.scale = worldTransform_.scale * (1.0f + pulse);
@@ -1340,7 +1341,7 @@ void Player::DrawBodyOnly() {
 
 void Player::DrawSprite()
 {
-	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 	DrawUpgradeHud();
 }
 
@@ -1353,10 +1354,10 @@ std::vector<PlayerDrone*> Player::GetDronePtrs() const {
 	return result;
 }
 
-Vector3 Player::GetWorldPosition() const {
+cg2::Vector3 Player::GetWorldPosition() const {
 
 	// ワールド座標を入れる
-	Vector3 worldPos;
+	cg2::Vector3 worldPos;
 	// ワールド行列の平行移動成分を取得(ワールド座標)
 	worldPos.x = worldTransform_.translate.x;
 	worldPos.y = worldTransform_.translate.y;
@@ -1406,21 +1407,21 @@ void Player::OnCollision(Collider* other) {
 		return;
 	}
 
-	Vector3 hitDir =
+	cg2::Vector3 hitDir =
 		worldTransform_.translate - other->GetWorldPosition();
 
-	if (Length(hitDir) < 0.0001f) {
+	if (cg2::Length(hitDir) < 0.0001f) {
 		return;
 	}
 
-	hitDir = Normalize(hitDir);
+	hitDir = cg2::Normalize(hitDir);
 
 	const float kKnockBackPower = 0.15f;
 
 	velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
 	const float maxKnockSpeed = isDashing_ ? 0.32f : 0.20f;
-	if (Length(velocity_) > maxKnockSpeed) {
-		velocity_ = Normalize(velocity_) * maxKnockSpeed;
+	if (cg2::Length(velocity_) > maxKnockSpeed) {
+		velocity_ = cg2::Normalize(velocity_) * maxKnockSpeed;
 	}
 
 	if (other->GetCollisionAttribute() == kCollisionAttributeEnemy ||
@@ -1445,10 +1446,10 @@ bool Player::TryDashImpact(Collider* target)
 	}
 	if (kDashDuration - dashTimer_ > kJustEvadeWindow) return false;
 	dashImpactTargets_.push_back(id);
-	Vector3 direction = target->GetWorldPosition() - GetWorldPosition();
-	if (Length(direction) < 0.001f) direction = velocity_;
-	if (Length(direction) < 0.001f) direction = {1,0,0};
-	direction = Normalize(direction);
+	cg2::Vector3 direction = target->GetWorldPosition() - GetWorldPosition();
+	if (cg2::Length(direction) < 0.001f) direction = velocity_;
+	if (cg2::Length(direction) < 0.001f) direction = {1,0,0};
+	direction = cg2::Normalize(direction);
 	const bool powered = runModifiers_.enabled && runModifiers_.impactDrive;
 	const float strength = powered ? 1.0f+0.5f*TankEffectPower(runModifiers_,14) : 1.0f;
 	const uint32_t damage = static_cast<uint32_t>((std::max)(1.0f,
@@ -1469,10 +1470,10 @@ std::vector<Player::DashImpactEvent> Player::ConsumeDashImpactEvents()
 	return events;
 }
 
-AABB Player::GetAABB() {
-	Vector3 worldPos = GetWorldPosition();
+cg2::AABB Player::GetAABB() {
+	cg2::Vector3 worldPos = GetWorldPosition();
 
-	AABB aabb;
+	cg2::AABB aabb;
 
 	aabb.min = { worldPos.x - kWidth / 2.0f, worldPos.y - kHeight / 2.0f, worldPos.z - kWidth / 2.0f };
 	aabb.max = { worldPos.x + kWidth / 2.0f, worldPos.y + kHeight / 2.0f, worldPos.z + kWidth / 2.0f };
@@ -1909,7 +1910,7 @@ bool Player::RefundRunMaintenancePoint(int stat)
 	return true;
 }
 
-void Player::ResetRunRoomState(const Vector3& position)
+void Player::ResetRunRoomState(const cg2::Vector3& position)
 {
 	if (!runModifiers_.enabled || isDead_) return;
 	ResetAdditionalAbilities();
@@ -2057,13 +2058,13 @@ float Player::GetRunFireIntervalScale() const
 	return scale;
 }
 
-Vector3 Player::GetRailChargeMuzzle() const
+cg2::Vector3 Player::GetRailChargeMuzzle() const
 {
-	const Vector3 aim=Length(dir_)>.001f?Normalize(dir_):Vector3{1,0,0};
+	const cg2::Vector3 aim=cg2::Length(dir_)>.001f?cg2::Normalize(dir_):cg2::Vector3{1,0,0};
 	const auto* config=GetCurrentClassConfig();
 	if(config&&!config->barrels.empty()) {
 		const auto& mount=config->barrels.front();
-		const Vector3 side{-aim.y,aim.x,0};
+		const cg2::Vector3 side{-aim.y,aim.x,0};
 		return GetWorldPosition()+aim*mount.offset.x+side*mount.offset.y+
 			RotateDirection(aim,mount.angleDeg)*mount.muzzleForward;
 	}
@@ -2076,8 +2077,8 @@ void Player::AttackRailCannon(BulletManager* bullets,bool pressed,float dt)
 	const float charge=railCharge_.Step(pressed,dt,bulletCoolTime<=0.0f && bullets!=nullptr);
 	if(charge<0)return;
 	const auto* config=GetCurrentClassConfig();
-	const Vector3 aim=Length(dir_)>.001f?Normalize(dir_):Vector3{1,0,0};
-	const Vector3 side{-aim.y,aim.x,0};
+	const cg2::Vector3 aim=cg2::Length(dir_)>.001f?cg2::Normalize(dir_):cg2::Vector3{1,0,0};
+	const cg2::Vector3 side{-aim.y,aim.x,0};
 	AttackParam param{};
 	param.damage=static_cast<uint32_t>((std::max)(1.0f,std::round(stats_.bulletDamage*(config?config->bulletDamageScale:1.0f)
 		*tankspecial::RailDamageScale(charge,TankEffectPower(runModifiers_,20)))));
@@ -2090,7 +2091,7 @@ void Player::AttackRailCannon(BulletManager* bullets,bool pressed,float dt)
 	const size_t count=alternate?1:barrelCount;
 	for(size_t shot=0;shot<count;++shot) {
 		const size_t index=alternate?static_cast<size_t>(shootBarrelIndex_)%barrelCount:shot;
-		Vector3 fire=aim,muzzle=GetWorldPosition()+aim*1.7f;float damageScale=1,speedScale=1;
+		cg2::Vector3 fire=aim,muzzle=GetWorldPosition()+aim*1.7f;float damageScale=1,speedScale=1;
 		if(config&&!config->barrels.empty()) {
 			const auto& mount=config->barrels[index];if(!mount.fires)continue;
 			fire=RotateDirection(aim,mount.angleDeg);
@@ -2128,22 +2129,22 @@ void Player::UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss
 	if(!runModifiers_.enabled||isDead_||!bullets||dt<=0)return;
 	UpdateAdditionalAbilities(stage,bullets,boss,enemies,dt);
 	linkDamageClock_.Advance(dt);
-	auto blocked=[&](const Vector3& a,const Vector3& b) {
+	auto blocked=[&](const cg2::Vector3& a,const cg2::Vector3& b) {
 		for(const auto& block:stage.GetMergedBlocks()) {
 			if(tankspecial::SegmentCrossesBox(a.x,a.y,b.x,b.y,block.aabb.min.x,block.aabb.min.y,block.aabb.max.x,block.aabb.max.y))return true;
 		}
 		return false;
 	};
-	auto emit=[&](SpecialEventKind kind,const Vector3& origin,const Vector3& direction,float strength=1.0f) {
+	auto emit=[&](SpecialEventKind kind,const cg2::Vector3& origin,const cg2::Vector3& direction,float strength=1.0f) {
 		if(pendingSpecialCombatEvents_.size()<32)pendingSpecialCombatEvents_.push_back({kind,origin,direction,strength});
 	};
 	if(IsDroneBuild()&&runModifiers_.droneLaserLink) {
-		std::vector<Vector3> positions;positions.reserve(drones_.size());
+		std::vector<cg2::Vector3> positions;positions.reserve(drones_.size());
 		for(const auto& drone:drones_)if(drone&&drone->IsRunAvailable())positions.push_back(drone->GetWorldPosition());
 		const int count=tankspecial::LinkCount(static_cast<int>(positions.size()));
 		for(int i=0;i<count;++i) {
 			const auto& a=positions[static_cast<size_t>(i)];const auto& b=positions[(static_cast<size_t>(i)+1)%positions.size()];
-			if(Length(b-a)>.10f&&!blocked(a,b))droneLaserLinks_.push_back({a,b,false});
+			if(cg2::Length(b-a)>.10f&&!blocked(a,b))droneLaserLinks_.push_back({a,b,false});
 		}
 		const auto tuning=MakeTankDroneTuning(runModifiers_,true);
 		const auto* config=GetCurrentClassConfig();
@@ -2155,14 +2156,14 @@ void Player::UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss
 			for(auto& link:droneLaserLinks_) {
 				if(!tankspecial::SegmentTouches(link.start.x,link.start.y,link.end.x,link.end.y,p.x,p.y,target->GetRadius()+.10f))continue;
 				const float t=tankspecial::SegmentClosestFraction(link.start.x,link.start.y,link.end.x,link.end.y,p.x,p.y);
-				const Vector3 nearest=link.start+(link.end-link.start)*t;
+				const cg2::Vector3 nearest=link.start+(link.end-link.start)*t;
 				if(blocked(nearest,p))continue;
 				link.contact=true;
 				if(linkDamageClock_.Claim(target->GetCollisionId())) {
 					const auto damage=static_cast<uint32_t>((std::max)(1.0f,std::round(baseDamage*(bossTarget?.65f:1.0f)*GetDroneTargetDamageScale(target,bossTarget))));
 					if(bossTarget)static_cast<Enemy*>(target)->TakeDamage(damage);
 					else static_cast<ExpEnemy*>(target)->TakeDirectionalDamage(damage,nearest);
-					++specialCombatStats_.linkTicks;emit(SpecialEventKind::LinkHit,nearest,Normalize(link.end-link.start),.5f);
+					++specialCombatStats_.linkTicks;emit(SpecialEventKind::LinkHit,nearest,cg2::Normalize(link.end-link.start),.5f);
 				}
 			}
 		};
@@ -2177,7 +2178,7 @@ void Player::UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss
 	if(runModifiers_.slashWave&&!specialWaveEmitted_&&tankspecial::EmitsSlashWave(swing.comboStep)) {
 		specialWaveEmitted_=true;
 		const float speed=.48f;const float radius=(std::clamp)(swing.range*.25f,.7f,2.2f);
-		const Vector3 origin=GetWorldPosition()+swing.direction*(swing.range*.5f);
+		const cg2::Vector3 origin=GetWorldPosition()+swing.direction*(swing.range*.5f);
 		if(!blocked(GetWorldPosition(),origin)) {
 			auto wave=std::make_unique<Bullet>();
 			wave->Initialize(origin,swing.direction*speed,tankspecial::SlashDamage(swing.damage,TankEffectPower(runModifiers_,22)),kPlayer,false,10.0f,tankspecial::kOrdinaryEnemyBulletHp);
@@ -2189,25 +2190,25 @@ void Player::UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss
 	if(active>swing.duration) {specialMeleeElapsed_=-1;return;}
 	if(!runModifiers_.parryBlade)return;
 	const bool perfect=swing.comboStep>=0&&tankspecial::IsPerfectParry(active);
-	const Vector3 origin=GetWorldPosition();
+	const cg2::Vector3 origin=GetWorldPosition();
 	const float minDot=std::cos(swing.arcDeg*.5f*3.1415926535f/180.0f);
 	for(auto* bullet:bullets->GetBulletPtrs()) {
 		if(!bullet||bullet->IsDead()||bullet->GetOwner()!=kEnemy)continue;
 		if(std::find(specialParriedBullets_.begin(),specialParriedBullets_.end(),bullet->GetCollisionId())!=specialParriedBullets_.end())continue;
-		const auto p=bullet->GetWorldPosition();const Vector3 delta=p-origin;const float distance=Length(delta);
-		if(distance>swing.range+bullet->GetRadius()||(distance>.001f&&Dot(delta/distance,swing.direction)<minDot)||blocked(origin,p))continue;
+		const auto p=bullet->GetWorldPosition();const cg2::Vector3 delta=p-origin;const float distance=cg2::Length(delta);
+		if(distance>swing.range+bullet->GetRadius()||(distance>.001f&&cg2::Dot(delta/distance,swing.direction)<minDot)||blocked(origin,p))continue;
 		specialParriedBullets_.push_back(bullet->GetCollisionId());
 		const float durability=tankspecial::ParryDurabilityDamage(bullet->GetBulletHp(),perfect,TankEffectPower(runModifiers_,23));
 		if(durability<=0)continue;
-		const Vector3 incoming=bullet->GetMove();bullet->ApplyBulletDurabilityDamage(durability);
+		const cg2::Vector3 incoming=bullet->GetMove();bullet->ApplyBulletDurabilityDamage(durability);
 		++specialCombatStats_.parries;
 		if(perfect) {
 			++specialCombatStats_.perfectParries;
 			if(bullet->IsDead()) {
-				const Vector3 reflected=Length(incoming)>.001f?Normalize(incoming)*-1.0f:swing.direction;
+				const cg2::Vector3 reflected=cg2::Length(incoming)>.001f?cg2::Normalize(incoming)*-1.0f:swing.direction;
 				auto shot=std::make_unique<Bullet>();
 				const auto damage=static_cast<uint32_t>((std::max)(1.0f,(std::min)(static_cast<float>(bullet->GetDamage()),stats_.bulletDamage*3.8f)));
-				shot->Initialize(p,reflected*(std::max)(.25f,Length(incoming)),damage,kPlayer,false,1,1);
+				shot->Initialize(p,reflected*(std::max)(.25f,cg2::Length(incoming)),damage,kPlayer,false,1,1);
 				shot->ConfigureGrowth(0,0,0);shot->ConfigureSpecial(Bullet::SpecialKind::ParryReflection,.35f,1.4f);shot->SetArmorReflected(bullet->WasArmorReflected());bullets->Add(std::move(shot));
 			}
 			if(!specialPerfectFeedback_) {emit(SpecialEventKind::PerfectParry,p,swing.direction);specialPerfectFeedback_=true;}
@@ -2216,7 +2217,7 @@ void Player::UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss
 	}
 }
 
-void Player::SetRunHomingTargets(const std::vector<Vector3>& targets)
+void Player::SetRunHomingTargets(const std::vector<cg2::Vector3>& targets)
 {
 	const size_t count = (std::min)(targets.size(), size_t{48});
 	runHomingTargets_.assign(targets.begin(), targets.begin() + count);
@@ -2232,19 +2233,19 @@ void Player::UpdateRunProjectiles(BulletManager* bulletManager, float deltaTime)
 		if (!bullet || bullet->IsDead() || bullet->GetOwner() != BulletOwner::kPlayer) continue;
 		if(bullet->GetIsReturning())continue;
 		if (++steered > 240) break;
-		Vector3 direction = bullet->GetMove();
-		const float speed = Length(direction);
+		cg2::Vector3 direction = bullet->GetMove();
+		const float speed = cg2::Length(direction);
 		if (speed < 0.001f) continue;
 		direction = direction / speed;
 		float nearestSquared = 14.0f * 14.0f;
-		Vector3 targetDirection{};
+		cg2::Vector3 targetDirection{};
 		bool found = false;
-		for (const Vector3& target : runHomingTargets_) {
-			Vector3 offset = target - bullet->GetWorldPosition();
+		for (const cg2::Vector3& target : runHomingTargets_) {
+			cg2::Vector3 offset = target - bullet->GetWorldPosition();
 			offset.z = 0.0f;
 			const float distanceSquared = offset.x * offset.x + offset.y * offset.y;
 			if (distanceSquared < 0.04f || distanceSquared >= nearestSquared) continue;
-			const Vector3 candidate = offset / std::sqrt(distanceSquared);
+			const cg2::Vector3 candidate = offset / std::sqrt(distanceSquared);
 			if (direction.x * candidate.x + direction.y * candidate.y < 0.35f) continue;
 			nearestSquared = distanceSquared;
 			targetDirection = candidate;
@@ -2256,7 +2257,7 @@ void Player::UpdateRunProjectiles(BulletManager* bulletManager, float deltaTime)
 		if(IsDroneBuild()&&runModifiers_.targetPainter&&bullet->GetSourceDroneIndex()>=0) {
 			for(const auto& lock:targetLockVisuals_)if(lock.remaining>0) {
 				const auto offset=lock.position-bullet->GetWorldPosition();
-				if(Length(offset)>.001f&&Length(Normalize(offset)-targetDirection)<.1f)
+				if(cg2::Length(offset)>.001f&&cg2::Length(cg2::Normalize(offset)-targetDirection)<.1f)
 					targetTurn=(std::max)(targetTurn,1.05f*(empJammerTimer_>0?.55f:1.0f));
 			}
 		}
@@ -2377,16 +2378,16 @@ bool Player::ActivatePerfectDodge(const PlayerClassConfig& config)
 		return false;
 	}
 
-	Vector3 dashDir = inputDir_;
-	if (Length(dashDir) < 0.01f) {
+	cg2::Vector3 dashDir = inputDir_;
+	if (cg2::Length(dashDir) < 0.01f) {
 		dashDir = dir_;
 	}
-	if (Length(dashDir) < 0.01f) {
+	if (cg2::Length(dashDir) < 0.01f) {
 		return false;
 	}
 
 	const TankRunTuning runTuning = MakeTankRunTuning(runModifiers_, runGrowth_);
-	const Vector3 direction = Normalize(dashDir);
+	const cg2::Vector3 direction = cg2::Normalize(dashDir);
 	const float speed = kDashSpeed * runTuning.dashSpeed;
 	velocity_ = {TankDashMomentum(velocity_.x,direction.x,speed),
 		TankDashMomentum(velocity_.y,direction.y,speed),0};
@@ -2442,10 +2443,10 @@ void Player::TriggerSaberCounter(const PlayerClassConfig& config)
 	}
 
 	const WeaponMountConfig& mount = *mountIt;
-	const Vector3 forward = Length(dir_) > 0.0001f ? Normalize(dir_) : Vector3{ 1.0f, 0.0f, 0.0f };
-	const Vector3 right = { -forward.y, forward.x, 0.0f };
+	const cg2::Vector3 forward = cg2::Length(dir_) > 0.0001f ? cg2::Normalize(dir_) : cg2::Vector3{ 1.0f, 0.0f, 0.0f };
+	const cg2::Vector3 right = { -forward.y, forward.x, 0.0f };
 	MeleeSlashEvent event{};
-	event.origin = worldTransform_.translate + forward * mount.offset.x + right * mount.offset.y + Vector3{ 0.0f, 0.0f, mount.offset.z };
+	event.origin = worldTransform_.translate + forward * mount.offset.x + right * mount.offset.y + cg2::Vector3{ 0.0f, 0.0f, mount.offset.z };
 	event.direction = RotateDirection(forward, mount.angleDeg);
 	event.range = mount.meleeRange * config.saberCounterRangeScale;
 	event.arcDeg = (std::max)(180.0f, mount.meleeArcDeg);
@@ -2781,7 +2782,7 @@ Player::PlayerClassConfig Player::CreateDefaultClassConfig(ClassType type) const
 	config.randomSpread = true;
 	config.reloadScale = 1.0f;
 	config.alternateBarrels = false;
-	auto makeBarrel = [](Vector3 offset, Vector3 scale, float angleDeg) {
+	auto makeBarrel = [](const cg2::Vector3& offset, const cg2::Vector3& scale, float angleDeg) {
 		WeaponMountConfig barrel{};
 		barrel.model = "gunBarrel.obj";
 		barrel.offset = offset;
@@ -3035,7 +3036,7 @@ std::vector<Player::MeleeSlashEvent> Player::ConsumeMeleeSlashEvents()
 	return events;
 }
 
-bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, Vector3& recoilDir, float& recoilPower)
+bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, cg2::Vector3& recoilDir, float& recoilPower)
 {
 	if (config.usesDrone) {
 		if (bulletCoolTime > 0.0f) {
@@ -3129,8 +3130,8 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 		return false;
 	}
 
-	const Vector3 forward = Length(dir_) > 0.0001f ? Normalize(dir_) : Vector3{ 1.0f, 0.0f, 0.0f };
-	const Vector3 right = { -forward.y, forward.x, 0.0f };
+	const cg2::Vector3 forward = cg2::Length(dir_) > 0.0001f ? cg2::Normalize(dir_) : cg2::Vector3{ 1.0f, 0.0f, 0.0f };
+	const cg2::Vector3 right = { -forward.y, forward.x, 0.0f };
 	bool firesMelee = false;
 	float meleeComboResetTime = 0.90f;
 	for (size_t index : fireIndices) {
@@ -3150,19 +3151,19 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 		meleeComboTimer_ = (std::max)(0.05f, meleeComboResetTime);
 	}
 
-	Vector3 combinedRecoil{};
+	cg2::Vector3 combinedRecoil{};
 	float firedReloadScale = 1.0f;
 	for (size_t index : fireIndices) {
 		const WeaponMountConfig& barrelConfig = config.barrels[index];
-		const Vector3 fireDir = RotateDirection(forward, barrelConfig.angleDeg);
+		const cg2::Vector3 fireDir = RotateDirection(forward, barrelConfig.angleDeg);
 		combinedRecoil = combinedRecoil + fireDir * (-(std::max)(0.0f, barrelConfig.recoilScale));
 		firedReloadScale = (std::max)(firedReloadScale, barrelConfig.reloadScale);
-		const Vector3 mountBase =
+		const cg2::Vector3 mountBase =
 			worldTransform_.translate +
 			forward * barrelConfig.offset.x +
 			right * barrelConfig.offset.y +
-			Vector3{ 0.0f, 0.0f, barrelConfig.offset.z };
-		const Vector3 muzzle = mountBase + fireDir * barrelConfig.muzzleForward;
+			cg2::Vector3{ 0.0f, 0.0f, barrelConfig.offset.z };
+		const cg2::Vector3 muzzle = mountBase + fireDir * barrelConfig.muzzleForward;
 		AttackParam mountParam = param;
 		mountParam.damage = static_cast<uint32_t>((std::max)(1.0f,runModifiers_.expedition?
 			std::round(static_cast<float>(param.damage)*barrelConfig.damageScale):static_cast<float>(param.damage)*barrelConfig.damageScale));
@@ -3243,18 +3244,18 @@ bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager*
 	} else {
 		bulletCoolTime = reloadTime;
 	}
-	const float combinedRecoilLength = Length(combinedRecoil);
+	const float combinedRecoilLength = cg2::Length(combinedRecoil);
 	if (combinedRecoilLength > 0.0001f) {
 		recoilDir = combinedRecoil * (1.0f / combinedRecoilLength);
 		recoilPower = config.recoilPower * combinedRecoilLength;
 	} else {
-		recoilDir = Normalize(dir_) * -1.0f;
+		recoilDir = cg2::Normalize(dir_) * -1.0f;
 		recoilPower = 0.0f;
 	}
 	return true;
 }
 
-Vector3 Player::RotateDirection(const Vector3& direction, float angleDeg) const
+cg2::Vector3 Player::RotateDirection(const cg2::Vector3& direction, float angleDeg) const
 {
 	const float rad = angleDeg * 3.1415926535f / 180.0f;
 	return {
@@ -3272,13 +3273,13 @@ void Player::InitializeBarrels()
 	barrels_.reserve(barrelCount);
 	for (size_t i = 0; i < barrelCount; ++i) {
 		BarrelModel barrel{};
-		barrel.object = std::make_unique<Object3d>();
+		barrel.object = std::make_unique<cg2::Object3d>();
 		barrel.object->Initialize();
 		barrel.object->SetModel(config ? config->barrels[i].model : "gunBarrel.obj");
-		barrel.object->SetColor(Vector4(0.48f, 0.86f, 0.22f, 1.0f));
-		baseBarrelColor_ = Vector4(0.48f, 0.86f, 0.22f, 1.0f);
-		barrel.transform = InitWorldTransform();
-		barrel.transform.scale = config ? config->barrels[i].scale : Vector3{ 1.25f, 0.24f, 0.24f };
+		barrel.object->SetColor(cg2::Vector4(0.48f, 0.86f, 0.22f, 1.0f));
+		baseBarrelColor_ = cg2::Vector4(0.48f, 0.86f, 0.22f, 1.0f);
+		barrel.transform = cg2::InitWorldTransform();
+		barrel.transform.scale = config ? config->barrels[i].scale : cg2::Vector3{ 1.25f, 0.24f, 0.24f };
 		barrels_.push_back(std::move(barrel));
 	}
 }
@@ -3289,8 +3290,8 @@ void Player::UpdateBarrelLayout()
 		return;
 	}
 
-	const Vector3 forward = Length(dir_) > 0.0001f ? Normalize(dir_) : Vector3{ 1.0f, 0.0f, 0.0f };
-	const Vector3 right = { -forward.y, forward.x, 0.0f };
+	const cg2::Vector3 forward = cg2::Length(dir_) > 0.0001f ? cg2::Normalize(dir_) : cg2::Vector3{ 1.0f, 0.0f, 0.0f };
+	const cg2::Vector3 right = { -forward.y, forward.x, 0.0f };
 	const PlayerClassConfig* config = GetCurrentClassConfig();
 	const float recoilReturn = 0.055f;
 
@@ -3301,11 +3302,11 @@ void Player::UpdateBarrelLayout()
 
 		barrel.recoilOffset = (std::max)(0.0f, barrel.recoilOffset - recoilReturn * dt_ * 60.0f);
 		barrel.muzzleFlashTimer = (std::max)(0.0f, barrel.muzzleFlashTimer - dt_);
-		barrel.localOffset = forward * (barrelConfig.offset.x - barrel.recoilOffset) + right * barrelConfig.offset.y + Vector3{ 0.0f, 0.0f, barrelConfig.offset.z };
+		barrel.localOffset = forward * (barrelConfig.offset.x - barrel.recoilOffset) + right * barrelConfig.offset.y + cg2::Vector3{ 0.0f, 0.0f, barrelConfig.offset.z };
 		barrel.transform.translate = worldTransform_.translate + barrel.localOffset;
 		barrel.transform.rotate = worldTransform_.rotate;
 		barrel.transform.rotate.z += barrelConfig.angleDeg * 3.1415926535f / 180.0f;
-		barrel.transform.scale = active ? barrelConfig.scale : Vector3{ 0.0f, 0.0f, 0.0f };
+		barrel.transform.scale = active ? barrelConfig.scale : cg2::Vector3{ 0.0f, 0.0f, 0.0f };
 		barrel.object->SetTransform(barrel.transform);
 		barrel.object->Update();
 	}
@@ -3327,12 +3328,12 @@ void Player::SetVehicleAlpha(float alpha)
 		const float t = damageFeedbackTimer_ / damageFeedbackDuration_;
 		flash = t * t * 0.75f;
 	}
-	Vector4 vehicleColor = LerpColor(baseVehicleColor_, { 1.0f, 1.0f, 1.0f, baseVehicleColor_.w }, flash);
+	cg2::Vector4 vehicleColor = LerpColor(baseVehicleColor_, { 1.0f, 1.0f, 1.0f, baseVehicleColor_.w }, flash);
 	vehicleColor.w = alpha;
 	object_->SetColor(vehicleColor);
 	for (BarrelModel& barrel : barrels_) {
 		if (barrel.object) {
-			Vector4 barrelColor = LerpColor(baseBarrelColor_, { 1.0f, 1.0f, 1.0f, baseBarrelColor_.w }, flash);
+			cg2::Vector4 barrelColor = LerpColor(baseBarrelColor_, { 1.0f, 1.0f, 1.0f, baseBarrelColor_.w }, flash);
 			barrelColor.w = alpha;
 			barrel.object->SetColor(barrelColor);
 		}
@@ -3346,10 +3347,10 @@ void Player::TriggerDamageFeedback()
 
 void Player::InitializeEncyclopedia()
 {
-    StartupTrace::Scope scope("Player.EncyclopediaUi");
-	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
-	auto makePanel = [spriteCommon](const Vector2& pos, const Vector2& size, const Vector4& color) {
-		auto panel = std::make_unique<Sprite>();
+    cg2::StartupTrace::Scope scope("Player.EncyclopediaUi");
+	cg2::SpriteCommon* spriteCommon = cg2::SpriteCommon::GetInstance();
+	auto makePanel = [spriteCommon](const cg2::Vector2& pos, const cg2::Vector2& size, const cg2::Vector4& color) {
+		auto panel = std::make_unique<cg2::Sprite>();
 		panel->Initialize(spriteCommon, "resources/white512x512.png");
 		panel->SetPosition(pos);
 		panel->SetSize(size);
@@ -3360,7 +3361,7 @@ void Player::InitializeEncyclopedia()
 	evolutionBackdropSprite_ = makePanel({ 0.0f, 0.0f }, { 1280.0f, 720.0f }, { 0.02f, 0.03f, 0.07f, 0.78f });
 	evolutionPreviewPanelSprite_ = makePanel({ 28.0f, 84.0f }, { 360.0f, 560.0f }, { 0.05f, 0.12f, 0.17f, 0.86f });
 	evolutionStatsPanelSprite_ = makePanel({ 910.0f, 84.0f }, { 342.0f, 560.0f }, { 0.07f, 0.08f, 0.12f, 0.88f });
-	evolutionPreviewTankSprite_ = std::make_unique<Sprite>();
+	evolutionPreviewTankSprite_ = std::make_unique<cg2::Sprite>();
 	evolutionPreviewTankSprite_->Initialize(spriteCommon, "resources/normalTank.png");
 	evolutionPreviewTankSprite_->SetAnchorPoint({ 0.5f, 0.5f });
 	evolutionPreviewTankSprite_->SetSize({ 250.0f, 150.0f });
@@ -3369,7 +3370,7 @@ void Player::InitializeEncyclopedia()
 	evolutionShotSprite_->SetAnchorPoint({ 0.0f, 0.5f });
 	evolutionChangeButtonSprite_ = makePanel({ 940.0f, 650.0f }, { 290.0f, 48.0f }, { 0.24f, 0.86f, 0.44f, 0.92f });
 
-	TextStyle titleStyle{};
+	cg2::TextStyle titleStyle{};
 	titleStyle.fontFamily = "Meiryo";
 	titleStyle.fontSize = 34.0f;
 	titleStyle.color = { 0.75f, 1.0f, 0.92f, 1.0f };
@@ -3378,7 +3379,7 @@ void Player::InitializeEncyclopedia()
 	titleStyle.padding = 8.0f;
 	SetLabel(evolutionTitleLabel_, spriteCommon, "戦車図鑑 / 進化ツリー", { 40.0f, 28.0f }, titleStyle);
 
-	TextStyle smallStyle = titleStyle;
+	cg2::TextStyle smallStyle = titleStyle;
 	smallStyle.fontSize = 20.0f;
 	smallStyle.color = { 0.86f, 0.92f, 1.0f, 1.0f };
 	smallStyle.outlineThickness = 2.0f;
@@ -3389,7 +3390,7 @@ void Player::InitializeEncyclopedia()
 	const float cardHeight = 80.0f;
 	const float cardGapX = 12.0f;
 	const float cardGapY = 12.0f;
-	const Vector2 cardBase = { 416.0f, 112.0f };
+	const cg2::Vector2 cardBase = { 416.0f, 112.0f };
 
 	for (int i = 0; i < static_cast<int>(classOrder_.size()); ++i) {
 		const PlayerClassConfig* config = GetClassConfig(classOrder_[i]);
@@ -3405,20 +3406,20 @@ void Player::InitializeEncyclopedia()
 
 		const int col = i % 3;
 		const int row = i / 3;
-		const Vector2 cardPos = { cardBase.x + static_cast<float>(col) * (cardWidth + cardGapX), cardBase.y + static_cast<float>(row) * (cardHeight + cardGapY) };
+		const cg2::Vector2 cardPos = { cardBase.x + static_cast<float>(col) * (cardWidth + cardGapX), cardBase.y + static_cast<float>(row) * (cardHeight + cardGapY) };
 
 		data.cardSprite = makePanel(cardPos, { cardWidth, cardHeight }, { 0.10f, 0.15f, 0.22f, 0.82f });
-		data.sprite = std::make_unique<Sprite>();
-		data.sprite->Initialize(SpriteCommon::GetInstance(), data.texturePath);
+		data.sprite = std::make_unique<cg2::Sprite>();
+		data.sprite->Initialize(cg2::SpriteCommon::GetInstance(), data.texturePath);
 		data.sprite->SetPosition({ cardPos.x + 14.0f, cardPos.y + 8.0f });
 		data.sprite->SetSize({ 126.0f, 38.0f });
 
-		TextStyle cardNameStyle = smallStyle;
+		cg2::TextStyle cardNameStyle = smallStyle;
 		cardNameStyle.fontSize = 14.0f;
 		cardNameStyle.color = { 0.92f, 1.0f, 0.95f, 1.0f };
 		SetLabel(data.nameLabel, spriteCommon, data.name, { cardPos.x + 10.0f, cardPos.y + 50.0f }, cardNameStyle);
 
-		TextStyle rankStyle = cardNameStyle;
+		cg2::TextStyle rankStyle = cardNameStyle;
 		rankStyle.fontSize = 12.0f;
 		rankStyle.color = { 0.72f, 0.86f, 1.0f, 1.0f };
 		SetLabel(data.rankLabel, spriteCommon, "R" + std::to_string(data.requiredRank), { cardPos.x + 112.0f, cardPos.y + 54.0f }, rankStyle);
@@ -3429,18 +3430,18 @@ void Player::InitializeEncyclopedia()
 
 void Player::InitializeUpgradeHud()
 {
-    StartupTrace::Scope scope("Player.UpgradeHud");
-	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
-	auto makePanel = [spriteCommon](const Vector2& pos, const Vector2& size, const Vector4& color) {
-		auto panel = std::make_unique<Sprite>();
+    cg2::StartupTrace::Scope scope("Player.UpgradeHud");
+	cg2::SpriteCommon* spriteCommon = cg2::SpriteCommon::GetInstance();
+	auto makePanel = [spriteCommon](const cg2::Vector2& pos, const cg2::Vector2& size, const cg2::Vector4& color) {
+		auto panel = std::make_unique<cg2::Sprite>();
 		panel->Initialize(spriteCommon, "resources/white512x512.png");
 		panel->SetPosition(pos);
 		panel->SetSize(size);
 		panel->SetColor(color);
 		return panel;
 	};
-	auto makePill = [spriteCommon](const Vector2& pos, const Vector2& size, const Vector4& color) {
-		auto pill = std::make_unique<Sprite>();
+	auto makePill = [spriteCommon](const cg2::Vector2& pos, const cg2::Vector2& size, const cg2::Vector4& color) {
+		auto pill = std::make_unique<cg2::Sprite>();
 		pill->Initialize(spriteCommon, "resources/hpBarFillMask.png");
 		pill->SetPosition(pos);
 		pill->SetSize(size);
@@ -3478,33 +3479,33 @@ void Player::InitializeUpgradeHud()
 		segmentBar->Initialize(spriteCommon);
 		segmentBar->SetStyle(MakeUpgradeHudSegmentStyle(static_cast<int>(i)));
 	}
-	upgradeHudBarBloomEffect_ = std::make_unique<ObjectPostEffect>();
+	upgradeHudBarBloomEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	upgradeHudBarBloomEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager(),
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
 		0.75f);
-	BloomParam& barBloomParam = upgradeHudBarBloomEffect_->GetParam();
+	cg2::BloomParam& barBloomParam = upgradeHudBarBloomEffect_->GetParam();
 	barBloomParam.threshold = 0.0f;
 	barBloomParam.intensity = 0.78f;
 	barBloomParam.outlineWidth = 0.0f;
 	barBloomParam.outlineBloomIntensity = 0.0f;
 
-	const TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
-	const TextStyle overlayTextStyle = MakeUpgradeHudOverlayTextStyle();
+	const cg2::TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
+	const cg2::TextStyle overlayTextStyle = MakeUpgradeHudOverlayTextStyle();
 	SetLabel(upgradeHudTitleLabel_, spriteCommon, "強化", upgradeHudTitlePos_, smallStyle);
 	SetLabel(upgradeHudPointLabel_, spriteCommon, "x0", upgradeHudPointPos_, smallStyle);
-	const TextStyle bottomBarTextStyle = MakeUpgradeHudBottomBarTextStyle();
+	const cg2::TextStyle bottomBarTextStyle = MakeUpgradeHudBottomBarTextStyle();
 	SetLabel(upgradeHudLevelLabel_, spriteCommon, "Lv ", upgradeHudLevelTextPos_, bottomBarTextStyle);
 	SetLabel(upgradeHudLevelClassLabel_, spriteCommon, GetCurrentClassName(), upgradeHudLevelTextPos_, bottomBarTextStyle);
 	for (auto& glyphLabel : upgradeHudExpGlyphLabels_) {
-		glyphLabel = std::make_unique<TextLabel>();
+		glyphLabel = std::make_unique<cg2::TextLabel>();
 		glyphLabel->Initialize(spriteCommon, " ", bottomBarTextStyle);
 		glyphLabel->SetPosition(upgradeHudExpTextPos_);
 		glyphLabel->SetAlpha(0.0f);
 	}
 	for (auto& glyphLabel : upgradeHudLevelGlyphLabels_) {
-		glyphLabel = std::make_unique<TextLabel>();
+		glyphLabel = std::make_unique<cg2::TextLabel>();
 		glyphLabel->Initialize(spriteCommon, " ", bottomBarTextStyle);
 		glyphLabel->SetPosition(upgradeHudLevelTextPos_);
 		glyphLabel->SetAlpha(0.0f);
@@ -3539,23 +3540,23 @@ void Player::InitializeUpgradeHud()
 void Player::PrepareUpgradeHudTextTextures()
 {
 	if (!arenaUiEnabled_) return;
-	TextRenderer* textRenderer = TextRenderer::GetInstance();
+	cg2::TextRenderer* textRenderer = cg2::TextRenderer::GetInstance();
 	if (!textRenderer ||
 		(upgradeHudTextPrepared_ &&
 		 upgradeHudTextFontRevision_ == textRenderer->GetFontRevision() &&
 		 upgradeHudTextPreparedForSegmentedBars_ == upgradeHudUseSegmentedUpgradeBars_)) {
 		return;
 	}
-	StartupTrace::Scope scope("Player.UpgradeHudTextPrewarm");
+	cg2::StartupTrace::Scope scope("Player.UpgradeHudTextPrewarm");
 
-	const TextStyle bottomStyle = MakeUpgradeHudBottomBarTextStyle();
-	const TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
-	const TextStyle listControlStyle = upgradeHudUseSegmentedUpgradeBars_
+	const cg2::TextStyle bottomStyle = MakeUpgradeHudBottomBarTextStyle();
+	const cg2::TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
+	const cg2::TextStyle listControlStyle = upgradeHudUseSegmentedUpgradeBars_
 		? MakeUpgradeHudOverlayTextStyle()
 		: smallStyle;
-	auto preload = [textRenderer](const std::string& text, const TextStyle& style) {
+	auto preload = [textRenderer](const std::string& text, const cg2::TextStyle& style) {
 		const std::string texturePath = textRenderer->GetOrCreateTexture(text, style);
-		TextureManager::GetInstance()->LoadTexture(texturePath);
+		cg2::TextureManager::GetInstance()->LoadTexture(texturePath);
 	};
 
 	constexpr char kGlyphs[] = "0123456789EXP /";
@@ -3624,11 +3625,11 @@ void Player::PrepareUpgradeHudTextTextures()
 	cachedUpgradeHudListVisible_ = false;
 }
 
-void Player::UpdateUpgradeHudExpGlyphs(const std::string& text, const TextStyle& style)
+void Player::UpdateUpgradeHudExpGlyphs(const std::string& text, const cg2::TextStyle& style)
 {
 	const size_t glyphCount = (std::min)(text.size(), upgradeHudExpGlyphLabels_.size());
 	for (size_t i = 0; i < glyphCount; ++i) {
-		TextLabel* label = upgradeHudExpGlyphLabels_[i].get();
+		cg2::TextLabel* label = upgradeHudExpGlyphLabels_[i].get();
 		if (!label) {
 			continue;
 		}
@@ -3648,10 +3649,10 @@ void Player::UpdateUpgradeHudExpGlyphs(const std::string& text, const TextStyle&
 
 void Player::PositionUpgradeHudExpGlyphs()
 {
-	const TextStyle style = MakeUpgradeHudBottomBarTextStyle();
+	const cg2::TextStyle style = MakeUpgradeHudBottomBarTextStyle();
 	float x = upgradeHudExpTextPos_.x;
 	for (size_t i = 0; i < upgradeHudExpGlyphCount_; ++i) {
-		TextLabel* label = upgradeHudExpGlyphLabels_[i].get();
+		cg2::TextLabel* label = upgradeHudExpGlyphLabels_[i].get();
 		if (!label || !label->GetSprite()) {
 			continue;
 		}
@@ -3660,12 +3661,12 @@ void Player::PositionUpgradeHudExpGlyphs()
 	}
 }
 
-void Player::UpdateUpgradeHudLevelLabels(int level, const std::string& className, const TextStyle& style)
+void Player::UpdateUpgradeHudLevelLabels(int level, const std::string& className, const cg2::TextStyle& style)
 {
 	const std::string levelText = std::to_string(level);
 	const size_t glyphCount = (std::min)(levelText.size(), upgradeHudLevelGlyphLabels_.size());
 	for (size_t i = 0; i < glyphCount; ++i) {
-		TextLabel* label = upgradeHudLevelGlyphLabels_[i].get();
+		cg2::TextLabel* label = upgradeHudLevelGlyphLabels_[i].get();
 		if (!label) continue;
 		label->SetStyle(style);
 		label->SetText(std::string(1, levelText[i]));
@@ -3676,21 +3677,21 @@ void Player::UpdateUpgradeHudLevelLabels(int level, const std::string& className
 		if (upgradeHudLevelGlyphLabels_[i]) upgradeHudLevelGlyphLabels_[i]->SetAlpha(0.0f);
 	}
 	upgradeHudLevelGlyphCount_ = glyphCount;
-	SetLabel(upgradeHudLevelLabel_, SpriteCommon::GetInstance(), "Lv ", upgradeHudLevelTextPos_, style);
-	SetLabel(upgradeHudLevelClassLabel_, SpriteCommon::GetInstance(), className, upgradeHudLevelTextPos_, style);
+	SetLabel(upgradeHudLevelLabel_, cg2::SpriteCommon::GetInstance(), "Lv ", upgradeHudLevelTextPos_, style);
+	SetLabel(upgradeHudLevelClassLabel_, cg2::SpriteCommon::GetInstance(), className, upgradeHudLevelTextPos_, style);
 	PositionUpgradeHudLevelLabels();
 }
 
 void Player::PositionUpgradeHudLevelLabels()
 {
-	const TextStyle style = MakeUpgradeHudBottomBarTextStyle();
+	const cg2::TextStyle style = MakeUpgradeHudBottomBarTextStyle();
 	float x = upgradeHudLevelTextPos_.x;
 	if (upgradeHudLevelLabel_) {
 		upgradeHudLevelLabel_->SetPosition({ x, upgradeHudLevelTextPos_.y });
 		x += GetUpgradeHudTextAdvance(upgradeHudLevelLabel_.get(), style);
 	}
 	for (size_t i = 0; i < upgradeHudLevelGlyphCount_; ++i) {
-		TextLabel* label = upgradeHudLevelGlyphLabels_[i].get();
+		cg2::TextLabel* label = upgradeHudLevelGlyphLabels_[i].get();
 		if (!label) continue;
 		label->SetPosition({ x, upgradeHudLevelTextPos_.y });
 		x += GetUpgradeHudTextAdvance(label, style);
@@ -3733,25 +3734,25 @@ void Player::PrepareUpgradeHudSegmentBars()
 
 void Player::InitializeUpgradeHudBatch()
 {
-	DirectXCommon* dxCommon = SpriteCommon::GetInstance()->GetDxCommon();
+	cg2::DirectXCommon* dxCommon = cg2::SpriteCommon::GetInstance()->GetDxCommon();
 	if (!dxCommon) {
 		return;
 	}
-	TextureManager::GetInstance()->LoadTexture("resources/white512x512.png");
+	cg2::TextureManager::GetInstance()->LoadTexture("resources/white512x512.png");
 
-	upgradeHudBatchVertexResource_ = dxCommon->CreateBufferResource(sizeof(TrailVertex) * kUpgradeHudBatchMaxVertices);
+	upgradeHudBatchVertexResource_ = dxCommon->CreateBufferResource(sizeof(cg2::TrailVertex) * kUpgradeHudBatchMaxVertices);
 	upgradeHudBatchVertexBufferView_.BufferLocation = upgradeHudBatchVertexResource_->GetGPUVirtualAddress();
-	upgradeHudBatchVertexBufferView_.SizeInBytes = sizeof(TrailVertex) * kUpgradeHudBatchMaxVertices;
-	upgradeHudBatchVertexBufferView_.StrideInBytes = sizeof(TrailVertex);
+	upgradeHudBatchVertexBufferView_.SizeInBytes = sizeof(cg2::TrailVertex) * kUpgradeHudBatchMaxVertices;
+	upgradeHudBatchVertexBufferView_.StrideInBytes = sizeof(cg2::TrailVertex);
 	upgradeHudBatchVertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&upgradeHudBatchVertexData_));
 
-	upgradeHudBatchTransformResource_ = dxCommon->CreateBufferResource(sizeof(Matrix4x4));
+	upgradeHudBatchTransformResource_ = dxCommon->CreateBufferResource(sizeof(cg2::Matrix4x4));
 	upgradeHudBatchTransformResource_->Map(0, nullptr, reinterpret_cast<void**>(&upgradeHudBatchTransformData_));
-	*upgradeHudBatchTransformData_ = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+	*upgradeHudBatchTransformData_ = cg2::MakeOrthographicMatrix(0.0f, 0.0f, float(cg2::WinApp::kClientWidth), float(cg2::WinApp::kClientHeight), 0.0f, 100.0f);
 
-	upgradeHudBatchMaterialResource_ = dxCommon->CreateBufferResource(sizeof(Material));
+	upgradeHudBatchMaterialResource_ = dxCommon->CreateBufferResource(sizeof(cg2::Material));
 	upgradeHudBatchMaterialResource_->Map(0, nullptr, reinterpret_cast<void**>(&upgradeHudBatchMaterialData_));
-	*upgradeHudBatchMaterialData_ = MakeDefaultMaterial();
+	*upgradeHudBatchMaterialData_ = cg2::MakeDefaultMaterial();
 	upgradeHudBatchMaterialData_->shininess = 1.0f;
 }
 
@@ -3840,9 +3841,9 @@ void Player::UpdateUpgradeHud(float uiDeltaTime)
 		const float controlOffsetY = upgradeHudUseSegmentedUpgradeBars_
 			? (std::max)(0.0f, (upgradeHudSegmentBarSize_.y - upgradeHudPlusSize_.y) * 0.5f)
 			: 0.0f;
-		Sprite* button = upgradeHudButtonSprites_[i].get();
-		Sprite* plus = upgradeHudPlusSprites_[i].get();
-		Sprite* minus = upgradeHudMinusSprites_[i].get();
+		cg2::Sprite* button = upgradeHudButtonSprites_[i].get();
+		cg2::Sprite* plus = upgradeHudPlusSprites_[i].get();
+		cg2::Sprite* minus = upgradeHudMinusSprites_[i].get();
 		if (button) {
 			button->SetPosition({ upgradeHudRowStart_.x + listOffsetX, y });
 		}
@@ -3875,7 +3876,7 @@ void Player::UpdateUpgradeHud(float uiDeltaTime)
 		const float flash = (std::min)(1.0f, upgradeHudFlashTimers_[i] / 0.22f);
 		const float refundFlash = (std::min)(1.0f, upgradeHudRefundFlashTimers_[i] / 0.22f);
 		const float missFlash = (std::min)(1.0f, upgradeHudMissFlashTimers_[i] / 0.26f);
-		const Vector4 rowColor = UpgradeHudRowColors()[i];
+		const cg2::Vector4 rowColor = UpgradeHudRowColors()[i];
 		if (button) {
 			if (maxed) {
 				button->SetColor({ 0.12f, 0.12f, 0.14f, 0.72f });
@@ -3928,10 +3929,10 @@ void Player::DrawUpgradeHud()
 	upgradeHudProfile_.visible = true;
 	const auto totalStart = std::chrono::steady_clock::now();
 
-	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
-	const TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
-	const TextStyle upgradeOverlayTextStyle = MakeUpgradeHudOverlayTextStyle();
-	const TextStyle bottomBarTextStyle = MakeUpgradeHudBottomBarTextStyle();
+	cg2::SpriteCommon* spriteCommon = cg2::SpriteCommon::GetInstance();
+	const cg2::TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
+	const cg2::TextStyle upgradeOverlayTextStyle = MakeUpgradeHudOverlayTextStyle();
+	const cg2::TextStyle bottomBarTextStyle = MakeUpgradeHudBottomBarTextStyle();
 
 	const int safeNextExp = (std::max)(1, nextLevelExp_);
 	const float expRatio = (std::clamp)(static_cast<float>(exp_) / static_cast<float>(safeNextExp), 0.0f, 1.0f);
@@ -3959,7 +3960,7 @@ void Player::DrawUpgradeHud()
 	if (baseTextDirty) {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 		upgradeHudProfile_.baseTextRefreshed = true;
-		TextLabel::ResetProfileStats();
+		cg2::TextLabel::ResetProfileStats();
 		const auto baseTextRefreshStart = std::chrono::steady_clock::now();
 		const auto expLabelRefreshStart = baseTextRefreshStart;
 #endif
@@ -3979,7 +3980,7 @@ void Player::DrawUpgradeHud()
 		cachedUpgradeHudLevel_ = level_;
 		cachedUpgradeHudClassName_ = className;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-		const TextLabel::ProfileStats& textLabelStats = TextLabel::GetProfileStats();
+		const cg2::TextLabel::ProfileStats& textLabelStats = cg2::TextLabel::GetProfileStats();
 		upgradeHudProfile_.baseTextRefreshMs = std::chrono::duration<float, std::milli>(
 			std::chrono::steady_clock::now() - baseTextRefreshStart).count();
 		upgradeHudProfile_.expLabelRefreshMs = std::chrono::duration<float, std::milli>(
@@ -4010,7 +4011,7 @@ void Player::DrawUpgradeHud()
 		if (listDirty) {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 			upgradeHudProfile_.listTextRefreshed = true;
-			TextLabel::ResetProfileStats();
+			cg2::TextLabel::ResetProfileStats();
 			const auto listTextRefreshStart = std::chrono::steady_clock::now();
 #endif
 			SetLabel(upgradeHudPointLabel_, spriteCommon, "x" + std::to_string(skillPoints_), { upgradeHudPointPos_.x + listOffsetX, upgradeHudPointPos_.y }, smallStyle);
@@ -4021,31 +4022,31 @@ void Player::DrawUpgradeHud()
 				const float controlOffsetY = compactGauge
 					? (std::max)(0.0f, (upgradeHudSegmentBarSize_.y - upgradeHudPlusSize_.y) * 0.5f)
 					: 0.0f;
-				const Vector2 namePosition = compactGauge
-					? Vector2{ upgradeHudRowStart_.x + upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX, y + upgradeHudSegmentBarSize_.y * 0.5f }
-					: Vector2{ upgradeHudNameX_ + listOffsetX, y + upgradeHudNameTextOffsetY_ };
+				const cg2::Vector2 namePosition = compactGauge
+					? cg2::Vector2{ upgradeHudRowStart_.x + upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX, y + upgradeHudSegmentBarSize_.y * 0.5f }
+					: cg2::Vector2{ upgradeHudNameX_ + listOffsetX, y + upgradeHudNameTextOffsetY_ };
 				SetLabel(upgradeHudNameLabels_[i], spriteCommon, std::to_string(i + 1) + " " + names[i],
 					namePosition, compactGauge ? upgradeOverlayTextStyle : smallStyle);
-				upgradeHudNameLabels_[i]->SetAnchorPoint(compactGauge ? Vector2{ 0.5f, 0.5f } : Vector2{ 0.0f, 0.0f });
+				upgradeHudNameLabels_[i]->SetAnchorPoint(compactGauge ? cg2::Vector2{ 0.5f, 0.5f } : cg2::Vector2{ 0.0f, 0.0f });
 				SetLabel(upgradeHudLevelLabels_[i], spriteCommon, "Lv." + std::to_string(upgradeLevels_[i]),
 					{ upgradeHudLevelX_ + listOffsetX, y + upgradeHudLevelTextOffsetY_ }, smallStyle);
 				SetLabel(upgradeHudMinusLabels_[i], spriteCommon, "-",
 					compactGauge
-						? Vector2{ upgradeHudMinusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
-						: Vector2{ upgradeHudMinusLabelX_ + listOffsetX, y + upgradeHudMinusTextOffsetY_ }, compactGauge ? upgradeOverlayTextStyle : smallStyle);
-				upgradeHudMinusLabels_[i]->SetAnchorPoint(compactGauge ? Vector2{ 0.5f, 0.5f } : Vector2{ 0.0f, 0.0f });
+						? cg2::Vector2{ upgradeHudMinusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
+						: cg2::Vector2{ upgradeHudMinusLabelX_ + listOffsetX, y + upgradeHudMinusTextOffsetY_ }, compactGauge ? upgradeOverlayTextStyle : smallStyle);
+				upgradeHudMinusLabels_[i]->SetAnchorPoint(compactGauge ? cg2::Vector2{ 0.5f, 0.5f } : cg2::Vector2{ 0.0f, 0.0f });
 				SetLabel(upgradeHudPlusLabels_[i], spriteCommon, upgradeLevels_[i] >= maxEnhancePoint ? "済" : "+",
 					compactGauge
-						? Vector2{ upgradeHudPlusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
-						: Vector2{ upgradeHudPlusLabelX_ + listOffsetX, y + upgradeHudPlusTextOffsetY_ }, compactGauge ? upgradeOverlayTextStyle : smallStyle);
-				upgradeHudPlusLabels_[i]->SetAnchorPoint(compactGauge ? Vector2{ 0.5f, 0.5f } : Vector2{ 0.0f, 0.0f });
+						? cg2::Vector2{ upgradeHudPlusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
+						: cg2::Vector2{ upgradeHudPlusLabelX_ + listOffsetX, y + upgradeHudPlusTextOffsetY_ }, compactGauge ? upgradeOverlayTextStyle : smallStyle);
+				upgradeHudPlusLabels_[i]->SetAnchorPoint(compactGauge ? cg2::Vector2{ 0.5f, 0.5f } : cg2::Vector2{ 0.0f, 0.0f });
 			}
 			cachedUpgradeHudSkillPoints_ = skillPoints_;
 			cachedUpgradeHudMaxEnhancePoint_ = maxEnhancePoint;
 			cachedUpgradeHudSegmentedBars_ = upgradeHudUseSegmentedUpgradeBars_;
 			cachedUpgradeHudLevels_ = upgradeLevels_;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-			const TextLabel::ProfileStats& textLabelStats = TextLabel::GetProfileStats();
+			const cg2::TextLabel::ProfileStats& textLabelStats = cg2::TextLabel::GetProfileStats();
 			upgradeHudProfile_.listTextRefreshMs = std::chrono::duration<float, std::milli>(
 				std::chrono::steady_clock::now() - listTextRefreshStart).count();
 			upgradeHudProfile_.listTextSetStyleMs = textLabelStats.setStyleCpuMs;
@@ -4067,16 +4068,16 @@ void Player::DrawUpgradeHud()
 					: 0.0f;
 				if (upgradeHudNameLabels_[i]) {
 					upgradeHudNameLabels_[i]->SetPosition(upgradeHudUseSegmentedUpgradeBars_
-						? Vector2{ upgradeHudRowStart_.x + upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX, y + upgradeHudSegmentBarSize_.y * 0.5f }
-						: Vector2{ upgradeHudNameX_ + listOffsetX, y + upgradeHudNameTextOffsetY_ });
+						? cg2::Vector2{ upgradeHudRowStart_.x + upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX, y + upgradeHudSegmentBarSize_.y * 0.5f }
+						: cg2::Vector2{ upgradeHudNameX_ + listOffsetX, y + upgradeHudNameTextOffsetY_ });
 				}
 				if (upgradeHudLevelLabels_[i]) upgradeHudLevelLabels_[i]->SetPosition({ upgradeHudLevelX_ + listOffsetX, y + upgradeHudLevelTextOffsetY_ });
 				if (upgradeHudMinusLabels_[i]) upgradeHudMinusLabels_[i]->SetPosition(upgradeHudUseSegmentedUpgradeBars_
-					? Vector2{ upgradeHudMinusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
-					: Vector2{ upgradeHudMinusLabelX_ + listOffsetX, y + upgradeHudMinusTextOffsetY_ });
+					? cg2::Vector2{ upgradeHudMinusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
+					: cg2::Vector2{ upgradeHudMinusLabelX_ + listOffsetX, y + upgradeHudMinusTextOffsetY_ });
 				if (upgradeHudPlusLabels_[i]) upgradeHudPlusLabels_[i]->SetPosition(upgradeHudUseSegmentedUpgradeBars_
-					? Vector2{ upgradeHudPlusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
-					: Vector2{ upgradeHudPlusLabelX_ + listOffsetX, y + upgradeHudPlusTextOffsetY_ });
+					? cg2::Vector2{ upgradeHudPlusX_ + upgradeHudPlusSize_.x * 0.5f + listOffsetX, y + controlOffsetY + upgradeHudPlusSize_.y * 0.5f }
+					: cg2::Vector2{ upgradeHudPlusLabelX_ + listOffsetX, y + upgradeHudPlusTextOffsetY_ });
 			}
 		}
 		if (upgradeHudPointLabel_) upgradeHudPointLabel_->SetAlpha(easedListAlpha);
@@ -4094,7 +4095,7 @@ void Player::DrawUpgradeHud()
 	if (upgradeHudUseRectBatch_) {
 		DrawUpgradeHudRectBatch(showUpgradeList, expRatio, levelRatio, easedListAlpha, listOffsetX);
 	} else {
-		SpriteCommon::GetInstance()->PreDraw(kNormal);
+		cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 		if (showUpgradeList && upgradeHudDrawListPanels_) {
 			if (!upgradeHudUseSegmentedUpgradeBars_ && upgradeHudBackdropSprite_) { upgradeHudBackdropSprite_->Draw(); ++upgradeHudProfile_.spriteDraws; }
 			for (int i = 0; i < 7; ++i) {
@@ -4111,7 +4112,7 @@ void Player::DrawUpgradeHud()
 		}
 	}
 	if (showUpgradeList && upgradeHudDrawListPanels_ && upgradeHudUseSegmentedUpgradeBars_) {
-		SpriteCommon::GetInstance()->PreDraw(kNormal);
+		cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 		for (int i = 0; i < 7; ++i) {
 			if (upgradeHudMinusSprites_[i]) { upgradeHudMinusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
 			if (upgradeHudPlusSprites_[i]) { upgradeHudPlusSprites_[i]->Draw(); ++upgradeHudProfile_.spriteDraws; }
@@ -4121,7 +4122,7 @@ void Player::DrawUpgradeHud()
 
 	const auto textStart = std::chrono::steady_clock::now();
 	if (showUpgradeList && upgradeHudUseSegmentedUpgradeBars_) {
-		SpriteCommon::GetInstance()->PreDraw(kNormal);
+		cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 		for (int i = 0; i < 7; ++i) {
 			if (upgradeHudSegmentBars_[i]) {
 				upgradeHudSegmentBars_[i]->Draw();
@@ -4130,12 +4131,12 @@ void Player::DrawUpgradeHud()
 		upgradeHudProfile_.spriteDraws += 7 * 11;
 	}
 	if (upgradeHudDrawBottomBars_ && upgradeHudUseNeonProgressBars_) {
-		SpriteCommon::GetInstance()->PreDraw(kNormal);
+		cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 		if (upgradeHudLevelProgressBar_) upgradeHudLevelProgressBar_->Draw();
 		if (upgradeHudExpProgressBar_) upgradeHudExpProgressBar_->Draw();
 		upgradeHudProfile_.spriteDraws += 10;
 	}
-	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 	if (showUpgradeList && upgradeHudDrawListText_) {
 		if (upgradeHudTitleLabel_) { upgradeHudTitleLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
 		if (upgradeHudPointLabel_) { upgradeHudPointLabel_->Draw(); ++upgradeHudProfile_.textDraws; }
@@ -4171,7 +4172,7 @@ void Player::DrawUpgradeHud()
 	upgradeHudProfile_.totalMs = std::chrono::duration<float, std::milli>(totalEnd - totalStart).count();
 }
 
-void Player::AppendGameplayNeonTextLabels(std::vector<TextLabel*>& labels) const
+void Player::AppendGameplayNeonTextLabels(std::vector<cg2::TextLabel*>& labels) const
 {
 	if (isChangeMode) {
 		return;
@@ -4221,16 +4222,16 @@ void Player::AppendGameplayNeonTextLabels(std::vector<TextLabel*>& labels) const
 	}
 }
 
-void Player::QueueUpgradeHudRect(std::vector<TrailVertex>& vertices, const Vector2& pos, const Vector2& size, const Vector4& color) const
+void Player::QueueUpgradeHudRect(std::vector<cg2::TrailVertex>& vertices, const cg2::Vector2& pos, const cg2::Vector2& size, const cg2::Vector4& color) const
 {
 	const float left = pos.x;
 	const float top = pos.y;
 	const float right = pos.x + size.x;
 	const float bottom = pos.y + size.y;
-	const Vector3 p0{ left, bottom, 0.0f };
-	const Vector3 p1{ left, top, 0.0f };
-	const Vector3 p2{ right, bottom, 0.0f };
-	const Vector3 p3{ right, top, 0.0f };
+	const cg2::Vector3 p0{ left, bottom, 0.0f };
+	const cg2::Vector3 p1{ left, top, 0.0f };
+	const cg2::Vector3 p2{ right, bottom, 0.0f };
+	const cg2::Vector3 p3{ right, top, 0.0f };
 
 	vertices.push_back({ p0, color, { 0.0f, 1.0f } });
 	vertices.push_back({ p1, color, { 0.0f, 0.0f } });
@@ -4246,13 +4247,12 @@ void Player::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float
 		return;
 	}
 
-	std::vector<TrailVertex> vertices;
+	std::vector<cg2::TrailVertex> vertices;
 	vertices.reserve(kUpgradeHudBatchMaxVertices);
-	auto withListAlpha = [listAlpha](Vector4 color) {
-		color.w *= listAlpha;
-		return color;
+	auto withListAlpha = [listAlpha](const cg2::Vector4& color) {
+		return cg2::Vector4{color.x, color.y, color.z, color.w * listAlpha};
 	};
-	auto offsetListPos = [listOffsetX](Vector2 pos) {
+	auto offsetListPos = [listOffsetX](cg2::Vector2 pos) {
 		pos.x += listOffsetX;
 		return pos;
 	};
@@ -4266,14 +4266,14 @@ void Player::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float
 			float flash = (std::min)(1.0f, upgradeHudFlashTimers_[i] / 0.22f);
 			const float refundFlash = (std::min)(1.0f, upgradeHudRefundFlashTimers_[i] / 0.22f);
 			const float missFlash = (std::min)(1.0f, upgradeHudMissFlashTimers_[i] / 0.26f);
-			const Vector4 rowColor = UpgradeHudRowColors()[i];
-			const Vector4 buttonColor = LerpColor({ 0.10f + missFlash * 0.20f, 0.12f, 0.15f + refundFlash * 0.16f, 0.84f }, { 0.35f, 0.90f, 0.72f, 0.96f }, flash);
-			const Vector4 minusColor = upgradeLevels_[i] > 0
+			const cg2::Vector4 rowColor = UpgradeHudRowColors()[i];
+			const cg2::Vector4 buttonColor = LerpColor({ 0.10f + missFlash * 0.20f, 0.12f, 0.15f + refundFlash * 0.16f, 0.84f }, { 0.35f, 0.90f, 0.72f, 0.96f }, flash);
+			const cg2::Vector4 minusColor = upgradeLevels_[i] > 0
 				? LerpColor({ rowColor.x * 0.45f, rowColor.y * 0.45f, rowColor.z * 0.45f, 0.72f }, { 0.88f, 0.94f, 1.0f, 0.98f }, refundFlash)
-				: Vector4{ 0.12f + missFlash * 0.30f, 0.14f, 0.18f, 0.42f + missFlash * 0.28f };
-			const Vector4 plusColor = skillPoints_ > 0
+				: cg2::Vector4{ 0.12f + missFlash * 0.30f, 0.14f, 0.18f, 0.42f + missFlash * 0.28f };
+			const cg2::Vector4 plusColor = skillPoints_ > 0
 				? LerpColor({ rowColor.x * 0.82f, rowColor.y * 0.82f, rowColor.z * 0.82f, 0.90f }, { 1.0f, 1.0f, 1.0f, 1.0f }, flash)
-				: Vector4{ 0.18f + missFlash * 0.32f, 0.22f, 0.24f, 0.48f + missFlash * 0.28f };
+				: cg2::Vector4{ 0.18f + missFlash * 0.32f, 0.22f, 0.24f, 0.48f + missFlash * 0.28f };
 			if (!upgradeHudUseSegmentedUpgradeBars_) {
 				QueueUpgradeHudRect(vertices, offsetListPos({ upgradeHudRowStart_.x, y }), upgradeHudButtonSize_, withListAlpha(buttonColor));
 			}
@@ -4297,19 +4297,19 @@ void Player::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float
 	if (vertices.size() > kUpgradeHudBatchMaxVertices) {
 		vertices.resize(kUpgradeHudBatchMaxVertices);
 	}
-	std::memcpy(upgradeHudBatchVertexData_, vertices.data(), sizeof(TrailVertex) * vertices.size());
-	*upgradeHudBatchTransformData_ = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+	std::memcpy(upgradeHudBatchVertexData_, vertices.data(), sizeof(cg2::TrailVertex) * vertices.size());
+	*upgradeHudBatchTransformData_ = cg2::MakeOrthographicMatrix(0.0f, 0.0f, float(cg2::WinApp::kClientWidth), float(cg2::WinApp::kClientHeight), 0.0f, 100.0f);
 
-	DirectXCommon* dxCommon = SpriteCommon::GetInstance()->GetDxCommon();
+	cg2::DirectXCommon* dxCommon = cg2::SpriteCommon::GetInstance()->GetDxCommon();
 	ID3D12GraphicsCommandList* commandList = dxCommon->GetList().Get();
-	TextureManager::GetInstance()->PreDraw();
+	cg2::TextureManager::GetInstance()->PreDraw();
 	commandList->SetGraphicsRootSignature(dxCommon->GetPSOHudRect().root_.GetSignature().Get());
 	commandList->SetPipelineState(dxCommon->GetPSOHudRect().graphicsState_.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->IASetVertexBuffers(0, 1, &upgradeHudBatchVertexBufferView_);
 	commandList->SetGraphicsRootConstantBufferView(0, upgradeHudBatchMaterialResource_->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(1, upgradeHudBatchTransformResource_->GetGPUVirtualAddress());
-	commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU("resources/white512x512.png"));
+	commandList->SetGraphicsRootDescriptorTable(2, cg2::TextureManager::GetInstance()->GetSrvHandleGPU("resources/white512x512.png"));
 	commandList->DrawInstanced(static_cast<UINT>(vertices.size()), 1, 0, 0);
 	upgradeHudProfile_.spriteDraws += 1;
 }
@@ -4592,13 +4592,13 @@ bool Player::ShouldUseEvolutionCircuitPrototype() const
 
 void Player::InitializeEvolutionCircuitPrototype()
 {
-    StartupTrace::Scope scope("Player.EvolutionCircuitUi");
+    cg2::StartupTrace::Scope scope("Player.EvolutionCircuitUi");
 	if (!LoadEvolutionCircuitTree()) {
 		return;
 	}
-	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
-	auto makeSprite = [spriteCommon](const Vector2& anchor) {
-		auto sprite = std::make_unique<Sprite>();
+	cg2::SpriteCommon* spriteCommon = cg2::SpriteCommon::GetInstance();
+	auto makeSprite = [spriteCommon](const cg2::Vector2& anchor) {
+		auto sprite = std::make_unique<cg2::Sprite>();
 		sprite->Initialize(spriteCommon, "resources/white512x512.png");
 		sprite->SetAnchorPoint(anchor);
 		return sprite;
@@ -4648,9 +4648,9 @@ void Player::UpdateEvolutionCircuitPrototype()
 	constexpr float kTreeRight = 1106.0f;
 	constexpr float kTreeTop = 100.0f;
 	constexpr float kTreeBottom = 498.0f;
-	constexpr Vector2 kNodeSize{ 158.0f, 64.0f };
+	constexpr cg2::Vector2 kNodeSize{ 158.0f, 64.0f };
 	const float renderScale = GetEvolutionRenderScale();
-	const Vector2 mouseVirtual = EvolutionClientToVirtual(mousePosition_);
+	const cg2::Vector2 mouseVirtual = EvolutionClientToVirtual(mousePosition_);
 	const auto findNodeIndex = [&](const std::string& id) -> int {
 		for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
 			if (evolutionCircuitNodes_[i].classId == id && IsEvolutionClassVisible(id)) return static_cast<int>(i);
@@ -4671,7 +4671,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 	evolutionCircuitHoveredNode_ = -1;
 	for (size_t i = 0; i < evolutionCircuitNodes_.size(); ++i) {
 		if (!IsEvolutionClassVisible(evolutionCircuitNodes_[i].classId)) continue;
-		const Vector2 center = evolutionCircuitNodeCentersVirtual_[i];
+		const cg2::Vector2 center = evolutionCircuitNodeCentersVirtual_[i];
 		if (mouseVirtual.x >= center.x - kNodeSize.x * 0.5f && mouseVirtual.x <= center.x + kNodeSize.x * 0.5f &&
 			mouseVirtual.y >= center.y - kNodeSize.y * 0.5f && mouseVirtual.y <= center.y + kNodeSize.y * 0.5f) {
 			evolutionCircuitHoveredNode_ = static_cast<int>(i);
@@ -4710,8 +4710,8 @@ void Player::UpdateEvolutionCircuitPrototype()
 
 	evolutionCircuitBackdropSprite_->SetPosition({ 0.0f, 0.0f });
 	evolutionCircuitBackdropSprite_->SetSize({
-		static_cast<float>(WinApp::GetInstance()->GetClientWidth()),
-		static_cast<float>(WinApp::GetInstance()->GetClientHeight()) });
+		static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth()),
+		static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight()) });
 	evolutionCircuitBackdropSprite_->SetColor({ 0.004f, 0.010f, 0.024f, 0.65f });
 	evolutionCircuitBackdropSprite_->Update();
 	evolutionCircuitDetailPanelSprite_->SetPosition(EvolutionVirtualToRender({ 640.0f, 611.0f }));
@@ -4730,7 +4730,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 		const bool hasDirectEdge = HasEvolutionEdge(currentClassId_, config->id);
 		const bool available = CanEvolveTo(config->id);
 		const bool rankLocked = hasDirectEdge && GetRankFromLevel(level_) < config->requiredRank;
-		Vector4 nodeColor{ 0.30f, 0.36f, 0.40f, 0.48f };
+		cg2::Vector4 nodeColor{ 0.30f, 0.36f, 0.40f, 0.48f };
 		if (available) nodeColor = { 0.58f, 0.78f, 0.84f, 0.76f };
 		if (rankLocked) nodeColor = { 0.30f, 0.33f, 0.36f, 0.50f };
 		if (isHovered) nodeColor = { 0.34f, 0.82f, 0.94f, 0.88f };
@@ -4758,8 +4758,8 @@ void Player::UpdateEvolutionCircuitPrototype()
 		style.labelOutlineWidth *= renderScale;
 		style.fillColor = { 0.008f, 0.021f, 0.040f, 1.0f };
 		style.lockedTint = { 0.50f, 0.54f, 0.58f, 0.72f };
-		for (Vector4& color : style.borderColors) color = nodeColor;
-		for (Vector4& color : style.glowColors) color = nodeColor;
+		for (cg2::Vector4& color : style.borderColors) color = nodeColor;
+		for (cg2::Vector4& color : style.glowColors) color = nodeColor;
 		evolutionCircuitTankButtons_[i]->SetRank(config->requiredRank);
 		evolutionCircuitTankButtons_[i]->SetState(
 			isCurrent ? TankButtonState::Selected :
@@ -4776,9 +4776,9 @@ void Player::UpdateEvolutionCircuitPrototype()
 		line->Update();
 	}
 	size_t lineIndex = 0;
-	auto queueSegment = [&](const Vector2& fromVirtual, const Vector2& toVirtual, const Vector4& color, bool highlighted) {
-		const Vector2 from = EvolutionVirtualToRender(fromVirtual);
-		const Vector2 to = EvolutionVirtualToRender(toVirtual);
+	auto queueSegment = [&](const cg2::Vector2& fromVirtual, const cg2::Vector2& toVirtual, const cg2::Vector4& color, bool highlighted) {
+		const cg2::Vector2 from = EvolutionVirtualToRender(fromVirtual);
+		const cg2::Vector2 to = EvolutionVirtualToRender(toVirtual);
 		const float dx = to.x - from.x;
 		const float dy = to.y - from.y;
 		const float length = std::sqrt(dx * dx + dy * dy);
@@ -4787,11 +4787,11 @@ void Player::UpdateEvolutionCircuitPrototype()
 		const std::array<float, 3> normalAlphas{ 0.035f, 0.11f, 0.45f };
 		const auto& alphas = highlighted ? highlightedAlphas : normalAlphas;
 		for (size_t layer = 0; layer < widths.size() && lineIndex < evolutionCircuitLineSprites_.size(); ++layer) {
-			Sprite* line = evolutionCircuitLineSprites_[lineIndex++].get();
+			cg2::Sprite* line = evolutionCircuitLineSprites_[lineIndex++].get();
 			line->SetPosition(from);
 			line->SetSize({ length, widths[layer] * renderScale });
 			line->SetRotation(std::atan2(dy, dx));
-			Vector4 layerColor = color;
+			cg2::Vector4 layerColor = color;
 			layerColor.w *= alphas[layer];
 			line->SetColor(layerColor);
 			line->Update();
@@ -4801,7 +4801,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 		const int fromIndex = findNodeIndex(edge.from);
 		const int toIndex = findNodeIndex(edge.to);
 		if (fromIndex < 0 || toIndex < 0) continue;
-		Vector4 color{ 0.46f, 0.56f, 0.61f, 0.40f };
+		cg2::Vector4 color{ 0.46f, 0.56f, 0.61f, 0.40f };
 		bool highlighted = false;
 		bool traversed = false;
 		for (size_t historyIndex = 1; historyIndex < evolutionHistory_.size(); ++historyIndex) {
@@ -4817,9 +4817,9 @@ void Player::UpdateEvolutionCircuitPrototype()
 			color = { 0.20f, 0.90f, 1.0f, 0.78f };
 			highlighted = true;
 		}
-		const Vector2 start{ evolutionCircuitNodeCentersVirtual_[fromIndex].x + kNodeSize.x * 0.5f,
+		const cg2::Vector2 start{ evolutionCircuitNodeCentersVirtual_[fromIndex].x + kNodeSize.x * 0.5f,
 			evolutionCircuitNodeCentersVirtual_[fromIndex].y };
-		const Vector2 end{ evolutionCircuitNodeCentersVirtual_[toIndex].x - kNodeSize.x * 0.5f,
+		const cg2::Vector2 end{ evolutionCircuitNodeCentersVirtual_[toIndex].x - kNodeSize.x * 0.5f,
 			evolutionCircuitNodeCentersVirtual_[toIndex].y };
 		const float midX = (start.x + end.x) * 0.5f;
 		queueSegment(start, { midX, start.y }, color, highlighted);
@@ -4844,16 +4844,16 @@ void Player::UpdateEvolutionCircuitPrototype()
 		style.labelOffsetY = 43.0f * renderScale;
 		style.labelFontSize = 15.0f * renderScale;
 		style.labelOutlineWidth *= renderScale;
-		for (Vector4& color : style.borderColors) color = { 0.22f, 0.88f, 1.0f, 0.92f };
-		for (Vector4& color : style.glowColors) color = { 0.18f, 0.78f, 1.0f, 0.88f };
+		for (cg2::Vector4& color : style.borderColors) color = { 0.22f, 0.88f, 1.0f, 0.92f };
+		for (cg2::Vector4& color : style.glowColors) color = { 0.18f, 0.78f, 1.0f, 0.88f };
 		evolutionCircuitDetailPreview_->SetRank(selected->requiredRank);
 		evolutionCircuitDetailPreview_->SetState(TankButtonState::Selected);
 		evolutionCircuitDetailPreview_->Update(EvolutionVirtualToRender({ 188.0f, 611.0f }), style);
 	}
 
-	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
-	auto makeTextStyle = [&](float fontSize, const Vector4& color) {
-		TextStyle style{};
+	cg2::SpriteCommon* spriteCommon = cg2::SpriteCommon::GetInstance();
+	auto makeTextStyle = [&](float fontSize, const cg2::Vector4& color) {
+		cg2::TextStyle style{};
 		style.fontFamily = evolutionUiStyle_.fontFamily;
 		style.fontPath = evolutionUiStyle_.fontPath;
 		style.fontWeight = evolutionUiStyle_.fontWeight;
@@ -4864,21 +4864,21 @@ void Player::UpdateEvolutionCircuitPrototype()
 		style.padding = 5.0f * renderScale;
 		return style;
 	};
-	TextStyle titleStyle = makeTextStyle(27.0f, { 0.72f, 1.0f, 0.94f, 1.0f });
+	cg2::TextStyle titleStyle = makeTextStyle(27.0f, { 0.72f, 1.0f, 0.94f, 1.0f });
 	SetLabel(evolutionCircuitTitleLabel_, spriteCommon, "EVOLUTION CIRCUIT",
 		EvolutionVirtualToRender({ 640.0f, 25.0f }), titleStyle);
 	evolutionCircuitTitleLabel_->SetAnchorPoint({ 0.5f, 0.0f });
 	for (int rank = 1; rank <= 4; ++rank) {
 		const float rankRatio = static_cast<float>(rank - 1) / 3.0f;
-		TextStyle rankStyle = makeTextStyle(19.0f, { 0.64f, 0.89f, 0.96f, 0.96f });
+		cg2::TextStyle rankStyle = makeTextStyle(19.0f, { 0.64f, 0.89f, 0.96f, 0.96f });
 		SetLabel(evolutionCircuitRankLabels_[static_cast<size_t>(rank - 1)], spriteCommon,
 			"RANK " + std::to_string(rank),
 			EvolutionVirtualToRender({ kTreeLeft + (kTreeRight - kTreeLeft) * rankRatio, 68.0f }), rankStyle);
 		evolutionCircuitRankLabels_[static_cast<size_t>(rank - 1)]->SetAnchorPoint({ 0.5f, 0.5f });
 	}
 	if (selected) {
-		TextStyle nameStyle = makeTextStyle(22.0f, { 0.88f, 1.0f, 0.96f, 1.0f });
-		TextStyle detailStyle = makeTextStyle(14.0f, { 0.72f, 0.86f, 0.94f, 0.94f });
+		cg2::TextStyle nameStyle = makeTextStyle(22.0f, { 0.88f, 1.0f, 0.96f, 1.0f });
+		cg2::TextStyle detailStyle = makeTextStyle(14.0f, { 0.72f, 0.86f, 0.94f, 0.94f });
 		SetLabel(evolutionCircuitDetailNameLabel_, spriteCommon, selected->displayName,
 			EvolutionVirtualToRender({ 315.0f, 548.0f }), nameStyle);
 		SetLabel(evolutionCircuitDetailMetaLabel_, spriteCommon,
@@ -4923,14 +4923,14 @@ void Player::UpdateEvolutionCircuitPrototype()
 		GetRankFromLevel(level_) < selected->requiredRank) {
 		stateHint = "RANK " + std::to_string(selected->requiredRank) + " REQUIRED     ESC  閉じる";
 	}
-	TextStyle hintStyle = makeTextStyle(12.5f, { 0.46f, 0.68f, 0.74f, 0.76f });
+	cg2::TextStyle hintStyle = makeTextStyle(12.5f, { 0.46f, 0.68f, 0.74f, 0.76f });
 	SetLabel(evolutionCircuitHintLabel_, spriteCommon, stateHint,
 		EvolutionVirtualToRender({ 1150.0f, 650.0f }), hintStyle);
 	evolutionCircuitHintLabel_->SetAnchorPoint({ 1.0f, 0.5f });
 	PrepareEvolutionCircuitTextTextures();
 
 	if (staticEvolutionButtonBloomEffect_ && tankButtonUiStyle_) {
-		BloomParam bloomParam = staticEvolutionButtonBloomEffect_->GetParam();
+		cg2::BloomParam bloomParam = staticEvolutionButtonBloomEffect_->GetParam();
 		bloomParam.threshold = 0.0f;
 		bloomParam.intensity = 0.92f + tankButtonUiStyle_->bloomBoost * 1.8f;
 		bloomParam.outlineWidth = 0.0f;
@@ -4941,7 +4941,7 @@ void Player::UpdateEvolutionCircuitPrototype()
 
 void Player::PrepareEvolutionCircuitTextTextures()
 {
-	auto prepare = [](TextLabel* label) { if (label) label->PrepareForDraw(); };
+	auto prepare = [](cg2::TextLabel* label) { if (label) label->PrepareForDraw(); };
 	prepare(evolutionCircuitTitleLabel_.get());
 	for (const auto& label : evolutionCircuitRankLabels_) prepare(label.get());
 	prepare(evolutionCircuitDetailNameLabel_.get());
@@ -5099,31 +5099,31 @@ float Player::GetEvolutionRenderScale() const
 {
 	const float virtualWidth = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.x);
 	const float virtualHeight = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.y);
-	const float clientWidth = static_cast<float>(WinApp::GetInstance()->GetClientWidth());
-	const float clientHeight = static_cast<float>(WinApp::GetInstance()->GetClientHeight());
+	const float clientWidth = static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
+	const float clientHeight = static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
 	return (std::min)(
 		clientWidth / virtualWidth,
 		clientHeight / virtualHeight);
 }
 
-Vector2 Player::GetEvolutionRenderOffset() const
+cg2::Vector2 Player::GetEvolutionRenderOffset() const
 {
 	const float scale = GetEvolutionRenderScale();
-	const float clientWidth = static_cast<float>(WinApp::GetInstance()->GetClientWidth());
-	const float clientHeight = static_cast<float>(WinApp::GetInstance()->GetClientHeight());
+	const float clientWidth = static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
+	const float clientHeight = static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
 	return {
 		(clientWidth - evolutionUiStyle_.virtualResolution.x * scale) * 0.5f,
 		(clientHeight - evolutionUiStyle_.virtualResolution.y * scale) * 0.5f
 	};
 }
 
-Vector2 Player::EvolutionAnchorToVirtual(const Vector2& normalizedAnchor) const
+cg2::Vector2 Player::EvolutionAnchorToVirtual(const cg2::Vector2& normalizedAnchor) const
 {
 	const float safe = (std::clamp)(
 		evolutionUiStyle_.safeMargin,
 		0.0f,
 		(std::min)(evolutionUiStyle_.virtualResolution.x, evolutionUiStyle_.virtualResolution.y) * 0.45f);
-	const Vector2 usable = {
+	const cg2::Vector2 usable = {
 		(std::max)(1.0f, evolutionUiStyle_.virtualResolution.x - safe * 2.0f),
 		(std::max)(1.0f, evolutionUiStyle_.virtualResolution.y - safe * 2.0f)
 	};
@@ -5133,21 +5133,21 @@ Vector2 Player::EvolutionAnchorToVirtual(const Vector2& normalizedAnchor) const
 	};
 }
 
-Vector2 Player::EvolutionVirtualToRender(const Vector2& virtualPosition) const
+cg2::Vector2 Player::EvolutionVirtualToRender(const cg2::Vector2& virtualPosition) const
 {
 	const float scale = GetEvolutionRenderScale();
-	const Vector2 offset = GetEvolutionRenderOffset();
+	const cg2::Vector2 offset = GetEvolutionRenderOffset();
 	return { offset.x + virtualPosition.x * scale, offset.y + virtualPosition.y * scale };
 }
 
-Vector2 Player::EvolutionClientToVirtual(const Vector2& clientPosition) const
+cg2::Vector2 Player::EvolutionClientToVirtual(const cg2::Vector2& clientPosition) const
 {
-	const float clientWidth = static_cast<float>(WinApp::GetInstance()->GetClientWidth());
-	const float clientHeight = static_cast<float>(WinApp::GetInstance()->GetClientHeight());
+	const float clientWidth = static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
+	const float clientHeight = static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
 	const float virtualWidth = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.x);
 	const float virtualHeight = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.y);
 	const float scale = (std::max)(0.0001f, (std::min)(clientWidth / virtualWidth, clientHeight / virtualHeight));
-	const Vector2 offset = {
+	const cg2::Vector2 offset = {
 		(clientWidth - virtualWidth * scale) * 0.5f,
 		(clientHeight - virtualHeight * scale) * 0.5f
 	};
@@ -5159,10 +5159,10 @@ Vector2 Player::EvolutionClientToVirtual(const Vector2& clientPosition) const
 
 void Player::InitializeStaticEvolutionPrototype()
 {
-    StartupTrace::Scope scope("Player.StaticEvolutionUi");
-	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
-	auto makeSprite = [spriteCommon](const std::string& texture, const Vector2& anchor) {
-		auto sprite = std::make_unique<Sprite>();
+    cg2::StartupTrace::Scope scope("Player.StaticEvolutionUi");
+	cg2::SpriteCommon* spriteCommon = cg2::SpriteCommon::GetInstance();
+	auto makeSprite = [spriteCommon](const std::string& texture, const cg2::Vector2& anchor) {
+		auto sprite = std::make_unique<cg2::Sprite>();
 		sprite->Initialize(spriteCommon, texture);
 		sprite->SetAnchorPoint(anchor);
 		return sprite;
@@ -5201,16 +5201,16 @@ void Player::InitializeStaticEvolutionPrototype()
 		staticEvolutionTankButtons_[classIndex] = std::make_unique<TankButtonUI>();
 		staticEvolutionTankButtons_[classIndex]->Initialize(spriteCommon);
 	}
-	staticEvolutionButtonBloomEffect_ = std::make_unique<ObjectPostEffect>();
+	staticEvolutionButtonBloomEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	staticEvolutionButtonBloomEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager(),
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
 		1.0f);
 	staticEvolutionTextEffect_ = std::make_unique<NeonTextEffect>();
 	staticEvolutionTextEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager());
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager());
 	staticEvolutionTextEffect_->SetStyle(evolutionUiStyle_.neonText);
 
 	UpdateStaticEvolutionPrototype();
@@ -5234,14 +5234,14 @@ void Player::UpdateStaticEvolutionPrototype()
 
 	const size_t activeNodeCount = staticEvolutionCandidateCount_ + 1;
 	const float renderScale = GetEvolutionRenderScale();
-	const Vector2 mouseVirtual = EvolutionClientToVirtual(mousePosition_);
+	const cg2::Vector2 mouseVirtual = EvolutionClientToVirtual(mousePosition_);
 	const auto& activeAnchors = evolutionUiStyle_.radialLayout
 		? evolutionUiStyle_.radialNodeAnchors
 		: evolutionUiStyle_.nodeAnchors;
 
 	staticEvolutionNodeCentersVirtual_[0] = EvolutionAnchorToVirtual(activeAnchors[0]);
 	for (size_t candidateIndex = 0; candidateIndex < staticEvolutionCandidateCount_; ++candidateIndex) {
-		Vector2 anchor{};
+		cg2::Vector2 anchor{};
 		if (staticEvolutionCandidateCount_ == 3) {
 			anchor = activeAnchors[candidateIndex + 1];
 		} else if (evolutionUiStyle_.radialLayout) {
@@ -5263,7 +5263,7 @@ void Player::UpdateStaticEvolutionPrototype()
 	}
 
 	for (size_t i = 0; i < activeNodeCount; ++i) {
-		const Vector2 baseSize = i == 0
+		const cg2::Vector2 baseSize = i == 0
 			? evolutionUiStyle_.currentNodeSize
 			: evolutionUiStyle_.candidateNodeSize;
 		staticEvolutionNodeHitSizesVirtual_[i] = { baseSize.x + 16.0f, baseSize.y + 16.0f };
@@ -5271,8 +5271,8 @@ void Player::UpdateStaticEvolutionPrototype()
 
 	staticEvolutionHoveredNode_ = -1;
 	for (size_t i = 1; i < activeNodeCount; ++i) {
-		const Vector2 center = staticEvolutionNodeCentersVirtual_[i];
-		const Vector2 hitSize = staticEvolutionNodeHitSizesVirtual_[i];
+		const cg2::Vector2 center = staticEvolutionNodeCentersVirtual_[i];
+		const cg2::Vector2 hitSize = staticEvolutionNodeHitSizesVirtual_[i];
 		if (mouseVirtual.x >= center.x - hitSize.x * 0.5f &&
 			mouseVirtual.x <= center.x + hitSize.x * 0.5f &&
 			mouseVirtual.y >= center.y - hitSize.y * 0.5f &&
@@ -5290,8 +5290,8 @@ void Player::UpdateStaticEvolutionPrototype()
 
 	staticEvolutionBackdropSprite_->SetPosition({ 0.0f, 0.0f });
 	staticEvolutionBackdropSprite_->SetSize({
-		static_cast<float>(WinApp::GetInstance()->GetClientWidth()),
-		static_cast<float>(WinApp::GetInstance()->GetClientHeight())
+		static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth()),
+		static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight())
 	});
 	staticEvolutionBackdropSprite_->SetColor({ 0.005f, 0.012f, 0.025f, evolutionUiStyle_.backgroundDimOpacity });
 	staticEvolutionBackdropSprite_->Update();
@@ -5312,30 +5312,30 @@ void Player::UpdateStaticEvolutionPrototype()
 		} else if (hovered) {
 			stateScale = evolutionUiStyle_.hoverScale;
 		}
-		const Vector2 baseSize = i == 0
+		const cg2::Vector2 baseSize = i == 0
 			? evolutionUiStyle_.currentNodeSize
 			: evolutionUiStyle_.candidateNodeSize;
-		const Vector2 drawSize = {
+		const cg2::Vector2 drawSize = {
 			(std::max)(1.0f, baseSize.x * stateScale),
 			(std::max)(1.0f, baseSize.y * stateScale)
 		};
 		staticEvolutionNodeDrawSizesVirtual_[i] = drawSize;
 
 		const float cut = (std::clamp)(evolutionUiStyle_.nodeCornerCut, 0.0f, drawSize.y * 0.30f);
-		Vector4 panelColor = evolutionUiStyle_.panelColor;
+		cg2::Vector4 panelColor = evolutionUiStyle_.panelColor;
 		panelColor.w = locked ? 0.97f : 0.91f;
-		const std::array<Vector2, 3> panelPositions = {{
+		const std::array<cg2::Vector2, 3> panelPositions = {{
 			staticEvolutionNodeCentersVirtual_[i],
 			{ staticEvolutionNodeCentersVirtual_[i].x, staticEvolutionNodeCentersVirtual_[i].y - drawSize.y * 0.5f + cut * 0.5f },
 			{ staticEvolutionNodeCentersVirtual_[i].x, staticEvolutionNodeCentersVirtual_[i].y + drawSize.y * 0.5f - cut * 0.5f }
 		}};
-		const std::array<Vector2, 3> panelSizes = {{
+		const std::array<cg2::Vector2, 3> panelSizes = {{
 			{ drawSize.x, (std::max)(1.0f, drawSize.y - cut * 2.0f) },
 			{ (std::max)(1.0f, drawSize.x - cut * 2.0f), cut },
 			{ (std::max)(1.0f, drawSize.x - cut * 2.0f), cut }
 		}};
 		for (int panelIndex = 0; panelIndex < 3; ++panelIndex) {
-			Sprite* panel = staticEvolutionNodePanelSprites_[i][panelIndex].get();
+			cg2::Sprite* panel = staticEvolutionNodePanelSprites_[i][panelIndex].get();
 			panel->SetPosition(EvolutionVirtualToRender(panelPositions[panelIndex]));
 			panel->SetSize({ panelSizes[panelIndex].x * renderScale, panelSizes[panelIndex].y * renderScale });
 			panel->SetColor(panelColor);
@@ -5373,7 +5373,7 @@ void Player::UpdateStaticEvolutionPrototype()
 		}
 	}
 	if (staticEvolutionButtonBloomEffect_ && tankButtonUiStyle_) {
-		BloomParam bloomParam = staticEvolutionButtonBloomEffect_->GetParam();
+		cg2::BloomParam bloomParam = staticEvolutionButtonBloomEffect_->GetParam();
 		bloomParam.threshold = 0.0f;
 		bloomParam.intensity = 1.10f + tankButtonUiStyle_->bloomBoost * 2.5f;
 		bloomParam.outlineWidth = 0.0f;
@@ -5384,7 +5384,7 @@ void Player::UpdateStaticEvolutionPrototype()
 		staticEvolutionTextEffect_->SetStyle(evolutionUiStyle_.neonText);
 	}
 
-	const Vector2 panelCenterVirtual = EvolutionAnchorToVirtual(evolutionUiStyle_.detailPanelAnchor);
+	const cg2::Vector2 panelCenterVirtual = EvolutionAnchorToVirtual(evolutionUiStyle_.detailPanelAnchor);
 	staticEvolutionDetailPanelSprite_->SetPosition(EvolutionVirtualToRender(panelCenterVirtual));
 	staticEvolutionDetailPanelSprite_->SetSize({
 		evolutionUiStyle_.detailPanelSize.x * renderScale,
@@ -5393,7 +5393,7 @@ void Player::UpdateStaticEvolutionPrototype()
 	staticEvolutionDetailPanelSprite_->SetColor(evolutionUiStyle_.panelColor);
 	staticEvolutionDetailPanelSprite_->Update();
 
-	const Vector2 buttonCenterVirtual = {
+	const cg2::Vector2 buttonCenterVirtual = {
 		panelCenterVirtual.x + evolutionUiStyle_.detailPanelSize.x * 0.5f - evolutionUiStyle_.confirmButtonSize.x * 0.5f - 18.0f,
 		panelCenterVirtual.y - evolutionUiStyle_.detailPanelSize.y * 0.5f + 32.0f
 	};
@@ -5410,7 +5410,7 @@ void Player::UpdateStaticEvolutionPrototype()
 		evolutionUiStyle_.confirmButtonSize.x * renderScale,
 		evolutionUiStyle_.confirmButtonSize.y * renderScale
 	});
-	Vector4 buttonColor = evolutionUiStyle_.panelColor;
+	cg2::Vector4 buttonColor = evolutionUiStyle_.panelColor;
 	buttonColor.x *= 0.72f;
 	buttonColor.y *= 0.72f;
 	buttonColor.z *= 0.72f;
@@ -5429,7 +5429,7 @@ void Player::UpdateStaticEvolutionPrototype()
 	const float buttonCut = 7.0f;
 	const float halfButtonW = evolutionUiStyle_.confirmButtonSize.x * 0.5f;
 	const float halfButtonH = evolutionUiStyle_.confirmButtonSize.y * 0.5f;
-	const std::array<Vector2, 8> buttonPoints = {{
+	const std::array<cg2::Vector2, 8> buttonPoints = {{
 		{ buttonCenterVirtual.x - halfButtonW + buttonCut, buttonCenterVirtual.y - halfButtonH },
 		{ buttonCenterVirtual.x + halfButtonW - buttonCut, buttonCenterVirtual.y - halfButtonH },
 		{ buttonCenterVirtual.x + halfButtonW, buttonCenterVirtual.y - halfButtonH + buttonCut },
@@ -5440,15 +5440,15 @@ void Player::UpdateStaticEvolutionPrototype()
 		{ buttonCenterVirtual.x - halfButtonW, buttonCenterVirtual.y - halfButtonH + buttonCut }
 	}};
 	for (int i = 0; i < 8; ++i) {
-		const Vector2 a = EvolutionVirtualToRender(buttonPoints[i]);
-		const Vector2 b = EvolutionVirtualToRender(buttonPoints[(i + 1) % 8]);
+		const cg2::Vector2 a = EvolutionVirtualToRender(buttonPoints[i]);
+		const cg2::Vector2 b = EvolutionVirtualToRender(buttonPoints[(i + 1) % 8]);
 		const float dx = b.x - a.x;
 		const float dy = b.y - a.y;
-		Sprite* line = staticEvolutionConfirmOutlineSprites_[i].get();
+		cg2::Sprite* line = staticEvolutionConfirmOutlineSprites_[i].get();
 		line->SetPosition(a);
 		line->SetRotation(std::atan2(dy, dx));
 		line->SetSize({ std::sqrt(dx * dx + dy * dy), (std::max)(1.0f, 1.6f * renderScale) });
-		Vector4 outlineColor = !canConfirm
+		cg2::Vector4 outlineColor = !canConfirm
 			? evolutionUiStyle_.lockedColor
 			: staticEvolutionConfirmHovered_ ? evolutionUiStyle_.hoverColor : evolutionUiStyle_.availableColor;
 		outlineColor.w = 0.90f;
@@ -5474,7 +5474,7 @@ void Player::UpdateStaticEvolutionPrototype()
 
 void Player::UpdateStaticEvolutionCircuit()
 {
-	const Vector2 current = staticEvolutionNodeCentersVirtual_[0];
+	const cg2::Vector2 current = staticEvolutionNodeCentersVirtual_[0];
 	for (int& count : staticEvolutionCircuitControlPointCounts_) {
 		count = 0;
 	}
@@ -5493,7 +5493,7 @@ void Player::UpdateStaticEvolutionCircuit()
 		staticEvolutionBranchGlowSprite_->SetSize({ 0.0f, 0.0f });
 		staticEvolutionBranchCoreSprite_->SetSize({ 0.0f, 0.0f });
 	} else {
-		const Vector2 branch = EvolutionAnchorToVirtual(evolutionUiStyle_.branchPointAnchor);
+		const cg2::Vector2 branch = EvolutionAnchorToVirtual(evolutionUiStyle_.branchPointAnchor);
 		staticEvolutionCircuitControlPoints_[0] = {{ current, branch, {}, {} }};
 		staticEvolutionCircuitControlPointCounts_[0] = 2;
 		for (size_t candidateIndex = 0; candidateIndex < staticEvolutionCandidateCount_; ++candidateIndex) {
@@ -5507,18 +5507,18 @@ void Player::UpdateStaticEvolutionCircuit()
 		}
 		pathCount = static_cast<int>(staticEvolutionCandidateCount_ + 1);
 		const float renderScale = GetEvolutionRenderScale();
-		const Vector2 renderBranch = EvolutionVirtualToRender(branch);
+		const cg2::Vector2 renderBranch = EvolutionVirtualToRender(branch);
 		staticEvolutionBranchGlowSprite_->SetPosition(renderBranch);
 		staticEvolutionBranchGlowSprite_->SetRotation(0.785398163f);
 		staticEvolutionBranchGlowSprite_->SetSize({ 20.0f * renderScale, 20.0f * renderScale });
-		Vector4 branchGlow = evolutionUiStyle_.selectedColor;
+		cg2::Vector4 branchGlow = evolutionUiStyle_.selectedColor;
 		branchGlow.w = 0.16f;
 		staticEvolutionBranchGlowSprite_->SetColor(branchGlow);
 		staticEvolutionBranchGlowSprite_->Update();
 		staticEvolutionBranchCoreSprite_->SetPosition(renderBranch);
 		staticEvolutionBranchCoreSprite_->SetRotation(0.785398163f);
 		staticEvolutionBranchCoreSprite_->SetSize({ 7.0f * renderScale, 7.0f * renderScale });
-		Vector4 branchCore = evolutionUiStyle_.selectedColor;
+		cg2::Vector4 branchCore = evolutionUiStyle_.selectedColor;
 		branchCore.w = 0.94f;
 		staticEvolutionBranchCoreSprite_->SetColor(branchCore);
 		staticEvolutionBranchCoreSprite_->Update();
@@ -5527,9 +5527,9 @@ void Player::UpdateStaticEvolutionCircuit()
 	const int currentRank = GetRankFromLevel(level_);
 	const float renderScale = GetEvolutionRenderScale();
 	size_t spriteIndex = 0;
-	auto setLine = [&](Sprite* sprite, const Vector2& a, const Vector2& b, float width, const Vector4& color) {
-		const Vector2 renderA = EvolutionVirtualToRender(a);
-		const Vector2 renderB = EvolutionVirtualToRender(b);
+	auto setLine = [&](cg2::Sprite* sprite, const cg2::Vector2& a, const cg2::Vector2& b, float width, const cg2::Vector4& color) {
+		const cg2::Vector2 renderA = EvolutionVirtualToRender(a);
+		const cg2::Vector2 renderB = EvolutionVirtualToRender(b);
 		const float dx = renderB.x - renderA.x;
 		const float dy = renderB.y - renderA.y;
 		const float length = std::sqrt(dx * dx + dy * dy);
@@ -5550,7 +5550,7 @@ void Player::UpdateStaticEvolutionCircuit()
 			? nullptr
 			: GetClassConfig(staticEvolutionCandidateIds_[static_cast<size_t>(candidateIndex)]);
 		const bool locked = config && currentRank < config->requiredRank;
-		Vector4 routeColor = evolutionUiStyle_.availableColor;
+		cg2::Vector4 routeColor = evolutionUiStyle_.availableColor;
 		float brightness = 0.38f;
 		if (locked) {
 			routeColor = evolutionUiStyle_.lockedColor;
@@ -5565,11 +5565,11 @@ void Player::UpdateStaticEvolutionCircuit()
 
 		const int count = staticEvolutionCircuitControlPointCounts_[pathIndex];
 		for (int pointIndex = 0; pointIndex + 1 < count; ++pointIndex) {
-			const Vector2 a = staticEvolutionCircuitControlPoints_[pathIndex][pointIndex];
-			const Vector2 b = staticEvolutionCircuitControlPoints_[pathIndex][pointIndex + 1];
-			Vector4 outer = routeColor;
-			Vector4 middle = routeColor;
-			Vector4 core = routeColor;
+			const cg2::Vector2 a = staticEvolutionCircuitControlPoints_[pathIndex][pointIndex];
+			const cg2::Vector2 b = staticEvolutionCircuitControlPoints_[pathIndex][pointIndex + 1];
+			cg2::Vector4 outer = routeColor;
+			cg2::Vector4 middle = routeColor;
+			cg2::Vector4 core = routeColor;
 			const float opacity = evolutionUiStyle_.circuitOpacity * brightness;
 			outer.w = opacity * evolutionUiStyle_.circuitOuterAlpha;
 			middle.w = opacity * evolutionUiStyle_.circuitMiddleAlpha;
@@ -5582,7 +5582,7 @@ void Player::UpdateStaticEvolutionCircuit()
 		}
 	}
 	while (spriteIndex < staticEvolutionCircuitSprites_.size()) {
-		Sprite* sprite = staticEvolutionCircuitSprites_[spriteIndex++].get();
+		cg2::Sprite* sprite = staticEvolutionCircuitSprites_[spriteIndex++].get();
 		sprite->SetSize({ 0.0f, 0.0f });
 		sprite->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
 		sprite->Update();
@@ -5593,9 +5593,9 @@ void Player::UpdateStaticEvolutionNodeFrames()
 {
 	const int currentRank = GetRankFromLevel(level_);
 	const float renderScale = GetEvolutionRenderScale();
-	auto setLine = [&](Sprite* sprite, const Vector2& a, const Vector2& b, float width, const Vector4& color) {
-		const Vector2 renderA = EvolutionVirtualToRender(a);
-		const Vector2 renderB = EvolutionVirtualToRender(b);
+	auto setLine = [&](cg2::Sprite* sprite, const cg2::Vector2& a, const cg2::Vector2& b, float width, const cg2::Vector4& color) {
+		const cg2::Vector2 renderA = EvolutionVirtualToRender(a);
+		const cg2::Vector2 renderB = EvolutionVirtualToRender(b);
 		const float dx = renderB.x - renderA.x;
 		const float dy = renderB.y - renderA.y;
 		sprite->SetPosition(renderA);
@@ -5613,7 +5613,7 @@ void Player::UpdateStaticEvolutionNodeFrames()
 			? GetClassConfig(staticEvolutionCandidateIds_[static_cast<size_t>(nodeIndex - 1)])
 			: nullptr;
 		const bool locked = config && currentRank < config->requiredRank;
-		Vector4 stateColor = nodeIndex == 0 ? evolutionUiStyle_.normalColor : evolutionUiStyle_.availableColor;
+		cg2::Vector4 stateColor = nodeIndex == 0 ? evolutionUiStyle_.normalColor : evolutionUiStyle_.availableColor;
 		float glowAlpha = nodeIndex == 0 ? 0.035f : 0.050f;
 		float middleAlpha = nodeIndex == 0 ? 0.12f : 0.18f;
 		float coreAlpha = nodeIndex == 0 ? 0.58f : 0.72f;
@@ -5634,12 +5634,12 @@ void Player::UpdateStaticEvolutionNodeFrames()
 			coreAlpha = 0.94f;
 		}
 
-		const Vector2 center = staticEvolutionNodeCentersVirtual_[nodeIndex];
-		const Vector2 size = staticEvolutionNodeDrawSizesVirtual_[nodeIndex];
+		const cg2::Vector2 center = staticEvolutionNodeCentersVirtual_[nodeIndex];
+		const cg2::Vector2 size = staticEvolutionNodeDrawSizesVirtual_[nodeIndex];
 		const float halfW = size.x * 0.5f;
 		const float halfH = size.y * 0.5f;
 		const float cut = (std::clamp)(evolutionUiStyle_.nodeCornerCut, 0.0f, halfH * 0.60f);
-		const std::array<Vector2, 8> points = {{
+		const std::array<cg2::Vector2, 8> points = {{
 			{ center.x - halfW + cut, center.y - halfH },
 			{ center.x + halfW - cut, center.y - halfH },
 			{ center.x + halfW, center.y - halfH + cut },
@@ -5650,14 +5650,14 @@ void Player::UpdateStaticEvolutionNodeFrames()
 			{ center.x - halfW, center.y - halfH + cut }
 		}};
 		for (int segmentIndex = 0; segmentIndex < 8; ++segmentIndex) {
-			Vector4 outer = stateColor;
-			Vector4 middle = stateColor;
-			Vector4 core = stateColor;
+			cg2::Vector4 outer = stateColor;
+			cg2::Vector4 middle = stateColor;
+			cg2::Vector4 core = stateColor;
 			outer.w = glowAlpha;
 			middle.w = middleAlpha;
 			core.w = coreAlpha;
-			const Vector2 a = points[segmentIndex];
-			const Vector2 b = points[(segmentIndex + 1) % 8];
+			const cg2::Vector2 a = points[segmentIndex];
+			const cg2::Vector2 b = points[(segmentIndex + 1) % 8];
 			const size_t spriteIndex = static_cast<size_t>(segmentIndex * 3);
 			setLine(staticEvolutionNodeFrameSprites_[nodeIndex][spriteIndex].get(), a, b, evolutionUiStyle_.nodeOutlineGlowWidth, outer);
 			setLine(staticEvolutionNodeFrameSprites_[nodeIndex][spriteIndex + 1].get(), a, b, evolutionUiStyle_.nodeOutlineWidth * 2.2f, middle);
@@ -5668,9 +5668,9 @@ void Player::UpdateStaticEvolutionNodeFrames()
 
 void Player::UpdateStaticEvolutionSilhouettes()
 {
-	struct Segment {
-		Vector2 a{};
-		Vector2 b{};
+	struct SilhouetteSegment {
+		cg2::Vector2 a{};
+		cg2::Vector2 b{};
 	};
 	const int currentRank = GetRankFromLevel(level_);
 	const float renderScale = GetEvolutionRenderScale();
@@ -5682,9 +5682,9 @@ void Player::UpdateStaticEvolutionSilhouettes()
 			? currentClassId_
 			: staticEvolutionCandidateIds_[static_cast<size_t>(nodeIndex - 1)];
 		const PlayerClassConfig* config = GetClassConfig(nodeClassId);
-		std::array<Segment, kStaticEvolutionSilhouetteSpriteCount> segments{};
+		std::array<SilhouetteSegment, kStaticEvolutionSilhouetteSpriteCount> segments{};
 		size_t segmentCount = 0;
-		auto addSegment = [&](const Vector2& a, const Vector2& b) {
+		auto addSegment = [&](const cg2::Vector2& a, const cg2::Vector2& b) {
 			if (segmentCount < segments.size()) {
 				segments[segmentCount++] = { a, b };
 			}
@@ -5700,8 +5700,8 @@ void Player::UpdateStaticEvolutionSilhouettes()
 			} else if (hovered) {
 				stateScale = evolutionUiStyle_.hoverScale;
 			}
-			const Vector2 nodeSize = staticEvolutionNodeDrawSizesVirtual_[nodeIndex];
-			const Vector2 center = {
+			const cg2::Vector2 nodeSize = staticEvolutionNodeDrawSizesVirtual_[nodeIndex];
+			const cg2::Vector2 center = {
 				staticEvolutionNodeCentersVirtual_[nodeIndex].x - nodeSize.x * 0.30f,
 				staticEvolutionNodeCentersVirtual_[nodeIndex].y - 2.0f
 			};
@@ -5726,7 +5726,7 @@ void Player::UpdateStaticEvolutionSilhouettes()
 			default:
 				break;
 			}
-			std::array<Vector2, 14> bodyPoints{};
+			std::array<cg2::Vector2, 14> bodyPoints{};
 			for (int i = 0; i < bodySegments; ++i) {
 				const float angle = bodyRotation + static_cast<float>(i) * kTwoPi / static_cast<float>(bodySegments);
 				bodyPoints[i] = {
@@ -5740,8 +5740,8 @@ void Player::UpdateStaticEvolutionSilhouettes()
 
 			for (const WeaponMountConfig& mount : config->barrels) {
 				const float angle = mount.angleDeg * 3.1415926535f / 180.0f;
-				const Vector2 forward{ std::cos(angle), std::sin(angle) };
-				const Vector2 right{ -forward.y, forward.x };
+				const cg2::Vector2 forward{ std::cos(angle), std::sin(angle) };
+				const cg2::Vector2 right{ -forward.y, forward.x };
 				float length = (std::max)(14.0f, mount.scale.x * 15.0f) * silhouetteScale;
 				float halfWidth = (std::max)(2.2f, mount.scale.y * 7.0f) * silhouetteScale;
 				if (mount.barrelShape == BarrelShape::Heavy) {
@@ -5753,18 +5753,18 @@ void Player::UpdateStaticEvolutionSilhouettes()
 					length *= 0.86f;
 					halfWidth *= 1.80f;
 				}
-				const Vector2 mountCenter = {
+				const cg2::Vector2 mountCenter = {
 					center.x + mount.offset.x * radius * 0.55f + forward.x * length * 0.30f,
 					center.y + mount.offset.y * radius * 0.55f + forward.y * length * 0.30f
 				};
 				const float baseWidth = mount.barrelShape == BarrelShape::Trapezoid ? halfWidth * 1.28f : halfWidth;
 				const float tipWidth = mount.barrelShape == BarrelShape::Trapezoid ? halfWidth * 0.72f : halfWidth;
-				const Vector2 base = { mountCenter.x - forward.x * length * 0.5f, mountCenter.y - forward.y * length * 0.5f };
-				const Vector2 tip = { mountCenter.x + forward.x * length * 0.5f, mountCenter.y + forward.y * length * 0.5f };
-				const Vector2 p0{ base.x - right.x * baseWidth, base.y - right.y * baseWidth };
-				const Vector2 p1{ tip.x - right.x * tipWidth, tip.y - right.y * tipWidth };
-				const Vector2 p2{ tip.x + right.x * tipWidth, tip.y + right.y * tipWidth };
-				const Vector2 p3{ base.x + right.x * baseWidth, base.y + right.y * baseWidth };
+				const cg2::Vector2 base = { mountCenter.x - forward.x * length * 0.5f, mountCenter.y - forward.y * length * 0.5f };
+				const cg2::Vector2 tip = { mountCenter.x + forward.x * length * 0.5f, mountCenter.y + forward.y * length * 0.5f };
+				const cg2::Vector2 p0{ base.x - right.x * baseWidth, base.y - right.y * baseWidth };
+				const cg2::Vector2 p1{ tip.x - right.x * tipWidth, tip.y - right.y * tipWidth };
+				const cg2::Vector2 p2{ tip.x + right.x * tipWidth, tip.y + right.y * tipWidth };
+				const cg2::Vector2 p3{ base.x + right.x * baseWidth, base.y + right.y * baseWidth };
 				addSegment(p0, p1);
 				addSegment(p1, p2);
 				addSegment(p2, p3);
@@ -5773,12 +5773,12 @@ void Player::UpdateStaticEvolutionSilhouettes()
 
 			if (config->usesDrone) {
 				for (float side : { -1.0f, 1.0f }) {
-					const Vector2 droneCenter{ center.x - 28.0f * silhouetteScale, center.y + side * 18.0f * silhouetteScale };
+					const cg2::Vector2 droneCenter{ center.x - 28.0f * silhouetteScale, center.y + side * 18.0f * silhouetteScale };
 					const float droneRadius = 5.0f * silhouetteScale;
-					const Vector2 top{ droneCenter.x, droneCenter.y - droneRadius };
-					const Vector2 rightPoint{ droneCenter.x + droneRadius, droneCenter.y };
-					const Vector2 bottom{ droneCenter.x, droneCenter.y + droneRadius };
-					const Vector2 leftPoint{ droneCenter.x - droneRadius, droneCenter.y };
+					const cg2::Vector2 top{ droneCenter.x, droneCenter.y - droneRadius };
+					const cg2::Vector2 rightPoint{ droneCenter.x + droneRadius, droneCenter.y };
+					const cg2::Vector2 bottom{ droneCenter.x, droneCenter.y + droneRadius };
+					const cg2::Vector2 leftPoint{ droneCenter.x - droneRadius, droneCenter.y };
 					addSegment(top, rightPoint);
 					addSegment(rightPoint, bottom);
 					addSegment(bottom, leftPoint);
@@ -5786,17 +5786,17 @@ void Player::UpdateStaticEvolutionSilhouettes()
 				}
 			}
 
-			Vector4 silhouetteColor = selected ? evolutionUiStyle_.selectedColor : evolutionUiStyle_.classTextColor;
+			cg2::Vector4 silhouetteColor = selected ? evolutionUiStyle_.selectedColor : evolutionUiStyle_.classTextColor;
 			if (hovered && !selected) {
 				silhouetteColor = evolutionUiStyle_.hoverColor;
 			}
 			silhouetteColor.w = locked ? 0.30f : selected ? 0.94f : 0.72f;
 			for (size_t i = 0; i < segmentCount; ++i) {
-				const Vector2 renderA = EvolutionVirtualToRender(segments[i].a);
-				const Vector2 renderB = EvolutionVirtualToRender(segments[i].b);
+				const cg2::Vector2 renderA = EvolutionVirtualToRender(segments[i].a);
+				const cg2::Vector2 renderB = EvolutionVirtualToRender(segments[i].b);
 				const float dx = renderB.x - renderA.x;
 				const float dy = renderB.y - renderA.y;
-				Sprite* line = staticEvolutionSilhouetteSprites_[nodeIndex][i].get();
+				cg2::Sprite* line = staticEvolutionSilhouetteSprites_[nodeIndex][i].get();
 				line->SetPosition(renderA);
 				line->SetRotation(std::atan2(dy, dx));
 				line->SetSize({ std::sqrt(dx * dx + dy * dy), (std::max)(0.75f, 1.55f * renderScale) });
@@ -5805,7 +5805,7 @@ void Player::UpdateStaticEvolutionSilhouettes()
 			}
 		}
 		while (segmentCount < staticEvolutionSilhouetteSprites_[nodeIndex].size()) {
-			Sprite* line = staticEvolutionSilhouetteSprites_[nodeIndex][segmentCount++].get();
+			cg2::Sprite* line = staticEvolutionSilhouetteSprites_[nodeIndex][segmentCount++].get();
 			line->SetSize({ 0.0f, 0.0f });
 			line->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
 			line->Update();
@@ -5817,8 +5817,8 @@ void Player::UpdateStaticEvolutionText()
 {
 	const float renderScale = GetEvolutionRenderScale();
 	const float safe = evolutionUiStyle_.safeMargin;
-	const auto makeStyle = [&](float size, const Vector4& color, float outlineWidth) {
-		TextStyle style{};
+	const auto makeStyle = [&](float size, const cg2::Vector4& color, float outlineWidth) {
+		cg2::TextStyle style{};
 		style.fontFamily = evolutionUiStyle_.fontFamily;
 		style.fontPath = evolutionUiStyle_.fontPath;
 		style.fontWeight = evolutionUiStyle_.fontWeight;
@@ -5830,23 +5830,23 @@ void Player::UpdateStaticEvolutionText()
 		return style;
 	};
 
-	const TextStyle titleStyle = makeStyle(
+	const cg2::TextStyle titleStyle = makeStyle(
 		evolutionUiStyle_.titleFontSize,
 		evolutionUiStyle_.titleTextColor,
 		evolutionUiStyle_.titleOutlineWidth);
-	const TextStyle classNameStyle = makeStyle(
+	const cg2::TextStyle classNameStyle = makeStyle(
 		evolutionUiStyle_.classNameFontSize,
 		evolutionUiStyle_.classTextColor,
 		evolutionUiStyle_.classNameOutlineWidth);
-	const TextStyle bodyStyle = makeStyle(
+	const cg2::TextStyle bodyStyle = makeStyle(
 		evolutionUiStyle_.bodyFontSize,
 		evolutionUiStyle_.bodyTextColor,
 		evolutionUiStyle_.bodyOutlineWidth);
-	const TextStyle buttonStyle = makeStyle(
+	const cg2::TextStyle buttonStyle = makeStyle(
 		evolutionUiStyle_.buttonFontSize,
 		evolutionUiStyle_.buttonTextColor,
 		evolutionUiStyle_.buttonOutlineWidth);
-	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
+	cg2::SpriteCommon* spriteCommon = cg2::SpriteCommon::GetInstance();
 
 	SetLabel(
 		staticEvolutionTitleLabel_,
@@ -5875,7 +5875,7 @@ void Player::UpdateStaticEvolutionText()
 			: staticEvolutionCandidateIds_[static_cast<size_t>(i - 1)];
 		const PlayerClassConfig* config = GetClassConfig(nodeClassId);
 		const bool locked = i > 0 && config && currentRank < config->requiredRank;
-		Vector4 textColor = evolutionUiStyle_.classTextColor;
+		cg2::Vector4 textColor = evolutionUiStyle_.classTextColor;
 		if (locked) {
 			textColor = evolutionUiStyle_.lockedColor;
 			textColor.w = 1.0f;
@@ -5884,17 +5884,17 @@ void Player::UpdateStaticEvolutionText()
 		} else if (hovered) {
 			textColor = evolutionUiStyle_.hoverColor;
 		}
-		TextStyle nodeClassStyle = makeStyle(
+		cg2::TextStyle nodeClassStyle = makeStyle(
 			evolutionUiStyle_.classNameFontSize,
 			textColor,
 			evolutionUiStyle_.classNameOutlineWidth);
-		Vector4 roleColor = evolutionUiStyle_.bodyTextColor;
+		cg2::Vector4 roleColor = evolutionUiStyle_.bodyTextColor;
 		roleColor.w = locked ? 0.42f : 0.72f;
-		TextStyle nodeRoleStyle = makeStyle(
+		cg2::TextStyle nodeRoleStyle = makeStyle(
 			evolutionUiStyle_.bodyFontSize * 0.78f,
 			roleColor,
 			evolutionUiStyle_.bodyOutlineWidth);
-		const Vector2 center = staticEvolutionNodeCentersVirtual_[i];
+		const cg2::Vector2 center = staticEvolutionNodeCentersVirtual_[i];
 		const float textX = center.x + 34.0f;
 		SetLabel(
 			staticEvolutionNodeNameLabels_[i],
@@ -5920,8 +5920,8 @@ void Player::UpdateStaticEvolutionText()
 		return;
 	}
 	const std::array<std::string, 3> deltas = GetEvolutionDeltas(*current, *selected);
-	const Vector2 panelCenter = EvolutionAnchorToVirtual(evolutionUiStyle_.detailPanelAnchor);
-	const Vector2 panelTopLeft = {
+	const cg2::Vector2 panelCenter = EvolutionAnchorToVirtual(evolutionUiStyle_.detailPanelAnchor);
+	const cg2::Vector2 panelTopLeft = {
 		panelCenter.x - evolutionUiStyle_.detailPanelSize.x * 0.5f,
 		panelCenter.y - evolutionUiStyle_.detailPanelSize.y * 0.5f
 	};
@@ -5951,7 +5951,7 @@ void Player::UpdateStaticEvolutionText()
 		GetEvolutionAbility(*selected),
 		EvolutionVirtualToRender({ panelTopLeft.x + 400.0f, panelTopLeft.y + 18.0f }),
 		bodyStyle);
-	const Vector2 buttonCenter = {
+	const cg2::Vector2 buttonCenter = {
 		panelCenter.x + evolutionUiStyle_.detailPanelSize.x * 0.5f - evolutionUiStyle_.confirmButtonSize.x * 0.5f - 18.0f,
 		panelCenter.y - evolutionUiStyle_.detailPanelSize.y * 0.5f + 32.0f
 	};
@@ -5972,7 +5972,7 @@ void Player::UpdateStaticEvolutionText()
 
 void Player::PrepareStaticEvolutionTextTextures()
 {
-	auto prepare = [](TextLabel* label) {
+	auto prepare = [](cg2::TextLabel* label) {
 		if (label) {
 			label->PrepareForDraw();
 		}
@@ -6262,8 +6262,8 @@ void Player::DrawEvolutionUiStyleEditor()
 		ImGui::TextWrapped("%s", evolutionUiStyleStatus_.c_str());
 	}
 
-	const float clientWidth = static_cast<float>(WinApp::GetInstance()->GetClientWidth());
-	const float clientHeight = static_cast<float>(WinApp::GetInstance()->GetClientHeight());
+	const float clientWidth = static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
+	const float clientHeight = static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
 	const float actualScale = (std::min)(
 		clientWidth / (std::max)(1.0f, evolutionUiStyle_.virtualResolution.x),
 		clientHeight / (std::max)(1.0f, evolutionUiStyle_.virtualResolution.y));
@@ -6363,7 +6363,7 @@ void Player::DrawEvolutionUiStyleEditor()
 void Player::DrawEvolutionCircuitPrototype()
 {
 	evolutionUiProfile_.visible = true;
-	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 	for (const auto& line : evolutionCircuitLineSprites_) {
 		if (line && line->GetSize().x > 0.0f && line->GetSize().y > 0.0f && line->GetColor().w > 0.001f) {
 			line->Draw();
@@ -6381,8 +6381,8 @@ void Player::DrawEvolutionCircuitPrototype()
 	}
 	if (evolutionCircuitDetailPreview_) evolutionCircuitDetailPreview_->Draw();
 
-	SpriteCommon::GetInstance()->PreDraw(kNormal);
-	auto drawLabel = [&](const std::unique_ptr<TextLabel>& label) {
+	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+	auto drawLabel = [&](const std::unique_ptr<cg2::TextLabel>& label) {
 		if (label) {
 			label->Draw();
 			++evolutionUiProfile_.textDraws;
@@ -6399,11 +6399,11 @@ void Player::DrawEvolutionCircuitPrototype()
 
 void Player::DrawEvolutionCircuitAfterPostEffects()
 {
-	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 	if (evolutionCircuitBackdropSprite_) evolutionCircuitBackdropSprite_->Draw();
 	if (staticEvolutionButtonBloomEffect_) {
 		staticEvolutionButtonBloomEffect_->BeginCapture();
-		SpriteCommon::GetInstance()->PreDrawForScene(kNormal);
+		cg2::SpriteCommon::GetInstance()->PreDrawForScene(cg2::kNormal);
 		for (const auto& line : evolutionCircuitLineSprites_) {
 			if (line && line->GetSize().x > 0.0f && line->GetSize().y > 0.0f && line->GetColor().w > 0.001f) {
 				line->Draw();
@@ -6418,7 +6418,7 @@ void Player::DrawEvolutionCircuitAfterPostEffects()
 		staticEvolutionButtonBloomEffect_->EndCaptureBloomOnlyToBackBuffer();
 	}
 	if (staticEvolutionTextEffect_) {
-		std::vector<TextLabel*> neonLabels;
+		std::vector<cg2::TextLabel*> neonLabels;
 		neonLabels.reserve(8);
 		if (evolutionCircuitTitleLabel_) neonLabels.push_back(evolutionCircuitTitleLabel_.get());
 		for (const auto& rankLabel : evolutionCircuitRankLabels_) {
@@ -6439,8 +6439,8 @@ void Player::DrawStaticEvolutionPrototype()
 	evolutionUiProfile_.visible = true;
 	const auto totalStart = std::chrono::steady_clock::now();
 	const auto spriteStart = totalStart;
-	SpriteCommon::GetInstance()->PreDraw(kNormal);
-	auto drawSprite = [&](const std::unique_ptr<Sprite>& sprite) {
+	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+	auto drawSprite = [&](const std::unique_ptr<cg2::Sprite>& sprite) {
 		if (sprite && sprite->GetColor().w > 0.001f && sprite->GetSize().x > 0.0f && sprite->GetSize().y > 0.0f) {
 			sprite->Draw();
 			++evolutionUiProfile_.spriteDraws;
@@ -6465,8 +6465,8 @@ void Player::DrawStaticEvolutionPrototype()
 	const auto spriteEnd = std::chrono::steady_clock::now();
 
 	const auto textStart = spriteEnd;
-	SpriteCommon::GetInstance()->PreDraw(kNormal);
-	auto drawLabel = [&](const std::unique_ptr<TextLabel>& label) {
+	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+	auto drawLabel = [&](const std::unique_ptr<cg2::TextLabel>& label) {
 		if (label) {
 			label->Draw();
 			++evolutionUiProfile_.textDraws;
@@ -6517,7 +6517,7 @@ void Player::DrawUpgradeHudAfterPostEffects()
 	}
 
 	upgradeHudBarBloomEffect_->BeginCapture();
-	SpriteCommon::GetInstance()->PreDrawForScene(kNormal);
+	cg2::SpriteCommon::GetInstance()->PreDrawForScene(cg2::kNormal);
 	if (drawBottomBars) {
 		if (upgradeHudLevelProgressBar_) {
 			upgradeHudLevelProgressBar_->DrawBloomSource();
@@ -6546,13 +6546,13 @@ void Player::DrawEvolutionAfterPostEffects()
 		return;
 	}
 	if (!ShouldUseStaticEvolutionPrototype()) return;
-	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 	if (staticEvolutionBackdropSprite_) {
 		staticEvolutionBackdropSprite_->Draw();
 	}
 	if (staticEvolutionButtonBloomEffect_) {
 		staticEvolutionButtonBloomEffect_->BeginCapture();
-		SpriteCommon::GetInstance()->PreDrawForScene(kNormal);
+		cg2::SpriteCommon::GetInstance()->PreDrawForScene(cg2::kNormal);
 		for (const auto& line : staticEvolutionCircuitSprites_) {
 			if (line &&
 				line->GetSize().x > 0.0f &&
@@ -6579,7 +6579,7 @@ void Player::DrawEvolutionAfterPostEffects()
 		staticEvolutionButtonBloomEffect_->EndCaptureBloomOnlyToBackBuffer();
 	}
 	if (staticEvolutionTextEffect_) {
-		std::vector<TextLabel*> neonLabels;
+		std::vector<cg2::TextLabel*> neonLabels;
 		neonLabels.reserve(4);
 		if (staticEvolutionTitleLabel_) {
 			neonLabels.push_back(staticEvolutionTitleLabel_.get());
@@ -6613,21 +6613,21 @@ void Player::DrawStaticEvolutionDebugOverlay()
 	}
 
 	ImDrawList* drawList = ImGui::GetForegroundDrawList();
-	const float clientWidth = static_cast<float>(WinApp::GetInstance()->GetClientWidth());
-	const float clientHeight = static_cast<float>(WinApp::GetInstance()->GetClientHeight());
+	const float clientWidth = static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
+	const float clientHeight = static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
 	const float virtualWidth = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.x);
 	const float virtualHeight = (std::max)(1.0f, evolutionUiStyle_.virtualResolution.y);
 	const float scale = (std::max)(0.0001f, (std::min)(clientWidth / virtualWidth, clientHeight / virtualHeight));
-	const Vector2 offset = {
+	const cg2::Vector2 offset = {
 		(clientWidth - virtualWidth * scale) * 0.5f,
 		(clientHeight - virtualHeight * scale) * 0.5f
 	};
-	auto toClient = [&](const Vector2& point) {
+	auto toClient = [&](const cg2::Vector2& point) {
 		return ImVec2(offset.x + point.x * scale, offset.y + point.y * scale);
 	};
-	auto drawCenteredRect = [&](const Vector2& center, const Vector2& size, ImU32 color) {
-		const Vector2 minPoint{ center.x - size.x * 0.5f, center.y - size.y * 0.5f };
-		const Vector2 maxPoint{ center.x + size.x * 0.5f, center.y + size.y * 0.5f };
+	auto drawCenteredRect = [&](const cg2::Vector2& center, const cg2::Vector2& size, ImU32 color) {
+		const cg2::Vector2 minPoint{ center.x - size.x * 0.5f, center.y - size.y * 0.5f };
+		const cg2::Vector2 maxPoint{ center.x + size.x * 0.5f, center.y + size.y * 0.5f };
 		drawList->AddRect(toClient(minPoint), toClient(maxPoint), color, 0.0f, 0, 1.5f);
 	};
 
@@ -6675,22 +6675,22 @@ void Player::DrawStaticEvolutionDebugOverlay()
 		}
 	}
 	if (showEvolutionTextBounds_) {
-		auto drawTextBounds = [&](const std::unique_ptr<TextLabel>& label) {
+		auto drawTextBounds = [&](const std::unique_ptr<cg2::TextLabel>& label) {
 			if (!label || !label->GetSprite()) {
 				return;
 			}
-			Sprite* sprite = label->GetSprite();
+			cg2::Sprite* sprite = label->GetSprite();
 			const float renderScale = GetEvolutionRenderScale();
-			const Vector2 renderOffset = GetEvolutionRenderOffset();
-			const Vector2 renderPosition = sprite->GetPosition();
-			const Vector2 renderSize = sprite->GetSize();
-			const Vector2 anchor = sprite->GetAnchorPoint();
-			const Vector2 virtualPosition = {
+			const cg2::Vector2 renderOffset = GetEvolutionRenderOffset();
+			const cg2::Vector2 renderPosition = sprite->GetPosition();
+			const cg2::Vector2 renderSize = sprite->GetSize();
+			const cg2::Vector2 anchor = sprite->GetAnchorPoint();
+			const cg2::Vector2 virtualPosition = {
 				(renderPosition.x - renderOffset.x) / renderScale,
 				(renderPosition.y - renderOffset.y) / renderScale
 			};
-			const Vector2 virtualSize = { renderSize.x / renderScale, renderSize.y / renderScale };
-			const Vector2 minPoint = {
+			const cg2::Vector2 virtualSize = { renderSize.x / renderScale, renderSize.y / renderScale };
+			const cg2::Vector2 minPoint = {
 				virtualPosition.x - virtualSize.x * anchor.x,
 				virtualPosition.y - virtualSize.y * anchor.y
 			};
@@ -6735,8 +6735,8 @@ void Player::DrawStaticEvolutionDebugOverlay()
 
 void Player::SpawnParticles()
 {
-	Vector3 center = GetWorldPosition();
-	ParticleManager::GetInstance()->EmitNeonDeathEffect(
+	cg2::Vector3 center = GetWorldPosition();
+	cg2::ParticleManager::GetInstance()->EmitNeonDeathEffect(
 		center,
 		{ 1.45f, 1.30f, 0.72f, 1.0f },
 		{ 0.08f, 1.25f, 1.55f, 0.0f },
@@ -6836,7 +6836,7 @@ void Player::UpdateEncyclopedia(float uiDeltaTime)
 		const float bob = std::sin(evolutionUiTimer_ * 2.0f) * 12.0f;
 		evolutionPreviewTankSprite_->SetPosition({ 210.0f + bob, 300.0f });
 		evolutionPreviewTankSprite_->SetRotation(std::sin(evolutionUiTimer_ * 1.35f) * 0.08f);
-		evolutionPreviewTankSprite_->SetColor(locked ? Vector4{ 0.35f, 0.40f, 0.45f, 0.65f } : Vector4{ 1.0f, 1.0f, 1.0f, 1.0f });
+		evolutionPreviewTankSprite_->SetColor(locked ? cg2::Vector4{ 0.35f, 0.40f, 0.45f, 0.65f } : cg2::Vector4{ 1.0f, 1.0f, 1.0f, 1.0f });
 		evolutionPreviewTankSprite_->Update();
 	}
 
@@ -6845,7 +6845,7 @@ void Player::UpdateEncyclopedia(float uiDeltaTime)
 		evolutionShotSprite_->SetPosition({ 300.0f + shotPhase * 52.0f, 296.0f });
 		evolutionShotSprite_->SetRotation(std::sin(evolutionUiTimer_ * 1.2f) * 0.12f);
 		evolutionShotSprite_->SetSize({ 85.0f + shotPhase * 95.0f, 7.0f });
-		evolutionShotSprite_->SetColor(locked ? Vector4{ 0.55f, 0.55f, 0.60f, 0.18f } : Vector4{ 1.0f, 0.90f, 0.32f, 0.82f * (1.0f - shotPhase * 0.55f) });
+		evolutionShotSprite_->SetColor(locked ? cg2::Vector4{ 0.55f, 0.55f, 0.60f, 0.18f } : cg2::Vector4{ 1.0f, 0.90f, 0.32f, 0.82f * (1.0f - shotPhase * 0.55f) });
 		evolutionShotSprite_->Update();
 	}
 
@@ -6909,7 +6909,7 @@ void Player::DrawEncyclopedia() {
 			return std::string("扱いやすい基本性能を持つバランス型タンク。");
 		};
 
-		TextStyle headingStyle{};
+		cg2::TextStyle headingStyle{};
 		headingStyle.fontFamily = "Meiryo";
 		headingStyle.fontSize = 28.0f;
 		headingStyle.color = { 0.82f, 1.0f, 0.92f, 1.0f };
@@ -6917,15 +6917,15 @@ void Player::DrawEncyclopedia() {
 		headingStyle.outlineThickness = 3.0f;
 		headingStyle.padding = 8.0f;
 
-		TextStyle bodyStyle = headingStyle;
+		cg2::TextStyle bodyStyle = headingStyle;
 		bodyStyle.fontSize = 21.0f;
 		bodyStyle.color = { 0.92f, 0.96f, 1.0f, 1.0f };
 		bodyStyle.outlineThickness = 2.0f;
 
-		TextStyle smallStyle = bodyStyle;
+		cg2::TextStyle smallStyle = bodyStyle;
 		smallStyle.fontSize = 18.0f;
 
-		SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
+		cg2::SpriteCommon* spriteCommon = cg2::SpriteCommon::GetInstance();
 		SetLabel(evolutionPreviewNameLabel_, spriteCommon, selectedConfig->displayName, { 58.0f, 112.0f }, headingStyle);
 		SetLabel(evolutionRoleLabel_, spriteCommon, roleText(*selectedConfig), { 58.0f, 560.0f }, bodyStyle);
 
@@ -6946,14 +6946,14 @@ void Player::DrawEncyclopedia() {
 			SetLabel(evolutionStatLabels_[i], spriteCommon, statLines[i], { 932.0f, 136.0f + static_cast<float>(i) * 40.0f }, smallStyle);
 		}
 
-		TextStyle buttonStyle = headingStyle;
+		cg2::TextStyle buttonStyle = headingStyle;
 		buttonStyle.fontSize = 24.0f;
-		buttonStyle.color = locked ? Vector4{ 0.68f, 0.68f, 0.72f, 1.0f } : Vector4{ 0.02f, 0.09f, 0.04f, 1.0f };
-		buttonStyle.outlineColor = locked ? Vector4{ 0.0f, 0.0f, 0.0f, 0.70f } : Vector4{ 0.78f, 1.0f, 0.82f, 0.65f };
+		buttonStyle.color = locked ? cg2::Vector4{ 0.68f, 0.68f, 0.72f, 1.0f } : cg2::Vector4{ 0.02f, 0.09f, 0.04f, 1.0f };
+		buttonStyle.outlineColor = locked ? cg2::Vector4{ 0.0f, 0.0f, 0.0f, 0.70f } : cg2::Vector4{ 0.78f, 1.0f, 0.82f, 0.65f };
 		SetLabel(evolutionChangeButtonLabel_, spriteCommon, locked ? "ランク不足" : "この戦車に変更", { 990.0f, 660.0f }, buttonStyle);
 
 		const auto spriteStart = std::chrono::steady_clock::now();
-		SpriteCommon::GetInstance()->PreDraw(kNormal);
+		cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 		if (evolutionBackdropSprite_) { evolutionBackdropSprite_->Draw(); ++evolutionUiProfile_.spriteDraws; }
 		if (evolutionPreviewPanelSprite_) { evolutionPreviewPanelSprite_->Draw(); ++evolutionUiProfile_.spriteDraws; }
 		if (evolutionStatsPanelSprite_) { evolutionStatsPanelSprite_->Draw(); ++evolutionUiProfile_.spriteDraws; }
@@ -7106,7 +7106,7 @@ void Player::DrawTankCodex()
 	const ImVec2 forward = ImVec2(std::cos(aimRad), std::sin(aimRad));
 	const ImVec2 right = ImVec2(-forward.y, forward.x);
 	const float bodyRadius = 38.0f;
-	auto toImColor = [](const Vector4& color) {
+	auto toImColor = [](const cg2::Vector4& color) {
 		return IM_COL32(
 			static_cast<int>(std::clamp(color.x, 0.0f, 1.0f) * 255.0f),
 			static_cast<int>(std::clamp(color.y, 0.0f, 1.0f) * 255.0f),
@@ -7660,7 +7660,7 @@ void Player::DrawPlayerClassEditor()
 		static float layoutArcRotationScale = 1.0f;
 		static bool layoutSnapAngles = true;
 		static float layoutSnapStepDeg = 15.0f;
-		static Vector3 layoutScale = { 1.25f, 0.24f, 0.24f };
+		static cg2::Vector3 layoutScale = { 1.25f, 0.24f, 0.24f };
 		ImGui::DragInt("配置数", &layoutCount, 1.0f, 1, 12);
 		ImGui::DragFloat("前方向位置", &layoutForward, 0.01f, -2.0f, 5.0f);
 		ImGui::DragFloat("横間隔", &layoutSideSpacing, 0.01f, 0.0f, 3.0f);
@@ -7718,7 +7718,7 @@ void Player::DrawPlayerClassEditor()
 			rebuildBarrels = true;
 			editedThisFrame = true;
 		};
-		auto generateRadialLayout = [&](int count, float radius, float startAngleDeg, float angleOffsetDeg, Vector3 scale, WeaponType forcedType = WeaponType::Projectile) {
+		auto generateRadialLayout = [&](int count, float radius, float startAngleDeg, float angleOffsetDeg, const cg2::Vector3& scale, WeaponType forcedType = WeaponType::Projectile) {
 			count = (std::clamp)(count, 1, 12);
 			constexpr float kDegToRad = 3.1415926535f / 180.0f;
 			config->barrels.clear();
@@ -7740,7 +7740,7 @@ void Player::DrawPlayerClassEditor()
 			rebuildBarrels = true;
 			editedThisFrame = true;
 		};
-		auto generateFixedAngleLayout = [&](const std::vector<float>& anglesDeg, float radius, Vector3 scale, bool fireAll, bool alternate, WeaponType forcedType = WeaponType::Projectile) {
+		auto generateFixedAngleLayout = [&](const std::vector<float>& anglesDeg, float radius, const cg2::Vector3& scale, bool fireAll, bool alternate, WeaponType forcedType = WeaponType::Projectile) {
 			constexpr float kDegToRad = 3.1415926535f / 180.0f;
 			config->barrels.clear();
 			config->barrels.reserve(anglesDeg.size());
@@ -7886,8 +7886,8 @@ void Player::DrawPlayerClassEditor()
 			config->barrels.clear();
 			for (float angleDeg : { 0.0f, 180.0f }) {
 				const float angleRad = angleDeg * 3.1415926535f / 180.0f;
-				const Vector3 forwardOffset = { std::cos(angleRad) * 0.72f, std::sin(angleRad) * 0.72f, 0.0f };
-				const Vector3 sideAxis = { -std::sin(angleRad), std::cos(angleRad), 0.0f };
+				const cg2::Vector3 forwardOffset = { std::cos(angleRad) * 0.72f, std::sin(angleRad) * 0.72f, 0.0f };
+				const cg2::Vector3 sideAxis = { -std::sin(angleRad), std::cos(angleRad), 0.0f };
 				for (float side : { -0.22f, 0.22f }) {
 					WeaponMountConfig barrel{};
 					applyCommonMountStyle(barrel);
@@ -8319,7 +8319,7 @@ void Player::UpdateStealth(float deltaTime) {
 	// Assassinの仕様: しばらく経つとステルス
 	if (currentClass_ == ClassType::Assassin) {
 		// 移動入力があるか、攻撃しているかをチェック
-		if (Length(velocity_) > 0.1f || input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
+		if (cg2::Length(velocity_) > 0.1f || input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
 			stealthTimer_ = 0.0f;
 			isStealth_ = false;
 		} else {
@@ -8346,7 +8346,7 @@ void Player::UpdateStealth(float deltaTime) {
 
 	// アルファ値の適用 (描画時に反映させる)
 	float targetAlpha = isStealth_ ? 0.2f : 1.0f;
-	stealthAlpha_ = Lerp(stealthAlpha_, targetAlpha, 0.1f);
+	stealthAlpha_ = cg2::Lerp(stealthAlpha_, targetAlpha, 0.1f);
 	// 実際のモデルのカラーに適用
 	object_->SetAlpha(stealthAlpha_);
 	for (BarrelModel& barrel : barrels_) {
@@ -8372,19 +8372,19 @@ void Player::UpdateSummoner(float deltaTime) {
 
 // 薬莢（スモールパーティクル）を生成する汎用関数
 void Player::SpawnCasing() {
-	ParticleManager::GetInstance()->Emit("CasingSpark", GetWorldPosition() + dir_ * 1.0f, 2);
+	cg2::ParticleManager::GetInstance()->Emit("CasingSpark", GetWorldPosition() + dir_ * 1.0f, 2);
 }
 
 // 残像を生成する関数
 void Player::SpawnAfterimage() {
-	Vector3 position = GetWorldPosition();
-	Vector3 moveDirection = velocity_;
+	cg2::Vector3 position = GetWorldPosition();
+	cg2::Vector3 moveDirection = velocity_;
 	moveDirection.z = 0.0f;
-	if (Length(moveDirection) > 0.001f) {
-		position -= Normalize(moveDirection) * 0.65f;
+	if (cg2::Length(moveDirection) > 0.001f) {
+		position -= cg2::Normalize(moveDirection) * 0.65f;
 	}
-	ParticleManager::GetInstance()->Emit("DashDust", position, 1);
-	ParticleManager::GetInstance()->EmitNeonMovementEffect(position, moveDirection);
+	cg2::ParticleManager::GetInstance()->Emit("DashDust", position, 1);
+	cg2::ParticleManager::GetInstance()->EmitNeonMovementEffect(position, moveDirection);
 }
 
 std::vector<Player::NeonBarrelLayout> Player::GetNeonBarrelLayouts() const
@@ -8461,18 +8461,18 @@ float Player::GetDamageFeedbackRatio() const
 
 // バフ中の粒子を生成
 void Player::SpawnBuffParticle() {
-	ParticleManager::GetInstance()->Emit("DashDust", GetWorldPosition(), 1);
+	cg2::ParticleManager::GetInstance()->Emit("DashDust", GetWorldPosition(), 1);
 }
-Vector2 Player::WorldToScreen(const Vector3& worldPos, Camera* camera) {
+cg2::Vector2 Player::WorldToScreen(const cg2::Vector3& worldPos, cg2::Camera* camera) {
 	// 1. ビュープロジェクション行列で変換
 	//Matrix4x4 matViewport = MakeViewportMatrix(0, 0, WinApp::kClientWidth, WinApp::kClientHeight, 0, 1);
-	Matrix4x4 matVP = camera->GetViewMatrix() * camera->GetProjectionMatrix();
-	Vector3 ndcPos = TransformMatrix(worldPos, matVP);
+	cg2::Matrix4x4 matVP = camera->GetViewMatrix() * camera->GetProjectionMatrix();
+	cg2::Vector3 ndcPos = cg2::TransformMatrix(worldPos, matVP);
 
 	// 2. NDC座標 (-1.0 ~ 1.0) をスクリーン座標 (0 ~ ウィンドウ幅/高) に変換
 	// ※ WinAppなどのシングルトンから画面サイズを取得してください
-	float screenX = (ndcPos.x + 1.0f) * 0.5f * WinApp::kClientWidth;
-	float screenY = (1.0f - ndcPos.y) * 0.5f * WinApp::kClientHeight;
+	float screenX = (ndcPos.x + 1.0f) * 0.5f * cg2::WinApp::kClientWidth;
+	float screenY = (1.0f - ndcPos.y) * 0.5f * cg2::WinApp::kClientHeight;
 
 	return { screenX, screenY };
 }

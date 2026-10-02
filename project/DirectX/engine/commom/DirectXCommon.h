@@ -15,8 +15,10 @@
 #include "Texture.h"
 #include "FramePacer.h"
 
-struct D3DResouceLeakCheaker {
-	~D3DResouceLeakCheaker()
+namespace cg2 {
+
+struct D3DResourceLeakChecker {
+	~D3DResourceLeakChecker()
 	{
 		// リソースリークチェック
 		Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
@@ -34,11 +36,7 @@ public:
 		:resource_(resource)
 	{
 	}
-	~ResourceObject() {
-		if (resource_) {
-			resource_->Release();
-		}
-	}
+	~ResourceObject() = default;
 	Microsoft::WRL::ComPtr<ID3D12Resource> Get() { return resource_; };
 
 private:
@@ -542,3 +540,4 @@ private:
 	bool currentHasDsv_ = false;
 };
 
+} // namespace cg2

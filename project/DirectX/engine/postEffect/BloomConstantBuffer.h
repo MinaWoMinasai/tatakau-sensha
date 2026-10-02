@@ -1,6 +1,8 @@
 #pragma once
 #include "DirectXCommon.h"
 
+namespace cg2 {
+
 class BloomConstantBuffer
 {
 public:
@@ -12,3 +14,5 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> resource_;
     BloomParam* mappedData_ = nullptr;
 };
+
+} // namespace cg2

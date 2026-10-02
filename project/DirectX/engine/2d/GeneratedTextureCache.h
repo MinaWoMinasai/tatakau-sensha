@@ -14,6 +14,8 @@
 // Bump the directory version whenever the procedural environment, integration
 // algorithm, sample count or output layout changes. The payload is DDS, with a
 // small integrity header so a truncated/corrupt cache always rebuilds safely.
+namespace cg2 {
+
 namespace GeneratedTextureCache {
 
 inline bool Enabled() {
@@ -116,3 +118,5 @@ inline void Store(const wchar_t* name, const DirectX::ScratchImage& image) {
 }
 
 }
+
+} // namespace cg2

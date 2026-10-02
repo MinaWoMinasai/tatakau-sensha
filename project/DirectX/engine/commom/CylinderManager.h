@@ -7,6 +7,8 @@
 #include "Calculation.h"
 #include "Struct.h"
 
+namespace cg2 {
+
 struct CylinderEffectConfig {
     float lifeTime = 0.85f;
     float startRadius = 2.0f;
@@ -53,3 +55,5 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
     Material* materialData_ = nullptr;
 };
+
+} // namespace cg2

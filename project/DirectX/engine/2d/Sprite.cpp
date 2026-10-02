@@ -1,6 +1,8 @@
 #include "Sprite.h"
 
-void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath) {
+namespace cg2 {
+
+void Sprite::Initialize(SpriteCommon* spriteCommon, const std::string& textureFilePath) {
 	spriteCommon_ = spriteCommon;
 	textureFilePath_ = textureFilePath;
 	isRenderTexture_ = false;
@@ -59,7 +61,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath)
 
 	// 単位行列を書き込んでおく
 	TextureManager::GetInstance()->LoadTexture(textureFilePath_);
-	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath_);
+	textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath_);
 
 	AdjustTextureSize();
 }
@@ -229,12 +231,12 @@ void Sprite::Draw()
 
 }
 
-void Sprite::SetTexture(std::string textureFilePath)
+void Sprite::SetTexture(const std::string& textureFilePath)
 {
 	textureFilePath_ = textureFilePath;
 	isRenderTexture_ = false;
 	TextureManager::GetInstance()->LoadTexture(textureFilePath_);
-	textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(textureFilePath_);
+	textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath_);
 	AdjustTextureSize();
 }
 
@@ -256,3 +258,5 @@ bool Sprite::IsHovered(const Vector2& mousePos) const
 	return (mousePos.x >= position_.x && mousePos.x <= position_.x + size_.x &&
 		mousePos.y >= position_.y && mousePos.y <= position_.y + size_.y);
 }
+
+} // namespace cg2

@@ -268,6 +268,24 @@ void ProceduralProperties() {
     const auto custom=GenerateExpeditionMap(9,40,12);assert(FindMapNode(custom,"tutorial_skip")->clearReward==52);
 }
 void MetadataCompatibility() {
+    // These IDs are the persisted map schema, independent of display labels.
+    constexpr std::array<const char*,7> kindIds{"combat","elite","upgrade","evolution","heal","boss","currency"};
+    for(size_t i=0;i<kindIds.size();++i) {
+        NodeKind kind{};
+        assert(ParseNodeKind(kindIds[i],kind)&&static_cast<size_t>(kind)==i);
+        assert(std::string(NodeKindId(kind))==kindIds[i]);
+        assert(GetNodeKindDefinition(kind).name[0]!='\0');
+    }
+    constexpr std::array<const char*,5> roleIds{"none","tutorial_combat","tutorial_skip","tutorial_upgrade","intro_upgrade"};
+    for(size_t i=0;i<roleIds.size();++i) {
+        NodeRole role{};
+        assert(ParseNodeRole(roleIds[i],role)&&static_cast<size_t>(role)==i);
+        assert(std::string(NodeRoleId(role))==roleIds[i]);
+    }
+    for(const int invalid:{-1,7,999}) assert(std::string(NodeKindId(static_cast<NodeKind>(invalid)))=="invalid");
+    NodeKind unchangedKind=NodeKind::Boss;NodeRole unchangedRole=NodeRole::IntroUpgrade;
+    assert(!ParseNodeKind("unknown",unchangedKind)&&unchangedKind==NodeKind::Boss);
+    assert(!ParseNodeRole("unknown",unchangedRole)&&unchangedRole==NodeRole::IntroUpgrade);
     std::string error;MapDefinition map;
     auto old=ExpeditionMapJson(DefaultExpeditionMap());old["schemaVersion"]=1;old.erase("procedural");old.erase("generationSeed");old.erase("generation");
     for(auto& node:old["nodes"]) node.erase("role");

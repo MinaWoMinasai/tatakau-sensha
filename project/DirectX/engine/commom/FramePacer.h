@@ -6,6 +6,8 @@
 
 // A frame-rate ceiling, independent of monitor refresh and GPU presentation.
 // Delayed frames start a fresh interval: no catch-up frames or 60--65 FPS gap.
+namespace cg2 {
+
 class FramePacer {
 public:
     using Clock = std::chrono::steady_clock;
@@ -111,3 +113,5 @@ private:
     Clock::time_point reference_ = Clock::now();
     Stats stats_{};
 };
+
+} // namespace cg2

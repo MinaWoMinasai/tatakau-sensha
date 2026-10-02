@@ -1,5 +1,7 @@
 #include "Shadow.h"
 
+namespace cg2 {
+
 void Shadow::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager) {
 
     dxCommon_ = dxCommon;
@@ -49,3 +51,5 @@ void Shadow::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12
     dxCommon_->GetList()->ResourceBarrier(1, &barrier);
 
 }
+
+} // namespace cg2

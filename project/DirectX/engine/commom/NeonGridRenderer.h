@@ -5,6 +5,8 @@
 #include "DirectXCommon.h"
 #include "Struct.h"
 
+namespace cg2 {
+
 class NeonGridRenderer {
 public:
     static const uint32_t kMaxVertices = 196608;
@@ -86,3 +88,5 @@ private:
     float lineSoftEdgeRatio_ = 0.42f;
     float lineCoreIntensity_ = 1.35f;
 };
+
+} // namespace cg2

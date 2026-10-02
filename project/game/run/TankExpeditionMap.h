@@ -23,38 +23,54 @@ inline std::filesystem::path ExpeditionMapPath(const std::string& path) {
 }
 enum class NodeKind { Combat, Elite, Upgrade, Evolution, Heal, Boss, Currency };
 enum class NodeRole { None, TutorialCombat, TutorialSkip, TutorialUpgrade, IntroUpgrade };
+struct NodeKindDefinition {
+    const char* id;
+    const char* icon;
+    const char* name;
+    const char* editorName;
+    std::array<float,4> color;
+    std::array<int,3> editorColor;
+};
+inline constexpr std::array<NodeKindDefinition,7> kNodeKindDefinitions{{
+    {"combat","戦","戦闘","戦闘",{0.28f,0.78f,1,1},{38,202,247}},
+    {"elite","宝","宝物庫","精鋭戦闘",{1,0.49f,0.28f,1},{255,132,65}},
+    {"upgrade","改","強化工房","強化",{1,0.83f,0.27f,1},{226,190,72}},
+    {"evolution","改","強化工房","工房（旧進化）",{1,0.83f,0.27f,1},{182,114,255}},
+    {"heal","+","修理","回復",{0.27f,1,0.63f,1},{81,240,164}},
+    {"boss","核","最終決戦","最終ボス",{1,0.25f,0.45f,1},{255,76,123}},
+    {"currency","〇","通貨を受け取る","資材支給",{1,0.82f,0.27f,1},{246,216,84}},
+}};
+inline constexpr NodeKindDefinition kInvalidNodeKind{
+    "invalid","核","最終決戦","不明",{1,0.25f,0.45f,1},{255,255,255}};
+static_assert(kNodeKindDefinitions.size()==static_cast<std::size_t>(NodeKind::Currency)+1);
+inline constexpr const NodeKindDefinition& GetNodeKindDefinition(NodeKind kind) {
+    const auto index=static_cast<std::size_t>(kind);
+    return index<kNodeKindDefinitions.size()?kNodeKindDefinitions[index]:kInvalidNodeKind;
+}
+struct NodeRoleDefinition { const char* id; const char* editorName; };
+inline constexpr std::array<NodeRoleDefinition,5> kNodeRoleDefinitions{{
+    {"none","通常"}, {"tutorial_combat","操作訓練の戦闘"},
+    {"tutorial_skip","訓練スキップ支給"}, {"tutorial_upgrade","訓練後の改造"},
+    {"intro_upgrade","スキップ後の初期改造"},
+}};
+static_assert(kNodeRoleDefinitions.size()==static_cast<std::size_t>(NodeRole::IntroUpgrade)+1);
 inline const char* NodeRoleId(NodeRole role) {
-    switch(role) {
-    case NodeRole::None:return "none";
-    case NodeRole::TutorialCombat:return "tutorial_combat";
-    case NodeRole::TutorialSkip:return "tutorial_skip";
-    case NodeRole::TutorialUpgrade:return "tutorial_upgrade";
-    case NodeRole::IntroUpgrade:return "intro_upgrade";
-    }
-    return "invalid";
+    const auto index=static_cast<std::size_t>(role);
+    return index<kNodeRoleDefinitions.size()?kNodeRoleDefinitions[index].id:"invalid";
 }
 inline bool ParseNodeRole(const std::string& text,NodeRole& output) {
-    for(const auto role:{NodeRole::None,NodeRole::TutorialCombat,NodeRole::TutorialSkip,NodeRole::TutorialUpgrade,NodeRole::IntroUpgrade})
-        if(text==NodeRoleId(role)) {output=role;return true;}
+    for(std::size_t i=0;i<kNodeRoleDefinitions.size();++i)
+        if(text==kNodeRoleDefinitions[i].id) {output=static_cast<NodeRole>(i);return true;}
     return false;
 }
 inline bool IsIntroUpgrade(NodeRole role) {return role==NodeRole::TutorialUpgrade||role==NodeRole::IntroUpgrade;}
 
 inline const char* NodeKindId(NodeKind kind) {
-    switch(kind) {
-    case NodeKind::Combat:return "combat";
-    case NodeKind::Elite:return "elite";
-    case NodeKind::Upgrade:return "upgrade";
-    case NodeKind::Evolution:return "evolution";
-    case NodeKind::Heal:return "heal";
-    case NodeKind::Boss:return "boss";
-    case NodeKind::Currency:return "currency";
-    }
-    return "invalid";
+    return GetNodeKindDefinition(kind).id;
 }
 inline bool ParseNodeKind(const std::string& text,NodeKind& output) {
-    for(const auto kind:{NodeKind::Combat,NodeKind::Elite,NodeKind::Upgrade,NodeKind::Evolution,NodeKind::Heal,NodeKind::Boss,NodeKind::Currency}) {
-        if(text==NodeKindId(kind)) {output=kind;return true;}
+    for(std::size_t i=0;i<kNodeKindDefinitions.size();++i) {
+        if(text==kNodeKindDefinitions[i].id) {output=static_cast<NodeKind>(i);return true;}
     }
     return false;
 }

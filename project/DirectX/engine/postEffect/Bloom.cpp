@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+namespace cg2 {
+
 namespace {
 
 float Halton(uint32_t index, uint32_t base) {
@@ -1143,3 +1145,5 @@ void Bloom::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_
     dxCommon_->GetList()->ResourceBarrier(1, &barrier);
 
 }
+
+} // namespace cg2

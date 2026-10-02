@@ -3,6 +3,8 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "xinput.lib")
 
+namespace cg2 {
+
 Input* Input::GetInstance()
 {
 	static Input instance;
@@ -188,3 +190,5 @@ Vector2 Input::GetMousePosition() const {
 	ScreenToClient(hwnd_, &point);      // ウィンドウ座標に変換
 	return Vector2{ static_cast<float>(point.x), static_cast<float>(point.y) };
 }
+
+} // namespace cg2

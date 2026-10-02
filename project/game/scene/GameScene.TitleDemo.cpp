@@ -1,3 +1,4 @@
+#include "game/weapon/CombatTypes.h"
 #include "GameScene.h"
 #include "game/player/TankRunModifiers.h"
 #include "game/run/TankExpeditionEncounters.h"
@@ -10,9 +11,9 @@ namespace {
 constexpr uint32_t kTitleSeed = 20260925u;
 constexpr float kDemoStageSeconds = 20.0f;
 
-bool ClearShot(Stage& stage, const Vector3& from, const Vector3& to) {
-    const Vector3 delta = to - from;
-    const int steps = (std::max)(1, static_cast<int>(Length(delta) / 0.6f));
+bool ClearShot(Stage& stage, const cg2::Vector3& from, const cg2::Vector3& to) {
+    const cg2::Vector3 delta = to - from;
+    const int steps = (std::max)(1, static_cast<int>(cg2::Length(delta) / 0.6f));
     for (int i = 1; i < steps; ++i)
         if (stage.IsCollisionWithAnyBlock(from + delta * (static_cast<float>(i) / steps), 0.35f)) return false;
     return true;
@@ -20,17 +21,17 @@ bool ClearShot(Stage& stage, const Vector3& from, const Vector3& to) {
 
 // A tiny fixed-grid path is enough to prevent the attract player from spending
 // its whole scene shooting a wall. Combat, bullets and collisions remain real.
-std::vector<Vector3> FindDemoPath(Stage& stage, const Vector3& from, const Vector3& target) {
+std::vector<cg2::Vector3> FindDemoPath(Stage& stage, const cg2::Vector3& from, const cg2::Vector3& target) {
     constexpr int width = 44, height = 28, count = width * height;
-    const auto position = [](int cell) { return Vector3{1.0f + 2.0f * (cell % width), 1.0f + 2.0f * (cell / width), 0}; };
-    const auto index = [](const Vector3& p) {
+    const auto position = [](int cell) { return cg2::Vector3{1.0f + 2.0f * (cell % width), 1.0f + 2.0f * (cell / width), 0}; };
+    const auto index = [](const cg2::Vector3& p) {
         return (std::clamp)(static_cast<int>(std::round((p.y - 1) / 2)), 0, height - 1) * width +
             (std::clamp)(static_cast<int>(std::round((p.x - 1) / 2)), 0, width - 1);
     };
     std::array<int, count> parent; parent.fill(-1);
     const int start = index(from); parent[start] = start;
     std::queue<int> pending; pending.push(start);
-    int best = start; float bestDistance = Length(position(start) - target);
+    int best = start; float bestDistance = cg2::Length(position(start) - target);
     while (!pending.empty()) {
         const int cell = pending.front(); pending.pop();
         const int x = cell % width, y = cell / width;
@@ -39,11 +40,11 @@ std::vector<Vector3> FindDemoPath(Stage& stage, const Vector3& from, const Vecto
         for (int next : adjacent) {
             if (next < 0 || parent[next] >= 0 || stage.IsCollisionWithAnyBlock(position(next), 0.85f)) continue;
             parent[next] = cell; pending.push(next);
-            const float distance = Length(position(next) - target);
+            const float distance = cg2::Length(position(next) - target);
             if (distance < bestDistance) { best = next; bestDistance = distance; }
         }
     }
-    std::vector<Vector3> path;
+    std::vector<cg2::Vector3> path;
     while (best != start) { path.push_back(position(best)); best = parent[best]; }
     std::reverse(path.begin(), path.end());
     return path;
@@ -122,7 +123,7 @@ void GameScene::ResetTitleDemoStage(int stage) {
     }
     StartTankExpeditionRoom();
     player_->SetDebugNoDamage(true);
-    player_->SetDemoInput(true, {}, player_->GetWorldPosition() + Vector3{1,0,0}, false, false);
+    player_->SetDemoInput(true, {}, player_->GetWorldPosition() + cg2::Vector3{1,0,0}, false, false);
     tankRunMenuAge_ = 0;
     tankExpeditionAudio_.SetMusicVolume(0); tankExpeditionAudio_.SetEffectsVolume(0);
 }
@@ -148,7 +149,7 @@ void GameScene::UpdateTitleDemo(float dt) {
     tankRunMenuAge_ += dt;
     const auto phase = tankExpedition_.GetPhase();
     if (phase != tankexp::Phase::Combat) {
-        player_->SetDemoInput(true, {}, player_->GetWorldPosition() + Vector3{1,0,0}, false, false);
+        player_->SetDemoInput(true, {}, player_->GetWorldPosition() + cg2::Vector3{1,0,0}, false, false);
         if (tankRunMenuAge_ > 0.35f && titleDemoRoomFade_>=1.0f) {
             const int option = phase == tankexp::Phase::Route && tankExpedition_.GetRouteRound() == 0 ? 1 : 0;
             SelectTankExpeditionOption(option);
@@ -170,20 +171,20 @@ void GameScene::UpdateTitleDemo(float dt) {
         FinishTankExpeditionRoom(); return;
     }
     tankExpedition_.Update(dt); tankRun_.Update(dt); tankExpeditionArrival_ += dt;
-    const Vector3 origin = player_->GetWorldPosition();
-    Vector3 aim = origin + Vector3{10,0,0}; float distance = 10000; bool found = false;
-    const auto consider = [&](const Vector3& point, bool threat) {
-        const float actualDistance = Length(point - origin);
+    const cg2::Vector3 origin = player_->GetWorldPosition();
+    cg2::Vector3 aim = origin + cg2::Vector3{10,0,0}; float distance = 10000; bool found = false;
+    const auto consider = [&](const cg2::Vector3& point, bool threat) {
+        const float actualDistance = cg2::Length(point - origin);
         const float score = actualDistance + (ClearShot(*stage_, origin, point) ? 0.0f : 25.0f) + (threat ? 0.0f : 100.0f);
         if (score < distance) { distance = score; aim = point; found = true; }
     };
     for (auto* actor : enemyManager_->GetEnemyPtrs()) if (actor && !actor->IsDead())
         consider(actor->GetWorldPosition(), actor->IsCombatThreat() || actor->IsRunResource());
     if (IsRunRivalActive() && !enemy_->IsDead()) consider(enemy_->GetWorldPosition(), true);
-    Vector3 move{};
+    cg2::Vector3 move{};
     if (found) {
-        const Vector3 toTarget = aim - origin; const float range = Length(toTarget);
-        const Vector3 heading = range > 0.01f ? toTarget * (1.0f / range) : Vector3{1,0,0};
+        const cg2::Vector3 toTarget = aim - origin; const float range = cg2::Length(toTarget);
+        const cg2::Vector3 heading = range > 0.01f ? toTarget * (1.0f / range) : cg2::Vector3{1,0,0};
         const bool visible = ClearShot(*stage_, origin, aim);
         titleDemoNavigationTimer_ -= dt;
         if (titleDemoNavigationTimer_ <= 0) {
@@ -191,21 +192,21 @@ void GameScene::UpdateTitleDemo(float dt) {
             titleDemoNavigationTimer_ = 0.45f;
         }
         if ((!visible || range > 9) && !titleDemoPath_.empty()) {
-            while (titleDemoPath_.size() > 1 && Length(titleDemoPath_.front() - origin) < 1.1f) titleDemoPath_.erase(titleDemoPath_.begin());
+            while (titleDemoPath_.size() > 1 && cg2::Length(titleDemoPath_.front() - origin) < 1.1f) titleDemoPath_.erase(titleDemoPath_.begin());
             move = titleDemoPath_.front() - origin;
         } else {
             const float orbit = static_cast<int>(titleDemoStatus_.stageSeconds / 3.0f) % 2 ? -1.0f : 1.0f;
-            move = Vector3{-heading.y, heading.x, 0} * orbit + heading * (range < 5.0f ? -0.8f : 0.15f);
+            move = cg2::Vector3{-heading.y, heading.x, 0} * orbit + heading * (range < 5.0f ? -0.8f : 0.15f);
         }
-        const float magnitude = Length(move); if (magnitude > 0.01f) move = move * (1.0f / magnitude);
+        const float magnitude = cg2::Length(move); if (magnitude > 0.01f) move = move * (1.0f / magnitude);
         if (stage_->IsCollisionWithAnyBlock(origin + move * 1.6f, 0.9f)) {
-            const Vector3 tangent{-move.y, move.x, 0};
+            const cg2::Vector3 tangent{-move.y, move.x, 0};
             move = !stage_->IsCollisionWithAnyBlock(origin + tangent * 1.6f, 0.9f) ? tangent : tangent * -1.0f;
         }
     }
     bool danger = false;
     for (auto* bullet : bulletManager_->GetBulletPtrs()) if (bullet && !bullet->IsDead() && bullet->GetOwner() != kPlayer &&
-        Length(bullet->GetWorldPosition() - origin) < 4.0f) { danger = true; break; }
+        cg2::Length(bullet->GetWorldPosition() - origin) < 4.0f) { danger = true; break; }
     player_->SetDemoInput(true, {move.x, move.y}, aim, found, danger && !player_->IsDashing());
 }
 

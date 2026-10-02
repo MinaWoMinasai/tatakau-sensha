@@ -4,9 +4,9 @@
 
 namespace {
 
-void ApplyBloomStyle(ObjectPostEffect& effect, const NeonTextEffectStyle& style, float intensity)
+void ApplyBloomStyle(cg2::ObjectPostEffect& effect, const NeonTextEffectStyle& style, float intensity)
 {
-	BloomParam param = effect.GetParam();
+	cg2::BloomParam param = effect.GetParam();
 	param.threshold = (std::max)(0.0f, style.threshold);
 	param.intensity = (std::max)(0.0f, intensity);
 	param.outlineWidth = 0.0f;
@@ -18,14 +18,14 @@ void ApplyBloomStyle(ObjectPostEffect& effect, const NeonTextEffectStyle& style,
 } // namespace
 
 void NeonTextEffect::Initialize(
-	DirectXCommon* dxCommon,
-	SrvManager* srvManager,
-	RtvManager* rtvManager)
+	cg2::DirectXCommon* dxCommon,
+	cg2::SrvManager* srvManager,
+	cg2::RtvManager* rtvManager)
 {
-	spriteCommon_ = SpriteCommon::GetInstance();
-	innerEffect_ = std::make_unique<ObjectPostEffect>();
+	spriteCommon_ = cg2::SpriteCommon::GetInstance();
+	innerEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	innerEffect_->Initialize(dxCommon, srvManager, rtvManager, 1.0f);
-	outerEffect_ = std::make_unique<ObjectPostEffect>();
+	outerEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	outerEffect_->Initialize(dxCommon, srvManager, rtvManager, 0.4f);
 	SetStyle(style_);
 }
@@ -44,7 +44,7 @@ void NeonTextEffect::SetStyle(const NeonTextEffectStyle& style)
 	}
 }
 
-void NeonTextEffect::DrawBloom(const std::vector<TextLabel*>& labels)
+void NeonTextEffect::DrawBloom(const std::vector<cg2::TextLabel*>& labels)
 {
 	if (!style_.enabled || !innerEffect_ || !outerEffect_ || labels.empty()) {
 		return;
@@ -59,9 +59,9 @@ void NeonTextEffect::ClearSources()
 	sources_.clear();
 }
 
-void NeonTextEffect::SynchronizeSources(const std::vector<TextLabel*>& labels)
+void NeonTextEffect::SynchronizeSources(const std::vector<cg2::TextLabel*>& labels)
 {
-	for (TextLabel* label : labels) {
+	for (cg2::TextLabel* label : labels) {
 		if (!label) {
 			continue;
 		}
@@ -71,7 +71,7 @@ void NeonTextEffect::SynchronizeSources(const std::vector<TextLabel*>& labels)
 		}
 		GlowSource& source = sources_[label];
 		if (!source.sprite) {
-			source.sprite = std::make_unique<Sprite>();
+			source.sprite = std::make_unique<cg2::Sprite>();
 			source.sprite->Initialize(spriteCommon_, label->GetTexturePath());
 			source.texturePath = label->GetTexturePath();
 		} else if (source.texturePath != label->GetTexturePath()) {
@@ -79,7 +79,7 @@ void NeonTextEffect::SynchronizeSources(const std::vector<TextLabel*>& labels)
 			source.texturePath = label->GetTexturePath();
 		}
 
-		Sprite* sharp = label->GetSprite();
+		cg2::Sprite* sharp = label->GetSprite();
 		source.sprite->SetPosition(sharp->GetPosition());
 		source.sprite->SetRotation(sharp->GetRotation());
 		source.sprite->SetSize(sharp->GetSize());
@@ -95,11 +95,11 @@ void NeonTextEffect::SynchronizeSources(const std::vector<TextLabel*>& labels)
 	}
 }
 
-void NeonTextEffect::DrawLayer(ObjectPostEffect& effect, const std::vector<TextLabel*>& labels)
+void NeonTextEffect::DrawLayer(cg2::ObjectPostEffect& effect, const std::vector<cg2::TextLabel*>& labels)
 {
 	effect.BeginCapture();
-	SpriteCommon::GetInstance()->PreDrawForScene(kNormal);
-	for (TextLabel* label : labels) {
+	cg2::SpriteCommon::GetInstance()->PreDrawForScene(cg2::kNormal);
+	for (cg2::TextLabel* label : labels) {
 		const auto found = sources_.find(label);
 		if (found != sources_.end() && found->second.sprite) {
 			found->second.sprite->Draw();

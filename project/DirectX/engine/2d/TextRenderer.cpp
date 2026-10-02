@@ -12,6 +12,8 @@
 
 #pragma comment(lib, "gdiplus.lib")
 
+namespace cg2 {
+
 namespace {
 
 Gdiplus::Color ToGdiColor(const Vector4& color)
@@ -58,30 +60,32 @@ struct TextRendererFontStore {
 	std::unordered_set<std::wstring> registeredPaths;
 };
 
-TextRenderer* TextRenderer::instance_ = nullptr;
-
 TextRenderer::TextRenderer() = default;
 
 TextRenderer* TextRenderer::GetInstance()
 {
-	if (!instance_) {
-		instance_ = new TextRenderer();
-	}
-	return instance_;
+	static TextRenderer instance;
+	return &instance;
 }
 
 TextRenderer::~TextRenderer()
+{
+	Finalize();
+}
+
+void TextRenderer::Finalize()
 {
 	fontStore_.reset();
 	if (initialized_) {
 		Gdiplus::GdiplusShutdown(gdiplusToken_);
 	}
-}
-
-void TextRenderer::Finalize()
-{
-	delete instance_;
-	instance_ = nullptr;
+	initialized_ = false;
+	gdiplusToken_ = 0;
+	fontOverride_ = {};
+	fontRevision_ = 1;
+#if defined(USE_IMGUI) && !defined(NDEBUG)
+	lastGetOrCreateTextureProfile_ = {};
+#endif
 }
 
 std::string TextRenderer::GetOrCreateTexture(const std::string& utf8Text, const TextStyle& style)
@@ -290,3 +294,5 @@ bool TextRenderer::SaveTextPng(const std::wstring& text, const TextStyle& style,
 	const std::wstring widePath = ToWidePath(path);
 	return bitmap.Save(widePath.c_str(), &pngClsid, nullptr) == Gdiplus::Ok;
 }
+
+} // namespace cg2

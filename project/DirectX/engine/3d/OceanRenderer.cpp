@@ -17,6 +17,8 @@
 #include "Model.h"
 #include "Object3dCommon.h"
 
+namespace cg2 {
+
 namespace {
 constexpr size_t AlignConstantBufferSize(size_t size)
 {
@@ -2963,3 +2965,5 @@ void OceanRenderer::DrawProjectedGrid()
 		0,
 		0);
 }
+
+} // namespace cg2

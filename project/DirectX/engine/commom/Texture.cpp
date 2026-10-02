@@ -1,5 +1,7 @@
 #include "Texture.h"
 
+namespace cg2 {
+
 Microsoft::WRL::ComPtr<ID3D12Resource> Texture::CreateBufferResource(Microsoft::WRL::ComPtr<ID3D12Device>& device, size_t sizeInBytes)
 {
 
@@ -76,7 +78,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Texture::CreateResource(Microsoft::WRL::C
 	return resource;
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> Texture::CreateDepthStencilResouce(Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height)
+Microsoft::WRL::ComPtr<ID3D12Resource> Texture::CreateDepthStencilResource(Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height)
 {
 
 	// 生成するResourceの設定
@@ -133,3 +135,5 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Texture::UploadData(Microsoft::WRL::ComPt
 	return intermediateResource;
 
 }
+
+} // namespace cg2

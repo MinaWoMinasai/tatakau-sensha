@@ -4,6 +4,8 @@
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 #include <chrono>
 #endif
+namespace cg2 {
+
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 TextLabel::ProfileStats TextLabel::profileStats_{};
@@ -249,3 +251,5 @@ bool TextLabel::IsSameStyle(const TextStyle& style) const
 		style_.padding == style.padding &&
 		style_.preserveOutline == style.preserveOutline;
 }
+
+} // namespace cg2

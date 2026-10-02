@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+namespace cg2 {
+
 struct SkeletonNode {
 	QuaternionTransform transform{};
 	std::string name;
@@ -53,3 +55,5 @@ private:
 		const std::optional<int32_t>& parent,
 		std::vector<Joint>& joints);
 };
+
+} // namespace cg2

@@ -7,6 +7,7 @@
 #include <thread>
 
 namespace fs = std::filesystem;
+using cg2::StartupTrace;
 
 static nlohmann::json Read(const fs::path& path) {
     std::ifstream input(path, std::ios::binary);

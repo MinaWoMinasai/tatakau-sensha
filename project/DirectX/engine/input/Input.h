@@ -1,10 +1,15 @@
 #pragma once
 #include <format>
+#ifndef DIRECTINPUT_VERSION
+#define DIRECTINPUT_VERSION 0x0800
+#endif
 #include <dinput.h>
 #include <span>
 #include <cassert>
 #include <Xinput.h>
 #include "Struct.h"
+
+namespace cg2 {
 
 class Input {
 
@@ -69,3 +74,5 @@ private:
 	IDirectInputDevice8* mouse_ = nullptr;
 	IDirectInputDevice8* keyboard_ = nullptr;
 };
+
+} // namespace cg2

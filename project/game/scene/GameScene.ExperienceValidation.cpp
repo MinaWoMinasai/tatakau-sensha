@@ -102,11 +102,11 @@ void GameScene::BeginExperienceMeleeProbe() {
     if(!player_->HasExpeditionCombatStyle()||player_->GetExpeditionCombatStyle()!=static_cast<tankbuild::Style>(experienceValidationStyle_))
         experienceValidationErrors_.push_back("Chosen base style was not equipped after introduction");
     ApplyTankRunCards();
-    const Vector3 position=player_->GetWorldPosition();
-    const std::array<Vector3,4> directions{Vector3{1,0,0},Vector3{0,1,0},Vector3{-1,0,0},Vector3{0,-1,0}};
+    const cg2::Vector3 position=player_->GetWorldPosition();
+    const std::array<cg2::Vector3,4> directions{cg2::Vector3{1,0,0},cg2::Vector3{0,1,0},cg2::Vector3{-1,0,0},cg2::Vector3{0,-1,0}};
     bool spawned=false;
     for(const auto& direction:directions) {
-        const Vector3 target=position+direction*3.1f;
+        const cg2::Vector3 target=position+direction*3.1f;
         if(stage_->IsCollisionWithAnyBlock(target,1.0f)||stage_->IsCollisionWithAnyBlock(position+direction*1.6f,0.8f)) continue;
         if(enemyManager_->SpawnLevelEnemy(target,"tutorial_target",500)) {
             experienceMeleeTargetStart_=target;spawned=true;break;
@@ -132,7 +132,7 @@ bool GameScene::UpdateExperienceValidation(float dt) {
         WriteExperienceValidationReport(false);
     }
     experienceValidationStateAge_+=dt;
-    player_->SetDemoInput(true,{},player_->GetWorldPosition()+Vector3{1,0,0},false,false);
+    player_->SetDemoInput(true,{},player_->GetWorldPosition()+cg2::Vector3{1,0,0},false,false);
     if(expeditionGuideActive_) experienceGuideStageMask_|=1u<<static_cast<unsigned>(stage);
     for(const auto& orb:expeditionCredits_) {
         if(!orb.flying) ++experienceGroundOrbSamples_;
@@ -225,16 +225,16 @@ bool GameScene::UpdateExperienceValidation(float dt) {
             if(player_->IsDashing()) CaptureExperienceValidation("dash");
             const auto bullets=bulletManager_->GetBulletCounts();
             const bool request=experienceValidationStateAge_>0.6f&&!player_->IsDashing();
-            const Vector2 move=(request||player_->IsDashing())?Vector2{0,1}:Vector2{};
-            player_->SetDemoInput(true,move,player_->GetWorldPosition()+Vector3{0,1,0},false,request);
+            const cg2::Vector2 move=(request||player_->IsDashing())?cg2::Vector2{0,1}:cg2::Vector2{};
+            player_->SetDemoInput(true,move,player_->GetWorldPosition()+cg2::Vector3{0,1,0},false,request);
             return false;
         }
         if(stage==S::Upgrade) { experienceSuccessfulDashes_=expeditionGuide_.GetCompletedDashes(); if(player_->GetHp()!=player_->GetMaxHp()) experienceValidationErrors_.push_back("Tutorial practice reduced HP"); }
         if(stage==S::Collect) {
             CaptureExperienceValidation("collect");
             if(!expeditionCredits_.empty()) {
-                Vector3 move=expeditionCredits_.front().position-player_->GetWorldPosition();
-                if(Length(move)>0.1f) move=Normalize(move);
+                cg2::Vector3 move=expeditionCredits_.front().position-player_->GetWorldPosition();
+                if(cg2::Length(move)>0.1f) move=cg2::Normalize(move);
                 player_->SetDemoInput(true,{move.x,move.y},expeditionCredits_.front().position,false,false);
             }
             return false;
@@ -273,7 +273,7 @@ bool GameScene::UpdateExperienceValidation(float dt) {
             if(actors.empty()) {experienceValidationErrors_.push_back("Melee target disappeared");return false;}
             auto* target=actors.front();
             experienceMeleeMinHp_=(std::min)(experienceMeleeMinHp_,target->GetHp());
-            experienceMeleeDisplacement_=(std::max)(experienceMeleeDisplacement_,Length(target->GetWorldPosition()-experienceMeleeTargetStart_));
+            experienceMeleeDisplacement_=(std::max)(experienceMeleeDisplacement_,cg2::Length(target->GetWorldPosition()-experienceMeleeTargetStart_));
             experienceMeleeSlashSamples_+=static_cast<int>(playerMeleeSlashes_.size());
             experienceMeleeBulletSamples_+=static_cast<int>(bulletManager_->GetBulletCounts().player);
             experienceDroneSamples_+=static_cast<int>(player_->GetDronePtrs().size());
@@ -329,7 +329,7 @@ bool GameScene::UpdateExperienceValidation(float dt) {
 void GameScene::RecordSubmissionUi(const std::string& screen) {
     auto& check=tanksubmission::state;
     auto text=nlohmann::json::array();
-    auto add=[&](const TextLabel* label){if(label&&!label->GetText().empty())text.push_back(label->GetText());};
+    auto add=[&](const cg2::TextLabel* label){if(label&&!label->GetText().empty())text.push_back(label->GetText());};
     const bool mapScreen=expeditionMapRun_.IsChoosing()||IsExpeditionBuildCardScreen()||
         (expeditionMapRun_.GetActiveNode()&&!tankexp::IsCombatNode(expeditionMapRun_.GetActiveNode()->kind));
     add(tankRunHud_.get());add(tankRunObjectiveText_.get());

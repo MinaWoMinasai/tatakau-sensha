@@ -12,16 +12,16 @@ constexpr std::array<tankrun::CardId,15> kSpecialEffects{tankrun::CardId::RailCa
     tankrun::CardId::SlashWave,tankrun::CardId::ParryBlade,tankrun::CardId::ChainLightning,tankrun::CardId::MarkDetonation,
     tankrun::CardId::BoomerangShell,tankrun::CardId::KillBurst,tankrun::CardId::DroneCharge,tankrun::CardId::DroneRebuildBomb,
     tankrun::CardId::TargetPainter,tankrun::CardId::AutonomousSpread,tankrun::CardId::DashSlash,tankrun::CardId::SpinBlade,tankrun::CardId::WallSmash};
-Vector3 ProbePosition(int index,size_t actor,float age) {
+cg2::Vector3 ProbePosition(int index,size_t actor,float age) {
     switch(index) {
     case 0:return {38+4*static_cast<float>(actor),29,0};
     case 1:return {age>1.2f?28.25f:25.0f,29,0};
     case 2:return {38.6f,29,0};
-    case 4:return actor==0?Vector3{38,29,0}:actor==1?Vector3{41,32,0}:Vector3{44,31,0};
-    case 7:return actor==0?Vector3{38,29,0}:actor==1?Vector3{38,32,0}:Vector3{38,26,0};
+    case 4:return actor==0?cg2::Vector3{38,29,0}:actor==1?cg2::Vector3{41,32,0}:cg2::Vector3{44,31,0};
+    case 7:return actor==0?cg2::Vector3{38,29,0}:actor==1?cg2::Vector3{38,32,0}:cg2::Vector3{38,26,0};
     case 11:return {38,25+4*static_cast<float>(actor),0};
-    case 13:return actor==0?Vector3{33,29,0}:Vector3{27,29,0};
-    case 14:return actor==0?Vector3{65.5f,29,0}:Vector3{65,31.5f,0};
+    case 13:return actor==0?cg2::Vector3{33,29,0}:cg2::Vector3{27,29,0};
+    case 14:return actor==0?cg2::Vector3{65.5f,29,0}:cg2::Vector3{65,31.5f,0};
     default:return {38,29,0};
     }
 }
@@ -82,7 +82,7 @@ bool GameScene::UpdateSpecialValidation(float dt) {
         enemyManager_->ClearRunActors();bulletManager_->ClearAll();enemy_->SetRunEncounterEnabled(false);tankExpeditionRivalActive_=false;
         playerMeleeSlashes_.clear();playerLaserBeams_.clear();playerMines_.clear();expeditionHitSparks_.clear();
         if(playerMeleeTrailManager_)playerMeleeTrailManager_->ClearInstances();
-        player_->ResetRunRoomState(index==14?Vector3{62,29,0}:Vector3{30,29,0});player_->SetDebugNoDamage(true);
+        player_->ResetRunRoomState(index==14?cg2::Vector3{62,29,0}:cg2::Vector3{30,29,0});player_->SetDebugNoDamage(true);
         tankRun_.Reset(20260927);tankRun_.ChooseLoadout(0);tankRun_.ChooseCore(0);
         if(!tankRun_.GrantExpeditionModules({kSpecialEffects[static_cast<size_t>(index)]}))fail("Could not grant actual expedition module");
         if(index==12)tankRun_.GrantExpeditionModules({tankrun::CardId::SlashWave});
@@ -92,7 +92,7 @@ bool GameScene::UpdateSpecialValidation(float dt) {
         expeditionBuildStyle_=index==0||(index>=4&&index<=7)?tankbuild::Style::Shooter:
             index==1||(index>=8&&index<=11)?tankbuild::Style::Drone:tankbuild::Style::Melee;
         if(!player_->SetExpeditionCombatStyle(expeditionBuildStyle_))fail("Could not equip style");
-        player_->SetDemoInput(true,{},index==14?Vector3{68,29,0}:Vector3{50,29,0},false,false);
+        player_->SetDemoInput(true,{},index==14?cg2::Vector3{68,29,0}:cg2::Vector3{50,29,0},false,false);
         const auto stats=player_->GetSpecialCombatStats();
         specialValidation_["before"]={{"railShots",stats.railShots},{"linkTicks",stats.linkTicks},{"slashWaves",stats.slashWaves},{"parries",stats.parries},{"perfectParries",stats.perfectParries},
             {"droneCharges",stats.droneCharges},{"droneChargeHits",stats.droneChargeHits},{"droneBombs",stats.droneBombs},{"droneRebuilds",stats.droneRebuilds},
@@ -121,7 +121,7 @@ bool GameScene::UpdateSpecialValidation(float dt) {
     specialValidation_["maxLinks"]=(std::max)(specialValidation_.value("maxLinks",0),static_cast<int>(player_->GetDroneLaserLinks().size()));
     for(auto* bullet:bulletManager_->GetBulletPtrs()) {
         if(bullet->GetSpecialKind()==Bullet::SpecialKind::Rail) {specialValidation_["railSamples"]=specialValidation_.value("railSamples",0)+1;capture("rail_fire");}
-        if(bullet->GetSpecialKind()==Bullet::SpecialKind::SlashWave) {specialValidation_["waveSamples"]=specialValidation_.value("waveSamples",0)+1;if(Length(bullet->GetWorldPosition()-player_->GetWorldPosition())>4.5f)capture("slash_wave");}
+        if(bullet->GetSpecialKind()==Bullet::SpecialKind::SlashWave) {specialValidation_["waveSamples"]=specialValidation_.value("waveSamples",0)+1;if(cg2::Length(bullet->GetWorldPosition()-player_->GetWorldPosition())>4.5f)capture("slash_wave");}
         // Latch the first cut: a later, separately timed sword swing may finish it.
         if(index==3&&bullet->GetOwner()==kEnemy&&bullet->GetDamage()==13&&bullet->GetBulletHp()<12&&specialValidation_.value("armoredRemaining",12.0f)==12)
             specialValidation_["armoredRemaining"]=bullet->GetBulletHp();
@@ -134,7 +134,7 @@ bool GameScene::UpdateSpecialValidation(float dt) {
     if(index==4||index==6||index==7)shoot=age>.35f&&age<.46f;
     bool dash=false;
     if((index==12||index==14)&&age>.42f&&!specialValidation_.value("dashInjected",false)) {dash=true;specialValidation_["dashInjected"]=true;}
-    player_->SetDemoInput(true,{},index==14?Vector3{68,29,0}:index>=8&&index<=11?Vector3{38,29,0}:Vector3{50,29,0},shoot,dash);
+    player_->SetDemoInput(true,{},index==14?cg2::Vector3{68,29,0}:index>=8&&index<=11?cg2::Vector3{38,29,0}:cg2::Vector3{50,29,0},shoot,dash);
     if(index>=8&&index<=11) {
         int available=0;bool escort=true;
         for(auto* drone:player_->GetDronePtrs()) {if(drone->IsRunAvailable())++available;if(drone->GetRunMission().GetPhase()!=tankspecial::DronePhase::Escort)escort=false;}
@@ -142,7 +142,7 @@ bool GameScene::UpdateSpecialValidation(float dt) {
         if(escort&&stats.droneChargeHits>before.value("droneChargeHits",0u))specialValidation_["returnedEscort"]=true;
     }
     if(index==13&&player_->GetSpinBladeRatio()>.35f&&!specialValidation_.value("spinCutInjected",false)) {
-        auto shot=std::make_unique<Bullet>();shot->Initialize(player_->GetWorldPosition()+Vector3{-2.5f,0,0},{.01f,0,0},7,kEnemy,false,6,1);
+        auto shot=std::make_unique<Bullet>();shot->Initialize(player_->GetWorldPosition()+cg2::Vector3{-2.5f,0,0},{.01f,0,0},7,kEnemy,false,6,1);
         shot->ConfigureGrowth(0,0,0);bulletManager_->Add(std::move(shot));specialValidation_["spinCutInjected"]=true;
         specialValidation_["perfectAtSpin"]=stats.perfectParries;specialValidation_["parryAtSpin"]=stats.parries;
     }
@@ -160,7 +160,7 @@ bool GameScene::UpdateSpecialValidation(float dt) {
     if(index==13&&player_->GetSpinBladeRatio()>.3f)capture("spin_blade");
     if(index==14&&stats.wallSmashes>before.value("wallSmashes",0u))capture("wall_smash");
     if(index==3) {
-        const auto spawn=[&](float hp,uint32_t damage,Vector3 offset) {auto b=std::make_unique<Bullet>();b->Initialize(player_->GetWorldPosition()+offset,{-.02f,0,0},damage,kEnemy,false,hp,1);b->ConfigureGrowth(0,0,0);bulletManager_->Add(std::move(b));};
+        const auto spawn=[&](float hp,uint32_t damage,const cg2::Vector3& offset) {auto b=std::make_unique<Bullet>();b->Initialize(player_->GetWorldPosition()+offset,{-.02f,0,0},damage,kEnemy,false,hp,1);b->ConfigureGrowth(0,0,0);bulletManager_->Add(std::move(b));};
         for(const auto& slash:playerMeleeSlashes_) {
             const float active=slash.elapsed-slash.windupDuration;
             if(!specialValidation_.value("normalInjected",false)&&slash.finisher&&active>.125f&&active<.165f) {

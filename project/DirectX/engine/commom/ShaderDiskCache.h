@@ -5,6 +5,7 @@
 #include <bcrypt.h>
 #include <dxcapi.h>
 #include <wrl.h>
+#include <wrl/implements.h>
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -18,6 +19,8 @@
 
 #pragma comment(lib, "bcrypt.lib")
 
+namespace cg2 {
+
 class ShaderDiskCache {
 public:
     struct Dependency {
@@ -28,25 +31,10 @@ public:
 
     // DXC calls this for each include candidate, including unsuccessful probes.
     // Recording missing candidates also catches a newly created, higher-priority include.
-    class IncludeRecorder final : public IDxcIncludeHandler {
+    class IncludeRecorder final : public Microsoft::WRL::RuntimeClass<
+        Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDxcIncludeHandler> {
     public:
         explicit IncludeRecorder(IDxcIncludeHandler* inner) : inner_(inner) {}
-        HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** object) override {
-            if (!object) return E_POINTER;
-            *object = nullptr;
-            if (iid == __uuidof(IUnknown) || iid == __uuidof(IDxcIncludeHandler)) {
-                *object = static_cast<IDxcIncludeHandler*>(this);
-                AddRef();
-                return S_OK;
-            }
-            return E_NOINTERFACE;
-        }
-        ULONG STDMETHODCALLTYPE AddRef() override { return ++references_; }
-        ULONG STDMETHODCALLTYPE Release() override {
-            const ULONG remaining = --references_;
-            if (remaining == 0) delete this;
-            return remaining;
-        }
         HRESULT STDMETHODCALLTYPE LoadSource(LPCWSTR filename, IDxcBlob** source) override {
             const HRESULT result = inner_->LoadSource(filename, source);
             try {
@@ -60,7 +48,6 @@ public:
         std::vector<Dependency> dependencies;
         bool valid = true;
     private:
-        std::atomic<ULONG> references_{ 1 };
         Microsoft::WRL::ComPtr<IDxcIncludeHandler> inner_;
     };
 
@@ -241,3 +228,5 @@ private:
         return bytes.empty() ? std::string() : Hash(bytes.data(), bytes.size());
     }
 };
+
+} // namespace cg2

@@ -1,6 +1,8 @@
 #include "SpriteCommon.h"
 #include "TextureManager.h"
 
+namespace cg2 {
+
 SpriteCommon* SpriteCommon::GetInstance()
 {
 	static SpriteCommon instance;
@@ -33,3 +35,5 @@ void SpriteCommon::PreDrawForScene(BlendMode blendMode)
 	dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObjectForScene(blendMode).graphicsState_.Get());
 	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
+
+} // namespace cg2

@@ -1,4 +1,5 @@
 #include "SkinCluster.h"
+#include "StringUtils.h"
 
 #include "Calculation.h"
 #include "DirectXCommon.h"
@@ -18,6 +19,8 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+
+namespace cg2 {
 
 namespace {
 
@@ -106,17 +109,6 @@ Vector3 AddVector3(const Vector3& a, const Vector3& b) {
 Vector3 BuildFallbackTangent(const Vector3& normal) {
 	const Vector3 up = std::abs(normal.y) < 0.95f ? Vector3{ 0.0f, 1.0f, 0.0f } : Vector3{ 1.0f, 0.0f, 0.0f };
 	return NormalizeVector3Local(CrossVector3(up, normal));
-}
-
-std::string ToLowerAscii(std::string value) {
-	std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-		return static_cast<char>(std::tolower(c));
-	});
-	return value;
-}
-
-bool ContainsToken(const std::string& text, const char* token) {
-	return text.find(token) != std::string::npos;
 }
 
 MaterialSemantic InferMaterialSemantic(const MaterialData& material) {
@@ -775,14 +767,14 @@ void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, c
 				TextureManager::TextureColorSpace::LinearData);
 		}
 
-		material.textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(material.textureFilePath);
-		material.normalTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+		material.textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(material.textureFilePath);
+		material.normalTextureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(
 			material.normalTextureFilePath,
 			TextureManager::TextureColorSpace::LinearData);
-		material.metallicRoughnessTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+		material.metallicRoughnessTextureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(
 			material.metallicRoughnessTextureFilePath,
 			TextureManager::TextureColorSpace::LinearData);
-		material.occlusionTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+		material.occlusionTextureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(
 			material.occlusionTextureFilePath,
 			TextureManager::TextureColorSpace::LinearData);
 	}
@@ -1036,3 +1028,5 @@ void SkinCluster::Update(const Skeleton& skeleton) {
 		palette_[jointIndex].skeletonSpaceInverseTransposeMatrix = Transpose(Inverse(skinningMatrix));
 	}
 }
+
+} // namespace cg2

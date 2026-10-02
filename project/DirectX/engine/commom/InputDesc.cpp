@@ -1,5 +1,7 @@
 #include "InputDesc.h"
 
+namespace cg2 {
+
 void InputDesc::Initialize()
 {
 	ElementDescs_[0].SemanticName = "POSITION";
@@ -69,3 +71,5 @@ void InputDesc::InitializeForSkinning()
 	Layout_.pInputElementDescs = ElementDescs_;
 	Layout_.NumElements = 6;
 }
+
+} // namespace cg2

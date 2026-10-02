@@ -24,7 +24,7 @@ public:
 	bool IsFinished() const;
 
 private:
-	std::unique_ptr<Sprite> sprite;
+	std::unique_ptr<cg2::Sprite> sprite;
 
 	// 02_13 16枚目 現在のフェードの状態
 	Status status_ = Status::None;

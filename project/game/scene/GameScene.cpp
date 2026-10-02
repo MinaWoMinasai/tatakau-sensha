@@ -1,3 +1,4 @@
+#include "game/weapon/CombatTypes.h"
 #include "GameScene.h"
 #include "RuntimeProfiler.h"
 #include "StartupTrace.h"
@@ -22,7 +23,7 @@
 
 namespace {
 
-Vector4 GetCollisionDebugColor(uint32_t attribute) {
+cg2::Vector4 GetCollisionDebugColor(uint32_t attribute) {
 	if (attribute & kCollisionAttributePlayer) {
 		return { 0.15f, 1.0f, 0.95f, 0.85f };
 	}
@@ -149,13 +150,13 @@ std::string GetBossPhaseDisplayName(const LevelBossPhase& phase)
 	return "PHASE CHANGE";
 }
 
-Vector4 ReadJsonVector4(const nlohmann::json& json, const Vector4& fallback)
+cg2::Vector4 ReadJsonVector4(const nlohmann::json& json, const cg2::Vector4& fallback)
 {
 	if (!json.is_object()) {
 		return fallback;
 	}
 
-	Vector4 value = fallback;
+	cg2::Vector4 value = fallback;
 	if (json.contains("x") && json["x"].is_number()) value.x = json["x"].get<float>();
 	if (json.contains("y") && json["y"].is_number()) value.y = json["y"].get<float>();
 	if (json.contains("z") && json["z"].is_number()) value.z = json["z"].get<float>();
@@ -163,32 +164,32 @@ Vector4 ReadJsonVector4(const nlohmann::json& json, const Vector4& fallback)
 	return value;
 }
 
-Vector3 ReadJsonVector3(const nlohmann::json& json, const Vector3& fallback)
+cg2::Vector3 ReadJsonVector3(const nlohmann::json& json, const cg2::Vector3& fallback)
 {
 	if (!json.is_object()) {
 		return fallback;
 	}
 
-	Vector3 value = fallback;
+	cg2::Vector3 value = fallback;
 	if (json.contains("x") && json["x"].is_number()) value.x = json["x"].get<float>();
 	if (json.contains("y") && json["y"].is_number()) value.y = json["y"].get<float>();
 	if (json.contains("z") && json["z"].is_number()) value.z = json["z"].get<float>();
 	return value;
 }
 
-Vector2 ReadJsonVector2(const nlohmann::json& json, const Vector2& fallback)
+cg2::Vector2 ReadJsonVector2(const nlohmann::json& json, const cg2::Vector2& fallback)
 {
 	if (!json.is_object()) {
 		return fallback;
 	}
 
-	Vector2 value = fallback;
+	cg2::Vector2 value = fallback;
 	if (json.contains("x") && json["x"].is_number()) value.x = json["x"].get<float>();
 	if (json.contains("y") && json["y"].is_number()) value.y = json["y"].get<float>();
 	return value;
 }
 
-nlohmann::json WriteJsonVector2(const Vector2& value)
+nlohmann::json WriteJsonVector2(const cg2::Vector2& value)
 {
 	return {
 		{ "x", value.x },
@@ -196,7 +197,7 @@ nlohmann::json WriteJsonVector2(const Vector2& value)
 	};
 }
 
-nlohmann::json WriteJsonVector3(const Vector3& value)
+nlohmann::json WriteJsonVector3(const cg2::Vector3& value)
 {
 	return {
 		{ "x", value.x },
@@ -205,7 +206,7 @@ nlohmann::json WriteJsonVector3(const Vector3& value)
 	};
 }
 
-nlohmann::json WriteJsonVector4(const Vector4& value)
+nlohmann::json WriteJsonVector4(const cg2::Vector4& value)
 {
 	return {
 		{ "x", value.x },
@@ -270,7 +271,7 @@ void ReadBulletTrailSettingsJson(const nlohmann::json& json, BulletTrailSettings
 	if (json.contains("reflectableEndColor")) settings.reflectableEndColor = ReadJsonVector4(json["reflectableEndColor"], settings.reflectableEndColor);
 }
 
-nlohmann::json WriteBloomParamJson(const BloomParam& param)
+nlohmann::json WriteBloomParamJson(const cg2::BloomParam& param)
 {
 	return {
 		{ "threshold", param.threshold },
@@ -309,7 +310,7 @@ nlohmann::json WriteBloomParamJson(const BloomParam& param)
 	};
 }
 
-void ReadBloomParamJson(const nlohmann::json& json, BloomParam& param)
+void ReadBloomParamJson(const nlohmann::json& json, cg2::BloomParam& param)
 {
 	if (!json.is_object()) {
 		return;
@@ -355,8 +356,8 @@ void ReadBloomParamJson(const nlohmann::json& json, BloomParam& param)
 	param.dissolveNoiseSpeed = ReadCustomFloat(json, "dissolveNoiseSpeed", param.dissolveNoiseSpeed);
 }
 
-RingEffectConfig MakeCollisionRingConfig(float radius, const Vector4& color) {
-	RingEffectConfig config{};
+cg2::RingEffectConfig MakeCollisionRingConfig(float radius, const cg2::Vector4& color) {
+	cg2::RingEffectConfig config{};
 	config.lifeTime = 0.045f;
 	config.startRadius = radius;
 	config.endRadius = radius;
@@ -369,14 +370,14 @@ RingEffectConfig MakeCollisionRingConfig(float radius, const Vector4& color) {
 	return config;
 }
 
-void EmitColliderDebugRings(RingManager& ringManager, Collider& collider) {
-	const Vector4 color = GetCollisionDebugColor(collider.GetCollisionAttribute());
+void EmitColliderDebugRings(cg2::RingManager& ringManager, Collider& collider) {
+	const cg2::Vector4 color = GetCollisionDebugColor(collider.GetCollisionAttribute());
 	if (collider.GetShape() == ColliderShape::Capsule) {
-		const Segment& segment = collider.GetSegment();
-		const Vector3 start = segment.origin;
-		const Vector3 end = segment.origin + segment.diff;
-		const Vector3 middle = start + segment.diff * 0.5f;
-		RingEffectConfig config = MakeCollisionRingConfig(collider.GetCapsuleRadius(), color);
+		const cg2::Segment& segment = collider.GetSegment();
+		const cg2::Vector3 start = segment.origin;
+		const cg2::Vector3 end = segment.origin + segment.diff;
+		const cg2::Vector3 middle = start + segment.diff * 0.5f;
+		cg2::RingEffectConfig config = MakeCollisionRingConfig(collider.GetCapsuleRadius(), color);
 		ringManager.Emit(start, config);
 		ringManager.Emit(middle, config);
 		ringManager.Emit(end, config);
@@ -386,15 +387,15 @@ void EmitColliderDebugRings(RingManager& ringManager, Collider& collider) {
 	ringManager.Emit(collider.GetWorldPosition(), MakeCollisionRingConfig(collider.GetRadius(), color));
 }
 
-Vector3 GetActiveCameraPosition(Camera* camera, DebugCamera* debugCamera) {
-	return Object3dCommon::GetInstance()->GetIsDebugCamera() && debugCamera
+cg2::Vector3 GetActiveCameraPosition(cg2::Camera* camera, cg2::DebugCamera* debugCamera) {
+	return cg2::Object3dCommon::GetInstance()->GetIsDebugCamera() && debugCamera
 		? debugCamera->GetEyePosition()
 		: camera->GetTranslate();
 }
 
-float DistancePointToSegment2D(const Vector3& point, const Vector3& start, const Vector3& end, float* outT = nullptr) {
-	const Vector3 segment = end - start;
-	const Vector3 toPoint = point - start;
+float DistancePointToSegment2D(const cg2::Vector3& point, const cg2::Vector3& start, const cg2::Vector3& end, float* outT = nullptr) {
+	const cg2::Vector3 segment = end - start;
+	const cg2::Vector3 toPoint = point - start;
 	const float lengthSq = segment.x * segment.x + segment.y * segment.y;
 	float t = 0.0f;
 	if (lengthSq > 0.0001f) {
@@ -403,12 +404,12 @@ float DistancePointToSegment2D(const Vector3& point, const Vector3& start, const
 	if (outT) {
 		*outT = t;
 	}
-	const Vector3 closest = start + segment * t;
-	const Vector3 diff = point - closest;
+	const cg2::Vector3 closest = start + segment * t;
+	const cg2::Vector3 diff = point - closest;
 	return std::sqrt(diff.x * diff.x + diff.y * diff.y);
 }
 
-Vector3 RotateVector2D(const Vector3& value, float angleRad) {
+cg2::Vector3 RotateVector2D(const cg2::Vector3& value, float angleRad) {
 	const float c = std::cos(angleRad);
 	const float s = std::sin(angleRad);
 	return {
@@ -439,23 +440,23 @@ GameScene::~GameScene()
 }
 
 void GameScene::Initialize() {
-    StartupTrace::Scope startupScope(titleDemo_ ? "GameScene.Initialize.Demo" : "GameScene.Initialize.Play");
+    cg2::StartupTrace::Scope startupScope(titleDemo_ ? "GameScene.Initialize.Demo" : "GameScene.Initialize.Play");
 
-	worldTransform_ = InitWorldTransform();
+	worldTransform_ = cg2::InitWorldTransform();
 
-	input_ = Input::GetInstance();
+	input_ = cg2::Input::GetInstance();
 	LoadTutorialConfig();
 	tutorialConfig_.enabled = !prototypeRun_ && GameStartSession::GetMode() == GameStartMode::Tutorial;
 	screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json");
 
-	debugCamera = std::make_unique<DebugCamera>();
+	debugCamera = std::make_unique<cg2::DebugCamera>();
 
-	camera = std::make_unique<Camera>();
+	camera = std::make_unique<cg2::Camera>();
 
-	camera->SetTranslate(Vector3(17.0f, 21.0f, -80.0f));
+	camera->SetTranslate(cg2::Vector3(17.0f, 21.0f, -80.0f));
 
-	Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
-	Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera.get());
+	cg2::Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
+	cg2::Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera.get());
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 	if (!titleDemo_) {
 		neonSkinnedPreview_ = std::make_unique<NeonSkinnedPreview>();
@@ -464,16 +465,16 @@ void GameScene::Initialize() {
 #endif
 
 	{
-	StartupTrace::Scope scope("GameScene.ObjectPostEffects");
-	playerPostEffect_ = std::make_unique<ObjectPostEffect>();
+	cg2::StartupTrace::Scope scope("GameScene.ObjectPostEffects");
+	playerPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	playerPostEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager(),
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
 		0.5f
 	);
 	{
-		BloomParam& playerPost = playerPostEffect_->GetParam();
+		cg2::BloomParam& playerPost = playerPostEffect_->GetParam();
 		playerPost.threshold = 0.0f;
 		playerPost.intensity = 1.0f;
 		playerPost.outlineWidth = 0.0f;
@@ -483,15 +484,15 @@ void GameScene::Initialize() {
 		playerPost.outlineBloomWidth = 2.7f;
 	}
 
-	enemyPostEffect_ = std::make_unique<ObjectPostEffect>();
+	enemyPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	enemyPostEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager(),
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
 		0.5f
 	);
 	{
-		BloomParam& enemyPost = enemyPostEffect_->GetParam();
+		cg2::BloomParam& enemyPost = enemyPostEffect_->GetParam();
 		enemyPost.intensity = 1.2f;
 		enemyPost.outlineWidth = 0.0f;
 		enemyPost.outlineThreshold = 0.0f;
@@ -501,15 +502,15 @@ void GameScene::Initialize() {
 		enemyPost.outlineBloomWidth = 2.7f;
 	}
 
-	expEnemyPostEffect_ = std::make_unique<ObjectPostEffect>();
+	expEnemyPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	expEnemyPostEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager(),
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
 		0.5f
 	);
 	{
-		BloomParam& expEnemyPost = expEnemyPostEffect_->GetParam();
+		cg2::BloomParam& expEnemyPost = expEnemyPostEffect_->GetParam();
 		expEnemyPost.intensity = 1.0f;
 		expEnemyPost.threshold = 0.0f;
 		expEnemyPost.outlineWidth = 0.0f;
@@ -520,15 +521,15 @@ void GameScene::Initialize() {
 		expEnemyPost.outlineBloomWidth = 2.7f;
 	}
 
-	stagePostEffect_ = std::make_unique<ObjectPostEffect>();
+	stagePostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	stagePostEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager(),
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
 		0.5f
 	);
 	{
-		BloomParam& stagePost = stagePostEffect_->GetParam();
+		cg2::BloomParam& stagePost = stagePostEffect_->GetParam();
 		stagePost.threshold = 0.0f;
 		stagePost.intensity = 0.75f;
 		stagePost.outlineWidth = 0.0f;
@@ -539,15 +540,15 @@ void GameScene::Initialize() {
 		stagePost.outlineBloomWidth = 0.0f;
 	}
 
-	neonGridPostEffect_ = std::make_unique<ObjectPostEffect>();
+	neonGridPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	neonGridPostEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager(),
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
 		1.0f
 	);
 	{
-		BloomParam& gridPost = neonGridPostEffect_->GetParam();
+		cg2::BloomParam& gridPost = neonGridPostEffect_->GetParam();
 		gridPost.threshold = 0.0f;
 		gridPost.intensity = 1.5f;
 		gridPost.outlineWidth = 0.0f;
@@ -556,15 +557,15 @@ void GameScene::Initialize() {
 		gridPost.outlineBloomWidth = 0.0f;
 	}
 
-	bulletTrailPostEffect_ = std::make_unique<ObjectPostEffect>();
+	bulletTrailPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	bulletTrailPostEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager(),
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
 		0.5f
 	);
 	{
-		BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
+		cg2::BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
 		bulletTrailPost.threshold = 0.0f;
 		bulletTrailPost.intensity = 2.0f;
 		bulletTrailPost.outlineWidth = 0.0f;
@@ -573,15 +574,15 @@ void GameScene::Initialize() {
 		bulletTrailPost.outlineBloomWidth = 0.0f;
 	}
 
-	particlePostEffect_ = std::make_unique<ObjectPostEffect>();
+	particlePostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	particlePostEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager(),
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
 		1.0f
 	);
 	{
-		BloomParam& particlePost = particlePostEffect_->GetParam();
+		cg2::BloomParam& particlePost = particlePostEffect_->GetParam();
 		particlePost.threshold = 0.0f;
 		particlePost.intensity = 1.65f;
 		particlePost.outlineWidth = 0.0f;
@@ -590,15 +591,15 @@ void GameScene::Initialize() {
 		particlePost.outlineBloomWidth = 0.0f;
 	}
 
-	sharedObjectBloomPostEffect_ = std::make_unique<ObjectPostEffect>();
+	sharedObjectBloomPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
 	sharedObjectBloomPostEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager(),
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
 		0.5f
 	);
 	{
-		BloomParam& objectBloomPost = sharedObjectBloomPostEffect_->GetParam();
+		cg2::BloomParam& objectBloomPost = sharedObjectBloomPostEffect_->GetParam();
 		objectBloomPost.threshold = 0.0f;
 		objectBloomPost.intensity = 1.15f;
 		objectBloomPost.outlineWidth = 0.0f;
@@ -610,37 +611,37 @@ void GameScene::Initialize() {
 	}
 
 	{
-	StartupTrace::Scope scope("GameScene.WorldAndActors");
-	enemyObject_ = std::make_unique<Object3d>();
+	cg2::StartupTrace::Scope scope("GameScene.WorldAndActors");
+	enemyObject_ = std::make_unique<cg2::Object3d>();
 	enemyObject_->Initialize();
 
-	object3d3 = std::make_unique<Object3d>();
+	object3d3 = std::make_unique<cg2::Object3d>();
 	object3d3->Initialize();
 
-	playerObject_ = std::make_unique<Object3d>();
+	playerObject_ = std::make_unique<cg2::Object3d>();
 	playerObject_->Initialize();
 
-	ballObj_ = std::make_unique<Object3d>();
+	ballObj_ = std::make_unique<cg2::Object3d>();
 	ballObj_->Initialize();
-	ballObj_->SetTranslate(Vector3(20.0f, 0.0f, 0.0f));
+	ballObj_->SetTranslate(cg2::Vector3(20.0f, 0.0f, 0.0f));
 	ballObj_->Update();
 
-	ball_ = std::make_unique<Object3d>();
+	ball_ = std::make_unique<cg2::Object3d>();
 	ball_->Initialize();
 	// ライティングを有効か
 	ball_->SetLighting(true);
-	ball_->SetTranslate(Vector3(-20.0f, 0.0f, 0.0f));
+	ball_->SetTranslate(cg2::Vector3(-20.0f, 0.0f, 0.0f));
 	ball_->Update();
 
-	groundObj_ = std::make_unique<Object3d>();
+	groundObj_ = std::make_unique<cg2::Object3d>();
 	groundObj_->Initialize();
 	groundObj_->SetModel("ground.obj");
-	groundObj_->SetTranslate(Vector3(0.0f, -30.0f, 0.0f));
+	groundObj_->SetTranslate(cg2::Vector3(0.0f, -30.0f, 0.0f));
 
-	TextureManager::GetInstance()->LoadTexture("resources/skybox.dds");
-	skybox_ = std::make_unique<Skybox>();
+	cg2::TextureManager::GetInstance()->LoadTexture("resources/skybox.dds");
+	skybox_ = std::make_unique<cg2::Skybox>();
 	skybox_->Initialize("resources/skybox.dds");
-	const uint32_t skyboxTextureIndex = TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
+	const uint32_t skyboxTextureIndex = cg2::TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
 	
 	enemyObject_->SetModel("enemy3D.obj");
 	enemyObject_->SetLighting(true);
@@ -648,10 +649,10 @@ void GameScene::Initialize() {
 	enemyObject_->SetEnvironmentCoefficient(0.75f);
 	object3d3->SetModel("plane.obj");
 	playerObject_->SetModel("player3D.obj");
-	playerObject_->SetColor(Vector4(0.48f, 0.86f, 0.22f, 1.0f));
+	playerObject_->SetColor(cg2::Vector4(0.48f, 0.86f, 0.22f, 1.0f));
 	//playerObject_->SetLighting(true);
 	ballObj_->SetModel("bloomBlock.obj");
-	ballObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
+	ballObj_->SetColor(cg2::Vector4(0.06f, 0.45f, 0.08f, 1.0f));
 	ballObj_->SetLighting(true);
 	
 	ball_->SetModel("jewelry.obj");
@@ -661,11 +662,11 @@ void GameScene::Initialize() {
 
 	// 弾マネージャの生成
 	bulletManager_ = std::make_unique<BulletManager>();
-	bulletManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), Object3dCommon::GetInstance());
+	bulletManager_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(), cg2::Object3dCommon::GetInstance());
 
 	LevelData levelData;
 	const bool hasLevelData = LoadLevelFile(levelData);
-	Vector3 playerSpawnPosition = Vector3(30.0f, 30.0f, 0.0f);
+	cg2::Vector3 playerSpawnPosition = cg2::Vector3(30.0f, 30.0f, 0.0f);
 	if (hasLevelData) {
 		for (const LevelObject& object : levelData.objects) {
 			if (object.type == "PlayerSpawn") {
@@ -686,7 +687,7 @@ void GameScene::Initialize() {
 	enemy_ = std::make_unique<Enemy>();
 	// 敵キャラの初期化
 	enemy_->SetPlayer(player_.get());
-	Vector3 bossSpawnPosition = Vector3(20.0f, 20.0f, 0.0f);
+	cg2::Vector3 bossSpawnPosition = cg2::Vector3(20.0f, 20.0f, 0.0f);
 	if (hasLevelData) {
 		for (const LevelObject& object : levelData.objects) {
 			if (object.type == "BossSpawn") {
@@ -713,7 +714,7 @@ void GameScene::Initialize() {
 			enemy_->RegisterExpEnemyKill(expValue);
 		}
 	});
-	ExpEnemy::SetPlayerDefeatCallback([this](const Vector3& position) {
+	ExpEnemy::SetPlayerDefeatCallback([this](const cg2::Vector3& position) {
 		++defeatedEnemies_;
 		if (prototypeRun_) { OnTankRunEnemyDefeated(position); return; }
 		screenEffectDirector_.TriggerEnemyDefeat(WorldToScreenUv(position), 1.0f);
@@ -725,15 +726,15 @@ void GameScene::Initialize() {
 	}
 
 	{
-	StartupTrace::Scope scope("GameScene.PresentationAndUi");
+	cg2::StartupTrace::Scope scope("GameScene.PresentationAndUi");
 	// 衝突マネージャの生成
 	collisionManager_ = std::make_unique<CollisionManager>();
-	collisionDebugRingManager_ = std::make_unique<RingManager>();
-	collisionDebugRingManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/gradationLine.png");
-	neonGridRenderer_ = std::make_unique<NeonGridRenderer>();
-	neonGridRenderer_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), "resources/white512x512.png");
-	playerMeleeTrailManager_ = std::make_unique<TrailManager>();
-	playerMeleeTrailManager_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(), Object3dCommon::GetInstance(), "resources/white512x512.png");
+	collisionDebugRingManager_ = std::make_unique<cg2::RingManager>();
+	collisionDebugRingManager_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(), "resources/gradationLine.png");
+	neonGridRenderer_ = std::make_unique<cg2::NeonGridRenderer>();
+	neonGridRenderer_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(), "resources/white512x512.png");
+	playerMeleeTrailManager_ = std::make_unique<cg2::TrailManager>();
+	playerMeleeTrailManager_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(), cg2::Object3dCommon::GetInstance(), "resources/white512x512.png");
 	LoadGameVisualConfig();
 
 	fade_ = std::make_unique<Fade>();
@@ -744,69 +745,69 @@ void GameScene::Initialize() {
 
 	const std::filesystem::path shotGuideTexturePath = "resources/LivePhoto.png";
 	if (std::filesystem::exists(shotGuideTexturePath)) {
-		shotGide = std::make_unique<Sprite>();
-		shotGide->Initialize(SpriteCommon::GetInstance(), shotGuideTexturePath.string());
+		shotGide = std::make_unique<cg2::Sprite>();
+		shotGide->Initialize(cg2::SpriteCommon::GetInstance(), shotGuideTexturePath.string());
 		shotGide->SetPosition({ 100.0f, 100.0f });
 		//shotGide->SetSize({ 200.0f, 50.0f });
 	}
 
-	wasdGide = std::make_unique<Sprite>();
-	wasdGide->Initialize(SpriteCommon::GetInstance(), "resources/wasd.png");
+	wasdGide = std::make_unique<cg2::Sprite>();
+	wasdGide->Initialize(cg2::SpriteCommon::GetInstance(), "resources/wasd.png");
 	wasdGide->SetPosition({ 20.0f, 530.0f });
 	wasdGide->SetSize({ 200.0f, 50.0f });
 
-	dashGide = std::make_unique<Sprite>();
-	dashGide->Initialize(SpriteCommon::GetInstance(), "resources/dashGide.png");
+	dashGide = std::make_unique<cg2::Sprite>();
+	dashGide->Initialize(cg2::SpriteCommon::GetInstance(), "resources/dashGide.png");
 	dashGide->SetPosition({ 20.0f, 450.0f });
 	dashGide->SetSize({ 200.0f, 50.0f });
 
-	toTitleGide = std::make_unique<Sprite>();
-	toTitleGide->Initialize(SpriteCommon::GetInstance(), "resources/toTitle.png");
+	toTitleGide = std::make_unique<cg2::Sprite>();
+	toTitleGide->Initialize(cg2::SpriteCommon::GetInstance(), "resources/toTitle.png");
 	toTitleGide->SetPosition({ 20.0f, 610.0f });
 	toTitleGide->SetSize({ 200.0f, 50.0f });
 
-	dashGuideText_ = std::make_unique<TextLabel>();
-	dashGuideText_->InitializeFromJson(SpriteCommon::GetInstance(), "resources/configs/gameText.json", "dashGuide");
+	dashGuideText_ = std::make_unique<cg2::TextLabel>();
+	dashGuideText_->InitializeFromJson(cg2::SpriteCommon::GetInstance(), "resources/configs/gameText.json", "dashGuide");
 
-	moveGuideText_ = std::make_unique<TextLabel>();
-	moveGuideText_->InitializeFromJson(SpriteCommon::GetInstance(), "resources/configs/gameText.json", "moveGuide");
+	moveGuideText_ = std::make_unique<cg2::TextLabel>();
+	moveGuideText_->InitializeFromJson(cg2::SpriteCommon::GetInstance(), "resources/configs/gameText.json", "moveGuide");
 
-	titleGuideText_ = std::make_unique<TextLabel>();
-	titleGuideText_->InitializeFromJson(SpriteCommon::GetInstance(), "resources/configs/gameText.json", "titleGuide");
+	titleGuideText_ = std::make_unique<cg2::TextLabel>();
+	titleGuideText_->InitializeFromJson(cg2::SpriteCommon::GetInstance(), "resources/configs/gameText.json", "titleGuide");
 
-	TextStyle controlGuideStyle{};
+	cg2::TextStyle controlGuideStyle{};
 	controlGuideStyle.fontFamily = "Meiryo";
 	controlGuideStyle.fontSize = 14.0f;
 	controlGuideStyle.color = { 0.88f, 0.94f, 1.0f, 0.78f };
 	controlGuideStyle.outlineColor = { 0.0f, 0.02f, 0.04f, 0.88f };
 	controlGuideStyle.outlineThickness = 2.0f;
 	controlGuideStyle.padding = 5.0f;
-	controlGuideText_ = std::make_unique<TextLabel>();
+	controlGuideText_ = std::make_unique<cg2::TextLabel>();
 	controlGuideText_->Initialize(
-		SpriteCommon::GetInstance(),
+		cg2::SpriteCommon::GetInstance(),
 		"WASD 移動 / 左クリック 射撃 / 右クリック ダッシュ\nC 進化ツリー / ESC タイトルへ / H ヘルプ切替",
 		controlGuideStyle);
 	controlGuideText_->SetPosition({ 22.0f, 636.0f });
 
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-	TextStyle fpsStyle{};
+	cg2::TextStyle fpsStyle{};
 	fpsStyle.fontFamily = "Meiryo";
 	fpsStyle.fontSize = 24.0f;
 	fpsStyle.color = { 0.70f, 1.0f, 0.78f, 1.0f };
 	fpsStyle.outlineColor = { 0.0f, 0.0f, 0.0f, 0.88f };
 	fpsStyle.outlineThickness = 2.0f;
 	fpsStyle.padding = 5.0f;
-	fpsText_ = std::make_unique<TextLabel>();
-	fpsText_->Initialize(SpriteCommon::GetInstance(), "FPS: --", fpsStyle);
+	fpsText_ = std::make_unique<cg2::TextLabel>();
+	fpsText_->Initialize(cg2::SpriteCommon::GetInstance(), "FPS: --", fpsStyle);
 	fpsText_->SetPosition({ 16.0f, 14.0f });
 	fpsLastSampleTime_ = std::chrono::steady_clock::now();
 
-	TextStyle profileStyle = fpsStyle;
+	cg2::TextStyle profileStyle = fpsStyle;
 	profileStyle.fontSize = 18.0f;
 	profileStyle.color = { 0.75f, 0.95f, 1.0f, 1.0f };
 	profileStyle.outlineThickness = 2.0f;
-	postProfileText_ = std::make_unique<TextLabel>();
-	postProfileText_->Initialize(SpriteCommon::GetInstance(), "Post Profile  F8:hide  F9:mode", profileStyle);
+	postProfileText_ = std::make_unique<cg2::TextLabel>();
+	postProfileText_->Initialize(cg2::SpriteCommon::GetInstance(), "Post Profile  F8:hide  F9:mode", profileStyle);
 	postProfileText_->SetPosition({ 16.0f, 46.0f });
 #endif // !defined(NDEBUG)
 
@@ -814,8 +815,8 @@ void GameScene::Initialize() {
 	InitializeSubmissionUi();
 	gameTextNeonEffect_ = std::make_unique<NeonTextEffect>();
 	gameTextNeonEffect_->Initialize(
-		Object3dCommon::GetInstance()->GetDxCommon(),
-		Object3dCommon::GetInstance()->GetSrvManager());
+		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
+		cg2::Object3dCommon::GetInstance()->GetSrvManager());
 	ApplyGameTextAppearance();
 	InitializeTutorialUi();
 	if(cg2::kDeveloperTools) InitializePlayerClassConfigWatch();
@@ -858,7 +859,7 @@ void GameScene::Update() {
 		++justDodgeCount_;
 		SetEventCallout("ジャスト回避", 0.70f);
 		if(expeditionRun_) tankExpeditionAudio_.Upgrade();
-		else Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.25f);
+		else cg2::Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.25f);
 	}
 
 	const float requestedTimeScale = screenEffectDirector_.GetTimeScaleMultiplier();
@@ -963,25 +964,25 @@ void GameScene::Update() {
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
 	{
-		Vector3 playerPos = player_->GetWorldPosition();
+		cg2::Vector3 playerPos = player_->GetWorldPosition();
 		const float kCameraZ = -55.0f;
 		const float kMarginX = 18.0f;
 		const float kMarginY = 11.0f;
 		const float kMaxCameraX = MapChip::kBlockWidth * (MapChip::kNumBlockHorizontal - 1) - kMarginX;
 		const float kMaxCameraY = MapChip::kBlockHeight * (MapChip::kNumBlockVirtical - 1) - kMarginY;
-		Vector3 targetCameraPos = {
+		cg2::Vector3 targetCameraPos = {
 			(std::clamp)(playerPos.x, kMarginX, kMaxCameraX),
 			(std::clamp)(playerPos.y, kMarginY, kMaxCameraY),
 			kCameraZ
 		};
-		Vector3 currentCameraPos = camera->GetTranslate();
-		Vector3 nextCameraPos = currentCameraPos + (targetCameraPos - currentCameraPos) * 0.12f;
+		cg2::Vector3 currentCameraPos = camera->GetTranslate();
+		cg2::Vector3 nextCameraPos = currentCameraPos + (targetCameraPos - currentCameraPos) * 0.12f;
 		if (cameraShakeTimer_ > 0.0f) {
 			cameraShakeTimer_ -= baseDeltaTime;
 			float t = (std::clamp)(cameraShakeTimer_ / cameraShakeDuration_, 0.0f, 1.0f);
 			float power = cameraShakePower_ * t * t;
-			nextCameraPos.x += Rand(-power, power);
-			nextCameraPos.y += Rand(-power, power);
+			nextCameraPos.x += cg2::Rand(-power, power);
+			nextCameraPos.y += cg2::Rand(-power, power);
 		}
 		camera->SetTranslate(nextCameraPos);
 	}
@@ -996,7 +997,7 @@ void GameScene::Update() {
 	}
 	
 
-	direction = Normalize(direction);
+	direction = cg2::Normalize(direction);
 	ball_->SetDirectionalLightDirection(direction);
 	ball_->SetInsensity(insensity);
 	ball_->SetShininess(shininess);
@@ -1018,14 +1019,14 @@ void GameScene::Update() {
 
 		player_->SetDebugNoDamage(debugPlayerNoDamage_ || (expeditionMapEnabled_ && expeditionMapRun_.GetActiveNode() && expeditionMapRun_.GetActiveNode()->role==tankexp::NodeRole::TutorialCombat));
 		if (prototypeRun_ && !player_->IsChangeMode()) {
-			std::vector<Vector3> targets;
+			std::vector<cg2::Vector3> targets;
 			if ((IsRunRivalActive() && !enemy_->IsDead())) targets.push_back(enemy_->GetWorldPosition());
 			for (const auto* actor : enemyManager_->GetEnemyPtrs())
 				if (actor && !actor->IsDead()) targets.push_back(actor->GetWorldPosition());
 			player_->SetRunHomingTargets(targets);
 		}
         {
-            RuntimeProfiler::CpuScope scope("Player / Drones Update");
+            cg2::RuntimeProfiler::CpuScope scope("Player / Drones Update");
 		    player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime, baseDeltaTime);
         }
 #if defined(USE_IMGUI) && !defined(NDEBUG)
@@ -1054,20 +1055,20 @@ void GameScene::Update() {
 
 		const bool suppressTutorialCombat = IsTutorialCombatSuppressed();
 		if (!suppressTutorialCombat) {
-			RuntimeProfiler::CpuScope scope("Enemy AI Update");
+			cg2::RuntimeProfiler::CpuScope scope("Enemy AI Update");
 			if (IsRunRivalActive()) enemy_->Update(finalDeltaTime);
 			if (!prototypeRun_) UpdateLevelBossPhases();
 			enemyManager_->Update(*stage_, finalDeltaTime);
 		}
 
         {
-            RuntimeProfiler::CpuScope scope("Bullets / Trails / Wall Collision");
+            cg2::RuntimeProfiler::CpuScope scope("Bullets / Trails / Wall Collision");
 		    bulletManager_->Update(*stage_, finalDeltaTime);
         }
 
 		// 衝突マネージャの更新
 		if (!suppressTutorialCombat) {
-			RuntimeProfiler::CpuScope scope("Actor / Bullet Collision");
+			cg2::RuntimeProfiler::CpuScope scope("Actor / Bullet Collision");
 			player_->UpdateSpecialCombat(*stage_,bulletManager_.get(),IsRunRivalActive()?enemy_.get():nullptr,enemyManager_.get(),finalDeltaTime);
 			collisionManager_->CheckAllCollisions(player_.get(), IsRunRivalActive() ? enemy_.get() : nullptr, bulletManager_.get(), enemyManager_.get());
 			for(const auto& impact:player_->ConsumeDashImpactEvents()) QueueExpeditionImpact(impact.origin,impact.direction,impact.powered);
@@ -1122,15 +1123,15 @@ void GameScene::Update() {
 	if (!io.WantCaptureMouse && !prototypeRun_) {
 		// 左クリックしたらパーティクル追加
 		if (input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
-			Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera() ? debugCamera->GetViewMatrix() : camera->GetViewMatrix();
-			Matrix4x4 projectionMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera() ? debugCamera->GetProjectionMatrix() : camera->GetProjectionMatrix();
-			Vector3 worldPos = ScreenToWorldOnZ0(input_->GetMousePosition(), viewMatrix, projectionMatrix, WinApp::kClientWidth, WinApp::kClientHeight);
-			ParticleManager::GetInstance()->EmitHitEffect(worldPos);
+			cg2::Matrix4x4 viewMatrix = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera() ? debugCamera->GetViewMatrix() : camera->GetViewMatrix();
+			cg2::Matrix4x4 projectionMatrix = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera() ? debugCamera->GetProjectionMatrix() : camera->GetProjectionMatrix();
+			cg2::Vector3 worldPos = cg2::ScreenToWorldOnZ0(input_->GetMousePosition(), viewMatrix, projectionMatrix, cg2::WinApp::kClientWidth, cg2::WinApp::kClientHeight);
+			cg2::ParticleManager::GetInstance()->EmitHitEffect(worldPos);
 		}
 	}
 
 	if (showParticleEditor_) {
-		ParticleManager::GetInstance()->DrawImGuiEditor();
+		cg2::ParticleManager::GetInstance()->DrawImGuiEditor();
 	}
 
 #endif // USE_IMGUI
@@ -1139,10 +1140,10 @@ void GameScene::Update() {
 	const float particleDeltaTime =
 		gameFlowState_ == GameFlowState::Playing && !expeditionTransition_.IsActive() ? finalDeltaTime : baseDeltaTime;
     {
-        RuntimeProfiler::CpuScope scope("Particles Update");
-	    ParticleManager::GetInstance()->Update(particleDeltaTime, camera.get(), debugCamera.get());
+        cg2::RuntimeProfiler::CpuScope scope("Particles Update");
+	    cg2::ParticleManager::GetInstance()->Update(particleDeltaTime, camera.get(), debugCamera.get());
     }
-	for (const ParticleManager::ScreenPulseEvent& event : ParticleManager::GetInstance()->ConsumeScreenPulseEvents()) {
+	for (const cg2::ParticleManager::ScreenPulseEvent& event : cg2::ParticleManager::GetInstance()->ConsumeScreenPulseEvents()) {
 		TriggerDeathPostPulse(event.position, event.strength);
 	}
 	UpdateGameFlow(baseDeltaTime);
@@ -1190,43 +1191,43 @@ void GameScene::Update() {
 
 void GameScene::InitializeSubmissionUi()
 {
-	TextStyle bannerStyle{};
+	cg2::TextStyle bannerStyle{};
 	bannerStyle.fontFamily = "Meiryo";
 	bannerStyle.fontSize = 58.0f;
 	bannerStyle.color = { 0.78f, 1.0f, 0.96f, 1.0f };
 	bannerStyle.outlineColor = { 0.0f, 0.03f, 0.08f, 0.98f };
 	bannerStyle.outlineThickness = 5.0f;
 	bannerStyle.padding = 10.0f;
-	flowBannerText_ = std::make_unique<TextLabel>();
-	flowBannerText_->Initialize(SpriteCommon::GetInstance(), "STAGE CLEAR", bannerStyle);
+	flowBannerText_ = std::make_unique<cg2::TextLabel>();
+	flowBannerText_->Initialize(cg2::SpriteCommon::GetInstance(), "STAGE CLEAR", bannerStyle);
 	flowBannerText_->SetAnchorPoint({ 0.5f, 0.5f });
-	flowBannerText_->SetPosition({ WinApp::kClientWidth * 0.5f, 170.0f });
+	flowBannerText_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 170.0f });
 
-	TextStyle eventStyle = bannerStyle;
+	cg2::TextStyle eventStyle = bannerStyle;
 	eventStyle.fontSize = 30.0f;
 	eventStyle.color = { 0.55f, 1.0f, 0.72f, 1.0f };
 	eventStyle.outlineThickness = 3.0f;
-	eventCalloutText_ = std::make_unique<TextLabel>();
-	eventCalloutText_->Initialize(SpriteCommon::GetInstance(), "ジャスト回避", eventStyle);
+	eventCalloutText_ = std::make_unique<cg2::TextLabel>();
+	eventCalloutText_->Initialize(cg2::SpriteCommon::GetInstance(), "ジャスト回避", eventStyle);
 	eventCalloutText_->SetAnchorPoint({ 0.5f, 0.5f });
-	eventCalloutText_->SetPosition({ WinApp::kClientWidth * 0.5f, 112.0f });
+	eventCalloutText_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 112.0f });
 
-	TextStyle resultStyle = bannerStyle;
+	cg2::TextStyle resultStyle = bannerStyle;
 	resultStyle.fontSize = 25.0f;
 	resultStyle.color = { 0.90f, 0.96f, 1.0f, 1.0f };
 	resultStyle.outlineThickness = 3.0f;
-	resultSummaryText_ = std::make_unique<TextLabel>();
-	resultSummaryText_->Initialize(SpriteCommon::GetInstance(), "", resultStyle);
+	resultSummaryText_ = std::make_unique<cg2::TextLabel>();
+	resultSummaryText_->Initialize(cg2::SpriteCommon::GetInstance(), "", resultStyle);
 	resultSummaryText_->SetAnchorPoint({ 0.5f, 0.5f });
-	resultSummaryText_->SetPosition({ WinApp::kClientWidth * 0.5f, 365.0f });
+	resultSummaryText_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 365.0f });
 
-	TextStyle menuStyle = resultStyle;
+	cg2::TextStyle menuStyle = resultStyle;
 	menuStyle.fontSize = 28.0f;
 	menuStyle.color = { 0.48f, 1.0f, 0.66f, 1.0f };
-	resultMenuText_ = std::make_unique<TextLabel>();
-	resultMenuText_->Initialize(SpriteCommon::GetInstance(), "", menuStyle);
+	resultMenuText_ = std::make_unique<cg2::TextLabel>();
+	resultMenuText_->Initialize(cg2::SpriteCommon::GetInstance(), "", menuStyle);
 	resultMenuText_->SetAnchorPoint({ 0.5f, 0.5f });
-	resultMenuText_->SetPosition({ WinApp::kClientWidth * 0.5f, 555.0f });
+	resultMenuText_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 555.0f });
 
 }
 
@@ -1264,42 +1265,42 @@ void GameScene::InitializeTutorialUi()
 		return;
 	}
 
-	tutorialPanel_ = std::make_unique<Sprite>();
-	tutorialPanel_->Initialize(SpriteCommon::GetInstance(), "resources/white512x512.png");
+	tutorialPanel_ = std::make_unique<cg2::Sprite>();
+	tutorialPanel_->Initialize(cg2::SpriteCommon::GetInstance(), "resources/white512x512.png");
 	tutorialPanel_->SetAnchorPoint({ 0.5f, 0.5f });
-	tutorialPanel_->SetPosition({ WinApp::kClientWidth * 0.5f, 128.0f });
+	tutorialPanel_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 128.0f });
 	tutorialPanel_->SetSize({ 390.0f, 126.0f });
 	tutorialPanel_->SetColor({ 0.004f, 0.012f, 0.030f, 0.78f });
 	tutorialPanel_->Update();
 
-	TextStyle titleStyle{};
+	cg2::TextStyle titleStyle{};
 	titleStyle.fontFamily = "Meiryo";
 	titleStyle.fontSize = 28.0f;
 	titleStyle.color = { 0.42f, 1.0f, 0.82f, 1.0f };
 	titleStyle.outlineColor = { 0.0f, 0.03f, 0.08f, 0.96f };
 	titleStyle.outlineThickness = 3.0f;
 	titleStyle.padding = 7.0f;
-	tutorialTitleText_ = std::make_unique<TextLabel>();
-	tutorialTitleText_->Initialize(SpriteCommon::GetInstance(), "MOVE", titleStyle);
+	tutorialTitleText_ = std::make_unique<cg2::TextLabel>();
+	tutorialTitleText_->Initialize(cg2::SpriteCommon::GetInstance(), "MOVE", titleStyle);
 	tutorialTitleText_->SetAnchorPoint({ 0.5f, 0.5f });
-	tutorialTitleText_->SetPosition({ WinApp::kClientWidth * 0.5f, 91.0f });
+	tutorialTitleText_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 91.0f });
 
-	TextStyle inputStyle = titleStyle;
+	cg2::TextStyle inputStyle = titleStyle;
 	inputStyle.fontSize = 20.0f;
 	inputStyle.color = { 0.90f, 1.0f, 1.0f, 1.0f };
 	inputStyle.outlineThickness = 2.0f;
-	tutorialInputText_ = std::make_unique<TextLabel>();
-	tutorialInputText_->Initialize(SpriteCommon::GetInstance(), "W A S D", inputStyle);
+	tutorialInputText_ = std::make_unique<cg2::TextLabel>();
+	tutorialInputText_->Initialize(cg2::SpriteCommon::GetInstance(), "W A S D", inputStyle);
 	tutorialInputText_->SetAnchorPoint({ 0.5f, 0.5f });
-	tutorialInputText_->SetPosition({ WinApp::kClientWidth * 0.5f, 128.0f });
+	tutorialInputText_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 128.0f });
 
-	TextStyle descriptionStyle = inputStyle;
+	cg2::TextStyle descriptionStyle = inputStyle;
 	descriptionStyle.fontSize = 15.0f;
 	descriptionStyle.color = { 0.78f, 0.86f, 0.92f, 0.92f };
-	tutorialDescriptionText_ = std::make_unique<TextLabel>();
-	tutorialDescriptionText_->Initialize(SpriteCommon::GetInstance(), "移動してみよう", descriptionStyle);
+	tutorialDescriptionText_ = std::make_unique<cg2::TextLabel>();
+	tutorialDescriptionText_->Initialize(cg2::SpriteCommon::GetInstance(), "移動してみよう", descriptionStyle);
 	tutorialDescriptionText_->SetAnchorPoint({ 0.5f, 0.5f });
-	tutorialDescriptionText_->SetPosition({ WinApp::kClientWidth * 0.5f, 160.0f });
+	tutorialDescriptionText_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 160.0f });
 
 	tutorialPreviousPlayerPosition_ = player_->GetWorldPosition();
 	tutorialMoveDistance_ = 0.0f;
@@ -1405,8 +1406,8 @@ void GameScene::UpdateTutorial(float deltaTime)
 		return;
 	}
 
-	const Vector3 currentPosition = player_->GetWorldPosition();
-	const float actualMoveDistance = Length(currentPosition - tutorialPreviousPlayerPosition_);
+	const cg2::Vector3 currentPosition = player_->GetWorldPosition();
+	const float actualMoveDistance = cg2::Length(currentPosition - tutorialPreviousPlayerPosition_);
 	tutorialPreviousPlayerPosition_ = currentPosition;
 
 	if (tutorialStep_ == TutorialStep::Phase1Complete) {
@@ -1522,11 +1523,11 @@ void GameScene::UpdateTutorialText()
 		return;
 	}
 
-	TextStyle inputStyle = tutorialInputText_->GetStyle();
+	cg2::TextStyle inputStyle = tutorialInputText_->GetStyle();
 	inputStyle.color = tutorialStepCompleting_ || tutorialStep_ == TutorialStep::Phase1Complete ||
 		tutorialStep_ == TutorialStep::TutorialComplete
-		? Vector4{ 0.42f, 1.0f, 0.62f, 1.0f }
-		: Vector4{ 0.90f, 1.0f, 1.0f, 1.0f };
+		? cg2::Vector4{ 0.42f, 1.0f, 0.62f, 1.0f }
+		: cg2::Vector4{ 0.90f, 1.0f, 1.0f, 1.0f };
 	tutorialInputText_->SetStyle(inputStyle);
 
 	if (tutorialStepCompleting_) {
@@ -1619,13 +1620,13 @@ void GameScene::DrawTutorialUi()
 		if (tutorialInputText_) tutorialInputText_->SetPosition({ 1090.0f, 50.0f });
 	} else {
 		if (tutorialPanel_) {
-			tutorialPanel_->SetPosition({ WinApp::kClientWidth * 0.5f, 128.0f });
+			tutorialPanel_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 128.0f });
 			tutorialPanel_->SetSize({ 390.0f, 126.0f });
 			tutorialPanel_->Update();
 		}
-		if (tutorialTitleText_) tutorialTitleText_->SetPosition({ WinApp::kClientWidth * 0.5f, 91.0f });
-		if (tutorialInputText_) tutorialInputText_->SetPosition({ WinApp::kClientWidth * 0.5f, 128.0f });
-		if (tutorialDescriptionText_) tutorialDescriptionText_->SetPosition({ WinApp::kClientWidth * 0.5f, 160.0f });
+		if (tutorialTitleText_) tutorialTitleText_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 91.0f });
+		if (tutorialInputText_) tutorialInputText_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 128.0f });
+		if (tutorialDescriptionText_) tutorialDescriptionText_->SetPosition({ cg2::WinApp::kClientWidth * 0.5f, 160.0f });
 	}
 	if (tutorialPanel_) tutorialPanel_->Draw();
 	if (tutorialTitleText_) tutorialTitleText_->Draw();
@@ -1644,8 +1645,8 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 	if (previousPlayerHp_ >= 0 && playerHp < previousPlayerHp_) {
 		const int damage = previousPlayerHp_ - playerHp;
 		damageTaken_ += damage;
-		const Vector3 hitDelta = player_->GetWorldPosition() - enemy_->GetWorldPosition();
-		Vector2 hitDirection{ hitDelta.x, hitDelta.y };
+		const cg2::Vector3 hitDelta = player_->GetWorldPosition() - enemy_->GetWorldPosition();
+		cg2::Vector2 hitDirection{ hitDelta.x, hitDelta.y };
 		const float length = std::sqrt(hitDirection.x * hitDirection.x + hitDirection.y * hitDirection.y);
 		if (length > 0.0001f) {
 			hitDirection.x /= length;
@@ -1718,7 +1719,7 @@ void GameScene::BeginBossDefeatSequence()
 	bossDefeatSequenceDuration_ = gameFlowTimer_;
 	bossDefeatImpactDelayTimer_ = screenEffectDirector_.GetConfig().bossDefeatImpactDelay;
 	bossDefeatImpactTriggered_ = false;
-	const Vector2 center = WorldToScreenUv(enemy_->GetWorldPosition());
+	const cg2::Vector2 center = WorldToScreenUv(enemy_->GetWorldPosition());
 	screenEffectDirector_.TriggerBossDefeat(center);
 	cameraShakeDuration_ = screenEffectDirector_.GetConfig().cameraShakeDuration * 4.5f;
 	cameraShakeTimer_ = cameraShakeDuration_;
@@ -1878,7 +1879,7 @@ void GameScene::SetEventCallout(const std::string& text, float duration)
 {
 	if (eventCalloutText_) {
 		eventCalloutText_->SetText(text);
-        auto style=eventCalloutText_->GetStyle();style.color=(text=="ダメージ"||text=="戦闘不能")?Vector4{1,0.23f,0.16f,1}:Vector4{0.68f,1,0.88f,1};eventCalloutText_->SetStyle(style);
+        auto style=eventCalloutText_->GetStyle();style.color=(text=="ダメージ"||text=="戦闘不能")?cg2::Vector4{1,0.23f,0.16f,1}:cg2::Vector4{0.68f,1,0.88f,1};eventCalloutText_->SetStyle(style);
 	}
 	eventCalloutTimer_ = (std::max)(0.0f, duration);
 }
@@ -1974,12 +1975,12 @@ bool GameScene::ReloadPlayerClassConfig(bool automatic)
 	return succeeded;
 }
 
-Vector2 GameScene::WorldToScreenUv(const Vector3& worldPos) const
+cg2::Vector2 GameScene::WorldToScreenUv(const cg2::Vector3& worldPos) const
 {
-	const Vector2 screen = WorldToScreen(worldPos);
+	const cg2::Vector2 screen = WorldToScreen(worldPos);
 	return {
-		(std::clamp)(screen.x / static_cast<float>(WinApp::kClientWidth), 0.0f, 1.0f),
-		(std::clamp)(screen.y / static_cast<float>(WinApp::kClientHeight), 0.0f, 1.0f)
+		(std::clamp)(screen.x / static_cast<float>(cg2::WinApp::kClientWidth), 0.0f, 1.0f),
+		(std::clamp)(screen.y / static_cast<float>(cg2::WinApp::kClientHeight), 0.0f, 1.0f)
 	};
 }
 
@@ -1999,7 +2000,7 @@ IScene::ScreenEffectState GameScene::GetScreenEffectState() const
 
 void GameScene::Draw() {
 
-	Object3dCommon::GetInstance()->PreDraw(kNormal);
+	cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 
 }
 
@@ -2019,7 +2020,7 @@ void GameScene::DrawPostEffect3D() {
 	if (skybox_) {
 		//skybox_->Draw();
 	}
-	Object3dCommon::GetInstance()->PreDraw(kNormal);
+	cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 	const bool useGridPost = enableNeonGridPostEffect_ && IsPostProfileCategoryEnabled("Grid");
 	const bool useStagePost = enableStagePostEffect_ && IsPostProfileCategoryEnabled("Stage");
 	const bool useBulletTrailPost = enableBulletTrailPostEffect_ && IsPostProfileCategoryEnabled("BulletTrail");
@@ -2027,21 +2028,21 @@ void GameScene::DrawPostEffect3D() {
 	const bool useEnemyPost = enableEnemyPostEffect_ && IsPostProfileCategoryEnabled("Enemy");
 	const bool useExpEnemyPost = enableExpEnemyPostEffect_ && IsPostProfileCategoryEnabled("ExpEnemy");
 	auto profile = [this](const char* name, bool active, auto&& drawFunc) {
-		RuntimeProfiler::GpuScope gpuScope(name);
+		cg2::RuntimeProfiler::GpuScope gpuScope(name);
 		const auto start = std::chrono::steady_clock::now();
 		drawFunc();
 		const auto end = std::chrono::steady_clock::now();
 		const float ms = std::chrono::duration<float, std::milli>(end - start).count();
 		AddPostProfileEntry(name, ms, active);
-		RuntimeProfiler::Get().AddCpu(name, ms);
+		cg2::RuntimeProfiler::Get().AddCpu(name, ms);
 	};
 
 	if (expEnemyNeonRenderMode_ == 3) {
 		profile("Exp Fill", true, [&]() {
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 			DrawExpEnemyNeonFillModels();
 			DrawExpEnemyNeonDepthLines();
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 		});
 	}
 
@@ -2050,18 +2051,18 @@ void GameScene::DrawPostEffect3D() {
 			neonGridPostEffect_->BeginCapture();
 			DrawNeonGridPass(false);
 			neonGridPostEffect_->EndCaptureAdditiveOnly();
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 		});
 	} else {
 		profile("Grid Draw", false, [&]() {
 			DrawNeonGridPass(false);
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 		});
 	}
 	if (fillActorNeonBodies_ && (playerNeonRenderMode_ == 1 || bossNeonRenderMode_ == 1)) {
 		profile("Actor Neon Fill", true, [&]() {
 			DrawActorNeonBodyFillPass();
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 		});
 	} else {
 		AddPostProfileEntry("Actor Neon Fill", 0.0f, false);
@@ -2087,12 +2088,12 @@ void GameScene::DrawPostEffect3D() {
 				neonGridPostEffect_->BeginCaptureWithCurrentDepth();
 				DrawStageBlockNeonPass();
 				neonGridPostEffect_->EndCaptureAdditiveOnly();
-				Object3dCommon::GetInstance()->PreDraw(kNormal);
+				cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 			});
 		} else {
 			profile("Stage Block Neon", false, [&]() {
 				DrawStageBlockNeonPass();
-				Object3dCommon::GetInstance()->PreDraw(kNormal);
+				cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 			});
 		}
 	} else {
@@ -2100,7 +2101,7 @@ void GameScene::DrawPostEffect3D() {
 	}
 	
 	{
-		Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+		cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewProjectionMatrix()
 			: camera->GetViewProjectionMatrix();
         const bool hasTrailContent = bulletManager_->GetBulletCount() != 0 || bulletManager_->HasDrawableTrails() ||
@@ -2112,10 +2113,10 @@ void GameScene::DrawPostEffect3D() {
 				if (enablePlayerMeleeRibbonTrail_ && playerMeleeTrailManager_) {
 					playerMeleeTrailManager_->DrawAll(vp);
 				}
-				Object3dCommon::GetInstance()->PreDraw(kNormal);
+				cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 				bulletManager_->Draw();
 				bulletTrailPostEffect_->EndCaptureAdditiveOnly();
-				Object3dCommon::GetInstance()->PreDraw(kNormal);
+				cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 			});
 		} else {
 			profile("Trail Draw", false, [&]() {
@@ -2123,7 +2124,7 @@ void GameScene::DrawPostEffect3D() {
 				if (enablePlayerMeleeRibbonTrail_ && playerMeleeTrailManager_) {
 					playerMeleeTrailManager_->DrawAll(vp);
 				}
-				Object3dCommon::GetInstance()->PreDraw(kNormal);
+				cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 			});
 		}
 	}
@@ -2135,9 +2136,9 @@ void GameScene::DrawPostEffect3D() {
 		useExpEnemyPost;
 	if (useSharedObjectBloom) {
 		profile("Shared Glow", true, [&]() {
-			const Vector3 currentCameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
+			const cg2::Vector3 currentCameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
 			sharedObjectBloomPostEffect_->BeginCapture();
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 			if (useStagePost) {
 				stage_->DrawVisible(currentCameraPos, 38.0f, 24.0f, showStageNormalBlockBodies_);
 			}
@@ -2157,14 +2158,14 @@ void GameScene::DrawPostEffect3D() {
 					expEnemyPostVisibleHalfHeight_);
 			}
 			sharedObjectBloomPostEffect_->EndCaptureBloomOnly();
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 		});
 	} else {
 		AddPostProfileEntry("Shared Glow", 0.0f, false);
 	}
 
 	if (showCollisionDebug_) {
-		Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+		cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewProjectionMatrix()
 			: camera->GetViewProjectionMatrix();
 		profile("Collision", true, [&]() {
@@ -2172,27 +2173,27 @@ void GameScene::DrawPostEffect3D() {
 		});
 	}
 
-	const bool hasDrawableParticles = ParticleManager::GetInstance()->HasDrawableParticles();
+	const bool hasDrawableParticles = cg2::ParticleManager::GetInstance()->HasDrawableParticles();
 	if (enableParticlePostEffect_ && hasDrawableParticles) {
 		profile("Particle Glow", true, [&]() {
 			particlePostEffect_->BeginCaptureWithCurrentDepth();
-			ParticleManager::GetInstance()->Draw();
+			cg2::ParticleManager::GetInstance()->Draw();
 			particlePostEffect_->EndCaptureAdditiveOnly();
-			Object3dCommon::GetInstance()->PreDraw(kNormal);
+			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 		});
 	} else {
 		profile("Particles", hasDrawableParticles, [&]() {
-			ParticleManager::GetInstance()->Draw();
+			cg2::ParticleManager::GetInstance()->Draw();
 		});
 	}
-    auto& diagnostics = RuntimeProfiler::Get();
+    auto& diagnostics = cg2::RuntimeProfiler::Get();
     if (diagnostics.IsRecording()) {
         const auto counts = bulletManager_->GetBulletCounts();
         const auto trails = bulletManager_->GetTrailDrawStats();
         diagnostics.SetCounter("Bullets: player", static_cast<double>(counts.player));
         diagnostics.SetCounter("Bullets: enemy", static_cast<double>(counts.enemy + counts.hostileExpEnemy));
         diagnostics.SetCounter("Enemies", static_cast<double>(enemyManager_->GetEnemyCount()));
-        diagnostics.SetCounter("Particle count", ParticleManager::GetInstance()->GetActiveCount());
+        diagnostics.SetCounter("Particle count", cg2::ParticleManager::GetInstance()->GetActiveCount());
         diagnostics.SetCounter("Trails (drawable)", static_cast<double>(trails.drawableInstances));
         diagnostics.SetCounter("Trail vertices", static_cast<double>(trails.generatedVertices));
         diagnostics.SetCounter("Trail draw calls", trails.drawCalls);
@@ -2201,15 +2202,15 @@ void GameScene::DrawPostEffect3D() {
     }
 }
 
-void GameScene::TriggerDeathPostPulse(const Vector3& worldPosition, float strength) {
+void GameScene::TriggerDeathPostPulse(const cg2::Vector3& worldPosition, float strength) {
 	if (!enableDeathPostPulse_) {
 		return;
 	}
 
-	const Vector2 screen = WorldToScreen(worldPosition);
+	const cg2::Vector2 screen = WorldToScreen(worldPosition);
 	deathPostPulse_.center = {
-		(std::clamp)(screen.x / static_cast<float>(WinApp::kClientWidth), 0.0f, 1.0f),
-		(std::clamp)(screen.y / static_cast<float>(WinApp::kClientHeight), 0.0f, 1.0f)
+		(std::clamp)(screen.x / static_cast<float>(cg2::WinApp::kClientWidth), 0.0f, 1.0f),
+		(std::clamp)(screen.y / static_cast<float>(cg2::WinApp::kClientHeight), 0.0f, 1.0f)
 	};
 	deathPostPulseScale_ = (std::clamp)(strength, 0.5f, 1.6f);
 	deathPostPulseTimer_ = deathPostPulseDuration_;
@@ -2228,7 +2229,7 @@ void GameScene::UpdateDeathPostPulse(float deltaTime) {
 
 	deathPostPulseTimer_ = (std::max)(0.0f, deathPostPulseTimer_ - deltaTime);
 	const float age = 1.0f - deathPostPulseTimer_ / (std::max)(0.001f, deathPostPulseDuration_);
-	const float impactEnvelope = std::sin(age * pi) * (1.0f - age * 0.35f);
+	const float impactEnvelope = std::sin(age * cg2::pi) * (1.0f - age * 0.35f);
 	const float flashEnvelope = (1.0f - age) * (1.0f - age);
 	deathPostPulse_.radius = 0.025f + age * deathPostShockwaveMaxRadius_;
 	deathPostPulse_.width = deathPostShockwaveWidth_;
@@ -2246,8 +2247,8 @@ void GameScene::DrawAfterPostEffect3D() {
 	if (gameFlowState_ == GameFlowState::BossDefeatSequence &&
 		enableEnemyPostEffect_ &&
 		bossNeonRenderMode_ == 0) {
-		BloomParam savedBossParam = enemyPostEffect_->GetParam();
-		BloomParam defeatParam = savedBossParam;
+		cg2::BloomParam savedBossParam = enemyPostEffect_->GetParam();
+		cg2::BloomParam defeatParam = savedBossParam;
 		const float progress = bossDefeatSequenceDuration_ > 0.0f
 			? (std::clamp)(1.0f - gameFlowTimer_ / bossDefeatSequenceDuration_, 0.0f, 1.0f)
 			: 1.0f;
@@ -2259,10 +2260,10 @@ void GameScene::DrawAfterPostEffect3D() {
 		defeatParam.intensity = savedBossParam.intensity * 0.70f;
 		enemyPostEffect_->SetParam(defeatParam);
 		enemyPostEffect_->BeginCapture();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 		enemy_->DrawBodyOnly();
 		enemyPostEffect_->EndCaptureToBackBuffer();
-		Object3dCommon::GetInstance()->PreDraw(kNormal);
+		cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 		enemyPostEffect_->SetParam(savedBossParam);
 	}
 
@@ -2274,8 +2275,8 @@ void GameScene::DrawAfterPostEffect3D() {
 		return;
 	}
 
-	BloomParam savedParam = playerPostEffect_->GetParam();
-	BloomParam slowParam = savedParam;
+	cg2::BloomParam savedParam = playerPostEffect_->GetParam();
+	cg2::BloomParam slowParam = savedParam;
 	if (slowParam.chromAbAmount < slowPlayerChromAbAmount_) {
 		slowParam.chromAbAmount = slowPlayerChromAbAmount_;
 	}
@@ -2288,10 +2289,10 @@ void GameScene::DrawAfterPostEffect3D() {
 	playerPostEffect_->SetParam(slowParam);
 
 	playerPostEffect_->BeginCapture();
-	Object3dCommon::GetInstance()->PreDraw(kNormal);
+	cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 	player_->DrawBodyOnly();
 	playerPostEffect_->EndCaptureToBackBuffer();
-	Object3dCommon::GetInstance()->PreDraw(kNormal);
+	cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 
 	playerPostEffect_->SetParam(savedParam);
 }
@@ -2347,13 +2348,13 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 	if (showNeonTriangleDemo_ || queueExpEnemyNeonInGridPass || queueActorBillboards ||
 		!playerLaserBeams_.empty() || !playerMines_.empty() || !playerMineExplosions_.empty() ||
 		!playerMeleeSlashes_.empty() || !neonTriangleParticles_.empty()) {
-		Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera()
+		cg2::Matrix4x4 viewMatrix = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 			? debugCamera->GetViewMatrix()
 			: camera->GetViewMatrix();
-		Matrix4x4 cameraWorld = Inverse(viewMatrix);
-		Vector3 cameraRight = Normalize({ cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2] });
-		Vector3 cameraUp = Normalize({ cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2] });
-		Vector3 cameraForward = Normalize({ cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] });
+		cg2::Matrix4x4 cameraWorld = cg2::Inverse(viewMatrix);
+		cg2::Vector3 cameraRight = cg2::Normalize({ cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2] });
+		cg2::Vector3 cameraUp = cg2::Normalize({ cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2] });
+		cg2::Vector3 cameraForward = cg2::Normalize({ cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] });
 		if (queueExpEnemyNeonInGridPass) {
 			QueueExpEnemyNeonShapes(cameraRight, cameraUp, cameraForward);
 		}
@@ -2378,7 +2379,7 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 	}
 
 	QueueSpecialCombatPresentation();
-	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+	cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
 	neonGridRenderer_->DrawAll(vp);
@@ -2397,7 +2398,7 @@ void GameScene::DrawStageBlockNeonPass() {
 		return;
 	}
 
-	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+	cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
 	neonGridRenderer_->DrawRange(startVertex, vertexCount, vp);
@@ -2408,12 +2409,12 @@ void GameScene::QueueStageBlockNeonOutlines() {
 		return;
 	}
 
-	Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera()
+	cg2::Matrix4x4 viewMatrix = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewMatrix()
 		: camera->GetViewMatrix();
-	Matrix4x4 cameraWorld = Inverse(viewMatrix);
-	Vector3 cameraForward = Normalize({ cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] });
-	const Vector3 cameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
+	cg2::Matrix4x4 cameraWorld = cg2::Inverse(viewMatrix);
+	cg2::Vector3 cameraForward = cg2::Normalize({ cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] });
+	const cg2::Vector3 cameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
 
 	auto divisionCount = [](float scale) {
 		return (std::max)(1, static_cast<int>(std::round(std::abs(scale))));
@@ -2435,15 +2436,15 @@ void GameScene::QueueStageBlockNeonOutlines() {
 				continue;
 			}
 
-			const Matrix4x4 transform = MakeAffineMatrix(
+			const cg2::Matrix4x4 transform = cg2::MakeAffineMatrix(
 				block.worldTransform.scale,
 				block.worldTransform.rotate,
 				block.worldTransform.translate);
 
-				auto localToWorld = [&](const Vector3& local) {
-				return TransformMatrix(local, transform);
+				auto localToWorld = [&](const cg2::Vector3& local) {
+				return cg2::TransformMatrix(local, transform);
 			};
-			Vector4 blockNeonColor = stageBlockNeonColor_;
+			cg2::Vector4 blockNeonColor = stageBlockNeonColor_;
 			if (isDamageBlock) {
 				const float wave = 0.5f + 0.5f * std::sin(stageDamageBlockPulseTime_ * stageDamageBlockPulseSpeed_);
 				const float pulse = stageDamageBlockPulseMin_ +
@@ -2454,12 +2455,12 @@ void GameScene::QueueStageBlockNeonOutlines() {
 				blockNeonColor.z *= pulse;
 				blockNeonColor.w *= 0.75f + wave * 0.25f;
 			}
-			auto queueLocalLine = [&](const Vector3& start, const Vector3& end, const Vector3& localNormal) {
-				Vector3 worldStart = localToWorld(start);
-				Vector3 worldEnd = localToWorld(end);
-				Vector3 worldNormal = localToWorld(localNormal) - localToWorld({ 0.0f, 0.0f, 0.0f });
-				if (Length(worldNormal) > 0.0001f && stageBlockNeonDepthBias_ > 0.0f) {
-					worldNormal = Normalize(worldNormal);
+			auto queueLocalLine = [&](const cg2::Vector3& start, const cg2::Vector3& end, const cg2::Vector3& localNormal) {
+				cg2::Vector3 worldStart = localToWorld(start);
+				cg2::Vector3 worldEnd = localToWorld(end);
+				cg2::Vector3 worldNormal = localToWorld(localNormal) - localToWorld({ 0.0f, 0.0f, 0.0f });
+				if (cg2::Length(worldNormal) > 0.0001f && stageBlockNeonDepthBias_ > 0.0f) {
+					worldNormal = cg2::Normalize(worldNormal);
 					worldStart = worldStart + worldNormal * stageBlockNeonDepthBias_;
 					worldEnd = worldEnd + worldNormal * stageBlockNeonDepthBias_;
 				}
@@ -2470,16 +2471,16 @@ void GameScene::QueueStageBlockNeonOutlines() {
 					blockNeonColor,
 					cameraForward);
 			};
-			auto shouldDrawFace = [&](const Vector3& localCenter, const Vector3& localNormal) {
-				const Vector3 worldCenter = localToWorld(localCenter);
-				const Vector3 worldNormal = localToWorld(localCenter + localNormal) - worldCenter;
-				const Vector3 toCamera = cameraPos - worldCenter;
-				const float normalLength = Length(worldNormal);
-				const float toCameraLength = Length(toCamera);
+			auto shouldDrawFace = [&](const cg2::Vector3& localCenter, const cg2::Vector3& localNormal) {
+				const cg2::Vector3 worldCenter = localToWorld(localCenter);
+				const cg2::Vector3 worldNormal = localToWorld(localCenter + localNormal) - worldCenter;
+				const cg2::Vector3 toCamera = cameraPos - worldCenter;
+				const float normalLength = cg2::Length(worldNormal);
+				const float toCameraLength = cg2::Length(toCamera);
 				if (normalLength <= 0.0001f || toCameraLength <= 0.0001f) {
 					return true;
 				}
-				const float facingDot = Dot(worldNormal / normalLength, toCamera / toCameraLength);
+				const float facingDot = cg2::Dot(worldNormal / normalLength, toCamera / toCameraLength);
 				return facingDot >= -0.08f;
 			};
 			auto localCoord = [](int index, int divisions) {
@@ -2491,7 +2492,7 @@ void GameScene::QueueStageBlockNeonOutlines() {
 			const int divZ = divisionCount(block.worldTransform.scale.z);
 
 			for (float z : { -1.0f, 1.0f }) {
-				const Vector3 faceNormal = { 0.0f, 0.0f, z };
+				const cg2::Vector3 faceNormal = { 0.0f, 0.0f, z };
 				if (!shouldDrawFace({ 0.0f, 0.0f, z }, { 0.0f, 0.0f, z })) {
 					continue;
 				}
@@ -2506,7 +2507,7 @@ void GameScene::QueueStageBlockNeonOutlines() {
 			}
 
 			for (float y : { -1.0f, 1.0f }) {
-				const Vector3 faceNormal = { 0.0f, y, 0.0f };
+				const cg2::Vector3 faceNormal = { 0.0f, y, 0.0f };
 				if (!shouldDrawFace({ 0.0f, y, 0.0f }, { 0.0f, y, 0.0f })) {
 					continue;
 				}
@@ -2521,7 +2522,7 @@ void GameScene::QueueStageBlockNeonOutlines() {
 			}
 
 			for (float x : { -1.0f, 1.0f }) {
-				const Vector3 faceNormal = { x, 0.0f, 0.0f };
+				const cg2::Vector3 faceNormal = { x, 0.0f, 0.0f };
 				if (!shouldDrawFace({ x, 0.0f, 0.0f }, { x, 0.0f, 0.0f })) {
 					continue;
 				}
@@ -2556,27 +2557,27 @@ void GameScene::UpdatePlayerNeonAfterimages(float deltaTime) {
 
 	playerAfterimageSpawnTimer_ -= deltaTime;
 	if (playerAfterimageSpawnTimer_ <= 0.0f) {
-		Vector3 direction = player_->GetDirection();
-		if (Length(direction) < 0.001f) {
+		cg2::Vector3 direction = player_->GetDirection();
+		if (cg2::Length(direction) < 0.001f) {
 			direction = { 0.0f, -1.0f, 0.0f };
 		}
-		playerNeonAfterimages_.push_back({ player_->GetWorldPosition(), Normalize(direction), playerAfterimageLifetime_ });
+		playerNeonAfterimages_.push_back({ player_->GetWorldPosition(), cg2::Normalize(direction), playerAfterimageLifetime_ });
 		playerAfterimageSpawnTimer_ = playerAfterimageInterval_;
 	}
 }
 
 void GameScene::SpawnPlayerLaser(const Player::LaserShotEvent& event)
 {
-	if (Length(event.direction) < 0.0001f) {
+	if (cg2::Length(event.direction) < 0.0001f) {
 		return;
 	}
 
-	const Vector3 direction = Normalize(event.direction);
+	const cg2::Vector3 direction = cg2::Normalize(event.direction);
 	float range = (std::max)(0.1f, event.range);
 	if (stage_) {
 		const float step = 0.35f;
 		for (float d = step; d <= range; d += step) {
-			const Vector3 sample = event.origin + direction * d;
+			const cg2::Vector3 sample = event.origin + direction * d;
 			if (stage_->IsCollisionWithAnyBlock(sample, (std::max)(0.03f, event.width * 0.35f))) {
 				range = d;
 				break;
@@ -2584,7 +2585,7 @@ void GameScene::SpawnPlayerLaser(const Player::LaserShotEvent& event)
 		}
 	}
 
-	const Vector3 end = event.origin + direction * range;
+	const cg2::Vector3 end = event.origin + direction * range;
 	PlayerLaserBeam beam{};
 	beam.start = event.origin;
 	beam.end = end;
@@ -2600,7 +2601,7 @@ void GameScene::SpawnPlayerLaser(const Player::LaserShotEvent& event)
 		const float distance = DistancePointToSegment2D(enemy_->GetWorldPosition(), event.origin, end, &t);
 		if (distance <= enemy_->GetRadius() + beam.width * 0.75f) {
 			enemy_->TakeDamage(event.damage);
-			ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f, event.color, 8);
+			cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f, event.color, 8);
 			emittedImpact = true;
 		}
 	}
@@ -2614,7 +2615,7 @@ void GameScene::SpawnPlayerLaser(const Player::LaserShotEvent& event)
 			if (distance <= expEnemy->GetRadius() + beam.width * 0.75f) {
 				expEnemy->TakeDirectionalDamage(event.damage,event.origin);
 				if (!emittedImpact) {
-					ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f, event.color, 8);
+					cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f, event.color, 8);
 					emittedImpact = true;
 				}
 			}
@@ -2635,7 +2636,7 @@ void GameScene::UpdatePlayerLasers(float deltaTime)
 		playerLaserBeams_.end());
 }
 
-void GameScene::QueuePlayerLasers(const Vector3& cameraForward)
+void GameScene::QueuePlayerLasers(const cg2::Vector3& cameraForward)
 {
 	if (!neonGridRenderer_) {
 		return;
@@ -2643,11 +2644,11 @@ void GameScene::QueuePlayerLasers(const Vector3& cameraForward)
 
 	for (const PlayerLaserBeam& beam : playerLaserBeams_) {
 		const float t = beam.maxLife > 0.0f ? (std::clamp)(beam.life / beam.maxLife, 0.0f, 1.0f) : 0.0f;
-		Vector4 color = beam.color;
+		cg2::Vector4 color = beam.color;
 		color.w *= t;
 		neonGridRenderer_->QueueCameraFacingLine(beam.start, beam.end, beam.width * (0.70f + 0.35f * t), color, cameraForward);
 
-		Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w };
+		cg2::Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w };
 		neonGridRenderer_->QueueCameraFacingLine(beam.start, beam.end, beam.width * 0.32f, coreColor, cameraForward);
 	}
 }
@@ -2661,10 +2662,10 @@ void GameScene::SpawnPlayerMine(const Player::MineDropEvent& event)
 	mine.life = (std::max)(0.1f, event.lifeTime);
 	mine.maxLife = mine.life;
 	mine.damage = event.damage;
-	mine.rotation = Rand(0.0f, 6.28318530718f);
+	mine.rotation = cg2::Rand(0.0f, 6.28318530718f);
 	mine.color = event.color;
 	playerMines_.push_back(mine);
-	ParticleManager::GetInstance()->EmitNeonImpactEffect(mine.position, { 0.0f, 1.0f, 0.0f }, mine.color, 5);
+	cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(mine.position, { 0.0f, 1.0f, 0.0f }, mine.color, 5);
 }
 
 void GameScene::UpdatePlayerMines(float deltaTime)
@@ -2687,12 +2688,12 @@ void GameScene::UpdatePlayerMines(float deltaTime)
 
 		bool shouldDetonate = mine.life <= 0.0f;
 		if (!shouldDetonate && mine.fuse <= 0.0f) {
-			if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
+			if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && cg2::Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
 				shouldDetonate = true;
 			}
 			if (!shouldDetonate && enemyManager_) {
 				for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
-					if (expEnemy && !expEnemy->IsDead() && Length(expEnemy->GetWorldPosition() - mine.position) <= mine.radius + expEnemy->GetRadius()) {
+					if (expEnemy && !expEnemy->IsDead() && cg2::Length(expEnemy->GetWorldPosition() - mine.position) <= mine.radius + expEnemy->GetRadius()) {
 						shouldDetonate = true;
 						break;
 					}
@@ -2715,34 +2716,34 @@ void GameScene::DetonatePlayerMine(size_t index)
 	}
 
 	const PlayerMine mine = playerMines_[index];
-	if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
+	if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && cg2::Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
 		enemy_->TakeDamage(mine.damage);
 	}
 	if (enemyManager_) {
 		for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
-			if (expEnemy && !expEnemy->IsDead() && Length(expEnemy->GetWorldPosition() - mine.position) <= mine.radius + expEnemy->GetRadius()) {
+			if (expEnemy && !expEnemy->IsDead() && cg2::Length(expEnemy->GetWorldPosition() - mine.position) <= mine.radius + expEnemy->GetRadius()) {
 				expEnemy->TakeDirectionalDamage(mine.damage,mine.position);
 			}
 		}
 	}
 
-	ParticleManager::GetInstance()->EmitNeonImpactEffect(mine.position, { 0.0f, 1.0f, 0.0f }, mine.color, 18);
+	cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(mine.position, { 0.0f, 1.0f, 0.0f }, mine.color, 18);
 	playerMineExplosions_.push_back({ mine.position, mine.radius, 0.30f, 0.30f, mine.color });
 	playerMines_.erase(playerMines_.begin() + static_cast<std::ptrdiff_t>(index));
 }
 
-void GameScene::QueuePlayerMines(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward)
+void GameScene::QueuePlayerMines(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward)
 {
 	if (!neonGridRenderer_) {
 		return;
 	}
 
-	auto queueCircle = [&](const Vector3& center, float radius, float lineWidth, const Vector4& color) {
+	auto queueCircle = [&](const cg2::Vector3& center, float radius, float lineWidth, const cg2::Vector4& color) {
 		const int segments = 36;
-		Vector3 previous = center + cameraRight * radius;
+		cg2::Vector3 previous = center + cameraRight * radius;
 		for (int i = 1; i <= segments; ++i) {
 			const float angle = 6.28318530718f * static_cast<float>(i) / static_cast<float>(segments);
-			const Vector3 current = center + (cameraRight * std::cos(angle) + cameraUp * std::sin(angle)) * radius;
+			const cg2::Vector3 current = center + (cameraRight * std::cos(angle) + cameraUp * std::sin(angle)) * radius;
 			neonGridRenderer_->QueueLine(previous, current, lineWidth, color);
 			previous = current;
 		}
@@ -2750,33 +2751,33 @@ void GameScene::QueuePlayerMines(const Vector3& cameraRight, const Vector3& came
 
 	for (const PlayerMineExplosion& explosion : playerMineExplosions_) {
 		const float t = explosion.maxLife > 0.0f ? (std::clamp)(explosion.life / explosion.maxLife, 0.0f, 1.0f) : 0.0f;
-		Vector4 color = explosion.color;
+		cg2::Vector4 color = explosion.color;
 		color.w *= t;
 		queueCircle(explosion.position, explosion.radius * (1.05f - t * 0.35f), 0.10f * (0.6f + t), color);
-		Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w * 0.8f };
+		cg2::Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w * 0.8f };
 		queueCircle(explosion.position, explosion.radius * (0.55f + (1.0f - t) * 0.25f), 0.045f, coreColor);
 	}
 
 	for (const PlayerMine& mine : playerMines_) {
 		const float lifeRatio = mine.maxLife > 0.0f ? (std::clamp)(mine.life / mine.maxLife, 0.0f, 1.0f) : 0.0f;
 		const float armed = mine.fuse <= 0.0f ? 1.0f : 0.45f;
-		Vector4 color = mine.color;
+		cg2::Vector4 color = mine.color;
 		const float warningPulse = 0.5f + 0.5f * std::sin(mine.rotation * (mine.fuse <= 0.0f ? 8.0f : 3.0f));
 		color.w *= (0.45f + 0.55f * armed) * (0.45f + 0.55f * lifeRatio) * (0.72f + warningPulse * 0.28f);
 		const float markerRadius = 0.42f + warningPulse * 0.12f;
 		neonGridRenderer_->QueueBillboardTriangle(mine.position, markerRadius, mine.rotation, 0.055f, color, cameraRight, cameraUp, cameraForward);
 		neonGridRenderer_->QueueBillboardTriangle(mine.position, markerRadius * 0.72f, -mine.rotation * 1.35f, 0.04f, color, cameraRight, cameraUp, cameraForward);
 
-		Vector4 rangeColor = color;
+		cg2::Vector4 rangeColor = color;
 		rangeColor.w *= mine.fuse <= 0.0f ? 0.28f : 0.14f;
 		queueCircle(mine.position, mine.radius * (0.96f + warningPulse * 0.04f), 0.035f + warningPulse * 0.02f, rangeColor);
 	}
 }
 
-TrailConfig GameScene::MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale) const
+cg2::TrailConfig GameScene::MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale) const
 {
-	TrailConfig config{};
-	Vector4 headColor = slash.color;
+	cg2::TrailConfig config{};
+	cg2::Vector4 headColor = slash.color;
 	headColor.x *= 1.45f;
 	headColor.y *= 1.45f;
 	headColor.z *= 1.45f;
@@ -2798,15 +2799,15 @@ TrailConfig GameScene::MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash,
 	return config;
 }
 
-void GameScene::ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, Vector3& base, Vector3& tip) const
+void GameScene::ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, cg2::Vector3& base, cg2::Vector3& tip) const
 {
 	constexpr float kPi = 3.1415926535f;
 	const float x = (std::clamp)(progress, 0.0f, 1.0f);
 	const float eased = x * x * (3.0f - 2.0f * x);
 	const float angle = (slash.startAngleDeg + (slash.endAngleDeg - slash.startAngleDeg) * eased) * kPi / 180.0f;
-	const Vector3 bladeDir = RotateVector2D(slash.direction, angle);
-	const Vector3 right = { -slash.direction.y, slash.direction.x, 0.0f };
-	const Vector3 hilt = slash.origin - slash.direction * (slash.range * 0.08f) + right * (slash.range * slash.hiltSideOffset);
+	const cg2::Vector3 bladeDir = RotateVector2D(slash.direction, angle);
+	const cg2::Vector3 right = { -slash.direction.y, slash.direction.x, 0.0f };
+	const cg2::Vector3 hilt = slash.origin - slash.direction * (slash.range * 0.08f) + right * (slash.range * slash.hiltSideOffset);
 	// Keep the ribbon on the outer blade so targets remain visible inside the arc.
 	base = hilt + bladeDir * (slash.range * slash.bladeLengthScale * 0.62f);
 	tip = hilt + bladeDir * (slash.range * slash.bladeLengthScale * (0.92f + x * 0.08f));
@@ -2814,14 +2815,14 @@ void GameScene::ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, fl
 
 void GameScene::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event)
 {
-	if (Length(event.direction) < 0.0001f) {
+	if (cg2::Length(event.direction) < 0.0001f) {
 		return;
 	}
 
 	PlayerMeleeSlash slash{};
 	slash.origin = event.origin;
 	slash.followAnchor = player_ ? player_->GetWorldPosition() : event.origin;
-	slash.direction = Normalize(event.direction);
+	slash.direction = cg2::Normalize(event.direction);
 	slash.range = (std::max)(0.3f, event.range);
 	slash.arcDeg = (std::clamp)(event.arcDeg, 5.0f, 360.0f);
 	slash.width = (std::max)(0.02f, event.width);
@@ -2863,10 +2864,10 @@ void GameScene::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event)
 void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 {
 	const bool canFollowPlayer = player_ != nullptr;
-	const Vector3 playerPosition = canFollowPlayer ? player_->GetWorldPosition() : Vector3{};
+	const cg2::Vector3 playerPosition = canFollowPlayer ? player_->GetWorldPosition() : cg2::Vector3{};
 	for (PlayerMeleeSlash& slash : playerMeleeSlashes_) {
 		if (canFollowPlayer) {
-			Vector3 followDelta = playerPosition - slash.followAnchor;
+			cg2::Vector3 followDelta = playerPosition - slash.followAnchor;
 			followDelta.z = 0.0f;
 			slash.origin += followDelta;
 			slash.followAnchor = playerPosition;
@@ -2876,20 +2877,20 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 		if (slash.elapsed >= slash.windupDuration && slash.elapsed <= slash.windupDuration+slash.swingDuration) {
 			const float halfArcRad = slash.arcDeg * 0.5f * 3.1415926535f / 180.0f;
 			const float minDot = slash.arcDeg >= 359.0f ? -1.0f : std::cos(halfArcRad);
-			auto hitTarget = [&](const Vector3& targetPos, float targetRadius) {
-				Vector3 toTarget = targetPos - slash.origin;
+			auto hitTarget = [&](const cg2::Vector3& targetPos, float targetRadius) {
+				cg2::Vector3 toTarget = targetPos - slash.origin;
 				toTarget.z = 0.0f;
-				const float distance = Length(toTarget);
+				const float distance = cg2::Length(toTarget);
 				if(distance>0.001f) for(float t=0.6f;t<distance-targetRadius;t+=0.6f)
 					if(stage_->IsCollisionWithAnyBlock(slash.origin+toTarget*(t/distance),0.12f)) return false;
 				return distance <= 0.0001f ||
-					(distance <= slash.range + targetRadius && Dot(Normalize(toTarget), slash.direction) >= minDot);
+					(distance <= slash.range + targetRadius && cg2::Dot(cg2::Normalize(toTarget), slash.direction) >= minDot);
 			};
 			if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && std::find(slash.hitTargets.begin(),slash.hitTargets.end(),enemy_.get())==slash.hitTargets.end() && hitTarget(enemy_->GetWorldPosition(), enemy_->GetRadius())) {
 				slash.hitTargets.push_back(enemy_.get());enemy_->ApplyKnockback(slash.direction,slash.knockback);
 				enemy_->TakeDamage(slash.damage);
 				if(!slash.hitApplied) {QueueExpeditionImpact(enemy_->GetWorldPosition(),slash.direction,slash.finisher);slash.hitApplied=true;}
-				ParticleManager::GetInstance()->EmitNeonImpactEffect(enemy_->GetWorldPosition(), slash.direction * -1.0f, slash.color, 10);
+				cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(enemy_->GetWorldPosition(), slash.direction * -1.0f, slash.color, 10);
 			}
 			if (enemyManager_) {
 				for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
@@ -2898,7 +2899,7 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 						player_->ArmWallSmash(expEnemy);
 						expEnemy->TakeDirectionalDamage(slash.damage,slash.origin,true);
 						if(!slash.hitApplied) {QueueExpeditionImpact(expEnemy->GetWorldPosition(),slash.direction,slash.finisher);slash.hitApplied=true;}
-						ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(), slash.direction * -1.0f, slash.color, 8);
+						cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(), slash.direction * -1.0f, slash.color, 8);
 					}
 				}
 			}
@@ -2913,8 +2914,8 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 		}
 		if (enablePlayerMeleeRibbonTrail_ && isSwinging && slash.trail) {
 			const float progress = (std::clamp)(swingElapsed / slash.swingDuration, 0.0f, 1.0f);
-			Vector3 base{};
-			Vector3 tip{};
+			cg2::Vector3 base{};
+			cg2::Vector3 tip{};
 			ComputePlayerMeleeBladeSection(slash, progress, base, tip);
 			slash.trail->Update(deltaTime, tip, base, MakePlayerMeleeTrailConfig(slash));
 		} else if (slash.trail) {
@@ -2946,7 +2947,7 @@ void GameScene::UpdateSpecialCombatPresentation(float dt)
 		if(expeditionRun_)tankExpeditionAudio_.Hit();
 	}
 	for(const auto& event:player_->ConsumeSpecialCombatEvents()) {
-		Vector3 end=event.origin;
+		cg2::Vector3 end=event.origin;
 		if(event.kind==Player::SpecialEventKind::RailShot) {
 			for(float distance=.4f;distance<22;distance+=.4f) {
 				const auto next=event.origin+event.direction*distance;
@@ -2983,7 +2984,7 @@ void GameScene::UpdateSpecialCombatPresentation(float dt)
 	}
 	if(bulletManager_->GetBulletCount()>0)for(const auto* bullet:bulletManager_->GetBulletPtrs()) {
 		if(!bullet||bullet->IsDead()||bullet->GetSpecialKind()==Bullet::SpecialKind::None)continue;
-		auto direction=bullet->GetMove();direction=Length(direction)>.0001f?Normalize(direction):Vector3{1,0,0};
+		auto direction=bullet->GetMove();direction=cg2::Length(direction)>.0001f?cg2::Normalize(direction):cg2::Vector3{1,0,0};
 		specialProjectileVisuals_.push_back({bullet->GetWorldPosition(),direction,bullet->GetRadius(),bullet->GetSpecialKind()});
 	}
 }
@@ -2995,14 +2996,14 @@ void GameScene::QueueSpecialCombatPresentation()
 	for(const auto& link:player_->GetDroneLaserLinks())tankspecialfx::Link(*neonGridRenderer_,link.start,link.end);
 	for(const auto& mark:bulletManager_->GetMarkVisuals())for(int i=0;i<mark.stacks;++i) {
 		const float angle=playTime_*1.6f+static_cast<float>(i)*1.5707963f;
-		const auto p=mark.position+Vector3{std::cos(angle)*1.3f,std::sin(angle)*1.3f,.04f};
+		const auto p=mark.position+cg2::Vector3{std::cos(angle)*1.3f,std::sin(angle)*1.3f,.04f};
 		tankspecialfx::Ring(*neonGridRenderer_,p,.13f,.04f,{1.4f,.45f,.9f,.7f});
 	}
 	for(const auto& lock:player_->GetTargetLockVisuals()) {
 		const float radius=1.45f+(lock.remaining>0?.08f*std::sin(playTime_*9):.22f);
 		tankspecialfx::Ring(*neonGridRenderer_,lock.position,radius,.045f,{.25f,1.3f,1.5f,lock.remaining>0?.6f:.25f});
 		for(int i=0;i<4;++i) {
-			const float a=i*1.5707963f;const Vector3 d{std::cos(a),std::sin(a),0};
+			const float a=i*1.5707963f;const cg2::Vector3 d{std::cos(a),std::sin(a),0};
 			neonGridRenderer_->QueueLine(lock.position+d*radius,lock.position+d*(radius+.25f),.045f,{.35f,1.6f,1.8f,.7f});
 		}
 	}
@@ -3011,20 +3012,20 @@ void GameScene::QueueSpecialCombatPresentation()
 		if(drone.phase==Phase::Warning) {
 			const float pulse=.45f+.3f*std::sin(playTime_*28);
 			tankspecialfx::Ring(*neonGridRenderer_,drone.position,.65f+drone.progress*.25f,.05f,
-				drone.bomb?Vector4{1.7f,.35f,.6f,pulse}:Vector4{1.5f,1.0f,.25f,pulse});
+				drone.bomb?cg2::Vector4{1.7f,.35f,.6f,pulse}:cg2::Vector4{1.5f,1.0f,.25f,pulse});
 			neonGridRenderer_->QueueLine(drone.position,drone.target,.018f,{.6f,.9f,1.2f,.20f});
 		} else if(drone.phase==Phase::Rebuilding) {
 			tankspecialfx::Ring(*neonGridRenderer_,drone.position,.32f+drone.progress*.3f,.025f,{.3f,1.3f,1.6f,.25f+drone.progress*.4f});
-			for(int i=0;i<3;++i) {const float a=playTime_*3+i*2.0944f;const Vector3 d{std::cos(a),std::sin(a),0};
+			for(int i=0;i<3;++i) {const float a=playTime_*3+i*2.0944f;const cg2::Vector3 d{std::cos(a),std::sin(a),0};
 				neonGridRenderer_->QueueLine(drone.position+d*.8f,drone.position+d*(.8f-.45f*drone.progress),.035f,{.4f,1.5f,1.8f,.5f});}
 		} else if(drone.phase==Phase::Charging) {
-			const auto v=drone.target-drone.position;if(Length(v)>.001f)
-				neonGridRenderer_->QueueLine(drone.position-Normalize(v)*1.3f,drone.position,.09f,{.4f,1.4f,1.7f,.5f});
+			const auto v=drone.target-drone.position;if(cg2::Length(v)>.001f)
+				neonGridRenderer_->QueueLine(drone.position-cg2::Normalize(v)*1.3f,drone.position,.09f,{.4f,1.4f,1.7f,.5f});
 		}
 	}
 	if(player_->GetEmpRatio()>0) {
 		const auto center=player_->GetWorldPosition();
-		for(int i=0;i<3;++i){const float a=playTime_*7+i*2.0944f;const Vector3 d{std::cos(a),std::sin(a),0};
+		for(int i=0;i<3;++i){const float a=playTime_*7+i*2.0944f;const cg2::Vector3 d{std::cos(a),std::sin(a),0};
 			neonGridRenderer_->QueueLine(center+d*1.6f,center+d*1.85f,.035f,{.7f,.4f,1.5f,.32f});}
 	}
 	for(const auto& visual:specialProjectileVisuals_) {
@@ -3046,7 +3047,7 @@ void GameScene::QueueSpecialCombatPresentation()
 			tankspecialfx::Ring(*neonGridRenderer_,event.origin,.3f+flash.age*event.strength*4,.075f,{1.6f,.55f,.9f,fade*.7f});
 			tankspecialfx::Contact(*neonGridRenderer_,event.origin,flash.age,1.0f,false);
 		} else if(event.kind==Player::SpecialEventKind::DashSlash) {
-			const auto d=Length(event.direction)>.001f?Normalize(event.direction):Vector3{1,0,0};
+			const auto d=cg2::Length(event.direction)>.001f?cg2::Normalize(event.direction):cg2::Vector3{1,0,0};
 			neonGridRenderer_->QueueLine(event.origin-d*3,event.origin+d*2,.10f,{.55f,1.4f,1.9f,(1-flash.age/.24f)*.6f});
 		} else tankspecialfx::Contact(*neonGridRenderer_,event.origin,flash.age,
 			event.kind==Player::SpecialEventKind::LinkHit?.6f:1.0f,event.kind==Player::SpecialEventKind::PerfectParry);
@@ -3054,12 +3055,12 @@ void GameScene::QueueSpecialCombatPresentation()
 	for(const auto& flash:buildCombatFlashes_) {
 		const auto& e=flash.event;const float alpha=(1-flash.age/.30f);
 		if(e.kind==BulletManager::BuildEventKind::Chain) {
-			const auto delta=e.end-e.start;const auto side=Length(delta)>.001f?Normalize(Vector3{-delta.y,delta.x,0}):Vector3{0,1,0};
+			const auto delta=e.end-e.start;const auto side=cg2::Length(delta)>.001f?cg2::Normalize(cg2::Vector3{-delta.y,delta.x,0}):cg2::Vector3{0,1,0};
 			auto previous=e.start;
 			for(int i=1;i<=5;++i) {const auto next=e.start+delta*(i/5.0f)+side*(i==5?0:(i%2?.18f:-.18f));
 				neonGridRenderer_->QueueLine(previous,next,.045f,{.45f,1.5f,1.9f,alpha*.75f});previous=next;}
 		} else {
-			const auto color=e.kind==BulletManager::BuildEventKind::Reflection?Vector4{1.5f,.25f,1.2f,alpha*.7f}:Vector4{1.5f,.8f,.35f,alpha*.65f};
+			const auto color=e.kind==BulletManager::BuildEventKind::Reflection?cg2::Vector4{1.5f,.25f,1.2f,alpha*.7f}:cg2::Vector4{1.5f,.8f,.35f,alpha*.65f};
 			tankspecialfx::Ring(*neonGridRenderer_,e.start,.3f+flash.age*e.strength*5,.055f,color);
 		}
 	}
@@ -3080,22 +3081,22 @@ void GameScene::QueuePlayerMeleeSlashes()
 		const float angle = (slash.startAngleDeg + (slash.endAngleDeg - slash.startAngleDeg) * smoothStep(progress)) * kPi / 180.0f;
 		return RotateVector2D(slash.direction, angle);
 	};
-	auto queueBlade = [&](const Vector3& hilt, const Vector3& bladeDir, float length, float width, const Vector4& color, float coreAlpha) {
+	auto queueBlade = [&](const cg2::Vector3& hilt, const cg2::Vector3& bladeDir, float length, float width, const cg2::Vector4& color, float coreAlpha) {
         tankneon::QueueMeleeBlade(*neonGridRenderer_,hilt,bladeDir,length,width,color,coreAlpha,
             {playerMeleeBladeOuterWidthScale_,playerMeleeBladeHaloWidthScale_,playerMeleeBladeCoreWidthScale_});
 	};
-	auto queueTipTrail = [&](const PlayerMeleeSlash& slash, const Vector3& hilt, float startProgress, float endProgress, const Vector4& color) {
+	auto queueTipTrail = [&](const PlayerMeleeSlash& slash, const cg2::Vector3& hilt, float startProgress, float endProgress, const cg2::Vector4& color) {
 		const int segments = 12;
-		Vector3 previous = hilt + directionAt(slash, startProgress) * (slash.range * slash.bladeLengthScale);
+		cg2::Vector3 previous = hilt + directionAt(slash, startProgress) * (slash.range * slash.bladeLengthScale);
 		for (int i = 1; i <= segments; ++i) {
 			const float localT = static_cast<float>(i) / static_cast<float>(segments);
 			const float progress = startProgress + (endProgress - startProgress) * localT;
-			const Vector3 current = hilt + directionAt(slash, progress) * (slash.range * slash.bladeLengthScale);
-			Vector4 segmentColor = color;
+			const cg2::Vector3 current = hilt + directionAt(slash, progress) * (slash.range * slash.bladeLengthScale);
+			cg2::Vector4 segmentColor = color;
 			segmentColor.w *= localT * 0.72f * playerMeleeTrailAlphaScale_;
 			neonGridRenderer_->QueueLine(previous, current, slash.width * (0.55f + localT * 0.55f) * playerMeleeTrailWidthScale_, segmentColor);
 
-			Vector4 coreColor = { 1.0f, 1.0f, 1.0f, segmentColor.w * 0.55f };
+			cg2::Vector4 coreColor = { 1.0f, 1.0f, 1.0f, segmentColor.w * 0.55f };
 			neonGridRenderer_->QueueLine(previous, current, slash.width * (0.10f + localT * 0.12f) * playerMeleeTrailWidthScale_, coreColor);
 			previous = current;
 		}
@@ -3120,24 +3121,24 @@ void GameScene::QueuePlayerMeleeSlashes()
 			recoveryProgress = slash.recoveryDuration > 0.0f ? smoothStep(recoveryElapsed / slash.recoveryDuration) : 1.0f;
 			displayAngleDeg = slash.endAngleDeg + (slash.returnAngleDeg - slash.endAngleDeg) * recoveryProgress;
 		}
-		const Vector3 right = { -slash.direction.y, slash.direction.x, 0.0f };
-		const Vector3 attackHilt = slash.origin - slash.direction * (slash.range * 0.08f) + right * (slash.range * slash.hiltSideOffset);
-		Vector3 idleHilt = slash.followAnchor +
+		const cg2::Vector3 right = { -slash.direction.y, slash.direction.x, 0.0f };
+		const cg2::Vector3 attackHilt = slash.origin - slash.direction * (slash.range * 0.08f) + right * (slash.range * slash.hiltSideOffset);
+		cg2::Vector3 idleHilt = slash.followAnchor +
 			slash.direction * (playerIdleSaberForwardOffset_ * playerNeonBillboardRadius_) +
 			right * (playerIdleSaberSideOffset_ * playerNeonBillboardRadius_);
 		idleHilt.z = attackHilt.z;
-		auto lerpPosition = [](const Vector3& a, const Vector3& b, float amount) {
+		auto lerpPosition = [](const cg2::Vector3& a, const cg2::Vector3& b, float amount) {
 			return a + (b - a) * (std::clamp)(amount, 0.0f, 1.0f);
 		};
-		const Vector3 hilt = isWindup ? lerpPosition(idleHilt, attackHilt, windupProgress) :
+		const cg2::Vector3 hilt = isWindup ? lerpPosition(idleHilt, attackHilt, windupProgress) :
 			(isSwinging ? attackHilt : lerpPosition(attackHilt, idleHilt, recoveryProgress));
-		Vector4 color = slash.color;
+		cg2::Vector4 color = slash.color;
 		color.x *= 1.18f*playerNeonEmission_;
 		color.y *= 1.18f*playerNeonEmission_;
 		color.z *= 1.18f*playerNeonEmission_;
 		color.w *= (0.25f + t * 0.75f)*(std::min)(1.0f,playerNeonEmission_);
 
-		const Vector3 bladeDir = RotateVector2D(slash.direction, displayAngleDeg * kPi / 180.0f);
+		const cg2::Vector3 bladeDir = RotateVector2D(slash.direction, displayAngleDeg * kPi / 180.0f);
 		if (isSwinging) {
 			queueTipTrail(slash, hilt, (std::max)(0.0f, swingProgress - 0.42f), swingProgress, color);
 			// Three nested crescent trails give the top-down slash depth without
@@ -3145,11 +3146,11 @@ void GameScene::QueuePlayerMeleeSlashes()
 			for(int band=1;band<=3;++band) {
 				const float radius=slash.range*(1.0f-static_cast<float>(band)*0.09f);
 				const float start=(std::max)(0.0f,swingProgress-0.30f);
-				Vector3 previous=hilt+directionAt(slash,start)*radius;
+				cg2::Vector3 previous=hilt+directionAt(slash,start)*radius;
 				for(int segment=1;segment<=9;++segment) {
 					const float q=static_cast<float>(segment)/9.0f;
-					const Vector3 point=hilt+directionAt(slash,start+(swingProgress-start)*q)*radius;
-					Vector4 glow=color;glow.w*=q*(0.32f-0.06f*band);
+					const cg2::Vector3 point=hilt+directionAt(slash,start+(swingProgress-start)*q)*radius;
+					cg2::Vector4 glow=color;glow.w*=q*(0.32f-0.06f*band);
 					neonGridRenderer_->QueueLine(previous,point,slash.width*(1.25f-band*0.2f),glow);previous=point;
 				}
 			}
@@ -3160,7 +3161,7 @@ void GameScene::QueuePlayerMeleeSlashes()
 			if (sampleProgress < 0.0f) {
 				continue;
 			}
-			Vector4 afterColor = slash.color;
+			cg2::Vector4 afterColor = slash.color;
 			afterColor.x *= 1.08f*playerNeonEmission_;
 			afterColor.y *= 1.08f*playerNeonEmission_;
 			afterColor.z *= 1.08f*playerNeonEmission_;
@@ -3176,7 +3177,7 @@ void GameScene::QueuePlayerMeleeSlashes()
 
 void GameScene::UpdateNeonTriangleParticles(float deltaTime)
 {
-	for (const ParticleManager::NeonTriangleEvent& event : ParticleManager::GetInstance()->ConsumeNeonTriangleEvents()) {
+	for (const cg2::ParticleManager::NeonTriangleEvent& event : cg2::ParticleManager::GetInstance()->ConsumeNeonTriangleEvents()) {
 		NeonTriangleParticle particle{};
 		particle.position = event.position;
 		particle.velocity = event.velocity;
@@ -3209,14 +3210,14 @@ void GameScene::UpdateNeonTriangleParticles(float deltaTime)
 		neonTriangleParticles_.end());
 }
 
-void GameScene::QueueNeonTriangleParticles(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward)
+void GameScene::QueueNeonTriangleParticles(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward)
 {
 	if (!neonGridRenderer_) {
 		return;
 	}
 
 	for (const NeonTriangleParticle& particle : neonTriangleParticles_) {
-		auto queueParticleTriangle = [&](const Vector3& center, float radius, float rotation, float width, const Vector4& drawColor) {
+		auto queueParticleTriangle = [&](const cg2::Vector3& center, float radius, float rotation, float width, const cg2::Vector4& drawColor) {
 			if (particle.isBillboard) {
 				neonGridRenderer_->QueueBillboardTriangle(center, radius, rotation, width, drawColor, cameraRight, cameraUp, cameraForward);
 				return;
@@ -3225,9 +3226,9 @@ void GameScene::QueueNeonTriangleParticles(const Vector3& cameraRight, const Vec
 			const float s = std::sin(rotation);
 			const float tiltCos = std::cos(particle.tiltRad);
 			const float tiltSin = std::sin(particle.tiltRad);
-			const Vector3 axisU = { c, s, 0.0f };
-			const Vector3 axisV = { -s * tiltCos, c * tiltCos, tiltSin };
-			Vector3 points[3]{};
+			const cg2::Vector3 axisU = { c, s, 0.0f };
+			const cg2::Vector3 axisV = { -s * tiltCos, c * tiltCos, tiltSin };
+			cg2::Vector3 points[3]{};
 			for (int i = 0; i < 3; ++i) {
 				const float angle = -1.5707963268f + static_cast<float>(i) * 2.0943951024f;
 				points[i] = center + axisU * (std::cos(angle) * radius) + axisV * (std::sin(angle) * radius);
@@ -3240,19 +3241,19 @@ void GameScene::QueueNeonTriangleParticles(const Vector3& cameraRight, const Vec
 		const float age = 1.0f - t;
 		const float birth = (std::clamp)(age / 0.18f, 0.0f, 1.0f);
 		const float scale = neonParticleTriangleBirthScale_ + (1.0f - neonParticleTriangleBirthScale_) * (1.0f - (1.0f - birth) * (1.0f - birth));
-		Vector4 color = particle.color;
+		cg2::Vector4 color = particle.color;
 		color.x *= neonParticleTriangleBrightness_;
 		color.y *= neonParticleTriangleBrightness_;
 		color.z *= neonParticleTriangleBrightness_;
 		color.w *= t * (0.45f + birth * 0.55f);
-		Vector3 trailDirection{};
-		if (Length(particle.initialVelocity) > 0.0001f) {
-			trailDirection = Normalize(particle.initialVelocity);
+		cg2::Vector3 trailDirection{};
+		if (cg2::Length(particle.initialVelocity) > 0.0001f) {
+			trailDirection = cg2::Normalize(particle.initialVelocity);
 		}
 		const int trailCopies = (std::min)(neonParticleTriangleTrailCopies_, particle.trailCopies);
 		for (int copy = trailCopies; copy >= 1; --copy) {
 			const float copyRatio = static_cast<float>(copy) / static_cast<float>((std::max)(1, trailCopies));
-			Vector4 trailColor = color;
+			cg2::Vector4 trailColor = color;
 			trailColor.w *= (1.0f - copyRatio * 0.72f) * 0.30f;
 			queueParticleTriangle(
 				particle.position - trailDirection * (particle.radius * neonParticleTriangleTrailSpacing_ * static_cast<float>(copy)),
@@ -3262,7 +3263,7 @@ void GameScene::QueueNeonTriangleParticles(const Vector3& cameraRight, const Vec
 				trailColor);
 		}
 
-		Vector4 glowColor = color;
+		cg2::Vector4 glowColor = color;
 		glowColor.w *= 0.18f;
 		queueParticleTriangle(
 			particle.position,
@@ -3276,7 +3277,7 @@ void GameScene::QueueNeonTriangleParticles(const Vector3& cameraRight, const Vec
 			particle.rotation,
 			particle.lineWidth,
 			color);
-		Vector4 coreColor = { 2.0f, 2.0f, 2.0f, color.w * 0.82f };
+		cg2::Vector4 coreColor = { 2.0f, 2.0f, 2.0f, color.w * 0.82f };
 		queueParticleTriangle(
 			particle.position,
 			particle.radius * scale,
@@ -3286,54 +3287,54 @@ void GameScene::QueueNeonTriangleParticles(const Vector3& cameraRight, const Vec
 	}
 }
 
-void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vector3& cameraUp, bool drawBodies, bool drawBarrels) {
+void GameScene::QueueActorNeonBillboards(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, bool drawBodies, bool drawBarrels) {
 	if (!neonGridRenderer_) {
 		return;
 	}
 
-	auto directionToRotation = [&](const Vector3& worldDirection) {
-		Vector3 direction = worldDirection;
-		if (Length(direction) < 0.001f) {
+	auto directionToRotation = [&](const cg2::Vector3& worldDirection) {
+		cg2::Vector3 direction = worldDirection;
+		if (cg2::Length(direction) < 0.001f) {
 			direction = { 0.0f, -1.0f, 0.0f };
 		}
-		direction = Normalize(direction);
-		return std::atan2(Dot(direction, cameraRight), -Dot(direction, cameraUp));
+		direction = cg2::Normalize(direction);
+		return std::atan2(cg2::Dot(direction, cameraRight), -cg2::Dot(direction, cameraUp));
 	};
 
-	auto lerpColor = [](const Vector4& a, const Vector4& b, float t) {
+	auto lerpColor = [](const cg2::Vector4& a, const cg2::Vector4& b, float t) {
 		t = (std::clamp)(t, 0.0f, 1.0f);
-		return Vector4{
+		return cg2::Vector4{
 			a.x + (b.x - a.x) * t,
 			a.y + (b.y - a.y) * t,
 			a.z + (b.z - a.z) * t,
 			a.w + (b.w - a.w) * t };
 	};
-	auto rotateDirection = [](const Vector3& direction, float angle) {
+	auto rotateDirection = [](const cg2::Vector3& direction, float angle) {
 		const float c = std::cos(angle);
 		const float s = std::sin(angle);
-		return Vector3{ direction.x * c - direction.y * s, direction.x * s + direction.y * c, direction.z };
+		return cg2::Vector3{ direction.x * c - direction.y * s, direction.x * s + direction.y * c, direction.z };
 	};
 
-	auto queueTankBillboard = [&](const Vector3& center, const Vector3& direction, float radius, float lineWidth, const Vector4& color, const Player::NeonBodyLayout* bodyLayout, const std::vector<Player::NeonBarrelLayout>* barrelLayouts, bool allowIdleMeleeSaber, bool allowMuzzleFlash, float emission) {
+	auto queueTankBillboard = [&](const cg2::Vector3& center, const cg2::Vector3& direction, float radius, float lineWidth, const cg2::Vector4& color, const Player::NeonBodyLayout* bodyLayout, const std::vector<Player::NeonBarrelLayout>* barrelLayouts, bool allowIdleMeleeSaber, bool allowMuzzleFlash, float emission) {
 		constexpr float kTwoPi = 6.28318530718f;
-		auto queueBodyPolygon = [&](int segments, float rotation, const Vector2& scale, const Vector4& outlineColor) {
-            Vector4 emitted=outlineColor;emitted.x*=emission;emitted.y*=emission;emitted.z*=emission;
+		auto queueBodyPolygon = [&](int segments, float rotation, const cg2::Vector2& scale, const cg2::Vector4& outlineColor) {
+            cg2::Vector4 emitted=outlineColor;emitted.x*=emission;emitted.y*=emission;emitted.z*=emission;
             tankneon::QueueBodyOutline(*neonGridRenderer_,center,radius,lineWidth,segments,rotation,scale,emitted,cameraRight,cameraUp);
 		};
 
-		Vector3 mainDirection = direction;
-		if (Length(mainDirection) < 0.001f) {
+		cg2::Vector3 mainDirection = direction;
+		if (cg2::Length(mainDirection) < 0.001f) {
 			mainDirection = { 0.0f, -1.0f, 0.0f };
 		}
-		mainDirection = Normalize(mainDirection);
+		mainDirection = cg2::Normalize(mainDirection);
 		const float mainRotation = directionToRotation(mainDirection);
-		const Vector3 mainForward = cameraRight * std::sin(mainRotation) + cameraUp * -std::cos(mainRotation);
-		const Vector3 mainRight = cameraRight * std::cos(mainRotation) + cameraUp * std::sin(mainRotation);
+		const cg2::Vector3 mainForward = cameraRight * std::sin(mainRotation) + cameraUp * -std::cos(mainRotation);
+		const cg2::Vector3 mainRight = cameraRight * std::cos(mainRotation) + cameraUp * std::sin(mainRotation);
 
 		if (drawBodies) {
 			const Player::NeonBodyLayout defaultBody{};
 			const Player::NeonBodyLayout& body = bodyLayout ? *bodyLayout : defaultBody;
-			Vector4 outlineColor = body.outlineColor;
+			cg2::Vector4 outlineColor = body.outlineColor;
 			if (outlineColor.w <= 0.001f) {
 				outlineColor = color;
 			}
@@ -3360,21 +3361,21 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 			}
 			const float sideSign = layout.offset.y < -0.05f ? -1.0f : 1.0f;
 			const float angle = playerIdleSaberAngleDeg_ * 3.1415926535f / 180.0f * sideSign;
-			const Vector3 saberDir = Normalize(mainForward * std::cos(angle) + mainRight * std::sin(angle));
-			const Vector3 saberRight = Normalize(mainRight * std::cos(angle) - mainForward * std::sin(angle));
-			const Vector3 hiltCenter =
+			const cg2::Vector3 saberDir = cg2::Normalize(mainForward * std::cos(angle) + mainRight * std::sin(angle));
+			const cg2::Vector3 saberRight = cg2::Normalize(mainRight * std::cos(angle) - mainForward * std::sin(angle));
+			const cg2::Vector3 hiltCenter =
 				center +
 				mainForward * (playerIdleSaberForwardOffset_ * radius) +
 				mainRight * (playerIdleSaberSideOffset_ * radius * sideSign) +
-				Vector3{ 0.0f, 0.0f, layout.offset.z };
+				cg2::Vector3{ 0.0f, 0.0f, layout.offset.z };
 			const float bladeLength = (std::max)(0.05f, playerIdleSaberLength_) * radius;
 			const float bladeWidth = (std::max)(0.005f, playerIdleSaberBladeWidth_) * radius;
 			const float hiltLength = (std::max)(0.02f, playerIdleSaberHiltLength_) * radius;
-			const Vector3 hiltBase = hiltCenter - saberDir * (hiltLength * 0.45f);
-			const Vector3 bladeBase = hiltCenter + saberDir * (hiltLength * 0.42f);
-			const Vector3 bladeTip = bladeBase + saberDir * bladeLength;
+			const cg2::Vector3 hiltBase = hiltCenter - saberDir * (hiltLength * 0.45f);
+			const cg2::Vector3 bladeBase = hiltCenter + saberDir * (hiltLength * 0.42f);
+			const cg2::Vector3 bladeTip = bladeBase + saberDir * bladeLength;
 
-			Vector4 hiltColor = color;
+			cg2::Vector4 hiltColor = color;
 			hiltColor.w *= 0.88f;
 			neonGridRenderer_->QueueLine(hiltBase, bladeBase, bladeWidth * 0.72f, hiltColor);
 			neonGridRenderer_->QueueLine(
@@ -3383,21 +3384,21 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 				bladeWidth * 0.42f,
 				hiltColor);
 
-			Vector4 outerColor = color;
+			cg2::Vector4 outerColor = color;
 			outerColor.x *= 1.20f;
 			outerColor.y *= 1.20f;
 			outerColor.z *= 1.20f;
 			outerColor.w *= 0.28f;
 			neonGridRenderer_->QueueLine(bladeBase, bladeTip, bladeWidth * playerIdleSaberOuterWidthScale_, outerColor);
 
-			Vector4 haloColor = color;
+			cg2::Vector4 haloColor = color;
 			haloColor.x *= 1.35f;
 			haloColor.y *= 1.35f;
 			haloColor.z *= 1.35f;
 			haloColor.w *= 0.78f;
 			neonGridRenderer_->QueueLine(bladeBase + saberDir * (bladeLength * 0.03f), bladeTip, bladeWidth, haloColor);
 
-			Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w * 0.82f };
+			cg2::Vector4 coreColor = { 1.0f, 1.0f, 1.0f, color.w * 0.82f };
 			neonGridRenderer_->QueueLine(bladeBase + saberDir * (bladeLength * 0.08f), bladeTip, bladeWidth * playerIdleSaberCoreWidthScale_, coreColor);
 		};
 
@@ -3406,8 +3407,8 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 				queueIdleMeleeSaber(layout);
 				return;
 			}
-			auto groupColor = [&](int group, Vector4 fallback) {
-				static const Vector4 colors[] = {
+			auto groupColor = [&](int group, const cg2::Vector4& fallback) {
+				static const cg2::Vector4 colors[] = {
 					{ 0.55f, 1.00f, 0.35f, 1.0f },
 					{ 1.00f, 0.86f, 0.25f, 1.0f },
 					{ 0.30f, 0.92f, 1.00f, 1.0f },
@@ -3418,18 +3419,18 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 				if (group < 0) {
 					return fallback;
 				}
-				Vector4 result = colors[static_cast<size_t>(group) % (sizeof(colors) / sizeof(colors[0]))];
+				cg2::Vector4 result = colors[static_cast<size_t>(group) % (sizeof(colors) / sizeof(colors[0]))];
 				result.w = fallback.w > 0.001f ? fallback.w : color.w;
 				return result;
 			};
-			const Vector3 barrelDirection = Normalize(rotateDirection(mainDirection, layout.angleRad));
+			const cg2::Vector3 barrelDirection = cg2::Normalize(rotateDirection(mainDirection, layout.angleRad));
 			const float barrelRotation = directionToRotation(barrelDirection);
-			const Vector3 barrelForward = cameraRight * std::sin(barrelRotation) + cameraUp * -std::cos(barrelRotation);
-			const Vector3 barrelRight = cameraRight * std::cos(barrelRotation) + cameraUp * std::sin(barrelRotation);
-			const Vector3 barrelCenter = center +
+			const cg2::Vector3 barrelForward = cameraRight * std::sin(barrelRotation) + cameraUp * -std::cos(barrelRotation);
+			const cg2::Vector3 barrelRight = cameraRight * std::cos(barrelRotation) + cameraUp * std::sin(barrelRotation);
+			const cg2::Vector3 barrelCenter = center +
 				mainForward * ((layout.offset.x - layout.recoilOffset) * radius) +
 				mainRight * (layout.offset.y * radius) +
-				Vector3{ 0.0f, 0.0f, layout.offset.z };
+				cg2::Vector3{ 0.0f, 0.0f, layout.offset.z };
 			float length = (std::max)(radius * 0.28f, layout.scale.x * radius * 0.72f);
 			float half = (std::max)(lineWidth * 1.5f, layout.scale.y * radius * 0.75f);
 			if (layout.shape == BarrelShape::Heavy) {
@@ -3442,9 +3443,9 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 				length *= 0.86f;
 				half *= 1.80f;
 			}
-			const Vector3 base = barrelCenter - barrelForward * (length * 0.20f);
-			const Vector3 tip = barrelCenter + barrelForward * (length * 0.80f);
-			Vector4 barrelColor = groupColor(layout.fireGroup, layout.outlineColor.w > 0.001f ? layout.outlineColor : color);
+			const cg2::Vector3 base = barrelCenter - barrelForward * (length * 0.20f);
+			const cg2::Vector3 tip = barrelCenter + barrelForward * (length * 0.80f);
+			cg2::Vector4 barrelColor = groupColor(layout.fireGroup, layout.outlineColor.w > 0.001f ? layout.outlineColor : color);
 			const float muzzleFlashRatio = allowMuzzleFlash
 				? (std::clamp)(layout.muzzleFlashRatio, 0.0f, 1.0f)
 				: 0.0f;
@@ -3457,11 +3458,11 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
             tankneon::QueueBarrelOutline(*neonGridRenderer_,base,tip,barrelRight,half,lineWidth,barrelColor,layout.shape==BarrelShape::Trapezoid);
 
 			if (muzzleFlashRatio > 0.0f) {
-				auto queueMuzzleRing = [&](float ringRadius, int segments, float ringLineWidth, const Vector4& ringColor) {
-					Vector3 previous{};
+				auto queueMuzzleRing = [&](float ringRadius, int segments, float ringLineWidth, const cg2::Vector4& ringColor) {
+					cg2::Vector3 previous{};
 					for (int i = 0; i <= segments; ++i) {
 						const float angle = static_cast<float>(i % segments) * (kTwoPi / static_cast<float>(segments));
-						const Vector3 current = tip +
+						const cg2::Vector3 current = tip +
 							cameraRight * (std::cos(angle) * ringRadius) +
 							cameraUp * (std::sin(angle) * ringRadius);
 						if (i > 0) {
@@ -3473,8 +3474,8 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 
 				const float coreRadius = radius * (0.08f + muzzleFlashRatio * 0.04f);
 				const float haloRadius = radius * (0.15f + muzzleFlashRatio * 0.09f);
-				const Vector4 coreColor{ 2.20f, 2.10f, 1.65f, muzzleFlashRatio };
-				const Vector4 haloColor{
+				const cg2::Vector4 coreColor{ 2.20f, 2.10f, 1.65f, muzzleFlashRatio };
+				const cg2::Vector4 haloColor{
 					1.35f + muzzleFlash * 0.45f,
 					1.55f + muzzleFlash * 0.35f,
 					0.75f + muzzleFlash * 0.35f,
@@ -3483,7 +3484,7 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 				queueMuzzleRing(coreRadius, 10, lineWidth * 1.15f, coreColor);
 
 				const float sparkLength = radius * (0.10f + muzzleFlashRatio * 0.10f);
-				const Vector3 sparkTip = tip + barrelForward * sparkLength;
+				const cg2::Vector3 sparkTip = tip + barrelForward * sparkLength;
 				neonGridRenderer_->QueueLine(tip, sparkTip, lineWidth * 1.15f, coreColor);
 				neonGridRenderer_->QueueLine(tip, sparkTip + barrelRight * coreRadius, lineWidth * 0.72f, haloColor);
 				neonGridRenderer_->QueueLine(tip, sparkTip - barrelRight * coreRadius, lineWidth * 0.72f, haloColor);
@@ -3507,26 +3508,26 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 
 	for (const PlayerNeonAfterimage& afterimage : playerNeonAfterimages_) {
 		const float lifeRatio = (std::clamp)(afterimage.life / (std::max)(0.001f, playerAfterimageLifetime_), 0.0f, 1.0f);
-		Vector4 color = playerGridColor_;
+		cg2::Vector4 color = playerGridColor_;
 		color.w *= playerAfterimageAlpha_ * lifeRatio;
 		const float radius = playerNeonBillboardRadius_ * (0.88f + lifeRatio * 0.12f);
-		queueTankBillboard(afterimage.position + Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, false, false, playerNeonEmission_);
+		queueTankBillboard(afterimage.position + cg2::Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, false, false, playerNeonEmission_);
 	}
 
 	if (playerNeonRenderMode_ == 1 && player_ && !player_->IsDead()) {
-		Vector4 color = playerGridColor_;
+		cg2::Vector4 color = playerGridColor_;
 		const float feedback = player_->GetDamageFeedbackRatio();
 		const float pulse = std::sin(feedback * 3.14159265f) * 0.10f;
 		color = lerpColor(color, { 1.8f, 1.8f, 1.8f, color.w }, feedback * feedback * 0.75f);
 		if (player_->IsDashing()) {
 			color.w *= playerDashCurrentAlpha_;
 		}
-		queueTankBillboard(player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true, playerNeonEmission_);
+		queueTankBillboard(player_->GetWorldPosition() + cg2::Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true, playerNeonEmission_);
 	}
 	if (bossNeonRenderMode_ == 1 && enemy_ && (IsRunRivalActive() && !enemy_->IsDead())) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
 		const float impact = feedback * feedback;
-		const Vector4 color = lerpColor(enemyGridColor_, { 1.8f, 1.8f, 1.8f, enemyGridColor_.w }, (std::min)(1.0f, impact * 0.95f));
+		const cg2::Vector4 color = lerpColor(enemyGridColor_, { 1.8f, 1.8f, 1.8f, enemyGridColor_.w }, (std::min)(1.0f, impact * 0.95f));
 		Player::NeonBodyLayout bossBody{};
 		bossBody.outlineColor = color;
 		Player::NeonBarrelLayout bossBarrel{};
@@ -3536,14 +3537,14 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 		bossBarrel.fireGroup = -1;
 		bossBarrel.outlineColor = color;
 		const std::vector<Player::NeonBarrelLayout> bossBarrels = { bossBarrel };
-		queueTankBillboard(enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + impact * 0.07f), actorNeonBillboardLineWidth_, color, &bossBody, &bossBarrels, false, false, bossNeonEmission_);
+		queueTankBillboard(enemy_->GetWorldPosition() + cg2::Vector3{ 0.0f, 0.0f, 0.35f }, enemy_->GetAimDirection(), bossNeonBillboardRadius_ * (1.0f + impact * 0.07f), actorNeonBillboardLineWidth_, color, &bossBody, &bossBarrels, false, false, bossNeonEmission_);
 	}
 	if (prototypeRun_ && player_ && playerNeonRenderMode_ == 1) {
 		for (PlayerDrone* drone : player_->GetDronePtrs()) {
 			if (!drone || !drone->IsVisualVisible()) continue;
 			constexpr float radius = 0.78f;
-			const Vector3 center = drone->GetWorldPosition() + Vector3{0.0f, 0.0f, 0.35f};
-			const Vector4 color{0.24f, 1.0f, 0.78f, 0.95f};
+			const cg2::Vector3 center = drone->GetWorldPosition() + cg2::Vector3{0.0f, 0.0f, 0.35f};
+			const cg2::Vector4 color{0.24f, 1.0f, 0.78f, 0.95f};
 			Player::NeonBodyLayout droneBody{};
 			droneBody.outlineColor = color;
 			Player::NeonBarrelLayout droneBarrel{};
@@ -3556,10 +3557,10 @@ void GameScene::QueueActorNeonBillboards(const Vector3& cameraRight, const Vecto
 			queueTankBillboard(center, drone->GetAimDirection(), radius,
 				actorNeonBillboardLineWidth_ * 0.75f, color, &droneBody, &droneBarrels, false, true, playerNeonEmission_);
 			// A short thrust streak reads motion without painting a large glowing disk.
-			const Vector3 motion = drone->GetMove();
-			const float speed = Length(motion);
+			const cg2::Vector3 motion = drone->GetMove();
+			const float speed = cg2::Length(motion);
 			if (drawBarrels && speed > 0.03f) {
-				const Vector3 backward = motion / speed;
+				const cg2::Vector3 backward = motion / speed;
 				neonGridRenderer_->QueueLine(center - backward * radius,
 					center - backward * (radius + (std::min)(0.9f, speed * 3.0f)),
 					0.055f, {0.20f, 0.88f, 1.1f, 0.24f});
@@ -3573,25 +3574,25 @@ void GameScene::DrawActorNeonBodyFillPass() {
 		return;
 	}
 
-	const Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera()
+	const cg2::Matrix4x4 viewMatrix = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewMatrix()
 		: camera->GetViewMatrix();
-	const Matrix4x4 cameraWorld = Inverse(viewMatrix);
-	const Vector3 cameraRight = Normalize({ cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2] });
-	const Vector3 cameraUp = Normalize({ cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2] });
-	const Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+	const cg2::Matrix4x4 cameraWorld = cg2::Inverse(viewMatrix);
+	const cg2::Vector3 cameraRight = cg2::Normalize({ cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2] });
+	const cg2::Vector3 cameraUp = cg2::Normalize({ cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2] });
+	const cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
 
-	auto directionToRotation = [&](const Vector3& worldDirection) {
-		Vector3 direction = worldDirection;
-		if (Length(direction) < 0.001f) {
+	auto directionToRotation = [&](const cg2::Vector3& worldDirection) {
+		cg2::Vector3 direction = worldDirection;
+		if (cg2::Length(direction) < 0.001f) {
 			direction = { 0.0f, -1.0f, 0.0f };
 		}
-		direction = Normalize(direction);
-		return std::atan2(Dot(direction, cameraRight), -Dot(direction, cameraUp));
+		direction = cg2::Normalize(direction);
+		return std::atan2(cg2::Dot(direction, cameraRight), -cg2::Dot(direction, cameraUp));
 	};
-	auto queueBodyFill = [&](const Vector3& center, const Vector3& direction, float radius, const Player::NeonBodyLayout& body, const Vector4& fillColor) {
+	auto queueBodyFill = [&](const cg2::Vector3& center, const cg2::Vector3& direction, float radius, const Player::NeonBodyLayout& body, const cg2::Vector4& fillColor) {
 		constexpr float kTwoPi = 6.28318530718f;
 		const float mainRotation = directionToRotation(direction);
 		int segments = 32;
@@ -3630,7 +3631,7 @@ void GameScene::DrawActorNeonBodyFillPass() {
 		const float feedback = player_->GetDamageFeedbackRatio();
 		const float pulse = std::sin(feedback * 3.14159265f) * 0.10f;
 		queueBodyFill(
-			player_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.345f },
+			player_->GetWorldPosition() + cg2::Vector3{ 0.0f, 0.0f, 0.345f },
 			player_->GetDirection(),
 			playerNeonBillboardRadius_ * (1.0f + pulse) * 0.96f,
 			player_->GetNeonBodyLayout(),
@@ -3640,7 +3641,7 @@ void GameScene::DrawActorNeonBodyFillPass() {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
 		const float impact = feedback * feedback;
 		neonGridRenderer_->QueueBillboardDisc(
-			enemy_->GetWorldPosition() + Vector3{ 0.0f, 0.0f, 0.345f },
+			enemy_->GetWorldPosition() + cg2::Vector3{ 0.0f, 0.0f, 0.345f },
 			bossNeonBillboardRadius_ * (1.0f + impact * 0.07f) * 0.96f,
 			actorNeonBodyFillColor_, cameraRight, cameraUp);
 	}
@@ -3648,7 +3649,7 @@ void GameScene::DrawActorNeonBodyFillPass() {
 		for (PlayerDrone* drone : player_->GetDronePtrs()) {
 			if (!drone || !drone->IsVisualVisible()) continue;
 			neonGridRenderer_->QueueBillboardDisc(
-				drone->GetWorldPosition() + Vector3{0.0f, 0.0f, 0.345f}, 0.78f * 0.96f,
+				drone->GetWorldPosition() + cg2::Vector3{0.0f, 0.0f, 0.345f}, 0.78f * 0.96f,
 				actorNeonBodyFillColor_, cameraRight, cameraUp);
 		}
 	}
@@ -3661,28 +3662,28 @@ void GameScene::DrawActorNeonBodyFillPass() {
 	neonGridRenderer_->DrawRange(outlineStart, outlineCount, vp);
 }
 
-void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward) {
+void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward) {
 	if (!enemyManager_ || !neonGridRenderer_) {
 		return;
 	}
 
-	auto maxScaleComponent = [](const Vector3& scale) {
+	auto maxScaleComponent = [](const cg2::Vector3& scale) {
 		return (std::max)({ scale.x, scale.y, scale.z });
 	};
 
-	auto transformLocalPoint = [](const Vector3& local, const Vector3& center, const Vector3& rotate, const Vector3& scale) {
-		const Matrix4x4 transform = MakeAffineMatrix(scale, rotate, center);
-		return TransformMatrix(local, transform);
+	auto transformLocalPoint = [](const cg2::Vector3& local, const cg2::Vector3& center, const cg2::Vector3& rotate, const cg2::Vector3& scale) {
+		const cg2::Matrix4x4 transform = cg2::MakeAffineMatrix(scale, rotate, center);
+		return cg2::TransformMatrix(local, transform);
 	};
 
-	auto queueCube = [&](const Vector3& center, float size, const Vector3& rotate, const Vector3& scale, float lineWidth, const Vector4& color) {
+	auto queueCube = [&](const cg2::Vector3& center, float size, const cg2::Vector3& rotate, const cg2::Vector3& scale, float lineWidth, const cg2::Vector4& color) {
 		const float h = size * 0.5f;
 		const float z = size * 0.5f;
-		Vector3 corners[8] = {
+		cg2::Vector3 corners[8] = {
 			{ -h, -h, -z }, { h, -h, -z }, { h, h, -z }, { -h, h, -z },
 			{ -h, -h, z }, { h, -h, z }, { h, h, z }, { -h, h, z }
 		};
-		for (Vector3& corner : corners) {
+		for (cg2::Vector3& corner : corners) {
 			corner = transformLocalPoint(corner, center, rotate, scale);
 		}
 		const int edges[12][2] = {
@@ -3695,10 +3696,10 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 		}
 	};
 
-	auto queueTriangularPyramid = [&](const Vector3& center, float radius, const Vector3& rotate, const Vector3& scale, float lineWidth, const Vector4& color) {
+	auto queueTriangularPyramid = [&](const cg2::Vector3& center, float radius, const cg2::Vector3& rotate, const cg2::Vector3& scale, float lineWidth, const cg2::Vector4& color) {
 		constexpr float kTwoPi = 6.28318530718f;
 		const float depth = radius * 0.75f;
-		Vector3 points[4]{};
+		cg2::Vector3 points[4]{};
 		for (int i = 0; i < 3; ++i) {
 			const float angle = -kTwoPi * 0.25f + static_cast<float>(i) * (kTwoPi / 3.0f);
 			points[i] = transformLocalPoint({ std::cos(angle) * radius, std::sin(angle) * radius, -depth * 0.35f }, center, rotate, scale);
@@ -3712,14 +3713,14 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 		neonGridRenderer_->QueueLine(points[2], points[3], lineWidth, color);
 	};
 
-	auto queuePentagonalPrism = [&](const Vector3& center, float radius, const Vector3& rotate, const Vector3& scale, float lineWidth, const Vector4& color) {
+	auto queuePentagonalPrism = [&](const cg2::Vector3& center, float radius, const cg2::Vector3& rotate, const cg2::Vector3& scale, float lineWidth, const cg2::Vector4& color) {
 		constexpr float kTwoPi = 6.28318530718f;
 		const float depth = radius * 0.85f;
-		Vector3 points[10]{};
+		cg2::Vector3 points[10]{};
 		for (int i = 0; i < 5; ++i) {
 			const float angle = -kTwoPi * 0.25f + static_cast<float>(i) * (kTwoPi / 5.0f);
-			const Vector3 front = { std::cos(angle) * radius, std::sin(angle) * radius, -depth * 0.5f };
-			const Vector3 back = { front.x, front.y, depth * 0.5f };
+			const cg2::Vector3 front = { std::cos(angle) * radius, std::sin(angle) * radius, -depth * 0.5f };
+			const cg2::Vector3 back = { front.x, front.y, depth * 0.5f };
 			points[i] = transformLocalPoint(front, center, rotate, scale);
 			points[i + 5] = transformLocalPoint(back, center, rotate, scale);
 		}
@@ -3731,13 +3732,13 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 		}
 	};
 
-	auto queueCircle3D = [&](const Vector3& center, float radius, const Vector3& rotate, const Vector3& scale, int axis, float lineWidth, const Vector4& color) {
+	auto queueCircle3D = [&](const cg2::Vector3& center, float radius, const cg2::Vector3& rotate, const cg2::Vector3& scale, int axis, float lineWidth, const cg2::Vector4& color) {
 		constexpr float kTwoPi = 6.28318530718f;
 		constexpr int kSegments = 20;
-		Vector3 previous{};
+		cg2::Vector3 previous{};
 		for (int i = 0; i <= kSegments; ++i) {
 			const float angle = static_cast<float>(i) * (kTwoPi / static_cast<float>(kSegments));
-			Vector3 local{};
+			cg2::Vector3 local{};
 			if (axis == 0) {
 				local = { 0.0f, std::cos(angle) * radius, std::sin(angle) * radius };
 			} else if (axis == 1) {
@@ -3745,7 +3746,7 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 			} else {
 				local = { std::cos(angle) * radius, std::sin(angle) * radius, 0.0f };
 			}
-			const Vector3 current = transformLocalPoint(local, center, rotate, scale);
+			const cg2::Vector3 current = transformLocalPoint(local, center, rotate, scale);
 			if (i > 0) {
 				neonGridRenderer_->QueueLine(previous, current, lineWidth, color);
 			}
@@ -3753,7 +3754,7 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 		}
 	};
 
-	auto queueShooter = [&](const Vector3& center, float radius, const Vector3& rotate, const Vector3& scale, float lineWidth, const Vector4& color) {
+	auto queueShooter = [&](const cg2::Vector3& center, float radius, const cg2::Vector3& rotate, const cg2::Vector3& scale, float lineWidth, const cg2::Vector4& color) {
 		queueCircle3D(center, radius, rotate, scale, 0, lineWidth, color);
 		queueCircle3D(center, radius, rotate, scale, 1, lineWidth, color);
 		queueCircle3D(center, radius, rotate, scale, 2, lineWidth, color);
@@ -3761,7 +3762,7 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 		const float barrelLength = radius * 0.9f;
 		const float barrelHalf = radius * 0.22f;
 		const float barrelOffset = radius * 0.72f;
-		Vector3 corners[8] = {
+		cg2::Vector3 corners[8] = {
 			{ -barrelHalf, -barrelOffset, -barrelHalf },
 			{ barrelHalf, -barrelOffset, -barrelHalf },
 			{ barrelHalf, -barrelOffset - barrelLength, -barrelHalf },
@@ -3771,7 +3772,7 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 			{ barrelHalf, -barrelOffset - barrelLength, barrelHalf },
 			{ -barrelHalf, -barrelOffset - barrelLength, barrelHalf }
 		};
-		for (Vector3& corner : corners) {
+		for (cg2::Vector3& corner : corners) {
 			corner = transformLocalPoint(corner, center, rotate, scale);
 		}
 		const int edges[12][2] = {
@@ -3784,15 +3785,15 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 		}
 	};
 
-	auto queueBillboardPolygon = [&](const Vector3& center, int sides, float radius, float rotation, float lineWidth, const Vector4& color) {
+	auto queueBillboardPolygon = [&](const cg2::Vector3& center, int sides, float radius, float rotation, float lineWidth, const cg2::Vector4& color) {
 		constexpr float kTwoPi = 6.28318530718f;
 		if (sides < 3) {
 			return;
 		}
-		Vector3 previous{};
+		cg2::Vector3 previous{};
 		for (int i = 0; i <= sides; ++i) {
 			const float angle = rotation - kTwoPi * 0.25f + static_cast<float>(i % sides) * (kTwoPi / static_cast<float>(sides));
-			const Vector3 current = center + cameraRight * (std::cos(angle) * radius) + cameraUp * (std::sin(angle) * radius);
+			const cg2::Vector3 current = center + cameraRight * (std::cos(angle) * radius) + cameraUp * (std::sin(angle) * radius);
 			if (i > 0) {
 				neonGridRenderer_->QueueLine(previous, current, lineWidth, color);
 			}
@@ -3800,13 +3801,13 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 		}
 	};
 
-	auto queueBillboardShooter = [&](const Vector3& center, float radius, float rotation, float lineWidth, const Vector4& color, float warningRatio, float muzzleFlashRatio) {
+	auto queueBillboardShooter = [&](const cg2::Vector3& center, float radius, float rotation, float lineWidth, const cg2::Vector4& color, float warningRatio, float muzzleFlashRatio) {
 		warningRatio = (std::clamp)(warningRatio, 0.0f, 1.0f);
 		muzzleFlashRatio = (std::clamp)(muzzleFlashRatio, 0.0f, 1.0f);
 		const float warningImpact = warningRatio * warningRatio;
 		if (warningRatio > 0.0f) {
 			const float warningRadiusScale = 1.50f - warningRatio * 0.42f;
-			const Vector4 warningColor{
+			const cg2::Vector4 warningColor{
 				1.80f + warningImpact * 0.60f,
 				0.25f + warningImpact * 1.20f,
 				0.08f + warningImpact * 0.55f,
@@ -3814,12 +3815,12 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 			queueBillboardPolygon(center, 20, radius * warningRadiusScale, rotation, lineWidth * (0.75f + warningRatio * 0.55f), warningColor);
 		}
 
-		const Vector4 bodyColor{
+		const cg2::Vector4 bodyColor{
 			color.x + warningImpact * 0.65f,
 			color.y + warningImpact * 0.85f,
 			color.z + warningImpact * 0.32f,
 			color.w };
-		const Vector4 barrelColor{
+		const cg2::Vector4 barrelColor{
 			bodyColor.x + warningImpact * 0.35f,
 			bodyColor.y + warningImpact * 0.30f,
 			bodyColor.z + warningImpact * 0.12f,
@@ -3827,10 +3828,10 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 		queueBillboardPolygon(center, 20, radius, rotation, lineWidth, bodyColor);
 		const float c = std::cos(rotation);
 		const float s = std::sin(rotation);
-		const Vector3 down = cameraRight * s + cameraUp * -c;
-		const Vector3 side = cameraRight * c + cameraUp * s;
-		const Vector3 base = center + down * (radius * 0.65f);
-		const Vector3 tip = center + down * (radius * 1.45f);
+		const cg2::Vector3 down = cameraRight * s + cameraUp * -c;
+		const cg2::Vector3 side = cameraRight * c + cameraUp * s;
+		const cg2::Vector3 base = center + down * (radius * 0.65f);
+		const cg2::Vector3 tip = center + down * (radius * 1.45f);
 		const float half = radius * 0.18f;
 		neonGridRenderer_->QueueLine(base - side * half, tip - side * half, lineWidth, barrelColor);
 		neonGridRenderer_->QueueLine(tip - side * half, tip + side * half, lineWidth, barrelColor);
@@ -3839,7 +3840,7 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 
 		if (muzzleFlashRatio > 0.0f) {
 			const float flashRadius = radius * (0.10f + muzzleFlashRatio * 0.18f);
-			const Vector4 flashColor{ 2.60f, 1.85f, 0.65f, muzzleFlashRatio };
+			const cg2::Vector4 flashColor{ 2.60f, 1.85f, 0.65f, muzzleFlashRatio };
 			queueBillboardPolygon(tip, 12, flashRadius, rotation, lineWidth * 1.40f, flashColor);
 			neonGridRenderer_->QueueLine(tip - side * flashRadius, tip + side * flashRadius, lineWidth * 1.20f, flashColor);
 			neonGridRenderer_->QueueLine(tip - down * flashRadius, tip + down * flashRadius, lineWidth * 1.20f, flashColor);
@@ -3854,7 +3855,7 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 			expEnemy->QueueCombatVisuals(*neonGridRenderer_,cameraRight,cameraUp,cameraForward,expEnemyNeonLineWidth_);
 			continue;
 		}
-		const Vector3 visualScale = expEnemy->GetVisualScale();
+		const cg2::Vector3 visualScale = expEnemy->GetVisualScale();
 		const float scalePulse = maxScaleComponent(visualScale);
 		float shapeRadius = expEnemyNeonSquareSize_ * 0.5f;
 		if (expEnemy->GetType() == ExpEnemyType::Triangle) {
@@ -3868,8 +3869,8 @@ void GameScene::QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector
 			continue;
 		}
 
-		const Vector3 center = expEnemy->GetWorldPosition() + (expEnemyNeonRenderMode_ >= 2 ? Vector3{} : Vector3{ 0.0f, 0.0f, 0.35f });
-		const Vector4 color = expEnemy->GetVisualColor();
+		const cg2::Vector3 center = expEnemy->GetWorldPosition() + (expEnemyNeonRenderMode_ >= 2 ? cg2::Vector3{} : cg2::Vector3{ 0.0f, 0.0f, 0.35f });
+		const cg2::Vector4 color = expEnemy->GetVisualColor();
 		if (expEnemyNeonRenderMode_ >= 2) {
 			if (expEnemy->GetType() == ExpEnemyType::Triangle) {
 				queueTriangularPyramid(center, expEnemyNeonTriangleRadius_, expEnemy->GetVisualRotate(), visualScale, expEnemyNeonLineWidth_, color);
@@ -3932,7 +3933,7 @@ void GameScene::DrawExpEnemyNeonFillModels() {
 		} else if (expEnemy->GetType() == ExpEnemyType::Shooter) {
 			shapeRadius = expEnemyNeonShooterRadius_ * 1.5f;
 		}
-		const Vector3 visualScale = expEnemy->GetVisualScale();
+		const cg2::Vector3 visualScale = expEnemy->GetVisualScale();
 		const float scalePulse = (std::max)({ visualScale.x, visualScale.y, visualScale.z });
 		if (cullActorLocalGrid_ && !IsNearCamera2D(expEnemy->GetWorldPosition(), 38.0f, 24.0f, shapeRadius * scalePulse + 1.0f)) {
 			continue;
@@ -3946,26 +3947,26 @@ void GameScene::DrawExpEnemyNeonDepthLines() {
 		return;
 	}
 
-	Matrix4x4 viewMatrix = Object3dCommon::GetInstance()->GetIsDebugCamera()
+	cg2::Matrix4x4 viewMatrix = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewMatrix()
 		: camera->GetViewMatrix();
-	Matrix4x4 cameraWorld = Inverse(viewMatrix);
-	Vector3 cameraRight = Normalize({ cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2] });
-	Vector3 cameraUp = Normalize({ cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2] });
-	Vector3 cameraForward = Normalize({ cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] });
+	cg2::Matrix4x4 cameraWorld = cg2::Inverse(viewMatrix);
+	cg2::Vector3 cameraRight = cg2::Normalize({ cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2] });
+	cg2::Vector3 cameraUp = cg2::Normalize({ cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2] });
+	cg2::Vector3 cameraForward = cg2::Normalize({ cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] });
 
 	neonGridRenderer_->BeginFrame();
 	neonGridRenderer_->SetLineStyle(neonLineSoftEdgeRatio_, neonLineCoreIntensity_);
 	QueueExpEnemyNeonShapes(cameraRight, cameraUp, cameraForward);
 
-	Matrix4x4 vp = Object3dCommon::GetInstance()->GetIsDebugCamera()
+	cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
 	neonGridRenderer_->DrawAll(vp);
 }
 
-bool GameScene::IsNearCamera2D(const Vector3& worldPos, float halfWidth, float halfHeight, float margin) const {
-	const Vector3 cameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
+bool GameScene::IsNearCamera2D(const cg2::Vector3& worldPos, float halfWidth, float halfHeight, float margin) const {
+	const cg2::Vector3 cameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
 	return worldPos.x >= cameraPos.x - halfWidth - margin &&
 		worldPos.x <= cameraPos.x + halfWidth + margin &&
 		worldPos.y >= cameraPos.y - halfHeight - margin &&
@@ -4013,7 +4014,7 @@ void GameScene::UpdatePostProfileText() {
 		);
 	}
 
-	SetWindowTextA(WinApp::GetInstance()->GetHwnd(), text);
+	SetWindowTextA(cg2::WinApp::GetInstance()->GetHwnd(), text);
 	postProfileAccumulatedMs_.fill(0.0f);
 	postProfileAccumulatedFrames_ = 0;
 #endif // USE_IMGUI
@@ -4040,7 +4041,7 @@ void GameScene::DrawPerformanceBreakdownImGui()
 
 	ImGui::Text("現在FPS %.2f / 計測フレーム %.3fms", fps, frameMs);
 	ImGui::Text("合計対象 %.3fms + 未計測 %.3fms = %.3fms (100.0%%)", measuredTopLevelMs, unmeasuredMs, frameMs);
-	const bool gpuValidationEnabled = Object3dCommon::GetInstance()->GetDxCommon()->IsGpuBasedValidationEnabled();
+	const bool gpuValidationEnabled = cg2::Object3dCommon::GetInstance()->GetDxCommon()->IsGpuBasedValidationEnabled();
 	ImGui::TextColored(
 		gpuValidationEnabled ? ImVec4{ 1.0f, 0.45f, 0.30f, 1.0f } : ImVec4{ 0.45f, 1.0f, 0.65f, 1.0f },
 		"D3D12 GPU-Based Validation: %s", gpuValidationEnabled ? "ON (計測には非常に重い)" : "OFF");
@@ -4163,7 +4164,7 @@ void GameScene::StartPerformanceCapture()
 	performanceCaptureConditions_.enemyPostEnabled = enableEnemyPostEffect_ && IsPostProfileCategoryEnabled("Enemy");
 	performanceCaptureConditions_.expEnemyPostEnabled = enableExpEnemyPostEffect_ && IsPostProfileCategoryEnabled("ExpEnemy");
 	performanceCaptureConditions_.d3d12DebugLayerEnabled =
-		Object3dCommon::GetInstance()->GetDxCommon()->IsD3D12DebugLayerEnabled();
+		cg2::Object3dCommon::GetInstance()->GetDxCommon()->IsD3D12DebugLayerEnabled();
 	if (player_) {
 		performanceCaptureConditions_.upgradeHud = player_->GetUpgradeHudDebugSnapshot();
 		performanceCaptureConditions_.trailAutoFireEnabled = player_->IsDebugAutoFireEnabled();
@@ -4656,12 +4657,12 @@ const char* GameScene::GetPostProfileModeName() const {
 	}
 }
 
-Vector2 GameScene::GetStagePostCacheUvOffset(const Vector3& currentCameraPos) const {
-	const Vector2 cacheCenterScreen = WorldToScreen({ stagePostCacheCameraPos_.x, stagePostCacheCameraPos_.y, 0.0f });
-	const Vector2 currentCenterScreen = WorldToScreen({ currentCameraPos.x, currentCameraPos.y, 0.0f });
+cg2::Vector2 GameScene::GetStagePostCacheUvOffset(const cg2::Vector3& currentCameraPos) const {
+	const cg2::Vector2 cacheCenterScreen = WorldToScreen({ stagePostCacheCameraPos_.x, stagePostCacheCameraPos_.y, 0.0f });
+	const cg2::Vector2 currentCenterScreen = WorldToScreen({ currentCameraPos.x, currentCameraPos.y, 0.0f });
 	return {
-		(cacheCenterScreen.x - currentCenterScreen.x) / static_cast<float>(WinApp::kClientWidth),
-		(cacheCenterScreen.y - currentCenterScreen.y) / static_cast<float>(WinApp::kClientHeight)
+		(cacheCenterScreen.x - currentCenterScreen.x) / static_cast<float>(cg2::WinApp::kClientWidth),
+		(cacheCenterScreen.y - currentCenterScreen.y) / static_cast<float>(cg2::WinApp::kClientHeight)
 	};
 }
 
@@ -5043,7 +5044,7 @@ bool GameScene::WriteBalanceAIHandoff(const std::string& filePath) const
 	return true;
 }
 
-void GameScene::DrawPostEffectParamControls(const char* labelPrefix, BloomParam& param)
+void GameScene::DrawPostEffectParamControls(const char* labelPrefix, cg2::BloomParam& param)
 {
 #ifdef USE_IMGUI
 	ImGui::PushID(labelPrefix);
@@ -5071,7 +5072,7 @@ void GameScene::DrawPostEffectParamControls(const char* labelPrefix, BloomParam&
 
 nlohmann::json GameScene::BuildGamePostEffectConfig() const
 {
-	auto makeEntry = [](bool enabled, const ObjectPostEffect* effect) {
+	auto makeEntry = [](bool enabled, const cg2::ObjectPostEffect* effect) {
 		nlohmann::json entry = nlohmann::json::object();
 		entry["enabled"] = enabled;
 		if (effect) {
@@ -5120,7 +5121,7 @@ void GameScene::ApplyGamePostEffectConfig(const nlohmann::json& configJson)
 		return;
 	}
 
-	auto applyEntry = [&](const char* key, bool* enabled, ObjectPostEffect* effect) {
+	auto applyEntry = [&](const char* key, bool* enabled, cg2::ObjectPostEffect* effect) {
 		if (!configJson.contains(key) || !configJson[key].is_object()) {
 			return;
 		}
@@ -5129,7 +5130,7 @@ void GameScene::ApplyGamePostEffectConfig(const nlohmann::json& configJson)
 			*enabled = ReadCustomBool(entry, "enabled", *enabled);
 		}
 		if (effect && entry.contains("param")) {
-			BloomParam param = effect->GetParam();
+			cg2::BloomParam param = effect->GetParam();
 			ReadBloomParamJson(entry["param"], param);
 			effect->SetParam(param);
 		}
@@ -5204,7 +5205,7 @@ bool GameScene::SaveGamePostEffectConfig(const std::string& filePath) const
 
 void GameScene::ApplyGameTextAppearance()
 {
-	TextFontOverride fontOverride{};
+	cg2::TextFontOverride fontOverride{};
 	fontOverride.enabled = true;
 	if (gameTextFontMode_ == 0) {
 		fontOverride.fontFamily = "Meiryo";
@@ -5216,12 +5217,12 @@ void GameScene::ApplyGameTextAppearance()
 		fontOverride.overrideOutline = true;
 		fontOverride.outlineColor = gameTextOutlineEnabled_
 			? gameTextOutlineColor_
-			: Vector4{ 0.0f, 0.0f, 0.0f, 0.0f };
+			: cg2::Vector4{ 0.0f, 0.0f, 0.0f, 0.0f };
 		fontOverride.outlineThickness = gameTextOutlineEnabled_
 			? gameTextOutlineThickness_
 			: 0.0f;
 	}
-	TextRenderer::GetInstance()->SetFontOverride(fontOverride);
+	cg2::TextRenderer::GetInstance()->SetFontOverride(fontOverride);
 	if (player_) {
 		player_->PrepareUpgradeHudTextTextures();
 	}
@@ -5238,7 +5239,7 @@ void GameScene::DrawGameTextBloom()
 		return;
 	}
 
-	std::vector<TextLabel*> labels;
+	std::vector<cg2::TextLabel*> labels;
 	// 強化段数バー表示中は、項目名と +/- のネオン源も追加される。
 	labels.reserve(32);
     if(expeditionMapEnabled_&&tankExpedition_.IsCombat()&&!tankRunPaused_&&tankRunObjectiveText_) labels.push_back(tankRunObjectiveText_.get());
@@ -5434,7 +5435,7 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 		neonParticleTriangleBirthScale_ = (std::clamp)(ReadCustomFloat(gridJson, "particleTriangleBirthScale", neonParticleTriangleBirthScale_), 0.05f, 1.0f);
 		neonParticleTriangleTrailCopies_ = (std::clamp)(ReadCustomInt(gridJson, "particleTriangleTrailCopies", neonParticleTriangleTrailCopies_), 0, 8);
 		neonTriangleEffectMode_ = (std::clamp)(ReadCustomInt(gridJson, "triangleEffectMode", neonTriangleEffectMode_), 0, 2);
-		ParticleManager::GetInstance()->SetNeonTriangleEffectMode(static_cast<ParticleManager::NeonTriangleEffectMode>(neonTriangleEffectMode_));
+		cg2::ParticleManager::GetInstance()->SetNeonTriangleEffectMode(static_cast<cg2::ParticleManager::NeonTriangleEffectMode>(neonTriangleEffectMode_));
 		if (gridJson.contains("playerColor")) playerGridColor_ = ReadJsonVector4(gridJson["playerColor"], playerGridColor_);
 		if (gridJson.contains("bossEnemyColor")) enemyGridColor_ = ReadJsonVector4(gridJson["bossEnemyColor"], enemyGridColor_);
 		if (gridJson.contains("expEnemyColor")) expEnemyGridColor_ = ReadJsonVector4(gridJson["expEnemyColor"], expEnemyGridColor_);
@@ -5724,11 +5725,11 @@ void GameScene::DrawGameSceneDebugImGui()
 				ImGui::SeparatorText("ネオン三角形パーティクル");
 				const char* triangleEffectModes[] = { "枠線ネオン", "旧モデル粒子", "ハイブリッド" };
 				if (ImGui::Combo("三角形演出方式", &neonTriangleEffectMode_, triangleEffectModes, IM_ARRAYSIZE(triangleEffectModes))) {
-					ParticleManager::GetInstance()->SetNeonTriangleEffectMode(static_cast<ParticleManager::NeonTriangleEffectMode>(neonTriangleEffectMode_));
+					cg2::ParticleManager::GetInstance()->SetNeonTriangleEffectMode(static_cast<cg2::ParticleManager::NeonTriangleEffectMode>(neonTriangleEffectMode_));
 				}
-				bool useGpuParticleUpdate = ParticleManager::GetInstance()->IsUseGpuUpdate();
+				bool useGpuParticleUpdate = cg2::ParticleManager::GetInstance()->IsUseGpuUpdate();
 				if (ImGui::Checkbox("GPUパーティクル更新", &useGpuParticleUpdate)) {
-					ParticleManager::GetInstance()->SetUseGpuUpdate(useGpuParticleUpdate);
+					cg2::ParticleManager::GetInstance()->SetUseGpuUpdate(useGpuParticleUpdate);
 				}
 				ImGui::TextDisabled("OFF: 旧CPU行列生成（枠線比較用）");
 				ImGui::DragFloat("三角形 外光幅倍率", &neonParticleTriangleGlowWidthScale_, 0.05f, 1.0f, 8.0f);
@@ -5926,15 +5927,15 @@ void GameScene::DrawGameSceneDebugImGui()
 			}
 			if (ImGui::CollapsingHeader("グリッド / 弾軌跡 / パーティクル")) {
 				ImGui::Checkbox("グリッドポストを有効", &enableNeonGridPostEffect_);
-				BloomParam& gridPost = neonGridPostEffect_->GetParam();
+				cg2::BloomParam& gridPost = neonGridPostEffect_->GetParam();
 				ImGui::DragFloat("グリッド発光強度", &gridPost.intensity, 0.01f, 0.0f, 6.0f);
 				ImGui::DragFloat("グリッド発光しきい値", &gridPost.threshold, 0.01f, 0.0f, 2.0f);
 				ImGui::Checkbox("弾軌跡ポストを有効", &enableBulletTrailPostEffect_);
-				BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
+				cg2::BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
 				ImGui::DragFloat("弾軌跡発光強度", &bulletTrailPost.intensity, 0.01f, 0.0f, 8.0f);
 				ImGui::DragFloat("弾軌跡発光しきい値", &bulletTrailPost.threshold, 0.01f, 0.0f, 2.0f);
 				ImGui::Checkbox("三角パーティクルポストを有効", &enableParticlePostEffect_);
-				BloomParam& particlePost = particlePostEffect_->GetParam();
+				cg2::BloomParam& particlePost = particlePostEffect_->GetParam();
 				ImGui::DragFloat("三角パーティクル発光強度", &particlePost.intensity, 0.01f, 0.0f, 8.0f);
 				ImGui::DragFloat("三角パーティクル発光しきい値", &particlePost.threshold, 0.01f, 0.0f, 2.0f);
 			}
@@ -5972,13 +5973,13 @@ void GameScene::DrawGameSceneDebugImGui()
 			ImGui::Separator();
 #endif
 			if (shotGide) {
-				Vector2 guidePosition = shotGide->GetPosition();
+				cg2::Vector2 guidePosition = shotGide->GetPosition();
 				if (ImGui::SliderFloat2("射撃ガイド位置", &guidePosition.x, 0.0f, 3000.0f, "%.1f"))
 					shotGide->SetPosition(guidePosition);
 			}
 			if (ball_) {
-				Vector3 ballScale = ball_->GetScale();
-				Vector4 ballColor = ball_->GetColor();
+				cg2::Vector3 ballScale = ball_->GetScale();
+				cg2::Vector4 ballColor = ball_->GetColor();
 				if (ImGui::DragFloat3("デバッグ球スケール", &ballScale.x)) ball_->SetScale(ballScale);
 				if (ImGui::ColorEdit4("デバッグ球色", &ballColor.x)) ball_->SetColor(ballColor);
 			}
@@ -6024,8 +6025,8 @@ void GameScene::DrawBulletStatusDebugTable()
 		if (!bullet) {
 			continue;
 		}
-		const Vector3 pos = bullet->GetWorldPosition();
-		const Vector3 vel = bullet->GetMove();
+		const cg2::Vector3 pos = bullet->GetWorldPosition();
+		const cg2::Vector3 vel = bullet->GetMove();
 
 		ImGui::TableNextRow();
 		ImGui::TableSetColumnIndex(0);
@@ -6070,10 +6071,10 @@ void GameScene::DrawBulletStatusDebugOverlay()
 			break;
 		}
 
-		const Vector3 worldPos = bullet->GetWorldPosition();
-		const Vector2 screen = WorldToScreen(worldPos + Vector3{ 0.0f, 0.85f, 0.0f });
-		if (screen.x < -80.0f || screen.x > WinApp::kClientWidth + 80.0f ||
-			screen.y < -40.0f || screen.y > WinApp::kClientHeight + 40.0f) {
+		const cg2::Vector3 worldPos = bullet->GetWorldPosition();
+		const cg2::Vector2 screen = WorldToScreen(worldPos + cg2::Vector3{ 0.0f, 0.85f, 0.0f });
+		if (screen.x < -80.0f || screen.x > cg2::WinApp::kClientWidth + 80.0f ||
+			screen.y < -40.0f || screen.y > cg2::WinApp::kClientHeight + 40.0f) {
 			continue;
 		}
 
@@ -6271,7 +6272,7 @@ void GameScene::ApplyLevelObject(const LevelObject& levelObject, bool allowBossS
 
 		LevelVisualObject visual{};
 		visual.name = levelObject.name;
-		visual.object = std::make_unique<Object3d>();
+		visual.object = std::make_unique<cg2::Object3d>();
 		visual.object->Initialize();
 		visual.object->SetModel(levelObject.prefab);
 		visual.object->SetTransform(levelObject.transform);
@@ -6376,7 +6377,7 @@ void GameScene::ApplyLevelEffectPreset(const nlohmann::json& effectJson)
 		enemyGridColor_ = ReadJsonVector4(effectJson["enemyGridColor"], enemyGridColor_);
 	}
 	if (effectJson.contains("bossOutlineColor") && effectJson["bossOutlineColor"].is_object() && enemyPostEffect_) {
-		BloomParam& enemyPost = enemyPostEffect_->GetParam();
+		cg2::BloomParam& enemyPost = enemyPostEffect_->GetParam();
 		enemyPost.outlineColor = ReadJsonVector3(effectJson["bossOutlineColor"], enemyPost.outlineColor);
 	}
 	if (effectJson.contains("enemyBloomIntensity") && effectJson["enemyBloomIntensity"].is_number() && enemyPostEffect_) {
@@ -6404,16 +6405,16 @@ void GameScene::QueueLevelEditorPreview()
 		QueueLevelSpawnAreaPreview(spawnArea, { 1.0f, 0.85f, 0.2f, 0.70f });
 	}
 	for (const RuntimeBossPhase& runtimePhase : levelBossPhases_) {
-		const Vector4 color = runtimePhase.activated
-			? Vector4{ 1.0f, 0.25f, 0.25f, 0.85f }
-			: Vector4{ 0.85f, 0.35f, 1.0f, 0.45f };
+		const cg2::Vector4 color = runtimePhase.activated
+			? cg2::Vector4{ 1.0f, 0.25f, 0.25f, 0.85f }
+			: cg2::Vector4{ 0.85f, 0.35f, 1.0f, 0.45f };
 		for (const LevelObject& object : runtimePhase.phase.objects) {
 			QueueLevelObjectPreview(object, color);
 		}
 	}
 }
 
-void GameScene::QueueLevelObjectPreview(const LevelObject& levelObject, const Vector4& color)
+void GameScene::QueueLevelObjectPreview(const LevelObject& levelObject, const cg2::Vector4& color)
 {
 	if (levelObject.type == "SpawnArea") {
 		LevelSpawnArea spawnArea{};
@@ -6438,7 +6439,7 @@ void GameScene::QueueLevelObjectPreview(const LevelObject& levelObject, const Ve
 	neonGridRenderer_->QueueLocalGrid(levelObject.transform.translate, radius, 0.75f, 0.055f, color);
 }
 
-void GameScene::QueueLevelSpawnAreaPreview(const LevelSpawnArea& spawnArea, const Vector4& color)
+void GameScene::QueueLevelSpawnAreaPreview(const LevelSpawnArea& spawnArea, const cg2::Vector4& color)
 {
 	neonGridRenderer_->QueueRectangle(spawnArea.center, spawnArea.size, 0.09f, color);
 	neonGridRenderer_->QueueLocalGrid(spawnArea.center, (std::min)(spawnArea.size.x, spawnArea.size.y) * 0.22f, 1.0f, 0.045f, color);
@@ -6454,7 +6455,7 @@ bool GameScene::AddLevelItem(const LevelObject& levelObject)
 
 	LevelVisualObject visual{};
 	visual.name = levelObject.name;
-	visual.object = std::make_unique<Object3d>();
+	visual.object = std::make_unique<cg2::Object3d>();
 	visual.object->Initialize();
 	visual.object->SetModel(model);
 	visual.object->SetTransform(levelObject.transform);
@@ -6526,14 +6527,14 @@ void GameScene::DrawSprite() {
 		}
 	}
 	DrawHpBarBatches();
-	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 	if (!expeditionRun_) player_->DrawSprite();
 	if (gameFlowState_ == GameFlowState::Playing) {
 		player_->DrawEncyclopedia();
 	}
 	//shotGide->Draw();
 	if (controlGuideText_ && !prototypeRun_ && !tutorialConfig_.enabled && gameFlowState_ == GameFlowState::Playing && !player_->IsChangeMode()) {
-		controlGuideText_->SetPosition(showControlGuide_ ? Vector2{ 22.0f, 636.0f } : Vector2{ 22.0f, 690.0f });
+		controlGuideText_->SetPosition(showControlGuide_ ? cg2::Vector2{ 22.0f, 636.0f } : cg2::Vector2{ 22.0f, 690.0f });
 		controlGuideText_->Draw();
 	}
 	DrawTutorialUi();
@@ -6547,7 +6548,7 @@ void GameScene::DrawSprite() {
 	DrawBulletStatusDebugOverlay();
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
 	if (eventCalloutTimer_ > 0.0f && eventCalloutText_) {
-		eventCalloutText_->SetPosition({WinApp::kClientWidth*0.5f,expeditionMapEnabled_?155.0f:112.0f});
+		eventCalloutText_->SetPosition({cg2::WinApp::kClientWidth*0.5f,expeditionMapEnabled_?155.0f:112.0f});
 		eventCalloutText_->Draw();
 	}
 	const bool showResult =
@@ -6578,13 +6579,13 @@ void GameScene::InitializeFollowHpBars(size_t count) {
 	followHpBars_.reserve(count);
 	for (size_t i = 0; i < count; ++i) {
 		FollowHpBar bar{};
-		bar.outline = std::make_unique<Sprite>();
-		bar.background = std::make_unique<Sprite>();
-		bar.fill = std::make_unique<Sprite>();
+		bar.outline = std::make_unique<cg2::Sprite>();
+		bar.background = std::make_unique<cg2::Sprite>();
+		bar.fill = std::make_unique<cg2::Sprite>();
 
-		bar.outline->Initialize(SpriteCommon::GetInstance(), "resources/hpBarFrame.png");
-		bar.background->Initialize(SpriteCommon::GetInstance(), "resources/hpBarMask.png");
-		bar.fill->Initialize(SpriteCommon::GetInstance(), "resources/hpBarFillMask.png");
+		bar.outline->Initialize(cg2::SpriteCommon::GetInstance(), "resources/hpBarFrame.png");
+		bar.background->Initialize(cg2::SpriteCommon::GetInstance(), "resources/hpBarMask.png");
+		bar.fill->Initialize(cg2::SpriteCommon::GetInstance(), "resources/hpBarFillMask.png");
 
 		bar.outline->SetAnchorPoint({ 0.5f, 0.5f });
 		bar.background->SetAnchorPoint({ 0.5f, 0.5f });
@@ -6599,20 +6600,20 @@ void GameScene::InitializeFollowHpBars(size_t count) {
 }
 
 void GameScene::InitializeFollowHpBarBatch() {
-	TextureManager::GetInstance()->LoadTexture("resources/hpBarOutlineMask.png");
-	TextureManager::GetInstance()->LoadTexture("resources/hpBarFillMask.png");
+	cg2::TextureManager::GetInstance()->LoadTexture("resources/hpBarOutlineMask.png");
+	cg2::TextureManager::GetInstance()->LoadTexture("resources/hpBarFillMask.png");
 
 	const uint32_t kMaxHpBarVertices = 4096;
-	hpBarVertexResource_ = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(VertexData) * kMaxHpBarVertices);
+	hpBarVertexResource_ = cg2::Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(cg2::VertexData) * kMaxHpBarVertices);
 	hpBarVertexBufferView_.BufferLocation = hpBarVertexResource_->GetGPUVirtualAddress();
-	hpBarVertexBufferView_.SizeInBytes = sizeof(VertexData) * kMaxHpBarVertices;
-	hpBarVertexBufferView_.StrideInBytes = sizeof(VertexData);
+	hpBarVertexBufferView_.SizeInBytes = sizeof(cg2::VertexData) * kMaxHpBarVertices;
+	hpBarVertexBufferView_.StrideInBytes = sizeof(cg2::VertexData);
 	hpBarVertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&hpBarVertexData_));
 
 	for (HpBarMaterialBuffer& material : hpBarMaterials_) {
-		material.resource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(Material));
+		material.resource = cg2::Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(cg2::Material));
 		material.resource->Map(0, nullptr, reinterpret_cast<void**>(&material.data));
-		*material.data = MakeDefaultMaterial();
+		*material.data = cg2::MakeDefaultMaterial();
 		material.data->shininess = 1.0f;
 	}
 	for (size_t i = 0; i < 4; ++i) {
@@ -6623,13 +6624,13 @@ void GameScene::InitializeFollowHpBarBatch() {
 	}
 	hpBarMaterials_[12].data->color={1.0f,0.82f,0.12f,1};
 
-	hpBarTransformResource_ = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
+	hpBarTransformResource_ = cg2::Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(cg2::TransformationMatrix));
 	hpBarTransformResource_->Map(0, nullptr, reinterpret_cast<void**>(&hpBarTransformData_));
-	hpBarTransformData_->World = MakeIdentity4x4();
-	hpBarTransformData_->WVP = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+	hpBarTransformData_->World = cg2::MakeIdentity4x4();
+	hpBarTransformData_->WVP = cg2::MakeOrthographicMatrix(0.0f, 0.0f, float(cg2::WinApp::kClientWidth), float(cg2::WinApp::kClientHeight), 0.0f, 100.0f);
 }
 
-void GameScene::DrawFollowHpBar(const void* ownerKey, const Vector3& worldPos, int hp, int maxHp, float width, float yOffset) {
+void GameScene::DrawFollowHpBar(const void* ownerKey, const cg2::Vector3& worldPos, int hp, int maxHp, float width, float yOffset) {
 	if (maxHp <= 0 || hp <= 0) {
 		return;
 	}
@@ -6665,10 +6666,10 @@ void GameScene::DrawFollowHpBar(const void* ownerKey, const Vector3& worldPos, i
 
 	const float ratio = (std::clamp)(static_cast<float>(hp) / static_cast<float>(maxHp), 0.0f, 1.0f);
 	const float height = (std::max)(9.0f, width * 0.18f);
-	const Vector2 screenPos = WorldToScreen(worldPos + Vector3{ 0.0f, yOffset, 0.0f });
+	const cg2::Vector2 screenPos = WorldToScreen(worldPos + cg2::Vector3{ 0.0f, yOffset, 0.0f });
 	const float kCullMargin = 80.0f;
-	if (screenPos.x < -kCullMargin || screenPos.x > WinApp::kClientWidth + kCullMargin ||
-		screenPos.y < -kCullMargin || screenPos.y > WinApp::kClientHeight + kCullMargin) {
+	if (screenPos.x < -kCullMargin || screenPos.x > cg2::WinApp::kClientWidth + kCullMargin ||
+		screenPos.y < -kCullMargin || screenPos.y > cg2::WinApp::kClientHeight + kCullMargin) {
 		return;
 	}
 
@@ -6687,15 +6688,15 @@ void GameScene::DrawFollowHpBar(const void* ownerKey, const Vector3& worldPos, i
 	QueueHpBarQuad(hpBarOutlineVertices_[alphaBucket], screenPos, { width, height });
 }
 
-void GameScene::DrawFollowStaminaBar(const Vector3& worldPos, float stamina, float maxStamina, float width, float yOffset) {
+void GameScene::DrawFollowStaminaBar(const cg2::Vector3& worldPos, float stamina, float maxStamina, float width, float yOffset) {
 	if (maxStamina <= 0.0f) {
 		return;
 	}
 	const float ratio = (std::clamp)(stamina / maxStamina, 0.0f, 1.0f);
-	const Vector2 screenPos = WorldToScreen(worldPos + Vector3{ 0.0f, yOffset, 0.0f });
+	const cg2::Vector2 screenPos = WorldToScreen(worldPos + cg2::Vector3{ 0.0f, yOffset, 0.0f });
 	const float kCullMargin = 80.0f;
-	if (screenPos.x < -kCullMargin || screenPos.x > WinApp::kClientWidth + kCullMargin ||
-		screenPos.y < -kCullMargin || screenPos.y > WinApp::kClientHeight + kCullMargin) {
+	if (screenPos.x < -kCullMargin || screenPos.x > cg2::WinApp::kClientWidth + kCullMargin ||
+		screenPos.y < -kCullMargin || screenPos.y > cg2::WinApp::kClientHeight + kCullMargin) {
 		return;
 	}
 
@@ -6715,7 +6716,7 @@ void GameScene::DrawFollowStaminaBar(const Vector3& worldPos, float stamina, flo
 	QueueHpBarQuad(hpBarOutlineVertices_[kOpaqueBucket], screenPos, { width, height });
 }
 
-void GameScene::QueueHpBarQuad(std::vector<VertexData>& vertices, const Vector2& center, const Vector2& size) {
+void GameScene::QueueHpBarQuad(std::vector<cg2::VertexData>& vertices, const cg2::Vector2& center, const cg2::Vector2& size) {
 	const float left = center.x - size.x * 0.5f;
 	const float right = center.x + size.x * 0.5f;
 	const float top = center.y - size.y * 0.5f;
@@ -6734,12 +6735,12 @@ void GameScene::DrawHpBarBatch(uint32_t startVertex, uint32_t vertexCount, const
 		return;
 	}
 
-	auto* dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
+	auto* dxCommon = cg2::Object3dCommon::GetInstance()->GetDxCommon();
 	auto* commandList = dxCommon->GetList().Get();
 	commandList->IASetVertexBuffers(0, 1, &hpBarVertexBufferView_);
 	commandList->SetGraphicsRootConstantBufferView(0, material.resource->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(1, hpBarTransformResource_->GetGPUVirtualAddress());
-	commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath));
+	commandList->SetGraphicsRootDescriptorTable(2, cg2::TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath));
 	commandList->DrawInstanced(vertexCount, 1, startVertex, 0);
 }
 
@@ -6753,7 +6754,7 @@ void GameScene::DrawHpBarBatches() {
 
 	std::array<HpBarDrawCommand, 13> drawCommands{};
 	uint32_t currentVertex = 0;
-	auto appendVertices = [&](const std::vector<VertexData>& vertices, const char* textureFilePath, const HpBarMaterialBuffer& material, size_t commandIndex) {
+	auto appendVertices = [&](const std::vector<cg2::VertexData>& vertices, const char* textureFilePath, const HpBarMaterialBuffer& material, size_t commandIndex) {
 		if (vertices.empty() || currentVertex >= 4096u) {
 			return;
 		}
@@ -6773,8 +6774,8 @@ void GameScene::DrawHpBarBatches() {
 		return;
 	}
 
-	hpBarTransformData_->WVP = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
-	SpriteCommon::GetInstance()->PreDraw(kNormal);
+	hpBarTransformData_->WVP = cg2::MakeOrthographicMatrix(0.0f, 0.0f, float(cg2::WinApp::kClientWidth), float(cg2::WinApp::kClientHeight), 0.0f, 100.0f);
+	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 	for (const HpBarDrawCommand& command : drawCommands) {
 		if (command.vertexCount == 0) {
 			continue;
@@ -6783,14 +6784,14 @@ void GameScene::DrawHpBarBatches() {
 	}
 }
 
-Vector2 GameScene::WorldToScreen(const Vector3& worldPos) const {
-	Matrix4x4 matVP = Object3dCommon::GetInstance()->GetIsDebugCamera()
+cg2::Vector2 GameScene::WorldToScreen(const cg2::Vector3& worldPos) const {
+	cg2::Matrix4x4 matVP = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewMatrix() * debugCamera->GetProjectionMatrix()
 		: camera->GetViewMatrix() * camera->GetProjectionMatrix();
-	Vector3 ndcPos = TransformMatrix(worldPos, matVP);
+	cg2::Vector3 ndcPos = cg2::TransformMatrix(worldPos, matVP);
 
-	float screenX = (ndcPos.x + 1.0f) * 0.5f * WinApp::kClientWidth;
-	float screenY = (1.0f - ndcPos.y) * 0.5f * WinApp::kClientHeight;
+	float screenX = (ndcPos.x + 1.0f) * 0.5f * cg2::WinApp::kClientWidth;
+	float screenY = (1.0f - ndcPos.y) * 0.5f * cg2::WinApp::kClientHeight;
 	return { screenX, screenY };
 }
 
