@@ -8,19 +8,19 @@
 #include "ExpEnemy.h"
 
 struct MergedBlock {
-	AABB aabb;
+	cg2::AABB aabb;
 	MapChipType type;
 };
 
 struct Block {
-	Transform worldTransform;
-	std::unique_ptr<Object3d> object;
-	AABB aabb;
-	OBB obb;
+	cg2::Transform worldTransform;
+	std::unique_ptr<cg2::Object3d> object;
+	cg2::AABB aabb;
+	cg2::OBB obb;
 	bool isActive = false;
 	bool isLevelObject = false;
 	MapChipType type;
-	Vector3 originalPos;
+	cg2::Vector3 originalPos;
 	float orbitAngle = 0.0f;
 };
 
@@ -32,9 +32,9 @@ public:
 	bool LoadRunMap(const std::string& csvPath);
 	void Update();
 	void Draw();
-	void DrawVisible(const Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks = true);
+	void DrawVisible(const cg2::Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks = true);
 	void ClearBlocksForPreview();
-	bool AddLevelObstacle(const Transform& transform, const std::string& prefab);
+	bool AddLevelObstacle(const cg2::Transform& transform, const std::string& prefab);
 	void ClearLevelObstacles();
 	void SetDamageBlockDamage(uint32_t damage) { damageBlockDamage_ = damage; }
 
@@ -44,13 +44,13 @@ public:
 	void GenerateBlocks();
 	void RebuildMergedBlocks();
 
-    void ResolvePlayerCollision(Player& player, AxisXYZ axis);
-	void ResolvePlayerDroneCollision(PlayerDrone& playerDrone, AxisXYZ axis);
-    void ResolveEnemyCollision(Enemy& enemy, AxisXYZ axis);
+    void ResolvePlayerCollision(Player& player, cg2::AxisXYZ axis);
+	void ResolvePlayerDroneCollision(PlayerDrone& playerDrone, cg2::AxisXYZ axis);
+    void ResolveEnemyCollision(Enemy& enemy, cg2::AxisXYZ axis);
 	void ResolveBulletsCollision(const std::vector<Bullet*>& bullets);
-	void ResolveExpEnemyCollision(ExpEnemy& enemy, AxisXYZ axis);
+	void ResolveExpEnemyCollision(ExpEnemy& enemy, cg2::AxisXYZ axis);
 	
-	bool IsCollisionWithAnyBlock(const Vector3& pos, float radius);
+	bool IsCollisionWithAnyBlock(const cg2::Vector3& pos, float radius);
 	
 	void ResolvePlayerCollisionSphere(Player& player);
 	

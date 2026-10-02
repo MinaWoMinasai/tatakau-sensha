@@ -2,6 +2,8 @@
 #include "DirectXCommon.h"
 #include "BloomConstantBuffer.h"
 
+namespace cg2 {
+
 class PostEffect {
 public:
     void Initialize(DirectXCommon* dxCommon, BloomConstantBuffer* bloomCB);
@@ -59,3 +61,5 @@ private:
     BloomConstantBuffer* bloomCB_;
 
 };
+
+} // namespace cg2

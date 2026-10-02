@@ -17,24 +17,24 @@ std::vector<std::string> GetUtf8CommandLineArguments()
 	int argumentCount = 0;
 	wchar_t** wideArguments = CommandLineToArgvW(GetCommandLineW(), &argumentCount);
 	if (!wideArguments) {
-		LogWrite().Log("[GameProject] Failed to read the UTF-16 command line. Using default project selection.\n");
+		cg2::LogWrite().Log("[GameProject] Failed to read the UTF-16 command line. Using default project selection.\n");
 		return {};
 	}
 
 	std::vector<std::string> arguments;
 	try {
 		arguments.reserve(static_cast<std::size_t>(argumentCount));
-		LogWrite stringConverter;
+		cg2::LogWrite stringConverter;
 		for (int index = 0; index < argumentCount; ++index) {
 			arguments.push_back(stringConverter.ConvertString(wideArguments[index]));
 		}
 	} catch (const std::exception& error) {
-		LogWrite().Log(
+		cg2::LogWrite().Log(
 			"[GameProject] Failed to convert command-line arguments to UTF-8: " +
 			std::string(error.what()) + ". Using default project selection.\n");
 		arguments.clear();
 	} catch (...) {
-		LogWrite().Log(
+		cg2::LogWrite().Log(
 			"[GameProject] Failed to convert command-line arguments to UTF-8. "
 			"Using default project selection.\n");
 		arguments.clear();
@@ -48,7 +48,7 @@ std::vector<std::string> GetUtf8CommandLineArguments()
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
-    StartupTrace::Mark("process.entry");
+    cg2::StartupTrace::Mark("process.entry");
 
     const GameProjectCommandLineOptions projectOptions =
         ParseGameProjectCommandLine(GetUtf8CommandLineArguments());
@@ -66,22 +66,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         }
     }
 
-    D3DResouceLeakCheaker leakCheck;
+    cg2::D3DResourceLeakChecker leakCheck;
 
     Game game;
     if (!game.Initialize(projectOptions)) {
-        StartupTrace::Mark("initialization.failed");
-        StartupTrace::Flush();
+        cg2::StartupTrace::Mark("initialization.failed");
+        cg2::StartupTrace::Flush();
         return -1;
     }
 
-    StartupTrace::Mark("initialization.ready");
-    StartupTrace::Flush();
+    cg2::StartupTrace::Mark("initialization.ready");
+    cg2::StartupTrace::Flush();
 
     game.Run();
     game.Finalize();
-    StartupTrace::Mark("process.finalized");
-    StartupTrace::Flush();
+    cg2::StartupTrace::Mark("process.finalized");
+    cg2::StartupTrace::Flush();
 
     return 0;
 }

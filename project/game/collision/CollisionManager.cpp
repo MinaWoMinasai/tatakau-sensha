@@ -63,7 +63,7 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 
 	// --- Sphere × Sphere ---
 	if (colliderA->GetShape() == ColliderShape::Sphere && colliderB->GetShape() == ColliderShape::Sphere) {
-		float dist = Length(colliderA->GetWorldPosition() - colliderB->GetWorldPosition());
+		float dist = cg2::Length(colliderA->GetWorldPosition() - colliderB->GetWorldPosition());
 		hit = dist < (colliderA->GetRadius() + colliderB->GetRadius());
 		// Large, fast special shots must not tunnel through a target between frames.
 		auto swept=[&](const Bullet* shot,Collider* target) {
@@ -76,11 +76,11 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 
 	// --- Capsule（Laser） × Sphere ---
 	else if (colliderA->GetShape() == ColliderShape::Capsule && colliderB->GetShape() == ColliderShape::Sphere) {
-		Sphere s{colliderB->GetWorldPosition(), colliderB->GetRadius()};
-		hit = IsCollision(colliderA->GetSegment(), s, colliderA->GetCapsuleRadius());
+		cg2::Sphere s{colliderB->GetWorldPosition(), colliderB->GetRadius()};
+		hit = cg2::IsCollision(colliderA->GetSegment(), s, colliderA->GetCapsuleRadius());
 	} else if (colliderB->GetShape() == ColliderShape::Capsule && colliderA->GetShape() == ColliderShape::Sphere) {
-		Sphere s{colliderA->GetWorldPosition(), colliderA->GetRadius()};
-		hit = IsCollision(colliderB->GetSegment(), s, colliderB->GetCapsuleRadius());
+		cg2::Sphere s{colliderA->GetWorldPosition(), colliderA->GetRadius()};
+		hit = cg2::IsCollision(colliderB->GetSegment(), s, colliderB->GetCapsuleRadius());
 	}
 
 	if (!hit) {
@@ -106,9 +106,9 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 	if(playerHit&&activeBulletManager_&&!shot->WasArmorReflected()&&
 		(shot->GetSpecialKind()==Bullet::SpecialKind::None||shot->GetSpecialKind()==Bullet::SpecialKind::Rail)) {
 		if(auto* armor=dynamic_cast<ExpEnemy*>(victim)) {
-			Vector3 movement=shot->GetWorldPosition()-shot->GetPreviousWorldPosition();
-			if(Length(movement)<.0001f)movement=shot->GetMove();
-			const Vector3 source=victim->GetWorldPosition()-(Length(movement)>.0001f?Normalize(movement):Vector3{1,0,0});
+			cg2::Vector3 movement=shot->GetWorldPosition()-shot->GetPreviousWorldPosition();
+			if(cg2::Length(movement)<.0001f)movement=shot->GetMove();
+			const cg2::Vector3 source=victim->GetWorldPosition()-(cg2::Length(movement)>.0001f?cg2::Normalize(movement):cg2::Vector3{1,0,0});
 			if(armor->TryReflectProjectile(source)) {
 				activeBulletManager_->QueueArmorReflection(*shot,victim->GetWorldPosition());shot->Die();return;
 			}

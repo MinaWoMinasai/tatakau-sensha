@@ -1,18 +1,16 @@
 #include "ModelManager.h"
 #include "StartupTrace.h"
 
-ModelManager* ModelManager::instance = nullptr;
+namespace cg2 {
 
 ModelManager* ModelManager::GetInstance() {
-	if (instance == nullptr) {
-		instance = new ModelManager;
-	}
-	return instance;
+	static ModelManager instance;
+	return &instance;
 }
 
 void ModelManager::Finalize() {
-	delete instance;
-	instance = nullptr;
+	models.clear();
+	modelCommon.reset();
 }
 
 void ModelManager::Initialize(DirectXCommon* dxCommon) {
@@ -138,3 +136,5 @@ Model* ModelManager::FindModel(const std::string& filePath)
 	// ファイル名一致なし
 	return nullptr;
 }
+
+} // namespace cg2

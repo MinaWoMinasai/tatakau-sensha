@@ -1,6 +1,8 @@
 #pragma once
 #include "DirectXCommon.h"
 
+namespace cg2 {
+
 class ModelCommon
 {
 public:
@@ -14,3 +16,4 @@ private:
 
 };
 
+} // namespace cg2

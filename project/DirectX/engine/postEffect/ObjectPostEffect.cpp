@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <cassert>
 
+namespace cg2 {
+
 void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager, float renderScale) {
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
@@ -219,3 +221,5 @@ void ObjectPostEffect::ClearTransparent(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle) {
     const float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
     dxCommon_->GetList()->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 }
+
+} // namespace cg2

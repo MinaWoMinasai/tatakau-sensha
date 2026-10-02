@@ -11,6 +11,8 @@
 #include <d3d12.h>
 #include <wrl.h>
 
+namespace cg2 {
+
 class DirectXCommon;
 class SrvManager;
 
@@ -156,3 +158,5 @@ private:
 	SkinningPaletteEntry* mappedPalette_ = nullptr;
 	uint32_t paletteSrvIndex_ = 0;
 };
+
+} // namespace cg2

@@ -19,9 +19,13 @@
 #include "../game/player/TankShooterAbilities.h"
 #include "../game/exp/ExpGuardCombat.h"
 
+namespace cg2 {
 struct Vector3 { float x=0,y=0,z=0; Vector3& operator+=(Vector3 b) { x+=b.x;y+=b.y;z+=b.z;return *this; } };
 struct Vector4 { float x=0,y=0,z=0,w=0; };
+} // namespace cg2
+using namespace cg2;
 #include "bullet_trail_settings.inc"
+namespace cg2 {
 Vector3 operator-(Vector3 a,Vector3 b) { return {a.x-b.x,a.y-b.y,a.z-b.z}; }
 Vector3 operator+(Vector3 a,Vector3 b) { return {a.x+b.x,a.y+b.y,a.z+b.z}; }
 Vector3 operator*(Vector3 a,float b) { return {a.x*b,a.y*b,a.z*b}; }
@@ -30,6 +34,7 @@ Vector3 Normalize(Vector3 a) { return a*(1.0f/Length(a)); }
 struct Segment {};
 struct Sphere { Vector3 center; float radius; };
 bool IsCollision(Segment,Sphere,float) { return true; }
+} // namespace cg2
 enum class ColliderShape { Sphere,Capsule };
 constexpr uint32_t kCollisionAttributePlayer=1, kCollisionAttributePlayerBullet=2,
     kCollisionAttributePlayerDrone=4,kCollisionAttributeEnemy=8,kCollisionAttributeEnemyBullet=16;
@@ -47,16 +52,18 @@ struct Collider {
     float GetCapsuleRadius() const { return 1; }
     uint32_t GetCollisionMask() const { return 0xffffffffu; }
     uint32_t GetCollisionAttribute() const { return attribute; }
-    uint32_t GetDamage() const { return damage; }
-    void SetDamage(uint32_t value) {damage=value;}
+    uint32_t GetDamage() const { return damage_; }
+    void SetDamage(uint32_t value) {damage_=value;}
     float GetHitPower() const { return 1; }
-    uint32_t attribute=0,damage=8;
+    uint32_t attribute=0,damage_=8;
 };
+namespace cg2 {
 struct ParticleManager {
     static ParticleManager* GetInstance() { static ParticleManager instance; return &instance; }
     void EmitNeonImpactEffect(Vector3,Vector3,Vector4,int) {}
     void EmitNeonDeathEffect(Vector3,Vector4,Vector4,float) {}
 };
+} // namespace cg2
 struct Player;
 struct BulletManager;
 constexpr int kPlayer=0;
@@ -348,18 +355,18 @@ int main() {
         core.playerDefeatCallback_=[&](Vector3) { ++ordinaryAwards; };
         core.enemyKillCallback_=[&](uint32_t) { ++ordinaryAwards; };
         for (auto attribute : {kCollisionAttributePlayer,kCollisionAttributeEnemy,kCollisionAttributePlayerDrone}) {
-            Contact body; body.attribute=attribute; body.damage=999;
+            Contact body; body.attribute=attribute; body.SetDamage(999);
             core.OnCollision(&body);
         }
         assert(core.hp_==42 && claims==0); // Ramming cannot claim.
-        Bullet neutralShooter(5,3,1); neutralShooter.damage=999; neutralShooter.canClaimRunResource_=false;
+        Bullet neutralShooter(5,3,1); neutralShooter.SetDamage(999); neutralShooter.canClaimRunResource_=false;
         collisions.CheckCollisionPair(&neutralShooter,&core);
         assert(core.hp_==42 && claims==0); // A neutral enemy's stray shot cannot award the rival a core.
         assert(!core.TakeDamageFromPlayer(20)); // Beam/mine/slash direct route.
-        Bullet boss(5,3,1); boss.damage=6;
+        Bullet boss(5,3,1); boss.SetDamage(6);
         collisions.CheckCollisionPair(&boss,&core);
         assert(core.hp_==16 && claims==0); // Both owners share exactly one HP pool.
-        Contact finisher; finisher.damage=16;
+        Contact finisher; finisher.SetDamage(16);
         finisher.attribute=playerFinalHit?kCollisionAttributePlayerBullet:kCollisionAttributeEnemyBullet;
         core.OnCollision(&finisher);
         core.OnCollision(&finisher);

@@ -1,4 +1,5 @@
 #pragma once
+#include "game/weapon/CombatTypes.h"
 #define NOMINMAX
 #include <Windows.h>
 #include <algorithm>
@@ -67,10 +68,10 @@ struct TankData {
 	std::string name;
 	int requiredRank;
 	std::string texturePath; // 画像パス
-	std::unique_ptr<Sprite> cardSprite;
-	std::unique_ptr<Sprite> sprite; // 各戦車専用のスプライト
-	std::unique_ptr<TextLabel> nameLabel;
-	std::unique_ptr<TextLabel> rankLabel;
+	std::unique_ptr<cg2::Sprite> cardSprite;
+	std::unique_ptr<cg2::Sprite> sprite; // 各戦車専用のスプライト
+	std::unique_ptr<cg2::TextLabel> nameLabel;
+	std::unique_ptr<cg2::TextLabel> rankLabel;
 };
 
 struct RunEvolutionChoice {
@@ -80,7 +81,7 @@ struct RunEvolutionChoice {
 };
 
 class Stage;
-class ObjectPostEffect;
+namespace cg2 { class ObjectPostEffect; }
 
 /// <summary>
 /// 自キャラ
@@ -127,26 +128,26 @@ public:
 		bool healToFull = false;
 	};
 	struct LaserShotEvent {
-		Vector3 origin{};
-		Vector3 direction{ 1.0f, 0.0f, 0.0f };
+		cg2::Vector3 origin{};
+		cg2::Vector3 direction{ 1.0f, 0.0f, 0.0f };
 		float range = 18.0f;
 		float width = 0.18f;
 		float duration = 0.12f;
 		float damageInterval = 0.08f;
 		uint32_t damage = 1;
-		Vector4 color{ 0.25f, 1.0f, 0.95f, 1.0f };
+		cg2::Vector4 color{ 0.25f, 1.0f, 0.95f, 1.0f };
 	};
 	struct MineDropEvent {
-		Vector3 position{};
+		cg2::Vector3 position{};
 		float radius = 3.2f;
 		float fuseTime = 0.45f;
 		float lifeTime = 5.0f;
 		uint32_t damage = 1;
-		Vector4 color{ 1.0f, 0.25f, 0.95f, 1.0f };
+		cg2::Vector4 color{ 1.0f, 0.25f, 0.95f, 1.0f };
 	};
 	struct MeleeSlashEvent {
-		Vector3 origin{};
-		Vector3 direction{ 1.0f, 0.0f, 0.0f };
+		cg2::Vector3 origin{};
+		cg2::Vector3 direction{ 1.0f, 0.0f, 0.0f };
 		float range = 3.4f;
 		float arcDeg = 105.0f;
 		float width = 0.20f;
@@ -156,18 +157,18 @@ public:
 		int comboStep = 0;
 		float knockback = 0.16f;
 		uint32_t damage = 1;
-		Vector4 color{ 0.55f, 1.25f, 1.0f, 1.0f };
+		cg2::Vector4 color{ 0.55f, 1.25f, 1.0f, 1.0f };
 	};
 	struct DashImpactEvent {
-		Vector3 origin{}, direction{1.0f, 0.0f, 0.0f};
+		cg2::Vector3 origin{}, direction{1.0f, 0.0f, 0.0f};
 		bool boss = false;
 		bool powered = false;
 	};
-	struct DroneLaserLink { Vector3 start{},end{}; bool contact=false; };
+	struct DroneLaserLink { cg2::Vector3 start{},end{}; bool contact=false; };
 	enum class SpecialEventKind { RailShot, Parry, PerfectParry, LinkHit, DroneCharge, DroneBomb, DroneRebuild, TargetLock, DashSlash, SpinBlade, WallSmash };
 	struct SpecialCombatEvent {
 		SpecialEventKind kind=SpecialEventKind::RailShot;
-		Vector3 origin{},direction{1,0,0};
+		cg2::Vector3 origin{},direction{1,0,0};
 		float strength=1;
 	};
 	struct SpecialCombatStats {
@@ -175,8 +176,8 @@ public:
 		uint32_t droneCharges=0,droneChargeHits=0,droneBombs=0,droneRebuilds=0,targetLocks=0,spreadTargets=0;
 		uint32_t dashSlashes=0,dashSlashHits=0,spinTicks=0,wallSmashes=0;
 	};
-	struct DroneAbilityVisual {Vector3 position{},target{};tankspecial::DronePhase phase=tankspecial::DronePhase::Escort;float progress=0;bool bomb=false;};
-	struct TargetLockVisual {Vector3 position{};int stacks=0;float remaining=0;};
+	struct DroneAbilityVisual {cg2::Vector3 position{},target{};tankspecial::DronePhase phase=tankspecial::DronePhase::Escort;float progress=0;bool bomb=false;};
+	struct TargetLockVisual {cg2::Vector3 position{};int stacks=0;float remaining=0;};
 	std::vector<DroneAbilityVisual> GetDroneAbilityVisuals() const;
 	const std::vector<TargetLockVisual>& GetTargetLockVisuals() const {return targetLockVisuals_;}
 	float GetSpinBladeRatio() const {return spinCycle_.remaining/.8f;}
@@ -186,7 +187,7 @@ public:
 	float GetDroneTargetDamageScale(const Collider* target,bool boss) const;
 	void ArmWallSmash(ExpEnemy* target,float strength=1);
 	float GetRailChargeRatio() const { return railCharge_.held ? railCharge_.seconds : 0.0f; }
-	Vector3 GetRailChargeMuzzle() const;
+	cg2::Vector3 GetRailChargeMuzzle() const;
 	const std::vector<DroneLaserLink>& GetDroneLaserLinks() const { return droneLaserLinks_; }
 	const SpecialCombatStats& GetSpecialCombatStats() const { return specialCombatStats_; }
 	std::vector<SpecialCombatEvent> ConsumeSpecialCombatEvents();
@@ -214,7 +215,7 @@ public:
 	/// マウスの方を向く
 	/// </summary>
 	/// <param name="viewProjection"></param>
-	void RotateToMouse(Camera* viewProjection);
+	void RotateToMouse(cg2::Camera* viewProjection);
 
 	/// <summary>
 	/// 初期化
@@ -224,13 +225,13 @@ public:
 	/// <param name="position">初期座標</param>
 	// Expedition owns its own map, reward cards and HUD. Arena UI resources are
 	// optional, while class/evolution data and all combat behavior remain shared.
-	void Initialize(Object3d* objectBullet, const Vector3& position, bool arenaUi = true);
+	void Initialize(cg2::Object3d* objectBullet, const cg2::Vector3& position, bool arenaUi = true);
 
 	/// <summary>
 	/// 更新
 	/// </summary>
 	void Update(
-		Camera* viewProjection,
+		cg2::Camera* viewProjection,
 		Stage& stage,
 		BulletManager* BulletManager,
 		float deltaTime,
@@ -248,7 +249,7 @@ public:
 	void DrawSprite();
 	void DrawEvolutionAfterPostEffects();
 	void DrawUpgradeHudAfterPostEffects();
-	void AppendGameplayNeonTextLabels(std::vector<TextLabel*>& labels) const;
+	void AppendGameplayNeonTextLabels(std::vector<cg2::TextLabel*>& labels) const;
 	void PrepareUpgradeHudTextTextures();
 
 	// ドローンのゲッター
@@ -264,19 +265,19 @@ public:
 	// 半径
 	static inline const float kRadius = 0.8f;
 
-	Vector3 GetWorldPosition() const override;
+	cg2::Vector3 GetWorldPosition() const override;
 
-	Vector3 GetMove() { return velocity_; }
-	void SetVelocity(const Vector3& v) { velocity_ = v; }
+	cg2::Vector3 GetMove() { return velocity_; }
+	void SetVelocity(const cg2::Vector3& v) { velocity_ = v; }
 
 	// セッター
-	void SetWorldPosition(const Vector3& pos) {
+	void SetWorldPosition(const cg2::Vector3& pos) {
 		worldTransform_.translate = pos;
 		object_->SetTransform(worldTransform_);
 		object_->Update();
 	}
 
-	AABB GetAABB();
+	cg2::AABB GetAABB();
 
 	void Damage(uint32_t amount = kDamageBlockDamage);
 	void TakeDamage(uint32_t amount, float invincibleTime = 0.45f);
@@ -304,7 +305,7 @@ public:
     };
     RunCombatSnapshot GetRunCombatSnapshot() const;
     bool IsDemoInputEnabled() const { return demoInputEnabled_; }
-    void SetDemoInput(bool enabled, const Vector2& move, const Vector3& aimWorld, bool shoot, bool dash) {
+    void SetDemoInput(bool enabled, const cg2::Vector2& move, const cg2::Vector3& aimWorld, bool shoot, bool dash) {
         demoInputEnabled_=enabled; demoMove_=move; demoAim_=aimWorld; demoShoot_=shoot; demoDash_=dash;
         if(enabled) { isChangeMode=false; runRoomAwaitInputRelease_=false; }
     }
@@ -312,7 +313,7 @@ public:
 	void HealRunPlayer(int amount);
 	bool SpendRunHealth(int amount);
 	void SetRunCheckpointEvolution(bool enabled) { runCheckpointEvolution_ = enabled; }
-	void SetRunHomingTargets(const std::vector<Vector3>& targets);
+	void SetRunHomingTargets(const std::vector<cg2::Vector3>& targets);
 	std::vector<RunEvolutionChoice> GetRunEvolutionChoices() const;
 	void PrepareRunEvolution();
 	bool ChooseRunEvolution(const std::string& id);
@@ -322,7 +323,7 @@ public:
 	std::array<RunMaintenanceChoice, 3> GetRunMaintenanceChoices() const;
 	bool SpendRunMaintenancePoint(int stat);
 	bool RefundRunMaintenancePoint(int stat);
-	void ResetRunRoomState(const Vector3& position);
+	void ResetRunRoomState(const cg2::Vector3& position);
 	void SetDebugNoDamage(bool enabled) { debugNoDamage_ = enabled; }
 	bool IsDebugNoDamage() const { return debugNoDamage_; }
 
@@ -340,28 +341,28 @@ public:
 	void SetOnGround(bool onGround) { isOnGround_ = onGround; }
 
 	float GetAngle() const { return angle_; }
-	const Vector3& GetDirection() const { return dir_; }
+	const cg2::Vector3& GetDirection() const { return dir_; }
 	bool IsDashing() const { return isDashing_; }
-	bool HasMovementInput() const { return Length(inputDir_) > 0.05f; }
+	bool HasMovementInput() const { return cg2::Length(inputDir_) > 0.05f; }
 	bool ConsumePrimaryAttackPerformedEvent();
 	bool ConsumeDashStartedEvent();
 	struct NeonBarrelLayout {
-		Vector3 offset{};
-		Vector3 scale{ 1.25f, 0.24f, 0.24f };
+		cg2::Vector3 offset{};
+		cg2::Vector3 scale{ 1.25f, 0.24f, 0.24f };
 		float angleRad = 0.0f;
 		float recoilOffset = 0.0f;
 		float muzzleFlashRatio = 0.0f;
 		bool isMelee = false;
 		BarrelShape shape = BarrelShape::Box;
 		int fireGroup = 0;
-		Vector4 barrelColor{ 0.25f, 1.0f, 0.95f, 1.0f };
-		Vector4 outlineColor{ 0.80f, 1.0f, 0.95f, 1.0f };
+		cg2::Vector4 barrelColor{ 0.25f, 1.0f, 0.95f, 1.0f };
+		cg2::Vector4 outlineColor{ 0.80f, 1.0f, 0.95f, 1.0f };
 	};
 	struct NeonBodyLayout {
 		BodyShape shape = BodyShape::Circle;
-		Vector2 scale{ 1.0f, 1.0f };
-		Vector4 fillColor{ 0.18f, 0.28f, 0.34f, 0.38f };
-		Vector4 outlineColor{ 0.50f, 1.0f, 0.35f, 1.0f };
+		cg2::Vector2 scale{ 1.0f, 1.0f };
+		cg2::Vector4 fillColor{ 0.18f, 0.28f, 0.34f, 0.38f };
+		cg2::Vector4 outlineColor{ 0.50f, 1.0f, 0.35f, 1.0f };
 	};
 	std::vector<NeonBarrelLayout> GetNeonBarrelLayouts() const;
 	NeonBodyLayout GetNeonBodyLayout() const;
@@ -388,7 +389,7 @@ public:
 	/// </summary>
 	void Smash(float deltaTime);
 
-	Sphere GetSphere() const;
+	cg2::Sphere GetSphere() const;
 
 	// 経験値を加算する関数
 	void AddExp(int amount);
@@ -536,21 +537,21 @@ private:
 		float saberCounterDamageScale = 2.5f;
 		float saberCounterRangeScale = 1.35f;
 		BodyShape bodyShape = BodyShape::Circle;
-		Vector2 bodyScale = { 1.0f, 1.0f };
-		Vector4 bodyFillColor = { 0.18f, 0.28f, 0.34f, 0.38f };
-		Vector4 bodyOutlineColor = { 0.50f, 1.0f, 0.35f, 1.0f };
+		cg2::Vector2 bodyScale = { 1.0f, 1.0f };
+		cg2::Vector4 bodyFillColor = { 0.18f, 0.28f, 0.34f, 0.38f };
+		cg2::Vector4 bodyOutlineColor = { 0.50f, 1.0f, 0.35f, 1.0f };
 		std::vector<WeaponMountConfig> barrels;
 	};
 
 	// ワールド変換データ
-	Transform worldTransform_;
+	cg2::Transform worldTransform_;
 
 	// モデル
-	Object3d* object_ = nullptr;
+	cg2::Object3d* object_ = nullptr;
 	struct BarrelModel {
-		std::unique_ptr<Object3d> object;
-		Transform transform;
-		Vector3 localOffset;
+		std::unique_ptr<cg2::Object3d> object;
+		cg2::Transform transform;
+		cg2::Vector3 localOffset;
 		float recoilOffset = 0.0f;
 		float muzzleFlashTimer = 0.0f;
 	};
@@ -568,13 +569,13 @@ private:
 	uint32_t textureHandle_ = 0u;
 
 	// キーボード入力
-	Input* input_ = nullptr;
+	cg2::Input* input_ = nullptr;
 
-	Vector3 dir_;
+	cg2::Vector3 dir_;
 
 	// キャラクターの移動速さ
 	float kCharacterSpeed = 0.2f;
-	Vector3 move_;
+	cg2::Vector3 move_;
 
 	const int kBulletTime = 10;
 	float bulletCoolTime = 0.0f;
@@ -583,8 +584,8 @@ private:
 	static inline const float kWidth = 1.6f;
 	static inline const float kHeight = 1.6f;
 
-	Vector3 velocity_{ 0, 0, 0 };   // 現在速度
-	Vector3 inputDir_{ 0, 0, 0 };   // 入力方向
+	cg2::Vector3 velocity_{ 0, 0, 0 };   // 現在速度
+	cg2::Vector3 inputDir_{ 0, 0, 0 };   // 入力方向
 
 	float maxSpeed_ = 0.15f;        // 最高速度
 	float accel_ = 2.5f;         // 加速
@@ -595,11 +596,11 @@ private:
 
 	bool isOnGround_ = false;
 
-	Transform hpTransform_;
+	cg2::Transform hpTransform_;
 
 	// HPモデル
-	std::vector<std::unique_ptr<Sprite>> hpSprites_;
-	std::unique_ptr<Sprite> hpFont;
+	std::vector<std::unique_ptr<cg2::Sprite>> hpSprites_;
+	std::unique_ptr<cg2::Sprite> hpFont;
 	static constexpr uint32_t kDamageBlockDamage = 75;
 	int hp_ = 10000;
 
@@ -608,8 +609,8 @@ private:
 	bool debugNoDamage_ = false;
 	float damageFeedbackTimer_ = 0.0f;
 	float damageFeedbackDuration_ = 0.18f;
-	Vector4 baseVehicleColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
-	Vector4 baseBarrelColor_{ 0.48f, 0.86f, 0.22f, 1.0f };
+	cg2::Vector4 baseVehicleColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
+	cg2::Vector4 baseBarrelColor_{ 0.48f, 0.86f, 0.22f, 1.0f };
 
 	bool isDead_ = false;
 
@@ -654,7 +655,7 @@ private:
 	std::vector<TargetLockVisual> targetLockVisuals_;
 	tankspecial::SpinCycle spinCycle_{};
 	bool finisherSpinReady_=false,dashSlashActive_=false;
-	Vector3 dashSlashPrevious_{},dashSlashDirection_{1,0,0};
+	cg2::Vector3 dashSlashPrevious_{},dashSlashDirection_{1,0,0};
 	float dashSlashTimer_=0;
 	uint32_t dashSlashDamage_=1;
 	std::vector<uint64_t> dashSlashTargets_;
@@ -684,9 +685,9 @@ private:
     std::string runStarterBranch_ = "Twin";
     PlayerClassConfig runStarterConfig_{};
     bool demoInputEnabled_ = false, demoShoot_ = false, demoDash_ = false;
-    Vector2 demoMove_{};
-    Vector3 demoAim_{};
-	Vector3 runAimWorld_{};
+    cg2::Vector2 demoMove_{};
+    cg2::Vector3 demoAim_{};
+	cg2::Vector3 runAimWorld_{};
 	TankExpeditionMaintenance runMaintenance_{};
 	PlayerClassConfig runEvolutionConfig_{};
 	bool runEvolutionActive_ = false;
@@ -698,7 +699,7 @@ private:
 	bool runDashBurstPending_ = false;
 	bool runRoomAwaitInputRelease_ = false;
 	bool runCheckpointEvolution_ = false;
-	std::vector<Vector3> runHomingTargets_;
+	std::vector<cg2::Vector3> runHomingTargets_;
 	void ConfigureRunDrone(PlayerDrone& drone) const;
 	void EnsureExpeditionDrones();
 	int GetExpeditionDroneLimit() const;
@@ -731,21 +732,21 @@ private:
 	const PlayerClassConfig* GetClassConfig(const std::string& classId) const;
 	const PlayerClassConfig* GetCurrentClassConfig() const;
 	PlayerClassConfig* GetMutableClassConfig(const std::string& classId);
-	bool FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, Vector3& recoilDir, float& recoilPower);
+	bool FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, cg2::Vector3& recoilDir, float& recoilPower);
 	bool TryActivateSpecialAction();
 	bool ActivatePerfectDodge(const PlayerClassConfig& config);
 	bool ActivateSaberCounter(const PlayerClassConfig& config);
 	void TriggerSaberCounter(const PlayerClassConfig& config);
-	Vector3 RotateDirection(const Vector3& direction, float angleDeg) const;
+	cg2::Vector3 RotateDirection(const cg2::Vector3& direction, float angleDeg) const;
 	void InitializeBarrels();
 	void UpdateBarrelLayout();
 	void DrawBarrels();
 	void SetVehicleAlpha(float alpha);
 	void TriggerDamageFeedback();
 	void InitializeUpgradeHud();
-	void UpdateUpgradeHudExpGlyphs(const std::string& text, const TextStyle& style);
+	void UpdateUpgradeHudExpGlyphs(const std::string& text, const cg2::TextStyle& style);
 	void PositionUpgradeHudExpGlyphs();
-	void UpdateUpgradeHudLevelLabels(int level, const std::string& className, const TextStyle& style);
+	void UpdateUpgradeHudLevelLabels(int level, const std::string& className, const cg2::TextStyle& style);
 	void PositionUpgradeHudLevelLabels();
 	void ApplyUpgradeHudProgressBarStyles();
 	void UpdateUpgradeHud(float uiDeltaTime);
@@ -753,7 +754,7 @@ private:
 	void PrepareUpgradeHudSegmentBars();
 	void InitializeUpgradeHudBatch();
 	void DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float levelRatio, float listAlpha, float listOffsetX);
-	void QueueUpgradeHudRect(std::vector<TrailVertex>& vertices, const Vector2& pos, const Vector2& size, const Vector4& color) const;
+	void QueueUpgradeHudRect(std::vector<cg2::TrailVertex>& vertices, const cg2::Vector2& pos, const cg2::Vector2& size, const cg2::Vector4& color) const;
 	void ApplyUpgradeHudLayout();
 	bool LoadUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json");
 	bool SaveUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json") const;
@@ -770,11 +771,11 @@ private:
 	bool LoadEvolutionUiStyle(const std::string& path = "resources/configs/evolutionUiStyle.json");
 	bool SaveEvolutionUiStyle(const std::string& path = "resources/configs/evolutionUiStyle.json") const;
 	bool ShouldUseStaticEvolutionPrototype() const;
-	Vector2 EvolutionAnchorToVirtual(const Vector2& normalizedAnchor) const;
-	Vector2 EvolutionVirtualToRender(const Vector2& virtualPosition) const;
-	Vector2 EvolutionClientToVirtual(const Vector2& clientPosition) const;
+	cg2::Vector2 EvolutionAnchorToVirtual(const cg2::Vector2& normalizedAnchor) const;
+	cg2::Vector2 EvolutionVirtualToRender(const cg2::Vector2& virtualPosition) const;
+	cg2::Vector2 EvolutionClientToVirtual(const cg2::Vector2& clientPosition) const;
 	float GetEvolutionRenderScale() const;
-	Vector2 GetEvolutionRenderOffset() const;
+	cg2::Vector2 GetEvolutionRenderOffset() const;
 	void UpdateStaticEvolutionCircuit();
 	void UpdateStaticEvolutionNodeFrames();
 	void UpdateStaticEvolutionSilhouettes();
@@ -807,7 +808,7 @@ private:
 	void SpawnAfterimage();
 	void UpdateP(float deltaTime);
 	void SpawnBuffParticle();
-	Vector2 WorldToScreen(const Vector3& worldPos, Camera* camera);
+	cg2::Vector2 WorldToScreen(const cg2::Vector3& worldPos, cg2::Camera* camera);
 
 	float angle_ = 0.0f;
 
@@ -845,49 +846,49 @@ private:
 	float smashCharge_ = 0.0f; // スマッシュチャージ時間
 	float maxCharge_ = 1.0f;
 	bool isSmash_ = false; // スマッシュ中かどうか
-	Vector3 smashDir_;
+	cg2::Vector3 smashDir_;
 
-	std::unique_ptr<Sprite> machineGunBtnSprite_ = nullptr; // ボタンの見た目
-	Vector2 btnPos_ = { 50.0f, 200.0f };  // ボタンの位置（画面左下あたり）
-	Vector2 btnSize_ = { 100.0f, 50.0f }; // ボタンのサイズ
+	std::unique_ptr<cg2::Sprite> machineGunBtnSprite_ = nullptr; // ボタンの見た目
+	cg2::Vector2 btnPos_ = { 50.0f, 200.0f };  // ボタンの位置（画面左下あたり）
+	cg2::Vector2 btnSize_ = { 100.0f, 50.0f }; // ボタンのサイズ
 
 	// 図鑑の並び順（表示したい順番に定義）
 	std::vector<TankData> encyclopedia_;
-	std::unique_ptr<Sprite> evolutionBackdropSprite_;
-	std::unique_ptr<Sprite> evolutionPreviewPanelSprite_;
-	std::unique_ptr<Sprite> evolutionStatsPanelSprite_;
-	std::unique_ptr<Sprite> evolutionPreviewTankSprite_;
-	std::unique_ptr<Sprite> evolutionShotSprite_;
-	std::unique_ptr<Sprite> evolutionChangeButtonSprite_;
-	std::unique_ptr<TextLabel> evolutionTitleLabel_;
-	std::unique_ptr<TextLabel> evolutionHintLabel_;
-	std::unique_ptr<TextLabel> evolutionPreviewNameLabel_;
-	std::unique_ptr<TextLabel> evolutionRoleLabel_;
-	std::unique_ptr<TextLabel> evolutionChangeButtonLabel_;
-	std::array<std::unique_ptr<TextLabel>, 9> evolutionStatLabels_;
+	std::unique_ptr<cg2::Sprite> evolutionBackdropSprite_;
+	std::unique_ptr<cg2::Sprite> evolutionPreviewPanelSprite_;
+	std::unique_ptr<cg2::Sprite> evolutionStatsPanelSprite_;
+	std::unique_ptr<cg2::Sprite> evolutionPreviewTankSprite_;
+	std::unique_ptr<cg2::Sprite> evolutionShotSprite_;
+	std::unique_ptr<cg2::Sprite> evolutionChangeButtonSprite_;
+	std::unique_ptr<cg2::TextLabel> evolutionTitleLabel_;
+	std::unique_ptr<cg2::TextLabel> evolutionHintLabel_;
+	std::unique_ptr<cg2::TextLabel> evolutionPreviewNameLabel_;
+	std::unique_ptr<cg2::TextLabel> evolutionRoleLabel_;
+	std::unique_ptr<cg2::TextLabel> evolutionChangeButtonLabel_;
+	std::array<std::unique_ptr<cg2::TextLabel>, 9> evolutionStatLabels_;
 	static constexpr size_t kStaticEvolutionMaxCandidates = 4;
 	static constexpr size_t kStaticEvolutionMaxNodes = kStaticEvolutionMaxCandidates + 1;
 	static constexpr size_t kStaticEvolutionMaxPaths = kStaticEvolutionMaxCandidates + 1;
 	struct EvolutionUiStyleConfig {
 		bool enabled = true;
 		bool radialLayout = false;
-		Vector2 virtualResolution{ 1280.0f, 720.0f };
+		cg2::Vector2 virtualResolution{ 1280.0f, 720.0f };
 		float safeMargin = 48.0f;
-		std::array<Vector2, 4> nodeAnchors{ {
+		std::array<cg2::Vector2, 4> nodeAnchors{ {
 			{ 0.23f, 0.43f },
 			{ 0.67f, 0.22f },
 			{ 0.67f, 0.43f },
 			{ 0.67f, 0.64f }
 		} };
-		std::array<Vector2, 4> radialNodeAnchors{ {
+		std::array<cg2::Vector2, 4> radialNodeAnchors{ {
 			{ 0.50f, 0.43f },
 			{ 0.33f, 0.20f },
 			{ 0.67f, 0.20f },
 			{ 0.50f, 0.70f }
 		} };
-		Vector2 branchPointAnchor{ 0.49f, 0.43f };
-		Vector2 currentNodeSize{ 160.0f, 112.0f };
-		Vector2 candidateNodeSize{ 160.0f, 112.0f };
+		cg2::Vector2 branchPointAnchor{ 0.49f, 0.43f };
+		cg2::Vector2 currentNodeSize{ 160.0f, 112.0f };
+		cg2::Vector2 candidateNodeSize{ 160.0f, 112.0f };
 		float normalScale = 1.0f;
 		float hoverScale = 1.05f;
 		float selectedScale = 1.08f;
@@ -903,9 +904,9 @@ private:
 		float circuitMiddleAlpha = 0.34f;
 		float circuitCoreAlpha = 0.90f;
 		float backgroundDimOpacity = 0.88f;
-		Vector2 detailPanelAnchor{ 0.50f, 0.88f };
-		Vector2 detailPanelSize{ 1088.0f, 134.0f };
-		Vector2 confirmButtonSize{ 186.0f, 44.0f };
+		cg2::Vector2 detailPanelAnchor{ 0.50f, 0.88f };
+		cg2::Vector2 detailPanelSize{ 1088.0f, 134.0f };
+		cg2::Vector2 confirmButtonSize{ 186.0f, 44.0f };
 		float titleFontSize = 26.0f;
 		float classNameFontSize = 22.0f;
 		float bodyFontSize = 16.0f;
@@ -914,17 +915,17 @@ private:
 		std::string fontPath;
 		int fontWeight = 400;
 		NeonTextEffectStyle neonText{};
-		Vector4 normalColor{ 0.12f, 0.34f, 0.42f, 0.82f };
-		Vector4 availableColor{ 0.16f, 0.64f, 0.72f, 0.92f };
-		Vector4 hoverColor{ 0.30f, 0.94f, 1.00f, 1.0f };
-		Vector4 selectedColor{ 0.42f, 1.00f, 0.58f, 1.0f };
-		Vector4 lockedColor{ 0.18f, 0.22f, 0.28f, 0.68f };
-		Vector4 panelColor{ 0.025f, 0.055f, 0.080f, 0.94f };
-		Vector4 titleTextColor{ 0.74f, 1.00f, 0.92f, 1.0f };
-		Vector4 classTextColor{ 0.92f, 1.00f, 0.96f, 1.0f };
-		Vector4 bodyTextColor{ 0.84f, 0.92f, 1.00f, 1.0f };
-		Vector4 buttonTextColor{ 0.96f, 1.00f, 0.98f, 1.0f };
-		Vector4 textOutlineColor{ 0.0f, 0.025f, 0.045f, 0.96f };
+		cg2::Vector4 normalColor{ 0.12f, 0.34f, 0.42f, 0.82f };
+		cg2::Vector4 availableColor{ 0.16f, 0.64f, 0.72f, 0.92f };
+		cg2::Vector4 hoverColor{ 0.30f, 0.94f, 1.00f, 1.0f };
+		cg2::Vector4 selectedColor{ 0.42f, 1.00f, 0.58f, 1.0f };
+		cg2::Vector4 lockedColor{ 0.18f, 0.22f, 0.28f, 0.68f };
+		cg2::Vector4 panelColor{ 0.025f, 0.055f, 0.080f, 0.94f };
+		cg2::Vector4 titleTextColor{ 0.74f, 1.00f, 0.92f, 1.0f };
+		cg2::Vector4 classTextColor{ 0.92f, 1.00f, 0.96f, 1.0f };
+		cg2::Vector4 bodyTextColor{ 0.84f, 0.92f, 1.00f, 1.0f };
+		cg2::Vector4 buttonTextColor{ 0.96f, 1.00f, 0.98f, 1.0f };
+		cg2::Vector4 textOutlineColor{ 0.0f, 0.025f, 0.045f, 0.96f };
 		float titleOutlineWidth = 0.9f;
 		float classNameOutlineWidth = 1.0f;
 		float bodyOutlineWidth = 0.35f;
@@ -932,37 +933,37 @@ private:
 		int fixedSelectedCandidate = 0;
 	};
 	EvolutionUiStyleConfig evolutionUiStyle_{};
-	std::unique_ptr<Sprite> staticEvolutionBackdropSprite_;
+	std::unique_ptr<cg2::Sprite> staticEvolutionBackdropSprite_;
 	std::unique_ptr<TankButtonUiStyle> tankButtonUiStyle_;
-	std::unique_ptr<ObjectPostEffect> staticEvolutionButtonBloomEffect_;
+	std::unique_ptr<cg2::ObjectPostEffect> staticEvolutionButtonBloomEffect_;
 	std::unique_ptr<NeonTextEffect> staticEvolutionTextEffect_;
 	std::array<std::unique_ptr<TankButtonUI>, kStaticEvolutionMaxNodes> staticEvolutionTankButtons_;
-	std::unique_ptr<Sprite> staticEvolutionDetailPanelSprite_;
-	std::unique_ptr<Sprite> staticEvolutionConfirmButtonSprite_;
-	std::array<std::unique_ptr<Sprite>, 8> staticEvolutionConfirmOutlineSprites_;
-	std::unique_ptr<Sprite> staticEvolutionBranchGlowSprite_;
-	std::unique_ptr<Sprite> staticEvolutionBranchCoreSprite_;
-	std::array<std::array<std::unique_ptr<Sprite>, 3>, kStaticEvolutionMaxNodes> staticEvolutionNodePanelSprites_;
+	std::unique_ptr<cg2::Sprite> staticEvolutionDetailPanelSprite_;
+	std::unique_ptr<cg2::Sprite> staticEvolutionConfirmButtonSprite_;
+	std::array<std::unique_ptr<cg2::Sprite>, 8> staticEvolutionConfirmOutlineSprites_;
+	std::unique_ptr<cg2::Sprite> staticEvolutionBranchGlowSprite_;
+	std::unique_ptr<cg2::Sprite> staticEvolutionBranchCoreSprite_;
+	std::array<std::array<std::unique_ptr<cg2::Sprite>, 3>, kStaticEvolutionMaxNodes> staticEvolutionNodePanelSprites_;
 	static constexpr size_t kStaticEvolutionNodeFrameSpriteCount = 24;
-	std::array<std::array<std::unique_ptr<Sprite>, kStaticEvolutionNodeFrameSpriteCount>, kStaticEvolutionMaxNodes> staticEvolutionNodeFrameSprites_;
+	std::array<std::array<std::unique_ptr<cg2::Sprite>, kStaticEvolutionNodeFrameSpriteCount>, kStaticEvolutionMaxNodes> staticEvolutionNodeFrameSprites_;
 	static constexpr size_t kStaticEvolutionSilhouetteSpriteCount = 32;
-	std::array<std::array<std::unique_ptr<Sprite>, kStaticEvolutionSilhouetteSpriteCount>, kStaticEvolutionMaxNodes> staticEvolutionSilhouetteSprites_;
+	std::array<std::array<std::unique_ptr<cg2::Sprite>, kStaticEvolutionSilhouetteSpriteCount>, kStaticEvolutionMaxNodes> staticEvolutionSilhouetteSprites_;
 	static constexpr size_t kStaticEvolutionCircuitSpriteCount = 27;
-	std::array<std::unique_ptr<Sprite>, kStaticEvolutionCircuitSpriteCount> staticEvolutionCircuitSprites_;
-	std::unique_ptr<TextLabel> staticEvolutionTitleLabel_;
-	std::unique_ptr<TextLabel> staticEvolutionPrototypeLabel_;
-	std::array<std::unique_ptr<TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeNameLabels_;
-	std::array<std::unique_ptr<TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeRankLabels_;
-	std::unique_ptr<TextLabel> staticEvolutionDetailClassLabel_;
-	std::unique_ptr<TextLabel> staticEvolutionRoleLabel_;
-	std::array<std::unique_ptr<TextLabel>, 3> staticEvolutionDeltaLabels_;
-	std::unique_ptr<TextLabel> staticEvolutionAbilityLabel_;
-	std::unique_ptr<TextLabel> staticEvolutionConfirmLabel_;
-	std::unique_ptr<TextLabel> staticEvolutionPanelHintLabel_;
-	std::array<Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeCentersVirtual_{};
-	std::array<Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeDrawSizesVirtual_{};
-	std::array<Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeHitSizesVirtual_{};
-	std::array<std::array<Vector2, 4>, kStaticEvolutionMaxPaths> staticEvolutionCircuitControlPoints_{};
+	std::array<std::unique_ptr<cg2::Sprite>, kStaticEvolutionCircuitSpriteCount> staticEvolutionCircuitSprites_;
+	std::unique_ptr<cg2::TextLabel> staticEvolutionTitleLabel_;
+	std::unique_ptr<cg2::TextLabel> staticEvolutionPrototypeLabel_;
+	std::array<std::unique_ptr<cg2::TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeNameLabels_;
+	std::array<std::unique_ptr<cg2::TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeRankLabels_;
+	std::unique_ptr<cg2::TextLabel> staticEvolutionDetailClassLabel_;
+	std::unique_ptr<cg2::TextLabel> staticEvolutionRoleLabel_;
+	std::array<std::unique_ptr<cg2::TextLabel>, 3> staticEvolutionDeltaLabels_;
+	std::unique_ptr<cg2::TextLabel> staticEvolutionAbilityLabel_;
+	std::unique_ptr<cg2::TextLabel> staticEvolutionConfirmLabel_;
+	std::unique_ptr<cg2::TextLabel> staticEvolutionPanelHintLabel_;
+	std::array<cg2::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeCentersVirtual_{};
+	std::array<cg2::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeDrawSizesVirtual_{};
+	std::array<cg2::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeHitSizesVirtual_{};
+	std::array<std::array<cg2::Vector2, 4>, kStaticEvolutionMaxPaths> staticEvolutionCircuitControlPoints_{};
 	std::array<int, kStaticEvolutionMaxPaths> staticEvolutionCircuitControlPointCounts_{};
 	std::array<std::string, kStaticEvolutionMaxCandidates> staticEvolutionCandidateIds_{};
 	size_t staticEvolutionCandidateCount_ = 0;
@@ -981,19 +982,19 @@ private:
 	std::vector<EvolutionCircuitNodeDefinition> evolutionCircuitNodes_;
 	std::vector<EvolutionCircuitEdgeDefinition> evolutionCircuitEdges_;
 	std::vector<std::string> evolutionHistory_;
-	std::array<Vector2, kEvolutionCircuitMaxNodes> evolutionCircuitNodeCentersVirtual_{};
+	std::array<cg2::Vector2, kEvolutionCircuitMaxNodes> evolutionCircuitNodeCentersVirtual_{};
 	std::array<std::unique_ptr<TankButtonUI>, kEvolutionCircuitMaxNodes> evolutionCircuitTankButtons_;
 	std::unique_ptr<TankButtonUI> evolutionCircuitDetailPreview_;
-	std::array<std::unique_ptr<Sprite>, kEvolutionCircuitMaxLineSprites> evolutionCircuitLineSprites_;
-	std::unique_ptr<Sprite> evolutionCircuitBackdropSprite_;
-	std::unique_ptr<Sprite> evolutionCircuitDetailPanelSprite_;
-	std::unique_ptr<TextLabel> evolutionCircuitTitleLabel_;
-	std::array<std::unique_ptr<TextLabel>, 4> evolutionCircuitRankLabels_;
-	std::unique_ptr<TextLabel> evolutionCircuitDetailNameLabel_;
-	std::unique_ptr<TextLabel> evolutionCircuitDetailMetaLabel_;
-	std::unique_ptr<TextLabel> evolutionCircuitDetailRoleLabel_;
-	std::array<std::unique_ptr<TextLabel>, 3> evolutionCircuitDetailStatLabels_;
-	std::unique_ptr<TextLabel> evolutionCircuitHintLabel_;
+	std::array<std::unique_ptr<cg2::Sprite>, kEvolutionCircuitMaxLineSprites> evolutionCircuitLineSprites_;
+	std::unique_ptr<cg2::Sprite> evolutionCircuitBackdropSprite_;
+	std::unique_ptr<cg2::Sprite> evolutionCircuitDetailPanelSprite_;
+	std::unique_ptr<cg2::TextLabel> evolutionCircuitTitleLabel_;
+	std::array<std::unique_ptr<cg2::TextLabel>, 4> evolutionCircuitRankLabels_;
+	std::unique_ptr<cg2::TextLabel> evolutionCircuitDetailNameLabel_;
+	std::unique_ptr<cg2::TextLabel> evolutionCircuitDetailMetaLabel_;
+	std::unique_ptr<cg2::TextLabel> evolutionCircuitDetailRoleLabel_;
+	std::array<std::unique_ptr<cg2::TextLabel>, 3> evolutionCircuitDetailStatLabels_;
+	std::unique_ptr<cg2::TextLabel> evolutionCircuitHintLabel_;
 	int evolutionCircuitSelectedNode_ = 0;
 	int evolutionCircuitHoveredNode_ = -1;
 	bool evolutionCircuitLoaded_ = false;
@@ -1006,45 +1007,45 @@ private:
 	bool showEvolutionCenterLines_ = false;
 	bool showEvolutionCircuitControlPoints_ = false;
 	bool showEvolutionResolutionInfo_ = false;
-	std::unique_ptr<Sprite> upgradeHudBackdropSprite_;
-	std::unique_ptr<Sprite> upgradeHudExpBackSprite_;
-	std::unique_ptr<Sprite> upgradeHudExpFillSprite_;
-	std::unique_ptr<Sprite> upgradeHudLevelBackSprite_;
-	std::unique_ptr<Sprite> upgradeHudLevelFillSprite_;
+	std::unique_ptr<cg2::Sprite> upgradeHudBackdropSprite_;
+	std::unique_ptr<cg2::Sprite> upgradeHudExpBackSprite_;
+	std::unique_ptr<cg2::Sprite> upgradeHudExpFillSprite_;
+	std::unique_ptr<cg2::Sprite> upgradeHudLevelBackSprite_;
+	std::unique_ptr<cg2::Sprite> upgradeHudLevelFillSprite_;
 	std::unique_ptr<NeonProgressBar> upgradeHudLevelProgressBar_;
 	std::unique_ptr<NeonProgressBar> upgradeHudExpProgressBar_;
 	std::array<std::unique_ptr<NeonSegmentedBar>, 7> upgradeHudSegmentBars_;
-	std::unique_ptr<ObjectPostEffect> upgradeHudBarBloomEffect_;
+	std::unique_ptr<cg2::ObjectPostEffect> upgradeHudBarBloomEffect_;
 	NeonProgressBarStyle upgradeHudLevelProgressStyle_{};
 	NeonProgressBarStyle upgradeHudExpProgressStyle_{};
-	std::unique_ptr<TextLabel> upgradeHudTitleLabel_;
-	std::unique_ptr<TextLabel> upgradeHudPointLabel_;
-	std::unique_ptr<TextLabel> upgradeHudLevelLabel_;
-	std::unique_ptr<TextLabel> upgradeHudLevelClassLabel_;
-	std::unique_ptr<TextLabel> upgradeHudListLabel_;
+	std::unique_ptr<cg2::TextLabel> upgradeHudTitleLabel_;
+	std::unique_ptr<cg2::TextLabel> upgradeHudPointLabel_;
+	std::unique_ptr<cg2::TextLabel> upgradeHudLevelLabel_;
+	std::unique_ptr<cg2::TextLabel> upgradeHudLevelClassLabel_;
+	std::unique_ptr<cg2::TextLabel> upgradeHudListLabel_;
 	static constexpr size_t kUpgradeHudExpGlyphSlotCount = 32;
-	std::array<std::unique_ptr<TextLabel>, kUpgradeHudExpGlyphSlotCount> upgradeHudExpGlyphLabels_;
+	std::array<std::unique_ptr<cg2::TextLabel>, kUpgradeHudExpGlyphSlotCount> upgradeHudExpGlyphLabels_;
 	size_t upgradeHudExpGlyphCount_ = 0;
 	static constexpr size_t kUpgradeHudLevelGlyphSlotCount = 2;
-	std::array<std::unique_ptr<TextLabel>, kUpgradeHudLevelGlyphSlotCount> upgradeHudLevelGlyphLabels_;
+	std::array<std::unique_ptr<cg2::TextLabel>, kUpgradeHudLevelGlyphSlotCount> upgradeHudLevelGlyphLabels_;
 	size_t upgradeHudLevelGlyphCount_ = 0;
 	unsigned long long upgradeHudTextFontRevision_ = 0;
 	bool upgradeHudTextPrepared_ = false;
 	bool upgradeHudTextPreparedForSegmentedBars_ = false;
-	std::array<std::unique_ptr<Sprite>, 7> upgradeHudButtonSprites_;
-	std::array<std::unique_ptr<Sprite>, 7> upgradeHudPlusSprites_;
-	std::array<std::unique_ptr<Sprite>, 7> upgradeHudMinusSprites_;
-	std::array<std::unique_ptr<TextLabel>, 7> upgradeHudNameLabels_;
-	std::array<std::unique_ptr<TextLabel>, 7> upgradeHudLevelLabels_;
-	std::array<std::unique_ptr<TextLabel>, 7> upgradeHudMinusLabels_;
-	std::array<std::unique_ptr<TextLabel>, 7> upgradeHudPlusLabels_;
+	std::array<std::unique_ptr<cg2::Sprite>, 7> upgradeHudButtonSprites_;
+	std::array<std::unique_ptr<cg2::Sprite>, 7> upgradeHudPlusSprites_;
+	std::array<std::unique_ptr<cg2::Sprite>, 7> upgradeHudMinusSprites_;
+	std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudNameLabels_;
+	std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudLevelLabels_;
+	std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudMinusLabels_;
+	std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudPlusLabels_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchVertexResource_;
 	D3D12_VERTEX_BUFFER_VIEW upgradeHudBatchVertexBufferView_{};
-	TrailVertex* upgradeHudBatchVertexData_ = nullptr;
+	cg2::TrailVertex* upgradeHudBatchVertexData_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchTransformResource_;
-	Matrix4x4* upgradeHudBatchTransformData_ = nullptr;
+	cg2::Matrix4x4* upgradeHudBatchTransformData_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchMaterialResource_;
-	Material* upgradeHudBatchMaterialData_ = nullptr;
+	cg2::Material* upgradeHudBatchMaterialData_ = nullptr;
 	static constexpr uint32_t kUpgradeHudBatchMaxVertices = 256;
 	std::array<float, 7> upgradeHudFlashTimers_{};
 	std::array<float, 7> upgradeHudRefundFlashTimers_{};
@@ -1069,13 +1070,13 @@ private:
 	bool upgradeHudSegmentedBarBloomEnabled_ = true;
 	bool debugAutoFireEnabled_ = false;
 #endif
-	Vector2 upgradeHudSegmentBarOffset_ = { 0.0f, 0.0f };
-	Vector2 upgradeHudSegmentBarSize_ = { 230.0f, 22.0f };
-	Vector2 upgradeHudPanelPos_ = { 18.0f, 338.0f };
-	Vector2 upgradeHudPanelSize_ = { 340.0f, 260.0f };
-	Vector2 upgradeHudRowStart_ = { 30.0f, 384.0f };
-	Vector2 upgradeHudButtonSize_ = { 286.0f, 22.0f };
-	Vector2 upgradeHudPlusSize_ = { 32.0f, 18.0f };
+	cg2::Vector2 upgradeHudSegmentBarOffset_ = { 0.0f, 0.0f };
+	cg2::Vector2 upgradeHudSegmentBarSize_ = { 230.0f, 22.0f };
+	cg2::Vector2 upgradeHudPanelPos_ = { 18.0f, 338.0f };
+	cg2::Vector2 upgradeHudPanelSize_ = { 340.0f, 260.0f };
+	cg2::Vector2 upgradeHudRowStart_ = { 30.0f, 384.0f };
+	cg2::Vector2 upgradeHudButtonSize_ = { 286.0f, 22.0f };
+	cg2::Vector2 upgradeHudPlusSize_ = { 32.0f, 18.0f };
 	float upgradeHudRowGap_ = 29.0f;
 	float upgradeHudNameX_ = 44.0f;
 	float upgradeHudLevelX_ = 184.0f;
@@ -1087,14 +1088,14 @@ private:
 	float upgradeHudLevelTextOffsetY_ = 3.0f;
 	float upgradeHudMinusTextOffsetY_ = 1.0f;
 	float upgradeHudPlusTextOffsetY_ = 1.0f;
-	Vector2 upgradeHudTitlePos_ = { 32.0f, 350.0f };
-	Vector2 upgradeHudPointPos_ = { 286.0f, 352.0f };
-	Vector2 upgradeHudLevelBarPos_ = { 415.0f, 656.0f };
-	Vector2 upgradeHudLevelBarSize_ = { 450.0f, 16.0f };
-	Vector2 upgradeHudLevelTextPos_ = { 565.0f, 653.0f };
-	Vector2 upgradeHudExpBarPos_ = { 390.0f, 680.0f };
-	Vector2 upgradeHudExpBarSize_ = { 500.0f, 20.0f };
-	Vector2 upgradeHudExpTextPos_ = { 560.0f, 677.0f };
+	cg2::Vector2 upgradeHudTitlePos_ = { 32.0f, 350.0f };
+	cg2::Vector2 upgradeHudPointPos_ = { 286.0f, 352.0f };
+	cg2::Vector2 upgradeHudLevelBarPos_ = { 415.0f, 656.0f };
+	cg2::Vector2 upgradeHudLevelBarSize_ = { 450.0f, 16.0f };
+	cg2::Vector2 upgradeHudLevelTextPos_ = { 565.0f, 653.0f };
+	cg2::Vector2 upgradeHudExpBarPos_ = { 390.0f, 680.0f };
+	cg2::Vector2 upgradeHudExpBarSize_ = { 500.0f, 20.0f };
+	cg2::Vector2 upgradeHudExpTextPos_ = { 560.0f, 677.0f };
 	std::string upgradeHudConfigStatus_;
 	UiProfileStats upgradeHudProfile_{};
 	UiProfileStats evolutionUiProfile_{};
@@ -1109,7 +1110,7 @@ private:
 	std::array<int, 7> cachedUpgradeHudLevels_{ -1, -1, -1, -1, -1, -1, -1 };
 	bool cachedUpgradeHudListVisible_ = false;
 
-	Vector2 mousePosition_;
+	cg2::Vector2 mousePosition_;
 
 	bool isChangeMode = false;
 	bool evolutionConfirmedEvent_ = false;
@@ -1124,7 +1125,7 @@ private:
 	bool codexPreviewAutoMove_ = true;
 	bool codexPreviewAutoFire_ = true;
 
-	std::unique_ptr<Sprite> sprite;
+	std::unique_ptr<cg2::Sprite> sprite;
 
 	float stealthAlpha_ = 1.0f;      // ステルス時の透明度 (1.0:不透明, 0.0:透明)
 	bool isStealth_ = false;         // 現在ステルス中か
@@ -1136,4 +1137,3 @@ private:
 	float summonTimer_;
 
 };
-

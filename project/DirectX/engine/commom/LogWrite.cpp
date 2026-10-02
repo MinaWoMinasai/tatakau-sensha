@@ -1,5 +1,7 @@
 #include "LogWrite.h"
 
+namespace cg2 {
+
 std::wstring LogWrite::ConvertString(const std::string& str)
 {
 	if (str.empty()) {
@@ -60,3 +62,5 @@ void LogWrite::Initialize()
 	// ファイルを使って書き込み準備
 	logStream_.open(logFilePath);
 }
+
+} // namespace cg2

@@ -15,6 +15,8 @@
 #include "externals/imgui/imgui.h"
 #endif
 
+namespace cg2 {
+
 nlohmann::json ProjectileProfile::ToJson() const {
     return {
         {"modelPath", modelPath},
@@ -409,3 +411,5 @@ void EffectSequencer::DrawImGuiEditor(const Vector3& defaultStartPos, const Vect
     ImGui::End();
 }
 #endif
+
+} // namespace cg2

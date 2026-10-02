@@ -1,5 +1,7 @@
 #include "BloomConstantBuffer.h"
 
+namespace cg2 {
+
 void BloomConstantBuffer::Initialize(DirectXCommon* dxCommon)
 {
     auto device = dxCommon->GetDevice();
@@ -36,3 +38,5 @@ D3D12_GPU_VIRTUAL_ADDRESS BloomConstantBuffer::GetGPUAddress() const
 {
     return resource_->GetGPUVirtualAddress();
 }
+
+} // namespace cg2

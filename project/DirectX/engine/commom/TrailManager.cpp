@@ -4,6 +4,8 @@
 #include <chrono>
 #include <cstring>
 
+namespace cg2 {
+
 namespace {
 struct CatmullRomCoefficients {
     Vector3 a;
@@ -291,3 +293,5 @@ Vector4 TrailManager::Lerp(const Vector4& start, const Vector4& end, float t)
     // 補間結果を返す
     return result;
 }
+
+} // namespace cg2

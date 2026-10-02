@@ -5,6 +5,8 @@
 #include "Sprite.h"
 #include "TextRenderer.h"
 
+namespace cg2 {
+
 class TextLabel {
 public:
 #if defined(USE_IMGUI) && !defined(NDEBUG)
@@ -54,3 +56,5 @@ private:
 	static ProfileStats profileStats_;
 #endif
 };
+
+} // namespace cg2

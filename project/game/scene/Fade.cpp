@@ -3,8 +3,8 @@
 
 void Fade::Initialize() {
 
-	sprite = std::make_unique<Sprite>();
-	sprite->Initialize(SpriteCommon::GetInstance(), "resources/fade.png");
+	sprite = std::make_unique<cg2::Sprite>();
+	sprite->Initialize(cg2::SpriteCommon::GetInstance(), "resources/fade.png");
 
 }
 
@@ -25,7 +25,7 @@ void Fade::Update() {
 			counter_ = duration_;
 		}
 		// 0.0fから1.0fの間で、経過時間がフェード継続時間に近づくほどアルファ値を大きくする
-		sprite->SetColor(Vector4(1.0f, 1.0f, 1.0f, std::clamp(1.0f - counter_ / duration_, 0.0f, 1.0f)));
+		sprite->SetColor(cg2::Vector4(1.0f, 1.0f, 1.0f, std::clamp(1.0f - counter_ / duration_, 0.0f, 1.0f)));
 
 		break;
 	case Status::FadeOut:
@@ -36,7 +36,7 @@ void Fade::Update() {
 			counter_ = duration_;
 		}
 		// 0.0fから1.0fの間で、経過時間がフェード継続時間に近づくほどアルファ値を大きくする
-		sprite->SetColor(Vector4(1.0f, 1.0f, 1.0f, std::clamp(counter_ / duration_, 0.0f, 1.0f)));
+		sprite->SetColor(cg2::Vector4(1.0f, 1.0f, 1.0f, std::clamp(counter_ / duration_, 0.0f, 1.0f)));
 		break;
 	}
 }

@@ -9,7 +9,7 @@ constexpr const char* kCombatProbeDirectory = "generated/combat_validation/";
 constexpr std::array<const char*, 6> kCombatProbeNames{
     "Charger", "Sniper", "Skirmisher", "Flanker", "Suppressor", "Rival"
 };
-bool OverlapsWall(const Stage& stage, const AABB& body) {
+bool OverlapsWall(const Stage& stage, const cg2::AABB& body) {
     // Resolved bodies have 0.01-unit separation. Ignore only floating point noise.
     for (const auto& row : stage.GetBlocks()) for (const auto& block : row) {
         if (!block.isActive) continue;
@@ -154,12 +154,12 @@ bool GameScene::UpdateCombatValidation(float dt) {
     p.age += dt; p.sampleAge += dt;
     const bool boss = combatValidationIndex_ == 5;
     // Normal Player movement, with no teleporting or auto-fire during a probe.
-    const Vector3 target{32.0f + 3.0f * std::sin(p.age * 0.55f), 29.0f + 6.0f * std::sin(p.age * 0.70f), 0};
-    Vector3 input = target - player_->GetWorldPosition();
-    if (Length(input) > 1.0f) input = Normalize(input);
+    const cg2::Vector3 target{32.0f + 3.0f * std::sin(p.age * 0.55f), 29.0f + 6.0f * std::sin(p.age * 0.70f), 0};
+    cg2::Vector3 input = target - player_->GetWorldPosition();
+    if (cg2::Length(input) > 1.0f) input = cg2::Normalize(input);
     player_->SetDemoInput(true, {input.x,input.y}, {56,29,0}, false, false);
     debugPlayerNoDamage_ = true;
-    Vector3 position{}; AABB body{};
+    cg2::Vector3 position{}; cg2::AABB body{};
     unsigned shots = 0, dashes = 0, reloads = 0;
     bool reloading = false, dashing = false; int ammo = 0, phase = 0;
     bool actorFound = false;
@@ -193,14 +193,14 @@ bool GameScene::UpdateCombatValidation(float dt) {
         WriteCombatValidationReport(false); PostQuitMessage(6); return true;
     }
     if (p.hasPrevious) {
-        const float movement = Length(position - p.previousPosition);
+        const float movement = cg2::Length(position - p.previousPosition);
         p.pathLength += movement; p.maxStep = (std::max)(p.maxStep, movement);
         if (movement > 1.25f) ++p.tunnelingViolations;
         if (dashing) {
             // Sweep the straight dash's center so endpoint checks cannot miss a wall.
             const int steps = (std::max)(1, static_cast<int>(movement / 0.12f));
             for (int i = 1; i < steps; ++i) {
-                const Vector3 sample = p.previousPosition + (position - p.previousPosition) * (static_cast<float>(i) / steps);
+                const cg2::Vector3 sample = p.previousPosition + (position - p.previousPosition) * (static_cast<float>(i) / steps);
                 if (stage_->IsCollisionWithAnyBlock(sample, 0.05f)) { ++p.tunnelingViolations; break; }
             }
         }

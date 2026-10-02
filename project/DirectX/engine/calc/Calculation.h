@@ -3,6 +3,8 @@
 #include <cassert>
 #include <random>
 
+namespace cg2 {
+
 extern std::mt19937 rng;
 
 const float pi = 3.14159265f;
@@ -90,7 +92,7 @@ Vector2 Rand(const Vector2& min, const Vector2& max);
 Vector3 Rand(const Vector3& min, const Vector3& max);
 Vector4 Rand(const Vector4& min = {0.0f, 0.0f, 0.0f, 1.0f}, const Vector4& max = {1.0f, 1.0f, 1.0f, 1.0f});
 Particle MakeParticle(const Vector3& position, const Vector4& baseColor);
-TornadoParticle MakeTornadoParticle(Vector3 center);
+TornadoParticle MakeTornadoParticle(const Vector3& center);
 
 // 球と平面の衝突判定
 bool IsCollision(const Sphere& sphere, const Plane& plane);
@@ -124,16 +126,16 @@ bool IsCollision(const Segment& seg, const Sphere& sphere, float capsuleRadius);
 // Vector2
 inline Vector2 operator+(const Vector2& v1, const Vector2& v2) { return Add(v1, v2); }
 inline Vector2 operator-(const Vector2& v1, const Vector2& v2) { return Subtract(v1, v2); }
-inline Vector2 operator*(const float& s, const Vector2& v) { return Multiply(s, v); }
-inline Vector2 operator*(const Vector2& v, const float& s) { return Multiply(s, v); }
-inline Vector2 operator/(const Vector2& v, const float& s) { return Multiply(1.0f / s, v); }
+inline Vector2 operator*(float s, const Vector2& v) { return Multiply(s, v); }
+inline Vector2 operator*(const Vector2& v, float s) { return Multiply(s, v); }
+inline Vector2 operator/(const Vector2& v, float s) { return Multiply(1.0f / s, v); }
 
 // Vector3
 inline Vector3 operator+(const Vector3& v1, const Vector3& v2) { return Add(v1, v2); }
 inline Vector3 operator-(const Vector3& v1, const Vector3& v2) { return Subtract(v1, v2); }
-inline Vector3 operator*(const float& s, const Vector3& v) { return Multiply(s, v); }
-inline Vector3 operator*(const Vector3& v, const float& s) { return Multiply(s, v); }
-inline Vector3 operator/(const Vector3& v, const float& s) { return Multiply(1.0f / s, v); }
+inline Vector3 operator*(float s, const Vector3& v) { return Multiply(s, v); }
+inline Vector3 operator*(const Vector3& v, float s) { return Multiply(s, v); }
+inline Vector3 operator/(const Vector3& v, float s) { return Multiply(1.0f / s, v); }
 
 
 // Vector4
@@ -172,3 +174,5 @@ CollisionResult CheckSphereVsOBB(const Sphere& s, const OBB& o);
 Matrix4x4 CalculateLightViewProjection();
 
 Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t);
+
+} // namespace cg2

@@ -1,3 +1,4 @@
+#include "game/weapon/CombatTypes.h"
 #include "Enemy.h"
 #include "Calculation.h"
 #include "EnemyManager.h"
@@ -16,7 +17,7 @@ using namespace DirectX;
 static constexpr float kDeltaTime = 1.0f / 60.0f;
 
 namespace {
-Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
+cg2::Vector4 LerpColor(const cg2::Vector4& a, const cg2::Vector4& b, float t)
 {
 	t = (std::clamp)(t, 0.0f, 1.0f);
 	return {
@@ -27,7 +28,7 @@ Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
 	};
 }
 
-Vector3 RotateDirection2D(const Vector3& dir, float angleDeg)
+cg2::Vector3 RotateDirection2D(const cg2::Vector3& dir, float angleDeg)
 {
 	const float rad = angleDeg * 3.1415926535f / 180.0f;
 	return {
@@ -61,13 +62,13 @@ void Enemy::Fire() {
 	const float kBulletSpeed = 0.35f;
 
 	// 自キャラの位置を取得
-	Vector3 playerPos = player_->GetWorldPosition();
+	cg2::Vector3 playerPos = player_->GetWorldPosition();
 	// 敵キャラのワールド座標を取得
-	Vector3 enemyPos = GetWorldPosition();
+	cg2::Vector3 enemyPos = GetWorldPosition();
 	// 敵キャラから自キャラへのベクトルを求める
-	Vector3 direction = playerPos - enemyPos;
+	cg2::Vector3 direction = playerPos - enemyPos;
 	// ベクトルの正規化
-	direction = Normalize(direction);
+	direction = cg2::Normalize(direction);
 	// ベクトルの長さを速さに合わせる
 	direction = kBulletSpeed * direction;
 
@@ -96,18 +97,18 @@ void Enemy::ShotgunFire()
 	assert(player_);
 
 	// 発射位置
-	Vector3 origin = GetWorldPosition();
+	cg2::Vector3 origin = GetWorldPosition();
 
 	// 基準方向
-	Vector3 baseDir;
-	Vector3 aimTarget = currentMoveTargetPosition_;
-	if (Length(aimTarget - origin) < 0.001f) {
+	cg2::Vector3 baseDir;
+	cg2::Vector3 aimTarget = currentMoveTargetPosition_;
+	if (cg2::Length(aimTarget - origin) < 0.001f) {
 		aimTarget = player_->GetWorldPosition();
 	}
-	if (Length(aimTarget - origin) < 0.001f) {
+	if (cg2::Length(aimTarget - origin) < 0.001f) {
 		return;
 	}
-	baseDir = Normalize(aimTarget - origin);
+	baseDir = cg2::Normalize(aimTarget - origin);
 
 	// 攻撃パラメータを設定
 	AttackParam param{};
@@ -156,7 +157,7 @@ void Enemy::ShotgunFire()
 	);
 }
 
-void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) {
+void Enemy::Initialize(cg2::Object3d* object, const cg2::Vector3& position, Stage* stage) {
 	runEncounterEnabled_ = true;
 	runEncounterBaselineCaptured_ = false;
 	prototypeCombatEnabled_ = false;
@@ -165,37 +166,37 @@ void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) 
 	prototypeCombat_.Reset();
 	prototypePressure_ = 0;
 
-	hpBarFill_ = std::make_unique<Object3d>();
+	hpBarFill_ = std::make_unique<cg2::Object3d>();
 	hpBarFill_->Initialize();
-	Vector3 hpBarFillScale = hpBarFill_->GetScale();
+	cg2::Vector3 hpBarFillScale = hpBarFill_->GetScale();
 	hpBarFillScale.y = 1.2f;
 	hpBarFill_->SetScale(hpBarFillScale);
 	hpBarFill_->SetModel("playerHPBarGreenLong.obj");
 
-	hpBarFillTransform_ = InitWorldTransform();
+	hpBarFillTransform_ = cg2::InitWorldTransform();
 	hpBarFillTransform_.translate = position;
 	hpBarFill_->SetTransform(worldTransform_);
 	hpBarFill_->Update();
 
 
-	hpBarBG_ = std::make_unique<Object3d>();
+	hpBarBG_ = std::make_unique<cg2::Object3d>();
 	hpBarBG_->Initialize();
-	Vector3 hpBarBackgroundScale = hpBarBG_->GetScale();
+	cg2::Vector3 hpBarBackgroundScale = hpBarBG_->GetScale();
 	hpBarBackgroundScale.y = 1.2f;
 	hpBarBG_->SetScale(hpBarBackgroundScale);
 
 	hpBarBG_->SetModel("playerHPBarLong.obj");
 
-	hpBarBGTransform_ = InitWorldTransform();
+	hpBarBGTransform_ = cg2::InitWorldTransform();
 	hpBarBGTransform_.translate = position;
 	hpBarBG_->SetTransform(worldTransform_);
 	hpBarBG_->Update();
 
 	object_ = object;
-	worldTransform_ = InitWorldTransform();
+	worldTransform_ = cg2::InitWorldTransform();
 	worldTransform_.translate = position;
 	baseScale_ = worldTransform_.scale;
-	baseColor_ = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
+	baseColor_ = cg2::Vector4(0.0f, 0.0f, 0.0f, 1.0f);
 	object_->SetColor(baseColor_);
 
 	// 衝突属性を設定
@@ -206,16 +207,16 @@ void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) 
 
 	stage_ = stage;
 	
-	sprite = std::make_unique<Sprite>();
-	sprite->Initialize(SpriteCommon::GetInstance(), "resources/bossHPGreen.png");
+	sprite = std::make_unique<cg2::Sprite>();
+	sprite->Initialize(cg2::SpriteCommon::GetInstance(), "resources/bossHPGreen.png");
 	sprite->SetPosition({ 20.0f, 210.0f });
 	
-	bossHpRed = std::make_unique<Sprite>();
-	bossHpRed->Initialize(SpriteCommon::GetInstance(), "resources/bossHPRed.png");
+	bossHpRed = std::make_unique<cg2::Sprite>();
+	bossHpRed->Initialize(cg2::SpriteCommon::GetInstance(), "resources/bossHPRed.png");
 	bossHpRed->SetPosition({ 20.0f, 210.0f });
 
-	bossHpFont = std::make_unique<Sprite>();
-	bossHpFont->Initialize(SpriteCommon::GetInstance(), "resources/BossHp.png");
+	bossHpFont = std::make_unique<cg2::Sprite>();
+	bossHpFont->Initialize(cg2::SpriteCommon::GetInstance(), "resources/BossHp.png");
 	bossHpFont->SetPosition({ 20.0f, 160.0f });
 	bossHpFont->SetSize({120.0f, 40.0f});
 
@@ -362,7 +363,7 @@ void Enemy::SetRunEncounterEnabled(bool enabled)
 	}
 }
 
-void Enemy::ResetRunEncounter(const Vector3& position, int hp, int pressure, bool resourceFocus)
+void Enemy::ResetRunEncounter(const cg2::Vector3& position, int hp, int pressure, bool resourceFocus)
 {
 	if (!object_) return;
 	expeditionRivalEnabled_ = false;
@@ -455,13 +456,13 @@ Enemy::RivalCombatStatus Enemy::GetRivalCombatStatus() const
 	return status;
 }
 
-void Enemy::SelectRivalDashDirection(const Vector3& towardPlayer)
+void Enemy::SelectRivalDashDirection(const cg2::Vector3& towardPlayer)
 {
-	const Vector3 side{ -towardPlayer.y * rivalStrafeSign_, towardPlayer.x * rivalStrafeSign_, 0.0f };
-	const bool close = Length(player_->GetWorldPosition() - GetWorldPosition()) < 14.0f;
-	const Vector3 radial = towardPlayer * (close ? -0.55f : 0.35f);
-	const std::array<Vector3, 6> candidates{
-		Normalize(side + radial), Normalize(-side + radial), side, -side, -towardPlayer, towardPlayer
+	const cg2::Vector3 side{ -towardPlayer.y * rivalStrafeSign_, towardPlayer.x * rivalStrafeSign_, 0.0f };
+	const bool close = cg2::Length(player_->GetWorldPosition() - GetWorldPosition()) < 14.0f;
+	const cg2::Vector3 radial = towardPlayer * (close ? -0.55f : 0.35f);
+	const std::array<cg2::Vector3, 6> candidates{
+		cg2::Normalize(side + radial), cg2::Normalize(-side + radial), side, -side, -towardPlayer, towardPlayer
 	};
 	rivalDashDirection_ = candidates.front();
 	rivalDashDistance_ = 0.0f;
@@ -479,21 +480,21 @@ void Enemy::SelectRivalDashDirection(const Vector3& towardPlayer)
 	}
 }
 
-Vector3 Enemy::ResolveRivalMove(const Vector3& desired, const Vector3& towardPlayer, float deltaTime)
+cg2::Vector3 Enemy::ResolveRivalMove(const cg2::Vector3& desired, const cg2::Vector3& towardPlayer, float deltaTime)
 {
 	rivalPathTimer_ -= deltaTime;
-	const Vector3 position = GetWorldPosition();
+	const cg2::Vector3 position = GetWorldPosition();
 	if (!HasClearMoveRouteToTarget(player_->GetWorldPosition())) {
 		if (rivalPathTimer_ <= 0.0f) {
 			const auto path = FindPathDirectionToPlayer();
-			rivalPathDirection_ = path.value_or(Vector3{});
+			rivalPathDirection_ = path.value_or(cg2::Vector3{});
 			rivalPathTimer_ = 0.25f;
 		}
-		if (Length(rivalPathDirection_) > 0.001f) return rivalPathDirection_;
+		if (cg2::Length(rivalPathDirection_) > 0.001f) return rivalPathDirection_;
 	}
 	if (HasClearMoveRouteToTarget(position + desired * 3.0f)) return desired;
-	const Vector3 mirrored = towardPlayer * Dot(desired, towardPlayer) -
-		(desired - towardPlayer * Dot(desired, towardPlayer));
+	const cg2::Vector3 mirrored = towardPlayer * cg2::Dot(desired, towardPlayer) -
+		(desired - towardPlayer * cg2::Dot(desired, towardPlayer));
 	if (HasClearMoveRouteToTarget(position + mirrored * 3.0f)) {
 		rivalStrafeSign_ *= -1.0f;
 		return mirrored;
@@ -511,19 +512,19 @@ void Enemy::UpdateRivalCombat(float deltaTime)
 	}
 	using Phase = RivalBossCombat::Phase;
 	currentMoveTargetPosition_ = player_->GetWorldPosition();
-	Vector3 toward = currentMoveTargetPosition_ - GetWorldPosition();
+	cg2::Vector3 toward = currentMoveTargetPosition_ - GetWorldPosition();
 	toward.z = 0.0f;
-	const float distance = Length(toward);
-	toward = distance > 0.001f ? toward / distance : Vector3{ 1.0f, 0.0f, 0.0f };
+	const float distance = cg2::Length(toward);
+	toward = distance > 0.001f ? toward / distance : cg2::Vector3{ 1.0f, 0.0f, 0.0f };
 	// Short prediction rewards changing direction; aim stops following after lock.
-	const Vector3 aimTarget = currentMoveTargetPosition_ + player_->GetMove() * 12.0f;
-	const Vector3 aim = aimTarget - GetWorldPosition();
+	const cg2::Vector3 aimTarget = currentMoveTargetPosition_ + player_->GetMove() * 12.0f;
+	const cg2::Vector3 aim = aimTarget - GetWorldPosition();
 	bool threat = false;
 	if (rivalCombat_.GetPhase() == Phase::Reposition) {
 		for (Bullet* bullet : bulletManager_->GetBulletPtrs()) {
 			if (!bullet || bullet->IsDead() || bullet->GetCollisionAttribute() != kCollisionAttributePlayerBullet) continue;
-			const Vector3 relative = bullet->GetWorldPosition() - GetWorldPosition();
-			const Vector3 speed = bullet->GetMove();
+			const cg2::Vector3 relative = bullet->GetWorldPosition() - GetWorldPosition();
+			const cg2::Vector3 speed = bullet->GetMove();
 			if (RivalBossCombat::IsIncomingThreat(relative.x, relative.y, speed.x, speed.y, radius_ + bullet->GetRadius() + 0.5f)) {
 				threat = true;
 				break;
@@ -547,10 +548,10 @@ void Enemy::UpdateRivalCombat(float deltaTime)
 			rivalDashDistance_ = (std::max)(0.0f, rivalDashDistance_ - speed * frames);
 		}
 	} else if (phase == Phase::Reposition || phase == Phase::Tracking || phase == Phase::Reload) {
-		const Vector3 side{ -toward.y * rivalStrafeSign_, toward.x * rivalStrafeSign_, 0.0f };
+		const cg2::Vector3 side{ -toward.y * rivalStrafeSign_, toward.x * rivalStrafeSign_, 0.0f };
 		const float desiredDistance = phase == Phase::Reload ? 23.0f : 18.0f;
 		const float radial = (std::clamp)((distance - desiredDistance) / 9.0f, -0.90f, 1.0f);
-		Vector3 desired = Normalize(side * (phase == Phase::Reload ? 0.20f : 0.90f) + toward * radial);
+		cg2::Vector3 desired = cg2::Normalize(side * (phase == Phase::Reload ? 0.20f : 0.90f) + toward * radial);
 		desired = ResolveRivalMove(desired, toward, deltaTime);
 		const float speed = phase == Phase::Reload ? 0.035f : (rivalCombat_.IsPhaseTwo() ? 0.18f : 0.15f);
 		velocity_ += (desired * speed - velocity_) * (1.0f - std::exp(-2.5f * deltaTime));
@@ -559,7 +560,7 @@ void Enemy::UpdateRivalCombat(float deltaTime)
 		// committed direction remains fixed and readable.
 		velocity_ = velocity_ * std::exp(-3.5f * deltaTime);
 	}
-	dir_ = Length(velocity_) > 0.001f ? Normalize(velocity_) : Vector3{};
+	dir_ = cg2::Length(velocity_) > 0.001f ? cg2::Normalize(velocity_) : cg2::Vector3{};
 	worldTransform_.rotate.z = (phase == Phase::Locked || phase == Phase::Volley || phase == Phase::Tracking)
 		? rivalCombat_.GetAimAngle() : std::atan2(toward.y, toward.x);
 	if (!shot.fire) return;
@@ -574,9 +575,9 @@ void Enemy::UpdateRivalCombat(float deltaTime)
 	param.bulletHp = (std::max)(tankspecial::kBossEnemyBulletHp, bossAttackConfig_.bulletHp);
 	param.bulletPenetration = 3.0f;
 	param.reflect = param.penetrate = param.canClaimRunResource = false;
-	const Vector3 base{ std::cos(shot.angle), std::sin(shot.angle), 0.0f };
+	const cg2::Vector3 base{ std::cos(shot.angle), std::sin(shot.angle), 0.0f };
 	for (int i = 0; i < RivalBossCombat::ProjectileCount(shot.pattern); ++i) {
-		const Vector3 direction = RotateDirection2D(base, RivalBossCombat::ProjectileOffset(shot.pattern, i, shot.round, rivalCombat_.GetCapacity()));
+		const cg2::Vector3 direction = RotateDirection2D(base, RivalBossCombat::ProjectileOffset(shot.pattern, i, shot.round, rivalCombat_.GetCapacity()));
 		attackController_.FireFromMuzzle(GetWorldPosition() + direction * 1.9f, direction, param, BulletOwner::kEnemy);
 	}
 }
@@ -584,8 +585,8 @@ void Enemy::UpdateRivalCombat(float deltaTime)
 void Enemy::UpdatePrototypeCombat(float deltaTime)
 {
 	if (!player_ || !bulletManager_ || isDead_ || hp_ <= 0) return;
-	Vector3 direction = currentMoveTargetPosition_ - GetWorldPosition();
-	if (Length(direction) <= 0.001f) direction = GetAimDirection();
+	cg2::Vector3 direction = currentMoveTargetPosition_ - GetWorldPosition();
+	if (cg2::Length(direction) <= 0.001f) direction = GetAimDirection();
 	const float targetAngle = std::atan2(direction.y, direction.x);
 	const float hpRatio = static_cast<float>(hp_) / static_cast<float>((std::max)(1, maxHP_));
 	const int effectivePressure = (std::clamp)(prototypePressure_ + (enemyLevel_ - 1) / 2, 0, 4);
@@ -614,12 +615,12 @@ void Enemy::UpdatePrototypeCombat(float deltaTime)
 	param.bulletPenetration = 3.0f;
 	param.reflect = false;
 	param.penetrate = false;
-	const Vector3 baseDirection{ std::cos(shot.angleRadians), std::sin(shot.angleRadians), 0.0f };
+	const cg2::Vector3 baseDirection{ std::cos(shot.angleRadians), std::sin(shot.angleRadians), 0.0f };
 	int count = PrototypeBossCombat::GetProjectileCount(shot.type);
     if(prototypeTuningEnabled_ && shot.type!=PrototypeAttackType::Sweep)
         count=(std::clamp)(static_cast<int>(std::round(count*bossAttackConfig_.bulletCount/5.0f)),1,64);
 	for (int i = 0; i < count; ++i) {
-		const Vector3 shotDirection = RotateDirection2D(baseDirection,
+		const cg2::Vector3 shotDirection = RotateDirection2D(baseDirection,
 			prototypeTuningEnabled_ ? (count==1 ? 0.0f : shot.type==PrototypeAttackType::GapRing ?
                 35.0f+290.0f*static_cast<float>(i)/static_cast<float>(count-1) :
                 -22.0f+44.0f*static_cast<float>(i)/static_cast<float>(count-1)) :
@@ -661,24 +662,24 @@ void Enemy::Update(float deltaTime) {
 		}
 	}
 
-	Vector3 move = (GetMove() + impactVelocity_) * (deltaTime * 60.0f);
+	cg2::Vector3 move = (GetMove() + impactVelocity_) * (deltaTime * 60.0f);
 	impactVelocity_ = impactVelocity_ * std::exp(-5.0f * deltaTime);
 	const float maxStep = 0.35f;
 	const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(move.x), std::abs(move.y)) / maxStep) + 1);
-	Vector3 stepMove = move / static_cast<float>(subStepCount);
+	cg2::Vector3 stepMove = move / static_cast<float>(subStepCount);
 	for (int i = 0; i < subStepCount; ++i) {
-		const Vector3 before = GetWorldPosition();
-		Vector3 pos = GetWorldPosition();
+		const cg2::Vector3 before = GetWorldPosition();
+		cg2::Vector3 pos = GetWorldPosition();
 		pos.x += stepMove.x;
 		SetWorldPosition(pos);
-		stage_->ResolveEnemyCollision(*this, X);
+		stage_->ResolveEnemyCollision(*this, cg2::X);
 
 		pos = GetWorldPosition();
 		pos.y += stepMove.y;
 		SetWorldPosition(pos);
-		stage_->ResolveEnemyCollision(*this, Y);
+		stage_->ResolveEnemyCollision(*this, cg2::Y);
 		if (expeditionRivalEnabled_ && rivalCombat_.GetPhase() == RivalBossCombat::Phase::Dash &&
-			Length(GetWorldPosition() - (before + stepMove)) > 0.015f) {
+			cg2::Length(GetWorldPosition() - (before + stepMove)) > 0.015f) {
 			// Wall impact ends the dash and starts the full punishable reload.
 			rivalCombat_.FinishDash();
 			velocity_ = {};
@@ -698,7 +699,7 @@ void Enemy::Update(float deltaTime) {
 		UpdateParticles(deltaTime);
 	}
 
-	sprite->SetSize(Vector2(float(hp_), sprite->GetSize().y));
+	sprite->SetSize(cg2::Vector2(float(hp_), sprite->GetSize().y));
 	sprite->Update();
 	bossHpRed->Update();
 	bossHpFont->Update();
@@ -723,13 +724,13 @@ void Enemy::DrawBodyOnly() {
 		const float charge = deathChargeTimer_ > 0.0f
 			? std::sin(progress * 3.1415926535f)
 			: 0.0f;
-		Transform chargeTransform = worldTransform_;
+		cg2::Transform chargeTransform = worldTransform_;
 		chargeTransform.scale = worldTransform_.scale * (1.0f + charge * 0.18f);
-		const Vector4 savedColor = object_->GetColor();
+		const cg2::Vector4 savedColor = object_->GetColor();
 		const bool savedLighting = object_->IsLightingEnabled();
 		object_->SetTransform(chargeTransform);
 		object_->SetLighting(false);
-		const Vector4 dissolveBodyColor{ 0.72f, 0.08f, 0.035f, savedColor.w };
+		const cg2::Vector4 dissolveBodyColor{ 0.72f, 0.08f, 0.035f, savedColor.w };
 		object_->SetColor({
 			dissolveBodyColor.x + (1.6f - dissolveBodyColor.x) * charge,
 			dissolveBodyColor.y + (1.6f - dissolveBodyColor.y) * charge,
@@ -757,20 +758,20 @@ void Enemy::DrawSprite()
 	//bossHpFont->Draw();
 }
 
-void Enemy::ApproachToPlayer(Vector3& startPos, Vector3& targetPos) {
+void Enemy::ApproachToPlayer(cg2::Vector3& startPos, cg2::Vector3& targetPos) {
 
 	// 自キャラの位置を取得
-	Vector3 playerPos = player_->GetWorldPosition();
+	cg2::Vector3 playerPos = player_->GetWorldPosition();
 	// 敵キャラのワールド座標を取得
-	Vector3 enemyPos = GetWorldPosition();
+	cg2::Vector3 enemyPos = GetWorldPosition();
 
 	startPos = enemyPos;
 	targetPos = playerPos;
 }
 
-Vector3 Enemy::GetWorldPosition() const {
+cg2::Vector3 Enemy::GetWorldPosition() const {
 	// ワールド座標を入れる
-	Vector3 worldPos;
+	cg2::Vector3 worldPos;
 	// ワールド行列の平行移動成分を取得(ワールド座標)
 	worldPos.x = worldTransform_.translate.x;
 	worldPos.y = worldTransform_.translate.y;
@@ -790,9 +791,9 @@ void Enemy::OnCollision(Collider* other) {
 		if (!expEnemy || expEnemy->IsDead() || expEnemy->IsRunResource()) {
 			return;
 		}
-		Vector3 dir = worldTransform_.translate - other->GetWorldPosition();
-		if (Length(dir) > 0.001f) {
-			velocity_ += Normalize(dir) * 0.05f;
+		cg2::Vector3 dir = worldTransform_.translate - other->GetWorldPosition();
+		if (cg2::Length(dir) > 0.001f) {
+			velocity_ += cg2::Normalize(dir) * 0.05f;
 		}
 		const bool killed = expEnemy->TakeDamageFromEnemy(enemyProgressConfig_.expEnemyContactDamage);
 		if (killed) {
@@ -803,18 +804,18 @@ void Enemy::OnCollision(Collider* other) {
 
 	// つみとバグ防止
 	if (other->GetCollisionAttribute() == kCollisionAttributePlayer || other->GetCollisionAttribute() == kCollisionAttributePlayerDrone) {
-		Vector3 dir = worldTransform_.translate - other->GetWorldPosition();
+		cg2::Vector3 dir = worldTransform_.translate - other->GetWorldPosition();
 
-		if (Length(dir) < 0.001f) return;
+		if (cg2::Length(dir) < 0.001f) return;
 
-		dir = Normalize(dir);
+		dir = cg2::Normalize(dir);
 
 		const float knockPower = 0.18f;
 
 		velocity_ += dir * knockPower * other->GetHitPower();
 		const float maxKnockSpeed = 0.22f;
-		if (Length(velocity_) > maxKnockSpeed) {
-			velocity_ = Normalize(velocity_) * maxKnockSpeed;
+		if (cg2::Length(velocity_) > maxKnockSpeed) {
+			velocity_ = cg2::Normalize(velocity_) * maxKnockSpeed;
 		}
 	}
 	// ダメージ処理
@@ -835,12 +836,12 @@ void Enemy::TakeDamage(uint32_t amount)
 	TriggerDamageFeedback();
 }
 
-void Enemy::ApplyKnockback(const Vector3& direction, float power)
+void Enemy::ApplyKnockback(const cg2::Vector3& direction, float power)
 {
-	if (!runEncounterEnabled_ || isDead_ || !std::isfinite(power) || power <= 0.0f || Length(direction) < 0.001f) return;
+	if (!runEncounterEnabled_ || isDead_ || !std::isfinite(power) || power <= 0.0f || cg2::Length(direction) < 0.001f) return;
 	// The boss yields visibly but its committed attack is not stun-locked.
-	impactVelocity_ += Normalize(direction) * ((std::min)(0.95f,power) * 0.35f);
-	if (Length(impactVelocity_) > 0.34f) impactVelocity_ = Normalize(impactVelocity_) * 0.34f;
+	impactVelocity_ += cg2::Normalize(direction) * ((std::min)(0.95f,power) * 0.35f);
+	if (cg2::Length(impactVelocity_) > 0.34f) impactVelocity_ = cg2::Normalize(impactVelocity_) * 0.34f;
 }
 
 void Enemy::TriggerDamageFeedback()
@@ -899,19 +900,19 @@ void Enemy::Move(float deltaTime) {
 
 	AIStateMovePower();
 
-	const Vector3 moveTargetPos = ResolveMoveTargetPosition();
+	const cg2::Vector3 moveTargetPos = ResolveMoveTargetPosition();
 	currentMoveTargetPosition_ = moveTargetPos;
-	Vector3 toTarget = moveTargetPos - GetWorldPosition();
+	cg2::Vector3 toTarget = moveTargetPos - GetWorldPosition();
 	toTarget.z = 0.0f;
-	if (prototypeResourceTargetActive_ && Length(toTarget) <= 8.0f && HasLineOfSightToTarget(moveTargetPos)) {
+	if (prototypeResourceTargetActive_ && cg2::Length(toTarget) <= 8.0f && HasLineOfSightToTarget(moveTargetPos)) {
 		// Keep the muzzle outside the core instead of walking through a fixed
 		// target and spawning projectiles on its far side.
 		velocity_ = {};
 		RotateTowardTarget(moveTargetPos, deltaTime);
 		return;
 	}
-	Vector3 attackVec = Length(toTarget) > 0.001f ? Normalize(toTarget) * attackPower : Vector3{ 0.0f, 0.0f, 0.0f };
-	std::optional<Vector3> pathDir = FindPathDirectionToTarget(moveTargetPos);
+	cg2::Vector3 attackVec = cg2::Length(toTarget) > 0.001f ? cg2::Normalize(toTarget) * attackPower : cg2::Vector3{ 0.0f, 0.0f, 0.0f };
+	std::optional<cg2::Vector3> pathDir = FindPathDirectionToTarget(moveTargetPos);
 
 	if (pathDir) {
 		attackVec = *pathDir * 1.7f;
@@ -927,8 +928,8 @@ void Enemy::Move(float deltaTime) {
 	evadeVec = EvadeBullets() * evadePower * 0.35f;
 	dir_ = attackVec + evadeVec + wanderVec;
 
-	if (Length(dir_) > 0.0001f) {
-		dir_ = Normalize(dir_);
+	if (cg2::Length(dir_) > 0.0001f) {
+		dir_ = cg2::Normalize(dir_);
 	} else {
 		dir_ = { 0, 0, 0 };
 	}
@@ -939,15 +940,15 @@ void Enemy::Move(float deltaTime) {
 	RotateTowardTarget(moveTargetPos, deltaTime);
 
 	const float speed = pathDir ? 0.10f : maxSpeed_;
-	Vector3 targetVelocity = dir_ * speed;
+	cg2::Vector3 targetVelocity = dir_ * speed;
 	velocity_ += (targetVelocity - velocity_) * 0.22f * (deltaTime * 60.0f);
 }
 
-void Enemy::RotateTowardTarget(const Vector3& targetPos, float deltaTime)
+void Enemy::RotateTowardTarget(const cg2::Vector3& targetPos, float deltaTime)
 {
-	Vector3 toTarget = targetPos - GetWorldPosition();
+	cg2::Vector3 toTarget = targetPos - GetWorldPosition();
 	toTarget.z = 0.0f;
-	if (Length(toTarget) < 0.001f) {
+	if (cg2::Length(toTarget) < 0.001f) {
 		return;
 	}
 
@@ -961,35 +962,35 @@ void Enemy::RotateTowardTarget(const Vector3& targetPos, float deltaTime)
 	object_->SetRotate(worldTransform_.rotate);
 }
 
-Vector3 Enemy::ApplyHumanLikeSteering(const Vector3& desiredDir, bool usingPath, float deltaTime)
+cg2::Vector3 Enemy::ApplyHumanLikeSteering(const cg2::Vector3& desiredDir, bool usingPath, float deltaTime)
 {
-	if (Length(desiredDir) < 0.001f) {
+	if (cg2::Length(desiredDir) < 0.001f) {
 		return desiredDir;
 	}
 
 	steeringNoiseTimer_ -= deltaTime;
 	if (steeringNoiseTimer_ <= 0.0f) {
-		Vector3 side = { -desiredDir.y, desiredDir.x, 0.0f };
-		float noisePower = usingPath ? Rand(-0.22f, 0.22f) : Rand(-0.12f, 0.12f);
+		cg2::Vector3 side = { -desiredDir.y, desiredDir.x, 0.0f };
+		float noisePower = usingPath ? cg2::Rand(-0.22f, 0.22f) : cg2::Rand(-0.12f, 0.12f);
 		steeringNoise_ = side * noisePower;
-		steeringNoiseTimer_ = Rand(0.25f, 0.75f);
+		steeringNoiseTimer_ = cg2::Rand(0.25f, 0.75f);
 	}
 
 	hesitationCooldown_ -= deltaTime;
-	if (hesitationCooldown_ <= 0.0f && usingPath && Rand(0.0f, 1.0f) < 0.18f) {
-		hesitationTimer_ = Rand(0.08f, 0.18f);
-		hesitationCooldown_ = Rand(1.2f, 2.6f);
+	if (hesitationCooldown_ <= 0.0f && usingPath && cg2::Rand(0.0f, 1.0f) < 0.18f) {
+		hesitationTimer_ = cg2::Rand(0.08f, 0.18f);
+		hesitationCooldown_ = cg2::Rand(1.2f, 2.6f);
 	}
 
 	float response = usingPath ? 0.10f : 0.16f;
-	Vector3 targetDir = desiredDir + steeringNoise_;
-	if (Length(targetDir) > 0.001f) {
-		targetDir = Normalize(targetDir);
+	cg2::Vector3 targetDir = desiredDir + steeringNoise_;
+	if (cg2::Length(targetDir) > 0.001f) {
+		targetDir = cg2::Normalize(targetDir);
 	}
 
 	steeringDir_ += (targetDir - steeringDir_) * response * (deltaTime * 60.0f);
-	if (Length(steeringDir_) > 0.001f) {
-		steeringDir_ = Normalize(steeringDir_);
+	if (cg2::Length(steeringDir_) > 0.001f) {
+		steeringDir_ = cg2::Normalize(steeringDir_);
 	} else {
 		steeringDir_ = targetDir;
 	}
@@ -1002,12 +1003,12 @@ Vector3 Enemy::ApplyHumanLikeSteering(const Vector3& desiredDir, bool usingPath,
 	return steeringDir_;
 }
 
-std::optional<Vector3> Enemy::FindPathDirectionToPlayer()
+std::optional<cg2::Vector3> Enemy::FindPathDirectionToPlayer()
 {
 	return FindPathDirectionToTarget(player_->GetWorldPosition());
 }
 
-Vector3 Enemy::ResolveMoveTargetPosition()
+cg2::Vector3 Enemy::ResolveMoveTargetPosition()
 {
 	prototypeResourceTargetActive_ = false;
 	if (!player_) {
@@ -1015,13 +1016,13 @@ Vector3 Enemy::ResolveMoveTargetPosition()
 		return GetWorldPosition();
 	}
 
-	const Vector3 playerPos = player_->GetWorldPosition();
+	const cg2::Vector3 playerPos = player_->GetWorldPosition();
 	if (!enemyProgressConfig_.expEnemyHostile || !enemyProgressConfig_.levelingModeEnabled || !enemyManager_) {
 		levelingModeActive_ = false;
 		return playerPos;
 	}
 
-	const float playerDistance = Length(playerPos - GetWorldPosition());
+	const float playerDistance = cg2::Length(playerPos - GetWorldPosition());
 	if (levelingModeActive_) {
 		if (playerDistance <= enemyProgressConfig_.levelingExitPlayerDistance) {
 			levelingModeActive_ = false;
@@ -1049,7 +1050,7 @@ Vector3 Enemy::ResolveMoveTargetPosition()
 	return target->GetWorldPosition();
 }
 
-std::optional<Vector3> Enemy::FindPathDirectionToTarget(const Vector3& targetPos)
+std::optional<cg2::Vector3> Enemy::FindPathDirectionToTarget(const cg2::Vector3& targetPos)
 {
 	if (!stage_ || HasClearMoveRouteToTarget(targetPos)) {
 		return std::nullopt;
@@ -1140,16 +1141,16 @@ std::optional<Vector3> Enemy::FindPathDirectionToTarget(const Vector3& targetPos
 	}
 
 	MapIndex next{ previousId % width, previousId / width };
-	Vector3 waypoint = MapIndexToWorld(next);
-	Vector3 toWaypoint = waypoint - GetWorldPosition();
+	cg2::Vector3 waypoint = MapIndexToWorld(next);
+	cg2::Vector3 toWaypoint = waypoint - GetWorldPosition();
 	toWaypoint.z = 0.0f;
-	if (Length(toWaypoint) < 0.1f) {
+	if (cg2::Length(toWaypoint) < 0.1f) {
 		return std::nullopt;
 	}
-	return Normalize(toWaypoint);
+	return cg2::Normalize(toWaypoint);
 }
 
-std::optional<Enemy::MapIndex> Enemy::WorldToMapIndex(const Vector3& pos) const
+std::optional<Enemy::MapIndex> Enemy::WorldToMapIndex(const cg2::Vector3& pos) const
 {
 	const int x = static_cast<int>(std::round(pos.x / MapChip::kBlockWidth));
 	const int y = static_cast<int>(MapChip::kNumBlockVirtical - 1 - std::round(pos.y / MapChip::kBlockHeight));
@@ -1159,7 +1160,7 @@ std::optional<Enemy::MapIndex> Enemy::WorldToMapIndex(const Vector3& pos) const
 	return MapIndex{ x, y };
 }
 
-Vector3 Enemy::MapIndexToWorld(const MapIndex& index) const
+cg2::Vector3 Enemy::MapIndexToWorld(const MapIndex& index) const
 {
 	return {
 		MapChip::kBlockWidth * static_cast<float>(index.x),
@@ -1214,8 +1215,8 @@ Enemy::MapIndex Enemy::FindNearestPathPassableCell(const MapIndex& base) const
 				if (x < 0 || y < 0 || x >= width || y >= height || !IsPathPassableCell(x, y)) {
 					continue;
 				}
-				Vector3 candidateWorld = MapIndexToWorld({ x, y });
-				float distance = Length(candidateWorld - MapIndexToWorld(base));
+				cg2::Vector3 candidateWorld = MapIndexToWorld({ x, y });
+				float distance = cg2::Length(candidateWorld - MapIndexToWorld(base));
 				if (distance < bestDistance) {
 					bestDistance = distance;
 					best = { x, y };
@@ -1235,31 +1236,31 @@ bool Enemy::HasClearMoveRouteToPlayer() const
 	return HasClearMoveRouteToTarget(player_->GetWorldPosition());
 }
 
-bool Enemy::HasClearMoveRouteToTarget(const Vector3& targetPos) const
+bool Enemy::HasClearMoveRouteToTarget(const cg2::Vector3& targetPos) const
 {
 	if (!stage_) {
 		return false;
 	}
 
-	const Vector3 enemyPos = GetWorldPosition();
-	Vector3 toTarget = targetPos - enemyPos;
+	const cg2::Vector3 enemyPos = GetWorldPosition();
+	cg2::Vector3 toTarget = targetPos - enemyPos;
 	toTarget.z = 0.0f;
-	const float distance = Length(toTarget);
+	const float distance = cg2::Length(toTarget);
 	if (distance < 0.001f) {
 		return true;
 	}
 
-	Vector3 normal = Normalize(toTarget);
-	Vector3 side = { -normal.y, normal.x, 0.0f };
+	cg2::Vector3 normal = cg2::Normalize(toTarget);
+	cg2::Vector3 side = { -normal.y, normal.x, 0.0f };
 	const float halfWidth = kWidth * 0.5f + 0.25f;
-	const std::array<Vector3, 3> origins = {
+	const std::array<cg2::Vector3, 3> origins = {
 		enemyPos,
 		enemyPos + side * halfWidth,
 		enemyPos - side * halfWidth
 	};
 
-	for (const Vector3& origin : origins) {
-		Segment ray;
+	for (const cg2::Vector3& origin : origins) {
+		cg2::Segment ray;
 		ray.origin = origin;
 		ray.diff = toTarget;
 
@@ -1268,7 +1269,7 @@ bool Enemy::HasClearMoveRouteToTarget(const Vector3& targetPos) const
 				if (!block.isActive) {
 					continue;
 				}
-				if (IsCollision(block.aabb, ray)) {
+				if (cg2::IsCollision(block.aabb, ray)) {
 					return false;
 				}
 			}
@@ -1278,10 +1279,10 @@ bool Enemy::HasClearMoveRouteToTarget(const Vector3& targetPos) const
 	return true;
 }
 
-Vector3 Enemy::RandomDirection() { return Rand(Vector3(-0.2f, -0.2f, 0.0f), Vector3(0.2f, 0.2f, 0.5f)); }
+cg2::Vector3 Enemy::RandomDirection() { return cg2::Rand(cg2::Vector3(-0.2f, -0.2f, 0.0f), cg2::Vector3(0.2f, 0.2f, 0.5f)); }
 
-Vector3 Enemy::EvadeBullets() {
-	Vector3 evade(0, 0, 0);
+cg2::Vector3 Enemy::EvadeBullets() {
+	cg2::Vector3 evade(0, 0, 0);
 
 	for (Bullet* bullet : bulletManager_->GetBulletPtrs()) {
 
@@ -1290,14 +1291,14 @@ Vector3 Enemy::EvadeBullets() {
 			continue;
 		}
 
-		Vector3 toBullet = bullet->GetWorldPosition() - GetWorldPosition();
-		float dist = Length(toBullet);
+		cg2::Vector3 toBullet = bullet->GetWorldPosition() - GetWorldPosition();
+		float dist = cg2::Length(toBullet);
 
 		const float kEvadeRadius = 10.0f;
 		if (dist < kEvadeRadius) {
 
 			toBullet *= -1.0f;
-			Vector3 dir = Normalize(toBullet);
+			cg2::Vector3 dir = cg2::Normalize(toBullet);
 			float power = (kEvadeRadius - dist) / kEvadeRadius;
 
 			evade += dir * power * 0.2f;
@@ -1309,8 +1310,8 @@ Vector3 Enemy::EvadeBullets() {
 
 void Enemy::UpdateAIState() {
 
-	Vector3 toPlayer = player_->GetWorldPosition() - GetWorldPosition();
-	float dist = Length(toPlayer);
+	cg2::Vector3 toPlayer = player_->GetWorldPosition() - GetWorldPosition();
+	float dist = cg2::Length(toPlayer);
 
 	// プレイヤー弾の危険判定
 	bool bulletDanger = false;
@@ -1321,7 +1322,7 @@ void Enemy::UpdateAIState() {
 			continue;
 		}
 
-		float distB = Length(bullet->GetWorldPosition() - GetWorldPosition());
+		float distB = cg2::Length(bullet->GetWorldPosition() - GetWorldPosition());
 		if (distB < 8.0f) {
 			bulletDanger = true;
 			break;
@@ -1344,10 +1345,10 @@ void Enemy::UpdateAIState() {
 	}
 }
 
-AABB Enemy::GetAABB() {
-	Vector3 worldPos = GetWorldPosition();
+cg2::AABB Enemy::GetAABB() {
+	cg2::Vector3 worldPos = GetWorldPosition();
 
-	AABB aabb;
+	cg2::AABB aabb;
 
 	aabb.min = { worldPos.x - kWidth / 2.0f, worldPos.y - kHeight / 2.0f, worldPos.z - kWidth / 2.0f };
 	aabb.max = { worldPos.x + kWidth / 2.0f, worldPos.y + kHeight / 2.0f, worldPos.z + kWidth / 2.0f };
@@ -1355,17 +1356,17 @@ AABB Enemy::GetAABB() {
 	return aabb;
 }
 
-Segment Enemy::MakeForwardRay(float length) const {
+cg2::Segment Enemy::MakeForwardRay(float length) const {
 
-	Segment seg;
+	cg2::Segment seg;
 	seg.origin = GetWorldPosition();
 
-	Vector3 forward = dir_;
-	if (Length(forward) < 0.001f) {
+	cg2::Vector3 forward = dir_;
+	if (cg2::Length(forward) < 0.001f) {
 		forward = { 1, 0, 0 }; // 保険
 	}
 
-	forward = Normalize(forward);
+	forward = cg2::Normalize(forward);
 
 	seg.diff = forward * length; // 線分の差分
 
@@ -1376,7 +1377,7 @@ bool Enemy::IsBlockNearByRay() {
 
 	const float kRayLength = 3.0f;
 
-	Segment ray = MakeForwardRay(kRayLength);
+	cg2::Segment ray = MakeForwardRay(kRayLength);
 	
 	for (const auto& row : stage_->GetBlocks()) {
 		for (const Block& block : row) {
@@ -1385,7 +1386,7 @@ bool Enemy::IsBlockNearByRay() {
 				continue;
 			}
 
-			if (IsCollision(block.aabb, ray)) {
+			if (cg2::IsCollision(block.aabb, ray)) {
 				return true;
 			}
 		}
@@ -1394,20 +1395,20 @@ bool Enemy::IsBlockNearByRay() {
 	return false;
 }
 
-Vector3 Enemy::WallAvoidByRay() {
+cg2::Vector3 Enemy::WallAvoidByRay() {
 
-	Vector3 avoid(0, 0, 0);
+	cg2::Vector3 avoid(0, 0, 0);
 
-	if (Length(dir_) < 0.001f) {
+	if (cg2::Length(dir_) < 0.001f) {
 		return avoid;
 	}
 
-	Vector3 forward = Normalize(dir_);
+	cg2::Vector3 forward = cg2::Normalize(dir_);
 
 	if (IsBlockNearByRay() && !isWallFollowing_) {
 		
-		Vector3 left(-forward.y, forward.x, 0);
-		Vector3 right(forward.y, -forward.x, 0);
+		cg2::Vector3 left(-forward.y, forward.x, 0);
+		cg2::Vector3 right(forward.y, -forward.x, 0);
 
 		float leftScore = ScoreDir(left);
 		float rightScore = ScoreDir(right);
@@ -1421,55 +1422,55 @@ Vector3 Enemy::WallAvoidByRay() {
 		avoid += -forward * 1.5f;
 
 		// 横へ逃がす（壁沿い移動）
-		Vector3 side(-forward.y, forward.x, 0.0f);
+		cg2::Vector3 side(-forward.y, forward.x, 0.0f);
 		avoid += side * 1.0f;
 	}
 
 	return avoid;
 }
 
-float Enemy::ScoreDir(const Vector3& dir)
+float Enemy::ScoreDir(const cg2::Vector3& dir)
 {
-	Vector3 futurePos = GetWorldPosition() + dir * 3.0f;
-	return Length(player_->GetWorldPosition() - futurePos);
+	cg2::Vector3 futurePos = GetWorldPosition() + dir * 3.0f;
+	return cg2::Length(player_->GetWorldPosition() - futurePos);
 }
 
-Segment Enemy::MakeRayToPlayer() const {
+cg2::Segment Enemy::MakeRayToPlayer() const {
 
-	Segment seg;
+	cg2::Segment seg;
 	seg.origin = GetWorldPosition();
 
-	Vector3 toPlayer = player_->GetWorldPosition() - seg.origin;
+	cg2::Vector3 toPlayer = player_->GetWorldPosition() - seg.origin;
 	seg.diff = toPlayer; // プレイヤーまで
 
 	return seg;
 }
 
-bool Enemy::HitPlayerByRay(const Segment& ray)
+bool Enemy::HitPlayerByRay(const cg2::Segment& ray)
 {
 
-	Sphere playerSphere;
+	cg2::Sphere playerSphere;
 	playerSphere.center = player_->GetWorldPosition();
 	playerSphere.radius = player_->GetRadius();
 
-	return IsCollision(ray, playerSphere);
+	return cg2::IsCollision(ray, playerSphere);
 }
 
 bool Enemy::HasLineOfSightToPlayer() const {
 	return HasLineOfSightToTarget(player_->GetWorldPosition());
 }
 
-bool Enemy::HasLineOfSightToTarget(const Vector3& targetPos) const {
+bool Enemy::HasLineOfSightToTarget(const cg2::Vector3& targetPos) const {
 
 	if (!stage_) {
 		return false;
 	}
 
-	Segment ray;
+	cg2::Segment ray;
 	ray.origin = GetWorldPosition();
 	ray.diff = targetPos - ray.origin;
 
-	float targetDist = Length(ray.diff);
+	float targetDist = cg2::Length(ray.diff);
 	if (targetDist < 0.001f) {
 		return false;
 	}
@@ -1482,11 +1483,11 @@ bool Enemy::HasLineOfSightToTarget(const Vector3& targetPos) const {
 				continue;
 			}
 
-			if (IsCollision(block.aabb, ray)) {
+			if (cg2::IsCollision(block.aabb, ray)) {
 
 				// ブロック中心までの距離で簡易判定
 				float blockDist =
-					Length((block.aabb.max + block.aabb.min) / 2.0f - ray.origin);
+					cg2::Length((block.aabb.max + block.aabb.min) / 2.0f - ray.origin);
 
 				if (blockDist < targetDist) {
 					return false; // 壁に遮られている
@@ -1529,8 +1530,8 @@ void Enemy::UpdateDefeatPresentation(float deltaTime)
 
 void Enemy::SpawnParticles()
 {
-	Vector3 center = GetWorldPosition();
-	ParticleManager::GetInstance()->EmitNeonDeathEffect(
+	cg2::Vector3 center = GetWorldPosition();
+	cg2::ParticleManager::GetInstance()->EmitNeonDeathEffect(
 		center,
 		{ 1.55f, 0.22f, 0.48f, 1.0f },
 		{ 1.30f, 0.92f, 0.18f, 0.0f },
@@ -1550,8 +1551,8 @@ void Enemy::UpdateParticles(float deltaTime)
 
 void Enemy::UpdateHPBar()
 {
-	Vector3 enemyPos = GetWorldPosition();
-	Vector3 barOffset = { -2.0f, -2.5f, 0.0f }; // プレイヤーの少し下に配置
+	cg2::Vector3 enemyPos = GetWorldPosition();
+	cg2::Vector3 barOffset = { -2.0f, -2.5f, 0.0f }; // プレイヤーの少し下に配置
 
 	// 背景の更新
 	hpBarBGTransform_.translate = enemyPos + barOffset;

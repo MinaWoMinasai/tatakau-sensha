@@ -2,6 +2,8 @@
 #include "Struct.h"
 #include "Calculation.h"
 
+namespace cg2 {
+
 class Camera
 {
 
@@ -15,10 +17,10 @@ public:
 	// setter
 	void SetRotate(const Vector3& rotate) { transform_.rotate = rotate; }
 	void SetTranslate(const Vector3& translate) { transform_.translate = translate; }
-	void SetFovY(const float& fovY) { fovY_ = fovY; }
-	void SetAspectRatio(const float& aspectRatio) { aspectRatio_ = aspectRatio; }
-	void SetNearClip(const float& nearClip) { nearClip_ = nearClip; }
-	void SetFarClip(const float& farClip) { farClip_ = farClip; }
+	void SetFovY(float fovY) { fovY_ = fovY; }
+	void SetAspectRatio(float aspectRatio) { aspectRatio_ = aspectRatio; }
+	void SetNearClip(float nearClip) { nearClip_ = nearClip; }
+	void SetFarClip(float farClip) { farClip_ = farClip; }
 	void SetProjectionJitter(const Vector2& jitter);
 
 	// getter
@@ -51,3 +53,4 @@ private:
 	float farClip_;
 };
 
+} // namespace cg2

@@ -1,4 +1,5 @@
 #pragma once
+#include "game/weapon/CombatTypes.h"
 #include "DeveloperTools.h"
 #define NOMINMAX
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
@@ -95,7 +96,7 @@ public:
 
 	bool IsFinished() const override { return finished_; }
 
-	Object3d* GetBallObj() { return ballObj_.get(); }
+	cg2::Object3d* GetBallObj() { return ballObj_.get(); }
 
 	float GetFinalDeltaTime() const override { return finalDeltaTime; }
 	float GetPostGaussianIntensity() const override { return sceneFadeBlurIntensity_; }
@@ -132,8 +133,8 @@ private:
 	size_t titleDemoPreviousBulletCount_ = 0;
     float titleDemoRoomFade_ = 0;
 	float titleDemoNavigationTimer_ = 0;
-	Vector3 titleDemoMoveTarget_{};
-	std::vector<Vector3> titleDemoPath_;
+	cg2::Vector3 titleDemoMoveTarget_{};
+	std::vector<cg2::Vector3> titleDemoPath_;
 	void ApplyTankExpeditionRoomGeometry();
 	void InitializeTankExpeditionBalance();
 	void ApplyTankExpeditionRoomBalance();
@@ -153,7 +154,7 @@ private:
 	void DrawExpeditionMapUi();
 	void EnterExpeditionMapNode(const std::string& id);
 	void RequestExpeditionMapNode(const std::string& id);
-	void BeginExpeditionPresentation(int action, const std::string& title, const std::string& detail, const Vector4& color);
+	void BeginExpeditionPresentation(int action, const std::string& title, const std::string& detail, const cg2::Vector4& color);
 	void UpdateExpeditionPresentation(float dt);
 	void DrawExpeditionPresentation();
 	void SelectExpeditionService(int option);
@@ -166,7 +167,7 @@ private:
 	void SelectExpeditionBuildStyle(int index);
 	bool IsExpeditionBuildCardScreen() const;
 	void InitializeExpeditionExperience();
-	void SpawnExpeditionCredits(const Vector3& position, int amount, bool flyImmediately = false);
+	void SpawnExpeditionCredits(const cg2::Vector3& position, int amount, bool flyImmediately = false);
 	void UpdateExpeditionCredits(float dt, bool collectAll = false);
 	void DrawExpeditionCredits();
 	void DrawExpeditionVitals();
@@ -175,8 +176,8 @@ private:
 	void DrawGuidedExpedition();
 	void RefreshGuidedExpeditionUi();
 	bool IsGuidedExpeditionPaused() const;
-	void QueueExpeditionImpact(const Vector3& position, const Vector3& direction, bool finisher);
-	void DrawExpeditionPointer(Vector2 target, bool right = true); void DrawCurrencyIcon(Vector2 center, float size = 30);
+	void QueueExpeditionImpact(const cg2::Vector3& position, const cg2::Vector3& direction, bool finisher);
+	void DrawExpeditionPointer(cg2::Vector2 target, bool right = true); void DrawCurrencyIcon(cg2::Vector2 center, float size = 30);
 	bool IsIntroExpeditionService() const;
 	int ExpeditionServicePrice(const std::string& id) const;
 	void SetExpeditionBlueprint(int index);
@@ -193,7 +194,7 @@ private:
 	struct CombatValidationProbe {
 		std::string id;
 		float age = 0, pathLength = 0, maxStep = 0, reloadSeconds = 0, sampleAge = 0;
-		Vector3 previousPosition{};
+		cg2::Vector3 previousPosition{};
 		bool hasPrevious = false, previousReload = false, phase2 = false;
 		unsigned shots = 0, dashes = 0, reloads = 0, phases = 0, patterns = 0;
 		int previousAmmo = 0, reloadViolations = 0, wallIntersections = 0, tunnelingViolations = 0, playerBulletSamples = 0;
@@ -234,48 +235,48 @@ private:
 	int expeditionTransitionAction_ = 0;
 	int expeditionPendingService_ = -1;
 	std::string expeditionPendingNode_;
-	Vector4 expeditionTransitionColor_{0.3f,0.9f,1,1};
-	std::unique_ptr<Sprite> expeditionCurtain_, expeditionTransitionPanel_, expeditionTransitionRail_, expeditionTransitionProgress_;
-	std::unique_ptr<TextLabel> expeditionTransitionTitle_, expeditionTransitionDetail_;
+	cg2::Vector4 expeditionTransitionColor_{0.3f,0.9f,1,1};
+	std::unique_ptr<cg2::Sprite> expeditionCurtain_, expeditionTransitionPanel_, expeditionTransitionRail_, expeditionTransitionProgress_;
+	std::unique_ptr<cg2::TextLabel> expeditionTransitionTitle_, expeditionTransitionDetail_;
 	float expeditionPresentationClock_ = 0, expeditionUiErrorAge_ = 0;
-	struct ExpeditionHitSpark {Vector3 position{},direction{};float age=0;};
+	struct ExpeditionHitSpark {cg2::Vector3 position{},direction{};float age=0;};
 	std::vector<ExpeditionHitSpark> expeditionHitSparks_;
 	float expeditionHitSparkCooldown_=0;
 	bool expeditionBossPhase2Seen_=false;
 	std::string expeditionLastFocus_;
 	std::array<float,3> expeditionCardFocus_{};
 	struct MapNodeVisual {
-		Vector2 center{};
+		cg2::Vector2 center{};
 		float focus = 0;
-		std::unique_ptr<Sprite> halo, rim, fill;
-		std::unique_ptr<TextLabel> icon, label, state;
+		std::unique_ptr<cg2::Sprite> halo, rim, fill;
+		std::unique_ptr<cg2::TextLabel> icon, label, state;
 	};
-	struct MapEdgeVisual {std::string from,to;std::unique_ptr<Sprite> glow,line,pulse;};
+	struct MapEdgeVisual {std::string from,to;std::unique_ptr<cg2::Sprite> glow,line,pulse;};
 	std::vector<MapNodeVisual> expeditionMapVisuals_;
 	std::vector<MapEdgeVisual> expeditionMapEdges_;
-	std::vector<std::unique_ptr<Sprite>> expeditionMapGrid_;
-	std::unique_ptr<TextLabel> expeditionMapTitle_, expeditionMapSubtitle_, expeditionMapInfo_, expeditionMapLegend_, expeditionMapHelp_;
-	std::array<std::unique_ptr<TextLabel>,3> expeditionBlueprintLabels_;
-	std::array<std::unique_ptr<Sprite>,3> expeditionBlueprintButtons_;
+	std::vector<std::unique_ptr<cg2::Sprite>> expeditionMapGrid_;
+	std::unique_ptr<cg2::TextLabel> expeditionMapTitle_, expeditionMapSubtitle_, expeditionMapInfo_, expeditionMapLegend_, expeditionMapHelp_;
+	std::array<std::unique_ptr<cg2::TextLabel>,3> expeditionBlueprintLabels_;
+	std::array<std::unique_ptr<cg2::Sprite>,3> expeditionBlueprintButtons_;
 	struct ExpeditionCreditOrb {
-		Vector3 position{}, velocity{};
-		Vector2 launch{};
+		cg2::Vector3 position{}, velocity{};
+		cg2::Vector2 launch{};
 		float age = 0, flight = 0;
 		int value = 0;
 		bool flying = false;
-		std::unique_ptr<Sprite> sprite;
+		std::unique_ptr<cg2::Sprite> sprite;
 	};
 	std::vector<ExpeditionCreditOrb> expeditionCredits_;
-	std::unique_ptr<Sprite> expeditionCreditIcon_, expeditionCreditPulse_, expeditionStaminaTrack_, expeditionStaminaFill_;
-	std::unique_ptr<TextLabel> expeditionCreditText_;
+	std::unique_ptr<cg2::Sprite> expeditionCreditIcon_, expeditionCreditPulse_, expeditionStaminaTrack_, expeditionStaminaFill_;
+	std::unique_ptr<cg2::TextLabel> expeditionCreditText_;
 	std::unique_ptr<NeonTextEffect> expeditionCompleteGlow_;
-	std::array<std::unique_ptr<Sprite>,4> expeditionSpotlight_;
-    std::array<std::unique_ptr<Sprite>,24> expeditionPointer_, expeditionPointerGlow_;
-    std::unique_ptr<Sprite> expeditionPriceIcon_;
+	std::array<std::unique_ptr<cg2::Sprite>,4> expeditionSpotlight_;
+    std::array<std::unique_ptr<cg2::Sprite>,24> expeditionPointer_, expeditionPointerGlow_;
+    std::unique_ptr<cg2::Sprite> expeditionPriceIcon_;
     size_t expeditionPointerCursor_=0;
     void EnsureExpeditionPointers(size_t count);
-	std::unique_ptr<Sprite> expeditionContinueButton_, expeditionSkipButton_;
-	std::unique_ptr<TextLabel> expeditionContinueText_, expeditionSkipText_;
+	std::unique_ptr<cg2::Sprite> expeditionContinueButton_, expeditionSkipButton_;
+	std::unique_ptr<cg2::TextLabel> expeditionContinueText_, expeditionSkipText_;
 	float expeditionCreditPulseAge_ = 0, expeditionImpactHold_ = 0;
 	int expeditionCreditsCollected_ = 0;
 	bool expeditionCollectAll_ = false, expeditionClearRewardQueued_ = false;
@@ -302,10 +303,10 @@ private:
 	bool expeditionTutorialPreviouslyCompleted_ = false;
 	bool tankExpeditionDetailsOpen_ = false;
 	int tankExpeditionTutorialKills_ = 0;
-	Vector3 tankExpeditionTutorialPrevious_{};
-	std::unique_ptr<Sprite> tankExpeditionHpTrack_, tankExpeditionHpFill_;
-	std::unique_ptr<Sprite> tankExpeditionExpTrack_, tankExpeditionExpFill_, tankExpeditionBuildPanel_;
-	std::unique_ptr<TextLabel> tankExpeditionExpText_, tankExpeditionDetailsText_;
+	cg2::Vector3 tankExpeditionTutorialPrevious_{};
+	std::unique_ptr<cg2::Sprite> tankExpeditionHpTrack_, tankExpeditionHpFill_;
+	std::unique_ptr<cg2::Sprite> tankExpeditionExpTrack_, tankExpeditionExpFill_, tankExpeditionBuildPanel_;
+	std::unique_ptr<cg2::TextLabel> tankExpeditionExpText_, tankExpeditionDetailsText_;
 	void InitializeTankExpedition();
 	void UpdateTankExpedition(float dt);
 	void StartTankExpeditionRoom();
@@ -338,9 +339,9 @@ private:
 	int tankExpeditionCaptureIndex_ = 0;
 	float tankExpeditionArrival_ = 0;
 	std::vector<RunEvolutionChoice> tankExpeditionEvolutions_;
-	std::unique_ptr<TextLabel> tankExpeditionMapText_;
-	std::unique_ptr<TextLabel> tankExpeditionMaintenanceText_;
-	std::unique_ptr<Sprite> tankExpeditionMaintenanceButton_;
+	std::unique_ptr<cg2::TextLabel> tankExpeditionMapText_;
+	std::unique_ptr<cg2::TextLabel> tankExpeditionMaintenanceText_;
+	std::unique_ptr<cg2::Sprite> tankExpeditionMaintenanceButton_;
 	void InitializeTankRun();
 	void InitializeTankRunVisuals();
 	void UpdateTankRun(float dt);
@@ -349,7 +350,7 @@ private:
 	void ApplyTankRunCards();
 	void UpdateTankRunResources(float dt);
 	void OnTankRunResourceClaim(size_t index, bool playerOwned);
-	void OnTankRunEnemyDefeated(const Vector3& position);
+	void OnTankRunEnemyDefeated(const cg2::Vector3& position);
 	void SelectTankRunOption(int index);
 	void RefreshTankRunUi();
 	bool IsTankRunMenuOpen() const;
@@ -359,8 +360,8 @@ private:
 	bool prototypeRun_ = false;
 	tankrun::RunDirector tankRun_{};
 	int tankRunSelection_ = 0;
-	struct RunResource { Vector3 position{}; float respawn = 0; bool active = false; };
-	struct RunBurst { Vector3 position{}; float age = 0; bool resource = false; };
+	struct RunResource { cg2::Vector3 position{}; float respawn = 0; bool active = false; };
+	struct RunBurst { cg2::Vector3 position{}; float age = 0; bool resource = false; };
 	std::array<RunResource, 3> tankRunResources_{};
 	std::vector<RunBurst> tankRunBursts_;
 	int tankRunCombo_ = 0;
@@ -375,32 +376,32 @@ private:
 	float tankRunAutoTime_ = 0.0f;
 	int tankRunAutoStep_ = 0;
 	int tankRunAutoMenuIndex_ = 0;
-	std::unique_ptr<Sprite> tankRunDimmer_;
-	std::unique_ptr<Sprite> tankRunHudPanel_;
-	std::unique_ptr<Sprite> tankRunBossTrack_;
-	std::unique_ptr<Sprite> tankRunBossFill_;
-	std::array<std::unique_ptr<Sprite>, 3> tankRunCards_;
-	std::array<std::unique_ptr<TextLabel>, 3> tankRunCardTitles_;
-	std::array<std::unique_ptr<TextLabel>, 3> tankRunCardBodies_;
-	std::unique_ptr<TextLabel> tankRunHeading_;
-	std::unique_ptr<TextLabel> tankRunDescription_;
-	std::unique_ptr<TextLabel> tankRunFooter_;
-	std::unique_ptr<TextLabel> tankRunHud_;
-	std::unique_ptr<TextLabel> tankRunBuildText_;
-	std::unique_ptr<TextLabel> tankRunObjectiveText_;
-	std::unique_ptr<TextLabel> tankRunBossText_;
+	std::unique_ptr<cg2::Sprite> tankRunDimmer_;
+	std::unique_ptr<cg2::Sprite> tankRunHudPanel_;
+	std::unique_ptr<cg2::Sprite> tankRunBossTrack_;
+	std::unique_ptr<cg2::Sprite> tankRunBossFill_;
+	std::array<std::unique_ptr<cg2::Sprite>, 3> tankRunCards_;
+	std::array<std::unique_ptr<cg2::TextLabel>, 3> tankRunCardTitles_;
+	std::array<std::unique_ptr<cg2::TextLabel>, 3> tankRunCardBodies_;
+	std::unique_ptr<cg2::TextLabel> tankRunHeading_;
+	std::unique_ptr<cg2::TextLabel> tankRunDescription_;
+	std::unique_ptr<cg2::TextLabel> tankRunFooter_;
+	std::unique_ptr<cg2::TextLabel> tankRunHud_;
+	std::unique_ptr<cg2::TextLabel> tankRunBuildText_;
+	std::unique_ptr<cg2::TextLabel> tankRunObjectiveText_;
+	std::unique_ptr<cg2::TextLabel> tankRunBossText_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> tankRunCaptureReadback_;
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT tankRunCaptureLayout_{};
 	std::string tankRunCapturePath_;
 	bool tankRunCaptureCopied_ = false;
 	struct FollowHpBar {
-		std::unique_ptr<Sprite> outline;
-		std::unique_ptr<Sprite> background;
-		std::unique_ptr<Sprite> fill;
+		std::unique_ptr<cg2::Sprite> outline;
+		std::unique_ptr<cg2::Sprite> background;
+		std::unique_ptr<cg2::Sprite> fill;
 	};
 	struct LevelVisualObject {
 		std::string name;
-		std::unique_ptr<Object3d> object;
+		std::unique_ptr<cg2::Object3d> object;
 	};
 	struct RuntimeBossPhase {
 		LevelBossPhase phase;
@@ -479,36 +480,36 @@ private:
 
 	void InitializeFollowHpBars(size_t count);
 	void InitializeFollowHpBarBatch();
-	void DrawFollowHpBar(const void* ownerKey, const Vector3& worldPos, int hp, int maxHp, float width, float yOffset);
-	void DrawFollowStaminaBar(const Vector3& worldPos, float stamina, float maxStamina, float width, float yOffset);
-	void QueueHpBarQuad(std::vector<VertexData>& vertices, const Vector2& center, const Vector2& size);
+	void DrawFollowHpBar(const void* ownerKey, const cg2::Vector3& worldPos, int hp, int maxHp, float width, float yOffset);
+	void DrawFollowStaminaBar(const cg2::Vector3& worldPos, float stamina, float maxStamina, float width, float yOffset);
+	void QueueHpBarQuad(std::vector<cg2::VertexData>& vertices, const cg2::Vector2& center, const cg2::Vector2& size);
 	struct HpBarMaterialBuffer {
 		Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-		Material* data = nullptr;
+		cg2::Material* data = nullptr;
 	};
 
 	void DrawHpBarBatch(uint32_t startVertex, uint32_t vertexCount, const std::string& textureFilePath, const HpBarMaterialBuffer& material);
 	void DrawHpBarBatches();
-	Vector2 WorldToScreen(const Vector3& worldPos) const;
+	cg2::Vector2 WorldToScreen(const cg2::Vector3& worldPos) const;
 	void DrawNeonGridPass(bool includeStageBlockOutlines = true);
 	void DrawStageBlockNeonPass();
 	void QueueStageBlockNeonOutlines();
 	void DrawExpEnemyNeonFillModels();
 	void DrawExpEnemyNeonDepthLines();
-	void TriggerDeathPostPulse(const Vector3& worldPosition, float strength);
+	void TriggerDeathPostPulse(const cg2::Vector3& worldPosition, float strength);
 	void UpdateDeathPostPulse(float deltaTime);
-	void QueueExpEnemyNeonShapes(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward);
-	void QueueActorNeonBillboards(const Vector3& cameraRight, const Vector3& cameraUp, bool drawBodies = true, bool drawBarrels = true);
+	void QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward);
+	void QueueActorNeonBillboards(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, bool drawBodies = true, bool drawBarrels = true);
 	void DrawActorNeonBodyFillPass();
 	void UpdatePlayerNeonAfterimages(float deltaTime);
 	struct PlayerMeleeSlash;
 	void SpawnPlayerLaser(const Player::LaserShotEvent& event);
 	void UpdatePlayerLasers(float deltaTime);
-	void QueuePlayerLasers(const Vector3& cameraForward);
+	void QueuePlayerLasers(const cg2::Vector3& cameraForward);
 	void SpawnPlayerMine(const Player::MineDropEvent& event);
 	void UpdatePlayerMines(float deltaTime);
 	void DetonatePlayerMine(size_t index);
-	void QueuePlayerMines(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward);
+	void QueuePlayerMines(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward);
 	void SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event);
 	void UpdatePlayerMeleeSlashes(float deltaTime);
 	void QueuePlayerMeleeSlashes();
@@ -517,19 +518,19 @@ private:
 	struct SpecialCombatFlash {
 		Player::SpecialCombatEvent event;
 		float age=0;
-		Vector3 end{};
+		cg2::Vector3 end{};
 	};
 	std::vector<SpecialCombatFlash> specialCombatFlashes_;
 	struct BuildCombatFlash {BulletManager::BuildEvent event;float age=0;};
 	std::vector<BuildCombatFlash> buildCombatFlashes_;
-	struct SpecialProjectileVisual {Vector3 position,direction;float radius;Bullet::SpecialKind kind;};
+	struct SpecialProjectileVisual {cg2::Vector3 position,direction;float radius;Bullet::SpecialKind kind;};
 	std::vector<SpecialProjectileVisual> specialProjectileVisuals_;
 	float railChargeAudioAge_=0;
-	TrailConfig MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale = 1.0f) const;
-	void ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, Vector3& base, Vector3& tip) const;
+	cg2::TrailConfig MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale = 1.0f) const;
+	void ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, cg2::Vector3& base, cg2::Vector3& tip) const;
 	void UpdateNeonTriangleParticles(float deltaTime);
-	void QueueNeonTriangleParticles(const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward);
-	bool IsNearCamera2D(const Vector3& worldPos, float halfWidth, float halfHeight, float margin = 0.0f) const;
+	void QueueNeonTriangleParticles(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward);
+	bool IsNearCamera2D(const cg2::Vector3& worldPos, float halfWidth, float halfHeight, float margin = 0.0f) const;
 	void ResetPostProfileEntries();
 	void AddPostProfileEntry(const char* name, float ms, bool active);
 	void UpdatePostProfileText();
@@ -542,14 +543,14 @@ private:
 #endif
 	bool IsPostProfileCategoryEnabled(const char* category) const;
 	const char* GetPostProfileModeName() const;
-	Vector2 GetStagePostCacheUvOffset(const Vector3& currentCameraPos) const;
+	cg2::Vector2 GetStagePostCacheUvOffset(const cg2::Vector3& currentCameraPos) const;
 	bool LoadLevelFile(LevelData& outLevel) const;
 	void ReloadLevelData(bool resetSpawnPositions);
 	void ClearAppliedLevelData();
 	void ApplyLevelData(const LevelData& levelData);
 	void ApplyLevelBalance(const nlohmann::json& balanceJson);
 	void DrawGameSceneDebugImGui();
-	void DrawPostEffectParamControls(const char* labelPrefix, BloomParam& param);
+	void DrawPostEffectParamControls(const char* labelPrefix, cg2::BloomParam& param);
 	bool LoadGamePostEffectConfig(const std::string& filePath = "resources/configs/gamePostEffects.json");
 	bool SaveGamePostEffectConfig(const std::string& filePath = "resources/configs/gamePostEffects.json") const;
 	nlohmann::json BuildGamePostEffectConfig() const;
@@ -572,8 +573,8 @@ private:
 	void ApplyBossPhaseTuning(const LevelBossPhase& phase);
 	void ApplyLevelEffectPreset(const nlohmann::json& effectJson);
 	void QueueLevelEditorPreview();
-	void QueueLevelObjectPreview(const LevelObject& levelObject, const Vector4& color);
-	void QueueLevelSpawnAreaPreview(const LevelSpawnArea& spawnArea, const Vector4& color);
+	void QueueLevelObjectPreview(const LevelObject& levelObject, const cg2::Vector4& color);
+	void QueueLevelSpawnAreaPreview(const LevelSpawnArea& spawnArea, const cg2::Vector4& color);
 	bool AddLevelItem(const LevelObject& levelObject);
 	void UpdateLevelItems();
 	void DrawLevelItems();
@@ -601,7 +602,7 @@ private:
 	void InitializePlayerClassConfigWatch();
 	void UpdatePlayerClassConfigWatch(float deltaTime);
 	bool ReloadPlayerClassConfig(bool automatic);
-	Vector2 WorldToScreenUv(const Vector3& worldPos) const;
+	cg2::Vector2 WorldToScreenUv(const cg2::Vector3& worldPos) const;
 
 	struct HpBarVisibility {
 		int lastHp = -1;
@@ -653,7 +654,7 @@ private:
 		size_t enemyBulletCount = 0;
 		size_t hostileExpEnemyBulletCount = 0;
 		size_t bulletTrailCount = 0;
-		TrailManager::DrawStats trailDrawStats{};
+		cg2::TrailManager::DrawStats trailDrawStats{};
 		size_t playerLaserCount = 0;
 		size_t playerMineCount = 0;
 		size_t playerMeleeSlashCount = 0;
@@ -662,29 +663,29 @@ private:
 #endif
 
 
-	std::unique_ptr<DebugCamera> debugCamera;
-	std::unique_ptr<Camera> camera;
+	std::unique_ptr<cg2::DebugCamera> debugCamera;
+	std::unique_ptr<cg2::Camera> camera;
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 	std::unique_ptr<NeonSkinnedPreview> neonSkinnedPreview_;
 	bool selectNeonSkinnedPreviewTab_ = false;
 #endif
 	
 	//std::unique_ptr<Object3d> object3d;
-	std::unique_ptr<Object3d> enemyObject_;
-	std::unique_ptr<Object3d> object3d3;
+	std::unique_ptr<cg2::Object3d> enemyObject_;
+	std::unique_ptr<cg2::Object3d> object3d3;
 
-	std::unique_ptr<Object3d> playerObject_;
+	std::unique_ptr<cg2::Object3d> playerObject_;
 
-	std::unique_ptr<Object3d> ballObj_;
-	std::unique_ptr<Object3d> ball_;
+	std::unique_ptr<cg2::Object3d> ballObj_;
+	std::unique_ptr<cg2::Object3d> ball_;
 
-	std::unique_ptr<Object3d> groundObj_;
+	std::unique_ptr<cg2::Object3d> groundObj_;
 
 	// 入力
-	Input* input_;
+	cg2::Input* input_;
 
 	// ワールドトランスフォーム
-	Transform worldTransform_;
+	cg2::Transform worldTransform_;
 
 	// プレイヤー
 	std::unique_ptr<Player> player_;
@@ -703,18 +704,18 @@ private:
 
 	// 衝突マネージャ
 	std::unique_ptr<CollisionManager> collisionManager_;
-	std::unique_ptr<RingManager> collisionDebugRingManager_;
-	std::unique_ptr<NeonGridRenderer> neonGridRenderer_;
-	std::unique_ptr<TrailManager> playerMeleeTrailManager_;
-	std::unique_ptr<Skybox> skybox_;
-	std::unique_ptr<ObjectPostEffect> neonGridPostEffect_;
-	std::unique_ptr<ObjectPostEffect> bulletTrailPostEffect_;
-	std::unique_ptr<ObjectPostEffect> particlePostEffect_;
-	std::unique_ptr<ObjectPostEffect> playerPostEffect_;
-	std::unique_ptr<ObjectPostEffect> enemyPostEffect_;
-	std::unique_ptr<ObjectPostEffect> expEnemyPostEffect_;
-	std::unique_ptr<ObjectPostEffect> sharedObjectBloomPostEffect_;
-	std::unique_ptr<ObjectPostEffect> stagePostEffect_;
+	std::unique_ptr<cg2::RingManager> collisionDebugRingManager_;
+	std::unique_ptr<cg2::NeonGridRenderer> neonGridRenderer_;
+	std::unique_ptr<cg2::TrailManager> playerMeleeTrailManager_;
+	std::unique_ptr<cg2::Skybox> skybox_;
+	std::unique_ptr<cg2::ObjectPostEffect> neonGridPostEffect_;
+	std::unique_ptr<cg2::ObjectPostEffect> bulletTrailPostEffect_;
+	std::unique_ptr<cg2::ObjectPostEffect> particlePostEffect_;
+	std::unique_ptr<cg2::ObjectPostEffect> playerPostEffect_;
+	std::unique_ptr<cg2::ObjectPostEffect> enemyPostEffect_;
+	std::unique_ptr<cg2::ObjectPostEffect> expEnemyPostEffect_;
+	std::unique_ptr<cg2::ObjectPostEffect> sharedObjectBloomPostEffect_;
+	std::unique_ptr<cg2::ObjectPostEffect> stagePostEffect_;
 	LevelData currentLevelData_;
 	BalanceEditorState balanceEditor_;
 	std::vector<LevelVisualObject> levelItems_;
@@ -727,43 +728,43 @@ private:
 	std::unique_ptr<Fade> fade_ = nullptr;
 	Phase phase_ = Phase::kFadeIn;
 
-	std::unique_ptr<Sprite> shotGide;
-	std::unique_ptr<Sprite> wasdGide;
-	std::unique_ptr<Sprite> dashGide;
-	std::unique_ptr<Sprite> toTitleGide;
-	std::unique_ptr<TextLabel> dashGuideText_;
-	std::unique_ptr<TextLabel> moveGuideText_;
-	std::unique_ptr<TextLabel> titleGuideText_;
-	std::unique_ptr<TextLabel> controlGuideText_;
-	std::unique_ptr<TextLabel> fpsText_;
-	std::unique_ptr<TextLabel> postProfileText_;
-	std::unique_ptr<TextLabel> flowBannerText_;
-	std::unique_ptr<TextLabel> resultSummaryText_;
-	std::unique_ptr<TextLabel> resultMenuText_;
-	std::unique_ptr<TextLabel> eventCalloutText_;
-	std::unique_ptr<Sprite> tutorialPanel_;
-	std::unique_ptr<TextLabel> tutorialTitleText_;
-	std::unique_ptr<TextLabel> tutorialInputText_;
-	std::unique_ptr<TextLabel> tutorialDescriptionText_;
+	std::unique_ptr<cg2::Sprite> shotGide;
+	std::unique_ptr<cg2::Sprite> wasdGide;
+	std::unique_ptr<cg2::Sprite> dashGide;
+	std::unique_ptr<cg2::Sprite> toTitleGide;
+	std::unique_ptr<cg2::TextLabel> dashGuideText_;
+	std::unique_ptr<cg2::TextLabel> moveGuideText_;
+	std::unique_ptr<cg2::TextLabel> titleGuideText_;
+	std::unique_ptr<cg2::TextLabel> controlGuideText_;
+	std::unique_ptr<cg2::TextLabel> fpsText_;
+	std::unique_ptr<cg2::TextLabel> postProfileText_;
+	std::unique_ptr<cg2::TextLabel> flowBannerText_;
+	std::unique_ptr<cg2::TextLabel> resultSummaryText_;
+	std::unique_ptr<cg2::TextLabel> resultMenuText_;
+	std::unique_ptr<cg2::TextLabel> eventCalloutText_;
+	std::unique_ptr<cg2::Sprite> tutorialPanel_;
+	std::unique_ptr<cg2::TextLabel> tutorialTitleText_;
+	std::unique_ptr<cg2::TextLabel> tutorialInputText_;
+	std::unique_ptr<cg2::TextLabel> tutorialDescriptionText_;
 	std::unique_ptr<NeonTextEffect> gameTextNeonEffect_;
 	int gameTextFontMode_ = 1;
 	bool gameTextNeonEnabled_ = true;
 	bool gameTextOutlineEnabled_ = false;
-	Vector4 gameTextOutlineColor_{ 0.0f, 0.0f, 0.0f, 0.9f };
+	cg2::Vector4 gameTextOutlineColor_{ 0.0f, 0.0f, 0.0f, 0.9f };
 	float gameTextOutlineThickness_ = 1.0f;
 	NeonTextEffectStyle gameTextNeonStyle_{};
 	std::vector<FollowHpBar> followHpBars_;
-	std::array<std::vector<VertexData>, 4> hpBarBackgroundVertices_;
-	std::array<std::vector<VertexData>, 4> hpBarFillVertices_;
-	std::vector<VertexData> staminaBarFillVertices_;
-	std::array<std::vector<VertexData>, 4> hpBarOutlineVertices_;
+	std::array<std::vector<cg2::VertexData>, 4> hpBarBackgroundVertices_;
+	std::array<std::vector<cg2::VertexData>, 4> hpBarFillVertices_;
+	std::vector<cg2::VertexData> staminaBarFillVertices_;
+	std::array<std::vector<cg2::VertexData>, 4> hpBarOutlineVertices_;
 	std::unordered_map<const void*, HpBarVisibility> hpBarVisibility_;
 	std::array<HpBarMaterialBuffer, 13> hpBarMaterials_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> hpBarVertexResource_;
 	D3D12_VERTEX_BUFFER_VIEW hpBarVertexBufferView_{};
-	VertexData* hpBarVertexData_ = nullptr;
+	cg2::VertexData* hpBarVertexData_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> hpBarTransformResource_;
-	TransformationMatrix* hpBarTransformData_ = nullptr;
+	cg2::TransformationMatrix* hpBarTransformData_ = nullptr;
 	size_t followHpBarIndex_ = 0;
 	bool showFollowHpBars_ = true;
 	bool showPlayerStaminaBar_ = true;
@@ -777,7 +778,7 @@ private:
 	float tutorialEvolutionUnlockedTimer_ = 0.0f;
 	float tutorialCompleteTimer_ = 0.0f;
 	float tutorialMoveDistance_ = 0.0f;
-	Vector3 tutorialPreviousPlayerPosition_{};
+	cg2::Vector3 tutorialPreviousPlayerPosition_{};
 	bool tutorialUpgradeRewardGranted_ = false;
 	bool tutorialEvolutionRewardGranted_ = false;
 	bool tutorialEvolutionUiWasOpen_ = false;
@@ -786,7 +787,7 @@ private:
 	// カメラ合わせフラグ
 	bool cameraFollow_ = true;
 
-	Vector3 direction = { 0.0f, -1.0f, 0.0f };
+	cg2::Vector3 direction = { 0.0f, -1.0f, 0.0f };
 	float insensity = 1.0f;
 	float shininess = 10.0f;
 
@@ -855,7 +856,7 @@ private:
 	Player::UpgradeHudDebugSnapshot upgradeHudAfterCollision_{};
 #endif
 	bool stagePostCacheValid_ = false;
-	Vector3 stagePostCacheCameraPos_{};
+	cg2::Vector3 stagePostCacheCameraPos_{};
 	float stagePostCacheRefreshPixels_ = 48.0f;
 	float expEnemyPostVisibleHalfWidth_ = 20.0f;
 	float expEnemyPostVisibleHalfHeight_ = 10.0f;
@@ -900,22 +901,22 @@ private:
 	std::string visualConfigStatus_;
 	float worldGridSpacing_ = 2.0f;
 	float worldGridLineWidth_ = 0.075f;
-	Vector4 worldGridColor_ = { 0.12f, 0.42f, 1.0f, 0.15f };
+	cg2::Vector4 worldGridColor_ = { 0.12f, 0.42f, 1.0f, 0.15f };
 	float actorGridRadius_ = 5.4f;
 	float actorGridSpacing_ = 1.0f;
 	float actorGridLineWidth_ = 0.1f;
 	float neonLineSoftEdgeRatio_ = 0.42f;
 	float neonLineCoreIntensity_ = 1.35f;
-	Vector4 playerGridColor_ = { 0.50f, 1.0f, 0.35f, 1.0f };
-	Vector4 enemyGridColor_ = { 1.0f, 0.18f, 0.24f, 1.0f };
-	Vector4 expEnemyGridColor_ = { 1.0f, 0.32f, 0.58f, 1.0f };
+	cg2::Vector4 playerGridColor_ = { 0.50f, 1.0f, 0.35f, 1.0f };
+	cg2::Vector4 enemyGridColor_ = { 1.0f, 0.18f, 0.24f, 1.0f };
+	cg2::Vector4 expEnemyGridColor_ = { 1.0f, 0.32f, 0.58f, 1.0f };
 	bool showStageBlockNeonOutlines_ = true;
 	bool showStageNormalBlockBodies_ = true;
 	float stageBlockNeonLineWidth_ = 0.10f;
 	float stageBlockNeonDepthBias_ = 0.035f;
-	Vector4 stageBlockNeonColor_ = { 0.55f, 1.0f, 0.32f, 1.0f };
+	cg2::Vector4 stageBlockNeonColor_ = { 0.55f, 1.0f, 0.32f, 1.0f };
 	bool showStageDamageBlockNeonOutlines_ = true;
-	Vector4 stageDamageBlockNeonColor_ = { 1.20f, 0.035f, 0.02f, 1.0f };
+	cg2::Vector4 stageDamageBlockNeonColor_ = { 1.20f, 0.035f, 0.02f, 1.0f };
 	float stageDamageBlockPulseSpeed_ = 5.0f;
 	float stageDamageBlockPulseMin_ = 0.45f;
 	float stageDamageBlockPulseMax_ = 1.35f;
@@ -941,7 +942,7 @@ private:
 	float bossNeonBarrelWidthScale_ = 0.24f;
 	float bossNeonBarrelAngleDeg_ = 0.0f;
 	bool fillActorNeonBodies_ = true;
-	Vector4 actorNeonBodyFillColor_ = { 0.006f, 0.010f, 0.016f, 0.92f };
+	cg2::Vector4 actorNeonBodyFillColor_ = { 0.006f, 0.010f, 0.016f, 0.92f };
 	float playerDashCurrentAlpha_ = 0.58f;
 	float playerAfterimageAlpha_ = 0.42f;
 	float playerAfterimageInterval_ = 0.045f;
@@ -964,43 +965,43 @@ private:
 	float playerMeleeTrailAlphaScale_ = 1.0f;
 	float playerMeleeAfterimageAlphaScale_ = 1.0f;
 	struct PlayerNeonAfterimage {
-		Vector3 position{};
-		Vector3 direction{ 0.0f, -1.0f, 0.0f };
+		cg2::Vector3 position{};
+		cg2::Vector3 direction{ 0.0f, -1.0f, 0.0f };
 		float life = 0.0f;
 	};
 	std::vector<PlayerNeonAfterimage> playerNeonAfterimages_;
 	struct PlayerLaserBeam {
-		Vector3 start{};
-		Vector3 end{};
+		cg2::Vector3 start{};
+		cg2::Vector3 end{};
 		float width = 0.18f;
 		float life = 0.0f;
 		float maxLife = 0.12f;
-		Vector4 color{ 0.25f, 1.0f, 0.95f, 1.0f };
+		cg2::Vector4 color{ 0.25f, 1.0f, 0.95f, 1.0f };
 	};
 	std::vector<PlayerLaserBeam> playerLaserBeams_;
 	struct PlayerMine {
-		Vector3 position{};
+		cg2::Vector3 position{};
 		float radius = 3.2f;
 		float fuse = 0.45f;
 		float life = 5.0f;
 		float maxLife = 5.0f;
 		uint32_t damage = 1;
 		float rotation = 0.0f;
-		Vector4 color{ 1.0f, 0.25f, 0.95f, 1.0f };
+		cg2::Vector4 color{ 1.0f, 0.25f, 0.95f, 1.0f };
 	};
 	std::vector<PlayerMine> playerMines_;
 	struct PlayerMineExplosion {
-		Vector3 position{};
+		cg2::Vector3 position{};
 		float radius = 3.2f;
 		float life = 0.28f;
 		float maxLife = 0.28f;
-		Vector4 color{ 1.0f, 0.25f, 0.95f, 1.0f };
+		cg2::Vector4 color{ 1.0f, 0.25f, 0.95f, 1.0f };
 	};
 	std::vector<PlayerMineExplosion> playerMineExplosions_;
 	struct PlayerMeleeSlash {
-		Vector3 origin{};
-		Vector3 followAnchor{};
-		Vector3 direction{ 1.0f, 0.0f, 0.0f };
+		cg2::Vector3 origin{};
+		cg2::Vector3 followAnchor{};
+		cg2::Vector3 direction{ 1.0f, 0.0f, 0.0f };
 		float range = 3.4f;
 		float arcDeg = 105.0f;
 		float startAngleDeg = -52.5f;
@@ -1021,8 +1022,8 @@ private:
 		std::vector<const Collider*> hitTargets;
 		float life = 0.18f;
 		float maxLife = 0.18f;
-		Vector4 color{ 0.55f, 1.25f, 1.0f, 1.0f };
-		TrailInstance* trail = nullptr;
+		cg2::Vector4 color{ 0.55f, 1.25f, 1.0f, 1.0f };
+		cg2::TrailInstance* trail = nullptr;
 	};
 	struct MeleeComboVisualProfile {
 		float startAngleDeg = -70.0f;
@@ -1033,7 +1034,7 @@ private:
 		float hiltSideOffset = 0.0f;
 		float windupAngleDeg = -100.0f;
 		float returnAngleDeg = 58.0f;
-		Vector4 colorScale{ 1.0f, 1.0f, 1.0f, 1.0f };
+		cg2::Vector4 colorScale{ 1.0f, 1.0f, 1.0f, 1.0f };
 	};
 	std::vector<PlayerMeleeSlash> playerMeleeSlashes_;
 	std::vector<MeleeComboVisualProfile> playerMeleeComboVisuals_ = {
@@ -1042,9 +1043,9 @@ private:
 		{ -145.0f, 135.0f, 1.28f, 1.16f, 1.30f, 0.00f, -178.0f, 58.0f, { 1.12f, 1.02f, 0.82f, 1.0f } }
 	};
 	struct NeonTriangleParticle {
-		Vector3 position{};
-		Vector3 velocity{};
-		Vector3 initialVelocity{};
+		cg2::Vector3 position{};
+		cg2::Vector3 velocity{};
+		cg2::Vector3 initialVelocity{};
 		float radius = 0.35f;
 		float rotation = 0.0f;
 		float angularVelocity = 0.0f;
@@ -1054,7 +1055,7 @@ private:
 		float tiltRad = 0.0f;
 		int trailCopies = 0;
 		bool isBillboard = false;
-		Vector4 color{ 1.0f, 0.4f, 1.0f, 1.0f };
+		cg2::Vector4 color{ 1.0f, 0.4f, 1.0f, 1.0f };
 	};
 	std::vector<NeonTriangleParticle> neonTriangleParticles_;
 	float neonParticleTriangleGlowWidthScale_ = 3.2f;
@@ -1064,12 +1065,12 @@ private:
 	float neonParticleTriangleBirthScale_ = 0.52f;
 	int neonParticleTriangleTrailCopies_ = 3;
 	int neonTriangleEffectMode_ = 0;
-	Vector3 neonTriangleDemoCenter_ = { 30.0f, 30.0f, 1.2f };
+	cg2::Vector3 neonTriangleDemoCenter_ = { 30.0f, 30.0f, 1.2f };
 	float neonTriangleDemoRadius_ = 2.2f;
 	float neonTriangleDemoLineWidth_ = 0.16f;
 	float neonTriangleDemoRotateSpeed_ = 0.75f;
 	float neonTriangleDemoRotation_ = 0.0f;
-	Vector4 neonTriangleDemoColor_ = { 0.15f, 0.95f, 1.0f, 1.0f };
+	cg2::Vector4 neonTriangleDemoColor_ = { 0.15f, 0.95f, 1.0f, 1.0f };
 
 	// Opt-in end-to-end experience validation; ordinary play never enters it.
 	void InitializeExperienceValidation();
@@ -1095,7 +1096,7 @@ private:
 	int experienceForcedLaterClears_ = 0, experiencePlayerBulletSamples_ = 0;
 	int experienceMeleeMinHp_ = 500, experienceMeleeSlashSamples_ = 0, experienceMeleeBulletSamples_ = 0;
 	float experienceMeleeDisplacement_ = 0;
-	Vector3 experienceMeleeTargetStart_{};
+	cg2::Vector3 experienceMeleeTargetStart_{};
 	unsigned experienceGuideStageMask_ = 0, experienceSuccessfulDashes_ = 0;
 	nlohmann::json experienceIntroOfferDetails_ = nlohmann::json::array();
 };

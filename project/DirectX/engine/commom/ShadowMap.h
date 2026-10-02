@@ -3,6 +3,8 @@
 #include "SrvManager.h"
 #include <wrl.h>
 
+namespace cg2 {
+
 class ShadowMap {
 public:
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height);
@@ -16,3 +18,5 @@ private:
     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle_;
     uint32_t srvIndex_;
 };
+
+} // namespace cg2

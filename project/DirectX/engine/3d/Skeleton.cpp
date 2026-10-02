@@ -5,6 +5,8 @@
 #include <cassert>
 #include <stdexcept>
 
+namespace cg2 {
+
 int32_t SkeletonSystem::CreateJoint(
 	const SkeletonNode& node,
 	const std::optional<int32_t>& parent,
@@ -130,3 +132,5 @@ void SkeletonSystem::Update(Skeleton& skeleton) {
 		}
 	}
 }
+
+} // namespace cg2

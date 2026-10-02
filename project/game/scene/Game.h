@@ -34,12 +34,12 @@ private:
     void MainLoop();
 
 private:
-    std::unique_ptr<DirectXCommon> dxCommon_;
-    std::unique_ptr<SrvManager> srvManager_;
-    std::unique_ptr<RtvManager> rtvManager_;
+    std::unique_ptr<cg2::DirectXCommon> dxCommon_;
+    std::unique_ptr<cg2::SrvManager> srvManager_;
+    std::unique_ptr<cg2::RtvManager> rtvManager_;
 
-    std::unique_ptr<Bloom> bloom_;
-    std::unique_ptr<Shadow> shadow_;
+    std::unique_ptr<cg2::Bloom> bloom_;
+    std::unique_ptr<cg2::Shadow> shadow_;
     std::unique_ptr<IGameModule> activeGameModule_;
 
     GameProject activeProject_;
@@ -48,5 +48,5 @@ private:
     bool startupSceneUsedFallback_ = false;
     std::string resolvedStartupScene_ = "TITLE";
     bool imguiInitialized_ = false;
-    std::unique_ptr<TrailStressFixture> trailStress_;
+    std::unique_ptr<cg2::TrailStressFixture> trailStress_;
 };

@@ -5,6 +5,8 @@
 #include "RtvManager.h"
 #include <memory>
 
+namespace cg2 {
+
 class ObjectPostEffect {
 public:
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager, float renderScale = 1.0f);
@@ -59,3 +61,5 @@ private:
     D3D12_CPU_DESCRIPTOR_HANDLE restoreDsvHandle_{};
     bool restoreHasDsv_ = false;
 };
+
+} // namespace cg2

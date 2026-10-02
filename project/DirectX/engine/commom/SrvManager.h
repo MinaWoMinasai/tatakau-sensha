@@ -2,6 +2,8 @@
 #include "DirectXCommon.h"
 #include <vector>
 
+namespace cg2 {
+
 class SrvManager
 {
 public:
@@ -53,3 +55,4 @@ private:
 
 };
 
+} // namespace cg2

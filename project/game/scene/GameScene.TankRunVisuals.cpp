@@ -31,9 +31,9 @@ void GameScene::InitializeTankRunVisuals() {
 
     // These are generated postprocess contours, not the intentional frame
     // lines of the tanks, resource shapes, and arena geometry.
-    const auto removeGeneratedOutline = [](ObjectPostEffect* effect) {
+    const auto removeGeneratedOutline = [](cg2::ObjectPostEffect* effect) {
         if (!effect) return;
-        BloomParam param = effect->GetParam();
+        cg2::BloomParam param = effect->GetParam();
         param.outlineWidth = 0.0f;
         param.outlineBloomIntensity = 0.0f;
         param.outlineBloomWidth = 0.0f;
@@ -42,14 +42,14 @@ void GameScene::InitializeTankRunVisuals() {
         param.depthOutlineScale = 0.0f;
         effect->SetParam(param);
     };
-    for (ObjectPostEffect* effect : {playerPostEffect_.get(), enemyPostEffect_.get(),
+    for (cg2::ObjectPostEffect* effect : {playerPostEffect_.get(), enemyPostEffect_.get(),
         expEnemyPostEffect_.get(), stagePostEffect_.get(), neonGridPostEffect_.get(),
         bulletTrailPostEffect_.get(), particlePostEffect_.get(), sharedObjectBloomPostEffect_.get()}) {
         removeGeneratedOutline(effect);
     }
-    const auto restoreEmitterBloom = [](ObjectPostEffect* effect, float intensity) {
+    const auto restoreEmitterBloom = [](cg2::ObjectPostEffect* effect, float intensity) {
         if (!effect) return;
-        BloomParam param = effect->GetParam();
+        cg2::BloomParam param = effect->GetParam();
         param.threshold = 0.0f;
         param.intensity = intensity;
         param.gaussianIntensity = 0.0f;

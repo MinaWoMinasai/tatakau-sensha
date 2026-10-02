@@ -4,6 +4,8 @@
 #include <string>
 #include "Struct.h"
 
+namespace cg2 {
+
 struct TextStyle {
 	std::string fontFamily = "Meiryo";
 	std::string fontPath;
@@ -64,7 +66,6 @@ private:
 	bool SaveTextPng(const std::wstring& text, const TextStyle& style, const std::string& path);
 	TextStyle ResolveStyle(const TextStyle& style) const;
 
-	static TextRenderer* instance_;
 	bool initialized_ = false;
 	unsigned long long gdiplusToken_ = 0;
 	std::unique_ptr<TextRendererFontStore> fontStore_;
@@ -74,3 +75,5 @@ private:
 	GetOrCreateTextureProfile lastGetOrCreateTextureProfile_{};
 #endif
 };
+
+} // namespace cg2

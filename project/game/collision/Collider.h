@@ -20,7 +20,7 @@ public:
 	/// <summary>
 	/// ワールド座標の取得
 	/// </summary>
-	virtual Vector3 GetWorldPosition() const = 0;
+	virtual cg2::Vector3 GetWorldPosition() const = 0;
 
 	/// <summary>
 	/// 衝突判定
@@ -43,19 +43,19 @@ public:
 	ColliderShape GetShape() const { return shape_; }
 	void SetShape(ColliderShape shape) { shape_ = shape; }
 
-	void SetCapsule(const Segment& seg, float r) {
+	void SetCapsule(const cg2::Segment& seg, float r) {
 		if (!std::isfinite(r) || r < 0.0f) return;
 		segment_ = seg;
 		capsuleRadius_ = r;
 	}
-	const Segment& GetSegment() const { return segment_; }
+	const cg2::Segment& GetSegment() const { return segment_; }
 	float GetCapsuleRadius() const { return capsuleRadius_; }
 
 	float GetHitPower() const { return hitPower_; }
 	void SetHitPower(float power) { hitPower_ = power; }
 
 	uint32_t GetDamage() const { return damage_; };
-	void SetDamage(const uint32_t& damage) { damage_ = damage; }
+	void SetDamage(uint32_t damage) { damage_ = damage; }
 
 private:
 	// Actor allocations may reuse an address while a piercing projectile lives.
@@ -81,7 +81,7 @@ private:
 	// 衝突図形
 	ColliderShape shape_ = ColliderShape::Sphere;
 
-	Segment segment_;
+	cg2::Segment segment_;
 	float capsuleRadius_ = 0.0f;
 	float hitPower_ = 1.0f;
 

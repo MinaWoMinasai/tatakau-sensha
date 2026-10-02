@@ -2,6 +2,8 @@
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
 
+namespace cg2 {
+
 DebugCamera::DebugCamera(){
     fovY_ = 0.45f;
     aspectRatio_ = (float(WinApp::kClientWidth) / float(WinApp::kClientHeight));
@@ -13,7 +15,7 @@ void DebugCamera::Initialize()
 {
     
 }
-void DebugCamera::Update(const DIMOUSESTATE& mousestate, std::span<const BYTE> key, Vector2 leftStick) {
+void DebugCamera::Update(const DIMOUSESTATE& mousestate, const std::span<const BYTE>& key, Vector2 leftStick) {
     static Vector3 rotation = {};
 
     // マウスで回転
@@ -73,3 +75,5 @@ void DebugCamera::UpdateProjectionMatrices() {
     projectionMatrix_.m[2][1] += projectionJitter_.y;
     viewProjectionMatrix_ = Multiply(viewMatrix_, projectionMatrix_);
 }
+
+} // namespace cg2

@@ -1,12 +1,13 @@
 #pragma once
 #define NOMINMAX
 #include "Calculation.h"
-#include <dinput.h>
 #include "Input.h"
 #include "algorithm"
 #include <DirectXMath.h>
 #include "externals/imgui/imgui.h"
 #include "WinApp.h"
+
+namespace cg2 {
 
 class DebugCamera
 {
@@ -23,7 +24,7 @@ public:
 	/// <summary>
 	/// 更新
 	/// </summary>
-	void Update(const DIMOUSESTATE& mousestate, std::span<const BYTE> key, Vector2 leftStick);
+	void Update(const DIMOUSESTATE& mousestate, const std::span<const BYTE>& key, Vector2 leftStick);
 
 	Matrix4x4 GetViewMatrix() { return viewMatrix_; }
 
@@ -74,3 +75,4 @@ private:
 	Vector3 eye_; // カメラのワールド位置
 };
 
+} // namespace cg2

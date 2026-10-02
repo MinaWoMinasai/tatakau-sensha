@@ -15,8 +15,10 @@ $trailManagerStart = $trailManagerHeader.IndexOf('class TrailManager {', [String
 if ($trailConfigStart -lt 0 -or $trailConfigEnd -lt 0 -or $trailClassStart -lt 0 -or $trailManagerStart -lt 0) {
     throw 'Production trail declaration anchors changed.'
 }
-$trailDeclarations = $trailInstanceHeader.Substring($trailConfigStart, $trailConfigEnd - $trailConfigStart) + "};`n" +
-    $trailInstanceHeader.Substring($trailClassStart) + "`n" + $trailManagerHeader.Substring($trailManagerStart)
+$trailDeclarations = "namespace cg2 {`n" +
+    $trailInstanceHeader.Substring($trailConfigStart, $trailConfigEnd - $trailConfigStart) + "};`n" +
+    $trailInstanceHeader.Substring($trailClassStart).Replace('} // namespace cg2', '') + "`n" +
+    $trailManagerHeader.Substring($trailManagerStart).Replace('} // namespace cg2', '') + "`n} // namespace cg2`n"
 [IO.File]::WriteAllText((Join-Path $trailTestOutput 'trail_production_declarations.inc'), $trailDeclarations, [Text.UTF8Encoding]::new($false))
 $trailMethods = foreach ($trailSource in @('TrailInstance.cpp', 'TrailManager.cpp')) {
     $trailText = Get-Content -LiteralPath (Join-Path $trailTestRoot "project/DirectX/engine/commom/$trailSource") -Raw

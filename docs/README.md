@@ -12,6 +12,7 @@
 | [制作版と提出版](developer-tools-switch.md) | 開発 UI の切り替え、ビルド情報 |
 | [提出用 Release](submission-package.md) | 実行用フォルダー作成と既存検査 |
 | [ソースレビュー単元1](source-review-unit1/README.md) | 1-1〜1-5の判定、修正内容、実装根拠、提出用UML画像 |
+| [ソースレビュー単元2](source-review-unit2/README.md) | 2-1〜2-9の判定、修正、回帰検証、残る採点上の懸念 |
 | [起動処理](startup-performance.md) | 起動計測・キャッシュ |
 | [性能表示](tank-performance-monitor.md) | フレーム計測 |
 | [共通音声テスト](audio-runtime-tests.md) | PCM/WAV・MP3と音声ハンドルの回帰検査 |

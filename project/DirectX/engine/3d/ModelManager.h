@@ -4,6 +4,8 @@
 #include <memory>
 #include <Model.h>
 
+namespace cg2 {
+
 class ModelManager
 {
 
@@ -28,8 +30,6 @@ public:
 
 private:
 
-	static ModelManager* instance;
-
 	ModelManager() = default;
 	~ModelManager() = default;
 	ModelManager(ModelManager&) = delete;
@@ -41,3 +41,4 @@ private:
 	std::unique_ptr<ModelCommon> modelCommon;
 };
 
+} // namespace cg2

@@ -37,15 +37,15 @@ struct TankRewardCardModel {
 
 class TankRewardCard {
 public:
-    void Initialize(SpriteCommon* spriteCommon);
-    void InitializePreview(SrvManager* srvManager);
+    void Initialize(cg2::SpriteCommon* spriteCommon);
+    void InitializePreview(cg2::SrvManager* srvManager);
     void SetPreviewAppearance(const TankRewardPreviewAppearance& appearance);
     void PreparePreviewRender();
     uint64_t GetPreviewRenderCount()const{return preview_?preview_->GetRenderCount():0;}
     uint32_t GetPreviewVertexCount()const{return preview_?preview_->GetGeometryVertexCount():0;}
     // Safe to call each Update; an equal model does not rebuild any text.
     void SetModel(const TankRewardCardModel& model);
-    void Update(const Vector2& center,const Vector2& size,float deltaTime,bool hovered,bool enabled=true);
+    void Update(const cg2::Vector2& center,const cg2::Vector2& size,float deltaTime,bool hovered,bool enabled=true);
     void PlayAcquire();
     void Draw();
     // Optional scene bloom pass. Draw() already includes the small edge glow
@@ -58,30 +58,30 @@ public:
     bool IsAcquireAnimating()const{return acquireTime_>=0.0f&&acquireTime_<0.62f;}
 private:
     static constexpr std::size_t kSolidCapacity=420,kGlowCapacity=80,kLabelCount=8;
-    void EnsureSprite(std::unique_ptr<Sprite>& sprite,const char* texture);
+    void EnsureSprite(std::unique_ptr<cg2::Sprite>& sprite,const char* texture);
     void RefreshText();
     void BuildFrame();
     void BuildDemo();
-    void DrawLane(const tankreward::DemoSnapshot& state,const Vector2& origin,const Vector2& size,bool after);
-    void Rect(Vector2 center,Vector2 size,Vector4 color,float rotation=0.0f);
-    void Line(Vector2 a,Vector2 b,float width,Vector4 color);
-    void Glow(Vector2 center,Vector2 size,Vector4 color,float rotation=0.0f);
-    void Tank(Vector2 center,float radius,float angle,Vector4 color,bool drone=false,int barrels=1);
-    void Label(std::size_t index,Vector2 position,float maxWidth,float maxHeight,float alpha=1.0f);
+    void DrawLane(const tankreward::DemoSnapshot& state,const cg2::Vector2& origin,const cg2::Vector2& size,bool after);
+    void Rect(cg2::Vector2 center,cg2::Vector2 size,const cg2::Vector4& color,float rotation=0.0f);
+    void Line(cg2::Vector2 a,cg2::Vector2 b,float width,const cg2::Vector4& color);
+    void Glow(cg2::Vector2 center,cg2::Vector2 size,const cg2::Vector4& color,float rotation=0.0f);
+    void Tank(cg2::Vector2 center,float radius,float angle,const cg2::Vector4& color,bool drone=false,int barrels=1);
+    void Label(std::size_t index,cg2::Vector2 position,float maxWidth,float maxHeight,float alpha=1.0f);
     tankreward::DemoConfig DemoConfig(bool after)const;
-    SpriteCommon* spriteCommon_=nullptr;
+    cg2::SpriteCommon* spriteCommon_=nullptr;
     TankRewardCardModel model_{};
-    std::array<std::unique_ptr<Sprite>,kSolidCapacity> solids_;
-    std::array<std::unique_ptr<Sprite>,kGlowCapacity> glows_;
-    std::array<std::unique_ptr<TextLabel>,kLabelCount> labels_;
+    std::array<std::unique_ptr<cg2::Sprite>,kSolidCapacity> solids_;
+    std::array<std::unique_ptr<cg2::Sprite>,kGlowCapacity> glows_;
+    std::array<std::unique_ptr<cg2::TextLabel>,kLabelCount> labels_;
     std::unique_ptr<TankRewardPreviewRenderer> preview_;
-    std::unique_ptr<Sprite> previewSprite_;
+    std::unique_ptr<cg2::Sprite> previewSprite_;
     std::size_t solidCount_=0,glowCount_=0;
     std::array<bool,kLabelCount> labelVisible_{};
     tankreward::DemoClock clock_;
     tankreward::DemoSnapshot before_{},after_{};
-    Vector2 center_{},size_{300,410};
-    Vector4 accent_{0.9f,0.96f,1.0f,1.0f};
+    cg2::Vector2 center_{},size_{300,410};
+    cg2::Vector4 accent_{0.9f,0.96f,1.0f,1.0f};
     float hoverBlend_=0.0f,visualTime_=0.0f,acquireTime_=-1.0f,alpha_=1.0f;
     bool dirty_=true,hovered_=false,enabled_=true;
     bool previewDirty_=true;

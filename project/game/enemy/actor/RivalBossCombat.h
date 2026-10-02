@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 // Expedition rival decisions only. Angles and timers are locked here; rendering,
@@ -159,15 +160,10 @@ private:
         static const DashWarningState dashWarning;
         static const DashState dash;
         static const ReloadState reload;
-        switch (phase) {
-        case Phase::Tracking: return tracking;
-        case Phase::Locked: return locked;
-        case Phase::Volley: return volley;
-        case Phase::DashWarning: return dashWarning;
-        case Phase::Dash: return dash;
-        case Phase::Reload: return reload;
-        default: return reposition;
-        }
+        static const std::array<const State*, 7> states{&reposition, &tracking, &locked, &volley, &dashWarning, &dash, &reload};
+        static_assert(states.size() == static_cast<std::size_t>(Phase::Reload) + 1);
+        const auto index = static_cast<std::size_t>(phase);
+        return *states[index < states.size() ? index : 0];
     }
     void Enter(Phase next) {
         phase_ = next; elapsed_ = 0.0f;

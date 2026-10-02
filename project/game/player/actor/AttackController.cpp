@@ -1,26 +1,27 @@
+#include "game/weapon/CombatTypes.h"
 #include "AttackController.h"
 #include <DirectXMath.h>
 #include <algorithm>
 #include <cmath>
 using namespace DirectX;
 
-void AttackController::Fire(const Vector3& origin, const Vector3& baseDir, const AttackParam& param, BulletOwner owner)
+void AttackController::Fire(const cg2::Vector3& origin, const cg2::Vector3& baseDir, const AttackParam& param, BulletOwner owner)
 {
     FireInternal(origin, baseDir, param, owner, false);
 }
 
-void AttackController::FireFromMuzzle(const Vector3& muzzlePosition, const Vector3& baseDir, const AttackParam& param, BulletOwner owner)
+void AttackController::FireFromMuzzle(const cg2::Vector3& muzzlePosition, const cg2::Vector3& baseDir, const AttackParam& param, BulletOwner owner)
 {
     FireInternal(muzzlePosition, baseDir, param, owner, true);
 }
 
-void AttackController::FireInternal(const Vector3& origin, const Vector3& baseDir, const AttackParam& param, BulletOwner owner, bool originIsMuzzle)
+void AttackController::FireInternal(const cg2::Vector3& origin, const cg2::Vector3& baseDir, const AttackParam& param, BulletOwner owner, bool originIsMuzzle)
 {
 
     assert(bulletManager_);
-    const float directionLength = Length(baseDir);
+    const float directionLength = cg2::Length(baseDir);
     if (!std::isfinite(directionLength) || directionLength <= 0.0001f || !std::isfinite(param.bulletSpeed)) return;
-    Vector3 dirNorm = baseDir / directionLength;
+    cg2::Vector3 dirNorm = baseDir / directionLength;
 
     float halfSpread = param.spreadAngleDeg * 0.5f;
 
@@ -28,7 +29,7 @@ void AttackController::FireInternal(const Vector3& origin, const Vector3& baseDi
 
         float angleOffset;
         if (param.randomSpread) {
-            angleOffset = Rand(-halfSpread, halfSpread);
+            angleOffset = cg2::Rand(-halfSpread, halfSpread);
         } else {
             angleOffset = (param.bulletCount <= 1)
                 ? 0.0f
@@ -38,17 +39,17 @@ void AttackController::FireInternal(const Vector3& origin, const Vector3& baseDi
 
         float rad = XMConvertToRadians(angleOffset);
 
-        Vector3 dirRotated;
+        cg2::Vector3 dirRotated;
         dirRotated.x = dirNorm.x * cosf(rad) - dirNorm.y * sinf(rad);
         dirRotated.y = dirNorm.x * sinf(rad) + dirNorm.y * cosf(rad);
         dirRotated.z = dirNorm.z;
 
-        Vector3 velocity = param.bulletSpeed * dirRotated;
+        cg2::Vector3 velocity = param.bulletSpeed * dirRotated;
 
         auto bullet = std::make_unique<Bullet>();
         
         // 敵とプレイヤーで発射位置を少し変える
-        Vector3 bulletOrigin;
+        cg2::Vector3 bulletOrigin;
         if (originIsMuzzle) {
             bulletOrigin = origin;
         } else if (owner == BulletOwner::kPlayer) {

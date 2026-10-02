@@ -1,6 +1,8 @@
 #include "Camera.h"
 #include "WinApp.h"
 
+namespace cg2 {
+
 Camera::Camera() {
 	transform_ = { {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f,0.0f}, {0.0f, 0.0f, -20.0f} };
 	fovY_ = 0.45f;
@@ -31,3 +33,5 @@ void Camera::UpdateProjectionMatrices() {
 	projectionMatrix_.m[2][1] += projectionJitter_.y;
 	viewProjectionMatrix_ = Multiply(viewMatrix_, projectionMatrix_);
 }
+
+} // namespace cg2

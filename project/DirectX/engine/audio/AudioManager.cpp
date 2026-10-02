@@ -1,5 +1,7 @@
 #include "AudioManager.h"
 
+namespace cg2 {
+
 AudioManager* AudioManager::GetInstance() {
 	static AudioManager instance;
 	return &instance;
@@ -236,3 +238,5 @@ void AudioManager::StopBGM() {
         currentBGMName_ = "";
     }
 }
+
+} // namespace cg2

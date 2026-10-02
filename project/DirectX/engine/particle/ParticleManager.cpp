@@ -13,6 +13,8 @@
 #include "externals/imgui/imgui.h"
 #endif
 
+namespace cg2 {
+
 ParticleManager* ParticleManager::GetInstance() {
     static ParticleManager instance;
     return &instance;
@@ -955,7 +957,7 @@ void ParticleManager::EmitNeonMovementEffect(const Vector3& position, const Vect
 	neonTriangleEvents_.push_back(event);
 }
 
-void ParticleManager::Emit(const ::Particle& particle) {
+void ParticleManager::Emit(const cg2::Particle& particle) {
     Particle converted{};
     converted.transform = particle.transform;
     converted.startScaleVector = particle.transform.scale;
@@ -1359,3 +1361,5 @@ void ParticleManager::DrawImGuiEditor() {
     ImGui::End();
 #endif
 }
+
+} // namespace cg2

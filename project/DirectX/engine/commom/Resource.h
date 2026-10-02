@@ -4,6 +4,8 @@
 #include <d3d12.h>
 #include "Texture.h"
 
+namespace cg2 {
+
 class Resource
 {
 
@@ -17,7 +19,7 @@ public:
 
 	void CreateWVP(Texture texture, Microsoft::WRL::ComPtr<ID3D12Device>& device, Microsoft::WRL::ComPtr<ID3D12Resource>& wvpResource, TransformationMatrix*& wvpData);
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreatedirectionalLight(Texture texture, Microsoft::WRL::ComPtr<ID3D12Device>& device);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateDirectionalLight(Texture texture, Microsoft::WRL::ComPtr<ID3D12Device>& device);
 
 private:
 
@@ -25,3 +27,4 @@ private:
 
 };
 
+} // namespace cg2

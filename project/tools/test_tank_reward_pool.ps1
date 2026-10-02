@@ -3,6 +3,9 @@ $ErrorActionPreference = 'Stop'
 $poolRepo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $poolOutput = Join-Path $poolRepo 'generated\tank_reward_pool_tests'
 New-Item -ItemType Directory -Path $poolOutput -Force | Out-Null
+[IO.File]::WriteAllText((Join-Path $poolOutput 'Struct.h'),
+    '#pragma once' + "`n" + 'namespace cg2 { struct Vector2 {float x,y;}; struct Vector4 {float x,y,z,w;}; }',
+    [Text.UTF8Encoding]::new($false))
 $poolSource = [IO.File]::ReadAllText((Join-Path $poolRepo 'project\game\ui\TankRewardCard.cpp'))
 $poolStart = $poolSource.IndexOf('void TankRewardCard::BuildFrame()')
 $poolEnd = $poolSource.IndexOf('void TankRewardCard::Tank(', $poolStart)
@@ -15,10 +18,9 @@ $poolHarness = @'
 #include <cassert>
 #include <cmath>
 #include <iostream>
-struct Vector2 {float x,y;};
-struct Vector4 {float x,y,z,w;};
+#include "ColorMath.h"
+using namespace cg2;
 constexpr float kPi=3.14159265359f;
-Vector4 Tint(Vector4 c,float alpha) {c.w*=alpha;return c;}
 Vector4 RarityColor(int,float=0) {return {1,1,1,1};}
 struct TankRewardCard {
     struct Model {bool styleChoice=false;int rarity=0;} model_;
@@ -58,16 +60,21 @@ $poolBatch = @'
 @echo off
 call "%POOL_TEST_DEV_CMD%" -no_logo -arch=x64 -host_arch=x64
 if errorlevel 1 exit /b %errorlevel%
-cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG pool_tests.cpp /Fe:pool_tests.exe
+cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /I"." /I"%POOL_TEST_UI_DIR%" pool_tests.cpp /Fe:pool_tests.exe
 if errorlevel 1 exit /b %errorlevel%
 pool_tests.exe
 exit /b %errorlevel%
 '@
 [IO.File]::WriteAllText((Join-Path $poolOutput 'build.cmd'), $poolBatch, [Text.Encoding]::ASCII)
 $poolPrevious = [Environment]::GetEnvironmentVariable('POOL_TEST_DEV_CMD','Process')
+$poolPreviousUi = [Environment]::GetEnvironmentVariable('POOL_TEST_UI_DIR','Process')
 [Environment]::SetEnvironmentVariable('POOL_TEST_DEV_CMD',$poolDevCmd,'Process')
+[Environment]::SetEnvironmentVariable('POOL_TEST_UI_DIR',(Join-Path $poolRepo 'project/game/ui'),'Process')
 try {
     Push-Location -LiteralPath $poolOutput
     try { & $env:ComSpec /d /c build.cmd; if ($LASTEXITCODE -ne 0) { throw "Card pool tests failed: $LASTEXITCODE" } }
     finally { Pop-Location }
-} finally { [Environment]::SetEnvironmentVariable('POOL_TEST_DEV_CMD',$poolPrevious,'Process') }
+} finally {
+    [Environment]::SetEnvironmentVariable('POOL_TEST_DEV_CMD',$poolPrevious,'Process')
+    [Environment]::SetEnvironmentVariable('POOL_TEST_UI_DIR',$poolPreviousUi,'Process')
+}

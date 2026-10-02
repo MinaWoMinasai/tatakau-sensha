@@ -24,10 +24,10 @@ function Read-ProjectileMethod([string]$path, [string]$signature) {
     }
     throw "Unclosed production method: $signature"
 }
-$projectileStruct = Read-ProjectileSource 'project/DirectX/engine/struct/Struct.h'
+$projectileStruct = Read-ProjectileSource 'project/game/weapon/CombatTypes.h'
 $projectileTypeStart = $projectileStruct.IndexOf('struct AttackParam {', [StringComparison]::Ordinal)
-$projectileTypeEnd = $projectileStruct.IndexOf('struct CollisionResult {', $projectileTypeStart, [StringComparison]::Ordinal)
-if ($projectileTypeStart -lt 0 -or $projectileTypeEnd -lt 0) { throw 'Projectile type anchors changed.' }
+$projectileTypeEnd = $projectileStruct.Length
+if ($projectileTypeStart -lt 0) { throw 'Projectile type anchors changed.' }
 $projectileTypes = $projectileStruct.Substring($projectileTypeStart, $projectileTypeEnd - $projectileTypeStart) + "`n" +
     (Remove-ProjectileIncludes (Read-ProjectileSource 'project/game/collision/CollisionConfig.h')) + "`n" +
     (Remove-ProjectileIncludes (Read-ProjectileSource 'project/game/collision/Collider.h'))
@@ -52,7 +52,7 @@ foreach ($signature in @('bool Player::SetExpeditionCombatStyle(', 'int Player::
     'void Player::EnsureExpeditionDrones(', 'void Player::ConfigureRunDrone(', 'float Player::GetRunFireIntervalScale(',
     'std::vector<RunEvolutionChoice> Player::GetRunAuthoredEvolutionChoices(', 'bool Player::ChooseRunAuthoredClass(',
     'void Player::ApplyCombatStyleBalance(', 'float Player::GetRunBaseReloadFrames(', 'void Player::RecalculateStatsFromBase(', 'void Player::SetRunModifiers(',
-    'void Player::AttackRailCannon(', 'void Player::UpdateSpecialCombat(', 'Vector3 Player::GetRailChargeMuzzle(', 'std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents(')) {
+    'void Player::AttackRailCannon(', 'void Player::UpdateSpecialCombat(', 'cg2::Vector3 Player::GetRailChargeMuzzle(', 'std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents(')) {
     $projectileMethods += Read-ProjectileMethod 'project/game/player/actor/Player.cpp' $signature
 }
 foreach ($signature in @('void PlayerDrone::ConfigureRunAttack(', 'void PlayerDrone::Attack(')) {

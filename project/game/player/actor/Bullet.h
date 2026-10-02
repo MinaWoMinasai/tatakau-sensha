@@ -1,4 +1,5 @@
 #pragma once
+#include "game/weapon/CombatTypes.h"
 #include <Windows.h>
 #include <algorithm>
 #include <vector>
@@ -28,13 +29,13 @@ struct BulletTrailSettings {
 	float trailTailAlpha = 0.0f;
 	float playerTrailLifetimeScale = 1.0f;
 	float playerTrailAlphaScale = 1.0f;
-	Vector4 playerObjectColor = { 1.0f, 0.78f, 0.28f, 1.0f };
-	Vector4 enemyObjectColor = { 1.0f, 0.22f, 0.38f, 1.0f };
-	Vector4 reflectableObjectColor = { 1.0f, 1.0f, 0.0f, 1.0f };
-	Vector4 startColor = { 1.0f, 0.98f, 0.78f, 1.0f };
-	Vector4 playerEndColor = { 1.0f, 0.55f, 0.20f, 0.0f };
-	Vector4 enemyEndColor = { 1.0f, 0.20f, 0.36f, 0.0f };
-	Vector4 reflectableEndColor = { 1.0f, 1.0f, 0.22f, 0.0f };
+	cg2::Vector4 playerObjectColor = { 1.0f, 0.78f, 0.28f, 1.0f };
+	cg2::Vector4 enemyObjectColor = { 1.0f, 0.22f, 0.38f, 1.0f };
+	cg2::Vector4 reflectableObjectColor = { 1.0f, 1.0f, 0.0f, 1.0f };
+	cg2::Vector4 startColor = { 1.0f, 0.98f, 0.78f, 1.0f };
+	cg2::Vector4 playerEndColor = { 1.0f, 0.55f, 0.20f, 0.0f };
+	cg2::Vector4 enemyEndColor = { 1.0f, 0.20f, 0.36f, 0.0f };
+	cg2::Vector4 reflectableEndColor = { 1.0f, 1.0f, 0.22f, 0.0f };
 };
 
 class Bullet : public Collider {
@@ -49,29 +50,29 @@ public:
 	Player* GetSourcePlayer() const {return sourcePlayer_;}
 	bool GetIsReturning() const {return returnFlight_.returning;}
 	bool IsBoomerang() const {return shooter_.boomerang;}
-	void SetReturnTarget(const Vector3& target) {returnTarget_=target;}
+	void SetReturnTarget(const cg2::Vector3& target) {returnTarget_=target;}
 	void SetArmorReflected(bool value) {armorReflected_=value;}
 	bool WasArmorReflected() const {return armorReflected_;}
 	bool IsBurstChild() const {return burstChild_;}
 	void SetBurstChild(bool value) {burstChild_=value;}
 	void ConfigureVisualScale(float size,float trail) {radius_=.5f*(std::clamp)(size,.5f,2.0f);visualTrailScale_=(std::clamp)(trail,.5f,2.0f);}
-	struct SpecialImpact { SpecialKind kind=SpecialKind::None;Vector3 position{},direction{};bool bulletCut=false; };
+	struct SpecialImpact { SpecialKind kind=SpecialKind::None;cg2::Vector3 position{},direction{};bool bulletCut=false; };
 	std::vector<SpecialImpact> ConsumeSpecialImpacts() {auto events=std::move(specialImpacts_);specialImpacts_.clear();return events;}
 	void ConfigureSpecial(SpecialKind kind, float radius, float lifetime);
 	SpecialKind GetSpecialKind() const { return specialKind_; }
-	const Vector3& GetPreviousWorldPosition() const { return previousPosition_; }
+	const cg2::Vector3& GetPreviousWorldPosition() const { return previousPosition_; }
 	struct GrowthEvents {
 		uint32_t wallBounces = 0;
 		uint32_t actorPierces = 0;
 	};
 
-	void Initialize(const Vector3& position, const Vector3& velocity, const uint32_t& damage, BulletOwner owner,
+	void Initialize(const cg2::Vector3& position, const cg2::Vector3& velocity, uint32_t damage, BulletOwner owner,
 		bool reflectable, float bulletHp = 1.0f, float bulletPenetration = 1.0f);
 
 	void Update(float deltaTime);
 
 	void Draw();
-	void AttachTrail(TrailManager* trailManager, BulletTrailSettings* trailSettings);
+	void AttachTrail(cg2::TrailManager* trailManager, BulletTrailSettings* trailSettings);
 	void ReleaseTrail();
 
 	bool IsDead() const { return isDead_; }
@@ -82,18 +83,18 @@ public:
 	void OnCollision(Collider* other) override;
 
 	// ワールド座標を取得
-	Vector3 GetWorldPosition() const override;
+	cg2::Vector3 GetWorldPosition() const override;
 
-	Vector3 GetMove() const { return velocity_; }
+	cg2::Vector3 GetMove() const { return velocity_; }
 
 	// セッター
-	void SetWorldPosition(const Vector3& pos) {
+	void SetWorldPosition(const cg2::Vector3& pos) {
 		worldTransform_.translate = pos;
 		object_->SetTransform(worldTransform_);
 		object_->Update();
 	}
 
-	void SetVelocity(const Vector3& v) { velocity_ = v; }
+	void SetVelocity(const cg2::Vector3& v) { velocity_ = v; }
 
 	float GetRadius() const override { return radius_; }
 
@@ -108,7 +109,7 @@ public:
 		float impactSplitDamageScale = 0.55f);
 	bool UsesRunProjectileRules() const { return usesRunProjectileRules_; }
 	bool CanHitActor(const Collider* actor) const;
-	void OnWallImpact(const Vector3& safePosition, const Vector3& normal);
+	void OnWallImpact(const cg2::Vector3& safePosition, const cg2::Vector3& normal);
 	// Drain only outside collision iteration. Children cannot split again and
 	// share the parent's expiry time and actor hit history.
 	void AppendImpactChildren(std::vector<std::unique_ptr<Bullet>>& children, size_t availableSlots);
@@ -122,26 +123,26 @@ public:
 private:
 	void ApplyVisualSettings();
 	void UpdateTrail(float deltaTime);
-	TrailConfig MakeTrailConfig() const;
-	Vector4 GetBulletColor() const;
-	void QueueImpactSplit(const Vector3& direction);
+	cg2::TrailConfig MakeTrailConfig() const;
+	cg2::Vector4 GetBulletColor() const;
+	void QueueImpactSplit(const cg2::Vector3& direction);
 	void BeginReturn();
 	ShooterAbilities shooter_{};
 	tankshooter::ReturnFlight returnFlight_{};
-	Vector3 returnTarget_{};
+	cg2::Vector3 returnTarget_{};
 	Player* sourcePlayer_=nullptr;
 	int sourceDroneIndex_=-1;
 	bool armorReflected_=false,burstChild_=false;
 	float visualTrailScale_=1;
 
-	std::unique_ptr<Object3d> object_;
+	std::unique_ptr<cg2::Object3d> object_;
 
 	// ワールドトランスフォーム
-	Transform worldTransform_;
+	cg2::Transform worldTransform_;
 
 	// 速度
-	Vector3 velocity_;
-	Vector3 previousPosition_{};
+	cg2::Vector3 velocity_;
+	cg2::Vector3 previousPosition_{};
 	SpecialKind specialKind_ = SpecialKind::None;
 	std::vector<SpecialImpact> specialImpacts_;
 
@@ -170,11 +171,11 @@ private:
 	int impactSplitCount_ = 0;
 	int pendingImpactSplitCount_ = 0;
 	float impactSplitDamageScale_ = 0.55f;
-	Vector3 pendingImpactDirection_{};
-	Vector3 pendingImpactPosition_{};
-	Vector3 pendingImpactWallNormal_{};
+	cg2::Vector3 pendingImpactDirection_{};
+	cg2::Vector3 pendingImpactPosition_{};
+	cg2::Vector3 pendingImpactWallNormal_{};
 	std::vector<uint64_t> hitActorIds_;
 	GrowthEvents growthEvents_{};
-	TrailInstance* trail_ = nullptr;
+	cg2::TrailInstance* trail_ = nullptr;
 	BulletTrailSettings* trailSettings_ = nullptr;
 };
