@@ -7395,10 +7395,11 @@ void Player::DrawPlayerClassEditor()
 		ImGui::SameLine();
 		const bool isLegacyId = config->id == ClassTypeToString(config->type);
 		if (!isLegacyId && ImGui::Button("削除")) {
-			const bool deletingCurrent = currentClassId_ == config->id;
-			classConfigs_.erase(config->id);
-			editorBaselineConfigs.erase(config->id);
-			editorBaselineLabels.erase(config->id);
+			const std::string deletingId = config->id;
+			const bool deletingCurrent = currentClassId_ == deletingId;
+			classConfigs_.erase(deletingId);
+			editorBaselineConfigs.erase(deletingId);
+			editorBaselineLabels.erase(deletingId);
 			classOrder_.erase(classOrder_.begin() + editorSelectedClassIndex_);
 			editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classOrder_.size()) - 1);
 			if (deletingCurrent) {
@@ -7416,6 +7417,11 @@ void Player::DrawPlayerClassEditor()
 		ImGui::SameLine();
 		if (ImGui::Button("JSON再読み込み")) {
 			LoadPlayerClassConfigs();
+			// Loading replaces the catalog. Keep the index-based editor selection,
+			// but acquire its config again before continuing this frame.
+			editorSelectedClassIndex_ = (std::clamp)(editorSelectedClassIndex_, 0, static_cast<int>(classOrder_.size()) - 1);
+			selectedId = classOrder_[editorSelectedClassIndex_];
+			config = GetMutableClassConfig(selectedId);
 			refreshEditorBaselines();
 			rebuildBarrels = true;
 			hasUnsavedEditorChanges = false;
