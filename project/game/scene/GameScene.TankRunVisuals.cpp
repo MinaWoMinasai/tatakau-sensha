@@ -62,10 +62,11 @@ void GameScene::InitializeTankRunVisuals() {
     if(expeditionRun_&&bulletManager_) {
         // Keep emitter bloom and enemy shots bright; only shorten/narrow the
         // player's overlapping trails so telegraphs remain visible in a volley.
-        auto& trail=bulletManager_->GetTrailSettings();
+        auto trail=bulletManager_->GetTrailSettings();
         trail.playerHalfWidth=(std::min)(trail.playerHalfWidth,0.17f);
         trail.playerTrailLifetimeScale=0.55f;
         trail.playerTrailAlphaScale=0.68f;
+        bulletManager_->SetTrailSettings(trail);
     }
 
     gameTextOutlineEnabled_ = false;

@@ -156,6 +156,24 @@ int main() {
     assert(!magazine.IsReloading()&&magazine.GetAmmo()==1);
 
     ExpEnemyCombatCycle cycle;
+    // Shared immutable states must not share timers between actors or copies.
+    ExpEnemyCombatCycle first;
+    ExpEnemyCombatCycle second;
+    first.Reset({}, 0.0f);
+    second.Reset({}, 10.0f);
+    assert(!first.Advance(0.01f, true));
+    assert(first.GetPhase() == Phase::Tracking);
+    assert(second.GetPhase() == Phase::Cooldown);
+    auto copied = first;
+    assert(!copied.Advance(2.0f, true));
+    assert(copied.GetPhase() == Phase::Locked);
+    assert(first.GetPhase() == Phase::Tracking);
+    ExpEnemyMagazineCycle anotherMagazine;
+    anotherMagazine.Reset(magTiming, 10.0f);
+    auto copiedMagazine = anotherMagazine;
+    assert(!copiedMagazine.Advance(11.0f, true));
+    assert(copiedMagazine.GetPhase() == Phase::Tracking);
+    assert(anotherMagazine.GetPhase() == Phase::Cooldown);
     const ExpEnemyCombatCycle::Timing timing{ 0.60f, 0.30f, 0.42f, 1.10f, 0.55f };
     cycle.Reset(timing, 0.10f);
     assert(!cycle.Advance(0.11f, false));

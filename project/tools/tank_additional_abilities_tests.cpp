@@ -8,14 +8,14 @@ int main() {
     using namespace tankspecial;
     DroneMission charge;
     assert(charge.Start(false));assert(!charge.Start(true));
-    charge.Step(.29f);assert(charge.phase==DronePhase::Warning);
-    charge.Step(.011f);assert(charge.phase==DronePhase::Charging);
-    charge.Arrive();assert(charge.impact&&charge.phase==DronePhase::Returning);
-    charge.Step(.01f,true);assert(charge.phase==DronePhase::Escort);
+    charge.Step(.29f);assert(charge.GetPhase()==DronePhase::Warning);
+    charge.Step(.011f);assert(charge.GetPhase()==DronePhase::Charging);
+    charge.Arrive();assert(charge.HasImpact()&&charge.GetPhase()==DronePhase::Returning);
+    charge.Step(.01f,true);assert(charge.GetPhase()==DronePhase::Escort);
     DroneMission blocked;blocked.Start(false);blocked.Step(.31f);blocked.Step(1.01f);
-    assert(!blocked.impact&&blocked.phase==DronePhase::Returning);
-    DroneMission bomb;bomb.Start(true);bomb.Step(.64f);assert(bomb.phase==DronePhase::Warning);
-    bomb.Step(.011f);bomb.Arrive();assert(bomb.impact&&!bomb.Available());
+    assert(!blocked.HasImpact()&&blocked.GetPhase()==DronePhase::Returning);
+    DroneMission bomb;bomb.Start(true);bomb.Step(.64f);assert(bomb.GetPhase()==DronePhase::Warning);
+    bomb.Step(.011f);bomb.Arrive();assert(bomb.HasImpact()&&!bomb.Available());
     bomb.Step(5.49f);assert(!bomb.Available());assert(bomb.Step(.011f));assert(bomb.Available());
     PainterLock lock;
     for(int i=0;i<8;++i)assert(!lock.Hit(0)); // One drone cannot lock a target alone.

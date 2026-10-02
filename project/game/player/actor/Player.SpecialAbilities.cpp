@@ -57,11 +57,11 @@ std::vector<Player::DroneAbilityVisual> Player::GetDroneAbilityVisuals() const
     for(const auto& drone:drones_) {
         if(!drone||drone->IsDead())continue;
         const auto& mission=drone->GetRunMission();
-        if(mission.phase==tankspecial::DronePhase::Escort)continue;
-        const float duration=mission.phase==tankspecial::DronePhase::Warning?(mission.bomb?.65f:.30f):
-            mission.phase==tankspecial::DronePhase::Rebuilding?5.5f:1.0f;
-        result.push_back({drone->GetWorldPosition(),drone->GetRunMissionTarget(),mission.phase,
-            (std::clamp)(mission.elapsed/duration,0.0f,1.0f),mission.bomb});
+        if(mission.GetPhase()==tankspecial::DronePhase::Escort)continue;
+        const float duration=mission.GetPhase()==tankspecial::DronePhase::Warning?(mission.IsBomb()?.65f:.30f):
+            mission.GetPhase()==tankspecial::DronePhase::Rebuilding?5.5f:1.0f;
+        result.push_back({drone->GetWorldPosition(),drone->GetRunMissionTarget(),mission.GetPhase(),
+            (std::clamp)(mission.GetElapsed()/duration,0.0f,1.0f),mission.IsBomb()});
     }
     return result;
 }
@@ -177,7 +177,7 @@ void Player::UpdateAdditionalAbilities(Stage& stage,BulletManager* bullets,Enemy
             auto& drone=drones_[i];if(!drone||drone->IsDead())continue;
             if(drone->ConsumeRunRebuilt()){++specialCombatStats_.droneRebuilds;emit(SpecialEventKind::DroneRebuild,drone->GetWorldPosition(),{},1);}
             if(!drone->ConsumeRunMissionImpact())continue;
-            const bool bomb=drone->GetRunMission().bomb;
+            const bool bomb=drone->GetRunMission().IsBomb();
             const auto origin=drone->GetWorldPosition();const float radius=bomb?4.5f:2.2f;
             const float scale=bomb?8.0f*TankEffectPower(runModifiers_,36):3.0f*TankEffectPower(runModifiers_,35);
             if(bomb){++specialCombatStats_.droneBombs;emit(SpecialEventKind::DroneBomb,origin,{},radius);}

@@ -27,15 +27,15 @@ public:
 
 	Matrix4x4 GetViewMatrix() { return viewMatrix_; }
 
-	float& GetDistance() { return distance; }
+	float GetDistance() const { return distance; }
 
 	Vector3 GetEyePosition() { return eye_; }
 
-	Matrix4x4& GetProjectionMatrix() { return projectionMatrix_; }
-	Matrix4x4& GetViewProjectionMatrix() { return viewProjectionMatrix_; }
-	Matrix4x4& GetUnjitteredProjectionMatrix() { return unjitteredProjectionMatrix_; }
-	Matrix4x4& GetUnjitteredViewProjectionMatrix() { return unjitteredViewProjectionMatrix_; }
-	Vector2& GetProjectionJitter() { return projectionJitter_; }
+	const Matrix4x4& GetProjectionMatrix() const { return projectionMatrix_; }
+	const Matrix4x4& GetViewProjectionMatrix() const { return viewProjectionMatrix_; }
+	const Matrix4x4& GetUnjitteredProjectionMatrix() const { return unjitteredProjectionMatrix_; }
+	const Matrix4x4& GetUnjitteredViewProjectionMatrix() const { return unjitteredViewProjectionMatrix_; }
+	const Vector2& GetProjectionJitter() const { return projectionJitter_; }
 	float GetNearClip() const { return nearClip_; }
 	float GetFarClip() const { return farClip_; }
 	void SetNearClip(float nearClip) { nearClip_ = nearClip; }

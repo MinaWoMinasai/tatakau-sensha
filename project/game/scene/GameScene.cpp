@@ -5527,7 +5527,9 @@ void GameScene::ApplyGameVisualConfig(const nlohmann::json& configJson)
 		if (gridJson.contains("triangleColor")) neonTriangleDemoColor_ = ReadJsonVector4(gridJson["triangleColor"], neonTriangleDemoColor_);
 	}
 	if (bulletManager_ && configJson.contains("bulletTrail")) {
-		ReadBulletTrailSettingsJson(configJson["bulletTrail"], bulletManager_->GetTrailSettings());
+		auto trail = bulletManager_->GetTrailSettings();
+		ReadBulletTrailSettingsJson(configJson["bulletTrail"], trail);
+		bulletManager_->SetTrailSettings(trail);
 	}
 }
 
@@ -5834,7 +5836,7 @@ void GameScene::DrawGameSceneDebugImGui()
 			}
 			if (ImGui::CollapsingHeader("弾の軌跡", ImGuiTreeNodeFlags_DefaultOpen)) {
 				ImGui::Checkbox("弾軌跡にポストエフェクト", &enableBulletTrailPostEffect_);
-				BulletTrailSettings& bulletTrail = bulletManager_->GetTrailSettings();
+				BulletTrailSettings bulletTrail = bulletManager_->GetTrailSettings();
 				ImGui::DragFloat("プレイヤー軌跡半幅", &bulletTrail.playerHalfWidth, 0.01f, 0.01f, 1.5f);
 				ImGui::DragFloat("敵軌跡半幅", &bulletTrail.enemyHalfWidth, 0.01f, 0.01f, 1.5f);
 				ImGui::DragFloat("軌跡の寿命", &bulletTrail.lifetime, 0.01f, 0.02f, 1.5f);
@@ -5859,6 +5861,7 @@ void GameScene::DrawGameSceneDebugImGui()
 					ImGui::ColorEdit4("敵軌跡終了色", &bulletTrail.enemyEndColor.x);
 					ImGui::ColorEdit4("反射弾軌跡終了色", &bulletTrail.reflectableEndColor.x);
 				}
+				bulletManager_->SetTrailSettings(bulletTrail);
 			}
 			ImGui::EndTabItem();
 		}
@@ -5969,11 +5972,15 @@ void GameScene::DrawGameSceneDebugImGui()
 			ImGui::Separator();
 #endif
 			if (shotGide) {
-				ImGui::SliderFloat2("射撃ガイド位置", &shotGide->GetPosition().x, 0.0f, 3000.0f, "%.1f");
+				Vector2 guidePosition = shotGide->GetPosition();
+				if (ImGui::SliderFloat2("射撃ガイド位置", &guidePosition.x, 0.0f, 3000.0f, "%.1f"))
+					shotGide->SetPosition(guidePosition);
 			}
 			if (ball_) {
-				ImGui::DragFloat3("デバッグ球スケール", &ball_->GetScale().x);
-				ImGui::ColorEdit4("デバッグ球色", &ball_->GetColor().x);
+				Vector3 ballScale = ball_->GetScale();
+				Vector4 ballColor = ball_->GetColor();
+				if (ImGui::DragFloat3("デバッグ球スケール", &ballScale.x)) ball_->SetScale(ballScale);
+				if (ImGui::ColorEdit4("デバッグ球色", &ballColor.x)) ball_->SetColor(ballColor);
 			}
 			ImGui::EndTabItem();
 		}

@@ -27,9 +27,9 @@ public:
 
 	void SetModel(const std::string& filePath);
 
-	Vector3& GetScale() { return transform_.scale; }
-	Vector3& GetRotate() { return transform_.rotate; }
-	Vector3& GetTranslate() { return transform_.translate; }
+	const Vector3& GetScale() const { return transform_.scale; }
+	const Vector3& GetRotate() const { return transform_.rotate; }
+	const Vector3& GetTranslate() const { return transform_.translate; }
 
 	void SetTransform(const Transform& transform) { transform_ = transform; useQuaternionRotate_ = false; }
 
@@ -42,7 +42,7 @@ public:
 	void SetCamera(Camera* camera) { camera_ = camera; }
 	void SetDebugCamera(DebugCamera* debugCamera) { debugCamera_ = debugCamera; }
 
-	Vector4& GetColor() {
+	const Vector4& GetColor() const {
 		return materialData_->color;
 	}
 
