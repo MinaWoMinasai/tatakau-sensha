@@ -82,24 +82,8 @@ public:
         if (!std::isfinite(seconds) || seconds <= 0.0f) return false;
         remaining_ = (std::max)(0.0f, remaining_ - seconds);
         if (remaining_ > 0.0f) return false;
-        switch (phase_) {
-        case ExpEnemyCombatPhase::Cooldown:
-            if (inAttackRange) Enter(ExpEnemyCombatPhase::Locked, kWarningSeconds);
-            break;
-        case ExpEnemyCombatPhase::Locked:
-            hitConsumed_ = false;
-            ++swingCount_;
-            Enter(ExpEnemyCombatPhase::Active, kActiveSeconds);
-            return true;
-        case ExpEnemyCombatPhase::Active:
-            Enter(ExpEnemyCombatPhase::Recovery, recoverySeconds_);
-            break;
-        case ExpEnemyCombatPhase::Recovery:
-            Enter(ExpEnemyCombatPhase::Cooldown, 0.15f);
-            break;
-        default: break;
-        }
-        return false;
+        const State& state = GetState(phase_);
+        return state.Update(*this, inAttackRange);
     }
     bool TryHit(float facingX, float facingY, float offsetX, float offsetY, float targetRadius, bool visible) {
         if (phase_ != ExpEnemyCombatPhase::Active || hitConsumed_ || !visible ||
@@ -118,6 +102,53 @@ public:
         (std::clamp)(remaining_ / recoverySeconds_, 0.0f, 1.0f) : 0.0f; }
     uint32_t SwingCount() const { return swingCount_; }
 private:
+    class State {
+    public:
+        virtual ~State() = default;
+        virtual bool Update(BladeCycle& cycle, bool inRange) const = 0;
+    };
+    class CooldownState final : public State {
+    public:
+        bool Update(BladeCycle& cycle, bool inRange) const override {
+            if (inRange) cycle.Enter(ExpEnemyCombatPhase::Locked, kWarningSeconds);
+            return false;
+        }
+    };
+    class LockedState final : public State {
+    public:
+        bool Update(BladeCycle& cycle, bool) const override {
+            cycle.hitConsumed_ = false;
+            ++cycle.swingCount_;
+            cycle.Enter(ExpEnemyCombatPhase::Active, kActiveSeconds);
+            return true;
+        }
+    };
+    class ActiveState final : public State {
+    public:
+        bool Update(BladeCycle& cycle, bool) const override {
+            cycle.Enter(ExpEnemyCombatPhase::Recovery, cycle.recoverySeconds_);
+            return false;
+        }
+    };
+    class RecoveryState final : public State {
+    public:
+        bool Update(BladeCycle& cycle, bool) const override {
+            cycle.Enter(ExpEnemyCombatPhase::Cooldown, 0.15f);
+            return false;
+        }
+    };
+    static const State& GetState(ExpEnemyCombatPhase phase) {
+        static const CooldownState cooldown;
+        static const LockedState locked;
+        static const ActiveState active;
+        static const RecoveryState recovery;
+        switch (phase) {
+        case ExpEnemyCombatPhase::Locked: return locked;
+        case ExpEnemyCombatPhase::Active: return active;
+        case ExpEnemyCombatPhase::Recovery: return recovery;
+        default: return cooldown;
+        }
+    }
     void Enter(ExpEnemyCombatPhase phase, float seconds) { phase_ = phase; remaining_ = seconds; }
     ExpEnemyCombatPhase phase_ = ExpEnemyCombatPhase::Cooldown;
     float remaining_ = 0.35f;

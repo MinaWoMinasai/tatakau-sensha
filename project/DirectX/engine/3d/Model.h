@@ -25,11 +25,10 @@ public:
 	static ModelData CreateCylinder(float radius, float height, uint32_t segments = 64);
 	static ModelData CreateUvSphere(float radius, uint32_t latitudeSegments, uint32_t longitudeSegments);
 
-	ModelData& GetModelData() { return modelData_; }
 	const ModelData& GetModelData() const { return modelData_; }
-	Microsoft::WRL::ComPtr<ID3D12Resource>& GetVertexResource() { return vertexResource; }
-	D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() { return vertexBufferView; }
-	D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() { return indexBufferView; }
+	const Microsoft::WRL::ComPtr<ID3D12Resource>& GetVertexResource() const { return vertexResource; }
+	const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() const { return vertexBufferView; }
+	const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() const { return indexBufferView; }
 
 private:
 	void CreateGpuResources();

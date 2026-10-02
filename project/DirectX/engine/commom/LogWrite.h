@@ -23,7 +23,7 @@ public:
 	/// </summary>
 	void Initialize();
 
-	std::ofstream& GetLogStream() { return logStream_; };
+	const std::ofstream& GetLogStream() const { return logStream_; };
 
 private:
 	std::ofstream logStream_;

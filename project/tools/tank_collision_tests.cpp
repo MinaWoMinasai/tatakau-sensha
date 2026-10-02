@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <vector>
 #include <fstream>
@@ -20,6 +21,7 @@
 
 struct Vector3 { float x=0,y=0,z=0; Vector3& operator+=(Vector3 b) { x+=b.x;y+=b.y;z+=b.z;return *this; } };
 struct Vector4 { float x=0,y=0,z=0,w=0; };
+#include "bullet_trail_settings.inc"
 Vector3 operator-(Vector3 a,Vector3 b) { return {a.x-b.x,a.y-b.y,a.z-b.z}; }
 Vector3 operator+(Vector3 a,Vector3 b) { return {a.x+b.x,a.y+b.y,a.z+b.z}; }
 Vector3 operator*(Vector3 a,float b) { return {a.x*b,a.y*b,a.z*b}; }
@@ -224,6 +226,8 @@ struct TestTrailManager {
 };
 struct BulletManager {
     void ClearAll();
+    void SetTrailSettings(const BulletTrailSettings&);
+    BulletTrailSettings trailSettings_{};
     std::vector<std::unique_ptr<Bullet>> bullets_;
 	std::vector<Bullet::SpecialImpact> specialImpacts_;
     std::unique_ptr<TestTrailManager> trailManager_;
@@ -252,6 +256,25 @@ struct Stage {
 #include "tank_collision_methods.inc"
 
 int main() {
+    BulletManager configuredTrails;
+    BulletTrailSettings invalidTrails;
+    invalidTrails.lifetime = -1;
+    invalidTrails.maxPoints = 0;
+    invalidTrails.interpolationSteps = 1000000;
+    invalidTrails.playerHalfWidth = std::numeric_limits<float>::quiet_NaN();
+    invalidTrails.trailHeadAlpha = 10;
+    invalidTrails.playerTrailAlphaScale = -3;
+    configuredTrails.SetTrailSettings(invalidTrails);
+    const auto& safeTrails = configuredTrails.trailSettings_;
+    assert(safeTrails.lifetime == 0.02f && safeTrails.maxPoints == 2);
+    assert(safeTrails.interpolationSteps == 12 && safeTrails.playerHalfWidth == BulletTrailSettings{}.playerHalfWidth);
+    assert(safeTrails.trailHeadAlpha == 1 && safeTrails.playerTrailAlphaScale == 0);
+    BulletTrailSettings validTrails;
+    validTrails.playerTrailLifetimeScale = 0.55f;
+    validTrails.playerTrailAlphaScale = 0.68f;
+    configuredTrails.SetTrailSettings(validTrails);
+    assert(configuredTrails.trailSettings_.playerTrailLifetimeScale == 0.55f);
+    assert(configuredTrails.trailSettings_.playerTrailAlphaScale == 0.68f);
     CollisionManager collisions;
     for(bool reverse : {false,true}) {
         Player tank; tank.attribute=kCollisionAttributePlayer;

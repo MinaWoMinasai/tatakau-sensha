@@ -167,7 +167,9 @@ void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) 
 
 	hpBarFill_ = std::make_unique<Object3d>();
 	hpBarFill_->Initialize();
-	hpBarFill_->GetScale().y = 1.2f;
+	Vector3 hpBarFillScale = hpBarFill_->GetScale();
+	hpBarFillScale.y = 1.2f;
+	hpBarFill_->SetScale(hpBarFillScale);
 	hpBarFill_->SetModel("playerHPBarGreenLong.obj");
 
 	hpBarFillTransform_ = InitWorldTransform();
@@ -178,7 +180,9 @@ void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) 
 
 	hpBarBG_ = std::make_unique<Object3d>();
 	hpBarBG_->Initialize();
-	hpBarBG_->GetScale().y = 1.2f;
+	Vector3 hpBarBackgroundScale = hpBarBG_->GetScale();
+	hpBarBackgroundScale.y = 1.2f;
+	hpBarBG_->SetScale(hpBarBackgroundScale);
 
 	hpBarBG_->SetModel("playerHPBarLong.obj");
 

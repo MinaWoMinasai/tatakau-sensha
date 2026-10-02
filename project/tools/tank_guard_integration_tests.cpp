@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -146,8 +147,36 @@ public:
 #include "guard_manager_methods.inc"
 
 int main() {
+    // Base-pointer ownership must destroy the complete actor, and invalid
+    // collider/spawn settings must not enter the production state.
+    struct LifetimeProbe final : Collider {
+        explicit LifetimeProbe(bool& destroyed) : destroyed_(destroyed) {}
+        ~LifetimeProbe() override { destroyed_ = true; }
+        Vector3 GetWorldPosition() const override { return {}; }
+        void OnCollision(Collider*) override {}
+        bool& destroyed_;
+    };
+    bool destroyed = false;
+    {
+        std::unique_ptr<Collider> probe = std::make_unique<LifetimeProbe>(destroyed);
+        probe->SetRadius(2.0f);
+        probe->SetRadius(-1.0f);
+        probe->SetRadius(std::numeric_limits<float>::quiet_NaN());
+        probe->SetRadius(std::numeric_limits<float>::infinity());
+        assert(probe->GetRadius() == 2.0f);
+        probe->SetCapsule({}, 0.5f);
+        probe->SetCapsule({}, -2.0f);
+        probe->SetCapsule({}, std::numeric_limits<float>::quiet_NaN());
+        assert(probe->GetCapsuleRadius() == 0.5f);
+    }
+    assert(destroyed);
     Stage stage;
     Player player;
+    ExpEnemy spawn;
+    spawn.SetHp(-50);
+    assert(spawn.GetHp() == 1 && spawn.GetMaxHp() == 1);
+    spawn.SetHp(120);
+    assert(spawn.GetHp() == 120 && spawn.GetMaxHp() == 120);
     // Read bullet durability from the actual production enemy shooting path,
     // so interception tests cannot silently assume a weaker made-up projectile.
     ExpEnemy ordinaryShooter;

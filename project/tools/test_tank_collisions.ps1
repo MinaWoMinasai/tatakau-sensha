@@ -19,6 +19,9 @@ function Read-ProductionMethod([string]$relativePath, [string]$signature) {
     }
     throw "Unclosed production method: $signature"
 }
+[IO.File]::WriteAllText((Join-Path $tankCollisionOutput 'bullet_trail_settings.inc'),
+    ((Read-ProductionMethod 'project/game/player/actor/Bullet.h' 'struct BulletTrailSettings') + ';'),
+    [Text.UTF8Encoding]::new($false))
 $tankCollisionMethods = @(
     (Read-ProductionMethod 'project/game/collision/CollisionManager.cpp' 'void CollisionManager::CheckCollisionPair('),
     (Read-ProductionMethod 'project/game/player/actor/Player.cpp' 'bool Player::TryDashImpact('),
@@ -46,6 +49,7 @@ $tankCollisionMethods = @(
     (Read-ProductionMethod 'project/game/exp/EnemyManager.cpp' 'void EnemyManager::ClearRunActors('),
     (Read-ProductionMethod 'project/game/exp/EnemyManager.cpp' 'void EnemyManager::ClearLevelData('),
     (Read-ProductionMethod 'project/game/player/actor/BulletManager.cpp' 'void BulletManager::ClearAll('),
+    (Read-ProductionMethod 'project/game/player/actor/BulletManager.cpp' 'void BulletManager::SetTrailSettings('),
     (Read-ProductionMethod 'project/game/player/actor/Stage.cpp' 'bool Stage::LoadRunMap(')
 )
 [IO.File]::WriteAllText((Join-Path $tankCollisionOutput 'tank_collision_methods.inc'), ($tankCollisionMethods -join "`n`n"), [Text.UTF8Encoding]::new($false))
