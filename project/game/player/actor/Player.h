@@ -20,6 +20,7 @@
 #include "Easing.h"
 #include "ParticleManager.h"
 #include "game/weapon/WeaponMount.h"
+#include "game/player/PlayerClassCatalog.h"
 #include "game/ui/TankButtonUI.h"
 #include "game/ui/NeonProgressBar.h"
 #include "game/ui/NeonSegmentedBar.h"
@@ -34,27 +35,6 @@
 class EnemyManager;
 class Enemy;
 class ExpEnemy;
-
-enum class ClassType {
-	
-	// 第一段階
-	Basic,
-	
-	// 第二段階
-	Twin,       // 2連装
-	MachineGun, // バラつき・高速連射
-	Overseer,   // ドローン使い
-
-	// 第三段階
-	Triple,     // 三連砲
-	Assassin,   // ステルスで移動できる
-	Bounder,      // 反射弾を使える
-
-	// 第四段階
-	Ninja,      // ステルスしながら攻撃
-	Smasher,    // 強力な近接攻撃
-	Summoner,
-};
 
 struct TankSeed {
 	ClassType type;
@@ -89,12 +69,7 @@ namespace cg2 { class ObjectPostEffect; }
 class Player : public Collider {
 
 public:
-	enum class BodyShape {
-		Circle = 0,
-		Box,
-		Triangle,
-		Pentagon,
-	};
+	using BodyShape = PlayerBodyShape;
 
 	struct PlayerStats {
 		float reloadSpeed = 10.0f;    // 連射速度（小さいほど速い）
@@ -512,36 +487,7 @@ public:
 	bool ConsumeEvolutionCancelled();
 
 private:
-	struct PlayerClassConfig {
-		ClassType type = ClassType::Basic;
-		std::string id = "Basic";
-		std::string displayName = "Basic";
-		int requiredRank = 1;
-		bool usesDrone = false;
-		int maxDrones = 7;
-		float reloadScale = 1.0f;
-		float bulletSpeedScale = 1.0f;
-		float bulletDamageScale = 1.0f;
-		int bulletCount = 1;
-		float spreadAngleDeg = 10.0f;
-		bool randomSpread = true;
-		bool reflect = false;
-		bool penetrate = false;
-		bool fireAllBarrels = false;
-		bool alternateBarrels = false;
-		float recoilPower = 0.01f;
-		std::string specialActionId = "perfect_dodge";
-		float specialActionCooldownScale = 1.0f;
-		float specialActionStaminaCost = 1.0f;
-		float saberCounterWindow = 0.28f;
-		float saberCounterDamageScale = 2.5f;
-		float saberCounterRangeScale = 1.35f;
-		BodyShape bodyShape = BodyShape::Circle;
-		cg2::Vector2 bodyScale = { 1.0f, 1.0f };
-		cg2::Vector4 bodyFillColor = { 0.18f, 0.28f, 0.34f, 0.38f };
-		cg2::Vector4 bodyOutlineColor = { 0.50f, 1.0f, 0.35f, 1.0f };
-		std::vector<WeaponMountConfig> barrels;
-	};
+	using PlayerClassConfig = ::PlayerClassConfig;
 
 	// ワールド変換データ
 	cg2::Transform worldTransform_;
@@ -557,14 +503,13 @@ private:
 	};
 	static constexpr float kMuzzleFlashDuration = 0.06f;
 	std::vector<BarrelModel> barrels_;
-	std::unordered_map<std::string, PlayerClassConfig> classConfigs_;
+	PlayerClassCatalog classCatalog_;
 	std::unordered_map<std::string, PlayerClassConfig> runAuthoredClasses_;
 	std::unordered_map<std::string, tankbuild::Style> runAuthoredStyles_;
 	std::vector<RunEvolutionChoice> runAuthoredChoices_;
 	bool runCurrencyMode_=false;
 	bool runAuthoredEvolutionActive_=false;
 	int runCurrencyEarned_=0;
-	std::vector<std::string> classOrder_;
 	// テクスチャハンドル
 	uint32_t textureHandle_ = 0u;
 
