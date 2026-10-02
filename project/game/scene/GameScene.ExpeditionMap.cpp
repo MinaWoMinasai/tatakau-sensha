@@ -14,24 +14,30 @@ using NK=tankexp::NodeKind;
 std::optional<tankexp::MapDefinition> sessionMap;
 std::optional<tankexp::RoomCatalog> sessionRooms;
 std::optional<tankcontent::Catalog> sessionContent;
+/// @brief 遠征マップの矩形表示用スプライトを生成する。
 std::unique_ptr<cg2::Sprite> MapRect(cg2::Vector2 p,cg2::Vector2 size,const cg2::Vector4& color) {
     auto s=std::make_unique<cg2::Sprite>();s->Initialize(cg2::SpriteCommon::GetInstance(),"resources/white512x512.png");
     s->SetPosition(p);s->SetSize(size);s->SetColor(color);s->Update();return s;
 }
+/// @brief 遠征マップの表示用文字を生成する。
 std::unique_ptr<cg2::TextLabel> MapLabel(float size,cg2::Vector2 p,const cg2::Vector4& color) {
     cg2::TextStyle style{};style.fontFamily="Meiryo";style.fontSize=size;style.color=color;style.padding=4;style.outlineThickness=0;
     auto t=std::make_unique<cg2::TextLabel>();t->Initialize(cg2::SpriteCommon::GetInstance()," ",style);t->SetPosition(p);return t;
 }
+/// @brief ノードの種類と状態に対応する色を返す。
 cg2::Vector4 NodeColor(NK kind) {
     const auto& color=tankexp::GetNodeKindDefinition(kind).color;
     return {color[0],color[1],color[2],color[3]};
 }
+/// @brief ノードの種類に対応するアイコンを返す。
 const char* NodeIcon(NK kind) {
     return tankexp::GetNodeKindDefinition(kind).icon;
 }
+/// @brief ノードの種類に対応する表示名を返す。
 const char* NodeName(NK kind) {
     return tankexp::GetNodeKindDefinition(kind).name;
 }
+/// @brief 遠征マップの説明文を表示幅に合わせて改行する。
 std::string WrapMapText(const std::string& text,float width,int maxLines) {
     std::string result;float used=0;int line=1;
     for(size_t pos=0;pos<text.size();) {
@@ -47,10 +53,13 @@ std::string WrapMapText(const std::string& text,float width,int maxLines) {
     }
     return result;
 }
+/// @brief 戦闘中に残っている脅威の数を返す。
 int ThreatCount(EnemyManager* enemies) {
     int n=0;for(auto* e:enemies->GetEnemyPtrs()) if(e&&!e->IsDead()&&!e->IsRunResource()) ++n;return n;
 }
+/// @brief 入力の押下開始を判定する。
 bool Press(cg2::Input* input,int key) {return input->IsKeyTriggered(static_cast<uint8_t>(key));}
+/// @brief 指定位置が対象の範囲内か判定する。
 bool Inside(cg2::Vector2 mouse,float x,float y,float w,float h) {return mouse.x>=x&&mouse.x<=x+w&&mouse.y>=y&&mouse.y<=y+h;}
 }
 

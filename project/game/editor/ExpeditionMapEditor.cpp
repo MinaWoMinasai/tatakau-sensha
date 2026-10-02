@@ -16,25 +16,30 @@ constexpr auto kRoleNames=[] {
     for(std::size_t i=0;i<names.size();++i)names[i]=tankexp::kNodeRoleDefinitions[i].editorName;
     return names;
 }();
+/// @brief マップの要素に対応する表示色を返す。
 ImU32 MapColor(tankexp::NodeKind kind,int alpha=255) {
     const auto& color=tankexp::GetNodeKindDefinition(kind).editorColor;
     return IM_COL32(color[0],color[1],color[2],alpha);
 }
+/// @brief 編集用の文字入力とstd::stringを対応させる。
 void TextField(const char* label,std::string& value) {
     std::array<char,512> text{};std::snprintf(text.data(),text.size(),"%s",value.c_str());
     if(ImGui::InputText(label,text.data(),text.size())) value=text.data();
 }
+/// @brief 既存項目と重複しない識別子を生成する。
 std::string NewId(const tankexp::MapDefinition& map) {
     for(int suffix=1;;++suffix) {
         const auto id="node_"+std::to_string(suffix);
         if(!tankexp::FindMapNode(map,id)) return id;
     }
 }
+/// @brief プレビューを再構築する。
 bool RebuildPreview(tankexp::MapDefinition& map,int& selected,std::string& error) {
     tankexp::MapDefinition preview;
     if(!tankexp::GenerateExpeditionMap(map,map.generationSeed,preview,error))return false;
     map=std::move(preview);selected=0;return true;
 }
+/// @brief 遠征マップの生成条件一覧を返す。
 bool GenerationRules(tankexp::MapDefinition& map,int& selected,const tankexp::RoomCatalog& rooms) {
     bool changed=false;
     ImGui::SeparatorText("出現する区画と敵編成 / 左からの列で指定");
@@ -96,6 +101,7 @@ bool GenerationRules(tankexp::MapDefinition& map,int& selected,const tankexp::Ro
     if(total)ImGui::Text("開始列でこの部屋が選ばれる割合: %.1f%% (同種戦闘が選ばれた場合)",100.0*roomWeight/total);
     return changed;
 }
+/// @brief 編集中の設定をプレビューへ反映する。
 void Preview(tankexp::MapDefinition& map,int& selected) {
     ImGui::TextUnformatted("経路プレビュー / ノードをクリックして編集・横スクロール");
     if(ImGui::BeginChild("MapPreview",{0,215},ImGuiChildFlags_Borders,ImGuiWindowFlags_HorizontalScrollbar)) {

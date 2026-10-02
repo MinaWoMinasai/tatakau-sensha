@@ -7,6 +7,7 @@ namespace cg2 {
 
 namespace {
 
+/// @brief 指定基数のHalton列を求め、射影ジッターのサンプルに使う。
 float Halton(uint32_t index, uint32_t base) {
     float result = 0.0f;
     float fraction = 1.0f / static_cast<float>(base);
@@ -268,18 +269,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.waterPostPadding[1] = 0.0f;
     bloomParam_.waterPostPadding[2] = 0.0f;
 
-   /* bloomParam_.threshold = 0.0f;
-    bloomParam_.intensity = 1.2f;
-    bloomParam_.vignetteIntensity = 1.0f;
-    bloomParam_.vignetteScale = 1.7f;
-    bloomParam_.chromAbAmount = 0.0f;
-    bloomParam_.distortionAmount = 0.0f;
-    bloomParam_.noiseIntensity = 0.2f;
-    bloomParam_.scanlineIntensity = 2.5f;
-    bloomParam_.scanlineFrequency = 50.0f;
-    bloomParam_.curvature = 0.0f;
-    bloomParam_.borderSharp = 0.0f;
-    bloomParam_.glitchAmount = 0.005f;*/
+
     baseGaussianIntensity_ = bloomParam_.gaussianIntensity;
     baseFullScreenBoxBlurBlend_ = bloomParam_.fullScreenBoxBlurBlend;
     baseBloomIntensity_ = bloomParam_.intensity;

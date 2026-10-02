@@ -30,7 +30,7 @@ void Root::InitalizeForObject()
 	Parameters_[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	Parameters_[2].DescriptorTable.pDescriptorRanges = &descriptorRange_[0]; // 0番のみ
 	Parameters_[2].DescriptorTable.NumDescriptorRanges = 1;
-	
+
 	// [3] DirectionalLight (Pixel b1)
 	Parameters_[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	Parameters_[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -60,7 +60,7 @@ void Root::InitalizeForObject()
 	Parameters_[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	Parameters_[7].DescriptorTable.pDescriptorRanges = &descriptorRange_[1]; // 1番のみ
 	Parameters_[7].DescriptorTable.NumDescriptorRanges = 1;
-	
+
 	// [8] DescriptorTable (環境マップ/キューブマップ t2)
 	descriptorRange_[2].BaseShaderRegister = 2; // register(t2) に対応
 	descriptorRange_[2].NumDescriptors = 1;
@@ -174,7 +174,7 @@ void Root::InitalizeForObject()
 	Parameters_[18].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	Parameters_[18].DescriptorTable.pDescriptorRanges = &descriptorRange_[10];
 	Parameters_[18].DescriptorTable.NumDescriptorRanges = 1;
-	
+
 	descriptionSignature_.pParameters = Parameters_;
 	descriptionSignature_.NumParameters = 19;
 

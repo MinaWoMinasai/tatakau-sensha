@@ -4,6 +4,7 @@
 
 namespace {
 
+/// @brief ブルーム外観を現在の状態へ適用する。
 void ApplyBloomStyle(cg2::ObjectPostEffect& effect, const NeonTextEffectStyle& style, float intensity)
 {
 	cg2::BloomParam param = effect.GetParam();

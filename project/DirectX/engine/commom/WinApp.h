@@ -14,46 +14,59 @@
 
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
 
+/// @brief WindowsメッセージをImGuiへ渡すための外部窓口を宣言する。
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #endif // USE_IMGUI
 
 namespace cg2 {
 
-class WinApp
-{
+/// @brief Windowsのウィンドウ生成とメッセージ処理を管理する。
+class WinApp {
 
 public:
+    // シングルトン
+    static WinApp* GetInstance();
 
-	// シングルトン
-	static WinApp* GetInstance();
+    static const int32_t kClientWidth = 1280;
+    static const int32_t kClientHeight = 720;
 
-	static const int32_t kClientWidth = 1280;
-	static const int32_t kClientHeight = 720;
+    // ウィンドウプロシージャ
+    static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
-	// ウィンドウプロシージャ
-	static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+    /// @brief 初期化
+    void Initialize();
 
-	/// <summary>
-	/// 初期化
-	/// </summary>
-	void Initialize();
+    /// @brief 利用終了時の資源と状態を解放する。
+    void Finalize();
 
-	void Finalize();
-
-	WNDCLASS GetWindowClass() { return wc_; };
-	HWND GetHwnd() { return hwnd_; }
-	int32_t GetClientWidth() const;
-	int32_t GetClientHeight() const;
-	bool IsActive() const { return isActive_; }
-	bool ConsumeActivationChanged();
+    /// @brief ウィンドウ機体を返す。
+    WNDCLASS GetWindowClass()
+    {
+        return wc_;
+    };
+    /// @brief Hwndを返す。
+    HWND GetHwnd()
+    {
+        return hwnd_;
+    }
+    /// @brief Client幅を返す。
+    int32_t GetClientWidth() const;
+    /// @brief Client高さを返す。
+    int32_t GetClientHeight() const;
+    /// @brief 有効であるか判定する。
+    bool IsActive() const
+    {
+        return isActive_;
+    }
+    /// @brief ActivationChangedの未処理分を取り出し、内部の保留分を消費済みにする。
+    bool ConsumeActivationChanged();
 
 private:
-	HWND hwnd_ = nullptr;
-	WNDCLASS wc_{};
-	bool isActive_ = true;
-	bool activationChanged_ = false;
-
+    HWND hwnd_ = nullptr;
+    WNDCLASS wc_{};
+    bool isActive_ = true;
+    bool activationChanged_ = false;
 };
 
 } // namespace cg2

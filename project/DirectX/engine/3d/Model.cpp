@@ -20,22 +20,29 @@
 namespace cg2 {
 
 namespace {
+/// @brief 入力を0〜1の範囲に制限して返す。
 float Clamp01(float value);
+/// @brief ベクトルの最大成分を返す。
 float MaxComponent(const Vector3& value);
+/// @brief 既定値Primitive材質を作成して返す。
 MaterialData MakeDefaultPrimitiveMaterial();
 
+/// @brief 共有する頂点の法線を集計するための位置キーを表す。
 struct SmoothNormalKey {
 	int64_t x;
 	int64_t y;
 	int64_t z;
 
+	/// @brief 値が等しいか判定する。
 	bool operator==(const SmoothNormalKey& other) const
 	{
 		return x == other.x && y == other.y && z == other.z;
 	}
 };
 
+/// @brief 法線集計用の位置キーをハッシュ値に変換する。
 struct SmoothNormalKeyHash {
+	/// @brief 入力値をこの型の規約に従って評価する。
 	size_t operator()(const SmoothNormalKey& key) const
 	{
 		size_t h = std::hash<int64_t>{}(key.x);
@@ -45,6 +52,7 @@ struct SmoothNormalKeyHash {
 	}
 };
 
+/// @brief 滑らかな法線キーを作成して返す。
 SmoothNormalKey MakeSmoothNormalKey(const Vector4& position)
 {
 	constexpr float kScale = 10000.0f;
@@ -55,16 +63,19 @@ SmoothNormalKey MakeSmoothNormalKey(const Vector4& position)
 	};
 }
 
+/// @brief 入力の3成分をエンジンのVector3へ変換する。
 Vector3 ToVector3(const Vector4& value)
 {
 	return { value.x, value.y, value.z };
 }
 
+/// @brief 2つの3Dベクトルの差を返す。
 Vector3 SubtractVector3(const Vector3& a, const Vector3& b)
 {
 	return { a.x - b.x, a.y - b.y, a.z - b.z };
 }
 
+/// @brief 2つの3Dベクトルの外積を返す。
 Vector3 CrossVector3(const Vector3& a, const Vector3& b)
 {
 	return {
@@ -74,16 +85,19 @@ Vector3 CrossVector3(const Vector3& a, const Vector3& b)
 	};
 }
 
+/// @brief 2つの3Dベクトルの内積を返す。
 float DotVector3(const Vector3& a, const Vector3& b)
 {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
+/// @brief 3Dベクトルの長さを返す。
 float LengthVector3(const Vector3& value)
 {
 	return std::sqrt(DotVector3(value, value));
 }
 
+/// @brief ベクトル3を正規化する。
 Vector3 NormalizeVector3(const Vector3& value)
 {
 	const float length = LengthVector3(value);
@@ -93,22 +107,26 @@ Vector3 NormalizeVector3(const Vector3& value)
 	return { value.x / length, value.y / length, value.z / length };
 }
 
+/// @brief 3Dベクトルへ指定倍率を掛けて返す。
 Vector3 MultiplyVector3(const Vector3& value, float scalar)
 {
 	return { value.x * scalar, value.y * scalar, value.z * scalar };
 }
 
+/// @brief ベクトル3を追加する。
 Vector3 AddVector3(const Vector3& a, const Vector3& b)
 {
 	return { a.x + b.x, a.y + b.y, a.z + b.z };
 }
 
+/// @brief Fallback接線を組み立てる。
 Vector3 BuildFallbackTangent(const Vector3& normal)
 {
 	const Vector3 up = std::abs(normal.y) < 0.95f ? Vector3{ 0.0f, 1.0f, 0.0f } : Vector3{ 1.0f, 0.0f, 0.0f };
 	return NormalizeVector3(CrossVector3(up, normal));
 }
 
+/// @brief テクスチャFilenameを読み取る。
 std::string ReadTextureFilename(std::istringstream& stream)
 {
 	std::string token;
@@ -119,6 +137,7 @@ std::string ReadTextureFilename(std::istringstream& stream)
 	return textureFilename;
 }
 
+/// @brief テクスチャパスを解決する。
 std::string ResolveTexturePath(const std::string& directoryPath, const std::string& textureFilename)
 {
 	if (textureFilename.empty()) {
@@ -132,6 +151,7 @@ std::string ResolveTexturePath(const std::string& directoryPath, const std::stri
 	return (std::filesystem::path(directoryPath) / texturePath).generic_string();
 }
 
+/// @brief マテリアルの名前などから描画用途を推定する。
 MaterialSemantic InferMaterialSemantic(const MaterialData& material)
 {
 	const std::string text = ToLowerAscii(
@@ -176,26 +196,31 @@ MaterialSemantic InferMaterialSemantic(const MaterialData& material)
 	return MaterialSemantic::GenericPbr;
 }
 
+/// @brief LowerExtensionを返す。
 std::string GetLowerExtension(const std::string& filename)
 {
 	return ToLowerAscii(std::filesystem::path(filename).extension().generic_string());
 }
 
+/// @brief OBJ形式モデルであるか判定する。
 bool IsObjModel(const std::string& filename)
 {
 	return GetLowerExtension(filename) == ".obj";
 }
 
+/// @brief Assimp位置を変換する。
 Vector4 ConvertAssimpPosition(const aiVector3D& position)
 {
 	return { -position.x, position.y, position.z, 1.0f };
 }
 
+/// @brief Assimp方向を変換する。
 Vector3 ConvertAssimpDirection(const aiVector3D& direction)
 {
 	return { -direction.x, direction.y, direction.z };
 }
 
+/// @brief Assimpテクスチャキーを作成して返す。
 std::string MakeAssimpTextureKey(
 	const std::filesystem::path& sourcePath,
 	const aiString& texturePath,
@@ -208,6 +233,7 @@ std::string MakeAssimpTextureKey(
 	return key;
 }
 
+/// @brief Assimpテクスチャパスを解決する。
 std::string ResolveAssimpTexturePath(
 	const aiScene& scene,
 	const std::filesystem::path& sourcePath,
@@ -241,6 +267,7 @@ std::string ResolveAssimpTexturePath(
 	return resolvedPath.lexically_normal().generic_string();
 }
 
+/// @brief Assimp材質テクスチャを返す。
 std::string GetAssimpMaterialTexture(
 	const aiScene& scene,
 	const aiMaterial& sourceMaterial,
@@ -255,6 +282,7 @@ std::string GetAssimpMaterialTexture(
 	return ResolveAssimpTexturePath(scene, sourcePath, texturePath, colorSpace);
 }
 
+/// @brief Assimp基準色を読み取る。
 void ReadAssimpBaseColor(const aiMaterial& sourceMaterial, MaterialData& materialData)
 {
 	aiColor4D color{};
@@ -265,6 +293,7 @@ void ReadAssimpBaseColor(const aiMaterial& sourceMaterial, MaterialData& materia
 	}
 }
 
+/// @brief AssimpPBRFactorsを読み取る。
 void ReadAssimpPbrFactors(const aiMaterial& sourceMaterial, MaterialData& materialData)
 {
 	float metallic = 0.0f;
@@ -286,6 +315,7 @@ void ReadAssimpPbrFactors(const aiMaterial& sourceMaterial, MaterialData& materi
 	}
 }
 
+/// @brief Assimp自己発光を読み取る。
 void ReadAssimpEmissive(const aiMaterial& sourceMaterial, MaterialData& materialData)
 {
 	aiColor4D emissive{};
@@ -311,6 +341,7 @@ void ReadAssimpEmissive(const aiMaterial& sourceMaterial, MaterialData& material
 	materialData.hasEmissive = true;
 }
 
+/// @brief AssimpMaterialsを読み込む。
 std::vector<MaterialData> LoadAssimpMaterials(
 	const aiScene& scene,
 	const std::filesystem::path& sourcePath)
@@ -432,6 +463,7 @@ std::vector<MaterialData> LoadAssimpMaterials(
 	return materials;
 }
 
+/// @brief Assimpノードメッシュを末尾へ追加する。
 void AppendAssimpNodeMeshes(
 	const aiScene& scene,
 	const aiNode& node,
@@ -502,16 +534,19 @@ void AppendAssimpNodeMeshes(
 	}
 }
 
+/// @brief 入力を0〜1の範囲に制限して返す。
 float Clamp01(float value)
 {
 	return std::clamp(value, 0.0f, 1.0f);
 }
 
+/// @brief ベクトルの最大成分を返す。
 float MaxComponent(const Vector3& value)
 {
 	return (std::max)((std::max)(value.x, value.y), value.z);
 }
 
+/// @brief MTLの鏡面反射指数を粗さへ変換する。
 float RoughnessFromMtlSpecularPower(float specularPower)
 {
 	// Wavefront Ns is commonly authored in 0..1000. This maps the legacy
@@ -520,11 +555,13 @@ float RoughnessFromMtlSpecularPower(float specularPower)
 	return std::clamp(std::sqrt(2.0f / (specularPower + 2.0f)), 0.04f, 1.0f);
 }
 
+/// @brief ベクトル3を読み取る。
 bool ReadVector3(std::istringstream& stream, Vector3& value)
 {
 	return static_cast<bool>(stream >> value.x >> value.y >> value.z);
 }
 
+/// @brief 既定値Primitive材質を作成して返す。
 MaterialData MakeDefaultPrimitiveMaterial()
 {
 	MaterialData material;
@@ -537,6 +574,7 @@ MaterialData MakeDefaultPrimitiveMaterial()
 	return material;
 }
 
+/// @brief モデルファイルから読み取ったマテリアルとテクスチャ参照を保持する。
 struct ParsedMaterialData {
 	MaterialData material;
 	bool hasExplicitRoughness = false;
@@ -545,6 +583,7 @@ struct ParsedMaterialData {
 	float legacySpecularStrength = 0.0f;
 };
 
+/// @brief 読み取ったマテリアルの不足項目を補い、描画用の値へ整える。
 void FinalizeParsedMaterial(ParsedMaterialData& parsedMaterial)
 {
 	MaterialData& materialData = parsedMaterial.material;
@@ -571,6 +610,7 @@ void FinalizeParsedMaterial(ParsedMaterialData& parsedMaterial)
 	materialData.semanticInferred = true;
 }
 
+/// @brief MTLの1行を読み取り、対応する材質項目へ反映する。
 void ParseMtlMaterialLine(
 	ParsedMaterialData& parsedMaterial,
 	const std::string& directoryPath,
@@ -712,6 +752,7 @@ void ParseMtlMaterialLine(
 	}
 }
 
+/// @brief 材質TemplateLibraryを読み込む。
 std::vector<std::pair<std::string, MaterialData>> LoadMaterialTemplateLibrary(
 	const std::string& directoryPath,
 	const std::string& filename)
@@ -766,11 +807,13 @@ std::vector<std::pair<std::string, MaterialData>> LoadMaterialTemplateLibrary(
 	return materials;
 }
 
+/// @brief 位置を作成して返す。
 Vector4 MakePosition(float x, float y, float z)
 {
 	return { x, y, z, 1.0f };
 }
 
+/// @brief 両面面三角形を追加する。
 void AddDoubleSidedTriangle(std::vector<uint32_t>& indices, uint32_t index0, uint32_t index1, uint32_t index2)
 {
 	indices.push_back(index0);
@@ -781,6 +824,7 @@ void AddDoubleSidedTriangle(std::vector<uint32_t>& indices, uint32_t index0, uin
 	indices.push_back(index0);
 }
 
+/// @brief 頂点位置とUVからモデルの接線を生成する。
 void GenerateModelTangents(ModelData& modelData)
 {
 	std::vector<Vector3> tangentSums(modelData.vertices.size(), {});
@@ -1389,7 +1433,7 @@ ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string
 			Vector2 texcoord;
 			s >> texcoord.x >> texcoord.y;
 			texcoord.y = 1.0f - texcoord.y;
-			//texcoord.x = 1.0f - texcoord.x;
+
 			texcoords.push_back(texcoord);
 		} else if (identifierLower == "vn") {
 			Vector3 normal;

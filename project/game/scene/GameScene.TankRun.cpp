@@ -12,11 +12,14 @@
 namespace {
 using RunPhase = tankrun::Phase;
 using namespace tankrun::copy;
+/// @brief Decisionであるか判定する。
 bool IsDecision(RunPhase phase) { return phase==RunPhase::Loadout || phase==RunPhase::CoreChoice || phase==RunPhase::Draft; }
+/// @brief 遠征の経過時間を返す。
 std::string RunClock(double time) {
     const int seconds=static_cast<int>((std::max)(0.0,time));
     std::ostringstream text; text<<seconds/60<<':'<<std::setfill('0')<<std::setw(2)<<seconds%60; return text.str();
 }
+/// @brief 2点の間の方向を求める。
 std::string DirectionTo(const cg2::Vector3& delta) {
     std::string direction=delta.y>3?"北":delta.y<-3?"南":"";
     direction+=delta.x>3?"東":delta.x<-3?"西":"";

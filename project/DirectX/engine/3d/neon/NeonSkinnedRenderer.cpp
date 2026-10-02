@@ -23,6 +23,7 @@ constexpr UINT kSurfaceRootParameter = 3;
 constexpr UINT kSubmeshRootParameter = 4;
 constexpr UINT8 kOutlineStencilMask = 0x80;
 
+/// @brief 結果を確認する。
 void CheckResult(HRESULT hr, const char* message) {
 	if (FAILED(hr)) {
 		throw std::runtime_error(message);

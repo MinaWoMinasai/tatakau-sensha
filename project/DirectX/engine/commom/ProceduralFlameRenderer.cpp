@@ -9,6 +9,7 @@ namespace cg2 {
 using Microsoft::WRL::ComPtr;
 
 namespace {
+/// @brief h01が存在するか判定する。
 float Hash01(uint32_t value)
 {
 	value ^= value >> 16;
@@ -19,6 +20,7 @@ float Hash01(uint32_t value)
 	return static_cast<float>(value & 0x00ffffffu) / 16777216.0f;
 }
 
+/// @brief 0〜1の範囲で端点の傾きが滑らかな補間係数を求める。
 float SmoothStep01(float value)
 {
 	value = std::clamp(value, 0.0f, 1.0f);

@@ -12,6 +12,7 @@ constexpr std::array<tankrun::CardId,15> kSpecialEffects{tankrun::CardId::RailCa
     tankrun::CardId::SlashWave,tankrun::CardId::ParryBlade,tankrun::CardId::ChainLightning,tankrun::CardId::MarkDetonation,
     tankrun::CardId::BoomerangShell,tankrun::CardId::KillBurst,tankrun::CardId::DroneCharge,tankrun::CardId::DroneRebuildBomb,
     tankrun::CardId::TargetPainter,tankrun::CardId::AutonomousSpread,tankrun::CardId::DashSlash,tankrun::CardId::SpinBlade,tankrun::CardId::WallSmash};
+/// @brief 検証用の対象配置を計算する。
 cg2::Vector3 ProbePosition(int index,size_t actor,float age) {
     switch(index) {
     case 0:return {38+4*static_cast<float>(actor),29,0};

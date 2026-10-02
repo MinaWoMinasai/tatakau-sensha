@@ -57,7 +57,7 @@ void AudioManager::UpdateImGui() {
 #ifdef USE_IMGUI
 
     ImGui::Begin("Audio Editor");
-    
+
     // 最初にリストを更新するボタンがあると便利
     if (ImGui::Button("Refresh File List")) {
         RefreshAudioFileList();
@@ -130,7 +130,7 @@ void AudioManager::UpdateImGui() {
             std::wstring wName = ConvertString(name);
             if (ImGui::Button("Preview Play")) {
                 if (config.loop) {
-                    //Audio::GetInstance()->PlayAudio(wName, config.loop, config.defaultVolume);
+
                     PlayBGM(name);
                 } else {
                     Audio::GetInstance()->PlayAudioSE(wName, config.defaultVolume);

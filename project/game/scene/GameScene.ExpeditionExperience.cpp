@@ -4,10 +4,12 @@
 
 namespace {
 constexpr cg2::Vector2 kWallet{304,32};
+/// @brief 経験値などの表示用スプライトを生成する。
 std::unique_ptr<cg2::Sprite> ExperienceSprite(const char* texture,cg2::Vector2 p,cg2::Vector2 size,const cg2::Vector4& tint) {
     auto sprite=std::make_unique<cg2::Sprite>();sprite->Initialize(cg2::SpriteCommon::GetInstance(),texture);
     sprite->SetPosition(p);sprite->SetSize(size);sprite->SetColor(tint);sprite->Update();return sprite;
 }
+/// @brief 経験値などの表示用文字を生成する。
 std::unique_ptr<cg2::TextLabel> ExperienceText(float size,cg2::Vector2 p,const char* text,const cg2::Vector4& color) {
     cg2::TextStyle style{};style.fontFamily="Meiryo";style.fontSize=size;style.color=color;style.padding=4;style.outlineThickness=0;
     auto label=std::make_unique<cg2::TextLabel>();label->Initialize(cg2::SpriteCommon::GetInstance(),text,style);label->SetPosition(p);return label;
