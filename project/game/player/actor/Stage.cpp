@@ -6,6 +6,7 @@
 
 namespace {
 
+/// @brief Obstacleモデルを取得を試みる。
 bool TryGetObstacleModel(const std::string& prefab, std::string& model, MapChipType& type)
 {
 	if (prefab == "Default" || prefab == "Wall" || prefab == "Block") {
@@ -200,11 +201,11 @@ void Stage::GenerateBlocks() {
 				// AABB設定
 				block.aabb.min = { pos.x - mapChip_->kBlockWidth / 2.0f, pos.y - mapChip_->kBlockHeight / 2.0f, pos.z - mapChip_->kBlockWidth / 2.0f };
 				block.aabb.max = { pos.x + mapChip_->kBlockWidth / 2.0f, pos.y + mapChip_->kBlockHeight / 2.0f, pos.z + mapChip_->kBlockWidth / 2.0f };
-				
+
 				// OBB設定
 				block.originalPos = pos;
 				block.obb.center = pos;
-				
+
 				block.obb.halfExtents = {
 					mapChip_->kBlockWidth * 0.5f,
 					mapChip_->kBlockHeight * 0.5f,
@@ -298,9 +299,7 @@ void Stage::ResolvePlayerCollision(Player& player, cg2::AxisXYZ axis)
 
 		// ダメージ床
 		if (block.type == MapChipType::kDamageBlock) {
-			//if (!enemy.IsDead()) {
 			player.Damage(damageBlockDamage_);
-			//}
 		}
 
 		cg2::Vector3 overlap = {
@@ -357,9 +356,7 @@ void Stage::ResolvePlayerDroneCollision(PlayerDrone& playerDrone, cg2::AxisXYZ a
 
 		// ダメージ床
 		if (block.type == MapChipType::kDamageBlock) {
-			//if (!enemy.IsDead()) {
-			//	player.Damage();
-			//}
+
 		}
 
 		cg2::Vector3 overlap = {
@@ -403,15 +400,13 @@ void Stage::ResolveEnemyCollision(Enemy& enemy, cg2::AxisXYZ axis)
 	cg2::AABB enemyAABB = enemy.GetAABB();
 	cg2::Vector3 enemyPos = enemy.GetWorldPosition();
 	const float kEpsilon = 0.01f;
-	//bool hit = false;
+
 
 	for (const MergedBlock& block : mergedBlocks_) {
 
 		if (!cg2::IsCollision(enemyAABB, block.aabb)) {
 			continue;
 		}
-
-		//hit = true;
 
 		cg2::Vector3 overlap = {
 			std::min(enemyAABB.max.x, block.aabb.max.x) - std::max(enemyAABB.min.x, block.aabb.min.x),
@@ -439,15 +434,13 @@ void Stage::ResolveExpEnemyCollision(ExpEnemy& enemy, cg2::AxisXYZ axis)
 	cg2::AABB enemyAABB = enemy.GetAABB();
 	cg2::Vector3 enemyPos = enemy.GetWorldPosition();
 	const float kEpsilon = 0.01f;
-	//bool hit = false;
+
 
 	for (const MergedBlock& block : mergedBlocks_) {
 
 		if (!cg2::IsCollision(enemyAABB, block.aabb)) {
 			continue;
 		}
-
-		//hit = true;
 
 		cg2::Vector3 overlap = {
 			std::min(enemyAABB.max.x, block.aabb.max.x) - std::max(enemyAABB.min.x, block.aabb.min.x),
@@ -535,7 +528,7 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 				isCollided = true;
 			}
 		}
-		
+
 		// ループを抜けた後、埋まって死んだ弾は処理しない
 		if (bullet->IsDead()) continue;
 
@@ -592,8 +585,6 @@ void Stage::ResolvePlayerCollisionSphereY(Player& player)
 	cg2::Vector3 pos = sphere.center;
 	cg2::Vector3 vel = player.GetMove();
 
-	//player.SetOnGround(false);
-
 	for (const auto& line : blocks_) {
 		for (const Block& block : line) {
 			if (!block.isActive) continue;
@@ -615,9 +606,7 @@ void Stage::ResolvePlayerCollisionSphereY(Player& player)
 				}
 
 				// 接地判定（床のみ）
-				//if (upDot > 0.7f) {
-				//	player.SetOnGround(true);
-				//}
+
 
 				sphere.center = pos;
 			}

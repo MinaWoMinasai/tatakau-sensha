@@ -10,6 +10,7 @@ namespace {
 static_assert(static_cast<int>(ExpEnemyType::ReflectArmor) == static_cast<int>(tankcontent::EnemyBehavior::ReflectArmor),
     "Authored behavior IDs must keep the same enum order as runtime enemies");
 
+/// @brief 識別子から対応する遠征敵の種類を取得する。
 bool TryGetExpEnemyType(const std::string& prefab, ExpEnemyType& type)
 {
     if (prefab == "Default" || prefab == "Basic" || prefab == "Square") {

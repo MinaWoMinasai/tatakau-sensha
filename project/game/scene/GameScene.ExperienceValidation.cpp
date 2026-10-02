@@ -7,6 +7,7 @@
 
 namespace {
 constexpr uint32_t kExperienceSeed=20260926;
+/// @brief 実行検証の出力先ディレクトリーを返す。
 std::string ExperienceDirectory(int variant) {
     if(tanksubmission::Enabled()) return "generated/submission_validation/";
     return std::string("generated/experience_validation/")+(variant==1?"upper/":"lower/");

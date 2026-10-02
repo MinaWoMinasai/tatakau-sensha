@@ -22,6 +22,7 @@ constexpr float kPi = 3.1415926535f;
 constexpr float kTwoPi = kPi * 2.0f;
 constexpr const char* kWhiteTexture = "resources/white512x512.png";
 
+/// @brief JSON配列から4成分を読む。要素数が不足する場合はfallbackを返す。
 cg2::Vector4 ReadVector4(const nlohmann::json& value, const cg2::Vector4& fallback)
 {
 	if (!value.is_array() || value.size() < 4) {
@@ -30,6 +31,7 @@ cg2::Vector4 ReadVector4(const nlohmann::json& value, const cg2::Vector4& fallba
 	return { value[0].get<float>(), value[1].get<float>(), value[2].get<float>(), value[3].get<float>() };
 }
 
+/// @brief ベクトル2を読み取る。
 cg2::Vector2 ReadVector2(const nlohmann::json& value, const cg2::Vector2& fallback)
 {
 	if (!value.is_array() || value.size() < 2) {
@@ -38,16 +40,19 @@ cg2::Vector2 ReadVector2(const nlohmann::json& value, const cg2::Vector2& fallba
 	return { value[0].get<float>(), value[1].get<float>() };
 }
 
+/// @brief ベクトル4を書き込む。
 nlohmann::json WriteVector4(const cg2::Vector4& value)
 {
 	return nlohmann::json::array({ value.x, value.y, value.z, value.w });
 }
 
+/// @brief ベクトル2を書き込む。
 nlohmann::json WriteVector2(const cg2::Vector2& value)
 {
 	return nlohmann::json::array({ value.x, value.y });
 }
 
+/// @brief 外観を範囲内へ制限する。
 void ClampStyle(TankButtonUiStyle& style)
 {
 	style.buttonWidth = (std::clamp)(style.buttonWidth, 80.0f, 320.0f);
@@ -71,11 +76,13 @@ void ClampStyle(TankButtonUiStyle& style)
 	style.previewAreaColumns = (std::clamp)(style.previewAreaColumns, 1, 4);
 }
 
+/// @brief 色の各成分へ倍率を掛ける。
 cg2::Vector4 MultiplyColor(const cg2::Vector4& color, const cg2::Vector4& tint)
 {
 	return { color.x * tint.x, color.y * tint.y, color.z * tint.z, color.w * tint.w };
 }
 
+/// @brief 線を設定する。
 void SetLine(cg2::Sprite* sprite, const cg2::Vector2& a, const cg2::Vector2& b, float width, const cg2::Vector4& color)
 {
 	const float dx = b.x - a.x;
@@ -87,6 +94,7 @@ void SetLine(cg2::Sprite* sprite, const cg2::Vector2& a, const cg2::Vector2& b, 
 	sprite->Update();
 }
 
+/// @brief ボタンの入力状態に対応する発光倍率を返す。
 float StateGlowMultiplier(TankButtonState state, const TankButtonUiStyle& style)
 {
 	switch (state) {
@@ -404,6 +412,7 @@ void TankButtonUI::UpdateFrame(const cg2::Vector2& center, const TankButtonUiSty
 
 void TankButtonUI::UpdateIcon(const cg2::Vector2& buttonCenter, const TankButtonUiStyle& style)
 {
+	/// @brief UIの線の一括描画へ渡す端点・幅・色を表す。
 	struct LineCommand {
 		cg2::Vector2 a{};
 		cg2::Vector2 b{};

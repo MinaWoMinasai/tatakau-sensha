@@ -5,6 +5,7 @@
 #endif
 
 namespace {
+/// @brief 制作データJsonを保存する。
 bool SaveAuthoringJson(const char* path,const nlohmann::json& data,std::string& error) {
     try {
         const std::filesystem::path target(path),temporary(std::string(path)+".tmp");

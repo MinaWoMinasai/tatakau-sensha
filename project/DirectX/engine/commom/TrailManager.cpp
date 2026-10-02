@@ -7,6 +7,7 @@
 namespace cg2 {
 
 namespace {
+/// @brief 軌跡のCatmull-Rom補間を繰り返すための係数を保持する。
 struct CatmullRomCoefficients {
     Vector3 a;
     Vector3 b;
@@ -14,6 +15,7 @@ struct CatmullRomCoefficients {
     Vector3 d;
 };
 
+/// @brief CatmullRomCoefficientsを作成して返す。
 CatmullRomCoefficients MakeCatmullRomCoefficients(
     const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3) {
     return {
@@ -24,6 +26,7 @@ CatmullRomCoefficients MakeCatmullRomCoefficients(
     };
 }
 
+/// @brief 事前計算した係数からCatmull-Rom補間の位置を求める。
 Vector3 EvaluateCatmullRom(const CatmullRomCoefficients& coefficients, float t) {
     return ((coefficients.d * t + coefficients.c) * t + coefficients.b) * t + coefficients.a;
 }
@@ -173,6 +176,7 @@ void TrailManager::BuildVertices() {
 }
 
 void TrailManager::PrepareVertexBuffer(uint32_t requiredVertices, uint64_t completedFence) {
+    // GPUが最後の参照を終えた旧バッファだけ解放する。容量不足と使用中の再利用を別々に判断する。
     std::erase_if(retiredVertexBuffers_, [completedFence](const auto& buffer) {
         return buffer.lastUsedFence <= completedFence;
     });
@@ -262,12 +266,13 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
             commandList->DrawInstanced(static_cast<uint32_t>(builtVertices_.size()), 1, 0, 0);
             drawStats_.drawCalls = 1;
         } else {
-            // Diagnostic A/B path: identical vertices, one call per trail.
+            // 比較計測では頂点を同じにし、軌跡ごとの描画呼び出し数だけを変える。
             for (const auto& range : builtDrawRanges_) {
                 commandList->DrawInstanced(range.vertexCount, 1, range.firstVertex, 0);
             }
             drawStats_.drawCalls = static_cast<uint32_t>(builtDrawRanges_.size());
         }
+        // 今から送るコマンドが完了するフェンス値を記録し、次のCPU書き込みで上書きしない。
         vertexLastUsedFence_ = dxCommon_->GetFenceValue() + 1;
         drawStats_.drawCommandCpuMs = std::chrono::duration<float, std::milli>(Clock::now() - commandStart).count();
     }

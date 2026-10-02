@@ -47,7 +47,7 @@ void AttackController::FireInternal(const cg2::Vector3& origin, const cg2::Vecto
         cg2::Vector3 velocity = param.bulletSpeed * dirRotated;
 
         auto bullet = std::make_unique<Bullet>();
-        
+
         // 敵とプレイヤーで発射位置を少し変える
         cg2::Vector3 bulletOrigin;
         if (originIsMuzzle) {
@@ -59,7 +59,7 @@ void AttackController::FireInternal(const cg2::Vector3& origin, const cg2::Vecto
         } else {
             bulletOrigin = origin;
         }
-        
+
         bullet->Initialize(
             bulletOrigin,
             velocity,

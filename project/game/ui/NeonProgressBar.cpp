@@ -13,6 +13,7 @@ constexpr float kFillCapSourceWidth = 12.0f;
 constexpr float kOutlineMaskHeight = 32.0f;
 constexpr float kOutlineCapSourceWidth = 16.0f;
 
+/// @brief 現在値を目標値へ滑らかに近づける。
 float SmoothToward(float current, float target, float response, float deltaTime)
 {
 	const float safeDeltaTime = (std::max)(0.0f, deltaTime);
@@ -21,6 +22,7 @@ float SmoothToward(float current, float target, float response, float deltaTime)
 	return std::abs(value - target) < 0.0001f ? target : value;
 }
 
+/// @brief 塗りつぶしスプライトを設定する。
 void SetFillSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2::Vector2& size, float ratio, const cg2::Vector4& color)
 {
 	if (!sprite) {
@@ -37,6 +39,7 @@ void SetFillSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2:
 	sprite->Update();
 }
 
+/// @brief 単色スプライトを設定する。
 void SetSolidSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2::Vector2& size, const cg2::Vector4& color)
 {
 	if (!sprite) {
@@ -52,6 +55,7 @@ void SetSolidSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2
 	sprite->Update();
 }
 
+/// @brief カプセルSegmentsを設定する。
 void SetCapsuleSegments(
 	cg2::Sprite* left,
 	cg2::Sprite* center,

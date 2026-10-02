@@ -1,22 +1,24 @@
 #pragma once
 
 enum class GameStartMode {
-	Normal,
-	Tutorial,
+    Normal,
+    Tutorial,
 };
 
 namespace GameStartSession {
 
 inline GameStartMode mode = GameStartMode::Normal;
 
+/// @brief 方式を設定する。
 inline void SetMode(GameStartMode newMode)
 {
-	mode = newMode;
+    mode = newMode;
 }
 
+/// @brief 方式を返す。
 inline GameStartMode GetMode()
 {
-	return mode;
+    return mode;
 }
 
 } // namespace GameStartSession

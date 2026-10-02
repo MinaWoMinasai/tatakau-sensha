@@ -1,0 +1,25 @@
+# 自作C++の標準書式。外部ライブラリと生成ファイルへ一括適用しない。
+BasedOnStyle: Microsoft
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+PointerAlignment: Left
+DerivePointerAlignment: false
+AccessModifierOffset: -4
+ColumnLimit: 140
+SortIncludes: Never
+ReflowComments: Never
+BreakStringLiterals: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: false
+  AfterStruct: false
+  AfterEnum: false
+  AfterNamespace: false
+  AfterFunction: true
+  AfterControlStatement: Never
+  BeforeElse: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortLambdasOnASingleLine: None

@@ -114,13 +114,13 @@ void PlayerDrone::RotateToMouse(cg2::Camera* viewProjection) {
 }
 
 void PlayerDrone::Initialize(const cg2::Vector3& position, const cg2::Vector3& velocity) {
-	
+
 	neonVisual_ = false;
 	object_ = std::make_unique<cg2::Object3d>();
 	object_->Initialize();
 
 	object_->SetModel("enemy.obj");
-	
+
 	worldTransform_ = cg2::InitWorldTransform();
 	worldTransform_.translate = position;
 	object_->SetTransform(worldTransform_);
@@ -168,7 +168,7 @@ void PlayerDrone::Update(cg2::Camera* viewProjection, Stage& stage, const cg2::V
 
 	// Run companions must still shoot when resting directly over their owner.
 	cg2::Vector3 dir = distance < 0.01f ? cg2::Vector3{} : cg2::Normalize(toPlayer);
-	
+
 	// --- 目標速度 ---
 	// Keep companions close enough to contribute even while the run player boosts.
 	const float followSpeed = runAttackEnabled_&&mission_.GetPhase()==tankspecial::DronePhase::Charging ? .90f
@@ -202,7 +202,7 @@ void PlayerDrone::Update(cg2::Camera* viewProjection, Stage& stage, const cg2::V
 			if(tankspecial::SegmentTouches(previous.x,previous.y,p.x,p.y,missionTarget_.x,missionTarget_.y,1.1f))mission_.Arrive();
 		}
 	}
-	
+
 	cg2::Vector3 pos = GetWorldPosition();
 
 	// ワールド座標からマップインデックスに変換
@@ -210,15 +210,15 @@ void PlayerDrone::Update(cg2::Camera* viewProjection, Stage& stage, const cg2::V
 	int yIndex = static_cast<int>(MapChip::kNumBlockVirtical - 1 - (pos.y / MapChip::kBlockHeight));
 
 	// Stageクラスに判定用関数がある場合の例
-	// if (stage.GetMapChipType(pos) == MapChipType::kDamageBlock) { Die(); }
+
 
 	// 直接MapChipデータを参照する場合の簡易判定（MapChipのインスタンスが必要）
 	if (xIndex < 0 || xIndex >= static_cast<int>(MapChip::kNumBlockHorizontal) || yIndex < 0 || yIndex >= static_cast<int>(MapChip::kNumBlockVirtical)) {
 		Die(); // そもそもマップ配列の範囲外なら死亡
 	} else {
 		// マップの値を直接チェック（Stage経由でMapChipを取得する想定）
-		// MapChipType type = stage.GetMapChip().GetMapChipTypeByIndex(xIndex, yIndex);
-		// if (type == MapChipType::kDamageBlock) { Die(); }
+
+
 	}
 
 	// object_ の更新だけ（移動はしない）

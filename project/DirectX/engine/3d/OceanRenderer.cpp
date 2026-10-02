@@ -20,6 +20,7 @@
 namespace cg2 {
 
 namespace {
+/// @brief 定数バッファのサイズをDirectX 12が要求する256バイト境界へ切り上げる。
 constexpr size_t AlignConstantBufferSize(size_t size)
 {
 	return (size + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1) &
@@ -47,6 +48,7 @@ constexpr float kProjectedGridAspect = 9.0f / 16.0f;
 static_assert(sizeof(OceanRenderer::OceanFFTParameters) == 112);
 static_assert(sizeof(OceanRenderer::OceanParameters) == 464);
 
+/// @brief 海面スペクトルの評価結果と誤差計測に使う値をまとめる。
 struct SpectrumEvaluation {
 	double radial = 0.0;
 	double directional = 0.0;
@@ -55,6 +57,7 @@ struct SpectrumEvaluation {
 	double directionalNormalizationError = 0.0;
 };
 
+/// @brief 方向を正規化する。
 Vector2 NormalizeDirection(const Vector2& direction, const Vector2& fallback)
 {
 	const double lengthSquared =
@@ -68,11 +71,13 @@ Vector2 NormalizeDirection(const Vector2& direction, const Vector2& fallback)
 	return { direction.x * inverseLength, direction.y * inverseLength };
 }
 
+/// @brief 角度を循環する範囲へ折り返して返す。
 double WrapAngle(double angle)
 {
 	return std::atan2(std::sin(angle), std::cos(angle));
 }
 
+/// @brief JONSWAP海面スペクトルの強度係数を求める。
 double JonswapAlpha(const OceanRenderer::OceanFFTParameters& parameters)
 {
 	const double windSpeed = (std::max)(static_cast<double>(parameters.windSpeed), 0.1);
@@ -82,6 +87,7 @@ double JonswapAlpha(const OceanRenderer::OceanFFTParameters& parameters)
 	return 0.076 * std::pow(nondimensionalFetch, 0.22);
 }
 
+/// @brief JONSWAP海面スペクトルのピーク角周波数を求める。
 double JonswapPeakAngularFrequency(
 	const OceanRenderer::OceanFFTParameters& parameters)
 {
@@ -92,6 +98,7 @@ double JonswapPeakAngularFrequency(
 		1.0 / 3.0);
 }
 
+/// @brief 角周波数に対応するJONSWAP海面スペクトルの強度を求める。
 double JonswapRadialSpectrum(
 	const OceanRenderer::OceanFFTParameters& parameters,
 	double angularFrequency)
@@ -123,6 +130,7 @@ double JonswapRadialSpectrum(
 	return std::isfinite(spectrum) ? (std::max)(spectrum, 0.0) : 0.0;
 }
 
+/// @brief Donelanの方向分布の広がり係数を求める。
 double DonelanBeta(double frequencyRatio)
 {
 	const double ratio = (std::max)(frequencyRatio, 0.0001);
@@ -137,6 +145,7 @@ double DonelanBeta(double frequencyRatio)
 	return std::pow(10.0, epsilon);
 }
 
+/// @brief Donelan-Bannerの方向分布を評価する。
 double DonelanBanner(
 	const OceanRenderer::OceanFFTParameters& parameters,
 	double angularFrequency,
@@ -154,6 +163,7 @@ double DonelanBanner(
 		inverseCosh * inverseCosh;
 }
 
+/// @brief 風と反対向きの波へ与える重みを求める。
 double OppositeWeight(
 	const OceanRenderer::OceanFFTParameters& parameters,
 	double directionOffset)
@@ -170,6 +180,7 @@ double OppositeWeight(
 		suppression * forwardWeight * forwardWeight;
 }
 
+/// @brief 海面スペクトルの正規化前の方向重みを求める。
 double DirectionalRaw(
 	const OceanRenderer::OceanFFTParameters& parameters,
 	double angularFrequency,
@@ -207,6 +218,7 @@ double DirectionalRaw(
 	return (1.0 - swellAmount) * windLobe + swellAmount * swellLobe;
 }
 
+/// @brief 方向分布を積分し、エネルギーを正規化する係数を求める。
 double DirectionalIntegral(
 	const OceanRenderer::OceanFFTParameters& parameters,
 	double angularFrequency,
@@ -222,6 +234,7 @@ double DirectionalIntegral(
 	return (std::max)(integral * angleStep, 0.000001);
 }
 
+/// @brief 波数が海面カスケードの帯域に属する重みを求める。
 double CascadeBandWeight(
 	const OceanRenderer::OceanFFTParameters& parameters,
 	double waveNumber)
@@ -284,6 +297,7 @@ double CascadeBandWeight(
 	return (std::clamp)(lowerWeight * upperWeight, 0.0, 1.0);
 }
 
+/// @brief 波数と方向から海面スペクトルを評価する。
 SpectrumEvaluation EvaluateSpectrum(
 	const OceanRenderer::OceanFFTParameters& parameters,
 	double waveX,
@@ -350,6 +364,7 @@ SpectrumEvaluation EvaluateSpectrum(
 	return result;
 }
 
+/// @brief 海面スペクトルから期待される波高のRMSを求める。
 float ExpectedHeightRms(
 	const OceanRenderer::OceanFFTParameters& parameters,
 	uint32_t resolution)
@@ -373,6 +388,7 @@ float ExpectedHeightRms(
 	return static_cast<float>(std::sqrt((std::max)(variance, 0.0)));
 }
 
+/// @brief 海面FFTの乱数生成と照合するハッシュ値をCPU側で求める。
 uint32_t OceanHashReference(uint32_t value)
 {
 	value ^= value >> 16;
@@ -383,6 +399,7 @@ uint32_t OceanHashReference(uint32_t value)
 	return value;
 }
 
+/// @brief 海面FFTの乱数値をCPU側で0〜1へ変換する。
 double OceanHash01Reference(
 	uint32_t x,
 	uint32_t y,
@@ -397,6 +414,7 @@ double OceanHash01Reference(
 	return (static_cast<double>(value) + 0.5) / 4294967296.0;
 }
 
+/// @brief 海面FFTで使う正規分布の乱数をCPU側で再現する。
 std::complex<double> OceanGaussianReference(
 	uint32_t x,
 	uint32_t y,
@@ -412,6 +430,7 @@ std::complex<double> OceanGaussianReference(
 	return { radius * std::cos(angle), radius * std::sin(angle) };
 }
 
+/// @brief 複数の乱数シードで測った海面スペクトルの評価結果をまとめる。
 struct SeedEnsembleResult {
 	float mean = 0.0f;
 	float standardDeviation = 0.0f;
@@ -423,6 +442,7 @@ struct SeedEnsembleResult {
 	uint32_t invalidValueCount = 0;
 };
 
+/// @brief 複数シードの海面結果を評価し、統計値をまとめる。
 SeedEnsembleResult EvaluateSeedEnsemble(
 	const OceanRenderer::OceanFFTParameters& parameters,
 	uint32_t seedCount)
@@ -549,11 +569,13 @@ SeedEnsembleResult EvaluateSeedEnsemble(
 	return result;
 }
 
+/// @brief 海面カスケードの周波数帯域の分割状態を計測する。
 struct BandPartitionMetrics {
 	float overlapEnergy = 0.0f;
 	float missingEnergy = 0.0f;
 };
 
+/// @brief カスケードの帯域分割の重複と抜けを評価する。
 BandPartitionMetrics EvaluateBandPartition(
 	const OceanRenderer::OceanFFTParameters& baseParameters,
 	const std::array<

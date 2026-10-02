@@ -11,11 +11,13 @@
 
 namespace {
 
+/// @brief プロジェクトエラーを診断ログへ出力する。
 void LogProjectError(const std::string& message)
 {
 	cg2::LogWrite().Log("[GameProject] " + message + "\n");
 }
 
+/// @brief Utf8パスを作成して返す。
 std::filesystem::path MakeUtf8Path(const std::string& path)
 {
 	std::u8string utf8Path;
@@ -26,6 +28,7 @@ std::filesystem::path MakeUtf8Path(const std::string& path)
 	return std::filesystem::path(utf8Path);
 }
 
+/// @brief Required文字列を検証する。
 bool ValidateRequiredString(
 	const nlohmann::json& json,
 	const char* fieldName,

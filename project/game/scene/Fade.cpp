@@ -65,14 +65,7 @@ bool Fade::IsFinished() const {
 	switch (status_) {
 	case Status::FadeIn:
 	case Status::FadeOut:
-		/*
-				if (counter_ >= duration_) {
-					return true;
-				}
-				else {
-					return false;
-				}
-		*/
+
 		// 1行バージョン 3項演算子
 		return (counter_ >= duration_) ? true : false;
 	}

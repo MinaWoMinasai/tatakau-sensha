@@ -8,28 +8,30 @@
 
 namespace cg2 {
 
-class LogWrite
-{
+/// @brief 診断メッセージをログ出力へ渡す窓口を提供する。
+class LogWrite {
 public:
+    // 文字列を変換する
+    std::wstring ConvertString(const std::string& str);
+    /// @brief 文字列を変換する。
+    std::string ConvertString(const std::wstring& str);
 
-	// 文字列を変換する
-	std::wstring ConvertString(const std::string& str);
-	std::string ConvertString(const std::wstring& str);
+    // ログを書き出す
+    void Log(const std::string& message);
+    /// @brief 診断メッセージをログへ出力する。
+    void Log(std::ostream& os, const std::string& message);
 
-	// ログを書き出す
-	void Log(const std::string& message);
-	void Log(std::ostream& os, const std::string& message);
+    /// @brief 初期化
+    void Initialize();
 
-	/// <summary>
-	/// 初期化
-	/// </summary>
-	void Initialize();
-
-	const std::ofstream& GetLogStream() const { return logStream_; };
+    /// @brief LogStreamを返す。
+    const std::ofstream& GetLogStream() const
+    {
+        return logStream_;
+    };
 
 private:
-	std::ofstream logStream_;
-
+    std::ofstream logStream_;
 };
 
 } // namespace cg2

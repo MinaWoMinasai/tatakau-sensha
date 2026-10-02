@@ -19,7 +19,7 @@ void Input::Initialize(const WNDCLASS& wc, const HWND& hwnd)
 		(void**)&directInput, nullptr
 	);
 	assert(SUCCEEDED(hr));
-	
+
 	hr = directInput->CreateDevice(GUID_SysKeyboard, &keyboard_, NULL);
 	assert(SUCCEEDED(hr));
 
@@ -30,7 +30,7 @@ void Input::Initialize(const WNDCLASS& wc, const HWND& hwnd)
 	hr = keyboard_->SetCooperativeLevel(
 		hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
 	assert(SUCCEEDED(hr));
-	
+
 	hr = directInput->CreateDevice(GUID_SysMouse, &mouse_, NULL);
 	assert(SUCCEEDED(hr));
 

@@ -234,6 +234,15 @@
     <ClCompile Include="game\player\actor\Player.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\player\actor\Player.ClassEditor.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\actor\Player.EvolutionUi.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\actor\PlayerUiHelpers.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\player\actor\PlayerDrone.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -521,6 +530,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\player\actor\Player.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\actor\PlayerUiHelpers.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\player\TankRunModifiers.h">

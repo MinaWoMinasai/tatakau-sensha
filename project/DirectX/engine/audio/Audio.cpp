@@ -16,22 +16,27 @@ namespace cg2 {
 
 namespace {
 static_assert(std::is_nothrow_move_assignable_v<Audio::AudioData>);
+/// @brief 音量を対応範囲に制限し、無効値を補正する。
 float SafeGain(float value) {
     return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : 0.0f;
 }
+/// @brief 周波数比を対応範囲に制限し、無効値を補正する。
 float SafePitch(float value) {
     return std::isfinite(value) ? std::clamp(value, 0.25f, 2.0f) : 1.0f;
 }
+/// @brief WAVEデータからリトルエンディアンの16ビット整数を読む。
 uint16_t WaveU16(const BYTE* bytes) {
     return static_cast<uint16_t>(bytes[0] | (static_cast<uint16_t>(bytes[1]) << 8));
 }
+/// @brief WAVEデータからリトルエンディアンの32ビット整数を読む。
 uint32_t WaveU32(const BYTE* bytes) {
     return static_cast<uint32_t>(bytes[0]) | (static_cast<uint32_t>(bytes[1]) << 8) |
         (static_cast<uint32_t>(bytes[2]) << 16) | (static_cast<uint32_t>(bytes[3]) << 24);
 }
 
-// This bounded parser has no device/COM dependency. Offsets are validated before
-// reading bytes; a WAVE struct is never cast over potentially unaligned input.
+// デバイスやCOMから独立した検証処理。読み取り範囲を確認してから各整数を取り出す。
+// 入力の位置が整列しているとは限らないため、バイト列をWAVE構造体へ直接キャストしない。
+/// @brief RIFF/WAVEチャンクを検証し、PCM16の音声データを取り出す。
 bool ParsePcm16Wave(const std::vector<BYTE>& bytes, WAVEFORMATEX& format,
                    size_t& dataOffset, size_t& dataSize) {
     if (bytes.size() < 44 || bytes.size() > Audio::kMaxPcmWaveBytes ||
@@ -79,17 +84,19 @@ bool ParsePcm16Wave(const std::vector<BYTE>& bytes, WAVEFORMATEX& format,
     return true;
 }
 
+/// @brief 音声データを解放する。
 void ReleaseAudioData(Audio::AudioData& data) {
-    // XAudio2 retains pAudioData until consumption or voice destruction. Destroy
-    // every source before freeing/replacing the backing sample vector.
+    // XAudio2は再生終了までPCM領域を参照する。全ボイスを破棄してから元のサンプル領域を解放する。
     for (auto* voice : data.voicePool) if (voice) voice->DestroyVoice();
     data.voicePool.clear(); data.voiceGenerations.clear(); data.voiceStarted.clear();
     data.bufferData.clear(); data.bufferSize = 0; data.nextVoiceIndex = 0;
     if (data.waveFormat) CoTaskMemFree(data.waveFormat);
     data.waveFormat = nullptr; data.pSourceVoice = nullptr;
 }
+/// @brief 読み込み途中の音声データを保持し、失敗時に確保した資源を解放する。
 struct AudioDataGuard {
     Audio::AudioData* data;
+    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~AudioDataGuard() { if (data) ReleaseAudioData(*data); }
 };
 }
@@ -232,6 +239,7 @@ Audio::VoiceHandle Audio::StartVoice(const std::wstring& soundName, AudioData& d
     if (!voice) return {};
     VoiceHandle result;
     try { result.soundName = soundName; } catch (...) { return {}; }
+    // 同じボイスの再利用に入る時点で旧世代を無効にし、途中失敗でも旧ハンドルから操作させない。
     data.voiceGenerations[index] = 0; data.voiceStarted[index] = 0;
     if (FAILED(voice->Stop()) || FAILED(voice->FlushSourceBuffers()) ||
         FAILED(voice->SetVolume(SafeGain(volume))) || FAILED(voice->SetFrequencyRatio(SafePitch(pitch)))) return {};
@@ -245,6 +253,7 @@ Audio::VoiceHandle Audio::StartVoice(const std::wstring& soundName, AudioData& d
     }
     if (FAILED(voice->SubmitSourceBuffer(&buffer))) return {};
     if (FAILED(voice->Start())) { voice->Stop(); voice->FlushSourceBuffers(); return {}; }
+    // 0は無効ハンドルの印なので世代番号には使わない。新しい再生だけに有効な番号を割り当てる。
     if (++nextGeneration_ == 0) ++nextGeneration_;
     result.voiceIndex = index; result.generation = nextGeneration_;
     data.voiceGenerations[index] = result.generation; data.voiceStarted[index] = 1;

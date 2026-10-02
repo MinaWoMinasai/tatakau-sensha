@@ -16,6 +16,7 @@ namespace cg2 {
 
 namespace {
 
+/// @brief 描画色をGDIで使う色表現へ変換する。
 Gdiplus::Color ToGdiColor(const Vector4& color)
 {
 	auto toByte = [](float value) -> BYTE {
@@ -24,6 +25,7 @@ Gdiplus::Color ToGdiColor(const Vector4& color)
 	return Gdiplus::Color(toByte(color.w), toByte(color.x), toByte(color.y), toByte(color.z));
 }
 
+/// @brief PngEncoderClsidを返す。
 bool GetPngEncoderClsid(CLSID* clsid)
 {
 	UINT num = 0;
@@ -45,6 +47,7 @@ bool GetPngEncoderClsid(CLSID* clsid)
 	return false;
 }
 
+/// @brief ファイルパスをWindows用のワイド文字列へ変換する。
 std::wstring ToWidePath(const std::string& path)
 {
 	const int size = MultiByteToWideChar(CP_UTF8, 0, path.data(), static_cast<int>(path.size()), nullptr, 0);
@@ -55,6 +58,7 @@ std::wstring ToWidePath(const std::string& path)
 
 } // namespace
 
+/// @brief 文字描画で利用するフォントファイルとフォントコレクションの寿命を管理する。
 struct TextRendererFontStore {
 	Gdiplus::PrivateFontCollection privateFonts;
 	std::unordered_set<std::wstring> registeredPaths;

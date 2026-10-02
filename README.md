@@ -155,6 +155,8 @@ try {
 
 [ソースレビュー単元2の判定と修正報告](docs/source-review-unit2/README.md)に、データドリブン・外部化・関数化・参照渡し・所有権・定数・名前空間・命名・警告ゼロの確認結果をまとめています。
 
+[ソースレビュー単元3の判定と修正報告](docs/source-review-unit3/README.md)に、日本語コメント・処理の説明・Playerの用途別分離と検証結果をまとめています。今後の書き方は[ソースの読み方・コメント基準](docs/code-comment-guide.md)を参照してください。
+
 旧Graphics / Underwater / VFX Labのシーン・独立module・起動設定・専用素材はPublic版から除去しました。Tankが使う素材と共通Engine機能は保持し、Ocean / Animation / Skinning等の汎用実装も今回のLab除去では残しています。[Lab除去の分類と検証](docs/remove-graphics-labs-audit.md)を参照してください。過去の整理記録は[資料一覧](docs/README.md)にまとめています。
 
 Public版の[最終クリーンアップ監査](docs/final-public-cleanup-audit.md)では全追跡ファイル・動的参照・素材の出典・配布内容を再確認しました。用途・出典が未確定の素材は保持し、試聴専用音声だけを実行用配布から除外しています。その後の[旧起動口の整理](docs/retire-legacy-run-entrypoints-audit.md)で旧モードの外部登録と専用設定・ランチャーを除去し、正式なTITLE→TANK_EXPEDITIONと共有Engine・TankRun実装を維持しています。

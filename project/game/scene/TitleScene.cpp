@@ -10,6 +10,7 @@
 #include <fstream>
 
 namespace {
+/// @brief 表示内容を指定した領域へ収める。
 void Fit(cg2::TextLabel& label,const cg2::Vector2& bounds) {
     label.PrepareForDraw();
     if(auto* sprite=label.GetSprite()) {

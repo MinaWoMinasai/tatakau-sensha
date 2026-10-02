@@ -11,16 +11,19 @@
 namespace cg2 {
 
 namespace {
+/// @brief 指定した環境変数を読み取る。
 std::string Environment(const char* name) {
     char value[2048]{};
     const DWORD count=GetEnvironmentVariableA(name,value,sizeof(value));
     return count>0 && count<sizeof(value) ? std::string(value,count) : std::string{};
 }
+/// @brief 指定した環境変数を整数として読み取る。
 int EnvironmentInt(const char* name,int fallback,int maximum) {
     const auto value=Environment(name);
     if(value.empty()) return fallback;
     try { return (std::clamp)(std::stoi(value),0,maximum); } catch(...) { return fallback; }
 }
+/// @brief 表示用の名前を返す。
 const char* DisplayName(const std::string& name) {
     static constexpr std::pair<const char*,const char*> names[]={
         {"GPU frame","GPUフレーム全体"},{"Scene 3D (includes effects)","3D全体 (個別発光を含む)"},

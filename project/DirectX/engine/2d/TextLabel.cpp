@@ -23,6 +23,7 @@ const TextLabel::ProfileStats& TextLabel::GetProfileStats()
 
 namespace {
 
+/// @brief JSON配列から4成分を読む。要素数が不足する場合はfallbackを返す。
 Vector4 ReadVector4(const nlohmann::json& json, const Vector4& fallback)
 {
 	if (!json.is_array() || json.size() < 4) {
@@ -36,6 +37,7 @@ Vector4 ReadVector4(const nlohmann::json& json, const Vector4& fallback)
 	};
 }
 
+/// @brief ベクトル2を読み取る。
 Vector2 ReadVector2(const nlohmann::json& json, const Vector2& fallback)
 {
 	if (!json.is_array() || json.size() < 2) {

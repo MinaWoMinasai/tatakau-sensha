@@ -9,6 +9,7 @@ namespace {
 constexpr float kPi=3.14159265359f;
 constexpr const char* kWhite="resources/white512x512.png";
 constexpr const char* kGlow="resources/ui/salvage_orb.png";
+/// @brief レア度に対応する表示色を返す。
 cg2::Vector4 RarityColor(int rarity,float phase=0.0f) {
     switch(rarity) {
     case 1:return {0.70f,1.0f,0.26f,1};
@@ -18,6 +19,7 @@ cg2::Vector4 RarityColor(int rarity,float phase=0.0f) {
     default:return {0.90f,0.95f,1.0f,1};
     }
 }
+/// @brief カードの表示内容が同じか判定する。
 bool SameModel(const TankRewardCardModel& a,const TankRewardCardModel& b) {
     const auto& p=a.profile;const auto& q=b.profile;
     const bool sameProfile=p.maxHp==q.maxHp&&p.moveSpeed==q.moveSpeed&&p.maxStamina==q.maxStamina&&
@@ -39,9 +41,11 @@ bool SameModel(const TankRewardCardModel& a,const TankRewardCardModel& b) {
         a.growth.hp==b.growth.hp&&a.growth.damage==b.growth.damage&&a.growth.bulletSpeed==b.growth.bulletSpeed&&
         a.growth.reload==b.growth.reload&&a.growth.move==b.growth.move;
 }
+/// @brief 提示する報酬候補の一覧を返す。
 bool Offers(const TankRewardCardModel& m,tankrun::CardId effect) {
     return std::find(m.effects.begin(),m.effects.end(),effect)!=m.effects.end();
 }
+/// @brief 説明文を表示幅に合わせて改行する。
 std::string Wrap(const std::string& text,int columns,int maxLines) {
     std::string result;int count=0,line=1;
     for(std::size_t i=0;i<text.size();) {
@@ -65,6 +69,7 @@ std::string Wrap(const std::string& text,int columns,int maxLines) {
     }
     return result.empty()?" ":result;
 }
+/// @brief 報酬デモの種類を返す。
 tankreward::DemoKind Kind(const TankRewardCardModel& m) {
     using C=tankrun::CardId;using D=tankreward::DemoKind;
     if(!m.previewKnown)return D::Info;
@@ -98,6 +103,7 @@ tankreward::DemoKind Kind(const TankRewardCardModel& m) {
     if(!m.authoredVariant.empty())return m.style==tankbuild::Style::Drone?D::Drone:m.style==tankbuild::Style::Melee?D::Melee:D::Shooter;
     return D::Info;
 }
+/// @brief 報酬デモに表示する補足文を返す。
 std::string DemoNote(const TankRewardCardModel& m) {
     using D=tankreward::DemoKind;
     if(!m.previewKnown)return "詳細は上の説明を確認してください";

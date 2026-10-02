@@ -9,8 +9,8 @@ $configRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $configOutput = Join-Path $configRoot ('generated/player_class_config_tests' + $(if ($AddressSanitizer) { '_asan' } else { '' }))
 New-Item -ItemType Directory -Path $configOutput -Force | Out-Null
 
-# Compile the complete production Catalog translation unit and real config types.
-# Only Player runtime wrappers and Editor blocks need the existing CPU adapters.
+# Catalog本体と実際の設定型をコンパイルする。
+# Playerの実行時窓口と編集画面だけ、既存のCPU用アダプターを使用する。
 function Read-ConfigSource([string]$path) {
     Get-Content -LiteralPath (Join-Path $configRoot $path) -Raw -Encoding UTF8
 }
@@ -39,7 +39,8 @@ $configMethods = foreach ($signature in @(
 )) {
     Read-ConfigBlock $configCpp $signature
 }
-$configEditor = Read-ConfigBlock $configCpp 'void Player::DrawPlayerClassEditor()'
+$configEditorCpp = Read-ConfigSource 'project/game/player/actor/Player.ClassEditor.cpp'
+$configEditor = Read-ConfigBlock $configEditorCpp 'void Player::DrawPlayerClassEditor()'
 $configBaselines = (Read-ConfigBlock $configEditor 'auto refreshEditorBaselines = [&]()') + ';'
 $configUniqueId = (Read-ConfigBlock $configEditor 'auto makeUniqueId = [this]') + ';'
 $configCreate = Read-ConfigBlock $configEditor 'if (ImGui::Button("新規作成"))'
