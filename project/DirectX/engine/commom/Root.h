@@ -5,6 +5,8 @@
 #include <cassert>
 #include "LogWrite.h"
 
+namespace cg2 {
+
 class Root
 {
 public:
@@ -44,3 +46,5 @@ private:
 	LogWrite log;
 
 };
+
+} // namespace cg2

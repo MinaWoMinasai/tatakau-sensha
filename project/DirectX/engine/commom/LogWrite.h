@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <fstream>
 
+namespace cg2 {
+
 class LogWrite
 {
 public:
@@ -30,3 +32,4 @@ private:
 
 };
 
+} // namespace cg2

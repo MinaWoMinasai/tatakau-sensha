@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "StringUtils.h"
 #include <assimp/Importer.hpp>
 #include <assimp/material.h>
 #include <assimp/postprocess.h>
@@ -15,6 +16,8 @@
 #include <stdexcept>
 #include <sstream>
 #include <utility>
+
+namespace cg2 {
 
 namespace {
 float Clamp01(float value);
@@ -127,19 +130,6 @@ std::string ResolveTexturePath(const std::string& directoryPath, const std::stri
 		return texturePath.generic_string();
 	}
 	return (std::filesystem::path(directoryPath) / texturePath).generic_string();
-}
-
-std::string ToLowerAscii(std::string value)
-{
-	std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-		return static_cast<char>(std::tolower(c));
-	});
-	return value;
-}
-
-bool ContainsToken(const std::string& text, const char* token)
-{
-	return text.find(token) != std::string::npos;
 }
 
 MaterialSemantic InferMaterialSemantic(const MaterialData& material)
@@ -965,14 +955,14 @@ void Model::InitializeFromModelData(ModelCommon* modelCommon, const ModelData& m
 				TextureManager::TextureColorSpace::LinearData);
 		}
 
-		material.textureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(material.textureFilePath);
-		material.normalTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+		material.textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(material.textureFilePath);
+		material.normalTextureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(
 			material.normalTextureFilePath,
 			TextureManager::TextureColorSpace::LinearData);
-		material.metallicRoughnessTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+		material.metallicRoughnessTextureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(
 			material.metallicRoughnessTextureFilePath,
 			TextureManager::TextureColorSpace::LinearData);
-		material.occlusionTextureIndex = TextureManager::GetInstance()->GetTextureIndexbyFilePath(
+		material.occlusionTextureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(
 			material.occlusionTextureFilePath,
 			TextureManager::TextureColorSpace::LinearData);
 	}
@@ -1620,7 +1610,7 @@ ModelData Model::CreateBox(const Vector3& size)
 	modelData.vertices.reserve(24);
 	modelData.indices.reserve(72);
 
-	auto addQuad = [&](Vector4 p0, Vector4 p1, Vector4 p2, Vector4 p3, Vector3 normal) {
+	auto addQuad = [&](const Vector4& p0, const Vector4& p1, const Vector4& p2, const Vector4& p3, const Vector3& normal) {
 		const uint32_t base = static_cast<uint32_t>(modelData.vertices.size());
 		modelData.vertices.push_back({ p0, { 0.0f, 1.0f }, normal });
 		modelData.vertices.push_back({ p1, { 1.0f, 1.0f }, normal });
@@ -1694,7 +1684,9 @@ ModelData Model::CreateFacetedCrystal(float radius, float height, uint32_t sides
 	modelData.vertices.reserve(static_cast<size_t>(sides) * 12u);
 	modelData.indices.reserve(static_cast<size_t>(sides) * 24u);
 
-	auto addFacet = [&](Vector3 p0, Vector3 p1, Vector3 p2) {
+	auto addFacet = [&](const Vector3& p0, const Vector3& point1, const Vector3& point2) {
+		Vector3 p1 = point1;
+		Vector3 p2 = point2;
 		Vector3 normal = NormalizeVector3(CrossVector3(
 			SubtractVector3(p1, p0),
 			SubtractVector3(p2, p0)));
@@ -1864,3 +1856,5 @@ ModelData Model::CreateUvSphere(float radius, uint32_t latitudeSegments, uint32_
 
 	return modelData;
 }
+
+} // namespace cg2

@@ -1,5 +1,7 @@
 #include "TrailInstance.h"
 
+namespace cg2 {
+
 void TrailInstance::SetConfig(const TrailConfig& config) {
     // Compare fields, not padding bytes. Merely advancing point ages does not
     // affect this renderer until a point expires.
@@ -47,3 +49,5 @@ void TrailInstance::Update(float deltaTime, const Vector3& tipPos, const Vector3
     }
     if (geometryChanged) ++geometryRevision_;
 }
+
+} // namespace cg2

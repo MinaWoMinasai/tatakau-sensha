@@ -3,6 +3,8 @@
 #include "RtvManager.h"
 #include <array>
 
+namespace cg2 {
+
 class RenderTexture {
 public:
 	~RenderTexture();
@@ -44,3 +46,4 @@ private:
     uint32_t depthSrvIndex_ = 0;
 };
 
+} // namespace cg2

@@ -11,7 +11,7 @@
 class Player;
 class Stage;
 class Enemy;
-class NeonGridRenderer;
+namespace cg2 { class NeonGridRenderer; }
 
 enum class ExpEnemyType {
     Square,
@@ -48,12 +48,12 @@ public:
     static void SetBalanceConfig(const BalanceConfig& config);
     static void SetEnemyInteractionConfig(const EnemyInteractionConfig& config);
     static void SetEnemyKillCallback(std::function<void(uint32_t)> callback);
-	static void SetPlayerDefeatCallback(std::function<void(const Vector3&)> callback);
+	static void SetPlayerDefeatCallback(std::function<void(const cg2::Vector3&)> callback);
     static void SetShapeNeonBillboardEnabled(bool enabled);
     static void SetShapeNeonRenderMode(int mode);
     static bool IsHostileToBoss() { return enemyInteractionConfig_.hostileToBoss; }
 
-    void Initialize(const Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
+    void Initialize(const cg2::Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
     void ApplyAuthoredDefinition(const tankcontent::Enemy& definition);
     bool HasAuthoredDefinition() const { return hasAuthoredDefinition_; }
     void Update(Stage& stage,float deltaTime);
@@ -64,7 +64,7 @@ public:
     void OnCollision(Collider* other) override;
 
     // Collider必須関数
-    Vector3 GetWorldPosition() const override { return worldTransform_.translate; }
+    cg2::Vector3 GetWorldPosition() const override { return worldTransform_.translate; }
     float GetRadius() const override { return isRunResource_ ? 1.2f : 0.8f; }
 
     void SetAttackControllerBulletManager(BulletManager* bulletManager) {
@@ -73,13 +73,13 @@ public:
 	void SetBossTarget(Enemy* boss) { boss_ = boss; }
 
     // セッター
-    void SetWorldPosition(const Vector3& pos) {
+    void SetWorldPosition(const cg2::Vector3& pos) {
         worldTransform_.translate = pos;
         object_->SetTransform(worldTransform_);
         object_->Update();
     }
 
-    AABB GetAABB();
+    cg2::AABB GetAABB();
 
     bool IsDead() const { return isDead_; }
     int GetHp() const { return hp_; }
@@ -108,7 +108,7 @@ public:
     uint32_t GetShieldBlockCount() const { return shieldBlockCount_; }
     uint32_t GetBladeSwingCount() const { return bladeCycle_.SwingCount(); }
     uint32_t GetWallCollisionCount() const { return wallCollisionCount_; }
-    bool TryReflectProjectile(const Vector3& attackSource);
+    bool TryReflectProjectile(const cg2::Vector3& attackSource);
     uint32_t GetReflectionCount() const { return reflectionCount_; }
     uint32_t GetEmpPulseCount() const { return empPulseCount_; }
     bool ConsumeSummonRequest() { const bool request = summonRequested_; summonRequested_ = false; return request; }
@@ -118,23 +118,23 @@ public:
     uint64_t GetSummonerId() const { return summonerId_; }
     bool IsSummonedUnit() const { return summonerId_ != 0; }
     void DismissSummonedUnit() { if (IsSummonedUnit()) { isDead_ = true; hp_ = 0; } }
-    const Vector3& GetAimDirection() const { return aimDirection_; }
-    const Vector3& GetTelegraphEnd() const { return telegraphEnd_; }
+    const cg2::Vector3& GetAimDirection() const { return aimDirection_; }
+    const cg2::Vector3& GetTelegraphEnd() const { return telegraphEnd_; }
     // Called from the scene's existing neon pass for all mobile combat roles.
-    void QueueCombatVisuals(NeonGridRenderer& renderer, const Vector3& cameraRight,
-        const Vector3& cameraUp, const Vector3& cameraForward, float lineWidth) const;
+    void QueueCombatVisuals(cg2::NeonGridRenderer& renderer, const cg2::Vector3& cameraRight,
+        const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward, float lineWidth) const;
     bool TakeDamageFromPlayer(uint32_t amount);
-    bool TakeDirectionalDamage(uint32_t amount, const Vector3& attackSource, bool melee = false);
-	void ApplyKnockback(const Vector3& direction, float power);
+    bool TakeDirectionalDamage(uint32_t amount, const cg2::Vector3& attackSource, bool melee = false);
+	void ApplyKnockback(const cg2::Vector3& direction, float power);
     bool TakeDamageFromEnemy(uint32_t amount);
     void RefreshCollisionMask();
 
     uint32_t GetExpValue() const { return expValue_; }
     ExpEnemyType GetType() const { return type_; }
-    const Vector4& GetVisualColor() const { return visualColor_; }
+    const cg2::Vector4& GetVisualColor() const { return visualColor_; }
     float GetVisualRotation() const { return worldTransform_.rotate.z; }
-    const Vector3& GetVisualRotate() const { return worldTransform_.rotate; }
-    const Vector3& GetVisualScale() const { return worldTransform_.scale; }
+    const cg2::Vector3& GetVisualRotate() const { return worldTransform_.rotate; }
+    const cg2::Vector3& GetVisualScale() const { return worldTransform_.scale; }
     float GetShooterWarningRatio() const {
         return type_ == ExpEnemyType::Shooter
             ? (std::clamp)(shooterWarningRatio_, 0.0f, 1.0f)
@@ -155,30 +155,30 @@ private:
     void ApplyDamageFeedback(float deltaTime);
     void UpdateExpeditionCombat(Stage& stage, float deltaTime);
     void ResetMagazine(int rounds = 0, float reloadSeconds = 0.0f);
-    bool MoveCombatActor(Stage& stage, const Vector3& displacement);
-    Vector3 FindCombatWaypoint(Stage& stage, const Vector3& target) const;
-    Vector3 ClipCombatRay(Stage& stage, const Vector3& origin, const Vector3& direction, float distance) const;
-    uint32_t ResolveShieldDamage(uint32_t amount, const Vector3& attackSource, bool melee);
+    bool MoveCombatActor(Stage& stage, const cg2::Vector3& displacement);
+    cg2::Vector3 FindCombatWaypoint(Stage& stage, const cg2::Vector3& target) const;
+    cg2::Vector3 ClipCombatRay(Stage& stage, const cg2::Vector3& origin, const cg2::Vector3& direction, float distance) const;
+    uint32_t ResolveShieldDamage(uint32_t amount, const cg2::Vector3& attackSource, bool melee);
 
     static BalanceConfig balanceConfig_;
     static EnemyInteractionConfig enemyInteractionConfig_;
     static std::function<void(uint32_t)> enemyKillCallback_;
-	static std::function<void(const Vector3&)> playerDefeatCallback_;
+	static std::function<void(const cg2::Vector3&)> playerDefeatCallback_;
     static bool shapeNeonBillboardEnabled_;
     static int shapeNeonRenderMode_;
 
-    Transform worldTransform_;
-    Vector3 baseScale_{ 1.0f, 1.0f, 1.0f };
-    Vector4 baseColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
-    Vector4 visualColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
-    std::unique_ptr<Object3d> object_;
+    cg2::Transform worldTransform_;
+    cg2::Vector3 baseScale_{ 1.0f, 1.0f, 1.0f };
+    cg2::Vector4 baseColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
+    cg2::Vector4 visualColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
+    std::unique_ptr<cg2::Object3d> object_;
 
     // 攻撃コントローラ
     AttackController attackController_;
 
     Player* player_ = nullptr;
 	Enemy* boss_ = nullptr;
-	Vector3 aimDirection_{ 0.0f, -1.0f, 0.0f };
+	cg2::Vector3 aimDirection_{ 0.0f, -1.0f, 0.0f };
 
     int hp_ = 10;
     int maxHp_ = 10;
@@ -198,8 +198,8 @@ private:
     uint32_t authoredContactDamage_=0,authoredBulletDamage_=1;
     float authoredMoveSpeedScale_=1,authoredFireIntervalScale_=1;
 
-    Vector3 velocity_;
-	Vector3 combatMoveVelocity_{};
+    cg2::Vector3 velocity_;
+	cg2::Vector3 combatMoveVelocity_{};
 	bool combatWasDashing_ = false;
 
     float decel_ = 3.5f; // 減速（ブレーキ）
@@ -230,10 +230,10 @@ private:
     uint32_t reflectionCount_ = 0, empPulseCount_ = 0, wallCollisionCount_ = 0;
     float combatStagger_ = 0.0f, orbitSign_ = 1.0f;
     float dashCooldown_ = 0.0f, dashWarningTimer_ = 0.0f, dashTimer_ = 0.0f;
-    Vector3 dashDirection_{};
+    cg2::Vector3 dashDirection_{};
     uint32_t combatShotsFired_ = 0, combatDashCount_ = 0;
-    Vector3 telegraphEnd_{};
-    Vector3 combatWaypoint_{};
+    cg2::Vector3 telegraphEnd_{};
+    cg2::Vector3 combatWaypoint_{};
     float combatRepathTimer_ = 0.0f;
 
 };

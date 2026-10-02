@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cmath>
 
+namespace cg2 {
+
 using Microsoft::WRL::ComPtr;
 
 namespace {
@@ -449,3 +451,5 @@ void ProceduralFlameRenderer::CreatePipeline()
 	vertexShader->Release();
 	pixelShader->Release();
 }
+
+} // namespace cg2

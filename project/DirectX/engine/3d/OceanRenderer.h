@@ -11,6 +11,8 @@
 #include "Calculation.h"
 #include "Root.h"
 
+namespace cg2 {
+
 class Camera;
 class DebugCamera;
 class Model;
@@ -432,3 +434,5 @@ private:
 	bool fftDiagnosticsRequested_ = false;
 	bool fftDiagnosticsPending_ = false;
 };
+
+} // namespace cg2

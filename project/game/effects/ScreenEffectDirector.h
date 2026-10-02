@@ -63,20 +63,20 @@ public:
 	void SetOutlineEnabled(bool enabled) { config_.outlineEnabled = enabled; }
 	bool IsOutlineEnabled() const { return config_.outlineEnabled; }
 
-	void TriggerJustDodge(const Vector2& screenPosition);
-	void TriggerPlayerDamage(const Vector2& hitDirection);
+	void TriggerJustDodge(const cg2::Vector2& screenPosition);
+	void TriggerPlayerDamage(const cg2::Vector2& hitDirection);
 	void SetLowHpRatio(float ratio);
-	void TriggerEnemyDefeat(const Vector2& screenPosition, float importance);
+	void TriggerEnemyDefeat(const cg2::Vector2& screenPosition, float importance);
 	void TriggerBossEntry();
 	void TriggerBossPhaseChange();
-	void TriggerBossDefeat(const Vector2& screenPosition);
+	void TriggerBossDefeat(const cg2::Vector2& screenPosition);
 	void SetUpgradeMenuOpen(bool open);
-	void TriggerUpgradeConfirmed(const Vector2& screenPosition);
-	void TriggerDash(const Vector2& screenPosition);
+	void TriggerUpgradeConfirmed(const cg2::Vector2& screenPosition);
+	void TriggerDash(const cg2::Vector2& screenPosition);
 	void TriggerGameOver();
 
 	void Update(float deltaTime);
-	void ApplyTo(BloomParam& param) const;
+	void ApplyTo(cg2::BloomParam& param) const;
 
 	float GetTimeScaleMultiplier() const;
 	bool IsActive() const;
@@ -85,7 +85,7 @@ private:
 	struct TimedEffect {
 		float remaining = 0.0f;
 		float duration = 0.0f;
-		Vector2 center{ 0.5f, 0.5f };
+		cg2::Vector2 center{ 0.5f, 0.5f };
 		float importance = 1.0f;
 	};
 
@@ -94,7 +94,7 @@ private:
 	static void Tick(TimedEffect& effect, float deltaTime);
 	static float Safe(float value, float fallback = 0.0f);
 	void SetShockwave(
-		BloomParam& param,
+		cg2::BloomParam& param,
 		int& currentPriority,
 		int priority,
 		const TimedEffect& effect,
@@ -112,7 +112,7 @@ private:
 	TimedEffect gameOver_{};
 	TimedEffect dash_{};
 	TimedEffect upgradeConfirm_{};
-	Vector2 damageDirection_{};
+	cg2::Vector2 damageDirection_{};
 	float lowHpRatio_ = 1.0f;
 	bool upgradeMenuOpen_ = false;
 };

@@ -12,6 +12,8 @@
 #pragma comment(lib, "Mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
 
+namespace cg2 {
+
 namespace {
 static_assert(std::is_nothrow_move_assignable_v<Audio::AudioData>);
 float SafeGain(float value) {
@@ -175,7 +177,7 @@ bool Audio::TryLoadPcmWave(const std::wstring& soundName, const std::wstring& so
 
 // Existing MP3/other Media Foundation callers remain supported. PCM16 WAV
 // sounds use TryLoadPcmWave instead, so missing codecs cannot affect that path.
-void Audio::LoadAudio(const std::wstring soundName, const std::wstring filePath, size_t maxConcurrency) {
+void Audio::LoadAudio(const std::wstring& soundName, const std::wstring& filePath, size_t maxConcurrency) {
     if (!IsReady() || !mediaFoundationStarted_ || soundName.empty()) return;
     constexpr DWORD audioStream = static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM);
     Microsoft::WRL::ComPtr<IMFSourceReader> reader;
@@ -259,13 +261,13 @@ Audio::VoiceHandle Audio::TryPlayAudio(const std::wstring& soundName, bool loop,
     return result;
 }
 
-Audio::VoiceHandle Audio::PlayAudioSE(const std::wstring soundName, float volume) {
+Audio::VoiceHandle Audio::PlayAudioSE(const std::wstring& soundName, float volume) {
     // The legacy default -1 was passed straight to XAudio2 (phase inversion).
     // Treat that sentinel as unity gain; the new API uses an explicit 0..1 gain.
     return TryPlayAudio(soundName, false, volume < 0 ? 1.0f : volume, 1.0f);
 }
 
-void Audio::PlayAudio(const std::wstring soundName, bool loop, float volume) {
+void Audio::PlayAudio(const std::wstring& soundName, bool loop, float volume) {
     auto found = audioMap.find(soundName);
     if (found == audioMap.end()) return;
     // Preserve the old BGM API's restart-on-voice-zero behavior.
@@ -343,3 +345,5 @@ bool Audio::SetPitch(const VoiceHandle& handle, float pitch) {
 void Audio::SetMasterVolume(float volume) {
     if (masterVoice_) masterVoice_->SetVolume(SafeGain(volume));
 }
+
+} // namespace cg2

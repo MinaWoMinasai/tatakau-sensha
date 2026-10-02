@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+namespace cg2 {
 struct Vector2 { float x, y; };
 struct Vector3 { float x, y, z; };
 struct Vector4 { float x, y, z, w; };
@@ -29,6 +30,8 @@ struct Matrix4x4 { float m[4][4]{}; };
 struct TrailVertex { Vector3 pos; Vector4 color; Vector2 uv; };
 struct Material { float shininess = 0; };
 Material MakeDefaultMaterial() { return {}; }
+} // namespace cg2
+using namespace cg2;
 
 using DWORD = uint32_t;
 using D3D12_GPU_VIRTUAL_ADDRESS = uint64_t;
@@ -74,6 +77,7 @@ struct FakeCommandList {
     void SetGraphicsRootDescriptorTable(uint32_t, uint64_t) {}
     void DrawInstanced(uint32_t vertices, uint32_t, uint32_t first, uint32_t) { draws.push_back({ vertices, first, vertexAddress, matrixAddress }); }
 };
+namespace cg2 {
 struct DirectXCommon {
     FakeFence fence;
     FakeCommandList list;
@@ -98,6 +102,7 @@ struct TextureManager {
     static TextureManager* GetInstance() { static TextureManager instance; return &instance; }
     uint64_t GetSrvHandleGPU(const std::string&) { return 0; }
 };
+} // namespace cg2
 
 #include "trail_production_declarations.inc"
 #include "trail_production_methods.inc"

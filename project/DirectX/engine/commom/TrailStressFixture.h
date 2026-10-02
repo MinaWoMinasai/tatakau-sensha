@@ -10,6 +10,8 @@
 // Opt-in GPU A/B fixture. The caller owns the diagnostic environment switch
 // and the render target/bloom capture. Merely constructing this class allocates
 // nothing. All trails are in clip space, independent of scene/camera/game RNG.
+namespace cg2 {
+
 class TrailStressFixture {
 public:
     void Initialize(DirectXCommon* dxCommon, Object3dCommon* objectCommon, uint32_t count) {
@@ -99,3 +101,5 @@ private:
     uint32_t rows_ = 0;
     double elapsed_ = 0.0;
 };
+
+} // namespace cg2

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+namespace cg2 {
+
 void RingManager::Initialize(DirectXCommon* dxCommon, const std::string& textureFilePath) {
     dxCommon_ = dxCommon;
     textureFilePath_ = textureFilePath;
@@ -109,3 +111,5 @@ Vector3 RingManager::TransformPoint(const Vector3& point, const Matrix4x4& matri
     result.z += matrix.m[3][2];
     return result;
 }
+
+} // namespace cg2

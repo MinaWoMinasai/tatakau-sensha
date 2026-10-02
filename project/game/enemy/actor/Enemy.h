@@ -65,7 +65,7 @@ public:
 	/// <summary>
 	/// 初期化
 	/// </summary>
-	void Initialize(Object3d* object, const Vector3& position, Stage* stage);
+	void Initialize(cg2::Object3d* object, const cg2::Vector3& position, Stage* stage);
 
 	/// <summary>
 	/// 更新
@@ -99,19 +99,19 @@ public:
 	///
 	/// </summary>
 	/// <param name="speed"></param>
-	void ApproachToPlayer(Vector3& startPos, Vector3& targetPos);
+	void ApproachToPlayer(cg2::Vector3& startPos, cg2::Vector3& targetPos);
 
 	// 状態クラス用 Getter/Setter
-	const Transform& GetWorldTransform() const { return worldTransform_; }
+	const cg2::Transform& GetWorldTransform() const { return worldTransform_; }
 
-	Vector3 GetWorldPosition() const override;
+	cg2::Vector3 GetWorldPosition() const override;
 
 	// 自キャラのセッター
 	void SetPlayer(Player* player) { player_ = player; }
 	void SetEnemyManager(EnemyManager* enemyManager) { enemyManager_ = enemyManager; }
 	
 	// セッター
-	void SetWorldPosition(const Vector3& pos) {
+	void SetWorldPosition(const cg2::Vector3& pos) {
 		worldTransform_.translate = pos;
 		object_->SetTransform(worldTransform_);
 		object_->Update();
@@ -143,15 +143,15 @@ public:
 	/// ステートによる移動
 	/// </summary>
 	void Move(float deltaTime);
-	Vector3 RandomDirection();
+	cg2::Vector3 RandomDirection();
 	
-	Vector3 EvadeBullets();
+	cg2::Vector3 EvadeBullets();
 	void UpdateAIState();
 
-	AABB GetAABB();
+	cg2::AABB GetAABB();
 
-	Vector3 GetDir() { return dir_; }
-	Vector3 GetAimDirection() const {
+	cg2::Vector3 GetDir() { return dir_; }
+	cg2::Vector3 GetAimDirection() const {
 		return { std::cos(worldTransform_.rotate.z), std::sin(worldTransform_.rotate.z), 0.0f };
 	}
 	float GetDamageFeedbackRatio() const {
@@ -160,22 +160,22 @@ public:
 			: 0.0f;
 	}
 
-	Segment MakeForwardRay(float length) const;
+	cg2::Segment MakeForwardRay(float length) const;
 
 	bool IsBlockNearByRay();
 
-	Vector3 WallAvoidByRay();
+	cg2::Vector3 WallAvoidByRay();
 	
-	float ScoreDir(const Vector3& dir);
+	float ScoreDir(const cg2::Vector3& dir);
 
-	Segment MakeRayToPlayer() const;
+	cg2::Segment MakeRayToPlayer() const;
 
-	bool HitPlayerByRay(const Segment& ray);
+	bool HitPlayerByRay(const cg2::Segment& ray);
 
 	bool HasLineOfSightToPlayer() const;
-	bool HasLineOfSightToTarget(const Vector3& targetPos) const;
+	bool HasLineOfSightToTarget(const cg2::Vector3& targetPos) const;
 
-	Vector3 GetMove() { return velocity_; }
+	cg2::Vector3 GetMove() { return velocity_; }
 
 	void Die(); // ← プレイヤー消滅
 
@@ -187,7 +187,7 @@ public:
 	int GetMaxHp() const { return maxHP_; }
 	void UpdateDefeatPresentation(float deltaTime);
 	void TakeDamage(uint32_t amount);
-	void ApplyKnockback(const Vector3& direction, float power);
+	void ApplyKnockback(const cg2::Vector3& direction, float power);
 	void SetBossAttackConfig(const BossAttackConfig& config);
 	const BossAttackConfig& GetBossAttackConfig() const { return bossAttackConfig_; }
 	void SetEnemyProgressConfig(const EnemyProgressConfig& config);
@@ -201,7 +201,7 @@ public:
 	struct PrototypeTelegraph {
 		bool active = false;
 		PrototypeAttackType attackType = PrototypeAttackType::AimedSpread;
-		Vector3 direction{ 1.0f, 0.0f, 0.0f };
+		cg2::Vector3 direction{ 1.0f, 0.0f, 0.0f };
 		float progress = 0.0f;
 		// GapRing: width of the safe opening around direction. Others: danger cone.
 		float spreadAngleDeg = 44.0f;
@@ -217,7 +217,7 @@ public:
 	void SetRunEncounterEnabled(bool enabled);
 	bool IsRunEncounterEnabled() const { return runEncounterEnabled_; }
 	// Call after Initialize, outside actor updates/collision callbacks.
-	void ResetRunEncounter(const Vector3& position, int hp, int pressure, bool resourceFocus);
+	void ResetRunEncounter(const cg2::Vector3& position, int hp, int pressure, bool resourceFocus);
 	struct RivalCombatStatus {
 		bool enabled = false;
 		bool phase2 = false;
@@ -227,8 +227,8 @@ public:
 		int ammo = 0;
 		int capacity = 0;
 		unsigned shotsFired = 0, dashCount = 0, reloadCount = 0;
-		Vector3 direction{ 1.0f, 0.0f, 0.0f };
-		Vector3 dashDirection{ 0.0f, 1.0f, 0.0f };
+		cg2::Vector3 direction{ 1.0f, 0.0f, 0.0f };
+		cg2::Vector3 dashDirection{ 0.0f, 1.0f, 0.0f };
 		float dashDistance = 0.0f;
 	};
 	// Opt in after ResetRunEncounter. Arena and the title demo retain their AI.
@@ -251,29 +251,29 @@ private:
 		int y = 0;
 	};
 
-	std::optional<Vector3> FindPathDirectionToPlayer();
-	std::optional<Vector3> FindPathDirectionToTarget(const Vector3& targetPos);
-	std::optional<MapIndex> WorldToMapIndex(const Vector3& pos) const;
-	Vector3 MapIndexToWorld(const MapIndex& index) const;
+	std::optional<cg2::Vector3> FindPathDirectionToPlayer();
+	std::optional<cg2::Vector3> FindPathDirectionToTarget(const cg2::Vector3& targetPos);
+	std::optional<MapIndex> WorldToMapIndex(const cg2::Vector3& pos) const;
+	cg2::Vector3 MapIndexToWorld(const MapIndex& index) const;
 	bool IsPassableCell(int x, int y) const;
 	bool IsPathPassableCell(int x, int y) const;
 	MapIndex FindNearestPathPassableCell(const MapIndex& base) const;
 	bool HasClearMoveRouteToPlayer() const;
-	bool HasClearMoveRouteToTarget(const Vector3& targetPos) const;
-	Vector3 ApplyHumanLikeSteering(const Vector3& desiredDir, bool usingPath, float deltaTime);
-	Vector3 ResolveMoveTargetPosition();
-	void RotateTowardTarget(const Vector3& targetPos, float deltaTime);
+	bool HasClearMoveRouteToTarget(const cg2::Vector3& targetPos) const;
+	cg2::Vector3 ApplyHumanLikeSteering(const cg2::Vector3& desiredDir, bool usingPath, float deltaTime);
+	cg2::Vector3 ResolveMoveTargetPosition();
+	void RotateTowardTarget(const cg2::Vector3& targetPos, float deltaTime);
 	void UpdatePrototypeCombat(float deltaTime);
 	void UpdateRivalCombat(float deltaTime);
-	void SelectRivalDashDirection(const Vector3& towardPlayer);
-	Vector3 ResolveRivalMove(const Vector3& desired, const Vector3& towardPlayer, float deltaTime);
+	void SelectRivalDashDirection(const cg2::Vector3& towardPlayer);
+	cg2::Vector3 ResolveRivalMove(const cg2::Vector3& desired, const cg2::Vector3& towardPlayer, float deltaTime);
 	void HealFromFeeding(int amount);
 	void AdvanceFeedingLevel();
 
 	// ワールド変換データ
-	Transform worldTransform_;
+	cg2::Transform worldTransform_;
 	// モデル
-	Object3d* object_ = nullptr;
+	cg2::Object3d* object_ = nullptr;
 
 	// テクスチャハンドル
 	uint32_t textureHandle_ = 0u;
@@ -303,20 +303,20 @@ private:
 	const float kPower = 0.1f;
 
 	float wanderChangeTimer = 1.0f;
-	Vector3 evadeVec = {0.0f, 0.0f, 0.0f};
-	Vector3 wanderVec = {0.0f, 0.0f, 0.0f};
+	cg2::Vector3 evadeVec = {0.0f, 0.0f, 0.0f};
+	cg2::Vector3 wanderVec = {0.0f, 0.0f, 0.0f};
 
 	// キャラクターの当たり判定サイズ
 	static inline const float kWidth = 3.2f;
 	static inline const float kHeight = 3.2f;
 	
-	Vector3 dir_;
+	cg2::Vector3 dir_;
 
 	Stage* stage_ = nullptr;
 	
 	bool isWallFollowing_ = false;
 	float wallFollowTimer_ = 0.0f;
-	Vector3 wallFollowDir_;
+	cg2::Vector3 wallFollowDir_;
 
 	// 射撃感覚タイマー
 	float kFireTimerMax_ = 0.15f;
@@ -334,8 +334,8 @@ private:
 	PrototypeBossCombat prototypeCombat_{};
 	bool expeditionRivalEnabled_ = false;
 	RivalBossCombat rivalCombat_{};
-	Vector3 rivalDashDirection_{ 0.0f, 1.0f, 0.0f };
-	Vector3 rivalPathDirection_{};
+	cg2::Vector3 rivalDashDirection_{ 0.0f, 1.0f, 0.0f };
+	cg2::Vector3 rivalPathDirection_{};
 	float rivalPathTimer_ = 0.0f;
 	float rivalDashDistance_ = 0.0f;
 	float rivalStrafeSign_ = 1.0f;
@@ -347,28 +347,28 @@ private:
 	uint32_t enemyExp_ = 0;
 	int alternatingShotIndex_ = 0;
 	bool levelingModeActive_ = false;
-	Vector3 currentMoveTargetPosition_{ 0.0f, 0.0f, 0.0f };
+	cg2::Vector3 currentMoveTargetPosition_{ 0.0f, 0.0f, 0.0f };
 	
-	Vector3 velocity_{ 0, 0, 0 };
-	Vector3 impactVelocity_{};
+	cg2::Vector3 velocity_{ 0, 0, 0 };
+	cg2::Vector3 impactVelocity_{};
 
 	float maxSpeed_ = 0.06f;
 	float accel_ = 0.008f;
 	float friction_ = 0.90f;
-	Vector3 steeringDir_{ 1.0f, 0.0f, 0.0f };
-	Vector3 steeringNoise_{ 0.0f, 0.0f, 0.0f };
+	cg2::Vector3 steeringDir_{ 1.0f, 0.0f, 0.0f };
+	cg2::Vector3 steeringNoise_{ 0.0f, 0.0f, 0.0f };
 	float steeringNoiseTimer_ = 0.0f;
 	float hesitationTimer_ = 0.0f;
 	float hesitationCooldown_ = 1.0f;
 	
-	std::unique_ptr<Sprite> bossHpFont;
-	std::unique_ptr<Sprite> sprite;
-	std::unique_ptr<Sprite> bossHpRed;
+	std::unique_ptr<cg2::Sprite> bossHpFont;
+	std::unique_ptr<cg2::Sprite> sprite;
+	std::unique_ptr<cg2::Sprite> bossHpRed;
 
 	int hp_ = 200;
 	int maxHP_ = 200;
-	Vector3 baseScale_{ 1.0f, 1.0f, 1.0f };
-	Vector4 baseColor_{ 0.0f, 0.0f, 0.0f, 1.0f };
+	cg2::Vector3 baseScale_{ 1.0f, 1.0f, 1.0f };
+	cg2::Vector4 baseColor_{ 0.0f, 0.0f, 0.0f, 1.0f };
 	float damageFeedbackTimer_ = 0.0f;
 	float damageFeedbackDuration_ = 0.10f;
 
@@ -385,11 +385,11 @@ private:
 	BulletManager* bulletManager_ = nullptr;
 
 	// HPバーモデル
-	Transform hpBarFillTransform_;
-	Transform hpBarBGTransform_;
+	cg2::Transform hpBarFillTransform_;
+	cg2::Transform hpBarBGTransform_;
 
-	std::unique_ptr<Object3d> hpBarFill_;
-	std::unique_ptr<Object3d> hpBarBG_;
+	std::unique_ptr<cg2::Object3d> hpBarFill_;
+	std::unique_ptr<cg2::Object3d> hpBarBG_;
 
 
 private:

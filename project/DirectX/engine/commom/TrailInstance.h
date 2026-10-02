@@ -9,6 +9,8 @@
 #include "Struct.h"
 
 // 1点分の剣の状態
+namespace cg2 {
+
 struct SwordSection {
     Vector3 tip;  // 先端の座標
     Vector3 base; // 根元の座標
@@ -82,3 +84,5 @@ private:
     bool isActive_ = true;
     bool isPermanent_ = false; // 追加：trueなら中身が空でも削除しない
 };
+
+} // namespace cg2

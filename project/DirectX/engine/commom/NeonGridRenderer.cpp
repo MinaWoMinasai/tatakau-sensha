@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+namespace cg2 {
+
 void NeonGridRenderer::Initialize(DirectXCommon* dxCommon, const std::string& textureFilePath) {
     dxCommon_ = dxCommon;
     textureFilePath_ = textureFilePath;
@@ -450,3 +452,5 @@ void NeonGridRenderer::PushVertex(const Vector3& pos, const Vector4& color, cons
     vertexData_[vertexCount_].uv = uv;
     ++vertexCount_;
 }
+
+} // namespace cg2

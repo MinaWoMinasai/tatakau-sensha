@@ -6,6 +6,8 @@
 #include "Struct.h"
 #include "TextureManager.h"
 
+namespace cg2 {
+
 class PbrEnvironment
 {
 public:
@@ -77,3 +79,5 @@ private:
 	bool applied_ = false;
 	std::string sourceLabel_ = "not applied";
 };
+
+} // namespace cg2

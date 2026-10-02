@@ -55,7 +55,7 @@ $guardEncoding = [Text.UTF8Encoding]::new($false)
 [IO.File]::WriteAllText((Join-Path $tankExpOutputDir 'guard_collider.inc'), (Read-GuardDeclarations 'project/game/collision/Collider.h'), $guardEncoding)
 [IO.File]::WriteAllText((Join-Path $tankExpOutputDir 'guard_enemy_declarations.inc'), (Read-GuardDeclarations 'project/game/exp/ExpEnemy.h'), $guardEncoding)
 $guardMethods = foreach ($signature in @('void ExpEnemy::Initialize(', 'void ExpEnemy::ApplyTypeParams(',
-    'void ExpEnemy::ResetMagazine(', 'void ExpEnemy::RefreshCollisionMask(', 'Vector3 ExpEnemy::ClipCombatRay(',
+    'void ExpEnemy::ResetMagazine(', 'void ExpEnemy::RefreshCollisionMask(', 'cg2::Vector3 ExpEnemy::ClipCombatRay(',
     'void ExpEnemy::UpdateExpeditionCombat(', 'void ExpEnemy::OnCollision(', 'bool ExpEnemy::TakeDamageFromPlayer(',
     'bool ExpEnemy::TakeDirectionalDamage(', 'uint32_t ExpEnemy::ResolveShieldDamage(',
     'bool ExpEnemy::ApplyDamage(', 'void ExpEnemy::TriggerDamageFeedback(', 'void ExpEnemy::ConfigureSummonedUnit(',

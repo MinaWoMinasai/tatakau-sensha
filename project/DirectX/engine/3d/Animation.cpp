@@ -7,6 +7,8 @@
 #include <cmath>
 #include <stdexcept>
 
+namespace cg2 {
+
 namespace {
 
 template <typename TValue, typename TInterpolate>
@@ -168,3 +170,5 @@ std::vector<Animation> AnimationLoader::LoadAllFromFile(const std::string& fileP
 	}
 	return animations;
 }
+
+} // namespace cg2

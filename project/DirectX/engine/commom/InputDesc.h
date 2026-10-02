@@ -2,6 +2,8 @@
 #include <d3d12.h>
 #include <span>
 
+namespace cg2 {
+
 class InputDesc
 {
 
@@ -28,3 +30,4 @@ private:
 	D3D12_INPUT_LAYOUT_DESC Layout_{};
 };
 
+} // namespace cg2

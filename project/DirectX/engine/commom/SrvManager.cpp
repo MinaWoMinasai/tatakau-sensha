@@ -4,6 +4,8 @@
 
 // 動的TextLabelと個別Bloom用RenderTextureを同じヒープで管理するため、
 // 従来の512では通常プレイ中にも枯渇する。
+namespace cg2 {
+
 const uint32_t SrvManager::kMaxSrvCount = 8192;
 
 void SrvManager::Initialize(DirectXCommon* dxCommon) {
@@ -150,3 +152,5 @@ void SrvManager::SetGraphicsRootDescriptorTable(UINT rootParameterIndex, uint32_
 {
 	dxCommon_->GetList()->SetGraphicsRootDescriptorTable(rootParameterIndex, GetGPUDescriptorHandle(srvIndex));;
 }
+
+} // namespace cg2

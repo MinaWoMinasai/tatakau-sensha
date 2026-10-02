@@ -1,5 +1,7 @@
 #include "ShadowMap.h"
 
+namespace cg2 {
+
 void ShadowMap::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height) {
     auto device = dxCommon->GetDevice();
 
@@ -48,3 +50,5 @@ void ShadowMap::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint
     // SRV作成関数内で DXGI_FORMAT_R24_UNORM_X8_TYPELESS を指定しているか確認が必要
     srvManager->CreateSRVforShadowMap(srvIndex_, resource_.Get());
 }
+
+} // namespace cg2

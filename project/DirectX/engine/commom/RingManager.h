@@ -7,6 +7,8 @@
 #include "Calculation.h"
 #include "Struct.h"
 
+namespace cg2 {
+
 struct RingEffectConfig {
     float lifeTime = 0.7f;
     float startRadius = 1.0f;
@@ -53,3 +55,5 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
     Material* materialData_ = nullptr;
 };
+
+} // namespace cg2

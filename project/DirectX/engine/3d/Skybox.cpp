@@ -1,5 +1,7 @@
 #include "Skybox.h"
 
+namespace cg2 {
+
 void Skybox::Initialize(const std::string& textureFilePath) {
     
     object3dCommon_ = Object3dCommon::GetInstance();
@@ -65,3 +67,5 @@ void Skybox::Draw() {
         object_->GetModel()->DrawOnlyMesh();
     }
 }
+
+} // namespace cg2

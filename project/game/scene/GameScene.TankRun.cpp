@@ -1,3 +1,4 @@
+#include "game/weapon/CombatTypes.h"
 #include "GameScene.h"
 #include "game/run/TankRunCopy.h"
 #include "game/player/TankRunModifiers.h"
@@ -16,7 +17,7 @@ std::string RunClock(double time) {
     const int seconds=static_cast<int>((std::max)(0.0,time));
     std::ostringstream text; text<<seconds/60<<':'<<std::setfill('0')<<std::setw(2)<<seconds%60; return text.str();
 }
-std::string DirectionTo(const Vector3& delta) {
+std::string DirectionTo(const cg2::Vector3& delta) {
     std::string direction=delta.y>3?"北":delta.y<-3?"南":"";
     direction+=delta.x>3?"東":delta.x<-3?"西":"";
     return direction.empty()?"付近":direction;
@@ -49,13 +50,13 @@ void GameScene::InitializeTankRun() {
         std::filesystem::create_directories("generated/tank_run");
         std::ofstream("generated/tank_run/validation.json")<<"{\"completed\":false,\"testMode\":true}\n";
     }
-    auto panel=[](Vector2 position,Vector2 size,Vector4 color) {
-        auto item=std::make_unique<Sprite>(); item->Initialize(SpriteCommon::GetInstance(),"resources/white512x512.png");
+    auto panel=[](cg2::Vector2 position,cg2::Vector2 size,const cg2::Vector4& color) {
+        auto item=std::make_unique<cg2::Sprite>(); item->Initialize(cg2::SpriteCommon::GetInstance(),"resources/white512x512.png");
         item->SetPosition(position); item->SetSize(size); item->SetColor(color); item->Update(); return item;
     };
-    auto label=[](float size,Vector2 position,Vector4 color) {
-        TextStyle style{}; style.fontFamily="Meiryo"; style.fontSize=size; style.color=color; style.outlineThickness=0; style.padding=4;
-        auto item=std::make_unique<TextLabel>(); item->Initialize(SpriteCommon::GetInstance()," ",style); item->SetPosition(position); return item;
+    auto label=[](float size,cg2::Vector2 position,const cg2::Vector4& color) {
+        cg2::TextStyle style{}; style.fontFamily="Meiryo"; style.fontSize=size; style.color=color; style.outlineThickness=0; style.padding=4;
+        auto item=std::make_unique<cg2::TextLabel>(); item->Initialize(cg2::SpriteCommon::GetInstance()," ",style); item->SetPosition(position); return item;
     };
     tankRunDimmer_=panel({0,0},{1280,720},{0.007f,0.012f,0.025f,0.97f});
     tankRunHudPanel_=panel({0,0},{1280,100},{0.009f,0.016f,0.03f,0.93f});
@@ -75,19 +76,19 @@ void GameScene::InitializeTankRun() {
         tankRunCardBodies_[i]=label(18,{x+16,362},{0.84f,0.90f,0.96f,1});
     }
     if(expeditionRun_) { InitializeTankExpedition(); RefreshTankRunUi(); return; }
-    const std::array<Vector3,3> centers={Vector3{25,18,0},Vector3{43,38,0},Vector3{65,20,0}};
+    const std::array<cg2::Vector3,3> centers={cg2::Vector3{25,18,0},cg2::Vector3{43,38,0},cg2::Vector3{65,20,0}};
     for(size_t i=0;i<centers.size();++i) {
         auto& resource=tankRunResources_[i]; resource.position=centers[i];
         bool found=false;
         for(int radius=0;radius<=12&&!found;radius+=2) for(int n=0;n<16&&!found;++n) {
             const float angle=static_cast<float>(n)*0.392699f;
-            const Vector3 p=centers[i]+Vector3{std::cos(angle)*radius,std::sin(angle)*radius,0};
+            const cg2::Vector3 p=centers[i]+cg2::Vector3{std::cos(angle)*radius,std::sin(angle)*radius,0};
             if(p.x>5&&p.x<81&&p.y>5&&p.y<51&&!stage_->IsCollisionWithAnyBlock(p,2.3f)) { resource.position=p; found=true; }
         }
         for(int n=0;n<10;++n) {
             const float angle=static_cast<float>(n)*0.628319f;
-            const Vector3 p=resource.position+Vector3{std::cos(angle)*6,std::sin(angle)*6,0};
-            if(!stage_->IsCollisionWithAnyBlock(p,1.1f)&&Length(p-player_->GetWorldPosition())>4)
+            const cg2::Vector3 p=resource.position+cg2::Vector3{std::cos(angle)*6,std::sin(angle)*6,0};
+            if(!stage_->IsCollisionWithAnyBlock(p,1.1f)&&cg2::Length(p-player_->GetWorldPosition())>4)
                 enemyManager_->SpawnLevelEnemy(p,n%3==0?"Triangle":"Square",8);
         }
         EnemyManager::SpawnArea area{}; area.name="Core salvage "+std::to_string(i);
@@ -129,7 +130,7 @@ void GameScene::ApplyTankRunCards() {
     player_->SetRunModifiers(m);
 }
 
-void GameScene::OnTankRunEnemyDefeated(const Vector3& position) {
+void GameScene::OnTankRunEnemyDefeated(const cg2::Vector3& position) {
     if(!tankRun_.IsCombat()) return;
     if(expeditionMapEnabled_) SpawnExpeditionCredits(position,player_->TakeRunCurrencyEarned());
     tankRun_.AddSalvage(1); tankRunCombo_=(tankRunComboTime_>0?tankRunCombo_:0)+1;
@@ -138,7 +139,7 @@ void GameScene::OnTankRunEnemyDefeated(const Vector3& position) {
     screenEffectDirector_.TriggerEnemyDefeat(WorldToScreenUv(position),0.20f);
     if(expeditionRun_) {
         tankExpeditionAudio_.Kill(tankRunCombo_);
-        ParticleManager::GetInstance()->EmitNeonImpactEffect(position,{0,1,0},{0.22f,1.1f,0.82f,1},10);
+        cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(position,{0,1,0},{0.22f,1.1f,0.82f,1},10);
         if(expeditionMapEnabled_&&cameraShakeTimer_<=0) {cameraShakeDuration_=0.08f;cameraShakeTimer_=0.08f;cameraShakePower_=0.055f;}
     }
     if(tankRunCombo_%5==0) SetEventCallout(std::to_string(tankRunCombo_)+(expeditionRun_?"連続撃破":" CHAIN / 資材 +1"),0.55f);
@@ -165,7 +166,7 @@ void GameScene::OnTankRunResourceClaim(size_t index,bool playerOwned) {
         SetEventCallout("コア確保 / 資材 +12・HP +12 / 次の改造にレア候補",1.6f);
     } else { enemy_->RegisterRunResourceClaim(); SetEventCallout("ライバルがコアを確保",1.2f); }
     if(tankRunBursts_.size()<24) tankRunBursts_.push_back({resource.position,0,true});
-    ParticleManager::GetInstance()->EmitNeonImpactEffect(resource.position,{0,1,0},{1,0.72f,0.15f,1},18);
+    cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(resource.position,{0,1,0},{1,0.72f,0.15f,1},18);
     tankRunHudTimer_=0;
 }
 
@@ -318,7 +319,7 @@ void GameScene::RefreshTankRunUi() {
     std::ostringstream objective; objective<<"金色のコア: ";
     for(size_t i=0;i<tankRunResources_.size();++i) {
         const auto& node=tankRunResources_[i]; objective<<static_cast<char>('A'+i)<<" ";
-        if(node.active) objective<<DirectionTo(node.position-player_->GetWorldPosition())<<" "<<static_cast<int>(Length(node.position-player_->GetWorldPosition()));
+        if(node.active) objective<<DirectionTo(node.position-player_->GetWorldPosition())<<" "<<static_cast<int>(cg2::Length(node.position-player_->GetWorldPosition()));
         else objective<<"再出現 "<<static_cast<int>(std::ceil(node.respawn))<<"秒";
         objective<<"    ";
     }
@@ -374,7 +375,7 @@ void GameScene::RefreshTankRunUi() {
 void GameScene::DrawTankRunUi() {
     if(expeditionRun_ && tankExpedition_.GetPhase()!=tankexp::Phase::Dormant) {DrawTankExpeditionUi();return;}
     if(player_->IsChangeMode()) return;
-    SpriteCommon::GetInstance()->PreDraw(kNormal); const auto phase=tankRun_.GetPhase();
+    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal); const auto phase=tankRun_.GetPhase();
     const bool result=gameFlowState_==GameFlowState::StageClear||(gameFlowState_==GameFlowState::GameOver&&gameFlowTimer_<=0);
     const bool decision=IsDecision(phase)||tankRunPaused_;
     if(decision||result) tankRunDimmer_->Draw();
@@ -387,19 +388,19 @@ void GameScene::DrawTankRunUi() {
     for(size_t i=0;i<options;++i) {
         const bool selected=static_cast<int>(i)==(result?resultSelection_:tankRunSelection_);
         const bool rare=phase==RunPhase::Draft&&!tankRunPaused_&&tankrun::IsRare(tankRun_.GetOffers()[i]);
-        tankRunCards_[i]->SetColor(selected?(rare?Vector4{0.21f,0.12f,0.045f,1}:Vector4{0.045f,0.16f,0.19f,1}):Vector4{0.028f,0.045f,0.075f,1});
+        tankRunCards_[i]->SetColor(selected?(rare?cg2::Vector4{0.21f,0.12f,0.045f,1}:cg2::Vector4{0.045f,0.16f,0.19f,1}):cg2::Vector4{0.028f,0.045f,0.075f,1});
         tankRunCards_[i]->Update();tankRunCards_[i]->Draw();tankRunCardTitles_[i]->Draw();tankRunCardBodies_[i]->Draw();
     }
     tankRunFooter_->Draw();
 }
 
 void GameScene::QueueTankRunTelegraph() {
-    constexpr float pi=3.14159265359f;
-    auto circle=[&](Vector3 origin,float radius,float width,Vector4 tint,int sides) {
+    auto circle=[&](const cg2::Vector3& position,float radius,float width,const cg2::Vector4& tint,int sides) {
+        cg2::Vector3 origin=position;
         origin.z=-0.3f;
         for(int n=0;n<sides;++n) {
-            const float a=2*pi*static_cast<float>(n)/sides,b=2*pi*static_cast<float>(n+1)/sides;
-            neonGridRenderer_->QueueLine(origin+Vector3{std::cos(a)*radius,std::sin(a)*radius,0},origin+Vector3{std::cos(b)*radius,std::sin(b)*radius,0},width,tint);
+            const float a=2*cg2::pi*static_cast<float>(n)/sides,b=2*cg2::pi*static_cast<float>(n+1)/sides;
+            neonGridRenderer_->QueueLine(origin+cg2::Vector3{std::cos(a)*radius,std::sin(a)*radius,0},origin+cg2::Vector3{std::cos(b)*radius,std::sin(b)*radius,0},width,tint);
         }
     };
     for(size_t i=0;i<tankRunResources_.size();++i) {
@@ -409,25 +410,25 @@ void GameScene::QueueTankRunTelegraph() {
         // One/two/three ticks identify A/B/C without a world-space text pass.
         for(size_t n=0;n<=i;++n) {
             const float x=static_cast<float>(n)*0.45f-static_cast<float>(i)*0.225f;
-            neonGridRenderer_->QueueLine(node.position+Vector3{x,2.4f,-0.3f},node.position+Vector3{x,2.9f,-0.3f},0.10f,{1,0.85f,0.4f,1});
+            neonGridRenderer_->QueueLine(node.position+cg2::Vector3{x,2.4f,-0.3f},node.position+cg2::Vector3{x,2.9f,-0.3f},0.10f,{1,0.85f,0.4f,1});
         }
     }
     for(const auto& burst:tankRunBursts_) {
         const float duration=burst.resource?0.7f:0.35f; const float t=burst.age/duration;
-        circle(burst.position,0.7f+t*(burst.resource?5.0f:2.2f),0.09f*(1-t),burst.resource?Vector4{1,0.72f,0.15f,1-t}:Vector4{0.25f,1,0.8f,1-t},20);
+        circle(burst.position,0.7f+t*(burst.resource?5.0f:2.2f),0.09f*(1-t),burst.resource?cg2::Vector4{1,0.72f,0.15f,1-t}:cg2::Vector4{0.25f,1,0.8f,1-t},20);
         if(expeditionRun_&&!burst.resource) for(int i=0;i<8;++i) {
-            const float a=static_cast<float>(i)*pi/4+burst.position.x;
-            const Vector3 direction{std::cos(a),std::sin(a),0};
-            const Vector3 start=burst.position+direction*(0.6f+3.8f*t)+Vector3{0,0,-0.35f};
+            const float a=static_cast<float>(i)*cg2::pi/4+burst.position.x;
+            const cg2::Vector3 direction{std::cos(a),std::sin(a),0};
+            const cg2::Vector3 start=burst.position+direction*(0.6f+3.8f*t)+cg2::Vector3{0,0,-0.35f};
             neonGridRenderer_->QueueLine(start,start+direction*(0.45f*(1-t)),0.075f*(1-t),{0.45f,1.2f,0.85f,1-t});
         }
     }
     for(const auto& hit:expeditionHitSparks_) {
         const float t=hit.age/0.18f;
-        const Vector3 center=hit.position+Vector3{0,0,-0.35f};
+        const cg2::Vector3 center=hit.position+cg2::Vector3{0,0,-0.35f};
         for(int i=0;i<5;++i) {
             const float a=std::atan2(hit.direction.y,hit.direction.x)+(i-2)*0.55f;
-            const Vector3 ray{std::cos(a),std::sin(a),0};
+            const cg2::Vector3 ray{std::cos(a),std::sin(a),0};
             const auto start=center+ray*(0.50f+t*1.5f);
             neonGridRenderer_->QueueLine(start,start+ray*(0.40f*(1-t)),0.08f*(1-t),{1.9f,1.4f,0.65f,1-t});
         }
@@ -435,35 +436,35 @@ void GameScene::QueueTankRunTelegraph() {
     if(!IsRunRivalActive() || enemy_->IsDead()) return;
     if(enemy_->IsExpeditionRivalEnabled()) {
         const auto status=enemy_->GetRivalCombatStatus();using P=RivalBossCombat::Phase;
-        const Vector3 origin=enemy_->GetWorldPosition()+Vector3{0,0,-0.35f};
+        const cg2::Vector3 origin=enemy_->GetWorldPosition()+cg2::Vector3{0,0,-0.35f};
         const bool reload=status.phase==P::Reload;
         for(int i=0;i<status.capacity;++i) {
             const float x=(static_cast<float>(i)-(status.capacity-1)*0.5f)*0.65f;
             const bool full=i<status.ammo;
-            neonGridRenderer_->QueueLine(origin+Vector3{x,3.2f,0},origin+Vector3{x,3.6f,0},0.16f,
-                reload?Vector4{0.2f,1.2f,1.1f,1}:full?Vector4{1.5f,0.65f,0.25f,1}:Vector4{0.20f,0.16f,0.16f,0.7f});
+            neonGridRenderer_->QueueLine(origin+cg2::Vector3{x,3.2f,0},origin+cg2::Vector3{x,3.6f,0},0.16f,
+                reload?cg2::Vector4{0.2f,1.2f,1.1f,1}:full?cg2::Vector4{1.5f,0.65f,0.25f,1}:cg2::Vector4{0.20f,0.16f,0.16f,0.7f});
         }
         if(reload) {
             const int segments=static_cast<int>(32*status.progress);
             for(int i=0;i<segments;++i) {
-                const float a=2*pi*i/32,b=2*pi*(i+1)/32;
-                neonGridRenderer_->QueueLine(origin+Vector3{std::cos(a)*2.5f,std::sin(a)*2.5f,0},
-                    origin+Vector3{std::cos(b)*2.5f,std::sin(b)*2.5f,0},0.13f,{0.25f,1.2f,1,0.9f});
+                const float a=2*cg2::pi*i/32,b=2*cg2::pi*(i+1)/32;
+                neonGridRenderer_->QueueLine(origin+cg2::Vector3{std::cos(a)*2.5f,std::sin(a)*2.5f,0},
+                    origin+cg2::Vector3{std::cos(b)*2.5f,std::sin(b)*2.5f,0},0.13f,{0.25f,1.2f,1,0.9f});
             }
         }
         if(status.phase==P::DashWarning||status.phase==P::Dash) {
-            const Vector3 side{-status.dashDirection.y,status.dashDirection.x,0};
-            const Vector3 end=origin+status.dashDirection*status.dashDistance;
-            const Vector4 tint{1.5f,0.45f,0.16f,0.65f+0.3f*status.progress};
+            const cg2::Vector3 side{-status.dashDirection.y,status.dashDirection.x,0};
+            const cg2::Vector3 end=origin+status.dashDirection*status.dashDistance;
+            const cg2::Vector4 tint{1.5f,0.45f,0.16f,0.65f+0.3f*status.progress};
             for(float offset:{-1.4f,1.4f}) neonGridRenderer_->QueueLine(origin+side*offset,end+side*offset,0.10f,tint);
             neonGridRenderer_->QueueLine(end-side*1.4f,end+side*1.4f,0.10f,tint);
             if(status.phase==P::Dash) for(int i=1;i<=3;++i) circle(origin-status.dashDirection*(0.85f*i),2.0f,0.10f,{1,0.35f,0.12f,0.4f/i},16);
         }
         if(status.phase==P::Tracking||status.phase==P::Locked||status.phase==P::Volley) {
             const float base=std::atan2(status.direction.y,status.direction.x);
-            const float half=RivalBossCombat::WarningHalfAngle(status.pattern)*pi/180;
-            const Vector4 tint{1.4f,0.45f+0.3f*status.progress,0.14f,status.phase==P::Volley?0.32f:0.65f};
-            auto clipDistance=[&](const Vector3& ray) {
+            const float half=RivalBossCombat::WarningHalfAngle(status.pattern)*cg2::pi/180;
+            const cg2::Vector4 tint{1.4f,0.45f+0.3f*status.progress,0.14f,status.phase==P::Volley?0.32f:0.65f};
+            auto clipDistance=[&](const cg2::Vector3& ray) {
                 float nearest=24.0f;
                 for(const auto& row:stage_->GetBlocks()) for(const auto& block:row) if(block.isActive) {
                     float enter=0,leave=nearest;
@@ -479,7 +480,7 @@ void GameScene::QueueTankRunTelegraph() {
                 return nearest;
             };
             for(int i=0;i<3;++i) {
-                const float angle=base+half*(i-1);const Vector3 ray{std::cos(angle),std::sin(angle),0};
+                const float angle=base+half*(i-1);const cg2::Vector3 ray{std::cos(angle),std::sin(angle),0};
                 const float distance=clipDistance(ray);
                 if(distance>1.8f) neonGridRenderer_->QueueLine(origin+ray*1.8f,origin+ray*distance,0.06f,tint);
             }
@@ -487,18 +488,18 @@ void GameScene::QueueTankRunTelegraph() {
         return;
     }
     const auto telegraph=enemy_->GetPrototypeTelegraph();if(!telegraph.active) return;
-    Vector3 origin=enemy_->GetWorldPosition();origin.z=-0.3f;
-    const float base=std::atan2(telegraph.direction.y,telegraph.direction.x),half=telegraph.spreadAngleDeg*pi/360;
+    cg2::Vector3 origin=enemy_->GetWorldPosition();origin.z=-0.3f;
+    const float base=std::atan2(telegraph.direction.y,telegraph.direction.x),half=telegraph.spreadAngleDeg*cg2::pi/360;
     const bool ring=telegraph.attackType==Enemy::PrototypeAttackType::GapRing;
-    const Vector4 color{1,0.30f+0.25f*telegraph.progress,0.08f,0.75f};
-    auto radial=[&](float angle,float length,float width,Vector4 tint){
-        neonGridRenderer_->QueueLine(origin,origin+Vector3{std::cos(angle)*length,std::sin(angle)*length,0},width,tint);
+    const cg2::Vector4 color{1,0.30f+0.25f*telegraph.progress,0.08f,0.75f};
+    auto radial=[&](float angle,float length,float width,const cg2::Vector4& tint){
+        neonGridRenderer_->QueueLine(origin,origin+cg2::Vector3{std::cos(angle)*length,std::sin(angle)*length,0},width,tint);
     };
     if(ring) {
         for(int i=0;i<48;++i) {
-            const float a=base+half+(2*pi-2*half)*static_cast<float>(i)/48,b=base+half+(2*pi-2*half)*static_cast<float>(i+1)/48;
+            const float a=base+half+(2*cg2::pi-2*half)*static_cast<float>(i)/48,b=base+half+(2*cg2::pi-2*half)*static_cast<float>(i+1)/48;
             const float radius=4+telegraph.progress*2;
-            neonGridRenderer_->QueueLine(origin+Vector3{std::cos(a)*radius,std::sin(a)*radius,0},origin+Vector3{std::cos(b)*radius,std::sin(b)*radius,0},0.09f,color);
+            neonGridRenderer_->QueueLine(origin+cg2::Vector3{std::cos(a)*radius,std::sin(a)*radius,0},origin+cg2::Vector3{std::cos(b)*radius,std::sin(b)*radius,0},0.09f,color);
         }
         radial(base-half,12,0.065f,{0.12f,0.95f,0.88f,0.7f});radial(base+half,12,0.065f,{0.12f,0.95f,0.88f,0.7f});
     } else {
@@ -517,7 +518,7 @@ void GameScene::RequestTankRunCapture(const std::string& name) {
 
 void GameScene::CopyTankRunCapture() {
     if(tankRunCapturePath_.empty()||tankRunCaptureCopied_) return;
-    auto dx=Object3dCommon::GetInstance()->GetDxCommon();
+    auto dx=cg2::Object3dCommon::GetInstance()->GetDxCommon();
     Microsoft::WRL::ComPtr<ID3D12Resource> source;
     if(FAILED(dx->GetSwapChain()->GetBuffer(dx->GetSwapChain()->GetCurrentBackBufferIndex(),IID_PPV_ARGS(&source)))) return;
     auto desc=source->GetDesc(); UINT64 size=0;

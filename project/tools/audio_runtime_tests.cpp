@@ -7,6 +7,8 @@
 #include <chrono>
 #include <iostream>
 
+using namespace cg2;
+
 void Put16(std::vector<BYTE>& data,size_t index,uint16_t value) {
     data[index]=static_cast<BYTE>(value); data[index+1]=static_cast<BYTE>(value>>8);
 }

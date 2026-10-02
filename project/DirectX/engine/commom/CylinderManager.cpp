@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+namespace cg2 {
+
 void CylinderManager::Initialize(DirectXCommon* dxCommon, const std::string& textureFilePath) {
     dxCommon_ = dxCommon;
     textureFilePath_ = textureFilePath;
@@ -108,3 +110,5 @@ Vector3 CylinderManager::TransformPoint(const Vector3& point, const Matrix4x4& m
     result.z += matrix.m[3][2];
     return result;
 }
+
+} // namespace cg2

@@ -8,6 +8,8 @@
 #include <d3d12.h>
 #include <wrl.h>
 
+namespace cg2 {
+
 class DirectXCommon;
 
 // Optional diagnostics. GPU samples use the existing frame fence, never an extra wait.
@@ -80,3 +82,5 @@ private:
     bool captureCompleted_=false;
     std::ofstream capture_;
 };
+
+} // namespace cg2

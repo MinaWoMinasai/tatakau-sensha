@@ -8,7 +8,7 @@
 #include <functional>
 #include <cstdint>
 
-TextureManager* TextureManager::instance = nullptr;
+namespace cg2 {
 
 // Imguiで0番を使用するため、1番から使用する
 uint32_t TextureManager::kSRVIndexTop = 1;
@@ -784,10 +784,8 @@ const std::string& TextureManager::GetPbrPrefilteredEnvironmentTexturePath()
 }
 
 TextureManager* TextureManager::GetInstance() {
-	if (instance == nullptr) {
-		instance = new TextureManager;
-	}
-	return instance;
+	static TextureManager instance;
+	return &instance;
 }
 
 void TextureManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager) {
@@ -828,8 +826,12 @@ void TextureManager::CreateBlackCausticsTexture()
 }
 
 void TextureManager::Finalize() {
-	delete instance;
-	instance = nullptr;
+	textureDatas.clear();
+	dxCommon_ = nullptr;
+	srvManager_ = nullptr;
+	pbrEnvironmentSourcePath_.clear();
+	pbrEnvironmentBuilt_ = false;
+	pbrEnvironmentLoadedFromSource_ = false;
 }
 
 void TextureManager::LoadTexture(const std::string& filePath, TextureColorSpace colorSpace) {
@@ -1492,7 +1494,7 @@ void TextureManager::PreDraw()
     }
 }
 
-uint32_t TextureManager::GetTextureIndexbyFilePath(const std::string& filePath, TextureColorSpace colorSpace)
+uint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filePath, TextureColorSpace colorSpace)
 {
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
 	// 読み込み済みテクスチャを検索
@@ -1526,3 +1528,5 @@ uint32_t TextureManager::GetSrvIndex(const std::string& filePath, TextureColorSp
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
 	return textureDatas[textureKey].srvIndex;
 }
+
+} // namespace cg2

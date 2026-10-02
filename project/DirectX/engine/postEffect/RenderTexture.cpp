@@ -1,6 +1,8 @@
 #include "RenderTexture.h"
 #include "StartupTrace.h"
 
+namespace cg2 {
+
 RenderTexture::~RenderTexture()
 {
 	if (!srvManager_) {
@@ -157,3 +159,5 @@ D3D12_GPU_DESCRIPTOR_HANDLE RenderTexture::GetDepthGPUHandle()
     assert(depthResource_ != nullptr);
     return srvManager_->GetGPUDescriptorHandle(depthSrvIndex_);
 }
+
+} // namespace cg2

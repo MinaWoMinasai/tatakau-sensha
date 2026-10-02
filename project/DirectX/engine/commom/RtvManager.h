@@ -1,6 +1,8 @@
 #pragma once
 #include "DirectXCommon.h"
 
+namespace cg2 {
+
 class RtvManager {
 public:
     void Initialize(DirectXCommon* dxCommon);
@@ -19,3 +21,4 @@ private:
     uint32_t useIndex_ = 0;
 };
 
+} // namespace cg2
