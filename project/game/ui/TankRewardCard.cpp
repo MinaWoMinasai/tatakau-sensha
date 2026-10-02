@@ -1,4 +1,5 @@
 #include "TankRewardCard.h"
+#include "ColorMath.h"
 #include "StartupTrace.h"
 #include <algorithm>
 #include <cmath>
@@ -8,8 +9,7 @@ namespace {
 constexpr float kPi=3.14159265359f;
 constexpr const char* kWhite="resources/white512x512.png";
 constexpr const char* kGlow="resources/ui/salvage_orb.png";
-Vector4 Tint(Vector4 c,float alpha) {c.w*=alpha;return c;}
-Vector4 RarityColor(int rarity,float phase=0.0f) {
+cg2::Vector4 RarityColor(int rarity,float phase=0.0f) {
     switch(rarity) {
     case 1:return {0.70f,1.0f,0.26f,1};
     case 2:return {0.28f,0.85f,1.0f,1};
@@ -131,12 +131,12 @@ std::string DemoNote(const TankRewardCardModel& m) {
 }
 } // namespace
 
-void TankRewardCard::Initialize(SpriteCommon* spriteCommon) {
+void TankRewardCard::Initialize(cg2::SpriteCommon* spriteCommon) {
     if(spriteCommon_)return;
-    StartupTrace::Scope scope("RewardCard.Initialize");
+    cg2::StartupTrace::Scope scope("RewardCard.Initialize");
     spriteCommon_=spriteCommon;
     {
-        StartupTrace::Scope poolScope("RewardCard.SpritePool");
+        cg2::StartupTrace::Scope poolScope("RewardCard.SpritePool");
         wchar_t flag[8]{};
         const bool baseline=GetEnvironmentVariableW(L"CG2_STARTUP_CACHE",flag,8)>0&&flag[0]==L'0';
         // The HDR preview replaced the sprite-based demonstration. Its frame
@@ -147,13 +147,13 @@ void TankRewardCard::Initialize(SpriteCommon* spriteCommon) {
         const std::size_t glowReserve=baseline?kGlowCapacity:32;
         for(std::size_t i=0;i<solidReserve;++i) EnsureSprite(solids_[i],kWhite);
         for(std::size_t i=0;i<glowReserve;++i) EnsureSprite(glows_[i],kGlow);
-        StartupTrace::Count("rewardCard.reservedSprites",static_cast<double>(solidReserve+glowReserve));
+        cg2::StartupTrace::Count("rewardCard.reservedSprites",static_cast<double>(solidReserve+glowReserve));
     }
     for(std::size_t i=0;i<labels_.size();++i) {
-        TextStyle style;style.fontSize=i==1?24.0f:i==2?16.0f:i==3?18.0f:12.0f;
+        cg2::TextStyle style;style.fontSize=i==1?24.0f:i==2?16.0f:i==3?18.0f:12.0f;
         style.fontWeight=i==1||i==3?700:400;style.padding=2;style.outlineThickness=0;
-        style.color=i==2?Vector4{0.78f,0.84f,0.91f,1}:Vector4{0.94f,0.97f,1,1};
-        labels_[i]=std::make_unique<TextLabel>();labels_[i]->Initialize(spriteCommon," ",style);
+        style.color=i==2?cg2::Vector4{0.78f,0.84f,0.91f,1}:cg2::Vector4{0.94f,0.97f,1,1};
+        labels_[i]=std::make_unique<cg2::TextLabel>();labels_[i]->Initialize(spriteCommon," ",style);
         labels_[i]->SetAnchorPoint({0.5f,0.5f});
     }
     dirty_=true;
@@ -163,11 +163,11 @@ void TankRewardCard::SetModel(const TankRewardCardModel& model) {
     model_=model;model_.rarity=(std::clamp)(model_.rarity,0,4);dirty_=true;
     clock_.Reset();acquireTime_=-1.0f;previewDirty_=true;
 }
-void TankRewardCard::InitializePreview(SrvManager* srvManager) {
+void TankRewardCard::InitializePreview(cg2::SrvManager* srvManager) {
     if(preview_||!spriteCommon_||!srvManager)return;
-    StartupTrace::Scope scope("RewardCard.InitializePreview");
+    cg2::StartupTrace::Scope scope("RewardCard.InitializePreview");
     preview_=std::make_unique<TankRewardPreviewRenderer>();preview_->Initialize(spriteCommon_->GetDxCommon(),srvManager);
-    previewSprite_=std::make_unique<Sprite>();previewSprite_->Initialize(spriteCommon_,preview_->GetSrvIndex(),srvManager);
+    previewSprite_=std::make_unique<cg2::Sprite>();previewSprite_->Initialize(spriteCommon_,preview_->GetSrvIndex(),srvManager);
     previewSprite_->SetAnchorPoint({.5f,.5f});previewSprite_->SetColor({1,1,1,1});previewDirty_=true;
 }
 void TankRewardCard::SetPreviewAppearance(const TankRewardPreviewAppearance& appearance) {
@@ -227,7 +227,7 @@ void TankRewardCard::RefreshText() {
     labels_[5]->SetText("現在");labels_[6]->SetText("取得後");
     labels_[7]->SetText("LEFT CLICK");dirty_=false;
 }
-void TankRewardCard::Update(const Vector2& center,const Vector2& size,float dt,bool hovered,bool enabled) {
+void TankRewardCard::Update(const cg2::Vector2& center,const cg2::Vector2& size,float dt,bool hovered,bool enabled) {
     if(!spriteCommon_)return;
     if(!std::isfinite(dt))dt=0;dt=(std::clamp)(dt,0.0f,0.1f);
     center_=center;size_={(std::max)(240.0f,size.x),(std::max)(280.0f,size.y)};
@@ -247,29 +247,29 @@ void TankRewardCard::Update(const Vector2& center,const Vector2& size,float dt,b
     if(!model_.styleChoice&&!model_.footer.empty()&&model_.footer.front()>='0'&&model_.footer.front()<='9') { const auto size=labels_[3]->GetSprite()->GetSize(); Glow({center_.x-size.x*0.5f-10,top+size_.y-22},{30,30},{1.5f,1.15f,0.34f,1}); }
     Label(4,{center_.x,top+size_.y-58},size_.x-38,17,0.66f+0.20f*hoverBlend_);
 }
-void TankRewardCard::Rect(Vector2 center,Vector2 size,Vector4 color,float rotation) {
+void TankRewardCard::Rect(cg2::Vector2 center,cg2::Vector2 size,const cg2::Vector4& color,float rotation) {
     if(solidCount_>=solids_.size())return;
     auto& s=solids_[solidCount_++];EnsureSprite(s,kWhite);s->SetPosition(center);s->SetSize(size);s->SetRotation(rotation);
-    s->SetColor(Tint(color,alpha_));s->Update();
+    s->SetColor(tankui::ScaleAlpha(color,alpha_));s->Update();
 }
-void TankRewardCard::Line(Vector2 a,Vector2 b,float width,Vector4 color) {
+void TankRewardCard::Line(cg2::Vector2 a,cg2::Vector2 b,float width,const cg2::Vector4& color) {
     const float dx=b.x-a.x,dy=b.y-a.y;
     Rect({(a.x+b.x)*0.5f,(a.y+b.y)*0.5f},{std::sqrt(dx*dx+dy*dy),width},color,std::atan2(dy,dx));
 }
-void TankRewardCard::Glow(Vector2 center,Vector2 size,Vector4 color,float rotation) {
+void TankRewardCard::Glow(cg2::Vector2 center,cg2::Vector2 size,const cg2::Vector4& color,float rotation) {
     if(glowCount_>=glows_.size())return;
     auto& s=glows_[glowCount_++];EnsureSprite(s,kGlow);s->SetPosition(center);s->SetSize(size);s->SetRotation(rotation);
-    s->SetColor(Tint(color,alpha_));s->Update();
+    s->SetColor(tankui::ScaleAlpha(color,alpha_));s->Update();
 }
-void TankRewardCard::EnsureSprite(std::unique_ptr<Sprite>& sprite,const char* texture) {
+void TankRewardCard::EnsureSprite(std::unique_ptr<cg2::Sprite>& sprite,const char* texture) {
     if(sprite)return;
-    sprite=std::make_unique<Sprite>();sprite->Initialize(spriteCommon_,texture);sprite->SetAnchorPoint({0.5f,0.5f});
-    StartupTrace::Count("rewardCard.allocatedSprites");
+    sprite=std::make_unique<cg2::Sprite>();sprite->Initialize(spriteCommon_,texture);sprite->SetAnchorPoint({0.5f,0.5f});
+    cg2::StartupTrace::Count("rewardCard.allocatedSprites");
 }
-void TankRewardCard::Label(std::size_t index,Vector2 position,float maxWidth,float maxHeight,float alpha) {
+void TankRewardCard::Label(std::size_t index,cg2::Vector2 position,float maxWidth,float maxHeight,float alpha) {
     auto& label=labels_[index];label->SetPosition(position);label->SetAlpha(alpha*alpha_);label->PrepareForDraw();
     auto* sprite=label->GetSprite();if(!sprite)return;
-    const Vector2 native=sprite->GetTextureSize();
+    const cg2::Vector2 native=sprite->GetTextureSize();
     const float scale=(std::min)({1.0f,maxWidth/(std::max)(1.0f,native.x),maxHeight/(std::max)(1.0f,native.y)});
     sprite->SetSize({native.x*scale,native.y*scale});sprite->Update();labelVisible_[index]=true;
 }
@@ -283,16 +283,16 @@ void TankRewardCard::BuildFrame() {
     Rect(center_,size_,{0.016f+hoverBlend_*0.009f,0.024f+hoverBlend_*0.008f,0.040f+hoverBlend_*0.008f,0.985f});
     Rect({center_.x,y+17},{w-22,22},{0.035f,0.049f,0.07f,0.8f});
     constexpr float cut=10;
-    const std::array<Vector2,8> frame{{{x+cut,y},{x+w-cut,y},{x+w,y+cut},{x+w,y+h-cut},
+    const std::array<cg2::Vector2,8> frame{{{x+cut,y},{x+w-cut,y},{x+w,y+cut},{x+w,y+h-cut},
         {x+w-cut,y+h},{x+cut,y+h},{x,y+h-cut},{x,y+cut}}};
     for(std::size_t i=0;i<frame.size();++i) {
         const auto a=frame[i],b=frame[(i+1)%frame.size()];
-        Vector4 color=RarityColor(model_.styleChoice?0:model_.rarity,visualTime_*1.6f+static_cast<float>(i)*0.72f);
-        Line(a,b,1.2f+hoverBlend_*0.7f+acquire,Tint(color,focus));
+        cg2::Vector4 color=RarityColor(model_.styleChoice?0:model_.rarity,visualTime_*1.6f+static_cast<float>(i)*0.72f);
+        Line(a,b,1.2f+hoverBlend_*0.7f+acquire,tankui::ScaleAlpha(color,focus));
         if(i%2==0&&(rarity>0||acquire>0.0f)) {
             const float length=std::sqrt((b.x-a.x)*(b.x-a.x)+(b.y-a.y)*(b.y-a.y));
             Glow({(a.x+b.x)*0.5f,(a.y+b.y)*0.5f},{length+24,16+static_cast<float>(rarity)*6+hoverBlend_*10},
-                Tint(color,edgeGlows[static_cast<std::size_t>(rarity)]*(1+hoverBlend_)+acquire*0.10f),std::atan2(b.y-a.y,b.x-a.x));
+                tankui::ScaleAlpha(color,edgeGlows[static_cast<std::size_t>(rarity)]*(1+hoverBlend_)+acquire*0.10f),std::atan2(b.y-a.y,b.x-a.x));
         }
     }
     if(rarity>=2) {
@@ -301,41 +301,41 @@ void TankRewardCard::BuildFrame() {
             auto a=frame[i],b=frame[(i+1)%frame.size()];
             a.x+=(a.x<center_.x?5.0f:-5.0f);a.y+=(a.y<center_.y?5.0f:-5.0f);
             b.x+=(b.x<center_.x?5.0f:-5.0f);b.y+=(b.y<center_.y?5.0f:-5.0f);
-            Line(a,b,rarity==4?1.4f:0.8f,Tint(RarityColor(rarity,visualTime_*1.6f+static_cast<float>(i)*0.72f),0.21f+hoverBlend_*0.24f));
+            Line(a,b,rarity==4?1.4f:0.8f,tankui::ScaleAlpha(RarityColor(rarity,visualTime_*1.6f+static_cast<float>(i)*0.72f),0.21f+hoverBlend_*0.24f));
         }
         if(hoverBlend_>0.02f)for(int n=0;n<2;++n) {
             const float path=std::fmod(visualTime_*1.4f+static_cast<float>(n)*4,8.0f);
             const auto index=static_cast<std::size_t>(path);const float blend=path-static_cast<float>(index);
             const auto a=frame[index],b=frame[(index+1)%frame.size()];
-            const Vector2 at{a.x+(b.x-a.x)*blend,a.y+(b.y-a.y)*blend};
-            Glow(at,{15,15},Tint(accent_,0.7f*hoverBlend_));Rect(at,{3,3},Tint(accent_,hoverBlend_));
+            const cg2::Vector2 at{a.x+(b.x-a.x)*blend,a.y+(b.y-a.y)*blend};
+            Glow(at,{15,15},tankui::ScaleAlpha(accent_,0.7f*hoverBlend_));Rect(at,{3,3},tankui::ScaleAlpha(accent_,hoverBlend_));
         }
     }
     // Corner brackets retain a sharp silhouette, while the glow is restricted
     // to edges. The center stays dark at every rarity and interaction state.
     for(int side=0;side<2;++side)for(int bottom=0;bottom<2;++bottom) {
         const float bx=x+(side?w-7:7),by=y+(bottom?h-7:7),sx=side?-1.0f:1.0f,sy=bottom?-1.0f:1.0f;
-        Line({bx+sx*4,by},{bx+sx*27,by},2,Tint(accent_,0.72f));
-        Line({bx,by+sy*4},{bx,by+sy*22},2,Tint(accent_,0.72f));
-        Rect({bx+sx*9,by+sy*9},{3,3},Tint(accent_,0.84f));
+        Line({bx+sx*4,by},{bx+sx*27,by},2,tankui::ScaleAlpha(accent_,0.72f));
+        Line({bx,by+sy*4},{bx,by+sy*22},2,tankui::ScaleAlpha(accent_,0.72f));
+        Rect({bx+sx*9,by+sy*9},{3,3},tankui::ScaleAlpha(accent_,0.84f));
         if(rarity>=3) {
             // Epic corner sockets, with short moving electric arcs on hover.
-            Line({bx+sx*15,by+sy*3},{bx+sx*33,by+sy*3},2,Tint(accent_,0.55f));
-            Line({bx+sx*3,by+sy*15},{bx+sx*3,by+sy*33},2,Tint(accent_,0.55f));
-            Rect({bx+sx*8,by+sy*8},{6,6},Tint(accent_,0.45f),kPi*0.25f);
+            Line({bx+sx*15,by+sy*3},{bx+sx*33,by+sy*3},2,tankui::ScaleAlpha(accent_,0.55f));
+            Line({bx+sx*3,by+sy*15},{bx+sx*3,by+sy*33},2,tankui::ScaleAlpha(accent_,0.55f));
+            Rect({bx+sx*8,by+sy*8},{6,6},tankui::ScaleAlpha(accent_,0.45f),kPi*0.25f);
             if(hoverBlend_>0.03f) {
                 const float jitter=std::sin(visualTime_*24+static_cast<float>(side+bottom*2)*2)*3;
-                const Vector2 a{bx+sx*36,by+sy*2},m{bx+sx*(46+jitter),by-sy*3},b{bx+sx*58,by+sy*2};
-                Line(a,m,1.1f,Tint(accent_,hoverBlend_*0.72f));Line(m,b,1.1f,Tint(accent_,hoverBlend_*0.72f));
+                const cg2::Vector2 a{bx+sx*36,by+sy*2},m{bx+sx*(46+jitter),by-sy*3},b{bx+sx*58,by+sy*2};
+                Line(a,m,1.1f,tankui::ScaleAlpha(accent_,hoverBlend_*0.72f));Line(m,b,1.1f,tankui::ScaleAlpha(accent_,hoverBlend_*0.72f));
             }
         }
     }
     Line({x+20,y+76},{x+w-20,y+76},1,{0.26f,0.34f,0.43f,0.42f});
-    Line({x+20,y+h-42},{x+w-20,y+h-42},1,Tint(accent_,0.23f+hoverBlend_*0.24f));
+    Line({x+20,y+h-42},{x+w-20,y+h-42},1,tankui::ScaleAlpha(accent_,0.23f+hoverBlend_*0.24f));
     const int ornaments=model_.styleChoice?1:(std::clamp)(model_.rarity+1,1,5);
     for(int i=0;i<ornaments;++i) {
         const float px=x+22+static_cast<float>(i)*6;
-        Rect({px,y+h-17},{2,7+static_cast<float>(i%2)*3},Tint(RarityColor(model_.rarity,visualTime_+static_cast<float>(i)),0.65f));
+        Rect({px,y+h-17},{2,7+static_cast<float>(i%2)*3},tankui::ScaleAlpha(RarityColor(model_.rarity,visualTime_+static_cast<float>(i)),0.65f));
     }
     if(rarity==4&&(hoverBlend_>0.05f||acquire>0.0f)) {
         const int amount=10;
@@ -343,24 +343,24 @@ void TankRewardCard::BuildFrame() {
             const float fi=static_cast<float>(i);
             const float p=std::fmod(visualTime_*0.16f+fi/static_cast<float>(amount),1.0f);
             const float py=y+19+p*(h-38),px=(i%2==0?x-4:x+w+4);
-            Glow({px,py},{11+acquire*9,11+acquire*9},Tint(RarityColor(model_.rarity,visualTime_+fi),hoverBlend_*0.35f+acquire*0.3f));
-            Rect({px,py},{2,2},Tint(accent_,0.85f*hoverBlend_));
+            Glow({px,py},{11+acquire*9,11+acquire*9},tankui::ScaleAlpha(RarityColor(model_.rarity,visualTime_+fi),hoverBlend_*0.35f+acquire*0.3f));
+            Rect({px,py},{2,2},tankui::ScaleAlpha(accent_,0.85f*hoverBlend_));
         }
     }
     if(acquire>0.0f) {
         const float inset=5+acquireTime_*16;
-        Line({x+inset,y+h-inset},{x+w-inset,y+h-inset},2,Tint(accent_,acquire));
-        Line({x+inset,y+inset},{x+w-inset,y+inset},2,Tint(accent_,acquire));
+        Line({x+inset,y+h-inset},{x+w-inset,y+h-inset},2,tankui::ScaleAlpha(accent_,acquire));
+        Line({x+inset,y+inset},{x+w-inset,y+inset},2,tankui::ScaleAlpha(accent_,acquire));
         if(rarity==4)for(int i=0;i<12;++i) {
             const float p=static_cast<float>(i)/12.0f*2*kPi;
             const float outward=acquireTime_*14;
-            const Vector2 at{center_.x+std::cos(p)*(w*0.47f+outward),center_.y+std::sin(p)*(h*0.47f+outward)};
-            Line(at,{at.x+std::cos(p)*7,at.y+std::sin(p)*7},2,Tint(RarityColor(4,p),acquire));
-            Glow(at,{19,19},Tint(RarityColor(4,p),acquire*0.65f));
+            const cg2::Vector2 at{center_.x+std::cos(p)*(w*0.47f+outward),center_.y+std::sin(p)*(h*0.47f+outward)};
+            Line(at,{at.x+std::cos(p)*7,at.y+std::sin(p)*7},2,tankui::ScaleAlpha(RarityColor(4,p),acquire));
+            Glow(at,{19,19},tankui::ScaleAlpha(RarityColor(4,p),acquire*0.65f));
         }
     }
 }
-void TankRewardCard::Tank(Vector2 center,float radius,float angle,Vector4 color,bool drone,int barrels) {
+void TankRewardCard::Tank(cg2::Vector2 center,float radius,float angle,const cg2::Vector4& color,bool drone,int barrels) {
     const int segments=drone?4:12;
     if(!drone) {
         Rect({center.x,center.y-radius*0.72f},{radius*1.8f,radius*0.38f},{0.17f,0.24f,0.32f,0.9f});
@@ -374,14 +374,14 @@ void TankRewardCard::Tank(Vector2 center,float radius,float angle,Vector4 color,
     }
     for(int n=0;n<barrels;++n) {
         const float offset=(static_cast<float>(n)-static_cast<float>(barrels-1)*0.5f)*radius*0.25f;
-        const Vector2 base{center.x-std::sin(angle)*offset,center.y+std::cos(angle)*offset};
+        const cg2::Vector2 base{center.x-std::sin(angle)*offset,center.y+std::cos(angle)*offset};
         Line(base,{base.x+std::cos(angle)*radius*1.55f,base.y+std::sin(angle)*radius*1.55f},drone?2.0f:2.6f,color);
     }
-    Glow(center,{radius*3.3f,radius*3.3f},Tint(color,0.22f));
+    Glow(center,{radius*3.3f,radius*3.3f},tankui::ScaleAlpha(color,0.22f));
 }
-void TankRewardCard::DrawLane(const tankreward::DemoSnapshot& s,const Vector2& origin,const Vector2& size,bool after) {
-    auto point=[&](tankreward::Point p)->Vector2{return {origin.x+p.x*size.x,origin.y+p.y*size.y};};
-    const Vector4 actor=after?Vector4{0.30f,0.90f,1.0f,0.95f}:Vector4{0.55f,0.63f,0.70f,0.67f};
+void TankRewardCard::DrawLane(const tankreward::DemoSnapshot& s,const cg2::Vector2& origin,const cg2::Vector2& size,bool after) {
+    auto point=[&](tankreward::Point p)->cg2::Vector2{return {origin.x+p.x*size.x,origin.y+p.y*size.y};};
+    const cg2::Vector4 actor=after?cg2::Vector4{0.30f,0.90f,1.0f,0.95f}:cg2::Vector4{0.55f,0.63f,0.70f,0.67f};
     const float radius=(std::min)(9.0f,size.y*0.16f);
     if(s.wall)Line(point({0.35f,0.18f}),point({0.71f,0.18f}),3,{0.52f,0.63f,0.76f,0.65f});
     // Reticle: a real cursor target, distinct from the enemy and bullet path.
@@ -390,35 +390,35 @@ void TankRewardCard::DrawLane(const tankreward::DemoSnapshot& s,const Vector2& o
     Line({cursor.x,cursor.y-4},{cursor.x,cursor.y+4},1,{0.5f,0.68f,0.75f,0.34f});
     for(int n=0;n<s.targetCount;++n) {
         auto at=point(s.targets[n]);const float r=radius*0.88f;
-        const Vector4 enemy{1.0f,0.27f+s.hit[n]*0.42f,0.30f+s.hit[n]*0.4f,0.82f};
+        const cg2::Vector4 enemy{1.0f,0.27f+s.hit[n]*0.42f,0.30f+s.hit[n]*0.4f,0.82f};
         Rect(at,{r*1.2f,r*1.2f},{0.13f,0.026f,0.048f,0.98f},0.17f);
-        const std::array<Vector2,4> ends{{{at.x-r,at.y-r},{at.x+r,at.y-r},{at.x+r,at.y+r},{at.x-r,at.y+r}}};
+        const std::array<cg2::Vector2,4> ends{{{at.x-r,at.y-r},{at.x+r,at.y-r},{at.x+r,at.y+r},{at.x-r,at.y+r}}};
         for(std::size_t i=0;i<4;++i)Line(ends[i],ends[(i+1)%4],1.2f,enemy);
         if(s.hit[n]>0.0f) {
-            Glow(at,{radius*4,radius*4},Tint(enemy,s.hit[n]*0.45f));
+            Glow(at,{radius*4,radius*4},tankui::ScaleAlpha(enemy,s.hit[n]*0.45f));
             for(int k=0;k<3;++k) {const float a=static_cast<float>(k)*2.0944f;Line(
                 {at.x+std::cos(a)*r*1.6f,at.y+std::sin(a)*r*1.6f},
-                {at.x+std::cos(a)*r*2.3f,at.y+std::sin(a)*r*2.3f},1,Tint(enemy,s.hit[n]));}
+                {at.x+std::cos(a)*r*2.3f,at.y+std::sin(a)*r*2.3f},1,tankui::ScaleAlpha(enemy,s.hit[n]));}
         }
         Line({at.x-r,at.y-r-4},{at.x+r,at.y-r-4},2,{0.30f,0.13f,0.17f,0.8f});
         Line({at.x-r,at.y-r-4},{at.x-r+2*r*(1.0f-tankreward::Saturate(s.damage[n])),at.y-r-4},2,{0.95f,0.37f,0.37f,0.8f});
     }
     const auto player=point(s.player);
     if(s.dashing) {
-        Line({player.x-22,player.y},player,4,Tint(actor,0.30f));
-        Line({player.x-29,player.y+4},{player.x-9,player.y+4},1,Tint(actor,0.45f));
+        Line({player.x-22,player.y},player,4,tankui::ScaleAlpha(actor,0.30f));
+        Line({player.x-29,player.y+4},{player.x-9,player.y+4},1,tankui::ScaleAlpha(actor,0.45f));
     }
     Tank(player,radius,std::atan2(cursor.y-player.y,cursor.x-player.x),actor,false,s.barrelCount);
     for(int n=0;n<s.droneCount;++n) {
         const auto drone=point(s.drones[n]);
-        Line(player,drone,0.7f,Tint(actor,0.18f));
+        Line(player,drone,0.7f,tankui::ScaleAlpha(actor,0.18f));
         Tank(drone,radius*0.55f,std::atan2(cursor.y-drone.y,cursor.x-drone.x),actor,true);
     }
     for(const auto& bullet:s.bullets) {
         if(!bullet.visible)continue;
-        for(std::size_t i=1;i<bullet.trailCount;++i)Line(point(bullet.trail[i-1]),point(bullet.trail[i]),1.2f,Tint(actor,0.12f+0.44f*static_cast<float>(i)/8.0f));
-        const auto at=point(bullet.position);Rect(at,{5,2.5f},actor,bullet.angle);Glow(at,{13,13},Tint(actor,0.5f));
-        if(s.reinforcedProjectiles) {Line({at.x-4,at.y-3},{at.x+4,at.y-3},1,Tint(actor,0.65f));Line({at.x-4,at.y+3},{at.x+4,at.y+3},1,Tint(actor,0.65f));}
+        for(std::size_t i=1;i<bullet.trailCount;++i)Line(point(bullet.trail[i-1]),point(bullet.trail[i]),1.2f,tankui::ScaleAlpha(actor,0.12f+0.44f*static_cast<float>(i)/8.0f));
+        const auto at=point(bullet.position);Rect(at,{5,2.5f},actor,bullet.angle);Glow(at,{13,13},tankui::ScaleAlpha(actor,0.5f));
+        if(s.reinforcedProjectiles) {Line({at.x-4,at.y-3},{at.x+4,at.y-3},1,tankui::ScaleAlpha(actor,0.65f));Line({at.x-4,at.y+3},{at.x+4,at.y+3},1,tankui::ScaleAlpha(actor,0.65f));}
     }
     if(s.slashing) {
         // The horizontal range is intentionally compared in the same scale in
@@ -431,10 +431,10 @@ void TankRewardCard::DrawLane(const tankreward::DemoSnapshot& s,const Vector2& o
             const float b=start+(end-start)*static_cast<float>(i+1)/segments;
             const float rx=s.slashReach*size.x,ry=(std::min)(size.y*0.37f,rx);
             Line({player.x+std::cos(a)*rx,player.y+std::sin(a)*ry},
-                {player.x+std::cos(b)*rx,player.y+std::sin(b)*ry},s.comboStep==2?2.8f:1.8f,Tint(actor,0.78f));
+                {player.x+std::cos(b)*rx,player.y+std::sin(b)*ry},s.comboStep==2?2.8f:1.8f,tankui::ScaleAlpha(actor,0.78f));
         }
         Glow({player.x+std::cos(s.slashAngle)*s.slashReach*size.x,player.y+std::sin(s.slashAngle)*size.y*0.3f},
-            {20,20},Tint(actor,0.38f));
+            {20,20},tankui::ScaleAlpha(actor,0.38f));
     }
 }
 void TankRewardCard::BuildDemo() {
@@ -461,8 +461,8 @@ void TankRewardCard::BuildDemo() {
     }
     if(kind==D::Info) {
         // Generic statistics do not invent extra shots, range or effects.
-        const float r=18;Tank({center_.x,demoY+demoH*0.46f},r,0,Tint(accent_,0.70f));
-        for(int i=0;i<3;++i)Rect({center_.x-13+static_cast<float>(i)*13,demoY+demoH*0.82f},{9,2+static_cast<float>(i)*3},Tint(accent_,0.42f));
+        const float r=18;Tank({center_.x,demoY+demoH*0.46f},r,0,tankui::ScaleAlpha(accent_,0.70f));
+        for(int i=0;i<3;++i)Rect({center_.x-13+static_cast<float>(i)*13,demoY+demoH*0.82f},{9,2+static_cast<float>(i)*3},tankui::ScaleAlpha(accent_,0.42f));
         return;
     }
     if(model_.styleChoice) {
@@ -476,22 +476,22 @@ void TankRewardCard::BuildDemo() {
         Label(5,{x+37,demoY+8},42,12,0.5f);Label(6,{x+37,demoY+laneH+8},42,12,0.87f);
     }
     Line({x+25,demoY+demoH+3},{x+size_.x-25,demoY+demoH+3},1,{0.2f,0.29f,0.38f,0.34f});
-    if(hovered_)Line({x+25,demoY+demoH+3},{x+25+(size_.x-50)*after_.progress,demoY+demoH+3},1.7f,Tint(accent_,0.65f));
+    if(hovered_)Line({x+25,demoY+demoH+3},{x+25+(size_.x-50)*after_.progress,demoY+demoH+3},1.7f,tankui::ScaleAlpha(accent_,0.65f));
 }
 void TankRewardCard::Draw() {
     if(!spriteCommon_)return;
-    spriteCommon_->PreDraw(kNormal);
+    spriteCommon_->PreDraw(cg2::kNormal);
     for(std::size_t i=0;i<solidCount_;++i)solids_[i]->Draw();
     if(preview_&&preview_->HasRendered()&&previewSprite_)previewSprite_->Draw();
-    spriteCommon_->PreDraw(kAdd);
+    spriteCommon_->PreDraw(cg2::kAdd);
     for(std::size_t i=0;i<glowCount_;++i)glows_[i]->Draw();
-    spriteCommon_->PreDraw(kNormal);
+    spriteCommon_->PreDraw(cg2::kNormal);
     // TextLabel::Draw may rebuild a texture after a font change. Drawing only
     // prepared sprites guarantees no texture creation inside the render pass.
     for(std::size_t i=0;i<labels_.size();++i)if(labelVisible_[i])if(auto* sprite=labels_[i]->GetSprite())sprite->Draw();
 }
 void TankRewardCard::DrawBloomSource() {
     if(!spriteCommon_)return;
-    spriteCommon_->PreDrawForScene(kAdd);
+    spriteCommon_->PreDrawForScene(cg2::kAdd);
     for(std::size_t i=0;i<glowCount_;++i)glows_[i]->Draw();
 }

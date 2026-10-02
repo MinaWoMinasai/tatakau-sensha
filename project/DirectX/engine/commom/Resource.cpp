@@ -1,5 +1,7 @@
 #include "Resource.h"
 
+namespace cg2 {
+
 D3D12_VERTEX_BUFFER_VIEW Resource::CreateVBV(const ModelData& modelData, Texture texture, Microsoft::WRL::ComPtr<ID3D12Device>& device, Microsoft::WRL::ComPtr<ID3D12Resource>& vertexResource)
 {
 
@@ -54,7 +56,7 @@ void Resource::CreateWVP(Texture texture, Microsoft::WRL::ComPtr<ID3D12Device>& 
 
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> Resource::CreatedirectionalLight(Texture texture, Microsoft::WRL::ComPtr<ID3D12Device>& device)
+Microsoft::WRL::ComPtr<ID3D12Resource> Resource::CreateDirectionalLight(Texture texture, Microsoft::WRL::ComPtr<ID3D12Device>& device)
 {
 
 	// 平行光源用のリソースを作る
@@ -70,3 +72,5 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Resource::CreatedirectionalLight(Texture 
 
 	return directionalLightResource;
 }
+
+} // namespace cg2

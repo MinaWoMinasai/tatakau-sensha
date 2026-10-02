@@ -1,0 +1,11 @@
+<Project>
+  <!-- Keep the vendored source at its existing /Wall level. Check SDK/STL
+       headers at /W3, matching the application requirement, without changing
+       vendor or Windows SDK source or globally disabling a warning. -->
+  <ItemDefinitionGroup Condition="'$(MSBuildProjectName)' == 'DirectXTex_Desktop_2022_Win10'">
+    <ClCompile>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

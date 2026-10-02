@@ -3,6 +3,8 @@
 #include <memory>
 #include "TrailInstance.h"
 
+namespace cg2 {
+
 class TrailManager {
 public:
     // Initial allocation. Grow on demand without shortening existing trails.
@@ -99,3 +101,5 @@ private:
     std::string textureFilePath_;
     DrawStats drawStats_{};
 };
+
+} // namespace cg2

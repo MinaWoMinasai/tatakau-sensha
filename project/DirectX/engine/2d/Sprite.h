@@ -3,12 +3,14 @@
 #include "TextureManager.h"
 #include "SrvManager.h"
 
+namespace cg2 {
+
 class Sprite
 {
 public:
 
 	// 初期化
-	void Initialize(SpriteCommon* spriteCommon, std::string textureFilePath);
+	void Initialize(SpriteCommon* spriteCommon, const std::string& textureFilePath);
 	void Initialize(SpriteCommon* spriteCommon, uint32_t srvIndex, SrvManager* srvManager);
 
 	void Update();
@@ -21,7 +23,7 @@ public:
 	/// テクスチャ変更
 	/// </summary>
 	/// <param name="textureFilePath"></param>
-	void SetTexture(std::string textureFilePath);
+	void SetTexture(const std::string& textureFilePath);
 
 	const Vector2& GetPosition() const { return position_; }
 	void SetPosition(const Vector2& position) { position_ = position; }
@@ -112,3 +114,4 @@ private:
 	SrvManager* srvManager_ = nullptr;
 };
 
+} // namespace cg2

@@ -103,13 +103,10 @@ private:
         static const LockedState locked;
         static const ActiveState active;
         static const RecoveryState recovery;
-        switch (phase) {
-        case ExpEnemyCombatPhase::Tracking: return tracking;
-        case ExpEnemyCombatPhase::Locked: return locked;
-        case ExpEnemyCombatPhase::Active: return active;
-        case ExpEnemyCombatPhase::Recovery: return recovery;
-        default: return cooldown;
-        }
+        static const std::array<const State*, 5> states{&cooldown, &tracking, &locked, &active, &recovery};
+        static_assert(states.size() == static_cast<std::size_t>(ExpEnemyCombatPhase::Recovery) + 1);
+        const auto index = static_cast<std::size_t>(phase);
+        return *states[index < states.size() ? index : 0];
     }
     bool Elapse(float dt) {
         remaining_ = (std::max)(0.0f, remaining_ - dt);

@@ -14,19 +14,19 @@ bool SceneManager::SetSceneFactory(
     std::unique_ptr<AbstractSceneFactory> sceneFactory)
 {
     if (!sceneFactory) {
-        LogWrite().Log(
+        cg2::LogWrite().Log(
             "[SceneManager] Rejected a nullptr scene factory. "
             "The existing factory remains unchanged.\n");
         return false;
     }
     if (currentScene_) {
-        LogWrite().Log(
+        cg2::LogWrite().Log(
             "[SceneManager] Cannot set a scene factory after a scene has been initialized. "
             "The existing factory remains unchanged.\n");
         return false;
     }
     if (sceneFactory_) {
-        LogWrite().Log(
+        cg2::LogWrite().Log(
             "[SceneManager] Cannot replace an already configured scene factory. "
             "The existing factory remains unchanged.\n");
         return false;
@@ -49,10 +49,10 @@ std::vector<std::string> SceneManager::GetRegisteredSceneNames() const
 }
 
 bool SceneManager::Initialize(const std::string& firstSceneName) {
-    StartupTrace::Scope startupScope("Scene.Initialize." + firstSceneName);
+    cg2::StartupTrace::Scope startupScope("Scene.Initialize." + firstSceneName);
 
     if (!sceneFactory_) {
-        LogWrite().Log(
+        cg2::LogWrite().Log(
             "[SceneManager] Cannot initialize scene '" + firstSceneName +
             "' because no scene factory has been configured.\n");
         return false;
@@ -61,7 +61,7 @@ bool SceneManager::Initialize(const std::string& firstSceneName) {
     // 最初のシーンを生成
     std::unique_ptr<IScene> firstScene = sceneFactory_->CreateScene(firstSceneName);
     if (!firstScene) {
-        LogWrite().Log(
+        cg2::LogWrite().Log(
             "[SceneManager] Failed to initialize first scene '" + firstSceneName +
             "'. The existing active scene, if any, remains unchanged.\n");
         return false;
@@ -106,24 +106,24 @@ void SceneManager::Update() {
             std::unique_ptr<IScene> nextScene = sceneFactory_->CreateScene(nextSceneName);
 
             if (nextScene) {
-                StartupTrace::Mark("transition.begin." + currentSceneName_ + "." + nextSceneName);
+                cg2::StartupTrace::Mark("transition.begin." + currentSceneName_ + "." + nextSceneName);
                 {
-                    StartupTrace::Scope scope("Scene.DestroyPrevious." + currentSceneName_);
+                    cg2::StartupTrace::Scope scope("Scene.DestroyPrevious." + currentSceneName_);
                     currentScene_ = std::move(nextScene);
                 }
                 currentSceneName_ = nextSceneName;
                 failedTransitionFromSceneName_.clear();
                 failedTransitionToSceneName_.clear();
                 {
-                    StartupTrace::Scope scope("Scene.Initialize." + nextSceneName);
+                    cg2::StartupTrace::Scope scope("Scene.Initialize." + nextSceneName);
                     currentScene_->Initialize();
                 }
-                StartupTrace::Mark("transition.initialized." + nextSceneName);
-                StartupTrace::Flush();
+                cg2::StartupTrace::Mark("transition.initialized." + nextSceneName);
+                cg2::StartupTrace::Flush();
             } else {
                 failedTransitionFromSceneName_ = currentSceneName_;
                 failedTransitionToSceneName_ = nextSceneName;
-                LogWrite().Log(
+                cg2::LogWrite().Log(
                     "[SceneManager] Transition from '" + currentSceneName_ + "' to '" +
                     nextSceneName + "' failed. The current scene remains active.\n");
             }

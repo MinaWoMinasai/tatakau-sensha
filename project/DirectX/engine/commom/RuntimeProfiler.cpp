@@ -8,6 +8,8 @@
 #include <filesystem>
 #include <iomanip>
 
+namespace cg2 {
+
 namespace {
 std::string Environment(const char* name) {
     char value[2048]{};
@@ -246,3 +248,5 @@ void RuntimeProfiler::DrawOverlay(bool limitEnabled,const char* scene) {
     }
     ImGui::End();
 }
+
+} // namespace cg2

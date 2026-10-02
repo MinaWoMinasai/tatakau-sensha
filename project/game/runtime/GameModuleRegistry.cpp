@@ -26,7 +26,7 @@ std::string FormatRegisteredIds(const std::vector<std::string>& ids)
 
 void LogRegistryError(const std::string& message)
 {
-	LogWrite().Log("[GameModuleRegistry] " + message + "\n");
+	cg2::LogWrite().Log("[GameModuleRegistry] " + message + "\n");
 }
 
 }

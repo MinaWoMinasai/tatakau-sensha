@@ -1,5 +1,7 @@
 #include "Object3dCommon.h"
 
+namespace cg2 {
+
 Object3dCommon* Object3dCommon::GetInstance()
 {
 	static Object3dCommon instance;
@@ -65,3 +67,5 @@ void Object3dCommon::PreDraw(BlendMode blendMode)
 
 	blendMode_ = blendMode;
 }
+
+} // namespace cg2

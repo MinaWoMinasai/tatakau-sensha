@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <dbghelp.h>
 #include <strsafe.h>
+namespace cg2 {
+
 class Dump
 {
 
@@ -12,3 +14,4 @@ public:
 
 };
 
+} // namespace cg2

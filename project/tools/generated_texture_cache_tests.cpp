@@ -3,6 +3,8 @@
 #include <cstring>
 #include <iostream>
 
+namespace GeneratedTextureCache = cg2::GeneratedTextureCache;
+
 void Fill(DirectX::ScratchImage& image) {
     for (size_t index = 0; index < image.GetImageCount(); ++index) {
         const auto& part = image.GetImages()[index];

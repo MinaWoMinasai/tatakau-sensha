@@ -7,8 +7,8 @@
 #include "EnemyManager.h"
 #include <array>
 
-void BulletManager::Initialize(DirectXCommon* dxCommon, Object3dCommon* object3dCommon) {
-    trailManager_ = std::make_unique<TrailManager>();
+void BulletManager::Initialize(cg2::DirectXCommon* dxCommon, cg2::Object3dCommon* object3dCommon) {
+    trailManager_ = std::make_unique<cg2::TrailManager>();
     trailManager_->Initialize(dxCommon, object3dCommon, "resources/white512x512.png");
 }
 
@@ -146,7 +146,7 @@ void BulletManager::Draw() {
     }
 }
 
-void BulletManager::DrawTrails(const Matrix4x4& viewProjection) {
+void BulletManager::DrawTrails(const cg2::Matrix4x4& viewProjection) {
     if (trailManager_) {
         trailManager_->DrawAll(viewProjection);
     }
@@ -186,7 +186,7 @@ size_t BulletManager::GetTrailInstanceCount() const {
     return trailManager_ ? trailManager_->GetInstanceCount() : 0;
 }
 
-void BulletManager::BuildEventAt(BuildEventKind kind,const Vector3& start,const Vector3& end,float strength)
+void BulletManager::BuildEventAt(BuildEventKind kind,const cg2::Vector3& start,const cg2::Vector3& end,float strength)
 {
     if(buildEvents_.size()<64)buildEvents_.push_back({kind,start,end,strength});
 }
@@ -200,16 +200,16 @@ std::vector<Collider*> BulletManager::LiveCombatTargets() const
     return targets;
 }
 
-bool BulletManager::HasClearLink(const Vector3& from,const Vector3& to) const
+bool BulletManager::HasClearLink(const cg2::Vector3& from,const cg2::Vector3& to) const
 {
     if(!combatStage_)return true;
-    const float length=Length(to-from);
+    const float length=cg2::Length(to-from);
     const int steps=(std::clamp)(static_cast<int>(std::ceil(length/.45f)),1,128);
     for(int i=1;i<steps;++i)if(combatStage_->IsCollisionWithAnyBlock(from+(to-from)*(static_cast<float>(i)/steps),.08f))return false;
     return true;
 }
 
-bool BulletManager::DamageBuildTarget(Collider* target,uint32_t damage,const Vector3& source)
+bool BulletManager::DamageBuildTarget(Collider* target,uint32_t damage,const cg2::Vector3& source)
 {
     if(auto* enemy=dynamic_cast<ExpEnemy*>(target)) {
         if(enemy->IsDead()||enemy->IsRunResource())return false;
@@ -221,14 +221,14 @@ bool BulletManager::DamageBuildTarget(Collider* target,uint32_t damage,const Vec
     return false;
 }
 
-void BulletManager::QueueKillBurst(const Bullet& bullet,const Vector3& position)
+void BulletManager::QueueKillBurst(const Bullet& bullet,const cg2::Vector3& position)
 {
     if(!bullet.GetShooterAbilities().killBurst||bullet.IsBurstChild()||pendingBuildShots_.size()>42)return;
     ++shooterStats_.burstTriggers;
     const auto damage=tankshooter::Damage(bullet.GetDamage(),.35f,bullet.GetShooterAbilities().burstPower);
     for(int i=0;i<tankshooter::kBurstChildren;++i) {
         const float angle=static_cast<float>(i)*6.2831853f/tankshooter::kBurstChildren;
-        const Vector3 direction{std::cos(angle),std::sin(angle),0};
+        const cg2::Vector3 direction{std::cos(angle),std::sin(angle),0};
         pendingBuildShots_.push_back({position+direction*.35f,direction*.30f,damage,false});
     }
     BuildEventAt(BuildEventKind::Burst,position,position);
@@ -241,13 +241,13 @@ void BulletManager::NotifyPlayerHit(Bullet& bullet,Collider& target,bool killed)
     const auto& ability=bullet.GetShooterAbilities();
     if(killed)QueueKillBurst(bullet,target.GetWorldPosition());
     if(ability.chain) {
-        Vector3 from=target.GetWorldPosition();
+        cg2::Vector3 from=target.GetWorldPosition();
         std::array<uint64_t,3> visited{target.GetCollisionId(),0,0};
         for(int hop=0;hop<tankshooter::kChainTargets;++hop) {
             Collider* nearest=nullptr;float distance=tankshooter::kChainRadius;
             for(auto* candidate:LiveCombatTargets()) {
                 if(std::find(visited.begin(),visited.end(),candidate->GetCollisionId())!=visited.end())continue;
-                const float d=Length(candidate->GetWorldPosition()-from);
+                const float d=cg2::Length(candidate->GetWorldPosition()-from);
                 if(d<distance&&HasClearLink(from,candidate->GetWorldPosition())){nearest=candidate;distance=d;}
             }
             if(!nearest)break;
@@ -263,7 +263,7 @@ void BulletManager::NotifyPlayerHit(Bullet& bullet,Collider& target,bool killed)
         const auto center=target.GetWorldPosition();
         ++shooterStats_.detonations;BuildEventAt(BuildEventKind::Detonation,center,center,2.8f);
         for(auto* candidate:LiveCombatTargets()) {
-            if(Length(candidate->GetWorldPosition()-center)>2.8f+candidate->GetRadius()||!HasClearLink(center,candidate->GetWorldPosition()))continue;
+            if(cg2::Length(candidate->GetWorldPosition()-center)>2.8f+candidate->GetRadius()||!HasClearLink(center,candidate->GetWorldPosition()))continue;
             const bool boss=dynamic_cast<Enemy*>(candidate)!=nullptr;
             const float scale=1.75f*(candidate==&target?1.0f:.50f)*(boss?.65f:1.0f);
             if(DamageBuildTarget(candidate,tankshooter::Damage(bullet.GetDamage(),scale,ability.markPower),center))QueueKillBurst(bullet,candidate->GetWorldPosition());
@@ -280,12 +280,12 @@ std::vector<BulletManager::MarkVisual> BulletManager::GetMarkVisuals() const
     return out;
 }
 
-void BulletManager::QueueArmorReflection(const Bullet& bullet,const Vector3& targetPosition)
+void BulletManager::QueueArmorReflection(const Bullet& bullet,const cg2::Vector3& targetPosition)
 {
     if(pendingBuildShots_.size()>=48||bullet.WasArmorReflected())return;
     const auto incoming=bullet.GetWorldPosition()-bullet.GetPreviousWorldPosition();
-    const auto velocity=Length(incoming)>.0001f?Normalize(incoming)*-Length(bullet.GetMove()):bullet.GetMove()*-1.0f;
-    if(Length(velocity)<.0001f)return;
-    pendingBuildShots_.push_back({targetPosition+Normalize(velocity)*1.7f,velocity*.85f,tankshooter::Damage(bullet.GetDamage(),.45f),true});
+    const auto velocity=cg2::Length(incoming)>.0001f?cg2::Normalize(incoming)*-cg2::Length(bullet.GetMove()):bullet.GetMove()*-1.0f;
+    if(cg2::Length(velocity)<.0001f)return;
+    pendingBuildShots_.push_back({targetPosition+cg2::Normalize(velocity)*1.7f,velocity*.85f,tankshooter::Damage(bullet.GetDamage(),.45f),true});
     ++shooterStats_.reflections;BuildEventAt(BuildEventKind::Reflection,targetPosition,targetPosition);
 }

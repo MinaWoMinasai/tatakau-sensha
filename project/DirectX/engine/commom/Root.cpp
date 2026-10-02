@@ -1,5 +1,7 @@
 #include "Root.h"
 
+namespace cg2 {
+
 void Root::InitalizeForObject()
 {
 	// --- RootParameterの拡張 ---
@@ -867,3 +869,5 @@ void Root::Create(Microsoft::WRL::ComPtr<ID3D12Device>& device)
 	assert(SUCCEEDED(hr));
 
 }
+
+} // namespace cg2

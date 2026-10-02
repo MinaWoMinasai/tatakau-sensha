@@ -6,6 +6,8 @@
 #include "ShadowMap.h"
 #include <algorithm>
 
+namespace cg2 {
+
 class Object3dCommon
 {
 public:
@@ -67,3 +69,4 @@ private:
 	float shadowRange_ = 500.0f;
 };
 
+} // namespace cg2

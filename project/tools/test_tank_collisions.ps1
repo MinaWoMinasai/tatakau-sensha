@@ -42,7 +42,7 @@ $tankCollisionMethods = @(
     (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::HealFromFeeding('),
     (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::AdvanceFeedingLevel('),
     (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::RegisterRunResourceClaim('),
-    (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'Vector3 Enemy::ResolveMoveTargetPosition('),
+    (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'cg2::Vector3 Enemy::ResolveMoveTargetPosition('),
     (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::SetRunEncounterEnabled('),
     (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::ResetRunEncounter('),
     (Read-ProductionMethod 'project/game/enemy/actor/Enemy.cpp' 'void Enemy::SetPrototypeMaxHp('),
@@ -74,7 +74,7 @@ $tankCollisionBatch = @'
 @echo off
 call "%TANK_COLLISION_VS%" -no_logo -arch=x64 -host_arch=x64
 if errorlevel 1 exit /b %errorlevel%
-cl /nologo /std:c++17 /utf-8 /EHsc /W4 /O2 /I"%TANK_COLLISION_INCLUDE%" /Fe:tank_collision_tests.exe /Fo:.\ "%TANK_COLLISION_SOURCE%"
+cl /nologo /std:c++17 /utf-8 /EHsc /W4 /WX /O2 /I"%TANK_COLLISION_INCLUDE%" /Fe:tank_collision_tests.exe /Fo:.\ "%TANK_COLLISION_SOURCE%"
 if errorlevel 1 exit /b %errorlevel%
 tank_collision_tests.exe
 exit /b %errorlevel%

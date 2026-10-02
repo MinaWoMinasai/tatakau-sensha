@@ -2,6 +2,8 @@
 #include "ModelCommon.h"
 #include "TextureManager.h"
 
+namespace cg2 {
+
 class Model
 {
 
@@ -52,3 +54,4 @@ private:
 	Texture texture;
 };
 
+} // namespace cg2

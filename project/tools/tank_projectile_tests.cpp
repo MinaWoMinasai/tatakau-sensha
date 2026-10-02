@@ -21,6 +21,8 @@
 #include "../game/player/TankCombatStyleBalance.h"
 #include "../game/run/TankBuildStyle.h"
 
+namespace DirectX { float XMConvertToRadians(float degrees) { return degrees*0.0174532925199433f; } }
+namespace cg2 {
 struct Vector3 {
     float x=0,y=0,z=0;
     Vector3& operator+=(Vector3 b) { x+=b.x; y+=b.y; z+=b.z; return *this; }
@@ -35,7 +37,6 @@ float Dot(Vector3 a,Vector3 b) { return a.x*b.x+a.y*b.y+a.z*b.z; }
 float Length(Vector3 a) { return std::sqrt(Dot(a,a)); }
 Vector3 Normalize(Vector3 a) { return a/Length(a); }
 float Rand(float a,float b) { return (a+b)*.5f; }
-namespace DirectX { float XMConvertToRadians(float degrees) { return degrees*0.0174532925199433f; } }
 struct Matrix4x4 {};
 struct Transform { Vector3 scale{1,1,1},rotate{},translate{}; };
 Transform InitWorldTransform() { return {}; }
@@ -48,9 +49,12 @@ bool IsCollision(AABB box,Sphere sphere) {
         std::clamp(sphere.center.y,box.min.y,box.max.y),std::clamp(sphere.center.z,box.min.z,box.max.z)};
     return Length(sphere.center-closest)<=sphere.radius;
 }
+} // namespace cg2
+using namespace cg2;
 class Player;
 #include "projectile_types.inc"
 
+namespace cg2 {
 struct Object3d {
     void Initialize() {}
     void SetModel(const std::string&) {}
@@ -91,6 +95,7 @@ struct ParticleManager {
     void EmitNeonImpactEffect(Vector3,Vector3,Vector4,int) { ++impacts; }
     size_t impacts=0;
 };
+} // namespace cg2
 #include "projectile_declarations.inc"
 
 struct TestActor : Collider {
@@ -124,7 +129,7 @@ public:
     const tankspecial::DroneMission& GetRunMission()const{return mission_;}
     const Vector3& GetRunMissionTarget()const{return missionTarget_;}
     bool StartRunMission(const Vector3& target,bool bomb){if(!mission_.Start(bomb))return false;missionTarget_=target;return true;}
-    bool ConsumeRunMissionImpact(){const bool hit=mission_.impact;mission_.impact=false;return hit;}
+    bool ConsumeRunMissionImpact(){return mission_.ConsumeImpact();}
     bool ConsumeRunRebuilt(){const bool result=rebuilt_;rebuilt_=false;return result;}
     bool runAttackEnabled_=false,runRallyShotPending_=false,runInputOverride_=false,runWantsAttack_=false;
     AttackParam runAttackParam_{};

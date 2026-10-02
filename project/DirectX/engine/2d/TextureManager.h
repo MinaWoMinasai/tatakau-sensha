@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <unordered_map>
 
+namespace cg2 {
+
 class TextureManager
 {
 
@@ -41,7 +43,7 @@ public:
 	bool LoadTextureFromMemory(const std::string& textureKey, const void* data, size_t size, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
 	void PreDraw();
 
-	uint32_t GetTextureIndexbyFilePath(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
+	uint32_t GetTextureIndexByFilePath(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvHandleGPU(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
 
@@ -73,8 +75,6 @@ private:
 	static std::string MakeTextureKey(const std::string& filePath, TextureColorSpace colorSpace);
 	void StoreGeneratedTexture(const std::string& filePath, TextureColorSpace colorSpace, const DirectX::ScratchImage& image, bool textureCube);
 
-	static TextureManager* instance;
-
 	TextureManager() = default;
 	~TextureManager() = default;
 	TextureManager(TextureManager&) = delete;
@@ -90,3 +90,5 @@ private:
 	bool pbrEnvironmentBuilt_ = false;
 	bool pbrEnvironmentLoadedFromSource_ = false;
 };
+
+} // namespace cg2

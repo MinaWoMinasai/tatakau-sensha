@@ -15,8 +15,8 @@ public:
     struct SpawnArea {
         std::string name;
         std::string prefab;
-        Vector3 center;
-        Vector3 size;
+        cg2::Vector3 center;
+        cg2::Vector3 size;
         float spawnInterval = 2.0f;
         float timer = 0.0f;
         int maxAlive = 8;
@@ -28,19 +28,19 @@ public:
     void Update(Stage& stage, float deltaTime);
     void Draw(bool drawBody = true);
     void DrawBodyOnly();
-    void DrawBodyOnlyVisible(const Vector3& cameraPos, float halfWidth, float halfHeight);
-    bool SpawnLevelEnemy(const Vector3& position, const std::string& prefab, int hp = -1);
+    void DrawBodyOnlyVisible(const cg2::Vector3& cameraPos, float halfWidth, float halfHeight);
+    bool SpawnLevelEnemy(const cg2::Vector3& position, const std::string& prefab, int hp = -1);
     void SetExpeditionContent(const tankcontent::Catalog& catalog) { expeditionContent_=catalog;useExpeditionContent_=true; }
     // The actor address is stable until the defeated actor is removed by Update.
-    ExpEnemy* SpawnRunResource(const Vector3& position, int hp, std::function<void(bool playerOwned)> onClaim);
+    ExpEnemy* SpawnRunResource(const cg2::Vector3& position, int hp, std::function<void(bool playerOwned)> onClaim);
     void AddLevelSpawnArea(const SpawnArea& spawnArea);
     void ClearLevelData();
     // Only between frames: existing actor pointers/collision lists are invalidated.
     void ClearRunActors();
     void SetDefaultRandomSpawnEnabled(bool enabled) { defaultRandomSpawnEnabled_ = enabled; }
     void SetExpEnemyHostileToBoss(bool hostile);
-    ExpEnemy* FindNearestEnemy(const Vector3& position, float maxDistance, bool includeShooters = true) const;
-    ExpEnemy* FindNearestRunResource(const Vector3& position, float maxDistance) const;
+    ExpEnemy* FindNearestEnemy(const cg2::Vector3& position, float maxDistance, bool includeShooters = true) const;
+    ExpEnemy* FindNearestRunResource(const cg2::Vector3& position, float maxDistance) const;
 
     // 衝突判定のためにリストを公開
     std::vector<ExpEnemy*> GetEnemyPtrs() const;

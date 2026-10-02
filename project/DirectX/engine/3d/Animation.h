@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+namespace cg2 {
+
 template <typename TValue>
 struct Keyframe {
 	float time = 0.0f;
@@ -67,3 +69,5 @@ public:
 	static Animation LoadFromFile(const std::string& filePath, uint32_t animationIndex = 0);
 	static std::vector<Animation> LoadAllFromFile(const std::string& filePath);
 };
+
+} // namespace cg2

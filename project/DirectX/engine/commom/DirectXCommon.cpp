@@ -10,6 +10,8 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxcompiler.lib")
 
+namespace cg2 {
+
 using namespace Microsoft::WRL;
 
 void DirectXCommon::Initialize(WinApp* winApp)
@@ -975,7 +977,7 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 	}
 
 	Microsoft::WRL::ComPtr<ShaderDiskCache::IncludeRecorder> includes;
-	if (!diskKey.empty()) includes.Attach(new ShaderDiskCache::IncludeRecorder(includeHandler_));
+	if (!diskKey.empty()) includes = Microsoft::WRL::Make<ShaderDiskCache::IncludeRecorder>(includeHandler_);
 	Microsoft::WRL::ComPtr<IDxcResult> shaderResult;
 	{
 		StartupTrace::Scope compileScope("CompileShader::" + shaderName);
@@ -1366,3 +1368,5 @@ void DirectXCommon::Release() {
 	hudRectPSO.vertexShaderBlob_->Release();
 
 }
+
+} // namespace cg2

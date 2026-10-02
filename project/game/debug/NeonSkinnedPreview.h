@@ -16,7 +16,7 @@
 // GameSceneのDeveloper UIからのみ使用。初期状態は無効、GPU資源は有効化時に作成する。
 class NeonSkinnedPreview {
 public:
-	void Initialize(Camera* camera, DebugCamera* debugCamera);
+	void Initialize(cg2::Camera* camera, cg2::DebugCamera* debugCamera);
 	// 前フレームのFence完了後、Camera更新後に1フレーム1回呼ぶ。
 	void Update(float deltaTime);
 	// Bloom::PreDraw直後のScene HDR / Normal / Material + D24S8内でのみ呼ぶ。
@@ -32,21 +32,21 @@ private:
 	};
 	void Load();
 	void PlaceInFrontOfCamera();
-	Vector3 GetCameraPosition() const;
+	cg2::Vector3 GetCameraPosition() const;
 
-	Camera* camera_ = nullptr;
-	DebugCamera* debugCamera_ = nullptr;
+	cg2::Camera* camera_ = nullptr;
+	cg2::DebugCamera* debugCamera_ = nullptr;
 	bool enabled_ = false;
 	bool neonMode_ = true;
 	bool ready_ = false;
 	bool alphaCutoutEnabled_ = true;
-	Transform transform_{ { 8.0f, 8.0f, 8.0f }, {}, {} }; // 正面から顔の内部線を比較する。
-	NeonSkinnedParams params_;
-	std::unique_ptr<SkinnedModel> model_;
-	std::unique_ptr<Object3d> object_;
-	NeonSkinnedRenderer renderer_;
+	cg2::Transform transform_{ { 8.0f, 8.0f, 8.0f }, {}, {} }; // 正面から顔の内部線を比較する。
+	cg2::NeonSkinnedParams params_;
+	std::unique_ptr<cg2::SkinnedModel> model_;
+	std::unique_ptr<cg2::Object3d> object_;
+	cg2::NeonSkinnedRenderer renderer_;
 	std::vector<SourceMaterial> sourceMaterials_;
-	std::vector<NeonSkinnedSubmeshParams> submeshParams_;
+	std::vector<cg2::NeonSkinnedSubmeshParams> submeshParams_;
 	size_t sourceAnimationCount_ = 0;
 	std::string loadError_;
 };

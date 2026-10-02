@@ -27,7 +27,7 @@ nlohmann::json ReadGlbMetadata() {
 }
 }
 
-void NeonSkinnedPreview::Initialize(Camera* camera, DebugCamera* debugCamera) {
+void NeonSkinnedPreview::Initialize(cg2::Camera* camera, cg2::DebugCamera* debugCamera) {
 	camera_ = camera;
 	debugCamera_ = debugCamera;
 	params_.internalLineEnabled = 1;
@@ -36,7 +36,7 @@ void NeonSkinnedPreview::Initialize(Camera* camera, DebugCamera* debugCamera) {
 void NeonSkinnedPreview::Load() {
 	if (ready_) return;
 	try {
-		StartupTrace::Scope scope("NeonSkinnedPreview.Load");
+		cg2::StartupTrace::Scope scope("NeonSkinnedPreview.Load");
 		const auto metadata = ReadGlbMetadata();
 		sourceAnimationCount_ = metadata.contains("animations") ? metadata["animations"].size() : 0;
 		sourceMaterials_.clear();
@@ -49,10 +49,10 @@ void NeonSkinnedPreview::Load() {
 					alphaMode == "MASK" ? material.value("alphaCutoff", 0.5f) : alphaMode == "BLEND" ? 0.03f : 0.0f });
 			}
 		}
-		auto* common = Object3dCommon::GetInstance();
-		model_ = std::make_unique<SkinnedModel>();
+		auto* common = cg2::Object3dCommon::GetInstance();
+		model_ = std::make_unique<cg2::SkinnedModel>();
 		model_->Initialize(common->GetDxCommon(), common->GetSrvManager(), kPreviewModelPath);
-		submeshParams_.assign(model_->GetSubmeshCount(), NeonSkinnedSubmeshParams{});
+		submeshParams_.assign(model_->GetSubmeshCount(), cg2::NeonSkinnedSubmeshParams{});
 		for (size_t index = 0; index < model_->GetSubmeshCount(); ++index) {
 			for (const auto& source : sourceMaterials_) {
 				if (source.materialName == model_->GetSubmesh(index).materialName) {
@@ -61,7 +61,7 @@ void NeonSkinnedPreview::Load() {
 				}
 			}
 		}
-		object_ = std::make_unique<Object3d>();
+		object_ = std::make_unique<cg2::Object3d>();
 		object_->Initialize();
 		object_->SetCamera(camera_);
 		object_->SetDebugCamera(debugCamera_);
@@ -70,26 +70,26 @@ void NeonSkinnedPreview::Load() {
 		PlaceInFrontOfCamera();
 		ready_ = true;
 		loadError_.clear();
-		StartupTrace::Count("neon_preview.model_loads");
-		StartupTrace::Count("neon_preview.submeshes", static_cast<double>(model_->GetSubmeshCount()));
-		StartupTrace::Count("neon_preview.joints", static_cast<double>(model_->GetSkeleton().joints.size()));
-		StartupTrace::Count("neon_preview.weight_assignments", model_->GetSkinCluster().GetAssignedInfluenceCount());
+		cg2::StartupTrace::Count("neon_preview.model_loads");
+		cg2::StartupTrace::Count("neon_preview.submeshes", static_cast<double>(model_->GetSubmeshCount()));
+		cg2::StartupTrace::Count("neon_preview.joints", static_cast<double>(model_->GetSkeleton().joints.size()));
+		cg2::StartupTrace::Count("neon_preview.weight_assignments", model_->GetSkinCluster().GetAssignedInfluenceCount());
 	} catch (const std::exception& error) {
 		enabled_ = false;
 		loadError_ = error.what();
 	}
 }
 
-Vector3 NeonSkinnedPreview::GetCameraPosition() const {
-	return Object3dCommon::GetInstance()->GetIsDebugCamera()
+cg2::Vector3 NeonSkinnedPreview::GetCameraPosition() const {
+	return cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera_->GetEyePosition() : camera_->GetTranslate();
 }
 
 void NeonSkinnedPreview::PlaceInFrontOfCamera() {
-	const Matrix4x4 world = Object3dCommon::GetInstance()->GetIsDebugCamera()
-		? Inverse(debugCamera_->GetViewMatrix()) : camera_->GetWorldMatrix();
-	const Vector3 forward{ world.m[2][0], world.m[2][1], world.m[2][2] };
-	const Vector3 up{ world.m[1][0], world.m[1][1], world.m[1][2] };
+	const cg2::Matrix4x4 world = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
+		? cg2::Inverse(debugCamera_->GetViewMatrix()) : camera_->GetWorldMatrix();
+	const cg2::Vector3 forward{ world.m[2][0], world.m[2][1], world.m[2][2] };
+	const cg2::Vector3 up{ world.m[1][0], world.m[1][1], world.m[1][2] };
 	// 足元原点の約1.6mのモデルを画面中央へ置く。ゲーム側のCameraには変更を加えない。
 	transform_.translate = GetCameraPosition() + forward * 35.0f - up * (0.8f * transform_.scale.y);
 }
@@ -113,13 +113,13 @@ void NeonSkinnedPreview::Draw() {
 	if (!enabled_ || !ready_) return;
 	if (neonMode_) {
 		renderer_.Draw(*model_, object_->GetTransformationResource()->GetGPUVirtualAddress(), GetCameraPosition());
-		StartupTrace::Count("neon_preview.neon_draws");
+		cg2::StartupTrace::Count("neon_preview.neon_draws");
 	} else {
 		object_->DrawSkinned(*model_);
-		StartupTrace::Count("neon_preview.normal_draws");
+		cg2::StartupTrace::Count("neon_preview.normal_draws");
 	}
 	// Custom Root Signatureの状態を後続の通常Rendererへ渡さない。
-	Object3dCommon::GetInstance()->PreDraw(kNormal);
+	cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 }
 
 void NeonSkinnedPreview::DrawImGui() {
@@ -137,7 +137,7 @@ void NeonSkinnedPreview::DrawImGui() {
 	ImGui::DragFloat3("Scale", &transform_.scale.x, 0.05f, 0.01f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 	if (ImGui::Button("Place in front of camera")) PlaceInFrontOfCamera();
 	if (ImGui::Button("Reset: dark body + neon lines")) {
-		params_ = NeonSkinnedParams{};
+		params_ = cg2::NeonSkinnedParams{};
 		params_.internalLineEnabled = 1;
 	}
 	ImGui::ColorEdit3("bodyColor", &params_.bodyColor.x);

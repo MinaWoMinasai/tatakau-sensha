@@ -58,8 +58,9 @@ std::vector<Player::DroneAbilityVisual> Player::GetDroneAbilityVisuals() const
         if(!drone||drone->IsDead())continue;
         const auto& mission=drone->GetRunMission();
         if(mission.GetPhase()==tankspecial::DronePhase::Escort)continue;
-        const float duration=mission.GetPhase()==tankspecial::DronePhase::Warning?(mission.IsBomb()?.65f:.30f):
-            mission.GetPhase()==tankspecial::DronePhase::Rebuilding?5.5f:1.0f;
+        const float duration=mission.GetPhase()==tankspecial::DronePhase::Warning?mission.GetWarningDuration():
+            mission.GetPhase()==tankspecial::DronePhase::Rebuilding?tankspecial::DroneMission::kRebuildSeconds:
+            tankspecial::DroneMission::kChargingTimeoutSeconds;
         result.push_back({drone->GetWorldPosition(),drone->GetRunMissionTarget(),mission.GetPhase(),
             (std::clamp)(mission.GetElapsed()/duration,0.0f,1.0f),mission.IsBomb()});
     }
@@ -115,26 +116,26 @@ void Player::UpdateAdditionalAbilities(Stage& stage,BulletManager* bullets,Enemy
     (void)bullets;
     if(!runModifiers_.droneCharge&&!runModifiers_.droneRebuildBomb&&!runModifiers_.targetPainter&&
         !runModifiers_.dashSlash&&!runModifiers_.spinBlade&&!runModifiers_.wallSmash)return;
-    auto blocked=[&](const Vector3& from,const Vector3& to) {
+    auto blocked=[&](const cg2::Vector3& from,const cg2::Vector3& to) {
         for(const auto& block:stage.GetMergedBlocks())if(tankspecial::SegmentCrossesBox(from.x,from.y,to.x,to.y,
             block.aabb.min.x,block.aabb.min.y,block.aabb.max.x,block.aabb.max.y))return true;
         return false;
     };
-    auto emit=[&](SpecialEventKind kind,const Vector3& point,const Vector3& direction,float power=1.0f) {
+    auto emit=[&](SpecialEventKind kind,const cg2::Vector3& point,const cg2::Vector3& direction,float power=1.0f) {
         if(pendingSpecialCombatEvents_.size()<32)pendingSpecialCombatEvents_.push_back({kind,point,direction,power});
     };
     const auto regulars=enemies?enemies->GetEnemyPtrs():std::vector<ExpEnemy*>{};
     std::vector<Collider*> targets;targets.reserve((std::min)(size_t{128},regulars.size()+1));
     if(boss&&!boss->IsDead())targets.push_back(boss);
     for(auto* enemy:regulars)if(enemy&&!enemy->IsDead()&&!enemy->IsRunResource()&&targets.size()<128)targets.push_back(enemy);
-    auto damage=[&](Collider* target,uint32_t amount,const Vector3& source,bool melee,float knockback=0.0f) {
+    auto damage=[&](Collider* target,uint32_t amount,const cg2::Vector3& source,bool melee,float knockback=0.0f) {
         if(target==boss) {if(boss&&!boss->IsDead()) {boss->TakeDamage(amount);const auto delta=target->GetWorldPosition()-source;
-            if(knockback>0&&Length(delta)>.001f)boss->ApplyKnockback(Normalize(delta),knockback);}}
+            if(knockback>0&&cg2::Length(delta)>.001f)boss->ApplyKnockback(cg2::Normalize(delta),knockback);}}
         else if(auto* enemy=dynamic_cast<ExpEnemy*>(target);enemy&&!enemy->IsDead()) {
             enemy->TakeDirectionalDamage(amount,source,melee);
             if(knockback>0) {
                 const auto difference=enemy->GetWorldPosition()-source;
-                enemy->ApplyKnockback(Length(difference)>.001f?Normalize(difference):Vector3{1,0,0},knockback);
+                enemy->ApplyKnockback(cg2::Length(difference)>.001f?cg2::Normalize(difference):cg2::Vector3{1,0,0},knockback);
                 if(melee)ArmWallSmash(enemy,1);
             }
         }
@@ -151,8 +152,8 @@ void Player::UpdateAdditionalAbilities(Stage& stage,BulletManager* bullets,Enemy
             if(!held||drones_.empty()||targets.empty())return false;
             Collider* chosen=nullptr;float best=1e30f;
             for(auto* target:targets) {
-                if(Length(target->GetWorldPosition()-GetWorldPosition())>26)continue;
-                const float score=Length(target->GetWorldPosition()-runAimWorld_);
+                if(cg2::Length(target->GetWorldPosition()-GetWorldPosition())>26)continue;
+                const float score=cg2::Length(target->GetWorldPosition()-runAimWorld_);
                 if(score<best){best=score;chosen=target;}
             }
             if(!chosen)return false;
@@ -182,7 +183,7 @@ void Player::UpdateAdditionalAbilities(Stage& stage,BulletManager* bullets,Enemy
             const float scale=bomb?8.0f*TankEffectPower(runModifiers_,36):3.0f*TankEffectPower(runModifiers_,35);
             if(bomb){++specialCombatStats_.droneBombs;emit(SpecialEventKind::DroneBomb,origin,{},radius);}
             for(auto* target:targets) {
-                if(Length(target->GetWorldPosition()-origin)>radius+target->GetRadius()||blocked(origin,target->GetWorldPosition()))continue;
+                if(cg2::Length(target->GetWorldPosition()-origin)>radius+target->GetRadius()||blocked(origin,target->GetWorldPosition()))continue;
                 const uint32_t amount=NotifyDroneHit(static_cast<int>(i),target,static_cast<uint32_t>((std::max)(1.0f,std::round(base*scale*(target==boss?.75f:1.0f)))));
                 damage(target,amount,origin,false,bomb?.26f:.14f);
                 if(!bomb){++specialCombatStats_.droneChargeHits;emit(SpecialEventKind::DroneCharge,target->GetWorldPosition(),{},1);break;}
@@ -195,7 +196,7 @@ void Player::UpdateAdditionalAbilities(Stage& stage,BulletManager* bullets,Enemy
     const float baseMelee=stats_.bulletDamage*3.8f*combo.damage*(config?config->bulletDamageScale:1.0f);
     if(dashSlashActive_) {
         dashSlashTimer_-=dt;
-        const Vector3 end=GetWorldPosition()+dashSlashDirection_*1.5f;
+        const cg2::Vector3 end=GetWorldPosition()+dashSlashDirection_*1.5f;
         for(auto* target:targets) {
             if(std::find(dashSlashTargets_.begin(),dashSlashTargets_.end(),target->GetCollisionId())!=dashSlashTargets_.end())continue;
             const auto p=target->GetWorldPosition();
@@ -223,7 +224,7 @@ void Player::UpdateAdditionalAbilities(Stage& stage,BulletManager* bullets,Enemy
             const auto amount=static_cast<uint32_t>(tankspecial::WallSmashDamage(baseMelee,TankEffectPower(runModifiers_,41)));
             target->TakeDirectionalDamage(amount,origin,true);++specialCombatStats_.wallSmashes;
             emit(SpecialEventKind::WallSmash,origin,{},2.8f);
-            for(auto* other:targets)if(other!=target&&Length(other->GetWorldPosition()-origin)<=2.8f+other->GetRadius()&&!blocked(origin,other->GetWorldPosition()))
+            for(auto* other:targets)if(other!=target&&cg2::Length(other->GetWorldPosition()-origin)<=2.8f+other->GetRadius()&&!blocked(origin,other->GetWorldPosition()))
                 damage(other,(std::max)(1u,static_cast<uint32_t>(static_cast<float>(amount)*.4f)),origin,false);
             break;
         }

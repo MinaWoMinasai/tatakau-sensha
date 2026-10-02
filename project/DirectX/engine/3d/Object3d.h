@@ -5,6 +5,8 @@
 #include <array>
 #include <vector>
 
+namespace cg2 {
+
 class SkinnedModel;
 
 class Object3d
@@ -51,7 +53,7 @@ public:
 		userColorOverride_ = true;
 	}
 
-	void SetAlpha(const float& color) {
+	void SetAlpha(float color) {
 		materialData_->color.w = color;
 		userColorOverride_ = true;
 	}
@@ -248,3 +250,4 @@ private:
 	bool userEmissiveOverride_ = false;
 };
 
+} // namespace cg2

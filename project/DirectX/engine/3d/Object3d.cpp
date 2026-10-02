@@ -3,6 +3,8 @@
 
 #include <algorithm>
 
+namespace cg2 {
+
 namespace {
 
 void ApplyCharacterSemanticMaterial(
@@ -107,7 +109,7 @@ void Object3d::Initialize()
 	transformationMatrixData->World = MakeIdentity4x4();
 
 	// 平行光源用のリソースを作る
-	directionalLightResource = resource.CreatedirectionalLight(texture, object3dCommon_->GetDxCommon()->GetDevice());
+	directionalLightResource = resource.CreateDirectionalLight(texture, object3dCommon_->GetDxCommon()->GetDevice());
 	// マテリアルにデータを書き込む
 	directionalLightData = nullptr;
 	// 書き込むためのアドレスを取得
@@ -536,3 +538,5 @@ void Object3d::UpdateMaterialInstanceData(const ModelData& modelData)
 		*materialInstanceData_[materialIndex] = BuildMaterialForModelMaterial(sourceMaterial);
 	}
 }
+
+} // namespace cg2

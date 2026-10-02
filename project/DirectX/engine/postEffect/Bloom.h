@@ -9,6 +9,8 @@
 #include "SceneManager.h"
 #include <cstdint>
 
+namespace cg2 {
+
 class Bloom {
 public:
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager);
@@ -92,3 +94,5 @@ private:
     float motionMatrixDelta_ = 0.0f;
     int renderDebugMode_ = 0;
 };
+
+} // namespace cg2

@@ -3,19 +3,19 @@
 #include <cmath>
 
 namespace {
-constexpr Vector2 kWallet{304,32};
-std::unique_ptr<Sprite> ExperienceSprite(const char* texture,Vector2 p,Vector2 size,Vector4 tint) {
-    auto sprite=std::make_unique<Sprite>();sprite->Initialize(SpriteCommon::GetInstance(),texture);
+constexpr cg2::Vector2 kWallet{304,32};
+std::unique_ptr<cg2::Sprite> ExperienceSprite(const char* texture,cg2::Vector2 p,cg2::Vector2 size,const cg2::Vector4& tint) {
+    auto sprite=std::make_unique<cg2::Sprite>();sprite->Initialize(cg2::SpriteCommon::GetInstance(),texture);
     sprite->SetPosition(p);sprite->SetSize(size);sprite->SetColor(tint);sprite->Update();return sprite;
 }
-std::unique_ptr<TextLabel> ExperienceText(float size,Vector2 p,const char* text,Vector4 color) {
-    TextStyle style{};style.fontFamily="Meiryo";style.fontSize=size;style.color=color;style.padding=4;style.outlineThickness=0;
-    auto label=std::make_unique<TextLabel>();label->Initialize(SpriteCommon::GetInstance(),text,style);label->SetPosition(p);return label;
+std::unique_ptr<cg2::TextLabel> ExperienceText(float size,cg2::Vector2 p,const char* text,const cg2::Vector4& color) {
+    cg2::TextStyle style{};style.fontFamily="Meiryo";style.fontSize=size;style.color=color;style.padding=4;style.outlineThickness=0;
+    auto label=std::make_unique<cg2::TextLabel>();label->Initialize(cg2::SpriteCommon::GetInstance(),text,style);label->SetPosition(p);return label;
 }
 }
 
 void GameScene::InitializeExpeditionExperience() {
-    expeditionCompleteGlow_=std::make_unique<NeonTextEffect>();expeditionCompleteGlow_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(),Object3dCommon::GetInstance()->GetSrvManager());
+    expeditionCompleteGlow_=std::make_unique<NeonTextEffect>();expeditionCompleteGlow_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),cg2::Object3dCommon::GetInstance()->GetSrvManager());
     NeonTextEffectStyle completeStyle;completeStyle.glowColor={0.15f,1,0.38f,1};completeStyle.innerIntensity=0.65f;completeStyle.outerIntensity=0.42f;expeditionCompleteGlow_->SetStyle(completeStyle);
     expeditionCreditIcon_=ExperienceSprite("resources/ui/salvage_orb.png",kWallet,{54,54},{1.5f,1.15f,0.34f,1});
     expeditionCreditPulse_=ExperienceSprite("resources/ui/salvage_orb.png",kWallet,{70,70},{1.4f,1.05f,0.2f,0});
@@ -34,7 +34,7 @@ void GameScene::InitializeExpeditionExperience() {
     expeditionCredits_.reserve(96);
 }
 
-void GameScene::SpawnExpeditionCredits(const Vector3& position,int amount,bool flyImmediately) {
+void GameScene::SpawnExpeditionCredits(const cg2::Vector3& position,int amount,bool flyImmediately) {
     if(!expeditionMapEnabled_||amount<=0) return;
     // A bounded number of visible balls preserves the exact sum for large rewards.
     const int count=(std::min)(5,(std::max)(1,amount/3));
@@ -62,7 +62,7 @@ void GameScene::UpdateExpeditionCredits(float dt,bool collectAll) {
             if(!stage_->IsCollisionWithAnyBlock(next,0.18f)) orb.position=next;
             else orb.velocity=orb.velocity*-0.3f;
             orb.velocity=orb.velocity*std::exp(-dt*5.5f);
-            if(collectAll||(orb.age>0.25f&&Length(orb.position-playerPosition)<3.0f)) {
+            if(collectAll||(orb.age>0.25f&&cg2::Length(orb.position-playerPosition)<3.0f)) {
                 orb.flying=true;orb.launch=WorldToScreen(orb.position);orb.flight=0;
             }
         } else {
@@ -79,7 +79,7 @@ void GameScene::UpdateExpeditionCredits(float dt,bool collectAll) {
 
 void GameScene::DrawExpeditionVitals() {
     if(!expeditionCreditIcon_) return;
-    SpriteCommon::GetInstance()->PreDraw(kNormal);
+    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
     const auto& stats=player_->GetStats();
     const float stamina=stats.maxStamina>0?(std::clamp)(stats.stamina/stats.maxStamina,0.0f,1.0f):0;
     expeditionStaminaTrack_->Draw();
@@ -93,9 +93,9 @@ void GameScene::DrawExpeditionVitals() {
 
 void GameScene::DrawExpeditionCredits() {
     if(!expeditionMapEnabled_) return;
-    SpriteCommon::GetInstance()->PreDraw(kNormal);
+    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
     for(auto& orb:expeditionCredits_) {
-        Vector2 point=WorldToScreen(orb.position);
+        cg2::Vector2 point=WorldToScreen(orb.position);
         if(orb.flying) {
             const float t=(std::clamp)(orb.flight/0.55f,0.0f,1.0f),ease=t*t*(3-2*t);
             point={orb.launch.x+(kWallet.x-orb.launch.x)*ease,orb.launch.y+(kWallet.y-orb.launch.y)*ease-std::sin(t*3.14159265f)*80};
@@ -105,7 +105,7 @@ void GameScene::DrawExpeditionCredits() {
     }
 }
 
-void GameScene::DrawExpeditionPointer(Vector2 target,bool right) {
+void GameScene::DrawExpeditionPointer(cg2::Vector2 target,bool right) {
     target.x=(std::clamp)(target.x,64.0f,1216.0f);
     const float sign=right?1.0f:-1.0f;
     const float motion=std::sin(expeditionPresentationClock_*5.0f)*5;
@@ -121,13 +121,13 @@ void GameScene::DrawExpeditionPointer(Vector2 target,bool right) {
         halo->SetPosition({p.x+std::cos(angle)*8.5f,p.y+std::sin(angle)*8.5f});
         halo->SetSize({42,22});halo->SetRotation(angle);
         halo->SetColor({0.15f,0.8f,0.85f,0.45f-i*0.08f});halo->Update();
-        SpriteCommon::GetInstance()->PreDraw(kAdd);halo->Draw();
-        SpriteCommon::GetInstance()->PreDraw(kNormal);
+        cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kAdd);halo->Draw();
+        cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
         line->SetColor({0.65f,1.15f,1.1f,0.95f-i*0.18f});line->Update();line->Draw();
     }
 }
 
-void GameScene::DrawCurrencyIcon(Vector2 center,float size) {
+void GameScene::DrawCurrencyIcon(cg2::Vector2 center,float size) {
     expeditionPriceIcon_->SetPosition(center);expeditionPriceIcon_->SetSize({size,size});expeditionPriceIcon_->Update();expeditionPriceIcon_->Draw();
 }
 
@@ -140,9 +140,9 @@ void GameScene::EnsureExpeditionPointers(size_t count) {
     }
 }
 
-void GameScene::QueueExpeditionImpact(const Vector3& position,const Vector3& direction,bool finisher) {
+void GameScene::QueueExpeditionImpact(const cg2::Vector3& position,const cg2::Vector3& direction,bool finisher) {
     if(!expeditionRun_) return;
-    ParticleManager::GetInstance()->EmitNeonImpactEffect(position,direction,{1.45f,0.95f,0.28f,1},finisher?16:10);
+    cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(position,direction,{1.45f,0.95f,0.28f,1},finisher?16:10);
     if(tankRunBursts_.size()<24) tankRunBursts_.push_back({position,0,false});
     cameraShakeDuration_=finisher?0.15f:0.10f;cameraShakeTimer_=cameraShakeDuration_;cameraShakePower_=finisher?0.20f:0.11f;
     // Only committed melee/body hits get a short, bounded impact hold.
@@ -202,8 +202,8 @@ void GameScene::DrawGuidedExpedition() {
     const auto* active=expeditionMapRun_.GetActiveNode();
     if(!active) return;
     if(step==S::Upgrade&&active->kind!=tankexp::NodeKind::Upgrade) return;
-    SpriteCommon::GetInstance()->PreDraw(kNormal);
-    Vector2 target=WorldToScreen(player_->GetWorldPosition());
+    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+    cg2::Vector2 target=WorldToScreen(player_->GetWorldPosition());
     if(step==S::ShootKill||step==S::Briefing) {
         for(auto* e:enemyManager_->GetEnemyPtrs()) if(e&&!e->IsDead()) {target=WorldToScreen(e->GetWorldPosition());break;}
     } else if(step==S::Collect&&!expeditionCredits_.empty()) target=WorldToScreen(expeditionCredits_.front().position);
@@ -213,8 +213,8 @@ void GameScene::DrawGuidedExpedition() {
         const bool vitals=step==S::Vitals;
         const float x=vitals?12:(std::clamp)(target.x-74,12.0f,1110.0f),y=vitals?8:(std::clamp)(target.y-74,90.0f,480.0f);
         const float w=vitals?252.0f:148.0f,h=vitals?78.0f:148.0f;
-        const Vector2 positions[]={{0,0},{0,y},{x+w,y},{0,y+h}};
-        const Vector2 sizes[]={{1280,y},{x,h},{1280-x-w,h},{1280,720-y-h}};
+        const cg2::Vector2 positions[]={{0,0},{0,y},{x+w,y},{0,y+h}};
+        const cg2::Vector2 sizes[]={{1280,y},{x,h},{1280-x-w,h},{1280,720-y-h}};
         for(int i=0;i<4;++i) {expeditionSpotlight_[i]->SetPosition(positions[i]);expeditionSpotlight_[i]->SetSize(sizes[i]);expeditionSpotlight_[i]->Update();expeditionSpotlight_[i]->Draw();}
     }
     if(step!=S::Upgrade) DrawExpeditionPointer(target,step!=S::Vitals);

@@ -15,6 +15,8 @@
 #include <mfidl.h>
 #include <mfreadwrite.h>
 
+namespace cg2 {
+
 class Audio
 {
 public:
@@ -65,19 +67,19 @@ public:
 	/// <summary>
 	/// 音声の読み込み
 	/// </summary>
-	void LoadAudio(const std::wstring soundName, const std::wstring soundPath, size_t maxConcurrency = 1);
+	void LoadAudio(const std::wstring& soundName, const std::wstring& soundPath, size_t maxConcurrency = 1);
 
 	/// <summary>
 	/// 音声再生
 	/// </summary>
-	void PlayAudio(const std::wstring soundName, bool loop, float volume = -1.0f);
+	void PlayAudio(const std::wstring& soundName, bool loop, float volume = -1.0f);
 
 	/// <summary>
 	/// SE再生
 	/// </summary>
 	/// <param name="soundName"></param>
 	/// <param name="volume"></param>
-	Audio::VoiceHandle PlayAudioSE(const std::wstring soundName, float volume = -1.0f);
+	Audio::VoiceHandle PlayAudioSE(const std::wstring& soundName, float volume = -1.0f);
 
 	/// <summary>
 	/// 特定の音をすべて停止（BGMの切り替えやエディターでの停止用）
@@ -109,3 +111,5 @@ private:
 	uint64_t nextGeneration_ = 0;
 	bool mediaFoundationStarted_ = false;
 };
+
+} // namespace cg2

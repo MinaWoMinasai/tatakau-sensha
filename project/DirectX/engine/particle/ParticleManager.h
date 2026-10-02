@@ -13,6 +13,8 @@
 #include "Camera.h"
 #include <nlohmann/json.hpp>
 
+namespace cg2 {
+
 class DebugCamera;
 
 // エミッター形状
@@ -151,7 +153,7 @@ public:
 	void EmitNeonMovementEffect(const Vector3& position, const Vector3& movementDirection);
 	std::vector<ScreenPulseEvent> ConsumeScreenPulseEvents();
 	std::vector<NeonTriangleEvent> ConsumeNeonTriangleEvents();
-    void Emit(const ::Particle& particle);
+    void Emit(const cg2::Particle& particle);
     void DrawImGuiEditor();
     uint32_t GetActiveCount() const;
     bool HasDrawableParticles() const;
@@ -252,3 +254,5 @@ private:
     bool useGpuUpdate_ = true;
     bool gpuDrawReady_ = false;
 };
+
+} // namespace cg2

@@ -18,6 +18,8 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg
 
 #endif // USE_IMGUI
 
+namespace cg2 {
+
 class WinApp
 {
 
@@ -54,4 +56,4 @@ private:
 
 };
 
-
+} // namespace cg2

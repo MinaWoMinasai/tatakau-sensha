@@ -1,10 +1,11 @@
+#include "game/weapon/CombatTypes.h"
 #include "Bullet.h"
 #include "ParticleManager.h"
 #include <cmath>
 
-void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const uint32_t& damage, BulletOwner owner,
+void Bullet::Initialize(const cg2::Vector3& position, const cg2::Vector3& velocity, uint32_t damage, BulletOwner owner,
 	bool reflectable, float bulletHp, float bulletPenetration) {
-	object_ = std::make_unique<Object3d>();
+	object_ = std::make_unique<cg2::Object3d>();
 	object_->Initialize();
 
 	owner_ = owner;
@@ -33,27 +34,27 @@ void Bullet::Initialize(const Vector3& position, const Vector3& velocity, const 
 		SetCollisionAttribute(kCollisionAttributePlayerBullet);
 		SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeExpEnemy | kCollisionAttributeEnemyBullet);
 		if (isReflectable_) {
-			object_->SetColor(Vector4(1.0f, 1.0f, 0.0f, 1.0f));
+			object_->SetColor(cg2::Vector4(1.0f, 1.0f, 0.0f, 1.0f));
 		} else {
-			object_->SetColor(Vector4(1.0f, 0.78f, 0.28f, 1.0f));
+			object_->SetColor(cg2::Vector4(1.0f, 0.78f, 0.28f, 1.0f));
 		}
 	} else if (owner_ == kEnemy) {
 		object_->SetModel("bullet.obj");
-		object_->SetColor(Vector4(1.0f, 0.22f, 0.38f, 1.0f));
+		object_->SetColor(cg2::Vector4(1.0f, 0.22f, 0.38f, 1.0f));
 		SetCollisionAttribute(kCollisionAttributeEnemyBullet);
 		SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerDrone | kCollisionAttributeExpEnemy | kCollisionAttributePlayerBullet);
 	} else if (owner_ == kExpEnemyHostile) {
 		object_->SetModel("bullet.obj");
-		object_->SetColor(Vector4(1.0f, 0.16f, 0.08f, 1.0f));
+		object_->SetColor(cg2::Vector4(1.0f, 0.16f, 0.08f, 1.0f));
 		SetCollisionAttribute(kCollisionAttributeHostileExpEnemyBullet);
 		SetCollisionMask(kCollisionAttributeEnemy);
 	}
 
-	worldTransform_ = InitWorldTransform();
+	worldTransform_ = cg2::InitWorldTransform();
 	worldTransform_.translate = position;
-	worldTransform_.scale = Vector3(0.5f, 0.5f, 0.5f);
+	worldTransform_.scale = cg2::Vector3(0.5f, 0.5f, 0.5f);
 	velocity_ = velocity;
-	if (Length(velocity_) > 0.001f) {
+	if (cg2::Length(velocity_) > 0.001f) {
 		worldTransform_.rotate.z = std::atan2(velocity_.y, velocity_.x);
 	}
 
@@ -71,16 +72,16 @@ void Bullet::Update(float deltaTime) {
 		const float flightScale=(std::clamp)(.75f+.25f*shooter_.boomerangPower,.60f,2.0f);
 		if(returnFlight_.Step(deltaTime/flightScale))BeginReturn();
 		if(returnFlight_.returning) {
-			const Vector3 toOwner=returnTarget_-GetWorldPosition();
-			const float speed=Length(velocity_);
-			if(Length(toOwner)<(std::max)(.9f,speed*deltaTime*60.0f)){Die();return;}
-			velocity_=Normalize(toOwner)*speed;
+			const cg2::Vector3 toOwner=returnTarget_-GetWorldPosition();
+			const float speed=cg2::Length(velocity_);
+			if(cg2::Length(toOwner)<(std::max)(.9f,speed*deltaTime*60.0f)){Die();return;}
+			velocity_=cg2::Normalize(toOwner)*speed;
 		}
 	}
 
 	// 座標を移動させる
 	worldTransform_.translate += velocity_ * (deltaTime * 60.0f);
-	if (Length(velocity_) > 0.001f) {
+	if (cg2::Length(velocity_) > 0.001f) {
 		worldTransform_.rotate.z = std::atan2(velocity_.y, velocity_.x);
 	}
 
@@ -119,8 +120,8 @@ void Bullet::OnCollision(Collider* other) {
 			hitActorIds_.push_back(otherBullet->GetCollisionId());
 			if(specialImpacts_.size()<8)specialImpacts_.push_back({specialKind_,GetWorldPosition(),velocity_,true});
 		}
-		Vector3 impactNormal = velocity_ * -1.0f;
-		ParticleManager::GetInstance()->EmitNeonImpactEffect(
+		cg2::Vector3 impactNormal = velocity_ * -1.0f;
+		cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(
 			GetWorldPosition(), impactNormal, GetBulletColor(), 7);
 		ApplyBulletDurabilityDamage(otherBullet->GetBulletPenetration());
 		return;
@@ -130,8 +131,8 @@ void Bullet::OnCollision(Collider* other) {
 	hitActorIds_.push_back(other->GetCollisionId());
 	if(specialKind_!=SpecialKind::None&&specialImpacts_.size()<8)specialImpacts_.push_back({specialKind_,other->GetWorldPosition(),velocity_,false});
 	QueueImpactSplit(velocity_);
-	Vector3 impactNormal = velocity_ * -1.0f;
-	ParticleManager::GetInstance()->EmitNeonImpactEffect(
+	cg2::Vector3 impactNormal = velocity_ * -1.0f;
+	cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(
 		GetWorldPosition(), impactNormal, GetBulletColor(), 11);
 	if(shooter_.boomerang) {
 		// Each leg uses its own hit ledger. The return is finite and cannot fork.
@@ -181,10 +182,10 @@ bool Bullet::CanHitActor(const Collider* actor) const
 	return actor && std::find(hitActorIds_.begin(), hitActorIds_.end(), actor->GetCollisionId()) == hitActorIds_.end();
 }
 
-void Bullet::QueueImpactSplit(const Vector3& direction)
+void Bullet::QueueImpactSplit(const cg2::Vector3& direction)
 {
 	if (impactSplitCount_ <= 0 || deathTimer_ <= 0.0f) return;
-	const float speed = Length(direction);
+	const float speed = cg2::Length(direction);
 	if (!std::isfinite(speed) || speed <= 0.0001f) return;
 	pendingImpactSplitCount_ = impactSplitCount_;
 	impactSplitCount_ = 0;
@@ -193,18 +194,18 @@ void Bullet::QueueImpactSplit(const Vector3& direction)
 	pendingImpactWallNormal_ = {};
 }
 
-void Bullet::OnWallImpact(const Vector3& safePosition, const Vector3& normal)
+void Bullet::OnWallImpact(const cg2::Vector3& safePosition, const cg2::Vector3& normal)
 {
 	if (isDead_) return;
 	SetWorldPosition(safePosition);
-	const float normalLength = Length(normal);
+	const float normalLength = cg2::Length(normal);
 	if (!std::isfinite(normalLength) || normalLength <= 0.0001f) {
 		Die();
 		return;
 	}
-	const Vector3 unitNormal = normal / normalLength;
-	const Vector3 reflected = velocity_ - 2.0f * Dot(velocity_, unitNormal) * unitNormal;
-	if (!std::isfinite(Length(reflected))) {
+	const cg2::Vector3 unitNormal = normal / normalLength;
+	const cg2::Vector3 reflected = velocity_ - 2.0f * cg2::Dot(velocity_, unitNormal) * unitNormal;
+	if (!std::isfinite(cg2::Length(reflected))) {
 		Die();
 		return;
 	}
@@ -228,17 +229,17 @@ void Bullet::AppendImpactChildren(std::vector<std::unique_ptr<Bullet>>& children
 	const int count = (std::min)(pendingImpactSplitCount_, static_cast<int>((std::min)(availableSlots, size_t{2})));
 	pendingImpactSplitCount_ = 0; // A saturated budget drops this impact, never retries later.
 	if (count <= 0 || deathTimer_ <= 0.0f) return;
-	const float speed = Length(pendingImpactDirection_);
+	const float speed = cg2::Length(pendingImpactDirection_);
 	if (!std::isfinite(speed) || speed <= 0.0001f) return;
-	const Vector3 base = pendingImpactDirection_ / speed;
+	const cg2::Vector3 base = pendingImpactDirection_ / speed;
 	for (int index = 0; index < count; ++index) {
 		const float angle = count == 1 ? 0.0f : (index == 0 ? -0.42f : 0.42f);
 		const float cosine = std::cos(angle), sine = std::sin(angle);
-		Vector3 direction = {base.x * cosine - base.y * sine, base.x * sine + base.y * cosine, base.z};
+		cg2::Vector3 direction = {base.x * cosine - base.y * sine, base.x * sine + base.y * cosine, base.z};
 		// An oblique fork must not start by flying back into the wall.
-		const float outward = Dot(direction, pendingImpactWallNormal_);
-		if (outward < 0.1f && Length(pendingImpactWallNormal_) > 0.5f) {
-			direction = Normalize(direction + pendingImpactWallNormal_ * (0.1f - outward));
+		const float outward = cg2::Dot(direction, pendingImpactWallNormal_);
+		if (outward < 0.1f && cg2::Length(pendingImpactWallNormal_) > 0.5f) {
+			direction = cg2::Normalize(direction + pendingImpactWallNormal_ * (0.1f - outward));
 		}
 		auto child = std::make_unique<Bullet>();
 		const uint32_t childDamage = static_cast<uint32_t>((std::max)(1.0, std::round(static_cast<double>(GetDamage()) * impactSplitDamageScale_)));
@@ -267,10 +268,10 @@ void Bullet::ApplyBulletDurabilityDamage(float amount)
 	}
 }
 
-Vector3 Bullet::GetWorldPosition() const {
+cg2::Vector3 Bullet::GetWorldPosition() const {
 
 	// ワールド座標を入れる変数
-	Vector3 worldPos;
+	cg2::Vector3 worldPos;
 	// ワールド行列の平行移動成分を取得(ワールド座標)
 	worldPos.x = worldTransform_.translate.x;
 	worldPos.y = worldTransform_.translate.y;
@@ -291,7 +292,7 @@ void Bullet::ReleaseTrail() {
 	}
 }
 
-void Bullet::AttachTrail(TrailManager* trailManager, BulletTrailSettings* trailSettings) {
+void Bullet::AttachTrail(cg2::TrailManager* trailManager, BulletTrailSettings* trailSettings) {
 	if (!trailManager || trail_) {
 		return;
 	}
@@ -304,7 +305,7 @@ void Bullet::AttachTrail(TrailManager* trailManager, BulletTrailSettings* trailS
 	trail_->SetConfig(MakeTrailConfig());
 }
 
-Vector4 Bullet::GetBulletColor() const {
+cg2::Vector4 Bullet::GetBulletColor() const {
 	if(armorReflected_)return {1.5f,.18f,1.0f,1};
 	if(shooter_.boomerang&&returnFlight_.returning)return {.55f,1.6f,.85f,1};
 	if(specialKind_==SpecialKind::Rail)return {.32f,1.30f,1.70f,1};
@@ -341,9 +342,9 @@ void Bullet::ApplyVisualSettings() {
 	object_->SetColor(GetBulletColor());
 }
 
-TrailConfig Bullet::MakeTrailConfig() const {
-	TrailConfig config{};
-	const Vector4 color = GetBulletColor();
+cg2::TrailConfig Bullet::MakeTrailConfig() const {
+	cg2::TrailConfig config{};
+	const cg2::Vector4 color = GetBulletColor();
 	if (trailSettings_) {
 		if (trailSettings_->useObjectColorForTrail) {
 			config.startColor = {
@@ -399,15 +400,15 @@ void Bullet::UpdateTrail(float deltaTime) {
 		return;
 	}
 
-	Vector3 dir = velocity_;
+	cg2::Vector3 dir = velocity_;
 	dir.z = 0.0f;
-	const float speed = Length(dir);
+	const float speed = cg2::Length(dir);
 	if (speed <= 0.001f) {
 		return;
 	}
 	dir = dir / speed;
 
-	Vector3 side = { -dir.y, dir.x, 0.0f };
+	cg2::Vector3 side = { -dir.y, dir.x, 0.0f };
 	float halfWidth = (owner_ == kPlayer) ? 0.26f : 0.22f;
 	if (trailSettings_) {
 		halfWidth = (owner_ == kPlayer) ? trailSettings_->playerHalfWidth : trailSettings_->enemyHalfWidth;
@@ -415,8 +416,8 @@ void Bullet::UpdateTrail(float deltaTime) {
 	if(specialKind_==SpecialKind::Rail)halfWidth=(std::max)(halfWidth,radius_*.85f);
 	if(specialKind_==SpecialKind::SlashWave)halfWidth=radius_*.20f;
 	halfWidth*=visualTrailScale_;
-	const Vector3 center = { worldTransform_.translate.x, worldTransform_.translate.y, worldTransform_.translate.z - 0.015f };
-	const Vector3 tip = center + side * halfWidth;
-	const Vector3 base = center - side * halfWidth;
+	const cg2::Vector3 center = { worldTransform_.translate.x, worldTransform_.translate.y, worldTransform_.translate.z - 0.015f };
+	const cg2::Vector3 tip = center + side * halfWidth;
+	const cg2::Vector3 base = center - side * halfWidth;
 	trail_->Update(deltaTime, tip, base, MakeTrailConfig());
 }

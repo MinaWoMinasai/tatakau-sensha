@@ -4,6 +4,8 @@
 
 #pragma comment(lib, "winmm.lib")
 
+namespace cg2 {
+
 WinApp* WinApp::GetInstance()
 {
 	static WinApp instance;
@@ -112,3 +114,5 @@ void WinApp::Finalize()
 	CloseWindow(hwnd_);
 	CoUninitialize();
 }
+
+} // namespace cg2

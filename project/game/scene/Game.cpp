@@ -44,7 +44,7 @@ std::string JoinSceneNames(const std::vector<std::string>& names)
 
 void LogActiveProject(const GameProject& project, bool loadedFromFallback)
 {
-	LogWrite().Log(
+	cg2::LogWrite().Log(
 		"[GameProject] Active project: name='" + project.projectName +
 		"', source='" + GetProjectSourceLabel(project) +
 		"', gameModule='" + project.gameModule +
@@ -64,7 +64,7 @@ void Game::LoadActiveProject(const GameProjectCommandLineOptions& projectOptions
 
 	if (projectOptions.projectOptionProvided) {
 		if (projectOptions.projectFilePath.empty()) {
-			LogWrite().Log(
+			cg2::LogWrite().Log(
 				"[GameProject] The explicit --project path is empty. "
 				"Trying the default project file.\n");
 		} else if (loader.Load(projectOptions.projectFilePath, loadedProject)) {
@@ -76,11 +76,11 @@ void Game::LoadActiveProject(const GameProjectCommandLineOptions& projectOptions
 			defaultProjectAlreadyAttempted =
 				projectOptions.projectFilePath == kDefaultProjectFilePath;
 			if (defaultProjectAlreadyAttempted) {
-				LogWrite().Log(
+				cg2::LogWrite().Log(
 					"[GameProject] Explicit project file is the default project file and "
 					"failed to load. Using built-in safe defaults.\n");
 			} else {
-				LogWrite().Log(
+				cg2::LogWrite().Log(
 					"[GameProject] Explicit project file '" + projectOptions.projectFilePath +
 					"' failed to load. Trying '" + kDefaultProjectFilePath + "'.\n");
 			}
@@ -97,7 +97,7 @@ void Game::LoadActiveProject(const GameProjectCommandLineOptions& projectOptions
 
 	activeProject_ = GameProject{};
 	activeProjectLoadedFromFallback_ = true;
-	LogWrite().Log(
+	cg2::LogWrite().Log(
 		"[GameProject] Default project file could not be loaded. "
 		"Using built-in safe defaults.\n");
 	LogActiveProject(activeProject_, activeProjectLoadedFromFallback_);
@@ -107,7 +107,7 @@ bool Game::ConfigureGameModuleAndSceneFactory()
 {
 	GameModuleRegistry moduleRegistry;
 	if (!RegisterAvailableGameModules(moduleRegistry)) {
-		LogWrite().Log(
+		cg2::LogWrite().Log(
 			"[GameModule] FATAL: failed to register the available game modules. "
 			"The game will not enter the main loop.\n");
 		return false;
@@ -119,7 +119,7 @@ bool Game::ConfigureGameModuleAndSceneFactory()
 	if (!selectedModule) {
 		const std::vector<std::string> registeredModuleIds =
 			moduleRegistry.GetRegisteredIds();
-		LogWrite().Log(
+		cg2::LogWrite().Log(
 			"[GameModule] Requested game module is not available. projectName='" +
 			activeProject_.projectName + "', projectFile='" +
 			GetProjectSourceLabel(activeProject_) + "', requestedModule='" +
@@ -127,7 +127,7 @@ bool Game::ConfigureGameModuleAndSceneFactory()
 			JoinSceneNames(registeredModuleIds) + "].\n");
 
 		if (activeProject_.gameModule != kFallbackGameModuleId) {
-			LogWrite().Log(
+			cg2::LogWrite().Log(
 				"[GameModule] Falling back to game module '" +
 				std::string(kFallbackGameModuleId) + "'.\n");
 			selectedModule = moduleRegistry.Create(kFallbackGameModuleId);
@@ -136,7 +136,7 @@ bool Game::ConfigureGameModuleAndSceneFactory()
 	}
 
 	if (!selectedModule) {
-		LogWrite().Log(
+		cg2::LogWrite().Log(
 			"[GameModule] FATAL: requested game module '" +
 			activeProject_.gameModule + "' could not be created and required fallback "
 			"module '" + std::string(kFallbackGameModuleId) +
@@ -146,7 +146,7 @@ bool Game::ConfigureGameModuleAndSceneFactory()
 
 	SceneRegistry sceneRegistry;
 	if (!selectedModule->RegisterScenes(sceneRegistry)) {
-		LogWrite().Log(
+		cg2::LogWrite().Log(
 			"[GameModule] FATAL: game module '" +
 			std::string(selectedModule->GetId()) +
 			"' failed to register its scenes. The game will not enter the main loop.\n");
@@ -157,14 +157,14 @@ bool Game::ConfigureGameModuleAndSceneFactory()
 		sceneRegistry.GetRegisteredNames();
 	auto sceneFactory = std::make_unique<SceneFactory>(std::move(sceneRegistry));
 	if (!SceneManager::GetInstance()->SetSceneFactory(std::move(sceneFactory))) {
-		LogWrite().Log(
+		cg2::LogWrite().Log(
 			"[GameModule] FATAL: failed to inject the scene factory for game module '" +
 			std::string(selectedModule->GetId()) +
 			"'. The game will not enter the main loop.\n");
 		return false;
 	}
 
-	LogWrite().Log(
+	cg2::LogWrite().Log(
 		"[GameModule] Active module: id='" +
 		std::string(selectedModule->GetId()) + "', displayName='" +
 		std::string(selectedModule->GetDisplayName()) +
@@ -186,7 +186,7 @@ bool Game::ResolveStartupScene()
 
 	const std::vector<std::string> registeredNames =
 		sceneManager->GetRegisteredSceneNames();
-	LogWrite().Log(
+	cg2::LogWrite().Log(
 		"[GameProject] Startup scene is not registered. projectName='" +
 		activeProject_.projectName + "', projectFile='" +
 		GetProjectSourceLabel(activeProject_) + "', startupScene='" +
@@ -196,13 +196,13 @@ bool Game::ResolveStartupScene()
 	if (sceneManager->ContainsScene(kFallbackSceneName)) {
 		resolvedStartupScene_ = kFallbackSceneName;
 		startupSceneUsedFallback_ = true;
-		LogWrite().Log(
+		cg2::LogWrite().Log(
 			"[GameProject] Falling back to startup scene 'TITLE'.\n");
 		return true;
 	}
 
 	resolvedStartupScene_.clear();
-	LogWrite().Log(
+	cg2::LogWrite().Log(
 		"[GameProject] FATAL: startup scene '" + activeProject_.startupScene +
 		"' is unavailable and fallback scene 'TITLE' is not registered. "
 		"The game will not enter the main loop.\n");
@@ -210,7 +210,7 @@ bool Game::ResolveStartupScene()
 }
 
 bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
-    StartupTrace::Scope startupScope("Game.Initialize");
+    cg2::StartupTrace::Scope startupScope("Game.Initialize");
 
     LoadActiveProject(projectOptions);
     if (!ConfigureGameModuleAndSceneFactory()) {
@@ -222,15 +222,15 @@ bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
 
     CoInitializeEx(0, COINIT_MULTITHREADED);
 
-    Dump dump;
+    cg2::Dump dump;
     SetUnhandledExceptionFilter(dump.Export);
 
-    WinApp::GetInstance()->Initialize();
+    cg2::WinApp::GetInstance()->Initialize();
 
     InitializeEngine();
     InitializeImGui();
-    StartupTrace::Count("build.developer_tools", cg2::kDeveloperTools ? 1 : 0);
-    StartupTrace::Count("ui.imgui_initialized", imguiInitialized_ ? 1 : 0);
+    cg2::StartupTrace::Count("build.developer_tools", cg2::kDeveloperTools ? 1 : 0);
+    cg2::StartupTrace::Count("ui.imgui_initialized", imguiInitialized_ ? 1 : 0);
     LoadResources();
 
     SceneManager* sceneManager = SceneManager::GetInstance();
@@ -238,7 +238,7 @@ bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
     if (!sceneInitialized &&
         resolvedStartupScene_ != kFallbackSceneName &&
         sceneManager->ContainsScene(kFallbackSceneName)) {
-        LogWrite().Log(
+        cg2::LogWrite().Log(
             "[GameProject] Failed to create startup scene '" + resolvedStartupScene_ +
             "'. Falling back to 'TITLE'.\n");
         resolvedStartupScene_ = kFallbackSceneName;
@@ -246,74 +246,74 @@ bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
         sceneInitialized = sceneManager->Initialize(resolvedStartupScene_);
     }
     if (!sceneInitialized) {
-        LogWrite().Log(
+        cg2::LogWrite().Log(
             "[GameProject] FATAL: no startup scene could be initialized. "
             "The game will not enter the main loop.\n");
         return false;
     }
-    LogWrite().Log(
+    cg2::LogWrite().Log(
         "[GameProject] Startup scene initialized: '" + resolvedStartupScene_ + "'.\n");
 
-    rtvManager_ = std::make_unique<RtvManager>();
+    rtvManager_ = std::make_unique<cg2::RtvManager>();
     rtvManager_->Initialize(dxCommon_.get());
 
-    bloom_ = std::make_unique<Bloom>();
+    bloom_ = std::make_unique<cg2::Bloom>();
 	bloom_->Initialize(dxCommon_.get(), srvManager_.get(), rtvManager_.get());
     char stressCount[16]{};
     if (cg2::kDeveloperTools && GetEnvironmentVariableA("CG2_PERF_STRESS_TRAILS", stressCount, sizeof(stressCount)) > 0) {
         const unsigned count = static_cast<unsigned>((std::clamp)(std::atoi(stressCount), 0, 512));
         if (count > 0) {
-            trailStress_ = std::make_unique<TrailStressFixture>();
-            trailStress_->Initialize(dxCommon_.get(), Object3dCommon::GetInstance(), count);
+            trailStress_ = std::make_unique<cg2::TrailStressFixture>();
+            trailStress_->Initialize(dxCommon_.get(), cg2::Object3dCommon::GetInstance(), count);
         }
     }
 
-    ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
+    cg2::ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
 
     // 音声読み込み
-    Audio::GetInstance()->Initialize();
-    Audio::GetInstance()->LoadAudio(L"bulletShoot", L"resources/bulletShoot.mp3", 5);
+    cg2::Audio::GetInstance()->Initialize();
+    cg2::Audio::GetInstance()->LoadAudio(L"bulletShoot", L"resources/bulletShoot.mp3", 5);
 
     return true;
 }
 
 void Game::InitializeEngine() {
-    StartupTrace::Scope startupScope("Engine.Initialize");
-    const auto timed = [](const char* name, auto&& action) { StartupTrace::Scope scope(name); action(); };
+    cg2::StartupTrace::Scope startupScope("Engine.Initialize");
+    const auto timed = [](const char* name, auto&& action) { cg2::StartupTrace::Scope scope(name); action(); };
 
-    dxCommon_ = std::make_unique<DirectXCommon>();
-    timed("Engine.DirectX", [&] { dxCommon_->Initialize(WinApp::GetInstance()); });
-    RuntimeProfiler::Get().Initialize(dxCommon_.get());
+    dxCommon_ = std::make_unique<cg2::DirectXCommon>();
+    timed("Engine.DirectX", [&] { dxCommon_->Initialize(cg2::WinApp::GetInstance()); });
+    cg2::RuntimeProfiler::Get().Initialize(dxCommon_.get());
     char frameLimit[8]{};
     if (GetEnvironmentVariableA("CG2_FRAME_LIMIT", frameLimit, sizeof(frameLimit)) == 1 && frameLimit[0] == '0') {
         dxCommon_->SetFrameLimitEnabled(false);
     }
 
-    srvManager_ = std::make_unique<SrvManager>();
+    srvManager_ = std::make_unique<cg2::SrvManager>();
     srvManager_->Initialize(dxCommon_.get());
     
-    shadow_ = std::make_unique<Shadow>();
+    shadow_ = std::make_unique<cg2::Shadow>();
     timed("Engine.Shadow", [&] { shadow_->Initialize(dxCommon_.get(), srvManager_.get()); });
 
-    TextureManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
-    ModelManager::GetInstance()->Initialize(dxCommon_.get());
+    cg2::TextureManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
+    cg2::ModelManager::GetInstance()->Initialize(dxCommon_.get());
 
-    timed("Engine.Object3d", [&] { Object3dCommon::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get(), shadow_->GetShadowMap()); });
-    timed("Engine.Sprite", [&] { SpriteCommon::GetInstance()->Initialize(dxCommon_.get()); });
+    timed("Engine.Object3d", [&] { cg2::Object3dCommon::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get(), shadow_->GetShadowMap()); });
+    timed("Engine.Sprite", [&] { cg2::SpriteCommon::GetInstance()->Initialize(dxCommon_.get()); });
 
-    Input::GetInstance()->Initialize(
-        WinApp::GetInstance()->GetWindowClass(),
-        WinApp::GetInstance()->GetHwnd()
+    cg2::Input::GetInstance()->Initialize(
+        cg2::WinApp::GetInstance()->GetWindowClass(),
+        cg2::WinApp::GetInstance()->GetHwnd()
     );
 }
 
 void Game::InitializeImGui() {
-    StartupTrace::Scope startupScope("Engine.ImGui");
+    cg2::StartupTrace::Scope startupScope("Engine.ImGui");
 
 
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
 #if !defined(USE_IMGUI)
-    if (!RuntimeProfiler::Get().IsAllowed()) return;
+    if (!cg2::RuntimeProfiler::Get().IsAllowed()) return;
 #endif
 
     // Imguiの初期化
@@ -337,7 +337,7 @@ void Game::InitializeImGui() {
         }
     }
     ImGui::StyleColorsDark();
-    ImGui_ImplWin32_Init(WinApp::GetInstance()->GetHwnd());
+    ImGui_ImplWin32_Init(cg2::WinApp::GetInstance()->GetHwnd());
 
     ImGui_ImplDX12_InitInfo initInfo{};
     initInfo.Device = dxCommon_->GetDevice().Get();
@@ -348,7 +348,7 @@ void Game::InitializeImGui() {
     initInfo.SrvDescriptorHeap = srvManager_->GetSrvHeap().Get();
     initInfo.UserData = srvManager_.get();
     initInfo.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* outCpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGpuHandle) {
-        SrvManager* srvManager = static_cast<SrvManager*>(info->UserData);
+        cg2::SrvManager* srvManager = static_cast<cg2::SrvManager*>(info->UserData);
         const uint32_t srvIndex = srvManager->Allocate();
         *outCpuHandle = srvManager->GetCPUDescriptorHandle(srvIndex);
         *outGpuHandle = srvManager->GetGPUDescriptorHandle(srvIndex);
@@ -402,17 +402,17 @@ void Game::MainLoop() {
                     extended = (rawScan & 0xff00u) == 0xe000u;
                 }
                 const unsigned int scanCode = (rawScan & 0x7fu) | (extended ? 0x80u : 0u);
-                Input::GetInstance()->RecordKeyDown(scanCode, (msg.lParam & (1LL << 30)) != 0);
+                cg2::Input::GetInstance()->RecordKeyDown(scanCode, (msg.lParam & (1LL << 30)) != 0);
             }
             if (msg.message == WM_KEYDOWN && msg.wParam == VK_F1 && !(msg.lParam & (1LL << 30))) {
-                RuntimeProfiler::Get().HandleShortcut((GetKeyState(VK_SHIFT) & 0x8000) != 0);
+                cg2::RuntimeProfiler::Get().HandleShortcut((GetKeyState(VK_SHIFT) & 0x8000) != 0);
             }
             TranslateMessage(&msg);
             DispatchMessage(&msg);
             // Clear stale keys at the focus event itself, before any subsequent
             // key-down in the same message batch can be recorded.
-            if (WinApp::GetInstance()->ConsumeActivationChanged()) {
-                Input::GetInstance()->OnFocusChanged(WinApp::GetInstance()->IsActive());
+            if (cg2::WinApp::GetInstance()->ConsumeActivationChanged()) {
+                cg2::Input::GetInstance()->OnFocusChanged(cg2::WinApp::GetInstance()->IsActive());
                 dxCommon_->ResetFixFPS();
             }
         }
@@ -421,8 +421,8 @@ void Game::MainLoop() {
         }
 		const float messagePumpMs = elapsedMs(messageStart, std::chrono::steady_clock::now());
         // インプットインスタンスを取得
-        Input* input = Input::GetInstance();
-        WinApp* winApp = WinApp::GetInstance();
+        cg2::Input* input = cg2::Input::GetInstance();
+        cg2::WinApp* winApp = cg2::WinApp::GetInstance();
 
         if (!winApp->IsActive() && !backgroundValidation) {
             dxCommon_->ResetFixFPS();
@@ -433,7 +433,7 @@ void Game::MainLoop() {
 		const auto inputImGuiStart = std::chrono::steady_clock::now();
 		// 前のフレームのキー状態を保存
         input->BeforeFrameData();
-        auto& runtime = RuntimeProfiler::Get();
+        auto& runtime = cg2::RuntimeProfiler::Get();
         runtime.BeginFrame();
         const int gpuFrame = runtime.BeginGpu("GPU frame");
 
@@ -456,20 +456,20 @@ void Game::MainLoop() {
 
 #ifdef USE_IMGUI
         if (input->IsPress(input->GetKey()[DIK_LCONTROL]) && input->IsPress(input->GetKey()[DIK_LSHIFT]) && input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
-            if (Object3dCommon::GetInstance()->GetIsDebugCamera()) {
-                Object3dCommon::GetInstance()->SetIsDebugCamera(false);
+            if (cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()) {
+                cg2::Object3dCommon::GetInstance()->SetIsDebugCamera(false);
             } else {
-                Object3dCommon::GetInstance()->SetIsDebugCamera(true);
+                cg2::Object3dCommon::GetInstance()->SetIsDebugCamera(true);
             }
         }
 #endif // USE_IMGUI
 
-        Object3dCommon::GetInstance()->Update();
+        cg2::Object3dCommon::GetInstance()->Update();
 		const float engineUpdateMs = elapsedMs(engineUpdateStart, std::chrono::steady_clock::now());
 		const auto sceneUpdateStart = std::chrono::steady_clock::now();
         SceneManager::GetInstance()->Update();
         if (trailStress_) {
-            RuntimeProfiler::CpuScope scope("Stress trails update");
+            cg2::RuntimeProfiler::CpuScope scope("Stress trails update");
             trailStress_->Update(1.0f/60.0f);
         }
 		const float sceneUpdateMs = elapsedMs(sceneUpdateStart, std::chrono::steady_clock::now());
@@ -515,11 +515,11 @@ void Game::MainLoop() {
 
 		const auto drawRecordStart = std::chrono::steady_clock::now();
 		renderProfile.scenePostMs = measureMs([&]() {
-            RuntimeProfiler::GpuScope scope("Scene 3D (includes effects)");
+            cg2::RuntimeProfiler::GpuScope scope("Scene 3D (includes effects)");
             SceneManager::GetInstance()->DrawPostEffect3D(); // ここで Object3d::Draw が呼ばれる
             if (trailStress_) {
-                RuntimeProfiler::CpuScope cpuScope("Stress trails");
-                RuntimeProfiler::GpuScope gpuScope("Stress trails");
+                cg2::RuntimeProfiler::CpuScope cpuScope("Stress trails");
+                cg2::RuntimeProfiler::GpuScope gpuScope("Stress trails");
                 trailStress_->Draw();
                 const auto& stats = trailStress_->GetStats();
                 runtime.SetCounter("Stress trails", static_cast<double>(stats.drawableInstances));
@@ -531,18 +531,18 @@ void Game::MainLoop() {
         });
 
         renderProfile.globalBloomMs = measureMs([&]() {
-            RuntimeProfiler::GpuScope scope("Global Bloom / Post");
+            cg2::RuntimeProfiler::GpuScope scope("Global Bloom / Post");
             bloom_->PostDraw();
         });
 
         renderProfile.afterPostMs = measureMs([&]() {
-            RuntimeProfiler::GpuScope scope("After Post / Text Glow");
+            cg2::RuntimeProfiler::GpuScope scope("After Post / Text Glow");
             SceneManager::GetInstance()->DrawAfterPostEffect3D();
         });
 
         renderProfile.spriteMs = measureMs([&]() {
-            RuntimeProfiler::GpuScope scope("2D / Game UI");
-            SpriteCommon::GetInstance()->PreDraw(kNormal);
+            cg2::RuntimeProfiler::GpuScope scope("2D / Game UI");
+            cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
             SceneManager::GetInstance()->DrawSprite();
         });
 		renderProfile.drawRecordMs = elapsedMs(drawRecordStart, std::chrono::steady_clock::now());
@@ -551,7 +551,7 @@ void Game::MainLoop() {
 		const auto imguiDrawStart = std::chrono::steady_clock::now();
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
         if (imguiInitialized_) {
-        RuntimeProfiler::GpuScope scope("Diagnostics UI");
+        cg2::RuntimeProfiler::GpuScope scope("Diagnostics UI");
         // 実際のcommandListのImGuiの描画コマンドを組む
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon_->GetList().Get());
         }
@@ -566,8 +566,8 @@ void Game::MainLoop() {
 
         const auto& presentedScene = SceneManager::GetInstance()->GetCurrentSceneName();
         if (lastPresentedScene != presentedScene) {
-            StartupTrace::Mark("first_frame." + presentedScene);
-            StartupTrace::Flush();
+            cg2::StartupTrace::Mark("first_frame." + presentedScene);
+            cg2::StartupTrace::Flush();
             lastPresentedScene = presentedScene;
         }
         if (startupValidation && presentedScene == "TANK_EXPEDITION" && ++startupValidationFrames >= 3) {
@@ -612,7 +612,7 @@ void Game::Finalize() {
 	}
 	SceneManager::GetInstance()->Finalize();
     trailStress_.reset();
-    RuntimeProfiler::Get().Shutdown();
+    cg2::RuntimeProfiler::Get().Shutdown();
 
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
     if (imguiInitialized_) {
@@ -625,14 +625,14 @@ void Game::Finalize() {
 
 #endif // USE_IMGUI
 
-    TextureManager::GetInstance()->Finalize();
-    TextRenderer::GetInstance()->Finalize();
-    ModelManager::GetInstance()->Finalize();
+    cg2::TextureManager::GetInstance()->Finalize();
+    cg2::TextRenderer::GetInstance()->Finalize();
+    cg2::ModelManager::GetInstance()->Finalize();
 
     CloseHandle(dxCommon_->GetFenceEvent());
 
     dxCommon_->Release();
-    WinApp::GetInstance()->Finalize();
+    cg2::WinApp::GetInstance()->Finalize();
 
     CoUninitialize();
     MFShutdown();

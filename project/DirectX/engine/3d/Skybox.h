@@ -3,6 +3,8 @@
 #include "TextureManager.h"
 #include "DirectXCommon.h"
 
+namespace cg2 {
+
 class Skybox {
 public:
     void Initialize(const std::string& textureFilePath);
@@ -20,3 +22,5 @@ private:
     SrvManager* srvManager_;
 
 };
+
+} // namespace cg2

@@ -12,6 +12,20 @@ namespace tankspecial {
 inline constexpr float kOrdinaryEnemyBulletHp=6.0f;
 inline constexpr float kBossEnemyBulletHp=12.0f;
 inline constexpr float kArmoredEnemyBulletHp=24.0f;
+inline constexpr float kRailMaxChargeSeconds=1.0f;
+inline constexpr float kRailTapDamageScale=0.65f;
+inline constexpr float kRailChargeDamageGain=4.35f;
+inline constexpr float kRailTapSpeedScale=1.8f;
+inline constexpr float kRailChargeSpeedGain=1.8f;
+inline constexpr float kMinAbilityPower=0.1f;
+inline constexpr float kMaxAbilityPower=5.0f;
+inline constexpr float kRailRecoveryReloadScale=0.8f;
+inline constexpr float kRailMinRecoverySeconds=0.12f;
+inline constexpr float kRailMaxRecoverySeconds=0.35f;
+inline constexpr float kLinkHitIntervalSeconds=0.20f;
+inline constexpr float kSlashWaveDamageScale=0.55f;
+inline constexpr float kPerfectParryWindowSeconds=0.12f;
+inline constexpr float kPerfectParryDurabilityDamage=8.0f;
 struct RailCharge {
     float seconds=0.0f;
     bool held=false;
@@ -19,14 +33,14 @@ struct RailCharge {
     // A negative result means no shot; zero is a valid short tap.
     float Step(bool pressed,float dt,bool ready) {
         if(!ready) {Reset();return -1.0f;}
-        if(pressed) {held=true;seconds=(std::min)(1.0f,seconds+(std::max)(0.0f,dt));return -1.0f;}
+        if(pressed) {held=true;seconds=(std::min)(kRailMaxChargeSeconds,seconds+(std::max)(0.0f,dt));return -1.0f;}
         if(!held) return -1.0f;
         const float shot=seconds;Reset();return shot;
     }
 };
-inline float RailDamageScale(float charge,float power=1) {return .65f+4.35f*(std::clamp)(charge,0.0f,1.0f)*(std::clamp)(power,.1f,5.0f);}
-inline float RailSpeedScale(float charge) {return 1.8f+1.8f*(std::clamp)(charge,0.0f,1.0f);}
-inline float RailRecovery(float reload) {return (std::clamp)(reload*.8f,.12f,.35f);}
+inline float RailDamageScale(float charge,float power=1) {return kRailTapDamageScale+kRailChargeDamageGain*(std::clamp)(charge,0.0f,1.0f)*(std::clamp)(power,kMinAbilityPower,kMaxAbilityPower);}
+inline float RailSpeedScale(float charge) {return kRailTapSpeedScale+kRailChargeSpeedGain*(std::clamp)(charge,0.0f,1.0f);}
+inline float RailRecovery(float reload) {return (std::clamp)(reload*kRailRecoveryReloadScale,kRailMinRecoverySeconds,kRailMaxRecoverySeconds);}
 inline int LinkCount(int drones) {return drones<2?0:drones==2?1:drones;}
 inline float SegmentClosestFraction(float ax,float ay,float bx,float by,float px,float py) {
     const float dx=bx-ax,dy=by-ay,len=dx*dx+dy*dy;
@@ -53,17 +67,17 @@ struct LinkDamageClock {
     bool Claim(uint64_t id) {
         Target* free=nullptr;
         for(auto& target:targets) {
-            if(target.id==id) {if(seconds+1e-6f<target.next)return false;target.next=seconds+.20f;return true;}
+            if(target.id==id) {if(seconds+1e-6f<target.next)return false;target.next=seconds+kLinkHitIntervalSeconds;return true;}
             if(!free&&(target.id==0||target.next<=seconds))free=&target;
         }
-        if(!free)return false;*free={id,seconds+.20f};return true;
+        if(!free)return false;*free={id,seconds+kLinkHitIntervalSeconds};return true;
     }
 };
 inline bool EmitsSlashWave(int comboStep) {return comboStep==2;}
-inline uint32_t SlashDamage(uint32_t finisherDamage,float power=1) {return static_cast<uint32_t>((std::max)(1.0f,std::round(static_cast<float>(finisherDamage)*.55f*power)));}
-inline bool IsPerfectParry(float activeElapsed) {return activeElapsed>=0&&activeElapsed<=.12f;}
+inline uint32_t SlashDamage(uint32_t finisherDamage,float power=1) {return static_cast<uint32_t>((std::max)(1.0f,std::round(static_cast<float>(finisherDamage)*kSlashWaveDamageScale*power)));}
+inline bool IsPerfectParry(float activeElapsed) {return activeElapsed>=0&&activeElapsed<=kPerfectParryWindowSeconds;}
 inline float ParryDurabilityDamage(float hp,bool perfect,float power=1) {
-    if(perfect)return 8.0f*(std::clamp)(power,.1f,5.0f);
+    if(perfect)return kPerfectParryDurabilityDamage*(std::clamp)(power,kMinAbilityPower,kMaxAbilityPower);
     return hp<=kOrdinaryEnemyBulletHp?hp:0.0f;
 }
 
@@ -71,25 +85,31 @@ inline float ParryDurabilityDamage(float hp,bool perfect,float power=1) {
 enum class DronePhase { Escort, Warning, Charging, Returning, Rebuilding };
 class DroneMission {
 public:
-    DronePhase GetPhase() const { return phase; }
-    float GetElapsed() const { return elapsed; }
-    bool IsBomb() const { return bomb; }
-    bool HasImpact() const { return impact; }
-    bool ConsumeImpact() { const bool hit = impact; impact = false; return hit; }
+    static constexpr float kWarningSeconds = 0.30f;
+    static constexpr float kBombWarningSeconds = 0.65f;
+    static constexpr float kChargingTimeoutSeconds = 1.0f;
+    static constexpr float kReturnTimeoutSeconds = 2.5f;
+    static constexpr float kRebuildSeconds = 5.5f;
+    DronePhase GetPhase() const { return phase_; }
+    float GetElapsed() const { return elapsed_; }
+    float GetWarningDuration() const { return bomb_ ? kBombWarningSeconds : kWarningSeconds; }
+    bool IsBomb() const { return bomb_; }
+    bool HasImpact() const { return impact_; }
+    bool ConsumeImpact() { const bool hit = impact_; impact_ = false; return hit; }
     bool Start(bool explosive) {
-        if(phase!=DronePhase::Escort)return false;
-        phase=DronePhase::Warning;elapsed=0;bomb=explosive;impact=false;return true;
+        if(phase_!=DronePhase::Escort)return false;
+        Enter(DronePhase::Warning);bomb_=explosive;impact_=false;return true;
     }
     void Arrive() {
-        if(phase!=DronePhase::Charging)return;
-        impact=true;phase=bomb?DronePhase::Rebuilding:DronePhase::Returning;elapsed=0;
+        if(phase_!=DronePhase::Charging)return;
+        impact_=true;Enter(bomb_?DronePhase::Rebuilding:DronePhase::Returning);
     }
     bool Step(float dt,bool home=false) {
-        elapsed+=(std::max)(0.0f,dt);
-        const State& state = GetState(phase);
+        elapsed_+=(std::max)(0.0f,dt);
+        const State& state = GetState(phase_);
         return state.Update(*this, home);
     }
-    bool Available() const {return phase!=DronePhase::Rebuilding;}
+    bool Available() const {return phase_!=DronePhase::Rebuilding;}
 private:
     class State {
     public:
@@ -103,28 +123,28 @@ private:
     class WarningState final : public State {
     public:
         bool Update(DroneMission& mission, bool) const override {
-            if (mission.elapsed >= (mission.bomb ? .65f : .30f)) mission.Enter(DronePhase::Charging);
+            if (mission.elapsed_ >= mission.GetWarningDuration()) mission.Enter(DronePhase::Charging);
             return false;
         }
     };
     class ChargingState final : public State {
     public:
         bool Update(DroneMission& mission, bool) const override {
-            if (mission.elapsed >= 1.0f) mission.Enter(DronePhase::Returning);
+            if (mission.elapsed_ >= kChargingTimeoutSeconds) mission.Enter(DronePhase::Returning);
             return false;
         }
     };
     class ReturningState final : public State {
     public:
         bool Update(DroneMission& mission, bool home) const override {
-            if (home || mission.elapsed >= 2.5f) mission.Enter(DronePhase::Escort);
+            if (home || mission.elapsed_ >= kReturnTimeoutSeconds) mission.Enter(DronePhase::Escort);
             return false;
         }
     };
     class RebuildingState final : public State {
     public:
         bool Update(DroneMission& mission, bool) const override {
-            if (mission.elapsed < 5.5f) return false;
+            if (mission.elapsed_ < kRebuildSeconds) return false;
             mission.Enter(DronePhase::Escort);
             return true;
         }
@@ -135,18 +155,15 @@ private:
         static const ChargingState charging;
         static const ReturningState returning;
         static const RebuildingState rebuilding;
-        switch (phase) {
-        case DronePhase::Warning: return warning;
-        case DronePhase::Charging: return charging;
-        case DronePhase::Returning: return returning;
-        case DronePhase::Rebuilding: return rebuilding;
-        default: return escort;
-        }
+        static const std::array<const State*, 5> states{&escort, &warning, &charging, &returning, &rebuilding};
+        static_assert(states.size() == static_cast<std::size_t>(DronePhase::Rebuilding) + 1);
+        const auto index = static_cast<std::size_t>(phase);
+        return *states[index < states.size() ? index : 0];
     }
-    void Enter(DronePhase next) { phase = next; elapsed = 0; }
-    DronePhase phase=DronePhase::Escort;
-    float elapsed=0;
-    bool bomb=false, impact=false;
+    void Enter(DronePhase next) { phase_ = next; elapsed_ = 0; }
+    DronePhase phase_=DronePhase::Escort;
+    float elapsed_=0;
+    bool bomb_=false, impact_=false;
 };
 struct PainterLock {
     uint64_t id=0;

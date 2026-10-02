@@ -1,5 +1,7 @@
 #include "RtvManager.h"
 
+namespace cg2 {
+
 const uint32_t RtvManager::kMaxRtvCount = 16;
 
 void RtvManager::Initialize(DirectXCommon* dxCommon) {
@@ -27,3 +29,5 @@ D3D12_CPU_DESCRIPTOR_HANDLE RtvManager::GetHandle(uint32_t index) {
     handle.ptr += descriptorSize_ * index;
     return handle;
 }
+
+} // namespace cg2

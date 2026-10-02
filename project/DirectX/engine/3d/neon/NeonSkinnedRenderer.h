@@ -7,6 +7,8 @@
 #include <d3d12.h>
 #include <wrl.h>
 
+namespace cg2 {
+
 class DirectXCommon;
 class SrvManager;
 class SkinnedModel;
@@ -108,3 +110,5 @@ private:
 	std::vector<DrawConstantBuffer> drawConstantBuffers_;
 	size_t nextDrawIndex_ = 0;
 };
+
+} // namespace cg2

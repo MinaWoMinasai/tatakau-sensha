@@ -26,7 +26,7 @@ std::string FormatRegisteredNames(const std::vector<std::string>& names)
 
 void LogRegistryError(const std::string& message)
 {
-	LogWrite().Log("[SceneRegistry] " + message + "\n");
+	cg2::LogWrite().Log("[SceneRegistry] " + message + "\n");
 }
 
 }

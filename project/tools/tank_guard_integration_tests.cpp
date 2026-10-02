@@ -18,6 +18,7 @@
 #include "../game/exp/ExpGuardCombat.h"
 #include "../game/player/TankSpecialCombat.h"
 
+namespace cg2 {
 struct Vector3 {
     float x = 0, y = 0, z = 0;
     Vector3& operator+=(Vector3 v) { x += v.x; y += v.y; z += v.z; return *this; }
@@ -34,9 +35,12 @@ struct Transform { Vector3 scale{ 1,1,1 }, rotate{}, translate{}; };
 Transform InitWorldTransform() { return {}; }
 struct AABB { Vector3 min, max; };
 struct Segment {};
+} // namespace cg2
+using namespace cg2;
 #include "../game/collision/CollisionConfig.h"
 #include "guard_collider.inc"
 
+namespace cg2 {
 struct Object3d {
     void Initialize() {}
     void SetTransform(Transform) {}
@@ -51,6 +55,7 @@ struct ParticleManager {
     void EmitNeonDeathEffect(Vector3, Vector4, Vector4, float) { ++deaths; }
     int impacts = 0, deaths = 0;
 };
+} // namespace cg2
 class Bullet : public Collider {
 public:
     enum class SpecialKind { None, Rail, SlashWave, ParryReflection };
@@ -101,7 +106,7 @@ namespace tankcontent { struct Enemy; }
 #include "guard_enemy_declarations.inc"
 
 struct Block { bool isActive = true; AABB aabb; };
-enum Axis { X, Y };
+namespace cg2 { enum Axis { X, Y }; }
 class Stage {
 public:
     std::vector<std::vector<Block>> blocks;

@@ -6,19 +6,19 @@
 #include <map>
 
 namespace {
-constexpr const char* kNodeNames[]={"戦闘","精鋭戦闘","強化","工房（旧進化）","回復","最終ボス","資材支給"};
-constexpr const char* kRoleNames[]={"通常","操作訓練の戦闘","訓練スキップ支給","訓練後の改造","スキップ後の初期改造"};
+constexpr auto kNodeNames=[] {
+    std::array<const char*,tankexp::kNodeKindDefinitions.size()> names{};
+    for(std::size_t i=0;i<names.size();++i)names[i]=tankexp::kNodeKindDefinitions[i].editorName;
+    return names;
+}();
+constexpr auto kRoleNames=[] {
+    std::array<const char*,tankexp::kNodeRoleDefinitions.size()> names{};
+    for(std::size_t i=0;i<names.size();++i)names[i]=tankexp::kNodeRoleDefinitions[i].editorName;
+    return names;
+}();
 ImU32 MapColor(tankexp::NodeKind kind,int alpha=255) {
-    switch(kind) {
-    case tankexp::NodeKind::Combat:return IM_COL32(38,202,247,alpha);
-    case tankexp::NodeKind::Elite:return IM_COL32(255,132,65,alpha);
-    case tankexp::NodeKind::Upgrade:return IM_COL32(226,190,72,alpha);
-    case tankexp::NodeKind::Evolution:return IM_COL32(182,114,255,alpha);
-    case tankexp::NodeKind::Heal:return IM_COL32(81,240,164,alpha);
-    case tankexp::NodeKind::Boss:return IM_COL32(255,76,123,alpha);
-    case tankexp::NodeKind::Currency:return IM_COL32(246,216,84,alpha);
-    }
-    return IM_COL32(255,255,255,alpha);
+    const auto& color=tankexp::GetNodeKindDefinition(kind).editorColor;
+    return IM_COL32(color[0],color[1],color[2],alpha);
 }
 void TextField(const char* label,std::string& value) {
     std::array<char,512> text{};std::snprintf(text.data(),text.size(),"%s",value.c_str());
@@ -266,7 +266,7 @@ bool tankexp::MapEditor::Draw(bool& open,MapDefinition& live,const RoomCatalog& 
         }
         TextField("表示名",node.label);
         int kind=static_cast<int>(node.kind);
-        if(ImGui::Combo("種類",&kind,kNodeNames,7)) {
+        if(ImGui::Combo("種類",&kind,kNodeNames.data(),static_cast<int>(kNodeNames.size()))) {
             node.kind=static_cast<NodeKind>(kind);
             node.role=NodeRole::None;
             if(IsCombatNode(node.kind)) {
@@ -276,7 +276,7 @@ bool tankexp::MapEditor::Draw(bool& open,MapDefinition& live,const RoomCatalog& 
             } else {node.combatStage=-1;node.roomTemplate.clear();node.clearReward=0;if(node.kind==NodeKind::Currency) node.serviceCost=0;}
         }
         int role=static_cast<int>(node.role);
-        if(ImGui::Combo("導入の役割",&role,kRoleNames,5)) node.role=static_cast<NodeRole>(role);
+        if(ImGui::Combo("導入の役割",&role,kRoleNames.data(),static_cast<int>(kRoleNames.size()))) node.role=static_cast<NodeRole>(role);
         int displayColumn=node.column+1;if(ImGui::InputInt("左から何列目 (1〜32)",&displayColumn))node.column=displayColumn-1;
         ImGui::InputInt("段 (0〜4)",&node.row);
         bool start=std::find(draft_.startNodes.begin(),draft_.startNodes.end(),node.id)!=draft_.startNodes.end();

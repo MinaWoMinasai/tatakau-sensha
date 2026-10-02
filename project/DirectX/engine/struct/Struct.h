@@ -8,6 +8,8 @@
 #include <wrl.h>
 #include <d3d12.h>
 
+namespace cg2 {
+
 struct Vector2 {
 	float x;
 	float y;
@@ -531,48 +533,6 @@ enum BlendMode {
 	kAdd_Temporal_Resolve,
 };
 
-enum Phase {
-	kFadeIn,
-	kMain,
-	kFadeOut,
-};
-
-class Player;
-struct AttackParam {
-    int sourceDroneIndex=-1;
-    Player* sourcePlayer=nullptr;
-    bool shooterChain=false,shooterMark=false,shooterBoomerang=false,shooterKillBurst=false;
-    float shooterChainPower=1,shooterMarkPower=1,shooterBoomerangPower=1,shooterKillBurstPower=1;
-    float bulletVisualScale=1,bulletTrailScale=1;
-	float bulletSpeed = 0.0f;
-	int bulletCount = 1;
-	float spreadAngleDeg = 0.0f;
-	bool randomSpread = false;
-
-	bool reflect = false;
-	bool penetrate = false;
-
-	float cooldown = 0.0f;
-
-	uint32_t damage = 0;
-	float bulletHp = 0.0f;
-	float bulletPenetration = 0.0f;
-	// Neutral Shooter projectiles must not claim a rival's shared resource.
-	bool canClaimRunResource = true;
-	// Expedition growth is opt-in. Existing arena shots retain unlimited
-	// reflection when reflect=true and no actor piercing/impact splitting.
-	int maxWallBounces = -1;
-	int actorPierceCount = 0;
-	int impactSplitCount = 0;
-	float impactSplitDamageScale = 0.55f;
-};
-
-enum BulletOwner {
-	kPlayer,
-	kEnemy,
-	kExpEnemyHostile
-};
-
 struct CollisionResult {
 	bool hit = false;     // 衝突しているか
 	Vector3 normal;       // 押し戻し方向（正規化済み）
@@ -719,3 +679,5 @@ struct TrailVertex {
 	Vector4 color; // COLOR (ここを毎フレーム変えてフェードアウトさせる)
 	Vector2 uv;    // TEXCOORD
 };
+
+} // namespace cg2

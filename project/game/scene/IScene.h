@@ -7,7 +7,7 @@ public:
 	struct PostEffectPulse {
 		float bloomBoost = 0.0f;
 		float chromAbAmount = 0.0f;
-		Vector2 center = { 0.5f, 0.5f };
+		cg2::Vector2 center = { 0.5f, 0.5f };
 		float radius = 0.0f;
 		float width = 0.05f;
 		float strength = 0.0f;
@@ -18,7 +18,7 @@ public:
 		bool suppressPostEffectDebugUi = false;
 		// Suppress generated screen-space edges, preserving authored neon geometry.
 		bool suppressOutlines = false;
-		BloomParam param{};
+		cg2::BloomParam param{};
 	};
 	struct WaterPostProcessSettings {
 		bool diagnosticsEnabled = false;

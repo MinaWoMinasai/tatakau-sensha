@@ -1,4 +1,5 @@
 #pragma once
+#include "game/weapon/CombatTypes.h"
 #include "Player.h"
 #include "Fade.h"
 #include "IScene.h"
@@ -27,14 +28,14 @@ private:
     bool StartTransitionIfAvailable(std::string_view name,float duration);
     void UpdateMenuVisuals();
     bool IsMenuAvailable(int selection) const;
-    int HitTestMenu(const Vector2& mouse) const;
+    int HitTestMenu(const cg2::Vector2& mouse) const;
     void WriteDemoValidation(bool fadeComplete);
     std::unique_ptr<GameScene> demo_;
     std::unique_ptr<Fade> fade_;
-    std::unique_ptr<Sprite> backgroundVeil_;
-    Input* input_=nullptr;
-    std::unique_ptr<TextLabel> title_,subtitle_,hint_,demoCaption_;
-    std::array<std::unique_ptr<TextLabel>,1> menu_;
+    std::unique_ptr<cg2::Sprite> backgroundVeil_;
+    cg2::Input* input_=nullptr;
+    std::unique_ptr<cg2::TextLabel> title_,subtitle_,hint_,demoCaption_;
+    std::array<std::unique_ptr<cg2::TextLabel>,1> menu_;
     struct DemoSample {
         std::string build;
         int shots=0,kills=0,dashes=0;
@@ -54,5 +55,5 @@ private:
     float frozenAt_=0,blinkTimer_=0;
     int menuSelection_=0;
     bool menuHovered_=false;
-    Vector2 previousMousePosition_{};
+    cg2::Vector2 previousMousePosition_{};
 };

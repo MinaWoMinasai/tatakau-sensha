@@ -1,3 +1,4 @@
+#include "game/weapon/CombatTypes.h"
 #include "TitleScene.h"
 #include "GameScene.h"
 #include "GameStartMode.h"
@@ -9,7 +10,7 @@
 #include <fstream>
 
 namespace {
-void Fit(TextLabel& label,const Vector2& bounds) {
+void Fit(cg2::TextLabel& label,const cg2::Vector2& bounds) {
     label.PrepareForDraw();
     if(auto* sprite=label.GetSprite()) {
         const auto size=sprite->GetSize();
@@ -21,8 +22,8 @@ void Fit(TextLabel& label,const Vector2& bounds) {
 TitleScene::TitleScene()=default;
 TitleScene::~TitleScene()=default;
 void TitleScene::Initialize() {
-    StartupTrace::Scope startupScope("TitleScene.Initialize");
-    input_=Input::GetInstance();
+    cg2::StartupTrace::Scope startupScope("TitleScene.Initialize");
+    input_=cg2::Input::GetInstance();
     finished_=false;demoFrozen_=false;nextSceneName_.clear();
     phase_=Phase::kFadeIn;blinkTimer_=0;capturedStages_=0;
     previousMousePosition_=input_->GetMousePosition();
@@ -37,22 +38,22 @@ void TitleScene::Initialize() {
     // input and environment remain untouched throughout the attract sequence.
     demo_=std::make_unique<GameScene>(false,true);
     demo_->EnableTitleDemo();
-    { StartupTrace::Scope scope("TitleScene.GameplayDemo"); demo_->Initialize(); }
+    { cg2::StartupTrace::Scope scope("TitleScene.GameplayDemo"); demo_->Initialize(); }
     stageSamples_={};stageSamples_[0].build=demo_->GetTitleDemoBuild().dump();
     fade_=std::make_unique<Fade>();fade_->Initialize();fade_->Start(Fade::Status::FadeIn,0.65f);
-    const float w=static_cast<float>(WinApp::GetInstance()->GetClientWidth());
-    const float h=static_cast<float>(WinApp::GetInstance()->GetClientHeight());
-    backgroundVeil_=std::make_unique<Sprite>();
-    backgroundVeil_->Initialize(SpriteCommon::GetInstance(),"resources/white512x512.png");
+    const float w=static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
+    const float h=static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
+    backgroundVeil_=std::make_unique<cg2::Sprite>();
+    backgroundVeil_->Initialize(cg2::SpriteCommon::GetInstance(),"resources/white512x512.png");
     backgroundVeil_->SetPosition({0,0});backgroundVeil_->SetSize({w,h});
     backgroundVeil_->SetColor({0.004f,0.009f,0.016f,0.42f});backgroundVeil_->Update();
-    const auto label=[](const std::string& text,float size,Vector2 position,Vector4 color,bool rounded=false) {
-        TextStyle style{};style.fontFamily=rounded?"Zen Maru Gothic":"Meiryo";
+    const auto label=[](const std::string& text,float size,cg2::Vector2 position,const cg2::Vector4& color,bool rounded=false) {
+        cg2::TextStyle style{};style.fontFamily=rounded?"Zen Maru Gothic":"Meiryo";
         if(rounded) style.fontPath="resources/fonts/ZenMaruGothic-Bold.ttf";
         style.fontSize=size;style.fontWeight=rounded?700:400;
         style.color=color;style.outlineThickness=0;style.padding=8;
-        auto result=std::make_unique<TextLabel>();
-        result->Initialize(SpriteCommon::GetInstance(),text,style);
+        auto result=std::make_unique<cg2::TextLabel>();
+        result->Initialize(cg2::SpriteCommon::GetInstance(),text,style);
         result->SetAnchorPoint({0.5f,0.5f});result->SetPosition(position);return result;
     };
     title_=label("たたかうせんしゃ",100,{w*0.5f,h*0.32f},{0.91f,1,0.96f,1},true);
@@ -73,7 +74,7 @@ void TitleScene::Initialize() {
     NeonTextEffectStyle neon{};neon.enabled=true;neon.glowColor={0.18f,1,0.56f,1};
     neon.sourceBrightness=1.55f;neon.threshold=0;neon.innerIntensity=0.48f;neon.outerIntensity=0.22f;
     titleTextNeonEffect_=std::make_unique<NeonTextEffect>();
-    titleTextNeonEffect_->Initialize(Object3dCommon::GetInstance()->GetDxCommon(),Object3dCommon::GetInstance()->GetSrvManager());
+    titleTextNeonEffect_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),cg2::Object3dCommon::GetInstance()->GetSrvManager());
     titleTextNeonEffect_->SetStyle(neon);
 }
 void TitleScene::Update() {
@@ -83,7 +84,7 @@ void TitleScene::Update() {
     // Confirmation is evaluated before the background simulation. The first
     // input therefore cannot shoot, move, or select a reward inside the demo.
     if(phase_!=Phase::kFadeOut) {
-        const Vector2 mouse=input_->GetMousePosition();
+        const cg2::Vector2 mouse=input_->GetMousePosition();
         previousMousePosition_=mouse;
         const bool click=input_->IsTrigger(input_->GetMouseState().rgbButtons[0],input_->GetPreMouseState().rgbButtons[0]);
         const int hovered=HitTestMenu(mouse);
@@ -150,7 +151,7 @@ void TitleScene::DrawPostEffect3D(){demo_->DrawPostEffect3D();}
 void TitleScene::DrawAfterPostEffect3D(){
     // Dim only the game background; both text glow and sharp source glyphs
     // follow this veil, so moving walls/volleys cannot wash out menu labels.
-    SpriteCommon::GetInstance()->PreDraw(kNormal);
+    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
     backgroundVeil_->SetColor({0.004f,0.009f,0.016f,0.42f+0.58f*demo_->GetTitleDemoFade()});backgroundVeil_->Update();
     backgroundVeil_->Draw();
     if(titleTextNeonEffect_) {
@@ -171,13 +172,13 @@ IScene::ScreenEffectState TitleScene::GetScreenEffectState()const {
 void TitleScene::UpdateMenuVisuals(){
     for(int i=0;i<1;++i){
         const auto size=menu_[i]->GetSprite()->GetSize();auto style=menu_[i]->GetStyle();
-        style.color=menuHovered_?Vector4{0.47f,1,0.76f,1}:Vector4{0.48f,0.52f,0.55f,1};
+        style.color=menuHovered_?cg2::Vector4{0.47f,1,0.76f,1}:cg2::Vector4{0.48f,0.52f,0.55f,1};
         menu_[i]->SetStyle(style);menu_[i]->PrepareForDraw();menu_[i]->GetSprite()->SetSize(size);
     }
 }
 bool TitleScene::IsSceneAvailable(std::string_view name)const{return SceneManager::GetInstance()->ContainsScene(name);}
 bool TitleScene::IsMenuAvailable(int selection)const{return selection==0&&IsSceneAvailable("TANK_EXPEDITION");}
-int TitleScene::HitTestMenu(const Vector2& mouse)const{
+int TitleScene::HitTestMenu(const cg2::Vector2& mouse)const{
     for(int i=0;i<1;++i)if(IsMenuAvailable(i)){
         auto* sprite=menu_[i]->GetSprite();const auto center=sprite->GetPosition(),size=sprite->GetSize();
         if(std::abs(mouse.x-center.x)<=(std::max)(150.0f,size.x*0.5f)&&std::abs(mouse.y-center.y)<=28)return i;
@@ -185,7 +186,7 @@ int TitleScene::HitTestMenu(const Vector2& mouse)const{
 }
 bool TitleScene::StartTransitionIfAvailable(std::string_view name,float duration){
     if(!IsSceneAvailable(name)||phase_==Phase::kFadeOut)return false;
-    StartupTrace::Mark("transition.request."+std::string(name));
+    cg2::StartupTrace::Mark("transition.request."+std::string(name));
     demoFrozen_=true;frozenAt_=demo_->GetTitleDemoStatus().totalSeconds;nextSceneName_=name;
     if(name=="TANK_EXPEDITION")GameStartSession::SetMode(GameStartMode::Normal);
     fade_->Start(Fade::Status::FadeOut,duration);phase_=Phase::kFadeOut;return true;

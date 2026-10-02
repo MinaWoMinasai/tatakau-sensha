@@ -19,6 +19,7 @@
 #pragma comment(lib, "dxcompiler.lib")
 
 using Microsoft::WRL::ComPtr;
+using namespace cg2;
 
 namespace {
 void Require(bool success, const char* message) {

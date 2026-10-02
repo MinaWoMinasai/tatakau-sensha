@@ -1,3 +1,4 @@
+#include "game/weapon/CombatTypes.h"
 #include "GameScene.h"
 #include "StartupTrace.h"
 #include "game/run/TankRunCopy.h"
@@ -32,7 +33,7 @@ const char* TutorialSettingsPath() { return "resources/configs/expedition_user.j
 }
 
 void GameScene::InitializeTankExpedition() {
-    StartupTrace::Scope scope("Expedition.Initialize");
+    cg2::StartupTrace::Scope scope("Expedition.Initialize");
     player_->SetRunCheckpointEvolution(true);
     enemy_->SetRunEncounterEnabled(false);
     enemyManager_->ClearRunActors();
@@ -41,28 +42,28 @@ void GameScene::InitializeTankExpedition() {
     stagePostCacheValid_=false;
     player_->ResetRunRoomState({26,28,0});
     camera->SetTranslate({26,28,camera->GetTranslate().z}); camera->Update();
-    TextStyle style{};style.fontFamily="Meiryo";style.fontSize=14;
+    cg2::TextStyle style{};style.fontFamily="Meiryo";style.fontSize=14;
     style.color={0.68f,0.86f,0.95f,1};style.outlineThickness=0;style.padding=4;
-    tankExpeditionMapText_=std::make_unique<TextLabel>();
-    tankExpeditionMapText_->Initialize(SpriteCommon::GetInstance()," ",style);
+    tankExpeditionMapText_=std::make_unique<cg2::TextLabel>();
+    tankExpeditionMapText_->Initialize(cg2::SpriteCommon::GetInstance()," ",style);
     tankExpeditionMapText_->SetPosition({24,670});
     style.fontSize=17;style.color={0.78f,0.96f,1,1};
-    tankExpeditionMaintenanceText_=std::make_unique<TextLabel>();
-    tankExpeditionMaintenanceText_->Initialize(SpriteCommon::GetInstance()," ",style);
+    tankExpeditionMaintenanceText_=std::make_unique<cg2::TextLabel>();
+    tankExpeditionMaintenanceText_->Initialize(cg2::SpriteCommon::GetInstance()," ",style);
     tankExpeditionMaintenanceText_->SetPosition({76,570});
-    tankExpeditionMaintenanceButton_=std::make_unique<Sprite>();
-    tankExpeditionMaintenanceButton_->Initialize(SpriteCommon::GetInstance(),"resources/white512x512.png");
+    tankExpeditionMaintenanceButton_=std::make_unique<cg2::Sprite>();
+    tankExpeditionMaintenanceButton_->Initialize(cg2::SpriteCommon::GetInstance(),"resources/white512x512.png");
     tankExpeditionMaintenanceButton_->SetPosition({64,568});
     tankExpeditionMaintenanceButton_->SetSize({1144,32});
     tankExpeditionMaintenanceButton_->SetColor({0.035f,0.105f,0.14f,1});
     tankExpeditionMaintenanceButton_->Update();
-    auto panel=[](Vector2 position,Vector2 size,Vector4 color) {
-        auto item=std::make_unique<Sprite>();item->Initialize(SpriteCommon::GetInstance(),"resources/white512x512.png");
+    auto panel=[](cg2::Vector2 position,cg2::Vector2 size,const cg2::Vector4& color) {
+        auto item=std::make_unique<cg2::Sprite>();item->Initialize(cg2::SpriteCommon::GetInstance(),"resources/white512x512.png");
         item->SetPosition(position);item->SetSize(size);item->SetColor(color);item->Update();return item;
     };
-    auto label=[](float size,Vector2 position,Vector4 color) {
-        TextStyle s{};s.fontFamily="Meiryo";s.fontSize=size;s.color=color;s.outlineThickness=0;s.padding=4;
-        auto item=std::make_unique<TextLabel>();item->Initialize(SpriteCommon::GetInstance()," ",s);item->SetPosition(position);return item;
+    auto label=[](float size,cg2::Vector2 position,const cg2::Vector4& color) {
+        cg2::TextStyle s{};s.fontFamily="Meiryo";s.fontSize=size;s.color=color;s.outlineThickness=0;s.padding=4;
+        auto item=std::make_unique<cg2::TextLabel>();item->Initialize(cg2::SpriteCommon::GetInstance()," ",s);item->SetPosition(position);return item;
     };
     tankExpeditionHpTrack_=panel({24,53},{230,6},{0.10f,0.16f,0.21f,0.9f});
     tankExpeditionHpFill_=panel({24,53},{230,6},{0.23f,1.0f,0.65f,1});
@@ -134,15 +135,15 @@ void GameScene::StartTankExpeditionRoom() {
     tankExpeditionTutorialPrevious_=player_->GetWorldPosition();
     tankExpeditionDetailsOpen_=false;
     camera->SetTranslate({26,28,camera->GetTranslate().z});camera->Update();
-    auto freePosition=[this](Vector3 desired) {
+    auto freePosition=[this](const cg2::Vector3& desired) {
         if(!stage_->IsCollisionWithAnyBlock(desired,1.3f)) return desired;
         for(int r=2;r<=10;r+=2) for(int y=-r;y<=r;y+=2) for(int x=-r;x<=r;x+=2) {
-            Vector3 p=desired+Vector3{static_cast<float>(x),static_cast<float>(y),0};
+            cg2::Vector3 p=desired+cg2::Vector3{static_cast<float>(x),static_cast<float>(y),0};
             if(p.x>23&&p.x<65&&p.y>17&&p.y<41&&!stage_->IsCollisionWithAnyBlock(p,1.3f)) return p;
         }
-        return Vector3{44,30,0};
+        return cg2::Vector3{44,30,0};
     };
-    const std::array<Vector3,6> shapes={Vector3{34,22,0},Vector3{44,22,0},Vector3{54,22,0},Vector3{34,36,0},Vector3{44,36,0},Vector3{54,36,0}};
+    const std::array<cg2::Vector3,6> shapes={cg2::Vector3{34,22,0},cg2::Vector3{44,22,0},cg2::Vector3{54,22,0},cg2::Vector3{34,36,0},cg2::Vector3{44,36,0},cg2::Vector3{54,36,0}};
     const auto encounter=tankexp::GetEncounter(room,tankExpedition_.GetRoomIndex());
     for(int i=0;i<encounter.count;++i) {
         const auto& unit=encounter.units[i];
@@ -154,7 +155,7 @@ void GameScene::StartTankExpeditionRoom() {
     if(room==Room::Resource) tankRunResources_[0].position=freePosition({44,30,0});
     if(room==Room::Guard) {
         const int count=3;
-        const std::array<Vector3,3> centers={Vector3{44,30,0},Vector3{36,38,0},Vector3{54,20,0}};
+        const std::array<cg2::Vector3,3> centers={cg2::Vector3{44,30,0},cg2::Vector3{36,38,0},cg2::Vector3{54,20,0}};
         for(int i=0;i<count;++i) {
             auto& node=tankRunResources_[i];node.position=freePosition(centers[i]);
             node.active=enemyManager_->SpawnRunResource(node.position,60,
@@ -535,7 +536,7 @@ void GameScene::RefreshTankExpeditionUi() {
 void GameScene::DrawTankExpeditionUi() {
     if(expeditionMapEnabled_ && (expeditionMapPreview_ || (tankExpedition_.GetPhase()==EPhase::Map&&!tankRunPaused_))) {DrawExpeditionMapUi();return;}
     if(player_->IsChangeMode()) return;
-    SpriteCommon::GetInstance()->PreDraw(kNormal);
+    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
     const auto phase=tankExpedition_.GetPhase();
     const bool result=gameFlowState_==GameFlowState::StageClear||(gameFlowState_==GameFlowState::GameOver&&gameFlowTimer_<=0);
     const bool decision=tankRunPaused_||phase==EPhase::Reward||phase==EPhase::Route||phase==EPhase::Event||phase==EPhase::Evolution;
@@ -558,7 +559,7 @@ void GameScene::DrawTankExpeditionUi() {
     for(int i=0;i<count;++i) {
         const bool selected=i==(result?resultSelection_:tankRunSelection_);
         const bool rare=phase==EPhase::Reward&&!tankRunPaused_&&!tankExpeditionMaintenanceOpen_&&tankExpeditionRewardOpen_&&tankrun::IsRare(tankRun_.GetOffers()[i]);
-        tankRunCards_[i]->SetColor(selected?(rare?Vector4{0.21f,0.12f,0.045f,1}:Vector4{0.045f,0.16f,0.19f,1}):Vector4{0.028f,0.045f,0.075f,1});
+        tankRunCards_[i]->SetColor(selected?(rare?cg2::Vector4{0.21f,0.12f,0.045f,1}:cg2::Vector4{0.045f,0.16f,0.19f,1}):cg2::Vector4{0.028f,0.045f,0.075f,1});
         tankRunCards_[i]->Update();tankRunCards_[i]->Draw();tankRunCardTitles_[i]->Draw();tankRunCardBodies_[i]->Draw();
     }
     if(phase==EPhase::Reward&&!tankRunPaused_) {tankExpeditionMaintenanceButton_->Draw();tankExpeditionMaintenanceText_->Draw();}
@@ -571,7 +572,7 @@ void GameScene::UpdateTankExpeditionTutorial(float dt) {
     const auto position=player_->GetWorldPosition();
     if(tankExpedition_.IsCombat()) {
         if(player_->HasMovementInput()&&!player_->IsDashing())
-            tankExpeditionTutorial_.AddMovement(Length(position-tankExpeditionTutorialPrevious_));
+            tankExpeditionTutorial_.AddMovement(cg2::Length(position-tankExpeditionTutorialPrevious_));
         if(defeatedEnemies_>tankExpeditionTutorialKills_) tankExpeditionTutorial_.RecordKill();
         // Observe the actual dash state without consuming the effect/audio event.
         if(player_->IsDashing()) tankExpeditionTutorial_.RecordDash();
@@ -628,24 +629,24 @@ void GameScene::UpdateTankExpeditionTutorialValidation(float dt) {
         PostQuitMessage(done?0:3);return;
     }
     if(!started) {
-        player_->SetDemoInput(true,{0,0},player_->GetWorldPosition()+Vector3{1,0,0},false,false);
+        player_->SetDemoInput(true,{0,0},player_->GetWorldPosition()+cg2::Vector3{1,0,0},false,false);
         if(tankRunMenuAge_>0.85f) SelectTankRunOption(0);
         return;
     }
-    player_->SetDemoInput(true,{0,0},player_->GetWorldPosition()+Vector3{1,0,0},false,false);
+    player_->SetDemoInput(true,{0,0},player_->GetWorldPosition()+cg2::Vector3{1,0,0},false,false);
     if(validation.stepAge<0.6f||tankExpeditionTutorial_.IsSuccess()) return;
     using Step=tankexp::TutorialStep;
     const auto lesson=tankExpeditionTutorial_.GetStep();
-    const auto position=player_->GetWorldPosition();Vector3 aim=position+Vector3{1,0,0};
+    const auto position=player_->GetWorldPosition();cg2::Vector3 aim=position+cg2::Vector3{1,0,0};
     float distance=10000;
     for(auto* actor:enemyManager_->GetEnemyPtrs()) if(actor&&actor->IsCombatThreat()) {
-        const float candidate=Length(actor->GetWorldPosition()-position);
+        const float candidate=cg2::Length(actor->GetWorldPosition()-position);
         if(candidate<distance) {distance=candidate;aim=actor->GetWorldPosition();}
     }
-    Vector2 move{};
+    cg2::Vector2 move{};
     if(lesson==Step::Move) move={1,0};
     const bool shoot=lesson==Step::Shoot||lesson==Step::ClearRoom;
-    if(shoot&&distance>13&&distance<1000) {const auto direction=Normalize(aim-position);move={direction.x,direction.y};}
+    if(shoot&&distance>13&&distance<1000) {const auto direction=cg2::Normalize(aim-position);move={direction.x,direction.y};}
     if(lesson==Step::Dash) move={0,1};
     player_->SetDemoInput(true,move,aim,shoot,lesson==Step::Dash);
     if(lesson==Step::Route&&tankExpedition_.GetPhase()==EPhase::Route&&tankRunMenuAge_>1.0f) SelectTankExpeditionOption(1);
@@ -665,7 +666,7 @@ void GameScene::RefreshTankExpeditionTutorialUi() {
         expeditionMapEnabled_&&step==Step::Route?"マップの光る地点を選ぼう":expeditionMapEnabled_&&step==Step::Upgrade?"回収資材で改造を1つ購入しよう":actions[index]);
     tutorialDescriptionText_->SetText(tankExpeditionTutorial_.CanSkip()?"F3 / チュートリアルをスキップ":
         step==Step::Move?"移動した距離で達成":step==Step::Route||step==Step::Upgrade?"数字キー / クリック / ← → + Enter":" ");
-    tutorialPanel_->SetColor(tankExpeditionTutorial_.IsSuccess()?Vector4{0.01f,0.14f,0.10f,0.9f}:Vector4{0.008f,0.025f,0.04f,0.84f});
+    tutorialPanel_->SetColor(tankExpeditionTutorial_.IsSuccess()?cg2::Vector4{0.01f,0.14f,0.10f,0.9f}:cg2::Vector4{0.008f,0.025f,0.04f,0.84f});
     const float y=tankExpedition_.IsCombat()?590.0f:606.0f;
     tutorialPanel_->SetPosition({410,y});tutorialPanel_->SetSize({460,70});
     tutorialTitleText_->SetPosition({640,y+4});tutorialInputText_->SetPosition({640,y+21});tutorialDescriptionText_->SetPosition({640,y+50});
@@ -705,7 +706,7 @@ void GameScene::UpdateTankExpeditionAudio(float dt) {
             tankExpeditionAudio_.Hit();
             if(expeditionMapEnabled_&&expeditionHitSparkCooldown_<=0&&expeditionHitSparks_.size()<12) {
                 auto direction=actor->GetWorldPosition()-player_->GetWorldPosition();
-                direction=Length(direction)>0.01f?Normalize(direction):Vector3{0,1,0};
+                direction=cg2::Length(direction)>0.01f?cg2::Normalize(direction):cg2::Vector3{0,1,0};
                 expeditionHitSparks_.push_back({actor->GetWorldPosition(),direction,0});expeditionHitSparkCooldown_=0.045f;
             }
         }

@@ -1,3 +1,4 @@
+#include "game/weapon/CombatTypes.h"
 #include "GameScene.h"
 #include "StartupTrace.h"
 #include <fstream>
@@ -13,28 +14,23 @@ using NK=tankexp::NodeKind;
 std::optional<tankexp::MapDefinition> sessionMap;
 std::optional<tankexp::RoomCatalog> sessionRooms;
 std::optional<tankcontent::Catalog> sessionContent;
-std::unique_ptr<Sprite> MapRect(Vector2 p,Vector2 size,Vector4 color) {
-    auto s=std::make_unique<Sprite>();s->Initialize(SpriteCommon::GetInstance(),"resources/white512x512.png");
+std::unique_ptr<cg2::Sprite> MapRect(cg2::Vector2 p,cg2::Vector2 size,const cg2::Vector4& color) {
+    auto s=std::make_unique<cg2::Sprite>();s->Initialize(cg2::SpriteCommon::GetInstance(),"resources/white512x512.png");
     s->SetPosition(p);s->SetSize(size);s->SetColor(color);s->Update();return s;
 }
-std::unique_ptr<TextLabel> MapLabel(float size,Vector2 p,Vector4 color) {
-    TextStyle style{};style.fontFamily="Meiryo";style.fontSize=size;style.color=color;style.padding=4;style.outlineThickness=0;
-    auto t=std::make_unique<TextLabel>();t->Initialize(SpriteCommon::GetInstance()," ",style);t->SetPosition(p);return t;
+std::unique_ptr<cg2::TextLabel> MapLabel(float size,cg2::Vector2 p,const cg2::Vector4& color) {
+    cg2::TextStyle style{};style.fontFamily="Meiryo";style.fontSize=size;style.color=color;style.padding=4;style.outlineThickness=0;
+    auto t=std::make_unique<cg2::TextLabel>();t->Initialize(cg2::SpriteCommon::GetInstance()," ",style);t->SetPosition(p);return t;
 }
-Vector4 NodeColor(NK kind) {
-    switch(kind) {
-    case NK::Combat:return {0.28f,0.78f,1,1};case NK::Elite:return {1,0.49f,0.28f,1};
-    case NK::Upgrade:case NK::Evolution:return {1,0.83f,0.27f,1};
-    case NK::Heal:return {0.27f,1,0.63f,1};case NK::Currency:return {1,0.82f,0.27f,1};default:return {1,0.25f,0.45f,1};
-    }
+cg2::Vector4 NodeColor(NK kind) {
+    const auto& color=tankexp::GetNodeKindDefinition(kind).color;
+    return {color[0],color[1],color[2],color[3]};
 }
 const char* NodeIcon(NK kind) {
-    switch(kind) {case NK::Combat:return "戦";case NK::Elite:return "宝";case NK::Upgrade:return "改";
-    case NK::Evolution:return "改";case NK::Heal:return "+";case NK::Currency:return "〇";default:return "核";}
+    return tankexp::GetNodeKindDefinition(kind).icon;
 }
 const char* NodeName(NK kind) {
-    switch(kind) {case NK::Combat:return "戦闘";case NK::Elite:return "宝物庫";case NK::Upgrade:return "強化工房";
-    case NK::Evolution:return "強化工房";case NK::Heal:return "修理";case NK::Currency:return "通貨を受け取る";default:return "最終決戦";}
+    return tankexp::GetNodeKindDefinition(kind).name;
 }
 std::string WrapMapText(const std::string& text,float width,int maxLines) {
     std::string result;float used=0;int line=1;
@@ -54,12 +50,12 @@ std::string WrapMapText(const std::string& text,float width,int maxLines) {
 int ThreatCount(EnemyManager* enemies) {
     int n=0;for(auto* e:enemies->GetEnemyPtrs()) if(e&&!e->IsDead()&&!e->IsRunResource()) ++n;return n;
 }
-bool Press(Input* input,int key) {return input->IsKeyTriggered(static_cast<uint8_t>(key));}
-bool Inside(Vector2 mouse,float x,float y,float w,float h) {return mouse.x>=x&&mouse.x<=x+w&&mouse.y>=y&&mouse.y<=y+h;}
+bool Press(cg2::Input* input,int key) {return input->IsKeyTriggered(static_cast<uint8_t>(key));}
+bool Inside(cg2::Vector2 mouse,float x,float y,float w,float h) {return mouse.x>=x&&mouse.x<=x+w&&mouse.y>=y&&mouse.y<=y+h;}
 }
 
 void GameScene::InitializeExpeditionMap() {
-    StartupTrace::Scope scope("Expedition.Map");
+    cg2::StartupTrace::Scope scope("Expedition.Map");
     expeditionMapEnabled_=true;
     expeditionMapDefinition_=tankexp::DefaultExpeditionMap();expeditionRooms_=tankexp::DefaultRoomCatalog();
     expeditionContent_=tankcontent::DefaultCatalog();std::string error;
@@ -107,7 +103,7 @@ void GameScene::InitializeExpeditionMap() {
     // Prefer learning the controls even when an authored map lists skip first.
     for(const auto& id:initialNodes) if(const auto* n=tankexp::FindMapNode(expeditionMapRun_.GetDefinition(),id);
         n&&n->role==tankexp::NodeRole::TutorialCombat) {expeditionMapSelection_=id;break;}
-    const Vector4 white{0.83f,0.96f,1,1},muted{0.42f,0.64f,0.75f,1};
+    const cg2::Vector4 white{0.83f,0.96f,1,1},muted{0.42f,0.64f,0.75f,1};
     expeditionMapTitle_=MapLabel(32,{44,85},white);
     expeditionMapSubtitle_=MapLabel(16,{46,133},muted);
     expeditionMapLegend_=MapLabel(14,{46,195},muted);
@@ -150,7 +146,7 @@ void GameScene::InitializeExpeditionMap() {
     RefreshExpeditionMapUi();
 }
 
-void GameScene::BeginExpeditionPresentation(int action,const std::string& title,const std::string& detail,const Vector4& color) {
+void GameScene::BeginExpeditionPresentation(int action,const std::string& title,const std::string& detail,const cg2::Vector4& color) {
     if(!expeditionTransition_.Begin()) return;
     expeditionTransitionAction_=action;expeditionTransitionColor_=color;
     expeditionTransitionTitle_->SetText(title);expeditionTransitionDetail_->SetText(detail);
@@ -211,7 +207,7 @@ void GameScene::UpdateExpeditionPresentation(float dt) {
 
 void GameScene::DrawExpeditionPresentation() {
     if(!expeditionTransition_.IsActive()||!expeditionCurtain_) return;
-    SpriteCommon::GetInstance()->PreDraw(kNormal);
+    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
     expeditionCurtain_->SetColor({0.006f,0.015f,0.03f,expeditionTransition_.Cover()});expeditionCurtain_->Update();expeditionCurtain_->Draw();
     const float alpha=expeditionTransition_.LabelAlpha();
     expeditionTransitionPanel_->SetColor({0.008f,0.024f,0.04f,alpha*0.94f});expeditionTransitionPanel_->Update();expeditionTransitionPanel_->Draw();
@@ -322,7 +318,7 @@ bool GameScene::StartAuthoredExpeditionRoom() {
     tankExpeditionArrival_=0;tankExpeditionEnemyHp_.clear();tankExpeditionEnemyWarning_.clear();
     tankRunComboTime_=0;tankExpeditionDetailsOpen_=false;stagePostCacheValid_=false;
     stage_->SetDamageBlockDamage(12);
-    const Vector3 start{room->playerStart.x,room->playerStart.y,0};player_->ResetRunRoomState(start);
+    const cg2::Vector3 start{room->playerStart.x,room->playerStart.y,0};player_->ResetRunRoomState(start);
     tankExpeditionTutorialPrevious_=start;camera->SetTranslate({start.x,start.y,camera->GetTranslate().z});camera->Update();
     for(const auto& spawn:room->spawns) {
         if(enemyManager_->SpawnLevelEnemy({spawn.x,spawn.y,0},spawn.type,spawn.hp>0?spawn.hp:-1)) ++tankExpeditionSpawned_;
@@ -495,13 +491,13 @@ void GameScene::RefreshExpeditionMapUi() {
                 (full?"HPが満タンのため修理できません":!affordable?"通貨が足りないため修理できません":"左クリックで修理"));
         }
         const bool repair=active->kind==NK::Heal;
-        expeditionSkipButton_->SetPosition(repair?Vector2{490,560}:Vector2{966,620});
-        expeditionSkipButton_->SetSize(repair?Vector2{300,52}:Vector2{242,44});
-        expeditionSkipText_->SetPosition(repair?Vector2{640,574}:Vector2{1087,629});
+        expeditionSkipButton_->SetPosition(repair?cg2::Vector2{490,560}:cg2::Vector2{966,620});
+        expeditionSkipButton_->SetSize(repair?cg2::Vector2{300,52}:cg2::Vector2{242,44});
+        expeditionSkipText_->SetPosition(repair?cg2::Vector2{640,574}:cg2::Vector2{1087,629});
         expeditionSkipText_->SetText(repair?"修理せず進む":"購入せず進む");
         const auto mouse=input_->GetMousePosition();
         const bool skipFocus=tankRunSelection_==3||Inside(mouse,repair?490.0f:966.0f,repair?560.0f:620.0f,repair?300.0f:242.0f,repair?52.0f:44.0f);
-        expeditionSkipButton_->SetColor(skipFocus?Vector4{0.065f,0.19f,0.22f,1}:Vector4{0.045f,0.09f,0.13f,1});
+        expeditionSkipButton_->SetColor(skipFocus?cg2::Vector4{0.065f,0.19f,0.22f,1}:cg2::Vector4{0.045f,0.09f,0.13f,1});
         expeditionSkipButton_->Update();expeditionSkipText_->PrepareForDraw();
         expeditionMapInfo_->SetPosition({46,674});
         expeditionMapInfo_->SetText(WrapMapText(expeditionMapStatus_,60,1));
@@ -519,7 +515,7 @@ void GameScene::RefreshExpeditionMapUi() {
         expeditionMapInfo_->SetText(info);
         expeditionMapHelp_->SetPosition({218,630});expeditionMapHelp_->SetText(WrapMapText(expeditionMapStatus_,48,1));
     }
-    auto position=[this](const tankexp::MapNode& n){return Vector2{90+120.0f*n.column-expeditionMapScroll_,186+84.0f*n.row};};
+    auto position=[this](const tankexp::MapNode& n){return cg2::Vector2{90+120.0f*n.column-expeditionMapScroll_,186+84.0f*n.row};};
     const auto available=expeditionMapRun_.GetAvailableNodeIds();
     EnsureExpeditionPointers((std::max)(size_t{6},available.size()*6));
     const auto* current=tankexp::FindMapNode(definition,expeditionMapRun_.GetCurrentNodeId());
@@ -533,16 +529,16 @@ void GameScene::RefreshExpeditionMapUi() {
         const bool intro=n.role==tankexp::NodeRole::TutorialCombat||n.role==tankexp::NodeRole::TutorialSkip;
         const bool learning=reachable&&n.role==tankexp::NodeRole::TutorialCombat;
         const bool abandoned=!visited&&!reachable&&!future.contains(n.id)&&current;
-        auto tint=visited?Vector4{0.25f,1.35f,0.62f,1}:NodeColor(n.kind);tint.w=abandoned?0.09f:reachable||selected?1.0f:visited?0.9f:0.35f;
+        auto tint=visited?cg2::Vector4{0.25f,1.35f,0.62f,1}:NodeColor(n.kind);tint.w=abandoned?0.09f:reachable||selected?1.0f:visited?0.9f:0.35f;
         const float pulse=0.5f+0.5f*std::sin(expeditionPresentationClock_*3.8f-static_cast<float>(i)*0.4f);
         const float focus=v.focus;
         if(selected&&expeditionUiErrorAge_>0) tint={1,0.25f,0.25f,1};
         v.rim->SetColor(tint);auto halo=tint;halo.w=abandoned?0:visited?0.18f:0.02f+focus*0.23f+(reachable?0.08f*pulse:0)+(learning?0.06f*pulse:0);v.halo->SetColor(halo);
         v.halo->SetSize({55+focus*10+pulse*(learning?5.0f:3.0f),55+focus*10+pulse*(learning?5.0f:3.0f)});
         v.rim->SetSize({46+focus*5,46+focus*5});v.fill->SetSize({42+focus*5,42+focus*5});
-        v.fill->SetColor(visited?Vector4{0.03f,0.14f,0.16f,1}:Vector4{0.016f,0.040f,0.065f,1});
+        v.fill->SetColor(visited?cg2::Vector4{0.03f,0.14f,0.16f,1}:cg2::Vector4{0.016f,0.040f,0.065f,1});
         for(auto* s:{v.halo.get(),v.rim.get(),v.fill.get()}) {s->SetPosition(v.center);s->Update();}
-        auto style=v.icon->GetStyle();style.color=visited?Vector4{0.3f,1.4f,0.65f,1}:NodeColor(n.kind);v.icon->SetStyle(style);
+        auto style=v.icon->GetStyle();style.color=visited?cg2::Vector4{0.3f,1.4f,0.65f,1}:NodeColor(n.kind);v.icon->SetStyle(style);
         v.icon->SetText(visited?"完":NodeIcon(n.kind));v.icon->SetPosition({v.center.x,v.center.y-2});v.icon->SetAlpha(abandoned?0.13f:reachable||visited||selected?1.0f:0.48f);
         v.label->SetText(n.role==tankexp::NodeRole::TutorialCombat?"操作を学ぶ":n.role==tankexp::NodeRole::TutorialSkip?"説明をスキップ":" ");
         // Reuse each node's existing labels; keep both introductory captions in
@@ -562,7 +558,7 @@ void GameScene::RefreshExpeditionMapUi() {
         for(auto* s:{edge.glow.get(),edge.line.get()}) {s->SetPosition(a);s->SetSize({length,s==edge.line.get()?2.0f:7.0f});s->SetRotation(std::atan2(b.y-a.y,b.x-a.x));s->Update();}
         const bool focusPath=edge.to==expeditionMapSelection_||edge.from==expeditionMapSelection_;
         const bool abandoned=current&&!chosen&&(!future.contains(edge.to)||(!future.contains(edge.from)&&edge.from!=current->id));
-        edge.line->SetColor(abandoned?Vector4{0.16f,0.24f,0.30f,0.10f}:chosen?Vector4{0.2f,1.1f,0.62f,0.85f}:focusPath?Vector4{0.25f,0.86f,0.85f,0.9f}:Vector4{0.24f,0.42f,0.56f,0.35f});
+        edge.line->SetColor(abandoned?cg2::Vector4{0.16f,0.24f,0.30f,0.10f}:chosen?cg2::Vector4{0.2f,1.1f,0.62f,0.85f}:focusPath?cg2::Vector4{0.25f,0.86f,0.85f,0.9f}:cg2::Vector4{0.24f,0.42f,0.56f,0.35f});
         edge.glow->SetColor({0.14f,0.70f,0.82f,chosen||focusPath?0.15f:0.03f});
         const float travel=std::fmod(expeditionPresentationClock_*0.60f,1.0f);
         edge.pulse->SetPosition({a.x+(b.x-a.x)*travel,a.y+(b.y-a.y)*travel});
@@ -572,7 +568,7 @@ void GameScene::RefreshExpeditionMapUi() {
         expeditionBlueprintLabels_[i]->SetText(i==0?"←":i==1?"→":" ");
         expeditionBlueprintButtons_[i]->SetPosition({i==0?46.0f:130.0f,620});expeditionBlueprintButtons_[i]->SetSize({68,44});expeditionBlueprintButtons_[i]->Update();
         expeditionBlueprintLabels_[i]->SetPosition({i==0?68.0f:152.0f,628});
-        expeditionBlueprintButtons_[i]->SetColor(Inside(input_->GetMousePosition(),i==0?46.0f:130.0f,620,68,44)?Vector4{0.04f,0.21f,0.24f,1}:Vector4{0.025f,0.07f,0.11f,1});
+        expeditionBlueprintButtons_[i]->SetColor(Inside(input_->GetMousePosition(),i==0?46.0f:130.0f,620,68,44)?cg2::Vector4{0.04f,0.21f,0.24f,1}:cg2::Vector4{0.025f,0.07f,0.11f,1});
         expeditionBlueprintLabels_[i]->PrepareForDraw();
     }
     for(auto* t:{expeditionMapTitle_.get(),expeditionMapSubtitle_.get(),expeditionMapLegend_.get(),expeditionMapInfo_.get(),expeditionMapHelp_.get()}) t->PrepareForDraw();
@@ -595,7 +591,7 @@ void GameScene::DrawExpeditionMapUi() {
         return expeditionBuildChoice_||(index<expeditionServiceOffers_.size()&&tankcontent::FindUpgrade(expeditionContent_,expeditionServiceOffers_[index]));
     };
     if(IsExpeditionBuildCardScreen())for(int i=0;i<3;++i)if(cardPresent(i)&&expeditionRewardCards_[i])expeditionRewardCards_[i]->PreparePreviewRender();
-    SpriteCommon::GetInstance()->PreDraw(kNormal);tankRunDimmer_->Draw();
+    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);tankRunDimmer_->Draw();
     tankRunHudPanel_->Draw();tankRunHud_->Draw();tankExpeditionHpTrack_->Draw();tankExpeditionHpFill_->Draw();
     DrawExpeditionVitals();
     expeditionMapTitle_->Draw();expeditionMapSubtitle_->Draw();
@@ -614,7 +610,7 @@ void GameScene::DrawExpeditionMapUi() {
             const bool enabled=player_->GetHp()<player_->GetMaxHp()&&expeditionMapRun_.CanAfford(active->serviceCost);
             const float focus=enabled?expeditionCardFocus_[0]:0;
             tankRunCards_[0]->SetPosition({424,270});tankRunCards_[0]->SetSize({432,260});
-            tankRunCards_[0]->SetColor(enabled?Vector4{0.028f+0.012f*focus,0.065f+0.105f*focus,0.075f+0.105f*focus,1}:Vector4{0.025f,0.035f,0.045f,1});
+            tankRunCards_[0]->SetColor(enabled?cg2::Vector4{0.028f+0.012f*focus,0.065f+0.105f*focus,0.075f+0.105f*focus,1}:cg2::Vector4{0.025f,0.035f,0.045f,1});
             tankRunCardTitles_[0]->SetPosition({446,292});tankRunCardBodies_[0]->SetPosition({446,338});
             tankRunCards_[0]->Update();tankRunCards_[0]->Draw();tankRunCardTitles_[0]->Draw();tankRunCardBodies_[0]->Draw();DrawCurrencyIcon({506,383},28);
             // These UI objects also serve the pause/result screens. Restore
@@ -627,10 +623,10 @@ void GameScene::DrawExpeditionMapUi() {
     } else {
         for(auto& s:expeditionMapGrid_) s->Draw();
         for(auto& e:expeditionMapEdges_) {e.glow->Draw();e.line->Draw();e.pulse->Draw();}
-        std::vector<TextLabel*> completed;
+        std::vector<cg2::TextLabel*> completed;
         const auto& nodes=expeditionMapRun_.GetDefinition().nodes;
         for(size_t i=0;i<expeditionMapVisuals_.size();++i) {const auto& v=expeditionMapVisuals_[i];if(v.center.x>=66&&v.center.x<=1214&&expeditionMapRun_.HasVisited(nodes[i].id)) completed.push_back(v.icon.get());}
-        expeditionCompleteGlow_->DrawBloom(completed);SpriteCommon::GetInstance()->PreDraw(kNormal);
+        expeditionCompleteGlow_->DrawBloom(completed);cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
         for(auto& n:expeditionMapVisuals_) if(n.center.x>=66&&n.center.x<=1214) {n.halo->Draw();n.rim->Draw();n.fill->Draw();n.icon->Draw();n.label->Draw();n.state->Draw();}
         expeditionMapLegend_->Draw();
         for(int i=0;i<2;++i) {expeditionBlueprintButtons_[i]->Draw();expeditionBlueprintLabels_[i]->Draw();}
