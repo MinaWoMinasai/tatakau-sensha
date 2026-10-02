@@ -1,6 +1,6 @@
 // CPU characterization tests built by test_player_class_config.ps1.
-// All config types, conversion helpers, parser/save/reload/lookup methods and
-// Editor delete/reload/apply blocks come verbatim from current production files.
+// The real Catalog header/source is compiled normally. Player runtime wrappers
+// and Editor delete/reload/apply blocks come verbatim from current Player.cpp.
 // Only the GPU barrel hooks, EvolveById and ImGui interaction use adapters.
 #include <algorithm>
 #include <cmath>
@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 #include <nlohmann/json.hpp>
-#include "player_class_config_types.inc"
+#include "game/player/PlayerClassCatalog.h"
 
 namespace ImGui {
 std::string clickedButton;
@@ -23,13 +23,15 @@ void End() { ++endCount; }
 
 class Player {
 public:
-#include "player_class_config_data.inc"
+    using BodyShape = PlayerBodyShape;
+    using PlayerClassConfig = ::PlayerClassConfig;
     bool LoadPlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json");
     bool ReloadPlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json");
     void SavePlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json") const;
     PlayerClassConfig CreateDefaultClassConfig(ClassType type) const;
     const PlayerClassConfig* GetClassConfig(ClassType type) const;
     const PlayerClassConfig* GetClassConfig(const std::string& classId) const;
+    const PlayerClassConfig* GetCurrentClassConfig() const;
     PlayerClassConfig* GetMutableClassConfig(const std::string& classId);
 
     void InitializeBarrels() { ++barrelInitializations; }
@@ -37,8 +39,13 @@ public:
     void EvolveById(const std::string& id) { ++evolveCalls; currentClassId_ = id; }
     void ExerciseEditorToolbar();
 
-    std::unordered_map<std::string, PlayerClassConfig> classConfigs_;
-    std::vector<std::string> classOrder_;
+    PlayerClassCatalog classCatalog_;
+    struct { bool enabled = false; } runModifiers_;
+    bool runEvolutionActive_ = false;
+    bool expeditionCombatStyleSelected_ = false;
+    bool runCheckpointEvolution_ = false;
+    PlayerClassConfig runEvolutionConfig_{};
+    PlayerClassConfig runStarterConfig_{};
     std::string currentClassId_ = "Basic";
     ClassType currentClass_ = ClassType::Basic;
     int shootBarrelIndex_ = 0;
@@ -59,7 +66,7 @@ public:
 
 void Player::ExerciseEditorToolbar()
 {
-    std::string selectedId = classOrder_.at(static_cast<size_t>(editorSelectedClassIndex_));
+    std::string selectedId = classCatalog_.OrderedIds().at(static_cast<size_t>(editorSelectedClassIndex_));
     PlayerClassConfig* config = GetMutableClassConfig(selectedId);
     if (!config) throw std::runtime_error("Editor fixture has no selected config");
     bool rebuildBarrels = false;
@@ -69,6 +76,9 @@ void Player::ExerciseEditorToolbar()
 #include "player_class_config_baselines.inc"
     refreshEditorBaselines();
     if (!editorBaselineInitialized) throw std::runtime_error("Baseline refresh did not run");
+#include "player_class_config_unique_id.inc"
+#include "player_class_config_create.inc"
+#include "player_class_config_clone.inc"
     const bool isLegacyId = config->id == ClassTypeToString(config->type);
 #include "player_class_config_delete.inc"
 #include "player_class_config_reload.inc"
@@ -118,6 +128,11 @@ Json Snapshot(const Player& player)
     player.SavePlayerClassConfigs("snapshot.json");
     return Read("snapshot.json");
 }
+Json Snapshot(const PlayerClassCatalog& catalog)
+{
+    catalog.Save("snapshot.json");
+    return Read("snapshot.json");
+}
 void CheckAuthoredFields(const Json& saved, const Json& authored)
 {
     if (authored.is_object()) {
@@ -149,7 +164,7 @@ void OrderedLookupAndDefaults()
     Write(Classes({Json{{"id", "Twin"}}, Json{{"id", "CustomTank"}}, Json{{"id", "Basic"}}}));
     Player player;
     Check(player.LoadPlayerClassConfigs(), "Valid load failed");
-    Check(player.classOrder_ == std::vector<std::string>{"Twin", "CustomTank", "Basic"}, "JSON order changed");
+    Check(player.classCatalog_.OrderedIds() == std::vector<std::string>{"Twin", "CustomTank", "Basic"}, "JSON order changed");
     const auto* twin = player.GetClassConfig("Twin");
     Check(twin && twin == player.GetClassConfig(ClassType::Twin), "ID/enum lookup mismatch");
     Check(twin == player.GetMutableClassConfig("Twin"), "Mutable lookup mismatch");
@@ -169,7 +184,7 @@ void BasicFallbackAndDuplicates()
                    Json{{"id", "Twin"}, {"displayName", "last"}}}));
     Player player;
     Check(player.LoadPlayerClassConfigs(), "Missing Basic should be complemented");
-    Check(player.classOrder_ == std::vector<std::string>{"Basic", "Twin", "CustomTank"}, "First occurrence order/Basic prefix changed");
+    Check(player.classCatalog_.OrderedIds() == std::vector<std::string>{"Basic", "Twin", "CustomTank"}, "First occurrence order/Basic prefix changed");
     Check(player.GetClassConfig("Twin")->displayName == "last", "Duplicate ID last value changed");
     Check(player.GetClassConfig("Basic")->displayName == "Basic", "Basic fallback defaults changed");
 }
@@ -227,13 +242,13 @@ void SaveRoundTrip()
     CheckAuthoredFields(saved["classes"][0], authored["classes"][0]);
     Player second;
     Check(second.LoadPlayerClassConfigs("snapshot.json"), "Saved data could not reload");
-    Check(second.classOrder_ == first.classOrder_ && Snapshot(second) == saved, "Normalized all-field roundtrip changed");
+    Check(second.classCatalog_.OrderedIds() == first.classCatalog_.OrderedIds() && Snapshot(second) == saved, "Normalized all-field roundtrip changed");
 }
 void InvalidLoadsAreTransactional()
 {
     Player player = Seed();
     const Json before = Snapshot(player);
-    const auto order = player.classOrder_;
+    const auto order = player.classCatalog_.OrderedIds();
     const auto* oldBasic = player.GetClassConfig("Basic");
     const std::vector<Json> invalid = {
         Json::array(), Json::object(), Json{{"classes", 3}}, Classes({}), Classes({Json::array()}),
@@ -249,7 +264,7 @@ void InvalidLoadsAreTransactional()
     for (const auto& root : invalid) {
         Write(root);
         Check(!player.LoadPlayerClassConfigs(), "Invalid JSON must fail");
-        Check(player.classOrder_ == order && Snapshot(player) == before, "Failed load changed catalog/order");
+        Check(player.classCatalog_.OrderedIds() == order && Snapshot(player) == before, "Failed load changed catalog/order");
         Check(player.GetClassConfig("Basic") == oldBasic, "Failed load invalidated old pointer");
     }
     WriteRaw("{ broken JSON");
@@ -269,7 +284,7 @@ void ReloadKeepsActiveClassAndResetsFiring()
     Check(player.ReloadPlayerClassConfigs(), "Active class reload should succeed");
     Check(player.currentClassId_ == "Twin" && player.currentClass_ == ClassType::Twin, "Reload changed active class");
     Check(player.GetClassConfig("Twin")->displayName == "new twin", "Reload did not commit new values");
-    Check(player.classOrder_ == std::vector<std::string>{"Basic", "Twin"} && !player.GetClassConfig("CustomTank"), "Omitted inactive class was retained");
+    Check(player.classCatalog_.OrderedIds() == std::vector<std::string>{"Basic", "Twin"} && !player.GetClassConfig("CustomTank"), "Omitted inactive class was retained");
     Check(player.shootBarrelIndex_ == 0 && player.shootGroupIndex_ == 0 && player.weaponGroupCooldowns_.empty(), "Successful reload firing reset changed");
     Check(player.barrelInitializations == 1 && player.barrelLayouts == 1, "Successful reload must rebuild/layout once");
 }
@@ -282,17 +297,132 @@ void FailedReloadKeepsActiveState()
     player.shootGroupIndex_ = 9;
     player.weaponGroupCooldowns_ = {0.2f, 0.5f, 0.8f};
     const auto before = Snapshot(player);
-    const auto order = player.classOrder_;
+    const auto order = player.classCatalog_.OrderedIds();
     const auto* oldTwin = player.GetClassConfig("Twin");
     for (int attempt = 0; attempt < 2; ++attempt) {
         if (attempt == 0) Write(Classes({Json{{"id", "Basic"}}})); // Active Twin disappears.
         else WriteRaw("{ malformed");
         Check(!player.ReloadPlayerClassConfigs(), "Reload must reject missing active class or malformed JSON");
-        Check(Snapshot(player) == before && player.classOrder_ == order && player.GetClassConfig("Twin") == oldTwin, "Rejected reload changed/invalidate catalog");
+        Check(Snapshot(player) == before && player.classCatalog_.OrderedIds() == order && player.GetClassConfig("Twin") == oldTwin, "Rejected reload changed/invalidate catalog");
         Check(player.currentClassId_ == "Twin" && player.currentClass_ == ClassType::Twin, "Rejected reload changed active class");
         Check(player.shootBarrelIndex_ == 7 && player.shootGroupIndex_ == 9 && player.weaponGroupCooldowns_.at(2) == 0.8f, "Rejected reload changed firing state");
         Check(player.barrelInitializations == 0 && player.barrelLayouts == 0, "Rejected reload applied equipment");
     }
+}
+void CatalogLoadIsIndependentAndTransactional()
+{
+    Player player = Seed();
+    PlayerClassCatalog catalog;
+    Check(catalog.Load(configPath), "Standalone catalog load failed");
+    const auto before = Snapshot(catalog);
+    const auto order = catalog.OrderedIds();
+    const auto* oldBasic = catalog.Find("Basic");
+    Write(Classes({Json{{"id", "Basic"}, {"displayName", "partial"}}, Json{{"id", 9}}}));
+    Check(!catalog.Load(configPath), "Standalone catalog accepted invalid later entry");
+    Check(Snapshot(catalog) == before && catalog.OrderedIds() == order && catalog.Find("Basic") == oldBasic,
+        "Standalone failed load changed values, order or pointer lifetime");
+
+    player.currentClassId_ = "Twin";
+    Write(Classes({Json{{"id", "Basic"}, {"displayName", "new"}}}));
+    Check(catalog.Load(configPath) && !catalog.Find("Twin"), "Catalog must not enforce Player active-class policy");
+    Check(!player.LoadPlayerClassConfigs() && player.GetClassConfig("Twin"), "Player must reject the same missing-active-class data");
+    Check(catalog.Find("Basic")->displayName == "new", "Standalone successful load did not commit");
+}
+void CatalogMutationOrderAndLifetime()
+{
+    PlayerClassCatalog catalog;
+    catalog.ResetToDefaults();
+    const std::vector<std::string> defaults = {"Basic", "Twin", "MachineGun", "Overseer", "Triple", "Assassin", "Bounder", "Ninja", "Smasher", "Summoner"};
+    Check(catalog.OrderedIds() == defaults, "Built-in fallback class order changed");
+    const auto* twin = catalog.Find(ClassType::Twin);
+    Check(twin && twin == catalog.Find("Twin"), "Standalone enum/ID lookup mismatch");
+    auto replacement = *twin;
+    replacement.displayName = "replacement twin";
+    catalog.InsertOrAssign(replacement);
+    Check(catalog.OrderedIds() == defaults && catalog.Find("Twin") == twin && twin->displayName == "replacement twin",
+        "Assignment changed first position or invalidated the existing value");
+    auto custom = PlayerClassCatalog::CreateDefaultConfig(ClassType::Basic);
+    custom.id = "CustomTank_with_a_long_owned_class_identifier";
+    catalog.InsertOrAssign(custom);
+    auto* borrowed = catalog.FindMutable(custom.id);
+    Check(borrowed && borrowed == catalog.Find(custom.id), "Standalone mutable lookup mismatch");
+    for (int i = 0; i < 64; ++i) {
+        auto added = custom;
+        added.id = "Extra_" + std::to_string(i);
+        catalog.InsertOrAssign(added);
+    }
+    Check(twin->displayName == "replacement twin" && borrowed->id == custom.id, "Insertion/rehash invalidated borrowed values");
+    Check(catalog.Erase(borrowed->id), "Erase of a borrowed ID failed");
+    Check(!catalog.Find(custom.id) && std::find(catalog.OrderedIds().begin(), catalog.OrderedIds().end(), custom.id) == catalog.OrderedIds().end(),
+        "Erase left order and values inconsistent");
+    const auto order = catalog.OrderedIds();
+    Check(!catalog.Erase("missing") && catalog.OrderedIds() == order && !catalog.FindMutable("missing"), "Unknown mutation changed catalog");
+    catalog.ResetToDefaults();
+    Check(catalog.OrderedIds() == defaults && !catalog.Find("Extra_0"), "Default reset retained authored entries");
+}
+void CatalogSwapMovesValuesAndOrderTogether()
+{
+    PlayerClassCatalog first;
+    PlayerClassCatalog second;
+    auto basic = PlayerClassCatalog::CreateDefaultConfig(ClassType::Basic);
+    auto twin = PlayerClassCatalog::CreateDefaultConfig(ClassType::Twin);
+    first.InsertOrAssign(basic);
+    second.InsertOrAssign(twin);
+    const auto* basicPointer = first.Find("Basic");
+    const auto* twinPointer = second.Find("Twin");
+    first.Swap(second);
+    Check(first.OrderedIds() == std::vector<std::string>{"Twin"} && second.OrderedIds() == std::vector<std::string>{"Basic"}, "Swap separated order from values");
+    Check(first.Find("Twin") == twinPointer && second.Find("Basic") == basicPointer && !first.Find("Basic"), "Swap changed values or their ownership");
+}
+void CurrentConfigPriorityStaysInPlayer()
+{
+    Player player = Seed();
+    const auto* basic = player.GetClassConfig("Basic");
+    player.runEvolutionConfig_ = PlayerClassCatalog::CreateDefaultConfig(ClassType::Twin);
+    player.runStarterConfig_ = PlayerClassCatalog::CreateDefaultConfig(ClassType::MachineGun);
+    player.runEvolutionActive_ = true;
+    player.expeditionCombatStyleSelected_ = true;
+    player.runCheckpointEvolution_ = true;
+    Check(player.GetCurrentClassConfig() == basic, "Disabled Run must use normal catalog config");
+    player.runModifiers_.enabled = true;
+    Check(player.GetCurrentClassConfig() == &player.runEvolutionConfig_, "Run evolution must have highest priority");
+    player.runEvolutionActive_ = false;
+    Check(player.GetCurrentClassConfig() == &player.runStarterConfig_, "Style starter priority changed");
+    player.expeditionCombatStyleSelected_ = false;
+    Check(player.GetCurrentClassConfig() == &player.runStarterConfig_, "Checkpoint starter priority changed");
+    player.runStarterConfig_.barrels.clear();
+    Check(player.GetCurrentClassConfig() == basic, "Empty checkpoint equipment must fall back to catalog");
+    player.runCheckpointEvolution_ = false;
+    Check(player.GetCurrentClassConfig() == basic && player.currentClassId_ == "Basic", "Ordinary fallback changed active class");
+}
+void EditorCreateUsesCatalog()
+{
+    Player player = Seed();
+    player.editorSelectedClassIndex_ = 1;
+    ImGui::clickedButton = "新規作成";
+    player.ExerciseEditorToolbar();
+    Check(player.editorObservedId == "CustomTank_1" && player.editorSelectedClassIndex_ == 3, "Create unique ID/selection changed");
+    Check(player.classCatalog_.OrderedIds() == std::vector<std::string>{"Basic", "Twin", "CustomTank", "CustomTank_1"}, "Create authored order changed");
+    Check(player.editorBaselineConfigs.at("CustomTank_1").requiredRank == 1 && player.editorBaselineLabels.at("CustomTank_1") == "新規作成時", "Create baseline changed");
+    Check(player.GetClassConfig("CustomTank_1")->requiredRank == 4 && player.editorUnsaved && player.currentClassId_ == "Basic" && player.barrelInitializations == 0,
+        "Create must edit the new catalog value without applying inactive equipment");
+}
+void EditorCloneUsesCatalog()
+{
+    Player player = Seed();
+    auto existing = player.CreateDefaultClassConfig(ClassType::Basic);
+    existing.id = "Twin_Copy";
+    player.classCatalog_.InsertOrAssign(existing);
+    player.editorSelectedClassIndex_ = 1;
+    ImGui::clickedButton = "複製";
+    player.ExerciseEditorToolbar();
+    Check(player.editorObservedId == "Twin_Copy_1" && player.editorSelectedClassIndex_ == 4, "Clone unique ID/selection changed");
+    const auto* clone = player.GetClassConfig("Twin_Copy_1");
+    Check(clone && clone->type == ClassType::Twin && clone->displayName == "Twin_Copy_1" && clone->barrels.size() == 2, "Clone did not preserve source values");
+    Near(clone->reloadScale, 0.4f, "Clone reload value changed");
+    Check(player.editorBaselineConfigs.at("Twin_Copy_1").displayName == "old twin" && player.editorBaselineLabels.at("Twin_Copy_1") == "複製元: old twin", "Clone source baseline changed");
+    Check(player.GetClassConfig("Twin")->requiredRank == 2 && player.currentClassId_ == "Basic" && player.barrelInitializations == 0 && player.editorUnsaved,
+        "Clone changed source config or active equipment");
 }
 void EditorDeleteInactive()
 {
@@ -303,7 +433,7 @@ void EditorDeleteInactive()
     player.ExerciseEditorToolbar();
     Check(!player.GetClassConfig("CustomTank") && !player.editorBaselineConfigs.contains("CustomTank") &&
         !player.editorBaselineLabels.contains("CustomTank"), "Delete must clear catalog and both baseline caches");
-    Check(player.classOrder_ == std::vector<std::string>{"Basic", "Twin"} && player.editorSelectedClassIndex_ == 1, "Delete order/index clamp changed");
+    Check(player.classCatalog_.OrderedIds() == std::vector<std::string>{"Basic", "Twin"} && player.editorSelectedClassIndex_ == 1, "Delete order/index clamp changed");
     Check(player.currentClassId_ == "Basic" && player.evolveCalls == 0 && ImGui::endCount == 1, "Inactive delete must end frame without evolution");
 }
 void EditorDeleteActive()
@@ -321,7 +451,7 @@ void EditorKeepsLegacyClass()
     player.editorSelectedClassIndex_ = 1;
     ImGui::clickedButton = "削除";
     player.ExerciseEditorToolbar();
-    Check(player.GetClassConfig("Twin") && player.classOrder_.size() == 3 && player.evolveCalls == 0, "Legacy class deletion must stay disabled");
+    Check(player.GetClassConfig("Twin") && player.classCatalog_.OrderedIds().size() == 3 && player.evolveCalls == 0, "Legacy class deletion must stay disabled");
 }
 void EditorReloadCurrent()
 {
@@ -398,6 +528,12 @@ int main(int argc, char** argv)
             {"invalid_load_transaction", InvalidLoadsAreTransactional, false},
             {"reload_success", ReloadKeepsActiveClassAndResetsFiring, false},
             {"reload_failure", FailedReloadKeepsActiveState, false},
+            {"catalog_load_transaction", CatalogLoadIsIndependentAndTransactional, false},
+            {"catalog_mutation_lifetime", CatalogMutationOrderAndLifetime, false},
+            {"catalog_swap", CatalogSwapMovesValuesAndOrderTogether, false},
+            {"current_config_priority", CurrentConfigPriorityStaysInPlayer, false},
+            {"editor_create", EditorCreateUsesCatalog, true},
+            {"editor_clone", EditorCloneUsesCatalog, true},
             {"editor_delete_inactive", EditorDeleteInactive, true},
             {"editor_delete_active", EditorDeleteActive, true},
             {"editor_keep_legacy", EditorKeepsLegacyClass, true},
