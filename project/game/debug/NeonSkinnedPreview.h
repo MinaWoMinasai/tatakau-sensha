@@ -56,6 +56,8 @@ private:
     std::vector<SourceMaterial> sourceMaterials_;
     std::vector<cg2::NeonSkinnedSubmeshParams> submeshParams_;
     size_t sourceAnimationCount_ = 0;
+    size_t generatedAnimationCount_ = 0;
+    std::string animationError_;
     std::string loadError_;
 };
 #endif

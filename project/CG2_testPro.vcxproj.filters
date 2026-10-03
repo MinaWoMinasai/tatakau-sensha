@@ -775,6 +775,12 @@
     <ClInclude Include="game\debug\NeonSkinnedPreview.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClCompile Include="game\debug\NeonPreviewAnimations.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClInclude Include="game\debug\NeonPreviewAnimations.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <None Include="resources\models\neon_hologram\AvatarSample_B.glb">
       <Filter>リソース ファイル</Filter>
     </None>
