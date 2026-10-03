@@ -727,6 +727,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="game\debug\NeonSkinnedPreview.h" />
+    <ClCompile Include="game\debug\NeonShowcaseCapture.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClInclude Include="game\debug\NeonShowcaseCapture.h" />
     <ClCompile Include="game\debug\NeonPreviewAnimations.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
     </ClCompile>

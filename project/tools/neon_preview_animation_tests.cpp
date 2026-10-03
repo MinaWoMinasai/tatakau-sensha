@@ -170,6 +170,24 @@ int main() {
             !model.IsCurrentAnimationPlaying()&&Near(model.GetCurrentAnimationTime(),frozenTime),"Append lost paused transition state");
         model.Update(.5f); RequirePose(model,frozen);
         Require(Near(frozenTime,model.GetCurrentAnimationTime()),"Pause advanced time");
+        const auto checkpoint=model.CaptureAnimationPlaybackState();
+        Require(checkpoint.transitionActive && checkpoint.paused,"Checkpoint did not preserve paused blend");
+        model.SetAnimation("Preview_Attack"); model.SetAnimationPlaying(true); model.Update(.4f);
+        Require(model.RestoreAnimationPlaybackState(checkpoint),"Checkpoint restore failed");
+        model.Update(0); RequirePose(model,frozen);
+        Require(model.IsAnimationPaused() && Near(model.GetCurrentAnimationTime(),frozenTime),"Checkpoint changed pause/time");
+        for (int invalid=0;invalid<6;++invalid) {
+            auto bad=checkpoint;
+            if(invalid==0) bad.animationIndex=model.GetAnimations().size();
+            if(invalid==1) bad.time=std::numeric_limits<float>::quiet_NaN();
+            if(invalid==2) bad.speed=std::numeric_limits<float>::infinity();
+            if(invalid==3) bad.transitionStartPose.clear();
+            if(invalid==4) bad.transitionStartPose.front().rotate={0,0,0,0};
+            if(invalid==5) bad.transitionElapsed=bad.transitionDuration+1;
+            Require(!model.RestoreAnimationPlaybackState(bad),"Invalid checkpoint accepted");
+            model.Update(0); RequirePose(model,frozen);
+            Require(Near(model.GetCurrentAnimationTime(),frozenTime),"Failed checkpoint mutated state");
+        }
         model.SetAnimationPlaying(true); model.Update(.13f);
         Require(!Near(JointByName(model,"J_Bip_R_UpperArm").transform.rotate,bindPose[JointByName(model,"J_Bip_R_UpperArm").index].rotate),"Resume did not move arm");
         model.SetAnimationPlaybackSpeed(2); model.Update(.1f); Require(Near(model.GetCurrentAnimationTime(),.4f),"Playback speed ignored");
@@ -233,6 +251,7 @@ int main() {
         std::cout<<"PASS: actual AvatarSample_B; 2 generated clips; validated names/keys/quaternions/joints; failed registration atomic; safe player lifetime.\n"
             <<"PASS: Idle loop/translation/scale/feet; forward Attack; "<<changedVertices<<" weighted vertices deformed by actual Palette.\n"
             <<"PASS: existing Animation/Skeleton sampling/blend, Pause/Resume/speed/Restart/Seek, repeated Attack and Idle return; const getters preserved.\n";
+        std::cout<<"PASS: Showcase checkpoint restores paused in-flight blend/time/clip; invalid snapshots are atomic.\n";
         return 0;
     } catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; }
 }

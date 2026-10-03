@@ -106,6 +106,19 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 			{ "gFeatureMaskIntensity", static_cast<UINT>(offsetof(NeonSkinnedParams, featureMaskIntensity)) },
 			{ "gFeatureMaskBlend", static_cast<UINT>(offsetof(NeonSkinnedParams, featureMaskBlend)) },
 			{ "gFeatureMaskDebugMode", static_cast<UINT>(offsetof(NeonSkinnedParams, featureMaskDebugMode)) },
+			{ "gLineCoreColor", static_cast<UINT>(offsetof(NeonSkinnedParams, lineCoreColor)) },
+			{ "gLineCoreIntensity", static_cast<UINT>(offsetof(NeonSkinnedParams, lineCoreIntensity)) },
+			{ "gLineHaloColor", static_cast<UINT>(offsetof(NeonSkinnedParams, lineHaloColor)) },
+			{ "gLineHaloIntensity", static_cast<UINT>(offsetof(NeonSkinnedParams, lineHaloIntensity)) },
+			{ "gOutlineCoreColor", static_cast<UINT>(offsetof(NeonSkinnedParams, outlineCoreColor)) },
+			{ "gOutlineCoreIntensity", static_cast<UINT>(offsetof(NeonSkinnedParams, outlineCoreIntensity)) },
+			{ "gFeatureMaskRenderMode", static_cast<UINT>(offsetof(NeonSkinnedParams, featureMaskRenderMode)) },
+			{ "gSplitLineEmission", static_cast<UINT>(offsetof(NeonSkinnedParams, splitLineEmission)) },
+			{ "gLineDiagnosticMode", static_cast<UINT>(offsetof(NeonSkinnedParams, lineDiagnosticMode)) },
+			{ "gSdfRangeTexels", static_cast<UINT>(offsetof(NeonSkinnedParams, sdfRangeTexels)) },
+			{ "gSdfHaloWidthTexels", static_cast<UINT>(offsetof(NeonSkinnedParams, sdfHaloWidthTexels)) },
+			{ "gSdfLodBlendStart", static_cast<UINT>(offsetof(NeonSkinnedParams, sdfLodBlendStart)) },
+			{ "gSdfLodBlendEnd", static_cast<UINT>(offsetof(NeonSkinnedParams, sdfLodBlendEnd)) },
 			{ "gCameraWorldPosition", sizeof(NeonSkinnedParams) },
 			{ "gViewportSize", sizeof(NeonSkinnedParams) + 16 },
 		};
@@ -117,13 +130,15 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 		auto* submeshConstants = reflection->GetConstantBufferByName("NeonSubmeshConstants");
 		D3D12_SHADER_BUFFER_DESC submeshDesc{};
 		Check(submeshConstants->GetDesc(&submeshDesc), "Submesh constant reflection");
-		Require(submeshDesc.Size == 16 && sizeof(NeonSkinnedSubmeshParams) == 16,
-			"Submesh root constants must contain four DWORDs within one HLSL register");
+		Require(submeshDesc.Size == 32 && sizeof(NeonSkinnedSubmeshParams) == 16,
+			"Root constants must preserve the four surface DWORDs and append the distance-valid flag and padding");
 		const struct { const char* name; UINT offset; } submeshFields[] = {
 			{ "gSubmeshLineStrength", offsetof(NeonSkinnedSubmeshParams, lineStrength) },
 			{ "gAlphaCutoff", offsetof(NeonSkinnedSubmeshParams, alphaCutoff) },
 			{ "gSubmeshGeometryStrength", offsetof(NeonSkinnedSubmeshParams, geometryLineStrength) },
 			{ "gSubmeshInternalThresholdScale", offsetof(NeonSkinnedSubmeshParams, internalLineThresholdScale) },
+			{ "gHasDistanceMask", 16 },
+			{ "gSubmeshPadding", 20 },
 		};
 		for (const auto& field : submeshFields) {
 			D3D12_SHADER_VARIABLE_DESC variable{};
@@ -135,6 +150,11 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 		Require(maskBinding.Type == D3D_SIT_TEXTURE && maskBinding.BindPoint == 1 && maskBinding.BindCount == 1
 			&& maskBinding.Space == 0 && maskBinding.Dimension == D3D_SRV_DIMENSION_TEXTURE2D,
 			"Authored line data must bind its own Texture2D SRV at t1 space0");
+		D3D12_SHADER_INPUT_BIND_DESC distanceBinding{};
+		Check(reflection->GetResourceBindingDescByName("gFeatureDistanceTexture", &distanceBinding), "Distance mask SRV reflection");
+		Require(distanceBinding.Type == D3D_SIT_TEXTURE && distanceBinding.BindPoint == 2 && distanceBinding.BindCount == 1
+			&& distanceBinding.Space == 0 && distanceBinding.Dimension == D3D_SRV_DIMENSION_TEXTURE2D,
+			"Signed distance data must have its independent Texture2D at t2 space0");
 		if (geometryShader) {
 			// Native barycentricsはDXIL intrinsicとして扱われ、通常の入力signatureには現れない。
 			Require((reflection->GetRequiresFlags() & D3D_SHADER_REQUIRES_BARYCENTRICS) != 0,
@@ -1285,6 +1305,411 @@ void TestFeatureMasks(DirectXCommon& dx, SrvManager& srv, NeonSkinnedRenderer& r
 		"MRT / depth / stencil / outline preservation, original alpha cutout, occlusion, Geometry PS sharing, "
 		"single / double-sided submesh and multiple-Draw SRV / CB isolation.\n";
 }
+
+ComPtr<ID3D12Resource> CreateQualityStrokeTexture(DirectXCommon& dx, SrvManager& srv, UINT index, bool distance) {
+	// Same oblique narrow stroke for both techniques. Full linear area-coverage mips are
+	// uploaded independently; SDF mips intentionally average away the geometry at 1x1.
+	constexpr UINT size = 64, levels = 7;
+	std::vector<std::vector<uint8_t>> pixels(levels);
+	pixels[0].resize(size * size * 4);
+	for (UINT y = 0; y < size; ++y) for (UINT x = 0; x < size; ++x) {
+		const float signedDistance = 1.35f - std::abs((x + .5f - 32) + .125f * (y + .5f - 32)) / std::sqrt(1.015625f);
+		const float core = (std::clamp)(.5f + signedDistance, 0.0f, 1.0f);
+		const float halo = (std::clamp)(1 + (std::min)(signedDistance, 0.0f) / 4, 0.0f, 1.0f);
+		auto* p = pixels[0].data() + (y * size + x) * 4;
+		p[0] = static_cast<uint8_t>(std::lround((distance ? (std::clamp)(.5f + signedDistance / 32, 0.0f, 1.0f) : core) * 255));
+		p[1] = p[3] = 255;
+		p[2] = distance ? 255 : static_cast<uint8_t>(std::lround(halo * halo * 255));
+	}
+	for (UINT level = 1; level < levels; ++level) {
+		const UINT current = size >> level, previous = current * 2;
+		pixels[level].resize(current * current * 4);
+		for (UINT y = 0; y < current; ++y) for (UINT x = 0; x < current; ++x) for (UINT c = 0; c < 4; ++c) {
+			UINT sum = 0;
+			for (UINT dy = 0; dy < 2; ++dy) for (UINT dxOffset = 0; dxOffset < 2; ++dxOffset)
+				sum += pixels[level - 1][((y * 2 + dy) * previous + x * 2 + dxOffset) * 4 + c];
+			pixels[level][(y * current + x) * 4 + c] = static_cast<uint8_t>((sum + 2) / 4);
+		}
+	}
+	D3D12_RESOURCE_DESC desc{};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	desc.Width = desc.Height = size;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = levels;
+	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.SampleDesc.Count = 1;
+	D3D12_HEAP_PROPERTIES heap{};
+	heap.Type = D3D12_HEAP_TYPE_DEFAULT;
+	ComPtr<ID3D12Resource> texture;
+	Check(dx.GetDevice()->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+		D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&texture)), "Quality texture");
+	std::array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT, levels> footprints{};
+	UINT64 total = 0;
+	dx.GetDevice()->GetCopyableFootprints(&desc, 0, levels, 0, footprints.data(), nullptr, nullptr, &total);
+	auto upload = dx.CreateBufferResource(static_cast<size_t>(total));
+	uint8_t* mapped = nullptr;
+	Check(upload->Map(0, nullptr, reinterpret_cast<void**>(&mapped)), "Quality texture upload");
+	for (UINT level = 0; level < levels; ++level) {
+		const UINT current = size >> level;
+		for (UINT y = 0; y < current; ++y)
+			std::memcpy(mapped + footprints[level].Offset + y * footprints[level].Footprint.RowPitch,
+				pixels[level].data() + y * current * 4, current * 4);
+	}
+	upload->Unmap(0, nullptr);
+	for (UINT level = 0; level < levels; ++level) {
+		D3D12_TEXTURE_COPY_LOCATION source{}, destination{};
+		source.pResource = upload.Get();
+		source.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		source.PlacedFootprint = footprints[level];
+		destination.pResource = texture.Get();
+		destination.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		destination.SubresourceIndex = level;
+		dx.GetList()->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+	}
+	Transition(dx.GetList().Get(), texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	dx.PostDraw(); // Retire upload only after all seven subresource copies have completed.
+	D3D12_SHADER_RESOURCE_VIEW_DESC view{};
+	view.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	view.Format = desc.Format;
+	view.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	view.Texture2D.MipLevels = levels;
+	dx.GetDevice()->CreateShaderResourceView(texture.Get(), &view, srv.GetCPUDescriptorHandle(index));
+	return texture;
+}
+
+void TestQualityLineMasks(DirectXCommon& dx, SrvManager& srv, NeonSkinnedRenderer& renderer) {
+	NeonSkinnedParams invalid;
+	Require(invalid.featureMaskRenderMode==0 && invalid.splitLineEmission==0 && invalid.lineDiagnosticMode==0,
+		"Quality reconstruction, split emissions and diagnostics must all be opt-in");
+	invalid.lineCoreColor={-1,std::numeric_limits<float>::quiet_NaN(),200};
+	invalid.lineHaloColor=invalid.outlineCoreColor=invalid.lineCoreColor;
+	invalid.lineCoreIntensity=std::numeric_limits<float>::infinity();
+	invalid.lineHaloIntensity=-2;
+	invalid.outlineCoreIntensity=200;
+	invalid.featureMaskRenderMode=invalid.lineDiagnosticMode=UINT32_MAX;
+	invalid.splitLineEmission=UINT32_MAX;
+	invalid.sdfRangeTexels=invalid.sdfHaloWidthTexels=invalid.sdfLodBlendStart=invalid.sdfLodBlendEnd=std::numeric_limits<float>::quiet_NaN();
+	invalid.qualityPadding=200;
+	renderer.SetParams(invalid);
+	const auto& safe=renderer.GetParams();
+	Require(safe.lineCoreColor.x==0 && safe.lineCoreColor.y==0 && safe.lineCoreColor.z==100
+		&& safe.lineHaloColor.x==0 && safe.lineHaloColor.y==0 && safe.lineHaloColor.z==100
+		&& safe.outlineCoreColor.x==0 && safe.outlineCoreColor.y==0 && safe.outlineCoreColor.z==100
+		&& safe.lineCoreIntensity==0 && safe.lineHaloIntensity==0 && safe.outlineCoreIntensity==100
+		&& safe.featureMaskRenderMode==0 && safe.lineDiagnosticMode==0 && safe.splitLineEmission==1
+		&& safe.sdfRangeTexels==16 && safe.sdfHaloWidthTexels==0 && safe.sdfLodBlendStart==1
+		&& safe.sdfLodBlendEnd==2 && safe.qualityPadding==0,
+		"Quality HDR colors, intensities, enum values and SDF controls must sanitize nonfinite / invalid inputs");
+	auto whiteTexture = CreateTestTexture(dx, srv, 1, false);
+	auto featureTexture = CreateTestTexture(dx, srv, 2, true);
+	const UINT coverageIndex = srv.Allocate(), insideIndex = srv.Allocate(), outsideIndex = srv.Allocate();
+	const UINT eraseIndex = srv.Allocate(), retainIndex = srv.Allocate(), fullIndex = srv.Allocate();
+	const UINT strokeIndex = srv.Allocate(), strokeDistanceIndex = srv.Allocate();
+	auto coverage = CreateTestMask(dx, srv, coverageIndex, {128,255,64,255});
+	auto inside = CreateTestMask(dx, srv, insideIndex, {192,255,64,255});
+	auto outside = CreateTestMask(dx, srv, outsideIndex, {0,255,255,255});
+	auto erase = CreateTestMask(dx, srv, eraseIndex, {0,255,0,255});
+	auto retain = CreateTestMask(dx, srv, retainIndex, {255,0,255,255});
+	auto full = CreateTestMask(dx, srv, fullIndex, {255,255,255,255});
+	auto stroke = CreateQualityStrokeTexture(dx, srv, strokeIndex, false);
+	auto strokeDistance = CreateQualityStrokeTexture(dx, srv, strokeDistanceIndex, true);
+	SkinnedModel model;
+	model.Initialize(&dx, &srv, "geometry feature quality fixture");
+	OffscreenScene scene(dx);
+	auto resource = dx.CreateBufferResource(256);
+	TransformationMatrix* transform = nullptr;
+	Check(resource->Map(0, nullptr, reinterpret_cast<void**>(&transform)), "Quality transform map");
+	*transform = {Identity(),Identity(),Identity()};
+	transform->WVP.m[2][2] = .4f;
+	transform->WVP.m[3][2] = .5f;
+	const Vector2 viewport{static_cast<float>(kSize),static_cast<float>(kSize)};
+	NeonSkinnedParams params;
+	params.outlineEnabled = 0;
+	params.rimStrength = 0;
+	params.internalLineEnabled = 1;
+	params.featureMaskIntensity = 4;
+	params.featureMaskColor = {1,.5f,.125f};
+	params.lineCoreColor = {1,0,0};
+	params.lineCoreIntensity = 4;
+	params.lineHaloColor = {0,1,0};
+	params.lineHaloIntensity = 2;
+	renderer.SetSubmeshParams({{1,0,0,1},{1,0,0,1}});
+	renderer.SetSubmeshFeatureMasks({});
+	renderer.SetSubmeshFeatureDistanceMasks({});
+	auto render = [&](float depth = 1.0f) {
+		renderer.BeginFrame();
+		renderer.SetParams(params);
+		scene.Begin(depth);
+		renderer.Draw(model,resource->GetGPUVirtualAddress(),{0,0,-2},viewport);
+		scene.End();
+	};
+	render();
+	const std::array<Capture,5> original = {scene.captures[0],scene.captures[1],scene.captures[2],scene.captures[3],scene.captures[4]};
+	params.internalLineEnabled = 0;
+	render();
+	const Capture body = scene.captures[0];
+	params.internalLineEnabled = 1;
+	auto preserveSurfaces = [&] {
+		for (UINT i=1;i<5;++i) RequireSameCapture(scene.captures[i],original[i],"Quality lines must preserve Normal / Material / Depth / Stencil");
+	};
+	for (UINT mode : {1u,2u}) {
+		params.featureMaskRenderMode = mode;
+		params.splitLineEmission = 1;
+		renderer.SetSubmeshFeatureMasks({coverageIndex,coverageIndex});
+		renderer.SetSubmeshFeatureDistanceMasks({insideIndex,insideIndex});
+		params.featureMaskBlend = 0;
+		render();
+		for (UINT i=0;i<5;++i) RequireSameCapture(scene.captures[i],original[i],"Quality mode with blend zero must exactly restore legacy output");
+		params.featureMaskBlend = 1;
+		for (const std::vector<std::optional<uint32_t>>& absentCoverage : {
+			std::vector<std::optional<uint32_t>>{}, {std::nullopt,std::nullopt},{0,0},{UINT32_MAX,UINT32_MAX}}) {
+			renderer.SetSubmeshFeatureMasks(absentCoverage);
+			render();
+			for (UINT i=0;i<5;++i) RequireSameCapture(scene.captures[i],original[i],
+				"Absent / invalid coverage must preserve legacy output even with a valid distance map requested");
+		}
+		renderer.SetSubmeshFeatureMasks({retainIndex,retainIndex});
+		render();
+		for (UINT i=0;i<5;++i) RequireSameCapture(scene.captures[i],original[i],"G-zero must retain original auto lines even when distance map is present");
+		renderer.SetSubmeshFeatureMasks({eraseIndex,eraseIndex});
+		renderer.SetSubmeshFeatureDistanceMasks({outsideIndex,outsideIndex});
+		render();
+		RequireSameCapture(scene.captures[0],body,"G-one erase-only region must remove Core / Halo without removing body");
+		preserveSurfaces();
+	}
+	params.featureMaskRenderMode = 1;
+	renderer.SetSubmeshFeatureMasks({coverageIndex,coverageIndex});
+	render();
+	const Capture covered = scene.captures[0];
+	const float half=128.0f/255,weak=64.0f/255;
+	Require(std::abs(covered.Float(40,80,0)-body.Float(40,80,0)-4*half)<.003f
+		&& std::abs(covered.Float(40,80,1)-body.Float(40,80,1)-2*weak)<.003f,
+		"Coverage Core and Halo must retain independent logical R/B channels and colors");
+	params.featureMaskRenderMode = 2;
+	for (const std::vector<std::optional<uint32_t>>& invalidBindings : {
+		std::vector<std::optional<uint32_t>>{}, {std::nullopt,std::nullopt},{0,0},{UINT32_MAX,UINT32_MAX}}) {
+		renderer.SetSubmeshFeatureDistanceMasks(invalidBindings);
+		render();
+		RequireSameCapture(scene.captures[0],covered,"Missing / invalid SDF must fall back to exact coverage Core / Halo");
+		preserveSurfaces();
+	}
+	renderer.SetSubmeshFeatureDistanceMasks({insideIndex,insideIndex});
+	render();
+	Require(std::abs(scene.captures[0].Float(40,80,0)-body.Float(40,80,0)-4*weak)<.003f
+		&& std::abs(scene.captures[0].Float(40,80,1)-body.Float(40,80,1)-2*weak)<.003f,
+		"Constant zero-gradient SDF must reconstruct finite geometric inside shape with independent weak opacity");
+	preserveSurfaces();
+	for (UINT diagnostic : {1u,2u,3u}) {
+		params.lineDiagnosticMode=diagnostic;
+		render();
+		const float red=diagnostic==1 ? 4*weak : diagnostic==3 ? body.Float(40,80,0) : 0;
+		const float green=diagnostic==2 ? 2*weak : diagnostic==3 ? body.Float(40,80,1) : 0;
+		Require(std::abs(scene.captures[0].Float(40,80,0)-red)<.003f && std::abs(scene.captures[0].Float(40,80,1)-green)<.003f,
+			"Core / Halo / Body diagnostics must isolate their own color and intensity");
+		preserveSurfaces();
+	}
+	params.lineDiagnosticMode=0;
+	params.lineCoreIntensity=0;
+	params.lineDiagnosticMode=1;
+	render();
+	Require(scene.captures[0].Float(40,80,0)==0 && scene.captures[0].Float(40,80,1)==0,
+		"Core strength zero must smoothly extinguish the line, without a forced minimum brightness");
+	preserveSurfaces();
+	params.lineCoreIntensity=4;
+	params.lineHaloIntensity=0;
+	params.lineDiagnosticMode=2;
+	render();
+	Require(scene.captures[0].Float(40,80,0)==0 && scene.captures[0].Float(40,80,1)==0,
+		"Halo strength zero must extinguish only its diagnostic contribution");
+	preserveSurfaces();
+	params.lineHaloIntensity=2;
+	params.lineDiagnosticMode=0;
+	// One submesh uses valid distance, the following double-sided triangle uses coverage fallback.
+	renderer.SetSubmeshFeatureDistanceMasks({insideIndex,std::nullopt});
+	render();
+	Require(std::abs(scene.captures[0].Float(32,80,0)-body.Float(32,80,0)-4*weak)<.003f
+		&& std::abs(scene.captures[0].Float(96,48,0)-covered.Float(96,48,0))<.003f,
+		"Per-submesh SDF descriptor / valid flag must not leak to the double-sided coverage fallback");
+	transform->WVP.m[0][0]=-1;
+	render();
+	Require(std::abs(scene.captures[0].Float(32,48,0)-params.bodyColor.x-4*half)<.003f
+		&& scene.captures[0].Float(96,80,0)==0 && scene.captures[1].Float(32,48,2)>.99f,
+		"Reversed quality geometry must keep double-sided fallback visible with flipped normal while culling the single-sided triangle");
+	transform->WVP.m[0][0]=1;
+	for (size_t count : {model.GetSubmeshCount()-1,model.GetSubmeshCount()+1}) {
+		renderer.BeginFrame();
+		scene.Begin();
+		renderer.SetSubmeshFeatureDistanceMasks(std::vector<std::optional<uint32_t>>(count,insideIndex));
+		bool rejected=false;
+		try { renderer.Draw(model,resource->GetGPUVirtualAddress(),{0,0,-2},viewport); }
+		catch (const std::invalid_argument&) { rejected=true; }
+		Require(rejected,"Short / long SDF arrays must reject before partial rendering");
+		scene.End(0xa5);
+		for (UINT y=0;y<kSize;++y) {
+			for (UINT target=0;target<3;++target) {
+				const auto& capture=scene.captures[target];
+				Require(std::all_of(capture.Pixel(0,y),capture.Pixel(0,y)+capture.rowBytes,
+					[](uint8_t value) { return value==0; }),"Rejected SDF array must leave all MRTs clear");
+			}
+			for (UINT x=0;x<kSize;++x) {
+				uint32_t z=0;
+				std::memcpy(&z,scene.captures[3].Pixel(x,y),sizeof(z));
+				Require((z&0xffffff)==0xffffff,"Rejected SDF array must leave depth unchanged");
+			}
+		}
+	}
+	renderer.SetSubmeshFeatureDistanceMasks({insideIndex,insideIndex});
+	render(); // Rejection leaves a subsequent valid draw possible.
+	params.internalLineEnabled=0;
+	renderer.SetSubmeshParams({{1,.5f,0,1},{1,.5f,0,1}});
+	params.featureMaskBlend=0;
+	render();
+	const std::array<Capture,5> cutout={scene.captures[0],scene.captures[1],scene.captures[2],scene.captures[3],scene.captures[4]};
+	params.featureMaskBlend=1;
+	for (UINT mode : {1u,2u}) {
+		params.featureMaskRenderMode=mode;
+		render();
+		uint32_t z=0;
+		std::memcpy(&z,scene.captures[3].Pixel(64,64),sizeof(z));
+		Require(scene.captures[0].Float(64,64,0)==0 && (z&0xffffff)==0xffffff,
+			"Original alpha cutout must remove quality color and depth despite authored positive SDF");
+		Require(scene.captures[0].Float(40,80,0)>.5f,"Non-cutout surfaces must retain quality authored emission");
+		for (UINT i=1;i<5;++i) RequireSameCapture(scene.captures[i],cutout[i],"Quality techniques must retain all original alpha-cutout MRT / Depth / Stencil pixels");
+		render(.1f);
+		Require(CountBrightPixels(scene.captures[0],0)==0 && scene.captures[0].Float(40,80,0)==0,
+			"Foreground depth must occlude both quality techniques");
+	}
+	// Native barycentric variant shares the new line reconstruction and preserves cutout.
+	params.featureMaskRenderMode=2;
+	if (renderer.IsGeometryLinesSupported()) {
+		params.geometryLineEnabled=1;
+		renderer.SetSubmeshParams({{1,.5f,1,1},{1,.5f,1,1}});
+		render();
+		Require(std::abs(scene.captures[0].Float(40,80,0)-body.Float(40,80,0)-4*weak)<.003f,
+			"Geometry variant must share SDF Core reconstruction away from geometry edges");
+		Require(scene.captures[0].Float(64,64,0)==0,"Geometry + quality path must retain shared cutout");
+		Require(scene.captures[0].Float(32,32,2)>1,"Independent cyan mesh emission must remain outside authored Core/Halo replacement");
+	}
+	params.geometryLineEnabled=0;
+	renderer.SetSubmeshParams({{1,0,0,1},{1,0,0,1}});
+	// Inspect a real varying distance field, rather than proving AA with constant fixtures.
+	SkinnedModel plainModel;
+	plainModel.Initialize(&dx,&srv,"geometry quality stroke fixture");
+	renderer.SetSubmeshFeatureMasks({strokeIndex,strokeIndex});
+	renderer.SetSubmeshFeatureDistanceMasks({strokeDistanceIndex,strokeDistanceIndex});
+	params.lineDiagnosticMode=1;
+	auto renderPlain=[&] {
+		renderer.BeginFrame();
+		renderer.SetParams(params);
+		scene.Begin();
+		renderer.Draw(plainModel,resource->GetGPUVirtualAddress(),{0,0,-2},viewport);
+		scene.End();
+	};
+	renderPlain();
+	UINT partial=0,solid=0;
+	for (UINT y=16;y<112;++y) for (UINT x=16;x<112;++x) {
+		const float value=scene.captures[0].Float(x,y,0);
+		Require(std::isfinite(value) && value>=0 && value<=4.001f,"Distance AA must never produce NaN / invalid HDR coverage");
+		partial += value>.01f && value<3.99f;
+		solid += value>=3.99f;
+	}
+	Require(partial>50 && solid>50,"A varying oblique SDF stroke must retain a solid core and fractional screen-space AA boundary");
+	params.lineDiagnosticMode=2;
+	params.sdfHaloWidthTexels=0;
+	auto requireNoHalo=[&] {
+		for (UINT y=0;y<kSize;++y) for (UINT x=0;x<kSize;++x) for (UINT c=0;c<3;++c)
+			Require(scene.captures[0].Float(x,y,c)==0,"SDF Halo width zero must remain off, including baked-coverage minification fallback");
+	};
+	renderPlain();
+	requireNoHalo();
+	transform->WVP.m[0][0]=transform->WVP.m[1][1]=.1f;
+	renderPlain();
+	requireNoHalo();
+	params.sdfHaloWidthTexels=4;
+	params.lineDiagnosticMode=1;
+	params.featureMaskRenderMode=1;
+	renderPlain();
+	const Capture farCoverage=scene.captures[0];
+	params.featureMaskRenderMode=2;
+	renderPlain();
+	RequireSameCapture(scene.captures[0],farCoverage,"Far SDF minification must use exact filtered coverage MIPs, not averaged distance signs");
+	Require(CountBrightPixels(farCoverage,0)>0,"Far fallback comparison must exercise visible authored stroke pixels");
+	// Different modes, resources and colors in two Draws recorded before a single fence.
+	auto rightResource=dx.CreateBufferResource(256);
+	TransformationMatrix* right=nullptr;
+	Check(rightResource->Map(0,nullptr,reinterpret_cast<void**>(&right)),"Quality second transform");
+	transform->WVP.m[0][0]=transform->WVP.m[1][1]=.5f;
+	transform->WVP.m[3][0]=-.5f;
+	*right=*transform;
+	right->WVP.m[3][0]=.5f;
+	renderer.BeginFrame();
+	scene.Begin();
+	params.lineDiagnosticMode=0;
+	params.featureMaskRenderMode=2;
+	params.lineHaloIntensity=0;
+	params.lineCoreColor={1,0,0};
+	params.lineCoreIntensity=4;
+	renderer.SetSubmeshFeatureMasks({coverageIndex,coverageIndex});
+	renderer.SetSubmeshFeatureDistanceMasks({insideIndex,insideIndex});
+	renderer.SetParams(params);
+	renderer.Draw(plainModel,resource->GetGPUVirtualAddress(),{0,0,-2},viewport);
+	params.featureMaskRenderMode=1;
+	params.lineCoreColor={0,1,0};
+	params.lineCoreIntensity=3;
+	renderer.SetSubmeshFeatureMasks({fullIndex,fullIndex});
+	renderer.SetSubmeshFeatureDistanceMasks({});
+	renderer.SetParams(params);
+	renderer.Draw(plainModel,rightResource->GetGPUVirtualAddress(),{0,0,-2},viewport);
+	scene.End();
+	Require(std::abs(scene.captures[0].Float(32,64,0)-params.bodyColor.x-4*weak)<.003f
+		&& scene.captures[0].Float(32,64,1)<.1f
+		&& std::abs(scene.captures[0].Float(96,64,1)-params.bodyColor.y-3)<.003f
+		&& scene.captures[0].Float(96,64,0)<.1f,
+		"Same-frame Draws must retain independent quality mode / color / SDF flag / SRV and CB snapshots");
+	renderer.SetSubmeshFeatureMasks({});
+	renderer.SetSubmeshFeatureDistanceMasks({});
+	// Split outline color is independent from surface Core/Halo and uses actual
+	// exterior sphere hull pixels, not a planar fixture with no external extrusion.
+	SkinnedModel sphere;
+	sphere.Initialize(&dx,&srv,"quality outline sphere fixture");
+	*transform={Identity(),Identity(),Identity()};
+	transform->WVP.m[2][2]=.4f;
+	transform->WVP.m[3][2]=.5f;
+	params=NeonSkinnedParams{};
+	params.outlineEnabled=0;
+	auto renderSphere=[&] {
+		renderer.BeginFrame();
+		renderer.SetParams(params);
+		scene.Begin();
+		renderer.Draw(sphere,resource->GetGPUVirtualAddress(),{0,0,-2},viewport);
+		scene.End();
+	};
+	renderSphere();
+	const std::array<Capture,5> sphereBody={scene.captures[0],scene.captures[1],scene.captures[2],scene.captures[3],scene.captures[4]};
+	params.outlineEnabled=1;
+	params.splitLineEmission=1;
+	params.outlineCoreColor={0,0,1};
+	params.outlineCoreIntensity=6;
+	params.lineCoreColor={1,0,0};
+	params.lineHaloColor={0,1,0};
+	renderSphere();
+	UINT exterior=0;
+	for (UINT y=0;y<kSize;++y) for (UINT x=0;x<kSize;++x) {
+		if (sphereBody[0].Float(x,y,0)==0 && scene.captures[0].Float(x,y,2)>1) {
+			++exterior;
+			Require(scene.captures[0].Float(x,y,0)==0 && scene.captures[0].Float(x,y,1)==0
+				&& std::abs(scene.captures[0].Float(x,y,2)-6)<.004f,
+				"Outline Core must use its independent HDR color and intensity");
+		}
+	}
+	Require(exterior>100,"Split outline check must exercise real external hull pixels");
+	for (UINT i=1;i<5;++i) RequireSameCapture(scene.captures[i],sphereBody[i],"Split outline must retain all Body MRT / Depth / Stencil pixels");
+	std::cout << "PASS: coverage RGB Core/Halo and signed line-region reconstruction; blend-zero / G-zero legacy restoration, "
+		"erase-only body preservation, absent / invalid distance fallback, weak-opacity geometry and zero-gradient finite AA; "
+		"Core/Halo/Body diagnostics, varying-distance AA, exact far-LOD coverage fallback; MRT / depth / stencil / alpha / "
+		"occlusion / Geometry sharing, single/double-sided validity rebinding, atomic SDF-array rejection and recovery; "
+		"multiple-Draw modes / descriptors / constants remain independent; opt-in finite-range controls and independent exterior outline Core.\n";
+}
 }
 
 int main(int argc, char** argv) {
@@ -1386,7 +1811,7 @@ int main(int argc, char** argv) {
 			Require(renderer.GetParams().bodyEmissionIntensity == expected, "Body emission must clamp finite intensity to [0,4]");
 		}
 		std::cout << "PASS: geometry parameter finite / range validation and default OFF.\n";
-		Require(sizeof(NeonSkinnedParams) == 128 && sizeof(NeonSkinnedParams) + 32 == 160
+		Require(sizeof(NeonSkinnedParams) == 208 && sizeof(NeonSkinnedParams) + 32 == 240
 			&& offsetof(NeonSkinnedParams, featureMaskColor) == 96
 			&& offsetof(NeonSkinnedParams, featureMaskIntensity) == 108
 			&& offsetof(NeonSkinnedParams, featureMaskBlend) == 112
@@ -1419,6 +1844,7 @@ int main(int argc, char** argv) {
 		TestGeometryLines(dx, srv, renderer);
 		TestBodyEmission(dx, srv, renderer);
 		TestFeatureMasks(dx, srv, renderer);
+		TestQualityLineMasks(dx, srv, renderer);
 		ComPtr<ID3D12InfoQueue> infoQueue;
 		if (SUCCEEDED(dx.GetDevice().As(&infoQueue))) {
 			for (UINT64 index = 0; index < infoQueue->GetNumStoredMessages(); ++index) {

@@ -15,7 +15,8 @@ PixelShaderOutput ShadeNeonBody(NeonSkinnedVertexOutput input, bool isFrontFace,
     float2 uvDx, float2 uvDy, float3 geometryEmission)
 {
     float4 surface = SampleNeonSurface(input.texcoord, uvDx, uvDy);
-    float2 featureMask = SampleNeonFeatureMask(input.texcoord, uvDx, uvDy);
+    float4 featureMask = SampleNeonFeatureMask(input.texcoord, uvDx, uvDy);
+    float2 lineCoverage = ReconstructNeonLineCoverage(input.texcoord, uvDx, uvDy, featureMask);
     float internalLine = NeonInternalLine(input.texcoord, uvDx, uvDy, surface);
     ApplyNeonAlphaCutout(surface.a);
     float3 normal = input.worldNormal * rsqrt(max(dot(input.worldNormal, input.worldNormal), 1.0e-8f));
@@ -31,10 +32,14 @@ PixelShaderOutput ShadeNeonBody(NeonSkinnedVertexOutput input, bool isFrontFace,
         * (0.25f + 0.75f * saturate(dot(normal, viewDirection)));
     float3 emission = max(gEmissiveColor, 0.0f) * max(gEmissiveIntensity, 0.0f)
         * max(gRimStrength, 0.0f) * rim;
-    emission += CompositeNeonInternalEmission(internalLine, featureMask);
+    NeonLineEmission lineEmission = CompositeNeonInternalEmission(internalLine, featureMask, lineCoverage);
+    emission += lineEmission.core + lineEmission.halo;
     emission += geometryEmission;
     PixelShaderOutput output;
     output.color = float4(body + emission, saturate(gBodyColor.a));
+    if (gLineDiagnosticMode == 1) output.color.rgb = lineEmission.core;
+    else if (gLineDiagnosticMode == 2) output.color.rgb = lineEmission.halo;
+    else if (gLineDiagnosticMode == 3) output.color.rgb = body;
     if (gFeatureMaskBlend > 0.0f && gFeatureMaskDebugMode != 0)
     {
         float diagnostic = gFeatureMaskDebugMode == 1 ? featureMask.r : featureMask.g;
