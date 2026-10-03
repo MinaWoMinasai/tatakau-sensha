@@ -10,6 +10,7 @@
 #include "SkinCluster.h"
 #include "DirectX/engine/3d/neon/NeonSkinnedRenderer.h"
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -36,6 +37,11 @@ private:
         std::string alphaMode;
         float alphaCutoff = 0.0f;
     };
+    struct FeatureMaskBinding {
+        std::string path;
+        std::string status;
+        std::optional<uint32_t> srvIndex;
+    };
     /// @brief 保存されたデータを読み込む。
     void Load();
     // 外観だけを変更し、再生状態・Transform・Alpha Cutoutは保持する。
@@ -44,6 +50,8 @@ private:
     // Geometry設定だけを変更する。モデル・再生状態・既存の線設定は維持する。
     void ApplyGeometryPreset(GeometryPreset preset);
     void DrawGeometryLinesImGui();
+    void LoadFeatureMaskCandidates();
+    void DrawFeatureMaskImGui();
     /// @brief プレビュー対象をカメラの前へ配置する。
     void PlaceInFrontOfCamera();
     /// @brief カメラ位置を返す。
@@ -63,6 +71,10 @@ private:
     cg2::NeonSkinnedRenderer renderer_;
     std::vector<SourceMaterial> sourceMaterials_;
     std::vector<cg2::NeonSkinnedSubmeshParams> submeshParams_;
+    std::vector<FeatureMaskBinding> featureMaskBindings_;
+    std::vector<std::optional<uint32_t>> featureMaskIndices_;
+    bool featureMasksLoadAttempted_ = false;
+    std::string featureMaskError_;
     size_t sourceAnimationCount_ = 0;
     size_t generatedAnimationCount_ = 0;
     std::string animationError_;
