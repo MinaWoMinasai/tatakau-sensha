@@ -99,6 +99,7 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 			{ "gGeometryLineIntensity", static_cast<UINT>(offsetof(NeonSkinnedParams, geometryLineIntensity)) },
 			{ "gGeometryLineEnabled", static_cast<UINT>(offsetof(NeonSkinnedParams, geometryLineEnabled)) },
 			{ "gGeometryLineWidthPixels", static_cast<UINT>(offsetof(NeonSkinnedParams, geometryLineWidthPixels)) },
+			{ "gBodyEmissionIntensity", static_cast<UINT>(offsetof(NeonSkinnedParams, bodyEmissionIntensity)) },
 			{ "gCameraWorldPosition", sizeof(NeonSkinnedParams) },
 			{ "gViewportSize", sizeof(NeonSkinnedParams) + 16 },
 		};
@@ -110,12 +111,13 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 		auto* submeshConstants = reflection->GetConstantBufferByName("NeonSubmeshConstants");
 		D3D12_SHADER_BUFFER_DESC submeshDesc{};
 		Check(submeshConstants->GetDesc(&submeshDesc), "Submesh constant reflection");
-		Require(submeshDesc.Size == 16 && sizeof(NeonSkinnedSubmeshParams) == 12,
-			"Submesh root constants must contain three DWORDs within one HLSL register");
+		Require(submeshDesc.Size == 16 && sizeof(NeonSkinnedSubmeshParams) == 16,
+			"Submesh root constants must contain four DWORDs within one HLSL register");
 		const struct { const char* name; UINT offset; } submeshFields[] = {
 			{ "gSubmeshLineStrength", offsetof(NeonSkinnedSubmeshParams, lineStrength) },
 			{ "gAlphaCutoff", offsetof(NeonSkinnedSubmeshParams, alphaCutoff) },
 			{ "gSubmeshGeometryStrength", offsetof(NeonSkinnedSubmeshParams, geometryLineStrength) },
+			{ "gSubmeshInternalThresholdScale", offsetof(NeonSkinnedSubmeshParams, internalLineThresholdScale) },
 		};
 		for (const auto& field : submeshFields) {
 			D3D12_SHADER_VARIABLE_DESC variable{};
@@ -484,6 +486,126 @@ UINT CountBrightPixels(const Capture& capture, UINT component, UINT minX = 0, UI
 	return count;
 }
 
+void TestBodyEmission(DirectXCommon& dx, SrvManager& srv, NeonSkinnedRenderer& renderer) {
+	auto whiteTexture = CreateTestTexture(dx, srv, 1, false);
+	auto featureTexture = CreateTestTexture(dx, srv, 2, true);
+	SkinnedModel model;
+	model.Initialize(&dx, &srv, "geometry fixture");
+	OffscreenScene scene(dx);
+	auto transformResource = dx.CreateBufferResource(256);
+	TransformationMatrix* transform = nullptr;
+	Check(transformResource->Map(0, nullptr, reinterpret_cast<void**>(&transform)), "Body emission transform map");
+	*transform = { Identity(), Identity(), Identity() };
+	transform->WVP.m[2][2] = 0.4f;
+	transform->WVP.m[3][2] = 0.5f;
+	const Vector2 viewport{ static_cast<float>(kSize), static_cast<float>(kSize) };
+	NeonSkinnedParams params;
+	Require(params.bodyEmissionIntensity == 0 && params.geometryLineEnabled == 0,
+		"Body emission and geometry lines must remain opt-in");
+	params.outlineEnabled = 0;
+	params.internalLineEnabled = 0;
+	params.bodyColor = { 0.025f, 0.007f, 0.04f, 1 };
+	const Vector3 frontalCamera{ 0, 0, -2 };
+	auto render = [&](const Vector3& camera = Vector3{ 0, 0, -2 }, float depth = 1.0f) {
+		renderer.BeginFrame();
+		renderer.SetParams(params);
+		scene.Begin(depth);
+		renderer.Draw(model, transformResource->GetGPUVirtualAddress(), camera, viewport);
+		scene.End();
+	};
+	renderer.SetSubmeshParams({ { 0, 0, 0 }, { 0, 0, 0 } });
+	render();
+	const Capture legacy[] = { scene.captures[0], scene.captures[1], scene.captures[2], scene.captures[3], scene.captures[4] };
+	Require(std::abs(legacy[0].Float(64, 64, 0) - params.bodyColor.x) < 0.0001f,
+		"Body emission default zero must retain the dark body color");
+	params.bodyEmissionIntensity = 1;
+	render();
+	const Capture emitted = scene.captures[0];
+	// 平面のworld normal=(0,0,-1)、WVPはxy等倍。このpixelのworld positionから独立に評価する。
+	const Vector3 worldPosition{ (64.5f / 64.0f) - 1.0f, 1.0f - (64.5f / 64.0f), 0 };
+	const float viewX = frontalCamera.x - worldPosition.x;
+	const float viewY = frontalCamera.y - worldPosition.y;
+	const float viewZ = frontalCamera.z - worldPosition.z;
+	const float facing = -viewZ / std::sqrt(viewX * viewX + viewY * viewY + viewZ * viewZ);
+	const float multiplier = 1.0f + params.bodyEmissionIntensity * (0.25f + 0.75f * facing);
+	const float bodyComponents[] = { params.bodyColor.x, params.bodyColor.y, params.bodyColor.z };
+	for (UINT component = 0; component < 3; ++component)
+		Require(std::abs(emitted.Float(64, 64, component) - bodyComponents[component] * multiplier) < 0.0001f,
+			"Weak view-facing body emission must follow the independent pink / purple body color");
+	Require(emitted.Float(64, 64, 3) == legacy[0].Float(64, 64, 3), "Body emission must preserve surface alpha");
+	for (UINT i = 1; i < 5; ++i) RequireSameCapture(scene.captures[i], legacy[i],
+		"Body emission must not alter Normal / Material / Depth / Stencil output");
+	if (renderer.IsGeometryLinesSupported()) {
+		params.geometryLineEnabled = 1;
+		renderer.SetSubmeshParams({ { 0, 0, 1 }, { 0, 0, 1 } });
+		render();
+		for (UINT component = 0; component < 3; ++component)
+			Require(scene.captures[0].Float(48, 80, component) == emitted.Float(48, 80, component),
+				"Geometry PS variant must preserve the same weak body emission away from mesh edges");
+		Require(scene.captures[0].Float(64, 64, 2) > emitted.Float(64, 64, 2) + 1,
+			"Body emission must coexist with independently enabled geometry diagnostic lines");
+		params.geometryLineEnabled = 0;
+		renderer.SetSubmeshParams({ { 0, 0, 0 }, { 0, 0, 0 } });
+	}
+	render({ 2, 0, -0.05f });
+	Require(scene.captures[0].Float(64, 64, 0) > params.bodyColor.x
+		&& scene.captures[0].Float(64, 64, 0) < emitted.Float(64, 64, 0) * 0.8f,
+		"Body emission must retain a weak base and soften on view-grazing surfaces");
+	params.emissiveColor = { 0, 0, 0 };
+	params.emissiveIntensity = 0;
+	render();
+	RequireSameCapture(scene.captures[0], emitted, "Body emission must not depend on outline / texture emissive color or intensity");
+	params.bodyEmissionIntensity = 0;
+	render();
+	for (UINT i = 0; i < 5; ++i) RequireSameCapture(scene.captures[i], legacy[i],
+		"Returning body emission to zero must restore the legacy path exactly");
+	params.bodyEmissionIntensity = 1;
+	render(frontalCamera, 0.1f);
+	Require(CountBrightPixels(scene.captures[0], 0) == 0 && scene.captures[0].Float(64, 64, 0) == 0,
+		"Foreground depth must hide body emission");
+
+	// 同一frameの別Drawで、bodyIntensityが次のDrawの値に上書きされない。
+	auto rightResource = dx.CreateBufferResource(256);
+	TransformationMatrix* right = nullptr;
+	Check(rightResource->Map(0, nullptr, reinterpret_cast<void**>(&right)), "Second body emission transform map");
+	transform->WVP.m[0][0] = transform->WVP.m[1][1] = 0.5f;
+	transform->WVP.m[3][0] = -0.5f;
+	*right = *transform;
+	right->WVP.m[3][0] = 0.5f;
+	renderer.BeginFrame();
+	scene.Begin();
+	params.bodyEmissionIntensity = 0;
+	renderer.SetParams(params);
+	renderer.Draw(model, transformResource->GetGPUVirtualAddress(), frontalCamera, viewport);
+	params.bodyEmissionIntensity = 1;
+	renderer.SetParams(params);
+	renderer.Draw(model, rightResource->GetGPUVirtualAddress(), frontalCamera, viewport);
+	scene.End();
+	Require(std::abs(scene.captures[0].Float(32, 64, 0) - params.bodyColor.x) < 0.0001f
+		&& scene.captures[0].Float(96, 64, 0) > params.bodyColor.x * 1.9f,
+		"Multiple Draw body intensities must retain independent CB snapshots");
+
+	SkinnedModel cutoutModel;
+	cutoutModel.Initialize(&dx, &srv, "geometry feature fixture");
+	*transform = { Identity(), Identity(), Identity() };
+	transform->WVP.m[2][2] = 0.4f;
+	transform->WVP.m[3][2] = 0.5f;
+	renderer.SetSubmeshParams({ { 0, 0.5f, 0 }, { 0, 0.5f, 0 } });
+	renderer.BeginFrame();
+	renderer.SetParams(params);
+	scene.Begin();
+	renderer.Draw(cutoutModel, transformResource->GetGPUVirtualAddress(), frontalCamera, viewport);
+	scene.End();
+	uint32_t holeDepth = 0;
+	std::memcpy(&holeDepth, scene.captures[3].Pixel(64, 64), sizeof(holeDepth));
+	Require(scene.captures[0].Float(64, 64, 0) == 0 && (holeDepth & 0xffffff) == 0xffffff,
+		"Body emission must leave alpha cutout holes transparent with no depth");
+	Require(scene.captures[0].Float(48, 80, 0) > params.bodyColor.x,
+		"Body emission must remain visible on opaque cutout texels");
+	std::cout << "PASS: optional view-facing body emission, independent body color / line emission, default-zero restoration, "
+		"MRT / depth / stencil preservation, alpha cutout and per-Draw snapshots.\n";
+}
+
 void TestGeometryLines(DirectXCommon& dx, SrvManager& srv, NeonSkinnedRenderer& renderer) {
 	// TestDrawのTextureは前のscopeで破棄済み。SRVが指すTextureをこの検証のGPU完了まで保持する。
 	auto whiteTexture = CreateTestTexture(dx, srv, 1, false);
@@ -820,6 +942,40 @@ void TestDraw(DirectXCommon& dx, SrvManager& srv, NeonSkinnedRenderer& renderer)
 		Require(scene.captures[0].Float(x, y, 0) < 1.0f, "Submesh strength zero must disable its feature lines");
 	std::cout << "PASS: texture feature lines (" << internalPixels << " HDR pixels), dark flat regions, "
 		"toggle, per-submesh strength and opt-in alpha cutout / transparent depth.\n";
+
+	// 白黒の同じTextureでthresholdScaleだけを変更し、特徴線強度やGeometryとは独立に検証する。
+	Require(NeonSkinnedSubmeshParams{}.internalLineThresholdScale == 1,
+		"Per-submesh internal threshold must preserve the legacy default scale one");
+	params.internalLineThreshold = 0.4f;
+	renderer.SetSubmeshParams({ { 1, 0, 0, 1 }, { 1, 0, 0, 1 } });
+	renderFeatures();
+	const Capture defaultThreshold = scene.captures[0];
+	Require(CountBrightPixels(defaultThreshold, 0) > 50, "Default threshold scale must retain texture feature lines");
+	renderer.SetSubmeshParams({ { 1, 0, 0, 4 }, { 1, 0, 0, 4 } });
+	renderFeatures();
+	const Capture highThreshold = scene.captures[0];
+	Require(CountBrightPixels(highThreshold, 0) == 0, "High per-submesh threshold must suppress texture features independently");
+	renderer.SetSubmeshParams({ { 1, 0, 0, 0.25f }, { 1, 0, 0, 0.25f } });
+	renderFeatures();
+	Require(CountBrightPixels(scene.captures[0], 0) > 50, "Low per-submesh threshold must preserve texture features");
+	for (const float invalidScale : { std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() }) {
+		renderer.SetSubmeshParams({ { 1, 0, 0, invalidScale }, { 1, 0, 0, invalidScale } });
+		renderFeatures();
+		RequireSameCapture(scene.captures[0], defaultThreshold, "Nonfinite submesh threshold must use the legacy scale one");
+	}
+	renderer.SetSubmeshParams({ { 1, 0, 0, -1 }, { 1, 0, 0, -1 } });
+	renderFeatures();
+	const Capture negativeThreshold = scene.captures[0];
+	renderer.SetSubmeshParams({ { 1, 0, 0, 0.1f }, { 1, 0, 0, 0.1f } });
+	renderFeatures();
+	RequireSameCapture(scene.captures[0], negativeThreshold, "Negative submesh threshold must clamp to 0.1");
+	renderer.SetSubmeshParams({ { 1, 0, 0, 20 }, { 1, 0, 0, 20 } });
+	renderFeatures();
+	RequireSameCapture(scene.captures[0], highThreshold, "Excessive submesh threshold must clamp to four");
+	renderer.SetSubmeshParams({ { 0, 0, 0, 0.25f }, { 0, 0, 0, 0.25f } });
+	renderFeatures();
+	Require(CountBrightPixels(scene.captures[0], 0) == 0, "Threshold sensitivity must remain independent from submesh feature strength");
+	std::cout << "PASS: independent per-submesh texture threshold, legacy scale one, high / low sensitivity and finite-range sanitation.\n";
 }
 }
 
@@ -893,6 +1049,8 @@ int main(int argc, char** argv) {
 		invalid.geometryLineWidthPixels = std::numeric_limits<float>::quiet_NaN();
 		invalid.geometryLineIntensity = std::numeric_limits<float>::infinity();
 		invalid.geometryLineColor = { -1, std::numeric_limits<float>::quiet_NaN(), 200 };
+		invalid.bodyEmissionIntensity = std::numeric_limits<float>::quiet_NaN();
+		invalid.bodyPadding = 200;
 		renderer.SetParams(invalid);
 		const auto& sanitized = renderer.GetParams();
 		Require(sanitized.geometryLineEnabled == 1 && std::isfinite(sanitized.geometryLineWidthPixels)
@@ -904,6 +1062,14 @@ int main(int argc, char** argv) {
 			&& sanitized.geometryLineColor.y <= 100 && std::isfinite(sanitized.geometryLineColor.z)
 			&& sanitized.geometryLineColor.z >= 0 && sanitized.geometryLineColor.z <= 100,
 			"Geometry parameters must sanitize finite values and valid ranges");
+		Require(sanitized.bodyEmissionIntensity == 0 && sanitized.bodyPadding == 0,
+			"Invalid body emission and padding must sanitize to zero");
+		for (const float value : { -1.0f, 20.0f, std::numeric_limits<float>::infinity() }) {
+			invalid.bodyEmissionIntensity = value;
+			renderer.SetParams(invalid);
+			const float expected = std::isfinite(value) ? (std::clamp)(value, 0.0f, 4.0f) : 0.0f;
+			Require(renderer.GetParams().bodyEmissionIntensity == expected, "Body emission must clamp finite intensity to [0,4]");
+		}
 		std::cout << "PASS: geometry parameter finite / range validation and default OFF.\n";
 		// 通常Skinning / ShadowのShaderも同じDXC条件でコンパイルできることを確認する。
 		ComPtr<IDxcBlob> standard;
@@ -912,6 +1078,7 @@ int main(int argc, char** argv) {
 		shadow.Attach(dx.CompileShader(L"resources/shaders/SkinningShadow.VS.hlsl", L"vs_6_0"));
 		TestDraw(dx, srv, renderer);
 		TestGeometryLines(dx, srv, renderer);
+		TestBodyEmission(dx, srv, renderer);
 		ComPtr<ID3D12InfoQueue> infoQueue;
 		if (SUCCEEDED(dx.GetDevice().As(&infoQueue))) {
 			for (UINT64 index = 0; index < infoQueue->GetNumStoredMessages(); ++index) {

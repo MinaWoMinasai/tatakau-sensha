@@ -19,7 +19,8 @@ cbuffer NeonSkinnedConstants : register(b1)
     float gGeometryLineIntensity;
     uint gGeometryLineEnabled;
     float gGeometryLineWidthPixels;
-    float2 gGeometryPadding;
+    float gBodyEmissionIntensity;
+    float gBodyPadding;
     float3 gCameraWorldPosition;
     float gCameraPadding;
     float2 gViewportSize;

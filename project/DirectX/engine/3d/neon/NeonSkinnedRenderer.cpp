@@ -124,7 +124,9 @@ void NeonSkinnedRenderer::SetParams(const NeonSkinnedParams& params) {
 	};
 	params_.geometryLineColor = { colorComponent(params_.geometryLineColor.x),
 		colorComponent(params_.geometryLineColor.y), colorComponent(params_.geometryLineColor.z) };
-	params_.geometryPadding[0] = params_.geometryPadding[1] = 0.0f;
+	params_.bodyEmissionIntensity = std::isfinite(params_.bodyEmissionIntensity)
+		? (std::clamp)(params_.bodyEmissionIntensity, 0.0f, 4.0f) : 0.0f;
+	params_.bodyPadding = 0.0f;
 }
 
 void NeonSkinnedRenderer::SetSubmeshParams(const std::vector<NeonSkinnedSubmeshParams>& params) {
@@ -136,6 +138,8 @@ void NeonSkinnedRenderer::SetSubmeshParams(const std::vector<NeonSkinnedSubmeshP
 			? (std::clamp)(submesh.alphaCutoff, 0.0f, 1.0f) : 0.0f;
 		submesh.geometryLineStrength = std::isfinite(submesh.geometryLineStrength)
 			? (std::clamp)(submesh.geometryLineStrength, 0.0f, 2.0f) : 0.0f;
+		submesh.internalLineThresholdScale = std::isfinite(submesh.internalLineThresholdScale)
+			? (std::clamp)(submesh.internalLineThresholdScale, 0.1f, 4.0f) : 1.0f;
 	}
 }
 
