@@ -501,7 +501,7 @@ void Player::Smash(float deltaTime)
         smashDir_ = dir_;
         isSmash_ = true;
         cg2::Vector3 recoilDir = cg2::Normalize(smashDir_);
-        float recoilPower = cg2::EaseInQuad(smashCharge_) / 2.0f; // 蓄積量を突進速度に変換し、この後で最低速度を設ける。
+        float recoilPower = cg2::EaseInQuad(smashCharge_) / 2.0f; // 蓄積量から突進速度の大きさを求め、次の行で上限を0.7に制限する。
         recoilPower = std::min(recoilPower, 0.7f);
         velocity_ = recoilDir * recoilPower;
         return;
@@ -2162,7 +2162,8 @@ void Player::UpdateRunProjectiles(BulletManager* bulletManager, float deltaTime)
                         targetTurn = (std::max)(targetTurn, 1.05f * (empJammerTimer_ > 0 ? .55f : 1.0f));
                 }
         }
-        // 回頭速度はラジアン/秒。目標を越えない角度に制限し、度へ直してから元の速さで移動させる。
+        // 回頭速度はラジアン/秒。目標を越えない角度に制限し、度へ直して元の速さを保った速度の向きを設定する。
+        // ここでは位置を進めない。設定した速度による位置更新はBullet::Updateが行う。
         const float turn = (std::min)(std::acos(dot), targetTurn * deltaTime);
         const float cross = direction.x * targetDirection.y - direction.y * targetDirection.x;
         const float signedDegrees = turn * (cross < 0.0f ? -1.0f : 1.0f) * (180.0f / 3.1415926535f);

@@ -6,7 +6,7 @@
 
 namespace {
 
-/// @brief Obstacleモデルを取得を試みる。
+/// @brief 対応する障害物prefabのモデル名・地形種類を出力する。未対応ならfalseで出力を変更しない。
 bool TryGetObstacleModel(const std::string& prefab, std::string& model, MapChipType& type)
 {
 	if (prefab == "Default" || prefab == "Wall" || prefab == "Block") {
@@ -51,15 +51,15 @@ bool Stage::LoadRunMap(const std::string& csvPath)
 			if (!cell.eof()) return false;
 			nextMap->mapChipData_.data[y][x] = static_cast<MapChipType>(value);
 		}
-		// Reject extra cells (including a trailing comma) rather than shifting a map.
+		// 45セルの後に残る列や末尾カンマを拒否し、列の対応がずれたマップを採用しない。
 		if (!row.eof()) return false;
 	}
 	while (std::getline(input, line)) {
 		if (line.find_first_not_of(" \t\r") != std::string::npos) return false;
 	}
+	// 全行の検証後に差し替える。途中の読み込み失敗では既存のマップ・モデルを保持する。
 	mapChip_ = std::move(nextMap);
-	// GenerateBlocks alone resizes existing cells, so stale active blocks must
-	// be cleared first when a previous room had walls where this room is open.
+	// GenerateBlocksは空白セルの旧ブロックを消さないため、前の部屋の有効ブロックを先に全消去する。
 	ClearBlocksForPreview();
 	GenerateBlocks();
 	return true;
@@ -132,6 +132,7 @@ bool Stage::AddLevelObstacle(const cg2::Transform& transform, const std::string&
 	block.isActive = true;
 	block.isLevelObject = true;
 
+	// 描画はtransform全体を使う一方、衝突形状は位置とスケールだけの軸平行形状にする。
 	const cg2::Vector3& pos = block.worldTransform.translate;
 	const cg2::Vector3 halfSize = {
 		MapChip::kBlockWidth * block.worldTransform.scale.x * 0.5f,
@@ -176,6 +177,7 @@ void Stage::GenerateBlocks() {
 		blocks_[y].resize(numBlockHorizontal);
 	}
 
+	// 配列はCSVの行y・列x。セル中心はMapChipが行の上下を反転してワールド座標へ変換する。
 	for (uint32_t y = 0; y < numBlockVirtical; ++y) {
 		for (uint32_t x = 0; x < numBlockHorizontal; ++x) {
 
@@ -213,7 +215,7 @@ void Stage::GenerateBlocks() {
 				};
 				float rad = 45.0f * (3.14159265f / 180.0f);
 
-				//// 軸はワールド基準（今は回さない）
+				// 衝突OBBの軸はワールド軸と一致させる。直前のradはこの形状には使わない。
 				block.obb.orientation[0] = { 1, 0, 0 };
 				block.obb.orientation[1] = { 0, 1, 0 };
 				block.obb.orientation[2] = { 0, 0, 1 };
@@ -228,7 +230,7 @@ void Stage::GenerateBlocks() {
 
 void Stage::RebuildMergedBlocks()
 {
-	// ブロック統合処理 
+	// 各マップ行を左から走査し、同種の連続セルだけをX方向にまとめる。レベル障害物は独立したAABB。
 	auto FixAABB = [](cg2::AABB& aabb) {
 		if (aabb.min.x > aabb.max.x)
 			std::swap(aabb.min.x, aabb.max.x);
@@ -297,7 +299,7 @@ void Stage::ResolvePlayerCollision(Player& player, cg2::AxisXYZ axis)
 			continue;
 		}
 
-		// ダメージ床
+		// AABBの境界接触も含めて通知する。無敵などの受付条件はPlayer::Damage側で扱う。
 		if (block.type == MapChipType::kDamageBlock) {
 			player.Damage(damageBlockDamage_);
 		}
@@ -333,6 +335,7 @@ void Stage::ResolvePlayerCollision(Player& player, cg2::AxisXYZ axis)
 			velocity.y = 0.0f;
 		}
 
+		// 次のブロックは補正後のAABBで判定する。同一軸で複数の壁を処理しても古い位置を使わない。
 		player.SetWorldPosition(playerPos);
 		player.SetVelocity(velocity);
 		playerAABB = player.GetAABB();
@@ -354,7 +357,7 @@ void Stage::ResolvePlayerDroneCollision(PlayerDrone& playerDrone, cg2::AxisXYZ a
 			continue;
 		}
 
-		// ダメージ床
+		// ドローンのダメージブロック分岐は現在空で、地形接触によるHP減算は行わない。
 		if (block.type == MapChipType::kDamageBlock) {
 
 		}
@@ -493,17 +496,16 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 
 			float dist = cg2::Length(diff);
 
-			// ★修正ポイント：完全に埋まっている（中心がブロック内）場合
+			// XYの最近接点との差がほぼ0なら、外向き法線を正規化からは求められない。
 			if (dist < 0.0001f) {
 				if (!bullet->UsesRunProjectileRules()) {
-					// Preserve the arena's embedded-projectile behavior.
+					// 成長弾ルールを使わない経路は、埋まった弾を死亡させて壁通知を行わない。
 					bullet->Die();
 					isCollided = false;
 					break;
 				}
-				// A fast expedition shot can finish its step inside a block.
-				// Use the nearest XY face instead of normalizing a zero vector,
-				// allowing its first impact to split outside the surface.
+				// 成長弾ルールの弾は、移動後の中心が壁内でも最寄りのXY面と外向き法線を選ぶ。
+				// 壁外の位置を通知することで、反射・分裂の起点も壁の外へ補正できる。
 				const float distances[4] = {bulletPos.x - block.aabb.min.x, block.aabb.max.x - bulletPos.x,
 					bulletPos.y - block.aabb.min.y, block.aabb.max.y - bulletPos.y};
 				int face = 0;
@@ -533,6 +535,7 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 		if (bullet->IsDead()) continue;
 
 		if (isCollided) {
+			// 半径と余白だけ外へ離した位置を渡す。位置・速度の設定、分裂予約、死亡はBullet側の担当。
 			bulletPos = nearestClosestPoint + nearestNormal * (radius + 0.01f);
 
 			bullet->OnWallImpact(bulletPos, nearestNormal);
@@ -559,7 +562,7 @@ void Stage::ResolvePlayerCollisionSphere(Player& player)
 			// 押し戻し
 			pos += hit.normal * hit.depth;
 
-			// 法線方向の速度を消す（滑らない）
+			// 壁へ向かう法線成分だけを除き、接線方向の速度は保持する。
 			float vn = cg2::Dot(vel, hit.normal);
 			if (vn < 0.0f) {
 				vel -= hit.normal * vn;
@@ -594,7 +597,7 @@ void Stage::ResolvePlayerCollisionSphereY(Player& player)
 
 			float upDot = cg2::Dot(hit.normal, cg2::Vector3(0, 1, 0));
 
-			// ほぼ床 or 天井として扱える場合
+			// 法線のY成分が0.7を上回るか-0.7を下回る接触だけを使う。境界の±0.7は除く。
 			if (upDot > 0.7f || upDot < -0.7f) {
 
 				// 押し戻し（Y成分だけ）
@@ -605,7 +608,7 @@ void Stage::ResolvePlayerCollisionSphereY(Player& player)
 					vel.y = 0.0f;
 				}
 
-				// 接地判定（床のみ）
+				// このY専用経路では接地フラグは設定しない。
 
 
 				sphere.center = pos;
@@ -629,7 +632,7 @@ void Stage::ResolvePlayerCollisionSphereX(Player& player)
 			cg2::CollisionResult hit = cg2::CheckSphereVsOBB(sphere, block.obb);
 			if (!hit.hit) continue;
 
-			// 横成分のみ使う
+			// 法線からYだけを除く。残るX/Z方向を正規化して位置・速度を補正する。
 			cg2::Vector3 lateralNormal = hit.normal;
 			lateralNormal.y = 0.0f;
 
@@ -638,7 +641,7 @@ void Stage::ResolvePlayerCollisionSphereX(Player& player)
 
 			lateralNormal = cg2::Normalize(lateralNormal);
 
-			// 押し戻し（X方向）
+			// Yを除いた法線方向へ押し戻す。純粋なX軸だけの補正ではない。
 			pos += lateralNormal * hit.depth;
 
 			// 横速度を止める

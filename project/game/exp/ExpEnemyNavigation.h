@@ -3,9 +3,13 @@
 #include <cmath>
 #include <limits>
 
-// Four-way routing around authored room walls. Occupancy is supplied by Stage,
-// keeping navigation testable without graphics or actor ownership.
-/// @brief 経験値敵次のセルを検索する。
+/// @brief 通行不可の格子を四方向の幅優先探索でたどり、開始セルから目標へ向かう次のセル添字を返す。
+/// @param blocked 添字y * Width + xのセルが通行不可ならtrue。
+/// @param start 開始セルの添字。
+/// @param goal 目標セルの添字。
+/// @return 次のセル。開始と目標が同じならそのセル、範囲外・空きセルなし・経路なしなら-1。
+/// @note 開始/目標が塞がれていれば、それぞれ格子上の二乗距離が最も近い空きセルへ置き換える。
+/// 置き換えた開始セルから探索するため、返値が元の開始セルに隣接するとは限らない。
 template <int Width, int Height> int FindExpEnemyNextCell(const std::array<bool, Width * Height>& blocked, int start, int goal)
 {
     constexpr int count = Width * Height;
@@ -35,6 +39,7 @@ template <int Width, int Height> int FindExpEnemyNextCell(const std::array<bool,
         return -1;
     if (start == goal)
         return goal;
+    // 親セルを記録して最短経路を復元する。探索自体は格子の占有情報を読むだけで、アクターを移動しない。
     std::array<int, count> parents;
     parents.fill(-1);
     std::array<int, count> queue{};

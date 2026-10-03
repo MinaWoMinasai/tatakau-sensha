@@ -416,7 +416,8 @@ cg2::Vector3 GetActiveCameraPosition(cg2::Camera* camera, cg2::DebugCamera* debu
 		: camera->GetTranslate();
 }
 
-/// @brief 2Dの点と有限線分の最短距離を返す。
+/// @brief XY平面で点と有限線分の最短距離を返す。Z座標は距離に含めない。
+/// @param outT 非nullなら最近点の線分上の割合（0～1）を書き込む。XYの長さの二乗が0.0001以下なら0。
 float DistancePointToSegment2D(const cg2::Vector3& point, const cg2::Vector3& start, const cg2::Vector3& end, float* outT = nullptr) {
 	const cg2::Vector3 segment = end - start;
 	const cg2::Vector3 toPoint = point - start;
@@ -433,7 +434,7 @@ float DistancePointToSegment2D(const cg2::Vector3& point, const cg2::Vector3& st
 	return std::sqrt(diff.x * diff.x + diff.y * diff.y);
 }
 
-/// @brief XY平面上のベクトルを指定角度だけ回転する。
+/// @brief XY平面のベクトルをangleRadラジアンだけ回転し、Z成分は保持する。
 cg2::Vector3 RotateVector2D(const cg2::Vector3& value, float angleRad) {
 	const float c = std::cos(angleRad);
 	const float s = std::sin(angleRad);
@@ -855,7 +856,7 @@ void GameScene::Initialize() {
 
 void GameScene::Update() {
 
-	// 通常は 1/60秒
+	// シーンの基準時間は1/60秒。メニュー・演出などはこの時間で進める。
 	const float baseDeltaTime = 1.0f / 60.0f;
 	if (titleDemo_) UpdateTitleDemo(baseDeltaTime);
 	if (expeditionRun_ && !titleDemo_) {
@@ -894,10 +895,10 @@ void GameScene::Update() {
 		timeScale_ += (1.0f - timeScale_) * 0.12f;
 	}
 
-	// 最終的な deltaTime
+	// 戦闘へ渡す時間は基準時間に演出の時間倍率を掛け、命中時の短い停止中はさらに減速する。
 	finalDeltaTime = baseDeltaTime * timeScale_;
 	if(expeditionImpactHold_>0) {expeditionImpactHold_=(std::max)(0.0f,expeditionImpactHold_-baseDeltaTime);finalDeltaTime*=0.08f;}
-	// 一定まで速度が戻ったら完全に戻す
+	// 時間倍率が基準時間の95%を超え、命中時の停止も終わったら1/60秒へ戻す。
 	if (finalDeltaTime * 60.0f > 0.95f && expeditionImpactHold_<=0) {
 		finalDeltaTime = baseDeltaTime;
 	}
@@ -915,6 +916,7 @@ void GameScene::Update() {
 	if(cg2::kDeveloperTools) UpdatePlayerClassConfigWatch(baseDeltaTime);
 	slowMotionPostActive_ = finalDeltaTime < baseDeltaTime * 0.98f;
 
+	// メニュー・進化画面・結果表示中は戦闘用の時間を0にする。演出用の基準時間は保つ。
 	if (IsTankRunMenuOpen() || player_->IsChangeMode() ||
 		gameFlowState_ == GameFlowState::StageClear ||
 		gameFlowState_ == GameFlowState::GameOver) {
@@ -1031,6 +1033,7 @@ void GameScene::Update() {
 	ball_->Update();
 	groundObj_->Update();
 
+	// 戦闘本体はプレイ中・フェード完了後・遠征メニューが閉じている場合にだけ進める。
 	if (gameFlowState_ == GameFlowState::Playing && phase_ == Phase::kMain && !IsTankRunMenuOpen()) {
 		if (phase_ == Phase::kMain && !player_->IsChangeMode()) {
 			playTime_ += baseDeltaTime;
@@ -1039,6 +1042,7 @@ void GameScene::Update() {
 		UpdateLevelItems();
 
 		player_->SetDebugNoDamage(debugPlayerNoDamage_ || (expeditionMapEnabled_ && expeditionMapRun_.GetActiveNode() && expeditionMapRun_.GetActiveNode()->role==tankexp::NodeRole::TutorialCombat));
+		// 誘導先は敵の位置の写し。これを設定してから自機・ドローンを更新し、弾の生成とレーザー・地雷・斬撃の予約を進める。
 		if (prototypeRun_ && !player_->IsChangeMode()) {
 			std::vector<cg2::Vector3> targets;
 			if ((IsRunRivalActive() && !enemy_->IsDead())) targets.push_back(enemy_->GetWorldPosition());
@@ -1053,9 +1057,11 @@ void GameScene::Update() {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 		upgradeHudAfterPlayerUpdate_ = player_->GetUpgradeHudDebugSnapshot();
 #endif
-		// The evolution menu updates its own input, but the world must stay frozen.
+		// prototypeRun_が有効なモードの進化画面は自機側で入力を受け付ける。閉じたフレームも戦闘の後半を再開しない。
+		// この条件はprototypeRun_に限り、通常モードは戦闘時間0で以下を呼ぶ。
 		if (!prototypeRun_ || (!player_->IsChangeMode() && !evolutionUiWasOpenAtFrameStart)) {
 		UpdateTutorial(baseDeltaTime);
+		// 自機が予約した攻撃をここで消費する。レーザーは受取時に命中を適用し、地雷・斬撃は状態を登録する。
 		for (const Player::LaserShotEvent& event : player_->ConsumeLaserShotEvents()) {
 			SpawnPlayerLaser(event);
 		}
@@ -1065,6 +1071,7 @@ void GameScene::Update() {
 		for (const Player::MeleeSlashEvent& event : player_->ConsumeMeleeSlashEvents()) {
 			SpawnPlayerMeleeSlash(event);
 		}
+		// レーザー表示と地雷は基準時間、斬撃の有効時間は減速を含む戦闘時間で進める。
 		UpdatePlayerNeonAfterimages(baseDeltaTime);
 		UpdatePlayerLasers(baseDeltaTime);
 		UpdatePlayerMines(baseDeltaTime);
@@ -1074,6 +1081,8 @@ void GameScene::Update() {
 			playerDeathShakeStarted_ = true;
 		}
 
+		// チュートリアルの抑制中は敵AI・特殊戦闘・アクター衝突を呼ばない。
+		// 予約攻撃の受取と弾の更新はこの抑制条件の外で行う。
 		const bool suppressTutorialCombat = IsTutorialCombatSuppressed();
 		if (!suppressTutorialCombat) {
 			cg2::RuntimeProfiler::CpuScope scope("Enemy AI Update");
@@ -1082,12 +1091,14 @@ void GameScene::Update() {
 			enemyManager_->Update(*stage_, finalDeltaTime);
 		}
 
+        // 敵AIが発射した弾も含めて移動・壁衝突を処理する。この更新内で死亡弾の実体も削除する。
         {
             cg2::RuntimeProfiler::CpuScope scope("Bullets / Trails / Wall Collision");
 		    bulletManager_->Update(*stage_, finalDeltaTime);
         }
 
-		// 衝突マネージャの更新
+		// 弾と敵の更新後に特殊戦闘を適用し、その後で通常のアクター接触を通知する。
+		// 衝突通知中に予約された弾はCheckAllCollisionsの走査後に追加され、このフレームの移動には戻らない。
 		if (!suppressTutorialCombat) {
 			cg2::RuntimeProfiler::CpuScope scope("Actor / Bullet Collision");
 			player_->UpdateSpecialCombat(*stage_,bulletManager_.get(),IsRunRivalActive()?enemy_.get():nullptr,enemyManager_.get(),finalDeltaTime);
@@ -1111,11 +1122,13 @@ void GameScene::Update() {
 			collisionDebugRingManager_->Clear();
 		}
 		collisionDebugRingManager_->Update(finalDeltaTime);
+		// そのフレームの攻撃・衝突結果を受けてHP差分と死亡状態を調べ、死亡時は次回の戦闘を止める状態へ移る。
 		if (!suppressTutorialCombat) {
 			UpdateGameplayEventEffects(baseDeltaTime, justDodgeTriggered);
 		}
 		}
 	} else {
+		// 戦闘本体を呼ばないフレームでも、撃破・死亡演出は基準時間で進める。
 		collisionDebugRingManager_->Clear();
 		if (gameFlowState_ == GameFlowState::BossDefeatSequence && enemy_) {
 			enemy_->UpdateDefeatPresentation(baseDeltaTime);
@@ -1124,6 +1137,7 @@ void GameScene::Update() {
 			player_->UpdateDefeatPresentation(baseDeltaTime);
 		}
 	}
+	// 戦闘停止中も、残っている演出を進め、未消費の特殊戦闘イベントを受け取る。
 	UpdateSpecialCombatPresentation(baseDeltaTime);
 	screenEffectDirector_.SetUpgradeMenuOpen(player_->IsChangeMode() || IsTankRunMenuOpen());
 	playerPostEffect_->Update(finalDeltaTime);
@@ -1167,6 +1181,7 @@ void GameScene::Update() {
 	for (const cg2::ParticleManager::ScreenPulseEvent& event : cg2::ParticleManager::GetInstance()->ConsumeScreenPulseEvents()) {
 		TriggerDeathPostPulse(event.position, event.strength);
 	}
+	// 死亡演出・通貨回収の終了条件を見て結果画面へ移る。戦闘の時間倍率には合わせない。
 	UpdateGameFlow(baseDeltaTime);
 
 	switch (phase_) {
@@ -1662,6 +1677,7 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 	}
 	if(expeditionRun_&&player_->ConsumePrimaryAttackPerformedEvent()) tankExpeditionAudio_.Shot();
 
+	// HPは各攻撃/衝突で適用済み。前回からの純減分を演出と累積表示へ使い、ここではHPを減らさない。
 	const int playerHp = player_->GetHp();
 	if (previousPlayerHp_ >= 0 && playerHp < previousPlayerHp_) {
 		const int damage = previousPlayerHp_ - playerHp;
@@ -1713,6 +1729,7 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 
 	if(expeditionRun_&&IsRunRivalActive()&&enemy_->GetHp()<previousBossHp_) tankExpeditionAudio_.Hit();
 	previousBossHp_ = enemy_->GetHp();
+	// 遠征で自機とボスが同時に死亡した場合は自機の死亡を先に扱う。通常モードはボス撃破が先。
 	if (expeditionRun_ && player_->IsDead() && !playerDeathHandled_) {
 		BeginGameOver();
 	} else if (IsRunRivalActive() && enemy_->IsDead() && !bossDefeatHandled_ &&
@@ -1725,6 +1742,7 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 
 void GameScene::BeginBossDefeatSequence()
 {
+	// 撃破演出の状態へ移り、次回Updateの戦闘分岐を止める。敵や弾の実体をここでは削除しない。
 	if(expeditionMapEnabled_) expeditionCollectAll_=true;
 	if (expeditionRun_) tankExpedition_.CompleteRoom();
 	if (prototypeRun_) { tankRun_.CompleteBoss(); RefreshTankRunUi(); }
@@ -1750,6 +1768,7 @@ void GameScene::BeginBossDefeatSequence()
 
 void GameScene::BeginGameOver()
 {
+	// 死亡済みの自機に対する進行・結果状態を設定する。戦闘の消去ではなく、以後の更新を止める入口。
 	if(expeditionMapEnabled_) expeditionMapRun_.MarkDead();
 	if (expeditionRun_) tankExpedition_.MarkDead();
 	if (prototypeRun_) { tankRun_.MarkDead(); RefreshTankRunUi(); }
@@ -1781,6 +1800,7 @@ void GameScene::UpdateGameFlow(float baseDeltaTime)
 		gameFlowTimer_ = (std::max)(0.0f, gameFlowTimer_ - baseDeltaTime);
 		if (gameFlowTimer_ <= 0.0f) {
 			if(expeditionMapEnabled_) {
+				// マップ遠征の最終戦は撃破演出に加え、残る通貨の回収完了も待ってから結果を確定する。
 				if(!expeditionCredits_.empty()) return;
 				expeditionMapRun_.CompleteCombat();expeditionCollectAll_=false;
 			}
@@ -2594,6 +2614,8 @@ void GameScene::SpawnPlayerLaser(const Player::LaserShotEvent& event)
 	}
 
 	const cg2::Vector3 direction = cg2::Normalize(event.direction);
+	// 0.35ワールド単位ごとの球判定で壁までの長さを近似する。厳密な線分交差ではない。
+	// 最初に接触したサンプルを表示と命中判定の終点に使う。
 	float range = (std::max)(0.1f, event.range);
 	if (stage_) {
 		const float step = 0.35f;
@@ -2616,6 +2638,8 @@ void GameScene::SpawnPlayerLaser(const Player::LaserShotEvent& event)
 	beam.color = event.color;
 	playerLaserBeams_.push_back(beam);
 
+	// 発射イベント1件につき、この時点の各対象へ一度だけダメージを渡す。
+	// 表示状態には威力を保持せず、残存中のレーザー表示から再度ダメージを与えない。
 	bool emittedImpact = false;
 	if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead())) {
 		float t = 0.0f;
@@ -2646,6 +2670,7 @@ void GameScene::SpawnPlayerLaser(const Player::LaserShotEvent& event)
 
 void GameScene::UpdatePlayerLasers(float deltaTime)
 {
+	// 発射時に命中は処理済みなので、ここでは表示寿命だけを減らして消去する。
 	for (PlayerLaserBeam& beam : playerLaserBeams_) {
 		beam.life -= deltaTime;
 	}
@@ -2707,6 +2732,7 @@ void GameScene::UpdatePlayerMines(float deltaTime)
 		mine.life -= deltaTime;
 		mine.rotation += deltaTime * 2.4f;
 
+		// 寿命切れは待機時間に関係なく起爆する。待機時間を過ぎた地雷は対象との距離でも起爆する。
 		bool shouldDetonate = mine.life <= 0.0f;
 		if (!shouldDetonate && mine.fuse <= 0.0f) {
 			if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && cg2::Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
@@ -2723,6 +2749,7 @@ void GameScene::UpdatePlayerMines(float deltaTime)
 		}
 
 		if (shouldDetonate) {
+			// 起爆で要素が消えるため、詰められた次の地雷を同じ添字で調べる。
 			DetonatePlayerMine(i);
 			continue;
 		}
@@ -2736,6 +2763,8 @@ void GameScene::DetonatePlayerMine(size_t index)
 		return;
 	}
 
+	// 元の地雷を写してから範囲ダメージを適用し、最後にその要素を削除する。
+	// 距離はZを含み、地形による遮蔽は調べない。正面装甲などの適用条件は対象の関数へ任せる。
 	const PlayerMine mine = playerMines_[index];
 	if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && cg2::Length(enemy_->GetWorldPosition() - mine.position) <= mine.radius + enemy_->GetRadius()) {
 		enemy_->TakeDamage(mine.damage);
@@ -2829,7 +2858,7 @@ void GameScene::ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, fl
 	const cg2::Vector3 bladeDir = RotateVector2D(slash.direction, angle);
 	const cg2::Vector3 right = { -slash.direction.y, slash.direction.x, 0.0f };
 	const cg2::Vector3 hilt = slash.origin - slash.direction * (slash.range * 0.08f) + right * (slash.range * slash.hiltSideOffset);
-	// Keep the ribbon on the outer blade so targets remain visible inside the arc.
+	// 軌跡は刃の外側だけに置き、斬撃範囲内の対象を覆わない。
 	base = hilt + bladeDir * (slash.range * slash.bladeLengthScale * 0.62f);
 	tip = hilt + bladeDir * (slash.range * slash.bladeLengthScale * (0.92f + x * 0.08f));
 }
@@ -2865,8 +2894,8 @@ void GameScene::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event)
 		slash.windupAngleDeg = profile.windupAngleDeg;
 		slash.returnAngleDeg = profile.returnAngleDeg;
 		slash.width *= (std::max)(0.05f, profile.bladeWidthScale);
-		// Expedition melee uses the same active window for damage, parry and
-		// third-hit waves; a visual profile must not extend its combat window.
+		// 近接ビルドの通常斬撃・パリィ・3段目の斬撃波は同じ有効時間を使う。
+		// そのビルドでは外観プロファイルのdurationScaleを斬撃時間へ掛けない。
 		if(!player_||!player_->IsMeleeBuild())slash.swingDuration *= (std::max)(0.05f, profile.durationScale);
 		slash.life = slash.windupDuration + slash.swingDuration + slash.recoveryDuration;
 		slash.color.x *= profile.colorScale.x;
@@ -2887,6 +2916,7 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 	const bool canFollowPlayer = player_ != nullptr;
 	const cg2::Vector3 playerPosition = canFollowPlayer ? player_->GetWorldPosition() : cg2::Vector3{};
 	for (PlayerMeleeSlash& slash : playerMeleeSlashes_) {
+		// 発射時の方向は保ったまま、自機のXY移動量だけ斬撃の原点へ加える。
 		if (canFollowPlayer) {
 			cg2::Vector3 followDelta = playerPosition - slash.followAnchor;
 			followDelta.z = 0.0f;
@@ -2895,9 +2925,11 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 		}
 		slash.elapsed += deltaTime;
 		slash.life -= deltaTime;
+		// 予備動作後から振り終わりまでの両端を含めて命中を調べる。回復動作中は新たに命中させない。
 		if (slash.elapsed >= slash.windupDuration && slash.elapsed <= slash.windupDuration+slash.swingDuration) {
 			const float halfArcRad = slash.arcDeg * 0.5f * 3.1415926535f / 180.0f;
 			const float minDot = slash.arcDeg >= 359.0f ? -1.0f : std::cos(halfArcRad);
+			// XYの射程/角度と、0.6単位ごとの壁サンプルで判定する。対象半径の手前までを調べる近似。
 			auto hitTarget = [&](const cg2::Vector3& targetPos, float targetRadius) {
 				cg2::Vector3 toTarget = targetPos - slash.origin;
 				toTarget.z = 0.0f;
@@ -2907,6 +2939,8 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 				return distance <= 0.0001f ||
 					(distance <= slash.range + targetRadius && cg2::Dot(cg2::Normalize(toTarget), slash.direction) >= minDot);
 			};
+			// この斬撃で処理した対象のアドレスを記録し、次フレームも同じ対象への重複適用を避ける。
+			// 命中演出のhitAppliedは斬撃全体の初回用で、各対象の命中記録とは別に扱う。
 			if (enemy_ && (IsRunRivalActive() && !enemy_->IsDead()) && std::find(slash.hitTargets.begin(),slash.hitTargets.end(),enemy_.get())==slash.hitTargets.end() && hitTarget(enemy_->GetWorldPosition(), enemy_->GetRadius())) {
 				slash.hitTargets.push_back(enemy_.get());enemy_->ApplyKnockback(slash.direction,slash.knockback);
 				enemy_->TakeDamage(slash.damage);
@@ -2917,6 +2951,7 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 				for (ExpEnemy* expEnemy : enemyManager_->GetEnemyPtrs()) {
 					if (expEnemy && !expEnemy->IsDead() && std::find(slash.hitTargets.begin(),slash.hitTargets.end(),expEnemy)==slash.hitTargets.end() && hitTarget(expEnemy->GetWorldPosition(), expEnemy->GetRadius())) {
 						slash.hitTargets.push_back(expEnemy);expEnemy->ApplyKnockback(slash.direction,slash.knockback);
+						// ノックバック速度を設定した後、後続更新の壁衝突を追跡できるようダメージ適用前に対象を登録する。
 						player_->ArmWallSmash(expEnemy);
 						expEnemy->TakeDirectionalDamage(slash.damage,slash.origin,true);
 						if(!slash.hitApplied) {QueueExpeditionImpact(expEnemy->GetWorldPosition(),slash.direction,slash.finisher);slash.hitApplied=true;}
@@ -2957,12 +2992,15 @@ void GameScene::UpdatePlayerMeleeSlashes(float deltaTime)
 
 void GameScene::UpdateSpecialCombatPresentation(float dt)
 {
+	// ageは基準時間で進む経過秒。既存フラッシュの期限切れ分を消去してから、このフレームのイベントを追加する。
 	for(auto& flash:buildCombatFlashes_)flash.age+=dt;
 	std::erase_if(buildCombatFlashes_,[](const auto& flash){return flash.age>.30f;});
 	for(auto& flash:specialCombatFlashes_)flash.age+=dt;
 	std::erase_if(specialCombatFlashes_,[](const auto& flash){return flash.age>.24f;});
 	specialProjectileVisuals_.clear();
 	if(!player_||!bulletManager_)return;
+	// 3つのConsumeは各待ち行列を取り出して空にする。表示枠が64件に達してもイベントは消費する。
+	// 攻撃結果は適用済みで、ここではHPへ再適用しない。
 	for(const auto& event:bulletManager_->ConsumeBuildEvents()) {
 		if(buildCombatFlashes_.size()<64)buildCombatFlashes_.push_back({event,0});
 		if(expeditionRun_)tankExpeditionAudio_.Hit();
@@ -2970,6 +3008,7 @@ void GameScene::UpdateSpecialCombatPresentation(float dt)
 	for(const auto& event:player_->ConsumeSpecialCombatEvents()) {
 		cg2::Vector3 end=event.origin;
 		if(event.kind==Player::SpecialEventKind::RailShot) {
+			// レールの見た目の終点を0.4単位の壁サンプルで求める。命中・威力の計算とは別。
 			for(float distance=.4f;distance<22;distance+=.4f) {
 				const auto next=event.origin+event.direction*distance;
 				if(stage_->IsCollisionWithAnyBlock(next,.12f))break;end=next;
@@ -2977,7 +3016,7 @@ void GameScene::UpdateSpecialCombatPresentation(float dt)
 			cameraShakeDuration_=.10f;cameraShakeTimer_=.10f;cameraShakePower_=(std::max)(cameraShakePower_,.09f);
 			if(expeditionRun_)tankExpeditionAudio_.RailShot();
 		} else if(event.kind==Player::SpecialEventKind::PerfectParry) {
-			// A single short hold per successful cut; ordinary slashes stay fluid.
+			// 完全パリィで停止用タイマーを最低0.035秒に設定する。減速の適用は次回Updateで行う。
 			expeditionImpactHold_=(std::max)(expeditionImpactHold_,.035f);
 			SetEventCallout("パリィ成功！",.42f);if(expeditionRun_)tankExpeditionAudio_.Parry(true);
 		} else if(event.kind==Player::SpecialEventKind::Parry) {
@@ -2998,11 +3037,13 @@ void GameScene::UpdateSpecialCombatPresentation(float dt)
 		if(specialCombatFlashes_.size()<64)specialCombatFlashes_.push_back({event,0,hit.position});
 		if(hit.bulletCut&&expeditionRun_)tankExpeditionAudio_.Parry(false);
 	}
+	// 名前はRatioだが、取得値は蓄積秒。現在の最大1秒を前提に音の段階を判定する。
 	const float charge=player_->GetRailChargeRatio();
 	railChargeAudioAge_+=dt;
 	if(charge>0&&railChargeAudioAge_>.30f&&!IsTankRunMenuOpen()) {
 		if(expeditionRun_)tankExpeditionAudio_.RailCharge(charge>=.999f);railChargeAudioAge_=0;
 	}
+	// 借用弾はこの走査で位置・方向・半径を値へ写す。後の描画へ弾ポインターを持ち越さない。
 	if(bulletManager_->GetBulletCount()>0)for(const auto* bullet:bulletManager_->GetBulletPtrs()) {
 		if(!bullet||bullet->IsDead()||bullet->GetSpecialKind()==Bullet::SpecialKind::None)continue;
 		auto direction=bullet->GetMove();direction=cg2::Length(direction)>.0001f?cg2::Normalize(direction):cg2::Vector3{1,0,0};
@@ -6340,6 +6381,7 @@ void GameScene::UpdateLevelBossPhases()
 		return;
 	}
 
+	// HP比が閾値以下になった未発動の段階を配列順で適用する。同じ更新で複数段階が成立し得る。
 	const float hpRate = static_cast<float>(enemy_->GetHp()) / static_cast<float>(enemy_->GetMaxHp());
 	for (RuntimeBossPhase& runtimePhase : levelBossPhases_) {
 		if (runtimePhase.activated || hpRate > runtimePhase.phase.startHpRate) {
