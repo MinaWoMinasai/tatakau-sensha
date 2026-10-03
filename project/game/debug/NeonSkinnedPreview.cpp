@@ -3,13 +3,17 @@
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "StartupTrace.h"
 #include "NeonPreviewAnimations.h"
+#include "TextureManager.h"
 #include "externals/nlohmann/json.hpp"
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <stdexcept>
 
 namespace {
 constexpr const char* kPreviewModelPath = "resources/models/neon_hologram/AvatarSample_B.glb";
+constexpr const char* kFeatureMaskDirectory = "resources/models/neon_hologram/line_masks/";
+constexpr const char* kFeatureMaskConfigPath = "resources/models/neon_hologram/line_masks/bindings.json";
 
 // 診断表示用のglTF metadataのみ読む。VRM表現・Materialを変換しない。
 nlohmann::json ReadGlbMetadata() {
@@ -65,6 +69,8 @@ void NeonSkinnedPreview::Load() {
 			}
 		} catch (const std::exception& error) { animationError_ = error.what(); }
 		submeshParams_.assign(model_->GetSubmeshCount(), cg2::NeonSkinnedSubmeshParams{});
+		featureMaskBindings_.assign(model_->GetSubmeshCount(), FeatureMaskBinding{});
+		featureMaskIndices_.assign(model_->GetSubmeshCount(), std::nullopt);
 		for (size_t index = 0; index < model_->GetSubmeshCount(); ++index) {
 			for (const auto& source : sourceMaterials_) {
 				if (source.materialName == model_->GetSubmesh(index).materialName) {
@@ -120,6 +126,7 @@ void NeonSkinnedPreview::Update(float deltaTime) {
 	auto surfaces = submeshParams_;
 	if (!alphaCutoutEnabled_) for (auto& surface : surfaces) surface.alphaCutoff = 0.0f;
 	renderer_.SetSubmeshParams(surfaces);
+	renderer_.SetSubmeshFeatureMasks(featureMaskIndices_);
 }
 
 void NeonSkinnedPreview::Draw() {
@@ -177,7 +184,15 @@ void NeonSkinnedPreview::ApplyRecommendedLineArtPreset() {
 }
 
 void NeonSkinnedPreview::ApplyLegacyNeonPreset() {
+	const auto maskColor = params_.featureMaskColor;
+	const float maskIntensity = params_.featureMaskIntensity;
+	const float maskBlend = params_.featureMaskBlend;
+	const uint32_t maskDebugMode = params_.featureMaskDebugMode;
 	params_ = cg2::NeonSkinnedParams{};
+	params_.featureMaskColor = maskColor;
+	params_.featureMaskIntensity = maskIntensity;
+	params_.featureMaskBlend = maskBlend;
+	params_.featureMaskDebugMode = maskDebugMode;
 	params_.internalLineEnabled = 1;
 	geometryPreset_ = GeometryPreset::Off;
 	for (auto& surface : submeshParams_) {
@@ -185,6 +200,123 @@ void NeonSkinnedPreview::ApplyLegacyNeonPreset() {
 		surface.internalLineThresholdScale = 1.0f;
 		surface.geometryLineStrength = 0.0f;
 	}
+}
+
+void NeonSkinnedPreview::LoadFeatureMaskCandidates() {
+	if (!ready_ || featureMasksLoadAttempted_) return;
+	featureMasksLoadAttempted_ = true;
+	featureMaskError_.clear();
+	try {
+		std::ifstream configStream(kFeatureMaskConfigPath);
+		if (!configStream) throw std::runtime_error("Cannot open bindings.json; automatic lines retained.");
+		const auto config = nlohmann::json::parse(configStream);
+		if (config.at("schemaVersion").get<int>() != 1 || !config.at("bindings").is_array())
+			throw std::runtime_error("Unsupported feature mask binding configuration.");
+		for (const auto& binding : config.at("bindings")) {
+			const auto materialName = binding.at("material").get<std::string>();
+			const auto fileName = binding.at("file").get<std::string>();
+			// この試作用設定ではUV0と同一ディレクトリのPNGだけを受け付ける。
+			if (binding.at("uvSet").get<int>() != 0 || fileName.empty() ||
+				std::filesystem::path(fileName).filename().string() != fileName ||
+				std::filesystem::path(fileName).extension() != ".png")
+				throw std::runtime_error("Feature masks require UV0 and a local PNG filename.");
+			bool found = false;
+			for (size_t index = 0; index < model_->GetSubmeshCount(); ++index) {
+				if (model_->GetSubmesh(index).materialName != materialName) continue;
+				found = true;
+				auto& target = featureMaskBindings_[index];
+				if (!target.path.empty()) throw std::runtime_error("Duplicate feature mask material binding: " + materialName);
+				target.path = std::string(kFeatureMaskDirectory) + fileName;
+				try {
+					std::ifstream stream(target.path, std::ios::binary | std::ios::ate);
+					if (!stream) throw std::runtime_error("PNG is missing; automatic lines retained.");
+					const auto size = stream.tellg();
+					if (size <= 0 || size > 16 * 1024 * 1024) throw std::runtime_error("PNG size is invalid.");
+					std::vector<uint8_t> bytes(static_cast<size_t>(size));
+					stream.seekg(0);
+					if (!stream.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size())))
+						throw std::runtime_error("PNG read failed; automatic lines retained.");
+					auto* textures = cg2::TextureManager::GetInstance();
+					constexpr auto colorSpace = cg2::TextureManager::TextureColorSpace::LinearData;
+					if (!textures->LoadTextureFromMemory(target.path, bytes.data(), bytes.size(), colorSpace))
+						throw std::runtime_error("PNG decode/upload failed; automatic lines retained.");
+					const auto& metadata = textures->GetMetaData(target.path, colorSpace);
+					// WICはRGBA PNGをBGRA/BGRXの格納形式で返す場合がある。UNORM SRVの
+					// 論理R/Gは同じで、sRGB形式は受け付けない。
+					const bool linearRgb8 = metadata.format == DXGI_FORMAT_R8G8B8A8_UNORM ||
+						metadata.format == DXGI_FORMAT_B8G8R8A8_UNORM || metadata.format == DXGI_FORMAT_B8G8R8X8_UNORM;
+					if (metadata.dimension != DirectX::TEX_DIMENSION_TEXTURE2D || metadata.arraySize != 1 ||
+						!linearRgb8)
+						throw std::runtime_error("Mask must be a linear RGB(A)8 2D PNG (DXGI format " +
+							std::to_string(metadata.format) + "); automatic lines retained.");
+					target.srvIndex = textures->GetTextureIndexByFilePath(target.path, colorSpace);
+					featureMaskIndices_[index] = target.srvIndex;
+					target.status = "Loaded: LinearData UNORM (DXGI " + std::to_string(metadata.format) + ") / UV0 / " + std::to_string(metadata.width) + "x" +
+						std::to_string(metadata.height) + " / " + std::to_string(metadata.mipLevels) + " mips";
+				} catch (const std::exception& error) {
+					target.srvIndex.reset();
+					featureMaskIndices_[index].reset();
+					target.status = error.what();
+				}
+			}
+			if (!found) throw std::runtime_error("Mask target material is missing: " + materialName);
+		}
+	} catch (const std::exception& error) { featureMaskError_ = error.what(); }
+	// 成功したMaterialだけに適用する。TextureManagerがGPU資源を保持し、再読込・破棄しない。
+	bool hasMask = false;
+	for (const auto& index : featureMaskIndices_) hasMask |= index.has_value();
+	params_.featureMaskBlend = hasMask ? 1.0f : 0.0f;
+	params_.featureMaskDebugMode = 0;
+}
+
+void NeonSkinnedPreview::DrawFeatureMaskImGui() {
+#ifdef USE_IMGUI
+	if (!ImGui::TreeNodeEx("Authored Feature Mask (candidate)", ImGuiTreeNodeFlags_DefaultOpen)) return;
+	ImGui::BeginDisabled(!ready_ || featureMasksLoadAttempted_);
+	if (ImGui::Button("Load / apply mask candidate")) LoadFeatureMaskCandidates();
+	ImGui::EndDisabled();
+	if (!featureMaskError_.empty()) ImGui::TextWrapped("Mask configuration: %s", featureMaskError_.c_str());
+	if (!featureMasksLoadAttempted_) ImGui::TextWrapped("Candidate masks are not loaded; initial automatic lines are unchanged.");
+	bool hasMask = false;
+	for (const auto& index : featureMaskIndices_) hasMask |= index.has_value();
+	ImGui::BeginDisabled(!hasMask);
+	if (ImGui::Button("Auto lines only")) { params_.featureMaskBlend = 0.0f; params_.featureMaskDebugMode = 0; }
+	ImGui::SameLine();
+	if (ImGui::Button("Apply candidate")) { params_.featureMaskBlend = 1.0f; params_.featureMaskDebugMode = 0; }
+	ImGui::SliderFloat("Mask application", &params_.featureMaskBlend, 0.0f, 1.0f, "%.2f");
+	ImGui::ColorEdit3("Authored line color", &params_.featureMaskColor.x);
+	ImGui::DragFloat("Authored line intensity (HDR)", &params_.featureMaskIntensity,
+		0.05f, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+	int diagnostic = static_cast<int>(params_.featureMaskDebugMode);
+	const char* modes[] = { "Shaded", "R: line coverage", "G: replacement region" };
+	ImGui::BeginDisabled(params_.featureMaskBlend <= 0.0f);
+	if (ImGui::Combo("Mask display", &diagnostic, modes, 3)) params_.featureMaskDebugMode = static_cast<uint32_t>(diagnostic);
+	ImGui::EndDisabled();
+	ImGui::EndDisabled();
+	ImGui::TextWrapped("R specifies lines; G replaces automatic lines. G=1/R=0 removes only internal lines. BaseColor alpha cutout remains independent.");
+	ImGui::TextWrapped("Diagnostics show unassigned surfaces as black. Application 0 restores automatic lines. Texture changes require an application restart.");
+	if (featureMasksLoadAttempted_) {
+		size_t loaded = 0, failed = 0;
+		for (const auto& binding : featureMaskBindings_) {
+			if (binding.path.empty()) continue;
+			if (binding.srvIndex) ++loaded;
+			else ++failed;
+		}
+		ImGui::Text("Material bindings: %zu loaded / %zu failed", loaded, failed);
+		if (failed) ImGui::TextWrapped("Failed targets keep automatic lines; see load status below.");
+		if (ImGui::TreeNode("Mask target Materials / load status")) {
+			for (size_t index = 0; index < featureMaskBindings_.size(); ++index) {
+				const auto& binding = featureMaskBindings_[index];
+				if (binding.path.empty()) continue;
+				ImGui::TextWrapped("%s", model_->GetSubmesh(index).materialName.c_str());
+				ImGui::TextWrapped("%s / %s", binding.path.c_str(), binding.status.c_str());
+			}
+			ImGui::TreePop();
+		}
+		ImGui::TextWrapped("Some hair UVs are shared. The selected front-hair region has no front/back overlap in this model; broader edits may affect other strands.");
+	}
+	ImGui::TreePop();
+#endif
 }
 
 void NeonSkinnedPreview::ApplyGeometryPreset(GeometryPreset preset) {
@@ -248,6 +380,7 @@ void NeonSkinnedPreview::DrawImGui() {
 	if (ImGui::Button("Recommended Line Art")) ApplyRecommendedLineArtPreset();
 	if (ImGui::Button("Legacy Neon comparison")) ApplyLegacyNeonPreset();
 	ImGui::EndDisabled();
+	DrawFeatureMaskImGui();
 	if (ready_) {
 		ImGui::Text("GLB animations: %zu / Generated clips: %zu", sourceAnimationCount_, generatedAnimationCount_);
 		if (!animationError_.empty()) ImGui::TextWrapped("Motion unavailable (BindPose retained): %s", animationError_.c_str());
