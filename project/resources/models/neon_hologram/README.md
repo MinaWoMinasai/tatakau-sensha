@@ -63,7 +63,7 @@ Previewは開いただけでは有効になりません。下記の`Preview Enab
 
 ## 暗い本体 + ネオン外周線
 
-`Neon`の既定表示は暗い紫の本体と細いピンクの外周線です。以前の本体全体の固定発光を外し、同じSkinning Paletteで膨張したHullを追加描画します。既存のScene BloomへHDR発光を渡すので、専用Bloomや起動方法の変更は不要です。
+Previewの初回表示は下記の`Recommended Line Art`を使用します。Renderer単体の既定表示は暗い紫の本体と細いピンクの外周線です。同じSkinning Paletteで膨張したHullを追加描画し、既存のScene BloomへHDR発光を渡します。
 
 - `Reset: dark body + neon lines`: 色・強度・線幅を既定値へ戻し、内部線を有効にする。
 - `Outline Enable`: 外周線のオン／オフ。
@@ -87,11 +87,32 @@ Previewは開いただけでは有効になりません。下記の`Preview Enab
 - `Texture alpha cutout`: Neonだけに簡易Cutoutを適用。Previewは既定オン。MASKは元の`alphaCutoff`、BLENDは0.03を初期値とする。
 - `Submesh / Material diagnostics`: Submeshごとの`Line strength`と`Alpha cutoff`を調整。不要な模様のSubmeshは強度0で内部線だけを止められる。
 
-Root Signatureは既存のTransform `b0`（VS）、Neon/Camera/Viewport `b1`（ALL）、Palette `t3`（VS）に、BaseColor `t0`（PS）、Submesh用2 DWORDのRoot Constants `b2`（PS）、linear clamp sampler `s0`を追加します。Neon定数は96 bytes、CBV領域は256 bytes、Submesh定数は8 bytesです。Material SRVは同じSrvManagerで初期化済みのSkinnedModelから共有し、DrawごとにCB内容とRoot Constantsを記録します。`SetSubmeshParams()`は空またはモデルのSubmesh数に一致する配列を渡してください。Renderer単体の既定値は内部線オフ・Cutoutなしのため、既存呼び出しは外周のみの表示を維持します。
+Root SignatureはTransform `b0`（VS）、Neon/Camera/Viewport `b1`（ALL）、Palette `t3`（VS）、BaseColor `t0`（PS）、Submesh用4 DWORDのRoot Constants `b2`（PS）、linear clamp sampler `s0`です（合計10 DWORD）。Neonパラメータは96 bytes、Camera/Viewportを含むGPU定数は128 bytes、CBV領域は256 bytes、Submesh定数は16 bytesです。Material SRVは同じSrvManagerで初期化済みのSkinnedModelから共有し、DrawごとにCB内容とRoot Constantsを記録します。`SetSubmeshParams()`は空またはモデルのSubmesh数に一致する配列を渡してください。Renderer単体の既定値は内部線・Geometry Lines・Body emissionがオフ、Cutoutなしのため、既存呼び出しの表示を維持します。
 
 参考イラストの描き込みをTexture境界だけで完全再現するものではありません。塗りの境界やハイライトも線になり、モデルに描かれていない髪の線・口の形を自動生成しません。遠距離の小さな顔、UV seam、細い髪のalpha境界では途切れやちらつきが残ります。次段階で線を厳密に指定する場合は専用Feature Maskを検討してください。Barycentricで全三角形を描く方式とは分けて設計します。
 
-`project/tools/test_neon_skinned_pipeline.ps1`は実DXC・WARPで5種類のPSOを生成し、合成Skinned Geometryを実際に描画して、暗い本体、外周のHDR発光、線幅、Depth遮蔽、MRT / Stencil保持、Palette追従、同一フレームのDrawごとの定数、Texture内部線・無効化・Submesh強度・透明部分のDepth非書き込みを検証します。Development実機でもAvatarSample_Bを表示し、Normal / Neon切替、内部線オン／オフ、幅・閾値・Cutoutの操作とScene Bloomを確認しました（Animationは0のためBindPose）。
+`project/tools/test_neon_skinned_pipeline.ps1`は実DXC・WARPでBody / Outline / Stencil用の5種類のPSOと、対応時にはGeometry用2種類のPSOを生成します。`-Hardware`で実GPUも選べます。合成Skinned Geometryのreadbackで、定数配置、暗い本体と補助発光、外周のHDR発光、線幅、Depth遮蔽、MRT / Stencil保持、Palette追従、Drawごとの定数、Texture内部線・Submesh強度 / 閾値・Alpha CutoutとGeometry Linesの独立性を検証します。実モデルの見た目確認とは別の検証です。
+
+## 推奨ネオン線画プリセット
+
+`Recommended Line Art`は外観設定だけを変更します。初回ロードにも適用します。`Legacy Neon comparison`（または既存Resetボタン）で調整前の設定と比較できます。両操作ともAnimation / Pause / Seek位置、Normal / Neon、Transform、手動のAlpha Cutout設定を保持し、モデルを再ロードしません。
+
+- 外周：1.15px、HDR強度6、主線はピンク。内部線：サンプル間隔0.7px、HDR強度5、共通閾値0.16。
+- 顔・目・口を優先し、髪の陰影帯と服の細かい模様を抑えます。`Submesh / Material diagnostics`の`Line strength`と`Internal threshold scale`で個別調整できます。後者は共通閾値への倍率です。
+- `Body tint`と`Body emission`は線から独立しています。弱いピンク紫の面を視線と法線で補助し、通常ライティングは追加しません。Body emission=0で従来の固定Body色へ戻ります。
+- `Mesh Geometry Lines (diagnostic)`は初期OFF・折りたたみです。OFF / Subtle / Full Mesh Diagnostic、色・幅・強度と各SubmeshのGeometry強度を引き続き比較できます。線画プリセットを適用するとGeometry LinesはOFFになります。
+
+| Materialの役割 | 内部線強度 | 閾値倍率 |
+| --- | ---: | ---: |
+| FaceMouth | 1.4 | 0.8 |
+| EyeIris | 1.15 | 1.0 |
+| EyeHighlight | 0.45 | 1.0 |
+| Face Skin | 1.25 | 0.35 |
+| Hair | 0.75 | 1.15 |
+| Body Skin | 0.12 | 1.8 |
+| Shoes / Cloth | 0.45 | 1.4 |
+
+線は既存テクスチャの描き込みに依存します。鼻先や頬の薄い線が全距離で読める保証はなく、髪のハイライト境界と服の模様を意味的な線だけへ完全分離するものではありません。
 
 ## Materialの制約
 

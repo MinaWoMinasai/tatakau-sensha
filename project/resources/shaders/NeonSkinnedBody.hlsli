@@ -23,13 +23,17 @@ PixelShaderOutput ShadeNeonBody(NeonSkinnedVertexOutput input, bool isFrontFace,
     float3 viewDirection = toCamera * rsqrt(max(dot(toCamera, toCamera), 1.0e-8f));
     float rim = pow(1.0f - saturate(dot(normal, viewDirection)), max(gRimPower, 0.001f));
 
-    // 面全体の固定発光は行わない。Rimは任意の弱い補助で、外周は専用パスで描く。
+    // 照明には依存せず、視線と法線で暗い面を少しだけ読めるようにする。
+    // 強度0なら従来のBody色。Rimと線の色・強度は独立したまま。
+    float3 body = max(gBodyColor.rgb, 0.0f);
+    body += body * max(gBodyEmissionIntensity, 0.0f)
+        * (0.25f + 0.75f * saturate(dot(normal, viewDirection)));
     float3 emission = max(gEmissiveColor, 0.0f) * max(gEmissiveIntensity, 0.0f)
         * max(gRimStrength, 0.0f) * rim;
     emission += max(gEmissiveColor, 0.0f) * max(gInternalLineIntensity, 0.0f) * internalLine;
     emission += geometryEmission;
     PixelShaderOutput output;
-    output.color = float4(max(gBodyColor.rgb, 0.0f) + emission, saturate(gBodyColor.a));
+    output.color = float4(body + emission, saturate(gBodyColor.a));
     // 現在のScene MRT encoding。反射用SSR mask=0、roughness=1、metallic=0、AO=1。
     output.normal = float4(normal * 0.5f + 0.5f, 0.0f);
     output.material = float4(1.0f, 0.0f, 1.0f, 0.0f);

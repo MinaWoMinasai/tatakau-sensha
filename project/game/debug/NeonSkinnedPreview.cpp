@@ -73,6 +73,7 @@ void NeonSkinnedPreview::Load() {
 				}
 			}
 		}
+		ApplyRecommendedLineArtPreset();
 		object_ = std::make_unique<cg2::Object3d>();
 		object_->Initialize();
 		object_->SetCamera(camera_);
@@ -134,6 +135,58 @@ void NeonSkinnedPreview::Draw() {
 	cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 }
 
+void NeonSkinnedPreview::ApplyRecommendedLineArtPreset() {
+	params_.bodyColor = { 0.018f, 0.0025f, 0.012f, 1.0f };
+	params_.bodyEmissionIntensity = 1.5f;
+	params_.outlineEnabled = 1;
+	params_.outlineWidthPixels = 1.15f;
+	params_.emissiveIntensity = 6.0f;
+	params_.emissiveColor = { 1.0f, 0.025f, 0.35f };
+	params_.internalLineEnabled = 1;
+	params_.internalLineWidthPixels = 0.7f;
+	params_.internalLineIntensity = 5.0f;
+	params_.internalLineThreshold = 0.16f;
+	params_.rimStrength = 0.0f;
+	params_.geometryLineEnabled = 0;
+	geometryPreset_ = GeometryPreset::Off;
+	if (!model_) return;
+	// 同じAtlasでも顔の薄い描き込みと服・髪の陰影は異なるため、実Material名で調整する。
+	struct MaterialSetting { const char* name; float strength; float thresholdScale; };
+	constexpr MaterialSetting settings[] = {
+		{ "N00_000_00_FaceMouth_00_FACE (Instance)", 1.4f, 0.8f },
+		{ "N00_000_00_EyeIris_00_EYE (Instance)", 1.15f, 1.0f },
+		{ "N00_000_00_EyeHighlight_00_EYE (Instance)", 0.45f, 1.0f },
+		{ "N00_000_00_Face_00_SKIN (Instance)", 1.25f, 0.35f },
+		{ "N00_000_Hair_00_HAIR_01 (Instance)", 0.75f, 1.15f },
+		{ "N00_000_00_Body_00_SKIN (Instance)", 0.12f, 1.8f },
+		{ "N00_005_01_Shoes_01_CLOTH (Instance)", 0.45f, 1.4f }
+	};
+	for (size_t index = 0; index < submeshParams_.size(); ++index) {
+		auto& surface = submeshParams_[index];
+		surface.lineStrength = 0.15f;
+		surface.internalLineThresholdScale = 1.5f;
+		surface.geometryLineStrength = 0.0f;
+		for (const auto& setting : settings) {
+			if (model_->GetSubmesh(index).materialName == setting.name) {
+				surface.lineStrength = setting.strength;
+				surface.internalLineThresholdScale = setting.thresholdScale;
+				break;
+			}
+		}
+	}
+}
+
+void NeonSkinnedPreview::ApplyLegacyNeonPreset() {
+	params_ = cg2::NeonSkinnedParams{};
+	params_.internalLineEnabled = 1;
+	geometryPreset_ = GeometryPreset::Off;
+	for (auto& surface : submeshParams_) {
+		surface.lineStrength = 1.0f;
+		surface.internalLineThresholdScale = 1.0f;
+		surface.geometryLineStrength = 0.0f;
+	}
+}
+
 void NeonSkinnedPreview::ApplyGeometryPreset(GeometryPreset preset) {
 	if (!ready_) return;
 	geometryPreset_ = preset;
@@ -155,7 +208,7 @@ void NeonSkinnedPreview::ApplyGeometryPreset(GeometryPreset preset) {
 
 void NeonSkinnedPreview::DrawGeometryLinesImGui() {
 #ifdef USE_IMGUI
-	if (!ImGui::TreeNodeEx("Mesh Geometry Lines", ImGuiTreeNodeFlags_DefaultOpen)) return;
+	if (!ImGui::TreeNode("Mesh Geometry Lines (diagnostic)")) return;
 	if (ready_) ImGui::TextWrapped("Barycentrics: %s", renderer_.GetGeometryLinesStatus().c_str());
 	else ImGui::TextWrapped("Barycentrics: enable Preview to check this device.");
 	ImGui::BeginDisabled(!ready_ || !renderer_.IsGeometryLinesSupported());
@@ -191,6 +244,10 @@ void NeonSkinnedPreview::DrawImGui() {
 	if (ImGui::RadioButton("Normal", mode == 0)) neonMode_ = false;
 	ImGui::SameLine();
 	if (ImGui::RadioButton("Neon", mode == 1)) neonMode_ = true;
+	ImGui::BeginDisabled(!ready_);
+	if (ImGui::Button("Recommended Line Art")) ApplyRecommendedLineArtPreset();
+	if (ImGui::Button("Legacy Neon comparison")) ApplyLegacyNeonPreset();
+	ImGui::EndDisabled();
 	if (ready_) {
 		ImGui::Text("GLB animations: %zu / Generated clips: %zu", sourceAnimationCount_, generatedAnimationCount_);
 		if (!animationError_.empty()) ImGui::TextWrapped("Motion unavailable (BindPose retained): %s", animationError_.c_str());
@@ -225,17 +282,14 @@ void NeonSkinnedPreview::DrawImGui() {
 	ImGui::DragFloat3("Rotation (radians)", &transform_.rotate.x, 0.01f);
 	ImGui::DragFloat3("Scale", &transform_.scale.x, 0.05f, 0.01f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 	if (ImGui::Button("Place in front of camera")) PlaceInFrontOfCamera();
-	if (ImGui::Button("Reset: dark body + neon lines")) {
-		params_ = cg2::NeonSkinnedParams{};
-		params_.internalLineEnabled = 1;
-		geometryPreset_ = GeometryPreset::Off;
-	}
-	ImGui::ColorEdit3("bodyColor", &params_.bodyColor.x);
+	if (ImGui::Button("Reset: dark body + neon lines")) ApplyLegacyNeonPreset();
+	ImGui::ColorEdit3("Body tint", &params_.bodyColor.x);
+	ImGui::DragFloat("Body emission", &params_.bodyEmissionIntensity, 0.02f, 0.0f, 4.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 	bool outlineEnabled = params_.outlineEnabled != 0;
 	if (ImGui::Checkbox("Outline Enable", &outlineEnabled)) params_.outlineEnabled = outlineEnabled ? 1u : 0u;
 	ImGui::DragFloat("Outline width (pixels)", &params_.outlineWidthPixels, 0.05f, 0.0f, 8.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-	ImGui::ColorEdit3("Neon line color", &params_.emissiveColor.x);
-	ImGui::DragFloat("Neon line intensity (HDR)", &params_.emissiveIntensity, 0.05f, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+	ImGui::ColorEdit3("Outline / feature line color", &params_.emissiveColor.x);
+	ImGui::DragFloat("Outline intensity (HDR)", &params_.emissiveIntensity, 0.05f, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 	bool internalEnabled = params_.internalLineEnabled != 0;
 	if (ImGui::Checkbox("Internal Line Enable", &internalEnabled)) params_.internalLineEnabled = internalEnabled ? 1u : 0u;
 	ImGui::DragFloat("Internal width (pixels)", &params_.internalLineWidthPixels, 0.05f, 0.0f, 4.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
@@ -265,6 +319,8 @@ void NeonSkinnedPreview::DrawImGui() {
 			ImGui::TextWrapped("%s / alpha=%s / doubleSided=%s", submesh.materialName.c_str(),
 				source ? source->alphaMode.c_str() : "Unknown", submesh.doubleSided ? "true" : "false");
 			ImGui::DragFloat("Line strength", &submeshParams_[i].lineStrength, 0.02f, 0.0f, 2.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::DragFloat("Internal threshold scale", &submeshParams_[i].internalLineThresholdScale,
+				0.02f, 0.1f, 4.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 			ImGui::DragFloat("Alpha cutoff", &submeshParams_[i].alphaCutoff, 0.01f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 			ImGui::BeginDisabled(!renderer_.IsGeometryLinesSupported());
 			if (ImGui::DragFloat("Geometry strength", &submeshParams_[i].geometryLineStrength,
