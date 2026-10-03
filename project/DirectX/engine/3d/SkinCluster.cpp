@@ -865,13 +865,69 @@ bool SkinnedModel::SetAnimation(size_t index, bool restart) {
 	if (index >= animations_.size()) {
 		return false;
 	}
-	if (index == currentAnimationIndex_ && animationPlayer_.GetAnimation() != nullptr) {
+	if (index == currentAnimationIndex_ && animationPlayer_.GetAnimation() != nullptr && !restart) {
 		return true;
 	}
 	currentAnimationIndex_ = index;
 	animationPlayer_.SetAnimation(&animations_[currentAnimationIndex_], restart);
+	if (animationPaused_) animationPlayer_.SetPlaying(false);
 	animationTransitionActive_ = false;
 	return true;
+}
+
+bool SkinnedModel::RegisterAnimations(std::vector<Animation> animations, std::string* error) {
+	auto fail = [error](const std::string& message) {
+		if (error) *error = message;
+		return false;
+	};
+	if (skeleton_.joints.empty() || animations_.empty()) return fail("Initialize the model before registering clips.");
+	if (animations.empty()) return fail("No animation clips supplied.");
+	std::unordered_set<std::string> names;
+	for (const auto& clip : animations_) names.insert(clip.name);
+	for (const auto& clip : animations) {
+		if (clip.name.find_first_not_of(" \t\r\n") == std::string::npos || !names.insert(clip.name).second)
+			return fail("Empty or duplicate animation name: " + clip.name);
+		if (!std::isfinite(clip.duration) || clip.duration < 0.0f)
+			return fail("Invalid animation duration: " + clip.name);
+		for (const auto& [jointName, node] : clip.nodeAnimations) {
+			if (!skeleton_.jointMap.contains(jointName)) return fail("Missing animation joint: " + jointName);
+			auto validCurve = [&clip](const auto& curve, auto validValue) {
+				float previous = -1.0f;
+				for (const auto& key : curve.keyframes) {
+					if (!std::isfinite(key.time) || key.time < 0.0f || key.time > clip.duration ||
+						key.time <= previous || !validValue(key.value)) return false;
+					previous = key.time;
+				}
+				return true;
+			};
+			auto vectorFinite = [](const Vector3& v) { return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z); };
+			auto quaternionValid = [](const Quaternion& q) {
+				return std::isfinite(q.x) && std::isfinite(q.y) && std::isfinite(q.z) && std::isfinite(q.w) &&
+					std::abs(DotQuaternion(q, q) - 1.0f) <= 0.001f;
+			};
+			if (!validCurve(node.translate, vectorFinite) || !validCurve(node.scale, vectorFinite) ||
+				!validCurve(node.rotate, quaternionValid)) return fail("Invalid animation keys: " + clip.name + " / " + jointName);
+		}
+	}
+	// 失敗する可能性のあるコピー・追加を既存vectorから分離する。再配置中にPlayerを使わない。
+	auto combined = animations_;
+	combined.reserve(combined.size() + animations.size());
+	for (auto& clip : animations) combined.push_back(std::move(clip));
+	animations_.swap(combined);
+	animationPlayer_.SetAnimation(&animations_[currentAnimationIndex_], false);
+	if (error) error->clear();
+	return true;
+}
+
+void SkinnedModel::SetAnimationPlaying(bool playing) {
+	animationPaused_ = !playing;
+	animationPlayer_.SetPlaying(playing);
+}
+
+void SkinnedModel::SeekCurrentAnimation(float time) {
+	if (!std::isfinite(time)) throw std::invalid_argument("Animation seek time must be finite.");
+	animationPlayer_.Seek(time);
+	animationTransitionActive_ = false;
 }
 
 bool SkinnedModel::TransitionToAnimation(
@@ -915,6 +971,7 @@ bool SkinnedModel::TransitionToAnimation(
 
 	currentAnimationIndex_ = index;
 	animationPlayer_.SetAnimation(&animations_[currentAnimationIndex_], true);
+	if (animationPaused_) animationPlayer_.SetPlaying(false);
 	if (synchronizeNormalizedTime && animations_[currentAnimationIndex_].duration > 0.0f) {
 		animationPlayer_.Seek(normalizedTime * animations_[currentAnimationIndex_].duration);
 	}
@@ -925,6 +982,8 @@ bool SkinnedModel::TransitionToAnimation(
 }
 
 void SkinnedModel::Update(float deltaTime) {
+	// 非ループの自然終了と明示的なPauseを分け、Pauseだけがブレンドも凍結する。
+	if (animationPaused_ || !std::isfinite(deltaTime) || deltaTime < 0.0f) deltaTime = 0.0f;
 	if (animationTransitionActive_) {
 		animationPlayer_.Update(deltaTime);
 		animationTransitionElapsed_ += deltaTime;
