@@ -28,6 +28,7 @@ public:
     void DrawImGui();
 
 private:
+    enum class GeometryPreset { Off, Subtle, FullMeshDiagnostic, Custom };
     /// @brief プレビュー対象の元のマテリアル値を保持する。
     struct SourceMaterial {
         std::string meshName;
@@ -37,6 +38,9 @@ private:
     };
     /// @brief 保存されたデータを読み込む。
     void Load();
+    // Geometry設定だけを変更する。モデル・再生状態・既存の線設定は維持する。
+    void ApplyGeometryPreset(GeometryPreset preset);
+    void DrawGeometryLinesImGui();
     /// @brief プレビュー対象をカメラの前へ配置する。
     void PlaceInFrontOfCamera();
     /// @brief カメラ位置を返す。
@@ -48,6 +52,7 @@ private:
     bool neonMode_ = true;
     bool ready_ = false;
     bool alphaCutoutEnabled_ = true;
+    GeometryPreset geometryPreset_ = GeometryPreset::Off;
     cg2::Transform transform_{{8.0f, 8.0f, 8.0f}, {}, {}}; // 正面から顔の内部線を比較する。
     cg2::NeonSkinnedParams params_;
     std::unique_ptr<cg2::SkinnedModel> model_;
