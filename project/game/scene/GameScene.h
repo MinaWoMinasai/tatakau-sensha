@@ -100,20 +100,32 @@ public:
     /// @brief 最終差分時間を返す。
     float GetFinalDeltaTime() const override
     {
+        if (IsNeonShowcaseActive()) return 1.0f / 60.0f;
         return finalDeltaTime;
     }
     /// @brief 後処理ガウシアン強度を返す。
     float GetPostGaussianIntensity() const override
     {
+        if (IsNeonShowcaseActive()) return 0.0f;
         return sceneFadeBlurIntensity_;
     }
     /// @brief 後処理演出パルスを返す。
     PostEffectPulse GetPostEffectPulse() const override
     {
+        if (IsNeonShowcaseActive()) return {};
         return deathPostPulse_;
     }
     /// @brief 画面演出状態を返す。
     ScreenEffectState GetScreenEffectState() const override;
+    bool IsNeonShowcaseActive() const {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+        return neonSkinnedPreview_ && neonSkinnedPreview_->IsShowcaseActive();
+#else
+        return false;
+#endif
+    }
+    DeveloperShowcaseState GetDeveloperShowcaseState() override;
+    void RecordDeveloperFrame(cg2::DirectXCommon& dx) override;
     /// @brief 描画区間の計測値を設定する。
     void SetRenderProfile(const IScene::RenderProfile& profile) override;
     /// @brief タイトル背景のデモの進行と表示用の集計値を表す。

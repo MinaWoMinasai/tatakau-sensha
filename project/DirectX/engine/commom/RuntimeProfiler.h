@@ -60,6 +60,9 @@ public:
     {
         return captureCompleted_;
     }
+    bool IsCaptureActive() const { return captureFrames_ > 0 && !captureCompleted_; }
+    // Developer UIから既存timestamp計測を再開する。無効環境では副作用なくfalse。
+    bool StartCapture(const std::string& path, int frames = 300, int warmupFrames = 60);
 
     /// @brief スコープの開始・終了をCPU計測へ記録するRAIIオブジェクトを表す。
     class CpuScope {

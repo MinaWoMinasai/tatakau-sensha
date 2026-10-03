@@ -930,6 +930,42 @@ void SkinnedModel::SeekCurrentAnimation(float time) {
 	animationTransitionActive_ = false;
 }
 
+SkinnedModel::AnimationPlaybackState SkinnedModel::CaptureAnimationPlaybackState() const {
+	return { currentAnimationIndex_, animationPlayer_.GetTime(), animationPlayer_.GetPlaybackSpeed(),
+		animationPlayer_.IsPlaying(), animationPlayer_.IsLooping(), animationPaused_,
+		animationTransitionStartPose_, animationTransitionDuration_, animationTransitionElapsed_, animationTransitionActive_ };
+}
+
+bool SkinnedModel::RestoreAnimationPlaybackState(const AnimationPlaybackState& state) {
+	if (state.animationIndex >= animations_.size() || !std::isfinite(state.time) || state.time < 0.0f ||
+		state.time > animations_[state.animationIndex].duration || !std::isfinite(state.speed) || state.speed < 0.0f ||
+		!std::isfinite(state.transitionDuration) || state.transitionDuration < 0.0f ||
+		!std::isfinite(state.transitionElapsed) || state.transitionElapsed < 0.0f ||
+		(state.transitionActive && (state.transitionDuration <= 0.0f || state.transitionElapsed > state.transitionDuration ||
+			state.transitionStartPose.size() != skeleton_.joints.size()))) return false;
+	for (const auto& pose : state.transitionStartPose) {
+		const auto& q = pose.rotate;
+		const float lengthSquared = q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w;
+		if (!std::isfinite(lengthSquared) || std::abs(lengthSquared - 1.0f) > 0.001f ||
+			!std::isfinite(pose.translate.x) || !std::isfinite(pose.translate.y) || !std::isfinite(pose.translate.z) ||
+			!std::isfinite(pose.scale.x) || !std::isfinite(pose.scale.y) || !std::isfinite(pose.scale.z)) return false;
+	}
+	// Allocate before mutating playback, so allocation failure also preserves the old state.
+	auto pose = state.transitionStartPose;
+	currentAnimationIndex_ = state.animationIndex;
+	animationPlayer_.SetAnimation(&animations_[currentAnimationIndex_], true);
+	animationPlayer_.SetLoop(state.loop);
+	animationPlayer_.Seek(state.time);
+	animationPlayer_.SetPlaybackSpeed(state.speed);
+	animationPlayer_.SetPlaying(state.playing);
+	animationPaused_ = state.paused;
+	animationTransitionStartPose_ = std::move(pose);
+	animationTransitionDuration_ = state.transitionDuration;
+	animationTransitionElapsed_ = state.transitionElapsed;
+	animationTransitionActive_ = state.transitionActive;
+	return true;
+}
+
 bool SkinnedModel::TransitionToAnimation(
 	const std::string& name,
 	float duration,

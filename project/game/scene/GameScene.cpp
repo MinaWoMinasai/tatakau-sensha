@@ -858,6 +858,18 @@ void GameScene::Update() {
 
 	// シーンの基準時間は1/60秒。メニュー・演出などはこの時間で進める。
 	const float baseDeltaTime = 1.0f / 60.0f;
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+	if (IsNeonShowcaseActive()) {
+		// Freeze gameplay, follow-camera and menu state; Showcase camera/animation remain independent.
+#ifdef USE_IMGUI
+		if (input_->IsKeyTriggered(DIK_F12)) showGameDebugConsole_ = !showGameDebugConsole_;
+		DrawGameSceneDebugImGui();
+		neonSkinnedPreview_->DrawShowcaseWindow();
+#endif
+		neonSkinnedPreview_->Update(IsNeonShowcaseActive() ? baseDeltaTime : 0.0f);
+		return;
+	}
+#endif
 	if (titleDemo_) UpdateTitleDemo(baseDeltaTime);
 	if (expeditionRun_ && !titleDemo_) {
 		if(expeditionMapEnabled_) UpdateExpeditionAuthoringHub();
@@ -956,6 +968,9 @@ void GameScene::Update() {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 
 	if (!titleDemo_) DrawGameSceneDebugImGui();
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+	if (IsNeonShowcaseActive()) { neonSkinnedPreview_->DrawShowcaseWindow(); neonSkinnedPreview_->Update(IsNeonShowcaseActive() ? baseDeltaTime : 0.0f); return; }
+#endif
 	if (!titleDemo_ && showPlayerClassEditor_) {
 		player_->DrawPlayerClassEditor();
 	}
@@ -2028,6 +2043,7 @@ cg2::Vector2 GameScene::WorldToScreenUv(const cg2::Vector3& worldPos) const
 IScene::ScreenEffectState GameScene::GetScreenEffectState() const
 {
 	IScene::ScreenEffectState state{};
+	if (IsNeonShowcaseActive()) { state.suppressPostEffectDebugUi = true; state.suppressOutlines = true; return state; }
 	const bool evolutionUiOpen = player_ && player_->IsChangeMode();
 	state.bloomScale = evolutionUiOpen ? 0.38f : 1.0f;
 	state.suppressPostEffectDebugUi = evolutionUiOpen;
@@ -2037,6 +2053,21 @@ IScene::ScreenEffectState GameScene::GetScreenEffectState() const
 		screenEffectDirector_.ApplyTo(state.param);
 	}
 	return state;
+}
+
+IScene::DeveloperShowcaseState GameScene::GetDeveloperShowcaseState() {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+	if (IsNeonShowcaseActive()) return {true,neonSkinnedPreview_->GetShowcaseCamera(),neonSkinnedPreview_->GetShowcaseDiagnostic(),
+		neonSkinnedPreview_->GetShowcaseBloomThreshold(),neonSkinnedPreview_->GetShowcaseBloomIntensity(),neonSkinnedPreview_->GetShowcaseExposure()};
+#endif
+	return {};
+}
+void GameScene::RecordDeveloperFrame(cg2::DirectXCommon& dx) {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+	if (neonSkinnedPreview_) neonSkinnedPreview_->RecordShowcaseCapture(dx);
+#else
+	(void)dx;
+#endif
 }
 
 void GameScene::Draw() {
@@ -2051,6 +2082,7 @@ void GameScene::DrawPostEffect3D() {
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 	// Bloom::PreDraw直後は3枚のScene MRT + D24S8。ObjectPostEffect captureより先に描く。
 	if (neonSkinnedPreview_) neonSkinnedPreview_->Draw();
+	if (IsNeonShowcaseActive()) return;
 #endif
 	if (player_) {
 		for (PlayerDrone* drone : player_->GetDronePtrs()) {
@@ -2280,6 +2312,7 @@ void GameScene::UpdateDeathPostPulse(float deltaTime) {
 }
 
 void GameScene::DrawAfterPostEffect3D() {
+	if (IsNeonShowcaseActive()) return;
 	if (player_) {
 		player_->DrawEvolutionAfterPostEffects();
 		if (!expeditionRun_) player_->DrawUpgradeHudAfterPostEffects();
@@ -6555,6 +6588,7 @@ void GameScene::DrawShadow() {
 }
 
 void GameScene::DrawSprite() {
+    if (IsNeonShowcaseActive()) return;
     expeditionPointerCursor_=0;
 
 	if (!expeditionRun_ && !IsTutorialCombatSuppressed()) {

@@ -93,6 +93,20 @@ void RuntimeProfiler::Shutdown() {
     capture_.close();recording_=false;queryHeap_.Reset();readback_.Reset();dx_=nullptr;frequency_=0;
 }
 
+bool RuntimeProfiler::StartCapture(const std::string& path, int frames, int warmupFrames) {
+    if (!allowed_ || !queryHeap_ || path.empty() || frames <= 0 || frames > 36000 || warmupFrames < 0 || warmupFrames > 36000) return false;
+    std::error_code error;
+    const auto parent = std::filesystem::path(path).parent_path();
+    if (!parent.empty()) std::filesystem::create_directories(parent,error);
+    if (error) return false;
+    std::ofstream next(path,std::ios::binary);
+    if (!next) return false;
+    next << "frame,category,name,value\n";
+    capture_ = std::move(next);
+    captureFrames_ = frames; captureWarmup_ = warmupFrames; captureWritten_ = 0; captureCompleted_ = false;
+    return true;
+}
+
 void RuntimeProfiler::HandleShortcut(bool shift) {
     if(!allowed_) return;
     if(shift) { page_=(page_+1)%4;displayMode_=2; }

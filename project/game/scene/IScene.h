@@ -1,10 +1,17 @@
 #pragma once
 #include <string>
 #include "Struct.h"
+namespace cg2 { class Camera; class DirectXCommon; }
 
 /// @brief 初期化・更新・描画と画面効果の共通契約を定義する。
 class IScene {
 public:
+    struct DeveloperShowcaseState {
+        bool active = false;
+        cg2::Camera* camera = nullptr;
+        int diagnostic = 0;
+        float threshold = 0.65f, intensity = 0.75f, exposure = 0.75f;
+    };
     /// @brief 一時的な画面効果の強度と継続時間を表す。
     struct PostEffectPulse {
         float bloomBoost = 0.0f;
@@ -100,6 +107,8 @@ public:
     {
         (void)profile;
     }
+    virtual DeveloperShowcaseState GetDeveloperShowcaseState() { return {}; }
+    virtual void RecordDeveloperFrame(cg2::DirectXCommon&) {}
 
     // シーン終了判定（SceneManagerがチェックする）
     virtual bool IsFinished() const = 0;

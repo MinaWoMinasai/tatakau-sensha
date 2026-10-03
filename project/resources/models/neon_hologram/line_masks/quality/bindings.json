@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "modelSha256": "7FCA4A77FDC60AB2C78A9907430744562626180125FA386EB74FB2EA15C2E518",
+  "size": 1024,
+  "uvSet": 0,
+  "sdfRangeTexels": 16,
+  "haloWidthTexels": 4,
+  "coverageChannels": "R=weighted AA core coverage; G=auto replacement; B=weighted narrow halo; A=255",
+  "sdfChannels": "R=.5+signed_inside_distance/(2*16); G=replacement; B=independent opacity; A=255",
+  "versions": [
+    {
+      "id": "v1",
+      "bindings": [
+        {
+          "material": "N00_000_00_FaceMouth_00_FACE (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v1_coverage.png",
+          "sdfFile": "face_v1_sdf.png",
+          "coverageSha256": "7A6124D1F22DB117EEC667F80E1A6AFCCFB3F62AEB78A27B1DA4D3C3F1528B57",
+          "sdfSha256": "B0015586E69FC3694227CCA9749DAD332EB733ED780C20A161A673E89696DFD2"
+        },
+        {
+          "material": "N00_000_00_EyeIris_00_EYE (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v1_coverage.png",
+          "sdfFile": "face_v1_sdf.png",
+          "coverageSha256": "7A6124D1F22DB117EEC667F80E1A6AFCCFB3F62AEB78A27B1DA4D3C3F1528B57",
+          "sdfSha256": "B0015586E69FC3694227CCA9749DAD332EB733ED780C20A161A673E89696DFD2"
+        },
+        {
+          "material": "N00_000_00_EyeHighlight_00_EYE (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v1_coverage.png",
+          "sdfFile": "face_v1_sdf.png",
+          "coverageSha256": "7A6124D1F22DB117EEC667F80E1A6AFCCFB3F62AEB78A27B1DA4D3C3F1528B57",
+          "sdfSha256": "B0015586E69FC3694227CCA9749DAD332EB733ED780C20A161A673E89696DFD2"
+        },
+        {
+          "material": "N00_000_00_Face_00_SKIN (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v1_coverage.png",
+          "sdfFile": "face_v1_sdf.png",
+          "coverageSha256": "7A6124D1F22DB117EEC667F80E1A6AFCCFB3F62AEB78A27B1DA4D3C3F1528B57",
+          "sdfSha256": "B0015586E69FC3694227CCA9749DAD332EB733ED780C20A161A673E89696DFD2"
+        },
+        {
+          "material": "N00_000_Hair_00_HAIR_01 (Instance)",
+          "uvSet": 0,
+          "role": "bangs",
+          "coverageFile": "bangs_v1_coverage.png",
+          "sdfFile": "bangs_v1_sdf.png",
+          "coverageSha256": "76BE7DCB685D7F75EE62EF54B80C31F1595138C3AA0E843B8778A6F518E9643A",
+          "sdfSha256": "8CE51A50B8258F2690D30D639977780991B31D4E12C0FDB1F857996872AFBA96"
+        }
+      ],
+      "authoringSha256": "1C729BE36251189BD97BE2BDD2546D9E24BA194FB18D1E7B732A93B86B8DD639",
+      "authoringVersionSha256": "A3D74057FAD41099FA705F9A8139EDEF9C76A2121F33AA9861DB280C6027A63B",
+      "authoringRevision": "v1-r1"
+    },
+    {
+      "id": "v2",
+      "bindings": [
+        {
+          "material": "N00_000_00_FaceMouth_00_FACE (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v2_coverage.png",
+          "sdfFile": "face_v2_sdf.png",
+          "coverageSha256": "75412A84D06C9176D24CB23134098D502A3F7BE3A3639EFBE8B1680EFFEE54FB",
+          "sdfSha256": "C3E48E2295814765CF15ACF706479FC575041592F95FC06A01077419F68EF77E"
+        },
+        {
+          "material": "N00_000_00_EyeIris_00_EYE (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v2_coverage.png",
+          "sdfFile": "face_v2_sdf.png",
+          "coverageSha256": "75412A84D06C9176D24CB23134098D502A3F7BE3A3639EFBE8B1680EFFEE54FB",
+          "sdfSha256": "C3E48E2295814765CF15ACF706479FC575041592F95FC06A01077419F68EF77E"
+        },
+        {
+          "material": "N00_000_00_EyeHighlight_00_EYE (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v2_coverage.png",
+          "sdfFile": "face_v2_sdf.png",
+          "coverageSha256": "75412A84D06C9176D24CB23134098D502A3F7BE3A3639EFBE8B1680EFFEE54FB",
+          "sdfSha256": "C3E48E2295814765CF15ACF706479FC575041592F95FC06A01077419F68EF77E"
+        },
+        {
+          "material": "N00_000_00_Face_00_SKIN (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v2_coverage.png",
+          "sdfFile": "face_v2_sdf.png",
+          "coverageSha256": "75412A84D06C9176D24CB23134098D502A3F7BE3A3639EFBE8B1680EFFEE54FB",
+          "sdfSha256": "C3E48E2295814765CF15ACF706479FC575041592F95FC06A01077419F68EF77E"
+        },
+        {
+          "material": "N00_000_Hair_00_HAIR_01 (Instance)",
+          "uvSet": 0,
+          "role": "bangs",
+          "coverageFile": "bangs_v2_coverage.png",
+          "sdfFile": "bangs_v2_sdf.png",
+          "coverageSha256": "9DAA8C4EB66C3D3C55A16C828E6C581AC27CF5D2FEAAB872C6AB60ACE6432668",
+          "sdfSha256": "0A9BAD5B5F0B6BA9802045EA895354478B2778B9A641BAF3DA79304D9F4FE3BE"
+        }
+      ],
+      "authoringSha256": "1C729BE36251189BD97BE2BDD2546D9E24BA194FB18D1E7B732A93B86B8DD639",
+      "authoringVersionSha256": "CD17447455D9846DF8E2325A5B583CC081D079E62F7DF71EB40B0C617126B0ED",
+      "authoringRevision": "v2-iris-hair-r2"
+    }
+  ],
+  "dataType": "LinearData_RGBA8",
+  "sdfEncoding": {
+    "shape": "round-cap variable-width line region",
+    "sign": "positive inside",
+    "zero": 0.5,
+    "unit": "1024-atlas texels",
+    "range": [
+      -16,
+      16
+    ],
+    "decode": "(R - 0.5) * 32",
+    "opacity": "B, independent of shape",
+    "distanceLod": 0,
+    "minification": "separate coverage R/B fallback; never reinterpret averaged SDF mip"
+  }
+}

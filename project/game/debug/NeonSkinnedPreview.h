@@ -9,9 +9,11 @@
 #include "Object3d.h"
 #include "SkinCluster.h"
 #include "DirectX/engine/3d/neon/NeonSkinnedRenderer.h"
+#include "NeonShowcaseCapture.h"
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 // GameSceneのDeveloper UIからのみ使用。初期状態は無効、GPU資源は有効化時に作成する。
@@ -27,6 +29,14 @@ public:
     void Draw();
     /// @brief ImGUIを描画する。
     void DrawImGui();
+    bool IsShowcaseActive() const { return showcaseActive_; }
+    cg2::Camera* GetShowcaseCamera() { return showcaseActive_ ? &showcaseCamera_ : nullptr; }
+    int GetShowcaseDiagnostic() const { return showcaseDiagnostic_; }
+    float GetShowcaseBloomThreshold() const { return showcaseBloomThreshold_; }
+    float GetShowcaseBloomIntensity() const { return showcaseBloomIntensity_; }
+    float GetShowcaseExposure() const { return showcaseExposure_; }
+    void RecordShowcaseCapture(cg2::DirectXCommon& dx);
+    void DrawShowcaseWindow();
 
 private:
     enum class GeometryPreset { Off, Subtle, FullMeshDiagnostic, Custom };
@@ -39,7 +49,9 @@ private:
     };
     struct FeatureMaskBinding {
         std::string path;
+        std::string distancePath;
         std::string status;
+        std::string coverageSha256, distanceSha256, authoringSha256, authoringVersionSha256, authoringRevision;
         std::optional<uint32_t> srvIndex;
     };
     /// @brief 保存されたデータを読み込む。
@@ -52,6 +64,18 @@ private:
     void DrawGeometryLinesImGui();
     void LoadFeatureMaskCandidates();
     void DrawFeatureMaskImGui();
+    void SelectQualityCandidate(int candidate);
+    void DrawQualityCandidateImGui();
+    void EnterShowcase();
+    void LeaveShowcase();
+    void UpdateShowcaseCamera(float deltaTime);
+    void DrawShowcaseImGui();
+    void DrawAnimationImGui();
+    void StartShowcaseComparison();
+    void AdvanceShowcaseComparison();
+    void ApplyShowcaseComparisonCase();
+    void FinishShowcaseComparison(const std::string& status);
+    nlohmann::json MakeShowcaseMetadata() const;
     /// @brief プレビュー対象をカメラの前へ配置する。
     void PlaceInFrontOfCamera();
     /// @brief カメラ位置を返す。
@@ -73,11 +97,54 @@ private:
     std::vector<cg2::NeonSkinnedSubmeshParams> submeshParams_;
     std::vector<FeatureMaskBinding> featureMaskBindings_;
     std::vector<std::optional<uint32_t>> featureMaskIndices_;
+    std::vector<std::optional<uint32_t>> featureDistanceIndices_;
+    std::vector<FeatureMaskBinding> originalMaskBindings_;
+    std::vector<std::optional<uint32_t>> originalMaskIndices_;
+    struct QualityTextureProvenance {
+        uint32_t srvIndex = 0;
+        std::string imageSha256, authoringSha256, authoringVersionSha256, authoringRevision;
+    };
+    std::unordered_map<std::string,QualityTextureProvenance> qualityTextureProvenance_;
+    int qualityCandidate_ = 0;
+    std::string qualityError_;
     bool featureMasksLoadAttempted_ = false;
     std::string featureMaskError_;
     size_t sourceAnimationCount_ = 0;
     size_t generatedAnimationCount_ = 0;
     std::string animationError_;
     std::string loadError_;
+    struct PreviewCheckpoint {
+        bool enabled = false, neonMode = true, alphaCutout = true;
+        GeometryPreset geometryPreset = GeometryPreset::Off;
+        cg2::Transform transform{};
+        cg2::NeonSkinnedParams params{};
+        std::vector<cg2::NeonSkinnedSubmeshParams> surfaces;
+        std::vector<std::optional<uint32_t>> masks;
+        std::vector<std::optional<uint32_t>> distances;
+        std::vector<FeatureMaskBinding> bindings;
+        int qualityCandidate = 0;
+        bool masksLoadAttempted = false;
+        std::string maskError, qualityError;
+        bool usingDebugCamera = false;
+        cg2::Vector3 gameCameraPosition{}, gameCameraRotation{};
+        cg2::SkinnedModel::AnimationPlaybackState playback;
+    } checkpoint_;
+    PreviewCheckpoint comparisonCheckpoint_;
+    bool showcaseComparisonActive_ = false, showcaseComparisonFrameRecorded_ = false;
+    unsigned showcaseComparisonIndex_ = 0;
+    std::string showcaseComparisonDirectory_, showcaseComparisonStatus_;
+    bool showcaseActive_ = false, showcaseOrbit_ = false;
+    cg2::Camera showcaseCamera_;
+    cg2::Transform showcaseTransform_{{1,1,1},{},{}};
+    int showcaseFraming_ = 0, showcaseView_ = 0, showcaseDiagnostic_ = 0;
+    float showcaseYaw_ = 0.0f, showcaseOrbitSpeed_ = 0.35f;
+    float showcaseBloomThreshold_ = 0.65f, showcaseBloomIntensity_ = 0.75f, showcaseExposure_ = 0.75f;
+    NeonShowcaseCapture showcaseCapture_;
+    unsigned showcaseCaptureNumber_ = 0, showcaseSequenceFrame_ = 0;
+    bool showcaseSequence_ = false, showcaseSequenceAttackStarted_ = false;
+    char showcaseCaptureLabel_[64] = "baseline";
+    std::string showcaseCaptureDirectory_;
+    std::string showcaseSequenceDirectory_;
+    std::string showcaseTimingStatus_;
 };
 #endif
