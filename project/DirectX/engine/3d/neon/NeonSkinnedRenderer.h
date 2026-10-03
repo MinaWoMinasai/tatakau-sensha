@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Struct.h"
+#include "NeonDissolve.h"
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -54,9 +55,11 @@ struct NeonSkinnedParams {
     float sdfLodBlendStart = 1.0f;
     float sdfLodBlendEnd = 2.0f;
     float qualityPadding = 0.0f;
+    NeonDissolveParams dissolve; // Disabled by default; evaluated in skinned pre-World model space.
 };
 
-static_assert(sizeof(NeonSkinnedParams) == 208);
+static_assert(sizeof(NeonSkinnedParams) == 288);
+static_assert(offsetof(NeonSkinnedParams, dissolve) == 208);
 static_assert(offsetof(NeonSkinnedParams, emissiveColor) == 16);
 static_assert(offsetof(NeonSkinnedParams, rimStrength) == 32);
 static_assert(offsetof(NeonSkinnedParams, outlineWidthPixels) == 40);
@@ -150,9 +153,13 @@ private:
         Vector2 viewportSize{};
         float viewportPadding[2]{};
     };
-    static_assert(sizeof(GpuConstants) == 240);
-    static_assert(offsetof(GpuConstants, cameraWorldPosition) == 208);
-    static_assert(offsetof(GpuConstants, viewportSize) == 224);
+    static_assert(sizeof(GpuConstants) == 320);
+    static_assert(offsetof(GpuConstants, cameraWorldPosition) == 288);
+    static_assert(offsetof(GpuConstants, viewportSize) == 304);
+    static constexpr size_t kDrawConstantBufferBytes =
+        ((sizeof(GpuConstants) + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1)
+            / D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) * D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    static_assert(kDrawConstantBufferBytes >= sizeof(GpuConstants));
 
     struct SubmeshConstants {
         NeonSkinnedSubmeshParams surface;

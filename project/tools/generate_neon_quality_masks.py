@@ -21,6 +21,27 @@ INSPECTION = ROOT / "generated/neon_quality_mask_inspection"
 CONFIG = ASSETS / "authoring.json"
 
 
+def version_source_hash(config, version):
+    source = {key: config[key] for key in ("size", "supersample", "sdfRangeTexels", "haloWidthTexels")}
+    source["version"] = version
+    canonical = json.dumps(source, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest().upper()
+
+
+def validate_preserved_sources(config, directory):
+    """Fail before generation if either protected original version was changed."""
+    preservation = config.get("preservedQualitySource")
+    if preservation is None:
+        return  # The original V1/V2 authoring remains reproducible independently.
+    versions = {version["id"]: version for version in config["versions"]}
+    for version_id, saved in preservation["versions"].items():
+        if version_source_hash(config, versions[version_id]) != saved["authoringVersionSha256"]:
+            raise ValueError("Protected quality authoring changed: " + version_id)
+        for name, expected in saved["files"].items():
+            if Path(name).name != name or hashlib.sha256((directory / name).read_bytes()).hexdigest().upper() != expected:
+                raise ValueError("Protected quality PNG bytes changed: " + name)
+
+
 def validate(config, glb):
     if config["schemaVersion"] != 1 or config["modelSha256"] != glb.sha256:
         raise ValueError("Quality authoring schema/input hash mismatch")
@@ -29,7 +50,7 @@ def validate(config, glb):
     if config["sdfRangeTexels"] != 16 or not np.isfinite(config["haloWidthTexels"]) or not 0 < config["haloWidthTexels"] <= 8:
         raise ValueError("Expected signed 16-texel distance range and a narrow halo")
     for version in config["versions"]:
-        if version["id"] not in ("v1", "v2"):
+        if version["id"] not in ("v1", "v2", "v3"):
             raise ValueError("Version must be a comparison basename")
         for mask in version["masks"]:
             if mask["id"] not in ("face", "bangs"):
@@ -40,10 +61,32 @@ def validate(config, glb):
                     raise ValueError("Bezier points must be finite normalized UVs")
                 if not np.isfinite([curve["widthTexels"], curve["opacity"]]).all() or not 0 < curve["widthTexels"] <= 8 or not 0 <= curve["opacity"] <= 1:
                     raise ValueError("Invalid shape width/independent opacity")
+                if "localTailProfile" in curve:
+                    profile = curve["localTailProfile"]
+                    values = [profile["startT"], profile["endWidthTexels"], profile["endOpacity"]]
+                    if (not np.isfinite(values).all() or not 0 < values[0] < 1
+                            or not 0 < values[1] <= curve["widthTexels"]
+                            or not 0 <= values[2] <= curve["opacity"]):
+                        raise ValueError("Invalid bounded local tail width/opacity profile")
             for region in mask["replaceRegions"]:
                 polygon = np.asarray(region["polygon"], dtype=float)
                 if polygon.ndim != 2 or polygon.shape[1] != 2 or len(polygon) < 3 or not np.isfinite(polygon).all() or np.any((polygon < 0) | (polygon > 1)):
                     raise ValueError("Invalid bounded replacement polygon")
+
+
+def curve_profile(curve, t):
+    """One optional smooth tail attenuation, in original output-texel units.
+
+    The unchanged V1/V2 path never enters this branch. Width defines geometry;
+    opacity remains an independent value, including for the SDF representation.
+    """
+    profile = curve.get("localTailProfile")
+    if profile is None:
+        return curve["widthTexels"], curve["opacity"]
+    weight = np.clip((np.asarray(t) - profile["startT"]) / (1 - profile["startT"]), 0, 1)
+    weight = weight * weight * (3 - 2 * weight)
+    return (curve["widthTexels"] + weight * (profile["endWidthTexels"] - curve["widthTexels"]),
+            curve["opacity"] + weight * (profile["endOpacity"] - curve["opacity"]))
 
 
 def curve_field(curves, size, spread):
@@ -59,7 +102,7 @@ def curve_field(curves, size, spread):
     for curve in curves:
         points = bezier(curve["points"], 513) * size
         radius = curve["widthTexels"] * .5
-        for a, b in zip(points[:-1], points[1:]):
+        for index, (a, b) in enumerate(zip(points[:-1], points[1:])):
             low = np.maximum(0, np.floor(np.minimum(a, b) - radius - spread - 1).astype(int))
             high = np.minimum(size, np.ceil(np.maximum(a, b) + radius + spread + 1).astype(int))
             if np.any(low >= high):
@@ -68,11 +111,15 @@ def curve_field(curves, size, spread):
             p = np.stack((xx + .5, yy + .5), axis=2)
             ab = b - a
             t = np.clip(np.sum((p - a) * ab, axis=2) / max(float(ab @ ab), 1e-18), 0, 1)
-            signed = radius - np.sqrt(np.sum((p - a - t[..., None] * ab) ** 2, axis=2))
+            if "localTailProfile" in curve:
+                widths, opacities = curve_profile(curve, (index + t) / (len(points) - 1))
+                signed = widths * .5 - np.sqrt(np.sum((p - a - t[..., None] * ab) ** 2, axis=2))
+            else:
+                signed = radius - np.sqrt(np.sum((p - a - t[..., None] * ab) ** 2, axis=2))
             area = np.s_[low[1]:high[1], low[0]:high[0]]
             nearer = signed > distance[area]
             distance[area][nearer] = signed[nearer]
-            opacity[area][nearer] = curve["opacity"]
+            opacity[area][nearer] = opacities[nearer] if "localTailProfile" in curve else curve["opacity"]
     return distance, opacity
 
 
@@ -81,6 +128,16 @@ def coverage(curves, size, aa):
     # Max compose each curve rather than making draw order alter intersections.
     result = np.zeros((size * aa, size * aa), dtype=np.uint8)
     for curve in curves:
+        if "localTailProfile" in curve:
+            # Only the new locally tapered candidate uses analytic high-resolution
+            # shape coverage. All earlier constant-width PNG bytes are preserved.
+            high_curve = dict(curve, widthTexels=curve["widthTexels"] * aa)
+            high_curve["localTailProfile"] = dict(curve["localTailProfile"],
+                endWidthTexels=curve["localTailProfile"]["endWidthTexels"] * aa)
+            signed, opacity = curve_field([high_curve], size * aa, 1)
+            layer = np.rint((signed > 0) * opacity * 255).astype(np.uint8)
+            np.maximum(result, layer, out=result)
+            continue
         layer = Image.new("L", image.size)
         draw = ImageDraw.Draw(layer)
         points = bezier(curve["points"], 513) * size * aa
@@ -203,11 +260,8 @@ def binding_provenance(config_path):
     versions={v["id"]:v for v in config["versions"]}
     for version in bindings["versions"]:
         source_version=versions[version["id"]]
-        source={key:config[key] for key in ("size","supersample","sdfRangeTexels","haloWidthTexels")}
-        source["version"]=source_version
-        canonical=json.dumps(source,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode("utf-8")
         version["authoringSha256"]=overall
-        version["authoringVersionSha256"]=hashlib.sha256(canonical).hexdigest().upper()
+        version["authoringVersionSha256"]=version_source_hash(config,source_version)
         version["authoringRevision"]=source_version.get("revision",source_version["id"]+"-r1")
         for binding in version["bindings"]:
             for kind in ("coverage","sdf"):
@@ -233,6 +287,7 @@ def main():
     glb = Glb(args.model)
     before_hash = hashlib.sha256(args.model.read_bytes()).hexdigest().upper()
     config = json.loads(args.config.read_text(encoding="utf-8"))
+    validate_preserved_sources(config, args.config.parent)
     output = args.output or (INSPECTION / "regenerated" if args.verify else args.config.parent)
     files, metrics = generate(config, glb, output)
     if args.verify:

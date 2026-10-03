@@ -1060,6 +1060,570 @@
         }
       ],
       "revision": "v2-iris-hair-r2"
+    },
+    {
+      "id": "v3",
+      "description": "V2 r2 face unchanged; only left hair-flow tail smoothly thins/fades from t=.72, first local cheek-band candidate; UV sharing remains",
+      "masks": [
+        {
+          "id": "face",
+          "baseColorImage": 0,
+          "replaceRegions": [
+            {
+              "name": "left eyelid only",
+              "polygon": [
+                [
+                  0.124,
+                  0.232
+                ],
+                [
+                  0.219,
+                  0.232
+                ],
+                [
+                  0.219,
+                  0.307
+                ],
+                [
+                  0.124,
+                  0.307
+                ]
+              ]
+            },
+            {
+              "name": "right eyelid only",
+              "polygon": [
+                [
+                  0.281,
+                  0.232
+                ],
+                [
+                  0.376,
+                  0.232
+                ],
+                [
+                  0.376,
+                  0.307
+                ],
+                [
+                  0.281,
+                  0.307
+                ]
+              ]
+            },
+            {
+              "name": "closed lips only",
+              "polygon": [
+                [
+                  0.2,
+                  0.362
+                ],
+                [
+                  0.3,
+                  0.362
+                ],
+                [
+                  0.3,
+                  0.397
+                ],
+                [
+                  0.2,
+                  0.397
+                ]
+              ]
+            },
+            {
+              "name": "left iris texture details",
+              "polygon": [
+                [
+                  0.052,
+                  0.783
+                ],
+                [
+                  0.204,
+                  0.783
+                ],
+                [
+                  0.204,
+                  0.974
+                ],
+                [
+                  0.052,
+                  0.974
+                ]
+              ]
+            },
+            {
+              "name": "right iris texture details",
+              "polygon": [
+                [
+                  0.296,
+                  0.783
+                ],
+                [
+                  0.448,
+                  0.783
+                ],
+                [
+                  0.448,
+                  0.974
+                ],
+                [
+                  0.296,
+                  0.974
+                ]
+              ]
+            },
+            {
+              "name": "left selected lash arc: remove fragmented colour boundaries",
+              "polygon": [
+                [
+                  0.525,
+                  0.64
+                ],
+                [
+                  0.748,
+                  0.64
+                ],
+                [
+                  0.748,
+                  0.725
+                ],
+                [
+                  0.525,
+                  0.725
+                ]
+              ]
+            },
+            {
+              "name": "right selected lash arc: remove fragmented colour boundaries",
+              "polygon": [
+                [
+                  0.752,
+                  0.64
+                ],
+                [
+                  0.975,
+                  0.64
+                ],
+                [
+                  0.975,
+                  0.725
+                ],
+                [
+                  0.752,
+                  0.725
+                ]
+              ]
+            }
+          ],
+          "curves": [
+            {
+              "name": "left upper eyelid",
+              "points": [
+                [
+                  0.144,
+                  0.263
+                ],
+                [
+                  0.158,
+                  0.247
+                ],
+                [
+                  0.188,
+                  0.248
+                ],
+                [
+                  0.201,
+                  0.265
+                ]
+              ],
+              "widthTexels": 3.0,
+              "opacity": 1
+            },
+            {
+              "name": "left lower eyelid",
+              "points": [
+                [
+                  0.145,
+                  0.276
+                ],
+                [
+                  0.163,
+                  0.292
+                ],
+                [
+                  0.187,
+                  0.289
+                ],
+                [
+                  0.199,
+                  0.275
+                ]
+              ],
+              "widthTexels": 1.7,
+              "opacity": 0.45
+            },
+            {
+              "name": "right upper eyelid",
+              "points": [
+                [
+                  0.299,
+                  0.265
+                ],
+                [
+                  0.312,
+                  0.248
+                ],
+                [
+                  0.342,
+                  0.247
+                ],
+                [
+                  0.356,
+                  0.263
+                ]
+              ],
+              "widthTexels": 3.0,
+              "opacity": 1
+            },
+            {
+              "name": "right lower eyelid",
+              "points": [
+                [
+                  0.301,
+                  0.275
+                ],
+                [
+                  0.313,
+                  0.289
+                ],
+                [
+                  0.337,
+                  0.292
+                ],
+                [
+                  0.355,
+                  0.276
+                ]
+              ],
+              "widthTexels": 1.7,
+              "opacity": 0.45
+            },
+            {
+              "name": "closed mouth upper",
+              "points": [
+                [
+                  0.218,
+                  0.378
+                ],
+                [
+                  0.236,
+                  0.375
+                ],
+                [
+                  0.264,
+                  0.375
+                ],
+                [
+                  0.282,
+                  0.378
+                ]
+              ],
+              "widthTexels": 2.4,
+              "opacity": 1
+            },
+            {
+              "name": "left iris top",
+              "points": [
+                [
+                  0.075,
+                  0.877
+                ],
+                [
+                  0.075,
+                  0.79
+                ],
+                [
+                  0.185,
+                  0.79
+                ],
+                [
+                  0.185,
+                  0.877
+                ]
+              ],
+              "widthTexels": 2.6,
+              "opacity": 0.9
+            },
+            {
+              "name": "left iris bottom",
+              "points": [
+                [
+                  0.185,
+                  0.877
+                ],
+                [
+                  0.185,
+                  0.948
+                ],
+                [
+                  0.075,
+                  0.948
+                ],
+                [
+                  0.075,
+                  0.877
+                ]
+              ],
+              "widthTexels": 2.6,
+              "opacity": 0.9
+            },
+            {
+              "name": "right iris top",
+              "points": [
+                [
+                  0.315,
+                  0.877
+                ],
+                [
+                  0.315,
+                  0.79
+                ],
+                [
+                  0.425,
+                  0.79
+                ],
+                [
+                  0.425,
+                  0.877
+                ]
+              ],
+              "widthTexels": 2.6,
+              "opacity": 0.9
+            },
+            {
+              "name": "right iris bottom",
+              "points": [
+                [
+                  0.425,
+                  0.877
+                ],
+                [
+                  0.425,
+                  0.948
+                ],
+                [
+                  0.315,
+                  0.948
+                ],
+                [
+                  0.315,
+                  0.877
+                ]
+              ],
+              "widthTexels": 2.6,
+              "opacity": 0.9
+            },
+            {
+              "name": "left pupil",
+              "points": [
+                [
+                  0.13,
+                  0.84
+                ],
+                [
+                  0.132,
+                  0.855
+                ],
+                [
+                  0.132,
+                  0.877
+                ],
+                [
+                  0.13,
+                  0.889
+                ]
+              ],
+              "widthTexels": 1.6,
+              "opacity": 0.55
+            },
+            {
+              "name": "right pupil",
+              "points": [
+                [
+                  0.37,
+                  0.84
+                ],
+                [
+                  0.368,
+                  0.855
+                ],
+                [
+                  0.368,
+                  0.877
+                ],
+                [
+                  0.37,
+                  0.889
+                ]
+              ],
+              "widthTexels": 1.6,
+              "opacity": 0.55
+            },
+            {
+              "name": "left selected upper lash arc",
+              "widthTexels": 2.5,
+              "opacity": 0.9,
+              "points": [
+                [
+                  0.548,
+                  0.669
+                ],
+                [
+                  0.596,
+                  0.66
+                ],
+                [
+                  0.679,
+                  0.664
+                ],
+                [
+                  0.725,
+                  0.676
+                ]
+              ]
+            },
+            {
+              "name": "right selected upper lash arc",
+              "widthTexels": 2.5,
+              "opacity": 0.9,
+              "points": [
+                [
+                  0.775,
+                  0.676
+                ],
+                [
+                  0.821,
+                  0.664
+                ],
+                [
+                  0.904,
+                  0.66
+                ],
+                [
+                  0.952,
+                  0.669
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "id": "bangs",
+          "baseColorImage": 3,
+          "replaceRegions": [
+            {
+              "name": "front bangs only, avoid shared side/back atlas islands",
+              "polygon": [
+                [
+                  0.542,
+                  0.157
+                ],
+                [
+                  0.685,
+                  0.157
+                ],
+                [
+                  0.685,
+                  0.365
+                ],
+                [
+                  0.542,
+                  0.365
+                ]
+              ]
+            }
+          ],
+          "curves": [
+            {
+              "name": "left bang flow",
+              "points": [
+                [
+                  0.565,
+                  0.169
+                ],
+                [
+                  0.568,
+                  0.228
+                ],
+                [
+                  0.56,
+                  0.293
+                ],
+                [
+                  0.553,
+                  0.344
+                ]
+              ],
+              "widthTexels": 1.8,
+              "opacity": 0.65,
+              "localTailProfile": {
+                "startT": 0.72,
+                "endWidthTexels": 1.2,
+                "endOpacity": 0.25
+              }
+            },
+            {
+              "name": "middle bang flow",
+              "points": [
+                [
+                  0.611,
+                  0.168
+                ],
+                [
+                  0.608,
+                  0.223
+                ],
+                [
+                  0.615,
+                  0.292
+                ],
+                [
+                  0.619,
+                  0.351
+                ]
+              ],
+              "widthTexels": 1.8,
+              "opacity": 0.65
+            },
+            {
+              "name": "right bang flow",
+              "points": [
+                [
+                  0.662,
+                  0.17
+                ],
+                [
+                  0.667,
+                  0.225
+                ],
+                [
+                  0.657,
+                  0.288
+                ],
+                [
+                  0.651,
+                  0.342
+                ]
+              ],
+              "widthTexels": 1.8,
+              "opacity": 0.65
+            }
+          ]
+        }
+      ],
+      "revision": "v3-local-hair-r1"
     }
   ],
   "comparisonBaseSha256": {
@@ -1067,5 +1631,29 @@
     "bindings.json": "E8B6AB1D107D6884EA554A1294CC119604D9AB75B5D274827DBA7EB72F059C52",
     "face_candidate.png": "2B3500E1AF8221661B75F467CC76ABFD43F0B706F4B2C13CFE8CC967168C9243",
     "bangs_candidate.png": "82D6F4B3174C156776A16AC73BD6E9181536D92B438B2C7172FAE189FA6473E5"
+  },
+  "preservedQualitySource": {
+    "authoringSha256": "1C729BE36251189BD97BE2BDD2546D9E24BA194FB18D1E7B732A93B86B8DD639",
+    "versions": {
+      "v1": {
+        "authoringVersionSha256": "A3D74057FAD41099FA705F9A8139EDEF9C76A2121F33AA9861DB280C6027A63B",
+        "files": {
+          "bangs_v1_coverage.png": "76BE7DCB685D7F75EE62EF54B80C31F1595138C3AA0E843B8778A6F518E9643A",
+          "bangs_v1_sdf.png": "8CE51A50B8258F2690D30D639977780991B31D4E12C0FDB1F857996872AFBA96",
+          "face_v1_coverage.png": "7A6124D1F22DB117EEC667F80E1A6AFCCFB3F62AEB78A27B1DA4D3C3F1528B57",
+          "face_v1_sdf.png": "B0015586E69FC3694227CCA9749DAD332EB733ED780C20A161A673E89696DFD2"
+        }
+      },
+      "v2": {
+        "authoringVersionSha256": "CD17447455D9846DF8E2325A5B583CC081D079E62F7DF71EB40B0C617126B0ED",
+        "files": {
+          "bangs_v2_coverage.png": "9DAA8C4EB66C3D3C55A16C828E6C581AC27CF5D2FEAAB872C6AB60ACE6432668",
+          "bangs_v2_sdf.png": "0A9BAD5B5F0B6BA9802045EA895354478B2778B9A641BAF3DA79304D9F4FE3BE",
+          "face_v2_coverage.png": "75412A84D06C9176D24CB23134098D502A3F7BE3A3639EFBE8B1680EFFEE54FB",
+          "face_v2_sdf.png": "C3E48E2295814765CF15ACF706479FC575041592F95FC06A01077419F68EF77E"
+        }
+      }
+    },
+    "reason": "Pre-V3 V1/V2 unchanged source objects and all eight PNG bytes; full snapshot in generated/neon_dissolve/v2_r2_baseline"
   }
 }

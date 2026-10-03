@@ -25,6 +25,13 @@ constexpr QualityComparisonCase kQualityComparisonCases[] = {
 	{"v1_coverage_core_halo",2,1}, {"v1_sdf_core_halo",3,1},
 	{"v2_coverage_core_halo",4,1}, {"v2_sdf_core_halo",5,1}
 };
+struct DissolveComparisonCase { const char* label; float progress; bool enabled, noise, edge; };
+constexpr DissolveComparisonCase kDissolveComparisonCases[] = {
+	{"disabled",0,false,true,true}, {"progress_0",0,true,true,true},
+	{"progress_025",0.25f,true,true,true}, {"progress_050",0.5f,true,true,true},
+	{"progress_075",0.75f,true,true,true}, {"progress_1",1,true,true,true},
+	{"no_noise_050",0.5f,true,false,true}, {"no_edge_050",0.5f,true,true,false}
+};
 
 // 診断表示用のglTF metadataのみ読む。VRM表現・Materialを変換しない。
 nlohmann::json ReadGlbMetadata() {
@@ -41,6 +48,11 @@ nlohmann::json ReadGlbMetadata() {
 	}
 	return nlohmann::json::parse(json);
 }
+}
+
+NeonSkinnedPreview::~NeonSkinnedPreview() {
+	// Scene teardown owns the model until this destructor completes. No GPU state is mutated here.
+	if (model_) dissolve_.Reset(*model_);
 }
 
 void NeonSkinnedPreview::Initialize(cg2::Camera* camera, cg2::DebugCamera* debugCamera) {
@@ -130,16 +142,23 @@ void NeonSkinnedPreview::Update(float deltaTime) {
 	if (!ready_) return;
 	showcaseCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
 	AdvanceShowcaseComparison();
+	AdvanceDissolveComparison();
 	// DirectXCommon::PostDrawはFence完了後に次フレームへ進む。
 	// Draw回数・表示モードに関係なく、このUpdateだけでCB領域をリセットする。
 	renderer_.BeginFrame();
-	if (!enabled_) return;
+	if (!enabled_) { ResetDissolve(); return; }
+	UpdateDissolveSequence(false);
 	// Recording continues with F12 hidden. The clip trigger belongs to Update, not the UI.
 	if (showcaseSequence_ && showcaseSequenceFrame_ >= 75 && !showcaseSequenceAttackStarted_) {
 		neonpreview::SelectAnimation(*model_,neonpreview::Clip::Attack);
 		showcaseSequenceAttackStarted_ = true;
 	}
-	neonpreview::UpdateAnimation(*model_, deltaTime); // Normal/Neonでこの一回のPalette更新を共有する。
+	const float animationDelta = restorePoseThisFrame_ ? 0.0f : deltaTime;
+	restorePoseThisFrame_ = false;
+	neonpreview::UpdateAnimation(*model_, animationDelta); // Normal/Neonでこの一回のPalette更新を共有する。
+	UpdateDissolveSequence(true);
+	dissolve_.Update(deltaTime);
+	params_.dissolve = dissolveComparisonActive_ ? dissolveComparisonParams_ : dissolve_.GetParams();
 	if (showcaseActive_) UpdateShowcaseCamera(deltaTime);
 	object_->SetTransform(showcaseActive_ ? showcaseTransform_ : transform_);
 	// Object3dの既存World/WVP経路を再利用する。グローバルdebug-camera設定は保存復帰する。
@@ -402,7 +421,7 @@ void NeonSkinnedPreview::DrawGeometryLinesImGui() {
 }
 
 void NeonSkinnedPreview::SelectQualityCandidate(int candidate) {
-	if (!ready_ || candidate < 0 || candidate > 5) return;
+	if (!ready_ || candidate < 0 || candidate > 7) return;
 	qualityError_.clear();
 	if (candidate == 0) {
 		params_.featureMaskBlend = 0; params_.featureMaskRenderMode = 0;
@@ -422,7 +441,7 @@ void NeonSkinnedPreview::SelectQualityCandidate(int candidate) {
 		const auto configuration = nlohmann::json::parse(stream);
 		if (configuration.at("schemaVersion").get<int>() != 1 || configuration.at("uvSet").get<int>() != 0)
 			throw std::runtime_error("Quality candidate requires schema 1 / UV0.");
-		const std::string version = candidate < 4 ? "v1" : "v2";
+		const std::string version = candidate < 4 ? "v1" : candidate < 6 ? "v2" : "v3";
 		const nlohmann::json* selected = nullptr;
 		for (const auto& value : configuration.at("versions")) if (value.at("id") == version) selected = &value;
 		if (!selected) throw std::runtime_error("Candidate version is missing.");
@@ -496,9 +515,15 @@ void NeonSkinnedPreview::DrawQualityCandidateImGui() {
 #ifdef USE_IMGUI
 	if (!ImGui::TreeNodeEx("Line Art Quality Comparison",ImGuiTreeNodeFlags_DefaultOpen)) return;
 	ImGui::BeginDisabled(!ready_);
-	const char* candidates[] = {"Original automatic lines", "Original authored coverage", "V1: fair-width coverage", "V1: SDF + minification fallback", "V2: edited coverage", "V2: edited SDF + fallback"};
+	const char* candidates[] = {"Original automatic lines", "Original authored coverage", "V1: fair-width coverage", "V1: SDF + minification fallback", "V2: edited coverage", "V2: edited SDF + fallback", "V3: local hair revision coverage", "V3: local hair revision SDF"};
 	int candidate = qualityCandidate_;
-	if (ImGui::Combo("Line data / reconstruction",&candidate,candidates,6)) SelectQualityCandidate(candidate);
+	if (ImGui::Combo("Line data / reconstruction",&candidate,candidates,8)) SelectQualityCandidate(candidate);
+	if (ImGui::Button("Use V2 coverage + Core/Halo (explicit)")) {
+		SelectQualityCandidate(4); if (qualityCandidate_ == 4 && qualityError_.empty()) params_.splitLineEmission = 1;
+	}
+	if (ImGui::Button("Try V3 local hair revision + Core/Halo")) {
+		SelectQualityCandidate(6); if (qualityCandidate_ == 6 && qualityError_.empty()) params_.splitLineEmission = 1;
+	}
 	int maskDiagnostic = static_cast<int>(params_.featureMaskDebugMode);
 	const char* maskChannels[] = {"Shaded", "R: line coverage", "G: replacement region"};
 	if (ImGui::Combo("Coverage mask channels (debug)",&maskDiagnostic,maskChannels,3))
@@ -526,6 +551,8 @@ void NeonSkinnedPreview::EnterShowcase() {
 	if (showcaseActive_) return;
 	Load();
 	if (!ready_) return;
+	ResetDissolve(); // A new Showcase World cannot inherit a plane computed for the normal Preview World.
+	if (dissolve_.IsActive()) return; // Protect the snapshot if an unexpected playback-restore failure occurred.
 	checkpoint_ = { enabled_, neonMode_, alphaCutoutEnabled_, geometryPreset_, transform_, params_,
 		submeshParams_, featureMaskIndices_, featureDistanceIndices_, featureMaskBindings_, qualityCandidate_, featureMasksLoadAttempted_,
 		featureMaskError_, qualityError_, cg2::Object3dCommon::GetInstance()->GetIsDebugCamera(),
@@ -534,7 +561,7 @@ void NeonSkinnedPreview::EnterShowcase() {
 	showcaseTransform_ = {{1,1,1},{},{}};
 	showcaseFraming_ = showcaseView_ = showcaseDiagnostic_ = 0;
 	showcaseYaw_ = 0; showcaseOrbit_ = false;
-	showcaseCaptureDirectory_ = "generated/neon_line_art_quality/showcase_" +
+	showcaseCaptureDirectory_ = "generated/neon_directional_dissolve/showcase_" +
 		std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::system_clock::now().time_since_epoch()).count());
 	showcaseCaptureNumber_ = 0;
@@ -544,6 +571,9 @@ void NeonSkinnedPreview::EnterShowcase() {
 
 void NeonSkinnedPreview::LeaveShowcase() {
 	if (!showcaseActive_) return;
+	if (dissolveComparisonActive_) FinishDissolveComparison("Dissolve comparison cancelled on exit.");
+	if (dissolveSequence_) FinishDissolveSequence();
+	ResetDissolve();
 	if (showcaseComparisonActive_) FinishShowcaseComparison("Comparison cancelled on Showcase exit.");
 	showcaseSequence_ = false;
 	showcaseCapture_.CancelRequest();
@@ -563,7 +593,8 @@ void NeonSkinnedPreview::LeaveShowcase() {
 
 void NeonSkinnedPreview::StartShowcaseComparison() {
 	if (!ready_ || !showcaseActive_ || showcaseComparisonActive_ || !model_->IsAnimationPaused() ||
-		showcaseOrbit_ || showcaseSequence_ || showcaseCapture_.IsBusy() || cg2::RuntimeProfiler::Get().IsCaptureActive()) return;
+		showcaseOrbit_ || showcaseSequence_ || dissolveSequence_ || dissolveComparisonActive_ || dissolve_.IsActive() ||
+		showcaseCapture_.IsBusy() || cg2::RuntimeProfiler::Get().IsCaptureActive()) return;
 	comparisonCheckpoint_ = {enabled_,neonMode_,alphaCutoutEnabled_,geometryPreset_,transform_,params_,
 		submeshParams_,featureMaskIndices_,featureDistanceIndices_,featureMaskBindings_,qualityCandidate_,featureMasksLoadAttempted_,
 		featureMaskError_,qualityError_,false,{},{},model_->CaptureAnimationPlaybackState()};
@@ -620,6 +651,185 @@ void NeonSkinnedPreview::FinishShowcaseComparison(const std::string& status) {
 	showcaseComparisonActive_ = false; showcaseComparisonStatus_ = status;
 }
 
+bool NeonSkinnedPreview::TriggerDissolve() {
+	if (!ready_ || !enabled_ || !neonMode_) return false;
+	const auto& transform = showcaseActive_ ? showcaseTransform_ : transform_;
+	const auto world = cg2::MakeAffineMatrix(transform.scale,transform.rotate,transform.translate);
+	const auto cameraWorld = showcaseActive_ ? showcaseCamera_.GetWorldMatrix() :
+		cg2::Object3dCommon::GetInstance()->GetIsDebugCamera() ? cg2::Inverse(debugCamera_->GetViewMatrix()) : camera_->GetWorldMatrix();
+	const bool success = dissolve_.Trigger(*model_,world,cameraWorld,
+		static_cast<cg2::NeonDissolveDirection>(dissolveDirection_),dissolveSettings_,dissolveWait_,dissolveDuration_);
+	if (success) params_.dissolve = dissolve_.GetParams();
+	return success;
+}
+
+void NeonSkinnedPreview::ResetDissolve() {
+	if (!model_ || !dissolve_.IsActive()) return;
+	if (dissolve_.Reset(*model_)) {
+		params_.dissolve = dissolve_.GetParams();
+		restorePoseThisFrame_ = true; // First restored frame samples the saved time/blend without advancing it.
+	}
+}
+
+void NeonSkinnedPreview::StartDissolveComparison() {
+	if (!showcaseActive_ || !ready_ || !neonMode_ || showcaseComparisonActive_ || dissolveComparisonActive_ ||
+		showcaseSequence_ || dissolveSequence_ || showcaseCapture_.IsBusy() || showcaseOrbit_ ||
+		cg2::RuntimeProfiler::Get().IsCaptureActive() || !model_->IsAnimationPaused() || dissolve_.IsPlaying()) return;
+	const auto& settings = dissolve_.IsActive() ? dissolve_.GetParams() : dissolveSettings_;
+	if (params_.geometryLineEnabled || !(settings.noiseStrength > 0) || !(settings.noiseScale > 0) ||
+		!settings.edgeEnabled || !(settings.edgeWidth > 0) || !(settings.edgeIntensity > 0)) {
+		dissolveComparisonStatus_ = "Eight-condition diagnostics require Geometry Lines OFF, nonzero noise strength/scale and edge emission ON with positive width/intensity.";
+		return;
+	}
+	dissolveComparisonController_ = dissolve_;
+	dissolveComparisonPlayback_ = model_->CaptureAnimationPlaybackState();
+	dissolveComparisonOriginalParams_ = params_.dissolve;
+	if (!dissolve_.IsActive() && !TriggerDissolve()) {
+		dissolveComparisonStatus_ = "Cannot start dissolve comparison: " + dissolve_.GetError(); return;
+	}
+	dissolve_.SetPlaying(false);
+	dissolveComparisonDirectory_ = showcaseCaptureDirectory_ + "/dissolve_comparison_" +
+		std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch()).count());
+	dissolveComparisonIndex_ = 0; dissolveComparisonActive_ = true;
+	dissolveComparisonStatus_ = "Capturing eight fixed-pose dissolve conditions.";
+	ApplyDissolveComparisonCase();
+}
+
+void NeonSkinnedPreview::ApplyDissolveComparisonCase() {
+	const auto& comparison = kDissolveComparisonCases[dissolveComparisonIndex_];
+	dissolve_.Seek(comparison.progress);
+	dissolveComparisonParams_ = dissolve_.GetParams();
+	dissolveComparisonParams_.enabled = comparison.enabled ? 1u : 0u;
+	if (!comparison.noise) dissolveComparisonParams_.noiseStrength = 0;
+	if (!comparison.edge) dissolveComparisonParams_.edgeEnabled = 0;
+	params_.dissolve = dissolveComparisonParams_;
+	dissolveComparisonFrameRecorded_ = false;
+}
+
+void NeonSkinnedPreview::AdvanceDissolveComparison() {
+	if (!dissolveComparisonActive_ || !dissolveComparisonFrameRecorded_ || showcaseCapture_.IsBusy()) return;
+	if (!showcaseCapture_.WasLastCaptureSuccessful()) {
+		FinishDissolveComparison("Dissolve comparison failed: " + showcaseCapture_.GetStatus()); return;
+	}
+	if (++dissolveComparisonIndex_ == std::size(kDissolveComparisonCases)) {
+		FinishDissolveComparison("Saved eight same-pose conditions: " + dissolveComparisonDirectory_); return;
+	}
+	ApplyDissolveComparisonCase();
+}
+
+void NeonSkinnedPreview::FinishDissolveComparison(const std::string& status) {
+	if (!dissolveComparisonActive_) return;
+	if (!model_->RestoreAnimationPlaybackState(dissolveComparisonPlayback_)) {
+		dissolveComparisonStatus_ = "Comparison checkpoint restore failed."; return;
+	}
+	dissolve_ = dissolveComparisonController_;
+	params_.dissolve = dissolveComparisonOriginalParams_;
+	dissolveComparisonActive_ = false; dissolveComparisonStatus_ = status;
+	restorePoseThisFrame_ = true;
+}
+
+void NeonSkinnedPreview::StartDissolveSequence() {
+	if (!showcaseActive_ || !ready_ || !neonMode_ || showcaseComparisonActive_ || dissolveComparisonActive_ ||
+		showcaseSequence_ || dissolveSequence_ || dissolve_.IsActive() || showcaseCapture_.IsBusy() ||
+		cg2::RuntimeProfiler::Get().IsCaptureActive()) return;
+	dissolveSequencePlayback_ = model_->CaptureAnimationPlaybackState();
+	dissolveSequenceOriginalOrbit_ = showcaseOrbit_; dissolveSequenceOriginalYaw_ = showcaseYaw_;
+	showcaseSequenceFrame_ = 0; dissolveSequenceLastEventFrame_ = UINT32_MAX;
+	showcaseSequenceDirectory_ = showcaseCaptureDirectory_ + "/dissolve_sequence_" +
+		std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch()).count());
+	neonpreview::SelectAnimation(*model_,neonpreview::Clip::Idle);
+	model_->SeekCurrentAnimation(0); model_->SetAnimationPlaying(true);
+	showcaseOrbit_ = false; showcaseYaw_ = 0; dissolveSequence_ = true;
+}
+
+void NeonSkinnedPreview::UpdateDissolveSequence(bool afterPoseUpdate) {
+	if (!dissolveSequence_ || dissolveSequenceLastEventFrame_ == showcaseSequenceFrame_) return;
+	if (!afterPoseUpdate && showcaseSequenceFrame_ >= 480 && !showcaseCapture_.IsBusy()) {
+		FinishDissolveSequence(); return;
+	}
+	const auto frame = showcaseSequenceFrame_;
+	const bool trigger = frame == 60 || frame == 265;
+	if (trigger != afterPoseUpdate) return;
+	if (trigger) {
+		if (!TriggerDissolve()) { FinishDissolveSequence(); return; }
+	} else if (frame == 120 || frame == 330) {
+		showcaseOrbit_ = true;
+	} else if (frame == 200 || frame == 415) {
+		ResetDissolve(); showcaseOrbit_ = false;
+	} else if (frame == 235) {
+		neonpreview::SelectAnimation(*model_,neonpreview::Clip::Attack);
+		model_->SeekCurrentAnimation(0); model_->SetAnimationPlaying(true);
+		showcaseYaw_ = 0;
+	} else return;
+	dissolveSequenceLastEventFrame_ = frame;
+}
+
+void NeonSkinnedPreview::FinishDissolveSequence() {
+	if (!dissolveSequence_) return;
+	ResetDissolve();
+	if (!model_->RestoreAnimationPlaybackState(dissolveSequencePlayback_))
+		animationError_ = "Dissolve sequence playback restore failed.";
+	showcaseOrbit_ = dissolveSequenceOriginalOrbit_; showcaseYaw_ = dissolveSequenceOriginalYaw_;
+	dissolveSequence_ = false; restorePoseThisFrame_ = true;
+}
+
+void NeonSkinnedPreview::DrawDissolveImGui() {
+#ifdef USE_IMGUI
+	if (!ready_) return;
+	const bool recording = showcaseSequence_ || dissolveSequence_;
+	const bool locked = showcaseComparisonActive_ || dissolveComparisonActive_ || recording ||
+		cg2::RuntimeProfiler::Get().IsCaptureActive() || showcaseCapture_.IsBusy();
+	ImGui::TextUnformatted("Directional surface dissolve / Neon only");
+	ImGui::TextWrapped("Trigger freezes the displayed animation including its blend. The start camera's scan plane and seed remain fixed when the camera moves.");
+	ImGui::BeginDisabled(locked || !neonMode_);
+	if (ImGui::Button("Trigger Dissolve")) TriggerDissolve();
+	ImGui::EndDisabled();
+	ImGui::BeginDisabled(locked || !dissolve_.IsActive());
+	ImGui::SameLine();
+	if (ImGui::Button(dissolve_.IsPlaying() ? "Dissolve Pause" : "Dissolve Play")) dissolve_.SetPlaying(!dissolve_.IsPlaying());
+	float progress = dissolve_.GetParams().progress;
+	if (ImGui::SliderFloat("Dissolve progress",&progress,0,1,"%.3f")) dissolve_.Seek(progress);
+	if (ImGui::Button("Restart from same pose")) dissolve_.Restart(*model_);
+	ImGui::SameLine(); if (ImGui::Button("Reset / Restore playback")) ResetDissolve();
+	float speed = dissolve_.GetPlaybackSpeed();
+	if (ImGui::SliderFloat("Dissolve playback speed",&speed,0.05f,4,"%.2fx")) dissolve_.SetPlaybackSpeed(speed);
+	ImGui::EndDisabled();
+	ImGui::Text("Dissolve: %s / %.3f s / progress %.3f",dissolve_.IsActive() ?
+		(dissolve_.IsPlaying() ? "playing" : "paused/finished") : "disabled",dissolve_.GetElapsed(),dissolve_.GetParams().progress);
+	ImGui::BeginDisabled(locked || dissolve_.IsActive());
+	const char* directions[] = {"Start-camera upper left to lower right", "Upper right to lower left", "Top to bottom", "Left to right"};
+	ImGui::Combo("Scan direction",&dissolveDirection_,directions,4);
+	ImGui::SliderFloat("Wait before dissolve (s)",&dissolveWait_,0,2);
+	ImGui::SliderFloat("Dissolve duration (s)",&dissolveDuration_,0.1f,6);
+	ImGui::SliderFloat("Noise strength (model units)",&dissolveSettings_.noiseStrength,0,0.3f);
+	ImGui::SliderFloat("Noise scale (cells/model unit)",&dissolveSettings_.noiseScale,0,64);
+	ImGui::InputScalar("Fixed seed",ImGuiDataType_U32,&dissolveSettings_.seed);
+	bool edge = dissolveSettings_.edgeEnabled != 0;
+	if (ImGui::Checkbox("Dissolve edge emission",&edge)) dissolveSettings_.edgeEnabled = edge ? 1u : 0u;
+	ImGui::SliderFloat("Edge width (model units)",&dissolveSettings_.edgeWidth,0,0.08f);
+	ImGui::SliderFloat("Edge HDR intensity",&dissolveSettings_.edgeIntensity,0,20);
+	ImGui::ColorEdit3("Edge color",&dissolveSettings_.edgeColor.x);
+	ImGui::EndDisabled();
+	ImGui::TextWrapped("Reset before editing the plane/noise/edge settings. Animation and Transform controls are locked during dissolve. Restart retains the first pose, plane and seed. No cut faces or particles are generated.");
+	if (!dissolve_.GetError().empty()) ImGui::TextWrapped("Dissolve error: %s",dissolve_.GetError().c_str());
+	if (showcaseActive_) {
+		ImGui::BeginDisabled(locked || !neonMode_ || !model_->IsAnimationPaused() || showcaseOrbit_ || dissolve_.IsPlaying());
+		if (ImGui::Button("Capture 8 dissolve conditions (same pose)")) StartDissolveComparison();
+		ImGui::EndDisabled();
+		ImGui::TextWrapped("Eight-condition capture requires Geometry Lines OFF, nonzero noise strength/scale, and edge emission ON with positive width/intensity. Other experiments remain available through single-frame capture.");
+		if (!dissolveComparisonStatus_.empty()) ImGui::TextWrapped("%s",dissolveComparisonStatus_.c_str());
+		ImGui::BeginDisabled(showcaseComparisonActive_ || dissolveComparisonActive_ || showcaseSequence_ ||
+			cg2::RuntimeProfiler::Get().IsCaptureActive() || (!dissolveSequence_ && (dissolve_.IsActive() || showcaseCapture_.IsBusy())) || !neonMode_);
+		if (ImGui::Button(dissolveSequence_ ? "Stop dissolve recording" : "Record 8s: Idle / Attack / dissolve / orbit / Reset")) {
+			if (dissolveSequence_) FinishDissolveSequence(); else StartDissolveSequence();
+		}
+		ImGui::EndDisabled();
+	}
+#endif
+}
+
 void NeonSkinnedPreview::UpdateShowcaseCamera(float deltaTime) {
 	if (showcaseOrbit_ && std::isfinite(deltaTime)) showcaseYaw_ += showcaseOrbitSpeed_ * deltaTime;
 	constexpr float targets[] = {1.32f, 1.10f, 0.82f, 0.82f, 1.32f};
@@ -672,6 +882,41 @@ nlohmann::json NeonSkinnedPreview::MakeShowcaseMetadata() const {
 			{"sdfRangeTexels",renderParams.sdfRangeTexels},{"sdfHaloWidthTexels",renderParams.sdfHaloWidthTexels},
 			{"sdfLodBlendStart",renderParams.sdfLodBlendStart},{"sdfLodBlendEnd",renderParams.sdfLodBlendEnd}}}
 	};
+	const auto& effect = renderParams.dissolve;
+	metadata["dissolve"] = {{"active",dissolve_.IsActive()},{"playing",dissolve_.IsPlaying()},
+		{"enabled",effect.enabled},{"progress",effect.progress},{"direction",vector(effect.direction)},
+		{"scanMin",effect.scanMin},{"scanMax",effect.scanMax},{"noiseStrength",effect.noiseStrength},
+		{"noiseScale",effect.noiseScale},{"seed",effect.seed},{"edgeEnabled",effect.edgeEnabled},
+		{"edgeColor",vector(effect.edgeColor)},{"edgeIntensity",effect.edgeIntensity},{"edgeWidth",effect.edgeWidth},
+		{"elapsed",dissolve_.GetElapsed()},{"waitDuration",dissolve_.GetWaitDuration()},
+		{"duration",dissolve_.GetDuration()},{"playbackSpeed",dissolve_.GetPlaybackSpeed()},
+		{"directionPreset",static_cast<int>(dissolve_.GetDirectionPreset())},
+		{"coordinateSpace","Frozen skinned model space before World; start camera plane remains fixed."},
+		{"distanceUnits","scan bounds, noise strength and edge width in model units; noise scale in lattice cells/model unit"}};
+	if (dissolve_.IsActive()) {
+		auto matrix = [](const cg2::Matrix4x4& value) {
+			nlohmann::json rows = nlohmann::json::array();
+			for (const auto& row : value.m) rows.push_back({row[0],row[1],row[2],row[3]});
+			return rows;
+		};
+		const auto& saved = dissolve_.GetSavedPlayback();
+		auto& freeze = metadata["dissolve"]["frozenPlayback"];
+		freeze = {{"animationIndex",saved.animationIndex},{"clip",model_->GetAnimations().at(saved.animationIndex).name},
+			{"time",saved.time},{"speed",saved.speed},{"playing",saved.playing},{"loop",saved.loop},{"paused",saved.paused},
+			{"transitionActive",saved.transitionActive},{"transitionDuration",saved.transitionDuration},{"transitionElapsed",saved.transitionElapsed}};
+		metadata["dissolve"]["startWorld"] = matrix(dissolve_.GetStartWorld());
+		metadata["dissolve"]["startCameraWorld"] = matrix(dissolve_.GetStartCameraWorld());
+		for (const auto& pose : saved.transitionStartPose) freeze["transitionStartPose"].push_back({
+			{"translation",vector(pose.translate)},{"scale",vector(pose.scale)},
+			{"rotation",{pose.rotate.x,pose.rotate.y,pose.rotate.z,pose.rotate.w}}});
+		const auto& poses = dissolve_.GetFrozenPose();
+		for (size_t index=0; index<poses.size(); ++index) {
+			const auto& pose = poses[index];
+			metadata["dissolve"]["frozenJointPose"].push_back({{"joint",model_->GetSkeleton().joints[index].name},
+				{"translation",vector(pose.translate)},{"scale",vector(pose.scale)},
+				{"rotation",{pose.rotate.x,pose.rotate.y,pose.rotate.z,pose.rotate.w}}});
+		}
+	}
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter;
 	auto* dx = cg2::Object3dCommon::GetInstance()->GetDxCommon();
 	const auto viewport = dx->GetViewportRect();
@@ -709,28 +954,39 @@ void NeonSkinnedPreview::RecordShowcaseCapture(cg2::DirectXCommon& dx) {
 	if (!showcaseActive_) return;
 	bool requestedSequenceFrame = false;
 	bool requestedComparisonFrame = false;
+	bool requestedDissolveComparisonFrame = false;
 	if (showcaseComparisonActive_ && !showcaseComparisonFrameRecorded_ && !showcaseCapture_.IsBusy()) {
 		char name[96]{};
 		std::snprintf(name,sizeof(name),"%02u_%s",showcaseComparisonIndex_,kQualityComparisonCases[showcaseComparisonIndex_].label);
 		showcaseCapture_.Request(showcaseComparisonDirectory_,name,{});
 		showcaseComparisonFrameRecorded_ = requestedComparisonFrame = true;
 	}
-	if (showcaseSequence_ && !showcaseCapture_.IsBusy()) {
+	if (dissolveComparisonActive_ && !dissolveComparisonFrameRecorded_ && !showcaseCapture_.IsBusy()) {
+		char name[96]{};
+		std::snprintf(name,sizeof(name),"%02u_%s",dissolveComparisonIndex_,kDissolveComparisonCases[dissolveComparisonIndex_].label);
+		showcaseCapture_.Request(dissolveComparisonDirectory_,name,{});
+		dissolveComparisonFrameRecorded_ = requestedDissolveComparisonFrame = true;
+	}
+	if ((showcaseSequence_ || dissolveSequence_) && !showcaseCapture_.IsBusy() && (!dissolveSequence_ || showcaseSequenceFrame_ < 480)) {
 		char name[80]{};
 		std::snprintf(name,sizeof(name),"frame_%05u",showcaseSequenceFrame_++);
 		auto metadata = MakeShowcaseMetadata(); metadata["sequenceFrame"] = showcaseSequenceFrame_ - 1;
 		metadata["sequenceRate"] = 60;
 		showcaseCapture_.Request(showcaseSequenceDirectory_,name,std::move(metadata));
 		requestedSequenceFrame = true;
-		if (showcaseSequenceFrame_ >= 240) showcaseSequence_ = false;
+		if (!dissolveSequence_ && showcaseSequenceFrame_ >= 240) showcaseSequence_ = false;
 	}
 	if (showcaseCapture_.HasRequest()) {
 		auto frameMetadata = MakeShowcaseMetadata();
 		if (requestedComparisonFrame) frameMetadata["comparison"] = {{"case",showcaseComparisonIndex_},
 			{"label",kQualityComparisonCases[showcaseComparisonIndex_].label},{"count",std::size(kQualityComparisonCases)},
 			{"samePausedPose",true},{"restoreAppearanceAfterCapture",true}};
+		if (requestedDissolveComparisonFrame) frameMetadata["dissolveComparison"] = {{"case",dissolveComparisonIndex_},
+			{"label",kDissolveComparisonCases[dissolveComparisonIndex_].label},{"count",std::size(kDissolveComparisonCases)},
+			{"sameFrozenPose",true},{"restorePlaybackAfterCapture",true}};
 		if (requestedSequenceFrame) {
 			frameMetadata["sequenceFrame"] = showcaseSequenceFrame_ - 1; frameMetadata["sequenceRate"] = 60;
+			frameMetadata["sequenceKind"] = dissolveSequence_ ? "Idle/Attack dissolve with orbit and Reset" : "Idle/Attack orbit";
 		}
 		showcaseCapture_.SetFrameMetadata(std::move(frameMetadata));
 	}
@@ -744,7 +1000,9 @@ void NeonSkinnedPreview::DrawShowcaseImGui() {
 		ImGui::TextWrapped("Developer-only black-background comparison. Game state and Preview settings are restored on exit.");
 		return;
 	}
-	ImGui::BeginDisabled(showcaseComparisonActive_);
+	const bool gpuCapture = cg2::RuntimeProfiler::Get().IsCaptureActive();
+	const bool automated = showcaseComparisonActive_ || dissolveComparisonActive_ || dissolveSequence_;
+	ImGui::BeginDisabled(automated || gpuCapture);
 	const char* framings[] = {"Face close-up", "Upper body", "Full body", "Game-size", "Face detail (magnified)"};
 	ImGui::Combo("Showcase framing", &showcaseFraming_, framings,5);
 	const char* views[] = {"Front", "Three-quarter (45 deg)", "Side (90 deg)"};
@@ -762,20 +1020,19 @@ void NeonSkinnedPreview::DrawShowcaseImGui() {
 	ImGui::SliderFloat("Showcase exposure",&showcaseExposure_,0.05f,2.0f);
 	ImGui::InputText("Capture label",showcaseCaptureLabel_,sizeof(showcaseCaptureLabel_));
 	ImGui::EndDisabled();
-	const bool gpuCapture = cg2::RuntimeProfiler::Get().IsCaptureActive();
-	ImGui::BeginDisabled(showcaseCapture_.IsBusy() || showcaseSequence_ || showcaseComparisonActive_ || gpuCapture);
+	ImGui::BeginDisabled(showcaseCapture_.IsBusy() || showcaseSequence_ || automated || gpuCapture);
 	if (ImGui::Button("Save clean PNG + settings JSON")) {
 		char name[96]{}; std::snprintf(name,sizeof(name),"%03u_%s",showcaseCaptureNumber_++,showcaseCaptureLabel_);
 		showcaseCapture_.Request(showcaseCaptureDirectory_,name,MakeShowcaseMetadata());
 	}
 	ImGui::EndDisabled();
-	ImGui::BeginDisabled(showcaseComparisonActive_ || showcaseSequence_ || showcaseCapture_.IsBusy() || gpuCapture ||
+	ImGui::BeginDisabled(automated || dissolve_.IsActive() || showcaseSequence_ || showcaseCapture_.IsBusy() || gpuCapture ||
 		!model_->IsAnimationPaused() || showcaseOrbit_);
 	if (ImGui::Button("Capture 7 candidates at current paused pose")) StartShowcaseComparison();
 	ImGui::EndDisabled();
 	ImGui::TextWrapped("Seven Neon cases, fixed camera and paused pose. Stop orbit, pause animation, and finish recording/timing first. Appearance is restored after capture.");
 	if (!showcaseComparisonStatus_.empty()) ImGui::TextWrapped("%s",showcaseComparisonStatus_.c_str());
-	ImGui::BeginDisabled(showcaseComparisonActive_ || gpuCapture || (showcaseCapture_.IsBusy() && !showcaseSequence_));
+	ImGui::BeginDisabled(automated || dissolve_.IsActive() || gpuCapture || (showcaseCapture_.IsBusy() && !showcaseSequence_));
 	if (ImGui::Button(showcaseSequence_ ? "Stop image sequence" : "Record 4s: Idle / Attack / orbit")) {
 		showcaseSequence_ = !showcaseSequence_; showcaseSequenceFrame_ = 0; showcaseSequenceAttackStarted_ = false;
 		if (showcaseSequence_) {
@@ -789,7 +1046,7 @@ void NeonSkinnedPreview::DrawShowcaseImGui() {
 	}
 	ImGui::EndDisabled();
 	if (!showcaseSequenceDirectory_.empty()) ImGui::TextWrapped("Sequence folder: %s",showcaseSequenceDirectory_.c_str());
-	ImGui::BeginDisabled(showcaseComparisonActive_ || showcaseSequence_ || showcaseCapture_.IsBusy() || gpuCapture);
+	ImGui::BeginDisabled(automated || showcaseSequence_ || showcaseCapture_.IsBusy() || gpuCapture || dissolve_.IsPlaying());
 	if (ImGui::Button("Measure GPU: 60 warmup + 300 frames")) {
 		const auto path = std::filesystem::path(showcaseCaptureDirectory_) / (std::string(showcaseCaptureLabel_) + "_gpu.csv");
 		if (std::filesystem::path(showcaseCaptureLabel_).filename().string() == showcaseCaptureLabel_ &&
@@ -819,6 +1076,8 @@ void NeonSkinnedPreview::DrawAnimationImGui() {
 	if (ready_) {
 		ImGui::Text("GLB animations: %zu / Generated clips: %zu", sourceAnimationCount_, generatedAnimationCount_);
 		if (!animationError_.empty()) ImGui::TextWrapped("Motion unavailable (BindPose retained): %s", animationError_.c_str());
+		ImGui::BeginDisabled(dissolve_.IsActive() || dissolveComparisonActive_ || dissolveSequence_ ||
+			cg2::RuntimeProfiler::Get().IsCaptureActive());
 		const auto& clip = model_->GetAnimation();
 		int selection = clip.name == "Preview_Idle" ? 1 : clip.name == "Preview_Attack" ? 2 : 0;
 		const char* clips[] = { "BindPose", "Preview_Idle", "Preview_Attack" };
@@ -844,6 +1103,8 @@ void NeonSkinnedPreview::DrawAnimationImGui() {
 			model_->SeekCurrentAnimation(time);
 		ImGui::EndDisabled();
 		ImGui::TextWrapped("Pause freezes playback and blend. Seek ends the blend and shows the exact sampled pose.");
+		ImGui::EndDisabled();
+		if (dissolve_.IsActive()) ImGui::TextUnformatted("Animation is frozen for dissolve; use Reset / Restore playback first.");
 	}
 #endif
 }
@@ -856,13 +1117,15 @@ void NeonSkinnedPreview::DrawImGui() {
 	if (showcaseActive_) return;
 	ImGui::TextUnformatted("AvatarSample_B / Developer only");
 	ImGui::BeginDisabled(showcaseActive_);
-	if (ImGui::Checkbox("Preview Enable", &enabled_) && enabled_) Load();
+	if (ImGui::Checkbox("Preview Enable", &enabled_)) { if (enabled_) Load(); else ResetDissolve(); }
 	ImGui::EndDisabled();
 	if (!loadError_.empty()) ImGui::TextWrapped("Load failed: %s", loadError_.c_str());
 	int mode = neonMode_ ? 1 : 0;
+	ImGui::BeginDisabled(dissolve_.IsActive());
 	if (ImGui::RadioButton("Normal", mode == 0)) neonMode_ = false;
 	ImGui::SameLine();
 	if (ImGui::RadioButton("Neon", mode == 1)) neonMode_ = true;
+	ImGui::EndDisabled();
 	ImGui::BeginDisabled(!ready_);
 	if (ImGui::Button("Recommended Line Art")) ApplyRecommendedLineArtPreset();
 	if (ImGui::Button("Legacy Neon comparison")) ApplyLegacyNeonPreset();
@@ -871,10 +1134,13 @@ void NeonSkinnedPreview::DrawImGui() {
 	DrawQualityCandidateImGui();
 	DrawAnimationImGui();
 	DrawGeometryLinesImGui();
+	DrawDissolveImGui();
+	ImGui::BeginDisabled(dissolve_.IsActive());
 	ImGui::DragFloat3("Position", &transform_.translate.x, 0.1f);
 	ImGui::DragFloat3("Rotation (radians)", &transform_.rotate.x, 0.01f);
 	ImGui::DragFloat3("Scale", &transform_.scale.x, 0.05f, 0.01f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 	if (ImGui::Button("Place in front of camera")) PlaceInFrontOfCamera();
+	ImGui::EndDisabled();
 	if (ImGui::Button("Reset: dark body + neon lines")) ApplyLegacyNeonPreset();
 	ImGui::ColorEdit3("Body tint", &params_.bodyColor.x);
 	ImGui::DragFloat("Body emission", &params_.bodyEmissionIntensity, 0.02f, 0.0f, 4.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
@@ -930,20 +1196,28 @@ void NeonSkinnedPreview::DrawShowcaseWindow() {
 #ifdef USE_IMGUI
 	if (!showcaseActive_) return;
 	ImGui::SetNextWindowPos({12,45},ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize({510,760},ImGuiCond_FirstUseEver);
+	const float availableHeight = (std::max)(200.0f,ImGui::GetIO().DisplaySize.y - 80.0f);
+	ImGui::SetNextWindowSize({510,(std::min)(760.0f,availableHeight)},ImGuiCond_FirstUseEver);
+	// Apply the height cap to an existing imgui.ini size too; leave its user-selected width free.
+	ImGui::SetNextWindowSizeConstraints({0,200},{(std::numeric_limits<float>::max)(),availableHeight});
+	const bool gpuCapture = cg2::RuntimeProfiler::Get().IsCaptureActive();
 	bool open = true;
-	if (!ImGui::Begin("Neon Character Showcase",&open)) {
+	if (!ImGui::Begin("Neon Character Showcase",gpuCapture ? nullptr : &open)) {
 		ImGui::End(); if (!open) LeaveShowcase(); return;
 	}
-	if (ImGui::Button("Return to normal Preview")) { LeaveShowcase(); ImGui::End(); return; }
+	ImGui::BeginDisabled(gpuCapture);
+	if (ImGui::Button("Return to normal Preview")) { LeaveShowcase(); ImGui::EndDisabled(); ImGui::End(); return; }
+	ImGui::EndDisabled();
 	ImGui::SameLine(); ImGui::TextUnformatted("Black background / Developer only");
 	if (ImGui::BeginTabBar("NeonShowcaseTabs")) {
 		if (ImGui::BeginTabItem("View / Capture")) { DrawShowcaseImGui(); ImGui::EndTabItem(); }
 		if (ImGui::BeginTabItem("Appearance")) {
-			ImGui::BeginDisabled(showcaseComparisonActive_);
+			ImGui::BeginDisabled(showcaseComparisonActive_ || dissolveComparisonActive_ || dissolveSequence_ || gpuCapture);
+			ImGui::BeginDisabled(dissolve_.IsActive());
 			int mode = neonMode_ ? 1 : 0;
 			if (ImGui::RadioButton("Normal",mode == 0)) neonMode_ = false;
 			ImGui::SameLine(); if (ImGui::RadioButton("Neon",mode == 1)) neonMode_ = true;
+			ImGui::EndDisabled();
 			DrawQualityCandidateImGui();
 			if (ImGui::TreeNode("Existing Body / Outline / Internal settings")) {
 				ImGui::ColorEdit3("Body tint",&params_.bodyColor.x);
@@ -963,6 +1237,7 @@ void NeonSkinnedPreview::DrawShowcaseWindow() {
 		if (ImGui::BeginTabItem("Animation")) {
 			ImGui::BeginDisabled(showcaseComparisonActive_); DrawAnimationImGui(); ImGui::EndDisabled(); ImGui::EndTabItem();
 		}
+		if (ImGui::BeginTabItem("Dissolve")) { DrawDissolveImGui(); ImGui::EndTabItem(); }
 		ImGui::EndTabBar();
 	}
 	ImGui::End();

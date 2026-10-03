@@ -44,7 +44,9 @@ $previewMasks = @('line_masks/face_candidate.png', 'line_masks/bangs_candidate.p
     'line_masks/quality/face_v1_coverage.png', 'line_masks/quality/face_v1_sdf.png',
     'line_masks/quality/face_v2_coverage.png', 'line_masks/quality/face_v2_sdf.png',
     'line_masks/quality/bangs_v1_coverage.png', 'line_masks/quality/bangs_v1_sdf.png',
-    'line_masks/quality/bangs_v2_coverage.png', 'line_masks/quality/bangs_v2_sdf.png')
+    'line_masks/quality/bangs_v2_coverage.png', 'line_masks/quality/bangs_v2_sdf.png',
+    'line_masks/quality/face_v3_coverage.png', 'line_masks/quality/face_v3_sdf.png',
+    'line_masks/quality/bangs_v3_coverage.png', 'line_masks/quality/bangs_v3_sdf.png')
 foreach ($name in $previewMasks) { Write-Fixture "project/resources/models/neon_hologram/$name" 'Developer preview line-mask data' }
 Write-Fixture 'project/resources/models/neon_hologram/line_masks_neighbor/shipped_mask.png' 'Unrelated runtime mask'
 $sharedTankAssets = @('player3D.obj', 'player3D.mtl', 'ground.obj', 'ground.mtl', 'cube.obj', 'cube.mtl', 'white512x512.png', 'levels/tank_run.json')

@@ -120,7 +120,7 @@ int wmain(int argc, wchar_t** argv) {
         Require(argc == 3, "Usage: neon_quality_mask_data_tests <quality directory> <Pillow fixtures>");
         Check(com, "COM initialization failed");
         const std::filesystem::path source = argv[1], fixtures = argv[2];
-        for (const auto* role : {L"face", L"bangs"}) for (const auto* version : {L"v1", L"v2"}) {
+        for (const auto* role : {L"face", L"bangs"}) for (const auto* version : {L"v1", L"v2", L"v3"}) {
             const auto stem = std::wstring(role) + L"_" + version;
             Validate(source, fixtures, stem + L"_coverage", true, false);
             Validate(source, fixtures, stem + L"_sdf", true, true);
@@ -128,7 +128,7 @@ int wmain(int argc, wchar_t** argv) {
         Validate(fixtures, fixtures, L"linear_midvalues", false, false, true);
         Validate(fixtures, fixtures, L"linear_checker", false, false);
         CoUninitialize();
-        std::cout << "PASS: all eight quality PNGs use actual production WIC / MIP API flags; SDF LOD0 precision and coverage fallback inputs validated.\n";
+        std::cout << "PASS: all twelve V1/V2/V3 quality PNGs use actual production WIC / MIP API flags; SDF LOD0 precision and coverage fallback inputs validated.\n";
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "FAIL: " << error.what() << '\n';
