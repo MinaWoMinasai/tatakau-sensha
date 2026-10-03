@@ -2,6 +2,7 @@
 
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "StartupTrace.h"
+#include "NeonPreviewAnimations.h"
 #include "externals/nlohmann/json.hpp"
 #include <cstdint>
 #include <fstream>
@@ -52,6 +53,17 @@ void NeonSkinnedPreview::Load() {
 		auto* common = cg2::Object3dCommon::GetInstance();
 		model_ = std::make_unique<cg2::SkinnedModel>();
 		model_->Initialize(common->GetDxCommon(), common->GetSrvManager(), kPreviewModelPath);
+		// ロード時に一度だけ生成し、モデルが所有する。失敗してもBindPoseでPreviewを継続する。
+		generatedAnimationCount_ = 0;
+		animationError_.clear();
+		try {
+			auto clips = neonpreview::CreateAnimations(model_->GetSkeleton());
+			const auto count = clips.size();
+			if (model_->RegisterAnimations(std::move(clips), &animationError_)) {
+				generatedAnimationCount_ = count;
+				neonpreview::SelectAnimation(*model_, neonpreview::Clip::Idle);
+			}
+		} catch (const std::exception& error) { animationError_ = error.what(); }
 		submeshParams_.assign(model_->GetSubmeshCount(), cg2::NeonSkinnedSubmeshParams{});
 		for (size_t index = 0; index < model_->GetSubmeshCount(); ++index) {
 			for (const auto& source : sourceMaterials_) {
@@ -100,7 +112,7 @@ void NeonSkinnedPreview::Update(float deltaTime) {
 	// Draw回数・表示モードに関係なく、このUpdateだけでCB領域をリセットする。
 	renderer_.BeginFrame();
 	if (!enabled_) return;
-	model_->Update(deltaTime); // Animationがなければ既存のBindPose fallbackを更新する。
+	neonpreview::UpdateAnimation(*model_, deltaTime); // Normal/Neonでこの一回のPalette更新を共有する。
 	object_->SetTransform(transform_);
 	object_->Update(); // World/WVP・Camera CBVは既存Object3dで一度だけ更新する。
 	renderer_.SetParams(params_);
@@ -125,13 +137,42 @@ void NeonSkinnedPreview::Draw() {
 void NeonSkinnedPreview::DrawImGui() {
 #ifdef USE_IMGUI
 	if (!ImGui::CollapsingHeader("Neon Skinned Preview", ImGuiTreeNodeFlags_DefaultOpen)) return;
-	ImGui::TextUnformatted("AvatarSample_B / Developer only / BindPose");
+	ImGui::TextUnformatted("AvatarSample_B / Developer only");
 	if (ImGui::Checkbox("Preview Enable", &enabled_) && enabled_) Load();
 	if (!loadError_.empty()) ImGui::TextWrapped("Load failed: %s", loadError_.c_str());
 	int mode = neonMode_ ? 1 : 0;
 	if (ImGui::RadioButton("Normal", mode == 0)) neonMode_ = false;
 	ImGui::SameLine();
 	if (ImGui::RadioButton("Neon", mode == 1)) neonMode_ = true;
+	if (ready_) {
+		ImGui::Text("GLB animations: %zu / Generated clips: %zu", sourceAnimationCount_, generatedAnimationCount_);
+		if (!animationError_.empty()) ImGui::TextWrapped("Motion unavailable (BindPose retained): %s", animationError_.c_str());
+		const auto& clip = model_->GetAnimation();
+		int selection = clip.name == "Preview_Idle" ? 1 : clip.name == "Preview_Attack" ? 2 : 0;
+		const char* clips[] = { "BindPose", "Preview_Idle", "Preview_Attack" };
+		ImGui::BeginDisabled(generatedAnimationCount_ == 0);
+		if (ImGui::Combo("Animation", &selection, clips, 3))
+			neonpreview::SelectAnimation(*model_, static_cast<neonpreview::Clip>(selection));
+		if (ImGui::Button("Play Attack")) neonpreview::SelectAnimation(*model_, neonpreview::Clip::Attack);
+		ImGui::EndDisabled();
+		ImGui::SameLine();
+		if (ImGui::Button(model_->IsAnimationPaused() ? "Play" : "Pause"))
+			model_->SetAnimationPlaying(model_->IsAnimationPaused());
+		ImGui::SameLine();
+		if (ImGui::Button("Restart")) model_->SetAnimation(model_->GetCurrentAnimationIndex(), true);
+		float speed = model_->GetAnimationPlayer().GetPlaybackSpeed();
+		if (ImGui::DragFloat("Playback Speed", &speed, 0.05f, 0.1f, 3.0f, "%.2fx", ImGuiSliderFlags_AlwaysClamp))
+			model_->SetAnimationPlaybackSpeed(speed);
+		const float duration = model_->GetCurrentAnimationDuration();
+		float time = model_->GetCurrentAnimationTime();
+		ImGui::TextWrapped("Current: %s / loop=%s / %.3f / %.3f s", model_->GetAnimation().name.c_str(),
+			model_->IsCurrentAnimationLooping() ? "true" : "false", time, duration);
+		ImGui::BeginDisabled(!model_->IsAnimationPaused() || duration <= 0.0f);
+		if (ImGui::SliderFloat("Paused playback position", &time, 0.0f, duration > 0.0f ? duration : 1.0f, "%.3f s"))
+			model_->SeekCurrentAnimation(time);
+		ImGui::EndDisabled();
+		ImGui::TextWrapped("Pause freezes playback and blend. Seek ends the blend and shows the exact sampled pose.");
+	}
 	ImGui::DragFloat3("Position", &transform_.translate.x, 0.1f);
 	ImGui::DragFloat3("Rotation (radians)", &transform_.rotate.x, 0.01f);
 	ImGui::DragFloat3("Scale", &transform_.scale.x, 0.05f, 0.01f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
