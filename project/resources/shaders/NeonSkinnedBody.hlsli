@@ -15,6 +15,7 @@ PixelShaderOutput ShadeNeonBody(NeonSkinnedVertexOutput input, bool isFrontFace,
     float2 uvDx, float2 uvDy, float3 geometryEmission)
 {
     float4 surface = SampleNeonSurface(input.texcoord, uvDx, uvDy);
+    float2 featureMask = SampleNeonFeatureMask(input.texcoord, uvDx, uvDy);
     float internalLine = NeonInternalLine(input.texcoord, uvDx, uvDy, surface);
     ApplyNeonAlphaCutout(surface.a);
     float3 normal = input.worldNormal * rsqrt(max(dot(input.worldNormal, input.worldNormal), 1.0e-8f));
@@ -30,10 +31,15 @@ PixelShaderOutput ShadeNeonBody(NeonSkinnedVertexOutput input, bool isFrontFace,
         * (0.25f + 0.75f * saturate(dot(normal, viewDirection)));
     float3 emission = max(gEmissiveColor, 0.0f) * max(gEmissiveIntensity, 0.0f)
         * max(gRimStrength, 0.0f) * rim;
-    emission += max(gEmissiveColor, 0.0f) * max(gInternalLineIntensity, 0.0f) * internalLine;
+    emission += CompositeNeonInternalEmission(internalLine, featureMask);
     emission += geometryEmission;
     PixelShaderOutput output;
     output.color = float4(body + emission, saturate(gBodyColor.a));
+    if (gFeatureMaskBlend > 0.0f && gFeatureMaskDebugMode != 0)
+    {
+        float diagnostic = gFeatureMaskDebugMode == 1 ? featureMask.r : featureMask.g;
+        output.color.rgb = diagnostic.xxx;
+    }
     // 現在のScene MRT encoding。反射用SSR mask=0、roughness=1、metallic=0、AO=1。
     output.normal = float4(normal * 0.5f + 0.5f, 0.0f);
     output.material = float4(1.0f, 0.0f, 1.0f, 0.0f);

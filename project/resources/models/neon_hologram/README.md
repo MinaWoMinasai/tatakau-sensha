@@ -87,7 +87,7 @@ Previewの初回表示は下記の`Recommended Line Art`を使用します。Ren
 - `Texture alpha cutout`: Neonだけに簡易Cutoutを適用。Previewは既定オン。MASKは元の`alphaCutoff`、BLENDは0.03を初期値とする。
 - `Submesh / Material diagnostics`: Submeshごとの`Line strength`と`Alpha cutoff`を調整。不要な模様のSubmeshは強度0で内部線だけを止められる。
 
-Root SignatureはTransform `b0`（VS）、Neon/Camera/Viewport `b1`（ALL）、Palette `t3`（VS）、BaseColor `t0`（PS）、Submesh用4 DWORDのRoot Constants `b2`（PS）、linear clamp sampler `s0`です（合計10 DWORD）。Neonパラメータは96 bytes、Camera/Viewportを含むGPU定数は128 bytes、CBV領域は256 bytes、Submesh定数は16 bytesです。Material SRVは同じSrvManagerで初期化済みのSkinnedModelから共有し、DrawごとにCB内容とRoot Constantsを記録します。`SetSubmeshParams()`は空またはモデルのSubmesh数に一致する配列を渡してください。Renderer単体の既定値は内部線・Geometry Lines・Body emissionがオフ、Cutoutなしのため、既存呼び出しの表示を維持します。
+Root SignatureはTransform `b0`（VS）、Neon/Camera/Viewport `b1`（ALL）、Palette `t3`（VS）、BaseColor `t0`（PS）、Submesh用4 DWORDのRoot Constants `b2`（PS）、専用線マスク `t1`（PS）、linear clamp sampler `s0`です（合計11 DWORD）。Neonパラメータは128 bytes、Camera/Viewportを含むGPU定数は160 bytes、CBV領域は256 bytes、Submesh定数は16 bytesです。Material SRVは同じSrvManagerで初期化済みのSkinnedModelから共有し、DrawごとにCB内容・Root Constants・マスクSRVを記録します。`SetSubmeshParams()`と`SetSubmeshFeatureMasks()`は空またはモデルのSubmesh数に一致する配列を渡してください。マスクの`nullopt`はR/G=0を返す有効なnull Texture2D SRVへ戻ります。実マスクは同じHeapのLinearData Texture2Dとし、GPU完了までTextureManagerのキャッシュ等で保持してください。Renderer単体の既定値は内部線・Geometry Lines・Body emission・マスク適用がオフ、Cutoutなしのため、既存呼び出しの表示を維持します。
 
 参考イラストの描き込みをTexture境界だけで完全再現するものではありません。塗りの境界やハイライトも線になり、モデルに描かれていない髪の線・口の形を自動生成しません。遠距離の小さな顔、UV seam、細い髪のalpha境界では途切れやちらつきが残ります。次段階で線を厳密に指定する場合は専用Feature Maskを検討してください。Barycentricで全三角形を描く方式とは分けて設計します。
 
@@ -114,6 +114,14 @@ Root SignatureはTransform `b0`（VS）、Neon/Camera/Viewport `b1`（ALL）、P
 
 線は既存テクスチャの描き込みに依存します。鼻先や頬の薄い線が全距離で読める保証はなく、髪のハイライト境界と服の模様を意味的な線だけへ完全分離するものではありません。
 
+## 専用線マスクの比較試作
+
+初回のPreview表示では専用マスクを適用せず、従来の推奨線画を保持します。`Authored Feature Mask (candidate)`の`Load / apply mask candidate`で、`line_masks/bindings.json`に指定した顔・髪の候補PNGを一度だけ読み込みます。`Auto lines only`と`Apply candidate`で同じ姿勢を比較でき、`Mask application`で適用率、`Authored line color` / `Authored line intensity (HDR)`で専用線だけの色・強度を調整できます。これらの操作は外周・Body・Geometry設定、モデルTransform、再生時刻を変更しません。
+
+`Mask display`のR / G診断はモデル表面のUVに従うグレースケール表示です。Rは専用線のcoverage、Gは自動内部線を置き換える領域で、G=1 / R=0は本体を残したまま内部線だけを消します。適用率0なら診断を選んだままでも従来表示へ戻ります。診断ではマスク未指定のSubmeshは黒く表示します。BaseColor alphaによるCutoutはこのマスクから独立しています。
+
+各対象Materialのパス・LinearData RGBA8 / UV0・解像度・読込状態を表示します。無効な設定や画像の読み込み失敗では該当Materialの自動内部線を保持し、UIへエラーを表示します。TextureManagerのキャッシュとGPU資源の寿命を保持するため、候補の修正はアプリケーション再起動後に反映してください。今回選んだ前髪の領域では前後の重複はありませんが、髪全体にはUV共有があり、対象領域を広げると他の束にも線が現れる可能性があります。制作方法・元データのハッシュ・対象Materialと調査結果は[line_masks/README.md](line_masks/README.md)を参照してください。
+
 ## Materialの制約
 
 現在のNeonパスは簡易Alpha Cutout付きの不透明描画です。透明部分は本体のDepth / StencilとHullの両方から除外します。BLENDもCutoutで近似するため、半透明合成・ソートやMToon、Morph Target、Spring Bone、Expressionを再現しません。Normal側は既存の汎用Skinning Materialをそのまま使用します。
@@ -132,4 +140,4 @@ Root SignatureはTransform `b0`（VS）、Neon/Camera/Viewport `b1`（ALL）、P
 
 ## Submission Package
 
-Repositoryには本モデルを収録しますが、現在の`TankSubmissionPackage.ps1`では**このGLBのパスだけ**を除外します。他のmodelsや本READMEは除外しません。正式なBossとしてReleaseで使用する段階で、`models/neon_hologram/AvatarSample_B.glb`の除外を解除してください。
+Repositoryには本モデルを収録しますが、現在の`TankSubmissionPackage.ps1`では**このGLBのパスとPreview専用の`models/neon_hologram/line_masks/`内だけ**を除外します。他のmodels、隣接ディレクトリ、本READMEは除外しません。正式なBossとしてReleaseで使用する段階で、モデルと必要なマスクの除外を見直してください。

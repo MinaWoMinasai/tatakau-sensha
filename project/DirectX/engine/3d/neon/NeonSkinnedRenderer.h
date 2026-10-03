@@ -3,6 +3,7 @@
 #include "Struct.h"
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 #include <d3d12.h>
@@ -34,9 +35,14 @@ struct NeonSkinnedParams {
     float geometryLineWidthPixels = 1.0f; // 共有辺を挟む全幅。各三角形側はこの半幅。
     float bodyEmissionIntensity = 0.0f; // Body色による弱い面の補助発光。0で従来の出力を維持する。
     float bodyPadding = 0.0f;
+    Vector3 featureMaskColor = {1.0f, 0.025f, 0.35f};
+    float featureMaskIntensity = 5.0f;
+    float featureMaskBlend = 0.0f; // 0で従来のTexture特徴線を維持する。
+    uint32_t featureMaskDebugMode = 0; // 0: 発光合成、1: R coverage、2: G置換領域。
+    float featureMaskPadding[2]{};
 };
 
-static_assert(sizeof(NeonSkinnedParams) == 96);
+static_assert(sizeof(NeonSkinnedParams) == 128);
 static_assert(offsetof(NeonSkinnedParams, emissiveColor) == 16);
 static_assert(offsetof(NeonSkinnedParams, rimStrength) == 32);
 static_assert(offsetof(NeonSkinnedParams, outlineWidthPixels) == 40);
@@ -48,6 +54,11 @@ static_assert(offsetof(NeonSkinnedParams, geometryLineEnabled) == 80);
 static_assert(offsetof(NeonSkinnedParams, geometryLineWidthPixels) == 84);
 static_assert(offsetof(NeonSkinnedParams, bodyEmissionIntensity) == 88);
 static_assert(offsetof(NeonSkinnedParams, bodyPadding) == 92);
+static_assert(offsetof(NeonSkinnedParams, featureMaskColor) == 96);
+static_assert(offsetof(NeonSkinnedParams, featureMaskIntensity) == 108);
+static_assert(offsetof(NeonSkinnedParams, featureMaskBlend) == 112);
+static_assert(offsetof(NeonSkinnedParams, featureMaskDebugMode) == 116);
+static_assert(offsetof(NeonSkinnedParams, featureMaskPadding) == 120);
 
 // Texture由来の特徴線と任意のAlpha Cutout。空の設定では通常の不透明Neonを維持する。
 // alphaCutoff=0はCutoutなし。BLENDのソート/半透明合成は実装しない。
@@ -93,6 +104,10 @@ public:
     }
     // 空または描くモデルのSubmesh数と同じ長さ。各DrawのRoot Constantsへ記録する。
     void SetSubmeshParams(const std::vector<NeonSkinnedSubmeshParams>& params);
+    // 空またはモデルのSubmesh数と同じ長さ。nullopt / 予約index 0 / 範囲外はG=0のnull SRVへ戻す。
+    // SRVは同じSrvManagerのLinearData Texture2D。所有者はGPU完了まで資源とSRVを保持する。
+    // TextureManagerのキャッシュを使い、GPU使用中の差し替え・破棄は行わない。
+    void SetSubmeshFeatureMasks(const std::vector<std::optional<uint32_t>>& srvIndices);
 
     // transformationCbvはObject3d::Update()等で更新済みのTransformationMatrix(WithShadow)を指す。
     // 例: object.GetTransformationResource()->GetGPUVirtualAddress()。World / WVPは再計算しない。
@@ -113,9 +128,9 @@ private:
         Vector2 viewportSize{};
         float viewportPadding[2]{};
     };
-    static_assert(sizeof(GpuConstants) == 128);
-    static_assert(offsetof(GpuConstants, cameraWorldPosition) == 96);
-    static_assert(offsetof(GpuConstants, viewportSize) == 112);
+    static_assert(sizeof(GpuConstants) == 160);
+    static_assert(offsetof(GpuConstants, cameraWorldPosition) == 128);
+    static_assert(offsetof(GpuConstants, viewportSize) == 144);
 
     /// @brief 1回の描画に使う定数バッファとマップ先を保持する。
     struct DrawConstantBuffer {
@@ -144,6 +159,8 @@ private:
     Microsoft::WRL::ComPtr<ID3D12PipelineState> stencilClearPipelineState_;
     NeonSkinnedParams params_;
     std::vector<NeonSkinnedSubmeshParams> submeshParams_;
+    std::vector<std::optional<uint32_t>> featureMaskSrvIndices_;
+    uint32_t nullFeatureMaskSrvIndex_ = 0;
     std::vector<DrawConstantBuffer> drawConstantBuffers_;
     size_t nextDrawIndex_ = 0;
     bool geometryLinesSupported_ = false;

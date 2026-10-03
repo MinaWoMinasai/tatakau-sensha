@@ -1,7 +1,7 @@
 #ifndef NEON_SKINNED_HLSLI
 #define NEON_SKINNED_HLSLI
 
-// NeonSkinnedRenderer::GpuConstants (128byte)。Body / Geometry / Outlineで共有。
+// NeonSkinnedRenderer::GpuConstants (160byte)。Body / Geometry / Outlineで共有。
 cbuffer NeonSkinnedConstants : register(b1)
 {
     float4 gBodyColor;
@@ -21,6 +21,11 @@ cbuffer NeonSkinnedConstants : register(b1)
     float gGeometryLineWidthPixels;
     float gBodyEmissionIntensity;
     float gBodyPadding;
+    float3 gFeatureMaskColor;
+    float gFeatureMaskIntensity;
+    float gFeatureMaskBlend;
+    uint gFeatureMaskDebugMode;
+    float2 gFeatureMaskPadding;
     float3 gCameraWorldPosition;
     float gCameraPadding;
     float2 gViewportSize;
