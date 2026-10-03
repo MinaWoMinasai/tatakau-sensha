@@ -340,7 +340,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 					shootBarrelIndex_ = 0; // 次は左
 				}
 
-				// クールタイムを半分にする（2門合わせてBasicと同じ秒間発射数にする場合）
+				// 次の砲身を撃つまでの待ち時間を、基準発射間隔の1/2.5にする。
 				bulletCoolTime = baseReload / 2.5f;
 			}
 			break;
@@ -387,7 +387,7 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime) {
 				break;
 
 			case ClassType::Ninja:
-				// 手裏剣風に3つ拡散
+				// Ninjaの互換射撃条件。1発と拡散角15度を設定する。
 				param.bulletCount = 1;
 				param.spreadAngleDeg = 15.0f;
 				// ステルス解除はしない(仕様通りなら攻撃中も維持)
@@ -2085,7 +2085,7 @@ void Player::Die()
 
 	SpawnParticles();
 
-	// すべての弾を消す
+	// 生成済みの弾はここでは消去しない。弾の消去はBulletManager側で行う。
 
 }
 
@@ -4760,12 +4760,10 @@ void Player::UpdateSummoner(float deltaTime) {
 	}
 }
 
-// 薬莢（スモールパーティクル）を生成する汎用関数
 void Player::SpawnCasing() {
 	cg2::ParticleManager::GetInstance()->Emit("CasingSpark", GetWorldPosition() + dir_ * 1.0f, 2);
 }
 
-// 残像を生成する関数
 void Player::SpawnAfterimage() {
 	cg2::Vector3 position = GetWorldPosition();
 	cg2::Vector3 moveDirection = velocity_;
@@ -4849,7 +4847,6 @@ float Player::GetDamageFeedbackRatio() const
 	return (std::clamp)(damageFeedbackTimer_ / damageFeedbackDuration_, 0.0f, 1.0f);
 }
 
-// バフ中の粒子を生成
 void Player::SpawnBuffParticle() {
 	cg2::ParticleManager::GetInstance()->Emit("DashDust", GetWorldPosition(), 1);
 }

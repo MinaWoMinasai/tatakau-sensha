@@ -74,7 +74,8 @@ class Player : public Collider {
 public:
     using BodyShape = PlayerBodyShape;
 
-    /// @brief 自機の基礎性能を保持する。reloadSpeedは60FPS相当の基準フレーム数で、小さいほど連射が速い。
+    /// @brief 自機の性能値と現在のスタミナを保持する。基礎値と補正後の実行値の両方に使う。
+    /// @note reloadSpeedは発射間隔の60FPS相当の基準フレーム数。bulletSpeed・moveSpeedは基準1フレームの移動量。
     struct PlayerStats {
         float reloadSpeed = 10.0f;    // 連射速度（小さいほど速い）
         float bulletDamage = 1.0f;    // 弾の威力
@@ -108,6 +109,7 @@ public:
         bool healToFull = false;
     };
     /// @brief レーザー発射の位置・方向・性能を戦闘側へ渡す。
+    /// @note duration・damageIntervalは秒。range・widthはワールド座標の長さ。
     struct LaserShotEvent {
         cg2::Vector3 origin{};
         cg2::Vector3 direction{1.0f, 0.0f, 0.0f};
@@ -119,6 +121,7 @@ public:
         cg2::Vector4 color{0.25f, 1.0f, 0.95f, 1.0f};
     };
     /// @brief 地雷の配置位置と性能を戦闘側へ渡す。
+    /// @note fuseTime・lifeTimeは秒。radiusはワールド座標の半径。
     struct MineDropEvent {
         cg2::Vector3 position{};
         float radius = 3.2f;
@@ -128,6 +131,8 @@ public:
         cg2::Vector4 color{1.0f, 0.25f, 0.95f, 1.0f};
     };
     /// @brief 近接斬撃の範囲と威力を戦闘側へ渡す。
+    /// @note windupDurationは予備動作、durationは有効時間、recoveryDurationは硬直時間で、いずれも秒。
+    /// arcDegは度。通常のcomboStepは0・1・2で、回転斬撃は-1を使う。
     struct MeleeSlashEvent {
         cg2::Vector3 origin{};
         cg2::Vector3 direction{1.0f, 0.0f, 0.0f};
@@ -142,16 +147,16 @@ public:
         uint32_t damage = 1;
         cg2::Vector4 color{0.55f, 1.25f, 1.0f, 1.0f};
     };
-    /// @brief ダッシュ衝突の位置・方向・強度を戦闘と演出へ渡す。
+    /// @brief ダッシュ衝突の位置・方向と、ボス・強化攻撃の有無を演出へ渡す。
     struct DashImpactEvent {
         cg2::Vector3 origin{}, direction{1.0f, 0.0f, 0.0f};
         bool boss = false;
         bool powered = false;
     };
-    /// @brief ドローン間のレーザー接続の端点と威力を表す。
+    /// @brief ドローン間のレーザー接続のワールド座標の端点と、今回の更新での敵への接触有無を表す。
     struct DroneLaserLink {
         cg2::Vector3 start{}, end{};
-        bool contact = false;
+        bool contact = false; // 地形に遮られず敵に接触したか。ダメージ間隔による許可の有無には依存しない。
     };
     enum class SpecialEventKind {
         RailShot,
@@ -167,97 +172,121 @@ public:
         WallSmash
     };
     /// @brief 特殊戦闘の発動結果をシーン側へ渡す。
+    /// @note strengthの意味はkindによる。RailShotは蓄積秒数、DroneBomb・WallSmashは演出の輪の半径の増加に使う値。
     struct SpecialCombatEvent {
         SpecialEventKind kind = SpecialEventKind::RailShot;
         cg2::Vector3 origin{}, direction{1, 0, 0};
         float strength = 1;
     };
-    /// @brief 特殊戦闘の発動・命中などの件数を集計する。
+    /// @brief 特殊戦闘の発動・命中の累積件数と、分散照準で選んだ対象のビット集合を保持する。
     struct SpecialCombatStats {
         uint32_t railShots = 0, slashWaves = 0, parries = 0, perfectParries = 0, linkTicks = 0;
+        // spreadTargetsは対象添字を32で割った余りのビット集合。
         uint32_t droneCharges = 0, droneChargeHits = 0, droneBombs = 0, droneRebuilds = 0, targetLocks = 0, spreadTargets = 0;
         uint32_t dashSlashes = 0, dashSlashHits = 0, spinTicks = 0, wallSmashes = 0;
     };
     /// @brief ドローン能力の状態を表示するための位置・進行度を表す。
+    /// @note progressは段階の経過時間を表示用の基準時間で割り、0～1に制限した値。帰還時の基準は突撃の制限時間。
     struct DroneAbilityVisual {
         cg2::Vector3 position{}, target{};
         tankspecial::DronePhase phase = tankspecial::DronePhase::Escort;
         float progress = 0;
         bool bomb = false;
     };
-    /// @brief 照準固定対象とロック進行度を表示へ渡す。
+    /// @brief ロック蓄積中・ロック中の対象位置、命中蓄積数、ロック残り時間（秒）を表示へ渡す。
     struct TargetLockVisual {
         cg2::Vector3 position{};
         int stacks = 0;
         float remaining = 0;
     };
-    /// @brief ドローンAbility表示情報を返す。
+    /// @brief 護衛中を除いた、生存ドローンの任務表示情報を値で返す。ドローン装備系統でなければ空。
     std::vector<DroneAbilityVisual> GetDroneAbilityVisuals() const;
-    /// @brief 対象Lock表示情報を返す。
+    /// @brief 特殊戦闘更新で作成したロック対象の表示情報への読み取り専用参照を返す。
+    /// @note 要素は次の特殊戦闘更新や能力リセットで再取得する。
     const std::vector<TargetLockVisual>& GetTargetLockVisuals() const
     {
         return targetLockVisuals_;
     }
-    /// @brief Spin刃比率を返す。
+    /// @brief 回転斬撃の残り時間を継続時間0.8秒で割った値を返す。
+    /// @note 戻り値自体は範囲を制限しない。非負の時間で通常更新した状態では0～1。
     float GetSpinBladeRatio() const
     {
         return spinCycle_.remaining / .8f;
     }
-    /// @brief EMP比率を返す。
+    /// @brief EMP妨害の残り時間を基準2.5秒で割った値を返す。
+    /// @note 0～1への制限はなく、3秒の妨害を適用した直後は1.2になる。
     float GetEmpRatio() const
     {
         return empJammerTimer_ / 2.5f;
     }
-    /// @brief EMPJammerを現在の状態へ適用する。
+    /// @brief 遠征補正が有効ならEMP妨害の残り時間を延長する。現在より短い要求では短縮しない。
+    /// @param seconds 要求する残り時間（秒）。0～3秒に制限する。
     void ApplyEmpJammer(float seconds = 2.5f)
     {
         if (runModifiers_.enabled)
             empJammerTimer_ = tankspecial::EmpDuration(empJammerTimer_, seconds);
     }
-    /// @brief ドローン命中を通知する。
+    /// @brief ドローンの命中をロックへ蓄積し、今回適用する補正後のダメージを返す。
+    /// @param drone 命中元ドローンの添字。0～31は蓄積に使い、負値は処理対象外。
+    /// @param target 借用する命中対象。nullptr、死亡済み、資源、対応外の型は処理対象外。
+    /// @param originalDamage ロック補正を掛ける前のダメージ。
+    /// @return 能力・装備系統が対象外、または記録枠が確保できなければoriginalDamage。
+    /// 対象の記録がある場合はロック倍率を掛けて四捨五入し、最低1としたダメージ。
+    /// @note ロック成立時は集計と演出イベントも更新する。添字32以上は蓄積しないが既存ロックの倍率は適用する。
+    /// HPへの適用は呼び出し側が行う。衝突側は弾のダメージを一時的に置き換え、衝突処理後に元へ戻す。
     uint32_t NotifyDroneHit(int drone, Collider* target, uint32_t originalDamage);
-    /// @brief ドローン対象ダメージ倍率を返す。
+    /// @brief 対象の現在のロックによるダメージ倍率を返す。対象・能力・装備系統が該当しなければ1。
+    /// @param boss ボス用の倍率を使うか。対象の型判定は呼び出し側で行う。
     float GetDroneTargetDamageScale(const Collider* target, bool boss) const;
-    /// @brief 壁への体当たりで破壊する候補を記録する。
+    /// @brief 近接攻撃で押し出した経験値敵について、1秒以内の壁衝突を追加ダメージの候補として記録する。
+    /// @param target 借用する対象。nullptr、死亡済み、資源、能力・装備系統が対象外なら記録しない。
+    /// @param strength 0.5～2に制限して記録する強さ。現在の壁衝突ダメージ計算には使わない。
+    /// @note 記録枠がない場合は何もしない。同じ対象の未処理の壁衝突があれば上書きしない。
     void ArmWallSmash(ExpEnemy* target, float strength = 1);
-    /// @brief レール砲チャージ比率を返す。
+    /// @brief レール砲の押下中の蓄積時間（秒）を返す。押下継続状態でなければ0。
+    /// @note 最大時間で割る正規化は行わない。現在のkRailMaxChargeSecondsが1秒のため、比率と同じ数値になる。
     float GetRailChargeRatio() const
     {
         return railCharge_.held ? railCharge_.seconds : 0.0f;
     }
-    /// @brief レール砲チャージ銃口を返す。
+    /// @brief チャージ演出用に先頭砲塔の銃口のワールド座標を返す。設定がなければ照準方向の既定位置。
     cg2::Vector3 GetRailChargeMuzzle() const;
-    /// @brief ドローンレーザーLinksを返す。
+    /// @brief 今回の特殊戦闘更新で作成したドローン間レーザー接続への読み取り専用参照を返す。
+    /// @note 要素は次のUpdateSpecialCombatや装備変更・部屋リセットで再取得する。
     const std::vector<DroneLaserLink>& GetDroneLaserLinks() const
     {
         return droneLaserLinks_;
     }
-    /// @brief 特殊戦闘集計値を返す。
+    /// @brief 特殊戦闘の累積集計への読み取り専用参照を返す。
     const SpecialCombatStats& GetSpecialCombatStats() const
     {
         return specialCombatStats_;
     }
     /// @brief 特殊戦闘イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     std::vector<SpecialCombatEvent> ConsumeSpecialCombatEvents();
-    // Called once after bullet movement and before body/bullet collision resolution.
-    /// @brief 特殊戦闘を更新する。
+    /// @brief 追加能力・接続レーザー・斬撃波・パリィを更新し、必要なダメージ・弾・イベントを生成する。
     /// @param dt この処理で進める経過時間（秒）。
+    /// @note 自機・敵・弾の移動と地形衝突の後、アクター・弾の衝突処理の前に1回呼ぶ。
+    /// boss・enemiesのnullptrは対象なし。bulletsのnullptr、遠征補正無効、死亡中、dtが0以下なら
+    /// レーザー接続一覧を消去した後に戻る。
     void UpdateSpecialCombat(Stage& stage, BulletManager* bullets, Enemy* boss, EnemyManager* enemies, float dt);
-    /// @brief 衝撃をダッシュによる処理を試みる。
+    /// @brief ダッシュ開始直後の敵への接触を、ダメージ・押し出し・演出イベントへ反映する。
+    /// @return 通常の接触通知を省略する場合true。同じダッシュで処理済みの対象もtrueを返す。
+    /// @note nullptr、死亡中、ダッシュ外、対象外の敵にはfalse。処理済みでなければ受付時間も確認する。
     bool TryDashImpact(Collider* target);
     /// @brief ダッシュ衝撃イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     std::vector<DashImpactEvent> ConsumeDashImpactEvents();
-    /// @brief ダッシュ開始済み件数を返す。
+    /// @brief ダッシュを開始した累積回数を返す。
     uint32_t GetDashStartedCount() const
     {
         return dashStartedCount_;
     }
-    /// @brief ダメージTaken件数を返す。
+    /// @brief 無敵・カウンターなどで無効化されず、被ダメージ処理へ進んだ累積回数を返す。
     uint32_t GetDamageTakenCount() const
     {
         return damageTakenCount_;
     }
-    /// @brief 主攻撃攻撃件数を返す。
+    /// @brief 主攻撃を実行した累積回数を返す。弾数ではなく、近接攻撃や遠征ドローンの発射も含む。
     uint32_t GetPrimaryAttackCount() const
     {
         return primaryAttackCount_;
@@ -273,27 +302,30 @@ public:
     {
         return runModifiers_.enabled && expeditionCombatStyleSelected_ && expeditionCombatStyle_ == tankbuild::Style::Drone;
     }
-    /// @brief 遠征戦闘外観を設定する。
+    /// @brief 遠征の戦闘系統を選び、性能・装備・特殊状態を切り替える。
+    /// @return 有効な遠征で切り替えられた場合、または同じ系統が選択済みならtrue。
+    /// @note 無効な系統、遠征外、死亡中、必要なBasic設定がない場合はfalse。切り替えでHP・スタミナを補充しない。
     bool SetExpeditionCombatStyle(tankbuild::Style style);
-    /// @brief 遠征戦闘外観を返す。
+    /// @brief 保持している遠征の戦闘系統を返す。選択済みかはHasExpeditionCombatStyleで確認する。
     tankbuild::Style GetExpeditionCombatStyle() const
     {
         return expeditionCombatStyle_;
     }
-    /// @brief 遠征戦闘外観が存在するか判定する。
+    /// @brief 遠征の戦闘系統を選択済みかを返す。
     bool HasExpeditionCombatStyle() const
     {
         return expeditionCombatStyleSelected_;
     }
 
-    /// @brief デストラクタ
+    /// @brief 所有する装備とUI資源を破棄する。Initializeで借用した本体オブジェクトの所有権は持たない。
     ~Player();
 
-    /// @brief マウスの方を向く
+    /// @brief マウスから求めたZ=0平面の位置、またはデモの照準位置へ機体の向きを更新する。
+    /// @note 初期化後に呼ぶ。通常入力ではviewProjectionに有効なカメラが必要。
     void RotateToMouse(cg2::Camera* viewProjection);
 
     /// @brief 自機の戦闘資源・機体設定・初期位置を用意する。
-    /// @param objectBullet 呼び出し側から渡す弾用の描画オブジェクト。
+    /// @param objectBullet 自機本体の描画オブジェクト。nullptr不可。所有権は移らず、自機の利用中は有効に保つ。
     /// @param position ワールド座標での初期位置。
     /// @param arenaUi 旧アリーナ用の図鑑・HUD資源も準備するか。遠征は専用UIを持つ。
     /// @note 初回生成に使う。機体設定の再読込にはReloadPlayerClassConfigsを使う。
@@ -303,28 +335,33 @@ public:
     /// @param deltaTime 戦闘用の経過秒。スローなどを反映した時間。
     /// @param uiDeltaTime UI用の経過秒。戦闘のスローと分けて渡す。
     /// @note 進化画面を操作したフレームは戦闘入力へ流さない。
+    /// 初期化後、有効なカメラと弾管理先を渡す。経過時間は非負とする。
     void Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* BulletManager, float deltaTime, float uiDeltaTime);
 
-    /// @brief 描画
+    /// @brief 通常モデルを使うドローンと、指定に応じて自機本体・砲塔を描画する。
+    /// @param drawBody 自機本体・砲塔も描画するか。ドローンの描画には影響しない。
     void Draw(bool drawBody = true);
-    /// @brief 機体専用を描画する。
+    /// @brief 自機本体・砲塔を描画する。死亡時の溜め演出中は本体だけ描画する。
     void DrawBodyOnly();
 
-    /// @brief スプライト描画
+    /// @brief 通常スプライト用の描画状態を準備し、強化HUDを描画する。
     void DrawSprite();
-    /// @brief 進化後の後処理演出を描画する。
+    /// @brief 進化画面の背景と発光演出を、シーンのポストエフェクト後に描画する。
     void DrawEvolutionAfterPostEffects();
-    /// @brief 強化HUD後の後処理演出を描画する。
+    /// @brief 強化HUDのゲージの発光を、シーンのポストエフェクト後に描画する。
     void DrawUpgradeHudAfterPostEffects();
-    /// @brief Gameplayネオン文字文字表示を末尾へ追加する。
+    /// @brief ゲーム中のHUDで発光対象にする文字ラベルの借用ポインターをlabelsの末尾へ追加する。
+    /// @note 進化画面中は追加しない。所有権は移らず、UIの再構築やPlayerの破棄をまたいで保持しない。
     void AppendGameplayNeonTextLabels(std::vector<cg2::TextLabel*>& labels) const;
     /// @brief 強化HUD文字テクスチャを利用前に準備する。
     void PrepareUpgradeHudTextTextures();
 
-    // ドローンのゲッター
+    /// @brief 管理するドローンの借用ポインター一覧を値で返す。死亡済みの要素も含む。
+    /// @note 所有権は移らない。次の更新・装備変更・部屋リセットで削除され得るため、都度取得する。
     std::vector<PlayerDrone*> GetDronePtrs() const;
 
-    /// @brief 衝突判定
+    /// @brief 確定した接触を受け、回避・ノックバック・被ダメージを処理する。接触判定は呼び出し側で行う。
+    /// @param other 接触相手。nullptr不可。
     void OnCollision(Collider* other) override;
 
     // ワールド座標を取得
@@ -335,18 +372,18 @@ public:
     /// @brief ワールド座標での位置を返す。
     cg2::Vector3 GetWorldPosition() const override;
 
-    /// @brief 移動を返す。
+    /// @brief 現在の速度を値で返す。60FPS相当の基準1フレームの移動量として保持する。
     cg2::Vector3 GetMove()
     {
         return velocity_;
     }
-    /// @brief 速度を設定する。
+    /// @brief 現在の速度を設定する。単位は60FPS相当の基準1フレームの移動量。
     void SetVelocity(const cg2::Vector3& v)
     {
         velocity_ = v;
     }
 
-    // セッター
+    /// @brief ワールド座標を設定し、本体オブジェクトの変換と行列を更新する。初期化後に呼ぶ。
     void SetWorldPosition(const cg2::Vector3& pos)
     {
         worldTransform_.translate = pos;
@@ -357,20 +394,24 @@ public:
     /// @brief AABBを返す。
     cg2::AABB GetAABB();
 
-    /// @brief 指定ダメージを戦闘状態へ反映する。
+    /// @brief 無敵時間を0.45秒としてTakeDamageへ渡す。既定のダメージ量はダメージブロック用。
     void Damage(uint32_t amount = kDamageBlockDamage);
     /// @brief 受けたダメージをHPなどの戦闘状態へ反映する。
+    /// @param invincibleTime 適用後に設定する無敵時間（秒）。
+    /// @note 死亡中、amountが0、無敵中、無傷の開発設定中は何もしない。
+    /// カウンターが成立すれば被ダメージを省略する。HPが0になれば死亡演出を開始する。
     void TakeDamage(uint32_t amount, float invincibleTime = 0.45f);
     /// @brief 性能調整設定を現在の状態へ適用する。
     void ApplyBalanceConfig(const BalanceConfig& config);
-    /// @brief 戦闘外観性能調整を現在の状態へ適用する。
+    /// @brief 戦闘系統ごとの調整値を補正して反映し、性能とドローン設定を更新する。
+    /// @note HP・スタミナは新しい上限内に制限し、補充しない。
     void ApplyCombatStyleBalance(const TankCombatStyleBalances& profiles);
-    /// @brief 戦闘外観設定を返す。
+    /// @brief 戦闘系統の性能調整値への読み取り専用参照を返す。無効なstyleは先頭の系統として扱う。
     const TankCombatStyleProfile& GetCombatStyleProfile(tankbuild::Style style) const
     {
         return combatStyleBalances_[tankbuild::Valid(style) ? static_cast<size_t>(style) : 0];
     }
-    /// @brief 遠征Modifiersを設定する。
+    /// @brief 遠征補正をコピーして性能・装備へ反映する。補正の有効化・無効化に伴う状態も初期化する。
     void SetRunModifiers(const TankRunModifiers& modifiers);
     /// @brief 遠征中の自機の戦闘性能を表示・検証用にまとめる。
     struct RunCombatSnapshot {
@@ -391,12 +432,13 @@ public:
     };
     /// @brief 遠征戦闘状態の写しを返す。
     RunCombatSnapshot GetRunCombatSnapshot() const;
-    /// @brief デモ入力有効であるか判定する。
+    /// @brief デモ入力を使用する設定かを返す。
     bool IsDemoInputEnabled() const
     {
         return demoInputEnabled_;
     }
-    /// @brief デモ入力を設定する。
+    /// @brief デモ用の移動・ワールド座標の照準・射撃・ダッシュ入力を設定する。
+    /// @note 有効にすると進化画面を閉じ、部屋移動後の入力解放待ちを解除する。
     void SetDemoInput(bool enabled, const cg2::Vector2& move, const cg2::Vector3& aimWorld, bool shoot, bool dash)
     {
         demoInputEnabled_ = enabled;
@@ -409,63 +451,79 @@ public:
             runRoomAwaitInputRelease_ = false;
         }
     }
-    /// @brief 試作装備構成を利用条件を設定する。
+    /// @brief 遠征の初期装備を準備し、整備・進化状態を初期化する。遠征補正無効なら何もしない。
+    /// @param archetype 初期系統。0: Twin、1: MachineGun、2: Overseer。範囲外は0～2へ制限する。
+    /// @note 部屋ごとの進化方式ではBasicから開始し、レベル・強化・ドローンをリセットしてHPを全回復する。
     void ConfigurePrototypeLoadout(int archetype); // 0: Twin, 1: MachineGun, 2: Overseer
     /// @brief 遠征中の自機のHPを回復する。
+    /// @note amountが正で生存中の場合、最大HPまで回復する。遠征補正無効なら何もしない。
     void HealRunPlayer(int amount);
     /// @brief 遠征中の自機のHPを費用として消費する。
+    /// @return 正のamountを支払ってHPが1以上残る場合true。遠征補正無効・死亡中・支払不可なら変更せずfalse。
     bool SpendRunHealth(int amount);
-    /// @brief 遠征Checkpoint進化を設定する。
+    /// @brief 部屋ごとの進化・整備方式を使うか設定する。切り替えに伴う状態の初期化は行わない。
     void SetRunCheckpointEvolution(bool enabled)
     {
         runCheckpointEvolution_ = enabled;
     }
-    /// @brief 遠征Homing対象を設定する。
+    /// @brief 誘導・ドローン照準に使う対象のワールド座標を、先頭48件までコピーする。
     void SetRunHomingTargets(const std::vector<cg2::Vector3>& targets);
-    /// @brief 遠征進化候補を返す。
+    /// @brief 現在選択できる遠征の進化候補を値で返す。方式・装備系統・準備状態に応じて空になる。
     std::vector<RunEvolutionChoice> GetRunEvolutionChoices() const;
-    /// @brief 遠征進化を利用前に準備する。
+    /// @brief 遠征の進化候補を選べる状態へ進め、進化画面と確定・取消イベントを解除する。
+    /// @note 部屋ごとの方式では準備フラグを設定する。旧方式では次の機体に必要なランクまでレベルを上げる。
     void PrepareRunEvolution();
-    /// @brief 遠征進化を選ぶ。
+    /// @brief 現在の遠征進化候補から指定IDを選択し、装備へ反映して確定イベントを記録する。
+    /// @return 選択できればtrue。候補外・遠征補正無効・死亡中などはfalse。
     bool ChooseRunEvolution(const std::string& id);
-    /// @brief 遠征整備点を付与する。
+    /// @brief 部屋ごとの進化方式で、未付与のクリア部屋に対して整備ポイントを1付与する。
+    /// @param clearedRoom 部屋番号（1～4）。
+    /// @return 付与した場合true。付与済み・範囲外・遠征補正無効・方式外・死亡中はfalse。
     bool AwardRunMaintenancePoint(int clearedRoom);
-    /// @brief 遠征整備Pointsを返す。
+    /// @brief 未使用の遠征整備ポイント数を返す。
     int GetRunMaintenancePoints() const
     {
         return runMaintenance_.Points();
     }
     /// @brief 遠征整備ランクを返す。
+    /// @param stat 0: 機動、1: 装填、2: 装甲。範囲外は0を返す。
     int GetRunMaintenanceRank(int stat) const
     {
         return runMaintenance_.Rank(stat);
     }
-    /// @brief 遠征整備候補を返す。
+    /// @brief 遠征整備の3項目について、現在の段階と支払可否を値で返す。
     std::array<RunMaintenanceChoice, 3> GetRunMaintenanceChoices() const;
-    /// @brief 遠征の整備ポイントを消費する。
+    /// @brief 整備ポイントを1消費し、指定項目を1段階強化して性能を再計算する。
+    /// @param stat 0: 機動、1: 装填、2: 装甲。
+    /// @return 強化した場合true。方式外・死亡中・範囲外・ポイント不足・上限到達ならfalse。
+    /// @note この再計算ではHPを回復しない。
     bool SpendRunMaintenancePoint(int stat);
-    /// @brief 遠征整備点を消費した分を返却する。
+    /// @brief 指定整備を1段階戻してポイントを1返却し、性能を再計算する。
+    /// @param stat 0: 機動、1: 装填、2: 装甲。
+    /// @return 返却した場合true。方式外・死亡中・範囲外・未強化ならfalse。
     bool RefundRunMaintenancePoint(int stat);
-    /// @brief 遠征部屋状態を初期状態へ戻す。
+    /// @brief 部屋移動時に一時的な戦闘状態・ドローン・イベントをリセットし、指定ワールド座標へ移す。
+    /// @note 遠征補正有効かつ生存中に行う。HP・成長は保ち、スタミナを全回復して短い無敵時間を設定する。
+    /// 通常入力はマウスボタンを解放するまで攻撃を待つ。生成済みの弾はここでは消去しない。
     void ResetRunRoomState(const cg2::Vector3& position);
-    /// @brief 開発表示Noダメージを設定する。
+    /// @brief 被ダメージを無効化する開発用設定を切り替える。
     void SetDebugNoDamage(bool enabled)
     {
         debugNoDamage_ = enabled;
     }
-    /// @brief 開発表示Noダメージであるか判定する。
+    /// @brief 被ダメージを無効化する開発用設定が有効かを返す。
     bool IsDebugNoDamage() const
     {
         return debugNoDamage_;
     }
 
-    /// @brief 死亡状態にし、以降の攻撃・衝突などの対象から外す。
-    void Die(); // ← プレイヤー消滅
+    /// @brief 死亡状態にして死亡演出を開始する。既に死亡中なら何もしない。
+    void Die();
 
-    // 演出終了か
+    /// @brief 死亡済みで、死亡演出が終了した場合trueを返す。
     bool isFinished();
 
-    /// @brief 死亡であるか判定する。
+    /// @brief 死亡状態かを返す。
     bool IsDead() const
     {
         return isDead_;
@@ -475,7 +533,7 @@ public:
     {
         return hp_;
     }
-    /// @brief 最大値HPを返す。
+    /// @brief 現在の最大HPを整数へ変換して返す。
     int GetMaxHp() const
     {
         return static_cast<int>(stats_.maxHp);
@@ -484,28 +542,28 @@ public:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateDefeatPresentation(float deltaTime);
 
-    /// @brief On地面であるか判定する。
+    /// @brief 地形衝突処理で設定された接地状態を返す。
     bool IsOnGround() const
     {
         return isOnGround_;
     }
-    /// @brief On地面を設定する。
+    /// @brief 接地状態を設定する。
     void SetOnGround(bool onGround)
     {
         isOnGround_ = onGround;
     }
 
-    /// @brief 角度を返す。
+    /// @brief XY平面での照準角度（ラジアン）を返す。
     float GetAngle() const
     {
         return angle_;
     }
-    /// @brief 方向を返す。
+    /// @brief 照準方向への読み取り専用参照を返す。
     const cg2::Vector3& GetDirection() const
     {
         return dir_;
     }
-    /// @brief Dashingであるか判定する。
+    /// @brief ダッシュ中かを返す。
     bool IsDashing() const
     {
         return isDashing_;
@@ -515,9 +573,9 @@ public:
     {
         return cg2::Length(inputDir_) > 0.05f;
     }
-    /// @brief 主攻撃攻撃Performedイベントの未処理分を取り出し、内部の保留分を消費済みにする。
+    /// @brief 主攻撃の実行フラグを返し、保留フラグを解除する。複数回の実行も1つのtrueにまとめる。
     bool ConsumePrimaryAttackPerformedEvent();
-    /// @brief ダッシュ開始済みイベントの未処理分を取り出し、内部の保留分を消費済みにする。
+    /// @brief ダッシュ開始の有無を返し、保留フラグを解除する。
     bool ConsumeDashStartedEvent();
     /// @brief ネオン描画する砲塔の位置・方向・形状を表す。
     struct NeonBarrelLayout {
@@ -532,21 +590,22 @@ public:
         cg2::Vector4 barrelColor{0.25f, 1.0f, 0.95f, 1.0f};
         cg2::Vector4 outlineColor{0.80f, 1.0f, 0.95f, 1.0f};
     };
-    /// @brief ネオン描画する機体本体の形状・姿勢・色を表す。
+    /// @brief ネオン描画する機体本体の形状・大きさ・色を表す。
     struct NeonBodyLayout {
         BodyShape shape = BodyShape::Circle;
         cg2::Vector2 scale{1.0f, 1.0f};
         cg2::Vector4 fillColor{0.18f, 0.28f, 0.34f, 0.38f};
         cg2::Vector4 outlineColor{0.50f, 1.0f, 0.35f, 1.0f};
     };
-    /// @brief ネオン砲塔Layoutsを返す。
+    /// @brief ネオン描画用の砲塔・刃の配置を値で返す。ドローン装備系統では空。
     std::vector<NeonBarrelLayout> GetNeonBarrelLayouts() const;
-    /// @brief ネオン機体配置を返す。
+    /// @brief 現在の機体設定から、ネオン描画用の本体情報を値で返す。設定がなければ既定値。
     NeonBodyLayout GetNeonBodyLayout() const;
-    /// @brief ダメージフィードバック比率を返す。
+    /// @brief 被ダメージ演出の残り時間を継続時間で割り、0～1に制限して返す。継続時間が0以下なら0。
     float GetDamageFeedbackRatio() const;
 
-    /// @brief 攻撃制御弾管理を設定する。
+    /// @brief 主攻撃と遠征用に使う弾管理先を借用し、条件が整っていれば護衛ドローンを揃える。
+    /// @note 所有権は移らない。攻撃中は有効な管理先を保つ。nullptrでは護衛ドローンを生成しない。
     void SetAttackControllerBulletManager(BulletManager* bulletManager)
     {
         attackController_.SetBulletManager(bulletManager);
@@ -554,26 +613,30 @@ public:
         EnsureExpeditionDrones();
     }
 
-    /// @brief 攻撃
+    /// @brief 入力・装備・発射待ち時間に従って主攻撃を処理し、反動と実行イベントを更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
+    /// @note 初期化後に有効な弾管理先を渡す。内部でAddが拒否した場合も、攻撃の集計は登録弾数を保証しない。
     void Attack(BulletManager* BulletManager, float deltaTime);
 
-    /// @brief ドローン発射
+    /// @brief ドローン数と待ち時間の条件を満たせば、ドローンを1機生成して弾管理先を設定する。
+    /// @note この関数自体は弾を発射しない。ドローンの射撃は各ドローンの更新で行う。
     void DroneShoot(BulletManager* BulletManager);
 
-    /// @brief チャージ突進攻撃
+    /// @brief Smasherの押下中の突進力を蓄積し、入力を離したときに突進速度を設定する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Smash(float deltaTime);
 
-    /// @brief 球を返す。
+    /// @brief 現在のワールド座標とkRadiusから、衝突判定用の球を値で返す。
     cg2::Sphere GetSphere() const;
 
-    // 経験値を加算する関数
+    /// @brief 経験値を加算してレベル・強化ポイントを更新する。通貨方式では獲得通貨として保留する。
+    /// @param amount 獲得した経験値。呼び出し側では非負の値を渡す。
+    /// @note 通常方式ではレベル上限で加算を止める。通貨方式の保留上限は1000000。
     void AddExp(int amount);
-    // The map owns the wallet. Kills enqueue credits instead of advancing level.
-    /// @brief 遠征通貨方式を設定する。
+    /// @brief 撃破報酬をレベルへ加算せず、マップ所有の財布へ渡す通貨として保留する方式を切り替える。
+    /// @note 方式が変わると保留通貨を消去する。有効化時はレベル・経験値・強化ポイントを初期化し進化画面を閉じる。
     void SetRunCurrencyMode(bool enabled);
-    /// @brief 遠征通貨方式であるか判定する。
+    /// @brief 撃破報酬を通貨として保留する方式かを返す。
     bool IsRunCurrencyMode() const
     {
         return runCurrencyMode_;
@@ -586,10 +649,13 @@ public:
         return earned;
     }
     /// @brief 制作データから遠征で使う機体設定を登録する。
+    /// @note Catalogの検証失敗なら変更しない。成功時は登録一覧を置き換え、適合する選択中の制作機体も更新する。
     void InstallRunAuthoredClasses(const tankcontent::Catalog& catalog);
-    /// @brief 遠征制作データ進化候補を返す。
+    /// @brief 登録した制作機体から、現在の装備系統に合う未選択の候補を値で返す。遠征補正無効・死亡中は空。
     std::vector<RunEvolutionChoice> GetRunAuthoredEvolutionChoices() const;
-    /// @brief 遠征制作データ機体を選ぶ。
+    /// @brief 登録した制作機体を選び、装備と性能を更新して進化確定イベントを記録する。
+    /// @return 遠征補正有効・生存中でIDと装備系統が適合すればtrue。それ以外は変更せずfalse。
+    /// @note HPは新しい上限内に保ち、補充しない。ドローンと一部の特殊戦闘状態を作り直す。
     bool ChooseRunAuthoredClass(const std::string& id);
     /// @brief レベルを返す。
     int GetLevel() const
@@ -601,44 +667,51 @@ public:
     {
         return exp_;
     }
-    /// @brief 次のレベル経験値値を返す。
+    /// @brief 次のレベルアップに必要な経験値を返す。
     int GetNextLevelExpValue() const
     {
         return nextLevelExp_;
     }
-    /// @brief 能力Pointsを返す。
+    /// @brief 未使用の性能強化ポイント数を返す。
     int GetSkillPoints() const
     {
         return skillPoints_;
     }
-    /// @brief 現在ランクを返す。
+    /// @brief 現在のレベルに対応する機体解放ランクを返す。
     int GetCurrentRank() const
     {
         return GetRankFromLevel(level_);
     }
     /// @brief 強化レベルを返す。
+    /// @param index 強化項目の添字（0～6）。範囲外なら0。
     int GetUpgradeLevel(int index) const;
-    /// @brief 現在機体名前を返す。
+    /// @brief 現在の機体の表示名を借用して返す。設定がなければ旧機体名またはUnknown。
+    /// @note 設定の編集・再読込・機体切り替えをまたいで保持せず、必要なら文字列をコピーする。
     const char* GetCurrentClassName() const;
-    /// @brief 性能強化を現在の状態へ適用する。
+    /// @brief 通常方式の強化ポイントを1消費し、指定項目を1段階上げて性能と実行イベントを更新する。
+    /// @param index 0: スタミナ回復、1: 最大HP、2: 接触ダメージ、3: 弾速、4: 弾の威力、5: 発射間隔、6: 移動速度。
+    /// @return 強化した場合true。遠征補正有効・範囲外・ポイント不足・上限到達なら変更せずfalse。
     bool ApplyStatUpgrade(int index);
-    /// @brief 性能強化Performedイベントの未処理分を取り出し、内部の保留分を消費済みにする。
+    /// @brief 性能強化の実行フラグを返し、保留フラグを解除する。
     bool ConsumeStatUpgradePerformedEvent();
-    /// @brief 性能強化を消費した分を返却する。
+    /// @brief 通常方式の指定強化を1段階戻し、ポイントを1返却して性能を再計算する。
+    /// @return 返却した場合true。遠征補正有効・添字の範囲外・未強化なら変更せずfalse。
     bool RefundStatUpgrade(int index);
-    /// @brief 現在の性能値を返す。
+    /// @brief 補正後の性能と現在のスタミナへの読み取り専用参照を返す。
     const PlayerStats& GetStats() const
     {
         return stats_;
     }
-    /// @brief 戦車ボタン表示データを返す。
+    /// @brief 指定機体のボタン表示情報をoutputへコピーする。
+    /// @return 設定が見つかればtrue。見つからなければoutputを変えずfalse。
     bool GetTankButtonVisualData(const std::string& classId, TankButtonVisualData& output) const;
     /// @brief 機体設定を再読込し、現在の機体の砲塔と配置に反映する。
     /// @return 現在の機体を保ったまま再読込できた場合true。
     /// @note HPと成長状態を初期化しない。
+    /// 読み込み失敗や現在の機体IDが欠けている場合は既存設定を保持する。成功時は設定の借用ポインターを再取得する。
     bool ReloadPlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json");
 
-    /// @brief Slowを要求を予約する。
+    /// @brief 保留中のスロー要求があれば消費してtrueを返す。要求がなければfalse。
     bool RequestSlow();
 
     /// @brief 図鑑を初期化する。
@@ -651,17 +724,17 @@ public:
     /// @brief 図鑑を描画する。
     void DrawEncyclopedia();
 
-    /// @brief 戦車Codexを描画する。
+    /// @brief 制作用の機体図鑑で機体プレビューと発射デモを表示する。USE_IMGUIが有効な構成で使う。
     void DrawTankCodex();
 
     /// @brief 機体設定の選択・複製・編集・JSON保存を行う制作画面を表示する。
     /// @note USE_IMGUIが有効な構成で表示する。戦闘の更新と分けて呼ぶ。
     void DrawPlayerClassEditor();
-    /// @brief 強化HUD開発表示ImGUIを描画する。
+    /// @brief 強化HUDの表示設定を編集する制作画面を表示する。USE_IMGUIが有効な構成で使う。
     void DrawUpgradeHudDebugImGui();
     /// @brief 進化UI外観編集画面を描画する。
     void DrawEvolutionUiStyleEditor();
-    /// @brief 自機UIの更新・描画の所要時間を記録する。
+    /// @brief 自機UIの更新・描画時間（ミリ秒）、描画件数、表示状態を保持する。
     struct UiProfileStats {
         float updateMs = 0.0f;
         float spriteMs = 0.0f;
@@ -695,12 +768,12 @@ public:
         int listTextGeneratedPngCount = 0;
 #endif
     };
-    /// @brief 強化HUD設定集計値を返す。
+    /// @brief 強化HUDの処理時間と描画件数への読み取り専用参照を返す。
     const UiProfileStats& GetUpgradeHudProfileStats() const
     {
         return upgradeHudProfile_;
     }
-    /// @brief 進化UI設定集計値を返す。
+    /// @brief 進化UIの処理時間と描画件数への読み取り専用参照を返す。
     const UiProfileStats& GetEvolutionUiProfileStats() const
     {
         return evolutionUiProfile_;
@@ -751,12 +824,12 @@ public:
                 isDead_,
                 maxEnhancePoint};
     }
-    /// @brief 開発表示Auto発射有効を設定する。
+    /// @brief 主攻撃入力を継続させる開発用設定を切り替える。
     void SetDebugAutoFireEnabled(bool enabled)
     {
         debugAutoFireEnabled_ = enabled;
     }
-    /// @brief 開発表示Auto発射有効であるか判定する。
+    /// @brief 主攻撃入力を継続させる開発用設定が有効かを返す。
     bool IsDebugAutoFireEnabled() const
     {
         return debugAutoFireEnabled_;
@@ -764,24 +837,24 @@ public:
 #endif
     /// @brief レーザー射撃イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     std::vector<LaserShotEvent> ConsumeLaserShotEvents();
-    /// @brief 地雷Dropイベントの未処理分を取り出し、内部の保留分を消費済みにする。
+    /// @brief 地雷配置イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     std::vector<MineDropEvent> ConsumeMineDropEvents();
     /// @brief 近接攻撃斬撃イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     std::vector<MeleeSlashEvent> ConsumeMeleeSlashEvents();
 
-    /// @brief ランクからのレベルを返す。
+    /// @brief レベルから解放ランク（1～4）を返す。5・10・15以上でそれぞれランク2・3・4になる。
     int GetRankFromLevel(int level) const;
 
-    /// @brief Change方式であるか判定する。
+    /// @brief 進化選択画面を開いているかを返す。
     bool IsChangeMode()
     {
         return isChangeMode;
     }
     /// @brief チュートリアルの進行に合わせて進化画面を閉じる。
     void CloseEvolutionUiForTutorial();
-    /// @brief 進化Confirmedの未処理分を取り出し、内部の保留分を消費済みにする。
+    /// @brief 進化確定の有無を返し、保留フラグを解除する。
     bool ConsumeEvolutionConfirmed();
-    /// @brief 進化Cancelledの未処理分を取り出し、内部の保留分を消費済みにする。
+    /// @brief 進化取消の有無を返し、保留フラグを解除する。
     bool ConsumeEvolutionCancelled();
 
 private:
@@ -792,7 +865,7 @@ private:
 
     // モデル
     cg2::Object3d* object_ = nullptr;
-    /// @brief 1砲塔の設定と描画用オブジェクトを保持する。
+    /// @brief 1砲塔の描画オブジェクトを所有し、変換・配置・反動・発光時間を保持する。
     struct BarrelModel {
         std::unique_ptr<cg2::Object3d> object;
         cg2::Transform transform;
@@ -887,17 +960,20 @@ private:
     float specialMeleeElapsed_ = -1;
     bool specialWaveEmitted_ = false, specialPerfectFeedback_ = false;
     std::vector<uint64_t> specialParriedBullets_;
-    /// @brief チャージ状態に従ってレール砲を発射する。
+    /// @brief レール砲の入力を蓄積し、離したときに弾を追加して待ち時間・反動・集計を更新する。
     /// @param dt この処理で進める経過時間（秒）。
+    /// @note 発射待ち中やbulletsがnullptrならチャージをリセットする。Addの登録成功を確認するAPIではない。
     void AttackRailCannon(BulletManager* bullets, bool pressed, float dt);
-    /// @brief AdditiveArmamentsを最新の内容へ更新する。
+    /// @brief 遠征の初期射撃装備へ追加砲身・扇状配置・交互射撃の補正を反映し、必要なら描画装備を作り直す。
     void RefreshAdditiveArmaments();
-    /// @brief Additional能力を初期状態へ戻す。
+    /// @brief EMP・ドローン任務待ち時間・ロック・回転斬撃・ダッシュ斬撃・壁衝突候補を初期状態へ戻す。
     void ResetAdditionalAbilities();
-    /// @brief Additional能力を更新する。
+    /// @brief ドローン任務とロック、ダッシュ斬撃・回転斬撃・壁衝突ダメージを更新する。
     /// @param dt この処理で進める経過時間（秒）。
+    /// @note UpdateSpecialCombatから呼ぶ。bulletsは現在未使用で、敵のnullptrは対象なしを表す。
     void UpdateAdditionalAbilities(Stage& stage, BulletManager* bullets, Enemy* boss, EnemyManager* enemies, float dt);
-    /// @brief Spin刃を条件を確認して開始する。
+    /// @brief 近接系統のフィニッシュ後、入力継続とスタミナの条件を満たせば回転斬撃を開始する。
+    /// @return 開始してスタミナ・攻撃待ち時間・演出イベントを更新した場合true。
     bool TryStartSpinBlade(bool pressed);
     float empJammerTimer_ = 0, droneChargeCooldown_ = 1.5f, droneBombCooldown_ = 4.0f, recentDashTimer_ = 0;
     size_t nextMissionDrone_ = 0;
@@ -909,7 +985,7 @@ private:
     float dashSlashTimer_ = 0;
     uint32_t dashSlashDamage_ = 1;
     std::vector<uint64_t> dashSlashTargets_;
-    /// @brief ダッシュで破壊する壁の識別情報と接触条件を保持する。
+    /// @brief 押し出した経験値敵の衝突ID、登録時の壁衝突回数、受付の残り秒数、記録した強さを保持する。
     struct WallSmashTarget {
         uint64_t id = 0;
         uint32_t collision = 0;
@@ -924,14 +1000,14 @@ private:
     int nextLevelExp_ = 0;
     // 最大レベル
     const int kMaxLevel = 15;
-    // 次のレベルに必要な経験値を計算する
+    /// @brief 現在のレベルから、次のレベルアップに必要な経験値を計算する。
     int GetNextLevelExp() const;
 
     PlayerStats stats_;
     PlayerStats baseStats_;
     TankRunModifiers runModifiers_{};
     TankCombatStyleBalances combatStyleBalances_ = DefaultTankCombatStyleBalances();
-    /// @brief 遠征基準再装填Framesを返す。
+    /// @brief 発射間隔の基準値を60FPS相当のフレーム数で返す。選択済みの戦闘系統、または基礎値を使う。
     float GetRunBaseReloadFrames() const;
     tankbuild::Style expeditionCombatStyle_ = tankbuild::Style::Shooter;
     bool expeditionCombatStyleSelected_ = false;
@@ -956,17 +1032,20 @@ private:
     bool runRoomAwaitInputRelease_ = false;
     bool runCheckpointEvolution_ = false;
     std::vector<cg2::Vector3> runHomingTargets_;
-    /// @brief 遠征ドローンを利用条件を設定する。
+    /// @brief 現在の機体・遠征補正・EMPなどから、ドローンの射撃性能・発射間隔・追従設定を更新する。
     void ConfigureRunDrone(PlayerDrone& drone) const;
-    /// @brief 遠征ドローンを必要な状態を用意する。
+    /// @brief ドローン系統の護衛機数を現在の上限に揃える。超過分を削除し、不足分を生成する。
+    /// @note 本体・弾管理先の未設定、死亡中、ドローン系統以外なら何もしない。
     void EnsureExpeditionDrones();
     /// @brief 遠征ドローン上限を返す。
     int GetExpeditionDroneLimit() const;
-    /// @brief 遠征投射物Rulesを現在の状態へ適用する。
+    /// @brief 発射条件へ現在の射撃強化・反射・耐久度・貫通などを反映する。
+    /// @param applyFan 互換用の未使用引数。
+    /// @note 遠征補正無効でも弾数を1、分裂数を0に設定する。自機の扇状配置は砲身で表す。
     void ApplyRunProjectileRules(AttackParam& param, bool applyFan = true) const;
-    /// @brief 遠征発射間隔倍率を返す。
+    /// @brief 遠征の加速効果と突撃系統のダッシュ後の補正を含む、発射間隔に掛ける倍率を返す。
     float GetRunFireIntervalScale() const;
-    /// @brief 遠征投射物を更新する。
+    /// @brief 登録した対象位置と誘導能力に従って、往路の自機弾の向きを更新する。弾の移動は行わない。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateRunProjectiles(BulletManager* bulletManager, float deltaTime);
     float healthRegenUpgradeRate_ = 0.08f;
@@ -980,116 +1059,131 @@ private:
     ClassType currentClass_ = ClassType::Basic;
     std::string currentClassId_ = "Basic";
 
-    // 進化させる関数
+    /// @brief 旧機体種類をIDへ変換し、EvolveByIdへ渡す。
     void Evolve(ClassType newClass);
     /// @brief 指定IDの機体へ進化し、装備と外観を反映する。
+    /// @note 設定がないか遠征で使用できない機体なら何もしない。ランク・進化経路の判定は呼び出し側で行う。
     void EvolveById(const std::string& classId);
-    /// @brief 進化By識別子を条件を確認して確定する。
+    /// @brief 進化条件を満たす機体へ切り替え、履歴と確定イベントを更新する。成功ならtrue。
     bool TryConfirmEvolutionById(const std::string& classId);
-    /// @brief Evolveへのが可能か判定する。
+    /// @brief 指定機体が次ランクの接続先で、使用条件と必要ランクを満たすか判定する。
     bool CanEvolveTo(const std::string& classId) const;
-    /// @brief 遠征Compatible機体であるか判定する。
+    /// @brief 遠征で使用できるドローン機体または射撃砲塔を持つ機体か判定する。遠征補正無効ならtrue。
+    /// @note 遠征ではSmasherを対象外とする。
     bool IsRunCompatibleClass(const PlayerClassConfig& config) const;
-    /// @brief 進化機体表示中であるか判定する。
+    /// @brief 進化画面で機体を表示対象にするか判定する。遠征補正無効、または現在の機体IDならtrue。
     bool IsEvolutionClassVisible(const std::string& classId) const;
-    /// @brief 進化接続が存在するか判定する。
+    /// @brief 読み込んだ進化経路にfromからtoへの接続があるか判定する。
     bool HasEvolutionEdge(const std::string& from, const std::string& to) const;
     /// @brief 機体設定を一時Catalogへ読み、現在の機体IDを検証してから置き換える。
     /// @return 読み込みと現在の機体の検証に成功した場合true。
     /// @note 失敗時は現在の設定を保つ。実行中のHPや装備の再初期化は行わない。
     bool LoadPlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json");
-    /// @brief 自機機体Configsを保存する。
+    /// @brief 機体Catalogを指定パスのJSONへ保存する。保存の成否は戻り値で通知しない。
     void SavePlayerClassConfigs(const std::string& path = "resources/configs/playerClasses.json") const;
-    /// @brief 既定値機体設定を生成する。
+    /// @brief 指定した旧機体種類の既定設定を値で返す。
     PlayerClassConfig CreateDefaultClassConfig(ClassType type) const;
-    /// @brief 機体設定を返す。
+    /// @brief 機体種類からCatalogの設定を借用する。見つからなければnullptr。
+    /// @note 読み込み成功・既定値へのリセット・対象の削除後は再取得する。
     const PlayerClassConfig* GetClassConfig(ClassType type) const;
-    /// @brief 機体設定を返す。
+    /// @brief 機体IDからCatalogの設定を借用する。見つからなければnullptr。
+    /// @note 読み込み成功・既定値へのリセット・対象の削除後は再取得する。
     const PlayerClassConfig* GetClassConfig(const std::string& classId) const;
-    /// @brief 現在機体設定を返す。
+    /// @brief 現在使用する機体設定を借用する。遠征の進化設定・初期装備を優先し、なければCatalogを参照する。
+    /// @note 設定切り替えや再読込後は再取得する。Catalogに現在IDがなければnullptrになり得る。
     const PlayerClassConfig* GetCurrentClassConfig() const;
-    /// @brief 機体設定を編集用の参照を取得する。
+    /// @brief 指定IDのCatalog設定を編集用に借用する。見つからなければnullptr。寿命はGetClassConfigと同じ。
     PlayerClassConfig* GetMutableClassConfig(const std::string& classId);
-    /// @brief 現在の機体設定の砲塔と射撃条件に従って弾を発射する。
+    /// @brief 機体設定に従って弾・レーザー・地雷・近接攻撃を生成または予約し、発射待ち時間を更新する。
+    /// @param baseReload 基準の発射間隔（秒）。
+    /// @param recoilDir 発射後の反動方向の出力先。
+    /// @param recoilPower 発射後の反動の大きさの出力先。ドローン方式では0にする。
+    /// @return 攻撃処理を進めた場合true。待ち時間・上限などで処理しない場合false。
+    /// @note 有効な弾管理先が必要。trueでも、ドローン上限やAddの拒否などにより生成弾数が増えるとは限らない。
     bool FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, cg2::Vector3& recoilDir,
                              float& recoilPower);
-    /// @brief 特殊Actionを条件を確認して有効にする。
+    /// @brief 機体設定と再使用待ち時間から特殊行動を選んで開始する。開始した場合true。
     bool TryActivateSpecialAction();
-    /// @brief PerfectDodgeを有効にする。
+    /// @brief スタミナと移動方向の条件を満たせばダッシュを開始し、trueを返す。
+    /// @note ジャスト回避の成立は後の衝突通知で判定する。この関数は回避成功を保証しない。
     bool ActivatePerfectDodge(const PlayerClassConfig& config);
-    /// @brief 剣カウンターを有効にする。
+    /// @brief 使用可能な近接装備とスタミナがあれば、剣カウンターの受付時間を設定してtrueを返す。
     bool ActivateSaberCounter(const PlayerClassConfig& config);
-    /// @brief 剣カウンターを発動させる。
+    /// @brief 最初の使用可能な近接装備で反撃を予約し、受付時間の解除・無敵時間・スロー要求を設定する。
     void TriggerSaberCounter(const PlayerClassConfig& config);
-    /// @brief 方向ベクトルを指定角度だけ回転する。
+    /// @brief 方向ベクトルをXY平面でangleDeg度回転し、Z成分を保って値で返す。
     cg2::Vector3 RotateDirection(const cg2::Vector3& direction, float angleDeg) const;
-    /// @brief 砲塔を初期化する。
+    /// @brief 現在の機体設定から砲塔の描画オブジェクトを作り直す。
     void InitializeBarrels();
-    /// @brief 砲塔配置を更新する。
+    /// @brief 砲塔の反動・発光時間をdt_秒進め、機体の位置と照準に合わせて配置を更新する。
     void UpdateBarrelLayout();
     /// @brief 砲塔を描画する。
     void DrawBarrels();
-    /// @brief Vehicle透明度を設定する。
+    /// @brief 被ダメージの色補正を含む本体・砲塔の色に、指定した透明度を設定する。
     void SetVehicleAlpha(float alpha);
     /// @brief ダメージフィードバックを発動させる。
     void TriggerDamageFeedback();
     /// @brief 強化HUDを初期化する。
     void InitializeUpgradeHud();
-    /// @brief 強化HUD経験値Glyphsを更新する。
+    /// @brief 経験値表示の文字ラベルを更新し、描画用テクスチャを準備して配置する。
+    /// @param text 1バイトずつ分けて表示する文字列。呼び出し側では数字やEXPなどのASCII文字を渡す。
     void UpdateUpgradeHudExpGlyphs(const std::string& text, const cg2::TextStyle& style);
     /// @brief 強化HUDの経験値表示の各文字を配置する。
     void PositionUpgradeHudExpGlyphs();
-    /// @brief 強化HUDレベル文字表示を更新する。
+    /// @brief レベルの数字と機体名の文字ラベルを更新し、配置する。
     void UpdateUpgradeHudLevelLabels(int level, const std::string& className, const cg2::TextStyle& style);
     /// @brief 強化HUDのレベル表示の各文字を配置する。
     void PositionUpgradeHudLevelLabels();
-    /// @brief 強化HUD進行度バーStylesを現在の状態へ適用する。
+    /// @brief レベル・経験値ゲージへ、現在の端の丸み設定を含むスタイルを反映する。
     void ApplyUpgradeHudProgressBarStyles();
     /// @brief 強化HUDを更新する。
     /// @param uiDeltaTime UI用の経過秒。戦闘の時間倍率と分けて渡す。
     void UpdateUpgradeHud(float uiDeltaTime);
     /// @brief 強化HUDを描画する。
     void DrawUpgradeHud();
-    /// @brief 強化HUD区切りBarsを利用前に準備する。
+    /// @brief 強化段数バーの位置・サイズ・段数を設定し、点灯段数を0に戻す。
     void PrepareUpgradeHudSegmentBars();
-    /// @brief 強化HUD一括処理を初期化する。
+    /// @brief 強化HUDの矩形をまとめて描くためのGPUバッファと描画用変換を準備する。
     void InitializeUpgradeHudBatch();
-    /// @brief 強化HUD矩形一括処理を描画する。
+    /// @brief 強化HUDの矩形群を頂点へまとめ、1つの描画呼び出しで描く。
     void DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float levelRatio, float listAlpha, float listOffsetX);
-    /// @brief 強化HUD矩形を後で処理するために予約する。
+    /// @brief 指定した画面座標の矩形を、2三角形分の6頂点としてverticesの末尾へ追加する。
     void QueueUpgradeHudRect(std::vector<cg2::TrailVertex>& vertices, const cg2::Vector2& pos, const cg2::Vector2& size,
                              const cg2::Vector4& color) const;
-    /// @brief 強化HUD配置を現在の状態へ適用する。
+    /// @brief 保存しているHUD配置をスプライト・文字・ゲージへ反映する。
     void ApplyUpgradeHudLayout();
     /// @brief 強化HUD設定を読み込む。
     bool LoadUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json");
     /// @brief 強化HUD設定を保存する。
+    /// @return 保存先を開き、JSONの書き込みを行えばtrue。書き込み後のストリームエラーは検査しない。
     bool SaveUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json") const;
-    /// @brief 固定進化試作を初期化する。
+    /// @brief 現在の機体と進化候補を表示する固定配置のUI資源を用意し、初回更新する。
     void InitializeStaticEvolutionPrototype();
-    /// @brief 固定進化試作を更新する。
+    /// @brief 固定配置の進化UIの候補・配置・表示を更新し、選択・取消・確定入力を処理する。
     void UpdateStaticEvolutionPrototype();
-    /// @brief 固定進化試作を描画する。
+    /// @brief 固定配置の進化UIの回路・ノード・詳細パネル・文字を描画し、所要時間を記録する。
     void DrawStaticEvolutionPrototype();
-    /// @brief 進化経路図Treeを読み込む。
+    /// @brief JSONから進化経路のノードと接続を読み込む。使用可能なノードが残ればtrue。
+    /// @note 先に既存の経路を消去する。読み込み失敗時は経路なしになる。
     bool LoadEvolutionCircuitTree(const std::string& path = "resources/configs/evolutionTree.json");
-    /// @brief 進化経路図試作を初期化する。
+    /// @brief 進化経路を読み込み、経路図のUI資源と選択状態を準備する。読み込み失敗なら資源生成を行わない。
     void InitializeEvolutionCircuitPrototype();
-    /// @brief 進化経路図試作を更新する。
+    /// @brief 進化経路図の配置・履歴・詳細表示を更新し、選択・取消・確定入力を処理する。
     void UpdateEvolutionCircuitPrototype();
-    /// @brief 進化経路図試作を描画する。
+    /// @brief 進化経路図の接続線・機体ボタン・詳細パネル・文字を描画する。
     void DrawEvolutionCircuitPrototype();
-    /// @brief 進化経路図後の後処理演出を描画する。
+    /// @brief 進化経路図の背景と発光演出を、シーンのポストエフェクト後に描画する。
     void DrawEvolutionCircuitAfterPostEffects();
     /// @brief 進化経路図文字テクスチャを利用前に準備する。
     void PrepareEvolutionCircuitTextTextures();
-    /// @brief 使用進化経路図試作が必要か判定する。
+    /// @brief 新しい進化UIが有効で、経路図の読み込みが成功しノードが存在する場合trueを返す。
     bool ShouldUseEvolutionCircuitPrototype() const;
     /// @brief 進化UI外観を読み込む。
     bool LoadEvolutionUiStyle(const std::string& path = "resources/configs/evolutionUiStyle.json");
     /// @brief 進化UI外観を保存する。
+    /// @return 保存先を開き、JSONの書き込みを行えばtrue。書き込み後のストリームエラーは検査しない。
     bool SaveEvolutionUiStyle(const std::string& path = "resources/configs/evolutionUiStyle.json") const;
-    /// @brief 使用固定進化試作が必要か判定する。
+    /// @brief 新しい進化UIが有効で、次ランクに使用可能な機体候補がある場合trueを返す。
     bool ShouldUseStaticEvolutionPrototype() const;
     /// @brief 進化画面の配置基準を仮想画面座標へ変換する。
     cg2::Vector2 EvolutionAnchorToVirtual(const cg2::Vector2& normalizedAnchor) const;
@@ -1097,37 +1191,39 @@ private:
     cg2::Vector2 EvolutionVirtualToRender(const cg2::Vector2& virtualPosition) const;
     /// @brief ウィンドウ座標を進化画面の仮想座標へ変換する。
     cg2::Vector2 EvolutionClientToVirtual(const cg2::Vector2& clientPosition) const;
-    /// @brief 進化描画倍率を返す。
+    /// @brief 仮想画面全体がクライアント領域に収まる、縦横共通の描画倍率を返す。
     float GetEvolutionRenderScale() const;
-    /// @brief 進化描画差分を返す。
+    /// @brief 仮想画面をクライアント領域の中央へ配置するオフセット（ピクセル）を返す。
     cg2::Vector2 GetEvolutionRenderOffset() const;
-    /// @brief 固定進化経路図を更新する。
+    /// @brief 固定配置の進化UIで、ノード間の回路線の制御点とスプライトを更新する。
     void UpdateStaticEvolutionCircuit();
-    /// @brief 固定進化ノードFramesを更新する。
+    /// @brief 固定配置の進化ノードの外枠を、解放・選択状態に応じて更新する。
     void UpdateStaticEvolutionNodeFrames();
-    /// @brief 固定進化Silhouettesを更新する。
+    /// @brief 固定配置の進化ノードに、機体形状・砲塔から組み立てたシルエットを配置する。
     void UpdateStaticEvolutionSilhouettes();
     /// @brief 固定進化文字を更新する。
     void UpdateStaticEvolutionText();
     /// @brief 固定進化文字テクスチャを利用前に準備する。
     void PrepareStaticEvolutionTextTextures();
-    /// @brief 固定進化開発表示重ね表示を描画する。
+    /// @brief 固定配置の進化UIの座標・領域・解像度を、USE_IMGUIの開発表示へ重ねて描く。
     void DrawStaticEvolutionDebugOverlay();
-    /// @brief 固定進化Candidatesを最新の内容へ更新する。
+    /// @brief 固定配置の進化UI用に次ランクの候補IDを集め、件数と選択添字を更新する。
     void RefreshStaticEvolutionCandidates();
-    /// @brief 進化機体名前を返す。
+    /// @brief 進化画面用の英字機体名を値で返す。未登録IDは下線を空白へ変え、大文字化する。
     std::string GetEvolutionClassName(const std::string& classId) const;
-    /// @brief 進化Short役割を返す。
+    /// @brief 機体設定から、進化画面用の短い英語の役割表示を値で返す。
     std::string GetEvolutionShortRole(const PlayerClassConfig& config) const;
-    /// @brief 進化役割を返す。
+    /// @brief 機体設定から、進化画面用の役割説明を値で返す。
     std::string GetEvolutionRole(const PlayerClassConfig& config) const;
-    /// @brief 進化Deltasを返す。
+    /// @brief 現在と進化先の砲身数・発射間隔倍率・拡散角の比較文を3件返す。
     std::array<std::string, 3> GetEvolutionDeltas(const PlayerClassConfig& current, const PlayerClassConfig& target) const;
-    /// @brief 進化Abilityを返す。
+    /// @brief 機体設定から、進化画面用の固有能力の説明文を値で返す。
     std::string GetEvolutionAbility(const PlayerClassConfig& config) const;
-    /// @brief 集計値からの基準を現在の条件から再計算する。
+    /// @brief 基礎性能または選択した戦闘系統に、強化・遠征・整備の補正を掛けて性能を再計算する。
+    /// @param healToFull HPを新しい最大値まで回復するか。
+    /// @note falseでも再計算前が満タンなら新しい最大HPにする。それ以外は新しい上限内に保つ。
     void RecalculateStatsFromBase(bool healToFull);
-    /// @brief Casingを出現させる。
+    /// @brief 射撃時の薬莢用パーティクルを照準方向へ出す。
     void SpawnCasing();
     int shootBarrelIndex_ = 0; // 次に撃つ砲身の番号
     int shootGroupIndex_ = 0;
@@ -1139,23 +1235,23 @@ private:
     /// @brief ステルスを更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateStealth(float deltaTime);
-    /// @brief 召喚型を更新する。
+    /// @brief 旧Summonerの待ち時間を更新する。現在はこの関数からドローンを生成しない。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateSummoner(float deltaTime);
 
 private:
-    /// @brief 粒子を出現させる。
+    /// @brief 死亡用パーティクルを発生させ、本体の溜め時間と演出終了タイマーを設定する。
     void SpawnParticles();
-    /// @brief 粒子を更新する。
+    /// @brief 死亡演出のタイマーを進め、終了時に爆発演出中のフラグを解除する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateParticles(float deltaTime = 1.0f / 60.0f);
 
-    /// @brief Afterimageを出現させる。
+    /// @brief 移動方向の後方へ煙とネオンの移動演出を発生させる。
     void SpawnAfterimage();
-    /// @brief Pを更新する。
-    /// @param deltaTime この処理で進める経過時間（秒）。
+    /// @brief 互換用の空処理。現在は引数を使わず、状態を変更しない。
+    /// @param deltaTime 互換用の経過時間（秒）。現在は未使用。
     void UpdateP(float deltaTime);
-    /// @brief Buff粒子を出現させる。
+    /// @brief バフ継続中の煙パーティクルを自機位置へ出す。
     void SpawnBuffParticle();
     /// @brief ワールド座標をカメラの画面座標へ変換する。
     cg2::Vector2 WorldToScreen(const cg2::Vector3& worldPos, cg2::Camera* camera);
@@ -1191,7 +1287,7 @@ private:
 
     float buffTimer_ = 0.0f;          // バフの残り時間
     bool isBuffActive_ = false;       // バフ中かどうかのフラグ
-    const float kBuffDuration = 2.0f; // バフの持続時間（3秒）
+    const float kBuffDuration = 2.0f; // 能力倍率を掛ける前のバフ持続時間（2秒）
 
     float smashCharge_ = 0.0f; // スマッシュチャージ時間
     float maxCharge_ = 1.0f;
@@ -1312,7 +1408,7 @@ private:
     size_t staticEvolutionCandidateCount_ = 0;
     int staticEvolutionHoveredNode_ = -1;
     bool staticEvolutionConfirmHovered_ = false;
-    /// @brief 進化経路図の1ノードのID・配置・解放条件を表す。
+    /// @brief 進化経路図の1ノードの機体IDと、縦方向の配置比率を表す。解放条件は機体設定で管理する。
     struct EvolutionCircuitNodeDefinition {
         std::string classId;
         float lane = 0.5f;
