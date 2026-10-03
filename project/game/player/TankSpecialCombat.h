@@ -4,11 +4,11 @@
 #include <cmath>
 #include <cstdint>
 
-// Shared by live combat, card demonstrations and graphics-free regression tests.
-// No textures, UI, timers tied to wall time, or eager GPU allocations live here.
+// 実戦闘・カードの実演・描画を使わない回帰テストで共有する計算と状態。
+// テクスチャやUI、実時間に依存する時計、GPU資源の確保はここへ持ち込まない。
 namespace tankspecial {
-// Live enemy volleys and melee interception share the same durability scale.
-// Ordinary shots are cut in one successful hit; boss/sniper shots survive.
+// 敵の実射撃と近接迎撃で共有する耐久度の基準。
+// 通常パリィでは通常弾まで破壊できるが、ボス弾・装甲弾には耐久ダメージを与えない。
 inline constexpr float kOrdinaryEnemyBulletHp = 6.0f;
 inline constexpr float kBossEnemyBulletHp = 12.0f;
 inline constexpr float kArmoredEnemyBulletHp = 24.0f;
@@ -49,6 +49,7 @@ struct RailCharge {
             return -1.0f;
         }
         if (pressed) {
+            // 入力を離すまで発射を保留する。dtが0でも押下履歴を残すので、離したときの0秒は有効。
             held = true;
             seconds = (std::min)(kRailMaxChargeSeconds, seconds + (std::max)(0.0f, dt));
             return -1.0f;
@@ -104,8 +105,10 @@ inline bool SegmentTouches(float ax, float ay, float bx, float by, float px, flo
 /// @note 矩形は各軸のminがmax以下となる座標を渡す。
 inline bool SegmentCrossesBox(float ax, float ay, float bx, float by, float minX, float minY, float maxX, float maxY)
 {
+    // 線分上の比率[0,1]を各軸の矩形内区間で絞り、共通区間が残るかを調べる。
     float nearT = 0, farT = 1;
     auto slab = [&](float start, float delta, float lo, float hi) {
+        // この軸にほぼ動かない線分では、始点が軸の範囲内なら他方の軸の判定へ進める。
         if (std::abs(delta) < .00001f)
             return start >= lo && start <= hi;
         float a = (lo - start) / delta, b = (hi - start) / delta;
@@ -140,12 +143,14 @@ struct LinkDamageClock {
     {
         Target* free = nullptr;
         for (auto& target : targets) {
+            // 同じIDの枠を先に探し、許可時刻を更新する。誤差許容はこの既存枠の比較だけに使う。
             if (target.id == id) {
                 if (seconds + 1e-6f < target.next)
                     return false;
                 target.next = seconds + kLinkHitIntervalSeconds;
                 return true;
             }
+            // 別IDの待ち時間が終わった枠も再利用できるが、同じIDが後ろにある可能性があるので走査を続ける。
             if (!free && (target.id == 0 || target.next <= seconds))
                 free = &target;
         }
@@ -183,7 +188,7 @@ inline float ParryDurabilityDamage(float hp, bool perfect, float power = 1)
     return hp <= kOrdinaryEnemyBulletHp ? hp : 0.0f;
 }
 
-// Run-local, bounded state shared by the real actors and headless tests.
+// 遠征内の状態を実際のアクターと描画なしのテストで共有する。
 enum class DronePhase {
     Escort,
     Warning,
@@ -258,6 +263,7 @@ public:
     /// @return この呼び出しで再構築が完了し、護衛へ戻った場合だけtrue。
     bool Step(float dt, bool home = false)
     {
+        // 1回の呼び出しでは現在段階だけを更新する。遷移時に経過時間を戻し、超過時間を次段階へ持ち越さない。
         elapsed_ += (std::max)(0.0f, dt);
         const State& state = GetState(phase_);
         return state.Update(*this, home);
@@ -381,6 +387,7 @@ struct PainterLock {
         droneMask |= uint32_t{1} << drone;
         ++hits;
         buildup = 2.0f;
+        // 立っているビットを1つ落としてもビットが残るなら、2機以上から命中している。
         const bool distinct = (droneMask & (droneMask - 1)) != 0;
         if (distinct && hits >= 4) {
             remaining = 4.0f;
@@ -403,6 +410,7 @@ inline int ChooseSpreadTarget(const float* distances, const bool* used, int coun
 {
     int selected = -1;
     float best = 1e30f;
+    // まず未使用の対象だけを比較する。選べなかった場合だけ使用済みも含めて比較し直す。
     for (int pass = 0; pass < 2 && selected < 0; ++pass)
         for (int i = 0; i < count; ++i) {
             if (pass == 0 && used[i])
@@ -441,6 +449,7 @@ struct SpinCycle {
         remaining = (std::max)(0.0f, remaining - dt);
         nextTick -= dt;
         if (nextTick <= 0 && tickCount < 4) {
+            // 遅れを残したまま0.20秒を足す。大きなdtでも、この呼び出しでは1回分だけ通知する。
             nextTick += .20f;
             ++tickCount;
             return true;

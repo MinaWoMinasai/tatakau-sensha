@@ -12,7 +12,7 @@
 
 class Player;
 
-/// @brief 弾の軌跡の外観と有効状態を指定する。
+/// @brief 弾と軌跡の色・幅・寿命・補間方法を指定する。有効状態のフラグは保持しない。
 struct BulletTrailSettings {
     float playerHalfWidth = 0.26f;
     float enemyHalfWidth = 0.22f;
@@ -55,7 +55,7 @@ public:
         bool chain = false, mark = false, boomerang = false, killBurst = false;
         float chainPower = 1, markPower = 1, boomerangPower = 1, burstPower = 1;
     };
-    /// @brief シューター能力を利用条件を設定する。
+    /// @brief 射撃強化の有効状態と強さをそのまま保持する。いずれか有効なら遠征ルールも有効にする。
     void ConfigureShooterAbilities(bool chain, bool mark, bool boomerang, bool killBurst, float chainPower = 1, float markPower = 1,
                                    float boomerangPower = 1, float burstPower = 1);
     /// @brief シューター能力を返す。
@@ -63,38 +63,39 @@ public:
     {
         return shooter_;
     }
-    /// @brief ドローン元データを利用条件を設定する。
+    /// @brief 命中元ドローンの添字と自機の借用先を設定する。
+    /// @note indexの負値はドローン弾以外を表す。playerはnullptrを許容し、衝突通知で使う間は有効に保つ。
     void ConfigureDroneSource(int index, Player* player)
     {
         sourceDroneIndex_ = index;
         sourcePlayer_ = player;
     }
-    /// @brief 元データドローン添字を返す。
+    /// @brief 命中元ドローンの添字を返す。負値はドローン弾以外を表す。
     int GetSourceDroneIndex() const
     {
         return sourceDroneIndex_;
     }
-    /// @brief 元データ自機を返す。
+    /// @brief 命中元の自機の借用ポインターを返す。未設定ならnullptr。
     Player* GetSourcePlayer() const
     {
         return sourcePlayer_;
     }
-    /// @brief 状態帰還中を返す。
+    /// @brief 帰還中かを返す。
     bool GetIsReturning() const
     {
         return returnFlight_.returning;
     }
-    /// @brief Boomerangであるか判定する。
+    /// @brief ブーメラン能力が有効かを返す。帰還中かとは別の判定。
     bool IsBoomerang() const
     {
         return shooter_.boomerang;
     }
-    /// @brief 帰還対象を設定する。
+    /// @brief 帰還先のワールド座標をコピーする。対象アクターを保持する処理ではない。
     void SetReturnTarget(const cg2::Vector3& target)
     {
         returnTarget_ = target;
     }
-    /// @brief 装甲Reflectedを設定する。
+    /// @brief 装甲で反射された弾かを記録する。この関数では速度を反転しない。
     void SetArmorReflected(bool value)
     {
         armorReflected_ = value;
@@ -104,17 +105,17 @@ public:
     {
         return armorReflected_;
     }
-    /// @brief 破裂Childであるか判定する。
+    /// @brief 撃破時の破裂で生まれた子弾かを返す。
     bool IsBurstChild() const
     {
         return burstChild_;
     }
-    /// @brief 破裂Childを設定する。
+    /// @brief 撃破時の破裂子弾であることを記録する。trueの弾からは破裂を再発動しない。
     void SetBurstChild(bool value)
     {
         burstChild_ = value;
     }
-    /// @brief 表示倍率を利用条件を設定する。
+    /// @brief 弾の衝突半径と軌跡幅の倍率を設定する。各入力は0.5～2に制限する。
     void ConfigureVisualScale(float size, float trail)
     {
         radius_ = .5f * (std::clamp)(size, .5f, 2.0f);
@@ -133,37 +134,44 @@ public:
         specialImpacts_.clear();
         return events;
     }
-    /// @brief 特殊を利用条件を設定する。
+    /// @brief 特殊弾の種類・衝突半径・残り寿命を設定する。
+    /// @param radius ワールド座標の半径。0.1～2.5に制限する。
+    /// @param lifetime 残り秒数。0.05～kLifeTimeに制限する。
     void ConfigureSpecial(SpecialKind kind, float radius, float lifetime);
-    /// @brief 特殊種類を返す。
+    /// @brief 特殊弾の種類を返す。
     SpecialKind GetSpecialKind() const
     {
         return specialKind_;
     }
-    /// @brief Previousワールド位置を返す。
+    /// @brief 直前の移動更新で保存したワールド座標への読み取り専用参照を返す。
     const cg2::Vector3& GetPreviousWorldPosition() const
     {
         return previousPosition_;
     }
-    /// @brief 弾の反射・貫通・分裂で発生した成長判定用の件数を保持する。
+    /// @brief 壁反射とアクター貫通の、管理側が未回収の発生件数を保持する。
     struct GrowthEvents {
         uint32_t wallBounces = 0;
         uint32_t actorPierces = 0;
     };
 
-    /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
+    /// @brief 描画オブジェクトを生成し、位置・速度・所有者・ダメージと戦闘履歴を初期化する。
+    /// @param velocity 60FPS相当の基準1フレームの移動量。
+    /// @param bulletHp 弾の耐久度。最低0.1に補正する。
+    /// @param bulletPenetration 他の弾の耐久度へ与える値。最低0.1に補正する。
     void Initialize(const cg2::Vector3& position, const cg2::Vector3& velocity, uint32_t damage, BulletOwner owner, bool reflectable,
                     float bulletHp = 1.0f, float bulletPenetration = 1.0f);
 
-    /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+    /// @brief 前回位置を保存し、移動・帰還・残り寿命・外観・軌跡を更新する。地形衝突と削除は管理側が行う。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Update(float deltaTime);
 
-    /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
+    /// @brief 互換用の空の描画処理。現在、この関数は描画しない。
     void Draw();
-    /// @brief 軌跡を取り付ける。
+    /// @brief 軌跡管理先から作成した軌跡と設定を借用する。管理先がnullptr、または取付済みなら何もしない。
+    /// @note 所有権は移らない。ReleaseTrailまで軌跡を有効に保つ。設定のnullptrは既定の外観を使う。
+    /// 設定の借用はReleaseTrail後も残るため、弾の実体を破棄するか、別の設定へ付け替えるまで有効に保つ。
     void AttachTrail(cg2::TrailManager* trailManager, BulletTrailSettings* trailSettings);
-    /// @brief 軌跡を解放する。
+    /// @brief 軌跡を非アクティブにし、その借用ポインターを解除する。軌跡の実体や設定は破棄しない。
     void ReleaseTrail();
 
     /// @brief 死亡であるか判定する。
@@ -172,19 +180,20 @@ public:
         return isDead_;
     }
 
-    /// @brief 衝突判定
+    /// @brief 成立した接触を受け、耐久度・命中履歴・貫通・分裂予約・死亡状態を更新する。
+    /// @note otherはnullptr不可。接触判定と双方への通知はCollisionManagerが行う。
     void OnCollision(Collider* other) override;
 
-    // ワールド座標を取得
+    /// @brief 現在のワールド座標を値で返す。
     cg2::Vector3 GetWorldPosition() const override;
 
-    /// @brief 移動を返す。
+    /// @brief 60FPS相当の基準1フレームの移動量を値で返す。
     cg2::Vector3 GetMove() const
     {
         return velocity_;
     }
 
-    // セッター
+    /// @brief ワールド座標を設定し、描画オブジェクトへ反映する。移動前の記録は更新しない。
     void SetWorldPosition(const cg2::Vector3& pos)
     {
         worldTransform_.translate = pos;
@@ -204,7 +213,7 @@ public:
         return radius_;
     }
 
-    /// @brief Reflectableであるか判定する。
+    /// @brief 壁反射を許可する設定かを返す。残り反射回数は別に判定する。
     bool IsReflectable() const
     {
         return isReflectable_;
@@ -214,54 +223,57 @@ public:
     {
         return owner_;
     }
-    /// @brief 弾HPを返す。
+    /// @brief 弾の現在の耐久度を返す。
     float GetBulletHp() const
     {
         return bulletHp_;
     }
-    /// @brief 弾Penetrationを返す。
+    /// @brief 衝突した他の弾の耐久度へ与える値を返す。
     float GetBulletPenetration() const
     {
         return bulletPenetration_;
     }
-    /// @brief 取得遠征リソースが可能か判定する。
+    /// @brief 命中時に遠征の資源取得へ算入する設定かを返す。
     bool CanClaimRunResource() const
     {
         return canClaimRunResource_;
     }
-    /// @brief Can取得遠征リソースを設定する。
+    /// @brief 命中時に遠征の資源取得へ算入するかを設定する。
     void SetCanClaimRunResource(bool enabled)
     {
         canClaimRunResource_ = enabled;
     }
     /// @brief 弾耐久度ダメージを現在の状態へ適用する。
     void ApplyBulletDurabilityDamage(float amount);
-    /// @brief 成長を利用条件を設定する。
+    /// @brief 壁反射・アクター貫通・分裂の残り回数と分裂威力を補正して設定する。
+    /// @param maxWallBounces -1は無制限。-1～32に制限する。
+    /// @param actorPierceCount 命中後も飛行を続けられる回数。0～8に制限する。
+    /// @param impactSplitCount 1回だけ予約する子弾数。0～2に制限する。
+    /// @note 遠征ルールのフラグも上書きする。子弾の実生成はAppendImpactChildrenで行う。
     void ConfigureGrowth(int maxWallBounces, int actorPierceCount, int impactSplitCount, float impactSplitDamageScale = 0.55f);
     /// @brief 遠征用の弾の挙動規則を適用するか判定する。
     bool UsesRunProjectileRules() const
     {
         return usesRunProjectileRules_;
     }
-    /// @brief 命中アクターが可能か判定する。
+    /// @brief actorがnullptrでなく、現在の命中履歴に衝突IDがなければtrueを返す。状態は変更しない。
     bool CanHitActor(const Collider* actor) const;
     /// @brief 壁衝撃の通知を受けて、このオブジェクトの状態を反映する。
     void OnWallImpact(const cg2::Vector3& safePosition, const cg2::Vector3& normal);
-    // Drain only outside collision iteration. Children cannot split again and
-    // share the parent's expiry time and actor hit history.
-    /// @brief 衝撃子要素を末尾へ追加する。
+    /// @brief 保留した分裂を消費し、残り枠の範囲で生成した子弾をchildrenへ所有権付きで追加する。
+    /// @note 衝突走査後に呼ぶ。枠不足でも予約を消費する。子弾は再分裂せず、親の残り寿命と命中履歴を引き継ぐ。
     void AppendImpactChildren(std::vector<std::unique_ptr<Bullet>>& children, size_t availableSlots);
-    /// @brief 残り壁Bouncesを返す。
+    /// @brief 残りの壁反射回数を返す。-1は無制限。
     int GetRemainingWallBounces() const
     {
         return remainingWallBounces_;
     }
-    /// @brief 残りアクターPiercesを返す。
+    /// @brief アクターへ命中後も飛行を続けられる残り回数を返す。
     int GetRemainingActorPierces() const
     {
         return remainingActorPierces_;
     }
-    /// @brief 残りLifetimeを返す。
+    /// @brief 残り寿命（秒）を返す。
     float GetRemainingLifetime() const
     {
         return deathTimer_;
@@ -274,7 +286,7 @@ public:
         return events;
     }
 
-    /// @brief 死亡状態にし、以降の攻撃・衝突などの対象から外す。
+    /// @brief 死亡状態にして軌跡の借用を解除する。管理配列からの削除は行わない。
     void Die();
 
 private:
