@@ -32,7 +32,8 @@
 | 頂点 / Skin Weight | 21,961頂点すべてに正規化済みWeightあり。正のWeight 40,145件、最大4 influence/vertex |
 | Material | glTF 7 / Assimp 8（追加の未使用defaultを含む） |
 | Embedded Texture | 6 |
-| Animation | 0。既存SkinnedModelの空の`BindPose`クリップを利用 |
+| GLB由来のAnimation | 0。元姿勢比較には既存SkinnedModelの空の`BindPose`クリップを利用 |
+| Preview生成クリップ | 2（`Preview_Idle` / `Preview_Attack`）。C++で生成し、GLBには保存しない |
 
 ## Preview操作
 
@@ -45,6 +46,20 @@ Previewは開いただけでは有効になりません。下記の`Preview Enab
 初期状態はPreview無効です。タイトルのデモにはPreviewを作りません。ReleaseではPreviewクラスをビルド対象から外し、GameSceneの呼び出しもコンパイル時に無効にします。Downloadsはコピー時にのみ参照し、実行時はRepository内の`resources/models/neon_hologram/AvatarSample_B.glb`だけを使用します。
 
 描画は`Bloom::PreDraw()`直後、ObjectPostEffectのcaptureより前のScene HDR / Normal / Material（3 MRT）+ D24S8内です。`BeginFrame()`は前フレームのFence完了後のUpdateで1回だけ呼び、Draw後は通常Object3dのRoot Signature / PSOを再Bindします。
+
+## 検証用アニメーション
+
+初回有効化では`Preview_Idle`を再生します。`Animation`で元のTポーズの`BindPose`、3秒ループの`Preview_Idle`、1.8秒非ループの`Preview_Attack`を選択できます。Idleは腕を下げ、肘を軽く曲げ、胸・首・腕を小さく動かします。Attackは右腕を引いて溜め、前へ押し出して戻り、終了後に0.2秒の既存ブレンドでIdleへ戻ります。`Play Attack`は再度押すと先頭から再実行します。
+
+`Play` / `Pause`、`Restart`、`Playback Speed`、現在のクリップ名・ループ状態・時刻 / durationを表示します。Pauseは進行中のポーズブレンドも停止します。Pause中の再生位置スライダーは遷移を終了し、その時刻のサンプル姿勢を表示します。Pause中のIdle / Attack選択だけでは現在姿勢を保持し、Playでブレンドを再開するかSeekで直接姿勢を指定できます。RestartはPause状態を維持し、指定クリップの時刻0へ戻します。BindPoseはPause中も直ちに元姿勢へ戻し、duration=0でスライダーを無効にします。Normal / Neonは再ロードや時刻リセットを行いません。
+
+`game/debug/NeonPreviewAnimations.cpp`がロード時に一度だけ回転キーフレームを生成し、`cg2::SkinnedModel::RegisterAnimations()`が検証後に所有します。既存`AnimationPlayer` → `SkeletonSystem` → `SkinCluster` / PaletteをUpdateで一回だけ更新し、BodyとOutlineで共有します。登録は全クリップを検証してからvectorを確定し、Playerの参照を再接続して時刻・再生・遷移状態を保ちます。失敗時は既存状態を維持し、Previewに不足ボーン名等を表示してBindPoseを使用します。
+
+対象は名前解決した`J_Bip_C_Chest`、`J_Bip_C_Neck`、`J_Bip_L_UpperArm`、`J_Bip_R_UpperArm`、`J_Bip_L_LowerArm`、`J_Bip_R_LowerArm`です。Assimp / エンジン変換後の腕のbind回転は単位Quaternion、左の子ボーンは+X、右は-Xに伸びます。行ベクトルの回転行列に対し`R(qA*qB)=R(qB)*R(qA)`となる合成順を数値テストで確認し、ローカル差分`Rx*Ry*Rz`の後にbind回転を適用します。左右の腕はZの符号を反転して下げ、肘はYで曲げます。Translation / Scale曲線は追加せずbind値を維持し、root・脚・足は動かしません。glTFからの座標変換は追加適用しません。
+
+再検証は`project/tools/test_neon_preview_animations.ps1`。実GLBと既存Animation / Skeleton / SkinnedModel / SkinClusterをWARP upload bufferで数値検証します。Texture / descriptorサービスを隔離したテストのため、描画確認とは別です。登録の妥当性と失敗時の状態保持、vector再配置時の寿命、Quaternion正規化・合成順、Idle境界、途中姿勢・実WeightによるPalette変形、Pause / Resume / Restart / Seek / 速度、Attack再実行とIdle復帰、const getter維持を確認します。
+
+2026-10-03のDevelopment実機では正面・側面のIdle / Attack、肩・肘・首、押し出し姿勢、同じ停止時刻でのNormal / Neon比較と外周・内部線の追従を確認しました。比較画像は`generated/neon_animation_preview/`に保存します。髪や細部の線の密集・一部の途切れ、Normal側の顔の白さは既存表現の制約です。全角度の連続動画によるちらつき評価や衝突の保証は行っていません。Spring Bone、布物理、表情、戦闘処理は追加していません。モデルのSHA-256は作業前後で上記と一致しました。
 
 ## 暗い本体 + ネオン外周線
 

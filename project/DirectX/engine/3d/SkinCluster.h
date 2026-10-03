@@ -150,6 +150,9 @@ public:
     bool SetAnimation(const std::string& name, bool restart = true);
     /// @brief アニメーションを設定する。
     bool SetAnimation(size_t index, bool restart = true);
+    // Initialize後に追加するCPUクリップをモデルが所有する。検証失敗時は再生・遷移状態を保持する。
+    // vectorを確定してからAnimationPlayerの参照を結び直す。GPU Paletteは次のUpdateで更新する。
+    bool RegisterAnimations(std::vector<Animation> animations, std::string* error = nullptr);
     /// @brief へのアニメーションを状態を遷移させる。
     bool TransitionToAnimation(const std::string& name, float duration, bool synchronizeNormalizedTime = false);
     /// @brief へのアニメーションを状態を遷移させる。
@@ -171,10 +174,11 @@ public:
         animationPlayer_.SetPlaybackSpeed(speed);
     }
     /// @brief 現在アニメーションを指定した再生位置へ移す。
-    void SeekCurrentAnimation(float time)
-    {
-        animationPlayer_.Seek(time);
-    }
+    // 遷移を終了し、次のUpdateで指定時刻の姿勢を直接適用する。Pause状態は維持する。
+    void SeekCurrentAnimation(float time);
+    // 明示的なPauseは再生時刻と進行中のポーズブレンドの両方を止める。
+    void SetAnimationPlaying(bool playing);
+    bool IsAnimationPaused() const { return animationPaused_; }
     /// @brief 現在アニメーション時間を返す。
     float GetCurrentAnimationTime() const
     {
@@ -239,6 +243,7 @@ private:
     float animationTransitionDuration_ = 0.0f;
     float animationTransitionElapsed_ = 0.0f;
     bool animationTransitionActive_ = false;
+    bool animationPaused_ = false;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> influenceResource_;

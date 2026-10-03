@@ -72,6 +72,7 @@ public:
     {
         playbackSpeed_ = speed;
     }
+    float GetPlaybackSpeed() const { return playbackSpeed_; }
     /// @brief 再生中であるか判定する。
     bool IsPlaying() const
     {
