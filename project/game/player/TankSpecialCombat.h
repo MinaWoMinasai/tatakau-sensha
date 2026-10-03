@@ -26,19 +26,22 @@ inline constexpr float kLinkHitIntervalSeconds = 0.20f;
 inline constexpr float kSlashWaveDamageScale = 0.55f;
 inline constexpr float kPerfectParryWindowSeconds = 0.12f;
 inline constexpr float kPerfectParryDurabilityDamage = 8.0f;
-/// @brief レール射撃のチャージ進行と発動条件を管理する。
+/// @brief レール砲の蓄積時間（秒）と押下継続状態を保持し、入力を離したときに発射用の時間を取り出す。
 struct RailCharge {
     float seconds = 0.0f;
     bool held = false;
-    /// @brief 状態と集計値を初期状態へ戻す。
+    /// @brief 蓄積時間を0秒にし、押下継続状態を解除する。
     void Reset()
     {
         seconds = 0;
         held = false;
     }
-    // A negative result means no shot; zero is a valid short tap.
-    /// @brief 現在の状態を1段階更新する。
-    /// @param dt この処理で進める経過時間（秒）。
+    /// @brief 押している間に蓄積し、離したときに蓄積時間を返して状態をリセットする。
+    /// @param pressed 今回の更新で発射入力が押されているか。押下開始の瞬間だけを示す値ではない。
+    /// @param dt 経過時間（秒）。負値は0として扱い、蓄積はkRailMaxChargeSecondsまでに制限する。
+    /// @param ready チャージ・発射を受け付けられるか。falseなら入力によらずリセットする。
+    /// @return 発射なしは-1。押下後に離した場合は蓄積時間（秒）。0秒も有効な発射結果。
+    /// @note 弾の生成は呼び出し側で行う。最大時間まで押しても、離すまでは発射結果を返さない。
     float Step(bool pressed, float dt, bool ready)
     {
         if (!ready) {
@@ -58,40 +61,47 @@ struct RailCharge {
     }
 };
 /// @brief レール砲のダメージ倍率を返す。
+/// @param charge 蓄積時間（秒）。計算では0～1に制限し、最大チャージ時間による正規化は行わない。
+/// @param power チャージによる加算倍率の強さ。kMinAbilityPower～kMaxAbilityPowerに制限する。
 inline float RailDamageScale(float charge, float power = 1)
 {
     return kRailTapDamageScale +
            kRailChargeDamageGain * (std::clamp)(charge, 0.0f, 1.0f) * (std::clamp)(power, kMinAbilityPower, kMaxAbilityPower);
 }
 /// @brief レール砲の弾速倍率を返す。
+/// @param charge 蓄積時間（秒）。計算では0～1に制限する。
 inline float RailSpeedScale(float charge)
 {
     return kRailTapSpeedScale + kRailChargeSpeedGain * (std::clamp)(charge, 0.0f, 1.0f);
 }
-/// @brief レール砲発射後の回復時間を返す。
+/// @brief レール砲発射後、次のチャージを受け付けるまでの待ち時間（秒）を返す。
+/// @param reload 基準の発射間隔（秒）。倍率を掛け、最小・最大の待ち時間に制限する。
 inline float RailRecovery(float reload)
 {
     return (std::clamp)(reload * kRailRecoveryReloadScale, kRailMinRecoverySeconds, kRailMaxRecoverySeconds);
 }
-/// @brief レーザー接続数を返す。
+/// @brief ドローン数からレーザーの接続本数を計算する。2機未満は0本、2機は1本、3機以上は機数と同じ。
 inline int LinkCount(int drones)
 {
     return drones < 2 ? 0 : drones == 2 ? 1 : drones;
 }
-/// @brief 点に最も近い線分上の位置を始点からの比率で返す。
+/// @brief XY平面で点Pに最も近い線分AB上の位置を、AからBへの比率（0～1）で返す。
+/// @note 線分の長さの2乗が0.00001以下なら、始点を表す0を返す。
 inline float SegmentClosestFraction(float ax, float ay, float bx, float by, float px, float py)
 {
     const float dx = bx - ax, dy = by - ay, len = dx * dx + dy * dy;
     return len > .00001f ? (std::clamp)(((px - ax) * dx + (py - ay) * dy) / len, 0.0f, 1.0f) : 0.0f;
 }
-/// @brief 線分が指定対象に接触するか判定する。
+/// @brief XY平面で線分ABと、中心P・半径radiusの円が接触するか判定する。境界の接触もtrue。
+/// @param radius 円の半径。呼び出し側では非負の値を渡す。
 inline bool SegmentTouches(float ax, float ay, float bx, float by, float px, float py, float radius)
 {
     const float t = SegmentClosestFraction(ax, ay, bx, by, px, py);
     const float x = ax + (bx - ax) * t - px, y = ay + (by - ay) * t - py;
     return x * x + y * y <= radius * radius;
 }
-/// @brief 線分が境界箱と交差するか判定する。
+/// @brief XY平面で線分ABと軸平行の矩形が交差するか判定する。境界の接触もtrue。
+/// @note 矩形は各軸のminがmax以下となる座標を渡す。
 inline bool SegmentCrossesBox(float ax, float ay, float bx, float by, float minX, float minY, float maxX, float maxY)
 {
     float nearT = 0, farT = 1;
@@ -109,20 +119,23 @@ inline bool SegmentCrossesBox(float ax, float ay, float bx, float by, float minX
 }
 /// @brief 接続レーザーが同じ対象へ与えるダメージの間隔を管理する。
 struct LinkDamageClock {
-    /// @brief 対象の識別情報と効果の進行状態を保持する。
+    /// @brief 対象の衝突IDと、次にダメージを許可する内部時刻（秒）を保持する。idの0は空き枠。
     struct Target {
         uint64_t id = 0;
         float next = 0;
     };
     std::array<Target, 256> targets{};
     float seconds = 0;
-    /// @brief 経過時間に応じて現在の状態を進める。
-    /// @param dt この処理で進める経過時間（秒）。
+    /// @brief ダメージ間隔の判定に使う内部時刻を進める。
+    /// @param dt 経過時間（秒）。負値は0として扱う。
     void Advance(float dt)
     {
         seconds += (std::max)(0.0f, dt);
     }
-    /// @brief 条件を確認して対象の取得を確定する。
+    /// @brief 対象へのダメージを許可できれば、次に許可する時刻を予約する。
+    /// @param id 対象の衝突ID。空き枠を表す0以外を渡す。
+    /// @return 許可して記録した場合true。前回からの間隔不足、または256枠に再利用できる枠がなければfalse。
+    /// @note 同じ更新内の他のレーザーからも共有する。空き枠または待ち時間が終わった枠を再利用する。
     bool Claim(uint64_t id)
     {
         Target* free = nullptr;
@@ -142,22 +155,27 @@ struct LinkDamageClock {
         return true;
     }
 };
-/// @brief s斬撃WAVEを発生させる。
+/// @brief コンボ段階が斬撃波の発生対象か判定する。comboStepが2（3段目）の場合だけtrue。
+/// @note 判定だけを行い、弾の生成や状態変更は行わない。
 inline bool EmitsSlashWave(int comboStep)
 {
     return comboStep == 2;
 }
-/// @brief 近接斬撃のダメージを計算する。
+/// @brief フィニッシュ斬撃のダメージから、飛ばす斬撃波のダメージを計算する。四捨五入し、最低1とする。
 inline uint32_t SlashDamage(uint32_t finisherDamage, float power = 1)
 {
     return static_cast<uint32_t>((std::max)(1.0f, std::round(static_cast<float>(finisherDamage) * kSlashWaveDamageScale * power)));
 }
-/// @brief PerfectParryであるか判定する。
+/// @brief 斬撃の有効時間開始からの経過秒が、ジャストパリィの受付範囲内か判定する。
+/// @param activeElapsed 有効時間開始からの秒数。0～kPerfectParryWindowSecondsの両端を含めてtrue。
 inline bool IsPerfectParry(float activeElapsed)
 {
     return activeElapsed >= 0 && activeElapsed <= kPerfectParryWindowSeconds;
 }
 /// @brief パリィで弾の耐久度へ与えるダメージを計算する。
+/// @param hp 対象弾の現在の耐久度。
+/// @param perfect ジャストパリィか。trueならpowerを制限して固定基準の耐久ダメージに掛ける。
+/// @return 通常パリィは通常弾の耐久度以下ならhp、それより強い弾には0。実際の適用は呼び出し側で行う。
 inline float ParryDurabilityDamage(float hp, bool perfect, float power = 1)
 {
     if (perfect)
@@ -181,39 +199,41 @@ public:
     static constexpr float kChargingTimeoutSeconds = 1.0f;
     static constexpr float kReturnTimeoutSeconds = 2.5f;
     static constexpr float kRebuildSeconds = 5.5f;
-    /// @brief 段階を返す。
+    /// @brief 現在の任務段階を返す。
     DronePhase GetPhase() const
     {
         return phase_;
     }
-    /// @brief 経過時間を返す。
+    /// @brief 現在の段階へ移ってからの経過時間（秒）を返す。
     float GetElapsed() const
     {
         return elapsed_;
     }
-    /// @brief 予告継続時間を返す。
+    /// @brief 通常突撃または自爆突撃の予告時間（秒）を返す。
     float GetWarningDuration() const
     {
         return bomb_ ? kBombWarningSeconds : kWarningSeconds;
     }
-    /// @brief Bombであるか判定する。
+    /// @brief 最後に開始した任務が自爆突撃かを返す。
     bool IsBomb() const
     {
         return bomb_;
     }
-    /// @brief 衝撃が存在するか判定する。
+    /// @brief Arriveで記録した未消費の到着イベントがあるかを返す。
     bool HasImpact() const
     {
         return impact_;
     }
-    /// @brief 衝撃の未処理分を取り出し、内部の保留分を消費済みにする。
+    /// @brief 到着イベントの有無を返し、保留フラグを解除する。未消費の到着があればtrue。
     bool ConsumeImpact()
     {
         const bool hit = impact_;
         impact_ = false;
         return hit;
     }
-    /// @brief 動作を開始し、開始時の条件を保持する。
+    /// @brief 護衛中なら突撃の予告を開始し、到着イベントを解除する。他の段階では変更せずfalse。
+    /// @param explosive 到着後に再構築へ進む自爆突撃か。falseなら帰還する通常突撃。
+    /// @return 予告を開始した場合true。
     bool Start(bool explosive)
     {
         if (phase_ != DronePhase::Escort)
@@ -223,7 +243,8 @@ public:
         impact_ = false;
         return true;
     }
-    /// @brief 目的地へ到着した結果を状態へ反映する。
+    /// @brief 突撃中なら到着イベントを記録し、通常突撃は帰還、自爆突撃は再構築へ進める。
+    /// @note 突撃中以外は何もしない。位置の移動やダメージ適用は行わない。
     void Arrive()
     {
         if (phase_ != DronePhase::Charging)
@@ -231,42 +252,44 @@ public:
         impact_ = true;
         Enter(bomb_ ? DronePhase::Rebuilding : DronePhase::Returning);
     }
-    /// @brief 現在の状態を1段階更新する。
-    /// @param dt この処理で進める経過時間（秒）。
+    /// @brief 経過時間と帰還条件に従って任務を進める。段階が変わると経過時間を0に戻す。
+    /// @param dt 経過時間（秒）。負値は0として扱う。
+    /// @param home 帰還中に自機付近へ到着したか。帰還以外の段階では使わない。
+    /// @return この呼び出しで再構築が完了し、護衛へ戻った場合だけtrue。
     bool Step(float dt, bool home = false)
     {
         elapsed_ += (std::max)(0.0f, dt);
         const State& state = GetState(phase_);
         return state.Update(*this, home);
     }
-    /// @brief この機能を使用可能か判定する。
+    /// @brief 再構築中でなければtrueを返す。新しい任務を開始できるかはStartが別に判定する。
     bool Available() const
     {
         return phase_ != DronePhase::Rebuilding;
     }
 
 private:
-    /// @brief tankspecial::DroneMissionの状態遷移の共通契約を定義する。具体的な状態は同じクラス内の派生型で表す。
+    /// @brief 任務の段階ごとの遷移判定と、再構築完了の通知を定義する。
     class State {
     public:
-        /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
+        /// @brief 派生した状態型を基底型経由で破棄できるようにする。
         virtual ~State() = default;
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief Stepで進めた経過時間を使って遷移を判定し、再構築完了時だけtrueを返す。
         virtual bool Update(DroneMission& mission, bool home) const = 0;
     };
-    /// @brief tankspecial::DroneMissionで自機を護衛する状態を表す。状態ごとの更新と次状態への遷移を担当する。
+    /// @brief 次の任務開始を待つ護衛状態を表す。
     class EscortState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief 護衛状態を保ち、falseを返す。
         bool Update(DroneMission&, bool) const override
         {
             return false;
         }
     };
-    /// @brief tankspecial::DroneMissionで突撃を予告する状態を表す。状態ごとの更新と次状態への遷移を担当する。
+    /// @brief 突撃開始までの予告状態を表す。
     class WarningState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief 予告時間が終われば突撃へ移る。戻り値はfalse。
         bool Update(DroneMission& mission, bool) const override
         {
             if (mission.elapsed_ >= mission.GetWarningDuration())
@@ -274,10 +297,10 @@ private:
             return false;
         }
     };
-    /// @brief tankspecial::DroneMissionで突撃する状態を表す。状態ごとの更新と次状態への遷移を担当する。
+    /// @brief 到着通知または時間切れを待つ突撃状態を表す。
     class ChargingState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief 突撃が時間切れなら到着イベントを作らず帰還へ移る。戻り値はfalse。
         bool Update(DroneMission& mission, bool) const override
         {
             if (mission.elapsed_ >= kChargingTimeoutSeconds)
@@ -285,10 +308,10 @@ private:
             return false;
         }
     };
-    /// @brief tankspecial::DroneMissionで自機へ帰還する状態を表す。状態ごとの更新と次状態への遷移を担当する。
+    /// @brief 自機への帰還状態を表す。
     class ReturningState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief homeがtrue、または帰還が時間切れなら護衛へ移る。戻り値はfalse。
         bool Update(DroneMission& mission, bool home) const override
         {
             if (home || mission.elapsed_ >= kReturnTimeoutSeconds)
@@ -296,10 +319,10 @@ private:
             return false;
         }
     };
-    /// @brief tankspecial::DroneMissionでドローンを再構築する状態を表す。状態ごとの更新と次状態への遷移を担当する。
+    /// @brief 自爆突撃後、再使用できるまでの再構築状態を表す。
     class RebuildingState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief 再構築時間が終われば護衛へ移ってtrueを返す。それまではfalse。
         bool Update(DroneMission& mission, bool) const override
         {
             if (mission.elapsed_ < kRebuildSeconds)
@@ -308,7 +331,7 @@ private:
             return true;
         }
     };
-    /// @brief 状態を返す。
+    /// @brief 段階に対応する共有の状態オブジェクトを返す。範囲外の値は護衛状態として扱う。
     static const State& GetState(DronePhase phase)
     {
         static const EscortState escort;
@@ -321,7 +344,7 @@ private:
         const auto index = static_cast<std::size_t>(phase);
         return *states[index < states.size() ? index : 0];
     }
-    /// @brief 指定状態へ入る際の時間と条件を初期化する。
+    /// @brief 指定した段階へ移り、段階内の経過時間だけを0に戻す。
     void Enter(DronePhase next)
     {
         phase_ = next;
@@ -331,14 +354,14 @@ private:
     float elapsed_ = 0;
     bool bomb_ = false, impact_ = false;
 };
-/// @brief 照準によるマーキング対象とロック進行を管理する。
+/// @brief 対象の衝突ID、命中したドローンのビット集合、命中数、蓄積・ロックの残り秒数を保持する。
 struct PainterLock {
     uint64_t id = 0;
     uint32_t droneMask = 0;
     int hits = 0;
     float remaining = 0, buildup = 0;
-    /// @brief 経過時間に応じて現在の状態を進める。
-    /// @param dt この処理で進める経過時間（秒）。
+    /// @brief 蓄積とロックの残り時間を減らし、両方が切れたら命中履歴を解除する。idは保持する。
+    /// @param dt 経過時間（秒）。呼び出し側で非負の値を渡す。
     void Advance(float dt)
     {
         remaining = (std::max)(0.0f, remaining - dt);
@@ -348,7 +371,9 @@ struct PainterLock {
             hits = 0;
         }
     }
-    /// @brief 対象へ命中した結果を現在の状態へ反映する。
+    /// @brief ドローンの命中を蓄積し、2機以上から累計4回以上命中したときに4秒間ロックする。
+    /// @param drone ドローンの添字（0～31）。範囲外、またはロック継続中なら変更しない。
+    /// @return 今回の命中でロックが成立した場合true。蓄積だけの場合もfalse。
     bool Hit(int drone)
     {
         if (remaining > 0 || drone < 0 || drone >= 32)
@@ -363,13 +388,17 @@ struct PainterLock {
         }
         return false;
     }
-    /// @brief 拡大率へダメージを適用する。
+    /// @brief ロック中の対象へ掛けるダメージ倍率を返す。ロック外では1。
+    /// @param boss ボス用の加算倍率を使うか。
+    /// @param power 加算倍率に掛ける能力の強さ。この関数では範囲を制限しない。
     float DamageScale(bool boss, float power = 1) const
     {
         return remaining > 0 ? 1.0f + (boss ? .18f : .35f) * power : 1.0f;
     }
 };
-/// @brief 拡散対象を選ぶ。
+/// @brief 未使用の対象を優先して距離が最小の添字を選ぶ。全て使用済みなら使用済みから選ぶ。
+/// @note countが正ならdistances・usedはcount要素以上を参照できる配列を渡す。配列は変更しない。
+/// @return 選択した添字。同距離なら先の添字。countが0以下など、選べる距離がなければ-1。
 inline int ChooseSpreadTarget(const float* distances, const bool* used, int count)
 {
     int selected = -1;
@@ -385,11 +414,13 @@ inline int ChooseSpreadTarget(const float* distances, const bool* used, int coun
         }
     return selected;
 }
-/// @brief 回転攻撃の発動・継続・再使用の周期を管理する。
+/// @brief 回転攻撃の残り秒数と、最大4回の攻撃タイミングを管理する。
 struct SpinCycle {
     float remaining = 0, nextTick = 0;
     int tickCount = 0;
-    /// @brief 動作を開始し、開始時の条件を保持する。
+    /// @brief 実行中でなく、入力継続・フィニッシュ後・スタミナ1以上の条件を満たせば、0.8秒の回転攻撃を開始する。
+    /// @param stamina 現在のスタミナ。開始に成功した場合だけ1を消費する。
+    /// @return 開始した場合true。条件を満たさなければ状態を変えずfalse。
     bool Start(bool held, bool afterFinisher, float& stamina)
     {
         if (remaining > 0 || !held || !afterFinisher || stamina < 1)
@@ -400,8 +431,9 @@ struct SpinCycle {
         tickCount = 0;
         return true;
     }
-    /// @brief 現在の状態を1段階更新する。
-    /// @param dt この処理で進める経過時間（秒）。
+    /// @brief 残り時間と攻撃間隔を更新し、攻撃タイミングなら回数を進める。
+    /// @param dt 経過時間（秒）。呼び出し側で非負の値を渡す。
+    /// @return この呼び出しで攻撃を1回行う場合true。1回の呼び出しで複数回分は返さない。
     bool Step(float dt)
     {
         if (remaining <= 0)
@@ -416,12 +448,12 @@ struct SpinCycle {
         return false;
     }
 };
-/// @brief EMP効果が続く時間を返す。
+/// @brief 現在の残り秒数と、0～3秒に制限した要求秒数の大きい方を返す。現在値は制限しない。
 inline float EmpDuration(float current, float requested)
 {
     return (std::max)(current, (std::clamp)(requested, 0.0f, 3.0f));
 }
-/// @brief ダッシュ斬撃が可能か判定する。
+/// @brief 能力が有効で、ダッシュ中または直近のダッシュ受付時間（recentDash、秒）が残っていればtrue。
 inline bool CanDashSlash(bool enabled, bool dashing, float recentDash)
 {
     return enabled && (dashing || recentDash > 0);
