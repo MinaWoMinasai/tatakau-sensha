@@ -32,7 +32,8 @@ struct NeonSkinnedParams {
     float geometryLineIntensity = 4.0f;
     uint32_t geometryLineEnabled = 0; // 既存の外観を維持。対応Deviceで明示的に有効化する。
     float geometryLineWidthPixels = 1.0f; // 共有辺を挟む全幅。各三角形側はこの半幅。
-    float geometryPadding[2]{};
+    float bodyEmissionIntensity = 0.0f; // Body色による弱い面の補助発光。0で従来の出力を維持する。
+    float bodyPadding = 0.0f;
 };
 
 static_assert(sizeof(NeonSkinnedParams) == 96);
@@ -45,6 +46,8 @@ static_assert(offsetof(NeonSkinnedParams, geometryLineColor) == 64);
 static_assert(offsetof(NeonSkinnedParams, geometryLineIntensity) == 76);
 static_assert(offsetof(NeonSkinnedParams, geometryLineEnabled) == 80);
 static_assert(offsetof(NeonSkinnedParams, geometryLineWidthPixels) == 84);
+static_assert(offsetof(NeonSkinnedParams, bodyEmissionIntensity) == 88);
+static_assert(offsetof(NeonSkinnedParams, bodyPadding) == 92);
 
 // Texture由来の特徴線と任意のAlpha Cutout。空の設定では通常の不透明Neonを維持する。
 // alphaCutoff=0はCutoutなし。BLENDのソート/半透明合成は実装しない。
@@ -53,9 +56,11 @@ struct NeonSkinnedSubmeshParams {
     float lineStrength = 1.0f;
     float alphaCutoff = 0.0f;
     float geometryLineStrength = 0.0f; // Texture特徴線とは独立。既定では構造線を出さない。
+    float internalLineThresholdScale = 1.0f; // Textureの薄線と幅広い陰影の選別。1で従来のしきい値。
 };
-static_assert(sizeof(NeonSkinnedSubmeshParams) == 12);
+static_assert(sizeof(NeonSkinnedSubmeshParams) == 16);
 static_assert(offsetof(NeonSkinnedSubmeshParams, geometryLineStrength) == 8);
+static_assert(offsetof(NeonSkinnedSubmeshParams, internalLineThresholdScale) == 12);
 
 // 既存SkinnedModelのGeometryと更新済みPaletteのみを利用する、独立した不透明Sceneパス。
 // 通常の3枚のScene MRT (HDR / Normal / Material) + D24S8を呼び出し側でBindすること。

@@ -38,6 +38,9 @@ private:
     };
     /// @brief 保存されたデータを読み込む。
     void Load();
+    // 外観だけを変更し、再生状態・Transform・Alpha Cutoutは保持する。
+    void ApplyRecommendedLineArtPreset();
+    void ApplyLegacyNeonPreset();
     // Geometry設定だけを変更する。モデル・再生状態・既存の線設定は維持する。
     void ApplyGeometryPreset(GeometryPreset preset);
     void DrawGeometryLinesImGui();

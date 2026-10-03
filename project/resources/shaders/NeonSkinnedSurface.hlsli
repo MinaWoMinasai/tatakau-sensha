@@ -8,6 +8,7 @@ cbuffer NeonSubmeshConstants : register(b2)
     float gSubmeshLineStrength;
     float gAlphaCutoff;
     float gSubmeshGeometryStrength;
+    float gSubmeshInternalThresholdScale;
 };
 
 float4 SampleNeonSurface(float2 uv, float2 uvDx, float2 uvDy)
@@ -40,7 +41,7 @@ float NeonInternalLine(float2 uv, float2 uvDx, float2 uvDy, float4 center)
         - FeatureSignal(SampleNeonSurface(uv - y, uvDx, uvDy)));
     float4 gradient = max(gradientX, gradientY);
     float contrast = max(max(gradient.x, gradient.y), max(gradient.z, gradient.w));
-    float threshold = max(gInternalLineThreshold, 0.001f);
+    float threshold = max(gInternalLineThreshold * gSubmeshInternalThresholdScale, 0.001f);
     return smoothstep(threshold, threshold * 1.8f, contrast) * saturate(center.a) * gSubmeshLineStrength;
 }
 
