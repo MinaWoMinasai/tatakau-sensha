@@ -39,7 +39,12 @@ Write-Fixture 'project/resources/models/neon_hologram/AvatarSample_B.glb' 'Devel
 Write-Fixture 'project/resources/models/neon_hologram/shipped_neighbor.glb' 'Unrelated runtime model'
 Write-Fixture 'project/resources/models/neon_hologram/README.md' 'Model attribution'
 $previewMasks = @('line_masks/face_candidate.png', 'line_masks/bangs_candidate.png',
-    'line_masks/bindings.json', 'line_masks/mask_input.json', 'line_masks/README.md', 'line_masks/nested/candidate.png')
+    'line_masks/bindings.json', 'line_masks/mask_input.json', 'line_masks/README.md', 'line_masks/nested/candidate.png',
+    'line_masks/quality/bindings.json', 'line_masks/quality/authoring_v1.json', 'line_masks/quality/authoring_v2.json',
+    'line_masks/quality/face_v1_coverage.png', 'line_masks/quality/face_v1_sdf.png',
+    'line_masks/quality/face_v2_coverage.png', 'line_masks/quality/face_v2_sdf.png',
+    'line_masks/quality/bangs_v1_coverage.png', 'line_masks/quality/bangs_v1_sdf.png',
+    'line_masks/quality/bangs_v2_coverage.png', 'line_masks/quality/bangs_v2_sdf.png')
 foreach ($name in $previewMasks) { Write-Fixture "project/resources/models/neon_hologram/$name" 'Developer preview line-mask data' }
 Write-Fixture 'project/resources/models/neon_hologram/line_masks_neighbor/shipped_mask.png' 'Unrelated runtime mask'
 $sharedTankAssets = @('player3D.obj', 'player3D.mtl', 'ground.obj', 'ground.mtl', 'cube.obj', 'cube.mtl', 'white512x512.png', 'levels/tank_run.json')

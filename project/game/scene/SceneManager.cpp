@@ -185,6 +185,13 @@ IScene::ScreenEffectState SceneManager::GetScreenEffectState()
 	return currentScene_ ? currentScene_->GetScreenEffectState() : IScene::ScreenEffectState{};
 }
 
+IScene::DeveloperShowcaseState SceneManager::GetDeveloperShowcaseState() {
+    return currentScene_ ? currentScene_->GetDeveloperShowcaseState() : IScene::DeveloperShowcaseState{};
+}
+void SceneManager::RecordDeveloperFrame(cg2::DirectXCommon& dx) {
+    if (currentScene_) currentScene_->RecordDeveloperFrame(dx);
+}
+
 IScene::WaterPostProcessSettings SceneManager::GetWaterPostProcessSettings()
 {
 	return currentScene_

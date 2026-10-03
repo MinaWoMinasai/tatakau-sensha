@@ -619,7 +619,12 @@ void Bloom::UpdateFrameCameraParameters(bool advanceMotionHistory) {
 
     Matrix4x4 currentMotionViewProjection = MakeIdentity4x4();
     bool usingDebugCamera = false;
-    if (objectCommon->GetIsDebugCamera() && objectCommon->GetDebugCamera()) {
+    if (developerShowcase_.active && developerShowcase_.camera) {
+        Camera* camera = developerShowcase_.camera;
+        bloomParam_.ssrViewMatrix = camera->GetViewMatrix();
+        currentMotionViewProjection = camera->GetViewProjectionMatrix();
+        bloomParam_.depthNearClip = camera->GetNearClip(); bloomParam_.depthFarClip = camera->GetFarClip();
+    } else if (objectCommon->GetIsDebugCamera() && objectCommon->GetDebugCamera()) {
         DebugCamera* debugCamera = objectCommon->GetDebugCamera();
         bloomParam_.ssrViewMatrix = debugCamera->GetViewMatrix();
         currentMotionViewProjection = debugCamera->GetViewProjectionMatrix();
@@ -901,7 +906,7 @@ void Bloom::ComposeTransientEffects() {
 }
 
 void Bloom::PreDraw() {
-    ApplyTemporalJitterToCameras();
+    if (!developerShowcase_.active) ApplyTemporalJitterToCameras();
 
     Transition(sceneRT_->GetDepthResource(),
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
@@ -935,6 +940,27 @@ void Bloom::PreDraw() {
 }
 
 void Bloom::PostDraw() {
+    struct ParamRestore {
+        BloomParam& value; BloomParam saved; bool active;
+        ~ParamRestore() { if (active) value = saved; }
+    } restore{bloomParam_,bloomParam_,developerShowcase_.active};
+    if (developerShowcase_.active) {
+        bloomParam_.threshold = developerShowcase_.threshold;
+        bloomParam_.intensity = developerShowcase_.intensity;
+        bloomParam_.exposure = developerShowcase_.exposure;
+        bloomParam_.toneMappingMode = 1.0f;
+        bloomParam_.renderDebugMode = static_cast<float>(developerShowcase_.diagnostic == 3 ? 2 : developerShowcase_.diagnostic);
+        bloomParam_.isGrayscale = bloomParam_.isInverted = 0.0f;
+        bloomParam_.vignetteIntensity = bloomParam_.distortionAmount = bloomParam_.chromAbAmount = 0.0f;
+        bloomParam_.noiseIntensity = bloomParam_.scanlineIntensity = bloomParam_.curvature = bloomParam_.glitchAmount = 0.0f;
+        bloomParam_.gaussianIntensity = bloomParam_.fullScreenBoxBlurBlend = bloomParam_.boxBlurIntensity = 0.0f;
+        bloomParam_.outlineWidth = bloomParam_.outlineBloomIntensity = bloomParam_.depthOutlineEnabled = 0.0f;
+        bloomParam_.shockwaveStrength = bloomParam_.radialBlurIntensity = bloomParam_.dissolveThreshold = 0.0f;
+        bloomParam_.randomIntensity = bloomParam_.randomGrayscalePreview = 0.0f;
+        bloomParam_.ssaoEnabled = bloomParam_.ssrEnabled = bloomParam_.depthFogEnabled = 0.0f;
+        bloomParam_.temporalEnabled = bloomParam_.temporalHistoryValid = bloomParam_.motionVectorEnabled = 0.0f;
+        bloomParam_.temporalJitterEnabled = 0.0f;
+    }
     // All resolve/filter draws below overwrite their full target with depth
     // and blending disabled. Only a skipped resolve needs a fallback clear.
 
@@ -963,7 +989,7 @@ void Bloom::PostDraw() {
     dxCommon_->SetRenderTargetNoDepth(motionVectorRT_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
     const float motionClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    if (enableMotionVector_) {
+    if (enableMotionVector_ && !developerShowcase_.active) {
         postEffect_->DrawMotionVectorResolve(sceneRT_->GetDepthGPUHandle());
     } else {
         dxCommon_->ClearRenderTarget(motionVectorRT_->GetRTVHandle(), motionClearColor);
@@ -972,6 +998,7 @@ void Bloom::PostDraw() {
 
     // --- C. Temporal resolve pass (Scene + History + Motion -> Stable Scene) ---
     const bool canUseTemporalAccumulation =
+        !developerShowcase_.active &&
         enableTemporalAccumulation_ &&
         enableMotionVector_ &&
         bloomParam_.motionVectorScale >= 0.0f &&
@@ -1019,7 +1046,7 @@ void Bloom::PostDraw() {
     dxCommon_->SetRenderTargetNoDepth(ssaoResolveRT_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
     const float aoClearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-    if (enableSSAO_) {
+    if (enableSSAO_ && !developerShowcase_.active) {
         postEffect_->DrawSSAOResolve(
             sceneRT_->GetDepthGPUHandle(),
             normalRT_->GetGPUHandle(),
@@ -1030,7 +1057,7 @@ void Bloom::PostDraw() {
     Transition(ssaoResolveRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     D3D12_GPU_DESCRIPTOR_HANDLE ssaoCompositeSource = ssaoResolveRT_->GetGPUHandle();
-    if (enableSSAO_ && enableSSAODenoise_) {
+    if (enableSSAO_ && enableSSAODenoise_ && !developerShowcase_.active) {
         Transition(ssaoDenoiseRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
         dxCommon_->SetRenderTargetNoDepth(ssaoDenoiseRT_->GetRTVHandle());
         dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
@@ -1048,7 +1075,7 @@ void Bloom::PostDraw() {
     dxCommon_->SetRenderTargetNoDepth(ssrResolveRT_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
     const float ssrClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    if (enableSSR_) {
+    if (enableSSR_ && !developerShowcase_.active) {
         postEffect_->DrawSSRResolve(
             sceneSource,
             sceneRT_->GetDepthGPUHandle(),
@@ -1060,7 +1087,7 @@ void Bloom::PostDraw() {
     Transition(ssrResolveRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     D3D12_GPU_DESCRIPTOR_HANDLE ssrCompositeSource = ssrResolveRT_->GetGPUHandle();
-    if (enableSSR_ && enableSSRDenoise_) {
+    if (enableSSR_ && enableSSRDenoise_ && !developerShowcase_.active) {
         Transition(ssrDenoiseRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
         dxCommon_->SetRenderTargetNoDepth(ssrDenoiseRT_->GetRTVHandle());
         dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
@@ -1113,13 +1140,18 @@ void Bloom::PostDraw() {
     // 最終的に DrawComposite で HLSL 側のメイン処理が走ります
     postEffect_->DrawComposite(
         sceneSource,
-        bloomRT_A_->GetGPUHandle(),
+        developerShowcase_.active && developerShowcase_.diagnostic == 3 ? bloomRT_Half_->GetGPUHandle() : bloomRT_A_->GetGPUHandle(),
         sceneRT_->GetDepthGPUHandle(),
         normalRT_->GetGPUHandle(),
         ssrCompositeSource,
         materialRT_->GetGPUHandle(),
         ssaoCompositeSource,
         motionVectorRT_->GetGPUHandle());
+}
+
+void Bloom::SetDeveloperShowcaseState(const IScene::DeveloperShowcaseState& state) {
+    if (developerShowcase_.active != state.active) { ResetTemporalHistory(); hasPreviousMotionViewProjection_ = false; }
+    developerShowcase_ = state;
 }
 
 void Bloom::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {

@@ -27,6 +27,8 @@ public:
     void SetTransientPulse(float bloomBoost, float chromAbAmount, const Vector2& center, float radius, float width, float strength);
     /// @brief 画面演出状態を設定する。
     void SetScreenEffectState(const IScene::ScreenEffectState& state);
+    // Scene defaults are inactive. Only Developer Showcase supplies a camera/settings.
+    void SetDeveloperShowcaseState(const IScene::DeveloperShowcaseState& state);
 
 private:
     // 便利関数：リソースバリアの切り替え
@@ -103,6 +105,7 @@ private:
     Matrix4x4 previousMotionViewProjection_ = MakeIdentity4x4();
     float motionMatrixDelta_ = 0.0f;
     int renderDebugMode_ = 0;
+    IScene::DeveloperShowcaseState developerShowcase_{};
 };
 
 } // namespace cg2
