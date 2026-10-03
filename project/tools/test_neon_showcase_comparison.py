@@ -36,6 +36,12 @@ HASH_FIELDS = {
     "authoringSha256":"authoringManifestExpectedSha256",
     "authoringVersionSha256":"authoringVersionManifestExpectedSha256",
 }
+FIXED_DISSOLVE = (
+    "active", "playing", "enabled", "progress", "direction", "scanMin", "scanMax",
+    "noiseStrength", "noiseScale", "seed", "edgeEnabled", "edgeColor", "edgeIntensity",
+    "edgeWidth", "elapsed", "waitDuration", "duration", "playbackSpeed", "directionPreset",
+    "coordinateSpace", "distanceUnits",
+)
 
 
 def reported_hash(surface,key):
@@ -78,7 +84,48 @@ def load_metadata(path):
     require(value.get("model")==MODEL and value.get("expectedModelSha256")==MODEL_SHA,"Unexpected model/source SHA metadata")
     require(value.get("build")=="Development","Showcase must be Developer-only")
     require(value.get("schemaVersion")==1,"Unknown capture metadata schema")
+    if "dissolve" in value: validate_dissolve_metadata(value["dissolve"])
     return value
+
+
+def validate_dissolve_metadata(effect):
+    require(isinstance(effect,dict) and all(key in effect for key in FIXED_DISSOLVE),
+            "Dissolve metadata is incomplete")
+    require(isinstance(effect["active"],bool) and isinstance(effect["playing"],bool),
+            "Dissolve state flags must be boolean")
+    require(effect["enabled"] in (0,1) and effect["edgeEnabled"] in (0,1)
+            and 0<=effect["progress"]<=1,"Invalid dissolve endpoint state")
+    for key in ("direction","edgeColor"):
+        require(isinstance(effect[key],list) and len(effect[key])==3,"Dissolve vector dimensions differ: "+key)
+    require(effect["noiseStrength"]>=0 and effect["noiseScale"]>0 and effect["edgeIntensity"]>=0
+            and effect["edgeWidth"]>=0 and effect["elapsed"]>=0 and effect["waitDuration"]>=0
+            and effect["duration"]>0 and effect["playbackSpeed"]>0,"Invalid dissolve units/timing")
+    require(isinstance(effect["seed"],int) and 0<=effect["seed"]<=0xffffffff,"Dissolve seed must be uint32")
+    require(effect["coordinateSpace"]=="Frozen skinned model space before World; start camera plane remains fixed.",
+            "Dissolve coordinate-space contract changed")
+    require(effect["distanceUnits"]=="scan bounds, noise strength and edge width in model units; noise scale in lattice cells/model unit",
+            "Dissolve distance-unit contract changed")
+    if not effect["active"]: return
+    require(sum(x*x for x in effect["direction"])>1e-12 and effect["scanMax"]>effect["scanMin"],
+            "Frozen dissolve scan plane/range is invalid")
+    require(all(key in effect for key in ("frozenPlayback","startWorld","startCameraWorld","frozenJointPose")),
+            "Frozen dissolve checkpoint metadata missing")
+    playback=effect["frozenPlayback"]
+    require(all(key in playback for key in ("animationIndex","clip","time","speed","playing","loop","paused",
+            "transitionActive","transitionDuration","transitionElapsed")),"Frozen playback/blend state incomplete")
+    if playback["transitionActive"]:
+        require(bool(playback.get("transitionStartPose")),"Frozen transition start pose is missing")
+    for key in ("startWorld","startCameraWorld"):
+        matrix=effect[key]
+        require(isinstance(matrix,list) and len(matrix)==4 and all(isinstance(row,list) and len(row)==4 for row in matrix),
+                "Frozen start matrix dimensions differ: "+key)
+    poses=effect["frozenJointPose"]
+    require(isinstance(poses,list) and len(poses)>0,"Frozen displayed joint pose is missing")
+    require(len({pose.get("joint") for pose in poses})==len(poses),"Frozen joint names are duplicated")
+    for pose in poses:
+        require(isinstance(pose.get("joint"),str) and bool(pose["joint"]),"Frozen joint name missing")
+        require(all(isinstance(pose.get(key),list) and len(pose[key])==length
+                    for key,length in (("translation",3),("scale",3),("rotation",4))),"Frozen pose dimensions differ")
 
 
 def fixed_settings(metadata):
@@ -87,7 +134,8 @@ def fixed_settings(metadata):
     result={key:metadata[key] for key in ("model","expectedModelSha256","build","renderScale","mode","framing","camera","transform","animation","bloom","resolution")}
     result["neon"]={key:metadata["neon"][key] for key in FIXED_NEON}
     result["submeshes"]=[{key:s[key] for key in FIXED_SUBMESH} for s in metadata["submeshes"]]
-    for key in ("gpu","sceneViewportResolution","resolutionSource","textureProvenance","capture"):
+    for key in ("gpu","sceneViewportResolution","resolutionSource","textureProvenance","capture",
+                "validation","queueTimestampFrequencyHz","dissolve"):
         if key in metadata:result[key]=metadata[key]
     return result
 
@@ -115,9 +163,9 @@ def sources(metadata, repo):
     return records
 
 
-def verify_quality_sources(metadata, case, repo):
-    if case<2:return
-    version="v1" if case<=4 else "v2"
+def verify_quality_sources(metadata, case, repo, version_override=None):
+    if case<2 and version_override is None:return
+    version=version_override or ("v1" if case<=4 else "v2")
     assigned=[s for s in metadata["submeshes"] if s.get("mask")]
     require(len(assigned)==5,"Quality candidate must assign the inspected five materials")
     directory=repo/"project/resources/models/neon_hologram/line_masks/quality"
@@ -143,8 +191,18 @@ def verify_quality_sources(metadata, case, repo):
         for kind,path_key in (("coverage","mask"),("sdf","distanceMask")):
             require(surface[path_key]=="resources/models/neon_hologram/line_masks/quality/"+binding[kind+"File"],"Quality source path differs from exact Material assignment")
             require(reported_hash(surface,kind+"Sha256")==binding[kind+"Sha256"],"Capture manifest source hash differs from current selected Material")
-        for key in ("authoringSha256","authoringVersionSha256"):
-            require(reported_hash(surface,key)==selected[key],"Capture authoring revision does not match current data: "+key)
+        # A new version changes the whole-document SHA while protected V1/V2
+        # source objects and PNGs remain identical. Only that exact saved source
+        # document is allowed, and only with the unchanged per-version hash.
+        whole_hash=reported_hash(surface,"authoringSha256")
+        protected=authoring.get("preservedQualitySource",{})
+        previous=protected.get("versions",{}).get(version,{})
+        allowed={selected["authoringSha256"]}
+        if previous.get("authoringVersionSha256")==selected["authoringVersionSha256"]:
+            allowed.add(protected.get("authoringSha256",""))
+        require(whole_hash in allowed,"Capture authoring revision does not match current data: authoringSha256")
+        require(reported_hash(surface,"authoringVersionSha256")==selected["authoringVersionSha256"],
+                "Capture authoring revision does not match current data: authoringVersionSha256")
         require(surface.get("authoringRevision")==selected["authoringRevision"],"Quality authoring revision differs")
 
 
@@ -178,6 +236,9 @@ def validate_comparison(directory,repo=ROOT,before_json=None,after_json=None):
         require(metadata["mode"]=="Neon" and metadata["animation"]["paused"] is True and metadata["camera"]["orbit"] is False,"Seven-way comparisons must hold Neon pose and camera paused")
         require(metadata["bloom"]["grayscale"] is False and metadata["bloom"]["taa"] is False,"Showcase comparison must exclude menu grayscale / TAA history")
         require(metadata["neon"]["geometryLines"]==0,"Mesh Geometry Lines must be OFF for the line-art comparison")
+        if "dissolve" in metadata:
+            require(metadata["dissolve"]["active"] is False and metadata["dissolve"]["enabled"]==0,
+                    "Seven-way quality comparison must keep dissolve inactive/disabled")
         if index==0:original_range=metadata["neon"]["sdfRangeTexels"]
         if index<2:require(metadata["neon"]["sdfRangeTexels"]==original_range,"Inactive distance range changed between original cases")
         fixed=fixed_settings(metadata)

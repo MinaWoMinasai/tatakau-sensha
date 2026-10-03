@@ -34,6 +34,7 @@ void Check(HRESULT hr, const char* message) {
 }
 
 unsigned int compiledNeonShaders = 0;
+std::vector<size_t> requestedUploadBytes;
 DirectXCommon* testDx = nullptr;
 ComPtr<ID3D12DescriptorHeap> testSrvHeap;
 uint32_t nextTestSrvIndex = 16; // 0: Palette, 1/2: BaseColor, 3..15: authored-mask fixtures.
@@ -75,7 +76,10 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 		Require(std::wcscmp(profile, L"ps_6_1") == 0, "Geometry PS must use the minimum ps_6_1 profile");
 		std::cout << "PASS: native geometry ps_6_1 DXC compilation.\n";
 	}
-	if (filePath.find(L"NeonSkinned.PS.hlsl") != std::wstring::npos || geometryShader) {
+	const bool surfaceShader = filePath.find(L"NeonSkinned.PS.hlsl") != std::wstring::npos || geometryShader;
+	const bool outlineShader = filePath.find(L"NeonSkinnedOutline.PS.hlsl") != std::wstring::npos
+		|| filePath.find(L"NeonSkinnedOutline.VS.hlsl") != std::wstring::npos;
+	if (surfaceShader || outlineShader) {
 		ComPtr<IDxcBlob> reflectionData;
 		Check(result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionData), nullptr), "Reflection data");
 		DxcBuffer reflectionBuffer{ reflectionData->GetBufferPointer(), reflectionData->GetBufferSize(), 0 };
@@ -119,6 +123,20 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 			{ "gSdfHaloWidthTexels", static_cast<UINT>(offsetof(NeonSkinnedParams, sdfHaloWidthTexels)) },
 			{ "gSdfLodBlendStart", static_cast<UINT>(offsetof(NeonSkinnedParams, sdfLodBlendStart)) },
 			{ "gSdfLodBlendEnd", static_cast<UINT>(offsetof(NeonSkinnedParams, sdfLodBlendEnd)) },
+			{ "gDissolveDirection", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, direction) },
+			{ "gDissolveScanMin", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, scanMin) },
+			{ "gDissolveScanMax", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, scanMax) },
+			{ "gDissolveProgress", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, progress) },
+			{ "gDissolveNoiseStrength", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, noiseStrength) },
+			{ "gDissolveNoiseScale", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, noiseScale) },
+			{ "gDissolveEnabled", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, enabled) },
+			{ "gDissolveEdgeEnabled", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, edgeEnabled) },
+			{ "gDissolveSeed", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, seed) },
+			{ "gDissolvePadding", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, padding) },
+			{ "gDissolveEdgeColor", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, edgeColor) },
+			{ "gDissolveEdgeIntensity", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, edgeIntensity) },
+			{ "gDissolveEdgeWidth", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, edgeWidth) },
+			{ "gDissolveEdgePadding", offsetof(NeonSkinnedParams, dissolve) + offsetof(NeonDissolveParams, edgePadding) },
 			{ "gCameraWorldPosition", sizeof(NeonSkinnedParams) },
 			{ "gViewportSize", sizeof(NeonSkinnedParams) + 16 },
 		};
@@ -126,7 +144,18 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 			D3D12_SHADER_VARIABLE_DESC variable{};
 			Check(constants->GetVariableByName(field.name)->GetDesc(&variable), "Neon constant field reflection");
 			Require(variable.StartOffset == field.offset, "C++ / HLSL constant field offset differs");
+			if (std::strncmp(field.name,"gDissolve",8)==0) {
+				D3D12_SHADER_TYPE_DESC type{};
+				Check(constants->GetVariableByName(field.name)->GetType()->GetDesc(&type),"Dissolve constant type reflection");
+				const bool integer=std::strcmp(field.name,"gDissolveEnabled")==0 || std::strcmp(field.name,"gDissolveEdgeEnabled")==0
+					|| std::strcmp(field.name,"gDissolveSeed")==0 || std::strcmp(field.name,"gDissolvePadding")==0;
+				const UINT columns=std::strcmp(field.name,"gDissolveDirection")==0 || std::strcmp(field.name,"gDissolveEdgeColor")==0
+					|| std::strcmp(field.name,"gDissolveEdgePadding")==0 ? 3u : 1u;
+				Require(type.Type==(integer ? D3D_SVT_UINT : D3D_SVT_FLOAT) && type.Rows==1 && type.Columns==columns,
+					"Dissolve C++ / HLSL scalar type and vector dimensions must agree");
+			}
 		}
+		if (surfaceShader) {
 		auto* submeshConstants = reflection->GetConstantBufferByName("NeonSubmeshConstants");
 		D3D12_SHADER_BUFFER_DESC submeshDesc{};
 		Check(submeshConstants->GetDesc(&submeshDesc), "Submesh constant reflection");
@@ -160,6 +189,28 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 			Require((reflection->GetRequiresFlags() & D3D_SHADER_REQUIRES_BARYCENTRICS) != 0,
 				"Geometry shader DXIL must require native barycentrics");
 		}
+		}
+	}
+	const bool neonVertex = filePath.find(L"NeonSkinned.VS.hlsl") != std::wstring::npos
+		|| filePath.find(L"NeonSkinnedOutline.VS.hlsl") != std::wstring::npos;
+	if (neonVertex || surfaceShader || filePath.find(L"NeonSkinnedOutline.PS.hlsl") != std::wstring::npos) {
+		ComPtr<IDxcBlob> data;
+		Check(result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&data), nullptr), "Model-space position reflection data");
+		DxcBuffer buffer{data->GetBufferPointer(),data->GetBufferSize(),0};
+		ComPtr<ID3D12ShaderReflection> reflection;
+		Check(utils->CreateReflection(&buffer,IID_PPV_ARGS(&reflection)),"Model-space position signature reflection");
+		D3D12_SHADER_DESC desc{};
+		Check(reflection->GetDesc(&desc),"Neon signature description");
+		bool modelPosition=false;
+		for (UINT i=0;i<(neonVertex ? desc.OutputParameters : desc.InputParameters);++i) {
+			D3D12_SIGNATURE_PARAMETER_DESC parameter{};
+			Check(neonVertex ? reflection->GetOutputParameterDesc(i,&parameter) : reflection->GetInputParameterDesc(i,&parameter),
+				"Neon model-space signature parameter");
+			if (_stricmp(parameter.SemanticName,"TEXCOORD")==0 && parameter.SemanticIndex==1) {
+				modelPosition=parameter.ComponentType==D3D_REGISTER_COMPONENT_FLOAT32 && parameter.Mask==7;
+			}
+		}
+		Require(modelPosition,"Body and Hull must share a full float3 pre-expansion skinned model position at TEXCOORD1");
 	}
 	if (filePath.find(L"NeonSkinned") != std::wstring::npos) ++compiledNeonShaders;
 	ComPtr<IDxcBlob> blob;
@@ -168,6 +219,7 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 }
 
 ComPtr<ID3D12Resource> DirectXCommon::CreateBufferResource(size_t bytes) {
+	requestedUploadBytes.push_back(bytes);
 	D3D12_HEAP_PROPERTIES heap{};
 	heap.Type = D3D12_HEAP_TYPE_UPLOAD;
 	D3D12_RESOURCE_DESC desc{};
@@ -1710,6 +1762,198 @@ void TestQualityLineMasks(DirectXCommon& dx, SrvManager& srv, NeonSkinnedRendere
 		"occlusion / Geometry sharing, single/double-sided validity rebinding, atomic SDF-array rejection and recovery; "
 		"multiple-Draw modes / descriptors / constants remain independent; opt-in finite-range controls and independent exterior outline Core.\n";
 }
+
+void TestDirectionalDissolve(DirectXCommon& dx, SrvManager& srv) {
+	// Fresh Renderer makes its first real CB allocation observable through the service stub.
+	NeonSkinnedRenderer renderer;
+	renderer.Initialize(&dx,&srv);
+	auto whiteTexture=CreateTestTexture(dx,srv,1,false);
+	auto featureTexture=CreateTestTexture(dx,srv,2,true);
+	const UINT coverageIndex=srv.Allocate(),distanceIndex=srv.Allocate();
+	auto coverage=CreateTestMask(dx,srv,coverageIndex,{128,255,64,255});
+	auto distance=CreateTestMask(dx,srv,distanceIndex,{192,255,64,255});
+	SkinnedModel model;
+	model.Initialize(&dx,&srv,"geometry feature dissolve fixture");
+	OffscreenScene scene(dx);
+	auto resource=dx.CreateBufferResource(256);
+	TransformationMatrix* transform=nullptr;
+	Check(resource->Map(0,nullptr,reinterpret_cast<void**>(&transform)),"Dissolve transform map");
+	*transform={Identity(),Identity(),Identity()};
+	transform->WVP.m[2][2]=.4f; transform->WVP.m[3][2]=.5f;
+	const Vector2 viewport{static_cast<float>(kSize),static_cast<float>(kSize)};
+	NeonSkinnedParams params;
+	Require(params.dissolve.enabled==0,"Dissolve must remain opt-in for existing callers");
+	NeonSkinnedParams invalid;
+	invalid.dissolve.enabled=UINT32_MAX; invalid.dissolve.direction={0,0,0}; invalid.dissolve.progress=std::numeric_limits<float>::quiet_NaN();
+	invalid.dissolve.noiseStrength=std::numeric_limits<float>::infinity(); invalid.dissolve.edgeColor={-1,200,std::numeric_limits<float>::quiet_NaN()};
+	invalid.dissolve.padding=200; invalid.dissolve.edgePadding[0]=300;
+	renderer.SetParams(invalid);
+	const auto sanitized=SanitizeNeonDissolveParams(invalid.dissolve);
+	Require(std::memcmp(&renderer.GetParams().dissolve,&sanitized,sizeof(sanitized))==0,
+		"Renderer must actually use the finite, opt-in dissolve sanitation contract");
+	params.outlineEnabled=0; params.rimStrength=0; params.internalLineEnabled=1;
+	params.featureMaskBlend=1; params.featureMaskRenderMode=2; params.splitLineEmission=1;
+	renderer.SetSubmeshParams({{1,.5f,1,1},{1,.5f,1,1}});
+	renderer.SetSubmeshFeatureMasks({coverageIndex,coverageIndex});
+	renderer.SetSubmeshFeatureDistanceMasks({distanceIndex,distanceIndex});
+	auto render=[&](float clearDepth=1.0f,const Vector3& camera=Vector3{0,0,-2}) {
+		renderer.BeginFrame(); renderer.SetParams(params); scene.Begin(clearDepth);
+		renderer.Draw(model,resource->GetGPUVirtualAddress(),camera,viewport); scene.End();
+	};
+	requestedUploadBytes.clear();
+	render();
+	Require(requestedUploadBytes==std::vector<size_t>{512},
+		"Actual 320-byte Neon draw constants must allocate a rounded 512-byte GPU resource");
+	const std::array<Capture,5> original={scene.captures[0],scene.captures[1],scene.captures[2],scene.captures[3],scene.captures[4]};
+	params.dissolve.enabled=0; params.dissolve.progress=1;
+	render();
+	for(UINT target=0;target<5;++target) RequireSameCapture(scene.captures[target],original[target],"Disabled dissolve must exactly preserve every legacy target");
+	params.dissolve.enabled=1; params.dissolve.direction={1,0,0};
+	params.dissolve.scanMin=-.75f; params.dissolve.scanMax=.75f;
+	params.dissolve.noiseStrength=0; params.dissolve.progress=0;
+	params.dissolve.edgeIntensity=100; params.dissolve.edgeWidth=.1f;
+	render();
+	for(UINT target=0;target<5;++target) RequireSameCapture(scene.captures[target],original[target],"Progress zero must be byte-exact legacy including no boundary emission");
+	params.dissolve.progress=.5f; params.dissolve.edgeEnabled=0;
+	render();
+	const std::array<Capture,5> partial={scene.captures[0],scene.captures[1],scene.captures[2],scene.captures[3],scene.captures[4]};
+	auto depthBits=[&](const Capture& capture,UINT x,UINT y) {
+		uint32_t depth=0; std::memcpy(&depth,capture.Pixel(x,y),sizeof(depth)); return depth&0xffffff;
+	};
+	for(UINT y=17;y<111;++y) for(UINT x=17;x<111;++x) {
+		if(x<63) {
+			for(UINT target=0;target<3;++target) {
+				const auto* pixel=scene.captures[target].Pixel(x,y);
+				Require(std::all_of(pixel,pixel+scene.captures[target].rowBytes/kSize,[](uint8_t value){return value==0;}),
+					"Removed surface must leave all color / Normal / Material channels clear");
+			}
+			Require(depthBits(scene.captures[3],x,y)==0xffffff,"Removed surface must not write invisible depth");
+		} else if(x>64) {
+			for(UINT target=0;target<4;++target) Require(std::memcmp(scene.captures[target].Pixel(x,y),original[target].Pixel(x,y),
+				static_cast<size_t>(scene.captures[target].rowBytes/kSize))==0,"Surviving surface must preserve legacy HDR / Normal / Material / depth values when boundary is off");
+		}
+	}
+	params.dissolve.edgeEnabled=1; params.dissolve.edgeColor={0,0,1}; params.dissolve.edgeIntensity=8; params.dissolve.edgeWidth=.04f;
+	render();
+	Require(CountBrightPixels(scene.captures[0],2,64,71,80,95)>0,"Partial dissolve must emit on the surviving-side interior boundary");
+	for(UINT target=1;target<5;++target) RequireSameCapture(scene.captures[target],partial[target],"Boundary HDR emission must not pollute Normal / Material / depth / stencil");
+	Require(scene.captures[0].Float(68,64,0)==0 && scene.captures[0].Float(68,64,2)==0 && depthBits(scene.captures[3],68,64)==0xffffff,
+		"Original Alpha cutout must intersect dissolve and never leak boundary emission/depth");
+	for(UINT y=17;y<111;++y) for(UINT x=17;x<63;++x)
+		Require(scene.captures[0].Float(x,y,0)==0 && scene.captures[0].Float(x,y,1)==0 && scene.captures[0].Float(x,y,2)==0,
+			"Boundary emission must never resurrect removed-side surface");
+	params.dissolve.edgeWidth=0; render();
+	RequireSameCapture(scene.captures[0],partial[0],"Boundary width zero must exactly disable only boundary emission");
+	params.dissolve.edgeWidth=.04f; params.dissolve.edgeIntensity=0; render();
+	RequireSameCapture(scene.captures[0],partial[0],"Boundary intensity zero must exactly disable only boundary emission");
+	params.dissolve.noiseStrength=1; params.dissolve.noiseScale=0; render();
+	for(UINT target=0;target<5;++target) RequireSameCapture(scene.captures[target],partial[target],"Noise scale zero must remove both noise and its threshold padding");
+	params.dissolve.noiseStrength=0; params.dissolve.noiseScale=12;
+	// A camera or World-only change cannot shift the stored model-space noise/scan mask.
+	transform->World.m[3][0]=5; render(1,{4,1,-3});
+	for(UINT target=0;target<5;++target) RequireSameCapture(scene.captures[target],partial[target],"Fixed model-space dissolve must not swim under changed camera/World lighting coordinates");
+	transform->World=Identity();
+	params.dissolve.edgeIntensity=8;
+	render(.1f);
+	for(UINT y=0;y<kSize;++y) for(UINT target=0;target<3;++target) {
+		// Material is RGBA8, while HDR/Normal are half-floats. Compare the actual stored
+		// bytes (including alpha) rather than reading every attachment as float16.
+		const auto& capture=scene.captures[target];
+		Require(std::all_of(capture.Pixel(0,y),capture.Pixel(0,y)+capture.rowBytes,[](uint8_t value){return value==0;}),
+			"Foreground depth must occlude all dissolve boundary/quality emission");
+	}
+	// Noise parity is checked on an unobstructed plane, not via non-monotonic final image brightness.
+	params.dissolve.edgeEnabled=0; params.dissolve.noiseStrength=.3f; params.dissolve.noiseScale=8; params.dissolve.seed=1337;
+	std::array<bool,kSize*kSize> removed{};
+	for(float progress:{.25f,.5f,.75f}) {
+		params.dissolve.progress=progress; render();
+		for(UINT y=80;y<95;++y) for(UINT x=17;x<111;++x) {
+			const Vector3 point{(static_cast<float>(x)+.5f)/64-1,1-(static_cast<float>(y)+.5f)/64,0};
+			const float expected=EvaluateNeonDissolveSignedDistance(point,renderer.GetParams().dissolve);
+			const bool present=depthBits(scene.captures[3],x,y)<0xffffff;
+			if(std::abs(expected)>1.0e-4f) Require(present==(expected>=0),"GPU stable spatial noise/threshold must agree with CPU reference at actual plane points");
+			Require(!removed[y*kSize+x] || !present,"A fixed plane surface point must not reappear as progress increases");
+			removed[y*kSize+x]|=!present;
+		}
+	}
+	params.dissolve.progress=.5f; render();
+	const std::array<Capture,5> noisy={scene.captures[0],scene.captures[1],scene.captures[2],scene.captures[3],scene.captures[4]};
+	render();
+	for(UINT target=0;target<5;++target) RequireSameCapture(scene.captures[target],noisy[target],"Same pose/progress/direction/seed must reproduce exact GPU pixels");
+	params.dissolve.seed=998; render();
+	UINT seedDifferences=0;
+	for(UINT y=80;y<95;++y) for(UINT x=17;x<111;++x) seedDifferences+=depthBits(scene.captures[3],x,y)!=depthBits(noisy[3],x,y);
+	Require(seedDifferences>10,"Different seeds must exercise distinct GPU removal patterns");
+	if(renderer.IsGeometryLinesSupported()) {
+		params.geometryLineEnabled=1; params.dissolve.seed=1337; render();
+		for(UINT target=1;target<5;++target) RequireSameCapture(scene.captures[target],noisy[target],"Barycentric + SDF variant must share dissolve surface/cutout/depth/stencil contract");
+	}
+	params.geometryLineEnabled=0;
+	// Skinning coordinate, not raw vertex coordinate: translate the Palette before draw and use its frozen range.
+	model.Update(.25f);
+	params.dissolve.noiseStrength=0; params.dissolve.scanMin=-.5f; params.dissolve.scanMax=1; params.dissolve.progress=.5f;
+	render();
+	Require(depthBits(scene.captures[3],88,80)<0xffffff && depthBits(scene.captures[3],72,80)==0xffffff,
+		"Dissolve coordinate must follow GPU Palette skinning before World rather than undeformed vertex positions");
+	model.Update(0);
+	params.dissolve.scanMin=-.75f; params.dissolve.scanMax=.75f; params.dissolve.noiseStrength=.4f;
+	// Compare two independent reference draws against a single-fence pair. The transforms keep their footprints disjoint.
+	auto rightResource=dx.CreateBufferResource(256);
+	TransformationMatrix* right=nullptr;
+	Check(rightResource->Map(0,nullptr,reinterpret_cast<void**>(&right)),"Dissolve second transform map");
+	transform->WVP.m[0][0]=transform->WVP.m[1][1]=.5f; transform->WVP.m[3][0]=-.5f;
+	*right=*transform; right->WVP.m[3][0]=.5f;
+	params.dissolve.progress=.25f; params.dissolve.seed=7; render();
+	const std::array<Capture,4> first={scene.captures[0],scene.captures[1],scene.captures[2],scene.captures[3]};
+	params.dissolve.progress=.75f; params.dissolve.seed=11;
+	renderer.BeginFrame(); renderer.SetParams(params); scene.Begin(); renderer.Draw(model,rightResource->GetGPUVirtualAddress(),{0,0,-2},viewport); scene.End();
+	const std::array<Capture,4> second={scene.captures[0],scene.captures[1],scene.captures[2],scene.captures[3]};
+	renderer.BeginFrame(); scene.Begin(); requestedUploadBytes.clear();
+	params.dissolve.progress=.25f; params.dissolve.seed=7; renderer.SetParams(params); renderer.Draw(model,resource->GetGPUVirtualAddress(),{0,0,-2},viewport);
+	params.dissolve.progress=.75f; params.dissolve.seed=11; renderer.SetParams(params); renderer.Draw(model,rightResource->GetGPUVirtualAddress(),{0,0,-2},viewport); scene.End();
+	Require(requestedUploadBytes==std::vector<size_t>{512},"Additional same-frame draw must own a separate rounded 512-byte snapshot");
+	for(UINT y=0;y<kSize;++y) for(UINT x=0;x<kSize;++x) for(UINT target=0;target<4;++target) {
+		const auto& expected=x<64 ? first[target] : second[target];
+		Require(std::memcmp(scene.captures[target].Pixel(x,y),expected.Pixel(x,y),static_cast<size_t>(expected.rowBytes/kSize))==0,
+			"Same-frame draws must retain independent dissolve progress/seed CB snapshots");
+	}
+	// Actual extruded sphere hull must also vanish at one; it is not replaced by a planar no-outline proxy.
+	SkinnedModel sphere; sphere.Initialize(&dx,&srv,"dissolve outline sphere fixture");
+	*transform={Identity(),Identity(),Identity()}; transform->WVP.m[2][2]=.4f; transform->WVP.m[3][2]=.5f;
+	renderer.SetSubmeshFeatureMasks({}); renderer.SetSubmeshFeatureDistanceMasks({}); renderer.SetSubmeshParams({{1,0,1,1},{1,0,1,1}});
+	params=NeonSkinnedParams{}; params.rimStrength=0;
+	auto renderSphere=[&] {
+		renderer.BeginFrame(); renderer.SetParams(params); scene.Begin(); renderer.Draw(sphere,resource->GetGPUVirtualAddress(),{0,0,-2},viewport); scene.End();
+	};
+	renderSphere();
+	const std::array<Capture,5> intactSphere={scene.captures[0],scene.captures[1],scene.captures[2],scene.captures[3],scene.captures[4]};
+	Require(CountBrightPixels(intactSphere[0],0)>100,"Endpoint comparison must exercise a real external hull");
+	params.dissolve.enabled=1; params.dissolve.direction={1,0,0}; params.dissolve.scanMin=-.5f; params.dissolve.scanMax=.5f;
+	params.dissolve.noiseStrength=0; params.dissolve.progress=0; renderSphere();
+	for(UINT target=0;target<5;++target) RequireSameCapture(scene.captures[target],intactSphere[target],"Hull progress zero must be byte-exact legacy before extrusion");
+	params.dissolve.edgeEnabled=0; params.dissolve.progress=.5f; renderSphere();
+	Require(CountBrightPixels(scene.captures[0],0,0,60)==0 && CountBrightPixels(scene.captures[0],0,68,kSize)>40,
+		"Body and expanded Hull must discard the same pre-expansion side of the model");
+	params.dissolve.progress=1; params.dissolve.edgeEnabled=1; params.dissolve.edgeIntensity=100;
+	renderer.SetSubmeshFeatureMasks({coverageIndex,coverageIndex}); renderer.SetSubmeshFeatureDistanceMasks({distanceIndex,distanceIndex});
+	params.geometryLineEnabled=1; params.internalLineEnabled=1; params.featureMaskBlend=1; renderSphere();
+	for(UINT y=0;y<kSize;++y) for(UINT x=0;x<kSize;++x) {
+		for(UINT target=0;target<3;++target) {
+			const auto* pixel=scene.captures[target].Pixel(x,y);
+			Require(std::all_of(pixel,pixel+scene.captures[target].rowBytes/kSize,[](uint8_t value){return value==0;}),
+				"Progress one must leave no Body, Authored/SDF/Geometry/internal/Hull/boundary pixels in any MRT");
+		}
+		Require(depthBits(scene.captures[3],x,y)==0xffffff,"Fully removed Body/Hull must not write any depth");
+	}
+	const std::array<Capture,5> completelyRemoved={scene.captures[0],scene.captures[1],scene.captures[2],scene.captures[3],scene.captures[4]};
+	// Positive coverage/SDF/boundary cannot recover a source texture that is entirely cut out.
+	auto transparentTexture=CreateTestMask(dx,srv,1,{255,255,255,0});
+	renderer.SetSubmeshParams({{1,.5f,1,1},{1,.5f,1,1}});
+	params.dissolve.progress=.5f; renderSphere();
+	for(UINT target=0;target<5;++target) RequireSameCapture(scene.captures[target],completelyRemoved[target],
+		"Fully alpha-cutout real Body/Hull must remain absent even with authored/SDF/geometry and dissolve boundary enabled");
+	std::cout<<"PASS: appended 80-byte dissolve / 320-byte GPU constants allocate 512 bytes per independent Draw; disabled and progress-zero byte-exact legacy, surviving-side HDR-only edge, alpha intersection and foreground occlusion; CPU/GPU stable model-space noise parity and monotonic point survival, reproducible seed, Palette-following coordinates, SDF/barycentric/cull variants, camera/World invariance, same-frame progress/seed isolation; full Body and real Hull disappearance with clear MRT/depth and preserved other stencil bits.\n";
+}
 }
 
 int main(int argc, char** argv) {
@@ -1811,7 +2055,8 @@ int main(int argc, char** argv) {
 			Require(renderer.GetParams().bodyEmissionIntensity == expected, "Body emission must clamp finite intensity to [0,4]");
 		}
 		std::cout << "PASS: geometry parameter finite / range validation and default OFF.\n";
-		Require(sizeof(NeonSkinnedParams) == 208 && sizeof(NeonSkinnedParams) + 32 == 240
+		Require(sizeof(NeonSkinnedParams) == 288 && sizeof(NeonSkinnedParams) + 32 == 320
+			&& offsetof(NeonSkinnedParams, dissolve) == 208 && sizeof(NeonDissolveParams) == 80
 			&& offsetof(NeonSkinnedParams, featureMaskColor) == 96
 			&& offsetof(NeonSkinnedParams, featureMaskIntensity) == 108
 			&& offsetof(NeonSkinnedParams, featureMaskBlend) == 112
@@ -1845,6 +2090,7 @@ int main(int argc, char** argv) {
 		TestBodyEmission(dx, srv, renderer);
 		TestFeatureMasks(dx, srv, renderer);
 		TestQualityLineMasks(dx, srv, renderer);
+		TestDirectionalDissolve(dx,srv);
 		ComPtr<ID3D12InfoQueue> infoQueue;
 		if (SUCCEEDED(dx.GetDevice().As(&infoQueue))) {
 			for (UINT64 index = 0; index < infoQueue->GetNumStoredMessages(); ++index) {
