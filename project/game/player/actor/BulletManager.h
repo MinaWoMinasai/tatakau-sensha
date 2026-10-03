@@ -112,7 +112,7 @@ public:
     /// @brief 弾と軌跡を更新し、地形衝突・予約弾の反映・死亡弾の削除を順に行う。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Update(Stage& stage, float deltaTime);
-    /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
+    /// @brief 各弾に互換用のDrawを呼ぶ。現在、弾本体はこの経路で描画しない。
     void Draw();
     /// @brief 軌跡を描画する。
     void DrawTrails(const cg2::Matrix4x4& viewProjection);

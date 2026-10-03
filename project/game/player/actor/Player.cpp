@@ -180,244 +180,272 @@ Player::~Player() {
 
 }
 
-void Player::Attack(BulletManager* bulletManager, float deltaTime) {
-	if (runModifiers_.enabled && runRoomAwaitInputRelease_) return;
+void Player::Attack(BulletManager* bulletManager, float deltaTime)
+{
+    // 部屋移動後の入力解除待ちでは、射撃だけでなく発射間隔の時計も進めない。
+    if (runModifiers_.enabled && runRoomAwaitInputRelease_)
+        return;
 
-	// 弾のクールタイムを計算する
-	bulletCoolTime = (std::max)(0.0f, bulletCoolTime - deltaTime);
-	for (float& cooldown : weaponGroupCooldowns_) {
-		cooldown = (std::max)(0.0f, cooldown - deltaTime);
-	}
+    // 発射間隔は秒で管理する。砲身グループ別の待ち時間も同じ更新で進める。
+    bulletCoolTime = (std::max)(0.0f, bulletCoolTime - deltaTime);
+    for (float& cooldown : weaponGroupCooldowns_) {
+        cooldown = (std::max)(0.0f, cooldown - deltaTime);
+    }
 
-	bool wantsPrimaryAttack = demoInputEnabled_ ? demoShoot_ : input_->IsPress(input_->GetMouseState().rgbButtons[0]);
+    bool wantsPrimaryAttack = demoInputEnabled_ ? demoShoot_ : input_->IsPress(input_->GetMouseState().rgbButtons[0]);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	wantsPrimaryAttack = wantsPrimaryAttack || debugAutoFireEnabled_;
+    wantsPrimaryAttack = wantsPrimaryAttack || debugAutoFireEnabled_;
 #endif
-	if(runModifiers_.enabled && runModifiers_.railCannon && expeditionCombatStyleSelected_ &&
-		expeditionCombatStyle_==tankbuild::Style::Shooter) {
-		AttackRailCannon(bulletManager,wantsPrimaryAttack&&!upgradeHudMouseCaptured_,deltaTime);
-		return;
-	}
-	if (wantsPrimaryAttack && !upgradeHudMouseCaptured_) {
-		// Carrier fire is handled by the companion actors; its body has no gun.
-		if (IsDroneBuild()) return;
-		if (IsMeleeBuild()) {
-			if(spinCycle_.remaining>0)return;
-			if (bulletCoolTime > 0.0f) return;
-			if(TryStartSpinBlade(wantsPrimaryAttack))return;
-			const int step = meleeComboTimer_ > 0.0f ? meleeComboStep_ : 0;
-			const auto combo = MakeTankMeleeCombo(step, runModifiers_);
-			const auto* config = GetCurrentClassConfig();
-			const auto& profile=GetCombatStyleProfile(tankbuild::Style::Melee);
-			const float timing = (std::max)(0.05f/(combo.windup+combo.duration+combo.recovery),
-				stats_.reloadSpeed / GetRunBaseReloadFrames() * (config ? config->reloadScale : 1.0f)
-				* GetRunFireIntervalScale() * (expeditionCombatStyleSelected_?profile.attackIntervalSeconds/0.33f:1.0f));
-			MeleeSlashEvent event{};
-			event.origin = GetWorldPosition();
-			event.direction = cg2::Length(dir_) > 0.001f ? cg2::Normalize(dir_) : cg2::Vector3{1,0,0};
-			event.range = (expeditionCombatStyleSelected_?profile.meleeRange:4.3f) * combo.range;
-			event.arcDeg = combo.arc;
-			event.width = step == 2 ? 0.38f : 0.26f;
-			event.windupDuration = combo.windup * timing;
-			event.duration = combo.duration * timing;
-			event.recoveryDuration = combo.recovery * timing;
-			event.comboStep = step;
-			event.knockback = combo.knockback * (expeditionCombatStyleSelected_?profile.meleeKnockback/0.16f:1.0f);
-			event.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * 3.8f * combo.damage
-				* (config ? config->bulletDamageScale : 1.0f))));
-			event.color = step == 2 ? cg2::Vector4{1.8f,0.85f,0.25f,1.0f} : cg2::Vector4{0.25f,1.50f,1.75f,1.0f};
-			const bool dashSlash=tankspecial::CanDashSlash(runModifiers_.dashSlash,isDashing_,recentDashTimer_)&&!dashSlashActive_;
-			if(dashSlash) {
-				event.comboStep=0;event.windupDuration=0;event.duration=.18f;event.recoveryDuration=.12f;
-				event.direction=cg2::Length(velocity_)>.001f?cg2::Normalize(velocity_):event.direction;
-				dashSlashActive_=true;dashSlashTimer_=.22f;dashSlashPrevious_=GetWorldPosition();dashSlashDirection_=event.direction;
-				dashSlashDamage_=static_cast<uint32_t>((std::max)(1.0f,std::round(stats_.bulletDamage*3.8f*MakeTankMeleeCombo(0,runModifiers_).damage
-					*(config?config->bulletDamageScale:1.0f)*1.2f*TankEffectPower(runModifiers_,39))));
-				dashSlashTargets_.clear();velocity_+=event.direction*.28f;recentDashTimer_=0;
-				++specialCombatStats_.dashSlashes;
-				if(pendingSpecialCombatEvents_.size()<32)pendingSpecialCombatEvents_.push_back({SpecialEventKind::DashSlash,event.origin,event.direction,event.range});
-			} else pendingMeleeSlashes_.push_back(event);
-			specialMeleeSwing_=event;specialMeleeElapsed_=0;
-			specialWaveEmitted_=false;specialPerfectFeedback_=false;specialParriedBullets_.clear();
-			meleeComboStep_ = dashSlash ? 1 : (step + 1) % 3;
-			finisherSpinReady_=!dashSlash&&step==2;
-			bulletCoolTime = event.windupDuration + event.duration + event.recoveryDuration;
-			meleeComboTimer_ = bulletCoolTime + 0.65f;
-			// Small forward follow-through preserves steering and never teleports.
-			velocity_ += event.direction * (step == 2 ? 0.055f : 0.025f);
-			primaryAttackPerformedEvent_ = true;
-			++primaryAttackCount_;
-			return;
-		}
+    if (runModifiers_.enabled && runModifiers_.railCannon && expeditionCombatStyleSelected_ &&
+        expeditionCombatStyle_ == tankbuild::Style::Shooter) {
+        AttackRailCannon(bulletManager, wantsPrimaryAttack && !upgradeHudMouseCaptured_, deltaTime);
+        return;
+    }
+    if (wantsPrimaryAttack && !upgradeHudMouseCaptured_) {
+        // ドローン装備の射撃はPlayer::Update内の各ドローンが行うため、本体からは撃たない。
+        if (IsDroneBuild())
+            return;
+        if (IsMeleeBuild()) {
+            if (spinCycle_.remaining > 0)
+                return;
+            if (bulletCoolTime > 0.0f)
+                return;
+            if (TryStartSpinBlade(wantsPrimaryAttack))
+                return;
+            const int step = meleeComboTimer_ > 0.0f ? meleeComboStep_ : 0;
+            const auto combo = MakeTankMeleeCombo(step, runModifiers_);
+            const auto* config = GetCurrentClassConfig();
+            const auto& profile = GetCombatStyleProfile(tankbuild::Style::Melee);
+            // リロード補正を斬撃の各段階へ共通に掛け、準備・有効・硬直の合計を最低0.05秒にする。
+            const float timing =
+                (std::max)(0.05f / (combo.windup + combo.duration + combo.recovery),
+                           stats_.reloadSpeed / GetRunBaseReloadFrames() * (config ? config->reloadScale : 1.0f) *
+                               GetRunFireIntervalScale() * (expeditionCombatStyleSelected_ ? profile.attackIntervalSeconds / 0.33f : 1.0f));
+            MeleeSlashEvent event{};
+            event.origin = GetWorldPosition();
+            event.direction = cg2::Length(dir_) > 0.001f ? cg2::Normalize(dir_) : cg2::Vector3{1, 0, 0};
+            event.range = (expeditionCombatStyleSelected_ ? profile.meleeRange : 4.3f) * combo.range;
+            event.arcDeg = combo.arc;
+            event.width = step == 2 ? 0.38f : 0.26f;
+            event.windupDuration = combo.windup * timing;
+            event.duration = combo.duration * timing;
+            event.recoveryDuration = combo.recovery * timing;
+            event.comboStep = step;
+            event.knockback = combo.knockback * (expeditionCombatStyleSelected_ ? profile.meleeKnockback / 0.16f : 1.0f);
+            event.damage = static_cast<uint32_t>(
+                (std::max)(1.0f, std::round(stats_.bulletDamage * 3.8f * combo.damage * (config ? config->bulletDamageScale : 1.0f))));
+            event.color = step == 2 ? cg2::Vector4{1.8f, 0.85f, 0.25f, 1.0f} : cg2::Vector4{0.25f, 1.50f, 1.75f, 1.0f};
+            const bool dashSlash = tankspecial::CanDashSlash(runModifiers_.dashSlash, isDashing_, recentDashTimer_) && !dashSlashActive_;
+            if (dashSlash) {
+                // 移動軌跡への命中はUpdateAdditionalAbilitiesで処理する。通常斬撃の予約とは分ける。
+                event.comboStep = 0;
+                event.windupDuration = 0;
+                event.duration = .18f;
+                event.recoveryDuration = .12f;
+                event.direction = cg2::Length(velocity_) > .001f ? cg2::Normalize(velocity_) : event.direction;
+                dashSlashActive_ = true;
+                dashSlashTimer_ = .22f;
+                dashSlashPrevious_ = GetWorldPosition();
+                dashSlashDirection_ = event.direction;
+                dashSlashDamage_ = static_cast<uint32_t>(
+                    (std::max)(1.0f, std::round(stats_.bulletDamage * 3.8f * MakeTankMeleeCombo(0, runModifiers_).damage *
+                                                (config ? config->bulletDamageScale : 1.0f) * 1.2f * TankEffectPower(runModifiers_, 39))));
+                dashSlashTargets_.clear();
+                velocity_ += event.direction * .28f;
+                recentDashTimer_ = 0;
+                ++specialCombatStats_.dashSlashes;
+                if (pendingSpecialCombatEvents_.size() < 32)
+                    pendingSpecialCombatEvents_.push_back({SpecialEventKind::DashSlash, event.origin, event.direction, event.range});
+            } else
+                pendingMeleeSlashes_.push_back(event);
+            // 新しい振りごとにパリィ履歴を解除し、同じ弾への再処理と斬撃波の重複生成を防ぐ。
+            specialMeleeSwing_ = event;
+            specialMeleeElapsed_ = 0;
+            specialWaveEmitted_ = false;
+            specialPerfectFeedback_ = false;
+            specialParriedBullets_.clear();
+            meleeComboStep_ = dashSlash ? 1 : (step + 1) % 3;
+            finisherSpinReady_ = !dashSlash && step == 2;
+            bulletCoolTime = event.windupDuration + event.duration + event.recoveryDuration;
+            meleeComboTimer_ = bulletCoolTime + 0.65f;
+            // 斬撃方向の速度を加える。位置は通常の移動処理で更新し、操作による方向転換も受け付ける。
+            velocity_ += event.direction * (step == 2 ? 0.055f : 0.025f);
+            primaryAttackPerformedEvent_ = true;
+            ++primaryAttackCount_;
+            return;
+        }
 
-		if (const PlayerClassConfig* config = GetCurrentClassConfig()) {
-			const float baseReload = (isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f)
-				* GetRunFireIntervalScale();
-			cg2::Vector3 recoilDir = cg2::Normalize(dir_) * -1.0f;
-			float recoilPower = 0.01f;
-			if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
-				// Spawning a companion is not a shot. Expedition drone volleys
-				// raise this event below only when they actually create bullets.
-				if (!runCheckpointEvolution_ || !config->usesDrone) { primaryAttackPerformedEvent_ = true; ++primaryAttackCount_; }
-				velocity_ += recoilDir * recoilPower;
-				if (!runCheckpointEvolution_) cg2::Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
-			}
-			return;
-		}
+        if (const PlayerClassConfig* config = GetCurrentClassConfig()) {
+            const float baseReload =
+                (isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f) * GetRunFireIntervalScale();
+            cg2::Vector3 recoilDir = cg2::Normalize(dir_) * -1.0f;
+            float recoilPower = 0.01f;
+            if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
+                // 遠征のドローン生成では射撃を記録しない。Player::Updateでドローン射撃による弾数増加を記録する。
+                if (!runCheckpointEvolution_ || !config->usesDrone) {
+                    primaryAttackPerformedEvent_ = true;
+                    ++primaryAttackCount_;
+                }
+                velocity_ += recoilDir * recoilPower;
+                if (!runCheckpointEvolution_)
+                    cg2::Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
+            }
+            return;
+        }
 
-		if (bulletCoolTime <= 0.0f) {
+        // 現在の機体設定がない場合だけ、旧機体ごとの互換射撃へ進む。
+        if (bulletCoolTime <= 0.0f) {
 
-			// 発射位置
-			cg2::Vector3 origin = GetWorldPosition();
+            // 発射位置
+            cg2::Vector3 origin = GetWorldPosition();
 
-			// 攻撃パラメータを設定
-			AttackParam param{};
-			param.bulletSpeed = stats_.bulletSpeed;
-			param.bulletCount = 1;
-			param.spreadAngleDeg = 5.0f;
-			param.randomSpread = false;
+            // 攻撃パラメータを設定
+            AttackParam param{};
+            param.bulletSpeed = stats_.bulletSpeed;
+            param.bulletCount = 1;
+            param.spreadAngleDeg = 5.0f;
+            param.randomSpread = false;
 
-			param.reflect = false;
-			param.penetrate = false;
-			param.cooldown = 1.0f;
-			param.damage = static_cast<uint32_t>(stats_.bulletDamage);
-			ApplyRunProjectileRules(param);
-			bool firedByClass = false;
+            param.reflect = false;
+            param.penetrate = false;
+            param.cooldown = 1.0f;
+            param.damage = static_cast<uint32_t>(stats_.bulletDamage);
+            ApplyRunProjectileRules(param);
+            bool firedByClass = false;
 
-			cg2::Vector3 recoilDir = cg2::Normalize(dir_) * -1.0f;
-			float recoilPower = 0.01f; // 弾の重さ（慣性の強さ）
+            cg2::Vector3 recoilDir = cg2::Normalize(dir_) * -1.0f;
+            float recoilPower = 0.01f; // 射撃方向と逆向きに加える速度の大きさ。
 
-			// 個別にクールタイムを設定するために先に設定
-			float baseReload = (isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f)
-				* GetRunFireIntervalScale();
-			bulletCoolTime = baseReload;
+            // 個別にクールタイムを設定するために先に設定
+            float baseReload =
+                (isBuffActive_ ? (stats_.reloadSpeed * 0.7f) / 60.0f : stats_.reloadSpeed / 60.0f) * GetRunFireIntervalScale();
+            bulletCoolTime = baseReload;
 
-			switch (currentClass_) {
-			case ClassType::Basic:
-				// 既存の単発攻撃
-				param.spreadAngleDeg = 10.0f;
-				param.randomSpread = true;
-				bulletCoolTime = baseReload;
-				if (isBuffActive_) {
-					param.reflect = true;
-					bulletCoolTime = baseReload * 0.6f;
-					param.spreadAngleDeg = 20.0f;
-				}
-				attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
-				firedByClass = true;
-				if (!barrels_.empty()) {
-					barrels_[0].recoilOffset = 0.22f;
-					barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
-				}
+            switch (currentClass_) {
+            case ClassType::Basic:
+                // 既存の単発攻撃
+                param.spreadAngleDeg = 10.0f;
+                param.randomSpread = true;
+                bulletCoolTime = baseReload;
+                if (isBuffActive_) {
+                    param.reflect = true;
+                    bulletCoolTime = baseReload * 0.6f;
+                    param.spreadAngleDeg = 20.0f;
+                }
+                attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
+                firedByClass = true;
+                if (!barrels_.empty()) {
+                    barrels_[0].recoilOffset = 0.22f;
+                    barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
+                }
 
-				SpawnCasing(); // ここで呼び出す
-				break;
+                SpawnCasing();
+                break;
 
-			case ClassType::Twin:
-			{
-				param.spreadAngleDeg = 2.0f;
-				param.randomSpread = true;
-				float offsetValue = 0.6f; // 砲身の横幅
-				cg2::Vector3 rightDir = { -dir_.y, dir_.x, 0.0f }; // dir_に垂直なベクトル（右方向）
+            case ClassType::Twin: {
+                param.spreadAngleDeg = 2.0f;
+                param.randomSpread = true;
+                float offsetValue = 0.6f;                        // 砲身の横幅
+                cg2::Vector3 rightDir = {-dir_.y, dir_.x, 0.0f}; // dir_に垂直なベクトル（右方向）
 
-				if (shootBarrelIndex_ == 0) {
-					// 左から発射
-					attackController_.Fire(origin - rightDir * offsetValue, dir_, param, BulletOwner::kPlayer);
-					firedByClass = true;
-					if (!barrels_.empty()) {
-						barrels_[0].recoilOffset = 0.22f;
-						barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
-					}
-					shootBarrelIndex_ = 1; // 次は右
-				} else {
-					// 右から発射
-					attackController_.Fire(origin + rightDir * offsetValue, dir_, param, BulletOwner::kPlayer);
-					firedByClass = true;
-					if (barrels_.size() > 1) {
-						barrels_[1].recoilOffset = 0.22f;
-						barrels_[1].muzzleFlashTimer = kMuzzleFlashDuration;
-					}
-					shootBarrelIndex_ = 0; // 次は左
-				}
+                if (shootBarrelIndex_ == 0) {
+                    // 左から発射
+                    attackController_.Fire(origin - rightDir * offsetValue, dir_, param, BulletOwner::kPlayer);
+                    firedByClass = true;
+                    if (!barrels_.empty()) {
+                        barrels_[0].recoilOffset = 0.22f;
+                        barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
+                    }
+                    shootBarrelIndex_ = 1; // 次は右
+                } else {
+                    // 右から発射
+                    attackController_.Fire(origin + rightDir * offsetValue, dir_, param, BulletOwner::kPlayer);
+                    firedByClass = true;
+                    if (barrels_.size() > 1) {
+                        barrels_[1].recoilOffset = 0.22f;
+                        barrels_[1].muzzleFlashTimer = kMuzzleFlashDuration;
+                    }
+                    shootBarrelIndex_ = 0; // 次は左
+                }
 
-				// 次の砲身を撃つまでの待ち時間を、基準発射間隔の1/2.5にする。
-				bulletCoolTime = baseReload / 2.5f;
-			}
-			break;
+                // 次の砲身を撃つまでの待ち時間を、基準発射間隔の1/2.5にする。
+                bulletCoolTime = baseReload / 2.5f;
+            } break;
 
-			case ClassType::MachineGun:
-				// 角度をランダムにずらす
-				param.spreadAngleDeg = 30.0f;
-				param.randomSpread = true;
-				attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
-				firedByClass = true;
-				if (!barrels_.empty()) {
-					barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
-				}
-				// リロード補正0.6倍
-				bulletCoolTime = baseReload * 0.6f;
-				break;
+            case ClassType::MachineGun:
+                // 角度をランダムにずらす
+                param.spreadAngleDeg = 30.0f;
+                param.randomSpread = true;
+                attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
+                firedByClass = true;
+                if (!barrels_.empty()) {
+                    barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
+                }
+                // リロード補正0.6倍
+                bulletCoolTime = baseReload * 0.6f;
+                break;
 
-			case ClassType::Overseer:
-				// 弾は撃たず、ドローン管理関数を呼ぶ
-				DroneShoot(bulletManager);
-				firedByClass = true;
-				// 反動なし
-				recoilPower = 0.0f;
-				break;
+            case ClassType::Overseer:
+                // 弾は撃たず、ドローン管理関数を呼ぶ
+                DroneShoot(bulletManager);
+                firedByClass = true;
+                // 反動なし
+                recoilPower = 0.0f;
+                break;
 
-			case ClassType::Smasher:
+            case ClassType::Smasher:
 
-				break;
-			case ClassType::Triple:
-				param.bulletCount = 1;
-				param.spreadAngleDeg = 45.0f; // 扇状に広がる
-				break;
+                break;
+            case ClassType::Triple:
+                param.bulletCount = 1;
+                param.spreadAngleDeg = 45.0f; // 扇状に広がる
+                break;
 
-			case ClassType::Bounder:
-				param.reflect = true; // 既存のシステムに反射フラグがあるため有効化
-				param.bulletCount = 1;
-				break;
+            case ClassType::Bounder:
+                param.reflect = true; // 壁で反射する互換射撃。
+                param.bulletCount = 1;
+                break;
 
-			case ClassType::Assassin:
-				// Assassinは弾速が速いなどのボーナスがあっても良い
-				param.bulletSpeed *= 1.5f;
-				isStealth_ = false; // 撃ったら解除
-				stealthTimer_ = 0.0f;
-				break;
+            case ClassType::Assassin:
+                // 弾速を1.5倍にし、射撃時にステルスを解除する。
+                param.bulletSpeed *= 1.5f;
+                isStealth_ = false; // 撃ったら解除
+                stealthTimer_ = 0.0f;
+                break;
 
-			case ClassType::Ninja:
-				// Ninjaの互換射撃条件。1発と拡散角15度を設定する。
-				param.bulletCount = 1;
-				param.spreadAngleDeg = 15.0f;
-				// ステルス解除はしない(仕様通りなら攻撃中も維持)
-				break;
-			}
+            case ClassType::Ninja:
+                // Ninjaの互換射撃条件。1発と拡散角15度を設定する。
+                param.bulletCount = 1;
+                param.spreadAngleDeg = 15.0f;
+                // この互換射撃ではステルスを解除しない。
+                break;
+            }
 
-			if (!firedByClass && currentClass_ != ClassType::Smasher) {
-				attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
-				if (!barrels_.empty()) {
-					barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
-				}
-				SpawnCasing();
-			}
+            if (!firedByClass && currentClass_ != ClassType::Smasher) {
+                attackController_.Fire(origin, dir_, param, BulletOwner::kPlayer);
+                if (!barrels_.empty()) {
+                    barrels_[0].muzzleFlashTimer = kMuzzleFlashDuration;
+                }
+                SpawnCasing();
+            }
 
-			if (firedByClass || currentClass_ != ClassType::Smasher) {
-				primaryAttackPerformedEvent_ = true;
-				++primaryAttackCount_;
-			}
-			velocity_ += recoilDir * recoilPower;
-			if (!runCheckpointEvolution_) cg2::Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
-		}
-	}
-	else if(!wantsPrimaryAttack)finisherSpinReady_=false;
+            if (firedByClass || currentClass_ != ClassType::Smasher) {
+                primaryAttackPerformedEvent_ = true;
+                ++primaryAttackCount_;
+            }
+            velocity_ += recoilDir * recoilPower;
+            if (!runCheckpointEvolution_)
+                cg2::Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.6f);
+        }
+    } else if (!wantsPrimaryAttack)
+        finisherSpinReady_ = false;
 }
 
 bool Player::ConsumePrimaryAttackPerformedEvent()
 {
-	const bool performed = primaryAttackPerformedEvent_;
-	primaryAttackPerformedEvent_ = false;
-	return performed;
+    const bool performed = primaryAttackPerformedEvent_;
+    primaryAttackPerformedEvent_ = false;
+    return performed;
 }
 
 bool Player::ConsumeDashStartedEvent()
@@ -430,68 +458,66 @@ bool Player::ConsumeDashStartedEvent()
 void Player::DroneShoot(BulletManager* BulletManager)
 {
 
-	// 弾のクールタイムを計算する
-	bulletCoolTime--;
+    // 旧ドローン生成の待ち時間は呼び出しごとに1を減らす。Attackの秒単位の更新とは異なる。
+    bulletCoolTime--;
 
+    const PlayerClassConfig* config = GetCurrentClassConfig();
+    int droneLimit = (std::max)(0, config ? config->maxDrones : 7);
+    if (runModifiers_.enabled) {
+        droneLimit = TankExpeditionDroneLimit(runEvolutionActive_ ? FindTankExpeditionSpecialization(runEvolutionConfig_.id) : nullptr,
+                                              droneLimit, runModifiers_.drones, runModifiers_.core == TankRunCore::Drone);
+    }
+    const size_t maxDrones = static_cast<size_t>(droneLimit);
+    if (drones_.size() >= maxDrones) {
+        bulletCoolTime = 0.0f;
+        return;
+    }
 
-	const PlayerClassConfig* config = GetCurrentClassConfig();
-	int droneLimit = (std::max)(0, config ? config->maxDrones : 7);
-	if (runModifiers_.enabled) {
-		droneLimit = TankExpeditionDroneLimit(runEvolutionActive_ ?
-			FindTankExpeditionSpecialization(runEvolutionConfig_.id) : nullptr,
-			droneLimit, runModifiers_.drones, runModifiers_.core == TankRunCore::Drone);
-	}
-	const size_t maxDrones = static_cast<size_t>(droneLimit);
-	if (drones_.size() >= maxDrones) {
-		bulletCoolTime = 0.0f;
-		return;
-	}
+    if (bulletCoolTime <= 0.0f) {
 
-	if (bulletCoolTime <= 0.0f) {
+        // 生成したドローンへ渡す初期速度。
+        const float kBulletSpeed = 0.2f;
+        cg2::Vector3 velocity = dir_ * kBulletSpeed;
 
-		// 弾の速度
-		const float kBulletSpeed = 0.2f;
-		cg2::Vector3 velocity = dir_ * kBulletSpeed;
+        auto drone = std::make_unique<PlayerDrone>();
+        drone->Initialize(dir_ * 0.3f + worldTransform_.translate, velocity);
+        drone->SetAttackControllerBulletManager(BulletManager);
+        ConfigureRunDrone(*drone);
+        drones_.push_back(std::move(drone));
 
-		auto drone = std::make_unique<PlayerDrone>();
-		drone->Initialize(dir_ * 0.3f + worldTransform_.translate, velocity);
-		drone->SetAttackControllerBulletManager(BulletManager);
-		ConfigureRunDrone(*drone);
-		drones_.push_back(std::move(drone));
-
-		bulletCoolTime = 1.0f;
-	}
+        bulletCoolTime = 1.0f;
+    }
 }
 
 void Player::Smash(float deltaTime)
 {
 
-	if (isSmash_) {
-		return;
-	}
+    if (isSmash_) {
+        return;
+    }
 
-	// キーを離したら突撃する
-	if (input_->IsMomentRelease(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
-		smashDir_ = dir_;
-		isSmash_ = true;
-		cg2::Vector3 recoilDir = cg2::Normalize(smashDir_);
-		float recoilPower = cg2::EaseInQuad(smashCharge_) / 2.0f; // 弾の重さ（慣性の強さ）
-		recoilPower = std::min(recoilPower, 0.7f);
-		velocity_ = recoilDir * recoilPower;
-		return;
-	}
+    // キーを離したら突撃する
+    if (input_->IsMomentRelease(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0])) {
+        smashDir_ = dir_;
+        isSmash_ = true;
+        cg2::Vector3 recoilDir = cg2::Normalize(smashDir_);
+        float recoilPower = cg2::EaseInQuad(smashCharge_) / 2.0f; // 蓄積量を突進速度に変換し、この後で最低速度を設ける。
+        recoilPower = std::min(recoilPower, 0.7f);
+        velocity_ = recoilDir * recoilPower;
+        return;
+    }
 
-	if (input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
+    if (input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
 
-		if (isBuffActive_) {
-			smashCharge_ += deltaTime * 5.0f;
-		} else {
-			smashCharge_ += deltaTime;
-		}
-		if (smashCharge_ >= maxCharge_) {
-			smashCharge_ = maxCharge_;
-		}
-	}
+        if (isBuffActive_) {
+            smashCharge_ += deltaTime * 5.0f;
+        } else {
+            smashCharge_ += deltaTime;
+        }
+        if (smashCharge_ >= maxCharge_) {
+            smashCharge_ = maxCharge_;
+        }
+    }
 }
 
 cg2::Sphere Player::GetSphere() const
@@ -1133,108 +1159,118 @@ cg2::Vector3 Player::GetWorldPosition() const {
 	return worldPos;
 }
 
-void Player::OnCollision(Collider* other) {
-	if (const auto* resource = dynamic_cast<const ExpEnemy*>(other); resource && resource->IsRunResource()) {
-		return;
-	}
+void Player::OnCollision(Collider* other)
+{
+    if (const auto* resource = dynamic_cast<const ExpEnemy*>(other); resource && resource->IsRunResource()) {
+        return;
+    }
 
-	if (currentClass_ == ClassType::Assassin) {
-		isStealth_ = false;
-		stealthTimer_ = 0.0f;
-	}
+    if (currentClass_ == ClassType::Assassin) {
+        isStealth_ = false;
+        stealthTimer_ = 0.0f;
+    }
 
-	if ((invincibleTimer_ > 0.0f && !isDashing_) || isJustEvaded_ || isSmash_) {
-		// 無敵中に敵の弾を受けてもノックバックしない
-		if (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
-			return;
-		}
-	}
+    if ((invincibleTimer_ > 0.0f && !isDashing_) || isJustEvaded_ || isSmash_) {
+        // 無敵中に敵の弾を受けてもノックバックしない
+        if (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
+            return;
+        }
+    }
 
-	if (!isJustEvaded_ && isDashing_ && TankCanPerfectDodge(
-		runModifiers_.enabled && runModifiers_.perfectDodge,
-		other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet, kDashDuration - dashTimer_,TankEffectPower(runModifiers_,15))) {
-		requestSlow_ = true;
-		isJustEvaded_ = true;
-		invincibleTimer_ = dashTimer_;
-		buffTimer_ = kBuffDuration*TankEffectPower(runModifiers_,15);
-		if (runModifiers_.enabled && runModifiers_.capacitor) {
-			const float power=TankEffectPower(runModifiers_,4);
-			buffTimer_ += 1.5f*power;
-			stats_.stamina = (std::min)(stats_.maxStamina, stats_.stamina + power);
-			HealRunPlayer((std::max)(1,static_cast<int>(std::round(4.0f*power))));
-		}
-		if (runModifiers_.enabled && runModifiers_.overdrive) {
-			runOverdriveTimer_ = 2.4f*TankEffectPower(runModifiers_,11);
-			runOverdriveCooldown_ = 4.0f;
-		}
-		isBuffActive_ = !runCheckpointEvolution_ || runModifiers_.capacitor;
-		// 演出として色を変える（例：金色っぽく）
+    if (!isJustEvaded_ && isDashing_ &&
+        TankCanPerfectDodge(runModifiers_.enabled && runModifiers_.perfectDodge,
+                            other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet, kDashDuration - dashTimer_,
+                            TankEffectPower(runModifiers_, 15))) {
+        requestSlow_ = true;
+        isJustEvaded_ = true;
+        invincibleTimer_ = dashTimer_;
+        buffTimer_ = kBuffDuration * TankEffectPower(runModifiers_, 15);
+        if (runModifiers_.enabled && runModifiers_.capacitor) {
+            const float power = TankEffectPower(runModifiers_, 4);
+            buffTimer_ += 1.5f * power;
+            stats_.stamina = (std::min)(stats_.maxStamina, stats_.stamina + power);
+            HealRunPlayer((std::max)(1, static_cast<int>(std::round(4.0f * power))));
+        }
+        if (runModifiers_.enabled && runModifiers_.overdrive) {
+            runOverdriveTimer_ = 2.4f * TankEffectPower(runModifiers_, 11);
+            runOverdriveCooldown_ = 4.0f;
+        }
+        isBuffActive_ = !runCheckpointEvolution_ || runModifiers_.capacitor;
+        maxCharge_ = 5.0f;
+        return;
+    }
 
-		maxCharge_ = 5.0f;
-		return;
-	}
+    cg2::Vector3 hitDir = worldTransform_.translate - other->GetWorldPosition();
 
-	cg2::Vector3 hitDir =
-		worldTransform_.translate - other->GetWorldPosition();
+    if (cg2::Length(hitDir) < 0.0001f) {
+        // 押し戻す方向が定まらない場合は、後続の被ダメージ処理にも進まない。
+        return;
+    }
 
-	if (cg2::Length(hitDir) < 0.0001f) {
-		return;
-	}
+    hitDir = cg2::Normalize(hitDir);
 
-	hitDir = cg2::Normalize(hitDir);
+    const float kKnockBackPower = 0.15f;
 
-	const float kKnockBackPower = 0.15f;
+    velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
+    const float maxKnockSpeed = isDashing_ ? 0.32f : 0.20f;
+    if (cg2::Length(velocity_) > maxKnockSpeed) {
+        velocity_ = cg2::Normalize(velocity_) * maxKnockSpeed;
+    }
 
-	velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
-	const float maxKnockSpeed = isDashing_ ? 0.32f : 0.20f;
-	if (cg2::Length(velocity_) > maxKnockSpeed) {
-		velocity_ = cg2::Normalize(velocity_) * maxKnockSpeed;
-	}
-
-	if (other->GetCollisionAttribute() == kCollisionAttributeEnemy ||
-		other->GetCollisionAttribute() == kCollisionAttributeExpEnemy ||
-		other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
-		TakeDamage(other->GetDamage(), 0.45f);
-	}
+    if (other->GetCollisionAttribute() == kCollisionAttributeEnemy || other->GetCollisionAttribute() == kCollisionAttributeExpEnemy ||
+        other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
+        TakeDamage(other->GetDamage(), 0.45f);
+    }
 }
 
 bool Player::TryDashImpact(Collider* target)
 {
-	if (!target || isDead_ || !isDashing_) return false;
-	auto* regular = dynamic_cast<ExpEnemy*>(target);
-	auto* boss = dynamic_cast<Enemy*>(target);
-	if ((!regular && !boss) || (regular && (regular->IsDead() || regular->IsRunResource())) ||
-		(boss && (!boss->IsRunEncounterEnabled() || boss->IsDead()))) return false;
-	const uint64_t id = target->GetCollisionId();
-	if (std::find(dashImpactTargets_.begin(), dashImpactTargets_.end(), id) != dashImpactTargets_.end()) {
-		// This dash has already resolved the body contact. Neither side may deal
-		// a second contact hit while the same bodies still overlap.
-		return true;
-	}
-	if (kDashDuration - dashTimer_ > kJustEvadeWindow) return false;
-	dashImpactTargets_.push_back(id);
-	cg2::Vector3 direction = target->GetWorldPosition() - GetWorldPosition();
-	if (cg2::Length(direction) < 0.001f) direction = velocity_;
-	if (cg2::Length(direction) < 0.001f) direction = {1,0,0};
-	direction = cg2::Normalize(direction);
-	const bool powered = runModifiers_.enabled && runModifiers_.impactDrive;
-	const float strength = powered ? 1.0f+0.5f*TankEffectPower(runModifiers_,14) : 1.0f;
-	const uint32_t damage = static_cast<uint32_t>((std::max)(1.0f,
-		std::round((stats_.bulletDamage * 2.5f + stats_.bodyDamage) * strength)));
-	// Knockback is integrated by each actor through its normal wall-safe mover.
-	if (regular) { regular->ApplyKnockback(direction, 0.62f * strength); ArmWallSmash(regular,strength);regular->TakeDirectionalDamage(damage,GetWorldPosition(),true); }
-	if (boss) { boss->ApplyKnockback(direction, 0.62f * strength); boss->TakeDamage(damage); }
-	pendingDashImpacts_.push_back({target->GetWorldPosition(), direction, boss != nullptr, powered});
-	velocity_ = velocity_ * 0.72f;
-	// No perfect-dodge state, slow-motion request, or bullet immunity is granted.
-	return true;
+    if (!target || isDead_ || !isDashing_)
+        return false;
+    auto* regular = dynamic_cast<ExpEnemy*>(target);
+    auto* boss = dynamic_cast<Enemy*>(target);
+    if ((!regular && !boss) || (regular && (regular->IsDead() || regular->IsRunResource())) ||
+        (boss && (!boss->IsRunEncounterEnabled() || boss->IsDead())))
+        return false;
+    const uint64_t id = target->GetCollisionId();
+    if (std::find(dashImpactTargets_.begin(), dashImpactTargets_.end(), id) != dashImpactTargets_.end()) {
+        // このダッシュで処理済みなら、受付時間を過ぎてもtrueを返して通常の双方通知を抑える。
+        return true;
+    }
+    if (kDashDuration - dashTimer_ > kJustEvadeWindow)
+        return false;
+    dashImpactTargets_.push_back(id);
+    cg2::Vector3 direction = target->GetWorldPosition() - GetWorldPosition();
+    if (cg2::Length(direction) < 0.001f)
+        direction = velocity_;
+    if (cg2::Length(direction) < 0.001f)
+        direction = {1, 0, 0};
+    direction = cg2::Normalize(direction);
+    const bool powered = runModifiers_.enabled && runModifiers_.impactDrive;
+    const float strength = powered ? 1.0f + 0.5f * TankEffectPower(runModifiers_, 14) : 1.0f;
+    const uint32_t damage =
+        static_cast<uint32_t>((std::max)(1.0f, std::round((stats_.bulletDamage * 2.5f + stats_.bodyDamage) * strength)));
+    // 速度だけを与え、位置の更新と壁への補正は各敵の通常移動に任せる。
+    if (regular) {
+        regular->ApplyKnockback(direction, 0.62f * strength);
+        ArmWallSmash(regular, strength);
+        regular->TakeDirectionalDamage(damage, GetWorldPosition(), true);
+    }
+    if (boss) {
+        boss->ApplyKnockback(direction, 0.62f * strength);
+        boss->TakeDamage(damage);
+    }
+    pendingDashImpacts_.push_back({target->GetWorldPosition(), direction, boss != nullptr, powered});
+    velocity_ = velocity_ * 0.72f;
+    // 体当たりの成立はジャスト回避とは独立しており、回避状態・スロー要求・弾への無敵は付与しない。
+    return true;
 }
 
 std::vector<Player::DashImpactEvent> Player::ConsumeDashImpactEvents()
 {
-	auto events = std::move(pendingDashImpacts_);
-	pendingDashImpacts_.clear();
-	return events;
+    auto events = std::move(pendingDashImpacts_);
+    pendingDashImpacts_.clear();
+    return events;
 }
 
 cg2::AABB Player::GetAABB() {
@@ -1250,37 +1286,36 @@ cg2::AABB Player::GetAABB() {
 
 void Player::Damage(uint32_t amount)
 {
-	TakeDamage(amount, 0.45f);
+    TakeDamage(amount, 0.45f);
 }
 
 void Player::TakeDamage(uint32_t amount, float invincibleTime)
 {
-	if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f || debugNoDamage_) {
-		return;
-	}
-	if (saberCounterTimer_ > 0.0f) {
-		const PlayerClassConfig* config = GetCurrentClassConfig();
-		if (config && config->specialActionId == "saber_counter") {
-			TriggerSaberCounter(*config);
-			return;
-		}
-	}
+    if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f || debugNoDamage_) {
+        return;
+    }
+    if (saberCounterTimer_ > 0.0f) {
+        // 受付中の反撃はHP減少と被ダメージ回数の記録より先に処理する。
+        const PlayerClassConfig* config = GetCurrentClassConfig();
+        if (config && config->specialActionId == "saber_counter") {
+            TriggerSaberCounter(*config);
+            return;
+        }
+    }
 
+    const uint32_t appliedDamage = runModifiers_.enabled && runCheckpointEvolution_ ? runMaintenance_.MitigateDamage(amount) : amount;
+    ++damageTakenCount_;
+    // 符号付きHPへ変換する前に残HPで制限し、極端な開発用ダメージでも整数変換を安全にする。
+    hp_ -= static_cast<int>((std::min)(appliedDamage, static_cast<uint32_t>((std::max)(0, hp_))));
+    if (hp_ < 0) {
+        hp_ = 0;
+    }
 
-	const uint32_t appliedDamage = runModifiers_.enabled && runCheckpointEvolution_
-		? runMaintenance_.MitigateDamage(amount) : amount;
-	++damageTakenCount_;
-	// 符号付きHPへ変換する前に残HPで制限し、極端な開発用ダメージでも整数変換を安全にする。
-	hp_ -= static_cast<int>((std::min)(appliedDamage, static_cast<uint32_t>((std::max)(0, hp_))));
-	if (hp_ < 0) {
-		hp_ = 0;
-	}
-
-	TriggerDamageFeedback();
-	invincibleTimer_ = invincibleTime;
-	if (hp_ <= 0) {
-		Die();
-	}
+    TriggerDamageFeedback();
+    invincibleTimer_ = invincibleTime;
+    if (hp_ <= 0) {
+        Die();
+    }
 }
 
 void Player::ApplyBalanceConfig(const BalanceConfig& config)
@@ -1784,199 +1819,290 @@ Player::RunCombatSnapshot Player::GetRunCombatSnapshot() const
 
 void Player::ApplyRunProjectileRules(AttackParam& param, bool applyFan) const
 {
-	(void)applyFan; // Kept for callers of the legacy API; fans are no longer emitted.
-	param.bulletCount = 1;
-	param.impactSplitCount = 0;
-	if (!runModifiers_.enabled) {
-		return;
-	}
-	const TankRunTuning tuning = MakeTankRunTuning(runModifiers_, runGrowth_);
-	if(expeditionCombatStyleSelected_&&expeditionCombatStyle_==tankbuild::Style::Shooter) {
-		param.shooterChain=runModifiers_.chainLightning;param.shooterMark=runModifiers_.markDetonation;
-		param.shooterBoomerang=runModifiers_.boomerangShell;param.shooterKillBurst=runModifiers_.killBurst;
-		param.shooterChainPower=TankEffectPower(runModifiers_,31);param.shooterMarkPower=TankEffectPower(runModifiers_,32);
-		param.shooterBoomerangPower=TankEffectPower(runModifiers_,33);param.shooterKillBurstPower=TankEffectPower(runModifiers_,34);
-	}
-	param.reflect = param.reflect || tuning.reflects;
-	param.bulletHp = tuning.bulletHp;
-	param.bulletPenetration = tuning.bulletInterception;
-    if(runModifiers_.expedition) {
-        param.maxWallBounces=tuning.maxWallBounces;
-        const auto* active=GetCurrentClassConfig();
-        if(active && active->reflect) param.maxWallBounces=(std::max)(3,param.maxWallBounces);
-        if(isBuffActive_) {param.reflect=true;param.maxWallBounces=(std::max)(1,param.maxWallBounces);}
-        param.actorPierceCount=tuning.actorPierceCount;
-        if(active && active->penetrate) param.actorPierceCount=(std::max)(1,param.actorPierceCount);
-        param.impactSplitCount=tuning.impactSplitCount;
-        param.impactSplitDamageScale=0.55f;
+    (void)applyFan; // 旧APIの呼び出し互換用。現在はこの引数による扇状の複数弾を生成しない。
+    // 遠征が無効でも、発射数と衝突時の分裂数はここで初期化する。
+    param.bulletCount = 1;
+    param.impactSplitCount = 0;
+    if (!runModifiers_.enabled) {
+        return;
+    }
+    const TankRunTuning tuning = MakeTankRunTuning(runModifiers_, runGrowth_);
+    if (expeditionCombatStyleSelected_ && expeditionCombatStyle_ == tankbuild::Style::Shooter) {
+        param.shooterChain = runModifiers_.chainLightning;
+        param.shooterMark = runModifiers_.markDetonation;
+        param.shooterBoomerang = runModifiers_.boomerangShell;
+        param.shooterKillBurst = runModifiers_.killBurst;
+        param.shooterChainPower = TankEffectPower(runModifiers_, 31);
+        param.shooterMarkPower = TankEffectPower(runModifiers_, 32);
+        param.shooterBoomerangPower = TankEffectPower(runModifiers_, 33);
+        param.shooterKillBurstPower = TankEffectPower(runModifiers_, 34);
+    }
+    param.reflect = param.reflect || tuning.reflects;
+    param.bulletHp = tuning.bulletHp;
+    param.bulletPenetration = tuning.bulletInterception;
+    if (runModifiers_.expedition) {
+        param.maxWallBounces = tuning.maxWallBounces;
+        const auto* active = GetCurrentClassConfig();
+        if (active && active->reflect)
+            param.maxWallBounces = (std::max)(3, param.maxWallBounces);
+        if (isBuffActive_) {
+            param.reflect = true;
+            param.maxWallBounces = (std::max)(1, param.maxWallBounces);
+        }
+        param.actorPierceCount = tuning.actorPierceCount;
+        if (active && active->penetrate)
+            param.actorPierceCount = (std::max)(1, param.actorPierceCount);
+        param.impactSplitCount = tuning.impactSplitCount;
+        param.impactSplitDamageScale = 0.55f;
     }
 }
 
 float Player::GetRunFireIntervalScale() const
 {
-	if (!runModifiers_.enabled) return 1.0f;
-	float scale = runOverdriveTimer_ > 0.0f ? 1.0f/(1.0f+TankEffectPower(runModifiers_,11)) : 1.0f;
-	if (runModifiers_.core == TankRunCore::Assault && runDashAttackTimer_ > 0.0f) scale *= 0.65f;
-	return scale;
+    if (!runModifiers_.enabled)
+        return 1.0f;
+    // 発射頻度の増加を間隔の逆数へ変換する。1未満の値ほど次の射撃までの待ち時間が短い。
+    float scale = runOverdriveTimer_ > 0.0f ? 1.0f / (1.0f + TankEffectPower(runModifiers_, 11)) : 1.0f;
+    if (runModifiers_.core == TankRunCore::Assault && runDashAttackTimer_ > 0.0f)
+        scale *= 0.65f;
+    return scale;
 }
 
 cg2::Vector3 Player::GetRailChargeMuzzle() const
 {
-	const cg2::Vector3 aim=cg2::Length(dir_)>.001f?cg2::Normalize(dir_):cg2::Vector3{1,0,0};
-	const auto* config=GetCurrentClassConfig();
-	if(config&&!config->barrels.empty()) {
-		const auto& mount=config->barrels.front();
-		const cg2::Vector3 side{-aim.y,aim.x,0};
-		return GetWorldPosition()+aim*mount.offset.x+side*mount.offset.y+
-			RotateDirection(aim,mount.angleDeg)*mount.muzzleForward;
-	}
-	return GetWorldPosition()+aim*1.7f;
+    const cg2::Vector3 aim = cg2::Length(dir_) > .001f ? cg2::Normalize(dir_) : cg2::Vector3{1, 0, 0};
+    const auto* config = GetCurrentClassConfig();
+    if (config && !config->barrels.empty()) {
+        const auto& mount = config->barrels.front();
+        const cg2::Vector3 side{-aim.y, aim.x, 0};
+        return GetWorldPosition() + aim * mount.offset.x + side * mount.offset.y +
+               RotateDirection(aim, mount.angleDeg) * mount.muzzleForward;
+    }
+    return GetWorldPosition() + aim * 1.7f;
 }
 
-void Player::AttackRailCannon(BulletManager* bullets,bool pressed,float dt)
+void Player::AttackRailCannon(BulletManager* bullets, bool pressed, float dt)
 {
-	if(!runModifiers_.enabled||!runModifiers_.railCannon||!expeditionCombatStyleSelected_||expeditionCombatStyle_!=tankbuild::Style::Shooter) {railCharge_.Reset();return;}
-	const float charge=railCharge_.Step(pressed,dt,bulletCoolTime<=0.0f && bullets!=nullptr);
-	if(charge<0)return;
-	const auto* config=GetCurrentClassConfig();
-	const cg2::Vector3 aim=cg2::Length(dir_)>.001f?cg2::Normalize(dir_):cg2::Vector3{1,0,0};
-	const cg2::Vector3 side{-aim.y,aim.x,0};
-	AttackParam param{};
-	param.damage=static_cast<uint32_t>((std::max)(1.0f,std::round(stats_.bulletDamage*(config?config->bulletDamageScale:1.0f)
-		*tankspecial::RailDamageScale(charge,TankEffectPower(runModifiers_,20)))));
-	param.bulletSpeed=stats_.bulletSpeed*(config?config->bulletSpeedScale:1.0f)*tankspecial::RailSpeedScale(charge);
-	param.reflect=config&&config->reflect;param.penetrate=true;ApplyRunProjectileRules(param);
-	param.actorPierceCount=(std::max)(3,param.actorPierceCount);
-	param.bulletHp=(std::max)(2.0f+charge*3.0f,param.bulletHp);
-	const size_t barrelCount=config&&!config->barrels.empty()?(std::min)(config->barrels.size(),size_t{8}):1;
-	const bool alternate=config&&config->alternateBarrels&&barrelCount>1;
-	const size_t count=alternate?1:barrelCount;
-	for(size_t shot=0;shot<count;++shot) {
-		const size_t index=alternate?static_cast<size_t>(shootBarrelIndex_)%barrelCount:shot;
-		cg2::Vector3 fire=aim,muzzle=GetWorldPosition()+aim*1.7f;float damageScale=1,speedScale=1;
-		if(config&&!config->barrels.empty()) {
-			const auto& mount=config->barrels[index];if(!mount.fires)continue;
-			fire=RotateDirection(aim,mount.angleDeg);
-			muzzle=GetWorldPosition()+aim*mount.offset.x+side*mount.offset.y+fire*mount.muzzleForward;
-			damageScale=mount.damageScale;speedScale=mount.projectileSpeedScale;
-		}
-		// A charged alternating shot concentrates the compensated volley energy
-		// into one barrel; every release advances to the next installed barrel.
-		if(alternate)damageScale*=static_cast<float>(barrelCount);
-		auto bullet=std::make_unique<Bullet>();
-		bullet->Initialize(muzzle,fire*param.bulletSpeed*speedScale,
-			static_cast<uint32_t>((std::max)(1.0f,std::round(static_cast<float>(param.damage)*damageScale))),kPlayer,param.reflect,param.bulletHp,param.bulletPenetration);
-		bullet->ConfigureGrowth(param.maxWallBounces,param.actorPierceCount,0);
-		bullet->ConfigureSpecial(Bullet::SpecialKind::Rail,.35f+.30f*charge,1.6f);
-		bullet->ConfigureShooterAbilities(param.shooterChain,param.shooterMark,param.shooterBoomerang,param.shooterKillBurst,
-			param.shooterChainPower,param.shooterMarkPower,param.shooterBoomerangPower,param.shooterKillBurstPower);
-		bullets->Add(std::move(bullet));
-		if(index<barrels_.size()) {barrels_[index].muzzleFlashTimer=kMuzzleFlashDuration;barrels_[index].recoilOffset=.32f;}
-		if(pendingSpecialCombatEvents_.size()<32)pendingSpecialCombatEvents_.push_back({SpecialEventKind::RailShot,muzzle,fire,charge});
-	}
-	if(alternate)shootBarrelIndex_=static_cast<int>((static_cast<size_t>(shootBarrelIndex_)+1)%barrelCount);
-	bulletCoolTime=tankspecial::RailRecovery(stats_.reloadSpeed/60.0f*(config?config->reloadScale:1.0f)*GetRunFireIntervalScale());
-	velocity_+=aim*(-.04f-.035f*charge);
-	primaryAttackPerformedEvent_=true;++primaryAttackCount_;++specialCombatStats_.railShots;
+    if (!runModifiers_.enabled || !runModifiers_.railCannon || !expeditionCombatStyleSelected_ ||
+        expeditionCombatStyle_ != tankbuild::Style::Shooter) {
+        railCharge_.Reset();
+        return;
+    }
+    // 戻り値は蓄積した秒数。負値は発射なしで、0秒の短い押下も有効な発射として扱う。
+    const float charge = railCharge_.Step(pressed, dt, bulletCoolTime <= 0.0f && bullets != nullptr);
+    if (charge < 0)
+        return;
+    const auto* config = GetCurrentClassConfig();
+    const cg2::Vector3 aim = cg2::Length(dir_) > .001f ? cg2::Normalize(dir_) : cg2::Vector3{1, 0, 0};
+    const cg2::Vector3 side{-aim.y, aim.x, 0};
+    AttackParam param{};
+    param.damage =
+        static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) *
+                                                          tankspecial::RailDamageScale(charge, TankEffectPower(runModifiers_, 20)))));
+    param.bulletSpeed = stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f) * tankspecial::RailSpeedScale(charge);
+    param.reflect = config && config->reflect;
+    param.penetrate = true;
+    ApplyRunProjectileRules(param);
+    param.actorPierceCount = (std::max)(3, param.actorPierceCount);
+    param.bulletHp = (std::max)(2.0f + charge * 3.0f, param.bulletHp);
+    const size_t barrelCount = config && !config->barrels.empty() ? (std::min)(config->barrels.size(), size_t{8}) : 1;
+    const bool alternate = config && config->alternateBarrels && barrelCount > 1;
+    const size_t count = alternate ? 1 : barrelCount;
+    for (size_t shot = 0; shot < count; ++shot) {
+        const size_t index = alternate ? static_cast<size_t>(shootBarrelIndex_) % barrelCount : shot;
+        cg2::Vector3 fire = aim, muzzle = GetWorldPosition() + aim * 1.7f;
+        float damageScale = 1, speedScale = 1;
+        if (config && !config->barrels.empty()) {
+            const auto& mount = config->barrels[index];
+            if (!mount.fires)
+                continue;
+            fire = RotateDirection(aim, mount.angleDeg);
+            muzzle = GetWorldPosition() + aim * mount.offset.x + side * mount.offset.y + fire * mount.muzzleForward;
+            damageScale = mount.damageScale;
+            speedScale = mount.projectileSpeedScale;
+        }
+        // 交互射撃では1本の威力に装備砲身数を掛ける。入力を離すたび、次の砲身へ進める。
+        if (alternate)
+            damageScale *= static_cast<float>(barrelCount);
+        auto bullet = std::make_unique<Bullet>();
+        bullet->Initialize(muzzle, fire * param.bulletSpeed * speedScale,
+                           static_cast<uint32_t>((std::max)(1.0f, std::round(static_cast<float>(param.damage) * damageScale))), kPlayer,
+                           param.reflect, param.bulletHp, param.bulletPenetration);
+        bullet->ConfigureGrowth(param.maxWallBounces, param.actorPierceCount, 0);
+        bullet->ConfigureSpecial(Bullet::SpecialKind::Rail, .35f + .30f * charge, 1.6f);
+        bullet->ConfigureShooterAbilities(param.shooterChain, param.shooterMark, param.shooterBoomerang, param.shooterKillBurst,
+                                          param.shooterChainPower, param.shooterMarkPower, param.shooterBoomerangPower,
+                                          param.shooterKillBurstPower);
+        bullets->Add(std::move(bullet));
+        if (index < barrels_.size()) {
+            barrels_[index].muzzleFlashTimer = kMuzzleFlashDuration;
+            barrels_[index].recoilOffset = .32f;
+        }
+        if (pendingSpecialCombatEvents_.size() < 32)
+            pendingSpecialCombatEvents_.push_back({SpecialEventKind::RailShot, muzzle, fire, charge});
+    }
+    if (alternate)
+        shootBarrelIndex_ = static_cast<int>((static_cast<size_t>(shootBarrelIndex_) + 1) % barrelCount);
+    bulletCoolTime =
+        tankspecial::RailRecovery(stats_.reloadSpeed / 60.0f * (config ? config->reloadScale : 1.0f) * GetRunFireIntervalScale());
+    velocity_ += aim * (-.04f - .035f * charge);
+    primaryAttackPerformedEvent_ = true;
+    ++primaryAttackCount_;
+    ++specialCombatStats_.railShots;
 }
 
 std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents()
 {
-	auto events=std::move(pendingSpecialCombatEvents_);pendingSpecialCombatEvents_.clear();return events;
+    auto events = std::move(pendingSpecialCombatEvents_);
+    pendingSpecialCombatEvents_.clear();
+    return events;
 }
 
-void Player::UpdateSpecialCombat(Stage& stage,BulletManager* bullets,Enemy* boss,EnemyManager* enemies,float dt)
+void Player::UpdateSpecialCombat(Stage& stage, BulletManager* bullets, Enemy* boss, EnemyManager* enemies, float dt)
 {
-	droneLaserLinks_.clear();
-	if(!runModifiers_.enabled||isDead_||!bullets||dt<=0)return;
-	UpdateAdditionalAbilities(stage,bullets,boss,enemies,dt);
-	linkDamageClock_.Advance(dt);
-	auto blocked=[&](const cg2::Vector3& a,const cg2::Vector3& b) {
-		for(const auto& block:stage.GetMergedBlocks()) {
-			if(tankspecial::SegmentCrossesBox(a.x,a.y,b.x,b.y,block.aabb.min.x,block.aabb.min.y,block.aabb.max.x,block.aabb.max.y))return true;
-		}
-		return false;
-	};
-	auto emit=[&](SpecialEventKind kind,const cg2::Vector3& origin,const cg2::Vector3& direction,float strength=1.0f) {
-		if(pendingSpecialCombatEvents_.size()<32)pendingSpecialCombatEvents_.push_back({kind,origin,direction,strength});
-	};
-	if(IsDroneBuild()&&runModifiers_.droneLaserLink) {
-		std::vector<cg2::Vector3> positions;positions.reserve(drones_.size());
-		for(const auto& drone:drones_)if(drone&&drone->IsRunAvailable())positions.push_back(drone->GetWorldPosition());
-		const int count=tankspecial::LinkCount(static_cast<int>(positions.size()));
-		for(int i=0;i<count;++i) {
-			const auto& a=positions[static_cast<size_t>(i)];const auto& b=positions[(static_cast<size_t>(i)+1)%positions.size()];
-			if(cg2::Length(b-a)>.10f&&!blocked(a,b))droneLaserLinks_.push_back({a,b,false});
-		}
-		const auto tuning=MakeTankDroneTuning(runModifiers_,true);
-		const auto* config=GetCurrentClassConfig();
-		const float baseDamage=stats_.bulletDamage*tuning.damageScale*(config?config->bulletDamageScale:1.0f)
-			*.45f*TankEffectPower(runModifiers_,21);
-		auto contact=[&](Collider* target,bool bossTarget) {
-			if(!target)return;
-			const auto p=target->GetWorldPosition();
-			for(auto& link:droneLaserLinks_) {
-				if(!tankspecial::SegmentTouches(link.start.x,link.start.y,link.end.x,link.end.y,p.x,p.y,target->GetRadius()+.10f))continue;
-				const float t=tankspecial::SegmentClosestFraction(link.start.x,link.start.y,link.end.x,link.end.y,p.x,p.y);
-				const cg2::Vector3 nearest=link.start+(link.end-link.start)*t;
-				if(blocked(nearest,p))continue;
-				link.contact=true;
-				if(linkDamageClock_.Claim(target->GetCollisionId())) {
-					const auto damage=static_cast<uint32_t>((std::max)(1.0f,std::round(baseDamage*(bossTarget?.65f:1.0f)*GetDroneTargetDamageScale(target,bossTarget))));
-					if(bossTarget)static_cast<Enemy*>(target)->TakeDamage(damage);
-					else static_cast<ExpEnemy*>(target)->TakeDirectionalDamage(damage,nearest);
-					++specialCombatStats_.linkTicks;emit(SpecialEventKind::LinkHit,nearest,cg2::Normalize(link.end-link.start),.5f);
-				}
-			}
-		};
-		if(boss&&!boss->IsDead())contact(boss,true);
-		if(enemies)for(auto* enemy:enemies->GetEnemyPtrs())if(enemy&&!enemy->IsDead()&&!enemy->IsRunResource())contact(enemy,false);
-	}
-	if(!IsMeleeBuild()||specialMeleeElapsed_<0)return;
-	specialMeleeElapsed_+=dt;
-	const auto& swing=specialMeleeSwing_;
-	const float active=specialMeleeElapsed_-swing.windupDuration;
-	if(active<0)return;
-	if(runModifiers_.slashWave&&!specialWaveEmitted_&&tankspecial::EmitsSlashWave(swing.comboStep)) {
-		specialWaveEmitted_=true;
-		const float speed=.48f;const float radius=(std::clamp)(swing.range*.25f,.7f,2.2f);
-		const cg2::Vector3 origin=GetWorldPosition()+swing.direction*(swing.range*.5f);
-		if(!blocked(GetWorldPosition(),origin)) {
-			auto wave=std::make_unique<Bullet>();
-			wave->Initialize(origin,swing.direction*speed,tankspecial::SlashDamage(swing.damage,TankEffectPower(runModifiers_,22)),kPlayer,false,10.0f,tankspecial::kOrdinaryEnemyBulletHp);
-			wave->ConfigureGrowth(0,2,0);
-			wave->ConfigureSpecial(Bullet::SpecialKind::SlashWave,radius,swing.range*1.5f/(speed*60.0f));
-			bullets->Add(std::move(wave));++specialCombatStats_.slashWaves;
-		}
-	}
-	if(active>swing.duration) {specialMeleeElapsed_=-1;return;}
-	if(!runModifiers_.parryBlade)return;
-	const bool perfect=swing.comboStep>=0&&tankspecial::IsPerfectParry(active);
-	const cg2::Vector3 origin=GetWorldPosition();
-	const float minDot=std::cos(swing.arcDeg*.5f*3.1415926535f/180.0f);
-	for(auto* bullet:bullets->GetBulletPtrs()) {
-		if(!bullet||bullet->IsDead()||bullet->GetOwner()!=kEnemy)continue;
-		if(std::find(specialParriedBullets_.begin(),specialParriedBullets_.end(),bullet->GetCollisionId())!=specialParriedBullets_.end())continue;
-		const auto p=bullet->GetWorldPosition();const cg2::Vector3 delta=p-origin;const float distance=cg2::Length(delta);
-		if(distance>swing.range+bullet->GetRadius()||(distance>.001f&&cg2::Dot(delta/distance,swing.direction)<minDot)||blocked(origin,p))continue;
-		specialParriedBullets_.push_back(bullet->GetCollisionId());
-		const float durability=tankspecial::ParryDurabilityDamage(bullet->GetBulletHp(),perfect,TankEffectPower(runModifiers_,23));
-		if(durability<=0)continue;
-		const cg2::Vector3 incoming=bullet->GetMove();bullet->ApplyBulletDurabilityDamage(durability);
-		++specialCombatStats_.parries;
-		if(perfect) {
-			++specialCombatStats_.perfectParries;
-			if(bullet->IsDead()) {
-				const cg2::Vector3 reflected=cg2::Length(incoming)>.001f?cg2::Normalize(incoming)*-1.0f:swing.direction;
-				auto shot=std::make_unique<Bullet>();
-				const auto damage=static_cast<uint32_t>((std::max)(1.0f,(std::min)(static_cast<float>(bullet->GetDamage()),stats_.bulletDamage*3.8f)));
-				shot->Initialize(p,reflected*(std::max)(.25f,cg2::Length(incoming)),damage,kPlayer,false,1,1);
-				shot->ConfigureGrowth(0,0,0);shot->ConfigureSpecial(Bullet::SpecialKind::ParryReflection,.35f,1.4f);shot->SetArmorReflected(bullet->WasArmorReflected());bullets->Add(std::move(shot));
-			}
-			if(!specialPerfectFeedback_) {emit(SpecialEventKind::PerfectParry,p,swing.direction);specialPerfectFeedback_=true;}
-			else emit(SpecialEventKind::Parry,p,swing.direction,.5f);
-		} else emit(SpecialEventKind::Parry,p,swing.direction);
-	}
+    // 表示用の接続線は毎回作り直す。更新対象外でも前回の接触表示を残さない。
+    droneLaserLinks_.clear();
+    if (!runModifiers_.enabled || isDead_ || !bullets || dt <= 0)
+        return;
+    UpdateAdditionalAbilities(stage, bullets, boss, enemies, dt);
+    linkDamageClock_.Advance(dt);
+    auto blocked = [&](const cg2::Vector3& a, const cg2::Vector3& b) {
+        for (const auto& block : stage.GetMergedBlocks()) {
+            if (tankspecial::SegmentCrossesBox(a.x, a.y, b.x, b.y, block.aabb.min.x, block.aabb.min.y, block.aabb.max.x, block.aabb.max.y))
+                return true;
+        }
+        return false;
+    };
+    auto emit = [&](SpecialEventKind kind, const cg2::Vector3& origin, const cg2::Vector3& direction, float strength = 1.0f) {
+        if (pendingSpecialCombatEvents_.size() < 32)
+            pendingSpecialCombatEvents_.push_back({kind, origin, direction, strength});
+    };
+    // 再構築中・死亡済みのドローンを除き、2機なら1本、3機以上なら輪になるよう接続する。
+    if (IsDroneBuild() && runModifiers_.droneLaserLink) {
+        std::vector<cg2::Vector3> positions;
+        positions.reserve(drones_.size());
+        for (const auto& drone : drones_)
+            if (drone && drone->IsRunAvailable())
+                positions.push_back(drone->GetWorldPosition());
+        const int count = tankspecial::LinkCount(static_cast<int>(positions.size()));
+        for (int i = 0; i < count; ++i) {
+            const auto& a = positions[static_cast<size_t>(i)];
+            const auto& b = positions[(static_cast<size_t>(i) + 1) % positions.size()];
+            if (cg2::Length(b - a) > .10f && !blocked(a, b))
+                droneLaserLinks_.push_back({a, b, false});
+        }
+        const auto tuning = MakeTankDroneTuning(runModifiers_, true);
+        const auto* config = GetCurrentClassConfig();
+        const float baseDamage = stats_.bulletDamage * tuning.damageScale * (config ? config->bulletDamageScale : 1.0f) * .45f *
+                                 TankEffectPower(runModifiers_, 21);
+        auto contact = [&](Collider* target, bool bossTarget) {
+            if (!target)
+                return;
+            const auto p = target->GetWorldPosition();
+            for (auto& link : droneLaserLinks_) {
+                if (!tankspecial::SegmentTouches(link.start.x, link.start.y, link.end.x, link.end.y, p.x, p.y, target->GetRadius() + .10f))
+                    continue;
+                const float t = tankspecial::SegmentClosestFraction(link.start.x, link.start.y, link.end.x, link.end.y, p.x, p.y);
+                const cg2::Vector3 nearest = link.start + (link.end - link.start) * t;
+                if (blocked(nearest, p))
+                    continue;
+                // 接触表示はダメージ間隔とは独立する。同じ対象への適用許可は全ての線で共有する。
+                link.contact = true;
+                if (linkDamageClock_.Claim(target->GetCollisionId())) {
+                    const auto damage = static_cast<uint32_t>((std::max)(1.0f, std::round(baseDamage * (bossTarget ? .65f : 1.0f) *
+                                                                                          GetDroneTargetDamageScale(target, bossTarget))));
+                    if (bossTarget)
+                        static_cast<Enemy*>(target)->TakeDamage(damage);
+                    else
+                        static_cast<ExpEnemy*>(target)->TakeDirectionalDamage(damage, nearest);
+                    ++specialCombatStats_.linkTicks;
+                    emit(SpecialEventKind::LinkHit, nearest, cg2::Normalize(link.end - link.start), .5f);
+                }
+            }
+        };
+        if (boss && !boss->IsDead())
+            contact(boss, true);
+        if (enemies)
+            for (auto* enemy : enemies->GetEnemyPtrs())
+                if (enemy && !enemy->IsDead() && !enemy->IsRunResource())
+                    contact(enemy, false);
+    }
+    if (!IsMeleeBuild() || specialMeleeElapsed_ < 0)
+        return;
+    specialMeleeElapsed_ += dt;
+    const auto& swing = specialMeleeSwing_;
+    // 準備時間を引いた秒数で斬撃の有効時間とジャストパリィの窓を判定する。
+    const float active = specialMeleeElapsed_ - swing.windupDuration;
+    if (active < 0)
+        return;
+    if (runModifiers_.slashWave && !specialWaveEmitted_ && tankspecial::EmitsSlashWave(swing.comboStep)) {
+        // 壁で生成できない場合も、この振りでの生成試行は消費する。
+        specialWaveEmitted_ = true;
+        const float speed = .48f;
+        const float radius = (std::clamp)(swing.range * .25f, .7f, 2.2f);
+        const cg2::Vector3 origin = GetWorldPosition() + swing.direction * (swing.range * .5f);
+        if (!blocked(GetWorldPosition(), origin)) {
+            auto wave = std::make_unique<Bullet>();
+            wave->Initialize(origin, swing.direction * speed, tankspecial::SlashDamage(swing.damage, TankEffectPower(runModifiers_, 22)),
+                             kPlayer, false, 10.0f, tankspecial::kOrdinaryEnemyBulletHp);
+            wave->ConfigureGrowth(0, 2, 0);
+            // 60基準フレームの速度を秒単位へ直し、移動距離から寿命を求める。
+            wave->ConfigureSpecial(Bullet::SpecialKind::SlashWave, radius, swing.range * 1.5f / (speed * 60.0f));
+            bullets->Add(std::move(wave));
+            ++specialCombatStats_.slashWaves;
+        }
+    }
+    if (active > swing.duration) {
+        specialMeleeElapsed_ = -1;
+        return;
+    }
+    if (!runModifiers_.parryBlade)
+        return;
+    const bool perfect = swing.comboStep >= 0 && tankspecial::IsPerfectParry(active);
+    const cg2::Vector3 origin = GetWorldPosition();
+    const float minDot = std::cos(swing.arcDeg * .5f * 3.1415926535f / 180.0f);
+    // ポインター配列のコピーを走査する。反射弾を追加しても今回の走査対象へ混ぜない。
+    for (auto* bullet : bullets->GetBulletPtrs()) {
+        if (!bullet || bullet->IsDead() || bullet->GetOwner() != kEnemy)
+            continue;
+        if (std::find(specialParriedBullets_.begin(), specialParriedBullets_.end(), bullet->GetCollisionId()) !=
+            specialParriedBullets_.end())
+            continue;
+        const auto p = bullet->GetWorldPosition();
+        const cg2::Vector3 delta = p - origin;
+        const float distance = cg2::Length(delta);
+        if (distance > swing.range + bullet->GetRadius() || (distance > .001f && cg2::Dot(delta / distance, swing.direction) < minDot) ||
+            blocked(origin, p))
+            continue;
+        // 耐久ダメージが0の場合も履歴へ記録し、同じ振りでは再判定しない。
+        specialParriedBullets_.push_back(bullet->GetCollisionId());
+        const float durability = tankspecial::ParryDurabilityDamage(bullet->GetBulletHp(), perfect, TankEffectPower(runModifiers_, 23));
+        if (durability <= 0)
+            continue;
+        const cg2::Vector3 incoming = bullet->GetMove();
+        bullet->ApplyBulletDurabilityDamage(durability);
+        ++specialCombatStats_.parries;
+        if (perfect) {
+            ++specialCombatStats_.perfectParries;
+            if (bullet->IsDead()) {
+                const cg2::Vector3 reflected = cg2::Length(incoming) > .001f ? cg2::Normalize(incoming) * -1.0f : swing.direction;
+                auto shot = std::make_unique<Bullet>();
+                const auto damage = static_cast<uint32_t>(
+                    (std::max)(1.0f, (std::min)(static_cast<float>(bullet->GetDamage()), stats_.bulletDamage * 3.8f)));
+                shot->Initialize(p, reflected * (std::max)(.25f, cg2::Length(incoming)), damage, kPlayer, false, 1, 1);
+                shot->ConfigureGrowth(0, 0, 0);
+                shot->ConfigureSpecial(Bullet::SpecialKind::ParryReflection, .35f, 1.4f);
+                shot->SetArmorReflected(bullet->WasArmorReflected());
+                bullets->Add(std::move(shot));
+            }
+            if (!specialPerfectFeedback_) {
+                emit(SpecialEventKind::PerfectParry, p, swing.direction);
+                specialPerfectFeedback_ = true;
+            } else
+                emit(SpecialEventKind::Parry, p, swing.direction, .5f);
+        } else
+            emit(SpecialEventKind::Parry, p, swing.direction);
+    }
 }
 
 void Player::SetRunHomingTargets(const std::vector<cg2::Vector3>& targets)
@@ -1987,93 +2113,122 @@ void Player::SetRunHomingTargets(const std::vector<cg2::Vector3>& targets)
 
 void Player::UpdateRunProjectiles(BulletManager* bulletManager, float deltaTime)
 {
-	if (!runModifiers_.enabled || (!runModifiers_.homing&&!runModifiers_.droneFocus&&!runModifiers_.targetPainter) || deltaTime <= 0.0f || runHomingTargets_.empty()) return;
-	const float homingTurnRate=(std::max)(MakeTankRunSynergy(runModifiers_,runOverdriveTimer_>0.0f).homingTurnRate,
-		IsDroneBuild()&&runModifiers_.droneFocus?.70f:0.0f)*(empJammerTimer_>0?.55f:1.0f);
-	size_t steered = 0;
-	for (Bullet* bullet : bulletManager->GetBulletPtrs()) {
-		if (!bullet || bullet->IsDead() || bullet->GetOwner() != BulletOwner::kPlayer) continue;
-		if(bullet->GetIsReturning())continue;
-		if (++steered > 240) break;
-		cg2::Vector3 direction = bullet->GetMove();
-		const float speed = cg2::Length(direction);
-		if (speed < 0.001f) continue;
-		direction = direction / speed;
-		float nearestSquared = 14.0f * 14.0f;
-		cg2::Vector3 targetDirection{};
-		bool found = false;
-		for (const cg2::Vector3& target : runHomingTargets_) {
-			cg2::Vector3 offset = target - bullet->GetWorldPosition();
-			offset.z = 0.0f;
-			const float distanceSquared = offset.x * offset.x + offset.y * offset.y;
-			if (distanceSquared < 0.04f || distanceSquared >= nearestSquared) continue;
-			const cg2::Vector3 candidate = offset / std::sqrt(distanceSquared);
-			if (direction.x * candidate.x + direction.y * candidate.y < 0.35f) continue;
-			nearestSquared = distanceSquared;
-			targetDirection = candidate;
-			found = true;
-		}
-		if (!found) continue;
-		const float dot = (std::clamp)(direction.x * targetDirection.x + direction.y * targetDirection.y, -1.0f, 1.0f);
-		float targetTurn=homingTurnRate;
-		if(IsDroneBuild()&&runModifiers_.targetPainter&&bullet->GetSourceDroneIndex()>=0) {
-			for(const auto& lock:targetLockVisuals_)if(lock.remaining>0) {
-				const auto offset=lock.position-bullet->GetWorldPosition();
-				if(cg2::Length(offset)>.001f&&cg2::Length(cg2::Normalize(offset)-targetDirection)<.1f)
-					targetTurn=(std::max)(targetTurn,1.05f*(empJammerTimer_>0?.55f:1.0f));
-			}
-		}
-		const float turn = (std::min)(std::acos(dot), targetTurn * deltaTime);
-		const float cross = direction.x * targetDirection.y - direction.y * targetDirection.x;
-		const float signedDegrees = turn * (cross < 0.0f ? -1.0f : 1.0f) * (180.0f / 3.1415926535f);
-		bullet->SetVelocity(RotateDirection(direction, signedDegrees) * speed);
-	}
+    if (!runModifiers_.enabled || (!runModifiers_.homing && !runModifiers_.droneFocus && !runModifiers_.targetPainter) ||
+        deltaTime <= 0.0f || runHomingTargets_.empty())
+        return;
+    const float homingTurnRate = (std::max)(MakeTankRunSynergy(runModifiers_, runOverdriveTimer_ > 0.0f).homingTurnRate,
+                                            IsDroneBuild() && runModifiers_.droneFocus ? .70f : 0.0f) *
+                                 (empJammerTimer_ > 0 ? .55f : 1.0f);
+    // 帰還中を除く自機弾を最大240個まで調べる。静止弾もこの調査枠には含める。
+    size_t steered = 0;
+    for (Bullet* bullet : bulletManager->GetBulletPtrs()) {
+        if (!bullet || bullet->IsDead() || bullet->GetOwner() != BulletOwner::kPlayer)
+            continue;
+        if (bullet->GetIsReturning())
+            continue;
+        if (++steered > 240)
+            break;
+        cg2::Vector3 direction = bullet->GetMove();
+        const float speed = cg2::Length(direction);
+        if (speed < 0.001f)
+            continue;
+        direction = direction / speed;
+        float nearestSquared = 14.0f * 14.0f;
+        cg2::Vector3 targetDirection{};
+        bool found = false;
+        // XY平面で距離0.2以上・14未満、かつ前方の対象から最も近いものを選ぶ。壁の遮蔽は調べない。
+        for (const cg2::Vector3& target : runHomingTargets_) {
+            cg2::Vector3 offset = target - bullet->GetWorldPosition();
+            offset.z = 0.0f;
+            const float distanceSquared = offset.x * offset.x + offset.y * offset.y;
+            if (distanceSquared < 0.04f || distanceSquared >= nearestSquared)
+                continue;
+            const cg2::Vector3 candidate = offset / std::sqrt(distanceSquared);
+            if (direction.x * candidate.x + direction.y * candidate.y < 0.35f)
+                continue;
+            nearestSquared = distanceSquared;
+            targetDirection = candidate;
+            found = true;
+        }
+        if (!found)
+            continue;
+        const float dot = (std::clamp)(direction.x * targetDirection.x + direction.y * targetDirection.y, -1.0f, 1.0f);
+        float targetTurn = homingTurnRate;
+        if (IsDroneBuild() && runModifiers_.targetPainter && bullet->GetSourceDroneIndex() >= 0) {
+            for (const auto& lock : targetLockVisuals_)
+                if (lock.remaining > 0) {
+                    const auto offset = lock.position - bullet->GetWorldPosition();
+                    if (cg2::Length(offset) > .001f && cg2::Length(cg2::Normalize(offset) - targetDirection) < .1f)
+                        targetTurn = (std::max)(targetTurn, 1.05f * (empJammerTimer_ > 0 ? .55f : 1.0f));
+                }
+        }
+        // 回頭速度はラジアン/秒。目標を越えない角度に制限し、度へ直してから元の速さで移動させる。
+        const float turn = (std::min)(std::acos(dot), targetTurn * deltaTime);
+        const float cross = direction.x * targetDirection.y - direction.y * targetDirection.x;
+        const float signedDegrees = turn * (cross < 0.0f ? -1.0f : 1.0f) * (180.0f / 3.1415926535f);
+        bullet->SetVelocity(RotateDirection(direction, signedDegrees) * speed);
+    }
 }
 
 void Player::ConfigureRunDrone(PlayerDrone& drone) const
 {
-	if (!runModifiers_.enabled) {
-		return;
-	}
-	const PlayerClassConfig* config = GetCurrentClassConfig();
-	const bool primaryStyle=IsDroneBuild();
-	const bool isSwarm = config && config->usesDrone;
-	auto droneTuning=MakeTankDroneTuning(runModifiers_,primaryStyle);
-	if(!primaryStyle && isSwarm) {droneTuning.damageScale*=0.6f/0.35f;droneTuning.reloadSeconds*=0.5f/0.75f;}
-	AttackParam param{};
-	param.bulletSpeed = stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f);
-	if(primaryStyle&&runModifiers_.droneFocus)param.bulletSpeed*=1.15f;
-	param.bulletCount = 1;
-	param.spreadAngleDeg = primaryStyle || runModifiers_.droneFocus ? droneTuning.spreadDegrees
-		: isSwarm && runEvolutionActive_ ? config->spreadAngleDeg : (isSwarm ? 10.0f : 6.0f);
-	param.randomSpread = param.spreadAngleDeg > 0.0f;
-	param.reflect = config && config->reflect;
-	param.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(
-		stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * droneTuning.damageScale
-		* (primaryStyle&&runModifiers_.autonomousSpread?(std::max)(.2f,1.0f-.18f*TankEffectPower(runModifiers_,38)):1.0f))));
-	if (isBuffActive_) {
-		param.reflect = true;
-	}
-	ApplyRunProjectileRules(param);
-	param.bulletHp=(std::max)(param.bulletHp,droneTuning.bulletHp);
-	param.bulletPenetration=(std::max)(param.bulletPenetration,droneTuning.interception);
-	param.bulletVisualScale=droneTuning.sizeScale;param.bulletTrailScale=droneTuning.trailScale;
-	const float reloadRatio = stats_.reloadSpeed / GetRunBaseReloadFrames();
-	const float coreRate = runModifiers_.core == TankRunCore::Drone ? 0.8f : 1.0f;
-	const auto* specialization = runEvolutionActive_ ? FindTankExpeditionSpecialization(runEvolutionConfig_.id) : nullptr;
-	const float interval = droneTuning.reloadSeconds * reloadRatio * coreRate
-		* (isBuffActive_ ? 0.7f : 1.0f) * GetRunFireIntervalScale()
-		* (primaryStyle && config ? config->reloadScale : isSwarm && specialization ? specialization->reloadScale : 1.0f)
-		* (primaryStyle?GetCombatStyleProfile(tankbuild::Style::Drone).attackIntervalSeconds/.5f:1.0f)*(empJammerTimer_>0?1.5f:1.0f);
-	drone.ConfigureRunAttack(param, interval);
-	// Preserve fractional tradeoffs at low base damage (3 x .82 must not
-	// silently become a 33% damage loss after integer rounding).
-	drone.SetRunExactDamage(primaryStyle?(std::max)(1.0f,stats_.bulletDamage*(config?config->bulletDamageScale:1.0f)*droneTuning.damageScale
-		*(runModifiers_.autonomousSpread?(std::max)(.2f,1.0f-.18f*TankEffectPower(runModifiers_,38)):1.0f)):0.0f);
-	if(primaryStyle) {
-		const auto& profile=GetCombatStyleProfile(tankbuild::Style::Drone);
-		drone.SetRunFollowTuning(profile.droneFollowSpeed,profile.droneCatchupSpeed,profile.droneResponse);
-	}
+    if (!runModifiers_.enabled) {
+        return;
+    }
+    const PlayerClassConfig* config = GetCurrentClassConfig();
+    const bool primaryStyle = IsDroneBuild();
+    const bool isSwarm = config && config->usesDrone;
+    auto droneTuning = MakeTankDroneTuning(runModifiers_, primaryStyle);
+    if (!primaryStyle && isSwarm) {
+        droneTuning.damageScale *= 0.6f / 0.35f;
+        droneTuning.reloadSeconds *= 0.5f / 0.75f;
+    }
+    AttackParam param{};
+    param.bulletSpeed = stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f);
+    if (primaryStyle && runModifiers_.droneFocus)
+        param.bulletSpeed *= 1.15f;
+    param.bulletCount = 1;
+    param.spreadAngleDeg = primaryStyle || runModifiers_.droneFocus ? droneTuning.spreadDegrees
+                           : isSwarm && runEvolutionActive_         ? config->spreadAngleDeg
+                                                                    : (isSwarm ? 10.0f : 6.0f);
+    param.randomSpread = param.spreadAngleDeg > 0.0f;
+    param.reflect = config && config->reflect;
+    param.damage = static_cast<uint32_t>(
+        (std::max)(1.0f, std::round(stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * droneTuning.damageScale *
+                                    (primaryStyle && runModifiers_.autonomousSpread
+                                         ? (std::max)(.2f, 1.0f - .18f * TankEffectPower(runModifiers_, 38))
+                                         : 1.0f))));
+    if (isBuffActive_) {
+        param.reflect = true;
+    }
+    ApplyRunProjectileRules(param);
+    param.bulletHp = (std::max)(param.bulletHp, droneTuning.bulletHp);
+    param.bulletPenetration = (std::max)(param.bulletPenetration, droneTuning.interception);
+    param.bulletVisualScale = droneTuning.sizeScale;
+    param.bulletTrailScale = droneTuning.trailScale;
+    // 基準フレーム同士の比率を秒単位のドローン発射間隔へ掛ける。
+    const float reloadRatio = stats_.reloadSpeed / GetRunBaseReloadFrames();
+    const float coreRate = runModifiers_.core == TankRunCore::Drone ? 0.8f : 1.0f;
+    const auto* specialization = runEvolutionActive_ ? FindTankExpeditionSpecialization(runEvolutionConfig_.id) : nullptr;
+    const float interval = droneTuning.reloadSeconds * reloadRatio * coreRate * (isBuffActive_ ? 0.7f : 1.0f) * GetRunFireIntervalScale() *
+                           (primaryStyle && config      ? config->reloadScale
+                            : isSwarm && specialization ? specialization->reloadScale
+                                                        : 1.0f) *
+                           (primaryStyle ? GetCombatStyleProfile(tankbuild::Style::Drone).attackIntervalSeconds / .5f : 1.0f) *
+                           (empJammerTimer_ > 0 ? 1.5f : 1.0f);
+    drone.ConfigureRunAttack(param, interval);
+    // 主装備のドローンは小数の威力を別に保持し、射撃ごとの余りを繰り越す。
+    // 例えば3×0.82を毎回整数へ切り捨てて2にする場合の、過剰な威力低下を避ける。
+    drone.SetRunExactDamage(
+        primaryStyle
+            ? (std::max)(1.0f,
+                         stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * droneTuning.damageScale *
+                             (runModifiers_.autonomousSpread ? (std::max)(.2f, 1.0f - .18f * TankEffectPower(runModifiers_, 38)) : 1.0f))
+            : 0.0f);
+    if (primaryStyle) {
+        const auto& profile = GetCombatStyleProfile(tankbuild::Style::Drone);
+        drone.SetRunFollowTuning(profile.droneFollowSpeed, profile.droneCatchupSpeed, profile.droneResponse);
+    }
 }
 
 void Player::Die()
@@ -2117,112 +2272,117 @@ void Player::Evolve(ClassType newClass)
 
 bool Player::TryActivateSpecialAction()
 {
-	const PlayerClassConfig* config = GetCurrentClassConfig();
-	if (!config || dashCooldown_ > 0.0f) {
-		return false;
-	}
-	if (runModifiers_.enabled) return ActivatePerfectDodge(*config);
-	if (config->specialActionId == "none") return false;
-	if (config->specialActionId == "perfect_dodge") {
-		return ActivatePerfectDodge(*config);
-	}
-	if (config->specialActionId == "saber_counter") {
-		return ActivateSaberCounter(*config);
-	}
-	// charge_beam は同じ入口へ後から実装する。
-	return false;
+    const PlayerClassConfig* config = GetCurrentClassConfig();
+    if (!config || dashCooldown_ > 0.0f) {
+        return false;
+    }
+    if (runModifiers_.enabled)
+        return ActivatePerfectDodge(*config);
+    if (config->specialActionId == "none")
+        return false;
+    if (config->specialActionId == "perfect_dodge") {
+        return ActivatePerfectDodge(*config);
+    }
+    if (config->specialActionId == "saber_counter") {
+        return ActivateSaberCounter(*config);
+    }
+    // charge_beamを含む未対応のIDでは、特殊行動を開始せずfalseを返す。
+    return false;
 }
 
 bool Player::ActivatePerfectDodge(const PlayerClassConfig& config)
 {
-	const float staminaCost = (std::max)(0.0f, config.specialActionStaminaCost);
-	if (stats_.stamina < staminaCost) {
-		return false;
-	}
+    const float staminaCost = (std::max)(0.0f, config.specialActionStaminaCost);
+    if (stats_.stamina < staminaCost) {
+        return false;
+    }
 
-	cg2::Vector3 dashDir = inputDir_;
-	if (cg2::Length(dashDir) < 0.01f) {
-		dashDir = dir_;
-	}
-	if (cg2::Length(dashDir) < 0.01f) {
-		return false;
-	}
+    cg2::Vector3 dashDir = inputDir_;
+    if (cg2::Length(dashDir) < 0.01f) {
+        dashDir = dir_;
+    }
+    if (cg2::Length(dashDir) < 0.01f) {
+        return false;
+    }
 
-	const TankRunTuning runTuning = MakeTankRunTuning(runModifiers_, runGrowth_);
-	const cg2::Vector3 direction = cg2::Normalize(dashDir);
-	const float speed = kDashSpeed * runTuning.dashSpeed;
-	velocity_ = {TankDashMomentum(velocity_.x,direction.x,speed),
-		TankDashMomentum(velocity_.y,direction.y,speed),0};
-	dashImpactTargets_.clear();
-	++dashStartedCount_;
-	isDashing_ = true;
-	dashStartedEvent_ = true;
-	dashTimer_ = kDashDuration;
-	recentDashTimer_=.30f;
-	dashCooldown_ = kDashCooldown * (std::max)(0.05f, config.specialActionCooldownScale) * runTuning.dashCooldown;
-	stats_.stamina = (std::max)(0.0f, stats_.stamina - staminaCost);
-	if (runModifiers_.enabled) {
-		runDashAttackTimer_ = 1.0f;
-		runDashBurstPending_ = runModifiers_.dashBurst;
-		if (runModifiers_.core == TankRunCore::Assault) {
-			bulletCoolTime = 0.0f;
-			std::fill(weaponGroupCooldowns_.begin(), weaponGroupCooldowns_.end(), 0.0f);
-		}
-		if (runModifiers_.overdrive && runOverdriveCooldown_ <= 0.0f) {
-			runOverdriveTimer_ = 1.2f*TankEffectPower(runModifiers_,11);
-			runOverdriveCooldown_ = 4.0f;
-		}
-		if (runModifiers_.core == TankRunCore::Drone) {
-			for (auto& drone : drones_) drone->RallyRunAttack();
-		}
-	}
-	return true;
+    const TankRunTuning runTuning = MakeTankRunTuning(runModifiers_, runGrowth_);
+    const cg2::Vector3 direction = cg2::Normalize(dashDir);
+    const float speed = kDashSpeed * runTuning.dashSpeed;
+    velocity_ = {TankDashMomentum(velocity_.x, direction.x, speed), TankDashMomentum(velocity_.y, direction.y, speed), 0};
+    // 新しいダッシュでだけ体当たり履歴を解除する。接触が続いても同じ対象へ繰り返し適用しない。
+    dashImpactTargets_.clear();
+    ++dashStartedCount_;
+    isDashing_ = true;
+    dashStartedEvent_ = true;
+    dashTimer_ = kDashDuration;
+    recentDashTimer_ = .30f;
+    dashCooldown_ = kDashCooldown * (std::max)(0.05f, config.specialActionCooldownScale) * runTuning.dashCooldown;
+    stats_.stamina = (std::max)(0.0f, stats_.stamina - staminaCost);
+    if (runModifiers_.enabled) {
+        runDashAttackTimer_ = 1.0f;
+        // 追加射撃はPlayer::Updateの攻撃処理まで保留し、その時点の向きで生成する。
+        runDashBurstPending_ = runModifiers_.dashBurst;
+        if (runModifiers_.core == TankRunCore::Assault) {
+            bulletCoolTime = 0.0f;
+            std::fill(weaponGroupCooldowns_.begin(), weaponGroupCooldowns_.end(), 0.0f);
+        }
+        if (runModifiers_.overdrive && runOverdriveCooldown_ <= 0.0f) {
+            runOverdriveTimer_ = 1.2f * TankEffectPower(runModifiers_, 11);
+            runOverdriveCooldown_ = 4.0f;
+        }
+        if (runModifiers_.core == TankRunCore::Drone) {
+            for (auto& drone : drones_)
+                drone->RallyRunAttack();
+        }
+    }
+    return true;
 }
 
 bool Player::ActivateSaberCounter(const PlayerClassConfig& config)
 {
-	const bool hasMeleeWeapon = std::any_of(config.barrels.begin(), config.barrels.end(), [](const WeaponMountConfig& mount) {
-		return mount.fires && mount.weaponType == WeaponType::Melee;
-	});
-	const float staminaCost = (std::max)(0.0f, config.specialActionStaminaCost);
-	if (!hasMeleeWeapon || stats_.stamina < staminaCost) {
-		return false;
-	}
+    const bool hasMeleeWeapon = std::any_of(config.barrels.begin(), config.barrels.end(), [](const WeaponMountConfig& mount) {
+        return mount.fires && mount.weaponType == WeaponType::Melee;
+    });
+    const float staminaCost = (std::max)(0.0f, config.specialActionStaminaCost);
+    if (!hasMeleeWeapon || stats_.stamina < staminaCost) {
+        return false;
+    }
 
-	saberCounterTimer_ = (std::max)(0.01f, config.saberCounterWindow);
-	dashCooldown_ = 1.0f * (std::max)(0.05f, config.specialActionCooldownScale);
-	stats_.stamina = (std::max)(0.0f, stats_.stamina - staminaCost);
-	return true;
+    saberCounterTimer_ = (std::max)(0.01f, config.saberCounterWindow);
+    dashCooldown_ = 1.0f * (std::max)(0.05f, config.specialActionCooldownScale);
+    stats_.stamina = (std::max)(0.0f, stats_.stamina - staminaCost);
+    return true;
 }
 
 void Player::TriggerSaberCounter(const PlayerClassConfig& config)
 {
-	const auto mountIt = std::find_if(config.barrels.begin(), config.barrels.end(), [](const WeaponMountConfig& mount) {
-		return mount.fires && mount.weaponType == WeaponType::Melee;
-	});
-	if (mountIt == config.barrels.end()) {
-		return;
-	}
+    const auto mountIt = std::find_if(config.barrels.begin(), config.barrels.end(), [](const WeaponMountConfig& mount) {
+        return mount.fires && mount.weaponType == WeaponType::Melee;
+    });
+    if (mountIt == config.barrels.end()) {
+        return;
+    }
 
-	const WeaponMountConfig& mount = *mountIt;
-	const cg2::Vector3 forward = cg2::Length(dir_) > 0.0001f ? cg2::Normalize(dir_) : cg2::Vector3{ 1.0f, 0.0f, 0.0f };
-	const cg2::Vector3 right = { -forward.y, forward.x, 0.0f };
-	MeleeSlashEvent event{};
-	event.origin = worldTransform_.translate + forward * mount.offset.x + right * mount.offset.y + cg2::Vector3{ 0.0f, 0.0f, mount.offset.z };
-	event.direction = RotateDirection(forward, mount.angleDeg);
-	event.range = mount.meleeRange * config.saberCounterRangeScale;
-	event.arcDeg = (std::max)(180.0f, mount.meleeArcDeg);
-	event.width = mount.meleeWidth * 1.35f;
-	event.duration = (std::max)(0.08f, mount.meleeDuration * 0.85f);
-	event.windupDuration = 0.0f;
-	event.recoveryDuration = 0.22f;
-	event.comboStep = 2;
-	event.damage = static_cast<uint32_t>((std::max)(1.0f, stats_.bulletDamage * mount.damageScale * config.saberCounterDamageScale));
-	event.color = { 0.65f, 1.45f, 1.25f, 1.0f };
-	pendingMeleeSlashes_.push_back(event);
-	saberCounterTimer_ = 0.0f;
-	invincibleTimer_ = 0.28f;
-	requestSlow_ = true;
+    const WeaponMountConfig& mount = *mountIt;
+    const cg2::Vector3 forward = cg2::Length(dir_) > 0.0001f ? cg2::Normalize(dir_) : cg2::Vector3{1.0f, 0.0f, 0.0f};
+    const cg2::Vector3 right = {-forward.y, forward.x, 0.0f};
+    MeleeSlashEvent event{};
+    event.origin = worldTransform_.translate + forward * mount.offset.x + right * mount.offset.y + cg2::Vector3{0.0f, 0.0f, mount.offset.z};
+    event.direction = RotateDirection(forward, mount.angleDeg);
+    event.range = mount.meleeRange * config.saberCounterRangeScale;
+    event.arcDeg = (std::max)(180.0f, mount.meleeArcDeg);
+    event.width = mount.meleeWidth * 1.35f;
+    event.duration = (std::max)(0.08f, mount.meleeDuration * 0.85f);
+    event.windupDuration = 0.0f;
+    event.recoveryDuration = 0.22f;
+    event.comboStep = 2;
+    event.damage = static_cast<uint32_t>((std::max)(1.0f, stats_.bulletDamage * mount.damageScale * config.saberCounterDamageScale));
+    event.color = {0.65f, 1.45f, 1.25f, 1.0f};
+    // 命中判定と描画はシーンへ渡す斬撃イベントに予約し、ここでは受付を閉じて無敵とスローを要求する。
+    pendingMeleeSlashes_.push_back(event);
+    saberCounterTimer_ = 0.0f;
+    invincibleTimer_ = 0.28f;
+    requestSlow_ = true;
 }
 
 void Player::EvolveById(const std::string& classId)
@@ -2455,242 +2615,245 @@ Player::PlayerClassConfig* Player::GetMutableClassConfig(const std::string& clas
 
 std::vector<Player::LaserShotEvent> Player::ConsumeLaserShotEvents()
 {
-	std::vector<LaserShotEvent> events = std::move(pendingLaserShots_);
-	pendingLaserShots_.clear();
-	return events;
+    std::vector<LaserShotEvent> events = std::move(pendingLaserShots_);
+    pendingLaserShots_.clear();
+    return events;
 }
 
 std::vector<Player::MineDropEvent> Player::ConsumeMineDropEvents()
 {
-	std::vector<MineDropEvent> events = std::move(pendingMineDrops_);
-	pendingMineDrops_.clear();
-	return events;
+    std::vector<MineDropEvent> events = std::move(pendingMineDrops_);
+    pendingMineDrops_.clear();
+    return events;
 }
 
 std::vector<Player::MeleeSlashEvent> Player::ConsumeMeleeSlashEvents()
 {
-	std::vector<MeleeSlashEvent> events = std::move(pendingMeleeSlashes_);
-	pendingMeleeSlashes_.clear();
-	return events;
+    std::vector<MeleeSlashEvent> events = std::move(pendingMeleeSlashes_);
+    pendingMeleeSlashes_.clear();
+    return events;
 }
 
-bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, cg2::Vector3& recoilDir, float& recoilPower)
+bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, cg2::Vector3& recoilDir,
+                                 float& recoilPower)
 {
-	if (config.usesDrone) {
-		if (bulletCoolTime > 0.0f) {
-			return false;
-		}
-		DroneShoot(bulletManager);
-		recoilPower = 0.0f;
-		bulletCoolTime = baseReload * config.reloadScale;
-		return true;
-	}
-	if (runModifiers_.enabled && bulletManager->GetBulletCounts().player >= 240) return false;
+    // ドローン生成の成功判定は射撃処理の受付を表し、新しい弾が登録された保証ではない。
+    if (config.usesDrone) {
+        if (bulletCoolTime > 0.0f) {
+            return false;
+        }
+        DroneShoot(bulletManager);
+        recoilPower = 0.0f;
+        bulletCoolTime = baseReload * config.reloadScale;
+        return true;
+    }
+    // この内訳は削除待ちの死亡弾も含む。遠征の受付上限は生存数によるAddの上限とは別に判定する。
+    if (runModifiers_.enabled && bulletManager->GetBulletCounts().player >= 240)
+        return false;
 
-	AttackParam param{};
-	param.bulletSpeed = stats_.bulletSpeed * config.bulletSpeedScale;
-	param.bulletCount = 1;
-	param.spreadAngleDeg = config.spreadAngleDeg;
-	param.randomSpread = config.randomSpread;
-	param.reflect = config.reflect;
-	param.penetrate = config.penetrate;
-	param.cooldown = 1.0f;
-	const float shotDamage = stats_.bulletDamage * config.bulletDamageScale;
-	param.damage = static_cast<uint32_t>((std::max)(1.0f, runModifiers_.enabled ? std::round(shotDamage) : shotDamage));
-	ApplyRunProjectileRules(param);
+    AttackParam param{};
+    param.bulletSpeed = stats_.bulletSpeed * config.bulletSpeedScale;
+    param.bulletCount = 1;
+    param.spreadAngleDeg = config.spreadAngleDeg;
+    param.randomSpread = config.randomSpread;
+    param.reflect = config.reflect;
+    param.penetrate = config.penetrate;
+    param.cooldown = 1.0f;
+    const float shotDamage = stats_.bulletDamage * config.bulletDamageScale;
+    param.damage = static_cast<uint32_t>((std::max)(1.0f, runModifiers_.enabled ? std::round(shotDamage) : shotDamage));
+    ApplyRunProjectileRules(param);
 
-	if (isBuffActive_) {
-		param.reflect = true;
-		param.spreadAngleDeg += 10.0f;
-	}
+    if (isBuffActive_) {
+        param.reflect = true;
+        param.spreadAngleDeg += 10.0f;
+    }
 
-	std::vector<size_t> fireIndices;
-	for (size_t i = 0; i < config.barrels.size(); ++i) {
-		if (config.barrels[i].fires &&
-			(config.barrels[i].weaponType == WeaponType::Projectile ||
-			 config.barrels[i].weaponType == WeaponType::Laser ||
-			 config.barrels[i].weaponType == WeaponType::Mine ||
-			 config.barrels[i].weaponType == WeaponType::Melee)) {
-			fireIndices.push_back(i);
-		}
-	}
-	if (fireIndices.empty()) {
-		return false;
-	}
+    std::vector<size_t> fireIndices;
+    for (size_t i = 0; i < config.barrels.size(); ++i) {
+        if (config.barrels[i].fires &&
+            (config.barrels[i].weaponType == WeaponType::Projectile || config.barrels[i].weaponType == WeaponType::Laser ||
+             config.barrels[i].weaponType == WeaponType::Mine || config.barrels[i].weaponType == WeaponType::Melee)) {
+            fireIndices.push_back(i);
+        }
+    }
+    if (fireIndices.empty()) {
+        return false;
+    }
 
-	std::vector<int> fireGroups;
-	for (size_t index : fireIndices) {
-		const int group = (std::max)(0, config.barrels[index].fireGroup);
-		if (std::find(fireGroups.begin(), fireGroups.end(), group) == fireGroups.end()) {
-			fireGroups.push_back(group);
-		}
-	}
-	std::sort(fireGroups.begin(), fireGroups.end());
-	const bool usesGroupCooldowns = config.alternateBarrels && !config.fireAllBarrels && fireGroups.size() > 1;
-	int selectedGroupSlot = -1;
+    // 発射可能な砲身だけを集め、交互射撃で複数グループがある場合はグループ別の待ち時間を使う。
+    std::vector<int> fireGroups;
+    for (size_t index : fireIndices) {
+        const int group = (std::max)(0, config.barrels[index].fireGroup);
+        if (std::find(fireGroups.begin(), fireGroups.end(), group) == fireGroups.end()) {
+            fireGroups.push_back(group);
+        }
+    }
+    std::sort(fireGroups.begin(), fireGroups.end());
+    const bool usesGroupCooldowns = config.alternateBarrels && !config.fireAllBarrels && fireGroups.size() > 1;
+    int selectedGroupSlot = -1;
 
-	if (config.alternateBarrels && !config.fireAllBarrels) {
-		if (usesGroupCooldowns) {
-			if (weaponGroupCooldowns_.size() != fireGroups.size()) {
-				weaponGroupCooldowns_.assign(fireGroups.size(), 0.0f);
-				shootGroupIndex_ = 0;
-			}
-			for (size_t attempt = 0; attempt < fireGroups.size(); ++attempt) {
-				const size_t slot = (static_cast<size_t>(shootGroupIndex_) + attempt) % fireGroups.size();
-				if (weaponGroupCooldowns_[slot] <= 0.0f) {
-					selectedGroupSlot = static_cast<int>(slot);
-					break;
-				}
-			}
-			if (selectedGroupSlot < 0) {
-				bulletCoolTime = 0.0f;
-				return false;
-			}
-			const int selectedGroup = fireGroups[static_cast<size_t>(selectedGroupSlot)];
-			std::vector<size_t> groupIndices;
-			for (size_t index : fireIndices) {
-				if ((std::max)(0, config.barrels[index].fireGroup) == selectedGroup) {
-					groupIndices.push_back(index);
-				}
-			}
-			fireIndices = groupIndices;
-			shootGroupIndex_ = (selectedGroupSlot + 1) % static_cast<int>(fireGroups.size());
-		} else {
-			if (bulletCoolTime > 0.0f) {
-				return false;
-			}
-			const size_t selectableCount = fireIndices.size();
-			const size_t index = fireIndices[shootBarrelIndex_ % selectableCount];
-			fireIndices = { index };
-			shootBarrelIndex_ = static_cast<int>((shootBarrelIndex_ + 1) % selectableCount);
-		}
-	} else if (bulletCoolTime > 0.0f) {
-		return false;
-	}
+    if (config.alternateBarrels && !config.fireAllBarrels) {
+        if (usesGroupCooldowns) {
+            if (weaponGroupCooldowns_.size() != fireGroups.size()) {
+                weaponGroupCooldowns_.assign(fireGroups.size(), 0.0f);
+                shootGroupIndex_ = 0;
+            }
+            // 前回の次のグループから、待ち時間が終わったグループを探す。
+            for (size_t attempt = 0; attempt < fireGroups.size(); ++attempt) {
+                const size_t slot = (static_cast<size_t>(shootGroupIndex_) + attempt) % fireGroups.size();
+                if (weaponGroupCooldowns_[slot] <= 0.0f) {
+                    selectedGroupSlot = static_cast<int>(slot);
+                    break;
+                }
+            }
+            if (selectedGroupSlot < 0) {
+                bulletCoolTime = 0.0f;
+                return false;
+            }
+            const int selectedGroup = fireGroups[static_cast<size_t>(selectedGroupSlot)];
+            std::vector<size_t> groupIndices;
+            for (size_t index : fireIndices) {
+                if ((std::max)(0, config.barrels[index].fireGroup) == selectedGroup) {
+                    groupIndices.push_back(index);
+                }
+            }
+            fireIndices = groupIndices;
+            shootGroupIndex_ = (selectedGroupSlot + 1) % static_cast<int>(fireGroups.size());
+        } else {
+            if (bulletCoolTime > 0.0f) {
+                return false;
+            }
+            const size_t selectableCount = fireIndices.size();
+            const size_t index = fireIndices[shootBarrelIndex_ % selectableCount];
+            fireIndices = {index};
+            shootBarrelIndex_ = static_cast<int>((shootBarrelIndex_ + 1) % selectableCount);
+        }
+    } else if (bulletCoolTime > 0.0f) {
+        return false;
+    }
 
-	const cg2::Vector3 forward = cg2::Length(dir_) > 0.0001f ? cg2::Normalize(dir_) : cg2::Vector3{ 1.0f, 0.0f, 0.0f };
-	const cg2::Vector3 right = { -forward.y, forward.x, 0.0f };
-	bool firesMelee = false;
-	float meleeComboResetTime = 0.90f;
-	for (size_t index : fireIndices) {
-		if (index < config.barrels.size() && config.barrels[index].weaponType == WeaponType::Melee) {
-			firesMelee = true;
-			meleeComboResetTime = config.barrels[index].meleeComboResetTime;
-			break;
-		}
-	}
-	if (firesMelee && meleeComboTimer_ <= 0.0f) {
-		meleeComboStep_ = 0;
-	}
-	const int meleeComboStepForShot = (std::clamp)(meleeComboStep_, 0, 2);
-	float meleeActionDuration = 0.0f;
-	if (firesMelee) {
-		meleeComboStep_ = (meleeComboStepForShot + 1) % 3;
-		meleeComboTimer_ = (std::max)(0.05f, meleeComboResetTime);
-	}
+    const cg2::Vector3 forward = cg2::Length(dir_) > 0.0001f ? cg2::Normalize(dir_) : cg2::Vector3{1.0f, 0.0f, 0.0f};
+    const cg2::Vector3 right = {-forward.y, forward.x, 0.0f};
+    bool firesMelee = false;
+    float meleeComboResetTime = 0.90f;
+    for (size_t index : fireIndices) {
+        if (index < config.barrels.size() && config.barrels[index].weaponType == WeaponType::Melee) {
+            firesMelee = true;
+            meleeComboResetTime = config.barrels[index].meleeComboResetTime;
+            break;
+        }
+    }
+    if (firesMelee && meleeComboTimer_ <= 0.0f) {
+        meleeComboStep_ = 0;
+    }
+    // 今回選ばれた全ての近接砲身でコンボ段階を共有し、次回用の段階は一度だけ進める。
+    const int meleeComboStepForShot = (std::clamp)(meleeComboStep_, 0, 2);
+    float meleeActionDuration = 0.0f;
+    if (firesMelee) {
+        meleeComboStep_ = (meleeComboStepForShot + 1) % 3;
+        meleeComboTimer_ = (std::max)(0.05f, meleeComboResetTime);
+    }
 
-	cg2::Vector3 combinedRecoil{};
-	float firedReloadScale = 1.0f;
-	for (size_t index : fireIndices) {
-		const WeaponMountConfig& barrelConfig = config.barrels[index];
-		const cg2::Vector3 fireDir = RotateDirection(forward, barrelConfig.angleDeg);
-		combinedRecoil = combinedRecoil + fireDir * (-(std::max)(0.0f, barrelConfig.recoilScale));
-		firedReloadScale = (std::max)(firedReloadScale, barrelConfig.reloadScale);
-		const cg2::Vector3 mountBase =
-			worldTransform_.translate +
-			forward * barrelConfig.offset.x +
-			right * barrelConfig.offset.y +
-			cg2::Vector3{ 0.0f, 0.0f, barrelConfig.offset.z };
-		const cg2::Vector3 muzzle = mountBase + fireDir * barrelConfig.muzzleForward;
-		AttackParam mountParam = param;
-		mountParam.damage = static_cast<uint32_t>((std::max)(1.0f,runModifiers_.expedition?
-			std::round(static_cast<float>(param.damage)*barrelConfig.damageScale):static_cast<float>(param.damage)*barrelConfig.damageScale));
-		if (barrelConfig.weaponType == WeaponType::Laser) {
-			LaserShotEvent event{};
-			event.origin = muzzle;
-			event.direction = fireDir;
-			event.range = barrelConfig.laserRange;
-			event.width = barrelConfig.laserWidth;
-			event.duration = barrelConfig.laserDuration;
-			event.damageInterval = barrelConfig.laserDamageInterval;
-			event.damage = mountParam.damage;
-			event.color = barrelConfig.effectColor;
-			pendingLaserShots_.push_back(event);
-		} else if (barrelConfig.weaponType == WeaponType::Mine) {
-			MineDropEvent event{};
-			event.position = muzzle;
-			event.radius = barrelConfig.mineRadius;
-			event.fuseTime = barrelConfig.mineFuseTime;
-			event.lifeTime = barrelConfig.mineLifeTime;
-			event.damage = mountParam.damage;
-			event.color = barrelConfig.effectColor;
-			pendingMineDrops_.push_back(event);
-		} else if (barrelConfig.weaponType == WeaponType::Melee) {
-			const float meleeDamageScale =
-				meleeComboStepForShot == 0 ? barrelConfig.meleeCombo1DamageScale :
-				meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2DamageScale :
-				barrelConfig.meleeCombo3DamageScale;
-			const float meleeRangeScale =
-				meleeComboStepForShot == 0 ? barrelConfig.meleeCombo1RangeScale :
-				meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2RangeScale :
-				barrelConfig.meleeCombo3RangeScale;
-			const float meleeWindup =
-				meleeComboStepForShot == 0 ? barrelConfig.meleeCombo1Windup :
-				meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2Windup :
-				barrelConfig.meleeCombo3Windup;
-			const float meleeRecovery =
-				meleeComboStepForShot == 0 ? barrelConfig.meleeCombo1Recovery :
-				meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2Recovery :
-				barrelConfig.meleeCombo3Recovery;
-			MeleeSlashEvent event{};
-			event.origin = mountBase;
-			event.direction = fireDir;
-			event.range = barrelConfig.meleeRange * meleeRangeScale;
-			event.arcDeg = barrelConfig.meleeArcDeg;
-			event.width = barrelConfig.meleeWidth;
-			event.duration = barrelConfig.meleeDuration;
-			event.windupDuration = meleeWindup;
-			event.recoveryDuration = meleeRecovery;
-			event.damage = static_cast<uint32_t>((std::max)(1.0f, static_cast<float>(mountParam.damage) * meleeDamageScale));
-			event.color = barrelConfig.effectColor;
-			event.comboStep = meleeComboStepForShot;
-			pendingMeleeSlashes_.push_back(event);
-			meleeActionDuration = (std::max)(meleeActionDuration, meleeWindup + barrelConfig.meleeDuration + meleeRecovery);
-		} else {
-			if (runModifiers_.enabled) {
-				const size_t active = bulletManager->GetBulletCounts().player;
-				if (active >= 240) break;
-				mountParam.bulletCount = (std::min)(mountParam.bulletCount, static_cast<int>(240 - active));
-			}
-			mountParam.bulletSpeed *= barrelConfig.projectileSpeedScale;
-			attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
-			if (index < barrels_.size()) {
-				barrels_[index].muzzleFlashTimer = kMuzzleFlashDuration;
-			}
-			SpawnCasing();
-		}
-		if (index < barrels_.size()) {
-			barrels_[index].recoilOffset = 0.22f;
-		}
-	}
+    cg2::Vector3 combinedRecoil{};
+    float firedReloadScale = 1.0f;
+    for (size_t index : fireIndices) {
+        const WeaponMountConfig& barrelConfig = config.barrels[index];
+        const cg2::Vector3 fireDir = RotateDirection(forward, barrelConfig.angleDeg);
+        combinedRecoil = combinedRecoil + fireDir * (-(std::max)(0.0f, barrelConfig.recoilScale));
+        firedReloadScale = (std::max)(firedReloadScale, barrelConfig.reloadScale);
+        // 砲身の前後・横方向のオフセットを自機のXY軸へ変換し、Zオフセットはそのまま加える。
+        const cg2::Vector3 mountBase = worldTransform_.translate + forward * barrelConfig.offset.x + right * barrelConfig.offset.y +
+                                       cg2::Vector3{0.0f, 0.0f, barrelConfig.offset.z};
+        const cg2::Vector3 muzzle = mountBase + fireDir * barrelConfig.muzzleForward;
+        AttackParam mountParam = param;
+        mountParam.damage = static_cast<uint32_t>(
+            (std::max)(1.0f, runModifiers_.expedition ? std::round(static_cast<float>(param.damage) * barrelConfig.damageScale)
+                                                      : static_cast<float>(param.damage) * barrelConfig.damageScale));
+        // レーザー・地雷・斬撃はシーン側の更新へ予約する。通常の弾はAttackControllerを通して追加する。
+        if (barrelConfig.weaponType == WeaponType::Laser) {
+            LaserShotEvent event{};
+            event.origin = muzzle;
+            event.direction = fireDir;
+            event.range = barrelConfig.laserRange;
+            event.width = barrelConfig.laserWidth;
+            event.duration = barrelConfig.laserDuration;
+            event.damageInterval = barrelConfig.laserDamageInterval;
+            event.damage = mountParam.damage;
+            event.color = barrelConfig.effectColor;
+            pendingLaserShots_.push_back(event);
+        } else if (barrelConfig.weaponType == WeaponType::Mine) {
+            MineDropEvent event{};
+            event.position = muzzle;
+            event.radius = barrelConfig.mineRadius;
+            event.fuseTime = barrelConfig.mineFuseTime;
+            event.lifeTime = barrelConfig.mineLifeTime;
+            event.damage = mountParam.damage;
+            event.color = barrelConfig.effectColor;
+            pendingMineDrops_.push_back(event);
+        } else if (barrelConfig.weaponType == WeaponType::Melee) {
+            const float meleeDamageScale = meleeComboStepForShot == 0   ? barrelConfig.meleeCombo1DamageScale
+                                           : meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2DamageScale
+                                                                        : barrelConfig.meleeCombo3DamageScale;
+            const float meleeRangeScale = meleeComboStepForShot == 0   ? barrelConfig.meleeCombo1RangeScale
+                                          : meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2RangeScale
+                                                                       : barrelConfig.meleeCombo3RangeScale;
+            const float meleeWindup = meleeComboStepForShot == 0   ? barrelConfig.meleeCombo1Windup
+                                      : meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2Windup
+                                                                   : barrelConfig.meleeCombo3Windup;
+            const float meleeRecovery = meleeComboStepForShot == 0   ? barrelConfig.meleeCombo1Recovery
+                                        : meleeComboStepForShot == 1 ? barrelConfig.meleeCombo2Recovery
+                                                                     : barrelConfig.meleeCombo3Recovery;
+            MeleeSlashEvent event{};
+            event.origin = mountBase;
+            event.direction = fireDir;
+            event.range = barrelConfig.meleeRange * meleeRangeScale;
+            event.arcDeg = barrelConfig.meleeArcDeg;
+            event.width = barrelConfig.meleeWidth;
+            event.duration = barrelConfig.meleeDuration;
+            event.windupDuration = meleeWindup;
+            event.recoveryDuration = meleeRecovery;
+            event.damage = static_cast<uint32_t>((std::max)(1.0f, static_cast<float>(mountParam.damage) * meleeDamageScale));
+            event.color = barrelConfig.effectColor;
+            event.comboStep = meleeComboStepForShot;
+            pendingMeleeSlashes_.push_back(event);
+            meleeActionDuration = (std::max)(meleeActionDuration, meleeWindup + barrelConfig.meleeDuration + meleeRecovery);
+        } else {
+            if (runModifiers_.enabled) {
+                const size_t active = bulletManager->GetBulletCounts().player;
+                if (active >= 240)
+                    break;
+                mountParam.bulletCount = (std::min)(mountParam.bulletCount, static_cast<int>(240 - active));
+            }
+            mountParam.bulletSpeed *= barrelConfig.projectileSpeedScale;
+            attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
+            if (index < barrels_.size()) {
+                barrels_[index].muzzleFlashTimer = kMuzzleFlashDuration;
+            }
+            SpawnCasing();
+        }
+        if (index < barrels_.size()) {
+            barrels_[index].recoilOffset = 0.22f;
+        }
+    }
 
-	const float reloadTime = (std::max)({baseReload * config.reloadScale * firedReloadScale, meleeActionDuration,
-		expeditionCombatStyleSelected_?0.05f:0.0f});
-	if (usesGroupCooldowns && selectedGroupSlot >= 0 && static_cast<size_t>(selectedGroupSlot) < weaponGroupCooldowns_.size()) {
-		weaponGroupCooldowns_[static_cast<size_t>(selectedGroupSlot)] = reloadTime;
-		bulletCoolTime = 0.0f;
-	} else {
-		bulletCoolTime = reloadTime;
-	}
-	const float combinedRecoilLength = cg2::Length(combinedRecoil);
-	if (combinedRecoilLength > 0.0001f) {
-		recoilDir = combinedRecoil * (1.0f / combinedRecoilLength);
-		recoilPower = config.recoilPower * combinedRecoilLength;
-	} else {
-		recoilDir = cg2::Normalize(dir_) * -1.0f;
-		recoilPower = 0.0f;
-	}
-	return true;
+    // 発射間隔は秒。今回の斬撃が終わる時間も含め、選択したグループだけ、または全体の待ち時間を更新する。
+    const float reloadTime = (std::max)({baseReload * config.reloadScale * firedReloadScale, meleeActionDuration,
+                                         expeditionCombatStyleSelected_ ? 0.05f : 0.0f});
+    if (usesGroupCooldowns && selectedGroupSlot >= 0 && static_cast<size_t>(selectedGroupSlot) < weaponGroupCooldowns_.size()) {
+        weaponGroupCooldowns_[static_cast<size_t>(selectedGroupSlot)] = reloadTime;
+        bulletCoolTime = 0.0f;
+    } else {
+        bulletCoolTime = reloadTime;
+    }
+    const float combinedRecoilLength = cg2::Length(combinedRecoil);
+    if (combinedRecoilLength > 0.0001f) {
+        recoilDir = combinedRecoil * (1.0f / combinedRecoilLength);
+        recoilPower = config.recoilPower * combinedRecoilLength;
+    } else {
+        recoilDir = cg2::Normalize(dir_) * -1.0f;
+        recoilPower = 0.0f;
+    }
+    return true;
 }
 
 cg2::Vector3 Player::RotateDirection(const cg2::Vector3& direction, float angleDeg) const

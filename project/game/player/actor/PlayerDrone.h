@@ -22,48 +22,51 @@ public:
     /// @brief デストラクタ
     ~PlayerDrone();
 
-    /// @brief 攻撃
+    /// @brief 遠征では護衛中に設定した射撃を行い、旧方式ではマウス入力で射撃する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Attack(float deltaTime = 1.0f / 60.0f);
-    /// @brief 遠征攻撃を利用条件を設定する。
+    /// @brief 遠征射撃を有効にし、射撃設定をコピーする。1回の弾数は1に固定する。
+    /// @param reloadSeconds 発射間隔（秒）。最低0.05秒に補正する。
     void ConfigureRunAttack(const AttackParam& param, float reloadSeconds);
-    /// @brief 遠征Exactダメージを設定する。
+    /// @brief 射撃ごとに小数の余りを繰り越す威力を設定する。負値は0、1未満ならこの補正を使わない。
     void SetRunExactDamage(float amount)
     {
         runExactDamage_ = (std::max)(0.0f, amount);
     }
-    /// @brief 遠征入力を設定する。
+    /// @brief マウス入力に代わる照準のワールド座標と射撃入力を設定し、入力の上書きを有効にする。
     void SetRunInput(const cg2::Vector3& target, bool attack)
     {
         runInputOverride_ = true;
         runAimTarget_ = target;
         runWantsAttack_ = attack;
     }
-    /// @brief 遠征追従差分を設定する。
+    /// @brief 自機のワールド座標へ加える追従先のオフセットを設定する。
     void SetRunFollowOffset(const cg2::Vector3& offset)
     {
         runFollowOffset_ = offset;
     }
-    /// @brief 遠征追従調整値を設定する。
+    /// @brief 追従の基準速度・追い付き速度の上限・指数補間の応答係数を設定する。
+    /// @note speed・catchupは60FPS相当の基準1フレームの移動量、responseは毎秒の応答係数。
     void SetRunFollowTuning(float speed, float catchup, float response)
     {
         runFollowSpeed_ = speed;
         runCatchupSpeed_ = catchup;
         runFollowResponse_ = response;
     }
-    /// @brief 遠征中の攻撃強化を現在の攻撃へ反映する。
+    /// @brief 射撃の待ち時間を解除し、次の護衛射撃を要求する。入力の上書き中はそちらの射撃入力を使う。
     void RallyRunAttack()
     {
         runShotCooldown_ = 0.0f;
         runRallyShotPending_ = true;
     }
-    /// @brief 遠征所有者を設定する。
+    /// @brief 生成する弾へ渡す自機の借用先とドローンの添字を設定する。所有権は移らない。
     void SetRunOwner(Player* player, int index)
     {
         runAttackParam_.sourcePlayer = player;
         runAttackParam_.sourceDroneIndex = index;
     }
-    /// @brief 遠征任務を開始する。
+    /// @brief 護衛中なら対象のワールド座標を記録して突撃の予告を開始し、trueを返す。
+    /// @note 開始できなければ対象位置も変更しない。bombがtrueなら到着後に再構築へ進む。
     bool StartRunMission(const cg2::Vector3& target, bool bomb)
     {
         if (!mission_.Start(bomb))
@@ -71,17 +74,17 @@ public:
         missionTarget_ = target;
         return true;
     }
-    /// @brief 遠征任務を返す。
+    /// @brief 現在の任務状態への読み取り専用参照を返す。
     const tankspecial::DroneMission& GetRunMission() const
     {
         return mission_;
     }
-    /// @brief 遠征任務対象を返す。
+    /// @brief 任務開始時に記録した対象のワールド座標への読み取り専用参照を返す。
     const cg2::Vector3& GetRunMissionTarget() const
     {
         return missionTarget_;
     }
-    /// @brief 遠征利用可能であるか判定する。
+    /// @brief 死亡中・再構築中でなければtrue。新しい任務を開始できるかとは別の判定。
     bool IsRunAvailable() const
     {
         return !isDead_ && mission_.Available();
@@ -91,7 +94,7 @@ public:
     {
         return mission_.ConsumeImpact();
     }
-    /// @brief 遠征Rebuiltの未処理分を取り出し、内部の保留分を消費済みにする。
+    /// @brief 再構築完了の有無を返し、保留フラグを解除する。
     bool ConsumeRunRebuilt()
     {
         const bool value = rebuilt_;
@@ -99,7 +102,7 @@ public:
         return value;
     }
 
-    /// @brief マウスの方を向く
+    /// @brief 遠征射撃の入力上書き中は指定したワールド座標へ、それ以外はマウスの照準へ向きを更新する。
     void RotateToMouse(cg2::Camera* viewProjection);
 
     /// @brief 初期化
@@ -107,14 +110,14 @@ public:
     /// @param position 初期座標
     void Initialize(const cg2::Vector3& position, const cg2::Vector3& velocity);
 
-    /// @brief 更新
+    /// @brief 任務を進めて自機または突撃先へ移動し、地形との衝突を解決して射撃する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Update(cg2::Camera* viewProjection, Stage& stage, const cg2::Vector3& playerPosition, float deltaTime = 1.0f / 60.0f);
 
     /// @brief 描画
     void Draw();
-    // The arena renders companions with the same authored neon geometry as tanks.
     /// @brief ネオン表示を設定する。
+    /// @note 有効なら通常モデルをDrawで描かず、シーン側で機体と同じ制作データのネオン形状を使う。
     void SetNeonVisual(bool enabled)
     {
         neonVisual_ = enabled;
@@ -124,7 +127,7 @@ public:
     {
         return neonVisual_;
     }
-    /// @brief 表示表示中であるか判定する。
+    /// @brief 死亡・再構築と無敵時間の点滅条件から、現在の表示可否を返す。
     bool IsVisualVisible() const;
     /// @brief 照準方向を返す。
     const cg2::Vector3& GetAimDirection() const
@@ -140,10 +143,11 @@ public:
         return (std::clamp)((runShotCooldown_ - runReloadSeconds_ + flashSeconds) / flashSeconds, 0.0f, 1.0f);
     }
 
-    /// @brief スプライト描画
+    /// @brief 互換用の空処理。現在はスプライトを描画しない。
     void DrawSprite();
 
-    /// @brief 衝突判定
+    /// @brief 成立した接触を受け、対象の属性に応じてHPと押し出し速度を更新する。
+    /// @note otherはnullptr不可。再構築中と資源は対象外。HP減少時に無敵時間は検査しない。
     void OnCollision(Collider* other) override;
 
     // ワールド座標を取得
@@ -165,7 +169,7 @@ public:
         velocity_ = v;
     }
 
-    // セッター
+    /// @brief ワールド座標を設定し、描画オブジェクトへ反映する。
     void SetWorldPosition(const cg2::Vector3& pos)
     {
         worldTransform_.translate = pos;
@@ -176,10 +180,10 @@ public:
     /// @brief AABBを返す。
     cg2::AABB GetAABB();
 
-    /// @brief 指定ダメージを戦闘状態へ反映する。
+    /// @brief 無敵時間が切れていればHPを1減らし、2秒の無敵時間を設定する。死亡判定は後の更新で行う。
     void Damage();
 
-    /// @brief 死亡状態にし、以降の攻撃・衝突などの対象から外す。
+    /// @brief 死亡フラグを設定する。既に死亡中なら何もしない。所有側の配列からは削除しない。
     void Die();
 
     /// @brief 死亡であるか判定する。
@@ -192,13 +196,13 @@ public:
     {
         return hp_;
     }
-    /// @brief 最大値HPを返す。
+    /// @brief 最大HPを返す。
     int GetMaxHp() const
     {
         return kMaxHp;
     }
 
-    /// @brief 攻撃制御弾管理を設定する。
+    /// @brief 通常射撃と遠征射撃で使う弾管理先を借用する。射撃中は有効な管理先を保つ。
     void SetAttackControllerBulletManager(BulletManager* bulletManager)
     {
         attackController_.SetBulletManager(bulletManager);
