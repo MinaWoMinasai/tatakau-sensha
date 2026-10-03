@@ -85,6 +85,8 @@ function Test-TankSubmissionExcludedPath([string]$RelativePath, [bool]$AllowPrep
     # Repository-owned Developer Preview input; not used by the Release runtime yet.
     # Remove this exact-file exclusion when the avatar becomes a shipped Boss asset.
     if ($resourcePath -eq 'models/neon_hologram/AvatarSample_B.glb') { return $true }
+    # Authored line-mask candidates and their configuration are Preview-only.
+    if ($resourcePath -match '^models/neon_hologram/line_masks/') { return $true }
     # Retired standalone startup project only; levels/tank_run.json remains shared.
     if ($resourcePath -eq 'projects/tank_run.project.json') { return $true }
     if ($resourcePath -in (Get-TankSubmissionRetiredLabResourcePaths)) { return $true }

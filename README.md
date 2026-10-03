@@ -100,7 +100,7 @@ MSBuild.exe project/CG2.sln /m /p:Configuration=Release /p:Platform=x64 /p:CG2De
 
 `.vcxproj` 自体には Debug 定義もありますが、`CG2.sln` から Debug を選ぶと両プロジェクトとも Development をビルドします。既存設定を維持しており、Debug と Development を独立した検証結果として扱わないでください。
 
-Neon Skinned PreviewはPowerShell不要で確認できます。Visual StudioでDevelopment / x64を選び、F5またはCtrl+F5で通常起動 → タイトルの「遠征をはじめる」 → F3「制作ツール」の「Neon Skinned Previewを開く」 → `Preview Enable`をオンにします。F12の「Neon Preview」タブからも開けます。`Normal` / `Neon`で同じAvatarSample_Bの描画を比較できます。初回は顔を優先する`Recommended Line Art`で、暗いBodyの弱い発光 + ピンクの外周線 + Texture内部線を表示します。`Legacy Neon comparison`で同じ停止姿勢の調整前と比較でき、Geometry Linesは通常OFFの診断用として残ります。[操作・モデル情報](project/resources/models/neon_hologram/README.md)。Releaseでは無効です。
+Neon Skinned PreviewはPowerShell不要で確認できます。Visual StudioでDevelopment / x64を選び、F5またはCtrl+F5で通常起動 → タイトルの「遠征をはじめる」 → F3「制作ツール」の「Neon Skinned Previewを開く」 → `Preview Enable`をオンにします。F12の「Neon Preview」タブからも開けます。`Normal` / `Neon`で同じAvatarSample_Bの描画を比較できます。初回は顔を優先する`Recommended Line Art`で、暗いBodyの弱い発光 + ピンクの外周線 + Texture内部線を表示します。`Legacy Neon comparison`で同じ停止姿勢の調整前と比較でき、Geometry Linesは通常OFFの診断用として残ります。`Authored Feature Mask (candidate)`の`Load / apply mask candidate`で顔・前髪の専用線候補を読み込み、`Auto lines only` / `Apply candidate`で外観・再生位置を保った比較ができます。[操作・モデル情報](project/resources/models/neon_hologram/README.md)、[マスク仕様・再生成](project/resources/models/neon_hologram/line_masks/README.md)。Releaseでは無効です。
 
 ### 3. 起動する
 

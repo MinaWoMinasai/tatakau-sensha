@@ -2,6 +2,8 @@
 #define NEON_SKINNED_SURFACE_HLSLI
 
 Texture2D<float4> gBaseColorTexture : register(t0);
+// LinearData: R=線coverage、G=自動線の置換領域。B/Aは使用しない。
+Texture2D<float4> gFeatureMaskTexture : register(t1);
 SamplerState gSurfaceSampler : register(s0);
 cbuffer NeonSubmeshConstants : register(b2)
 {
@@ -14,6 +16,18 @@ cbuffer NeonSubmeshConstants : register(b2)
 float4 SampleNeonSurface(float2 uv, float2 uvDx, float2 uvDy)
 {
     return gBaseColorTexture.SampleGrad(gSurfaceSampler, uv, uvDx, uvDy);
+}
+
+float2 SampleNeonFeatureMask(float2 uv, float2 uvDx, float2 uvDy)
+{
+    return saturate(gFeatureMaskTexture.SampleGrad(gSurfaceSampler, uv, uvDx, uvDy).rg);
+}
+
+float3 CompositeNeonInternalEmission(float internalLine, float2 mask)
+{
+    float3 automatic = max(gEmissiveColor, 0.0f) * max(gInternalLineIntensity, 0.0f) * internalLine;
+    float3 authored = mask.r * max(gFeatureMaskColor, 0.0f) * max(gFeatureMaskIntensity, 0.0f);
+    return lerp(automatic, authored, saturate(gFeatureMaskBlend * mask.g));
 }
 
 void ApplyNeonAlphaCutout(float alpha)

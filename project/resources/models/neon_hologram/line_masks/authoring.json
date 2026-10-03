@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "model_sha256": "7FCA4A77FDC60AB2C78A9907430744562626180125FA386EB74FB2EA15C2E518",
+  "uv_origin": "TEXCOORD_0, image top-left; no additional V flip",
+  "supersample": 4,
+  "selection": "Agent-selected curves following inspected original texture and UV triangles, not an all-image edge filter or author-approved artwork",
+  "masks": [
+    {
+      "file": "face_candidate.png",
+      "base_color_image": 0,
+      "size": 1024,
+      "replace_regions": [
+        {"name": "left eyelid only", "polygon": [[0.130,0.240],[0.213,0.240],[0.213,0.298],[0.130,0.298]]},
+        {"name": "right eyelid only", "polygon": [[0.287,0.240],[0.370,0.240],[0.370,0.298],[0.287,0.298]]},
+        {"name": "closed lips only", "polygon": [[0.207,0.364],[0.293,0.364],[0.293,0.394],[0.207,0.394]]},
+        {"name": "left iris texture details", "polygon": [[0.060,0.800],[0.196,0.800],[0.196,0.948],[0.060,0.948]]},
+        {"name": "right iris texture details", "polygon": [[0.304,0.800],[0.440,0.800],[0.440,0.948],[0.304,0.948]]}
+      ],
+      "curves": [
+        {"name": "left upper eyelid", "width_texels": 1.6, "points": [[0.144,0.266],[0.158,0.250],[0.188,0.251],[0.201,0.268]]},
+        {"name": "left lower eyelid", "width_texels": 1.1, "coverage": 0.75, "points": [[0.145,0.274],[0.163,0.290],[0.187,0.287],[0.199,0.273]]},
+        {"name": "right upper eyelid", "width_texels": 1.6, "points": [[0.299,0.268],[0.312,0.251],[0.342,0.250],[0.356,0.266]]},
+        {"name": "right lower eyelid", "width_texels": 1.1, "coverage": 0.75, "points": [[0.301,0.273],[0.313,0.287],[0.337,0.290],[0.355,0.274]]},
+        {"name": "closed mouth upper", "width_texels": 1.3, "points": [[0.218,0.378],[0.236,0.375],[0.264,0.375],[0.282,0.378]]},
+        {"name": "closed mouth lower", "width_texels": 0.9, "coverage": 0.65, "points": [[0.223,0.381],[0.240,0.382],[0.260,0.382],[0.277,0.381]]},
+        {"name": "left iris top", "width_texels": 1.2, "points": [[0.075,0.877],[0.075,0.790],[0.185,0.790],[0.185,0.877]]},
+        {"name": "left iris bottom", "width_texels": 1.2, "points": [[0.185,0.877],[0.185,0.964],[0.075,0.964],[0.075,0.877]]},
+        {"name": "right iris top", "width_texels": 1.2, "points": [[0.315,0.877],[0.315,0.790],[0.425,0.790],[0.425,0.877]]},
+        {"name": "right iris bottom", "width_texels": 1.2, "points": [[0.425,0.877],[0.425,0.964],[0.315,0.964],[0.315,0.877]]},
+        {"name": "left pupil", "width_texels": 1.2, "coverage": 0.8, "points": [[0.130,0.840],[0.132,0.855],[0.132,0.877],[0.130,0.889]]},
+        {"name": "right pupil", "width_texels": 1.2, "coverage": 0.8, "points": [[0.370,0.840],[0.368,0.855],[0.368,0.877],[0.370,0.889]]}
+      ]
+    },
+    {
+      "file": "bangs_candidate.png",
+      "base_color_image": 3,
+      "size": 1024,
+      "replace_regions": [
+        {"name": "front bangs only, avoid shared side/back atlas islands", "polygon": [[0.542,0.160],[0.685,0.160],[0.685,0.365],[0.542,0.365]]}
+      ],
+      "curves": [
+        {"name": "left bang flow", "width_texels": 1.4, "points": [[0.565,0.169],[0.568,0.228],[0.560,0.293],[0.553,0.344]]},
+        {"name": "middle bang flow", "width_texels": 1.4, "points": [[0.611,0.168],[0.608,0.223],[0.615,0.292],[0.619,0.351]]},
+        {"name": "right bang flow", "width_texels": 1.4, "points": [[0.662,0.170],[0.667,0.225],[0.657,0.288],[0.651,0.342]]}
+      ]
+    }
+  ]
+}

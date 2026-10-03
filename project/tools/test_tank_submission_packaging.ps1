@@ -38,6 +38,10 @@ Write-Fixture 'project/resources/models/tank.obj'
 Write-Fixture 'project/resources/models/neon_hologram/AvatarSample_B.glb' 'Developer preview model'
 Write-Fixture 'project/resources/models/neon_hologram/shipped_neighbor.glb' 'Unrelated runtime model'
 Write-Fixture 'project/resources/models/neon_hologram/README.md' 'Model attribution'
+$previewMasks = @('line_masks/face_candidate.png', 'line_masks/bangs_candidate.png',
+    'line_masks/bindings.json', 'line_masks/mask_input.json', 'line_masks/README.md', 'line_masks/nested/candidate.png')
+foreach ($name in $previewMasks) { Write-Fixture "project/resources/models/neon_hologram/$name" 'Developer preview line-mask data' }
+Write-Fixture 'project/resources/models/neon_hologram/line_masks_neighbor/shipped_mask.png' 'Unrelated runtime mask'
 $sharedTankAssets = @('player3D.obj', 'player3D.mtl', 'ground.obj', 'ground.mtl', 'cube.obj', 'cube.mtl', 'white512x512.png', 'levels/tank_run.json')
 foreach ($name in $sharedTankAssets) { Write-Fixture "project/resources/$name" 'Shared Tank runtime asset' }
 $runtimeAudio = @('audio/tank_expedition/shot.wav', 'audio/tank_expedition/music_base.wav', 'bulletShoot.mp3')
@@ -70,6 +74,12 @@ Assert-True (Test-TankSubmissionExcludedPath 'resources/models/neon_hologram/Ava
 Assert-True (Test-TankSubmissionExcludedPath 'models/neon_hologram/AvatarSample_B.glb') 'Source copy permits the Developer avatar.'
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/neon_hologram/shipped_neighbor.glb')) 'Avatar exclusion affected a different model.'
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/neon_hologram/README.md')) 'Avatar attribution was incorrectly excluded.'
+foreach ($name in $previewMasks) {
+    Assert-True (!(Test-Path -LiteralPath (Join-Path $cleanOutput "resources/models/neon_hologram/$name"))) "Preview mask data was copied into Release: $name"
+    Assert-True (Test-TankSubmissionExcludedPath "resources/models/neon_hologram/$name") "Package verification permits Preview mask data: $name"
+    Assert-True (Test-TankSubmissionExcludedPath "models/neon_hologram/$name") "Source copy permits Preview mask data: $name"
+}
+Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/neon_hologram/line_masks_neighbor/shipped_mask.png')) 'Preview line_masks directory exclusion affected a sibling directory.'
 foreach ($name in $sharedTankAssets) {
     Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput "resources/$name")) "Runtime asset was incorrectly excluded: $name"
 }
@@ -131,6 +141,11 @@ $avatarOutput = Join-Path $tankPackageTestRoot 'with_developer_avatar'
 New-TankSubmissionPackage $tankPackageFixture $avatarOutput | Out-Null
 Copy-Item -LiteralPath (Join-Path $tankPackageFixture 'project/resources/models/neon_hologram/AvatarSample_B.glb') -Destination (Join-Path $avatarOutput 'resources/models/neon_hologram/AvatarSample_B.glb')
 Assert-Throws { Assert-TankSubmissionPackage $avatarOutput } 'Injected Developer avatar was accepted.'
+$maskOutput = Join-Path $tankPackageTestRoot 'with_developer_mask'
+New-TankSubmissionPackage $tankPackageFixture $maskOutput | Out-Null
+[IO.Directory]::CreateDirectory((Join-Path $maskOutput 'resources/models/neon_hologram/line_masks')) | Out-Null
+Copy-Item -LiteralPath (Join-Path $tankPackageFixture 'project/resources/models/neon_hologram/line_masks/face_candidate.png') -Destination (Join-Path $maskOutput 'resources/models/neon_hologram/line_masks/face_candidate.png')
+Assert-Throws { Assert-TankSubmissionPackage $maskOutput } 'Injected Developer line mask was accepted.'
 
 # Only an explicitly prepared, flat PNG directory may bypass the generated exclusion.
 $preparedDirectory = Join-Path $tankPackageTestRoot 'prepared_text'
