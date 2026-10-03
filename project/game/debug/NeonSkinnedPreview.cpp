@@ -134,6 +134,53 @@ void NeonSkinnedPreview::Draw() {
 	cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 }
 
+void NeonSkinnedPreview::ApplyGeometryPreset(GeometryPreset preset) {
+	if (!ready_) return;
+	geometryPreset_ = preset;
+	params_.geometryLineEnabled = preset == GeometryPreset::Off ? 0u : 1u;
+	params_.geometryLineWidthPixels = 1.0f; // 共有辺の両側を合わせた全幅。
+	params_.geometryLineIntensity = 4.0f;
+	params_.geometryLineColor = { 0.08f, 0.65f, 1.0f };
+	for (size_t index = 0; index < submeshParams_.size(); ++index) {
+		auto& strength = submeshParams_[index].geometryLineStrength;
+		strength = preset == GeometryPreset::FullMeshDiagnostic ? 1.0f : 0.0f;
+		if (preset != GeometryPreset::Subtle) continue;
+		// AvatarSample_BのGLB metadataと実ロード結果で確認したMaterial名。
+		// 顔・目・髪は0のまま。モデル固有の選別はPreview内に留める。
+		const auto& materialName = model_->GetSubmesh(index).materialName;
+		if (materialName == "N00_000_00_Body_00_SKIN (Instance)") strength = 0.2f;
+		else if (materialName == "N00_005_01_Shoes_01_CLOTH (Instance)") strength = 0.15f;
+	}
+}
+
+void NeonSkinnedPreview::DrawGeometryLinesImGui() {
+#ifdef USE_IMGUI
+	if (!ImGui::TreeNodeEx("Mesh Geometry Lines", ImGuiTreeNodeFlags_DefaultOpen)) return;
+	if (ready_) ImGui::TextWrapped("Barycentrics: %s", renderer_.GetGeometryLinesStatus().c_str());
+	else ImGui::TextWrapped("Barycentrics: enable Preview to check this device.");
+	ImGui::BeginDisabled(!ready_ || !renderer_.IsGeometryLinesSupported());
+	if (ImGui::RadioButton("OFF", geometryPreset_ == GeometryPreset::Off)) ApplyGeometryPreset(GeometryPreset::Off);
+	ImGui::SameLine();
+	if (ImGui::RadioButton("Subtle Geometry", geometryPreset_ == GeometryPreset::Subtle)) ApplyGeometryPreset(GeometryPreset::Subtle);
+	if (ImGui::RadioButton("Full Mesh Diagnostic", geometryPreset_ == GeometryPreset::FullMeshDiagnostic))
+		ApplyGeometryPreset(GeometryPreset::FullMeshDiagnostic);
+	bool geometryEnabled = params_.geometryLineEnabled != 0;
+	if (ImGui::Checkbox("Geometry Lines Enable", &geometryEnabled)) {
+		params_.geometryLineEnabled = geometryEnabled ? 1u : 0u;
+		geometryPreset_ = GeometryPreset::Custom;
+	}
+	if (ImGui::DragFloat("Geometry width (full pixels)", &params_.geometryLineWidthPixels,
+		0.05f, 0.0f, 8.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp)) geometryPreset_ = GeometryPreset::Custom;
+	if (ImGui::DragFloat("Geometry intensity (HDR)", &params_.geometryLineIntensity,
+		0.05f, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp)) geometryPreset_ = GeometryPreset::Custom;
+	if (ImGui::ColorEdit3("Geometry line color", &params_.geometryLineColor.x)) geometryPreset_ = GeometryPreset::Custom;
+	ImGui::EndDisabled();
+	ImGui::TextWrapped("Start with Subtle Geometry or Full Mesh Diagnostic; initial Submesh Geometry Strength is zero.");
+	ImGui::TextWrapped("Triangle mesh edges are independent of texture feature lines. Full Mesh Diagnostic includes face and hair triangles.");
+	ImGui::TreePop();
+#endif
+}
+
 void NeonSkinnedPreview::DrawImGui() {
 #ifdef USE_IMGUI
 	if (!ImGui::CollapsingHeader("Neon Skinned Preview", ImGuiTreeNodeFlags_DefaultOpen)) return;
@@ -173,6 +220,7 @@ void NeonSkinnedPreview::DrawImGui() {
 		ImGui::EndDisabled();
 		ImGui::TextWrapped("Pause freezes playback and blend. Seek ends the blend and shows the exact sampled pose.");
 	}
+	DrawGeometryLinesImGui();
 	ImGui::DragFloat3("Position", &transform_.translate.x, 0.1f);
 	ImGui::DragFloat3("Rotation (radians)", &transform_.rotate.x, 0.01f);
 	ImGui::DragFloat3("Scale", &transform_.scale.x, 0.05f, 0.01f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
@@ -180,6 +228,7 @@ void NeonSkinnedPreview::DrawImGui() {
 	if (ImGui::Button("Reset: dark body + neon lines")) {
 		params_ = cg2::NeonSkinnedParams{};
 		params_.internalLineEnabled = 1;
+		geometryPreset_ = GeometryPreset::Off;
 	}
 	ImGui::ColorEdit3("bodyColor", &params_.bodyColor.x);
 	bool outlineEnabled = params_.outlineEnabled != 0;
@@ -217,6 +266,10 @@ void NeonSkinnedPreview::DrawImGui() {
 				source ? source->alphaMode.c_str() : "Unknown", submesh.doubleSided ? "true" : "false");
 			ImGui::DragFloat("Line strength", &submeshParams_[i].lineStrength, 0.02f, 0.0f, 2.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 			ImGui::DragFloat("Alpha cutoff", &submeshParams_[i].alphaCutoff, 0.01f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::BeginDisabled(!renderer_.IsGeometryLinesSupported());
+			if (ImGui::DragFloat("Geometry strength", &submeshParams_[i].geometryLineStrength,
+				0.02f, 0.0f, 2.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp)) geometryPreset_ = GeometryPreset::Custom;
+			ImGui::EndDisabled();
 			ImGui::PopID();
 		}
 		ImGui::TreePop();

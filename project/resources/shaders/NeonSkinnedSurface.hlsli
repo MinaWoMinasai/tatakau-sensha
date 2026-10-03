@@ -7,6 +7,7 @@ cbuffer NeonSubmeshConstants : register(b2)
 {
     float gSubmeshLineStrength;
     float gAlphaCutoff;
+    float gSubmeshGeometryStrength;
 };
 
 float4 SampleNeonSurface(float2 uv, float2 uvDx, float2 uvDy)

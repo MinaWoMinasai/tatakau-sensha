@@ -3,6 +3,7 @@
 #include "Struct.h"
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 #include <d3d12.h>
 #include <wrl.h>
@@ -27,14 +28,23 @@ struct NeonSkinnedParams {
     float internalLineWidthPixels = 1.0f;
     float internalLineIntensity = 8.0f;
     float internalLineThreshold = 0.12f;
+    Vector3 geometryLineColor = {0.08f, 0.65f, 1.0f};
+    float geometryLineIntensity = 4.0f;
+    uint32_t geometryLineEnabled = 0; // 既存の外観を維持。対応Deviceで明示的に有効化する。
+    float geometryLineWidthPixels = 1.0f; // 共有辺を挟む全幅。各三角形側はこの半幅。
+    float geometryPadding[2]{};
 };
 
-static_assert(sizeof(NeonSkinnedParams) == 64);
+static_assert(sizeof(NeonSkinnedParams) == 96);
 static_assert(offsetof(NeonSkinnedParams, emissiveColor) == 16);
 static_assert(offsetof(NeonSkinnedParams, rimStrength) == 32);
 static_assert(offsetof(NeonSkinnedParams, outlineWidthPixels) == 40);
 static_assert(offsetof(NeonSkinnedParams, outlineEnabled) == 44);
 static_assert(offsetof(NeonSkinnedParams, internalLineEnabled) == 48);
+static_assert(offsetof(NeonSkinnedParams, geometryLineColor) == 64);
+static_assert(offsetof(NeonSkinnedParams, geometryLineIntensity) == 76);
+static_assert(offsetof(NeonSkinnedParams, geometryLineEnabled) == 80);
+static_assert(offsetof(NeonSkinnedParams, geometryLineWidthPixels) == 84);
 
 // Texture由来の特徴線と任意のAlpha Cutout。空の設定では通常の不透明Neonを維持する。
 // alphaCutoff=0はCutoutなし。BLENDのソート/半透明合成は実装しない。
@@ -42,8 +52,10 @@ static_assert(offsetof(NeonSkinnedParams, internalLineEnabled) == 48);
 struct NeonSkinnedSubmeshParams {
     float lineStrength = 1.0f;
     float alphaCutoff = 0.0f;
+    float geometryLineStrength = 0.0f; // Texture特徴線とは独立。既定では構造線を出さない。
 };
-static_assert(sizeof(NeonSkinnedSubmeshParams) == 8);
+static_assert(sizeof(NeonSkinnedSubmeshParams) == 12);
+static_assert(offsetof(NeonSkinnedSubmeshParams, geometryLineStrength) == 8);
 
 // 既存SkinnedModelのGeometryと更新済みPaletteのみを利用する、独立した不透明Sceneパス。
 // 通常の3枚のScene MRT (HDR / Normal / Material) + D24S8を呼び出し側でBindすること。
@@ -61,7 +73,10 @@ public:
     NeonSkinnedRenderer& operator=(const NeonSkinnedRenderer&) = delete;
 
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
-    void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
+    // falseは任意機能のパイプラインを作らず従来描画を使う（比較・フォールバック検証用）。
+    void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, bool enableGeometryLinePipeline = true);
+    bool IsGeometryLinesSupported() const { return geometryLinesSupported_; }
+    const std::string& GetGeometryLinesStatus() const { return geometryLinesStatus_; }
     // 前フレームのGPU実行完了後、フレーム開始時に一度だけ呼ぶ。Draw用CB領域を再利用する。
     void BeginFrame();
     /// @brief パラメーターを設定する。
@@ -93,9 +108,9 @@ private:
         Vector2 viewportSize{};
         float viewportPadding[2]{};
     };
-    static_assert(sizeof(GpuConstants) == 96);
-    static_assert(offsetof(GpuConstants, cameraWorldPosition) == 64);
-    static_assert(offsetof(GpuConstants, viewportSize) == 80);
+    static_assert(sizeof(GpuConstants) == 128);
+    static_assert(offsetof(GpuConstants, cameraWorldPosition) == 96);
+    static_assert(offsetof(GpuConstants, viewportSize) == 112);
 
     /// @brief 1回の描画に使う定数バッファとマップ先を保持する。
     struct DrawConstantBuffer {
@@ -117,6 +132,8 @@ private:
     Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> doubleSidedPipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> geometryPipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> doubleSidedGeometryPipelineState_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> outlinePipelineState_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> doubleSidedOutlinePipelineState_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> stencilClearPipelineState_;
@@ -124,6 +141,8 @@ private:
     std::vector<NeonSkinnedSubmeshParams> submeshParams_;
     std::vector<DrawConstantBuffer> drawConstantBuffers_;
     size_t nextDrawIndex_ = 0;
+    bool geometryLinesSupported_ = false;
+    std::string geometryLinesStatus_ = "Not initialized.";
 };
 
 } // namespace cg2
