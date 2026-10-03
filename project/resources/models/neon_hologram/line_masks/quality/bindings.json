@@ -57,7 +57,7 @@
           "sdfSha256": "8CE51A50B8258F2690D30D639977780991B31D4E12C0FDB1F857996872AFBA96"
         }
       ],
-      "authoringSha256": "1C729BE36251189BD97BE2BDD2546D9E24BA194FB18D1E7B732A93B86B8DD639",
+      "authoringSha256": "A86676CFB21311E3888E5C3552DC68568BAE8F899E2CF4D1B714DEA8DAFACBBB",
       "authoringVersionSha256": "A3D74057FAD41099FA705F9A8139EDEF9C76A2121F33AA9861DB280C6027A63B",
       "authoringRevision": "v1-r1"
     },
@@ -110,9 +110,62 @@
           "sdfSha256": "0A9BAD5B5F0B6BA9802045EA895354478B2778B9A641BAF3DA79304D9F4FE3BE"
         }
       ],
-      "authoringSha256": "1C729BE36251189BD97BE2BDD2546D9E24BA194FB18D1E7B732A93B86B8DD639",
+      "authoringSha256": "A86676CFB21311E3888E5C3552DC68568BAE8F899E2CF4D1B714DEA8DAFACBBB",
       "authoringVersionSha256": "CD17447455D9846DF8E2325A5B583CC081D079E62F7DF71EB40B0C617126B0ED",
       "authoringRevision": "v2-iris-hair-r2"
+    },
+    {
+      "id": "v3",
+      "bindings": [
+        {
+          "material": "N00_000_00_FaceMouth_00_FACE (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v3_coverage.png",
+          "sdfFile": "face_v3_sdf.png",
+          "coverageSha256": "75412A84D06C9176D24CB23134098D502A3F7BE3A3639EFBE8B1680EFFEE54FB",
+          "sdfSha256": "C3E48E2295814765CF15ACF706479FC575041592F95FC06A01077419F68EF77E"
+        },
+        {
+          "material": "N00_000_00_EyeIris_00_EYE (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v3_coverage.png",
+          "sdfFile": "face_v3_sdf.png",
+          "coverageSha256": "75412A84D06C9176D24CB23134098D502A3F7BE3A3639EFBE8B1680EFFEE54FB",
+          "sdfSha256": "C3E48E2295814765CF15ACF706479FC575041592F95FC06A01077419F68EF77E"
+        },
+        {
+          "material": "N00_000_00_EyeHighlight_00_EYE (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v3_coverage.png",
+          "sdfFile": "face_v3_sdf.png",
+          "coverageSha256": "75412A84D06C9176D24CB23134098D502A3F7BE3A3639EFBE8B1680EFFEE54FB",
+          "sdfSha256": "C3E48E2295814765CF15ACF706479FC575041592F95FC06A01077419F68EF77E"
+        },
+        {
+          "material": "N00_000_00_Face_00_SKIN (Instance)",
+          "uvSet": 0,
+          "role": "face",
+          "coverageFile": "face_v3_coverage.png",
+          "sdfFile": "face_v3_sdf.png",
+          "coverageSha256": "75412A84D06C9176D24CB23134098D502A3F7BE3A3639EFBE8B1680EFFEE54FB",
+          "sdfSha256": "C3E48E2295814765CF15ACF706479FC575041592F95FC06A01077419F68EF77E"
+        },
+        {
+          "material": "N00_000_Hair_00_HAIR_01 (Instance)",
+          "uvSet": 0,
+          "role": "bangs",
+          "coverageFile": "bangs_v3_coverage.png",
+          "sdfFile": "bangs_v3_sdf.png",
+          "coverageSha256": "52EE77B9B629C5AEF9B7A542380B1F6CF4C23B4A1559D9B3F5EA3EC0A19A6435",
+          "sdfSha256": "C9E9717B94B9234B128B64938E264F49BDDD0D6425C6B8F396195FD33DB90D53"
+        }
+      ],
+      "authoringSha256": "A86676CFB21311E3888E5C3552DC68568BAE8F899E2CF4D1B714DEA8DAFACBBB",
+      "authoringVersionSha256": "E31C6C7C5186398AEAF27873FC5D649417AA0467F49832475B34509AB3A7CFAC",
+      "authoringRevision": "v3-local-hair-r1"
     }
   ],
   "dataType": "LinearData_RGBA8",

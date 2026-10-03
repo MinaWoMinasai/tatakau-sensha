@@ -10,6 +10,7 @@
 #include "SkinCluster.h"
 #include "DirectX/engine/3d/neon/NeonSkinnedRenderer.h"
 #include "NeonShowcaseCapture.h"
+#include "NeonDissolvePreviewController.h"
 #include <memory>
 #include <optional>
 #include <string>
@@ -20,6 +21,7 @@
 /// @brief 開発画面でスキニングモデルとネオン材質を表示・調整する。
 class NeonSkinnedPreview {
 public:
+    ~NeonSkinnedPreview();
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(cg2::Camera* camera, cg2::DebugCamera* debugCamera);
     // 前フレームのFence完了後、Camera更新後に1フレーム1回呼ぶ。
@@ -75,6 +77,16 @@ private:
     void AdvanceShowcaseComparison();
     void ApplyShowcaseComparisonCase();
     void FinishShowcaseComparison(const std::string& status);
+    bool TriggerDissolve();
+    void ResetDissolve();
+    void DrawDissolveImGui();
+    void StartDissolveComparison();
+    void AdvanceDissolveComparison();
+    void ApplyDissolveComparisonCase();
+    void FinishDissolveComparison(const std::string& status);
+    void StartDissolveSequence();
+    void UpdateDissolveSequence(bool afterPoseUpdate);
+    void FinishDissolveSequence();
     nlohmann::json MakeShowcaseMetadata() const;
     /// @brief プレビュー対象をカメラの前へ配置する。
     void PlaceInFrontOfCamera();
@@ -146,5 +158,22 @@ private:
     std::string showcaseCaptureDirectory_;
     std::string showcaseSequenceDirectory_;
     std::string showcaseTimingStatus_;
+    NeonDissolvePreviewController dissolve_;
+    cg2::NeonDissolveParams dissolveSettings_{};
+    int dissolveDirection_ = 0;
+    float dissolveWait_ = 0.15f, dissolveDuration_ = 2.0f;
+    bool restorePoseThisFrame_ = false;
+    bool dissolveComparisonActive_ = false, dissolveComparisonFrameRecorded_ = false;
+    unsigned dissolveComparisonIndex_ = 0;
+    cg2::NeonDissolveParams dissolveComparisonParams_{};
+    NeonDissolvePreviewController dissolveComparisonController_;
+    cg2::SkinnedModel::AnimationPlaybackState dissolveComparisonPlayback_;
+    cg2::NeonDissolveParams dissolveComparisonOriginalParams_{};
+    std::string dissolveComparisonDirectory_, dissolveComparisonStatus_;
+    bool dissolveSequence_ = false;
+    unsigned dissolveSequenceLastEventFrame_ = UINT32_MAX;
+    cg2::SkinnedModel::AnimationPlaybackState dissolveSequencePlayback_;
+    bool dissolveSequenceOriginalOrbit_ = false;
+    float dissolveSequenceOriginalYaw_ = 0.0f;
 };
 #endif

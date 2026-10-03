@@ -775,6 +775,18 @@
     <ClInclude Include="game\debug\NeonSkinnedPreview.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClCompile Include="game\debug\NeonDissolvePreviewController.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClInclude Include="game\debug\NeonDissolvePreviewController.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\3d\neon\NeonDissolve.h">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClInclude>
+    <None Include="resources\shaders\NeonDissolve.hlsli">
+      <Filter>DirectX\shaders</Filter>
+    </None>
     <ClCompile Include="game\debug\NeonShowcaseCapture.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>

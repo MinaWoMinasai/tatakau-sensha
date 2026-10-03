@@ -46,6 +46,7 @@ NeonSkinnedVertexOutput SkinNeonVertex(VertexShaderInput input)
     float3 normal = mul(skinnedNormal, (float3x3)gTransformationMatrix.WorldInverseTranspose);
     output.worldNormal = normal * rsqrt(max(dot(normal, normal), 1.0e-8f));
     output.texcoord = input.texcoord;
+    output.skinnedModelPosition = skinnedPosition.xyz;
     return output;
 }
 #endif

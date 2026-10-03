@@ -21,6 +21,60 @@ class QualityDataTests(unittest.TestCase):
         for name, expected in self.config["comparisonBaseSha256"].items():
             actual = hashlib.sha256((quality.ASSETS.parent/name).read_bytes()).hexdigest().upper()
             self.assertEqual(actual, expected, name)
+        quality.validate_preserved_sources(self.config, quality.ASSETS)
+
+    def test_v3_preserves_faces_and_only_attenuates_one_hair_tail(self):
+        import copy
+        v2, v3 = self.config["versions"][1:]
+        self.assertEqual(v3["revision"], "v3-local-hair-r1")
+        self.assertEqual(v2["masks"][0], v3["masks"][0])
+        for kind in ("coverage", "sdf"):
+            self.assertEqual((quality.ASSETS/("face_v2_"+kind+".png")).read_bytes(),
+                             (quality.ASSETS/("face_v3_"+kind+".png")).read_bytes())
+        before, after = v2["masks"][1], copy.deepcopy(v3["masks"][1])
+        profile = after["curves"][0].pop("localTailProfile")
+        self.assertEqual(before, after)
+        self.assertEqual(profile, {"startT":.72,"endWidthTexels":1.2,"endOpacity":.25})
+        self.assertNotEqual((quality.ASSETS/"bangs_v2_coverage.png").read_bytes(),
+                            (quality.ASSETS/"bangs_v3_coverage.png").read_bytes())
+
+    def test_local_tail_is_smooth_bounded_and_keeps_shape_separate_from_opacity(self):
+        import copy
+        curve = copy.deepcopy(self.config["versions"][2]["masks"][1]["curves"][0])
+        times = np.linspace(0, 1, 1001)
+        widths, opacities = quality.curve_profile(curve, times)
+        np.testing.assert_array_equal(widths[times<=.72], np.full(np.sum(times<=.72),1.8))
+        np.testing.assert_array_equal(opacities[times<=.72], np.full(np.sum(times<=.72),.65))
+        self.assertTrue(np.all(np.diff(widths)<=0) and np.all(np.diff(opacities)<=0))
+        self.assertAlmostEqual(widths[-1],1.2)
+        self.assertAlmostEqual(opacities[-1],.25)
+        # A fade never turns into loss of the geometric signed-distance shape.
+        a,_=quality.curve_field([curve],128,16)
+        curve["localTailProfile"]["endOpacity"] = .05
+        b,_=quality.curve_field([curve],128,16)
+        np.testing.assert_array_equal(a,b)
+        step=1e-5
+        for boundary in (.72,1):
+            lo=quality.curve_profile(curve,boundary-step)
+            hi=quality.curve_profile(curve,boundary+step)
+            self.assertLess(abs(float(hi[0]-lo[0])),1e-7)
+
+    def test_protected_version_or_png_mutation_is_rejected(self):
+        import copy
+        import tempfile
+        from pathlib import Path
+        invalid = copy.deepcopy(self.config)
+        invalid["versions"][1]["masks"][1]["curves"][0]["opacity"] = .64
+        with self.assertRaisesRegex(ValueError,"Protected quality authoring"):
+            quality.validate_preserved_sources(invalid,quality.ASSETS)
+        with tempfile.TemporaryDirectory(dir=quality.ROOT/"generated") as temporary:
+            directory=Path(temporary)
+            for version in self.config["preservedQualitySource"]["versions"].values():
+                for name in version["files"]:
+                    (directory/name).write_bytes((quality.ASSETS/name).read_bytes())
+            (directory/"bangs_v2_coverage.png").write_bytes(b"changed fixture")
+            with self.assertRaisesRegex(ValueError,"Protected quality PNG"):
+                quality.validate_preserved_sources(self.config,directory)
 
     def test_round_caps_have_declared_inside_sign_width_and_unit(self):
         curve = {"name":"horizontal", "points":[[.25,.5078125],[.4,.5078125],[.6,.5078125],[.75,.5078125]],"widthTexels":4,"opacity":.4}
@@ -65,7 +119,7 @@ class QualityDataTests(unittest.TestCase):
                     self.assertNotIn("srgb",im.info)
 
     def test_minified_coverage_retains_energy_without_forced_width(self):
-        for stem in ("face_v1","bangs_v1","face_v2","bangs_v2"):
+        for stem in ("face_v1","bangs_v1","face_v2","bangs_v2","face_v3","bangs_v3"):
             red=Image.open(quality.ASSETS/(stem+"_coverage.png")).getchannel("R")
             original=float(np.asarray(red).sum())
             for size in (512,256,128):
@@ -75,14 +129,15 @@ class QualityDataTests(unittest.TestCase):
                 self.assertTrue(np.any((small>0)&(small<255)))
 
     def test_halo_is_fully_inside_replace_transition(self):
-        for stem in ("face_v1","bangs_v1","face_v2","bangs_v2"):
+        for stem in ("face_v1","bangs_v1","face_v2","bangs_v2","face_v3","bangs_v3"):
             c=np.asarray(Image.open(quality.ASSETS/(stem+"_coverage.png")))
             self.assertTrue(np.all(c[:,:,1][c[:,:,2]>1]>=254))
 
     def test_new_versions_are_distinct_and_bounded_to_face_bangs(self):
-        self.assertEqual([v["id"] for v in self.config["versions"]],["v1","v2"])
+        self.assertEqual([v["id"] for v in self.config["versions"]],["v1","v2","v3"])
         self.assertEqual([len(m["curves"]) for m in self.config["versions"][0]["masks"]],[12,3])
         self.assertEqual([len(m["curves"]) for m in self.config["versions"][1]["masks"]],[13,3])
+        self.assertEqual([len(m["curves"]) for m in self.config["versions"][2]["masks"]],[13,3])
         for role in ("face","bangs"):
             self.assertNotEqual((quality.ASSETS/(role+"_v1_coverage.png")).read_bytes(),(quality.ASSETS/(role+"_v2_coverage.png")).read_bytes())
 
@@ -119,6 +174,10 @@ class QualityDataTests(unittest.TestCase):
         invalid=copy.deepcopy(self.config)
         invalid["haloWidthTexels"]=float("nan")
         with self.assertRaises(ValueError):quality.validate(invalid,self.glb)
+        for key,value in (("startT",1),("endWidthTexels",0),("endOpacity",float("nan"))):
+            invalid=copy.deepcopy(self.config)
+            invalid["versions"][2]["masks"][1]["curves"][0]["localTailProfile"][key]=value
+            with self.assertRaises(ValueError):quality.validate(invalid,self.glb)
 
 
 if __name__=="__main__":

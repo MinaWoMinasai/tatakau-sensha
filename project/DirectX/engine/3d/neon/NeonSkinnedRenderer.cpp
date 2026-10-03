@@ -177,6 +177,7 @@ void NeonSkinnedRenderer::SetParams(const NeonSkinnedParams& params) {
 		? (std::clamp)(params_.sdfLodBlendEnd, params_.sdfLodBlendStart + 0.01f, 9.0f)
 		: params_.sdfLodBlendStart + 1.0f;
 	params_.qualityPadding = 0.0f;
+	params_.dissolve = SanitizeNeonDissolveParams(params_.dissolve);
 }
 
 void NeonSkinnedRenderer::SetSubmeshFeatureMasks(const std::vector<std::optional<uint32_t>>& srvIndices) {
@@ -233,7 +234,7 @@ NeonSkinnedRenderer::DrawConstantBuffer& NeonSkinnedRenderer::AcquireDrawConstan
 	if (nextDrawIndex_ == drawConstantBuffers_.size()) {
 		DrawConstantBuffer buffer;
 		// Root CBVの256byte alignmentとGPUが読む領域を確保する。
-		buffer.resource = dxCommon_->CreateBufferResource(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+		buffer.resource = dxCommon_->CreateBufferResource(kDrawConstantBufferBytes);
 		if (!buffer.resource) {
 			throw std::runtime_error("Failed to allocate NeonSkinnedRenderer constants.");
 		}
