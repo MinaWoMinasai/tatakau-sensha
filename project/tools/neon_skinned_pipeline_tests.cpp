@@ -1,5 +1,5 @@
-// 独立したWARP検証。ゲーム/Preview導線やモデル素材は必要としない。
-// 描画サービスをWARPへ接続し、実際のRendererのPSO作成・Drawを実行する。
+// 独立したWARP / 実GPU検証。ゲーム/Preview導線やモデル素材は必要としない。
+// 描画サービスを選択Deviceへ接続し、実際のRendererのPSO作成・Drawを実行する。
 #include "DirectXCommon.h"
 #include "SrvManager.h"
 #include "SkinCluster.h"
@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <cwchar>
+#include <limits>
 #include <DirectXPackedVector.h>
 
 #pragma comment(lib, "d3d12.lib")
@@ -66,7 +68,12 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 	}
 	Check(status, "Shader compilation failed");
 
-	if (filePath.find(L"NeonSkinned.PS.hlsl") != std::wstring::npos) {
+	const bool geometryShader = filePath.find(L"NeonSkinnedGeometry.PS.hlsl") != std::wstring::npos;
+	if (geometryShader) {
+		Require(std::wcscmp(profile, L"ps_6_1") == 0, "Geometry PS must use the minimum ps_6_1 profile");
+		std::cout << "PASS: native geometry ps_6_1 DXC compilation.\n";
+	}
+	if (filePath.find(L"NeonSkinned.PS.hlsl") != std::wstring::npos || geometryShader) {
 		ComPtr<IDxcBlob> reflectionData;
 		Check(result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionData), nullptr), "Reflection data");
 		DxcBuffer reflectionBuffer{ reflectionData->GetBufferPointer(), reflectionData->GetBufferSize(), 0 };
@@ -88,6 +95,10 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 			{ "gInternalLineWidthPixels", static_cast<UINT>(offsetof(NeonSkinnedParams, internalLineWidthPixels)) },
 			{ "gInternalLineIntensity", static_cast<UINT>(offsetof(NeonSkinnedParams, internalLineIntensity)) },
 			{ "gInternalLineThreshold", static_cast<UINT>(offsetof(NeonSkinnedParams, internalLineThreshold)) },
+			{ "gGeometryLineColor", static_cast<UINT>(offsetof(NeonSkinnedParams, geometryLineColor)) },
+			{ "gGeometryLineIntensity", static_cast<UINT>(offsetof(NeonSkinnedParams, geometryLineIntensity)) },
+			{ "gGeometryLineEnabled", static_cast<UINT>(offsetof(NeonSkinnedParams, geometryLineEnabled)) },
+			{ "gGeometryLineWidthPixels", static_cast<UINT>(offsetof(NeonSkinnedParams, geometryLineWidthPixels)) },
 			{ "gCameraWorldPosition", sizeof(NeonSkinnedParams) },
 			{ "gViewportSize", sizeof(NeonSkinnedParams) + 16 },
 		};
@@ -95,6 +106,26 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
 			D3D12_SHADER_VARIABLE_DESC variable{};
 			Check(constants->GetVariableByName(field.name)->GetDesc(&variable), "Neon constant field reflection");
 			Require(variable.StartOffset == field.offset, "C++ / HLSL constant field offset differs");
+		}
+		auto* submeshConstants = reflection->GetConstantBufferByName("NeonSubmeshConstants");
+		D3D12_SHADER_BUFFER_DESC submeshDesc{};
+		Check(submeshConstants->GetDesc(&submeshDesc), "Submesh constant reflection");
+		Require(submeshDesc.Size == 16 && sizeof(NeonSkinnedSubmeshParams) == 12,
+			"Submesh root constants must contain three DWORDs within one HLSL register");
+		const struct { const char* name; UINT offset; } submeshFields[] = {
+			{ "gSubmeshLineStrength", offsetof(NeonSkinnedSubmeshParams, lineStrength) },
+			{ "gAlphaCutoff", offsetof(NeonSkinnedSubmeshParams, alphaCutoff) },
+			{ "gSubmeshGeometryStrength", offsetof(NeonSkinnedSubmeshParams, geometryLineStrength) },
+		};
+		for (const auto& field : submeshFields) {
+			D3D12_SHADER_VARIABLE_DESC variable{};
+			Check(submeshConstants->GetVariableByName(field.name)->GetDesc(&variable), "Submesh field reflection");
+			Require(variable.StartOffset == field.offset, "Submesh root constant offset differs");
+		}
+		if (geometryShader) {
+			// Native barycentricsはDXIL intrinsicとして扱われ、通常の入力signatureには現れない。
+			Require((reflection->GetRequiresFlags() & D3D_SHADER_REQUIRES_BARYCENTRICS) != 0,
+				"Geometry shader DXIL must require native barycentrics");
 		}
 	}
 	if (filePath.find(L"NeonSkinned") != std::wstring::npos) ++compiledNeonShaders;
@@ -184,6 +215,16 @@ void SkinnedModel::Initialize(DirectXCommon* dx, SrvManager*, const std::string&
 			indices.insert(indices.end(), { a, a + 1, b, a + 1, b + 1, b });
 		}
 	}
+	if (fixtureName.find("geometry") != std::string::npos) {
+		// 同一平面の2三角形。対角線はシルエットとは独立したBody内部の辺。
+		vertices = {
+			{ { -0.75f, -0.75f, 0, 1 }, { 0, 1 }, { 0, 0, -1 } },
+			{ { -0.75f,  0.75f, 0, 1 }, { 0, 0 }, { 0, 0, -1 } },
+			{ {  0.75f, -0.75f, 0, 1 }, { 1, 1 }, { 0, 0, -1 } },
+			{ {  0.75f,  0.75f, 0, 1 }, { 1, 0 }, { 0, 0, -1 } },
+		};
+		indices = { 0, 1, 2, 2, 1, 3 };
+	}
 	std::vector<VertexInfluence> influences(vertices.size());
 	for (auto& influence : influences) influence.weights[0] = 1.0f;
 	auto upload = [dx](const void* source, size_t bytes) {
@@ -203,7 +244,7 @@ void SkinnedModel::Initialize(DirectXCommon* dx, SrvManager*, const std::string&
 	const UINT half = static_cast<UINT>(indices.size() / 2);
 	asset_.submeshes = { { 0, half, 0, "single-sided", {}, false }, { half, half, 0, "double-sided", {}, true } };
 	asset_.modelData.materials = { MaterialData{} };
-	asset_.modelData.materials[0].textureIndex = fixtureName == "feature fixture" ? 2 : 1;
+	asset_.modelData.materials[0].textureIndex = fixtureName.find("feature") != std::string::npos ? 2 : 1;
 	paletteResource_ = dx->CreateBufferResource(sizeof(SkinningPaletteEntry));
 	Check(paletteResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedPalette_)), "Map palette");
 	Update(0.0f);
@@ -428,6 +469,214 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE rtv_[3]{}, dsv_{};
 };
 
+void RequireSameCapture(const Capture& actual, const Capture& expected, const char* message) {
+	Require(actual.rowBytes == expected.rowBytes, "Capture format differs");
+	for (UINT y = 0; y < kSize; ++y) {
+		Require(std::memcmp(actual.Pixel(0, y), expected.Pixel(0, y), static_cast<size_t>(actual.rowBytes)) == 0, message);
+	}
+}
+
+UINT CountBrightPixels(const Capture& capture, UINT component, UINT minX = 0, UINT maxX = kSize,
+	UINT minY = 0, UINT maxY = kSize) {
+	UINT count = 0;
+	for (UINT y = minY; y < maxY; ++y) for (UINT x = minX; x < maxX; ++x)
+		if (capture.Float(x, y, component) > 1.0f) ++count;
+	return count;
+}
+
+void TestGeometryLines(DirectXCommon& dx, SrvManager& srv, NeonSkinnedRenderer& renderer) {
+	// TestDrawのTextureは前のscopeで破棄済み。SRVが指すTextureをこの検証のGPU完了まで保持する。
+	auto whiteTexture = CreateTestTexture(dx, srv, 1, false);
+	auto featureTexture = CreateTestTexture(dx, srv, 2, true);
+	SkinnedModel model;
+	model.Initialize(&dx, &srv, "geometry fixture");
+	OffscreenScene scene(dx);
+	auto transformResource = dx.CreateBufferResource(256);
+	TransformationMatrix* transform = nullptr;
+	Check(transformResource->Map(0, nullptr, reinterpret_cast<void**>(&transform)), "Geometry transform map");
+	*transform = { Identity(), Identity(), Identity() };
+	transform->WVP.m[2][2] = 0.4f;
+	transform->WVP.m[3][2] = 0.5f;
+	const Vector2 viewport{ static_cast<float>(kSize), static_cast<float>(kSize) };
+	NeonSkinnedParams params;
+	params.outlineEnabled = 0;
+	params.internalLineEnabled = 0;
+	params.geometryLineColor = { 0, 0, 1 };
+	params.geometryLineIntensity = 8;
+	params.geometryLineWidthPixels = 2;
+	auto render = [&](NeonSkinnedRenderer& drawRenderer, float depth = 1.0f) {
+		drawRenderer.BeginFrame();
+		drawRenderer.SetParams(params);
+		scene.Begin(depth);
+		drawRenderer.Draw(model, transformResource->GetGPUVirtualAddress(), { 0, 0, -2 }, viewport);
+		scene.End();
+	};
+	renderer.SetSubmeshParams({ { 1, 0, 1 }, { 1, 0, 1 } });
+	render(renderer);
+	const Capture legacy[] = { scene.captures[0], scene.captures[1], scene.captures[2], scene.captures[3] };
+	Require(CountBrightPixels(legacy[0], 2) == 0, "Geometry default must be OFF");
+	Require(legacy[0].Float(48, 80, 0) > 0.001f && legacy[0].Float(80, 48, 0) > 0.001f,
+		"Geometry fixture must exercise both cull variants");
+
+	// 明示的に機能を無効化したRendererは、対応GPU上でもlegacyのみで利用できる。
+	NeonSkinnedRenderer disabledRenderer;
+	disabledRenderer.Initialize(&dx, &srv, false);
+	Require(!disabledRenderer.IsGeometryLinesSupported() && !disabledRenderer.GetGeometryLinesStatus().empty(),
+		"Disabled geometry pipeline must explain its fallback state");
+	disabledRenderer.SetSubmeshParams({ { 1, 0, 1 }, { 1, 0, 1 } });
+	params.geometryLineEnabled = 1;
+	render(disabledRenderer);
+	for (UINT i = 0; i < 4; ++i) RequireSameCapture(scene.captures[i], legacy[i],
+		"Disabled geometry pipeline must retain the exact legacy body / MRT / depth path");
+	std::cout << "PASS: forced geometry-pipeline disable preserves legacy rendering even when requested ON.\n";
+
+	if (!renderer.IsGeometryLinesSupported()) {
+		render(renderer);
+		for (UINT i = 0; i < 4; ++i) RequireSameCapture(scene.captures[i], legacy[i],
+			"Unsupported geometry device must retain legacy rendering when requested ON");
+		std::cout << "SKIP: native geometry GPU draw checks: " << renderer.GetGeometryLinesStatus()
+			<< ". Legacy / unsupported fallback drawing passed.\n";
+		return;
+	}
+
+	// 強度0では、そのSubmeshの構造線だけが消える。Texture設定とは独立。
+	renderer.SetSubmeshParams({ { 1, 0, 0 }, { 1, 0, 0 } });
+	render(renderer);
+	for (UINT i = 0; i < 4; ++i) RequireSameCapture(scene.captures[i], legacy[i],
+		"Geometry strength zero must retain the legacy body without changing other MRTs");
+	renderer.SetSubmeshParams({ { 1, 0, std::numeric_limits<float>::quiet_NaN() }, { 1, 0, -1 } });
+	render(renderer);
+	for (UINT i = 0; i < 4; ++i) RequireSameCapture(scene.captures[i], legacy[i],
+		"Invalid per-submesh geometry strength must sanitize to the legacy body path");
+	renderer.SetSubmeshParams({ { 0, 0, 1 }, { 0, 0, 1 } });
+	params.geometryLineWidthPixels = 0;
+	render(renderer);
+	RequireSameCapture(scene.captures[0], legacy[0], "Geometry width zero must preserve the legacy body");
+	params.geometryLineWidthPixels = 2;
+	params.geometryLineIntensity = 0;
+	render(renderer);
+	RequireSameCapture(scene.captures[0], legacy[0], "Geometry intensity zero must preserve the legacy body");
+	params.geometryLineIntensity = 8;
+	renderer.SetSubmeshParams({ { 0, 0, 1 }, { 0, 0, 1 } });
+	render(renderer);
+	const Capture thin = scene.captures[0];
+	Require(thin.Float(64, 64, 2) > 1.0f && thin.Float(48, 80, 2) < 1.0f,
+		"Native geometry must illuminate the body-interior diagonal while flat interiors stay dark");
+	Require(CountBrightPixels(thin, 2, 24, 104, 24, 104) > 100,
+		"Geometry lines must appear inside the body, independently from texture strength zero");
+	for (UINT i = 1; i < 4; ++i) RequireSameCapture(scene.captures[i], legacy[i],
+		"Geometry emission must not modify Normal / Material MRT or body depth");
+	UINT thinWidth = 0;
+	for (UINT x = 52; x < 77; ++x) if (thin.Float(x, 64, 2) > 4.0f) ++thinWidth;
+	Require(thinWidth >= 2 && thinWidth <= 4, "Two-pixel full width must retain a narrow antialiased diagonal");
+	bool foundAntialias = false;
+	for (UINT x = 52; x < 77; ++x) {
+		const float emission = thin.Float(x, 64, 2) - params.bodyColor.z;
+		if (emission > 0.05f && emission < params.geometryLineIntensity - 0.05f) foundAntialias = true;
+	}
+	Require(foundAntialias, "Native geometry boundary must contain smooth antialias coverage");
+	params.geometryLineWidthPixels = 6;
+	render(renderer);
+	UINT wideWidth = 0;
+	for (UINT x = 52; x < 77; ++x) if (scene.captures[0].Float(x, 64, 2) > 4.0f) ++wideWidth;
+	Require(wideWidth >= 7 && wideWidth <= 10 && wideWidth > thinWidth * 2,
+		"Six-pixel full width must enlarge diagonal coverage in pixel units");
+	transform->WVP.m[0][0] = transform->WVP.m[1][1] = 0.5f;
+	render(renderer);
+	UINT smallTriangleWidth = 0;
+	for (UINT x = 52; x < 77; ++x) if (scene.captures[0].Float(x, 64, 2) > 4.0f) ++smallTriangleWidth;
+	Require(std::abs(static_cast<int>(smallTriangleWidth) - static_cast<int>(wideWidth)) <= 1,
+		"Geometry line pixel width must remain stable when triangle screen size changes");
+	transform->WVP.m[0][0] = transform->WVP.m[1][1] = 1;
+	params.geometryLineWidthPixels = 2;
+	renderer.SetSubmeshParams({ { 0, 0, 0 }, { 0, 0, 1 } });
+	render(renderer);
+	Require(scene.captures[0].Float(16, 80, 2) < 1.0f && scene.captures[0].Float(111, 48, 2) > 1.0f,
+		"Per-submesh geometry strength must independently disable one cull variant");
+
+	// GPU使用中に定数を共有上書きせず、同じBodyの2 Drawを別色で記録する。
+	auto rightResource = dx.CreateBufferResource(256);
+	TransformationMatrix* right = nullptr;
+	Check(rightResource->Map(0, nullptr, reinterpret_cast<void**>(&right)), "Second geometry transform map");
+	transform->WVP.m[0][0] = transform->WVP.m[1][1] = 0.5f;
+	transform->WVP.m[3][0] = -0.5f;
+	*right = *transform;
+	right->WVP.m[3][0] = 0.5f;
+	renderer.SetSubmeshParams({ { 0, 0, 1 }, { 0, 0, 1 } });
+	renderer.BeginFrame();
+	scene.Begin();
+	params.geometryLineColor = { 1, 0, 0 };
+	renderer.SetParams(params);
+	renderer.Draw(model, transformResource->GetGPUVirtualAddress(), { 0, 0, -2 }, viewport);
+	params.geometryLineColor = { 0, 1, 0 };
+	renderer.SetParams(params);
+	renderer.Draw(model, rightResource->GetGPUVirtualAddress(), { 0, 0, -2 }, viewport);
+	scene.End();
+	Require(scene.captures[0].Float(32, 64, 0) > 1.0f && scene.captures[0].Float(96, 64, 1) > 1.0f
+		&& scene.captures[0].Float(32, 64, 1) < 1.0f && scene.captures[0].Float(96, 64, 0) < 1.0f,
+		"Multiple Draw geometry colors must retain separate constant-buffer snapshots");
+
+	// 同じ更新済みPaletteで構造線の位置が動く。Drawの中では姿勢更新しない。
+	*transform = { Identity(), Identity(), Identity() };
+	transform->WVP.m[2][2] = 0.4f;
+	transform->WVP.m[3][2] = 0.5f;
+	params.geometryLineColor = { 0, 0, 1 };
+	model.Update(0.125f);
+	render(renderer);
+	Require(scene.captures[0].Float(72, 64, 2) > 1.0f && scene.captures[0].Float(64, 64, 2) < 1.0f,
+		"Native geometry lines must follow the same GPU skinning palette as the body");
+	model.Update(0);
+	render(renderer, 0.1f);
+	Require(CountBrightPixels(scene.captures[0], 2) == 0,
+		"Foreground depth must occlude geometry lines without see-through emission");
+	std::cout << "PASS: native geometry body-interior edges, zero / per-submesh strength, independent texture toggle, "
+		"HDR color, smooth AA, full pixel width (" << thinWidth << " / " << wideWidth << " diagonal pixels), "
+		"screen-size stability, single/double-sided PSOs, MRT / depth / stencil preservation, "
+		"palette motion and per-Draw constant snapshots.\n";
+
+	// Alpha Cutoutは構造線の有無によらずBody/Depthを同じ場所で除去する。
+	SkinnedModel featureModel;
+	featureModel.Initialize(&dx, &srv, "geometry feature fixture");
+	params.geometryLineEnabled = 0;
+	params.internalLineEnabled = 1;
+	renderer.SetSubmeshParams({ { 1, 0.5f, 1 }, { 1, 0.5f, 1 } });
+	auto renderCutout = [&]() {
+		renderer.BeginFrame();
+		renderer.SetParams(params);
+		scene.Begin();
+		renderer.Draw(featureModel, transformResource->GetGPUVirtualAddress(), { 0, 0, -2 }, viewport);
+		scene.End();
+	};
+	renderCutout();
+	const Capture textureOnly = scene.captures[0];
+	const Capture cutoutMrt[] = { scene.captures[1], scene.captures[2], scene.captures[3] };
+	params.geometryLineEnabled = 1;
+	renderCutout();
+	Require(scene.captures[0].Float(64, 64, 2) == 0, "Cutout holes must contain no geometry emission");
+	uint32_t holeDepth = 0;
+	std::memcpy(&holeDepth, scene.captures[3].Pixel(64, 64), sizeof(holeDepth));
+	Require((holeDepth & 0xffffff) == 0xffffff, "Geometry cutout holes must preserve clear depth");
+	for (UINT i = 1; i < 4; ++i) RequireSameCapture(scene.captures[i], cutoutMrt[i - 1],
+		"Geometry variant must preserve cutout Normal / Material / depth output");
+	UINT geometryOnlyPixels = 0, sharedFeaturePixels = 0;
+	for (UINT y = 0; y < kSize; ++y) for (UINT x = 0; x < kSize; ++x) {
+		const float addedBlue = scene.captures[0].Float(x, y, 2) - textureOnly.Float(x, y, 2);
+		if (addedBlue > 1) ++geometryOnlyPixels;
+		if (textureOnly.Float(x, y, 0) > 1) {
+			++sharedFeaturePixels;
+			Require(std::abs(scene.captures[0].Float(x, y, 0) - textureOnly.Float(x, y, 0)) < 0.001f,
+				"Cyan / blue geometry must not change pink texture feature emission");
+		}
+	}
+	Require(geometryOnlyPixels > 50 && sharedFeaturePixels > 50,
+		"Geometry and texture feature layers must emit independently in the same body pass");
+	params.internalLineEnabled = 0;
+	renderCutout();
+	Require(CountBrightPixels(scene.captures[0], 0) == 0 && CountBrightPixels(scene.captures[0], 2) > 50,
+		"Texture feature disable must preserve independently enabled geometry lines");
+	std::cout << "PASS: geometry + texture feature layers, independent toggles, alpha cutout holes / depth.\n";
+}
+
 void TestDraw(DirectXCommon& dx, SrvManager& srv, NeonSkinnedRenderer& renderer) {
 	testDx = &dx;
 	dx.Initialize(nullptr);
@@ -574,26 +823,95 @@ void TestDraw(DirectXCommon& dx, SrvManager& srv, NeonSkinnedRenderer& renderer)
 }
 }
 
-int main() {
+int main(int argc, char** argv) {
 	try {
+		std::cout << std::unitbuf;
+		std::wcout << std::unitbuf;
+		const bool hardware = argc == 2 && std::strcmp(argv[1], "--hardware") == 0;
+		Require(argc == 1 || hardware, "Usage: neon_skinned_pipeline_tests [--hardware]");
 		ComPtr<ID3D12Debug> debug;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)))) debug->EnableDebugLayer();
 		ComPtr<IDXGIFactory4> factory;
 		Check(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)), "DXGI factory");
-		ComPtr<IDXGIAdapter> warp;
-		Check(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp)), "WARP adapter");
+		ComPtr<IDXGIAdapter1> adapter;
 		DirectXCommon dx;
-		Check(D3D12CreateDevice(warp.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&dx.GetDevice())), "WARP device");
+		if (hardware) {
+			ComPtr<IDXGIFactory6> preferenceFactory;
+			Check(factory.As(&preferenceFactory), "GPU preference factory");
+			for (UINT index = 0;; ++index) {
+				const HRESULT enumeration = preferenceFactory->EnumAdapterByGpuPreference(index,
+					DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter));
+				if (enumeration == DXGI_ERROR_NOT_FOUND) break;
+				Check(enumeration, "Hardware adapter enumeration");
+				DXGI_ADAPTER_DESC1 desc{};
+				Check(adapter->GetDesc1(&desc), "Hardware adapter description");
+				if ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0
+					&& SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&dx.GetDevice())))) break;
+				adapter.Reset();
+			}
+			if (!dx.GetDevice()) {
+				std::cout << "SKIP: no DirectX 12 hardware adapter is available. Run without --hardware for WARP tests.\n";
+				return 0;
+			}
+		} else {
+			Check(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)), "WARP adapter");
+			Check(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&dx.GetDevice())), "WARP device");
+		}
+		DXGI_ADAPTER_DESC1 adapterDesc{};
+		Check(adapter->GetDesc1(&adapterDesc), "Adapter description");
+		std::wcout << L"Device: " << adapterDesc.Description << (hardware ? L" (hardware)\n" : L" (WARP)\n");
+		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{ D3D_SHADER_MODEL_6_1 };
+		const HRESULT shaderModelResult = dx.GetDevice()->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL,
+			&shaderModel, sizeof(shaderModel));
+		D3D12_FEATURE_DATA_D3D12_OPTIONS3 options3{};
+		const HRESULT optionsResult = dx.GetDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS3,
+			&options3, sizeof(options3));
+		const bool deviceSupportsGeometry = SUCCEEDED(shaderModelResult) && shaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_1
+			&& SUCCEEDED(optionsResult) && options3.BarycentricsSupported;
+		std::cout << "Shader model query: HRESULT 0x" << std::hex << static_cast<UINT>(shaderModelResult)
+			<< ", returned 0x" << static_cast<UINT>(shaderModel.HighestShaderModel)
+			<< "; OPTIONS3: HRESULT 0x" << static_cast<UINT>(optionsResult) << std::dec
+			<< ", BarycentricsSupported=" << (options3.BarycentricsSupported ? "true" : "false") << '\n';
 		SrvManager srv;
 		NeonSkinnedRenderer renderer;
 		renderer.Initialize(&dx, &srv);
-		Require(compiledNeonShaders == 6, "Neon shaders were not compiled by the actual Renderer");
+		Require(renderer.IsGeometryLinesSupported() == deviceSupportsGeometry,
+			"Renderer native geometry capability must agree with both Device feature queries");
+		Require(!renderer.GetGeometryLinesStatus().empty(), "Geometry support status must explain the Device result");
+		Require(compiledNeonShaders == (deviceSupportsGeometry ? 7u : 6u),
+			"Renderer must compile six legacy shaders and only the supported-device geometry variant");
+		std::cout << "Geometry status: " << renderer.GetGeometryLinesStatus() << '\n';
+		if (!deviceSupportsGeometry) {
+			ComPtr<IDxcBlob> geometry;
+			geometry.Attach(dx.CompileShader(L"resources/shaders/NeonSkinnedGeometry.PS.hlsl", L"ps_6_1"));
+		}
+		Require(compiledNeonShaders == 7, "DXC must compile the geometry ps_6_1 variant even on an unsupported Device");
+
+		// GUIや将来の呼び出しからの不正値は、構造線パラメータだけ安全な有限範囲へ収める。
+		NeonSkinnedParams invalid;
+		invalid.geometryLineEnabled = UINT32_MAX;
+		invalid.geometryLineWidthPixels = std::numeric_limits<float>::quiet_NaN();
+		invalid.geometryLineIntensity = std::numeric_limits<float>::infinity();
+		invalid.geometryLineColor = { -1, std::numeric_limits<float>::quiet_NaN(), 200 };
+		renderer.SetParams(invalid);
+		const auto& sanitized = renderer.GetParams();
+		Require(sanitized.geometryLineEnabled == 1 && std::isfinite(sanitized.geometryLineWidthPixels)
+			&& sanitized.geometryLineWidthPixels >= 0 && sanitized.geometryLineWidthPixels <= 8
+			&& std::isfinite(sanitized.geometryLineIntensity) && sanitized.geometryLineIntensity >= 0
+			&& sanitized.geometryLineIntensity <= 100 && std::isfinite(sanitized.geometryLineColor.x)
+			&& sanitized.geometryLineColor.x >= 0 && sanitized.geometryLineColor.x <= 100
+			&& std::isfinite(sanitized.geometryLineColor.y) && sanitized.geometryLineColor.y >= 0
+			&& sanitized.geometryLineColor.y <= 100 && std::isfinite(sanitized.geometryLineColor.z)
+			&& sanitized.geometryLineColor.z >= 0 && sanitized.geometryLineColor.z <= 100,
+			"Geometry parameters must sanitize finite values and valid ranges");
+		std::cout << "PASS: geometry parameter finite / range validation and default OFF.\n";
 		// 通常Skinning / ShadowのShaderも同じDXC条件でコンパイルできることを確認する。
 		ComPtr<IDxcBlob> standard;
 		ComPtr<IDxcBlob> shadow;
 		standard.Attach(dx.CompileShader(L"resources/shaders/SkinningObject3d.VS.hlsl", L"vs_6_0"));
 		shadow.Attach(dx.CompileShader(L"resources/shaders/SkinningShadow.VS.hlsl", L"vs_6_0"));
 		TestDraw(dx, srv, renderer);
+		TestGeometryLines(dx, srv, renderer);
 		ComPtr<ID3D12InfoQueue> infoQueue;
 		if (SUCCEEDED(dx.GetDevice().As(&infoQueue))) {
 			for (UINT64 index = 0; index < infoQueue->GetNumStoredMessages(); ++index) {
@@ -608,8 +926,9 @@ int main() {
 				}
 			}
 		}
-		std::cout << "PASS: actual Neon Renderer creates its root signature and all five Body / Outline / Stencil WARP PSOs; "
-			"C++ / HLSL CB layout matches; Neon, standard Skinning and Shadow DXIL compile. "
+		std::cout << "PASS: actual Neon Renderer creates its root signature and five legacy Body / Outline / Stencil PSOs"
+			<< (deviceSupportsGeometry ? " plus two native geometry cull variants; " : "; ")
+			<< "C++ / HLSL CB / root-constant layouts match; Neon, geometry ps_6_1, standard Skinning and Shadow DXIL compile. "
 			"Synthetic offscreen draw verified; live AvatarSample_B preview is a separate manual check.\n";
 		return 0;
 	} catch (const std::exception& error) {

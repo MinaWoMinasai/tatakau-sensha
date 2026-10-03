@@ -1,4 +1,4 @@
-param([string]$VisualStudioPath = '', [string]$OutputDirectory = '')
+param([string]$VisualStudioPath = '', [string]$OutputDirectory = '', [switch]$Hardware)
 $ErrorActionPreference = 'Stop'
 $neonRepo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $neonProject = Join-Path $neonRepo 'project'
@@ -36,7 +36,11 @@ try {
     } finally { Pop-Location }
     Push-Location -LiteralPath $neonProject
     try {
-        & (Join-Path $neonOutput 'neon_skinned_pipeline_tests.exe')
+        if ($Hardware) {
+            & (Join-Path $neonOutput 'neon_skinned_pipeline_tests.exe') --hardware
+        } else {
+            & (Join-Path $neonOutput 'neon_skinned_pipeline_tests.exe')
+        }
         if ($LASTEXITCODE -ne 0) { throw "Neon pipeline tests failed: $LASTEXITCODE" }
     } finally { Pop-Location }
 } finally {

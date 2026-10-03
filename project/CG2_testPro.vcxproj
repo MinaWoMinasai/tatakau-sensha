@@ -737,6 +737,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="resources\shaders\NeonSkinned.hlsli" />
     <None Include="resources\shaders\NeonSkinnedSkinning.hlsli" />
     <None Include="resources\shaders\NeonSkinnedSurface.hlsli" />
+    <None Include="resources\shaders\NeonSkinnedBody.hlsli" />
+    <FxCompile Include="resources\shaders\NeonSkinnedGeometry.PS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="resources\shaders\NeonSkinnedStencilClear.PS.hlsl">
       <ShaderType>Pixel</ShaderType>
       <ExcludedFromBuild>true</ExcludedFromBuild>

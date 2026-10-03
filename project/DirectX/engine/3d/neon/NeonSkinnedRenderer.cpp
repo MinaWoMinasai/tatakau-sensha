@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 
@@ -29,14 +30,56 @@ void CheckResult(HRESULT hr, const char* message) {
 		throw std::runtime_error(message);
 	}
 }
+
+std::string ResultMessage(const char* message, HRESULT hr) {
+	std::ostringstream result;
+	result << message << " (HRESULT 0x" << std::hex << static_cast<unsigned long>(hr) << ")";
+	return result.str();
 }
 
-void NeonSkinnedRenderer::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager) {
+// ネイティブBarycentricsだけを使用する。判定不能・未対応なら既存のSM6.0描画を維持する。
+bool QueryGeometryLinesSupport(ID3D12Device* device, std::string& status) {
+	D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{ D3D_SHADER_MODEL_6_1 };
+	const HRESULT shaderResult = device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL,
+		&shaderModel, sizeof(shaderModel));
+	if (FAILED(shaderResult)) {
+		status = ResultMessage("Unavailable: Shader Model 6.1 query failed", shaderResult);
+		return false;
+	}
+	if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_1) {
+		status = "Unavailable: Shader Model 6.1 is required.";
+		return false;
+	}
+	D3D12_FEATURE_DATA_D3D12_OPTIONS3 options{};
+	const HRESULT optionsResult = device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS3,
+		&options, sizeof(options));
+	if (FAILED(optionsResult)) {
+		status = ResultMessage("Unavailable: D3D12 OPTIONS3 query failed", optionsResult);
+		return false;
+	}
+	if (!options.BarycentricsSupported) {
+		status = "Unavailable: OPTIONS3.BarycentricsSupported is false.";
+		return false;
+	}
+	status = "Supported: Shader Model 6.1 / native SV_Barycentrics (ps_6_1).";
+	return true;
+}
+}
+
+void NeonSkinnedRenderer::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, bool enableGeometryLinePipeline) {
 	if (!dxCommon || !srvManager || !dxCommon->GetDevice()) {
 		throw std::invalid_argument("NeonSkinnedRenderer requires an initialized DirectXCommon and SrvManager.");
 	}
 	dxCommon_ = dxCommon;
 	srvManager_ = srvManager;
+	geometryPipelineState_.Reset();
+	doubleSidedGeometryPipelineState_.Reset();
+	geometryLinesSupported_ = QueryGeometryLinesSupport(dxCommon_->GetDevice().Get(), geometryLinesStatus_);
+	if (!enableGeometryLinePipeline) {
+		geometryLinesSupported_ = false;
+		geometryLinesStatus_ = "Disabled by caller: using the original Neon body pipeline.";
+	}
+	OutputDebugStringA(("Neon mesh geometry lines: " + geometryLinesStatus_ + "\n").c_str());
 	CreatePipeline();
 	drawConstantBuffers_.clear();
 	nextDrawIndex_ = 0;
@@ -71,6 +114,17 @@ void NeonSkinnedRenderer::SetParams(const NeonSkinnedParams& params) {
 		? (std::max)(params_.internalLineIntensity, 0.0f) : 0.0f;
 	params_.internalLineThreshold = std::isfinite(params_.internalLineThreshold)
 		? (std::clamp)(params_.internalLineThreshold, 0.001f, 1.0f) : 1.0f;
+	params_.geometryLineEnabled = params_.geometryLineEnabled ? 1u : 0u;
+	params_.geometryLineWidthPixels = std::isfinite(params_.geometryLineWidthPixels)
+		? (std::clamp)(params_.geometryLineWidthPixels, 0.0f, 8.0f) : 0.0f;
+	params_.geometryLineIntensity = std::isfinite(params_.geometryLineIntensity)
+		? (std::clamp)(params_.geometryLineIntensity, 0.0f, 100.0f) : 0.0f;
+	const auto colorComponent = [](float value) {
+		return std::isfinite(value) ? (std::clamp)(value, 0.0f, 100.0f) : 0.0f;
+	};
+	params_.geometryLineColor = { colorComponent(params_.geometryLineColor.x),
+		colorComponent(params_.geometryLineColor.y), colorComponent(params_.geometryLineColor.z) };
+	params_.geometryPadding[0] = params_.geometryPadding[1] = 0.0f;
 }
 
 void NeonSkinnedRenderer::SetSubmeshParams(const std::vector<NeonSkinnedSubmeshParams>& params) {
@@ -80,6 +134,8 @@ void NeonSkinnedRenderer::SetSubmeshParams(const std::vector<NeonSkinnedSubmeshP
 			? (std::clamp)(submesh.lineStrength, 0.0f, 2.0f) : 0.0f;
 		submesh.alphaCutoff = std::isfinite(submesh.alphaCutoff)
 			? (std::clamp)(submesh.alphaCutoff, 0.0f, 1.0f) : 0.0f;
+		submesh.geometryLineStrength = std::isfinite(submesh.geometryLineStrength)
+			? (std::clamp)(submesh.geometryLineStrength, 0.0f, 2.0f) : 0.0f;
 	}
 }
 
@@ -164,8 +220,13 @@ void NeonSkinnedRenderer::Draw(const SkinnedModel& model,
 	commandList->OMSetStencilRef(kOutlineStencilMask);
 	for (size_t index = 0; index < model.GetSubmeshCount(); ++index) {
 		BindSubmeshSurface(model, index);
-		commandList->SetPipelineState(model.GetSubmesh(index).doubleSided
-			? doubleSidedPipelineState_.Get() : pipelineState_.Get());
+		const bool geometry = geometryLinesSupported_ && params_.geometryLineEnabled &&
+			params_.geometryLineWidthPixels > 0.0f && params_.geometryLineIntensity > 0.0f &&
+			!submeshParams_.empty() && submeshParams_[index].geometryLineStrength > 0.0f;
+		const bool doubleSided = model.GetSubmesh(index).doubleSided;
+		commandList->SetPipelineState(geometry
+			? (doubleSided ? doubleSidedGeometryPipelineState_.Get() : geometryPipelineState_.Get())
+			: (doubleSided ? doubleSidedPipelineState_.Get() : pipelineState_.Get()));
 		model.DrawSubmesh(index);
 	}
 	if (params_.outlineEnabled && params_.outlineWidthPixels > 0.0f && params_.emissiveIntensity > 0.0f) {
@@ -297,6 +358,21 @@ void NeonSkinnedRenderer::CreatePipeline() {
 	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	CheckResult(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&doubleSidedPipelineState_)),
 		"Failed to create NeonSkinnedRenderer double-sided PSO.");
+	if (geometryLinesSupported_) {
+		ComPtr<IDxcBlob> geometryPixelShader;
+		geometryPixelShader.Attach(dxCommon_->CompileShader(L"resources/shaders/NeonSkinnedGeometry.PS.hlsl", L"ps_6_1"));
+		if (!geometryPixelShader) {
+			throw std::runtime_error("Native barycentrics are supported, but NeonSkinnedGeometry.PS.hlsl (ps_6_1) compilation failed. Check DXC diagnostics.");
+		}
+		// VS/Input/Depth/Stencil/MRTはBodyと同一。SOLIDのPS内で発光を加える。
+		desc.PS = { geometryPixelShader->GetBufferPointer(), geometryPixelShader->GetBufferSize() };
+		desc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+		HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&geometryPipelineState_));
+		if (FAILED(hr)) throw std::runtime_error(ResultMessage("Supported device: geometry back-cull PSO creation failed", hr));
+		desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+		hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&doubleSidedGeometryPipelineState_));
+		if (FAILED(hr)) throw std::runtime_error(ResultMessage("Supported device: geometry double-sided PSO creation failed", hr));
+	}
 
 	// 膨張したHullを描き、モデル全体のStencilの外側だけを残す。
 	// DoubleSidedの薄い髪等は両面を対象にする。Depthは読み取りのみ。
