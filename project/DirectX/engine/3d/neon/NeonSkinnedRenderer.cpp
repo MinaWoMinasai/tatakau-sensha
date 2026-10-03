@@ -23,6 +23,7 @@ constexpr UINT kPaletteRootParameter = 2;
 constexpr UINT kSurfaceRootParameter = 3;
 constexpr UINT kSubmeshRootParameter = 4;
 constexpr UINT kFeatureMaskRootParameter = 5;
+constexpr UINT kFeatureDistanceRootParameter = 6;
 constexpr UINT8 kOutlineStencilMask = 0x80;
 
 /// @brief 結果を確認する。
@@ -99,6 +100,7 @@ void NeonSkinnedRenderer::Initialize(DirectXCommon* dxCommon, SrvManager* srvMan
 	nextDrawIndex_ = 0;
 	submeshParams_.clear();
 	featureMaskSrvIndices_.clear();
+	featureDistanceSrvIndices_.clear();
 }
 
 void NeonSkinnedRenderer::BeginFrame() {
@@ -150,11 +152,43 @@ void NeonSkinnedRenderer::SetParams(const NeonSkinnedParams& params) {
 		? (std::clamp)(params_.featureMaskBlend, 0.0f, 1.0f) : 0.0f;
 	params_.featureMaskDebugMode = params_.featureMaskDebugMode <= 2 ? params_.featureMaskDebugMode : 0;
 	params_.featureMaskPadding[0] = params_.featureMaskPadding[1] = 0.0f;
+	const auto cleanColor = [&](const Vector3& color) {
+		return Vector3{colorComponent(color.x), colorComponent(color.y), colorComponent(color.z)};
+	};
+	const auto cleanIntensity = [](float value) {
+		return std::isfinite(value) ? (std::clamp)(value, 0.0f, 100.0f) : 0.0f;
+	};
+	params_.lineCoreColor = cleanColor(params_.lineCoreColor);
+	params_.lineHaloColor = cleanColor(params_.lineHaloColor);
+	params_.outlineCoreColor = cleanColor(params_.outlineCoreColor);
+	params_.lineCoreIntensity = cleanIntensity(params_.lineCoreIntensity);
+	params_.lineHaloIntensity = cleanIntensity(params_.lineHaloIntensity);
+	params_.outlineCoreIntensity = cleanIntensity(params_.outlineCoreIntensity);
+	params_.featureMaskRenderMode = params_.featureMaskRenderMode <= 2 ? params_.featureMaskRenderMode : 0;
+	params_.splitLineEmission = params_.splitLineEmission ? 1u : 0u;
+	params_.lineDiagnosticMode = params_.lineDiagnosticMode <= 3 ? params_.lineDiagnosticMode : 0;
+	params_.sdfRangeTexels = std::isfinite(params_.sdfRangeTexels)
+		? (std::clamp)(params_.sdfRangeTexels, 1.0f, 64.0f) : 16.0f;
+	params_.sdfHaloWidthTexels = std::isfinite(params_.sdfHaloWidthTexels)
+		? (std::clamp)(params_.sdfHaloWidthTexels, 0.0f, 4.0f) : 0.0f;
+	params_.sdfLodBlendStart = std::isfinite(params_.sdfLodBlendStart)
+		? (std::clamp)(params_.sdfLodBlendStart, 0.0f, 8.0f) : 1.0f;
+	params_.sdfLodBlendEnd = std::isfinite(params_.sdfLodBlendEnd)
+		? (std::clamp)(params_.sdfLodBlendEnd, params_.sdfLodBlendStart + 0.01f, 9.0f)
+		: params_.sdfLodBlendStart + 1.0f;
+	params_.qualityPadding = 0.0f;
 }
 
 void NeonSkinnedRenderer::SetSubmeshFeatureMasks(const std::vector<std::optional<uint32_t>>& srvIndices) {
 	featureMaskSrvIndices_ = srvIndices;
 	for (auto& index : featureMaskSrvIndices_) {
+		if (index && (*index == 0 || *index >= SrvManager::kMaxSrvCount)) index.reset();
+	}
+}
+
+void NeonSkinnedRenderer::SetSubmeshFeatureDistanceMasks(const std::vector<std::optional<uint32_t>>& srvIndices) {
+	featureDistanceSrvIndices_ = srvIndices;
+	for (auto& index : featureDistanceSrvIndices_) {
 		if (index && (*index == 0 || *index >= SrvManager::kMaxSrvCount)) index.reset();
 	}
 }
@@ -186,7 +220,11 @@ void NeonSkinnedRenderer::BindSubmeshSurface(const SkinnedModel& model, size_t i
 	const auto maskIndex = featureMaskSrvIndices_.empty() ? std::nullopt : featureMaskSrvIndices_[index];
 	commandList->SetGraphicsRootDescriptorTable(kFeatureMaskRootParameter,
 		srvManager_->GetGPUDescriptorHandle(maskIndex.value_or(nullFeatureMaskSrvIndex_)));
-	const auto surface = submeshParams_.empty() ? NeonSkinnedSubmeshParams{} : submeshParams_[index];
+	const auto distanceIndex = featureDistanceSrvIndices_.empty() ? std::nullopt : featureDistanceSrvIndices_[index];
+	commandList->SetGraphicsRootDescriptorTable(kFeatureDistanceRootParameter,
+		srvManager_->GetGPUDescriptorHandle(distanceIndex.value_or(nullFeatureMaskSrvIndex_)));
+	const SubmeshConstants surface{ submeshParams_.empty() ? NeonSkinnedSubmeshParams{} : submeshParams_[index],
+		maskIndex && distanceIndex ? 1u : 0u, {} };
 	commandList->SetGraphicsRoot32BitConstants(kSubmeshRootParameter,
 		sizeof(surface) / sizeof(uint32_t), &surface, 0);
 }
@@ -238,6 +276,9 @@ void NeonSkinnedRenderer::Draw(const SkinnedModel& model,
 	if (!featureMaskSrvIndices_.empty() && featureMaskSrvIndices_.size() != model.GetSubmeshCount()) {
 		throw std::invalid_argument("Neon feature-mask bindings must match the model submesh count.");
 	}
+	if (!featureDistanceSrvIndices_.empty() && featureDistanceSrvIndices_.size() != model.GetSubmeshCount()) {
+		throw std::invalid_argument("Neon distance-mask bindings must match the model submesh count.");
+	}
 	if (!dxCommon_->HasCurrentDSV() || !std::isfinite(viewportSize.x) || !std::isfinite(viewportSize.y) ||
 		viewportSize.x <= 0.0f || viewportSize.y <= 0.0f) {
 		throw std::invalid_argument("Neon outline requires the Scene D24S8 target and a valid viewport size.");
@@ -269,7 +310,9 @@ void NeonSkinnedRenderer::Draw(const SkinnedModel& model,
 			: (doubleSided ? doubleSidedPipelineState_.Get() : pipelineState_.Get()));
 		model.DrawSubmesh(index);
 	}
-	if (params_.outlineEnabled && params_.outlineWidthPixels > 0.0f && params_.emissiveIntensity > 0.0f) {
+	const float outlineIntensity = params_.splitLineEmission ? params_.outlineCoreIntensity : params_.emissiveIntensity;
+	if (params_.outlineEnabled && params_.outlineWidthPixels > 0.0f && outlineIntensity > 0.0f &&
+		params_.lineDiagnosticMode != 2 && params_.lineDiagnosticMode != 3) {
 		for (size_t index = 0; index < model.GetSubmeshCount(); ++index) {
 			BindSubmeshSurface(model, index);
 			commandList->SetPipelineState(model.GetSubmesh(index).doubleSided
@@ -297,7 +340,9 @@ void NeonSkinnedRenderer::CreatePipeline() {
 	maskRange.NumDescriptors = 1;
 	maskRange.BaseShaderRegister = 1;
 	maskRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-	D3D12_ROOT_PARAMETER rootParameters[6]{};
+	D3D12_DESCRIPTOR_RANGE distanceRange = maskRange;
+	distanceRange.BaseShaderRegister = 2;
+	D3D12_ROOT_PARAMETER rootParameters[7]{};
 	rootParameters[kTransformRootParameter].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[kTransformRootParameter].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	rootParameters[kTransformRootParameter].Descriptor.ShaderRegister = 0;
@@ -314,10 +359,13 @@ void NeonSkinnedRenderer::CreatePipeline() {
 	rootParameters[kSubmeshRootParameter].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 	rootParameters[kSubmeshRootParameter].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[kSubmeshRootParameter].Constants.ShaderRegister = 2;
-	rootParameters[kSubmeshRootParameter].Constants.Num32BitValues = sizeof(NeonSkinnedSubmeshParams) / sizeof(uint32_t);
+	rootParameters[kSubmeshRootParameter].Constants.Num32BitValues = sizeof(SubmeshConstants) / sizeof(uint32_t);
 	rootParameters[kFeatureMaskRootParameter].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[kFeatureMaskRootParameter].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[kFeatureMaskRootParameter].DescriptorTable = { 1, &maskRange };
+	rootParameters[kFeatureDistanceRootParameter].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[kFeatureDistanceRootParameter].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[kFeatureDistanceRootParameter].DescriptorTable = { 1, &distanceRange };
 	D3D12_STATIC_SAMPLER_DESC sampler{};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;

@@ -179,6 +179,19 @@ public:
     // 明示的なPauseは再生時刻と進行中のポーズブレンドの両方を止める。
     void SetAnimationPlaying(bool playing);
     bool IsAnimationPaused() const { return animationPaused_; }
+    // Preview/checkpoint用の値。クリップのポインタやGPU資源を保持しない。
+    struct AnimationPlaybackState {
+        size_t animationIndex = 0;
+        float time = 0.0f;
+        float speed = 1.0f;
+        bool playing = true, loop = true, paused = false;
+        std::vector<QuaternionTransform> transitionStartPose;
+        float transitionDuration = 0.0f, transitionElapsed = 0.0f;
+        bool transitionActive = false;
+    };
+    AnimationPlaybackState CaptureAnimationPlaybackState() const;
+    // 検証失敗時は何も変更しない。成功後の次UpdateでPaletteへ反映する。
+    bool RestoreAnimationPlaybackState(const AnimationPlaybackState& state);
     /// @brief 現在アニメーション時間を返す。
     float GetCurrentAnimationTime() const
     {

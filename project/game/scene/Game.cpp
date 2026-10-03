@@ -487,6 +487,7 @@ void Game::MainLoop() {
             postPulse.width,
             postPulse.strength);
 		bloom_->SetScreenEffectState(SceneManager::GetInstance()->GetScreenEffectState());
+        bloom_->SetDeveloperShowcaseState(SceneManager::GetInstance()->GetDeveloperShowcaseState());
 
 		const auto imguiBuildStart = std::chrono::steady_clock::now();
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
@@ -552,6 +553,7 @@ void Game::MainLoop() {
 
 
 		const auto imguiDrawStart = std::chrono::steady_clock::now();
+        SceneManager::GetInstance()->RecordDeveloperFrame(*dxCommon_);
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
         if (imguiInitialized_) {
         cg2::RuntimeProfiler::GpuScope scope("Diagnostics UI");

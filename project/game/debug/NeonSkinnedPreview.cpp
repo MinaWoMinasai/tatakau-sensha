@@ -4,16 +4,27 @@
 #include "StartupTrace.h"
 #include "NeonPreviewAnimations.h"
 #include "TextureManager.h"
+#include "RuntimeProfiler.h"
 #include "externals/nlohmann/json.hpp"
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <iterator>
 
 namespace {
 constexpr const char* kPreviewModelPath = "resources/models/neon_hologram/AvatarSample_B.glb";
 constexpr const char* kFeatureMaskDirectory = "resources/models/neon_hologram/line_masks/";
 constexpr const char* kFeatureMaskConfigPath = "resources/models/neon_hologram/line_masks/bindings.json";
+struct QualityComparisonCase { const char* label; int candidate; uint32_t split; };
+constexpr QualityComparisonCase kQualityComparisonCases[] = {
+	{"original_auto",0,0}, {"original_authored",1,0}, {"v1_coverage",2,0},
+	{"v1_coverage_core_halo",2,1}, {"v1_sdf_core_halo",3,1},
+	{"v2_coverage_core_halo",4,1}, {"v2_sdf_core_halo",5,1}
+};
 
 // 診断表示用のglTF metadataのみ読む。VRM表現・Materialを変換しない。
 nlohmann::json ReadGlbMetadata() {
@@ -71,6 +82,7 @@ void NeonSkinnedPreview::Load() {
 		submeshParams_.assign(model_->GetSubmeshCount(), cg2::NeonSkinnedSubmeshParams{});
 		featureMaskBindings_.assign(model_->GetSubmeshCount(), FeatureMaskBinding{});
 		featureMaskIndices_.assign(model_->GetSubmeshCount(), std::nullopt);
+		featureDistanceIndices_.assign(model_->GetSubmeshCount(), std::nullopt);
 		for (size_t index = 0; index < model_->GetSubmeshCount(); ++index) {
 			for (const auto& source : sourceMaterials_) {
 				if (source.materialName == model_->GetSubmesh(index).materialName) {
@@ -100,6 +112,7 @@ void NeonSkinnedPreview::Load() {
 }
 
 cg2::Vector3 NeonSkinnedPreview::GetCameraPosition() const {
+	if (showcaseActive_) return showcaseCamera_.GetTranslate();
 	return cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera_->GetEyePosition() : camera_->GetTranslate();
 }
@@ -115,22 +128,37 @@ void NeonSkinnedPreview::PlaceInFrontOfCamera() {
 
 void NeonSkinnedPreview::Update(float deltaTime) {
 	if (!ready_) return;
+	showcaseCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
+	AdvanceShowcaseComparison();
 	// DirectXCommon::PostDrawはFence完了後に次フレームへ進む。
 	// Draw回数・表示モードに関係なく、このUpdateだけでCB領域をリセットする。
 	renderer_.BeginFrame();
 	if (!enabled_) return;
+	// Recording continues with F12 hidden. The clip trigger belongs to Update, not the UI.
+	if (showcaseSequence_ && showcaseSequenceFrame_ >= 75 && !showcaseSequenceAttackStarted_) {
+		neonpreview::SelectAnimation(*model_,neonpreview::Clip::Attack);
+		showcaseSequenceAttackStarted_ = true;
+	}
 	neonpreview::UpdateAnimation(*model_, deltaTime); // Normal/Neonでこの一回のPalette更新を共有する。
-	object_->SetTransform(transform_);
-	object_->Update(); // World/WVP・Camera CBVは既存Object3dで一度だけ更新する。
+	if (showcaseActive_) UpdateShowcaseCamera(deltaTime);
+	object_->SetTransform(showcaseActive_ ? showcaseTransform_ : transform_);
+	// Object3dの既存World/WVP経路を再利用する。グローバルdebug-camera設定は保存復帰する。
+	auto* common = cg2::Object3dCommon::GetInstance();
+	const bool debug = common->GetIsDebugCamera();
+	if (showcaseActive_) { common->SetIsDebugCamera(false); object_->SetCamera(&showcaseCamera_); }
+	object_->Update();
+	if (showcaseActive_) { object_->SetCamera(camera_); common->SetIsDebugCamera(debug); }
 	renderer_.SetParams(params_);
 	auto surfaces = submeshParams_;
 	if (!alphaCutoutEnabled_) for (auto& surface : surfaces) surface.alphaCutoff = 0.0f;
 	renderer_.SetSubmeshParams(surfaces);
 	renderer_.SetSubmeshFeatureMasks(featureMaskIndices_);
+	renderer_.SetSubmeshFeatureDistanceMasks(featureDistanceIndices_);
 }
 
 void NeonSkinnedPreview::Draw() {
 	if (!enabled_ || !ready_) return;
+	cg2::RuntimeProfiler::GpuScope gpuScope("Neon Character");
 	if (neonMode_) {
 		renderer_.Draw(*model_, object_->GetTransformationResource()->GetGPUVirtualAddress(), GetCameraPosition());
 		cg2::StartupTrace::Count("neon_preview.neon_draws");
@@ -204,6 +232,11 @@ void NeonSkinnedPreview::ApplyLegacyNeonPreset() {
 
 void NeonSkinnedPreview::LoadFeatureMaskCandidates() {
 	if (!ready_ || featureMasksLoadAttempted_) return;
+	featureMaskBindings_.assign(model_->GetSubmeshCount(), FeatureMaskBinding{});
+	featureMaskIndices_.assign(model_->GetSubmeshCount(), std::nullopt);
+	featureDistanceIndices_.assign(model_->GetSubmeshCount(), std::nullopt);
+	params_.featureMaskRenderMode = 0;
+	qualityCandidate_ = 1;
 	featureMasksLoadAttempted_ = true;
 	featureMaskError_.clear();
 	try {
@@ -267,6 +300,8 @@ void NeonSkinnedPreview::LoadFeatureMaskCandidates() {
 	for (const auto& index : featureMaskIndices_) hasMask |= index.has_value();
 	params_.featureMaskBlend = hasMask ? 1.0f : 0.0f;
 	params_.featureMaskDebugMode = 0;
+	originalMaskBindings_ = featureMaskBindings_;
+	originalMaskIndices_ = featureMaskIndices_;
 }
 
 void NeonSkinnedPreview::DrawFeatureMaskImGui() {
@@ -366,21 +401,421 @@ void NeonSkinnedPreview::DrawGeometryLinesImGui() {
 #endif
 }
 
-void NeonSkinnedPreview::DrawImGui() {
+void NeonSkinnedPreview::SelectQualityCandidate(int candidate) {
+	if (!ready_ || candidate < 0 || candidate > 5) return;
+	qualityError_.clear();
+	if (candidate == 0) {
+		params_.featureMaskBlend = 0; params_.featureMaskRenderMode = 0;
+		params_.featureMaskDebugMode = 0; qualityCandidate_ = candidate; return;
+	}
+	if (candidate == 1) {
+		if (!featureMasksLoadAttempted_) LoadFeatureMaskCandidates();
+		featureMaskBindings_ = originalMaskBindings_; featureMaskIndices_ = originalMaskIndices_;
+		featureDistanceIndices_.assign(model_->GetSubmeshCount(), std::nullopt);
+		params_.featureMaskRenderMode = 0; params_.featureMaskBlend = 1; params_.featureMaskDebugMode = 0;
+		qualityCandidate_ = candidate; return;
+	}
+	try {
+		constexpr const char* directory = "resources/models/neon_hologram/line_masks/quality/";
+		std::ifstream stream(std::string(directory) + "bindings.json");
+		if (!stream) throw std::runtime_error("Quality candidate bindings.json missing.");
+		const auto configuration = nlohmann::json::parse(stream);
+		if (configuration.at("schemaVersion").get<int>() != 1 || configuration.at("uvSet").get<int>() != 0)
+			throw std::runtime_error("Quality candidate requires schema 1 / UV0.");
+		const std::string version = candidate < 4 ? "v1" : "v2";
+		const nlohmann::json* selected = nullptr;
+		for (const auto& value : configuration.at("versions")) if (value.at("id") == version) selected = &value;
+		if (!selected) throw std::runtime_error("Candidate version is missing.");
+		auto bindings = std::vector<FeatureMaskBinding>(model_->GetSubmeshCount());
+		auto masks = std::vector<std::optional<uint32_t>>(model_->GetSubmeshCount());
+		auto distances = masks;
+		auto loadTexture = [this, selected](const std::string& path, const std::string& imageSha256) {
+			if (const auto cached = qualityTextureProvenance_.find(path); cached != qualityTextureProvenance_.end())
+				return cached->second;
+			std::ifstream input(path,std::ios::binary|std::ios::ate);
+			if (!input || input.tellg() <= 0 || input.tellg() > 16*1024*1024) throw std::runtime_error("Candidate PNG missing/invalid: " + path);
+			std::vector<uint8_t> bytes(static_cast<size_t>(input.tellg())); input.seekg(0);
+			if (!input.read(reinterpret_cast<char*>(bytes.data()),bytes.size())) throw std::runtime_error("Candidate PNG read failed.");
+			auto* textures = cg2::TextureManager::GetInstance();
+			constexpr auto linear = cg2::TextureManager::TextureColorSpace::LinearData;
+			if (!textures->LoadTextureFromMemory(path,bytes.data(),bytes.size(),linear)) throw std::runtime_error("LinearData PNG load failed: " + path);
+			const auto& metadata = textures->GetMetaData(path,linear);
+			if (metadata.dimension != DirectX::TEX_DIMENSION_TEXTURE2D || metadata.arraySize != 1 ||
+				(metadata.format != DXGI_FORMAT_R8G8B8A8_UNORM && metadata.format != DXGI_FORMAT_B8G8R8A8_UNORM && metadata.format != DXGI_FORMAT_B8G8R8X8_UNORM))
+				throw std::runtime_error("Candidate must be linear RGB(A)8 2D PNG.");
+			QualityTextureProvenance provenance{textures->GetTextureIndexByFilePath(path,linear),imageSha256,
+				selected->value("authoringSha256",std::string{}),selected->value("authoringVersionSha256",std::string{}),
+				selected->value("authoringRevision",std::string{})};
+			qualityTextureProvenance_.emplace(path,provenance);
+			return provenance;
+		};
+		for (const auto& binding : selected->at("bindings")) {
+			if (binding.at("uvSet").get<int>() != 0) throw std::runtime_error("Only UV0 candidate masks are supported.");
+			const auto material = binding.at("material").get<std::string>();
+			const auto coverage = binding.at("coverageFile").get<std::string>();
+			const auto sdf = binding.at("sdfFile").get<std::string>();
+			for (const auto& file : {coverage,sdf}) if (std::filesystem::path(file).filename().string() != file ||
+				std::filesystem::path(file).extension() != ".png") throw std::runtime_error("Candidate requires local PNG filenames.");
+			bool found = false;
+			for (size_t index=0; index<model_->GetSubmeshCount(); ++index) {
+				if (model_->GetSubmesh(index).materialName != material) continue;
+				found = true;
+				if (masks[index]) throw std::runtime_error("Duplicate candidate Material.");
+				bindings[index].path = std::string(directory)+coverage;
+				bindings[index].distancePath = std::string(directory)+sdf;
+				try {
+					const auto coverageProvenance = loadTexture(bindings[index].path,binding.value("coverageSha256",std::string{}));
+					masks[index] = coverageProvenance.srvIndex;
+					bindings[index].coverageSha256 = coverageProvenance.imageSha256;
+					bindings[index].authoringSha256 = coverageProvenance.authoringSha256;
+					bindings[index].authoringVersionSha256 = coverageProvenance.authoringVersionSha256;
+					bindings[index].authoringRevision = coverageProvenance.authoringRevision;
+					bindings[index].srvIndex = masks[index];
+					bindings[index].status = "Loaded LinearData coverage / UV0";
+					try {
+						const auto distanceProvenance = loadTexture(bindings[index].distancePath,binding.value("sdfSha256",std::string{}));
+						distances[index] = distanceProvenance.srvIndex;
+						bindings[index].distanceSha256 = distanceProvenance.imageSha256;
+						bindings[index].status += " + SDF";
+					}
+					catch (const std::exception& error) { bindings[index].status += std::string(" / coverage fallback: ")+error.what(); }
+				} catch (const std::exception& error) { bindings[index].status = std::string(error.what()) + "; automatic lines retained."; }
+			}
+			if (!found) throw std::runtime_error("Candidate Material missing: " + material);
+		}
+		featureMaskBindings_ = std::move(bindings); featureMaskIndices_ = std::move(masks); featureDistanceIndices_ = std::move(distances);
+		params_.featureMaskRenderMode = candidate % 2 == 0 ? 1u : 2u;
+		params_.featureMaskBlend = 1; params_.featureMaskDebugMode = 0;
+		params_.sdfRangeTexels = configuration.at("sdfRangeTexels").get<float>();
+		params_.sdfHaloWidthTexels = configuration.at("haloWidthTexels").get<float>();
+		qualityCandidate_ = candidate;
+	} catch (const std::exception& error) { qualityError_ = error.what(); }
+}
+
+void NeonSkinnedPreview::DrawQualityCandidateImGui() {
 #ifdef USE_IMGUI
-	if (!ImGui::CollapsingHeader("Neon Skinned Preview", ImGuiTreeNodeFlags_DefaultOpen)) return;
-	ImGui::TextUnformatted("AvatarSample_B / Developer only");
-	if (ImGui::Checkbox("Preview Enable", &enabled_) && enabled_) Load();
-	if (!loadError_.empty()) ImGui::TextWrapped("Load failed: %s", loadError_.c_str());
-	int mode = neonMode_ ? 1 : 0;
-	if (ImGui::RadioButton("Normal", mode == 0)) neonMode_ = false;
-	ImGui::SameLine();
-	if (ImGui::RadioButton("Neon", mode == 1)) neonMode_ = true;
+	if (!ImGui::TreeNodeEx("Line Art Quality Comparison",ImGuiTreeNodeFlags_DefaultOpen)) return;
 	ImGui::BeginDisabled(!ready_);
-	if (ImGui::Button("Recommended Line Art")) ApplyRecommendedLineArtPreset();
-	if (ImGui::Button("Legacy Neon comparison")) ApplyLegacyNeonPreset();
+	const char* candidates[] = {"Original automatic lines", "Original authored coverage", "V1: fair-width coverage", "V1: SDF + minification fallback", "V2: edited coverage", "V2: edited SDF + fallback"};
+	int candidate = qualityCandidate_;
+	if (ImGui::Combo("Line data / reconstruction",&candidate,candidates,6)) SelectQualityCandidate(candidate);
+	int maskDiagnostic = static_cast<int>(params_.featureMaskDebugMode);
+	const char* maskChannels[] = {"Shaded", "R: line coverage", "G: replacement region"};
+	if (ImGui::Combo("Coverage mask channels (debug)",&maskDiagnostic,maskChannels,3))
+		params_.featureMaskDebugMode = static_cast<uint32_t>(maskDiagnostic);
+	bool split = params_.splitLineEmission != 0;
+	if (ImGui::Checkbox("Separate Core / Halo emission",&split)) params_.splitLineEmission = split ? 1u : 0u;
+	const char* contributions[] = {"Combined", "Core only", "Surface Halo only", "Dark Body only"};
+	int contribution = static_cast<int>(params_.lineDiagnosticMode);
+	if (ImGui::Combo("Line contribution",&contribution,contributions,4)) params_.lineDiagnosticMode = contribution;
+	ImGui::ColorEdit3("Core color",&params_.lineCoreColor.x);
+	ImGui::SliderFloat("Core HDR intensity",&params_.lineCoreIntensity,0,12);
+	ImGui::ColorEdit3("Surface Halo color",&params_.lineHaloColor.x);
+	ImGui::SliderFloat("Surface Halo intensity",&params_.lineHaloIntensity,0,8);
+	ImGui::ColorEdit3("Outline Core color",&params_.outlineCoreColor.x);
+	ImGui::SliderFloat("Outline Core intensity",&params_.outlineCoreIntensity,0,16);
+	ImGui::SliderFloat("SDF Halo width (texture texels)",&params_.sdfHaloWidthTexels,0,4);
+	ImGui::TextWrapped("Data selection preserves pose, camera, transform, Body, outline and Bloom. Core/Halo is an independent switch. Original auto + Core/Halo OFF restores the original path.");
+	ImGui::TextWrapped("Surface Halo does not spread beyond the silhouette; existing screen-space Bloom does. SDF switches toward coverage for minification.");
+	if (!qualityError_.empty()) ImGui::TextWrapped("Candidate failed: %s",qualityError_.c_str());
+	ImGui::EndDisabled(); ImGui::TreePop();
+#endif
+}
+
+void NeonSkinnedPreview::EnterShowcase() {
+	if (showcaseActive_) return;
+	Load();
+	if (!ready_) return;
+	checkpoint_ = { enabled_, neonMode_, alphaCutoutEnabled_, geometryPreset_, transform_, params_,
+		submeshParams_, featureMaskIndices_, featureDistanceIndices_, featureMaskBindings_, qualityCandidate_, featureMasksLoadAttempted_,
+		featureMaskError_, qualityError_, cg2::Object3dCommon::GetInstance()->GetIsDebugCamera(),
+		camera_->GetTranslate(), camera_->GetRotate(), model_->CaptureAnimationPlaybackState() };
+	showcaseActive_ = true; enabled_ = true;
+	showcaseTransform_ = {{1,1,1},{},{}};
+	showcaseFraming_ = showcaseView_ = showcaseDiagnostic_ = 0;
+	showcaseYaw_ = 0; showcaseOrbit_ = false;
+	showcaseCaptureDirectory_ = "generated/neon_line_art_quality/showcase_" +
+		std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch()).count());
+	showcaseCaptureNumber_ = 0;
+	UpdateShowcaseCamera(0);
+	cg2::StartupTrace::Count("neon_showcase.entries");
+}
+
+void NeonSkinnedPreview::LeaveShowcase() {
+	if (!showcaseActive_) return;
+	if (showcaseComparisonActive_) FinishShowcaseComparison("Comparison cancelled on Showcase exit.");
+	showcaseSequence_ = false;
+	showcaseCapture_.CancelRequest();
+	enabled_ = checkpoint_.enabled; neonMode_ = checkpoint_.neonMode;
+	alphaCutoutEnabled_ = checkpoint_.alphaCutout; geometryPreset_ = checkpoint_.geometryPreset;
+	transform_ = checkpoint_.transform; params_ = checkpoint_.params;
+	submeshParams_ = checkpoint_.surfaces; featureMaskIndices_ = checkpoint_.masks;
+	featureDistanceIndices_ = checkpoint_.distances; featureMaskBindings_ = checkpoint_.bindings; qualityCandidate_ = checkpoint_.qualityCandidate;
+	featureMasksLoadAttempted_ = checkpoint_.masksLoadAttempted; featureMaskError_ = checkpoint_.maskError; qualityError_ = checkpoint_.qualityError;
+	if (!model_->RestoreAnimationPlaybackState(checkpoint_.playback))
+		animationError_ = "Showcase checkpoint restore failed; playback was retained.";
+	cg2::Object3dCommon::GetInstance()->SetIsDebugCamera(checkpoint_.usingDebugCamera);
+	camera_->SetTranslate(checkpoint_.gameCameraPosition); camera_->SetRotate(checkpoint_.gameCameraRotation); camera_->Update();
+	showcaseActive_ = false;
+	cg2::StartupTrace::Count("neon_showcase.exits");
+}
+
+void NeonSkinnedPreview::StartShowcaseComparison() {
+	if (!ready_ || !showcaseActive_ || showcaseComparisonActive_ || !model_->IsAnimationPaused() ||
+		showcaseOrbit_ || showcaseSequence_ || showcaseCapture_.IsBusy() || cg2::RuntimeProfiler::Get().IsCaptureActive()) return;
+	comparisonCheckpoint_ = {enabled_,neonMode_,alphaCutoutEnabled_,geometryPreset_,transform_,params_,
+		submeshParams_,featureMaskIndices_,featureDistanceIndices_,featureMaskBindings_,qualityCandidate_,featureMasksLoadAttempted_,
+		featureMaskError_,qualityError_,false,{},{},model_->CaptureAnimationPlaybackState()};
+	showcaseComparisonDirectory_ = showcaseCaptureDirectory_ + "/comparison_" +
+		std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch()).count());
+	showcaseComparisonIndex_ = 0; showcaseComparisonFrameRecorded_ = false; showcaseComparisonActive_ = true;
+	showcaseComparisonStatus_ = "Capturing seven candidates at the same paused pose.";
+	neonMode_ = true;
+	ApplyShowcaseComparisonCase();
+}
+
+void NeonSkinnedPreview::ApplyShowcaseComparisonCase() {
+	params_ = comparisonCheckpoint_.params;
+	const auto& comparison = kQualityComparisonCases[showcaseComparisonIndex_];
+	SelectQualityCandidate(comparison.candidate);
+	if (!qualityError_.empty() || qualityCandidate_ != comparison.candidate) {
+		FinishShowcaseComparison("Comparison stopped: " + (qualityError_.empty() ? "Candidate selection failed." : qualityError_)); return;
+	}
+	if (comparison.candidate > 0) {
+		bool hasMask = false;
+		for (size_t index=0; index<featureMaskBindings_.size(); ++index) {
+			if (featureMaskBindings_[index].path.empty()) continue;
+			hasMask = true;
+			if (!featureMaskIndices_[index] || (params_.featureMaskRenderMode == 2 && !featureDistanceIndices_[index])) {
+				FinishShowcaseComparison("Comparison stopped: required coverage/SDF is unavailable: " + featureMaskBindings_[index].status); return;
+			}
+		}
+		if (!hasMask || (comparison.candidate == 1 && !featureMaskError_.empty())) {
+			FinishShowcaseComparison("Comparison stopped: authored masks are unavailable. " + featureMaskError_); return;
+		}
+	}
+	params_.splitLineEmission = comparison.split;
+	showcaseComparisonFrameRecorded_ = false;
+}
+
+void NeonSkinnedPreview::AdvanceShowcaseComparison() {
+	if (!showcaseComparisonActive_ || !showcaseComparisonFrameRecorded_ || showcaseCapture_.IsBusy()) return;
+	if (!showcaseCapture_.WasLastCaptureSuccessful()) {
+		FinishShowcaseComparison("Comparison stopped: " + showcaseCapture_.GetStatus()); return;
+	}
+	if (++showcaseComparisonIndex_ == std::size(kQualityComparisonCases)) {
+		FinishShowcaseComparison("Saved seven same-pose PNGs and settings: " + showcaseComparisonDirectory_); return;
+	}
+	ApplyShowcaseComparisonCase();
+}
+
+void NeonSkinnedPreview::FinishShowcaseComparison(const std::string& status) {
+	params_ = comparisonCheckpoint_.params; neonMode_ = comparisonCheckpoint_.neonMode;
+	submeshParams_ = comparisonCheckpoint_.surfaces; featureMaskIndices_ = comparisonCheckpoint_.masks;
+	featureDistanceIndices_ = comparisonCheckpoint_.distances; featureMaskBindings_ = comparisonCheckpoint_.bindings;
+	qualityCandidate_ = comparisonCheckpoint_.qualityCandidate; featureMasksLoadAttempted_ = comparisonCheckpoint_.masksLoadAttempted;
+	featureMaskError_ = comparisonCheckpoint_.maskError; qualityError_ = comparisonCheckpoint_.qualityError;
+	showcaseComparisonActive_ = false; showcaseComparisonStatus_ = status;
+}
+
+void NeonSkinnedPreview::UpdateShowcaseCamera(float deltaTime) {
+	if (showcaseOrbit_ && std::isfinite(deltaTime)) showcaseYaw_ += showcaseOrbitSpeed_ * deltaTime;
+	constexpr float targets[] = {1.32f, 1.10f, 0.82f, 0.82f, 1.32f};
+	constexpr float distances[] = {1.15f, 2.65f, 4.65f, 8.5f, 0.65f};
+	const float distance = distances[showcaseFraming_];
+	showcaseCamera_.SetTranslate({std::sin(showcaseYaw_) * distance, targets[showcaseFraming_], -std::cos(showcaseYaw_) * distance});
+	showcaseCamera_.SetRotate({0, -showcaseYaw_, 0});
+	showcaseCamera_.SetFovY(0.45f);
+	showcaseCamera_.SetNearClip(0.03f); showcaseCamera_.SetFarClip(100.0f);
+	const auto viewport = cg2::Object3dCommon::GetInstance()->GetDxCommon()->GetViewportRect();
+	showcaseCamera_.SetAspectRatio(viewport.Width / (std::max)(1.0f, viewport.Height));
+	showcaseCamera_.SetProjectionJitter({});
+	showcaseCamera_.Update();
+}
+
+nlohmann::json NeonSkinnedPreview::MakeShowcaseMetadata() const {
+    const auto& renderParams = renderer_.GetParams();
+	auto vector = [](const cg2::Vector3& v) { return nlohmann::json::array({v.x,v.y,v.z}); };
+	const char* framings[] = {"face", "upper_body", "full_body", "game_size", "face_detail"};
+	nlohmann::json metadata = {
+		{"schemaVersion",1}, {"model",kPreviewModelPath}, {"build","Development"}, {"renderScale",1.0},
+		{"expectedModelSha256","7FCA4A77FDC60AB2C78A9907430744562626180125FA386EB74FB2EA15C2E518"},
+		{"mode",neonMode_ ? "Neon" : "Normal"}, {"framing",framings[showcaseFraming_]},
+		{"qualityCandidate",qualityCandidate_},
+		{"textureProvenance","Manifest expected SHA retained at first Preview load; GPU contents are not hashed. Runtime texture regeneration requires an application restart."},
+		{"camera",{{"position",vector(showcaseCamera_.GetTranslate())},{"rotation",vector(showcaseCamera_.GetRotate())},
+			{"fovY",0.45f},{"orbit",showcaseOrbit_}}},
+		{"transform",{{"position",vector(showcaseTransform_.translate)},{"rotation",vector(showcaseTransform_.rotate)},
+			{"scale",vector(showcaseTransform_.scale)}}},
+		{"animation",{{"clip",model_->GetAnimation().name},{"time",model_->GetCurrentAnimationTime()},
+			{"paused",model_->IsAnimationPaused()},{"speed",model_->GetAnimationPlayer().GetPlaybackSpeed()}}},
+		{"bloom",{{"threshold",showcaseBloomThreshold_},{"intensity",showcaseBloomIntensity_},{"exposure",showcaseExposure_},
+			{"diagnostic",showcaseDiagnostic_},{"taa",false},{"grayscale",false}}},
+		{"neon",{{"bodyColor",{renderParams.bodyColor.x,renderParams.bodyColor.y,renderParams.bodyColor.z}},
+			{"bodyEmission",renderParams.bodyEmissionIntensity},{"outlineWidth",renderParams.outlineWidthPixels},
+			{"outlineEnabled",renderParams.outlineEnabled},{"internalEnabled",renderParams.internalLineEnabled},
+			{"rimStrength",renderParams.rimStrength},{"rimPower",renderParams.rimPower},
+			{"outlineIntensity",renderParams.emissiveIntensity},{"lineColor",vector(renderParams.emissiveColor)},
+			{"internalWidth",renderParams.internalLineWidthPixels},{"internalIntensity",renderParams.internalLineIntensity},
+			{"internalThreshold",renderParams.internalLineThreshold},{"maskBlend",renderParams.featureMaskBlend},
+			{"maskColor",vector(renderParams.featureMaskColor)},{"maskIntensity",renderParams.featureMaskIntensity},
+			{"maskDiagnostic",renderParams.featureMaskDebugMode},{"geometryLines",renderParams.geometryLineEnabled},
+			{"geometryWidth",renderParams.geometryLineWidthPixels},{"geometryIntensity",renderParams.geometryLineIntensity},
+			{"geometryColor",vector(renderParams.geometryLineColor)},
+			{"alphaCutout",alphaCutoutEnabled_},{"maskRenderMode",renderParams.featureMaskRenderMode},
+			{"splitCoreHalo",renderParams.splitLineEmission},{"lineDiagnostic",renderParams.lineDiagnosticMode},
+			{"coreColor",vector(renderParams.lineCoreColor)},{"coreIntensity",renderParams.lineCoreIntensity},
+			{"haloColor",vector(renderParams.lineHaloColor)},{"haloIntensity",renderParams.lineHaloIntensity},
+			{"outlineCoreColor",vector(renderParams.outlineCoreColor)},{"outlineCoreIntensity",renderParams.outlineCoreIntensity},
+			{"sdfRangeTexels",renderParams.sdfRangeTexels},{"sdfHaloWidthTexels",renderParams.sdfHaloWidthTexels},
+			{"sdfLodBlendStart",renderParams.sdfLodBlendStart},{"sdfLodBlendEnd",renderParams.sdfLodBlendEnd}}}
+	};
+	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter;
+	auto* dx = cg2::Object3dCommon::GetInstance()->GetDxCommon();
+	const auto viewport = dx->GetViewportRect();
+	metadata["resolution"] = {static_cast<uint32_t>(viewport.Width),static_cast<uint32_t>(viewport.Height)};
+	metadata["sceneViewportResolution"] = metadata["resolution"];
+	metadata["resolutionSource"] = "DirectXCommon viewport; Showcase uses full-size Scene and backbuffer (renderScale 1).";
+	metadata["validation"] = {{"d3d12DebugLayer",dx->IsD3D12DebugLayerEnabled()},
+		{"gpuBasedValidation",dx->IsGpuBasedValidationEnabled()}};
+	UINT64 timestampFrequency = 0;
+	if (SUCCEEDED(dx->GetQueue()->GetTimestampFrequency(&timestampFrequency)))
+		metadata["queueTimestampFrequencyHz"] = timestampFrequency;
+	if (SUCCEEDED(dx->GetDxgiFactory()->EnumAdapterByLuid(dx->GetDevice()->GetAdapterLuid(),IID_PPV_ARGS(&adapter)))) {
+		DXGI_ADAPTER_DESC3 description{};
+		if (SUCCEEDED(adapter->GetDesc3(&description))) {
+			char name[256]{};
+			WideCharToMultiByte(CP_UTF8,0,description.Description,-1,name,sizeof(name),nullptr,nullptr);
+			metadata["gpu"] = {{"adapter",name},{"vendor",description.VendorId},{"device",description.DeviceId},
+				{"dedicatedVideoMemoryBytes",description.DedicatedVideoMemory}};
+		}
+	}
+	for (size_t index = 0; index < submeshParams_.size(); ++index) metadata["submeshes"].push_back({
+		{"material",model_->GetSubmesh(index).materialName},{"mask",featureMaskBindings_[index].path},
+		{"maskBound",featureMaskIndices_[index].has_value()},{"distanceMask",featureMaskBindings_[index].distancePath},
+		{"distanceBound",featureDistanceIndices_[index].has_value()},{"loadStatus",featureMaskBindings_[index].status},
+		{"coverageManifestExpectedSha256",featureMaskBindings_[index].coverageSha256},{"sdfManifestExpectedSha256",featureMaskBindings_[index].distanceSha256},
+		{"authoringManifestExpectedSha256",featureMaskBindings_[index].authoringSha256},
+		{"authoringVersionManifestExpectedSha256",featureMaskBindings_[index].authoringVersionSha256},
+		{"authoringRevision",featureMaskBindings_[index].authoringRevision},
+		{"lineStrength",submeshParams_[index].lineStrength},{"geometryStrength",submeshParams_[index].geometryLineStrength},
+		{"thresholdScale",submeshParams_[index].internalLineThresholdScale},{"alphaCutoff",submeshParams_[index].alphaCutoff}});
+	return metadata;
+}
+
+void NeonSkinnedPreview::RecordShowcaseCapture(cg2::DirectXCommon& dx) {
+	if (!showcaseActive_) return;
+	bool requestedSequenceFrame = false;
+	bool requestedComparisonFrame = false;
+	if (showcaseComparisonActive_ && !showcaseComparisonFrameRecorded_ && !showcaseCapture_.IsBusy()) {
+		char name[96]{};
+		std::snprintf(name,sizeof(name),"%02u_%s",showcaseComparisonIndex_,kQualityComparisonCases[showcaseComparisonIndex_].label);
+		showcaseCapture_.Request(showcaseComparisonDirectory_,name,{});
+		showcaseComparisonFrameRecorded_ = requestedComparisonFrame = true;
+	}
+	if (showcaseSequence_ && !showcaseCapture_.IsBusy()) {
+		char name[80]{};
+		std::snprintf(name,sizeof(name),"frame_%05u",showcaseSequenceFrame_++);
+		auto metadata = MakeShowcaseMetadata(); metadata["sequenceFrame"] = showcaseSequenceFrame_ - 1;
+		metadata["sequenceRate"] = 60;
+		showcaseCapture_.Request(showcaseSequenceDirectory_,name,std::move(metadata));
+		requestedSequenceFrame = true;
+		if (showcaseSequenceFrame_ >= 240) showcaseSequence_ = false;
+	}
+	if (showcaseCapture_.HasRequest()) {
+		auto frameMetadata = MakeShowcaseMetadata();
+		if (requestedComparisonFrame) frameMetadata["comparison"] = {{"case",showcaseComparisonIndex_},
+			{"label",kQualityComparisonCases[showcaseComparisonIndex_].label},{"count",std::size(kQualityComparisonCases)},
+			{"samePausedPose",true},{"restoreAppearanceAfterCapture",true}};
+		if (requestedSequenceFrame) {
+			frameMetadata["sequenceFrame"] = showcaseSequenceFrame_ - 1; frameMetadata["sequenceRate"] = 60;
+		}
+		showcaseCapture_.SetFrameMetadata(std::move(frameMetadata));
+	}
+	showcaseCapture_.Record(dx);
+}
+
+void NeonSkinnedPreview::DrawShowcaseImGui() {
+#ifdef USE_IMGUI
+	if (!showcaseActive_) {
+		if (ImGui::Button("Enter Neon Character Showcase")) EnterShowcase();
+		ImGui::TextWrapped("Developer-only black-background comparison. Game state and Preview settings are restored on exit.");
+		return;
+	}
+	ImGui::BeginDisabled(showcaseComparisonActive_);
+	const char* framings[] = {"Face close-up", "Upper body", "Full body", "Game-size", "Face detail (magnified)"};
+	ImGui::Combo("Showcase framing", &showcaseFraming_, framings,5);
+	const char* views[] = {"Front", "Three-quarter (45 deg)", "Side (90 deg)"};
+	if (ImGui::Combo("Showcase view",&showcaseView_,views,3)) {
+		showcaseYaw_ = static_cast<float>(showcaseView_) * cg2::pi * 0.25f; showcaseOrbit_ = false;
+	}
+	ImGui::Checkbox("Camera orbit (independent of animation)",&showcaseOrbit_);
+	ImGui::SliderFloat("Orbit speed (rad/s)",&showcaseOrbitSpeed_,0.05f,0.8f);
+	ImGui::TextWrapped("Camera remains fixed when orbit is off. Animation Pause/Seek below does not change the camera.");
+	const char* diagnostics[] = {"Final color", "Scene HDR (tone mapped)", "Bloom blur only", "Bloom extract (tone mapped)"};
+	ImGui::Combo("Showcase output",&showcaseDiagnostic_,diagnostics,4);
+	ImGui::SliderFloat("Showcase Bloom threshold",&showcaseBloomThreshold_,0.0f,4.0f);
+	ImGui::SliderFloat("Showcase Bloom intensity",&showcaseBloomIntensity_,0.0f,2.0f);
+	ImGui::TextWrapped("Existing Bloom applies intensity in both blur passes and final composition: effective gain is intensity cubed.");
+	ImGui::SliderFloat("Showcase exposure",&showcaseExposure_,0.05f,2.0f);
+	ImGui::InputText("Capture label",showcaseCaptureLabel_,sizeof(showcaseCaptureLabel_));
 	ImGui::EndDisabled();
-	DrawFeatureMaskImGui();
+	const bool gpuCapture = cg2::RuntimeProfiler::Get().IsCaptureActive();
+	ImGui::BeginDisabled(showcaseCapture_.IsBusy() || showcaseSequence_ || showcaseComparisonActive_ || gpuCapture);
+	if (ImGui::Button("Save clean PNG + settings JSON")) {
+		char name[96]{}; std::snprintf(name,sizeof(name),"%03u_%s",showcaseCaptureNumber_++,showcaseCaptureLabel_);
+		showcaseCapture_.Request(showcaseCaptureDirectory_,name,MakeShowcaseMetadata());
+	}
+	ImGui::EndDisabled();
+	ImGui::BeginDisabled(showcaseComparisonActive_ || showcaseSequence_ || showcaseCapture_.IsBusy() || gpuCapture ||
+		!model_->IsAnimationPaused() || showcaseOrbit_);
+	if (ImGui::Button("Capture 7 candidates at current paused pose")) StartShowcaseComparison();
+	ImGui::EndDisabled();
+	ImGui::TextWrapped("Seven Neon cases, fixed camera and paused pose. Stop orbit, pause animation, and finish recording/timing first. Appearance is restored after capture.");
+	if (!showcaseComparisonStatus_.empty()) ImGui::TextWrapped("%s",showcaseComparisonStatus_.c_str());
+	ImGui::BeginDisabled(showcaseComparisonActive_ || gpuCapture || (showcaseCapture_.IsBusy() && !showcaseSequence_));
+	if (ImGui::Button(showcaseSequence_ ? "Stop image sequence" : "Record 4s: Idle / Attack / orbit")) {
+		showcaseSequence_ = !showcaseSequence_; showcaseSequenceFrame_ = 0; showcaseSequenceAttackStarted_ = false;
+		if (showcaseSequence_) {
+			showcaseSequenceDirectory_ = showcaseCaptureDirectory_ + "/sequence_" +
+				std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+					std::chrono::system_clock::now().time_since_epoch()).count());
+			neonpreview::SelectAnimation(*model_,neonpreview::Clip::Idle);
+			model_->SeekCurrentAnimation(0); model_->SetAnimationPlaying(true);
+			showcaseOrbit_ = true; showcaseYaw_ = 0;
+		}
+	}
+	ImGui::EndDisabled();
+	if (!showcaseSequenceDirectory_.empty()) ImGui::TextWrapped("Sequence folder: %s",showcaseSequenceDirectory_.c_str());
+	ImGui::BeginDisabled(showcaseComparisonActive_ || showcaseSequence_ || showcaseCapture_.IsBusy() || gpuCapture);
+	if (ImGui::Button("Measure GPU: 60 warmup + 300 frames")) {
+		const auto path = std::filesystem::path(showcaseCaptureDirectory_) / (std::string(showcaseCaptureLabel_) + "_gpu.csv");
+		if (std::filesystem::path(showcaseCaptureLabel_).filename().string() == showcaseCaptureLabel_ &&
+			cg2::RuntimeProfiler::Get().StartCapture(path.generic_string(),300,60)) {
+			auto metadata = MakeShowcaseMetadata();
+			metadata["measurement"] = {{"warmupFrames",60},{"sampleFrames",300},{"method","D3D12 timestamp query / queue frequency / existing fence"}};
+			std::ofstream stream(path.parent_path() / (std::string(showcaseCaptureLabel_) + "_gpu.json")); stream << metadata.dump(2) << '\n';
+			showcaseTimingStatus_ = "GPU capture: " + path.generic_string();
+		} else {
+			showcaseTimingStatus_ = "GPU capture unavailable: profiler/timestamp queries disabled, or invalid label/output path.";
+		}
+	}
+	ImGui::EndDisabled();
+	if (!showcaseTimingStatus_.empty()) {
+		ImGui::TextWrapped("%s",showcaseTimingStatus_.c_str());
+		if (cg2::RuntimeProfiler::Get().IsCaptureComplete()) ImGui::TextUnformatted("GPU capture complete (300 timestamp frames).");
+	}
+	ImGui::TextWrapped("%s",showcaseCapture_.GetStatus().c_str());
+	ImGui::TextWrapped("Raw images exclude UI. Sequence PNGs contain actual engine frames at 60 updates/s; offline encoding does not alter their appearance.");
+	ImGui::TextWrapped("For timing comparisons, stop orbit and animation, hold all settings fixed, and wait for the 300-frame capture to finish.");
+	ImGui::Separator();
+#endif
+}
+
+void NeonSkinnedPreview::DrawAnimationImGui() {
+#ifdef USE_IMGUI
 	if (ready_) {
 		ImGui::Text("GLB animations: %zu / Generated clips: %zu", sourceAnimationCount_, generatedAnimationCount_);
 		if (!animationError_.empty()) ImGui::TextWrapped("Motion unavailable (BindPose retained): %s", animationError_.c_str());
@@ -410,6 +845,31 @@ void NeonSkinnedPreview::DrawImGui() {
 		ImGui::EndDisabled();
 		ImGui::TextWrapped("Pause freezes playback and blend. Seek ends the blend and shows the exact sampled pose.");
 	}
+#endif
+}
+
+void NeonSkinnedPreview::DrawImGui() {
+#ifdef USE_IMGUI
+	if (showcaseActive_) { ImGui::TextUnformatted("Neon Character Showcase is open in its dedicated window."); return; }
+	if (!ImGui::CollapsingHeader("Neon Skinned Preview", ImGuiTreeNodeFlags_DefaultOpen)) return;
+	DrawShowcaseImGui();
+	if (showcaseActive_) return;
+	ImGui::TextUnformatted("AvatarSample_B / Developer only");
+	ImGui::BeginDisabled(showcaseActive_);
+	if (ImGui::Checkbox("Preview Enable", &enabled_) && enabled_) Load();
+	ImGui::EndDisabled();
+	if (!loadError_.empty()) ImGui::TextWrapped("Load failed: %s", loadError_.c_str());
+	int mode = neonMode_ ? 1 : 0;
+	if (ImGui::RadioButton("Normal", mode == 0)) neonMode_ = false;
+	ImGui::SameLine();
+	if (ImGui::RadioButton("Neon", mode == 1)) neonMode_ = true;
+	ImGui::BeginDisabled(!ready_);
+	if (ImGui::Button("Recommended Line Art")) ApplyRecommendedLineArtPreset();
+	if (ImGui::Button("Legacy Neon comparison")) ApplyLegacyNeonPreset();
+	ImGui::EndDisabled();
+	DrawFeatureMaskImGui();
+	DrawQualityCandidateImGui();
+	DrawAnimationImGui();
 	DrawGeometryLinesImGui();
 	ImGui::DragFloat3("Position", &transform_.translate.x, 0.1f);
 	ImGui::DragFloat3("Rotation (radians)", &transform_.rotate.x, 0.01f);
@@ -463,6 +923,50 @@ void NeonSkinnedPreview::DrawImGui() {
 		}
 		ImGui::TreePop();
 	}
+#endif
+}
+
+void NeonSkinnedPreview::DrawShowcaseWindow() {
+#ifdef USE_IMGUI
+	if (!showcaseActive_) return;
+	ImGui::SetNextWindowPos({12,45},ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize({510,760},ImGuiCond_FirstUseEver);
+	bool open = true;
+	if (!ImGui::Begin("Neon Character Showcase",&open)) {
+		ImGui::End(); if (!open) LeaveShowcase(); return;
+	}
+	if (ImGui::Button("Return to normal Preview")) { LeaveShowcase(); ImGui::End(); return; }
+	ImGui::SameLine(); ImGui::TextUnformatted("Black background / Developer only");
+	if (ImGui::BeginTabBar("NeonShowcaseTabs")) {
+		if (ImGui::BeginTabItem("View / Capture")) { DrawShowcaseImGui(); ImGui::EndTabItem(); }
+		if (ImGui::BeginTabItem("Appearance")) {
+			ImGui::BeginDisabled(showcaseComparisonActive_);
+			int mode = neonMode_ ? 1 : 0;
+			if (ImGui::RadioButton("Normal",mode == 0)) neonMode_ = false;
+			ImGui::SameLine(); if (ImGui::RadioButton("Neon",mode == 1)) neonMode_ = true;
+			DrawQualityCandidateImGui();
+			if (ImGui::TreeNode("Existing Body / Outline / Internal settings")) {
+				ImGui::ColorEdit3("Body tint",&params_.bodyColor.x);
+				ImGui::SliderFloat("Body emission",&params_.bodyEmissionIntensity,0,4);
+				ImGui::SliderFloat("Outline width (pixels)",&params_.outlineWidthPixels,0,8);
+				ImGui::SliderFloat("Outline HDR intensity",&params_.emissiveIntensity,0,20);
+				ImGui::ColorEdit3("Original line color",&params_.emissiveColor.x);
+				ImGui::SliderFloat("Internal intensity",&params_.internalLineIntensity,0,20);
+				ImGui::SliderFloat("Authored legacy intensity",&params_.featureMaskIntensity,0,20);
+				ImGui::Checkbox("Alpha cutout",&alphaCutoutEnabled_);
+				ImGui::TreePop();
+			}
+			DrawGeometryLinesImGui();
+			ImGui::EndDisabled();
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem("Animation")) {
+			ImGui::BeginDisabled(showcaseComparisonActive_); DrawAnimationImGui(); ImGui::EndDisabled(); ImGui::EndTabItem();
+		}
+		ImGui::EndTabBar();
+	}
+	ImGui::End();
+	if (!open) LeaveShowcase();
 #endif
 }
 #endif

@@ -40,9 +40,23 @@ struct NeonSkinnedParams {
     float featureMaskBlend = 0.0f; // 0で従来のTexture特徴線を維持する。
     uint32_t featureMaskDebugMode = 0; // 0: 発光合成、1: R coverage、2: G置換領域。
     float featureMaskPadding[2]{};
+    Vector3 lineCoreColor = {1.0f, 0.25f, 0.45f};
+    float lineCoreIntensity = 4.0f;
+    Vector3 lineHaloColor = {1.0f, 0.025f, 0.25f};
+    float lineHaloIntensity = 1.5f;
+    Vector3 outlineCoreColor = {1.0f, 0.12f, 0.38f};
+    float outlineCoreIntensity = 8.0f;
+    uint32_t featureMaskRenderMode = 0; // 0: original RG, 1: coverage RGB, 2: SDF with coverage minification fallback.
+    uint32_t splitLineEmission = 0; // Opt-in: independently colored core and narrow surface halo.
+    uint32_t lineDiagnosticMode = 0; // 0: combined, 1: core, 2: surface halo, 3: dark body.
+    float sdfRangeTexels = 16.0f; // Encoded distance = (R - .5) * 2 * range; positive inside a stroke.
+    float sdfHaloWidthTexels = 4.0f; // UV surface halo, not screen-space bloom. Candidate G includes this support.
+    float sdfLodBlendStart = 1.0f;
+    float sdfLodBlendEnd = 2.0f;
+    float qualityPadding = 0.0f;
 };
 
-static_assert(sizeof(NeonSkinnedParams) == 128);
+static_assert(sizeof(NeonSkinnedParams) == 208);
 static_assert(offsetof(NeonSkinnedParams, emissiveColor) == 16);
 static_assert(offsetof(NeonSkinnedParams, rimStrength) == 32);
 static_assert(offsetof(NeonSkinnedParams, outlineWidthPixels) == 40);
@@ -59,6 +73,11 @@ static_assert(offsetof(NeonSkinnedParams, featureMaskIntensity) == 108);
 static_assert(offsetof(NeonSkinnedParams, featureMaskBlend) == 112);
 static_assert(offsetof(NeonSkinnedParams, featureMaskDebugMode) == 116);
 static_assert(offsetof(NeonSkinnedParams, featureMaskPadding) == 120);
+static_assert(offsetof(NeonSkinnedParams, lineCoreColor) == 128);
+static_assert(offsetof(NeonSkinnedParams, lineHaloColor) == 144);
+static_assert(offsetof(NeonSkinnedParams, outlineCoreColor) == 160);
+static_assert(offsetof(NeonSkinnedParams, featureMaskRenderMode) == 176);
+static_assert(offsetof(NeonSkinnedParams, sdfHaloWidthTexels) == 192);
 
 // Texture由来の特徴線と任意のAlpha Cutout。空の設定では通常の不透明Neonを維持する。
 // alphaCutoff=0はCutoutなし。BLENDのソート/半透明合成は実装しない。
@@ -108,6 +127,9 @@ public:
     // SRVは同じSrvManagerのLinearData Texture2D。所有者はGPU完了まで資源とSRVを保持する。
     // TextureManagerのキャッシュを使い、GPU使用中の差し替え・破棄は行わない。
     void SetSubmeshFeatureMasks(const std::vector<std::optional<uint32_t>>& srvIndices);
+    // Optional signed-distance maps paired with the coverage masks above. Missing / invalid maps
+    // retain the coverage path, even if SDF mode was requested. Resources obey the same lifetime contract.
+    void SetSubmeshFeatureDistanceMasks(const std::vector<std::optional<uint32_t>>& srvIndices);
 
     // transformationCbvはObject3d::Update()等で更新済みのTransformationMatrix(WithShadow)を指す。
     // 例: object.GetTransformationResource()->GetGPUVirtualAddress()。World / WVPは再計算しない。
@@ -128,9 +150,17 @@ private:
         Vector2 viewportSize{};
         float viewportPadding[2]{};
     };
-    static_assert(sizeof(GpuConstants) == 160);
-    static_assert(offsetof(GpuConstants, cameraWorldPosition) == 128);
-    static_assert(offsetof(GpuConstants, viewportSize) == 144);
+    static_assert(sizeof(GpuConstants) == 240);
+    static_assert(offsetof(GpuConstants, cameraWorldPosition) == 208);
+    static_assert(offsetof(GpuConstants, viewportSize) == 224);
+
+    struct SubmeshConstants {
+        NeonSkinnedSubmeshParams surface;
+        uint32_t hasDistanceMask = 0;
+        uint32_t padding[3]{};
+    };
+    static_assert(sizeof(SubmeshConstants) == 32);
+    static_assert(offsetof(SubmeshConstants, hasDistanceMask) == 16);
 
     /// @brief 1回の描画に使う定数バッファとマップ先を保持する。
     struct DrawConstantBuffer {
@@ -160,6 +190,7 @@ private:
     NeonSkinnedParams params_;
     std::vector<NeonSkinnedSubmeshParams> submeshParams_;
     std::vector<std::optional<uint32_t>> featureMaskSrvIndices_;
+    std::vector<std::optional<uint32_t>> featureDistanceSrvIndices_;
     uint32_t nullFeatureMaskSrvIndex_ = 0;
     std::vector<DrawConstantBuffer> drawConstantBuffers_;
     size_t nextDrawIndex_ = 0;
