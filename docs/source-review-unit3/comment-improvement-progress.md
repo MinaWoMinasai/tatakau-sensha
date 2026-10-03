@@ -1,12 +1,14 @@
 # コメント改善の継続用進捗表
 
-更新日: 2026-10-03（第2段階・戦闘グループ）。開始HEAD: `071c95fbf7634735450ae87b9ea98dbba9e34f13`、ブランチ: `docs/comment-readability-phase2-combat`。開始時の変更・未追跡ファイルはなし。
+更新日: 2026-10-03（第3段階）。今回の開始HEAD: `83022a1fd3273236a8f76e6e5f4f941e60908426`、ブランチ: `docs/comment-readability-phase3-enemy-stage`、開始作業ツリーはクリーン。
+
+第2段階の開始記録（保持）: 更新日: 2026-10-03（第2段階・戦闘グループ）。開始HEAD: `071c95fbf7634735450ae87b9ea98dbba9e34f13`、ブランチ: `docs/comment-readability-phase2-combat`。開始時の変更・未追跡ファイルはなし。
 
 ## 集計と読み方
 
 | 区分 | 列挙数 | 内容の確認 |
 | --- | ---: | --- |
-| 実行用C++ | 236（h 133、cpp 103） | cpp全体6、TankSpecialCombat.h全体、対応4ヘッダーを照合。Player.cppは25関数のみ。参照先は部分確認 |
+| 実行用C++ | 236（h 133、cpp 103） | 累積の文書全体24、内部全体22。今回は指定10＋追加遷移1を全体確認、13ファイルは部分確認。参照のみは別記 |
 | 自作シェーダー | 66（hlsl 53、hlsli 13） | 今回は列挙のみ。説明・内部処理は未確認 |
 | 制作・検証ツール | 85（検証C++ 27、スクリプト58） | 実行脚本・監査・関連アサーションなどを部分参照。コメント品質の全面審査は未実施 |
 | 合計 | 387 | 列挙数を改善完了数として扱わない |
@@ -15,13 +17,13 @@
 
 エンジン・ゲームのビルド対象、シェーダーの利用先、ツールの内容を照合して区分した。GeneratedTextureCache.hは生成テクスチャの管理コードであり、生成コードとして除外していない。level_aiditor.pyのgenerated表記は出力ファイルの説明文字列で、ツール本体の生成を示すものではない。帰属不明として黙って除外したソースはない。
 
-- 「確認済み」は今回、記載した範囲の実装・対応宣言・利用先を読んだ状態。「一部確認」はその範囲だけ。「未確認」は列挙・検索のみ。「要修正」は手読みにより具体的な食い違いを確認した状態。
+- 「確認済み」は記載した段階で、記録範囲の実装・対応宣言・利用先を読んだ状態。「一部確認」はその範囲だけ。「未確認」は列挙・検索のみ。「要修正」は手読みにより具体的な食い違いを確認した状態。累積状態と第3段階で新たに読んだ範囲は、確認範囲・根拠欄で区別する。
 - 文書欄は型・関数の説明、内部欄は処理説明。cppの文書確認にはヘッダー側の説明との照合を含む。ヘッダーは宣言・インライン定義だけであり、対応cpp以外を審査した意味ではない。
 - P1: 契約の誤解や命中・寿命・更新順に関わる説明、P2: 単位や処理のまとまり、P3: 書式。英語・長行・旧処理候補は検索の手掛かりで、不適切との断定ではない。記載行は今回時点、後続行は省略している。候補なしも内容の正しさを保証しない。
 - 「旧報告未照合」はREADMEの過去の対応報告を確認しただけで、今回の内容審査には加算しない。第1段階で3ヘッダーを確認した事実は同報告に残し、今回の確認範囲と分ける。
-- SHA256欄はこの表の作成時のファイル内容（先頭12桁）。今回変更したファイルは開始HEADだけでは変更後を識別できないため併記した。ハッシュの一致は説明の品質を示さない。
+- SHA256欄はこの表の更新時のファイル内容（先頭12桁）。今回変更したファイルは開始HEADだけでは変更後を識別できないため併記した。ハッシュの一致は説明の品質を示さない。
 
-## 今回の確認範囲
+## 第2段階の確認範囲（実績を保持）
 
 **P2-P（Player.cppの25関数）**: `Attack`、`AttackRailCannon`、`UpdateSpecialCombat`、`UpdateRunProjectiles`、`FireConfiguredClass`、`TryDashImpact`、`DroneShoot`、`Smash`、`TakeDamage`、`Damage`、`GetRailChargeMuzzle`、`ConsumeSpecialCombatEvents`、`ConsumeDashImpactEvents`、`ConsumePrimaryAttackPerformedEvent`、`ConsumeLaserShotEvents`、`ConsumeMineDropEvents`、`ConsumeMeleeSlashEvents`、`ApplyRunProjectileRules`、`GetRunFireIntervalScale`、`ConfigureRunDrone`、`OnCollision`、`TryActivateSpecialAction`、`ActivatePerfectDodge`、`ActivateSaberCounter`、`TriggerSaberCounter`。移動全般、HUD、編集、進化UI、設定保存などは未確認。
 
@@ -36,11 +38,28 @@
 
 TankSpecialCombat.hは全型・インライン関数を再確認し、RailCharge、線分と矩形の区間計算、LinkDamageClock、DroneMissionの状態更新、PainterLock、ChooseSpreadTarget、SpinCycleの内部へ補足した。第1段階の判定/生成の区別、秒数・0秒発射・リセット等の契約は保持。対応する4ヘッダーはBullet.h、PlayerDrone.h、AttackController.h、CollisionManager.h。Player.h・BulletManager.hは関連宣言を再確認し、Player.hは変更不要、BulletManager.hはDrawの説明だけを局所修正した。今回その2ヘッダー全体を再審査したとは扱わない。
 
-## 次回の優先範囲
+## 第2段階終了時の次回候補（今回の対応結果は下記）
 
 まず戦闘共有型の契約（TankShooterAbilities.h、CombatTypes.h）の確認済みの誤説明を局所修正する。その後は「敵・地形・シーンの命中側」を一まとまりにし、ExpEnemy.cpp/.h、Enemy.cpp/.h、EnemyManager.cpp/.h、Stage.cpp/.h、GameScene.cpp、GameScene.hを全体または事前に指定した関数範囲で確認する。参照済みの部分以外は未確認。PlayerのHUD/編集、エンジン、シェーダー、他の制作・検証ツールは別の未確認グループとして残す。今回ここへ編集を広げていない。
 
 実施内容・テスト・設計上の別件候補は[第2段階の戦闘グループ報告](comment-readability-phase2-combat.md)を参照。
+
+## 第3段階の確認と累積状況
+
+現在の集合は前回から追加・削除・移動なし（236 C++、66シェーダー、85ツール）。387へ合わせる処理はしていない。ハッシュを再確認し、今回の変更内容へ更新した。列挙のみ/内容確認/参照のみを分ける。既存行の「今回」は第2段階の記録を指し、第3段階の根拠は明記した行だけである。
+
+第1段階のPlayer.h/BulletManager.hの文書全体確認は、表でも累積の確認済みとして保持する。Player.hは第1段階最終SHAも同じ、BulletManager.hは第2段階でDrawの文書だけを補正した。内部説明全体の確認を新たに推定せず、関連インライン範囲の部分確認として区別する。従来の部分確認や参照の実績も消去しない。
+
+- 今回全体: 指定共有2ヘッダー＋敵/管理/ボス/地形4組の8ファイル、直接使うTankExpeditionTransition.h全8関数（計11）。累積の型/関数の文書全体24ファイル、内部全体22ファイル。第1段階の文書だけの全体確認2ファイルは内部の確認範囲と分ける。
+- 追補 A（Smashのmin上限）、B（IsBurstChild/SetBurstChildの命中/壁分裂を含む対象と通知除外）、C（UpdateRunProjectilesの速度設定と位置更新）は、開始時に残存を確認して修正・逆照合済み。Player.cppは第2段階P2-Pの25関数の実績を保持し、今回はこの2関数だけ。Bullet.hは第2段階全体＋今回2API。
+- **P3-S**: GameScene.cppはUpdateの時間/停止/戦闘/死亡/演出消費区間、UpdateGameplayEventEffects、BeginBossDefeatSequence、BeginGameOver、UpdateGameFlowの死亡/結果区間、EnterResultState、SpawnPlayerLaser/UpdatePlayerLasers、SpawnPlayerMine/UpdatePlayerMines/DetonatePlayerMine、MakePlayerMeleeTrailConfig/ComputePlayerMeleeBladeSection/SpawnPlayerMeleeSlash/UpdatePlayerMeleeSlashes、UpdateSpecialCombatPresentation、UpdateLevelBossPhases/ApplyBossPhaseTuning、cpp限定DistancePointToSegment2D/RotateVector2D。ヘッダーは対応宣言と戦闘状態型だけ。
+- **P3-R**: GameScene.TankExpedition.cppはStartTankExpeditionRoom/FinishTankExpeditionRoom/UpdateTankExpeditionの戦闘分岐。GameScene.ExpeditionMap.cppはStartAuthoredExpeditionRoom/CompleteExpeditionMapCombat、UpdateExpeditionPresentationの通知消費、UpdateExpeditionMapの戦闘完了/資源回収区間。
+- **P3-H**: 直接関連する7小型ヘッダーの局所契約・状態遷移。各行と[第3段階報告](comment-readability-phase3-enemy-stage.md)に関数名を記録。全文を参照しても、範囲外の説明を完了扱いにしない。
+- 変更不要: getter/空の互換処理/十分な既存説明は各担当の全体確認内で保持。Player.h、BulletManager.h、弾/衝突の既存cppは関連契約を再参照して変更不要。参照だけを全面審査に加算しない。
+
+追補・共有型の旧P1説明問題は解消。全体審査の残る「遠征進行・報酬・成長」を次候補とし、TankRunDirector.h、TankExpeditionDirector.h、TankExpeditionMap.h、TankExpeditionRooms.h、TankExpeditionLoadout.h、GameScene.TankRun.cpp、GameScene.ExpeditionBuild.cpp、GameScene.ExpeditionExperience.cppの未確認/参照だけの範囲を先に特定する。GameSceneの今回区間外のUI/編集/描画/サービスも未確認。エンジン・シェーダー・他の制作/検証ツールへ編集していない。
+
+第3段階の最終24 C++は開始時と171,834トークン・プリプロセッサ・行継続が一致し、部分13ファイルの範囲外バイトも不変。既存監査、Development x64・Release x64、関連CPU12脚本、Developmentの特殊能力15項目/敵戦闘6項目が成功。画像の生成確認を見た目の審査と混同せず、字句/監査/テスト成功を説明意味の保証とはしない。逆照合と別件候補、起動補助の終了判定修正を含む詳細は[第3段階報告](comment-readability-phase3-enemy-stage.md)に記録した。
 
 ## 実行C++の一覧
 
@@ -84,7 +103,7 @@ TankSpecialCombat.hは全型・インライン関数を再確認し、RailCharge
 | `project/DirectX/engine/audio/Audio.h` | engine/audio | 未確認 | 未確認 | 列挙のみ | 候補 P2:旧処理候補 L67等・計1箇所、P2:英語説明候補 L30等・計6箇所（未判定） | `dcf4e0099538` | 今回列挙／旧報告未照合 |
 | `project/DirectX/engine/audio/AudioManager.cpp` | engine/audio | 未確認 | 未確認 | 列挙のみ | 候補 P2:旧処理候補 L211等・計5箇所、P2:英語説明候補 L17等・計10箇所（未判定） | `d42307e1266b` | 今回列挙／旧報告未照合 |
 | `project/DirectX/engine/audio/AudioManager.h` | engine/audio | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L18等・計3箇所（未判定） | `2d7fff2c488e` | 今回列挙／旧報告未照合 |
-| `project/DirectX/engine/calc/Calculation.cpp` | engine/calc | 未確認 | 未確認 | 列挙のみ | 候補 P2:旧処理候補 L842等・計4箇所、P2:英語説明候補 L1092等・計3箇所、P3:長行候補 L891等・計2箇所（未判定） | `46148e7fffbd` | 今回列挙／旧報告未照合 |
+| `project/DirectX/engine/calc/Calculation.cpp` | engine/calc | 未確認 | 未確認 | 列挙のみ；第3参照: AABB/球/線分、CheckSphereVsOBB/Normalizeの該当定義 | 候補 P2:旧処理候補 L842等・計4箇所、P2:英語説明候補 L1092等・計3箇所、P3:長行候補 L891等・計2箇所（未判定） | `46148e7fffbd` | 今回列挙／旧報告未照合／第3参照のみ |
 | `project/DirectX/engine/calc/Calculation.h` | engine/calc | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L98等・計6箇所（未判定） | `197f9b252de6` | 今回列挙／旧報告未照合 |
 | `project/DirectX/engine/commom/CylinderManager.cpp` | engine/commom | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L114等・計1箇所（未判定） | `cf70eaad0349` | 今回列挙／旧報告未照合 |
 | `project/DirectX/engine/commom/CylinderManager.h` | engine/commom | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L74等・計1箇所（未判定） | `5fd10d1cf5d9` | 今回列挙／旧報告未照合 |
@@ -154,10 +173,10 @@ TankSpecialCombat.hは全型・インライン関数を再確認し、RailCharge
 | `project/DirectX/engine/postEffect/Shadow.h` | engine/postEffect | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L36等・計1箇所（未判定） | `06a88d474c2c` | 今回列挙／旧報告未照合 |
 | `project/DirectX/engine/struct/Struct.h` | engine/struct | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L188等・計45箇所、P3:長行候補 L691等・計1箇所（未判定） | `930bdb22f4ec` | 今回列挙／旧報告未照合 |
 | `project/game/collision/Collider.cpp` | game/collision | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `8079b9edb932` | 今回列挙／旧報告未照合 |
-| `project/game/collision/Collider.h` | game/collision | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L127等・計2箇所（未判定） | `d21d56ef4927` | 今回列挙／旧報告未照合 |
+| `project/game/collision/Collider.h` | game/collision | 未確認 | 未確認 | 列挙のみ；第3参照: IdentityのID発行・コピー/代入/形状 | 候補 P2:英語説明候補 L127等・計2箇所（未判定） | `d21d56ef4927` | 今回列挙／旧報告未照合／第3参照のみ |
 | `project/game/collision/CollisionConfig.cpp` | game/collision | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `5dce83120f39` | 今回列挙／旧報告未照合 |
-| `project/game/collision/CollisionConfig.h` | game/collision | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `dc19a90ebab1` | 今回列挙／旧報告未照合 |
-| `project/game/collision/CollisionManager.cpp` | game/collision | 確認済み | 確認済み | 全関数・型（前掲範囲） | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `d7729233d5d4` | 今回照合 |
+| `project/game/collision/CollisionConfig.h` | game/collision | 未確認 | 未確認 | 列挙のみ；第3参照: 弾とアクターの陣営・マスク | 未抽出（精査前） | `dc19a90ebab1` | 今回列挙／旧報告未照合／第3参照のみ |
+| `project/game/collision/CollisionManager.cpp` | game/collision | 確認済み | 確認済み | 全関数・型（前掲範囲）；第3参照: CheckAllCollisions/CheckCollisionPair/SetColliders | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `d7729233d5d4` | 今回照合／第3参照のみ |
 | `project/game/collision/CollisionManager.h` | game/collision | 確認済み | 確認済み | 全関数・型（前掲範囲） | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `5e0165f5d20b` | 今回照合 |
 | `project/game/debug/NeonSkinnedPreview.cpp` | game/debug | 未確認 | 未確認 | 列挙のみ | 候補 P2:旧処理候補 L93等・計1箇所、P2:英語説明候補 L99等・計5箇所（未判定） | `9eb5106164e8` | 今回列挙／旧報告未照合 |
 | `project/game/debug/NeonSkinnedPreview.h` | game/debug | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L4等・計3箇所（未判定） | `e92a63ae1a10` | 今回列挙／旧報告未照合 |
@@ -170,22 +189,22 @@ TankSpecialCombat.hは全型・インライン関数を再確認し、RailCharge
 | `project/game/effects/ScreenEffectDirector.cpp` | game/effects | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L29等・計1箇所（未判定） | `e05ea9ddd4b5` | 今回列挙／旧報告未照合 |
 | `project/game/effects/ScreenEffectDirector.h` | game/effects | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L7等・計3箇所（未判定） | `c633009de2b6` | 今回列挙／旧報告未照合 |
 | `project/game/effects/TankSpecialNeonGeometry.h` | game/effects | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L6等・計3箇所（未判定） | `d3bf42c32df1` | 今回列挙／旧報告未照合 |
-| `project/game/enemy/actor/Enemy.cpp` | game/enemy | 一部確認 | 一部確認 | OnCollision、TakeDamage、ApplyKnockbackと死亡/遭遇の条件 | 次回P1: ボス側の命中・死亡遷移を確認 | `ec1643aa72b4` | 今回参照のみ |
-| `project/game/enemy/actor/Enemy.h` | game/enemy | 一部確認 | 一部確認 | GetHp・IsDead・IsRunEncounterEnabledなどの利用条件 | 次回P1: 対応cppと併せて確認 | `476fafdfcb5b` | 今回参照のみ |
-| `project/game/enemy/actor/PrototypeBossCombat.h` | game/enemy | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L5等・計2箇所（未判定） | `e58ea60cab37` | 今回列挙／旧報告未照合 |
-| `project/game/enemy/actor/RivalBossCombat.h` | game/enemy | 未確認 | 未確認 | 列挙のみ | 候補 P2:旧処理候補 L161等・計1箇所、P2:英語説明候補 L6等・計8箇所（未判定） | `13e8157b8c54` | 今回列挙／旧報告未照合 |
-| `project/game/exp/EnemyManager.cpp` | game/exp | 一部確認 | 一部確認 | Updateの削除時点、GetEnemyPtrsの借用一覧 | 次回P1: 敵生成・破棄と借用の全体を確認 | `97e14555974d` | 今回参照のみ |
-| `project/game/exp/EnemyManager.h` | game/exp | 一部確認 | 一部確認 | GetEnemyPtrsの宣言・借用 | 次回P1: 管理APIの全体を確認 | `436d532d6346` | 今回参照のみ |
-| `project/game/exp/ExpEnemy.cpp` | game/exp | 一部確認 | 一部確認 | MoveCombatActor、ApplyKnockback、TakeDirectionalDamage、ApplyDamage、TryReflectProjectile、OnCollisionの命中関連 | 次回P1: 敵側の命中・防御・壁衝突を全体で確認 | `1d3bbd38fbfc` | 今回参照のみ |
-| `project/game/exp/ExpEnemy.h` | game/exp | 一部確認 | 一部確認 | GetWallCollisionCount・命中/押し出し関連の宣言 | 次回P1: 対応cppと併せて確認 | `1af4f708b707` | 今回参照のみ |
-| `project/game/exp/ExpEnemyCombatCycle.h` | game/exp | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L6等・計7箇所（未判定） | `cb51715cd392` | 今回列挙／旧報告未照合 |
-| `project/game/exp/ExpEnemyMagazineCycle.h` | game/exp | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L5等・計2箇所（未判定） | `83b7eea4282c` | 今回列挙／旧報告未照合 |
-| `project/game/exp/ExpEnemyNavigation.h` | game/exp | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L6等・計2箇所（未判定） | `98796b5bc764` | 今回列挙／旧報告未照合 |
-| `project/game/exp/ExpGuardCombat.h` | game/exp | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L7等・計5箇所（未判定） | `6fb92b36e612` | 今回列挙／旧報告未照合 |
+| `project/game/enemy/actor/Enemy.cpp` | game/enemy | 確認済み | 確認済み | OnCollision、TakeDamage、ApplyKnockbackと死亡/遭遇の条件；第3: 全型・全関数・内部処理（第3段階報告の全体範囲） | 今回の誤説明・単位・状態/消費・寿命/順序を補正。単純取得等は確認して保持 | `0b3b61fabb2d` | 第3段階全体照合／HEAD 83022a1・SHA併記 |
+| `project/game/enemy/actor/Enemy.h` | game/enemy | 確認済み | 確認済み | GetHp・IsDead・IsRunEncounterEnabledなどの利用条件；第3: 全型・全関数・内部処理（第3段階報告の全体範囲） | 今回の誤説明・単位・状態/消費・寿命/順序を補正。単純取得等は確認して保持 | `3b217316bd62` | 第3段階全体照合／HEAD 83022a1・SHA併記 |
+| `project/game/enemy/actor/PrototypeBossCombat.h` | game/enemy | 一部確認 | 一部確認 | P3-H: 型/Shot/GetAimAngle/GetSpreadAngleDeg/Step/弾数と拡散角 | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `96323cd8d586` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
+| `project/game/enemy/actor/RivalBossCombat.h` | game/enemy | 一部確認 | 一部確認 | P3-H: 型/Shot/GetPattern以降の戦闘契約、State/7状態Update、Enter/Duration/FireRound | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `b26584040308` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
+| `project/game/exp/EnemyManager.cpp` | game/exp | 確認済み | 確認済み | Updateの削除時点、GetEnemyPtrsの借用一覧；第3: 全型・全関数・内部処理（第3段階報告の全体範囲） | 今回の誤説明・単位・状態/消費・寿命/順序を補正。単純取得等は確認して保持 | `b6ee34378d10` | 第3段階全体照合／HEAD 83022a1・SHA併記 |
+| `project/game/exp/EnemyManager.h` | game/exp | 確認済み | 確認済み | GetEnemyPtrsの宣言・借用；第3: 全型・全関数・内部処理（第3段階報告の全体範囲） | 今回の誤説明・単位・状態/消費・寿命/順序を補正。単純取得等は確認して保持 | `abad77b8aa94` | 第3段階全体照合／HEAD 83022a1・SHA併記 |
+| `project/game/exp/ExpEnemy.cpp` | game/exp | 確認済み | 確認済み | MoveCombatActor、ApplyKnockback、TakeDirectionalDamage、ApplyDamage、TryReflectProjectile、OnCollisionの命中関連；第3: 全型・全関数・内部処理（第3段階報告の全体範囲） | 今回の誤説明・単位・状態/消費・寿命/順序を補正。単純取得等は確認して保持 | `ff00c80bb6d0` | 第3段階全体照合／HEAD 83022a1・SHA併記 |
+| `project/game/exp/ExpEnemy.h` | game/exp | 確認済み | 確認済み | GetWallCollisionCount・命中/押し出し関連の宣言；第3: 全型・全関数・内部処理（第3段階報告の全体範囲） | 今回の誤説明・単位・状態/消費・寿命/順序を補正。単純取得等は確認して保持 | `0a83c8a74711` | 第3段階全体照合／HEAD 83022a1・SHA併記 |
+| `project/game/exp/ExpEnemyCombatCycle.h` | game/exp | 一部確認 | 一部確認 | P3-H: 型/Reset/Advance/GetRecoveryRatio、State destructor/Update、共有表 | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `fd4418480dda` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
+| `project/game/exp/ExpEnemyMagazineCycle.h` | game/exp | 一部確認 | 一部確認 | P3-H: 型/Timing/Reset/SetIntervalScale/Advance/IsReloading、残斉射/容量/再装填集計、内部State | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `a96bec71f895` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
+| `project/game/exp/ExpEnemyNavigation.h` | game/exp | 一部確認 | 一部確認 | P3-H: FindExpEnemyNextCellの契約/BFS親セル記録 | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `cdc10a2cc51f` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
+| `project/game/exp/ExpGuardCombat.h` | game/exp | 一部確認 | 一部確認 | P3-H: PulseCycle/SummonSlots/InFacingCone/ShieldDamage、BladeCycle更新/TryHit/比率、State | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `98f9b5bf815e` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
 | `project/game/level/LevelLoader.cpp` | game/level | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L162等・計1箇所（未判定） | `b8c6e9a7c104` | 今回列挙／旧報告未照合 |
 | `project/game/level/LevelLoader.h` | game/level | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `0078bda3d9c5` | 今回列挙／旧報告未照合 |
-| `project/game/mapchip/MapChip.cpp` | game/mapchip | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L45等・計1箇所（未判定） | `d8f2a1f7c4d5` | 今回列挙／旧報告未照合 |
-| `project/game/mapchip/MapChip.h` | game/mapchip | 一部確認 | 一部確認 | ドローンのマップ範囲で使うサイズ定数 | 今回変更不要: 参照した定数の意味は確認。その他未確認 | `37483c92da65` | 今回参照のみ |
+| `project/game/mapchip/MapChip.cpp` | game/mapchip | 未確認 | 未確認 | 列挙のみ；第3参照: 全4メソッドの座標/CSV参照（文書全面審査は未実施） | 候補 P2:英語説明候補 L45等・計1箇所（未判定） | `d8f2a1f7c4d5` | 今回列挙／旧報告未照合／第3参照のみ |
+| `project/game/mapchip/MapChip.h` | game/mapchip | 一部確認 | 一部確認 | P3-H: 種類、添字と位置/セル寸法、行列数 getter | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `61bb65c82804` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
 | `project/game/modules/BuiltInGameModule.cpp` | game/modules | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `ad18c3078c76` | 今回列挙／旧報告未照合 |
 | `project/game/modules/BuiltInGameModule.h` | game/modules | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `e6a3bf2cd86d` | 今回列挙／旧報告未照合 |
 | `project/game/modules/GameModuleBootstrap.cpp` | game/modules | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `16b01dc8b98c` | 今回列挙／旧報告未照合 |
@@ -196,34 +215,34 @@ TankSpecialCombat.hは全型・インライン関数を再確認し、RailCharge
 | `project/game/player/TankCombatStyleBalance.h` | game/player | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L7等・計2箇所（未判定） | `de48bbce4d83` | 今回列挙／旧報告未照合 |
 | `project/game/player/TankExpeditionLoadout.h` | game/player | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L7等・計4箇所、P2:説明の照合候補 L57等・計1箇所（未判定） | `51e3a67fd32e` | 今回列挙／旧報告未照合 |
 | `project/game/player/TankRunModifiers.h` | game/player | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L12等・計9箇所（未判定） | `65dbefaf3304` | 今回列挙／旧報告未照合 |
-| `project/game/player/TankShooterAbilities.h` | game/player | 要修正（部分） | 一部確認 | ReturnFlight、MarkLedger、Damageの状態・計算 | 要修正 P1: ReturnFlightは方向を計算せず、Damageは値の計算だけ。Update/Hitの説明も不足 | `a10085a03d67` | 今回参照のみ |
+| `project/game/player/TankShooterAbilities.h` | game/player | 確認済み | 確認済み | ReturnFlight、MarkLedger、Damageの状態・計算；第3: 全型・全関数・内部処理（第3段階報告の全体範囲） | 今回の誤説明・単位・状態/消費・寿命/順序を補正。単純取得等は確認して保持 | `3344e2eb6af7` | 第3段階全体照合／HEAD 83022a1・SHA併記 |
 | `project/game/player/TankSpecialCombat.h` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲） | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `3fd2f153cae1` | 今回照合 |
-| `project/game/player/actor/AttackController.cpp` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲） | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `f8a08d506b0b` | 今回照合 |
+| `project/game/player/actor/AttackController.cpp` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲）；第3参照: Fire/FireFromMuzzle/FireInternal | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `f8a08d506b0b` | 今回照合／第3参照のみ |
 | `project/game/player/actor/AttackController.h` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲） | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `67126d724737` | 今回照合 |
-| `project/game/player/actor/Bullet.cpp` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲） | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `c4f34860ada8` | 今回照合 |
-| `project/game/player/actor/Bullet.h` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲） | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `cec1715edde4` | 今回照合 |
-| `project/game/player/actor/BulletManager.cpp` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲） | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `51f4b591dbb2` | 今回照合 |
-| `project/game/player/actor/BulletManager.h` | game/player | 一部確認 | 一部確認 | 今回の対象API・関連型/インライン状態。第1段階は文書全体を確認 | Drawの空描画経路の説明を局所修正。他の対象APIは既存契約と一致。範囲外は今回未確認 | `0064d1cebfe6` | 今回部分照合＋第1段階報告 |
+| `project/game/player/actor/Bullet.cpp` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲）；第3参照: Initialize/Update/OnCollision/帰還/成長設定/壁/分裂 | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `c4f34860ada8` | 今回照合／第3参照のみ |
+| `project/game/player/actor/Bullet.h` | game/player | 確認済み | 確認済み | 第2: 型・全関数。第3: IsBurstChild/SetBurstChild追補B | 追補B修正。第2段階全体実績を保持 | `b10bfe267b73` | 第2全体＋第3追補／SHA併記 |
+| `project/game/player/actor/BulletManager.cpp` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲）；第3参照: Add/Update/ClearAll/FlushPendingSplits/命中/マーキング/反射 | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `51f4b591dbb2` | 今回照合／第3参照のみ |
+| `project/game/player/actor/BulletManager.h` | game/player | 確認済み | 一部確認 | 第1: 型・関数の文書全体。第2/第3: 戦闘関連宣言・インライン/イベント契約 | 今回変更不要: 文書全体実績を保持。内部は実際に照合した関連範囲のみ | `0064d1cebfe6` | 第1文書全体＋第2/第3参照／SHA併記 |
 | `project/game/player/actor/Player.ClassEditor.cpp` | game/player | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L45等・計3箇所（未判定） | `7e4ac007b436` | 今回列挙／旧報告未照合 |
 | `project/game/player/actor/Player.EvolutionUi.cpp` | game/player | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L42等・計3箇所（未判定） | `3904ad16401b` | 今回列挙／旧報告未照合 |
-| `project/game/player/actor/Player.SpecialAbilities.cpp` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲） | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `4e96faa1b593` | 今回照合 |
-| `project/game/player/actor/Player.cpp` | game/player | 一部確認 | 一部確認 | P2-Pの25関数のみ | 今回修正／対象外のHUD・移動・編集等は未確認 | `51c6baa16077` | 今回照合 |
-| `project/game/player/actor/Player.h` | game/player | 一部確認 | 一部確認 | 今回の対象API・関連型/インライン状態。第1段階は文書全体を確認 | 今回変更不要: 既存の契約説明と実装が一致。範囲外は今回未確認 | `903dfd8d66db` | 今回部分照合＋第1段階報告 |
-| `project/game/player/actor/PlayerDrone.cpp` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲） | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `ab24e33e05ef` | 今回照合 |
+| `project/game/player/actor/Player.SpecialAbilities.cpp` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲）；第3参照: ArmWallSmash/UpdateAdditionalAbilitiesの壁回数消費 | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `4e96faa1b593` | 今回照合／第3参照のみ |
+| `project/game/player/actor/Player.cpp` | game/player | 一部確認 | 一部確認 | 第2: P2-Pの25関数を保持。第3: Smash/UpdateRunProjectiles追補A/C | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `b1bd627e94d4` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
+| `project/game/player/actor/Player.h` | game/player | 確認済み | 一部確認 | 第1: 型・関数の文書全体。第2/第3: 戦闘関連宣言・インライン/イベント契約 | 今回変更不要: 文書全体実績を保持。内部は実際に照合した関連範囲のみ | `903dfd8d66db` | 第1文書全体＋第2/第3参照／SHA併記 |
+| `project/game/player/actor/PlayerDrone.cpp` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲）；第3参照: ConfigureRunAttack/Attack、X/Y地形補正 | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `ab24e33e05ef` | 今回照合／第3参照のみ |
 | `project/game/player/actor/PlayerDrone.h` | game/player | 確認済み | 確認済み | 全関数・型（前掲範囲） | 今回修正／自明な取得・空処理は長文化不要。設計候補は別件報告参照 | `9a318e2740b1` | 今回照合 |
 | `project/game/player/actor/PlayerUiHelpers.cpp` | game/player | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L43等・計1箇所（未判定） | `bb3b84902943` | 今回列挙／旧報告未照合 |
 | `project/game/player/actor/PlayerUiHelpers.h` | game/player | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L8等・計2箇所（未判定） | `f7a4d1fdef30` | 今回列挙／旧報告未照合 |
-| `project/game/player/actor/Stage.cpp` | game/player | 一部確認 | 一部確認 | ResolveBulletsCollision、ResolvePlayerDroneCollision、ResolveExpEnemyCollision、IsCollisionWithAnyBlock | 次回P1: 地形通知の流れ・近似遮蔽との使い分けを確認 | `8dc00fb8da5c` | 今回参照のみ |
-| `project/game/player/actor/Stage.h` | game/player | 一部確認 | 一部確認 | 上記地形API・GetMergedBlocksの宣言 | 次回P1: 実装側と併せて範囲を広げて確認 | `c300e1368798` | 今回参照のみ |
+| `project/game/player/actor/Stage.cpp` | game/player | 確認済み | 確認済み | ResolveBulletsCollision、ResolvePlayerDroneCollision、ResolveExpEnemyCollision、IsCollisionWithAnyBlock；第3: 全型・全関数・内部処理（第3段階報告の全体範囲） | 今回の誤説明・単位・状態/消費・寿命/順序を補正。単純取得等は確認して保持 | `8bdcc280f6f2` | 第3段階全体照合／HEAD 83022a1・SHA併記 |
+| `project/game/player/actor/Stage.h` | game/player | 確認済み | 確認済み | 上記地形API・GetMergedBlocksの宣言；第3: 全型・全関数・内部処理（第3段階報告の全体範囲） | 今回の誤説明・単位・状態/消費・寿命/順序を補正。単純取得等は確認して保持 | `7c6ba2d24044` | 第3段階全体照合／HEAD 83022a1・SHA併記 |
 | `project/game/run/TankBuildStyle.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L56等・計1箇所（未判定） | `10a9331fc06f` | 今回列挙／旧報告未照合 |
 | `project/game/run/TankExpeditionAudio.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L11等・計9箇所（未判定） | `a851f3773dea` | 今回列挙／旧報告未照合 |
 | `project/game/run/TankExpeditionBalance.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L133等・計7箇所（未判定） | `79f86a7c8581` | 今回列挙／旧報告未照合 |
-| `project/game/run/TankExpeditionContent.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L22等・計14箇所（未判定） | `95ab2dc577bf` | 今回列挙／旧報告未照合 |
+| `project/game/run/TankExpeditionContent.h` | game/run | 未確認 | 未確認 | 列挙のみ；第3参照: 敵Behavior/Enemy/Catalog/FindEnemy | 候補 P2:英語説明候補 L22等・計14箇所（未判定） | `95ab2dc577bf` | 今回列挙／旧報告未照合／第3参照のみ |
 | `project/game/run/TankExpeditionDirector.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L32等・計4箇所（未判定） | `20aaee01661d` | 今回列挙／旧報告未照合 |
 | `project/game/run/TankExpeditionEncounters.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L63等・計3箇所（未判定） | `2039a2850ddc` | 今回列挙／旧報告未照合 |
 | `project/game/run/TankExpeditionMap.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L159等・計11箇所（未判定） | `24d7a2eb63b9` | 今回列挙／旧報告未照合 |
 | `project/game/run/TankExpeditionRooms.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L484等・計1箇所（未判定） | `46bcfc202c66` | 今回列挙／旧報告未照合 |
-| `project/game/run/TankExpeditionTransition.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L7等・計2箇所（未判定） | `cb9f7f797607` | 今回列挙／旧報告未照合 |
+| `project/game/run/TankExpeditionTransition.h` | game/run | 確認済み | 確認済み | 第3: 全型・全関数・内部処理（第3段階報告の全体範囲） | 今回の誤説明・単位・状態/消費・寿命/順序を補正。単純取得等は確認して保持 | `5d436cb06657` | 第3段階全体照合／HEAD 83022a1・SHA併記 |
 | `project/game/run/TankExpeditionTutorial.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L8等・計7箇所（未判定） | `233210bcdd54` | 今回列挙／旧報告未照合 |
 | `project/game/run/TankGuidedCombatTutorial.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L5等・計5箇所（未判定） | `4291268dc55f` | 今回列挙／旧報告未照合 |
 | `project/game/run/TankRunCopy.h` | game/run | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L62等・計2箇所（未判定） | `149ef3e7f154` | 今回列挙／旧報告未照合 |
@@ -243,19 +262,19 @@ TankSpecialCombat.hは全型・インライン関数を再確認し、RailCharge
 | `project/game/scene/Game.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:旧処理候補 L382等・計1箇所、P2:英語説明候補 L322等・計20箇所（未判定） | `bee68ff23c2d` | 今回列挙／旧報告未照合 |
 | `project/game/scene/Game.h` | game/scene | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `a7c2f4b0d0a2` | 今回列挙／旧報告未照合 |
 | `project/game/scene/GameScene.Authoring.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L110等・計1箇所（未判定） | `8d183f37a86f` | 今回列挙／旧報告未照合 |
-| `project/game/scene/GameScene.Balance.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L17等・計4箇所、P3:長行候補 L193等・計1箇所（未判定） | `d1f7ff8911be` | 今回列挙／旧報告未照合 |
+| `project/game/scene/GameScene.Balance.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ；第3参照: ApplyTankExpeditionRoomBalance | 候補 P2:英語説明候補 L17等・計4箇所、P3:長行候補 L193等・計1箇所（未判定） | `d1f7ff8911be` | 今回列挙／旧報告未照合／第3参照のみ |
 | `project/game/scene/GameScene.CombatValidation.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L14等・計6箇所（未判定） | `fec2b4b66fbe` | 今回列挙／旧報告未照合 |
 | `project/game/scene/GameScene.ExpeditionBuild.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L18等・計2箇所、P3:長行候補 L21等・計1箇所（未判定） | `63aa48fb14fe` | 今回列挙／旧報告未照合 |
 | `project/game/scene/GameScene.ExpeditionExperience.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L150等・計1箇所、P3:長行候補 L20等・計4箇所（未判定） | `714bf38243b4` | 今回列挙／旧報告未照合 |
-| `project/game/scene/GameScene.ExpeditionMap.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:旧処理候補 L474等・計1箇所、P2:英語説明候補 L112等・計16箇所、P3:長行候補 L256等・計12箇所（未判定） | `134077de3e27` | 今回列挙／旧報告未照合 |
+| `project/game/scene/GameScene.ExpeditionMap.cpp` | game/scene | 一部確認 | 一部確認 | 第3: P3-R指定2関数全体と通知消費/戦闘完了区間 | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `11424b4bf717` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
 | `project/game/scene/GameScene.ExperienceValidation.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L33等・計5箇所、P3:長行候補 L160等・計5箇所（未判定） | `c407bd0c8978` | 今回列挙／旧報告未照合 |
 | `project/game/scene/GameScene.SpecialValidation.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L112等・計3箇所、P3:長行候補 L77等・計16箇所（未判定） | `82ad8ed1f417` | 今回列挙／旧報告未照合 |
-| `project/game/scene/GameScene.TankExpedition.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L79等・計10箇所、P3:長行候補 L195等・計5箇所（未判定） | `bbefb3b93b28` | 今回列挙／旧報告未照合 |
-| `project/game/scene/GameScene.TankRun.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L274等・計4箇所、P3:長行候補 L158等・計1箇所（未判定） | `b74659c35604` | 今回列挙／旧報告未照合 |
+| `project/game/scene/GameScene.TankExpedition.cpp` | game/scene | 一部確認 | 一部確認 | 第3: P3-R指定2関数全体とUpdateTankExpedition戦闘分岐 | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `3e8fb86b2c05` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
+| `project/game/scene/GameScene.TankRun.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ；第3参照: IsTankRunMenuOpen/UpdateTankRun冒頭、撃破/資源コールバック | 候補 P2:英語説明候補 L274等・計4箇所、P3:長行候補 L158等・計1箇所（未判定） | `b74659c35604` | 今回列挙／旧報告未照合／第3参照のみ |
 | `project/game/scene/GameScene.TankRunVisuals.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L8等・計10箇所（未判定） | `f0e9aca91f6a` | 今回列挙／旧報告未照合 |
 | `project/game/scene/GameScene.TitleDemo.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L24等・計10箇所（未判定） | `4d536b737109` | 今回列挙／旧報告未照合 |
-| `project/game/scene/GameScene.cpp` | game/scene | 一部確認 | 一部確認 | Updateの攻撃予約消費→敵→弾/地形→特殊戦闘→衝突、UpdateSpecialCombatPresentationのイベント消費 | 次回P1: 呼び出し順と演出の全体を確認 | `5a55bd6c9142` | 今回参照のみ |
-| `project/game/scene/GameScene.h` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L315等・計2箇所（未判定） | `364fd578eba7` | 今回列挙／旧報告未照合 |
+| `project/game/scene/GameScene.cpp` | game/scene | 一部確認 | 一部確認 | 第2: 更新/命中/演出参照。第3: P3-Sの指定関数・Update戦闘区間 | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `932f6992b26a` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
+| `project/game/scene/GameScene.h` | game/scene | 一部確認 | 一部確認 | 第3: P3-S/P3-R対応宣言・戦闘状態型のみ | 今回の指定範囲を補正・逆照合。範囲外は累積実績以外を未確認として保持 | `1e4727d992a9` | 第3段階部分照合／HEAD 83022a1・SHA併記 |
 | `project/game/scene/GameStartMode.h` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L24等・計1箇所（未判定） | `826b7b347dbd` | 今回列挙／旧報告未照合 |
 | `project/game/scene/IScene.h` | game/scene | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L22等・計1箇所（未判定） | `830eee759cdf` | 今回列挙／旧報告未照合 |
 | `project/game/scene/SceneFactory.cpp` | game/scene | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `6e27a01c927d` | 今回列挙／旧報告未照合 |
@@ -279,7 +298,7 @@ TankSpecialCombat.hは全型・インライン関数を再確認し、RailCharge
 | `project/game/ui/TankRewardCardDemo.h` | game/ui | 未確認 | 未確認 | 列挙のみ | 候補 P2:旧処理候補 L481等・計1箇所、P2:英語説明候補 L12等・計13箇所（未判定） | `2c5b314458a1` | 今回列挙／旧報告未照合 |
 | `project/game/ui/TankRewardPreviewRenderer.cpp` | game/ui | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L74等・計8箇所、P3:長行候補 L239等・計2箇所（未判定） | `35ea221f5fc3` | 今回列挙／旧報告未照合 |
 | `project/game/ui/TankRewardPreviewRenderer.h` | game/ui | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L30等・計4箇所（未判定） | `740f6b7b41bf` | 今回列挙／旧報告未照合 |
-| `project/game/weapon/CombatTypes.h` | game/weapon | 要修正（部分） | 一部確認 | AttackParamのメンバー・既定値、BulletOwner | 要修正 P1: AttackParamの説明にある位置・方向をこの型は保持しない | `a8ab7e69d0cb` | 今回参照のみ |
+| `project/game/weapon/CombatTypes.h` | game/weapon | 確認済み | 確認済み | AttackParamのメンバー・既定値、BulletOwner；第3: 全型・全関数・内部処理（第3段階報告の全体範囲） | 今回の誤説明・単位・状態/消費・寿命/順序を補正。単純取得等は確認して保持 | `b08cff7fca11` | 第3段階全体照合／HEAD 83022a1・SHA併記 |
 | `project/game/weapon/WeaponMount.h` | game/weapon | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `0f0806e8a689` | 今回列挙／旧報告未照合 |
 | `project/main.cpp` | 起動 | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L59等・計1箇所（未判定） | `f946df15eb07` | 今回列挙／旧報告未照合 |
 
@@ -384,27 +403,27 @@ TankSpecialCombat.hは全型・インライン関数を再確認し、RailCharge
 | `project/tools/player_class_config_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L1等・計10箇所、P3:長行候補 L423等・計1箇所（未判定） | `57d76394b2a9` | 今回列挙 |
 | `project/tools/player_ship_editor/app.js` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L558等・計2箇所（未判定） | `56c7be6f29dd` | 今回列挙 |
 | `project/tools/prepare_tank_submission_text.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L9等・計2箇所（未判定） | `a9f24166f92c` | 今回列挙 |
-| `project/tools/prototype_boss_combat_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L46等・計2箇所（未判定） | `059d30b19faa` | 今回列挙 |
+| `project/tools/prototype_boss_combat_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ；第3参照: 関連アサーション/対象型を参照（説明全面審査は未実施） | 候補 P2:英語説明候補 L46等・計2箇所（未判定） | `059d30b19faa` | 今回列挙／第3参照のみ |
 | `project/tools/render_animation_preview.py` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `426446132a0c` | 今回列挙 |
 | `project/tools/render_source_review_uml.py` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `2524427f5b2f` | 今回列挙 |
 | `project/tools/retarget_mixamo_to_vroid.py` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `5551dbc1e876` | 今回列挙 |
-| `project/tools/rival_boss_combat_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L27等・計7箇所（未判定） | `06c42e60cfc3` | 今回列挙 |
+| `project/tools/rival_boss_combat_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ；第3参照: 関連アサーション/対象型を参照（説明全面審査は未実施） | 候補 P2:英語説明候補 L27等・計7箇所（未判定） | `06c42e60cfc3` | 今回列挙／第3参照のみ |
 | `project/tools/run_tank_expedition.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `a74ff9784427` | 今回列挙 |
 | `project/tools/shader_disk_cache_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L79等・計4箇所（未判定） | `740b1390342c` | 今回列挙 |
 | `project/tools/startup_trace_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L87等・計1箇所（未判定） | `adf56c805458` | 今回列挙 |
 | `project/tools/tank_additional_abilities_tests.cpp` | 検証C++ | 未確認 | 一部確認 | 追加能力・投射物・衝突の関連する既存アサーションを参照 | 今回変更不要: 既存の回帰検査をそのまま使用 | `4727c001737b` | 今回参照／実行（全文の説明審査は未実施） |
-| `project/tools/tank_collision_tests.cpp` | 検証C++ | 未確認 | 一部確認 | 追加能力・投射物・衝突の関連する既存アサーションを参照 | 今回変更不要: 既存の回帰検査をそのまま使用 | `322df97fd159` | 今回参照／実行（全文の説明審査は未実施） |
-| `project/tools/tank_enemy_combat_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L33等・計20箇所（未判定） | `b094b5cca881` | 今回列挙 |
+| `project/tools/tank_collision_tests.cpp` | 検証C++ | 未確認 | 一部確認 | 追加能力・投射物・衝突の関連する既存アサーションを参照；第3参照: 関連アサーション/対象型を参照（説明全面審査は未実施） | 今回変更不要: 既存の回帰検査をそのまま使用 | `322df97fd159` | 今回参照／実行（全文の説明審査は未実施）／第3参照のみ |
+| `project/tools/tank_enemy_combat_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ；第3参照: 関連アサーション/対象型を参照（説明全面審査は未実施） | 候補 P2:英語説明候補 L33等・計20箇所（未判定） | `b094b5cca881` | 今回列挙／第3参照のみ |
 | `project/tools/tank_expedition_balance_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L31等・計5箇所、P3:長行候補 L123等・計1箇所（未判定） | `58d074583ace` | 今回列挙 |
 | `project/tools/tank_expedition_content_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L26等・計6箇所、P3:長行候補 L51等・計6箇所（未判定） | `de22b19c91b2` | 今回列挙 |
 | `project/tools/tank_expedition_loadout_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L15等・計3箇所（未判定） | `8637abf559ae` | 今回列挙 |
-| `project/tools/tank_expedition_map_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L23等・計15箇所、P3:長行候補 L414等・計1箇所（未判定） | `a53f05d35f52` | 今回列挙 |
-| `project/tools/tank_expedition_rooms_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L66等・計9箇所、P3:長行候補 L111等・計1箇所（未判定） | `2539c9818c28` | 今回列挙 |
-| `project/tools/tank_expedition_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L231等・計1箇所、P3:長行候補 L254等・計1箇所（未判定） | `8cd58abe8753` | 今回列挙 |
+| `project/tools/tank_expedition_map_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ；第3参照: 関連アサーション/対象型を参照（説明全面審査は未実施） | 候補 P2:英語説明候補 L23等・計15箇所、P3:長行候補 L414等・計1箇所（未判定） | `a53f05d35f52` | 今回列挙／第3参照のみ |
+| `project/tools/tank_expedition_rooms_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ；第3参照: 関連アサーション/対象型を参照（説明全面審査は未実施） | 候補 P2:英語説明候補 L66等・計9箇所、P3:長行候補 L111等・計1箇所（未判定） | `2539c9818c28` | 今回列挙／第3参照のみ |
+| `project/tools/tank_expedition_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ；第3参照: 関連アサーション/対象型を参照（説明全面審査は未実施） | 候補 P2:英語説明候補 L231等・計1箇所、P3:長行候補 L254等・計1箇所（未判定） | `8cd58abe8753` | 今回列挙／第3参照のみ |
 | `project/tools/tank_expedition_tutorial_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L41等・計4箇所（未判定） | `cb0a9e09a4d4` | 今回列挙 |
-| `project/tools/tank_guard_integration_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L1等・計25箇所（未判定） | `27a9d92b42a0` | 今回列挙 |
-| `project/tools/tank_presentation_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `d5ac826614bc` | 今回列挙 |
-| `project/tools/tank_projectile_tests.cpp` | 検証C++ | 未確認 | 一部確認 | 追加能力・投射物・衝突の関連する既存アサーションを参照 | 今回変更不要: 既存の回帰検査をそのまま使用 | `87a5f707fd66` | 今回参照／実行（全文の説明審査は未実施） |
+| `project/tools/tank_guard_integration_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ；第3参照: 関連アサーション/対象型を参照（説明全面審査は未実施） | 候補 P2:英語説明候補 L1等・計25箇所（未判定） | `27a9d92b42a0` | 今回列挙／第3参照のみ |
+| `project/tools/tank_presentation_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ；第3参照: 関連アサーション/対象型を参照（説明全面審査は未実施） | 未抽出（精査前） | `d5ac826614bc` | 今回列挙／第3参照のみ |
+| `project/tools/tank_projectile_tests.cpp` | 検証C++ | 未確認 | 一部確認 | 追加能力・投射物・衝突の関連する既存アサーションを参照；第3参照: 関連アサーション/対象型を参照（説明全面審査は未実施） | 今回変更不要: 既存の回帰検査をそのまま使用 | `87a5f707fd66` | 今回参照／実行（全文の説明審査は未実施）／第3参照のみ |
 | `project/tools/tank_reward_card_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L16等・計3箇所（未判定） | `4314587d93ca` | 今回列挙 |
 | `project/tools/tank_run_modifier_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L28等・計2箇所（未判定） | `ba9d62b670f2` | 今回列挙 |
 | `project/tools/tank_run_tests.cpp` | 検証C++ | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L241等・計3箇所、P3:長行候補 L338等・計2箇所（未判定） | `531c755ee9b4` | 今回列挙 |
@@ -416,26 +435,26 @@ TankSpecialCombat.hは全型・インライン関数を再確認し、RailCharge
 | `project/tools/test_neon_skinned_model.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L18等・計1箇所（未判定） | `da65d2ec3c7a` | 今回列挙 |
 | `project/tools/test_neon_skinned_pipeline.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L17等・計1箇所（未判定） | `7392188ab0b2` | 今回列挙 |
 | `project/tools/test_player_class_config.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L91等・計1箇所（未判定） | `d38b0ffe543c` | 今回列挙 |
-| `project/tools/test_rival_boss_combat.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `265b4df9daea` | 今回列挙 |
+| `project/tools/test_rival_boss_combat.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 未抽出（精査前） | `265b4df9daea` | 今回列挙／第3参照のみ |
 | `project/tools/test_shader_disk_cache.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L26等・計2箇所（未判定） | `18bce3ae443a` | 今回列挙 |
 | `project/tools/test_startup_trace.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L26等・計2箇所（未判定） | `e32884e61b28` | 今回列挙 |
-| `project/tools/test_tank_additional_abilities.ps1` | 制作・検証スクリプト | 未確認 | 一部確認 | 既存テストの対象・実行条件・ソース抽出の目印（全脚本を読み取り） | 今回変更不要: 検査条件・抽出対象を保持 | `8f602cde0b92` | 今回参照／実行（全文の説明審査は未実施） |
-| `project/tools/test_tank_collisions.ps1` | 制作・検証スクリプト | 未確認 | 一部確認 | 既存テストの対象・実行条件・ソース抽出の目印（全脚本を読み取り） | 今回変更不要: 検査条件・抽出対象を保持 | `426d647a14d8` | 今回参照／実行（全文の説明審査は未実施） |
-| `project/tools/test_tank_combat_runtime.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L34等・計2箇所（未判定） | `1a9a862f139d` | 今回列挙 |
-| `project/tools/test_tank_enemy_combat.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `aa74e29ba596` | 今回列挙 |
-| `project/tools/test_tank_expedition.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `333853e7d9e3` | 今回列挙 |
-| `project/tools/test_tank_expedition_content.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L18等・計1箇所（未判定） | `da3dc0ac796a` | 今回列挙 |
-| `project/tools/test_tank_expedition_map.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L47等・計1箇所（未判定） | `5326a41983ac` | 今回列挙 |
+| `project/tools/test_tank_additional_abilities.ps1` | 制作・検証スクリプト | 未確認 | 一部確認 | 既存テストの対象・実行条件・ソース抽出の目印（全脚本を読み取り）；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 今回変更不要: 検査条件・抽出対象を保持 | `8f602cde0b92` | 今回参照／実行（全文の説明審査は未実施）／第3参照のみ |
+| `project/tools/test_tank_collisions.ps1` | 制作・検証スクリプト | 未確認 | 一部確認 | 既存テストの対象・実行条件・ソース抽出の目印（全脚本を読み取り）；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 今回変更不要: 検査条件・抽出対象を保持 | `426d647a14d8` | 今回参照／実行（全文の説明審査は未実施）／第3参照のみ |
+| `project/tools/test_tank_combat_runtime.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 候補 P3:長行候補 L34等・計2箇所（未判定） | `1a9a862f139d` | 今回列挙／第3参照のみ |
+| `project/tools/test_tank_enemy_combat.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 未抽出（精査前） | `aa74e29ba596` | 今回列挙／第3参照のみ |
+| `project/tools/test_tank_expedition.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 未抽出（精査前） | `333853e7d9e3` | 今回列挙／第3参照のみ |
+| `project/tools/test_tank_expedition_content.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 候補 P3:長行候補 L18等・計1箇所（未判定） | `da3dc0ac796a` | 今回列挙／第3参照のみ |
+| `project/tools/test_tank_expedition_map.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 候補 P3:長行候補 L47等・計1箇所（未判定） | `5326a41983ac` | 今回列挙／第3参照のみ |
 | `project/tools/test_tank_expedition_map_runtime.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L34等・計1箇所（未判定） | `87929dd202d8` | 今回列挙 |
-| `project/tools/test_tank_expedition_rooms.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L31等・計1箇所（未判定） | `06ba3c12be59` | 今回列挙 |
-| `project/tools/test_tank_expedition_tutorial.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `9bf6888fbfd2` | 今回列挙 |
+| `project/tools/test_tank_expedition_rooms.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 候補 P3:長行候補 L31等・計1箇所（未判定） | `06ba3c12be59` | 今回列挙／第3参照のみ |
+| `project/tools/test_tank_expedition_tutorial.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 未抽出（精査前） | `9bf6888fbfd2` | 今回列挙／第3参照のみ |
 | `project/tools/test_tank_experience_runtime.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L44等・計4箇所（未判定） | `fa7b42e6ab12` | 今回列挙 |
-| `project/tools/test_tank_presentation.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `e65e43f1e2af` | 今回列挙 |
-| `project/tools/test_tank_projectiles.ps1` | 制作・検証スクリプト | 未確認 | 一部確認 | 既存テストの対象・実行条件・ソース抽出の目印（全脚本を読み取り） | 今回変更不要: 検査条件・抽出対象を保持 | `e5fb77b8e461` | 今回参照／実行（全文の説明審査は未実施） |
+| `project/tools/test_tank_presentation.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 未抽出（精査前） | `e65e43f1e2af` | 今回列挙／第3参照のみ |
+| `project/tools/test_tank_projectiles.ps1` | 制作・検証スクリプト | 未確認 | 一部確認 | 既存テストの対象・実行条件・ソース抽出の目印（全脚本を読み取り）；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 今回変更不要: 検査条件・抽出対象を保持 | `e5fb77b8e461` | 今回参照／実行（全文の説明審査は未実施）／第3参照のみ |
 | `project/tools/test_tank_reward_cards.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L24等・計1箇所（未判定） | `862670f143e5` | 今回列挙 |
 | `project/tools/test_tank_reward_pool.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P2:英語説明候補 L45等・計1箇所（未判定） | `6ea68888ae58` | 今回列挙 |
-| `project/tools/test_tank_run.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `689267c9682f` | 今回列挙 |
-| `project/tools/test_tank_special_runtime.ps1` | 制作・検証スクリプト | 未確認 | 一部確認 | 既存テストの対象・実行条件・ソース抽出の目印（全脚本を読み取り） | 今回変更不要: 検査条件・抽出対象を保持 | `de0a1874c8e4` | 今回参照／実行（全文の説明審査は未実施） |
+| `project/tools/test_tank_run.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 未抽出（精査前） | `689267c9682f` | 今回列挙／第3参照のみ |
+| `project/tools/test_tank_special_runtime.ps1` | 制作・検証スクリプト | 未確認 | 一部確認 | 既存テストの対象・実行条件・ソース抽出の目印（全脚本を読み取り）；第3参照: 実行条件・現在の検査対象/抽出目印を参照（説明全面審査は未実施） | 今回変更不要: 検査条件・抽出対象を保持 | `de0a1874c8e4` | 今回参照／実行（全文の説明審査は未実施）／第3参照のみ |
 | `project/tools/test_tank_submission.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 未抽出（精査前） | `7fb98b01e0a0` | 今回列挙 |
 | `project/tools/test_tank_submission_packaging.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L30等・計8箇所（未判定） | `7ef727f1190c` | 今回列挙 |
 | `project/tools/test_tank_submission_runtime.ps1` | 制作・検証スクリプト | 未確認 | 未確認 | 列挙のみ | 候補 P3:長行候補 L44等・計1箇所（未判定） | `acaaa56ba460` | 今回列挙 |

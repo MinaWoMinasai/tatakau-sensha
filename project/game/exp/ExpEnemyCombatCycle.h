@@ -3,8 +3,7 @@
 #include <array>
 #include <cmath>
 
-// Pure timing contract shared by expedition enemies. Every attack has a visible
-// tracking window, a non-tracking commitment window, and a punishable recovery.
+// 敵の攻撃周期の時間状態。追尾予告、照準固定、実行、回復を分け、実際の移動や攻撃は呼び出し側が行う。
 enum class ExpEnemyCombatPhase {
     Cooldown,
     Tracking,
@@ -25,7 +24,7 @@ public:
         float cooldown = 0.55f;
     };
 
-    /// @brief 状態と集計値を初期状態へ戻す。
+    /// @brief 各段階の時間設定をコピーし、初回待ちを最低0秒としてCooldownへ戻す。回復倍率は保持する。
     void Reset(const Timing& timing, float initialDelay)
     {
         timing_ = timing;
@@ -33,10 +32,10 @@ public:
         remaining_ = (std::max)(0.0f, initialDelay);
     }
 
-    // True only on entering Active. A long frame never skips the commitment
-    // phase or emits multiple shots; each phase retains its complete duration.
-    /// @brief 経過時間に応じて現在の状態を進める。
-    /// @param deltaTime この処理で進める経過時間（秒）。
+    /// @brief 現在の段階を進め、Activeへ入った呼び出しだけtrueを返す。falseでもタイマーや段階は変わり得る。
+    /// @param deltaTime 進める秒数。非有限値・0以下なら何もせずfalse。
+    /// @param canTrackTarget 待ち終了後の追尾開始と、Trackingの継続を許可するか。Locked以降は参照しない。
+    /// @note 1呼び出しで進む段階は最大1つ。余った時間を次段階へ繰り越さないため、長い更新でも照準固定を飛ばさない。
     bool Advance(float deltaTime, bool canTrackTarget)
     {
         if (!std::isfinite(deltaTime) || deltaTime <= 0.0f)
@@ -74,7 +73,7 @@ public:
             return 0.0f;
         return (std::clamp)(1.0f - remaining_ / (std::max)(0.001f, timing_.tracking), 0.0f, 1.0f);
     }
-    /// @brief 回復比率を返す。
+    /// @brief Recoveryの残り時間の割合を0〜1で返す。それ以外は0。経過した時間の割合ではない。
     float GetRecoveryRatio() const
     {
         return phase_ == ExpEnemyCombatPhase::Recovery
@@ -83,21 +82,20 @@ public:
     }
 
 private:
-    // Immutable state objects are shared; each enemy keeps its own timers here.
-    // Nested classes use the private transition API without friend declarations.
+    // 状態オブジェクトは共有するが、段階とタイマーは各周期インスタンスに保持する。
     /// @brief ExpEnemyCombatCycleの状態遷移の共通契約を定義する。具体的な状態は同じクラス内の派生型で表す。
     class State {
     public:
-        /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
+        /// @brief 派生状態を基底型経由で破棄できるようにする。
         virtual ~State() = default;
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。Activeへ入った場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         virtual bool Update(ExpEnemyCombatCycle& cycle, float dt, bool canTrack) const = 0;
     };
     /// @brief ExpEnemyCombatCycleで次の攻撃まで待機する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class CooldownState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。Activeへ入った場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyCombatCycle& cycle, float dt, bool canTrack) const override
         {
@@ -109,7 +107,7 @@ private:
     /// @brief ExpEnemyCombatCycleで対象を追尾する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class TrackingState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。Activeへ入った場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyCombatCycle& cycle, float dt, bool canTrack) const override
         {
@@ -123,7 +121,7 @@ private:
     /// @brief ExpEnemyCombatCycleで照準を固定する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class LockedState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。Activeへ入った場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyCombatCycle& cycle, float dt, bool) const override
         {
@@ -136,7 +134,7 @@ private:
     /// @brief ExpEnemyCombatCycleで攻撃が有効な状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class ActiveState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。Activeへ入った場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyCombatCycle& cycle, float dt, bool) const override
         {
@@ -148,7 +146,7 @@ private:
     /// @brief ExpEnemyCombatCycleで攻撃後に回復する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class RecoveryState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。Activeへ入った場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyCombatCycle& cycle, float dt, bool) const override
         {
@@ -165,7 +163,7 @@ private:
         static const LockedState locked;
         static const ActiveState active;
         static const RecoveryState recovery;
-        // Indexed by ExpEnemyCombatPhase; behavior stays in the State classes.
+        // 列挙値を共有状態オブジェクトへ対応させる。範囲外の値はCooldownを使う。
         static const std::array<const State*, 5> states{&cooldown, &tracking, &locked, &active, &recovery};
         static_assert(states.size() == static_cast<std::size_t>(ExpEnemyCombatPhase::Recovery) + 1);
         const auto index = static_cast<std::size_t>(phase);

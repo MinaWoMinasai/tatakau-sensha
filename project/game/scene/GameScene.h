@@ -55,7 +55,7 @@
 #include "game/editor/ExpeditionContentEditor.h"
 
 // ゲームシーン
-/// @brief 遠征の戦闘・進行・表示を接続する。自機・敵・地形の更新順と演出を管理する。
+/// @brief 通常戦闘・ラン・遠征の進行と表示を接続し、自機・敵・地形の更新順と演出を管理する。
 class GameScene : public IScene {
 
 public:
@@ -68,7 +68,7 @@ public:
     /// @brief 初期化
     void Initialize() override;
 
-    /// @brief 更新
+    /// @brief シーンの状態に応じて戦闘・演出・進行を更新する。戦闘の呼び出し順は実装内に記載する。
     void Update() override;
 
     /// @brief 描画
@@ -206,18 +206,20 @@ private:
     void EnterExpeditionMapNode(const std::string& id);
     /// @brief 遠征マップノードを要求を予約する。
     void RequestExpeditionMapNode(const std::string& id);
-    /// @brief 遠征画面演出を開始する。
+    /// @brief 停止を伴う遠征遷移を開始し、反映時点で実行するactionを予約する。既に遷移中なら何もしない。
     void BeginExpeditionPresentation(int action, const std::string& title, const std::string& detail, const cg2::Vector4& color);
-    /// @brief 遠征画面演出を更新する。
+    /// @brief 遠征遷移と表示を進め、反映時点で予約済みactionを一度消費する。
     /// @param dt この処理で進める経過時間（秒）。
     void UpdateExpeditionPresentation(float dt);
     /// @brief 遠征画面演出を描画する。
     void DrawExpeditionPresentation();
     /// @brief 遠征修理・整備を選択する。
     void SelectExpeditionService(int option);
-    /// @brief 遠征マップ戦闘を完了にする。
+    /// @brief 生存中の非ボス戦を完了し、地図選択へ戻す。敵・弾の実体は次の部屋開始時まで保持する。
     void CompleteExpeditionMapCombat();
-    /// @brief 制作データ遠征部屋を開始する。
+    /// @brief 制作部屋の地形を読み込み、旧戦闘を消去して自機・敵・資源を配置する。
+    /// @return 有効な部屋の地形読み込みと配置処理を終えた場合true。敵1体ごとの生成成功は保証しない。
+    /// @note 自機の部屋状態リセットは、遠征成長が有効で生存中の場合にだけ行われる。
     bool StartAuthoredExpeditionRoom();
     /// @brief 遠征修理・整備候補を最新の内容へ更新する。
     void RefreshExpeditionServiceOffers();
@@ -430,9 +432,11 @@ private:
     /// @brief 戦車遠征を更新する。
     /// @param dt この処理で進める経過時間（秒）。
     void UpdateTankExpedition(float dt);
-    /// @brief 戦車遠征部屋を開始する。
+    /// @brief 戦闘フェーズなら旧部屋の敵・弾・場の攻撃を消去し、新しい部屋を配置する。
+    /// @note 地形の読み込み失敗は診断出力だけで、その後の初期化・配置は続ける。
+    /// 自機の部屋状態リセットは、遠征成長が有効で生存中の場合にだけ行われる。
     void StartTankExpeditionRoom();
-    /// @brief 戦車遠征部屋を終了する。
+    /// @brief 生存中の非ボス戦を報酬/進路選択へ移す。マップ式では対応する完了処理へ委譲する。
     void FinishTankExpeditionRoom();
     /// @brief 戦車遠征選択肢を選択する。
     void SelectTankExpeditionOption(int index);
@@ -443,7 +447,7 @@ private:
     /// @brief 戦車遠征音声を更新する。
     /// @param dt この処理で進める経過時間（秒）。
     void UpdateTankExpeditionAudio(float dt);
-    /// @brief 遠征ライバル有効であるか判定する。
+    /// @brief 遠征以外、または遠征でライバルが有効な場合true。死亡判定は別に必要。
     bool IsRunRivalActive() const
     {
         return !expeditionRun_ || tankExpeditionRivalActive_;
@@ -692,42 +696,47 @@ private:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdatePlayerNeonAfterimages(float deltaTime);
     struct PlayerMeleeSlash;
-    /// @brief 自機レーザーを出現させる。
+    /// @brief 発射イベントの壁までの表示を登録し、その時点の対象へレーザーダメージを適用する。
+    /// @note 方向がほぼ0なら登録・ダメージ適用を行わない。残存表示から追加の命中判定は行わない。
     void SpawnPlayerLaser(const Player::LaserShotEvent& event);
-    /// @brief 自機Lasersを更新する。
+    /// @brief レーザーの表示寿命だけを進め、期限切れの表示を消去する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdatePlayerLasers(float deltaTime);
     /// @brief 自機Lasersを後で処理するために予約する。
     void QueuePlayerLasers(const cg2::Vector3& cameraForward);
-    /// @brief 自機地雷を出現させる。
+    /// @brief 発射イベントから地雷の位置・威力・待機時間・寿命を登録する。
     void SpawnPlayerMine(const Player::MineDropEvent& event);
-    /// @brief 自機Minesを更新する。
+    /// @brief 地雷の待機時間・寿命を進め、寿命切れまたは待機後の近接で起爆し、終了した爆発表示を消去する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdatePlayerMines(float deltaTime);
-    /// @brief 自機地雷を起爆する。
+    /// @brief 添字の地雷の範囲ダメージを適用し、爆発表示を登録して地雷を削除する。
+    /// @param index 現在の地雷配列の添字。範囲外なら何もしない。
     void DetonatePlayerMine(size_t index);
     /// @brief 自機Minesを後で処理するために予約する。
     void QueuePlayerMines(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward);
-    /// @brief 自機近接攻撃斬撃を出現させる。
+    /// @brief 斬撃イベントから予備動作・振り・回復動作と命中履歴を持つ斬撃状態を登録する。
+    /// @note 方向がほぼ0なら登録しない。この時点では命中ダメージを適用しない。
     void SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event);
-    /// @brief 自機近接攻撃Slashesを更新する。
+    /// @brief 自機に追従する斬撃の時間・命中・押し飛ばし・軌跡を処理し、期限切れの斬撃を消去する。
+    /// @note 同じ斬撃の命中履歴にある対象へは再適用しない。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdatePlayerMeleeSlashes(float deltaTime);
     /// @brief 自機近接攻撃Slashesを後で処理するために予約する。
     void QueuePlayerMeleeSlashes();
-    /// @brief 特殊戦闘画面演出を更新する。
+    /// @brief 強化/特殊戦闘のイベントを消費して演出へ写し、既存演出の経過時間と特殊弾の表示情報を更新する。
+    /// @note 攻撃結果は適用済み。表示上限でもイベントは消費し、ダメージを再適用しない。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateSpecialCombatPresentation(float deltaTime);
     /// @brief 特殊戦闘画面演出を後で処理するために予約する。
     void QueueSpecialCombatPresentation();
-    /// @brief 特殊戦闘の発動を示すフラッシュの位置と残り時間を保持する。
+    /// @brief 特殊戦闘イベント・表示終点と、フラッシュ開始からの経過秒を保持する。
     struct SpecialCombatFlash {
         Player::SpecialCombatEvent event;
         float age = 0;
         cg2::Vector3 end{};
     };
     std::vector<SpecialCombatFlash> specialCombatFlashes_;
-    /// @brief 強化効果の発動を示すフラッシュの位置と残り時間を保持する。
+    /// @brief 射撃強化イベントと、フラッシュ開始からの経過秒を保持する。
     struct BuildCombatFlash {
         BulletManager::BuildEvent event;
         float age = 0;
@@ -743,7 +752,7 @@ private:
     float railChargeAudioAge_ = 0;
     /// @brief 自機近接攻撃軌跡設定を作成して返す。
     cg2::TrailConfig MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale = 1.0f) const;
-    /// @brief 自機近接攻撃刃Sectionを計算して返す。
+    /// @brief 振りの進行度を0～1へ制限して刃外側の軌跡の2端点を計算し、base/tipへ書き込む。
     void ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, cg2::Vector3& base, cg2::Vector3& tip) const;
     /// @brief ネオン三角形粒子を更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
@@ -826,7 +835,7 @@ private:
     void AddLevelSpawnArea(const LevelSpawnArea& spawnArea);
     /// @brief レベル出現範囲からのオブジェクトを追加する。
     void AddLevelSpawnAreaFromObject(const LevelObject& levelObject);
-    /// @brief レベルボスPhasesを更新する。
+    /// @brief HP比が開始閾値以下になった未発動ボス段階を配列順に適用し、追加配置を生成する。
     void UpdateLevelBossPhases();
     /// @brief ボス段階調整値を現在の状態へ適用する。
     void ApplyBossPhaseTuning(const LevelBossPhase& phase);
@@ -869,18 +878,20 @@ private:
     void UpdateTutorialText();
     /// @brief チュートリアルUIを描画する。
     void DrawTutorialUi();
-    /// @brief チュートリアル戦闘Suppressedであるか判定する。
+    /// @brief 通常チュートリアルが有効で、敵AI・特殊戦闘・通常衝突を抑制する場合true。
     bool IsTutorialCombatSuppressed() const
     {
         return tutorialConfig_.enabled;
     }
-    /// @brief ゲームFlowを更新する。
+    /// @brief 基準時間で撃破/死亡演出の終了を判定し、結果表示とその選択入力を処理する。
+    /// @param baseDeltaTime 演出と進行に使う経過秒。戦闘の減速倍率を掛けない。
     void UpdateGameFlow(float baseDeltaTime);
-    /// @brief Gameplayイベント演出を更新する。
+    /// @brief 適用済みHPの差分・行動イベント・死亡状態を読み、演出と戦闘終了状態を反映する。
+    /// @note 進化確定/取消の通知は消費し、遠征時は主攻撃通知も消費する。2つの引数は現在の実装では使わない。
     void UpdateGameplayEventEffects(float baseDeltaTime, bool justDodgeTriggered);
-    /// @brief ボス撃破Sequenceを開始する。
+    /// @brief ボス撃破演出状態へ移り、次回の戦闘更新を止める。敵・弾はこの関数では消去しない。
     void BeginBossDefeatSequence();
-    /// @brief ゲームOverを開始する。
+    /// @brief 自機死亡を進行へ記録し、ゲームオーバー状態へ移って次回の戦闘更新を止める。
     void BeginGameOver();
     /// @brief 結果状態を開始する。
     void EnterResultState(bool stageClear);
@@ -1269,7 +1280,7 @@ private:
         float life = 0.0f;
     };
     std::vector<PlayerNeonAfterimage> playerNeonAfterimages_;
-    /// @brief 自機のレーザーの端点・威力・表示時間を保持する。
+    /// @brief 命中適用後のレーザーの端点・幅・色・残り表示秒を保持する。威力は保持しない。
     struct PlayerLaserBeam {
         cg2::Vector3 start{};
         cg2::Vector3 end{};
@@ -1291,7 +1302,7 @@ private:
         cg2::Vector4 color{1.0f, 0.25f, 0.95f, 1.0f};
     };
     std::vector<PlayerMine> playerMines_;
-    /// @brief 地雷の爆発範囲・威力・演出時間を保持する。
+    /// @brief 起爆後の爆発表示の位置・半径・色・残り表示秒を保持する。威力は保持しない。
     struct PlayerMineExplosion {
         cg2::Vector3 position{};
         float radius = 3.2f;
@@ -1322,6 +1333,7 @@ private:
         bool hitApplied = false;
         float knockback = 0;
         bool finisher = false;
+        // 同じ斬撃の重複命中照合に使う借用アドレス。所有せず、この履歴から対象のメンバーへアクセスしない。
         std::vector<const Collider*> hitTargets;
         float life = 0.18f;
         float maxLife = 0.18f;

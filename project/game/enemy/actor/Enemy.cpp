@@ -29,7 +29,7 @@ cg2::Vector4 LerpColor(const cg2::Vector4& a, const cg2::Vector4& b, float t)
 	};
 }
 
-/// @brief 2D方向を指定角度だけ回転する。
+/// @brief XY方向をangleDeg（度）だけ回転して返す。Z成分は保持する。
 cg2::Vector3 RotateDirection2D(const cg2::Vector3& dir, float angleDeg)
 {
 	const float rad = angleDeg * 3.1415926535f / 180.0f;
@@ -40,7 +40,7 @@ cg2::Vector3 RotateDirection2D(const cg2::Vector3& dir, float angleDeg)
 	};
 }
 
-/// @brief 角度ラジアンを正規化する。
+/// @brief ラジアン角を-π～πの範囲へ折り返す。両端はそのまま含む。
 float NormalizeAngleRad(float angle)
 {
 	constexpr float twoPi = 6.283185307f;
@@ -61,16 +61,13 @@ void Enemy::Fire() {
 
 	assert(player_);
 
-	// 弾の速度
+	// 速度は60FPS基準の1フレーム当たり。方向の長さではなくAttackParamの弾速を発射制御が使う。
 	const float kBulletSpeed = 0.35f;
 
-	// 自キャラの位置を取得
+	// 現在のPlayer位置へ向ける。位置の更新や照準予測はここでは行わない。
 	cg2::Vector3 playerPos = player_->GetWorldPosition();
-	// 敵キャラのワールド座標を取得
 	cg2::Vector3 enemyPos = GetWorldPosition();
-	// 敵キャラから自キャラへのベクトルを求める
 	cg2::Vector3 direction = playerPos - enemyPos;
-	// ベクトルの正規化
 	direction = cg2::Normalize(direction);
 	// ベクトルの長さを速さに合わせる
 	direction = kBulletSpeed * direction;
@@ -204,7 +201,7 @@ void Enemy::Initialize(cg2::Object3d* object, const cg2::Vector3& position, Stag
 
 	// 衝突属性を設定
 	SetCollisionAttribute(kCollisionAttributeEnemy);
-	// 衝突対象をプレイヤーとプレイヤーの弾に設定
+	// 自機・自機弾・ドローン・ボスに敵対する通常敵の弾を対象にする。通常敵本体は設定側で追加する。
 	SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerBullet | kCollisionAttributePlayerDrone | kCollisionAttributeHostileExpEnemyBullet);
 	SetDamage(35);
 
@@ -267,8 +264,8 @@ void Enemy::RegisterExpEnemyKill(uint32_t expValue)
 	if (prototypeCombatEnabled_ && (isDead_ || hp_ <= 0)) return;
 	expEnemyKillCount_++;
 	if (prototypeCombatEnabled_ && prototypeResourceFocus_) {
-		// Ordinary shapes sustain the rival slightly; only contested cores
-		// advance its level in the resource-rivalry mode.
+		// 資源争奪中の通常敵撃破は、撃破数と最大1の回復だけに使う。
+		// 資源取得による成長はRegisterRunResourceClaimが別に処理する。
 		HealFromFeeding((std::min)(1, enemyProgressConfig_.healOnExpEnemyKill));
 		return;
 	}
@@ -328,7 +325,7 @@ void Enemy::SetPrototypeMaxHp(int maxHp, bool healToFull)
 	prototypeBaseMaxHp_ = (std::clamp)(maxHp, 1, 1000000);
 	maxHP_ = prototypeBaseMaxHp_;
 	prototypeFeedingHealBudget_ = prototypeBaseMaxHp_ / 2;
-	// Configuring HP does not revive a defeated actor.
+	// 最大HPの変更だけでは復活させない。死亡フラグはResetRunEncounterで解除する。
 	hp_ = isDead_ ? 0 : (healToFull ? maxHP_ : (std::clamp)(hp_, 0, maxHP_));
 }
 
@@ -370,11 +367,13 @@ void Enemy::ResetRunEncounter(const cg2::Vector3& position, int hp, int pressure
 {
 	if (!object_) return;
 	expeditionRivalEnabled_ = false;
+	// 初回の遭遇戦で基準ダメージを保存し、次の部屋で捕食による上昇を持ち越さない。
 	if (!runEncounterBaselineCaptured_) {
 		runEncounterBaseContactDamage_ = GetDamage();
 		runEncounterBaseBulletDamage_ = bossAttackConfig_.damage;
 		runEncounterBaselineCaptured_ = true;
 	}
+	// 借用先・射撃調整値を保ったまま、死亡・成長・行動の状態を新しい遭遇戦へ戻す。
 	runEncounterEnabled_ = true;
 	isDead_ = false;
 	isExploding_ = false;
@@ -430,8 +429,7 @@ void Enemy::EnableExpeditionRival(bool enabled)
 	velocity_ = {};
 	impactVelocity_ = {};
 	if (enabled) {
-		// This encounter is a duel: fighting/feeding on the boss's own guards
-		// would distract it from the player and silently replenish its health.
+		// ライバル戦ではPlayerを狙い続けるため、通常敵への敵対と捕食対象の探索を止める。
 		prototypeResourceFocus_ = prototypeResourceTargetActive_ = levelingModeActive_ = false;
 		EnemyProgressConfig progress = enemyProgressConfig_;
 		progress.expEnemyHostile = progress.levelingModeEnabled = false;
@@ -469,8 +467,8 @@ void Enemy::SelectRivalDashDirection(const cg2::Vector3& towardPlayer)
 	};
 	rivalDashDirection_ = candidates.front();
 	rivalDashDistance_ = 0.0f;
-	// Pick a genuinely traversable flank, including the rival's body width.
-	// A blocked arena never turns a dash into a teleport through a wall.
+	// 中央と機体幅の左右の線分で通行を確認し、距離を縮めながら突進先を探す。
+	// 通る候補がなければ距離0のままとし、UpdateRivalCombatで突進を終了する。
 	for (float scale : { 1.0f, 0.70f, 0.40f }) {
 		for (const auto& candidate : candidates) {
 			const float distance = rivalCombat_.GetDashDistance() * scale;
@@ -519,7 +517,8 @@ void Enemy::UpdateRivalCombat(float deltaTime)
 	toward.z = 0.0f;
 	const float distance = cg2::Length(toward);
 	toward = distance > 0.001f ? toward / distance : cg2::Vector3{ 1.0f, 0.0f, 0.0f };
-	// Short prediction rewards changing direction; aim stops following after lock.
+	// Player速度は60FPS基準なので12フレーム先を照準目標にする。
+	// 追尾中は照準を更新し、固定後の角度はRivalBossCombatが保持する。
 	const cg2::Vector3 aimTarget = currentMoveTargetPosition_ + player_->GetMove() * 12.0f;
 	const cg2::Vector3 aim = aimTarget - GetWorldPosition();
 	bool threat = false;
@@ -559,8 +558,8 @@ void Enemy::UpdateRivalCombat(float deltaTime)
 		const float speed = phase == Phase::Reload ? 0.035f : (rivalCombat_.IsPhaseTwo() ? 0.18f : 0.15f);
 		velocity_ += (desired * speed - velocity_) * (1.0f - std::exp(-2.5f * deltaTime));
 	} else {
-		// Coast while aiming; the telegraph follows the live muzzle, while its
-		// committed direction remains fixed and readable.
+		// 照準固定・連射・突進予告中は速度を減衰させる。
+		// 予告の起点は現在位置を使う一方、固定済みの照準角は行動状態が保持する。
 		velocity_ = velocity_ * std::exp(-3.5f * deltaTime);
 	}
 	dir_ = cg2::Length(velocity_) > 0.001f ? cg2::Normalize(velocity_) : cg2::Vector3{};
@@ -573,8 +572,7 @@ void Enemy::UpdateRivalCombat(float deltaTime)
 	param.bulletSpeed = prototypeTuningEnabled_ ? (std::clamp)(bossAttackConfig_.bulletSpeed, 0.24f, 0.46f) : 0.32f;
 	if (shot.pattern == RivalBossCombat::Pattern::FanBurst) param.bulletSpeed *= 0.90f;
 	param.damage = prototypeTuningEnabled_ ? bossAttackConfig_.damage : 9u;
-	// This method runs only for the expedition rival. The old arena/prototype
-	// remains at its original durability; expedition bosses resist one parry/wave.
+	// 遠征ライバルの弾には専用の最低耐久度を適用する。通常AI・試作戦闘の弾設定とは別経路。
 	param.bulletHp = (std::max)(tankspecial::kBossEnemyBulletHp, bossAttackConfig_.bulletHp);
 	param.bulletPenetration = 3.0f;
 	param.reflect = param.penetrate = param.canClaimRunResource = false;
@@ -597,7 +595,7 @@ void Enemy::UpdatePrototypeCombat(float deltaTime)
 		HasLineOfSightToTarget(currentMoveTargetPosition_), targetAngle, hpRatio,
 		effectivePressure, levelingModeActive_, prototypeTuningEnabled_ ? bossAttackConfig_.cooldown / 1.10f : 1.0f);
 	if (prototypeCombat_.HoldsPosition()) {
-		// The visible origin and aim stay fixed throughout the warning/attack.
+		// 予告・攻撃中はAI速度を0にし、発射角を固定する。追加のノックバック移動はUpdateで別に反映する。
 		velocity_ = {};
 		worldTransform_.rotate.z = prototypeCombat_.GetAimAngle();
 	}
@@ -613,7 +611,7 @@ void Enemy::UpdatePrototypeCombat(float deltaTime)
         param.bulletSpeed=bossAttackConfig_.bulletSpeed * (shot.type==PrototypeAttackType::GapRing ? 0.84f : 1.0f);
         param.damage=bossAttackConfig_.damage;
     }
-	// Damage pressure must not also make incoming bullets impossible to cancel.
+	// 攻撃圧力や調整値で威力を変えても、この経路の耐久度・貫通力は固定値を使う。
 	param.bulletHp = 5.0f;
 	param.bulletPenetration = 3.0f;
 	param.reflect = false;
@@ -646,7 +644,7 @@ void Enemy::Update(float deltaTime) {
 	}
 
 	if (expeditionRivalEnabled_) {
-		// Finite rival magazines own their shots; do not run the legacy emitter.
+		// ライバルの発射はUpdateRivalCombatで残弾を消費して行う。通常AIの射撃を重ねない。
 	} else if (prototypeCombatEnabled_) {
 		UpdatePrototypeCombat(deltaTime);
 	} else if (!isDead_){
@@ -658,18 +656,20 @@ void Enemy::Update(float deltaTime) {
 			}
 		} else {
 
-			// 視線が通っていない場合、少しづつタイマーを回復
+			// 遮蔽中は発射せず、減っていた待ち時間を最大値へ向けて戻す。
 			if (fireTimer_ < kFireTimerMax_) {
 				fireTimer_ += deltaTime;
 			}
 		}
 	}
 
+	// AI速度と追加ノックバックは60FPS基準。秒数を基準フレーム数へ換算して移動量を求める。
 	cg2::Vector3 move = (GetMove() + impactVelocity_) * (deltaTime * 60.0f);
 	impactVelocity_ = impactVelocity_ * std::exp(-5.0f * deltaTime);
 	const float maxStep = 0.35f;
 	const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(move.x), std::abs(move.y)) / maxStep) + 1);
 	cg2::Vector3 stepMove = move / static_cast<float>(subStepCount);
+	// 各小刻み移動でXの補正後にYを進める。地形側は位置を補正し、速度停止はここで判断する。
 	for (int i = 0; i < subStepCount; ++i) {
 		const cg2::Vector3 before = GetWorldPosition();
 		cg2::Vector3 pos = GetWorldPosition();
@@ -683,7 +683,8 @@ void Enemy::Update(float deltaTime) {
 		stage_->ResolveEnemyCollision(*this, cg2::Y);
 		if (expeditionRivalEnabled_ && rivalCombat_.GetPhase() == RivalBossCombat::Phase::Dash &&
 			cg2::Length(GetWorldPosition() - (before + stepMove)) > 0.015f) {
-			// Wall impact ends the dash and starts the full punishable reload.
+			// 意図した位置と地形補正後の位置が離れたら突進を終了する。
+			// 通常突進は再装填、弾への反応による回避突進は位置取りへ戻る。
 			rivalCombat_.FinishDash();
 			velocity_ = {};
 			rivalDashDistance_ = 0.0f;
@@ -694,6 +695,7 @@ void Enemy::Update(float deltaTime) {
 	object_->SetTransform(worldTransform_);
 	object_->Update();
 
+	// ダメージ通知はHPを減らすだけ。ここで死亡演出を開始し、HPを0にそろえる。
 	if (hp_ <= 0) {
 		Die();
 		hp_ = 0;
@@ -803,7 +805,7 @@ void Enemy::OnCollision(Collider* other) {
 		return;
 	}
 
-	// つみとバグ防止
+	// 自機・ドローンとの接触は離れる方向の速度を加える。位置は次のUpdateで進める。
 	if (other->GetCollisionAttribute() == kCollisionAttributePlayer || other->GetCollisionAttribute() == kCollisionAttributePlayerDrone) {
 		cg2::Vector3 dir = worldTransform_.translate - other->GetWorldPosition();
 
@@ -819,7 +821,7 @@ void Enemy::OnCollision(Collider* other) {
 			velocity_ = cg2::Normalize(velocity_) * maxKnockSpeed;
 		}
 	}
-	// ダメージ処理
+	// 自機弾・敵対する通常敵の弾はHPを減らす。死亡フラグはこの通知では立てない。
 	if (other->GetCollisionAttribute() == kCollisionAttributePlayerBullet ||
 		other->GetCollisionAttribute() == kCollisionAttributeHostileExpEnemyBullet) {
 
@@ -840,7 +842,7 @@ void Enemy::TakeDamage(uint32_t amount)
 void Enemy::ApplyKnockback(const cg2::Vector3& direction, float power)
 {
 	if (!runEncounterEnabled_ || isDead_ || !std::isfinite(power) || power <= 0.0f || cg2::Length(direction) < 0.001f) return;
-	// The boss yields visibly but its committed attack is not stun-locked.
+	// AI速度とは別の押し返し速度を加える。行動時計や固定済みの攻撃は中断しない。
 	impactVelocity_ += cg2::Normalize(direction) * ((std::min)(0.95f,power) * 0.35f);
 	if (cg2::Length(impactVelocity_) > 0.34f) impactVelocity_ = cg2::Normalize(impactVelocity_) * 0.34f;
 }
@@ -906,8 +908,7 @@ void Enemy::Move(float deltaTime) {
 	cg2::Vector3 toTarget = moveTargetPos - GetWorldPosition();
 	toTarget.z = 0.0f;
 	if (prototypeResourceTargetActive_ && cg2::Length(toTarget) <= 8.0f && HasLineOfSightToTarget(moveTargetPos)) {
-		// Keep the muzzle outside the core instead of walking through a fixed
-		// target and spawning projectiles on its far side.
+		// 見通しのある資源を8ワールド単位以内で狙う場合はAI移動を止め、資源を通り越して撃たない。
 		velocity_ = {};
 		RotateTowardTarget(moveTargetPos, deltaTime);
 		return;
@@ -953,6 +954,7 @@ void Enemy::RotateTowardTarget(const cg2::Vector3& targetPos, float deltaTime)
 		return;
 	}
 
+	// 短い側の角度差（ラジアン）を使い、180度の旋回に必要な秒数から1回の上限を求める。
 	const float targetAngle = std::atan2(toTarget.y, toTarget.x);
 	const float currentAngle = worldTransform_.rotate.z;
 	const float angleDiff = NormalizeAngleRad(targetAngle - currentAngle);
@@ -1073,11 +1075,11 @@ std::optional<cg2::Vector3> Enemy::FindPathDirectionToTarget(const cg2::Vector3&
 		return std::abs(a.x - b.x) + std::abs(a.y - b.y);
 	};
 
-	/// @brief 探索キューの座標と優先度を保持する。
+	/// @brief 探索セルの一次元IDと、到達コストに推定残距離を足した優先度を保持する。
 	struct QueueNode {
 		int id = 0;
 		int f = 0;
-		/// @brief operator>の演算を提供する。
+		/// @brief 探索優先度fを比較する。キューでは小さいfの候補を先に取り出す。
 		bool operator>(const QueueNode& other) const { return f > other.f; }
 	};
 
@@ -1090,6 +1092,7 @@ std::optional<cg2::Vector3> Enemy::FindPathDirectionToTarget(const cg2::Vector3&
 	cost[startId] = 0;
 	open.push({ startId, Heuristic(start, goal) });
 
+	// 8近傍を探索する。斜め移動は隣の縦横セルも通れる場合に限り、角をすり抜けない。
 	const std::array<MapIndex, 8> dirs = {
 		MapIndex{ 1, 0 }, MapIndex{ -1, 0 }, MapIndex{ 0, 1 }, MapIndex{ 0, -1 },
 		MapIndex{ 1, 1 }, MapIndex{ 1, -1 }, MapIndex{ -1, 1 }, MapIndex{ -1, -1 }
@@ -1155,6 +1158,7 @@ std::optional<cg2::Vector3> Enemy::FindPathDirectionToTarget(const cg2::Vector3&
 
 std::optional<Enemy::MapIndex> Enemy::WorldToMapIndex(const cg2::Vector3& pos) const
 {
+	// blocks_[y][x]に対応させる。列は右向き、CSVの行は下向きなのでワールドYを反転する。
 	const int x = static_cast<int>(std::round(pos.x / MapChip::kBlockWidth));
 	const int y = static_cast<int>(MapChip::kNumBlockVirtical - 1 - std::round(pos.y / MapChip::kBlockHeight));
 	if (x < 0 || y < 0 || x >= static_cast<int>(MapChip::kNumBlockHorizontal) || y >= static_cast<int>(MapChip::kNumBlockVirtical)) {
@@ -1191,6 +1195,7 @@ bool Enemy::IsPassableCell(int x, int y) const
 
 bool Enemy::IsPathPassableCell(int x, int y) const
 {
+	// 機体半幅を覆うセル数へ切り上げ、周辺の正方形領域も空いていることを求める。
 	const int clearance = static_cast<int>(std::ceil((kWidth * 0.5f) / MapChip::kBlockWidth));
 	for (int offsetY = -clearance; offsetY <= clearance; ++offsetY) {
 		for (int offsetX = -clearance; offsetX <= clearance; ++offsetX) {
@@ -1256,6 +1261,7 @@ bool Enemy::HasClearMoveRouteToTarget(const cg2::Vector3& targetPos) const
 	cg2::Vector3 normal = cg2::Normalize(toTarget);
 	cg2::Vector3 side = { -normal.y, normal.x, 0.0f };
 	const float halfWidth = kWidth * 0.5f + 0.25f;
+	// 中央と左右の線分で機体幅の通行を近似する。線分AABB判定は端点の接触も含む。
 	const std::array<cg2::Vector3, 3> origins = {
 		enemyPos,
 		enemyPos + side * halfWidth,
@@ -1316,7 +1322,7 @@ void Enemy::UpdateAIState() {
 	cg2::Vector3 toPlayer = player_->GetWorldPosition() - GetWorldPosition();
 	float dist = cg2::Length(toPlayer);
 
-	// プレイヤー弾の危険判定
+	// 敵弾属性だけを除き、8ワールド単位未満の弾を回避のきっかけにする。接近速度や死亡は検査しない。
 	bool bulletDanger = false;
 	for (Bullet* bullet : bulletManager_->GetBulletPtrs()) {
 
@@ -1488,7 +1494,7 @@ bool Enemy::HasLineOfSightToTarget(const cg2::Vector3& targetPos) const {
 
 			if (cg2::IsCollision(block.aabb, ray)) {
 
-				// ブロック中心までの距離で簡易判定
+				// 交点までの距離ではなくブロック中心を比べる近似。目標より中心が遠いブロックは遮蔽にしない。
 				float blockDist =
 					cg2::Length((block.aabb.max + block.aabb.min) / 2.0f - ray.origin);
 
@@ -1555,7 +1561,7 @@ void Enemy::UpdateParticles(float deltaTime)
 void Enemy::UpdateHPBar()
 {
 	cg2::Vector3 enemyPos = GetWorldPosition();
-	cg2::Vector3 barOffset = { -2.0f, -2.5f, 0.0f }; // プレイヤーの少し下に配置
+	cg2::Vector3 barOffset = { -2.0f, -2.5f, 0.0f }; // ボスの位置を基準に左下へ配置
 
 	// 背景の更新
 	hpBarBGTransform_.translate = enemyPos + barOffset;
@@ -1568,7 +1574,7 @@ void Enemy::UpdateHPBar()
 	// XスケールだけHP割合にする
 	hpBarFillTransform_.scale.x = 1.0f * hpPercent;
 
-	// ゲージが左端から縮むように、少し位置をずらす調整をするとより綺麗です
+	// 位置は背景と同じ中心を保つ。左端を固定する位置補正は行わない。
 
 
 	hpBarFill_->SetTransform(hpBarFillTransform_);

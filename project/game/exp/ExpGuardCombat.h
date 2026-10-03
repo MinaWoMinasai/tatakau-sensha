@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdint>
 
-// Small, allocation-free combat rules also exercised by the enemy tests.
+// 敵戦闘の既存テストからも利用する、描画資源を持たない小さな戦闘規則。
 namespace expguard {
 inline constexpr float kShieldHalfAngle = 55.0f * 3.14159265f / 180.0f;
 inline constexpr float kBladeHalfAngle = 55.0f * 3.14159265f / 180.0f;
@@ -15,12 +15,11 @@ inline constexpr int kSummonAliveLimit = 3;
 inline constexpr int kSummonLifetimeLimit = 6;
 inline constexpr float kSummonLifetimeSeconds = 16.0f;
 
-// Fixed update timing: a long frame cannot skip the entire warning or emit
-// several waves. No render resources are associated with this ability state.
-/// @brief パルス攻撃の周期と発動タイミングを管理する。
+/// @brief パルスの待ち時間と予告時間を保持し、予告終了時の発動を呼び出し側へ通知する。
 class PulseCycle {
 public:
-    /// @brief 状態と集計値を初期状態へ戻す。
+    /// @brief 秒単位の周期・予告・初回待ちを設定し、予告中フラグを解除する。
+    /// @note 予告は最低0.25秒、周期から予告を引いた待ち時間は最低0.5秒、初回待ちは最低0秒。
     void Reset(float period, float warning, float initialDelay)
     {
         warningSeconds_ = (std::max)(0.25f, warning);
@@ -28,8 +27,10 @@ public:
         remaining_ = (std::max)(0.0f, initialDelay);
         warning_ = false;
     }
-    /// @brief 経過時間に応じて現在の状態を進める。
-    /// @param dt この処理で進める経過時間（秒）。
+    /// @brief 待ち/予告の時間を進め、予告終了時に待ち状態へ戻してtrueを返す。
+    /// @param dt 秒数。非有限値・0以下なら状態を変えずfalse。
+    /// @param canStart 待ち時間終了後に予告を開始できるか。開始済みの予告はfalseでも最後まで進む。
+    /// @note falseでも時間や予告状態は変わり得る。余った時間は繰り越さず、長い更新でも予告全体を飛ばさない。
     bool Advance(float dt, bool canStart)
     {
         if (!std::isfinite(dt) || dt <= 0)
@@ -63,13 +64,16 @@ private:
     float remaining_ = 0, warningSeconds_ = 1, cooldownSeconds_ = 4;
     bool warning_ = false;
 };
-/// @brief 召喚可能な枠数を返す。
+/// @brief 同じ指揮官の生存数と生成累計から、同時上限3・累計上限6までの残り枠数を計算する。生成は行わない。
 inline int SummonSlots(int alive, int total)
 {
     return (std::max)(0, (std::min)(kSummonAliveLimit - alive, kSummonLifetimeLimit - total));
 }
 
-/// @brief 対象が向いている方向の扇形範囲内か判定する。
+/// @brief XYの向きと対象までの相対位置から、扇形の境界を含む接触条件を判定する。
+/// @param halfAngle 扇形の半角（ラジアン）。
+/// @param targetRadius 対象のワールド半径。距離に応じて半角へ余裕を加える。
+/// @note 向きがほぼ0や長さが非有限ならfalse。対象がほぼ中心にあればtrue。
 inline bool InFacingCone(float facingX, float facingY, float offsetX, float offsetY, float halfAngle, float targetRadius = 0.0f)
 {
     const float distance = std::hypot(offsetX, offsetY);
@@ -82,10 +86,11 @@ inline bool InFacingCone(float facingX, float facingY, float offsetX, float offs
     return (facingX * offsetX + facingY * offsetY) / (facingLength * distance) >= std::cos(halfAngle + angularPadding);
 }
 
-/// @brief 盾に適用するダメージを計算する。
+/// @brief 正面盾の扇形内なら元のダメージを近接40%、その他15%へ減らして切り上げ、扇形外なら元の値を返す。
+/// @note 対象のHPや盾の演出は変更しない。攻撃元がほぼ中心の場合は方向を決めず、元の値を返す。
 inline uint32_t ShieldDamage(uint32_t amount, float facingX, float facingY, float sourceOffsetX, float sourceOffsetY, bool melee = false)
 {
-    // Area damage exactly at the centre has no front/back direction.
+    // 中心とほぼ同じ攻撃元には正面/背面の向きがないため、盾による減衰を適用しない。
     if (std::hypot(sourceOffsetX, sourceOffsetY) < 0.0001f ||
         !InFacingCone(facingX, facingY, sourceOffsetX, sourceOffsetY, kShieldHalfAngle))
         return amount;
@@ -107,13 +112,15 @@ public:
         swingCount_ = 0;
         recoverySeconds_ = kRecoverySeconds;
     }
-    /// @brief 間隔倍率を設定する。
+    /// @brief 次の回復時間へ使う倍率を1〜4に制限する。予告/攻撃の長さと開始済み回復の残り時間は変えない。
     void SetIntervalScale(float scale)
     {
-        // F6 may slow this enemy, but cannot remove its mandatory punish window.
+        // 制作時の調整でも、回復時間を既定値より短くしない。
         recoverySeconds_ = kRecoverySeconds * (std::clamp)(scale, 1.0f, 4.0f);
     }
-    /// @brief 経過時間に応じて現在の状態を進める。
+    /// @brief 秒数を進め、予告終了からActiveへ入る呼び出しだけtrueを返す。非有限値・0以下は対象外。
+    /// @note inAttackRangeは待ち終了後の予告開始だけに使う。falseの戻り値でも時間や段階は変わり得る。
+    /// 1呼び出しに1段階だけ進み、実際のダメージはTryHitの後に呼び出し側が適用する。
     bool Advance(float seconds, bool inAttackRange)
     {
         if (!std::isfinite(seconds) || seconds <= 0.0f)
@@ -124,7 +131,8 @@ public:
         const State& state = GetState(phase_);
         return state.Update(*this, inAttackRange);
     }
-    /// @brief 攻撃の有効時間と対象を確認して命中を処理する。
+    /// @brief Active中の未消費の振りで、射程・扇形・visibleを満たしたら受付を消費しtrueを返す。
+    /// @note HPは変更しない。呼び出し側がダメージを適用できなくても、同じ振りは再受付しない。falseでは受付を消費しない。
     bool TryHit(float facingX, float facingY, float offsetX, float offsetY, float targetRadius, bool visible)
     {
         if (phase_ != ExpEnemyCombatPhase::Active || hitConsumed_ || !visible ||
@@ -139,7 +147,7 @@ public:
     {
         return phase_;
     }
-    /// @brief Committedであるか判定する。
+    /// @brief 予告の照準固定中または攻撃実行中かを返す。
     bool IsCommitted() const
     {
         return phase_ == ExpEnemyCombatPhase::Locked || phase_ == ExpEnemyCombatPhase::Active;
@@ -154,12 +162,12 @@ public:
     {
         return phase_ == ExpEnemyCombatPhase::Active ? (std::clamp)(1.0f - remaining_ / kActiveSeconds, 0.0f, 1.0f) : 0.0f;
     }
-    /// @brief 攻撃後の回復時間に対する進行度を返す。
+    /// @brief Recoveryの残り時間の割合を0〜1で返す。終了へ向かうほど小さくなり、それ以外は0。
     float RecoveryRatio() const
     {
         return phase_ == ExpEnemyCombatPhase::Recovery ? (std::clamp)(remaining_ / recoverySeconds_, 0.0f, 1.0f) : 0.0f;
     }
-    /// @brief 連続攻撃で使う振りの回数を返す。
+    /// @brief Activeへ入り斬撃を開始した累計回数を返す。命中回数ではない。
     uint32_t SwingCount() const
     {
         return swingCount_;
@@ -169,15 +177,15 @@ private:
     /// @brief expguard::BladeCycleの状態遷移の共通契約を定義する。具体的な状態は同じクラス内の派生型で表す。
     class State {
     public:
-        /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
+        /// @brief 派生状態を基底型経由で破棄できるようにする。
         virtual ~State() = default;
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief 現在の段階の終了時に次段階へ遷移する。Activeへ入った場合だけtrueを返す。
         virtual bool Update(BladeCycle& cycle, bool inRange) const = 0;
     };
     /// @brief expguard::BladeCycleで次の攻撃まで待機する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class CooldownState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief 現在の段階の終了時に次段階へ遷移する。Activeへ入った場合だけtrueを返す。
         bool Update(BladeCycle& cycle, bool inRange) const override
         {
             if (inRange)
@@ -188,7 +196,7 @@ private:
     /// @brief expguard::BladeCycleで照準を固定する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class LockedState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief 現在の段階の終了時に次段階へ遷移する。Activeへ入った場合だけtrueを返す。
         bool Update(BladeCycle& cycle, bool) const override
         {
             cycle.hitConsumed_ = false;
@@ -200,7 +208,7 @@ private:
     /// @brief expguard::BladeCycleで攻撃が有効な状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class ActiveState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief 現在の段階の終了時に次段階へ遷移する。Activeへ入った場合だけtrueを返す。
         bool Update(BladeCycle& cycle, bool) const override
         {
             cycle.Enter(ExpEnemyCombatPhase::Recovery, cycle.recoverySeconds_);
@@ -210,7 +218,7 @@ private:
     /// @brief expguard::BladeCycleで攻撃後に回復する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class RecoveryState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief 現在の段階の終了時に次段階へ遷移する。Activeへ入った場合だけtrueを返す。
         bool Update(BladeCycle& cycle, bool) const override
         {
             cycle.Enter(ExpEnemyCombatPhase::Cooldown, 0.15f);

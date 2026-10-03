@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <cmath>
 
-// Pure timing/pattern state: no renderer, actor, or wall-clock dependencies.
-/// @brief 試作ボスの攻撃予告と攻撃の進行を計算する。
+/// @brief 試作ボスの攻撃時計・パターン・固定照準を保持し、発射要求を計算する。
+/// @note 描画・弾生成・移動は担当せず、渡された時間だけで進行する。
 class PrototypeBossCombat {
 public:
     enum class AttackType {
@@ -16,7 +16,7 @@ public:
         Telegraph,
         Attack
     };
-    /// @brief 1回の攻撃で発生させる弾の位置・方向・性能を表す。
+    /// @brief 発射の有無、パターン、照準角（ラジアン）、攻撃圧力を保持する。位置・弾性能は呼び出し側で決める。
     struct Shot {
         bool fire = false;
         AttackType type = AttackType::AimedSpread;
@@ -39,7 +39,7 @@ public:
     {
         return type_;
     }
-    /// @brief 照準角度を返す。
+    /// @brief 固定した照準角（ラジアン）を返す。
     float GetAimAngle() const
     {
         return aimAngle_;
@@ -49,10 +49,9 @@ public:
     {
         return phase_ == Phase::Telegraph ? (std::clamp)(elapsed_ / telegraphDuration_, 0.0f, 1.0f) : 0.0f;
     }
-    /// @brief 拡散角度度を返す。
+    /// @brief 予告範囲の全幅（度）を返す。GapRingは安全な開口幅、それ以外は危険な扇形の幅。
     float GetSpreadAngleDeg() const
     {
-        // For GapRing this is the width of the safe opening, not the danger arc.
         return type_ == AttackType::GapRing ? 70.0f : (type_ == AttackType::Sweep ? 90.0f : 44.0f);
     }
     /// @brief 現在の行動がその場に留まる状態か判定する。
@@ -61,14 +60,16 @@ public:
         return phase_ != Phase::Recovery;
     }
 
-    /// @brief 現在の状態を1段階更新する。
-    /// @param dt この処理で進める経過時間（秒）。
+    /// @brief 攻撃時計・状態を進め、弾生成の要求を返す。fireがfalseでも時計・状態は変わり得る。
+    /// @param dt 経過秒数。有限の正値だけを使い、1回に進める時間は0.10秒まで。
+    /// @param targetAngle 攻撃開始時に固定する照準角（ラジアン）。非有限値は0に置き換える。
+    /// @note 予告/攻撃中はcanBeginAttackがfalseでも進む。pressureは0～4、recoveryScaleは0.20～10に制限する。
     Shot Step(float dt, bool canBeginAttack, float targetAngle, float hpRatio, int pressure, bool foraging, float recoveryScale = 1.0f)
     {
         Shot shot{};
         if (!std::isfinite(dt) || dt <= 0.0f)
             return shot;
-        // A hitch must not skip the visible warning or release a burst of shots.
+        // 長い1回のdtを0.10秒に制限し、予告を飛ばしたり掃射をまとめて要求したりしない。
         elapsed_ += (std::min)(dt, 0.10f);
         if (phase_ == Phase::Recovery) {
             if (elapsed_ < recoveryDuration_ * (std::clamp)(recoveryScale, 0.20f, 10.0f) || !canBeginAttack)
@@ -113,12 +114,13 @@ public:
         return shot;
     }
 
-    /// @brief 投射物件数を返す。
+    /// @brief 1回の発射要求から生成する弾数を返す。
     static int GetProjectileCount(AttackType type)
     {
         return type == AttackType::GapRing ? 16 : (type == AttackType::AimedSpread ? 5 : 1);
     }
-    /// @brief 投射物差分度を返す。
+    /// @brief 基準照準から各弾へ加える角度差（度）を返す。
+    /// @param index 0以上、GetProjectileCount(type)未満の弾番号。関数内では範囲を制限しない。
     static float GetProjectileOffsetDeg(AttackType type, int index)
     {
         if (type == AttackType::GapRing)

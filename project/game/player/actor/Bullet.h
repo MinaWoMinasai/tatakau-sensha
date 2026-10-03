@@ -105,12 +105,14 @@ public:
     {
         return armorReflected_;
     }
-    /// @brief 撃破時の破裂で生まれた子弾かを返す。
+    /// @brief 撃破時の破裂、または命中・壁衝突による分裂の子弾として記録されているかを返す。
     bool IsBurstChild() const
     {
         return burstChild_;
     }
-    /// @brief 撃破時の破裂子弾であることを記録する。trueの弾からは破裂を再発動しない。
+    /// @brief 破裂・分裂の子弾を識別するフラグを設定する。子弾を生成する処理ではない。
+    /// @note trueの弾はBulletManager::NotifyPlayerHitの対象外となり、その通知による連鎖・マーキング／起爆・撃破時破裂を行わない。
+    /// 壁反射や衝突時の分裂回数を変更するフラグではない。分裂の制限はConfigureGrowthなどが別に設定する。
     void SetBurstChild(bool value)
     {
         burstChild_ = value;
