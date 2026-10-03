@@ -47,7 +47,7 @@ class ComparisonFixtureTests(unittest.TestCase):
         neon.update(geometryLines=0,maskDiagnostic=0,lineDiagnostic=0,sdfRangeTexels=16,
                     sdfHaloWidthTexels=4,sdfLodBlendStart=1,sdfLodBlendEnd=2,
                     maskBlend=blend,maskRenderMode=mode,splitCoreHalo=split)
-        version=self.quality["versions"][0 if candidate<4 else 1]
+        version=self.quality["versions"][0 if candidate<4 else (1 if candidate<6 else 2)]
         surfaces=[]
         for binding in version["bindings"]:
             surface={"material":binding["material"],"mask":"","distanceMask":"","maskBound":False,"distanceBound":False,
@@ -156,6 +156,24 @@ class ComparisonFixtureTests(unittest.TestCase):
         altered=copy.deepcopy(state);altered["neon"]["maskBlend"]=0;self.write(after,altered)
         with self.assertRaisesRegex(ValueError,"rendering parameters"):self.validate(before_json=before,after_json=after)
         with self.assertRaisesRegex(ValueError,"Provide both"):self.validate(before_json=before)
+
+    def test_protected_v1_v2_document_sha_remains_verifiable_after_v3_addition(self):
+        authoring=json.loads((validator.ROOT/"project/resources/models/neon_hologram/line_masks/quality/authoring.json").read_text(encoding="utf-8"))
+        previous=authoring["preservedQualitySource"]["authoringSha256"]
+        for index in range(2,7):
+            self.mutate(index,lambda m:[s.__setitem__("authoringManifestExpectedSha256",previous) for s in m["submeshes"] if s["mask"]])
+        self.assertTrue(self.validate()["pass"])
+
+    def test_inactive_dissolve_metadata_is_fixed_in_quality_comparison(self):
+        from test_neon_dissolve_comparison_fixtures import dissolve_metadata
+        effect=dissolve_metadata(active=False)
+        for index in range(7):self.mutate(index,lambda m:m.update(dissolve=effect))
+        self.assertTrue(self.validate()["pass"])
+        self.mutate(3,lambda m:m["dissolve"].__setitem__("seed",123))
+        with self.assertRaisesRegex(ValueError,"A/B input/settings"):self.validate()
+        self.mutate(3,lambda m:m["dissolve"].__setitem__("seed",effect["seed"]))
+        self.mutate(3,lambda m:m.pop("dissolve"))
+        with self.assertRaisesRegex(ValueError,"A/B input/settings"):self.validate()
 
 
 if __name__=="__main__":unittest.main(verbosity=2)

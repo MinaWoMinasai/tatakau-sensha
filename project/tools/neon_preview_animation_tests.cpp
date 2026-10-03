@@ -4,7 +4,9 @@
 #include "Calculation.h"
 #include "TextureManager.h"
 #include "../game/debug/NeonPreviewAnimations.h"
+#include "../game/debug/NeonDissolvePreviewController.h"
 #include <cmath>
+#include <cstring>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -48,6 +50,127 @@ Vector3 SkinnedPosition(const SkinnedModel& model,size_t index) {
         result.z+=influence.weights[i]*(v.x*m.m[0][2]+v.y*m.m[1][2]+v.z*m.m[2][2]+m.m[3][2]);
     }
     return result;
+}
+void TestSkinnedBounds(const SkinnedModel& model) {
+    const auto before=Pose(model);
+    const float time=model.GetCurrentAnimationTime();
+    for(Vector3 direction : {Vector3{1,0,0},Vector3{0,1,0},Vector3{0,0,1},Vector3{1,-1,.3f}}) {
+        Require(NormalizeNeonDirection(direction),"Bounds test direction invalid");
+        float low=0,high=0;
+        Require(ComputeNeonSkinnedProjectionBounds(model,direction,low,high),"Current actual-model Palette bounds failed");
+        float expectedLow=(std::numeric_limits<float>::max)(),expectedHigh=(std::numeric_limits<float>::lowest)();
+        for(size_t vertex=0;vertex<model.GetAsset().modelData.vertices.size();++vertex) {
+            const auto p=SkinnedPosition(model,vertex);
+            const float projection=p.x*direction.x+p.y*direction.y+p.z*direction.z;
+            expectedLow=(std::min)(expectedLow,projection); expectedHigh=(std::max)(expectedHigh,projection);
+            Require(projection>=low && projection<=high,"Global pose bounds omit a weighted vertex");
+        }
+        const float padding=(std::max)(1.0e-5f,(std::max)(std::abs(expectedLow),std::abs(expectedHigh))*1.0e-5f);
+        Require(Near(low,expectedLow-padding) && Near(high,expectedHigh+padding) && high>low,
+            "Bounds must reflect actual four-influence Palette geometry and documented conservative padding");
+    }
+    float low=123,high=456;
+    Require(!ComputeNeonSkinnedProjectionBounds(model,{std::numeric_limits<float>::quiet_NaN(),0,0},low,high)
+        && low==123 && high==456,"Failed bounds query must leave prior output intact");
+    Require(!ComputeNeonSkinnedProjectionBounds(model,{0,0,0},low,high) && low==123 && high==456,
+        "Zero direction must reject without corrupting existing scan bounds");
+    SkinnedModel empty;
+    Require(!ComputeNeonSkinnedProjectionBounds(empty,{1,0,0},low,high) && low==123 && high==456,
+        "Uninitialized model must reject bounds query without corrupting existing output");
+    RequirePose(model,before);
+    Require(model.GetCurrentAnimationTime()==time,"Start-time bounds scan must not advance animation");
+}
+void RequireSamePlayback(const SkinnedModel::AnimationPlaybackState& actual,
+    const SkinnedModel::AnimationPlaybackState& expected) {
+    Require(actual.animationIndex==expected.animationIndex && Near(actual.time,expected.time) && Near(actual.speed,expected.speed)
+        && actual.playing==expected.playing && actual.loop==expected.loop && actual.paused==expected.paused
+        && actual.transitionActive==expected.transitionActive && Near(actual.transitionDuration,expected.transitionDuration)
+        && Near(actual.transitionElapsed,expected.transitionElapsed) && actual.transitionStartPose.size()==expected.transitionStartPose.size(),
+        "Dissolve reset must restore the full playback checkpoint, including an in-flight blend");
+    for(size_t i=0;i<actual.transitionStartPose.size();++i)
+        Require(Near(actual.transitionStartPose[i],expected.transitionStartPose[i]),"Dissolve checkpoint blend source changed");
+}
+void TestDissolveController(SkinnedModel& model) {
+    Matrix4x4 world{},camera{};
+    for(size_t i=0;i<4;++i) world.m[i][i]=camera.m[i][i]=1;
+    world.m[0][0]=2; world.m[1][1]=.7f; world.m[2][2]=1.5f;
+    model.SetAnimation("BindPose"); model.SetAnimationPlaying(true); model.Update(0);
+    model.TransitionToAnimation("Preview_Idle",.3f); model.Update(.07f);
+    const auto original=model.CaptureAnimationPlaybackState();
+    const auto frozen=Pose(model);
+    Require(original.transitionActive && !original.paused,"Controller test must start with a live in-flight blend");
+    NeonDissolvePreviewController controller;
+    const auto originalControllerParams=controller.GetParams();
+    NeonDissolveParams settings; settings.seed=771; settings.noiseStrength=.12f;
+    Require(controller.Trigger(model,world,camera,NeonDissolveDirection::UpperLeftToLowerRight,settings,.15f,2),
+        "Dissolve Trigger failed on actual weighted model");
+    const auto originalDissolve=controller.GetParams();
+    Require(controller.IsActive() && controller.IsPlaying() && model.IsAnimationPaused() && controller.GetParams().progress==0,
+        "Trigger must freeze displayed pose and start intact");
+    RequireSamePlayback(controller.GetSavedPlayback(),original);
+    Require(controller.GetFrozenPose().size()==frozen.size(),"Frozen actual pose metadata must own all model joints");
+    for(size_t i=0;i<frozen.size();++i) Require(Near(controller.GetFrozenPose()[i],frozen[i]),"Frozen actual pose metadata differs from displayed blend pose");
+    controller.Update(.1f); model.Update(.5f); RequirePose(model,frozen);
+    Require(controller.GetParams().progress==0 && Near(model.GetCurrentAnimationTime(),original.time),
+        "Start wait must preserve intact mask and frozen clip/blend");
+    controller.Update(.3f);
+    Require(Near(controller.GetParams().progress,.125f),"Dissolve wait/duration timing is wrong");
+    controller.SetPlaying(false);
+    const float stopped=controller.GetElapsed();
+    for(float dt:{.5f,-1.0f,std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity()}) controller.Update(dt);
+    model.Update(.5f); RequirePose(model,frozen);
+    Require(controller.GetElapsed()==stopped,"Dissolve Pause must freeze its timeline as well as pose");
+    Require(controller.SetPlaybackSpeed(2) && !controller.SetPlaybackSpeed(0) && !controller.SetPlaybackSpeed(std::numeric_limits<float>::quiet_NaN()),
+        "Dissolve speed must reject invalid values without losing prior valid speed");
+    controller.SetPlaying(true); controller.Update(.25f);
+    Require(Near(controller.GetParams().progress,.375f),"Resume/speed must advance from current dissolve time");
+    const float validElapsed=controller.GetElapsed();
+    for(float dt:{-1.0f,std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity()}) controller.Update(dt);
+    Require(controller.GetElapsed()==validElapsed,"Invalid delta time must not mutate an actively playing dissolve clock");
+    Require(controller.Seek(.6f) && !controller.IsPlaying() && Near(controller.GetParams().progress,.6f)
+        && !controller.Seek(std::numeric_limits<float>::quiet_NaN()) && Near(controller.GetParams().progress,.6f),
+        "Seek must pause at exact progress and reject nonfinite input atomically");
+    Require(controller.Restart(model),"Same-pose restart failed"); model.Update(0); RequirePose(model,frozen);
+    Require(controller.GetParams().progress==0 && controller.GetParams().seed==originalDissolve.seed
+        && Near(controller.GetParams().scanMin,originalDissolve.scanMin) && Near(controller.GetParams().scanMax,originalDissolve.scanMax)
+        && Near(controller.GetParams().direction,originalDissolve.direction),"Restart must preserve initial direction/seed/frozen-pose bounds");
+    auto movedCamera=camera; movedCamera.m[0][0]=-1;
+    settings.seed=999;
+    Require(controller.Trigger(model,world,movedCamera,NeonDissolveDirection::LeftToRight,settings),"Repeated Trigger restart failed");
+    Require(controller.GetParams().seed==originalDissolve.seed && Near(controller.GetParams().direction,originalDissolve.direction)
+        && controller.GetStartCameraWorld().m[0][0]==1,"Repeated Trigger/camera change must not recapture a different scan plane");
+    controller.Update(100); model.Update(.8f); RequirePose(model,frozen);
+    Require(controller.GetParams().progress==1 && !controller.IsPlaying(),"Dissolve must end completely and stop");
+    controller.SetPlaying(true); controller.Update(.1f);
+    Require(!controller.IsPlaying() && controller.GetParams().progress==1,"Completed dissolve must require Restart/Seek instead of implicitly restarting playback");
+    Require(controller.Reset(model) && !controller.IsActive() && controller.GetParams().enabled==0,"Reset must disable dissolve");
+    Require(std::memcmp(&controller.GetParams(),&originalControllerParams,sizeof(originalControllerParams))==0,
+        "Reset must restore the entire pre-Trigger dissolve configuration, not just enabled/progress");
+    model.Update(0); RequirePose(model,frozen);
+    RequireSamePlayback(model.CaptureAnimationPlaybackState(),original);
+    model.Update(.03f);
+    Require(!Near(JointByName(model,"J_Bip_L_UpperArm").transform.rotate,frozen[JointByName(model,"J_Bip_L_UpperArm").index].rotate),
+        "Reset of originally running blend must resume rather than restarting Idle/bind pose");
+    model.SetAnimation("Preview_Attack"); model.SeekCurrentAnimation(.82f); model.SetAnimationPlaying(false); model.Update(0);
+    TestSkinnedBounds(model);
+    const auto paused=model.CaptureAnimationPlaybackState(); const auto attackPose=Pose(model);
+    for(int invalid=0;invalid<5;++invalid) {
+        auto badWorld=world; auto badSettings=settings;
+        float wait=.15f,duration=2;
+        if(invalid==0) duration=0;
+        if(invalid==1) wait=std::numeric_limits<float>::quiet_NaN();
+        if(invalid==2) badSettings.noiseScale=std::numeric_limits<float>::infinity();
+        if(invalid==3) badWorld.m[0][0]=0;
+        if(invalid==4) badSettings.edgeColor.y=std::numeric_limits<float>::quiet_NaN();
+        Require(!controller.Trigger(model,badWorld,camera,NeonDissolveDirection::UpperLeftToLowerRight,badSettings,wait,duration)
+            && !controller.IsActive() && !controller.GetError().empty(),"Invalid Trigger must fail without changing model/controller state");
+        RequireSamePlayback(model.CaptureAnimationPlaybackState(),paused); RequirePose(model,attackPose);
+    }
+    Require(controller.Trigger(model,world,camera,NeonDissolveDirection::UpperLeftToLowerRight,settings),"Paused Attack Trigger failed");
+    controller.Update(.9f); model.Update(.9f); RequirePose(model,attackPose);
+    Require(controller.Reset(model),"Paused Attack Reset failed"); model.Update(0); RequirePose(model,attackPose);
+    RequireSamePlayback(model.CaptureAnimationPlaybackState(),paused);
+    std::cout<<"PASS: actual skinned global projection bounds for Bind/Idle/Attack; dissolve Trigger freezes running blend/paused Attack, wait/Pause/Resume/speed/Seek/end, same-pose Restart and repeated Trigger preserve seed/direction, invalid Trigger atomic and Reset restores full original checkpoint.\n";
 }
 }
 
@@ -160,6 +283,7 @@ int main() {
         Require(Near(model.GetCurrentAnimationTime(),.7f)&&model.GetAnimationPlayer().GetAnimation()==&model.GetAnimations()[1],"Player not safely rebound after vector growth");
 
         model.SetAnimation("BindPose"); model.Update(0);
+        TestSkinnedBounds(model);
         const auto bindPose=Pose(model);
         const float bindLeftHandY=JointByName(model,"J_Bip_L_Hand").skeletonSpaceMatrix.m[3][1];
         const float bindRightHandY=JointByName(model,"J_Bip_R_Hand").skeletonSpaceMatrix.m[3][1];
@@ -199,6 +323,7 @@ int main() {
         model.SetAnimation(model.GetCurrentAnimationIndex(),true); model.Update(.3f);
         Require(model.IsAnimationPaused()&&model.GetCurrentAnimationTime()==0,"Paused restart resumed playback");
         model.SetAnimation("Preview_Idle"); model.SeekCurrentAnimation(0); model.Update(0);
+        TestSkinnedBounds(model);
         const auto idle0=Pose(model);
         const auto idleZ=JointByName(model,"J_Bip_R_Hand").skeletonSpaceMatrix.m[3][2];
         Require(attackZ<idleZ-.15f,"Attack does not push forward in engine coordinates");
@@ -248,6 +373,7 @@ int main() {
         Require(model.IsAnimationPaused(),"BindPose comparison resumed playback");
         model.SeekCurrentAnimation(0); model.Update(0);
         Require(model.GetCurrentAnimationDuration()==0&&model.GetCurrentAnimationTime()==0,"Zero-duration BindPose seek failed");
+        TestDissolveController(model);
         std::cout<<"PASS: actual AvatarSample_B; 2 generated clips; validated names/keys/quaternions/joints; failed registration atomic; safe player lifetime.\n"
             <<"PASS: Idle loop/translation/scale/feet; forward Attack; "<<changedVertices<<" weighted vertices deformed by actual Palette.\n"
             <<"PASS: existing Animation/Skeleton sampling/blend, Pause/Resume/speed/Restart/Seek, repeated Attack and Idle return; const getters preserved.\n";

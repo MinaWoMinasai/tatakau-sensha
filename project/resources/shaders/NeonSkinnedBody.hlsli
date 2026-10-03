@@ -2,6 +2,7 @@
 #define NEON_SKINNED_BODY_HLSLI
 #include "NeonSkinned.hlsli"
 #include "NeonSkinnedSurface.hlsli"
+#include "NeonDissolve.hlsli"
 
 struct PixelShaderOutput
 {
@@ -18,7 +19,9 @@ PixelShaderOutput ShadeNeonBody(NeonSkinnedVertexOutput input, bool isFrontFace,
     float4 featureMask = SampleNeonFeatureMask(input.texcoord, uvDx, uvDy);
     float2 lineCoverage = ReconstructNeonLineCoverage(input.texcoord, uvDx, uvDy, featureMask);
     float internalLine = NeonInternalLine(input.texcoord, uvDx, uvDy, surface);
+    NeonDissolveEvaluation dissolve = EvaluateNeonDissolve(input.skinnedModelPosition);
     ApplyNeonAlphaCutout(surface.a);
+    ApplyNeonDissolveClip(dissolve);
     float3 normal = input.worldNormal * rsqrt(max(dot(input.worldNormal, input.worldNormal), 1.0e-8f));
     normal = isFrontFace ? normal : -normal;
     float3 toCamera = gCameraWorldPosition - input.worldPosition;
@@ -45,6 +48,7 @@ PixelShaderOutput ShadeNeonBody(NeonSkinnedVertexOutput input, bool isFrontFace,
         float diagnostic = gFeatureMaskDebugMode == 1 ? featureMask.r : featureMask.g;
         output.color.rgb = diagnostic.xxx;
     }
+    output.color.rgb += dissolve.edgeEmission;
     // 現在のScene MRT encoding。反射用SSR mask=0、roughness=1、metallic=0、AO=1。
     output.normal = float4(normal * 0.5f + 0.5f, 0.0f);
     output.material = float4(1.0f, 0.0f, 1.0f, 0.0f);
