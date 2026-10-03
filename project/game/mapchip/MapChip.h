@@ -24,18 +24,19 @@ public:
     /// @brief csvファイルからマップを読み込む
     void LoadMapChipCsv(const std::string& filePath);
 
-    /// @brief マップChip種類By添字を返す。
+    /// @brief 列xIndex・行yIndexの地形種類を返す。45列・30行の範囲外ならkBlank。
     MapChipType GetMapChipTypeByIndex(uint32_t xIndex, uint32_t yIndex);
 
-    /// @brief マップChip位置By添字を返す。
+    /// @brief 列xIndex・行yIndexのセル中心をワールド座標へ変換する。範囲検査は行わない。
+    /// @note Xは右向き、行は下向き。先頭行のワールドYは58、最終行は0で、セル間隔は2。
     cg2::Vector3 GetMapChipPositionByIndex(uint32_t xIndex, uint32_t yIndex);
 
-    /// @brief 個数地形ブロック縦を返す。
+    /// @brief マップの行数（30）を返す。
     uint32_t GetNumBlockVirtical()
     {
         return kNumBlockVirtical;
     }
-    /// @brief 個数地形ブロック横を返す。
+    /// @brief マップの列数（45）を返す。
     uint32_t GetNumBlockHorizontal()
     {
         return kNumBlockHorizontal;

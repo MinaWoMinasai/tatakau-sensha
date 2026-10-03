@@ -200,9 +200,10 @@ void GameScene::UpdateExpeditionPresentation(float dt) {
                 expeditionMapTestVisited_.push_back(capture);tankRunCapturePath_="generated/expedition_map/"+capture+".png";
             }
         }
-        // Let the final kill's local burst finish while gameplay remains frozen.
+        // 遷移中はIsTankRunMenuOpenで戦闘を止めるが、最後の撃破フラッシュは基準時間で消えるまで進める。
         for(auto& burst:tankRunBursts_) burst.age+=dt;
         std::erase_if(tankRunBursts_,[](const RunBurst& b){return b.age>(b.resource?0.7f:0.35f);});
+        // Advanceが反映時点を通知した回で予約actionを取り出して0へ戻す。遷移全体の終了とは別。
         if(expeditionTransition_.Advance(dt)) {
             const int action=expeditionTransitionAction_;expeditionTransitionAction_=0;
             if(action==1) EnterExpeditionMapNode(expeditionPendingNode_);
@@ -309,11 +310,13 @@ void GameScene::EnterExpeditionMapNode(const std::string& id) {
 bool GameScene::StartAuthoredExpeditionRoom() {
     const auto* node=expeditionMapRun_.GetActiveNode();if(!node) return false;
     const auto* room=tankexp::FindRoom(expeditionRooms_,node->roomTemplate);if(!room) return false;
-    // Stage retains its existing merged-block collision/bloom batching path.
+    // 制作部屋をCSVへ書き出し、Stageの既存の読み込み/統合ブロック生成を使う。
+    // ここまでの失敗では、以下の敵・弾・自機状態の初期化へ進まない。
     std::filesystem::create_directories("generated/expedition_map");
     const std::string path="generated/expedition_map/active_room.csv";
     {std::ofstream out(path);out<<tankexp::RoomToCsv(*room);if(!out) {expeditionMapStatus_="配置プレビューを書き込めませんでした。";return false;}}
     if(!stage_->LoadRunMap(path)) return false;
+    // 地形を読み込めてから旧戦闘の実体を消去する。部屋遷移の反映は衝突走査中には呼ばれない。
     enemy_->SetRunEncounterEnabled(false);tankExpeditionRivalActive_=false;
     enemyManager_->ClearRunActors();bulletManager_->ClearAll();
     expeditionHitSparks_.clear();expeditionBossPhase2Seen_=false;
@@ -327,6 +330,7 @@ bool GameScene::StartAuthoredExpeditionRoom() {
     tankExpeditionArrival_=0;tankExpeditionEnemyHp_.clear();tankExpeditionEnemyWarning_.clear();
     tankRunComboTime_=0;tankExpeditionDetailsOpen_=false;stagePostCacheValid_=false;
     stage_->SetDamageBlockDamage(12);
+    // 生存中で遠征成長が有効な自機の部屋状態をリセットし、開始位置へ置く。現在HP/成長は部屋をまたいで保持する。
     const cg2::Vector3 start{room->playerStart.x,room->playerStart.y,0};player_->ResetRunRoomState(start);
     tankExpeditionTutorialPrevious_=start;camera->SetTranslate({start.x,start.y,camera->GetTranslate().z});camera->Update();
     for(const auto& spawn:room->spawns) {
@@ -343,8 +347,8 @@ bool GameScene::StartAuthoredExpeditionRoom() {
         auto progress=enemy_->GetEnemyProgressConfig();progress.levelingModeEnabled=false;enemy_->SetEnemyProgressConfig(progress);
         screenEffectDirector_.TriggerBossEntry();
     }
-    // Apply shared boss pressure, then restore per-prefab parameters after the
-    // global balancing pass (otherwise authored enemy contact damage is lost).
+    // 共有の部屋調整を適用する。マップ式の制作敵はApplyTankExpeditionRoomBalance側で
+    // HasAuthoredDefinitionを確認し、個別設定の接触ダメージを全体値で上書きしない。
     ApplyTankExpeditionRoomBalance();
     previousPlayerHp_=player_->GetHp();previousBossHp_=enemy_->GetHp();bossDefeatHandled_=false;
     if(!expeditionTransition_.IsActive()) SetEventCallout(std::string(NodeName(node->kind))+" / "+(room->objective=="control"?"通貨ボックスを3つ壊そう":room->objective=="boss"?"ボスを撃破":"敵を全滅"),1.4f);
@@ -352,6 +356,7 @@ bool GameScene::StartAuthoredExpeditionRoom() {
 }
 
 void GameScene::CompleteExpeditionMapCombat() {
+    // 生存中の非ボス戦だけを地図選択へ移す。報酬通貨の生成/回収は呼び出し側で既に処理する。
     if(!tankExpedition_.IsCombat()||player_->IsDead()) return;
     const auto* node=expeditionMapRun_.GetActiveNode();if(!node||node->kind==NK::Boss) return;
     const int reward=node->clearReward;
@@ -789,6 +794,7 @@ void GameScene::UpdateExpeditionMap(float dt) {
         if(ready&&kind!=tankexp::RoomKind::Boss&&ThreatCount(enemyManager_.get())==0&&
             (kind!=tankexp::RoomKind::Guard||tankExpeditionNodes_>=3)) {
             const auto* cleared=expeditionMapRun_.GetActiveNode();
+            // 完了演出より先に報酬通貨を一度だけ生成し、残る通貨の回収中は戦闘を停止する。
             if(!expeditionClearRewardQueued_) {
                 if(cleared) SpawnExpeditionCredits(player_->GetWorldPosition(),cleared->clearReward,true);
                 expeditionClearRewardQueued_=true;expeditionCollectAll_=true;

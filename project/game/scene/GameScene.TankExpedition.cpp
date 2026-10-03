@@ -112,8 +112,8 @@ void GameScene::InitializeTankExpedition() {
 
 void GameScene::StartTankExpeditionRoom() {
     if(!tankExpedition_.IsCombat()) return;
-    // This function is called at the frame boundary or from a stopped menu.
-    // Resource damage callbacks only mark completion; they never delete actors.
+    // 更新の冒頭か停止中のメニューから部屋を開始する。資源の命中コールバックは完了待ちなどを更新する。
+    // ここで前の敵・弾・場の攻撃を消去し、衝突走査中に対象の実体を削除しない。
     enemy_->SetRunEncounterEnabled(false); tankExpeditionRivalActive_=false;
     enemyManager_->ClearRunActors(); bulletManager_->ClearAll();
     playerLaserBeams_.clear();playerMines_.clear();playerMineExplosions_.clear();
@@ -133,8 +133,9 @@ void GameScene::StartTankExpeditionRoom() {
         OutputDebugStringA("[TankExpedition] map could not be loaded\n");
     ApplyTankExpeditionRoomGeometry();
     stagePostCacheValid_=false;
-    // Hazard walls are a positional cost, not an instant run-ending collision.
+    // この部屋のダメージ地形へ渡す値を12に設定する。衝突時の位置補正とダメージ適用は別の処理。
     stage_->SetDamageBlockDamage(12);
+    // 生存中で遠征成長が有効な自機の部屋状態と位置をリセットする。機体/成長・現在HP・カード等は保持する。
     player_->ResetRunRoomState({26,28,0});
     tankExpeditionTutorialPrevious_=player_->GetWorldPosition();
     tankExpeditionDetailsOpen_=false;
@@ -185,9 +186,11 @@ void GameScene::StartTankExpeditionRoom() {
 }
 
 void GameScene::FinishTankExpeditionRoom() {
+    // マップ式と従来の遠征で完了処理を分ける。死亡時・非戦闘時・ボス部屋はこの入口では完了しない。
     if(expeditionMapEnabled_) {CompleteExpeditionMapCombat();return;}
     if(player_->IsDead()||!tankExpedition_.IsCombat()||tankExpedition_.GetRoomKind()==Room::Boss) return;
     if(!tankExpedition_.CompleteRoom()) return;
+    // 進行を報酬/進路選択へ切り替えるとIsTankRunMenuOpenが戦闘を止める。実体の消去は次の部屋開始時。
     tankExpeditionTutorial_.RecordRoomClear();
     player_->AwardRunMaintenancePoint(tankExpedition_.GetRoomIndex()+1);
     tankExpeditionMaintenanceOpen_=false;
@@ -368,6 +371,8 @@ void GameScene::UpdateTankExpedition(float dt) {
         } else if(phase==EPhase::Combat&&tankRunMenuAge_>=0) {
             if(player_->IsDead()) {BeginGameOver();return;}
             const Room room=tankExpedition_.GetRoomKind();
+            // 通常敵の撃破/資源取得コールバックで更新された状態から目標を判定する。
+            // 死亡済みの敵は脅威数へ含めず、初回チュートリアルの退出条件も確認する。
             const int threats=LivingThreats(enemyManager_.get());
             if(room==Room::Resource&&!tankExpeditionResourceReleased_&&threats==0&&tankExpeditionSpawned_>0) {
                 auto& node=tankRunResources_[0];
