@@ -1,13 +1,10 @@
 #pragma once
 #include "ExpEnemyCombatCycle.h"
 
-// A finite magazine, not an infinite periodic gun. Cover cancels tracking, but
-// committed shots keep their aim. Reload always runs to completion, even when
-// the target disappears. No frame may emit more than one volley.
-/// @brief 複数弾の連射と再装填を含む敵の攻撃周期を管理する。
+/// @brief 有限の弾倉と、追尾予告・照準固定・斉射・再装填の時間状態を管理する。実際の弾生成は呼び出し側が行う。
 class ExpEnemyMagazineCycle {
 public:
-    /// @brief 攻撃周期の各状態を継続する時間を指定する。
+    /// @brief 弾倉の斉射回数と、追尾・照準固定・射撃後の待ち・再装填の秒数を指定する。
     struct Timing {
         int rounds = 3;
         float tracking = 0.26f;
@@ -15,7 +12,7 @@ public:
         float cadence = 0.16f;
         float reload = 1.50f;
     };
-    /// @brief 状態と集計値を初期状態へ戻す。
+    /// @brief 時間設定を各下限、斉射回数を1〜8へ制限し、満タン・再装填回数0・Cooldownへ戻す。間隔倍率は保持する。
     void Reset(const Timing& timing, float delay)
     {
         timing_ = timing;
@@ -28,13 +25,16 @@ public:
         reloadCount_ = 0;
         Enter(ExpEnemyCombatPhase::Cooldown, (std::max)(0.0f, delay));
     }
-    /// @brief 間隔倍率を設定する。
+    /// @brief 次の射撃後の待ちと再装填に使う倍率を0.3〜4へ制限する。開始済みのタイマーは変更しない。
     void SetIntervalScale(float scale)
     {
         intervalScale_ = (std::clamp)(scale, 0.3f, 4.0f);
     }
-    /// @brief 経過時間に応じて現在の状態を進める。
-    /// @param dt この処理で進める経過時間（秒）。
+    /// @brief 1段階の時間を進め、LockedからActiveへ入るとき残弾を1消費してtrueを返す。
+    /// @param dt 進める秒数。非有限値・0以下では状態を変えずfalse。
+    /// @param canTrack 待ち終了後の追尾開始とTrackingの継続を許可するか。照準固定後と再装填では参照しない。
+    /// @note trueは斉射の生成要求で、生成成功ではない。falseでも段階・時間・補充状態は変わり得る。
+    /// 1呼び出しに1段階だけ処理し、余った時間を繰り越さない。
     bool Advance(float dt, bool canTrack)
     {
         if (!std::isfinite(dt) || dt <= 0)
@@ -52,22 +52,22 @@ public:
     {
         return phase_ == ExpEnemyCombatPhase::Locked || phase_ == ExpEnemyCombatPhase::Active;
     }
-    /// @brief Reloadingであるか判定する。
+    /// @brief Recovery段階、すなわち再装填中かを返す。
     bool IsReloading() const
     {
         return phase_ == ExpEnemyCombatPhase::Recovery;
     }
-    /// @brief 残弾数を返す。
+    /// @brief 弾倉の残り斉射回数を返す。1斉射で何発生成するかは呼び出し側が決める。
     int GetAmmo() const
     {
         return ammo_;
     }
-    /// @brief Capacityを返す。
+    /// @brief 満タン時の斉射回数を返す。1斉射から生成される弾の数とは異なる。
     int GetCapacity() const
     {
         return timing_.rounds;
     }
-    /// @brief 再装填件数を返す。
+    /// @brief 再装填を開始した回数を返す。完了回数ではない。
     unsigned GetReloadCount() const
     {
         return reloadCount_;
@@ -89,16 +89,16 @@ private:
     /// @brief ExpEnemyMagazineCycleの状態遷移の共通契約を定義する。具体的な状態は同じクラス内の派生型で表す。
     class State {
     public:
-        /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
+        /// @brief 派生状態を基底型経由で破棄できるようにする。
         virtual ~State() = default;
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。残弾を消費してActiveへ入る場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         virtual bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool canTrack) const = 0;
     };
     /// @brief ExpEnemyMagazineCycleで次の攻撃まで待機する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class CooldownState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。残弾を消費してActiveへ入る場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool canTrack) const override
         {
@@ -110,7 +110,7 @@ private:
     /// @brief ExpEnemyMagazineCycleで対象を追尾する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class TrackingState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。残弾を消費してActiveへ入る場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool canTrack) const override
         {
@@ -124,7 +124,7 @@ private:
     /// @brief ExpEnemyMagazineCycleで照準を固定する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class LockedState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。残弾を消費してActiveへ入る場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool) const override
         {
@@ -138,7 +138,7 @@ private:
     /// @brief ExpEnemyMagazineCycleで攻撃が有効な状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class ActiveState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。残弾を消費してActiveへ入る場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool) const override
         {
@@ -153,10 +153,10 @@ private:
             return false;
         }
     };
-    /// @brief ExpEnemyMagazineCycleで攻撃後に回復する状態を表す。状態ごとの更新と次状態への遷移を担当する。
+    /// @brief 弾倉の再装填を終え、残弾を満タンにして次の追尾予告へ進む状態を表す。
     class RecoveryState final : public State {
     public:
-        /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
+        /// @brief この段階のタイマーと遷移を処理する。残弾を消費してActiveへ入る場合だけtrueを返す。
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool) const override
         {

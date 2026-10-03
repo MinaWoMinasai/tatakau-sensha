@@ -15,11 +15,12 @@ class Player;
 class Stage;
 class EnemyManager;
 
-/// @brief ボスの姿勢・攻撃・HP・描画を管理し、戦闘の状態に応じて行動する。
+/// @brief ボスのHP・移動・射撃・死亡演出を管理する。通常AI、試作戦闘、遠征ライバルの行動を切り替える。
+/// @note 機体モデル・Player・Stage・各管理クラスは借用し、利用中は呼び出し側で有効に保つ。
 class Enemy : public Collider {
 
 public:
-    /// @brief ボスの攻撃間隔・弾・行動を調整する設定を表す。
+    /// @brief 射撃パターン、弾速（60FPS基準の1フレーム当たり）、拡散角（度）、発射間隔（秒）、威力・耐久度・貫通力の設定。
     struct BossAttackConfig {
         enum class Pattern {
             Spread = 0,
@@ -37,7 +38,7 @@ public:
         bool randomSpread = true;
         Pattern pattern = Pattern::Spread;
     };
-    /// @brief 敵の進行段階ごとの性能と解放条件を指定する。
+    /// @brief 通常敵への敵対・捕食による回復と成長、捕食対象を探す距離、照準の旋回時間（秒）の設定。
     struct EnemyProgressConfig {
         bool expEnemyHostile = false;
         uint32_t expEnemyContactDamage = 12;
@@ -59,35 +60,36 @@ public:
         Wander,       // 徘徊
     };
 
-    /// @brief デストラクタ
+    /// @brief 所有するHP表示用モデル・スプライトを破棄する。借用する機体モデルは破棄しない。
     ~Enemy() override;
 
-    /// @brief 初期化
+    /// @brief 借用する機体モデルと地形を設定し、衝突属性・HP表示・通常AIの利用を準備する。
+    /// @note objectは有効なモデルが必要。遭遇戦の再開にはResetRunEncounterを使う。
     void Initialize(cg2::Object3d* object, const cg2::Vector3& position, Stage* stage);
 
-    /// @brief 更新
+    /// @brief 行動と射撃を更新し、地形衝突付きの移動、HPによる死亡判定、演出・表示更新を順に行う。
+    /// @note 遭遇戦が無効なら何もしない。Player・Stage・弾管理は先に設定する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Update(float deltaTime);
 
-    /// @brief 描画
+    /// @brief drawBodyがtrueなら機体を描画する。HP表示は含めない。
     void Draw(bool drawBody = true);
-    /// @brief 機体専用を描画する。
+    /// @brief 機体だけを描画する。死亡後は演出中だけ表示し、描画用に変えた色・姿勢・ライティングを復元する。
     void DrawBodyOnly();
 
-    /// @brief スプライト描画
+    /// @brief スプライト描画の互換用入口。現在は描画しない。
     void DrawSprite();
 
-    /// @brief 弾発射
+    /// @brief 遭遇戦が有効なら、Player方向への単発弾を弾管理へ渡す。
     void Fire();
 
-    /// @brief 散弾発射
+    /// @brief 遭遇戦が有効なら、移動目標への射撃をBossAttackConfigのパターンと性能で生成する。
     void ShotgunFire();
 
-    /// @brief
-    /// @brief プレイヤーへ近づく移動方向を求める。
+    /// @brief startPosへボスの位置、targetPosへPlayerの位置を代入する。移動方向は計算しない。
     void ApproachToPlayer(cg2::Vector3& startPos, cg2::Vector3& targetPos);
 
-    // 状態クラス用 Getter/Setter
+    /// @brief ボスが保持する姿勢への借用参照を返す。
     const cg2::Transform& GetWorldTransform() const
     {
         return worldTransform_;
@@ -96,18 +98,18 @@ public:
     /// @brief ワールド座標での位置を返す。
     cg2::Vector3 GetWorldPosition() const override;
 
-    // 自キャラのセッター
+    /// @brief Playerを借用する。更新・照準・射撃で参照する間は有効に保つ。
     void SetPlayer(Player* player)
     {
         player_ = player;
     }
-    /// @brief 敵管理を設定する。
+    /// @brief 通常敵・資源を探索するEnemyManagerを借用する。nullptrでは捕食対象を探索しない。
     void SetEnemyManager(EnemyManager* enemyManager)
     {
         enemyManager_ = enemyManager;
     }
 
-    // セッター
+    /// @brief ワールド座標の位置を設定し、借用モデルの姿勢・行列も更新する。
     void SetWorldPosition(const cg2::Vector3& pos)
     {
         worldTransform_.translate = pos;
@@ -121,7 +123,8 @@ public:
     // 発射間隔
     static inline const int32_t kFireInterval = 60;
 
-    /// @brief 衝突判定
+    /// @brief 成立済みの接触を受け、通常敵へのダメージ、自機・ドローンによる押し返し、弾によるHP減算を行う。
+    /// @note otherは有効な相手が必要。遭遇戦が無効なら何もしない。死亡判定はUpdate側で行う。
     void OnCollision(Collider* other) override;
 
     /// @brief 半径を返す。
@@ -142,24 +145,24 @@ public:
         return isDead_;
     }
 
-    /// @brief 移動の傾向
+    /// @brief Attack・Wander・Evadeに応じて接近・回避・徘徊の重みを設定する。KeepDistanceでは保持する。
     void AIStateMovePower();
 
-    /// @brief ステートによる移動
+    /// @brief 行動状態・経路・回避から移動速度を更新し、目標へ旋回する。位置はUpdate側で進める。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Move(float deltaTime);
-    /// @brief 乱数で移動方向を選ぶ。
+    /// @brief 徘徊用の乱数ベクトルを返す。単位ベクトルではなく、Z成分も含む。
     cg2::Vector3 RandomDirection();
 
-    /// @brief 接近する弾を避ける移動方向を求める。
+    /// @brief 敵弾属性以外で10ワールド単位未満の弾から離れるベクトルを合算する。接近方向・死亡状態は検査しない。
     cg2::Vector3 EvadeBullets();
-    /// @brief AI状態を更新する。
+    /// @brief 敵弾属性以外の弾との距離を優先し、次にPlayerとの距離でAI状態を選ぶ。
     void UpdateAIState();
 
     /// @brief AABBを返す。
     cg2::AABB GetAABB();
 
-    /// @brief Dirを返す。
+    /// @brief 直近の移動用方向を返す。ためらい中などは単位長とは限らない。
     cg2::Vector3 GetDir()
     {
         return dir_;
@@ -175,39 +178,41 @@ public:
         return damageFeedbackDuration_ > 0.0f ? (std::clamp)(damageFeedbackTimer_ / damageFeedbackDuration_, 0.0f, 1.0f) : 0.0f;
     }
 
-    /// @brief Forward射線を作成して返す。
+    /// @brief 移動方向の線分を作る。方向がほぼ0なら+Xを使う。
+    /// @param length 線分の長さ（ワールド単位）。
     cg2::Segment MakeForwardRay(float length) const;
 
-    /// @brief 地形ブロック近距離By射線であるか判定する。
+    /// @brief 移動方向へ長さ3の線分を伸ばし、有効な地形AABBとの交差を判定する。
     bool IsBlockNearByRay();
 
-    /// @brief 射線で壁を調べ、壁を避ける方向を求める。
+    /// @brief 前方の壁を検出した初回に、壁沿い状態を設定して減速・横向きの補正ベクトルを返す。
     cg2::Vector3 WallAvoidByRay();
 
-    /// @brief 候補の移動方向の安全性と目的への適合度を評価する。
+    /// @brief 現在位置にdir * 3を加えた候補点からPlayerまでの距離を返す。dirの正規化や壁の検査は行わない。
     float ScoreDir(const cg2::Vector3& dir);
 
-    /// @brief 射線への自機を作成して返す。
+    /// @brief ボス位置からPlayer位置までの線分を返す。
     cg2::Segment MakeRayToPlayer() const;
 
-    /// @brief 射線がプレイヤーへ到達するか判定する。
+    /// @brief rayとPlayerの衝突球が接触するか判定する。地形の遮蔽は調べない。
     bool HitPlayerByRay(const cg2::Segment& ray);
 
-    /// @brief 線OfSightへの自機が存在するか判定する。
+    /// @brief Playerへの射線と地形AABBの交差・中心距離で、射撃可能な見通しを近似判定する。
     bool HasLineOfSightToPlayer() const;
-    /// @brief 線OfSightへの対象が存在するか判定する。
+    /// @brief 目標への射線と地形AABBの交差・中心距離で、射撃可能な見通しを近似判定する。
+    /// @return 地形が未設定、目標がほぼ同位置、または中心が目標より近い遮蔽物を検出した場合false。
     bool HasLineOfSightToTarget(const cg2::Vector3& targetPos) const;
 
-    /// @brief 移動を返す。
+    /// @brief AIの移動速度（60FPS基準の1フレーム当たり）を返す。追加のノックバック速度は含まない。
     cg2::Vector3 GetMove()
     {
         return velocity_;
     }
 
-    /// @brief 死亡状態にし、以降の攻撃・衝突などの対象から外す。
-    void Die(); // ← プレイヤー消滅
+    /// @brief 有効な遭遇戦で未死亡なら、死亡フラグを立てて半径を0にし、死亡演出を開始する。実体は削除しない。
+    void Die();
 
-    // 演出終了か
+    /// @brief 死亡済みで死亡演出も終了しているかを返す。状態は消費しない。
     bool isFinished();
 
     /// @brief 死亡であるか判定する。
@@ -220,7 +225,7 @@ public:
     {
         return hp_;
     }
-    /// @brief 最大値HPを返す。
+    /// @brief 最大HPを返す。
     int GetMaxHp() const
     {
         return maxHP_;
@@ -228,18 +233,21 @@ public:
     /// @brief 撃破画面演出を更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateDefeatPresentation(float deltaTime);
-    /// @brief 受けたダメージをHPなどの戦闘状態へ反映する。
+    /// @brief 有効な遭遇戦で未死亡かつamountが0でなければ、HPを減らして被弾演出を開始する。
+    /// @note 死亡判定・HPの0への補正は次のUpdateで行う。
     void TakeDamage(uint32_t amount);
-    /// @brief Knockbackを現在の状態へ適用する。
+    /// @brief 有効な遭遇戦で未死亡なら、追加のノックバック速度を加算して長さを0.34以下に制限する。
+    /// @param power 正の有限値を使い、0.95を上限に速度へ変換する。
+    /// @note 位置はUpdateで進める。ゼロに近いdirectionは無視し、現在の攻撃状態は中断しない。
     void ApplyKnockback(const cg2::Vector3& direction, float power);
-    /// @brief ボス攻撃設定を設定する。
+    /// @brief 射撃設定をコピーして弾速・発射数・待ち時間などを制限し、通常射撃の間隔も更新する。
     void SetBossAttackConfig(const BossAttackConfig& config);
     /// @brief ボス攻撃設定を返す。
     const BossAttackConfig& GetBossAttackConfig() const
     {
         return bossAttackConfig_;
     }
-    /// @brief 敵進行度設定を設定する。
+    /// @brief 捕食・成長設定をコピーして距離・時間などを制限し、通常敵への衝突マスクも切り替える。
     void SetEnemyProgressConfig(const EnemyProgressConfig& config);
     /// @brief 敵進行度設定を返す。
     const EnemyProgressConfig& GetEnemyProgressConfig() const
@@ -256,12 +264,13 @@ public:
     {
         return enemyExp_;
     }
-    /// @brief Leveling方式有効であるか判定する。
+    /// @brief 現在、Playerとの距離に応じた捕食対象の探索モードに入っているかを返す。
     bool IsLevelingModeActive() const
     {
         return levelingModeActive_;
     }
-    /// @brief 経験値敵撃破を登録する。
+    /// @brief 通常敵の撃破数を増やして捕食回復・成長を反映する。
+    /// @note 資源争奪中は通常敵からの回復を最大1にし、経験値・レベルは増やさない。遭遇戦無効、または試作戦闘で死亡/HP0以下なら何もしない。
     void RegisterExpEnemyKill(uint32_t expValue);
 
     using PrototypeAttackType = PrototypeBossCombat::AttackType;
@@ -271,22 +280,23 @@ public:
         PrototypeAttackType attackType = PrototypeAttackType::AimedSpread;
         cg2::Vector3 direction{1.0f, 0.0f, 0.0f};
         float progress = 0.0f;
-        // GapRing: width of the safe opening around direction. Others: danger cone.
+        // GapRingではdirectionを中心とする安全な開口幅、それ以外では危険な扇形の幅（度）。
         float spreadAngleDeg = 44.0f;
     };
-    /// @brief 試作戦闘を有効にする。
+    /// @brief 試作戦闘の有効状態が変わると攻撃時計をリセットする。有効化時は捕食回復の予算も設定する。
     void EnablePrototypeCombat(bool enabled);
     /// @brief 試作戦闘有効であるか判定する。
     bool IsPrototypeCombatEnabled() const
     {
         return prototypeCombatEnabled_;
     }
-    /// @brief 試作Pressureを設定する。
+    /// @brief 試作戦闘の攻撃圧力を0～4に制限して設定する。
     void SetPrototypePressure(int pressure)
     {
         prototypePressure_ = (std::clamp)(pressure, 0, 4);
     }
-    /// @brief 試作最大値HPを設定する。
+    /// @brief 最大HPを1～1000000に制限し、捕食回復予算と現在HPを設定する。
+    /// @note healToFullがfalseなら現在HPを新しい最大HP内に制限する。死亡済みの機体は復活させない。
     void SetPrototypeMaxHp(int maxHp, bool healToFull = true);
     /// @brief 試作攻撃調整値を設定する。
     void SetPrototypeAttackTuning(const BossAttackConfig& config)
@@ -294,24 +304,26 @@ public:
         SetBossAttackConfig(config);
         prototypeTuningEnabled_ = true;
     }
-    /// @brief 試作リソース注目点を設定する。
+    /// @brief 試作戦闘で資源を優先探索する設定を切り替える。探索を有効にする他の条件は変更しない。
     void SetPrototypeResourceFocus(bool enabled)
     {
         prototypeResourceFocus_ = enabled;
     }
-    /// @brief 遠征リソース取得を登録する。
+    /// @brief 生存中の有効な試作戦闘で資源優先が有効なら、資源取得による回復・成長を反映する。
     void RegisterRunResourceClaim();
-    /// @brief 試作攻撃予告を返す。
+    /// @brief 試作戦闘または遠征ライバルの現在の攻撃予告を値で返す。状態は消費しない。
     PrototypeTelegraph GetPrototypeTelegraph() const;
-    /// @brief 遠征敵出現有効を設定する。
+    /// @brief ボスの遭遇戦を切り替える。無効化時は移動速度と捕食モード・資源を狙うフラグを解除し、試作攻撃時計をリセットする。
+    /// @note HP・死亡フラグ・射撃設定・目標座標・ライバルの行動状態は保持する。再開時の初期化はResetRunEncounterを使う。
     void SetRunEncounterEnabled(bool enabled);
-    /// @brief 遠征敵出現有効であるか判定する。
+    /// @brief ボスの遭遇戦が有効かを返す。生存状態とは別のフラグ。
     bool IsRunEncounterEnabled() const
     {
         return runEncounterEnabled_;
     }
-    // Call after Initialize, outside actor updates/collision callbacks.
-    /// @brief 遠征敵出現を初期状態へ戻す。
+    /// @brief ボスを指定位置・HPの試作遭遇戦として復活させ、移動・死亡演出・成長・通常AI/試作戦闘を初期化する。
+    /// @note Initialize後、アクター更新・衝突通知の外で呼ぶ。借用先と射撃設定は保持し、ダメージは初回に保存した基準値へ戻す。
+    /// ライバルは無効化し、必要ならEnableExpeditionRivalで別に初期化する。
     void ResetRunEncounter(const cg2::Vector3& position, int hp, int pressure, bool resourceFocus);
     /// @brief ライバルボスの行動状態を表示・検証へ提供する。
     struct RivalCombatStatus {
@@ -327,8 +339,8 @@ public:
         cg2::Vector3 dashDirection{0.0f, 1.0f, 0.0f};
         float dashDistance = 0.0f;
     };
-    // Opt in after ResetRunEncounter. Arena and the title demo retain their AI.
-    /// @brief 遠征ライバルを有効にする。
+    /// @brief 遠征ライバルの有効状態を設定し、ライバルの時計・移動を初期化する。
+    /// @note ResetRunEncounterの後に呼ぶ。有効化時は通常敵への敵対・捕食を止める。無効化だけでは捕食設定を復元しない。
     void EnableExpeditionRival(bool enabled);
     /// @brief 遠征ライバル有効であるか判定する。
     bool IsExpeditionRivalEnabled() const
@@ -338,7 +350,7 @@ public:
     /// @brief ライバル戦闘状態を返す。
     RivalCombatStatus GetRivalCombatStatus() const;
 
-    /// @brief 攻撃制御弾管理を設定する。
+    /// @brief 射撃と回避判定で使うBulletManagerを借用し、AttackControllerにも渡す。
     void SetAttackControllerBulletManager(BulletManager* bulletManager)
     {
         bulletManager_ = bulletManager;
@@ -358,46 +370,48 @@ private:
         int y = 0;
     };
 
-    /// @brief パス方向への自機を検索する。
+    /// @brief Playerまでの経路探索から、次の通行点への方向を返す。探索不要・失敗ならnullopt。
     std::optional<cg2::Vector3> FindPathDirectionToPlayer();
-    /// @brief パス方向への対象を検索する。
+    /// @brief 直進路が塞がれている場合、セルを探索して次の通行点への方向を返す。
+    /// @return 直進可能・範囲外・経路なし・通行点がほぼ同位置ならnullopt。
     std::optional<cg2::Vector3> FindPathDirectionToTarget(const cg2::Vector3& targetPos);
-    /// @brief ワールド座標をマップの行・列へ変換する。
+    /// @brief ワールド座標をブロック寸法で割って四捨五入し、Yを上下反転してセル添字へ変換する。範囲外ならnullopt。
     std::optional<MapIndex> WorldToMapIndex(const cg2::Vector3& pos) const;
-    /// @brief マップの行・列をワールド座標へ変換する。
+    /// @brief 列x・行yをワールド座標のセル中心へ変換する。CSV先頭行はワールドYの上側。
     cg2::Vector3 MapIndexToWorld(const MapIndex& index) const;
-    /// @brief 通行可能セルであるか判定する。
+    /// @brief 地形があれば、マップの外周を除く有効範囲でブロックが非アクティブかを返す。地形未設定ならtrue。
     bool IsPassableCell(int x, int y) const;
-    /// @brief パス通行可能セルであるか判定する。
+    /// @brief 機体半幅に応じた周辺セルを含め、経路探索上で通行可能かを返す。
     bool IsPathPassableCell(int x, int y) const;
-    /// @brief 最寄りパス通行可能セルを検索する。
+    /// @brief baseが通れなければ周囲を半径1～7セルの順に探し、最初に候補がある範囲の最寄りセルを返す。候補なしならbase。
     MapIndex FindNearestPathPassableCell(const MapIndex& base) const;
-    /// @brief 消去移動進路への自機が存在するか判定する。
+    /// @brief Playerへの移動経路を、中央と機体幅の左右から伸ばした3本の線分で判定する。
     bool HasClearMoveRouteToPlayer() const;
-    /// @brief 消去移動進路への対象が存在するか判定する。
+    /// @brief 目標への中央・左右の3本の線分が、有効な地形AABBに交差しないかを返す。
+    /// @note 機体幅を3本で近似する。地形未設定ならfalse、目標がほぼ同位置ならtrue。
     bool HasClearMoveRouteToTarget(const cg2::Vector3& targetPos) const;
-    /// @brief HumanLikeSteeringを現在の状態へ適用する。
+    /// @brief 横揺れ・方向の追従・経路上のためらいを更新し、補正した移動方向を返す。
     /// @param deltaTime この処理で進める経過時間（秒）。
     cg2::Vector3 ApplyHumanLikeSteering(const cg2::Vector3& desiredDir, bool usingPath, float deltaTime);
-    /// @brief 移動対象位置を解決する。
+    /// @brief Playerとの距離と捕食設定から移動目標を選び、捕食モード・資源を狙う状態も更新する。
     cg2::Vector3 ResolveMoveTargetPosition();
     /// @brief 目標方向へ向けて姿勢を回転する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void RotateTowardTarget(const cg2::Vector3& targetPos, float deltaTime);
-    /// @brief 試作戦闘を更新する。
+    /// @brief 試作戦闘の時計を進め、予告中の停止・旋回と、発射要求からの弾生成を行う。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdatePrototypeCombat(float deltaTime);
-    /// @brief ライバル戦闘を更新する。
+    /// @brief 遠征ライバルの照準・行動時計・速度を更新し、発射要求から弾を生成する。位置はUpdate側で進める。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateRivalCombat(float deltaTime);
-    /// @brief ライバルダッシュ方向を選択する。
+    /// @brief 通行判定を通る突進方向と距離を候補から選ぶ。候補なしなら距離を0のまま保つ。
     void SelectRivalDashDirection(const cg2::Vector3& towardPlayer);
-    /// @brief ライバル移動を解決する。
+    /// @brief 経路探索・左右反転・前後退避で移動方向を選ぶ。経路の再探索時計と横移動の符号も更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     cg2::Vector3 ResolveRivalMove(const cg2::Vector3& desired, const cg2::Vector3& towardPlayer, float deltaTime);
     /// @brief 捕食による回復量をHPへ反映する。
     void HealFromFeeding(int amount);
-    /// @brief Feedingレベルを進める。
+    /// @brief 捕食レベル・最大HP・接触/射撃ダメージを増やす。試作戦闘ではレベルと最大HPの上限を適用する。
     void AdvanceFeedingLevel();
 
     // ワールド変換データ
@@ -448,7 +462,7 @@ private:
     float wallFollowTimer_ = 0.0f;
     cg2::Vector3 wallFollowDir_;
 
-    // 射撃感覚タイマー
+    // 通常射撃の待ち時間（秒）
     float kFireTimerMax_ = 0.15f;
     float fireTimer_ = 0.0f;
     BossAttackConfig bossAttackConfig_{};
@@ -527,9 +541,9 @@ private:
     /// @brief ダメージフィードバックを現在の状態へ適用する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void ApplyDamageFeedback(float deltaTime);
-    /// @brief 粒子を出現させる。
+    /// @brief 死亡粒子を生成し、機体の膨張と消失を表示する時計を開始する。
     void SpawnParticles();
-    /// @brief 粒子を更新する。
+    /// @brief 死亡演出の時計を進め、時間切れでisExploding_を解除する。粒子自体はParticleManagerが更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateParticles(float deltaTime = 1.0f / 60.0f);
     const float deltaTime = 1.0f / 60.0f;
