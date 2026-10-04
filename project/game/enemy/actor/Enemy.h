@@ -67,7 +67,7 @@ public:
     /// @note objectは有効なモデルが必要。遭遇戦の再開にはResetRunEncounterを使う。
     void Initialize(cg2::Object3d* object, const cg2::Vector3& position, Stage* stage);
 
-    /// @brief 行動と射撃を更新し、地形衝突付きの移動、HPによる死亡判定、演出・表示更新を順に行う。
+    /// @brief 生存中だけ行動・射撃・地形衝突付きの移動を更新する。死亡後は演出だけを進める。
     /// @note 遭遇戦が無効なら何もしない。Player・Stage・弾管理は先に設定する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Update(float deltaTime);
@@ -80,10 +80,10 @@ public:
     /// @brief スプライト描画の互換用入口。現在は描画しない。
     void DrawSprite();
 
-    /// @brief 遭遇戦が有効なら、Player方向への単発弾を弾管理へ渡す。
+    /// @brief 生存中の有効な遭遇戦で、Player方向への単発弾を弾管理へ渡す。
     void Fire();
 
-    /// @brief 遭遇戦が有効なら、移動目標への射撃をBossAttackConfigのパターンと性能で生成する。
+    /// @brief 生存中の有効な遭遇戦で、移動目標への射撃をBossAttackConfigのパターンと性能で生成する。
     void ShotgunFire();
 
     /// @brief startPosへボスの位置、targetPosへPlayerの位置を代入する。移動方向は計算しない。
@@ -124,7 +124,7 @@ public:
     static inline const int32_t kFireInterval = 60;
 
     /// @brief 成立済みの接触を受け、通常敵へのダメージ、自機・ドローンによる押し返し、弾によるHP減算を行う。
-    /// @note otherは有効な相手が必要。遭遇戦が無効なら何もしない。死亡判定はUpdate側で行う。
+    /// @note otherは有効な相手が必要。遭遇戦が無効または死亡済みなら何もしない。致死ダメージは直ちに死亡を確定する。
     void OnCollision(Collider* other) override;
 
     /// @brief 半径を返す。
@@ -234,7 +234,7 @@ public:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateDefeatPresentation(float deltaTime);
     /// @brief 有効な遭遇戦で未死亡かつamountが0でなければ、HPを減らして被弾演出を開始する。
-    /// @note 死亡判定・HPの0への補正は次のUpdateで行う。
+    /// @note 致死ダメージではHPを0にし、その通知中に死亡を確定する。
     void TakeDamage(uint32_t amount);
     /// @brief 有効な遭遇戦で未死亡なら、追加のノックバック速度を加算して長さを0.34以下に制限する。
     /// @param power 正の有限値を使い、0.95を上限に速度へ変換する。
@@ -270,7 +270,7 @@ public:
         return levelingModeActive_;
     }
     /// @brief 通常敵の撃破数を増やして捕食回復・成長を反映する。
-    /// @note 資源争奪中は通常敵からの回復を最大1にし、経験値・レベルは増やさない。遭遇戦無効、または試作戦闘で死亡/HP0以下なら何もしない。
+    /// @note 資源争奪中は通常敵からの回復を最大1にし、経験値・レベルは増やさない。遭遇戦無効、または死亡/HP0以下なら何もしない。
     void RegisterExpEnemyKill(uint32_t expValue);
 
     using PrototypeAttackType = PrototypeBossCombat::AttackType;
@@ -320,6 +320,21 @@ public:
     bool IsRunEncounterEnabled() const
     {
         return runEncounterEnabled_;
+    }
+    /// @brief 同じアクターを再利用する遭遇戦の世代。Visualが過去の死亡状態を引き継がないための識別値。
+    uint64_t GetEncounterGeneration() const
+    {
+        return encounterGeneration_;
+    }
+    /// @brief 試作ボスの行動時計上の現在段階。描画側は遭遇戦・生存状態と併せて参照する。
+    PrototypeBossCombat::Phase GetPrototypeCombatPhase() const
+    {
+        return prototypeCombat_.GetPhase();
+    }
+    /// @brief 現在の遭遇戦で発行した射撃要求の回数。単発攻撃が同一更新内でRecoveryへ戻っても観測できる。
+    unsigned GetShotsFired() const
+    {
+        return shotsFired_;
     }
     /// @brief ボスを指定位置・HPの試作遭遇戦として復活させ、移動・死亡演出・成長・通常AI/試作戦闘を初期化する。
     /// @note Initialize後、アクター更新・衝突通知の外で呼ぶ。借用先と射撃設定は保持し、ダメージは初回に保存した基準値へ戻す。
@@ -470,6 +485,8 @@ private:
     bool prototypeCombatEnabled_ = false;
     bool prototypeTuningEnabled_ = false;
     bool runEncounterEnabled_ = true;
+    uint64_t encounterGeneration_ = 0;
+    unsigned shotsFired_ = 0;
     bool runEncounterBaselineCaptured_ = false;
     uint32_t runEncounterBaseContactDamage_ = 0;
     uint32_t runEncounterBaseBulletDamage_ = 0;

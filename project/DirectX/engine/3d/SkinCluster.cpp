@@ -705,6 +705,16 @@ SkinCluster SkinCluster::Create(const Skeleton& skeleton, const SkinningModelAss
 	return cluster;
 }
 
+void SkinnedModel::ReleaseGpuResources() {
+	if (srvManager_ && paletteSrvIndex_ != 0) srvManager_->Free(paletteSrvIndex_);
+	paletteSrvIndex_ = 0;
+	mappedPalette_ = nullptr;
+	paletteResource_.Reset();
+	indexResource_.Reset();
+	influenceResource_.Reset();
+	vertexResource_.Reset();
+}
+
 void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, const std::string& filePath) {
 	dxCommon_ = dxCommon;
 	srvManager_ = srvManager;

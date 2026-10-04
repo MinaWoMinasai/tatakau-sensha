@@ -35,7 +35,7 @@ foreach ($name in @('expedition_content', 'tankExpeditionBalance', 'expedition_m
 Write-Fixture 'project/resources/shaders/common.hlsli'
 Write-Fixture 'project/resources/shaders/main.hlsl'
 Write-Fixture 'project/resources/models/tank.obj'
-Write-Fixture 'project/resources/models/neon_hologram/AvatarSample_B.glb' 'Developer preview model'
+foreach ($name in Get-TankSubmissionNeonBossResourcePaths) { Write-Fixture "project/resources/$name" 'Neon boss runtime resource' }
 Write-Fixture 'project/resources/models/neon_hologram/shipped_neighbor.glb' 'Unrelated runtime model'
 Write-Fixture 'project/resources/models/neon_hologram/README.md' 'Model attribution'
 $previewMasks = @('line_masks/face_candidate.png', 'line_masks/bangs_candidate.png',
@@ -76,9 +76,14 @@ $cleanOutput = Join-Path $tankPackageTestRoot 'clean'
 $result = New-TankSubmissionPackage $tankPackageFixture $cleanOutput
 Assert-True ($result.TutorialState -eq 'fresh') 'Missing progress file must produce a fresh package.'
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/tank.obj')) 'Runtime model .obj was incorrectly excluded.'
-Assert-True (!(Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/neon_hologram/AvatarSample_B.glb'))) 'Developer avatar was copied into Release.'
-Assert-True (Test-TankSubmissionExcludedPath 'resources/models/neon_hologram/AvatarSample_B.glb') 'Package verification permits the Developer avatar.'
-Assert-True (Test-TankSubmissionExcludedPath 'models/neon_hologram/AvatarSample_B.glb') 'Source copy permits the Developer avatar.'
+foreach ($name in Get-TankSubmissionNeonBossResourcePaths) {
+    $runtimePath = 'resources/' + $name
+    Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput $runtimePath)) "Neon boss runtime resource was excluded: $name"
+    Assert-True (!(Test-TankSubmissionExcludedPath $runtimePath)) "Package verification excludes Neon boss runtime resource: $name"
+    Assert-True (!(Test-TankSubmissionExcludedPath $name)) "Source copy excludes Neon boss runtime resource: $name"
+    Assert-True ((Get-FileHash -LiteralPath (Join-Path $cleanOutput $runtimePath)).Hash -eq
+        (Get-FileHash -LiteralPath (Join-Path $tankPackageFixture ('project/resources/' + $name))).Hash) "Neon boss runtime resource was modified: $name"
+}
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/neon_hologram/shipped_neighbor.glb')) 'Avatar exclusion affected a different model.'
 Assert-True (Test-Path -LiteralPath (Join-Path $cleanOutput 'resources/models/neon_hologram/README.md')) 'Avatar attribution was incorrectly excluded.'
 foreach ($name in $previewMasks) {
@@ -144,10 +149,21 @@ $extraOutput = Join-Path $tankPackageTestRoot 'with_extra'
 New-TankSubmissionPackage $tankPackageFixture $extraOutput | Out-Null
 Set-Content -LiteralPath (Join-Path $extraOutput 'personal.json') -Value '{}'
 Assert-Throws { Assert-TankSubmissionPackage $extraOutput } 'Unlisted file was accepted.'
-$avatarOutput = Join-Path $tankPackageTestRoot 'with_developer_avatar'
+$avatarOutput = Join-Path $tankPackageTestRoot 'missing_neon_boss'
 New-TankSubmissionPackage $tankPackageFixture $avatarOutput | Out-Null
-Copy-Item -LiteralPath (Join-Path $tankPackageFixture 'project/resources/models/neon_hologram/AvatarSample_B.glb') -Destination (Join-Path $avatarOutput 'resources/models/neon_hologram/AvatarSample_B.glb')
-Assert-Throws { Assert-TankSubmissionPackage $avatarOutput } 'Injected Developer avatar was accepted.'
+Remove-Item -LiteralPath (Join-Path $avatarOutput 'resources/models/neon_hologram/AvatarSample_B.glb')
+Assert-Throws { Assert-TankSubmissionPackage $avatarOutput } 'Package without the gameplay Neon boss was accepted.'
+# Missing model/shader inputs must be rejected before any package directory is created.
+foreach ($name in @('models/neon_hologram/AvatarSample_B.glb', 'shaders/NeonDissolve.hlsli')) {
+    $sourceAsset = Join-Path $tankPackageFixture ('project/resources/' + $name)
+    $sourceBytes = [IO.File]::ReadAllBytes($sourceAsset)
+    $missingAssetOutput = Join-Path $tankPackageTestRoot ('missing_neon_source_' + [IO.Path]::GetFileName($name))
+    try {
+        Remove-Item -LiteralPath $sourceAsset
+        Assert-Throws { New-TankSubmissionPackage $tankPackageFixture $missingAssetOutput } "Missing Neon boss source was accepted: $name"
+        Assert-True (!(Test-Path -LiteralPath $missingAssetOutput)) "Missing Neon boss source created incomplete output: $name"
+    } finally { [IO.File]::WriteAllBytes($sourceAsset, $sourceBytes) }
+}
 $maskOutput = Join-Path $tankPackageTestRoot 'with_developer_mask'
 New-TankSubmissionPackage $tankPackageFixture $maskOutput | Out-Null
 [IO.Directory]::CreateDirectory((Join-Path $maskOutput 'resources/models/neon_hologram/line_masks')) | Out-Null

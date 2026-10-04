@@ -112,6 +112,9 @@ private:
 /// @brief 骨格とアニメーションの再生状態を持ち、スキニングモデルを描画する。
 class SkinnedModel {
 public:
+    // Explicit frame-boundary teardown for presentation owners. The caller must
+    // keep SrvManager alive and wait for the last GPU use before calling this.
+    void ReleaseGpuResources();
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, const std::string& filePath);
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。

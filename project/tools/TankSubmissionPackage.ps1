@@ -11,6 +11,18 @@ function Get-TankSubmissionNoticePaths {
         'docs/third-party/Hedley-CC0-1.0.txt')
 }
 
+function Get-TankSubmissionNeonBossResourcePaths {
+    # The gameplay Visual uses the existing GLB and shader sources in Release.
+    # Authored line-mask comparison data remains Developer-only.
+    return @('models/neon_hologram/AvatarSample_B.glb',
+        'shaders/NeonSkinned.VS.hlsl', 'shaders/NeonSkinned.PS.hlsl',
+        'shaders/NeonSkinnedOutline.VS.hlsl', 'shaders/NeonSkinnedOutline.PS.hlsl',
+        'shaders/NeonSkinnedStencilClear.VS.hlsl', 'shaders/NeonSkinnedStencilClear.PS.hlsl',
+        'shaders/NeonSkinnedGeometry.PS.hlsl', 'shaders/NeonSkinned.hlsli',
+        'shaders/NeonSkinnedSkinning.hlsli', 'shaders/NeonSkinnedBody.hlsli',
+        'shaders/NeonSkinnedSurface.hlsli', 'shaders/NeonDissolve.hlsli')
+}
+
 function Test-TankSubmissionPreparedTextPath([string]$RelativePath) {
     return $RelativePath.Replace('\', '/') -cmatch '^resources/generated/text/text_[0-9a-f]{16}\.png$'
 }
@@ -82,9 +94,6 @@ function Test-TankSubmissionExcludedPath([string]$RelativePath, [bool]$AllowPrep
     $resourcePath = $path -replace '^resources/', ''
     # The documented listening preview belongs in the source archive, not the runtime package.
     if ($resourcePath -eq 'audio/tank_expedition/preview.wav') { return $true }
-    # Repository-owned Developer Preview input; not used by the Release runtime yet.
-    # Remove this exact-file exclusion when the avatar becomes a shipped Boss asset.
-    if ($resourcePath -eq 'models/neon_hologram/AvatarSample_B.glb') { return $true }
     # Authored line-mask candidates and their configuration are Preview-only.
     if ($resourcePath -match '^models/neon_hologram/line_masks/') { return $true }
     # Retired standalone startup project only; levels/tank_run.json remains shared.
@@ -150,6 +159,9 @@ function Assert-TankSubmissionPackage([string]$PackageDirectory) {
     foreach ($notice in Get-TankSubmissionNoticePaths) {
         if (!$paths.ContainsKey($notice)) { throw "Required copyright/license notice is missing: $notice" }
     }
+    foreach ($resource in Get-TankSubmissionNeonBossResourcePaths) {
+        if (!$paths.ContainsKey('resources/' + $resource)) { throw "Required Neon boss runtime file is missing: $resource" }
+    }
     foreach ($required in @('CG2.exe', 'dxcompiler.dll', 'dxil.dll', 'README.md', 'licenses/assimp-LICENSE.txt', 'licenses/imgui-LICENSE.txt',
             'resources/projects/default.project.json', 'resources/projects/tank_game.project.json',
             'resources/configs/expedition_content.json', 'resources/configs/tankExpeditionBalance.json',
@@ -209,6 +221,7 @@ function New-TankSubmissionPackage([string]$SourceRoot, [string]$OutputDirectory
         (Join-Path $resources 'configs/tankExpeditionBalance.json'),
         (Join-Path $resources 'configs/expedition_map.json'))
     $required += @(Get-TankSubmissionNoticePaths | ForEach-Object { Join-Path $source $_ })
+    $required += @(Get-TankSubmissionNeonBossResourcePaths | ForEach-Object { Join-Path $resources $_ })
     foreach ($file in $required) { if (!(Test-Path -LiteralPath $file -PathType Leaf)) { throw "Missing source file: $file" } }
     $preparedTextFiles = @()
     if ($PreparedTextCacheDirectory) {

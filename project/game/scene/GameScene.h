@@ -40,6 +40,7 @@
 #include "game/level/LevelLoader.h"
 #include "game/effects/ScreenEffectDirector.h"
 #include "game/render/NeonProjectileRenderer.h"
+#include "game/enemy/visual/NeonBossVisual.h"
 #include "game/ui/NeonTextEffect.h"
 #include "game/ui/TankRewardCard.h"
 #include "game/run/TankRunDirector.h"
@@ -102,7 +103,7 @@ public:
     float GetFinalDeltaTime() const override
     {
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-        if (developerBloomFreeze_) return 1.0f / 60.0f; // Freeze is a comparison, not the grayscale slow-motion effect.
+        if (developerBloomFreeze_ || neonBossDeveloperFreeze_) return 1.0f / 60.0f; // Freeze is a comparison, not the grayscale slow-motion effect.
 #endif
         if (IsNeonShowcaseActive()) return 1.0f / 60.0f;
         return finalDeltaTime;
@@ -992,9 +993,37 @@ private:
 
     std::unique_ptr<cg2::DebugCamera> debugCamera;
     std::unique_ptr<cg2::Camera> camera;
+    // Presentation owns no combat state; the Enemy snapshot is consumed after collision resolution.
+    std::unique_ptr<NeonBossVisual> neonBossVisual_;
+    uint64_t neonBossEncounterGeneration_ = 0;
+    unsigned neonBossPreviousShots_ = 0;
+    float neonBossAttackPresentationTimer_ = 0;
+    cg2::Vector3 neonBossPreviousPosition_{};
+    bool neonBossVisualEnabled_ = true;
+    void UpdateNeonBossVisual(float deltaTime);
+    bool UseNeonBossVisual() const;
+    void DrawNeonBossVisual();
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
     std::unique_ptr<NeonSkinnedPreview> neonSkinnedPreview_;
     bool selectNeonSkinnedPreviewTab_ = false;
+    bool selectNeonBossTab_ = false;
+    void DrawNeonBossDeveloperTools();
+    void StartNeonBossDeveloperEncounter();
+    void UpdateNeonBossDeveloperValidation();
+    void RecordNeonBossDeveloperFrame(cg2::DirectXCommon& dx);
+    nlohmann::json MakeNeonBossMetadata() const;
+    void WriteNeonBossValidation(bool completed);
+    NeonShowcaseCapture neonBossCapture_;
+    bool neonBossAutoTest_ = false, neonBossDeveloperStartPending_ = false;
+    bool neonBossDeveloperFreeze_ = false;
+    int neonBossProbe_ = 0, neonBossCaptureStep_ = 0;
+    int neonBossProfileStep_ = 0;
+    float neonBossValidationAge_ = 0;
+    std::string neonBossCaptureName_;
+    nlohmann::json neonBossValidationCaptures_ = nlohmann::json::array();
+    std::vector<std::string> neonBossValidationErrors_;
+    unsigned neonBossDeadShots_ = 0, neonBossDeadDashCount_ = 0;
+    cg2::Vector3 neonBossDeadPosition_{};
 #endif
 
     std::unique_ptr<cg2::Object3d> enemyObject_;

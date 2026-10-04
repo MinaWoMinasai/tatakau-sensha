@@ -37,6 +37,10 @@ void GameScene::UpdateExpeditionAuthoringHub() {
     ImGui::SameLine();if(ImGui::Button("F5 出現時期・ルート")){expeditionMapEditorOpen_=true;expeditionAuthoringHubOpen_=false;}
     ImGui::SameLine();if(ImGui::Button("F6 強化・進化・敵の種類")){expeditionContentEditorOpen_=true;expeditionAuthoringHubOpen_=false;}
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if(ImGui::Button("Neon Boss / 本編ボス確認")) {
+        showGameDebugConsole_=true;selectNeonBossTab_=true;expeditionAuthoringHubOpen_=false;
+    }
+    ImGui::SameLine();
     if(neonSkinnedPreview_ && ImGui::Button("Neon Skinned Previewを開く")) {
         showGameDebugConsole_=true;
         selectNeonSkinnedPreviewTab_=true;

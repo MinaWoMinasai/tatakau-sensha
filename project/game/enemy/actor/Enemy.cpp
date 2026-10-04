@@ -57,7 +57,7 @@ float NormalizeAngleRad(float angle)
 Enemy::~Enemy() {}
 
 void Enemy::Fire() {
-	if (!runEncounterEnabled_) return;
+	if (!runEncounterEnabled_ || isDead_ || hp_ <= 0) return;
 
 	assert(player_);
 
@@ -83,6 +83,7 @@ void Enemy::Fire() {
 	attackParam.spreadAngleDeg = 0.0f;
 
 
+	++shotsFired_;
 	attackController_.Fire(
 		worldTransform_.translate,
 		direction,
@@ -93,7 +94,7 @@ void Enemy::Fire() {
 
 void Enemy::ShotgunFire()
 {
-	if (!runEncounterEnabled_) return;
+	if (!runEncounterEnabled_ || isDead_ || hp_ <= 0) return;
 	assert(player_);
 
 	// 発射位置
@@ -149,6 +150,7 @@ void Enemy::ShotgunFire()
 	}
 
 	// 発射
+	++shotsFired_;
 	attackController_.Fire(
 		origin,
 		baseDir,
@@ -158,6 +160,8 @@ void Enemy::ShotgunFire()
 }
 
 void Enemy::Initialize(cg2::Object3d* object, const cg2::Vector3& position, Stage* stage) {
+	++encounterGeneration_;
+	shotsFired_ = 0;
 	runEncounterEnabled_ = true;
 	runEncounterBaselineCaptured_ = false;
 	prototypeCombatEnabled_ = false;
@@ -260,8 +264,7 @@ void Enemy::SetEnemyProgressConfig(const EnemyProgressConfig& config)
 
 void Enemy::RegisterExpEnemyKill(uint32_t expValue)
 {
-	if (!runEncounterEnabled_) return;
-	if (prototypeCombatEnabled_ && (isDead_ || hp_ <= 0)) return;
+	if (!runEncounterEnabled_ || isDead_ || hp_ <= 0) return;
 	expEnemyKillCount_++;
 	if (prototypeCombatEnabled_ && prototypeResourceFocus_) {
 		// 資源争奪中の通常敵撃破は、撃破数と最大1の回復だけに使う。
@@ -366,6 +369,8 @@ void Enemy::SetRunEncounterEnabled(bool enabled)
 void Enemy::ResetRunEncounter(const cg2::Vector3& position, int hp, int pressure, bool resourceFocus)
 {
 	if (!object_) return;
+	++encounterGeneration_;
+	shotsFired_ = 0;
 	expeditionRivalEnabled_ = false;
 	// 初回の遭遇戦で基準ダメージを保存し、次の部屋で捕食による上昇を持ち越さない。
 	if (!runEncounterBaselineCaptured_) {
@@ -566,6 +571,7 @@ void Enemy::UpdateRivalCombat(float deltaTime)
 	worldTransform_.rotate.z = (phase == Phase::Locked || phase == Phase::Volley || phase == Phase::Tracking)
 		? rivalCombat_.GetAimAngle() : std::atan2(toward.y, toward.x);
 	if (!shot.fire) return;
+	++shotsFired_;
 	AttackParam param{};
 	param.bulletCount = 1;
 	param.randomSpread = false;
@@ -600,6 +606,7 @@ void Enemy::UpdatePrototypeCombat(float deltaTime)
 		worldTransform_.rotate.z = prototypeCombat_.GetAimAngle();
 	}
 	if (!shot.fire) return;
+	++shotsFired_;
 
 	AttackParam param{};
 	param.bulletCount = 1;
@@ -633,6 +640,12 @@ void Enemy::UpdatePrototypeCombat(float deltaTime)
 
 void Enemy::Update(float deltaTime) {
 	if (!runEncounterEnabled_) return;
+	// Gameplay death is immediate; only the retained presentation advances afterward.
+	if (hp_ <= 0) Die();
+	if (isDead_) {
+		UpdateDefeatPresentation(deltaTime);
+		return;
+	}
 
 	UpdateHPBar();
 	ApplyDamageFeedback(deltaTime);
@@ -695,11 +708,6 @@ void Enemy::Update(float deltaTime) {
 	object_->SetTransform(worldTransform_);
 	object_->Update();
 
-	// ダメージ通知はHPを減らすだけ。ここで死亡演出を開始し、HPを0にそろえる。
-	if (hp_ <= 0) {
-		Die();
-		hp_ = 0;
-	}
 	if (isExploding_) {
 		UpdateParticles(deltaTime);
 	}
@@ -784,7 +792,7 @@ cg2::Vector3 Enemy::GetWorldPosition() const {
 }
 
 void Enemy::OnCollision(Collider* other) {
-	if (!runEncounterEnabled_) return;
+	if (!runEncounterEnabled_ || isDead_ || hp_ <= 0 || !other) return;
 
 	if (other->GetCollisionAttribute() == kCollisionAttributeExpEnemy) {
 		if (!enemyProgressConfig_.expEnemyHostile) {
@@ -821,22 +829,23 @@ void Enemy::OnCollision(Collider* other) {
 			velocity_ = cg2::Normalize(velocity_) * maxKnockSpeed;
 		}
 	}
-	// 自機弾・敵対する通常敵の弾はHPを減らす。死亡フラグはこの通知では立てない。
+	// 全てのダメージ経路で、致死通知中にGameplayを停止する。
 	if (other->GetCollisionAttribute() == kCollisionAttributePlayerBullet ||
 		other->GetCollisionAttribute() == kCollisionAttributeHostileExpEnemyBullet) {
 
-		hp_ -= other->GetDamage();
-		TriggerDamageFeedback();
+		TakeDamage(other->GetDamage());
 	}
 }
 
 void Enemy::TakeDamage(uint32_t amount)
 {
-	if (!runEncounterEnabled_ || isDead_ || amount == 0) {
+	if (!runEncounterEnabled_ || isDead_ || hp_ <= 0 || amount == 0) {
 		return;
 	}
-	hp_ -= static_cast<int>(amount);
+	// Compare unsigned damage before narrowing, including amounts above INT_MAX.
+	hp_ = amount >= static_cast<uint32_t>(hp_) ? 0 : hp_ - static_cast<int>(amount);
 	TriggerDamageFeedback();
+	if (hp_ == 0) Die();
 }
 
 void Enemy::ApplyKnockback(const cg2::Vector3& direction, float power)
@@ -898,6 +907,10 @@ void Enemy::AIStateMovePower() {
 }
 
 void Enemy::Move(float deltaTime) {
+	if (!runEncounterEnabled_ || isDead_ || hp_ <= 0) {
+		velocity_ = {};
+		return;
+	}
 
 	UpdateAIState();
 
@@ -1513,6 +1526,10 @@ void Enemy::Die()
 	if (!runEncounterEnabled_ || isDead_) return;
 
 	isDead_ = true;
+	hp_ = 0;
+	velocity_ = dir_ = impactVelocity_ = {};
+	rivalDashDistance_ = 0.0f;
+	levelingModeActive_ = prototypeResourceTargetActive_ = false;
 	isExploding_ = true;
 
 	SpawnParticles();

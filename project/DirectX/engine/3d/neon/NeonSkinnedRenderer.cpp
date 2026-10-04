@@ -68,6 +68,21 @@ bool QueryGeometryLinesSupport(ID3D12Device* device, std::string& status) {
 }
 }
 
+void NeonSkinnedRenderer::ReleaseGpuResources() {
+	if (srvManager_ && nullFeatureMaskSrvIndex_ != 0) srvManager_->Free(nullFeatureMaskSrvIndex_);
+	nullFeatureMaskSrvIndex_ = 0;
+	drawConstantBuffers_.clear();
+	nextDrawIndex_ = 0;
+	rootSignature_.Reset();
+	pipelineState_.Reset();
+	doubleSidedPipelineState_.Reset();
+	geometryPipelineState_.Reset();
+	doubleSidedGeometryPipelineState_.Reset();
+	outlinePipelineState_.Reset();
+	doubleSidedOutlinePipelineState_.Reset();
+	stencilClearPipelineState_.Reset();
+}
+
 void NeonSkinnedRenderer::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, bool enableGeometryLinePipeline) {
 	if (!dxCommon || !srvManager || !dxCommon->GetDevice()) {
 		throw std::invalid_argument("NeonSkinnedRenderer requires an initialized DirectXCommon and SrvManager.");
