@@ -553,6 +553,7 @@ void Game::MainLoop() {
 
 
 		const auto imguiDrawStart = std::chrono::steady_clock::now();
+        SceneManager::GetInstance()->RecordDeveloperPostParameters(bloom_->GetLastCompositeParams());
         SceneManager::GetInstance()->RecordDeveloperFrame(*dxCommon_);
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
         if (imguiInitialized_) {

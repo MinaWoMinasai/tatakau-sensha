@@ -1,5 +1,6 @@
 #pragma once
 #include "BloomConstantBuffer.h"
+#include "BloomPyramid.h"
 #include "PostEffect.h"
 #include "RenderTexture.h"
 #include "RtvManager.h"
@@ -11,7 +12,8 @@ namespace cg2 {
 class ObjectPostEffect {
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
-    void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager, float renderScale = 1.0f);
+    void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager,
+        float renderScale = 1.0f, float qualityCaptureScale = 0.0f);
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Update(float deltaTime = 1.0f / 60.0f);
@@ -33,6 +35,8 @@ public:
     /// @brief 計測ブルーム専用へのキャッシュを終了する。
     void EndCaptureBloomOnlyToCache();
     /// @brief キャッシュ済みブルームを描画する。
+    // An optional qualityCaptureScale requires a fresh capture when switching
+    // between Legacy and the other modes; source resolution is chosen at BeginCapture.
     void DrawCachedBloom(const Vector2& uvOffset);
 
     /// @brief パラメーターを返す。
@@ -57,6 +61,9 @@ private:
     };
     /// @brief 計測を終了する。
     void FinishCapture(FinishMode mode, bool outputToHdr);
+    uint32_t RenderBloom(const BloomParam& drawParam);
+    BloomParam MakeDrawParam(bool outputToHdr) const;
+    void SelectCaptureTarget();
     /// @brief GPUリソースを次の利用に必要な状態へ遷移させる。
     void Transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
     /// @brief 透明を消去する。
@@ -67,17 +74,25 @@ private:
     RtvManager* rtvManager_ = nullptr;
 
     std::unique_ptr<RenderTexture> objectRT_;
+    std::unique_ptr<RenderTexture> qualityObjectRT_;
     std::unique_ptr<RenderTexture> bloomRT_A_;
     std::unique_ptr<RenderTexture> bloomRT_B_;
     std::unique_ptr<RenderTexture> bloomRT_Half_;
+    std::unique_ptr<BloomPyramid> bloomPyramid_;
+    std::unique_ptr<BloomPyramid> qualityBloomPyramid_;
+    RenderTexture* activeCaptureRT_ = nullptr;
 
     std::unique_ptr<PostEffect> postEffect_;
     std::unique_ptr<BloomConstantBuffer> cb_;
     std::unique_ptr<RtvManager> ownedRtvManager_;
     BloomParam param_{};
+    BloomParam cachedFilterParam_{};
+    uint32_t cachedBloomSrv_ = 0;
     float timer_ = 0.0f;
     uint32_t renderWidth_ = WinApp::kClientWidth;
     uint32_t renderHeight_ = WinApp::kClientHeight;
+    uint32_t qualityWidth_ = WinApp::kClientWidth, qualityHeight_ = WinApp::kClientHeight;
+    uint32_t activeWidth_ = WinApp::kClientWidth, activeHeight_ = WinApp::kClientHeight;
     uint32_t halfWidth_ = WinApp::kClientWidth / 2;
     uint32_t halfHeight_ = WinApp::kClientHeight / 2;
     uint32_t bloomWidth_ = WinApp::kClientWidth / 2;

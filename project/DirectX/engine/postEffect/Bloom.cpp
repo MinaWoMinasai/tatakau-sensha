@@ -21,6 +21,16 @@ float Halton(uint32_t index, uint32_t base) {
     return result;
 }
 
+void ApplyVisibleNeonBloomPreset(BloomParam& param) {
+    // Keep the unfiltered core; give the normalized coarse levels a visible halo.
+    param.bloomMode = 2;
+    param.threshold = 0.65f;
+    param.bloomSoftKnee = 0.5f;
+    param.bloomScatter = 0.55f;
+    param.bloomRadius = 0.9f;
+    param.bloomGain = 0.55f;
+}
+
 }
 
 void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager) {
@@ -75,6 +85,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     // ポストエフェクトの初期化
     postEffect_ = std::make_unique<PostEffect>();
     postEffect_->Initialize(dxCommon_, bloomCB_.get());
+    bloomPyramid_ = std::make_unique<BloomPyramid>();
+    bloomPyramid_->Initialize(dxCommon_, srvManager_, WinApp::kClientWidth, WinApp::kClientHeight);
 
     bloomRT_A_ = std::make_unique<RenderTexture>();
     bloomRT_B_ = std::make_unique<RenderTexture>();
@@ -163,7 +175,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     }
 
     // ブルームパラメータ
-    bloomParam_.threshold = 1.0f;
+    ApplyVisibleNeonBloomPreset(bloomParam_);
     bloomParam_.intensity = 0.35f;
     bloomParam_.vignetteIntensity = 0.0f;
     bloomParam_.vignetteScale = 0.0f;
@@ -291,12 +303,22 @@ void Bloom::Update() {
     // --- 既存の項目 ---
     ImGui::Text("HDR Output");
     ImGui::DragFloat("Exposure", &bloomParam_.exposure, 0.01f, 0.01f, 10.0f);
-    bool useAcesToneMapping = bloomParam_.toneMappingMode > 0.5f;
-    if (ImGui::Checkbox("ACES Tone Mapping", &useAcesToneMapping)) {
-        bloomParam_.toneMappingMode = useAcesToneMapping ? 1.0f : 0.0f;
-    }
+    int toneMode = static_cast<int>(bloomParam_.toneMappingMode);
+    const char* toneModes[] = {"Reinhard", "Legacy ACES", "Neon RGB shoulder"};
+    if (ImGui::Combo("Tone mapping", &toneMode, toneModes, IM_ARRAYSIZE(toneModes)))
+        bloomParam_.toneMappingMode = static_cast<float>(toneMode);
     ImGui::DragFloat("HDR White Point", &bloomParam_.hdrWhitePoint, 0.1f, 1.0f, 32.0f);
     ImGui::DragFloat("Threshold", &bloomParam_.threshold, 0.01f, 0.0f, 20.0f);
+    int bloomMode = static_cast<int>(bloomParam_.bloomMode);
+    const char* bloomModes[] = {"Off", "Legacy", "New Quality", "New Light"};
+    if (ImGui::Combo("Bloom presentation", &bloomMode, bloomModes, IM_ARRAYSIZE(bloomModes)))
+        bloomParam_.bloomMode = static_cast<uint32_t>(bloomMode);
+    if (ImGui::Button("Recommended visible neon Bloom")) ApplyVisibleNeonBloomPreset(bloomParam_);
+    ImGui::TextWrapped("Bloom settings only: retain the source core and add a visible colored halo. Exposure and tone mapping stay unchanged.");
+    ImGui::DragFloat("New bloom gain (linear)", &bloomParam_.bloomGain, 0.005f, 0.0f, 2.0f);
+    ImGui::SliderFloat("Soft knee", &bloomParam_.bloomSoftKnee, 0.0f, 1.0f);
+    ImGui::SliderFloat("Coarse glow scatter", &bloomParam_.bloomScatter, 0.0f, 0.9f);
+    ImGui::SliderFloat("Glow radius (texels per level)", &bloomParam_.bloomRadius, 0.25f, 2.0f);
     ImGui::DragFloat("Intensity", &baseBloomIntensity_, 0.01f);
     ImGui::DragFloat("Vignette Intensity", &bloomParam_.vignetteIntensity, 0.01f);
     ImGui::DragFloat("Vignette Scale", &bloomParam_.vignetteScale, 0.01f);
@@ -456,7 +478,7 @@ void Bloom::Update() {
 
     // リセットボタン
     if (ImGui::Button("Reset")) {
-        bloomParam_.threshold = 1.0f;
+        ApplyVisibleNeonBloomPreset(bloomParam_);
         baseBloomIntensity_ = 0.35f;
         bloomParam_.exposure = 1.0f;
         bloomParam_.toneMappingMode = 1.0f;
@@ -669,6 +691,7 @@ void Bloom::ApplyTemporalJitterToCameras() {
     previousTemporalJitter_ = temporalJitter_;
 
     const bool canUseJitter =
+        !developerShowcase_.comparisonFreeze &&
         enableTemporalAccumulation_ &&
         enableTemporalJitter_ &&
         enableMotionVector_ &&
@@ -691,7 +714,7 @@ void Bloom::ApplyTemporalJitterToCameras() {
 
     bloomParam_.temporalJitter = temporalJitter_;
     bloomParam_.temporalPreviousJitter = previousTemporalJitter_;
-    bloomParam_.temporalJitterEnabled = enableTemporalJitter_ ? 1.0f : 0.0f;
+    bloomParam_.temporalJitterEnabled = enableTemporalJitter_ && !developerShowcase_.comparisonFreeze ? 1.0f : 0.0f;
     bloomParam_.temporalJitterScale = temporalJitterScale_;
 
     Object3dCommon* objectCommon = Object3dCommon::GetInstance();
@@ -940,15 +963,19 @@ void Bloom::PreDraw() {
 }
 
 void Bloom::PostDraw() {
+    struct GainRestore {
+        float& value; float saved;
+        ~GainRestore() { value = saved; }
+    } gainRestore{bloomParam_.bloomGain, bloomParam_.bloomGain};
     struct ParamRestore {
         BloomParam& value; BloomParam saved; bool active;
         ~ParamRestore() { if (active) value = saved; }
-    } restore{bloomParam_,bloomParam_,developerShowcase_.active};
+    } restore{bloomParam_,bloomParam_,developerShowcase_.active || developerShowcase_.bloomComparisonMode >= 0 || developerShowcase_.comparisonFreeze};
     if (developerShowcase_.active) {
         bloomParam_.threshold = developerShowcase_.threshold;
         bloomParam_.intensity = developerShowcase_.intensity;
         bloomParam_.exposure = developerShowcase_.exposure;
-        bloomParam_.toneMappingMode = 1.0f;
+        bloomParam_.toneMappingMode = developerShowcase_.toneMappingMode < 0 ? 1.0f : static_cast<float>(developerShowcase_.toneMappingMode);
         bloomParam_.renderDebugMode = static_cast<float>(developerShowcase_.diagnostic == 3 ? 2 : developerShowcase_.diagnostic);
         bloomParam_.isGrayscale = bloomParam_.isInverted = 0.0f;
         bloomParam_.vignetteIntensity = bloomParam_.distortionAmount = bloomParam_.chromAbAmount = 0.0f;
@@ -961,6 +988,23 @@ void Bloom::PostDraw() {
         bloomParam_.temporalEnabled = bloomParam_.temporalHistoryValid = bloomParam_.motionVectorEnabled = 0.0f;
         bloomParam_.temporalJitterEnabled = 0.0f;
     }
+    if (developerShowcase_.active) {
+        bloomParam_.bloomSoftKnee = developerShowcase_.bloomSoftKnee;
+        bloomParam_.bloomScatter = developerShowcase_.bloomScatter;
+        bloomParam_.bloomRadius = developerShowcase_.bloomRadius;
+        bloomParam_.bloomGain = developerShowcase_.bloomGain;
+    } else {
+        // Existing gameplay pulses remain relative boosts in the linear path.
+        // Compose a draw-only gain so menu suppression cannot accumulate.
+        bloomParam_.bloomGain = (std::clamp)(
+            bloomParam_.bloomGain * ((1.0f + (std::max)(0.0f, transientBloomBoost_)) *
+                (std::clamp)(screenEffectState_.bloomScale, 0.0f, 1.0f) +
+                (screenEffectState_.active ? (std::max)(0.0f, screenEffectState_.param.intensity) : 0.0f)),
+            0.0f, 4.0f);
+    }
+    bloomParam_.bloomMode = static_cast<uint32_t>(BloomPyramid::EffectiveMode(bloomParam_));
+    if (!developerShowcase_.active && developerShowcase_.toneMappingMode >= 0)
+        bloomParam_.toneMappingMode = static_cast<float>(developerShowcase_.toneMappingMode);
     // All resolve/filter draws below overwrite their full target with depth
     // and blending disabled. Only a skipped resolve needs a fallback clear.
 
@@ -971,9 +1015,13 @@ void Bloom::PostDraw() {
     Transition(sceneRT_->GetDepthResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     UpdateFrameCameraParameters(true);
+    if (developerShowcase_.comparisonFreeze) {
+        bloomParam_.temporalEnabled = bloomParam_.temporalHistoryValid = bloomParam_.temporalJitterEnabled = 0.0f;
+    }
     bloomCB_->Update(bloomParam_);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE sceneSource = sceneRT_->GetGPUHandle();
+    uint32_t sceneSourceSrv = sceneRT_->GetSrvIndex();
 	const bool useRandomPass = bloomParam_.randomGrayscalePreview > 0.5f || bloomParam_.randomIntensity > 0.0f;
 	if (useRandomPass) {
 		Transition(randomRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -982,6 +1030,7 @@ void Bloom::PostDraw() {
 		postEffect_->Draw(sceneRT_->GetGPUHandle(), kRandom);
 		Transition(randomRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		sceneSource = randomRT_->GetGPUHandle();
+        sceneSourceSrv = randomRT_->GetSrvIndex();
 	}
 
     // --- B. Motion vector pass (Depth + current/previous camera -> Motion Vector RT) ---
@@ -999,6 +1048,7 @@ void Bloom::PostDraw() {
     // --- C. Temporal resolve pass (Scene + History + Motion -> Stable Scene) ---
     const bool canUseTemporalAccumulation =
         !developerShowcase_.active &&
+        !developerShowcase_.comparisonFreeze &&
         enableTemporalAccumulation_ &&
         enableMotionVector_ &&
         bloomParam_.motionVectorScale >= 0.0f &&
@@ -1031,6 +1081,7 @@ void Bloom::PostDraw() {
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
         sceneSource = temporalHistoryRT_[writeHistoryIndex]->GetGPUHandle();
+        sceneSourceSrv = temporalHistoryRT_[writeHistoryIndex]->GetSrvIndex();
         temporalHistoryIndex_ = writeHistoryIndex;
         hasTemporalHistory_ = true;
         bloomParam_.temporalHistoryValid = 1.0f;
@@ -1100,6 +1151,11 @@ void Bloom::PostDraw() {
         ssrCompositeSource = ssrDenoiseRT_->GetGPUHandle();
     }
 
+    D3D12_GPU_DESCRIPTOR_HANDLE bloomSource = bloomRT_A_->GetGPUHandle();
+    D3D12_GPU_DESCRIPTOR_HANDLE extractSource = bloomRT_Half_->GetGPUHandle();
+    const bool fullScreenSmoothing = bloomParam_.gaussianIntensity > 0.0f || bloomParam_.fullScreenBoxBlurBlend > 0.0f;
+    if (bloomParam_.bloomMode == 1 || fullScreenSmoothing) {
+    // Legacy path and unrelated whole-scene smoothing retain their filters.
     // --- F. 抽出パス (SceneRT -> BloomHalf) ---
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
@@ -1132,15 +1188,26 @@ void Bloom::PostDraw() {
     dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
     postEffect_->Draw(bloomRT_B_->GetGPUHandle(), kAdd_Bloom_BlurV);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    } else if (bloomParam_.bloomMode >= 2) {
+        bloomSource = srvManager_->GetGPUDescriptorHandle(bloomPyramid_->Render(sceneSourceSrv, bloomParam_, materialRT_->GetSrvIndex()));
+        extractSource = srvManager_->GetGPUDescriptorHandle(bloomPyramid_->GetExtractSrvIndex());
+    } else {
+        Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        const float black[4] = {0, 0, 0, 0};
+        dxCommon_->ClearRenderTarget(bloomRT_A_->GetRTVHandle(), black);
+        Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        extractSource = bloomSource;
+    }
 
     // --- I. 最終合成 (SceneRT + BloomA + AO + SSR + Motion -> BackBuffer) ---
     dxCommon_->SetBackBuffer();
     dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
     // 最終的に DrawComposite で HLSL 側のメイン処理が走ります
+    lastCompositeParams_ = bloomParam_;
     postEffect_->DrawComposite(
         sceneSource,
-        developerShowcase_.active && developerShowcase_.diagnostic == 3 ? bloomRT_Half_->GetGPUHandle() : bloomRT_A_->GetGPUHandle(),
+        developerShowcase_.active && developerShowcase_.diagnostic == 3 ? extractSource : bloomSource,
         sceneRT_->GetDepthGPUHandle(),
         normalRT_->GetGPUHandle(),
         ssrCompositeSource,
@@ -1150,8 +1217,12 @@ void Bloom::PostDraw() {
 }
 
 void Bloom::SetDeveloperShowcaseState(const IScene::DeveloperShowcaseState& state) {
-    if (developerShowcase_.active != state.active) { ResetTemporalHistory(); hasPreviousMotionViewProjection_ = false; }
+    if (developerShowcase_.active != state.active || developerShowcase_.comparisonFreeze != state.comparisonFreeze) {
+        ResetTemporalHistory(); hasPreviousMotionViewProjection_ = false;
+    }
     developerShowcase_ = state;
+    // Set before scene capture so local effects and the final scene use one mode.
+    BloomPyramid::SetModeOverride(state.bloomComparisonMode);
 }
 
 void Bloom::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {

@@ -29,16 +29,16 @@
       "y": 0.20000000298023224,
       "z": 0.36000001430511475
     },
-    "enemyHalfWidth": 0.2199999988079071,
+    "enemyHalfWidth": 0.16,
     "enemyObjectColor": {
       "w": 1.0,
       "x": 0.9472875595092773,
       "y": 0.19691121578216553,
       "z": 1.0
     },
-    "headWidthScale": 0.75,
+    "headWidthScale": 0.8,
     "interpolationSteps": 5,
-    "lifetime": 0.1599999964237213,
+    "lifetime": 0.13,
     "maxPoints": 40,
     "playerEndColor": {
       "w": 0.0,
@@ -46,7 +46,7 @@
       "y": 0.550000011920929,
       "z": 0.20000000298023224
     },
-    "playerHalfWidth": 0.2199999988079071,
+    "playerHalfWidth": 0.16,
     "playerObjectColor": {
       "w": 1.0,
       "x": 0.2799999713897705,
@@ -71,11 +71,11 @@
       "y": 0.9800000190734863,
       "z": 0.7799999713897705
     },
-    "tailWidthScale": 0.15000000596046448,
-    "trailHeadAlpha": 1.0,
-    "trailHeadIntensity": 1.0,
-    "trailTailAlpha": 1.0,
-    "trailTailIntensity": 1.0,
+    "tailWidthScale": 0.03,
+    "trailHeadAlpha": 0.9,
+    "trailHeadIntensity": 1.6,
+    "trailTailAlpha": 0.04,
+    "trailTailIntensity": 0.35,
     "useObjectColorForTrail": true,
     "widthCurvePower": 1.0
   },

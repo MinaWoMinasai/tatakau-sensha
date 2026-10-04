@@ -5,6 +5,7 @@
 #include "Struct.h"
 #include "PostEffect.h"
 #include "BloomConstantBuffer.h"
+#include "BloomPyramid.h"
 #include "RtvManager.h"
 #include "SceneManager.h"
 #include <cstdint>
@@ -29,6 +30,7 @@ public:
     void SetScreenEffectState(const IScene::ScreenEffectState& state);
     // Scene defaults are inactive. Only Developer Showcase supplies a camera/settings.
     void SetDeveloperShowcaseState(const IScene::DeveloperShowcaseState& state);
+    const BloomParam& GetLastCompositeParams() const { return lastCompositeParams_; }
 
 private:
     // 便利関数：リソースバリアの切り替え
@@ -69,7 +71,9 @@ private:
 
     // パラメータと定数バッファ
     BloomParam bloomParam_;
+    BloomParam lastCompositeParams_{};
     std::unique_ptr<BloomConstantBuffer> bloomCB_;
+    std::unique_ptr<BloomPyramid> bloomPyramid_;
     float timer_ = 0.0f;
     bool manualGrayscale_ = false;
     bool forceGrayscale_ = false;
