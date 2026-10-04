@@ -3,6 +3,7 @@
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "StartupTrace.h"
 #include "NeonPreviewAnimations.h"
+#include "DirectX/engine/3d/neon/NeonCharacterStyle.h"
 #include "TextureManager.h"
 #include "RuntimeProfiler.h"
 #include "externals/nlohmann/json.hpp"
@@ -195,44 +196,8 @@ void NeonSkinnedPreview::Draw() {
 }
 
 void NeonSkinnedPreview::ApplyRecommendedLineArtPreset() {
-	params_.bodyColor = { 0.018f, 0.0025f, 0.012f, 1.0f };
-	params_.bodyEmissionIntensity = 1.5f;
-	params_.outlineEnabled = 1;
-	params_.outlineWidthPixels = 1.15f;
-	params_.emissiveIntensity = 6.0f;
-	params_.emissiveColor = { 1.0f, 0.025f, 0.35f };
-	params_.internalLineEnabled = 1;
-	params_.internalLineWidthPixels = 0.7f;
-	params_.internalLineIntensity = 5.0f;
-	params_.internalLineThreshold = 0.16f;
-	params_.rimStrength = 0.0f;
-	params_.geometryLineEnabled = 0;
+	cg2::ApplyRecommendedNeonCharacterStyle(params_, model_.get(), submeshParams_);
 	geometryPreset_ = GeometryPreset::Off;
-	if (!model_) return;
-	// 同じAtlasでも顔の薄い描き込みと服・髪の陰影は異なるため、実Material名で調整する。
-	struct MaterialSetting { const char* name; float strength; float thresholdScale; };
-	constexpr MaterialSetting settings[] = {
-		{ "N00_000_00_FaceMouth_00_FACE (Instance)", 1.4f, 0.8f },
-		{ "N00_000_00_EyeIris_00_EYE (Instance)", 1.15f, 1.0f },
-		{ "N00_000_00_EyeHighlight_00_EYE (Instance)", 0.45f, 1.0f },
-		{ "N00_000_00_Face_00_SKIN (Instance)", 1.25f, 0.35f },
-		{ "N00_000_Hair_00_HAIR_01 (Instance)", 0.75f, 1.15f },
-		{ "N00_000_00_Body_00_SKIN (Instance)", 0.12f, 1.8f },
-		{ "N00_005_01_Shoes_01_CLOTH (Instance)", 0.45f, 1.4f }
-	};
-	for (size_t index = 0; index < submeshParams_.size(); ++index) {
-		auto& surface = submeshParams_[index];
-		surface.lineStrength = 0.15f;
-		surface.internalLineThresholdScale = 1.5f;
-		surface.geometryLineStrength = 0.0f;
-		for (const auto& setting : settings) {
-			if (model_->GetSubmesh(index).materialName == setting.name) {
-				surface.lineStrength = setting.strength;
-				surface.internalLineThresholdScale = setting.thresholdScale;
-				break;
-			}
-		}
-	}
 }
 
 void NeonSkinnedPreview::ApplyLegacyNeonPreset() {

@@ -38,6 +38,8 @@ std::vector<size_t> requestedUploadBytes;
 DirectXCommon* testDx = nullptr;
 ComPtr<ID3D12DescriptorHeap> testSrvHeap;
 uint32_t nextTestSrvIndex = 16; // 0: Palette, 1/2: BaseColor, 3..15: authored-mask fixtures.
+std::array<bool, 64> allocatedTestSrvIndices{};
+unsigned testDescriptorFrees = 0;
 
 Matrix4x4 Identity() {
 	Matrix4x4 result{};
@@ -274,7 +276,15 @@ const uint32_t SrvManager::kMaxSrvCount = 8192;
 
 uint32_t SrvManager::Allocate() {
 	Require(nextTestSrvIndex < 64, "Test SRV heap exhausted");
+	allocatedTestSrvIndices[nextTestSrvIndex] = true;
 	return nextTestSrvIndex++;
+}
+
+void SrvManager::Free(uint32_t index) {
+	Require(index >= 16 && index < allocatedTestSrvIndices.size() && allocatedTestSrvIndices[index],
+		"Renderer descriptor was invalid or returned twice");
+	allocatedTestSrvIndices[index] = false;
+	++testDescriptorFrees;
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE SrvManager::GetCPUDescriptorHandle(uint32_t index) {
@@ -2091,6 +2101,13 @@ int main(int argc, char** argv) {
 		TestFeatureMasks(dx, srv, renderer);
 		TestQualityLineMasks(dx, srv, renderer);
 		TestDirectionalDissolve(dx,srv);
+		// Test draw helpers wait for their submitted frame fences before returning.
+		const unsigned freesBeforeRelease = testDescriptorFrees;
+		renderer.ReleaseGpuResources();
+		Require(testDescriptorFrees == freesBeforeRelease + 1, "Renderer release did not return its null fallback SRV");
+		renderer.ReleaseGpuResources();
+		Require(testDescriptorFrees == freesBeforeRelease + 1, "Repeated renderer release returned its SRV twice");
+		std::cout << "PASS: post-fence renderer release returns its null fallback descriptor exactly once.\n";
 		ComPtr<ID3D12InfoQueue> infoQueue;
 		if (SUCCEEDED(dx.GetDevice().As(&infoQueue))) {
 			for (UINT64 index = 0; index < infoQueue->GetNumStoredMessages(); ++index) {

@@ -188,6 +188,8 @@ struct Enemy : Collider {
     int hp_=500,maxHP_=1000,prototypeBaseMaxHp_=1000,prototypeFeedingHealBudget_=500;
     int expEnemyKillCount_=0,enemyLevel_=1;
     uint32_t enemyExp_=0,damage_=6;
+    uint64_t encounterGeneration_=0;
+    unsigned shotsFired_=0;
     void SetRunEncounterEnabled(bool);
     void ResetRunEncounter(const Vector3&,int,int,bool);
     void SetPrototypeMaxHp(int,bool=true);

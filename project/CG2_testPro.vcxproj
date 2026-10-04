@@ -741,9 +741,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="game\debug\NeonShowcaseCapture.h" />
-    <ClCompile Include="game\debug\NeonPreviewAnimations.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="game\debug\NeonPreviewAnimations.cpp" />
+    <ClCompile Include="game\enemy\visual\NeonBossVisual.cpp" />
+    <ClCompile Include="game\scene\GameScene.NeonBoss.cpp" />
+    <ClInclude Include="game\enemy\visual\NeonBossVisual.h" />
+    <ClInclude Include="game\enemy\visual\NeonBossVisualState.h" />
+    <ClInclude Include="DirectX\engine\3d\neon\NeonCharacterStyle.h" />
     <ClInclude Include="game\debug\NeonPreviewAnimations.h" />
     <None Include="resources\models\neon_hologram\AvatarSample_B.glb" />
     <None Include="resources\models\neon_hologram\README.md" />
