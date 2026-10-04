@@ -751,6 +751,14 @@ struct BloomParam {
     float waterHistoryWeight;      // 水面TAAの最大history weight
     float waterDebugMode;          // 0: Final, 1: Normal, 2: Fresnel, 3: Sun, 4: Foam, 5: Reactive
     float waterPostPadding[3];
+    // Legacy keeps intensity cubed; pyramid gain is applied only at composition.
+    uint32_t bloomMode = 2; // 0: Off, 1: Legacy, 2: Quality, 3: Light
+    float bloomSoftKnee = 0.5f;
+    float bloomScatter = 0.3f;
+    float bloomRadius = 0.75f;
+    float bloomGain = 0.15f;
+    uint32_t bloomOutputToHdr = 1;
+    float bloomPresentationPadding[2]{};
 };
 
 /// @brief 点光源の位置・色・強度・影響範囲をGPUへ渡す。

@@ -195,6 +195,9 @@ public:
         return velocity_;
     }
 
+    /// @brief 所有者・反射・特殊状態を反映した表示色を返す。戦闘状態は変更しない。
+    cg2::Vector4 GetVisualColor() const { return GetBulletColor(); }
+
     /// @brief ワールド座標を設定し、描画オブジェクトへ反映する。移動前の記録は更新しない。
     void SetWorldPosition(const cg2::Vector3& pos)
     {

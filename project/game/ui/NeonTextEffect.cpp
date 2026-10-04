@@ -5,11 +5,16 @@
 namespace {
 
 /// @brief ブルーム外観を現在の状態へ適用する。
-void ApplyBloomStyle(cg2::ObjectPostEffect& effect, const NeonTextEffectStyle& style, float intensity)
+void ApplyBloomStyle(cg2::ObjectPostEffect& effect, const NeonTextEffectStyle& style,
+    float intensity, float qualityGain, float qualityScatter, float qualityRadius)
 {
 	cg2::BloomParam param = effect.GetParam();
 	param.threshold = (std::max)(0.0f, style.threshold);
 	param.intensity = (std::max)(0.0f, intensity);
+	// Legacy keeps its historical cubic intensity; the new filter uses one linear gain.
+	param.bloomGain = qualityGain;
+	param.bloomScatter = qualityScatter;
+	param.bloomRadius = qualityRadius;
 	param.outlineWidth = 0.0f;
 	param.outlineBloomIntensity = 0.0f;
 	effect.SetParam(param);
@@ -38,10 +43,14 @@ void NeonTextEffect::SetStyle(const NeonTextEffectStyle& style)
 	style_.innerIntensity = (std::max)(0.0f, style_.innerIntensity);
 	style_.outerIntensity = (std::max)(0.0f, style_.outerIntensity);
 	if (innerEffect_) {
-		ApplyBloomStyle(*innerEffect_, style_, style_.innerIntensity);
+		// The inner layer supplies a tight colored glow beside the separate sharp text.
+		ApplyBloomStyle(*innerEffect_, style_, style_.innerIntensity,
+			0.55f * style_.innerIntensity / 0.82f, 0.35f, 0.7f);
 	}
 	if (outerEffect_) {
-		ApplyBloomStyle(*outerEffect_, style_, style_.outerIntensity);
+		// More coarse-level weight gives the outer layer a broad, visible halo.
+		ApplyBloomStyle(*outerEffect_, style_, style_.outerIntensity,
+			0.75f * style_.outerIntensity / 0.48f, 0.55f, 1.0f);
 	}
 }
 

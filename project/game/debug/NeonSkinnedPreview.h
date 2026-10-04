@@ -37,6 +37,12 @@ public:
     float GetShowcaseBloomThreshold() const { return showcaseBloomThreshold_; }
     float GetShowcaseBloomIntensity() const { return showcaseBloomIntensity_; }
     float GetShowcaseExposure() const { return showcaseExposure_; }
+    int GetShowcaseBloomMode() const { return showcaseBloomMode_; }
+    float GetShowcaseBloomSoftKnee() const { return showcaseBloomSoftKnee_; }
+    float GetShowcaseBloomScatter() const { return showcaseBloomScatter_; }
+    float GetShowcaseBloomRadius() const { return showcaseBloomRadius_; }
+    float GetShowcaseBloomGain() const { return showcaseBloomGain_; }
+    int GetShowcaseToneMappingMode() const { return showcaseToneMappingMode_; }
     void RecordShowcaseCapture(cg2::DirectXCommon& dx);
     void DrawShowcaseWindow();
 
@@ -60,6 +66,7 @@ private:
     void Load();
     // 外観だけを変更し、再生状態・Transform・Alpha Cutoutは保持する。
     void ApplyRecommendedLineArtPreset();
+    void ApplyRecommendedBloomPresentation();
     void ApplyLegacyNeonPreset();
     // Geometry設定だけを変更する。モデル・再生状態・既存の線設定は維持する。
     void ApplyGeometryPreset(GeometryPreset preset);
@@ -77,6 +84,9 @@ private:
     void AdvanceShowcaseComparison();
     void ApplyShowcaseComparisonCase();
     void FinishShowcaseComparison(const std::string& status);
+    void StartBloomComparison();
+    void AdvanceBloomComparison();
+    void FinishBloomComparison(const std::string& status);
     bool TriggerDissolve();
     void ResetDissolve();
     void DrawDissolveImGui();
@@ -151,6 +161,12 @@ private:
     int showcaseFraming_ = 0, showcaseView_ = 0, showcaseDiagnostic_ = 0;
     float showcaseYaw_ = 0.0f, showcaseOrbitSpeed_ = 0.35f;
     float showcaseBloomThreshold_ = 0.65f, showcaseBloomIntensity_ = 0.75f, showcaseExposure_ = 0.75f;
+    int showcaseBloomMode_ = 2, showcaseToneMappingMode_ = 1;
+    float showcaseBloomSoftKnee_ = 0.5f, showcaseBloomScatter_ = 0.55f, showcaseBloomRadius_ = 1.0f, showcaseBloomGain_ = 0.8f;
+    bool bloomComparisonActive_ = false, bloomComparisonFrameRecorded_ = false;
+    unsigned bloomComparisonIndex_ = 0;
+    int bloomComparisonOriginalMode_ = 2, bloomComparisonOriginalDiagnostic_ = 0;
+    std::string bloomComparisonDirectory_, bloomComparisonStatus_;
     NeonShowcaseCapture showcaseCapture_;
     unsigned showcaseCaptureNumber_ = 0, showcaseSequenceFrame_ = 0;
     bool showcaseSequence_ = false, showcaseSequenceAttackStarted_ = false;

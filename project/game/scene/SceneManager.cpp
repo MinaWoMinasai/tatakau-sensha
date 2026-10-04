@@ -191,6 +191,9 @@ IScene::DeveloperShowcaseState SceneManager::GetDeveloperShowcaseState() {
 void SceneManager::RecordDeveloperFrame(cg2::DirectXCommon& dx) {
     if (currentScene_) currentScene_->RecordDeveloperFrame(dx);
 }
+void SceneManager::RecordDeveloperPostParameters(const cg2::BloomParam& param) {
+    if (currentScene_) currentScene_->RecordDeveloperPostParameters(param);
+}
 
 IScene::WaterPostProcessSettings SceneManager::GetWaterPostProcessSettings()
 {

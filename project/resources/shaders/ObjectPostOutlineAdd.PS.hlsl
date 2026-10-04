@@ -2,40 +2,7 @@ Texture2D objectTex : register(t0);
 Texture2D bloomTex : register(t1);
 SamplerState samp : register(s0);
 
-cbuffer BloomParam : register(b0)
-{
-    float threshold;
-    float intensity;
-    float vignetteIntensity;
-    float vignetteScale;
-    float timer;
-    float distortionAmount;
-    float chromAbAmount;
-    float isGrayscale;
-    float isInverted;
-    float noiseIntensity;
-    float scanlineIntensity;
-    float scanlineFrequency;
-    float curvature;
-    float borderSharp;
-    float glitchAmount;
-    float gaussianIntensity;
-    float dissolveThreshold;
-    float outlineWidth;
-    float outlineThreshold;
-    float boxBlurIntensity;
-    float3 outlineColor;
-    float outlineBloomIntensity;
-    float outlineBloomWidth;
-    float boxBlurRadius;
-    float fullScreenBoxBlurBlend;
-};
-
-struct PSInput
-{
-    float4 position : SV_POSITION;
-    float2 uv : TEXCOORD0;
-};
+#include "PostEffectCommon.hlsli"
 
 float GetObjectAlpha(float2 uv)
 {
@@ -118,7 +85,7 @@ float4 main(PSInput input) : SV_TARGET
     float outlineBloomMask = GetOutlineBloomMask(input.uv, objectAlpha, outlineMask, texelSize);
     float addMask = saturate(outlineMask + outlineBloomMask);
     float3 baseAdd = (outlineWidth <= 0.0f && outlineBloomIntensity <= 0.0f) ? objectColor : float3(0.0f, 0.0f, 0.0f);
-    float3 bloomColor = bloomTex.Sample(samp, input.uv).rgb * intensity;
+    float3 bloomColor = ComposeObjectBloom(bloomTex.Sample(samp, input.uv).rgb);
     float baseEnergy = max(max(baseAdd.r, baseAdd.g), baseAdd.b);
     float bloomEnergy = max(max(bloomColor.r, bloomColor.g), bloomColor.b);
 

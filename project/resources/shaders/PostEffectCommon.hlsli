@@ -117,6 +117,13 @@ cbuffer BloomParam : register(b0)
     float waterHistoryWeight;
     float waterDebugMode;
     float3 waterPostPadding;
+    uint bloomMode;
+    float bloomSoftKnee;
+    float bloomScatter;
+    float bloomRadius;
+    float bloomGain;
+    uint bloomOutputToHdr;
+    float2 bloomPresentationPadding;
 };
 
 struct PSInput
@@ -168,7 +175,30 @@ float3 ReinhardExtended(float3 color)
 float3 ApplyToneMapping(float3 color)
 {
     color = max(color, 0.0f) * max(exposure, 0.0f);
+    // A shared shoulder retains RGB ratios of saturated neon highlights.
+    // Keep legacy per-channel ACES selectable for like-for-like comparison.
+    if (toneMappingMode > 1.5f)
+    {
+        float peak = max(max(color.r, color.g), color.b);
+        return color * (ACESFilm(peak.xxx).x / max(peak, 0.00001f));
+    }
     return toneMappingMode > 0.5f ? ACESFilm(color) : ReinhardExtended(color);
+}
+
+float BloomCompositeGain()
+{
+    return bloomMode == 0 ? 0.0f : bloomMode == 1 ? intensity : max(bloomGain, 0.0f);
+}
+
+float3 ComposeObjectBloom(float3 bloom)
+{
+    float3 color = bloom * BloomCompositeGain();
+    if (bloomMode >= 2 && bloomOutputToHdr == 0)
+    {
+        float peak = max(max(color.r, color.g), color.b);
+        color = 0.6f * color / (1.0f + max(peak, 0.0f));
+    }
+    return color;
 }
 
 #endif

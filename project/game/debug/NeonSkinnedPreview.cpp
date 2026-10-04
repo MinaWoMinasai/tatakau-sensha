@@ -32,6 +32,10 @@ constexpr DissolveComparisonCase kDissolveComparisonCases[] = {
 	{"progress_075",0.75f,true,true,true}, {"progress_1",1,true,true,true},
 	{"no_noise_050",0.5f,true,false,true}, {"no_edge_050",0.5f,true,true,false}
 };
+struct BloomComparisonCase { const char* label; int mode; };
+constexpr BloomComparisonCase kBloomComparisonCases[] = {
+	{"bloom_off",0}, {"legacy_bloom",1}, {"quality_bloom",2}
+};
 
 // 診断表示用のglTF metadataのみ読む。VRM表現・Materialを変換しない。
 nlohmann::json ReadGlbMetadata() {
@@ -143,6 +147,7 @@ void NeonSkinnedPreview::Update(float deltaTime) {
 	showcaseCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
 	AdvanceShowcaseComparison();
 	AdvanceDissolveComparison();
+	AdvanceBloomComparison();
 	// DirectXCommon::PostDrawはFence完了後に次フレームへ進む。
 	// Draw回数・表示モードに関係なく、このUpdateだけでCB領域をリセットする。
 	renderer_.BeginFrame();
@@ -571,6 +576,7 @@ void NeonSkinnedPreview::EnterShowcase() {
 
 void NeonSkinnedPreview::LeaveShowcase() {
 	if (!showcaseActive_) return;
+	if (bloomComparisonActive_) FinishBloomComparison("Bloom comparison cancelled on exit.");
 	if (dissolveComparisonActive_) FinishDissolveComparison("Dissolve comparison cancelled on exit.");
 	if (dissolveSequence_) FinishDissolveSequence();
 	ResetDissolve();
@@ -592,7 +598,7 @@ void NeonSkinnedPreview::LeaveShowcase() {
 }
 
 void NeonSkinnedPreview::StartShowcaseComparison() {
-	if (!ready_ || !showcaseActive_ || showcaseComparisonActive_ || !model_->IsAnimationPaused() ||
+	if (!ready_ || !showcaseActive_ || showcaseComparisonActive_ || bloomComparisonActive_ || !model_->IsAnimationPaused() ||
 		showcaseOrbit_ || showcaseSequence_ || dissolveSequence_ || dissolveComparisonActive_ || dissolve_.IsActive() ||
 		showcaseCapture_.IsBusy() || cg2::RuntimeProfiler::Get().IsCaptureActive()) return;
 	comparisonCheckpoint_ = {enabled_,neonMode_,alphaCutoutEnabled_,geometryPreset_,transform_,params_,
@@ -651,6 +657,55 @@ void NeonSkinnedPreview::FinishShowcaseComparison(const std::string& status) {
 	showcaseComparisonActive_ = false; showcaseComparisonStatus_ = status;
 }
 
+void NeonSkinnedPreview::ApplyRecommendedBloomPresentation() {
+	// Increase the surrounding glow without changing the source line/core settings.
+	showcaseBloomMode_ = 2;
+	showcaseBloomThreshold_ = 0.65f;
+	showcaseBloomSoftKnee_ = 0.5f;
+	showcaseBloomScatter_ = 0.55f;
+	showcaseBloomRadius_ = 1.0f;
+	showcaseBloomGain_ = 0.8f;
+}
+
+void NeonSkinnedPreview::StartBloomComparison() {
+	if (!ready_ || !showcaseActive_ || bloomComparisonActive_ || showcaseComparisonActive_ ||
+		dissolveComparisonActive_ || showcaseSequence_ || dissolveSequence_ || showcaseCapture_.IsBusy() ||
+		cg2::RuntimeProfiler::Get().IsCaptureActive() || !model_->IsAnimationPaused() ||
+		showcaseOrbit_ || dissolve_.IsPlaying()) return;
+	// Only the Bloom mode and output diagnostic change; sampling and dissolve are already paused.
+	bloomComparisonOriginalMode_ = showcaseBloomMode_;
+	bloomComparisonOriginalDiagnostic_ = showcaseDiagnostic_;
+	bloomComparisonDirectory_ = showcaseCaptureDirectory_ + "/bloom_comparison_" +
+		std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch()).count());
+	bloomComparisonIndex_ = 0;
+	bloomComparisonFrameRecorded_ = false;
+	bloomComparisonActive_ = true;
+	showcaseBloomMode_ = kBloomComparisonCases[0].mode;
+	showcaseDiagnostic_ = 0;
+	bloomComparisonStatus_ = "Capturing OFF / Legacy / Quality at the same paused pose and exposure.";
+}
+
+void NeonSkinnedPreview::AdvanceBloomComparison() {
+	if (!bloomComparisonActive_ || !bloomComparisonFrameRecorded_ || showcaseCapture_.IsBusy()) return;
+	if (!showcaseCapture_.WasLastCaptureSuccessful()) {
+		FinishBloomComparison("Bloom comparison failed: " + showcaseCapture_.GetStatus()); return;
+	}
+	if (++bloomComparisonIndex_ == std::size(kBloomComparisonCases)) {
+		FinishBloomComparison("Saved three same-pose conditions: " + bloomComparisonDirectory_); return;
+	}
+	showcaseBloomMode_ = kBloomComparisonCases[bloomComparisonIndex_].mode;
+	bloomComparisonFrameRecorded_ = false;
+}
+
+void NeonSkinnedPreview::FinishBloomComparison(const std::string& status) {
+	if (!bloomComparisonActive_) return;
+	showcaseBloomMode_ = bloomComparisonOriginalMode_;
+	showcaseDiagnostic_ = bloomComparisonOriginalDiagnostic_;
+	bloomComparisonActive_ = false;
+	bloomComparisonStatus_ = status;
+}
+
 bool NeonSkinnedPreview::TriggerDissolve() {
 	if (!ready_ || !enabled_ || !neonMode_) return false;
 	const auto& transform = showcaseActive_ ? showcaseTransform_ : transform_;
@@ -672,7 +727,7 @@ void NeonSkinnedPreview::ResetDissolve() {
 }
 
 void NeonSkinnedPreview::StartDissolveComparison() {
-	if (!showcaseActive_ || !ready_ || !neonMode_ || showcaseComparisonActive_ || dissolveComparisonActive_ ||
+	if (!showcaseActive_ || !ready_ || !neonMode_ || bloomComparisonActive_ || showcaseComparisonActive_ || dissolveComparisonActive_ ||
 		showcaseSequence_ || dissolveSequence_ || showcaseCapture_.IsBusy() || showcaseOrbit_ ||
 		cg2::RuntimeProfiler::Get().IsCaptureActive() || !model_->IsAnimationPaused() || dissolve_.IsPlaying()) return;
 	const auto& settings = dissolve_.IsActive() ? dissolve_.GetParams() : dissolveSettings_;
@@ -730,7 +785,7 @@ void NeonSkinnedPreview::FinishDissolveComparison(const std::string& status) {
 }
 
 void NeonSkinnedPreview::StartDissolveSequence() {
-	if (!showcaseActive_ || !ready_ || !neonMode_ || showcaseComparisonActive_ || dissolveComparisonActive_ ||
+	if (!showcaseActive_ || !ready_ || !neonMode_ || bloomComparisonActive_ || showcaseComparisonActive_ || dissolveComparisonActive_ ||
 		showcaseSequence_ || dissolveSequence_ || dissolve_.IsActive() || showcaseCapture_.IsBusy() ||
 		cg2::RuntimeProfiler::Get().IsCaptureActive()) return;
 	dissolveSequencePlayback_ = model_->CaptureAnimationPlaybackState();
@@ -779,7 +834,7 @@ void NeonSkinnedPreview::DrawDissolveImGui() {
 #ifdef USE_IMGUI
 	if (!ready_) return;
 	const bool recording = showcaseSequence_ || dissolveSequence_;
-	const bool locked = showcaseComparisonActive_ || dissolveComparisonActive_ || recording ||
+	const bool locked = bloomComparisonActive_ || showcaseComparisonActive_ || dissolveComparisonActive_ || recording ||
 		cg2::RuntimeProfiler::Get().IsCaptureActive() || showcaseCapture_.IsBusy();
 	ImGui::TextUnformatted("Directional surface dissolve / Neon only");
 	ImGui::TextWrapped("Trigger freezes the displayed animation including its blend. The start camera's scan plane and seed remain fixed when the camera moves.");
@@ -820,7 +875,7 @@ void NeonSkinnedPreview::DrawDissolveImGui() {
 		ImGui::EndDisabled();
 		ImGui::TextWrapped("Eight-condition capture requires Geometry Lines OFF, nonzero noise strength/scale, and edge emission ON with positive width/intensity. Other experiments remain available through single-frame capture.");
 		if (!dissolveComparisonStatus_.empty()) ImGui::TextWrapped("%s",dissolveComparisonStatus_.c_str());
-		ImGui::BeginDisabled(showcaseComparisonActive_ || dissolveComparisonActive_ || showcaseSequence_ ||
+		ImGui::BeginDisabled(bloomComparisonActive_ || showcaseComparisonActive_ || dissolveComparisonActive_ || showcaseSequence_ ||
 			cg2::RuntimeProfiler::Get().IsCaptureActive() || (!dissolveSequence_ && (dissolve_.IsActive() || showcaseCapture_.IsBusy())) || !neonMode_);
 		if (ImGui::Button(dissolveSequence_ ? "Stop dissolve recording" : "Record 8s: Idle / Attack / dissolve / orbit / Reset")) {
 			if (dissolveSequence_) FinishDissolveSequence(); else StartDissolveSequence();
@@ -862,6 +917,9 @@ nlohmann::json NeonSkinnedPreview::MakeShowcaseMetadata() const {
 		{"animation",{{"clip",model_->GetAnimation().name},{"time",model_->GetCurrentAnimationTime()},
 			{"paused",model_->IsAnimationPaused()},{"speed",model_->GetAnimationPlayer().GetPlaybackSpeed()}}},
 		{"bloom",{{"threshold",showcaseBloomThreshold_},{"intensity",showcaseBloomIntensity_},{"exposure",showcaseExposure_},
+			{"mode",showcaseBloomMode_},{"softKnee",showcaseBloomSoftKnee_},{"scatter",showcaseBloomScatter_},
+			{"radius",showcaseBloomRadius_},{"gain",showcaseBloomGain_},{"toneMappingMode",showcaseToneMappingMode_},
+			{"gainContract","Legacy: intensity cubed; Quality/Light: gain applied once; source core unchanged."},
 			{"diagnostic",showcaseDiagnostic_},{"taa",false},{"grayscale",false}}},
 		{"neon",{{"bodyColor",{renderParams.bodyColor.x,renderParams.bodyColor.y,renderParams.bodyColor.z}},
 			{"bodyEmission",renderParams.bodyEmissionIntensity},{"outlineWidth",renderParams.outlineWidthPixels},
@@ -955,6 +1013,13 @@ void NeonSkinnedPreview::RecordShowcaseCapture(cg2::DirectXCommon& dx) {
 	bool requestedSequenceFrame = false;
 	bool requestedComparisonFrame = false;
 	bool requestedDissolveComparisonFrame = false;
+	bool requestedBloomComparisonFrame = false;
+	if (bloomComparisonActive_ && !bloomComparisonFrameRecorded_ && !showcaseCapture_.IsBusy()) {
+		char name[96]{};
+		std::snprintf(name,sizeof(name),"%02u_%s",bloomComparisonIndex_,kBloomComparisonCases[bloomComparisonIndex_].label);
+		showcaseCapture_.Request(bloomComparisonDirectory_,name,{});
+		bloomComparisonFrameRecorded_ = requestedBloomComparisonFrame = true;
+	}
 	if (showcaseComparisonActive_ && !showcaseComparisonFrameRecorded_ && !showcaseCapture_.IsBusy()) {
 		char name[96]{};
 		std::snprintf(name,sizeof(name),"%02u_%s",showcaseComparisonIndex_,kQualityComparisonCases[showcaseComparisonIndex_].label);
@@ -984,6 +1049,9 @@ void NeonSkinnedPreview::RecordShowcaseCapture(cg2::DirectXCommon& dx) {
 		if (requestedDissolveComparisonFrame) frameMetadata["dissolveComparison"] = {{"case",dissolveComparisonIndex_},
 			{"label",kDissolveComparisonCases[dissolveComparisonIndex_].label},{"count",std::size(kDissolveComparisonCases)},
 			{"sameFrozenPose",true},{"restorePlaybackAfterCapture",true}};
+		if (requestedBloomComparisonFrame) frameMetadata["bloomComparison"] = {{"case",bloomComparisonIndex_},
+			{"label",kBloomComparisonCases[bloomComparisonIndex_].label},{"count",std::size(kBloomComparisonCases)},
+			{"samePausedPose",true},{"sameCameraAndExposure",true},{"sameDissolveProgress",true},{"restoreModeAfterCapture",true}};
 		if (requestedSequenceFrame) {
 			frameMetadata["sequenceFrame"] = showcaseSequenceFrame_ - 1; frameMetadata["sequenceRate"] = 60;
 			frameMetadata["sequenceKind"] = dissolveSequence_ ? "Idle/Attack dissolve with orbit and Reset" : "Idle/Attack orbit";
@@ -1001,7 +1069,7 @@ void NeonSkinnedPreview::DrawShowcaseImGui() {
 		return;
 	}
 	const bool gpuCapture = cg2::RuntimeProfiler::Get().IsCaptureActive();
-	const bool automated = showcaseComparisonActive_ || dissolveComparisonActive_ || dissolveSequence_;
+	const bool automated = bloomComparisonActive_ || showcaseComparisonActive_ || dissolveComparisonActive_ || dissolveSequence_;
 	ImGui::BeginDisabled(automated || gpuCapture);
 	const char* framings[] = {"Face close-up", "Upper body", "Full body", "Game-size", "Face detail (magnified)"};
 	ImGui::Combo("Showcase framing", &showcaseFraming_, framings,5);
@@ -1014,9 +1082,23 @@ void NeonSkinnedPreview::DrawShowcaseImGui() {
 	ImGui::TextWrapped("Camera remains fixed when orbit is off. Animation Pause/Seek below does not change the camera.");
 	const char* diagnostics[] = {"Final color", "Scene HDR (tone mapped)", "Bloom blur only", "Bloom extract (tone mapped)"};
 	ImGui::Combo("Showcase output",&showcaseDiagnostic_,diagnostics,4);
+	const char* bloomModes[] = {"Bloom OFF", "Legacy Bloom", "Quality Bloom (recommended)", "Light Bloom"};
+	if (ImGui::Button("Recommended Bloom presentation")) ApplyRecommendedBloomPresentation();
+	ImGui::TextWrapped("Bloom settings only; exposure, tone mapping, animation, camera and line appearance remain unchanged.");
+	ImGui::Combo("Showcase Bloom mode",&showcaseBloomMode_,bloomModes,4);
 	ImGui::SliderFloat("Showcase Bloom threshold",&showcaseBloomThreshold_,0.0f,4.0f);
-	ImGui::SliderFloat("Showcase Bloom intensity",&showcaseBloomIntensity_,0.0f,2.0f);
-	ImGui::TextWrapped("Existing Bloom applies intensity in both blur passes and final composition: effective gain is intensity cubed.");
+	if (showcaseBloomMode_ == 1) {
+		ImGui::SliderFloat("Legacy Bloom intensity",&showcaseBloomIntensity_,0.0f,2.0f);
+		ImGui::TextWrapped("Legacy gain is intensity cubed. Its old extraction/filter path remains available for comparison.");
+	} else if (showcaseBloomMode_ >= 2) {
+		ImGui::SliderFloat("Bloom soft knee",&showcaseBloomSoftKnee_,0.0f,1.0f);
+		ImGui::SliderFloat("Bloom scatter",&showcaseBloomScatter_,0.0f,0.8f);
+		ImGui::SliderFloat("Bloom radius",&showcaseBloomRadius_,0.25f,2.0f);
+		ImGui::SliderFloat("Bloom gain (once)",&showcaseBloomGain_,0.0f,1.0f);
+		ImGui::TextWrapped("Source lines keep their sharp core. Scatter adds more broad halo; gain controls its brightness once, without widening the source lines.");
+	}
+	const char* toneModes[] = {"Reinhard", "Legacy ACES", "Hue-preserving shoulder"};
+	ImGui::Combo("Showcase tone mapping",&showcaseToneMappingMode_,toneModes,3);
 	ImGui::SliderFloat("Showcase exposure",&showcaseExposure_,0.05f,2.0f);
 	ImGui::InputText("Capture label",showcaseCaptureLabel_,sizeof(showcaseCaptureLabel_));
 	ImGui::EndDisabled();
@@ -1032,6 +1114,12 @@ void NeonSkinnedPreview::DrawShowcaseImGui() {
 	ImGui::EndDisabled();
 	ImGui::TextWrapped("Seven Neon cases, fixed camera and paused pose. Stop orbit, pause animation, and finish recording/timing first. Appearance is restored after capture.");
 	if (!showcaseComparisonStatus_.empty()) ImGui::TextWrapped("%s",showcaseComparisonStatus_.c_str());
+	ImGui::BeginDisabled(automated || showcaseSequence_ || showcaseCapture_.IsBusy() || gpuCapture ||
+		!model_->IsAnimationPaused() || showcaseOrbit_ || dissolve_.IsPlaying());
+	if (ImGui::Button("Capture 3 Bloom modes (same pose)")) StartBloomComparison();
+	ImGui::EndDisabled();
+	ImGui::TextWrapped("OFF / Legacy / Quality changes only Bloom mode and saves Final color. Pose, camera, exposure, line appearance and paused dissolve progress remain fixed; the original output mode is restored afterward.");
+	if (!bloomComparisonStatus_.empty()) ImGui::TextWrapped("%s",bloomComparisonStatus_.c_str());
 	ImGui::BeginDisabled(automated || dissolve_.IsActive() || gpuCapture || (showcaseCapture_.IsBusy() && !showcaseSequence_));
 	if (ImGui::Button(showcaseSequence_ ? "Stop image sequence" : "Record 4s: Idle / Attack / orbit")) {
 		showcaseSequence_ = !showcaseSequence_; showcaseSequenceFrame_ = 0; showcaseSequenceAttackStarted_ = false;
@@ -1076,7 +1164,7 @@ void NeonSkinnedPreview::DrawAnimationImGui() {
 	if (ready_) {
 		ImGui::Text("GLB animations: %zu / Generated clips: %zu", sourceAnimationCount_, generatedAnimationCount_);
 		if (!animationError_.empty()) ImGui::TextWrapped("Motion unavailable (BindPose retained): %s", animationError_.c_str());
-		ImGui::BeginDisabled(dissolve_.IsActive() || dissolveComparisonActive_ || dissolveSequence_ ||
+		ImGui::BeginDisabled(bloomComparisonActive_ || dissolve_.IsActive() || dissolveComparisonActive_ || dissolveSequence_ ||
 			cg2::RuntimeProfiler::Get().IsCaptureActive());
 		const auto& clip = model_->GetAnimation();
 		int selection = clip.name == "Preview_Idle" ? 1 : clip.name == "Preview_Attack" ? 2 : 0;
@@ -1212,7 +1300,7 @@ void NeonSkinnedPreview::DrawShowcaseWindow() {
 	if (ImGui::BeginTabBar("NeonShowcaseTabs")) {
 		if (ImGui::BeginTabItem("View / Capture")) { DrawShowcaseImGui(); ImGui::EndTabItem(); }
 		if (ImGui::BeginTabItem("Appearance")) {
-			ImGui::BeginDisabled(showcaseComparisonActive_ || dissolveComparisonActive_ || dissolveSequence_ || gpuCapture);
+			ImGui::BeginDisabled(bloomComparisonActive_ || showcaseComparisonActive_ || dissolveComparisonActive_ || dissolveSequence_ || gpuCapture);
 			ImGui::BeginDisabled(dissolve_.IsActive());
 			int mode = neonMode_ ? 1 : 0;
 			if (ImGui::RadioButton("Normal",mode == 0)) neonMode_ = false;
@@ -1235,7 +1323,7 @@ void NeonSkinnedPreview::DrawShowcaseWindow() {
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Animation")) {
-			ImGui::BeginDisabled(showcaseComparisonActive_); DrawAnimationImGui(); ImGui::EndDisabled(); ImGui::EndTabItem();
+			ImGui::BeginDisabled(bloomComparisonActive_ || showcaseComparisonActive_); DrawAnimationImGui(); ImGui::EndDisabled(); ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Dissolve")) { DrawDissolveImGui(); ImGui::EndTabItem(); }
 		ImGui::EndTabBar();
