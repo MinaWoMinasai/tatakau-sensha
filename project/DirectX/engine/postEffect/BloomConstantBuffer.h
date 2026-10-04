@@ -1,5 +1,6 @@
 #pragma once
 #include "DirectXCommon.h"
+#include <vector>
 
 namespace cg2 {
 
@@ -14,8 +15,15 @@ public:
     D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const;
 
 private:
-    Microsoft::WRL::ComPtr<ID3D12Resource> resource_;
-    BloomParam* mappedData_ = nullptr;
+    struct Snapshot {
+        Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+        BloomParam* mapped = nullptr;
+    };
+    DirectXCommon* dxCommon_ = nullptr;
+    std::vector<Snapshot> snapshots_;
+    size_t nextSnapshot_ = 0;
+    size_t currentSnapshot_ = 0;
+    uint64_t frameFence_ = 0;
 };
 
 } // namespace cg2

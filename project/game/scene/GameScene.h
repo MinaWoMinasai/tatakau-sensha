@@ -39,6 +39,7 @@
 #include "Skybox.h"
 #include "game/level/LevelLoader.h"
 #include "game/effects/ScreenEffectDirector.h"
+#include "game/render/NeonProjectileRenderer.h"
 #include "game/ui/NeonTextEffect.h"
 #include "game/ui/TankRewardCard.h"
 #include "game/run/TankRunDirector.h"
@@ -100,6 +101,9 @@ public:
     /// @brief 最終差分時間を返す。
     float GetFinalDeltaTime() const override
     {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+        if (developerBloomFreeze_) return 1.0f / 60.0f; // Freeze is a comparison, not the grayscale slow-motion effect.
+#endif
         if (IsNeonShowcaseActive()) return 1.0f / 60.0f;
         return finalDeltaTime;
     }
@@ -125,6 +129,7 @@ public:
 #endif
     }
     DeveloperShowcaseState GetDeveloperShowcaseState() override;
+    void RecordDeveloperPostParameters(const cg2::BloomParam& param) override;
     void RecordDeveloperFrame(cg2::DirectXCommon& dx) override;
     /// @brief 描画区間の計測値を設定する。
     void SetRenderProfile(const IScene::RenderProfile& profile) override;
@@ -1027,6 +1032,7 @@ private:
     std::unique_ptr<CollisionManager> collisionManager_;
     std::unique_ptr<cg2::RingManager> collisionDebugRingManager_;
     std::unique_ptr<cg2::NeonGridRenderer> neonGridRenderer_;
+    std::unique_ptr<NeonProjectileRenderer> neonProjectileRenderer_;
     std::unique_ptr<cg2::TrailManager> playerMeleeTrailManager_;
     std::unique_ptr<cg2::Skybox> skybox_;
     std::unique_ptr<cg2::ObjectPostEffect> neonGridPostEffect_;
@@ -1152,6 +1158,18 @@ private:
     bool enableEnemyPostEffect_ = true;
     bool enableExpEnemyPostEffect_ = true;
     bool enableStagePostEffect_ = false;
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    int developerBloomComparisonMode_ = -1;
+    int developerToneMappingMode_ = -1;
+    bool developerBloomFreeze_ = false;
+    NeonShowcaseCapture developerGameCapture_;
+    cg2::BloomParam developerCompositeParams_{};
+    bool developerCompositeParamsAvailable_ = false;
+    unsigned developerGameCaptureNumber_ = 0;
+    std::string developerGameCaptureDirectory_;
+    char developerGameCaptureLabel_[64] = "game_bloom";
+    nlohmann::json MakeDeveloperGameCaptureMetadata(cg2::DirectXCommon& dx) const;
+#endif
 #ifdef USE_IMGUI
     bool showPostProfileOverlay_ = true;
 #else
