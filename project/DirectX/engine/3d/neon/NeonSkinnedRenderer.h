@@ -110,6 +110,10 @@ public:
     NeonSkinnedRenderer(const NeonSkinnedRenderer&) = delete;
     NeonSkinnedRenderer& operator=(const NeonSkinnedRenderer&) = delete;
 
+    // Explicit frame-boundary teardown. Last GPU use must have completed and
+    // SrvManager must remain alive. Safe to call again after resources are freed.
+    void ReleaseGpuResources();
+
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     // falseは任意機能のパイプラインを作らず従来描画を使う（比較・フォールバック検証用）。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, bool enableGeometryLinePipeline = true);
@@ -117,6 +121,7 @@ public:
     const std::string& GetGeometryLinesStatus() const { return geometryLinesStatus_; }
     // 前フレームのGPU実行完了後、フレーム開始時に一度だけ呼ぶ。Draw用CB領域を再利用する。
     void BeginFrame();
+    size_t GetDrawConstantBufferCount() const { return drawConstantBuffers_.size(); }
     /// @brief パラメーターを設定する。
     void SetParams(const NeonSkinnedParams& params);
     /// @brief パラメーターを返す。

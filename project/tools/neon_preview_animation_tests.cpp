@@ -22,6 +22,7 @@ void Require(bool success, const char* message) { if (!success) throw std::runti
 void Check(HRESULT hr) { Require(SUCCEEDED(hr), "WARP resource setup failed"); }
 DirectXCommon* testDx = nullptr;
 ComPtr<ID3D12DescriptorHeap> testHeap;
+unsigned testDescriptorFrees = 0;
 bool Near(float a,float b,float e=1e-5f) { return std::abs(a-b)<e; }
 bool Near(const Vector3& a,const Vector3& b) { return Near(a.x,b.x)&&Near(a.y,b.y)&&Near(a.z,b.z); }
 bool Near(const Quaternion& a,const Quaternion& b) { return std::abs(DotQuaternion(a,b))>0.99999f; }
@@ -183,7 +184,15 @@ ComPtr<ID3D12Resource> DirectXCommon::CreateBufferResource(size_t bytes) {
     Check(device_->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_GENERIC_READ,nullptr,IID_PPV_ARGS(&resource)));
     return resource;
 }
-uint32_t SrvManager::Allocate() { return useIndex_++; }
+uint32_t SrvManager::Allocate() {
+    if (useIndex_ == 0) useIndex_ = 1; // Match the production reserved-zero slot.
+    ++allocatedCount_;
+    return useIndex_++;
+}
+void SrvManager::Free(uint32_t index) {
+    Require(index == 1 && allocatedCount_ == 1, "Palette descriptor was invalid or returned twice");
+    --allocatedCount_; ++testDescriptorFrees;
+}
 void SrvManager::SetGraphicsRootDescriptorTable(UINT, uint32_t) { throw std::runtime_error("Rendering is outside the numeric test"); }
 void SrvManager::CreateSRVforStructuredBuffer(uint32_t index,ID3D12Resource* resource,UINT count,UINT stride) {
     D3D12_SHADER_RESOURCE_VIEW_DESC desc{}; desc.ViewDimension=D3D12_SRV_DIMENSION_BUFFER;
@@ -374,6 +383,12 @@ int main() {
         model.SeekCurrentAnimation(0); model.Update(0);
         Require(model.GetCurrentAnimationDuration()==0&&model.GetCurrentAnimationTime()==0,"Zero-duration BindPose seek failed");
         TestDissolveController(model);
+        Require(srv.GetAllocatedCount() == 1 && testDescriptorFrees == 0, "Model palette allocation changed during animation/dissolve updates");
+        model.ReleaseGpuResources();
+        Require(srv.GetAllocatedCount() == 0 && testDescriptorFrees == 1, "Model release did not return its palette descriptor");
+        model.ReleaseGpuResources();
+        Require(srv.GetAllocatedCount() == 0 && testDescriptorFrees == 1, "Repeated model release returned a descriptor twice");
+        std::cout << "PASS: one palette descriptor throughout updates; explicit GPU resource release returns it once and is idempotent.\n";
         std::cout<<"PASS: actual AvatarSample_B; 2 generated clips; validated names/keys/quaternions/joints; failed registration atomic; safe player lifetime.\n"
             <<"PASS: Idle loop/translation/scale/feet; forward Attack; "<<changedVertices<<" weighted vertices deformed by actual Palette.\n"
             <<"PASS: existing Animation/Skeleton sampling/blend, Pause/Resume/speed/Restart/Seek, repeated Attack and Idle return; const getters preserved.\n";

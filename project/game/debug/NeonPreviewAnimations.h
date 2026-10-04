@@ -4,7 +4,7 @@
 
 namespace cg2 { class SkinnedModel; }
 
-// AvatarSample_BのDeveloper Preview専用。GLB由来のAnimationとは区別する。
+// AvatarSample_B用の既存生成クリップ。Previewと本編Presentationで共有し、GLB由来のAnimationとは区別する。
 namespace neonpreview {
 enum class Clip { BindPose, Idle, Attack };
 std::vector<cg2::Animation> CreateAnimations(const cg2::Skeleton& skeleton);
