@@ -336,6 +336,9 @@
     <ClCompile Include="DirectX\engine\postEffect\Bloom.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\postEffect\BloomPyramid.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -642,6 +645,9 @@
     <ClInclude Include="DirectX\engine\postEffect\Bloom.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\BloomPyramid.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="DirectX\engine\postEffect\ObjectPostEffect.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -758,6 +764,8 @@
   <ItemGroup>
     <ClCompile Include="game\scene\GameScene.Authoring.cpp" />
     <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp" />
+    <ClCompile Include="game\render\NeonProjectileRenderer.cpp" />
+    <ClInclude Include="game\render\NeonProjectileRenderer.h" />
     <ClInclude Include="game\ui\TankRewardPreviewRenderer.h" />
     <ClInclude Include="game\ui\TankCombatNeonGeometry.h" />
     <ClInclude Include="game\player\TankCombatStyleBalance.h" />
@@ -852,5 +860,11 @@
     <ClInclude Include="game\player\PlayerClassCatalog.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\shaders\BloomPyramidCommon.hlsli"><Filter>DirectX\shaders</Filter></None>
+    <FxCompile Include="resources\shaders\BloomPyramidExtract.PS.hlsl"><Filter>DirectX\shaders</Filter></FxCompile>
+    <FxCompile Include="resources\shaders\BloomPyramidDownsample.PS.hlsl"><Filter>DirectX\shaders</Filter></FxCompile>
+    <FxCompile Include="resources\shaders\BloomPyramidUpsample.PS.hlsl"><Filter>DirectX\shaders</Filter></FxCompile>
   </ItemGroup>
 </Project>

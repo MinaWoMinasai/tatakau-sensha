@@ -48,6 +48,7 @@ public:
     IScene::ScreenEffectState GetScreenEffectState();
     IScene::DeveloperShowcaseState GetDeveloperShowcaseState();
     void RecordDeveloperFrame(cg2::DirectXCommon& dx);
+    void RecordDeveloperPostParameters(const cg2::BloomParam& param);
     /// @brief 水面後処理Process設定を返す。
     IScene::WaterPostProcessSettings GetWaterPostProcessSettings();
     /// @brief 描画区間の計測値を設定する。

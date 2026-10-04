@@ -185,6 +185,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\2d\TextLabel.cpp" />
     <ClCompile Include="DirectX\engine\2d\TextRenderer.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\Bloom.cpp" />
+    <ClCompile Include="DirectX\engine\postEffect\BloomPyramid.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\BloomConstantBuffer.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\ObjectPostEffect.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\PostEffect.cpp" />
@@ -472,6 +473,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\2d\TextLabel.h" />
     <ClInclude Include="DirectX\engine\2d\TextRenderer.h" />
     <ClInclude Include="DirectX\engine\postEffect\Bloom.h" />
+    <ClInclude Include="DirectX\engine\postEffect\BloomPyramid.h" />
     <ClInclude Include="DirectX\engine\postEffect\ObjectPostEffect.h" />
     <ClInclude Include="DirectX\engine\particle\EffectSequencer.h" />
     <ClInclude Include="game\scene\AbstractSceneFactory.h" />
@@ -714,6 +716,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   <ItemGroup>
     <ClCompile Include="game\scene\GameScene.Authoring.cpp" />
     <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp" />
+    <ClCompile Include="game\render\NeonProjectileRenderer.cpp" />
+    <ClInclude Include="game\render\NeonProjectileRenderer.h" />
     <ClInclude Include="game\ui\TankRewardPreviewRenderer.h" />
     <ClInclude Include="game\ui\TankCombatNeonGeometry.h" />
     <ClInclude Include="game\effects\TankSpecialNeonGeometry.h" />
@@ -773,6 +777,21 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="resources\shaders\NeonSkinned.PS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\shaders\BloomPyramidCommon.hlsli" />
+    <FxCompile Include="resources\shaders\BloomPyramidExtract.PS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\BloomPyramidDownsample.PS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\BloomPyramidUpsample.PS.hlsl">
       <ShaderType>Pixel</ShaderType>
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </FxCompile>

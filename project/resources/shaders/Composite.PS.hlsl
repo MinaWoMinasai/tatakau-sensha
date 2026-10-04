@@ -529,7 +529,7 @@ float4 main(PSInput input) : SV_TARGET
     // 【ブルームモード】
     // 元の絵に、高輝度部分をぼかしたものを「加算」する
     // ここで intensity をかけることで、光の強さを制御できます
-        result = sceneColor + (blurredColor * intensity);
+        result = sceneColor + (blurredColor * BloomCompositeGain());
     
         // 2. アウトライン処理 (エッジ検出)
         // 改良版アウトラインの適用

@@ -1,10 +1,13 @@
 #include "ObjectPostEffect.h"
 #include <algorithm>
 #include <cassert>
+#include <cmath>
+#include <stdexcept>
 
 namespace cg2 {
 
-void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager, float renderScale) {
+void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager,
+    RtvManager* rtvManager, float renderScale, float qualityCaptureScale) {
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
     if (rtvManager) {
@@ -38,6 +41,23 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
 
     bloomRT_Half_ = std::make_unique<RenderTexture>();
     bloomRT_Half_->Initialize(dxCommon_, srvManager_, rtvManager_, halfWidth_, halfHeight_, transparent, false, hdrFormat);
+
+    bloomPyramid_ = std::make_unique<BloomPyramid>();
+    bloomPyramid_->Initialize(dxCommon_, srvManager_, renderWidth_, renderHeight_);
+    const float qualityScale = std::isfinite(qualityCaptureScale) && qualityCaptureScale > 0
+        ? (std::clamp)(qualityCaptureScale, 0.25f, 1.0f) : safeScale;
+    qualityWidth_ = (std::max)(1u, static_cast<uint32_t>(clientWidth * qualityScale));
+    qualityHeight_ = (std::max)(1u, static_cast<uint32_t>(clientHeight * qualityScale));
+    if (qualityWidth_ != renderWidth_ || qualityHeight_ != renderHeight_) {
+        qualityObjectRT_ = std::make_unique<RenderTexture>();
+        qualityObjectRT_->Initialize(dxCommon_, srvManager_, rtvManager_, qualityWidth_, qualityHeight_,
+            transparent, false, hdrFormat);
+        qualityBloomPyramid_ = std::make_unique<BloomPyramid>();
+        qualityBloomPyramid_->Initialize(dxCommon_, srvManager_, qualityWidth_, qualityHeight_);
+    }
+    activeCaptureRT_ = objectRT_.get();
+    activeWidth_ = renderWidth_;
+    activeHeight_ = renderHeight_;
 
     cb_ = std::make_unique<BloomConstantBuffer>();
     cb_->Initialize(dxCommon_);
@@ -89,11 +109,12 @@ void ObjectPostEffect::BeginCapture() {
     restoreDsvHandle_ = dxCommon_->GetCurrentDSVHandle();
     restoreHasDsv_ = dxCommon_->HasCurrentDSV();
 
-    Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    SelectCaptureTarget();
+    Transition(activeCaptureRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-    dxCommon_->SetRenderTargetNoDepth(objectRT_->GetRTVHandle());
-    ClearTransparent(objectRT_->GetRTVHandle());
-    dxCommon_->SetViewport(renderWidth_, renderHeight_);
+    dxCommon_->SetRenderTargetNoDepth(activeCaptureRT_->GetRTVHandle());
+    ClearTransparent(activeCaptureRT_->GetRTVHandle());
+    dxCommon_->SetViewport(activeWidth_, activeHeight_);
 }
 
 void ObjectPostEffect::BeginCaptureWithCurrentDepth() {
@@ -101,17 +122,25 @@ void ObjectPostEffect::BeginCaptureWithCurrentDepth() {
     restoreDsvHandle_ = dxCommon_->GetCurrentDSVHandle();
     restoreHasDsv_ = dxCommon_->HasCurrentDSV();
 
-    Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    SelectCaptureTarget();
+    Transition(activeCaptureRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     if (restoreHasDsv_ &&
-        renderWidth_ == static_cast<uint32_t>(WinApp::GetInstance()->GetClientWidth()) &&
-        renderHeight_ == static_cast<uint32_t>(WinApp::GetInstance()->GetClientHeight())) {
-        dxCommon_->SetRenderTarget(objectRT_->GetRTVHandle(), restoreDsvHandle_);
+        activeWidth_ == static_cast<uint32_t>(WinApp::GetInstance()->GetClientWidth()) &&
+        activeHeight_ == static_cast<uint32_t>(WinApp::GetInstance()->GetClientHeight())) {
+        dxCommon_->SetRenderTarget(activeCaptureRT_->GetRTVHandle(), restoreDsvHandle_);
     } else {
-        dxCommon_->SetRenderTargetNoDepth(objectRT_->GetRTVHandle());
+        dxCommon_->SetRenderTargetNoDepth(activeCaptureRT_->GetRTVHandle());
     }
-    ClearTransparent(objectRT_->GetRTVHandle());
-    dxCommon_->SetViewport(renderWidth_, renderHeight_);
+    ClearTransparent(activeCaptureRT_->GetRTVHandle());
+    dxCommon_->SetViewport(activeWidth_, activeHeight_);
+}
+
+void ObjectPostEffect::SelectCaptureTarget() {
+    const bool useQualitySource = qualityObjectRT_ && BloomPyramid::EffectiveMode(param_) != 1;
+    activeCaptureRT_ = useQualitySource ? qualityObjectRT_.get() : objectRT_.get();
+    activeWidth_ = useQualitySource ? qualityWidth_ : renderWidth_;
+    activeHeight_ = useQualitySource ? qualityHeight_ : renderHeight_;
 }
 
 void ObjectPostEffect::EndCapture() {
@@ -139,26 +168,105 @@ void ObjectPostEffect::EndCaptureBloomOnlyToCache() {
 }
 
 void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset) {
-    const float savedOffsetX = param_.boxBlurRadius;
-    const float savedOffsetY = param_.fullScreenBoxBlurBlend;
-    param_.boxBlurRadius = uvOffset.x;
-    param_.fullScreenBoxBlurBlend = uvOffset.y;
-    cb_->Update(param_);
-    postEffect_->DrawObjectBloomAdd(bloomRT_A_->GetGPUHandle());
-    param_.boxBlurRadius = savedOffsetX;
-    param_.fullScreenBoxBlurBlend = savedOffsetY;
-    cb_->Update(param_);
+    BloomParam drawParam = MakeDrawParam(true);
+    if (cachedBloomSrv_ == 0) return;
+    if (qualityObjectRT_ && ((drawParam.bloomMode == 1) != (cachedFilterParam_.bloomMode == 1))) {
+        throw std::logic_error("A Bloom capture with separate quality resolution must be recaptured after a Legacy mode switch.");
+    }
+    // A before/after switch must not reuse a texture filtered by the other mode.
+    // The source capture stays resident; only its bloom is regenerated here.
+    if (drawParam.bloomMode != cachedFilterParam_.bloomMode ||
+        drawParam.threshold != cachedFilterParam_.threshold ||
+        drawParam.bloomSoftKnee != cachedFilterParam_.bloomSoftKnee ||
+        drawParam.bloomScatter != cachedFilterParam_.bloomScatter ||
+        drawParam.bloomRadius != cachedFilterParam_.bloomRadius ||
+        (drawParam.bloomMode == 1 && drawParam.intensity != cachedFilterParam_.intensity)) {
+        const auto currentRtv = dxCommon_->GetCurrentRTVHandle();
+        const auto currentDsv = dxCommon_->GetCurrentDSVHandle();
+        const bool hasDsv = dxCommon_->HasCurrentDSV();
+        cachedBloomSrv_ = RenderBloom(drawParam);
+        if (hasDsv) dxCommon_->SetRenderTarget(currentRtv, currentDsv);
+        else dxCommon_->SetRenderTargetNoDepth(currentRtv);
+        dxCommon_->SetViewport(
+            static_cast<uint32_t>(WinApp::GetInstance()->GetClientWidth()),
+            static_cast<uint32_t>(WinApp::GetInstance()->GetClientHeight()));
+    }
+    drawParam.boxBlurRadius = uvOffset.x;
+    drawParam.fullScreenBoxBlurBlend = uvOffset.y;
+    cb_->Update(drawParam);
+    postEffect_->DrawObjectBloomAdd(srvManager_->GetGPUDescriptorHandle(cachedBloomSrv_));
 }
 
 void ObjectPostEffect::FinishCapture(FinishMode mode, bool outputToHdr) {
-    Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    Transition(activeCaptureRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    const BloomParam drawParam = MakeDrawParam(outputToHdr);
+    cachedBloomSrv_ = RenderBloom(drawParam);
+
+    if (restoreHasDsv_) {
+        dxCommon_->SetRenderTarget(restoreRtvHandle_, restoreDsvHandle_);
+    } else {
+        dxCommon_->SetRenderTargetNoDepth(restoreRtvHandle_);
+    }
+    dxCommon_->SetViewport(
+        static_cast<uint32_t>(WinApp::GetInstance()->GetClientWidth()),
+        static_cast<uint32_t>(WinApp::GetInstance()->GetClientHeight()));
+    if (mode == FinishMode::BloomOnlyCache) return;
+    // Update supplies an immutable GPU snapshot for this draw, including LDR vs
+    // HDR output and the effective comparison mode. The public settings stay intact.
+    cb_->Update(drawParam);
+    const auto bloomHandle = srvManager_->GetGPUDescriptorHandle(cachedBloomSrv_);
+    const auto drawUnshiftedBloom = [&]() {
+        // Only DrawCachedBloom uses these fields as an explicit UV offset.
+        // Normal composition retains its filter settings but needs zero offset.
+        BloomParam bloomAddParam = drawParam;
+        bloomAddParam.boxBlurRadius = 0.0f;
+        bloomAddParam.fullScreenBoxBlurBlend = 0.0f;
+        cb_->Update(bloomAddParam);
+        postEffect_->DrawObjectBloomAdd(bloomHandle, outputToHdr);
+    };
+    if (mode == FinishMode::BloomOnly) {
+        drawUnshiftedBloom();
+        return;
+    }
+    if (mode == FinishMode::CompositeAndAdd) {
+        postEffect_->DrawObjectComposite(activeCaptureRT_->GetGPUHandle(), bloomHandle, outputToHdr);
+        if (drawParam.bloomMode != 1 && drawParam.outlineWidth <= 0 && drawParam.outlineBloomIntensity <= 0) {
+            // Composite already supplied the sharp source. OutlineAdd's no-outline
+            // fallback would add it again, especially after OFF removes the halo.
+            // Keep the historical Legacy path while adding only new filtered glow.
+            drawUnshiftedBloom();
+            return;
+        }
+    }
+    postEffect_->DrawObjectOutlineAdd(activeCaptureRT_->GetGPUHandle(), bloomHandle, outputToHdr);
+}
+
+BloomParam ObjectPostEffect::MakeDrawParam(bool outputToHdr) const {
+    BloomParam drawParam = param_;
+    drawParam.bloomMode = BloomPyramid::EffectiveMode(param_);
+    drawParam.bloomOutputToHdr = outputToHdr ? 1u : 0u;
+    if (drawParam.bloomMode == 0) drawParam.outlineBloomIntensity = 0;
+    return drawParam;
+}
+
+uint32_t ObjectPostEffect::RenderBloom(const BloomParam& drawParam) {
+    cachedFilterParam_ = drawParam;
+    cb_->Update(drawParam);
+    if (drawParam.bloomMode != 1) {
+        BloomPyramid& pyramid = activeCaptureRT_ == qualityObjectRT_.get()
+            ? *qualityBloomPyramid_ : *bloomPyramid_;
+        return pyramid.Render(activeCaptureRT_->GetSrvIndex(), drawParam);
+    }
+    if (activeCaptureRT_ != objectRT_.get())
+        throw std::logic_error("Bloom mode must remain fixed between BeginCapture and EndCapture.");
 
     // These opaque full-target filters replace every pixel, including alpha.
     // Keep the capture clear in BeginCapture, but do not clear filter outputs.
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
     dxCommon_->SetViewport(halfWidth_, halfHeight_);
-    postEffect_->Draw(objectRT_->GetGPUHandle(), kAdd_Bloom_Extract);
+    postEffect_->Draw(activeCaptureRT_->GetGPUHandle(), kAdd_Bloom_Extract);
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -178,26 +286,7 @@ void ObjectPostEffect::FinishCapture(FinishMode mode, bool outputToHdr) {
     dxCommon_->SetViewport(bloomWidth_, bloomHeight_);
     postEffect_->Draw(bloomRT_B_->GetGPUHandle(), kAdd_Bloom_BlurV);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    if (restoreHasDsv_) {
-        dxCommon_->SetRenderTarget(restoreRtvHandle_, restoreDsvHandle_);
-    } else {
-        dxCommon_->SetRenderTargetNoDepth(restoreRtvHandle_);
-    }
-    dxCommon_->SetViewport(
-        static_cast<uint32_t>(WinApp::GetInstance()->GetClientWidth()),
-        static_cast<uint32_t>(WinApp::GetInstance()->GetClientHeight()));
-    if (mode == FinishMode::BloomOnlyCache) {
-        return;
-    }
-    if (mode == FinishMode::BloomOnly) {
-        postEffect_->DrawObjectBloomAdd(bloomRT_A_->GetGPUHandle(), outputToHdr);
-        return;
-    }
-    if (mode == FinishMode::CompositeAndAdd) {
-        postEffect_->DrawObjectComposite(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle(), outputToHdr);
-    }
-    postEffect_->DrawObjectOutlineAdd(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle(), outputToHdr);
+    return bloomRT_A_->GetSrvIndex();
 }
 
 void ObjectPostEffect::SetParam(const BloomParam& param) {

@@ -295,6 +295,11 @@ nlohmann::json WriteBloomParamJson(const cg2::BloomParam& param)
 	return {
 		{ "threshold", param.threshold },
 		{ "intensity", param.intensity },
+		{ "bloomMode", param.bloomMode },
+		{ "bloomSoftKnee", param.bloomSoftKnee },
+		{ "bloomScatter", param.bloomScatter },
+		{ "bloomRadius", param.bloomRadius },
+		{ "bloomGain", param.bloomGain },
 		{ "vignetteIntensity", param.vignetteIntensity },
 		{ "vignetteScale", param.vignetteScale },
 		{ "distortionAmount", param.distortionAmount },
@@ -337,6 +342,15 @@ void ReadBloomParamJson(const nlohmann::json& json, cg2::BloomParam& param)
 	}
 	param.threshold = ReadCustomFloat(json, "threshold", param.threshold);
 	param.intensity = ReadCustomFloat(json, "intensity", param.intensity);
+	auto readBloomSetting = [&](const char* name, float fallback, float minimum, float maximum) {
+		const float value = ReadCustomFloat(json, name, fallback);
+		return std::isfinite(value) ? (std::clamp)(value, minimum, maximum) : fallback;
+	};
+	param.bloomMode = static_cast<uint32_t>(readBloomSetting("bloomMode", static_cast<float>(param.bloomMode), 0, 3));
+	param.bloomSoftKnee = readBloomSetting("bloomSoftKnee", param.bloomSoftKnee, 0, 1);
+	param.bloomScatter = readBloomSetting("bloomScatter", param.bloomScatter, 0, 0.8f);
+	param.bloomRadius = readBloomSetting("bloomRadius", param.bloomRadius, 0.25f, 2);
+	param.bloomGain = readBloomSetting("bloomGain", param.bloomGain, 0, 4);
 	param.vignetteIntensity = ReadCustomFloat(json, "vignetteIntensity", param.vignetteIntensity);
 	param.vignetteScale = ReadCustomFloat(json, "vignetteScale", param.vignetteScale);
 	param.distortionAmount = ReadCustomFloat(json, "distortionAmount", param.distortionAmount);
@@ -503,6 +517,9 @@ void GameScene::Initialize() {
 		cg2::BloomParam& playerPost = playerPostEffect_->GetParam();
 		playerPost.threshold = 0.0f;
 		playerPost.intensity = 1.0f;
+		playerPost.bloomGain = 0.38f;
+		playerPost.bloomScatter = 0.5f;
+		playerPost.bloomRadius = 0.9f;
 		playerPost.outlineWidth = 0.0f;
 		playerPost.outlineThreshold = 0.0f;
 		playerPost.outlineColor = { 0.12f, 1.0f, 0.32f };
@@ -520,6 +537,9 @@ void GameScene::Initialize() {
 	{
 		cg2::BloomParam& enemyPost = enemyPostEffect_->GetParam();
 		enemyPost.intensity = 1.2f;
+		enemyPost.bloomGain = 0.38f;
+		enemyPost.bloomScatter = 0.5f;
+		enemyPost.bloomRadius = 0.9f;
 		enemyPost.outlineWidth = 0.0f;
 		enemyPost.outlineThreshold = 0.0f;
 		enemyPost.outlineColor = { 1.0f, 0.2f, 0.1f };
@@ -538,6 +558,9 @@ void GameScene::Initialize() {
 	{
 		cg2::BloomParam& expEnemyPost = expEnemyPostEffect_->GetParam();
 		expEnemyPost.intensity = 1.0f;
+		expEnemyPost.bloomGain = 0.38f;
+		expEnemyPost.bloomScatter = 0.5f;
+		expEnemyPost.bloomRadius = 0.9f;
 		expEnemyPost.threshold = 0.0f;
 		expEnemyPost.outlineWidth = 0.0f;
 		expEnemyPost.outlineThreshold = 0.0f;
@@ -558,6 +581,9 @@ void GameScene::Initialize() {
 		cg2::BloomParam& stagePost = stagePostEffect_->GetParam();
 		stagePost.threshold = 0.0f;
 		stagePost.intensity = 0.75f;
+		stagePost.bloomGain = 0.3f;
+		stagePost.bloomScatter = 0.5f;
+		stagePost.bloomRadius = 0.9f;
 		stagePost.outlineWidth = 0.0f;
 		stagePost.outlineThreshold = 0.0f;
 		stagePost.outlineColor = { 1.0f, 0.55f, 0.58f };
@@ -577,6 +603,9 @@ void GameScene::Initialize() {
 		cg2::BloomParam& gridPost = neonGridPostEffect_->GetParam();
 		gridPost.threshold = 0.0f;
 		gridPost.intensity = 1.5f;
+		gridPost.bloomGain = 0.48f;
+		gridPost.bloomScatter = 0.55f;
+		gridPost.bloomRadius = 0.9f;
 		gridPost.outlineWidth = 0.0f;
 		gridPost.outlineThreshold = 0.0f;
 		gridPost.outlineBloomIntensity = 0.0f;
@@ -588,12 +617,16 @@ void GameScene::Initialize() {
 		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
 		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
-		0.5f
+		0.5f,
+		1.0f // Quality/OFF preserve projectile cores at full resolution; Legacy retains its original source size.
 	);
 	{
 		cg2::BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
 		bulletTrailPost.threshold = 0.0f;
 		bulletTrailPost.intensity = 2.0f;
+		bulletTrailPost.bloomGain = 1.2f;
+		bulletTrailPost.bloomScatter = 0.55f;
+		bulletTrailPost.bloomRadius = 1.0f;
 		bulletTrailPost.outlineWidth = 0.0f;
 		bulletTrailPost.outlineThreshold = 0.0f;
 		bulletTrailPost.outlineBloomIntensity = 0.0f;
@@ -611,6 +644,9 @@ void GameScene::Initialize() {
 		cg2::BloomParam& particlePost = particlePostEffect_->GetParam();
 		particlePost.threshold = 0.0f;
 		particlePost.intensity = 1.65f;
+		particlePost.bloomGain = 0.65f;
+		particlePost.bloomScatter = 0.5f;
+		particlePost.bloomRadius = 0.9f;
 		particlePost.outlineWidth = 0.0f;
 		particlePost.outlineThreshold = 0.0f;
 		particlePost.outlineBloomIntensity = 0.0f;
@@ -628,6 +664,9 @@ void GameScene::Initialize() {
 		cg2::BloomParam& objectBloomPost = sharedObjectBloomPostEffect_->GetParam();
 		objectBloomPost.threshold = 0.0f;
 		objectBloomPost.intensity = 1.15f;
+		objectBloomPost.bloomGain = 0.3f;
+		objectBloomPost.bloomScatter = 0.5f;
+		objectBloomPost.bloomRadius = 0.9f;
 		objectBloomPost.outlineWidth = 0.0f;
 		objectBloomPost.outlineThreshold = 0.0f;
 		objectBloomPost.outlineBloomIntensity = 0.0f;
@@ -759,6 +798,8 @@ void GameScene::Initialize() {
 	collisionDebugRingManager_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(), "resources/gradationLine.png");
 	neonGridRenderer_ = std::make_unique<cg2::NeonGridRenderer>();
 	neonGridRenderer_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(), "resources/white512x512.png");
+	neonProjectileRenderer_ = std::make_unique<NeonProjectileRenderer>();
+	neonProjectileRenderer_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon());
 	playerMeleeTrailManager_ = std::make_unique<cg2::TrailManager>();
 	playerMeleeTrailManager_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(), cg2::Object3dCommon::GetInstance(), "resources/white512x512.png");
 	LoadGameVisualConfig();
@@ -859,6 +900,7 @@ void GameScene::Update() {
 	// シーンの基準時間は1/60秒。メニュー・演出などはこの時間で進める。
 	const float baseDeltaTime = 1.0f / 60.0f;
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+	developerGameCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
 	if (IsNeonShowcaseActive()) {
 		// Freeze gameplay, follow-camera and menu state; Showcase camera/animation remain independent.
 #ifdef USE_IMGUI
@@ -868,6 +910,14 @@ void GameScene::Update() {
 #endif
 		neonSkinnedPreview_->Update(IsNeonShowcaseActive() ? baseDeltaTime : 0.0f);
 		return;
+	}
+	if (developerBloomFreeze_ && !titleDemo_) {
+#ifdef USE_IMGUI
+		if (input_->IsKeyTriggered(DIK_F12)) showGameDebugConsole_ = !showGameDebugConsole_;
+		DrawGameSceneDebugImGui();
+#endif
+		if (neonSkinnedPreview_) neonSkinnedPreview_->Update(0.0f);
+		return; // Retain gameplay, particles, trails, follow-camera and world transforms; Draw still runs.
 	}
 #endif
 	if (titleDemo_) UpdateTitleDemo(baseDeltaTime);
@@ -2056,19 +2106,106 @@ IScene::ScreenEffectState GameScene::GetScreenEffectState() const
 }
 
 IScene::DeveloperShowcaseState GameScene::GetDeveloperShowcaseState() {
+	IScene::DeveloperShowcaseState state{};
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-	if (IsNeonShowcaseActive()) return {true,neonSkinnedPreview_->GetShowcaseCamera(),neonSkinnedPreview_->GetShowcaseDiagnostic(),
-		neonSkinnedPreview_->GetShowcaseBloomThreshold(),neonSkinnedPreview_->GetShowcaseBloomIntensity(),neonSkinnedPreview_->GetShowcaseExposure()};
+	if (IsNeonShowcaseActive()) {
+		state.active = true;
+		state.camera = neonSkinnedPreview_->GetShowcaseCamera();
+		state.diagnostic = neonSkinnedPreview_->GetShowcaseDiagnostic();
+		state.threshold = neonSkinnedPreview_->GetShowcaseBloomThreshold();
+		state.intensity = neonSkinnedPreview_->GetShowcaseBloomIntensity();
+		state.exposure = neonSkinnedPreview_->GetShowcaseExposure();
+		state.bloomComparisonMode = neonSkinnedPreview_->GetShowcaseBloomMode();
+		state.bloomSoftKnee = neonSkinnedPreview_->GetShowcaseBloomSoftKnee();
+		state.bloomScatter = neonSkinnedPreview_->GetShowcaseBloomScatter();
+		state.bloomRadius = neonSkinnedPreview_->GetShowcaseBloomRadius();
+		state.bloomGain = neonSkinnedPreview_->GetShowcaseBloomGain();
+		state.toneMappingMode = neonSkinnedPreview_->GetShowcaseToneMappingMode();
+	} else if (!titleDemo_) {
+		state.bloomComparisonMode = developerBloomComparisonMode_;
+		state.toneMappingMode = developerToneMappingMode_;
+		state.comparisonFreeze = developerBloomFreeze_;
+	}
 #endif
-	return {};
+	return state;
+}
+void GameScene::RecordDeveloperPostParameters(const cg2::BloomParam& param) {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+	developerCompositeParams_ = param;
+	developerCompositeParamsAvailable_ = true;
+#else
+	(void)param;
+#endif
 }
 void GameScene::RecordDeveloperFrame(cg2::DirectXCommon& dx) {
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 	if (neonSkinnedPreview_) neonSkinnedPreview_->RecordShowcaseCapture(dx);
+	if (developerGameCapture_.HasRequest())
+		developerGameCapture_.SetFrameMetadata(MakeDeveloperGameCaptureMetadata(dx));
+	developerGameCapture_.Record(dx);
 #else
 	(void)dx;
 #endif
 }
+
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+nlohmann::json GameScene::MakeDeveloperGameCaptureMetadata(cg2::DirectXCommon& dx) const {
+	auto vector = [](const cg2::Vector3& value) { return nlohmann::json::array({value.x,value.y,value.z}); };
+	const auto& post = developerCompositeParams_;
+	const auto counts = bulletManager_->GetBulletCounts();
+	nlohmann::json metadata = {
+		{"schemaVersion",1},{"build","Development"},{"scene","GameScene"},
+		{"comparisonFreeze",developerBloomFreeze_},{"samePoseBatch",false},
+		{"comparisonMethod",developerBloomFreeze_ ? "Manual captures; game update frozen, source transforms/trails/particles retained; verify recorded conditions." : "Live gameplay captures; moving scenes are not a fixed-pose A/B."},
+		{"bloomOverrideMode",developerBloomComparisonMode_},{"toneMappingOverride",developerToneMappingMode_},
+		{"globalPostAvailable",developerCompositeParamsAvailable_},
+		{"globalPost",{{"mode",post.bloomMode},{"threshold",post.threshold},{"legacyIntensity",post.intensity},
+			{"gain",post.bloomGain},{"softKnee",post.bloomSoftKnee},{"scatter",post.bloomScatter},
+			{"radius",post.bloomRadius},{"exposure",post.exposure},{"toneMappingMode",post.toneMappingMode},
+			{"taa",post.temporalEnabled},{"jitter",post.temporalJitterEnabled},{"grayscale",post.isGrayscale},
+			{"ssao",post.ssaoEnabled},{"ssr",post.ssrEnabled},{"renderDebugMode",post.renderDebugMode}}},
+		{"localCategories",BuildGamePostEffectConfig()},
+		{"visualAppearance",BuildGameVisualConfig()},
+		{"sourceResolution",{{"trailLegacyScale",0.5f},{"trailQualityAndOffScale",1.0f},
+			{"note","Legacy intentionally preserves the old half-resolution projectile capture; new/OFF capture preserves full-resolution source cores."}}},
+		{"sourceCounts",{{"playerBullets",counts.player},{"enemyBullets",counts.enemy},
+			{"hostileExpBullets",counts.hostileExpEnemy},{"enemies",enemyManager_->GetEnemyCount()},
+			{"particles",cg2::ParticleManager::GetInstance()->GetActiveCount()}}},
+		{"camera",{{"debug",cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()},
+			{"gamePosition",vector(camera->GetTranslate())},{"gameRotation",vector(camera->GetRotate())},
+			{"debugEye",vector(debugCamera->GetEyePosition())}}},
+		{"sourcePositions",{{"player",vector(player_->GetWorldPosition())},{"boss",vector(enemy_->GetWorldPosition())}}},
+		{"textGlow",{{"enabled",gameTextNeonEnabled_},{"sourceBrightness",gameTextNeonStyle_.sourceBrightness},
+			{"threshold",gameTextNeonStyle_.threshold},{"innerIntensity",gameTextNeonStyle_.innerIntensity},
+			{"outerIntensity",gameTextNeonStyle_.outerIntensity},{"color",{gameTextNeonStyle_.glowColor.x,
+			gameTextNeonStyle_.glowColor.y,gameTextNeonStyle_.glowColor.z,gameTextNeonStyle_.glowColor.w}}}},
+		{"validation",{{"d3d12DebugLayer",dx.IsD3D12DebugLayerEnabled()},{"gpuBasedValidation",dx.IsGpuBasedValidationEnabled()}}},
+		{"gpuTiming",{{"captureActive",cg2::RuntimeProfiler::Get().IsCaptureActive()},
+			{"captureComplete",cg2::RuntimeProfiler::Get().IsCaptureComplete()},
+			{"note","Actual per-scope timestamps are in the separate profiler CSV, not inferred from this image."}}}
+	};
+	for (const auto& row : debugCamera->GetViewProjectionMatrix().m)
+		metadata["camera"]["debugViewProjection"].push_back({row[0],row[1],row[2],row[3]});
+	for (const auto& row : camera->GetViewProjectionMatrix().m)
+		metadata["camera"]["gameViewProjection"].push_back({row[0],row[1],row[2],row[3]});
+	for (const Bullet* bullet : bulletManager_->GetBulletPtrs())
+		metadata["sourcePositions"]["bullets"].push_back(vector(bullet->GetWorldPosition()));
+	for (const ExpEnemy* enemy : enemyManager_->GetEnemyPtrs())
+		metadata["sourcePositions"]["experienceEnemies"].push_back(vector(enemy->GetWorldPosition()));
+	UINT64 frequency = 0;
+	if (SUCCEEDED(dx.GetQueue()->GetTimestampFrequency(&frequency))) metadata["queueTimestampFrequencyHz"] = frequency;
+	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter;
+	if (SUCCEEDED(dx.GetDxgiFactory()->EnumAdapterByLuid(dx.GetDevice()->GetAdapterLuid(),IID_PPV_ARGS(&adapter)))) {
+		DXGI_ADAPTER_DESC3 description{};
+		if (SUCCEEDED(adapter->GetDesc3(&description))) {
+			char name[256]{};
+			WideCharToMultiByte(CP_UTF8,0,description.Description,-1,name,sizeof(name),nullptr,nullptr);
+			metadata["gpu"] = {{"adapter",name},{"vendor",description.VendorId},{"device",description.DeviceId}};
+		}
+	}
+	return metadata;
+}
+#endif
 
 void GameScene::Draw() {
 
@@ -2179,10 +2316,17 @@ void GameScene::DrawPostEffect3D() {
 			: camera->GetViewProjectionMatrix();
         const bool hasTrailContent = bulletManager_->GetBulletCount() != 0 || bulletManager_->HasDrawableTrails() ||
             (enablePlayerMeleeRibbonTrail_ && playerMeleeTrailManager_ && playerMeleeTrailManager_->HasDrawableInstances());
+		// Prepare one immutable head batch for this frame, before either capture branch.
+		const auto view = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
+			? debugCamera->GetViewMatrix() : camera->GetViewMatrix();
+		const auto cameraWorld = cg2::Inverse(view);
+		const cg2::Vector3 forward{cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2]};
+		neonProjectileRenderer_->BeginFrame(bulletManager_->GetBulletPtrs(), forward);
 		if (useBulletTrailPost && hasTrailContent) {
 			profile("Trail Post", true, [&]() {
 				bulletTrailPostEffect_->BeginCapture();
 				bulletManager_->DrawTrails(vp);
+				neonProjectileRenderer_->Draw(vp);
 				if (enablePlayerMeleeRibbonTrail_ && playerMeleeTrailManager_) {
 					playerMeleeTrailManager_->DrawAll(vp);
 				}
@@ -2194,6 +2338,7 @@ void GameScene::DrawPostEffect3D() {
 		} else {
 			profile("Trail Draw", false, [&]() {
 				bulletManager_->DrawTrails(vp);
+				neonProjectileRenderer_->Draw(vp);
 				if (enablePlayerMeleeRibbonTrail_ && playerMeleeTrailManager_) {
 					playerMeleeTrailManager_->DrawAll(vp);
 				}
@@ -5143,7 +5288,14 @@ void GameScene::DrawPostEffectParamControls(const char* labelPrefix, cg2::BloomP
 {
 #ifdef USE_IMGUI
 	ImGui::PushID(labelPrefix);
-	ImGui::DragFloat("ブルーム強度", &param.intensity, 0.01f, 0.0f, 8.0f);
+	const char* bloomModes[] = {"OFF", "Legacy", "Quality", "Light"};
+	int bloomMode = static_cast<int>(param.bloomMode);
+	if (ImGui::Combo("カテゴリのBloom方式", &bloomMode, bloomModes, 4)) param.bloomMode = static_cast<uint32_t>(bloomMode);
+	ImGui::DragFloat("Legacyブルーム強度", &param.intensity, 0.01f, 0.0f, 8.0f);
+	ImGui::DragFloat("QualityブルームGain", &param.bloomGain, 0.01f, 0.0f, 2.0f);
+	ImGui::DragFloat("Quality Soft knee", &param.bloomSoftKnee, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Quality Scatter", &param.bloomScatter, 0.01f, 0.0f, 0.8f);
+	ImGui::DragFloat("Quality Radius", &param.bloomRadius, 0.01f, 0.25f, 2.0f);
 	ImGui::DragFloat("ブルームしきい値", &param.threshold, 0.01f, 0.0f, 2.0f);
 	ImGui::DragFloat("歪み量", &param.distortionAmount, 0.001f, 0.0f, 0.2f);
 	ImGui::DragFloat("色収差", &param.chromAbAmount, 0.001f, 0.0f, 0.2f);
@@ -5963,6 +6115,37 @@ void GameScene::DrawGameSceneDebugImGui()
 		}
 
 		if (ImGui::BeginTabItem("ポスト")) {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+			const char* bloomModes[] = {"Engine setting", "Bloom OFF", "Legacy Bloom", "Quality Bloom", "Light Bloom"};
+			int bloomSelection = developerBloomComparisonMode_ + 1;
+			ImGui::BeginDisabled(cg2::RuntimeProfiler::Get().IsCaptureActive());
+			if (ImGui::Combo("Developer Bloom comparison", &bloomSelection, bloomModes, 5))
+				developerBloomComparisonMode_ = bloomSelection - 1;
+			const char* toneModes[] = {"Engine tone mapping", "Legacy ACES", "Hue-preserving shoulder"};
+			int toneSelection = developerToneMappingMode_ < 0 ? 0 : developerToneMappingMode_;
+			if (ImGui::Combo("Developer tone mapping", &toneSelection, toneModes, 3))
+				developerToneMappingMode_ = toneSelection == 0 ? -1 : toneSelection;
+			ImGui::Checkbox("Freeze game for Bloom comparison", &developerBloomFreeze_);
+			ImGui::EndDisabled();
+			ImGui::TextWrapped("Developer-only temporary comparison. OFF/Legacy/Quality/Light affects local object and global Bloom; source cores, camera and gameplay remain unchanged. Text glow uses its own display-safe additive route after tone mapping. Engine setting restores the normal configuration.");
+			ImGui::BeginDisabled(developerGameCapture_.IsBusy() || IsNeonShowcaseActive() || cg2::RuntimeProfiler::Get().IsCaptureActive());
+			ImGui::InputText("Game capture label", developerGameCaptureLabel_, sizeof(developerGameCaptureLabel_));
+			if (ImGui::Button("Save game clean PNG + metadata")) {
+				if (developerGameCaptureDirectory_.empty()) {
+					developerGameCaptureDirectory_ = "generated/neon_bloom_presentation/game_" +
+						std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+							std::chrono::system_clock::now().time_since_epoch()).count());
+				}
+				char name[96]{};
+				std::snprintf(name,sizeof(name),"%03u_%s",developerGameCaptureNumber_++,developerGameCaptureLabel_);
+				developerGameCapture_.Request(developerGameCaptureDirectory_,name,{});
+			}
+			ImGui::EndDisabled();
+			ImGui::TextWrapped("%s",developerGameCapture_.GetStatus().c_str());
+			if (!developerGameCaptureDirectory_.empty()) ImGui::TextWrapped("Game captures: %s",developerGameCaptureDirectory_.c_str());
+			ImGui::TextWrapped("Manual comparison: freeze once, keep camera/tone/appearance unchanged, and capture OFF/Legacy/Quality individually. Unfrozen captures are labelled live gameplay, not identical-frame A/B. Sharp projectile capture is full-resolution in Quality/OFF; Legacy intentionally retains its old half-resolution source.");
+			ImGui::Separator();
+#endif
 			if (ImGui::Button("ポスト設定を保存")) {
 				if (SaveGamePostEffectConfig()) {
 					postEffectConfigStatus_ = "ポスト設定を保存しました: resources/configs/gamePostEffects.json";
@@ -6024,14 +6207,26 @@ void GameScene::DrawGameSceneDebugImGui()
 				ImGui::Checkbox("グリッドポストを有効", &enableNeonGridPostEffect_);
 				cg2::BloomParam& gridPost = neonGridPostEffect_->GetParam();
 				ImGui::DragFloat("グリッド発光強度", &gridPost.intensity, 0.01f, 0.0f, 6.0f);
+				ImGui::DragFloat("グリッドQuality Gain", &gridPost.bloomGain, 0.01f, 0.0f, 2.0f);
 				ImGui::DragFloat("グリッド発光しきい値", &gridPost.threshold, 0.01f, 0.0f, 2.0f);
 				ImGui::Checkbox("弾軌跡ポストを有効", &enableBulletTrailPostEffect_);
 				cg2::BloomParam& bulletTrailPost = bulletTrailPostEffect_->GetParam();
 				ImGui::DragFloat("弾軌跡発光強度", &bulletTrailPost.intensity, 0.01f, 0.0f, 8.0f);
+				ImGui::DragFloat("弾軌跡Quality Gain", &bulletTrailPost.bloomGain, 0.01f, 0.0f, 2.0f);
 				ImGui::DragFloat("弾軌跡発光しきい値", &bulletTrailPost.threshold, 0.01f, 0.0f, 2.0f);
+				auto head = neonProjectileRenderer_->GetParams();
+				bool changed = ImGui::Checkbox("Neon Projectile Heads", &head.enabled);
+				changed |= ImGui::DragFloat("Head Length", &head.headLength, 0.01f, 0.05f, 3.0f);
+				changed |= ImGui::DragFloat("Head Width", &head.headWidth, 0.01f, 0.03f, 1.5f);
+				changed |= ImGui::DragFloat("Head Emission", &head.headIntensity, 0.05f, 0.0f, 8.0f);
+				changed |= ImGui::DragFloat("Pale Core Emission", &head.coreIntensity, 0.05f, 0.0f, 12.0f);
+				changed |= ImGui::DragFloat("Head Halo Alpha", &head.haloAlpha, 0.01f, 0.0f, 0.4f);
+				if (changed) neonProjectileRenderer_->SetParams(head);
+				ImGui::TextWrapped("Head controls are session-only. Bullet movement and collision are unchanged.");
 				ImGui::Checkbox("三角パーティクルポストを有効", &enableParticlePostEffect_);
 				cg2::BloomParam& particlePost = particlePostEffect_->GetParam();
 				ImGui::DragFloat("三角パーティクル発光強度", &particlePost.intensity, 0.01f, 0.0f, 8.0f);
+				ImGui::DragFloat("パーティクルQuality Gain", &particlePost.bloomGain, 0.01f, 0.0f, 2.0f);
 				ImGui::DragFloat("三角パーティクル発光しきい値", &particlePost.threshold, 0.01f, 0.0f, 2.0f);
 			}
 			if (ImGui::CollapsingHeader("死亡チャージ / 衝撃波")) {

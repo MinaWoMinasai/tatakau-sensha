@@ -11,6 +11,11 @@ public:
         cg2::Camera* camera = nullptr;
         int diagnostic = 0;
         float threshold = 0.65f, intensity = 0.75f, exposure = 0.75f;
+        // -1 preserves the engine setting; 0/1/2/3 select Off/Legacy/Quality/Light.
+        int bloomComparisonMode = -1;
+        float bloomSoftKnee = 0.5f, bloomScatter = 0.3f, bloomRadius = 0.75f, bloomGain = 0.15f;
+        int toneMappingMode = -1;
+        bool comparisonFreeze = false;
     };
     /// @brief 一時的な画面効果の強度と継続時間を表す。
     struct PostEffectPulse {
@@ -108,6 +113,7 @@ public:
         (void)profile;
     }
     virtual DeveloperShowcaseState GetDeveloperShowcaseState() { return {}; }
+    virtual void RecordDeveloperPostParameters(const cg2::BloomParam&) {}
     virtual void RecordDeveloperFrame(cg2::DirectXCommon&) {}
 
     // シーン終了判定（SceneManagerがチェックする）
