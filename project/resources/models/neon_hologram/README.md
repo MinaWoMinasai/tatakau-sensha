@@ -6,7 +6,7 @@
 | Creator / Project | VRoid Project（VRM内のtitle / authorも一致） |
 | Original format | VRM（GLB 2.0コンテナ） |
 | Repository format | GLB: `AvatarSample_B.glb` |
-| 用途 | Neon Hologram character / boss renderingのDeveloper Preview。現在のRelease runtimeでは使用しない |
+| 用途 | 本編ボスのNeon Skinned Visual（Development / Release）とDeveloper Preview |
 | 取得日 | 2026-10-01（作者提供のローカル入力をRepositoryへ取り込んだ日） |
 | 入力ファイル名 | `6493143135142452442.vrm` |
 | 取得元 | 作者のWindows Downloads内の指定ファイル。ダウンロード元URL・経路は未確認 |
@@ -43,7 +43,7 @@ Previewは開いただけでは有効になりません。下記の`Preview Enab
 
 `Preview Enable`で初めてモデル・GPU資源を読み込みます。`Normal`は既存`Object3d::DrawSkinned()`、`Neon`は既存`NeonSkinnedRenderer::Draw()`を使い、同じモデル・Skeleton / Palette / Object3dのTransformを共有します。位置・回転（radian）・ScaleとNeonパラメータを操作できます。初期回転は正面（Y=0）です。`Place in front of camera`で現在のCameraの35単位前へ移動します。無効化してもGPU資源は保持し、フレーム途中で破棄しません。
 
-初期状態はPreview無効です。タイトルのデモにはPreviewを作りません。ReleaseではPreviewクラスをビルド対象から外し、GameSceneの呼び出しもコンパイル時に無効にします。Downloadsはコピー時にのみ参照し、実行時はRepository内の`resources/models/neon_hologram/AvatarSample_B.glb`だけを使用します。
+初期状態はPreview無効です。タイトルのデモにはPreviewを作りません。ReleaseではPreviewクラスをビルド対象から外し、PreviewへのGameSceneの呼び出しもコンパイル時に無効にします。本編のボスVisualは別のPresentation componentから同じGLBとNeonSkinnedRenderer、既存生成クリップを使用します。配布パッケージにはGLBと必要なshaderを含め、比較用`line_masks/`は引き続き除外します。Downloadsはコピー時にのみ参照し、実行時はRepository内の`resources/models/neon_hologram/AvatarSample_B.glb`だけを使用します。
 
 描画は`Bloom::PreDraw()`直後、ObjectPostEffectのcaptureより前のScene HDR / Normal / Material（3 MRT）+ D24S8内です。`BeginFrame()`は前フレームのFence完了後のUpdateで1回だけ呼び、Draw後は通常Object3dのRoot Signature / PSOを再Bindします。
 

@@ -801,6 +801,11 @@
     <ClInclude Include="game\debug\NeonShowcaseCapture.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClCompile Include="game\enemy\visual\NeonBossVisual.cpp" />
+    <ClCompile Include="game\scene\GameScene.NeonBoss.cpp" />
+    <ClInclude Include="game\enemy\visual\NeonBossVisual.h" />
+    <ClInclude Include="game\enemy\visual\NeonBossVisualState.h" />
+    <ClInclude Include="DirectX\engine\3d\neon\NeonCharacterStyle.h" />
     <ClCompile Include="game\debug\NeonPreviewAnimations.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>

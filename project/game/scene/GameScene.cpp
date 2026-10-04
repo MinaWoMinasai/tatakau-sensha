@@ -892,6 +892,15 @@ void GameScene::Initialize() {
 	previousPlayerHp_ = player_ ? player_->GetHp() : 0;
 	previousBossHp_ = enemy_ ? enemy_->GetHp() : 0;
 	if (titleDemo_) InitializeTitleDemo();
+	if (!titleDemo_) {
+		neonBossVisual_ = std::make_unique<NeonBossVisual>();
+		neonBossVisual_->Initialize(camera.get(), debugCamera.get());
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+		wchar_t bossTest[8]{};
+		neonBossAutoTest_ = GetEnvironmentVariableW(L"CG2_NEON_BOSS_AUTOTEST", bossTest, 8) > 0 && bossTest[0] == L'1';
+		neonBossDeveloperStartPending_ = neonBossAutoTest_;
+#endif
+	}
 
 }
 
@@ -901,6 +910,7 @@ void GameScene::Update() {
 	const float baseDeltaTime = 1.0f / 60.0f;
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 	developerGameCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
+	UpdateNeonBossDeveloperValidation();
 	if (IsNeonShowcaseActive()) {
 		// Freeze gameplay, follow-camera and menu state; Showcase camera/animation remain independent.
 #ifdef USE_IMGUI
@@ -911,12 +921,18 @@ void GameScene::Update() {
 		neonSkinnedPreview_->Update(IsNeonShowcaseActive() ? baseDeltaTime : 0.0f);
 		return;
 	}
-	if (developerBloomFreeze_ && !titleDemo_) {
+	if ((developerBloomFreeze_ || neonBossDeveloperFreeze_) && !titleDemo_) {
 #ifdef USE_IMGUI
 		if (input_->IsKeyTriggered(DIK_F12)) showGameDebugConsole_ = !showGameDebugConsole_;
 		DrawGameSceneDebugImGui();
 #endif
 		if (neonSkinnedPreview_) neonSkinnedPreview_->Update(0.0f);
+		// Existing comparison mode disables temporal jitter. Refresh both boss
+		// representations against that same projection without advancing combat.
+		camera->SetProjectionJitter({}); debugCamera->SetProjectionJitter({});
+		if (enemyObject_) enemyObject_->Update();
+		// Draw still runs while frozen; reuse the renderer's per-frame CB slots.
+		UpdateNeonBossVisual(0.0f);
 		return; // Retain gameplay, particles, trails, follow-camera and world transforms; Draw still runs.
 	}
 #endif
@@ -1067,6 +1083,14 @@ void GameScene::Update() {
 			(std::clamp)(playerPos.y, kMarginY, kMaxCameraY),
 			kCameraZ
 		};
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+		// Capture fixture only: show both actors with the same normal top-down camera.
+		if (neonBossAutoTest_ && IsRunRivalActive()) {
+			const auto center = (playerPos + enemy_->GetWorldPosition()) * 0.5f;
+			targetCameraPos.x = (std::clamp)(center.x, kMarginX, kMaxCameraX);
+			targetCameraPos.y = (std::clamp)(center.y, kMarginY, kMaxCameraY);
+		}
+#endif
 		cg2::Vector3 currentCameraPos = camera->GetTranslate();
 		cg2::Vector3 nextCameraPos = currentCameraPos + (targetCameraPos - currentCameraPos) * 0.12f;
 		if (cameraShakeTimer_ > 0.0f) {
@@ -1202,6 +1226,9 @@ void GameScene::Update() {
 			player_->UpdateDefeatPresentation(baseDeltaTime);
 		}
 	}
+	// Read the final HP/phase after every attack and collision; death presentation continues independently.
+	UpdateNeonBossVisual(enemy_->IsDead() ? baseDeltaTime :
+		(gameFlowState_ == GameFlowState::Playing && !IsTankRunMenuOpen() && !player_->IsChangeMode() ? finalDeltaTime : 0.0f));
 	// 戦闘停止中も、残っている演出を進め、未消費の特殊戦闘イベントを受け取る。
 	UpdateSpecialCombatPresentation(baseDeltaTime);
 	screenEffectDirector_.SetUpgradeMenuOpen(player_->IsChangeMode() || IsTankRunMenuOpen());
@@ -2124,7 +2151,7 @@ IScene::DeveloperShowcaseState GameScene::GetDeveloperShowcaseState() {
 	} else if (!titleDemo_) {
 		state.bloomComparisonMode = developerBloomComparisonMode_;
 		state.toneMappingMode = developerToneMappingMode_;
-		state.comparisonFreeze = developerBloomFreeze_;
+		state.comparisonFreeze = developerBloomFreeze_ || neonBossDeveloperFreeze_;
 	}
 #endif
 	return state;
@@ -2140,6 +2167,7 @@ void GameScene::RecordDeveloperPostParameters(const cg2::BloomParam& param) {
 void GameScene::RecordDeveloperFrame(cg2::DirectXCommon& dx) {
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 	if (neonSkinnedPreview_) neonSkinnedPreview_->RecordShowcaseCapture(dx);
+	RecordNeonBossDeveloperFrame(dx);
 	if (developerGameCapture_.HasRequest())
 		developerGameCapture_.SetFrameMetadata(MakeDeveloperGameCaptureMetadata(dx));
 	developerGameCapture_.Record(dx);
@@ -2221,6 +2249,7 @@ void GameScene::DrawPostEffect3D() {
 	if (neonSkinnedPreview_) neonSkinnedPreview_->Draw();
 	if (IsNeonShowcaseActive()) return;
 #endif
+	DrawNeonBossVisual();
 	if (player_) {
 		for (PlayerDrone* drone : player_->GetDronePtrs()) {
 			if (drone) drone->SetNeonVisual(prototypeRun_ && playerNeonRenderMode_ == 1);
@@ -2280,7 +2309,7 @@ void GameScene::DrawPostEffect3D() {
 
 	profile("Base Objects", true, [&]() {
 		player_->Draw(playerNeonRenderMode_ == 0);
-		if (!IsTutorialCombatSuppressed() && gameFlowState_ != GameFlowState::BossDefeatSequence) {
+		if (!UseNeonBossVisual() && !IsTutorialCombatSuppressed() && gameFlowState_ != GameFlowState::BossDefeatSequence) {
 			enemy_->Draw(bossNeonRenderMode_ == 0);
 		}
 		if (!IsTutorialCombatSuppressed()) {
@@ -2363,7 +2392,7 @@ void GameScene::DrawPostEffect3D() {
 			if (usePlayerPost && playerNeonRenderMode_ == 0 && !(slowMotionPostActive_ && keepPlayerColorDuringSlow_)) {
 				player_->DrawBodyOnly();
 			}
-			if (useEnemyPost &&
+			if (useEnemyPost && !UseNeonBossVisual() &&
 				!IsTutorialCombatSuppressed() &&
 				bossNeonRenderMode_ == 0 &&
 				gameFlowState_ != GameFlowState::BossDefeatSequence) {
@@ -2463,7 +2492,7 @@ void GameScene::DrawAfterPostEffect3D() {
 		if (!expeditionRun_) player_->DrawUpgradeHudAfterPostEffects();
 	}
 	DrawGameTextBloom();
-	if (gameFlowState_ == GameFlowState::BossDefeatSequence &&
+	if (!UseNeonBossVisual() && gameFlowState_ == GameFlowState::BossDefeatSequence &&
 		enableEnemyPostEffect_ &&
 		bossNeonRenderMode_ == 0) {
 		cg2::BloomParam savedBossParam = enemyPostEffect_->GetParam();
@@ -3764,7 +3793,7 @@ void GameScene::QueueActorNeonBillboards(const cg2::Vector3& cameraRight, const 
 		}
 		queueTankBillboard(player_->GetWorldPosition() + cg2::Vector3{ 0.0f, 0.0f, 0.35f }, player_->GetDirection(), playerNeonBillboardRadius_ * (1.0f + pulse), actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true, playerNeonEmission_);
 	}
-	if (bossNeonRenderMode_ == 1 && enemy_ && (IsRunRivalActive() && !enemy_->IsDead())) {
+	if (!UseNeonBossVisual() && bossNeonRenderMode_ == 1 && enemy_ && (IsRunRivalActive() && !enemy_->IsDead())) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
 		const float impact = feedback * feedback;
 		const cg2::Vector4 color = lerpColor(enemyGridColor_, { 1.8f, 1.8f, 1.8f, enemyGridColor_.w }, (std::min)(1.0f, impact * 0.95f));
@@ -3877,7 +3906,7 @@ void GameScene::DrawActorNeonBodyFillPass() {
 			player_->GetNeonBodyLayout(),
 			actorNeonBodyFillColor_);
 	}
-	if (bossNeonRenderMode_ == 1 && enemy_ && (IsRunRivalActive() && !enemy_->IsDead())) {
+	if (!UseNeonBossVisual() && bossNeonRenderMode_ == 1 && enemy_ && (IsRunRivalActive() && !enemy_->IsDead())) {
 		const float feedback = enemy_->GetDamageFeedbackRatio();
 		const float impact = feedback * feedback;
 		neonGridRenderer_->QueueBillboardDisc(
@@ -5828,6 +5857,11 @@ void GameScene::DrawGameSceneDebugImGui()
 
 	if (ImGui::BeginTabBar("GameDebugTabs")) {
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+		if (ImGui::BeginTabItem("Neon Boss", nullptr, selectNeonBossTab_ ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)) {
+			selectNeonBossTab_ = false;
+			DrawNeonBossDeveloperTools();
+			ImGui::EndTabItem();
+		}
 		const ImGuiTabItemFlags previewTabFlags = selectNeonSkinnedPreviewTab_
 			? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
 		selectNeonSkinnedPreviewTab_ = false;
