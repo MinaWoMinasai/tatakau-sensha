@@ -1,5 +1,8 @@
 #include "Game.h"
 #include "DeveloperTools.h"
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#include "game/debug/GameplayScenarioSession.h"
+#endif
 #include "SceneFactory.h"
 #include "SceneManager.h"
 #include "../modules/GameModuleBootstrap.h"
@@ -369,11 +372,11 @@ void Game::LoadResources() {
     // from Object3d::SetModel() or explicitly by the scene that needs them.
 }
 
-void Game::Run() {
-    MainLoop();
+int Game::Run() {
+    return MainLoop();
 }
 
-void Game::MainLoop() {
+int Game::MainLoop() {
     const auto testEnabled = [](const char* name) {
         char flag[8]{};
         return GetEnvironmentVariableA(name, flag, sizeof(flag)) == 1 && flag[0] == '1';
@@ -381,8 +384,25 @@ void Game::MainLoop() {
     // Hidden deterministic verification must not pause when the user switches
     // applications. Ordinary interactive play still suspends on lost focus.
     const bool startupValidation = testEnabled("CG2_STARTUP_AUTOTEST");
+    char experienceMode[8]{};
+    const bool experienceValidation = GetEnvironmentVariableA("CG2_TANK_EXPERIENCE_AUTOTEST", experienceMode, sizeof(experienceMode)) == 1 &&
+        (experienceMode[0] == '1' || experienceMode[0] == '2');
     const bool backgroundValidation = startupValidation || testEnabled("CG2_TITLE_AUTOTEST") ||
-        testEnabled("CG2_TANK_TUTORIAL_AUTOTEST") || testEnabled("CG2_TANK_AUTOTEST") || testEnabled("CG2_TANK_MAP_AUTOTEST");
+        testEnabled("CG2_TANK_TUTORIAL_AUTOTEST") || testEnabled("CG2_TANK_AUTOTEST") || testEnabled("CG2_TANK_MAP_AUTOTEST") ||
+        testEnabled("CG2_TANK_COMBAT_AUTOTEST") || testEnabled("CG2_TANK_SPECIAL_AUTOTEST") ||
+        testEnabled("CG2_NEON_BOSS_AUTOTEST") || testEnabled("CG2_SUBMISSION_AUTOTEST") || experienceValidation
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+        || GameplayScenarioSession::Get().IsActive()
+#endif
+        ;
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if (GameplayScenarioSession::Get().IsActive() && SceneManager::GetInstance()->GetCurrentSceneName() != "TANK_EXPEDITION") {
+        auto& session = GameplayScenarioSession::Get();
+        session.Fail("Gameplay scenarios require TANK_EXPEDITION; launch with --project resources/projects/tank_expedition.project.json.");
+        session.Finish();
+        PostQuitMessage(9);
+    }
+#endif
     MSG msg{};
     std::string lastPresentedScene;
     unsigned startupValidationFrames = 0;
@@ -394,6 +414,10 @@ void Game::MainLoop() {
 
 		const auto messageStart = std::chrono::steady_clock::now();
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            // Preserve the quit status before a later queued message can replace it.
+            if (msg.message == WM_QUIT) {
+                break;
+            }
             if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN) {
                 // DIK scan codes use bit 7 for extended keys (arrows, numpad Enter).
                 unsigned int rawScan = static_cast<unsigned int>((msg.lParam >> 16) & 0xff);
@@ -436,6 +460,9 @@ void Game::MainLoop() {
 		const auto inputImGuiStart = std::chrono::steady_clock::now();
 		// 前のフレームのキー状態を保存
         input->BeforeFrameData();
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+        if (GameplayScenarioSession::Get().IsActive()) input->OverrideValidationFrame({640.0f, 360.0f});
+#endif
         auto& runtime = cg2::RuntimeProfiler::Get();
         runtime.BeginFrame();
         const int gpuFrame = runtime.BeginGpu("GPU frame");
@@ -476,7 +503,16 @@ void Game::MainLoop() {
             trailStress_->Update(1.0f/60.0f);
         }
 		const float sceneUpdateMs = elapsedMs(sceneUpdateStart, std::chrono::steady_clock::now());
-        bloom_->SetGrayscaleEnabled(SceneManager::GetInstance()->GetFinalDeltaTime() < (1.0f / 60.0f) * 0.98f);
+        const auto developerShowcase = SceneManager::GetInstance()->GetDeveloperShowcaseState();
+        const float combatDeltaTime = SceneManager::GetInstance()->GetFinalDeltaTime();
+        bool grayscale = combatDeltaTime < (1.0f / 60.0f) * 0.98f;
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+        if (GameplayScenarioSession::Get().IsActive())
+            grayscale = gameplaytest::ScenarioGrayscaleEnabled(combatDeltaTime,
+                GameplayScenarioSession::Get().GetSettings().fixedDeltaTime,
+                developerShowcase.comparisonFreeze, developerShowcase.active);
+#endif
+        bloom_->SetGrayscaleEnabled(grayscale);
         bloom_->SetGaussianOverride(SceneManager::GetInstance()->GetPostGaussianIntensity());
         const IScene::PostEffectPulse postPulse = SceneManager::GetInstance()->GetPostEffectPulse();
         bloom_->SetTransientPulse(
@@ -487,7 +523,7 @@ void Game::MainLoop() {
             postPulse.width,
             postPulse.strength);
 		bloom_->SetScreenEffectState(SceneManager::GetInstance()->GetScreenEffectState());
-        bloom_->SetDeveloperShowcaseState(SceneManager::GetInstance()->GetDeveloperShowcaseState());
+        bloom_->SetDeveloperShowcaseState(developerShowcase);
 
 		const auto imguiBuildStart = std::chrono::steady_clock::now();
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
@@ -607,6 +643,7 @@ void Game::MainLoop() {
             PostQuitMessage(0);
         }
     }
+    return static_cast<int>(msg.wParam);
 }
 
 void Game::Finalize() {

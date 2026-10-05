@@ -152,7 +152,7 @@ bool GameScene::UpdateExperienceValidation(float dt) {
         if(player_->IsDead()) experienceValidationErrors_.push_back("Tutorial player died");
         WriteExperienceValidationReport(false);PostQuitMessage(7);return true;
     }
-    if(gameFlowState_==GameFlowState::StageClear) {
+    if(combatFlow_.GetState()==GameFlowState::StageClear) {
         CaptureExperienceValidation("complete");
         if(experienceValidationStateAge_<1.0f||!tankRunCapturePath_.empty()) return false;
         const size_t visits=expeditionMapRun_.GetVisitedNodeIds().size();
@@ -354,7 +354,7 @@ void GameScene::RecordSubmissionUi(const std::string& screen) {
         }
     } else if(active&&active->kind==tankexp::NodeKind::Heal) {
         add(tankRunCardTitles_[0].get());add(tankRunCardBodies_[0].get());add(expeditionSkipText_.get());
-    } else if(gameFlowState_==GameFlowState::StageClear) {
+    } else if(combatFlow_.GetState()==GameFlowState::StageClear) {
         add(tankRunFooter_.get());
         for(int i=0;i<2;++i){add(tankRunCardTitles_[i].get());add(tankRunCardBodies_[i].get());}
     }

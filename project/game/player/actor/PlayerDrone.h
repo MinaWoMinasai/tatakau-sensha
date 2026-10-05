@@ -147,7 +147,8 @@ public:
     void DrawSprite();
 
     /// @brief 成立した接触を受け、対象の属性に応じてHPと押し出し速度を更新する。
-    /// @note otherはnullptr不可。再構築中と資源は対象外。HP減少時に無敵時間は検査しない。
+    /// @note otherはnullptr不可。死亡中・再構築中と資源は対象外。HP減少時に無敵時間は検査しない。
+    /// HPが0になればその通知内で死亡し、以降の移動・射撃・接触を止める。
     void OnCollision(Collider* other) override;
 
     // ワールド座標を取得

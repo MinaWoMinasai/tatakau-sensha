@@ -804,6 +804,14 @@
     <ClCompile Include="game\enemy\visual\NeonBossVisual.cpp" />
     <ClCompile Include="game\scene\GameScene.NeonBoss.cpp" />
     <ClInclude Include="game\enemy\visual\NeonBossVisual.h" />
+    <ClInclude Include="game\flow\CombatFlowController.h" />
+    <ClInclude Include="game\enemy\visual\BossVisualBridge.h" />
+    <ClInclude Include="game\player\PlayerDerivedStats.h" />
+    <ClInclude Include="game\player\PlayerMovement.h" />
+    <ClInclude Include="game\debug\GameplayScenario.h" />
+    <ClInclude Include="game\debug\GameplayScenarioSession.h" />
+    <ClCompile Include="game\scene\GameScene.GameplayScenario.cpp" />
+    <ClCompile Include="game\debug\GameplayScenarioSession.cpp" />
     <ClInclude Include="game\enemy\visual\NeonBossVisualState.h" />
     <ClInclude Include="DirectX\engine\3d\neon\NeonCharacterStyle.h" />
     <ClCompile Include="game\debug\NeonPreviewAnimations.cpp">

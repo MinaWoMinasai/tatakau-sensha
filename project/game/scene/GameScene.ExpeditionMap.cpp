@@ -76,6 +76,9 @@ void GameScene::InitializeExpeditionMap() {
     if(sessionContent) expeditionContent_=*sessionContent;
     wchar_t mapTest[8]{};expeditionMapAutoTest_=GetEnvironmentVariableW(L"CG2_TANK_MAP_AUTOTEST",mapTest,8)>0&&mapTest[0]==L'1';
     expeditionSeed_=static_cast<uint32_t>(GetTickCount64())^expeditionMapDefinition_.generationSeed;
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if(GameplayScenarioSession::Get().IsActive()) expeditionSeed_=GameplayScenarioSession::Get().GetSettings().seed;
+#endif
     if(expeditionMapAutoTest_) expeditionMapDefinition_=tankexp::DefaultExpeditionMap();
     else if(expeditionMapDefinition_.procedural) {
         tankexp::MapDefinition generated;
@@ -234,7 +237,11 @@ void GameScene::SetExpeditionBlueprint(int index) {
     if(index<0||index>2||!expeditionMapRun_.GetChosenNodeIds().empty()) return;
     expeditionBlueprint_=index;
     tankrun::Config config;config.combatSeconds=1000000;
-    tankRun_=tankrun::RunDirector(static_cast<uint32_t>(GetTickCount64()),config);
+    uint32_t blueprintSeed=static_cast<uint32_t>(GetTickCount64());
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if(GameplayScenarioSession::Get().IsActive()) blueprintSeed=GameplayScenarioSession::Get().GetSettings().seed;
+#endif
+    tankRun_=tankrun::RunDirector(blueprintSeed,config);
     tankRun_.ChooseLoadout(index);player_->ConfigurePrototypeLoadout(index);tankRun_.ChooseCore(index);ApplyTankRunCards();
 }
 
@@ -671,7 +678,7 @@ void GameScene::UpdateExpeditionMap(float dt) {
     if(cg2::kDeveloperTools&&Press(input_,DIK_F10)) RequestTankRunCapture("map_manual");
     if(Press(input_,DIK_M)) {tankExpeditionMusicEnabled_=!tankExpeditionMusicEnabled_;tankExpeditionAudio_.SetMusicVolume(tankExpeditionMusicEnabled_?0.55f:0);}
     if(Press(input_,DIK_N)) {tankExpeditionEffectsEnabled_=!tankExpeditionEffectsEnabled_;tankExpeditionAudio_.SetEffectsVolume(tankExpeditionEffectsEnabled_?0.8f:0);}
-    if(gameFlowState_!=GameFlowState::Playing) {UpdateExpeditionCredits(dt,true);RefreshTankExpeditionUi();return;}
+    if(combatFlow_.GetState()!=GameFlowState::Playing) {UpdateExpeditionCredits(dt,true);RefreshTankExpeditionUi();return;}
     if(tankExpedition_.IsCombat()&&!tankRunPaused_) {
         if(Press(input_,DIK_G)) {expeditionMapPreview_=!expeditionMapPreview_;tankExpeditionDetailsOpen_=false;RefreshTankExpeditionUi();}
         if(Press(input_,DIK_TAB)) {tankExpeditionDetailsOpen_=!tankExpeditionDetailsOpen_;expeditionMapPreview_=false;RefreshTankExpeditionUi();}
@@ -821,8 +828,8 @@ void GameScene::UpdateExpeditionMapValidation(float dt) {
     if(expeditionMapTestAge_>0.4f&&std::find(expeditionMapTestVisited_.begin(),expeditionMapTestVisited_.end(),state)==expeditionMapTestVisited_.end()&&!state.empty()) {
         expeditionMapTestVisited_.push_back(state);tankRunCapturePath_="generated/expedition_map/"+state+".png";
     }
-    if(gameFlowState_==GameFlowState::StageClear||expeditionMapTestElapsed_>140) {
-        if(gameFlowState_==GameFlowState::StageClear&&expeditionMapTestAge_<1.0f) return;
+    if(combatFlow_.GetState()==GameFlowState::StageClear||expeditionMapTestElapsed_>140) {
+        if(combatFlow_.GetState()==GameFlowState::StageClear&&expeditionMapTestAge_<1.0f) return;
         const bool success=expeditionMapRun_.IsComplete()&&player_->GetLevel()==1&&player_->GetExp()==0&&expeditionMapTestPurchases_>0&&expeditionMapTestEvolutions_>0&&expeditionMapTestHeals_>0;
         nlohmann::json report={{"completed",success},{"testMode",true},{"forcedCombatClear",true},{"elapsed",expeditionMapTestElapsed_},
             {"visited",expeditionMapRun_.GetVisitedNodeIds()},{"credits",expeditionMapRun_.GetCurrency()},
