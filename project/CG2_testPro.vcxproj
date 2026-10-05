@@ -181,7 +181,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\commom\ProceduralFlameRenderer.cpp" />
     <ClCompile Include="DirectX\engine\commom\RingManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\TrailInstance.cpp" />
-    <ClCompile Include="DirectX\engine\commom\TrailManager.cpp" />
+    <ClCompile Include="DirectX\engine\commom\TrailManager.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
+    </ClCompile>
     <ClCompile Include="DirectX\engine\2d\TextLabel.cpp" />
     <ClCompile Include="DirectX\engine\2d\TextRenderer.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\Bloom.cpp" />
@@ -564,6 +566,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\ui\TankButtonUI.h" />
     <ClInclude Include="game\scene\Fade.h" />
     <ClInclude Include="game\scene\GameScene.h" />
+    <ClInclude Include="game\flow\CombatFlowController.h" />
+    <ClInclude Include="game\enemy\visual\BossVisualBridge.h" />
+    <ClInclude Include="game\player\PlayerDerivedStats.h" />
+    <ClInclude Include="game\player\PlayerMovement.h" />
+    <ClInclude Include="game\debug\GameplayScenario.h" />
+    <ClInclude Include="game\debug\GameplayScenarioSession.h" />
     <ClInclude Include="game\run\TankRunDirector.h" />
     <ClInclude Include="game\run\TankRunCopy.h" />
     <ClInclude Include="game\run\TankExpeditionDirector.h" />
@@ -744,6 +752,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\debug\NeonPreviewAnimations.cpp" />
     <ClCompile Include="game\enemy\visual\NeonBossVisual.cpp" />
     <ClCompile Include="game\scene\GameScene.NeonBoss.cpp" />
+    <ClCompile Include="game\scene\GameScene.GameplayScenario.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="game\debug\GameplayScenarioSession.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClInclude Include="game\enemy\visual\NeonBossVisual.h" />
     <ClInclude Include="game\enemy\visual\NeonBossVisualState.h" />
     <ClInclude Include="DirectX\engine\3d\neon\NeonCharacterStyle.h" />

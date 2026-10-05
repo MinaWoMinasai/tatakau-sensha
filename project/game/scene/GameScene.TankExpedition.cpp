@@ -272,14 +272,14 @@ void GameScene::UpdateTankExpedition(float dt) {
     tankRunMenuAge_+=dt;tankRunAutoTime_+=dt;
     if(tankExpeditionTutorialValidation_.enabled) UpdateTankExpeditionTutorialValidation(dt);
     const auto triggered=[this](int key){return input_->IsKeyTriggered(static_cast<uint8_t>(key));};
-    if(tankExpedition_.IsCombat()&&!tankRunPaused_&&gameFlowState_==GameFlowState::Playing&&triggered(DIK_TAB)) {
+    if(tankExpedition_.IsCombat()&&!tankRunPaused_&&combatFlow_.GetState()==GameFlowState::Playing&&triggered(DIK_TAB)) {
         tankExpeditionDetailsOpen_=!tankExpeditionDetailsOpen_;RefreshTankExpeditionUi();
     }
     if(tankExpeditionDetailsOpen_) {
         if(triggered(DIK_ESCAPE)) tankExpeditionDetailsOpen_=false;
         return;
     }
-    if(!tankRunPaused_&&gameFlowState_==GameFlowState::Playing) UpdateTankExpeditionTutorial(dt);
+    if(!tankRunPaused_&&combatFlow_.GetState()==GameFlowState::Playing) UpdateTankExpeditionTutorial(dt);
     if(cg2::kDeveloperTools&&triggered(DIK_F10)) RequestTankRunCapture("manual");
     if(triggered(DIK_M)) {
         tankExpeditionMusicEnabled_=!tankExpeditionMusicEnabled_;
@@ -291,11 +291,11 @@ void GameScene::UpdateTankExpedition(float dt) {
         tankExpeditionAudio_.SetEffectsVolume(tankExpeditionEffectsEnabled_?0.80f:0.0f);
         SetEventCallout(tankExpeditionEffectsEnabled_?"SE ON":"SE OFF",0.7f);
     }
-    if(gameFlowState_==GameFlowState::Playing&&!player_->IsChangeMode()&&triggered(DIK_ESCAPE)) {
+    if(combatFlow_.GetState()==GameFlowState::Playing&&!player_->IsChangeMode()&&triggered(DIK_ESCAPE)) {
         tankRunPaused_=!tankRunPaused_;tankRunSelection_=0;tankRunMenuAge_=0;RefreshTankRunUi();
     }
-    if(gameFlowState_!=GameFlowState::Playing) {
-        if(tankRunAutoTest_&&gameFlowState_==GameFlowState::StageClear) {
+    if(combatFlow_.GetState()!=GameFlowState::Playing) {
+        if(tankRunAutoTest_&&combatFlow_.GetState()==GameFlowState::StageClear) {
             if(tankRunAutoStep_<100) {RequestTankRunCapture("result");tankRunAutoStep_=100;tankRunAutoTime_=0;}
             if(tankRunAutoTime_>1.2f) {
                 std::ofstream log(ExpeditionDirectory(tankExpeditionAutoVariant_)+"/validation.json");
@@ -547,7 +547,7 @@ void GameScene::DrawTankExpeditionUi() {
     if(player_->IsChangeMode()) return;
     cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
     const auto phase=tankExpedition_.GetPhase();
-    const bool result=gameFlowState_==GameFlowState::StageClear||(gameFlowState_==GameFlowState::GameOver&&gameFlowTimer_<=0);
+    const bool result=combatFlow_.GetState()==GameFlowState::StageClear||(combatFlow_.GetState()==GameFlowState::GameOver&&combatFlow_.GetTimer()<=0);
     const bool decision=tankRunPaused_||phase==EPhase::Reward||phase==EPhase::Route||phase==EPhase::Event||phase==EPhase::Evolution;
     if(decision||result||tankExpeditionDetailsOpen_) tankRunDimmer_->Draw();
     tankRunHudPanel_->Draw();tankRunHud_->Draw();tankExpeditionHpTrack_->Draw();tankExpeditionHpFill_->Draw();
@@ -690,7 +690,7 @@ void GameScene::DrawTankExpeditionTutorial() {
 }
 
 void GameScene::UpdateTankExpeditionAudio(float dt) {
-    const bool combat=tankExpedition_.IsCombat()&&gameFlowState_==GameFlowState::Playing;
+    const bool combat=tankExpedition_.IsCombat()&&combatFlow_.GetState()==GameFlowState::Playing;
     tankExpeditionAudio_.SetCombat(combat);
     tankExpeditionAudio_.SetBoss(tankExpedition_.GetRoomKind()==Room::Boss);
     tankExpeditionAudio_.SetDucked(IsTankRunMenuOpen()||phase_==Phase::kFadeOut);

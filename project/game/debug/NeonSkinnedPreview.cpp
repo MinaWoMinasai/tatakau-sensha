@@ -56,8 +56,61 @@ nlohmann::json ReadGlbMetadata() {
 }
 
 NeonSkinnedPreview::~NeonSkinnedPreview() {
-	// Scene teardown owns the model until this destructor completes. No GPU state is mutated here.
+	// Scene teardown occurs after its final frame's fence has completed and
+	// before the engine-owned descriptor manager is destroyed.
 	if (model_) dissolve_.Reset(*model_);
+	ReleaseResources();
+}
+
+void NeonSkinnedPreview::ReleaseResources() {
+	renderer_.ReleaseGpuResources();
+	if (model_) model_->ReleaseGpuResources();
+	object_.reset();
+	model_.reset();
+	ready_ = false;
+}
+
+NeonSkinnedPreview::ResourceLifecycleValidation NeonSkinnedPreview::ValidateResourceLifecycle(
+	cg2::Camera* camera, cg2::DebugCamera* debugCamera, unsigned repeats) {
+	ResourceLifecycleValidation result;
+	auto* common = cg2::Object3dCommon::GetInstance();
+	auto* descriptors = common->GetSrvManager();
+	if (!camera || !debugCamera || !descriptors || !common->GetDxCommon() || repeats == 0 || repeats > 8) {
+		result.error = "Preview lifecycle validation requires initialized cameras/managers and 1..8 repeats.";
+		return result;
+	}
+	result.initialDescriptors = descriptors->GetAllocatedCount();
+	// Embedded/material textures intentionally outlive each owner. Measure the
+	// baseline after this warm-up owner is destroyed, rather than treating the
+	// shared cache's first load as an instance leak.
+	{
+		NeonSkinnedPreview warmup;
+		warmup.Initialize(camera, debugCamera);
+		warmup.Load();
+		if (!warmup.ready_) result.error = "Preview warm-up failed: " + warmup.loadError_;
+	}
+	result.sharedCacheBaseline = descriptors->GetAllocatedCount();
+	result.descriptorsAfterTeardown = result.sharedCacheBaseline;
+	if (!result.error.empty()) return result;
+	for (unsigned repeat = 0; repeat < repeats; ++repeat) {
+		{
+			NeonSkinnedPreview preview;
+			preview.Initialize(camera, debugCamera);
+			preview.Load();
+			const uint32_t loaded = descriptors->GetAllocatedCount();
+			result.maxDescriptorsWhileLoaded = (std::max)(result.maxDescriptorsWhileLoaded, loaded);
+			if (!preview.ready_) result.error = "Preview reload failed: " + preview.loadError_;
+			else if (loaded != result.sharedCacheBaseline + 2)
+				result.error = "A loaded Preview must own exactly its palette and fallback-mask descriptors.";
+		}
+		result.descriptorsAfterTeardown = descriptors->GetAllocatedCount();
+		if (result.descriptorsAfterTeardown != result.sharedCacheBaseline)
+			result.error = "Preview teardown did not return both instance descriptors.";
+		if (!result.error.empty()) return result;
+		++result.completedRepeats;
+	}
+	result.passed = true;
+	return result;
 }
 
 void NeonSkinnedPreview::Initialize(cg2::Camera* camera, cg2::DebugCamera* debugCamera) {
@@ -123,6 +176,9 @@ void NeonSkinnedPreview::Load() {
 		cg2::StartupTrace::Count("neon_preview.joints", static_cast<double>(model_->GetSkeleton().joints.size()));
 		cg2::StartupTrace::Count("neon_preview.weight_assignments", model_->GetSkinCluster().GetAssignedInfluenceCount());
 	} catch (const std::exception& error) {
+		// A failed model/pipeline load can already own instance descriptors.
+		// Release those before a later Load retry replaces the model/renderer.
+		ReleaseResources();
 		enabled_ = false;
 		loadError_ = error.what();
 	}

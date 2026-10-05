@@ -480,6 +480,10 @@ GameScene::~GameScene()
 }
 
 void GameScene::Initialize() {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if (!titleDemo_ && GameplayScenarioSession::Get().IsActive())
+        cg2::rng.seed(GameplayScenarioSession::Get().GetSettings().seed);
+#endif
     cg2::StartupTrace::Scope startupScope(titleDemo_ ? "GameScene.Initialize.Demo" : "GameScene.Initialize.Play");
 
 	worldTransform_ = cg2::InitWorldTransform();
@@ -901,14 +905,20 @@ void GameScene::Initialize() {
 		neonBossDeveloperStartPending_ = neonBossAutoTest_;
 #endif
 	}
-
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    InitializeGameplayScenario();
+#endif
 }
 
 void GameScene::Update() {
 
-	// シーンの基準時間は1/60秒。メニュー・演出などはこの時間で進める。
-	const float baseDeltaTime = 1.0f / 60.0f;
+	// 通常の基準時間は1/60秒。検証では指定した固定時間でメニュー・演出も進める。
+	float baseDeltaTime = 1.0f / 60.0f;
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if (GameplayScenarioSession::Get().IsActive()) {
+        baseDeltaTime = GameplayScenarioSession::Get().GetSettings().fixedDeltaTime;
+        if (PrepareGameplayScenarioFrame()) return;
+    }
 	developerGameCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
 	UpdateNeonBossDeveloperValidation();
 	if (IsNeonShowcaseActive()) {
@@ -976,8 +986,13 @@ void GameScene::Update() {
 	// 戦闘へ渡す時間は基準時間に演出の時間倍率を掛け、命中時の短い停止中はさらに減速する。
 	finalDeltaTime = baseDeltaTime * timeScale_;
 	if(expeditionImpactHold_>0) {expeditionImpactHold_=(std::max)(0.0f,expeditionImpactHold_-baseDeltaTime);finalDeltaTime*=0.08f;}
-	// 時間倍率が基準時間の95%を超え、命中時の停止も終わったら1/60秒へ戻す。
-	if (finalDeltaTime * 60.0f > 0.95f && expeditionImpactHold_<=0) {
+	// 時間倍率が基準時間の95%を超え、命中時の停止も終わったら基準時間へ戻す。
+	bool restoreBaseTime = finalDeltaTime * 60.0f > 0.95f;
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if (GameplayScenarioSession::Get().IsActive())
+        restoreBaseTime = gameplaytest::ScenarioShouldSnapTimeScale(finalDeltaTime, baseDeltaTime);
+#endif
+	if (restoreBaseTime && expeditionImpactHold_<=0) {
 		finalDeltaTime = baseDeltaTime;
 	}
 	if (!titleDemo_ && input_->IsTrigger(input_->GetKey()[DIK_H], input_->GetPreKey()[DIK_H])) {
@@ -996,8 +1011,8 @@ void GameScene::Update() {
 
 	// メニュー・進化画面・結果表示中は戦闘用の時間を0にする。演出用の基準時間は保つ。
 	if (IsTankRunMenuOpen() || player_->IsChangeMode() ||
-		gameFlowState_ == GameFlowState::StageClear ||
-		gameFlowState_ == GameFlowState::GameOver) {
+		combatFlow_.GetState() == GameFlowState::StageClear ||
+		combatFlow_.GetState() == GameFlowState::GameOver) {
 		finalDeltaTime = 0.0f;
 	}
 
@@ -1085,7 +1100,7 @@ void GameScene::Update() {
 		};
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 		// Capture fixture only: show both actors with the same normal top-down camera.
-		if (neonBossAutoTest_ && IsRunRivalActive()) {
+		if ((neonBossAutoTest_ || GameplayScenarioSession::Get().IsActive()) && IsRunRivalActive()) {
 			const auto center = (playerPos + enemy_->GetWorldPosition()) * 0.5f;
 			targetCameraPos.x = (std::clamp)(center.x, kMarginX, kMaxCameraX);
 			targetCameraPos.y = (std::clamp)(center.y, kMarginY, kMaxCameraY);
@@ -1123,7 +1138,7 @@ void GameScene::Update() {
 	groundObj_->Update();
 
 	// 戦闘本体はプレイ中・フェード完了後・遠征メニューが閉じている場合にだけ進める。
-	if (gameFlowState_ == GameFlowState::Playing && phase_ == Phase::kMain && !IsTankRunMenuOpen()) {
+	if (combatFlow_.GetState() == GameFlowState::Playing && phase_ == Phase::kMain && !IsTankRunMenuOpen()) {
 		if (phase_ == Phase::kMain && !player_->IsChangeMode()) {
 			playTime_ += baseDeltaTime;
 		}
@@ -1219,16 +1234,16 @@ void GameScene::Update() {
 	} else {
 		// 戦闘本体を呼ばないフレームでも、撃破・死亡演出は基準時間で進める。
 		collisionDebugRingManager_->Clear();
-		if (gameFlowState_ == GameFlowState::BossDefeatSequence && enemy_) {
+		if (combatFlow_.GetState() == GameFlowState::BossDefeatSequence && enemy_) {
 			enemy_->UpdateDefeatPresentation(baseDeltaTime);
 		}
-		if (gameFlowState_ == GameFlowState::GameOver && player_) {
+		if (combatFlow_.GetState() == GameFlowState::GameOver && player_) {
 			player_->UpdateDefeatPresentation(baseDeltaTime);
 		}
 	}
 	// Read the final HP/phase after every attack and collision; death presentation continues independently.
 	UpdateNeonBossVisual(enemy_->IsDead() ? baseDeltaTime :
-		(gameFlowState_ == GameFlowState::Playing && !IsTankRunMenuOpen() && !player_->IsChangeMode() ? finalDeltaTime : 0.0f));
+		(combatFlow_.GetState() == GameFlowState::Playing && !IsTankRunMenuOpen() && !player_->IsChangeMode() ? finalDeltaTime : 0.0f));
 	// 戦闘停止中も、残っている演出を進め、未消費の特殊戦闘イベントを受け取る。
 	UpdateSpecialCombatPresentation(baseDeltaTime);
 	screenEffectDirector_.SetUpgradeMenuOpen(player_->IsChangeMode() || IsTankRunMenuOpen());
@@ -1265,7 +1280,7 @@ void GameScene::Update() {
 
 	UpdateDeathPostPulse(baseDeltaTime);
 	const float particleDeltaTime =
-		gameFlowState_ == GameFlowState::Playing && !expeditionTransition_.IsActive() ? finalDeltaTime : baseDeltaTime;
+		combatFlow_.GetState() == GameFlowState::Playing && !expeditionTransition_.IsActive() ? finalDeltaTime : baseDeltaTime;
     {
         cg2::RuntimeProfiler::CpuScope scope("Particles Update");
 	    cg2::ParticleManager::GetInstance()->Update(particleDeltaTime, camera.get(), debugCamera.get());
@@ -1290,7 +1305,7 @@ void GameScene::Update() {
 		}
 		break;
 	case Phase::kMain:
-		if (gameFlowState_ == GameFlowState::Playing &&
+		if (combatFlow_.GetState() == GameFlowState::Playing &&
 			!prototypeRun_ &&
 			!evolutionUiWasOpenAtFrameStart &&
 			input_->IsTrigger(input_->GetKey()[DIK_ESCAPE], input_->GetPreKey()[DIK_ESCAPE])) {
@@ -1314,6 +1329,9 @@ void GameScene::Update() {
 	dashGide->Update();
 	toTitleGide->Update();
 	if (!titleDemo_) VerifyTitleDemoTransition(baseDeltaTime);
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    RecordGameplayScenarioFrame();
+#endif
 
 }
 
@@ -1730,7 +1748,7 @@ void GameScene::UpdateTutorialText()
 void GameScene::DrawTutorialUi()
 {
 	if (!tutorialConfig_.enabled || !tutorialUiVisible_ || !player_ ||
-		gameFlowState_ != GameFlowState::Playing) {
+		combatFlow_.GetState() != GameFlowState::Playing) {
 		return;
 	}
 	const bool compactEvolutionHint =
@@ -1821,15 +1839,10 @@ void GameScene::UpdateGameplayEventEffects(float, bool)
 
 	if(expeditionRun_&&IsRunRivalActive()&&enemy_->GetHp()<previousBossHp_) tankExpeditionAudio_.Hit();
 	previousBossHp_ = enemy_->GetHp();
-	// 遠征で自機とボスが同時に死亡した場合は自機の死亡を先に扱う。通常モードはボス撃破が先。
-	if (expeditionRun_ && player_->IsDead() && !playerDeathHandled_) {
-		BeginGameOver();
-	} else if (IsRunRivalActive() && enemy_->IsDead() && !bossDefeatHandled_ &&
-		(!expeditionRun_ || tankExpedition_.GetRoomKind() == tankexp::RoomKind::Boss)) {
-		BeginBossDefeatSequence();
-	} else if (player_->IsDead() && !playerDeathHandled_) {
-		BeginGameOver();
-	}
+	const auto outcome = SelectCombatDeathOutcome({expeditionRun_, player_->IsDead(), playerDeathHandled_,
+		IsRunRivalActive(), enemy_->IsDead(), bossDefeatHandled_, expeditionRun_ && tankExpedition_.GetRoomKind() == tankexp::RoomKind::Boss});
+	if (outcome == CombatDeathOutcome::PlayerDeath) BeginGameOver();
+	else if (outcome == CombatDeathOutcome::BossDefeat) BeginBossDefeatSequence();
 }
 
 void GameScene::BeginBossDefeatSequence()
@@ -1839,17 +1852,11 @@ void GameScene::BeginBossDefeatSequence()
 	if (expeditionRun_) tankExpedition_.CompleteRoom();
 	if (prototypeRun_) { tankRun_.CompleteBoss(); RefreshTankRunUi(); }
 	bossDefeatHandled_ = true;
-	gameFlowState_ = GameFlowState::BossDefeatSequence;
+	combatFlow_.BeginBossDefeat(screenEffectDirector_.GetConfig().dissolveSpeed,
+		screenEffectDirector_.GetConfig().bossDefeatImpactDelay);
 	if (flowBannerText_) {
 		flowBannerText_->SetText("ボス撃破");
 	}
-	gameFlowTimer_ = (std::clamp)(
-		2.30f / (std::max)(0.10f, screenEffectDirector_.GetConfig().dissolveSpeed),
-		1.10f,
-		2.20f);
-	bossDefeatSequenceDuration_ = gameFlowTimer_;
-	bossDefeatImpactDelayTimer_ = screenEffectDirector_.GetConfig().bossDefeatImpactDelay;
-	bossDefeatImpactTriggered_ = false;
 	const cg2::Vector2 center = WorldToScreenUv(enemy_->GetWorldPosition());
 	screenEffectDirector_.TriggerBossDefeat(center);
 	cameraShakeDuration_ = screenEffectDirector_.GetConfig().cameraShakeDuration * 4.5f;
@@ -1865,11 +1872,10 @@ void GameScene::BeginGameOver()
 	if (expeditionRun_) tankExpedition_.MarkDead();
 	if (prototypeRun_) { tankRun_.MarkDead(); RefreshTankRunUi(); }
 	playerDeathHandled_ = true;
-	gameFlowState_ = GameFlowState::GameOver;
+	combatFlow_.BeginGameOver(screenEffectDirector_.GetConfig().gameOverDuration);
 	if (flowBannerText_) {
 		flowBannerText_->SetText("GAME OVER");
 	}
-	gameFlowTimer_ = screenEffectDirector_.GetConfig().gameOverDuration;
 	screenEffectDirector_.TriggerGameOver();
 	TriggerDeathPostPulse(player_->GetWorldPosition(), 1.10f);
 	cameraShakeDuration_ = 0.42f;
@@ -1881,37 +1887,20 @@ void GameScene::BeginGameOver()
 
 void GameScene::UpdateGameFlow(float baseDeltaTime)
 {
-	if (gameFlowState_ == GameFlowState::BossDefeatSequence) {
-		if (!bossDefeatImpactTriggered_) {
-			bossDefeatImpactDelayTimer_ = (std::max)(0.0f, bossDefeatImpactDelayTimer_ - baseDeltaTime);
-			if (bossDefeatImpactDelayTimer_ <= 0.0f) {
-				bossDefeatImpactTriggered_ = true;
-				TriggerDeathPostPulse(enemy_->GetWorldPosition(), 1.55f);
-			}
+	const auto events = combatFlow_.Update(baseDeltaTime, expeditionMapEnabled_ && !expeditionCredits_.empty());
+	if (events.bossImpact) TriggerDeathPostPulse(enemy_->GetWorldPosition(), 1.55f);
+	if (events.bossResultReady) {
+		if (expeditionMapEnabled_) {
+			expeditionMapRun_.CompleteCombat(); expeditionCollectAll_ = false;
 		}
-		gameFlowTimer_ = (std::max)(0.0f, gameFlowTimer_ - baseDeltaTime);
-		if (gameFlowTimer_ <= 0.0f) {
-			if(expeditionMapEnabled_) {
-				// マップ遠征の最終戦は撃破演出に加え、残る通貨の回収完了も待ってから結果を確定する。
-				if(!expeditionCredits_.empty()) return;
-				expeditionMapRun_.CompleteCombat();expeditionCollectAll_=false;
-			}
-			EnterResultState(true);
-		}
-		return;
+		EnterResultState(true);
 	}
-
-	if (gameFlowState_ == GameFlowState::GameOver && gameFlowTimer_ > 0.0f) {
-		gameFlowTimer_ = (std::max)(0.0f, gameFlowTimer_ - baseDeltaTime);
-		if (gameFlowTimer_ <= 0.0f) {
-			UpdateResultText();
-		}
-		return;
-	}
+	if (events.gameOverTextReady) UpdateResultText();
+	if (events.waitForPresentation) return;
 
 	if (titleDemo_) return;
-	if (gameFlowState_ != GameFlowState::StageClear &&
-		gameFlowState_ != GameFlowState::GameOver) {
+	if (combatFlow_.GetState() != GameFlowState::StageClear &&
+		combatFlow_.GetState() != GameFlowState::GameOver) {
 		return;
 	}
 	if (prototypeRun_) {
@@ -1959,11 +1948,10 @@ void GameScene::UpdateGameFlow(float baseDeltaTime)
 
 void GameScene::EnterResultState(bool stageClear)
 {
-	gameFlowState_ = stageClear ? GameFlowState::StageClear : GameFlowState::GameOver;
+	combatFlow_.EnterResult(stageClear);
 	if (flowBannerText_) {
 		flowBannerText_->SetText(expeditionRun_ ? (stageClear ? "遠征クリア" : "遠征終了") : (stageClear ? "STAGE CLEAR" : "GAME OVER"));
 	}
-	gameFlowTimer_ = 0.0f;
 	resultSelection_ = 0;
 	UpdateResultText();
 }
@@ -2168,6 +2156,7 @@ void GameScene::RecordDeveloperFrame(cg2::DirectXCommon& dx) {
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 	if (neonSkinnedPreview_) neonSkinnedPreview_->RecordShowcaseCapture(dx);
 	RecordNeonBossDeveloperFrame(dx);
+    RecordGameplayScenarioCapture(dx);
 	if (developerGameCapture_.HasRequest())
 		developerGameCapture_.SetFrameMetadata(MakeDeveloperGameCaptureMetadata(dx));
 	developerGameCapture_.Record(dx);
@@ -2309,7 +2298,7 @@ void GameScene::DrawPostEffect3D() {
 
 	profile("Base Objects", true, [&]() {
 		player_->Draw(playerNeonRenderMode_ == 0);
-		if (!UseNeonBossVisual() && !IsTutorialCombatSuppressed() && gameFlowState_ != GameFlowState::BossDefeatSequence) {
+		if (!UseNeonBossVisual() && !IsTutorialCombatSuppressed() && combatFlow_.GetState() != GameFlowState::BossDefeatSequence) {
 			enemy_->Draw(bossNeonRenderMode_ == 0);
 		}
 		if (!IsTutorialCombatSuppressed()) {
@@ -2395,7 +2384,7 @@ void GameScene::DrawPostEffect3D() {
 			if (useEnemyPost && !UseNeonBossVisual() &&
 				!IsTutorialCombatSuppressed() &&
 				bossNeonRenderMode_ == 0 &&
-				gameFlowState_ != GameFlowState::BossDefeatSequence) {
+				combatFlow_.GetState() != GameFlowState::BossDefeatSequence) {
 				enemy_->DrawBodyOnly();
 			}
 			if (useExpEnemyPost && !IsTutorialCombatSuppressed()) {
@@ -2492,13 +2481,13 @@ void GameScene::DrawAfterPostEffect3D() {
 		if (!expeditionRun_) player_->DrawUpgradeHudAfterPostEffects();
 	}
 	DrawGameTextBloom();
-	if (!UseNeonBossVisual() && gameFlowState_ == GameFlowState::BossDefeatSequence &&
+	if (!UseNeonBossVisual() && combatFlow_.GetState() == GameFlowState::BossDefeatSequence &&
 		enableEnemyPostEffect_ &&
 		bossNeonRenderMode_ == 0) {
 		cg2::BloomParam savedBossParam = enemyPostEffect_->GetParam();
 		cg2::BloomParam defeatParam = savedBossParam;
-		const float progress = bossDefeatSequenceDuration_ > 0.0f
-			? (std::clamp)(1.0f - gameFlowTimer_ / bossDefeatSequenceDuration_, 0.0f, 1.0f)
+		const float progress = combatFlow_.GetBossDefeatDuration() > 0.0f
+			? (std::clamp)(1.0f - combatFlow_.GetTimer() / combatFlow_.GetBossDefeatDuration(), 0.0f, 1.0f)
 			: 1.0f;
 		defeatParam.dissolveThreshold = progress;
 		defeatParam.dissolveEdgeWidth = 0.075f;
@@ -2519,7 +2508,7 @@ void GameScene::DrawAfterPostEffect3D() {
 		playerNeonRenderMode_ != 0 ||
 		!slowMotionPostActive_ ||
 		!keepPlayerColorDuringSlow_ ||
-		gameFlowState_ != GameFlowState::Playing) {
+		combatFlow_.GetState() != GameFlowState::Playing) {
 		return;
 	}
 
@@ -5519,7 +5508,7 @@ void GameScene::DrawGameTextBloom()
 	// 強化段数バー表示中は、項目名と +/- のネオン源も追加される。
 	labels.reserve(32);
     if(expeditionMapEnabled_&&tankExpedition_.IsCombat()&&!tankRunPaused_&&tankRunObjectiveText_) labels.push_back(tankRunObjectiveText_.get());
-	if (gameFlowState_ == GameFlowState::Playing) {
+	if (combatFlow_.GetState() == GameFlowState::Playing) {
 		if (!expeditionRun_) player_->AppendGameplayNeonTextLabels(labels);
 		if (tutorialConfig_.enabled && tutorialUiVisible_) {
 			if (tutorialTitleText_) labels.push_back(tutorialTitleText_.get());
@@ -5529,12 +5518,12 @@ void GameScene::DrawGameTextBloom()
 	if (eventCalloutTimer_ > 0.0f && eventCalloutText_) {
 		labels.push_back(eventCalloutText_.get());
 	}
-	if (gameFlowState_ != GameFlowState::Playing && flowBannerText_) {
+	if (combatFlow_.GetState() != GameFlowState::Playing && flowBannerText_) {
 		labels.push_back(flowBannerText_.get());
 	}
 	const bool showResult =
-		gameFlowState_ == GameFlowState::StageClear ||
-		(gameFlowState_ == GameFlowState::GameOver && gameFlowTimer_ <= 0.0f);
+		combatFlow_.GetState() == GameFlowState::StageClear ||
+		(combatFlow_.GetState() == GameFlowState::GameOver && combatFlow_.GetTimer() <= 0.0f);
 	if (showResult && !prototypeRun_) {
 		if (resultSummaryText_) {
 			labels.push_back(resultSummaryText_.get());
@@ -6853,11 +6842,11 @@ void GameScene::DrawSprite() {
 	DrawHpBarBatches();
 	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
 	if (!expeditionRun_) player_->DrawSprite();
-	if (gameFlowState_ == GameFlowState::Playing) {
+	if (combatFlow_.GetState() == GameFlowState::Playing) {
 		player_->DrawEncyclopedia();
 	}
 
-	if (controlGuideText_ && !prototypeRun_ && !tutorialConfig_.enabled && gameFlowState_ == GameFlowState::Playing && !player_->IsChangeMode()) {
+	if (controlGuideText_ && !prototypeRun_ && !tutorialConfig_.enabled && combatFlow_.GetState() == GameFlowState::Playing && !player_->IsChangeMode()) {
 		controlGuideText_->SetPosition(showControlGuide_ ? cg2::Vector2{ 22.0f, 636.0f } : cg2::Vector2{ 22.0f, 690.0f });
 		controlGuideText_->Draw();
 	}
@@ -6876,9 +6865,9 @@ void GameScene::DrawSprite() {
 		eventCalloutText_->Draw();
 	}
 	const bool showResult =
-		gameFlowState_ == GameFlowState::StageClear ||
-		(gameFlowState_ == GameFlowState::GameOver && gameFlowTimer_ <= 0.0f);
-	if (flowBannerText_ && gameFlowState_ != GameFlowState::Playing && !(prototypeRun_ && showResult)) {
+		combatFlow_.GetState() == GameFlowState::StageClear ||
+		(combatFlow_.GetState() == GameFlowState::GameOver && combatFlow_.GetTimer() <= 0.0f);
+	if (flowBannerText_ && combatFlow_.GetState() != GameFlowState::Playing && !(prototypeRun_ && showResult)) {
 		flowBannerText_->Draw();
 	}
 	if (showResult && !prototypeRun_) {
