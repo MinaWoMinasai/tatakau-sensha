@@ -15,6 +15,7 @@ void PlayerDrone::ConfigureRunAttack(const AttackParam& param, float reloadSecon
 
 void PlayerDrone::Attack(float deltaTime)
 {
+    if (isDead_ || hp_ <= 0) return;
     if (runAttackEnabled_) {
         runShotCooldown_ = (std::max)(0.0f, runShotCooldown_ - deltaTime);
         // 待ち時間は任務中も減らすが、通常射撃は護衛中だけ受け付ける。
@@ -144,6 +145,8 @@ void PlayerDrone::Initialize(const cg2::Vector3& position, const cg2::Vector3& v
 
 void PlayerDrone::Update(cg2::Camera* viewProjection, Stage& stage, const cg2::Vector3& playerPosition, float deltaTime)
 {
+    // Damage resolves death immediately; never move or fire a terminal actor.
+    if (isDead_ || hp_ <= 0) { Die(); return; }
     // 遠征は渡された秒数、旧方式は呼び出しごとに固定1/60秒で進める。
     const float dt = runAttackEnabled_ ? (std::max)(0.0f, deltaTime) : 1.0f / 60.0f;
     invincibleTimer_ -= dt;
@@ -279,6 +282,7 @@ cg2::Vector3 PlayerDrone::GetWorldPosition() const
 
 void PlayerDrone::OnCollision(Collider* other)
 {
+    if (isDead_ || hp_ <= 0) return;
     // 再構築中と資源への接触は対象外。予告・突撃・帰還はAvailableに含まれる。
     if (!mission_.Available())
         return;
@@ -290,6 +294,7 @@ void PlayerDrone::OnCollision(Collider* other)
     if (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet || other->GetCollisionAttribute() == kCollisionAttributeEnemy ||
         other->GetCollisionAttribute() == kCollisionAttributeExpEnemy) {
         hp_--;
+        if (hp_ <= 0) { Die(); return; }
     }
 
     cg2::Vector3 hitDir = worldTransform_.translate - other->GetWorldPosition();
@@ -324,11 +329,11 @@ cg2::AABB PlayerDrone::GetAABB()
 
 void PlayerDrone::Damage()
 {
+    if (isDead_ || hp_ <= 0) return;
     if (invincibleTimer_ <= 0.0f) {
-        if (hp_ > 0) {
-        }
         hp_--;
         invincibleTimer_ = 2.0f;
+        if (hp_ <= 0) Die();
     }
 }
 
@@ -337,5 +342,7 @@ void PlayerDrone::Die()
     if (isDead_)
         return;
 
+    hp_ = 0;
+    velocity_ = {};
     isDead_ = true;
 }

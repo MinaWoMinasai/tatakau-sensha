@@ -80,10 +80,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     cg2::StartupTrace::Mark("initialization.ready");
     cg2::StartupTrace::Flush();
 
-    game.Run();
+    const int exitCode = game.Run();
     game.Finalize();
     cg2::StartupTrace::Mark("process.finalized");
     cg2::StartupTrace::Flush();
 
-    return 0;
+    return exitCode;
 }

@@ -2,6 +2,8 @@
 
 実施日: 2026-10-05（Asia/Tokyo）。既存の2D戦闘を基準に、既存モデル・GPU Skinning・NeonSkinnedRenderer・Directional Dissolveを本編へ接続した作業記録。
 
+最初の節はNeon統合時の履歴。現在の`refactor/engine`での再確認と全体整理後の証拠は末尾のIteration 2／3に記録する。各節のbranch、binary、画像を区別して読む。
+
 ## 開始状態と対象
 
 - branch: `feature/neon-boss-gameplay-integration`
@@ -224,3 +226,98 @@ source確認でも毎フレームのmodelロード・clip生成・scan bounds計
 `git diff --stat`は追跡済み19ファイル、253 insertions / 83 deletions。未追跡は9表示項目（`visual/`内3ファイルを展開すると新規11ファイル）。変更ファイルと役割は上の一覧のとおり。新規Visual、分離したScene接続、共有preset、回帰テスト、文書に限定され、モデル本体・戦闘balance・ライセンス本文は変えていない。build/capture/package/dump類は既存ignore対象の`generated/`へ保存し、差分に含まれない。
 
 最終`git diff --check`はexit 0。GitのLF→CRLF注意表示はあるが空白errorはない。原文は[final-git-status.txt](../generated/neon-boss-integration/final-git-status.txt)と[final-git-diff-stat.txt](../generated/neon-boss-integration/final-git-diff-stat.txt)へ保存。diffを自己レビューし、別agentでもcombat/lifetimeと最終画像を確認した。
+
+## Iteration 2での再確認記録（2026-10-05）
+
+Goal objective `3e3b5fe0-2e36-45af-b3af-a12cf5273b6b/goal-objective.md` を再読し、Iteration 2のコードでNeon統合を検証した。上記は前回の統合作業、この節は後続の全体整理途中で取得したcheckpointの履歴である。さらに後のRunner実装と最終検証は末尾と全体整理の文書に記録する。
+
+- 再確認開始時branch: `refactor/engine`、HEAD: `5b531d6eb3f2437ad8ab552f47f512ee8e1febd2`。
+- このcheckpoint開始時には全体整理Goalで作業中の変更が15追跡ファイルと未追跡ファイルに存在した。これらを保持してNeonの確認を先に実行した。この再確認単独を全体整理Goalの完成とは扱わない。
+- 現在のBossVisualBridgeは、Enemyの値を読み、行動・phase 2・遭遇resetを返す。0.70秒の単発攻撃表示と前回位置／射撃数の履歴を所有し、ゲーム状態への参照・書き戻しを持たない。既存のmapping、更新順序、死亡latchを維持している。
+- Previewの破棄と部分ロード失敗時に、モデルとRendererのinstance資源を明示解放する変更も検証した。共有TextureManager cacheの寿命とは区別する。
+- この再確認で変更した実装関連ファイルは `project/tools/test_neon_bloom_comparison.py`。既存の古い単一Freeze条件を探すチェックを、現在のBloom／Neon双方のFreezeとTitle除外、ゲーム更新前の無条件returnを検査する形へ修正した。Draw・時間0更新・fence・ImGui前captureの検査を保持し、条件欠落など9種類の不正fixtureを拒否する。
+- この文書に現在の結果を追記した。モデル、shader、Bloom設定、ゲームbalance、ライセンス本文は変更していない。commit / push / merge / checkout / reset / cleanは行っていない。
+
+検証は `generated/repository-engineering-overhaul/` に保存した。開始HEADのbaselineと、変更後の実行ファイルによる確認は別の記録として保持する。
+
+| 検証 | 現在の結果と証拠 |
+| --- | --- |
+| Development / Release x64 | 両方exit 0。`iteration-2-development-build.log` / `iteration-2-release-build.log`。専用OutDir／IntDirを使用し、baseline実行ファイルは上書きしない |
+| 現在のbuild profile | 実行ファイルSHA256と`CG2.build.json`が一致。DevelopmentのDeveloper Toolsはtrue、Releaseはfalse |
+| CombatFlow / BossVisualBridge | `neon-scope-combat-presentation.log` PASS。死亡優先順位、待ち時間、単発攻撃保持、Rival／Prototype mapping、遭遇reset |
+| Visual / 実Enemy死亡 | `neon-scope-neon-boss-visual.log` / `neon-scope-boss-lifecycle.log` PASS。非restart、不可逆死亡、致死直後のAI／射撃／衝突停止、Dissolve終端 |
+| Preview owner lifecycle | `neon-scope-preview-lifecycle.log` PASS。実ownerメソッドをadapterで検証し、部分失敗／retry／二重解放防止／100回の再生成を確認 |
+| 実GLB／Animation／palette | `neon-scope-animations.log` PASS。既存2clip、18,955 weighted vertex、blend／停止／Seek、palette SRV返却 |
+| Neon GPU pipeline（WARP） | `neon-scope-pipeline-warp.log` PASS。実DXC／描画、Dissolve終端のMRT／Depth消去、Renderer SRV返却 |
+| Rival / Prototype / Run | `neon-scope-rival.log` / `neon-scope-run.log` PASS |
+| Freeze source contract | `neon-freeze-test-repair.log`と`neon-freeze-test-repair-self-review.log`で13 testが2回PASS。`neon-freeze-source-contract.log`で関連33 check PASS |
+| 現在のDevelopment実機 | `current-neon/test_neon_boss_runtime_current.log` PASS。13枚、5組の同状態ON/OFF比較、死亡停止、Dissolve 0／約0.5／1、資源生成1／解放1、終端CB 0 |
+| 現在のRelease実機 | `current-neon/test_tank_combat_runtime_current.log` PASS。6種AI、Rival 25発射／5Dash／5Reload、phase 2、壁交差・貫通・reload違反0 |
+| 現在のRelease package | `current-neon/release-package/`を作成・監査してPASS。253 files、62,911,040 bytes、fresh状態。実行ファイルSHA256は現在のReleaseと一致。隔離コピーを別cwdから起動し、Title→遠征→Title→新規開始を実際に完了、exit 0。Developer／ImGui／Profilerのruntime counterはすべて0。実行後も未実行packageの監査PASS。`current-neon/current-package-runtime-summary.json`に記録。既存のpackage policyをscratchへ読み、build directoryの指定だけ専用OutDirへ合わせた |
+| 開始HEADの全既存検証 | `baseline/baseline-summary.md` / `results.json`。全42 PowerShell scriptを実行しvariant等を含む50 case PASS。別cwdからの配布Title→本編→再出撃もPASS。Pythonの古いFreezeチェックの失敗は元のbaseline記録を保持し、修正後の結果と区別 |
+
+現在の実機captureは `generated/repository-engineering-overhaul/current-neon/runtime-project/generated/neon_boss_gameplay/`。以前の画像を上書きせず、新しい実行ファイルから保存した。rootと別agentで代表画像を確認し、全身の欠け、明らかな軸ずれ、独立したOutline、極端な白飛び、終端のボス残像は見つからなかった。中間に脚が残り、終端に人型が消える。既存の撃破grayscale／grainや他の敵は残る。人型の四肢は既存円形colliderの外へ広がるため、大きさ・向きの自然さは前述のユーザー目視確認項目を維持する。
+
+実機wrapperは起動先とcapture先を隔離し、既存の `CG2_TITLE_AUTOTEST=1` によるbackground実行許可を使用した。直接`--project`でGameSceneを選び、TitleSceneは生成しない。隔離先には以前のTitle検証reportを置かず、Neon／Combatのassertionは変更していない。通常のfocus動作を変更するproduction修正は加えていない。手順と実行ファイルhashは `current-neon/run-manifest.json` に記録した。
+
+現在のON/OFF測定はRTX 4060 Laptop GPU、Development、1280×720、debug layer ON／GPU Based Validation OFF、各30frame warmup後120有効GPU frame。撮影copyは測定対象外。詳細は `current-neon/performance-summary.json` と実CSVを参照する。
+
+| scope（ms） | OFF 平均 / 中央値 / P95 / 最大 | ON 平均 / 中央値 / P95 / 最大 |
+| --- | ---: | ---: |
+| GPU frame | 3.0003 / 2.9507 / 3.4202 / 3.4775 | 4.4160 / 4.4170 / 4.5015 / 4.5343 |
+| Neon Boss描画 | — | 0.6495 / 0.6385 / 0.7854 / 0.8632 |
+| frame elapsed | 16.6884 / 16.6669 / 16.7974 / 16.9651 | 16.7115 / 16.6669 / 16.8528 / 19.1421 |
+
+順次測定でclock／温度は制御していない。過去の別runからの差を高速化とは扱わず、親子GPU scopeも加算しない。この再確認では性能最適化やVisualの好みによる調整は採用していない。生存比較のdescriptor数は各ペアで同じで、モデル／clip／Rendererの生成は1回、終端で解放1回／CB 0。scene全体のdescriptor差分だけで個別資源解放数を判定しない。
+
+Release戦闘fixtureの10枚は固定した開始HEADの画像とSHA256がすべて一致した（`current-neon/combat-capture-byte-comparison.json`）。その中のRival／Dashには下端の欠け、phase 2には画面外のボスがあり、開始HEADでも同じ。通常の自機cameraと戦闘fixtureの位置関係によるもので、全身の画質評価にはDevelopmentの13枚を使う。この10例の一致を他の描画やGPU環境の完全決定性の保証には広げない。
+
+このcheckpoint終了時もbranch／HEADは同じ。全差分には保持した全体整理の作業が含まれ、この再確認で追加したのはPython検証修正とこの追記のみ。checkpointのstatus／diff統計は `current-neon/final-git-status.txt` / `current-neon/final-git-diff-stat.txt` に保存した。この時点ではGameplayScenario policyは未接続だった。生成物は既存ignore対象に保存し、ユーザーの既存変更を破棄していない。
+
+## 全体整理Iteration 3への接続
+
+登録中の全体整理GoalとNeon統合の制約を維持して、Developer限定のScenario Sessionを実際のGameScene、Player、Enemy、room／map、SceneManagerによるrestartへ接続した。13ケースの最初の実機gateはすべてPASSし、Neonの生存と実HP0からのDissolve終端を含む。死亡終端はVisual生成1／解放1／CB0、Previewは共有cacheのwarmup後baselineへdescriptorを返す3回の実D3D再生成を確認した。
+
+通常Gameplayがauthoritativeで、Presentation／rendererから戦闘状態を決める依存は追加しない。Developer Sessionが有効な場合に限りseed／dt／input／撮影frameを指定する。ReleaseでSessionのAPI／translation unitを除外し、通常プレイヤーに検証UIを追加しない。
+
+最新の反復、画像、性能、全test／build／packageの証拠は [全体整理README](repository-engineering-overhaul/README.md)、[Scenario記録](repository-engineering-overhaul/deterministic-scenarios.md)、[最終検証](repository-engineering-overhaul/final-validation.md)へ記録する。Iteration 2の成功を後続コードの最終認証へ流用しない。
+
+## 最終treeのNeon再検証（Iteration 3）
+
+branchは`refactor/engine`、HEADは開始と同じ`5b531d6eb3f2437ad8ab552f47f512ee8e1febd2`。全体整理の開始statusはcleanで、今回の差分は未commitのまま保持する。Sceneの死亡優先順位／結果時計とBossの値からVisualへのmappingを専用componentへ分離し、Playerのstats／movementを値contractへ分離した。通常2D Gameplay→BossVisualBridge→NeonBossVisual→既存rendererという一方向の依存、通常camera、既存clipのfallback、Bloom設定、素材とbalanceを維持する。詳細な全変更一覧は全体整理READMEにある。
+
+入口の終了コード修正前に行った一括検証のDevelopment／Release x64は共にwarning／error 0。この時のDevelopment SHA256は`CE7D899F92D73B554BB250050970223FD65FEC4C1966AB9940775DC6E425E13F`、Releaseは`52AC736ED93301B7E9E1CABB2E1354C7EC638FA4631ED72331EA250E5309182E`。local v145で実buildした結果であり、未実行のremote v143 CIの成功を意味しない。
+
+全58 test interfaceを分類した直列driverは64 command caseを実行し、63 PASS、追加設定を比べるPowerShell wrapperだけFAILだった。Neon／Boss lifecycle／Bridge、実GLB／animation／palette、Neon skinningとBloomのWARP／hardware、実Combat、3 class遠征、Special、tutorial、Title、Release guard、packageはPASS。全caseのcommand・exit code・logは`generated/repository-engineering-overhaul/final-validation/results.json`、test分類は同directoryのinventoryと全体整理の最終検証文書に保存する。検証中のsource driftは0。元のFAILはJSON objectのキー順を文字列比較した検証側の問題で、runtimeの設定・360 frame完了・errors0を確認した。修正したsemantic比較は25 negative fixtureと保存済み26 reportの設定再検査をPASSし、修正後の追加probeとbuild結果は最終検証文書で確定する。
+
+このbinaryの実機Scenarioは13ケース×2 process、合計15,600完了frameのsnapshotとinvariantをPASSし、各二回目の全frame observableが一致した。RivalとNeonの960frameでもGameplay 30項目が一致。BossDeathの両repeatはframe121／165／201でDissolve 0／0.511111／1、HP0以後の位置／shot／Dash停止、Visual生成1／解放1／resource OFF／CB0を確認した。Previewは各repeatで実D3D再生成を3回、warm cache後321→323→321 descriptorsで返却した。
+
+最新のNeon専用13枚は`generated/repository-engineering-overhaul/final-validation/artifacts/test_neon_boss_runtime/`。rootと別agentで実PNGを開き、Idle／Telegraph／実Attack／Dash／low HPと死亡3段階を確認した。生存5状態は同状態の2D／3D pair、死亡終端は人型とOutlineの残像なし。Runnerの54 PNG／camera JSONは`final-validation/artifacts/test_gameplay_scenarios/run_20261004_221102_241_e67a04a2/`。代表3 class、stress、Boss、restart／room／service遷移も実画像で確認した。目視記録とcamera／shader終端の検証範囲は [visual-validation.md](repository-engineering-overhaul/visual-validation.md)に記録する。
+
+このReleaseのpristine packageは253 files／62,911,552 bytesでaudit PASS。未実行packageを保持し、別copyを無引数・別cwdから起動してTitle→tutorial→遠征のclass／workshop／repair→Boss結果→Title→新runを完了した。Developer／ImGui／Profiler runtime counterは0。新Scenario manifestを指定してもReleaseは読み込まず通常起動する。証拠は`final-validation/pristine-package/`、`package-runtime-copy/`と各logにある。
+
+複数frame性能はNeon／Dissolveを含む代表12 caseを各2回測定し、CPU／GPU／frameの平均・中央値・P95・最大を保存した。重かった512 TrailのCPU描画だけ、Developmentの当該cppを既存per-file方針で`/O2`へ変え、同source／256 asset／同形状の二比較で30.22／30.89%改善した。Neonやshaderの品質変更による高速化ではない。温度／clock未制御のGPU値、capture-free測定にも残るspike、Release性能保証の限界は [performance-before-after.md](repository-engineering-overhaul/performance-before-after.md)を参照する。
+
+Developerからの短時間再現はrepository rootのPowerShellで次を実行する。新しいdefault Development buildを使用し、fresh process／resource copy／captureを新directoryへ保存する。
+
+```powershell
+& .\project\tools\test_gameplay_scenarios.ps1 -Scenario @('neon_boss','boss_death') -Repeats 2
+```
+
+専用Walk／Dash／Damage／Death clipがない既存AvatarSample_Bのfallback、大きさ／照準に対する人型の向き／ピンクの強さは朝の目視確認項目として維持する。新素材の取得、モデル／shader／ライセンス本文の変更、commit／push／merge／checkout／reset／cleanは行っていない。最終status／diff統計は全体整理READMEと`generated/repository-engineering-overhaul/final-git-status.txt`／`final-git-diff-stat.txt`へ記録する。
+
+### 入口修正後の最終結果
+
+追加probeで、失敗reportが出てもWinMainが0を返す既存不具合を再現した。MainLoop／RunはWM_QUITのcodeを返し、message pumpはQUIT後のmessageで上書きせずに止まる。WinMainは通常Finalize／traceを終えてからそのcodeを返す。`Game.cpp`／`Game.h`／`main.cpp`の限定修正で、renderer／Gameplayへの新しい依存は作らない。JSON key順の検証修正を含め、元のAllからのsource input差分はこの3fileとPowerShell wrapperのみ、最終検証中の変更は0だった。
+
+最終Development SHA256は`C3A5FF76C7CAC1AE19CA252AED5C435115816262E6EC59D4E28AAD8F6BCE30AF`、Releaseは`14393F15CBA2FAAE4E4B922DD7828F1F69539A9EF21872658ECA0FADE6C80A87`。両buildはwarning／error 0、command時間18.51／15.14秒。影響する13 command caseは全てPASSした。元のAll 63／64と途中のexit0失敗は保持し、`generated/repository-engineering-overhaul/final-validation-aggregate.json`の統合結果がPASSしたものとして記録する。64件全部をこのbinaryで再実行したとは主張しない。
+
+最終binaryでNeonBoss／BossDeath各2回を再実行し、全2,880 frameのinvariant／repeat比較、死亡後の位置／shot／Dash停止、Dissolve終端の資源返却をPASSした。旧binaryの対応4軌跡とも同じ1e-5基準で全frame一致した。設定7probeと不正／不存在manifestのconstructor2probeもPASSし、正常はexit0、拒否はbounded failure reportとexit9。constructor失敗時もprocess.finalized traceがある。Game.cppを読むBloom Python13／source contract33、startup unit、Releaseのmanifest無視とDeveloper／ImGui／Profiler OFFも再検証してPASSした。
+
+新しい17 PNG／camera JSONは`generated/repository-engineering-overhaul/final-entry-validation/scenarios/run_20261004_224906_970_e80d8442/`。rootと別agentが12枚の代表画像を開き、照準と一体のNeon全身／Outline、Dissolve 0→0.511111→1、終端の人型消失を確認した。再起動のframe226は旧Sceneの意図したFadeOut終端の黒画面で、600にはepoch2・HP120の通常描画が復帰する。SnapshotのbossActiveはencounterを扱うflagで、HP0の結果演出中にもtrueになる。行動停止はbossDead／HPと実Enemy guard／位置／shot／Dash不変で確認した。
+
+新しいpristine packageは`final-entry-validation/pristine-package/`。253 files／62,911,552 bytes、上記の最終Release SHAと一致しaudit PASS。別copyの無引数・別cwd walkthroughもPASSし、Title二回／新run二回、三新enemy、workshop／repair／Boss結果／Title帰還／tutorial完了後skipを実際に確認した。後半forced clearとrepair boundaryはflow regressionであり難易度playtestではない。
+
+性能の30.22／30.89% CPU改善は保存した計測binaryと同source／asset／形状のTrail比較に対する結果である。計測は最後のquit plumbing修正前で、最終default binaryを再測定したとは主張しない。温度／clock未制御、frame maximumのspike、既存素材のclip／scale／色に関する手動確認の限界は上記と全体整理の詳細報告に残した。
+
+最終差分: 既存変更24、新規34、削除0、stagedなし。branch／HEADは開始と同じ。追跡済み24ファイルのGit統計は509行追加／265行削除で、新規34ファイルはこの統計に含まれない。全58ファイルの一覧とhash、status／diff原文は`generated/repository-engineering-overhaul/final-git-summary.json`と上記logに保存した。全差分と終了処理の追加修正をrootと別agentでreviewし、関連gateとfresh画像を確認した。commit／push／mergeは行っていない。

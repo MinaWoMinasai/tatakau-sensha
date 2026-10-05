@@ -10,13 +10,6 @@
 void GameScene::UpdateNeonBossVisual(float deltaTime) {
     if (!neonBossVisual_ || !enemy_) return;
     cg2::RuntimeProfiler::CpuScope scope("Neon Boss Update");
-    if (neonBossEncounterGeneration_ != enemy_->GetEncounterGeneration()) {
-        neonBossVisual_->ResetEncounter();
-        neonBossEncounterGeneration_ = enemy_->GetEncounterGeneration();
-        neonBossPreviousShots_ = enemy_->GetShotsFired();
-        neonBossAttackPresentationTimer_ = 0;
-        neonBossPreviousPosition_ = enemy_->GetWorldPosition();
-    }
     NeonBossVisualInput input;
     input.position = enemy_->GetWorldPosition();
     const auto aim = enemy_->GetAimDirection();
@@ -27,37 +20,21 @@ void GameScene::UpdateNeonBossVisual(float deltaTime) {
     input.encounterActive = IsRunRivalActive() && enemy_->IsRunEncounterEnabled() && !IsTutorialCombatSuppressed();
     input.damageFeedback = enemy_->GetDamageFeedbackRatio();
     const auto rival = enemy_->GetRivalCombatStatus();
-    input.phaseTwo = rival.enabled ? rival.phase2 : input.hp <= input.maxHp / 2;
-    if (rival.enabled) {
-        using P = RivalBossCombat::Phase;
-        switch (rival.phase) {
-        case P::Reposition: input.action = NeonBossAction::Reposition; break;
-        case P::Tracking: case P::Locked: case P::DashWarning: input.action = NeonBossAction::Telegraph; break;
-        case P::Volley: input.action = NeonBossAction::Attack; break;
-        case P::Dash: input.action = NeonBossAction::Dash; break;
-        case P::Reload: input.action = NeonBossAction::Reload; break;
-        }
-    } else if (enemy_->IsPrototypeCombatEnabled()) {
-        using P = PrototypeBossCombat::Phase;
-        switch (enemy_->GetPrototypeCombatPhase()) {
-        case P::Recovery: input.action = NeonBossAction::Idle; break;
-        case P::Telegraph: input.action = NeonBossAction::Telegraph; break;
-        case P::Attack: input.action = NeonBossAction::Attack; break;
-        }
-    } else {
-        const auto displacement = input.position - neonBossPreviousPosition_;
-        if (cg2::Length(displacement) > 0.001f) input.action = NeonBossAction::Reposition;
-    }
-    // AimedSpread can fire and return to Recovery in one gameplay tick.
-    if (enemy_->GetShotsFired() != neonBossPreviousShots_)
-        neonBossAttackPresentationTimer_ = 0.70f;
-    else if (deltaTime > 0)
-        neonBossAttackPresentationTimer_ = (std::max)(0.0f, neonBossAttackPresentationTimer_ - deltaTime);
-    if (!rival.enabled && neonBossAttackPresentationTimer_ > 0 &&
-        (input.action == NeonBossAction::Idle || input.action == NeonBossAction::Reposition))
-        input.action = NeonBossAction::Attack;
-    neonBossPreviousShots_ = enemy_->GetShotsFired();
-    neonBossPreviousPosition_ = input.position;
+    BossVisualBridgeInput bridgeInput;
+    bridgeInput.encounterGeneration = enemy_->GetEncounterGeneration();
+    bridgeInput.shotsFired = enemy_->GetShotsFired();
+    bridgeInput.position = {input.position.x, input.position.y, input.position.z};
+    bridgeInput.hp = input.hp; bridgeInput.maxHp = input.maxHp;
+    bridgeInput.rivalEnabled = rival.enabled; bridgeInput.rivalPhaseTwo = rival.phase2;
+    bridgeInput.rivalPhase = rival.phase;
+    bridgeInput.prototypeEnabled = enemy_->IsPrototypeCombatEnabled();
+    bridgeInput.prototypePhase = enemy_->GetPrototypeCombatPhase();
+    const auto decision = bossVisualBridge_.Update(bridgeInput, deltaTime);
+    // Reset remains before this encounter's first visual Update. The bridge
+    // only maps observable values and owns presentation history, never combat.
+    if (decision.resetEncounter) neonBossVisual_->ResetEncounter();
+    input.phaseTwo = decision.phaseTwo;
+    input.action = decision.action;
     neonBossVisual_->SetEnabled(neonBossVisualEnabled_);
     neonBossVisual_->Update(input, deltaTime);
 }
@@ -104,8 +81,8 @@ void GameScene::StartNeonBossDeveloperEncounter() {
     expeditionBuildChoice_ = false; expeditionBuildChosen_ = true;
     expeditionAuthoringHubOpen_ = false; tankRunPaused_ = false;
     expeditionTransition_ = {}; expeditionCollectAll_ = false;
-    gameFlowState_ = GameFlowState::Playing; gameFlowTimer_ = 0;
-    bossDefeatHandled_ = bossDefeatImpactTriggered_ = false;
+    combatFlow_.Reset();
+    bossDefeatHandled_ = false;
     tankRunMenuAge_ = 1;
     EnterExpeditionMapNode(node.id);
     debugPlayerNoDamage_ = true; player_->SetDebugNoDamage(true);

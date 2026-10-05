@@ -4,6 +4,7 @@
 #define NOMINMAX
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "game/debug/NeonSkinnedPreview.h"
+#include "game/debug/GameplayScenarioSession.h"
 #endif
 #include <algorithm>
 #include <array>
@@ -41,6 +42,8 @@
 #include "game/effects/ScreenEffectDirector.h"
 #include "game/render/NeonProjectileRenderer.h"
 #include "game/enemy/visual/NeonBossVisual.h"
+#include "game/enemy/visual/BossVisualBridge.h"
+#include "game/flow/CombatFlowController.h"
 #include "game/ui/NeonTextEffect.h"
 #include "game/ui/TankRewardCard.h"
 #include "game/run/TankRunDirector.h"
@@ -995,15 +998,25 @@ private:
     std::unique_ptr<cg2::Camera> camera;
     // Presentation owns no combat state; the Enemy snapshot is consumed after collision resolution.
     std::unique_ptr<NeonBossVisual> neonBossVisual_;
-    uint64_t neonBossEncounterGeneration_ = 0;
-    unsigned neonBossPreviousShots_ = 0;
-    float neonBossAttackPresentationTimer_ = 0;
-    cg2::Vector3 neonBossPreviousPosition_{};
+    BossVisualBridge bossVisualBridge_;
     bool neonBossVisualEnabled_ = true;
     void UpdateNeonBossVisual(float deltaTime);
     bool UseNeonBossVisual() const;
     void DrawNeonBossVisual();
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    void InitializeGameplayScenario();
+    bool PrepareGameplayScenarioFrame();
+    void RecordGameplayScenarioFrame();
+    void RecordGameplayScenarioCapture(cg2::DirectXCommon& dx);
+    gameplaytest::Snapshot MakeGameplayScenarioSnapshot() const;
+    void QueueGameplayScenarioCapture(const std::string& name);
+    NeonShowcaseCapture gameplayScenarioCapture_;
+    gameplaytest::Snapshot gameplayScenarioCaptureSnapshot_;
+    std::string gameplayScenarioCaptureName_;
+    bool gameplayScenarioInitialized_ = false, gameplayScenarioCapturePending_ = false;
+    bool gameplayScenarioEventApplied_ = false, gameplayScenarioRestartRequested_ = false;
+    bool gameplayScenarioFinishDeferred_ = false;
+    unsigned gameplayScenarioTransitionStep_ = 0;
     std::unique_ptr<NeonSkinnedPreview> neonSkinnedPreview_;
     bool selectNeonSkinnedPreviewTab_ = false;
     bool selectNeonBossTab_ = false;
@@ -1149,18 +1162,9 @@ private:
 
     float timeScale_ = 1.0f; // 1.0 が通常、0.2 なら 5倍スロー
     float finalDeltaTime = 1.0f / 60.0f;
-    enum class GameFlowState {
-        Playing,
-        BossDefeatSequence,
-        StageClear,
-        GameOver,
-    };
-    GameFlowState gameFlowState_ = GameFlowState::Playing;
+    using GameFlowState = CombatFlowState;
+    CombatFlowController combatFlow_;
     ScreenEffectDirector screenEffectDirector_{};
-    float gameFlowTimer_ = 0.0f;
-    float bossDefeatSequenceDuration_ = 1.55f;
-    float bossDefeatImpactDelayTimer_ = 0.0f;
-    bool bossDefeatImpactTriggered_ = false;
     float playTime_ = 0.0f;
     float eventCalloutTimer_ = 0.0f;
     std::filesystem::file_time_type playerClassConfigObservedWriteTime_{};

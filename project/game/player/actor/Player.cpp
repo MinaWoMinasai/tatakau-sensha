@@ -1,5 +1,6 @@
 #include "game/weapon/CombatTypes.h"
 #include "Player.h"
+#include "game/player/PlayerMovement.h"
 #include "PlayerUiHelpers.h"
 #include "StartupTrace.h"
 #include "Stage.h"
@@ -894,32 +895,23 @@ void Player::Update(
 	if (input_->IsPress(input_->GetKey()[DIK_S])) inputDir_.y -= 1.0f;
 
     if(demoInputEnabled_) inputDir_={demoMove_.x,demoMove_.y,0};
-	if (cg2::Length(inputDir_) > 1.0f) {
-		inputDir_ = cg2::Normalize(inputDir_);
-	}
-
-	// --- 目標速度 ---
-	cg2::Vector3 targetVelocity = inputDir_ * stats_.moveSpeed;
-	if(railCharge_.held && !isDashing_) targetVelocity=targetVelocity*.78f;
-	if(spinCycle_.remaining>0 && !isDashing_)targetVelocity=targetVelocity*.55f;
-
-	// --- 慣性処理 ---
-	float accel = (cg2::Length(inputDir_) > 0.0f) ? accel_ : decel_;
-
-	if (runModifiers_.enabled) {
-		// Restore the original acceleration / coast rates using a stable timestep.
-		const float response = isDashing_ ? 1.5f : accel;
-		velocity_ += (targetVelocity - velocity_) * (1.0f - std::exp(-response * deltaTime));
-	} else {
-		velocity_ += (targetVelocity - velocity_) * accel * deltaTime;
-	}
-
-	float timeWeight = deltaTime * 60.0f;
-
-	cg2::Vector3 frameMove = velocity_ * timeWeight;
-	const float maxStep = 0.35f;
-	const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(frameMove.x), std::abs(frameMove.y)) / maxStep) + 1);
-	cg2::Vector3 stepMove = frameMove / static_cast<float>(subStepCount);
+	PlayerMovementInput movementInput{};
+    movementInput.direction = inputDir_;
+    movementInput.velocity = velocity_;
+    movementInput.moveSpeed = stats_.moveSpeed;
+    movementInput.acceleration = accel_;
+    movementInput.deceleration = decel_;
+    movementInput.deltaTime = deltaTime;
+    movementInput.runEnabled = runModifiers_.enabled;
+    movementInput.dashing = isDashing_;
+    movementInput.railHeld = railCharge_.held;
+    movementInput.spinActive = spinCycle_.remaining > 0;
+    const PlayerMovementStep movementStep = CalculatePlayerMovement(movementInput);
+    inputDir_ = movementStep.direction;
+    velocity_ = movementStep.velocity;
+    const int subStepCount = movementStep.subStepCount;
+    const cg2::Vector3 stepMove = movementStep.stepMove;
+    // Preserve collision resolution order: each substep applies X, then Y.
 	for (int i = 0; i < subStepCount; ++i) {
 		cg2::Vector3 pos = GetWorldPosition();
 		pos.x += stepMove.x;
@@ -4818,55 +4810,24 @@ bool Player::RefundStatUpgrade(int index)
 
 void Player::RecalculateStatsFromBase(bool healToFull)
 {
-	const int oldMaxHp = GetMaxHp();
-	const bool wasFullHp = oldMaxHp > 0 && hp_ >= oldMaxHp;
-	const float previousStamina = stats_.stamina;
+    const int oldMaxHp = GetMaxHp();
+    PlayerDerivedStatsInput derivedStatsInput{};
+    derivedStatsInput.base = baseStats_;
+    derivedStatsInput.upgradeLevels = upgradeLevels_;
+    derivedStatsInput.upgradeRates = {healthRegenUpgradeRate_, maxHpUpgradeRate_, bodyDamageUpgradeRate_, bulletSpeedUpgradeRate_,
+                          bulletDamageUpgradeRate_, reloadUpgradeRate_, moveSpeedUpgradeRate_, minReloadSpeed_};
+    derivedStatsInput.runEnabled = runModifiers_.enabled;
+    derivedStatsInput.runTuning = MakeTankRunTuning(runModifiers_, runGrowth_);
+    derivedStatsInput.combatStyleSelected = expeditionCombatStyleSelected_;
+    derivedStatsInput.combatStyle = expeditionCombatStyle_;
+    if (derivedStatsInput.runEnabled && derivedStatsInput.combatStyleSelected) derivedStatsInput.combatStyleProfile = GetCombatStyleProfile(expeditionCombatStyle_);
+    derivedStatsInput.maintenanceMoveScale = runMaintenance_.MoveScale();
+    derivedStatsInput.maintenanceReloadScale = runMaintenance_.ReloadScale();
+    derivedStatsInput.previousStamina = stats_.stamina;
 
-	stats_ = baseStats_;
-	if(runModifiers_.enabled&&expeditionCombatStyleSelected_) {
-		const auto& profile=GetCombatStyleProfile(expeditionCombatStyle_);
-		stats_.maxHp=profile.maxHp;stats_.moveSpeed=profile.moveSpeed;
-		stats_.maxStamina=profile.maxStamina;stats_.staminaRecovery=profile.staminaRecovery;
-		stats_.bodyDamage=profile.bodyDamage;stats_.bulletSpeed=profile.bulletSpeed;
-		stats_.bulletDamage=profile.attackDamage/(expeditionCombatStyle_==tankbuild::Style::Melee?3.8f:1.0f);
-		stats_.reloadSpeed=profile.attackIntervalSeconds*60.0f;
-	}
-	stats_.staminaRecovery *= 1.0f + healthRegenUpgradeRate_ * static_cast<float>(upgradeLevels_[0]);
-	stats_.maxHp *= 1.0f + maxHpUpgradeRate_ * static_cast<float>(upgradeLevels_[1]);
-	stats_.bodyDamage *= 1.0f + bodyDamageUpgradeRate_ * static_cast<float>(upgradeLevels_[2]);
-	stats_.bulletSpeed *= 1.0f + bulletSpeedUpgradeRate_ * static_cast<float>(upgradeLevels_[3]);
-	stats_.bulletDamage *= 1.0f + bulletDamageUpgradeRate_ * static_cast<float>(upgradeLevels_[4]);
-	stats_.reloadSpeed *= (std::max)(0.05f, 1.0f - reloadUpgradeRate_ * static_cast<float>(upgradeLevels_[5]));
-	if(!expeditionCombatStyleSelected_)stats_.reloadSpeed = (std::max)(minReloadSpeed_, stats_.reloadSpeed);
-	stats_.moveSpeed *= 1.0f + moveSpeedUpgradeRate_ * static_cast<float>(upgradeLevels_[6]);
-	const TankRunTuning runTuning = MakeTankRunTuning(runModifiers_, runGrowth_);
-	stats_.bulletDamage *= runTuning.damage;
-	stats_.bulletSpeed *= runTuning.bulletSpeed;
-	stats_.reloadSpeed *= runTuning.reloadInterval;
-	stats_.moveSpeed *= runTuning.moveSpeed;
-	stats_.staminaRecovery *= runTuning.staminaRecovery;
-	stats_.maxHp *= runTuning.maxHp;
-	if (runModifiers_.enabled) {
-		stats_.moveSpeed *= runMaintenance_.MoveScale();
-		stats_.reloadSpeed *= runMaintenance_.ReloadScale();
-		stats_.stamina = previousStamina;
-	}
-	stats_.maxHp = (std::max)(1.0f, stats_.maxHp);
-	stats_.reloadSpeed = (std::max)(0.05f, stats_.reloadSpeed);
-	stats_.bulletDamage = (std::max)(0.1f, stats_.bulletDamage);
-	stats_.bulletSpeed = (std::max)(0.01f, stats_.bulletSpeed);
-	stats_.moveSpeed = (std::max)(0.01f, stats_.moveSpeed);
-	stats_.maxStamina = (std::max)(0.0f, stats_.maxStamina);
-	stats_.stamina = (std::min)(stats_.stamina, stats_.maxStamina);
-
-	SetDamage(static_cast<uint32_t>((std::max)(1.0f, stats_.bodyDamage)));
-
-	const int newMaxHp = GetMaxHp();
-	if (healToFull || wasFullHp) {
-		hp_ = newMaxHp;
-	} else {
-		hp_ = (std::clamp)(hp_, 0, newMaxHp);
-	}
+    stats_ = CalculatePlayerDerivedStats(derivedStatsInput);
+    SetDamage(static_cast<uint32_t>((std::max)(1.0f, stats_.bodyDamage)));
+    hp_ = ResolvePlayerRecalculatedHp(hp_, oldMaxHp, GetMaxHp(), healToFull);
 }
 
 void Player::UpdateStealth(float deltaTime) {

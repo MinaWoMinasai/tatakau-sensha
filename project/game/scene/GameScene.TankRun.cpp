@@ -42,7 +42,11 @@ void GameScene::InitializeTankRun() {
     tankRunAutoTest_=!titleDemo_ && GetEnvironmentVariableW(L"CG2_TANK_AUTOTEST",automatic,16)>0 && automatic[0]==L'1';
     tankrun::Config config; if(tankRunAutoTest_) config.combatSeconds=24;
     if(expeditionRun_) config.combatSeconds=1000000;
-    tankRun_=tankrun::RunDirector(tankRunAutoTest_?20260919u:static_cast<uint32_t>(GetTickCount64()),config);
+    uint32_t runSeed=tankRunAutoTest_?20260919u:static_cast<uint32_t>(GetTickCount64());
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if(GameplayScenarioSession::Get().IsActive()) runSeed=GameplayScenarioSession::Get().GetSettings().seed;
+#endif
+    tankRun_=tankrun::RunDirector(runSeed,config);
     TankRunModifiers modifiers{}; modifiers.enabled=true; player_->SetRunModifiers(modifiers);
     enemy_->SetPrototypeMaxHp(1050); enemy_->EnablePrototypeCombat(true);
     enemy_->SetPrototypePressure(0); enemy_->SetPrototypeResourceFocus(true);
@@ -227,13 +231,13 @@ void GameScene::UpdateTankRun(float dt) {
     tankRunMenuAge_+=dt; tankRunAutoTime_+=dt;
     const auto triggered=[this](int key){return input_->IsTrigger(input_->GetKey()[key],input_->GetPreKey()[key]);};
     if(cg2::kDeveloperTools&&triggered(DIK_F10)) RequestTankRunCapture("manual");
-    if(gameFlowState_==GameFlowState::Playing&&!player_->IsChangeMode()&&triggered(DIK_ESCAPE)) {
+    if(combatFlow_.GetState()==GameFlowState::Playing&&!player_->IsChangeMode()&&triggered(DIK_ESCAPE)) {
         tankRunPaused_=!tankRunPaused_; tankRunSelection_=0; tankRunMenuAge_=0; RefreshTankRunUi();
     }
-    if(gameFlowState_!=GameFlowState::Playing) {
+    if(combatFlow_.GetState()!=GameFlowState::Playing) {
         tankRunHudTimer_-=dt;
         if(tankRunHudTimer_<=0) {RefreshTankRunUi();tankRunHudTimer_=0.15f;}
-        if(tankRunAutoTest_&&gameFlowState_==GameFlowState::StageClear) {
+        if(tankRunAutoTest_&&combatFlow_.GetState()==GameFlowState::StageClear) {
             if(tankRunAutoStep_<10) {RequestTankRunCapture("result");tankRunAutoStep_=10;tankRunAutoTime_=0;}
             if(tankRunAutoTime_>1) {
                 std::ofstream log("generated/tank_run/validation.json");
@@ -379,7 +383,7 @@ void GameScene::DrawTankRunUi() {
     if(expeditionRun_ && tankExpedition_.GetPhase()!=tankexp::Phase::Dormant) {DrawTankExpeditionUi();return;}
     if(player_->IsChangeMode()) return;
     cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal); const auto phase=tankRun_.GetPhase();
-    const bool result=gameFlowState_==GameFlowState::StageClear||(gameFlowState_==GameFlowState::GameOver&&gameFlowTimer_<=0);
+    const bool result=combatFlow_.GetState()==GameFlowState::StageClear||(combatFlow_.GetState()==GameFlowState::GameOver&&combatFlow_.GetTimer()<=0);
     const bool decision=IsDecision(phase)||tankRunPaused_;
     if(decision||result) tankRunDimmer_->Draw();
     tankRunHudPanel_->Draw();tankRunHud_->Draw();tankRunBossText_->Draw();
