@@ -19,6 +19,7 @@
 #include "../game/exp/ExpGuardCombat.h"
 #include "../game/player/TankExpeditionLoadout.h"
 #include "../game/player/TankCombatStyleBalance.h"
+#include "../game/player/PlayerDerivedStats.h"
 #include "../game/run/TankBuildStyle.h"
 
 namespace DirectX { float XMConvertToRadians(float degrees) { return degrees*0.0174532925199433f; } }
@@ -113,7 +114,9 @@ struct TestInput {
 };
 class PlayerDrone : public TestActor {
 public:
-	bool IsDead() const { return false; }
+    bool isDead_ = false;
+    int hp_ = 10;
+	bool IsDead() const { return isDead_; }
     void Initialize(Vector3 start,Vector3) {position=start;}
     void SetAttackControllerBulletManager(BulletManager* manager) {runBulletManager_=manager;attackController_.SetBulletManager(manager);}
     void SetRunInput(Vector3 target,bool shoot) {runInputOverride_=true;runWantsAttack_=shoot;dir=Length(target-position)>.001f?Normalize(target-position):Vector3{1,0,0};}
@@ -125,7 +128,7 @@ public:
     void Attack(float);
     tankspecial::DroneMission mission_;
     Vector3 missionTarget_{};bool rebuilt_=false;
-    bool IsRunAvailable()const{return mission_.Available();}
+    bool IsRunAvailable()const{return !isDead_&&mission_.Available();}
     const tankspecial::DroneMission& GetRunMission()const{return mission_;}
     const Vector3& GetRunMissionTarget()const{return missionTarget_;}
     bool StartRunMission(const Vector3& target,bool bomb){if(!mission_.Start(bomb))return false;missionTarget_=target;return true;}
@@ -225,7 +228,8 @@ public:
     BulletManager* runBulletManager_=nullptr;
     float bulletCoolTime=0,meleeComboTimer_=0,runSupportDroneTimer_=0,runOverdriveTimer_=0,runDashAttackTimer_=0;
     int meleeComboStep_=0,shootBarrelIndex_=0,shootGroupIndex_=0,hp_=73,runCurrencyEarned_=91;
-    struct Stats {float bulletDamage=4,bulletSpeed=.5f,reloadSpeed=30,stamina=3,maxStamina=3,staminaRecovery=.9f,maxHp=120,moveSpeed=.23f,bodyDamage=3;} stats_,baseStats_;
+    using Stats = TankPlayerStats;
+    Stats stats_{30,4,.5f,.23f,120,.9f,3,3,3}, baseStats_ = stats_;
     std::vector<float> weaponGroupCooldowns_,pendingLaserShots_,pendingMineDrops_;std::vector<MeleeSlashEvent> pendingMeleeSlashes_;
     std::vector<std::unique_ptr<PlayerDrone>> drones_;
     Vector3 runAimWorld_{20,0,0};

@@ -49,6 +49,9 @@ void Input::Initialize(const WNDCLASS& wc, const HWND& hwnd)
 
 void Input::BeforeFrameData()
 {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    validationFrame_ = false;
+#endif
 	memcpy(frameKeyPress_, pendingKeyPress_, sizeof(frameKeyPress_));
 	ZeroMemory(pendingKeyPress_, sizeof(pendingKeyPress_));
 	// 前のフレームのキー状態を保存
@@ -76,6 +79,21 @@ void Input::BeforeFrameData()
 	ZeroMemory(&currentGamepadState_, sizeof(XINPUT_STATE));
 	XInputGetState(0, &currentGamepadState_);
 }
+
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+void Input::OverrideValidationFrame(const Vector2& mousePosition)
+{
+    ZeroMemory(key_, sizeof(key_));
+    ZeroMemory(preKey_, sizeof(preKey_));
+    ZeroMemory(pendingKeyPress_, sizeof(pendingKeyPress_));
+    ZeroMemory(frameKeyPress_, sizeof(frameKeyPress_));
+    ZeroMemory(&mouseState_, sizeof(mouseState_));
+    ZeroMemory(&preMouseState_, sizeof(preMouseState_));
+    currentGamepadState_ = {}; previousGamepadState_ = {};
+    validationMousePosition_ = mousePosition;
+    validationFrame_ = true;
+}
+#endif
 
 void Input::OnFocusChanged(bool active)
 {
@@ -185,6 +203,9 @@ Vector2 Input::GetRightStick() const {
 }
 
 Vector2 Input::GetMousePosition() const {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if (validationFrame_) return validationMousePosition_;
+#endif
 	POINT point;
 	GetCursorPos(&point);               // デスクトップ上のマウス座標を取得
 	ScreenToClient(hwnd_, &point);      // ウィンドウ座標に変換

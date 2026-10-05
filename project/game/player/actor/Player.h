@@ -26,6 +26,7 @@
 #include "game/ui/NeonSegmentedBar.h"
 #include "game/ui/NeonTextEffect.h"
 #include "game/player/TankRunModifiers.h"
+#include "game/player/PlayerDerivedStats.h"
 #include "game/player/TankSpecialCombat.h"
 #include "game/player/TankCombatStyleBalance.h"
 #include "game/player/TankExpeditionLoadout.h"
@@ -76,17 +77,7 @@ public:
 
     /// @brief 自機の性能値と現在のスタミナを保持する。基礎値と補正後の実行値の両方に使う。
     /// @note reloadSpeedは発射間隔の60FPS相当の基準フレーム数。bulletSpeed・moveSpeedは基準1フレームの移動量。
-    struct PlayerStats {
-        float reloadSpeed = 10.0f;    // 連射速度（小さいほど速い）
-        float bulletDamage = 1.0f;    // 弾の威力
-        float bulletSpeed = 0.3f;     // 弾速
-        float moveSpeed = 0.2f;       // 移動速度
-        float maxHp = 10000.0f;       // 最大HP
-        float staminaRecovery = 1.0f; // スタミナ回復速度
-        float stamina = 3.0f;         // スタミナ
-        float maxStamina = 3.0f;      // スタミナ最大値
-        float bodyDamage = 3.0f;      // 直接ダメージ
-    };
+    using PlayerStats = TankPlayerStats;
 
     /// @brief ゲームの性能調整用の数値をまとめる。実行中の状態とは分けて扱う。
     struct BalanceConfig {

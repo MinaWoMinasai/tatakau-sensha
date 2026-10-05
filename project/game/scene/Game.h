@@ -17,8 +17,8 @@ class Game {
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     bool Initialize(const GameProjectCommandLineOptions& projectOptions = {});
-    /// @brief 初期化後にメインループを実行し、終了処理まで進める。
-    void Run();
+    /// @brief メインループを実行し、終了要求のコードを返す。資源解放はFinalizeで行う。
+    int Run();
     /// @brief 利用終了時の資源と状態を解放する。
     void Finalize();
 
@@ -61,8 +61,8 @@ private:
     void InitializeImGui();
     /// @brief リソースを読み込む。
     void LoadResources();
-    /// @brief 終了要求まで入力・更新・描画を繰り返す。
-    void MainLoop();
+    /// @brief 終了要求まで入力・更新・描画を繰り返し、そのコードを返す。
+    int MainLoop();
 
 private:
     std::unique_ptr<cg2::DirectXCommon> dxCommon_;

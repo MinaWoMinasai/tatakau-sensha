@@ -91,6 +91,27 @@ def function_body(source, signature):
     return source[begin + 1:end - 1]
 
 
+def game_freeze_body(update):
+    # Check the current two independent freeze modes and title exclusion, while
+    # tolerating formatting and the order of the OR operands.
+    code = re.sub(r"/\*.*?\*/|//[^\n]*", "", update, flags=re.S)
+    flag = r"(developerBloomFreeze_|neonBossDeveloperFreeze_)"
+    guard = re.search(r"\bif\s*\(\s*\(\s*" + flag + r"\s*\|\|\s*" + flag
+                      + r"\s*\)\s*&&\s*!\s*titleDemo_\s*\)\s*\{", code)
+    quality.require(guard is not None and set(guard.groups()) == {
+        "developerBloomFreeze_", "neonBossDeveloperFreeze_"},
+        "Either comparison freeze must stop gameplay outside the title demo")
+    gameplay = re.search(r"\b(?:UpdateTitleDemo|UpdateTankRun)\s*\(", code)
+    quality.require(gameplay is not None and guard.start() < gameplay.start(),
+                    "Comparison freeze must precede gameplay updates")
+    frozen = function_body(code, guard.group())
+    quality.require(re.search(r"(?:^|[;}])\s*return\s*;\s*$", frozen) is not None,
+                    "Frozen update must end with an unconditional early return")
+    quality.require(re.search(r"\b(?:UpdateTitleDemo|UpdateTankRun)\s*\(", frozen) is None,
+                    "Frozen update must not advance gameplay")
+    return frozen
+
+
 def validate_game_comparison(files):
     quality.require(len(files) == 3, "Provide game OFF, Legacy, Quality JSONs in that order")
     result = {"method": "Manual frozen gameplay captures; exact recorded camera/actor/trail/appearance/post metadata; no retouching or visual-quality score",
@@ -214,13 +235,9 @@ class PreviewSourceContracts(unittest.TestCase):
     def test_game_freeze_keeps_draw_and_actual_fence_capture_metadata(self):
         update = function_body(self.game, "void GameScene::Update()")
         self.assertIn("developerGameCapture_.Resolve", update)
-        begin = update.index("if (developerBloomFreeze_ && !titleDemo_)")
-        end = update.index("if (titleDemo_) UpdateTitleDemo", begin)
-        frozen = update[begin:end]
+        frozen = game_freeze_body(update)
         self.assertIn("DrawGameSceneDebugImGui()", frozen)
         self.assertIn("Update(0.0f)", frozen)
-        self.assertIn("return;", frozen)
-        self.assertNotIn("UpdateTankRun", frozen)
         record = function_body(self.game, "void GameScene::RecordDeveloperFrame(")
         self.assertIn("MakeDeveloperGameCaptureMetadata(dx)", record)
         self.assertIn("developerGameCapture_.Record(dx)", record)
@@ -229,6 +246,28 @@ class PreviewSourceContracts(unittest.TestCase):
             self.assertIn('"' + key + '"', metadata)
         self.assertIn("developerCompositeParams_", metadata)
         self.assertIn("1.0f // Quality/OFF preserve projectile cores", self.game)
+
+    def test_game_freeze_source_rejects_missing_gates_or_gameplay(self):
+        guard = "if ((developerBloomFreeze_ || neonBossDeveloperFreeze_) && !titleDemo_)"
+        fixture = guard + " { DrawGameSceneDebugImGui(); preview->Update(0.0f); return; }\nUpdateTitleDemo(dt); UpdateTankRun(dt);"
+        self.assertIn("return;", game_freeze_body(fixture))
+        self.assertIn("return;", game_freeze_body(fixture.replace(
+            "developerBloomFreeze_ || neonBossDeveloperFreeze_",
+            "neonBossDeveloperFreeze_\n || developerBloomFreeze_")))
+        invalid = (
+            fixture.replace(" || neonBossDeveloperFreeze_", ""),
+            fixture.replace("developerBloomFreeze_", "neonBossDeveloperFreeze_"),
+            fixture.replace(" || ", " && "),
+            fixture.replace(" && !titleDemo_", ""),
+            fixture.replace("return;", ""),
+            fixture.replace("return;", "if (paused) return;"),
+            fixture.replace("return;", "if (paused) { return; }"),
+            fixture.replace("return;", "UpdateTankRun(dt); return;"),
+            "UpdateTankRun(dt);\n" + fixture,
+        )
+        for source in invalid:
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                game_freeze_body(source)
 
 
 class ValidatorFixtures(unittest.TestCase):

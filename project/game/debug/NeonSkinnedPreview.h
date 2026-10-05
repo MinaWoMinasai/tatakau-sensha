@@ -22,6 +22,21 @@
 class NeonSkinnedPreview {
 public:
     ~NeonSkinnedPreview();
+    struct ResourceLifecycleValidation {
+        bool passed = false;
+        uint32_t initialDescriptors = 0;
+        uint32_t sharedCacheBaseline = 0;
+        uint32_t completedRepeats = 0;
+        uint32_t maxDescriptorsWhileLoaded = 0;
+        uint32_t descriptorsAfterTeardown = 0;
+        std::string error;
+    };
+    // Developer scenario adapter only. Call after the last submitted frame's
+    // fence completes while cameras and engine managers remain alive. Warms
+    // shared textures, then checks actual D3D instance descriptor ownership.
+    // No draw commands, gameplay state or ordinary Preview state are changed.
+    static ResourceLifecycleValidation ValidateResourceLifecycle(
+        cg2::Camera* camera, cg2::DebugCamera* debugCamera, unsigned repeats = 3);
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(cg2::Camera* camera, cg2::DebugCamera* debugCamera);
     // 前フレームのFence完了後、Camera更新後に1フレーム1回呼ぶ。
@@ -64,6 +79,9 @@ private:
     };
     /// @brief 保存されたデータを読み込む。
     void Load();
+    // The owner releases instance descriptors at a GPU-complete boundary.
+    // Shared TextureManager entries remain cached across Preview encounters.
+    void ReleaseResources();
     // 外観だけを変更し、再生状態・Transform・Alpha Cutoutは保持する。
     void ApplyRecommendedLineArtPreset();
     void ApplyRecommendedBloomPresentation();

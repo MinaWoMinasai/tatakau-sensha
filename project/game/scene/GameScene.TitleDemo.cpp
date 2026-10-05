@@ -76,8 +76,7 @@ void GameScene::ResetTitleDemoStage(int stage) {
     titleDemoPath_.clear();
     tankRunPaused_ = false;
     phase_ = Phase::kMain;
-    gameFlowState_ = GameFlowState::Playing;
-    gameFlowTimer_ = 0;
+    combatFlow_.Reset();
     bossDefeatHandled_ = playerDeathHandled_ = false;
     bossEntryTriggered_ = true;
     timeScale_ = 1;
@@ -147,7 +146,7 @@ void GameScene::UpdateTitleDemo(float dt) {
     titleDemoStatus_.stageSeconds += dt; titleDemoStatus_.totalSeconds += dt;
     if (titleDemoStatus_.stageSeconds >= kDemoStageSeconds)
         ResetTitleDemoStage((titleDemoStatus_.stage + 1) % 4);
-    if (gameFlowState_ != GameFlowState::Playing) return;
+    if (combatFlow_.GetState() != GameFlowState::Playing) return;
     tankRunMenuAge_ += dt;
     const auto phase = tankExpedition_.GetPhase();
     if (phase != tankexp::Phase::Combat) {

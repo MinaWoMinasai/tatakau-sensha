@@ -8,6 +8,7 @@
 #include <cassert>
 #include <Xinput.h>
 #include "Struct.h"
+#include "DirectX/engine/commom/DeveloperTools.h"
 
 namespace cg2 {
 
@@ -23,6 +24,11 @@ public:
 
     /// @brief 前のデータの保存
     void BeforeFrameData();
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    // A validation driver may replace hardware state for this frame only.
+    // The next BeforeFrameData restores ordinary polling.
+    void OverrideValidationFrame(const Vector2& mousePosition);
+#endif
     /// @brief 注目点Changedの通知を受けて、このオブジェクトの状態を反映する。
     void OnFocusChanged(bool active);
     // Retain short key presses that begin and end between two game frames.
@@ -83,6 +89,10 @@ public:
     Vector2 GetMousePosition() const;
 
 private:
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    bool validationFrame_ = false;
+    Vector2 validationMousePosition_{};
+#endif
     HWND hwnd_;
 
     // キーの配列
