@@ -473,6 +473,7 @@ GameScene::GameScene(bool prototypeRun, bool expeditionRun) : expeditionRun_(exp
 
 GameScene::~GameScene()
 {
+    RestoreNeonDepthCamera();
 	tankExpeditionAudio_.Shutdown();
 	ExpEnemy::SetEnemyKillCallback(nullptr);
 	ExpEnemy::SetPlayerDefeatCallback(nullptr);
@@ -481,6 +482,8 @@ GameScene::~GameScene()
 
 void GameScene::Initialize() {
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    wchar_t bossTest[8]{};
+    neonBossAutoTest_ = GetEnvironmentVariableW(L"CG2_NEON_BOSS_AUTOTEST", bossTest, 8) > 0 && bossTest[0] == L'1';
     if (!titleDemo_ && GameplayScenarioSession::Get().IsActive())
         cg2::rng.seed(GameplayScenarioSession::Get().GetSettings().seed);
 #endif
@@ -490,6 +493,7 @@ void GameScene::Initialize() {
 
 	input_ = cg2::Input::GetInstance();
 	LoadTutorialConfig();
+    LoadNeonDepthConfig();
 	tutorialConfig_.enabled = !prototypeRun_ && GameStartSession::GetMode() == GameStartMode::Tutorial;
 	screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json");
 
@@ -899,14 +903,16 @@ void GameScene::Initialize() {
 	if (!titleDemo_) {
 		neonBossVisual_ = std::make_unique<NeonBossVisual>();
 		neonBossVisual_->Initialize(camera.get(), debugCamera.get());
+        if (enemy_->IsNeonDepthEncounterEnabled()) neonBossVisual_->SetDepthProfile(neonDepthConfig_.visual);
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-		wchar_t bossTest[8]{};
-		neonBossAutoTest_ = GetEnvironmentVariableW(L"CG2_NEON_BOSS_AUTOTEST", bossTest, 8) > 0 && bossTest[0] == L'1';
 		neonBossDeveloperStartPending_ = neonBossAutoTest_;
+		if (expeditionMapEnabled_ && GameStartSession::ConsumeDeveloperBossStart())
+			neonBossDeveloperStartPending_ = true;
 #endif
 	}
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
     InitializeGameplayScenario();
+    InitializeNormalRouteReplay();
 #endif
 }
 
@@ -915,12 +921,17 @@ void GameScene::Update() {
 	// 通常の基準時間は1/60秒。検証では指定した固定時間でメニュー・演出も進める。
 	float baseDeltaTime = 1.0f / 60.0f;
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    gameplayScenarioCombatDt_ = gameplayScenarioPresentationDt_ = 0.0f;
     if (GameplayScenarioSession::Get().IsActive()) {
         baseDeltaTime = GameplayScenarioSession::Get().GetSettings().fixedDeltaTime;
         if (PrepareGameplayScenarioFrame()) return;
     }
 	developerGameCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
+	if (!titleDemo_ && expeditionMapEnabled_ && input_->IsKeyTriggered(DIK_F7))
+		RequestNeonBossDeveloperEncounter();
 	UpdateNeonBossDeveloperValidation();
+	if (normalRouteReplayActive_ && (IsNeonShowcaseActive() || developerBloomFreeze_ || neonBossDeveloperFreeze_))
+        StopNormalRouteReplay("external-showcase-or-freeze");
 	if (IsNeonShowcaseActive()) {
 		// Freeze gameplay, follow-camera and menu state; Showcase camera/animation remain independent.
 #ifdef USE_IMGUI
@@ -939,7 +950,11 @@ void GameScene::Update() {
 		if (neonSkinnedPreview_) neonSkinnedPreview_->Update(0.0f);
 		// Existing comparison mode disables temporal jitter. Refresh both boss
 		// representations against that same projection without advancing combat.
-		camera->SetProjectionJitter({}); debugCamera->SetProjectionJitter({});
+        // Only this explicit comparison policy suppresses temporal jitter;
+        // continuous recording never enters this branch for readback waits.
+        if (GetDeveloperShowcaseState().comparisonFreeze) {
+            camera->SetProjectionJitter({}); debugCamera->SetProjectionJitter({});
+        }
 		if (enemyObject_) enemyObject_->Update();
 		// Draw still runs while frozen; reuse the renderer's per-frame CB slots.
 		UpdateNeonBossVisual(0.0f);
@@ -954,6 +969,9 @@ void GameScene::Update() {
 		if(expeditionMapEnabled_) UpdateExpeditionAuthoring();
 	}
 	if (prototypeRun_) { FinishTankRunCapture(); UpdateTankRun(baseDeltaTime); }
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    PrepareNormalRouteReplay();
+#endif
 	if(expeditionMapEnabled_) RefreshGuidedExpeditionUi();
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	if (player_) {
@@ -1059,7 +1077,7 @@ void GameScene::Update() {
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	if (!titleDemo_ && input_->IsTrigger(input_->GetKey()[DIK_F7], input_->GetPreKey()[DIK_F7])) {
+	if (!titleDemo_ && !expeditionMapEnabled_ && input_->IsTrigger(input_->GetKey()[DIK_F7], input_->GetPreKey()[DIK_F7])) {
 		showCollisionDebug_ = !showCollisionDebug_;
 	}
 	if (!prototypeRun_ && input_->IsTrigger(input_->GetKey()[DIK_F6], input_->GetPreKey()[DIK_F6])) {
@@ -1086,7 +1104,7 @@ void GameScene::Update() {
 	}
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
-	{
+	if (!UpdateNeonDepthCamera(baseDeltaTime)) {
 		cg2::Vector3 playerPos = player_->GetWorldPosition();
 		const float kCameraZ = -55.0f;
 		const float kMarginX = 18.0f;
@@ -1138,7 +1156,8 @@ void GameScene::Update() {
 	groundObj_->Update();
 
 	// 戦闘本体はプレイ中・フェード完了後・遠征メニューが閉じている場合にだけ進める。
-	if (combatFlow_.GetState() == GameFlowState::Playing && phase_ == Phase::kMain && !IsTankRunMenuOpen()) {
+    const bool depthIntroLocked = UpdateNeonDepthIntro(baseDeltaTime);
+	if (!depthIntroLocked && combatFlow_.GetState() == GameFlowState::Playing && phase_ == Phase::kMain && !IsTankRunMenuOpen()) {
 		if (phase_ == Phase::kMain && !player_->IsChangeMode()) {
 			playTime_ += baseDeltaTime;
 		}
@@ -1155,6 +1174,9 @@ void GameScene::Update() {
 			player_->SetRunHomingTargets(targets);
 		}
         {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+            gameplayScenarioCombatDt_ = finalDeltaTime;
+#endif
             cg2::RuntimeProfiler::CpuScope scope("Player / Drones Update");
 		    player_->Update(camera.get(), *stage_, bulletManager_.get(), finalDeltaTime, baseDeltaTime);
         }
@@ -1242,8 +1264,12 @@ void GameScene::Update() {
 		}
 	}
 	// Read the final HP/phase after every attack and collision; death presentation continues independently.
-	UpdateNeonBossVisual(enemy_->IsDead() ? baseDeltaTime :
-		(combatFlow_.GetState() == GameFlowState::Playing && !IsTankRunMenuOpen() && !player_->IsChangeMode() ? finalDeltaTime : 0.0f));
+    const float bossPresentationDeltaTime = depthIntroLocked ? neonDepthIntroDelta_ : (enemy_->IsDead() ? baseDeltaTime :
+        (combatFlow_.GetState() == GameFlowState::Playing && !IsTankRunMenuOpen() && !player_->IsChangeMode() ? finalDeltaTime : 0.0f));
+    UpdateNeonBossVisual(bossPresentationDeltaTime);
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    gameplayScenarioPresentationDt_ = bossPresentationDeltaTime;
+#endif
 	// 戦闘停止中も、残っている演出を進め、未消費の特殊戦闘イベントを受け取る。
 	UpdateSpecialCombatPresentation(baseDeltaTime);
 	screenEffectDirector_.SetUpgradeMenuOpen(player_->IsChangeMode() || IsTankRunMenuOpen());
@@ -1331,6 +1357,7 @@ void GameScene::Update() {
 	if (!titleDemo_) VerifyTitleDemoTransition(baseDeltaTime);
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
     RecordGameplayScenarioFrame();
+    RecordNormalRouteReplay();
 #endif
 
 }
@@ -1867,6 +1894,8 @@ void GameScene::BeginBossDefeatSequence()
 
 void GameScene::BeginGameOver()
 {
+    if (enemy_ && enemy_->IsNeonDepthEncounterEnabled()) enemy_->AbortNeonDepthEncounter();
+    RestoreNeonDepthCamera();
 	// 死亡済みの自機に対する進行・結果状態を設定する。戦闘の消去ではなく、以後の更新を止める入口。
 	if(expeditionMapEnabled_) expeditionMapRun_.MarkDead();
 	if (expeditionRun_) tankExpedition_.MarkDead();
@@ -1889,7 +1918,7 @@ void GameScene::UpdateGameFlow(float baseDeltaTime)
 {
 	const auto events = combatFlow_.Update(baseDeltaTime, expeditionMapEnabled_ && !expeditionCredits_.empty());
 	if (events.bossImpact) TriggerDeathPostPulse(enemy_->GetWorldPosition(), 1.55f);
-	if (events.bossResultReady) {
+	if (events.bossResultReady && (!enemy_->IsNeonDepthEncounterEnabled() || !neonBossVisual_ || neonBossVisual_->IsFinished())) {
 		if (expeditionMapEnabled_) {
 			expeditionMapRun_.CompleteCombat(); expeditionCollectAll_ = false;
 		}
@@ -2113,6 +2142,7 @@ IScene::ScreenEffectState GameScene::GetScreenEffectState() const
 	state.bloomScale = evolutionUiOpen ? 0.38f : 1.0f;
 	state.suppressPostEffectDebugUi = evolutionUiOpen;
 	state.suppressOutlines = prototypeRun_;
+    state.suppressTemporal = neonDepthCameraScoped_;
 	state.active = screenEffectDirector_.IsActive();
 	if (state.active) {
 		screenEffectDirector_.ApplyTo(state.param);
@@ -2139,7 +2169,9 @@ IScene::DeveloperShowcaseState GameScene::GetDeveloperShowcaseState() {
 	} else if (!titleDemo_) {
 		state.bloomComparisonMode = developerBloomComparisonMode_;
 		state.toneMappingMode = developerToneMappingMode_;
-		state.comparisonFreeze = developerBloomFreeze_ || neonBossDeveloperFreeze_;
+        // Continuous scenario readback does not set either comparison flag.
+        // Unresolved recording fences fail before another held temporal draw.
+        state.comparisonFreeze = developerBloomFreeze_ || neonBossDeveloperFreeze_;
 	}
 #endif
 	return state;
@@ -2239,6 +2271,9 @@ void GameScene::DrawPostEffect3D() {
 	if (IsNeonShowcaseActive()) return;
 #endif
 	DrawNeonBossVisual();
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    DrawNeonDepthValidation();
+#endif
 	if (player_) {
 		for (PlayerDrone* drone : player_->GetDronePtrs()) {
 			if (drone) drone->SetNeonVisual(prototypeRun_ && playerNeonRenderMode_ == 1);
@@ -2249,7 +2284,8 @@ void GameScene::DrawPostEffect3D() {
 
 	}
 	cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
-	const bool useGridPost = enableNeonGridPostEffect_ && IsPostProfileCategoryEnabled("Grid");
+    const bool useGridPost = enableNeonGridPostEffect_ && IsPostProfileCategoryEnabled("Grid");
+    const bool depthOverlay = enemy_ && enemy_->IsNeonDepthEncounterEnabled() && neonDepthEffects_ && neonDepthEffects_->HasResources();
 	const bool useStagePost = enableStagePostEffect_ && IsPostProfileCategoryEnabled("Stage");
 	const bool useBulletTrailPost = enableBulletTrailPostEffect_ && IsPostProfileCategoryEnabled("BulletTrail");
 	const bool usePlayerPost = enablePlayerPostEffect_ && IsPostProfileCategoryEnabled("Player");
@@ -2274,14 +2310,14 @@ void GameScene::DrawPostEffect3D() {
 		});
 	}
 
-	if (useGridPost) {
+	if (useGridPost && !depthOverlay) {
 		profile("Grid Post", true, [&]() {
 			neonGridPostEffect_->BeginCapture();
 			DrawNeonGridPass(false);
 			neonGridPostEffect_->EndCaptureAdditiveOnly();
 			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 		});
-	} else {
+	} else if (!depthOverlay) {
 		profile("Grid Draw", false, [&]() {
 			DrawNeonGridPass(false);
 			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
@@ -2306,9 +2342,19 @@ void GameScene::DrawPostEffect3D() {
 		}
 		bulletManager_->Draw();
 		DrawLevelItems();
-		stage_->DrawVisible(GetActiveCameraPosition(camera.get(), debugCamera.get()), 38.0f, 24.0f, showStageNormalBlockBodies_);
+		stage_->DrawVisible(GetFloorVisibilityCenter(), 38.0f, 24.0f, showStageNormalBlockBodies_);
 	});
 	AddPostProfileEntry("Stage Glow", 0.0f, useStagePost);
+	if (depthOverlay) {
+        profile("Neon Depth FX Air", true, [&]() { neonDepthEffects_->DrawAir(); });
+        profile("Neon Depth FX Floor", true, [&]() {
+            neonGridPostEffect_->BeginCapture();
+            neonDepthEffects_->DrawFloor();
+            DrawNeonGridPass(false);
+            neonGridPostEffect_->EndCaptureAdditiveOnly();
+            cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
+        });
+    }
 
 	if (showStageBlockNeonOutlines_ || showStageDamageBlockNeonOutlines_) {
 		if (useGridPost) {
@@ -2372,7 +2418,7 @@ void GameScene::DrawPostEffect3D() {
 		useExpEnemyPost;
 	if (useSharedObjectBloom) {
 		profile("Shared Glow", true, [&]() {
-			const cg2::Vector3 currentCameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
+			const cg2::Vector3 currentCameraPos = GetFloorVisibilityCenter();
 			sharedObjectBloomPostEffect_->BeginCapture();
 			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 			if (useStagePost) {
@@ -2619,7 +2665,7 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 	cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
-	neonGridRenderer_->DrawAll(vp);
+	neonGridRenderer_->DrawAll(vp,neonDepthCameraScoped_ && !cg2::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
 }
 
 void GameScene::DrawStageBlockNeonPass() {
@@ -4223,8 +4269,15 @@ void GameScene::DrawExpEnemyNeonDepthLines() {
 	neonGridRenderer_->DrawAll(vp);
 }
 
+cg2::Vector3 GameScene::GetFloorVisibilityCenter() const {
+    // A tilted camera's eye is outside the room in XY. Floor culling follows
+    // its displayed focus; facing/depth calculations still use the real eye.
+    return neonDepthCameraScoped_ ? neonDepthFloorViewCenter_ :
+        GetActiveCameraPosition(camera.get(),debugCamera.get());
+}
+
 bool GameScene::IsNearCamera2D(const cg2::Vector3& worldPos, float halfWidth, float halfHeight, float margin) const {
-	const cg2::Vector3 cameraPos = GetActiveCameraPosition(camera.get(), debugCamera.get());
+	const cg2::Vector3 cameraPos = GetFloorVisibilityCenter();
 	return worldPos.x >= cameraPos.x - halfWidth - margin &&
 		worldPos.x <= cameraPos.x + halfWidth + margin &&
 		worldPos.y >= cameraPos.y - halfHeight - margin &&

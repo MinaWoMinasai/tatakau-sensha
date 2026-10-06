@@ -1,4 +1,5 @@
 #pragma once
+#include "NeonDepthLifecycle.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -85,6 +86,24 @@ public:
         }
     }
 
+    // Independent Depth lifecycle. The legacy Update and constants above retain
+    // their exact timing and mapping contract for existing callers and tests.
+    void UpdateDepth(const neondepth::LifecycleInput& input,
+        const neondepth::LifecycleTiming& timing, float permittedDelta) {
+        actionChanged_ = animationChanged_ = false;
+        depth_.Update(input, timing, permittedDelta);
+        const auto life = depth_.GetLife();
+        life_ = life == neondepth::Life::Dormant ? NeonBossVisualLife::Dormant :
+            life == neondepth::Life::Finished ? NeonBossVisualLife::Finished :
+            (life == neondepth::Life::Collapse || life == neondepth::Life::Dissolve) ?
+                NeonBossVisualLife::Dying : NeonBossVisualLife::Alive;
+        hpRatio_ = depth_.GetHpRatio();
+        dissolveProgress_ = depth_.GetDissolveProgress();
+        deathStarted_ = depth_.DidDeathStart();
+        releaseRequested_ = depth_.ShouldReleaseResources();
+    }
+    const neondepth::Lifecycle& GetDepthLifecycle() const { return depth_; }
+
     NeonBossVisualLife GetLife() const { return life_; }
     NeonBossAction GetAction() const { return action_; }
     const NeonBossAnimationMapping& GetMapping() const { return mapping_; }
@@ -97,6 +116,7 @@ public:
     unsigned GetAnimationSelectionCount() const { return animationSelectionCount_; }
 
 private:
+    neondepth::Lifecycle depth_{};
     NeonBossVisualLife life_ = NeonBossVisualLife::Dormant;
     NeonBossAction action_ = NeonBossAction::Idle;
     NeonBossAnimationMapping mapping_{};

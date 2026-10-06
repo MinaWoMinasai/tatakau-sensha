@@ -104,6 +104,8 @@ public:
 
     /// @brief 遠征射撃の入力上書き中は指定したワールド座標へ、それ以外はマウスの照準へ向きを更新する。
     void RotateToMouse(cg2::Camera* viewProjection);
+    /// @brief 指定済み遠征照準以外のマウス入力にも、Depth専用の表示VP床投影を使う。
+    void SetNeonDepthAimEnabled(bool enabled) { neonDepthAimEnabled_ = enabled; }
 
     /// @brief 初期化
     /// @param velocity 初期の移動速度。
@@ -241,6 +243,7 @@ private:
     bool runRallyShotPending_ = false;
     BulletManager* runBulletManager_ = nullptr;
     bool runInputOverride_ = false, runWantsAttack_ = false;
+    bool neonDepthAimEnabled_ = false;
     cg2::Vector3 runAimTarget_{}, runFollowOffset_{};
     float runFollowSpeed_ = 0.25f, runCatchupSpeed_ = 0.62f, runFollowResponse_ = 5.0f;
 

@@ -38,13 +38,14 @@ $validationGroups = @{
         'tank_expedition_tutorial','tank_expedition','tank_presentation','tank_projectiles',
         'tank_reward_cards','tank_reward_pool','tank_run','tank_trails',
         'combat_presentation','neon_preview_lifecycle','player_derived_stats',
-        'player_drone_lifecycle','player_movement','gameplay_scenario_session'
+        'player_drone_lifecycle','player_movement','gameplay_scenario_session',
+        'neon_depth_combat','neon_depth_presentation','neon_depth_config','neon_depth_runtime_settings'
     )
     Source = @('developer_tools_profile')
     Rendering = @('bloom_pipeline','neon_skinned_pipeline')
     Runtime = @('neon_boss_runtime','tank_combat_runtime','tank_expedition_map_runtime',
         'tank_experience_runtime','tank_special_runtime','tank_tutorial_runtime','title_demo',
-        'gameplay_scenarios','gameplay_scenario_release')
+        'gameplay_scenarios','gameplay_scenario_release','neon_depth_runtime')
     Packaging = @('tank_submission_packaging','tank_submission','tank_submission_runtime')
 }
 $validationPython = @{

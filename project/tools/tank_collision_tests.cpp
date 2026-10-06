@@ -166,6 +166,11 @@ struct Enemy : Collider {
     bool IsDead() const { return isDead_; }
     int GetHp() const {return hp_;}
     bool IsRunEncounterEnabled() const { return runEncounterEnabled_; }
+    // This suite keeps its legacy actor profile; real Depth contracts have a separate suite.
+    bool IsNeonDepthEncounterEnabled() const { return false; }
+    void EnableNeonDepthEncounter(bool enabled) { assert(!enabled); neonDepthEnabled_=false; }
+    void AbortNeonDepthEncounter() { assert(!neonDepthEnabled_); }
+    bool neonDepthEnabled_=false;
     void TakeDamage(uint32_t amount) { hp_-=static_cast<int>(amount); }
     void ApplyKnockback(const Vector3&,float);
     void RegisterExpEnemyKill(uint32_t);

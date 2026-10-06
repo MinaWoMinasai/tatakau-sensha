@@ -10,6 +10,8 @@
 #include "AttackController.h"
 #include "PrototypeBossCombat.h"
 #include "RivalBossCombat.h"
+#include "NeonDepthCombat.h"
+#include "NeonDepthFloor.h"
 
 class Player;
 class Stage;
@@ -365,6 +367,28 @@ public:
     /// @brief ライバル戦闘状態を返す。
     RivalCombatStatus GetRivalCombatStatus() const;
 
+    /// @brief ResetRunEncounter後、単一の床コア/HPを使うDepth専用遭遇を開始・停止する。
+    /// @note 有効化ごとに新generationを発行する。旧AIと二重更新せず、無効化で旧AIを自動再開しない。
+    void EnableNeonDepthEncounter(bool enabled = true, const neondepth::Tuning& tuning = {});
+    /// @brief 有限範囲内の調整候補を、確定済み攻撃を変えず次の計画へ予約する。
+    bool QueueNeonDepthTuning(const neondepth::Tuning& tuning);
+    /// @brief 死亡演出中にも保持する専用profileの有効状態を返す。
+    bool IsNeonDepthEncounterEnabled() const { return neonDepthEnabled_; }
+    /// @brief 描画側が読む計画・床shape・時計・被弾集計への借用const参照を返す。
+    const neondepth::Snapshot& GetNeonDepthSnapshot() const { return neonDepthCombat_.GetSnapshot(); }
+    /// @brief 最新Gameplay更新の値eventを返す。読むだけでeventを再発火しない。
+    const neondepth::Events& GetNeonDepthEvents() const { return neonDepthEvents_; }
+    /// @brief 成立したshape接触の累計を返す。無敵などで実HPが減らない接触も含む。
+    uint64_t GetNeonDepthContactClaims() const { return neonDepthCombat_.GetSnapshot().contactClaims; }
+    /// @brief 既存Player処理で実HP損失が確認できたhitの累計を返す。
+    uint64_t GetNeonDepthAcceptedHits() const { return neonDepthCombat_.GetSnapshot().acceptedHits; }
+    /// @brief 地形・回避可能性によって安全な攻撃計画を作れなかったかを返す。
+    bool HasNeonDepthPlanFailure() const { return neonDepthPlanRejected_; }
+    /// @brief 登場だけを終了し、通常終了と同じ位置取り初期状態に進める。
+    void SkipNeonDepthIntro();
+    /// @brief 待機eventと有効hazardを停止する。HPや死亡状態、保持Visualのprofileは変更しない。
+    void AbortNeonDepthEncounter();
+
     /// @brief 射撃と回避判定で使うBulletManagerを借用し、AttackControllerにも渡す。
     void SetAttackControllerBulletManager(BulletManager* bulletManager)
     {
@@ -482,6 +506,22 @@ private:
     float fireTimer_ = 0.0f;
     BossAttackConfig bossAttackConfig_{};
     EnemyProgressConfig enemyProgressConfig_{};
+    /// @brief 実Stageで床位置を補正し、計画・有効hazard・実Player被弾を一度だけ更新する。
+    void UpdateNeonDepthCombat(float dt);
+    /// @brief 現在Stageの衝突AABBを上限付き値配列へコピーする。借用要素は保持しない。
+    bool CacheNeonDepthStageGeometry();
+    /// @brief 最大48小刻みのX/Y移動で既存Stage補正を通す。
+    bool MoveNeonDepthCore(const cg2::Vector3& desiredFloor);
+    /// @brief 接続可能な床・固定目標・回避場所から専用攻撃計画を作る。
+    std::optional<neondepth::AttackPlan> PlanNeonDepthAttack(const neondepth::PlanningRequest& request);
+    bool neonDepthEnabled_ = false, neonDepthGeometryReady_ = false, neonDepthPlanRejected_ = false;
+    neondepth::Combat neonDepthCombat_{};
+    neondepth::Events neonDepthEvents_{};
+    std::array<neondepth::FloorBox,4096> neonDepthWalls_{};
+    size_t neonDepthWallCount_ = 0;
+    cg2::Vector3 neonDepthRepositionTarget_{};
+    uint64_t neonDepthRepositionKey_ = (std::numeric_limits<uint64_t>::max)();
+
     bool prototypeCombatEnabled_ = false;
     bool prototypeTuningEnabled_ = false;
     bool runEncounterEnabled_ = true;

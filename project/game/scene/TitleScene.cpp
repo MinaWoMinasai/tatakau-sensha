@@ -63,7 +63,11 @@ void TitleScene::Initialize() {
     Fit(*subtitle_,{w*0.78f,42});
     menu_[0]=label("遠征をはじめる",31,{w*0.5f,h*0.60f},{0.47f,1,0.76f,1});
     for(auto& item:menu_) Fit(*item,{w*0.72f,58});
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    hint_=label("クリックで決定 / F7 ボス戦へ直接移動（制作確認・自機無敵）",15,{w*0.5f,h-36},{0.57f,0.71f,0.77f,1});
+#else
     hint_=label("クリックで決定",15,{w*0.5f,h-36},{0.57f,0.71f,0.77f,1});
+#endif
     demoCaption_=label(" ",13,{w-130,30},{0.47f,0.62f,0.67f,1});
     menuSelection_=0;menuHovered_=HitTestMenu(input_->GetMousePosition())==0;UpdateMenuVisuals();
     if(tanksubmission::Enabled()) {
@@ -90,6 +94,11 @@ void TitleScene::Update() {
         const bool click=input_->IsTrigger(input_->GetMouseState().rgbButtons[0],input_->GetPreMouseState().rgbButtons[0]);
         const int hovered=HitTestMenu(mouse);
         if(menuHovered_!=(hovered==0)) {menuHovered_=hovered==0;UpdateMenuVisuals();}
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+        if(triggered(DIK_F7)) {
+            if(StartTransitionIfAvailable("TANK_EXPEDITION",0.5f)) GameStartSession::RequestDeveloperBossStart();
+        } else
+#endif
         if(cg2::kDeveloperTools&&triggered(DIK_F9)) StartTransitionIfAvailable("TANK_EXPEDITION",0.5f);
         else if(triggered(DIK_RETURN)||triggered(DIK_SPACE)||(click&&hovered>=0)) {
             if(menuSelection_==0) StartTransitionIfAvailable("TANK_EXPEDITION",0.65f);

@@ -692,6 +692,7 @@ void Bloom::ApplyTemporalJitterToCameras() {
 
     const bool canUseJitter =
         !developerShowcase_.comparisonFreeze &&
+        !screenEffectState_.suppressTemporal &&
         enableTemporalAccumulation_ &&
         enableTemporalJitter_ &&
         enableMotionVector_ &&
@@ -714,7 +715,8 @@ void Bloom::ApplyTemporalJitterToCameras() {
 
     bloomParam_.temporalJitter = temporalJitter_;
     bloomParam_.temporalPreviousJitter = previousTemporalJitter_;
-    bloomParam_.temporalJitterEnabled = enableTemporalJitter_ && !developerShowcase_.comparisonFreeze ? 1.0f : 0.0f;
+    bloomParam_.temporalJitterEnabled = enableTemporalJitter_ && !developerShowcase_.comparisonFreeze &&
+        !screenEffectState_.suppressTemporal ? 1.0f : 0.0f;
     bloomParam_.temporalJitterScale = temporalJitterScale_;
 
     Object3dCommon* objectCommon = Object3dCommon::GetInstance();
@@ -770,11 +772,19 @@ void Bloom::SetTransientPulse(
 
 void Bloom::SetScreenEffectState(const IScene::ScreenEffectState& state) {
 	const bool wasActive = screenEffectState_.active;
+    if (state.suppressTemporal != screenEffectState_.suppressTemporal) {
+        ResetTemporalHistory();
+        hasPreviousMotionViewProjection_ = false;
+    }
 	if (!wasActive) {
 		CaptureScreenEffectBase();
 	}
 	screenEffectState_ = state;
 	ComposeTransientEffects();
+    if (state.suppressTemporal) {
+        bloomParam_.temporalEnabled = bloomParam_.temporalHistoryValid = bloomParam_.temporalJitterEnabled = 0;
+        bloomParam_.temporalJitter = bloomParam_.temporalPreviousJitter = {};
+    }
 	if (wasActive && !state.active) {
 		CaptureScreenEffectBase();
 	}
@@ -1049,6 +1059,7 @@ void Bloom::PostDraw() {
     const bool canUseTemporalAccumulation =
         !developerShowcase_.active &&
         !developerShowcase_.comparisonFreeze &&
+        !screenEffectState_.suppressTemporal &&
         enableTemporalAccumulation_ &&
         enableMotionVector_ &&
         bloomParam_.motionVectorScale >= 0.0f &&

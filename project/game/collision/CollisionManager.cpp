@@ -101,6 +101,15 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
     if (auto* player = dynamic_cast<Player*>(colliderB); player && player->TryDashImpact(colliderA))
         return;
 
+    // 床コアの通常接触だけを省く。直前の明示ダッシュ攻撃は既存経路で成立させる。
+    auto isDepthCoreContact = [](Collider* candidateCore, Collider* body) {
+        const auto* core = dynamic_cast<const Enemy*>(candidateCore);
+        const uint32_t attribute = body->GetCollisionAttribute();
+        return core && core->IsNeonDepthEncounterEnabled() &&
+            (attribute == kCollisionAttributePlayer || attribute == kCollisionAttributePlayerDrone);
+    };
+    if (isDepthCoreContact(colliderA,colliderB) || isDepthCoreContact(colliderB,colliderA)) return;
+
     Bullet* shot = dynamic_cast<Bullet*>(colliderA);
     Collider* victim = colliderB;
     if (!shot) {
