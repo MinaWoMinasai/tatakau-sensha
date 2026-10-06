@@ -1,5 +1,6 @@
 #include "game/weapon/CombatTypes.h"
 #include "PlayerDrone.h"
+#include "game/enemy/visual/NeonDepthPlacement.h"
 #include "Stage.h"
 #include "game/exp/ExpEnemy.h"
 
@@ -76,6 +77,27 @@ void PlayerDrone::RotateToMouse(cg2::Camera* viewProjection)
         if (cg2::Length(aim) > 0.001f)
             dir = cg2::Normalize(aim);
         angle_ = std::atan2(dir.y, dir.x);
+        worldTransform_.rotate.z = angle_;
+        object_->SetRotate(worldTransform_.rotate);
+        return;
+    }
+    if (neonDepthAimEnabled_) {
+        if (!viewProjection) return;
+        auto* window = cg2::WinApp::GetInstance();
+        POINT mousePosition{};
+        if (!window || !GetCursorPos(&mousePosition) || !ScreenToClient(window->GetHwnd(), &mousePosition)) return;
+        constexpr cg2::Vector2 viewport{1280.0f,720.0f};
+        cg2::Vector2 pixel{};
+        cg2::Vector3 target{};
+        if (!neondepth::TryClientToViewport({static_cast<float>(mousePosition.x),static_cast<float>(mousePosition.y)},
+                {static_cast<float>(window->GetClientWidth()),static_cast<float>(window->GetClientHeight())},viewport,pixel) ||
+            !neondepth::TryScreenToFloorFromViewProjection(pixel,viewport,
+                viewProjection->GetViewProjectionMatrix(),0.0f,target)) return;
+        const cg2::Vector3 offset = target-worldTransform_.translate;
+        const float length = cg2::Length(offset);
+        if (!neondepth::Finite(offset) || !std::isfinite(length) || length<=0.001f) return;
+        dir = cg2::Normalize(offset);
+        angle_ = std::atan2(dir.y,dir.x);
         worldTransform_.rotate.z = angle_;
         object_->SetRotate(worldTransform_.rotate);
         return;

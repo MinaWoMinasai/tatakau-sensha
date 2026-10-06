@@ -46,9 +46,9 @@ public:
     void QueueLocalGridClipped(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color, float minX,
                                float maxX, float minY, float maxY);
     /// @brief 全体を描画する。
-    void DrawAll(const Matrix4x4& viewProjection);
+    void DrawAll(const Matrix4x4& viewProjection, bool noDepth = false);
     /// @brief 範囲を描画する。
-    void DrawRange(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection);
+    void DrawRange(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection, bool noDepth = false);
     /// @brief 範囲単色を描画する。
     void DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection);
     /// @brief 頂点件数を返す。

@@ -178,10 +178,11 @@ void GameScene::StartTankExpeditionRoom() {
         if(room==Room::Boss) screenEffectDirector_.TriggerBossEntry();
     }
     ApplyTankExpeditionRoomBalance();
+    ConfigureNeonDepthEncounter();
     previousPlayerHp_=player_->GetHp();previousBossHp_=enemy_->GetHp();
     bossDefeatHandled_=false;
     tankRunSelection_=0;tankRunMenuAge_=-0.15f;
-    SetEventCallout(std::string("第")+std::to_string(tankExpedition_.GetRoomIndex()+1)+"区画 / "+RoomName(room),1.6f);
+    if(!enemy_->IsNeonDepthEncounterEnabled()) SetEventCallout(std::string("第")+std::to_string(tankExpedition_.GetRoomIndex()+1)+"区画 / "+RoomName(room),1.6f);
     RefreshTankExpeditionUi();
 }
 
@@ -440,7 +441,18 @@ void GameScene::RefreshTankExpeditionUi() {
     if(expeditionMapEnabled_&&!mapNode) tankRunObjectiveText_->SetText("作戦マップ");
     tankRunBossText_->SetAnchorPoint({0.5f,0});tankRunBossText_->SetPosition({640,80});
     tankRunBossText_->SetText("最深部のボス");
-    if(enemy_->IsExpeditionRivalEnabled()) {
+    if(enemy_->IsNeonDepthEncounterEnabled()) {
+        const auto& status=enemy_->GetNeonDepthSnapshot();
+        const char* attack=status.plan.attack==neondepth::Attack::Volley?"奥行き弾幕":
+            status.plan.attack==neondepth::Attack::Dive?"降下突撃":"床接続ビーム";
+        const char* action=status.phase==neondepth::Phase::Intro?"投影体が形成中 / Enterでスキップ":
+            status.phase==neondepth::Phase::Telegraph?"予告線を見て離れよう":
+            status.phase==neondepth::Phase::Locked?"照準固定":
+            status.phase==neondepth::Phase::Airborne?"発動まであと少し":
+            status.phase==neondepth::Phase::Active?"危険エリアの外へ":
+            status.phase==neondepth::Phase::Recovery?"反撃のチャンス / 床コアを攻撃":"床コアを攻撃";
+        tankRunBossText_->SetText(std::string(status.plan.phaseTwo?"ボス・第2段階 / ":"ボス / ")+attack+"  "+action);
+    } else if(enemy_->IsExpeditionRivalEnabled()) {
         const auto status=enemy_->GetRivalCombatStatus();using P=RivalBossCombat::Phase;
         const char* action=status.phase==P::Reload?"装填中 / 反撃のチャンス":
             status.phase==P::DashWarning?"突進予告":status.phase==P::Dash?"突進中":

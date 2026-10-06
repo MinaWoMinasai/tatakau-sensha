@@ -1,6 +1,7 @@
 #include "game/debug/GameplayScenarioSession.h"
 #include <Windows.h>
 #include <cassert>
+#include <cstdio>
 #include <iostream>
 #include <limits>
 
@@ -73,6 +74,61 @@ void FixedTimePresentationPolicy() {
     assert(((1.0f / 15.0f) * 0.3f) * 60.0f > 0.95f);
     assert(!gameplaytest::ScenarioShouldSnapTimeScale((1.0f / 15.0f) * 0.3f, 1.0f / 15.0f));
 }
+void RecordingPolicy() {
+    auto continuous = [] {
+        gameplaytest::Settings settings;
+        settings.frames = 2520; settings.captureFrames.clear();
+        settings.recording = {true, 121, 2400, 60, 12ull * 1024 * 1024 * 1024};
+        return settings;
+    };
+    std::string error;
+    auto settings = continuous();
+    assert(gameplaytest::ValidateSettings(settings, error));
+    assert(!gameplaytest::ShouldRecordCompletedFrame(settings, 120));
+    assert(gameplaytest::ShouldRecordCompletedFrame(settings, 121));
+    assert(gameplaytest::ShouldRecordCompletedFrame(settings, 2520));
+    assert(!gameplaytest::ShouldRecordCompletedFrame(settings, 2521));
+    auto reject = [&](auto mutate) {
+        auto invalid = continuous(); mutate(invalid);
+        assert(!gameplaytest::ValidateSettings(invalid, error) && !error.empty());
+    };
+    for (unsigned count : {0u, 2701u, (std::numeric_limits<unsigned>::max)()})
+        reject([&](auto& s) { s.recording.frameCount = count; });
+    for (unsigned first : {0u, 122u, (std::numeric_limits<unsigned>::max)()})
+        reject([&](auto& s) { s.recording.firstFrame = first; });
+    reject([](auto& s) { s.captureFrames = {121}; });
+    reject([](auto& s) { s.captureFrames = {2520}; });
+    reject([](auto& s) { s.recording.enabled = false; });
+    settings.captureFrames = {0,120};
+    assert(gameplaytest::ValidateSettings(settings, error));
+    settings = continuous(); settings.frames = 3600;
+    settings.recording.firstFrame = 901; settings.recording.frameCount = 2700;
+    assert(gameplaytest::ValidateSettings(settings, error));
+    settings = continuous(); settings.frames = 120;
+    settings.recording.firstFrame = 120; settings.recording.frameCount = 1;
+    assert(gameplaytest::ValidateSettings(settings, error));
+    for (unsigned fps : {30u,60u,120u,240u}) {
+        settings = continuous(); settings.fixedDeltaTime = 1.0f / static_cast<float>(fps);
+        settings.recording.encodedFps = fps;
+        assert(gameplaytest::ValidateSettings(settings, error));
+    }
+    for (unsigned fps : {0u,15u,59u,61u,241u,(std::numeric_limits<unsigned>::max)()})
+        reject([&](auto& s) { s.recording.encodedFps = fps; });
+    for (uint64_t bytes : {uint64_t(0),uint64_t(12ull*1024*1024*1024+1),(std::numeric_limits<uint64_t>::max)()})
+        reject([&](auto& s) { s.recording.maxOutputBytes = bytes; });
+    settings = continuous(); settings.recording.maxOutputBytes = 1;
+    assert(gameplaytest::ValidateSettings(settings, error)); // Native preflight owns the actual size check.
+    settings = {}; settings.captureFrames.clear();
+    for (unsigned frame = 0; frame < 32; ++frame) settings.captureFrames.push_back(frame);
+    assert(gameplaytest::ValidateSettings(settings, error));
+    settings.captureFrames.push_back(32);
+    assert(!gameplaytest::ValidateSettings(settings, error));
+    for (int value = 0; value <= static_cast<int>(gameplaytest::Scenario::PreviewLifecycle); ++value) {
+        settings = {}; settings.scenario = static_cast<gameplaytest::Scenario>(value);
+        assert(gameplaytest::ValidateSettings(settings, error));
+        assert(!gameplaytest::ShouldRecordCompletedFrame(settings, 120));
+    }
+}
 void DeathAndEncounterInvariants() {
     gameplaytest::InvariantValidator legal;
     auto snapshot = Healthy(); legal.Observe(snapshot);
@@ -111,12 +167,80 @@ void DeathAndEncounterInvariants() {
     rejectAfter(Healthy(), after);
     after = Healthy(3); rejectAfter(Healthy(), after);
 }
+void RecordingSession(GameplayScenarioSession& session, const std::string& mode) {
+    assert(session.IsActive() && session.GetSettings().recording.enabled);
+    assert(session.GetSettings().frames == 120);
+    const bool successful = mode == "recording_valid" || mode == "recording_late";
+    if (mode == "recording_dimensions") assert(!session.BeginRecording(17,16));
+    else if (mode == "recording_budget") assert(!session.BeginRecording(16,16));
+    else {
+        assert(session.BeginRecording(16,16));
+        assert(session.BeginRecording(16,16)); // Rechecking the same native size must not allocate again.
+        if (mode == "recording_resolution") assert(!session.BeginRecording(32,16));
+    }
+    session.BeginScene();
+    assert(!session.ShouldRecordCompletedFrame());
+    const float base = session.GetSettings().fixedDeltaTime;
+    double gameplayElapsed = 0, presentationElapsed = 0;
+    for (unsigned frame = 1; frame <= 120; ++frame) {
+        auto snapshot = Healthy(frame);
+        const float gameplayDt = frame % 2 ? base : base * .5f;
+        const float presentationDt = frame % 3 ? base : 0;
+        if (mode == "recording_clock" && frame == 1) {
+            session.Record(snapshot, -base, base, 1);
+            session.Record(snapshot, base, std::numeric_limits<float>::quiet_NaN(), 1);
+            session.Record(snapshot, base * 2, base, 1);
+            session.Record(snapshot, base, base, 2);
+            assert(session.GetFrame() == 0 && session.GetErrors().size() == 1);
+        }
+        session.Record(snapshot, gameplayDt, presentationDt, gameplayDt / base);
+        gameplayElapsed += gameplayDt; presentationElapsed += presentationDt;
+        assert(session.GetFrame() == frame);
+        snapshot.sceneEpoch = session.GetSceneEpoch();
+        if (!session.ShouldRecordCompletedFrame()) continue;
+        const unsigned sequence = session.GetRecordingSequenceFrame();
+        assert(sequence == frame - session.GetSettings().recording.firstFrame);
+        const auto metadata = session.MakeRecordingMetadata();
+        assert(metadata.at("sequenceFrame") == sequence && metadata.at("sequenceRate") == 60);
+        assert(!metadata.at("comparisonFreeze").get<bool>() && metadata.at("heldDrawCount") == 0);
+        const auto& clocks = metadata.at("recordingClocks");
+        assert(std::abs(clocks.at("baseElapsed").get<double>() - double(frame) * base) < 1e-6);
+        assert(std::abs(clocks.at("gameplayElapsed").get<double>() - gameplayElapsed) < 1e-6);
+        assert(std::abs(clocks.at("presentationElapsed").get<double>() - presentationElapsed) < 1e-6);
+        assert(clocks.at("gameplayDelta") == gameplayDt && clocks.at("presentationDelta") == presentationDt);
+        if (mode == "recording_dimensions" || mode == "recording_budget" ||
+            (mode == "recording_incomplete" && frame == 120)) continue;
+        char name[32]{}; std::snprintf(name, sizeof(name), "frame_%05u", sequence);
+        // CPU contract test: byte counts are injected; no PNG/GPU evidence is produced.
+        if (frame == session.GetSettings().recording.firstFrame) {
+            if (mode == "recording_order") session.ReportRecordedFrame(sequence+1,name,snapshot,100,200);
+            if (mode == "recording_bytes") session.ReportRecordedFrame(sequence,name,snapshot,
+                session.GetSettings().recording.maxOutputBytes,1);
+            if (mode == "recording_name") session.ReportRecordedFrame(sequence,"wrong",snapshot,100,200);
+        }
+        session.ReportRecordedFrame(sequence,name,snapshot,100,200);
+        if (mode == "recording_duplicate" && sequence == 0)
+            session.ReportRecordedFrame(sequence,name,snapshot,100,200);
+    }
+    if (mode == "recording_capture_limit") {
+        for (unsigned i = 0; i < 64; ++i) session.ReportCapture("sparse",Healthy(120));
+        assert(session.GetErrors().empty());
+        session.ReportCapture("overflow",Healthy(120));
+    }
+    session.ReportDetail("cpuRecordingContract", {{"injectedByteCounts",true},{"gpuFramesProduced",false}});
+    assert(session.ShouldFinish());
+    if (successful) assert(session.GetErrors().empty());
+    assert(session.Finish() == successful && session.Finish() == successful);
+    assert(session.IsFinished() && !session.ShouldFinish());
+    if (!successful) assert(!session.GetErrors().empty());
+}
 void ActualSession(const std::string& mode) {
     auto& session = GameplayScenarioSession::Get();
     if (mode == "disabled") {
         assert(!session.IsActive() && session.GetErrors().empty());
         return;
     }
+    if (mode.rfind("recording_",0) == 0) { RecordingSession(session,mode); return; }
     if (mode == "invalid") {
         assert(!session.IsActive() && session.IsFinished() && !session.GetErrors().empty());
         MSG message{};
@@ -158,7 +282,7 @@ void ActualSession(const std::string& mode) {
 }
 }
 int main(int argc, char** argv) {
-    SettingsAndInput(); FixedTimePresentationPolicy(); DeathAndEncounterInvariants();
+    SettingsAndInput(); FixedTimePresentationPolicy(); RecordingPolicy(); DeathAndEncounterInvariants();
     ActualSession(argc > 1 ? argv[1] : "valid");
     std::cout << "PASS: scenario settings/input/invariants and actual manifest/session lifecycle\n";
 }

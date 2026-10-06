@@ -497,7 +497,19 @@ int Game::MainLoop() {
         cg2::Object3dCommon::GetInstance()->Update();
 		const float engineUpdateMs = elapsedMs(engineUpdateStart, std::chrono::steady_clock::now());
 		const auto sceneUpdateStart = std::chrono::steady_clock::now();
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+        const auto depthSceneEpochBefore = GameplayScenarioSession::Get().GetSceneEpoch();
+        const auto depthSceneNameBefore = SceneManager::GetInstance()->GetCurrentSceneName();
+#endif
         SceneManager::GetInstance()->Update();
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+        auto& depthSession = GameplayScenarioSession::Get();
+        const auto& actualSceneName = SceneManager::GetInstance()->GetCurrentSceneName();
+        if (depthSession.IsActive() && gameplaytest::IsNeonDepthScenario(depthSession.GetSettings().scenario) &&
+            (actualSceneName != depthSceneNameBefore || depthSession.GetSceneEpoch() != depthSceneEpochBefore)) {
+            if (depthSession.NotifyDepthSceneEntered(actualSceneName)) PostQuitMessage(depthSession.GetErrors().empty()?0:9);
+        }
+#endif
         if (trailStress_) {
             cg2::RuntimeProfiler::CpuScope scope("Stress trails update");
             trailStress_->Update(1.0f/60.0f);

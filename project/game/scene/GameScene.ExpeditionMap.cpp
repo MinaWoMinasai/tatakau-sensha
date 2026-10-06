@@ -357,8 +357,9 @@ bool GameScene::StartAuthoredExpeditionRoom() {
     // 共有の部屋調整を適用する。マップ式の制作敵はApplyTankExpeditionRoomBalance側で
     // HasAuthoredDefinitionを確認し、個別設定の接触ダメージを全体値で上書きしない。
     ApplyTankExpeditionRoomBalance();
+    ConfigureNeonDepthEncounter();
     previousPlayerHp_=player_->GetHp();previousBossHp_=enemy_->GetHp();bossDefeatHandled_=false;
-    if(!expeditionTransition_.IsActive()) SetEventCallout(std::string(NodeName(node->kind))+" / "+(room->objective=="control"?"通貨ボックスを3つ壊そう":room->objective=="boss"?"ボスを撃破":"敵を全滅"),1.4f);
+    if(!expeditionTransition_.IsActive() && !enemy_->IsNeonDepthEncounterEnabled()) SetEventCallout(std::string(NodeName(node->kind))+" / "+(room->objective=="control"?"通貨ボックスを3つ壊そう":room->objective=="boss"?"ボスを撃破":"敵を全滅"),1.4f);
     return true;
 }
 

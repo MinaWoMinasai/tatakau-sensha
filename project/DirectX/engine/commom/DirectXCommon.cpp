@@ -538,6 +538,19 @@ void DirectXCommon::CreateShader()
 }
 
 
+bool DirectXCommon::InitializeTrailSceneNoDepthPipeline() {
+    if (trailSceneNoDepthPipeline_) return true;
+    if (!device_ || !trailPSO_HDR.graphicsState_) return false;
+    auto description = trailPSO_HDR.graphicsDesc_;
+    description.NumRenderTargets = 1;
+    description.RTVFormats[1] = DXGI_FORMAT_UNKNOWN;
+    description.RTVFormats[2] = DXGI_FORMAT_UNKNOWN;
+    description.DepthStencilState.DepthEnable = FALSE;
+    description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    description.DSVFormat = DXGI_FORMAT_UNKNOWN;
+    return SUCCEEDED(device_->CreateGraphicsPipelineState(&description,IID_PPV_ARGS(&trailSceneNoDepthPipeline_)));
+}
+
 void DirectXCommon::CreateGraphics()
 {
 

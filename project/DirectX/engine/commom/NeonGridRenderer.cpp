@@ -291,11 +291,11 @@ void NeonGridRenderer::QueueLocalGridClipped(const Vector3& center, float radius
     }
 }
 
-void NeonGridRenderer::DrawAll(const Matrix4x4& viewProjection) {
-    DrawRange(0, vertexCount_, viewProjection);
+void NeonGridRenderer::DrawAll(const Matrix4x4& viewProjection, bool noDepth) {
+    DrawRange(0, vertexCount_, viewProjection, noDepth);
 }
 
-void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection) {
+void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection, bool noDepth) {
     if (!dxCommon_ || !vertexData_ || vertexCount == 0 || startVertex >= vertexCount_) {
         return;
     }
@@ -305,7 +305,9 @@ void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, con
 
     auto commandList = dxCommon_->GetList();
     commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
-    commandList->SetPipelineState(dxCommon_->GetPSOTrailForScene().graphicsState_.Get());
+    auto* pipeline = noDepth ? dxCommon_->GetTrailSceneNoDepthPipeline() : dxCommon_->GetPSOTrailForScene().graphicsState_.Get();
+    if (!pipeline) return;
+    commandList->SetPipelineState(pipeline);
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());

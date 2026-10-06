@@ -443,6 +443,8 @@ public:
         return trailPSO_HDR;
     }
     /// @brief PSOHUD矩形を返す。
+    bool InitializeTrailSceneNoDepthPipeline();
+    ID3D12PipelineState* GetTrailSceneNoDepthPipeline() const { return trailSceneNoDepthPipeline_.Get(); }
     PSO& GetPSOHudRect()
     {
         return hudRectPSO;
@@ -690,6 +692,7 @@ private:
     PSO shadowPSO;
     PSO trailPSO;
     PSO trailPSO_HDR;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> trailSceneNoDepthPipeline_;
     PSO hudRectPSO;
     PSO skyboxPSO;
     PSO skyboxPSO_HDR;
