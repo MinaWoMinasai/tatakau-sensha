@@ -2,6 +2,7 @@
 #include "Player.h"
 #include "game/player/PlayerMovement.h"
 #include "PlayerUiHelpers.h"
+#include "game/enemy/visual/NeonDepthPlacement.h"
 #include "StartupTrace.h"
 #include "Stage.h"
 #include "game/exp/ExpEnemy.h"
@@ -660,6 +661,28 @@ void Player::RotateToMouse(cg2::Camera* viewProjection) {
         angle_=std::atan2(dir_.y,dir_.x); worldTransform_.rotate.z=angle_;
         object_->SetRotate(worldTransform_.rotate); return;
     }
+    if (neonDepthAimEnabled_) {
+        if (!viewProjection) return;
+        auto* window = cg2::WinApp::GetInstance();
+        POINT mousePosition{};
+        if (!window || !GetCursorPos(&mousePosition) || !ScreenToClient(window->GetHwnd(), &mousePosition)) return;
+        constexpr cg2::Vector2 viewport{1280.0f,720.0f};
+        cg2::Vector2 pixel{};
+        cg2::Vector3 target{};
+        if (!neondepth::TryClientToViewport({static_cast<float>(mousePosition.x),static_cast<float>(mousePosition.y)},
+                {static_cast<float>(window->GetClientWidth()),static_cast<float>(window->GetClientHeight())},viewport,pixel) ||
+            !neondepth::TryScreenToFloorFromViewProjection(pixel,viewport,
+                viewProjection->GetViewProjectionMatrix(),0.0f,target)) return;
+        const cg2::Vector3 offset = target-worldTransform_.translate;
+        const float length = cg2::Length(offset);
+        if (!neondepth::Finite(offset) || !std::isfinite(length) || length<=0.001f) return;
+        dir_ = cg2::Normalize(offset);
+        runAimWorld_ = target;
+        angle_ = std::atan2(dir_.y,dir_.x);
+        worldTransform_.rotate.z = angle_;
+        object_->SetRotate(worldTransform_.rotate);
+        return;
+    }
 	// --- 1. マウス座標取得 ---
 	POINT mousePosition;
 	GetCursorPos(&mousePosition);
@@ -1013,6 +1036,7 @@ void Player::Update(
 				}
 			}
 			++companionIndex;
+			drone->SetNeonDepthAimEnabled(neonDepthAimEnabled_);
 			drone->Update(viewProjection, stage, worldTransform_.translate,
 				runModifiers_.enabled ? deltaTime : 1.0f / 60.0f);
 		}
@@ -1151,6 +1175,35 @@ cg2::Vector3 Player::GetWorldPosition() const {
 	return worldPos;
 }
 
+bool Player::TryPerfectDodgeFromHostileContact(bool dodgeable)
+{
+    if (!isJustEvaded_ && isDashing_ &&
+        TankCanPerfectDodge(runModifiers_.enabled && runModifiers_.perfectDodge,
+                            dodgeable, kDashDuration - dashTimer_,
+                            TankEffectPower(runModifiers_, 15))) {
+        requestSlow_ = true;
+        isJustEvaded_ = true;
+        ++perfectDodgeCount_;
+        invincibleTimer_ = dashTimer_;
+        buffTimer_ = kBuffDuration * TankEffectPower(runModifiers_, 15);
+        if (runModifiers_.enabled && runModifiers_.capacitor) {
+            const float power = TankEffectPower(runModifiers_, 4);
+            buffTimer_ += 1.5f * power;
+            stats_.stamina = (std::min)(stats_.maxStamina, stats_.stamina + power);
+            HealRunPlayer((std::max)(1, static_cast<int>(std::round(4.0f * power))));
+        }
+        if (runModifiers_.enabled && runModifiers_.overdrive) {
+            runOverdriveTimer_ = 2.4f * TankEffectPower(runModifiers_, 11);
+            runOverdriveCooldown_ = 4.0f;
+        }
+        isBuffActive_ = !runCheckpointEvolution_ || runModifiers_.capacitor;
+        maxCharge_ = 5.0f;
+        return true;
+    }
+
+    return false;
+}
+
 void Player::OnCollision(Collider* other)
 {
     if (const auto* resource = dynamic_cast<const ExpEnemy*>(other); resource && resource->IsRunResource()) {
@@ -1169,28 +1222,7 @@ void Player::OnCollision(Collider* other)
         }
     }
 
-    if (!isJustEvaded_ && isDashing_ &&
-        TankCanPerfectDodge(runModifiers_.enabled && runModifiers_.perfectDodge,
-                            other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet, kDashDuration - dashTimer_,
-                            TankEffectPower(runModifiers_, 15))) {
-        requestSlow_ = true;
-        isJustEvaded_ = true;
-        invincibleTimer_ = dashTimer_;
-        buffTimer_ = kBuffDuration * TankEffectPower(runModifiers_, 15);
-        if (runModifiers_.enabled && runModifiers_.capacitor) {
-            const float power = TankEffectPower(runModifiers_, 4);
-            buffTimer_ += 1.5f * power;
-            stats_.stamina = (std::min)(stats_.maxStamina, stats_.stamina + power);
-            HealRunPlayer((std::max)(1, static_cast<int>(std::round(4.0f * power))));
-        }
-        if (runModifiers_.enabled && runModifiers_.overdrive) {
-            runOverdriveTimer_ = 2.4f * TankEffectPower(runModifiers_, 11);
-            runOverdriveCooldown_ = 4.0f;
-        }
-        isBuffActive_ = !runCheckpointEvolution_ || runModifiers_.capacitor;
-        maxCharge_ = 5.0f;
-        return;
-    }
+    if (TryPerfectDodgeFromHostileContact(other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet)) return;
 
     cg2::Vector3 hitDir = worldTransform_.translate - other->GetWorldPosition();
 
@@ -1213,6 +1245,20 @@ void Player::OnCollision(Collider* other)
         other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
         TakeDamage(other->GetDamage(), 0.45f);
     }
+}
+
+uint32_t Player::ReceiveHostileHazard(uint32_t amount, bool dodgeable)
+{
+    if (isDead_ || amount == 0) return 0;
+    if (currentClass_ == ClassType::Assassin) {
+        isStealth_ = false;
+        stealthTimer_ = 0.0f;
+    }
+    if ((invincibleTimer_ > 0.0f && !isDashing_) || isJustEvaded_ || isSmash_) return 0;
+    if (TryPerfectDodgeFromHostileContact(dodgeable)) return 0;
+    const int before = hp_;
+    TakeDamage(amount, 0.45f);
+    return static_cast<uint32_t>((std::max)(0, before-hp_));
 }
 
 bool Player::TryDashImpact(Collider* target)

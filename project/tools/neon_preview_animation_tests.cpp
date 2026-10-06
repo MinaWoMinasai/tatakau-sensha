@@ -5,6 +5,7 @@
 #include "TextureManager.h"
 #include "../game/debug/NeonPreviewAnimations.h"
 #include "../game/debug/NeonDissolvePreviewController.h"
+#include "../game/enemy/visual/NeonDepthPresentation.h"
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -172,6 +173,92 @@ void TestDissolveController(SkinnedModel& model) {
     Require(controller.Reset(model),"Paused Attack Reset failed"); model.Update(0); RequirePose(model,attackPose);
     RequireSamePlayback(model.CaptureAnimationPlaybackState(),paused);
     std::cout<<"PASS: actual skinned global projection bounds for Bind/Idle/Attack; dissolve Trigger freezes running blend/paused Attack, wait/Pause/Resume/speed/Seek/end, same-pose Restart and repeated Trigger preserve seed/direction, invalid Trigger atomic and Reset restores full original checkpoint.\n";
+}
+}
+
+namespace {
+void TestDepthAnimations(SkinnedModel& model) {
+    model.SetAnimation("BindPose"); model.SetAnimationPlaying(false); model.Update(0);
+    const auto originalBind = Pose(model);
+    std::string error;
+    Require(neondepth::ValidateDepthBindSkeleton(model.GetSkeleton(), &error), error.c_str());
+    neondepth::BindBounds bounds;
+    Require(ComputeNeonSkinnedProjectionBounds(model, {1,0,0}, bounds.low.x, bounds.high.x) &&
+        ComputeNeonSkinnedProjectionBounds(model, {0,1,0}, bounds.low.y, bounds.high.y) &&
+        ComputeNeonSkinnedProjectionBounds(model, {0,0,1}, bounds.low.z, bounds.high.z), "Actual Depth bind bounds invalid");
+    neondepth::BindPlacement foot;
+    Require(neondepth::TryBindPlacement(model.GetSkeleton(), bounds, foot) && foot.footBonesFound == 2 &&
+        Near(foot.stableFootLocal.y, bounds.low.y), "Actual loaded sole anchor invalid");
+    auto generated = neondepth::CreateDepthAnimations(model.GetSkeleton());
+    Require(generated.safeToRegister && generated.skippedMotionJoints.empty() && generated.animations.size() == 8,
+        "Actual Depth motion bones/clips invalid");
+    const auto previousCount = model.GetAnimations().size();
+    Require(model.RegisterAnimations(std::move(generated.animations), &error), error.c_str());
+    Require(model.GetAnimations().size() == previousCount + 8, "Depth registration did not append eight clips once");
+    model.SetAnimation(neondepth::kMotionNames[0]); model.SeekCurrentAnimation(0); model.Update(0);
+    const auto hover0 = Pose(model);
+    std::vector<Vector3> restVertices;
+    for (size_t i = 0; i < model.GetAsset().modelData.vertices.size(); ++i) restVertices.push_back(SkinnedPosition(model, i));
+    model.SeekCurrentAnimation(3); model.Update(0); RequirePose(model, hover0);
+    for (size_t motion = 0; motion < neondepth::kMotionNames.size(); ++motion) {
+        Require(model.SetAnimation(neondepth::kMotionNames[motion], true), "Registered Depth clip not selectable");
+        model.SetAnimationLoop(false); model.SetAnimationPlaying(false);
+        model.SeekCurrentAnimation(motion == 0 ? .375f : .55f); model.Update(0);
+        const auto sampled = Pose(model);
+        const auto sampledTime = model.GetCurrentAnimationTime();
+        for (int repeat = 0; repeat < 3; ++repeat) { model.Update(0); RequirePose(model, sampled);
+            Require(model.GetCurrentAnimationTime() == sampledTime, "Depth same-time update advanced clip"); }
+        size_t changed = 0;
+        for (size_t i = 0; i < restVertices.size(); ++i) if (!Near(restVertices[i], SkinnedPosition(model, i))) ++changed;
+        Require(changed > 100, "Depth clip failed to deform actual weighted vertices");
+        for (const auto& joint : model.GetSkeleton().joints) {
+            Require(Near(joint.transform.translate, joint.bindTransform.translate) && Near(joint.transform.scale, joint.bindTransform.scale),
+                "Depth clip changed bind translation/scale");
+            Require(Near(DotQuaternion(joint.transform.rotate, joint.transform.rotate), 1), "Depth sampled quaternion not unit");
+            Require(neondepth::Finite(joint.skeletonSpaceMatrix), "Depth sampled joint matrix not finite");
+        }
+        for (const auto& entry : model.GetSkinCluster().GetPalette())
+            Require(neondepth::Finite(entry.skeletonSpaceMatrix), "Depth actual palette not finite");
+    }
+    model.SetAnimation("Depth_Hover"); model.SetAnimationPlaying(true); model.SetAnimationLoop(true);
+    model.SetAnimationPlaybackSpeed(1); model.Update(.2f);
+    neondepth::MotionGate gate; neondepth::Snapshot snapshot;
+    snapshot.generation = 7; snapshot.plan.instance = 1; snapshot.phase = neondepth::Phase::Telegraph;
+    snapshot.plan.attack = neondepth::Attack::Volley; snapshot.duration = .85f;
+    auto command = gate.Step(snapshot);
+    Require(command.select && model.TransitionToAnimation("Depth_VolleyCharge", .12f), "Depth entry blend failed");
+    model.Update(.05f); model.SetAnimationPlaying(false);
+    const auto frozen = Pose(model); const auto frozenTime = model.GetCurrentAnimationTime();
+    const auto checkpoint = model.CaptureAnimationPlaybackState();
+    Require(checkpoint.transitionActive && checkpoint.paused, "Depth did not pause inside a real blend");
+    for (int frame = 0; frame < 10; ++frame) {
+        command = gate.Step(snapshot);
+        Require(!command.select && !command.phaseChanged, "Depth same-phase command restarted blend");
+        model.Update(.1f); RequirePose(model, frozen);
+        Require(model.GetCurrentAnimationTime() == frozenTime, "Depth pause advanced actual blend/time");
+    }
+    model.SetAnimationPlaying(true); model.Update(.1f);
+    Require(!model.CaptureAnimationPlaybackState().transitionActive, "Depth resumed blend never completed");
+    ++snapshot.plan.instance; command = gate.Step(snapshot);
+    Require(command.select && command.restartSameClip && model.SetAnimation("Depth_VolleyCharge", true) &&
+        model.GetCurrentAnimationTime() == 0, "New Depth same-clip instance did not restart once");
+    Require(!gate.Step(snapshot).select, "New Depth instance reissued selection");
+    model.SetAnimation("Depth_Defeat"); model.SetAnimationPlaying(false); model.SeekCurrentAnimation(1); model.Update(0);
+    const auto defeat = Pose(model); TestSkinnedBounds(model); model.Update(0); RequirePose(model, defeat);
+    Vector3 socket;
+    Require(neondepth::TrySocketWorld(model.GetSkeleton(), MakeIdentity4x4(), neondepth::Socket::Chest, socket) &&
+        neondepth::Finite(socket), "Actual frozen Depth socket invalid");
+    auto renamed = model.GetSkeleton(); renamed.jointMap.clear();
+    for (auto& joint : renamed.joints) { joint.name = "Renamed_" + joint.name; renamed.jointMap.emplace(joint.name, joint.index); }
+    auto fallback = neondepth::CreateDepthAnimations(renamed);
+    Require(fallback.safeToRegister && fallback.rootOnlyFallback, "Actual renamed valid bind did not fall back");
+    for (auto& clip : fallback.animations) { Require(clip.nodeAnimations.empty(), "All-name fallback retained motion keys");
+        clip.name = "Fallback_" + clip.name; }
+    Require(model.RegisterAnimations(std::move(fallback.animations), &error), "Valid empty Depth clips could not register");
+    model.SetAnimation("Fallback_Depth_Hover"); model.SeekCurrentAnimation(1); model.Update(0); RequirePose(model, originalBind);
+    renamed.joints.back().bindTransform.rotate.x = std::numeric_limits<float>::quiet_NaN();
+    const auto rejected = neondepth::CreateDepthAnimations(renamed);
+    Require(!rejected.safeToRegister && rejected.animations.empty() && !rejected.bindError.empty(), "Corrupt unanimated bind claimed safe fallback");
 }
 }
 
@@ -383,6 +470,7 @@ int main() {
         model.SeekCurrentAnimation(0); model.Update(0);
         Require(model.GetCurrentAnimationDuration()==0&&model.GetCurrentAnimationTime()==0,"Zero-duration BindPose seek failed");
         TestDissolveController(model);
+        TestDepthAnimations(model);
         Require(srv.GetAllocatedCount() == 1 && testDescriptorFrees == 0, "Model palette allocation changed during animation/dissolve updates");
         model.ReleaseGpuResources();
         Require(srv.GetAllocatedCount() == 0 && testDescriptorFrees == 1, "Model release did not return its palette descriptor");
@@ -393,6 +481,7 @@ int main() {
             <<"PASS: Idle loop/translation/scale/feet; forward Attack; "<<changedVertices<<" weighted vertices deformed by actual Palette.\n"
             <<"PASS: existing Animation/Skeleton sampling/blend, Pause/Resume/speed/Restart/Seek, repeated Attack and Idle return; const getters preserved.\n";
         std::cout<<"PASS: Showcase checkpoint restores paused in-flight blend/time/clip; invalid snapshots are atomic.\n";
+        std::cout<<"PASS: Depth actual GLB clips/palette/sole/socket; same-phase nonrestart, new-instance restart, pause-blend, renamed valid-bind and corrupt-bind distinction.\n";
         return 0;
     } catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; }
 }

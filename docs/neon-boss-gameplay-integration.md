@@ -2,6 +2,8 @@
 
 実施日: 2026-10-05（Asia/Tokyo）。既存の2D戦闘を基準に、既存モデル・GPU Skinning・NeonSkinnedRenderer・Directional Dissolveを本編へ接続した作業記録。
 
+後続Goal「Neon Boss Depth Encounter」の現在地は末尾の追記と[Depth進捗](neon-boss-depth/README.md)を参照する。以下の旧本文にある「現在」「最終」、通常camera維持、clip fallback、PASSは各節の当時の条件を示し、後続Depthの最終認証へは流用しない。
+
 最初の節はNeon統合時の履歴。現在の`refactor/engine`での再確認と全体整理後の証拠は末尾のIteration 2／3に記録する。各節のbranch、binary、画像を区別して読む。
 
 ## 開始状態と対象
@@ -87,13 +89,14 @@ GLBのSHA256は開始時から変わらず`7FCA4A77FDC60AB2C78A99074307445626261
 
 Visual Studio Development x64で起動 → タイトル「遠征をはじめる」→ F3「Neon Boss / 本編ボス確認」（F12のNeon Bossタブでも可）。
 
+- **F7**: タイトルまたは遠征中から直接ボス戦へ移動。ボス戦中は再生成、自機死亡後は通常の再出撃を使ってボス戦から開始。F3制作ツールにも直接移動ボタンがあります。確認用の自機無敵・1ノードルートを使い、開始要求は次の遠征で一度だけ消費します。
 - 「本編ボス戦へ移動 / 再生成」: 現在の制作済みBoss部屋を、本編の部屋生成経路で開始。メモリ内のルートを1ノードにし、制作JSONは保存しない。現在の遠征進行はこの確認runに置き換わる。
 - `3D Neon Visual` OFFで従来戦車と比較。`Freeze for visual comparison`で同じ状態・カメラを維持。
 - `HP -> 33% / Phase 2`で実HPを減らす。`Kill / Directional Dissolve`で実際に死亡させる。
 - HP、Phase、Phase 2、射撃数、clip、Dissolve、資源生成/解放数を表示。
 - `Capture gameplay`で既存NeonShowcaseCaptureを使用し、PNG+JSONを保存。
 - `Profile 3D ON/OFF`で既存timestamp Profilerを120フレーム記録。
-- 自機死亡中は結果画面から再出撃して利用する。確認runでは自機を無敵にする。
+- 自機死亡中はF7または移動ボタンで再出撃して利用する。確認runでは自機を無敵にする。
 - ReleaseではこのUI、環境変数確認run、captureは`CG2_DEVELOPER_TOOLS && !NDEBUG`で除外。本編3D Visual自体はReleaseでも有効。
 
 自動の実機確認（リポジトリルート）:
@@ -321,3 +324,35 @@ Developerからの短時間再現はrepository rootのPowerShellで次を実行�
 性能の30.22／30.89% CPU改善は保存した計測binaryと同source／asset／形状のTrail比較に対する結果である。計測は最後のquit plumbing修正前で、最終default binaryを再測定したとは主張しない。温度／clock未制御、frame maximumのspike、既存素材のclip／scale／色に関する手動確認の限界は上記と全体整理の詳細報告に残した。
 
 最終差分: 既存変更24、新規34、削除0、stagedなし。branch／HEADは開始と同じ。追跡済み24ファイルのGit統計は509行追加／265行削除で、新規34ファイルはこの統計に含まれない。全58ファイルの一覧とhash、status／diff原文は`generated/repository-engineering-overhaul/final-git-summary.json`と上記logに保存した。全差分と終了処理の追加修正をrootと別agentでreviewし、関連gateとfresh画像を確認した。commit／push／mergeは行っていない。
+
+## Neon Boss Depth Encounterへの接続（2026-10-05 / build_i checkpoint）
+
+後続の[Depth仕様・進捗](neon-boss-depth/README.md)は、branch `feature/neon-boss-depth-encounter`、開始HEAD `8b9282e5241563bf5bb26b5922aebfe6917bce9d`で進行中。この文書の旧統合／Iteration 2・3の完了記録とは、source・binary・fixture・画像・計測を分けて読む。
+
+DepthではEnemyの床位置・HP・確定済みattack planがauthoritativeなまま、Volley／Dive／Ground Beam、床core、安定した足元配置、実骨格からの生成clip、崩れ→姿勢固定→Dissolve、遭遇限定cameraを接続した。[architecture.md](neon-boss-depth/architecture.md)が現在の境界を説明する。GLBに専用motionが付属するという意味ではなく、旧mappingと旧cameraの説明は従来経路の履歴として残す。
+
+実際の部分PASSは、変更前baseline All 64件、`cycles_d`の両phase／3攻撃×2、選択lifecycle 8ケース×2、`styles_preflight_h`のShooter／Drone／Meleeのdamage／Dodge 6定義×2（12/12）。各fixtureのHP注入・無敵・shortcut・通常入力条件は[validation.md](neon-boss-depth/validation.md)に個別記録し、自然攻略成功へ読み替えない。最新`build_i`のDevelopment／Release x64はwarning／error 0だが、中間buildであり`finalGoalValidation=false`。
+
+`normal_i_style1`はfrozen `build_i` Developmentの通常18列／tick seed226381203を第1試行・46,065更新で完走し、C01の標準Depth profile到達を実証した。実core damage900・自然Phase2・両phase Active／Recovery mask7/7・各18RecoveryからHP0／Defeated→結果へ進み、最終Player HP111、合法通貨20＋572earned−328spent＝264。rootが実結果→Title→通常再出撃（HP120／通貨20）を観測した。最終Allは`all_a_20261005`で13:19:51.437 UTC開始、RUNNING／NOT COMPLETE。Depth全41定義×2／比較gateの完了、通常Release C18、人の操作感／面白さ・physical mouseは未検証。過去のtimeout／retry-limitは失敗記録を維持し、旧版のRelease完走を現在版の成功へ置き換えない。
+
+[visual-review.md](neon-boss-depth/visual-review.md)の標準20度／距離90／focus(44,31,0)の11原本は部分的な実画像確認。旧表現の480frame／8秒映像は[legacy-recording.md](neon-boss-depth/legacy-recording.md)でpipelineを確認した記録で、Depth最終30–45秒連続映像・loop／WebP／PNG 5–8枚・連続可読性QAはNOT RUN。[performance.md](neon-boss-depth/performance.md)の旧同姿勢測定もbaselineの参考値で、最終Depth OFF／ONのCPU／GPU測定はNOT RUN。
+
+[asset-source-notes.md](neon-boss-depth/asset-source-notes.md)の現台帳を維持する。AvatarSample_Bは既知条件付きの第三者モデル（VRM meta `Other`）で、作者による入手記録・現行条件照合、画面に現れる出自未確認画像／材質、最終候補の公開採否は要確認。自作／CC0／全素材許諾済みとは説明せず、既存の配布監査PASSや無音化を権利確認完了と扱わない。
+
+## Depth最終版の後続実証（2026-10-06 JST）
+
+上のRUNNING／NOT RUNは途中checkpointとして保持する。同じfrozen `build_i`の最終Allは14:33:23.4443617 UTCに69/69 PASS、source drift0で完了した。Depth全41定義×2＝82実行、2parity、旧26scenario実行＋7設定probe、WARP／実hardware、限定CPU ASAN20group、pristine packageの依存／別cwd自動確認を独立照合した。907/907入力も一致し、Development／Release両buildは0warning／0error。詳しい実scopeと過去FAILは[validation.md](neon-boss-depth/validation.md)を参照。
+
+同じ最終版の4run性能測定、2700連続native frame／45秒の無音MP4、8秒抜粋、選別8PNG／8WebPとclean posterを実出力した。全decodeとbrowser終端／反復再生、原寸画像QAまで完了。Phase2／Dissolveは補助条件を明記した別撮影で、強制撃破を自然攻略へ読み替えない。GPUは各1199valid／1invalid、ON−OFF medianは約＋0.677／＋0.694ms。Scene SRVは各＋1後flatで割当元未特定。録画child全体191.1304秒を純保存費用やFPSと呼ばない。条件と素材は[visual-review.md](neon-boss-depth/visual-review.md)、[performance.md](neon-boss-depth/performance.md)へ整理した。
+
+通常Releaseの実Title／工房／style選択、操作学習でのnative照準／3射撃による敵撃破／2dash、通貨回収、Title→再入場の初期HP120／通貨20を確認した。ただし最深部までの配布版通しプレイは未完了。最終Allの補助fixtureや通常Developmentの自然撃破はその代用にしない。Goalは継続中で、commit／push／merge／deploy／外部素材取得／ユーザー変更破棄は行っていない。
+
+## Depthの実照準・引継ぎ・残条件（2026-10-06 JST）
+
+最終Developmentの標準Depth cameraでも、実OSマウスで左右の床／coreへの照準、右special移動、実HP900→883を確認した。既存Developer入口はplayer無敵を設定するが、AutoTest／DemoInput、途中HP変更、攻撃固定、freezeは使っていない。17実JPGをrootと独立agentが確認し、直接撮影された攻撃はVolley／Beam、3攻撃全体の確認は別の代表matrixへ対応させた。shot別内訳、native被弾shakeの精度、人間の操作感は未計測。再現はTitle→Return→ノード未入場のmap→F3→Neon Boss→本編ボス戦へ移動／再生成。戦闘中からの入口はMap状態の前提を満たさないためfresh mapへ戻る。証拠と訂正receiptは[validation.md](neon-boss-depth/validation.md)に記録した。
+
+[portfolio-handoff.md](neon-boss-depth/portfolio-handoff.md)と19fileのmanifest-v2へ、8PNG／8WebP、45秒動画、8秒抜粋、clean poster、caption／alt／164字説明／条件／出典要確認を保存し独立照合した。Pagesの別repositoryは編集していない。公開許諾の未確認素材を成功扱いせず、既知のモデル条件と実入手元・派生素材の要確認を区別した。
+
+現在の[完成条件表](neon-boss-depth/README.md)は21PASS／C18 BLOCKED（通し実行はNOT RUN）。通常Releaseの新copyは3起動経路でも操作ツールから画面を取得できず、owned processのみ識別して終了した。3連続Goalターンでも同じblockerが残り、再開には実画面を操作できる外部状態の復旧または手元確認が必要。この記録をゲーム動作FAILや通し成功へ読み替えない。必要なのは通常Releaseで最深部を撃破し、結果→Title→再出撃まで進める実機確認。最終All後のsource／shader／configは変更せず、907project入力・651All入力・両runtime10filesの現hash一致を別receiptで確認した。開始branch／HEAD、Visual Studioの未保存Player.cppを保持し、Goalは完了扱いにしていない。
+
+差分の自己reviewではGameplay・描画／入力／資源・test／wrapperを分担した。旧5C++ testの373 assert／Require式を保持し、Release helper除外、single HP／attack plan、死亡同tick停止、既存fenceに従う終端返却を再確認した。新たなmaterial functional concernは見つからず、source変更や再buildは追加していない。最終worktreeは追跡変更37・未追跡38（project27＋Depth docs11）、staged／削除0、`git diff --check` PASS。12canonical文書の66local linksを確認した。実読取path／hashと各監査は[validation.md](neon-boss-depth/validation.md)へ記録し、目視で残る白い死亡pulse／重複撃破ラベル、人の操作感、素材出典の要確認を保存した。

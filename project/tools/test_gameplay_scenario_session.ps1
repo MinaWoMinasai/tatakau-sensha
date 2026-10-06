@@ -20,11 +20,73 @@ static_assert(Complete<GameplayScenarioSession> == static_cast<bool>(SCENARIO_EX
 static_assert(HasValidationInput<cg2::Input> == static_cast<bool>(SCENARIO_EXPECTED_API));
 '@
 [IO.File]::WriteAllText((Join-Path $scenarioOutput 'scenario_guards.cpp'), $scenarioGuardSource, [Text.UTF8Encoding]::new($false))
+$scenarioParserSource = @'
+// This focused translation unit includes the actual implementation once so
+// ReadSettings and IntegerField are tested without exposing test-only APIs.
+#include "game/debug/GameplayScenarioSession.cpp"
+#include <cassert>
+#include <iostream>
+static nlohmann::json RecordingManifest() {
+    return {{"schemaVersion",1},{"scenario","neon_boss"},{"frames",120},{"captureFrames",nlohmann::json::array()},
+        {"recording",{{"enabled",true},{"firstFrame",1},{"frameCount",120},{"encodedFps",60},
+            {"maxOutputBytes",nlohmann::json::number_integer_t(12ll*1024*1024*1024)}}}};
+}
+template<class Function> static void MustReject(Function&& function) {
+    bool rejected = false;
+    try { function(); } catch (const std::exception&) { rejected = true; }
+    assert(rejected);
+}
+int main() {
+    using nlohmann::json;
+    const uint64_t cap = 12ull*1024*1024*1024;
+    const auto valid = ReadSettings(RecordingManifest());
+    assert(valid.recording.enabled && valid.recording.firstFrame == 1 && valid.recording.frameCount == 120);
+    assert(valid.recording.maxOutputBytes == cap && valid.captureFrames.empty());
+    // Signed positive JSON values must not be compared with UINT64_MAX cast to int64.
+    assert(IntegerField<uint64_t>(json{{"n",json::number_integer_t(cap)}},"n",0) == cap);
+    assert(IntegerField<uint64_t>(json{{"n",json::number_unsigned_t(cap)}},"n",0) == cap);
+    assert(IntegerField<uint64_t>(json{{"n",json::number_unsigned_t((std::numeric_limits<uint64_t>::max)())}},"n",0) ==
+        (std::numeric_limits<uint64_t>::max)());
+    assert(IntegerField<int>(json{{"n",-1}},"n",0) == -1);
+    assert(IntegerField<uint32_t>(json{{"n",json::number_integer_t(4294967295ll)}},"n",0) == 4294967295u);
+    MustReject([] { (void)IntegerField<uint64_t>(json{{"n",-1}},"n",0); });
+    MustReject([] { (void)IntegerField<uint32_t>(json{{"n",json::number_unsigned_t(4294967296ull)}},"n",0); });
+    MustReject([] { (void)IntegerField<int>(json{{"n",json::number_unsigned_t(2147483648ull)}},"n",0); });
+    for (const char* key : {"firstFrame","frameCount","encodedFps","maxOutputBytes"}) {
+        for (const json& wrong : {json(-1),json(1.5),json(true),json("1")}) {
+            auto object = RecordingManifest(); object["recording"][key] = wrong;
+            MustReject([&] { (void)ReadSettings(object); });
+        }
+    }
+    auto invalid = RecordingManifest(); invalid["recording"]["maxOutputBytes"] = json::number_unsigned_t(cap+1);
+    MustReject([&] { (void)ReadSettings(invalid); });
+    invalid = RecordingManifest(); invalid["recording"]["maxOutputBytes"] = json::number_unsigned_t((std::numeric_limits<uint64_t>::max)());
+    MustReject([&] { (void)ReadSettings(invalid); });
+    invalid = RecordingManifest(); invalid["recording"]["maxOutputBytes"] = 1.8446744073709552e19;
+    MustReject([&] { (void)ReadSettings(invalid); });
+    invalid = RecordingManifest(); invalid["recording"]["unknown"] = true;
+    MustReject([&] { (void)ReadSettings(invalid); });
+    invalid = RecordingManifest(); invalid["recording"]["enabled"] = 1;
+    MustReject([&] { (void)ReadSettings(invalid); });
+    invalid = RecordingManifest(); invalid["recording"]["frameCount"] = 121;
+    MustReject([&] { (void)ReadSettings(invalid); });
+    invalid = RecordingManifest(); invalid["recording"]["firstFrame"] = json::number_unsigned_t(4294967295ull);
+    MustReject([&] { (void)ReadSettings(invalid); });
+    invalid = RecordingManifest(); invalid["recording"]["encodedFps"] = 30;
+    MustReject([&] { (void)ReadSettings(invalid); });
+    invalid = RecordingManifest(); invalid["captureFrames"] = json::array({120});
+    MustReject([&] { (void)ReadSettings(invalid); });
+    std::cout << "PASS: actual recording settings parser and integer signedness/overflow\n";
+}
+'@
+[IO.File]::WriteAllText((Join-Path $scenarioOutput 'scenario_recording_parser.cpp'), $scenarioParserSource, [Text.UTF8Encoding]::new($false))
 $scenarioBatch = @'
 @echo off
 call "%SCENARIO_UNIT_DEV_CMD%" -no_logo -arch=x64 -host_arch=x64
 if errorlevel 1 exit /b %errorlevel%
 cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /MT /UNDEBUG /DCG2_DEVELOPER_TOOLS=1 /I"%SCENARIO_UNIT_PROJECT%" /I"%SCENARIO_UNIT_PROJECT%\externals" /I"%SCENARIO_UNIT_PROJECT%\DirectX\engine\commom" /Fe:gameplay_scenario_tests.exe /Fo:.\ "%SCENARIO_UNIT_PROJECT%\tools\gameplay_scenario_tests.cpp" "%SCENARIO_UNIT_PROJECT%\game\debug\GameplayScenarioSession.cpp" user32.lib
+if errorlevel 1 exit /b %errorlevel%
+cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /MT /UNDEBUG /DCG2_DEVELOPER_TOOLS=1 /I"%SCENARIO_UNIT_PROJECT%" /I"%SCENARIO_UNIT_PROJECT%\externals" /I"%SCENARIO_UNIT_PROJECT%\DirectX\engine\commom" /Fe:scenario_recording_parser.exe /Fo:.\ scenario_recording_parser.cpp user32.lib
 if errorlevel 1 exit /b %errorlevel%
 set "SCENARIO_GUARD_COMMON=/nologo /c /std:c++20 /utf-8 /EHsc /W4 /WX /I"%SCENARIO_UNIT_PROJECT%" /I"%SCENARIO_UNIT_PROJECT%\externals" /I"%SCENARIO_UNIT_PROJECT%\DirectX\engine\commom" /I"%SCENARIO_UNIT_PROJECT%\DirectX\engine\struct""
 cl %SCENARIO_GUARD_COMMON% /UNDEBUG /DCG2_DEVELOPER_TOOLS=1 /DSCENARIO_EXPECTED_API=1 /Fo:guard_development.obj scenario_guards.cpp
@@ -52,6 +114,8 @@ try {
         Write-Host 'PASS: actual Session/Input APIs compile only in Development with tools enabled (four guard profiles).'
         $scenarioExecutable = Join-Path $scenarioOutput 'gameplay_scenario_tests.exe'
         [Environment]::SetEnvironmentVariable('CG2_GAMEPLAY_SCENARIO', $null, 'Process')
+        & (Join-Path $scenarioOutput 'scenario_recording_parser.exe')
+        if ($LASTEXITCODE -ne 0) { throw 'Actual recording parser/signedness contract failed.' }
         & $scenarioExecutable disabled
         if ($LASTEXITCODE -ne 0) { throw 'Disabled scenario session failed.' }
         $scenarioManifest = [ordered]@{
@@ -85,6 +149,52 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Failed adapter reporting test failed.' }
         $scenarioFailed = Get-Content -LiteralPath (Join-Path $scenarioManifest.outputDirectory 'report.json') -Raw | ConvertFrom-Json
         if ($scenarioFailed.completed -or $scenarioFailed.errors.Count -ne 2) { throw 'Failure report incorrectly passed.' }
+        $scenarioRecordingRun = [Guid]::NewGuid().ToString('N')
+        $scenarioRecordingModes = @('recording_valid','recording_late','recording_incomplete','recording_order',
+            'recording_duplicate','recording_name','recording_bytes','recording_clock','recording_dimensions',
+            'recording_resolution','recording_budget','recording_capture_limit')
+        foreach ($recordingMode in $scenarioRecordingModes) {
+            $scenarioRecording = ($scenarioManifest | ConvertTo-Json -Depth 12) | ConvertFrom-Json -AsHashtable
+            $scenarioRecording.captureFrames = @()
+            $scenarioRecording.recording = @{ enabled=$true; firstFrame=1; frameCount=120; encodedFps=60; maxOutputBytes=12884901888 }
+            $scenarioRecording.outputDirectory = Join-Path $scenarioOutput ("recording-$scenarioRecordingRun/$recordingMode")
+            if ($recordingMode -eq 'recording_late') {
+                $scenarioRecording.recording.firstFrame=119; $scenarioRecording.recording.frameCount=2
+            }
+            if ($recordingMode -eq 'recording_budget') { $scenarioRecording.recording.maxOutputBytes=1 }
+            Write-ScenarioManifest $scenarioRecording
+            & $scenarioExecutable $recordingMode
+            if ($LASTEXITCODE -ne 0) { throw "Actual recording session contract failed: $recordingMode" }
+            $recordingReport = Get-Content -LiteralPath (Join-Path $scenarioRecording.outputDirectory 'recording/recording-report.json') -Raw | ConvertFrom-Json
+            $recordingSession = Get-Content -LiteralPath (Join-Path $scenarioRecording.outputDirectory 'report.json') -Raw | ConvertFrom-Json
+            $recordingSuccess = $recordingMode -in @('recording_valid','recording_late')
+            if ($recordingReport.completed -ne $recordingSuccess -or $recordingSession.completed -ne $recordingSuccess -or
+                $recordingReport.heldDrawCount -ne 0 -or $recordingReport.comparisonFreeze) { throw "Recording completion/freeze contract failed: $recordingMode" }
+            $recordingCount = if ($recordingMode -eq 'recording_late') { 2 } elseif ($recordingMode -eq 'recording_incomplete') { 119 } elseif ($recordingMode -in @('recording_dimensions','recording_budget')) { 0 } else { 120 }
+            if ($recordingReport.frameCount -ne $recordingCount -or @($recordingReport.frames).Count -ne $recordingCount -or
+                $recordingReport.sourceBytes -ne ($recordingCount * 300)) { throw "Recording rows/source-byte contract failed: $recordingMode" }
+            if ($recordingSuccess) {
+                if ($recordingReport.status -ne 'COMPLETE' -or $recordingReport.errors.Count -ne 0 -or
+                    $recordingReport.frames[0].sequenceFrame -ne 0 -or
+                    $recordingReport.frames[0].simulationFrame -ne $scenarioRecording.recording.firstFrame -or
+                    $recordingReport.frames[-1].simulationFrame -ne 120 -or
+                    [math]::Abs($recordingReport.frames[-1].recordingClocks.gameplayElapsed - 1.5) -gt 1e-6 -or
+                    [math]::Abs($recordingReport.frames[-1].recordingClocks.presentationElapsed - 80/60.0) -gt 1e-6) {
+                    throw "Recording ordinal/actual clock contract failed: $recordingMode"
+                }
+            } elseif ($recordingReport.status -ne 'INCOMPLETE' -or $recordingReport.errors.Count -lt 1) {
+                throw "Failed recording incorrectly passed: $recordingMode"
+            }
+            if (!$recordingSession.details.cpuRecordingContract.injectedByteCounts -or
+                $recordingSession.details.cpuRecordingContract.gpuFramesProduced -or
+                @(Get-ChildItem -LiteralPath (Join-Path $scenarioRecording.outputDirectory 'recording') -Filter '*.png' -Recurse).Count -ne 0) {
+                throw 'CPU recording contract test must never be described as actual GPU media evidence.'
+            }
+            if ($recordingMode -eq 'recording_capture_limit' -and @($recordingSession.captures).Count -ne 64) {
+                throw 'The original ReportCapture64 cap was changed by continuous recording.'
+            }
+        }
+        Write-Host 'PASS: actual recording session range/clocks/order/bytes/preflight/failure contracts (CPU only; no PNG/GPU evidence).'
         $scenarioInvalidMutations = @(
             { param($m) $m.scenario='unknown' },
             { param($m) $m.frames=-1 },

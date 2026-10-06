@@ -104,6 +104,8 @@ public:
     {
         return farClip_;
     }
+    float GetFovY() const { return fovY_; }
+    float GetAspectRatio() const { return aspectRatio_; }
 
 private:
     /// @brief 射影行列を更新する。

@@ -259,7 +259,7 @@ public:
     bool demoInputEnabled_=false,demoShoot_=false;TestInput input;TestInput* input_=&input;
 
 };
-class Enemy : public TestActor {public:int hp=100000;bool IsDead()const{return hp<=0;}int GetHp()const{return hp;}void TakeDamage(uint32_t d){damageReceived+=d;++hits;hp-=(std::min)(hp,static_cast<int>(d));}void ApplyKnockback(Vector3,float){}void OnCollision(Collider* other)override{TakeDamage(other->GetDamage());}};
+class Enemy : public TestActor {public:int hp=100000;bool IsDead()const{return hp<=0;}int GetHp()const{return hp;}bool IsNeonDepthEncounterEnabled()const{return false;}void TakeDamage(uint32_t d){damageReceived+=d;++hits;hp-=(std::min)(hp,static_cast<int>(d));}void ApplyKnockback(Vector3,float){}void OnCollision(Collider* other)override{TakeDamage(other->GetDamage());}};
 enum class ExpEnemyType {Basic,ReflectArmor};
 class ExpEnemy : public TestActor {public:
     int hp=100000;bool isDead_=false;ExpEnemyType type_=ExpEnemyType::Basic;Vector3 aimDirection_{1,0,0};

@@ -277,6 +277,16 @@ public:
     {
         return damageTakenCount_;
     }
+    /// @brief 通常弾・床hazardを既存条件で実際にperfect-dodgeした累計を返す。
+    uint64_t GetPerfectDodgeCount() const { return perfectDodgeCount_; }
+    /// @brief 有限な現在の被弾無敵残時間（秒）を非負値で返す。時計は進めない。
+    float GetInvincibilityRemainingSeconds() const
+    {
+        return std::isfinite(invincibleTimer_) ? (std::max)(0.0f, invincibleTimer_) : 0.0f;
+    }
+    /// @brief 既存のjust-evade保護が成立中かを返す。
+    bool IsJustEvading() const { return isJustEvaded_; }
+
     /// @brief 主攻撃を実行した累積回数を返す。弾数ではなく、近接攻撃や遠征ドローンの発射も含む。
     uint32_t GetPrimaryAttackCount() const
     {
@@ -392,6 +402,12 @@ public:
     /// @note 死亡中、amountが0、無敵中、無傷の開発設定中は何もしない。
     /// カウンターが成立すれば被ダメージを省略する。HPが0になれば死亡演出を開始する。
     void TakeDamage(uint32_t amount, float invincibleTime = 0.45f);
+    /// @brief Depth専用の傾斜カメラでは、表示中のVPから安全にZ=0の照準を求める。
+    void SetNeonDepthAimEnabled(bool enabled) { neonDepthAimEnabled_ = enabled; }
+    /// @brief 成立済みの敵対床hazard接触を既存回避・無敵・被弾処理へ渡し、実HP損失を返す。
+    /// @param dodgeable trueなら既存perfect-dodgeの弾と同じ受付条件を使う。
+    /// @note 方向ゼロを被弾除外にせず、接触shapeは呼出元のGameplay計画を正とする。
+    uint32_t ReceiveHostileHazard(uint32_t amount, bool dodgeable = true);
     /// @brief 性能調整設定を現在の状態へ適用する。
     void ApplyBalanceConfig(const BalanceConfig& config);
     /// @brief 戦闘系統ごとの調整値を補正して反映し、性能とドローン設定を更新する。
@@ -849,6 +865,9 @@ public:
     bool ConsumeEvolutionCancelled();
 
 private:
+    /// @brief 既存のダッシュ回避条件とslow/buff/capacitor/overdrive効果を共用する。
+    bool TryPerfectDodgeFromHostileContact(bool dodgeable);
+
     using PlayerClassConfig = ::PlayerClassConfig;
 
     // ワールド変換データ
@@ -939,6 +958,7 @@ private:
     std::vector<uint64_t> dashImpactTargets_;
     uint32_t dashStartedCount_ = 0, damageTakenCount_ = 0;
     uint32_t primaryAttackCount_ = 0;
+    uint64_t perfectDodgeCount_ = 0;
     int meleeComboStep_ = 0;
     float meleeComboTimer_ = 0.0f;
     float saberCounterTimer_ = 0.0f;
@@ -1011,6 +1031,7 @@ private:
     cg2::Vector2 demoMove_{};
     cg2::Vector3 demoAim_{};
     cg2::Vector3 runAimWorld_{};
+    bool neonDepthAimEnabled_ = false;
     TankExpeditionMaintenance runMaintenance_{};
     PlayerClassConfig runEvolutionConfig_{};
     bool runEvolutionActive_ = false;

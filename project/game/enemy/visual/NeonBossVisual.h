@@ -1,5 +1,6 @@
 #pragma once
 #include "NeonBossVisualState.h"
+#include "NeonDepthPresentation.h"
 #include "Object3d.h"
 #include "DirectX/engine/3d/neon/NeonSkinnedRenderer.h"
 #include <memory>
@@ -13,11 +14,14 @@ struct NeonBossVisualInput {
     float damageFeedback = 0.0f;
     bool alive = true, encounterActive = false, phaseTwo = false;
     NeonBossAction action = NeonBossAction::Idle;
+    bool depthEncounter = false;
+    neondepth::Snapshot depth{};
 };
 
 struct NeonBossVisualStats {
     unsigned resourceCreates = 0, resourceReleases = 0, animationSelections = 0;
     unsigned modelUpdates = 0, draws = 0;
+    unsigned depthPoseFreezes = 0, depthFormationBounds = 0, depthFallbackLoads = 0;
 };
 
 // Gameplay -> values -> presentation. Owns only rendering resources; its state
@@ -31,6 +35,12 @@ public:
     // Same frame-boundary contract as NeonSkinnedRenderer::BeginFrame; call once
     // after gameplay and Camera Update, before Scene HDR Draw.
     void Update(const NeonBossVisualInput& input, float deltaTime);
+    // Valid edits apply at reset or the next attack instance; death timing is latched.
+    bool SetDepthProfile(const neondepth::PresentationConfig& profile);
+    const neondepth::PresentationConfig& GetDepthProfile() const { return depthProfile_; }
+    bool GetDepthSocketWorld(neondepth::Socket socket, cg2::Vector3& output) const;
+    neondepth::Life GetDepthLife() const { return state_.GetDepthLifecycle().GetLife(); }
+    neondepth::Formation GetDepthFormation() const { return depthFormation_; }
     void Draw();
     void SetEnabled(bool enabled) { enabled_ = enabled; }
     bool IsEnabled() const { return enabled_; }
@@ -49,6 +59,13 @@ public:
 
 private:
     bool EnsureResources();
+    bool EnsureDepthResources();
+    void UpdateDepth(const NeonBossVisualInput& input, float permittedDelta);
+    bool ApplyDepthMotion(const neondepth::MotionCommand& command);
+    bool UpdateDepthPlacement(const NeonBossVisualInput& input, const neondepth::BodyMotion& motion);
+    void StartDepthCollapse(const NeonBossVisualInput& input);
+    void UpdateDepthCollapse(float collapseProgress);
+    void UpdateDepthFormation();
     void ReleaseResources();
     void UpdatePlacement(const NeonBossVisualInput& input);
     void StartDeath();
@@ -70,4 +87,14 @@ private:
     cg2::Matrix4x4 world_{};
     bool enabled_ = true, loadAttempted_ = false, encounterActive_ = false;
     std::string status_;
+    neondepth::PresentationConfig depthProfile_{}, pendingDepthProfile_{}, deathDepthProfile_{};
+    neondepth::BindPlacement depthBind_{};
+    neondepth::PlacementInput depthPlacement_{}, deathDepthPlacement_{};
+    neondepth::MotionGate depthMotionGate_{};
+    neondepth::Formation depthFormation_{0, 0, 0};
+    cg2::NeonDissolveParams depthFormationDissolve_{};
+    uint64_t depthProfileInstance_ = 0;
+    bool depthMode_ = false, depthModeLatched_ = false, depthProfilePending_ = false;
+    bool depthPlacementValid_ = false, depthPoseFrozen_ = false;
+    bool depthFormationBoundsReady_ = false, depthBodySuppressed_ = false;
 };

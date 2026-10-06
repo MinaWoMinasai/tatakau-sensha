@@ -4,10 +4,12 @@
 #define NOMINMAX
 #endif
 #include <Windows.h>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <limits>
 #include <stdexcept>
+#include <type_traits>
 
 namespace {
 using nlohmann::json;
@@ -62,8 +64,13 @@ Integer IntegerField(const json& data, const char* key, Integer fallback) {
         return static_cast<Integer>(number);
     }
     const auto number = value.get<int64_t>();
-    Require(number >= static_cast<int64_t>((std::numeric_limits<Integer>::min)()) &&
+    if constexpr (std::is_unsigned_v<Integer>) {
+        Require(number >= 0 && static_cast<uint64_t>(number) <= (std::numeric_limits<Integer>::max)(),
+            "Scenario integer is out of range.");
+    } else {
+        Require(number >= static_cast<int64_t>((std::numeric_limits<Integer>::min)()) &&
             number <= static_cast<int64_t>((std::numeric_limits<Integer>::max)()), "Scenario integer is out of range.");
+    }
     return static_cast<Integer>(number);
 }
 template<size_t Size>
@@ -86,7 +93,7 @@ void CheckKeys(const json& data, std::initializer_list<const char*> allowed) {
 }
 gameplaytest::Settings ReadSettings(const json& manifest) {
     CheckKeys(manifest, {"schemaVersion", "scenario", "seed", "fixedDeltaTime", "frames", "playerStyle", "playerHp", "bossHp",
-        "enemyCount", "initialProjectiles", "upgrades", "room", "enemyWave", "input", "captureFrames", "outputDirectory"});
+        "enemyCount", "initialProjectiles", "upgrades", "room", "enemyWave", "input", "captureFrames", "outputDirectory", "recording", "depthFixture"});
     Require(IntegerField(manifest, "schemaVersion", 1) == 1, "Unknown scenario schema version.");
     gameplaytest::Settings settings;
     Require(manifest.contains("scenario") && manifest.at("scenario").is_string() &&
@@ -142,6 +149,35 @@ gameplaytest::Settings ReadSettings(const json& manifest) {
         settings.captureFrames.erase(std::remove_if(settings.captureFrames.begin(), settings.captureFrames.end(),
             [&](unsigned frame) { return frame > settings.frames; }), settings.captureFrames.end());
     }
+    if (manifest.contains("recording")) {
+        const auto& object = manifest.at("recording");
+        CheckKeys(object, {"enabled", "firstFrame", "frameCount", "encodedFps", "maxOutputBytes"});
+        if (object.contains("enabled")) Require(object.at("enabled").is_boolean(), "Recording enabled must be boolean.");
+        settings.recording.enabled = object.value("enabled", false);
+        settings.recording.firstFrame = IntegerField(object, "firstFrame", settings.recording.firstFrame);
+        settings.recording.frameCount = IntegerField(object, "frameCount", settings.recording.frameCount);
+        settings.recording.encodedFps = IntegerField(object, "encodedFps", settings.recording.encodedFps);
+        settings.recording.maxOutputBytes = IntegerField(object, "maxOutputBytes", settings.recording.maxOutputBytes);
+    }
+    if (manifest.contains("depthFixture")) {
+        const auto& object=manifest.at("depthFixture");
+        CheckKeys(object,{"probe","attack","phase","minimumProgress","visualEnabled","reducedMotion","injectPhaseTwo"});
+        for (const char* key:{"probe","attack","phase"}) if(object.contains(key))
+            Require(object.at(key).is_string(),"Depth names must be strings.");
+        for (const char* key:{"visualEnabled","reducedMotion","injectPhaseTwo"}) if(object.contains(key))
+            Require(object.at(key).is_boolean(),"Depth switches must be booleans.");
+        auto& depth=settings.depthFixture;
+        depth.probe=object.value("probe",depth.probe); depth.attack=object.value("attack",depth.attack);
+        depth.phase=object.value("phase",depth.phase);
+        if(object.contains("minimumProgress")) {
+            Require(object.at("minimumProgress").is_number(),"Depth trigger progress must be numeric.");
+            depth.minimumProgress=object.at("minimumProgress").get<float>();
+        }
+        depth.visualEnabled=object.value("visualEnabled",depth.visualEnabled);
+        depth.reducedMotion=object.value("reducedMotion",depth.reducedMotion);
+        depth.injectPhaseTwo=object.value("injectPhaseTwo",depth.injectPhaseTwo);
+        Require(gameplaytest::IsDepthScenario(settings.scenario),"Depth object is not allowed in a legacy fixture.");
+    }
     std::string error;
     // Validate before taking c_str(): argument evaluation order must not leave
     // Require with a pointer into the string that validation just replaced.
@@ -159,6 +195,15 @@ json SettingsJson(const gameplaytest::Settings& settings) {
     for (const auto& segment : settings.input)
         result["input"].push_back({{"firstFrame", segment.firstFrame}, {"endFrame", segment.endFrame}, {"movement", segment.input.movement},
             {"aim", segment.input.aim}, {"shoot", segment.input.shoot}, {"dash", segment.input.dash}});
+    if (settings.recording.enabled) result["recording"] = {{"enabled",true},
+        {"firstFrame",settings.recording.firstFrame},{"frameCount",settings.recording.frameCount},
+        {"encodedFps",settings.recording.encodedFps},{"maxOutputBytes",settings.recording.maxOutputBytes}};
+    if(gameplaytest::IsDepthScenario(settings.scenario)) {
+        const auto& depth=settings.depthFixture;
+        result["depthFixture"]={{"probe",depth.probe},{"attack",depth.attack},{"phase",depth.phase},
+            {"minimumProgress",depth.minimumProgress},{"visualEnabled",depth.visualEnabled},
+            {"reducedMotion",depth.reducedMotion},{"injectPhaseTwo",depth.injectPhaseTwo}};
+    }
     return result;
 }
 bool FiniteJson(const json& value, unsigned depth = 0) {
@@ -225,9 +270,19 @@ GameplayScenarioSession::GameplayScenarioSession() {
 void GameplayScenarioSession::BeginScene() {
     if (enabled_ && !finished_) ++sceneEpoch_;
 }
-void GameplayScenarioSession::Record(gameplaytest::Snapshot snapshot) {
+void GameplayScenarioSession::Record(gameplaytest::Snapshot snapshot, float gameplayDt,
+    float presentationDt, float effectiveTimeScale) {
     if (!enabled_ || finished_) return;
     if (frame_ >= settings_.frames) { Fail("Scenario recorded beyond its requested duration."); return; }
+    if (settings_.recording.enabled) {
+        if (!std::isfinite(gameplayDt) || gameplayDt < 0 || gameplayDt > settings_.fixedDeltaTime + 1.0e-6f ||
+            !std::isfinite(presentationDt) || presentationDt < 0 || presentationDt > settings_.fixedDeltaTime + 1.0e-6f ||
+            !std::isfinite(effectiveTimeScale) || effectiveTimeScale < 0 || effectiveTimeScale > 1.0001f) {
+            Fail("Invalid actual recording clock delta."); return;
+        }
+        gameplayElapsed_ += gameplayDt; presentationElapsed_ += presentationDt;
+        lastGameplayDt_ = gameplayDt; lastPresentationDt_ = presentationDt; effectiveTimeScale_ = effectiveTimeScale;
+    }
     snapshot.frame = ++frame_;
     snapshot.sceneEpoch = sceneEpoch_;
     snapshot.simulationTime = static_cast<float>(frame_) * settings_.fixedDeltaTime;
@@ -235,6 +290,108 @@ void GameplayScenarioSession::Record(gameplaytest::Snapshot snapshot) {
     for (const auto& error : validator_.GetErrors()) Fail(error);
     snapshots_.push_back(std::move(snapshot));
 }
+bool GameplayScenarioSession::BeginRecording(unsigned width, unsigned height) {
+    if (!settings_.recording.enabled) return true;
+    try {
+        Require(width >= 16 && width <= 8192 && height >= 16 && height <= 8192 && width % 2 == 0 && height % 2 == 0,
+            "Recording requires bounded even native backbuffer dimensions.");
+        if (recordingStarted_) {
+            Require(width == recordingWidth_ && height == recordingHeight_, "Native recording resolution changed during the sequence.");
+            return true;
+        }
+        const auto directory = Utf8Path(outputDirectory_);
+        const auto recording = directory / "recording";
+        Require(!fs::exists(recording), "Recording requires a fresh directory; existing evidence is never overwritten.");
+        fs::create_directories(directory);
+        // RGBA8 worst-case PNG plus bounded JSON/PNG framing allowance per frame.
+        const uint64_t frameBytes = uint64_t(width) * height * 4 + 256 * 1024;
+        recordingPreflightBytes_ = frameBytes * settings_.recording.frameCount;
+        Require(recordingPreflightBytes_ <= settings_.recording.maxOutputBytes, "Native recording exceeds its source-byte budget.");
+        recordingAvailableBytes_ = fs::space(directory).available;
+        Require(recordingAvailableBytes_ >= recordingPreflightBytes_ + 64 * 1024 * 1024,
+            "Not enough available disk space for bounded native recording.");
+        fs::create_directories(recording / "frames");
+        recordingWidth_ = width; recordingHeight_ = height; recordingStarted_ = true;
+        return true;
+    } catch (const std::exception& error) {
+        Fail(std::string("Recording preflight: ") + error.what()); return false;
+    }
+}
+bool GameplayScenarioSession::ShouldRecordCompletedFrame() const {
+    return gameplaytest::ShouldRecordCompletedFrame(settings_, frame_);
+}
+unsigned GameplayScenarioSession::GetRecordingSequenceFrame() const {
+    return ShouldRecordCompletedFrame() ? frame_ - settings_.recording.firstFrame : 0;
+}
+nlohmann::json GameplayScenarioSession::MakeRecordingMetadata() const {
+    return {{"sequenceFrame",GetRecordingSequenceFrame()},{"sequenceRate",settings_.recording.encodedFps},
+        {"firstSimulationFrame",settings_.recording.firstFrame},{"plannedFrameCount",settings_.recording.frameCount},
+        {"comparisonFreeze",false},{"heldDrawCount",0},{"recordingClocks",{
+            {"baseElapsed",double(frame_) * settings_.fixedDeltaTime},{"gameplayElapsed",gameplayElapsed_},
+            {"presentationElapsed",presentationElapsed_},{"gameplayDelta",lastGameplayDt_},
+            {"presentationDelta",lastPresentationDt_},{"timeScale",effectiveTimeScale_}}}};
+}
+void GameplayScenarioSession::ReportRecordedFrame(unsigned sequenceFrame, const std::string& name,
+    const gameplaytest::Snapshot& snapshot, uint64_t pngBytes, uint64_t metadataBytes) {
+    if (!enabled_ || finished_) return;
+    char expected[32]{};
+    std::snprintf(expected, sizeof(expected), "frame_%05u", sequenceFrame);
+    if (!recordingStarted_ || sequenceFrame != recordingFrames_.size() ||
+        sequenceFrame >= settings_.recording.frameCount || name != expected ||
+        snapshot.frame != settings_.recording.firstFrame + sequenceFrame || snapshot.frame != frame_ ||
+        !pngBytes || !metadataBytes || metadataBytes > 256 * 1024 ||
+        pngBytes > settings_.recording.maxOutputBytes || metadataBytes > settings_.recording.maxOutputBytes - pngBytes ||
+        recordingBytes_ > settings_.recording.maxOutputBytes - pngBytes - metadataBytes) {
+        Fail("Invalid, skipped, duplicate or excessive recorded frame evidence."); return;
+    }
+    recordingBytes_ += pngBytes + metadataBytes;
+    auto entry = MakeRecordingMetadata();
+    entry["simulationFrame"] = snapshot.frame; entry["sceneEpoch"] = snapshot.sceneEpoch;
+    entry["png"] = name + ".png"; entry["metadata"] = name + ".json";
+    entry["pngBytes"] = pngBytes; entry["metadataBytes"] = metadataBytes;
+    recordingFrames_.push_back(std::move(entry));
+}
+
+void GameplayScenarioSession::ReportDepthFrame(const nlohmann::json& row) {
+    if(!enabled_ || finished_ || !gameplaytest::IsDepthScenario(settings_.scenario)) return;
+    const auto bytes=row.dump().size();
+    if(!row.is_object() || !FiniteJson(row) || !row.contains("frame") || row.at("frame")!=frame_ ||
+        frame_==0 || depthRows_.size()+1!=frame_ || depthRows_.size()>=3600 ||
+        bytes>64*1024 || bytes>128ull*1024*1024-depthBytes_) {
+        Fail("Invalid, nonfinite, skipped or excessive actual Depth frame evidence."); return;
+    }
+    depthBytes_+=bytes; depthRows_.push_back(row);
+}
+void GameplayScenarioSession::ReportDepthDraw(const nlohmann::json& proof) {
+    if(!enabled_ || finished_ || !gameplaytest::IsDepthScenario(settings_.scenario)) return;
+    if(depthRows_.empty() || depthRows_.back().at("frame")!=frame_ || !proof.is_object() ||
+        !FiniteJson(proof) || proof.dump().size()>2048 || depthRows_.back().contains("drawProof")) {
+        Fail("Invalid or duplicate actual Depth Draw proof."); return;
+    }
+    auto changed=depthRows_.back(); changed["drawProof"]=proof;
+    const auto oldBytes=depthRows_.back().dump().size(),newBytes=changed.dump().size();
+    if(newBytes>64*1024 || newBytes-oldBytes>128ull*1024*1024-depthBytes_) {
+        Fail("Excessive actual Depth Draw proof bytes."); return;
+    }
+    depthBytes_+=newBytes-oldBytes; depthRows_.back()=std::move(changed);
+}
+bool GameplayScenarioSession::NotifyDepthSceneEntered(const std::string& name) {
+    if(!enabled_ || finished_ || !gameplaytest::IsDepthScenario(settings_.scenario)) return false;
+    if(!gameplaytest::IsSafeIdentifier(name) || depthScenes_.size()>=16) {
+        Fail("Invalid or excessive actual Depth scene notification."); return false;
+    }
+    depthScenes_.push_back({{"scene",name},{"frame",frame_},{"sceneEpoch",sceneEpoch_},
+        {"actualInitializedScene",true}});
+    if(settings_.scenario==gameplaytest::Scenario::NeonDepthLifecycle && settings_.depthFixture.probe=="title_return" && name=="TITLE") {
+        if(frame_==0 || frame_>settings_.frames || depthRows_.size()!=frame_ || settings_.recording.enabled) {
+            Fail("Title completion has no bounded actual gameplay rows.");
+        } else depthTitleEntered_=true;
+        Finish(); // Reports must be saved before the Game observer posts quit.
+        return true;
+    }
+    return false;
+}
+
 void GameplayScenarioSession::Fail(const std::string& error) {
     const auto bounded = error.substr(0, 512);
     if (errors_.size() < 32 && std::find(errors_.begin(), errors_.end(), bounded) == errors_.end()) errors_.push_back(bounded);
@@ -261,7 +418,16 @@ void GameplayScenarioSession::ReportDetail(const std::string& name, const nlohma
 }
 bool GameplayScenarioSession::Finish() {
     if (finished_) return errors_.empty();
-    if (enabled_ && frame_ < settings_.frames) Fail("Scenario finished before its requested duration.");
+    const bool actualTitle=depthTitleEntered_ && settings_.scenario==gameplaytest::Scenario::NeonDepthLifecycle &&
+        settings_.depthFixture.probe=="title_return" && !settings_.recording.enabled;
+    if (enabled_ && frame_ < settings_.frames && !actualTitle) Fail("Scenario finished before its requested duration.");
+    if(enabled_ && settings_.scenario==gameplaytest::Scenario::NeonDepthLifecycle &&
+        settings_.depthFixture.probe=="title_return" && !actualTitle)
+        Fail("Title-return never initialized the actual TITLE scene.");
+    if(enabled_ && gameplaytest::IsDepthScenario(settings_.scenario) && depthRows_.size()!=frame_)
+        Fail("Every actual Depth update requires exactly one evidence row.");
+    if (settings_.recording.enabled && (!recordingStarted_ || recordingFrames_.size() != settings_.recording.frameCount))
+        Fail("Continuous recording finished without every requested saved frame.");
     finished_ = true;
     try {
         Require(!outputDirectory_.empty(), "Scenario evidence has no workspace output directory.");
@@ -270,17 +436,40 @@ bool GameplayScenarioSession::Finish() {
         json snapshots = json::array();
         for (const auto& snapshot : snapshots_) snapshots.push_back(gameplaytest::ToJson(snapshot));
         WriteJson(directory / "snapshots.json", snapshots);
-        json report = {{"schemaVersion", 1}, {"completed", errors_.empty() && enabled_ && frame_ == settings_.frames},
+        json report = {{"schemaVersion", 1}, {"completed", errors_.empty() && enabled_ && (frame_ == settings_.frames || actualTitle)},
             {"scenario", gameplaytest::Name(settings_.scenario)}, {"settings", SettingsJson(settings_)}, {"frameCount", frame_},
             {"sceneEpochs", sceneEpoch_}, {"errors", errors_}, {"captures", captures_}, {"details", details_},
             {"maximumProjectiles", validator_.GetMaximumProjectiles()}, {"maximumEnemies", validator_.GetMaximumEnemies()},
             {"maximumPrimaryAttacks", validator_.GetMaximumPrimaryAttacks()}, {"maximumActiveAttacks", validator_.GetMaximumActiveAttacks()},
             {"sawPlayerDeath", validator_.SawPlayerDeath()}, {"firstSnapshot", snapshots_.empty() ? json(nullptr) : gameplaytest::ToJson(snapshots_.front())},
             {"lastSnapshot", snapshots_.empty() ? json(nullptr) : gameplaytest::ToJson(snapshots_.back())}};
+        if (settings_.recording.enabled) {
+            json recording = {{"schemaVersion",1},{"completed",errors_.empty() && enabled_ && frame_ == settings_.frames &&
+                    recordingStarted_ && recordingFrames_.size() == settings_.recording.frameCount},
+                {"firstSimulationFrame",settings_.recording.firstFrame},{"frameCount",recordingFrames_.size()},
+                {"plannedFrameCount",settings_.recording.frameCount},{"encodedFps",settings_.recording.encodedFps},
+                {"fixedDeltaTime",settings_.fixedDeltaTime},{"nativeResolution",{recordingWidth_,recordingHeight_}},
+                {"maximumSourceBytes",settings_.recording.maxOutputBytes},{"sourceBytes",recordingBytes_},
+                {"preflightBytes",recordingPreflightBytes_},{"availableBytesAtPreflight",recordingAvailableBytes_},
+                {"heldDrawCount",0},{"comparisonFreeze",false},{"framesDirectory","frames"},
+                {"sequencePattern","frame_%05d.png"},{"metadataPattern","frame_%05d.json"},{"errors",errors_},
+                {"clockDescription","One actual completed scene update per source PNG; actual gameplay and boss-presentation clock deltas recorded; PNG-save wall time omitted."},
+                {"frames",recordingFrames_}};
+            recording["status"] = recording.at("completed").get<bool>() ? "COMPLETE" : "INCOMPLETE";
+            report["recording"] = recording;
+            fs::create_directories(directory / "recording");
+            WriteJson(directory / "recording/recording-report.json", recording);
+        }
+        if(gameplaytest::IsDepthScenario(settings_.scenario)) {
+            WriteJson(directory/"depth-frames.json",depthRows_);
+            report["depth"]={{"frameCount",depthRows_.size()},{"expectedMaxFrames",settings_.frames},
+                {"earlyTitleCompletion",actualTitle},{"actualSceneNotifications",depthScenes_},
+                {"rowsFile","depth-frames.json"},{"source","actual Enemy/Player/scene observables"}};
+        }
         WriteJson(directory / "report.json", report);
     } catch (const std::exception& error) {
         Fail(std::string("Scenario report failure: ") + error.what());
     }
-    return errors_.empty() && enabled_ && frame_ == settings_.frames;
+    return errors_.empty() && enabled_ && (frame_ == settings_.frames || actualTitle);
 }
 #endif

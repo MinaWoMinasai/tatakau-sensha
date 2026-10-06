@@ -823,4 +823,21 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <WriteLinesToFile File="$(TargetDir)CG2.build.json" Overwrite="true" Encoding="UTF-8"
       Lines="{ &quot;configuration&quot;: &quot;$(Configuration)&quot;, &quot;developerTools&quot;: $(CG2DeveloperTools), &quot;sha256&quot;: &quot;%(GameBuildHash.FileHash)&quot; }" />
   </Target>
+
+  <ItemGroup>
+    <ClCompile Include="game\enemy\actor\Enemy.NeonDepth.cpp" />
+    <ClCompile Include="game\enemy\visual\NeonDepthEffects.cpp" />
+    <ClCompile Include="game\scene\GameScene.NeonDepth.cpp" />
+    <ClCompile Include="game\scene\GameScene.NeonDepthValidation.cpp" />
+    <ClCompile Include="game\scene\GameScene.NormalRouteReplay.cpp" />
+    <ClInclude Include="game\enemy\actor\NeonDepthCombat.h" />
+    <ClInclude Include="game\enemy\actor\NeonDepthFloor.h" />
+    <ClInclude Include="game\enemy\actor\NeonDepthConfig.h" />
+    <ClInclude Include="game\enemy\visual\NeonDepthPlacement.h" />
+    <ClInclude Include="game\enemy\visual\NeonDepthPresentation.h" />
+    <ClInclude Include="game\enemy\visual\NeonDepthAnimations.h" />
+    <ClInclude Include="game\enemy\visual\NeonDepthLifecycle.h" />
+    <ClInclude Include="game\enemy\visual\NeonDepthEffects.h" />
+    <ClInclude Include="game\enemy\visual\NeonDepthEffectGeometry.h" />
+  </ItemGroup>
 </Project>
