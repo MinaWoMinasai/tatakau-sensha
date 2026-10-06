@@ -4,6 +4,8 @@
 #include "PlayerDrone.h"
 #include "RuntimeProfiler.h"
 #include <cmath>
+#include <cstdio>
+#include <filesystem>
 #include <stdexcept>
 
 namespace {
@@ -13,7 +15,7 @@ void RequireScenario(bool condition, const std::string& error) {
 }
 bool BossScenario(Scenario scenario) {
     return scenario == Scenario::RivalBoss || scenario == Scenario::PrototypeBoss ||
-        scenario == Scenario::NeonBoss || scenario == Scenario::BossDeath;
+        scenario == Scenario::NeonBoss || scenario == Scenario::BossDeath || gameplaytest::IsNeonDepthScenario(scenario);
 }
 
 // Preserve authored walls. Only the in-memory wave is replaced; points are
@@ -49,6 +51,16 @@ void GameScene::InitializeGameplayScenario() {
     if (!session.IsActive() || session.IsFinished() || titleDemo_) return;
     session.BeginScene();
     try {
+        if (session.GetSettings().recording.enabled) {
+            Microsoft::WRL::ComPtr<ID3D12Resource> backbuffer;
+            // DirectX getters are nonconst; no device work/copy is submitted here.
+            auto* writableDx = cg2::Object3dCommon::GetInstance()->GetDxCommon();
+            const HRESULT hr = writableDx->GetSwapChain()->GetBuffer(writableDx->GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&backbuffer));
+            RequireScenario(SUCCEEDED(hr), "Could not inspect the native recording backbuffer.");
+            const auto desc = backbuffer->GetDesc();
+            RequireScenario(desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM && desc.SampleDesc.Count == 1 && desc.Width <= 8192 &&
+                session.BeginRecording(static_cast<unsigned>(desc.Width), desc.Height), "Native recording preflight failed.");
+        }
         RequireScenario(expeditionRun_ && expeditionMapEnabled_ && player_ && enemy_ && enemyManager_ && stage_ && bulletManager_,
             "Gameplay scenarios require the initialized TANK_EXPEDITION scene.");
         const auto& settings = session.GetSettings();
@@ -148,10 +160,12 @@ void GameScene::InitializeGameplayScenario() {
             const auto target = source->objectiveTargets.front();
             enemy_->ResetRunEncounter({target.x,target.y,0}, settings.bossHp, 1, true);
             enemy_->EnableExpeditionRival(settings.scenario != Scenario::PrototypeBoss);
+            if (gameplaytest::IsNeonDepthScenario(settings.scenario)) ConfigureNeonDepthEncounter(true);
+            else enemy_->EnableNeonDepthEncounter(false);
             auto progress = enemy_->GetEnemyProgressConfig(); progress.levelingModeEnabled = false;
             enemy_->SetEnemyProgressConfig(progress);
         }
-        neonBossVisualEnabled_ = settings.scenario == Scenario::NeonBoss || settings.scenario == Scenario::BossDeath;
+        neonBossVisualEnabled_ = settings.scenario == Scenario::NeonBoss || settings.scenario == Scenario::BossDeath || gameplaytest::IsNeonDepthScenario(settings.scenario);
         if (neonBossVisual_) neonBossVisual_->SetEnabled(neonBossVisualEnabled_);
         RequireScenario(settings.playerHp != 0, "Initial playerHp=0 is unsupported by the living room-reset contract; use player_restart for real lethal damage.");
         if (settings.playerHp > 0) {
@@ -177,8 +191,9 @@ void GameScene::InitializeGameplayScenario() {
         }
         RequireScenario(bulletManager_->GetBulletCount() == settings.initialProjectiles,
             "The configured initial projectile count exceeds the real manager's owner cap.");
+        if (gameplaytest::IsNeonDepthScenario(settings.scenario)) InitializeNeonDepthValidation();
         gameplayScenarioInitialized_ = true;
-        session.ReportDetail("fixture", {{"authoredRoom",roomId},{"geometryPreserved",true},{"playerInvulnerable",true},
+        session.ReportDetail("fixture", {{"authoredRoom",roomId},{"geometryPreserved",true},{"playerInvulnerable",debugPlayerNoDamage_},
             {"upgrades",settings.upgrades},{"enemyCount",enemyManager_->GetEnemyCount()},
             {"initialProjectiles",bulletManager_->GetBulletCount()},{"sceneEpoch",session.GetSceneEpoch()}});
         RefreshTankExpeditionUi();
@@ -195,17 +210,38 @@ bool GameScene::PrepareGameplayScenarioFrame() {
     auto& session = GameplayScenarioSession::Get();
     if (!session.IsActive() || titleDemo_) return false;
     if (session.IsFinished()) return true;
+    if (session.GetSettings().recording.enabled &&
+        ((developerBloomFreeze_ && (!gameplayScenarioCapturePending_ || gameplayScenarioCaptureRecording_)) ||
+            neonBossDeveloperFreeze_ || IsNeonShowcaseActive())) {
+        session.Fail("Continuous recording cannot use comparison freeze or Showcase.");
+        UpdateNeonBossVisual(0.0f); session.Finish(); PostQuitMessage(9); return true;
+    }
     gameplayScenarioCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
     if (gameplayScenarioCapturePending_) {
         if (gameplayScenarioCapture_.IsBusy()) {
+            if (gameplayScenarioCaptureRecording_) {
+                // PostDraw already waits for this frame fence. Never introduce
+                // an extra TAA/history draw into a successful continuous run.
+                session.Fail("Recording fence did not resolve on the next Update; additional held Draw rejected.");
+                UpdateNeonBossVisual(0.0f); session.Finish(); PostQuitMessage(9); return true;
+            }
             // The existing freeze branch still resets renderer frame arenas.
             developerBloomFreeze_ = true;
             return false;
         }
         if (gameplayScenarioCapture_.WasLastCaptureSuccessful()) {
-            session.ReportCapture(gameplayScenarioCaptureName_, gameplayScenarioCaptureSnapshot_);
+            if (gameplayScenarioCaptureRecording_) {
+                try {
+                    const auto directory = tankexp::ExpeditionMapPath(session.GetOutputDirectory()) / "recording/frames";
+                    session.ReportRecordedFrame(gameplayScenarioRecordingSequence_, gameplayScenarioCaptureName_, gameplayScenarioCaptureSnapshot_,
+                        std::filesystem::file_size(directory / (gameplayScenarioCaptureName_ + ".png")),
+                        std::filesystem::file_size(directory / (gameplayScenarioCaptureName_ + ".json")));
+                } catch (const std::exception& error) { session.Fail(std::string("Recording save validation: ") + error.what()); }
+            } else session.ReportCapture(gameplayScenarioCaptureName_, gameplayScenarioCaptureSnapshot_);
         } else session.Fail("Scenario capture failed: " + gameplayScenarioCapture_.GetStatus());
-        gameplayScenarioCapturePending_ = false; developerBloomFreeze_ = false;
+        gameplayScenarioCapturePending_ = false;
+        if (!gameplayScenarioCaptureRecording_) developerBloomFreeze_ = false;
+        gameplayScenarioCaptureRecording_ = false;
     }
     if (session.ShouldFinish() || !gameplayScenarioInitialized_) {
         if (session.GetErrors().empty() && session.GetFrame() == session.GetSettings().frames) {
@@ -226,6 +262,7 @@ bool GameScene::PrepareGameplayScenarioFrame() {
         // MainLoop still records its final draw before consuming WM_QUIT.
         // Reset the visual's frame arena at this render-only boundary too.
         UpdateNeonBossVisual(0.0f);
+        if (gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario)) FinishNeonDepthValidation();
         const bool completed = session.Finish(); PostQuitMessage(completed ? 0 : 9); return true;
     }
     if (gameplayScenarioFinishDeferred_) {
@@ -306,6 +343,7 @@ bool GameScene::PrepareGameplayScenarioFrame() {
         }
         player_->SetDemoInput(true, {scripted.movement[0],scripted.movement[1]},
             {scripted.aim[0],scripted.aim[1],scripted.aim[2]}, scripted.shoot, scripted.dash);
+        if (gameplaytest::IsNeonDepthScenario(settings.scenario)) PrepareNeonDepthValidation();
     } catch (const std::exception& error) {
         session.Fail(std::string("Scenario driver: ") + error.what());
         session.Finish(); PostQuitMessage(9); return true;
@@ -340,6 +378,12 @@ gameplaytest::Snapshot GameScene::MakeGameplayScenarioSnapshot() const {
     const auto rival = enemy_->GetRivalCombatStatus();
     snapshot.bossShots = enemy_->GetShotsFired(); snapshot.bossDashes = rival.dashCount;
     snapshot.bossPhase = rival.enabled ? static_cast<unsigned>(rival.phase) : static_cast<unsigned>(enemy_->GetPrototypeCombatPhase());
+    if (gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario)) {
+        const auto& depth = enemy_->GetNeonDepthSnapshot();
+        snapshot.bossPhase = static_cast<unsigned>(depth.phase);
+        snapshot.bossShots = static_cast<unsigned>(depth.activationEvents);
+        snapshot.bossDashes = 0;
+    }
     snapshot.descriptors = cg2::Object3dCommon::GetInstance()->GetSrvManager()->GetAllocatedCount();
     if (neonBossVisual_) {
         const auto& stats = neonBossVisual_->GetStats();
@@ -357,16 +401,27 @@ gameplaytest::Snapshot GameScene::MakeGameplayScenarioSnapshot() const {
 void GameScene::RecordGameplayScenarioFrame() {
     auto& session = GameplayScenarioSession::Get();
     if (!session.IsActive() || session.IsFinished() || titleDemo_ || !gameplayScenarioInitialized_ || developerBloomFreeze_) return;
-    session.Record(MakeGameplayScenarioSnapshot());
+    session.Record(MakeGameplayScenarioSnapshot(), gameplayScenarioCombatDt_, gameplayScenarioPresentationDt_,
+        gameplayScenarioCombatDt_ / session.GetSettings().fixedDeltaTime);
+    if (gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario)) {
+        try { RecordNeonDepthValidation(); }
+        catch (const std::exception& error) { session.Fail(std::string("Depth frame evidence: ")+error.what()); }
+    }
     cg2::RuntimeProfiler::Get().SetCounter("Scenario simulation frame", session.GetFrame());
     const auto scenario = session.GetSettings().scenario;
     if ((scenario == Scenario::StageTransition || scenario == Scenario::ExpeditionTransition) &&
         expeditionMapRun_.GetActiveNodeId() == "scenario_b" && tankExpedition_.IsCombat() && !expeditionTransition_.IsActive())
         gameplayScenarioTransitionStep_ = 5; // Latch actual entry even if room B later clears.
+    if (session.ShouldRecordCompletedFrame()) {
+        char name[32]{};
+        std::snprintf(name, sizeof(name), "frame_%05u", session.GetRecordingSequenceFrame());
+        QueueGameplayScenarioCapture(name, true);
+    }
     const auto& frames = session.GetSettings().captureFrames;
     if (std::find(frames.begin(), frames.end(), session.GetFrame()) != frames.end())
         QueueGameplayScenarioCapture("frame_" + std::to_string(session.GetFrame()));
     if (finished_ && gameplayScenarioCapturePending_) {
+        if (gameplayScenarioCaptureRecording_) session.Fail("Scene exited during continuous recording.");
         finished_ = false; gameplayScenarioFinishDeferred_ = true;
     }
     if (session.ShouldFinish()) session.ReportDetail("transitions", {{"step",gameplayScenarioTransitionStep_},
@@ -374,13 +429,20 @@ void GameScene::RecordGameplayScenarioFrame() {
         {"chosen",expeditionMapRun_.GetChosenNodeIds()}});
 }
 
-void GameScene::QueueGameplayScenarioCapture(const std::string& name) {
+void GameScene::QueueGameplayScenarioCapture(const std::string& name, bool continuousRecording) {
     auto& session = GameplayScenarioSession::Get();
     if (gameplayScenarioCapturePending_ || gameplayScenarioCapture_.IsBusy()) { session.Fail("Overlapping scenario capture requests."); return; }
     gameplayScenarioCaptureName_ = name;
     gameplayScenarioCaptureSnapshot_ = MakeGameplayScenarioSnapshot();
-    gameplayScenarioCapture_.Request(tankexp::ExpeditionMapPath(session.GetOutputDirectory()), name, session.MakeMetadata());
-    gameplayScenarioCapturePending_ = true; developerBloomFreeze_ = true;
+    gameplayScenarioCaptureRecording_ = continuousRecording;
+    gameplayScenarioRecordingSequence_ = continuousRecording ? session.GetRecordingSequenceFrame() : 0;
+    auto directory = tankexp::ExpeditionMapPath(session.GetOutputDirectory());
+    if (continuousRecording) directory /= "recording/frames";
+    gameplayScenarioCapture_.Request(directory, name, session.MakeMetadata());
+    gameplayScenarioCapturePending_ = true;
+    // Sparse comparisons retain the original policy. A continuous request is
+    // pending readback only and never changes the standard temporal profile.
+    if (!continuousRecording) developerBloomFreeze_ = true;
 }
 
 void GameScene::RecordGameplayScenarioCapture(cg2::DirectXCommon& dx) {
@@ -395,9 +457,31 @@ void GameScene::RecordGameplayScenarioCapture(cg2::DirectXCommon& dx) {
             metadata["camera"]["viewProjection"].push_back({row[0],row[1],row[2],row[3]});
         if (BossScenario(session.GetSettings().scenario) && neonBossVisual_)
             metadata["bossVisual"] = MakeNeonBossMetadata().at("presentation");
-        metadata["comparisonFreeze"] = true;
+        metadata["comparisonFreeze"] = !gameplayScenarioCaptureRecording_;
+        if (gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario)) metadata["depthConditions"] = MakeNeonDepthValidationConditions();
+        if (gameplayScenarioCaptureRecording_) {
+            const auto recording = session.MakeRecordingMetadata();
+            metadata["sequenceFrame"] = gameplayScenarioRecordingSequence_;
+            metadata["sequenceRate"] = recording.at("sequenceRate");
+            metadata["recordingClocks"] = recording.at("recordingClocks");
+            metadata["heldDrawCount"] = 0;
+            metadata["recordingConditions"] = {{"automatedInput",true},{"shortcutFixture",true},{"normalMainRoute",false},
+                {"playerInvulnerable",debugPlayerNoDamage_},{"playerHpConfigured",session.GetSettings().playerHp > 0},
+                {"bossHpConfigured",true},{"configuredBossHp",session.GetSettings().bossHp},
+                {"forcedDefeat",session.GetSettings().scenario == Scenario::BossDeath},
+                {"cameraFixtureCentering",!gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario) && BossScenario(session.GetSettings().scenario) && IsRunRivalActive()},
+                {"debugCamera",cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()},
+                {"HUDIncluded",true},{"debugUIIncluded",false},{"audio","none"},{"sceneTimeScale",timeScale_}};
+            Microsoft::WRL::ComPtr<ID3D12Resource> backbuffer;
+            const HRESULT hr = dx.GetSwapChain()->GetBuffer(dx.GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&backbuffer));
+            if (FAILED(hr)) { session.Fail("Recording backbuffer inspection failed."); gameplayScenarioCapture_.CancelRequest(); return; }
+            const auto desc = backbuffer->GetDesc();
+            if (desc.Width > 8192 || !session.BeginRecording(static_cast<unsigned>(desc.Width), desc.Height)) {
+                gameplayScenarioCapture_.CancelRequest(); return;
+            }
+        }
         const auto frame = MakeDeveloperGameCaptureMetadata(dx);
-        for (const char* key : {"gpu","queueTimestampFrequencyHz","validation","resolution"})
+        for (const char* key : {"gpu","queueTimestampFrequencyHz","validation","resolution","globalPost"})
             if (frame.contains(key)) metadata[key] = frame.at(key);
         gameplayScenarioCapture_.SetFrameMetadata(std::move(metadata));
     }

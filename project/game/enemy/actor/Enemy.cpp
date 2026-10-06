@@ -160,6 +160,7 @@ void Enemy::ShotgunFire()
 }
 
 void Enemy::Initialize(cg2::Object3d* object, const cg2::Vector3& position, Stage* stage) {
+	if (neonDepthEnabled_) EnableNeonDepthEncounter(false);
 	++encounterGeneration_;
 	shotsFired_ = 0;
 	runEncounterEnabled_ = true;
@@ -313,6 +314,7 @@ void Enemy::RegisterRunResourceClaim()
 
 void Enemy::EnablePrototypeCombat(bool enabled)
 {
+	if (enabled && neonDepthEnabled_) EnableNeonDepthEncounter(false);
 	if (prototypeCombatEnabled_ == enabled) return;
 	prototypeCombatEnabled_ = enabled;
 	prototypeCombat_.Reset();
@@ -358,6 +360,7 @@ void Enemy::SetRunEncounterEnabled(bool enabled)
 {
 	runEncounterEnabled_ = enabled;
 	if (!enabled) {
+		if (neonDepthEnabled_) AbortNeonDepthEncounter();
 		velocity_ = {};
 		impactVelocity_ = {};
 		levelingModeActive_ = false;
@@ -369,6 +372,7 @@ void Enemy::SetRunEncounterEnabled(bool enabled)
 void Enemy::ResetRunEncounter(const cg2::Vector3& position, int hp, int pressure, bool resourceFocus)
 {
 	if (!object_) return;
+	if (neonDepthEnabled_) EnableNeonDepthEncounter(false);
 	++encounterGeneration_;
 	shotsFired_ = 0;
 	expeditionRivalEnabled_ = false;
@@ -425,6 +429,7 @@ void Enemy::ResetRunEncounter(const cg2::Vector3& position, int hp, int pressure
 
 void Enemy::EnableExpeditionRival(bool enabled)
 {
+	if (enabled && neonDepthEnabled_) EnableNeonDepthEncounter(false);
 	expeditionRivalEnabled_ = enabled;
 	rivalCombat_.Reset();
 	rivalDashDirection_ = { 0.0f, 1.0f, 0.0f };
@@ -650,6 +655,9 @@ void Enemy::Update(float deltaTime) {
 	UpdateHPBar();
 	ApplyDamageFeedback(deltaTime);
 
+	if (neonDepthEnabled_) {
+		UpdateNeonDepthCombat(deltaTime);
+	} else {
 	if (expeditionRivalEnabled_) {
 		UpdateRivalCombat(deltaTime);
 	} else {
@@ -703,6 +711,8 @@ void Enemy::Update(float deltaTime) {
 			rivalDashDistance_ = 0.0f;
 			break;
 		}
+	}
+
 	}
 
 	object_->SetTransform(worldTransform_);
@@ -839,6 +849,7 @@ void Enemy::OnCollision(Collider* other) {
 
 void Enemy::TakeDamage(uint32_t amount)
 {
+	if (neonDepthEnabled_ && !neonDepthCombat_.GetSnapshot().vulnerable) return;
 	if (!runEncounterEnabled_ || isDead_ || hp_ <= 0 || amount == 0) {
 		return;
 	}
@@ -850,6 +861,8 @@ void Enemy::TakeDamage(uint32_t amount)
 
 void Enemy::ApplyKnockback(const cg2::Vector3& direction, float power)
 {
+	// A projection core keeps the committed plan fixed; offensive dash damage still applies.
+	if (neonDepthEnabled_) return;
 	if (!runEncounterEnabled_ || isDead_ || !std::isfinite(power) || power <= 0.0f || cg2::Length(direction) < 0.001f) return;
 	// AI速度とは別の押し返し速度を加える。行動時計や固定済みの攻撃は中断しない。
 	impactVelocity_ += cg2::Normalize(direction) * ((std::min)(0.95f,power) * 0.35f);
@@ -1525,6 +1538,7 @@ void Enemy::Die()
 {
 	if (!runEncounterEnabled_ || isDead_) return;
 
+	if (neonDepthEnabled_) neonDepthEvents_ = neonDepthCombat_.Defeat();
 	isDead_ = true;
 	hp_ = 0;
 	velocity_ = dir_ = impactVelocity_ = {};

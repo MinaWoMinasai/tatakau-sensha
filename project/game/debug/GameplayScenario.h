@@ -12,7 +12,8 @@ namespace gameplaytest {
 enum class Scenario {
     Shooter, Drone, Melee, ProjectileStress, EnemyStress, RivalBoss,
     PrototypeBoss, NeonBoss, BossDeath, PlayerRestart, StageTransition,
-    ExpeditionTransition, PreviewLifecycle
+    ExpeditionTransition, PreviewLifecycle,
+    NeonDepthCycles, NeonDepthDamage, NeonDepthDodge, NeonDepthLifecycle, NeonDepthParity
 };
 
 inline const char* Name(Scenario scenario) {
@@ -30,17 +31,33 @@ inline const char* Name(Scenario scenario) {
     case Scenario::StageTransition: return "stage_transition";
     case Scenario::ExpeditionTransition: return "expedition_transition";
     case Scenario::PreviewLifecycle: return "preview_lifecycle";
+    case Scenario::NeonDepthCycles: return "neon_depth_cycles";
+    case Scenario::NeonDepthDamage: return "neon_depth_damage";
+    case Scenario::NeonDepthDodge: return "neon_depth_dodge";
+    case Scenario::NeonDepthLifecycle: return "neon_depth_lifecycle";
+    case Scenario::NeonDepthParity: return "neon_depth_parity";
     }
     return "invalid";
 }
 
 inline bool ParseScenario(const std::string& name, Scenario& scenario) {
-    for (int index = 0; index <= static_cast<int>(Scenario::PreviewLifecycle); ++index) {
+    for (int index = 0; index <= static_cast<int>(Scenario::NeonDepthParity); ++index) {
         const auto candidate = static_cast<Scenario>(index);
         if (name == Name(candidate)) { scenario = candidate; return true; }
     }
     return false;
 }
+
+
+inline bool IsNeonDepthScenario(Scenario value) {
+    return value >= Scenario::NeonDepthCycles && value <= Scenario::NeonDepthParity;
+}
+inline bool IsDepthScenario(Scenario value) { return IsNeonDepthScenario(value); }
+struct DepthFixtureSettings {
+    std::string probe = "none", attack = "volley", phase = "active";
+    float minimumProgress = 0;
+    bool visualEnabled = true, reducedMotion = false, injectPhaseTwo = false;
+};
 
 struct ScriptedInput {
     std::array<float, 2> movement{};
@@ -62,6 +79,12 @@ inline bool IsSafeIdentifier(const std::string& value) {
     if (!alphanumeric(value.front()) && value.front() != '_') return false;
     return std::all_of(value.begin(), value.end(), [&](char c) { return alphanumeric(c) || c == '_' || c == '-' || c == '.'; });
 }
+// Independently bounded continuous recording; sparse capture limits stay32/64.
+struct RecordingSettings {
+    bool enabled = false;
+    unsigned firstFrame = 1, frameCount = 0, encodedFps = 60;
+    uint64_t maxOutputBytes = 12ull * 1024 * 1024 * 1024;
+};
 struct Settings {
     Scenario scenario = Scenario::Shooter;
     uint32_t seed = 20261005u;
@@ -79,6 +102,8 @@ struct Settings {
     std::vector<EnemyWaveEntry> enemyWave;
     std::vector<InputSegment> input;
     std::vector<unsigned> captureFrames{120, 360};
+    RecordingSettings recording;
+    DepthFixtureSettings depthFixture;
 };
 
 inline bool ValidateSettings(const Settings& settings, std::string& error) {
@@ -118,7 +143,54 @@ inline bool ValidateSettings(const Settings& settings, std::string& error) {
         if (settings.captureFrames[i] > settings.frames || (i != 0 && settings.captureFrames[i] <= settings.captureFrames[i - 1]))
             { error = "Capture frames must be ordered, unique and within the duration."; return false; }
     }
+    if (IsDepthScenario(settings.scenario)) {
+        const auto& depth = settings.depthFixture;
+        const std::array<const char*,11> probes{"none","pause","abort","hp0","intro_skip","player_death",
+            "simultaneous_death","retry","title_return","multidraw","stationary_damage"};
+        const std::array<const char*,3> attacks{"volley","dive","beam"};
+        const std::array<const char*,7> phases{"intro","reposition","telegraph","locked","airborne","active","recovery"};
+        auto contains = [](const auto& values,const std::string& name) {
+            return std::find(values.begin(),values.end(),name)!=values.end();
+        };
+        if (!contains(probes,depth.probe) || !contains(attacks,depth.attack) || !contains(phases,depth.phase) ||
+            !std::isfinite(depth.minimumProgress) || depth.minimumProgress<0 || depth.minimumProgress>.95f ||
+            (depth.attack=="beam" && depth.phase=="airborne"))
+            { error="Invalid bounded Depth fixture probe/attack/phase/progress."; return false; }
+        if (settings.enemyCount || settings.initialProjectiles || !settings.enemyWave.empty())
+            { error="Depth fixtures require the single real boss and no extra initial hazards."; return false; }
+        if ((settings.scenario==Scenario::NeonDepthLifecycle)==(depth.probe=="none") ||
+            (settings.scenario!=Scenario::NeonDepthLifecycle && depth.probe!="none"))
+            { error="Lifecycle probes require the Depth lifecycle scenario."; return false; }
+        if (depth.injectPhaseTwo && settings.scenario!=Scenario::NeonDepthCycles && settings.scenario!=Scenario::NeonDepthParity)
+            { error="Only cycle/parity fixtures may inject phase2 HP."; return false; }
+        if (depth.probe=="title_return" && settings.recording.enabled)
+            { error="Title-return early completion cannot be continuously recorded."; return false; }
+    } else if (settings.depthFixture.probe!="none" || !settings.depthFixture.visualEnabled ||
+        settings.depthFixture.reducedMotion || settings.depthFixture.injectPhaseTwo) {
+        error="Depth controls cannot change legacy scenarios."; return false;
+    }
+    if (settings.recording.enabled) {
+        const auto& recording = settings.recording;
+        const uint64_t end = uint64_t(recording.firstFrame) + recording.frameCount - 1;
+        if (recording.firstFrame < 1 || recording.frameCount < 1 || recording.frameCount > 2700 || end > settings.frames)
+            { error = "Recording requires1..2700 consecutive completed updates within the scenario."; return false; }
+        if ((recording.encodedFps != 30 && recording.encodedFps != 60 && recording.encodedFps != 120 && recording.encodedFps != 240) ||
+            std::abs(double(settings.fixedDeltaTime) * recording.encodedFps - 1.0) > 1.0e-5)
+            { error = "Recording fps must exactly represent the fixed base timestep."; return false; }
+        if (!recording.maxOutputBytes || recording.maxOutputBytes > 12ull * 1024 * 1024 * 1024)
+            { error = "Recording source byte budget must be1..12GiB."; return false; }
+        for (unsigned frame : settings.captureFrames)
+            if (frame >= recording.firstFrame && uint64_t(frame) <= end)
+                { error = "Sparse captures may not overlap the continuous recording range."; return false; }
+    } else if (settings.recording.frameCount != 0) {
+        error = "Disabled recording must have frameCount0."; return false;
+    }
     error.clear(); return true;
+}
+
+inline bool ShouldRecordCompletedFrame(const Settings& settings, unsigned frame) {
+    return settings.recording.enabled && frame >= settings.recording.firstFrame &&
+        uint64_t(frame) < uint64_t(settings.recording.firstFrame) + settings.recording.frameCount;
 }
 
 inline ScriptedInput InputAtFrame(const Settings& settings, unsigned frame) {
@@ -126,7 +198,7 @@ inline ScriptedInput InputAtFrame(const Settings& settings, unsigned frame) {
         if (frame >= segment.firstFrame && frame < segment.endFrame) return segment.input;
     ScriptedInput result;
     const bool boss = settings.scenario == Scenario::RivalBoss || settings.scenario == Scenario::PrototypeBoss ||
-        settings.scenario == Scenario::NeonBoss || settings.scenario == Scenario::BossDeath;
+        settings.scenario == Scenario::NeonBoss || settings.scenario == Scenario::BossDeath || IsDepthScenario(settings.scenario);
     if (boss || settings.scenario == Scenario::PlayerRestart || settings.scenario == Scenario::PreviewLifecycle)
         result.shoot = false;
     if (!boss && settings.scenario != Scenario::PlayerRestart && settings.scenario != Scenario::PreviewLifecycle) {

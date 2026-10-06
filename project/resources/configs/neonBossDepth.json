@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "camera": {
+    "tiltDegrees": 20,
+    "distance": 90,
+    "fovY": 0.55
+  },
+  "visual": {
+    "worldHeight": 18,
+    "hoverHeight": 3,
+    "floorOffset": [
+      0,
+      2
+    ],
+    "reducedMotion": false
+  }
+}

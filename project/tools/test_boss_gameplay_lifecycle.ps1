@@ -66,7 +66,7 @@ $tankExpBatch = @'
 @echo off
 call "%TANK_EXP_TEST_VS_DEV_CMD%" -no_logo -arch=x64 -host_arch=x64
 if errorlevel 1 exit /b %errorlevel%
-cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /I"%BOSS_LIFECYCLE_INCLUDE%" /Fe:boss_gameplay_lifecycle_tests.exe /Fo:.\ "%TANK_EXP_TEST_SOURCE%"
+cl /nologo /std:c++20 /utf-8 /EHsc /W4 /WX /O2 /UNDEBUG /I"%BOSS_LIFECYCLE_INCLUDE%" /I"%BOSS_LIFECYCLE_PROJECT%" /Fe:boss_gameplay_lifecycle_tests.exe /Fo:.\ "%TANK_EXP_TEST_SOURCE%"
 if errorlevel 1 exit /b %errorlevel%
 boss_gameplay_lifecycle_tests.exe
 exit /b %errorlevel%
@@ -75,6 +75,7 @@ exit /b %errorlevel%
 $tankExpEnvironment = @{
     TANK_EXP_TEST_VS_DEV_CMD = $tankExpDevCmd
     BOSS_LIFECYCLE_INCLUDE = $tankExpOutputDir
+    BOSS_LIFECYCLE_PROJECT = Join-Path $tankExpRepoDir 'project'
     TANK_EXP_TEST_SOURCE = Join-Path $PSScriptRoot 'boss_gameplay_lifecycle_tests.cpp'
 }
 $tankExpPreviousEnvironment = @{}

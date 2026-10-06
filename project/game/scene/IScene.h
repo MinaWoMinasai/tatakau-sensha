@@ -33,6 +33,9 @@ public:
         bool suppressPostEffectDebugUi = false;
         // Suppress generated screen-space edges, preserving authored neon geometry.
         bool suppressOutlines = false;
+        // Moving skinned geometry has no per-object velocity in the existing
+        // temporal path. A scene may scope a stable, unjittered render profile.
+        bool suppressTemporal = false;
         cg2::BloomParam param{};
     };
     /// @brief 水面に関連する画面効果の設定を表す。

@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "GameStartMode.h"
 #include "Enemy.h"
 #include "RuntimeProfiler.h"
 #include <cmath>
@@ -19,6 +20,8 @@ void GameScene::UpdateNeonBossVisual(float deltaTime) {
     input.alive = !enemy_->IsDead() && input.hp > 0;
     input.encounterActive = IsRunRivalActive() && enemy_->IsRunEncounterEnabled() && !IsTutorialCombatSuppressed();
     input.damageFeedback = enemy_->GetDamageFeedbackRatio();
+    input.depthEncounter = enemy_->IsNeonDepthEncounterEnabled();
+    input.depth = enemy_->GetNeonDepthSnapshot();
     const auto rival = enemy_->GetRivalCombatStatus();
     BossVisualBridgeInput bridgeInput;
     bridgeInput.encounterGeneration = enemy_->GetEncounterGeneration();
@@ -36,22 +39,39 @@ void GameScene::UpdateNeonBossVisual(float deltaTime) {
     input.phaseTwo = decision.phaseTwo;
     input.action = decision.action;
     neonBossVisual_->SetEnabled(neonBossVisualEnabled_);
-    neonBossVisual_->Update(input, deltaTime);
+    {
+        cg2::RuntimeProfiler::CpuScope modelScope("Neon Depth Model Update");
+        neonBossVisual_->Update(input, deltaTime);
+    }
+    UpdateNeonDepthEffects();
 }
 
 bool GameScene::UseNeonBossVisual() const {
+    if (enemy_ && enemy_->IsNeonDepthEncounterEnabled()) return true; // Floor core owns gameplay; no legacy decorative tank.
     return neonBossVisualEnabled_ && neonBossVisual_ && IsRunRivalActive() &&
         (neonBossVisual_->HasResources() || neonBossVisual_->IsFinished());
 }
 
 void GameScene::DrawNeonBossVisual() {
     if (!UseNeonBossVisual() || IsTutorialCombatSuppressed()) return;
-    neonBossVisual_->Draw();
+    if (neonBossVisual_) neonBossVisual_->Draw();
 }
 
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 namespace {
 constexpr const char* kBossCaptureDirectory = "generated/neon_boss_gameplay";
+}
+
+void GameScene::RequestNeonBossDeveloperEncounter() {
+    if (titleDemo_ || !expeditionMapEnabled_ || phase_ == Phase::kFadeOut || IsNeonShowcaseActive()) return;
+    if (player_->IsDead()) {
+        // 死亡済みの自機は復活させず、通常の再出撃で新しいシーンを作る。
+        GameStartSession::RequestDeveloperBossStart();
+        resultSelection_ = 0;
+        ConfirmResultSelection();
+        return;
+    }
+    neonBossDeveloperStartPending_ = true;
 }
 
 void GameScene::StartNeonBossDeveloperEncounter() {
@@ -80,6 +100,9 @@ void GameScene::StartNeonBossDeveloperEncounter() {
     tankExpeditionTutorial_.Skip(); expeditionGuideActive_ = false;
     expeditionBuildChoice_ = false; expeditionBuildChosen_ = true;
     expeditionAuthoringHubOpen_ = false; tankRunPaused_ = false;
+    expeditionMapPreview_ = false;
+    tankExpeditionBalanceEditorOpen_ = expeditionRoomEditorOpen_ = expeditionMapEditorOpen_ = expeditionContentEditorOpen_ = false;
+    developerBloomFreeze_ = neonBossDeveloperFreeze_ = false;
     expeditionTransition_ = {}; expeditionCollectAll_ = false;
     combatFlow_.Reset();
     bossDefeatHandled_ = false;
@@ -250,11 +273,21 @@ void GameScene::UpdateNeonBossDeveloperValidation() {
 void GameScene::DrawNeonBossDeveloperTools() {
 #ifdef USE_IMGUI
     ImGui::TextUnformatted("本編のボス状態を3D表示へ渡します。HP・攻撃・衝突はEnemyが管理します。");
-    if (player_ && player_->IsDead()) ImGui::TextUnformatted("自機死亡中: 結果画面から再出撃してください。");
-    if (expeditionMapEnabled_ && ImGui::Button("本編ボス戦へ移動 / 再生成")) neonBossDeveloperStartPending_ = true;
+    ImGui::TextUnformatted("F7: ボス戦へ移動 / 再生成。現在の遠征を確認用ルートへ置き換え、自機を無敵にします。");
+    if (player_ && player_->IsDead()) ImGui::TextUnformatted("自機死亡中: F7または下のボタンで再出撃し、ボス戦から開始します。");
+    if (expeditionMapEnabled_ && ImGui::Button("本編ボス戦へ移動 / 再生成 (F7)")) RequestNeonBossDeveloperEncounter();
     if (ImGui::Checkbox("3D Neon Visual (OFF: existing tank)", &neonBossVisualEnabled_))
         if (neonBossVisual_) neonBossVisual_->SetEnabled(neonBossVisualEnabled_);
     ImGui::Checkbox("Freeze for visual comparison", &developerBloomFreeze_);
+    if (ImGui::Button("Reload Depth settings")) LoadNeonDepthConfig(true);
+    ImGui::TextWrapped("%s",neonDepthConfigStatus_.c_str());
+    if (enemy_ && enemy_->IsNeonDepthEncounterEnabled()) {
+        const auto& depth = enemy_->GetNeonDepthSnapshot();
+        ImGui::Text("Depth attack %d | phase %d | instance %llu",int(depth.plan.attack),int(depth.phase),static_cast<unsigned long long>(depth.plan.instance));
+        if (ImGui::Button("Skip entrance")) neonDepthSkipRequested_ = true;
+        auto profile = neonBossVisual_->GetDepthProfile();
+        if (ImGui::Checkbox("Reduced motion",&profile.reducedMotion)) neonBossVisual_->SetDepthProfile(profile);
+    }
     if (!enemy_ || !IsRunRivalActive() || !neonBossVisual_) return;
     const auto rival = enemy_->GetRivalCombatStatus();
     ImGui::Text("HP %d / %d | Phase %d | Phase 2 %s | Shots %u", enemy_->GetHp(), enemy_->GetMaxHp(),

@@ -13,6 +13,8 @@
 #include <string>
 #include "../game/enemy/actor/PrototypeBossCombat.h"
 #include "../game/enemy/actor/RivalBossCombat.h"
+#include "../game/enemy/actor/NeonDepthCombat.h"
+#include "../game/enemy/actor/NeonDepthFloor.h"
 #include "../game/collision/CollisionConfig.h"
 
 namespace cg2 {
@@ -93,6 +95,10 @@ static int aiCalls = 0, prototypeUpdates = 0, rivalUpdates = 0;
 Enemy::~Enemy() = default;
 void Enemy::UpdateHPBar() {}
 void Enemy::ApplyDamageFeedback(float) {}
+// Preserve the legacy gameplay fixture; the actual Depth adapter runs in its own runtime suite.
+void Enemy::EnableNeonDepthEncounter(bool enabled, const neondepth::Tuning&) { assert(!enabled); neonDepthEnabled_=false; }
+void Enemy::AbortNeonDepthEncounter() { assert(!neonDepthEnabled_); }
+void Enemy::UpdateNeonDepthCombat(float) { assert(!neonDepthEnabled_); }
 void Enemy::UpdateRivalCombat(float) { ++rivalUpdates; }
 void Enemy::UpdatePrototypeCombat(float) { ++prototypeUpdates; }
 void Enemy::UpdateAIState() { ++aiCalls; }

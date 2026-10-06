@@ -43,6 +43,8 @@
 #include "game/render/NeonProjectileRenderer.h"
 #include "game/enemy/visual/NeonBossVisual.h"
 #include "game/enemy/visual/BossVisualBridge.h"
+#include "game/enemy/actor/NeonDepthConfig.h"
+#include "game/enemy/visual/NeonDepthEffects.h"
 #include "game/flow/CombatFlowController.h"
 #include "game/ui/NeonTextEffect.h"
 #include "game/ui/TankRewardCard.h"
@@ -781,6 +783,7 @@ private:
     /// @brief ネオン三角形粒子を後で処理するために予約する。
     void QueueNeonTriangleParticles(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward);
     /// @brief 近距離カメラ2Dであるか判定する。
+    cg2::Vector3 GetFloorVisibilityCenter() const;
     bool IsNearCamera2D(const cg2::Vector3& worldPos, float halfWidth, float halfHeight, float margin = 0.0f) const;
     /// @brief 後処理設定Entriesを初期状態へ戻す。
     void ResetPostProfileEntries();
@@ -1003,24 +1006,69 @@ private:
     void UpdateNeonBossVisual(float deltaTime);
     bool UseNeonBossVisual() const;
     void DrawNeonBossVisual();
+    bool LoadNeonDepthConfig(bool hotReload = false);
+    bool IsNeonDepthEncounterActive() const;
+    void ConfigureNeonDepthEncounter(bool completedFixtureRoomReset = false);
+    bool UpdateNeonDepthCamera(float baseDeltaTime);
+    void RestoreNeonDepthCamera();
+    bool UpdateNeonDepthIntro(float baseDeltaTime);
+    void UpdateNeonDepthEffects();
+    cg2::Vector3 neonDepthFloorViewCenter_{44,31,0};
+    neondepth::Config neonDepthConfig_{}, neonDepthPendingConfig_{};
+    std::string neonDepthConfigStatus_;
+    std::unique_ptr<NeonDepthEffects> neonDepthEffects_;
+    uint64_t neonDepthFrameId_ = 0;
+    float neonDepthIntroDelta_ = 0;
+    bool neonDepthSkipRequested_ = false;
+    struct DepthSavedCamera {
+        cg2::Vector3 position{},rotation{};
+        cg2::Vector2 jitter{};
+        float fovY=0,aspect=0,nearClip=0,farClip=0;
+    } neonDepthSavedCamera_;
+    bool neonDepthCameraScoped_ = false;
+    bool neonDepthSavedDebugCamera_ = false;
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    void InitializeNormalRouteReplay();
+    void PrepareNormalRouteReplay();
+    void RecordNormalRouteReplay();
+    void StopNormalRouteReplay(const char* reason);
+    nlohmann::json MakeNormalRouteReplayState() const;
+    bool normalRouteReplayActive_=false;
+    void InitializeNeonDepthValidation();
+    void PrepareNeonDepthValidation();
+    void RecordNeonDepthValidation();
+    void FinishNeonDepthValidation();
+    void DrawNeonDepthValidation();
+    nlohmann::json MakeNeonDepthValidationConditions() const;
+    bool neonDepthFixtureTriggered_=false,neonDepthPhaseTwoInjected_=false,neonDepthForcedHpThisFrame_=false;
+    bool neonDepthResumeSeen_=false;
+    unsigned neonDepthPauseBegin_=0,neonDepthPauseEnd_=0,neonDepthCycleOneMask_=0,neonDepthCycleTwoMask_=0;
+    uint64_t neonDepthDashInstance_=0,neonDepthRealCoreDamage_=0;
+    int neonDepthPreviousBossHp_=0;
+    neondepth::Snapshot neonDepthPauseSnapshot_{};
+    nlohmann::json neonDepthOperations_=nlohmann::json::array();
+
     void InitializeGameplayScenario();
     bool PrepareGameplayScenarioFrame();
     void RecordGameplayScenarioFrame();
     void RecordGameplayScenarioCapture(cg2::DirectXCommon& dx);
     gameplaytest::Snapshot MakeGameplayScenarioSnapshot() const;
-    void QueueGameplayScenarioCapture(const std::string& name);
+    void QueueGameplayScenarioCapture(const std::string& name, bool continuousRecording = false);
     NeonShowcaseCapture gameplayScenarioCapture_;
     gameplaytest::Snapshot gameplayScenarioCaptureSnapshot_;
     std::string gameplayScenarioCaptureName_;
     bool gameplayScenarioInitialized_ = false, gameplayScenarioCapturePending_ = false;
     bool gameplayScenarioEventApplied_ = false, gameplayScenarioRestartRequested_ = false;
     bool gameplayScenarioFinishDeferred_ = false;
+    bool gameplayScenarioCaptureRecording_ = false;
+    unsigned gameplayScenarioRecordingSequence_ = 0;
+    float gameplayScenarioCombatDt_ = 0.0f, gameplayScenarioPresentationDt_ = 0.0f;
     unsigned gameplayScenarioTransitionStep_ = 0;
     std::unique_ptr<NeonSkinnedPreview> neonSkinnedPreview_;
     bool selectNeonSkinnedPreviewTab_ = false;
     bool selectNeonBossTab_ = false;
     void DrawNeonBossDeveloperTools();
+    void RequestNeonBossDeveloperEncounter();
     void StartNeonBossDeveloperEncounter();
     void UpdateNeonBossDeveloperValidation();
     void RecordNeonBossDeveloperFrame(cg2::DirectXCommon& dx);
