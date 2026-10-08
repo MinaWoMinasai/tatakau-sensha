@@ -589,6 +589,30 @@ void NeonGridRenderer::DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount
     commandList->DrawInstanced(drawableCount, 1, startVertex, 0);
 }
 
+bool NeonGridRenderer::InitializeSceneSolidPipeline() {
+    if (sceneSolidPipeline_) return true;
+    if (!dxCommon_) return false;
+    // HUD用のLDR PSOをHDR描画先へ転用せず、SceneのMRT形式とroot signatureを維持する。
+    auto description = dxCommon_->GetPSOTrailForScene().graphicsDesc_;
+    description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+    description.BlendState.RenderTarget[0].BlendEnable = FALSE;
+    return SUCCEEDED(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(&sceneSolidPipeline_)));
+}
+
+void NeonGridRenderer::DrawRangeSceneSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection) {
+    if (!sceneSolidPipeline_ || !vertexData_ || !vertexCount || startVertex >= vertexCount_) return;
+    *viewProjectionData_ = viewProjection;
+    auto list = dxCommon_->GetList();
+    list->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
+    list->SetPipelineState(sceneSolidPipeline_.Get());
+    list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    list->IASetVertexBuffers(0, 1, &vertexBufferView_);
+    list->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+    list->SetGraphicsRootConstantBufferView(1, viewProjectionResource_->GetGPUVirtualAddress());
+    list->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_));
+    list->DrawInstanced((std::min)(vertexCount, vertexCount_ - startVertex), 1, startVertex, 0);
+}
+
 void NeonGridRenderer::AddLineQuad(const Vector3& a, const Vector3& b, float width, const Vector4& color) {
     if (color.w <= 0.001f || vertexCount_ + 6 > kMaxVertices) {
         return;
