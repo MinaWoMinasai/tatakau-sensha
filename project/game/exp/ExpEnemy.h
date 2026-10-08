@@ -307,7 +307,7 @@ public:
     }
     /// @brief 生存中の移動戦闘役の輪郭・攻撃予告・残弾などを、シーンが使うネオン描画先へ予約する。
     void QueueCombatVisuals(cg2::NeonGridRenderer& renderer, const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp,
-                            const cg2::Vector3& cameraForward, float lineWidth) const;
+                            const cg2::Vector3& cameraForward, float lineWidth, bool fillOnly = false) const;
     /// @brief 借用する自機の位置を攻撃元として、自機側ダメージを適用する。自機がなければ中心からの攻撃として扱う。
     /// @return この呼び出しで撃破した場合true。falseでもHPや被弾演出が変わる場合がある。
     bool TakeDamageFromPlayer(uint32_t amount);

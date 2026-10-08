@@ -23,6 +23,17 @@
 
 namespace {
 
+void ApplyGameplayNeonBloomPreset(cg2::BloomParam& param, float gain = 1.2f) {
+	// Match the projectile halo while composing the unchanged sharp source separately.
+	// Legacy intensity is independent: the pyramid applies this linear gain once.
+	param.bloomMode = 2;
+	param.threshold = 0.0f;
+	param.bloomSoftKnee = 0.5f;
+	param.bloomGain = gain;
+	param.bloomScatter = 0.55f;
+	param.bloomRadius = 1.0f;
+}
+
 /// @brief 衝突開発表示色を返す。
 cg2::Vector4 GetCollisionDebugColor(uint32_t attribute) {
 	if (attribute & kCollisionAttributePlayer) {
@@ -484,8 +495,10 @@ void GameScene::Initialize() {
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
     wchar_t bossTest[8]{};
     neonBossAutoTest_ = GetEnvironmentVariableW(L"CG2_NEON_BOSS_AUTOTEST", bossTest, 8) > 0 && bossTest[0] == L'1';
-    if (!titleDemo_ && GameplayScenarioSession::Get().IsActive())
+    if (!titleDemo_ && GameplayScenarioSession::Get().IsActive()) {
         cg2::rng.seed(GameplayScenarioSession::Get().GetSettings().seed);
+        cg2::ParticleManager::GetInstance()->SetPresentationSeed(GameplayScenarioSession::Get().GetSettings().seed);
+    }
 #endif
     cg2::StartupTrace::Scope startupScope(titleDemo_ ? "GameScene.Initialize.Demo" : "GameScene.Initialize.Play");
 
@@ -525,9 +538,7 @@ void GameScene::Initialize() {
 		cg2::BloomParam& playerPost = playerPostEffect_->GetParam();
 		playerPost.threshold = 0.0f;
 		playerPost.intensity = 1.0f;
-		playerPost.bloomGain = 0.38f;
-		playerPost.bloomScatter = 0.5f;
-		playerPost.bloomRadius = 0.9f;
+		ApplyGameplayNeonBloomPreset(playerPost);
 		playerPost.outlineWidth = 0.0f;
 		playerPost.outlineThreshold = 0.0f;
 		playerPost.outlineColor = { 0.12f, 1.0f, 0.32f };
@@ -545,9 +556,7 @@ void GameScene::Initialize() {
 	{
 		cg2::BloomParam& enemyPost = enemyPostEffect_->GetParam();
 		enemyPost.intensity = 1.2f;
-		enemyPost.bloomGain = 0.38f;
-		enemyPost.bloomScatter = 0.5f;
-		enemyPost.bloomRadius = 0.9f;
+		ApplyGameplayNeonBloomPreset(enemyPost);
 		enemyPost.outlineWidth = 0.0f;
 		enemyPost.outlineThreshold = 0.0f;
 		enemyPost.outlineColor = { 1.0f, 0.2f, 0.1f };
@@ -566,9 +575,7 @@ void GameScene::Initialize() {
 	{
 		cg2::BloomParam& expEnemyPost = expEnemyPostEffect_->GetParam();
 		expEnemyPost.intensity = 1.0f;
-		expEnemyPost.bloomGain = 0.38f;
-		expEnemyPost.bloomScatter = 0.5f;
-		expEnemyPost.bloomRadius = 0.9f;
+		ApplyGameplayNeonBloomPreset(expEnemyPost);
 		expEnemyPost.threshold = 0.0f;
 		expEnemyPost.outlineWidth = 0.0f;
 		expEnemyPost.outlineThreshold = 0.0f;
@@ -589,9 +596,7 @@ void GameScene::Initialize() {
 		cg2::BloomParam& stagePost = stagePostEffect_->GetParam();
 		stagePost.threshold = 0.0f;
 		stagePost.intensity = 0.75f;
-		stagePost.bloomGain = 0.3f;
-		stagePost.bloomScatter = 0.5f;
-		stagePost.bloomRadius = 0.9f;
+		ApplyGameplayNeonBloomPreset(stagePost);
 		stagePost.outlineWidth = 0.0f;
 		stagePost.outlineThreshold = 0.0f;
 		stagePost.outlineColor = { 1.0f, 0.55f, 0.58f };
@@ -611,9 +616,7 @@ void GameScene::Initialize() {
 		cg2::BloomParam& gridPost = neonGridPostEffect_->GetParam();
 		gridPost.threshold = 0.0f;
 		gridPost.intensity = 1.5f;
-		gridPost.bloomGain = 0.48f;
-		gridPost.bloomScatter = 0.55f;
-		gridPost.bloomRadius = 0.9f;
+		ApplyGameplayNeonBloomPreset(gridPost);
 		gridPost.outlineWidth = 0.0f;
 		gridPost.outlineThreshold = 0.0f;
 		gridPost.outlineBloomIntensity = 0.0f;
@@ -652,9 +655,8 @@ void GameScene::Initialize() {
 		cg2::BloomParam& particlePost = particlePostEffect_->GetParam();
 		particlePost.threshold = 0.0f;
 		particlePost.intensity = 1.65f;
-		particlePost.bloomGain = 0.65f;
-		particlePost.bloomScatter = 0.5f;
-		particlePost.bloomRadius = 0.9f;
+		// Small, fading model particles need more energy than the HDR projectile heads.
+		ApplyGameplayNeonBloomPreset(particlePost, 2.0f);
 		particlePost.outlineWidth = 0.0f;
 		particlePost.outlineThreshold = 0.0f;
 		particlePost.outlineBloomIntensity = 0.0f;
@@ -666,15 +668,14 @@ void GameScene::Initialize() {
 		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
 		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
-		0.5f
+		0.5f,
+		1.0f // Preserve thin model emitters in Quality/Light; keep Legacy's original capture.
 	);
 	{
 		cg2::BloomParam& objectBloomPost = sharedObjectBloomPostEffect_->GetParam();
 		objectBloomPost.threshold = 0.0f;
 		objectBloomPost.intensity = 1.15f;
-		objectBloomPost.bloomGain = 0.3f;
-		objectBloomPost.bloomScatter = 0.5f;
-		objectBloomPost.bloomRadius = 0.9f;
+		ApplyGameplayNeonBloomPreset(objectBloomPost);
 		objectBloomPost.outlineWidth = 0.0f;
 		objectBloomPost.outlineThreshold = 0.0f;
 		objectBloomPost.outlineBloomIntensity = 0.0f;
@@ -2216,10 +2217,15 @@ nlohmann::json GameScene::MakeDeveloperGameCaptureMetadata(cg2::DirectXCommon& d
 		{"localCategories",BuildGamePostEffectConfig()},
 		{"visualAppearance",BuildGameVisualConfig()},
 		{"sourceResolution",{{"trailLegacyScale",0.5f},{"trailQualityAndOffScale",1.0f},
-			{"note","Legacy intentionally preserves the old half-resolution projectile capture; new/OFF capture preserves full-resolution source cores."}}},
+			{"sharedModelLegacyScale",0.5f},{"sharedModelQualityAndOffScale",1.0f},
+			{"note","Legacy preserves the half-resolution projectile/model captures; new/OFF preserves full-resolution source cores."}}},
 		{"sourceCounts",{{"playerBullets",counts.player},{"enemyBullets",counts.enemy},
 			{"hostileExpBullets",counts.hostileExpEnemy},{"enemies",enemyManager_->GetEnemyCount()},
-			{"particles",cg2::ParticleManager::GetInstance()->GetActiveCount()}}},
+			{"particles",cg2::ParticleManager::GetInstance()->GetActiveCount()},
+			{"particlesCountIsCpuOnly",true},
+			{"particlesGpuUpdate",cg2::ParticleManager::GetInstance()->IsUseGpuUpdate()},
+			{"particlesDrawReady",cg2::ParticleManager::GetInstance()->HasDrawableParticles()},
+			{"neonTriangles",neonTriangleParticles_.size()}}},
 		{"camera",{{"debug",cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()},
 			{"gamePosition",vector(camera->GetTranslate())},{"gameRotation",vector(camera->GetRotate())},
 			{"debugEye",vector(debugCamera->GetEyePosition())}}},
@@ -2323,7 +2329,7 @@ void GameScene::DrawPostEffect3D() {
 			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
 		});
 	}
-	if (fillActorNeonBodies_ && (playerNeonRenderMode_ == 1 || bossNeonRenderMode_ == 1)) {
+	if (depthOverlay && fillActorNeonBodies_ && (playerNeonRenderMode_ == 1 || bossNeonRenderMode_ == 1 || expEnemyNeonRenderMode_ == 1)) {
 		profile("Actor Neon Fill", true, [&]() {
 			DrawActorNeonBodyFillPass();
 			cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
@@ -2626,6 +2632,17 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 	if (includeStageBlockOutlines && (showStageBlockNeonOutlines_ || showStageDamageBlockNeonOutlines_)) {
 		QueueStageBlockNeonOutlines();
 	}
+	// Draw the floor, then dark actor faces, then the rims and combat glyphs.
+	// Filling after the glow pass hid the stems / inner marks of combat roles.
+	uint32_t foregroundStart = 0;
+	if (fillActorNeonBodies_ && (playerNeonRenderMode_ == 1 || bossNeonRenderMode_ == 1 || expEnemyNeonRenderMode_ == 1)) {
+		const cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
+			? debugCamera->GetViewProjectionMatrix() : camera->GetViewProjectionMatrix();
+		neonGridRenderer_->DrawRange(0, neonGridRenderer_->GetVertexCount(), vp,
+			neonDepthCameraScoped_ && !cg2::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
+		DrawActorNeonBodyFillPass(false);
+		foregroundStart = neonGridRenderer_->GetVertexCount();
+	}
 	const bool queueExpEnemyNeonInGridPass = expEnemyNeonRenderMode_ == 1 || expEnemyNeonRenderMode_ == 2;
 	const bool queueActorBillboards = playerNeonRenderMode_ == 1 || bossNeonRenderMode_ == 1 || !playerNeonAfterimages_.empty();
 	if (showNeonTriangleDemo_ || queueExpEnemyNeonInGridPass || queueActorBillboards ||
@@ -2665,7 +2682,8 @@ void GameScene::DrawNeonGridPass(bool includeStageBlockOutlines) {
 	cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera->GetViewProjectionMatrix()
 		: camera->GetViewProjectionMatrix();
-	neonGridRenderer_->DrawAll(vp,neonDepthCameraScoped_ && !cg2::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
+	neonGridRenderer_->DrawRange(foregroundStart, neonGridRenderer_->GetVertexCount() - foregroundStart, vp,
+		neonDepthCameraScoped_ && !cg2::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
 }
 
 void GameScene::DrawStageBlockNeonPass() {
@@ -2738,7 +2756,7 @@ void GameScene::QueueStageBlockNeonOutlines() {
 				blockNeonColor.z *= pulse;
 				blockNeonColor.w *= 0.75f + wave * 0.25f;
 			}
-			auto queueLocalLine = [&](const cg2::Vector3& start, const cg2::Vector3& end, const cg2::Vector3& localNormal) {
+			auto queueLocalLine = [&](const cg2::Vector3& start, const cg2::Vector3& end, const cg2::Vector3& localNormal, bool boundary) {
 				cg2::Vector3 worldStart = localToWorld(start);
 				cg2::Vector3 worldEnd = localToWorld(end);
 				cg2::Vector3 worldNormal = localToWorld(localNormal) - localToWorld({ 0.0f, 0.0f, 0.0f });
@@ -2747,12 +2765,24 @@ void GameScene::QueueStageBlockNeonOutlines() {
 					worldStart = worldStart + worldNormal * stageBlockNeonDepthBias_;
 					worldEnd = worldEnd + worldNormal * stageBlockNeonDepthBias_;
 				}
-				neonGridRenderer_->QueueCameraFacingLine(
+				cg2::NeonContourStyle contour;
+                contour.coreWidthRatio = boundary ? 0.13f : 0.10f;
+                contour.coreIntensity = boundary ? 1.8f : 1.0f;
+                contour.coreWhiteMix = boundary ? 0.12f : 0.0f;
+                contour.shoulderIntensity = boundary ? 1.5f : 0.85f;
+                contour.haloIntensity = boundary ? 0.55f : 0.28f;
+                contour.haloAlpha = boundary ? 0.09f : 0.07f;
+                cg2::Vector4 faceColor = blockNeonColor;
+                const float faceLight = std::abs(localNormal.z) > 0.5f ? 1.0f : 0.58f;
+                const float light = faceLight * (boundary ? 1.0f : 0.55f);
+                faceColor.x *= light; faceColor.y *= light; faceColor.z *= light;
+                contour.roundCaps = false; // Subdivision endpoints already meet neighboring block edges.
+				neonGridRenderer_->QueueContourLine(
 					worldStart,
 					worldEnd,
-					stageBlockNeonLineWidth_,
-					blockNeonColor,
-					cameraForward);
+					stageBlockNeonLineWidth_ * (boundary ? 0.82f : 0.48f),
+                    faceColor,
+					cameraForward, contour);
 			};
 			auto shouldDrawFace = [&](const cg2::Vector3& localCenter, const cg2::Vector3& localNormal) {
 				const cg2::Vector3 worldCenter = localToWorld(localCenter);
@@ -2781,11 +2811,11 @@ void GameScene::QueueStageBlockNeonOutlines() {
 				}
 				for (int i = 0; i <= divX; ++i) {
 					const float x = localCoord(i, divX);
-					queueLocalLine({ x, -1.0f, z }, { x, 1.0f, z }, faceNormal);
+					queueLocalLine({ x, -1.0f, z }, { x, 1.0f, z }, faceNormal, i == 0 || i == divX);
 				}
 				for (int i = 0; i <= divY; ++i) {
 					const float y = localCoord(i, divY);
-					queueLocalLine({ -1.0f, y, z }, { 1.0f, y, z }, faceNormal);
+					queueLocalLine({ -1.0f, y, z }, { 1.0f, y, z }, faceNormal, i == 0 || i == divY);
 				}
 			}
 
@@ -2796,11 +2826,11 @@ void GameScene::QueueStageBlockNeonOutlines() {
 				}
 				for (int i = 0; i <= divX; ++i) {
 					const float x = localCoord(i, divX);
-					queueLocalLine({ x, y, -1.0f }, { x, y, 1.0f }, faceNormal);
+					queueLocalLine({ x, y, -1.0f }, { x, y, 1.0f }, faceNormal, i == 0 || i == divX);
 				}
 				for (int i = 0; i <= divZ; ++i) {
 					const float z = localCoord(i, divZ);
-					queueLocalLine({ -1.0f, y, z }, { 1.0f, y, z }, faceNormal);
+					queueLocalLine({ -1.0f, y, z }, { 1.0f, y, z }, faceNormal, i == 0 || i == divZ);
 				}
 			}
 
@@ -2811,11 +2841,11 @@ void GameScene::QueueStageBlockNeonOutlines() {
 				}
 				for (int i = 0; i <= divY; ++i) {
 					const float y = localCoord(i, divY);
-					queueLocalLine({ x, y, -1.0f }, { x, y, 1.0f }, faceNormal);
+					queueLocalLine({ x, y, -1.0f }, { x, y, 1.0f }, faceNormal, i == 0 || i == divY);
 				}
 				for (int i = 0; i <= divZ; ++i) {
 					const float z = localCoord(i, divZ);
-					queueLocalLine({ x, -1.0f, z }, { x, 1.0f, z }, faceNormal);
+					queueLocalLine({ x, -1.0f, z }, { x, 1.0f, z }, faceNormal, i == 0 || i == divZ);
 				}
 			}
 		}
@@ -3495,14 +3525,17 @@ void GameScene::UpdateNeonTriangleParticles(float deltaTime)
 		particle.tiltRad = event.tiltRad;
 		particle.trailCopies = static_cast<int>(event.trailCopies);
 		particle.isBillboard = event.isBillboard;
+        particle.shape = event.shape;
+        particle.endRadius = event.endRadius;
 		particle.color = event.color;
 		neonTriangleParticles_.push_back(particle);
 	}
 
 	for (NeonTriangleParticle& particle : neonTriangleParticles_) {
 		particle.life -= deltaTime;
-		particle.position += particle.velocity * deltaTime;
-		particle.velocity = particle.velocity * std::pow(0.08f, deltaTime);
+		const float drag = particle.shape == cg2::NeonParticleShape::Triangle ? 2.52573f : cg2::NeonParticleDrag(particle.shape);
+        particle.velocity = particle.velocity * std::exp(-drag * deltaTime);
+        particle.position += particle.velocity * deltaTime;
 		particle.rotation += particle.angularVelocity * deltaTime;
 	}
 
@@ -3521,9 +3554,57 @@ void GameScene::QueueNeonTriangleParticles(const cg2::Vector3& cameraRight, cons
 	}
 
 	for (const NeonTriangleParticle& particle : neonTriangleParticles_) {
-		auto queueParticleTriangle = [&](const cg2::Vector3& center, float radius, float rotation, float width, const cg2::Vector4& drawColor) {
+        if (particle.shape != cg2::NeonParticleShape::Triangle) {
+            const float age = std::clamp(1.0f - particle.life / particle.maxLife, 0.0f, 1.0f);
+            const float radius = particle.radius + (particle.endRadius - particle.radius) * age;
+            cg2::Vector4 color = particle.color;
+            color.w *= 1.0f - cg2::NeonParticleFade(age, particle.shape);
+            if (particle.shape == cg2::NeonParticleShape::Flash) {
+                // Concentric low-alpha discs soften the edge of an outline-mode
+                // flash without introducing textured/model particles.
+                for (int layer = 4; layer >= 0; --layer) {
+                    cg2::Vector4 flash = color;
+                    flash.x *= 4.0f; flash.y *= 4.0f; flash.z *= 4.0f;
+                    flash.w *= 0.12f + 0.055f * (4 - layer);
+                    neonGridRenderer_->QueueBillboardDisc(particle.position, radius * (0.24f + 0.09f * layer), flash, cameraRight, cameraUp);
+                }
+                continue;
+            }
+            const float c = std::cos(particle.rotation), sn = std::sin(particle.rotation);
+            const cg2::Vector3 axisU = particle.isBillboard ? cameraRight * c + cameraUp * sn : cg2::Vector3{c, sn, 0.0f};
+            const cg2::Vector3 axisV = particle.isBillboard ? cameraUp * c - cameraRight * sn :
+                cg2::Vector3{-sn * std::cos(particle.tiltRad), c * std::cos(particle.tiltRad), std::sin(particle.tiltRad)};
+            cg2::NeonContourStyle style = cg2::ActorNeonContourStyle();
+            style.coreWhiteMix = 0.48f;
+            style.coreIntensity = 3.4f;
+            style.shoulderIntensity = 2.2f;
+            if (particle.shape == cg2::NeonParticleShape::Ring) {
+                cg2::Vector3 points[32]{};
+                for (int i = 0; i < 32; ++i) {
+                    const float a = 6.28318530718f * i / 32.0f;
+                    points[i] = particle.position + (axisU * std::cos(a) + axisV * std::sin(a)) * (radius * 0.52f);
+                }
+                neonGridRenderer_->QueueContourPolygon(points, 32, particle.lineWidth, color, cameraForward, style);
+            } else if (particle.shape == cg2::NeonParticleShape::Spark) {
+                neonGridRenderer_->QueueContourLine(particle.position - axisV * (radius * 0.65f),
+                    particle.position + axisV * (radius * 0.75f), particle.lineWidth, color, cameraForward, style);
+            } else {
+                std::array<std::array<float, 2>, 4> local{};
+                const uint32_t count = cg2::NeonParticlePoints(particle.shape, local);
+                cg2::Vector3 points[4]{};
+                for (uint32_t i = 0; i < count; ++i)
+                    points[i] = particle.position + (axisU * local[i][0] + axisV * local[i][1]) * radius;
+                neonGridRenderer_->QueueContourPolygon(points, count, particle.lineWidth, color, cameraForward, style);
+            }
+            continue;
+        }
+		cg2::NeonContourStyle contour;
+		contour.haloWidthScale = neonParticleTriangleGlowWidthScale_;
+		contour.coreWidthRatio = neonParticleTriangleCoreWidthScale_;
+		auto queueParticleTriangle = [&](const cg2::Vector3& center, float radius, float rotation, float width, const cg2::Vector4& drawColor, bool luminous = true) {
 			if (particle.isBillboard) {
-				neonGridRenderer_->QueueBillboardTriangle(center, radius, rotation, width, drawColor, cameraRight, cameraUp, cameraForward);
+				if (luminous) neonGridRenderer_->QueueBillboardContourTriangle(center, radius, rotation, width, drawColor, cameraRight, cameraUp, cameraForward, contour);
+				else neonGridRenderer_->QueueBillboardTriangle(center, radius, rotation, width, drawColor, cameraRight, cameraUp, cameraForward);
 				return;
 			}
 			const float c = std::cos(rotation);
@@ -3537,9 +3618,8 @@ void GameScene::QueueNeonTriangleParticles(const cg2::Vector3& cameraRight, cons
 				const float angle = -1.5707963268f + static_cast<float>(i) * 2.0943951024f;
 				points[i] = center + axisU * (std::cos(angle) * radius) + axisV * (std::sin(angle) * radius);
 			}
-			neonGridRenderer_->QueueCameraFacingLine(points[0], points[1], width, drawColor, cameraForward);
-			neonGridRenderer_->QueueCameraFacingLine(points[1], points[2], width, drawColor, cameraForward);
-			neonGridRenderer_->QueueCameraFacingLine(points[2], points[0], width, drawColor, cameraForward);
+			if (luminous) neonGridRenderer_->QueueContourPolygon(points, 3, width, drawColor, cameraForward, contour);
+			else for (int i = 0; i < 3; ++i) neonGridRenderer_->QueueCameraFacingLine(points[i], points[(i + 1) % 3], width, drawColor, cameraForward);
 		};
 		const float t = particle.maxLife > 0.0f ? (std::clamp)(particle.life / particle.maxLife, 0.0f, 1.0f) : 0.0f;
 		const float age = 1.0f - t;
@@ -3564,30 +3644,15 @@ void GameScene::QueueNeonTriangleParticles(const cg2::Vector3& cameraRight, cons
 				particle.radius * scale * (1.0f - copyRatio * 0.12f),
 				particle.rotation - particle.angularVelocity * 0.018f * static_cast<float>(copy),
 				particle.lineWidth * 0.72f,
-				trailColor);
+				trailColor, false);
 		}
 
-		cg2::Vector4 glowColor = color;
-		glowColor.w *= 0.18f;
-		queueParticleTriangle(
-			particle.position,
-			particle.radius * scale,
-			particle.rotation,
-			particle.lineWidth * neonParticleTriangleGlowWidthScale_,
-			glowColor);
 		queueParticleTriangle(
 			particle.position,
 			particle.radius * scale,
 			particle.rotation,
 			particle.lineWidth,
 			color);
-		cg2::Vector4 coreColor = { 2.0f, 2.0f, 2.0f, color.w * 0.82f };
-		queueParticleTriangle(
-			particle.position,
-			particle.radius * scale,
-			particle.rotation,
-			particle.lineWidth * neonParticleTriangleCoreWidthScale_,
-			coreColor);
 	}
 }
 
@@ -3623,7 +3688,7 @@ void GameScene::QueueActorNeonBillboards(const cg2::Vector3& cameraRight, const 
 		constexpr float kTwoPi = 6.28318530718f;
 		auto queueBodyPolygon = [&](int segments, float rotation, const cg2::Vector2& scale, const cg2::Vector4& outlineColor) {
             cg2::Vector4 emitted=outlineColor;emitted.x*=emission;emitted.y*=emission;emitted.z*=emission;
-            tankneon::QueueBodyOutline(*neonGridRenderer_,center,radius,lineWidth,segments,rotation,scale,emitted,cameraRight,cameraUp);
+            tankneon::QueueBodyOutline(*neonGridRenderer_,center,radius,lineWidth,segments,rotation,scale,emitted,cameraRight,cameraUp,true);
 		};
 
 		cg2::Vector3 mainDirection = direction;
@@ -3639,9 +3704,8 @@ void GameScene::QueueActorNeonBillboards(const cg2::Vector3& cameraRight, const 
 			const Player::NeonBodyLayout defaultBody{};
 			const Player::NeonBodyLayout& body = bodyLayout ? *bodyLayout : defaultBody;
 			cg2::Vector4 outlineColor = body.outlineColor;
-			if (outlineColor.w <= 0.001f) {
-				outlineColor = color;
-			}
+			if (outlineColor.w <= 0.001f) outlineColor = color;
+            else { outlineColor.w *= color.w; outlineColor = lerpColor(outlineColor, {1.8f,1.8f,1.8f,outlineColor.w}, allowMuzzleFlash && player_ ? std::pow(player_->GetDamageFeedbackRatio(), 2.0f) * 0.75f : 0.0f); }
 			switch (body.shape) {
 			case Player::BodyShape::Box:
 				queueBodyPolygon(4, mainRotation + kTwoPi * 0.125f, body.scale, outlineColor);
@@ -3750,7 +3814,8 @@ void GameScene::QueueActorNeonBillboards(const cg2::Vector3& cameraRight, const 
 			const cg2::Vector3 base = barrelCenter - barrelForward * (length * 0.20f);
 			const cg2::Vector3 tip = barrelCenter + barrelForward * (length * 0.80f);
 			cg2::Vector4 barrelColor = groupColor(layout.fireGroup, layout.outlineColor.w > 0.001f ? layout.outlineColor : color);
-			const float muzzleFlashRatio = allowMuzzleFlash
+			barrelColor.w *= color.w;
+            const float muzzleFlashRatio = allowMuzzleFlash
 				? (std::clamp)(layout.muzzleFlashRatio, 0.0f, 1.0f)
 				: 0.0f;
 			const float muzzleFlash = muzzleFlashRatio * muzzleFlashRatio;
@@ -3759,7 +3824,8 @@ void GameScene::QueueActorNeonBillboards(const cg2::Vector3& cameraRight, const 
 				{ 1.80f, 1.80f, 1.50f, barrelColor.w },
 				muzzleFlash * 0.80f);
             barrelColor.x*=emission;barrelColor.y*=emission;barrelColor.z*=emission;
-            tankneon::QueueBarrelOutline(*neonGridRenderer_,base,tip,barrelRight,half,lineWidth,barrelColor,layout.shape==BarrelShape::Trapezoid);
+            tankneon::QueueBarrelOutline(*neonGridRenderer_,base,tip,barrelRight,half,lineWidth,barrelColor,layout.shape==BarrelShape::Trapezoid,
+                                       true,cg2::Cross(cameraRight,cameraUp));
 
 			if (muzzleFlashRatio > 0.0f) {
 				auto queueMuzzleRing = [&](float ringRadius, int segments, float ringLineWidth, const cg2::Vector4& ringColor) {
@@ -3813,7 +3879,7 @@ void GameScene::QueueActorNeonBillboards(const cg2::Vector3& cameraRight, const 
 	for (const PlayerNeonAfterimage& afterimage : playerNeonAfterimages_) {
 		const float lifeRatio = (std::clamp)(afterimage.life / (std::max)(0.001f, playerAfterimageLifetime_), 0.0f, 1.0f);
 		cg2::Vector4 color = playerGridColor_;
-		color.w *= playerAfterimageAlpha_ * lifeRatio;
+		color.w *= playerAfterimageAlpha_ * lifeRatio * lifeRatio;
 		const float radius = playerNeonBillboardRadius_ * (0.88f + lifeRatio * 0.12f);
 		queueTankBillboard(afterimage.position + cg2::Vector3{ 0.0f, 0.0f, 0.35f }, afterimage.direction, radius, actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, false, false, playerNeonEmission_);
 	}
@@ -3873,7 +3939,7 @@ void GameScene::QueueActorNeonBillboards(const cg2::Vector3& cameraRight, const 
 	}
 }
 
-void GameScene::DrawActorNeonBodyFillPass() {
+void GameScene::DrawActorNeonBodyFillPass(bool restoreOutlines) {
 	if (!neonGridRenderer_ || !fillActorNeonBodies_) {
 		return;
 	}
@@ -3919,15 +3985,14 @@ void GameScene::DrawActorNeonBodyFillPass() {
 			segments = 32;
 			break;
 		}
-		neonGridRenderer_->QueueBillboardRegularPolygonFill(
-			center,
-			segments,
-			radius,
-			rotation,
-			body.scale,
-			fillColor,
-			cameraRight,
-			cameraUp);
+        cg2::Vector3 points[32]{};
+        for (int i = 0; i < segments; ++i) {
+            const float angle = rotation + kTwoPi * i / segments;
+            points[i] = center + cameraRight * (std::cos(angle) * radius * body.scale.x)
+                               + cameraUp * (std::sin(angle) * radius * body.scale.y);
+        }
+        const cg2::Vector4 tint = body.outlineColor.w > 0.001f ? body.outlineColor : playerGridColor_;
+        neonGridRenderer_->QueueBeveledPolygonFill(points, segments, fillColor, tint, cg2::Normalize(cameraUp - cameraRight * 0.5f));
 	};
 
 	const uint32_t fillStart = neonGridRenderer_->GetVertexCount();
@@ -3957,8 +4022,35 @@ void GameScene::DrawActorNeonBodyFillPass() {
 				actorNeonBodyFillColor_, cameraRight, cameraUp);
 		}
 	}
+    if (enemyManager_ && expEnemyNeonRenderMode_ == 1) {
+        const cg2::Vector3 cameraForward = cg2::Cross(cameraRight, cameraUp);
+        for (ExpEnemy* enemy : enemyManager_->GetEnemyPtrs()) {
+            if (!enemy || enemy->IsDead() || !enemy->IsShapeNeonRenderTarget() ||
+                !IsNearCamera2D(enemy->GetWorldPosition(), 38.0f, 24.0f, 3.0f)) continue;
+            if (enemy->IsExpeditionCombatRole()) {
+                enemy->QueueCombatVisuals(*neonGridRenderer_, cameraRight, cameraUp, cameraForward, expEnemyNeonLineWidth_, true);
+                continue;
+            }
+            const auto type = enemy->GetType();
+            const int sides = type == ExpEnemyType::Triangle ? 3 : type == ExpEnemyType::Pentagon ? 5 : type == ExpEnemyType::Shooter ? 20 : 4;
+            const float size = type == ExpEnemyType::Triangle ? expEnemyNeonTriangleRadius_ :
+                type == ExpEnemyType::Pentagon ? expEnemyNeonPentagonRadius_ : type == ExpEnemyType::Shooter ? expEnemyNeonShooterRadius_ : expEnemyNeonSquareSize_ * 0.70710678f;
+            const cg2::Vector3 visual = enemy->GetVisualScale();
+            const float scale = (std::max)({visual.x, visual.y, visual.z});
+            const float rotation = enemy->GetVisualRotation() + (sides == 4 ? 0.78539816f : -1.57079633f);
+            cg2::Vector3 points[20]{};
+            const cg2::Vector3 center = enemy->GetWorldPosition() + cg2::Vector3{0,0,0.345f};
+            for (int i = 0; i < sides; ++i) {
+                const float a = rotation + 6.28318530718f * i / sides;
+                points[i] = center + (cameraRight * std::cos(a) + cameraUp * std::sin(a)) * (size * scale * 0.96f);
+            }
+            neonGridRenderer_->QueueBeveledPolygonFill(points, sides, actorNeonBodyFillColor_, enemy->GetVisualColor(),
+                cg2::Normalize(cameraUp - cameraRight * 0.5f));
+        }
+    }
 	const uint32_t fillCount = neonGridRenderer_->GetVertexCount() - fillStart;
 	neonGridRenderer_->DrawRangeSolid(fillStart, fillCount, vp);
+	if (!restoreOutlines) return;
 
 	const uint32_t outlineStart = neonGridRenderer_->GetVertexCount();
 	QueueActorNeonBillboards(cameraRight, cameraUp, true, false);
@@ -3980,6 +4072,12 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 		return cg2::TransformMatrix(local, transform);
 	};
 
+	cg2::NeonContourStyle wireContour = cg2::ActorNeonContourStyle();
+	wireContour.roundCaps = false;
+	auto queueWireLine = [&](const cg2::Vector3& a, const cg2::Vector3& b, float width, const cg2::Vector4& color) {
+		neonGridRenderer_->QueueContourLine(a, b, width, color, cameraForward, wireContour);
+	};
+
 	auto queueCube = [&](const cg2::Vector3& center, float size, const cg2::Vector3& rotate, const cg2::Vector3& scale, float lineWidth, const cg2::Vector4& color) {
 		const float h = size * 0.5f;
 		const float z = size * 0.5f;
@@ -3996,7 +4094,7 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 			{ 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 }
 		};
 		for (const auto& edge : edges) {
-			neonGridRenderer_->QueueLine(corners[edge[0]], corners[edge[1]], lineWidth, color);
+			queueWireLine(corners[edge[0]], corners[edge[1]], lineWidth, color);
 		}
 	};
 
@@ -4009,12 +4107,12 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 			points[i] = transformLocalPoint({ std::cos(angle) * radius, std::sin(angle) * radius, -depth * 0.35f }, center, rotate, scale);
 		}
 		points[3] = transformLocalPoint({ 0.0f, 0.0f, depth * 0.65f }, center, rotate, scale);
-		neonGridRenderer_->QueueLine(points[0], points[1], lineWidth, color);
-		neonGridRenderer_->QueueLine(points[1], points[2], lineWidth, color);
-		neonGridRenderer_->QueueLine(points[2], points[0], lineWidth, color);
-		neonGridRenderer_->QueueLine(points[0], points[3], lineWidth, color);
-		neonGridRenderer_->QueueLine(points[1], points[3], lineWidth, color);
-		neonGridRenderer_->QueueLine(points[2], points[3], lineWidth, color);
+		queueWireLine(points[0], points[1], lineWidth, color);
+		queueWireLine(points[1], points[2], lineWidth, color);
+		queueWireLine(points[2], points[0], lineWidth, color);
+		queueWireLine(points[0], points[3], lineWidth, color);
+		queueWireLine(points[1], points[3], lineWidth, color);
+		queueWireLine(points[2], points[3], lineWidth, color);
 	};
 
 	auto queuePentagonalPrism = [&](const cg2::Vector3& center, float radius, const cg2::Vector3& rotate, const cg2::Vector3& scale, float lineWidth, const cg2::Vector4& color) {
@@ -4030,9 +4128,9 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 		}
 		for (int i = 0; i < 5; ++i) {
 			const int next = (i + 1) % 5;
-			neonGridRenderer_->QueueLine(points[i], points[next], lineWidth, color);
-			neonGridRenderer_->QueueLine(points[i + 5], points[next + 5], lineWidth, color);
-			neonGridRenderer_->QueueLine(points[i], points[i + 5], lineWidth, color);
+			queueWireLine(points[i], points[next], lineWidth, color);
+			queueWireLine(points[i + 5], points[next + 5], lineWidth, color);
+			queueWireLine(points[i], points[i + 5], lineWidth, color);
 		}
 	};
 
@@ -4052,7 +4150,7 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 			}
 			const cg2::Vector3 current = transformLocalPoint(local, center, rotate, scale);
 			if (i > 0) {
-				neonGridRenderer_->QueueLine(previous, current, lineWidth, color);
+				queueWireLine(previous, current, lineWidth, color);
 			}
 			previous = current;
 		}
@@ -4085,24 +4183,21 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 			{ 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 }
 		};
 		for (const auto& edge : edges) {
-			neonGridRenderer_->QueueLine(corners[edge[0]], corners[edge[1]], lineWidth, color);
+			queueWireLine(corners[edge[0]], corners[edge[1]], lineWidth, color);
 		}
 	};
 
-	auto queueBillboardPolygon = [&](const cg2::Vector3& center, int sides, float radius, float rotation, float lineWidth, const cg2::Vector4& color) {
+	auto queueBillboardPolygon = [&](const cg2::Vector3& center, int sides, float radius, float rotation, float lineWidth,
+	                                 const cg2::Vector4& color, bool luminous = true) {
 		constexpr float kTwoPi = 6.28318530718f;
-		if (sides < 3) {
-			return;
+		if (sides < 3 || sides > 48) return;
+		cg2::Vector3 points[48]{};
+		for (int i = 0; i < sides; ++i) {
+			const float angle = rotation - kTwoPi * 0.25f + static_cast<float>(i) * (kTwoPi / static_cast<float>(sides));
+			points[i] = center + cameraRight * (std::cos(angle) * radius) + cameraUp * (std::sin(angle) * radius);
 		}
-		cg2::Vector3 previous{};
-		for (int i = 0; i <= sides; ++i) {
-			const float angle = rotation - kTwoPi * 0.25f + static_cast<float>(i % sides) * (kTwoPi / static_cast<float>(sides));
-			const cg2::Vector3 current = center + cameraRight * (std::cos(angle) * radius) + cameraUp * (std::sin(angle) * radius);
-			if (i > 0) {
-				neonGridRenderer_->QueueLine(previous, current, lineWidth, color);
-			}
-			previous = current;
-		}
+		if (luminous) neonGridRenderer_->QueueContourPolygon(points, static_cast<uint32_t>(sides), lineWidth, color, cameraForward, cg2::ActorNeonContourStyle());
+		else for (int i = 0; i < sides; ++i) neonGridRenderer_->QueueCameraFacingLine(points[i], points[(i + 1) % sides], lineWidth, color, cameraForward);
 	};
 
 	auto queueBillboardShooter = [&](const cg2::Vector3& center, float radius, float rotation, float lineWidth, const cg2::Vector4& color, float warningRatio, float muzzleFlashRatio) {
@@ -4116,7 +4211,7 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 				0.25f + warningImpact * 1.20f,
 				0.08f + warningImpact * 0.55f,
 				0.28f + warningRatio * 0.72f };
-			queueBillboardPolygon(center, 20, radius * warningRadiusScale, rotation, lineWidth * (0.75f + warningRatio * 0.55f), warningColor);
+			queueBillboardPolygon(center, 20, radius * warningRadiusScale, rotation, lineWidth * (0.75f + warningRatio * 0.55f), warningColor, false);
 		}
 
 		const cg2::Vector4 bodyColor{
@@ -4137,17 +4232,15 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 		const cg2::Vector3 base = center + down * (radius * 0.65f);
 		const cg2::Vector3 tip = center + down * (radius * 1.45f);
 		const float half = radius * 0.18f;
-		neonGridRenderer_->QueueLine(base - side * half, tip - side * half, lineWidth, barrelColor);
-		neonGridRenderer_->QueueLine(tip - side * half, tip + side * half, lineWidth, barrelColor);
-		neonGridRenderer_->QueueLine(tip + side * half, base + side * half, lineWidth, barrelColor);
-		neonGridRenderer_->QueueLine(base + side * half, base - side * half, lineWidth, barrelColor);
+		const cg2::Vector3 barrelPoints[]{base - side * half, tip - side * half, tip + side * half, base + side * half};
+		neonGridRenderer_->QueueContourPolygon(barrelPoints, 4, lineWidth, barrelColor, cameraForward, cg2::ActorNeonContourStyle());
 
 		if (muzzleFlashRatio > 0.0f) {
 			const float flashRadius = radius * (0.10f + muzzleFlashRatio * 0.18f);
 			const cg2::Vector4 flashColor{ 2.60f, 1.85f, 0.65f, muzzleFlashRatio };
 			queueBillboardPolygon(tip, 12, flashRadius, rotation, lineWidth * 1.40f, flashColor);
-			neonGridRenderer_->QueueLine(tip - side * flashRadius, tip + side * flashRadius, lineWidth * 1.20f, flashColor);
-			neonGridRenderer_->QueueLine(tip - down * flashRadius, tip + down * flashRadius, lineWidth * 1.20f, flashColor);
+			queueWireLine(tip - side * flashRadius, tip + side * flashRadius, lineWidth * 1.20f, flashColor);
+			queueWireLine(tip - down * flashRadius, tip + down * flashRadius, lineWidth * 1.20f, flashColor);
 		}
 	};
 
@@ -4186,7 +4279,7 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 				queueCube(center, expEnemyNeonSquareSize_, expEnemy->GetVisualRotate(), visualScale, expEnemyNeonLineWidth_, color);
 			}
 		} else if (expEnemy->GetType() == ExpEnemyType::Triangle) {
-			neonGridRenderer_->QueueBillboardTriangle(
+			neonGridRenderer_->QueueBillboardContourTriangle(
 				center,
 				expEnemyNeonTriangleRadius_ * scalePulse,
 				expEnemy->GetVisualRotation(),
@@ -4194,7 +4287,7 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 				color,
 				cameraRight,
 				cameraUp,
-				cameraForward);
+                cameraForward, cg2::ActorNeonContourStyle());
 		} else if (expEnemy->GetType() == ExpEnemyType::Pentagon) {
 			queueBillboardPolygon(center, 5, expEnemyNeonPentagonRadius_ * scalePulse, expEnemy->GetVisualRotation(), expEnemyNeonLineWidth_, color);
 		} else if (expEnemy->GetType() == ExpEnemyType::Shooter) {
@@ -4207,7 +4300,7 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 				expEnemy->GetShooterWarningRatio(),
 				expEnemy->GetShooterMuzzleFlashRatio());
 		} else {
-			neonGridRenderer_->QueueBillboardRectangle(
+			neonGridRenderer_->QueueBillboardContourRectangle(
 				center,
 				{ expEnemyNeonSquareSize_ * scalePulse, expEnemyNeonSquareSize_ * scalePulse },
 				expEnemy->GetVisualRotation(),
@@ -4215,7 +4308,7 @@ void GameScene::QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const c
 				color,
 				cameraRight,
 				cameraUp,
-				cameraForward);
+                cameraForward, cg2::ActorNeonContourStyle());
 		}
 	}
 }

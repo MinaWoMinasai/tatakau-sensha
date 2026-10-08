@@ -97,6 +97,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
     particle.isActive = 1u;
     particle.easingType = emitter.easingType;
     particle.isBillboard = emitter.isBillboard;
+    particle.padding2 = emitter.padding.y; // silhouette, existing reserved slot
+    particle.padding1 = emitter.padding.x; // neonRadiance, existing 128-byte request layout
     gParticles[particleIndex] = particle;
 }
 
