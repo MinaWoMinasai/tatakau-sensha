@@ -297,3 +297,166 @@ Legacy / OFFへ戻せる比較導線とLightも残した。
 - QualityとLegacyのRTを同時保持するため常駐メモリが増える。Release GPU時間・カテゴリ個別の時間は未計測。
 - 比較画像のQualityとLegacyには意図的なgain契約差がある。弾にはsource解像度差もある。
   同じgain数値や全ての明るさを揃えたfilterだけの優劣として説明しない。
+
+## 2026-10-06: ゲーム内のほかの発光を弾の見え方へ揃える
+
+上記の初回改善後に、弾以外のにじみが弱く見えるというフィードバックへの追加調整。
+開始HEADは`38eef3e`。今回の対象は通常ゲームのカテゴリ設定と共有モデルcaptureであり、
+弾の描画geometry、弾のBloom設定、Global Bloom、exposure、tone mappingは変更していない。
+
+`GameScene.cpp`の`ApplyGameplayNeonBloomPreset`で、player / boss / exp enemy / stage /
+grid / particle / shared modelを同じQuality filterの形へ揃える。
+threshold 0、soft knee .5、scatter .55、radius 1を使用する。
+grid（自機・敵・ブロック線・アウトライン三角粒子を含む）と共有モデルのgainは1.2。
+小さくフェードするモデル粒子は、HDR projectile headより元のエネルギーが低いためgain 2。
+旧gainはgrid .48、particle .65、shared model .3だった。
+個別player / boss / exp enemy / stage設定もgain 1.2とするが、通常のモデル発光は既存の
+共有capture、ネオン線は既存のgrid captureを通る。個別設定がすべて別passで実行されるとは説明しない。
+既存のカテゴリ有効/無効と、JSONに明示してある設定を読み込む仕組みは維持する。
+
+共有モデルも弾と同じく`Initialize(..., .5f, 1.0f)`とし、Quality / Light / OFFのsourceを
+full resolutionへ変更する。Legacyは元の半解像度を使う。sourceとglowは別のままで、
+通常のsharpモデルの描画や粒子の寿命・フェードは変更しない。
+追加RTは初期化時に確保する。常駐メモリとfilterの処理画素数は増えるが、今回は時間を計測していない。
+
+検証用scenario captureにも既存のlocalCategories / visualAppearance / sourceResolution /
+sourceCountsを収録する。`particles`はCPUリスト件数なので、GPU更新の有無とdraw readinessを
+別に記録する。GPU更新中のCPU件数0を「画面に粒子なし」と判断してはならない。
+draw readinessは描画後の状態であり、GPU粒子の`ExecuteIndirect`後にはfalseへ戻る。
+この値も描画済み粒子の有無やalive件数として扱わない。
+
+- Development / Release x64の最終ビルドPASS。ログは
+  `generated/bloom_gameplay_restore/{Development,Release}_final_verified.log`。
+  制限内の初回buildはPDB manager C1902で失敗し、制限外の通常buildで両構成を確認した。
+- 既存production Bloom pipeline検査はWARP / RTX 4060 Laptop GPUの両方でPASS。
+  `generated/bloom_gameplay_restore/pipeline/{warp,hardware}/`にHDR readback / halo測定を保持。
+  immutable source、細い発光の抽出、色、Gain一回適用、OFF / Legacy / Quality / Lightを検査した。
+- CPU source contract 33項目と5通りのDeveloper build profile検査PASS。
+- 射撃 / 近接、seed 20261006、各480 updateで旧ローカル強度と新既定値を実描画。
+  60 / 120 / 210 / 360 frameの各4枚を保存し、自機・敵・ブロック・三角のモデル粒子を目視。
+  カメラ、ゲーム状態（descriptor cache件数を除く）、emitter設定、Global Post、弾の設定を照合。
+  生画像とmetadataは`generated/bloom_gameplay_restore/runtime-project/generated/`、
+  照合結果は`generated/bloom_gameplay_restore/comparison.json`。
+
+この比較は同じ最終exeで旧gain / scatter / radiusを再現した設定比較であり、両方とも共有モデルは
+新しいfull resolution captureを使う。初回変更前exeとの完全なBefore / Afterではない。
+独立起動間のGPU粒子の乱数位置までは固定していない。prototype初期化がrender mode 1を設定するため、
+試した`*_model`出力もmode 1であり、通常モデルmode 0の画質検証からは除外した。
+通常モデルの新captureはコード接続と既存GPU filter検査までで、mode 0の実画面は未確認。
+検証はコピーしたresourcesとconfigで行い、原本の設定・ユーザー進行データは変更していない。
+
+
+## 2026-10-06: gameplay contour and defeat-particle source polish
+
+弾の頭はpale HDR core、彩度のある肩、広い低alpha haloを別の太さで描く。
+以前の機体・敵・ブロック輪郭は単一の色付きstripで、角も独立した線の重なりだった。
+ブルームだけを増やすと芯と色の帯を作れないため、今回は発光源の形・断面を改善した。
+[Retrograde Arenaの公式Steam画面](https://store.steampowered.com/app/1055210/Retrograde_Arena/)で見える
+明るい芯、色付きの周辺、暗い床との対比を参考にした。これは画面からの観察であり、
+同ゲームの内部実装を確認したものではない。
+
+- NeonGridRendererのopt-in contourは、細いpale芯・colored shoulder・低alpha haloの連続断面を作る。
+  尖った角は外側round join/内側shared miter、滑らかな円弧は共有断面とし、独立線の丸い端は
+  本体と重ならない。Styleは呼出し引数なので既存の床格子・弾・攻撃予告へ漏れない。
+  実機の初回比較では白い帯が広がりすぎたため、芯2.8/肩1.8と早めの色遷移へ調整した。
+- 自機・boss・droneの本体と砲身、基本敵の2D/3D枠線、遠征combat rolesの本体/砲身/模様、
+  可視ブロック面の分割線へ適用。閉じた本体は一つのpolygonとして予約する。
+  stageのdepth bias/可視面判定を保持し、分割線はcaplessの42頂点で描く。
+- Outline triangleはmain輪郭を一つのcontourへ置換し、従来の三重描画を外した。
+  外光幅/芯幅の既存調整値を継続し、薄いtrail copiesは従来の軽量stripを使う。
+- 既定のLegacyModel particleはhard-rasterized OBJ stripから専用quad/三角距離フィールドへ変更。
+  距離の画面微分を使って縁を滑らかにする。
+  [HLSL fwidth公式仕様](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-fwidth)
+  のddx/ddy合計をpixel幅の積分目安として用いている。
+  neonRadiance opt-inだけがHDR芯4.5/肩2.8/haloを描き、HDR flashのenergy上限は1.0。
+  通常材質のModelParticle shader分岐を保持し、一般emitterのRGB/alphaを増幅しない。
+- Neon粒子のGPU alphaはEaseOutでendAlphaへ補間した後にraw alphaも掛けていた。
+  半寿命で0.125となる旧方式を、CPU/GPU共通の単一smooth fade（半寿命約0.583）へ変更。
+  縮小もraw lifetimeに合わせる。ネオンだけに適用し、寿命自体は変更しない。
+- GPU batchが既定scalar scale=1を小さいauthored vector scaleより優先する問題をneonだけ修正。
+  小破片の指定サイズを保つ。三角本体半径を維持し、halo用のquad余白は見た目だけに使う。
+- Material byte28、ParticleGPU128byte、EmitterRequest128byte、RenderData208byteのlayoutを保持。
+  既存reserved slotとnormalに使われないhomogeneous elementでstyleを伝える。
+
+頂点容量は786,432（27MiB/renderer、旧196,608から20.25MiB増）とした。
+random spawnの45体制限はauthored roomには当てはまらず、128体を考慮する必要があった。
+CPU stressでは128 support＋各spokes6本/warning70線、115 blocks/2300分割線、床と18 local grids、
+自機、60 main triangle bursts＋各trail3個を同時投入し、765,192頂点を完全生成した。
+任意の無制限burstは保証せず、容量を超えた場合は完全primitive単位で省略してoverflowを防ぐ。
+
+実機確認にはgenerated/neon_emitter_polish/capture_death_burst.ps1を使用する。
+固定入力の通常射撃・衝突でHP1のShooterを3体倒し、高HPの遠方1体で部屋clearを防ぐ。
+実際のcollision frame73/121/169、翌updateでのactor removal74/122/170をsnapshotから確認する。
+41..220の180連続frameはcomparison freezeなしで保存し、PNG名ではなくsimulation frameで比較する。
+変更前exeとシェーダーをbaseline-bin/baseline-resourcesに保存し、最終実装と比較する。
+元resources/configs・進行データを変更せず、撮影はresourcesのコピーで行う。
+
+prototypeの通常設定は -PrototypeDefaults を使用する。authored=trueを付けるとJSON全内容が
+prototype presetへ再適用されるため、通常設定の比較と混同しない。通常モデルmode0の検証だけは
+コピーしたvisual/post JSONへexpeditionAuthored:trueを付け、actual mode0をmetadataでassertする。
+これにより前項で未確認だったmode0を、今回のfixtureでは実際に起動できる。
+
+検査スクリプト: project/tools/test_neon_contour_geometry.ps1（実production CPU geometryの角/端coverage、
+finite/容量/room stress）、test_neon_particle_shader_contract.ps1（7 DXC shaders -WX/23 ABI reflection checks）、
+test_neon_projectile_geometry.ps1（既存弾の芯・肩・haloとbatch/collider契約）、
+test_neon_bloom_source_contract.py（既存33 source契約）。
+独立レビューで発見した128体の容量回帰は上記増設で解消した。
+
+最終検証結果: Development/Release x64ビルドPASS（Development_final.log / Release_final.log）。
+RTX 4060 Laptop GPUの最終通常neon runは240 updates/180連続PNG/3撃破を完了。
+comparison_before_after_legacy_neon_final.jsonで240 snapshotsと180 camera/bloom/appearance/clock記録に
+意図しない差分なしを確認した。独立起動間のGPU乱数配置は完全同一とは主張しない。
+9 combat rolesはD3D12 debug layer/GPU-based validation付きで120 updates/5実画像を完了し目視確認。
+通常model mode0は32実画像で確認し、Outline mode0の粒子も180連続画像/peak34 trianglesで確認。
+各modeはmetadataの実値をassertした。原本config/進行データのhash保護も通過。
+結果一覧はgenerated/neon_emitter_polish/verification-summary.json、raw PNGとmetadataは各run内に保存。
+表示品質をraw画像で確認したが、今回の変更によるframe time/FPSの差は計測していない。
+
+## RetroGradeの動画を参考にした演出構成（2026-10-06）
+
+提供された2本の動画を比較し、撃破時の発光の順番、破片の形と減速、通常時と撃破時の明暗差を変更した。
+自機と弾の追いやすさ、ダッシュの移動・残像の勢い、攻撃予告と敵の種類を表す記号を保つ方針とした。
+参照作品の内部実装を推定して再現するものではなく、動画で観察できた演出構成をこのエンジンで組み直している。
+
+- 撃破直後の単一の丸い発光点から、0.045秒後に丸い閃光・拡大する輪・破片を発生させる。
+  従来の巨大な三角形のCharge/Flashを複数重ねる演出を置換した。Flashは0.14秒、輪は0.42秒。
+  HP減算・撃破通知・報酬・敵の除去タイミングは演出待ちにしない。
+- 非対称の四角い破片、細長い三角片、進行方向に沿う火花を混ぜる。破片は角速度とサイズを変え、
+  drag 2.8で減速しながら0.56〜1.12秒残す。alphaを初期28%の期間保持してからsmooth fadeする。
+  撃破対象の色を主色に使い、少数の副色を混ぜる。火花の寿命は0.12〜0.23秒と短くする。
+- NeonParticleShapeをCPU/OutlineとGPUへ渡す。GPUは既存padding2/byte124を使い、
+  128-byte Particle/Emitter、208-byte RenderDataのABIを維持する。
+  新しい輪のSDF距離はworld scaleを考慮し、輪の拡大で線が太いドーナツにならないようにした。
+  通常の三角形のHDR profileは従来の芯4.5/肩2.8を保持し、新しい破片は色を残す芯3.4/肩2.2を使う。
+- 本体輪郭はcore ratio 0.14、white mix 0.28とし、通常時の白い面積とhaloを抑える。
+  壁の外縁と内部の分割線を区別し、分割線は細く色を残す。側面の線は正面より暗くする。
+- 自機と2D表示の敵には暗い面と光の向きで明暗が変わるbevelを描く。
+  戦闘役の面は既存の本体polygonから作り、形・当たり判定を合わせる。
+  描画順を床→面→輪郭/内部記号/攻撃演出とし、面が射撃記号を隠す問題を解消した。
+  同じupload内の範囲を分けて描き、未実行drawが参照するvertex bufferをBeginFrameで上書きしない。
+- ダッシュ残像の本体・砲身にも残像のalphaを渡す。保存されたoutlineColorがalphaを上書きする問題を修正し、
+  古い残像はlife ratioの二乗で薄くする。ダッシュ速度・持続時間・弾の形状は変更していない。
+- 粒子の乱数をParticleManagerが所有するgeneratorへ分離した。
+  破片数や形状の調整がカメラの揺れ・敵の弾の散らばりの乱数消費を変えないようにする。
+  旧実装と完全に同じ乱数列にはならないため、変更前後の厳密な全状態一致は主張しない。
+
+CPU geometry suiteでは方向付きbevelのcoverage・容量ガード、破片silhouetteの余白・finite geometry、
+fadeの単調性・保持期間を追加検査した。128 supportの面を含むstressは772,104/786,432 verticesで完全生成。
+DXCの7 shaderを-WXでコンパイルし、shape用のreserved slotを含む27 ABI reflection checksを通過した。
+既存の弾のgeometry testと33 source-contract checksも通過。Development/Release x64をビルドした。
+
+最終実機記録・検証一覧はgenerated/retrograde_presentation/verification-summary.jsonに保存する。
+通常射撃による3回の撃破、LegacyModel/Outline、通常model表示、自機の移動とダッシュ、9種類の戦闘役を確認する。
+連続撮影は41..220の180枚、通常modelは32枚。原本config・進行データのhashを撮影後も照合する。
+GPU-based validationを有効にした9種類の敵のgalleryでは、初期配置と通常AI更新後の5枚を確認する。
+旧版との厳密比較の失敗もcomparison_final_strict.jsonに残し、乱数分離に伴う差を個別に検査する。
+before/after動画はraw PNGから生成し、見やすい1/2速度にする。色や発光を後から加工しない。
+この実機確認は固定入力のfixtureであり、FPSの前後差や全ゲーム進行の完走を証明するものではない。
+
+最終検証はPASS。通常/Outline各240更新・180画像、model240更新・32画像、dash240更新・180画像を保存した。
+3種類の撃破runはいずれも除去frame74/122/170で一致し、dash入力85/170後の移動ピークを両方確認した。
+9役galleryはGPU-based validation有効で120更新・5画像を保存した。全runで原本config hashは一致した。
+厳密な旧版比較は乱数分離により全一致ではなく、記録されたcamera位置差の最大は0.041874 world units、
+敵弾の存在数が異なるsnapshotは179/226/227の3frameだった。これら以外のsnapshot差はない。
+比較動画はgenerated/retrograde_presentation/before_after_half_speed.mp4（左BEFORE、右AFTER、6秒・1/2速度）。
+Native recorderは既存の連続画像を上書きしないため、最終撮影は新しいrun directoryで行った。

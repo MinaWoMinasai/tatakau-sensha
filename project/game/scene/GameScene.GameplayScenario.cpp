@@ -481,7 +481,8 @@ void GameScene::RecordGameplayScenarioCapture(cg2::DirectXCommon& dx) {
             }
         }
         const auto frame = MakeDeveloperGameCaptureMetadata(dx);
-        for (const char* key : {"gpu","queueTimestampFrequencyHz","validation","resolution","globalPost"})
+        for (const char* key : {"gpu","queueTimestampFrequencyHz","validation","resolution","globalPost",
+            "localCategories","visualAppearance","sourceResolution","sourceCounts"})
             if (frame.contains(key)) metadata[key] = frame.at(key);
         gameplayScenarioCapture_.SetFrameMetadata(std::move(metadata));
     }

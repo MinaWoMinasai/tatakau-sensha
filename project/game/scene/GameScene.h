@@ -714,7 +714,7 @@ private:
     void QueueActorNeonBillboards(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, bool drawBodies = true,
                                   bool drawBarrels = true);
     /// @brief アクターネオン機体塗りつぶし描画パスを描画する。
-    void DrawActorNeonBodyFillPass();
+    void DrawActorNeonBodyFillPass(bool restoreOutlines = true);
     /// @brief 自機ネオンAfterimagesを更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdatePlayerNeonAfterimages(float deltaTime);
@@ -1482,6 +1482,8 @@ private:
         float tiltRad = 0.0f;
         int trailCopies = 0;
         bool isBillboard = false;
+        cg2::NeonParticleShape shape = cg2::NeonParticleShape::Triangle;
+        float endRadius = -1.0f;
         cg2::Vector4 color{1.0f, 0.4f, 1.0f, 1.0f};
     };
     std::vector<NeonTriangleParticle> neonTriangleParticles_;
