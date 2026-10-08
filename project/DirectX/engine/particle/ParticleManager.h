@@ -5,12 +5,14 @@
 #include <random>
 #include <memory>
 #include <initializer_list>
+#include <cstddef>
 #include <wrl.h>
 #include <d3d12.h>
 #include "DirectXCommon.h"
 #include "SrvManager.h"
 #include "ModelManager.h"
 #include "Camera.h"
+#include "NeonParticlePresentation.h"
 #include <nlohmann/json.hpp>
 
 namespace cg2 {
@@ -53,6 +55,9 @@ struct ParticleEmitterConfig {
     EasingType easingType = EasingType::Linear;
     bool isBillboard = false;
     bool alignToVelocity = false;
+    // Opt in to the emissive contour and its single, CPU/GPU-matched lifetime fade.
+    bool neonRadiance = false;
+    NeonParticleShape neonShape = NeonParticleShape::Triangle;
 
     /// @brief 保存する設定をJSON形式へ変換して返す。
     nlohmann::json ToJson() const;
@@ -85,6 +90,8 @@ public:
         float tiltRad = 0.0f;
         uint32_t trailCopies = 0;
         bool isBillboard = false;
+        NeonParticleShape shape = NeonParticleShape::Triangle;
+        float endRadius = -1.0f;
         Vector4 color{1.0f, 0.4f, 1.0f, 1.0f};
     };
     // GPUに送るパーティクル1粒のデータ
@@ -107,6 +114,9 @@ public:
         Vector3 angularVelocity;
         float padding2;
     };
+    static_assert(sizeof(ParticleGPU) == 128, "ParticleGPU must match ParticleCompute.hlsli");
+    static_assert(offsetof(ParticleGPU, padding1) == 108, "neonRadiance uses the existing padding1 slot");
+    static_assert(offsetof(ParticleGPU, padding2) == 124, "neonShape uses the existing padding2 slot");
 
     /// @brief 1粒子の姿勢・速度・色・寿命などの状態を表す。
     struct Particle {
@@ -125,6 +135,8 @@ public:
         EasingType easingType;
         bool isBillboard;
         bool alignToVelocity;
+        bool neonRadiance = false;
+        NeonParticleShape neonShape = NeonParticleShape::Triangle;
     };
 
     // シェーダー用定数バッファ構造体
@@ -135,6 +147,7 @@ public:
         Matrix4x4 WorldInverseTranspose;
         Vector4 color;
     };
+    static_assert(sizeof(ModelParticleTransformationMatrix) == 208, "ModelParticle RenderData stride must remain unchanged");
 
     /// @brief cg2::ParticleManagerで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
     struct GlobalConfig {
@@ -234,8 +247,14 @@ public:
     {
         return useGpuUpdate_;
     }
+    // Keep particle count / silhouette changes from consuming gameplay RNG.
+    void SetPresentationSeed(uint32_t seed) { presentationRandom_.seed(seed); }
 
 private:
+    float Rand(float min, float max);
+    Vector3 Rand(const Vector3& min, const Vector3& max);
+    Vector3 RandomUnitVector();
+    std::mt19937 presentationRandom_{std::random_device{}()};
     /// @brief 発生中の粒子に必要な状態と設定の参照を保持する。
     struct ActiveParticle {
         Particle particle;
@@ -299,6 +318,9 @@ private:
     std::vector<NeonTriangleEvent> neonTriangleEvents_;
     NeonTriangleEffectMode neonTriangleEffectMode_ = NeonTriangleEffectMode::Outline;
     Model* model_ = nullptr;
+    // The procedural contour owns a padded quad; shared OBJ assets stay unchanged.
+    std::unique_ptr<ModelCommon> contourModelCommon_;
+    std::unique_ptr<Model> contourModel_;
     std::vector<ActiveParticle> activeParticles_;
     uint32_t instanceCount_ = 0;
 

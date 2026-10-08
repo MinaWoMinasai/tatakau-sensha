@@ -787,7 +787,7 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
 }
 
 void ExpEnemy::QueueCombatVisuals(cg2::NeonGridRenderer& renderer, const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp,
-                                  const cg2::Vector3& cameraForward, float lineWidth) const
+                                  const cg2::Vector3& cameraForward, float lineWidth, bool fillOnly) const
 {
     if (!IsExpeditionCombatRole() || isDead_)
         return;
@@ -795,8 +795,19 @@ void ExpEnemy::QueueCombatVisuals(cg2::NeonGridRenderer& renderer, const cg2::Ve
     const cg2::Vector3 forward = aimDirection_;
     const cg2::Vector3 side{-forward.y, forward.x, 0.0f};
     const float width = (std::max)(0.045f, lineWidth);
+    auto bodyPolygon = [&](const cg2::Vector3* points, uint32_t count, const cg2::Vector4& color) {
+        if (fillOnly) {
+            cg2::Vector3 fill[6]{};
+            for (uint32_t i = 0; i < count; ++i) fill[i] = points[i] - cg2::Vector3{0,0,0.005f};
+            renderer.QueueBeveledPolygonFill(fill, count, {0.006f,0.010f,0.016f,0.96f}, color,
+                cg2::Normalize(cameraUp - cameraRight * 0.5f));
+        } else renderer.QueueContourPolygon(points, count, width, color, cameraForward, cg2::ActorNeonContourStyle());
+    };
     auto line = [&](const cg2::Vector3& a, const cg2::Vector3& b, float thickness, const cg2::Vector4& color) {
         renderer.QueueCameraFacingLine(a, b, thickness, color, cameraForward);
+    };
+    auto contour = [&](const cg2::Vector3& a, const cg2::Vector3& b, float thickness, const cg2::Vector4& color) {
+        renderer.QueueContourLine(a, b, thickness, color, cameraForward, cg2::ActorNeonContourStyle());
     };
     auto arcPoint = [&](float angle, float radius) {
         return center + (forward * std::cos(angle) + side * std::sin(angle)) * radius;
@@ -808,11 +819,16 @@ void ExpEnemy::QueueCombatVisuals(cg2::NeonGridRenderer& renderer, const cg2::Ve
         const cg2::Vector4 signal = emp ? cg2::Vector4{0.35f, 1.3f, 2.0f, 0.80f} : cg2::Vector4{1.65f, 0.45f, 2.0f, 0.80f};
         constexpr float tau = 6.283185307f;
         const int sides = emp ? 4 : 6;
+        cg2::Vector3 bodyPoints[6]{};
         for (int i = 0; i < sides; ++i) {
             const float a = tau * static_cast<float>(i) / sides;
-            const float b = tau * static_cast<float>(i + 1) / sides;
-            line(arcPoint(a, 0.90f), arcPoint(b, 0.90f), width, visualColor_);
-            line(arcPoint(a, 0.55f), arcPoint(a, 1.20f + charge * 0.20f), width, signal);
+            bodyPoints[i] = arcPoint(a, 0.90f);
+        }
+        bodyPolygon(bodyPoints, static_cast<uint32_t>(sides), visualColor_);
+        if (fillOnly) return;
+        for (int i = 0; i < sides; ++i) {
+            const float a = tau * static_cast<float>(i) / sides;
+            contour(arcPoint(a, 0.55f), arcPoint(a, 1.20f + charge * 0.20f), width, signal);
         }
         // 支援役の予告は既存の線描画へ積み、ここで専用の演出アクター・メッシュ・テクスチャを生成しない。
         const float radius = emp ? expguard::kEmpRadius : 2.8f;
@@ -847,10 +863,9 @@ void ExpEnemy::QueueCombatVisuals(cg2::NeonGridRenderer& renderer, const cg2::Ve
         const cg2::Vector4 body = recovery ? cg2::Vector4{0.25f, 0.8f, 0.95f, 0.8f} : visualColor_;
         const cg2::Vector3 tip = center + forward * 0.9f;
         const cg2::Vector3 rear = center - forward * 0.9f;
-        line(tip, center + side * 0.72f, width, body);
-        line(center + side * 0.72f, rear, width, body);
-        line(rear, center - side * 0.72f, width, body);
-        line(center - side * 0.72f, tip, width, body);
+        const cg2::Vector3 bodyPoints[]{tip, center + side * 0.72f, rear, center - side * 0.72f};
+        bodyPolygon(bodyPoints, 4, body);
+        if (fillOnly) return;
 
         // 予告中の引き、攻撃中の扇形の振り、回復中の横構えを攻撃周期に合わせて表示する。
         const float pose = warning    ? -expguard::kBladeHalfAngle - 0.2f * bladeCycle_.WarningRatio()
@@ -858,8 +873,8 @@ void ExpEnemy::QueueCombatVisuals(cg2::NeonGridRenderer& renderer, const cg2::Ve
                            : recovery ? 1.65f
                                       : -0.45f;
         const cg2::Vector4 bladeColor = recovery ? cg2::Vector4{0.2f, 0.8f, 1.0f, 0.55f} : cg2::Vector4{2.0f, 0.65f, 0.24f, 0.95f};
-        line(arcPoint(pose, 0.65f), arcPoint(pose, active ? expguard::kBladeReach : 2.0f), width * 1.6f, bladeColor);
-        line(arcPoint(pose - 0.14f, 0.9f), arcPoint(pose + 0.14f, 0.9f), width, bladeColor);
+        contour(arcPoint(pose, 0.65f), arcPoint(pose, active ? expguard::kBladeReach : 2.0f), width * 1.6f, bladeColor);
+        contour(arcPoint(pose - 0.14f, 0.9f), arcPoint(pose + 0.14f, 0.9f), width, bladeColor);
         if (warning || active) {
             const float intensity = warning ? 0.45f + 0.55f * bladeCycle_.WarningRatio() : 1.0f;
             const cg2::Vector4 danger{1.65f, 0.35f + 0.30f * intensity, 0.10f, warning ? 0.42f : 0.70f};
@@ -884,7 +899,7 @@ void ExpEnemy::QueueCombatVisuals(cg2::NeonGridRenderer& renderer, const cg2::Ve
         }
         return;
     }
-    if (type_ == ExpEnemyType::ShieldGuard || type_ == ExpEnemyType::ReflectArmor) {
+    if (!fillOnly && (type_ == ExpEnemyType::ShieldGuard || type_ == ExpEnemyType::ReflectArmor)) {
         const bool reflect = type_ == ExpEnemyType::ReflectArmor;
         const float halfAngle = reflect ? expguard::kReflectHalfAngle : expguard::kShieldHalfAngle;
         const float flash = shieldFlashTimer_ / 0.13f;
@@ -907,25 +922,26 @@ void ExpEnemy::QueueCombatVisuals(cg2::NeonGridRenderer& renderer, const cg2::Ve
         const cg2::Vector3 nose = center + forward * (1.18f * pulse);
         const cg2::Vector3 left = center - forward * (0.72f * pulse) + side * (0.82f * pulse);
         const cg2::Vector3 right = center - forward * (0.72f * pulse) - side * (0.82f * pulse);
-        line(nose, left, width, visualColor_);
-        line(left, right, width, visualColor_);
-        line(right, nose, width, visualColor_);
-        line(center - side * 0.42f, center + forward * 0.48f, width * 0.80f, visualColor_);
-        line(center + forward * 0.48f, center + side * 0.42f, width * 0.80f, visualColor_);
+        const cg2::Vector3 bodyPoints[]{nose, left, right};
+        bodyPolygon(bodyPoints, 3, visualColor_);
+        if (fillOnly) return;
+        contour(center - side * 0.42f, center + forward * 0.48f, width * 0.80f, visualColor_);
+        contour(center + forward * 0.48f, center + side * 0.42f, width * 0.80f, visualColor_);
     } else {
         const int sides = type_ == ExpEnemyType::Flanker      ? 3
                           : type_ == ExpEnemyType::Skirmisher ? 4
                           : type_ == ExpEnemyType::Suppressor ? 5
                                                               : 6;
+        cg2::Vector3 bodyPoints[6]{};
         for (int i = 0; i < sides; ++i) {
             const float a = static_cast<float>(i) * 2 * cg2::pi / static_cast<float>(sides);
-            const float b = static_cast<float>(i + 1) * 2 * cg2::pi / static_cast<float>(sides);
-            line(center + (side * std::cos(a) + forward * std::sin(a)) * (0.82f * pulse),
-                 center + (side * std::cos(b) + forward * std::sin(b)) * (0.82f * pulse), width, visualColor_);
+            bodyPoints[i] = center + (side * std::cos(a) + forward * std::sin(a)) * (0.82f * pulse);
         }
-        line(center + side * 0.20f, center + forward * 1.35f + side * 0.12f, width, visualColor_);
-        line(center - side * 0.20f, center + forward * 1.35f - side * 0.12f, width, visualColor_);
-        line(center - side * 0.36f, center + side * 0.36f, width, visualColor_);
+        bodyPolygon(bodyPoints, static_cast<uint32_t>(sides), visualColor_);
+        if (fillOnly) return;
+        contour(center + side * 0.20f, center + forward * 1.35f + side * 0.12f, width, visualColor_);
+        contour(center - side * 0.20f, center + forward * 1.35f - side * 0.12f, width, visualColor_);
+        contour(center - side * 0.36f, center + side * 0.36f, width, visualColor_);
         // 後部の短い目盛りで弾倉の容量と残弾を表示する。
         const int ammo = magazineCycle_.GetAmmo(), capacity = magazineCycle_.GetCapacity();
         for (int i = 0; i < capacity; ++i) {
@@ -1178,7 +1194,7 @@ bool ExpEnemy::ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinar
         // 通知先からの再入や同じフレームの後続ダメージに備え、撃破通知より先に死亡を確定する。
         isDead_ = true;
         cg2::ParticleManager::GetInstance()->EmitNeonDeathEffect(
-            GetWorldPosition(), isRunResource_ ? cg2::Vector4{1.35f, 0.92f, 0.28f, 1.0f} : cg2::Vector4{1.20f, 0.32f, 1.35f, 1.0f},
+            GetWorldPosition(), isRunResource_ ? cg2::Vector4{1.35f, 0.92f, 0.28f, 1.0f} : cg2::Vector4{visualColor_.x, visualColor_.y, visualColor_.z, 1.0f},
             {0.18f, 1.10f, 1.35f, 0.0f}, isRunResource_ ? 0.46f : 0.32f);
         // 資源は取得側の通知、通常敵は自機側の経験値/撃破通知か敵側の撃破通知へ分ける。
         // 召喚個体の撃破では、これらの報酬通知を行わない。

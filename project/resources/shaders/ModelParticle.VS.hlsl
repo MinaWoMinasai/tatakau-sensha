@@ -35,6 +35,8 @@ VertexShaderOutput main(VertexShaderInput input, uint32_t instanceId : SV_Instan
     
     output.texcoord = input.texcoord;
     output.color = gData.color;
+    output.localPosition = input.position.xy;
+    output.neonRadiance = max(0.0f, gData.WorldInverseTranspose[3][3] - 1.0f);
     
     return output;
 }
