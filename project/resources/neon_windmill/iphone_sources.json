@@ -1,0 +1,16 @@
+{
+  "vendor": "Apple",
+  "version": "iOS 26.4",
+  "sourcePage": "https://emojipedia.org/apple/ios-26.4/",
+  "copyright": "Emoji artwork belongs to Apple Inc. These reference images are separate from the author's engine and animation implementation.",
+  "glyphs": [
+    {"codepoint":"1f601","name":"beaming-face-with-smiling-eyes"},
+    {"codepoint":"1f446","name":"backhand-index-pointing-up"},
+    {"codepoint":"1f447","name":"backhand-index-pointing-down"},
+    {"codepoint":"1f448","name":"backhand-index-pointing-left"},
+    {"codepoint":"1f449","name":"backhand-index-pointing-right"},
+    {"codepoint":"1faf5","name":"index-pointing-at-the-viewer"},
+    {"codepoint":"1faea","name":"distorted-face"}
+  ],
+  "imageBaseUrl": "https://em-content.zobj.net/source/apple/453/"
+}

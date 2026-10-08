@@ -39,7 +39,8 @@ $validationGroups = @{
         'tank_reward_cards','tank_reward_pool','tank_run','tank_trails',
         'combat_presentation','neon_preview_lifecycle','player_derived_stats',
         'player_drone_lifecycle','player_movement','gameplay_scenario_session',
-        'neon_depth_combat','neon_depth_presentation','neon_depth_config','neon_depth_runtime_settings'
+        'neon_depth_combat','neon_depth_presentation','neon_depth_config','neon_depth_runtime_settings',
+        'neon_windmill'
     )
     Source = @('developer_tools_profile')
     Rendering = @('bloom_pipeline','neon_skinned_pipeline')
@@ -156,6 +157,10 @@ function Invoke-ValidationScript($Test,[string]$Suffix='',[string[]]$Extra=@()) 
     $arguments = @('-NoProfile','-File',$Test.path)
     if ($Test.parameters -contains 'VisualStudioPath') { $arguments += @('-VisualStudioPath',$VisualStudioPath) }
     if ($Test.parameters -contains 'PythonPath') { $arguments += @('-PythonPath',$PythonPath) }
+    # Apple reference artwork is local and ignored; the shared suite checks the
+    # deterministic motion without requiring those images. The wrapper also
+    # supports explicit local GPU verification with its normal invocation.
+    if ($Test.name -eq 'test_neon_windmill.ps1') { $arguments += '-CpuOnly' }
     if ($Test.name -eq 'test_gameplay_scenarios.ps1') {
         if ($Test.parameters -notcontains 'IncludeConfigurationProbes') { throw 'The Scenario configuration-probe suite is not ready.' }
         $arguments += '-IncludeConfigurationProbes'
