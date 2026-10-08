@@ -390,7 +390,8 @@ int Game::MainLoop() {
     const bool backgroundValidation = startupValidation || testEnabled("CG2_TITLE_AUTOTEST") ||
         testEnabled("CG2_TANK_TUTORIAL_AUTOTEST") || testEnabled("CG2_TANK_AUTOTEST") || testEnabled("CG2_TANK_MAP_AUTOTEST") ||
         testEnabled("CG2_TANK_COMBAT_AUTOTEST") || testEnabled("CG2_TANK_SPECIAL_AUTOTEST") ||
-        testEnabled("CG2_NEON_BOSS_AUTOTEST") || testEnabled("CG2_SUBMISSION_AUTOTEST") || experienceValidation
+        testEnabled("CG2_NEON_BOSS_AUTOTEST") || testEnabled("CG2_SUBMISSION_AUTOTEST") ||
+        testEnabled("CG2_WINDMILL_AUTOTEST") || experienceValidation
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
         || GameplayScenarioSession::Get().IsActive()
 #endif

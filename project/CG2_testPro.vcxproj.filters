@@ -880,4 +880,36 @@
     <FxCompile Include="resources\shaders\BloomPyramidDownsample.PS.hlsl"><Filter>DirectX\shaders</Filter></FxCompile>
     <FxCompile Include="resources\shaders\BloomPyramidUpsample.PS.hlsl"><Filter>DirectX\shaders</Filter></FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="game\modules\NeonWindmillModule.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\scene\NeonWindmillScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\render\WindmillEmojiRenderer.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClInclude Include="game\modules\NeonWindmillModule.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scene\NeonWindmillScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scene\NeonWindmillMotion.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\WindmillEmojiRenderer.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <None Include="resources\shaders\WindmillEmoji.PS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="resources\projects\neon_windmill.project.json">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="resources\neon_windmill\iphone_sources.json">
+      <Filter>リソース ファイル</Filter>
+    </None>
+  </ItemGroup>
 </Project>

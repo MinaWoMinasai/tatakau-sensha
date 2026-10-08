@@ -100,6 +100,10 @@ public:
     void DrawRange(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection, bool noDepth = false);
     /// @brief 範囲単色を描画する。
     void DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection);
+    /// @brief HDRシーン用の不透明・深度書き込みパイプラインを必要時に作成する。
+    bool InitializeSceneSolidPipeline();
+    /// @brief HDRシーン内で不透明な立体面を描画し、後続のネオン線を深度で遮蔽する。
+    void DrawRangeSceneSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection);
     /// @brief 頂点件数を返す。
     uint32_t GetVertexCount() const
     {
@@ -120,6 +124,7 @@ private:
     void PushVertex(const Vector3& pos, const Vector4& color, const Vector2& uv);
 
     DirectXCommon* dxCommon_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> sceneSolidPipeline_;
     std::string textureFilePath_;
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
