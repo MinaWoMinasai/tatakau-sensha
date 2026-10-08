@@ -7,10 +7,39 @@
 
 namespace cg2 {
 
+// Explicit per-call presentation for actor / obstacle contours. It deliberately
+// does not share SetLineStyle state with grids, telegraphs, or projectile heads.
+struct NeonContourStyle {
+    float coreWidthRatio = 0.18f;
+    float coreIntensity = 2.8f;
+    float coreWhiteMix = 0.60f;
+    float shoulderIntensity = 1.8f;
+    float haloWidthScale = 3.4f;
+    float haloIntensity = 1.1f;
+    float haloAlpha = 0.18f;
+    // Shared subdivision / wire endpoints can omit caps at 42 vertices per line.
+    bool roundCaps = true;
+};
+
+// Actors keep a colored rim at rest; projectiles and attack flashes can use a
+// brighter profile without whitening every outline in the scene.
+inline NeonContourStyle ActorNeonContourStyle() {
+    NeonContourStyle style;
+    style.coreWidthRatio = 0.14f;
+    style.coreIntensity = 2.6f;
+    style.coreWhiteMix = 0.28f;
+    style.shoulderIntensity = 1.55f;
+    style.haloIntensity = 0.75f;
+    style.haloAlpha = 0.12f;
+    return style;
+}
+
 /// @brief ステージなどに重ねるネオン格子の描画資源と設定を管理する。
 class NeonGridRenderer {
 public:
-    static const uint32_t kMaxVertices = 196608;
+    // Includes 128 authored support actors, warning rings, dense actor-local
+    // grids, visible stage outlines, and a simultaneous death-outline burst.
+    static const uint32_t kMaxVertices = 786432;
 
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(DirectXCommon* dxCommon, const std::string& textureFilePath);
@@ -22,6 +51,23 @@ public:
     void QueueLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color);
     /// @brief カメラFacing線を後で処理するために予約する。
     void QueueCameraFacingLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color, const Vector3& cameraForward);
+    // Pale HDR core, colored shoulder, and smooth halo in a single continuous
+    // profile. Polygon joins are shared, with round exterior corners; free lines
+    // have round caps. A complete primitive is skipped if the batch is full.
+    void QueueContourLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color,
+                          const Vector3& cameraForward, const NeonContourStyle& style = {});
+    void QueueContourPolygon(const Vector3* points, uint32_t pointCount, float lineWidth, const Vector4& color,
+                             const Vector3& cameraForward, const NeonContourStyle& style = {});
+    void QueueContourTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color,
+                              const NeonContourStyle& style = {});
+    void QueueContourRectangle(const Vector3& center, const Vector3& size, float lineWidth, const Vector4& color,
+                               const NeonContourStyle& style = {});
+    void QueueBillboardContourTriangle(const Vector3& center, float radius, float rotationRad, float lineWidth, const Vector4& color,
+                                       const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward,
+                                       const NeonContourStyle& style = {});
+    void QueueBillboardContourRectangle(const Vector3& center, const Vector2& size, float rotationRad, float lineWidth, const Vector4& color,
+                                        const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward,
+                                        const NeonContourStyle& style = {});
     /// @brief 三角形を後で処理するために予約する。
     void QueueTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color);
     /// @brief ビルボード三角形を後で処理するために予約する。
@@ -36,6 +82,9 @@ public:
     /// @brief ビルボードRegularPolygon塗りつぶしを後で処理するために予約する。
     void QueueBillboardRegularPolygonFill(const Vector3& center, int segments, float radius, float rotationRad, const Vector2& scale,
                                           const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp);
+    // A dark face and a lit bevel, drawn in the solid pass below its neon rim.
+    void QueueBeveledPolygonFill(const Vector3* points, uint32_t count, const Vector4& baseColor,
+                                 const Vector4& tint, const Vector3& lightDirection);
     /// @brief ワールド格子を後で処理するために予約する。
     void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color);
     /// @brief Rectangleを後で処理するために予約する。

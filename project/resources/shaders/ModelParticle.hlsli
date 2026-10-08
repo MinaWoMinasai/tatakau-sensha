@@ -5,4 +5,6 @@ struct VertexShaderOutput
     float32_t3 normal : NORMAL0;
     float32_t3 worldPosition : POSITION0;
     float32_t4 color : COLOR0;
+    float32_t2 localPosition : TEXCOORD1;
+    nointerpolation float32_t neonRadiance : TEXCOORD2;
 };

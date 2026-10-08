@@ -163,19 +163,44 @@ void main(uint3 DTid : SV_DispatchThreadID)
     // --- 新機能: イージング適用 ---
     float t = ApplyEasing(rawT, p.easingType);
     p.velocity += p.acceleration * gConfig.deltaTime;
+    if (p.padding1 > 0.5f && (p.padding2 == 1.0f || p.padding2 == 2.0f))
+        p.velocity *= exp(-2.8f * gConfig.deltaTime);
     p.position += p.velocity * gConfig.deltaTime;
     p.rotate += p.angularVelocity * gConfig.deltaTime;
 
     // 5. 演出パラメータ計算（イージング適用済みのtを使用）
-    float currentScale = lerp(p.startScale, p.endScale, t);
-    float4 currentColor = lerp(p.startColor, p.endColor, t);
-    currentColor.a *= (1.0f - rawT); // フェードアウトは rawT で
+    const bool neonRadiance = p.padding1 > 0.5f;
+    float currentScale = lerp(p.startScale, p.endScale, neonRadiance ? rawT : t);
+    float4 currentColor = lerp(p.startColor, p.endColor, neonRadiance ? rawT : t);
+    if (neonRadiance)
+    {
+        // Match the CPU path. The old EaseOut-alpha * raw-alpha product erased
+        // neon debris much earlier than its lifetime and lost its bloom source.
+        const float hold = p.padding2 == 4.0f ? 0.0f : p.padding2 == 5.0f ? 0.08f : p.padding2 == 0.0f ? 0.10f : 0.28f;
+        const float fadeT = saturate((rawT - hold) / (1.0f - hold));
+        const float fade = fadeT * fadeT * (3.0f - 2.0f * fadeT);
+        currentColor.a = lerp(p.startColor.a, p.endColor.a, fade);
+    }
+    else
+    {
+        currentColor.a *= (1.0f - rawT); // Preserve ordinary GPU particles.
+    }
 
     // 6. 行列生成
     // --- 新機能: ビルボード制御 ---
     float4x4 world;
     if (p.isBillboard == 1)
     {
+        if (neonRadiance && p.padding2 == 3.0f && dot(p.velocity, p.velocity) > 1e-8f)
+        {
+            // Align the spark with its projected travel in the same basis as
+            // MakeBillboardMatrix. World atan2 mirrored it on a front camera.
+            const float3 facing = normalize(gScene.cameraPosition - p.position);
+            const float3 referenceUp = abs(facing.y) > 0.999f ? float3(0,0,1) : float3(0,1,0);
+            const float3 right = normalize(cross(referenceUp, facing));
+            const float3 up = cross(facing, right);
+            p.rotate.z = atan2(dot(p.velocity, up), dot(p.velocity, right)) - 1.57079632679f;
+        }
         world = MakeBillboardMatrix(
             float3(currentScale, currentScale, currentScale),
             p.position,
@@ -200,6 +225,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
     gRenderData[drawIndex].World = world;
     gRenderData[drawIndex].WVP = mul(world, gScene.viewProjection);
     gRenderData[drawIndex].WorldInverseTranspose = transpose(world);
+    // The homogeneous element is not consumed by the normal 3x3 transform.
+    gRenderData[drawIndex].WorldInverseTranspose[3][3] = neonRadiance ? 2.0f + p.padding2 : 1.0f;
     gRenderData[drawIndex].color = currentColor;
 
     // (オプション) 生存している元のパーティクルIDを保持しておきたい場合

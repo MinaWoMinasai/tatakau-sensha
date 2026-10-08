@@ -9,10 +9,20 @@ namespace tankneon {
 /// @brief 機体輪郭を後で処理するために予約する。
 inline void QueueBodyOutline(cg2::NeonGridRenderer& renderer, const cg2::Vector3& center, float radius, float lineWidth, int segments,
                              float rotation, const cg2::Vector2& scale, const cg2::Vector4& color, const cg2::Vector3& cameraRight,
-                             const cg2::Vector3& cameraUp)
+                             const cg2::Vector3& cameraUp, bool luminousContour = false)
 {
     constexpr float tau = 6.28318530718f;
     segments = (std::clamp)(segments, 3, 48);
+    if (luminousContour) {
+        cg2::Vector3 points[48]{};
+        for (int i = 0; i < segments; ++i) {
+            const float angle = rotation + static_cast<float>(i) * tau / static_cast<float>(segments);
+            points[i] = center + cameraRight * (std::cos(angle) * radius * scale.x)
+                               + cameraUp * (std::sin(angle) * radius * scale.y);
+        }
+        renderer.QueueContourPolygon(points, static_cast<uint32_t>(segments), lineWidth, color, cg2::Cross(cameraRight, cameraUp), cg2::ActorNeonContourStyle());
+        return;
+    }
     cg2::Vector3 previous{};
     for (int i = 0; i <= segments; ++i) {
         const float angle = rotation + static_cast<float>(i % segments) * tau / static_cast<float>(segments);
@@ -25,9 +35,16 @@ inline void QueueBodyOutline(cg2::NeonGridRenderer& renderer, const cg2::Vector3
 }
 /// @brief 砲塔輪郭を後で処理するために予約する。
 inline void QueueBarrelOutline(cg2::NeonGridRenderer& renderer, const cg2::Vector3& base, const cg2::Vector3& tip,
-                               const cg2::Vector3& right, float halfWidth, float lineWidth, const cg2::Vector4& color, bool trapezoid)
+                               const cg2::Vector3& right, float halfWidth, float lineWidth, const cg2::Vector4& color, bool trapezoid,
+                               bool luminousContour = false, const cg2::Vector3& cameraForward = {0, 0, 1})
 {
     const float baseHalf = halfWidth * (trapezoid ? 1.28f : 1.0f), tipHalf = halfWidth * (trapezoid ? 0.72f : 1.0f);
+    if (luminousContour) {
+        const cg2::Vector3 points[] = {base - right * baseHalf, tip - right * tipHalf,
+                                     tip + right * tipHalf, base + right * baseHalf};
+        renderer.QueueContourPolygon(points, 4, lineWidth, color, cameraForward, cg2::ActorNeonContourStyle());
+        return;
+    }
     renderer.QueueLine(base - right * baseHalf, tip - right * tipHalf, lineWidth, color);
     renderer.QueueLine(tip - right * tipHalf, tip + right * tipHalf, lineWidth, color);
     renderer.QueueLine(tip + right * tipHalf, base + right * baseHalf, lineWidth, color);
