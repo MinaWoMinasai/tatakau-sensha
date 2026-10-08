@@ -18,6 +18,7 @@
 | [起動処理](startup-performance.md) | 起動計測・キャッシュ |
 | [性能表示](tank-performance-monitor.md) | フレーム計測 |
 | [共通音声テスト](audio-runtime-tests.md) | PCM/WAV・MP3と音声ハンドルの回帰検査 |
+| [ネオン風車](neon-windmill.md) | iPhone絵文字の板ポリゴン、動画調査、軌道とHDRブルームの独立デモ |
 | [画像の追加](images/README.md) | README に載せる実プレイ画像 |
 | [作者情報](credits.md) | 作者・公式 URL、Version Info の調査 |
 | [素材・埋め込み情報の監査](public-assets-audit.md) | 最新の A/B/C/D 分類、削除素材、権利・個人情報の保留事項と検証 |

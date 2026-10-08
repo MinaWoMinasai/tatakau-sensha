@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "projectName": "NEON WINDMILL / MinaWoMinasai",
+  "gameModule": "neon_windmill",
+  "startupScene": "NEON_WINDMILL",
+  "resourceRoot": "resources"
+}
