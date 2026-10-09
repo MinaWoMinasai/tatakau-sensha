@@ -209,16 +209,16 @@ void PlayerDrone::Update(cg2::Camera* viewProjection, Stage& stage, const cg2::V
     }
 
     // 遠征では自機付近で静止していても、後段の任務到着・射撃処理まで進める。
-    cg2::Vector3 dir = distance < 0.01f ? cg2::Vector3{} : cg2::Normalize(toPlayer);
+    cg2::Vector3 followDirection = distance < 0.01f ? cg2::Vector3{} : cg2::Normalize(toPlayer);
 
     // 追従速度は距離に応じて増やし、追い付き速度の設定値を上限にする。
     const float followSpeed = runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Charging ? .90f
                               : runAttackEnabled_ ? (std::min)(runCatchupSpeed_, runFollowSpeed_ + distance * 0.035f)
                                                   : maxSpeed_;
-    cg2::Vector3 targetVelocity = dir * (runAttackEnabled_ ? followSpeed * (std::min)(1.0f, distance / 1.2f) : followSpeed);
+    cg2::Vector3 targetVelocity = followDirection * (runAttackEnabled_ ? followSpeed * (std::min)(1.0f, distance / 1.2f) : followSpeed);
 
     // 遠征の追従は秒数を使った指数補間。突撃は目標速度へ直接切り替え、予告では速度を0にする。
-    float accel = runAttackEnabled_ ? runFollowResponse_ : ((cg2::Length(dir) > 0.0f) ? accel_ : decel_);
+    float accel = runAttackEnabled_ ? runFollowResponse_ : ((cg2::Length(followDirection) > 0.0f) ? accel_ : decel_);
 
     velocity_ += (targetVelocity - velocity_) * (runAttackEnabled_ ? 1.0f - std::exp(-accel * dt) : accel * dt);
     if (runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Charging)

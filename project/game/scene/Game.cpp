@@ -13,7 +13,9 @@
 #include "TextRenderer.h"
 #include "RuntimeProfiler.h"
 #include "StartupTrace.h"
+#include <array>
 #include <chrono>
+#include <filesystem>
 #include <string>
 #include <thread>
 #include <utility>
@@ -24,6 +26,15 @@ namespace {
 constexpr const char* kDefaultProjectFilePath = "resources/projects/default.project.json";
 constexpr const char* kFallbackGameModuleId = "builtin";
 constexpr const char* kFallbackSceneName = "TITLE";
+
+/// @brief Windowsの実際のインストール先からUI用のフォントを探す。
+std::filesystem::path GetSystemFontPath(const wchar_t* filename)
+{
+    std::array<wchar_t, MAX_PATH> directory{};
+    const UINT length = GetWindowsDirectoryW(directory.data(), static_cast<UINT>(directory.size()));
+    if (length == 0 || length >= directory.size()) return {};
+    return std::filesystem::path(directory.data()) / L"Fonts" / filename;
+}
 
 /// @brief プロジェクト元データ文字を返す。
 std::string GetProjectSourceLabel(const GameProject& project)
@@ -338,9 +349,13 @@ void Game::InitializeImGui() {
         ImFontConfig fontConfig{};
         fontConfig.MergeMode = false;
         const ImWchar* japaneseRanges = io.Fonts->GetGlyphRangesJapanese();
-        ImFont* japaneseFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/meiryo.ttc", 18.0f, &fontConfig, japaneseRanges);
-        if (!japaneseFont) {
-            io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/msgothic.ttc", 18.0f, &fontConfig, japaneseRanges);
+        for (const auto* filename : {L"meiryo.ttc", L"msgothic.ttc"}) {
+            const auto fontPath = GetSystemFontPath(filename);
+            std::error_code fontError;
+            if (fontPath.empty() || !std::filesystem::is_regular_file(fontPath, fontError)) continue;
+            const auto utf8Path = fontPath.u8string();
+            const std::string imguiPath(utf8Path.begin(), utf8Path.end());
+            if (io.Fonts->AddFontFromFileTTF(imguiPath.c_str(), 18.0f, &fontConfig, japaneseRanges)) break;
         }
     }
     ImGui::StyleColorsDark();

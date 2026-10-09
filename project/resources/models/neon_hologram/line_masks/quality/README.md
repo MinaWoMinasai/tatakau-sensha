@@ -1,5 +1,7 @@
 # AvatarSample_B line quality — separate comparison candidates
 
+本文中の`project/tools/`による生成・検証コマンドは作者のローカル環境向けの記録です。これらのスクリプトはGit管理対象外で、クローンには含まれません。同梱済みのモデル・マスクの読み込みに実行は不要です。
+
 Developer Preview-only制作データです。親ディレクトリの旧`authoring.json`、`bindings.json`、`face_candidate.png`、`bangs_candidate.png`は比較元として保持します。元のGLB・画像・UV・Mesh・Skin Weight・Skeleton・Animationには書き込みません。Runtimeでは制作済みPNGだけを読みます。
 
 ## Source / license
