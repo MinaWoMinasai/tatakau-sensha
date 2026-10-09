@@ -274,11 +274,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\player\actor\Bullet.cpp" />
     <ClCompile Include="game\player\actor\BulletManager.cpp" />
     <ClCompile Include="game\player\actor\Player.cpp" />
-    <ClCompile Include="game\player\actor\Player.ClassEditor.cpp" />
-    <ClCompile Include="game\player\actor\Player.EvolutionUi.cpp" />
     <ClCompile Include="game\player\actor\PlayerUiHelpers.cpp" />
     <ClCompile Include="game\player\PlayerClassCatalog.cpp" />
-    <ClCompile Include="game\player\actor\Player.SpecialAbilities.cpp" />
     <ClCompile Include="game\player\actor\PlayerDrone.cpp" />
     <ClCompile Include="game\player\actor\Stage.cpp" />
     <ClCompile Include="game\ui\NeonProgressBar.cpp" />
@@ -287,9 +284,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\ui\TankButtonUI.cpp" />
     <ClCompile Include="game\scene\Fade.cpp" />
     <ClCompile Include="game\scene\GameScene.cpp" />
-    <ClCompile Include="game\scene\GameScene.TankRun.cpp" />
-    <ClCompile Include="game\scene\GameScene.TankExpedition.cpp" />
-    <ClCompile Include="game\scene\GameScene.TankRunVisuals.cpp" />
     <ClCompile Include="game\scene\SceneFactory.cpp" />
     <ClCompile Include="game\scene\SceneManager.cpp" />
     <ClCompile Include="game\scene\TitleScene.cpp" />
@@ -548,6 +542,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\scene\NeonWindmillMotion.h" />
     <ClInclude Include="game\render\WindmillEmojiRenderer.h" />
     <None Include="resources\shaders\WindmillEmoji.PS.hlsl" />
+    <None Include="resources\shaders\WindmillNeon.PS.hlsl" />
     <None Include="resources\projects\neon_windmill.project.json" />
     <None Include="resources\neon_windmill\iphone_sources.json" />
     <ClInclude Include="game\runtime\GameModuleRegistry.h" />
@@ -695,8 +690,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\FramePacer.h" />
     <ClInclude Include="DirectX\engine\commom\TrailStressFixture.h" />
   </ItemGroup>  <ItemGroup>
-    <ClCompile Include="game\scene\GameScene.Balance.cpp" />
-    <ClCompile Include="game\scene\GameScene.TitleDemo.cpp" />
     <ClInclude Include="game\run\TankExpeditionBalance.h" />
     <ClInclude Include="game\run\TankExpeditionTutorial.h" />
     <None Include="resources\configs\tankExpeditionBalance.json" />
@@ -704,8 +697,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="resources\projects\tank_game.project.json" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="game\scene\GameScene.ExpeditionMap.cpp" />
-    <ClCompile Include="game\scene\GameScene.ExpeditionBuild.cpp" />
     <ClCompile Include="game\ui\TankRewardCard.cpp" />
     <ClInclude Include="game\ui\TankRewardCard.h" />
     <ClInclude Include="game\ui\ColorMath.h" />
@@ -713,10 +704,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\commom\StringUtils.h" />
     <ClInclude Include="game\ui\TankRewardCardDemo.h" />
     <ClInclude Include="game\run\TankBuildStyle.h" />
-    <ClCompile Include="game\scene\GameScene.CombatValidation.cpp" />
-    <ClCompile Include="game\scene\GameScene.ExpeditionExperience.cpp" />
-    <ClCompile Include="game\scene\GameScene.ExperienceValidation.cpp" />
-    <ClCompile Include="game\scene\GameScene.SpecialValidation.cpp" />
     <ClCompile Include="game\editor\ExpeditionRoomEditor.cpp" />
     <ClCompile Include="game\editor\ExpeditionMapEditor.cpp" />
     <ClCompile Include="game\editor\ExpeditionContentEditor.cpp" />
@@ -732,7 +719,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\editor\ExpeditionContentEditor.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="game\scene\GameScene.Authoring.cpp" />
     <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp" />
     <ClCompile Include="game\render\NeonProjectileRenderer.cpp" />
     <ClInclude Include="game\render\NeonProjectileRenderer.h" />
@@ -761,10 +747,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\debug\NeonShowcaseCapture.h" />
     <ClCompile Include="game\debug\NeonPreviewAnimations.cpp" />
     <ClCompile Include="game\enemy\visual\NeonBossVisual.cpp" />
-    <ClCompile Include="game\scene\GameScene.NeonBoss.cpp" />
-    <ClCompile Include="game\scene\GameScene.GameplayScenario.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="game\debug\GameplayScenarioSession.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
     </ClCompile>
@@ -837,9 +819,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   <ItemGroup>
     <ClCompile Include="game\enemy\actor\Enemy.NeonDepth.cpp" />
     <ClCompile Include="game\enemy\visual\NeonDepthEffects.cpp" />
-    <ClCompile Include="game\scene\GameScene.NeonDepth.cpp" />
-    <ClCompile Include="game\scene\GameScene.NeonDepthValidation.cpp" />
-    <ClCompile Include="game\scene\GameScene.NormalRouteReplay.cpp" />
     <ClInclude Include="game\enemy\actor\NeonDepthCombat.h" />
     <ClInclude Include="game\enemy\actor\NeonDepthFloor.h" />
     <ClInclude Include="game\enemy\actor\NeonDepthConfig.h" />
@@ -849,5 +828,121 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\enemy\visual\NeonDepthLifecycle.h" />
     <ClInclude Include="game\enemy\visual\NeonDepthEffects.h" />
     <ClInclude Include="game\enemy\visual\NeonDepthEffectGeometry.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="game\debug\session\PerformanceMonitor.cpp" />
+    <ClCompile Include="game\session\SessionBootstrap.cpp" />
+    <ClCompile Include="game\session\CombatFramePipeline.cpp" />
+    <ClCompile Include="game\flow\CombatTutorial.cpp" />
+    <ClCompile Include="game\flow\CombatFlow.cpp" />
+    <ClCompile Include="game\editor\session\ClassConfigWatcher.cpp" />
+    <ClCompile Include="game\session\GameplayQueries.cpp" />
+    <ClCompile Include="game\render\session\GameplayRenderer.cpp" />
+    <ClCompile Include="game\effects\session\CombatEffects.cpp" />
+    <ClCompile Include="game\render\session\StageNeonRenderer.cpp" />
+    <ClCompile Include="game\effects\session\PlayerAttackEffects.cpp" />
+    <ClCompile Include="game\render\session\ActorNeonRenderer.cpp" />
+    <ClCompile Include="game\render\session\ResourceNeonRenderer.cpp" />
+    <ClCompile Include="game\level\LevelRuntime.cpp" />
+    <ClCompile Include="game\editor\session\GameplaySettings.cpp" />
+    <ClCompile Include="game\ui\session\GameplayHud.cpp" />
+    <ClCompile Include="game\editor\session\GameplayEditor.cpp" />
+    <ClCompile Include="game\demo\TitleDemoController.cpp" />
+    <ClCompile Include="game\run\session\ArenaRunController.cpp" />
+    <ClCompile Include="game\render\settings\RunVisualSettings.cpp" />
+    <ClCompile Include="game\run\session\ExpeditionController.cpp" />
+    <ClCompile Include="game\run\session\ExpeditionMapController.cpp" />
+    <ClCompile Include="game\run\session\ExpeditionBuildSelection.cpp" />
+    <ClCompile Include="game\run\session\ExpeditionExperience.cpp" />
+    <ClCompile Include="game\editor\session\ExpeditionBalanceEditor.cpp" />
+    <ClCompile Include="game\editor\session\ExpeditionAuthoring.cpp" />
+    <ClCompile Include="game\render\session\BossPresentation.cpp" />
+    <ClCompile Include="game\encounter\DepthEncounter.cpp" />
+    <ClCompile Include="game\debug\session\CombatValidation.cpp" />
+    <ClCompile Include="game\debug\session\SpecialValidation.cpp" />
+    <ClCompile Include="game\debug\session\ExperienceValidation.cpp" />
+    <ClCompile Include="game\debug\session\GameplayScenarioRunner.cpp" />
+    <ClCompile Include="game\debug\session\DepthValidation.cpp" />
+    <ClCompile Include="game\debug\session\RouteReplay.cpp" />
+    <ClCompile Include="game\session\GameWorld.cpp" />
+    <ClCompile Include="game\session\GameSession.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="game\debug\session\PerformanceMonitor.h" />
+    <ClInclude Include="game\session\SessionBootstrap.h" />
+    <ClInclude Include="game\session\CombatFramePipeline.h" />
+    <ClInclude Include="game\flow\CombatTutorial.h" />
+    <ClInclude Include="game\flow\CombatFlow.h" />
+    <ClInclude Include="game\editor\session\ClassConfigWatcher.h" />
+    <ClInclude Include="game\session\GameplayQueries.h" />
+    <ClInclude Include="game\render\session\GameplayRenderer.h" />
+    <ClInclude Include="game\effects\session\CombatEffects.h" />
+    <ClInclude Include="game\render\session\StageNeonRenderer.h" />
+    <ClInclude Include="game\effects\session\PlayerAttackEffects.h" />
+    <ClInclude Include="game\render\session\ActorNeonRenderer.h" />
+    <ClInclude Include="game\render\session\ResourceNeonRenderer.h" />
+    <ClInclude Include="game\level\LevelRuntime.h" />
+    <ClInclude Include="game\editor\session\GameplaySettings.h" />
+    <ClInclude Include="game\ui\session\GameplayHud.h" />
+    <ClInclude Include="game\editor\session\GameplayEditor.h" />
+    <ClInclude Include="game\demo\TitleDemoController.h" />
+    <ClInclude Include="game\run\session\ArenaRunController.h" />
+    <ClInclude Include="game\render\settings\RunVisualSettings.h" />
+    <ClInclude Include="game\run\session\ExpeditionController.h" />
+    <ClInclude Include="game\run\session\ExpeditionMapController.h" />
+    <ClInclude Include="game\run\session\ExpeditionBuildSelection.h" />
+    <ClInclude Include="game\run\session\ExpeditionExperience.h" />
+    <ClInclude Include="game\editor\session\ExpeditionBalanceEditor.h" />
+    <ClInclude Include="game\editor\session\ExpeditionAuthoring.h" />
+    <ClInclude Include="game\render\session\BossPresentation.h" />
+    <ClInclude Include="game\encounter\DepthEncounter.h" />
+    <ClInclude Include="game\debug\session\CombatValidation.h" />
+    <ClInclude Include="game\debug\session\SpecialValidation.h" />
+    <ClInclude Include="game\debug\session\ExperienceValidation.h" />
+    <ClInclude Include="game\debug\session\GameplayScenarioRunner.h" />
+    <ClInclude Include="game\debug\session\DepthValidation.h" />
+    <ClInclude Include="game\debug\session\RouteReplay.h" />
+    <ClInclude Include="game\session\GameWorld.h" />
+    <ClInclude Include="game\session\GameplayTypes.h" />
+    <ClInclude Include="game\session\GameplaySystems.h" />
+    <ClInclude Include="game\session\GameSession.h" />
+    <ClInclude Include="game\session\TitleDemoStatus.h" />
+    <ClInclude Include="game\session\GameplayHelpers.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="game\player\ui\PlayerHud.cpp" />
+    <ClCompile Include="game\player\ui\PlayerEvolution.cpp" />
+    <ClCompile Include="game\player\editor\PlayerClassEditor.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="game\player\ui\PlayerHud.h" />
+    <ClInclude Include="game\player\ui\PlayerEvolution.h" />
+    <ClInclude Include="game\player\editor\PlayerClassEditor.h" />
+    <ClInclude Include="game\player\ui\PlayerUiState.h" />
+    <ClInclude Include="game\player\ui\PlayerPresentation.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="game\session\state\TitleDemoState.h" />
+    <ClInclude Include="game\session\state\RunSessionState.h" />
+    <ClInclude Include="game\session\state\WorldResources.h" />
+    <ClInclude Include="game\session\state\CombatUiState.h" />
+    <ClInclude Include="game\session\state\NeonPresentationState.h" />
+    <ClInclude Include="game\session\state\ValidationState.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="game\player\combat\PlayerWeapons.cpp" />
+    <ClCompile Include="game\player\progression\PlayerProgression.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="game\player\combat\PlayerWeapons.h" />
+    <ClInclude Include="game\player\progression\PlayerProgression.h" />
+    <ClInclude Include="game\player\combat\PlayerSystems.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="game\player\TankShooterAbilities.h" />
+    <ClInclude Include="game\run\TankSubmissionValidation.h" />
+    <ClInclude Include="game\run\TankTutorialCopy.h" />
+    <ClInclude Include="game\scene\GameStartMode.h" />
+    <ClInclude Include="game\weapon\WeaponMount.h" />
   </ItemGroup>
 </Project>

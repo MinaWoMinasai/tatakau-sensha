@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "NeonWindmillMotion.h"
 #include "DeveloperTools.h"
+#include "game/render/WindmillEmojiRenderer.h"
 #include <chrono>
 #include <memory>
 #include <map>
@@ -13,7 +14,6 @@ class NeonGridRenderer;
 class Input;
 class TextLabel;
 } // namespace cg2
-class WindmillEmojiRenderer;
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
 class NeonShowcaseCapture;
 #endif
@@ -65,9 +65,15 @@ private:
     void Fill(const cg2::Vector3* points, uint32_t count, cg2::Vector4 color);
     /// @brief 時刻とブルーム状態を示すラベルを必要時だけ更新する。
     void UpdateLabels();
+    /// @brief 比較モードのみを切り替え、再生時刻・カメラ・姿勢は保持する。
+    void SelectMode(WindmillRenderMode mode);
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
     /// @brief 同一時刻のブルーム比較・側面・認識姿勢のGPUキャプチャを順番に検証する。
     void UpdateVerification();
+    /// @brief 風車だけの発光設定と時刻シークを開発UIへ表示する。
+    void DrawSettingsUi();
+    /// @brief 同条件モード・寄与画像、連番、GPU計測を既存キャプチャ経路で保存する。
+    void UpdateQualityVerification();
 #endif
     cg2::Camera camera_;
     cg2::Camera* previousCamera_ = nullptr;
@@ -88,6 +94,9 @@ private:
     double seconds_ = 0;
     float speed_ = 1, yaw_ = 0.12f, distance_ = 11.5f, bloomGain_ = 0.65f;
     bool paused_ = false, bloomEnabled_ = true, showUi_ = true;
+    bool showBackground_ = true;
+    WindmillRenderMode renderMode_ = WindmillRenderMode::Legacy;
+    std::array<WindmillNeonSettings, 3> appearances_{};
     uint32_t solidEnd_ = 0;
     int lastStatus_ = -1;
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
@@ -96,5 +105,7 @@ private:
     unsigned verificationIndex_ = 0, verificationFrames_ = 0, manualCaptureIndex_ = 0;
     std::vector<std::string> capturedNames_;
     std::vector<std::string> verificationErrors_;
+    std::string qualityRun_, qualityOutput_, qualityCaptureName_;
+    bool settingsUi_ = false, qualityMeasureStarted_ = false;
 #endif
 };
