@@ -13,10 +13,10 @@ to the repository.
   CG2 is built.
 
 The source archive and generated binaries are not vendored. Obtain the official
-Assimp 5.4.3 source, then rebuild the local dependencies with:
+Assimp 5.4.3 source, then run from the repository root to rebuild the local dependencies:
 
 ```powershell
-.\tools\build_assimp_vs2026.ps1 -SourceDir C:\path\to\assimp-5.4.3
+.\project\build\build_assimp_vs2026.ps1 -SourceDir C:\path\to\assimp-5.4.3
 ```
 
 Assimp is distributed under the BSD 3-Clause license. See `LICENSE.txt`.

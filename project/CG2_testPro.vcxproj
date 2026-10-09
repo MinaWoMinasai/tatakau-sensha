@@ -178,6 +178,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\audio\AudioManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\CylinderManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\NeonGridRenderer.cpp" />
+    <ClCompile Include="DirectX\engine\commom\NeonGridGeometry.cpp" />
     <ClCompile Include="DirectX\engine\commom\ProceduralFlameRenderer.cpp" />
     <ClCompile Include="DirectX\engine\commom\RingManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\TrailInstance.cpp" />
@@ -465,6 +466,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\audio\AudioManager.h" />
     <ClInclude Include="DirectX\engine\commom\CylinderManager.h" />
     <ClInclude Include="DirectX\engine\commom\NeonGridRenderer.h" />
+    <ClInclude Include="DirectX\engine\commom\NeonGridGeometry.h" />
     <ClInclude Include="DirectX\engine\commom\ProceduralFlameRenderer.h" />
     <ClInclude Include="DirectX\engine\commom\RingManager.h" />
     <ClInclude Include="DirectX\engine\commom\TrailInstance.h" />
@@ -670,9 +672,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="ValidateAssimpLocalBinaries" BeforeTargets="Link">
     <Error Condition="!Exists('$(ProjectDir)externals\assimp\lib\$(AssimpLibraryName).lib')"
-           Text="Assimp import library is missing. This generated file is intentionally not committed. Run project\tools\bootstrap_dependencies.ps1, or rebuild/copy it locally to project\externals\assimp\lib\$(AssimpLibraryName).lib. See project\externals\assimp\README.md." />
+           Text="Assimp import library is missing. This generated file is intentionally not committed. Run project\build\bootstrap_dependencies.ps1, or rebuild/copy it locally to project\externals\assimp\lib\$(AssimpLibraryName).lib. See project\externals\assimp\README.md." />
     <Error Condition="!Exists('$(ProjectDir)externals\assimp\runtime\$(AssimpLibraryName).dll')"
-           Text="Assimp runtime DLL is missing. This generated file is intentionally not committed. Run project\tools\bootstrap_dependencies.ps1, or rebuild/copy it locally to project\externals\assimp\runtime\$(AssimpLibraryName).dll. See project\externals\assimp\README.md." />
+           Text="Assimp runtime DLL is missing. This generated file is intentionally not committed. Run project\build\bootstrap_dependencies.ps1, or rebuild/copy it locally to project\externals\assimp\runtime\$(AssimpLibraryName).dll. See project\externals\assimp\README.md." />
   </Target>
   <Target Name="CopyAssimpRuntime" AfterTargets="Build">
     <Copy SourceFiles="$(ProjectDir)externals\assimp\runtime\$(AssimpLibraryName).dll"

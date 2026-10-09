@@ -8,24 +8,11 @@ public:
     /// @brief 戦闘主体である自機を借用する。
     explicit PlayerWeapons(Player& player) : player_(player) {}
     using PlayerClassConfig = ::PlayerClassConfig;
-    using PlayerStats = Player::PlayerStats;
-    using BodyShape = Player::BodyShape;
-    using SpecialCombatEvent = Player::SpecialCombatEvent;
-    using TargetLockVisual = Player::TargetLockVisual;
-    using BarrelModel = Player::BarrelModel;
-    using BalanceConfig = Player::BalanceConfig;
-    using SpecialCombatStats = Player::SpecialCombatStats;
     using MineDropEvent = Player::MineDropEvent;
     using WallSmashTarget = Player::WallSmashTarget;
-    using DroneLaserLink = Player::DroneLaserLink;
     using MeleeSlashEvent = Player::MeleeSlashEvent;
-    using DashImpactEvent = Player::DashImpactEvent;
-    using UiProfileStats = Player::UiProfileStats;
-    using NeonBodyLayout = Player::NeonBodyLayout;
-    using RunCombatSnapshot = Player::RunCombatSnapshot;
-    using DroneAbilityVisual = Player::DroneAbilityVisual;
     using LaserShotEvent = Player::LaserShotEvent;
-    using NeonBarrelLayout = Player::NeonBarrelLayout; /// @brief ドローンの命中をロックへ蓄積し、今回適用する補正後のダメージを返す。
+    /// @brief ドローンの命中をロックへ蓄積し、今回適用する補正後のダメージを返す。
     /// @param drone 命中元ドローンの添字。0～31は蓄積に使い、負値は処理対象外。
     /// @param target 借用する命中対象。nullptr、死亡済み、資源、対応外の型は処理対象外。
     /// @param originalDamage ロック補正を掛ける前のダメージ。

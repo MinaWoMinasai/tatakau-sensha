@@ -1,5 +1,7 @@
 # AvatarSample_B — Neon Skinned Preview
 
+本文中の`project/tools/`による生成・検証コマンドは作者のローカル環境向けの記録です。これらのスクリプトはGit管理対象外で、クローンには含まれません。同梱済みのモデル・マスクの読み込みに実行は不要です。
+
 | 項目 | 記録 |
 | --- | --- |
 | Model | AvatarSample_B |
