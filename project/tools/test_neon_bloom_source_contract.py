@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import re
 import subprocess
+from gameplay_source import gameplay_source
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -55,6 +56,7 @@ def main() -> None:
         "winApp": "DirectX/engine/commom/WinApp.h",
     }
     text = {key: source(path) for key, path in files.items()}
+    text["game"] = gameplay_source()
     checks: list[str] = []
 
     def require(condition: bool, label: str) -> None:
@@ -128,11 +130,11 @@ def main() -> None:
             "Current fixed scene is 1280x720: legacy capture640x360, quality capture1280x720")
     require(function(text["bullet"], "void Bullet::Draw()") == "",
             "Ordinary projectile heads remain a separate presentation batch; Bullet::Draw is unchanged")
-    initialize = function(text["game"], "void GameScene::Initialize()")
+    initialize = function(text["game"], "void SessionBootstrap::Initialize()")
     require("neonProjectileRenderer_=std::make_unique<NeonProjectileRenderer>()" in initialize and
             "neonProjectileRenderer_->Initialize(" in initialize,
             "Game initializes its independent projectile-head renderer once")
-    scene_draw = function(text["game"], "void GameScene::DrawPostEffect3D()")
+    scene_draw = function(text["game"], "void GameplayRenderer::DrawPostEffect3D()")
     prepare = "neonProjectileRenderer_->BeginFrame(bulletManager_->GetBulletPtrs(),forward)"
     require(scene_draw.count(prepare) == 1 and
             scene_draw.index(prepare) < scene_draw.index("if(useBulletTrailPost&&hasTrailContent)"),

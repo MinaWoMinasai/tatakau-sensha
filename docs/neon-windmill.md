@@ -2,6 +2,8 @@
 
 2026-10-08。MinaWoMinasaiのC++ / DirectX 12自作エンジン上で動く、独立した表現デモ。
 
+追補：[描画品質改善と実機比較](neon-windmill-quality.md)。Legacyは本書の旧描画を保持し、MでLine Art／Hybrid Goldへ切り替えられる。DevelopmentのF4で発光源の6寄与と時刻・背景を調整できる。以下の旧検証結果と、新しい48枚・連番・性能測定は追補で区別する。
+
 ## 観察した内容
 
 参照は[青森の人の投稿](https://x.com/Aomorinohito_/status/2107822096130969986)と、提供された`キチガイ風車.mp4`。X本文は取得できなかったため、動きの分析は提供ファイルを優先した。ファイルは634×620、30fps、コンテナ上の長さ15.1333秒。1秒ごとの全体画像と、序盤・終盤の細かいフレームを`generated/windmill-reference/`へ抽出した。
@@ -69,6 +71,8 @@ try {
 | Space | 停止・再開 |
 | R | 先頭から再生 |
 | B | 同じ姿勢・視点でブルームON/OFF |
+| M | Legacy / Line Art / Hybrid Goldを同じ時刻・視点で切り替え |
+| F4 | Development専用の発光設定・診断・連続シーク |
 | 左右矢印 | 視点を回す。板の向きは固定 |
 | 上下矢印 | 視点距離 |
 | 1 / 2 / 3 | 回転 / 停止 / 認識の状態で静止 |
@@ -77,7 +81,7 @@ try {
 | P | DevelopmentのみPNGと実描画パラメーターを保存 |
 | Esc | 終了 |
 
-アトラスの再生成はPillowが使えるPythonで`project/tools/prepare_windmill_emoji.py`を実行する。入力となる7画像は`generated/neon_windmill/iphone/`に保持する。初回の別環境では出典情報をもとに使用可能な画像を用意する必要がある。
+アトラスと新しい線形・乗算済みAlphaの作業textureの生成は、Pillow / NumPyが使えるPythonで`project/tools/prepare_windmill_emoji.py`を実行する。入力となる7画像は`generated/neon_windmill/iphone/`に保持する。初回の別環境では出典情報をもとに使用可能な画像を用意する必要がある。
 
 ## 検証
 

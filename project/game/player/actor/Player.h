@@ -33,6 +33,13 @@
 #include "game/run/TankExpeditionContent.h"
 #include "game/run/TankBuildStyle.h"
 
+class PlayerWeapons;
+class PlayerProgression;
+struct PlayerUiState;
+class PlayerHud;
+class PlayerEvolution;
+class PlayerClassEditor;
+
 class EnemyManager;
 class Enemy;
 class ExpEnemy;
@@ -73,6 +80,8 @@ class ObjectPostEffect;
 class Player : public Collider {
 
 public:
+    /// @brief 自機の画面状態と表示担当を生成する。
+    Player();
     using BodyShape = PlayerBodyShape;
 
     /// @brief 自機の性能値と現在のスタミナを保持する。基礎値と補正後の実行値の両方に使う。
@@ -278,14 +287,20 @@ public:
         return damageTakenCount_;
     }
     /// @brief 通常弾・床hazardを既存条件で実際にperfect-dodgeした累計を返す。
-    uint64_t GetPerfectDodgeCount() const { return perfectDodgeCount_; }
+    uint64_t GetPerfectDodgeCount() const
+    {
+        return perfectDodgeCount_;
+    }
     /// @brief 有限な現在の被弾無敵残時間（秒）を非負値で返す。時計は進めない。
     float GetInvincibilityRemainingSeconds() const
     {
         return std::isfinite(invincibleTimer_) ? (std::max)(0.0f, invincibleTimer_) : 0.0f;
     }
     /// @brief 既存のjust-evade保護が成立中かを返す。
-    bool IsJustEvading() const { return isJustEvaded_; }
+    bool IsJustEvading() const
+    {
+        return isJustEvaded_;
+    }
 
     /// @brief 主攻撃を実行した累積回数を返す。弾数ではなく、近接攻撃や遠征ドローンの発射も含む。
     uint32_t GetPrimaryAttackCount() const
@@ -403,7 +418,10 @@ public:
     /// カウンターが成立すれば被ダメージを省略する。HPが0になれば死亡演出を開始する。
     void TakeDamage(uint32_t amount, float invincibleTime = 0.45f);
     /// @brief Depth専用の傾斜カメラでは、表示中のVPから安全にZ=0の照準を求める。
-    void SetNeonDepthAimEnabled(bool enabled) { neonDepthAimEnabled_ = enabled; }
+    void SetNeonDepthAimEnabled(bool enabled)
+    {
+        neonDepthAimEnabled_ = enabled;
+    }
     /// @brief 成立済みの敵対床hazard接触を既存回避・無敵・被弾処理へ渡し、実HP損失を返す。
     /// @param dodgeable trueなら既存perfect-dodgeの弾と同じ受付条件を使う。
     /// @note 方向ゼロを被弾除外にせず、接触shapeは呼出元のGameplay計画を正とする。
@@ -776,15 +794,9 @@ public:
 #endif
     };
     /// @brief 強化HUDの処理時間と描画件数への読み取り専用参照を返す。
-    const UiProfileStats& GetUpgradeHudProfileStats() const
-    {
-        return upgradeHudProfile_;
-    }
+    const UiProfileStats& GetUpgradeHudProfileStats() const;
     /// @brief 進化UIの処理時間と描画件数への読み取り専用参照を返す。
-    const UiProfileStats& GetEvolutionUiProfileStats() const
-    {
-        return evolutionUiProfile_;
-    }
+    const UiProfileStats& GetEvolutionUiProfileStats() const;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     /// @brief 強化HUDの状態を開発表示・検証へ渡す。
     struct UpgradeHudDebugSnapshot {
@@ -809,28 +821,7 @@ public:
         int maxEnhancePoint = 0;
     };
     /// @brief 強化HUD開発表示状態の写しを返す。
-    UpgradeHudDebugSnapshot GetUpgradeHudDebugSnapshot() const
-    {
-        return {level_,
-                exp_,
-                skillPoints_,
-                upgradeHudVisible_,
-                upgradeHudListVisibility_,
-                upgradeHudHideListWithoutPoints_,
-                upgradeHudDrawListPanels_,
-                upgradeHudDrawListText_,
-                upgradeHudDrawBottomBars_,
-                upgradeHudDrawBottomText_,
-                upgradeHudUseRectBatch_,
-                upgradeHudUseNeonProgressBars_,
-                upgradeHudUseSegmentedUpgradeBars_,
-                upgradeHudSegmentedBarBloomEnabled_,
-                upgradeHudListTextBloomEnabled_,
-                upgradeHudVisible_ && !isChangeMode && !isDead_ && upgradeHudListVisibility_ > 0.01f,
-                isChangeMode,
-                isDead_,
-                maxEnhancePoint};
-    }
+    UpgradeHudDebugSnapshot GetUpgradeHudDebugSnapshot() const;
     /// @brief 主攻撃入力を継続させる開発用設定を切り替える。
     void SetDebugAutoFireEnabled(bool enabled)
     {
@@ -1135,102 +1126,7 @@ private:
     void SetVehicleAlpha(float alpha);
     /// @brief ダメージフィードバックを発動させる。
     void TriggerDamageFeedback();
-    /// @brief 強化HUDを初期化する。
-    void InitializeUpgradeHud();
-    /// @brief 経験値表示の文字ラベルを更新し、描画用テクスチャを準備して配置する。
-    /// @param text 1バイトずつ分けて表示する文字列。呼び出し側では数字やEXPなどのASCII文字を渡す。
-    void UpdateUpgradeHudExpGlyphs(const std::string& text, const cg2::TextStyle& style);
-    /// @brief 強化HUDの経験値表示の各文字を配置する。
-    void PositionUpgradeHudExpGlyphs();
-    /// @brief レベルの数字と機体名の文字ラベルを更新し、配置する。
-    void UpdateUpgradeHudLevelLabels(int level, const std::string& className, const cg2::TextStyle& style);
-    /// @brief 強化HUDのレベル表示の各文字を配置する。
-    void PositionUpgradeHudLevelLabels();
-    /// @brief レベル・経験値ゲージへ、現在の端の丸み設定を含むスタイルを反映する。
-    void ApplyUpgradeHudProgressBarStyles();
-    /// @brief 強化HUDを更新する。
-    /// @param uiDeltaTime UI用の経過秒。戦闘の時間倍率と分けて渡す。
-    void UpdateUpgradeHud(float uiDeltaTime);
-    /// @brief 強化HUDを描画する。
-    void DrawUpgradeHud();
-    /// @brief 強化段数バーの位置・サイズ・段数を設定し、点灯段数を0に戻す。
-    void PrepareUpgradeHudSegmentBars();
-    /// @brief 強化HUDの矩形をまとめて描くためのGPUバッファと描画用変換を準備する。
-    void InitializeUpgradeHudBatch();
-    /// @brief 強化HUDの矩形群を頂点へまとめ、1つの描画呼び出しで描く。
-    void DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float levelRatio, float listAlpha, float listOffsetX);
-    /// @brief 指定した画面座標の矩形を、2三角形分の6頂点としてverticesの末尾へ追加する。
-    void QueueUpgradeHudRect(std::vector<cg2::TrailVertex>& vertices, const cg2::Vector2& pos, const cg2::Vector2& size,
-                             const cg2::Vector4& color) const;
-    /// @brief 保存しているHUD配置をスプライト・文字・ゲージへ反映する。
-    void ApplyUpgradeHudLayout();
-    /// @brief 強化HUD設定を読み込む。
-    bool LoadUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json");
-    /// @brief 強化HUD設定を保存する。
-    /// @return 保存先を開き、JSONの書き込みを行えばtrue。書き込み後のストリームエラーは検査しない。
-    bool SaveUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json") const;
-    /// @brief 現在の機体と進化候補を表示する固定配置のUI資源を用意し、初回更新する。
-    void InitializeStaticEvolutionPrototype();
-    /// @brief 固定配置の進化UIの候補・配置・表示を更新し、選択・取消・確定入力を処理する。
-    void UpdateStaticEvolutionPrototype();
-    /// @brief 固定配置の進化UIの回路・ノード・詳細パネル・文字を描画し、所要時間を記録する。
-    void DrawStaticEvolutionPrototype();
-    /// @brief JSONから進化経路のノードと接続を読み込む。使用可能なノードが残ればtrue。
-    /// @note 先に既存の経路を消去する。読み込み失敗時は経路なしになる。
-    bool LoadEvolutionCircuitTree(const std::string& path = "resources/configs/evolutionTree.json");
-    /// @brief 進化経路を読み込み、経路図のUI資源と選択状態を準備する。読み込み失敗なら資源生成を行わない。
-    void InitializeEvolutionCircuitPrototype();
-    /// @brief 進化経路図の配置・履歴・詳細表示を更新し、選択・取消・確定入力を処理する。
-    void UpdateEvolutionCircuitPrototype();
-    /// @brief 進化経路図の接続線・機体ボタン・詳細パネル・文字を描画する。
-    void DrawEvolutionCircuitPrototype();
-    /// @brief 進化経路図の背景と発光演出を、シーンのポストエフェクト後に描画する。
-    void DrawEvolutionCircuitAfterPostEffects();
-    /// @brief 進化経路図文字テクスチャを利用前に準備する。
-    void PrepareEvolutionCircuitTextTextures();
-    /// @brief 新しい進化UIが有効で、経路図の読み込みが成功しノードが存在する場合trueを返す。
-    bool ShouldUseEvolutionCircuitPrototype() const;
-    /// @brief 進化UI外観を読み込む。
-    bool LoadEvolutionUiStyle(const std::string& path = "resources/configs/evolutionUiStyle.json");
-    /// @brief 進化UI外観を保存する。
-    /// @return 保存先を開き、JSONの書き込みを行えばtrue。書き込み後のストリームエラーは検査しない。
-    bool SaveEvolutionUiStyle(const std::string& path = "resources/configs/evolutionUiStyle.json") const;
-    /// @brief 新しい進化UIが有効で、次ランクに使用可能な機体候補がある場合trueを返す。
-    bool ShouldUseStaticEvolutionPrototype() const;
-    /// @brief 進化画面の配置基準を仮想画面座標へ変換する。
-    cg2::Vector2 EvolutionAnchorToVirtual(const cg2::Vector2& normalizedAnchor) const;
-    /// @brief 進化画面の仮想座標を描画座標へ変換する。
-    cg2::Vector2 EvolutionVirtualToRender(const cg2::Vector2& virtualPosition) const;
-    /// @brief ウィンドウ座標を進化画面の仮想座標へ変換する。
-    cg2::Vector2 EvolutionClientToVirtual(const cg2::Vector2& clientPosition) const;
-    /// @brief 仮想画面全体がクライアント領域に収まる、縦横共通の描画倍率を返す。
-    float GetEvolutionRenderScale() const;
-    /// @brief 仮想画面をクライアント領域の中央へ配置するオフセット（ピクセル）を返す。
-    cg2::Vector2 GetEvolutionRenderOffset() const;
-    /// @brief 固定配置の進化UIで、ノード間の回路線の制御点とスプライトを更新する。
-    void UpdateStaticEvolutionCircuit();
-    /// @brief 固定配置の進化ノードの外枠を、解放・選択状態に応じて更新する。
-    void UpdateStaticEvolutionNodeFrames();
-    /// @brief 固定配置の進化ノードに、機体形状・砲塔から組み立てたシルエットを配置する。
-    void UpdateStaticEvolutionSilhouettes();
-    /// @brief 固定進化文字を更新する。
-    void UpdateStaticEvolutionText();
-    /// @brief 固定進化文字テクスチャを利用前に準備する。
-    void PrepareStaticEvolutionTextTextures();
-    /// @brief 固定配置の進化UIの座標・領域・解像度を、USE_IMGUIの開発表示へ重ねて描く。
-    void DrawStaticEvolutionDebugOverlay();
-    /// @brief 固定配置の進化UI用に次ランクの候補IDを集め、件数と選択添字を更新する。
-    void RefreshStaticEvolutionCandidates();
-    /// @brief 進化画面用の英字機体名を値で返す。未登録IDは下線を空白へ変え、大文字化する。
-    std::string GetEvolutionClassName(const std::string& classId) const;
-    /// @brief 機体設定から、進化画面用の短い英語の役割表示を値で返す。
-    std::string GetEvolutionShortRole(const PlayerClassConfig& config) const;
-    /// @brief 機体設定から、進化画面用の役割説明を値で返す。
-    std::string GetEvolutionRole(const PlayerClassConfig& config) const;
-    /// @brief 現在と進化先の砲身数・発射間隔倍率・拡散角の比較文を3件返す。
-    std::array<std::string, 3> GetEvolutionDeltas(const PlayerClassConfig& current, const PlayerClassConfig& target) const;
-    /// @brief 機体設定から、進化画面用の固有能力の説明文を値で返す。
-    std::string GetEvolutionAbility(const PlayerClassConfig& config) const;
+
     /// @brief 基礎性能または選択した戦闘系統に、強化・遠征・整備の補正を掛けて性能を再計算する。
     /// @param healToFull HPを新しい最大値まで回復するか。
     /// @note falseでも再計算前が満タンなら新しい最大HPにする。それ以外は新しい上限内に保つ。
@@ -1306,262 +1202,10 @@ private:
     bool isSmash_ = false; // スマッシュ中かどうか
     cg2::Vector3 smashDir_;
 
-    std::unique_ptr<cg2::Sprite> machineGunBtnSprite_ = nullptr; // ボタンの見た目
-    cg2::Vector2 btnPos_ = {50.0f, 200.0f};                      // ボタンの位置（画面左下あたり）
-    cg2::Vector2 btnSize_ = {100.0f, 50.0f};                     // ボタンのサイズ
-
-    // 図鑑の並び順（表示したい順番に定義）
-    std::vector<TankData> encyclopedia_;
-    std::unique_ptr<cg2::Sprite> evolutionBackdropSprite_;
-    std::unique_ptr<cg2::Sprite> evolutionPreviewPanelSprite_;
-    std::unique_ptr<cg2::Sprite> evolutionStatsPanelSprite_;
-    std::unique_ptr<cg2::Sprite> evolutionPreviewTankSprite_;
-    std::unique_ptr<cg2::Sprite> evolutionShotSprite_;
-    std::unique_ptr<cg2::Sprite> evolutionChangeButtonSprite_;
-    std::unique_ptr<cg2::TextLabel> evolutionTitleLabel_;
-    std::unique_ptr<cg2::TextLabel> evolutionHintLabel_;
-    std::unique_ptr<cg2::TextLabel> evolutionPreviewNameLabel_;
-    std::unique_ptr<cg2::TextLabel> evolutionRoleLabel_;
-    std::unique_ptr<cg2::TextLabel> evolutionChangeButtonLabel_;
-    std::array<std::unique_ptr<cg2::TextLabel>, 9> evolutionStatLabels_;
-    static constexpr size_t kStaticEvolutionMaxCandidates = 4;
-    static constexpr size_t kStaticEvolutionMaxNodes = kStaticEvolutionMaxCandidates + 1;
-    static constexpr size_t kStaticEvolutionMaxPaths = kStaticEvolutionMaxCandidates + 1;
-    /// @brief 進化選択画面の配置・色・文字・演出を指定する。
-    struct EvolutionUiStyleConfig {
-        bool enabled = true;
-        bool radialLayout = false;
-        cg2::Vector2 virtualResolution{1280.0f, 720.0f};
-        float safeMargin = 48.0f;
-        std::array<cg2::Vector2, 4> nodeAnchors{{{0.23f, 0.43f}, {0.67f, 0.22f}, {0.67f, 0.43f}, {0.67f, 0.64f}}};
-        std::array<cg2::Vector2, 4> radialNodeAnchors{{{0.50f, 0.43f}, {0.33f, 0.20f}, {0.67f, 0.20f}, {0.50f, 0.70f}}};
-        cg2::Vector2 branchPointAnchor{0.49f, 0.43f};
-        cg2::Vector2 currentNodeSize{160.0f, 112.0f};
-        cg2::Vector2 candidateNodeSize{160.0f, 112.0f};
-        float normalScale = 1.0f;
-        float hoverScale = 1.05f;
-        float selectedScale = 1.08f;
-        float nodeCornerCut = 12.0f;
-        float nodeOutlineGlowWidth = 10.0f;
-        float nodeOutlineWidth = 2.0f;
-        float silhouetteScale = 1.0f;
-        float circuitOuterGlowWidth = 18.0f;
-        float circuitMiddleGlowWidth = 8.0f;
-        float circuitCoreWidth = 2.5f;
-        float circuitOpacity = 0.78f;
-        float circuitOuterAlpha = 0.14f;
-        float circuitMiddleAlpha = 0.34f;
-        float circuitCoreAlpha = 0.90f;
-        float backgroundDimOpacity = 0.88f;
-        cg2::Vector2 detailPanelAnchor{0.50f, 0.88f};
-        cg2::Vector2 detailPanelSize{1088.0f, 134.0f};
-        cg2::Vector2 confirmButtonSize{186.0f, 44.0f};
-        float titleFontSize = 26.0f;
-        float classNameFontSize = 22.0f;
-        float bodyFontSize = 16.0f;
-        float buttonFontSize = 17.0f;
-        std::string fontFamily = "Meiryo";
-        std::string fontPath;
-        int fontWeight = 400;
-        NeonTextEffectStyle neonText{};
-        cg2::Vector4 normalColor{0.12f, 0.34f, 0.42f, 0.82f};
-        cg2::Vector4 availableColor{0.16f, 0.64f, 0.72f, 0.92f};
-        cg2::Vector4 hoverColor{0.30f, 0.94f, 1.00f, 1.0f};
-        cg2::Vector4 selectedColor{0.42f, 1.00f, 0.58f, 1.0f};
-        cg2::Vector4 lockedColor{0.18f, 0.22f, 0.28f, 0.68f};
-        cg2::Vector4 panelColor{0.025f, 0.055f, 0.080f, 0.94f};
-        cg2::Vector4 titleTextColor{0.74f, 1.00f, 0.92f, 1.0f};
-        cg2::Vector4 classTextColor{0.92f, 1.00f, 0.96f, 1.0f};
-        cg2::Vector4 bodyTextColor{0.84f, 0.92f, 1.00f, 1.0f};
-        cg2::Vector4 buttonTextColor{0.96f, 1.00f, 0.98f, 1.0f};
-        cg2::Vector4 textOutlineColor{0.0f, 0.025f, 0.045f, 0.96f};
-        float titleOutlineWidth = 0.9f;
-        float classNameOutlineWidth = 1.0f;
-        float bodyOutlineWidth = 0.35f;
-        float buttonOutlineWidth = 0.5f;
-        int fixedSelectedCandidate = 0;
-    };
-    EvolutionUiStyleConfig evolutionUiStyle_{};
-    std::unique_ptr<cg2::Sprite> staticEvolutionBackdropSprite_;
-    std::unique_ptr<TankButtonUiStyle> tankButtonUiStyle_;
-    std::unique_ptr<cg2::ObjectPostEffect> staticEvolutionButtonBloomEffect_;
-    std::unique_ptr<NeonTextEffect> staticEvolutionTextEffect_;
-    std::array<std::unique_ptr<TankButtonUI>, kStaticEvolutionMaxNodes> staticEvolutionTankButtons_;
-    std::unique_ptr<cg2::Sprite> staticEvolutionDetailPanelSprite_;
-    std::unique_ptr<cg2::Sprite> staticEvolutionConfirmButtonSprite_;
-    std::array<std::unique_ptr<cg2::Sprite>, 8> staticEvolutionConfirmOutlineSprites_;
-    std::unique_ptr<cg2::Sprite> staticEvolutionBranchGlowSprite_;
-    std::unique_ptr<cg2::Sprite> staticEvolutionBranchCoreSprite_;
-    std::array<std::array<std::unique_ptr<cg2::Sprite>, 3>, kStaticEvolutionMaxNodes> staticEvolutionNodePanelSprites_;
-    static constexpr size_t kStaticEvolutionNodeFrameSpriteCount = 24;
-    std::array<std::array<std::unique_ptr<cg2::Sprite>, kStaticEvolutionNodeFrameSpriteCount>, kStaticEvolutionMaxNodes>
-        staticEvolutionNodeFrameSprites_;
-    static constexpr size_t kStaticEvolutionSilhouetteSpriteCount = 32;
-    std::array<std::array<std::unique_ptr<cg2::Sprite>, kStaticEvolutionSilhouetteSpriteCount>, kStaticEvolutionMaxNodes>
-        staticEvolutionSilhouetteSprites_;
-    static constexpr size_t kStaticEvolutionCircuitSpriteCount = 27;
-    std::array<std::unique_ptr<cg2::Sprite>, kStaticEvolutionCircuitSpriteCount> staticEvolutionCircuitSprites_;
-    std::unique_ptr<cg2::TextLabel> staticEvolutionTitleLabel_;
-    std::unique_ptr<cg2::TextLabel> staticEvolutionPrototypeLabel_;
-    std::array<std::unique_ptr<cg2::TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeNameLabels_;
-    std::array<std::unique_ptr<cg2::TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeRankLabels_;
-    std::unique_ptr<cg2::TextLabel> staticEvolutionDetailClassLabel_;
-    std::unique_ptr<cg2::TextLabel> staticEvolutionRoleLabel_;
-    std::array<std::unique_ptr<cg2::TextLabel>, 3> staticEvolutionDeltaLabels_;
-    std::unique_ptr<cg2::TextLabel> staticEvolutionAbilityLabel_;
-    std::unique_ptr<cg2::TextLabel> staticEvolutionConfirmLabel_;
-    std::unique_ptr<cg2::TextLabel> staticEvolutionPanelHintLabel_;
-    std::array<cg2::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeCentersVirtual_{};
-    std::array<cg2::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeDrawSizesVirtual_{};
-    std::array<cg2::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeHitSizesVirtual_{};
-    std::array<std::array<cg2::Vector2, 4>, kStaticEvolutionMaxPaths> staticEvolutionCircuitControlPoints_{};
-    std::array<int, kStaticEvolutionMaxPaths> staticEvolutionCircuitControlPointCounts_{};
-    std::array<std::string, kStaticEvolutionMaxCandidates> staticEvolutionCandidateIds_{};
-    size_t staticEvolutionCandidateCount_ = 0;
-    int staticEvolutionHoveredNode_ = -1;
-    bool staticEvolutionConfirmHovered_ = false;
-    /// @brief 進化経路図の1ノードの機体IDと、縦方向の配置比率を表す。解放条件は機体設定で管理する。
-    struct EvolutionCircuitNodeDefinition {
-        std::string classId;
-        float lane = 0.5f;
-    };
-    /// @brief 進化経路図のノード間の接続を表す。
-    struct EvolutionCircuitEdgeDefinition {
-        std::string from;
-        std::string to;
-    };
-    static constexpr size_t kEvolutionCircuitMaxNodes = 12;
-    static constexpr size_t kEvolutionCircuitMaxLineSprites = 108;
-    std::vector<EvolutionCircuitNodeDefinition> evolutionCircuitNodes_;
-    std::vector<EvolutionCircuitEdgeDefinition> evolutionCircuitEdges_;
-    std::vector<std::string> evolutionHistory_;
-    std::array<cg2::Vector2, kEvolutionCircuitMaxNodes> evolutionCircuitNodeCentersVirtual_{};
-    std::array<std::unique_ptr<TankButtonUI>, kEvolutionCircuitMaxNodes> evolutionCircuitTankButtons_;
-    std::unique_ptr<TankButtonUI> evolutionCircuitDetailPreview_;
-    std::array<std::unique_ptr<cg2::Sprite>, kEvolutionCircuitMaxLineSprites> evolutionCircuitLineSprites_;
-    std::unique_ptr<cg2::Sprite> evolutionCircuitBackdropSprite_;
-    std::unique_ptr<cg2::Sprite> evolutionCircuitDetailPanelSprite_;
-    std::unique_ptr<cg2::TextLabel> evolutionCircuitTitleLabel_;
-    std::array<std::unique_ptr<cg2::TextLabel>, 4> evolutionCircuitRankLabels_;
-    std::unique_ptr<cg2::TextLabel> evolutionCircuitDetailNameLabel_;
-    std::unique_ptr<cg2::TextLabel> evolutionCircuitDetailMetaLabel_;
-    std::unique_ptr<cg2::TextLabel> evolutionCircuitDetailRoleLabel_;
-    std::array<std::unique_ptr<cg2::TextLabel>, 3> evolutionCircuitDetailStatLabels_;
-    std::unique_ptr<cg2::TextLabel> evolutionCircuitHintLabel_;
-    int evolutionCircuitSelectedNode_ = 0;
-    int evolutionCircuitHoveredNode_ = -1;
-    bool evolutionCircuitLoaded_ = false;
-    std::string evolutionUiStyleStatus_;
-    bool showEvolutionVirtualBounds_ = false;
-    bool showEvolutionSafeArea_ = false;
-    bool showEvolutionNodeBounds_ = false;
-    bool showEvolutionMouseBounds_ = false;
-    bool showEvolutionTextBounds_ = false;
-    bool showEvolutionCenterLines_ = false;
-    bool showEvolutionCircuitControlPoints_ = false;
-    bool showEvolutionResolutionInfo_ = false;
-    std::unique_ptr<cg2::Sprite> upgradeHudBackdropSprite_;
-    std::unique_ptr<cg2::Sprite> upgradeHudExpBackSprite_;
-    std::unique_ptr<cg2::Sprite> upgradeHudExpFillSprite_;
-    std::unique_ptr<cg2::Sprite> upgradeHudLevelBackSprite_;
-    std::unique_ptr<cg2::Sprite> upgradeHudLevelFillSprite_;
-    std::unique_ptr<NeonProgressBar> upgradeHudLevelProgressBar_;
-    std::unique_ptr<NeonProgressBar> upgradeHudExpProgressBar_;
-    std::array<std::unique_ptr<NeonSegmentedBar>, 7> upgradeHudSegmentBars_;
-    std::unique_ptr<cg2::ObjectPostEffect> upgradeHudBarBloomEffect_;
-    NeonProgressBarStyle upgradeHudLevelProgressStyle_{};
-    NeonProgressBarStyle upgradeHudExpProgressStyle_{};
-    std::unique_ptr<cg2::TextLabel> upgradeHudTitleLabel_;
-    std::unique_ptr<cg2::TextLabel> upgradeHudPointLabel_;
-    std::unique_ptr<cg2::TextLabel> upgradeHudLevelLabel_;
-    std::unique_ptr<cg2::TextLabel> upgradeHudLevelClassLabel_;
-    std::unique_ptr<cg2::TextLabel> upgradeHudListLabel_;
-    static constexpr size_t kUpgradeHudExpGlyphSlotCount = 32;
-    std::array<std::unique_ptr<cg2::TextLabel>, kUpgradeHudExpGlyphSlotCount> upgradeHudExpGlyphLabels_;
-    size_t upgradeHudExpGlyphCount_ = 0;
-    static constexpr size_t kUpgradeHudLevelGlyphSlotCount = 2;
-    std::array<std::unique_ptr<cg2::TextLabel>, kUpgradeHudLevelGlyphSlotCount> upgradeHudLevelGlyphLabels_;
-    size_t upgradeHudLevelGlyphCount_ = 0;
-    unsigned long long upgradeHudTextFontRevision_ = 0;
-    bool upgradeHudTextPrepared_ = false;
-    bool upgradeHudTextPreparedForSegmentedBars_ = false;
-    std::array<std::unique_ptr<cg2::Sprite>, 7> upgradeHudButtonSprites_;
-    std::array<std::unique_ptr<cg2::Sprite>, 7> upgradeHudPlusSprites_;
-    std::array<std::unique_ptr<cg2::Sprite>, 7> upgradeHudMinusSprites_;
-    std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudNameLabels_;
-    std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudLevelLabels_;
-    std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudMinusLabels_;
-    std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudPlusLabels_;
-    Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchVertexResource_;
-    D3D12_VERTEX_BUFFER_VIEW upgradeHudBatchVertexBufferView_{};
-    cg2::TrailVertex* upgradeHudBatchVertexData_ = nullptr;
-    Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchTransformResource_;
-    cg2::Matrix4x4* upgradeHudBatchTransformData_ = nullptr;
-    Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchMaterialResource_;
-    cg2::Material* upgradeHudBatchMaterialData_ = nullptr;
-    static constexpr uint32_t kUpgradeHudBatchMaxVertices = 256;
-    std::array<float, 7> upgradeHudFlashTimers_{};
-    std::array<float, 7> upgradeHudRefundFlashTimers_{};
-    std::array<float, 7> upgradeHudMissFlashTimers_{};
-    float upgradeHudListVisibility_ = 0.0f;
-    float upgradeHudListAnimSpeed_ = 10.0f;
-    float upgradeHudListSlideDistance_ = 260.0f;
-    bool upgradeHudMouseCaptured_ = false;
-    bool arenaUiEnabled_ = true;
-    bool upgradeHudVisible_ = true;
-    bool upgradeHudHideListWithoutPoints_ = true;
-    bool upgradeHudDrawListPanels_ = true;
-    bool upgradeHudDrawListText_ = true;
-    bool upgradeHudDrawBottomBars_ = true;
-    bool upgradeHudDrawBottomText_ = true;
-    bool upgradeHudUseRectBatch_ = true;
-    bool upgradeHudUseNeonProgressBars_ = true;
-    bool upgradeHudRoundedProgressBars_ = true;
-    bool upgradeHudUseSegmentedUpgradeBars_ = true;
-    bool upgradeHudListTextBloomEnabled_ = false;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-    bool upgradeHudSegmentedBarBloomEnabled_ = true;
+
     bool debugAutoFireEnabled_ = false;
 #endif
-    cg2::Vector2 upgradeHudSegmentBarOffset_ = {0.0f, 0.0f};
-    cg2::Vector2 upgradeHudSegmentBarSize_ = {230.0f, 22.0f};
-    cg2::Vector2 upgradeHudPanelPos_ = {18.0f, 338.0f};
-    cg2::Vector2 upgradeHudPanelSize_ = {340.0f, 260.0f};
-    cg2::Vector2 upgradeHudRowStart_ = {30.0f, 384.0f};
-    cg2::Vector2 upgradeHudButtonSize_ = {286.0f, 22.0f};
-    cg2::Vector2 upgradeHudPlusSize_ = {32.0f, 18.0f};
-    float upgradeHudRowGap_ = 29.0f;
-    float upgradeHudNameX_ = 44.0f;
-    float upgradeHudLevelX_ = 184.0f;
-    float upgradeHudMinusX_ = 268.0f;
-    float upgradeHudPlusX_ = 306.0f;
-    float upgradeHudMinusLabelX_ = 277.0f;
-    float upgradeHudPlusLabelX_ = 313.0f;
-    float upgradeHudNameTextOffsetY_ = 3.0f;
-    float upgradeHudLevelTextOffsetY_ = 3.0f;
-    float upgradeHudMinusTextOffsetY_ = 1.0f;
-    float upgradeHudPlusTextOffsetY_ = 1.0f;
-    cg2::Vector2 upgradeHudTitlePos_ = {32.0f, 350.0f};
-    cg2::Vector2 upgradeHudPointPos_ = {286.0f, 352.0f};
-    cg2::Vector2 upgradeHudLevelBarPos_ = {415.0f, 656.0f};
-    cg2::Vector2 upgradeHudLevelBarSize_ = {450.0f, 16.0f};
-    cg2::Vector2 upgradeHudLevelTextPos_ = {565.0f, 653.0f};
-    cg2::Vector2 upgradeHudExpBarPos_ = {390.0f, 680.0f};
-    cg2::Vector2 upgradeHudExpBarSize_ = {500.0f, 20.0f};
-    cg2::Vector2 upgradeHudExpTextPos_ = {560.0f, 677.0f};
-    std::string upgradeHudConfigStatus_;
-    UiProfileStats upgradeHudProfile_{};
-    UiProfileStats evolutionUiProfile_{};
-    int cachedUpgradeHudExp_ = -1;
-    int cachedUpgradeHudNextExp_ = -1;
-    int cachedUpgradeHudLevel_ = -1;
-    int upgradeHudAnimatedLevel_ = -1;
-    int cachedUpgradeHudSkillPoints_ = -1;
-    int cachedUpgradeHudMaxEnhancePoint_ = -1;
-    bool cachedUpgradeHudSegmentedBars_ = false;
-    std::string cachedUpgradeHudClassName_;
-    std::array<int, 7> cachedUpgradeHudLevels_{-1, -1, -1, -1, -1, -1, -1};
-    bool cachedUpgradeHudListVisible_ = false;
 
     cg2::Vector2 mousePosition_;
 
@@ -1571,12 +1215,6 @@ private:
     bool statUpgradePerformedEvent_ = false;
     int evolutionSelectedIndex_ = 0;
     float evolutionUiTimer_ = 0.0f;
-    int editorSelectedClassIndex_ = 0;
-    int codexSelectedClassIndex_ = 0;
-    float codexPreviewTimer_ = 0.0f;
-    float codexPreviewAimDeg_ = 0.0f;
-    bool codexPreviewAutoMove_ = true;
-    bool codexPreviewAutoFire_ = true;
 
     std::unique_ptr<cg2::Sprite> sprite;
 
@@ -1588,4 +1226,16 @@ private:
     const int kMaxSummonerDrones = 4;
 
     float summonTimer_;
+
+    std::unique_ptr<PlayerUiState> ui_;
+    std::unique_ptr<PlayerHud> playerHud_;
+    std::unique_ptr<PlayerEvolution> playerEvolution_;
+    std::unique_ptr<PlayerClassEditor> playerClassEditor_;
+    friend class PlayerHud;
+    friend class PlayerEvolution;
+    friend class PlayerClassEditor;
+    std::unique_ptr<PlayerWeapons> playerWeapons_;
+    std::unique_ptr<PlayerProgression> playerProgression_;
+    friend class PlayerWeapons;
+    friend class PlayerProgression;
 };

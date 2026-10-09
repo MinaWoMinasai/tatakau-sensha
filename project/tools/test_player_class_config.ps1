@@ -28,7 +28,7 @@ function Read-ConfigBlock([string]$source, [string]$signature) {
     }
     throw "Unclosed production block: $signature"
 }
-$configCpp = Read-ConfigSource 'project/game/player/actor/Player.cpp'
+$configCpp = (Read-ConfigSource 'project/game/player/progression/PlayerProgression.cpp').Replace('PlayerProgression::', 'Player::').Replace('player_.', '').Replace('ui_->', '').Replace('playerEvolution_->', '').Replace('playerHud_->', '')
 $configMethods = foreach ($signature in @(
     'bool Player::LoadPlayerClassConfigs(', 'bool Player::ReloadPlayerClassConfigs(',
     'Player::PlayerClassConfig Player::CreateDefaultClassConfig(', 'void Player::SavePlayerClassConfigs(',
@@ -39,7 +39,7 @@ $configMethods = foreach ($signature in @(
 )) {
     Read-ConfigBlock $configCpp $signature
 }
-$configEditorCpp = Read-ConfigSource 'project/game/player/actor/Player.ClassEditor.cpp'
+$configEditorCpp = (Read-ConfigSource 'project/game/player/editor/PlayerClassEditor.cpp').Replace('PlayerClassEditor::', 'Player::').Replace('player_.', '').Replace('ui_.', '')
 $configEditor = Read-ConfigBlock $configEditorCpp 'void Player::DrawPlayerClassEditor()'
 $configBaselines = (Read-ConfigBlock $configEditor 'auto refreshEditorBaselines = [&]()') + ';'
 $configUniqueId = (Read-ConfigBlock $configEditor 'auto makeUniqueId = [this]') + ';'

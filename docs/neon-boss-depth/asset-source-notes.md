@@ -95,4 +95,4 @@ Depth用姿勢clip／補間はプログラム生成で、GLBに付属するモ�
 今回の引継ぎは公開・push・deployの実施指示ではなく、作者による最終公開判断
 のための資料である。
 
-最終引継ぎは[portfolio-handoff.md](portfolio-handoff.md)、fileごとの原本／圧縮版対応・caption／alt・条件とhashは`generated/neon-boss-depth/final-media/handoff_a_20261006/manifest-v2.json`。内部台帳にはworkspace pathやprocess provenanceがあるため、Pagesへ台帳一式をそのまま公開する案ではない。公式利用条件を読むためのWeb確認で新しいモデル／画像／音源を取得してはいない。
+最終引継ぎはローカルの`portfolio-handoff.md`、fileごとの原本／圧縮版対応・caption／alt・条件とhashは`generated/neon-boss-depth/final-media/handoff_a_20261006/manifest-v2.json`。内部台帳にはworkspace pathやprocess provenanceがあるため、Pagesへ台帳一式をそのまま公開する案ではない。公式利用条件を読むためのWeb確認で新しいモデル／画像／音源を取得してはいない。
