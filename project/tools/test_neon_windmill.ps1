@@ -1,4 +1,5 @@
-param([string]$Executable = '', [string]$VisualStudioPath = '', [switch]$CpuOnly)
+param([string]$Executable = '', [string]$VisualStudioPath = '', [switch]$CpuOnly,
+    [switch]$Quality, [switch]$RecordMotion, [switch]$MeasureGpu, [string]$PythonPath = 'python')
 $ErrorActionPreference = 'Stop'
 $windmillRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $windmillOutput = Join-Path $windmillRoot 'generated/neon_windmill'
@@ -68,4 +69,51 @@ try {
 } finally {
     $env:CG2_WINDMILL_AUTOTEST = $windmillPriorAuto
     $env:CG2_FRAME_LIMIT = $windmillPriorLimit
+}
+
+if ($Quality) {
+    $windmillQuality = Join-Path $windmillRoot 'generated/neon_windmill_quality'
+    $windmillRuns = @('comparison')
+    if ($RecordMotion) { $windmillRuns += 'motion' }
+    if ($MeasureGpu) { $windmillRuns += @('perf0','perf1','perf2') }
+    $windmillRunPrior = $env:CG2_WINDMILL_RUN
+    $windmillOutputPrior = $env:CG2_WINDMILL_OUTPUT
+    $windmillAutoPrior = $env:CG2_WINDMILL_AUTOTEST
+    $windmillLimitPrior = $env:CG2_FRAME_LIMIT
+    try {
+        foreach ($windmillRun in $windmillRuns) {
+            $env:CG2_WINDMILL_AUTOTEST = '1'; $env:CG2_FRAME_LIMIT = '0'
+            $env:CG2_WINDMILL_RUN = $windmillRun
+            $windmillRunDirectory = Join-Path $windmillQuality $windmillRun
+            $env:CG2_WINDMILL_OUTPUT = $windmillRunDirectory
+            $windmillStarted = [DateTime]::UtcNow
+            $windmillProcess = Start-Process -FilePath $Executable -WorkingDirectory (Join-Path $windmillRoot 'project') `
+                -ArgumentList '--project resources/projects/neon_windmill.project.json' -WindowStyle Hidden -PassThru
+            for ($windmillWait = 0; $windmillWait -lt 8 -and !$windmillProcess.HasExited; ++$windmillWait) {
+                $null = $windmillProcess.WaitForExit(30000)
+            }
+            if (!$windmillProcess.HasExited) { $windmillProcess.Kill(); throw "$windmillRun timed out." }
+            if ($windmillProcess.ExitCode -ne 0) { throw "$windmillRun returned $($windmillProcess.ExitCode)." }
+            $windmillRunReport = Join-Path $windmillRunDirectory 'runtime_report.json'
+            if (!(Test-Path $windmillRunReport) -or (Get-Item $windmillRunReport).LastWriteTimeUtc -lt $windmillStarted) {
+                throw "$windmillRun produced no fresh report."
+            }
+            $windmillRunData = Get-Content $windmillRunReport -Raw | ConvertFrom-Json
+            if (!$windmillRunData.completed -or $windmillRunData.errors.Count) { throw "$windmillRun incomplete." }
+            foreach ($windmillName in $windmillRunData.captures) {
+                foreach ($windmillExtension in @('png','json')) {
+                    $windmillPath = Join-Path $windmillRunDirectory "$windmillName.$windmillExtension"
+                    if (!(Test-Path $windmillPath) -or (Get-Item $windmillPath).LastWriteTimeUtc -lt $windmillStarted) {
+                        throw "$windmillRun missing fresh $windmillName.$windmillExtension"
+                    }
+                }
+            }
+            Write-Host "PASS: actual DX12 $windmillRun run."
+        }
+        & $PythonPath -X utf8 (Join-Path $PSScriptRoot 'validate_windmill_quality.py') $windmillQuality
+        if ($LASTEXITCODE) { throw 'Windmill quality evidence validation failed.' }
+    } finally {
+        $env:CG2_WINDMILL_RUN = $windmillRunPrior; $env:CG2_WINDMILL_OUTPUT = $windmillOutputPrior
+        $env:CG2_WINDMILL_AUTOTEST = $windmillAutoPrior; $env:CG2_FRAME_LIMIT = $windmillLimitPrior
+    }
 }

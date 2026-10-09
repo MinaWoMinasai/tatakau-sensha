@@ -1,3 +1,4 @@
+#include "Dump.h"
 #include "Game.h"
 #include "DeveloperTools.h"
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)

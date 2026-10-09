@@ -143,11 +143,14 @@ def validate_game_comparison(files):
     return result
 
 
+from gameplay_source import gameplay_source
+
+
 class PreviewSourceContracts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.preview = (ROOT / "project/game/debug/NeonSkinnedPreview.cpp").read_text(encoding="utf-8")
-        cls.game = (ROOT / "project/game/scene/GameScene.cpp").read_text(encoding="utf-8")
+        cls.game = gameplay_source()
 
     def test_fixed_pose_guards_and_only_post_mode_changes(self):
         start = function_body(self.preview, "void NeonSkinnedPreview::StartBloomComparison()")
@@ -208,40 +211,43 @@ class PreviewSourceContracts(unittest.TestCase):
             self.assertIn('"' + field + '"', write)
             self.assertIn('"' + field + '"', read)
         self.assertIn("std::isfinite(value)", read)
-        for name, gain, scatter, radius in (
-                ("playerPost", .38, .5, .9), ("enemyPost", .38, .5, .9), ("expEnemyPost", .38, .5, .9),
-                ("objectBloomPost", .3, .5, .9), ("stagePost", .3, .5, .9), ("gridPost", .48, .55, .9),
-                ("bulletTrailPost", 1.2, .55, 1.0), ("particlePost", .65, .5, .9)):
-            for field, expected in (("bloomGain", gain), ("bloomScatter", scatter), ("bloomRadius", radius)):
-                values = re.findall(rf"{name}\.{field}\s*=\s*([0-9.]+)f", self.game)
-                self.assertEqual([float(value) for value in values], [expected], name + "." + field)
+        preset = function_body(self.game, "void ApplyGameplayNeonBloomPreset(")
+        for setting in ("param.bloomMode = 2", "param.bloomGain = gain",
+                        "param.bloomScatter = 0.55f", "param.bloomRadius = 1.0f"):
+            self.assertIn(setting, preset)
+        for name in ("playerPost", "enemyPost", "expEnemyPost", "objectBloomPost", "stagePost", "gridPost"):
+            self.assertIn(f"ApplyGameplayNeonBloomPreset({name})", self.game)
+        self.assertIn("ApplyGameplayNeonBloomPreset(particlePost, 2.0f)", self.game)
+        for field, expected in (("bloomGain", 1.2), ("bloomScatter", .55), ("bloomRadius", 1.0)):
+            values = re.findall(rf"bulletTrailPost\.{field}\s*=\s*([0-9.]+)f", self.game)
+            self.assertEqual([float(value) for value in values], [expected], "bulletTrailPost." + field)
         for field in ("bloomSoftKnee", "bloomScatter", "bloomRadius", "bloomGain"):
             self.assertIn(f'readBloomSetting("{field}", param.{field},', read)
-        self.assertNotIn("SaveGamePostEffectConfig", function_body(self.game, "void GameScene::Initialize()"))
+        self.assertNotIn("SaveGamePostEffectConfig", function_body(self.game, "void SessionBootstrap::Initialize()"))
 
     def test_release_and_title_do_not_activate_preview_or_comparison(self):
         header = (ROOT / "project/game/debug/NeonSkinnedPreview.h").read_text(encoding="utf-8")
         self.assertIn("#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)", header)
         self.assertIn("bool enabled_ = false", header)
-        state = function_body(self.game, "IScene::DeveloperShowcaseState GameScene::GetDeveloperShowcaseState()")
+        state = function_body(self.game, "IScene::DeveloperShowcaseState GameplayQueries::GetDeveloperShowcaseState()")
         self.assertIn("#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)", state)
         self.assertIn("else if (!titleDemo_)", state)
-        scene_header = (ROOT / "project/game/scene/GameScene.h").read_text(encoding="utf-8")
+        scene_header = (ROOT / "project/game/session/state/NeonPresentationState.h").read_text(encoding="utf-8")
         self.assertIn("developerBloomComparisonMode_ = -1", scene_header)
         text = (ROOT / "project/game/ui/NeonTextEffect.cpp").read_text(encoding="utf-8")
         self.assertIn("param.bloomGain = qualityGain", text)
         self.assertIn("EndCaptureBloomOnlyToBackBuffer", text)
 
     def test_game_freeze_keeps_draw_and_actual_fence_capture_metadata(self):
-        update = function_body(self.game, "void GameScene::Update()")
+        update = function_body(self.game, "void CombatFramePipeline::Update()")
         self.assertIn("developerGameCapture_.Resolve", update)
         frozen = game_freeze_body(update)
-        self.assertIn("DrawGameSceneDebugImGui()", frozen)
+        self.assertIn("DrawGameplayDebugUi()", frozen)
         self.assertIn("Update(0.0f)", frozen)
-        record = function_body(self.game, "void GameScene::RecordDeveloperFrame(")
+        record = function_body(self.game, "void GameplayQueries::RecordDeveloperFrame(")
         self.assertIn("MakeDeveloperGameCaptureMetadata(dx)", record)
         self.assertIn("developerGameCapture_.Record(dx)", record)
-        metadata = function_body(self.game, "nlohmann::json GameScene::MakeDeveloperGameCaptureMetadata(")
+        metadata = function_body(self.game, "nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(")
         for key in ("globalPostAvailable", "comparisonFreeze", "sourcePositions", "sourceCounts", "localCategories", "visualAppearance"):
             self.assertIn('"' + key + '"', metadata)
         self.assertIn("developerCompositeParams_", metadata)
@@ -249,7 +255,7 @@ class PreviewSourceContracts(unittest.TestCase):
 
     def test_game_freeze_source_rejects_missing_gates_or_gameplay(self):
         guard = "if ((developerBloomFreeze_ || neonBossDeveloperFreeze_) && !titleDemo_)"
-        fixture = guard + " { DrawGameSceneDebugImGui(); preview->Update(0.0f); return; }\nUpdateTitleDemo(dt); UpdateTankRun(dt);"
+        fixture = guard + " { DrawGameplayDebugUi(); preview->Update(0.0f); return; }\nUpdateTitleDemo(dt); UpdateTankRun(dt);"
         self.assertIn("return;", game_freeze_body(fixture))
         self.assertIn("return;", game_freeze_body(fixture.replace(
             "developerBloomFreeze_ || neonBossDeveloperFreeze_",

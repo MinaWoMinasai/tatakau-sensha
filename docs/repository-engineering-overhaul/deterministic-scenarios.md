@@ -1,12 +1,12 @@
 # Gameplay Scenario Runner
 
-この基盤はDeveloper専用の設定・入力・観測adapter。通常のPlayer、Enemy、BulletManager、Stage、衝突、遠征の部屋／サービス／結果遷移を呼び、別の戦闘simulationを実装しない。ReleaseではSessionとScene adapterをbuildから除外し、全呼出箇所も`CG2_DEVELOPER_TOOLS && !defined(NDEBUG)`で除外する。
+この基盤はDeveloper専用の設定・入力・観測adapter。通常のPlayer、Enemy、BulletManager、Stage、衝突、遠征の部屋／サービス／結果遷移を呼び、別の戦闘simulationを実装しない。Releaseでは設定読込・入力・記録の経路を`CG2_DEVELOPER_TOOLS && !defined(NDEBUG)`で無効にする。
 
 ## 境界
 
 - `game/debug/GameplayScenario.h`: graphics-freeな設定、frameごとの入力選択、observable Snapshotとinvariant。
 - `GameplayScenarioSession`: processが所有する設定と記録。Sceneを破棄してもglobal simulation frameは継続し、Scene epochだけ増える。actorやrendererのpointerを保存しない。
-- `GameScene.GameplayScenario.cpp`:既存の部屋／map entryとactor APIへ設定を適用し、更新後に値を読む。captureは既存NeonShowcaseCaptureと既存frame fenceを使う。
+- `game/debug/session/GameplayScenarioRunner.cpp`:既存の部屋／map entryとactor APIへ設定を適用し、更新後に値を読む。captureは既存NeonShowcaseCaptureと既存frame fenceを使う。
 - `Game` / `Input`:有効なSessionだけ固定mouseと無入力のhardware frameを供給する。Playerの既存demo input経路へscriptを渡す。通常playの入力pollingとfocus停止は維持する。
 
 乱数seedはScene初期化前、RunDirector／Map／blueprintにも適用する。既存global mt19937のstreamはGameplay、particles、camera shakeが共有するため、同じ更新・描画・capture経路で比較する。通常playの乱数を別streamへ変更しない。
@@ -66,43 +66,4 @@ pwsh -NoProfile -File project/tools/test_gameplay_scenarios.ps1 -ExecutablePath 
 
 撮影frame0はprocessの最初の初期化でだけ保存する。再起動で同じファイルを上書きしない。fadeの最終frameに撮影がある場合はold sceneのreadbackを既存fenceで解決してからSceneManagerの交換を許可する。
 
-## 実機の最初のgate
-
-13ケースすべて1回ずつ、初期実装の実機gateがPASSした。Shooterは`scenarios-first-pass/run_20261004_214414_779_583db386/`、他12ケースは`run_20261004_214441_244_365c5600/`。各ケースは指定数の完了frameとfresh PNG／JSONを保存し、exit0。Meleeの敵HP低下、Droneの実射撃、150以上の実弾、64体のEnemy、Boss発射／phase、死亡Dissolve終端、restart epoch2、A→購入→Bをwrapperで確認した。
-
-Previewは317 descriptorsから共有cacheを暖めて321、load中323、teardown後321を3回確認した。共有cacheの増加4をinstance leakと呼ばない。Session単体の実processテストとは別のactual D3D evidence。
-
-その後、自己レビューで短durationの終了判定、wrong startup、frame0とscene交換の撮影境界を整理し、両configurationを再buildした。
-
-## 終了コード修正前binaryの反復gate
-
-このgateのdefault Development EXEのSHA256は`CE7D899F92D73B554BB250050970223FD65FEC4C1966AB9940775DC6E425E13F`。`final-validation/artifacts/test_gameplay_scenarios/run_20261004_221102_241_e67a04a2/`で13ケースを各2回、合計26 process実行した。全reportがcompleted、全invariantがPASS、二回目は全完了frameのobservableを比較して一致した。固定frameのPNG／camera JSONは54組。Rival／Prototype／Neonは各960 frame、通常／stressは480、restart／遷移は600、Previewは240 frameを検証した。
-
-BossDeathは両repeatともframe121／165／201でDissolve 0／0.511111／1。HP0以後の位置・発射・Dashは停止し、終端は生成1／解放1／resource OFF／CB0。Restartは実GameOverとSceneManagerの交換を通してepoch2・HP120へ戻り、Stageは次のcrossfire部屋、Expeditionは実service購入後の次combat到達を終了assertionで確認した。Previewは両repeatで実D3Dのload／teardownを3回実行し、warm cache後321→323→321 descriptorsを維持した。
-
-別途、RivalとNeonの同じseed／dtによる960 frameのGameplay observable 30 fieldが一致した（`final-rival-neon-gameplay-comparison.json`）。Visual固有のresource／descriptor／CBとGPU時間はこの比較へ含めない。
-
-この26件の後、最初の追加設定probeでwrapperがJSON objectのキー順を文字列として比較し、同じwave値を不一致とした。runtimeは指定HP12、最大HP138のRepair、敵HP70000、1/120秒、明示inputを適用して360 frame・errors0で終了した。元のsuite.jsonのcompleted=falseと失敗logを保持し、既定26件の成功と追加probeの失敗を区別する。
-
-semantic比較ではkey set／stringをordinalに、配列を同じ形・順序で比較する。位置／movement／aimはC++のfloat32保存値へ正規化し、HP／frameは厳密な有限数値一致にする。座標9000.001や0.3の正常な丸めを許し、changed coordinate、型coercion、欠落／余分なkey、配列順、整数の小数変化など25 negative fixtureを拒否した。修正後のhelperで保存済み26 reportの設定も全て再検査してPASS。記録は`wrapper-comparison-proposal/applied-selfcheck.log`と`applied-revalidation.log`。
-
-最初の再実行ではconfigured_inputがPASSしたが、unknown_roomが実際にはcompleted=false／0 snapshot／部屋の初期化errorを正しく記録しながらprocess exit0になった。Session／actorではなく、既存MainLoop／RunがWM_QUITのコードを捨て、WinMainが常に0を返す問題だった。`post-repair/probes/run_20261004_224057_706_e536dff2/`にその失敗を保持した。MainLoopはWM_QUITでmessage pumpを止めてコードを返し、WinMainは通常Finalize／trace後に返す形へ修正した。新たなSession依存やGameplay更新の変更は加えない。修正後の設定／起動拒否・撮影境界とNeon／Dissolveの再検証結果は以下に記録した。
-
-## 終了コード修正後の実機gate
-
-最終Development SHA256は`C3A5FF76C7CAC1AE19CA252AED5C435115816262E6EC59D4E28AAD8F6BCE30AF`。fresh suiteは`final-entry-validation/scenarios/run_20261004_224906_970_e80d8442/`でcompleted=true。NeonBoss／BossDeathを各2回、計2,880 frame実行し、repeat間の全observable、終端invariant、10 PNG／camera JSONをPASSした。旧binaryの同じ4軌跡との比較も、整数／bool／ID一致・float絶対差1e-5の元の基準で全frame一致した。比較結果は`entry-runtime-preservation/results.json`。旧26ケースを最終binaryで全て再実行したとは扱わない。
-
-| 追加probe | 実process exit | reportのframe数・実確認 |
-| --- | ---: | --- |
-| configured_input | 0 | 360。HP12／最大HP138、Repair、outskirts、Charger HP70000、1/120秒、指定した無射撃→4回攻撃→無射撃、移動。frame0／120／240／360のcapture |
-| unknown_room | 9 | 0。不存在roomを拒否 |
-| unknown_upgrade | 9 | 0。不存在Catalog IDを拒否 |
-| incompatible_room | 9 | 0。control objectiveのgatekeeperを通常wave fixtureへ変換する要求を拒否 |
-| incomplete_boss_death | 9 | 120。未完の死亡／Dissolveを成功にしない |
-| wrong_startup | 9 | 0。有効manifestを無引数TITLEから起動すると、必要なproject引数をfailureへ記録 |
-| restart_capture_boundary | 0 | 600。frame0はepoch1で一度のみ、226は旧SceneのFadeOut終端、600はepoch2・生存HP120。readback後にSceneを交換 |
-| malformed／nonexistent manifest | 各9 | 各0。constructorの失敗と通常Finalize／終了traceを実EXEで確認。個別証拠は`final-entry-validation/constructor-malformed/`／`constructor-nonexistent/` |
-
-不正probeはruntime reportのcompleted=false／bounded errorを期待する。suiteのprobe completed=trueはその拒否検証が成功した意味で、壊れた設定のGameplayを完了した意味ではない。追加の正常2件・拒否7件が実process終了値まで一致した。PNGのcameraはmatrix shape／finiteとmetadataを検査・目視し、wrapperがrepeat cameraの数値まで自動比較したとは主張しない。
-
-original Allで成功した変更なしのcase、修正したwrapperの25 negative fixture／保存済み26設定、最終入口の13 affected command case、source deltaと実Release packageを統合した`final-validation-aggregate.json`はPASS。元のAll 63／64と途中のexit0失敗は保持している。最終source／toolの実行中変更は0、original Allからの変更は終了処理3fileとwrapperのみだった。完全な一覧は[final-validation.md](final-validation.md)に記録する。
+実行結果、比較画像、特定ビルドの測定値はローカルの`generated/`に保存する。過去の実行結果を現在のソースの検証済み表示へ流用しない。

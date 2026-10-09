@@ -131,6 +131,7 @@ struct ExpEnemy : Collider {
     void TriggerDamageFeedback() {}
     bool isDead_=false,isRunResource_=false,hostileToBoss_=true;
     ExpEnemyType type_=ExpEnemyType::Square;
+    Vector4 visualColor_;
     int hp_=8,expValue_=7;
     struct { Vector3 translate; } worldTransform_;
     Vector3 velocity_;

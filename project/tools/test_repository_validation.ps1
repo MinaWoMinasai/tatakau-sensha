@@ -30,7 +30,7 @@ New-Item -ItemType Directory -Path $validationOutput -Force | Out-Null
 $validationGroups = @{
     Unit = @(
         'audio_runtime','boss_gameplay_lifecycle','frame_pacer','generated_texture_cache',
-        'neon_boss_visual','neon_dissolve','neon_feature_masks','neon_preview_animations',
+        'neon_boss_visual','neon_contour_geometry','neon_dissolve','neon_feature_masks','neon_preview_animations',
         'neon_projectile_geometry','neon_quality_data','neon_skinned_model',
         'player_class_config','rival_boss_combat','shader_disk_cache','startup_trace',
         'tank_additional_abilities','tank_collisions','tank_enemy_combat',
@@ -42,7 +42,7 @@ $validationGroups = @{
         'neon_depth_combat','neon_depth_presentation','neon_depth_config','neon_depth_runtime_settings',
         'neon_windmill'
     )
-    Source = @('developer_tools_profile')
+    Source = @('developer_tools_profile','neon_particle_shader_contract')
     Rendering = @('bloom_pipeline','neon_skinned_pipeline')
     Runtime = @('neon_boss_runtime','tank_combat_runtime','tank_expedition_map_runtime',
         'tank_experience_runtime','tank_special_runtime','tank_tutorial_runtime','title_demo',
@@ -52,6 +52,7 @@ $validationGroups = @{
 $validationPython = @{
     'test_neon_bloom_comparison.py' = 'Unit'
     'test_neon_bloom_source_contract.py' = 'Source'
+    'test_gameplay_boundaries.py' = 'Source'
     'test_neon_dissolve_comparison_fixtures.py' = 'Unit'
     'test_neon_showcase_comparison_fixtures.py' = 'Unit'
     'test_neon_showcase_summary.py' = 'Unit'
