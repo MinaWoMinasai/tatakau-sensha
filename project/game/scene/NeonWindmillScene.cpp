@@ -62,7 +62,7 @@ void NeonWindmillScene::Initialize()
         throw std::runtime_error("Neon windmill HDR solid pipeline could not initialize.");
     std::ifstream atlasFile("../generated/neon_windmill/iphone_atlas.json");
     if (!atlasFile)
-        throw std::runtime_error("iPhone emoji atlas is missing. Run project/tools/prepare_windmill_emoji.py first.");
+        throw std::runtime_error("iPhone emoji atlas is missing. The author-local project/tools/prepare_windmill_emoji.py generates it.");
     const auto atlas = nlohmann::json::parse(atlasFile);
     for (const auto& item : atlas.at("glyphs").items()) {
         Glyph glyph;
