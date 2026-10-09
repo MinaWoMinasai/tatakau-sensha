@@ -137,7 +137,7 @@ try {
 | --- | --- |
 | `project/main.cpp` | 起動、プロジェクト選択、終了処理 |
 | `project/game/scene/TitleScene.*` | タイトルと背景のゲームデモ |
-| `project/game/scene/GameScene.Expedition*.cpp` | 作戦マップ、通貨回収、進行・演出 |
+| `project/game/session/`・`run/session/` | ゲームの呼び出し順、作戦マップ、通貨回収、遠征進行 |
 | `project/game/run/` | 遠征ルート、部屋、強化候補、チュートリアル |
 | `project/game/player/`・`enemy/`・`exp/` | 戦車の攻撃・移動、敵・ボス |
 | `project/game/ui/`・`editor/` | 強化カードと制作ツール |
@@ -149,7 +149,9 @@ try {
 | `.github/workflows/` | 3構成のビルドと不要ファイル検査 |
 | `generated/` | ビルド・テスト成果物。Git 管理対象外 |
 
-まず [作戦ルート](project/game/run/TankExpeditionMap.h)、[強化候補](project/game/run/TankExpeditionContent.h)、[プレイヤー](project/game/player/actor/Player.cpp) を読むと、ゲーム進行と戦闘の関係を追えます。
+共有する資料は遊び方・設計・ビルド手順・素材の出典、共有するツールは依存準備・素材生成・編集・回帰テストを中心に残しています。個別の作業記録と一時ツールはローカル用とし、新規作成時は `docs/local/`・`project/tools/local/` に置きます。詳細は[資料とツールの管理方針](docs/README.md)を参照してください。
+
+まず [責務と呼び出しの案内](docs/gameplay-responsibilities.md)、[作戦ルート](project/game/run/TankExpeditionMap.h)、[強化候補](project/game/run/TankExpeditionContent.h)、[プレイヤー](project/game/player/actor/Player.cpp) を読むと、ゲーム進行と戦闘の関係を追えます。
 
 [ソースレビュー単元1の判定と修正報告](docs/source-review-unit1/README.md)に、カプセル化・ポリモーフィズム・State・その他のデザインパターンの確認先と、提出用UML画像をまとめています。
 

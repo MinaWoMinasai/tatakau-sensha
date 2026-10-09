@@ -12,6 +12,8 @@
 
 3項目の要件には対応しています。ただし実際のAI採点は実行していません。コメントの存在を検査する結果と、説明の妥当性の判断は区別しています。採点者独自の書式や評価方法による満点は保証できません。
 
+現在は担当クラスへ分離しています。最新の配置と寿命は[GameSceneとPlayerの責務分離](../gameplay-responsibilities.md)を参照してください。以下の行数・検証結果は当時の記録です。
+
 ## 今回の変更
 
 自作C++のクラス／構造体、公開・非公開の関数を調べ、責務と利用方法を日本語で補いました。既存のXML形式を`/// @brief`・`@param`・`@return`・`@note`へ整理し、実際には存在しない`model`・`camera`の引数説明をPlayerとPlayerDroneから修正しました。設定値と実行中の状態の違い、衝突対象の世代付き識別子の意味も説明しています。
@@ -33,8 +35,8 @@ Playerの用途ごとに実装ファイルを分けました。
 | ファイル | 担当 | 最終行数 |
 | --- | --- | ---: |
 | [Player.cpp](../../project/game/player/actor/Player.cpp) | 自機の実行状態・移動・攻撃・成長と残るHUD処理 | 4,868 |
-| [Player.ClassEditor.cpp](../../project/game/player/actor/Player.ClassEditor.cpp) | 制作時の機体設定の編集画面 | 928 |
-| [Player.EvolutionUi.cpp](../../project/game/player/actor/Player.EvolutionUi.cpp) | 進化経路図・候補・配置・表示・外観の保存 | 2,028 |
+| `Player.ClassEditor.cpp`（当時の配置） | 制作時の機体設定の編集画面 | 928 |
+| `Player.EvolutionUi.cpp`（当時の配置） | 進化経路図・候補・配置・表示・外観の保存 | 2,028 |
 | [PlayerUiHelpers.cpp](../../project/game/player/actor/PlayerUiHelpers.cpp) | 共有する文字表示とJSON変換の4関数 | 43 |
 
 Player.cppは変更前の8,015行から約39%短くなりました。共通関数はゲーム側の`playerui`名前空間に置き、呼び出し側が持つ文字表示を更新します。管理クラスや新しいゲーム状態は追加していません。Visual Studioのプロジェクト・フィルターと、編集画面を抽出する既存テストの参照先も更新しました。

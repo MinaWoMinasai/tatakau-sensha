@@ -18,6 +18,16 @@ jobs:
     steps:
       - name: リポジトリをチェックアウト
         uses: actions/checkout@v4
+
+      - name: Git管理に残った除外対象を確認
+        run: |
+          TRACKED_IGNORED=$(git ls-files --cached --ignored --exclude-standard)
+          if [ -n "$TRACKED_IGNORED" ]; then
+            echo "::error::.gitignoreの除外対象がGit管理に残っています。"
+            printf '%s\n' "$TRACKED_IGNORED"
+            echo "ローカルに残すファイルはgit rm --cachedで管理対象から外してください。"
+            exit 1
+          fi
       
       - name: 不要なファイルとディレクトリを検索(bash)
         run: |

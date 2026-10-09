@@ -11,6 +11,12 @@ function Remove-ProjectileIncludes([string]$source) {
 }
 function Read-ProjectileMethod([string]$path, [string]$signature) {
     $source = Read-ProjectileSource $path
+    if ($path -eq 'project/game/player/actor/Player.cpp') {
+        # 実際の担当クラスの処理を既存CPUアダプターの自機状態へ接続する。
+        $source = ((Read-ProjectileSource 'project/game/player/combat/PlayerWeapons.cpp') + "`n" +
+            (Read-ProjectileSource 'project/game/player/progression/PlayerProgression.cpp') + "`n" + $source).
+            Replace('PlayerWeapons::', 'Player::').Replace('PlayerProgression::', 'Player::').Replace('player_.', '').Replace('ui_->', '')
+    }
     $start = $source.IndexOf($signature, [StringComparison]::Ordinal)
     if ($start -lt 0) { throw "Missing production method: $signature" }
     $opening = $source.IndexOf('{', $start)
@@ -44,7 +50,14 @@ $projectileMethods = foreach ($path in @('project/game/player/actor/Bullet.cpp',
     'project/game/player/actor/AttackController.cpp', 'project/game/collision/CollisionManager.cpp')) {
     Remove-ProjectileIncludes (Read-ProjectileSource $path)
 }
-$projectileMethods += Remove-ProjectileIncludes (Read-ProjectileSource 'project/game/player/actor/Player.SpecialAbilities.cpp')
+$projectileMethods += foreach ($signature in @(
+    'void Player::RefreshAdditiveArmaments(', 'void Player::ResetAdditionalAbilities(',
+    'bool Player::TryStartSpinBlade(', 'std::vector<Player::DroneAbilityVisual> Player::GetDroneAbilityVisuals(',
+    'uint32_t Player::NotifyDroneHit(', 'float Player::GetDroneTargetDamageScale(',
+    'void Player::ArmWallSmash(', 'void Player::UpdateAdditionalAbilities('
+)) {
+    Read-ProjectileMethod 'project/game/player/actor/Player.cpp' $signature
+}
 $projectileMethods += Read-ProjectileMethod 'project/game/exp/ExpEnemy.cpp' 'bool ExpEnemy::TryReflectProjectile('
 $projectileMethods += Read-ProjectileMethod 'project/game/player/actor/Stage.cpp' 'void Stage::ResolveBulletsCollision('
 $projectileMethods += Read-ProjectileMethod 'project/game/player/actor/Player.cpp' 'void Player::ApplyRunProjectileRules('
