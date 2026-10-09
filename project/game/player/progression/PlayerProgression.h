@@ -7,24 +7,10 @@ public:
     /// @brief 戦闘主体である自機を借用する。
     explicit PlayerProgression(Player& player) : player_(player) {}
     using PlayerClassConfig = ::PlayerClassConfig;
-    using PlayerStats = Player::PlayerStats;
     using BodyShape = Player::BodyShape;
-    using SpecialCombatEvent = Player::SpecialCombatEvent;
-    using TargetLockVisual = Player::TargetLockVisual;
-    using BarrelModel = Player::BarrelModel;
     using BalanceConfig = Player::BalanceConfig;
-    using SpecialCombatStats = Player::SpecialCombatStats;
-    using MineDropEvent = Player::MineDropEvent;
-    using WallSmashTarget = Player::WallSmashTarget;
-    using DroneLaserLink = Player::DroneLaserLink;
-    using MeleeSlashEvent = Player::MeleeSlashEvent;
-    using DashImpactEvent = Player::DashImpactEvent;
-    using UiProfileStats = Player::UiProfileStats;
-    using NeonBodyLayout = Player::NeonBodyLayout;
     using RunCombatSnapshot = Player::RunCombatSnapshot;
-    using DroneAbilityVisual = Player::DroneAbilityVisual;
-    using LaserShotEvent = Player::LaserShotEvent;
-    using NeonBarrelLayout = Player::NeonBarrelLayout; /// @brief 遠征の戦闘系統を選び、性能・装備・特殊状態を切り替える。
+    /// @brief 遠征の戦闘系統を選び、性能・装備・特殊状態を切り替える。
     /// @return 有効な遠征で切り替えられた場合、または同じ系統が選択済みならtrue。
     /// @note 無効な系統、遠征外、死亡中、必要なBasic設定がない場合はfalse。切り替えでHP・スタミナを補充しない。
     bool SetExpeditionCombatStyle(tankbuild::Style style);

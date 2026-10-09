@@ -25,7 +25,7 @@ jobs:
 
       - name: Bootstrap dependencies
         shell: pwsh
-        run: .\project\tools\bootstrap_dependencies.ps1
+        run: .\project\build\bootstrap_dependencies.ps1
 
       - name: Build
         run: |
