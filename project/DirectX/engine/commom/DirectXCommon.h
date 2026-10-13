@@ -8,6 +8,7 @@
 #include <chrono>
 #include <thread>
 #include <unordered_map>
+#include <array>
 #include "Root.h"
 #include "InputDesc.h"
 #include "Calculation.h"
@@ -386,6 +387,8 @@ public:
             return objectPSO_None_HDR;
         }
     }
+    /// @brief 深度を持たないHDRキャプチャにはDSVなしの互換PSOを再利用する。
+    ID3D12PipelineState* GetObjectScenePipeline(BlendMode blendMode);
     /// @brief PSO海面用のシーンを返す。
     PSO& GetPSOOceanForScene()
     {
@@ -511,6 +514,19 @@ public:
                           D3D12_CPU_DESCRIPTOR_HANDLE materialRtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);
     /// @brief 描画対象No深度を設定する。
     void SetRenderTargetNoDepth(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
+    // Capture all MRT attachments and raster bounds, not just scene color.
+    struct RenderTargetState {
+        std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 3> rtvs{};
+        UINT count = 1;
+        D3D12_CPU_DESCRIPTOR_HANDLE dsv{};
+        bool hasDepth = false;
+        D3D12_VIEWPORT viewport{};
+        D3D12_RECT scissor{};
+    };
+    RenderTargetState GetRenderTargetState() const {
+        return {currentRtvHandles_, currentRtvCount_, currentDsvHandle_, currentHasDsv_, viewportRect_, scissorRect_};
+    }
+    void RestoreRenderTargetState(const RenderTargetState& state);
     /// @brief 現在RTVハンドルを返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRTVHandle() const
     {
@@ -694,6 +710,7 @@ private:
     PSO trailPSO_HDR;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> trailSceneNoDepthPipeline_;
     PSO hudRectPSO;
+    std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, 3> noDepthObjectPipelines_;
     PSO skyboxPSO;
     PSO skyboxPSO_HDR;
     PSO skinningPSO;
@@ -710,6 +727,8 @@ private:
     D3D12_CPU_DESCRIPTOR_HANDLE currentRtvHandle_{};
     D3D12_CPU_DESCRIPTOR_HANDLE currentDsvHandle_{};
     bool currentHasDsv_ = false;
+    std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 3> currentRtvHandles_{};
+    UINT currentRtvCount_ = 1;
 };
 
 } // namespace cg2

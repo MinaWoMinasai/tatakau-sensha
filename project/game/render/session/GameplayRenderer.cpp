@@ -44,10 +44,6 @@ void GameplayRenderer::DrawPostEffect3D()
     if (world_.gameplayQueries->IsNeonShowcaseActive())
         return;
 #endif
-    world_.bossPresentation->DrawNeonBossVisual();
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-    world_.depthValidation->DrawNeonDepthValidation();
-#endif
     if (world_.resources.player_) {
         for (PlayerDrone* drone : world_.resources.player_->GetDronePtrs()) {
             if (drone)
@@ -80,6 +76,29 @@ void GameplayRenderer::DrawPostEffect3D()
         cg2::RuntimeProfiler::Get().AddCpu(name, ms);
     };
 
+    stagesurface::Settings surface = world_.presentation.stageSurface_;
+    surface.enabled = surface.enabled && world_.run.prototypeRun_;
+    stagesurface::Sanitize(surface);
+    const bool surfaceBlocks = surface.enabled && surface.blocksEnabled;
+    if (surface.enabled && world_.resources.stage_) {
+        profile("Stage Surfaces", true, [&]() {
+            cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNone);
+            const auto center = world_.resourceNeonRenderer->GetFloorVisibilityCenter();
+            const auto floors = world_.resources.stage_->DrawSurfaceFloor(surface, center, 38.0f, 24.0f);
+            const auto blocks = world_.resources.stage_->DrawSurfaceBlocks(surface, center, 38.0f, 24.0f,
+                world_.presentation.showStageNormalBlockBodies_);
+            auto& diagnostics = cg2::RuntimeProfiler::Get();
+            diagnostics.SetCounter("Stage surface floor draws", floors);
+            diagnostics.SetCounter("Stage surface block draws", blocks);
+            diagnostics.SetCounter("Stage surface triangles", floors * 2u + blocks * 44u);
+            cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
+        });
+    }
+    world_.bossPresentation->DrawNeonBossVisual();
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    world_.depthValidation->DrawNeonDepthValidation();
+#endif
+
     if (world_.presentation.expEnemyNeonRenderMode_ == 3) {
         profile("Exp Fill", true, [&]() {
             cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
@@ -91,7 +110,8 @@ void GameplayRenderer::DrawPostEffect3D()
 
     if (useGridPost && !depthOverlay) {
         profile("Grid Post", true, [&]() {
-            world_.resources.neonGridPostEffect_->BeginCapture();
+            if (surface.enabled) world_.resources.neonGridPostEffect_->BeginCaptureWithCurrentDepth(true);
+            else world_.resources.neonGridPostEffect_->BeginCapture();
             world_.stageNeonRenderer->DrawNeonGridPass(false);
             world_.resources.neonGridPostEffect_->EndCaptureAdditiveOnly();
             cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
@@ -124,7 +144,7 @@ void GameplayRenderer::DrawPostEffect3D()
         }
         world_.resources.bulletManager_->Draw();
         world_.levelRuntime->DrawLevelItems();
-        world_.resources.stage_->DrawVisible(world_.resourceNeonRenderer->GetFloorVisibilityCenter(), 38.0f, 24.0f,
+        if (!surfaceBlocks) world_.resources.stage_->DrawVisible(world_.resourceNeonRenderer->GetFloorVisibilityCenter(), 38.0f, 24.0f,
                                              world_.presentation.showStageNormalBlockBodies_);
     });
     world_.performanceMonitor->AddPostProfileEntry("Stage Glow", 0.0f, useStagePost);
@@ -133,7 +153,8 @@ void GameplayRenderer::DrawPostEffect3D()
             world_.resources.neonDepthEffects_->DrawAir();
         });
         profile("Neon Depth FX Floor", true, [&]() {
-            world_.resources.neonGridPostEffect_->BeginCapture();
+            if (surface.enabled) world_.resources.neonGridPostEffect_->BeginCaptureWithCurrentDepth(true);
+            else world_.resources.neonGridPostEffect_->BeginCapture();
             world_.resources.neonDepthEffects_->DrawFloor();
             world_.stageNeonRenderer->DrawNeonGridPass(false);
             world_.resources.neonGridPostEffect_->EndCaptureAdditiveOnly();
@@ -144,7 +165,7 @@ void GameplayRenderer::DrawPostEffect3D()
     if (world_.presentation.showStageBlockNeonOutlines_ || world_.presentation.showStageDamageBlockNeonOutlines_) {
         if (useGridPost) {
             profile("Stage Block Neon", true, [&]() {
-                world_.resources.neonGridPostEffect_->BeginCaptureWithCurrentDepth();
+                world_.resources.neonGridPostEffect_->BeginCaptureWithCurrentDepth(surface.enabled);
                 world_.stageNeonRenderer->DrawStageBlockNeonPass();
                 world_.resources.neonGridPostEffect_->EndCaptureAdditiveOnly();
                 cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
@@ -174,7 +195,8 @@ void GameplayRenderer::DrawPostEffect3D()
         world_.resources.neonProjectileRenderer_->BeginFrame(world_.resources.bulletManager_->GetBulletPtrs(), forward);
         if (useBulletTrailPost && hasTrailContent) {
             profile("Trail Post", true, [&]() {
-                world_.resources.bulletTrailPostEffect_->BeginCapture();
+                if (surface.enabled) world_.resources.bulletTrailPostEffect_->BeginCaptureWithCurrentDepth(true);
+                else world_.resources.bulletTrailPostEffect_->BeginCapture();
                 world_.resources.bulletManager_->DrawTrails(vp);
                 world_.resources.neonProjectileRenderer_->Draw(vp);
                 if (world_.presentation.enablePlayerMeleeRibbonTrail_ && world_.resources.playerMeleeTrailManager_) {
@@ -205,7 +227,7 @@ void GameplayRenderer::DrawPostEffect3D()
             const cg2::Vector3 currentCameraPos = world_.resourceNeonRenderer->GetFloorVisibilityCenter();
             world_.resources.sharedObjectBloomPostEffect_->BeginCapture();
             cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
-            if (useStagePost) {
+            if (useStagePost && !surfaceBlocks) {
                 world_.resources.stage_->DrawVisible(currentCameraPos, 38.0f, 24.0f, world_.presentation.showStageNormalBlockBodies_);
             }
             if (usePlayerPost && world_.presentation.playerNeonRenderMode_ == 0 &&
@@ -238,7 +260,7 @@ void GameplayRenderer::DrawPostEffect3D()
     const bool hasDrawableParticles = cg2::ParticleManager::GetInstance()->HasDrawableParticles();
     if (world_.presentation.enableParticlePostEffect_ && hasDrawableParticles) {
         profile("Particle Glow", true, [&]() {
-            world_.resources.particlePostEffect_->BeginCaptureWithCurrentDepth();
+            world_.resources.particlePostEffect_->BeginCaptureWithCurrentDepth(surface.enabled);
             cg2::ParticleManager::GetInstance()->Draw();
             world_.resources.particlePostEffect_->EndCaptureAdditiveOnly();
             cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);

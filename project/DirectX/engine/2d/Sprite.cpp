@@ -52,12 +52,15 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, const std::string& textureFi
 	*materialData = MakeDefaultMaterial();
 
 	// 用のTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
-	transformationMatrixResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(TransformationMatrix));
+	// Sprites use Object3d.VS, whose transform includes LightWVP (256 bytes).
+	transformationMatrixResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(TransformationMatrixWithShadow));
 	// 書き込むためのアドレスを取得
 	transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
 	// 単位行列を書き込んでおく
 	transformationMatrixData->WVP = MakeIdentity4x4();
 	transformationMatrixData->World = MakeIdentity4x4();
+	transformationMatrixData->WorldInverseTranspose = MakeIdentity4x4();
+	transformationMatrixData->LightWVP = MakeIdentity4x4();
 
 	// 単位行列を書き込んでおく
 	TextureManager::GetInstance()->LoadTexture(textureFilePath_);
@@ -114,12 +117,14 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, uint32_t srvIndex, SrvManage
 	*materialData = MakeDefaultMaterial();
 
 	// 用のTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
-	transformationMatrixResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(TransformationMatrix));
+	transformationMatrixResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(TransformationMatrixWithShadow));
 	// 書き込むためのアドレスを取得
 	transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
 	// 単位行列を書き込んでおく
 	transformationMatrixData->WVP = MakeIdentity4x4();
 	transformationMatrixData->World = MakeIdentity4x4();
+	transformationMatrixData->WorldInverseTranspose = MakeIdentity4x4();
+	transformationMatrixData->LightWVP = MakeIdentity4x4();
 
 }
 
@@ -194,6 +199,8 @@ void Sprite::Draw()
 	spriteCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);// IBVを設定
 	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
+	// The shared VS reads material b2 even for unlit UI to select its vertex path.
+	spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(10, materialResource->GetGPUVirtualAddress());
 	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle{};
 
 	if (isRenderTexture_) {

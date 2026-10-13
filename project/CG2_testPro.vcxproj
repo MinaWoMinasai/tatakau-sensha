@@ -879,6 +879,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\session\GameplayQueries.h" />
     <ClInclude Include="game\render\session\GameplayRenderer.h" />
     <ClInclude Include="game\effects\session\CombatEffects.h" />
+    <ClInclude Include="game\render\settings\StageSurfaceSettings.h" />
+    <ClInclude Include="game\render\StageSurfaceGeometry.h" />
     <ClInclude Include="game\render\session\StageNeonRenderer.h" />
     <ClInclude Include="game\effects\session\PlayerAttackEffects.h" />
     <ClInclude Include="game\render\session\ActorNeonRenderer.h" />

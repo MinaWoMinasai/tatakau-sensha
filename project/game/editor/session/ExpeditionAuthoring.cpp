@@ -147,6 +147,36 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
             j = {{"x", c[0]}, {"y", c[1]}, {"z", c[2]}, {"w", c[3]}};
     };
     if (ImGui::BeginTabBar("見た目の編集")) {
+        if (ImGui::BeginTabItem("床・立体ブロック")) {
+            auto& surface = world_.run.expeditionVisualDraft_["stageSurface"];
+            auto toggle = [&](const char* key, const char* label) {
+                bool value = surface.value(key, true);
+                if (ImGui::Checkbox(label, &value)) surface[key] = value;
+            };
+            toggle("enabled", "新しいステージ表現を使用");
+            if (ImGui::Button("従来表示へ戻す")) surface["enabled"] = false;
+            ImGui::TextWrapped("上の適用で画面に反映し、保存で次回起動にも反映します。");
+            toggle("floorEnabled", "不透明3D床");
+            color(surface, "floorColor", "床の色");
+            scalar(surface, "floorMetallic", "床の金属度", 0, 1);
+            scalar(surface, "floorRoughness", "床の粗さ", 0.15f, 1);
+            scalar(surface, "floorDepth", "床の奥行き (+Z)", 1.02f, 8);
+            scalar(surface, "floorPadding", "床の外周余白", 0, 64);
+            scalar(surface, "floorLightIntensity", "床の照明強度", 0, 5);
+            scalar(surface, "gridMinPixelWidth", "床グリッドの最小画面幅 (px)", 0.5f, 2);
+            toggle("blocksEnabled", "ベベル付き3Dブロック");
+            color(surface, "blockColor", "ブロック本体色");
+            color(surface, "damageBlockColor", "ダメージブロック本体色");
+            scalar(surface, "blockMetallic", "ブロックの金属度", 0, 1);
+            scalar(surface, "blockRoughness", "ブロックの粗さ", 0.15f, 1);
+            scalar(surface, "blockHeight", "ブロックの見た目の高さ", 0.5f, 6);
+            scalar(surface, "blockEmission", "ブロック枠線の発光強度", 0, 2);
+            scalar(surface, "blockLightIntensity", "ブロックの照明強度", 0, 5);
+            int divisions = surface.value("sideLineDivisions", 1);
+            if (ImGui::SliderInt("側面のライン分割", &divisions, 1, 8)) surface["sideLineDivisions"] = divisions;
+            ImGui::TextDisabled("詳しい描画診断と初期値への復帰: F12 → 見た目 → Phase 1。");
+            ImGui::EndTabItem();
+        }
         if (ImGui::BeginTabItem("ネオン・ブルーム")) {
             ImGui::TextWrapped(
                 "ネオン版の自機・剣・敵・グリッドは共通のブルームを使用。個別の明るさは下の発光倍率、光の広がりは共通ブルームで調整します。");

@@ -9,6 +9,7 @@
 namespace {
 constexpr float kWorldWidth=18.0f;
 constexpr float kWorldHeight=kWorldWidth*static_cast<float>(TankRewardPreviewRenderer::kHeight)/TankRewardPreviewRenderer::kWidth;
+constexpr std::array<float,4> kPreviewClear{.010f,.018f,.024f,1};
 constexpr cg2::Vector3 kRight{1,0,0},kUp{0,1,0},kForward{0,0,1};
 /// @brief 攻撃または移動に使う方向を返す。
 cg2::Vector3 Direction(float angle){return {std::cos(angle),std::sin(angle),0};}
@@ -47,13 +48,14 @@ void TankRewardPreviewRenderer::Initialize(cg2::DirectXCommon* dx,cg2::SrvManage
     if(dx_)return;dx_=dx;srv_=srv;
     cg2::StartupTrace::Scope scope("RewardPreview.Initialize");
     rtv_=std::make_unique<cg2::RtvManager>();rtv_->Initialize(dx);
-    auto make=[&](std::unique_ptr<cg2::RenderTexture>& rt,uint32_t w,uint32_t h,DXGI_FORMAT format) {
-        rt=std::make_unique<cg2::RenderTexture>();rt->Initialize(dx,srv,rtv_.get(),w,h,{0,0,0,1},false,format);
+    auto make=[&](std::unique_ptr<cg2::RenderTexture>& rt,uint32_t w,uint32_t h,DXGI_FORMAT format,
+        const std::array<float,4>& clear = {0,0,0,1}) {
+        rt=std::make_unique<cg2::RenderTexture>();rt->Initialize(dx,srv,rtv_.get(),w,h,clear,false,format);
     };
-    make(scene_,kWidth,kHeight,cg2::DirectXCommon::kSceneRenderTargetFormat);
+    make(scene_,kWidth,kHeight,cg2::DirectXCommon::kSceneRenderTargetFormat,kPreviewClear);
     make(blurA_,kWidth/2,kHeight/2,cg2::DirectXCommon::kSceneRenderTargetFormat);
     make(blurB_,kWidth/2,kHeight/2,cg2::DirectXCommon::kSceneRenderTargetFormat);
-    make(output_,kWidth,kHeight,cg2::DirectXCommon::kBackBufferRenderTargetFormat);
+    make(output_,kWidth,kHeight,cg2::DirectXCommon::kBackBufferRenderTargetFormat,kPreviewClear);
     neon_=std::make_unique<cg2::NeonGridRenderer>();neon_->Initialize(dx,"resources/white512x512.png");
     trails_=std::make_unique<cg2::TrailManager>();trails_->Initialize(dx,cg2::Object3dCommon::GetInstance(),"resources/white512x512.png");
     for(auto& trail:trailInstances_){trail=trails_->CreateInstance();trail->SetIsPermanent(true);}
@@ -264,15 +266,13 @@ void TankRewardPreviewRenderer::Filter(cg2::RenderTexture& source,cg2::RenderTex
 }
 void TankRewardPreviewRenderer::Render() {
     if(!pending_||!dx_)return;
-    const auto savedRtv=dx_->GetCurrentRTVHandle(),savedDsv=dx_->GetCurrentDSVHandle();const bool hadDepth=dx_->HasCurrentDSV();
-    const auto savedViewport=dx_->GetViewportRect();const auto savedScissor=dx_->GetSissorRect();
+    const auto savedTargets=dx_->GetRenderTargetState();
     srv_->PreDraw();
     Transition(*scene_,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_RENDER_TARGET);
     dx_->SetRenderTargetNoDepth(scene_->GetRTVHandle());dx_->SetViewport(kWidth,kHeight);
-    const float clear[]{.010f,.018f,.024f,1};dx_->ClearRenderTarget(scene_->GetRTVHandle(),clear);
+    dx_->ClearRenderTarget(scene_->GetRTVHandle(),kPreviewClear.data());
     neon_->DrawRange(0,backgrounds_,projection_);
-    // DrawRangeSolid binds the engine's LDR HUD PSO. This target is HDR, so
-    // fills use the scene-compatible neon PSO, like the outlines and trails.
+    // Preview fills share the HDR emission source with outlines and trails.
     neon_->DrawRange(backgrounds_,fills_,projection_);
     for(int lane=0;lane<(compare_?2:1);++lane) {
         const LONG width=static_cast<LONG>(compare_?kWidth/2:kWidth);
@@ -287,14 +287,10 @@ void TankRewardPreviewRenderer::Render() {
     Filter(*scene_,*blurA_,cg2::kAdd_Bloom_Extract);Filter(*blurA_,*blurB_,cg2::kAdd_Bloom_BlurH);Filter(*blurB_,*blurA_,cg2::kAdd_Bloom_BlurV);
     Transition(*output_,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_RENDER_TARGET);
     dx_->SetRenderTargetNoDepth(output_->GetRTVHandle());dx_->SetViewport(kWidth,kHeight);
-    dx_->ClearRenderTarget(output_->GetRTVHandle(),clear);
+    dx_->ClearRenderTarget(output_->GetRTVHandle(),kPreviewClear.data());
     post_->DrawObjectComposite(scene_->GetGPUHandle(),blurA_->GetGPUHandle(),false);
     post_->DrawObjectBloomAdd(blurA_->GetGPUHandle(),false);
     Transition(*output_,D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    if(hadDepth)dx_->SetRenderTarget(savedRtv,savedDsv);else dx_->SetRenderTargetNoDepth(savedRtv);
-    // SetViewport restores the engine's tracked values; explicit bindings also
-    // preserve a caller's non-default crop rectangle and viewport origin.
-    dx_->SetViewport(static_cast<uint32_t>(savedViewport.Width),static_cast<uint32_t>(savedViewport.Height));
-    dx_->GetList()->RSSetViewports(1,&savedViewport);dx_->GetList()->RSSetScissorRects(1,&savedScissor);
+    dx_->RestoreRenderTargetState(savedTargets);
     pending_=false;hasRendered_=true;++renderCount_;
 }

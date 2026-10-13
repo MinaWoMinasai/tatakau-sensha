@@ -79,6 +79,14 @@ void ModelManager::CreateBoxModel(const std::string& modelName, const Vector3& s
 	models.insert(std::make_pair(modelName, std::move(model)));
 }
 
+void ModelManager::CreateModelFromData(const std::string& modelName, const ModelData& data)
+{
+	if (models.contains(modelName)) return;
+	auto model = std::make_unique<Model>();
+	model->InitializeFromModelData(modelCommon.get(), data);
+	models.emplace(modelName, std::move(model));
+}
+
 void ModelManager::CreateFacetedCrystalModel(
 	const std::string& modelName,
 	float radius,

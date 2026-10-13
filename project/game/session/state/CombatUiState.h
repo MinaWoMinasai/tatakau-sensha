@@ -85,7 +85,7 @@ struct CombatUiState {
 
     Microsoft::WRL::ComPtr<ID3D12Resource> hpBarTransformResource_;
 
-    cg2::TransformationMatrix* hpBarTransformData_ = nullptr;
+    cg2::TransformationMatrixWithShadow* hpBarTransformData_ = nullptr;
 
     size_t followHpBarIndex_ = 0;
 

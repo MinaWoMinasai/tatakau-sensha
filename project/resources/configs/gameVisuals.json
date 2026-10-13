@@ -251,5 +251,40 @@
     "worldLineWidth": 0.07500000298023224,
     "worldSpacing": 2.0
   },
-  "version": 1
+  "version": 2,
+  "stageSurface": {
+    "enabled": true,
+    "floorEnabled": true,
+    "blocksEnabled": true,
+    "floorColor": {
+      "x": 0.035,
+      "y": 0.045,
+      "z": 0.06,
+      "w": 1.0
+    },
+    "floorMetallic": 0.2,
+    "floorRoughness": 0.72,
+    "floorDepth": 1.1,
+    "floorPadding": 8.0,
+    "floorLightIntensity": 1.6,
+    "blockColor": {
+      "x": 0.085,
+      "y": 0.105,
+      "z": 0.14,
+      "w": 1.0
+    },
+    "damageBlockColor": {
+      "x": 0.14,
+      "y": 0.035,
+      "z": 0.045,
+      "w": 1.0
+    },
+    "blockMetallic": 0.3,
+    "blockRoughness": 0.56,
+    "blockHeight": 2.8,
+    "blockEmission": 0.65,
+    "blockLightIntensity": 2.2,
+    "sideLineDivisions": 1,
+    "gridMinPixelWidth": 1.15
+  }
 }
