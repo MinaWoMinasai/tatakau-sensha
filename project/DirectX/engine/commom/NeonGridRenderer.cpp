@@ -24,6 +24,7 @@ void NeonGridRenderer::Initialize(DirectXCommon* dxCommon, const std::string& te
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
     *materialData_ = MakeDefaultMaterial();
     materialData_->shininess = 1.0f;
+    dxCommon_->InitializeTrailSceneNoDepthPipeline();
 }
 
 void NeonGridRenderer::DrawAll(const Matrix4x4& viewProjection, bool noDepth) {
@@ -40,7 +41,7 @@ void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, con
 
     auto commandList = dxCommon_->GetList();
     commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
-    auto* pipeline = noDepth ? dxCommon_->GetTrailSceneNoDepthPipeline() : dxCommon_->GetPSOTrailForScene().graphicsState_.Get();
+    auto* pipeline = noDepth || !dxCommon_->HasCurrentDSV() ? dxCommon_->GetTrailSceneNoDepthPipeline() : dxCommon_->GetPSOTrailForScene().graphicsState_.Get();
     if (!pipeline) return;
     commandList->SetPipelineState(pipeline);
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -59,8 +60,21 @@ void NeonGridRenderer::DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount
     *viewProjectionData_ = viewProjection;
 
     auto commandList = dxCommon_->GetList();
-    commandList->SetGraphicsRootSignature(dxCommon_->GetPSOHudRect().root_.GetSignature().Get());
-    commandList->SetPipelineState(dxCommon_->GetPSOHudRect().graphicsState_.Get());
+    const bool hasDepth = dxCommon_->HasCurrentDSV();
+    auto& pipeline = hdrFillPipelines_[hasDepth ? 1 : 0];
+    if (!pipeline) {
+        auto description = dxCommon_->GetPSOTrailForScene().graphicsDesc_;
+        description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+        description.DepthStencilState.DepthEnable = hasDepth ? TRUE : FALSE;
+        description.DSVFormat = hasDepth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_UNKNOWN;
+        description.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+        description.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+        description.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+        description.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+        if (FAILED(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(&pipeline)))) return;
+    }
+    commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
+    commandList->SetPipelineState(pipeline.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());

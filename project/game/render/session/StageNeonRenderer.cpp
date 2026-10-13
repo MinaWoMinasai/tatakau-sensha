@@ -36,13 +36,38 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     world_.resources.neonGridRenderer_->BeginFrame();
     world_.resources.neonGridRenderer_->SetLineStyle(world_.presentation.neonLineSoftEdgeRatio_,
                                                      world_.presentation.neonLineCoreIntensity_);
+    const auto& surface = world_.presentation.stageSurface_;
+    const bool surfaceFloor = world_.run.prototypeRun_ && surface.enabled && surface.floorEnabled;
+    const float gridZ = surfaceFloor ? surface.floorDepth - stagesurface::kGridClearance : -0.04f;
+    const float localGridZ = surfaceFloor ? gridZ : -0.03f;
+    float minimumGridWidth = 0.0f;
+    if (surfaceFloor) {
+        const bool debug = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera();
+        const auto& view = debug ? world_.resources.debugCamera->GetViewMatrix() : world_.resources.camera->GetViewMatrix();
+        const auto& projection = debug ? world_.resources.debugCamera->GetProjectionMatrix() : world_.resources.camera->GetProjectionMatrix();
+        auto focus = world_.resourceNeonRenderer->GetFloorVisibilityCenter();
+        focus.z = gridZ;
+        const float depth = std::abs(cg2::TransformMatrix(focus, view).z);
+        const auto cameraWorld = cg2::Inverse(view);
+        const float facing = (std::max)(0.35f, std::abs(cameraWorld.m[2][2]));
+        const float pixels = (std::max)(1.0f, cg2::Object3dCommon::GetInstance()->GetDxCommon()->GetRenderTargetState().viewport.Height);
+        minimumGridWidth = surface.gridMinPixelWidth * depth * 2.0f /
+            ((std::max)(0.001f, std::abs(projection.m[1][1])) * pixels * facing);
+    }
+    auto gridWidth = [&](float authored) { return authored > 0.0f ? (std::max)(authored, minimumGridWidth) : authored; };
+    auto gridColor = [&](cg2::Vector4 authored, float width) {
+        // Preserve emitted energy when widening subpixel lines in distant/tilted views.
+        if (width > 0.0f) authored.w *= width / gridWidth(width);
+        return authored;
+    };
     if (world_.presentation.showNeonGrid_) {
         const float minX = 0.0f;
         const float minY = 0.0f;
         const float maxX = MapChip::kBlockWidth * static_cast<float>(MapChip::kNumBlockHorizontal - 1);
         const float maxY = MapChip::kBlockHeight * static_cast<float>(MapChip::kNumBlockVirtical - 1);
         world_.resources.neonGridRenderer_->QueueWorldGrid(minX, maxX, minY, maxY, world_.presentation.worldGridSpacing_,
-                                                           world_.presentation.worldGridLineWidth_, world_.presentation.worldGridColor_);
+                                                           gridWidth(world_.presentation.worldGridLineWidth_),
+                                                           gridColor(world_.presentation.worldGridColor_, world_.presentation.worldGridLineWidth_), gridZ);
     }
     if (world_.presentation.showActorLocalGrid_) {
         const float fieldMinX = 0.0f;
@@ -52,13 +77,15 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         if (!world_.resources.player_->IsDead()) {
             world_.resources.neonGridRenderer_->QueueLocalGridClipped(
                 world_.resources.player_->GetWorldPosition(), world_.presentation.actorGridRadius_, world_.presentation.actorGridSpacing_,
-                world_.presentation.actorGridLineWidth_, world_.presentation.playerGridColor_, fieldMinX, fieldMaxX, fieldMinY, fieldMaxY);
+                gridWidth(world_.presentation.actorGridLineWidth_), gridColor(world_.presentation.playerGridColor_, world_.presentation.actorGridLineWidth_),
+                fieldMinX, fieldMaxX, fieldMinY, fieldMaxY, localGridZ);
         }
         if ((world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())) {
             world_.resources.neonGridRenderer_->QueueLocalGridClipped(
                 world_.resources.enemy_->GetWorldPosition(), world_.presentation.actorGridRadius_ * 1.15f,
-                world_.presentation.actorGridSpacing_, world_.presentation.actorGridLineWidth_, world_.presentation.enemyGridColor_,
-                fieldMinX, fieldMaxX, fieldMinY, fieldMaxY);
+                world_.presentation.actorGridSpacing_, gridWidth(world_.presentation.actorGridLineWidth_),
+                gridColor(world_.presentation.enemyGridColor_, world_.presentation.actorGridLineWidth_),
+                fieldMinX, fieldMaxX, fieldMinY, fieldMaxY, localGridZ);
         }
         int expEnemyLocalGridCount = 0;
         for (ExpEnemy* expEnemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
@@ -74,8 +101,9 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
                 }
                 world_.resources.neonGridRenderer_->QueueLocalGridClipped(
                     expEnemy->GetWorldPosition(), world_.presentation.actorGridRadius_ * 0.6f, world_.presentation.actorGridSpacing_,
-                    world_.presentation.actorGridLineWidth_ * 0.8f, world_.presentation.expEnemyGridColor_, fieldMinX, fieldMaxX, fieldMinY,
-                    fieldMaxY);
+                    gridWidth(world_.presentation.actorGridLineWidth_ * 0.8f),
+                    gridColor(world_.presentation.expEnemyGridColor_, world_.presentation.actorGridLineWidth_ * 0.8f), fieldMinX, fieldMaxX, fieldMinY,
+                    fieldMaxY, localGridZ);
                 ++expEnemyLocalGridCount;
             }
         }
@@ -176,6 +204,9 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
     cg2::Matrix4x4 cameraWorld = cg2::Inverse(viewMatrix);
     cg2::Vector3 cameraForward = cg2::Normalize({cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2]});
     const cg2::Vector3 cameraPos = GetActiveCameraPosition(world_.resources.camera.get(), world_.resources.debugCamera.get());
+    const auto& surface = world_.presentation.stageSurface_;
+    const bool surfaceBlocks = world_.run.prototypeRun_ && surface.enabled && surface.blocksEnabled;
+    const float faceExtent = surfaceBlocks ? 1.0f - stagesurface::kBevel : 1.0f;
 
     auto divisionCount = [](float scale) {
         return (std::max)(1, static_cast<int>(std::round(std::abs(scale))));
@@ -198,8 +229,8 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 continue;
             }
 
-            const cg2::Matrix4x4 transform =
-                cg2::MakeAffineMatrix(block.worldTransform.scale, block.worldTransform.rotate, block.worldTransform.translate);
+            const cg2::Transform visual = surfaceBlocks ? stagesurface::BlockTransform(block.worldTransform, surface) : block.worldTransform;
+            const cg2::Matrix4x4 transform = cg2::MakeAffineMatrix(visual.scale, visual.rotate, visual.translate);
 
             auto localToWorld = [&](const cg2::Vector3& local) {
                 return cg2::TransformMatrix(local, transform);
@@ -215,6 +246,11 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 blockNeonColor.y *= pulse;
                 blockNeonColor.z *= pulse;
                 blockNeonColor.w *= 0.75f + wave * 0.25f;
+            }
+            if (surfaceBlocks) {
+                blockNeonColor.x *= surface.blockEmission;
+                blockNeonColor.y *= surface.blockEmission;
+                blockNeonColor.z *= surface.blockEmission;
             }
             auto queueLocalLine = [&](const cg2::Vector3& start, const cg2::Vector3& end, const cg2::Vector3& localNormal, bool boundary) {
                 cg2::Vector3 worldStart = localToWorld(start);
@@ -255,13 +291,13 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 const float facingDot = cg2::Dot(worldNormal / normalLength, toCamera / toCameraLength);
                 return facingDot >= -0.08f;
             };
-            auto localCoord = [](int index, int divisions) {
-                return -1.0f + 2.0f * (static_cast<float>(index) / static_cast<float>(divisions));
+            auto localCoord = [faceExtent](int index, int divisions) {
+                return faceExtent * (-1.0f + 2.0f * (static_cast<float>(index) / static_cast<float>(divisions)));
             };
 
             const int divX = divisionCount(block.worldTransform.scale.x);
             const int divY = divisionCount(block.worldTransform.scale.y);
-            const int divZ = divisionCount(block.worldTransform.scale.z);
+            const int divZ = surfaceBlocks ? surface.sideLineDivisions : divisionCount(block.worldTransform.scale.z);
 
             for (float z : {-1.0f, 1.0f}) {
                 const cg2::Vector3 faceNormal = {0.0f, 0.0f, z};
@@ -270,11 +306,11 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 }
                 for (int i = 0; i <= divX; ++i) {
                     const float x = localCoord(i, divX);
-                    queueLocalLine({x, -1.0f, z}, {x, 1.0f, z}, faceNormal, i == 0 || i == divX);
+                    queueLocalLine({x, -faceExtent, z}, {x, faceExtent, z}, faceNormal, i == 0 || i == divX);
                 }
                 for (int i = 0; i <= divY; ++i) {
                     const float y = localCoord(i, divY);
-                    queueLocalLine({-1.0f, y, z}, {1.0f, y, z}, faceNormal, i == 0 || i == divY);
+                    queueLocalLine({-faceExtent, y, z}, {faceExtent, y, z}, faceNormal, i == 0 || i == divY);
                 }
             }
 
@@ -285,11 +321,11 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 }
                 for (int i = 0; i <= divX; ++i) {
                     const float x = localCoord(i, divX);
-                    queueLocalLine({x, y, -1.0f}, {x, y, 1.0f}, faceNormal, i == 0 || i == divX);
+                    queueLocalLine({x, y, -faceExtent}, {x, y, faceExtent}, faceNormal, i == 0 || i == divX);
                 }
                 for (int i = 0; i <= divZ; ++i) {
                     const float z = localCoord(i, divZ);
-                    queueLocalLine({-1.0f, y, z}, {1.0f, y, z}, faceNormal, i == 0 || i == divZ);
+                    queueLocalLine({-faceExtent, y, z}, {faceExtent, y, z}, faceNormal, i == 0 || i == divZ);
                 }
             }
 
@@ -300,11 +336,11 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 }
                 for (int i = 0; i <= divY; ++i) {
                     const float y = localCoord(i, divY);
-                    queueLocalLine({x, y, -1.0f}, {x, y, 1.0f}, faceNormal, i == 0 || i == divY);
+                    queueLocalLine({x, y, -faceExtent}, {x, y, faceExtent}, faceNormal, i == 0 || i == divY);
                 }
                 for (int i = 0; i <= divZ; ++i) {
                     const float z = localCoord(i, divZ);
-                    queueLocalLine({x, -1.0f, z}, {x, 1.0f, z}, faceNormal, i == 0 || i == divZ);
+                    queueLocalLine({x, -faceExtent, z}, {x, faceExtent, z}, faceNormal, i == 0 || i == divZ);
                 }
             }
         }

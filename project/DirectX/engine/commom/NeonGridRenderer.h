@@ -59,14 +59,15 @@ public:
     void QueueBeveledPolygonFill(const Vector3* points, uint32_t count, const Vector4& baseColor,
                                  const Vector4& tint, const Vector3& lightDirection) { geometry_.QueueBeveledPolygonFill(points, count, baseColor, tint, lightDirection); }
     /// @brief ワールド格子を後で処理するために予約する。
-    void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color) { geometry_.QueueWorldGrid(minX, maxX, minY, maxY, spacing, lineWidth, color); }
+    void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color,
+                        float planeZ = -0.04f) { geometry_.QueueWorldGrid(minX, maxX, minY, maxY, spacing, lineWidth, color, planeZ); }
     /// @brief Rectangleを後で処理するために予約する。
     void QueueRectangle(const Vector3& center, const Vector3& size, float lineWidth, const Vector4& color) { geometry_.QueueRectangle(center, size, lineWidth, color); }
     /// @brief 局所格子を後で処理するために予約する。
     void QueueLocalGrid(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color) { geometry_.QueueLocalGrid(center, radius, spacing, lineWidth, color); }
     /// @brief 局所格子Clippedを後で処理するために予約する。
     void QueueLocalGridClipped(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color, float minX,
-                               float maxX, float minY, float maxY) { geometry_.QueueLocalGridClipped(center, radius, spacing, lineWidth, color, minX, maxX, minY, maxY); }
+                               float maxX, float minY, float maxY, float planeZ = -0.03f) { geometry_.QueueLocalGridClipped(center, radius, spacing, lineWidth, color, minX, maxX, minY, maxY, planeZ); }
     /// @brief 全体を描画する。
     void DrawAll(const Matrix4x4& viewProjection, bool noDepth = false);
     /// @brief 範囲を描画する。
@@ -81,6 +82,8 @@ public:
     uint32_t GetVertexCount() const { return geometry_.GetVertexCount(); }
 
 private:
+    // HDR dark actor fills need the Scene format, with and without capture depth.
+    std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, 2> hdrFillPipelines_;
     DirectXCommon* dxCommon_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> sceneSolidPipeline_;
     std::string textureFilePath_;

@@ -83,14 +83,15 @@ public:
     void QueueBeveledPolygonFill(const Vector3* points, uint32_t count, const Vector4& baseColor,
                                  const Vector4& tint, const Vector3& lightDirection);
     /// @brief ワールド格子を後で処理するために予約する。
-    void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color);
+    void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color,
+                        float planeZ = -0.04f);
     /// @brief Rectangleを後で処理するために予約する。
     void QueueRectangle(const Vector3& center, const Vector3& size, float lineWidth, const Vector4& color);
     /// @brief 局所格子を後で処理するために予約する。
     void QueueLocalGrid(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color);
     /// @brief 局所格子Clippedを後で処理するために予約する。
     void QueueLocalGridClipped(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color, float minX,
-                               float maxX, float minY, float maxY);
+                               float maxX, float minY, float maxY, float planeZ = -0.03f);
 
     /// @brief 頂点件数を返す。
     uint32_t GetVertexCount() const

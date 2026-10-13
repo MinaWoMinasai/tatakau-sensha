@@ -59,10 +59,7 @@ void DirectXCommon::PreDraw()
 	list_->ResourceBarrier(1, &barrier);
 	// 描画先のRTVとDSVを設定する
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
-	currentRtvHandle_ = rtvHandles_[backBufferIndex];
-	currentDsvHandle_ = dsvHandle;
-	currentHasDsv_ = true;
-	list_->OMSetRenderTargets(1, &rtvHandles_[backBufferIndex], false, &dsvHandle);
+	SetRenderTarget(rtvHandles_[backBufferIndex], dsvHandle);
 	// 指定した色で画面全体をクリアする
 	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
@@ -345,6 +342,7 @@ void DirectXCommon::CreateShaderCommon(
 		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	}
 	if (usesSceneNormalTarget) {
+		pso.graphicsDesc_.BlendState.IndependentBlendEnable = TRUE;
 		pso.graphicsDesc_.NumRenderTargets = 3;
 		pso.graphicsDesc_.RTVFormats[1] = kNormalBufferFormat;
 		pso.graphicsDesc_.RTVFormats[2] = kMaterialBufferFormat;
@@ -542,13 +540,29 @@ bool DirectXCommon::InitializeTrailSceneNoDepthPipeline() {
     if (trailSceneNoDepthPipeline_) return true;
     if (!device_ || !trailPSO_HDR.graphicsState_) return false;
     auto description = trailPSO_HDR.graphicsDesc_;
-    description.NumRenderTargets = 1;
-    description.RTVFormats[1] = DXGI_FORMAT_UNKNOWN;
-    description.RTVFormats[2] = DXGI_FORMAT_UNKNOWN;
     description.DepthStencilState.DepthEnable = FALSE;
     description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
     description.DSVFormat = DXGI_FORMAT_UNKNOWN;
     return SUCCEEDED(device_->CreateGraphicsPipelineState(&description,IID_PPV_ARGS(&trailSceneNoDepthPipeline_)));
+}
+
+ID3D12PipelineState* DirectXCommon::GetObjectScenePipeline(BlendMode blendMode)
+{
+	auto& source = GetPSOObjectForScene(blendMode);
+	if (currentHasDsv_ || (blendMode != kNone && blendMode != kNormal && blendMode != kAdd))
+		return source.graphicsState_.Get();
+	const size_t index = blendMode == kNone ? 0 : blendMode == kNormal ? 1 : 2;
+	auto& pipeline = noDepthObjectPipelines_[index];
+	if (!pipeline) {
+		auto description = source.graphicsDesc_;
+		description.DepthStencilState.DepthEnable = FALSE;
+		description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		description.DSVFormat = DXGI_FORMAT_UNKNOWN;
+		const HRESULT result = device_->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(&pipeline));
+		assert(SUCCEEDED(result));
+		if (FAILED(result)) return nullptr;
+	}
+	return pipeline.Get();
 }
 
 void DirectXCommon::CreateGraphics()
@@ -1060,6 +1074,8 @@ void DirectXCommon::SetRenderTarget(
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle
 ) {
 	currentRtvHandle_ = rtvHandle;
+	currentRtvHandles_ = {rtvHandle, {}, {}};
+	currentRtvCount_ = 1;
 	currentDsvHandle_ = dsvHandle;
 	currentHasDsv_ = true;
 	list_->OMSetRenderTargets(
@@ -1080,6 +1096,8 @@ void DirectXCommon::SetRenderTargets(
 		normalRtvHandle,
 	};
 	currentRtvHandle_ = colorRtvHandle;
+	currentRtvHandles_ = {colorRtvHandle, normalRtvHandle, {}};
+	currentRtvCount_ = 2;
 	currentDsvHandle_ = dsvHandle;
 	currentHasDsv_ = true;
 	list_->OMSetRenderTargets(
@@ -1102,6 +1120,8 @@ void DirectXCommon::SetRenderTargets(
 		materialRtvHandle,
 	};
 	currentRtvHandle_ = colorRtvHandle;
+	currentRtvHandles_ = {colorRtvHandle, normalRtvHandle, materialRtvHandle};
+	currentRtvCount_ = 3;
 	currentDsvHandle_ = dsvHandle;
 	currentHasDsv_ = true;
 	list_->OMSetRenderTargets(
@@ -1116,6 +1136,8 @@ void DirectXCommon::SetRenderTargetNoDepth(
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle
 ) {
 	currentRtvHandle_ = rtvHandle;
+	currentRtvHandles_ = {rtvHandle, {}, {}};
+	currentRtvCount_ = 1;
 	currentDsvHandle_ = {};
 	currentHasDsv_ = false;
 	list_->OMSetRenderTargets(
@@ -1124,6 +1146,21 @@ void DirectXCommon::SetRenderTargetNoDepth(
 		false,
 		nullptr
 	);
+}
+
+void DirectXCommon::RestoreRenderTargetState(const RenderTargetState& state)
+{
+	assert(state.count >= 1 && state.count <= state.rtvs.size());
+	currentRtvHandles_ = state.rtvs;
+	currentRtvCount_ = state.count;
+	currentRtvHandle_ = state.rtvs[0];
+	currentDsvHandle_ = state.dsv;
+	currentHasDsv_ = state.hasDepth;
+	viewportRect_ = state.viewport;
+	scissorRect_ = state.scissor;
+	list_->OMSetRenderTargets(state.count, state.rtvs.data(), false, state.hasDepth ? &state.dsv : nullptr);
+	list_->RSSetViewports(1, &viewportRect_);
+	list_->RSSetScissorRects(1, &scissorRect_);
 }
 
 void DirectXCommon::ClearRenderTarget(
@@ -1153,6 +1190,8 @@ void DirectXCommon::SetBackBuffer() {
 		dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 
 	currentRtvHandle_ = rtv;
+	currentRtvHandles_ = {rtv, {}, {}};
+	currentRtvCount_ = 1;
 	currentDsvHandle_ = dsv;
 	currentHasDsv_ = true;
 	list_->OMSetRenderTargets(

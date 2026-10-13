@@ -3,6 +3,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include "game/render/StageSurfaceGeometry.h"
+#include "TextureManager.h"
 
 namespace {
 
@@ -23,6 +25,99 @@ bool TryGetObstacleModel(const std::string& prefab, std::string& model, MapChipT
 }
 
 } // namespace
+
+void Stage::InitializeSurfaceModels()
+{
+	auto* models = cg2::ModelManager::GetInstance();
+	auto* textures = cg2::TextureManager::GetInstance();
+	textures->LoadTexture("resources/skybox.dds");
+	models->CreateModelFromData(stagesurface::kFloorModel, stagesurface::FloorMesh());
+	models->CreateModelFromData(stagesurface::kBlockModel, stagesurface::BlockMesh());
+	if (!surfaceFloor_) {
+		surfaceFloor_ = std::make_unique<cg2::Object3d>();
+		surfaceFloor_->Initialize();
+		surfaceFloor_->SetModel(models->FindModel(stagesurface::kFloorModel));
+		surfaceFloor_->SetEnvironmentMap(textures->GetSrvIndex("resources/skybox.dds"));
+	}
+}
+
+namespace {
+void ApplySurfaceMaterial(cg2::Object3d& object, const cg2::Vector4& color, float metallic,
+	float roughness, float lightIntensity)
+{
+	object.SetColor(color);
+	object.SetLighting(true);
+	object.SetLightingMode(2); // Existing Cook-Torrance/Scene normal + material output.
+	object.SetMetallic(metallic);
+	object.SetRoughness(roughness);
+	object.SetAmbientOcclusion(1.0f);
+	object.SetEmissive({0.0f, 0.0f, 0.0f}, 0.0f);
+	object.SetEnvironmentCoefficient(0.10f);
+	object.SetIBLIntensity(0.10f, 0.16f);
+	object.SetShadowReceiveStrength(0.0f); // No stage shadow-map pass currently exists.
+	object.SetNormalDetail(0.0f, 1.0f);
+	object.SetPointLightPosition({-10000.0f, -10000.0f, -10000.0f});
+	object.Update();
+	// Update copies the global direction. Override only this object's key light,
+	// after its matrices are complete; actors and the shadow camera stay unchanged.
+	object.SetDirectionalLightDirection({-0.40f, -0.55f, 0.80f});
+	object.SetInsensity(lightIntensity);
+}
+
+void InitializeSurfaceBlock(Block& block)
+{
+	block.surfaceObject = std::make_unique<cg2::Object3d>();
+	block.surfaceObject->Initialize();
+	block.surfaceObject->SetModel(cg2::ModelManager::GetInstance()->FindModel(stagesurface::kBlockModel));
+	block.surfaceObject->SetEnvironmentMap(cg2::TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds"));
+}
+} // namespace
+
+uint32_t Stage::DrawSurfaceFloor(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
+	float halfWidth, float halfHeight)
+{
+	if (!surfaceFloor_ || !settings.enabled || !settings.floorEnabled) return 0;
+	// Include every cell, even empty cells, plus the existing camera visibility area.
+	float minX = -MapChip::kBlockWidth * 0.5f, minY = -MapChip::kBlockHeight * 0.5f;
+	float maxX = MapChip::kBlockWidth * (MapChip::kNumBlockHorizontal - 0.5f);
+	float maxY = MapChip::kBlockHeight * (MapChip::kNumBlockVirtical - 0.5f);
+	for (const auto& row : blocks_) for (const auto& block : row) {
+		if (!block.isActive) continue;
+		minX = (std::min)(minX, block.aabb.min.x); minY = (std::min)(minY, block.aabb.min.y);
+		maxX = (std::max)(maxX, block.aabb.max.x); maxY = (std::max)(maxY, block.aabb.max.y);
+	}
+	minX = (std::min)(minX, cameraPos.x - halfWidth) - settings.floorPadding;
+	minY = (std::min)(minY, cameraPos.y - halfHeight) - settings.floorPadding;
+	maxX = (std::max)(maxX, cameraPos.x + halfWidth) + settings.floorPadding;
+	maxY = (std::max)(maxY, cameraPos.y + halfHeight) + settings.floorPadding;
+	surfaceFloor_->SetTransform({{(maxX - minX) * 0.5f, (maxY - minY) * 0.5f, 1.0f},
+		{0.0f, 0.0f, 0.0f}, {(minX + maxX) * 0.5f, (minY + maxY) * 0.5f, settings.floorDepth}});
+	ApplySurfaceMaterial(*surfaceFloor_, settings.floorColor, settings.floorMetallic,
+		settings.floorRoughness, settings.floorLightIntensity);
+	surfaceFloor_->Draw();
+	return 1;
+}
+
+uint32_t Stage::DrawSurfaceBlocks(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
+	float halfWidth, float halfHeight, bool drawNormalBlocks)
+{
+	if (!settings.enabled || !settings.blocksEnabled) return 0;
+	uint32_t draws = 0;
+	const float marginX = MapChip::kBlockWidth * 1.5f, marginY = MapChip::kBlockHeight * 1.5f;
+	for (auto& row : blocks_) for (auto& block : row) {
+		if (!block.isActive || !block.surfaceObject || (!drawNormalBlocks && block.type == MapChipType::kBlock)) continue;
+		const auto& pos = block.originalPos;
+		if (pos.x < cameraPos.x - halfWidth - marginX || pos.x > cameraPos.x + halfWidth + marginX ||
+			pos.y < cameraPos.y - halfHeight - marginY || pos.y > cameraPos.y + halfHeight + marginY) continue;
+		block.surfaceObject->SetTransform(stagesurface::BlockTransform(block.worldTransform, settings));
+		ApplySurfaceMaterial(*block.surfaceObject,
+			block.type == MapChipType::kDamageBlock ? settings.damageBlockColor : settings.blockColor,
+			settings.blockMetallic, settings.blockRoughness, settings.blockLightIntensity);
+		block.surfaceObject->Draw();
+		++draws;
+	}
+	return draws;
+}
 
 void Stage::Initialize() {
 
@@ -119,6 +214,7 @@ bool Stage::AddLevelObstacle(const cg2::Transform& transform, const std::string&
 		std::cerr << "[LevelLoader] Unsupported Obstacle prefab: " << prefab << std::endl;
 		return false;
 	}
+	InitializeSurfaceModels();
 
 	Block block{};
 	block.worldTransform = transform;
@@ -127,6 +223,7 @@ bool Stage::AddLevelObstacle(const cg2::Transform& transform, const std::string&
 	block.object->SetModel(model);
 	block.object->SetTransform(block.worldTransform);
 	block.object->Update();
+	InitializeSurfaceBlock(block);
 	block.originalPos = block.worldTransform.translate;
 	block.type = type;
 	block.isActive = true;
@@ -168,6 +265,7 @@ void Stage::ClearLevelObstacles()
 }
 
 void Stage::GenerateBlocks() {
+	InitializeSurfaceModels();
 
 	uint32_t numBlockHorizontal = mapChip_->GetNumBlockHorizontal();
 	uint32_t numBlockVirtical = mapChip_->GetNumBlockVirtical();
@@ -196,6 +294,7 @@ void Stage::GenerateBlocks() {
 				}
 
 				block.object->SetTransform(block.worldTransform);
+				InitializeSurfaceBlock(block);
 
 				// 中心座標
 				const auto& pos = block.worldTransform.translate;

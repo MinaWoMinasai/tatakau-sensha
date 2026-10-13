@@ -1,9 +1,15 @@
 #pragma once
 #include "game/session/GameplayTypes.h"
+#include "game/render/settings/StageSurfaceSettings.h"
 
 namespace gameplay {
 /// @brief NeonPresentationStateに属する資源と実行状態を保持する。
 struct NeonPresentationState {
+    stagesurface::Settings stageSurface_;
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    int developerStageSurfaceDebugView_ = -1;
+    int developerStageSurfaceSSAO_ = -1, developerStageSurfaceSSR_ = -1;
+#endif
     bool enableExpEnemyPostEffect_ = true;
 
     bool enableStagePostEffect_ = false;

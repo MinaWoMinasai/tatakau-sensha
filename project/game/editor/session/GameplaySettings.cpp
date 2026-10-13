@@ -435,7 +435,18 @@ bool GameplaySettings::SaveGamePostEffectConfig(const std::string& filePath) con
 nlohmann::json GameplaySettings::BuildGameVisualConfig() const
 {
     nlohmann::json config = nlohmann::json::object();
-    config["version"] = 1;
+    config["version"] = 2;
+    const auto& surface = world_.presentation.stageSurface_;
+    config["stageSurface"] = {{"enabled", surface.enabled}, {"floorEnabled", surface.floorEnabled},
+        {"blocksEnabled", surface.blocksEnabled}, {"floorColor", WriteJsonVector4(surface.floorColor)},
+        {"floorMetallic", surface.floorMetallic}, {"floorRoughness", surface.floorRoughness},
+        {"floorDepth", surface.floorDepth}, {"floorPadding", surface.floorPadding},
+        {"floorLightIntensity", surface.floorLightIntensity}, {"blockColor", WriteJsonVector4(surface.blockColor)},
+        {"gridMinPixelWidth", surface.gridMinPixelWidth},
+        {"damageBlockColor", WriteJsonVector4(surface.damageBlockColor)}, {"blockMetallic", surface.blockMetallic},
+        {"blockRoughness", surface.blockRoughness}, {"blockHeight", surface.blockHeight},
+        {"blockEmission", surface.blockEmission}, {"blockLightIntensity", surface.blockLightIntensity},
+        {"sideLineDivisions", surface.sideLineDivisions}};
     config["textAppearance"] = {{"fontMode", world_.combat.gameTextFontMode_},
                                 {"neonEnabled", world_.combat.gameTextNeonEnabled_},
                                 {"outlineEnabled", world_.combat.gameTextOutlineEnabled_},
@@ -546,6 +557,29 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
 {
     if (!configJson.is_object()) {
         return;
+    }
+    if (configJson.contains("stageSurface") && configJson["stageSurface"].is_object()) {
+        const auto& data = configJson["stageSurface"];
+        auto& surface = world_.presentation.stageSurface_;
+        surface.enabled = ReadCustomBool(data, "enabled", surface.enabled);
+        surface.floorEnabled = ReadCustomBool(data, "floorEnabled", surface.floorEnabled);
+        surface.blocksEnabled = ReadCustomBool(data, "blocksEnabled", surface.blocksEnabled);
+        if (data.contains("floorColor")) surface.floorColor = ReadJsonVector4(data["floorColor"], surface.floorColor);
+        if (data.contains("blockColor")) surface.blockColor = ReadJsonVector4(data["blockColor"], surface.blockColor);
+        if (data.contains("damageBlockColor")) surface.damageBlockColor = ReadJsonVector4(data["damageBlockColor"], surface.damageBlockColor);
+        surface.floorMetallic = ReadCustomFloat(data, "floorMetallic", surface.floorMetallic);
+        surface.floorRoughness = ReadCustomFloat(data, "floorRoughness", surface.floorRoughness);
+        surface.floorDepth = ReadCustomFloat(data, "floorDepth", surface.floorDepth);
+        surface.floorPadding = ReadCustomFloat(data, "floorPadding", surface.floorPadding);
+        surface.floorLightIntensity = ReadCustomFloat(data, "floorLightIntensity", surface.floorLightIntensity);
+        surface.gridMinPixelWidth = ReadCustomFloat(data, "gridMinPixelWidth", surface.gridMinPixelWidth);
+        surface.blockMetallic = ReadCustomFloat(data, "blockMetallic", surface.blockMetallic);
+        surface.blockRoughness = ReadCustomFloat(data, "blockRoughness", surface.blockRoughness);
+        surface.blockHeight = ReadCustomFloat(data, "blockHeight", surface.blockHeight);
+        surface.blockEmission = ReadCustomFloat(data, "blockEmission", surface.blockEmission);
+        surface.blockLightIntensity = ReadCustomFloat(data, "blockLightIntensity", surface.blockLightIntensity);
+        surface.sideLineDivisions = ReadCustomInt(data, "sideLineDivisions", surface.sideLineDivisions);
+        stagesurface::Sanitize(surface);
     }
     if (configJson.contains("textAppearance") && configJson["textAppearance"].is_object()) {
         const nlohmann::json& textJson = configJson["textAppearance"];
