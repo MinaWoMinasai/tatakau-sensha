@@ -2,6 +2,7 @@
 #include "game/session/GameplaySystems.h"
 #include <initializer_list>
 #include <fstream>
+#include <cstdlib>
 
 namespace gameplay {
 
@@ -9,6 +10,18 @@ void RunVisualSettings::InitializeTankRunVisuals()
 {
     if (!world_.run.prototypeRun_)
         return;
+    world_.presentation.stageSurface_.enabled = true;
+    // Stage presentation is independent of the older expeditionAuthored marker.
+    // A saved legacy switch must survive this run's defaults as well as restart.
+    try {
+        std::ifstream file("resources/configs/gameVisuals.json");
+        nlohmann::json visual;
+        file >> visual;
+        if (visual.is_object() && visual.contains("stageSurface")) {
+            world_.gameplaySettings->ApplyGameVisualConfig(nlohmann::json{{"stageSurface", visual["stageSurface"]}});
+        }
+    } catch (...) { /* Existing config load reports parse errors; defaults remain usable. */ }
+
 
     // Keep the floor quiet while restoring the authored emitters. This engine
     // applies intensity in both blur passes and the composite, so values below
@@ -102,6 +115,31 @@ void RunVisualSettings::InitializeTankRunVisuals()
         if (!visual.empty())
             world_.gameplaySettings->ApplyGameVisualConfig(visual);
     }
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    // Reproducible A/B fixtures; never persisted and never compiled into Release.
+    char testMode[16]{};
+    if (GetEnvironmentVariableA("CG2_STAGE_SURFACE_TEST_MODE", testMode, sizeof(testMode)) > 0) {
+        const std::string mode(testMode);
+        auto& surface = world_.presentation.stageSurface_;
+        if (mode == "legacy" || mode == "floor" || mode == "blocks" || mode == "full") {
+            surface.enabled = mode != "legacy";
+            surface.floorEnabled = mode == "floor" || mode == "full";
+            surface.blocksEnabled = mode == "blocks" || mode == "full";
+        }
+    }
+    auto overrideInt = [](const char* name, int& target, int high) {
+        char value[16]{};
+        const auto length = GetEnvironmentVariableA(name, value, sizeof(value));
+        if (!length || length >= sizeof(value)) return;
+        char* end = nullptr;
+        const long parsed = std::strtol(value, &end, 10);
+        if (end != value && *end == '\0' && parsed >= -1 && parsed <= high) target = static_cast<int>(parsed);
+    };
+    overrideInt("CG2_STAGE_SURFACE_TEST_DEBUG", world_.presentation.developerStageSurfaceDebugView_, 13);
+    overrideInt("CG2_STAGE_SURFACE_TEST_SSAO", world_.presentation.developerStageSurfaceSSAO_, 1);
+    overrideInt("CG2_STAGE_SURFACE_TEST_SSR", world_.presentation.developerStageSurfaceSSR_, 1);
+    overrideInt("CG2_STAGE_SURFACE_TEST_BLOOM", world_.presentation.developerBloomComparisonMode_, 3);
+#endif
     world_.presentation.stagePostCacheValid_ = false;
 }
 

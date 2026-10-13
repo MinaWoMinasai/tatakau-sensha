@@ -413,14 +413,14 @@ void NeonGridGeometry::QueueBeveledPolygonFill(const Vector3* points, uint32_t c
     }
 }
 
-void NeonGridGeometry::QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color) {
+void NeonGridGeometry::QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color, float planeZ) {
     if (spacing <= 0.0f || lineWidth <= 0.0f) {
         return;
     }
 
     const float startX = std::floor(minX / spacing) * spacing;
     const float startY = std::floor(minY / spacing) * spacing;
-    const float z = -0.04f;
+    const float z = planeZ;
     for (float x = startX; x <= maxX + 0.001f; x += spacing) {
         AddLineQuad({ x, minY, z }, { x, maxY, z }, lineWidth, color);
     }
@@ -452,7 +452,7 @@ void NeonGridGeometry::QueueLocalGrid(const Vector3& center, float radius, float
     QueueLocalGridClipped(center, radius, spacing, lineWidth, color, center.x - radius, center.x + radius, center.y - radius, center.y + radius);
 }
 
-void NeonGridGeometry::QueueLocalGridClipped(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color, float minX, float maxX, float minY, float maxY) {
+void NeonGridGeometry::QueueLocalGridClipped(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color, float minX, float maxX, float minY, float maxY, float planeZ) {
     if (radius <= 0.0f || spacing <= 0.0f || lineWidth <= 0.0f) {
         return;
     }
@@ -471,7 +471,7 @@ void NeonGridGeometry::QueueLocalGridClipped(const Vector3& center, float radius
 
     const float startX = std::floor(clippedMinX / spacing) * spacing;
     const float startY = std::floor(clippedMinY / spacing) * spacing;
-    const float z = -0.03f;
+    const float z = planeZ;
 
     auto fadeAt = [&](float x, float y) {
         const float dx = x - center.x;

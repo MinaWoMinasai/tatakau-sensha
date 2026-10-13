@@ -21,7 +21,7 @@ public:
     /// @brief 計測を開始する。
     void BeginCapture();
     /// @brief 計測を含む現在深度を開始する。
-    void BeginCaptureWithCurrentDepth();
+    void BeginCaptureWithCurrentDepth(bool preserveFullResolution = false);
     /// @brief 計測を終了する。
     void EndCapture();
     /// @brief 計測への背面バッファを終了する。
@@ -63,7 +63,7 @@ private:
     void FinishCapture(FinishMode mode, bool outputToHdr);
     uint32_t RenderBloom(const BloomParam& drawParam);
     BloomParam MakeDrawParam(bool outputToHdr) const;
-    void SelectCaptureTarget();
+    void SelectCaptureTarget(bool preserveFullResolution = false);
     /// @brief GPUリソースを次の利用に必要な状態へ遷移させる。
     void Transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
     /// @brief 透明を消去する。
@@ -100,6 +100,8 @@ private:
     D3D12_CPU_DESCRIPTOR_HANDLE restoreRtvHandle_{};
     D3D12_CPU_DESCRIPTOR_HANDLE restoreDsvHandle_{};
     bool restoreHasDsv_ = false;
+    DirectXCommon::RenderTargetState restoreTargets_{};
+    bool preserveFullResolutionCapture_ = false;
 };
 
 } // namespace cg2

@@ -6,6 +6,7 @@
 #include "Bullet.h"
 #include "MapChip.h"
 #include "ExpEnemy.h"
+#include "game/render/settings/StageSurfaceSettings.h"
 
 /// @brief 同じマップ行で連続する同種ブロックの統合AABB、またはレベル障害物1個のAABBと種類を保持する。
 struct MergedBlock {
@@ -17,6 +18,7 @@ struct MergedBlock {
 struct Block {
     cg2::Transform worldTransform;
     std::unique_ptr<cg2::Object3d> object;
+    std::unique_ptr<cg2::Object3d> surfaceObject; // Render-only transform; collision always uses worldTransform.
     cg2::AABB aabb;
     cg2::OBB obb;
     bool isActive = false;
@@ -44,6 +46,12 @@ public:
     /// @param halfHeight 表示矩形の縦半幅（ワールド単位）。
     /// @note drawNormalBlocksがfalseなら通常ブロックを除く。形状全体との交差によるカリングではない。
     void DrawVisible(const cg2::Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks = true);
+    /// @brief Scene MRT/深度へ描く不透明床。実マップと表示矩形を覆う。衝突を持たない。
+    uint32_t DrawSurfaceFloor(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
+                              float halfWidth, float halfHeight);
+    /// @brief 既存の地形状態/カリングを使い、衝突とは独立したベベル形状を描く。
+    uint32_t DrawSurfaceBlocks(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
+                               float halfWidth, float halfHeight, bool drawNormalBlocks = true);
     /// @brief 地形モデル・ブロック配列・統合AABBを消去する。マップチップデータは保持する。
     void ClearBlocksForPreview();
     /// @brief 対応するprefabの障害物モデルと衝突形状を追加する。未対応のprefabならfalseで何も追加しない。
@@ -100,6 +108,8 @@ public:
     const std::vector<std::vector<Block>>& GetBlocks() const;
 
 private:
+    void InitializeSurfaceModels();
+    std::unique_ptr<cg2::Object3d> surfaceFloor_;
     // ブロック用のワールドトランスフォーム
     std::vector<std::vector<Block>> blocks_;
 
