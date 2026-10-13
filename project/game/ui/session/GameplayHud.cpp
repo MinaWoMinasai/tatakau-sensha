@@ -261,9 +261,11 @@ void GameplayHud::InitializeFollowHpBarBatch()
     world_.combat.hpBarMaterials_[12].data->color = {1.0f, 0.82f, 0.12f, 1};
 
     world_.combat.hpBarTransformResource_ =
-        cg2::Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(cg2::TransformationMatrix));
+        cg2::Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(cg2::TransformationMatrixWithShadow));
     world_.combat.hpBarTransformResource_->Map(0, nullptr, reinterpret_cast<void**>(&world_.combat.hpBarTransformData_));
     world_.combat.hpBarTransformData_->World = cg2::MakeIdentity4x4();
+    world_.combat.hpBarTransformData_->WorldInverseTranspose = cg2::MakeIdentity4x4();
+    world_.combat.hpBarTransformData_->LightWVP = cg2::MakeIdentity4x4();
     world_.combat.hpBarTransformData_->WVP =
         cg2::MakeOrthographicMatrix(0.0f, 0.0f, float(cg2::WinApp::kClientWidth), float(cg2::WinApp::kClientHeight), 0.0f, 100.0f);
 }
@@ -379,6 +381,7 @@ void GameplayHud::DrawHpBarBatch(uint32_t startVertex, uint32_t vertexCount, con
     commandList->IASetVertexBuffers(0, 1, &world_.combat.hpBarVertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, material.resource->GetGPUVirtualAddress());
     commandList->SetGraphicsRootConstantBufferView(1, world_.combat.hpBarTransformResource_->GetGPUVirtualAddress());
+    commandList->SetGraphicsRootConstantBufferView(10, material.resource->GetGPUVirtualAddress());
     commandList->SetGraphicsRootDescriptorTable(2, cg2::TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath));
     commandList->DrawInstanced(vertexCount, 1, startVertex, 0);
 }

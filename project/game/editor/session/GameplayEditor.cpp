@@ -165,6 +165,41 @@ void GameplayEditor::DrawGameplayDebugUi()
                 world_.resources.player_->DrawEvolutionUiStyleEditor();
                 ImGui::Separator();
             }
+            if (world_.run.prototypeRun_ && ImGui::CollapsingHeader("Phase 1 / 床・立体ブロック", ImGuiTreeNodeFlags_DefaultOpen)) {
+                auto& surface = world_.presentation.stageSurface_;
+                ImGui::Checkbox("新しいステージ表現を使用", &surface.enabled);
+                if (ImGui::Button("従来表示へ戻す")) surface.enabled = false;
+                ImGui::SameLine();
+                if (ImGui::Button("Phase 1 の初期値")) { surface = stagesurface::Settings{}; surface.enabled = true; }
+                ImGui::Checkbox("不透明3D床", &surface.floorEnabled);
+                ImGui::ColorEdit3("床の色", &surface.floorColor.x);
+                ImGui::SliderFloat("床の金属度", &surface.floorMetallic, 0.0f, 1.0f);
+                ImGui::SliderFloat("床の粗さ", &surface.floorRoughness, 0.15f, 1.0f);
+                ImGui::DragFloat("床の奥行き (+Z)", &surface.floorDepth, 0.01f, 1.02f, 8.0f);
+                ImGui::DragFloat("床の外周余白", &surface.floorPadding, 0.25f, 0.0f, 64.0f);
+                ImGui::DragFloat("床の照明強度", &surface.floorLightIntensity, 0.02f, 0.0f, 5.0f);
+                ImGui::SliderFloat("床グリッドの最小画面幅 (px)", &surface.gridMinPixelWidth, 0.5f, 2.0f);
+                ImGui::Checkbox("ベベル付き3Dブロック", &surface.blocksEnabled);
+                ImGui::ColorEdit3("ブロック本体色", &surface.blockColor.x);
+                ImGui::ColorEdit3("ダメージブロック本体色", &surface.damageBlockColor.x);
+                ImGui::SliderFloat("ブロックの金属度", &surface.blockMetallic, 0.0f, 1.0f);
+                ImGui::SliderFloat("ブロックの粗さ", &surface.blockRoughness, 0.15f, 1.0f);
+                ImGui::DragFloat("ブロックの見た目の高さ", &surface.blockHeight, 0.02f, 0.5f, 6.0f);
+                ImGui::DragFloat("ブロック枠線の発光強度", &surface.blockEmission, 0.01f, 0.0f, 2.0f);
+                ImGui::DragFloat("ブロックの照明強度", &surface.blockLightIntensity, 0.02f, 0.0f, 5.0f);
+                ImGui::SliderInt("側面のライン分割", &surface.sideLineDivisions, 1, 8);
+                stagesurface::Sanitize(surface);
+                const char* stageDebugViews[] = {"エンジン設定に従う", "最終表示", "Scene Color", "Bloom Only", "線形深度", "Depth Edge",
+                    "深度からの法線", "法線バッファ", "SSAO", "SSR", "SSR Mask", "粗さ", "金属度", "AO材質", "材質分類"};
+                int stageDebugView = world_.presentation.developerStageSurfaceDebugView_ + 1;
+                if (ImGui::Combo("ステージ診断表示", &stageDebugView, stageDebugViews, IM_ARRAYSIZE(stageDebugViews)))
+                    world_.presentation.developerStageSurfaceDebugView_ = stageDebugView - 1;
+                const char* resolveModes[] = {"エンジン設定", "OFF", "ON"};
+                int ao = world_.presentation.developerStageSurfaceSSAO_ + 1, ssr = world_.presentation.developerStageSurfaceSSR_ + 1;
+                if (ImGui::Combo("SSAO 比較", &ao, resolveModes, IM_ARRAYSIZE(resolveModes))) world_.presentation.developerStageSurfaceSSAO_ = ao - 1;
+                if (ImGui::Combo("SSR 比較", &ssr, resolveModes, IM_ARRAYSIZE(resolveModes))) world_.presentation.developerStageSurfaceSSR_ = ssr - 1;
+                ImGui::TextDisabled("衝突・移動・照準・カメラは変更しません。保存は上の見た目設定ボタン。");
+            }
             if (ImGui::CollapsingHeader("ネオングリッド", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::Checkbox("背景グリッドを表示", &world_.presentation.showNeonGrid_);
                 ImGui::Checkbox("キャラ周辺グリッドを表示", &world_.presentation.showActorLocalGrid_);

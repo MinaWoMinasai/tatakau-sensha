@@ -1028,6 +1028,8 @@
     <ClInclude Include="game\effects\session\CombatEffects.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\render\settings\StageSurfaceSettings.h" />
+    <ClInclude Include="game\render\StageSurfaceGeometry.h" />
     <ClInclude Include="game\render\session\StageNeonRenderer.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

@@ -105,6 +105,8 @@ void ObjectPostEffect::Update(float deltaTime) {
 }
 
 void ObjectPostEffect::BeginCapture() {
+    preserveFullResolutionCapture_ = false;
+    restoreTargets_ = dxCommon_->GetRenderTargetState();
     restoreRtvHandle_ = dxCommon_->GetCurrentRTVHandle();
     restoreDsvHandle_ = dxCommon_->GetCurrentDSVHandle();
     restoreHasDsv_ = dxCommon_->HasCurrentDSV();
@@ -117,17 +119,19 @@ void ObjectPostEffect::BeginCapture() {
     dxCommon_->SetViewport(activeWidth_, activeHeight_);
 }
 
-void ObjectPostEffect::BeginCaptureWithCurrentDepth() {
+void ObjectPostEffect::BeginCaptureWithCurrentDepth(bool preserveFullResolution) {
+    preserveFullResolutionCapture_ = preserveFullResolution;
+    restoreTargets_ = dxCommon_->GetRenderTargetState();
     restoreRtvHandle_ = dxCommon_->GetCurrentRTVHandle();
     restoreDsvHandle_ = dxCommon_->GetCurrentDSVHandle();
     restoreHasDsv_ = dxCommon_->HasCurrentDSV();
 
-    SelectCaptureTarget();
+    SelectCaptureTarget(preserveFullResolution);
     Transition(activeCaptureRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     if (restoreHasDsv_ &&
-        activeWidth_ == static_cast<uint32_t>(WinApp::GetInstance()->GetClientWidth()) &&
-        activeHeight_ == static_cast<uint32_t>(WinApp::GetInstance()->GetClientHeight())) {
+        activeWidth_ == static_cast<uint32_t>(restoreTargets_.viewport.Width) &&
+        activeHeight_ == static_cast<uint32_t>(restoreTargets_.viewport.Height)) {
         dxCommon_->SetRenderTarget(activeCaptureRT_->GetRTVHandle(), restoreDsvHandle_);
     } else {
         dxCommon_->SetRenderTargetNoDepth(activeCaptureRT_->GetRTVHandle());
@@ -136,8 +140,8 @@ void ObjectPostEffect::BeginCaptureWithCurrentDepth() {
     dxCommon_->SetViewport(activeWidth_, activeHeight_);
 }
 
-void ObjectPostEffect::SelectCaptureTarget() {
-    const bool useQualitySource = qualityObjectRT_ && BloomPyramid::EffectiveMode(param_) != 1;
+void ObjectPostEffect::SelectCaptureTarget(bool preserveFullResolution) {
+    const bool useQualitySource = qualityObjectRT_ && (preserveFullResolution || BloomPyramid::EffectiveMode(param_) != 1);
     activeCaptureRT_ = useQualitySource ? qualityObjectRT_.get() : objectRT_.get();
     activeWidth_ = useQualitySource ? qualityWidth_ : renderWidth_;
     activeHeight_ = useQualitySource ? qualityHeight_ : renderHeight_;
@@ -168,6 +172,11 @@ void ObjectPostEffect::EndCaptureBloomOnlyToCache() {
 }
 
 void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset) {
+    const auto savedTargets = dxCommon_->GetRenderTargetState();
+    struct TargetRestore {
+        DirectXCommon* dx; DirectXCommon::RenderTargetState state;
+        ~TargetRestore() { dx->RestoreRenderTargetState(state); }
+    } targetRestore{dxCommon_, savedTargets};
     BloomParam drawParam = MakeDrawParam(true);
     if (cachedBloomSrv_ == 0) return;
     if (qualityObjectRT_ && ((drawParam.bloomMode == 1) != (cachedFilterParam_.bloomMode == 1))) {
@@ -193,11 +202,20 @@ void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset) {
     }
     drawParam.boxBlurRadius = uvOffset.x;
     drawParam.fullScreenBoxBlurBlend = uvOffset.y;
+    if (savedTargets.hasDepth) dxCommon_->SetRenderTarget(savedTargets.rtvs[0], savedTargets.dsv);
+    else dxCommon_->SetRenderTargetNoDepth(savedTargets.rtvs[0]);
+    dxCommon_->SetViewport(static_cast<uint32_t>(savedTargets.viewport.Width), static_cast<uint32_t>(savedTargets.viewport.Height));
     cb_->Update(drawParam);
     postEffect_->DrawObjectBloomAdd(srvManager_->GetGPUDescriptorHandle(cachedBloomSrv_));
 }
 
 void ObjectPostEffect::FinishCapture(FinishMode mode, bool outputToHdr) {
+    // Fullscreen composition touches color only; restore the complete MRT set
+    // afterwards so subsequent opaque draws still contribute normals/materials.
+    struct TargetRestore {
+        DirectXCommon* dx; DirectXCommon::RenderTargetState state;
+        ~TargetRestore() { dx->RestoreRenderTargetState(state); }
+    } targetRestore{dxCommon_, restoreTargets_};
     Transition(activeCaptureRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     const BloomParam drawParam = MakeDrawParam(outputToHdr);
@@ -208,9 +226,8 @@ void ObjectPostEffect::FinishCapture(FinishMode mode, bool outputToHdr) {
     } else {
         dxCommon_->SetRenderTargetNoDepth(restoreRtvHandle_);
     }
-    dxCommon_->SetViewport(
-        static_cast<uint32_t>(WinApp::GetInstance()->GetClientWidth()),
-        static_cast<uint32_t>(WinApp::GetInstance()->GetClientHeight()));
+    dxCommon_->SetViewport(static_cast<uint32_t>(restoreTargets_.viewport.Width),
+                          static_cast<uint32_t>(restoreTargets_.viewport.Height));
     if (mode == FinishMode::BloomOnlyCache) return;
     // Update supplies an immutable GPU snapshot for this draw, including LDR vs
     // HDR output and the effective comparison mode. The public settings stay intact.
@@ -258,7 +275,7 @@ uint32_t ObjectPostEffect::RenderBloom(const BloomParam& drawParam) {
             ? *qualityBloomPyramid_ : *bloomPyramid_;
         return pyramid.Render(activeCaptureRT_->GetSrvIndex(), drawParam);
     }
-    if (activeCaptureRT_ != objectRT_.get())
+    if (activeCaptureRT_ != objectRT_.get() && !preserveFullResolutionCapture_)
         throw std::logic_error("Bloom mode must remain fixed between BeginCapture and EndCapture.");
 
     // These opaque full-target filters replace every pixel, including alpha.

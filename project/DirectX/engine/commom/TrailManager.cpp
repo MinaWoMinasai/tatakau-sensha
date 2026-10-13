@@ -256,7 +256,9 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
         drawStats_.uploadedBytes += sizeof(Matrix4x4);
         auto commandList = dxCommon_->GetList();
         commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
-        commandList->SetPipelineState(dxCommon_->GetPSOTrailForScene().graphicsState_.Get());
+        if (!dxCommon_->HasCurrentDSV()) dxCommon_->InitializeTrailSceneNoDepthPipeline();
+        commandList->SetPipelineState(dxCommon_->HasCurrentDSV() ? dxCommon_->GetPSOTrailForScene().graphicsState_.Get()
+                                                               : dxCommon_->GetTrailSceneNoDepthPipeline());
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
         commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());

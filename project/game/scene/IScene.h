@@ -16,6 +16,9 @@ public:
         float bloomSoftKnee = 0.5f, bloomScatter = 0.3f, bloomRadius = 0.75f, bloomGain = 0.15f;
         int toneMappingMode = -1;
         bool comparisonFreeze = false;
+        // Scoped Developer diagnostics for actual gameplay (never activate Showcase).
+        int renderDebugOverride = -1;
+        int ssaoOverride = -1, ssrOverride = -1;
     };
     /// @brief 一時的な画面効果の強度と継続時間を表す。
     struct PostEffectPulse {

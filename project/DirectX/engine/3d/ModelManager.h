@@ -27,6 +27,8 @@ public:
     void CreateGridModel(const std::string& modelName, float width, float depth, uint32_t xSegments, uint32_t zSegments);
     /// @brief 箱モデルを生成する。
     void CreateBoxModel(const std::string& modelName, const Vector3& size = {1.0f, 1.0f, 1.0f});
+    /// @brief 手続き生成した静的メッシュを名前で共有する。既存の名前は再生成しない。
+    void CreateModelFromData(const std::string& modelName, const ModelData& data);
     /// @brief Faceted結晶モデルを生成する。
     void CreateFacetedCrystalModel(const std::string& modelName, float radius = 1.0f, float height = 3.0f, uint32_t sides = 8);
     /// @brief Cylinderモデルを生成する。

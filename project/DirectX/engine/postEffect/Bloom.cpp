@@ -973,6 +973,23 @@ void Bloom::PreDraw() {
 }
 
 void Bloom::PostDraw() {
+    struct DiagnosticRestore {
+        bool& ao; bool& ssr; BloomParam& params;
+        bool savedAO, savedSSR; float debug, aoEnabled, ssrEnabled;
+        ~DiagnosticRestore() {
+            ao = savedAO; ssr = savedSSR; params.renderDebugMode = debug;
+            params.ssaoEnabled = aoEnabled; params.ssrEnabled = ssrEnabled;
+        }
+    } diagnosticRestore{enableSSAO_, enableSSR_, bloomParam_, enableSSAO_, enableSSR_,
+        bloomParam_.renderDebugMode, bloomParam_.ssaoEnabled, bloomParam_.ssrEnabled};
+    if (!developerShowcase_.active) {
+        if (developerShowcase_.renderDebugOverride >= 0)
+            bloomParam_.renderDebugMode = static_cast<float>((std::clamp)(developerShowcase_.renderDebugOverride, 0, 16));
+        if (developerShowcase_.ssaoOverride >= 0) enableSSAO_ = developerShowcase_.ssaoOverride != 0;
+        if (developerShowcase_.ssrOverride >= 0) enableSSR_ = developerShowcase_.ssrOverride != 0;
+        bloomParam_.ssaoEnabled = enableSSAO_ ? 1.0f : 0.0f;
+        bloomParam_.ssrEnabled = enableSSR_ ? 1.0f : 0.0f;
+    }
     struct GainRestore {
         float& value; float saved;
         ~GainRestore() { value = saved; }
@@ -1204,7 +1221,7 @@ void Bloom::PostDraw() {
         extractSource = srvManager_->GetGPUDescriptorHandle(bloomPyramid_->GetExtractSrvIndex());
     } else {
         Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        const float black[4] = {0, 0, 0, 0};
+        const float black[4] = {0, 0, 0, 1}; // Match this legacy target's optimized clear value.
         dxCommon_->ClearRenderTarget(bloomRT_A_->GetRTVHandle(), black);
         Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         extractSource = bloomSource;

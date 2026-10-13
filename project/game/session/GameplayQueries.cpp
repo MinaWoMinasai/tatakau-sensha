@@ -15,6 +15,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <d3d12sdklayers.h>
 #include <limits>
 #include <sstream>
 #ifdef USE_IMGUI
@@ -72,6 +73,9 @@ IScene::DeveloperShowcaseState GameplayQueries::GetDeveloperShowcaseState()
         state.bloomGain = world_.resources.neonSkinnedPreview_->GetShowcaseBloomGain();
         state.toneMappingMode = world_.resources.neonSkinnedPreview_->GetShowcaseToneMappingMode();
     } else if (!world_.demo.titleDemo_) {
+        state.renderDebugOverride = world_.presentation.developerStageSurfaceDebugView_;
+        state.ssaoOverride = world_.presentation.developerStageSurfaceSSAO_;
+        state.ssrOverride = world_.presentation.developerStageSurfaceSSR_;
         state.bloomComparisonMode = world_.presentation.developerBloomComparisonMode_;
         state.toneMappingMode = world_.presentation.developerToneMappingMode_;
         // Continuous scenario readback does not set either comparison flag.
@@ -114,6 +118,7 @@ nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(cg2::DirectXCom
         return nlohmann::json::array({value.x, value.y, value.z});
     };
     const auto& post = world_.presentation.developerCompositeParams_;
+    const bool surfaceTrail = world_.run.prototypeRun_ && world_.presentation.stageSurface_.enabled;
     const auto counts = world_.resources.bulletManager_->GetBulletCounts();
     nlohmann::json metadata = {
         {"schemaVersion", 1},
@@ -147,11 +152,11 @@ nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(cg2::DirectXCom
         {"localCategories", world_.gameplaySettings->BuildGamePostEffectConfig()},
         {"visualAppearance", world_.gameplaySettings->BuildGameVisualConfig()},
         {"sourceResolution",
-         {{"trailLegacyScale", 0.5f},
+         {{"trailLegacyScale", surfaceTrail ? 1.0f : 0.5f},
           {"trailQualityAndOffScale", 1.0f},
           {"sharedModelLegacyScale", 0.5f},
           {"sharedModelQualityAndOffScale", 1.0f},
-          {"note", "Legacy preserves the half-resolution projectile/model captures; new/OFF preserves full-resolution source cores."}}},
+          {"note", "Phase 1 uses full-resolution projectile cores with Scene depth in every Bloom mode; bodies stay outside emission captures."}}},
         {"sourceCounts",
          {{"playerBullets", counts.player},
           {"enemyBullets", counts.enemy},
@@ -194,6 +199,34 @@ nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(cg2::DirectXCom
     UINT64 frequency = 0;
     if (SUCCEEDED(dx.GetQueue()->GetTimestampFrequency(&frequency)))
         metadata["queueTimestampFrequencyHz"] = frequency;
+    Microsoft::WRL::ComPtr<ID3D12InfoQueue> messages;
+    if (SUCCEEDED(dx.GetDevice()->QueryInterface(IID_PPV_ARGS(&messages)))) {
+        const UINT64 count = messages->GetNumStoredMessagesAllowedByRetrievalFilter();
+        unsigned errors = 0, warnings = 0;
+        const UINT64 inspected = (std::min)(count, UINT64{4096});
+        for (UINT64 index = 0; index < inspected; ++index) {
+            SIZE_T bytes = 0;
+            if (FAILED(messages->GetMessage(index, nullptr, &bytes)) || !bytes) continue;
+            std::vector<unsigned char> storage(bytes);
+            auto* message = reinterpret_cast<D3D12_MESSAGE*>(storage.data());
+            if (FAILED(messages->GetMessage(index, message, &bytes))) continue;
+            if (message->Severity == D3D12_MESSAGE_SEVERITY_ERROR || message->Severity == D3D12_MESSAGE_SEVERITY_CORRUPTION) ++errors;
+            if (message->Severity == D3D12_MESSAGE_SEVERITY_WARNING) ++warnings;
+            if ((message->Severity == D3D12_MESSAGE_SEVERITY_ERROR || message->Severity == D3D12_MESSAGE_SEVERITY_CORRUPTION) &&
+                metadata["validation"]["firstErrors"].size() < 8) {
+                metadata["validation"]["firstErrors"].push_back({{"id", static_cast<int>(message->ID)},
+                    {"description", std::string(message->pDescription, (std::min)(message->DescriptionByteLength, SIZE_T{1200}))}});
+            }
+            if (message->Severity == D3D12_MESSAGE_SEVERITY_WARNING && metadata["validation"]["firstWarnings"].size() < 8) {
+                metadata["validation"]["firstWarnings"].push_back({{"id", static_cast<int>(message->ID)},
+                    {"description", std::string(message->pDescription, (std::min)(message->DescriptionByteLength, SIZE_T{1200}))}});
+            }
+        }
+        metadata["validation"]["storedMessages"] = count;
+        metadata["validation"]["inspectedMessages"] = inspected;
+        metadata["validation"]["errors"] = errors;
+        metadata["validation"]["warnings"] = warnings;
+    }
     Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter;
     if (SUCCEEDED(dx.GetDxgiFactory()->EnumAdapterByLuid(dx.GetDevice()->GetAdapterLuid(), IID_PPV_ARGS(&adapter)))) {
         DXGI_ADAPTER_DESC3 description{};
