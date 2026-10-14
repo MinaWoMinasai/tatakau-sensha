@@ -435,7 +435,7 @@ bool GameplaySettings::SaveGamePostEffectConfig(const std::string& filePath) con
 nlohmann::json GameplaySettings::BuildGameVisualConfig() const
 {
     nlohmann::json config = nlohmann::json::object();
-    config["version"] = 2;
+    config["version"] = 3;
     const auto& surface = world_.presentation.stageSurface_;
     config["stageSurface"] = {{"enabled", surface.enabled}, {"floorEnabled", surface.floorEnabled},
         {"blocksEnabled", surface.blocksEnabled}, {"floorColor", WriteJsonVector4(surface.floorColor)},
@@ -446,7 +446,12 @@ nlohmann::json GameplaySettings::BuildGameVisualConfig() const
         {"damageBlockColor", WriteJsonVector4(surface.damageBlockColor)}, {"blockMetallic", surface.blockMetallic},
         {"blockRoughness", surface.blockRoughness}, {"blockHeight", surface.blockHeight},
         {"blockEmission", surface.blockEmission}, {"blockLightIntensity", surface.blockLightIntensity},
-        {"sideLineDivisions", surface.sideLineDivisions}};
+        {"sideLineDivisions", surface.sideLineDivisions}, {"wallStyle", surface.wallStyle},
+        {"exteriorEnabled", surface.exteriorEnabled}, {"exteriorHeight", surface.exteriorHeight},
+        {"exteriorGap", surface.exteriorGap}, {"exteriorWidth", surface.exteriorWidth}, {"stackLevels", surface.stackLevels},
+        {"wallLineWidth", surface.wallLineWidth}, {"floorLocalLight", surface.floorLocalLight},
+        {"floorLightColor", WriteJsonVector4(surface.floorLightColor)}, {"floorLocalIntensity", surface.floorLocalIntensity},
+        {"floorLocalRadius", surface.floorLocalRadius}, {"floorLocalHeight", surface.floorLocalHeight}, {"floorDetail", surface.floorDetail}};
     config["textAppearance"] = {{"fontMode", world_.combat.gameTextFontMode_},
                                 {"neonEnabled", world_.combat.gameTextNeonEnabled_},
                                 {"outlineEnabled", world_.combat.gameTextOutlineEnabled_},
@@ -561,6 +566,20 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
     if (configJson.contains("stageSurface") && configJson["stageSurface"].is_object()) {
         const auto& data = configJson["stageSurface"];
         auto& surface = world_.presentation.stageSurface_;
+        // Version 2 settings retain Phase 1 unless the new wall style is explicit.
+        surface.wallStyle = ReadCustomInt(data, "wallStyle", 0);
+        surface.exteriorEnabled = ReadCustomBool(data, "exteriorEnabled", false);
+        surface.exteriorHeight = ReadCustomFloat(data, "exteriorHeight", surface.exteriorHeight);
+        surface.exteriorGap = ReadCustomFloat(data, "exteriorGap", surface.exteriorGap);
+        surface.exteriorWidth = ReadCustomFloat(data, "exteriorWidth", surface.exteriorWidth);
+        surface.stackLevels = ReadCustomInt(data, "stackLevels", surface.stackLevels);
+        surface.wallLineWidth = ReadCustomFloat(data, "wallLineWidth", surface.wallLineWidth);
+        surface.floorLocalLight = ReadCustomBool(data, "floorLocalLight", false);
+        if (data.contains("floorLightColor")) surface.floorLightColor = ReadJsonVector4(data["floorLightColor"], surface.floorLightColor);
+        surface.floorLocalIntensity = ReadCustomFloat(data, "floorLocalIntensity", surface.floorLocalIntensity);
+        surface.floorLocalRadius = ReadCustomFloat(data, "floorLocalRadius", surface.floorLocalRadius);
+        surface.floorLocalHeight = ReadCustomFloat(data, "floorLocalHeight", surface.floorLocalHeight);
+        surface.floorDetail = ReadCustomFloat(data, "floorDetail", 0.0f);
         surface.enabled = ReadCustomBool(data, "enabled", surface.enabled);
         surface.floorEnabled = ReadCustomBool(data, "floorEnabled", surface.floorEnabled);
         surface.blocksEnabled = ReadCustomBool(data, "blocksEnabled", surface.blocksEnabled);

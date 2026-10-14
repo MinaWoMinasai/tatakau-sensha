@@ -251,7 +251,7 @@
     "worldLineWidth": 0.07500000298023224,
     "worldSpacing": 2.0
   },
-  "version": 2,
+  "version": 3,
   "stageSurface": {
     "enabled": true,
     "floorEnabled": true,
@@ -263,14 +263,14 @@
       "w": 1.0
     },
     "floorMetallic": 0.2,
-    "floorRoughness": 0.72,
+    "floorRoughness": 0.52,
     "floorDepth": 1.1,
     "floorPadding": 8.0,
     "floorLightIntensity": 1.6,
     "blockColor": {
-      "x": 0.085,
-      "y": 0.105,
-      "z": 0.14,
+      "x": 0.032,
+      "y": 0.04,
+      "z": 0.055,
       "w": 1.0
     },
     "damageBlockColor": {
@@ -281,10 +281,23 @@
     },
     "blockMetallic": 0.3,
     "blockRoughness": 0.56,
-    "blockHeight": 2.8,
+    "blockHeight": 4.8,
     "blockEmission": 0.65,
     "blockLightIntensity": 2.2,
     "sideLineDivisions": 1,
-    "gridMinPixelWidth": 1.15
+    "gridMinPixelWidth": 1.15,
+    "wallStyle": 1,
+    "exteriorEnabled": true,
+    "exteriorHeight": 8.0,
+    "exteriorGap": 2.0,
+    "exteriorWidth": 2.0,
+    "stackLevels": 3,
+    "wallLineWidth": 0.028,
+    "floorLocalLight": true,
+    "floorLightColor": { "x": 0.20, "y": 0.85, "z": 0.65, "w": 1.0 },
+    "floorLocalIntensity": 24.0,
+    "floorLocalRadius": 11.0,
+    "floorLocalHeight": 3.0,
+    "floorDetail": 0.0
   }
 }

@@ -1,4 +1,5 @@
 #include "game/render/session/StageNeonRenderer.h"
+#include <set>
 #include "game/session/GameplaySystems.h"
 #include "game/weapon/CombatTypes.h"
 #include "RuntimeProfiler.h"
@@ -206,6 +207,63 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
     const cg2::Vector3 cameraPos = GetActiveCameraPosition(world_.resources.camera.get(), world_.resources.debugCamera.get());
     const auto& surface = world_.presentation.stageSurface_;
     const bool surfaceBlocks = world_.run.prototypeRun_ && surface.enabled && surface.blocksEnabled;
+    if (surfaceBlocks && surface.wallStyle == 1) {
+        // Join cell grids without a separately bloomed frame around every tile.
+        // A deduplicated segment set also removes shared rectangle seams.
+        std::set<std::array<int,6>> emitted;
+        for (const auto& wall : world_.resources.stage_->GetSurfaceWalls(surface)) {
+            const bool damage = wall.type == MapChipType::kDamageBlock;
+            if ((damage && !world_.presentation.showStageDamageBlockNeonOutlines_) ||
+                (!damage && !world_.presentation.showStageBlockNeonOutlines_)) continue;
+            const auto visual = Stage::SurfaceWallTransform(wall, surface);
+            if (!world_.resourceNeonRenderer->IsNearCamera2D(visual.translate,
+                38.0f+std::abs(visual.scale.x),24.0f+std::abs(visual.scale.y),3.0f)) continue;
+            const auto matrix = cg2::MakeAffineMatrix(visual.scale,visual.rotate,visual.translate);
+            auto world = [&](cg2::Vector3 p) { return cg2::TransformMatrix(p,matrix); };
+            auto color = wall.exterior ? cg2::Vector4{1.0f,.10f,.22f,.80f} :
+                (damage ? world_.presentation.stageDamageBlockNeonColor_ : world_.presentation.stageBlockNeonColor_);
+            float pulse = 1.0f;
+            if (damage) pulse = world_.presentation.stageDamageBlockPulseMin_ +
+                (world_.presentation.stageDamageBlockPulseMax_-world_.presentation.stageDamageBlockPulseMin_)*
+                (.5f+.5f*std::sin(world_.presentation.stageDamageBlockPulseTime_*world_.presentation.stageDamageBlockPulseSpeed_));
+            color.x*=surface.blockEmission*pulse; color.y*=surface.blockEmission*pulse; color.z*=surface.blockEmission*pulse;
+            auto line = [&](cg2::Vector3 a,cg2::Vector3 b,cg2::Vector3 normal,bool rim) {
+                const auto n=cg2::Normalize(world(normal)-world({0,0,0}));
+                a=world(a)+n*.012f; b=world(b)+n*.012f;
+                std::array<int,3> ka{int(std::round(a.x*1000)),int(std::round(a.y*1000)),int(std::round(a.z*1000))};
+                std::array<int,3> kb{int(std::round(b.x*1000)),int(std::round(b.y*1000)),int(std::round(b.z*1000))};
+                if (kb<ka) std::swap(ka,kb);
+                if (!emitted.insert({ka[0],ka[1],ka[2],kb[0],kb[1],kb[2]}).second) return;
+                cg2::NeonContourStyle style;
+                style.roundCaps=false; style.coreWidthRatio=.28f; style.coreIntensity=1.0f;
+                style.coreWhiteMix=.02f; style.shoulderIntensity=.80f; style.haloIntensity=.20f; style.haloAlpha=.04f;
+                auto c=color;
+                const float gain=(rim?1.0f:.46f)*(std::abs(normal.z)>.5f?1.0f:.65f);
+                c.x*=gain; c.y*=gain; c.z*=gain;
+                world_.resources.neonGridRenderer_->QueueContourLine(a,b,surface.wallLineWidth,c,cameraForward,style);
+            };
+            auto visible = [&](cg2::Vector3 normal) {
+                return cg2::Dot(cg2::Normalize(world(normal)-world({0,0,0})),cameraPos-world(normal))>=0.0f;
+            };
+            const int nx=(std::max)(1,int(std::round(std::abs(visual.scale.x))));
+            const int ny=(std::max)(1,int(std::round(std::abs(visual.scale.y))));
+            const int nz=wall.isolated?1:(wall.exterior?(std::clamp)(int(std::round(surface.exteriorHeight/2)),1,6):surface.stackLevels);
+            auto coordinate=[](int i,int n) { return -1.0f+2.0f*float(i)/float(n); };
+            for (float z:{-1.0f,1.0f}) if (visible({0,0,z})) {
+                for (int i=0;i<=nx;++i) { const float x=coordinate(i,nx); line({x,-1,z},{x,1,z},{0,0,z},false); }
+                for (int i=0;i<=ny;++i) { const float y=coordinate(i,ny); line({-1,y,z},{1,y,z},{0,0,z},false); }
+            }
+            for (float y:{-1.0f,1.0f}) if (visible({0,y,0})) {
+                for (int i=0;i<=nx;++i) { const float x=coordinate(i,nx); line({x,y,-1},{x,y,1},{0,y,0},false); }
+                for (int i=0;i<=nz;++i) { const float z=coordinate(i,nz); line({-1,y,z},{1,y,z},{0,y,0},i==0||i==nz); }
+            }
+            for (float x:{-1.0f,1.0f}) if (visible({x,0,0})) {
+                for (int i=0;i<=ny;++i) { const float y=coordinate(i,ny); line({x,y,-1},{x,y,1},{x,0,0},false); }
+                for (int i=0;i<=nz;++i) { const float z=coordinate(i,nz); line({x,-1,z},{x,1,z},{x,0,0},i==0||i==nz); }
+            }
+        }
+        return;
+    }
     const float faceExtent = surfaceBlocks ? 1.0f - stagesurface::kBevel : 1.0f;
 
     auto divisionCount = [](float scale) {
