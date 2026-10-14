@@ -614,6 +614,10 @@ int Game::MainLoop() {
             cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
             SceneManager::GetInstance()->DrawSprite();
         });
+        {
+            cg2::RuntimeProfiler::GpuScope scope("CRT Present");
+            bloom_->PresentToBackBuffer();
+        }
 		renderProfile.drawRecordMs = elapsedMs(drawRecordStart, std::chrono::steady_clock::now());
 
 

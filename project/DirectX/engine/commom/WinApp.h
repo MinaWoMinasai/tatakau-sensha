@@ -28,8 +28,12 @@ public:
     // シングルトン
     static WinApp* GetInstance();
 
+    // UI・照準・HUDが使う論理座標。実際のウィンドウサイズや描画解像度とは独立している。
     static const int32_t kClientWidth = 1280;
     static const int32_t kClientHeight = 720;
+    // 3D・ポスト処理・スワップチェーンの内部描画解像度。論理座標と同じ16:9。
+    static const int32_t kRenderWidth = 1920;
+    static const int32_t kRenderHeight = 1080;
 
     // ウィンドウプロシージャ
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
@@ -54,6 +58,14 @@ public:
     int32_t GetClientWidth() const;
     /// @brief Client高さを返す。
     int32_t GetClientHeight() const;
+    /// @brief 実ウィンドウのクライアント座標を、論理座標(kClientWidth x kClientHeight)へ変換する。
+    /// 最終提示で画面を樽型に歪ませている場合は、その画素に映っている論理位置を返す。
+    void ClientToLogical(float& x, float& y) const;
+    /// @brief 最終提示パスの樽型歪みの強さを設定する（0で歪みなし）。
+    void SetPresentationCurvature(float curvature)
+    {
+        presentationCurvature_ = curvature;
+    }
     /// @brief 有効であるか判定する。
     bool IsActive() const
     {
@@ -67,6 +79,7 @@ private:
     WNDCLASS wc_{};
     bool isActive_ = true;
     bool activationChanged_ = false;
+    float presentationCurvature_ = 0.0f;
 };
 
 } // namespace cg2

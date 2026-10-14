@@ -54,7 +54,10 @@ float2 ApplyShockwave(float2 uv)
         return uv;
     }
 
-    const float aspect = 1280.0f / 720.0f;
+    uint sceneWidth;
+    uint sceneHeight;
+    sceneTex.GetDimensions(sceneWidth, sceneHeight);
+    const float aspect = (float)sceneWidth / (float)sceneHeight;
     float2 delta = uv - shockwaveCenter;
     float2 aspectDelta = float2(delta.x * aspect, delta.y);
     float distanceFromCenter = length(aspectDelta);
@@ -81,9 +84,9 @@ float3 ApplyColorModifiers(float3 color)
 // --- 5. オーバーレイ：走査線・ノイズ ---
 float3 ApplyOverlays(float3 color, float2 uv)
 {
-    // 走査線
+    // 走査線。暗部へ灰色の縞を足さないよう、明るさを乗算で落とす。
     float scanline = sin(uv.y * scanlineFrequency + timer * 2.0f);
-    color -= scanline * 0.1f * scanlineIntensity;
+    color *= 1.0f - saturate(scanlineIntensity * 0.2f) * (0.5f + 0.5f * scanline);
     
     // フィルムノイズ
     float n = Hash(uv + frac(timer));
@@ -92,6 +95,67 @@ float3 ApplyOverlays(float3 color, float2 uv)
     return color;
 }
 
+// --- 6. アリーナの星雲：深度から復元したワールドXYへ固定した紫の雲 ---
+float ValueNoise(float2 p)
+{
+    float2 i = floor(p);
+    float2 f = frac(p);
+    float2 u = f * f * (3.0f - 2.0f * f);
+    float a = Hash(i);
+    float b = Hash(i + float2(1.0f, 0.0f));
+    float c = Hash(i + float2(0.0f, 1.0f));
+    float d = Hash(i + float2(1.0f, 1.0f));
+    return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
+}
+
+float Fbm(float2 p)
+{
+    float sum = 0.0f;
+    float amplitude = 0.5f;
+    [unroll]
+    for (int octave = 0; octave < 5; ++octave)
+    {
+        sum += ValueNoise(p) * amplitude;
+        p = mul(float2x2(1.6f, 1.2f, -1.2f, 1.6f), p);
+        amplitude *= 0.5f;
+    }
+    return sum;
+}
+
+float3 GetArenaNebula(float2 uv, float3 baseColor)
+{
+    if (arenaNebulaIntensity <= 0.0f)
+    {
+        return 0.0f.xxx;
+    }
+    float depth = depthTex.Sample(samp, uv);
+    if (depth >= 0.99999f)
+    {
+        return 0.0f.xxx;
+    }
+    float4 clip = float4(uv.x * 2.0f - 1.0f, 1.0f - uv.y * 2.0f, depth, 1.0f);
+    float4 world = mul(clip, motionInverseCurrentViewProjection);
+    world.xyz /= (abs(world.w) > 0.0001f ? world.w : 1.0f);
+
+    // カメラへ向いた面（床・壁の天面）にだけ載せ、側面へ縦に引き伸ばさない。
+    float3 normal = DecodeNormalTarget(normalTex.Sample(samp, uv));
+    float facing = saturate(-normal.z);
+
+    float2 p = world.xy * arenaNebulaScale;
+    float drift = timer * arenaNebulaDrift;
+    float2 warp = float2(Fbm(p + float2(drift, -drift * 0.6f)), Fbm(p + float2(5.2f, 1.3f) - drift));
+    float cloud = Fbm(p * 1.7f + warp * 2.2f);
+    float body = smoothstep(0.38f, 0.82f, cloud);
+    float tint = Fbm(p * 0.6f + float2(3.7f, 9.1f) + warp);
+    float3 color = lerp(arenaNebulaColorB, arenaNebulaColorA, smoothstep(0.30f, 0.70f, tint));
+
+    // 発光している線の上には載せず、暗い面だけを染める。
+    float baseLuminance = dot(baseColor, float3(0.2126f, 0.7152f, 0.0722f));
+    float darkness = 1.0f - saturate(baseLuminance * 3.0f);
+    return color * body * facing * darkness * arenaNebulaIntensity;
+}
+
+
 float3 SampleBoxBlur(Texture2D tex, float2 uv, float radiusPixels)
 {
     if (boxBlurIntensity <= 0.0f || radiusPixels <= 0.0f)
@@ -99,7 +163,10 @@ float3 SampleBoxBlur(Texture2D tex, float2 uv, float radiusPixels)
         return tex.Sample(samp, uv).rgb;
     }
 
-    float2 texelSize = float2(1.0f / 1280.0f, 1.0f / 720.0f);
+    uint sourceWidth;
+    uint sourceHeight;
+    tex.GetDimensions(sourceWidth, sourceHeight);
+    float2 texelSize = 1.0f / float2(sourceWidth, sourceHeight);
     float2 offset = texelSize * radiusPixels;
 
     float3 sum = 0.0f;
@@ -526,6 +593,7 @@ float4 main(PSInput input) : SV_TARGET
         sceneColor *= screenSpaceAO;
         sceneColor = lerp(sceneColor, screenSpaceReflection.rgb, screenSpaceReflectionBlend);
         blurredColor = bloom;
+        sceneColor += GetArenaNebula(finalUV, sceneColor);
     // 【ブルームモード】
     // 元の絵に、高輝度部分をぼかしたものを「加算」する
     // ここで intensity をかけることで、光の強さを制御できます
@@ -556,9 +624,13 @@ float4 main(PSInput input) : SV_TARGET
 	}
 
     // G. 仕上げ（角丸・ビネット）
-    float2 edge = abs(crtUV);
-    float mask = pow(saturate(1.0 - edge.x), borderSharp) * pow(saturate(1.0 - edge.y), borderSharp);
-    result *= saturate(1.0 - (1.0 - mask) * 10.0);
+    // アリーナ表示では角丸の枠をUIごと最終提示パスでかける。
+    if (arenaEnabled <= 0.5f)
+    {
+        float2 edge = abs(crtUV);
+        float mask = pow(saturate(1.0 - edge.x), borderSharp) * pow(saturate(1.0 - edge.y), borderSharp);
+        result *= saturate(1.0 - (1.0 - mask) * 10.0);
+    }
 
     float dist = length(baseUV * 0.5);
     result *= pow(saturate(1.0 - dist * vignetteIntensity * vignetteScale), 0.8);

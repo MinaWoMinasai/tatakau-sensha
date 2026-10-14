@@ -124,6 +124,14 @@ void GameplayRenderer::DrawPostEffect3D()
             cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
         });
     }
+    if (!depthOverlay && world_.presentation.fillActorNeonBodies_ &&
+        (world_.presentation.playerNeonRenderMode_ == 1 || world_.presentation.bossNeonRenderMode_ == 1)) {
+        profile("Actor Bodies", true, [&]() {
+            // Black glossy spheres over the bloomed lines, then their rings again on top.
+            world_.actorNeonRenderer->DrawActorNeonBodyFillPass(true, ActorNeonRenderer::BodySet::RoundActors);
+            cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
+        });
+    }
     if (depthOverlay && world_.presentation.fillActorNeonBodies_ &&
         (world_.presentation.playerNeonRenderMode_ == 1 || world_.presentation.bossNeonRenderMode_ == 1 ||
          world_.presentation.expEnemyNeonRenderMode_ == 1)) {

@@ -388,9 +388,154 @@ void NeonGridGeometry::QueueBillboardRegularPolygonFill(
     }
 }
 
+void NeonGridGeometry::SetBodyShadingEye(const Vector3* eye) {
+    bodyShading_ = eye != nullptr;
+    if (eye) bodyEye_ = *eye;
+}
+
+Vector4 NeonGridGeometry::ShadeBody(const Vector3& position, const Vector3& normal, const Vector4& baseColor, const Vector4& tint) const {
+    Vector3 toEye = bodyEye_ - position;
+    toEye = Length(toEye) > 0.0001f ? Normalize(toEye) : Vector3{0.0f, 0.0f, -1.0f};
+    // Key light from the upper left, on the camera side of the XY gameplay plane.
+    const Vector3 light = Normalize(Vector3{-0.45f, 0.55f, -0.70f});
+    const float facing = std::clamp(Dot(normal, toEye), 0.0f, 1.0f);
+    const float fresnel = std::pow(1.0f - facing, 3.0f);
+    const float diffuse = std::clamp(Dot(normal, light), 0.0f, 1.0f);
+    const Vector3 halfVector = Normalize(light + toEye);
+    const float specular = std::pow(std::clamp(Dot(normal, halfVector), 0.0f, 1.0f), 110.0f);
+    // A second, softer lobe from the lower right keeps the far side from going flat.
+    const Vector3 fill = Normalize(Vector3{0.55f, -0.45f, -0.70f});
+    const float fillSpecular = std::pow(std::clamp(Dot(normal, Normalize(fill + toEye)), 0.0f, 1.0f), 18.0f);
+    const float peak = (std::max)({tint.x, tint.y, tint.z, 0.001f});
+    const Vector3 hue{tint.x / peak, tint.y / peak, tint.z / peak};
+    // Smoked black lacquer: a faint body tint, a colored rim reflection of its own neon and sharp white glints.
+    const float rim = 0.02f + 0.05f * diffuse + 0.85f * fresnel + 0.10f * fillSpecular;
+    const float glint = specular * 2.2f;
+    return {baseColor.x + hue.x * rim + glint, baseColor.y + hue.y * rim + glint, baseColor.z + hue.z * rim + glint, baseColor.w};
+}
+
+void NeonGridGeometry::PushShadedTriangle(const Vector3& a, const Vector3& b, const Vector3& c,
+                                          const Vector4& ca, const Vector4& cb, const Vector4& cc) {
+    // Solid fills are alpha blended without depth writes; convex bodies stay order-independent
+    // when only the eye-facing half is emitted.
+    const Vector3 normal = Cross(b - a, c - a);
+    const Vector3 centroid = (a + b + c) / 3.0f;
+    if (Dot(normal, bodyEye_ - centroid) <= 0.0f) return;
+    PushVertex(a, ca, {0.5f, 0.5f});
+    PushVertex(b, cb, {0.5f, 0.5f});
+    PushVertex(c, cc, {0.5f, 0.5f});
+}
+
+void NeonGridGeometry::QueueShadedBody(const Vector3* points, uint32_t count, const Vector4& baseColor, const Vector4& tint) {
+    Vector3 center{};
+    for (uint32_t i = 0; i < count; ++i) center += points[i];
+    center = center / static_cast<float>(count);
+    float radius = 0.0f;
+    for (uint32_t i = 0; i < count; ++i) radius = (std::max)(radius, Length(points[i] - center));
+    if (radius <= 0.0001f) return;
+    // Raise toward the eye: the outline lies in a plane whose normal points at the camera.
+    Vector3 up = Cross(points[1] - points[0], points[2] - points[0]);
+    if (Length(up) <= 0.000001f) return;
+    up = Normalize(up);
+    if (Dot(up, bodyEye_ - center) < 0.0f) up = up * -1.0f;
+
+    const bool round = count >= 12;
+    // Profile rings as (outline scale, height / radius). The round body is a smooth dome,
+    // polygons are a faceted chamfered frustum like the arena blocks.
+    constexpr int kRoundRings = 7;
+    constexpr std::array<float, 4> kPolygonScale{1.0f, 0.88f, 0.64f, 0.0f};
+    constexpr std::array<float, 4> kPolygonHeight{0.0f, 0.26f, 0.42f, 0.42f};
+    const int rings = round ? kRoundRings : static_cast<int>(kPolygonScale.size());
+    const uint32_t required = count * static_cast<uint32_t>(rings) * 6u;
+    if (vertexCount_ + required > vertexCapacity_) return;
+    const float domeHeight = radius * 0.92f;
+    auto ringScale = [&](int ring) {
+        if (!round) return kPolygonScale[static_cast<size_t>(ring)];
+        return std::cos(1.5707963f * static_cast<float>(ring) / static_cast<float>(kRoundRings - 1));
+    };
+    auto ringHeight = [&](int ring) {
+        if (!round) return kPolygonHeight[static_cast<size_t>(ring)] * radius;
+        return std::sin(1.5707963f * static_cast<float>(ring) / static_cast<float>(kRoundRings - 1)) * domeHeight;
+    };
+    auto position = [&](uint32_t i, int ring) {
+        return center + (points[i % count] - center) * ringScale(ring) + up * ringHeight(ring);
+    };
+    auto roundNormal = [&](uint32_t i, int ring) {
+        // Analytic normal of the dome profile: radial * dh/dt - up * |p - c| * ds/dt.
+        const float t = 1.5707963f * static_cast<float>(ring) / static_cast<float>(kRoundRings - 1);
+        const Vector3 radial = points[i % count] - center;
+        const float length = Length(radial);
+        const Vector3 direction = length > 0.0001f ? radial / length : Vector3{};
+        const Vector3 n = direction * (std::cos(t) * domeHeight) + up * (length * std::sin(t));
+        return Length(n) > 0.0001f ? Normalize(n) : up;
+    };
+    for (int ring = 0; ring + 1 < rings; ++ring) {
+        for (uint32_t i = 0; i < count; ++i) {
+            const Vector3 a = position(i, ring), b = position(i + 1, ring);
+            const Vector3 c = position(i + 1, ring + 1), d = position(i, ring + 1);
+            // Each quad is offered in both windings; PushShadedTriangle keeps only the eye-facing one.
+            if (round) {
+                const Vector4 ca = ShadeBody(a, roundNormal(i, ring), baseColor, tint);
+                const Vector4 cb = ShadeBody(b, roundNormal(i + 1, ring), baseColor, tint);
+                const Vector4 cc = ShadeBody(c, roundNormal(i + 1, ring + 1), baseColor, tint);
+                const Vector4 cd = ShadeBody(d, roundNormal(i, ring + 1), baseColor, tint);
+                PushShadedTriangle(a, b, c, ca, cb, cc);
+                PushShadedTriangle(a, c, d, ca, cc, cd);
+                PushShadedTriangle(a, c, b, ca, cc, cb);
+                PushShadedTriangle(a, d, c, ca, cd, cc);
+            } else {
+                // Flat facets: one normal per quad keeps sharp, block-like edges.
+                Vector3 faceNormal = Cross(b - a, d - a);
+                if (Length(faceNormal) <= 0.000001f) faceNormal = Cross(c - b, a - b);
+                if (Length(faceNormal) <= 0.000001f) continue;
+                faceNormal = Normalize(faceNormal);
+                if (Dot(faceNormal, up) < 0.0f) faceNormal = faceNormal * -1.0f;
+                const Vector4 face = ShadeBody((a + b + c + d) * 0.25f, faceNormal, baseColor, tint);
+                PushShadedTriangle(a, b, c, face, face, face);
+                PushShadedTriangle(a, c, d, face, face, face);
+                PushShadedTriangle(a, c, b, face, face, face);
+                PushShadedTriangle(a, d, c, face, face, face);
+            }
+        }
+    }
+}
+
+void NeonGridGeometry::QueueShadedBox(const Vector3& base, const Vector3& tip, const Vector3& right, float halfWidth, float height,
+                                      const Vector4& baseColor, const Vector4& tint) {
+    if (!bodyShading_ || halfWidth <= 0.0f || height <= 0.0f || vertexCount_ + 36 > vertexCapacity_) return;
+    const Vector3 forward = tip - base;
+    if (Length(forward) <= 0.0001f || Length(right) <= 0.0001f) return;
+    const Vector3 side = Normalize(right) * halfWidth;
+    Vector3 up = Cross(forward, side);
+    if (Length(up) <= 0.000001f) return;
+    up = Normalize(up);
+    if (Dot(up, bodyEye_ - (base + tip) * 0.5f) < 0.0f) up = up * -1.0f;
+    const Vector3 lift = up * height;
+    const Vector3 corners[8] = {base - side, base + side, tip + side, tip - side,
+                                base - side + lift, base + side + lift, tip + side + lift, tip - side + lift};
+    const int faces[6][4] = {{4, 5, 6, 7}, {0, 1, 5, 4}, {1, 2, 6, 5}, {2, 3, 7, 6}, {3, 0, 4, 7}, {3, 2, 1, 0}};
+    const Vector3 boxCenter = (base + tip) * 0.5f + lift * 0.5f;
+    for (const auto& f : faces) {
+        const Vector3 a = corners[f[0]], b = corners[f[1]], c = corners[f[2]], d = corners[f[3]];
+        Vector3 normal = Normalize(Cross(b - a, d - a));
+        if (Dot(normal, (a + c) * 0.5f - boxCenter) < 0.0f) normal = normal * -1.0f;
+        const Vector4 color = ShadeBody((a + c) * 0.5f, normal, baseColor, tint);
+        PushShadedTriangle(a, b, c, color, color, color);
+        PushShadedTriangle(a, c, d, color, color, color);
+        PushShadedTriangle(a, c, b, color, color, color);
+        PushShadedTriangle(a, d, c, color, color, color);
+    }
+}
+
 void NeonGridGeometry::QueueBeveledPolygonFill(const Vector3* points, uint32_t count, const Vector4& baseColor,
                                                const Vector4& tint, const Vector3& lightDirection) {
     if (!points || count < 3 || count > 96 || baseColor.w <= 0.001f || vertexCount_ + count * 9 > vertexCapacity_) return;
+    if (bodyShading_) {
+        for (uint32_t i = 0; i < count; ++i)
+            if (!std::isfinite(points[i].x) || !std::isfinite(points[i].y) || !std::isfinite(points[i].z)) return;
+        QueueShadedBody(points, count, baseColor, tint);
+        return;
+    }
     Vector3 center{};
     for (uint32_t i = 0; i < count; ++i) {
         if (!std::isfinite(points[i].x) || !std::isfinite(points[i].y) || !std::isfinite(points[i].z)) return;
@@ -477,8 +622,9 @@ void NeonGridGeometry::QueueLocalGridClipped(const Vector3& center, float radius
         const float dx = x - center.x;
         const float dy = y - center.y;
         const float normalizedDistance = std::sqrt(dx * dx + dy * dy) / radius;
-        const float fade = std::clamp(1.0f - normalizedDistance * normalizedDistance, 0.0f, 1.0f);
-        return fade * fade;
+        // Keep the territory evenly tinted and soften only its rim.
+        const float t = std::clamp((normalizedDistance - 0.45f) / 0.55f, 0.0f, 1.0f);
+        return 1.0f - t * t * (3.0f - 2.0f * t);
     };
 
     auto addFadedSegment = [&](const Vector3& a, const Vector3& b) {

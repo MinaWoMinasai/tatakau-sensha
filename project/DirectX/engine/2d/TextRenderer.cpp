@@ -1,5 +1,6 @@
 #include "TextRenderer.h"
 #include "StartupTrace.h"
+#include "WinApp.h"
 #include <Windows.h>
 #include <gdiplus.h>
 #include <algorithm>
@@ -162,6 +163,11 @@ void TextRenderer::EnsureInitialized()
 	initialized_ = true;
 }
 
+float TextRenderer::GetRasterScale()
+{
+	return static_cast<float>(WinApp::kRenderHeight) / static_cast<float>(WinApp::kClientHeight);
+}
+
 std::wstring TextRenderer::Utf8ToWide(const std::string& text) const
 {
 	if (text.empty()) {
@@ -186,7 +192,8 @@ std::string TextRenderer::BuildCachePath(const std::string& utf8Text, const Text
 		<< style.outlineColor.x << ',' << style.outlineColor.y << ',' << style.outlineColor.z << ',' << style.outlineColor.w << '|'
 		<< style.outlineThickness << '|'
 		<< style.padding << '|'
-		<< style.preserveOutline;
+		<< style.preserveOutline << '|'
+		<< "raster" << GetRasterScale();
 	if (!style.fontPath.empty()) {
 		std::error_code error{};
 		const auto modified = std::filesystem::last_write_time(
@@ -245,7 +252,9 @@ bool TextRenderer::SaveTextPng(const std::wstring& text, const TextStyle& style,
 			? Gdiplus::FontStyleRegular
 			: Gdiplus::FontStyleBold;
 	}
-	const Gdiplus::Font font(fontFamily.get(), style.fontSize, fontStyle, Gdiplus::UnitPixel);
+	// 論理ピクセルのサイズを描画解像度の密度で描き、TextLabel側で論理サイズへ戻して表示する。
+	const float rasterScale = GetRasterScale();
+	const Gdiplus::Font font(fontFamily.get(), style.fontSize * rasterScale, fontStyle, Gdiplus::UnitPixel);
 	Gdiplus::StringFormat format(Gdiplus::StringFormat::GenericTypographic());
 	format.SetFormatFlags(format.GetFormatFlags() | Gdiplus::StringFormatFlagsMeasureTrailingSpaces);
 
@@ -256,7 +265,8 @@ bool TextRenderer::SaveTextPng(const std::wstring& text, const TextStyle& style,
 	Gdiplus::RectF bounds{};
 	measureGraphics.MeasureString(text.c_str(), -1, &font, Gdiplus::PointF(0.0f, 0.0f), &format, &bounds);
 
-	const int padding = static_cast<int>(std::ceil(style.padding + style.outlineThickness));
+	const float outlineThickness = style.outlineThickness * rasterScale;
+	const int padding = static_cast<int>(std::ceil((style.padding + style.outlineThickness) * rasterScale));
 	const int width = (std::max)(1, static_cast<int>(std::ceil(bounds.Width)) + padding * 2);
 	const int height = (std::max)(1, static_cast<int>(std::ceil(bounds.Height)) + padding * 2);
 
@@ -270,7 +280,7 @@ bool TextRenderer::SaveTextPng(const std::wstring& text, const TextStyle& style,
 	Gdiplus::SolidBrush outlineBrush(ToGdiColor(style.outlineColor));
 	const Gdiplus::PointF origin(static_cast<float>(padding), static_cast<float>(padding));
 
-	const int outlineSteps = static_cast<int>(std::ceil(style.outlineThickness));
+	const int outlineSteps = static_cast<int>(std::ceil(outlineThickness));
 	if (outlineSteps > 0 && style.outlineColor.w > 0.0f) {
 		for (int y = -outlineSteps; y <= outlineSteps; ++y) {
 			for (int x = -outlineSteps; x <= outlineSteps; ++x) {
@@ -278,7 +288,7 @@ bool TextRenderer::SaveTextPng(const std::wstring& text, const TextStyle& style,
 					continue;
 				}
 				const float distanceSq = static_cast<float>(x * x + y * y);
-				if (distanceSq > style.outlineThickness * style.outlineThickness) {
+				if (distanceSq > outlineThickness * outlineThickness) {
 					continue;
 				}
 				graphics.DrawString(text.c_str(), -1, &font,
