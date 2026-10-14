@@ -21,6 +21,8 @@ public:
     void Update();   // ImGuiと定数バッファ更新
     void PreDraw();  // 1. SceneRTをセット
     void PostDraw(); // 2. 抽出・ぼかし・合成を実行
+    /// @brief 3D合成とUIを重ねた中間画像を、ブラウン管処理つきでバックバッファへ写す。UI描画の後に呼ぶ。
+    void PresentToBackBuffer();
     void SetGrayscaleEnabled(bool enabled);
     /// @brief ガウシアン上書き設定を設定する。
     void SetGaussianOverride(float intensity);
@@ -45,6 +47,8 @@ private:
     void ComposeTransientEffects();
     /// @brief 画面演出基準を記録する。
     void CaptureScreenEffectBase();
+    /// @brief シーンのアリーナ表示設定を、合成済みの画面効果へ重ねる。
+    void ApplyArenaLook();
 
 private:
     DirectXCommon* dxCommon_ = nullptr;
@@ -65,6 +69,9 @@ private:
     std::unique_ptr<RenderTexture> ssrDenoiseRT_;
     std::unique_ptr<RenderTexture> motionVectorRT_;
     std::unique_ptr<RenderTexture> temporalHistoryRT_[2];
+    std::unique_ptr<RenderTexture> persistenceRT_[2];
+    std::unique_ptr<RenderTexture> presentRT_;
+    bool presentTargetActive_ = false;
 
     // ポストエフェクト実行クラス
     std::unique_ptr<PostEffect> postEffect_;
@@ -99,6 +106,9 @@ private:
     bool enableTemporalAccumulation_ = true;
     bool enableTemporalJitter_ = true;
     bool hasTemporalHistory_ = false;
+    bool hasPersistenceHistory_ = false;
+    int persistenceIndex_ = 0;
+    IScene::ArenaLookSettings arenaLook_{};
     int temporalHistoryIndex_ = 0;
     uint32_t temporalFrameIndex_ = 0;
     Vector2 temporalJitter_ = {0.0f, 0.0f};

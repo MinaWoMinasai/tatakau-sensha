@@ -60,8 +60,9 @@ inline void Sanitize(Settings& settings) {
     settings.wallStyle = (std::clamp)(settings.wallStyle, 0, 1);
     settings.stackLevels = (std::clamp)(settings.stackLevels, 1, 5);
     settings.exteriorHeight = FiniteClamp(settings.exteriorHeight, defaults.exteriorHeight, 1.0f, 12.0f);
-    settings.exteriorGap = FiniteClamp(settings.exteriorGap, defaults.exteriorGap, 0.5f, 12.0f);
-    settings.exteriorWidth = FiniteClamp(settings.exteriorWidth, defaults.exteriorWidth, 0.5f, 6.0f);
+    settings.exteriorGap = FiniteClamp(settings.exteriorGap, defaults.exteriorGap, 0.0f, 12.0f);
+    // A wide rampart reaches past the screen edge, so no bare floor shows outside the arena.
+    settings.exteriorWidth = FiniteClamp(settings.exteriorWidth, defaults.exteriorWidth, 0.5f, 64.0f);
     settings.wallLineWidth = FiniteClamp(settings.wallLineWidth, defaults.wallLineWidth, 0.008f, 0.08f);
     settings.floorLocalIntensity = FiniteClamp(settings.floorLocalIntensity, defaults.floorLocalIntensity, 0.0f, 80.0f);
     settings.floorLocalRadius = FiniteClamp(settings.floorLocalRadius, defaults.floorLocalRadius, 2.0f, 24.0f);

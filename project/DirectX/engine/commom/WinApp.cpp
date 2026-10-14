@@ -28,6 +28,23 @@ int32_t WinApp::GetClientHeight() const
 		: kClientHeight;
 }
 
+void WinApp::ClientToLogical(float& x, float& y) const
+{
+	float u = x / static_cast<float>(GetClientWidth());
+	float v = y / static_cast<float>(GetClientHeight());
+	if (presentationCurvature_ > 0.0f) {
+		// CrtPresent.PS.hlslのDistortと同じ式。画面上の画素が参照する中間画像の位置へ写す。
+		const float cx = u * 2.0f - 1.0f;
+		const float cy = v * 2.0f - 1.0f;
+		const float ox = cy * 0.5f;
+		const float oy = cx * 0.5f;
+		u = (cx + cx * ox * ox * presentationCurvature_) * 0.5f + 0.5f;
+		v = (cy + cy * oy * oy * presentationCurvature_) * 0.5f + 0.5f;
+	}
+	x = u * static_cast<float>(kClientWidth);
+	y = v * static_cast<float>(kClientHeight);
+}
+
 LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	{
@@ -69,6 +86,9 @@ bool WinApp::ConsumeActivationChanged()
 
 void WinApp::Initialize()
 {
+	// 表示スケール（125%など）でWindowsがウィンドウ画像を拡大してぼかさないよう、実画素で描く。
+	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
 	// ウィンドウプロシージャ
 	wc_.lpfnWndProc = WindowProc;
 	// ウィンドウクラス名
@@ -81,8 +101,20 @@ void WinApp::Initialize()
 	// ウィンドウクラスを登録する
 	RegisterClass(&wc_);
 
-	// ウィンドウサイズを表す構造体にクライアント領域を入れる
-	RECT wrc = { 0,0,kClientWidth, kClientHeight };
+	// 作業領域に収まる最大の16:9クライアント（上限は内部描画解像度）で開く。
+	RECT workArea{};
+	SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
+	int32_t clientWidth = kClientWidth;
+	for (const int32_t width : { kRenderWidth, 1600, kClientWidth }) {
+		RECT candidate = { 0, 0, width, width * 9 / 16 };
+		AdjustWindowRect(&candidate, WS_OVERLAPPEDWINDOW, false);
+		if (candidate.right - candidate.left <= workArea.right - workArea.left &&
+			candidate.bottom - candidate.top <= workArea.bottom - workArea.top) {
+			clientWidth = width;
+			break;
+		}
+	}
+	RECT wrc = { 0, 0, clientWidth, clientWidth * 9 / 16 };
 
 	// クライアント領域を元に実際のサイズにwrcを変更してもらう
 	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);

@@ -268,6 +268,39 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const cg2::Vector3& cameraRight
                            world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
                            world_.presentation.actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true,
                            world_.presentation.playerNeonEmission_);
+        if (drawBarrels && world_.combat.showFollowHpBars_ &&
+            (!world_.run.expeditionRun_ || world_.run.tankExpedition_.IsCombat())) {
+            // Segmented gauges hugging the body, in place of the floating HP / stamina bars:
+            // HP is the lower arc in the body color, stamina the shorter upper arc.
+            const cg2::Vector3 center = world_.resources.player_->GetWorldPosition() + cg2::Vector3{0.0f, 0.0f, 0.35f};
+            const float radius = world_.presentation.playerNeonBillboardRadius_;
+            auto queueSegmentedArc = [&](float arcRadius, float centerAngle, float span, int segments, float ratio,
+                                         const cg2::Vector4& lit, float thickness) {
+                const float step = span / static_cast<float>(segments);
+                const int litSegments = static_cast<int>(std::ceil((std::clamp)(ratio, 0.0f, 1.0f) * static_cast<float>(segments) - 0.001f));
+                for (int i = 0; i < segments; ++i) {
+                    const float angle = centerAngle - span * 0.5f + step * (static_cast<float>(i) + 0.5f);
+                    const cg2::Vector3 radial = cameraRight * std::sin(angle) - cameraUp * std::cos(angle);
+                    const cg2::Vector3 tangent = cameraRight * std::cos(angle) + cameraUp * std::sin(angle);
+                    const cg2::Vector3 middle = center + radial * arcRadius;
+                    const float half = arcRadius * step * 0.36f;
+                    const bool on = i < litSegments;
+                    const cg2::Vector4 segmentColor = on ? lit : cg2::Vector4{lit.x * 0.18f, lit.y * 0.18f, lit.z * 0.18f, 0.45f};
+                    world_.resources.neonGridRenderer_->QueueLine(middle - tangent * half, middle + tangent * half, thickness, segmentColor);
+                }
+            };
+            const float hpRatio = static_cast<float>(world_.resources.player_->GetHp()) /
+                                  static_cast<float>((std::max)(1, world_.resources.player_->GetMaxHp()));
+            cg2::Vector4 hpColor = world_.presentation.playerGridColor_;
+            hpColor = lerpColor({hpColor.x * 1.25f, hpColor.y * 1.25f, hpColor.z * 1.25f, 1.0f}, {1.9f, 0.35f, 0.25f, 1.0f},
+                                hpRatio < 0.3f ? 0.75f : 0.0f);
+            queueSegmentedArc(radius * 1.55f, 0.0f, 2.05f, 12, hpRatio, hpColor, radius * 0.30f);
+            if (world_.combat.showPlayerStaminaBar_) {
+                const Player::PlayerStats& stats = world_.resources.player_->GetStats();
+                const float staminaRatio = stats.maxStamina > 0.0f ? stats.stamina / stats.maxStamina : 0.0f;
+                queueSegmentedArc(radius * 1.52f, 3.14159265f, 1.15f, 6, staminaRatio, {1.75f, 1.45f, 0.35f, 1.0f}, radius * 0.20f);
+            }
+        }
     }
     if (!world_.bossPresentation->UseNeonBossVisual() && world_.presentation.bossNeonRenderMode_ == 1 && world_.resources.enemy_ &&
         (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())) {
@@ -321,8 +354,10 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const cg2::Vector3& cameraRight
     }
 }
 
-void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines)
+void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet bodies)
 {
+    const bool drawRound = bodies != BodySet::Enemies;
+    const bool drawEnemies = bodies != BodySet::RoundActors;
     if (!world_.resources.neonGridRenderer_ || !world_.presentation.fillActorNeonBodies_) {
         return;
     }
@@ -343,6 +378,47 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines)
         }
         direction = cg2::Normalize(direction);
         return std::atan2(cg2::Dot(direction, cameraRight), -cg2::Dot(direction, cameraUp));
+    };
+    // Bodies in this pass become glossy black 3D shapes lit from the active eye.
+    const cg2::Vector3 eye{cameraWorld.m[3][0], cameraWorld.m[3][1], cameraWorld.m[3][2]};
+    world_.resources.neonGridRenderer_->SetBodyShadingEye(&eye);
+    auto queueRoundBody = [&](const cg2::Vector3& center, float radius, const cg2::Vector4& tint) {
+        constexpr int kSegments = 32;
+        cg2::Vector3 points[kSegments]{};
+        for (int i = 0; i < kSegments; ++i) {
+            const float angle = 6.28318530718f * static_cast<float>(i) / static_cast<float>(kSegments);
+            points[i] = center + cameraRight * (std::cos(angle) * radius) + cameraUp * (std::sin(angle) * radius);
+        }
+        world_.resources.neonGridRenderer_->QueueBeveledPolygonFill(points, kSegments, world_.presentation.actorNeonBodyFillColor_, tint,
+                                                                    cg2::Normalize(cameraUp - cameraRight * 0.5f));
+    };
+    // Black gun blocks under the neon barrel outlines (same layout math as the outline pass).
+    auto queueBarrelBlocks = [&](const cg2::Vector3& center, const cg2::Vector3& direction, float radius,
+                                 const std::vector<Player::NeonBarrelLayout>& layouts, const cg2::Vector4& tint) {
+        cg2::Vector3 mainDirection = cg2::Length(direction) < 0.001f ? cg2::Vector3{0.0f, -1.0f, 0.0f} : cg2::Normalize(direction);
+        const float mainRotation = directionToRotation(mainDirection);
+        const cg2::Vector3 mainForward = cameraRight * std::sin(mainRotation) + cameraUp * -std::cos(mainRotation);
+        const cg2::Vector3 mainRight = cameraRight * std::cos(mainRotation) + cameraUp * std::sin(mainRotation);
+        for (const Player::NeonBarrelLayout& layout : layouts) {
+            if (layout.isMelee) continue;
+            const float c = std::cos(layout.angleRad), s = std::sin(layout.angleRad);
+            const cg2::Vector3 barrelDirection =
+                cg2::Normalize(cg2::Vector3{mainDirection.x * c - mainDirection.y * s, mainDirection.x * s + mainDirection.y * c, 0.0f});
+            const float barrelRotation = directionToRotation(barrelDirection);
+            const cg2::Vector3 barrelForward = cameraRight * std::sin(barrelRotation) + cameraUp * -std::cos(barrelRotation);
+            const cg2::Vector3 barrelRight = cameraRight * std::cos(barrelRotation) + cameraUp * std::sin(barrelRotation);
+            const cg2::Vector3 barrelCenter = center + mainForward * ((layout.offset.x - layout.recoilOffset) * radius) +
+                                              mainRight * (layout.offset.y * radius) + cg2::Vector3{0.0f, 0.0f, layout.offset.z};
+            float length = (std::max)(radius * 0.28f, layout.scale.x * radius * 0.72f);
+            float half = layout.scale.y * radius * 0.75f;
+            if (layout.shape == BarrelShape::Heavy) { length *= 1.12f; half *= 1.45f; }
+            else if (layout.shape == BarrelShape::Short) { length *= 0.58f; half *= 1.08f; }
+            else if (layout.shape == BarrelShape::Wide) { length *= 0.86f; half *= 1.80f; }
+            const cg2::Vector3 base = barrelCenter - barrelForward * (length * 0.20f);
+            const cg2::Vector3 tip = barrelCenter + barrelForward * (length * 0.80f);
+            world_.resources.neonGridRenderer_->QueueShadedBox(base, tip, barrelRight, half * 0.92f, radius * 0.34f,
+                                                               world_.presentation.actorNeonBodyFillColor_, tint);
+        }
     };
     auto queueBodyFill = [&](const cg2::Vector3& center, const cg2::Vector3& direction, float radius, const Player::NeonBodyLayout& body,
                              const cg2::Vector4& fillColor) {
@@ -380,32 +456,37 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines)
     };
 
     const uint32_t fillStart = world_.resources.neonGridRenderer_->GetVertexCount();
-    if (world_.presentation.playerNeonRenderMode_ == 1 && world_.resources.player_ && !world_.resources.player_->IsDead()) {
+    // Drawn into the scene after the bloomed line capture, round bodies sit inside their ring
+    // and cover the ring's inner halo, so they read as black spheres.
+    const float roundBodyScale = bodies == BodySet::RoundActors ? 0.86f / 0.96f : 1.0f;
+    if (drawRound && world_.presentation.playerNeonRenderMode_ == 1 && world_.resources.player_ && !world_.resources.player_->IsDead()) {
         const float feedback = world_.resources.player_->GetDamageFeedbackRatio();
         const float pulse = std::sin(feedback * 3.14159265f) * 0.10f;
+        queueBarrelBlocks(world_.resources.player_->GetWorldPosition() + cg2::Vector3{0.0f, 0.0f, 0.345f},
+                          world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
+                          world_.resources.player_->GetNeonBarrelLayouts(), world_.presentation.playerGridColor_);
         queueBodyFill(world_.resources.player_->GetWorldPosition() + cg2::Vector3{0.0f, 0.0f, 0.345f},
-                      world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse) * 0.96f,
+                      world_.resources.player_->GetDirection(),
+                      world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse) * 0.96f * roundBodyScale,
                       world_.resources.player_->GetNeonBodyLayout(), world_.presentation.actorNeonBodyFillColor_);
     }
-    if (!world_.bossPresentation->UseNeonBossVisual() && world_.presentation.bossNeonRenderMode_ == 1 && world_.resources.enemy_ &&
-        (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())) {
+    if (drawRound && !world_.bossPresentation->UseNeonBossVisual() && world_.presentation.bossNeonRenderMode_ == 1 &&
+        world_.resources.enemy_ && (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())) {
         const float feedback = world_.resources.enemy_->GetDamageFeedbackRatio();
         const float impact = feedback * feedback;
-        world_.resources.neonGridRenderer_->QueueBillboardDisc(
-            world_.resources.enemy_->GetWorldPosition() + cg2::Vector3{0.0f, 0.0f, 0.345f},
-            world_.presentation.bossNeonBillboardRadius_ * (1.0f + impact * 0.07f) * 0.96f, world_.presentation.actorNeonBodyFillColor_,
-            cameraRight, cameraUp);
+        queueRoundBody(world_.resources.enemy_->GetWorldPosition() + cg2::Vector3{0.0f, 0.0f, 0.345f},
+                       world_.presentation.bossNeonBillboardRadius_ * (1.0f + impact * 0.07f) * 0.96f * roundBodyScale,
+                       world_.presentation.enemyGridColor_);
     }
-    if (world_.run.prototypeRun_ && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
+    if (drawRound && world_.run.prototypeRun_ && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
         for (PlayerDrone* drone : world_.resources.player_->GetDronePtrs()) {
             if (!drone || !drone->IsVisualVisible())
                 continue;
-            world_.resources.neonGridRenderer_->QueueBillboardDisc(drone->GetWorldPosition() + cg2::Vector3{0.0f, 0.0f, 0.345f},
-                                                                   0.78f * 0.96f, world_.presentation.actorNeonBodyFillColor_, cameraRight,
-                                                                   cameraUp);
+            queueRoundBody(drone->GetWorldPosition() + cg2::Vector3{0.0f, 0.0f, 0.345f}, 0.78f * 0.96f * roundBodyScale,
+                           {0.24f, 1.0f, 0.78f, 0.95f});
         }
     }
-    if (world_.resources.enemyManager_ && world_.presentation.expEnemyNeonRenderMode_ == 1) {
+    if (drawEnemies && world_.resources.enemyManager_ && world_.presentation.expEnemyNeonRenderMode_ == 1) {
         const cg2::Vector3 cameraForward = cg2::Cross(cameraRight, cameraUp);
         for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
             if (!enemy || enemy->IsDead() || !enemy->IsShapeNeonRenderTarget() ||
@@ -439,6 +520,7 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines)
                                                                         cg2::Normalize(cameraUp - cameraRight * 0.5f));
         }
     }
+    world_.resources.neonGridRenderer_->SetBodyShadingEye(nullptr);
     const uint32_t fillCount = world_.resources.neonGridRenderer_->GetVertexCount() - fillStart;
     world_.resources.neonGridRenderer_->DrawRangeSolid(fillStart, fillCount, vp);
     if (!restoreOutlines)

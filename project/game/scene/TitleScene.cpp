@@ -1,5 +1,6 @@
 #include "game/weapon/CombatTypes.h"
 #include "TitleScene.h"
+#include "game/render/settings/ArenaLookConfig.h"
 #include "GameScene.h"
 #include "GameStartMode.h"
 #include "SceneManager.h"
@@ -42,8 +43,8 @@ void TitleScene::Initialize() {
     { cg2::StartupTrace::Scope scope("TitleScene.GameplayDemo"); demo_->Initialize(); }
     stageSamples_={};stageSamples_[0].build=demo_->GetTitleDemoBuild().dump();
     fade_=std::make_unique<Fade>();fade_->Initialize();fade_->Start(Fade::Status::FadeIn,0.65f);
-    const float w=static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
-    const float h=static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
+    const float w=static_cast<float>(cg2::WinApp::kClientWidth);
+    const float h=static_cast<float>(cg2::WinApp::kClientHeight);
     backgroundVeil_=std::make_unique<cg2::Sprite>();
     backgroundVeil_->Initialize(cg2::SpriteCommon::GetInstance(),"resources/white512x512.png");
     backgroundVeil_->SetPosition({0,0});backgroundVeil_->SetSize({w,h});
@@ -173,6 +174,9 @@ void TitleScene::DrawSprite(){
     title_->Draw();subtitle_->Draw();
     for(int i=0;i<1;++i) if(IsMenuAvailable(i)) menu_[i]->Draw();
     hint_->Draw();demoCaption_->Draw();fade_->Draw();demo_->CopyTitleDemoCapture();
+}
+IScene::ArenaLookSettings TitleScene::GetArenaLookSettings()const {
+    return arenalook::Get();
 }
 IScene::ScreenEffectState TitleScene::GetScreenEffectState()const {
     ScreenEffectState state{};state.active=true;state.suppressOutlines=true;state.suppressPostEffectDebugUi=true;

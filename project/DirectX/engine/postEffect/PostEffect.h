@@ -23,6 +23,11 @@ public:
     void DrawTemporalResolve(D3D12_GPU_DESCRIPTOR_HANDLE currentSceneSRV, D3D12_GPU_DESCRIPTOR_HANDLE historySceneSRV,
                              D3D12_GPU_DESCRIPTOR_HANDLE depthSRV, D3D12_GPU_DESCRIPTOR_HANDLE normalSRV,
                              D3D12_GPU_DESCRIPTOR_HANDLE materialSRV, D3D12_GPU_DESCRIPTOR_HANDLE motionVectorSRV);
+    /// @brief 発光の残光（ブラウン管の焼き付き）を前フレームから再投影して重ねる。
+    void DrawPhosphorPersistence(D3D12_GPU_DESCRIPTOR_HANDLE currentSceneSRV, D3D12_GPU_DESCRIPTOR_HANDLE historySRV,
+                                 D3D12_GPU_DESCRIPTOR_HANDLE motionVectorSRV);
+    /// @brief 中間提示画像（3D＋UI）へブラウン管の歪み・枠・走査線をかけて描く。
+    void DrawCrtPresent(D3D12_GPU_DESCRIPTOR_HANDLE presentSRV);
     /// @brief SSAO解決を描画する。
     void DrawSSAOResolve(D3D12_GPU_DESCRIPTOR_HANDLE depthSRV, D3D12_GPU_DESCRIPTOR_HANDLE normalSRV,
                          D3D12_GPU_DESCRIPTOR_HANDLE materialSRV);

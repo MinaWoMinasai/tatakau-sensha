@@ -102,6 +102,8 @@ public:
         SSR_Denoise,
         MotionVector_Resolve,
         Temporal_Resolve,
+        Phosphor_Persistence,
+        Crt_Present,
     };
 
     /// @brief 1パイプラインの状態・シェーダー・入力配置・ルートシグネチャをまとめる。
@@ -337,6 +339,12 @@ public:
         case kAdd_Temporal_Resolve:
             return temporalResolvePSO;
             break;
+        case kAdd_Phosphor_Persistence:
+            return phosphorPersistencePSO;
+            break;
+        case kAdd_Crt_Present:
+            return crtPresentPSO;
+            break;
         default:
             return objectPSO_None;
             break;
@@ -383,6 +391,8 @@ public:
             return motionVectorResolvePSO;
         case kAdd_Temporal_Resolve:
             return temporalResolvePSO;
+        case kAdd_Phosphor_Persistence:
+            return phosphorPersistencePSO;
         default:
             return objectPSO_None_HDR;
         }
@@ -553,6 +563,8 @@ public:
 
     /// @brief 背面バッファを設定する。
     void SetBackBuffer();
+    /// @brief バックバッファと同じ形式・深度を使う中間の提示先を描画先にする。
+    void SetPresentTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtv);
 
     /// @brief ビューポートを設定する。
     void SetViewport(uint32_t width, uint32_t height);
@@ -699,6 +711,8 @@ private:
     PSO ssrDenoisePSO;
     PSO motionVectorResolvePSO;
     PSO temporalResolvePSO;
+    PSO phosphorPersistencePSO;
+    PSO crtPresentPSO;
     PSO objectPostCompositePSO_HDR;
     PSO objectPostOutlineAddPSO_HDR;
     PSO objectPostBloomAddPSO_HDR;

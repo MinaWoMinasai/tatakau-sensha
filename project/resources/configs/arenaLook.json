@@ -1,0 +1,20 @@
+{
+  "enabled": true,
+  "curvature": 0.20,
+  "bezelMargin": 0.012,
+  "bezelRadius": 0.05,
+  "bezelSoftness": 0.006,
+  "vignetteIntensity": 0.35,
+  "vignetteScale": 1.0,
+  "chromAbAmount": 0.0025,
+  "scanlineIntensity": 0.14,
+  "scanlinePeriodPixels": 3.0,
+  "noiseIntensity": 0.0,
+  "grainIntensity": 0.06,
+  "phosphorDecay": 0.72,
+  "nebulaIntensity": 0.22,
+  "nebulaScale": 0.05,
+  "nebulaDrift": 0.004,
+  "nebulaColorA": [0.30, 0.05, 0.42],
+  "nebulaColorB": [0.06, 0.02, 0.30]
+}

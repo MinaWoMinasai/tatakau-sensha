@@ -21,13 +21,15 @@ struct NeonContourStyle {
 // Actors keep a colored rim at rest; projectiles and attack flashes can use a
 // brighter profile without whitening every outline in the scene.
 inline NeonContourStyle ActorNeonContourStyle() {
+    // A white-hot ring with a tight colored halo, so the black body inside stays readable.
     NeonContourStyle style;
-    style.coreWidthRatio = 0.14f;
-    style.coreIntensity = 2.6f;
-    style.coreWhiteMix = 0.28f;
+    style.coreWidthRatio = 0.20f;
+    style.coreIntensity = 2.8f;
+    style.coreWhiteMix = 0.45f;
     style.shoulderIntensity = 1.55f;
-    style.haloIntensity = 0.75f;
-    style.haloAlpha = 0.12f;
+    style.haloWidthScale = 2.1f;
+    style.haloIntensity = 0.50f;
+    style.haloAlpha = 0.08f;
     return style;
 }
 
@@ -80,8 +82,15 @@ public:
     void QueueBillboardRegularPolygonFill(const Vector3& center, int segments, float radius, float rotationRad, const Vector2& scale,
                                           const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp);
     // A dark face and a lit bevel, drawn in the solid pass below its neon rim.
+    // While a body-shading eye is set, the outline is raised toward the eye into a glossy black
+    // 3D body (a smooth dome for round outlines, a faceted frustum for polygons).
     void QueueBeveledPolygonFill(const Vector3* points, uint32_t count, const Vector4& baseColor,
                                  const Vector4& tint, const Vector3& lightDirection);
+    /// @brief 機体の立体陰影に使う視点を設定する。nullptrで従来の平面塗りへ戻す。
+    void SetBodyShadingEye(const Vector3* eye);
+    /// @brief 視点側へ伸びる黒い箱（砲身など）を陰影つきで予約する。立体陰影の視点が必要。
+    void QueueShadedBox(const Vector3& base, const Vector3& tip, const Vector3& right, float halfWidth, float height,
+                        const Vector4& baseColor, const Vector4& tint);
     /// @brief ワールド格子を後で処理するために予約する。
     void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color,
                         float planeZ = -0.04f);
@@ -111,6 +120,15 @@ private:
                        const Vector4& color1);
     /// @brief 描画する頂点を作成中の配列へ追加する。
     void PushVertex(const Vector3& pos, const Vector4& color, const Vector2& uv);
+    /// @brief 黒い艶のある機体表面の色を求める（拡散・機体色のフレネル反射・白いハイライト）。
+    Vector4 ShadeBody(const Vector3& position, const Vector3& normal, const Vector4& baseColor, const Vector4& tint) const;
+    /// @brief 視点側を向く三角形だけを頂点ごとの色で積む。
+    void PushShadedTriangle(const Vector3& a, const Vector3& b, const Vector3& c, const Vector4& ca, const Vector4& cb, const Vector4& cc);
+    /// @brief 輪郭を視点側へ持ち上げた立体を積む。
+    void QueueShadedBody(const Vector3* points, uint32_t count, const Vector4& baseColor, const Vector4& tint);
+
+    bool bodyShading_ = false;
+    Vector3 bodyEye_{};
 
     TrailVertex* vertexData_ = nullptr;
     uint32_t vertexCount_ = 0;

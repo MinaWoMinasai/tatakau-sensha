@@ -140,7 +140,7 @@ uint32_t Stage::DrawSurfaceBlocks(const stagesurface::Settings& settings, const 
 			const int levels=wall.isolated?1:(wall.exterior?(std::clamp)(int(std::round(settings.exteriorHeight/2.0f)),1,6):settings.stackLevels);
 			object.SetModel(cg2::ModelManager::GetInstance()->FindModel(stagesurface::StackModelName(levels)));
 			object.SetTransform(SurfaceWallTransform(wall, settings));
-			const auto color = wall.exterior ? cg2::Vector4{.08f,.025f,.04f,1} :
+			const auto color = wall.exterior ? cg2::Vector4{.022f,.006f,.014f,1} :
 				(wall.type == MapChipType::kDamageBlock ? settings.damageBlockColor : settings.blockColor);
 			ApplySurfaceMaterial(object, color, settings.blockMetallic, settings.blockRoughness, settings.blockLightIntensity);
 			object.Draw(); ++draws; surfaceTriangles_+=12u*static_cast<uint32_t>(levels);
@@ -192,13 +192,29 @@ const std::vector<SurfaceWall>& Stage::GetSurfaceWalls(const stagesurface::Setti
 	}
 	if (hash == surfaceWallHash_) return surfaceWalls_;
 	surfaceWallHash_=hash; surfaceWalls_.clear();
-	for (const auto& rectangle : stagesurface::MergeWallCells(cells,MapChip::kNumBlockHorizontal,MapChip::kNumBlockVirtical)) {
+	const auto rectangles=stagesurface::MergeWallCells(cells,MapChip::kNumBlockHorizontal,MapChip::kNumBlockVirtical);
+	// The outermost strips of the map are drawn as part of the continuous exterior rampart.
+	int minCellX=MapChip::kNumBlockHorizontal, minCellY=MapChip::kNumBlockVirtical, maxCellX=-1, maxCellY=-1;
+	for (const auto& rectangle : rectangles) {
+		const int x=static_cast<int>(rectangle.x), y=static_cast<int>(rectangle.y);
+		minCellX=(std::min)(minCellX,x); minCellY=(std::min)(minCellY,y);
+		maxCellX=(std::max)(maxCellX,x+static_cast<int>(rectangle.width)-1); maxCellY=(std::max)(maxCellY,y+static_cast<int>(rectangle.height)-1);
+	}
+	auto isBorder=[&](const auto& rectangle) {
+		const int x=static_cast<int>(rectangle.x), y=static_cast<int>(rectangle.y);
+		const int w=static_cast<int>(rectangle.width), h=static_cast<int>(rectangle.height);
+		const bool column=w<=2 && (x==minCellX || x+w-1==maxCellX);
+		const bool row=h<=2 && (y==minCellY || y+h-1==maxCellY);
+		return settings.exteriorEnabled && (column || row);
+	};
+	for (const auto& rectangle : rectangles) {
 		const auto& a=blocks_[rectangle.y][rectangle.x];
 		const auto& b=blocks_[rectangle.y+rectangle.height-1][rectangle.x+rectangle.width-1];
 		const float left=(std::min)(a.aabb.min.x,b.aabb.min.x), right=(std::max)(a.aabb.max.x,b.aabb.max.x);
 		const float bottom=(std::min)(a.aabb.min.y,b.aabb.min.y), top=(std::max)(a.aabb.max.y,b.aabb.max.y);
 		cg2::Transform t{{(right-left)*.5f,(top-bottom)*.5f,1},{0,0,0},{(left+right)*.5f,(bottom+top)*.5f,a.worldTransform.translate.z}};
-		surfaceWalls_.push_back({t,a.type,false,rectangle.width*rectangle.height==1});
+		const bool border=a.type==MapChipType::kBlock && isBorder(rectangle);
+		surfaceWalls_.push_back({t,a.type,border,!border && rectangle.width*rectangle.height==1});
 	}
 	for (const auto& row:blocks_) for (const auto& block:row)
 		if (block.isActive && block.isLevelObject) surfaceWalls_.push_back({block.worldTransform,block.type,false,false});

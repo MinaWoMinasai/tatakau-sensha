@@ -208,6 +208,7 @@ void TextLabel::RebuildTexture()
 	if (!sprite_) {
 		sprite_ = std::make_unique<Sprite>();
 		sprite_->Initialize(spriteCommon_, texturePath_);
+		ApplyLogicalSize();
 		sprite_->SetPosition(position_);
 		sprite_->SetAnchorPoint(anchorPoint_);
 		sprite_->SetAlpha(alpha_);
@@ -222,6 +223,7 @@ void TextLabel::RebuildTexture()
 	const auto spriteSetTextureStart = std::chrono::steady_clock::now();
 #endif
 	sprite_->SetTexture(texturePath_);
+	ApplyLogicalSize();
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	profileStats_.spriteSetTextureCpuMs += std::chrono::duration<float, std::milli>(
 		std::chrono::steady_clock::now() - spriteSetTextureStart).count();
@@ -233,6 +235,14 @@ void TextLabel::RebuildTexture()
 	profileStats_.rebuildTextureCpuMs += std::chrono::duration<float, std::milli>(
 		std::chrono::steady_clock::now() - rebuildTextureStart).count();
 #endif
+}
+
+void TextLabel::ApplyLogicalSize()
+{
+	// 文字画像は描画解像度の密度で作られている。UIの配置は論理座標なので表示サイズを戻す。
+	const float scale = TextRenderer::GetRasterScale();
+	const Vector2& textureSize = sprite_->GetTextureSize();
+	sprite_->SetSize({ textureSize.x / scale, textureSize.y / scale });
 }
 
 bool TextLabel::IsSameStyle(const TextStyle& style) const
