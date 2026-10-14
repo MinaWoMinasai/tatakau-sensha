@@ -66,7 +66,7 @@ void DirectXCommon::PreDraw()
 	list_->ClearRenderTargetView(rtvHandles_[backBufferIndex], clearColor, 0, nullptr);
 	// 指定して深度で画面全体をクリアする
 	list_->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-	SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+	SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
 }
 
 void DirectXCommon::PostDraw()
@@ -158,6 +158,8 @@ void DirectXCommon::CreateShaderCommon(
 		case SSR_Denoise: pso.psFilePath_ = L"resources/shaders/SSRDenoise.PS.hlsl"; break;
 		case MotionVector_Resolve: pso.psFilePath_ = L"resources/shaders/MotionVectorResolve.PS.hlsl"; break;
 		case Temporal_Resolve: pso.psFilePath_ = L"resources/shaders/TemporalResolve.PS.hlsl"; break;
+		case Phosphor_Persistence: pso.psFilePath_ = L"resources/shaders/PhosphorPersistence.PS.hlsl"; break;
+		case Crt_Present: pso.psFilePath_ = L"resources/shaders/CrtPresent.PS.hlsl"; break;
 		}
 		break;
 	case Trail:
@@ -435,6 +437,8 @@ void DirectXCommon::CreateShader()
 	ssrDenoisePSO.shaderType_ = PostEffect;
 	motionVectorResolvePSO.shaderType_ = PostEffect;
 	temporalResolvePSO.shaderType_ = PostEffect;
+	phosphorPersistencePSO.shaderType_ = PostEffect;
+	crtPresentPSO.shaderType_ = PostEffect;
 	objectPostCompositePSO_HDR.shaderType_ = PostEffect;
 	objectPostOutlineAddPSO_HDR.shaderType_ = PostEffect;
 	objectPostBloomAddPSO_HDR.shaderType_ = PostEffect;
@@ -473,6 +477,8 @@ void DirectXCommon::CreateShader()
 	ssrDenoisePSO.postEffectType_ = SSR_Denoise;
 	motionVectorResolvePSO.postEffectType_ = MotionVector_Resolve;
 	temporalResolvePSO.postEffectType_ = Temporal_Resolve;
+	phosphorPersistencePSO.postEffectType_ = Phosphor_Persistence;
+	crtPresentPSO.postEffectType_ = Crt_Present;
 	objectPostCompositePSO_HDR.postEffectType_ = ObjectPost_Composite;
 	objectPostOutlineAddPSO_HDR.postEffectType_ = ObjectPost_OutlineAdd;
 	objectPostBloomAddPSO_HDR.postEffectType_ = ObjectPost_BloomAdd;
@@ -520,6 +526,8 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(ssrDenoisePSO_HDR, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(motionVectorResolvePSO, kNone, false, kMotionVectorBufferFormat);
 	CreateShaderCommon(temporalResolvePSO, kNone, false, kSceneRenderTargetFormat);
+	CreateShaderCommon(phosphorPersistencePSO, kNone, false, kSceneRenderTargetFormat);
+	CreateShaderCommon(crtPresentPSO, kNone);
 	CreateShaderCommon(downsamplePSO, kNone);
 	CreateShaderCommon(downsamplePSO_HDR, kNone, false, kSceneRenderTargetFormat);
 	CreateShaderCommon(shadowPSO, kShadow);
@@ -694,8 +702,8 @@ void DirectXCommon::InititalizeCommand()
 void DirectXCommon::CreateSwapChain()
 {
 
-	swapChainDesc_.Width = WinApp::kClientWidth; // 画面の幅。ウィンドウのクライアント領域を同じものにしておく
-	swapChainDesc_.Height = WinApp::kClientHeight; // 画面の高さ。ウィンドウのクライアント領域を同じものにしておく
+	swapChainDesc_.Width = WinApp::kRenderWidth; // 画面の幅。ウィンドウのクライアント領域を同じものにしておく
+	swapChainDesc_.Height = WinApp::kRenderHeight; // 画面の高さ。ウィンドウのクライアント領域を同じものにしておく
 	swapChainDesc_.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // 色の形式
 	swapChainDesc_.SampleDesc.Count = 1; // マルチサンプルしない
 	swapChainDesc_.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // 描画のターゲットとして利用する
@@ -714,8 +722,8 @@ void DirectXCommon::CreateDepthBuffer()
 
 	// 生成するResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc{};
-	resourceDesc.Width = WinApp::kClientWidth; // テクスチャの幅
-	resourceDesc.Height = WinApp::kClientHeight; // テクスチャの高さ
+	resourceDesc.Width = WinApp::kRenderWidth; // テクスチャの幅
+	resourceDesc.Height = WinApp::kRenderHeight; // テクスチャの高さ
 	resourceDesc.MipLevels = 1; // mipmapの数
 	resourceDesc.DepthOrArraySize = 1; // 奥行き or 配列Textureの配列数
 	resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // TextureのFormat
@@ -819,8 +827,8 @@ void DirectXCommon::InitializeViewport()
 {
 
 	//クライアント領域のサイズと一緒にして画面全体に表示
-	viewportRect_.Width = FLOAT(WinApp::kClientWidth);
-	viewportRect_.Height = FLOAT(WinApp::kClientHeight);
+	viewportRect_.Width = FLOAT(WinApp::kRenderWidth);
+	viewportRect_.Height = FLOAT(WinApp::kRenderHeight);
 	viewportRect_.TopLeftX = 0;
 	viewportRect_.TopLeftY = 0;
 	viewportRect_.MinDepth = 0.0f;
@@ -833,9 +841,9 @@ void DirectXCommon::InitializeSissorRect()
 
 	//基本的にビューポートと同じ矩形が構成されるようにする
 	scissorRect_.left = 0;
-	scissorRect_.right = LONG(WinApp::kClientWidth);
+	scissorRect_.right = LONG(WinApp::kRenderWidth);
 	scissorRect_.top = 0;
-	scissorRect_.bottom = LONG(WinApp::kClientHeight);
+	scissorRect_.bottom = LONG(WinApp::kRenderHeight);
 
 }
 
@@ -1186,6 +1194,24 @@ void DirectXCommon::SetBackBuffer() {
 	UINT backBufferIndex = swapChain_->GetCurrentBackBufferIndex();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtv = rtvHandles_[backBufferIndex];
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv =
+		dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+
+	currentRtvHandle_ = rtv;
+	currentRtvHandles_ = {rtv, {}, {}};
+	currentRtvCount_ = 1;
+	currentDsvHandle_ = dsv;
+	currentHasDsv_ = true;
+	list_->OMSetRenderTargets(
+		1,
+		&rtv,
+		false,
+		&dsv
+	);
+}
+
+void DirectXCommon::SetPresentTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtv) {
+
 	D3D12_CPU_DESCRIPTOR_HANDLE dsv =
 		dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 

@@ -113,7 +113,7 @@ void ExpeditionController::InitializeTankExpedition()
     world_.run.tankExpeditionHpFill_ = panel({24, 53}, {230, 6}, {0.23f, 1.0f, 0.65f, 1});
     world_.run.tankExpeditionExpTrack_ = panel({24, 702}, {1232, 6}, {0.10f, 0.16f, 0.21f, 0.9f});
     world_.run.tankExpeditionExpFill_ = panel({24, 702}, {1, 6}, {0.24f, 0.73f, 1, 1});
-    world_.run.tankExpeditionBuildPanel_ = panel({988, 10}, {280, 150}, {0.009f, 0.016f, 0.03f, 0.60f});
+    world_.run.tankExpeditionBuildPanel_ = panel({988, 10}, {280, 150}, {0.0f, 0.0f, 0.004f, 0.42f});
     world_.run.tankExpeditionExpText_ = label(12, {24, 677}, {0.68f, 0.83f, 0.93f, 1});
     world_.run.tankExpeditionDetailsText_ = label(18, {280, 140}, {0.83f, 0.94f, 1, 1});
     // Reuse the existing Tutorial UI primitives, but keep expedition progression
@@ -654,7 +654,7 @@ void ExpeditionController::RefreshTankExpeditionUi()
     const bool terminal = phase == EPhase::Clear || phase == EPhase::Dead;
     const bool inCombat = phase == EPhase::Combat && !world_.run.tankRunPaused_;
     world_.run.tankRunHudPanel_->SetSize({264, 78});
-    world_.run.tankRunHudPanel_->SetColor({0.009f, 0.016f, 0.03f, 0.66f});
+    world_.run.tankRunHudPanel_->SetColor({0.0f, 0.0f, 0.004f, 0.42f});
     world_.run.tankRunHudPanel_->Update();
     world_.run.tankRunHud_->SetText(
         "HP " + std::to_string(world_.resources.player_->GetHp()) + " / " + std::to_string(world_.resources.player_->GetMaxHp()) +

@@ -1,4 +1,5 @@
 #include "game/session/CombatFramePipeline.h"
+#include "game/render/settings/ArenaCameraProfile.h"
 #include "game/session/GameplaySystems.h"
 #include "game/weapon/CombatTypes.h"
 #include "RuntimeProfiler.h"
@@ -266,20 +267,45 @@ void CombatFramePipeline::Update()
 #endif
     if (!world_.depthEncounter->UpdateNeonDepthCamera(baseDeltaTime)) {
         cg2::Vector3 playerPos = world_.resources.player_->GetWorldPosition();
-        const float kCameraZ = -55.0f;
+        const float kCameraZ = arenacamera::CameraZ();
         const float kMarginX = 18.0f;
         const float kMarginY = 11.0f;
-        const float kMaxCameraX = MapChip::kBlockWidth * (MapChip::kNumBlockHorizontal - 1) - kMarginX;
-        const float kMaxCameraY = MapChip::kBlockHeight * (MapChip::kNumBlockVirtical - 1) - kMarginY;
-        cg2::Vector3 targetCameraPos = {(std::clamp)(playerPos.x, kMarginX, kMaxCameraX), (std::clamp)(playerPos.y, kMarginY, kMaxCameraY),
+        float kMinCameraX = kMarginX;
+        float kMinCameraY = kMarginY;
+        float kMaxCameraX = MapChip::kBlockWidth * (MapChip::kNumBlockHorizontal - 1) - kMarginX;
+        float kMaxCameraY = MapChip::kBlockHeight * (MapChip::kNumBlockVirtical - 1) - kMarginY;
+        if (world_.run.prototypeRun_ && world_.resources.stage_) {
+            // Frame the walled arena like a fixed monitor view: the floor view may reach at most a
+            // little past the outer wall, so the tall rampart never fills the screen. Display only.
+            float minX = 1.0e6f, minY = 1.0e6f, maxX = -1.0e6f, maxY = -1.0e6f;
+            for (const auto& row : world_.resources.stage_->GetBlocks())
+                for (const auto& block : row) {
+                    if (!block.isActive || block.isLevelObject) continue;
+                    minX = (std::min)(minX, block.aabb.min.x); minY = (std::min)(minY, block.aabb.min.y);
+                    maxX = (std::max)(maxX, block.aabb.max.x); maxY = (std::max)(maxY, block.aabb.max.y);
+                }
+            if (minX < maxX && minY < maxY) {
+                const float halfHeight = arenacamera::Distance() * std::tan(arenacamera::kFovY * 0.5f);
+                const float halfWidth = halfHeight * static_cast<float>(cg2::WinApp::kClientWidth) / static_cast<float>(cg2::WinApp::kClientHeight);
+                constexpr float kOverscan = 1.0f;
+                auto axis = [&](float low, float high, float half, float& outMin, float& outMax) {
+                    outMin = low + half - kOverscan;
+                    outMax = high - half + kOverscan;
+                    if (outMin > outMax) outMin = outMax = (low + high) * 0.5f;
+                };
+                axis(minX, maxX, halfWidth, kMinCameraX, kMaxCameraX);
+                axis(minY, maxY, halfHeight, kMinCameraY, kMaxCameraY);
+            }
+        }
+        cg2::Vector3 targetCameraPos = {(std::clamp)(playerPos.x, kMinCameraX, kMaxCameraX), (std::clamp)(playerPos.y, kMinCameraY, kMaxCameraY),
                                         kCameraZ};
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
         // Capture fixture only: show both actors with the same normal top-down camera.
         if ((world_.resources.neonBossAutoTest_ || GameplayScenarioSession::Get().IsActive()) &&
             world_.gameplayQueries->IsRunRivalActive()) {
             const auto center = (playerPos + world_.resources.enemy_->GetWorldPosition()) * 0.5f;
-            targetCameraPos.x = (std::clamp)(center.x, kMarginX, kMaxCameraX);
-            targetCameraPos.y = (std::clamp)(center.y, kMarginY, kMaxCameraY);
+            targetCameraPos.x = (std::clamp)(center.x, kMinCameraX, kMaxCameraX);
+            targetCameraPos.y = (std::clamp)(center.y, kMinCameraY, kMaxCameraY);
         }
 #endif
         cg2::Vector3 currentCameraPos = world_.resources.camera->GetTranslate();

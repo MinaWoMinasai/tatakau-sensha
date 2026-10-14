@@ -124,7 +124,9 @@ void GameplayHud::DrawSprite()
         vertices.clear();
     }
     if (world_.combat.showFollowHpBars_) {
-        if (!world_.resources.player_->IsDead() && (!world_.run.expeditionRun_ || world_.run.tankExpedition_.IsCombat())) {
+        // The neon player draws its HP / stamina as segmented arcs around the body instead.
+        const bool playerArcs = world_.run.prototypeRun_ && world_.presentation.playerNeonRenderMode_ == 1;
+        if (!playerArcs && !world_.resources.player_->IsDead() && (!world_.run.expeditionRun_ || world_.run.tankExpedition_.IsCombat())) {
             DrawFollowHpBar(world_.resources.player_.get(), world_.resources.player_->GetWorldPosition(), world_.resources.player_->GetHp(),
                             world_.resources.player_->GetMaxHp(), 58.0f, -1.65f);
             if (world_.combat.showPlayerStaminaBar_) {

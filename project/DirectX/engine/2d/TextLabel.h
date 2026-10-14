@@ -71,6 +71,8 @@ public:
 private:
     /// @brief テクスチャを再構築する。
     void RebuildTexture();
+    /// @brief 高密度の文字画像を論理座標の表示サイズへ合わせる。
+    void ApplyLogicalSize();
     /// @brief 同一外観であるか判定する。
     bool IsSameStyle(const TextStyle& style) const;
 

@@ -56,6 +56,8 @@ public:
 
     /// @brief 画面演出状態を返す。
     ScreenEffectState GetScreenEffectState() const override;
+    /// @brief ベクター管モニター風のアリーナ表示設定を返す。
+    ArenaLookSettings GetArenaLookSettings() const override;
 
     bool IsNeonShowcaseActive() const;
 

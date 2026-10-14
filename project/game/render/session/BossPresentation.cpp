@@ -1,4 +1,5 @@
 #include "game/render/session/BossPresentation.h"
+#include "game/render/settings/ArenaCameraProfile.h"
 #include "game/session/GameplaySystems.h"
 #include "GameStartMode.h"
 #include "Enemy.h"
@@ -160,7 +161,7 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
         world_.resources.player_->ResetRunRoomState(position);
         world_.resources.player_->SetDemoInput(true, {}, world_.resources.enemy_->GetWorldPosition(), false, false);
         const auto center = (position + world_.resources.enemy_->GetWorldPosition()) * 0.5f;
-        world_.resources.camera->SetTranslate({center.x, center.y, -55});
+        world_.resources.camera->SetTranslate({center.x, center.y, arenacamera::CameraZ()});
         world_.resources.camera->Update();
     }
     world_.resources.neonBossVisualEnabled_ = true;

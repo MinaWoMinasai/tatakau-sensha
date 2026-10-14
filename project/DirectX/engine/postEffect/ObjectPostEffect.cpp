@@ -20,8 +20,8 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
 
     const std::array<float, 4> transparent = { 0.0f, 0.0f, 0.0f, 0.0f };
     const float safeScale = (std::clamp)(renderScale, 0.25f, 1.0f);
-    const uint32_t clientWidth = (std::max)(1, WinApp::GetInstance()->GetClientWidth());
-    const uint32_t clientHeight = (std::max)(1, WinApp::GetInstance()->GetClientHeight());
+    const uint32_t clientWidth = static_cast<uint32_t>(WinApp::kRenderWidth);
+    const uint32_t clientHeight = static_cast<uint32_t>(WinApp::kRenderHeight);
     renderWidth_ = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(clientWidth) * safeScale));
     renderHeight_ = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(clientHeight) * safeScale));
     halfWidth_ = (std::max)(1u, renderWidth_ / 2);
@@ -197,8 +197,8 @@ void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset) {
         if (hasDsv) dxCommon_->SetRenderTarget(currentRtv, currentDsv);
         else dxCommon_->SetRenderTargetNoDepth(currentRtv);
         dxCommon_->SetViewport(
-            static_cast<uint32_t>(WinApp::GetInstance()->GetClientWidth()),
-            static_cast<uint32_t>(WinApp::GetInstance()->GetClientHeight()));
+            static_cast<uint32_t>(WinApp::kRenderWidth),
+            static_cast<uint32_t>(WinApp::kRenderHeight));
     }
     drawParam.boxBlurRadius = uvOffset.x;
     drawParam.fullScreenBoxBlurBlend = uvOffset.y;

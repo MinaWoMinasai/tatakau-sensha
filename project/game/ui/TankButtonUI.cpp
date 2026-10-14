@@ -711,8 +711,8 @@ void TankButtonGallery::Update()
 	}
 	backdrop_->SetPosition({ 0.0f, 0.0f });
 	backdrop_->SetSize({
-		static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth()),
-		static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight()),
+		static_cast<float>(cg2::WinApp::kClientWidth),
+		static_cast<float>(cg2::WinApp::kClientHeight),
 	});
 	backdrop_->SetColor({ 0.006f, 0.012f, 0.024f, 0.975f });
 	backdrop_->Update();

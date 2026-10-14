@@ -47,8 +47,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         dxCommon_,
         srvManager_,
         rtvManager_,
-        WinApp::kClientWidth,
-        WinApp::kClientHeight,
+        WinApp::kRenderWidth,
+        WinApp::kRenderHeight,
         { 0.0f, 0.0f, 0.0f, 1.0f },
         true,
         hdrFormat
@@ -59,8 +59,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         dxCommon_,
         srvManager_,
         rtvManager_,
-        WinApp::kClientWidth,
-        WinApp::kClientHeight,
+        WinApp::kRenderWidth,
+        WinApp::kRenderHeight,
         { 0.5f, 0.5f, 1.0f, 0.0f },
         false,
         DirectXCommon::kNormalBufferFormat
@@ -71,8 +71,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         dxCommon_,
         srvManager_,
         rtvManager_,
-        WinApp::kClientWidth,
-        WinApp::kClientHeight,
+        WinApp::kRenderWidth,
+        WinApp::kRenderHeight,
         { 1.0f, 0.0f, 1.0f, 0.0f },
         false,
         DirectXCommon::kMaterialBufferFormat
@@ -86,12 +86,12 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     postEffect_ = std::make_unique<PostEffect>();
     postEffect_->Initialize(dxCommon_, bloomCB_.get());
     bloomPyramid_ = std::make_unique<BloomPyramid>();
-    bloomPyramid_->Initialize(dxCommon_, srvManager_, WinApp::kClientWidth, WinApp::kClientHeight);
+    bloomPyramid_->Initialize(dxCommon_, srvManager_, WinApp::kRenderWidth, WinApp::kRenderHeight);
 
     bloomRT_A_ = std::make_unique<RenderTexture>();
     bloomRT_B_ = std::make_unique<RenderTexture>();
-    uint32_t bloomWidth = WinApp::kClientWidth / 2;
-    uint32_t bloomHeight = WinApp::kClientHeight / 2;
+    uint32_t bloomWidth = WinApp::kRenderWidth / 2;
+    uint32_t bloomHeight = WinApp::kRenderHeight / 2;
 
     bloomRT_A_->Initialize(
         dxCommon_,
@@ -122,8 +122,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
         dxCommon_,
         srvManager_,
         rtvManager_,
-        WinApp::kClientWidth / 2,
-        WinApp::kClientHeight / 2,
+        WinApp::kRenderWidth / 2,
+        WinApp::kRenderHeight / 2,
         { 0.0f, 0.0f, 0.0f, 1.0f },
         false,
         hdrFormat
@@ -133,44 +133,59 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
 	randomRT_ = std::make_unique<RenderTexture>();
 	randomRT_->Initialize(
 		dxCommon_, srvManager_, rtvManager_,
-		WinApp::kClientWidth, WinApp::kClientHeight,
+		WinApp::kRenderWidth, WinApp::kRenderHeight,
 		{ 0.0f, 0.0f, 0.0f, 1.0f }, false, hdrFormat);
 
     ssaoResolveRT_ = std::make_unique<RenderTexture>();
     ssaoResolveRT_->Initialize(
         dxCommon_, srvManager_, rtvManager_,
-        WinApp::kClientWidth, WinApp::kClientHeight,
+        WinApp::kRenderWidth, WinApp::kRenderHeight,
         { 1.0f, 1.0f, 1.0f, 1.0f }, false, DirectXCommon::kAmbientOcclusionBufferFormat);
 
     ssaoDenoiseRT_ = std::make_unique<RenderTexture>();
     ssaoDenoiseRT_->Initialize(
         dxCommon_, srvManager_, rtvManager_,
-        WinApp::kClientWidth, WinApp::kClientHeight,
+        WinApp::kRenderWidth, WinApp::kRenderHeight,
         { 1.0f, 1.0f, 1.0f, 1.0f }, false, DirectXCommon::kAmbientOcclusionBufferFormat);
 
     ssrResolveRT_ = std::make_unique<RenderTexture>();
     ssrResolveRT_->Initialize(
         dxCommon_, srvManager_, rtvManager_,
-        WinApp::kClientWidth, WinApp::kClientHeight,
+        WinApp::kRenderWidth, WinApp::kRenderHeight,
         { 0.0f, 0.0f, 0.0f, 0.0f }, false, hdrFormat);
 
     ssrDenoiseRT_ = std::make_unique<RenderTexture>();
     ssrDenoiseRT_->Initialize(
         dxCommon_, srvManager_, rtvManager_,
-        WinApp::kClientWidth, WinApp::kClientHeight,
+        WinApp::kRenderWidth, WinApp::kRenderHeight,
         { 0.0f, 0.0f, 0.0f, 0.0f }, false, hdrFormat);
 
     motionVectorRT_ = std::make_unique<RenderTexture>();
     motionVectorRT_->Initialize(
         dxCommon_, srvManager_, rtvManager_,
-        WinApp::kClientWidth, WinApp::kClientHeight,
+        WinApp::kRenderWidth, WinApp::kRenderHeight,
         { 0.0f, 0.0f, 0.0f, 0.0f }, false, DirectXCommon::kMotionVectorBufferFormat);
 
     for (auto& temporalRT : temporalHistoryRT_) {
         temporalRT = std::make_unique<RenderTexture>();
         temporalRT->Initialize(
             dxCommon_, srvManager_, rtvManager_,
-            WinApp::kClientWidth, WinApp::kClientHeight,
+            WinApp::kRenderWidth, WinApp::kRenderHeight,
+            { 0.0f, 0.0f, 0.0f, 1.0f }, false, hdrFormat);
+    }
+
+    // 3D合成とUIをいったん受け、最後にブラウン管の提示パスでバックバッファへ写す。
+    presentRT_ = std::make_unique<RenderTexture>();
+    presentRT_->Initialize(
+        dxCommon_, srvManager_, rtvManager_,
+        WinApp::kRenderWidth, WinApp::kRenderHeight,
+        { 0.0f, 0.0f, 0.0f, 1.0f }, false);
+
+    for (auto& persistenceRT : persistenceRT_) {
+        persistenceRT = std::make_unique<RenderTexture>();
+        persistenceRT->Initialize(
+            dxCommon_, srvManager_, rtvManager_,
+            WinApp::kRenderWidth, WinApp::kRenderHeight,
             { 0.0f, 0.0f, 0.0f, 1.0f }, false, hdrFormat);
     }
 
@@ -235,7 +250,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.ssaoDenoiseDepthSigma = 24.0f;
     bloomParam_.ssaoDenoiseNormalSigma = 18.0f;
     bloomParam_.ssrViewMatrix = MakeIdentity4x4();
-    const float aspectRatio = static_cast<float>(WinApp::kClientWidth) / static_cast<float>(WinApp::kClientHeight);
+    const float aspectRatio = static_cast<float>(WinApp::kRenderWidth) / static_cast<float>(WinApp::kRenderHeight);
     const float tanHalfFovY = std::tan(0.45f * 0.5f);
     bloomParam_.ssrProjectionScale = { aspectRatio * tanHalfFovY, tanHalfFovY };
     bloomParam_.ssrEnabled = 1.0f;
@@ -620,12 +635,13 @@ void Bloom::Update() {
     if (!enableTemporalAccumulation_) {
         hasTemporalHistory_ = false;
     }
-    const float aspectRatio = static_cast<float>(WinApp::kClientWidth) / static_cast<float>(WinApp::kClientHeight);
-    const float tanHalfFovY = std::tan(0.45f * 0.5f);
+    const float aspectRatio = static_cast<float>(WinApp::kRenderWidth) / static_cast<float>(WinApp::kRenderHeight);
+    const float tanHalfFovY = std::tan((Object3dCommon::GetInstance()->GetDefaultCamera() ? Object3dCommon::GetInstance()->GetDefaultCamera()->GetFovY() : 0.45f) * 0.5f);
     bloomParam_.ssrProjectionScale = { aspectRatio * tanHalfFovY, tanHalfFovY };
     bloomParam_.renderDebugMode = (enableMotionVector_ && bloomParam_.motionVectorScale < -0.5f)
         ? 15.0f
         : static_cast<float>(renderDebugMode_);
+    arenaLook_ = SceneManager::GetInstance()->GetArenaLookSettings();
 	if (!screenEffectState_.active) {
 		CaptureScreenEffectBase();
 	}
@@ -704,8 +720,8 @@ void Bloom::ApplyTemporalJitterToCameras() {
         const float jitterX = Halton(sampleIndex, 2u) - 0.5f;
         const float jitterY = Halton(sampleIndex, 3u) - 0.5f;
         temporalJitter_ = {
-            (jitterX * 2.0f / static_cast<float>(WinApp::kClientWidth)) * temporalJitterScale_,
-            (-jitterY * 2.0f / static_cast<float>(WinApp::kClientHeight)) * temporalJitterScale_
+            (jitterX * 2.0f / static_cast<float>(WinApp::kRenderWidth)) * temporalJitterScale_,
+            (-jitterY * 2.0f / static_cast<float>(WinApp::kRenderHeight)) * temporalJitterScale_
         };
         ++temporalFrameIndex_;
     } else {
@@ -936,6 +952,45 @@ void Bloom::ComposeTransientEffects() {
 		bloomParam_.depthOutlineEnabled = 0.0f;
 		bloomParam_.depthOutlineScale = 0.0f;
 	}
+	ApplyArenaLook();
+}
+
+void Bloom::ApplyArenaLook() {
+	const IScene::ArenaLookSettings& look = arenaLook_;
+	bloomParam_.arenaEnabled = look.enabled ? 1.0f : 0.0f;
+	// 入力側も同じ歪みで論理座標へ戻し、照準とUIの当たり判定を見た目に合わせる。
+	WinApp::GetInstance()->SetPresentationCurvature(look.enabled ? (std::max)(0.0f, look.curvature) : 0.0f);
+	if (!look.enabled) {
+		bloomParam_.arenaNebulaIntensity = 0.0f;
+		bloomParam_.arenaPhosphorDecay = 0.0f;
+		bloomParam_.arenaGrainIntensity = 0.0f;
+		bloomParam_.arenaBezelMargin = 0.0f;
+		bloomParam_.arenaBezelRadius = 0.0f;
+		bloomParam_.arenaCurvature = 0.0f;
+		bloomParam_.arenaChromAb = 0.0f;
+		bloomParam_.arenaVignette = 0.0f;
+		bloomParam_.arenaScanlineIntensity = 0.0f;
+		return;
+	}
+	// ブラウン管の歪み・色収差・走査線・周辺減光・枠は、UIを含めた最終提示パスでかける。
+	// 被弾やスローの演出値は合成パス側に残るので、基準表現とは独立に重なる。
+	bloomParam_.arenaCurvature = (std::max)(0.0f, look.curvature);
+	bloomParam_.arenaChromAb = (std::clamp)(look.chromAbAmount, 0.0f, 0.05f);
+	bloomParam_.arenaVignette = (std::max)(0.0f, look.vignetteIntensity * (std::max)(look.vignetteScale, 0.0f));
+	bloomParam_.arenaScanlineIntensity = (std::clamp)(look.scanlineIntensity, 0.0f, 1.0f);
+	bloomParam_.arenaScanlineFrequency = 6.2831853f * static_cast<float>(WinApp::kRenderHeight) /
+		(std::max)(1.0f, look.scanlinePeriodPixels);
+	bloomParam_.noiseIntensity = (std::max)(bloomParam_.noiseIntensity, look.noiseIntensity);
+	bloomParam_.arenaGrainIntensity = (std::max)(0.0f, look.grainIntensity);
+	bloomParam_.arenaPhosphorDecay = (std::clamp)(look.phosphorDecay, 0.0f, 0.97f);
+	bloomParam_.arenaNebulaIntensity = (std::max)(0.0f, look.nebulaIntensity);
+	bloomParam_.arenaNebulaScale = (std::max)(0.0001f, look.nebulaScale);
+	bloomParam_.arenaNebulaDrift = look.nebulaDrift;
+	bloomParam_.arenaNebulaColorA = look.nebulaColorA;
+	bloomParam_.arenaNebulaColorB = look.nebulaColorB;
+	bloomParam_.arenaBezelMargin = (std::clamp)(look.bezelMargin, 0.0f, 0.2f);
+	bloomParam_.arenaBezelRadius = (std::clamp)(look.bezelRadius, 0.0f, 0.5f);
+	bloomParam_.arenaMaskSoftness = (std::clamp)(look.bezelSoftness, 0.0005f, 0.1f);
 }
 
 void Bloom::PreDraw() {
@@ -969,7 +1024,7 @@ void Bloom::PreDraw() {
     const float materialClearColor[4] = { 1.0f, 0.0f, 1.0f, 0.0f };
     dxCommon_->ClearRenderTarget(materialRT_->GetRTVHandle(), materialClearColor);
 
-    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
 }
 
 void Bloom::PostDraw() {
@@ -1053,7 +1108,7 @@ void Bloom::PostDraw() {
 	if (useRandomPass) {
 		Transition(randomRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		dxCommon_->SetRenderTargetNoDepth(randomRT_->GetRTVHandle());
-		dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+		dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
 		postEffect_->Draw(sceneRT_->GetGPUHandle(), kRandom);
 		Transition(randomRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		sceneSource = randomRT_->GetGPUHandle();
@@ -1063,7 +1118,7 @@ void Bloom::PostDraw() {
     // --- B. Motion vector pass (Depth + current/previous camera -> Motion Vector RT) ---
     Transition(motionVectorRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(motionVectorRT_->GetRTVHandle());
-    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
     const float motionClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     if (enableMotionVector_ && !developerShowcase_.active) {
         postEffect_->DrawMotionVectorResolve(sceneRT_->GetDepthGPUHandle());
@@ -1096,7 +1151,7 @@ void Bloom::PostDraw() {
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
             D3D12_RESOURCE_STATE_RENDER_TARGET);
         dxCommon_->SetRenderTargetNoDepth(temporalHistoryRT_[writeHistoryIndex]->GetRTVHandle());
-        dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+        dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
         postEffect_->DrawTemporalResolve(
             sceneSource,
             historySource,
@@ -1120,10 +1175,38 @@ void Bloom::PostDraw() {
         bloomCB_->Update(bloomParam_);
     }
 
+    // --- C2. Phosphor persistence (Scene + reprojected afterglow -> Scene) ---
+    const bool usePhosphorPersistence =
+        bloomParam_.arenaPhosphorDecay > 0.0f &&
+        !developerShowcase_.active &&
+        !developerShowcase_.comparisonFreeze &&
+        enableMotionVector_;
+    if (usePhosphorPersistence) {
+        const int writeIndex = 1 - persistenceIndex_;
+        const D3D12_GPU_DESCRIPTOR_HANDLE historySource = hasPersistenceHistory_
+            ? persistenceRT_[persistenceIndex_]->GetGPUHandle()
+            : sceneSource;
+        Transition(persistenceRT_[writeIndex]->GetResource(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_RENDER_TARGET);
+        dxCommon_->SetRenderTargetNoDepth(persistenceRT_[writeIndex]->GetRTVHandle());
+        dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
+        postEffect_->DrawPhosphorPersistence(sceneSource, historySource, motionVectorRT_->GetGPUHandle());
+        Transition(persistenceRT_[writeIndex]->GetResource(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        sceneSource = persistenceRT_[writeIndex]->GetGPUHandle();
+        sceneSourceSrv = persistenceRT_[writeIndex]->GetSrvIndex();
+        persistenceIndex_ = writeIndex;
+        hasPersistenceHistory_ = true;
+    } else {
+        hasPersistenceHistory_ = false;
+    }
+
     // --- D. SSAO resolve pass (Depth/Normal/Material -> AO RT) ---
     Transition(ssaoResolveRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(ssaoResolveRT_->GetRTVHandle());
-    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
     const float aoClearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
     if (enableSSAO_ && !developerShowcase_.active) {
         postEffect_->DrawSSAOResolve(
@@ -1139,7 +1222,7 @@ void Bloom::PostDraw() {
     if (enableSSAO_ && enableSSAODenoise_ && !developerShowcase_.active) {
         Transition(ssaoDenoiseRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
         dxCommon_->SetRenderTargetNoDepth(ssaoDenoiseRT_->GetRTVHandle());
-        dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+        dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
         postEffect_->DrawSSAODenoise(
             ssaoResolveRT_->GetGPUHandle(),
             sceneRT_->GetDepthGPUHandle(),
@@ -1152,7 +1235,7 @@ void Bloom::PostDraw() {
     // --- E. SSR resolve pass (Scene/Depth/Normal -> SSR RT) ---
     Transition(ssrResolveRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(ssrResolveRT_->GetRTVHandle());
-    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
     const float ssrClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     if (enableSSR_ && !developerShowcase_.active) {
         postEffect_->DrawSSRResolve(
@@ -1169,7 +1252,7 @@ void Bloom::PostDraw() {
     if (enableSSR_ && enableSSRDenoise_ && !developerShowcase_.active) {
         Transition(ssrDenoiseRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
         dxCommon_->SetRenderTargetNoDepth(ssrDenoiseRT_->GetRTVHandle());
-        dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+        dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
         postEffect_->DrawSSRDenoise(
             ssrResolveRT_->GetGPUHandle(),
             sceneRT_->GetDepthGPUHandle(),
@@ -1187,7 +1270,7 @@ void Bloom::PostDraw() {
     // --- F. 抽出パス (SceneRT -> BloomHalf) ---
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
-    dxCommon_->SetViewport(WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
+    dxCommon_->SetViewport(WinApp::kRenderWidth / 2, WinApp::kRenderHeight / 2);
 
     // Full-screen smoothing modes skip bright-pass extraction and blur the whole scene.
     if (bloomParam_.gaussianIntensity > 0.0f || bloomParam_.fullScreenBoxBlurBlend > 0.0f) {
@@ -1201,7 +1284,7 @@ void Bloom::PostDraw() {
     // --- G. Bloom prefilter (BloomHalf -> BloomA) ---
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
-    dxCommon_->SetViewport(WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
+    dxCommon_->SetViewport(WinApp::kRenderWidth / 2, WinApp::kRenderHeight / 2);
 
     postEffect_->Draw(bloomRT_Half_->GetGPUHandle(), kAdd_Bloom_Downsample);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -1227,9 +1310,14 @@ void Bloom::PostDraw() {
         extractSource = bloomSource;
     }
 
-    // --- I. 最終合成 (SceneRT + BloomA + AO + SSR + Motion -> BackBuffer) ---
-    dxCommon_->SetBackBuffer();
-    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    // --- I. 最終合成 (SceneRT + BloomA + AO + SSR + Motion -> Present RT) ---
+    // 以後のUI描画もこの中間画像へ重ね、PresentToBackBufferで画面全体へブラウン管処理をかける。
+    Transition(presentRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    dxCommon_->SetPresentTarget(presentRT_->GetRTVHandle());
+    const float presentClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    dxCommon_->ClearRenderTarget(presentRT_->GetRTVHandle(), presentClearColor);
+    dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
+    presentTargetActive_ = true;
 
     // 最終的に DrawComposite で HLSL 側のメイン処理が走ります
     lastCompositeParams_ = bloomParam_;
@@ -1242,6 +1330,18 @@ void Bloom::PostDraw() {
         materialRT_->GetGPUHandle(),
         ssaoCompositeSource,
         motionVectorRT_->GetGPUHandle());
+}
+
+void Bloom::PresentToBackBuffer() {
+    if (!presentTargetActive_) {
+        return;
+    }
+    presentTargetActive_ = false;
+    Transition(presentRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    dxCommon_->SetBackBuffer();
+    dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
+    bloomCB_->Update(lastCompositeParams_);
+    postEffect_->DrawCrtPresent(presentRT_->GetGPUHandle());
 }
 
 void Bloom::SetDeveloperShowcaseState(const IScene::DeveloperShowcaseState& state) {

@@ -1038,8 +1038,8 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
     }
 
     ui_.evolutionCircuitBackdropSprite_->SetPosition({0.0f, 0.0f});
-    ui_.evolutionCircuitBackdropSprite_->SetSize({static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth()),
-                                                  static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight())});
+    ui_.evolutionCircuitBackdropSprite_->SetSize({static_cast<float>(cg2::WinApp::kClientWidth),
+                                                  static_cast<float>(cg2::WinApp::kClientHeight)});
     ui_.evolutionCircuitBackdropSprite_->SetColor({0.004f, 0.010f, 0.024f, 0.65f});
     ui_.evolutionCircuitBackdropSprite_->Update();
     ui_.evolutionCircuitDetailPanelSprite_->SetPosition(EvolutionVirtualToRender({640.0f, 611.0f}));
@@ -1446,16 +1446,16 @@ float PlayerEvolution::GetEvolutionRenderScale() const
 {
     const float virtualWidth = (std::max)(1.0f, ui_.evolutionUiStyle_.virtualResolution.x);
     const float virtualHeight = (std::max)(1.0f, ui_.evolutionUiStyle_.virtualResolution.y);
-    const float clientWidth = static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
-    const float clientHeight = static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
+    const float clientWidth = static_cast<float>(cg2::WinApp::kClientWidth);
+    const float clientHeight = static_cast<float>(cg2::WinApp::kClientHeight);
     return (std::min)(clientWidth / virtualWidth, clientHeight / virtualHeight);
 }
 
 cg2::Vector2 PlayerEvolution::GetEvolutionRenderOffset() const
 {
     const float scale = GetEvolutionRenderScale();
-    const float clientWidth = static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
-    const float clientHeight = static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
+    const float clientWidth = static_cast<float>(cg2::WinApp::kClientWidth);
+    const float clientHeight = static_cast<float>(cg2::WinApp::kClientHeight);
     return {(clientWidth - ui_.evolutionUiStyle_.virtualResolution.x * scale) * 0.5f,
             (clientHeight - ui_.evolutionUiStyle_.virtualResolution.y * scale) * 0.5f};
 }
@@ -1479,8 +1479,8 @@ cg2::Vector2 PlayerEvolution::EvolutionVirtualToRender(const cg2::Vector2& virtu
 
 cg2::Vector2 PlayerEvolution::EvolutionClientToVirtual(const cg2::Vector2& clientPosition) const
 {
-    const float clientWidth = static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
-    const float clientHeight = static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
+    const float clientWidth = static_cast<float>(cg2::WinApp::kClientWidth);
+    const float clientHeight = static_cast<float>(cg2::WinApp::kClientHeight);
     const float virtualWidth = (std::max)(1.0f, ui_.evolutionUiStyle_.virtualResolution.x);
     const float virtualHeight = (std::max)(1.0f, ui_.evolutionUiStyle_.virtualResolution.y);
     const float scale = (std::max)(0.0001f, (std::min)(clientWidth / virtualWidth, clientHeight / virtualHeight));
@@ -1606,8 +1606,8 @@ void PlayerEvolution::UpdateStaticEvolutionPrototype()
     }
 
     ui_.staticEvolutionBackdropSprite_->SetPosition({0.0f, 0.0f});
-    ui_.staticEvolutionBackdropSprite_->SetSize({static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth()),
-                                                 static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight())});
+    ui_.staticEvolutionBackdropSprite_->SetSize({static_cast<float>(cg2::WinApp::kClientWidth),
+                                                 static_cast<float>(cg2::WinApp::kClientHeight)});
     ui_.staticEvolutionBackdropSprite_->SetColor({0.005f, 0.012f, 0.025f, ui_.evolutionUiStyle_.backgroundDimOpacity});
     ui_.staticEvolutionBackdropSprite_->Update();
 
@@ -2468,8 +2468,8 @@ void PlayerEvolution::DrawEvolutionUiStyleEditor()
         ImGui::TextWrapped("%s", ui_.evolutionUiStyleStatus_.c_str());
     }
 
-    const float clientWidth = static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
-    const float clientHeight = static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
+    const float clientWidth = static_cast<float>(cg2::WinApp::kClientWidth);
+    const float clientHeight = static_cast<float>(cg2::WinApp::kClientHeight);
     const float actualScale = (std::min)(clientWidth / (std::max)(1.0f, ui_.evolutionUiStyle_.virtualResolution.x),
                                          clientHeight / (std::max)(1.0f, ui_.evolutionUiStyle_.virtualResolution.y));
     ImGui::Text("実解像度: %.0f x %.0f / UI倍率: %.3f", clientWidth, clientHeight, actualScale);
@@ -2775,8 +2775,8 @@ void PlayerEvolution::DrawStaticEvolutionDebugOverlay()
     }
 
     ImDrawList* drawList = ImGui::GetForegroundDrawList();
-    const float clientWidth = static_cast<float>(cg2::WinApp::GetInstance()->GetClientWidth());
-    const float clientHeight = static_cast<float>(cg2::WinApp::GetInstance()->GetClientHeight());
+    const float clientWidth = static_cast<float>(cg2::WinApp::kClientWidth);
+    const float clientHeight = static_cast<float>(cg2::WinApp::kClientHeight);
     const float virtualWidth = (std::max)(1.0f, ui_.evolutionUiStyle_.virtualResolution.x);
     const float virtualHeight = (std::max)(1.0f, ui_.evolutionUiStyle_.virtualResolution.y);
     const float scale = (std::max)(0.0001f, (std::min)(clientWidth / virtualWidth, clientHeight / virtualHeight));

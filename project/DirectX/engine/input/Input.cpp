@@ -1,4 +1,5 @@
 #include "Input.h"
+#include "WinApp.h"
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "xinput.lib")
@@ -209,7 +210,10 @@ Vector2 Input::GetMousePosition() const {
 	POINT point;
 	GetCursorPos(&point);               // デスクトップ上のマウス座標を取得
 	ScreenToClient(hwnd_, &point);      // ウィンドウ座標に変換
-	return Vector2{ static_cast<float>(point.x), static_cast<float>(point.y) };
+	// UIの当たり判定は論理座標で書かれているため、実ウィンドウサイズから換算する。
+	Vector2 position{ static_cast<float>(point.x), static_cast<float>(point.y) };
+	WinApp::GetInstance()->ClientToLogical(position.x, position.y);
+	return position;
 }
 
 } // namespace cg2
