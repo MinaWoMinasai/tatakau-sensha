@@ -79,18 +79,20 @@ void GameplayRenderer::DrawPostEffect3D()
     stagesurface::Settings surface = world_.presentation.stageSurface_;
     surface.enabled = surface.enabled && world_.run.prototypeRun_;
     stagesurface::Sanitize(surface);
+    if (world_.resources.player_ && world_.resources.player_->IsDead()) surface.floorLocalIntensity = 0.0f;
     const bool surfaceBlocks = surface.enabled && surface.blocksEnabled;
     if (surface.enabled && world_.resources.stage_) {
         profile("Stage Surfaces", true, [&]() {
             cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNone);
             const auto center = world_.resourceNeonRenderer->GetFloorVisibilityCenter();
-            const auto floors = world_.resources.stage_->DrawSurfaceFloor(surface, center, 38.0f, 24.0f);
+            const auto lightPosition = world_.resources.player_ ? world_.resources.player_->GetWorldPosition() : center;
+            const auto floors = world_.resources.stage_->DrawSurfaceFloor(surface, center, 38.0f, 24.0f, lightPosition);
             const auto blocks = world_.resources.stage_->DrawSurfaceBlocks(surface, center, 38.0f, 24.0f,
                 world_.presentation.showStageNormalBlockBodies_);
             auto& diagnostics = cg2::RuntimeProfiler::Get();
             diagnostics.SetCounter("Stage surface floor draws", floors);
             diagnostics.SetCounter("Stage surface block draws", blocks);
-            diagnostics.SetCounter("Stage surface triangles", floors * 2u + blocks * 44u);
+            diagnostics.SetCounter("Stage surface triangles", floors * 2u + world_.resources.stage_->GetSurfaceTriangles());
             cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
         });
     }

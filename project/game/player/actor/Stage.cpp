@@ -5,6 +5,7 @@
 #include <sstream>
 #include "game/render/StageSurfaceGeometry.h"
 #include "TextureManager.h"
+#include <bit>
 
 namespace {
 
@@ -33,6 +34,9 @@ void Stage::InitializeSurfaceModels()
 	textures->LoadTexture("resources/skybox.dds");
 	models->CreateModelFromData(stagesurface::kFloorModel, stagesurface::FloorMesh());
 	models->CreateModelFromData(stagesurface::kBlockModel, stagesurface::BlockMesh());
+	models->CreateModelFromData(stagesurface::kWallModel, stagesurface::BlockMesh(0.0f));
+	for (int levels=1;levels<=6;++levels)
+		models->CreateModelFromData(stagesurface::StackModelName(levels),stagesurface::StackMesh(levels));
 	if (!surfaceFloor_) {
 		surfaceFloor_ = std::make_unique<cg2::Object3d>();
 		surfaceFloor_->Initialize();
@@ -74,7 +78,7 @@ void InitializeSurfaceBlock(Block& block)
 } // namespace
 
 uint32_t Stage::DrawSurfaceFloor(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
-	float halfWidth, float halfHeight)
+	float halfWidth, float halfHeight, const cg2::Vector3& lightPosition)
 {
 	if (!surfaceFloor_ || !settings.enabled || !settings.floorEnabled) return 0;
 	// Include every cell, even empty cells, plus the existing camera visibility area.
@@ -86,6 +90,12 @@ uint32_t Stage::DrawSurfaceFloor(const stagesurface::Settings& settings, const c
 		minX = (std::min)(minX, block.aabb.min.x); minY = (std::min)(minY, block.aabb.min.y);
 		maxX = (std::max)(maxX, block.aabb.max.x); maxY = (std::max)(maxY, block.aabb.max.y);
 	}
+	if (settings.wallStyle == 1 && settings.blocksEnabled) for (const auto& wall : GetSurfaceWalls(settings)) {
+		minX = (std::min)(minX, wall.gameplay.translate.x - std::abs(wall.gameplay.scale.x));
+		maxX = (std::max)(maxX, wall.gameplay.translate.x + std::abs(wall.gameplay.scale.x));
+		minY = (std::min)(minY, wall.gameplay.translate.y - std::abs(wall.gameplay.scale.y));
+		maxY = (std::max)(maxY, wall.gameplay.translate.y + std::abs(wall.gameplay.scale.y));
+	}
 	minX = (std::min)(minX, cameraPos.x - halfWidth) - settings.floorPadding;
 	minY = (std::min)(minY, cameraPos.y - halfHeight) - settings.floorPadding;
 	maxX = (std::max)(maxX, cameraPos.x + halfWidth) + settings.floorPadding;
@@ -94,6 +104,12 @@ uint32_t Stage::DrawSurfaceFloor(const stagesurface::Settings& settings, const c
 		{0.0f, 0.0f, 0.0f}, {(minX + maxX) * 0.5f, (minY + maxY) * 0.5f, settings.floorDepth}});
 	ApplySurfaceMaterial(*surfaceFloor_, settings.floorColor, settings.floorMetallic,
 		settings.floorRoughness, settings.floorLightIntensity);
+	if (settings.floorDetail > 0.0f) surfaceFloor_->SetNormalDetail(settings.floorDetail, 120.0f);
+	if (settings.floorLocalLight) {
+		surfaceFloor_->SetPointLight({lightPosition.x, lightPosition.y, -settings.floorLocalHeight},
+			{settings.floorLightColor.x, settings.floorLightColor.y, settings.floorLightColor.z},
+			settings.floorLocalIntensity, settings.floorLocalRadius, 2.0f);
+	}
 	surfaceFloor_->Draw();
 	return 1;
 }
@@ -101,8 +117,36 @@ uint32_t Stage::DrawSurfaceFloor(const stagesurface::Settings& settings, const c
 uint32_t Stage::DrawSurfaceBlocks(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
 	float halfWidth, float halfHeight, bool drawNormalBlocks)
 {
+	surfaceTriangles_ = 0;
 	if (!settings.enabled || !settings.blocksEnabled) return 0;
 	uint32_t draws = 0;
+	if (settings.wallStyle == 1) {
+		const auto& walls = GetSurfaceWalls(settings);
+		for (size_t i = 0; i < walls.size(); ++i) {
+			const auto& wall = walls[i];
+			if (!drawNormalBlocks && wall.type == MapChipType::kBlock) continue;
+			const auto& t = wall.gameplay;
+			if (t.translate.x + std::abs(t.scale.x) < cameraPos.x-halfWidth-3 ||
+				t.translate.x - std::abs(t.scale.x) > cameraPos.x+halfWidth+3 ||
+				t.translate.y + std::abs(t.scale.y) < cameraPos.y-halfHeight-3 ||
+				t.translate.y - std::abs(t.scale.y) > cameraPos.y+halfHeight+3) continue;
+			while (surfaceWallObjects_.size() <= i) {
+				auto object = std::make_unique<cg2::Object3d>(); object->Initialize();
+				object->SetModel(cg2::ModelManager::GetInstance()->FindModel(stagesurface::kWallModel));
+				object->SetEnvironmentMap(cg2::TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds"));
+				surfaceWallObjects_.push_back(std::move(object));
+			}
+			auto& object = *surfaceWallObjects_[i];
+			const int levels=wall.isolated?1:(wall.exterior?(std::clamp)(int(std::round(settings.exteriorHeight/2.0f)),1,6):settings.stackLevels);
+			object.SetModel(cg2::ModelManager::GetInstance()->FindModel(stagesurface::StackModelName(levels)));
+			object.SetTransform(SurfaceWallTransform(wall, settings));
+			const auto color = wall.exterior ? cg2::Vector4{.08f,.025f,.04f,1} :
+				(wall.type == MapChipType::kDamageBlock ? settings.damageBlockColor : settings.blockColor);
+			ApplySurfaceMaterial(object, color, settings.blockMetallic, settings.blockRoughness, settings.blockLightIntensity);
+			object.Draw(); ++draws; surfaceTriangles_+=12u*static_cast<uint32_t>(levels);
+		}
+		return draws;
+	}
 	const float marginX = MapChip::kBlockWidth * 1.5f, marginY = MapChip::kBlockHeight * 1.5f;
 	for (auto& row : blocks_) for (auto& block : row) {
 		if (!block.isActive || !block.surfaceObject || (!drawNormalBlocks && block.type == MapChipType::kBlock)) continue;
@@ -115,8 +159,59 @@ uint32_t Stage::DrawSurfaceBlocks(const stagesurface::Settings& settings, const 
 			settings.blockMetallic, settings.blockRoughness, settings.blockLightIntensity);
 		block.surfaceObject->Draw();
 		++draws;
+		surfaceTriangles_+=44;
 	}
 	return draws;
+}
+
+cg2::Transform Stage::SurfaceWallTransform(const SurfaceWall& wall, const stagesurface::Settings& settings) {
+	auto shape = settings;
+	if (wall.exterior) shape.blockHeight = settings.exteriorHeight;
+	else if (wall.isolated) shape.blockHeight /= static_cast<float>(settings.stackLevels);
+	return stagesurface::BlockTransform(wall.gameplay, shape);
+}
+
+const std::vector<SurfaceWall>& Stage::GetSurfaceWalls(const stagesurface::Settings& settings) {
+	uint64_t hash = 1469598103934665603ull;
+	auto append = [&](uint64_t v) { hash = (hash ^ v) * 1099511628211ull; };
+	append(settings.exteriorEnabled); append(std::bit_cast<uint32_t>(settings.exteriorGap));
+	append(std::bit_cast<uint32_t>(settings.exteriorWidth));
+	std::vector<int> cells(MapChip::kNumBlockHorizontal * MapChip::kNumBlockVirtical, 0);
+	float minX=1e6f, minY=1e6f, maxX=-1e6f, maxY=-1e6f;
+	for (size_t y=0; y<blocks_.size(); ++y) for (size_t x=0; x<blocks_[y].size(); ++x) {
+		const auto& block=blocks_[y][x]; append(block.isActive);
+		if (!block.isActive) continue;
+		append(static_cast<unsigned>(block.type));
+		const auto& t=block.worldTransform;
+		for (float v : {t.translate.x,t.translate.y,t.translate.z,t.rotate.x,t.rotate.y,t.rotate.z,t.scale.x,t.scale.y,t.scale.z})
+			append(std::bit_cast<uint32_t>(v));
+		minX=(std::min)(minX,block.aabb.min.x); minY=(std::min)(minY,block.aabb.min.y);
+		maxX=(std::max)(maxX,block.aabb.max.x); maxY=(std::max)(maxY,block.aabb.max.y);
+		if (!block.isLevelObject && y<MapChip::kNumBlockVirtical && x<MapChip::kNumBlockHorizontal)
+			cells[y*MapChip::kNumBlockHorizontal+x]=block.type==MapChipType::kDamageBlock?2:1;
+	}
+	if (hash == surfaceWallHash_) return surfaceWalls_;
+	surfaceWallHash_=hash; surfaceWalls_.clear();
+	for (const auto& rectangle : stagesurface::MergeWallCells(cells,MapChip::kNumBlockHorizontal,MapChip::kNumBlockVirtical)) {
+		const auto& a=blocks_[rectangle.y][rectangle.x];
+		const auto& b=blocks_[rectangle.y+rectangle.height-1][rectangle.x+rectangle.width-1];
+		const float left=(std::min)(a.aabb.min.x,b.aabb.min.x), right=(std::max)(a.aabb.max.x,b.aabb.max.x);
+		const float bottom=(std::min)(a.aabb.min.y,b.aabb.min.y), top=(std::max)(a.aabb.max.y,b.aabb.max.y);
+		cg2::Transform t{{(right-left)*.5f,(top-bottom)*.5f,1},{0,0,0},{(left+right)*.5f,(bottom+top)*.5f,a.worldTransform.translate.z}};
+		surfaceWalls_.push_back({t,a.type,false,rectangle.width*rectangle.height==1});
+	}
+	for (const auto& row:blocks_) for (const auto& block:row)
+		if (block.isActive && block.isLevelObject) surfaceWalls_.push_back({block.worldTransform,block.type,false,false});
+	if (settings.exteriorEnabled && minX<maxX && minY<maxY) {
+		const float width=settings.exteriorWidth, gap=settings.exteriorGap;
+		const float left=minX-gap-width, right=maxX+gap+width, bottom=minY-gap-width, top=maxY+gap+width;
+		auto rail=[&](float x,float y,float sx,float sy) { surfaceWalls_.push_back({{{sx,sy,1},{0,0,0},{x,y,0}},MapChipType::kBlock,true,false}); };
+		rail(left+width*.5f,(bottom+top)*.5f,width*.5f,(top-bottom)*.5f);
+		rail(right-width*.5f,(bottom+top)*.5f,width*.5f,(top-bottom)*.5f);
+		rail((left+right)*.5f,bottom+width*.5f,(right-left)*.5f-width,width*.5f);
+		rail((left+right)*.5f,top-width*.5f,(right-left)*.5f-width,width*.5f);
+	}
+	return surfaceWalls_;
 }
 
 void Stage::Initialize() {
@@ -203,6 +298,8 @@ void Stage::DrawVisible(const cg2::Vector3& cameraPos, float halfWidth, float ha
 void Stage::ClearBlocksForPreview()
 {
 	blocks_.clear();
+	surfaceWallHash_ = 0;
+	surfaceWalls_.clear();
 	mergedBlocks_.clear();
 }
 
