@@ -255,6 +255,15 @@ void CombatFramePipeline::Update()
     }
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    // Undo the last comparison eye before normal follow or a boss camera saves it.
+    if (world_.presentation.developerStageTiltApplied_) {
+        world_.resources.camera->SetTranslate(world_.presentation.developerStageBaseCamera_);
+        world_.resources.camera->SetRotate(world_.presentation.developerStageBaseRotation_);
+        world_.resources.player_->SetNeonDepthAimEnabled(false);
+        world_.presentation.developerStageTiltApplied_ = false;
+    }
+#endif
     if (!world_.depthEncounter->UpdateNeonDepthCamera(baseDeltaTime)) {
         cg2::Vector3 playerPos = world_.resources.player_->GetWorldPosition();
         const float kCameraZ = -55.0f;
@@ -285,6 +294,23 @@ void CombatFramePipeline::Update()
         world_.resources.camera->SetTranslate(nextCameraPos);
     }
 
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if (world_.presentation.developerStageTilt_ && world_.run.prototypeRun_ && !world_.demo.titleDemo_ &&
+        !world_.resources.neonDepthCameraScoped_ && !cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()) {
+        auto& presentation = world_.presentation;
+        presentation.developerStageBaseCamera_ = world_.resources.camera->GetTranslate();
+        presentation.developerStageBaseRotation_ = world_.resources.camera->GetRotate();
+        const float angle = (std::clamp)(presentation.developerStageTiltDegrees_,5.0f,28.0f)*3.14159265f/180.0f;
+        const float distance = std::abs(presentation.developerStageBaseCamera_.z);
+        auto eye = presentation.developerStageBaseCamera_;
+        eye.y += std::sin(angle)*distance;
+        eye.z = -std::cos(angle)*distance;
+        auto rotation = presentation.developerStageBaseRotation_; rotation.x = angle;
+        world_.resources.camera->SetTranslate(eye); world_.resources.camera->SetRotate(rotation);
+        world_.resources.player_->SetNeonDepthAimEnabled(true); // Existing viewport-scaled XY ray/plane aiming.
+        presentation.developerStageTiltApplied_ = true;
+    }
+#endif
     world_.resources.camera->Update();
     world_.resources.debugCamera->Update(world_.resources.input_->GetMouseState(), world_.resources.input_->GetKey(),
                                          world_.resources.input_->GetLeftStick());

@@ -165,12 +165,30 @@ void GameplayEditor::DrawGameplayDebugUi()
                 world_.resources.player_->DrawEvolutionUiStyleEditor();
                 ImGui::Separator();
             }
-            if (world_.run.prototypeRun_ && ImGui::CollapsingHeader("Phase 1 / 床・立体ブロック", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (world_.run.prototypeRun_ && ImGui::CollapsingHeader("Phase 1.5 / 床・連続壁", ImGuiTreeNodeFlags_DefaultOpen)) {
                 auto& surface = world_.presentation.stageSurface_;
                 ImGui::Checkbox("新しいステージ表現を使用", &surface.enabled);
                 if (ImGui::Button("従来表示へ戻す")) surface.enabled = false;
                 ImGui::SameLine();
-                if (ImGui::Button("Phase 1 の初期値")) { surface = stagesurface::Settings{}; surface.enabled = true; }
+                if (ImGui::Button("Phase 1.5 の初期値")) { surface = stagesurface::Settings{}; surface.enabled = true; }
+                ImGui::SameLine();
+                if (ImGui::Button("Phase 1 比較")) surface = stagesurface::Phase1Settings();
+                const char* wallStyles[] = {"Phase 1 / ベベルタイル", "Phase 1.5 / 連続した直線壁"};
+                ImGui::Combo("壁の形状", &surface.wallStyle, wallStyles, 2);
+                ImGui::Checkbox("外側の構造物", &surface.exteriorEnabled);
+                ImGui::SliderFloat("外周壁の高さ", &surface.exteriorHeight, 1, 12);
+                ImGui::SliderFloat("外周壁との間隔", &surface.exteriorGap, .5f, 12);
+                ImGui::SliderFloat("外周壁の幅", &surface.exteriorWidth, .5f, 6);
+                ImGui::SliderInt("内側の積層数", &surface.stackLevels, 1, 5);
+                ImGui::SliderFloat("直線壁の発光線幅", &surface.wallLineWidth, .008f, .08f);
+                ImGui::Checkbox("床に自機の局所光", &surface.floorLocalLight);
+                ImGui::ColorEdit3("床の局所光色", &surface.floorLightColor.x);
+                ImGui::SliderFloat("床の局所光強度", &surface.floorLocalIntensity, 0, 80);
+                ImGui::SliderFloat("床の局所光半径", &surface.floorLocalRadius, 2, 24);
+                ImGui::SliderFloat("光源の高さ（XY平面基準）", &surface.floorLocalHeight, .5f, 8);
+                ImGui::SliderFloat("床の法線ディテール（実験）", &surface.floorDetail, 0, .2f);
+                ImGui::Checkbox("開発用 / 軽く傾けた視点", &world_.presentation.developerStageTilt_);
+                ImGui::SliderFloat("比較視点の角度", &world_.presentation.developerStageTiltDegrees_, 5, 28);
                 ImGui::Checkbox("不透明3D床", &surface.floorEnabled);
                 ImGui::ColorEdit3("床の色", &surface.floorColor.x);
                 ImGui::SliderFloat("床の金属度", &surface.floorMetallic, 0.0f, 1.0f);
@@ -179,7 +197,7 @@ void GameplayEditor::DrawGameplayDebugUi()
                 ImGui::DragFloat("床の外周余白", &surface.floorPadding, 0.25f, 0.0f, 64.0f);
                 ImGui::DragFloat("床の照明強度", &surface.floorLightIntensity, 0.02f, 0.0f, 5.0f);
                 ImGui::SliderFloat("床グリッドの最小画面幅 (px)", &surface.gridMinPixelWidth, 0.5f, 2.0f);
-                ImGui::Checkbox("ベベル付き3Dブロック", &surface.blocksEnabled);
+                ImGui::Checkbox("3D壁・ブロック", &surface.blocksEnabled);
                 ImGui::ColorEdit3("ブロック本体色", &surface.blockColor.x);
                 ImGui::ColorEdit3("ダメージブロック本体色", &surface.damageBlockColor.x);
                 ImGui::SliderFloat("ブロックの金属度", &surface.blockMetallic, 0.0f, 1.0f);
@@ -198,7 +216,7 @@ void GameplayEditor::DrawGameplayDebugUi()
                 int ao = world_.presentation.developerStageSurfaceSSAO_ + 1, ssr = world_.presentation.developerStageSurfaceSSR_ + 1;
                 if (ImGui::Combo("SSAO 比較", &ao, resolveModes, IM_ARRAYSIZE(resolveModes))) world_.presentation.developerStageSurfaceSSAO_ = ao - 1;
                 if (ImGui::Combo("SSR 比較", &ssr, resolveModes, IM_ARRAYSIZE(resolveModes))) world_.presentation.developerStageSurfaceSSR_ = ssr - 1;
-                ImGui::TextDisabled("衝突・移動・照準・カメラは変更しません。保存は上の見た目設定ボタン。");
+                ImGui::TextDisabled("衝突・移動・弾道を保持。傾斜視点は開発比較専用。保存は上の見た目設定ボタン。");
             }
             if (ImGui::CollapsingHeader("ネオングリッド", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::Checkbox("背景グリッドを表示", &world_.presentation.showNeonGrid_);

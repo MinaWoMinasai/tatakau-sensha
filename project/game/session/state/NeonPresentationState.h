@@ -9,6 +9,9 @@ struct NeonPresentationState {
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
     int developerStageSurfaceDebugView_ = -1;
     int developerStageSurfaceSSAO_ = -1, developerStageSurfaceSSR_ = -1;
+    bool developerStageTilt_ = false, developerStageTiltApplied_ = false;
+    float developerStageTiltDegrees_ = 18.0f;
+    cg2::Vector3 developerStageBaseCamera_{}, developerStageBaseRotation_{};
 #endif
     bool enableExpEnemyPostEffect_ = true;
 

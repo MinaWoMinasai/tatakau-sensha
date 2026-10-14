@@ -125,6 +125,18 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
             v >> visual;
             if (!post.is_object() || !visual.is_object())
                 throw std::runtime_error("設定形式が不正です");
+            // Match InitializeTankRunVisuals: unmarked older files contain
+            // pre-expedition neon defaults. Reload only their independent
+            // stage surfaces, rather than changing the rest of the live look.
+            if (world_.run.expeditionRun_) {
+                if (!post.value("expeditionAuthored", false))
+                    post = world_.gameplaySettings->BuildGamePostEffectConfig();
+                if (!visual.value("expeditionAuthored", false)) {
+                    auto migrated = world_.gameplaySettings->BuildGameVisualConfig();
+                    if (visual.contains("stageSurface")) migrated["stageSurface"] = visual["stageSurface"];
+                    visual = std::move(migrated);
+                }
+            }
             world_.run.expeditionPostDraft_ = std::move(post);
             world_.run.expeditionVisualDraft_ = std::move(visual);
             apply();
@@ -155,6 +167,26 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
             };
             toggle("enabled", "新しいステージ表現を使用");
             if (ImGui::Button("従来表示へ戻す")) surface["enabled"] = false;
+            const char* styles[]={"Phase 1 / ベベルタイル","Phase 1.5 / 連続した直線壁"};
+            int style=surface.value("wallStyle",1);
+            if (ImGui::Combo("壁の形状",&style,styles,2)) surface["wallStyle"]=style;
+            toggle("exteriorEnabled","外側の構造物");
+            scalar(surface,"exteriorHeight","外周壁の高さ",1,12);
+            scalar(surface,"exteriorGap","外周壁との間隔",.5f,12);
+            scalar(surface,"exteriorWidth","外周壁の幅",.5f,6);
+            int levels=surface.value("stackLevels",3);
+            if (ImGui::SliderInt("内側の積層数",&levels,1,5)) surface["stackLevels"]=levels;
+            scalar(surface,"wallLineWidth","直線壁の発光線幅",.008f,.08f);
+            toggle("floorLocalLight","床に自機の局所光");
+            color(surface,"floorLightColor","床の局所光色");
+            scalar(surface,"floorLocalIntensity","床の局所光強度",0,80);
+            scalar(surface,"floorLocalRadius","床の局所光半径",2,24);
+            scalar(surface,"floorLocalHeight","光源の高さ（XY平面基準）",.5f,8);
+            scalar(surface,"floorDetail","床の法線ディテール（実験）",0,.2f);
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+            ImGui::Checkbox("開発用 / 軽く傾けた視点",&world_.presentation.developerStageTilt_);
+            ImGui::SliderFloat("比較視点の角度",&world_.presentation.developerStageTiltDegrees_,5,28);
+#endif
             ImGui::TextWrapped("上の適用で画面に反映し、保存で次回起動にも反映します。");
             toggle("floorEnabled", "不透明3D床");
             color(surface, "floorColor", "床の色");
@@ -164,7 +196,7 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
             scalar(surface, "floorPadding", "床の外周余白", 0, 64);
             scalar(surface, "floorLightIntensity", "床の照明強度", 0, 5);
             scalar(surface, "gridMinPixelWidth", "床グリッドの最小画面幅 (px)", 0.5f, 2);
-            toggle("blocksEnabled", "ベベル付き3Dブロック");
+            toggle("blocksEnabled", "3D壁・ブロック");
             color(surface, "blockColor", "ブロック本体色");
             color(surface, "damageBlockColor", "ダメージブロック本体色");
             scalar(surface, "blockMetallic", "ブロックの金属度", 0, 1);
@@ -174,7 +206,7 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
             scalar(surface, "blockLightIntensity", "ブロックの照明強度", 0, 5);
             int divisions = surface.value("sideLineDivisions", 1);
             if (ImGui::SliderInt("側面のライン分割", &divisions, 1, 8)) surface["sideLineDivisions"] = divisions;
-            ImGui::TextDisabled("詳しい描画診断と初期値への復帰: F12 → 見た目 → Phase 1。");
+            ImGui::TextDisabled("詳しい診断と比較プリセット: F12 → 見た目 → Phase 1.5。");
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("ネオン・ブルーム")) {

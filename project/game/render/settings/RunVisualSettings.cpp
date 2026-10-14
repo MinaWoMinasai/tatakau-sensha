@@ -120,6 +120,7 @@ void RunVisualSettings::InitializeTankRunVisuals()
     char testMode[16]{};
     if (GetEnvironmentVariableA("CG2_STAGE_SURFACE_TEST_MODE", testMode, sizeof(testMode)) > 0) {
         const std::string mode(testMode);
+        if (mode == "phase1") world_.presentation.stageSurface_ = stagesurface::Phase1Settings();
         auto& surface = world_.presentation.stageSurface_;
         if (mode == "legacy" || mode == "floor" || mode == "blocks" || mode == "full") {
             surface.enabled = mode != "legacy";
@@ -139,6 +140,12 @@ void RunVisualSettings::InitializeTankRunVisuals()
     overrideInt("CG2_STAGE_SURFACE_TEST_SSAO", world_.presentation.developerStageSurfaceSSAO_, 1);
     overrideInt("CG2_STAGE_SURFACE_TEST_SSR", world_.presentation.developerStageSurfaceSSR_, 1);
     overrideInt("CG2_STAGE_SURFACE_TEST_BLOOM", world_.presentation.developerBloomComparisonMode_, 3);
+    int tilt = 0;
+    overrideInt("CG2_STAGE_SURFACE_TEST_TILT", tilt, 1);
+    world_.presentation.developerStageTilt_ = tilt == 1;
+    int localLight = -1;
+    overrideInt("CG2_STAGE_SURFACE_TEST_LIGHT", localLight, 1);
+    if (localLight >= 0) world_.presentation.stageSurface_.floorLocalLight = localLight == 1;
 #endif
     world_.presentation.stagePostCacheValid_ = false;
 }
