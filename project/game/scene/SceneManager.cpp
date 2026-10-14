@@ -202,6 +202,13 @@ IScene::WaterPostProcessSettings SceneManager::GetWaterPostProcessSettings()
 		: IScene::WaterPostProcessSettings{};
 }
 
+IScene::ArenaLookSettings SceneManager::GetArenaLookSettings()
+{
+	return currentScene_
+		? currentScene_->GetArenaLookSettings()
+		: IScene::ArenaLookSettings{};
+}
+
 void SceneManager::SetRenderProfile(const IScene::RenderProfile& profile)
 {
 	if (currentScene_) {

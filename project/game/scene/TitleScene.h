@@ -36,6 +36,8 @@ public:
     }
     /// @brief 画面演出状態を返す。
     ScreenEffectState GetScreenEffectState() const override;
+    /// @brief ベクター管モニター風のアリーナ表示設定を返す。
+    ArenaLookSettings GetArenaLookSettings() const override;
     /// @brief 終了済みであるか判定する。
     bool IsFinished() const override
     {

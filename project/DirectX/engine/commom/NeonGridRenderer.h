@@ -58,6 +58,11 @@ public:
     // A dark face and a lit bevel, drawn in the solid pass below its neon rim.
     void QueueBeveledPolygonFill(const Vector3* points, uint32_t count, const Vector4& baseColor,
                                  const Vector4& tint, const Vector3& lightDirection) { geometry_.QueueBeveledPolygonFill(points, count, baseColor, tint, lightDirection); }
+    /// @brief 機体の立体陰影に使う視点を設定する。nullptrで従来の平面塗りへ戻す。
+    void SetBodyShadingEye(const Vector3* eye) { geometry_.SetBodyShadingEye(eye); }
+    /// @brief 視点側へ伸びる黒い箱（砲身など）を陰影つきで予約する。
+    void QueueShadedBox(const Vector3& base, const Vector3& tip, const Vector3& right, float halfWidth, float height,
+                        const Vector4& baseColor, const Vector4& tint) { geometry_.QueueShadedBox(base, tip, right, halfWidth, height, baseColor, tint); }
     /// @brief ワールド格子を後で処理するために予約する。
     void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color,
                         float planeZ = -0.04f) { geometry_.QueueWorldGrid(minX, maxX, minY, maxY, spacing, lineWidth, color, planeZ); }

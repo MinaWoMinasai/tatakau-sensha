@@ -23,15 +23,24 @@ void RunVisualSettings::InitializeTankRunVisuals()
     } catch (...) { /* Existing config load reports parse errors; defaults remain usable. */ }
 
 
-    // Keep the floor quiet while restoring the authored emitters. This engine
-    // applies intensity in both blur passes and the composite, so values below
-    // one attenuate the halo cubically rather than providing a slight dimmer.
-    world_.presentation.worldGridLineWidth_ = 0.035f;
-    world_.presentation.worldGridColor_ = {0.035f, 0.09f, 0.18f, 0.22f};
+    // Vector-monitor arena: a black stage drawn only with thin emissive lines.
+    // The floor grid is a dim blue lattice, walls are bright cyan wireframes,
+    // and each actor tints the floor lattice around it with its own color.
+    world_.presentation.worldGridLineWidth_ = 0.040f;
+    world_.presentation.worldGridColor_ = {0.16f, 0.24f, 0.95f, 0.55f};
+    world_.presentation.showNeonGrid_ = true;
+    world_.presentation.showActorLocalGrid_ = true;
+    world_.presentation.actorGridSpacing_ = world_.presentation.worldGridSpacing_;
+    world_.presentation.actorGridRadius_ = 9.0f;
+    world_.presentation.actorGridLineWidth_ = 0.055f;
+    world_.presentation.playerGridColor_ = {0.45f, 1.25f, 0.30f, 0.85f};
+    world_.presentation.enemyGridColor_ = {1.30f, 0.16f, 0.24f, 0.80f};
+    world_.presentation.expEnemyGridColor_ = {1.20f, 0.26f, 0.62f, 0.55f};
+    world_.presentation.maxExpEnemyLocalGrids_ = 8;
     world_.presentation.stageBlockNeonLineWidth_ = 0.085f;
-    world_.presentation.stageBlockNeonColor_ = {0.10f, 0.64f, 0.92f, 0.90f};
-    world_.presentation.stageDamageBlockNeonColor_ = {1.10f, 0.08f, 0.14f, 1.0f};
-    world_.presentation.actorNeonBillboardLineWidth_ = 0.12f;
+    world_.presentation.stageBlockNeonColor_ = {0.24f, 0.62f, 1.70f, 1.0f};
+    world_.presentation.stageDamageBlockNeonColor_ = {1.45f, 0.10f, 0.20f, 1.0f};
+    world_.presentation.actorNeonBillboardLineWidth_ = 0.15f;
     world_.presentation.actorNeonBodyFillColor_ = {0.006f, 0.010f, 0.016f, 0.92f};
     world_.presentation.playerNeonRenderMode_ = 1;
     world_.presentation.bossNeonRenderMode_ = 1;
@@ -78,7 +87,8 @@ void RunVisualSettings::InitializeTankRunVisuals()
         param.fullScreenBoxBlurBlend = 0.0f;
         effect->SetParam(param);
     };
-    restoreEmitterBloom(world_.resources.bulletTrailPostEffect_.get(), 2.0f);
+    // Phosphor persistence already leaves a trail; keep shots as crisp dashes with a tighter halo.
+    restoreEmitterBloom(world_.resources.bulletTrailPostEffect_.get(), 1.4f);
     restoreEmitterBloom(world_.resources.particlePostEffect_.get(), 1.65f);
     restoreEmitterBloom(world_.resources.neonGridPostEffect_.get(), 1.0f);
     if (world_.run.expeditionRun_ && world_.resources.bulletManager_) {

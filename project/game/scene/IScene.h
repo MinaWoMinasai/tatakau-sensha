@@ -49,6 +49,28 @@ public:
         float historyWeight = 0.08f;
         int debugMode = 0;
     };
+    /// @brief ベクター管ディスプレイ風のアリーナ表示（ブラウン管の歪み・残光・星雲）を表す。
+    /// enabled=falseのシーンでは従来の後処理値をそのまま使う。
+    struct ArenaLookSettings {
+        bool enabled = false;
+        float curvature = 0.0f;          // 樽型歪み
+        float bezelMargin = 0.0f;        // 角丸画面の外側に残す黒枠（UV比）
+        float bezelRadius = 0.0f;        // 角丸半径（UV比）
+        float bezelSoftness = 0.0f;
+        float vignetteIntensity = 0.0f;
+        float vignetteScale = 0.0f;
+        float chromAbAmount = 0.0f;
+        float scanlineIntensity = 0.0f;
+        float scanlinePeriodPixels = 3.0f; // 内部描画解像度での走査線の周期
+        float noiseIntensity = 0.0f;
+        float grainIntensity = 0.0f;
+        float phosphorDecay = 0.0f;
+        float nebulaIntensity = 0.0f;
+        float nebulaScale = 0.035f;
+        float nebulaDrift = 0.004f;
+        cg2::Vector3 nebulaColorA{0.30f, 0.05f, 0.42f};
+        cg2::Vector3 nebulaColorB{0.06f, 0.02f, 0.30f};
+    };
     /// @brief シーン描画の区間ごとの所要時間を記録する。
     struct RenderProfile {
         float frameTotalMs = 0.0f;
@@ -110,6 +132,11 @@ public:
     }
     /// @brief 水面後処理Process設定を返す。
     virtual WaterPostProcessSettings GetWaterPostProcessSettings() const
+    {
+        return {};
+    }
+    /// @brief アリーナ表示の設定を返す。既定は無効。
+    virtual ArenaLookSettings GetArenaLookSettings() const
     {
         return {};
     }

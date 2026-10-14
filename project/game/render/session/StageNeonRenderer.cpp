@@ -101,7 +101,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
                     continue;
                 }
                 world_.resources.neonGridRenderer_->QueueLocalGridClipped(
-                    expEnemy->GetWorldPosition(), world_.presentation.actorGridRadius_ * 0.6f, world_.presentation.actorGridSpacing_,
+                    expEnemy->GetWorldPosition(), world_.presentation.actorGridRadius_ * 0.45f, world_.presentation.actorGridSpacing_,
                     gridWidth(world_.presentation.actorGridLineWidth_ * 0.8f),
                     gridColor(world_.presentation.expEnemyGridColor_, world_.presentation.actorGridLineWidth_ * 0.8f), fieldMinX, fieldMaxX, fieldMinY,
                     fieldMaxY, localGridZ);
@@ -130,7 +130,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         world_.resources.neonGridRenderer_->DrawRange(0, world_.resources.neonGridRenderer_->GetVertexCount(), vp,
                                                       world_.resources.neonDepthCameraScoped_ &&
                                                           !cg2::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
-        world_.actorNeonRenderer->DrawActorNeonBodyFillPass(false);
+        world_.actorNeonRenderer->DrawActorNeonBodyFillPass(false, ActorNeonRenderer::BodySet::Enemies);
         foregroundStart = world_.resources.neonGridRenderer_->GetVertexCount();
     }
     const bool queueExpEnemyNeonInGridPass =
@@ -220,7 +220,7 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 38.0f+std::abs(visual.scale.x),24.0f+std::abs(visual.scale.y),3.0f)) continue;
             const auto matrix = cg2::MakeAffineMatrix(visual.scale,visual.rotate,visual.translate);
             auto world = [&](cg2::Vector3 p) { return cg2::TransformMatrix(p,matrix); };
-            auto color = wall.exterior ? cg2::Vector4{1.0f,.10f,.22f,.80f} :
+            auto color = wall.exterior ? cg2::Vector4{1.55f,.16f,.34f,1.0f} :
                 (damage ? world_.presentation.stageDamageBlockNeonColor_ : world_.presentation.stageBlockNeonColor_);
             float pulse = 1.0f;
             if (damage) pulse = world_.presentation.stageDamageBlockPulseMin_ +
@@ -238,9 +238,14 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 style.roundCaps=false; style.coreWidthRatio=.28f; style.coreIntensity=1.0f;
                 style.coreWhiteMix=.02f; style.shoulderIntensity=.80f; style.haloIntensity=.20f; style.haloAlpha=.04f;
                 auto c=color;
-                const float gain=(rim?1.0f:.46f)*(std::abs(normal.z)>.5f?1.0f:.65f);
+                // Every face keeps a readable lattice; rims stay slightly brighter.
+                const float gain=(rim?1.0f:.72f)*(std::abs(normal.z)>.5f?1.0f:.85f);
                 c.x*=gain; c.y*=gain; c.z*=gain;
-                world_.resources.neonGridRenderer_->QueueContourLine(a,b,surface.wallLineWidth,c,cameraForward,style);
+                // Orient the ribbon toward the eye per segment. With the wide perspective camera, lines that run
+                // along Z (wall height) are nearly parallel to the camera axis and collapse with a global forward.
+                const auto toSegment=(a+b)*.5f-cameraPos;
+                const auto viewDirection=cg2::Length(toSegment)>.0001f?cg2::Normalize(toSegment):cameraForward;
+                world_.resources.neonGridRenderer_->QueueContourLine(a,b,surface.wallLineWidth,c,viewDirection,style);
             };
             auto visible = [&](cg2::Vector3 normal) {
                 return cg2::Dot(cg2::Normalize(world(normal)-world({0,0,0})),cameraPos-world(normal))>=0.0f;

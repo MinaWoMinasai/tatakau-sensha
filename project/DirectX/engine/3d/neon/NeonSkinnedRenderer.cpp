@@ -264,7 +264,7 @@ NeonSkinnedRenderer::DrawConstantBuffer& NeonSkinnedRenderer::AcquireDrawConstan
 void NeonSkinnedRenderer::Draw(const SkinnedModel& model,
 	D3D12_GPU_VIRTUAL_ADDRESS transformationCbv, const Vector3& cameraWorldPosition) {
 	Draw(model, transformationCbv, cameraWorldPosition,
-		{ static_cast<float>(WinApp::kClientWidth), static_cast<float>(WinApp::kClientHeight) });
+		{ static_cast<float>(WinApp::kRenderWidth), static_cast<float>(WinApp::kRenderHeight) });
 }
 
 void NeonSkinnedRenderer::ClearOutlineStencil() {

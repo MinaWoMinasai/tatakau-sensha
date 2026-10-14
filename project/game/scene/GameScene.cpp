@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "game/render/settings/ArenaLookConfig.h"
 #include "game/session/GameSession.h"
 
 GameScene::GameScene(bool prototypeRun, bool expeditionRun) : session_(std::make_unique<gameplay::GameSession>(prototypeRun, expeditionRun))
@@ -69,6 +70,11 @@ IScene::PostEffectPulse GameScene::GetPostEffectPulse() const
 IScene::ScreenEffectState GameScene::GetScreenEffectState() const
 {
     return session_->GetScreenEffectState();
+}
+
+IScene::ArenaLookSettings GameScene::GetArenaLookSettings() const
+{
+    return arenalook::Get();
 }
 
 bool GameScene::IsNeonShowcaseActive() const

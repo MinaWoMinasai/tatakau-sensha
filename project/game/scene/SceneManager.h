@@ -51,6 +51,8 @@ public:
     void RecordDeveloperPostParameters(const cg2::BloomParam& param);
     /// @brief 水面後処理Process設定を返す。
     IScene::WaterPostProcessSettings GetWaterPostProcessSettings();
+    /// @brief 現在シーンのアリーナ表示設定を返す。
+    IScene::ArenaLookSettings GetArenaLookSettings();
     /// @brief 描画区間の計測値を設定する。
     void SetRenderProfile(const IScene::RenderProfile& profile);
 

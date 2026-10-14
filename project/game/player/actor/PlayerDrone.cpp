@@ -87,10 +87,11 @@ void PlayerDrone::RotateToMouse(cg2::Camera* viewProjection)
         POINT mousePosition{};
         if (!window || !GetCursorPos(&mousePosition) || !ScreenToClient(window->GetHwnd(), &mousePosition)) return;
         constexpr cg2::Vector2 viewport{1280.0f,720.0f};
+        cg2::Vector2 logicalMouse{static_cast<float>(mousePosition.x),static_cast<float>(mousePosition.y)};
+        window->ClientToLogical(logicalMouse.x,logicalMouse.y);
         cg2::Vector2 pixel{};
         cg2::Vector3 target{};
-        if (!neondepth::TryClientToViewport({static_cast<float>(mousePosition.x),static_cast<float>(mousePosition.y)},
-                {static_cast<float>(window->GetClientWidth()),static_cast<float>(window->GetClientHeight())},viewport,pixel) ||
+        if (!neondepth::TryClientToViewport(logicalMouse,viewport,viewport,pixel) ||
             !neondepth::TryScreenToFloorFromViewProjection(pixel,viewport,
                 viewProjection->GetViewProjectionMatrix(),0.0f,target)) return;
         const cg2::Vector3 offset = target-worldTransform_.translate;
@@ -107,6 +108,9 @@ void PlayerDrone::RotateToMouse(cg2::Camera* viewProjection)
     GetCursorPos(&mousePosition);
     HWND hwnd = cg2::WinApp::GetInstance()->GetHwnd();
     ScreenToClient(hwnd, &mousePosition);
+    float logicalMouseX = static_cast<float>(mousePosition.x);
+    float logicalMouseY = static_cast<float>(mousePosition.y);
+    cg2::WinApp::GetInstance()->ClientToLogical(logicalMouseX, logicalMouseY);
 
     // --- 2. 逆変換用の行列を準備 ---
     cg2::Matrix4x4 matViewport = cg2::MakeViewportMatrix(0, 0, cg2::WinApp::kClientWidth, cg2::WinApp::kClientHeight, 0, 1);
@@ -114,8 +118,8 @@ void PlayerDrone::RotateToMouse(cg2::Camera* viewProjection)
     cg2::Matrix4x4 matInverseVPV = cg2::Inverse(matVPV);
 
     // --- 3. マウス座標をワールドに変換 ---
-    cg2::Vector3 posNear = cg2::Vector3((float)mousePosition.x, (float)mousePosition.y, 0);
-    cg2::Vector3 posFar = cg2::Vector3((float)mousePosition.x, (float)mousePosition.y, 1);
+    cg2::Vector3 posNear = cg2::Vector3(logicalMouseX, logicalMouseY, 0);
+    cg2::Vector3 posFar = cg2::Vector3(logicalMouseX, logicalMouseY, 1);
 
     posNear = cg2::TransformMatrix(posNear, matInverseVPV);
     posFar = cg2::TransformMatrix(posFar, matInverseVPV);

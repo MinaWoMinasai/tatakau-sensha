@@ -37,6 +37,8 @@ struct TextRendererFontStore;
 /// @brief DirectWriteで文字を画像化し、同じ内容のテクスチャを再利用する。
 class TextRenderer {
 public:
+    /// @brief 文字画像を内部描画解像度の画素密度でラスタライズする倍率。表示サイズは論理座標のまま保つ。
+    static float GetRasterScale();
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     /// @brief 文字テクスチャ取得処理の所要時間とキャッシュ利用状況を記録する。
     struct GetOrCreateTextureProfile {

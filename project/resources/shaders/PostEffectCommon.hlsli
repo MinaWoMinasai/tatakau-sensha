@@ -124,6 +124,22 @@ cbuffer BloomParam : register(b0)
     float bloomGain;
     uint bloomOutputToHdr;
     float2 bloomPresentationPadding;
+    float arenaNebulaIntensity;
+    float arenaNebulaScale;
+    float arenaPhosphorDecay;
+    float arenaGrainIntensity;
+    float3 arenaNebulaColorA;
+    float arenaNebulaDrift;
+    float3 arenaNebulaColorB;
+    float arenaMaskSoftness;
+    float arenaBezelMargin;
+    float arenaBezelRadius;
+    float arenaEnabled;
+    float arenaCurvature;
+    float arenaChromAb;
+    float arenaVignette;
+    float arenaScanlineIntensity;
+    float arenaScanlineFrequency;
 };
 
 struct PSInput

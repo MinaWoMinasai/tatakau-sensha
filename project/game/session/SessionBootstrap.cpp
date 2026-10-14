@@ -1,4 +1,5 @@
 #include "game/session/SessionBootstrap.h"
+#include "game/render/settings/ArenaCameraProfile.h"
 #include "game/session/GameplaySystems.h"
 #include "game/weapon/CombatTypes.h"
 #include "RuntimeProfiler.h"
@@ -51,7 +52,8 @@ void SessionBootstrap::Initialize()
 
     world_.resources.camera = std::make_unique<cg2::Camera>();
 
-    world_.resources.camera->SetTranslate(cg2::Vector3(17.0f, 21.0f, -80.0f));
+    world_.resources.camera->SetFovY(arenacamera::kFovY);
+    world_.resources.camera->SetTranslate(cg2::Vector3(17.0f, 21.0f, arenacamera::CameraZ() * 1.45f));
 
     cg2::Object3dCommon::GetInstance()->SetDefaultCamera(world_.resources.camera.get());
     cg2::Object3dCommon::GetInstance()->SetDebugDefaultCamera(world_.resources.debugCamera.get());
