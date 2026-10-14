@@ -172,6 +172,14 @@ public:
     {
         pointLightData->position = position;
     }
+    /// @brief この描画物だけに適用する局所光。ゲーム全体のライトは変更しない。
+    void SetPointLight(const Vector3& position, const Vector3& color, float intensity, float radius, float decay) {
+        pointLightData->position = position;
+        pointLightData->color = {color.x, color.y, color.z, 1.0f};
+        pointLightData->intensity = intensity;
+        pointLightData->radius = radius;
+        pointLightData->decay = decay;
+    }
 
     /// @brief 材質リソースを返す。
     ID3D12Resource* GetMaterialResource()

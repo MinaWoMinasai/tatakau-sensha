@@ -28,6 +28,12 @@ struct Block {
     float orbitAngle = 0.0f;
 };
 
+struct SurfaceWall {
+    cg2::Transform gameplay;
+    MapChipType type;
+    bool exterior = false, isolated = false;
+};
+
 /// @brief ステージの地形と障害物を保持し、移動と弾の衝突を解決する。
 class Stage {
 public:
@@ -48,10 +54,13 @@ public:
     void DrawVisible(const cg2::Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks = true);
     /// @brief Scene MRT/深度へ描く不透明床。実マップと表示矩形を覆う。衝突を持たない。
     uint32_t DrawSurfaceFloor(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
-                              float halfWidth, float halfHeight);
+                              float halfWidth, float halfHeight, const cg2::Vector3& lightPosition);
     /// @brief 既存の地形状態/カリングを使い、衝突とは独立したベベル形状を描く。
     uint32_t DrawSurfaceBlocks(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
                                float halfWidth, float halfHeight, bool drawNormalBlocks = true);
+    const std::vector<SurfaceWall>& GetSurfaceWalls(const stagesurface::Settings& settings);
+    static cg2::Transform SurfaceWallTransform(const SurfaceWall& wall, const stagesurface::Settings& settings);
+    uint32_t GetSurfaceTriangles() const { return surfaceTriangles_; }
     /// @brief 地形モデル・ブロック配列・統合AABBを消去する。マップチップデータは保持する。
     void ClearBlocksForPreview();
     /// @brief 対応するprefabの障害物モデルと衝突形状を追加する。未対応のprefabならfalseで何も追加しない。
@@ -110,6 +119,10 @@ public:
 private:
     void InitializeSurfaceModels();
     std::unique_ptr<cg2::Object3d> surfaceFloor_;
+    uint64_t surfaceWallHash_ = 0;
+    uint32_t surfaceTriangles_ = 0;
+    std::vector<SurfaceWall> surfaceWalls_;
+    std::vector<std::unique_ptr<cg2::Object3d>> surfaceWallObjects_;
     // ブロック用のワールドトランスフォーム
     std::vector<std::vector<Block>> blocks_;
 

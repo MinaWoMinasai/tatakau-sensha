@@ -323,6 +323,9 @@ void ResourceNeonRenderer::DrawExpEnemyNeonDepthLines()
 
 cg2::Vector3 ResourceNeonRenderer::GetFloorVisibilityCenter() const
 {
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if (world_.presentation.developerStageTiltApplied_) return world_.presentation.developerStageBaseCamera_;
+#endif
     // A tilted camera's eye is outside the room in XY. Floor culling follows
     // its displayed focus; facing/depth calculations still use the real eye.
     return world_.resources.neonDepthCameraScoped_
