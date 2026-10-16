@@ -12,6 +12,8 @@ void GameScene::Initialize()
     session_->Initialize();
 }
 
+bool GameScene::InitializeStep() { return session_->InitializeStep(); }
+
 void GameScene::Update()
 {
     session_->Update();

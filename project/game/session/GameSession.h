@@ -22,6 +22,7 @@ public:
     ~GameSession();
     /// @brief 初期化
     void Initialize();
+    bool InitializeStep();
 
     /// @brief シーンの状態に応じて戦闘・演出・進行を更新する。戦闘の呼び出し順は実装内に記載する。
     void Update();

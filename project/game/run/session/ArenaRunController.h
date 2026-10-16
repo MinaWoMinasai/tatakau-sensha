@@ -1,5 +1,6 @@
 #pragma once
 #include "game/session/GameWorld.h"
+#include "InitializationTask.h"
 
 namespace gameplay {
 /// @brief ArenaRunControllerの処理を担当し、同じプレイの共有状態を借用する。
@@ -12,6 +13,7 @@ public:
 
     /// @brief 戦車遠征を初期化する。
     void InitializeTankRun();
+    cg2::InitializationTask BuildInitialization();
 
     /// @brief 戦車遠征を更新する。
     /// @param dt この処理で進める経過時間（秒）。

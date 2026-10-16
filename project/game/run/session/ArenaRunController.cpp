@@ -59,6 +59,12 @@ bool ArenaRunController::IsTankRunMenuOpen() const
 
 void ArenaRunController::InitializeTankRun()
 {
+    auto initialization = BuildInitialization();
+    while (!initialization.Advance()) {}
+}
+
+cg2::InitializationTask ArenaRunController::BuildInitialization()
+{
     wchar_t automatic[16]{};
     world_.run.tankRunAutoTest_ =
         !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"CG2_TANK_AUTOTEST", automatic, 16) > 0 && automatic[0] == L'1';
@@ -110,6 +116,7 @@ void ArenaRunController::InitializeTankRun()
         item->SetPosition(position);
         return item;
     };
+    co_await std::suspend_always{};
     world_.run.tankRunDimmer_ = panel({0, 0}, {1280, 720}, {0.007f, 0.012f, 0.025f, 0.97f});
     world_.run.tankRunHudPanel_ = panel({0, 0}, {1280, 100}, {0.009f, 0.016f, 0.03f, 0.93f});
     world_.run.tankRunBossTrack_ = panel({756, 74}, {488, 5}, {0.12f, 0.17f, 0.22f, 1});
@@ -121,16 +128,19 @@ void ArenaRunController::InitializeTankRun()
     world_.run.tankRunHeading_ = label(36, {64, 151}, {0.80f, 1, 0.96f, 1});
     world_.run.tankRunDescription_ = label(18, {64, 207}, {0.75f, 0.84f, 0.93f, 1});
     world_.run.tankRunFooter_ = label(17, {64, 604}, {0.77f, 0.87f, 0.94f, 1});
+    co_await std::suspend_always{};
     for (size_t i = 0; i < 3; ++i) {
         const float x = 64 + static_cast<float>(i) * 388;
         world_.run.tankRunCards_[i] = panel({x, 280}, {368, 280}, {0.028f, 0.045f, 0.075f, 1});
         world_.run.tankRunCardTitles_[i] = label(20, {x + 16, 303}, {0.82f, 1, 0.94f, 1});
         world_.run.tankRunCardBodies_[i] = label(18, {x + 16, 362}, {0.84f, 0.90f, 0.96f, 1});
     }
+    co_await std::suspend_always{};
     if (world_.run.expeditionRun_) {
-        world_.expeditionController->InitializeTankExpedition();
+        auto expedition = world_.expeditionController->BuildInitialization();
+        while (!expedition.Advance()) co_await std::suspend_always{};
         RefreshTankRunUi();
-        return;
+        co_return;
     }
     const std::array<cg2::Vector3, 3> centers = {cg2::Vector3{25, 18, 0}, cg2::Vector3{43, 38, 0}, cg2::Vector3{65, 20, 0}};
     for (size_t i = 0; i < centers.size(); ++i) {

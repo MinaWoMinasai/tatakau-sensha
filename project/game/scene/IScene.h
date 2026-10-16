@@ -104,6 +104,11 @@ public:
     virtual ~IScene() = default;
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     virtual void Initialize() = 0;
+    virtual bool InitializeStep() { Initialize(); return true; }
+    virtual bool UsesSimpleRendering() const { return false; }
+    virtual bool KeepTitleDuringTransition() const { return false; }
+    virtual void PrepareForTransition() {}
+    virtual void OnEngineReady() {}
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     virtual void Update() = 0;
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。

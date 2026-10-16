@@ -57,6 +57,7 @@ private:
     bool ResolveStartupScene();
     /// @brief Engineを初期化する。
     void InitializeEngine();
+    cg2::InitializationTask InitializePresentation();
     /// @brief ImGUIを初期化する。
     void InitializeImGui();
     /// @brief リソースを読み込む。
@@ -66,6 +67,7 @@ private:
 
 private:
     std::unique_ptr<cg2::DirectXCommon> dxCommon_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> startupConstants_;
     std::unique_ptr<cg2::SrvManager> srvManager_;
     std::unique_ptr<cg2::RtvManager> rtvManager_;
 
@@ -79,5 +81,7 @@ private:
     bool startupSceneUsedFallback_ = false;
     std::string resolvedStartupScene_ = "TITLE";
     bool imguiInitialized_ = false;
+    bool titleFirst_ = false, engineReady_ = false;
+    cg2::InitializationTask presentationTask_;
     std::unique_ptr<cg2::TrailStressFixture> trailStress_;
 };

@@ -1,7 +1,9 @@
 #pragma once
 #include <map>
+#include <set>
 #include <string>
 #include <memory>
+#include <future>
 #include <Model.h>
 
 namespace cg2 {
@@ -21,6 +23,10 @@ public:
 
     /// @brief モデルを読み込む。
     void LoadModel(const std::string& filePath);
+    void PreloadObjModel(const std::string& filePath);
+    /// @brief 読み込み済みOBJのマテリアルテクスチャも裏で先読みさせる。メインスレッドで呼ぶ。
+    void PumpPreloads();
+    bool ArePreloadsReady() const;
     /// @brief 平面モデルを生成する。
     void CreatePlaneModel(const std::string& modelName, float width = 1.0f, float depth = 1.0f);
     /// @brief 格子モデルを生成する。
@@ -57,6 +63,8 @@ private:
     std::map<std::string, std::unique_ptr<Model>> models;
 
     std::unique_ptr<ModelCommon> modelCommon;
+    std::map<std::string, std::shared_future<ModelData>> pendingModels_;
+    std::set<std::string> texturePreloadsQueued_;
 };
 
 } // namespace cg2
