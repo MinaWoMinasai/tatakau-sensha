@@ -4,18 +4,18 @@
 
 namespace myEngine {
 
-DebugCamera::DebugCamera(){
+DebugCamera::DebugCamera()
+{
     fovY_ = 0.45f;
     aspectRatio_ = (float(WinApp::kClientWidth) / float(WinApp::kClientHeight));
     nearClip_ = 0.1f;
     farClip_ = 5000.0f;
 }
 
-void DebugCamera::Initialize()
-{
+void DebugCamera::Initialize() {}
 
-}
-void DebugCamera::Update(const DIMOUSESTATE& mousestate, const std::span<const BYTE>& key, Vector2 leftStick) {
+void DebugCamera::Update(const DIMOUSESTATE& mousestate, const std::span<const BYTE>& key, Vector2 leftStick)
+{
     static Vector3 rotation = {};
 
     // マウスで回転
@@ -29,8 +29,8 @@ void DebugCamera::Update(const DIMOUSESTATE& mousestate, const std::span<const B
     Matrix4x4 rotX = MakeRotateXMatrix(rotation.x);
     Matrix4x4 rot = Multiply(rotX, rotY); // Pitch後Yaw回転
 
-    Vector3 forward = TransformMatrix(Vector3{ 0, 0, 1 }, rot); // Z方向に向かって回転
-    Vector3 right = TransformMatrix(Vector3{ 1, 0, 0 }, rot);
+    Vector3 forward = TransformMatrix(Vector3{0, 0, 1}, rot); // Z方向に向かって回転
+    Vector3 right = TransformMatrix(Vector3{1, 0, 0}, rot);
     Vector3 up = Cross(forward, right);
 
     // パン（平行移動）
@@ -42,7 +42,7 @@ void DebugCamera::Update(const DIMOUSESTATE& mousestate, const std::span<const B
     if (fabs(leftStick.x) > 0.1f || fabs(leftStick.y) > 0.1f) {
         // スティックの入力値を使ってパン（平行移動）
         target = Add(target, Multiply(-leftStick.x * velocity_.x * 5.0f, right)); // X: 左右
-        target = Add(target, Multiply(-leftStick.y * velocity_.y * 5.0f, up));     // Y: 上下
+        target = Add(target, Multiply(-leftStick.y * velocity_.y * 5.0f, up));    // Y: 上下
     }
     // ズーム
     if (mousestate.lZ != 0) {
@@ -54,20 +54,20 @@ void DebugCamera::Update(const DIMOUSESTATE& mousestate, const std::span<const B
     Vector3 cameraPos = Add(target, Multiply(-distance, forward));
     eye_ = cameraPos;
 
-
     // View行列の作成
     viewMatrix_ = MakeLookAtMatrix(cameraPos, target, up);
 
     UpdateProjectionMatrices();
-
 }
 
-void DebugCamera::SetProjectionJitter(const Vector2& jitter) {
+void DebugCamera::SetProjectionJitter(const Vector2& jitter)
+{
     projectionJitter_ = jitter;
     UpdateProjectionMatrices();
 }
 
-void DebugCamera::UpdateProjectionMatrices() {
+void DebugCamera::UpdateProjectionMatrices()
+{
     unjitteredProjectionMatrix_ = MakePerspectiveForMatrix(fovY_, aspectRatio_, nearClip_, farClip_);
     unjitteredViewProjectionMatrix_ = Multiply(viewMatrix_, unjitteredProjectionMatrix_);
     projectionMatrix_ = unjitteredProjectionMatrix_;

@@ -61,8 +61,9 @@ inline bool Matches(const DirectX::TexMetadata& metadata, size_t size, size_t mi
 /// @brief 保存されたデータを読み込む。
 inline bool Load(const wchar_t* name, size_t size, size_t mipLevels, bool cube, DirectX::ScratchImage& image)
 {
-    if (!Enabled())
+    if (!Enabled()) {
         return false;
+    }
     StartupTrace::Scope scope("Textures.GeneratedCache.Load");
     try {
         std::ifstream file(Path(name), std::ios::binary | std::ios::ate);
@@ -104,20 +105,23 @@ inline bool Load(const wchar_t* name, size_t size, size_t mipLevels, bool cube, 
 /// @brief 指定したデータを保存する。
 inline void Store(const wchar_t* name, const DirectX::ScratchImage& image)
 {
-    if (!Enabled())
+    if (!Enabled()) {
         return;
+    }
     StartupTrace::Scope scope("Textures.GeneratedCache.Store");
     std::filesystem::path temporary;
     try {
         DirectX::Blob dds;
         if (FAILED(DirectX::SaveToDDSMemory(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::DDS_FLAGS_NONE, dds)) ||
-            dds.GetBufferSize() > kMaxPayloadBytes)
+            dds.GetBufferSize() > kMaxPayloadBytes) {
             return;
+        }
         const auto path = Path(name);
         std::error_code error;
         std::filesystem::create_directories(path.parent_path(), error);
-        if (error)
+        if (error) {
             return;
+        }
         static std::atomic<uint64_t> sequence{0};
         temporary = path;
         temporary += L"." + std::to_wstring(GetCurrentProcessId()) + L"." + std::to_wstring(sequence++) + L".tmp";

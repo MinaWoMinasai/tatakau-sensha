@@ -11,25 +11,21 @@ SceneManager* SceneManager::GetInstance()
     return &instance;
 }
 
-bool SceneManager::SetSceneFactory(
-    std::unique_ptr<AbstractSceneFactory> sceneFactory)
+bool SceneManager::SetSceneFactory(std::unique_ptr<AbstractSceneFactory> sceneFactory)
 {
     if (!sceneFactory) {
-        myEngine::LogWrite().Log(
-            "[SceneManager] Rejected a nullptr scene factory. "
-            "The existing factory remains unchanged.\n");
+        myEngine::LogWrite().Log("[SceneManager] Rejected a nullptr scene factory. "
+                                 "The existing factory remains unchanged.\n");
         return false;
     }
     if (currentScene_) {
-        myEngine::LogWrite().Log(
-            "[SceneManager] Cannot set a scene factory after a scene has been initialized. "
-            "The existing factory remains unchanged.\n");
+        myEngine::LogWrite().Log("[SceneManager] Cannot set a scene factory after a scene has been initialized. "
+                                 "The existing factory remains unchanged.\n");
         return false;
     }
     if (sceneFactory_) {
-        myEngine::LogWrite().Log(
-            "[SceneManager] Cannot replace an already configured scene factory. "
-            "The existing factory remains unchanged.\n");
+        myEngine::LogWrite().Log("[SceneManager] Cannot replace an already configured scene factory. "
+                                 "The existing factory remains unchanged.\n");
         return false;
     }
 
@@ -44,27 +40,24 @@ bool SceneManager::ContainsScene(std::string_view sceneName) const
 
 std::vector<std::string> SceneManager::GetRegisteredSceneNames() const
 {
-    return sceneFactory_
-        ? sceneFactory_->GetRegisteredSceneNames()
-        : std::vector<std::string>{};
+    return sceneFactory_ ? sceneFactory_->GetRegisteredSceneNames() : std::vector<std::string>{};
 }
 
-bool SceneManager::Initialize(const std::string& firstSceneName) {
+bool SceneManager::Initialize(const std::string& firstSceneName)
+{
     myEngine::StartupTrace::Scope startupScope("Scene.Initialize." + firstSceneName);
 
     if (!sceneFactory_) {
-        myEngine::LogWrite().Log(
-            "[SceneManager] Cannot initialize scene '" + firstSceneName +
-            "' because no scene factory has been configured.\n");
+        myEngine::LogWrite().Log("[SceneManager] Cannot initialize scene '" + firstSceneName +
+                                 "' because no scene factory has been configured.\n");
         return false;
     }
 
     // 最初のシーンを生成
     std::unique_ptr<IScene> firstScene = sceneFactory_->CreateScene(firstSceneName);
     if (!firstScene) {
-        myEngine::LogWrite().Log(
-            "[SceneManager] Failed to initialize first scene '" + firstSceneName +
-            "'. The existing active scene, if any, remains unchanged.\n");
+        myEngine::LogWrite().Log("[SceneManager] Failed to initialize first scene '" + firstSceneName +
+                                 "'. The existing active scene, if any, remains unchanged.\n");
         return false;
     }
 
@@ -90,7 +83,8 @@ void SceneManager::Finalize()
     failedTransitionToSceneName_.clear();
 }
 
-void SceneManager::Update() {
+void SceneManager::Update()
+{
     if (!currentScene_) {
         return;
     }
@@ -100,14 +94,17 @@ void SceneManager::Update() {
         // avoiding one vsync of idle time per coroutine step.
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(33);
         bool initialized = false;
-        do initialized = pendingScene_->InitializeStep();
-        while (!initialized && std::chrono::steady_clock::now() < deadline);
+        do {
+            initialized = pendingScene_->InitializeStep();
+        } while (!initialized && std::chrono::steady_clock::now() < deadline);
         if (initialized) {
             currentScene_ = std::move(pendingScene_);
             currentSceneName_ = std::move(pendingSceneName_);
             myEngine::StartupTrace::Mark("transition.initialized." + currentSceneName_);
             myEngine::StartupTrace::Flush();
-        } else currentScene_->Update(); // Prepare title text after hidden-world font registration.
+        } else {
+            currentScene_->Update(); // Prepare title text after hidden-world font registration.
+        }
         return;
     }
 
@@ -116,9 +113,7 @@ void SceneManager::Update() {
         // 次のシーン名をシーン自身から取得する
         std::string nextSceneName = currentScene_->GetNextSceneName();
 
-        const bool alreadyReported =
-            failedTransitionFromSceneName_ == currentSceneName_ &&
-            failedTransitionToSceneName_ == nextSceneName;
+        const bool alreadyReported = failedTransitionFromSceneName_ == currentSceneName_ && failedTransitionToSceneName_ == nextSceneName;
         if (!alreadyReported) {
             // Factory に新しいシーンを作ってもらう
             // ここで SceneManager は「何が作られるか」を具体的に知らなくて済む
@@ -149,9 +144,8 @@ void SceneManager::Update() {
             } else {
                 failedTransitionFromSceneName_ = currentSceneName_;
                 failedTransitionToSceneName_ = nextSceneName;
-                myEngine::LogWrite().Log(
-                    "[SceneManager] Transition from '" + currentSceneName_ + "' to '" +
-                    nextSceneName + "' failed. The current scene remains active.\n");
+                myEngine::LogWrite().Log("[SceneManager] Transition from '" + currentSceneName_ + "' to '" + nextSceneName +
+                                         "' failed. The current scene remains active.\n");
             }
         }
     } else {
@@ -162,89 +156,98 @@ void SceneManager::Update() {
     currentScene_->Update();
 }
 
-void SceneManager::Draw() {
+void SceneManager::Draw()
+{
     if (currentScene_) {
         currentScene_->Draw();
     }
 }
 
-void SceneManager::DrawShadow() {
+void SceneManager::DrawShadow()
+{
     if (currentScene_) {
         currentScene_->DrawShadow();
     }
 }
 
-void SceneManager::DrawPostEffect3D() {
+void SceneManager::DrawPostEffect3D()
+{
     if (currentScene_) {
         currentScene_->DrawPostEffect3D();
     }
 }
 
-void SceneManager::DrawAfterPostEffect3D() {
+void SceneManager::DrawAfterPostEffect3D()
+{
     if (currentScene_) {
         currentScene_->DrawAfterPostEffect3D();
     }
 }
 
-void SceneManager::DrawSprite() {
+void SceneManager::DrawSprite()
+{
     if (currentScene_) {
         currentScene_->DrawSprite();
     }
 }
+
 float SceneManager::GetFinalDeltaTime()
 {
-	return currentScene_ ? currentScene_->GetFinalDeltaTime() : 1.0f / 60.0f;
+    return currentScene_ ? currentScene_->GetFinalDeltaTime() : 1.0f / 60.0f;
 }
 
 float SceneManager::GetPostGaussianIntensity()
 {
-	return currentScene_ ? currentScene_->GetPostGaussianIntensity() : 0.0f;
+    return currentScene_ ? currentScene_->GetPostGaussianIntensity() : 0.0f;
 }
 
 IScene::PostEffectPulse SceneManager::GetPostEffectPulse()
 {
-	return currentScene_ ? currentScene_->GetPostEffectPulse() : IScene::PostEffectPulse{};
+    return currentScene_ ? currentScene_->GetPostEffectPulse() : IScene::PostEffectPulse{};
 }
 
 IScene::ScreenEffectState SceneManager::GetScreenEffectState()
 {
-	return currentScene_ ? currentScene_->GetScreenEffectState() : IScene::ScreenEffectState{};
+    return currentScene_ ? currentScene_->GetScreenEffectState() : IScene::ScreenEffectState{};
 }
 
-IScene::DeveloperShowcaseState SceneManager::GetDeveloperShowcaseState() {
+IScene::DeveloperShowcaseState SceneManager::GetDeveloperShowcaseState()
+{
     return currentScene_ ? currentScene_->GetDeveloperShowcaseState() : IScene::DeveloperShowcaseState{};
 }
-void SceneManager::RecordDeveloperFrame(myEngine::DirectXCommon& dx) {
-    if (currentScene_) currentScene_->RecordDeveloperFrame(dx);
+
+void SceneManager::RecordDeveloperFrame(myEngine::DirectXCommon& dx)
+{
+    if (currentScene_) {
+        currentScene_->RecordDeveloperFrame(dx);
+    }
 }
-void SceneManager::RecordDeveloperPostParameters(const myEngine::BloomParam& param) {
-    if (currentScene_) currentScene_->RecordDeveloperPostParameters(param);
+
+void SceneManager::RecordDeveloperPostParameters(const myEngine::BloomParam& param)
+{
+    if (currentScene_) {
+        currentScene_->RecordDeveloperPostParameters(param);
+    }
 }
 
 IScene::WaterPostProcessSettings SceneManager::GetWaterPostProcessSettings()
 {
-	return currentScene_
-		? currentScene_->GetWaterPostProcessSettings()
-		: IScene::WaterPostProcessSettings{};
+    return currentScene_ ? currentScene_->GetWaterPostProcessSettings() : IScene::WaterPostProcessSettings{};
 }
 
 IScene::BloomViewSettings SceneManager::GetBloomViewSettings()
 {
-	return currentScene_
-		? currentScene_->GetBloomViewSettings()
-		: IScene::BloomViewSettings{};
+    return currentScene_ ? currentScene_->GetBloomViewSettings() : IScene::BloomViewSettings{};
 }
 
 IScene::ArenaLookSettings SceneManager::GetArenaLookSettings()
 {
-	return currentScene_
-		? currentScene_->GetArenaLookSettings()
-		: IScene::ArenaLookSettings{};
+    return currentScene_ ? currentScene_->GetArenaLookSettings() : IScene::ArenaLookSettings{};
 }
 
 void SceneManager::SetRenderProfile(const IScene::RenderProfile& profile)
 {
-	if (currentScene_) {
-		currentScene_->SetRenderProfile(profile);
-	}
+    if (currentScene_) {
+        currentScene_->SetRenderProfile(profile);
+    }
 }

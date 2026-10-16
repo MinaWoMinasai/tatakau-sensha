@@ -9,10 +9,12 @@ namespace tankshooter {
 inline constexpr int kChainTargets = 2;
 inline constexpr int kBurstChildren = 6;
 inline constexpr float kChainRadius = 7.0f;
+
 /// @brief 帰還開始を判定するための累積時間と、帰還開始済みかを保持する。方向や位置は保持しない。
 struct ReturnFlight {
     float age = 0;
     bool returning = false;
+
     /// @brief 負でないdtを累積し、初めて0.60秒以上になったときに帰還開始済みへ切り替える。
     /// @param dt この時計へ加える秒数。負値は0として扱う。
     /// @return 今回の呼び出しで帰還開始済みへ切り替えた場合だけtrue。既に帰還中ならfalseでも時間は加算する。
@@ -28,6 +30,7 @@ struct ReturnFlight {
         return false;
     }
 };
+
 /// @brief 衝突IDごとのマーキングの蓄積数と残り寿命を、最大128対象分保持する。対象の実体は所有しない。
 struct MarkLedger {
     /// @brief 1対象の衝突ID・命中蓄積数・残り秒数を保持する。idが0なら空き枠。
@@ -36,18 +39,23 @@ struct MarkLedger {
         int stacks = 0;
         float remaining = 0;
     };
+
     std::array<Mark, 128> entries{};
+
     /// @brief 記録済みの対象の寿命を減らし、残りが0以下になった枠を空にする。
     /// @param dt 減らす秒数。負値は0として扱う。
     void Update(float dt)
     {
-        for (auto& m : entries)
+        for (auto& m : entries) {
             if (m.id) {
                 m.remaining -= (std::max)(0.0f, dt);
-                if (m.remaining <= 0)
+                if (m.remaining <= 0) {
                     m = {};
+                }
             }
+        }
     }
+
     /// @brief 対象の記録を探すか空き枠を使い、寿命を4秒へ戻して命中蓄積を1増やす。
     /// @param id Collider::GetCollisionIdで取得する非0のID。0は空き枠用であり、入力検査は行わない。
     /// @param boss trueなら6回、falseなら4回の蓄積で起爆条件を満たす。
@@ -62,13 +70,16 @@ struct MarkLedger {
                 slot = &m;
                 break;
             }
-            if (!slot && !m.id)
+            if (!slot && !m.id) {
                 slot = &m;
+            }
         }
-        if (!slot)
+        if (!slot) {
             return false;
-        if (slot->id != id)
+        }
+        if (slot->id != id) {
             *slot = {id, 0, 4};
+        }
         slot->remaining = 4;
         if (++slot->stacks >= (boss ? 6 : 4)) {
             // 起爆条件を満たした記録はここで消費する。次の命中は蓄積1から始まる。
@@ -78,6 +89,7 @@ struct MarkLedger {
         return false;
     }
 };
+
 /// @brief 基礎ダメージにscaleとpowerを掛け、四捨五入して最低1のダメージ値を返す。対象のHPは変更しない。
 /// @param source 基礎ダメージ。0でも戻り値の最低値は1。
 /// @param scale ダメージ倍率。この関数では範囲を制限しない。

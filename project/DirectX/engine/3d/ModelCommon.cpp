@@ -2,8 +2,9 @@
 
 namespace myEngine {
 
-void ModelCommon::Initialize(DirectXCommon* dxCommon) {
-	dxCommon_ = dxCommon;
+void ModelCommon::Initialize(DirectXCommon* dxCommon)
+{
+    dxCommon_ = dxCommon;
 }
 
 } // namespace myEngine

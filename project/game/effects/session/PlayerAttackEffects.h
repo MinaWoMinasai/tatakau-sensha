@@ -7,6 +7,7 @@ class PlayerAttackEffects {
 public:
     /// @brief 借用するワールドを設定する。
     explicit PlayerAttackEffects(GameWorld& world) : world_(world) {}
+
     /// @brief 自機ネオンAfterimagesを更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdatePlayerNeonAfterimages(float deltaTime);
@@ -60,7 +61,8 @@ public:
     myEngine::TrailConfig MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale = 1.0f) const;
 
     /// @brief 振りの進行度を0～1へ制限して刃外側の軌跡の2端点を計算し、base/tipへ書き込む。
-    void ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, myEngine::Vector3& base, myEngine::Vector3& tip) const;
+    void ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, myEngine::Vector3& base,
+                                        myEngine::Vector3& tip) const;
 
 private:
     GameWorld& world_;

@@ -22,6 +22,7 @@ inline constexpr std::array<std::pair<const char*, float TankCombatStyleProfile:
      {"droneFollowSpeed", &TankCombatStyleProfile::droneFollowSpeed},
      {"droneCatchupSpeed", &TankCombatStyleProfile::droneCatchupSpeed},
      {"droneResponse", &TankCombatStyleProfile::droneResponse}}};
+
 /// @brief 戦闘Stylesを保存用のJSONへ変換する。
 inline nlohmann::json CombatStylesToJson(const TankCombatStyleBalances& profiles)
 {
@@ -29,21 +30,24 @@ inline nlohmann::json CombatStylesToJson(const TankCombatStyleBalances& profiles
     for (size_t i = 0; i < profiles.size(); ++i) {
         auto& out = result[tankbuild::Ids[i]];
         const auto& p = profiles[i];
-        for (const auto& field : kStyleFloatFields)
+        for (const auto& field : kStyleFloatFields) {
             out[field.first] = p.*(field.second);
+        }
         out["droneCount"] = p.droneCount;
         out["droneFormationRadius"] = p.droneFormationRadius;
     }
     return result;
 }
+
 /// @brief 戦闘外観Balancesを読み取る。
 inline TankCombatStyleBalances ReadCombatStyleBalances(const nlohmann::json& source)
 {
     const auto defaults = DefaultTankCombatStyleBalances();
     auto profiles = defaults;
     auto read = [](const nlohmann::json& object, const char* key, float fallback) {
-        if (!object.is_object() || !object.contains(key) || !object[key].is_number())
+        if (!object.is_object() || !object.contains(key) || !object[key].is_number()) {
             return fallback;
+        }
         const double value = object[key].get<double>();
         return std::isfinite(value) ? static_cast<float>(value) : fallback;
     };
@@ -59,18 +63,21 @@ inline TankCombatStyleBalances ReadCombatStyleBalances(const nlohmann::json& sou
             p.bodyDamage = read(legacy, "bodyDamage", p.bodyDamage);
             p.bulletSpeed = read(legacy, "bulletSpeed", p.bulletSpeed);
             p.attackDamage = read(legacy, "bulletDamage", 4.0f) * (i == 2 ? 3.8f : 1.0f);
-            if (i == 0)
+            if (i == 0) {
                 p.attackIntervalSeconds = read(legacy, "reloadSpeed", 20.0f) / 60.0f;
+            }
         }
         const auto entry = styles.is_object() ? styles.value(tankbuild::Ids[i], nlohmann::json::object()) : nlohmann::json::object();
-        for (const auto& field : kStyleFloatFields)
+        for (const auto& field : kStyleFloatFields) {
             p.*(field.second) = read(entry, field.first, p.*(field.second));
+        }
         p.droneCount = static_cast<int>((std::clamp)(read(entry, "droneCount", static_cast<float>(p.droneCount)), 1.0f, 12.0f));
         p.droneFormationRadius = read(entry, "droneFormationRadius", p.droneFormationRadius);
         p = SanitizeTankCombatStyleProfile(p, defaults[i]);
     }
     return profiles;
 }
+
 /// @brief 性能調整の既定値を作成して返す。
 inline nlohmann::json DefaultBalance()
 {
@@ -130,27 +137,32 @@ inline nlohmann::json DefaultBalance()
               {"bossLevelingSearchRadius", 40.0f},
               {"bossAimTurnHalfSeconds", 1.0f}}}};
 }
+
 // Each accepted key has a finite bound. Missing/wrong-type/non-finite values
 // recover independently, so a hand-edited bad field cannot poison the simulation.
 /// @brief 部屋の調整値を対応範囲内へ補正する。
 inline nlohmann::json SanitizeBalance(const nlohmann::json& source)
 {
     auto result = DefaultBalance();
-    if (!source.is_object())
+    if (!source.is_object()) {
         return result;
+    }
     auto number = [&](const char* group, const char* key, double low, double high) {
         const auto& input = group[0] ? source.value(group, nlohmann::json::object()) : source;
         auto& output = group[0] ? result[group] : result;
-        if (!input.is_object() || !input.contains(key) || !input[key].is_number())
+        if (!input.is_object() || !input.contains(key) || !input[key].is_number()) {
             return;
+        }
         const double value = input[key].get<double>();
-        if (!std::isfinite(value))
+        if (!std::isfinite(value)) {
             return;
+        }
         const double safe = (std::clamp)(value, low, high);
-        if (output[key].is_number_integer())
+        if (output[key].is_number_integer()) {
             output[key] = static_cast<int>(safe);
-        else
+        } else {
             output[key] = safe;
+        }
     };
     number("", "bossMaxHp", 1, 100000);
     number("player", "maxHp", 1, 9999);
@@ -161,8 +173,9 @@ inline nlohmann::json SanitizeBalance(const nlohmann::json& source)
     number("player", "maxStamina", 0, 20);
     number("player", "staminaRecovery", 0, 20);
     number("player", "bodyDamage", 1, 999);
-    for (const char* key : {"maxHp", "bulletDamage", "bulletSpeed", "moveSpeed", "healthRegen", "bodyDamage"})
+    for (const char* key : {"maxHp", "bulletDamage", "bulletSpeed", "moveSpeed", "healthRegen", "bodyDamage"}) {
         number("playerUpgrades", key, 0, 3);
+    }
     number("playerUpgrades", "reloadSpeed", 0, 0.9);
     number("playerUpgrades", "minReloadSpeed", 1, 60);
     result["combatStyles"] = CombatStylesToJson(ReadCombatStyleBalances(source));
@@ -170,14 +183,17 @@ inline nlohmann::json SanitizeBalance(const nlohmann::json& source)
     // now take effect instead of being silently limited by the old starter caps.
     const bool oldSchema =
         !source.contains("schemaVersion") || !source["schemaVersion"].is_number_integer() || source["schemaVersion"].get<int>() < 2;
-    if (oldSchema)
+    if (oldSchema) {
         for (const auto& item : std::array<std::pair<const char*, float>, 4>{
                  {{"maxHp", .35f}, {"bulletDamage", .8f}, {"reloadSpeed", .4f}, {"moveSpeed", .25f}}}) {
-            if (std::abs(result["playerUpgrades"][item.first].get<float>() - item.second) < .00001f)
+            if (std::abs(result["playerUpgrades"][item.first].get<float>() - item.second) < .00001f) {
                 result["playerUpgrades"][item.first] = DefaultBalance()["playerUpgrades"][item.first];
+            }
         }
-    for (const char* key : {"damageBlock", "bossContact", "expEnemyContact", "shooterContact", "shooterBullet"})
+    }
+    for (const char* key : {"damageBlock", "bossContact", "expEnemyContact", "shooterContact", "shooterBullet"}) {
         number("damage", key, 1, 999);
+    }
     number("damage", "shooterBulletSpeed", 0.05, 2);
     number("damage", "shooterFireInterval", 0.3, 10);
     number("damage", "shooterDetectionRadius", 4, 100);
@@ -192,6 +208,7 @@ inline nlohmann::json SanitizeBalance(const nlohmann::json& source)
     // permanent on-load heal toggle. Runtime room changes preserve current HP.
     return result;
 }
+
 /// @brief 性能調整を読み込む。
 inline bool LoadBalance(const std::string& path, nlohmann::json& output, std::string& error)
 {
@@ -216,6 +233,7 @@ inline bool LoadBalance(const std::string& path, nlohmann::json& output, std::st
         return false;
     }
 }
+
 /// @brief 性能調整を保存する。
 inline bool SaveBalance(const std::string& path, const nlohmann::json& input, std::string& error)
 {
@@ -233,6 +251,7 @@ inline bool SaveBalance(const std::string& path, const nlohmann::json& input, st
     error.clear();
     return true;
 }
+
 /// @brief 遠征部屋の敵数・性能・報酬の調整値を表す。
 struct RoomBalance {
     float hpScale;
@@ -241,6 +260,7 @@ struct RoomBalance {
     float fireIntervalScale;
     int bossPressure;
 };
+
 /// @brief 部屋性能調整を返す。
 inline constexpr RoomBalance GetRoomBalance(int index)
 {

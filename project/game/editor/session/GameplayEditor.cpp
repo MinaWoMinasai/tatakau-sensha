@@ -168,11 +168,18 @@ void GameplayEditor::DrawGameplayDebugUi()
             if (world_.run.prototypeRun_ && ImGui::CollapsingHeader("Phase 1.5 / 床・連続壁", ImGuiTreeNodeFlags_DefaultOpen)) {
                 auto& surface = world_.presentation.stageSurface_;
                 ImGui::Checkbox("新しいステージ表現を使用", &surface.enabled);
-                if (ImGui::Button("従来表示へ戻す")) surface.enabled = false;
+                if (ImGui::Button("従来表示へ戻す")) {
+                    surface.enabled = false;
+                }
                 ImGui::SameLine();
-                if (ImGui::Button("Phase 1.5 の初期値")) { surface = stagesurface::Settings{}; surface.enabled = true; }
+                if (ImGui::Button("Phase 1.5 の初期値")) {
+                    surface = stagesurface::Settings{};
+                    surface.enabled = true;
+                }
                 ImGui::SameLine();
-                if (ImGui::Button("Phase 1 比較")) surface = stagesurface::Phase1Settings();
+                if (ImGui::Button("Phase 1 比較")) {
+                    surface = stagesurface::Phase1Settings();
+                }
                 const char* wallStyles[] = {"Phase 1 / ベベルタイル", "Phase 1.5 / 連続した直線壁"};
                 ImGui::Combo("壁の形状", &surface.wallStyle, wallStyles, 2);
                 ImGui::Checkbox("外側の構造物", &surface.exteriorEnabled);
@@ -207,15 +214,21 @@ void GameplayEditor::DrawGameplayDebugUi()
                 ImGui::DragFloat("ブロックの照明強度", &surface.blockLightIntensity, 0.02f, 0.0f, 5.0f);
                 ImGui::SliderInt("側面のライン分割", &surface.sideLineDivisions, 1, 8);
                 stagesurface::Sanitize(surface);
-                const char* stageDebugViews[] = {"エンジン設定に従う", "最終表示", "Scene Color", "Bloom Only", "線形深度", "Depth Edge",
-                    "深度からの法線", "法線バッファ", "SSAO", "SSR", "SSR Mask", "粗さ", "金属度", "AO材質", "材質分類"};
+                const char* stageDebugViews[] = {"エンジン設定に従う", "最終表示",       "Scene Color",  "Bloom Only", "線形深度",
+                                                 "Depth Edge",         "深度からの法線", "法線バッファ", "SSAO",       "SSR",
+                                                 "SSR Mask",           "粗さ",           "金属度",       "AO材質",     "材質分類"};
                 int stageDebugView = world_.presentation.developerStageSurfaceDebugView_ + 1;
-                if (ImGui::Combo("ステージ診断表示", &stageDebugView, stageDebugViews, IM_ARRAYSIZE(stageDebugViews)))
+                if (ImGui::Combo("ステージ診断表示", &stageDebugView, stageDebugViews, IM_ARRAYSIZE(stageDebugViews))) {
                     world_.presentation.developerStageSurfaceDebugView_ = stageDebugView - 1;
+                }
                 const char* resolveModes[] = {"エンジン設定", "OFF", "ON"};
                 int ao = world_.presentation.developerStageSurfaceSSAO_ + 1, ssr = world_.presentation.developerStageSurfaceSSR_ + 1;
-                if (ImGui::Combo("SSAO 比較", &ao, resolveModes, IM_ARRAYSIZE(resolveModes))) world_.presentation.developerStageSurfaceSSAO_ = ao - 1;
-                if (ImGui::Combo("SSR 比較", &ssr, resolveModes, IM_ARRAYSIZE(resolveModes))) world_.presentation.developerStageSurfaceSSR_ = ssr - 1;
+                if (ImGui::Combo("SSAO 比較", &ao, resolveModes, IM_ARRAYSIZE(resolveModes))) {
+                    world_.presentation.developerStageSurfaceSSAO_ = ao - 1;
+                }
+                if (ImGui::Combo("SSR 比較", &ssr, resolveModes, IM_ARRAYSIZE(resolveModes))) {
+                    world_.presentation.developerStageSurfaceSSR_ = ssr - 1;
+                }
                 ImGui::TextDisabled("衝突・移動・弾道を保持。傾斜視点は開発比較専用。保存は上の見た目設定ボタン。");
             }
             if (ImGui::CollapsingHeader("ネオングリッド", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -376,12 +389,14 @@ void GameplayEditor::DrawGameplayDebugUi()
             const char* bloomModes[] = {"Engine setting", "Bloom OFF", "Legacy Bloom", "Quality Bloom", "Light Bloom"};
             int bloomSelection = world_.presentation.developerBloomComparisonMode_ + 1;
             ImGui::BeginDisabled(myEngine::RuntimeProfiler::Get().IsCaptureActive());
-            if (ImGui::Combo("Developer Bloom comparison", &bloomSelection, bloomModes, 5))
+            if (ImGui::Combo("Developer Bloom comparison", &bloomSelection, bloomModes, 5)) {
                 world_.presentation.developerBloomComparisonMode_ = bloomSelection - 1;
+            }
             const char* toneModes[] = {"Engine tone mapping", "Legacy ACES", "Hue-preserving shoulder"};
             int toneSelection = world_.presentation.developerToneMappingMode_ < 0 ? 0 : world_.presentation.developerToneMappingMode_;
-            if (ImGui::Combo("Developer tone mapping", &toneSelection, toneModes, 3))
+            if (ImGui::Combo("Developer tone mapping", &toneSelection, toneModes, 3)) {
                 world_.presentation.developerToneMappingMode_ = toneSelection == 0 ? -1 : toneSelection;
+            }
             ImGui::Checkbox("Freeze game for Bloom comparison", &world_.presentation.developerBloomFreeze_);
             ImGui::EndDisabled();
             ImGui::TextWrapped(
@@ -404,8 +419,9 @@ void GameplayEditor::DrawGameplayDebugUi()
             }
             ImGui::EndDisabled();
             ImGui::TextWrapped("%s", world_.presentation.developerGameCapture_.GetStatus().c_str());
-            if (!world_.presentation.developerGameCaptureDirectory_.empty())
+            if (!world_.presentation.developerGameCaptureDirectory_.empty()) {
                 ImGui::TextWrapped("Game captures: %s", world_.presentation.developerGameCaptureDirectory_.c_str());
+            }
             ImGui::TextWrapped(
                 "Manual comparison: freeze once, keep camera/tone/appearance unchanged, and capture OFF/Legacy/Quality individually. Unfrozen captures are labelled live gameplay, not identical-frame A/B. Sharp projectile capture is full-resolution in Quality/OFF; Legacy intentionally retains its old half-resolution source.");
             ImGui::Separator();
@@ -486,8 +502,9 @@ void GameplayEditor::DrawGameplayDebugUi()
                 changed |= ImGui::DragFloat("Head Emission", &head.headIntensity, 0.05f, 0.0f, 8.0f);
                 changed |= ImGui::DragFloat("Pale Core Emission", &head.coreIntensity, 0.05f, 0.0f, 12.0f);
                 changed |= ImGui::DragFloat("Head Halo Alpha", &head.haloAlpha, 0.01f, 0.0f, 0.4f);
-                if (changed)
+                if (changed) {
                     world_.resources.neonProjectileRenderer_->SetParams(head);
+                }
                 ImGui::TextWrapped("Head controls are session-only. Bullet movement and collision are unchanged.");
                 ImGui::Checkbox("三角パーティクルポストを有効", &world_.presentation.enableParticlePostEffect_);
                 myEngine::BloomParam& particlePost = world_.resources.particlePostEffect_->GetParam();
@@ -525,22 +542,26 @@ void GameplayEditor::DrawGameplayDebugUi()
             DrawBulletStatusDebugTable();
             ImGui::Separator();
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-            if (world_.resources.neonSkinnedPreview_)
+            if (world_.resources.neonSkinnedPreview_) {
                 world_.resources.neonSkinnedPreview_->DrawImGui();
+            }
             ImGui::Separator();
 #endif
             if (world_.combat.shotGide) {
                 myEngine::Vector2 guidePosition = world_.combat.shotGide->GetPosition();
-                if (ImGui::SliderFloat2("射撃ガイド位置", &guidePosition.x, 0.0f, 3000.0f, "%.1f"))
+                if (ImGui::SliderFloat2("射撃ガイド位置", &guidePosition.x, 0.0f, 3000.0f, "%.1f")) {
                     world_.combat.shotGide->SetPosition(guidePosition);
+                }
             }
             if (world_.resources.ball_) {
                 myEngine::Vector3 ballScale = world_.resources.ball_->GetScale();
                 myEngine::Vector4 ballColor = world_.resources.ball_->GetColor();
-                if (ImGui::DragFloat3("デバッグ球スケール", &ballScale.x))
+                if (ImGui::DragFloat3("デバッグ球スケール", &ballScale.x)) {
                     world_.resources.ball_->SetScale(ballScale);
-                if (ImGui::ColorEdit4("デバッグ球色", &ballColor.x))
+                }
+                if (ImGui::ColorEdit4("デバッグ球色", &ballColor.x)) {
                     world_.resources.ball_->SetColor(ballColor);
+                }
             }
             ImGui::EndTabItem();
         }

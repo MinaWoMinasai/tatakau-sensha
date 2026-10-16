@@ -5,6 +5,7 @@
 GameScene::GameScene(bool prototypeRun, bool expeditionRun) : session_(std::make_unique<gameplay::GameSession>(prototypeRun, expeditionRun))
 {
 }
+
 GameScene::~GameScene() = default;
 
 void GameScene::Initialize()
@@ -12,7 +13,10 @@ void GameScene::Initialize()
     session_->Initialize();
 }
 
-bool GameScene::InitializeStep() { return session_->InitializeStep(); }
+bool GameScene::InitializeStep()
+{
+    return session_->InitializeStep();
+}
 
 void GameScene::Update()
 {

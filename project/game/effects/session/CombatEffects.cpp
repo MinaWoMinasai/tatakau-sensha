@@ -69,7 +69,8 @@ void CombatEffects::UpdateDeathPostPulse(float deltaTime)
 
 void CombatEffects::UpdateNeonTriangleParticles(float deltaTime)
 {
-    for (const myEngine::ParticleManager::NeonTriangleEvent& event : myEngine::ParticleManager::GetInstance()->ConsumeNeonTriangleEvents()) {
+    for (const myEngine::ParticleManager::NeonTriangleEvent& event :
+         myEngine::ParticleManager::GetInstance()->ConsumeNeonTriangleEvents()) {
         NeonTriangleParticle particle{};
         particle.position = event.position;
         particle.velocity = event.velocity;
@@ -134,9 +135,10 @@ void CombatEffects::QueueNeonTriangleParticles(const myEngine::Vector3& cameraRi
             }
             const float c = std::cos(particle.rotation), sn = std::sin(particle.rotation);
             const myEngine::Vector3 axisU = particle.isBillboard ? cameraRight * c + cameraUp * sn : myEngine::Vector3{c, sn, 0.0f};
-            const myEngine::Vector3 axisV = particle.isBillboard ? cameraUp * c - cameraRight * sn
-                                                            : myEngine::Vector3{-sn * std::cos(particle.tiltRad), c * std::cos(particle.tiltRad),
-                                                                           std::sin(particle.tiltRad)};
+            const myEngine::Vector3 axisV =
+                particle.isBillboard
+                    ? cameraUp * c - cameraRight * sn
+                    : myEngine::Vector3{-sn * std::cos(particle.tiltRad), c * std::cos(particle.tiltRad), std::sin(particle.tiltRad)};
             myEngine::NeonContourStyle style = myEngine::ActorNeonContourStyle();
             style.coreWhiteMix = 0.48f;
             style.coreIntensity = 3.4f;
@@ -156,8 +158,9 @@ void CombatEffects::QueueNeonTriangleParticles(const myEngine::Vector3& cameraRi
                 std::array<std::array<float, 2>, 4> local{};
                 const uint32_t count = myEngine::NeonParticlePoints(particle.shape, local);
                 myEngine::Vector3 points[4]{};
-                for (uint32_t i = 0; i < count; ++i)
+                for (uint32_t i = 0; i < count; ++i) {
                     points[i] = particle.position + (axisU * local[i][0] + axisV * local[i][1]) * radius;
+                }
                 world_.resources.neonGridRenderer_->QueueContourPolygon(points, count, particle.lineWidth, color, cameraForward, style);
             }
             continue;
@@ -168,12 +171,13 @@ void CombatEffects::QueueNeonTriangleParticles(const myEngine::Vector3& cameraRi
         auto queueParticleTriangle = [&](const myEngine::Vector3& center, float radius, float rotation, float width,
                                          const myEngine::Vector4& drawColor, bool luminous = true) {
             if (particle.isBillboard) {
-                if (luminous)
+                if (luminous) {
                     world_.resources.neonGridRenderer_->QueueBillboardContourTriangle(center, radius, rotation, width, drawColor,
                                                                                       cameraRight, cameraUp, cameraForward, contour);
-                else
+                } else {
                     world_.resources.neonGridRenderer_->QueueBillboardTriangle(center, radius, rotation, width, drawColor, cameraRight,
                                                                                cameraUp, cameraForward);
+                }
                 return;
             }
             const float c = std::cos(rotation);
@@ -187,12 +191,14 @@ void CombatEffects::QueueNeonTriangleParticles(const myEngine::Vector3& cameraRi
                 const float angle = -1.5707963268f + static_cast<float>(i) * 2.0943951024f;
                 points[i] = center + axisU * (std::cos(angle) * radius) + axisV * (std::sin(angle) * radius);
             }
-            if (luminous)
+            if (luminous) {
                 world_.resources.neonGridRenderer_->QueueContourPolygon(points, 3, width, drawColor, cameraForward, contour);
-            else
-                for (int i = 0; i < 3; ++i)
+            } else {
+                for (int i = 0; i < 3; ++i) {
                     world_.resources.neonGridRenderer_->QueueCameraFacingLine(points[i], points[(i + 1) % 3], width, drawColor,
                                                                               cameraForward);
+                }
+            }
         };
         const float t = particle.maxLife > 0.0f ? (std::clamp)(particle.life / particle.maxLife, 0.0f, 1.0f) : 0.0f;
         const float age = 1.0f - t;

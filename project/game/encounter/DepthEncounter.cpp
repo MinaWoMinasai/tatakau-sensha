@@ -16,26 +16,31 @@ bool DepthEncounter::LoadNeonDepthConfig(bool hotReload)
     try {
         const std::filesystem::path path("resources/configs/neonBossDepth.json");
         if (std::filesystem::exists(path)) {
-            if (!std::filesystem::is_regular_file(path) || std::filesystem::file_size(path) > 64 * 1024)
+            if (!std::filesystem::is_regular_file(path) || std::filesystem::file_size(path) > 64 * 1024) {
                 throw std::runtime_error("Depth settings must be a regular file of at most 64 KiB.");
+            }
             std::ifstream stream(path, std::ios::binary);
-            if (!stream)
+            if (!stream) {
                 throw std::runtime_error("Could not open Depth settings.");
+            }
             const auto document = nlohmann::json::parse(stream);
-            if (!neondepth::ReadConfig(document, candidate, error))
+            if (!neondepth::ReadConfig(document, candidate, error)) {
                 throw std::runtime_error(error);
+            }
         }
         // The camera/enabled choice is latched only on a fresh encounter. A
         // valid active edit queues attack geometry/timing and visual placement
         // for the next instance, preserving the already announced plan.
         if (hotReload && IsNeonDepthEncounterActive()) {
             if (!world_.resources.enemy_->QueueNeonDepthTuning(candidate.combat) ||
-                (world_.resources.neonBossVisual_ && !world_.resources.neonBossVisual_->SetDepthProfile(candidate.visual)))
+                (world_.resources.neonBossVisual_ && !world_.resources.neonBossVisual_->SetDepthProfile(candidate.visual))) {
                 throw std::runtime_error("Validated Depth edit could not be queued.");
+            }
         }
         world_.resources.neonDepthPendingConfig_ = candidate;
-        if (!hotReload || !IsNeonDepthEncounterActive())
+        if (!hotReload || !IsNeonDepthEncounterActive()) {
             world_.resources.neonDepthConfig_ = candidate;
+        }
         world_.resources.neonDepthConfigStatus_ =
             hotReload ? "Depth settings queued for the next attack / encounter." : "Depth settings ready.";
         return true;
@@ -56,21 +61,25 @@ bool DepthEncounter::IsNeonDepthEncounterActive() const
 
 void DepthEncounter::ConfigureNeonDepthEncounter([[maybe_unused]] bool completedFixtureRoomReset)
 {
-    if (!world_.resources.enemy_ || !world_.run.expeditionRun_ || world_.run.tankExpedition_.GetRoomKind() != tankexp::RoomKind::Boss)
+    if (!world_.resources.enemy_ || !world_.run.expeditionRun_ || world_.run.tankExpedition_.GetRoomKind() != tankexp::RoomKind::Boss) {
         return;
+    }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     const auto& session = GameplayScenarioSession::Get();
     if (world_.resources.neonBossAutoTest_ ||
-        (session.IsActive() && (!gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario) || !completedFixtureRoomReset)))
+        (session.IsActive() && (!gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario) || !completedFixtureRoomReset))) {
         return;
+    }
 #endif
     world_.resources.neonDepthConfig_ = world_.resources.neonDepthPendingConfig_;
-    if (!world_.resources.neonDepthConfig_.enabled)
+    if (!world_.resources.neonDepthConfig_.enabled) {
         return;
+    }
     // Old explicitly selected Developer fixture profiles are preserved by the
     // fixture adapter. Ordinary authored / sequential boss entry selects Depth.
-    if (!world_.resources.neonDepthEffects_)
+    if (!world_.resources.neonDepthEffects_) {
         world_.resources.neonDepthEffects_ = std::make_unique<NeonDepthEffects>();
+    }
     auto* dx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
     if (!dx->InitializeTrailSceneNoDepthPipeline() || !world_.resources.neonDepthEffects_->Initialize(dx)) {
         world_.resources.neonDepthConfigStatus_ = "Depth floor cues could not initialize; encounter retains the existing safe policy.";
@@ -78,12 +87,15 @@ void DepthEncounter::ConfigureNeonDepthEncounter([[maybe_unused]] bool completed
         return;
     }
     world_.resources.enemy_->EnableNeonDepthEncounter(true, world_.resources.neonDepthConfig_.combat);
-    if (!world_.resources.enemy_->IsNeonDepthEncounterEnabled())
+    if (!world_.resources.enemy_->IsNeonDepthEncounterEnabled()) {
         return;
-    if (world_.resources.neonBossVisual_)
+    }
+    if (world_.resources.neonBossVisual_) {
         world_.resources.neonBossVisual_->SetDepthProfile(world_.resources.neonDepthConfig_.visual);
-    if (world_.resources.neonDepthEffects_)
+    }
+    if (world_.resources.neonDepthEffects_) {
         world_.resources.neonDepthEffects_->ResetEncounter();
+    }
     world_.combatFlow->SetEventCallout("床の投影コアを攻撃 / Enterで登場をスキップ", 2.4f);
 }
 
@@ -124,8 +136,9 @@ bool DepthEncounter::UpdateNeonDepthCamera(float baseDeltaTime)
         const double age = double(duration - world_.presentation.cameraShakeTimer_);
         focus.x += amplitude * float(std::sin(age * 53 + eventPhase));
         focus.y += amplitude * float(std::sin(age * 67 + eventPhase * .37));
-    } else if (reducedMotion)
+    } else if (reducedMotion) {
         world_.presentation.cameraShakeTimer_ = 0;
+    }
     if (!neondepth::TryCamera(profile, focus, frame)) {
         RestoreNeonDepthCamera();
         return false;
@@ -138,8 +151,9 @@ bool DepthEncounter::UpdateNeonDepthCamera(float baseDeltaTime)
     world_.resources.camera->SetNearClip(profile.nearClip);
     world_.resources.camera->SetFarClip(profile.farClip);
     world_.resources.camera->SetProjectionJitter({});
-    if (world_.resources.player_)
+    if (world_.resources.player_) {
         world_.resources.player_->SetNeonDepthAimEnabled(true);
+    }
     return true;
 }
 
@@ -150,16 +164,22 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
     const auto& snapshot = world_.resources.enemy_->GetNeonDepthSnapshot();
     const bool defeat = world_.combat.combatFlow_.GetState() == GameFlowState::BossDefeatSequence;
     const bool intro = !defeat && snapshot.phase == neondepth::Phase::Intro;
-    auto smooth = [](float t) { t = (std::clamp)(t, 0.0f, 1.0f); return t * t * (3.0f - 2.0f * t); };
-    auto mix = [](const myEngine::Vector3& a, const myEngine::Vector3& b, float t) { return a + (b - a) * t; };
+    auto smooth = [](float t) {
+        t = (std::clamp)(t, 0.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
+    };
+    auto mix = [](const myEngine::Vector3& a, const myEngine::Vector3& b, float t) {
+        return a + (b - a) * t;
+    };
     // Frame the visible projection (its feet), which is offset from the logical floor core.
     myEngine::Vector3 boss = world_.resources.enemy_->GetWorldPosition();
     if (world_.resources.neonBossVisual_ && world_.resources.neonBossVisual_->HasResources() &&
         world_.resources.neonBossVisual_->IsVisible()) {
         const auto& world = world_.resources.neonBossVisual_->GetWorldMatrix();
         const myEngine::Vector3 feet{world.m[3][0], world.m[3][1], 0.0f};
-        if (std::isfinite(feet.x) && std::isfinite(feet.y) && myEngine::Length(feet - myEngine::Vector3{boss.x, boss.y, 0.0f}) < 30.0f)
+        if (std::isfinite(feet.x) && std::isfinite(feet.y) && myEngine::Length(feet - myEngine::Vector3{boss.x, boss.y, 0.0f}) < 30.0f) {
             boss = feet;
+        }
     }
     boss.z = 0.0f;
     myEngine::Vector3 player = world_.resources.player_ ? world_.resources.player_->GetWorldPosition() : boss;
@@ -179,14 +199,17 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
     for (; combatDistance < 2.2f; combatDistance += 0.05f) {
         const float depth = arenacamera::Distance() * combatDistance;
         const float magnified = spread * depth / (std::max)(depth - bodyHeight * 0.85f, 1.0f);
-        if (magnified + kActorMargin <= halfHeight * combatDistance)
+        if (magnified + kActorMargin <= halfHeight * combatDistance) {
             break;
+        }
     }
     float minX = 0, minY = 0, maxX = 0, maxY = 0;
     if (world_.resources.stage_ && arenacamera::ArenaBounds(world_.resources.stage_->GetBlocks(), minX, minY, maxX, maxY)) {
         // The projection may hover over the rampart; let the frame follow it there.
-        minX = (std::min)(minX, boss.x - bodyHeight); maxX = (std::max)(maxX, boss.x + bodyHeight);
-        minY = (std::min)(minY, boss.y - bodyHeight); maxY = (std::max)(maxY, boss.y + bodyHeight);
+        minX = (std::min)(minX, boss.x - bodyHeight);
+        maxX = (std::max)(maxX, boss.x + bodyHeight);
+        minY = (std::min)(minY, boss.y - bodyHeight);
+        maxY = (std::max)(maxY, boss.y + bodyHeight);
         const float viewHalf = halfHeight * combatDistance;
         target.x = arenacamera::ClampFocus(target.x, minX, maxX, viewHalf * arenacamera::kAspect);
         target.y = arenacamera::ClampFocus(target.y, minY, maxY, viewHalf);
@@ -204,7 +227,10 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
         targetDistance = 0.55f + 0.35f * t;
         targetTilt = 30.0f - 8.0f * t;
         targetLetterbox = 1.0f;
-        if (cine.titleMode != 1) { cine.titleMode = 1; cine.titleAge = 0.0f; }
+        if (cine.titleMode != 1) {
+            cine.titleMode = 1;
+            cine.titleAge = 0.0f;
+        }
     } else if (cine.introSeen && !cine.revealFired) {
         // The projection is complete: punctuate the hand-off back to the combat framing.
         cine.revealFired = true;
@@ -297,8 +323,9 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
 
 void DepthEncounter::RestoreNeonDepthCamera()
 {
-    if (!world_.resources.neonDepthCameraScoped_ || !world_.resources.camera)
+    if (!world_.resources.neonDepthCameraScoped_ || !world_.resources.camera) {
         return;
+    }
     world_.resources.camera->SetRotate(world_.resources.neonDepthSavedCamera_.rotation);
     world_.resources.camera->SetTranslate(world_.resources.neonDepthSavedCamera_.position);
     world_.resources.camera->SetFovY(world_.resources.neonDepthSavedCamera_.fovY);
@@ -307,8 +334,9 @@ void DepthEncounter::RestoreNeonDepthCamera()
     world_.resources.camera->SetFarClip(world_.resources.neonDepthSavedCamera_.farClip);
     world_.resources.camera->SetProjectionJitter(world_.resources.neonDepthSavedCamera_.jitter);
     world_.resources.camera->Update();
-    if (world_.resources.player_)
+    if (world_.resources.player_) {
         world_.resources.player_->SetNeonDepthAimEnabled(false);
+    }
     myEngine::Object3dCommon::GetInstance()->SetIsDebugCamera(world_.resources.neonDepthSavedDebugCamera_);
     world_.resources.neonDepthCameraScoped_ = false;
 }
@@ -316,8 +344,9 @@ void DepthEncounter::RestoreNeonDepthCamera()
 bool DepthEncounter::UpdateNeonDepthIntro(float baseDeltaTime)
 {
     world_.resources.neonDepthIntroDelta_ = 0;
-    if (!IsNeonDepthEncounterActive() || world_.resources.enemy_->GetNeonDepthSnapshot().phase != neondepth::Phase::Intro)
+    if (!IsNeonDepthEncounterActive() || world_.resources.enemy_->GetNeonDepthSnapshot().phase != neondepth::Phase::Intro) {
         return false;
+    }
     const bool permitted = world_.combat.combatFlow_.GetState() == GameFlowState::Playing && world_.combat.phase_ == Phase::kMain &&
                            !world_.arenaRunController->IsTankRunMenuOpen() && !world_.resources.player_->IsChangeMode() &&
                            !world_.resources.player_->IsDead();
@@ -335,16 +364,18 @@ bool DepthEncounter::UpdateNeonDepthIntro(float baseDeltaTime)
 #endif
     // A zero-dt Player::Update still handles attacks; refresh borrowed drawing
     // transforms without passing input into any actor during the intro lock.
-    if (world_.resources.playerObject_)
+    if (world_.resources.playerObject_) {
         world_.resources.playerObject_->Update();
+    }
     world_.resources.collisionDebugRingManager_->Clear();
     return true;
 }
 
 void DepthEncounter::UpdateNeonDepthEffects()
 {
-    if (!world_.resources.neonDepthEffects_ || !world_.resources.enemy_ || !world_.resources.neonBossVisual_)
+    if (!world_.resources.neonDepthEffects_ || !world_.resources.enemy_ || !world_.resources.neonBossVisual_) {
         return;
+    }
     myEngine::RuntimeProfiler::CpuScope effectScope("Neon Depth FX Build");
     neondepth::EffectsInput input;
     input.frameId = ++world_.resources.neonDepthFrameId_;
@@ -373,10 +404,12 @@ void DepthEncounter::UpdateNeonDepthEffects()
     if (terminal && world_.resources.neonBossVisual_->IsFinished()) {
         // The previous submitted frame's fence completed before this Update.
         // Keep the wrapper's evidence counters, return its instance buffers once.
-        if (world_.resources.neonDepthEffects_->HasResources())
+        if (world_.resources.neonDepthEffects_->HasResources()) {
             world_.resources.neonDepthEffects_->Release();
-    } else
+        }
+    } else {
         world_.resources.neonDepthEffects_->Update(input);
+    }
     // Observable counters share the profiler's actual frame identity. They do
     // not allocate resources or influence encounter/presentation clocks.
     auto& profiler = myEngine::RuntimeProfiler::Get();

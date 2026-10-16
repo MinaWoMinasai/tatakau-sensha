@@ -15,11 +15,13 @@ namespace gameplay {
 namespace {
 using RunPhase = tankrun::Phase;
 using namespace tankrun::copy;
+
 /// @brief Decisionであるか判定する。
 bool IsDecision(RunPhase phase)
 {
     return phase == RunPhase::Loadout || phase == RunPhase::CoreChoice || phase == RunPhase::Draft;
 }
+
 /// @brief 遠征の経過時間を返す。
 std::string RunClock(double time)
 {
@@ -28,6 +30,7 @@ std::string RunClock(double time)
     text << seconds / 60 << ':' << std::setfill('0') << std::setw(2) << seconds % 60;
     return text.str();
 }
+
 /// @brief 2点の間の方向を求める。
 std::string DirectionTo(const myEngine::Vector3& delta)
 {
@@ -39,20 +42,26 @@ std::string DirectionTo(const myEngine::Vector3& delta)
 
 bool ArenaRunController::IsTankRunMenuOpen() const
 {
-    if (world_.run.expeditionAuthoringHubOpen_)
+    if (world_.run.expeditionAuthoringHubOpen_) {
         return true;
-    if (world_.expeditionExperience->IsGuidedExpeditionPaused() || world_.run.expeditionCollectAll_)
+    }
+    if (world_.expeditionExperience->IsGuidedExpeditionPaused() || world_.run.expeditionCollectAll_) {
         return true;
-    if (world_.run.expeditionMapEnabled_ && world_.run.expeditionTransition_.IsActive())
+    }
+    if (world_.run.expeditionMapEnabled_ && world_.run.expeditionTransition_.IsActive()) {
         return true;
+    }
     if (world_.run.expeditionMapEnabled_ && (world_.run.expeditionMapPreview_ || world_.run.expeditionRoomEditorOpen_ ||
-                                             world_.run.expeditionMapEditorOpen_ || world_.run.expeditionContentEditorOpen_))
+                                             world_.run.expeditionMapEditorOpen_ || world_.run.expeditionContentEditorOpen_)) {
         return true;
-    if (world_.run.expeditionRun_ && (world_.run.tankExpeditionDetailsOpen_ || world_.run.tankExpeditionBalanceEditorOpen_))
+    }
+    if (world_.run.expeditionRun_ && (world_.run.tankExpeditionDetailsOpen_ || world_.run.tankExpeditionBalanceEditorOpen_)) {
         return true;
+    }
     if (world_.run.expeditionRun_ && world_.run.tankExpedition_.GetPhase() != tankexp::Phase::Dormant &&
-        !world_.run.tankExpedition_.IsCombat())
+        !world_.run.tankExpedition_.IsCombat()) {
         return true;
+    }
     return world_.run.prototypeRun_ &&
            (world_.run.tankRunPaused_ || IsDecision(world_.run.tankRun_.GetPhase()) || world_.run.tankRunMenuAge_ < 0);
 }
@@ -60,7 +69,8 @@ bool ArenaRunController::IsTankRunMenuOpen() const
 void ArenaRunController::InitializeTankRun()
 {
     auto initialization = BuildInitialization();
-    while (!initialization.Advance()) {}
+    while (!initialization.Advance()) {
+    }
 }
 
 myEngine::InitializationTask ArenaRunController::BuildInitialization()
@@ -69,14 +79,17 @@ myEngine::InitializationTask ArenaRunController::BuildInitialization()
     world_.run.tankRunAutoTest_ =
         !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"MYENGINE_TANK_AUTOTEST", automatic, 16) > 0 && automatic[0] == L'1';
     tankrun::Config config;
-    if (world_.run.tankRunAutoTest_)
+    if (world_.run.tankRunAutoTest_) {
         config.combatSeconds = 24;
-    if (world_.run.expeditionRun_)
+    }
+    if (world_.run.expeditionRun_) {
         config.combatSeconds = 1000000;
+    }
     uint32_t runSeed = world_.run.tankRunAutoTest_ ? 20260919u : static_cast<uint32_t>(GetTickCount64());
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    if (GameplayScenarioSession::Get().IsActive())
+    if (GameplayScenarioSession::Get().IsActive()) {
         runSeed = GameplayScenarioSession::Get().GetSettings().seed;
+    }
 #endif
     world_.run.tankRun_ = tankrun::RunDirector(runSeed, config);
     TankRunModifiers modifiers{};
@@ -138,16 +151,19 @@ myEngine::InitializationTask ArenaRunController::BuildInitialization()
     co_await std::suspend_always{};
     if (world_.run.expeditionRun_) {
         auto expedition = world_.expeditionController->BuildInitialization();
-        while (!expedition.Advance()) co_await std::suspend_always{};
+        while (!expedition.Advance()) {
+            co_await std::suspend_always{};
+        }
         RefreshTankRunUi();
         co_return;
     }
-    const std::array<myEngine::Vector3, 3> centers = {myEngine::Vector3{25, 18, 0}, myEngine::Vector3{43, 38, 0}, myEngine::Vector3{65, 20, 0}};
+    const std::array<myEngine::Vector3, 3> centers = {myEngine::Vector3{25, 18, 0}, myEngine::Vector3{43, 38, 0},
+                                                      myEngine::Vector3{65, 20, 0}};
     for (size_t i = 0; i < centers.size(); ++i) {
         auto& resource = world_.run.tankRunResources_[i];
         resource.position = centers[i];
         bool found = false;
-        for (int radius = 0; radius <= 12 && !found; radius += 2)
+        for (int radius = 0; radius <= 12 && !found; radius += 2) {
             for (int n = 0; n < 16 && !found; ++n) {
                 const float angle = static_cast<float>(n) * 0.392699f;
                 const myEngine::Vector3 p = centers[i] + myEngine::Vector3{std::cos(angle) * radius, std::sin(angle) * radius, 0};
@@ -156,12 +172,14 @@ myEngine::InitializationTask ArenaRunController::BuildInitialization()
                     found = true;
                 }
             }
+        }
         for (int n = 0; n < 10; ++n) {
             const float angle = static_cast<float>(n) * 0.628319f;
             const myEngine::Vector3 p = resource.position + myEngine::Vector3{std::cos(angle) * 6, std::sin(angle) * 6, 0};
             if (!world_.resources.stage_->IsCollisionWithAnyBlock(p, 1.1f) &&
-                myEngine::Length(p - world_.resources.player_->GetWorldPosition()) > 4)
+                myEngine::Length(p - world_.resources.player_->GetWorldPosition()) > 4) {
                 world_.resources.enemyManager_->SpawnLevelEnemy(p, n % 3 == 0 ? "Triangle" : "Square", 8);
+            }
         }
         EnemyManager::SpawnArea area{};
         area.name = "Core salvage " + std::to_string(i);
@@ -184,8 +202,9 @@ std::array<float, tankrun::CardCount> ArenaRunController::ExpeditionEffectPowers
         const auto* live = tankcontent::FindUpgrade(world_.run.expeditionContent_, id);
         for (const auto effect : purchased.effects) {
             const auto index = static_cast<std::size_t>(effect);
-            if (index < power.size())
+            if (index < power.size()) {
                 power[index] = live ? live->effectPower[index] : purchased.effectPower[index];
+            }
         }
     }
     return power;
@@ -197,8 +216,9 @@ void ArenaRunController::ApplyTankRunCards()
     m.enabled = true;
     m.expedition = world_.run.expeditionRun_;
     if (!world_.run.expeditionMapEnabled_ && world_.run.tankRun_.GetCore() != tankrun::CoreId::Count &&
-        (!world_.run.expeditionRun_ || world_.run.tankRun_.GetDraftCount() >= 2))
+        (!world_.run.expeditionRun_ || world_.run.tankRun_.GetDraftCount() >= 2)) {
         m.core = static_cast<TankRunCore>(static_cast<int>(world_.run.tankRun_.GetCore()) + 1);
+    }
     const auto& c = world_.run.tankRun_.GetCardCounts();
     m.ricochet = c[0] > 0;
     m.heavy = c[1] > 0;
@@ -242,23 +262,27 @@ void ArenaRunController::ApplyTankRunCards()
     m.dashSlash = c[39] > 0;
     m.spinBlade = c[40] > 0;
     m.wallSmash = c[41] > 0;
-    if (world_.run.expeditionMapEnabled_)
+    if (world_.run.expeditionMapEnabled_) {
         m.effectPower = ExpeditionEffectPowers();
+    }
     world_.resources.player_->SetRunModifiers(m);
 }
 
 void ArenaRunController::OnTankRunEnemyDefeated(const myEngine::Vector3& position)
 {
-    if (!world_.run.tankRun_.IsCombat())
+    if (!world_.run.tankRun_.IsCombat()) {
         return;
-    if (world_.run.expeditionMapEnabled_)
+    }
+    if (world_.run.expeditionMapEnabled_) {
         world_.expeditionExperience->SpawnExpeditionCredits(position, world_.resources.player_->TakeRunCurrencyEarned());
+    }
     world_.run.tankRun_.AddSalvage(1);
     world_.run.tankRunCombo_ = (world_.run.tankRunComboTime_ > 0 ? world_.run.tankRunCombo_ : 0) + 1;
     world_.run.tankRunComboTime_ = 2;
     world_.run.tankRunBestCombo_ = (std::max)(world_.run.tankRunBestCombo_, world_.run.tankRunCombo_);
-    if (world_.run.tankRunBursts_.size() < 24)
+    if (world_.run.tankRunBursts_.size() < 24) {
         world_.run.tankRunBursts_.push_back({position, 0, false});
+    }
     world_.combat.screenEffectDirector_.TriggerEnemyDefeat(world_.gameplayQueries->WorldToScreenUv(position), 0.20f);
     if (world_.run.expeditionRun_) {
         world_.run.tankExpeditionAudio_.Kill(world_.run.tankRunCombo_);
@@ -269,16 +293,18 @@ void ArenaRunController::OnTankRunEnemyDefeated(const myEngine::Vector3& positio
             world_.presentation.cameraShakePower_ = 0.055f;
         }
     }
-    if (world_.run.tankRunCombo_ % 5 == 0)
+    if (world_.run.tankRunCombo_ % 5 == 0) {
         world_.combatFlow->SetEventCallout(
             std::to_string(world_.run.tankRunCombo_) + (world_.run.expeditionRun_ ? "連続撃破" : " CHAIN / 資材 +1"), 0.55f);
+    }
     world_.run.tankRunHudTimer_ = 0;
 }
 
 void ArenaRunController::OnTankRunResourceClaim(size_t index, bool playerOwned)
 {
-    if (index >= world_.run.tankRunResources_.size() || !world_.run.tankRunResources_[index].active)
+    if (index >= world_.run.tankRunResources_.size() || !world_.run.tankRunResources_[index].active) {
         return;
+    }
     auto& resource = world_.run.tankRunResources_[index];
     resource.active = false;
     resource.respawn = 20;
@@ -293,16 +319,19 @@ void ArenaRunController::OnTankRunResourceClaim(size_t index, bool playerOwned)
                 world_.run.tankExpeditionTutorial_.RecordKill();
             }
         }
-        if (world_.run.tankExpedition_.GetRoomKind() == tankexp::RoomKind::Resource || world_.run.tankExpeditionNodes_ >= 3)
+        if (world_.run.tankExpedition_.GetRoomKind() == tankexp::RoomKind::Resource || world_.run.tankExpeditionNodes_ >= 3) {
             world_.run.tankExpeditionRoomPending_ = true;
+        }
         world_.combatFlow->SetEventCallout(playerOwned ? "通貨を回収！" : "相手が通貨を回収 / 次の戦闘へ", 1.0f);
         world_.run.tankExpeditionAudio_.Kill();
-        if (world_.run.tankRunBursts_.size() < 24)
+        if (world_.run.tankRunBursts_.size() < 24) {
             world_.run.tankRunBursts_.push_back({resource.position, 0, true});
+        }
         return;
     }
-    if (!world_.run.tankRun_.ClaimResource(playerOwned))
+    if (!world_.run.tankRun_.ClaimResource(playerOwned)) {
         return;
+    }
     if (playerOwned) {
         world_.resources.player_->AddExp(30);
         world_.resources.player_->HealRunPlayer(12);
@@ -312,8 +341,9 @@ void ArenaRunController::OnTankRunResourceClaim(size_t index, bool playerOwned)
         world_.resources.enemy_->RegisterRunResourceClaim();
         world_.combatFlow->SetEventCallout("ライバルがコアを確保", 1.2f);
     }
-    if (world_.run.tankRunBursts_.size() < 24)
+    if (world_.run.tankRunBursts_.size() < 24) {
         world_.run.tankRunBursts_.push_back({resource.position, 0, true});
+    }
     myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(resource.position, {0, 1, 0}, {1, 0.72f, 0.15f, 1}, 18);
     world_.run.tankRunHudTimer_ = 0;
 }
@@ -321,15 +351,17 @@ void ArenaRunController::OnTankRunResourceClaim(size_t index, bool playerOwned)
 void ArenaRunController::UpdateTankRunResources(float dt)
 {
     world_.run.tankRunComboTime_ = (std::max)(0.0f, world_.run.tankRunComboTime_ - dt);
-    for (auto& burst : world_.run.tankRunBursts_)
+    for (auto& burst : world_.run.tankRunBursts_) {
         burst.age += dt;
+    }
     std::erase_if(world_.run.tankRunBursts_, [](const RunBurst& b) {
         return b.age > (b.resource ? 0.7f : 0.35f);
     });
     for (size_t i = 0; i < world_.run.tankRunResources_.size(); ++i) {
         auto& resource = world_.run.tankRunResources_[i];
-        if (resource.active)
+        if (resource.active) {
             continue;
+        }
         resource.respawn -= dt;
         if (resource.respawn <= 0) {
             resource.active = true;
@@ -364,20 +396,22 @@ void ArenaRunController::SelectTankRunOption(int index)
             world_.run.tankExpeditionAudio_.UiConfirm();
             world_.run.expeditionLastFocus_.clear();
         }
-        if (index == 0)
+        if (index == 0) {
             world_.run.tankRunPaused_ = false;
-        else {
+        } else {
             world_.combat.nextSceneName_ = "TITLE";
             world_.combat.fade_->Start(Fade::Status::FadeOut, 0.4f);
             world_.combat.phase_ = Phase::kFadeOut;
         }
     } else if (phase == RunPhase::Loadout) {
-        if (!world_.run.tankRun_.ChooseLoadout(index))
+        if (!world_.run.tankRun_.ChooseLoadout(index)) {
             return;
+        }
         world_.resources.player_->ConfigurePrototypeLoadout(index);
     } else if (phase == RunPhase::CoreChoice) {
-        if (!world_.run.tankRun_.ChooseCore(index))
+        if (!world_.run.tankRun_.ChooseCore(index)) {
             return;
+        }
         ApplyTankRunCards();
         if (world_.run.expeditionRun_) {
             world_.run.tankExpedition_.Start();
@@ -387,14 +421,17 @@ void ArenaRunController::SelectTankRunOption(int index)
             world_.combatFlow->SetEventCallout("金色のコアを狙おう / 資材で E 改造", 1.5f);
         }
     } else if (phase == RunPhase::Draft) {
-        if (index < 0 || static_cast<size_t>(index) >= world_.run.tankRun_.GetOfferCount())
+        if (index < 0 || static_cast<size_t>(index) >= world_.run.tankRun_.GetOfferCount()) {
             return;
+        }
         const auto chosen = world_.run.tankRun_.GetOffers()[static_cast<size_t>(index)];
-        if (!world_.run.tankRun_.ChooseCard(static_cast<size_t>(index)))
+        if (!world_.run.tankRun_.ChooseCard(static_cast<size_t>(index))) {
             return;
+        }
         ApplyTankRunCards();
-        if (chosen == tankrun::CardId::Repair)
+        if (chosen == tankrun::CardId::Repair) {
             world_.resources.player_->HealRunPlayer(30);
+        }
         world_.combat.screenEffectDirector_.TriggerUpgradeConfirmed(
             world_.gameplayQueries->WorldToScreenUv(world_.resources.player_->GetWorldPosition()));
         world_.combatFlow->SetEventCallout(std::string("改造: ") + kRunCards[static_cast<size_t>(chosen)].title, 1.2f);
@@ -410,15 +447,17 @@ void ArenaRunController::UpdateTankRun(float dt)
         world_.expeditionController->UpdateTankExpedition(dt);
         return;
     }
-    if (world_.combat.phase_ != Phase::kMain)
+    if (world_.combat.phase_ != Phase::kMain) {
         return;
+    }
     world_.run.tankRunMenuAge_ += dt;
     world_.run.tankRunAutoTime_ += dt;
     const auto triggered = [this](int key) {
         return world_.resources.input_->IsTrigger(world_.resources.input_->GetKey()[key], world_.resources.input_->GetPreKey()[key]);
     };
-    if (myEngine::kDeveloperTools && triggered(DIK_F10))
+    if (myEngine::kDeveloperTools && triggered(DIK_F10)) {
         RequestTankRunCapture("manual");
+    }
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !world_.resources.player_->IsChangeMode() &&
         triggered(DIK_ESCAPE)) {
         world_.run.tankRunPaused_ = !world_.run.tankRunPaused_;
@@ -444,8 +483,9 @@ void ArenaRunController::UpdateTankRun(float dt)
                     << ",\"playerClaims\":" << world_.run.tankRun_.GetPlayerClaims()
                     << ",\"rivalClaims\":" << world_.run.tankRun_.GetRivalClaims() << ",\"drafts\":" << world_.run.tankRun_.GetDraftCount()
                     << ",\"playerHp\":" << world_.resources.player_->GetHp() << ",\"cards\":[";
-                for (size_t i = 0; i < tankrun::CardCount; ++i)
+                for (size_t i = 0; i < tankrun::CardCount; ++i) {
                     log << (i ? "," : "") << world_.run.tankRun_.GetCardCounts()[i];
+                }
                 log << "]}\n";
                 log.close();
                 PostQuitMessage(0);
@@ -463,36 +503,43 @@ void ArenaRunController::UpdateTankRun(float dt)
                           : world_.run.tankRun_.GetPhase() == RunPhase::Draft ? static_cast<int>(world_.run.tankRun_.GetOfferCount())
                                                                               : 3;
         if (world_.run.tankRunMenuAge_ > 0.16f) {
-            if (triggered(DIK_LEFT) || triggered(DIK_A))
+            if (triggered(DIK_LEFT) || triggered(DIK_A)) {
                 world_.run.tankRunSelection_ = (world_.run.tankRunSelection_ + count - 1) % count;
-            if (triggered(DIK_RIGHT) || triggered(DIK_D))
+            }
+            if (triggered(DIK_RIGHT) || triggered(DIK_D)) {
                 world_.run.tankRunSelection_ = (world_.run.tankRunSelection_ + 1) % count;
+            }
             const auto mouse = world_.resources.input_->GetMousePosition();
             const auto motion = world_.resources.input_->GetMouseState();
             int hovered = -1;
             for (int i = 0; i < count; ++i) {
                 const float x = 64 + static_cast<float>(i) * 388;
-                if (mouse.x >= x && mouse.x <= x + 368 && mouse.y >= 280 && mouse.y <= 560)
+                if (mouse.x >= x && mouse.x <= x + 368 && mouse.y >= 280 && mouse.y <= 560) {
                     hovered = i;
+                }
             }
-            if (hovered >= 0 && (motion.lX || motion.lY))
+            if (hovered >= 0 && (motion.lX || motion.lY)) {
                 world_.run.tankRunSelection_ = hovered;
+            }
             bool confirm = triggered(DIK_RETURN) || triggered(DIK_SPACE);
-            for (int i = 0; i < count; ++i)
+            for (int i = 0; i < count; ++i) {
                 if (triggered(DIK_1 + i)) {
                     world_.run.tankRunSelection_ = i;
                     confirm = true;
                 }
+            }
             if (hovered >= 0 &&
                 world_.resources.input_->IsTrigger(motion.rgbButtons[0], world_.resources.input_->GetPreMouseState().rgbButtons[0])) {
                 world_.run.tankRunSelection_ = hovered;
                 confirm = true;
             }
-            if (confirm)
+            if (confirm) {
                 SelectTankRunOption(world_.run.tankRunSelection_);
+            }
         }
-        if (world_.run.tankRunAutoTest_ && world_.run.tankRunMenuAge_ > 0.4f && world_.run.tankRunMenuAge_ < 0.4f + dt * 1.5f)
+        if (world_.run.tankRunAutoTest_ && world_.run.tankRunMenuAge_ > 0.4f && world_.run.tankRunMenuAge_ < 0.4f + dt * 1.5f) {
             RequestTankRunCapture("choice_" + std::to_string(world_.run.tankRunAutoMenuIndex_));
+        }
         if (world_.run.tankRunAutoTest_ && world_.run.tankRunMenuAge_ > 1.2f) {
             SelectTankRunOption(world_.run.tankRun_.GetPhase() == RunPhase::CoreChoice ? 1 : 0);
             ++world_.run.tankRunAutoMenuIndex_;
@@ -509,18 +556,21 @@ void ArenaRunController::UpdateTankRun(float dt)
                 world_.run.tankRunAutoStep_ = 1;
             }
             if (world_.run.tankRunAutoStep_ == 1 && elapsed > 3) {
-                if (auto* core = world_.resources.enemyManager_->FindNearestRunResource(world_.run.tankRunResources_[0].position, 3))
+                if (auto* core = world_.resources.enemyManager_->FindNearestRunResource(world_.run.tankRunResources_[0].position, 3)) {
                     core->TakeDamageFromPlayer(10000);
+                }
                 world_.run.tankRunAutoStep_ = 2;
             }
             if (world_.run.tankRunAutoStep_ == 2 && elapsed > 4) {
-                if (auto* core = world_.resources.enemyManager_->FindNearestRunResource(world_.run.tankRunResources_[2].position, 3))
+                if (auto* core = world_.resources.enemyManager_->FindNearestRunResource(world_.run.tankRunResources_[2].position, 3)) {
                     core->TakeDamageFromEnemy(10000);
+                }
                 world_.run.tankRunAutoStep_ = 3;
             }
             if (world_.run.tankRunAutoStep_ == 3 && elapsed > 6) {
-                if (auto* core = world_.resources.enemyManager_->FindNearestRunResource(world_.run.tankRunResources_[1].position, 3))
+                if (auto* core = world_.resources.enemyManager_->FindNearestRunResource(world_.run.tankRunResources_[1].position, 3)) {
                     core->TakeDamageFromPlayer(10000);
+                }
                 world_.run.tankRun_.AddSalvage(30);
                 world_.run.tankRunAutoStep_ = 4;
             }
@@ -534,8 +584,9 @@ void ArenaRunController::UpdateTankRun(float dt)
                 RequestTankRunCapture("build");
                 world_.run.tankRunAutoStep_ = 5;
             }
-            if (world_.run.tankRun_.GetPhase() == RunPhase::Boss && world_.run.tankRun_.GetBossElapsedSeconds() > 5)
+            if (world_.run.tankRun_.GetPhase() == RunPhase::Boss && world_.run.tankRun_.GetBossElapsedSeconds() > 5) {
                 world_.resources.enemy_->TakeDamage(static_cast<uint32_t>(world_.resources.enemy_->GetHp() + 1));
+            }
         }
     }
     world_.run.tankRunHudTimer_ -= dt;
@@ -560,13 +611,15 @@ void ArenaRunController::RefreshTankRunUi()
                                       : "決戦まで " + RunClock(world_.run.tankRun_.GetContestSecondsRemaining()))
         << "\n";
     hud << "HP " << world_.resources.player_->GetHp() << " / " << world_.resources.player_->GetMaxHp() << "    ";
-    if (world_.run.tankRun_.GetDraftCount() >= world_.run.tankRun_.GetMaxDrafts())
+    if (world_.run.tankRun_.GetDraftCount() >= world_.run.tankRun_.GetMaxDrafts()) {
         hud << "改造完了 " << world_.run.tankRun_.GetDraftCount() << "個";
-    else
+    } else {
         hud << "資材 " << world_.run.tankRun_.GetSalvage() << " / " << world_.run.tankRun_.GetRefitCost()
             << (world_.run.tankRun_.CanOpenDraft() ? "  [E] 改造できる" : "  [E] 改造");
-    if (world_.run.tankRunComboTime_ > 0 && world_.run.tankRunCombo_ > 1)
+    }
+    if (world_.run.tankRunComboTime_ > 0 && world_.run.tankRunCombo_ > 1) {
         hud << "   " << world_.run.tankRunCombo_ << " CHAIN";
+    }
     world_.run.tankRunHud_->SetText(hud.str());
     std::ostringstream boss;
     boss << "ライバル Lv." << world_.resources.enemy_->GetLevel() << "   HP " << world_.resources.enemy_->GetHp() << " / "
@@ -574,8 +627,9 @@ void ArenaRunController::RefreshTankRunUi()
          << (world_.resources.enemy_->IsDead()                 ? "撃破"
              : world_.resources.enemy_->IsLevelingModeActive() ? "資源を狙っている"
                                                                : "こちらを狙っている");
-    if (!world_.resources.enemy_->IsDead())
+    if (!world_.resources.enemy_->IsDead()) {
         boss << " / " << DirectionTo(world_.resources.enemy_->GetWorldPosition() - world_.resources.player_->GetWorldPosition());
+    }
     world_.run.tankRunBossText_->SetText(boss.str());
     const float ratio =
         static_cast<float>(world_.resources.enemy_->GetHp()) / static_cast<float>((std::max)(1, world_.resources.enemy_->GetMaxHp()));
@@ -584,14 +638,17 @@ void ArenaRunController::RefreshTankRunUi()
     std::string build = world_.run.tankRun_.GetCore() == tankrun::CoreId::Count
                             ? "主軸コア: 未選択"
                             : "主軸: " + std::string(kCores[static_cast<size_t>(world_.run.tankRun_.GetCore())].title);
-    for (size_t i = 0; i < tankrun::CardCount; ++i)
-        if (world_.run.tankRun_.GetCardCounts()[i])
+    for (size_t i = 0; i < tankrun::CardCount; ++i) {
+        if (world_.run.tankRun_.GetCardCounts()[i]) {
             build += " / " + std::string(kRunCards[i].title);
+        }
+    }
     // Two lines keep a full six-mod build within the viewport.
     if (build.size() > 130) {
         const auto split = build.find(" / ", 110);
-        if (split != std::string::npos)
+        if (split != std::string::npos) {
             build.replace(split, 3, "\n");
+        }
     }
     world_.run.tankRunBuildText_->SetText(build);
     std::ostringstream objective;
@@ -599,11 +656,12 @@ void ArenaRunController::RefreshTankRunUi()
     for (size_t i = 0; i < world_.run.tankRunResources_.size(); ++i) {
         const auto& node = world_.run.tankRunResources_[i];
         objective << static_cast<char>('A' + i) << " ";
-        if (node.active)
+        if (node.active) {
             objective << DirectionTo(node.position - world_.resources.player_->GetWorldPosition()) << " "
                       << static_cast<int>(myEngine::Length(node.position - world_.resources.player_->GetWorldPosition()));
-        else
+        } else {
             objective << "再出現 " << static_cast<int>(std::ceil(node.respawn)) << "秒";
+        }
         objective << "    ";
     }
     world_.run.tankRunObjectiveText_->SetPosition({24, build.find('\n') == std::string::npos ? 128.0f : 150.0f});
@@ -650,11 +708,12 @@ void ArenaRunController::RefreshTankRunUi()
             world_.run.tankRunCardBodies_[i]->SetText(card.body);
         }
     }
-    if (copies)
+    if (copies) {
         for (int i = 0; i < 3; ++i) {
             world_.run.tankRunCardTitles_[i]->SetText(std::to_string(i + 1) + "  " + copies[i].title);
             world_.run.tankRunCardBodies_[i]->SetText(copies[i].body);
         }
+    }
     world_.run.tankRunFooter_->SetText(
         "数字キー / クリック: 決定   ← → + Enter: 選択   Esc: 一時停止\nWASD: 移動   マウス: 照準   左クリック: 射撃   右クリック: ダッシュ   E: 改造   C: 進化");
     if (world_.run.expeditionRun_) {
@@ -686,15 +745,17 @@ void ArenaRunController::DrawTankRunUi()
         world_.expeditionController->DrawTankExpeditionUi();
         return;
     }
-    if (world_.resources.player_->IsChangeMode())
+    if (world_.resources.player_->IsChangeMode()) {
         return;
+    }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     const auto phase = world_.run.tankRun_.GetPhase();
     const bool result = world_.combat.combatFlow_.GetState() == GameFlowState::StageClear ||
                         (world_.combat.combatFlow_.GetState() == GameFlowState::GameOver && world_.combat.combatFlow_.GetTimer() <= 0);
     const bool decision = IsDecision(phase) || world_.run.tankRunPaused_;
-    if (decision || result)
+    if (decision || result) {
         world_.run.tankRunDimmer_->Draw();
+    }
     world_.run.tankRunHudPanel_->Draw();
     world_.run.tankRunHud_->Draw();
     world_.run.tankRunBossText_->Draw();
@@ -713,9 +774,9 @@ void ArenaRunController::DrawTankRunUi()
     for (size_t i = 0; i < options; ++i) {
         const bool selected = static_cast<int>(i) == (result ? world_.combat.resultSelection_ : world_.run.tankRunSelection_);
         const bool rare = phase == RunPhase::Draft && !world_.run.tankRunPaused_ && tankrun::IsRare(world_.run.tankRun_.GetOffers()[i]);
-        world_.run.tankRunCards_[i]->SetColor(selected
-                                                  ? (rare ? myEngine::Vector4{0.21f, 0.12f, 0.045f, 1} : myEngine::Vector4{0.045f, 0.16f, 0.19f, 1})
-                                                  : myEngine::Vector4{0.028f, 0.045f, 0.075f, 1});
+        world_.run.tankRunCards_[i]->SetColor(
+            selected ? (rare ? myEngine::Vector4{0.21f, 0.12f, 0.045f, 1} : myEngine::Vector4{0.045f, 0.16f, 0.19f, 1})
+                     : myEngine::Vector4{0.028f, 0.045f, 0.075f, 1});
         world_.run.tankRunCards_[i]->Update();
         world_.run.tankRunCards_[i]->Draw();
         world_.run.tankRunCardTitles_[i]->Draw();
@@ -738,8 +799,9 @@ void ArenaRunController::QueueTankRunTelegraph()
     };
     for (size_t i = 0; i < world_.run.tankRunResources_.size(); ++i) {
         const auto& node = world_.run.tankRunResources_[i];
-        if (!node.active)
+        if (!node.active) {
             continue;
+        }
         const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(world_.run.tankRun_.GetRunElapsedSeconds()) * 3);
         circle(node.position, 1.9f + 0.12f * pulse, 0.08f, {1, 0.69f, 0.13f, 0.85f}, 6);
         // One/two/three ticks identify A/B/C without a world-space text pass.
@@ -754,7 +816,7 @@ void ArenaRunController::QueueTankRunTelegraph()
         const float t = burst.age / duration;
         circle(burst.position, 0.7f + t * (burst.resource ? 5.0f : 2.2f), 0.09f * (1 - t),
                burst.resource ? myEngine::Vector4{1, 0.72f, 0.15f, 1 - t} : myEngine::Vector4{0.25f, 1, 0.8f, 1 - t}, 20);
-        if (world_.run.expeditionRun_ && !burst.resource)
+        if (world_.run.expeditionRun_ && !burst.resource) {
             for (int i = 0; i < 8; ++i) {
                 const float a = static_cast<float>(i) * myEngine::pi / 4 + burst.position.x;
                 const myEngine::Vector3 direction{std::cos(a), std::sin(a), 0};
@@ -762,6 +824,7 @@ void ArenaRunController::QueueTankRunTelegraph()
                 world_.resources.neonGridRenderer_->QueueLine(start, start + direction * (0.45f * (1 - t)), 0.075f * (1 - t),
                                                               {0.45f, 1.2f, 0.85f, 1 - t});
             }
+        }
     }
     for (const auto& hit : world_.run.expeditionHitSparks_) {
         const float t = hit.age / 0.18f;
@@ -774,8 +837,9 @@ void ArenaRunController::QueueTankRunTelegraph()
                                                           {1.9f, 1.4f, 0.65f, 1 - t});
         }
     }
-    if (!world_.gameplayQueries->IsRunRivalActive() || world_.resources.enemy_->IsDead())
+    if (!world_.gameplayQueries->IsRunRivalActive() || world_.resources.enemy_->IsDead()) {
         return;
+    }
     if (world_.resources.enemy_->IsExpeditionRivalEnabled()) {
         const auto status = world_.resources.enemy_->GetRivalCombatStatus();
         using P = RivalBossCombat::Phase;
@@ -784,7 +848,8 @@ void ArenaRunController::QueueTankRunTelegraph()
         for (int i = 0; i < status.capacity; ++i) {
             const float x = (static_cast<float>(i) - (status.capacity - 1) * 0.5f) * 0.65f;
             const bool full = i < status.ammo;
-            world_.resources.neonGridRenderer_->QueueLine(origin + myEngine::Vector3{x, 3.2f, 0}, origin + myEngine::Vector3{x, 3.6f, 0}, 0.16f,
+            world_.resources.neonGridRenderer_->QueueLine(origin + myEngine::Vector3{x, 3.2f, 0}, origin + myEngine::Vector3{x, 3.6f, 0},
+                                                          0.16f,
                                                           reload ? myEngine::Vector4{0.2f, 1.2f, 1.1f, 1}
                                                           : full ? myEngine::Vector4{1.5f, 0.65f, 0.25f, 1}
                                                                  : myEngine::Vector4{0.20f, 0.16f, 0.16f, 0.7f});
@@ -802,12 +867,15 @@ void ArenaRunController::QueueTankRunTelegraph()
             const myEngine::Vector3 side{-status.dashDirection.y, status.dashDirection.x, 0};
             const myEngine::Vector3 end = origin + status.dashDirection * status.dashDistance;
             const myEngine::Vector4 tint{1.5f, 0.45f, 0.16f, 0.65f + 0.3f * status.progress};
-            for (float offset : {-1.4f, 1.4f})
+            for (float offset : {-1.4f, 1.4f}) {
                 world_.resources.neonGridRenderer_->QueueLine(origin + side * offset, end + side * offset, 0.10f, tint);
+            }
             world_.resources.neonGridRenderer_->QueueLine(end - side * 1.4f, end + side * 1.4f, 0.10f, tint);
-            if (status.phase == P::Dash)
-                for (int i = 1; i <= 3; ++i)
+            if (status.phase == P::Dash) {
+                for (int i = 1; i <= 3; ++i) {
                     circle(origin - status.dashDirection * (0.85f * i), 2.0f, 0.10f, {1, 0.35f, 0.12f, 0.4f / i}, 16);
+                }
+            }
         }
         if (status.phase == P::Tracking || status.phase == P::Locked || status.phase == P::Volley) {
             const float base = std::atan2(status.direction.y, status.direction.x);
@@ -815,49 +883,56 @@ void ArenaRunController::QueueTankRunTelegraph()
             const myEngine::Vector4 tint{1.4f, 0.45f + 0.3f * status.progress, 0.14f, status.phase == P::Volley ? 0.32f : 0.65f};
             auto clipDistance = [&](const myEngine::Vector3& ray) {
                 float nearest = 24.0f;
-                for (const auto& row : world_.resources.stage_->GetBlocks())
-                    for (const auto& block : row)
+                for (const auto& row : world_.resources.stage_->GetBlocks()) {
+                    for (const auto& block : row) {
                         if (block.isActive) {
                             float enter = 0, leave = nearest;
                             auto slab = [&](float start, float direction, float low, float high) {
                                 low -= 0.15f;
                                 high += 0.15f;
-                                if (std::abs(direction) < 0.0001f)
+                                if (std::abs(direction) < 0.0001f) {
                                     return start >= low && start <= high;
+                                }
                                 float a = (low - start) / direction, b = (high - start) / direction;
-                                if (a > b)
+                                if (a > b) {
                                     std::swap(a, b);
+                                }
                                 enter = (std::max)(enter, a);
                                 leave = (std::min)(leave, b);
                                 return enter <= leave;
                             };
                             if (slab(origin.x, ray.x, block.aabb.min.x, block.aabb.max.x) &&
-                                slab(origin.y, ray.y, block.aabb.min.y, block.aabb.max.y))
+                                slab(origin.y, ray.y, block.aabb.min.y, block.aabb.max.y)) {
                                 nearest = (std::max)(0.0f, enter);
+                            }
                         }
+                    }
+                }
                 return nearest;
             };
             for (int i = 0; i < 3; ++i) {
                 const float angle = base + half * (i - 1);
                 const myEngine::Vector3 ray{std::cos(angle), std::sin(angle), 0};
                 const float distance = clipDistance(ray);
-                if (distance > 1.8f)
+                if (distance > 1.8f) {
                     world_.resources.neonGridRenderer_->QueueLine(origin + ray * 1.8f, origin + ray * distance, 0.06f, tint);
+                }
             }
         }
         return;
     }
     const auto telegraph = world_.resources.enemy_->GetPrototypeTelegraph();
-    if (!telegraph.active)
+    if (!telegraph.active) {
         return;
+    }
     myEngine::Vector3 origin = world_.resources.enemy_->GetWorldPosition();
     origin.z = -0.3f;
     const float base = std::atan2(telegraph.direction.y, telegraph.direction.x), half = telegraph.spreadAngleDeg * myEngine::pi / 360;
     const bool ring = telegraph.attackType == Enemy::PrototypeAttackType::GapRing;
     const myEngine::Vector4 color{1, 0.30f + 0.25f * telegraph.progress, 0.08f, 0.75f};
     auto radial = [&](float angle, float length, float width, const myEngine::Vector4& tint) {
-        world_.resources.neonGridRenderer_->QueueLine(origin, origin + myEngine::Vector3{std::cos(angle) * length, std::sin(angle) * length, 0},
-                                                      width, tint);
+        world_.resources.neonGridRenderer_->QueueLine(
+            origin, origin + myEngine::Vector3{std::cos(angle) * length, std::sin(angle) * length, 0}, width, tint);
     };
     if (ring) {
         for (int i = 0; i < 48; ++i) {
@@ -873,15 +948,17 @@ void ArenaRunController::QueueTankRunTelegraph()
     } else {
         radial(base - half, 20, 0.07f, color);
         radial(base + half, 20, 0.07f, color);
-        for (int i = 1; i < 5; ++i)
+        for (int i = 1; i < 5; ++i) {
             radial(base - half + 2 * half * static_cast<float>(i) / 5, 20, 0.025f, {0.8f, 0.18f, 0.06f, 0.28f});
+        }
     }
 }
 
 void ArenaRunController::RequestTankRunCapture(const std::string& name)
 {
-    if (!world_.run.tankRunCapturePath_.empty())
+    if (!world_.run.tankRunCapturePath_.empty()) {
         return;
+    }
     const std::string directory = world_.run.expeditionRun_
                                       ? "generated/tank_expedition/variant_" + std::to_string(world_.run.tankExpeditionAutoVariant_)
                                       : "generated/tank_run";
@@ -891,12 +968,14 @@ void ArenaRunController::RequestTankRunCapture(const std::string& name)
 
 void ArenaRunController::CopyTankRunCapture()
 {
-    if (world_.run.tankRunCapturePath_.empty() || world_.run.tankRunCaptureCopied_)
+    if (world_.run.tankRunCapturePath_.empty() || world_.run.tankRunCaptureCopied_) {
         return;
+    }
     auto dx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
     Microsoft::WRL::ComPtr<ID3D12Resource> source;
-    if (FAILED(dx->GetSwapChain()->GetBuffer(dx->GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&source))))
+    if (FAILED(dx->GetSwapChain()->GetBuffer(dx->GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&source)))) {
         return;
+    }
     auto desc = source->GetDesc();
     UINT64 size = 0;
     dx->GetDevice()->GetCopyableFootprints(&desc, 0, 1, 0, &world_.run.tankRunCaptureLayout_, nullptr, nullptr, &size);
@@ -937,8 +1016,9 @@ void ArenaRunController::CopyTankRunCapture()
 
 void ArenaRunController::FinishTankRunCapture()
 {
-    if (!world_.run.tankRunCaptureCopied_)
+    if (!world_.run.tankRunCaptureCopied_) {
         return;
+    }
     void* pixels = nullptr;
     if (SUCCEEDED(world_.run.tankRunCaptureReadback_->Map(0, nullptr, &pixels))) {
         const auto& layout = world_.run.tankRunCaptureLayout_.Footprint;
@@ -950,8 +1030,9 @@ void ArenaRunController::FinishTankRunCapture()
         photo.slicePitch = photo.rowPitch * photo.height;
         photo.pixels = static_cast<uint8_t*>(pixels) + world_.run.tankRunCaptureLayout_.Offset;
         const auto path = std::filesystem::path(world_.run.tankRunCapturePath_);
-        if (FAILED(DirectX::SaveToWICFile(photo, DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), path.c_str())))
+        if (FAILED(DirectX::SaveToWICFile(photo, DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), path.c_str()))) {
             OutputDebugStringA("[TankRun] capture failed\n");
+        }
         D3D12_RANGE writes{0, 0};
         world_.run.tankRunCaptureReadback_->Unmap(0, &writes);
     }

@@ -23,7 +23,6 @@ namespace myEngine {
 
 /// @brief Windowsのウィンドウ生成とメッセージ処理を管理する。
 class WinApp {
-
 public:
     // シングルトン
     static WinApp* GetInstance();
@@ -49,11 +48,13 @@ public:
     {
         return wc_;
     };
+
     /// @brief Hwndを返す。
     HWND GetHwnd()
     {
         return hwnd_;
     }
+
     /// @brief Client幅を返す。
     int32_t GetClientWidth() const;
     /// @brief Client高さを返す。
@@ -61,16 +62,19 @@ public:
     /// @brief 実ウィンドウのクライアント座標を、論理座標(kClientWidth x kClientHeight)へ変換する。
     /// 最終提示で画面を樽型に歪ませている場合は、その画素に映っている論理位置を返す。
     void ClientToLogical(float& x, float& y) const;
+
     /// @brief 最終提示パスの樽型歪みの強さを設定する（0で歪みなし）。
     void SetPresentationCurvature(float curvature)
     {
         presentationCurvature_ = curvature;
     }
+
     /// @brief 有効であるか判定する。
     bool IsActive() const
     {
         return isActive_;
     }
+
     /// @brief ActivationChangedの未処理分を取り出し、内部の保留分を消費済みにする。
     bool ConsumeActivationChanged();
 

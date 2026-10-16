@@ -7,6 +7,7 @@ class CombatFramePipeline {
 public:
     /// @brief 借用するワールドを設定する。
     explicit CombatFramePipeline(GameWorld& world) : world_(world) {}
+
     /// @brief シーンの状態に応じて戦闘・演出・進行を更新する。戦闘の呼び出し順は実装内に記載する。
     void Update();
 

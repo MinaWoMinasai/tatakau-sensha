@@ -17,7 +17,6 @@ class Stage;
 
 /// @brief 自機に属するドローン1体の追従・攻撃・衝突・描画を管理する。
 class PlayerDrone : public Collider {
-
 public:
     /// @brief デストラクタ
     ~PlayerDrone();
@@ -28,11 +27,13 @@ public:
     /// @brief 遠征射撃を有効にし、射撃設定をコピーする。1回の弾数は1に固定する。
     /// @param reloadSeconds 発射間隔（秒）。最低0.05秒に補正する。
     void ConfigureRunAttack(const AttackParam& param, float reloadSeconds);
+
     /// @brief 射撃ごとに小数の余りを繰り越す威力を設定する。負値は0、1未満ならこの補正を使わない。
     void SetRunExactDamage(float amount)
     {
         runExactDamage_ = (std::max)(0.0f, amount);
     }
+
     /// @brief マウス入力に代わる照準のワールド座標と射撃入力を設定し、入力の上書きを有効にする。
     void SetRunInput(const myEngine::Vector3& target, bool attack)
     {
@@ -40,11 +41,13 @@ public:
         runAimTarget_ = target;
         runWantsAttack_ = attack;
     }
+
     /// @brief 自機のワールド座標へ加える追従先のオフセットを設定する。
     void SetRunFollowOffset(const myEngine::Vector3& offset)
     {
         runFollowOffset_ = offset;
     }
+
     /// @brief 追従の基準速度・追い付き速度の上限・指数補間の応答係数を設定する。
     /// @note speed・catchupは60FPS相当の基準1フレームの移動量、responseは毎秒の応答係数。
     void SetRunFollowTuning(float speed, float catchup, float response)
@@ -53,47 +56,56 @@ public:
         runCatchupSpeed_ = catchup;
         runFollowResponse_ = response;
     }
+
     /// @brief 射撃の待ち時間を解除し、次の護衛射撃を要求する。入力の上書き中はそちらの射撃入力を使う。
     void RallyRunAttack()
     {
         runShotCooldown_ = 0.0f;
         runRallyShotPending_ = true;
     }
+
     /// @brief 生成する弾へ渡す自機の借用先とドローンの添字を設定する。所有権は移らない。
     void SetRunOwner(Player* player, int index)
     {
         runAttackParam_.sourcePlayer = player;
         runAttackParam_.sourceDroneIndex = index;
     }
+
     /// @brief 護衛中なら対象のワールド座標を記録して突撃の予告を開始し、trueを返す。
     /// @note 開始できなければ対象位置も変更しない。bombがtrueなら到着後に再構築へ進む。
     bool StartRunMission(const myEngine::Vector3& target, bool bomb)
     {
-        if (!mission_.Start(bomb))
+        if (!mission_.Start(bomb)) {
             return false;
+        }
         missionTarget_ = target;
         return true;
     }
+
     /// @brief 現在の任務状態への読み取り専用参照を返す。
     const tankspecial::DroneMission& GetRunMission() const
     {
         return mission_;
     }
+
     /// @brief 任務開始時に記録した対象のワールド座標への読み取り専用参照を返す。
     const myEngine::Vector3& GetRunMissionTarget() const
     {
         return missionTarget_;
     }
+
     /// @brief 死亡中・再構築中でなければtrue。新しい任務を開始できるかとは別の判定。
     bool IsRunAvailable() const
     {
         return !isDead_ && mission_.Available();
     }
+
     /// @brief 遠征任務衝撃の未処理分を取り出し、内部の保留分を消費済みにする。
     bool ConsumeRunMissionImpact()
     {
         return mission_.ConsumeImpact();
     }
+
     /// @brief 再構築完了の有無を返し、保留フラグを解除する。
     bool ConsumeRunRebuilt()
     {
@@ -104,8 +116,12 @@ public:
 
     /// @brief 遠征射撃の入力上書き中は指定したワールド座標へ、それ以外はマウスの照準へ向きを更新する。
     void RotateToMouse(myEngine::Camera* viewProjection);
+
     /// @brief 指定済み遠征照準以外のマウス入力にも、Depth専用の表示VP床投影を使う。
-    void SetNeonDepthAimEnabled(bool enabled) { neonDepthAimEnabled_ = enabled; }
+    void SetNeonDepthAimEnabled(bool enabled)
+    {
+        neonDepthAimEnabled_ = enabled;
+    }
 
     /// @brief 初期化
     /// @param velocity 初期の移動速度。
@@ -118,29 +134,35 @@ public:
 
     /// @brief 描画
     void Draw();
+
     /// @brief ネオン表示を設定する。
     /// @note 有効なら通常モデルをDrawで描かず、シーン側で機体と同じ制作データのネオン形状を使う。
     void SetNeonVisual(bool enabled)
     {
         neonVisual_ = enabled;
     }
+
     /// @brief ネオンによる機体描画を使用するか判定する。
     bool UsesNeonVisual() const
     {
         return neonVisual_;
     }
+
     /// @brief 死亡・再構築と無敵時間の点滅条件から、現在の表示可否を返す。
     bool IsVisualVisible() const;
+
     /// @brief 照準方向を返す。
     const myEngine::Vector3& GetAimDirection() const
     {
         return dir;
     }
+
     /// @brief ネオン銃口フラッシュ比率を返す。
     float GetNeonMuzzleFlashRatio() const
     {
-        if (!runAttackEnabled_ || runShotCooldown_ <= 0.0f)
+        if (!runAttackEnabled_ || runShotCooldown_ <= 0.0f) {
             return 0.0f;
+        }
         const float flashSeconds = (std::min)(0.075f, runReloadSeconds_);
         return (std::clamp)((runShotCooldown_ - runReloadSeconds_ + flashSeconds) / flashSeconds, 0.0f, 1.0f);
     }
@@ -166,6 +188,7 @@ public:
     {
         return velocity_;
     }
+
     /// @brief 速度を設定する。
     void SetVelocity(const myEngine::Vector3& v)
     {
@@ -194,11 +217,13 @@ public:
     {
         return isDead_;
     }
+
     /// @brief 現在のHPを返す。
     int GetHp() const
     {
         return hp_;
     }
+
     /// @brief 最大HPを返す。
     int GetMaxHp() const
     {

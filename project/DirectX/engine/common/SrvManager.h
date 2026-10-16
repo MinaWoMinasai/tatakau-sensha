@@ -14,11 +14,13 @@ public:
     uint32_t Allocate();
     /// @brief 確保した資源を解放する。
     void Free(uint32_t index);
+
     /// @brief Allocated件数を返す。
     uint32_t GetAllocatedCount() const
     {
         return allocatedCount_;
     }
+
     /// @brief 高精度水面マーキングを返す。
     uint32_t GetHighWaterMark() const
     {
@@ -54,6 +56,7 @@ public:
     {
         return descriptorHeap_;
     };
+
     // 最大srv数
     static const uint32_t kMaxSrvCount;
 

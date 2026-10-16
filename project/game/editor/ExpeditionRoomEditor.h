@@ -11,6 +11,7 @@ public:
               const MapDefinition* activeMap = nullptr);
     /// @brief 選択中部屋識別子を返す。
     const std::string& GetSelectedRoomId() const;
+
     /// @brief 候補選択を初期状態へ戻す。
     void ResetDraft()
     {

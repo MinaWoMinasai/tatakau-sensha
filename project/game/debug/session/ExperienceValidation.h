@@ -7,6 +7,7 @@ class ExperienceValidation {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ExperienceValidation(GameWorld& world) : world_(world) {}
+
     // Opt-in end-to-end experience validation; ordinary play never enters it.
     /// @brief 経験値検証を初期化する。
     void InitializeExperienceValidation();

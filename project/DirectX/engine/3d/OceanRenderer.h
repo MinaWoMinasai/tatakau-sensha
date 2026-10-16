@@ -280,11 +280,13 @@ public:
     {
         return parameters_;
     }
+
     /// @brief FFT診断値を返す。
     const OceanFFTDiagnostics& GetFFTDiagnostics() const
     {
         return fftDiagnostics_;
     }
+
     /// @brief FFT診断値予約中であるか判定する。
     bool IsFFTDiagnosticsPending() const
     {

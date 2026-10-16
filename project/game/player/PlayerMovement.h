@@ -22,10 +22,16 @@ inline PlayerMovementStep CalculatePlayerMovement(const PlayerMovementInput& inp
     PlayerMovementStep result{};
     result.direction = input.direction;
     result.velocity = input.velocity;
-    if (myEngine::Length(result.direction) > 1.0f) result.direction = myEngine::Normalize(result.direction);
+    if (myEngine::Length(result.direction) > 1.0f) {
+        result.direction = myEngine::Normalize(result.direction);
+    }
     myEngine::Vector3 targetVelocity = result.direction * input.moveSpeed;
-    if (input.railHeld && !input.dashing) targetVelocity = targetVelocity * 0.78f;
-    if (input.spinActive && !input.dashing) targetVelocity = targetVelocity * 0.55f;
+    if (input.railHeld && !input.dashing) {
+        targetVelocity = targetVelocity * 0.78f;
+    }
+    if (input.spinActive && !input.dashing) {
+        targetVelocity = targetVelocity * 0.55f;
+    }
     const float accel = myEngine::Length(result.direction) > 0.0f ? input.acceleration : input.deceleration;
     if (input.runEnabled) {
         const float response = input.dashing ? 1.5f : accel;

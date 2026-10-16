@@ -39,8 +39,10 @@ class ResourceObject {
 public:
     /// @brief インスタンスの初期値と利用先を設定する。
     ResourceObject(Microsoft::WRL::ComPtr<ID3D12Resource>& resource) : resource_(resource) {}
+
     /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~ResourceObject() = default;
+
     /// @brief 保持している値またはリソースを返す。
     Microsoft::WRL::ComPtr<ID3D12Resource> Get()
     {
@@ -128,7 +130,11 @@ public:
     /// @brief 初期化
     void Initialize(WinApp* winApp, bool titleFirst = false);
     bool InitializePipelinesStep();
-    bool ArePipelinesReady() const { return pipelinesReady_; }
+
+    bool ArePipelinesReady() const
+    {
+        return pipelinesReady_;
+    }
 
     /// @brief 描画前処理
     void PreDraw();
@@ -145,31 +151,37 @@ public:
     void ExecuteCommandListAndWait();
     /// @brief 固定FPSを初期状態へ戻す。
     void ResetFixFPS();
+
     /// @brief フレーム上限有効を設定する。
     void SetFrameLimitEnabled(bool enabled)
     {
         framePacer_.SetEnabled(enabled);
     }
+
     /// @brief フレーム上限有効であるか判定する。
     bool IsFrameLimitEnabled() const
     {
         return framePacer_.IsEnabled();
     }
+
     /// @brief フレーム待機の計測値を返す。
     const FramePacer::Stats& GetFramePacingStats() const
     {
         return framePacer_.GetStats();
     }
+
     /// @brief フレーム送信の計測値を返す。
     const FrameSubmitProfile& GetFrameSubmitProfile() const
     {
         return frameSubmitProfile_;
     }
+
     /// @brief D3D12開発表示Layer有効であるか判定する。
     bool IsD3D12DebugLayerEnabled() const
     {
         return d3d12DebugLayerEnabled_;
     }
+
     /// @brief GPUBased検証有効であるか判定する。
     bool IsGpuBasedValidationEnabled() const
     {
@@ -187,6 +199,7 @@ public:
     {
         return device_;
     }
+
     /// @brief Dxgiファクトリーを返す。
     Microsoft::WRL::ComPtr<IDXGIFactory7>& GetDxgiFactory()
     {
@@ -198,6 +211,7 @@ public:
     {
         return viewportRect_;
     }
+
     /// @brief 描画を制限する矩形を返す。
     D3D12_RECT GetSissorRect()
     {
@@ -209,6 +223,7 @@ public:
     {
         return swapChain_;
     }
+
     /// @brief 交換Chain記述を返す。
     DXGI_SWAP_CHAIN_DESC1 GetSwapChainDesc()
     {
@@ -220,6 +235,7 @@ public:
     {
         return rtvDescriptorHeap_;
     };
+
     /// @brief DSVヒープを返す。
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetDsvHeap()
     {
@@ -231,46 +247,55 @@ public:
     {
         return fence_;
     }
+
     /// @brief フェンスイベントを返す。
     HANDLE GetFenceEvent()
     {
         return fenceEvent_;
     }
+
     /// @brief 予約を返す。
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetQueue()
     {
         return queue_;
     }
+
     /// @brief Allocatorを返す。
     Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetAllocator()
     {
         return allocator_;
     }
+
     /// @brief 予約記述を返す。
     D3D12_COMMAND_QUEUE_DESC GetQueueDesc()
     {
         return queueDesc_;
     }
+
     /// @brief 一覧を返す。
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetList()
     {
         return list_;
     }
+
     /// @brief フェンス値を返す。
     uint64_t GetFenceValue()
     {
         return fenceValue_;
     }
+
     /// @brief DxcUtilsを返す。
     IDxcUtils* GetDxcUtils()
     {
         return dxcUtils_;
     }
+
     /// @brief DxcCompilerを返す。
     IDxcCompiler3* GetDxcCompiler()
     {
         return dxcCompiler_;
     }
+
     /// @brief include依存Handlerを返す。
     IDxcIncludeHandler* GetIncludeHandler()
     {
@@ -400,8 +425,10 @@ public:
             return objectPSO_None_HDR;
         }
     }
+
     /// @brief 深度を持たないHDRキャプチャにはDSVなしの互換PSOを再利用する。
     ID3D12PipelineState* GetObjectScenePipeline(BlendMode blendMode);
+
     /// @brief PSO海面用のシーンを返す。
     PSO& GetPSOOceanForScene()
     {
@@ -413,83 +440,104 @@ public:
     {
         return psoParticle_;
     }
+
     /// @brief PSOモデル粒子を返す。
     PSO& GetPSOModelParticle()
     {
         return psoModelParticle_;
     }
+
     /// @brief PSOモデル粒子用のシーンを返す。
     PSO& GetPSOModelParticleForScene()
     {
         return psoModelParticle_HDR;
     }
+
     /// @brief ガウシアンFilterPSOを返す。
     const PSO& GetGaussianFilterPSO() const
     {
         return gaussianFilterPSO;
     }
+
     /// @brief PSO計算粒子を返す。
     PSO& GetPSOComputeParticle()
     {
         return psoComputeParticle_;
     }
+
     /// @brief PSO初期化粒子を返す。
     PSO& GetPSOInitializeParticle()
     {
         return psoInitializeParticle_;
     }
+
     /// @brief PSOEmit粒子を返す。
     PSO& GetPSOEmitParticle()
     {
         return psoEmitParticle_;
     }
+
     /// @brief PSOEmit一括処理粒子を返す。
     PSO& GetPSOEmitBatchParticle()
     {
         return psoEmitBatchParticle_;
     }
+
     /// @brief PSO軌跡を返す。
     PSO& GetPSOTrail()
     {
         return trailPSO;
     }
+
     /// @brief PSO軌跡用のシーンを返す。
     PSO& GetPSOTrailForScene()
     {
         return trailPSO_HDR;
     }
+
     /// @brief PSOHUD矩形を返す。
     bool InitializeTrailSceneNoDepthPipeline();
-    ID3D12PipelineState* GetTrailSceneNoDepthPipeline() const { return trailSceneNoDepthPipeline_.Get(); }
+
+    ID3D12PipelineState* GetTrailSceneNoDepthPipeline() const
+    {
+        return trailSceneNoDepthPipeline_.Get();
+    }
+
     PSO& GetPSOHudRect()
     {
         return hudRectPSO;
     }
+
     /// @brief PSO背景を返す。
     PSO& GetPSOSkybox()
     {
         return skyboxPSO_HDR;
     }
+
     /// @brief PSOスキニングを返す。
     PSO& GetPSOSkinning()
     {
         return skinningPSO;
     }
+
     /// @brief PSOスキニング用のシーンを返す。
     PSO& GetPSOSkinningForScene()
     {
         return skinningPSO_HDR;
     }
+
     /// @brief PSOスキニング両面面を返す。
     PSO& GetPSOSkinningDoubleSided()
     {
         return skinningDoubleSidedPSO;
     }
+
     /// @brief PSOスキニング両面面用のシーンを返す。
     PSO& GetPSOSkinningDoubleSidedForScene()
     {
         return skinningDoubleSidedPSO_HDR;
     }
+
     /// @brief PSOスキニング影を返す。
     PSO& GetPSOSkinningShadow()
     {
@@ -512,6 +560,7 @@ public:
     {
         return rtvDesc_;
     }
+
     /// @brief テクスチャリソースを生成する。
     Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(uint32_t width, uint32_t height, DXGI_FORMAT format,
                                                                  D3D12_RESOURCE_FLAGS flags, const D3D12_CLEAR_VALUE* clearValue,
@@ -527,6 +576,7 @@ public:
                           D3D12_CPU_DESCRIPTOR_HANDLE materialRtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);
     /// @brief 描画対象No深度を設定する。
     void SetRenderTargetNoDepth(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
+
     // Capture all MRT attachments and raster bounds, not just scene color.
     struct RenderTargetState {
         std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 3> rtvs{};
@@ -536,20 +586,26 @@ public:
         D3D12_VIEWPORT viewport{};
         D3D12_RECT scissor{};
     };
-    RenderTargetState GetRenderTargetState() const {
+
+    RenderTargetState GetRenderTargetState() const
+    {
         return {currentRtvHandles_, currentRtvCount_, currentDsvHandle_, currentHasDsv_, viewportRect_, scissorRect_};
     }
+
     void RestoreRenderTargetState(const RenderTargetState& state);
+
     /// @brief 現在RTVハンドルを返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRTVHandle() const
     {
         return currentRtvHandle_;
     }
+
     /// @brief 現在DSVハンドルを返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentDSVHandle() const
     {
         return currentDsvHandle_;
     }
+
     /// @brief 現在DSVが存在するか判定する。
     bool HasCurrentDSV() const
     {

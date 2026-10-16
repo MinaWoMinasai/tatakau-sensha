@@ -16,14 +16,14 @@ namespace myEngine {
 class BloomPyramid {
 public:
     static constexpr uint32_t kMaxLevels = 5;
-    struct LevelDimensions { uint32_t width = 1, height = 1; };
 
-    void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager,
-        uint32_t sourceWidth, uint32_t sourceHeight);
-    uint32_t Render(uint32_t sourceSrv, const BloomParam& param,
-        uint32_t materialSrv = (std::numeric_limits<uint32_t>::max)());
-    uint32_t Render(D3D12_GPU_DESCRIPTOR_HANDLE sourceSrv, const BloomParam& param,
-        D3D12_GPU_DESCRIPTOR_HANDLE materialSrv = {});
+    struct LevelDimensions {
+        uint32_t width = 1, height = 1;
+    };
+
+    void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t sourceWidth, uint32_t sourceHeight);
+    uint32_t Render(uint32_t sourceSrv, const BloomParam& param, uint32_t materialSrv = (std::numeric_limits<uint32_t>::max)());
+    uint32_t Render(D3D12_GPU_DESCRIPTOR_HANDLE sourceSrv, const BloomParam& param, D3D12_GPU_DESCRIPTOR_HANDLE materialSrv = {});
 
     // A frame-wide comparison override: -1 follows each category's parameters.
     static void SetModeOverride(int mode);
@@ -31,21 +31,52 @@ public:
     // off removes all bloom; isolatedLevel >= 0 outputs only that downsampled level
     // (0 = 1/2 resolution ... kMaxLevels-1 = 1/32) instead of the blended upsample chain.
     static void SetPresentationView(bool off, int isolatedLevel);
-    static int GetPresentationIsolatedLevel() { return presentationLevel_; }
+
+    static int GetPresentationIsolatedLevel()
+    {
+        return presentationLevel_;
+    }
+
     /// @brief 1段だけ表示するときの明るさ補正（全段合成でその段が受け持つ割合の逆数）。
     static float GetPresentationGainScale(float scatter);
-    static uint32_t GetPresentationGeneration() { return presentationGeneration_; }
+
+    static uint32_t GetPresentationGeneration()
+    {
+        return presentationGeneration_;
+    }
+
     static uint32_t EffectiveMode(const BloomParam& param);
 
     uint32_t GetExtractSrvIndex() const;
-    uint32_t GetOutputSrvIndex() const { return outputSrv_; }
-    uint32_t GetActiveLevelCount() const { return activeLevelCount_; }
-    uint32_t GetSourceWidth() const { return sourceWidth_; }
-    uint32_t GetSourceHeight() const { return sourceHeight_; }
-    const std::array<LevelDimensions, kMaxLevels>& GetLevelDimensions() const { return dimensions_; }
+
+    uint32_t GetOutputSrvIndex() const
+    {
+        return outputSrv_;
+    }
+
+    uint32_t GetActiveLevelCount() const
+    {
+        return activeLevelCount_;
+    }
+
+    uint32_t GetSourceWidth() const
+    {
+        return sourceWidth_;
+    }
+
+    uint32_t GetSourceHeight() const
+    {
+        return sourceHeight_;
+    }
+
+    const std::array<LevelDimensions, kMaxLevels>& GetLevelDimensions() const
+    {
+        return dimensions_;
+    }
 
 private:
     struct PipelineBundle;
+
     // Mirrors BloomPyramidCommon.hlsli. Root constants are copied into the
     // command stream per pass, so later draws cannot overwrite their values.
     struct PassConstants {
@@ -57,6 +88,7 @@ private:
         float waterDiagnosticsEnabled;
         uint32_t padding[3]{};
     };
+
     static_assert(sizeof(PassConstants) == 48);
     static_assert(offsetof(PassConstants, threshold) == 8);
     static_assert(offsetof(PassConstants, scatter) == 16);
@@ -65,11 +97,9 @@ private:
     static_assert(offsetof(PassConstants, padding) == 36);
 
     void CreatePipeline();
-    void DrawPass(RenderTexture& output, const LevelDimensions& dimensions,
-        ID3D12PipelineState* pipeline, D3D12_GPU_DESCRIPTOR_HANDLE source,
-        D3D12_GPU_DESCRIPTOR_HANDLE auxiliary, const PassConstants& constants);
-    void Transition(RenderTexture& target, D3D12_RESOURCE_STATES before,
-        D3D12_RESOURCE_STATES after);
+    void DrawPass(RenderTexture& output, const LevelDimensions& dimensions, ID3D12PipelineState* pipeline,
+                  D3D12_GPU_DESCRIPTOR_HANDLE source, D3D12_GPU_DESCRIPTOR_HANDLE auxiliary, const PassConstants& constants);
+    void Transition(RenderTexture& target, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
 
     static int modeOverride_;
     static bool presentationOff_;

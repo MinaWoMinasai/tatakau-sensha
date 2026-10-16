@@ -53,20 +53,24 @@ public:
         instances_.clear();
         geometryDirty_ = true;
     }
+
     /// @brief インスタンス件数を返す。
     size_t GetInstanceCount() const
     {
         return instances_.size();
     }
+
     /// @brief 描画可能インスタンスが存在するか判定する。
     bool HasDrawableInstances() const
     {
         for (const auto& instance : instances_) {
-            if (instance->GetPoints().size() >= 4)
+            if (instance->GetPoints().size() >= 4) {
                 return true;
+            }
         }
         return false;
     }
+
     /// @brief 描画件数と頂点数の集計を返す。
     const DrawStats& GetDrawStats() const
     {
@@ -100,18 +104,22 @@ private:
     TrailVertex* vertexData_ = nullptr;
     uint32_t vertexCapacity_ = 0;
     uint64_t vertexLastUsedFence_ = 0;
+
     /// @brief GPUがまだ参照しうる旧頂点バッファと解放可能なフェンス値を保持する。
     struct RetiredVertexBuffer {
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;
         uint64_t lastUsedFence = 0;
     };
+
     std::vector<RetiredVertexBuffer> retiredVertexBuffers_;
     std::vector<TrailVertex> builtVertices_;
+
     /// @brief 一括描画する頂点範囲と描画条件を表す。
     struct DrawRange {
         uint32_t firstVertex = 0;
         uint32_t vertexCount = 0;
     };
+
     std::vector<DrawRange> builtDrawRanges_;
     std::vector<uint64_t> builtRevisions_;
     uint64_t builtGeometryVertices_ = 0;
@@ -125,6 +133,7 @@ private:
         Matrix4x4* data = nullptr;
         uint64_t lastUsedFence = 0;
     };
+
     std::vector<ViewProjectionBuffer> viewProjectionBuffers_;
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
     Material* materialData_ = nullptr;

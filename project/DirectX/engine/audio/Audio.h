@@ -42,6 +42,7 @@ public:
         std::wstring soundName;
         size_t voiceIndex = 0;
         uint64_t generation = 0;
+
         /// @brief 有効であるか判定する。
         bool IsValid() const
         {
@@ -54,6 +55,7 @@ public:
 
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize();
+
     /// @brief 準備完了であるか判定する。
     bool IsReady() const
     {

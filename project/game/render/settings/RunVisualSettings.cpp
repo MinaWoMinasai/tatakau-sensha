@@ -8,8 +8,9 @@ namespace gameplay {
 
 void RunVisualSettings::InitializeTankRunVisuals()
 {
-    if (!world_.run.prototypeRun_)
+    if (!world_.run.prototypeRun_) {
         return;
+    }
     world_.presentation.stageSurface_.enabled = true;
     // Stage presentation is independent of the older expeditionAuthored marker.
     // A saved legacy switch must survive this run's defaults as well as restart.
@@ -20,8 +21,9 @@ void RunVisualSettings::InitializeTankRunVisuals()
         if (visual.is_object() && visual.contains("stageSurface")) {
             world_.gameplaySettings->ApplyGameVisualConfig(nlohmann::json{{"stageSurface", visual["stageSurface"]}});
         }
-    } catch (...) { /* Existing config load reports parse errors; defaults remain usable. */ }
-
+    }
+    catch (...) { /* Existing config load reports parse errors; defaults remain usable. */
+    }
 
     // Vector-monitor arena: a black stage drawn only with thin emissive lines.
     // The floor grid is a dim blue lattice, walls are bright cyan wireframes,
@@ -59,8 +61,9 @@ void RunVisualSettings::InitializeTankRunVisuals()
     // These are generated postprocess contours, not the intentional frame
     // lines of the tanks, resource shapes, and arena geometry.
     const auto removeGeneratedOutline = [](myEngine::ObjectPostEffect* effect) {
-        if (!effect)
+        if (!effect) {
             return;
+        }
         myEngine::BloomParam param = effect->GetParam();
         param.outlineWidth = 0.0f;
         param.outlineBloomIntensity = 0.0f;
@@ -78,8 +81,9 @@ void RunVisualSettings::InitializeTankRunVisuals()
         removeGeneratedOutline(effect);
     }
     const auto restoreEmitterBloom = [](myEngine::ObjectPostEffect* effect, float intensity) {
-        if (!effect)
+        if (!effect) {
             return;
+        }
         myEngine::BloomParam param = effect->GetParam();
         param.threshold = 0.0f;
         param.intensity = intensity;
@@ -113,8 +117,9 @@ void RunVisualSettings::InitializeTankRunVisuals()
                 std::ifstream file(path);
                 nlohmann::json j;
                 file >> j;
-                if (j.is_object() && j.value("expeditionAuthored", false))
+                if (j.is_object() && j.value("expeditionAuthored", false)) {
                     return j;
+                }
             }
             catch (...) {
             }
@@ -122,15 +127,18 @@ void RunVisualSettings::InitializeTankRunVisuals()
         };
         world_.gameplaySettings->ApplyGamePostEffectConfig(authored("resources/configs/gamePostEffects.json"));
         const auto visual = authored("resources/configs/gameVisuals.json");
-        if (!visual.empty())
+        if (!visual.empty()) {
             world_.gameplaySettings->ApplyGameVisualConfig(visual);
+        }
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     // Reproducible A/B fixtures; never persisted and never compiled into Release.
     char testMode[16]{};
     if (GetEnvironmentVariableA("MYENGINE_STAGE_SURFACE_TEST_MODE", testMode, sizeof(testMode)) > 0) {
         const std::string mode(testMode);
-        if (mode == "phase1") world_.presentation.stageSurface_ = stagesurface::Phase1Settings();
+        if (mode == "phase1") {
+            world_.presentation.stageSurface_ = stagesurface::Phase1Settings();
+        }
         auto& surface = world_.presentation.stageSurface_;
         if (mode == "legacy" || mode == "floor" || mode == "blocks" || mode == "full") {
             surface.enabled = mode != "legacy";
@@ -141,10 +149,14 @@ void RunVisualSettings::InitializeTankRunVisuals()
     auto overrideInt = [](const char* name, int& target, int high) {
         char value[16]{};
         const auto length = GetEnvironmentVariableA(name, value, sizeof(value));
-        if (!length || length >= sizeof(value)) return;
+        if (!length || length >= sizeof(value)) {
+            return;
+        }
         char* end = nullptr;
         const long parsed = std::strtol(value, &end, 10);
-        if (end != value && *end == '\0' && parsed >= -1 && parsed <= high) target = static_cast<int>(parsed);
+        if (end != value && *end == '\0' && parsed >= -1 && parsed <= high) {
+            target = static_cast<int>(parsed);
+        }
     };
     overrideInt("MYENGINE_STAGE_SURFACE_TEST_DEBUG", world_.presentation.developerStageSurfaceDebugView_, 13);
     overrideInt("MYENGINE_STAGE_SURFACE_TEST_SSAO", world_.presentation.developerStageSurfaceSSAO_, 1);
@@ -155,7 +167,9 @@ void RunVisualSettings::InitializeTankRunVisuals()
     world_.presentation.developerStageTilt_ = tilt == 1;
     int localLight = -1;
     overrideInt("MYENGINE_STAGE_SURFACE_TEST_LIGHT", localLight, 1);
-    if (localLight >= 0) world_.presentation.stageSurface_.floorLocalLight = localLight == 1;
+    if (localLight >= 0) {
+        world_.presentation.stageSurface_.floorLocalLight = localLight == 1;
+    }
 #endif
     world_.presentation.stagePostCacheValid_ = false;
 }

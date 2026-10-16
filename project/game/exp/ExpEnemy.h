@@ -11,6 +11,7 @@
 class Player;
 class Stage;
 class Enemy;
+
 namespace myEngine {
 class NeonGridRenderer;
 }
@@ -45,6 +46,7 @@ public:
         float shooterFireInterval = 1.25f;
         float shooterBulletSpeed = 0.20f;
     };
+
     /// @brief 経験値敵がボスを敵対対象に含めるかを指定する。
     struct EnemyInteractionConfig {
         bool hostileToBoss = false;
@@ -64,6 +66,7 @@ public:
     static void SetShapeNeonBillboardEnabled(bool enabled);
     /// @brief 図形のネオン描画方式を0〜3に制限して設定する。0以外では通常のモデル描画を省く。
     static void SetShapeNeonRenderMode(int mode);
+
     /// @brief 経験値敵がボスへ敵対する共有設定を返す。
     static bool IsHostileToBoss()
     {
@@ -76,11 +79,13 @@ public:
     void Initialize(const myEngine::Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
     /// @brief 制作定義のHP・ダメージ・移動/射撃倍率・報酬・色を制限して適用する。種類と位置は変更しない。
     void ApplyAuthoredDefinition(const tankcontent::Enemy& definition);
+
     /// @brief 制作定義または召喚個体用の性能が適用されているかを返す。
     bool HasAuthoredDefinition() const
     {
         return hasAuthoredDefinition_;
     }
+
     /// @brief 寿命・演出を進め、資源、移動戦闘敵、図形/Shooterごとの移動と攻撃を更新する。
     /// @note 生存個体を呼び出す前提。死亡済み個体の除外・実体の削除はEnemyManagerが担当する。
     /// @param deltaTime この処理で進める経過時間（秒）。
@@ -101,6 +106,7 @@ public:
     {
         return worldTransform_.translate;
     }
+
     /// @brief 球の衝突半径を返す。資源は1.2、それ以外は0.8ワールド単位。
     float GetRadius() const override
     {
@@ -112,6 +118,7 @@ public:
     {
         attackController_.SetBulletManager(bulletManager);
     }
+
     /// @brief Shooterが敵対設定に従って照準するボスを借用する。nullptrで対象を外す。
     void SetBossTarget(Enemy* boss)
     {
@@ -134,45 +141,54 @@ public:
     {
         return isDead_;
     }
+
     /// @brief 現在のHPを返す。
     int GetHp() const
     {
         return hp_;
     }
+
     /// @brief 最大HPを返す。
     int GetMaxHp() const
     {
         return maxHp_;
     }
+
     /// @brief 生成用に現在HPと最大HPを同じ値へ設定する。1未満は1にし、死亡フラグや報酬は処理しない。
     void SetHp(int hp)
     {
         hp_ = maxHp_ = (std::max)(1, hp);
     }
+
     /// @brief 個体を固定位置の遠征資源にし、移動速度・接触ダメージを0へ、表示と衝突マスクを資源用へ変更する。
     /// @param onClaim 撃破時に取得側を渡すコールバック。trueは自機側、falseは敵側。空でもよい。
     /// @note HPと死亡フラグは変更しない。
     void SetRunResource(std::function<void(bool playerOwned)> onClaim);
+
     /// @brief 遠征の取得用資源として設定されているかを返す。
     bool IsRunResource() const
     {
         return isRunResource_;
     }
+
     /// @brief 生存中の資源以外のShooterまたは移動戦闘役であるかを返す。
     bool IsCombatThreat() const
     {
         return !isDead_ && !isRunResource_ && (type_ == ExpEnemyType::Shooter || IsExpeditionCombatRole());
     }
+
     /// @brief 種類がCharger〜ReflectArmorの移動戦闘役に含まれるかを返す。
     bool IsExpeditionCombatRole() const
     {
         return type_ >= ExpEnemyType::Charger && type_ <= ExpEnemyType::ReflectArmor;
     }
+
     /// @brief 召喚指揮官またはEMP妨害役であるかを返す。
     bool IsSupportRole() const
     {
         return type_ == ExpEnemyType::SummonerCommander || type_ == ExpEnemyType::EMPJammer;
     }
+
     /// @brief 種類に対応する攻撃周期の段階を返す。支援役では予告中がLocked、それ以外はCooldown。
     ExpEnemyCombatPhase GetCombatPhase() const
     {
@@ -181,6 +197,7 @@ public:
                : type_ == ExpEnemyType::Charger    ? combatCycle_.GetPhase()
                                                    : magazineCycle_.GetPhase();
     }
+
     /// @brief 種類に対応する攻撃予告の0〜1の進行度を返す。
     float GetAttackTelegraphRatio() const
     {
@@ -189,6 +206,7 @@ public:
                : type_ == ExpEnemyType::Charger    ? combatCycle_.GetWarningRatio()
                                                    : magazineCycle_.GetWarningRatio();
     }
+
     /// @brief 種類に対応する周期が照準を固定する段階かを返す。
     bool IsAttackAimLocked() const
     {
@@ -197,66 +215,79 @@ public:
                : type_ == ExpEnemyType::Charger    ? combatCycle_.IsAimLocked()
                                                    : magazineCycle_.IsAimLocked();
     }
+
     /// @brief 弾倉を使う移動戦闘役が再装填中かを返す。
     bool IsReloading() const
     {
         return IsExpeditionCombatRole() && !IsSupportRole() && type_ != ExpEnemyType::Charger && type_ != ExpEnemyType::BladeGuard &&
                magazineCycle_.IsReloading();
     }
+
     /// @brief 弾倉の残り斉射回数を返す。支援役・Charger・BladeGuardでは0。
     int GetAmmoRemaining() const
     {
         return IsSupportRole() || type_ == ExpEnemyType::Charger || type_ == ExpEnemyType::BladeGuard ? 0 : magazineCycle_.GetAmmo();
     }
+
     /// @brief 短い移動ダッシュ中、またはChargerの攻撃実行中かを返す。
     bool IsDashing() const
     {
         return dashTimer_ > 0 || (type_ == ExpEnemyType::Charger && combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active);
     }
+
     /// @brief 移動戦闘役の射撃を呼び出した回数を返す。通常のShooterと弾の登録成否は集計しない。
     uint32_t GetCombatShotsFired() const
     {
         return combatShotsFired_;
     }
+
     /// @brief 移動戦闘役の突進・短いダッシュを開始した回数を返す。
     uint32_t GetCombatDashCount() const
     {
         return combatDashCount_;
     }
+
     /// @brief 弾倉の再装填を開始した回数を返す。ResetMagazineで0になる。
     uint32_t GetCombatReloadCount() const
     {
         return magazineCycle_.GetReloadCount();
     }
+
     /// @brief 正面盾の減衰または反射装甲の受付が成立した回数を返す。地形との接触回数ではない。
     uint32_t GetShieldBlockCount() const
     {
         return shieldBlockCount_;
     }
+
     /// @brief BladeGuardの斬撃を開始した回数を返す。命中回数とは異なる。
     uint32_t GetBladeSwingCount() const
     {
         return bladeCycle_.SwingCount();
     }
+
     /// @brief 壁衝撃の受付時間内に、外部衝撃速度を持って地形へ当たった回数を返す。単なる全接触回数ではない。
     uint32_t GetWallCollisionCount() const
     {
         return wallCollisionCount_;
     }
+
     /// @brief 生存中のReflectArmorへの正面入射を判定し、成立時に受付回数と装甲の演出を更新する。
     /// @param attackSource 攻撃が来た側のワールド位置。
     /// @return 正面の反射受付が成立した場合true。弾の生成・追加予約は呼び出し側が行う。
     bool TryReflectProjectile(const myEngine::Vector3& attackSource);
+
     /// @brief 反射装甲の受付が成立した回数を返す。反射弾の登録成功数ではない。
     uint32_t GetReflectionCount() const
     {
         return reflectionCount_;
     }
+
     /// @brief EMPパルスを発動した回数を返す。範囲外・遮蔽で自機に適用されない発動も含む。
     uint32_t GetEmpPulseCount() const
     {
         return empPulseCount_;
     }
+
     /// @brief 召喚要求の有無を返して保留フラグを消去する。複数の要求を件数として蓄積しない。
     bool ConsumeSummonRequest()
     {
@@ -264,29 +295,35 @@ public:
         summonRequested_ = false;
         return request;
     }
+
     /// @brief この指揮官から生成した召喚個体の累計を返す。死亡後も減らさない。
     int GetSummonTotal() const
     {
         return summonTotal_;
     }
+
     /// @brief 召喚個体の生成累計を1増やす。個体の生成・登録はEnemyManagerが行う。
     void RecordSummonedUnit()
     {
         ++summonTotal_;
     }
+
     /// @brief 指揮官の衝突IDを持つ期限付き召喚個体へ設定し、HP・性能・表示を変更して撃破報酬を0にする。
     /// @param commanderId 召喚元の非0の衝突ID。0ではIsSummonedUnitがfalseになる。
     void ConfigureSummonedUnit(uint64_t commanderId);
+
     /// @brief 召喚元の衝突IDを返す。0は召喚個体ではないことを表す。
     uint64_t GetSummonerId() const
     {
         return summonerId_;
     }
+
     /// @brief 非0の召喚元IDを持つ個体かを返す。
     bool IsSummonedUnit() const
     {
         return summonerId_ != 0;
     }
+
     /// @brief 召喚個体ならHPを0にして死亡フラグを立てる。撃破演出・報酬通知や実体の削除は行わない。
     void DismissSummonedUnit()
     {
@@ -295,16 +332,19 @@ public:
             hp_ = 0;
         }
     }
+
     /// @brief 照準方向を返す。
     const myEngine::Vector3& GetAimDirection() const
     {
         return aimDirection_;
     }
+
     /// @brief 地形で切り詰めた攻撃予告の終点を借用参照で返す。位置は更新時に変わる。
     const myEngine::Vector3& GetTelegraphEnd() const
     {
         return telegraphEnd_;
     }
+
     /// @brief 生存中の移動戦闘役の輪郭・攻撃予告・残弾などを、シーンが使うネオン描画先へ予約する。
     void QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp,
                             const myEngine::Vector3& cameraForward, float lineWidth, bool fillOnly = false) const;
@@ -332,36 +372,43 @@ public:
     {
         return expValue_;
     }
+
     /// @brief 種類を返す。
     ExpEnemyType GetType() const
     {
         return type_;
     }
+
     /// @brief 表示色を返す。
     const myEngine::Vector4& GetVisualColor() const
     {
         return visualColor_;
     }
+
     /// @brief 表示用のZ軸回転角（ラジアン）を返す。
     float GetVisualRotation() const
     {
         return worldTransform_.rotate.z;
     }
+
     /// @brief 表示用の各軸回転角（ラジアン）を借用参照で返す。
     const myEngine::Vector3& GetVisualRotate() const
     {
         return worldTransform_.rotate;
     }
+
     /// @brief 表示倍率を返す。
     const myEngine::Vector3& GetVisualScale() const
     {
         return worldTransform_.scale;
     }
+
     /// @brief シューター予告比率を返す。
     float GetShooterWarningRatio() const
     {
         return type_ == ExpEnemyType::Shooter ? (std::clamp)(shooterWarningRatio_, 0.0f, 1.0f) : 0.0f;
     }
+
     /// @brief シューター銃口フラッシュ比率を返す。
     float GetShooterMuzzleFlashRatio() const
     {
@@ -369,8 +416,10 @@ public:
                    ? (std::clamp)(shooterMuzzleFlashTimer_ / kShooterMuzzleFlashDuration, 0.0f, 1.0f)
                    : 0.0f;
     }
+
     /// @brief 種類が図形/Shooterまたは移動戦闘役かを返す。描画方式や死亡状態は判定しない。
     bool IsShapeNeonBillboardTarget() const;
+
     /// @brief 種類がネオン表示対象かを返す。描画方式の有効化は別途確認する。
     bool IsShapeNeonRenderTarget() const
     {
@@ -401,7 +450,8 @@ private:
     myEngine::Vector3 FindCombatWaypoint(Stage& stage, const myEngine::Vector3& target) const;
     /// @brief origin + direction * distanceまでのXY射線を、最初に触れる有効ブロックのAABBへ切り詰める。
     /// @note directionが単位ベクトルならdistanceはワールド距離。Z軸の交差は検査しない。
-    myEngine::Vector3 ClipCombatRay(Stage& stage, const myEngine::Vector3& origin, const myEngine::Vector3& direction, float distance) const;
+    myEngine::Vector3 ClipCombatRay(Stage& stage, const myEngine::Vector3& origin, const myEngine::Vector3& direction,
+                                    float distance) const;
     /// @brief ShieldGuardの正面攻撃を減衰し、減衰が成立したら受付回数と装甲演出を更新してダメージ値を返す。HPは変更しない。
     uint32_t ResolveShieldDamage(uint32_t amount, const myEngine::Vector3& attackSource, bool melee);
 

@@ -31,15 +31,19 @@ using namespace detail;
 void SessionBootstrap::Initialize()
 {
     myEngine::StartupTrace::Scope scope(world_.demo.titleDemo_ ? "GameScene.Initialize.Demo" : "GameScene.Initialize.Play");
-    while (!InitializeStep()) {}
+    while (!InitializeStep()) {
+    }
 }
 
 bool SessionBootstrap::InitializeStep()
 {
     myEngine::ModelManager::GetInstance()->PumpPreloads();
-    if (!myEngine::ModelManager::GetInstance()->ArePreloadsReady() ||
-        !myEngine::TextureManager::GetInstance()->ArePreloadsReady()) return false;
-    if (!task_) task_ = Build();
+    if (!myEngine::ModelManager::GetInstance()->ArePreloadsReady() || !myEngine::TextureManager::GetInstance()->ArePreloadsReady()) {
+        return false;
+    }
+    if (!task_) {
+        task_ = Build();
+    }
     myEngine::StartupTrace::Scope scope("GameScene.InitializeStep");
     return task_.Advance();
 }
@@ -71,8 +75,9 @@ myEngine::InitializationTask SessionBootstrap::Build()
         // Reproducible bloom comparison captures (same scenario frame, one view per run).
         char view[8]{};
         const DWORD length = GetEnvironmentVariableA("MYENGINE_BLOOM_VIEW", view, sizeof(view));
-        if (length > 0 && length < sizeof(view) && view[0] >= '0' && view[0] <= '7' && view[1] == '\0')
+        if (length > 0 && length < sizeof(view) && view[0] >= '0' && view[0] <= '7' && view[1] == '\0') {
             world_.presentation.bloomView_ = view[0] - '0';
+        }
     }
 
     world_.resources.camera->SetFovY(arenacamera::kFovY);
@@ -105,7 +110,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
             playerPost.outlineBloomWidth = 2.7f;
         }
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.resources.enemyPostEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
         world_.resources.enemyPostEffect_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
                                                       myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f);
@@ -121,7 +126,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
             enemyPost.outlineBloomWidth = 2.7f;
         }
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.resources.expEnemyPostEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
         world_.resources.expEnemyPostEffect_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
                                                          myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f);
@@ -138,7 +143,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
             expEnemyPost.outlineBloomWidth = 2.7f;
         }
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.resources.stagePostEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
         world_.resources.stagePostEffect_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
                                                       myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f);
@@ -155,7 +160,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
             stagePost.outlineBloomWidth = 0.0f;
         }
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.resources.neonGridPostEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
         world_.resources.neonGridPostEffect_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
                                                          myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 1.0f);
@@ -170,7 +175,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
             gridPost.outlineBloomWidth = 0.0f;
         }
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.resources.bulletTrailPostEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
         world_.resources.bulletTrailPostEffect_->Initialize(
             myEngine::Object3dCommon::GetInstance()->GetDxCommon(), myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f,
@@ -189,7 +194,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
             bulletTrailPost.outlineBloomWidth = 0.0f;
         }
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.resources.particlePostEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
         world_.resources.particlePostEffect_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
                                                          myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 1.0f);
@@ -205,7 +210,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
             particlePost.outlineBloomWidth = 0.0f;
         }
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.resources.sharedObjectBloomPostEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
         world_.resources.sharedObjectBloomPostEffect_->Initialize(
             myEngine::Object3dCommon::GetInstance()->GetDxCommon(), myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f,
@@ -248,7 +253,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
         world_.resources.ball_->SetTranslate(myEngine::Vector3(-20.0f, 0.0f, 0.0f));
         world_.resources.ball_->Update();
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.resources.groundObj_ = std::make_unique<myEngine::Object3d>();
         world_.resources.groundObj_->Initialize();
         world_.resources.groundObj_->SetModel("ground.obj");
@@ -259,7 +264,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
         world_.resources.skybox_->Initialize("resources/skybox.dds");
         const uint32_t skyboxTextureIndex = myEngine::TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.resources.enemyObject_->SetModel("enemy3D.obj");
         world_.resources.enemyObject_->SetLighting(true);
         world_.resources.enemyObject_->SetEnvironmentMap(skyboxTextureIndex);
@@ -274,15 +279,18 @@ myEngine::InitializationTask SessionBootstrap::Build()
 
         world_.resources.ball_->SetModel("jewelry.obj");
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.resources.stage_ = std::make_unique<Stage>();
         auto stage = world_.resources.stage_->BuildInitialization();
-        while (!stage.Advance()) co_await std::suspend_always{};
+        while (!stage.Advance()) {
+            co_await std::suspend_always{};
+        }
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         // 弾マネージャの生成
         world_.resources.bulletManager_ = std::make_unique<BulletManager>();
-        world_.resources.bulletManager_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(), myEngine::Object3dCommon::GetInstance());
+        world_.resources.bulletManager_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
+                                                    myEngine::Object3dCommon::GetInstance());
 
         LevelData levelData;
         const bool hasLevelData = world_.levelRuntime->LoadLevelFile(levelData);
@@ -299,12 +307,12 @@ myEngine::InitializationTask SessionBootstrap::Build()
             }
         }
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.resources.player_ = std::make_unique<Player>();
         world_.resources.player_->Initialize(world_.resources.playerObject_.get(), playerSpawnPosition, !world_.run.expeditionRun_);
         world_.resources.player_->SetAttackControllerBulletManager(world_.resources.bulletManager_.get());
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         // 敵キャラの生成
         world_.resources.enemy_ = std::make_unique<Enemy>();
         // 敵キャラの初期化
@@ -327,7 +335,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
         world_.resources.enemy_->Initialize(world_.resources.enemyObject_.get(), bossSpawnPosition, world_.resources.stage_.get());
         world_.resources.enemy_->SetAttackControllerBulletManager(world_.resources.bulletManager_.get());
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         // 経験値敵マネージャの生成
         world_.resources.enemyManager_ = std::make_unique<EnemyManager>();
         world_.resources.enemyManager_->Initialize(world_.resources.player_.get(), world_.resources.bulletManager_.get(),
@@ -361,7 +369,8 @@ myEngine::InitializationTask SessionBootstrap::Build()
         world_.resources.collisionDebugRingManager_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
                                                                 "resources/gradationLine.png");
         world_.resources.neonGridRenderer_ = std::make_unique<myEngine::NeonGridRenderer>();
-        world_.resources.neonGridRenderer_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(), "resources/white512x512.png");
+        world_.resources.neonGridRenderer_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
+                                                       "resources/white512x512.png");
         world_.resources.neonProjectileRenderer_ = std::make_unique<NeonProjectileRenderer>();
         world_.resources.neonProjectileRenderer_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon());
         world_.resources.playerMeleeTrailManager_ = std::make_unique<myEngine::TrailManager>();
@@ -369,7 +378,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
                                                               myEngine::Object3dCommon::GetInstance(), "resources/white512x512.png");
         world_.gameplaySettings->LoadGameVisualConfig();
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.combat.fade_ = std::make_unique<Fade>();
         world_.combat.fade_->Initialize();
         world_.combat.fade_->Start(Fade::Status::FadeIn, 1.0f);
@@ -398,18 +407,20 @@ myEngine::InitializationTask SessionBootstrap::Build()
         world_.combat.toTitleGide->SetPosition({20.0f, 610.0f});
         world_.combat.toTitleGide->SetSize({200.0f, 50.0f});
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.combat.dashGuideText_ = std::make_unique<myEngine::TextLabel>();
-        world_.combat.dashGuideText_->InitializeFromJson(myEngine::SpriteCommon::GetInstance(), "resources/configs/gameText.json", "dashGuide");
+        world_.combat.dashGuideText_->InitializeFromJson(myEngine::SpriteCommon::GetInstance(), "resources/configs/gameText.json",
+                                                         "dashGuide");
 
         world_.combat.moveGuideText_ = std::make_unique<myEngine::TextLabel>();
-        world_.combat.moveGuideText_->InitializeFromJson(myEngine::SpriteCommon::GetInstance(), "resources/configs/gameText.json", "moveGuide");
+        world_.combat.moveGuideText_->InitializeFromJson(myEngine::SpriteCommon::GetInstance(), "resources/configs/gameText.json",
+                                                         "moveGuide");
 
         world_.combat.titleGuideText_ = std::make_unique<myEngine::TextLabel>();
         world_.combat.titleGuideText_->InitializeFromJson(myEngine::SpriteCommon::GetInstance(), "resources/configs/gameText.json",
                                                           "titleGuide");
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         myEngine::TextStyle controlGuideStyle{};
         controlGuideStyle.fontFamily = "Meiryo";
         controlGuideStyle.fontSize = 14.0f;
@@ -445,37 +456,43 @@ myEngine::InitializationTask SessionBootstrap::Build()
         world_.combat.postProfileText_->SetPosition({16.0f, 46.0f});
 #endif // !defined(NDEBUG)
 
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.gameplayHud->InitializeFollowHpBarBatch();
         world_.combatTutorial->InitializeSubmissionUi();
         world_.combat.gameTextNeonEffect_ = std::make_unique<NeonTextEffect>();
         world_.combat.gameTextNeonEffect_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
                                                       myEngine::Object3dCommon::GetInstance()->GetSrvManager());
         world_.gameplayHud->ApplyGameTextAppearance();
-    co_await std::suspend_always{};
+        co_await std::suspend_always{};
         world_.combatTutorial->InitializeTutorialUi();
-        if (myEngine::kDeveloperTools)
+        if (myEngine::kDeveloperTools) {
             world_.classConfigWatcher->InitializePlayerClassConfigWatch();
+        }
     }
     if (world_.run.prototypeRun_) {
         auto run = world_.arenaRunController->BuildInitialization();
-        while (!run.Advance()) co_await std::suspend_always{};
+        while (!run.Advance()) {
+            co_await std::suspend_always{};
+        }
     }
     co_await std::suspend_always{};
     world_.combat.previousPlayerHp_ = world_.resources.player_ ? world_.resources.player_->GetHp() : 0;
     world_.combat.previousBossHp_ = world_.resources.enemy_ ? world_.resources.enemy_->GetHp() : 0;
     co_await std::suspend_always{};
-    if (world_.demo.titleDemo_)
+    if (world_.demo.titleDemo_) {
         world_.titleDemoController->InitializeTitleDemo();
+    }
     if (!world_.demo.titleDemo_) {
         world_.resources.neonBossVisual_ = std::make_unique<NeonBossVisual>();
         world_.resources.neonBossVisual_->Initialize(world_.resources.camera.get(), world_.resources.debugCamera.get());
-        if (world_.resources.enemy_->IsNeonDepthEncounterEnabled())
+        if (world_.resources.enemy_->IsNeonDepthEncounterEnabled()) {
             world_.resources.neonBossVisual_->SetDepthProfile(world_.resources.neonDepthConfig_.visual);
+        }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
         world_.resources.neonBossDeveloperStartPending_ = world_.resources.neonBossAutoTest_;
-        if (world_.run.expeditionMapEnabled_ && GameStartSession::ConsumeDeveloperBossStart())
+        if (world_.run.expeditionMapEnabled_ && GameStartSession::ConsumeDeveloperBossStart()) {
             world_.resources.neonBossDeveloperStartPending_ = true;
+        }
 #endif
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)

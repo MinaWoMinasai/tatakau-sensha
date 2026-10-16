@@ -1,7 +1,11 @@
 #pragma once
 #include <string>
 #include "Struct.h"
-namespace myEngine { class Camera; class DirectXCommon; }
+
+namespace myEngine {
+class Camera;
+class DirectXCommon;
+} // namespace myEngine
 
 /// @brief 初期化・更新・描画と画面効果の共通契約を定義する。
 class IScene {
@@ -20,6 +24,7 @@ public:
         int renderDebugOverride = -1;
         int ssaoOverride = -1, ssrOverride = -1;
     };
+
     /// @brief 一時的な画面効果の強度と継続時間を表す。
     struct PostEffectPulse {
         float bloomBoost = 0.0f;
@@ -29,6 +34,7 @@ public:
         float width = 0.05f;
         float strength = 0.0f;
     };
+
     /// @brief 現在の画面効果の合成結果を描画側へ渡す。
     struct ScreenEffectState {
         bool active = false;
@@ -41,6 +47,7 @@ public:
         bool suppressTemporal = false;
         myEngine::BloomParam param{};
     };
+
     /// @brief 水面に関連する画面効果の設定を表す。
     struct WaterPostProcessSettings {
         bool diagnosticsEnabled = false;
@@ -49,13 +56,14 @@ public:
         float historyWeight = 0.08f;
         int debugMode = 0;
     };
+
     /// @brief ベクター管ディスプレイ風のアリーナ表示（ブラウン管の歪み・残光・星雲）を表す。
     /// enabled=falseのシーンでは従来の後処理値をそのまま使う。
     struct ArenaLookSettings {
         bool enabled = false;
-        float curvature = 0.0f;          // 樽型歪み
-        float bezelMargin = 0.0f;        // 角丸画面の外側に残す黒枠（UV比）
-        float bezelRadius = 0.0f;        // 角丸半径（UV比）
+        float curvature = 0.0f;   // 樽型歪み
+        float bezelMargin = 0.0f; // 角丸画面の外側に残す黒枠（UV比）
+        float bezelRadius = 0.0f; // 角丸半径（UV比）
         float bezelSoftness = 0.0f;
         float vignetteIntensity = 0.0f;
         float vignetteScale = 0.0f;
@@ -71,11 +79,13 @@ public:
         myEngine::Vector3 nebulaColorA{0.30f, 0.05f, 0.42f};
         myEngine::Vector3 nebulaColorB{0.06f, 0.02f, 0.30f};
     };
+
     /// @brief ブルームの説明用の表示切り替え。view: 0=通常, 1=OFF, 2=ピラミッドの1段だけ, 3=光の成分だけ。
     struct BloomViewSettings {
         int view = 0;
         int level = 0; // view==2 のときの段（0=1/2解像度 … 4=1/32解像度）
     };
+
     /// @brief シーン描画の区間ごとの所要時間を記録する。
     struct RenderProfile {
         float frameTotalMs = 0.0f;
@@ -104,64 +114,98 @@ public:
     virtual ~IScene() = default;
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     virtual void Initialize() = 0;
-    virtual bool InitializeStep() { Initialize(); return true; }
-    virtual bool UsesSimpleRendering() const { return false; }
-    virtual bool KeepTitleDuringTransition() const { return false; }
+
+    virtual bool InitializeStep()
+    {
+        Initialize();
+        return true;
+    }
+
+    virtual bool UsesSimpleRendering() const
+    {
+        return false;
+    }
+
+    virtual bool KeepTitleDuringTransition() const
+    {
+        return false;
+    }
+
     virtual void PrepareForTransition() {}
+
     virtual void OnEngineReady() {}
+
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     virtual void Update() = 0;
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     virtual void Draw() = 0;
+
     /// @brief 影を描画する。
     virtual void DrawShadow() {}
+
     /// @brief 後処理演出3Dを描画する。
     virtual void DrawPostEffect3D() {}
+
     /// @brief 後の後処理演出3Dを描画する。
     virtual void DrawAfterPostEffect3D() {}
+
     /// @brief スプライトを描画する。
     virtual void DrawSprite() = 0;
+
     /// @brief 最終差分時間を返す。
     virtual float GetFinalDeltaTime() const
     {
         return 1.0f / 60.0f;
     } // デフォルトは60FPS
+
     virtual float GetPostGaussianIntensity() const
     {
         return 0.0f;
     }
+
     /// @brief 後処理演出パルスを返す。
     virtual PostEffectPulse GetPostEffectPulse() const
     {
         return {};
     }
+
     /// @brief 画面演出状態を返す。
     virtual ScreenEffectState GetScreenEffectState() const
     {
         return {};
     }
+
     /// @brief 水面後処理Process設定を返す。
     virtual WaterPostProcessSettings GetWaterPostProcessSettings() const
     {
         return {};
     }
+
     /// @brief アリーナ表示の設定を返す。既定は無効。
     virtual ArenaLookSettings GetArenaLookSettings() const
     {
         return {};
     }
+
     /// @brief ブルームの比較表示の設定を返す。既定は通常表示。
     virtual BloomViewSettings GetBloomViewSettings() const
     {
         return {};
     }
+
     /// @brief 描画区間の計測値を設定する。
     virtual void SetRenderProfile(const RenderProfile& profile)
     {
         (void)profile;
     }
-    virtual DeveloperShowcaseState GetDeveloperShowcaseState() { return {}; }
+
+    virtual DeveloperShowcaseState GetDeveloperShowcaseState()
+    {
+        return {};
+    }
+
     virtual void RecordDeveloperPostParameters(const myEngine::BloomParam&) {}
+
     virtual void RecordDeveloperFrame(myEngine::DirectXCommon&) {}
 
     // シーン終了判定（SceneManagerがチェックする）

@@ -99,12 +99,14 @@ void GameplayQueries::RecordDeveloperPostParameters(const myEngine::BloomParam& 
 void GameplayQueries::RecordDeveloperFrame(myEngine::DirectXCommon& dx)
 {
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    if (world_.resources.neonSkinnedPreview_)
+    if (world_.resources.neonSkinnedPreview_) {
         world_.resources.neonSkinnedPreview_->RecordShowcaseCapture(dx);
+    }
     world_.bossPresentation->RecordNeonBossDeveloperFrame(dx);
     world_.gameplayScenarioRunner->RecordGameplayScenarioCapture(dx);
-    if (world_.presentation.developerGameCapture_.HasRequest())
+    if (world_.presentation.developerGameCapture_.HasRequest()) {
         world_.presentation.developerGameCapture_.SetFrameMetadata(MakeDeveloperGameCaptureMetadata(dx));
+    }
     world_.presentation.developerGameCapture_.Record(dx);
 #else
     (void)dx;
@@ -156,7 +158,8 @@ nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(myEngine::Direc
           {"trailQualityAndOffScale", 1.0f},
           {"sharedModelLegacyScale", 0.5f},
           {"sharedModelQualityAndOffScale", 1.0f},
-          {"note", "Phase 1 uses full-resolution projectile cores with Scene depth in every Bloom mode; bodies stay outside emission captures."}}},
+          {"note",
+           "Phase 1 uses full-resolution projectile cores with Scene depth in every Bloom mode; bodies stay outside emission captures."}}},
         {"sourceCounts",
          {{"playerBullets", counts.player},
           {"enemyBullets", counts.enemy},
@@ -188,17 +191,22 @@ nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(myEngine::Direc
          {{"captureActive", myEngine::RuntimeProfiler::Get().IsCaptureActive()},
           {"captureComplete", myEngine::RuntimeProfiler::Get().IsCaptureComplete()},
           {"note", "Actual per-scope timestamps are in the separate profiler CSV, not inferred from this image."}}}};
-    for (const auto& row : world_.resources.debugCamera->GetViewProjectionMatrix().m)
+    for (const auto& row : world_.resources.debugCamera->GetViewProjectionMatrix().m) {
         metadata["camera"]["debugViewProjection"].push_back({row[0], row[1], row[2], row[3]});
-    for (const auto& row : world_.resources.camera->GetViewProjectionMatrix().m)
+    }
+    for (const auto& row : world_.resources.camera->GetViewProjectionMatrix().m) {
         metadata["camera"]["gameViewProjection"].push_back({row[0], row[1], row[2], row[3]});
-    for (const Bullet* bullet : world_.resources.bulletManager_->GetBulletPtrs())
+    }
+    for (const Bullet* bullet : world_.resources.bulletManager_->GetBulletPtrs()) {
         metadata["sourcePositions"]["bullets"].push_back(vector(bullet->GetWorldPosition()));
-    for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs())
+    }
+    for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
         metadata["sourcePositions"]["experienceEnemies"].push_back(vector(enemy->GetWorldPosition()));
+    }
     UINT64 frequency = 0;
-    if (SUCCEEDED(dx.GetQueue()->GetTimestampFrequency(&frequency)))
+    if (SUCCEEDED(dx.GetQueue()->GetTimestampFrequency(&frequency))) {
         metadata["queueTimestampFrequencyHz"] = frequency;
+    }
     Microsoft::WRL::ComPtr<ID3D12InfoQueue> messages;
     if (SUCCEEDED(dx.GetDevice()->QueryInterface(IID_PPV_ARGS(&messages)))) {
         const UINT64 count = messages->GetNumStoredMessagesAllowedByRetrievalFilter();
@@ -206,20 +214,30 @@ nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(myEngine::Direc
         const UINT64 inspected = (std::min)(count, UINT64{4096});
         for (UINT64 index = 0; index < inspected; ++index) {
             SIZE_T bytes = 0;
-            if (FAILED(messages->GetMessage(index, nullptr, &bytes)) || !bytes) continue;
+            if (FAILED(messages->GetMessage(index, nullptr, &bytes)) || !bytes) {
+                continue;
+            }
             std::vector<unsigned char> storage(bytes);
             auto* message = reinterpret_cast<D3D12_MESSAGE*>(storage.data());
-            if (FAILED(messages->GetMessage(index, message, &bytes))) continue;
-            if (message->Severity == D3D12_MESSAGE_SEVERITY_ERROR || message->Severity == D3D12_MESSAGE_SEVERITY_CORRUPTION) ++errors;
-            if (message->Severity == D3D12_MESSAGE_SEVERITY_WARNING) ++warnings;
+            if (FAILED(messages->GetMessage(index, message, &bytes))) {
+                continue;
+            }
+            if (message->Severity == D3D12_MESSAGE_SEVERITY_ERROR || message->Severity == D3D12_MESSAGE_SEVERITY_CORRUPTION) {
+                ++errors;
+            }
+            if (message->Severity == D3D12_MESSAGE_SEVERITY_WARNING) {
+                ++warnings;
+            }
             if ((message->Severity == D3D12_MESSAGE_SEVERITY_ERROR || message->Severity == D3D12_MESSAGE_SEVERITY_CORRUPTION) &&
                 metadata["validation"]["firstErrors"].size() < 8) {
-                metadata["validation"]["firstErrors"].push_back({{"id", static_cast<int>(message->ID)},
-                    {"description", std::string(message->pDescription, (std::min)(message->DescriptionByteLength, SIZE_T{1200}))}});
+                metadata["validation"]["firstErrors"].push_back(
+                    {{"id", static_cast<int>(message->ID)},
+                     {"description", std::string(message->pDescription, (std::min)(message->DescriptionByteLength, SIZE_T{1200}))}});
             }
             if (message->Severity == D3D12_MESSAGE_SEVERITY_WARNING && metadata["validation"]["firstWarnings"].size() < 8) {
-                metadata["validation"]["firstWarnings"].push_back({{"id", static_cast<int>(message->ID)},
-                    {"description", std::string(message->pDescription, (std::min)(message->DescriptionByteLength, SIZE_T{1200}))}});
+                metadata["validation"]["firstWarnings"].push_back(
+                    {{"id", static_cast<int>(message->ID)},
+                     {"description", std::string(message->pDescription, (std::min)(message->DescriptionByteLength, SIZE_T{1200}))}});
             }
         }
         metadata["validation"]["storedMessages"] = count;
@@ -261,30 +279,35 @@ myEngine::Object3d* GameplayQueries::GetBallObj()
 float GameplayQueries::GetFinalDeltaTime() const
 {
     // The boss defeat cinematic is a full-color finale, not the grayscale pause/slow-motion cue.
-    if (world_.combat.combatFlow_.GetState() == GameFlowState::BossDefeatSequence && world_.resources.neonDepthCameraScoped_)
+    if (world_.combat.combatFlow_.GetState() == GameFlowState::BossDefeatSequence && world_.resources.neonDepthCameraScoped_) {
         return 1.0f / 60.0f;
+    }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    if (world_.presentation.developerBloomFreeze_ || world_.resources.neonBossDeveloperFreeze_)
+    if (world_.presentation.developerBloomFreeze_ || world_.resources.neonBossDeveloperFreeze_) {
         return 1.0f / 60.0f; // Freeze is a comparison, not the grayscale slow-motion effect.
+    }
 #endif
-    if (IsNeonShowcaseActive())
+    if (IsNeonShowcaseActive()) {
         return 1.0f / 60.0f;
+    }
     return world_.combat.finalDeltaTime;
 }
 
 /// @brief 後処理ガウシアン強度を返す。
 float GameplayQueries::GetPostGaussianIntensity() const
 {
-    if (IsNeonShowcaseActive())
+    if (IsNeonShowcaseActive()) {
         return 0.0f;
+    }
     return world_.presentation.sceneFadeBlurIntensity_;
 }
 
 /// @brief 後処理演出パルスを返す。
 PostEffectPulse GameplayQueries::GetPostEffectPulse() const
 {
-    if (IsNeonShowcaseActive())
+    if (IsNeonShowcaseActive()) {
         return {};
+    }
     return world_.presentation.deathPostPulse_;
 }
 

@@ -17,7 +17,8 @@
 
 namespace myEngine {
 
-nlohmann::json ProjectileProfile::ToJson() const {
+nlohmann::json ProjectileProfile::ToJson() const
+{
     return {
         {"modelPath", modelPath},
         {"scale", {scale.x, scale.y, scale.z}},
@@ -25,17 +26,19 @@ nlohmann::json ProjectileProfile::ToJson() const {
     };
 }
 
-void ProjectileProfile::FromJson(const nlohmann::json& j) {
+void ProjectileProfile::FromJson(const nlohmann::json& j)
+{
     modelPath = j.value("modelPath", modelPath);
     if (j.contains("scale") && j["scale"].is_array() && j["scale"].size() >= 3) {
-        scale = { j["scale"][0].get<float>(), j["scale"][1].get<float>(), j["scale"][2].get<float>() };
+        scale = {j["scale"][0].get<float>(), j["scale"][1].get<float>(), j["scale"][2].get<float>()};
     }
     if (j.contains("rotationSpeed") && j["rotationSpeed"].is_array() && j["rotationSpeed"].size() >= 3) {
-        rotationSpeed = { j["rotationSpeed"][0].get<float>(), j["rotationSpeed"][1].get<float>(), j["rotationSpeed"][2].get<float>() };
+        rotationSpeed = {j["rotationSpeed"][0].get<float>(), j["rotationSpeed"][1].get<float>(), j["rotationSpeed"][2].get<float>()};
     }
 }
 
-nlohmann::json TrailProfile::ToJson() const {
+nlohmann::json TrailProfile::ToJson() const
+{
     return {
         {"startColor", {startColor.x, startColor.y, startColor.z, startColor.w}},
         {"endColor", {endColor.x, endColor.y, endColor.z, endColor.w}},
@@ -47,25 +50,29 @@ nlohmann::json TrailProfile::ToJson() const {
     };
 }
 
-void TrailProfile::FromJson(const nlohmann::json& j) {
+void TrailProfile::FromJson(const nlohmann::json& j)
+{
     if (j.contains("startColor") && j["startColor"].is_array() && j["startColor"].size() >= 4) {
-        startColor = { j["startColor"][0].get<float>(), j["startColor"][1].get<float>(), j["startColor"][2].get<float>(), j["startColor"][3].get<float>() };
+        startColor = {j["startColor"][0].get<float>(), j["startColor"][1].get<float>(), j["startColor"][2].get<float>(),
+                      j["startColor"][3].get<float>()};
     }
     if (j.contains("endColor") && j["endColor"].is_array() && j["endColor"].size() >= 4) {
-        endColor = { j["endColor"][0].get<float>(), j["endColor"][1].get<float>(), j["endColor"][2].get<float>(), j["endColor"][3].get<float>() };
+        endColor = {j["endColor"][0].get<float>(), j["endColor"][1].get<float>(), j["endColor"][2].get<float>(),
+                    j["endColor"][3].get<float>()};
     }
     maxPoints = j.value("maxPoints", maxPoints);
     interpolationSteps = j.value("interpolationSteps", interpolationSteps);
     if (j.contains("tipOffset") && j["tipOffset"].is_array() && j["tipOffset"].size() >= 3) {
-        tipOffset = { j["tipOffset"][0].get<float>(), j["tipOffset"][1].get<float>(), j["tipOffset"][2].get<float>() };
+        tipOffset = {j["tipOffset"][0].get<float>(), j["tipOffset"][1].get<float>(), j["tipOffset"][2].get<float>()};
     }
     if (j.contains("baseOffset") && j["baseOffset"].is_array() && j["baseOffset"].size() >= 3) {
-        baseOffset = { j["baseOffset"][0].get<float>(), j["baseOffset"][1].get<float>(), j["baseOffset"][2].get<float>() };
+        baseOffset = {j["baseOffset"][0].get<float>(), j["baseOffset"][1].get<float>(), j["baseOffset"][2].get<float>()};
     }
     lifetime = j.value("lifetime", lifetime);
 }
 
-nlohmann::json EffectProfile::ToJson() const {
+nlohmann::json EffectProfile::ToJson() const
+{
     return {
         {"projectile", projectile.ToJson()},
         {"flyParticle", flyParticle},
@@ -79,7 +86,8 @@ nlohmann::json EffectProfile::ToJson() const {
     };
 }
 
-void EffectProfile::FromJson(const nlohmann::json& j) {
+void EffectProfile::FromJson(const nlohmann::json& j)
+{
     if (j.contains("projectile")) {
         projectile.FromJson(j["projectile"]);
     }
@@ -95,7 +103,8 @@ void EffectProfile::FromJson(const nlohmann::json& j) {
     enableTrail = j.value("enableTrail", enableTrail);
 }
 
-Vector3 EffectSequencer::LerpVec3(const Vector3& a, const Vector3& b, float t) {
+Vector3 EffectSequencer::LerpVec3(const Vector3& a, const Vector3& b, float t)
+{
     return {
         a.x + (b.x - a.x) * t,
         a.y + (b.y - a.y) * t,
@@ -103,7 +112,8 @@ Vector3 EffectSequencer::LerpVec3(const Vector3& a, const Vector3& b, float t) {
     };
 }
 
-void EffectSequencer::Initialize(ParticleManager* particleManager) {
+void EffectSequencer::Initialize(ParticleManager* particleManager)
+{
     particleManager_ = particleManager;
     ClearEvents();
 
@@ -115,7 +125,9 @@ void EffectSequencer::Initialize(ParticleManager* particleManager) {
     editingProfile_ = EffectProfile{};
 }
 
-void EffectSequencer::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* camera, ParticleManager* particleManager, TrailManager* trailManager) {
+void EffectSequencer::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* camera, ParticleManager* particleManager,
+                                 TrailManager* trailManager)
+{
     Initialize(particleManager);
     objCommon_ = objCommon;
     dx_ = dx;
@@ -123,28 +135,33 @@ void EffectSequencer::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, C
     trailManager_ = trailManager;
 }
 
-void EffectSequencer::AddEvent(const Event& event) {
+void EffectSequencer::AddEvent(const Event& event)
+{
     events_.push_back(event);
 }
 
-void EffectSequencer::ClearEvents() {
+void EffectSequencer::ClearEvents()
+{
     events_.clear();
     activeEvents_.clear();
 }
 
-void EffectSequencer::Play(const Vector3& position) {
+void EffectSequencer::Play(const Vector3& position)
+{
     for (const Event& event : events_) {
-        activeEvents_.push_back({ event, position, 0.0f, false });
+        activeEvents_.push_back({event, position, 0.0f, false});
     }
 }
 
-void EffectSequencer::PlayHitEffect(const Vector3& position) {
+void EffectSequencer::PlayHitEffect(const Vector3& position)
+{
     if (particleManager_) {
         particleManager_->EmitHitEffect(position);
     }
 }
 
-void EffectSequencer::Fire(const EffectProfile& profile, const Vector3& startPos, const Vector3& targetPos) {
+void EffectSequencer::Fire(const EffectProfile& profile, const Vector3& startPos, const Vector3& targetPos)
+{
     if (IsActive()) {
         Reset();
     }
@@ -154,11 +171,12 @@ void EffectSequencer::Fire(const EffectProfile& profile, const Vector3& startPos
     targetPos_ = targetPos;
     currentPos_ = startPos;
     elapsedTime_ = 0.0f;
-    projectileRotation_ = { 0.0f, 0.0f, 0.0f };
+    projectileRotation_ = {0.0f, 0.0f, 0.0f};
     state_ = State::Firing;
 }
 
-void EffectSequencer::Update(float deltaTime) {
+void EffectSequencer::Update(float deltaTime)
+{
     switch (state_) {
     case State::Firing:
         UpdateFiring(deltaTime);
@@ -195,7 +213,8 @@ void EffectSequencer::Update(float deltaTime) {
     }
 }
 
-void EffectSequencer::UpdateFiring(float deltaTime) {
+void EffectSequencer::UpdateFiring(float deltaTime)
+{
     if (!objCommon_ || !dx_ || !camera_) {
         state_ = State::Finished;
         return;
@@ -231,7 +250,8 @@ void EffectSequencer::UpdateFiring(float deltaTime) {
     UpdateFlying(deltaTime);
 }
 
-void EffectSequencer::UpdateFlying(float deltaTime) {
+void EffectSequencer::UpdateFlying(float deltaTime)
+{
     elapsedTime_ += deltaTime;
 
     float duration = (std::max)(profile_.duration, 0.001f);
@@ -290,7 +310,8 @@ void EffectSequencer::UpdateFlying(float deltaTime) {
     }
 }
 
-void EffectSequencer::UpdateHit(float deltaTime) {
+void EffectSequencer::UpdateHit(float deltaTime)
+{
     elapsedTime_ += deltaTime;
     if (elapsedTime_ >= profile_.hitDuration) {
         state_ = State::Finished;
@@ -298,13 +319,15 @@ void EffectSequencer::UpdateHit(float deltaTime) {
     }
 }
 
-void EffectSequencer::Draw() {
+void EffectSequencer::Draw()
+{
     if (state_ == State::Flying && projectile_) {
         projectile_->Draw();
     }
 }
 
-void EffectSequencer::Reset() {
+void EffectSequencer::Reset()
+{
     state_ = State::Idle;
     elapsedTime_ = 0.0f;
     projectile_.reset();
@@ -316,7 +339,8 @@ void EffectSequencer::Reset() {
     projectileRotation_ = {};
 }
 
-void EffectSequencer::SaveProfile(const std::string& path, const EffectProfile& profile) {
+void EffectSequencer::SaveProfile(const std::string& path, const EffectProfile& profile)
+{
     std::ofstream file(path);
     if (!file) {
         return;
@@ -324,7 +348,8 @@ void EffectSequencer::SaveProfile(const std::string& path, const EffectProfile& 
     file << std::setw(4) << profile.ToJson() << std::endl;
 }
 
-bool EffectSequencer::LoadProfile(const std::string& path, EffectProfile& profile) {
+bool EffectSequencer::LoadProfile(const std::string& path, EffectProfile& profile)
+{
     std::ifstream file(path);
     if (!file) {
         return false;
@@ -336,14 +361,15 @@ bool EffectSequencer::LoadProfile(const std::string& path, EffectProfile& profil
     return true;
 }
 
-void EffectSequencer::DrawImGui() {
+void EffectSequencer::DrawImGui()
+{
 #ifdef USE_IMGUI
     if (ImGui::Begin("Effect Sequencer")) {
         ImGui::Text("Events: %zu", events_.size());
         ImGui::Text("Active Events: %zu", activeEvents_.size());
         ImGui::Text("Projectile State: %d", static_cast<int>(state_));
         if (ImGui::Button("Play Hit Sample")) {
-            PlayHitEffect({ 0.0f, 0.0f, 0.0f });
+            PlayHitEffect({0.0f, 0.0f, 0.0f});
         }
     }
     ImGui::End();
@@ -351,7 +377,8 @@ void EffectSequencer::DrawImGui() {
 }
 
 #ifdef USE_IMGUI
-void EffectSequencer::DrawImGuiEditor(const Vector3& defaultStartPos, const Vector3& defaultTargetPos) {
+void EffectSequencer::DrawImGuiEditor(const Vector3& defaultStartPos, const Vector3& defaultTargetPos)
+{
     if (ImGui::Begin("Attack Effect Editor")) {
         static char modelBuffer[256] = "ball.obj";
         static char flyBuffer[128] = "HitSpark";

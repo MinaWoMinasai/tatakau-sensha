@@ -19,11 +19,13 @@ bool SaveAuthoringJson(const char* path, const nlohmann::json& data, std::string
             std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
             out << data.dump(2) << '\n';
             out.close();
-            if (!out)
+            if (!out) {
                 throw std::runtime_error("書き込み失敗");
+            }
         }
-        if (!MoveFileExW(temporary.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+        if (!MoveFileExW(temporary.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
             throw std::runtime_error("保存先の置換失敗");
+        }
         return true;
     }
     catch (const std::exception& ex) {
@@ -36,8 +38,9 @@ bool SaveAuthoringJson(const char* path, const nlohmann::json& data, std::string
 void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
 {
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
-    if (!ImGui::GetCurrentContext() || world_.run.expeditionTransition_.IsActive())
+    if (!ImGui::GetCurrentContext() || world_.run.expeditionTransition_.IsActive()) {
         return;
+    }
     if (world_.resources.input_->IsKeyTriggered(DIK_F3)) {
         world_.run.expeditionAuthoringHubOpen_ = !world_.run.expeditionAuthoringHubOpen_;
         if (world_.run.expeditionAuthoringHubOpen_) {
@@ -45,8 +48,9 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
             world_.run.expeditionVisualDraft_ = world_.gameplaySettings->BuildGameVisualConfig();
         }
     }
-    if (!world_.run.expeditionAuthoringHubOpen_)
+    if (!world_.run.expeditionAuthoringHubOpen_) {
         return;
+    }
     ImGui::SetNextWindowPos({115, 65}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({1010, 590}, ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("制作ツール / F3で開閉", &world_.run.expeditionAuthoringHubOpen_)) {
@@ -78,8 +82,9 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
         world_.run.expeditionAuthoringHubOpen_ = false;
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    if (ImGui::Button("F7 ボス戦へ移動 / 再生成"))
+    if (ImGui::Button("F7 ボス戦へ移動 / 再生成")) {
         world_.bossPresentation->RequestNeonBossDeveloperEncounter();
+    }
     ImGui::SameLine();
     if (ImGui::Button("Neon Boss / 本編ボス確認")) {
         world_.presentation.showGameDebugConsole_ = true;
@@ -102,8 +107,9 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
         world_.expeditionBuildSelection->RefreshExpeditionBuildCards();
         world_.run.expeditionAuthoringStatus_ = "見た目を適用しました。F3で閉じると試遊できます。";
     };
-    if (ImGui::Button("適用 / Apply"))
+    if (ImGui::Button("適用 / Apply")) {
         apply();
+    }
     ImGui::SameLine();
     if (ImGui::Button("保存 / Save")) {
         world_.run.expeditionPostDraft_["expeditionAuthored"] = true;
@@ -123,17 +129,21 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
             std::ifstream p("resources/configs/gamePostEffects.json"), v("resources/configs/gameVisuals.json");
             p >> post;
             v >> visual;
-            if (!post.is_object() || !visual.is_object())
+            if (!post.is_object() || !visual.is_object()) {
                 throw std::runtime_error("設定形式が不正です");
+            }
             // Match InitializeTankRunVisuals: unmarked older files contain
             // pre-expedition neon defaults. Reload only their independent
             // stage surfaces, rather than changing the rest of the live look.
             if (world_.run.expeditionRun_) {
-                if (!post.value("expeditionAuthored", false))
+                if (!post.value("expeditionAuthored", false)) {
                     post = world_.gameplaySettings->BuildGamePostEffectConfig();
+                }
                 if (!visual.value("expeditionAuthored", false)) {
                     auto migrated = world_.gameplaySettings->BuildGameVisualConfig();
-                    if (visual.contains("stageSurface")) migrated["stageSurface"] = visual["stageSurface"];
+                    if (visual.contains("stageSurface")) {
+                        migrated["stageSurface"] = visual["stageSurface"];
+                    }
                     visual = std::move(migrated);
                 }
             }
@@ -149,43 +159,53 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
     ImGui::TextWrapped("%s", world_.run.expeditionAuthoringStatus_.c_str());
     auto scalar = [](nlohmann::json& object, const char* key, const char* label, float low, float high) {
         float value = object.value(key, 0.0f);
-        if (ImGui::SliderFloat(label, &value, low, high, "%.3f"))
+        if (ImGui::SliderFloat(label, &value, low, high, "%.3f")) {
             object[key] = value;
+        }
     };
     auto color = [](nlohmann::json& object, const char* key, const char* label) {
         auto& j = object[key];
         float c[] = {j.value("x", 0.0f), j.value("y", 0.0f), j.value("z", 0.0f), j.value("w", 1.0f)};
-        if (ImGui::ColorEdit4(label, c, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR))
+        if (ImGui::ColorEdit4(label, c, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR)) {
             j = {{"x", c[0]}, {"y", c[1]}, {"z", c[2]}, {"w", c[3]}};
+        }
     };
     if (ImGui::BeginTabBar("見た目の編集")) {
         if (ImGui::BeginTabItem("床・立体ブロック")) {
             auto& surface = world_.run.expeditionVisualDraft_["stageSurface"];
             auto toggle = [&](const char* key, const char* label) {
                 bool value = surface.value(key, true);
-                if (ImGui::Checkbox(label, &value)) surface[key] = value;
+                if (ImGui::Checkbox(label, &value)) {
+                    surface[key] = value;
+                }
             };
             toggle("enabled", "新しいステージ表現を使用");
-            if (ImGui::Button("従来表示へ戻す")) surface["enabled"] = false;
-            const char* styles[]={"Phase 1 / ベベルタイル","Phase 1.5 / 連続した直線壁"};
-            int style=surface.value("wallStyle",1);
-            if (ImGui::Combo("壁の形状",&style,styles,2)) surface["wallStyle"]=style;
-            toggle("exteriorEnabled","外側の構造物");
-            scalar(surface,"exteriorHeight","外周壁の高さ",1,12);
-            scalar(surface,"exteriorGap","外周壁との間隔",.5f,12);
-            scalar(surface,"exteriorWidth","外周壁の幅",.5f,6);
-            int levels=surface.value("stackLevels",3);
-            if (ImGui::SliderInt("内側の積層数",&levels,1,5)) surface["stackLevels"]=levels;
-            scalar(surface,"wallLineWidth","直線壁の発光線幅",.008f,.08f);
-            toggle("floorLocalLight","床に自機の局所光");
-            color(surface,"floorLightColor","床の局所光色");
-            scalar(surface,"floorLocalIntensity","床の局所光強度",0,80);
-            scalar(surface,"floorLocalRadius","床の局所光半径",2,24);
-            scalar(surface,"floorLocalHeight","光源の高さ（XY平面基準）",.5f,8);
-            scalar(surface,"floorDetail","床の法線ディテール（実験）",0,.2f);
+            if (ImGui::Button("従来表示へ戻す")) {
+                surface["enabled"] = false;
+            }
+            const char* styles[] = {"Phase 1 / ベベルタイル", "Phase 1.5 / 連続した直線壁"};
+            int style = surface.value("wallStyle", 1);
+            if (ImGui::Combo("壁の形状", &style, styles, 2)) {
+                surface["wallStyle"] = style;
+            }
+            toggle("exteriorEnabled", "外側の構造物");
+            scalar(surface, "exteriorHeight", "外周壁の高さ", 1, 12);
+            scalar(surface, "exteriorGap", "外周壁との間隔", .5f, 12);
+            scalar(surface, "exteriorWidth", "外周壁の幅", .5f, 6);
+            int levels = surface.value("stackLevels", 3);
+            if (ImGui::SliderInt("内側の積層数", &levels, 1, 5)) {
+                surface["stackLevels"] = levels;
+            }
+            scalar(surface, "wallLineWidth", "直線壁の発光線幅", .008f, .08f);
+            toggle("floorLocalLight", "床に自機の局所光");
+            color(surface, "floorLightColor", "床の局所光色");
+            scalar(surface, "floorLocalIntensity", "床の局所光強度", 0, 80);
+            scalar(surface, "floorLocalRadius", "床の局所光半径", 2, 24);
+            scalar(surface, "floorLocalHeight", "光源の高さ（XY平面基準）", .5f, 8);
+            scalar(surface, "floorDetail", "床の法線ディテール（実験）", 0, .2f);
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-            ImGui::Checkbox("開発用 / 軽く傾けた視点",&world_.presentation.developerStageTilt_);
-            ImGui::SliderFloat("比較視点の角度",&world_.presentation.developerStageTiltDegrees_,5,28);
+            ImGui::Checkbox("開発用 / 軽く傾けた視点", &world_.presentation.developerStageTilt_);
+            ImGui::SliderFloat("比較視点の角度", &world_.presentation.developerStageTiltDegrees_, 5, 28);
 #endif
             ImGui::TextWrapped("上の適用で画面に反映し、保存で次回起動にも反映します。");
             toggle("floorEnabled", "不透明3D床");
@@ -205,7 +225,9 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
             scalar(surface, "blockEmission", "ブロック枠線の発光強度", 0, 2);
             scalar(surface, "blockLightIntensity", "ブロックの照明強度", 0, 5);
             int divisions = surface.value("sideLineDivisions", 1);
-            if (ImGui::SliderInt("側面のライン分割", &divisions, 1, 8)) surface["sideLineDivisions"] = divisions;
+            if (ImGui::SliderInt("側面のライン分割", &divisions, 1, 8)) {
+                surface["sideLineDivisions"] = divisions;
+            }
             ImGui::TextDisabled("詳しい診断と比較プリセット: F12 → 見た目 → Phase 1.5。");
             ImGui::EndTabItem();
         }
@@ -221,23 +243,26 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
             const char* labels[] = {
                 "ネオン共通（戦車・剣・グリッド）", "弾・剣の軌跡",       "パーティクル",         "3D本体・ブロックの共通ブルーム",
                 "プレイヤー3D（旧表示用）",         "ボス3D（旧表示用）", "通常敵3D（旧表示用）", "ブロック3D"};
-            for (int i = 0; i < 8; ++i)
+            for (int i = 0; i < 8; ++i) {
                 if (ImGui::CollapsingHeader(labels[i], i == 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
                     ImGui::PushID(keys[i]);
                     auto& entry = world_.run.expeditionPostDraft_[keys[i]];
                     if (entry.contains("enabled")) {
                         bool enabled = entry["enabled"].get<bool>();
-                        if (ImGui::Checkbox("有効", &enabled))
+                        if (ImGui::Checkbox("有効", &enabled)) {
                             entry["enabled"] = enabled;
+                        }
                     }
                     auto& param = entry["param"];
                     scalar(param, "intensity", "ブルーム強度", 0, 8);
                     scalar(param, "threshold", "発光しきい値", 0, 2);
-                    if (i == 4 || i == 5)
+                    if (i == 4 || i == 5) {
                         ImGui::TextWrapped(
                             "現在のネオン描画では、この個別3D設定は使いません。上のネオン共通と発光倍率を編集してください。");
+                    }
                     ImGui::PopID();
                 }
+            }
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("機体・斬撃・残像")) {

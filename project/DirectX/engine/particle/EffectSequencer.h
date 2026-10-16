@@ -112,18 +112,22 @@ public:
     {
         return state_ == State::Finished || state_ == State::Idle;
     }
+
     /// @brief 有効であるか判定する。
     bool IsActive() const
     {
         return state_ != State::Idle && state_ != State::Finished;
     }
+
     /// @brief 状態を返す。
     State GetState() const
     {
         return state_;
     }
+
     /// @brief 状態と集計値を初期状態へ戻す。
     void Reset();
+
     /// @brief On命中通知関数を設定する。
     void SetOnHitCallback(std::function<void()> callback)
     {
@@ -140,6 +144,7 @@ public:
     {
         return profile_;
     }
+
     /// @brief 演出設定を設定する。
     void SetProfile(const EffectProfile& profile)
     {

@@ -27,7 +27,8 @@ struct BossVisualDecision {
 // animation or renderer pointers. It cannot advance combat or modify its input.
 class BossVisualBridge {
 public:
-    BossVisualDecision Update(const BossVisualBridgeInput& input, float deltaTime) {
+    BossVisualDecision Update(const BossVisualBridgeInput& input, float deltaTime)
+    {
         BossVisualDecision result;
         if (encounterGeneration_ != input.encounterGeneration) {
             encounterGeneration_ = input.encounterGeneration;
@@ -40,33 +41,56 @@ public:
         if (input.rivalEnabled) {
             using P = RivalBossCombat::Phase;
             switch (input.rivalPhase) {
-            case P::Reposition: result.action = NeonBossAction::Reposition; break;
-            case P::Tracking: case P::Locked: case P::DashWarning: result.action = NeonBossAction::Telegraph; break;
-            case P::Volley: result.action = NeonBossAction::Attack; break;
-            case P::Dash: result.action = NeonBossAction::Dash; break;
-            case P::Reload: result.action = NeonBossAction::Reload; break;
+            case P::Reposition:
+                result.action = NeonBossAction::Reposition;
+                break;
+            case P::Tracking:
+            case P::Locked:
+            case P::DashWarning:
+                result.action = NeonBossAction::Telegraph;
+                break;
+            case P::Volley:
+                result.action = NeonBossAction::Attack;
+                break;
+            case P::Dash:
+                result.action = NeonBossAction::Dash;
+                break;
+            case P::Reload:
+                result.action = NeonBossAction::Reload;
+                break;
             }
         } else if (input.prototypeEnabled) {
             using P = PrototypeBossCombat::Phase;
             switch (input.prototypePhase) {
-            case P::Recovery: result.action = NeonBossAction::Idle; break;
-            case P::Telegraph: result.action = NeonBossAction::Telegraph; break;
-            case P::Attack: result.action = NeonBossAction::Attack; break;
+            case P::Recovery:
+                result.action = NeonBossAction::Idle;
+                break;
+            case P::Telegraph:
+                result.action = NeonBossAction::Telegraph;
+                break;
+            case P::Attack:
+                result.action = NeonBossAction::Attack;
+                break;
             }
         } else {
             const float x = input.position[0] - previousPosition_[0];
             const float y = input.position[1] - previousPosition_[1];
             const float z = input.position[2] - previousPosition_[2];
-            if (std::sqrt(x*x + y*y + z*z) > 0.001f) result.action = NeonBossAction::Reposition;
+            if (std::sqrt(x * x + y * y + z * z) > 0.001f) {
+                result.action = NeonBossAction::Reposition;
+            }
         }
         // AimedSpread emits and returns to Recovery in one combat tick. This
         // hold affects only the visual; it never replaces a telegraph or Dash.
-        if (input.shotsFired != previousShots_) attackPresentationTimer_ = 0.70f;
-        else if (deltaTime > 0.0f)
+        if (input.shotsFired != previousShots_) {
+            attackPresentationTimer_ = 0.70f;
+        } else if (deltaTime > 0.0f) {
             attackPresentationTimer_ = (std::max)(0.0f, attackPresentationTimer_ - deltaTime);
+        }
         if (!input.rivalEnabled && attackPresentationTimer_ > 0.0f &&
-            (result.action == NeonBossAction::Idle || result.action == NeonBossAction::Reposition))
+            (result.action == NeonBossAction::Idle || result.action == NeonBossAction::Reposition)) {
             result.action = NeonBossAction::Attack;
+        }
         previousShots_ = input.shotsFired;
         previousPosition_ = input.position;
         return result;

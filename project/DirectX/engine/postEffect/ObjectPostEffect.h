@@ -12,8 +12,8 @@ namespace myEngine {
 class ObjectPostEffect {
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
-    void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager,
-        float renderScale = 1.0f, float qualityCaptureScale = 0.0f);
+    void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager, float renderScale = 1.0f,
+                    float qualityCaptureScale = 0.0f);
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Update(float deltaTime = 1.0f / 60.0f);
@@ -44,11 +44,13 @@ public:
     {
         return param_;
     }
+
     /// @brief パラメーターを返す。
     const BloomParam& GetParam() const
     {
         return param_;
     }
+
     /// @brief パラメーターを設定する。
     void SetParam(const BloomParam& param);
 

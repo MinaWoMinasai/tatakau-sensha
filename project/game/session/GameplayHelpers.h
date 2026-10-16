@@ -183,14 +183,18 @@ inline myEngine::Vector4 ReadJsonVector4(const nlohmann::json& json, const myEng
     }
 
     myEngine::Vector4 value = fallback;
-    if (json.contains("x") && json["x"].is_number())
+    if (json.contains("x") && json["x"].is_number()) {
         value.x = json["x"].get<float>();
-    if (json.contains("y") && json["y"].is_number())
+    }
+    if (json.contains("y") && json["y"].is_number()) {
         value.y = json["y"].get<float>();
-    if (json.contains("z") && json["z"].is_number())
+    }
+    if (json.contains("z") && json["z"].is_number()) {
         value.z = json["z"].get<float>();
-    if (json.contains("w") && json["w"].is_number())
+    }
+    if (json.contains("w") && json["w"].is_number()) {
         value.w = json["w"].get<float>();
+    }
     return value;
 }
 
@@ -202,12 +206,15 @@ inline myEngine::Vector3 ReadJsonVector3(const nlohmann::json& json, const myEng
     }
 
     myEngine::Vector3 value = fallback;
-    if (json.contains("x") && json["x"].is_number())
+    if (json.contains("x") && json["x"].is_number()) {
         value.x = json["x"].get<float>();
-    if (json.contains("y") && json["y"].is_number())
+    }
+    if (json.contains("y") && json["y"].is_number()) {
         value.y = json["y"].get<float>();
-    if (json.contains("z") && json["z"].is_number())
+    }
+    if (json.contains("z") && json["z"].is_number()) {
         value.z = json["z"].get<float>();
+    }
     return value;
 }
 
@@ -219,10 +226,12 @@ inline myEngine::Vector2 ReadJsonVector2(const nlohmann::json& json, const myEng
     }
 
     myEngine::Vector2 value = fallback;
-    if (json.contains("x") && json["x"].is_number())
+    if (json.contains("x") && json["x"].is_number()) {
         value.x = json["x"].get<float>();
-    if (json.contains("y") && json["y"].is_number())
+    }
+    if (json.contains("y") && json["y"].is_number()) {
         value.y = json["y"].get<float>();
+    }
     return value;
 }
 
@@ -290,20 +299,27 @@ inline void ReadBulletTrailSettingsJson(const nlohmann::json& json, BulletTrailS
     settings.trailTailIntensity = ReadCustomFloat(json, "trailTailIntensity", settings.trailTailIntensity);
     settings.trailHeadAlpha = ReadCustomFloat(json, "trailHeadAlpha", settings.trailHeadAlpha);
     settings.trailTailAlpha = ReadCustomFloat(json, "trailTailAlpha", settings.trailTailAlpha);
-    if (json.contains("playerObjectColor"))
+    if (json.contains("playerObjectColor")) {
         settings.playerObjectColor = ReadJsonVector4(json["playerObjectColor"], settings.playerObjectColor);
-    if (json.contains("enemyObjectColor"))
+    }
+    if (json.contains("enemyObjectColor")) {
         settings.enemyObjectColor = ReadJsonVector4(json["enemyObjectColor"], settings.enemyObjectColor);
-    if (json.contains("reflectableObjectColor"))
+    }
+    if (json.contains("reflectableObjectColor")) {
         settings.reflectableObjectColor = ReadJsonVector4(json["reflectableObjectColor"], settings.reflectableObjectColor);
-    if (json.contains("startColor"))
+    }
+    if (json.contains("startColor")) {
         settings.startColor = ReadJsonVector4(json["startColor"], settings.startColor);
-    if (json.contains("playerEndColor"))
+    }
+    if (json.contains("playerEndColor")) {
         settings.playerEndColor = ReadJsonVector4(json["playerEndColor"], settings.playerEndColor);
-    if (json.contains("enemyEndColor"))
+    }
+    if (json.contains("enemyEndColor")) {
         settings.enemyEndColor = ReadJsonVector4(json["enemyEndColor"], settings.enemyEndColor);
-    if (json.contains("reflectableEndColor"))
+    }
+    if (json.contains("reflectableEndColor")) {
         settings.reflectableEndColor = ReadJsonVector4(json["reflectableEndColor"], settings.reflectableEndColor);
+    }
 }
 
 /// @brief ブルームパラメーターJsonを書き込む。
@@ -443,12 +459,14 @@ inline void EmitColliderDebugRings(myEngine::RingManager& ringManager, Collider&
 /// @brief 有効カメラ位置を返す。
 inline myEngine::Vector3 GetActiveCameraPosition(myEngine::Camera* camera, myEngine::DebugCamera* debugCamera)
 {
-    return myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() && debugCamera ? debugCamera->GetEyePosition() : camera->GetTranslate();
+    return myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() && debugCamera ? debugCamera->GetEyePosition()
+                                                                                      : camera->GetTranslate();
 }
 
 /// @brief XY平面で点と有限線分の最短距離を返す。Z座標は距離に含めない。
 /// @param outT 非nullなら最近点の線分上の割合（0～1）を書き込む。XYの長さの二乗が0.0001以下なら0。
-inline float DistancePointToSegment2D(const myEngine::Vector3& point, const myEngine::Vector3& start, const myEngine::Vector3& end, float* outT = nullptr)
+inline float DistancePointToSegment2D(const myEngine::Vector3& point, const myEngine::Vector3& start, const myEngine::Vector3& end,
+                                      float* outT = nullptr)
 {
     const myEngine::Vector3 segment = end - start;
     const myEngine::Vector3 toPoint = point - start;

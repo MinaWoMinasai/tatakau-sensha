@@ -197,8 +197,9 @@ void Player::RotateToMouse(myEngine::Camera* viewProjection)
     if (demoInputEnabled_) {
         runAimWorld_ = demoAim_;
         const myEngine::Vector3 offset = demoAim_ - worldTransform_.translate;
-        if (myEngine::Length(offset) > 0.001f)
+        if (myEngine::Length(offset) > 0.001f) {
             dir_ = myEngine::Normalize(offset);
+        }
         angle_ = std::atan2(dir_.y, dir_.x);
         worldTransform_.rotate.z = angle_;
         object_->SetRotate(worldTransform_.rotate);
@@ -208,8 +209,9 @@ void Player::RotateToMouse(myEngine::Camera* viewProjection)
         // Twin-stick aim: the right stick sets the barrel direction; released, the last direction is kept.
         // The OS cursor is ignored so a resting mouse cannot pull the aim.
         myEngine::Vector2 aim{};
-        if (input_->TryGetGamepadAim(aim))
+        if (input_->TryGetGamepadAim(aim)) {
             dir_ = myEngine::Normalize(myEngine::Vector3{aim.x, aim.y, 0.0f});
+        }
         runAimWorld_ = worldTransform_.translate + dir_ * 12.0f;
         angle_ = std::atan2(dir_.y, dir_.x);
         worldTransform_.rotate.z = angle_;
@@ -217,24 +219,28 @@ void Player::RotateToMouse(myEngine::Camera* viewProjection)
         return;
     }
     if (neonDepthAimEnabled_) {
-        if (!viewProjection)
+        if (!viewProjection) {
             return;
+        }
         auto* window = myEngine::WinApp::GetInstance();
         POINT mousePosition{};
-        if (!window || !GetCursorPos(&mousePosition) || !ScreenToClient(window->GetHwnd(), &mousePosition))
+        if (!window || !GetCursorPos(&mousePosition) || !ScreenToClient(window->GetHwnd(), &mousePosition)) {
             return;
+        }
         constexpr myEngine::Vector2 viewport{1280.0f, 720.0f};
         myEngine::Vector2 logicalMouse{static_cast<float>(mousePosition.x), static_cast<float>(mousePosition.y)};
         window->ClientToLogical(logicalMouse.x, logicalMouse.y);
         myEngine::Vector2 pixel{};
         myEngine::Vector3 target{};
         if (!neondepth::TryClientToViewport(logicalMouse, viewport, viewport, pixel) ||
-            !neondepth::TryScreenToFloorFromViewProjection(pixel, viewport, viewProjection->GetViewProjectionMatrix(), 0.0f, target))
+            !neondepth::TryScreenToFloorFromViewProjection(pixel, viewport, viewProjection->GetViewProjectionMatrix(), 0.0f, target)) {
             return;
+        }
         const myEngine::Vector3 offset = target - worldTransform_.translate;
         const float length = myEngine::Length(offset);
-        if (!neondepth::Finite(offset) || !std::isfinite(length) || length <= 0.001f)
+        if (!neondepth::Finite(offset) || !std::isfinite(length) || length <= 0.001f) {
             return;
+        }
         dir_ = myEngine::Normalize(offset);
         runAimWorld_ = target;
         angle_ = std::atan2(dir_.y, dir_.x);
@@ -252,7 +258,8 @@ void Player::RotateToMouse(myEngine::Camera* viewProjection)
     myEngine::WinApp::GetInstance()->ClientToLogical(logicalMouseX, logicalMouseY);
 
     // --- 2. 逆変換用の行列を準備 ---
-    myEngine::Matrix4x4 matViewport = myEngine::MakeViewportMatrix(0, 0, myEngine::WinApp::kClientWidth, myEngine::WinApp::kClientHeight, 0, 1);
+    myEngine::Matrix4x4 matViewport =
+        myEngine::MakeViewportMatrix(0, 0, myEngine::WinApp::kClientWidth, myEngine::WinApp::kClientHeight, 0, 1);
     myEngine::Matrix4x4 matVPV = viewProjection->GetViewMatrix() * viewProjection->GetProjectionMatrix() * matViewport;
     myEngine::Matrix4x4 matInverseVPV = myEngine::Inverse(matVPV);
 
@@ -382,20 +389,27 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     }
 
     if (!demoInputEnabled_ && !runModifiers_.enabled && skillPoints_ > 0) {
-        if (input_->IsTrigger(input_->GetKey()[DIK_1], input_->GetPreKey()[DIK_1]))
+        if (input_->IsTrigger(input_->GetKey()[DIK_1], input_->GetPreKey()[DIK_1])) {
             ApplyStatUpgrade(0);
-        if (input_->IsTrigger(input_->GetKey()[DIK_2], input_->GetPreKey()[DIK_2]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_2], input_->GetPreKey()[DIK_2])) {
             ApplyStatUpgrade(1);
-        if (input_->IsTrigger(input_->GetKey()[DIK_3], input_->GetPreKey()[DIK_3]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_3], input_->GetPreKey()[DIK_3])) {
             ApplyStatUpgrade(2);
-        if (input_->IsTrigger(input_->GetKey()[DIK_4], input_->GetPreKey()[DIK_4]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_4], input_->GetPreKey()[DIK_4])) {
             ApplyStatUpgrade(3);
-        if (input_->IsTrigger(input_->GetKey()[DIK_5], input_->GetPreKey()[DIK_5]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_5], input_->GetPreKey()[DIK_5])) {
             ApplyStatUpgrade(4);
-        if (input_->IsTrigger(input_->GetKey()[DIK_6], input_->GetPreKey()[DIK_6]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_6], input_->GetPreKey()[DIK_6])) {
             ApplyStatUpgrade(5);
-        if (input_->IsTrigger(input_->GetKey()[DIK_7], input_->GetPreKey()[DIK_7]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_7], input_->GetPreKey()[DIK_7])) {
             ApplyStatUpgrade(6);
+        }
     }
 
     if (runModifiers_.enabled) {
@@ -444,20 +458,25 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
         // Read the current direction before a dash; a newly pressed movement
         // key should redirect the boost immediately, not on the following frame.
         inputDir_ = {};
-        if (input_->IsPress(input_->GetKey()[DIK_A]))
+        if (input_->IsPress(input_->GetKey()[DIK_A])) {
             inputDir_.x -= 1.0f;
-        if (input_->IsPress(input_->GetKey()[DIK_D]))
+        }
+        if (input_->IsPress(input_->GetKey()[DIK_D])) {
             inputDir_.x += 1.0f;
-        if (input_->IsPress(input_->GetKey()[DIK_W]))
+        }
+        if (input_->IsPress(input_->GetKey()[DIK_W])) {
             inputDir_.y += 1.0f;
-        if (input_->IsPress(input_->GetKey()[DIK_S]))
+        }
+        if (input_->IsPress(input_->GetKey()[DIK_S])) {
             inputDir_.y -= 1.0f;
+        }
         if (input_->IsGamepadActive()) {
             const myEngine::Vector2 move = input_->GetGamepadMove();
             inputDir_ = {move.x, move.y, 0};
         }
-        if (demoInputEnabled_)
+        if (demoInputEnabled_) {
             inputDir_ = {demoMove_.x, demoMove_.y, 0};
+        }
         RotateToMouse(viewProjection);
     }
     if ((!runModifiers_.enabled || !runRoomAwaitInputRelease_) &&
@@ -487,22 +506,27 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     RotateToMouse(viewProjection);
     inputDir_ = {0, 0, 0};
 
-    if (input_->IsPress(input_->GetKey()[DIK_A]))
+    if (input_->IsPress(input_->GetKey()[DIK_A])) {
         inputDir_.x -= 1.0f;
-    if (input_->IsPress(input_->GetKey()[DIK_D]))
+    }
+    if (input_->IsPress(input_->GetKey()[DIK_D])) {
         inputDir_.x += 1.0f;
-    if (input_->IsPress(input_->GetKey()[DIK_W]))
+    }
+    if (input_->IsPress(input_->GetKey()[DIK_W])) {
         inputDir_.y += 1.0f;
-    if (input_->IsPress(input_->GetKey()[DIK_S]))
+    }
+    if (input_->IsPress(input_->GetKey()[DIK_S])) {
         inputDir_.y -= 1.0f;
+    }
     if (input_->IsGamepadActive()) {
         // Analog stick: direction and tilt (the movement step limits the length).
         const myEngine::Vector2 move = input_->GetGamepadMove();
         inputDir_ = {move.x, move.y, 0};
     }
 
-    if (demoInputEnabled_)
+    if (demoInputEnabled_) {
         inputDir_ = {demoMove_.x, demoMove_.y, 0};
+    }
     PlayerMovementInput movementInput{};
     movementInput.direction = inputDir_;
     movementInput.velocity = velocity_;
@@ -580,8 +604,9 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
         if (IsDroneBuild()) {
             runBulletManager_ = BulletManager;
             runSupportDroneTimer_ = (std::max)(0.0f, runSupportDroneTimer_ - deltaTime);
-            if (runSupportDroneTimer_ <= 0.0f)
+            if (runSupportDroneTimer_ <= 0.0f) {
                 EnsureExpeditionDrones();
+            }
         } else if (runModifiers_.enabled && !runRoomAwaitInputRelease_ && supportLimit > 0 && (!activeClass || !activeClass->usesDrone)) {
             runSupportDroneTimer_ = (std::max)(0.0f, runSupportDroneTimer_ - deltaTime);
             if (drones_.size() < supportLimit && runSupportDroneTimer_ <= 0.0f) {
@@ -607,20 +632,23 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
                     std::array<float, 48> distances{};
                     const auto from = runModifiers_.autonomousSpread ? drone->GetWorldPosition() : runAimWorld_;
                     const int count = static_cast<int>((std::min)(runHomingTargets_.size(), distances.size()));
-                    for (int n = 0; n < count; ++n)
+                    for (int n = 0; n < count; ++n) {
                         distances[static_cast<size_t>(n)] = myEngine::Length(runHomingTargets_[static_cast<size_t>(n)] - from);
+                    }
                     const int chosen = tankspecial::ChooseSpreadTarget(distances.data(), spreadUsed.data(), count);
                     if (chosen >= 0 && (runModifiers_.autonomousSpread || distances[static_cast<size_t>(chosen)] < 6.0f)) {
                         aim = runHomingTargets_[static_cast<size_t>(chosen)];
                         if (runModifiers_.autonomousSpread) {
                             spreadUsed[static_cast<size_t>(chosen)] = true;
-                            if (wantsAttack)
+                            if (wantsAttack) {
                                 specialCombatStats_.spreadTargets |= uint32_t{1} << (chosen % 32);
+                            }
                         }
                     }
                 }
-                if (expeditionCombatStyleSelected_ || demoInputEnabled_)
+                if (expeditionCombatStyleSelected_ || demoInputEnabled_) {
                     drone->SetRunInput(aim, wantsAttack);
+                }
                 if (IsDroneBuild()) {
                     const float orbit =
                         static_cast<float>(companionIndex) * 6.2831853f / static_cast<float>((std::max)(size_t{1}, drones_.size()));
@@ -643,8 +671,9 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
                                          return drone->IsDead();
                                      }),
                       drones_.end());
-        if (IsDroneBuild() && drones_.size() < static_cast<size_t>(GetExpeditionDroneLimit()) && runSupportDroneTimer_ <= 0.0f)
+        if (IsDroneBuild() && drones_.size() < static_cast<size_t>(GetExpeditionDroneLimit()) && runSupportDroneTimer_ <= 0.0f) {
             runSupportDroneTimer_ = 1.2f;
+        }
         UpdateRunProjectiles(BulletManager, deltaTime);
     }
 
@@ -660,11 +689,11 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
 
 void Player::Draw(bool drawBody)
 {
-
     // ドローンの描画
     for (auto& drone : drones_) {
-        if (!drone->UsesNeonVisual())
+        if (!drone->UsesNeonVisual()) {
             drone->Draw();
+        }
     }
 
     if (drawBody) {
@@ -755,7 +784,6 @@ std::vector<PlayerDrone*> Player::GetDronePtrs() const
 
 myEngine::Vector3 Player::GetWorldPosition() const
 {
-
     // ワールド座標を入れる
     myEngine::Vector3 worldPos;
     // ワールド行列の平行移動成分を取得(ワールド座標)
@@ -812,8 +840,9 @@ void Player::OnCollision(Collider* other)
         }
     }
 
-    if (TryPerfectDodgeFromHostileContact(other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet))
+    if (TryPerfectDodgeFromHostileContact(other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet)) {
         return;
+    }
 
     myEngine::Vector3 hitDir = worldTransform_.translate - other->GetWorldPosition();
 
@@ -840,16 +869,19 @@ void Player::OnCollision(Collider* other)
 
 uint32_t Player::ReceiveHostileHazard(uint32_t amount, bool dodgeable)
 {
-    if (isDead_ || amount == 0)
+    if (isDead_ || amount == 0) {
         return 0;
+    }
     if (currentClass_ == ClassType::Assassin) {
         isStealth_ = false;
         stealthTimer_ = 0.0f;
     }
-    if ((invincibleTimer_ > 0.0f && !isDashing_) || isJustEvaded_ || isSmash_)
+    if ((invincibleTimer_ > 0.0f && !isDashing_) || isJustEvaded_ || isSmash_) {
         return 0;
-    if (TryPerfectDodgeFromHostileContact(dodgeable))
+    }
+    if (TryPerfectDodgeFromHostileContact(dodgeable)) {
         return 0;
+    }
     const int before = hp_;
     TakeDamage(amount, 0.45f);
     return static_cast<uint32_t>((std::max)(0, before - hp_));
@@ -857,26 +889,31 @@ uint32_t Player::ReceiveHostileHazard(uint32_t amount, bool dodgeable)
 
 bool Player::TryDashImpact(Collider* target)
 {
-    if (!target || isDead_ || !isDashing_)
+    if (!target || isDead_ || !isDashing_) {
         return false;
+    }
     auto* regular = dynamic_cast<ExpEnemy*>(target);
     auto* boss = dynamic_cast<Enemy*>(target);
     if ((!regular && !boss) || (regular && (regular->IsDead() || regular->IsRunResource())) ||
-        (boss && (!boss->IsRunEncounterEnabled() || boss->IsDead())))
+        (boss && (!boss->IsRunEncounterEnabled() || boss->IsDead()))) {
         return false;
+    }
     const uint64_t id = target->GetCollisionId();
     if (std::find(dashImpactTargets_.begin(), dashImpactTargets_.end(), id) != dashImpactTargets_.end()) {
         // このダッシュで処理済みなら、受付時間を過ぎてもtrueを返して通常の双方通知を抑える。
         return true;
     }
-    if (kDashDuration - dashTimer_ > kJustEvadeWindow)
+    if (kDashDuration - dashTimer_ > kJustEvadeWindow) {
         return false;
+    }
     dashImpactTargets_.push_back(id);
     myEngine::Vector3 direction = target->GetWorldPosition() - GetWorldPosition();
-    if (myEngine::Length(direction) < 0.001f)
+    if (myEngine::Length(direction) < 0.001f) {
         direction = velocity_;
-    if (myEngine::Length(direction) < 0.001f)
+    }
+    if (myEngine::Length(direction) < 0.001f) {
         direction = {1, 0, 0};
+    }
     direction = myEngine::Normalize(direction);
     const bool powered = runModifiers_.enabled && runModifiers_.impactDrive;
     const float strength = powered ? 1.0f + 0.5f * TankEffectPower(runModifiers_, 14) : 1.0f;
@@ -960,8 +997,9 @@ std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents()
 
 void Player::Die()
 {
-    if (isDead_)
+    if (isDead_) {
         return;
+    }
 
     isDead_ = true;
     isExploding_ = true;
@@ -1229,8 +1267,9 @@ void Player::UpdateStealth(float deltaTime)
 
 void Player::UpdateSummoner(float deltaTime)
 {
-    if (currentClass_ != ClassType::Summoner)
+    if (currentClass_ != ClassType::Summoner) {
         return;
+    }
 
     // ドローンの数が足りなければ生成
     if (drones_.size() < kMaxSummonerDrones) {
@@ -1263,8 +1302,9 @@ void Player::SpawnAfterimage()
 std::vector<Player::NeonBarrelLayout> Player::GetNeonBarrelLayouts() const
 {
     std::vector<NeonBarrelLayout> layouts;
-    if (IsDroneBuild())
+    if (IsDroneBuild()) {
         return layouts;
+    }
     if (IsMeleeBuild()) {
         NeonBarrelLayout blade{};
         blade.isMelee = true;
@@ -1335,6 +1375,7 @@ void Player::SpawnBuffParticle()
 {
     myEngine::ParticleManager::GetInstance()->Emit("DashDust", GetWorldPosition(), 1);
 }
+
 myEngine::Vector2 Player::WorldToScreen(const myEngine::Vector3& worldPos, myEngine::Camera* camera)
 {
     // 1. ビュープロジェクション行列で変換
@@ -1505,8 +1546,8 @@ void Player::TriggerSaberCounter(const PlayerClassConfig& config)
     playerWeapons_->TriggerSaberCounter(config);
 }
 
-bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, myEngine::Vector3& recoilDir,
-                                 float& recoilPower)
+bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload,
+                                 myEngine::Vector3& recoilDir, float& recoilPower)
 {
     return playerWeapons_->FireConfiguredClass(config, bulletManager, baseReload, recoilDir, recoilPower);
 }
@@ -1779,14 +1820,17 @@ void Player::RecalculateStatsFromBase(bool healToFull)
 std::vector<Player::DroneAbilityVisual> Player::GetDroneAbilityVisuals() const
 {
     std::vector<DroneAbilityVisual> result;
-    if (!IsDroneBuild())
+    if (!IsDroneBuild()) {
         return result;
+    }
     for (const auto& drone : drones_) {
-        if (!drone || drone->IsDead())
+        if (!drone || drone->IsDead()) {
             continue;
+        }
         const auto& mission = drone->GetRunMission();
-        if (mission.GetPhase() == tankspecial::DronePhase::Escort)
+        if (mission.GetPhase() == tankspecial::DronePhase::Escort) {
             continue;
+        }
         // 表示用の進行度。帰還にも突撃の制限時間を使うため、帰還の時間切れまでの完了率ではない。
         const float duration = mission.GetPhase() == tankspecial::DronePhase::Warning ? mission.GetWarningDuration()
                                : mission.GetPhase() == tankspecial::DronePhase::Rebuilding

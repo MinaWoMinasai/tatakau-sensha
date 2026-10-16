@@ -6,7 +6,6 @@ namespace myEngine {
 
 /// @brief 頂点入力の要素配置を保持し、パイプライン作成時に提供する。
 class InputDesc {
-
 public:
     /// @brief 初期化
     void Initialize();
@@ -21,6 +20,7 @@ public:
     {
         return std::span{ElementDescs_, _countof(ElementDescs_)};
     }
+
     /// @brief 配置を返す。
     D3D12_INPUT_LAYOUT_DESC GetLayout()
     {

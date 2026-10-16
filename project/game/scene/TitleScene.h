@@ -8,6 +8,7 @@
 #include <string_view>
 
 class GameScene;
+
 /// @brief タイトルの操作・背景デモ・ゲーム開始への遷移を管理する。
 class TitleScene : public IScene {
 public:
@@ -17,9 +18,22 @@ public:
     ~TitleScene() override;
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize() override;
-    void OnEngineReady() override { engineReady_ = true; }
-    bool UsesSimpleRendering() const override { return !demoReady_ || finished_; }
-    bool KeepTitleDuringTransition() const override { return asyncStartup_; }
+
+    void OnEngineReady() override
+    {
+        engineReady_ = true;
+    }
+
+    bool UsesSimpleRendering() const override
+    {
+        return !demoReady_ || finished_;
+    }
+
+    bool KeepTitleDuringTransition() const override
+    {
+        return asyncStartup_;
+    }
+
     void PrepareForTransition() override;
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update() override;
@@ -36,20 +50,24 @@ public:
     void RecordDeveloperFrame(myEngine::DirectXCommon&) override;
     /// @brief タイトルとデモが使うファイルの読み込みを裏で開始する。何度呼んでもよい。
     static void StartAssetPreloads();
+
     /// @brief 後処理ガウシアン強度を返す。
     float GetPostGaussianIntensity() const override
     {
         return 0.88f;
     }
+
     /// @brief 画面演出状態を返す。
     ScreenEffectState GetScreenEffectState() const override;
     /// @brief ベクター管モニター風のアリーナ表示設定を返す。
     ArenaLookSettings GetArenaLookSettings() const override;
+
     /// @brief 終了済みであるか判定する。
     bool IsFinished() const override
     {
         return finished_ && engineReady_;
     }
+
     /// @brief 次のシーン名前を返す。
     std::string GetNextSceneName() const override
     {
@@ -81,6 +99,7 @@ private:
     myEngine::Input* input_ = nullptr;
     std::unique_ptr<myEngine::TextLabel> title_, subtitle_, hint_, demoCaption_;
     std::array<std::unique_ptr<myEngine::TextLabel>, 1> menu_;
+
     /// @brief タイトルデモの1時点の状態と表示用の計測値を表す。
     struct DemoSample {
         std::string build;
@@ -89,6 +108,7 @@ private:
         uint32_t maxDashExplosionsEmitted = 0;
         uint64_t wallBouncesObserved = 0, actorPiercesObserved = 0, splitChildrenObserved = 0;
     };
+
     std::array<DemoSample, 4> stageSamples_{};
     std::unique_ptr<NeonTextEffect> titleTextNeonEffect_;
     Phase phase_ = Phase::kFadeIn;

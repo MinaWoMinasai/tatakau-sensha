@@ -7,6 +7,7 @@ class DepthEncounter {
 public:
     /// @brief 借用するワールドを設定する。
     explicit DepthEncounter(GameWorld& world) : world_(world) {}
+
     bool LoadNeonDepthConfig(bool hotReload = false);
 
     bool IsNeonDepthEncounterActive() const;

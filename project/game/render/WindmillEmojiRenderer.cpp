@@ -11,27 +11,31 @@ void WindmillEmojiRenderer::Initialize(myEngine::DirectXCommon* dx, const std::s
     auto description = dx_->GetPSOTrailForScene().graphicsDesc_;
     Microsoft::WRL::ComPtr<IDxcBlob> pixel;
     pixel.Attach(dx_->CompileShader(L"resources/shaders/WindmillEmoji.PS.hlsl", L"ps_6_0"));
-    if (!pixel)
+    if (!pixel) {
         throw std::runtime_error("Windmill emoji shader compilation failed.");
+    }
     description.PS = {pixel->GetBufferPointer(), pixel->GetBufferSize()};
     description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
     auto& blend = description.BlendState.RenderTarget[0];
     blend.BlendEnable = TRUE;
     blend.SrcBlend = D3D12_BLEND_SRC_ALPHA;
     blend.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-    if (FAILED(dx_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(&pipeline_))))
+    if (FAILED(dx_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(&pipeline_)))) {
         throw std::runtime_error("Windmill emoji HDR pipeline creation failed.");
+    }
     qualityTexture_ = "../generated/neon_windmill/iphone_linear_premultiplied.png";
     myEngine::TextureManager::GetInstance()->LoadTexture(qualityTexture_, myEngine::TextureManager::TextureColorSpace::LinearData);
     pixel.Reset();
     pixel.Attach(dx_->CompileShader(L"resources/shaders/WindmillNeon.PS.hlsl", L"ps_6_0"));
-    if (!pixel)
+    if (!pixel) {
         throw std::runtime_error("Windmill line-art shader compilation failed.");
+    }
     description.PS = {pixel->GetBufferPointer(), pixel->GetBufferSize()};
     description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
     blend.SrcBlend = D3D12_BLEND_ONE;
-    if (FAILED(dx_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(&qualityPipeline_))))
+    if (FAILED(dx_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(&qualityPipeline_)))) {
         throw std::runtime_error("Windmill line-art HDR pipeline creation failed.");
+    }
     vertexBuffer_ = dx_->CreateBufferResource(sizeof(myEngine::TrailVertex) * 48);
     vertexBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&data_));
     view_ = {vertexBuffer_->GetGPUVirtualAddress(), UINT(sizeof(myEngine::TrailVertex) * 48), sizeof(myEngine::TrailVertex)};
@@ -52,10 +56,12 @@ void WindmillEmojiRenderer::BeginFrame()
     vertices_ = 0;
 }
 
-void WindmillEmojiRenderer::Queue(const myEngine::Vector3& center, float size, float angle, const std::array<float, 4>& uv, float visibility)
+void WindmillEmojiRenderer::Queue(const myEngine::Vector3& center, float size, float angle, const std::array<float, 4>& uv,
+                                  float visibility)
 {
-    if (vertices_ + 6 > 48 || visibility < .001f)
+    if (vertices_ + 6 > 48 || visibility < .001f) {
         return;
+    }
     const float c = std::cos(angle), s = std::sin(angle);
     const float expansion = mode_ == WindmillRenderMode::Legacy ? 0 : .10f;
     const float half = size * (.5f + expansion);
@@ -66,14 +72,16 @@ void WindmillEmojiRenderer::Queue(const myEngine::Vector3& center, float size, f
     const float du = (uv[2] - uv[0]) * expansion, dv = (uv[3] - uv[1]) * expansion;
     const std::array<myEngine::Vector2, 4> texcoords{
         {{uv[0] - du, uv[1] - dv}, {uv[2] + du, uv[1] - dv}, {uv[2] + du, uv[3] + dv}, {uv[0] - du, uv[3] + dv}}};
-    for (int index : {0, 1, 2, 0, 2, 3})
+    for (int index : {0, 1, 2, 0, 2, 3}) {
         data_[vertices_++] = {positions[index], {1, 1, 1, visibility}, texcoords[index]};
+    }
 }
 
 void WindmillEmojiRenderer::Draw(const myEngine::Matrix4x4& viewProjection)
 {
-    if (!vertices_)
+    if (!vertices_) {
         return;
+    }
     *matrix_ = viewProjection;
     *material_ = settings_;
     auto list = dx_->GetList();
@@ -83,9 +91,9 @@ void WindmillEmojiRenderer::Draw(const myEngine::Matrix4x4& viewProjection)
     list->IASetVertexBuffers(0, 1, &view_);
     list->SetGraphicsRootConstantBufferView(0, materialBuffer_->GetGPUVirtualAddress());
     list->SetGraphicsRootConstantBufferView(1, matrixBuffer_->GetGPUVirtualAddress());
-    list->SetGraphicsRootDescriptorTable(
-        2, mode_ == WindmillRenderMode::Legacy
-               ? myEngine::TextureManager::GetInstance()->GetSrvHandleGPU(texture_)
-               : myEngine::TextureManager::GetInstance()->GetSrvHandleGPU(qualityTexture_, myEngine::TextureManager::TextureColorSpace::LinearData));
+    list->SetGraphicsRootDescriptorTable(2, mode_ == WindmillRenderMode::Legacy
+                                                ? myEngine::TextureManager::GetInstance()->GetSrvHandleGPU(texture_)
+                                                : myEngine::TextureManager::GetInstance()->GetSrvHandleGPU(
+                                                      qualityTexture_, myEngine::TextureManager::TextureColorSpace::LinearData));
     list->DrawInstanced(vertices_, 1, 0, 0);
 }

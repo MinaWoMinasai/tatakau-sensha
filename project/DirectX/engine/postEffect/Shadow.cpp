@@ -2,19 +2,18 @@
 
 namespace myEngine {
 
-void Shadow::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager) {
-
+void Shadow::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager)
+{
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
 
     // シャドウマップの初期化
     shadowMap_ = std::make_unique<ShadowMap>();
     shadowMap_->Initialize(dxCommon_, srvManager_, 2048, 2048);
-
 }
 
-void Shadow::PreDraw() {
-
+void Shadow::PreDraw()
+{
     // ==========================================
     // 1. シャドウマップへの描き込み (Depth Only Pass)
     // ==========================================
@@ -35,11 +34,10 @@ void Shadow::PreDraw() {
 
     // 書き込み終わったので SHADER_RESOURCE に戻す
     Transition(shadowMap_->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
 }
 
-void Shadow::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
-
+void Shadow::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
+{
     assert(res != nullptr);
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -49,7 +47,6 @@ void Shadow::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12
     barrier.Transition.StateAfter = after;
     barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     dxCommon_->GetList()->ResourceBarrier(1, &barrier);
-
 }
 
 } // namespace myEngine

@@ -47,16 +47,19 @@ public:
     void SetPreviewAppearance(const TankRewardPreviewAppearance& appearance);
     /// @brief プレビュー描画を利用前に準備する。
     void PreparePreviewRender();
+
     /// @brief プレビュー描画件数を返す。
     uint64_t GetPreviewRenderCount() const
     {
         return preview_ ? preview_->GetRenderCount() : 0;
     }
+
     /// @brief プレビュー頂点件数を返す。
     uint32_t GetPreviewVertexCount() const
     {
         return preview_ ? preview_->GetGeometryVertexCount() : 0;
     }
+
     // Safe to call each Update; an equal model does not rebuild any text.
     /// @brief モデルを設定する。
     void SetModel(const TankRewardCardModel& model);
@@ -71,26 +74,31 @@ public:
     // textures; an additional full-screen effect is not required for these cards.
     /// @brief ブルーム元データを描画する。
     void DrawBloomSource();
+
     /// @brief モデルを返す。
     const TankRewardCardModel& GetModel() const
     {
         return model_;
     }
+
     /// @brief デモ状態の写しを返す。
     const tankreward::DemoSnapshot& GetDemoSnapshot(bool after = true) const
     {
         return after ? after_ : before_;
     }
+
     /// @brief デモ時間を返す。
     float GetDemoTime() const
     {
         return clock_.Elapsed();
     }
+
     /// @brief デモ進行件数を返す。
     std::uint64_t GetDemoAdvanceCount() const
     {
         return clock_.AdvanceCount();
     }
+
     /// @brief AcquireAnimatingであるか判定する。
     bool IsAcquireAnimating() const
     {

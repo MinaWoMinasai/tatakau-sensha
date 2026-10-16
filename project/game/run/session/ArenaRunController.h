@@ -8,6 +8,7 @@ class ArenaRunController {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ArenaRunController(GameWorld& world) : world_(world) {}
+
     /// @brief 遠征の強化効果の強度を表示・計算用にまとめる。
     std::array<float, tankrun::CardCount> ExpeditionEffectPowers() const;
 

@@ -29,8 +29,10 @@ public:
     void Initialize() override;
     /// @brief 実時間の秒で演出を進め、入力とカメラを反映する。
     void Update() override;
+
     /// @brief 通常描画口は空にし、HDR描画口にまとめる。
     void Draw() override {}
+
     /// @brief 不透明面を先に描画し、ネオン線を深度判定付きで重ねる。
     void DrawPostEffect3D() override;
     /// @brief 操作説明を描画し、Developmentでは要求したGPU画像を記録する。
@@ -39,11 +41,13 @@ public:
     DeveloperShowcaseState GetDeveloperShowcaseState() override;
     /// @brief 生成輪郭の保持と履歴残像の抑制を指示する。
     ScreenEffectState GetScreenEffectState() const override;
+
     /// @brief 描画に実際に使われたブルーム設定を検証用に保存する。
     void RecordDeveloperPostParameters(const myEngine::BloomParam& param) override
     {
         renderedPost_ = param;
     }
+
     /// @brief 終了はウィンドウまたはEscで行い、他シーンへ自動遷移しない。
     bool IsFinished() const override
     {
@@ -80,11 +84,13 @@ private:
     myEngine::Input* input_ = nullptr;
     std::unique_ptr<myEngine::NeonGridRenderer> renderer_;
     std::unique_ptr<WindmillEmojiRenderer> emojiRenderer_;
+
     /// @brief 一文字分のアトラス範囲と、Alphaから抽出した局所輪郭を保持する。
     struct Glyph {
         std::array<float, 4> uv{};
         std::vector<myEngine::Vector2> contour;
     };
+
     std::map<std::string, Glyph> glyphs_;
     std::vector<std::unique_ptr<myEngine::TextLabel>> labels_;
     myEngine::BloomParam renderedPost_{};

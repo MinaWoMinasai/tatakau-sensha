@@ -7,6 +7,7 @@ class ExpeditionExperience {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ExpeditionExperience(GameWorld& world) : world_(world) {}
+
     /// @brief 遠征経験値を初期化する。
     void InitializeExpeditionExperience();
 

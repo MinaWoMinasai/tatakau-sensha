@@ -80,9 +80,9 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             const Player::NeonBodyLayout defaultBody{};
             const Player::NeonBodyLayout& body = bodyLayout ? *bodyLayout : defaultBody;
             myEngine::Vector4 outlineColor = body.outlineColor;
-            if (outlineColor.w <= 0.001f)
+            if (outlineColor.w <= 0.001f) {
                 outlineColor = color;
-            else {
+            } else {
                 outlineColor.w *= color.w;
                 outlineColor = lerpColor(outlineColor, {1.8f, 1.8f, 1.8f, outlineColor.w},
                                          allowMuzzleFlash && world_.resources.player_
@@ -116,8 +116,8 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             const myEngine::Vector3 saberDir = myEngine::Normalize(mainForward * std::cos(angle) + mainRight * std::sin(angle));
             const myEngine::Vector3 saberRight = myEngine::Normalize(mainRight * std::cos(angle) - mainForward * std::sin(angle));
             const myEngine::Vector3 hiltCenter = center + mainForward * (world_.presentation.playerIdleSaberForwardOffset_ * radius) +
-                                            mainRight * (world_.presentation.playerIdleSaberSideOffset_ * radius * sideSign) +
-                                            myEngine::Vector3{0.0f, 0.0f, layout.offset.z};
+                                                 mainRight * (world_.presentation.playerIdleSaberSideOffset_ * radius * sideSign) +
+                                                 myEngine::Vector3{0.0f, 0.0f, layout.offset.z};
             const float bladeLength = (std::max)(0.05f, world_.presentation.playerIdleSaberLength_) * radius;
             const float bladeWidth = (std::max)(0.005f, world_.presentation.playerIdleSaberBladeWidth_) * radius;
             const float hiltLength = (std::max)(0.02f, world_.presentation.playerIdleSaberHiltLength_) * radius;
@@ -158,8 +158,8 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             }
             auto groupColor = [&](int group, const myEngine::Vector4& fallback) {
                 static const myEngine::Vector4 colors[] = {{0.55f, 1.00f, 0.35f, 1.0f}, {1.00f, 0.86f, 0.25f, 1.0f},
-                                                      {0.30f, 0.92f, 1.00f, 1.0f}, {1.00f, 0.36f, 0.72f, 1.0f},
-                                                      {0.76f, 0.54f, 1.00f, 1.0f}, {1.00f, 0.58f, 0.32f, 1.0f}};
+                                                           {0.30f, 0.92f, 1.00f, 1.0f}, {1.00f, 0.36f, 0.72f, 1.0f},
+                                                           {0.76f, 0.54f, 1.00f, 1.0f}, {1.00f, 0.58f, 0.32f, 1.0f}};
                 if (group < 0) {
                     return fallback;
                 }
@@ -172,7 +172,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             const myEngine::Vector3 barrelForward = cameraRight * std::sin(barrelRotation) + cameraUp * -std::cos(barrelRotation);
             const myEngine::Vector3 barrelRight = cameraRight * std::cos(barrelRotation) + cameraUp * std::sin(barrelRotation);
             const myEngine::Vector3 barrelCenter = center + mainForward * ((layout.offset.x - layout.recoilOffset) * radius) +
-                                              mainRight * (layout.offset.y * radius) + myEngine::Vector3{0.0f, 0.0f, layout.offset.z};
+                                                   mainRight * (layout.offset.y * radius) + myEngine::Vector3{0.0f, 0.0f, layout.offset.z};
             float length = (std::max)(radius * 0.28f, layout.scale.x * radius * 0.72f);
             float half = (std::max)(lineWidth * 1.5f, layout.scale.y * radius * 0.75f);
             if (layout.shape == BarrelShape::Heavy) {
@@ -216,7 +216,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                 const float haloRadius = radius * (0.15f + muzzleFlashRatio * 0.09f);
                 const myEngine::Vector4 coreColor{2.20f, 2.10f, 1.65f, muzzleFlashRatio};
                 const myEngine::Vector4 haloColor{1.35f + muzzleFlash * 0.45f, 1.55f + muzzleFlash * 0.35f, 0.75f + muzzleFlash * 0.35f,
-                                             muzzleFlashRatio * 0.42f};
+                                                  muzzleFlashRatio * 0.42f};
                 queueMuzzleRing(haloRadius, 14, lineWidth * 0.65f, haloColor);
                 queueMuzzleRing(coreRadius, 10, lineWidth * 1.15f, coreColor);
 
@@ -268,8 +268,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                            world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
                            world_.presentation.actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true,
                            world_.presentation.playerNeonEmission_);
-        if (drawBarrels && world_.combat.showFollowHpBars_ &&
-            (!world_.run.expeditionRun_ || world_.run.tankExpedition_.IsCombat())) {
+        if (drawBarrels && world_.combat.showFollowHpBars_ && (!world_.run.expeditionRun_ || world_.run.tankExpedition_.IsCombat())) {
             // Segmented gauges hugging the body, in place of the floating HP / stamina bars:
             // HP is the lower arc in the body color, stamina the shorter upper arc.
             const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
@@ -277,7 +276,8 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             auto queueSegmentedArc = [&](float arcRadius, float centerAngle, float span, int segments, float ratio,
                                          const myEngine::Vector4& lit, float thickness) {
                 const float step = span / static_cast<float>(segments);
-                const int litSegments = static_cast<int>(std::ceil((std::clamp)(ratio, 0.0f, 1.0f) * static_cast<float>(segments) - 0.001f));
+                const int litSegments =
+                    static_cast<int>(std::ceil((std::clamp)(ratio, 0.0f, 1.0f) * static_cast<float>(segments) - 0.001f));
                 for (int i = 0; i < segments; ++i) {
                     const float angle = centerAngle - span * 0.5f + step * (static_cast<float>(i) + 0.5f);
                     const myEngine::Vector3 radial = cameraRight * std::sin(angle) - cameraUp * std::cos(angle);
@@ -286,7 +286,8 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                     const float half = arcRadius * step * 0.36f;
                     const bool on = i < litSegments;
                     const myEngine::Vector4 segmentColor = on ? lit : myEngine::Vector4{lit.x * 0.18f, lit.y * 0.18f, lit.z * 0.18f, 0.45f};
-                    world_.resources.neonGridRenderer_->QueueLine(middle - tangent * half, middle + tangent * half, thickness, segmentColor);
+                    world_.resources.neonGridRenderer_->QueueLine(middle - tangent * half, middle + tangent * half, thickness,
+                                                                  segmentColor);
                 }
             };
             const float hpRatio = static_cast<float>(world_.resources.player_->GetHp()) /
@@ -306,8 +307,9 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
         (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())) {
         const float feedback = world_.resources.enemy_->GetDamageFeedbackRatio();
         const float impact = feedback * feedback;
-        const myEngine::Vector4 color = lerpColor(world_.presentation.enemyGridColor_, {1.8f, 1.8f, 1.8f, world_.presentation.enemyGridColor_.w},
-                                             (std::min)(1.0f, impact * 0.95f));
+        const myEngine::Vector4 color =
+            lerpColor(world_.presentation.enemyGridColor_, {1.8f, 1.8f, 1.8f, world_.presentation.enemyGridColor_.w},
+                      (std::min)(1.0f, impact * 0.95f));
         Player::NeonBodyLayout bossBody{};
         bossBody.outlineColor = color;
         Player::NeonBarrelLayout bossBarrel{};
@@ -325,8 +327,9 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
     }
     if (world_.run.prototypeRun_ && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
         for (PlayerDrone* drone : world_.resources.player_->GetDronePtrs()) {
-            if (!drone || !drone->IsVisualVisible())
+            if (!drone || !drone->IsVisualVisible()) {
                 continue;
+            }
             constexpr float radius = 0.78f;
             const myEngine::Vector3 center = drone->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
             const myEngine::Vector4 color{0.24f, 1.0f, 0.78f, 0.95f};
@@ -362,14 +365,15 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
         return;
     }
 
-    const myEngine::Matrix4x4 viewMatrix = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewMatrix()
-                                                                                             : world_.resources.camera->GetViewMatrix();
+    const myEngine::Matrix4x4 viewMatrix = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
+                                               ? world_.resources.debugCamera->GetViewMatrix()
+                                               : world_.resources.camera->GetViewMatrix();
     const myEngine::Matrix4x4 cameraWorld = myEngine::Inverse(viewMatrix);
     const myEngine::Vector3 cameraRight = myEngine::Normalize({cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2]});
     const myEngine::Vector3 cameraUp = myEngine::Normalize({cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2]});
     const myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
-                                  ? world_.resources.debugCamera->GetViewProjectionMatrix()
-                                  : world_.resources.camera->GetViewProjectionMatrix();
+                                       ? world_.resources.debugCamera->GetViewProjectionMatrix()
+                                       : world_.resources.camera->GetViewProjectionMatrix();
 
     auto directionToRotation = [&](const myEngine::Vector3& worldDirection) {
         myEngine::Vector3 direction = worldDirection;
@@ -395,33 +399,43 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
     // Black gun blocks under the neon barrel outlines (same layout math as the outline pass).
     auto queueBarrelBlocks = [&](const myEngine::Vector3& center, const myEngine::Vector3& direction, float radius,
                                  const std::vector<Player::NeonBarrelLayout>& layouts, const myEngine::Vector4& tint) {
-        myEngine::Vector3 mainDirection = myEngine::Length(direction) < 0.001f ? myEngine::Vector3{0.0f, -1.0f, 0.0f} : myEngine::Normalize(direction);
+        myEngine::Vector3 mainDirection =
+            myEngine::Length(direction) < 0.001f ? myEngine::Vector3{0.0f, -1.0f, 0.0f} : myEngine::Normalize(direction);
         const float mainRotation = directionToRotation(mainDirection);
         const myEngine::Vector3 mainForward = cameraRight * std::sin(mainRotation) + cameraUp * -std::cos(mainRotation);
         const myEngine::Vector3 mainRight = cameraRight * std::cos(mainRotation) + cameraUp * std::sin(mainRotation);
         for (const Player::NeonBarrelLayout& layout : layouts) {
-            if (layout.isMelee) continue;
+            if (layout.isMelee) {
+                continue;
+            }
             const float c = std::cos(layout.angleRad), s = std::sin(layout.angleRad);
-            const myEngine::Vector3 barrelDirection =
-                myEngine::Normalize(myEngine::Vector3{mainDirection.x * c - mainDirection.y * s, mainDirection.x * s + mainDirection.y * c, 0.0f});
+            const myEngine::Vector3 barrelDirection = myEngine::Normalize(
+                myEngine::Vector3{mainDirection.x * c - mainDirection.y * s, mainDirection.x * s + mainDirection.y * c, 0.0f});
             const float barrelRotation = directionToRotation(barrelDirection);
             const myEngine::Vector3 barrelForward = cameraRight * std::sin(barrelRotation) + cameraUp * -std::cos(barrelRotation);
             const myEngine::Vector3 barrelRight = cameraRight * std::cos(barrelRotation) + cameraUp * std::sin(barrelRotation);
             const myEngine::Vector3 barrelCenter = center + mainForward * ((layout.offset.x - layout.recoilOffset) * radius) +
-                                              mainRight * (layout.offset.y * radius) + myEngine::Vector3{0.0f, 0.0f, layout.offset.z};
+                                                   mainRight * (layout.offset.y * radius) + myEngine::Vector3{0.0f, 0.0f, layout.offset.z};
             float length = (std::max)(radius * 0.28f, layout.scale.x * radius * 0.72f);
             float half = layout.scale.y * radius * 0.75f;
-            if (layout.shape == BarrelShape::Heavy) { length *= 1.12f; half *= 1.45f; }
-            else if (layout.shape == BarrelShape::Short) { length *= 0.58f; half *= 1.08f; }
-            else if (layout.shape == BarrelShape::Wide) { length *= 0.86f; half *= 1.80f; }
+            if (layout.shape == BarrelShape::Heavy) {
+                length *= 1.12f;
+                half *= 1.45f;
+            } else if (layout.shape == BarrelShape::Short) {
+                length *= 0.58f;
+                half *= 1.08f;
+            } else if (layout.shape == BarrelShape::Wide) {
+                length *= 0.86f;
+                half *= 1.80f;
+            }
             const myEngine::Vector3 base = barrelCenter - barrelForward * (length * 0.20f);
             const myEngine::Vector3 tip = barrelCenter + barrelForward * (length * 0.80f);
             world_.resources.neonGridRenderer_->QueueShadedBox(base, tip, barrelRight, half * 0.92f, radius * 0.34f,
                                                                world_.presentation.actorNeonBodyFillColor_, tint);
         }
     };
-    auto queueBodyFill = [&](const myEngine::Vector3& center, const myEngine::Vector3& direction, float radius, const Player::NeonBodyLayout& body,
-                             const myEngine::Vector4& fillColor) {
+    auto queueBodyFill = [&](const myEngine::Vector3& center, const myEngine::Vector3& direction, float radius,
+                             const Player::NeonBodyLayout& body, const myEngine::Vector4& fillColor) {
         constexpr float kTwoPi = 6.28318530718f;
         const float mainRotation = directionToRotation(direction);
         int segments = 32;
@@ -480,8 +494,9 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
     }
     if (drawRound && world_.run.prototypeRun_ && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
         for (PlayerDrone* drone : world_.resources.player_->GetDronePtrs()) {
-            if (!drone || !drone->IsVisualVisible())
+            if (!drone || !drone->IsVisualVisible()) {
                 continue;
+            }
             queueRoundBody(drone->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.345f}, 0.78f * 0.96f * roundBodyScale,
                            {0.24f, 1.0f, 0.78f, 0.95f});
         }
@@ -490,8 +505,9 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
         const myEngine::Vector3 cameraForward = myEngine::Cross(cameraRight, cameraUp);
         for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
             if (!enemy || enemy->IsDead() || !enemy->IsShapeNeonRenderTarget() ||
-                !world_.resourceNeonRenderer->IsNearCamera2D(enemy->GetWorldPosition(), 38.0f, 24.0f, 3.0f))
+                !world_.resourceNeonRenderer->IsNearCamera2D(enemy->GetWorldPosition(), 38.0f, 24.0f, 3.0f)) {
                 continue;
+            }
             if (enemy->IsExpeditionCombatRole()) {
                 enemy->QueueCombatVisuals(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, cameraForward,
                                           world_.presentation.expEnemyNeonLineWidth_, true);
@@ -523,8 +539,9 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
     world_.resources.neonGridRenderer_->SetBodyShadingEye(nullptr);
     const uint32_t fillCount = world_.resources.neonGridRenderer_->GetVertexCount() - fillStart;
     world_.resources.neonGridRenderer_->DrawRangeSolid(fillStart, fillCount, vp);
-    if (!restoreOutlines)
+    if (!restoreOutlines) {
         return;
+    }
 
     const uint32_t outlineStart = world_.resources.neonGridRenderer_->GetVertexCount();
     QueueActorNeonBillboards(cameraRight, cameraUp, true, false);

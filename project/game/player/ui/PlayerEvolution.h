@@ -5,8 +5,10 @@
 class PlayerEvolution {
 public:
     using BodyShape = Player::BodyShape;
+
     /// @brief 自機と画面状態を接続する。
     PlayerEvolution(Player& player, PlayerUiState& ui) : player_(player), ui_(ui) {}
+
     using UiProfileStats = Player::UiProfileStats;
     /// @brief 進化画面の背景と発光演出を、シーンのポストエフェクト後に描画する。
     void DrawEvolutionAfterPostEffects();

@@ -13,6 +13,7 @@ inline std::string ToLowerAscii(const std::string& text)
     });
     return result;
 }
+
 /// @brief 入力文字列に指定したトークンが含まれるか判定する。
 inline bool ContainsToken(const std::string& text, const char* token)
 {

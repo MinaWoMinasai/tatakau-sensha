@@ -189,6 +189,7 @@ using playerui::ReadVector2Object;
 using playerui::SetLabel;
 using playerui::Vector4ToJson;
 using playerui::WriteVector2Object;
+
 /// @brief JSON配列から4成分を読む。要素数が不足する場合はfallbackを返す。
 myEngine::Vector4 ReadVector4(const nlohmann::json& json, const myEngine::Vector4& fallback)
 {
@@ -261,7 +262,7 @@ void PlayerEvolution::InitializeEncyclopedia()
         const int col = i % 3;
         const int row = i / 3;
         const myEngine::Vector2 cardPos = {cardBase.x + static_cast<float>(col) * (cardWidth + cardGapX),
-                                      cardBase.y + static_cast<float>(row) * (cardHeight + cardGapY)};
+                                           cardBase.y + static_cast<float>(row) * (cardHeight + cardGapY)};
 
         data.cardSprite = makePanel(cardPos, {cardWidth, cardHeight}, {0.10f, 0.15f, 0.22f, 0.82f});
         data.sprite = std::make_unique<myEngine::Sprite>();
@@ -307,8 +308,9 @@ void PlayerEvolution::UpdateEncyclopedia(float uiDeltaTime)
 
     for (int i = 0; i < static_cast<int>(ui_.encyclopedia_.size()); ++i) {
         auto& tank = ui_.encyclopedia_[i];
-        if (!player_.IsEvolutionClassVisible(tank.classId))
+        if (!player_.IsEvolutionClassVisible(tank.classId)) {
             continue;
+        }
         bool isAvailable = (currentRank >= tank.requiredRank);
         const bool selected = (i == player_.evolutionSelectedIndex_);
         const bool hovered = tank.cardSprite && tank.cardSprite->IsHovered(player_.mousePosition_);
@@ -362,7 +364,8 @@ void PlayerEvolution::UpdateEncyclopedia(float uiDeltaTime)
         const float bob = std::sin(player_.evolutionUiTimer_ * 2.0f) * 12.0f;
         ui_.evolutionPreviewTankSprite_->SetPosition({210.0f + bob, 300.0f});
         ui_.evolutionPreviewTankSprite_->SetRotation(std::sin(player_.evolutionUiTimer_ * 1.35f) * 0.08f);
-        ui_.evolutionPreviewTankSprite_->SetColor(locked ? myEngine::Vector4{0.35f, 0.40f, 0.45f, 0.65f} : myEngine::Vector4{1.0f, 1.0f, 1.0f, 1.0f});
+        ui_.evolutionPreviewTankSprite_->SetColor(locked ? myEngine::Vector4{0.35f, 0.40f, 0.45f, 0.65f}
+                                                         : myEngine::Vector4{1.0f, 1.0f, 1.0f, 1.0f});
         ui_.evolutionPreviewTankSprite_->Update();
     }
 
@@ -395,8 +398,9 @@ void PlayerEvolution::UpdateEncyclopedia(float uiDeltaTime)
 
 void PlayerEvolution::DrawEncyclopedia()
 {
-    if (!ui_.arenaUiEnabled_)
+    if (!ui_.arenaUiEnabled_) {
         return;
+    }
 
     ui_.evolutionUiProfile_ = {};
     if (player_.isChangeMode && ShouldUseEvolutionCircuitPrototype()) {
@@ -509,8 +513,9 @@ void PlayerEvolution::DrawEncyclopedia()
         }
 
         for (auto& tank : ui_.encyclopedia_) {
-            if (!player_.IsEvolutionClassVisible(tank.classId))
+            if (!player_.IsEvolutionClassVisible(tank.classId)) {
                 continue;
+            }
             if (tank.cardSprite) {
                 tank.cardSprite->Draw();
                 ++ui_.evolutionUiProfile_.spriteDraws;
@@ -543,8 +548,9 @@ void PlayerEvolution::DrawEncyclopedia()
         }
 
         for (auto& tank : ui_.encyclopedia_) {
-            if (!player_.IsEvolutionClassVisible(tank.classId))
+            if (!player_.IsEvolutionClassVisible(tank.classId)) {
                 continue;
+            }
             if (tank.nameLabel) {
                 tank.nameLabel->Draw();
                 ++ui_.evolutionUiProfile_.textDraws;
@@ -981,8 +987,9 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
     const myEngine::Vector2 mouseVirtual = EvolutionClientToVirtual(player_.mousePosition_);
     const auto findNodeIndex = [&](const std::string& id) -> int {
         for (size_t i = 0; i < ui_.evolutionCircuitNodes_.size(); ++i) {
-            if (ui_.evolutionCircuitNodes_[i].classId == id && player_.IsEvolutionClassVisible(id))
+            if (ui_.evolutionCircuitNodes_[i].classId == id && player_.IsEvolutionClassVisible(id)) {
                 return static_cast<int>(i);
+            }
         }
         return -1;
     };
@@ -997,8 +1004,9 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
 
     ui_.evolutionCircuitHoveredNode_ = -1;
     for (size_t i = 0; i < ui_.evolutionCircuitNodes_.size(); ++i) {
-        if (!player_.IsEvolutionClassVisible(ui_.evolutionCircuitNodes_[i].classId))
+        if (!player_.IsEvolutionClassVisible(ui_.evolutionCircuitNodes_[i].classId)) {
             continue;
+        }
         const myEngine::Vector2 center = ui_.evolutionCircuitNodeCentersVirtual_[i];
         if (mouseVirtual.x >= center.x - kNodeSize.x * 0.5f && mouseVirtual.x <= center.x + kNodeSize.x * 0.5f &&
             mouseVirtual.y >= center.y - kNodeSize.y * 0.5f && mouseVirtual.y <= center.y + kNodeSize.y * 0.5f) {
@@ -1015,8 +1023,9 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
         (std::clamp)(ui_.evolutionCircuitSelectedNode_, 0, static_cast<int>(ui_.evolutionCircuitNodes_.size()) - 1);
     if (!player_.IsEvolutionClassVisible(ui_.evolutionCircuitNodes_[static_cast<size_t>(ui_.evolutionCircuitSelectedNode_)].classId)) {
         const int currentNode = findNodeIndex(player_.currentClassId_);
-        if (currentNode >= 0)
+        if (currentNode >= 0) {
             ui_.evolutionCircuitSelectedNode_ = currentNode;
+        }
     }
     const std::string& selectedClassId = ui_.evolutionCircuitNodes_[static_cast<size_t>(ui_.evolutionCircuitSelectedNode_)].classId;
     const bool confirmTriggered =
@@ -1032,14 +1041,15 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
         for (const auto& edge : ui_.evolutionCircuitEdges_) {
             const int from = findNodeIndex(edge.from);
             const int to = findNodeIndex(edge.to);
-            if (from >= 0 && to >= 0 && selectedPath[static_cast<size_t>(to)])
+            if (from >= 0 && to >= 0 && selectedPath[static_cast<size_t>(to)]) {
                 selectedPath[static_cast<size_t>(from)] = true;
+            }
         }
     }
 
     ui_.evolutionCircuitBackdropSprite_->SetPosition({0.0f, 0.0f});
-    ui_.evolutionCircuitBackdropSprite_->SetSize({static_cast<float>(myEngine::WinApp::kClientWidth),
-                                                  static_cast<float>(myEngine::WinApp::kClientHeight)});
+    ui_.evolutionCircuitBackdropSprite_->SetSize(
+        {static_cast<float>(myEngine::WinApp::kClientWidth), static_cast<float>(myEngine::WinApp::kClientHeight)});
     ui_.evolutionCircuitBackdropSprite_->SetColor({0.004f, 0.010f, 0.024f, 0.65f});
     ui_.evolutionCircuitBackdropSprite_->Update();
     ui_.evolutionCircuitDetailPanelSprite_->SetPosition(EvolutionVirtualToRender({640.0f, 611.0f}));
@@ -1050,10 +1060,12 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
     const float pulse = 0.82f + std::sin(player_.evolutionUiTimer_ * 3.0f) * 0.18f;
     for (size_t i = 0; i < ui_.evolutionCircuitNodes_.size(); ++i) {
         const PlayerClassConfig* config = player_.GetClassConfig(ui_.evolutionCircuitNodes_[i].classId);
-        if (!config || !ui_.evolutionCircuitTankButtons_[i] || !ui_.tankButtonUiStyle_)
+        if (!config || !ui_.evolutionCircuitTankButtons_[i] || !ui_.tankButtonUiStyle_) {
             continue;
-        if (!player_.IsEvolutionClassVisible(config->id))
+        }
+        if (!player_.IsEvolutionClassVisible(config->id)) {
             continue;
+        }
         const bool isCurrent = ui_.evolutionCircuitNodes_[i].classId == player_.currentClassId_;
         const bool isSelected = static_cast<int>(i) == ui_.evolutionCircuitSelectedNode_;
         const bool isHovered = static_cast<int>(i) == ui_.evolutionCircuitHoveredNode_;
@@ -1061,16 +1073,21 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
         const bool available = player_.CanEvolveTo(config->id);
         const bool rankLocked = hasDirectEdge && player_.GetRankFromLevel(player_.level_) < config->requiredRank;
         myEngine::Vector4 nodeColor{0.30f, 0.36f, 0.40f, 0.48f};
-        if (available)
+        if (available) {
             nodeColor = {0.58f, 0.78f, 0.84f, 0.76f};
-        if (rankLocked)
+        }
+        if (rankLocked) {
             nodeColor = {0.30f, 0.33f, 0.36f, 0.50f};
-        if (isHovered)
+        }
+        if (isHovered) {
             nodeColor = {0.34f, 0.82f, 0.94f, 0.88f};
-        if (isSelected)
+        }
+        if (isSelected) {
             nodeColor = {0.22f, 0.91f, 1.0f, pulse};
-        if (isCurrent)
+        }
+        if (isCurrent) {
             nodeColor = {0.35f, 1.0f, 0.54f, 1.0f};
+        }
 
         TankButtonVisualData visualData{};
         if (player_.GetTankButtonVisualData(config->id, visualData)) {
@@ -1096,10 +1113,12 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
         style.labelOutlineWidth *= renderScale;
         style.fillColor = {0.008f, 0.021f, 0.040f, 1.0f};
         style.lockedTint = {0.50f, 0.54f, 0.58f, 0.72f};
-        for (myEngine::Vector4& color : style.borderColors)
+        for (myEngine::Vector4& color : style.borderColors) {
             color = nodeColor;
-        for (myEngine::Vector4& color : style.glowColors)
+        }
+        for (myEngine::Vector4& color : style.glowColors) {
             color = nodeColor;
+        }
         ui_.evolutionCircuitTankButtons_[i]->SetRank(config->requiredRank);
         ui_.evolutionCircuitTankButtons_[i]->SetState(isCurrent    ? TankButtonState::Selected
                                                       : isSelected ? TankButtonState::Selected
@@ -1115,7 +1134,8 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
         line->Update();
     }
     size_t lineIndex = 0;
-    auto queueSegment = [&](const myEngine::Vector2& fromVirtual, const myEngine::Vector2& toVirtual, const myEngine::Vector4& color, bool highlighted) {
+    auto queueSegment = [&](const myEngine::Vector2& fromVirtual, const myEngine::Vector2& toVirtual, const myEngine::Vector4& color,
+                            bool highlighted) {
         const myEngine::Vector2 from = EvolutionVirtualToRender(fromVirtual);
         const myEngine::Vector2 to = EvolutionVirtualToRender(toVirtual);
         const float dx = to.x - from.x;
@@ -1139,8 +1159,9 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
     for (const auto& edge : ui_.evolutionCircuitEdges_) {
         const int fromIndex = findNodeIndex(edge.from);
         const int toIndex = findNodeIndex(edge.to);
-        if (fromIndex < 0 || toIndex < 0)
+        if (fromIndex < 0 || toIndex < 0) {
             continue;
+        }
         myEngine::Vector4 color{0.46f, 0.56f, 0.61f, 0.40f};
         bool highlighted = false;
         bool traversed = false;
@@ -1158,9 +1179,9 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
             highlighted = true;
         }
         const myEngine::Vector2 start{ui_.evolutionCircuitNodeCentersVirtual_[fromIndex].x + kNodeSize.x * 0.5f,
-                                 ui_.evolutionCircuitNodeCentersVirtual_[fromIndex].y};
+                                      ui_.evolutionCircuitNodeCentersVirtual_[fromIndex].y};
         const myEngine::Vector2 end{ui_.evolutionCircuitNodeCentersVirtual_[toIndex].x - kNodeSize.x * 0.5f,
-                               ui_.evolutionCircuitNodeCentersVirtual_[toIndex].y};
+                                    ui_.evolutionCircuitNodeCentersVirtual_[toIndex].y};
         const float midX = (start.x + end.x) * 0.5f;
         queueSegment(start, {midX, start.y}, color, highlighted);
         queueSegment({midX, start.y}, {midX, end.y}, color, highlighted);
@@ -1184,10 +1205,12 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
         style.labelOffsetY = 43.0f * renderScale;
         style.labelFontSize = 15.0f * renderScale;
         style.labelOutlineWidth *= renderScale;
-        for (myEngine::Vector4& color : style.borderColors)
+        for (myEngine::Vector4& color : style.borderColors) {
             color = {0.22f, 0.88f, 1.0f, 0.92f};
-        for (myEngine::Vector4& color : style.glowColors)
+        }
+        for (myEngine::Vector4& color : style.glowColors) {
             color = {0.18f, 0.78f, 1.0f, 0.88f};
+        }
         ui_.evolutionCircuitDetailPreview_->SetRank(selected->requiredRank);
         ui_.evolutionCircuitDetailPreview_->SetState(TankButtonState::Selected);
         ui_.evolutionCircuitDetailPreview_->Update(EvolutionVirtualToRender({188.0f, 611.0f}), style);
@@ -1276,24 +1299,29 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
 void PlayerEvolution::PrepareEvolutionCircuitTextTextures()
 {
     auto prepare = [](myEngine::TextLabel* label) {
-        if (label)
+        if (label) {
             label->PrepareForDraw();
+        }
     };
     prepare(ui_.evolutionCircuitTitleLabel_.get());
-    for (const auto& label : ui_.evolutionCircuitRankLabels_)
+    for (const auto& label : ui_.evolutionCircuitRankLabels_) {
         prepare(label.get());
+    }
     prepare(ui_.evolutionCircuitDetailNameLabel_.get());
     prepare(ui_.evolutionCircuitDetailMetaLabel_.get());
     prepare(ui_.evolutionCircuitDetailRoleLabel_.get());
-    for (const auto& label : ui_.evolutionCircuitDetailStatLabels_)
+    for (const auto& label : ui_.evolutionCircuitDetailStatLabels_) {
         prepare(label.get());
+    }
     prepare(ui_.evolutionCircuitHintLabel_.get());
     for (size_t i = 0; i < ui_.evolutionCircuitNodes_.size(); ++i) {
-        if (ui_.evolutionCircuitTankButtons_[i])
+        if (ui_.evolutionCircuitTankButtons_[i]) {
             prepare(ui_.evolutionCircuitTankButtons_[i]->GetLabel());
+        }
     }
-    if (ui_.evolutionCircuitDetailPreview_)
+    if (ui_.evolutionCircuitDetailPreview_) {
         prepare(ui_.evolutionCircuitDetailPreview_->GetLabel());
+    }
 }
 
 bool PlayerEvolution::ShouldUseStaticEvolutionPrototype() const
@@ -1376,37 +1404,50 @@ std::string PlayerEvolution::GetEvolutionClassName(const std::string& classId) c
 
 std::string PlayerEvolution::GetEvolutionShortRole(const PlayerClassConfig& config) const
 {
-    if (config.usesDrone || config.id == "Summoner")
+    if (config.usesDrone || config.id == "Summoner") {
         return "DRONE CONTROL";
-    if (config.reflect)
+    }
+    if (config.reflect) {
         return "RICOCHET";
-    if (config.id == "Ninja" || config.id == "Assassin")
+    }
+    if (config.id == "Ninja" || config.id == "Assassin") {
         return "PRECISION";
-    if (config.id == "Smasher")
+    }
+    if (config.id == "Smasher") {
         return "IMPACT";
-    if (config.id == "Twin")
+    }
+    if (config.id == "Twin") {
         return "DUAL FIRE";
-    if (config.id == "MachineGun")
+    }
+    if (config.id == "MachineGun") {
         return "SUPPRESSION";
-    if (config.barrels.size() >= 3)
+    }
+    if (config.barrels.size() >= 3) {
         return "MULTI BARREL";
+    }
     return "ADVANCED";
 }
 
 std::string PlayerEvolution::GetEvolutionRole(const PlayerClassConfig& config) const
 {
-    if (config.usesDrone || config.id == "Summoner")
+    if (config.usesDrone || config.id == "Summoner") {
         return "役割: ドローンを展開する支援制圧型";
-    if (config.reflect)
+    }
+    if (config.reflect) {
         return "役割: 反射弾で空間を制圧する技巧型";
-    if (config.id == "Ninja" || config.id == "Assassin")
+    }
+    if (config.id == "Ninja" || config.id == "Assassin") {
         return "役割: 高速攻撃を狙う精密射撃型";
-    if (config.id == "Smasher")
+    }
+    if (config.id == "Smasher") {
         return "役割: 高い衝撃力で押し切る近距離型";
-    if (config.id == "MachineGun")
+    }
+    if (config.id == "MachineGun") {
         return "役割: 弾幕で押す近中距離制圧型";
-    if (config.barrels.size() >= 2)
+    }
+    if (config.barrels.size() >= 2) {
         return "役割: 複数砲身を活かす連続射撃型";
+    }
     return "役割: 基礎性能を強化した万能型";
 }
 
@@ -1427,18 +1468,24 @@ std::string PlayerEvolution::GetEvolutionAbility(const PlayerClassConfig& config
     if (config.usesDrone || config.id == "Summoner") {
         return "固有能力: 最大" + std::to_string(config.maxDrones) + "機のドローンを展開";
     }
-    if (config.reflect)
+    if (config.reflect) {
         return "固有能力: 発射した弾が障害物で反射";
-    if (config.penetrate)
+    }
+    if (config.penetrate) {
         return "固有能力: 敵を貫通する弾を発射";
-    if (config.fireAllBarrels)
+    }
+    if (config.fireAllBarrels) {
         return "固有能力: 全砲身から同時射撃";
-    if (config.alternateBarrels)
+    }
+    if (config.alternateBarrels) {
         return "固有能力: 複数の砲身から交互に射撃";
-    if (config.bulletCount > 1)
+    }
+    if (config.bulletCount > 1) {
         return "固有能力: 1回の射撃で複数弾を発射";
-    if (config.barrels.size() >= 2)
+    }
+    if (config.barrels.size() >= 2) {
         return "固有能力: 複数砲身による多方向射撃";
+    }
     return "固有能力: 機体固有の武装構成";
 }
 
@@ -1466,7 +1513,7 @@ myEngine::Vector2 PlayerEvolution::EvolutionAnchorToVirtual(const myEngine::Vect
         (std::clamp)(ui_.evolutionUiStyle_.safeMargin, 0.0f,
                      (std::min)(ui_.evolutionUiStyle_.virtualResolution.x, ui_.evolutionUiStyle_.virtualResolution.y) * 0.45f);
     const myEngine::Vector2 usable = {(std::max)(1.0f, ui_.evolutionUiStyle_.virtualResolution.x - safe * 2.0f),
-                                 (std::max)(1.0f, ui_.evolutionUiStyle_.virtualResolution.y - safe * 2.0f)};
+                                      (std::max)(1.0f, ui_.evolutionUiStyle_.virtualResolution.y - safe * 2.0f)};
     return {safe + (std::clamp)(normalizedAnchor.x, 0.0f, 1.0f) * usable.x, safe + (std::clamp)(normalizedAnchor.y, 0.0f, 1.0f) * usable.y};
 }
 
@@ -1606,8 +1653,8 @@ void PlayerEvolution::UpdateStaticEvolutionPrototype()
     }
 
     ui_.staticEvolutionBackdropSprite_->SetPosition({0.0f, 0.0f});
-    ui_.staticEvolutionBackdropSprite_->SetSize({static_cast<float>(myEngine::WinApp::kClientWidth),
-                                                 static_cast<float>(myEngine::WinApp::kClientHeight)});
+    ui_.staticEvolutionBackdropSprite_->SetSize(
+        {static_cast<float>(myEngine::WinApp::kClientWidth), static_cast<float>(myEngine::WinApp::kClientHeight)});
     ui_.staticEvolutionBackdropSprite_->SetColor({0.005f, 0.012f, 0.025f, ui_.evolutionUiStyle_.backgroundDimOpacity});
     ui_.staticEvolutionBackdropSprite_->Update();
 
@@ -1637,8 +1684,8 @@ void PlayerEvolution::UpdateStaticEvolutionPrototype()
              {ui_.staticEvolutionNodeCentersVirtual_[i].x, ui_.staticEvolutionNodeCentersVirtual_[i].y - drawSize.y * 0.5f + cut * 0.5f},
              {ui_.staticEvolutionNodeCentersVirtual_[i].x, ui_.staticEvolutionNodeCentersVirtual_[i].y + drawSize.y * 0.5f - cut * 0.5f}}};
         const std::array<myEngine::Vector2, 3> panelSizes = {{{drawSize.x, (std::max)(1.0f, drawSize.y - cut * 2.0f)},
-                                                         {(std::max)(1.0f, drawSize.x - cut * 2.0f), cut},
-                                                         {(std::max)(1.0f, drawSize.x - cut * 2.0f), cut}}};
+                                                              {(std::max)(1.0f, drawSize.x - cut * 2.0f), cut},
+                                                              {(std::max)(1.0f, drawSize.x - cut * 2.0f), cut}}};
         for (int panelIndex = 0; panelIndex < 3; ++panelIndex) {
             myEngine::Sprite* panel = ui_.staticEvolutionNodePanelSprites_[i][panelIndex].get();
             panel->SetPosition(EvolutionVirtualToRender(panelPositions[panelIndex]));
@@ -1696,8 +1743,8 @@ void PlayerEvolution::UpdateStaticEvolutionPrototype()
     ui_.staticEvolutionDetailPanelSprite_->Update();
 
     const myEngine::Vector2 buttonCenterVirtual = {panelCenterVirtual.x + ui_.evolutionUiStyle_.detailPanelSize.x * 0.5f -
-                                                  ui_.evolutionUiStyle_.confirmButtonSize.x * 0.5f - 18.0f,
-                                              panelCenterVirtual.y - ui_.evolutionUiStyle_.detailPanelSize.y * 0.5f + 32.0f};
+                                                       ui_.evolutionUiStyle_.confirmButtonSize.x * 0.5f - 18.0f,
+                                                   panelCenterVirtual.y - ui_.evolutionUiStyle_.detailPanelSize.y * 0.5f + 32.0f};
     ui_.staticEvolutionConfirmHovered_ = mouseVirtual.x >= buttonCenterVirtual.x - ui_.evolutionUiStyle_.confirmButtonSize.x * 0.5f &&
                                          mouseVirtual.x <= buttonCenterVirtual.x + ui_.evolutionUiStyle_.confirmButtonSize.x * 0.5f &&
                                          mouseVirtual.y >= buttonCenterVirtual.y - ui_.evolutionUiStyle_.confirmButtonSize.y * 0.5f &&
@@ -1742,8 +1789,8 @@ void PlayerEvolution::UpdateStaticEvolutionPrototype()
         line->SetRotation(std::atan2(dy, dx));
         line->SetSize({std::sqrt(dx * dx + dy * dy), (std::max)(1.0f, 1.6f * renderScale)});
         myEngine::Vector4 outlineColor = !canConfirm                          ? ui_.evolutionUiStyle_.lockedColor
-                                    : ui_.staticEvolutionConfirmHovered_ ? ui_.evolutionUiStyle_.hoverColor
-                                                                         : ui_.evolutionUiStyle_.availableColor;
+                                         : ui_.staticEvolutionConfirmHovered_ ? ui_.evolutionUiStyle_.hoverColor
+                                                                              : ui_.evolutionUiStyle_.availableColor;
         outlineColor.w = 0.90f;
         line->SetColor(outlineColor);
         line->Update();
@@ -1811,7 +1858,8 @@ void PlayerEvolution::UpdateStaticEvolutionCircuit()
     const int currentRank = player_.GetRankFromLevel(player_.level_);
     const float renderScale = GetEvolutionRenderScale();
     size_t spriteIndex = 0;
-    auto setLine = [&](myEngine::Sprite* sprite, const myEngine::Vector2& a, const myEngine::Vector2& b, float width, const myEngine::Vector4& color) {
+    auto setLine = [&](myEngine::Sprite* sprite, const myEngine::Vector2& a, const myEngine::Vector2& b, float width,
+                       const myEngine::Vector4& color) {
         const myEngine::Vector2 renderA = EvolutionVirtualToRender(a);
         const myEngine::Vector2 renderB = EvolutionVirtualToRender(b);
         const float dx = renderB.x - renderA.x;
@@ -1878,7 +1926,8 @@ void PlayerEvolution::UpdateStaticEvolutionNodeFrames()
 {
     const int currentRank = player_.GetRankFromLevel(player_.level_);
     const float renderScale = GetEvolutionRenderScale();
-    auto setLine = [&](myEngine::Sprite* sprite, const myEngine::Vector2& a, const myEngine::Vector2& b, float width, const myEngine::Vector4& color) {
+    auto setLine = [&](myEngine::Sprite* sprite, const myEngine::Vector2& a, const myEngine::Vector2& b, float width,
+                       const myEngine::Vector4& color) {
         const myEngine::Vector2 renderA = EvolutionVirtualToRender(a);
         const myEngine::Vector2 renderB = EvolutionVirtualToRender(b);
         const float dx = renderB.x - renderA.x;
@@ -1924,13 +1973,13 @@ void PlayerEvolution::UpdateStaticEvolutionNodeFrames()
         const float halfH = size.y * 0.5f;
         const float cut = (std::clamp)(ui_.evolutionUiStyle_.nodeCornerCut, 0.0f, halfH * 0.60f);
         const std::array<myEngine::Vector2, 8> points = {{{center.x - halfW + cut, center.y - halfH},
-                                                     {center.x + halfW - cut, center.y - halfH},
-                                                     {center.x + halfW, center.y - halfH + cut},
-                                                     {center.x + halfW, center.y + halfH - cut},
-                                                     {center.x + halfW - cut, center.y + halfH},
-                                                     {center.x - halfW + cut, center.y + halfH},
-                                                     {center.x - halfW, center.y + halfH - cut},
-                                                     {center.x - halfW, center.y - halfH + cut}}};
+                                                          {center.x + halfW - cut, center.y - halfH},
+                                                          {center.x + halfW, center.y - halfH + cut},
+                                                          {center.x + halfW, center.y + halfH - cut},
+                                                          {center.x + halfW - cut, center.y + halfH},
+                                                          {center.x - halfW + cut, center.y + halfH},
+                                                          {center.x - halfW, center.y + halfH - cut},
+                                                          {center.x - halfW, center.y - halfH + cut}}};
         for (int segmentIndex = 0; segmentIndex < 8; ++segmentIndex) {
             myEngine::Vector4 outer = stateColor;
             myEngine::Vector4 middle = stateColor;
@@ -1958,6 +2007,7 @@ void PlayerEvolution::UpdateStaticEvolutionSilhouettes()
         myEngine::Vector2 a{};
         myEngine::Vector2 b{};
     };
+
     const int currentRank = player_.GetRankFromLevel(player_.level_);
     const float renderScale = GetEvolutionRenderScale();
     constexpr float kTwoPi = 6.283185307f;
@@ -1987,7 +2037,7 @@ void PlayerEvolution::UpdateStaticEvolutionSilhouettes()
             }
             const myEngine::Vector2 nodeSize = ui_.staticEvolutionNodeDrawSizesVirtual_[nodeIndex];
             const myEngine::Vector2 center = {ui_.staticEvolutionNodeCentersVirtual_[nodeIndex].x - nodeSize.x * 0.30f,
-                                         ui_.staticEvolutionNodeCentersVirtual_[nodeIndex].y - 2.0f};
+                                              ui_.staticEvolutionNodeCentersVirtual_[nodeIndex].y - 2.0f};
             const float silhouetteScale = ui_.evolutionUiStyle_.silhouetteScale * stateScale;
             const float radius = 18.0f * silhouetteScale;
             int bodySegments = 14;
@@ -2035,7 +2085,7 @@ void PlayerEvolution::UpdateStaticEvolutionSilhouettes()
                     halfWidth *= 1.80f;
                 }
                 const myEngine::Vector2 mountCenter = {center.x + mount.offset.x * radius * 0.55f + forward.x * length * 0.30f,
-                                                  center.y + mount.offset.y * radius * 0.55f + forward.y * length * 0.30f};
+                                                       center.y + mount.offset.y * radius * 0.55f + forward.y * length * 0.30f};
                 const float baseWidth = mount.barrelShape == BarrelShape::Trapezoid ? halfWidth * 1.28f : halfWidth;
                 const float tipWidth = mount.barrelShape == BarrelShape::Trapezoid ? halfWidth * 0.72f : halfWidth;
                 const myEngine::Vector2 base = {mountCenter.x - forward.x * length * 0.5f, mountCenter.y - forward.y * length * 0.5f};
@@ -2112,7 +2162,7 @@ void PlayerEvolution::UpdateStaticEvolutionText()
     const myEngine::TextStyle titleStyle =
         makeStyle(ui_.evolutionUiStyle_.titleFontSize, ui_.evolutionUiStyle_.titleTextColor, ui_.evolutionUiStyle_.titleOutlineWidth);
     const myEngine::TextStyle classNameStyle = makeStyle(ui_.evolutionUiStyle_.classNameFontSize, ui_.evolutionUiStyle_.classTextColor,
-                                                    ui_.evolutionUiStyle_.classNameOutlineWidth);
+                                                         ui_.evolutionUiStyle_.classNameOutlineWidth);
     const myEngine::TextStyle bodyStyle =
         makeStyle(ui_.evolutionUiStyle_.bodyFontSize, ui_.evolutionUiStyle_.bodyTextColor, ui_.evolutionUiStyle_.bodyOutlineWidth);
     const myEngine::TextStyle buttonStyle =
@@ -2174,7 +2224,7 @@ void PlayerEvolution::UpdateStaticEvolutionText()
     const std::array<std::string, 3> deltas = GetEvolutionDeltas(*current, *selected);
     const myEngine::Vector2 panelCenter = EvolutionAnchorToVirtual(ui_.evolutionUiStyle_.detailPanelAnchor);
     const myEngine::Vector2 panelTopLeft = {panelCenter.x - ui_.evolutionUiStyle_.detailPanelSize.x * 0.5f,
-                                       panelCenter.y - ui_.evolutionUiStyle_.detailPanelSize.y * 0.5f};
+                                            panelCenter.y - ui_.evolutionUiStyle_.detailPanelSize.y * 0.5f};
     SetLabel(ui_.staticEvolutionDetailClassLabel_, spriteCommon, GetEvolutionClassName(selectedClassId),
              EvolutionVirtualToRender({panelTopLeft.x + 24.0f, panelTopLeft.y + 13.0f}), classNameStyle);
     SetLabel(ui_.staticEvolutionRoleLabel_, spriteCommon, GetEvolutionRole(*selected),
@@ -2186,8 +2236,8 @@ void PlayerEvolution::UpdateStaticEvolutionText()
     SetLabel(ui_.staticEvolutionAbilityLabel_, spriteCommon, GetEvolutionAbility(*selected),
              EvolutionVirtualToRender({panelTopLeft.x + 400.0f, panelTopLeft.y + 18.0f}), bodyStyle);
     const myEngine::Vector2 buttonCenter = {panelCenter.x + ui_.evolutionUiStyle_.detailPanelSize.x * 0.5f -
-                                           ui_.evolutionUiStyle_.confirmButtonSize.x * 0.5f - 18.0f,
-                                       panelCenter.y - ui_.evolutionUiStyle_.detailPanelSize.y * 0.5f + 32.0f};
+                                                ui_.evolutionUiStyle_.confirmButtonSize.x * 0.5f - 18.0f,
+                                            panelCenter.y - ui_.evolutionUiStyle_.detailPanelSize.y * 0.5f + 32.0f};
     SetLabel(ui_.staticEvolutionConfirmLabel_, spriteCommon, player_.CanEvolveTo(selectedClassId) ? "ENTER  進化決定" : "RANK不足",
              EvolutionVirtualToRender(buttonCenter), buttonStyle);
     ui_.staticEvolutionConfirmLabel_->SetAnchorPoint({0.5f, 0.5f});
@@ -2441,8 +2491,9 @@ bool PlayerEvolution::SaveEvolutionUiStyle(const std::string& path) const
 
 void PlayerEvolution::DrawEvolutionUiStyleEditor()
 {
-    if (!ui_.arenaUiEnabled_)
+    if (!ui_.arenaUiEnabled_) {
         return;
+    }
 #ifdef USE_IMGUI
     if (!ImGui::CollapsingHeader("進化UI", ImGuiTreeNodeFlags_DefaultOpen)) {
         return;
@@ -2580,8 +2631,9 @@ void PlayerEvolution::DrawEvolutionCircuitPrototype()
             ui_.evolutionCircuitTankButtons_[i]->Draw();
         }
     }
-    if (ui_.evolutionCircuitDetailPreview_)
+    if (ui_.evolutionCircuitDetailPreview_) {
         ui_.evolutionCircuitDetailPreview_->Draw();
+    }
 
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     auto drawLabel = [&](const std::unique_ptr<myEngine::TextLabel>& label) {
@@ -2591,21 +2643,24 @@ void PlayerEvolution::DrawEvolutionCircuitPrototype()
         }
     };
     drawLabel(ui_.evolutionCircuitTitleLabel_);
-    for (const auto& label : ui_.evolutionCircuitRankLabels_)
+    for (const auto& label : ui_.evolutionCircuitRankLabels_) {
         drawLabel(label);
+    }
     drawLabel(ui_.evolutionCircuitDetailNameLabel_);
     drawLabel(ui_.evolutionCircuitDetailMetaLabel_);
     drawLabel(ui_.evolutionCircuitDetailRoleLabel_);
-    for (const auto& label : ui_.evolutionCircuitDetailStatLabels_)
+    for (const auto& label : ui_.evolutionCircuitDetailStatLabels_) {
         drawLabel(label);
+    }
     drawLabel(ui_.evolutionCircuitHintLabel_);
 }
 
 void PlayerEvolution::DrawEvolutionCircuitAfterPostEffects()
 {
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
-    if (ui_.evolutionCircuitBackdropSprite_)
+    if (ui_.evolutionCircuitBackdropSprite_) {
         ui_.evolutionCircuitBackdropSprite_->Draw();
+    }
     if (ui_.staticEvolutionButtonBloomEffect_) {
         ui_.staticEvolutionButtonBloomEffect_->BeginCapture();
         myEngine::SpriteCommon::GetInstance()->PreDrawForScene(myEngine::kNormal);
@@ -2619,21 +2674,25 @@ void PlayerEvolution::DrawEvolutionCircuitAfterPostEffects()
                 ui_.evolutionCircuitTankButtons_[i]->DrawBloomSource();
             }
         }
-        if (ui_.evolutionCircuitDetailPreview_)
+        if (ui_.evolutionCircuitDetailPreview_) {
             ui_.evolutionCircuitDetailPreview_->DrawBloomSource();
+        }
         ui_.staticEvolutionButtonBloomEffect_->EndCaptureBloomOnlyToBackBuffer();
     }
     if (ui_.staticEvolutionTextEffect_) {
         std::vector<myEngine::TextLabel*> neonLabels;
         neonLabels.reserve(8);
-        if (ui_.evolutionCircuitTitleLabel_)
+        if (ui_.evolutionCircuitTitleLabel_) {
             neonLabels.push_back(ui_.evolutionCircuitTitleLabel_.get());
-        for (const auto& rankLabel : ui_.evolutionCircuitRankLabels_) {
-            if (rankLabel)
-                neonLabels.push_back(rankLabel.get());
         }
-        if (ui_.evolutionCircuitDetailNameLabel_)
+        for (const auto& rankLabel : ui_.evolutionCircuitRankLabels_) {
+            if (rankLabel) {
+                neonLabels.push_back(rankLabel.get());
+            }
+        }
+        if (ui_.evolutionCircuitDetailNameLabel_) {
             neonLabels.push_back(ui_.evolutionCircuitDetailNameLabel_.get());
+        }
         if (ui_.evolutionCircuitSelectedNode_ >= 0 &&
             static_cast<size_t>(ui_.evolutionCircuitSelectedNode_) < ui_.evolutionCircuitTankButtons_.size() &&
             ui_.evolutionCircuitTankButtons_[static_cast<size_t>(ui_.evolutionCircuitSelectedNode_)]) {
@@ -2715,8 +2774,9 @@ void PlayerEvolution::DrawEvolutionAfterPostEffects()
         DrawEvolutionCircuitAfterPostEffects();
         return;
     }
-    if (!ShouldUseStaticEvolutionPrototype())
+    if (!ShouldUseStaticEvolutionPrototype()) {
         return;
+    }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     if (ui_.staticEvolutionBackdropSprite_) {
         ui_.staticEvolutionBackdropSprite_->Draw();
@@ -2838,7 +2898,7 @@ void PlayerEvolution::DrawStaticEvolutionDebugOverlay()
             const myEngine::Vector2 renderSize = sprite->GetSize();
             const myEngine::Vector2 anchor = sprite->GetAnchorPoint();
             const myEngine::Vector2 virtualPosition = {(renderPosition.x - renderOffset.x) / renderScale,
-                                                  (renderPosition.y - renderOffset.y) / renderScale};
+                                                       (renderPosition.y - renderOffset.y) / renderScale};
             const myEngine::Vector2 virtualSize = {renderSize.x / renderScale, renderSize.y / renderScale};
             const myEngine::Vector2 minPoint = {virtualPosition.x - virtualSize.x * anchor.x, virtualPosition.y - virtualSize.y * anchor.y};
             drawList->AddRect(toClient(minPoint), toClient({minPoint.x + virtualSize.x, minPoint.y + virtualSize.y}),

@@ -6,26 +6,33 @@
 #include <stdexcept>
 
 namespace {
-bool Finite(myEngine::Vector3 value) {
+bool Finite(myEngine::Vector3 value)
+{
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
 }
 
-float Bounded(float value, float fallback, float low, float high) {
+float Bounded(float value, float fallback, float low, float high)
+{
     return std::isfinite(value) ? (std::clamp)(value, low, high) : fallback;
 }
 
-myEngine::Vector4 Emission(myEngine::Vector3 color, float intensity, float alpha) {
+myEngine::Vector4 Emission(myEngine::Vector3 color, float intensity, float alpha)
+{
     return {color.x * intensity, color.y * intensity, color.z * intensity, alpha};
 }
 } // namespace
 
-void NeonProjectileRenderer::Initialize(myEngine::DirectXCommon* dx) {
-    if (!dx || dx_) throw std::logic_error("Initialize projectile presentation once with a valid device.");
+void NeonProjectileRenderer::Initialize(myEngine::DirectXCommon* dx)
+{
+    if (!dx || dx_) {
+        throw std::logic_error("Initialize projectile presentation once with a valid device.");
+    }
     dx_ = dx;
     geometry_.Initialize(dx, "resources/white512x512.png");
 }
 
-void NeonProjectileRenderer::SetParams(const NeonProjectileParams& params) {
+void NeonProjectileRenderer::SetParams(const NeonProjectileParams& params)
+{
     const NeonProjectileParams defaults{};
     params_ = params;
     params_.headLength = Bounded(params.headLength, defaults.headLength, 0.05f, 3.0f);
@@ -39,17 +46,23 @@ void NeonProjectileRenderer::SetParams(const NeonProjectileParams& params) {
     params_.haloAlpha = Bounded(params.haloAlpha, defaults.haloAlpha, 0.0f, 0.4f);
 }
 
-void NeonProjectileRenderer::BeginFrame(const std::vector<Bullet*>& bullets, const myEngine::Vector3& cameraForward) {
-    if (!dx_) throw std::logic_error("Initialize projectile presentation before preparing a frame.");
+void NeonProjectileRenderer::BeginFrame(const std::vector<Bullet*>& bullets, const myEngine::Vector3& cameraForward)
+{
+    if (!dx_) {
+        throw std::logic_error("Initialize projectile presentation before preparing a frame.");
+    }
     const uint64_t fence = dx_->GetFenceValue();
-    if ((prepared_ && preparedFence_ == fence) || dx_->GetFence()->GetCompletedValue() < lastDrawFence_)
+    if ((prepared_ && preparedFence_ == fence) || dx_->GetFence()->GetCompletedValue() < lastDrawFence_) {
         throw std::logic_error("Prepare projectile presentation once after the previous frame Fence.");
+    }
     prepared_ = true;
     preparedFence_ = fence;
     drawn_ = false;
     stats_ = {};
     geometry_.BeginFrame();
-    if (!params_.enabled) return;
+    if (!params_.enabled) {
+        return;
+    }
     for (const Bullet* bullet : bullets) {
         if (!bullet || bullet->IsDead() || bullet->GetSpecialKind() == Bullet::SpecialKind::Rail ||
             bullet->GetSpecialKind() == Bullet::SpecialKind::SlashWave) {
@@ -67,9 +80,13 @@ void NeonProjectileRenderer::BeginFrame(const std::vector<Bullet*>& bullets, con
     stats_.vertices = geometry_.GetVertexCount();
 }
 
-void NeonProjectileRenderer::QueueHead(const Bullet& bullet, const myEngine::Vector3& cameraForward) {
+void NeonProjectileRenderer::QueueHead(const Bullet& bullet, const myEngine::Vector3& cameraForward)
+{
     const myEngine::Vector3 center = bullet.GetWorldPosition();
-    if (!Finite(center)) { ++stats_.skipped; return; }
+    if (!Finite(center)) {
+        ++stats_.skipped;
+        return;
+    }
     myEngine::Vector3 direction = bullet.GetMove();
     direction.z = 0.0f; // Match the game's existing XY projectile presentation.
     const float speed = Finite(direction) ? myEngine::Length(direction) : 0.0f;
@@ -78,36 +95,46 @@ void NeonProjectileRenderer::QueueHead(const Bullet& bullet, const myEngine::Vec
     const float forwardLength = Finite(forward) ? myEngine::Length(forward) : 0.0f;
     forward = std::isfinite(forwardLength) && forwardLength > 0.0001f ? forward / forwardLength : myEngine::Vector3{0, 0, 1};
     myEngine::Vector3 side = myEngine::Cross(forward, direction);
-    if (myEngine::Length(side) <= 0.0001f) side = {-direction.y, direction.x, 0};
+    if (myEngine::Length(side) <= 0.0001f) {
+        side = {-direction.y, direction.x, 0};
+    }
     side = myEngine::Normalize(side);
 
     const myEngine::Vector4 source = bullet.GetVisualColor();
     myEngine::Vector3 color{Bounded(source.x, 0, 0, 4), Bounded(source.y, 0, 0, 4), Bounded(source.z, 0, 0, 4)};
     const float peak = (std::max)({color.x, color.y, color.z});
     const float alpha = Bounded(source.w, 1, 0, 1);
-    if (peak <= 0.0001f || alpha <= 0.001f) { ++stats_.skipped; return; }
+    if (peak <= 0.0001f || alpha <= 0.001f) {
+        ++stats_.skipped;
+        return;
+    }
     color = color / peak;
     const myEngine::Vector3 pale = color * 0.16f + myEngine::Vector3{0.84f, 0.84f, 0.84f};
     const myEngine::Vector3 tip = center + direction * (params_.headLength * 0.2f);
     const myEngine::Vector3 back = center - direction * (params_.headLength * 0.8f);
 
     geometry_.SetLineStyle(0.86f, 1.0f);
-    geometry_.QueueCameraFacingLine(back - direction * (params_.headLength * 0.12f), tip,
-        params_.headWidth * params_.haloWidthScale, Emission(color, params_.haloIntensity, params_.haloAlpha * alpha), forward);
+    geometry_.QueueCameraFacingLine(back - direction * (params_.headLength * 0.12f), tip, params_.headWidth * params_.haloWidthScale,
+                                    Emission(color, params_.haloIntensity, params_.haloAlpha * alpha), forward);
     geometry_.SetLineStyle(0.3f, 1.0f);
     geometry_.QueueCameraFacingLine(back, tip, params_.headWidth, Emission(color, params_.headIntensity, alpha), forward);
     geometry_.QueueBillboardDisc(tip, params_.headWidth * 0.35f, Emission(color, params_.headIntensity, alpha), direction, side, 12);
     geometry_.SetLineStyle(0.5f, 1.0f);
     geometry_.QueueCameraFacingLine(tip - direction * (params_.headLength * params_.coreLengthScale), tip,
-        params_.headWidth * params_.coreWidthScale, Emission(pale, params_.coreIntensity, alpha), forward);
-    geometry_.QueueBillboardDisc(tip, params_.headWidth * params_.coreWidthScale * 0.25f,
-        Emission(pale, params_.coreIntensity, alpha), direction, side, 12);
+                                    params_.headWidth * params_.coreWidthScale, Emission(pale, params_.coreIntensity, alpha), forward);
+    geometry_.QueueBillboardDisc(tip, params_.headWidth * params_.coreWidthScale * 0.25f, Emission(pale, params_.coreIntensity, alpha),
+                                 direction, side, 12);
     ++stats_.heads;
 }
 
-void NeonProjectileRenderer::Draw(const myEngine::Matrix4x4& viewProjection) {
-    if (!prepared_ || drawn_ || stats_.vertices == 0) return;
-    if (dx_->GetFenceValue() != preparedFence_) throw std::logic_error("Prepare projectile geometry for the current frame.");
+void NeonProjectileRenderer::Draw(const myEngine::Matrix4x4& viewProjection)
+{
+    if (!prepared_ || drawn_ || stats_.vertices == 0) {
+        return;
+    }
+    if (dx_->GetFenceValue() != preparedFence_) {
+        throw std::logic_error("Prepare projectile geometry for the current frame.");
+    }
     geometry_.DrawAll(viewProjection);
     drawn_ = true;
     stats_.drawCalls = 1;

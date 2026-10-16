@@ -32,7 +32,11 @@ public:
     void SetScreenEffectState(const IScene::ScreenEffectState& state);
     // Scene defaults are inactive. Only Developer Showcase supplies a camera/settings.
     void SetDeveloperShowcaseState(const IScene::DeveloperShowcaseState& state);
-    const BloomParam& GetLastCompositeParams() const { return lastCompositeParams_; }
+
+    const BloomParam& GetLastCompositeParams() const
+    {
+        return lastCompositeParams_;
+    }
 
 private:
     // 便利関数：リソースバリアの切り替え

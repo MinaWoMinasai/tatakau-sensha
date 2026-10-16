@@ -31,17 +31,21 @@ inline float HalfViewHeight()
 }
 
 /// @brief 有効なブロックの外枠（アリーナの壁の外側）を求める。マップ上の配置物は含めない。
-template <class Blocks>
-inline bool ArenaBounds(const Blocks& blocks, float& minX, float& minY, float& maxX, float& maxY)
+template <class Blocks> inline bool ArenaBounds(const Blocks& blocks, float& minX, float& minY, float& maxX, float& maxY)
 {
     minX = minY = 1.0e6f;
     maxX = maxY = -1.0e6f;
-    for (const auto& row : blocks)
+    for (const auto& row : blocks) {
         for (const auto& block : row) {
-            if (!block.isActive || block.isLevelObject) continue;
-            minX = (std::min)(minX, block.aabb.min.x); minY = (std::min)(minY, block.aabb.min.y);
-            maxX = (std::max)(maxX, block.aabb.max.x); maxY = (std::max)(maxY, block.aabb.max.y);
+            if (!block.isActive || block.isLevelObject) {
+                continue;
+            }
+            minX = (std::min)(minX, block.aabb.min.x);
+            minY = (std::min)(minY, block.aabb.min.y);
+            maxX = (std::max)(maxX, block.aabb.max.x);
+            maxY = (std::max)(maxY, block.aabb.max.y);
         }
+    }
     return minX < maxX && minY < maxY;
 }
 
@@ -50,7 +54,9 @@ inline float ClampFocus(float value, float low, float high, float halfView)
 {
     float outMin = low + halfView - kOverscan;
     float outMax = high - halfView + kOverscan;
-    if (outMin > outMax) outMin = outMax = (low + high) * 0.5f;
+    if (outMin > outMax) {
+        outMin = outMax = (low + high) * 0.5f;
+    }
     return (std::clamp)(value, outMin, outMax);
 }
 } // namespace arenacamera

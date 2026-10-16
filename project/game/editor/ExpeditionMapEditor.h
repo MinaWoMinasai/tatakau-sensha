@@ -16,6 +16,7 @@ public:
         initialized_ = true;
         status_.clear();
     }
+
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     bool Draw(bool& open, MapDefinition& live, const RoomCatalog& rooms, const std::vector<std::string>* enemyIds = nullptr);
 

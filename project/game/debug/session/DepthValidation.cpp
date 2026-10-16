@@ -23,6 +23,7 @@ namespace gameplay {
 namespace {
 using gameplaytest::Scenario;
 using nlohmann::json;
+
 const char* AttackName(neondepth::Attack value)
 {
     switch (value) {
@@ -35,6 +36,7 @@ const char* AttackName(neondepth::Attack value)
     }
     return "invalid";
 }
+
 const char* PhaseName(neondepth::Phase value)
 {
     switch (value) {
@@ -59,33 +61,41 @@ const char* PhaseName(neondepth::Phase value)
     }
     return "invalid";
 }
+
 json Vector(const myEngine::Vector3& value)
 {
     return json::array({value.x, value.y, value.z});
 }
+
 json Matrix(const myEngine::Matrix4x4& value)
 {
     json rows = json::array();
-    for (const auto& row : value.m)
+    for (const auto& row : value.m) {
         rows.push_back({row[0], row[1], row[2], row[3]});
+    }
     return rows;
 }
+
 json Circle(const neondepth::Circle& value)
 {
     return {{"center", value.center}, {"radius", value.radius}};
 }
+
 json Segment(const neondepth::Segment& value)
 {
     return {{"start", value.start}, {"end", value.end}, {"halfWidth", value.halfWidth}};
 }
+
 json DepthSnapshot(const neondepth::Snapshot& value, const neondepth::Events& events)
 {
     const auto& plan = value.plan;
     json circles = json::array(), warning = json::array(), cachedEvents = json::array();
-    for (unsigned index = 0; index < plan.circleCount && index < neondepth::kMaximumCircles; ++index)
+    for (unsigned index = 0; index < plan.circleCount && index < neondepth::kMaximumCircles; ++index) {
         circles.push_back(Circle(plan.circles[index]));
-    for (unsigned index = 0; index < plan.beam.warningCount && index < neondepth::kMaximumWarningSegments; ++index)
+    }
+    for (unsigned index = 0; index < plan.beam.warningCount && index < neondepth::kMaximumWarningSegments; ++index) {
         warning.push_back(Segment(plan.beam.warning[index]));
+    }
     for (unsigned index = 0; index < events.count && index < events.values.size(); ++index) {
         const auto& event = events.values[index];
         cachedEvents.push_back({{"kind", static_cast<int>(event.kind)},
@@ -137,10 +147,12 @@ json DepthSnapshot(const neondepth::Snapshot& value, const neondepth::Events& ev
                 {"halfWidth", plan.beam.halfWidth},
                 {"warning", warning}}}}}};
 }
+
 void RequireDepth(bool condition, const char* message)
 {
-    if (!condition)
+    if (!condition) {
         throw std::runtime_error(message);
+    }
 }
 } // namespace
 
@@ -181,8 +193,9 @@ nlohmann::json DepthValidation::MakeNeonDepthValidationConditions() const
         const auto count = (std::min)(world_.resources.neonDepthOperations_.size(), size_t{64});
         for (size_t index = 0; index < count; ++index) {
             const auto& entry = world_.resources.neonDepthOperations_.at(index);
-            if (entry.is_object() && entry.contains("operation") && entry.at("operation").is_string() && entry.at("operation") == name)
+            if (entry.is_object() && entry.contains("operation") && entry.at("operation").is_string() && entry.at("operation") == name) {
                 return true;
+            }
         }
         return false;
     };
@@ -191,9 +204,10 @@ nlohmann::json DepthValidation::MakeNeonDepthValidationConditions() const
     const auto* window = myEngine::WinApp::GetInstance();
     const int clientWidth = window->GetClientWidth(), clientHeight = window->GetClientHeight();
     json clientToRenderScale = nullptr;
-    if (clientWidth > 0 && clientHeight > 0)
+    if (clientWidth > 0 && clientHeight > 0) {
         clientToRenderScale =
             json::array({double(myEngine::WinApp::kClientWidth) / clientWidth, double(myEngine::WinApp::kClientHeight) / clientHeight});
+    }
     json result = {{"shortcutFixture", true},
                    {"normalMainRoute", false},
                    {"automatedInput", true},
@@ -248,9 +262,11 @@ nlohmann::json DepthValidation::MakeNeonDepthValidationConditions() const
                        {"jitter", {world_.resources.camera->GetProjectionJitter().x, world_.resources.camera->GetProjectionJitter().y}},
                        {"debugCamera", myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()}}}}},
                    {"operations", world_.resources.neonDepthOperations_}};
-    for (const char* key : {"globalPost", "gpu", "validation"})
-        if (actual.contains(key))
+    for (const char* key : {"globalPost", "gpu", "validation"}) {
+        if (actual.contains(key)) {
             result[key] = actual.at(key);
+        }
+    }
     return result;
 }
 
@@ -275,15 +291,17 @@ void DepthValidation::PrepareNeonDepthValidation()
     if (fixture.injectPhaseTwo && !world_.resources.neonDepthPhaseTwoInjected_ && world_.resources.neonDepthCycleOneMask_ == 7 &&
         before.phase == neondepth::Phase::Reposition && before.vulnerable) {
         const int target = (std::max)(1, world_.resources.enemy_->GetMaxHp() / 3);
-        if (world_.resources.enemy_->GetHp() > target)
+        if (world_.resources.enemy_->GetHp() > target) {
             world_.resources.enemy_->TakeDamage(static_cast<uint32_t>(world_.resources.enemy_->GetHp() - target));
+        }
         RequireDepth(world_.resources.enemy_->GetHp() <= target && !world_.resources.enemy_->IsDead(),
                      "Phase2 injection failed on the actual living core.");
         world_.resources.neonDepthPhaseTwoInjected_ = world_.resources.neonDepthForcedHpThisFrame_ = true;
         operation("phase2_hp_injection");
     }
-    if (world_.resources.neonDepthPauseEnd_ && frame >= world_.resources.neonDepthPauseEnd_)
+    if (world_.resources.neonDepthPauseEnd_ && frame >= world_.resources.neonDepthPauseEnd_) {
         world_.run.tankRunPaused_ = false;
+    }
     const bool match = fixture.phase == PhaseName(before.phase) && before.progress >= fixture.minimumProgress &&
                        (before.phase == neondepth::Phase::Intro || before.phase == neondepth::Phase::Reposition ||
                         fixture.attack == AttackName(before.plan.attack));
@@ -291,8 +309,9 @@ void DepthValidation::PrepareNeonDepthValidation()
         !(fixture.probe == "retry" && session.GetSceneEpoch() > 1)) {
         const bool playerLethal = fixture.probe == "player_death" || fixture.probe == "simultaneous_death" || fixture.probe == "retry" ||
                                   fixture.probe == "title_return";
-        if (playerLethal && world_.resources.player_->GetInvincibilityRemainingSeconds() > 0)
+        if (playerLethal && world_.resources.player_->GetInvincibilityRemainingSeconds() > 0) {
             return;
+        }
         if (fixture.probe == "pause") {
             world_.resources.neonDepthPauseSnapshot_ = before;
             world_.resources.neonDepthPauseBegin_ = frame;
@@ -313,8 +332,9 @@ void DepthValidation::PrepareNeonDepthValidation()
             // path, including its zero-tick player/combat lock on the skip frame.
             world_.resources.neonDepthSkipRequested_ = true;
             operation("queued_intro_skip_input");
-        } else if (fixture.probe == "multidraw" || fixture.probe == "stationary_damage")
+        } else if (fixture.probe == "multidraw" || fixture.probe == "stationary_damage") {
             return;
+        }
         if (playerLethal) {
             world_.presentation.debugPlayerNoDamage_ = false;
             world_.resources.player_->SetDebugNoDamage(false);
@@ -340,8 +360,9 @@ void DepthValidation::PrepareNeonDepthValidation()
             const auto direction = core - position;
             const float length = myEngine::Length(direction);
             const float range = world_.resources.player_->GetExpeditionCombatStyle() == tankbuild::Style::Melee ? 2.8f : 7;
-            if (length > range && length > .001f)
+            if (length > range && length > .001f) {
                 movement = {direction.x / length, direction.y / length};
+            }
             shoot = before.vulnerable;
         } else if (settings.scenario == Scenario::NeonDepthDodge) {
             const bool retreat = before.phase == neondepth::Phase::Locked || before.phase == neondepth::Phase::Airborne ||
@@ -370,20 +391,23 @@ void DepthValidation::RecordNeonDepthValidation()
 {
     auto& session = GameplayScenarioSession::Get();
     const auto& snapshot = world_.resources.enemy_->GetNeonDepthSnapshot();
-    if (world_.resources.enemy_->GetHp() < world_.resources.neonDepthPreviousBossHp_ && !world_.resources.neonDepthForcedHpThisFrame_)
+    if (world_.resources.enemy_->GetHp() < world_.resources.neonDepthPreviousBossHp_ && !world_.resources.neonDepthForcedHpThisFrame_) {
         world_.resources.neonDepthRealCoreDamage_ +=
             static_cast<uint64_t>(world_.resources.neonDepthPreviousBossHp_ - world_.resources.enemy_->GetHp());
+    }
     world_.resources.neonDepthPreviousBossHp_ = world_.resources.enemy_->GetHp();
     if (snapshot.phase == neondepth::Phase::Recovery && snapshot.plan.instance) {
         const unsigned bit = 1u << static_cast<unsigned>(snapshot.plan.attack);
         (snapshot.plan.phaseTwo ? world_.resources.neonDepthCycleTwoMask_ : world_.resources.neonDepthCycleOneMask_) |= bit;
     }
     if (world_.resources.neonDepthPauseEnd_ && session.GetFrame() <= world_.resources.neonDepthPauseEnd_) {
-        if (!(snapshot == world_.resources.neonDepthPauseSnapshot_))
+        if (!(snapshot == world_.resources.neonDepthPauseSnapshot_)) {
             session.Fail("User pause advanced the actual Depth gameplay snapshot.");
+        }
     } else if (world_.resources.neonDepthPauseEnd_ && (snapshot.elapsed != world_.resources.neonDepthPauseSnapshot_.elapsed ||
-                                                       snapshot.phase != world_.resources.neonDepthPauseSnapshot_.phase))
+                                                       snapshot.phase != world_.resources.neonDepthPauseSnapshot_.phase)) {
         world_.resources.neonDepthResumeSeen_ = true;
+    }
     const auto combat = world_.resources.player_->GetRunCombatSnapshot();
     json gameplay = {{"boss", DepthSnapshot(snapshot, world_.resources.enemy_->GetNeonDepthEvents())},
                      {"bossHp", world_.resources.enemy_->GetHp()},
@@ -467,8 +491,9 @@ void DepthValidation::DrawNeonDepthValidation()
     auto& session = GameplayScenarioSession::Get();
     if (!session.IsActive() || session.IsFinished() || !gameplaytest::IsDepthScenario(session.GetSettings().scenario) ||
         session.GetSettings().depthFixture.probe != "multidraw" || world_.presentation.developerBloomFreeze_ ||
-        world_.resources.neonBossDeveloperFreeze_ || !world_.resources.neonBossVisual_ || !world_.resources.neonBossVisual_->IsVisible())
+        world_.resources.neonBossDeveloperFreeze_ || !world_.resources.neonBossVisual_ || !world_.resources.neonBossVisual_->IsVisible()) {
         return;
+    }
     const auto before = world_.resources.enemy_->GetNeonDepthSnapshot();
     const auto modelUpdates = world_.resources.neonBossVisual_->GetStats().modelUpdates;
     const auto draws = world_.resources.neonBossVisual_->GetStats().draws;
@@ -490,8 +515,9 @@ void DepthValidation::DrawNeonDepthValidation()
                              {"gameplayUnchanged", unchanged},
                              {"modelUpdatesUnchanged", modelUnchanged},
                              {"constantBuffersAfter", world_.resources.neonBossVisual_->GetDrawConstantBufferCount()}});
-    if (!unchanged || !modelUnchanged)
+    if (!unchanged || !modelUnchanged) {
         session.Fail("Actual extra Depth Draws changed gameplay or model sampling.");
+    }
     world_.resources.neonDepthFixtureTriggered_ = true;
 }
 
@@ -501,28 +527,34 @@ void DepthValidation::FinishNeonDepthValidation()
     const auto& settings = session.GetSettings();
     const auto& fixture = settings.depthFixture;
     if (settings.scenario == Scenario::NeonDepthCycles || settings.scenario == Scenario::NeonDepthParity) {
-        if (world_.resources.neonDepthCycleOneMask_ != 7 || (fixture.injectPhaseTwo && world_.resources.neonDepthCycleTwoMask_ != 7))
+        if (world_.resources.neonDepthCycleOneMask_ != 7 || (fixture.injectPhaseTwo && world_.resources.neonDepthCycleTwoMask_ != 7)) {
             session.Fail("Depth runtime did not complete all three actual attacks/recoveries in the requested phases.");
+        }
     } else if (settings.scenario == Scenario::NeonDepthDamage) {
         if (world_.resources.neonDepthRealCoreDamage_ == 0 || world_.resources.player_->GetPrimaryAttackCount() == 0 ||
-            world_.resources.player_->IsDebugNoDamage())
+            world_.resources.player_->IsDebugNoDamage()) {
             session.Fail("This style did not damage the actual Depth core through ordinary attacks.");
+        }
     } else if (settings.scenario == Scenario::NeonDepthLifecycle) {
         if (fixture.probe == "retry") {
-            if (session.GetSceneEpoch() < 2 || world_.resources.player_->IsDead())
+            if (session.GetSceneEpoch() < 2 || world_.resources.player_->IsDead()) {
                 session.Fail("The actual retry scene did not initialize a living player.");
-        } else if (fixture.probe == "title_return")
+            }
+        } else if (fixture.probe == "title_return") {
             session.Fail("Deadline reached without actual initialized TITLE notification.");
-        else if (fixture.probe == "pause" && !world_.resources.neonDepthResumeSeen_)
+        } else if (fixture.probe == "pause" && !world_.resources.neonDepthResumeSeen_) {
             session.Fail("Actual user pause/resume was not demonstrated.");
-        else if (fixture.probe != "stationary_damage" && !world_.resources.neonDepthFixtureTriggered_)
+        } else if (fixture.probe != "stationary_damage" && !world_.resources.neonDepthFixtureTriggered_) {
             session.Fail("Requested real lifecycle phase was never reached.");
+        }
         if ((fixture.probe == "hp0" || fixture.probe == "simultaneous_death" || fixture.probe == "abort") &&
-            (world_.resources.neonBossVisual_->HasResources() || !world_.resources.neonBossVisual_->IsFinished()))
+            (world_.resources.neonBossVisual_->HasResources() || !world_.resources.neonBossVisual_->IsFinished())) {
             session.Fail("Depth terminal retained presentation resources.");
+        }
         if (fixture.probe == "simultaneous_death" &&
-            (world_.combat.combatFlow_.GetState() != GameFlowState::GameOver || world_.combat.bossDefeatHandled_))
+            (world_.combat.combatFlow_.GetState() != GameFlowState::GameOver || world_.combat.bossDefeatHandled_)) {
             session.Fail("Expedition simultaneous death lost its existing player-death priority.");
+        }
     }
     session.ReportDetail("depthFinal", {{"phaseOneAttackMask", world_.resources.neonDepthCycleOneMask_},
                                         {"phaseTwoAttackMask", world_.resources.neonDepthCycleTwoMask_},

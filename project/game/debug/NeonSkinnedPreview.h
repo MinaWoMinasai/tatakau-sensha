@@ -22,6 +22,7 @@
 class NeonSkinnedPreview {
 public:
     ~NeonSkinnedPreview();
+
     struct ResourceLifecycleValidation {
         bool passed = false;
         uint32_t initialDescriptors = 0;
@@ -31,12 +32,13 @@ public:
         uint32_t descriptorsAfterTeardown = 0;
         std::string error;
     };
+
     // Developer scenario adapter only. Call after the last submitted frame's
     // fence completes while cameras and engine managers remain alive. Warms
     // shared textures, then checks actual D3D instance descriptor ownership.
     // No draw commands, gameplay state or ordinary Preview state are changed.
-    static ResourceLifecycleValidation ValidateResourceLifecycle(
-        myEngine::Camera* camera, myEngine::DebugCamera* debugCamera, unsigned repeats = 3);
+    static ResourceLifecycleValidation ValidateResourceLifecycle(myEngine::Camera* camera, myEngine::DebugCamera* debugCamera,
+                                                                 unsigned repeats = 3);
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(myEngine::Camera* camera, myEngine::DebugCamera* debugCamera);
     // 前フレームのFence完了後、Camera更新後に1フレーム1回呼ぶ。
@@ -46,23 +48,78 @@ public:
     void Draw();
     /// @brief ImGUIを描画する。
     void DrawImGui();
-    bool IsShowcaseActive() const { return showcaseActive_; }
-    myEngine::Camera* GetShowcaseCamera() { return showcaseActive_ ? &showcaseCamera_ : nullptr; }
-    int GetShowcaseDiagnostic() const { return showcaseDiagnostic_; }
-    float GetShowcaseBloomThreshold() const { return showcaseBloomThreshold_; }
-    float GetShowcaseBloomIntensity() const { return showcaseBloomIntensity_; }
-    float GetShowcaseExposure() const { return showcaseExposure_; }
-    int GetShowcaseBloomMode() const { return showcaseBloomMode_; }
-    float GetShowcaseBloomSoftKnee() const { return showcaseBloomSoftKnee_; }
-    float GetShowcaseBloomScatter() const { return showcaseBloomScatter_; }
-    float GetShowcaseBloomRadius() const { return showcaseBloomRadius_; }
-    float GetShowcaseBloomGain() const { return showcaseBloomGain_; }
-    int GetShowcaseToneMappingMode() const { return showcaseToneMappingMode_; }
+
+    bool IsShowcaseActive() const
+    {
+        return showcaseActive_;
+    }
+
+    myEngine::Camera* GetShowcaseCamera()
+    {
+        return showcaseActive_ ? &showcaseCamera_ : nullptr;
+    }
+
+    int GetShowcaseDiagnostic() const
+    {
+        return showcaseDiagnostic_;
+    }
+
+    float GetShowcaseBloomThreshold() const
+    {
+        return showcaseBloomThreshold_;
+    }
+
+    float GetShowcaseBloomIntensity() const
+    {
+        return showcaseBloomIntensity_;
+    }
+
+    float GetShowcaseExposure() const
+    {
+        return showcaseExposure_;
+    }
+
+    int GetShowcaseBloomMode() const
+    {
+        return showcaseBloomMode_;
+    }
+
+    float GetShowcaseBloomSoftKnee() const
+    {
+        return showcaseBloomSoftKnee_;
+    }
+
+    float GetShowcaseBloomScatter() const
+    {
+        return showcaseBloomScatter_;
+    }
+
+    float GetShowcaseBloomRadius() const
+    {
+        return showcaseBloomRadius_;
+    }
+
+    float GetShowcaseBloomGain() const
+    {
+        return showcaseBloomGain_;
+    }
+
+    int GetShowcaseToneMappingMode() const
+    {
+        return showcaseToneMappingMode_;
+    }
+
     void RecordShowcaseCapture(myEngine::DirectXCommon& dx);
     void DrawShowcaseWindow();
 
 private:
-    enum class GeometryPreset { Off, Subtle, FullMeshDiagnostic, Custom };
+    enum class GeometryPreset {
+        Off,
+        Subtle,
+        FullMeshDiagnostic,
+        Custom
+    };
+
     /// @brief プレビュー対象の元のマテリアル値を保持する。
     struct SourceMaterial {
         std::string meshName;
@@ -70,6 +127,7 @@ private:
         std::string alphaMode;
         float alphaCutoff = 0.0f;
     };
+
     struct FeatureMaskBinding {
         std::string path;
         std::string distancePath;
@@ -77,6 +135,7 @@ private:
         std::string coverageSha256, distanceSha256, authoringSha256, authoringVersionSha256, authoringRevision;
         std::optional<uint32_t> srvIndex;
     };
+
     /// @brief 保存されたデータを読み込む。
     void Load();
     // The owner releases instance descriptors at a GPU-complete boundary.
@@ -140,11 +199,13 @@ private:
     std::vector<std::optional<uint32_t>> featureDistanceIndices_;
     std::vector<FeatureMaskBinding> originalMaskBindings_;
     std::vector<std::optional<uint32_t>> originalMaskIndices_;
+
     struct QualityTextureProvenance {
         uint32_t srvIndex = 0;
         std::string imageSha256, authoringSha256, authoringVersionSha256, authoringRevision;
     };
-    std::unordered_map<std::string,QualityTextureProvenance> qualityTextureProvenance_;
+
+    std::unordered_map<std::string, QualityTextureProvenance> qualityTextureProvenance_;
     int qualityCandidate_ = 0;
     std::string qualityError_;
     bool featureMasksLoadAttempted_ = false;
@@ -153,6 +214,7 @@ private:
     size_t generatedAnimationCount_ = 0;
     std::string animationError_;
     std::string loadError_;
+
     struct PreviewCheckpoint {
         bool enabled = false, neonMode = true, alphaCutout = true;
         GeometryPreset geometryPreset = GeometryPreset::Off;
@@ -169,13 +231,14 @@ private:
         myEngine::Vector3 gameCameraPosition{}, gameCameraRotation{};
         myEngine::SkinnedModel::AnimationPlaybackState playback;
     } checkpoint_;
+
     PreviewCheckpoint comparisonCheckpoint_;
     bool showcaseComparisonActive_ = false, showcaseComparisonFrameRecorded_ = false;
     unsigned showcaseComparisonIndex_ = 0;
     std::string showcaseComparisonDirectory_, showcaseComparisonStatus_;
     bool showcaseActive_ = false, showcaseOrbit_ = false;
     myEngine::Camera showcaseCamera_;
-    myEngine::Transform showcaseTransform_{{1,1,1},{},{}};
+    myEngine::Transform showcaseTransform_{{1, 1, 1}, {}, {}};
     int showcaseFraming_ = 0, showcaseView_ = 0, showcaseDiagnostic_ = 0;
     float showcaseYaw_ = 0.0f, showcaseOrbitSpeed_ = 0.35f;
     float showcaseBloomThreshold_ = 0.65f, showcaseBloomIntensity_ = 0.75f, showcaseExposure_ = 0.75f;

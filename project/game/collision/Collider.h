@@ -11,15 +11,16 @@ enum class ColliderShape {
 
 /// @brief 衝突形状・属性・識別子を保持し、衝突した相手をゲームオブジェクトへ通知する。
 class Collider {
-
 public:
     /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     virtual ~Collider() = default;
+
     /// @brief 衝突識別子を返す。
     uint64_t GetCollisionId() const
     {
         return identity_.value;
     }
+
     // 半径を取得
     virtual float GetRadius() const
     {
@@ -29,8 +30,9 @@ public:
     // 半径を設定
     void SetRadius(float radius)
     {
-        if (std::isfinite(radius) && radius >= 0.0f)
+        if (std::isfinite(radius) && radius >= 0.0f) {
             radius_ = radius;
+        }
     }
 
     /// @brief ワールド座標の取得
@@ -44,16 +46,19 @@ public:
     {
         return collisionAttribute_;
     }
+
     // 衝突属性(自分)を設定
     void SetCollisionAttribute(uint32_t attribute)
     {
         collisionAttribute_ = attribute;
     }
+
     // 衝突マスク(相手)を取得
     uint32_t GetCollisionMask() const
     {
         return collisionMask_;
     }
+
     // 衝突マスク(相手)を設定
     void SetCollisionMask(uint32_t mask)
     {
@@ -65,6 +70,7 @@ public:
     {
         isAttack_ = flag;
     }
+
     /// @brief 状態攻撃を返す。
     bool GetIsAttack()
     {
@@ -76,6 +82,7 @@ public:
     {
         return shape_;
     }
+
     /// @brief 形状を設定する。
     void SetShape(ColliderShape shape)
     {
@@ -85,16 +92,19 @@ public:
     /// @brief カプセルを設定する。
     void SetCapsule(const myEngine::Segment& seg, float r)
     {
-        if (!std::isfinite(r) || r < 0.0f)
+        if (!std::isfinite(r) || r < 0.0f) {
             return;
+        }
         segment_ = seg;
         capsuleRadius_ = r;
     }
+
     /// @brief 区切りを返す。
     const myEngine::Segment& GetSegment() const
     {
         return segment_;
     }
+
     /// @brief カプセル半径を返す。
     float GetCapsuleRadius() const
     {
@@ -106,6 +116,7 @@ public:
     {
         return hitPower_;
     }
+
     /// @brief 命中強度を設定する。
     void SetHitPower(float power)
     {
@@ -117,6 +128,7 @@ public:
     {
         return damage_;
     };
+
     /// @brief ダメージを設定する。
     void SetDamage(uint32_t damage)
     {
@@ -132,14 +144,17 @@ private:
         uint64_t value = next.fetch_add(1, std::memory_order_relaxed);
         /// @brief 新しい識別子を発行する。
         Identity() = default;
+
         /// @brief コピー元とは別の識別子を発行する。同じ対象として命中履歴へ登録しない。
         Identity(const Identity&) : Identity() {}
+
         /// @brief 自身の識別子を保つ。状態の代入でアクターの同一性を変えない。
         Identity& operator=(const Identity&)
         {
             return *this;
         }
     };
+
     Identity identity_{};
     // 衝突半径
     float radius_ = 0.8f;

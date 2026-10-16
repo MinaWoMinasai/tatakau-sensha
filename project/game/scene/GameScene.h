@@ -3,9 +3,11 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "game/session/TitleDemoStatus.h"
+
 namespace myEngine {
 class Object3d;
 }
+
 namespace gameplay {
 class GameSession;
 }

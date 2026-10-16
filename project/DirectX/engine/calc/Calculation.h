@@ -148,21 +148,25 @@ inline Vector2 operator+(const Vector2& v1, const Vector2& v2)
 {
     return Add(v1, v2);
 }
+
 /// @brief 値を減算または符号反転する。
 inline Vector2 operator-(const Vector2& v1, const Vector2& v2)
 {
     return Subtract(v1, v2);
 }
+
 /// @brief 積を求める。
 inline Vector2 operator*(float s, const Vector2& v)
 {
     return Multiply(s, v);
 }
+
 /// @brief 積を求める。
 inline Vector2 operator*(const Vector2& v, float s)
 {
     return Multiply(s, v);
 }
+
 /// @brief 値を除算する。
 inline Vector2 operator/(const Vector2& v, float s)
 {
@@ -175,21 +179,25 @@ inline Vector3 operator+(const Vector3& v1, const Vector3& v2)
 {
     return Add(v1, v2);
 }
+
 /// @brief 値を減算または符号反転する。
 inline Vector3 operator-(const Vector3& v1, const Vector3& v2)
 {
     return Subtract(v1, v2);
 }
+
 /// @brief 積を求める。
 inline Vector3 operator*(float s, const Vector3& v)
 {
     return Multiply(s, v);
 }
+
 /// @brief 積を求める。
 inline Vector3 operator*(const Vector3& v, float s)
 {
     return Multiply(s, v);
 }
+
 /// @brief 値を除算する。
 inline Vector3 operator/(const Vector3& v, float s)
 {
@@ -202,21 +210,25 @@ inline Vector4 operator+(const Vector4& v1, const Vector4& v2)
 {
     return {v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w};
 }
+
 /// @brief 値を減算または符号反転する。
 inline Vector4 operator-(const Vector4& v1, const Vector4& v2)
 {
     return {v1.x - v2.x, v1.y - v2.y, v1.z - v2.z, v1.w - v2.w};
 }
+
 /// @brief 積を求める。
 inline Vector4 operator*(const Vector4& v, float s)
 {
     return {v.x * s, v.y * s, v.z * s, v.w * s};
 }
+
 /// @brief 値を除算する。
 inline Vector4 operator/(const Vector4& v, float s)
 {
     return {v.x / s, v.y / s, v.z / s, v.w / s};
 }
+
 /// @brief 値を減算または符号反転する。
 inline Vector4 operator-(const Vector4& v)
 {
@@ -229,11 +241,13 @@ inline Matrix4x4 operator+(const Matrix4x4& m1, const Matrix4x4& m2)
 {
     return Add(m1, m2);
 }
+
 /// @brief 値を減算または符号反転する。
 inline Matrix4x4 operator-(const Matrix4x4& m1, const Matrix4x4& m2)
 {
     return Subtract(m1, m2);
 }
+
 /// @brief 積を求める。
 inline Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2)
 {
@@ -245,6 +259,7 @@ inline Vector3 operator-(const Vector3& v)
 {
     return {-v.x, -v.y, -v.z};
 }
+
 /// @brief 値を加算する。
 inline Vector3 operator+(const Vector3& v)
 {

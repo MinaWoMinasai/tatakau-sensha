@@ -8,6 +8,7 @@ class ExpeditionController {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ExpeditionController(GameWorld& world) : world_(world) {}
+
     /// @brief 戦車遠征チュートリアルを更新する。
     /// @param dt この処理で進める経過時間（秒）。
     void UpdateTankExpeditionTutorial(float dt);

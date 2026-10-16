@@ -16,7 +16,6 @@ struct MapChipData {
 
 /// @brief チップ座標とワールド座標を対応させ、地形の参照を提供する。
 class MapChip {
-
 public:
     /// @brief マップチップデータをリセット
     void ResetMapChipData();
@@ -36,6 +35,7 @@ public:
     {
         return kNumBlockVirtical;
     }
+
     /// @brief マップの列数（45）を返す。
     uint32_t GetNumBlockHorizontal()
     {

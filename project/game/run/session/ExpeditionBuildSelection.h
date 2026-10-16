@@ -8,6 +8,7 @@ class ExpeditionBuildSelection {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ExpeditionBuildSelection(GameWorld& world) : world_(world) {}
+
     /// @brief 遠征強化ビルドカードを初期化する。
     void InitializeExpeditionBuildCards();
     myEngine::InitializationTask BuildInitialization();

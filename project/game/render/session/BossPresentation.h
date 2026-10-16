@@ -7,6 +7,7 @@ class BossPresentation {
 public:
     /// @brief 借用するワールドを設定する。
     explicit BossPresentation(GameWorld& world) : world_(world) {}
+
     void UpdateNeonBossVisual(float deltaTime);
 
     bool UseNeonBossVisual() const;

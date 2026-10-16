@@ -87,7 +87,8 @@ struct RunSessionState {
 
     myEngine::Vector4 expeditionTransitionColor_{0.3f, 0.9f, 1, 1};
 
-    std::unique_ptr<myEngine::Sprite> expeditionCurtain_, expeditionTransitionPanel_, expeditionTransitionRail_, expeditionTransitionProgress_;
+    std::unique_ptr<myEngine::Sprite> expeditionCurtain_, expeditionTransitionPanel_, expeditionTransitionRail_,
+        expeditionTransitionProgress_;
 
     std::unique_ptr<myEngine::TextLabel> expeditionTransitionTitle_, expeditionTransitionDetail_;
 

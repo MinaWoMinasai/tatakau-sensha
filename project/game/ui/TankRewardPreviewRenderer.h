@@ -44,21 +44,25 @@ public:
     // Restores RTV, DSV, viewport and scissor; subsequent draws bind their PSO.
     /// @brief 準備したデモの現在状態を描画する。
     void Render();
+
     /// @brief SRV添字を返す。
     uint32_t GetSrvIndex() const
     {
         return output_ ? output_->GetSrvIndex() : 0;
     }
+
     /// @brief Renderedが存在するか判定する。
     bool HasRendered() const
     {
         return hasRendered_;
     }
+
     /// @brief 描画件数を返す。
     uint64_t GetRenderCount() const
     {
         return renderCount_;
     }
+
     /// @brief 形状頂点件数を返す。
     uint32_t GetGeometryVertexCount() const
     {

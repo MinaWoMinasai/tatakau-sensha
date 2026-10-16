@@ -37,25 +37,85 @@ public:
     void Update(const NeonBossVisualInput& input, float deltaTime);
     // Valid edits apply at reset or the next attack instance; death timing is latched.
     bool SetDepthProfile(const neondepth::PresentationConfig& profile);
-    const neondepth::PresentationConfig& GetDepthProfile() const { return depthProfile_; }
+
+    const neondepth::PresentationConfig& GetDepthProfile() const
+    {
+        return depthProfile_;
+    }
+
     bool GetDepthSocketWorld(neondepth::Socket socket, myEngine::Vector3& output) const;
-    neondepth::Life GetDepthLife() const { return state_.GetDepthLifecycle().GetLife(); }
-    neondepth::Formation GetDepthFormation() const { return depthFormation_; }
+
+    neondepth::Life GetDepthLife() const
+    {
+        return state_.GetDepthLifecycle().GetLife();
+    }
+
+    neondepth::Formation GetDepthFormation() const
+    {
+        return depthFormation_;
+    }
+
     void Draw();
-    void SetEnabled(bool enabled) { enabled_ = enabled; }
-    bool IsEnabled() const { return enabled_; }
+
+    void SetEnabled(bool enabled)
+    {
+        enabled_ = enabled;
+    }
+
+    bool IsEnabled() const
+    {
+        return enabled_;
+    }
+
     bool IsVisible() const;
-    bool IsFinished() const { return state_.GetLife() == NeonBossVisualLife::Finished; }
-    bool HasResources() const { return model_ != nullptr && object_ != nullptr && renderer_ != nullptr; }
-    size_t GetDrawConstantBufferCount() const { return renderer_ ? renderer_->GetDrawConstantBufferCount() : 0; }
-    const NeonBossVisualState& GetState() const { return state_; }
-    const NeonBossVisualStats& GetStats() const { return stats_; }
-    const std::string& GetStatus() const { return status_; }
-    float GetDissolveProgress() const { return state_.GetDissolveProgress(); }
+
+    bool IsFinished() const
+    {
+        return state_.GetLife() == NeonBossVisualLife::Finished;
+    }
+
+    bool HasResources() const
+    {
+        return model_ != nullptr && object_ != nullptr && renderer_ != nullptr;
+    }
+
+    size_t GetDrawConstantBufferCount() const
+    {
+        return renderer_ ? renderer_->GetDrawConstantBufferCount() : 0;
+    }
+
+    const NeonBossVisualState& GetState() const
+    {
+        return state_;
+    }
+
+    const NeonBossVisualStats& GetStats() const
+    {
+        return stats_;
+    }
+
+    const std::string& GetStatus() const
+    {
+        return status_;
+    }
+
+    float GetDissolveProgress() const
+    {
+        return state_.GetDissolveProgress();
+    }
+
     std::string GetAnimationName() const;
     float GetAnimationTime() const;
-    const myEngine::Matrix4x4& GetWorldMatrix() const { return world_; }
-    const myEngine::NeonSkinnedParams& GetParams() const { return params_; }
+
+    const myEngine::Matrix4x4& GetWorldMatrix() const
+    {
+        return world_;
+    }
+
+    const myEngine::NeonSkinnedParams& GetParams() const
+    {
+        return params_;
+    }
 
 private:
     bool EnsureResources();

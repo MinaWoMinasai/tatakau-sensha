@@ -27,21 +27,25 @@ public:
     {
         return activeProject_;
     }
+
     /// @brief 有効プロジェクトLoadedからのFallbackであるか判定する。
     bool IsActiveProjectLoadedFromFallback() const
     {
         return activeProjectLoadedFromFallback_;
     }
+
     /// @brief ゲームModuleUsingFallbackであるか判定する。
     bool IsGameModuleUsingFallback() const
     {
         return gameModuleUsedFallback_;
     }
+
     /// @brief 起動時シーンUsingFallbackであるか判定する。
     bool IsStartupSceneUsingFallback() const
     {
         return startupSceneUsedFallback_;
     }
+
     /// @brief Resolved起動時シーンを返す。
     const std::string& GetResolvedStartupScene() const
     {

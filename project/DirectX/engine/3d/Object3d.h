@@ -41,11 +41,13 @@ public:
     {
         return transform_.scale;
     }
+
     /// @brief 回転角を返す。
     const Vector3& GetRotate() const
     {
         return transform_.rotate;
     }
+
     /// @brief 平行移動を返す。
     const Vector3& GetTranslate() const
     {
@@ -64,23 +66,27 @@ public:
     {
         transform_.scale = scale;
     }
+
     /// @brief 回転角を設定する。
     void SetRotate(const Vector3& rotate)
     {
         transform_.rotate = rotate;
         useQuaternionRotate_ = false;
     }
+
     /// @brief クォータニオン回転を設定する。
     void SetQuaternionRotate(const Quaternion& rotate)
     {
         quaternionRotate_ = rotate;
         useQuaternionRotate_ = true;
     }
+
     /// @brief オブジェクトの回転表現をオイラー角へ切り替える。
     void UseEulerRotate()
     {
         useQuaternionRotate_ = false;
     }
+
     /// @brief 平行移動を設定する。
     void SetTranslate(const Vector3& translate)
     {
@@ -92,6 +98,7 @@ public:
     {
         camera_ = camera;
     }
+
     /// @brief 開発表示カメラを設定する。
     void SetDebugCamera(DebugCamera* debugCamera)
     {
@@ -123,26 +130,31 @@ public:
     {
         materialData_->enableLighting = enable;
     }
+
     /// @brief ライティング方式を設定する。
     void SetLightingMode(int32_t mode)
     {
         materialData_->lightingMode = mode;
     }
+
     /// @brief ライティング有効であるか判定する。
     bool IsLightingEnabled() const
     {
         return materialData_->enableLighting != 0;
     }
+
     /// @brief 平行光のライト方向を設定する。
     void SetDirectionalLightDirection(const Vector3& direction)
     {
         directionalLightData->direction = Normalize(direction);
     }
+
     /// @brief Shininessを設定する。
     void SetShininess(float shininess)
     {
         materialData_->shininess = shininess;
     }
+
     /// @brief Insensityを設定する。
     void SetInsensity(float insensity)
     {
@@ -172,8 +184,10 @@ public:
     {
         pointLightData->position = position;
     }
+
     /// @brief この描画物だけに適用する局所光。ゲーム全体のライトは変更しない。
-    void SetPointLight(const Vector3& position, const Vector3& color, float intensity, float radius, float decay) {
+    void SetPointLight(const Vector3& position, const Vector3& color, float intensity, float radius, float decay)
+    {
         pointLightData->position = position;
         pointLightData->color = {color.x, color.y, color.z, 1.0f};
         pointLightData->intensity = intensity;
@@ -186,11 +200,13 @@ public:
     {
         return materialResource_.Get();
     }
+
     /// @brief Transformationリソースを返す。
     ID3D12Resource* GetTransformationResource()
     {
         return transformationMatrixResource.Get();
     }
+
     /// @brief モデルを返す。
     Model* GetModel()
     {
@@ -202,34 +218,40 @@ public:
     {
         environmentMapIndex_ = srvIndex;
     }
+
     /// @brief 環境Coefficientを設定する。
     void SetEnvironmentCoefficient(float coefficient)
     {
         materialData_->environmentCoefficient = coefficient;
     }
+
     /// @brief 環境Coefficientを返す。
     float GetEnvironmentCoefficient() const
     {
         return materialData_->environmentCoefficient;
     }
+
     /// @brief 金属度を設定する。
     void SetMetallic(float metallic)
     {
         materialData_->metallic = metallic;
         userMetallicOverride_ = true;
     }
+
     /// @brief 粗さを設定する。
     void SetRoughness(float roughness)
     {
         materialData_->roughness = roughness;
         userRoughnessOverride_ = true;
     }
+
     /// @brief AmbientOcclusionを設定する。
     void SetAmbientOcclusion(float ambientOcclusion)
     {
         materialData_->ambientOcclusion = ambientOcclusion;
         userAmbientOcclusionOverride_ = true;
     }
+
     /// @brief 自己発光を設定する。
     void SetEmissive(const Vector3& color, float intensity)
     {
@@ -237,6 +259,7 @@ public:
         materialData_->emissiveIntensity = intensity;
         userEmissiveOverride_ = true;
     }
+
     /// @brief 結晶材質を設定する。
     void SetCrystalMaterial(const CrystalMaterialSettings& settings);
     /// @brief コースティクステクスチャを設定する。
@@ -246,59 +269,70 @@ public:
     /// @brief コースティクスアニメーション設定を設定する。
     void SetCausticsAnimationSettings(bool enabled, float playbackTime, float loopDuration, uint32_t frameCount, uint32_t atlasColumns,
                                       uint32_t atlasRows);
+
     /// @brief IBL強度を設定する。
     void SetIBLIntensity(float diffuseIntensity, float specularIntensity)
     {
         materialData_->iblDiffuseIntensity = diffuseIntensity;
         materialData_->iblSpecularIntensity = specularIntensity;
     }
+
     /// @brief IBL最大値Mipレベルを設定する。
     void SetIBLMaxMipLevel(float maxMipLevel)
     {
         materialData_->iblMaxMipLevel = maxMipLevel;
     }
+
     /// @brief PBR環境方式を設定する。
     void SetPBREnvironmentMode(float mode)
     {
         materialData_->pbrEnvironmentMode = mode;
     }
+
     /// @brief 影Receive強度を設定する。
     void SetShadowReceiveStrength(float strength)
     {
         materialData_->shadowReceiveStrength = strength;
     }
+
     /// @brief 法線Detailを設定する。
     void SetNormalDetail(float strength, float scale)
     {
         materialData_->normalDetailStrength = strength;
         materialData_->normalDetailScale = scale;
     }
+
     /// @brief 法線マップ強度を設定する。
     void SetNormalMapStrength(float strength)
     {
         materialData_->normalMapStrength = strength;
     }
+
     /// @brief 金属度マップ強度を設定する。
     void SetMetallicMapStrength(float strength)
     {
         materialData_->metallicMapStrength = strength;
     }
+
     /// @brief 粗さマップ強度を設定する。
     void SetRoughnessMapStrength(float strength)
     {
         materialData_->roughnessMapStrength = strength;
     }
+
     /// @brief 金属度粗さマップ強度を設定する。
     void SetMetallicRoughnessMapStrength(float strength)
     {
         materialData_->metallicMapStrength = strength;
         materialData_->roughnessMapStrength = strength;
     }
+
     /// @brief Occlusionマップ強度を設定する。
     void SetOcclusionMapStrength(float strength)
     {
         materialData_->occlusionMapStrength = strength;
     }
+
     /// @brief 複数成分を格納した材質マップチャンネルを設定する。
     void SetPackedMaterialMapChannels(float metallicChannel, float roughnessChannel, float occlusionChannel)
     {
@@ -306,6 +340,7 @@ public:
         materialData_->roughnessMapChannel = roughnessChannel;
         materialData_->occlusionMapChannel = occlusionChannel;
     }
+
     /// @brief 影Filterを設定する。
     void SetShadowFilter(float depthBias, float slopeBias, float pcfRadius)
     {
@@ -313,11 +348,13 @@ public:
         materialData_->shadowSlopeBias = slopeBias;
         materialData_->shadowPcfRadius = pcfRadius;
     }
+
     /// @brief 材質開発表示方式を設定する。
     void SetMaterialDebugMode(int32_t mode)
     {
         materialData_->materialDebugMode = static_cast<float>(mode);
     }
+
     /// @brief 水面診断値を設定する。
     void SetWaterDiagnostics(bool enabled, bool sunPathEnabled, bool atmosphereEnabled, bool farFlattenEnabled,
                              bool proceduralCloudReflectionEnabled, int32_t debugMode, float atmosphereStrength, float farFlattenStrength)
@@ -331,9 +368,11 @@ public:
         materialData_->waterAtmosphereStrength = atmosphereStrength;
         materialData_->waterFarFlattenStrength = farFlattenStrength;
     }
+
     /// @brief 海面Wakeデータを設定する。
     void SetOceanWakeData(const std::array<Vector4, 16>& wakePoints, const std::array<Vector4, 16>& wakeDirections,
                           const Vector4& parameters);
+
     /// @brief キャラクターShadingを設定する。
     void SetCharacterShading(float lightWrap, float shadowSoftness, float shadowStrength, float rimStrength, float rimPower,
                              float specularStrength, float specularPower)

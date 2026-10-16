@@ -75,13 +75,16 @@ public:
     {
         return points_;
     }
+
     /// @brief 設定を返す。
     const TrailConfig& GetConfig() const
     {
         return config_;
     }
+
     /// @brief 設定を設定する。
     void SetConfig(const TrailConfig& config);
+
     /// @brief 保持している要素を消去する。
     void Clear()
     {
@@ -90,6 +93,7 @@ public:
             ++geometryRevision_;
         }
     }
+
     /// @brief 形状Revisionを返す。
     uint64_t GetGeometryRevision() const
     {
@@ -101,16 +105,19 @@ public:
     {
         isActive_ = active;
     }
+
     /// @brief 有効であるか判定する。
     bool IsActive() const
     {
         return isActive_;
     }
+
     /// @brief 状態Permanentを設定する。
     void SetIsPermanent(bool permanent)
     {
         isPermanent_ = permanent;
     }
+
     /// @brief Permanentであるか判定する。
     bool IsPermanent() const
     {

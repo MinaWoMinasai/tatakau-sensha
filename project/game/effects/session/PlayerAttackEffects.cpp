@@ -96,7 +96,7 @@ void PlayerAttackEffects::SpawnPlayerLaser(const Player::LaserShotEvent& event)
         if (distance <= world_.resources.enemy_->GetRadius() + beam.width * 0.75f) {
             world_.resources.enemy_->TakeDamage(event.damage);
             myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f,
-                                                                      event.color, 8);
+                                                                           event.color, 8);
             emittedImpact = true;
         }
     }
@@ -110,8 +110,8 @@ void PlayerAttackEffects::SpawnPlayerLaser(const Player::LaserShotEvent& event)
             if (distance <= expEnemy->GetRadius() + beam.width * 0.75f) {
                 expEnemy->TakeDirectionalDamage(event.damage, event.origin);
                 if (!emittedImpact) {
-                    myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f,
-                                                                              event.color, 8);
+                    myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t,
+                                                                                   direction * -1.0f, event.color, 8);
                     emittedImpact = true;
                 }
             }
@@ -222,7 +222,8 @@ void PlayerAttackEffects::DetonatePlayerMine(size_t index)
     // 距離はZを含み、地形による遮蔽は調べない。正面装甲などの適用条件は対象の関数へ任せる。
     const PlayerMine mine = world_.presentation.playerMines_[index];
     if (world_.resources.enemy_ && (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead()) &&
-        myEngine::Length(world_.resources.enemy_->GetWorldPosition() - mine.position) <= mine.radius + world_.resources.enemy_->GetRadius()) {
+        myEngine::Length(world_.resources.enemy_->GetWorldPosition() - mine.position) <=
+            mine.radius + world_.resources.enemy_->GetRadius()) {
         world_.resources.enemy_->TakeDamage(mine.damage);
     }
     if (world_.resources.enemyManager_) {
@@ -239,7 +240,8 @@ void PlayerAttackEffects::DetonatePlayerMine(size_t index)
     world_.presentation.playerMines_.erase(world_.presentation.playerMines_.begin() + static_cast<std::ptrdiff_t>(index));
 }
 
-void PlayerAttackEffects::QueuePlayerMines(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp, const myEngine::Vector3& cameraForward)
+void PlayerAttackEffects::QueuePlayerMines(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp,
+                                           const myEngine::Vector3& cameraForward)
 {
     if (!world_.resources.neonGridRenderer_) {
         return;
@@ -337,8 +339,9 @@ void PlayerAttackEffects::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& e
     slash.damage = event.damage;
     slash.knockback = event.knockback;
     slash.finisher = event.comboStep % 3 == 2;
-    if (world_.run.expeditionRun_)
+    if (world_.run.expeditionRun_) {
         world_.run.tankExpeditionAudio_.Slash();
+    }
     slash.life = slash.windupDuration + slash.swingDuration + slash.recoveryDuration;
     slash.color = event.color;
     if (!world_.presentation.playerMeleeComboVisuals_.empty()) {
@@ -354,8 +357,9 @@ void PlayerAttackEffects::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& e
         slash.width *= (std::max)(0.05f, profile.bladeWidthScale);
         // 近接ビルドの通常斬撃・パリィ・3段目の斬撃波は同じ有効時間を使う。
         // そのビルドでは外観プロファイルのdurationScaleを斬撃時間へ掛けない。
-        if (!world_.resources.player_ || !world_.resources.player_->IsMeleeBuild())
+        if (!world_.resources.player_ || !world_.resources.player_->IsMeleeBuild()) {
             slash.swingDuration *= (std::max)(0.05f, profile.durationScale);
+        }
         slash.life = slash.windupDuration + slash.swingDuration + slash.recoveryDuration;
         slash.color.x *= profile.colorScale.x;
         slash.color.y *= profile.colorScale.y;
@@ -395,10 +399,13 @@ void PlayerAttackEffects::UpdatePlayerMeleeSlashes(float deltaTime)
                 myEngine::Vector3 toTarget = targetPos - slash.origin;
                 toTarget.z = 0.0f;
                 const float distance = myEngine::Length(toTarget);
-                if (distance > 0.001f)
-                    for (float t = 0.6f; t < distance - targetRadius; t += 0.6f)
-                        if (world_.resources.stage_->IsCollisionWithAnyBlock(slash.origin + toTarget * (t / distance), 0.12f))
+                if (distance > 0.001f) {
+                    for (float t = 0.6f; t < distance - targetRadius; t += 0.6f) {
+                        if (world_.resources.stage_->IsCollisionWithAnyBlock(slash.origin + toTarget * (t / distance), 0.12f)) {
                             return false;
+                        }
+                    }
+                }
                 return distance <= 0.0001f ||
                        (distance <= slash.range + targetRadius && myEngine::Dot(myEngine::Normalize(toTarget), slash.direction) >= minDot);
             };
@@ -416,7 +423,7 @@ void PlayerAttackEffects::UpdatePlayerMeleeSlashes(float deltaTime)
                     slash.hitApplied = true;
                 }
                 myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(world_.resources.enemy_->GetWorldPosition(),
-                                                                          slash.direction * -1.0f, slash.color, 10);
+                                                                               slash.direction * -1.0f, slash.color, 10);
             }
             if (world_.resources.enemyManager_) {
                 for (ExpEnemy* expEnemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
@@ -433,8 +440,8 @@ void PlayerAttackEffects::UpdatePlayerMeleeSlashes(float deltaTime)
                                                                                slash.finisher);
                             slash.hitApplied = true;
                         }
-                        myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(), slash.direction * -1.0f,
-                                                                                  slash.color, 8);
+                        myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(),
+                                                                                       slash.direction * -1.0f, slash.color, 8);
                     }
                 }
             }
@@ -472,26 +479,31 @@ void PlayerAttackEffects::UpdatePlayerMeleeSlashes(float deltaTime)
 void PlayerAttackEffects::UpdateSpecialCombatPresentation(float dt)
 {
     // ageは基準時間で進む経過秒。既存フラッシュの期限切れ分を消去してから、このフレームのイベントを追加する。
-    for (auto& flash : world_.run.buildCombatFlashes_)
+    for (auto& flash : world_.run.buildCombatFlashes_) {
         flash.age += dt;
+    }
     std::erase_if(world_.run.buildCombatFlashes_, [](const auto& flash) {
         return flash.age > .30f;
     });
-    for (auto& flash : world_.run.specialCombatFlashes_)
+    for (auto& flash : world_.run.specialCombatFlashes_) {
         flash.age += dt;
+    }
     std::erase_if(world_.run.specialCombatFlashes_, [](const auto& flash) {
         return flash.age > .24f;
     });
     world_.run.specialProjectileVisuals_.clear();
-    if (!world_.resources.player_ || !world_.resources.bulletManager_)
+    if (!world_.resources.player_ || !world_.resources.bulletManager_) {
         return;
+    }
     // 3つのConsumeは各待ち行列を取り出して空にする。表示枠が64件に達してもイベントは消費する。
     // 攻撃結果は適用済みで、ここではHPへ再適用しない。
     for (const auto& event : world_.resources.bulletManager_->ConsumeBuildEvents()) {
-        if (world_.run.buildCombatFlashes_.size() < 64)
+        if (world_.run.buildCombatFlashes_.size() < 64) {
             world_.run.buildCombatFlashes_.push_back({event, 0});
-        if (world_.run.expeditionRun_)
+        }
+        if (world_.run.expeditionRun_) {
             world_.run.tankExpeditionAudio_.Hit();
+        }
     }
     for (const auto& event : world_.resources.player_->ConsumeSpecialCombatEvents()) {
         myEngine::Vector3 end = event.origin;
@@ -499,83 +511,99 @@ void PlayerAttackEffects::UpdateSpecialCombatPresentation(float dt)
             // レールの見た目の終点を0.4単位の壁サンプルで求める。命中・威力の計算とは別。
             for (float distance = .4f; distance < 22; distance += .4f) {
                 const auto next = event.origin + event.direction * distance;
-                if (world_.resources.stage_->IsCollisionWithAnyBlock(next, .12f))
+                if (world_.resources.stage_->IsCollisionWithAnyBlock(next, .12f)) {
                     break;
+                }
                 end = next;
             }
             world_.presentation.cameraShakeDuration_ = .10f;
             world_.presentation.cameraShakeTimer_ = .10f;
             world_.presentation.cameraShakePower_ = (std::max)(world_.presentation.cameraShakePower_, .09f);
-            if (world_.run.expeditionRun_)
+            if (world_.run.expeditionRun_) {
                 world_.run.tankExpeditionAudio_.RailShot();
+            }
         } else if (event.kind == Player::SpecialEventKind::PerfectParry) {
             // 完全パリィで停止用タイマーを最低0.035秒に設定する。減速の適用は次回Updateで行う。
             world_.run.expeditionImpactHold_ = (std::max)(world_.run.expeditionImpactHold_, .035f);
             world_.combatFlow->SetEventCallout("パリィ成功！", .42f);
-            if (world_.run.expeditionRun_)
+            if (world_.run.expeditionRun_) {
                 world_.run.tankExpeditionAudio_.Parry(true);
+            }
         } else if (event.kind == Player::SpecialEventKind::Parry) {
-            if (world_.run.expeditionRun_)
+            if (world_.run.expeditionRun_) {
                 world_.run.tankExpeditionAudio_.Parry(false);
-        } else if (event.kind == Player::SpecialEventKind::LinkHit && world_.run.expeditionRun_)
+            }
+        } else if (event.kind == Player::SpecialEventKind::LinkHit && world_.run.expeditionRun_) {
             world_.run.tankExpeditionAudio_.Hit();
-        else if (event.kind == Player::SpecialEventKind::WallSmash || event.kind == Player::SpecialEventKind::DroneBomb) {
-            if (world_.run.expeditionRun_)
+        } else if (event.kind == Player::SpecialEventKind::WallSmash || event.kind == Player::SpecialEventKind::DroneBomb) {
+            if (world_.run.expeditionRun_) {
                 world_.run.tankExpeditionAudio_.ArmorBreak();
+            }
             world_.presentation.cameraShakeDuration_ = world_.presentation.cameraShakeTimer_ = .09f;
             world_.presentation.cameraShakePower_ = (std::max)(world_.presentation.cameraShakePower_, .07f);
         } else if (event.kind == Player::SpecialEventKind::DashSlash || event.kind == Player::SpecialEventKind::SpinBlade) {
-            if (world_.run.expeditionRun_)
+            if (world_.run.expeditionRun_) {
                 world_.run.tankExpeditionAudio_.Slash();
-        } else if (world_.run.expeditionRun_)
+            }
+        } else if (world_.run.expeditionRun_) {
             world_.run.tankExpeditionAudio_.Hit();
-        if (world_.run.specialCombatFlashes_.size() < 64)
+        }
+        if (world_.run.specialCombatFlashes_.size() < 64) {
             world_.run.specialCombatFlashes_.push_back({event, 0, end});
+        }
     }
     for (const auto& hit : world_.resources.bulletManager_->ConsumeSpecialImpacts()) {
         Player::SpecialCombatEvent event{};
         event.kind = hit.bulletCut ? Player::SpecialEventKind::Parry : Player::SpecialEventKind::LinkHit;
         event.origin = hit.position;
         event.direction = hit.direction;
-        if (world_.run.specialCombatFlashes_.size() < 64)
+        if (world_.run.specialCombatFlashes_.size() < 64) {
             world_.run.specialCombatFlashes_.push_back({event, 0, hit.position});
-        if (hit.bulletCut && world_.run.expeditionRun_)
+        }
+        if (hit.bulletCut && world_.run.expeditionRun_) {
             world_.run.tankExpeditionAudio_.Parry(false);
+        }
     }
     // 名前はRatioだが、取得値は蓄積秒。現在の最大1秒を前提に音の段階を判定する。
     const float charge = world_.resources.player_->GetRailChargeRatio();
     world_.run.railChargeAudioAge_ += dt;
     if (charge > 0 && world_.run.railChargeAudioAge_ > .30f && !world_.arenaRunController->IsTankRunMenuOpen()) {
-        if (world_.run.expeditionRun_)
+        if (world_.run.expeditionRun_) {
             world_.run.tankExpeditionAudio_.RailCharge(charge >= .999f);
+        }
         world_.run.railChargeAudioAge_ = 0;
     }
     // 借用弾はこの走査で位置・方向・半径を値へ写す。後の描画へ弾ポインターを持ち越さない。
-    if (world_.resources.bulletManager_->GetBulletCount() > 0)
+    if (world_.resources.bulletManager_->GetBulletCount() > 0) {
         for (const auto* bullet : world_.resources.bulletManager_->GetBulletPtrs()) {
-            if (!bullet || bullet->IsDead() || bullet->GetSpecialKind() == Bullet::SpecialKind::None)
+            if (!bullet || bullet->IsDead() || bullet->GetSpecialKind() == Bullet::SpecialKind::None) {
                 continue;
+            }
             auto direction = bullet->GetMove();
             direction = myEngine::Length(direction) > .0001f ? myEngine::Normalize(direction) : myEngine::Vector3{1, 0, 0};
             world_.run.specialProjectileVisuals_.push_back(
                 {bullet->GetWorldPosition(), direction, bullet->GetRadius(), bullet->GetSpecialKind()});
         }
+    }
 }
 
 void PlayerAttackEffects::QueueSpecialCombatPresentation()
 {
-    if (!world_.resources.neonGridRenderer_ || !world_.resources.player_ || world_.arenaRunController->IsTankRunMenuOpen())
+    if (!world_.resources.neonGridRenderer_ || !world_.resources.player_ || world_.arenaRunController->IsTankRunMenuOpen()) {
         return;
+    }
     tankspecialfx::Charge(*world_.resources.neonGridRenderer_, world_.resources.player_->GetRailChargeMuzzle(),
                           world_.resources.player_->GetRailChargeRatio(), world_.combat.playTime_);
-    for (const auto& link : world_.resources.player_->GetDroneLaserLinks())
+    for (const auto& link : world_.resources.player_->GetDroneLaserLinks()) {
         tankspecialfx::Link(*world_.resources.neonGridRenderer_, link.start, link.end);
-    for (const auto& mark : world_.resources.bulletManager_->GetMarkVisuals())
+    }
+    for (const auto& mark : world_.resources.bulletManager_->GetMarkVisuals()) {
         for (int i = 0; i < mark.stacks; ++i) {
             const float angle = world_.combat.playTime_ * 1.6f + static_cast<float>(i) * 1.5707963f;
             const auto p = mark.position + myEngine::Vector3{std::cos(angle) * 1.3f, std::sin(angle) * 1.3f, .04f};
             tankspecialfx::Ring(*world_.resources.neonGridRenderer_, p, .13f, .04f, {1.4f, .45f, .9f, .7f});
         }
+    }
     for (const auto& lock : world_.resources.player_->GetTargetLockVisuals()) {
         const float radius = 1.45f + (lock.remaining > 0 ? .08f * std::sin(world_.combat.playTime_ * 9) : .22f);
         tankspecialfx::Ring(*world_.resources.neonGridRenderer_, lock.position, radius, .045f,
@@ -605,9 +633,10 @@ void PlayerAttackEffects::QueueSpecialCombatPresentation()
             }
         } else if (drone.phase == Phase::Charging) {
             const auto v = drone.target - drone.position;
-            if (myEngine::Length(v) > .001f)
+            if (myEngine::Length(v) > .001f) {
                 world_.resources.neonGridRenderer_->QueueLine(drone.position - myEngine::Normalize(v) * 1.3f, drone.position, .09f,
                                                               {.4f, 1.4f, 1.7f, .5f});
+            }
         }
     }
     if (world_.resources.player_->GetEmpRatio() > 0) {
@@ -619,9 +648,9 @@ void PlayerAttackEffects::QueueSpecialCombatPresentation()
         }
     }
     for (const auto& visual : world_.run.specialProjectileVisuals_) {
-        if (visual.kind == Bullet::SpecialKind::SlashWave)
+        if (visual.kind == Bullet::SpecialKind::SlashWave) {
             tankspecialfx::Crescent(*world_.resources.neonGridRenderer_, visual.position, visual.direction, visual.radius);
-        else if (visual.kind == Bullet::SpecialKind::Rail) {
+        } else if (visual.kind == Bullet::SpecialKind::Rail) {
             world_.resources.neonGridRenderer_->QueueLine(visual.position - visual.direction * 3.5f, visual.position, .15f,
                                                           {.6f, 1.6f, 2.1f, .65f});
             world_.resources.neonGridRenderer_->QueueLine(visual.position - visual.direction * 1.2f, visual.position, .06f,
@@ -644,17 +673,19 @@ void PlayerAttackEffects::QueueSpecialCombatPresentation()
             const auto d = myEngine::Length(event.direction) > .001f ? myEngine::Normalize(event.direction) : myEngine::Vector3{1, 0, 0};
             world_.resources.neonGridRenderer_->QueueLine(event.origin - d * 3, event.origin + d * 2, .10f,
                                                           {.55f, 1.4f, 1.9f, (1 - flash.age / .24f) * .6f});
-        } else
+        } else {
             tankspecialfx::Contact(*world_.resources.neonGridRenderer_, event.origin, flash.age,
                                    event.kind == Player::SpecialEventKind::LinkHit ? .6f : 1.0f,
                                    event.kind == Player::SpecialEventKind::PerfectParry);
+        }
     }
     for (const auto& flash : world_.run.buildCombatFlashes_) {
         const auto& e = flash.event;
         const float alpha = (1 - flash.age / .30f);
         if (e.kind == BulletManager::BuildEventKind::Chain) {
             const auto delta = e.end - e.start;
-            const auto side = myEngine::Length(delta) > .001f ? myEngine::Normalize(myEngine::Vector3{-delta.y, delta.x, 0}) : myEngine::Vector3{0, 1, 0};
+            const auto side =
+                myEngine::Length(delta) > .001f ? myEngine::Normalize(myEngine::Vector3{-delta.y, delta.x, 0}) : myEngine::Vector3{0, 1, 0};
             auto previous = e.start;
             for (int i = 1; i <= 5; ++i) {
                 const auto next = e.start + delta * (i / 5.0f) + side * (i == 5 ? 0 : (i % 2 ? .18f : -.18f));
@@ -684,8 +715,8 @@ void PlayerAttackEffects::QueuePlayerMeleeSlashes()
         const float angle = (slash.startAngleDeg + (slash.endAngleDeg - slash.startAngleDeg) * smoothStep(progress)) * kPi / 180.0f;
         return RotateVector2D(slash.direction, angle);
     };
-    auto queueBlade = [&](const myEngine::Vector3& hilt, const myEngine::Vector3& bladeDir, float length, float width, const myEngine::Vector4& color,
-                          float coreAlpha) {
+    auto queueBlade = [&](const myEngine::Vector3& hilt, const myEngine::Vector3& bladeDir, float length, float width,
+                          const myEngine::Vector4& color, float coreAlpha) {
         tankneon::QueueMeleeBlade(*world_.resources.neonGridRenderer_, hilt, bladeDir, length, width, color, coreAlpha,
                                   {world_.presentation.playerMeleeBladeOuterWidthScale_,
                                    world_.presentation.playerMeleeBladeHaloWidthScale_,
@@ -742,7 +773,7 @@ void PlayerAttackEffects::QueuePlayerMeleeSlashes()
             return a + (b - a) * (std::clamp)(amount, 0.0f, 1.0f);
         };
         const myEngine::Vector3 hilt = isWindup ? lerpPosition(idleHilt, attackHilt, windupProgress)
-                                           : (isSwinging ? attackHilt : lerpPosition(attackHilt, idleHilt, recoveryProgress));
+                                                : (isSwinging ? attackHilt : lerpPosition(attackHilt, idleHilt, recoveryProgress));
         myEngine::Vector4 color = slash.color;
         color.x *= 1.18f * world_.presentation.playerNeonEmission_;
         color.y *= 1.18f * world_.presentation.playerNeonEmission_;

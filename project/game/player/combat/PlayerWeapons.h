@@ -5,8 +5,10 @@
 class PlayerWeapons {
 public:
     using SpecialEventKind = Player::SpecialEventKind;
+
     /// @brief 戦闘主体である自機を借用する。
     explicit PlayerWeapons(Player& player) : player_(player) {}
+
     using PlayerClassConfig = ::PlayerClassConfig;
     using MineDropEvent = Player::MineDropEvent;
     using WallSmashTarget = Player::WallSmashTarget;
