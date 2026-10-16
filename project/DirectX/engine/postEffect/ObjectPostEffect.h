@@ -55,6 +55,7 @@ public:
     void SetParam(const BloomParam& param);
 
 private:
+    /// @brief キャプチャ結果を最後にどう合成するか。
     enum class FinishMode {
         CompositeAndAdd,
         AdditiveOnly,
@@ -63,8 +64,11 @@ private:
     };
     /// @brief 計測を終了する。
     void FinishCapture(FinishMode mode, bool outputToHdr);
+    /// @brief キャプチャした画像からBloomを作成し、結果のSRVインデックスを返す。
     uint32_t RenderBloom(const BloomParam& drawParam);
+    /// @brief 描画時に使うBloomパラメータを作る。
     BloomParam MakeDrawParam(bool outputToHdr) const;
+    /// @brief キャプチャに使う描画先を選ぶ。
     void SelectCaptureTarget(bool preserveFullResolution = false);
     /// @brief GPUリソースを次の利用に必要な状態へ遷移させる。
     void Transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);

@@ -6,11 +6,13 @@
 /// @note 描画・弾生成・移動は担当せず、渡された時間だけで進行する。
 class PrototypeBossCombat {
 public:
+    /// @brief 試作ボスの攻撃の種類。
     enum class AttackType {
         AimedSpread,
         GapRing,
         Sweep
     };
+    /// @brief 試作ボスの攻撃の進行段階。
     enum class Phase {
         Recovery,
         Telegraph,

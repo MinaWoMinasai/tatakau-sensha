@@ -19,21 +19,25 @@ public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize() override;
 
+    /// @brief エンジンの初期化完了を受け取る。
     void OnEngineReady() override
     {
         engineReady_ = true;
     }
 
+    /// @brief デモの準備ができるまでは簡易描画で描画する。
     bool UsesSimpleRendering() const override
     {
         return !demoReady_ || finished_;
     }
 
+    /// @brief 非同期起動の間は、シーン切り替え中もタイトルを表示し続ける。
     bool KeepTitleDuringTransition() const override
     {
         return asyncStartup_;
     }
 
+    /// @brief シーン切り替えの前に、デモのコールバックやカメラを切り離す。
     void PrepareForTransition() override;
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update() override;
@@ -47,6 +51,7 @@ public:
     void DrawAfterPostEffect3D() override;
     /// @brief スプライトを描画する。
     void DrawSprite() override;
+    /// @brief 開発者用にフレームを記録する。
     void RecordDeveloperFrame(myEngine::DirectXCommon&) override;
     /// @brief タイトルとデモが使うファイルの読み込みを裏で開始する。何度呼んでもよい。
     static void StartAssetPreloads();

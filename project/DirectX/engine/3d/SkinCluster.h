@@ -115,7 +115,9 @@ private:
 /// @brief 骨格とアニメーションの再生状態を持ち、スキニングモデルを描画する。
 class SkinnedModel {
 public:
+    /// @brief スキンモデルのファイルをバックグラウンドで先読みする。
     static void PreloadAsset(const std::string& filePath);
+    /// @brief 先読み済みのスキンモデルのデータをすべて破棄する。
     static void ClearPreloadedAssets();
     // 描画担当者がフレーム境界で明示的に解放する。呼び出し側はSrvManagerを生かしたまま、
     // 最後のGPU使用の完了を待ってから呼ぶこと。
@@ -209,6 +211,7 @@ public:
         bool transitionActive = false;
     };
 
+    /// @brief 現在のアニメーション再生状態を取り出す。RestoreAnimationPlaybackStateで元に戻せる。
     AnimationPlaybackState CaptureAnimationPlaybackState() const;
     // 検証失敗時は何も変更しない。成功後の次UpdateでPaletteへ反映する。
     bool RestoreAnimationPlaybackState(const AnimationPlaybackState& state);

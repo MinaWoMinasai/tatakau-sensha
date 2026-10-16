@@ -22,6 +22,7 @@ struct PresentationConfig {
     float forwardYawOffsetRadians = myEngine::pi * .5f;
 };
 
+/// @brief 演出設定が有効な範囲かを返す。
 inline bool Valid(const PresentationConfig& value)
 {
     return InRange(value.worldHeight, 4, 40) && InRange(value.hoverHeight, 0, 15) && InRange(value.floorOffset.x, -12, 12) &&
@@ -31,26 +32,31 @@ inline bool Valid(const PresentationConfig& value)
            InRange(value.forwardYawOffsetRadians, -2 * myEngine::pi, 2 * myEngine::pi);
 }
 
+/// @brief 値を0..1に収める。非有限なら0を返す。
 inline float Unit(float value)
 {
     return Finite(value) ? (std::clamp)(value, 0.0f, 1.0f) : 0;
 }
 
+/// @brief 0..1の値にスムーズステップを適用する。
 inline float Smooth(float value)
 {
     const float t = Unit(value);
     return t * t * (3 - 2 * t);
 }
 
+/// @brief 演出で進める時間を0..0.1秒に収める。
 inline float PresentationDelta(float value)
 {
     return InRange(value, 0, .1f) ? value : (Finite(value) && value > 0 ? .1f : 0);
 }
 
+/// @brief バインドポーズでのモデルの境界。
 struct BindBounds {
     myEngine::Vector3 low{}, high{};
 };
 
+/// @brief バインドポーズから求めた足元の位置と高さ。
 struct BindPlacement {
     myEngine::Vector3 stableFootLocal{};
     float boundsHeight = 0;
@@ -92,6 +98,7 @@ inline bool TryBindPlacement(const myEngine::Skeleton& skeleton, const BindBound
     return true;
 }
 
+/// @brief バインドポーズの情報と演出設定から配置の設定を作る。
 inline PlacementConfig MakePlacementConfig(const BindPlacement& bind, const PresentationConfig& profile)
 {
     PlacementConfig result;
@@ -103,6 +110,7 @@ inline PlacementConfig MakePlacementConfig(const BindPlacement& bind, const Pres
     return result;
 }
 
+/// @brief エフェクトの発生位置として使うモデル上の部位。
 enum class Socket {
     Chest,
     LeftHand,
@@ -132,6 +140,7 @@ inline bool TrySocketWorld(const myEngine::Skeleton& skeleton, const myEngine::M
     return true;
 }
 
+/// @brief 戦闘の段階に対応するモーションの再生設定。
 struct MotionMapping {
     Motion motion = Motion::Hover;
     float speed = 1;
@@ -139,6 +148,7 @@ struct MotionMapping {
     float entryTime = -1; // フェーズが変わったときだけシークする。-1ならクリップの時刻とブレンドを保つ。
 };
 
+/// @brief 戦闘のスナップショットから再生するモーションを決める。
 inline MotionMapping MapDepthMotion(const Snapshot& snapshot, bool collapsing = false, bool frozen = false, float collapseSeconds = .35f)
 {
     if (collapsing || frozen) {
@@ -179,6 +189,7 @@ inline MotionMapping MapDepthMotion(const Snapshot& snapshot, bool collapsing = 
     }
 }
 
+/// @brief モーションの切り替え指示。
 struct MotionCommand {
     MotionMapping mapping{};
     bool select = false, restartSameClip = false, phaseChanged = false;
@@ -187,11 +198,13 @@ struct MotionCommand {
 // 実行時の選択を守るためだけのもの。ゲームプレイのフェーズや当たりイベントは制御しない。
 class MotionGate {
 public:
+    /// @brief 初期状態に戻す。
     void Reset()
     {
         *this = MotionGate{};
     }
 
+    /// @brief スナップショットを受け取り、必要ならモーションの切り替えを指示する。
     MotionCommand Step(const Snapshot& snapshot, bool collapsing = false, bool frozen = false, float collapseSeconds = .35f)
     {
         MotionCommand command;
@@ -217,10 +230,12 @@ private:
     bool valid_ = false, collapsing_ = false, frozen_ = false;
 };
 
+/// @brief 登場時の形成の進み具合（部位ごとに0..1）。
 struct Formation {
     float core = 1, connector = 1, body = 1;
 };
 
+/// @brief 戦闘のスナップショットから形成の進み具合を求める。
 inline Formation MapFormation(const Snapshot& snapshot)
 {
     if (snapshot.phase == Phase::Aborted) {
@@ -233,6 +248,7 @@ inline Formation MapFormation(const Snapshot& snapshot)
     return {Smooth(p / .25f), Smooth((p - .12f) / .38f), Smooth((p - .25f) / .65f)};
 }
 
+/// @brief 攻撃に合わせて体に加える動き。
 struct BodyMotion {
     myEngine::Vector2 extraFloorOffset{};
     float extraHoverHeight = 0;

@@ -19,6 +19,7 @@ constexpr float kRepositionSpeed = 3.4f;         // 目標プロファイルで�
 constexpr float kConservativePlayerSpeed = 6.0f; // 未補正の通常移動より遅い。実行時に3スタイルで確認済み。
 constexpr uint16_t kUnreachable = (std::numeric_limits<uint16_t>::max)();
 
+/// @brief ベクトルのXY成分を取り出す。
 Point XY(const myEngine::Vector3& value)
 {
     return {value.x, value.y};
@@ -29,17 +30,20 @@ myEngine::Vector3 Floor(Point point)
     return {point[0], point[1], 0};
 }
 
+/// @brief 2点間の距離の2乗を返す。
 float SquaredDistance(Point a, Point b)
 {
     const float x = a[0] - b[0], y = a[1] - b[1];
     return x * x + y * y;
 }
 
+/// @brief セル番号の中心座標を返す。
 Point Cell(unsigned id)
 {
     return {static_cast<float>(id % kColumns) * 2, static_cast<float>(kRows - 1 - id / kColumns) * 2};
 }
 
+/// @brief 半径を含めて部屋の内側に収まっているかを返す。
 bool InRoom(Point point, float radius)
 {
     // 実際のfinal_duelの内壁面: グリッド10..34/7..22、セル幅2。
@@ -54,6 +58,7 @@ bool Clear(Stage& stage, Point point, float radius)
     return InRoom(point, radius) && !stage.IsCollisionWithAnyBlock(Floor(point), radius);
 }
 
+/// @brief 2点間を壁に当たらずに移動できるかを返す。
 bool ClearPath(Point from, Point to, float radius, std::span<const FloorBox> walls)
 {
     if (!InRoom(from, radius) || !InRoom(to, radius)) {
@@ -67,6 +72,7 @@ struct ReachableFloor {
     float initialDistance = 0;
 };
 
+/// @brief 開始位置から到達できるセルと、その距離を求める。
 ReachableFloor Reachable(Stage& stage, Point start, float radius, std::span<const FloorBox> walls)
 {
     ReachableFloor result;
@@ -110,6 +116,7 @@ ReachableFloor Reachable(Stage& stage, Point start, float radius, std::span<cons
     return result;
 }
 
+/// @brief 到達可能なセルのうち、条件を満たし目標に最も近い位置を返す。
 template <class Accept>
 std::optional<Point> NearestLegal(Stage& stage, const ReachableFloor& reachable, Point desired, float radius, Accept accept)
 {
@@ -129,6 +136,7 @@ std::optional<Point> NearestLegal(Stage& stage, const ReachableFloor& reachable,
     return result;
 }
 
+/// @brief 指定位置が攻撃計画の危険範囲に入っているかを返す。
 bool PointDangerous(const neondepth::AttackPlan& plan, Point point, float radius)
 {
     if (plan.attack == neondepth::Attack::Beam) {

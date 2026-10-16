@@ -13,12 +13,14 @@ constexpr std::array<const char*, 6> kJoints = {"J_Bip_C_Chest",    "J_Bip_C_Nec
 constexpr std::array<const char*, 3> kClips = {"BindPose", "Preview_Idle", "Preview_Attack"};
 using Angles = std::array<myEngine::Vector3, kJoints.size()>;
 
+/// @brief 2つのクォータニオンの積を返す。
 myEngine::Quaternion Product(const myEngine::Quaternion& a, const myEngine::Quaternion& b)
 {
     return {a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y, a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
             a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w, a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z};
 }
 
+/// @brief バインドポーズの回転に、XYZの角度による回転を加えた回転を返す。
 myEngine::Quaternion Rotation(const myEngine::Quaternion& bind, const myEngine::Vector3& angles)
 {
     const auto x = myEngine::MakeRotateAxisAngleQuaternion({1, 0, 0}, angles.x);
@@ -28,6 +30,7 @@ myEngine::Quaternion Rotation(const myEngine::Quaternion& bind, const myEngine::
     return myEngine::NormalizeQuaternion(Product(bind, Product(z, Product(y, x))));
 }
 
+/// @brief 待機アニメーションの各関節の角度を返す。waveは揺れの位相。
 Angles IdleAngles(float wave)
 {
     return {myEngine::Vector3{0.016f * wave, 0, 0},          myEngine::Vector3{0, 0.04f * wave, 0},
@@ -35,6 +38,7 @@ Angles IdleAngles(float wave)
             myEngine::Vector3{0, 0.22f + 0.02f * wave, 0},   myEngine::Vector3{0, -0.22f - 0.02f * wave, 0}};
 }
 
+/// @brief 指定時刻のキーフレームとして各関節の回転を追加する。
 void AddPose(myEngine::Animation& clip, const myEngine::Skeleton& skeleton, float time, const Angles& angles)
 {
     for (size_t i = 0; i < kJoints.size(); ++i) {

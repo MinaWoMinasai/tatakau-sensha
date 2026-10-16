@@ -11,6 +11,7 @@ public:
 
     /// @brief 遠征強化ビルドカードを初期化する。
     void InitializeExpeditionBuildCards();
+    /// @brief 初期化を分割して行うコルーチンを作る。
     myEngine::InitializationTask BuildInitialization();
 
     /// @brief 遠征強化ビルドカードを最新の内容へ更新する。

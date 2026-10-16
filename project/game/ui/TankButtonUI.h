@@ -13,6 +13,7 @@ namespace myEngine {
 class ObjectPostEffect;
 }
 
+/// @brief ボタンに表示する車体の形。
 enum class TankButtonBodyShape {
     Circle = 0,
     Box,
@@ -20,6 +21,7 @@ enum class TankButtonBodyShape {
     Pentagon,
 };
 
+/// @brief ボタンの状態。
 enum class TankButtonState {
     Normal = 0,
     Hover,

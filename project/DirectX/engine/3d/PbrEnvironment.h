@@ -11,6 +11,7 @@ namespace myEngine {
 /// @brief PBR用の環境マップ・拡散反射・鏡面反射・BRDFテクスチャを管理する。
 class PbrEnvironment {
 public:
+    /// @brief PBR環境光の元データの種類。
     enum class SourceType {
         ProceduralSky,
         TextureFile,

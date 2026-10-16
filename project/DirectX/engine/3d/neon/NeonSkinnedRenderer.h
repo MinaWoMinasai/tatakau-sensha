@@ -184,6 +184,7 @@ private:
         D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     static_assert(kDrawConstantBufferBytes >= sizeof(GpuConstants));
 
+    /// @brief サブメッシュごとにGPUへ渡す定数。
     struct SubmeshConstants {
         NeonSkinnedSubmeshParams surface;
         uint32_t hasDistanceMask = 0;

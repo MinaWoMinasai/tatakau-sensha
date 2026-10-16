@@ -5,10 +5,12 @@
 // この用途専用のXY平面上の壁による切り詰め。Stageアダプタが実際に結合した箱の
 // コピーを渡す。myEngineのベクトル、アクター、描画、乱数ストリームの複製は持たない。
 namespace neondepth {
+/// @brief 床上の軸に沿った矩形（壁）。
 struct FloorBox {
     Point minimum{}, maximum{};
 };
 
+/// @brief 矩形が有効かを返す。
 inline bool Valid(const FloorBox& box)
 {
     return Bounded(box.minimum) && Bounded(box.maximum) && box.minimum[0] < box.maximum[0] && box.minimum[1] < box.maximum[1];
@@ -74,6 +76,7 @@ inline std::optional<Segment> ClipGroundBeamAgainstBox(const Segment& desired, c
     return result;
 }
 
+/// @brief 地上ビームを壁で切り詰める。壁のデータが不正なら攻撃自体を無効にする。
 inline std::optional<Segment> ClipGroundBeam(const Segment& desired, std::span<const FloorBox> actualWalls)
 {
     Segment result = desired;

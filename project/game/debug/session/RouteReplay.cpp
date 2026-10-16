@@ -54,6 +54,7 @@ struct NormalReplay {
     uint64_t incomingThreatFrames = 0;
 } replay;
 
+/// @brief 指定位置がDepthボスの攻撃範囲に入っているかを返す。
 bool ReplayDanger(const neondepth::Snapshot* snapshot, myEngine::Vector3 point, float radius)
 {
     if (!snapshot || snapshot->phase < neondepth::Phase::Telegraph || snapshot->phase > neondepth::Phase::Active) {
@@ -95,16 +96,19 @@ bool ReplayPathClear(Stage& stage, myEngine::Vector3 from, myEngine::Vector3 to,
     return true;
 }
 
+/// @brief 座標が属するマップのセル番号を返す。
 int ReplayCell(myEngine::Vector3 p)
 {
     return (std::clamp)(static_cast<int>(std::round(p.y / 2)), 0, 29) * 45 + (std::clamp)(static_cast<int>(std::round(p.x / 2)), 0, 44);
 }
 
+/// @brief セル番号の中心座標を返す。
 myEngine::Vector3 ReplayCellPoint(int cell)
 {
     return {static_cast<float>(cell % 45) * 2, static_cast<float>(cell / 45) * 2, 0};
 }
 
+/// @brief ルート再生の記録をファイルへ書き出す。
 void FlushReplay()
 {
     replay.trace.flush();
@@ -115,6 +119,7 @@ void FlushReplay()
     }
 }
 
+/// @brief ルート再生で行った操作を記録する。
 void ReplayOperation(const char* operation, Json argument)
 {
     if (replay.report["operations"].size() >= 192) {

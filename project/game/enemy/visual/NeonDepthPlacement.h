@@ -15,21 +15,25 @@ struct FloorBasis {
     static constexpr myEngine::Vector3 normal{0, 0, -1};
 };
 
+/// @brief 値が有限かを返す。
 inline bool Finite(float value)
 {
     return std::isfinite(value);
 }
 
+/// @brief ベクトルの全成分が有限かを返す。
 inline bool Finite(const myEngine::Vector2& v)
 {
     return Finite(v.x) && Finite(v.y);
 }
 
+/// @brief ベクトルの全成分が有限かを返す。
 inline bool Finite(const myEngine::Vector3& v)
 {
     return Finite(v.x) && Finite(v.y) && Finite(v.z);
 }
 
+/// @brief 行列の全要素が有限かを返す。
 inline bool Finite(const myEngine::Matrix4x4& m)
 {
     for (const auto& row : m.m) {
@@ -42,6 +46,7 @@ inline bool Finite(const myEngine::Matrix4x4& m)
     return true;
 }
 
+/// @brief 値が有限で、指定範囲内にあるかを返す。
 inline bool InRange(float value, float low, float high)
 {
     return Finite(value) && value >= low && value <= high;
@@ -106,6 +111,7 @@ inline bool TryInverseViewProjection(const myEngine::Matrix4x4& matrix, myEngine
     return true;
 }
 
+/// @brief モデルを床に配置するための設定。
 struct PlacementConfig {
     // 読み込み時に、バインドスケルトンと現在のモデルのバインド境界から1回だけ決める。
     myEngine::Vector3 stableFootLocal{};
@@ -115,6 +121,7 @@ struct PlacementConfig {
     float forwardYawOffset = myEngine::pi * 0.5f;
 };
 
+/// @brief 1フレーム分の配置の入力。
 struct PlacementInput {
     myEngine::Vector3 floorAnchor{}; // 正となるEnemyのXY / 部屋の床のZ。
     myEngine::Vector2 floorOffset{}; // 見た目だけの後退。コライダーは動かさない。
@@ -123,6 +130,7 @@ struct PlacementInput {
     myEngine::Vector3 localLean{}; // 毎回新しく求める範囲付きの角度で、前のポーズからの差分は使わない。
 };
 
+/// @brief 配置の計算結果。
 struct PlacementResult {
     myEngine::Matrix4x4 world{};
     myEngine::Vector3 footWorld{};
@@ -170,6 +178,7 @@ inline bool TryPlacement(const FloorBasis& floor, const PlacementConfig& config,
     return true;
 }
 
+/// @brief ボス戦用カメラの設定。
 struct CameraProfile {
     float tiltDegrees = 20.0f; // 実際の通常ゲームプレイで15 / 20 / 25を比べる。
     float distance = 64.0f;
@@ -179,11 +188,13 @@ struct CameraProfile {
     float farClip = 5000.0f;
 };
 
+/// @brief ボス戦用カメラの計算結果。
 struct CameraFrame {
     myEngine::Vector3 position{}, rotation{};
     myEngine::Matrix4x4 world{}, view{}, projection{}, viewProjection{}, inverseViewProjection{};
 };
 
+/// @brief 注視点とカメラ設定からカメラの行列を求める。不正な入力ならfalseを返し、outputは変更しない。
 inline bool TryCamera(const CameraProfile& profile, const myEngine::Vector3& focus, CameraFrame& output)
 {
     if (!Finite(focus) || !InRange(profile.tiltDegrees, 0.0f, 35.0f) || !InRange(profile.distance, 5.0f, 500.0f) ||
@@ -350,6 +361,7 @@ inline bool TryScreenToFloorFromViewProjection(const myEngine::Vector2& pixel, c
     return true;
 }
 
+/// @brief ウィンドウのクライアント座標をビューポート座標へ変換する。
 inline bool TryClientToViewport(const myEngine::Vector2& clientPixel, const myEngine::Vector2& clientSize,
                                 const myEngine::Vector2& viewportSize, myEngine::Vector2& output)
 {

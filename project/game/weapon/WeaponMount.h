@@ -3,6 +3,7 @@
 #include "Struct.h"
 #include <string>
 
+/// @brief 武器の種類。
 enum class WeaponType {
     Projectile = 0,
     Laser,
@@ -11,6 +12,7 @@ enum class WeaponType {
     Melee,
 };
 
+/// @brief 砲身の形。
 enum class BarrelShape {
     Box = 0,
     Heavy,

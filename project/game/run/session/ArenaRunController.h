@@ -14,6 +14,7 @@ public:
 
     /// @brief 戦車遠征を初期化する。
     void InitializeTankRun();
+    /// @brief 初期化を分割して行うコルーチンを作る。
     myEngine::InitializationTask BuildInitialization();
 
     /// @brief 戦車遠征を更新する。

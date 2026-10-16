@@ -28,6 +28,7 @@ namespace gameplay {
 namespace {
 using gameplaytest::Scenario;
 
+/// @brief 条件を満たさなければ例外を投げる。
 void RequireScenario(bool condition, const std::string& error)
 {
     if (!condition) {
@@ -35,6 +36,7 @@ void RequireScenario(bool condition, const std::string& error)
     }
 }
 
+/// @brief ボス戦を扱うシナリオかを返す。
 bool BossScenario(Scenario scenario)
 {
     return scenario == Scenario::RivalBoss || scenario == Scenario::PrototypeBoss || scenario == Scenario::NeonBoss ||

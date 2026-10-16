@@ -17,12 +17,16 @@ class BloomPyramid {
 public:
     static constexpr uint32_t kMaxLevels = 5;
 
+    /// @brief ピラミッドの1段分の解像度。
     struct LevelDimensions {
         uint32_t width = 1, height = 1;
     };
 
+    /// @brief 元画像のサイズに合わせてピラミッドのレンダーターゲットとパイプラインを作成する。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t sourceWidth, uint32_t sourceHeight);
+    /// @brief SRVインデックスで指定した元画像からBloomピラミッドを描画し、結果のSRVインデックスを返す。
     uint32_t Render(uint32_t sourceSrv, const BloomParam& param, uint32_t materialSrv = (std::numeric_limits<uint32_t>::max)());
+    /// @brief GPUディスクリプタで指定した元画像からBloomピラミッドを描画し、結果のSRVインデックスを返す。
     uint32_t Render(D3D12_GPU_DESCRIPTOR_HANDLE sourceSrv, const BloomParam& param, D3D12_GPU_DESCRIPTOR_HANDLE materialSrv = {});
 
     // フレーム全体での比較用の上書き値。-1なら各カテゴリのパラメータに従う。
@@ -45,6 +49,7 @@ public:
         return presentationGeneration_;
     }
 
+    /// @brief 上書き設定も考慮した、実際に使うBloomモードを返す。
     static uint32_t EffectiveMode(const BloomParam& param);
 
     uint32_t GetExtractSrvIndex() const;
@@ -96,9 +101,12 @@ private:
     static_assert(offsetof(PassConstants, waterDiagnosticsEnabled) == 32);
     static_assert(offsetof(PassConstants, padding) == 36);
 
+    /// @brief ピラミッド用のパイプラインを作成する。
     void CreatePipeline();
+    /// @brief 1段分のフィルタ処理を描画する。
     void DrawPass(RenderTexture& output, const LevelDimensions& dimensions, ID3D12PipelineState* pipeline,
                   D3D12_GPU_DESCRIPTOR_HANDLE source, D3D12_GPU_DESCRIPTOR_HANDLE auxiliary, const PassConstants& constants);
+    /// @brief レンダーテクスチャのリソース状態を遷移させる。
     void Transition(RenderTexture& target, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
 
     static int modeOverride_;

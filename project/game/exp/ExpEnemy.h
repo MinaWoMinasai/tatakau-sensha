@@ -16,6 +16,7 @@ namespace myEngine {
 class NeonGridRenderer;
 }
 
+/// @brief 経験値用の敵の種類（形）。
 enum class ExpEnemyType {
     Square,
     Triangle,

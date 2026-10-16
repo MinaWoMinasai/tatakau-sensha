@@ -68,6 +68,7 @@ struct ParticleEmitterConfig {
 /// @brief パーティクルの発生・更新とCPU/GPUの描画資源を管理する。
 class ParticleManager {
 public:
+    /// @brief 三角形パーティクルの描き方。
     enum class NeonTriangleEffectMode : uint32_t {
         Outline = 0,
         LegacyModel = 1,
@@ -199,6 +200,7 @@ public:
     static ParticleManager* GetInstance();
     static const uint32_t kMaxInstance = 100000; // 実行環境に合わせて調整
 
+    /// @brief 描画に必要なリソースを作成する。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     /// @param deltaTime この処理で進める経過時間（秒）。
@@ -265,8 +267,11 @@ public:
     }
 
 private:
+    /// @brief 演出用の乱数で、minからmaxの範囲の値を返す。
     float Rand(float min, float max);
+    /// @brief 演出用の乱数で、成分ごとにminからmaxの範囲のベクトルを返す。
     Vector3 Rand(const Vector3& min, const Vector3& max);
+    /// @brief 演出用の乱数で、ランダムな方向の単位ベクトルを返す。
     Vector3 RandomUnitVector();
     std::mt19937 presentationRandom_{std::random_device{}()};
 

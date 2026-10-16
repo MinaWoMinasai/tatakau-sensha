@@ -4,6 +4,7 @@
 #include <array>
 
 namespace stagesurface {
+/// @brief 床用の四角形メッシュを作る。
 inline myEngine::ModelData FloorMesh()
 {
     myEngine::ModelData mesh;
@@ -60,16 +61,19 @@ inline myEngine::ModelData BlockMesh(float bevel = kBevel)
     return mesh;
 }
 
+/// @brief 同じ種類のセルをまとめた壁の矩形。
 struct WallRectangle {
     size_t x, y, width, height;
     int type;
 };
 
+/// @brief 指定段数の壁モデルの名前を返す。
 inline std::string StackModelName(int levels)
 {
     return std::string(kWallModel) + "_" + std::to_string(levels);
 }
 
+/// @brief 指定段数だけ積み重ねた壁のメッシュを作る。
 inline myEngine::ModelData StackMesh(int levels)
 {
     myEngine::ModelData result;

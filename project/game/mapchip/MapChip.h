@@ -3,6 +3,7 @@
 #include <vector>
 #include "Struct.h"
 
+/// @brief マップチップの種類。
 enum class MapChipType {
     kBlank,       // 空白
     kBlock,       // ブロック

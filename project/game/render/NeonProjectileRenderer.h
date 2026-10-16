@@ -24,6 +24,7 @@ struct NeonProjectileParams {
 // 呼び出し側はTrailパスを保ち、後続の描画の状態を設定し直す。
 class NeonProjectileRenderer {
 public:
+    /// @brief 弾の先端の描画数。検証で使う。
     struct DrawStats {
         uint32_t heads = 0;
         uint32_t skipped = 0;
@@ -32,6 +33,7 @@ public:
         uint32_t drawCalls = 0;
     };
 
+    /// @brief 描画リソースを作成する。
     void Initialize(myEngine::DirectXCommon* dx);
     void SetParams(const NeonProjectileParams& params);
 
@@ -52,6 +54,7 @@ public:
     }
 
 private:
+    /// @brief 弾1発分の先端を描画キューに積む。
     void QueueHead(const Bullet& bullet, const myEngine::Vector3& cameraForward);
 
     myEngine::DirectXCommon* dx_ = nullptr;

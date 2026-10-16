@@ -426,6 +426,7 @@ struct DirectionalLight {
     float intensity;   // ライトの光度
 };
 
+/// @brief マテリアルの用途。描画時の扱いを切り替えるために使う。
 enum class MaterialSemantic : uint32_t {
     Unknown = 0,
     GenericPbr,
@@ -574,6 +575,7 @@ struct CameraData {
     float padding; // 16byte アラインメント用（重要）
 };
 
+/// @brief 花火の状態。
 enum class FireworkState {
     Rise,
     Explode
@@ -604,12 +606,14 @@ struct TornadoParticle {
     Vector4 color;
 };
 
+/// @brief 座標軸。
 enum AxisXYZ {
     X,
     Y,
     Z,
 };
 
+/// @brief ブレンドモード。
 enum BlendMode {
     kNone,
     kNormal,

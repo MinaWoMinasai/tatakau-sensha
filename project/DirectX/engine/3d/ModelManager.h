@@ -22,9 +22,11 @@ public:
 
     /// @brief モデルを読み込む。
     void LoadModel(const std::string& filePath);
+    /// @brief OBJモデルの読み込みをバックグラウンドで開始する。
     void PreloadObjModel(const std::string& filePath);
     /// @brief 読み込み済みOBJのマテリアルテクスチャも裏で先読みさせる。メインスレッドで呼ぶ。
     void PumpPreloads();
+    /// @brief 要求したOBJモデルの先読みがすべて完了したかを返す。
     bool ArePreloadsReady() const;
     /// @brief 平面モデルを生成する。
     void CreatePlaneModel(const std::string& modelName, float width = 1.0f, float depth = 1.0f);

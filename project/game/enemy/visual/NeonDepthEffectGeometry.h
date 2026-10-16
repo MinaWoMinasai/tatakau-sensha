@@ -8,11 +8,13 @@
 #include <utility>
 
 namespace neondepth {
+/// @brief エフェクトの発生位置になるモデル上のソケット。
 struct EffectSockets {
     myEngine::Vector3 chest{}, leftHand{}, rightHand{};
     bool chestValid = false, leftHandValid = false, rightHandValid = false;
 };
 
+/// @brief エフェクトの形状を作るための1フレーム分の入力。
 struct EffectsInput {
     uint64_t frameId = 0;
     Snapshot snapshot{};
@@ -27,6 +29,7 @@ struct EffectsInput {
     myEngine::Vector3 cameraRight{1, 0, 0}, cameraUp{0, 1, 0}, cameraForward{0, 0, 1};
     bool encounterActive = false, bodyVisualEnabled = true;
 };
+/// @brief エフェクトの線の役割。描画順や色の決定に使う。
 enum class Cue {
     Core,
     WarningEdge,
@@ -37,6 +40,7 @@ enum class Cue {
     GroundedBeam
 };
 
+/// @brief エフェクトの線1本。
 struct EffectLine {
     myEngine::Vector3 start{}, end{};
     float width = .10f;
@@ -44,6 +48,7 @@ struct EffectLine {
     Cue cue = Cue::Core;
 };
 
+/// @brief エフェクトの塗りつぶし1つ（円または矩形）。
 struct EffectFill {
     bool rectangle = false;
     myEngine::Vector3 center{}, right{1, 0, 0}, up{0, 1, 0};
@@ -57,6 +62,7 @@ inline constexpr unsigned kEffectCircleSteps = 48, kEffectCapSteps = 16;
 // 柔らかい線1本は最大18頂点、48分割の円の塗りつぶし1つは最大144頂点。
 inline constexpr unsigned kMaximumEffectVertices = (kMaximumAirLines + kMaximumFloorLines) * 18 + kMaximumFloorFills * 144;
 
+/// @brief 1フレーム分のエフェクトの形状。
 struct EffectGeometryFrame {
     std::array<EffectLine, kMaximumAirLines> air{};
     std::array<EffectLine, kMaximumFloorLines> floor{};
@@ -70,6 +76,7 @@ struct EffectGeometryFrame {
     bool valid = true, capacityReached = false;
 };
 
+/// @brief 点が円の内側（余白を除く）にあるかを返す。
 inline bool Contains(const Circle& circle, Point point, float margin = 0)
 {
     const float radius = circle.radius - margin;
@@ -77,6 +84,7 @@ inline bool Contains(const Circle& circle, Point point, float margin = 0)
            tankspecial::SegmentTouches(circle.center[0], circle.center[1], circle.center[0], circle.center[1], point[0], point[1], radius);
 }
 
+/// @brief 点がカプセルの内側（余白を除く）にあるかを返す。
 inline bool Contains(const Segment& capsule, Point point, float margin = 0)
 {
     const float radius = capsule.halfWidth - margin;
@@ -84,16 +92,19 @@ inline bool Contains(const Segment& capsule, Point point, float margin = 0)
            tankspecial::SegmentTouches(capsule.start[0], capsule.start[1], capsule.end[0], capsule.end[1], point[0], point[1], radius);
 }
 
+/// @brief 縞模様の1本分の線分。
 struct Stripe {
     Point start{}, end{};
 };
 
 namespace effectdetail {
+/// @brief ワールド座標が有限で、想定範囲内にあるかを返す。
 inline bool BoundedWorld(myEngine::Vector3 value)
 {
     return Finite(value) && std::abs(value.x) <= 10000 && std::abs(value.y) <= 10000 && std::abs(value.z) <= 10000;
 }
 
+/// @brief カメラの軸が有効かを返す。
 inline bool CameraAxes(const EffectsInput& input)
 {
     if (!Finite(input.cameraRight) || !Finite(input.cameraUp) || !Finite(input.cameraForward)) {
@@ -107,10 +118,12 @@ inline bool CameraAxes(const EffectsInput& input)
            std::abs(myEngine::Dot(input.cameraUp, input.cameraForward)) < .01f;
 }
 
+/// @brief 線分上の範囲を表す区間（0..1）。
 struct Interval {
     double low = 0, high = 1;
 };
 
+/// @brief 線分のうち円の内側にある区間を返す。
 inline std::optional<Interval> CircleInterval(Point center, float radius, Point a, Point b)
 {
     const double dx = double(b[0]) - a[0], dy = double(b[1]) - a[1];
@@ -129,6 +142,7 @@ inline std::optional<Interval> CircleInterval(Point center, float radius, Point 
     return low <= high ? std::optional<Interval>{{low, high}} : std::nullopt;
 }
 
+/// @brief 線分のうち矩形の内側にある区間を返す。
 inline std::optional<Interval> BoxInterval(Point a, Point b, float lowX, float highX, float lowY, float highY)
 {
     Interval result;
@@ -153,6 +167,7 @@ inline std::optional<Interval> BoxInterval(Point a, Point b, float lowX, float h
     return result;
 }
 
+/// @brief 線分から指定区間を切り出す。
 inline Stripe At(Point a, Point b, Interval interval)
 {
     Stripe result;
@@ -163,11 +178,13 @@ inline Stripe At(Point a, Point b, Interval interval)
     return result;
 }
 
+/// @brief 床上の点をワールド座標にする。
 inline myEngine::Vector3 Floor(Point point, float z = -.035f)
 {
     return {point[0], point[1], z};
 }
 
+/// @brief 点をずらす。
 inline Point Shift(Point point, float x, float y)
 {
     return {point[0] + x, point[1] + y};
@@ -189,6 +206,7 @@ inline std::optional<Stripe> ClipStripe(const Circle& circle, Point a, Point b, 
     return interval ? std::optional<Stripe>{effectdetail::At(a, b, *interval)} : std::nullopt;
 }
 
+/// @brief 縞模様の線分をカプセルの内側に収まるよう切り詰める。
 inline std::optional<Stripe> ClipStripe(const Segment& capsule, Point a, Point b, float strokeWidth)
 {
     if (!Valid(capsule) || !Finite(a) || !Finite(b) || !Within(strokeWidth, .01f, .4f)) {
@@ -224,6 +242,7 @@ inline std::optional<Stripe> ClipStripe(const Segment& capsule, Point a, Point b
     return result ? std::optional<Stripe>{effectdetail::At(a, b, *result)} : std::nullopt;
 }
 
+/// @brief 弾が発射位置から標的へ弧を描いて飛ぶ途中の位置を返す。
 inline myEngine::Vector3 VolleyArc(myEngine::Vector3 launch, Point target, float progress, float lift)
 {
     const float p = Unit(progress);
@@ -240,8 +259,10 @@ inline myEngine::Vector3 VolleyArc(myEngine::Vector3 launch, Point target, float
             launch.z * a + control.z * b + finish.z * c};
 }
 
+/// @brief 戦闘のスナップショットからDepthボスのエフェクトの形状を作る。
 class EffectGeometryBuilder {
 public:
+    /// @brief 保持している形状と状態を初期化する。
     void Reset()
     {
         frame_ = {};
@@ -267,6 +288,7 @@ public:
         return launchCount_;
     }
 
+    /// @brief 入力から1フレーム分の形状を作る。入力が不正ならfalseを返す。
     bool Build(const EffectsInput& input)
     {
         frame_.airCount = frame_.floorCount = frame_.fillCount = frame_.circleCount = frame_.segmentCount = frame_.projectileCount = 0;
@@ -369,6 +391,7 @@ public:
     }
 
 private:
+    /// @brief 使えるソケットの位置を右手・左手・胸の順で探す。
     static bool TakeSocket(const EffectSockets& sockets, myEngine::Vector3& output)
     {
         if (sockets.rightHandValid && effectdetail::BoundedWorld(sockets.rightHand)) {
@@ -386,6 +409,7 @@ private:
         return false;
     }
 
+    /// @brief 空中の線を追加する。
     void Air(myEngine::Vector3 a, myEngine::Vector3 b, float width, myEngine::Vector4 color, Cue cue)
     {
         if (frame_.airCount == kMaximumAirLines) {
@@ -395,6 +419,7 @@ private:
         frame_.air[frame_.airCount++] = {a, b, width, color, cue};
     }
 
+    /// @brief 床上の線を追加する。
     void Floor(Point a, Point b, float width, myEngine::Vector4 color, Cue cue)
     {
         if (frame_.floorCount == kMaximumFloorLines) {
@@ -404,6 +429,7 @@ private:
         frame_.floor[frame_.floorCount++] = {effectdetail::Floor(a), effectdetail::Floor(b), width, color, cue};
     }
 
+    /// @brief 床上の円の塗りつぶしを追加する。
     void FillDisc(Point center, float radius, myEngine::Vector4 color)
     {
         if (frame_.fillCount == kMaximumFloorFills) {
@@ -413,6 +439,7 @@ private:
         frame_.fills[frame_.fillCount++] = {false, effectdetail::Floor(center), {1, 0, 0}, {0, 1, 0}, radius, {}, color};
     }
 
+    /// @brief ボスのコアの表示を追加する。
     void Core(const EffectsInput& input, float radius, float visibility)
     {
         const Point center{input.core.x, input.core.y};
@@ -435,6 +462,7 @@ private:
         }
     }
 
+    /// @brief 円形の攻撃範囲を追加する。
     void Disc(Circle circle, bool active, float pulse)
     {
         if (!Valid(circle)) {
@@ -465,6 +493,7 @@ private:
         }
     }
 
+    /// @brief カプセル状の攻撃範囲を追加する。
     void Capsule(Segment capsule, bool active, float pulse)
     {
         if (!Valid(capsule)) {
@@ -524,6 +553,7 @@ private:
         }
     }
 
+    /// @brief 弾の軌道を追加する。
     void Bolts(const EffectsInput& input)
     {
         const float p = Unit(input.snapshot.progress), amplitude = input.profile.motionAmplitude * (input.profile.reducedMotion ? .35f : 1);

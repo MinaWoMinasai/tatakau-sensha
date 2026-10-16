@@ -64,6 +64,7 @@ struct EffectProfile {
 /// @brief 登録した演出を時間順に発生させ、発射・飛行・命中の進行を管理する。
 class EffectSequencer {
 public:
+    /// @brief 演出シーケンスの進行段階。
     enum class State {
         Idle,
         Firing,

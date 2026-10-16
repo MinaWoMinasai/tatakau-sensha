@@ -50,24 +50,28 @@ public:
         geometry_.QueueContourLine(a, b, lineWidth, color, cameraForward, style);
     }
 
+    /// @brief 多角形の輪郭線を描画キューに積む。
     void QueueContourPolygon(const Vector3* points, uint32_t pointCount, float lineWidth, const Vector4& color,
                              const Vector3& cameraForward, const NeonContourStyle& style = {})
     {
         geometry_.QueueContourPolygon(points, pointCount, lineWidth, color, cameraForward, style);
     }
 
+    /// @brief 三角形の輪郭線を描画キューに積む。
     void QueueContourTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color,
                               const NeonContourStyle& style = {})
     {
         geometry_.QueueContourTriangle(a, b, c, lineWidth, color, style);
     }
 
+    /// @brief 矩形の輪郭線を描画キューに積む。
     void QueueContourRectangle(const Vector3& center, const Vector3& size, float lineWidth, const Vector4& color,
                                const NeonContourStyle& style = {})
     {
         geometry_.QueueContourRectangle(center, size, lineWidth, color, style);
     }
 
+    /// @brief カメラの方を向く三角形の輪郭線を描画キューに積む。
     void QueueBillboardContourTriangle(const Vector3& center, float radius, float rotationRad, float lineWidth, const Vector4& color,
                                        const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward,
                                        const NeonContourStyle& style = {})
@@ -75,6 +79,7 @@ public:
         geometry_.QueueBillboardContourTriangle(center, radius, rotationRad, lineWidth, color, cameraRight, cameraUp, cameraForward, style);
     }
 
+    /// @brief カメラの方を向く矩形の輪郭線を描画キューに積む。
     void QueueBillboardContourRectangle(const Vector3& center, const Vector2& size, float rotationRad, float lineWidth,
                                         const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp,
                                         const Vector3& cameraForward, const NeonContourStyle& style = {})

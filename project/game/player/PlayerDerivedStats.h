@@ -17,6 +17,7 @@ struct TankPlayerStats {
     float bodyDamage = 3.0f;
 };
 
+/// @brief 強化1段階あたりの能力値の上昇率。
 struct PlayerUpgradeRates {
     float staminaRecovery = 0.08f, maxHp = 0.10f, bodyDamage = 0.10f;
     float bulletSpeed = 0.08f, bulletDamage = 0.10f, reload = 0.07f, moveSpeed = 0.06f;

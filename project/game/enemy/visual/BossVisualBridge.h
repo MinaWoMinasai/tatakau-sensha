@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 
+/// @brief ボスの戦闘状態から見た目へ渡す観測値。
 struct BossVisualBridgeInput {
     uint64_t encounterGeneration = 0;
     unsigned shotsFired = 0;
@@ -17,6 +18,7 @@ struct BossVisualBridgeInput {
     PrototypeBossCombat::Phase prototypePhase = PrototypeBossCombat::Phase::Recovery;
 };
 
+/// @brief 観測値から決めた、見た目側で行う動作。
 struct BossVisualDecision {
     NeonBossAction action = NeonBossAction::Idle;
     bool phaseTwo = false;
@@ -27,6 +29,7 @@ struct BossVisualDecision {
 // アニメーション、描画へのポインタは持たず、戦闘を進めたり入力を変更したりはできない。
 class BossVisualBridge {
 public:
+    /// @brief 観測値を受け取り、見た目で行う動作を決める。戦闘の状態は変更しない。
     BossVisualDecision Update(const BossVisualBridgeInput& input, float deltaTime)
     {
         BossVisualDecision result;

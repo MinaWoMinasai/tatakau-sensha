@@ -24,6 +24,7 @@ inline std::filesystem::path ExpeditionMapPath(const std::string& path)
     return std::filesystem::u8path(path);
 #endif
 }
+/// @brief マップのノードの種類。
 enum class NodeKind {
     Combat,
     Elite,
@@ -33,6 +34,7 @@ enum class NodeKind {
     Boss,
     Currency
 };
+/// @brief ノードに割り当てる特別な役割。
 enum class NodeRole {
     None,
     TutorialCombat,
@@ -806,6 +808,7 @@ inline bool SaveExpeditionMap(const std::string& path, const MapDefinition& map,
     }
 }
 
+/// @brief マップ上の進行段階。
 enum class MapRunPhase {
     Choosing,
     ActiveNode,

@@ -6,6 +6,7 @@
 #include <string>
 
 namespace neondepth {
+/// @brief エフェクト描画の処理回数。検証で使う。
 struct EffectsStats {
     unsigned resourceCreates = 0, resourceReleases = 0, resourceFailures = 0;
     uint64_t updates = 0, duplicateUpdates = 0, invalidFrames = 0, capacityRejected = 0;
@@ -24,7 +25,9 @@ public:
         Release();
     }
 
+    /// @brief 描画リソースを作成する。
     bool Initialize(myEngine::DirectXCommon* dx, const std::string& texture = "resources/white512x512.png");
+    /// @brief 描画リソースを解放する。
     void Release();
 
     bool HasResources() const
@@ -32,6 +35,7 @@ public:
         return renderer_ != nullptr;
     }
 
+    /// @brief 新しい戦闘のために状態をリセットする。
     void ResetEncounter();
     // 表示/モデルのUpdateの後、同じ最終カメラを使って毎フレーム1回呼ぶ。
     // frameIdは単調に変わるシーンのフレーム識別子で、動きのための時計ではない。

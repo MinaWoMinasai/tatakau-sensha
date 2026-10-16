@@ -16,6 +16,7 @@ enum class NeonParticleShape : uint32_t {
     Ring
 };
 
+/// @brief パーティクルの形ごとの寿命に応じたフェード値（0..1）を返す。
 inline float NeonParticleFade(float age, NeonParticleShape shape)
 {
     const float hold = shape == NeonParticleShape::Flash      ? 0.0f
@@ -26,6 +27,7 @@ inline float NeonParticleFade(float age, NeonParticleShape shape)
     return t * t * (3.0f - 2.0f * t);
 }
 
+/// @brief パーティクルの形ごとの空気抵抗の強さを返す。
 inline float NeonParticleDrag(NeonParticleShape shape)
 {
     return shape == NeonParticleShape::Shard || shape == NeonParticleShape::Sliver ? 2.8f : 0.0f;

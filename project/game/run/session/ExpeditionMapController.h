@@ -11,6 +11,7 @@ public:
 
     /// @brief 遠征マップを初期化する。
     void InitializeExpeditionMap();
+    /// @brief 初期化を分割して行うコルーチンを作る。
     myEngine::InitializationTask BuildInitialization();
 
     /// @brief 遠征マップを更新する。

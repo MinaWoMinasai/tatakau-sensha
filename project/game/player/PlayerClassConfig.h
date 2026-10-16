@@ -2,6 +2,7 @@
 #include "game/weapon/WeaponMount.h"
 #include <vector>
 
+/// @brief プレイヤーの戦車のクラス。
 enum class ClassType {
     // 第一段階
     Basic,
@@ -22,6 +23,7 @@ enum class ClassType {
     Summoner,
 };
 
+/// @brief プレイヤーの車体の形。
 enum class PlayerBodyShape {
     Circle = 0,
     Box,

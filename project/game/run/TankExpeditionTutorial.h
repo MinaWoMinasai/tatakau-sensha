@@ -12,6 +12,7 @@ inline constexpr bool ShouldSaveTutorialCompletion(bool demo, bool validation, b
 {
     return !demo && (!validation || isolatedSubmission);
 }
+/// @brief チュートリアルの手順。
 enum class TutorialStep {
     Move,
     Shoot,

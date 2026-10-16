@@ -14,27 +14,32 @@ constexpr uint32_t kContourMaxPoints = 96;
 constexpr uint32_t kContourCapSegments = 8;
 constexpr float kContourJoinStep = 0.5235987756f; // 角丸1区間あたり最大30度。
 
+/// @brief ベクトルの全成分が有限かを返す。
 bool ContourFinite(const Vector3& value)
 {
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
 }
 
+/// @brief 中心座標に広がりを足しても有限のままかを返す。
 bool ContourPositionRange(const Vector3& center, float extent)
 {
     return std::isfinite(std::abs(center.x) + extent) && std::isfinite(std::abs(center.y) + extent) &&
            std::isfinite(std::abs(center.z) + extent);
 }
 
+/// @brief 2つのベクトルの内積を返す。
 float ContourDot(const Vector3& a, const Vector3& b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
+/// @brief 値を範囲内に収める。非有限ならfallbackを返す。
 float ContourBounded(float value, float fallback, float minimum, float maximum)
 {
     return std::isfinite(value) ? (std::clamp)(value, minimum, maximum) : fallback;
 }
 
+/// @brief 前方向を正規化する。不正な値ならZ+を返す。
 Vector3 ContourForward(const Vector3& forward)
 {
     const float length = ContourFinite(forward) ? Length(forward) : 0.0f;
@@ -46,6 +51,7 @@ struct ContourProfile {
     std::array<Vector4, kContourRadii> colors{};
 };
 
+/// @brief 線の太さと色から輪郭の断面プロファイル（半径ごとの色）を作る。不正な入力ならfalseを返す。
 bool MakeContourProfile(float width, const Vector4& source, const NeonContourStyle& requested, ContourProfile& profile)
 {
     if (!std::isfinite(width) || width <= 0.0f || !std::isfinite(source.w) || source.w <= 0.001f || !std::isfinite(source.x) ||
@@ -86,6 +92,7 @@ struct ContourSection {
     Vector3 negative{};
 };
 
+/// @brief 断面のoffset番目の頂点位置を返す。
 Vector3 ContourSectionPoint(const ContourSection& section, uint32_t offset, const ContourProfile& profile)
 {
     if (offset < kContourRadii) {
@@ -94,6 +101,7 @@ Vector3 ContourSectionPoint(const ContourSection& section, uint32_t offset, cons
     return section.center + section.positive * profile.radii[offset - kContourRadii];
 }
 
+/// @brief 断面のoffset番目の頂点色を返す。
 Vector4 ContourSectionColor(uint32_t offset, const ContourProfile& profile)
 {
     return profile.colors[offset < kContourRadii ? kContourRadii - 1 - offset : offset - kContourRadii];

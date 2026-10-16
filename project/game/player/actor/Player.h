@@ -164,6 +164,7 @@ public:
         myEngine::Vector3 start{}, end{};
         bool contact = false; // 地形に遮られず敵に接触したか。ダメージ間隔による許可の有無には依存しない。
     };
+    /// @brief 特殊攻撃で発生するイベントの種類。
     enum class SpecialEventKind {
         RailShot,
         Parry,

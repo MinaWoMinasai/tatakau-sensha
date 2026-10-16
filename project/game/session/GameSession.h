@@ -24,6 +24,7 @@ public:
     ~GameSession();
     /// @brief 初期化
     void Initialize();
+    /// @brief 初期化を1ステップ進める。完了したらtrueを返す。
     bool InitializeStep();
 
     /// @brief シーンの状態に応じて戦闘・演出・進行を更新する。戦闘の呼び出し順は実装内に記載する。
@@ -68,8 +69,10 @@ public:
 
     DeveloperShowcaseState GetDeveloperShowcaseState();
 
+    /// @brief 開発者用にポストエフェクトのパラメータを記録する。
     void RecordDeveloperPostParameters(const myEngine::BloomParam& param);
 
+    /// @brief 開発者用にフレームを記録する。
     void RecordDeveloperFrame(myEngine::DirectXCommon& dx);
 
     /// @brief 描画区間の計測値を設定する。

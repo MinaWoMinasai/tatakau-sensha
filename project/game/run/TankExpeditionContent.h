@@ -30,6 +30,7 @@ inline std::filesystem::path Utf8Path(const std::string& path)
 {
     return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(path.data()), path.size()));
 }
+/// @brief 敵の行動の種類。
 enum class EnemyBehavior {
     Square,
     Triangle,

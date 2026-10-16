@@ -9,6 +9,7 @@
 #include <string>
 
 namespace neondepth {
+/// @brief Depthボス戦の設定ファイルの内容。
 struct Config {
     bool enabled = true;
     Tuning combat{};
@@ -16,6 +17,7 @@ struct Config {
     CameraProfile camera{20.0f, 90.0f, 0.55f, 1280.0f / 720.0f, 0.1f, 5000.0f};
 };
 
+/// @brief JSONから設定を読み込む。失敗したらerrorに理由を入れ、outputは変更しない。
 inline bool ReadConfig(const nlohmann::json& document, Config& output, std::string& error)
 {
     Config candidate;

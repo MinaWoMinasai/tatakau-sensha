@@ -7,6 +7,7 @@
 #include <vector>
 
 namespace tankrun {
+/// @brief ランの進行段階。
 enum class Phase {
     Loadout,
     CoreChoice,
@@ -16,12 +17,14 @@ enum class Phase {
     Clear,
     Dead
 };
+/// @brief ランで選べるコア。
 enum class CoreId {
     Ricochet,
     Assault,
     Drone,
     Count
 };
+/// @brief ランで得られるカード。
 enum class CardId {
     Ricochet,
     Heavy,

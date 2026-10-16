@@ -12,6 +12,7 @@ float FiniteClamp(float value, float fallback, float minimum, float maximum)
     return (std::clamp)(std::isfinite(value) ? value : fallback, minimum, maximum);
 }
 
+/// @brief HRESULTが失敗なら例外を投げる。
 void Check(HRESULT result, const char* message)
 {
     if (FAILED(result)) {

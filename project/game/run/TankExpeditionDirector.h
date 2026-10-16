@@ -7,6 +7,7 @@
 
 namespace tankexp {
 
+/// @brief 遠征の進行段階。
 enum class Phase {
     Dormant,
     Combat,
@@ -18,6 +19,7 @@ enum class Phase {
     Dead,
     Map
 };
+/// @brief 部屋の種類。
 enum class RoomKind {
     Skirmish,
     Resource,
@@ -272,6 +274,7 @@ public:
     }
 
 private:
+    /// @brief 報酬の出どころ。
     enum class RewardOrigin {
         Room,
         Event

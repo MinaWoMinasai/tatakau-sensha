@@ -31,6 +31,7 @@ public:
 
     /// @brief データをGPUへ転送する。
     [[nodiscard]]
+    /// @brief ScratchImageの全ミップをアップロード用バッファ経由でテクスチャへ転送するコマンドを積む。戻り値のバッファはコマンド完了まで保持する。
     Microsoft::WRL::ComPtr<ID3D12Resource> UploadData(Microsoft::WRL::ComPtr<ID3D12Resource>& texture,
                                                       const DirectX::ScratchImage& mipImages, Microsoft::WRL::ComPtr<ID3D12Device>& device,
                                                       const Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>& commandList);

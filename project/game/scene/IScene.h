@@ -10,6 +10,7 @@ class DirectXCommon;
 /// @brief 初期化・更新・描画と画面効果の共通契約を定義する。
 class IScene {
 public:
+    /// @brief 開発者用ショーケース表示の状態。
     struct DeveloperShowcaseState {
         bool active = false;
         myEngine::Camera* camera = nullptr;
@@ -115,24 +116,29 @@ public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     virtual void Initialize() = 0;
 
+    /// @brief 初期化を1ステップ進める。完了したらtrueを返す。既定では一度にすべて初期化する。
     virtual bool InitializeStep()
     {
         Initialize();
         return true;
     }
 
+    /// @brief 簡易描画（ポストエフェクトなし）で描画するかを返す。
     virtual bool UsesSimpleRendering() const
     {
         return false;
     }
 
+    /// @brief シーン切り替え中もタイトルを表示し続けるかを返す。
     virtual bool KeepTitleDuringTransition() const
     {
         return false;
     }
 
+    /// @brief シーン切り替えの直前に呼ばれる。
     virtual void PrepareForTransition() {}
 
+    /// @brief エンジンの初期化が完了したときに呼ばれる。
     virtual void OnEngineReady() {}
 
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
@@ -204,8 +210,10 @@ public:
         return {};
     }
 
+    /// @brief 開発者用にポストエフェクトのパラメータを記録する。
     virtual void RecordDeveloperPostParameters(const myEngine::BloomParam&) {}
 
+    /// @brief 開発者用にフレームを記録する。
     virtual void RecordDeveloperFrame(myEngine::DirectXCommon&) {}
 
     // シーン終了判定（SceneManagerがチェックする）

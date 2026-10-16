@@ -24,6 +24,7 @@
 
 namespace gameplay::detail {
 
+/// @brief ゲームプレイ用のネオンBloom設定を適用する。
 inline void ApplyGameplayNeonBloomPreset(myEngine::BloomParam& param, float gain = 1.2f)
 {
     // 弾のハローに合わせつつ、変更していない鮮明な元画像は別に合成する。

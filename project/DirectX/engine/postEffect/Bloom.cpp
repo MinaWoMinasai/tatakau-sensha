@@ -22,6 +22,7 @@ float Halton(uint32_t index, uint32_t base)
     return result;
 }
 
+/// @brief ネオンの見え方に合わせたBloom設定を適用する。
 void ApplyVisibleNeonBloomPreset(BloomParam& param)
 {
     // フィルタをかけない芯は残し、正規化した粗いレベルに見えるハローを付ける。

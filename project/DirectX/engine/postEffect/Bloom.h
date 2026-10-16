@@ -18,9 +18,11 @@ public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager);
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
-    void Update();   // ImGuiと定数バッファ更新
-    void PreDraw();  // 1. SceneRTをセット
-    void PostDraw(); // 2. 抽出・ぼかし・合成を実行
+    void Update(); // ImGuiと定数バッファ更新
+    /// @brief 1. シーン描画用のレンダーターゲット（SceneRT）を設定する。
+    void PreDraw();
+    /// @brief 2. シーン描画後に抽出・ぼかし・合成を実行する。
+    void PostDraw();
     /// @brief 3D合成とUIを重ねた中間画像を、ブラウン管処理つきでバックバッファへ写す。UI描画の後に呼ぶ。
     void PresentToBackBuffer();
     void SetGrayscaleEnabled(bool enabled);

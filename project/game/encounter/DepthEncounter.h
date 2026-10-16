@@ -8,18 +8,24 @@ public:
     /// @brief 借用するワールドを設定する。
     explicit DepthEncounter(GameWorld& world) : world_(world) {}
 
+    /// @brief Depthボスの設定ファイルを読み込む。hotReloadなら戦闘中の値も次の攻撃から差し替える。
     bool LoadNeonDepthConfig(bool hotReload = false);
 
     bool IsNeonDepthEncounterActive() const;
 
+    /// @brief Depthボス戦を設定する。
     void ConfigureNeonDepthEncounter(bool completedFixtureRoomReset = false);
 
+    /// @brief Depthボス戦用のカメラを更新する。ボス戦カメラを使った場合はtrueを返す。
     bool UpdateNeonDepthCamera(float baseDeltaTime);
 
+    /// @brief Depthボス戦の前のカメラ設定に戻す。
     void RestoreNeonDepthCamera();
 
+    /// @brief Depthボスの登場演出を進める。演出中はtrueを返す。
     bool UpdateNeonDepthIntro(float baseDeltaTime);
 
+    /// @brief Depthボスのエフェクトを更新する。
     void UpdateNeonDepthEffects();
 
 private:

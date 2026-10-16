@@ -42,6 +42,7 @@ struct BulletTrailSettings {
 /// @brief 弾1発の移動・寿命・衝突・貫通・反射と軌跡を管理する。
 class Bullet : public Collider {
 public:
+    /// @brief 特殊な弾の種類。
     enum class SpecialKind {
         None,
         Rail,

@@ -32,6 +32,7 @@ inline IScene::ArenaLookSettings Defaults()
     return look;
 }
 
+/// @brief 設定ファイルからアリーナの見た目を読み込む。読めない場合は既定値を返す。
 inline IScene::ArenaLookSettings Load()
 {
     IScene::ArenaLookSettings look = Defaults();

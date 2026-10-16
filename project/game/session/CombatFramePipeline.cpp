@@ -29,6 +29,7 @@ namespace gameplay {
 using namespace detail;
 
 namespace {
+/// @brief Bloom比較表示の説明文を返す。
 const char* BloomViewCaption(int view)
 {
     static const char* kCaptions[] = {

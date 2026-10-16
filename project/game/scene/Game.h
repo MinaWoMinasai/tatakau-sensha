@@ -61,6 +61,7 @@ private:
     bool ResolveStartupScene();
     /// @brief Engineを初期化する。
     void InitializeEngine();
+    /// @brief 画面表示まわりの初期化を分割して行うコルーチンを作る。
     myEngine::InitializationTask InitializePresentation();
     /// @brief ImGUIを初期化する。
     void InitializeImGui();

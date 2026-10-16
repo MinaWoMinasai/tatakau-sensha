@@ -7,8 +7,9 @@
 #include <vector>
 
 namespace gameplaytest {
+/// @brief スナップショットをJSONへ変換する。
 nlohmann::json ToJson(const Snapshot& snapshot);
-}
+} // namespace gameplaytest
 
 // プロセスが所有するDeveloper用の検証セッション。シーンを破棄・再生成しても
 // スクリプトのフレームや記録は失われない。ゲームプレイや描画へのポインタは持たない。
@@ -51,25 +52,38 @@ public:
         return errors_;
     }
 
+    /// @brief 新しいシーンの開始を記録する。
     void BeginScene();
     // シミュレーションの更新ごとに、その後で1回呼ぶ。入力は更新前のGetFrame()を使い、
     // 記録・キャプチャのフレームは1から始まる完了済みの更新回数で数える。
     void Record(gameplaytest::Snapshot snapshot, float gameplayDt = 0.0f, float presentationDt = 0.0f, float effectiveTimeScale = 1.0f);
+    /// @brief 連続記録を開始する。
     bool BeginRecording(unsigned width, unsigned height);
+    /// @brief 直前に完了したフレームを記録するかを返す。
     bool ShouldRecordCompletedFrame() const;
     unsigned GetRecordingSequenceFrame() const;
+    /// @brief 連続記録全体のメタデータを作る。
     nlohmann::json MakeRecordingMetadata() const;
+    /// @brief 記録したフレームの内容をレポートに追加する。
     void ReportRecordedFrame(unsigned sequenceFrame, const std::string& name, const gameplaytest::Snapshot& snapshot, uint64_t pngBytes,
                              uint64_t metadataBytes);
+    /// @brief Depthボス検証の1フレーム分の結果を追加する。
     void ReportDepthFrame(const nlohmann::json& row);
+    /// @brief Depthボスの描画の確認結果を追加する。
     void ReportDepthDraw(const nlohmann::json& proof);
+    /// @brief Depthボス検証用のシーンに入ったことを通知する。初回だけtrueを返す。
     bool NotifyDepthSceneEntered(const std::string& name);
+    /// @brief Depthボス検証中のシーン遷移を記録する。タイトルへ戻って検証を終えた場合はtrueを返す。
     void Fail(const std::string& error);
+    /// @brief 検証を終了するべきかを返す。
     bool ShouldFinish() const;
     // アダプタはFinishの前に最後のGPUキャプチャを解決し、終了処理も担当する。
     bool Finish();
+    /// @brief 検証全体のメタデータを作る。
     nlohmann::json MakeMetadata() const;
+    /// @brief キャプチャした画像の情報をレポートに追加する。
     void ReportCapture(const std::string& name, const gameplaytest::Snapshot& snapshot);
+    /// @brief 任意の詳細情報をレポートに追加する。
     void ReportDetail(const std::string& name, const nlohmann::json& detail);
 
 private:

@@ -7,6 +7,7 @@
 /// @note 描画・弾生成・経路探索・位置更新・衝突処理はEnemy側の担当。
 class RivalBossCombat {
 public:
+    /// @brief ライバルボスの行動段階。
     enum class Phase {
         Reposition,
         Tracking,
@@ -16,6 +17,7 @@ public:
         Dash,
         Reload
     };
+    /// @brief ライバルボスの射撃パターン。
     enum class Pattern {
         AimedBurst,
         FanBurst,

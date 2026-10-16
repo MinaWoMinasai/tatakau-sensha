@@ -30,11 +30,13 @@ public:
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update();
 
+    /// @brief 簡易描画（ポストエフェクトなし）で描画するかを返す。
     bool UsesSimpleRendering() const
     {
         return pendingScene_ || (currentScene_ && currentScene_->UsesSimpleRendering());
     }
 
+    /// @brief エンジンの初期化完了を現在のシーンへ伝える。
     void OnEngineReady()
     {
         if (currentScene_) {
@@ -62,7 +64,9 @@ public:
     /// @brief 画面演出状態を返す。
     IScene::ScreenEffectState GetScreenEffectState();
     IScene::DeveloperShowcaseState GetDeveloperShowcaseState();
+    /// @brief 開発者用に現在のシーンのフレームを記録する。
     void RecordDeveloperFrame(myEngine::DirectXCommon& dx);
+    /// @brief 開発者用にポストエフェクトのパラメータを記録する。
     void RecordDeveloperPostParameters(const myEngine::BloomParam& param);
     /// @brief 水面後処理Process設定を返す。
     IScene::WaterPostProcessSettings GetWaterPostProcessSettings();

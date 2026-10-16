@@ -9,6 +9,7 @@
 // シナリオの判定処理そのものはWindows、アクター、描画、JSONに依存しない。
 // 実際のゲームにこの指示を適用できるのはDeveloper用のアダプタだけ。
 namespace gameplaytest {
+/// @brief 検証用シナリオの種類。
 enum class Scenario {
     Shooter,
     Drone,
@@ -30,6 +31,7 @@ enum class Scenario {
     NeonDepthParity
 };
 
+/// @brief シナリオの名前を返す。
 inline const char* Name(Scenario scenario)
 {
     switch (scenario) {
@@ -73,6 +75,7 @@ inline const char* Name(Scenario scenario)
     return "invalid";
 }
 
+/// @brief 名前からシナリオを探す。見つからなければfalseを返す。
 inline bool ParseScenario(const std::string& name, Scenario& scenario)
 {
     for (int index = 0; index <= static_cast<int>(Scenario::NeonDepthParity); ++index) {
@@ -95,23 +98,27 @@ inline bool IsDepthScenario(Scenario value)
     return IsNeonDepthScenario(value);
 }
 
+/// @brief Depthボス検証用フィクスチャの設定。
 struct DepthFixtureSettings {
     std::string probe = "none", attack = "volley", phase = "active";
     float minimumProgress = 0;
     bool visualEnabled = true, reducedMotion = false, injectPhaseTwo = false;
 };
 
+/// @brief 1フレーム分のスクリプト入力。
 struct ScriptedInput {
     std::array<float, 2> movement{};
     std::array<float, 3> aim{50.0f, 29.0f, 0.0f};
     bool shoot = true, dash = false;
 };
 
+/// @brief 指定したフレーム範囲で使うスクリプト入力。
 struct InputSegment {
     unsigned firstFrame = 0, endFrame = 0; // 半開区間（シミュレーションのフレーム単位）。
     ScriptedInput input;
 };
 
+/// @brief シナリオで出現させる敵1体分の設定。
 struct EnemyWaveEntry {
     std::string type;
     std::array<float, 3> position{};
@@ -162,6 +169,7 @@ struct Settings {
     DepthFixtureSettings depthFixture;
 };
 
+/// @brief シナリオ設定を検証する。問題があればerrorに理由を入れてfalseを返す。
 inline bool ValidateSettings(const Settings& settings, std::string& error)
 {
     if (std::string(Name(settings.scenario)) == "invalid") {
@@ -311,12 +319,14 @@ inline bool ValidateSettings(const Settings& settings, std::string& error)
     return true;
 }
 
+/// @brief 指定したフレームを連続記録の対象にするかを返す。
 inline bool ShouldRecordCompletedFrame(const Settings& settings, unsigned frame)
 {
     return settings.recording.enabled && frame >= settings.recording.firstFrame &&
            uint64_t(frame) < uint64_t(settings.recording.firstFrame) + settings.recording.frameCount;
 }
 
+/// @brief 指定したフレームで使うスクリプト入力を返す。
 inline ScriptedInput InputAtFrame(const Settings& settings, unsigned frame)
 {
     for (const auto& segment : settings.input) {
@@ -353,11 +363,13 @@ inline bool ScenarioShouldSnapTimeScale(float combatDt, float baseDt)
     return combatDt / baseDt > 0.95f;
 }
 
+/// @brief シナリオ中に白黒のスロー演出を有効にするかを返す。
 inline bool ScenarioGrayscaleEnabled(float combatDt, float baseDt, bool comparisonFreeze, bool showcase)
 {
     return !comparisonFreeze && !showcase && combatDt < baseDt * 0.98f;
 }
 
+/// @brief 1フレーム分の観測結果。
 struct Snapshot {
     unsigned frame = 0, sceneEpoch = 0;
     uint64_t bossEncounterGeneration = 0;
@@ -381,6 +393,7 @@ struct Snapshot {
 // シーンの世代が変わったら、明示的な再開の区切りとして扱う。
 class InvariantValidator {
 public:
+    /// @brief 観測結果を検証し、問題があればエラーとして記録する。
     void Observe(const Snapshot& snapshot)
     {
         auto fail = [&](const char* text) {
@@ -473,6 +486,7 @@ public:
         return maximumActiveAttacks_;
     }
 
+    /// @brief 検証中にプレイヤーの死亡を観測したかを返す。
     bool SawPlayerDeath() const
     {
         return sawPlayerDeath_;

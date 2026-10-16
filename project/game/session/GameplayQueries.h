@@ -30,8 +30,10 @@ public:
 
     DeveloperShowcaseState GetDeveloperShowcaseState();
 
+    /// @brief 開発者用にポストエフェクトのパラメータを記録する。
     void RecordDeveloperPostParameters(const myEngine::BloomParam& param);
 
+    /// @brief 開発者用にフレームを記録する。
     void RecordDeveloperFrame(myEngine::DirectXCommon& dx);
 
     /// @brief 次のシーン名前を返す。
@@ -47,6 +49,7 @@ public:
     myEngine::Vector2 WorldToScreenUv(const myEngine::Vector3& worldPos) const;
 
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    /// @brief 開発者用キャプチャのメタデータを作る。
     nlohmann::json MakeDeveloperGameCaptureMetadata(myEngine::DirectXCommon& dx) const;
 #endif
 private:

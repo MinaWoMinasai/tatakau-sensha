@@ -260,6 +260,7 @@ public:
     }
 
 private:
+    /// @brief 遠征で使う効果音の種類。
     enum Clip : size_t {
         ShotClip,
         HitClip,

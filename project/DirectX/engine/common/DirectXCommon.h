@@ -74,6 +74,7 @@ public:
     static constexpr DXGI_FORMAT kAmbientOcclusionBufferFormat = DXGI_FORMAT_R8_UNORM;
     static constexpr DXGI_FORMAT kMotionVectorBufferFormat = DXGI_FORMAT_R16G16_FLOAT;
 
+    /// @brief グラフィックスパイプラインを作るシェーダーの種類。
     enum ShaderType {
         Object,
         Particle,
@@ -88,6 +89,7 @@ public:
         SkinningShadow,
     };
 
+    /// @brief ポストエフェクト用パイプラインの種類。
     enum PostEffectType {
         Bloom_Extract,
         Bloom_Downsample,
@@ -129,8 +131,10 @@ public:
 
     /// @brief 初期化
     void Initialize(WinApp* winApp, bool titleFirst = false);
+    /// @brief パイプラインの作成を1ステップ進める。すべて完了したらtrueを返す。
     bool InitializePipelinesStep();
 
+    /// @brief すべてのパイプラインの作成が完了したかを返す。
     bool ArePipelinesReady() const
     {
         return pipelinesReady_;
@@ -592,6 +596,7 @@ public:
         return {currentRtvHandles_, currentRtvCount_, currentDsvHandle_, currentHasDsv_, viewportRect_, scissorRect_};
     }
 
+    /// @brief SaveRenderTargetStateで保存した描画先の状態に戻す。
     void RestoreRenderTargetState(const RenderTargetState& state);
 
     /// @brief 現在RTVハンドルを返す。
@@ -687,6 +692,7 @@ private:
     void CreateComputeShaderCommon(PSO& pso, const std::wstring& shaderPath);
     /// @brief シェーダーを生成する。
     void CreateShader();
+    /// @brief パイプラインを順番に作成するコルーチンを作る。
     InitializationTask BuildPipelines();
     InitializationTask pipelineTask_;
     bool pipelinesReady_ = false;

@@ -13,11 +13,13 @@ enum class NeonBossAction {
     Dash,
     Reload
 };
+/// @brief ボスの見た目で再生する動き。
 enum class NeonBossMotion {
     Idle,
     Attack,
     HoldPose
 };
+/// @brief ボスの見た目の生存段階。
 enum class NeonBossVisualLife {
     Dormant,
     Alive,
@@ -25,6 +27,7 @@ enum class NeonBossVisualLife {
     Finished
 };
 
+/// @brief 行動に対応するアニメーションの再生設定。
 struct NeonBossAnimationMapping {
     NeonBossMotion motion = NeonBossMotion::Idle;
     float speed = 1.0f;
@@ -56,6 +59,7 @@ inline NeonBossAnimationMapping MapNeonBossAnimation(NeonBossAction action, bool
     return {};
 }
 
+/// @brief HPの割合（0..1）を返す。最大HPが0以下なら0を返す。
 inline float NeonBossHpRatio(int hp, int maxHp)
 {
     if (maxHp <= 0) {
@@ -81,16 +85,19 @@ inline float NeonBossEntryPoseTime(NeonBossAction action, bool actionChanged, fl
     return -1.0f;
 }
 
+/// @brief ボスの見た目の生存段階と行動の変化を追跡する。
 class NeonBossVisualState {
 public:
     static constexpr float kDeathHoldSeconds = 0.12f;
     static constexpr float kDissolveSeconds = 1.2f;
 
+    /// @brief 初期状態に戻す。
     void Reset()
     {
         *this = NeonBossVisualState{};
     }
 
+    /// @brief 戦闘の状態から見た目の段階を更新し、変化があればフラグを立てる。
     void Update(bool encounterActive, bool alive, int hp, int maxHp, NeonBossAction action, float deltaTime)
     {
         actionChanged_ = animationChanged_ = deathStarted_ = releaseRequested_ = false;
@@ -184,21 +191,25 @@ public:
         return dissolveProgress_;
     }
 
+    /// @brief 直前のUpdateで行動が変わったかを返す。
     bool DidActionChange() const
     {
         return actionChanged_;
     }
 
+    /// @brief 直前のUpdateで再生するアニメーションが変わったかを返す。
     bool DidAnimationChange() const
     {
         return animationChanged_;
     }
 
+    /// @brief 直前のUpdateで死亡演出が始まったかを返す。
     bool DidDeathStart() const
     {
         return deathStarted_;
     }
 
+    /// @brief 直前のUpdateでリソースの解放を要求したかを返す。
     bool ShouldReleaseResources() const
     {
         return releaseRequested_;

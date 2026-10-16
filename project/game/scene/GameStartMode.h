@@ -1,6 +1,7 @@
 #pragma once
 #include "DeveloperTools.h"
 
+/// @brief ゲームの開始方法。
 enum class GameStartMode {
     Normal,
     Tutorial,
