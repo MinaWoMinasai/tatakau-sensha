@@ -80,7 +80,13 @@ void GameplayHud::DrawGameTextBloom()
     if (world_.combat.eventCalloutTimer_ > 0.0f && world_.combat.eventCalloutText_) {
         labels.push_back(world_.combat.eventCalloutText_.get());
     }
-    if (world_.combat.combatFlow_.GetState() != GameFlowState::Playing && world_.combat.flowBannerText_) {
+    const auto& cine = world_.presentation.bossCinematic_;
+    const bool cinematicTitle = world_.resources.neonDepthCameraScoped_ && cine.titleMode != 0 && cine.titleAlpha > 0.05f &&
+                                world_.combat.cinematicTitle_ && world_.combat.cinematicTitleMode_ == cine.titleMode;
+    if (cinematicTitle)
+        labels.push_back(world_.combat.cinematicTitle_.get());
+    if (world_.combat.combatFlow_.GetState() != GameFlowState::Playing && world_.combat.flowBannerText_ &&
+        !(world_.resources.neonDepthCameraScoped_ && cine.defeatTime >= 0.0f)) {
         labels.push_back(world_.combat.flowBannerText_.get());
     }
     const bool showResult =
@@ -101,6 +107,44 @@ void GameplayHud::DrawGameTextBloom()
     world_.combat.gameTextNeonEffect_->SetStyle(glow);
     world_.combat.gameTextNeonEffect_->DrawBloom(labels);
     world_.combat.gameTextNeonEffect_->SetStyle(world_.combat.gameTextNeonStyle_);
+}
+
+void GameplayHud::DrawBossCinematic()
+{
+    const auto& cine = world_.presentation.bossCinematic_;
+    if (!world_.resources.neonDepthCameraScoped_ || cine.letterbox < 0.01f)
+        return;
+    auto& ui = world_.combat;
+    if (!ui.cinematicBarTop_ || !ui.cinematicTitle_)
+        return;
+    const float width = static_cast<float>(cg2::WinApp::kClientWidth);
+    const float height = static_cast<float>(cg2::WinApp::kClientHeight);
+    const float bar = 86.0f * cine.letterbox;
+    ui.cinematicBarTop_->SetAnchorPoint({0.0f, 0.0f});
+    ui.cinematicBarBottom_->SetAnchorPoint({0.0f, 0.0f});
+    ui.cinematicBarTop_->SetPosition({0.0f, 0.0f});
+    ui.cinematicBarTop_->SetSize({width, bar});
+    ui.cinematicBarBottom_->SetPosition({0.0f, height - bar});
+    ui.cinematicBarBottom_->SetSize({width, bar});
+    ui.cinematicBarTop_->Update();
+    ui.cinematicBarBottom_->Update();
+    ui.cinematicBarTop_->Draw();
+    ui.cinematicBarBottom_->Draw();
+
+    if (cine.titleMode == 0 || cine.titleAlpha < 0.01f || ui.cinematicTitleMode_ != cine.titleMode)
+        return;
+    // The title slides in slightly while it fades, then holds.
+    const float settle = 1.0f - std::exp(-cine.titleAge * 5.0f);
+    const float alpha = (std::clamp)(cine.titleAlpha, 0.0f, 1.0f);
+    ui.cinematicTitle_->SetPosition({width * 0.5f, height * 0.72f + (1.0f - settle) * 18.0f});
+    ui.cinematicTitle_->SetAlpha(alpha);
+    ui.cinematicSubtitle_->SetPosition({width * 0.5f, height * 0.72f + 54.0f});
+    ui.cinematicSubtitle_->SetAlpha(alpha * settle);
+    // Below the title, in the lower letterbox where it never covers the actors.
+    if (cine.titleMode == 1)
+        ui.cinematicSubtitle_->SetPosition({width * 0.5f, height - bar * 0.5f});
+    ui.cinematicTitle_->Draw();
+    ui.cinematicSubtitle_->Draw();
 }
 
 void GameplayHud::DrawSprite()
@@ -152,6 +196,7 @@ void GameplayHud::DrawSprite()
     }
     DrawHpBarBatches();
     cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+    DrawBossCinematic();
     if (!world_.run.expeditionRun_)
         world_.resources.player_->DrawSprite();
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing) {
@@ -165,6 +210,12 @@ void GameplayHud::DrawSprite()
         world_.combat.controlGuideText_->Draw();
     }
     world_.combatTutorial->DrawTutorialUi();
+    const auto& presentation = world_.presentation;
+    if (world_.combat.bloomViewText_ &&
+        (presentation.bloomView_ != 0 || presentation.bloomViewFreeze_ || presentation.bloomViewLabelTimer_ > 0.0f)) {
+        world_.combat.bloomViewText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, cg2::WinApp::kClientHeight - 40.0f});
+        world_.combat.bloomViewText_->Draw();
+    }
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     if (world_.combat.fpsText_ && !world_.run.prototypeRun_) {
         world_.combat.fpsText_->Draw();
@@ -182,8 +233,9 @@ void GameplayHud::DrawSprite()
     const bool showResult =
         world_.combat.combatFlow_.GetState() == GameFlowState::StageClear ||
         (world_.combat.combatFlow_.GetState() == GameFlowState::GameOver && world_.combat.combatFlow_.GetTimer() <= 0.0f);
+    const bool cinematicTitle = world_.resources.neonDepthCameraScoped_ && world_.presentation.bossCinematic_.defeatTime >= 0.0f;
     if (world_.combat.flowBannerText_ && world_.combat.combatFlow_.GetState() != GameFlowState::Playing &&
-        !(world_.run.prototypeRun_ && showResult)) {
+        !(world_.run.prototypeRun_ && showResult) && !cinematicTitle) {
         world_.combat.flowBannerText_->Draw();
     }
     if (showResult && !world_.run.prototypeRun_) {

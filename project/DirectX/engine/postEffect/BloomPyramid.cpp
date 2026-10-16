@@ -22,12 +22,33 @@ struct BloomPyramid::PipelineBundle {
 };
 
 int BloomPyramid::modeOverride_ = -1;
+bool BloomPyramid::presentationOff_ = false;
+int BloomPyramid::presentationLevel_ = -1;
+uint32_t BloomPyramid::presentationGeneration_ = 0;
+
+float BloomPyramid::GetPresentationGainScale(float scatter) {
+    if (presentationOff_ || presentationLevel_ < 0) return 1.0f;
+    const float s = (std::clamp)(std::isfinite(scatter) ? scatter : 0.3f, 0.05f, 0.9f);
+    // Weight of level L in the upsample chain: s^L * (1 - s) for finer levels, s^(N-1) for the coarsest.
+    const int last = static_cast<int>(kMaxLevels) - 1;
+    const float weight = presentationLevel_ >= last ? std::pow(s, static_cast<float>(last))
+                                                    : std::pow(s, static_cast<float>(presentationLevel_)) * (1.0f - s);
+    return (std::clamp)(1.0f / (std::max)(weight, 0.0001f), 1.0f, 12.0f) * 0.5f;
+}
+
+void BloomPyramid::SetPresentationView(bool off, int isolatedLevel) {
+    const int level = isolatedLevel >= 0 && isolatedLevel < static_cast<int>(kMaxLevels) ? isolatedLevel : -1;
+    if (off != presentationOff_ || level != presentationLevel_) ++presentationGeneration_;
+    presentationOff_ = off;
+    presentationLevel_ = level;
+}
 
 void BloomPyramid::SetModeOverride(int mode) {
     modeOverride_ = mode >= 0 && mode <= 3 ? mode : -1;
 }
 
 uint32_t BloomPyramid::EffectiveMode(const BloomParam& param) {
+    if (presentationOff_) return 0;
     if (modeOverride_ >= 0) return static_cast<uint32_t>(modeOverride_);
     return param.bloomMode <= 3 ? param.bloomMode : 2;
 }
@@ -97,6 +118,11 @@ uint32_t BloomPyramid::Render(D3D12_GPU_DESCRIPTOR_HANDLE source, const BloomPar
     for (uint32_t level = 1; level < activeLevelCount_; ++level) {
         const auto input = down_[level - 1]->GetGPUHandle();
         DrawPass(*down_[level], dimensions_[level], pipelines_->down.Get(), input, input, constants);
+    }
+    if (presentationLevel_ >= 0) {
+        // Show one rung of the pyramid by itself; the composite samples it bilinearly at screen size.
+        const uint32_t level = (std::min)(static_cast<uint32_t>(presentationLevel_), activeLevelCount_ - 1);
+        return outputSrv_ = down_[level]->GetSrvIndex();
     }
     D3D12_GPU_DESCRIPTOR_HANDLE coarse = down_[activeLevelCount_ - 1]->GetGPUHandle();
     for (uint32_t level = activeLevelCount_ - 1; level-- > 0;) {

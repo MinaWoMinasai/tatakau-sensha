@@ -10,6 +10,14 @@ namespace cg2 {
 /// @brief 表示文字列と描画用スプライトを保持し、文字の変更時にテクスチャを更新する。
 class TextLabel {
 public:
+    TextLabel();
+    ~TextLabel();
+    TextLabel(const TextLabel&) = delete;
+    TextLabel& operator=(const TextLabel&) = delete;
+    /// @brief 入力機器が切り替わったとき、全ラベルの操作説明を作り直す。
+    /// 文字画像の読み込みは描画コマンドの記録中に行えないため、更新の前（入力の取得直後）に呼ぶ。
+    static void RefreshAllInputPrompts();
+
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     /// @brief cg2::TextLabelの処理件数や所要時間を保持し、性能と動作の確認に使う。
     struct ProfileStats {
@@ -85,6 +93,8 @@ private:
     Vector2 anchorPoint_ = {0.0f, 0.0f};
     float alpha_ = 1.0f;
     unsigned long long builtFontRevision_ = 0;
+    // Input device the operation prompts were rendered for (keyboard/mouse or gamepad wording).
+    uint32_t builtPromptRevision_ = 0;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     static ProfileStats profileStats_;
 #endif

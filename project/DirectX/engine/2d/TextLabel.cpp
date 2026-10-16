@@ -1,10 +1,39 @@
 #include "TextLabel.h"
+#include "InputPrompt.h"
+#include <unordered_set>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 #include <chrono>
 #endif
 namespace cg2 {
+
+namespace {
+/// @brief 生存中のラベル。入力機器の切り替え時に操作説明をまとめて作り直すために使う。
+std::unordered_set<TextLabel*>& LiveLabels()
+{
+	static std::unordered_set<TextLabel*> labels;
+	return labels;
+}
+} // namespace
+
+TextLabel::TextLabel()
+{
+	LiveLabels().insert(this);
+}
+
+TextLabel::~TextLabel()
+{
+	LiveLabels().erase(this);
+}
+
+void TextLabel::RefreshAllInputPrompts()
+{
+	const uint32_t revision = Input::GetInstance()->GetPromptRevision();
+	for (TextLabel* label : LiveLabels())
+		if (label->spriteCommon_ && label->builtPromptRevision_ != revision)
+			label->RebuildTexture();
+}
 
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
@@ -172,7 +201,8 @@ void TextLabel::Draw()
 
 void TextLabel::PrepareForDraw()
 {
-	if (builtFontRevision_ != TextRenderer::GetInstance()->GetFontRevision()) {
+	if (builtFontRevision_ != TextRenderer::GetInstance()->GetFontRevision() ||
+		builtPromptRevision_ != Input::GetInstance()->GetPromptRevision()) {
 		RebuildTexture();
 	}
 }
@@ -194,7 +224,9 @@ void TextLabel::RebuildTexture()
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	const auto getOrCreateTextureStart = std::chrono::steady_clock::now();
 #endif
-	texturePath_ = textRenderer->GetOrCreateTexture(text_, style_);
+	// Operation prompts follow the last used device (e.g. "左クリック" becomes "RT" on a gamepad).
+	builtPromptRevision_ = Input::GetInstance()->GetPromptRevision();
+	texturePath_ = textRenderer->GetOrCreateTexture(ApplyInputPrompts(text_), style_);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 	const auto getOrCreateTextureEnd = std::chrono::steady_clock::now();
 	profileStats_.getOrCreateTextureCpuMs += std::chrono::duration<float, std::milli>(

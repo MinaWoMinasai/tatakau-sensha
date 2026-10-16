@@ -35,6 +35,16 @@ struct CombatUiState {
 
     std::unique_ptr<cg2::TextLabel> flowBannerText_;
 
+    // Bloom comparison caption (presentation helper).
+    std::unique_ptr<cg2::TextLabel> bloomViewText_;
+
+    // Final boss cinematic: letterbox bars and a title card (entrance / defeat).
+    std::unique_ptr<cg2::Sprite> cinematicBarTop_;
+    std::unique_ptr<cg2::Sprite> cinematicBarBottom_;
+    std::unique_ptr<cg2::TextLabel> cinematicTitle_;
+    std::unique_ptr<cg2::TextLabel> cinematicSubtitle_;
+    int cinematicTitleMode_ = 0;
+
     std::unique_ptr<cg2::TextLabel> resultSummaryText_;
 
     std::unique_ptr<cg2::TextLabel> resultMenuText_;

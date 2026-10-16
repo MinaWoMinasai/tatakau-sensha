@@ -1,4 +1,5 @@
 #include "game/encounter/DepthEncounter.h"
+#include "game/render/settings/ArenaCameraProfile.h"
 #include "game/session/GameplaySystems.h"
 #include "Enemy.h"
 #include "Player.h"
@@ -95,6 +96,7 @@ bool DepthEncounter::UpdateNeonDepthCamera(float baseDeltaTime)
         return false;
     }
     if (!world_.resources.neonDepthCameraScoped_) {
+        world_.presentation.bossCinematic_ = {};
         world_.resources.neonDepthSavedCamera_ = {world_.resources.camera->GetTranslate(),        world_.resources.camera->GetRotate(),
                                                   world_.resources.camera->GetProjectionJitter(), world_.resources.camera->GetFovY(),
                                                   world_.resources.camera->GetAspectRatio(),      world_.resources.camera->GetNearClip(),
@@ -106,12 +108,9 @@ bool DepthEncounter::UpdateNeonDepthCamera(float baseDeltaTime)
     neondepth::CameraFrame frame;
     auto profile = world_.resources.neonDepthConfig_.camera;
     profile.aspect = float(cg2::WinApp::kClientWidth) / float(cg2::WinApp::kClientHeight);
-    // Authored expedition rooms share this world-space frame. Cover the entire
-    // room interior and permitted evasive movement, rather than following the
-    // decorative head or enlarging only a screen-space projection.
     const bool reducedMotion = world_.resources.neonBossVisual_ ? world_.resources.neonBossVisual_->GetDepthProfile().reducedMotion
                                                                 : world_.resources.neonDepthConfig_.visual.reducedMotion;
-    cg2::Vector3 focus{44, 31, 0};
+    cg2::Vector3 focus = UpdateBossCinematicCamera(baseDeltaTime, profile);
     if (world_.presentation.cameraShakeTimer_ > 0 && !reducedMotion) {
         const float dt = std::isfinite(baseDeltaTime) && baseDeltaTime > 0 ? (std::min)(baseDeltaTime, .1f) : 0;
         world_.presentation.cameraShakeTimer_ = (std::max)(0.0f, world_.presentation.cameraShakeTimer_ - dt);
@@ -142,6 +141,158 @@ bool DepthEncounter::UpdateNeonDepthCamera(float baseDeltaTime)
     if (world_.resources.player_)
         world_.resources.player_->SetNeonDepthAimEnabled(true);
     return true;
+}
+
+cg2::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime, neondepth::CameraProfile& profile)
+{
+    auto& cine = world_.presentation.bossCinematic_;
+    const float dt = std::isfinite(baseDeltaTime) && baseDeltaTime > 0 ? (std::min)(baseDeltaTime, .1f) : 0.0f;
+    const auto& snapshot = world_.resources.enemy_->GetNeonDepthSnapshot();
+    const bool defeat = world_.combat.combatFlow_.GetState() == GameFlowState::BossDefeatSequence;
+    const bool intro = !defeat && snapshot.phase == neondepth::Phase::Intro;
+    auto smooth = [](float t) { t = (std::clamp)(t, 0.0f, 1.0f); return t * t * (3.0f - 2.0f * t); };
+    auto mix = [](const cg2::Vector3& a, const cg2::Vector3& b, float t) { return a + (b - a) * t; };
+    // Frame the visible projection (its feet), which is offset from the logical floor core.
+    cg2::Vector3 boss = world_.resources.enemy_->GetWorldPosition();
+    if (world_.resources.neonBossVisual_ && world_.resources.neonBossVisual_->HasResources() &&
+        world_.resources.neonBossVisual_->IsVisible()) {
+        const auto& world = world_.resources.neonBossVisual_->GetWorldMatrix();
+        const cg2::Vector3 feet{world.m[3][0], world.m[3][1], 0.0f};
+        if (std::isfinite(feet.x) && std::isfinite(feet.y) && cg2::Length(feet - cg2::Vector3{boss.x, boss.y, 0.0f}) < 30.0f)
+            boss = feet;
+    }
+    boss.z = 0.0f;
+    cg2::Vector3 player = world_.resources.player_ ? world_.resources.player_->GetWorldPosition() : boss;
+    player.z = 0.0f;
+
+    // Combat: the normal arena camera distance and lens, following the player and leaning a little
+    // toward the boss, with a slight tilt so the standing projection still reads in depth.
+    // Keep both actors on screen: frame their midpoint and pull back only as far as their spread needs.
+    // The projection stands toward the camera, so its upper body is magnified outward by perspective
+    // (offset * D / (D - height)); solve for the smallest pull-back that still contains it.
+    cg2::Vector3 target = mix(player, boss, 0.5f);
+    constexpr float kActorMargin = 4.0f;
+    const float halfHeight = arenacamera::HalfViewHeight();
+    const float bodyHeight = world_.resources.neonBossVisual_ ? world_.resources.neonBossVisual_->GetDepthProfile().worldHeight : 9.0f;
+    const float spread = (std::max)(std::abs(boss.x - player.x) * 0.5f / arenacamera::kAspect, std::abs(boss.y - player.y) * 0.5f);
+    float combatDistance = 1.0f;
+    for (; combatDistance < 2.2f; combatDistance += 0.05f) {
+        const float depth = arenacamera::Distance() * combatDistance;
+        const float magnified = spread * depth / (std::max)(depth - bodyHeight * 0.85f, 1.0f);
+        if (magnified + kActorMargin <= halfHeight * combatDistance)
+            break;
+    }
+    float minX = 0, minY = 0, maxX = 0, maxY = 0;
+    if (world_.resources.stage_ && arenacamera::ArenaBounds(world_.resources.stage_->GetBlocks(), minX, minY, maxX, maxY)) {
+        // The projection may hover over the rampart; let the frame follow it there.
+        minX = (std::min)(minX, boss.x - bodyHeight); maxX = (std::max)(maxX, boss.x + bodyHeight);
+        minY = (std::min)(minY, boss.y - bodyHeight); maxY = (std::max)(maxY, boss.y + bodyHeight);
+        const float viewHalf = halfHeight * combatDistance;
+        target.x = arenacamera::ClampFocus(target.x, minX, maxX, viewHalf * arenacamera::kAspect);
+        target.y = arenacamera::ClampFocus(target.y, minY, maxY, viewHalf);
+    }
+    float targetDistance = combatDistance, targetTilt = 14.0f, targetLetterbox = 0.0f;
+
+    if (intro) {
+        // Entrance: open close and low on the forming projection, then slowly pull back.
+        cine.introSeen = true;
+        cine.introTime += dt;
+        const float t = smooth(cine.introTime / 3.2f);
+        // Aim at the middle of the standing projection, which rises toward the camera.
+        const float bodyHeight = world_.resources.neonBossVisual_ ? world_.resources.neonBossVisual_->GetDepthProfile().worldHeight : 7.0f;
+        target = boss + cg2::Vector3{0.0f, 0.0f, -bodyHeight * 0.55f};
+        targetDistance = 0.55f + 0.35f * t;
+        targetTilt = 30.0f - 8.0f * t;
+        targetLetterbox = 1.0f;
+        if (cine.titleMode != 1) { cine.titleMode = 1; cine.titleAge = 0.0f; }
+    } else if (cine.introSeen && !cine.revealFired) {
+        // The projection is complete: punctuate the hand-off back to the combat framing.
+        cine.revealFired = true;
+        world_.combatEffects->TriggerDeathPostPulse(cine.focus, 1.25f);
+        world_.presentation.cameraShakeDuration_ = 0.55f;
+        world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
+        world_.presentation.cameraShakePower_ = 0.40f;
+    }
+
+    if (defeat) {
+        if (cine.defeatTime < 0.0f) {
+            cine.defeatTime = 0.0f;
+            cine.defeatFocus = boss;
+            cine.burstsFired = 0;
+            cine.finaleFired = false;
+        }
+        cine.defeatTime += dt;
+        // Defeat: push in on the falling projection while it breaks apart in a chain of bursts.
+        const float a = smooth(cine.defeatTime / 0.9f);
+        target.z = 0.0f;
+        target = mix(target, cine.defeatFocus, a);
+        targetDistance = combatDistance + (0.62f - combatDistance) * a;
+        targetTilt = 14.0f + (30.0f - 14.0f) * a;
+        targetLetterbox = 1.0f;
+        constexpr float kBurstTimes[] = {0.05f, 0.28f, 0.50f, 0.68f, 0.86f, 1.02f};
+        constexpr int kBursts = static_cast<int>(sizeof(kBurstTimes) / sizeof(kBurstTimes[0]));
+        const cg2::Vector4 primary{1.8f, 0.25f, 0.95f, 1.0f}, secondary{1.6f, 1.2f, 1.6f, 1.0f};
+        while (cine.burstsFired < kBursts && cine.defeatTime >= kBurstTimes[cine.burstsFired]) {
+            // Deterministic offsets keep replays identical and consume no gameplay RNG.
+            const float angle = 2.39996f * static_cast<float>(cine.burstsFired);
+            const float radius = 1.2f + 0.45f * static_cast<float>(cine.burstsFired % 3);
+            const cg2::Vector3 at = cine.defeatFocus + cg2::Vector3{std::cos(angle) * radius, std::sin(angle) * radius, -1.0f};
+            cg2::ParticleManager::GetInstance()->EmitNeonDeathEffect(at, primary, secondary, 0.85f);
+            world_.combatEffects->TriggerDeathPostPulse(at, 0.55f);
+            world_.presentation.cameraShakeDuration_ = 0.22f;
+            world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
+            world_.presentation.cameraShakePower_ = 0.30f;
+            ++cine.burstsFired;
+        }
+        if (!cine.finaleFired && cine.defeatTime >= 1.30f) {
+            cine.finaleFired = true;
+            cg2::ParticleManager::GetInstance()->EmitNeonDeathEffect(cine.defeatFocus, primary, secondary, 2.4f);
+            cg2::ParticleManager::GetInstance()->EmitNeonDeathEffect(cine.defeatFocus, secondary, primary, 1.6f);
+            world_.combatEffects->TriggerDeathPostPulse(cine.defeatFocus, 2.0f);
+            world_.presentation.cameraShakeDuration_ = 0.75f;
+            world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
+            world_.presentation.cameraShakePower_ = 0.45f;
+            cine.titleMode = 2;
+            cine.titleAge = 0.0f;
+        }
+        if (cine.defeatTime >= 1.8f) {
+            // Let the arena breathe after the finale: ease back out a little for the closing title.
+            const float settle = smooth((cine.defeatTime - 1.8f) / 1.6f);
+            targetDistance += 0.22f * settle;
+            targetTilt -= 6.0f * settle;
+        }
+    }
+
+    if (!cine.cameraInitialized) {
+        cine.cameraInitialized = true;
+        cine.focus = target;
+        cine.distanceScale = targetDistance;
+        cine.tiltDegrees = targetTilt;
+    }
+    const bool cinematic = intro || defeat;
+    const float follow = 1.0f - std::exp(-dt * (cinematic ? 3.0f : 6.0f));
+    const float lens = 1.0f - std::exp(-dt * 2.4f);
+    cine.focus = mix(cine.focus, target, follow);
+    cine.distanceScale += (targetDistance - cine.distanceScale) * lens;
+    cine.tiltDegrees += (targetTilt - cine.tiltDegrees) * lens;
+    cine.letterbox += (targetLetterbox - cine.letterbox) * (1.0f - std::exp(-dt * 5.0f));
+    cine.titleAge += dt;
+    const float titleTarget = cine.titleMode == 1 ? (intro ? 1.0f : 0.0f) : cine.titleMode == 2 ? 1.0f : 0.0f;
+    cine.titleAlpha += (titleTarget - cine.titleAlpha) * (1.0f - std::exp(-dt * 4.0f));
+
+    auto& ui = world_.combat;
+    if (cine.titleMode != 0 && ui.cinematicTitle_ && ui.cinematicSubtitle_ && ui.cinematicTitleMode_ != cine.titleMode) {
+        ui.cinematicTitleMode_ = cine.titleMode;
+        auto style = ui.cinematicTitle_->GetStyle();
+        style.color = cine.titleMode == 1 ? cg2::Vector4{1.0f, 0.62f, 0.92f, 1.0f} : cg2::Vector4{0.72f, 1.0f, 0.95f, 1.0f};
+        ui.cinematicTitle_->SetStyle(style);
+        ui.cinematicTitle_->SetText(cine.titleMode == 1 ? "最終決戦" : "ボス撃破");
+        ui.cinematicSubtitle_->SetText(cine.titleMode == 1 ? "最深部の投影体があらわれた  /  Enterでスキップ" : "最深部を制圧した");
+    }
+    profile.tiltDegrees = (std::clamp)(cine.tiltDegrees, 0.0f, 35.0f);
+    profile.distance = arenacamera::Distance() * cine.distanceScale;
+    profile.fovY = arenacamera::kFovY;
+    return cine.focus;
 }
 
 void DepthEncounter::RestoreNeonDepthCamera()

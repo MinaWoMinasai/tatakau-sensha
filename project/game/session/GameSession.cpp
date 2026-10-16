@@ -65,6 +65,20 @@ PostEffectPulse GameSession::GetPostEffectPulse() const
     return world_->gameplayQueries->GetPostEffectPulse();
 }
 
+IScene::BloomViewSettings GameSession::GetBloomViewSettings() const
+{
+    IScene::BloomViewSettings settings;
+    const int view = world_->presentation.bloomView_;
+    if (view == 1)
+        settings.view = 1;
+    else if (view >= 2 && view <= 6) {
+        settings.view = 2;
+        settings.level = view - 2;
+    } else if (view == 7)
+        settings.view = 3;
+    return settings;
+}
+
 ScreenEffectState GameSession::GetScreenEffectState() const
 {
     return world_->gameplayQueries->GetScreenEffectState();
