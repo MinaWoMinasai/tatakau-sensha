@@ -58,10 +58,10 @@ struct TankData {
     std::string name;
     int requiredRank;
     std::string texturePath; // 画像パス
-    std::unique_ptr<cg2::Sprite> cardSprite;
-    std::unique_ptr<cg2::Sprite> sprite; // 各戦車専用のスプライト
-    std::unique_ptr<cg2::TextLabel> nameLabel;
-    std::unique_ptr<cg2::TextLabel> rankLabel;
+    std::unique_ptr<myEngine::Sprite> cardSprite;
+    std::unique_ptr<myEngine::Sprite> sprite; // 各戦車専用のスプライト
+    std::unique_ptr<myEngine::TextLabel> nameLabel;
+    std::unique_ptr<myEngine::TextLabel> rankLabel;
 };
 
 /// @brief 遠征中に選べる進化先の識別子と説明を表す。
@@ -72,7 +72,7 @@ struct RunEvolutionChoice {
 };
 
 class Stage;
-namespace cg2 {
+namespace myEngine {
 class ObjectPostEffect;
 }
 
@@ -111,31 +111,31 @@ public:
     /// @brief レーザー発射の位置・方向・性能を戦闘側へ渡す。
     /// @note duration・damageIntervalは秒。range・widthはワールド座標の長さ。
     struct LaserShotEvent {
-        cg2::Vector3 origin{};
-        cg2::Vector3 direction{1.0f, 0.0f, 0.0f};
+        myEngine::Vector3 origin{};
+        myEngine::Vector3 direction{1.0f, 0.0f, 0.0f};
         float range = 18.0f;
         float width = 0.18f;
         float duration = 0.12f;
         float damageInterval = 0.08f;
         uint32_t damage = 1;
-        cg2::Vector4 color{0.25f, 1.0f, 0.95f, 1.0f};
+        myEngine::Vector4 color{0.25f, 1.0f, 0.95f, 1.0f};
     };
     /// @brief 地雷の配置位置と性能を戦闘側へ渡す。
     /// @note fuseTime・lifeTimeは秒。radiusはワールド座標の半径。
     struct MineDropEvent {
-        cg2::Vector3 position{};
+        myEngine::Vector3 position{};
         float radius = 3.2f;
         float fuseTime = 0.45f;
         float lifeTime = 5.0f;
         uint32_t damage = 1;
-        cg2::Vector4 color{1.0f, 0.25f, 0.95f, 1.0f};
+        myEngine::Vector4 color{1.0f, 0.25f, 0.95f, 1.0f};
     };
     /// @brief 近接斬撃の範囲と威力を戦闘側へ渡す。
     /// @note windupDurationは予備動作、durationは有効時間、recoveryDurationは硬直時間で、いずれも秒。
     /// arcDegは度。通常のcomboStepは0・1・2で、回転斬撃は-1を使う。
     struct MeleeSlashEvent {
-        cg2::Vector3 origin{};
-        cg2::Vector3 direction{1.0f, 0.0f, 0.0f};
+        myEngine::Vector3 origin{};
+        myEngine::Vector3 direction{1.0f, 0.0f, 0.0f};
         float range = 3.4f;
         float arcDeg = 105.0f;
         float width = 0.20f;
@@ -145,17 +145,17 @@ public:
         int comboStep = 0;
         float knockback = 0.16f;
         uint32_t damage = 1;
-        cg2::Vector4 color{0.55f, 1.25f, 1.0f, 1.0f};
+        myEngine::Vector4 color{0.55f, 1.25f, 1.0f, 1.0f};
     };
     /// @brief ダッシュ衝突の位置・方向と、ボス・強化攻撃の有無を演出へ渡す。
     struct DashImpactEvent {
-        cg2::Vector3 origin{}, direction{1.0f, 0.0f, 0.0f};
+        myEngine::Vector3 origin{}, direction{1.0f, 0.0f, 0.0f};
         bool boss = false;
         bool powered = false;
     };
     /// @brief ドローン間のレーザー接続のワールド座標の端点と、今回の更新での敵への接触有無を表す。
     struct DroneLaserLink {
-        cg2::Vector3 start{}, end{};
+        myEngine::Vector3 start{}, end{};
         bool contact = false; // 地形に遮られず敵に接触したか。ダメージ間隔による許可の有無には依存しない。
     };
     enum class SpecialEventKind {
@@ -175,7 +175,7 @@ public:
     /// @note strengthの意味はkindによる。RailShotは蓄積秒数、DroneBomb・WallSmashは演出の輪の半径の増加に使う値。
     struct SpecialCombatEvent {
         SpecialEventKind kind = SpecialEventKind::RailShot;
-        cg2::Vector3 origin{}, direction{1, 0, 0};
+        myEngine::Vector3 origin{}, direction{1, 0, 0};
         float strength = 1;
     };
     /// @brief 特殊戦闘の発動・命中の累積件数と、分散照準で選んだ対象のビット集合を保持する。
@@ -188,14 +188,14 @@ public:
     /// @brief ドローン能力の状態を表示するための位置・進行度を表す。
     /// @note progressは段階の経過時間を表示用の基準時間で割り、0～1に制限した値。帰還時の基準は突撃の制限時間。
     struct DroneAbilityVisual {
-        cg2::Vector3 position{}, target{};
+        myEngine::Vector3 position{}, target{};
         tankspecial::DronePhase phase = tankspecial::DronePhase::Escort;
         float progress = 0;
         bool bomb = false;
     };
     /// @brief ロック蓄積中・ロック中の対象位置、命中蓄積数、ロック残り時間（秒）を表示へ渡す。
     struct TargetLockVisual {
-        cg2::Vector3 position{};
+        myEngine::Vector3 position{};
         int stacks = 0;
         float remaining = 0;
     };
@@ -250,7 +250,7 @@ public:
         return railCharge_.held ? railCharge_.seconds : 0.0f;
     }
     /// @brief チャージ演出用に先頭砲塔の銃口のワールド座標を返す。設定がなければ照準方向の既定位置。
-    cg2::Vector3 GetRailChargeMuzzle() const;
+    myEngine::Vector3 GetRailChargeMuzzle() const;
     /// @brief 今回の特殊戦闘更新で作成したドローン間レーザー接続への読み取り専用参照を返す。
     /// @note 要素は次のUpdateSpecialCombatや装備変更・部屋リセットで再取得する。
     const std::vector<DroneLaserLink>& GetDroneLaserLinks() const
@@ -338,21 +338,21 @@ public:
 
     /// @brief マウスから求めたZ=0平面の位置、またはデモの照準位置へ機体の向きを更新する。
     /// @note 初期化後に呼ぶ。通常入力ではviewProjectionに有効なカメラが必要。
-    void RotateToMouse(cg2::Camera* viewProjection);
+    void RotateToMouse(myEngine::Camera* viewProjection);
 
     /// @brief 自機の戦闘資源・機体設定・初期位置を用意する。
     /// @param objectBullet 自機本体の描画オブジェクト。nullptr不可。所有権は移らず、自機の利用中は有効に保つ。
     /// @param position ワールド座標での初期位置。
     /// @param arenaUi 旧アリーナ用の図鑑・HUD資源も準備するか。遠征は専用UIを持つ。
     /// @note 初回生成に使う。機体設定の再読込にはReloadPlayerClassConfigsを使う。
-    void Initialize(cg2::Object3d* objectBullet, const cg2::Vector3& position, bool arenaUi = true);
+    void Initialize(myEngine::Object3d* objectBullet, const myEngine::Vector3& position, bool arenaUi = true);
 
     /// @brief UI入力を処理してから自機の移動・攻撃・装備を更新する。
     /// @param deltaTime 戦闘用の経過秒。スローなどを反映した時間。
     /// @param uiDeltaTime UI用の経過秒。戦闘のスローと分けて渡す。
     /// @note 進化画面を操作したフレームは戦闘入力へ流さない。
     /// 初期化後、有効なカメラと弾管理先を渡す。経過時間は非負とする。
-    void Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* BulletManager, float deltaTime, float uiDeltaTime);
+    void Update(myEngine::Camera* viewProjection, Stage& stage, BulletManager* BulletManager, float deltaTime, float uiDeltaTime);
 
     /// @brief 通常モデルを使うドローンと、指定に応じて自機本体・砲塔を描画する。
     /// @param drawBody 自機本体・砲塔も描画するか。ドローンの描画には影響しない。
@@ -368,7 +368,7 @@ public:
     void DrawUpgradeHudAfterPostEffects();
     /// @brief ゲーム中のHUDで発光対象にする文字ラベルの借用ポインターをlabelsの末尾へ追加する。
     /// @note 進化画面中は追加しない。所有権は移らず、UIの再構築やPlayerの破棄をまたいで保持しない。
-    void AppendGameplayNeonTextLabels(std::vector<cg2::TextLabel*>& labels) const;
+    void AppendGameplayNeonTextLabels(std::vector<myEngine::TextLabel*>& labels) const;
     /// @brief 強化HUD文字テクスチャを利用前に準備する。
     void PrepareUpgradeHudTextTextures();
 
@@ -386,21 +386,21 @@ public:
     static inline const float kRadius = 0.8f;
 
     /// @brief ワールド座標での位置を返す。
-    cg2::Vector3 GetWorldPosition() const override;
+    myEngine::Vector3 GetWorldPosition() const override;
 
     /// @brief 現在の速度を値で返す。60FPS相当の基準1フレームの移動量として保持する。
-    cg2::Vector3 GetMove()
+    myEngine::Vector3 GetMove()
     {
         return velocity_;
     }
     /// @brief 現在の速度を設定する。単位は60FPS相当の基準1フレームの移動量。
-    void SetVelocity(const cg2::Vector3& v)
+    void SetVelocity(const myEngine::Vector3& v)
     {
         velocity_ = v;
     }
 
     /// @brief ワールド座標を設定し、本体オブジェクトの変換と行列を更新する。初期化後に呼ぶ。
-    void SetWorldPosition(const cg2::Vector3& pos)
+    void SetWorldPosition(const myEngine::Vector3& pos)
     {
         worldTransform_.translate = pos;
         object_->SetTransform(worldTransform_);
@@ -408,7 +408,7 @@ public:
     }
 
     /// @brief AABBを返す。
-    cg2::AABB GetAABB();
+    myEngine::AABB GetAABB();
 
     /// @brief 無敵時間を0.45秒としてTakeDamageへ渡す。既定のダメージ量はダメージブロック用。
     void Damage(uint32_t amount = kDamageBlockDamage);
@@ -464,7 +464,7 @@ public:
     }
     /// @brief デモ用の移動・ワールド座標の照準・射撃・ダッシュ入力を設定する。
     /// @note 有効にすると進化画面を閉じ、部屋移動後の入力解放待ちを解除する。
-    void SetDemoInput(bool enabled, const cg2::Vector2& move, const cg2::Vector3& aimWorld, bool shoot, bool dash)
+    void SetDemoInput(bool enabled, const myEngine::Vector2& move, const myEngine::Vector3& aimWorld, bool shoot, bool dash)
     {
         demoInputEnabled_ = enabled;
         demoMove_ = move;
@@ -492,7 +492,7 @@ public:
         runCheckpointEvolution_ = enabled;
     }
     /// @brief 誘導・ドローン照準に使う対象のワールド座標を、先頭48件までコピーする。
-    void SetRunHomingTargets(const std::vector<cg2::Vector3>& targets);
+    void SetRunHomingTargets(const std::vector<myEngine::Vector3>& targets);
     /// @brief 現在選択できる遠征の進化候補を値で返す。方式・装備系統・準備状態に応じて空になる。
     std::vector<RunEvolutionChoice> GetRunEvolutionChoices() const;
     /// @brief 遠征の進化候補を選べる状態へ進め、進化画面と確定・取消イベントを解除する。
@@ -530,7 +530,7 @@ public:
     /// @brief 部屋移動時に一時的な戦闘状態・ドローン・イベントをリセットし、指定ワールド座標へ移す。
     /// @note 遠征補正有効かつ生存中に行う。HP・成長は保ち、スタミナを全回復して短い無敵時間を設定する。
     /// 通常入力はマウスボタンを解放するまで攻撃を待つ。生成済みの弾はここでは消去しない。
-    void ResetRunRoomState(const cg2::Vector3& position);
+    void ResetRunRoomState(const myEngine::Vector3& position);
     /// @brief 被ダメージを無効化する開発用設定を切り替える。
     void SetDebugNoDamage(bool enabled)
     {
@@ -584,7 +584,7 @@ public:
         return angle_;
     }
     /// @brief 照準方向への読み取り専用参照を返す。
-    const cg2::Vector3& GetDirection() const
+    const myEngine::Vector3& GetDirection() const
     {
         return dir_;
     }
@@ -596,7 +596,7 @@ public:
     /// @brief 移動入力が存在するか判定する。
     bool HasMovementInput() const
     {
-        return cg2::Length(inputDir_) > 0.05f;
+        return myEngine::Length(inputDir_) > 0.05f;
     }
     /// @brief 主攻撃の実行フラグを返し、保留フラグを解除する。複数回の実行も1つのtrueにまとめる。
     bool ConsumePrimaryAttackPerformedEvent();
@@ -604,23 +604,23 @@ public:
     bool ConsumeDashStartedEvent();
     /// @brief ネオン描画する砲塔の位置・方向・形状を表す。
     struct NeonBarrelLayout {
-        cg2::Vector3 offset{};
-        cg2::Vector3 scale{1.25f, 0.24f, 0.24f};
+        myEngine::Vector3 offset{};
+        myEngine::Vector3 scale{1.25f, 0.24f, 0.24f};
         float angleRad = 0.0f;
         float recoilOffset = 0.0f;
         float muzzleFlashRatio = 0.0f;
         bool isMelee = false;
         BarrelShape shape = BarrelShape::Box;
         int fireGroup = 0;
-        cg2::Vector4 barrelColor{0.25f, 1.0f, 0.95f, 1.0f};
-        cg2::Vector4 outlineColor{0.80f, 1.0f, 0.95f, 1.0f};
+        myEngine::Vector4 barrelColor{0.25f, 1.0f, 0.95f, 1.0f};
+        myEngine::Vector4 outlineColor{0.80f, 1.0f, 0.95f, 1.0f};
     };
     /// @brief ネオン描画する機体本体の形状・大きさ・色を表す。
     struct NeonBodyLayout {
         BodyShape shape = BodyShape::Circle;
-        cg2::Vector2 scale{1.0f, 1.0f};
-        cg2::Vector4 fillColor{0.18f, 0.28f, 0.34f, 0.38f};
-        cg2::Vector4 outlineColor{0.50f, 1.0f, 0.35f, 1.0f};
+        myEngine::Vector2 scale{1.0f, 1.0f};
+        myEngine::Vector4 fillColor{0.18f, 0.28f, 0.34f, 0.38f};
+        myEngine::Vector4 outlineColor{0.50f, 1.0f, 0.35f, 1.0f};
     };
     /// @brief ネオン描画用の砲塔・刃の配置を値で返す。ドローン装備系統では空。
     std::vector<NeonBarrelLayout> GetNeonBarrelLayouts() const;
@@ -652,7 +652,7 @@ public:
     void Smash(float deltaTime);
 
     /// @brief 現在のワールド座標とkRadiusから、衝突判定用の球を値で返す。
-    cg2::Sphere GetSphere() const;
+    myEngine::Sphere GetSphere() const;
 
     /// @brief 経験値を加算してレベル・強化ポイントを更新する。通貨方式では獲得通貨として保留する。
     /// @param amount 獲得した経験値。呼び出し側では非負の値を渡す。
@@ -862,15 +862,15 @@ private:
     using PlayerClassConfig = ::PlayerClassConfig;
 
     // ワールド変換データ
-    cg2::Transform worldTransform_;
+    myEngine::Transform worldTransform_;
 
     // モデル
-    cg2::Object3d* object_ = nullptr;
+    myEngine::Object3d* object_ = nullptr;
     /// @brief 1砲塔の描画オブジェクトを所有し、変換・配置・反動・発光時間を保持する。
     struct BarrelModel {
-        std::unique_ptr<cg2::Object3d> object;
-        cg2::Transform transform;
-        cg2::Vector3 localOffset;
+        std::unique_ptr<myEngine::Object3d> object;
+        myEngine::Transform transform;
+        myEngine::Vector3 localOffset;
         float recoilOffset = 0.0f;
         float muzzleFlashTimer = 0.0f;
     };
@@ -887,13 +887,13 @@ private:
     uint32_t textureHandle_ = 0u;
 
     // キーボード入力
-    cg2::Input* input_ = nullptr;
+    myEngine::Input* input_ = nullptr;
 
-    cg2::Vector3 dir_;
+    myEngine::Vector3 dir_;
 
     // キャラクターの移動速さ
     float kCharacterSpeed = 0.2f;
-    cg2::Vector3 move_;
+    myEngine::Vector3 move_;
 
     const int kBulletTime = 10;
     float bulletCoolTime = 0.0f;
@@ -902,8 +902,8 @@ private:
     static inline const float kWidth = 1.6f;
     static inline const float kHeight = 1.6f;
 
-    cg2::Vector3 velocity_{0, 0, 0}; // 現在速度
-    cg2::Vector3 inputDir_{0, 0, 0}; // 入力方向
+    myEngine::Vector3 velocity_{0, 0, 0}; // 現在速度
+    myEngine::Vector3 inputDir_{0, 0, 0}; // 入力方向
 
     float maxSpeed_ = 0.15f; // 最高速度
     float accel_ = 2.5f;     // 加速
@@ -914,11 +914,11 @@ private:
 
     bool isOnGround_ = false;
 
-    cg2::Transform hpTransform_;
+    myEngine::Transform hpTransform_;
 
     // HPモデル
-    std::vector<std::unique_ptr<cg2::Sprite>> hpSprites_;
-    std::unique_ptr<cg2::Sprite> hpFont;
+    std::vector<std::unique_ptr<myEngine::Sprite>> hpSprites_;
+    std::unique_ptr<myEngine::Sprite> hpFont;
     static constexpr uint32_t kDamageBlockDamage = 75;
     int hp_ = 10000;
 
@@ -927,8 +927,8 @@ private:
     bool debugNoDamage_ = false;
     float damageFeedbackTimer_ = 0.0f;
     float damageFeedbackDuration_ = 0.18f;
-    cg2::Vector4 baseVehicleColor_{1.0f, 1.0f, 1.0f, 1.0f};
-    cg2::Vector4 baseBarrelColor_{0.48f, 0.86f, 0.22f, 1.0f};
+    myEngine::Vector4 baseVehicleColor_{1.0f, 1.0f, 1.0f, 1.0f};
+    myEngine::Vector4 baseBarrelColor_{0.48f, 0.86f, 0.22f, 1.0f};
 
     bool isDead_ = false;
 
@@ -983,7 +983,7 @@ private:
     std::vector<TargetLockVisual> targetLockVisuals_;
     tankspecial::SpinCycle spinCycle_{};
     bool finisherSpinReady_ = false, dashSlashActive_ = false;
-    cg2::Vector3 dashSlashPrevious_{}, dashSlashDirection_{1, 0, 0};
+    myEngine::Vector3 dashSlashPrevious_{}, dashSlashDirection_{1, 0, 0};
     float dashSlashTimer_ = 0;
     uint32_t dashSlashDamage_ = 1;
     std::vector<uint64_t> dashSlashTargets_;
@@ -1019,9 +1019,9 @@ private:
     std::string runStarterBranch_ = "Twin";
     PlayerClassConfig runStarterConfig_{};
     bool demoInputEnabled_ = false, demoShoot_ = false, demoDash_ = false;
-    cg2::Vector2 demoMove_{};
-    cg2::Vector3 demoAim_{};
-    cg2::Vector3 runAimWorld_{};
+    myEngine::Vector2 demoMove_{};
+    myEngine::Vector3 demoAim_{};
+    myEngine::Vector3 runAimWorld_{};
     bool neonDepthAimEnabled_ = false;
     TankExpeditionMaintenance runMaintenance_{};
     PlayerClassConfig runEvolutionConfig_{};
@@ -1034,7 +1034,7 @@ private:
     bool runDashBurstPending_ = false;
     bool runRoomAwaitInputRelease_ = false;
     bool runCheckpointEvolution_ = false;
-    std::vector<cg2::Vector3> runHomingTargets_;
+    std::vector<myEngine::Vector3> runHomingTargets_;
     /// @brief 現在の機体・遠征補正・EMPなどから、ドローンの射撃性能・発射間隔・追従設定を更新する。
     void ConfigureRunDrone(PlayerDrone& drone) const;
     /// @brief ドローン系統の護衛機数を現在の上限に揃える。超過分を削除し、不足分を生成する。
@@ -1103,7 +1103,7 @@ private:
     /// @param recoilPower 発射後の反動の大きさの出力先。ドローン方式では0にする。
     /// @return 攻撃処理を進めた場合true。待ち時間・上限などで処理しない場合false。
     /// @note 有効な弾管理先が必要。trueでも、ドローン上限やAddの拒否などにより生成弾数が増えるとは限らない。
-    bool FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, cg2::Vector3& recoilDir,
+    bool FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, myEngine::Vector3& recoilDir,
                              float& recoilPower);
     /// @brief 機体設定と再使用待ち時間から特殊行動を選んで開始する。開始した場合true。
     bool TryActivateSpecialAction();
@@ -1115,7 +1115,7 @@ private:
     /// @brief 最初の使用可能な近接装備で反撃を予約し、受付時間の解除・無敵時間・スロー要求を設定する。
     void TriggerSaberCounter(const PlayerClassConfig& config);
     /// @brief 方向ベクトルをXY平面でangleDeg度回転し、Z成分を保って値で返す。
-    cg2::Vector3 RotateDirection(const cg2::Vector3& direction, float angleDeg) const;
+    myEngine::Vector3 RotateDirection(const myEngine::Vector3& direction, float angleDeg) const;
     /// @brief 現在の機体設定から砲塔の描画オブジェクトを作り直す。
     void InitializeBarrels();
     /// @brief 砲塔の反動・発光時間をdt_秒進め、機体の位置と照準に合わせて配置を更新する。
@@ -1162,7 +1162,7 @@ private:
     /// @brief バフ継続中の煙パーティクルを自機位置へ出す。
     void SpawnBuffParticle();
     /// @brief ワールド座標をカメラの画面座標へ変換する。
-    cg2::Vector2 WorldToScreen(const cg2::Vector3& worldPos, cg2::Camera* camera);
+    myEngine::Vector2 WorldToScreen(const myEngine::Vector3& worldPos, myEngine::Camera* camera);
 
     float angle_ = 0.0f;
 
@@ -1200,14 +1200,14 @@ private:
     float smashCharge_ = 0.0f; // スマッシュチャージ時間
     float maxCharge_ = 1.0f;
     bool isSmash_ = false; // スマッシュ中かどうか
-    cg2::Vector3 smashDir_;
+    myEngine::Vector3 smashDir_;
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 
     bool debugAutoFireEnabled_ = false;
 #endif
 
-    cg2::Vector2 mousePosition_;
+    myEngine::Vector2 mousePosition_;
 
     bool isChangeMode = false;
     bool evolutionConfirmedEvent_ = false;
@@ -1216,7 +1216,7 @@ private:
     int evolutionSelectedIndex_ = 0;
     float evolutionUiTimer_ = 0.0f;
 
-    std::unique_ptr<cg2::Sprite> sprite;
+    std::unique_ptr<myEngine::Sprite> sprite;
 
     float stealthAlpha_ = 1.0f; // ステルス時の透明度 (1.0:不透明, 0.0:透明)
     bool isStealth_ = false;    // 現在ステルス中か

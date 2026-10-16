@@ -29,8 +29,8 @@ bool TryGetObstacleModel(const std::string& prefab, std::string& model, MapChipT
 
 void Stage::InitializeSurfaceModels()
 {
-	auto* models = cg2::ModelManager::GetInstance();
-	auto* textures = cg2::TextureManager::GetInstance();
+	auto* models = myEngine::ModelManager::GetInstance();
+	auto* textures = myEngine::TextureManager::GetInstance();
 	textures->LoadTexture("resources/skybox.dds");
 	models->CreateModelFromData(stagesurface::kFloorModel, stagesurface::FloorMesh());
 	models->CreateModelFromData(stagesurface::kBlockModel, stagesurface::BlockMesh());
@@ -38,7 +38,7 @@ void Stage::InitializeSurfaceModels()
 	for (int levels=1;levels<=6;++levels)
 		models->CreateModelFromData(stagesurface::StackModelName(levels),stagesurface::StackMesh(levels));
 	if (!surfaceFloor_) {
-		surfaceFloor_ = std::make_unique<cg2::Object3d>();
+		surfaceFloor_ = std::make_unique<myEngine::Object3d>();
 		surfaceFloor_->Initialize();
 		surfaceFloor_->SetModel(models->FindModel(stagesurface::kFloorModel));
 		surfaceFloor_->SetEnvironmentMap(textures->GetSrvIndex("resources/skybox.dds"));
@@ -46,7 +46,7 @@ void Stage::InitializeSurfaceModels()
 }
 
 namespace {
-void ApplySurfaceMaterial(cg2::Object3d& object, const cg2::Vector4& color, float metallic,
+void ApplySurfaceMaterial(myEngine::Object3d& object, const myEngine::Vector4& color, float metallic,
 	float roughness, float lightIntensity)
 {
 	object.SetColor(color);
@@ -70,15 +70,15 @@ void ApplySurfaceMaterial(cg2::Object3d& object, const cg2::Vector4& color, floa
 
 void InitializeSurfaceBlock(Block& block)
 {
-	block.surfaceObject = std::make_unique<cg2::Object3d>();
+	block.surfaceObject = std::make_unique<myEngine::Object3d>();
 	block.surfaceObject->Initialize();
-	block.surfaceObject->SetModel(cg2::ModelManager::GetInstance()->FindModel(stagesurface::kBlockModel));
-	block.surfaceObject->SetEnvironmentMap(cg2::TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds"));
+	block.surfaceObject->SetModel(myEngine::ModelManager::GetInstance()->FindModel(stagesurface::kBlockModel));
+	block.surfaceObject->SetEnvironmentMap(myEngine::TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds"));
 }
 } // namespace
 
-uint32_t Stage::DrawSurfaceFloor(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
-	float halfWidth, float halfHeight, const cg2::Vector3& lightPosition)
+uint32_t Stage::DrawSurfaceFloor(const stagesurface::Settings& settings, const myEngine::Vector3& cameraPos,
+	float halfWidth, float halfHeight, const myEngine::Vector3& lightPosition)
 {
 	if (!surfaceFloor_ || !settings.enabled || !settings.floorEnabled) return 0;
 	// Include every cell, even empty cells, plus the existing camera visibility area.
@@ -114,7 +114,7 @@ uint32_t Stage::DrawSurfaceFloor(const stagesurface::Settings& settings, const c
 	return 1;
 }
 
-uint32_t Stage::DrawSurfaceBlocks(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
+uint32_t Stage::DrawSurfaceBlocks(const stagesurface::Settings& settings, const myEngine::Vector3& cameraPos,
 	float halfWidth, float halfHeight, bool drawNormalBlocks)
 {
 	surfaceTriangles_ = 0;
@@ -131,16 +131,16 @@ uint32_t Stage::DrawSurfaceBlocks(const stagesurface::Settings& settings, const 
 				t.translate.y + std::abs(t.scale.y) < cameraPos.y-halfHeight-3 ||
 				t.translate.y - std::abs(t.scale.y) > cameraPos.y+halfHeight+3) continue;
 			while (surfaceWallObjects_.size() <= i) {
-				auto object = std::make_unique<cg2::Object3d>(); object->Initialize();
-				object->SetModel(cg2::ModelManager::GetInstance()->FindModel(stagesurface::kWallModel));
-				object->SetEnvironmentMap(cg2::TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds"));
+				auto object = std::make_unique<myEngine::Object3d>(); object->Initialize();
+				object->SetModel(myEngine::ModelManager::GetInstance()->FindModel(stagesurface::kWallModel));
+				object->SetEnvironmentMap(myEngine::TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds"));
 				surfaceWallObjects_.push_back(std::move(object));
 			}
 			auto& object = *surfaceWallObjects_[i];
 			const int levels=wall.isolated?1:(wall.exterior?(std::clamp)(int(std::round(settings.exteriorHeight/2.0f)),1,6):settings.stackLevels);
-			object.SetModel(cg2::ModelManager::GetInstance()->FindModel(stagesurface::StackModelName(levels)));
+			object.SetModel(myEngine::ModelManager::GetInstance()->FindModel(stagesurface::StackModelName(levels)));
 			object.SetTransform(SurfaceWallTransform(wall, settings));
-			const auto color = wall.exterior ? cg2::Vector4{.022f,.006f,.014f,1} :
+			const auto color = wall.exterior ? myEngine::Vector4{.022f,.006f,.014f,1} :
 				(wall.type == MapChipType::kDamageBlock ? settings.damageBlockColor : settings.blockColor);
 			ApplySurfaceMaterial(object, color, settings.blockMetallic, settings.blockRoughness, settings.blockLightIntensity);
 			object.Draw(); ++draws; surfaceTriangles_+=12u*static_cast<uint32_t>(levels);
@@ -164,7 +164,7 @@ uint32_t Stage::DrawSurfaceBlocks(const stagesurface::Settings& settings, const 
 	return draws;
 }
 
-cg2::Transform Stage::SurfaceWallTransform(const SurfaceWall& wall, const stagesurface::Settings& settings) {
+myEngine::Transform Stage::SurfaceWallTransform(const SurfaceWall& wall, const stagesurface::Settings& settings) {
 	auto shape = settings;
 	if (wall.exterior) shape.blockHeight = settings.exteriorHeight;
 	else if (wall.isolated) shape.blockHeight /= static_cast<float>(settings.stackLevels);
@@ -212,7 +212,7 @@ const std::vector<SurfaceWall>& Stage::GetSurfaceWalls(const stagesurface::Setti
 		const auto& b=blocks_[rectangle.y+rectangle.height-1][rectangle.x+rectangle.width-1];
 		const float left=(std::min)(a.aabb.min.x,b.aabb.min.x), right=(std::max)(a.aabb.max.x,b.aabb.max.x);
 		const float bottom=(std::min)(a.aabb.min.y,b.aabb.min.y), top=(std::max)(a.aabb.max.y,b.aabb.max.y);
-		cg2::Transform t{{(right-left)*.5f,(top-bottom)*.5f,1},{0,0,0},{(left+right)*.5f,(bottom+top)*.5f,a.worldTransform.translate.z}};
+		myEngine::Transform t{{(right-left)*.5f,(top-bottom)*.5f,1},{0,0,0},{(left+right)*.5f,(bottom+top)*.5f,a.worldTransform.translate.z}};
 		const bool border=a.type==MapChipType::kBlock && isBorder(rectangle);
 		surfaceWalls_.push_back({t,a.type,border,!border && rectangle.width*rectangle.height==1});
 	}
@@ -235,7 +235,7 @@ void Stage::Initialize() {
     while (!initialization.Advance()) {}
 }
 
-cg2::InitializationTask Stage::BuildInitialization() {
+myEngine::InitializationTask Stage::BuildInitialization() {
     mapChip_ = std::make_unique<MapChip>();
     mapChip_->LoadMapChipCsv("resources/map.csv");
     auto blocks = BuildBlocks();
@@ -289,7 +289,7 @@ void Stage::Draw() {
 	}
 }
 
-void Stage::DrawVisible(const cg2::Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks) {
+void Stage::DrawVisible(const myEngine::Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks) {
 	const float minX = cameraPos.x - halfWidth;
 	const float maxX = cameraPos.x + halfWidth;
 	const float minY = cameraPos.y - halfHeight;
@@ -304,7 +304,7 @@ void Stage::DrawVisible(const cg2::Vector3& cameraPos, float halfWidth, float ha
 				continue;
 			}
 
-			const cg2::Vector3& pos = block.originalPos;
+			const myEngine::Vector3& pos = block.originalPos;
 			if (pos.x < minX - marginX || pos.x > maxX + marginX ||
 				pos.y < minY - marginY || pos.y > maxY + marginY) {
 				continue;
@@ -324,7 +324,7 @@ void Stage::ClearBlocksForPreview()
 	mergedBlocks_.clear();
 }
 
-bool Stage::AddLevelObstacle(const cg2::Transform& transform, const std::string& prefab)
+bool Stage::AddLevelObstacle(const myEngine::Transform& transform, const std::string& prefab)
 {
 	std::string model;
 	MapChipType type = MapChipType::kBlock;
@@ -336,7 +336,7 @@ bool Stage::AddLevelObstacle(const cg2::Transform& transform, const std::string&
 
 	Block block{};
 	block.worldTransform = transform;
-	block.object = std::make_unique<cg2::Object3d>();
+	block.object = std::make_unique<myEngine::Object3d>();
 	block.object->Initialize();
 	block.object->SetModel(model);
 	block.object->SetTransform(block.worldTransform);
@@ -348,8 +348,8 @@ bool Stage::AddLevelObstacle(const cg2::Transform& transform, const std::string&
 	block.isLevelObject = true;
 
 	// 描画はtransform全体を使う一方、衝突形状は位置とスケールだけの軸平行形状にする。
-	const cg2::Vector3& pos = block.worldTransform.translate;
-	const cg2::Vector3 halfSize = {
+	const myEngine::Vector3& pos = block.worldTransform.translate;
+	const myEngine::Vector3 halfSize = {
 		MapChip::kBlockWidth * block.worldTransform.scale.x * 0.5f,
 		MapChip::kBlockHeight * block.worldTransform.scale.y * 0.5f,
 		MapChip::kBlockWidth * block.worldTransform.scale.z * 0.5f
@@ -387,7 +387,7 @@ void Stage::GenerateBlocks() {
     while (!blocks.Advance()) {}
 }
 
-cg2::InitializationTask Stage::BuildBlocks() {
+myEngine::InitializationTask Stage::BuildBlocks() {
 	InitializeSurfaceModels();
 
 	uint32_t numBlockHorizontal = mapChip_->GetNumBlockHorizontal();
@@ -406,9 +406,9 @@ cg2::InitializationTask Stage::BuildBlocks() {
 
 				Block& block = blocks_[y][x];
 
-				block.worldTransform = cg2::InitWorldTransform();
+				block.worldTransform = myEngine::InitWorldTransform();
 				block.worldTransform.translate = mapChip_->GetMapChipPositionByIndex(x, y);
-				block.object = std::make_unique<cg2::Object3d>();
+				block.object = std::make_unique<myEngine::Object3d>();
 				block.object->Initialize();
 				if (mapChip_->GetMapChipTypeByIndex(x, y) == MapChipType::kBlock) {
 					block.object->SetModel("cube.obj");
@@ -454,7 +454,7 @@ cg2::InitializationTask Stage::BuildBlocks() {
 void Stage::RebuildMergedBlocks()
 {
 	// 各マップ行を左から走査し、同種の連続セルだけをX方向にまとめる。レベル障害物は独立したAABB。
-	auto FixAABB = [](cg2::AABB& aabb) {
+	auto FixAABB = [](myEngine::AABB& aabb) {
 		if (aabb.min.x > aabb.max.x)
 			std::swap(aabb.min.x, aabb.max.x);
 		if (aabb.min.y > aabb.max.y)
@@ -473,7 +473,7 @@ void Stage::RebuildMergedBlocks()
 			continue;
 		}
 		bool merging = false;
-		cg2::AABB mergedAABB{};
+		myEngine::AABB mergedAABB{};
 		MapChipType currentType{};
 
 		for (uint32_t j = 0; j < blocks_[i].size(); ++j) {
@@ -507,18 +507,18 @@ void Stage::RebuildMergedBlocks()
 	}
 }
 
-void Stage::ResolvePlayerCollision(Player& player, cg2::AxisXYZ axis)
+void Stage::ResolvePlayerCollision(Player& player, myEngine::AxisXYZ axis)
 {
 
-	cg2::AABB playerAABB = player.GetAABB();
-	cg2::Vector3 playerPos = player.GetWorldPosition();
-	cg2::Vector3 velocity = player.GetMove();
+	myEngine::AABB playerAABB = player.GetAABB();
+	myEngine::Vector3 playerPos = player.GetWorldPosition();
+	myEngine::Vector3 velocity = player.GetMove();
 
 	const float kEpsilon = 0.01f;
 
 	for (const MergedBlock& block : mergedBlocks_) {
 
-		if (!cg2::IsCollision(playerAABB, block.aabb)) {
+		if (!myEngine::IsCollision(playerAABB, block.aabb)) {
 			continue;
 		}
 
@@ -527,7 +527,7 @@ void Stage::ResolvePlayerCollision(Player& player, cg2::AxisXYZ axis)
 			player.Damage(damageBlockDamage_);
 		}
 
-		cg2::Vector3 overlap = {
+		myEngine::Vector3 overlap = {
 			std::min(playerAABB.max.x, block.aabb.max.x) - std::max(playerAABB.min.x, block.aabb.min.x),
 			std::min(playerAABB.max.y, block.aabb.max.y) - std::max(playerAABB.min.y, block.aabb.min.y),
 			0.0f
@@ -536,7 +536,7 @@ void Stage::ResolvePlayerCollision(Player& player, cg2::AxisXYZ axis)
 		// --------------------
 		// X方向衝突
 		// --------------------
-		if (axis == cg2::X) {
+		if (axis == myEngine::X) {
 			if (playerAABB.min.x < block.aabb.min.x) {
 				playerPos.x -= overlap.x + kEpsilon;
 			} else {
@@ -548,7 +548,7 @@ void Stage::ResolvePlayerCollision(Player& player, cg2::AxisXYZ axis)
 		// --------------------
 		// Y方向衝突
 		// --------------------
-		if (axis == cg2::Y) {
+		if (axis == myEngine::Y) {
 			if (playerAABB.min.y < block.aabb.min.y) {
 				playerPos.y -= overlap.y + kEpsilon;
 			} else {
@@ -565,18 +565,18 @@ void Stage::ResolvePlayerCollision(Player& player, cg2::AxisXYZ axis)
 	}
 }
 
-void Stage::ResolvePlayerDroneCollision(PlayerDrone& playerDrone, cg2::AxisXYZ axis)
+void Stage::ResolvePlayerDroneCollision(PlayerDrone& playerDrone, myEngine::AxisXYZ axis)
 {
 
-	cg2::AABB playerAABB = playerDrone.GetAABB();
-	cg2::Vector3 playerPos = playerDrone.GetWorldPosition();
-	cg2::Vector3 velocity = playerDrone.GetMove();
+	myEngine::AABB playerAABB = playerDrone.GetAABB();
+	myEngine::Vector3 playerPos = playerDrone.GetWorldPosition();
+	myEngine::Vector3 velocity = playerDrone.GetMove();
 
 	const float kEpsilon = 0.01f;
 
 	for (const MergedBlock& block : mergedBlocks_) {
 
-		if (!cg2::IsCollision(playerAABB, block.aabb)) {
+		if (!myEngine::IsCollision(playerAABB, block.aabb)) {
 			continue;
 		}
 
@@ -585,7 +585,7 @@ void Stage::ResolvePlayerDroneCollision(PlayerDrone& playerDrone, cg2::AxisXYZ a
 
 		}
 
-		cg2::Vector3 overlap = {
+		myEngine::Vector3 overlap = {
 			std::min(playerAABB.max.x, block.aabb.max.x) - std::max(playerAABB.min.x, block.aabb.min.x),
 			std::min(playerAABB.max.y, block.aabb.max.y) - std::max(playerAABB.min.y, block.aabb.min.y),
 			0.0f
@@ -594,7 +594,7 @@ void Stage::ResolvePlayerDroneCollision(PlayerDrone& playerDrone, cg2::AxisXYZ a
 		// --------------------
 		// X方向衝突
 		// --------------------
-		if (axis == cg2::X) {
+		if (axis == myEngine::X) {
 			if (playerAABB.min.x < block.aabb.min.x) {
 				playerPos.x -= overlap.x + kEpsilon;
 			} else {
@@ -606,7 +606,7 @@ void Stage::ResolvePlayerDroneCollision(PlayerDrone& playerDrone, cg2::AxisXYZ a
 		// --------------------
 		// Y方向衝突
 		// --------------------
-		if (axis == cg2::Y) {
+		if (axis == myEngine::Y) {
 			if (playerAABB.min.y < block.aabb.min.y) {
 				playerPos.y -= overlap.y + kEpsilon;
 			} else {
@@ -621,30 +621,30 @@ void Stage::ResolvePlayerDroneCollision(PlayerDrone& playerDrone, cg2::AxisXYZ a
 	}
 }
 
-void Stage::ResolveEnemyCollision(Enemy& enemy, cg2::AxisXYZ axis)
+void Stage::ResolveEnemyCollision(Enemy& enemy, myEngine::AxisXYZ axis)
 {
-	cg2::AABB enemyAABB = enemy.GetAABB();
-	cg2::Vector3 enemyPos = enemy.GetWorldPosition();
+	myEngine::AABB enemyAABB = enemy.GetAABB();
+	myEngine::Vector3 enemyPos = enemy.GetWorldPosition();
 	const float kEpsilon = 0.01f;
 
 
 	for (const MergedBlock& block : mergedBlocks_) {
 
-		if (!cg2::IsCollision(enemyAABB, block.aabb)) {
+		if (!myEngine::IsCollision(enemyAABB, block.aabb)) {
 			continue;
 		}
 
-		cg2::Vector3 overlap = {
+		myEngine::Vector3 overlap = {
 			std::min(enemyAABB.max.x, block.aabb.max.x) - std::max(enemyAABB.min.x, block.aabb.min.x),
 			std::min(enemyAABB.max.y, block.aabb.max.y) - std::max(enemyAABB.min.y, block.aabb.min.y),
 			0.0f
 		};
 
-		if (axis == cg2::X) {
+		if (axis == myEngine::X) {
 			enemyPos.x += (enemyAABB.min.x < block.aabb.min.x)
 				? -(overlap.x + kEpsilon)
 				: +(overlap.x + kEpsilon);
-		} else if (axis == cg2::Y) {
+		} else if (axis == myEngine::Y) {
 			enemyPos.y += (enemyAABB.min.y < block.aabb.min.y)
 				? -(overlap.y + kEpsilon)
 				: +(overlap.y + kEpsilon);
@@ -655,30 +655,30 @@ void Stage::ResolveEnemyCollision(Enemy& enemy, cg2::AxisXYZ axis)
 	}
 }
 
-void Stage::ResolveExpEnemyCollision(ExpEnemy& enemy, cg2::AxisXYZ axis)
+void Stage::ResolveExpEnemyCollision(ExpEnemy& enemy, myEngine::AxisXYZ axis)
 {
-	cg2::AABB enemyAABB = enemy.GetAABB();
-	cg2::Vector3 enemyPos = enemy.GetWorldPosition();
+	myEngine::AABB enemyAABB = enemy.GetAABB();
+	myEngine::Vector3 enemyPos = enemy.GetWorldPosition();
 	const float kEpsilon = 0.01f;
 
 
 	for (const MergedBlock& block : mergedBlocks_) {
 
-		if (!cg2::IsCollision(enemyAABB, block.aabb)) {
+		if (!myEngine::IsCollision(enemyAABB, block.aabb)) {
 			continue;
 		}
 
-		cg2::Vector3 overlap = {
+		myEngine::Vector3 overlap = {
 			std::min(enemyAABB.max.x, block.aabb.max.x) - std::max(enemyAABB.min.x, block.aabb.min.x),
 			std::min(enemyAABB.max.y, block.aabb.max.y) - std::max(enemyAABB.min.y, block.aabb.min.y),
 			0.0f
 		};
 
-		if (axis == cg2::X) {
+		if (axis == myEngine::X) {
 			enemyPos.x += (enemyAABB.min.x < block.aabb.min.x)
 				? -(overlap.x + kEpsilon)
 				: +(overlap.x + kEpsilon);
-		} else if (axis == cg2::Y) {
+		} else if (axis == myEngine::Y) {
 			enemyPos.y += (enemyAABB.min.y < block.aabb.min.y)
 				? -(overlap.y + kEpsilon)
 				: +(overlap.y + kEpsilon);
@@ -694,30 +694,30 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 	for (Bullet* bullet : bullets) {
 		if (!bullet || bullet->IsDead()) continue;
 
-		cg2::Vector3 bulletPos = bullet->GetWorldPosition();
+		myEngine::Vector3 bulletPos = bullet->GetWorldPosition();
 		float radius = bullet->GetRadius();
-		cg2::Sphere bulletSphere{ bulletPos, radius };
+		myEngine::Sphere bulletSphere{ bulletPos, radius };
 
 		bool isCollided = false;
 		float nearestDist = std::numeric_limits<float>::max();
-		cg2::Vector3 nearestClosestPoint{};
-		cg2::Vector3 nearestNormal{};
+		myEngine::Vector3 nearestClosestPoint{};
+		myEngine::Vector3 nearestNormal{};
 
 		for (const auto& block : mergedBlocks_) {
 
-			if (!cg2::IsCollision(block.aabb, bulletSphere)) continue;
+			if (!myEngine::IsCollision(block.aabb, bulletSphere)) continue;
 
-			cg2::Vector3 closestPoint{
+			myEngine::Vector3 closestPoint{
 				std::clamp(bulletSphere.center.x, block.aabb.min.x, block.aabb.max.x),
 				std::clamp(bulletSphere.center.y, block.aabb.min.y, block.aabb.max.y),
 				std::clamp(bulletSphere.center.z, block.aabb.min.z, block.aabb.max.z)
 			};
 
 			// 差分ベクトルを計算
-			cg2::Vector3 diff = bulletSphere.center - closestPoint;
+			myEngine::Vector3 diff = bulletSphere.center - closestPoint;
 			diff.z = 0.0f; // 2D的な処理のためZを無視
 
-			float dist = cg2::Length(diff);
+			float dist = myEngine::Length(diff);
 
 			// XYの最近接点との差がほぼ0なら、外向き法線を正規化からは求められない。
 			if (dist < 0.0001f) {
@@ -744,7 +744,7 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 			}
 
 			// ここまで来たら「外側で接している」ので正規化できる
-			cg2::Vector3 normal = cg2::Normalize(diff);
+			myEngine::Vector3 normal = myEngine::Normalize(diff);
 
 			if (dist < nearestDist) {
 				nearestDist = dist;
@@ -768,17 +768,17 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 
 void Stage::ResolvePlayerCollisionSphere(Player& player)
 {
-	cg2::Sphere sphere = player.GetSphere();
-	cg2::Vector3 pos = sphere.center;
-	cg2::Vector3 vel = player.GetMove();
+	myEngine::Sphere sphere = player.GetSphere();
+	myEngine::Vector3 pos = sphere.center;
+	myEngine::Vector3 vel = player.GetMove();
 
 	for (const auto& line : blocks_) {
 		for (const Block& block : line) {
 			if (!block.isActive) continue;
 
 			// ここで Sphere vs OBB
-			cg2::CollisionResult hit =
-				cg2::CheckSphereVsOBB(sphere, block.obb);
+			myEngine::CollisionResult hit =
+				myEngine::CheckSphereVsOBB(sphere, block.obb);
 
 			if (!hit.hit) continue;
 
@@ -786,13 +786,13 @@ void Stage::ResolvePlayerCollisionSphere(Player& player)
 			pos += hit.normal * hit.depth;
 
 			// 壁へ向かう法線成分だけを除き、接線方向の速度は保持する。
-			float vn = cg2::Dot(vel, hit.normal);
+			float vn = myEngine::Dot(vel, hit.normal);
 			if (vn < 0.0f) {
 				vel -= hit.normal * vn;
 			}
 
 			// 接地判定
-			if (cg2::Dot(hit.normal, cg2::Vector3(0, 1, 0)) > 0.7f) {
+			if (myEngine::Dot(hit.normal, myEngine::Vector3(0, 1, 0)) > 0.7f) {
 				player.SetOnGround(true);
 			}
 
@@ -807,18 +807,18 @@ void Stage::ResolvePlayerCollisionSphere(Player& player)
 
 void Stage::ResolvePlayerCollisionSphereY(Player& player)
 {
-	cg2::Sphere sphere = player.GetSphere();
-	cg2::Vector3 pos = sphere.center;
-	cg2::Vector3 vel = player.GetMove();
+	myEngine::Sphere sphere = player.GetSphere();
+	myEngine::Vector3 pos = sphere.center;
+	myEngine::Vector3 vel = player.GetMove();
 
 	for (const auto& line : blocks_) {
 		for (const Block& block : line) {
 			if (!block.isActive) continue;
 
-			cg2::CollisionResult hit = cg2::CheckSphereVsOBB(sphere, block.obb);
+			myEngine::CollisionResult hit = myEngine::CheckSphereVsOBB(sphere, block.obb);
 			if (!hit.hit) continue;
 
-			float upDot = cg2::Dot(hit.normal, cg2::Vector3(0, 1, 0));
+			float upDot = myEngine::Dot(hit.normal, myEngine::Vector3(0, 1, 0));
 
 			// 法線のY成分が0.7を上回るか-0.7を下回る接触だけを使う。境界の±0.7は除く。
 			if (upDot > 0.7f || upDot < -0.7f) {
@@ -844,31 +844,31 @@ void Stage::ResolvePlayerCollisionSphereY(Player& player)
 }
 void Stage::ResolvePlayerCollisionSphereX(Player& player)
 {
-	cg2::Sphere sphere = player.GetSphere();
-	cg2::Vector3 pos = sphere.center;
-	cg2::Vector3 vel = player.GetMove();
+	myEngine::Sphere sphere = player.GetSphere();
+	myEngine::Vector3 pos = sphere.center;
+	myEngine::Vector3 vel = player.GetMove();
 
 	for (const auto& line : blocks_) {
 		for (const Block& block : line) {
 			if (!block.isActive) continue;
 
-			cg2::CollisionResult hit = cg2::CheckSphereVsOBB(sphere, block.obb);
+			myEngine::CollisionResult hit = myEngine::CheckSphereVsOBB(sphere, block.obb);
 			if (!hit.hit) continue;
 
 			// 法線からYだけを除く。残るX/Z方向を正規化して位置・速度を補正する。
-			cg2::Vector3 lateralNormal = hit.normal;
+			myEngine::Vector3 lateralNormal = hit.normal;
 			lateralNormal.y = 0.0f;
 
-			float lenSq = cg2::Dot(lateralNormal, lateralNormal);
+			float lenSq = myEngine::Dot(lateralNormal, lateralNormal);
 			if (lenSq < 0.0001f) continue;
 
-			lateralNormal = cg2::Normalize(lateralNormal);
+			lateralNormal = myEngine::Normalize(lateralNormal);
 
 			// Yを除いた法線方向へ押し戻す。純粋なX軸だけの補正ではない。
 			pos += lateralNormal * hit.depth;
 
 			// 横速度を止める
-			float vn = cg2::Dot(vel, lateralNormal);
+			float vn = myEngine::Dot(vel, lateralNormal);
 			if (vn < 0.0f) {
 				vel -= lateralNormal * vn;
 			}
@@ -881,13 +881,13 @@ void Stage::ResolvePlayerCollisionSphereX(Player& player)
 	player.SetVelocity(vel);
 }
 
-bool Stage::IsCollisionWithAnyBlock(const cg2::Vector3& pos, float radius) {
-	cg2::Sphere spawnSphere = { pos, radius };
+bool Stage::IsCollisionWithAnyBlock(const myEngine::Vector3& pos, float radius) {
+	myEngine::Sphere spawnSphere = { pos, radius };
 	for (const auto& line : blocks_) {
 		for (const Block& block : line) {
 			if (!block.isActive) continue;
 			// 既存の判定関数（CheckSphereVsOBB）を利用
-			cg2::CollisionResult hit = cg2::CheckSphereVsOBB(spawnSphere, block.obb);
+			myEngine::CollisionResult hit = myEngine::CheckSphereVsOBB(spawnSphere, block.obb);
 			if (hit.hit) {
 				return true; // 壁に当たっている
 			}

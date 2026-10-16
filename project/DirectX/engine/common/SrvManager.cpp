@@ -1,0 +1,156 @@
+#include "SrvManager.h"
+
+#include <algorithm>
+
+// 動的TextLabelと個別Bloom用RenderTextureを同じヒープで管理するため、
+// 従来の512では通常プレイ中にも枯渇する。
+namespace myEngine {
+
+const uint32_t SrvManager::kMaxSrvCount = 8192;
+
+void SrvManager::Initialize(DirectXCommon* dxCommon) {
+	dxCommon_ = dxCommon;
+
+	// SRVはShaderから参照するため、ShaderVisibleな共通ヒープを作成する。
+	descriptorHeap_ = dxCommon_->CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kMaxSrvCount, true);
+	// デスクリプタサイズを取得
+	descriptorSize = dxCommon_->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	useIndex_ = 1;
+	allocatedCount_ = 0;
+	highWaterMark_ = 0;
+	freeIndices_.clear();
+	allocatedIndices_.assign(kMaxSrvCount, false);
+	allocatedIndices_[0] = true;
+}
+
+uint32_t SrvManager::Allocate() {
+	uint32_t index = 0;
+	if (!freeIndices_.empty()) {
+		index = freeIndices_.back();
+		freeIndices_.pop_back();
+	} else {
+		assert(useIndex_ < kMaxSrvCount);
+		if (useIndex_ >= kMaxSrvCount) {
+			return 0;
+		}
+		index = useIndex_++;
+	}
+
+	assert(index > 0 && index < allocatedIndices_.size());
+	assert(!allocatedIndices_[index]);
+	allocatedIndices_[index] = true;
+	++allocatedCount_;
+	highWaterMark_ = (std::max)(highWaterMark_, allocatedCount_);
+	return index;
+}
+
+void SrvManager::Free(uint32_t index)
+{
+	if (index == 0 || index >= allocatedIndices_.size()) {
+		return;
+	}
+	assert(allocatedIndices_[index]);
+	if (!allocatedIndices_[index]) {
+		return;
+	}
+	allocatedIndices_[index] = false;
+	allocatedCount_ = allocatedCount_ > 0 ? allocatedCount_ - 1 : 0;
+	freeIndices_.push_back(index);
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE SrvManager::GetCPUDescriptorHandle(uint32_t index)
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+	handleCPU.ptr += (descriptorSize * index);
+	return handleCPU;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE SrvManager::GetGPUDescriptorHandle(uint32_t index)
+{
+	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap_->GetGPUDescriptorHandleForHeapStart();
+	handleGPU.ptr += (descriptorSize * index);
+	return handleGPU;
+}
+
+void SrvManager::CreateSRVforTexture2D(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT format, UINT MipLevels)
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // 2Dテクスチャ
+	srvDesc.Texture2D.MipLevels = MipLevels;
+	dxCommon_->GetDevice()->CreateShaderResourceView(pResource, &srvDesc, GetCPUDescriptorHandle(srvIndex));
+}
+
+void SrvManager::CreateSRVforStructuredBuffer(uint32_t srvIndex, ID3D12Resource* pResouce, UINT numElements, UINT structureBytrStrike)
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = numElements;
+	srvDesc.Buffer.StructureByteStride = structureBytrStrike;
+	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	dxCommon_->GetDevice()->CreateShaderResourceView(pResouce, &srvDesc, GetCPUDescriptorHandle(srvIndex));
+}
+
+void SrvManager::CreateSRVforShadowMap(uint32_t srvIndex, ID3D12Resource* pResource)
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	// 【重要】D24_S8 のリソースを Shader で「深度値」として読むためのフォーマット
+	srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	dxCommon_->GetDevice()->CreateShaderResourceView(pResource, &srvDesc, GetCPUDescriptorHandle(srvIndex));
+}
+
+void SrvManager::CreateSRVforTextureCube(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT format, UINT MipLevels) {
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE; // CubeMap用
+	srvDesc.TextureCube.MostDetailedMip = 0;
+	srvDesc.TextureCube.MipLevels = MipLevels;
+	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+
+	dxCommon_->GetDevice()->CreateShaderResourceView(pResource, &srvDesc, GetCPUDescriptorHandle(srvIndex));
+}
+
+void SrvManager::CreateUAVforStructuredBuffer(uint32_t srvIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride)
+{
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Buffer.FirstElement = 0;
+	uavDesc.Buffer.NumElements = numElements;
+	uavDesc.Buffer.StructureByteStride = structureByteStride;
+	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+	dxCommon_->GetDevice()->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, GetCPUDescriptorHandle(srvIndex));
+}
+
+void SrvManager::CreateUAVforRawBuffer(uint32_t srvIndex, ID3D12Resource* pResource)
+{
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+	uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Buffer.FirstElement = 0;
+	uavDesc.Buffer.NumElements = static_cast<UINT>(pResource->GetDesc().Width / sizeof(uint32_t));
+	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+	dxCommon_->GetDevice()->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, GetCPUDescriptorHandle(srvIndex));
+}
+
+void SrvManager::PreDraw() {
+	// 描画用のDescriptorHeapの設定
+	ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeap_.Get() };
+	dxCommon_->GetList()->SetDescriptorHeaps(1, descriptorHeaps);
+}
+
+void SrvManager::SetGraphicsRootDescriptorTable(UINT rootParameterIndex, uint32_t srvIndex)
+{
+	dxCommon_->GetList()->SetGraphicsRootDescriptorTable(rootParameterIndex, GetGPUDescriptorHandle(srvIndex));;
+}
+
+} // namespace myEngine

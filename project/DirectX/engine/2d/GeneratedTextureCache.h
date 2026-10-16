@@ -14,7 +14,7 @@
 // Bump the directory version whenever the procedural environment, integration
 // algorithm, sample count or output layout changes. The payload is DDS, with a
 // small integrity header so a truncated/corrupt cache always rebuilds safely.
-namespace cg2 {
+namespace myEngine {
 
 namespace GeneratedTextureCache {
 
@@ -22,7 +22,7 @@ namespace GeneratedTextureCache {
 inline bool Enabled()
 {
     char value[8]{};
-    const DWORD length = GetEnvironmentVariableA("CG2_STARTUP_CACHE", value, sizeof(value));
+    const DWORD length = GetEnvironmentVariableA("MYENGINE_STARTUP_CACHE", value, sizeof(value));
     return length != 1 || value[0] != '0';
 }
 
@@ -30,7 +30,7 @@ inline bool Enabled()
 inline std::filesystem::path Path(const wchar_t* name)
 {
     wchar_t configured[32768]{};
-    const DWORD length = GetEnvironmentVariableW(L"CG2_TEXTURE_CACHE_DIR", configured, static_cast<DWORD>(_countof(configured)));
+    const DWORD length = GetEnvironmentVariableW(L"MYENGINE_TEXTURE_CACHE_DIR", configured, static_cast<DWORD>(_countof(configured)));
     const std::filesystem::path root =
         length > 0 && length < _countof(configured) ? std::filesystem::path(configured) : std::filesystem::path(L"generated/texture_cache");
     return root / L"v1" / (std::wstring(name) + L".dds.cache");
@@ -143,4 +143,4 @@ inline void Store(const wchar_t* name, const DirectX::ScratchImage& image)
 
 } // namespace GeneratedTextureCache
 
-} // namespace cg2
+} // namespace myEngine

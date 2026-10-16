@@ -2,7 +2,7 @@
 #include "Struct.h"
 #include "Calculation.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief ビュー行列・射影行列とカメラの位置・姿勢を管理する。
 class Camera {
@@ -125,4 +125,4 @@ private:
     float farClip_;
 };
 
-} // namespace cg2
+} // namespace myEngine

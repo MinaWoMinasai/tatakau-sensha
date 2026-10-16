@@ -1,24 +1,24 @@
 #include "game/debug/session/DepthValidation.h"
 #include "game/session/GameplaySystems.h"
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "Enemy.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "PlayerDrone.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <cmath>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <limits>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <stdexcept>
 #endif
 
 namespace gameplay {
 // Developer fixtures observe actual actors and declare every scripted shortcut.
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 
 namespace {
 using gameplaytest::Scenario;
@@ -59,11 +59,11 @@ const char* PhaseName(neondepth::Phase value)
     }
     return "invalid";
 }
-json Vector(const cg2::Vector3& value)
+json Vector(const myEngine::Vector3& value)
 {
     return json::array({value.x, value.y, value.z});
 }
-json Matrix(const cg2::Matrix4x4& value)
+json Matrix(const myEngine::Matrix4x4& value)
 {
     json rows = json::array();
     for (const auto& row : value.m)
@@ -171,7 +171,7 @@ nlohmann::json DepthValidation::MakeNeonDepthValidationConditions() const
 {
     const auto& session = GameplayScenarioSession::Get();
     const auto& settings = session.GetSettings();
-    auto* dx = cg2::Object3dCommon::GetInstance()->GetDxCommon();
+    auto* dx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
     const auto actual = world_.gameplayQueries->MakeDeveloperGameCaptureMetadata(*dx);
     const bool bossDefeatRequested = settings.depthFixture.probe == "hp0" || settings.depthFixture.probe == "simultaneous_death";
     const bool playerLethalRequested = settings.depthFixture.probe == "player_death" ||
@@ -188,12 +188,12 @@ nlohmann::json DepthValidation::MakeNeonDepthValidationConditions() const
     };
     // IScene exposes this observing query as nonconst; it does not mutate Scene.
     const auto showcase = world_.gameplayQueries->GetDeveloperShowcaseState();
-    const auto* window = cg2::WinApp::GetInstance();
+    const auto* window = myEngine::WinApp::GetInstance();
     const int clientWidth = window->GetClientWidth(), clientHeight = window->GetClientHeight();
     json clientToRenderScale = nullptr;
     if (clientWidth > 0 && clientHeight > 0)
         clientToRenderScale =
-            json::array({double(cg2::WinApp::kClientWidth) / clientWidth, double(cg2::WinApp::kClientHeight) / clientHeight});
+            json::array({double(myEngine::WinApp::kClientWidth) / clientWidth, double(myEngine::WinApp::kClientHeight) / clientHeight});
     json result = {{"shortcutFixture", true},
                    {"normalMainRoute", false},
                    {"automatedInput", true},
@@ -222,7 +222,7 @@ nlohmann::json DepthValidation::MakeNeonDepthValidationConditions() const
                    {"debugUIIncluded", false},
                    {"audio", "none"},
                    {"actualBossPolicy", world_.resources.enemy_->IsNeonDepthEncounterEnabled() ? "depth" : "legacy"},
-                   {"resolution", {cg2::WinApp::kClientWidth, cg2::WinApp::kClientHeight}},
+                   {"resolution", {myEngine::WinApp::kClientWidth, myEngine::WinApp::kClientHeight}},
                    {"renderResolutionSource", "WinApp fixed native swap-chain and viewport dimensions"},
                    {"actualClientResolution", {clientWidth, clientHeight}},
                    {"clientToRenderScale", clientToRenderScale},
@@ -246,7 +246,7 @@ nlohmann::json DepthValidation::MakeNeonDepthValidationConditions() const
                        {"nearClip", world_.resources.camera->GetNearClip()},
                        {"farClip", world_.resources.camera->GetFarClip()},
                        {"jitter", {world_.resources.camera->GetProjectionJitter().x, world_.resources.camera->GetProjectionJitter().y}},
-                       {"debugCamera", cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()}}}}},
+                       {"debugCamera", myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()}}}}},
                    {"operations", world_.resources.neonDepthOperations_}};
     for (const char* key : {"globalPost", "gpu", "validation"})
         if (actual.contains(key))
@@ -333,12 +333,12 @@ void DepthValidation::PrepareNeonDepthValidation()
         operation(fixture.probe == "retry" ? "actual_confirm_retry" : "actual_confirm_title_return");
     }
     if (settings.input.empty() && !world_.resources.player_->IsDead() && !world_.run.tankRunPaused_) {
-        cg2::Vector2 movement{};
+        myEngine::Vector2 movement{};
         bool shoot = false, dash = false;
         const auto core = world_.resources.enemy_->GetWorldPosition(), position = world_.resources.player_->GetWorldPosition();
         if (settings.scenario == Scenario::NeonDepthDamage) {
             const auto direction = core - position;
-            const float length = cg2::Length(direction);
+            const float length = myEngine::Length(direction);
             const float range = world_.resources.player_->GetExpeditionCombatStyle() == tankbuild::Style::Melee ? 2.8f : 7;
             if (length > range && length > .001f)
                 movement = {direction.x / length, direction.y / length};
@@ -349,7 +349,7 @@ void DepthValidation::PrepareNeonDepthValidation()
             if (retreat) {
                 // Read the committed plan. This helper changes only regular input,
                 // never the actual player position, shape or attack clock.
-                cg2::Vector2 away{position.x - before.plan.lockedTarget[0], position.y - before.plan.lockedTarget[1]};
+                myEngine::Vector2 away{position.x - before.plan.lockedTarget[0], position.y - before.plan.lockedTarget[1]};
                 float length = std::sqrt(away.x * away.x + away.y * away.y);
                 if (length < .001f) {
                     away = {0, -1};

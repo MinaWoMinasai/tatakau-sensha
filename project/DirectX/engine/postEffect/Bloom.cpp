@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace cg2 {
+namespace myEngine {
 
 namespace {
 
@@ -1373,4 +1373,4 @@ void Bloom::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_
 
 }
 
-} // namespace cg2
+} // namespace myEngine

@@ -6,7 +6,7 @@
 #include "RtvManager.h"
 #include <memory>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief オブジェクト用の輪郭線・発光の抽出と合成を管理する。
 class ObjectPostEffect {
@@ -105,4 +105,4 @@ private:
     bool preserveFullResolutionCapture_ = false;
 };
 
-} // namespace cg2
+} // namespace myEngine

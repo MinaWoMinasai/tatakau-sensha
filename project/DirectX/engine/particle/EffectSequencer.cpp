@@ -15,7 +15,7 @@
 #include "externals/imgui/imgui.h"
 #endif
 
-namespace cg2 {
+namespace myEngine {
 
 nlohmann::json ProjectileProfile::ToJson() const {
     return {
@@ -412,4 +412,4 @@ void EffectSequencer::DrawImGuiEditor(const Vector3& defaultStartPos, const Vect
 }
 #endif
 
-} // namespace cg2
+} // namespace myEngine

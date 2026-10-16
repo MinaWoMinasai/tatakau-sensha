@@ -21,12 +21,12 @@ public:
     /// @brief 射撃強化の演出用に、イベントの種類・端点・強さを保持する。
     struct BuildEvent {
         BuildEventKind kind;
-        cg2::Vector3 start{}, end{};
+        myEngine::Vector3 start{}, end{};
         float strength = 1;
     };
     /// @brief マーキング対象の位置と蓄積数を表示へ渡す。
     struct MarkVisual {
-        cg2::Vector3 position;
+        myEngine::Vector3 position;
         int stacks = 0;
     };
     /// @brief 射撃強化の命中・発動・追加弾の登録・帰還開始・反射予約の累積件数を保持する。
@@ -62,7 +62,7 @@ public:
     void NotifyPlayerHit(Bullet& bullet, Collider& target, bool killed);
     /// @brief 装甲反射で発生する弾を衝突走査後の生成へ予約する。
     /// @note 元の弾は変更しない。既に装甲反射済み、速度がほぼ0、または予約列が48件以上なら予約しない。
-    void QueueArmorReflection(const Bullet& bullet, const cg2::Vector3& targetPosition);
+    void QueueArmorReflection(const Bullet& bullet, const myEngine::Vector3& targetPosition);
     /// @brief 管理配列に残る弾の所有者別内訳を表す。死亡済みで削除待ちの弾も含む。
     struct BulletCounts {
         size_t player = 0;
@@ -93,7 +93,7 @@ public:
 
     /// @brief 弾の軌跡を管理する描画資源を初期化する。
     /// @note 描画基盤を準備してから呼び、渡した利用先を利用期間中有効に保つ。既存の弾は消去しない。
-    void Initialize(cg2::DirectXCommon* dxCommon, cg2::Object3dCommon* object3dCommon);
+    void Initialize(myEngine::DirectXCommon* dxCommon, myEngine::Object3dCommon* object3dCommon);
     /// @brief 弾の所有権を受け取り、追加条件を満たす場合に管理配列へ登録する。
     /// @param bullet 所有権を渡す弾。空のunique_ptrなら何もしない。
     /// @note 渡す弾のUsesRunProjectileRules()がtrueの場合だけ、同じ所有者の生存弾が
@@ -115,7 +115,7 @@ public:
     /// @brief 各弾に互換用のDrawを呼ぶ。現在、弾本体はこの経路で描画しない。
     void Draw();
     /// @brief 軌跡を描画する。
-    void DrawTrails(const cg2::Matrix4x4& viewProjection);
+    void DrawTrails(const myEngine::Matrix4x4& viewProjection);
 
     /// @brief 衝突判定に使う弾のポインター一覧を返す。
     /// @note 一覧はコピーで、弾は借用する。死亡済みの弾も含むため利用時に状態を確認する。
@@ -146,15 +146,15 @@ public:
         return trailManager_ && trailManager_->HasDrawableInstances();
     }
     /// @brief 軌跡の描画件数・頂点数の集計を返す。軌跡管理がなければ空の集計を返す。
-    cg2::TrailManager::DrawStats GetTrailDrawStats() const
+    myEngine::TrailManager::DrawStats GetTrailDrawStats() const
     {
-        return trailManager_ ? trailManager_->GetDrawStats() : cg2::TrailManager::DrawStats{};
+        return trailManager_ ? trailManager_->GetDrawStats() : myEngine::TrailManager::DrawStats{};
     }
 
 private:
     /// @brief 衝突走査が終わってから追加する弾の生成情報を保持する。
     struct PendingShot {
-        cg2::Vector3 position{}, velocity{};
+        myEngine::Vector3 position{}, velocity{};
         uint32_t damage = 1;
         bool reflection = false;
     };
@@ -170,18 +170,18 @@ private:
     std::vector<Collider*> LiveCombatTargets() const;
     /// @brief 2点間の内部を最大128分割して地形との接触を調べ、遮るサンプルがなければtrueを返す。
     /// @note 地形の参照先が未設定ならtrue。端点の検査や厳密な線分交差判定は行わない。
-    bool HasClearLink(const cg2::Vector3& from, const cg2::Vector3& to) const;
+    bool HasClearLink(const myEngine::Vector3& from, const myEngine::Vector3& to) const;
     /// @brief 対応するボス・経験値敵へ射撃強化のダメージを適用する。
     /// @return この適用で撃破した場合true。falseでもダメージを適用している場合がある。
     /// @note nullptrや対応外の型、死亡済み・資源の経験値敵には適用しない。
-    bool DamageBuildTarget(Collider* target, uint32_t damage, const cg2::Vector3& source);
+    bool DamageBuildTarget(Collider* target, uint32_t damage, const myEngine::Vector3& source);
     /// @brief 撃破時の破裂能力が有効なら、破裂子弾を予約し発動を集計する。
     /// @note 破裂子弾からの再発動、または予約列が42件を超える場合は予約しない。
-    void QueueKillBurst(const Bullet& bullet, const cg2::Vector3& position);
+    void QueueKillBurst(const Bullet& bullet, const myEngine::Vector3& position);
     /// @brief 演出イベントを保留列へ追加する。既に64件あれば追加しない。
-    void BuildEventAt(BuildEventKind kind, const cg2::Vector3& start, const cg2::Vector3& end, float strength = 1);
+    void BuildEventAt(BuildEventKind kind, const myEngine::Vector3& start, const myEngine::Vector3& end, float strength = 1);
     std::vector<std::unique_ptr<Bullet>> bullets_;
-    std::unique_ptr<cg2::TrailManager> trailManager_;
+    std::unique_ptr<myEngine::TrailManager> trailManager_;
     BulletTrailSettings trailSettings_;
     GrowthStats growthStats_{};
     std::vector<Bullet::SpecialImpact> specialImpacts_;

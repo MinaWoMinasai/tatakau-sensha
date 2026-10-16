@@ -1,29 +1,29 @@
 #include "game/debug/session/GameplayScenarioRunner.h"
 #include "game/session/GameplaySystems.h"
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "Enemy.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "PlayerDrone.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "RuntimeProfiler.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <cmath>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <cstdio>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <filesystem>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <stdexcept>
 #endif
 
 namespace gameplay {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 
 namespace {
 using gameplaytest::Scenario;
@@ -83,7 +83,7 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
         if (session.GetSettings().recording.enabled) {
             Microsoft::WRL::ComPtr<ID3D12Resource> backbuffer;
             // DirectX getters are nonconst; no device work/copy is submitted here.
-            auto* writableDx = cg2::Object3dCommon::GetInstance()->GetDxCommon();
+            auto* writableDx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
             const HRESULT hr =
                 writableDx->GetSwapChain()->GetBuffer(writableDx->GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&backbuffer));
             RequireScenario(SUCCEEDED(hr), "Could not inspect the native recording backbuffer.");
@@ -211,7 +211,7 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
         world_.resources.enemyManager_->ClearRunActors();
         if (!settings.enemyWave.empty()) {
             for (const auto& wave : settings.enemyWave) {
-                const cg2::Vector3 position{wave.position[0], wave.position[1], wave.position[2]};
+                const myEngine::Vector3 position{wave.position[0], wave.position[1], wave.position[2]};
                 RequireScenario(tankcontent::FindEnemy(world_.run.expeditionContent_, wave.type) &&
                                     !world_.resources.stage_->IsCollisionWithAnyBlock(position, 0.8f) &&
                                     world_.resources.enemyManager_->SpawnLevelEnemy(position, wave.type, wave.hp),
@@ -262,13 +262,13 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
         world_.resources.player_->SetDebugNoDamage(true);
         world_.combat.previousPlayerHp_ = world_.resources.player_->GetHp();
         world_.combat.previousBossHp_ = world_.resources.enemy_->GetHp();
-        world_.resources.player_->SetDemoInput(true, {}, boss ? world_.resources.enemy_->GetWorldPosition() : cg2::Vector3{50, 29, 0},
+        world_.resources.player_->SetDemoInput(true, {}, boss ? world_.resources.enemy_->GetWorldPosition() : myEngine::Vector3{50, 29, 0},
                                                false, false);
         for (unsigned index = 0; index < settings.initialProjectiles; ++index) {
             const float angle = static_cast<float>(index) * 0.618034f;
             const float radius = 2.0f + static_cast<float>(index % 12) * 0.30f;
             const auto point = source->playerStart;
-            cg2::Vector3 position{point.x + 8.0f + std::cos(angle) * radius, point.y + std::sin(angle) * radius, 0};
+            myEngine::Vector3 position{point.x + 8.0f + std::cos(angle) * radius, point.y + std::sin(angle) * radius, 0};
             if (world_.resources.stage_->IsCollisionWithAnyBlock(position, 0.5f))
                 position = world_.resources.player_->GetWorldPosition();
             auto projectile = std::make_unique<Bullet>();
@@ -318,7 +318,7 @@ bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
         PostQuitMessage(9);
         return true;
     }
-    world_.resources.gameplayScenarioCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
+    world_.resources.gameplayScenarioCapture_.Resolve(*myEngine::Object3dCommon::GetInstance()->GetDxCommon());
     if (world_.resources.gameplayScenarioCapturePending_) {
         if (world_.resources.gameplayScenarioCapture_.IsBusy()) {
             if (world_.resources.gameplayScenarioCaptureRecording_) {
@@ -536,7 +536,7 @@ gameplaytest::Snapshot GameplayScenarioRunner::MakeGameplayScenarioSnapshot() co
         snapshot.bossShots = static_cast<unsigned>(depth.activationEvents);
         snapshot.bossDashes = 0;
     }
-    snapshot.descriptors = cg2::Object3dCommon::GetInstance()->GetSrvManager()->GetAllocatedCount();
+    snapshot.descriptors = myEngine::Object3dCommon::GetInstance()->GetSrvManager()->GetAllocatedCount();
     if (world_.resources.neonBossVisual_) {
         const auto& stats = world_.resources.neonBossVisual_->GetStats();
         snapshot.visualCreates = stats.resourceCreates;
@@ -572,7 +572,7 @@ void GameplayScenarioRunner::RecordGameplayScenarioFrame()
             session.Fail(std::string("Depth frame evidence: ") + error.what());
         }
     }
-    cg2::RuntimeProfiler::Get().SetCounter("Scenario simulation frame", session.GetFrame());
+    myEngine::RuntimeProfiler::Get().SetCounter("Scenario simulation frame", session.GetFrame());
     const auto scenario = session.GetSettings().scenario;
     if ((scenario == Scenario::StageTransition || scenario == Scenario::ExpeditionTransition) &&
         world_.run.expeditionMapRun_.GetActiveNodeId() == "scenario_b" && world_.run.tankExpedition_.IsCombat() &&
@@ -621,7 +621,7 @@ void GameplayScenarioRunner::QueueGameplayScenarioCapture(const std::string& nam
         world_.presentation.developerBloomFreeze_ = true;
 }
 
-void GameplayScenarioRunner::RecordGameplayScenarioCapture(cg2::DirectXCommon& dx)
+void GameplayScenarioRunner::RecordGameplayScenarioCapture(myEngine::DirectXCommon& dx)
 {
     auto& session = GameplayScenarioSession::Get();
     if (!session.IsActive() || world_.demo.titleDemo_ || !world_.resources.gameplayScenarioCapturePending_)
@@ -659,7 +659,7 @@ void GameplayScenarioRunner::RecordGameplayScenarioCapture(cg2::DirectXCommon& d
                 {"forcedDefeat", session.GetSettings().scenario == Scenario::BossDeath},
                 {"cameraFixtureCentering", !gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario) &&
                                                BossScenario(session.GetSettings().scenario) && world_.gameplayQueries->IsRunRivalActive()},
-                {"debugCamera", cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()},
+                {"debugCamera", myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()},
                 {"HUDIncluded", true},
                 {"debugUIIncluded", false},
                 {"audio", "none"},

@@ -17,7 +17,7 @@ public:
     void QueueStageBlockNeonOutlines();
 
     /// @brief ステージ後処理キャッシュUV差分を返す。
-    cg2::Vector2 GetStagePostCacheUvOffset(const cg2::Vector3& currentCameraPos) const;
+    myEngine::Vector2 GetStagePostCacheUvOffset(const myEngine::Vector3& currentCameraPos) const;
 
 private:
     GameWorld& world_;

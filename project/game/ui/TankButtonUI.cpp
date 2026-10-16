@@ -23,7 +23,7 @@ constexpr float kTwoPi = kPi * 2.0f;
 constexpr const char* kWhiteTexture = "resources/white512x512.png";
 
 /// @brief JSON配列から4成分を読む。要素数が不足する場合はfallbackを返す。
-cg2::Vector4 ReadVector4(const nlohmann::json& value, const cg2::Vector4& fallback)
+myEngine::Vector4 ReadVector4(const nlohmann::json& value, const myEngine::Vector4& fallback)
 {
 	if (!value.is_array() || value.size() < 4) {
 		return fallback;
@@ -32,7 +32,7 @@ cg2::Vector4 ReadVector4(const nlohmann::json& value, const cg2::Vector4& fallba
 }
 
 /// @brief ベクトル2を読み取る。
-cg2::Vector2 ReadVector2(const nlohmann::json& value, const cg2::Vector2& fallback)
+myEngine::Vector2 ReadVector2(const nlohmann::json& value, const myEngine::Vector2& fallback)
 {
 	if (!value.is_array() || value.size() < 2) {
 		return fallback;
@@ -41,13 +41,13 @@ cg2::Vector2 ReadVector2(const nlohmann::json& value, const cg2::Vector2& fallba
 }
 
 /// @brief ベクトル4を書き込む。
-nlohmann::json WriteVector4(const cg2::Vector4& value)
+nlohmann::json WriteVector4(const myEngine::Vector4& value)
 {
 	return nlohmann::json::array({ value.x, value.y, value.z, value.w });
 }
 
 /// @brief ベクトル2を書き込む。
-nlohmann::json WriteVector2(const cg2::Vector2& value)
+nlohmann::json WriteVector2(const myEngine::Vector2& value)
 {
 	return nlohmann::json::array({ value.x, value.y });
 }
@@ -77,13 +77,13 @@ void ClampStyle(TankButtonUiStyle& style)
 }
 
 /// @brief 色の各成分へ倍率を掛ける。
-cg2::Vector4 MultiplyColor(const cg2::Vector4& color, const cg2::Vector4& tint)
+myEngine::Vector4 MultiplyColor(const myEngine::Vector4& color, const myEngine::Vector4& tint)
 {
 	return { color.x * tint.x, color.y * tint.y, color.z * tint.z, color.w * tint.w };
 }
 
 /// @brief 線を設定する。
-void SetLine(cg2::Sprite* sprite, const cg2::Vector2& a, const cg2::Vector2& b, float width, const cg2::Vector4& color)
+void SetLine(myEngine::Sprite* sprite, const myEngine::Vector2& a, const myEngine::Vector2& b, float width, const myEngine::Vector4& color)
 {
 	const float dx = b.x - a.x;
 	const float dy = b.y - a.y;
@@ -264,35 +264,35 @@ bool SaveTankButtonUiStyle(const TankButtonUiStyle& sourceStyle, const std::stri
 	}
 }
 
-void TankButtonUI::Initialize(cg2::SpriteCommon* spriteCommon)
+void TankButtonUI::Initialize(myEngine::SpriteCommon* spriteCommon)
 {
 	spriteCommon_ = spriteCommon;
 	for (auto& sprite : fillSprites_) {
-		sprite = std::make_unique<cg2::Sprite>();
+		sprite = std::make_unique<myEngine::Sprite>();
 		sprite->Initialize(spriteCommon_, kWhiteTexture);
 		sprite->SetAnchorPoint({ 0.5f, 0.5f });
 	}
 	for (auto& layer : frameSprites_) {
 		for (auto& sprite : layer) {
-			sprite = std::make_unique<cg2::Sprite>();
+			sprite = std::make_unique<myEngine::Sprite>();
 			sprite->Initialize(spriteCommon_, kWhiteTexture);
 			sprite->SetAnchorPoint({ 0.0f, 0.5f });
 		}
 	}
 	for (auto& sprite : iconSprites_) {
-		sprite = std::make_unique<cg2::Sprite>();
+		sprite = std::make_unique<myEngine::Sprite>();
 		sprite->Initialize(spriteCommon_, kWhiteTexture);
 		sprite->SetAnchorPoint({ 0.0f, 0.5f });
 	}
 	for (auto& sprite : iconBloomSprites_) {
-		sprite = std::make_unique<cg2::Sprite>();
+		sprite = std::make_unique<myEngine::Sprite>();
 		sprite->Initialize(spriteCommon_, kWhiteTexture);
 		sprite->SetAnchorPoint({ 0.0f, 0.5f });
 	}
-	cg2::TextStyle textStyle{};
+	myEngine::TextStyle textStyle{};
 	textStyle.fontFamily = "Meiryo";
 	textStyle.fontSize = 17.0f;
-	label_ = std::make_unique<cg2::TextLabel>();
+	label_ = std::make_unique<myEngine::TextLabel>();
 	label_->Initialize(spriteCommon_, visualData_.hiraganaName, textStyle);
 	label_->SetAnchorPoint({ 0.5f, 0.5f });
 }
@@ -316,7 +316,7 @@ void TankButtonUI::SetState(TankButtonState state)
 	state_ = state;
 }
 
-void TankButtonUI::Update(const cg2::Vector2& center, const TankButtonUiStyle& sourceStyle)
+void TankButtonUI::Update(const myEngine::Vector2& center, const TankButtonUiStyle& sourceStyle)
 {
 	TankButtonUiStyle style = sourceStyle;
 	ClampStyle(style);
@@ -325,12 +325,12 @@ void TankButtonUI::Update(const cg2::Vector2& center, const TankButtonUiStyle& s
 	UpdateLabel(center, style);
 }
 
-void TankButtonUI::UpdateFrame(const cg2::Vector2& center, const TankButtonUiStyle& style)
+void TankButtonUI::UpdateFrame(const myEngine::Vector2& center, const TankButtonUiStyle& style)
 {
 	const float halfW = style.buttonWidth * 0.5f;
 	const float halfH = style.buttonHeight * 0.5f;
 	const float radius = (std::clamp)(style.cornerRadius, 0.0f, (std::min)(halfW, halfH));
-	cg2::Vector4 fill = style.fillColor;
+	myEngine::Vector4 fill = style.fillColor;
 	fill.w = style.fillOpacity;
 	if (state_ == TankButtonState::Locked) {
 		fill = MultiplyColor(fill, style.lockedTint);
@@ -346,9 +346,9 @@ void TankButtonUI::UpdateFrame(const cg2::Vector2& center, const TankButtonUiSty
 	fillSprites_[1]->Update();
 
 	constexpr int kArcSegments = 16;
-	std::array<cg2::Vector2, kFrameSegmentCount> points{};
+	std::array<myEngine::Vector2, kFrameSegmentCount> points{};
 	size_t pointCount = 0;
-	const std::array<cg2::Vector2, 4> cornerCenters = {{
+	const std::array<myEngine::Vector2, 4> cornerCenters = {{
 		{ center.x + halfW - radius, center.y - halfH + radius },
 		{ center.x + halfW - radius, center.y + halfH - radius },
 		{ center.x - halfW + radius, center.y + halfH - radius },
@@ -370,8 +370,8 @@ void TankButtonUI::UpdateFrame(const cg2::Vector2& center, const TankButtonUiSty
 	}
 
 	const int colorIndex = (std::clamp)(rank_, 1, 4) - 1;
-	cg2::Vector4 borderColor = style.borderColors[colorIndex];
-	cg2::Vector4 glowColor = style.glowColors[colorIndex];
+	myEngine::Vector4 borderColor = style.borderColors[colorIndex];
+	myEngine::Vector4 glowColor = style.glowColors[colorIndex];
 	if (state_ == TankButtonState::Locked) {
 		borderColor = MultiplyColor(borderColor, style.lockedTint);
 		glowColor = MultiplyColor(glowColor, style.lockedTint);
@@ -387,7 +387,7 @@ void TankButtonUI::UpdateFrame(const cg2::Vector2& center, const TankButtonUiSty
 		style.borderWidth,
 		style.borderWidth * widthMultiplier,
 	}};
-	std::array<cg2::Vector4, kFrameLayerCount> colors = {{ glowColor, glowColor, borderColor }};
+	std::array<myEngine::Vector4, kFrameLayerCount> colors = {{ glowColor, glowColor, borderColor }};
 	const float hdrBoost = 1.0f + style.bloomBoost * 2.2f;
 	colors[0].x *= hdrBoost;
 	colors[0].y *= hdrBoost;
@@ -398,7 +398,7 @@ void TankButtonUI::UpdateFrame(const cg2::Vector2& center, const TankButtonUiSty
 
 	for (size_t layerIndex = 0; layerIndex < frameSprites_.size(); ++layerIndex) {
 		for (size_t segmentIndex = 0; segmentIndex < frameSprites_[layerIndex].size(); ++segmentIndex) {
-			cg2::Sprite* sprite = frameSprites_[layerIndex][segmentIndex].get();
+			myEngine::Sprite* sprite = frameSprites_[layerIndex][segmentIndex].get();
 			if (segmentIndex < pointCount) {
 				SetLine(sprite, points[segmentIndex], points[(segmentIndex + 1) % pointCount], widths[layerIndex], colors[layerIndex]);
 			} else {
@@ -410,35 +410,35 @@ void TankButtonUI::UpdateFrame(const cg2::Vector2& center, const TankButtonUiSty
 	}
 }
 
-void TankButtonUI::UpdateIcon(const cg2::Vector2& buttonCenter, const TankButtonUiStyle& style)
+void TankButtonUI::UpdateIcon(const myEngine::Vector2& buttonCenter, const TankButtonUiStyle& style)
 {
 	/// @brief UIの線の一括描画へ渡す端点・幅・色を表す。
 	struct LineCommand {
-		cg2::Vector2 a{};
-		cg2::Vector2 b{};
+		myEngine::Vector2 a{};
+		myEngine::Vector2 b{};
 		float width = 1.0f;
-		cg2::Vector4 color{};
+		myEngine::Vector4 color{};
 	};
 	std::array<LineCommand, kIconSpriteCount> commands{};
 	size_t commandCount = 0;
-	auto addLine = [&](const cg2::Vector2& a, const cg2::Vector2& b, float width, const cg2::Vector4& color) {
+	auto addLine = [&](const myEngine::Vector2& a, const myEngine::Vector2& b, float width, const myEngine::Vector4& color) {
 		if (commandCount < commands.size()) {
 			commands[commandCount++] = { a, b, width, color };
 		}
 	};
 
-	const cg2::Vector2 center{ buttonCenter.x, buttonCenter.y + style.iconOffsetY };
+	const myEngine::Vector2 center{ buttonCenter.x, buttonCenter.y + style.iconOffsetY };
 	const float iconScale = style.iconScale;
 	const float radius = 25.0f * iconScale;
 	const float stateAlpha = state_ == TankButtonState::Locked ? 0.34f : state_ == TankButtonState::Normal ? 0.78f : 1.0f;
-	cg2::Vector4 bodyOutline = visualData_.bodyOutlineColor;
+	myEngine::Vector4 bodyOutline = visualData_.bodyOutlineColor;
 	bodyOutline.w = stateAlpha;
 	if (state_ == TankButtonState::Locked) {
 		bodyOutline = MultiplyColor(bodyOutline, style.lockedTint);
 	}
 
 	// GameScene::queueTankBillboard と同じ、砲身の外周四辺を描く方式。
-	const std::array<cg2::Vector4, 6> fireGroupColors = {{
+	const std::array<myEngine::Vector4, 6> fireGroupColors = {{
 		{ 0.55f, 1.00f, 0.35f, 1.0f },
 		{ 1.00f, 0.86f, 0.25f, 1.0f },
 		{ 0.30f, 0.92f, 1.00f, 1.0f },
@@ -449,9 +449,9 @@ void TankButtonUI::UpdateIcon(const cg2::Vector2& buttonCenter, const TankButton
 	const float lineWidth = 1.8f * iconScale;
 	for (const WeaponMountConfig& mount : visualData_.weaponMounts) {
 		const float angle = mount.angleDeg * kPi / 180.0f;
-		const cg2::Vector2 forward{ std::cos(angle), std::sin(angle) };
-		const cg2::Vector2 right{ -forward.y, forward.x };
-		const cg2::Vector2 barrelCenter{
+		const myEngine::Vector2 forward{ std::cos(angle), std::sin(angle) };
+		const myEngine::Vector2 right{ -forward.y, forward.x };
+		const myEngine::Vector2 barrelCenter{
 			center.x + mount.offset.x * radius,
 			center.y + mount.offset.y * radius,
 		};
@@ -467,9 +467,9 @@ void TankButtonUI::UpdateIcon(const cg2::Vector2& buttonCenter, const TankButton
 			length *= 0.86f;
 			halfWidth *= 1.80f;
 		}
-		const cg2::Vector2 base{ barrelCenter.x - forward.x * length * 0.20f, barrelCenter.y - forward.y * length * 0.20f };
-		const cg2::Vector2 tip{ barrelCenter.x + forward.x * length * 0.80f, barrelCenter.y + forward.y * length * 0.80f };
-		cg2::Vector4 barrelColor = mount.fireGroup >= 0
+		const myEngine::Vector2 base{ barrelCenter.x - forward.x * length * 0.20f, barrelCenter.y - forward.y * length * 0.20f };
+		const myEngine::Vector2 tip{ barrelCenter.x + forward.x * length * 0.80f, barrelCenter.y + forward.y * length * 0.80f };
+		myEngine::Vector4 barrelColor = mount.fireGroup >= 0
 			? fireGroupColors[static_cast<size_t>(mount.fireGroup) % fireGroupColors.size()]
 			: mount.outlineColor;
 		barrelColor.w = stateAlpha;
@@ -478,10 +478,10 @@ void TankButtonUI::UpdateIcon(const cg2::Vector2& buttonCenter, const TankButton
 		}
 		const float baseHalf = mount.barrelShape == BarrelShape::Trapezoid ? halfWidth * 1.28f : halfWidth;
 		const float tipHalf = mount.barrelShape == BarrelShape::Trapezoid ? halfWidth * 0.72f : halfWidth;
-		const cg2::Vector2 baseLeft{ base.x - right.x * baseHalf, base.y - right.y * baseHalf };
-		const cg2::Vector2 tipLeft{ tip.x - right.x * tipHalf, tip.y - right.y * tipHalf };
-		const cg2::Vector2 tipRight{ tip.x + right.x * tipHalf, tip.y + right.y * tipHalf };
-		const cg2::Vector2 baseRight{ base.x + right.x * baseHalf, base.y + right.y * baseHalf };
+		const myEngine::Vector2 baseLeft{ base.x - right.x * baseHalf, base.y - right.y * baseHalf };
+		const myEngine::Vector2 tipLeft{ tip.x - right.x * tipHalf, tip.y - right.y * tipHalf };
+		const myEngine::Vector2 tipRight{ tip.x + right.x * tipHalf, tip.y + right.y * tipHalf };
+		const myEngine::Vector2 baseRight{ base.x + right.x * baseHalf, base.y + right.y * baseHalf };
 		addLine(baseLeft, tipLeft, lineWidth, barrelColor);
 		addLine(tipLeft, tipRight, lineWidth, barrelColor);
 		addLine(tipRight, baseRight, lineWidth, barrelColor);
@@ -507,7 +507,7 @@ void TankButtonUI::UpdateIcon(const cg2::Vector2& buttonCenter, const TankButton
 	default:
 		break;
 	}
-	std::array<cg2::Vector2, 28> polygon{};
+	std::array<myEngine::Vector2, 28> polygon{};
 	const float radiusX = radius * (std::clamp)(visualData_.bodyScale.x, 0.45f, 1.8f);
 	const float radiusY = radius * (std::clamp)(visualData_.bodyScale.y, 0.45f, 1.8f);
 	for (int i = 0; i < polygonCount; ++i) {
@@ -521,9 +521,9 @@ void TankButtonUI::UpdateIcon(const cg2::Vector2& buttonCenter, const TankButton
 
 	if (visualData_.usesDrone) {
 		for (float side : { -1.0f, 1.0f }) {
-			const cg2::Vector2 droneCenter{ center.x - radiusX - 11.0f * iconScale, center.y + side * 15.0f * iconScale };
+			const myEngine::Vector2 droneCenter{ center.x - radiusX - 11.0f * iconScale, center.y + side * 15.0f * iconScale };
 			const float droneRadius = 5.5f * iconScale;
-			const std::array<cg2::Vector2, 4> dronePoints = {{
+			const std::array<myEngine::Vector2, 4> dronePoints = {{
 				{ droneCenter.x, droneCenter.y - droneRadius },
 				{ droneCenter.x + droneRadius, droneCenter.y },
 				{ droneCenter.x, droneCenter.y + droneRadius },
@@ -536,11 +536,11 @@ void TankButtonUI::UpdateIcon(const cg2::Vector2& buttonCenter, const TankButton
 	}
 
 	for (size_t i = 0; i < iconSprites_.size(); ++i) {
-		cg2::Sprite* sprite = iconSprites_[i].get();
-		cg2::Sprite* bloomSprite = iconBloomSprites_[i].get();
+		myEngine::Sprite* sprite = iconSprites_[i].get();
+		myEngine::Sprite* bloomSprite = iconBloomSprites_[i].get();
 		if (i < commandCount) {
 			SetLine(sprite, commands[i].a, commands[i].b, commands[i].width, commands[i].color);
-			cg2::Vector4 bloomColor = commands[i].color;
+			myEngine::Vector4 bloomColor = commands[i].color;
 			const float stateGlow = StateGlowMultiplier(state_, style);
 			const float hdrBoost = 1.20f + style.bloomBoost * 2.4f + stateGlow * 0.75f;
 			bloomColor.x *= hdrBoost;
@@ -564,9 +564,9 @@ void TankButtonUI::UpdateIcon(const cg2::Vector2& buttonCenter, const TankButton
 	}
 }
 
-void TankButtonUI::UpdateLabel(const cg2::Vector2& center, const TankButtonUiStyle& style)
+void TankButtonUI::UpdateLabel(const myEngine::Vector2& center, const TankButtonUiStyle& style)
 {
-	cg2::TextStyle textStyle{};
+	myEngine::TextStyle textStyle{};
 	textStyle.fontFamily = style.labelFontFamily;
 	textStyle.fontPath = style.labelFontPath;
 	textStyle.fontWeight = style.labelFontWeight;
@@ -619,18 +619,18 @@ void TankButtonUI::DrawBloomSource()
 }
 
 void TankButtonGallery::Initialize(
-	cg2::SpriteCommon* spriteCommon,
+	myEngine::SpriteCommon* spriteCommon,
 	const std::array<TankButtonVisualData, 4>& classVisuals)
 {
 	spriteCommon_ = spriteCommon;
 	LoadTankButtonUiStyle(style_, "resources/configs/tankButtonUiStyle.json", &styleStatus_);
-	bloomEffect_ = std::make_unique<cg2::ObjectPostEffect>();
+	bloomEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
 	bloomEffect_->Initialize(
-		cg2::Object3dCommon::GetInstance()->GetDxCommon(),
-		cg2::Object3dCommon::GetInstance()->GetSrvManager(),
+		myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
+		myEngine::Object3dCommon::GetInstance()->GetSrvManager(),
 		nullptr,
 		1.0f);
-	backdrop_ = std::make_unique<cg2::Sprite>();
+	backdrop_ = std::make_unique<myEngine::Sprite>();
 	backdrop_->Initialize(spriteCommon_, kWhiteTexture);
 	backdrop_->SetAnchorPoint({ 0.0f, 0.0f });
 	for (auto& button : buttons_) {
@@ -639,18 +639,18 @@ void TankButtonGallery::Initialize(
 	}
 	BuildSamples(classVisuals);
 
-	cg2::TextStyle titleStyle{};
+	myEngine::TextStyle titleStyle{};
 	titleStyle.fontFamily = "Meiryo";
 	titleStyle.fontSize = 24.0f;
 	titleStyle.color = { 0.76f, 1.0f, 0.94f, 1.0f };
 	titleStyle.outlineColor = { 0.0f, 0.02f, 0.05f, 0.86f };
 	titleStyle.outlineThickness = 0.8f;
 	titleStyle.padding = 5.0f;
-	titleLabel_ = std::make_unique<cg2::TextLabel>();
+	titleLabel_ = std::make_unique<myEngine::TextLabel>();
 	titleLabel_->Initialize(spriteCommon_, "TANK BUTTON UI // VISUAL SAMPLES", titleStyle);
 	titleLabel_->SetPosition({ 38.0f, 18.0f });
 
-	cg2::TextStyle rowStyle = titleStyle;
+	myEngine::TextStyle rowStyle = titleStyle;
 	rowStyle.fontSize = 16.0f;
 	rowStyle.color = { 0.58f, 0.76f, 0.84f, 1.0f };
 	rowStyle.outlineThickness = 0.35f;
@@ -660,11 +660,11 @@ void TankButtonGallery::Initialize(
 		"CLASS SHAPE\n4 TYPES",
 	}};
 	for (size_t i = 0; i < rowLabels_.size(); ++i) {
-		rowLabels_[i] = std::make_unique<cg2::TextLabel>();
+		rowLabels_[i] = std::make_unique<myEngine::TextLabel>();
 		rowLabels_[i]->Initialize(spriteCommon_, rowTexts[i], rowStyle);
 		rowLabels_[i]->SetAnchorPoint({ 0.0f, 0.5f });
 	}
-	noteLabel_ = std::make_unique<cg2::TextLabel>();
+	noteLabel_ = std::make_unique<myEngine::TextLabel>();
 	noteLabel_->Initialize(spriteCommon_, "VIEW ONLY // NO GAMEPLAY INPUT", rowStyle);
 	noteLabel_->SetPosition({ 812.0f, 26.0f });
 	noteLabel_->SetAnchorPoint({ 1.0f, 0.0f });
@@ -702,7 +702,7 @@ void TankButtonGallery::Update()
 	}
 	ClampStyle(style_);
 	if (bloomEffect_) {
-		cg2::BloomParam bloomParam = bloomEffect_->GetParam();
+		myEngine::BloomParam bloomParam = bloomEffect_->GetParam();
 		bloomParam.threshold = 0.0f;
 		bloomParam.intensity = 1.10f + style_.bloomBoost * 2.5f;
 		bloomParam.outlineWidth = 0.0f;
@@ -711,8 +711,8 @@ void TankButtonGallery::Update()
 	}
 	backdrop_->SetPosition({ 0.0f, 0.0f });
 	backdrop_->SetSize({
-		static_cast<float>(cg2::WinApp::kClientWidth),
-		static_cast<float>(cg2::WinApp::kClientHeight),
+		static_cast<float>(myEngine::WinApp::kClientWidth),
+		static_cast<float>(myEngine::WinApp::kClientHeight),
 	});
 	backdrop_->SetColor({ 0.006f, 0.012f, 0.024f, 0.975f });
 	backdrop_->Update();
@@ -726,7 +726,7 @@ void TankButtonGallery::Update()
 		for (int localIndex = 0; localIndex < 4; ++localIndex) {
 			const int row = localIndex / columns;
 			const int column = localIndex % columns;
-			const cg2::Vector2 center{
+			const myEngine::Vector2 center{
 				style_.previewAreaOffset.x + static_cast<float>(column) * (style_.buttonWidth + style_.buttonSpacingX),
 				groupTopCenter + static_cast<float>(row) * (style_.buttonHeight + style_.buttonSpacingY),
 			};
@@ -741,13 +741,13 @@ void TankButtonGallery::DrawAfterPostEffects()
 	if (!visible_) {
 		return;
 	}
-	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+	myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
 	if (backdrop_) {
 		backdrop_->Draw();
 	}
 	if (bloomEffect_) {
 		bloomEffect_->BeginCapture();
-		cg2::SpriteCommon::GetInstance()->PreDrawForScene(cg2::kNormal);
+		myEngine::SpriteCommon::GetInstance()->PreDrawForScene(myEngine::kNormal);
 		for (const auto& button : buttons_) {
 			button->DrawBloomSource();
 		}
@@ -772,7 +772,7 @@ void TankButtonGallery::Draw()
 	if (!visible_) {
 		return;
 	}
-	cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+	myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
 	for (const auto& button : buttons_) {
 		button->Draw();
 	}

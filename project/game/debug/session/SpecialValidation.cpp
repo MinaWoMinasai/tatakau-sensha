@@ -17,7 +17,7 @@ constexpr std::array<tankrun::CardId, 15> kSpecialEffects{
     tankrun::CardId::DroneCharge,    tankrun::CardId::DroneRebuildBomb, tankrun::CardId::TargetPainter,  tankrun::CardId::AutonomousSpread,
     tankrun::CardId::DashSlash,      tankrun::CardId::SpinBlade,        tankrun::CardId::WallSmash};
 /// @brief 検証用の対象配置を計算する。
-cg2::Vector3 ProbePosition(int index, size_t actor, float age)
+myEngine::Vector3 ProbePosition(int index, size_t actor, float age)
 {
     switch (index) {
     case 0:
@@ -27,15 +27,15 @@ cg2::Vector3 ProbePosition(int index, size_t actor, float age)
     case 2:
         return {38.6f, 29, 0};
     case 4:
-        return actor == 0 ? cg2::Vector3{38, 29, 0} : actor == 1 ? cg2::Vector3{41, 32, 0} : cg2::Vector3{44, 31, 0};
+        return actor == 0 ? myEngine::Vector3{38, 29, 0} : actor == 1 ? myEngine::Vector3{41, 32, 0} : myEngine::Vector3{44, 31, 0};
     case 7:
-        return actor == 0 ? cg2::Vector3{38, 29, 0} : actor == 1 ? cg2::Vector3{38, 32, 0} : cg2::Vector3{38, 26, 0};
+        return actor == 0 ? myEngine::Vector3{38, 29, 0} : actor == 1 ? myEngine::Vector3{38, 32, 0} : myEngine::Vector3{38, 26, 0};
     case 11:
         return {38, 25 + 4 * static_cast<float>(actor), 0};
     case 13:
-        return actor == 0 ? cg2::Vector3{33, 29, 0} : cg2::Vector3{27, 29, 0};
+        return actor == 0 ? myEngine::Vector3{33, 29, 0} : myEngine::Vector3{27, 29, 0};
     case 14:
-        return actor == 0 ? cg2::Vector3{65.5f, 29, 0} : cg2::Vector3{65, 31.5f, 0};
+        return actor == 0 ? myEngine::Vector3{65.5f, 29, 0} : myEngine::Vector3{65, 31.5f, 0};
     default:
         return {38, 29, 0};
     }
@@ -46,7 +46,7 @@ void SpecialValidation::InitializeSpecialValidationFixture()
 {
     wchar_t flag[8]{};
     world_.run.specialValidationEnabled_ =
-        !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"CG2_TANK_SPECIAL_AUTOTEST", flag, 8) > 0 && flag[0] == L'1';
+        !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"MYENGINE_TANK_SPECIAL_AUTOTEST", flag, 8) > 0 && flag[0] == L'1';
     if (!world_.run.specialValidationEnabled_)
         return;
     world_.run.specialValidation_ = {{"completed", false},
@@ -163,7 +163,7 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
         world_.run.expeditionHitSparks_.clear();
         if (world_.resources.playerMeleeTrailManager_)
             world_.resources.playerMeleeTrailManager_->ClearInstances();
-        world_.resources.player_->ResetRunRoomState(index == 14 ? cg2::Vector3{62, 29, 0} : cg2::Vector3{30, 29, 0});
+        world_.resources.player_->ResetRunRoomState(index == 14 ? myEngine::Vector3{62, 29, 0} : myEngine::Vector3{30, 29, 0});
         world_.resources.player_->SetDebugNoDamage(true);
         world_.run.tankRun_.Reset(20260927);
         world_.run.tankRun_.ChooseLoadout(0);
@@ -182,7 +182,7 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
                                                                                        : tankbuild::Style::Melee;
         if (!world_.resources.player_->SetExpeditionCombatStyle(world_.run.expeditionBuildStyle_))
             fail("Could not equip style");
-        world_.resources.player_->SetDemoInput(true, {}, index == 14 ? cg2::Vector3{68, 29, 0} : cg2::Vector3{50, 29, 0}, false, false);
+        world_.resources.player_->SetDemoInput(true, {}, index == 14 ? myEngine::Vector3{68, 29, 0} : myEngine::Vector3{50, 29, 0}, false, false);
         const auto stats = world_.resources.player_->GetSpecialCombatStats();
         world_.run.specialValidation_["before"] = {{"railShots", stats.railShots},
                                                    {"linkTicks", stats.linkTicks},
@@ -248,7 +248,7 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
         }
         if (bullet->GetSpecialKind() == Bullet::SpecialKind::SlashWave) {
             world_.run.specialValidation_["waveSamples"] = world_.run.specialValidation_.value("waveSamples", 0) + 1;
-            if (cg2::Length(bullet->GetWorldPosition() - world_.resources.player_->GetWorldPosition()) > 4.5f)
+            if (myEngine::Length(bullet->GetWorldPosition() - world_.resources.player_->GetWorldPosition()) > 4.5f)
                 capture("slash_wave");
         }
         // Latch the first cut: a later, separately timed sword swing may finish it.
@@ -279,9 +279,9 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
         world_.run.specialValidation_["dashInjected"] = true;
     }
     world_.resources.player_->SetDemoInput(true, {},
-                                           index == 14                 ? cg2::Vector3{68, 29, 0}
-                                           : index >= 8 && index <= 11 ? cg2::Vector3{38, 29, 0}
-                                                                       : cg2::Vector3{50, 29, 0},
+                                           index == 14                 ? myEngine::Vector3{68, 29, 0}
+                                           : index >= 8 && index <= 11 ? myEngine::Vector3{38, 29, 0}
+                                                                       : myEngine::Vector3{50, 29, 0},
                                            shoot, dash);
     if (index >= 8 && index <= 11) {
         int available = 0;
@@ -299,7 +299,7 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
     if (index == 13 && world_.resources.player_->GetSpinBladeRatio() > .35f &&
         !world_.run.specialValidation_.value("spinCutInjected", false)) {
         auto shot = std::make_unique<Bullet>();
-        shot->Initialize(world_.resources.player_->GetWorldPosition() + cg2::Vector3{-2.5f, 0, 0}, {.01f, 0, 0}, 7, kEnemy, false, 6, 1);
+        shot->Initialize(world_.resources.player_->GetWorldPosition() + myEngine::Vector3{-2.5f, 0, 0}, {.01f, 0, 0}, 7, kEnemy, false, 6, 1);
         shot->ConfigureGrowth(0, 0, 0);
         world_.resources.bulletManager_->Add(std::move(shot));
         world_.run.specialValidation_["spinCutInjected"] = true;
@@ -332,7 +332,7 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
     if (index == 14 && stats.wallSmashes > before.value("wallSmashes", 0u))
         capture("wall_smash");
     if (index == 3) {
-        const auto spawn = [&](float hp, uint32_t damage, const cg2::Vector3& offset) {
+        const auto spawn = [&](float hp, uint32_t damage, const myEngine::Vector3& offset) {
             auto b = std::make_unique<Bullet>();
             b->Initialize(world_.resources.player_->GetWorldPosition() + offset, {-.02f, 0, 0}, damage, kEnemy, false, hp, 1);
             b->ConfigureGrowth(0, 0, 0);

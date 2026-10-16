@@ -4,7 +4,7 @@
 #include <cmath>
 #include <stdexcept>
 
-namespace cg2 {
+namespace myEngine {
 
 void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager,
     RtvManager* rtvManager, float renderScale, float qualityCaptureScale) {
@@ -331,4 +331,4 @@ void ObjectPostEffect::ClearTransparent(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle) {
     dxCommon_->GetList()->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 }
 
-} // namespace cg2
+} // namespace myEngine

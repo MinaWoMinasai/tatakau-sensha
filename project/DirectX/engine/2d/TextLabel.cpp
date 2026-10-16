@@ -6,7 +6,7 @@
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 #include <chrono>
 #endif
-namespace cg2 {
+namespace myEngine {
 
 namespace {
 /// @brief 生存中のラベル。入力機器の切り替え時に操作説明をまとめて作り直すために使う。
@@ -296,4 +296,4 @@ bool TextLabel::IsSameStyle(const TextStyle& style) const
 		style_.preserveOutline == style.preserveOutline;
 }
 
-} // namespace cg2
+} // namespace myEngine

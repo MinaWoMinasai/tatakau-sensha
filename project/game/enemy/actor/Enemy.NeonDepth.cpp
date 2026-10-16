@@ -18,8 +18,8 @@ constexpr float kMaximumDiveTravel = 12.0f;
 constexpr float kRepositionSpeed = 3.4f; // Target-profile movement only, world units/sec.
 constexpr float kConservativePlayerSpeed = 6.0f; // Below unmodified normal movement; runtime verify3styles.
 constexpr uint16_t kUnreachable = (std::numeric_limits<uint16_t>::max)();
-Point XY(const cg2::Vector3& value) { return {value.x,value.y}; }
-cg2::Vector3 Floor(Point point) { return {point[0],point[1],0}; }
+Point XY(const myEngine::Vector3& value) { return {value.x,value.y}; }
+myEngine::Vector3 Floor(Point point) { return {point[0],point[1],0}; }
 float SquaredDistance(Point a, Point b) {
     const float x=a[0]-b[0], y=a[1]-b[1]; return x*x+y*y;
 }
@@ -157,21 +157,21 @@ void Enemy::AbortNeonDepthEncounter()
     // Preserve raw policy identity for retained presentation; this is not legacy enable.
 }
 
-bool Enemy::MoveNeonDepthCore(const cg2::Vector3& desiredFloor)
+bool Enemy::MoveNeonDepthCore(const myEngine::Vector3& desiredFloor)
 {
     const Point desired=XY(desiredFloor);
     if (!stage_ || !Clear(*stage_,desired,kCoreClearance)) return false;
-    cg2::Vector3 delta=Floor(desired)-GetWorldPosition(); delta.z=0;
+    myEngine::Vector3 delta=Floor(desired)-GetWorldPosition(); delta.z=0;
     const float largest=(std::max)(std::abs(delta.x),std::abs(delta.y));
     if (!std::isfinite(largest) || largest>16.0f) return false;
     const unsigned steps=(std::max)(1u,static_cast<unsigned>(std::ceil(largest/.35f)));
     if (steps>48) return false;
-    const cg2::Vector3 step=delta*(1.0f/static_cast<float>(steps));
+    const myEngine::Vector3 step=delta*(1.0f/static_cast<float>(steps));
     for (unsigned index=0; index<steps; ++index) {
         auto position=GetWorldPosition(); position.x+=step.x; position.z=0;
-        SetWorldPosition(position); stage_->ResolveEnemyCollision(*this,cg2::X);
+        SetWorldPosition(position); stage_->ResolveEnemyCollision(*this,myEngine::X);
         position=GetWorldPosition(); position.y+=step.y; position.z=0;
-        SetWorldPosition(position); stage_->ResolveEnemyCollision(*this,cg2::Y);
+        SetWorldPosition(position); stage_->ResolveEnemyCollision(*this,myEngine::Y);
     }
     return SquaredDistance(XY(GetWorldPosition()),desired)<=.0001f;
 }
@@ -254,9 +254,9 @@ void Enemy::UpdateNeonDepthCombat(float dt)
             neonDepthRepositionTarget_=selected ? Floor(*selected) : GetWorldPosition();
         }
         auto direction=neonDepthRepositionTarget_-GetWorldPosition(); direction.z=0;
-        const float remaining=cg2::Length(direction);
+        const float remaining=myEngine::Length(direction);
         if (remaining>.02f) {
-            direction=cg2::Normalize(direction);
+            direction=myEngine::Normalize(direction);
             if (!ClearPath(XY(GetWorldPosition()),XY(neonDepthRepositionTarget_),kCoreClearance,walls)) {
                 const auto path=FindPathDirectionToTarget(neonDepthRepositionTarget_);
                 if (path) direction=*path; else direction={};

@@ -41,7 +41,7 @@ void GameplayEditor::DrawGameplayDebugUi()
     }
 
     if (ImGui::BeginTabBar("GameDebugTabs")) {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
         if (ImGui::BeginTabItem("Neon Boss", nullptr,
                                 world_.resources.selectNeonBossTab_ ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)) {
             world_.resources.selectNeonBossTab_ = false;
@@ -234,12 +234,12 @@ void GameplayEditor::DrawGameplayDebugUi()
                 const char* triangleEffectModes[] = {"枠線ネオン", "旧モデル粒子", "ハイブリッド"};
                 if (ImGui::Combo("三角形演出方式", &world_.presentation.neonTriangleEffectMode_, triangleEffectModes,
                                  IM_ARRAYSIZE(triangleEffectModes))) {
-                    cg2::ParticleManager::GetInstance()->SetNeonTriangleEffectMode(
-                        static_cast<cg2::ParticleManager::NeonTriangleEffectMode>(world_.presentation.neonTriangleEffectMode_));
+                    myEngine::ParticleManager::GetInstance()->SetNeonTriangleEffectMode(
+                        static_cast<myEngine::ParticleManager::NeonTriangleEffectMode>(world_.presentation.neonTriangleEffectMode_));
                 }
-                bool useGpuParticleUpdate = cg2::ParticleManager::GetInstance()->IsUseGpuUpdate();
+                bool useGpuParticleUpdate = myEngine::ParticleManager::GetInstance()->IsUseGpuUpdate();
                 if (ImGui::Checkbox("GPUパーティクル更新", &useGpuParticleUpdate)) {
-                    cg2::ParticleManager::GetInstance()->SetUseGpuUpdate(useGpuParticleUpdate);
+                    myEngine::ParticleManager::GetInstance()->SetUseGpuUpdate(useGpuParticleUpdate);
                 }
                 ImGui::TextDisabled("OFF: 旧CPU行列生成（枠線比較用）");
                 ImGui::DragFloat("三角形 外光幅倍率", &world_.presentation.neonParticleTriangleGlowWidthScale_, 0.05f, 1.0f, 8.0f);
@@ -372,10 +372,10 @@ void GameplayEditor::DrawGameplayDebugUi()
         }
 
         if (ImGui::BeginTabItem("ポスト")) {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
             const char* bloomModes[] = {"Engine setting", "Bloom OFF", "Legacy Bloom", "Quality Bloom", "Light Bloom"};
             int bloomSelection = world_.presentation.developerBloomComparisonMode_ + 1;
-            ImGui::BeginDisabled(cg2::RuntimeProfiler::Get().IsCaptureActive());
+            ImGui::BeginDisabled(myEngine::RuntimeProfiler::Get().IsCaptureActive());
             if (ImGui::Combo("Developer Bloom comparison", &bloomSelection, bloomModes, 5))
                 world_.presentation.developerBloomComparisonMode_ = bloomSelection - 1;
             const char* toneModes[] = {"Engine tone mapping", "Legacy ACES", "Hue-preserving shoulder"};
@@ -387,7 +387,7 @@ void GameplayEditor::DrawGameplayDebugUi()
             ImGui::TextWrapped(
                 "Developer-only temporary comparison. OFF/Legacy/Quality/Light affects local object and global Bloom; source cores, camera and gameplay remain unchanged. Text glow uses its own display-safe additive route after tone mapping. Engine setting restores the normal configuration.");
             ImGui::BeginDisabled(world_.presentation.developerGameCapture_.IsBusy() || world_.gameplayQueries->IsNeonShowcaseActive() ||
-                                 cg2::RuntimeProfiler::Get().IsCaptureActive());
+                                 myEngine::RuntimeProfiler::Get().IsCaptureActive());
             ImGui::InputText("Game capture label", world_.presentation.developerGameCaptureLabel_,
                              sizeof(world_.presentation.developerGameCaptureLabel_));
             if (ImGui::Button("Save game clean PNG + metadata")) {
@@ -470,12 +470,12 @@ void GameplayEditor::DrawGameplayDebugUi()
             }
             if (ImGui::CollapsingHeader("グリッド / 弾軌跡 / パーティクル")) {
                 ImGui::Checkbox("グリッドポストを有効", &world_.presentation.enableNeonGridPostEffect_);
-                cg2::BloomParam& gridPost = world_.resources.neonGridPostEffect_->GetParam();
+                myEngine::BloomParam& gridPost = world_.resources.neonGridPostEffect_->GetParam();
                 ImGui::DragFloat("グリッド発光強度", &gridPost.intensity, 0.01f, 0.0f, 6.0f);
                 ImGui::DragFloat("グリッドQuality Gain", &gridPost.bloomGain, 0.01f, 0.0f, 2.0f);
                 ImGui::DragFloat("グリッド発光しきい値", &gridPost.threshold, 0.01f, 0.0f, 2.0f);
                 ImGui::Checkbox("弾軌跡ポストを有効", &world_.presentation.enableBulletTrailPostEffect_);
-                cg2::BloomParam& bulletTrailPost = world_.resources.bulletTrailPostEffect_->GetParam();
+                myEngine::BloomParam& bulletTrailPost = world_.resources.bulletTrailPostEffect_->GetParam();
                 ImGui::DragFloat("弾軌跡発光強度", &bulletTrailPost.intensity, 0.01f, 0.0f, 8.0f);
                 ImGui::DragFloat("弾軌跡Quality Gain", &bulletTrailPost.bloomGain, 0.01f, 0.0f, 2.0f);
                 ImGui::DragFloat("弾軌跡発光しきい値", &bulletTrailPost.threshold, 0.01f, 0.0f, 2.0f);
@@ -490,7 +490,7 @@ void GameplayEditor::DrawGameplayDebugUi()
                     world_.resources.neonProjectileRenderer_->SetParams(head);
                 ImGui::TextWrapped("Head controls are session-only. Bullet movement and collision are unchanged.");
                 ImGui::Checkbox("三角パーティクルポストを有効", &world_.presentation.enableParticlePostEffect_);
-                cg2::BloomParam& particlePost = world_.resources.particlePostEffect_->GetParam();
+                myEngine::BloomParam& particlePost = world_.resources.particlePostEffect_->GetParam();
                 ImGui::DragFloat("三角パーティクル発光強度", &particlePost.intensity, 0.01f, 0.0f, 8.0f);
                 ImGui::DragFloat("パーティクルQuality Gain", &particlePost.bloomGain, 0.01f, 0.0f, 2.0f);
                 ImGui::DragFloat("三角パーティクル発光しきい値", &particlePost.threshold, 0.01f, 0.0f, 2.0f);
@@ -524,19 +524,19 @@ void GameplayEditor::DrawGameplayDebugUi()
             ImGui::DragInt("画面上ラベル最大数", &world_.presentation.bulletStatusDebugMaxLabels_, 1.0f, 1, 200);
             DrawBulletStatusDebugTable();
             ImGui::Separator();
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
             if (world_.resources.neonSkinnedPreview_)
                 world_.resources.neonSkinnedPreview_->DrawImGui();
             ImGui::Separator();
 #endif
             if (world_.combat.shotGide) {
-                cg2::Vector2 guidePosition = world_.combat.shotGide->GetPosition();
+                myEngine::Vector2 guidePosition = world_.combat.shotGide->GetPosition();
                 if (ImGui::SliderFloat2("射撃ガイド位置", &guidePosition.x, 0.0f, 3000.0f, "%.1f"))
                     world_.combat.shotGide->SetPosition(guidePosition);
             }
             if (world_.resources.ball_) {
-                cg2::Vector3 ballScale = world_.resources.ball_->GetScale();
-                cg2::Vector4 ballColor = world_.resources.ball_->GetColor();
+                myEngine::Vector3 ballScale = world_.resources.ball_->GetScale();
+                myEngine::Vector4 ballColor = world_.resources.ball_->GetColor();
                 if (ImGui::DragFloat3("デバッグ球スケール", &ballScale.x))
                     world_.resources.ball_->SetScale(ballScale);
                 if (ImGui::ColorEdit4("デバッグ球色", &ballColor.x))
@@ -585,8 +585,8 @@ void GameplayEditor::DrawBulletStatusDebugTable()
         if (!bullet) {
             continue;
         }
-        const cg2::Vector3 pos = bullet->GetWorldPosition();
-        const cg2::Vector3 vel = bullet->GetMove();
+        const myEngine::Vector3 pos = bullet->GetWorldPosition();
+        const myEngine::Vector3 vel = bullet->GetMove();
 
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
@@ -629,10 +629,10 @@ void GameplayEditor::DrawBulletStatusDebugOverlay()
             break;
         }
 
-        const cg2::Vector3 worldPos = bullet->GetWorldPosition();
-        const cg2::Vector2 screen = world_.gameplayHud->WorldToScreen(worldPos + cg2::Vector3{0.0f, 0.85f, 0.0f});
-        if (screen.x < -80.0f || screen.x > cg2::WinApp::kClientWidth + 80.0f || screen.y < -40.0f ||
-            screen.y > cg2::WinApp::kClientHeight + 40.0f) {
+        const myEngine::Vector3 worldPos = bullet->GetWorldPosition();
+        const myEngine::Vector2 screen = world_.gameplayHud->WorldToScreen(worldPos + myEngine::Vector3{0.0f, 0.85f, 0.0f});
+        if (screen.x < -80.0f || screen.x > myEngine::WinApp::kClientWidth + 80.0f || screen.y < -40.0f ||
+            screen.y > myEngine::WinApp::kClientHeight + 40.0f) {
             continue;
         }
 
@@ -826,7 +826,7 @@ void GameplayEditor::ApplyLevelObject(const LevelObject& levelObject, bool allow
 
         LevelVisualObject visual{};
         visual.name = levelObject.name;
-        visual.object = std::make_unique<cg2::Object3d>();
+        visual.object = std::make_unique<myEngine::Object3d>();
         visual.object->Initialize();
         visual.object->SetModel(levelObject.prefab);
         visual.object->SetTransform(levelObject.transform);
@@ -933,7 +933,7 @@ void GameplayEditor::ApplyLevelEffectPreset(const nlohmann::json& effectJson)
         world_.presentation.enemyGridColor_ = ReadJsonVector4(effectJson["enemyGridColor"], world_.presentation.enemyGridColor_);
     }
     if (effectJson.contains("bossOutlineColor") && effectJson["bossOutlineColor"].is_object() && world_.resources.enemyPostEffect_) {
-        cg2::BloomParam& enemyPost = world_.resources.enemyPostEffect_->GetParam();
+        myEngine::BloomParam& enemyPost = world_.resources.enemyPostEffect_->GetParam();
         enemyPost.outlineColor = ReadJsonVector3(effectJson["bossOutlineColor"], enemyPost.outlineColor);
     }
     if (effectJson.contains("enemyBloomIntensity") && effectJson["enemyBloomIntensity"].is_number() && world_.resources.enemyPostEffect_) {
@@ -961,15 +961,15 @@ void GameplayEditor::QueueLevelEditorPreview()
         QueueLevelSpawnAreaPreview(spawnArea, {1.0f, 0.85f, 0.2f, 0.70f});
     }
     for (const RuntimeBossPhase& runtimePhase : world_.resources.levelBossPhases_) {
-        const cg2::Vector4 color =
-            runtimePhase.activated ? cg2::Vector4{1.0f, 0.25f, 0.25f, 0.85f} : cg2::Vector4{0.85f, 0.35f, 1.0f, 0.45f};
+        const myEngine::Vector4 color =
+            runtimePhase.activated ? myEngine::Vector4{1.0f, 0.25f, 0.25f, 0.85f} : myEngine::Vector4{0.85f, 0.35f, 1.0f, 0.45f};
         for (const LevelObject& object : runtimePhase.phase.objects) {
             QueueLevelObjectPreview(object, color);
         }
     }
 }
 
-void GameplayEditor::QueueLevelObjectPreview(const LevelObject& levelObject, const cg2::Vector4& color)
+void GameplayEditor::QueueLevelObjectPreview(const LevelObject& levelObject, const myEngine::Vector4& color)
 {
     if (levelObject.type == "SpawnArea") {
         LevelSpawnArea spawnArea{};
@@ -993,7 +993,7 @@ void GameplayEditor::QueueLevelObjectPreview(const LevelObject& levelObject, con
     world_.resources.neonGridRenderer_->QueueLocalGrid(levelObject.transform.translate, radius, 0.75f, 0.055f, color);
 }
 
-void GameplayEditor::QueueLevelSpawnAreaPreview(const LevelSpawnArea& spawnArea, const cg2::Vector4& color)
+void GameplayEditor::QueueLevelSpawnAreaPreview(const LevelSpawnArea& spawnArea, const myEngine::Vector4& color)
 {
     world_.resources.neonGridRenderer_->QueueRectangle(spawnArea.center, spawnArea.size, 0.09f, color);
     world_.resources.neonGridRenderer_->QueueLocalGrid(spawnArea.center, (std::min)(spawnArea.size.x, spawnArea.size.y) * 0.22f, 1.0f,

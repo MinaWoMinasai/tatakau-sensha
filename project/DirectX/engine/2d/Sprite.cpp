@@ -1,6 +1,6 @@
 #include "Sprite.h"
 
-namespace cg2 {
+namespace myEngine {
 
 void Sprite::Initialize(SpriteCommon* spriteCommon, const std::string& textureFilePath) {
 	spriteCommon_ = spriteCommon;
@@ -266,4 +266,4 @@ bool Sprite::IsHovered(const Vector2& mousePos) const
 		mousePos.y >= position_.y && mousePos.y <= position_.y + size_.y);
 }
 
-} // namespace cg2
+} // namespace myEngine

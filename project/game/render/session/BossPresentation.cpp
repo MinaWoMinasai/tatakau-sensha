@@ -6,19 +6,19 @@
 #include "RuntimeProfiler.h"
 #include <cmath>
 #include <fstream>
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG) && defined(USE_IMGUI)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG) && defined(USE_IMGUI)
 #include "externals/imgui/imgui.h"
 #endif
 
 namespace gameplay {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG) && defined(USE_IMGUI)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG) && defined(USE_IMGUI)
 #endif
 
 void BossPresentation::UpdateNeonBossVisual(float deltaTime)
 {
     if (!world_.resources.neonBossVisual_ || !world_.resources.enemy_)
         return;
-    cg2::RuntimeProfiler::CpuScope scope("Neon Boss Update");
+    myEngine::RuntimeProfiler::CpuScope scope("Neon Boss Update");
     NeonBossVisualInput input;
     input.position = world_.resources.enemy_->GetWorldPosition();
     const auto aim = world_.resources.enemy_->GetAimDirection();
@@ -53,7 +53,7 @@ void BossPresentation::UpdateNeonBossVisual(float deltaTime)
     input.action = decision.action;
     world_.resources.neonBossVisual_->SetEnabled(world_.resources.neonBossVisualEnabled_);
     {
-        cg2::RuntimeProfiler::CpuScope modelScope("Neon Depth Model Update");
+        myEngine::RuntimeProfiler::CpuScope modelScope("Neon Depth Model Update");
         world_.resources.neonBossVisual_->Update(input, deltaTime);
     }
     world_.depthEncounter->UpdateNeonDepthEffects();
@@ -75,7 +75,7 @@ void BossPresentation::DrawNeonBossVisual()
         world_.resources.neonBossVisual_->Draw();
 }
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 namespace {
 constexpr const char* kBossCaptureDirectory = "generated/neon_boss_gameplay";
 }
@@ -157,7 +157,7 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
         world_.run.tankExpeditionAudio_.SetMusicVolume(0);
         world_.run.tankExpeditionAudio_.SetEffectsVolume(0);
         // Keep the existing camera while ensuring both actors are in its viewport.
-        const auto position = world_.resources.enemy_->GetWorldPosition() + cg2::Vector3{-14, 0, 0};
+        const auto position = world_.resources.enemy_->GetWorldPosition() + myEngine::Vector3{-14, 0, 0};
         world_.resources.player_->ResetRunRoomState(position);
         world_.resources.player_->SetDemoInput(true, {}, world_.resources.enemy_->GetWorldPosition(), false, false);
         const auto center = (position + world_.resources.enemy_->GetWorldPosition()) * 0.5f;
@@ -171,7 +171,7 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
 
 nlohmann::json BossPresentation::MakeNeonBossMetadata() const
 {
-    auto vector = [](const cg2::Vector3& p) {
+    auto vector = [](const myEngine::Vector3& p) {
         return nlohmann::json::array({p.x, p.y, p.z});
     };
     const auto rival = world_.resources.enemy_->GetRivalCombatStatus();
@@ -207,7 +207,7 @@ nlohmann::json BossPresentation::MakeNeonBossMetadata() const
           {"status", world_.resources.neonBossVisual_->GetStatus()}}},
         {"camera",
          {{"position", vector(world_.resources.camera->GetTranslate())}, {"rotation", vector(world_.resources.camera->GetRotate())}}},
-        {"descriptorCount", cg2::Object3dCommon::GetInstance()->GetSrvManager()->GetAllocatedCount()},
+        {"descriptorCount", myEngine::Object3dCommon::GetInstance()->GetSrvManager()->GetAllocatedCount()},
         {"globalBloomModified", false}};
     for (const auto& row : world_.resources.camera->GetViewProjectionMatrix().m)
         data["camera"]["viewProjection"].push_back({row[0], row[1], row[2], row[3]});
@@ -216,7 +216,7 @@ nlohmann::json BossPresentation::MakeNeonBossMetadata() const
     return data;
 }
 
-void BossPresentation::RecordNeonBossDeveloperFrame(cg2::DirectXCommon& dx)
+void BossPresentation::RecordNeonBossDeveloperFrame(myEngine::DirectXCommon& dx)
 {
     if (world_.resources.neonBossCapture_.HasRequest()) {
         auto metadata = MakeNeonBossMetadata();
@@ -247,7 +247,7 @@ void BossPresentation::WriteNeonBossValidation(bool completed)
 
 void BossPresentation::UpdateNeonBossDeveloperValidation()
 {
-    world_.resources.neonBossCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
+    world_.resources.neonBossCapture_.Resolve(*myEngine::Object3dCommon::GetInstance()->GetDxCommon());
     if (world_.resources.neonBossDeveloperStartPending_ && world_.combat.phase_ == Phase::kMain) {
         world_.resources.neonBossDeveloperStartPending_ = false;
         StartNeonBossDeveloperEncounter();
@@ -281,24 +281,24 @@ void BossPresentation::UpdateNeonBossDeveloperValidation()
         world_.resources.neonBossDeveloperFreeze_ = false;
         ++world_.resources.neonBossProbe_;
         WriteNeonBossValidation(false);
-        if (world_.resources.neonBossProbe_ == 1 && cg2::RuntimeProfiler::Get().IsAllowed()) {
+        if (world_.resources.neonBossProbe_ == 1 && myEngine::RuntimeProfiler::Get().IsAllowed()) {
             // Same camera, pose, effects and collider for this A/B cost sample.
             world_.resources.neonBossDeveloperFreeze_ = true;
             world_.resources.neonBossVisualEnabled_ = false;
             world_.resources.neonBossVisual_->SetEnabled(false);
-            if (cg2::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_off.csv", 120, 30))
+            if (myEngine::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_off.csv", 120, 30))
                 world_.resources.neonBossProfileStep_ = 1;
             else
                 world_.resources.neonBossDeveloperFreeze_ = false;
         }
     }
     if (world_.resources.neonBossProfileStep_) {
-        if (!cg2::RuntimeProfiler::Get().IsCaptureComplete())
+        if (!myEngine::RuntimeProfiler::Get().IsCaptureComplete())
             return;
         if (world_.resources.neonBossProfileStep_ == 1) {
             world_.resources.neonBossVisualEnabled_ = true;
             world_.resources.neonBossVisual_->SetEnabled(true);
-            if (cg2::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_on.csv", 120, 30)) {
+            if (myEngine::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_on.csv", 120, 30)) {
                 world_.resources.neonBossProfileStep_ = 2;
                 return;
             }
@@ -312,7 +312,7 @@ void BossPresentation::UpdateNeonBossDeveloperValidation()
     if (world_.resources.enemy_->IsDead() && world_.resources.neonBossProbe_ >= 6 &&
         (world_.resources.enemy_->GetShotsFired() != world_.resources.neonBossDeadShots_ ||
          rival.dashCount != world_.resources.neonBossDeadDashCount_ ||
-         cg2::Length(world_.resources.enemy_->GetWorldPosition() - world_.resources.neonBossDeadPosition_) > 0.0001f))
+         myEngine::Length(world_.resources.enemy_->GetWorldPosition() - world_.resources.neonBossDeadPosition_) > 0.0001f))
         world_.resources.neonBossValidationErrors_.push_back("Gameplay changed during death dissolve.");
     std::string name;
     switch (world_.resources.neonBossProbe_) {
@@ -436,13 +436,13 @@ void BossPresentation::DrawNeonBossDeveloperTools()
     if (ImGui::Button("Profile 3D ON (120 frames)")) {
         world_.resources.neonBossVisualEnabled_ = true;
         world_.resources.neonBossVisual_->SetEnabled(true);
-        cg2::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_on.csv", 120, 30);
+        myEngine::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_on.csv", 120, 30);
     }
     ImGui::SameLine();
     if (ImGui::Button("Profile OFF (120 frames)")) {
         world_.resources.neonBossVisualEnabled_ = false;
         world_.resources.neonBossVisual_->SetEnabled(false);
-        cg2::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_off.csv", 120, 30);
+        myEngine::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_off.csv", 120, 30);
     }
 #endif
 }

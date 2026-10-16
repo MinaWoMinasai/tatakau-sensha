@@ -3,7 +3,7 @@
 #include "TextureManager.h"
 #include "SrvManager.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief テクスチャを画面上の矩形として描画する。位置・色・UVをインスタンスごとに保持する。
 class Sprite {
@@ -203,4 +203,4 @@ private:
     SrvManager* srvManager_ = nullptr;
 };
 
-} // namespace cg2
+} // namespace myEngine

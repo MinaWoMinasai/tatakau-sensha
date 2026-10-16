@@ -58,12 +58,12 @@ const char* TutorialSettingsPath()
 
 void ExpeditionController::InitializeTankExpedition()
 {
-    cg2::StartupTrace::Scope scope("Expedition.Initialize");
+    myEngine::StartupTrace::Scope scope("Expedition.Initialize");
     auto initialization = BuildInitialization();
     while (!initialization.Advance()) {}
 }
 
-cg2::InitializationTask ExpeditionController::BuildInitialization()
+myEngine::InitializationTask ExpeditionController::BuildInitialization()
 {
 
     world_.resources.player_->SetRunCheckpointEvolution(true);
@@ -81,44 +81,44 @@ cg2::InitializationTask ExpeditionController::BuildInitialization()
     world_.resources.camera->SetTranslate({26, 28, world_.resources.camera->GetTranslate().z});
     world_.resources.camera->Update();
     co_await std::suspend_always{};
-    cg2::TextStyle style{};
+    myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
     style.fontSize = 14;
     style.color = {0.68f, 0.86f, 0.95f, 1};
     style.outlineThickness = 0;
     style.padding = 4;
-    world_.run.tankExpeditionMapText_ = std::make_unique<cg2::TextLabel>();
-    world_.run.tankExpeditionMapText_->Initialize(cg2::SpriteCommon::GetInstance(), " ", style);
+    world_.run.tankExpeditionMapText_ = std::make_unique<myEngine::TextLabel>();
+    world_.run.tankExpeditionMapText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     world_.run.tankExpeditionMapText_->SetPosition({24, 670});
     style.fontSize = 17;
     style.color = {0.78f, 0.96f, 1, 1};
-    world_.run.tankExpeditionMaintenanceText_ = std::make_unique<cg2::TextLabel>();
-    world_.run.tankExpeditionMaintenanceText_->Initialize(cg2::SpriteCommon::GetInstance(), " ", style);
+    world_.run.tankExpeditionMaintenanceText_ = std::make_unique<myEngine::TextLabel>();
+    world_.run.tankExpeditionMaintenanceText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     world_.run.tankExpeditionMaintenanceText_->SetPosition({76, 570});
-    world_.run.tankExpeditionMaintenanceButton_ = std::make_unique<cg2::Sprite>();
-    world_.run.tankExpeditionMaintenanceButton_->Initialize(cg2::SpriteCommon::GetInstance(), "resources/white512x512.png");
+    world_.run.tankExpeditionMaintenanceButton_ = std::make_unique<myEngine::Sprite>();
+    world_.run.tankExpeditionMaintenanceButton_->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/white512x512.png");
     world_.run.tankExpeditionMaintenanceButton_->SetPosition({64, 568});
     world_.run.tankExpeditionMaintenanceButton_->SetSize({1144, 32});
     world_.run.tankExpeditionMaintenanceButton_->SetColor({0.035f, 0.105f, 0.14f, 1});
     world_.run.tankExpeditionMaintenanceButton_->Update();
-    auto panel = [](cg2::Vector2 position, cg2::Vector2 size, const cg2::Vector4& color) {
-        auto item = std::make_unique<cg2::Sprite>();
-        item->Initialize(cg2::SpriteCommon::GetInstance(), "resources/white512x512.png");
+    auto panel = [](myEngine::Vector2 position, myEngine::Vector2 size, const myEngine::Vector4& color) {
+        auto item = std::make_unique<myEngine::Sprite>();
+        item->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/white512x512.png");
         item->SetPosition(position);
         item->SetSize(size);
         item->SetColor(color);
         item->Update();
         return item;
     };
-    auto label = [](float size, cg2::Vector2 position, const cg2::Vector4& color) {
-        cg2::TextStyle s{};
+    auto label = [](float size, myEngine::Vector2 position, const myEngine::Vector4& color) {
+        myEngine::TextStyle s{};
         s.fontFamily = "Meiryo";
         s.fontSize = size;
         s.color = color;
         s.outlineThickness = 0;
         s.padding = 4;
-        auto item = std::make_unique<cg2::TextLabel>();
-        item->Initialize(cg2::SpriteCommon::GetInstance(), " ", s);
+        auto item = std::make_unique<myEngine::TextLabel>();
+        item->Initialize(myEngine::SpriteCommon::GetInstance(), " ", s);
         item->SetPosition(position);
         return item;
     };
@@ -154,10 +154,10 @@ cg2::InitializationTask ExpeditionController::BuildInitialization()
     }
     world_.run.expeditionTutorialPreviouslyCompleted_ = completed;
     wchar_t tutorialMode[8]{};
-    const bool forceTutorial = GetEnvironmentVariableW(L"CG2_EXPEDITION_TUTORIAL", tutorialMode, 8) > 0 && tutorialMode[0] == L'1';
+    const bool forceTutorial = GetEnvironmentVariableW(L"MYENGINE_EXPEDITION_TUTORIAL", tutorialMode, 8) > 0 && tutorialMode[0] == L'1';
     wchar_t validateTutorial[8]{};
     world_.run.tankExpeditionTutorialValidation_.enabled =
-        !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"CG2_TANK_TUTORIAL_AUTOTEST", validateTutorial, 8) > 0 &&
+        !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"MYENGINE_TANK_TUTORIAL_AUTOTEST", validateTutorial, 8) > 0 &&
         validateTutorial[0] == L'1';
     if (world_.run.tankExpeditionTutorialValidation_.enabled) {
         world_.run.tankRunAutoTest_ = false;
@@ -176,7 +176,7 @@ cg2::InitializationTask ExpeditionController::BuildInitialization()
         while (!map.Advance()) co_await std::suspend_always{};
     }
     wchar_t variant[16]{};
-    if (GetEnvironmentVariableW(L"CG2_TANK_EXPEDITION_VARIANT", variant, 16) > 0)
+    if (GetEnvironmentVariableW(L"MYENGINE_TANK_EXPEDITION_VARIANT", variant, 16) > 0)
         world_.run.tankExpeditionAutoVariant_ = (std::clamp)(_wtoi(variant), 0, 5);
     if (world_.run.tankRunAutoTest_) {
         std::filesystem::create_directories(ExpeditionDirectory(world_.run.tankExpeditionAutoVariant_));
@@ -235,20 +235,20 @@ void ExpeditionController::StartTankExpeditionRoom()
     world_.run.tankExpeditionDetailsOpen_ = false;
     world_.resources.camera->SetTranslate({26, 28, world_.resources.camera->GetTranslate().z});
     world_.resources.camera->Update();
-    auto freePosition = [this](const cg2::Vector3& desired) {
+    auto freePosition = [this](const myEngine::Vector3& desired) {
         if (!world_.resources.stage_->IsCollisionWithAnyBlock(desired, 1.3f))
             return desired;
         for (int r = 2; r <= 10; r += 2)
             for (int y = -r; y <= r; y += 2)
                 for (int x = -r; x <= r; x += 2) {
-                    cg2::Vector3 p = desired + cg2::Vector3{static_cast<float>(x), static_cast<float>(y), 0};
+                    myEngine::Vector3 p = desired + myEngine::Vector3{static_cast<float>(x), static_cast<float>(y), 0};
                     if (p.x > 23 && p.x < 65 && p.y > 17 && p.y < 41 && !world_.resources.stage_->IsCollisionWithAnyBlock(p, 1.3f))
                         return p;
                 }
-        return cg2::Vector3{44, 30, 0};
+        return myEngine::Vector3{44, 30, 0};
     };
-    const std::array<cg2::Vector3, 6> shapes = {cg2::Vector3{34, 22, 0}, cg2::Vector3{44, 22, 0}, cg2::Vector3{54, 22, 0},
-                                                cg2::Vector3{34, 36, 0}, cg2::Vector3{44, 36, 0}, cg2::Vector3{54, 36, 0}};
+    const std::array<myEngine::Vector3, 6> shapes = {myEngine::Vector3{34, 22, 0}, myEngine::Vector3{44, 22, 0}, myEngine::Vector3{54, 22, 0},
+                                                myEngine::Vector3{34, 36, 0}, myEngine::Vector3{44, 36, 0}, myEngine::Vector3{54, 36, 0}};
     const auto encounter = tankexp::GetEncounter(room, world_.run.tankExpedition_.GetRoomIndex());
     for (int i = 0; i < encounter.count; ++i) {
         const auto& unit = encounter.units[i];
@@ -262,7 +262,7 @@ void ExpeditionController::StartTankExpeditionRoom()
         world_.run.tankRunResources_[0].position = freePosition({44, 30, 0});
     if (room == Room::Guard) {
         const int count = 3;
-        const std::array<cg2::Vector3, 3> centers = {cg2::Vector3{44, 30, 0}, cg2::Vector3{36, 38, 0}, cg2::Vector3{54, 20, 0}};
+        const std::array<myEngine::Vector3, 3> centers = {myEngine::Vector3{44, 30, 0}, myEngine::Vector3{36, 38, 0}, myEngine::Vector3{54, 20, 0}};
         for (int i = 0; i < count; ++i) {
             auto& node = world_.run.tankRunResources_[i];
             node.position = freePosition(centers[i]);
@@ -439,7 +439,7 @@ void ExpeditionController::UpdateTankExpedition(float dt)
     }
     if (world_.combat.phase_ != Phase::kMain)
         return;
-    if (world_.run.tankExpeditionBalanceEditorOpen_ || (cg2::kDeveloperTools && world_.resources.input_->IsKeyTriggered(DIK_F2)))
+    if (world_.run.tankExpeditionBalanceEditorOpen_ || (myEngine::kDeveloperTools && world_.resources.input_->IsKeyTriggered(DIK_F2)))
         return;
     world_.run.tankRunMenuAge_ += dt;
     world_.run.tankRunAutoTime_ += dt;
@@ -460,7 +460,7 @@ void ExpeditionController::UpdateTankExpedition(float dt)
     }
     if (!world_.run.tankRunPaused_ && world_.combat.combatFlow_.GetState() == GameFlowState::Playing)
         UpdateTankExpeditionTutorial(dt);
-    if (cg2::kDeveloperTools && triggered(DIK_F10))
+    if (myEngine::kDeveloperTools && triggered(DIK_F10))
         world_.arenaRunController->RequestTankRunCapture("manual");
     if (triggered(DIK_M)) {
         world_.run.tankExpeditionMusicEnabled_ = !world_.run.tankExpeditionMusicEnabled_;
@@ -931,7 +931,7 @@ void ExpeditionController::DrawTankExpeditionUi()
     }
     if (world_.resources.player_->IsChangeMode())
         return;
-    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     const auto phase = world_.run.tankExpedition_.GetPhase();
     const bool result = world_.combat.combatFlow_.GetState() == GameFlowState::StageClear ||
                         (world_.combat.combatFlow_.GetState() == GameFlowState::GameOver && world_.combat.combatFlow_.GetTimer() <= 0);
@@ -975,8 +975,8 @@ void ExpeditionController::DrawTankExpeditionUi()
         const bool rare = phase == EPhase::Reward && !world_.run.tankRunPaused_ && !world_.run.tankExpeditionMaintenanceOpen_ &&
                           world_.run.tankExpeditionRewardOpen_ && tankrun::IsRare(world_.run.tankRun_.GetOffers()[i]);
         world_.run.tankRunCards_[i]->SetColor(selected
-                                                  ? (rare ? cg2::Vector4{0.21f, 0.12f, 0.045f, 1} : cg2::Vector4{0.045f, 0.16f, 0.19f, 1})
-                                                  : cg2::Vector4{0.028f, 0.045f, 0.075f, 1});
+                                                  ? (rare ? myEngine::Vector4{0.21f, 0.12f, 0.045f, 1} : myEngine::Vector4{0.045f, 0.16f, 0.19f, 1})
+                                                  : myEngine::Vector4{0.028f, 0.045f, 0.075f, 1});
         world_.run.tankRunCards_[i]->Update();
         world_.run.tankRunCards_[i]->Draw();
         world_.run.tankRunCardTitles_[i]->Draw();
@@ -1000,7 +1000,7 @@ void ExpeditionController::UpdateTankExpeditionTutorial(float dt)
     const auto position = world_.resources.player_->GetWorldPosition();
     if (world_.run.tankExpedition_.IsCombat()) {
         if (world_.resources.player_->HasMovementInput() && !world_.resources.player_->IsDashing())
-            world_.run.tankExpeditionTutorial_.AddMovement(cg2::Length(position - world_.run.tankExpeditionTutorialPrevious_));
+            world_.run.tankExpeditionTutorial_.AddMovement(myEngine::Length(position - world_.run.tankExpeditionTutorialPrevious_));
         if (world_.combat.defeatedEnemies_ > world_.run.tankExpeditionTutorialKills_)
             world_.run.tankExpeditionTutorial_.RecordKill();
         // Observe the actual dash state without consuming the effect/audio event.
@@ -1009,7 +1009,7 @@ void ExpeditionController::UpdateTankExpeditionTutorial(float dt)
     }
     world_.run.tankExpeditionTutorialPrevious_ = position;
     world_.run.tankExpeditionTutorialKills_ = world_.combat.defeatedEnemies_;
-    if (cg2::kDeveloperTools && world_.resources.input_->IsKeyTriggered(DIK_F3))
+    if (myEngine::kDeveloperTools && world_.resources.input_->IsKeyTriggered(DIK_F3))
         world_.run.tankExpeditionTutorial_.Skip();
     world_.run.tankExpeditionTutorial_.Update(dt);
     if (world_.run.tankExpeditionTutorial_.IsComplete())
@@ -1091,35 +1091,35 @@ void ExpeditionController::UpdateTankExpeditionTutorialValidation(float dt)
         return;
     }
     if (!started) {
-        world_.resources.player_->SetDemoInput(true, {0, 0}, world_.resources.player_->GetWorldPosition() + cg2::Vector3{1, 0, 0}, false,
+        world_.resources.player_->SetDemoInput(true, {0, 0}, world_.resources.player_->GetWorldPosition() + myEngine::Vector3{1, 0, 0}, false,
                                                false);
         if (world_.run.tankRunMenuAge_ > 0.85f)
             world_.arenaRunController->SelectTankRunOption(0);
         return;
     }
-    world_.resources.player_->SetDemoInput(true, {0, 0}, world_.resources.player_->GetWorldPosition() + cg2::Vector3{1, 0, 0}, false,
+    world_.resources.player_->SetDemoInput(true, {0, 0}, world_.resources.player_->GetWorldPosition() + myEngine::Vector3{1, 0, 0}, false,
                                            false);
     if (validation.stepAge < 0.6f || world_.run.tankExpeditionTutorial_.IsSuccess())
         return;
     using Step = tankexp::TutorialStep;
     const auto lesson = world_.run.tankExpeditionTutorial_.GetStep();
     const auto position = world_.resources.player_->GetWorldPosition();
-    cg2::Vector3 aim = position + cg2::Vector3{1, 0, 0};
+    myEngine::Vector3 aim = position + myEngine::Vector3{1, 0, 0};
     float distance = 10000;
     for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs())
         if (actor && actor->IsCombatThreat()) {
-            const float candidate = cg2::Length(actor->GetWorldPosition() - position);
+            const float candidate = myEngine::Length(actor->GetWorldPosition() - position);
             if (candidate < distance) {
                 distance = candidate;
                 aim = actor->GetWorldPosition();
             }
         }
-    cg2::Vector2 move{};
+    myEngine::Vector2 move{};
     if (lesson == Step::Move)
         move = {1, 0};
     const bool shoot = lesson == Step::Shoot || lesson == Step::ClearRoom;
     if (shoot && distance > 13 && distance < 1000) {
-        const auto direction = cg2::Normalize(aim - position);
+        const auto direction = myEngine::Normalize(aim - position);
         move = {direction.x, direction.y};
     }
     if (lesson == Step::Dash)
@@ -1151,8 +1151,8 @@ void ExpeditionController::RefreshTankExpeditionTutorialUi()
                                                     : step == Step::Move                           ? "移動した距離で達成"
                                                     : step == Step::Route || step == Step::Upgrade ? "数字キー / クリック / ← → + Enter"
                                                                                                    : " ");
-    world_.combat.tutorialPanel_->SetColor(world_.run.tankExpeditionTutorial_.IsSuccess() ? cg2::Vector4{0.01f, 0.14f, 0.10f, 0.9f}
-                                                                                          : cg2::Vector4{0.008f, 0.025f, 0.04f, 0.84f});
+    world_.combat.tutorialPanel_->SetColor(world_.run.tankExpeditionTutorial_.IsSuccess() ? myEngine::Vector4{0.01f, 0.14f, 0.10f, 0.9f}
+                                                                                          : myEngine::Vector4{0.008f, 0.025f, 0.04f, 0.84f});
     const float y = world_.run.tankExpedition_.IsCombat() ? 590.0f : 606.0f;
     world_.combat.tutorialPanel_->SetPosition({410, y});
     world_.combat.tutorialPanel_->SetSize({460, 70});
@@ -1212,7 +1212,7 @@ void ExpeditionController::UpdateTankExpeditionAudio(float dt)
                 if (world_.run.expeditionMapEnabled_ && world_.run.expeditionHitSparkCooldown_ <= 0 &&
                     world_.run.expeditionHitSparks_.size() < 12) {
                     auto direction = actor->GetWorldPosition() - world_.resources.player_->GetWorldPosition();
-                    direction = cg2::Length(direction) > 0.01f ? cg2::Normalize(direction) : cg2::Vector3{0, 1, 0};
+                    direction = myEngine::Length(direction) > 0.01f ? myEngine::Normalize(direction) : myEngine::Vector3{0, 1, 0};
                     world_.run.expeditionHitSparks_.push_back({actor->GetWorldPosition(), direction, 0});
                     world_.run.expeditionHitSparkCooldown_ = 0.045f;
                 }

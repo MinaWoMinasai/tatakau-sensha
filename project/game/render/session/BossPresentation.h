@@ -13,31 +13,31 @@ public:
 
     void DrawNeonBossVisual();
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     void DrawNeonBossDeveloperTools();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     void RequestNeonBossDeveloperEncounter();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     void StartNeonBossDeveloperEncounter();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     void UpdateNeonBossDeveloperValidation();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-    void RecordNeonBossDeveloperFrame(cg2::DirectXCommon& dx);
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    void RecordNeonBossDeveloperFrame(myEngine::DirectXCommon& dx);
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     nlohmann::json MakeNeonBossMetadata() const;
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     void WriteNeonBossValidation(bool completed);
 #endif
 private:

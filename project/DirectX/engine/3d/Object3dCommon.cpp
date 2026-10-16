@@ -1,6 +1,6 @@
 #include "Object3dCommon.h"
 
-namespace cg2 {
+namespace myEngine {
 
 Object3dCommon* Object3dCommon::GetInstance()
 {
@@ -68,4 +68,4 @@ void Object3dCommon::PreDraw(BlendMode blendMode)
 	blendMode_ = blendMode;
 }
 
-} // namespace cg2
+} // namespace myEngine

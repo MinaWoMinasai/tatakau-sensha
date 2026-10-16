@@ -28,7 +28,7 @@ std::string FormatRegisteredNames(const std::vector<std::string>& names)
 /// @brief Registryエラーを診断ログへ出力する。
 void LogRegistryError(const std::string& message)
 {
-	cg2::LogWrite().Log("[SceneRegistry] " + message + "\n");
+	myEngine::LogWrite().Log("[SceneRegistry] " + message + "\n");
 }
 
 }

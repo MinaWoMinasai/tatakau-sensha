@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-namespace cg2 {
+namespace myEngine {
 
 namespace {
 
@@ -540,4 +540,4 @@ void Object3d::UpdateMaterialInstanceData(const ModelData& modelData)
 	}
 }
 
-} // namespace cg2
+} // namespace myEngine

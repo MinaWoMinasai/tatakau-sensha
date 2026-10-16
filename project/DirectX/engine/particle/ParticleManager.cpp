@@ -13,7 +13,7 @@
 #include "externals/imgui/imgui.h"
 #endif
 
-namespace cg2 {
+namespace myEngine {
 
 float ParticleManager::Rand(float min, float max) {
     return std::uniform_real_distribution<float>(min, max)(presentationRandom_);
@@ -977,7 +977,7 @@ void ParticleManager::EmitNeonMovementEffect(const Vector3& position, const Vect
 	neonTriangleEvents_.push_back(event);
 }
 
-void ParticleManager::Emit(const cg2::Particle& particle) {
+void ParticleManager::Emit(const myEngine::Particle& particle) {
     Particle converted{};
     converted.transform = particle.transform;
     converted.startScaleVector = particle.transform.scale;
@@ -1399,4 +1399,4 @@ void ParticleManager::DrawImGuiEditor() {
 #endif
 }
 
-} // namespace cg2
+} // namespace myEngine

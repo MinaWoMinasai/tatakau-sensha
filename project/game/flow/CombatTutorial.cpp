@@ -29,76 +29,76 @@ using namespace detail;
 
 void CombatTutorial::InitializeSubmissionUi()
 {
-    cg2::TextStyle bannerStyle{};
+    myEngine::TextStyle bannerStyle{};
     bannerStyle.fontFamily = "Meiryo";
     bannerStyle.fontSize = 58.0f;
     bannerStyle.color = {0.78f, 1.0f, 0.96f, 1.0f};
     bannerStyle.outlineColor = {0.0f, 0.03f, 0.08f, 0.98f};
     bannerStyle.outlineThickness = 5.0f;
     bannerStyle.padding = 10.0f;
-    world_.combat.flowBannerText_ = std::make_unique<cg2::TextLabel>();
-    world_.combat.flowBannerText_->Initialize(cg2::SpriteCommon::GetInstance(), "STAGE CLEAR", bannerStyle);
+    world_.combat.flowBannerText_ = std::make_unique<myEngine::TextLabel>();
+    world_.combat.flowBannerText_->Initialize(myEngine::SpriteCommon::GetInstance(), "STAGE CLEAR", bannerStyle);
     world_.combat.flowBannerText_->SetAnchorPoint({0.5f, 0.5f});
-    world_.combat.flowBannerText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 170.0f});
+    world_.combat.flowBannerText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 170.0f});
 
     for (auto* bar : {&world_.combat.cinematicBarTop_, &world_.combat.cinematicBarBottom_}) {
-        *bar = std::make_unique<cg2::Sprite>();
-        (*bar)->Initialize(cg2::SpriteCommon::GetInstance(), "resources/white512x512.png");
+        *bar = std::make_unique<myEngine::Sprite>();
+        (*bar)->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/white512x512.png");
         (*bar)->SetColor({0.0f, 0.0f, 0.0f, 1.0f});
     }
-    cg2::TextStyle cinematicTitleStyle = bannerStyle;
+    myEngine::TextStyle cinematicTitleStyle = bannerStyle;
     cinematicTitleStyle.fontWeight = 700;
     cinematicTitleStyle.fontSize = 66.0f;
     cinematicTitleStyle.color = {1.0f, 0.62f, 0.92f, 1.0f};
     cinematicTitleStyle.outlineColor = {0.10f, 0.0f, 0.08f, 0.95f};
     cinematicTitleStyle.outlineThickness = 4.0f;
-    world_.combat.cinematicTitle_ = std::make_unique<cg2::TextLabel>();
-    world_.combat.cinematicTitle_->Initialize(cg2::SpriteCommon::GetInstance(), "最終決戦", cinematicTitleStyle);
+    world_.combat.cinematicTitle_ = std::make_unique<myEngine::TextLabel>();
+    world_.combat.cinematicTitle_->Initialize(myEngine::SpriteCommon::GetInstance(), "最終決戦", cinematicTitleStyle);
     world_.combat.cinematicTitle_->SetAnchorPoint({0.5f, 0.5f});
-    cg2::TextStyle cinematicSubtitleStyle = cinematicTitleStyle;
+    myEngine::TextStyle cinematicSubtitleStyle = cinematicTitleStyle;
     cinematicSubtitleStyle.fontWeight = 400;
     cinematicSubtitleStyle.fontSize = 22.0f;
     cinematicSubtitleStyle.color = {0.86f, 0.92f, 1.0f, 1.0f};
     cinematicSubtitleStyle.outlineThickness = 2.0f;
-    world_.combat.cinematicSubtitle_ = std::make_unique<cg2::TextLabel>();
-    world_.combat.cinematicSubtitle_->Initialize(cg2::SpriteCommon::GetInstance(), "最深部の投影体があらわれた  /  Enterでスキップ",
+    world_.combat.cinematicSubtitle_ = std::make_unique<myEngine::TextLabel>();
+    world_.combat.cinematicSubtitle_->Initialize(myEngine::SpriteCommon::GetInstance(), "最深部の投影体があらわれた  /  Enterでスキップ",
                                                  cinematicSubtitleStyle);
     world_.combat.cinematicSubtitle_->SetAnchorPoint({0.5f, 0.5f});
     world_.combat.cinematicTitleMode_ = 1;
 
-    cg2::TextStyle bloomViewStyle = bannerStyle;
+    myEngine::TextStyle bloomViewStyle = bannerStyle;
     bloomViewStyle.fontSize = 22.0f;
     bloomViewStyle.color = {1.0f, 0.95f, 0.70f, 1.0f};
     bloomViewStyle.outlineThickness = 3.0f;
-    world_.combat.bloomViewText_ = std::make_unique<cg2::TextLabel>();
-    world_.combat.bloomViewText_->Initialize(cg2::SpriteCommon::GetInstance(), " ", bloomViewStyle);
+    world_.combat.bloomViewText_ = std::make_unique<myEngine::TextLabel>();
+    world_.combat.bloomViewText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", bloomViewStyle);
     world_.combat.bloomViewText_->SetAnchorPoint({0.5f, 0.5f});
 
-    cg2::TextStyle eventStyle = bannerStyle;
+    myEngine::TextStyle eventStyle = bannerStyle;
     eventStyle.fontSize = 30.0f;
     eventStyle.color = {0.55f, 1.0f, 0.72f, 1.0f};
     eventStyle.outlineThickness = 3.0f;
-    world_.combat.eventCalloutText_ = std::make_unique<cg2::TextLabel>();
-    world_.combat.eventCalloutText_->Initialize(cg2::SpriteCommon::GetInstance(), "ジャスト回避", eventStyle);
+    world_.combat.eventCalloutText_ = std::make_unique<myEngine::TextLabel>();
+    world_.combat.eventCalloutText_->Initialize(myEngine::SpriteCommon::GetInstance(), "ジャスト回避", eventStyle);
     world_.combat.eventCalloutText_->SetAnchorPoint({0.5f, 0.5f});
-    world_.combat.eventCalloutText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 112.0f});
+    world_.combat.eventCalloutText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 112.0f});
 
-    cg2::TextStyle resultStyle = bannerStyle;
+    myEngine::TextStyle resultStyle = bannerStyle;
     resultStyle.fontSize = 25.0f;
     resultStyle.color = {0.90f, 0.96f, 1.0f, 1.0f};
     resultStyle.outlineThickness = 3.0f;
-    world_.combat.resultSummaryText_ = std::make_unique<cg2::TextLabel>();
-    world_.combat.resultSummaryText_->Initialize(cg2::SpriteCommon::GetInstance(), "", resultStyle);
+    world_.combat.resultSummaryText_ = std::make_unique<myEngine::TextLabel>();
+    world_.combat.resultSummaryText_->Initialize(myEngine::SpriteCommon::GetInstance(), "", resultStyle);
     world_.combat.resultSummaryText_->SetAnchorPoint({0.5f, 0.5f});
-    world_.combat.resultSummaryText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 365.0f});
+    world_.combat.resultSummaryText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 365.0f});
 
-    cg2::TextStyle menuStyle = resultStyle;
+    myEngine::TextStyle menuStyle = resultStyle;
     menuStyle.fontSize = 28.0f;
     menuStyle.color = {0.48f, 1.0f, 0.66f, 1.0f};
-    world_.combat.resultMenuText_ = std::make_unique<cg2::TextLabel>();
-    world_.combat.resultMenuText_->Initialize(cg2::SpriteCommon::GetInstance(), "", menuStyle);
+    world_.combat.resultMenuText_ = std::make_unique<myEngine::TextLabel>();
+    world_.combat.resultMenuText_->Initialize(myEngine::SpriteCommon::GetInstance(), "", menuStyle);
     world_.combat.resultMenuText_->SetAnchorPoint({0.5f, 0.5f});
-    world_.combat.resultMenuText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 555.0f});
+    world_.combat.resultMenuText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 555.0f});
 }
 
 bool CombatTutorial::LoadTutorialConfig(const std::string& filePath)
@@ -141,42 +141,42 @@ void CombatTutorial::InitializeTutorialUi()
         return;
     }
 
-    world_.combat.tutorialPanel_ = std::make_unique<cg2::Sprite>();
-    world_.combat.tutorialPanel_->Initialize(cg2::SpriteCommon::GetInstance(), "resources/white512x512.png");
+    world_.combat.tutorialPanel_ = std::make_unique<myEngine::Sprite>();
+    world_.combat.tutorialPanel_->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/white512x512.png");
     world_.combat.tutorialPanel_->SetAnchorPoint({0.5f, 0.5f});
-    world_.combat.tutorialPanel_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 128.0f});
+    world_.combat.tutorialPanel_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 128.0f});
     world_.combat.tutorialPanel_->SetSize({390.0f, 126.0f});
     world_.combat.tutorialPanel_->SetColor({0.004f, 0.012f, 0.030f, 0.78f});
     world_.combat.tutorialPanel_->Update();
 
-    cg2::TextStyle titleStyle{};
+    myEngine::TextStyle titleStyle{};
     titleStyle.fontFamily = "Meiryo";
     titleStyle.fontSize = 28.0f;
     titleStyle.color = {0.42f, 1.0f, 0.82f, 1.0f};
     titleStyle.outlineColor = {0.0f, 0.03f, 0.08f, 0.96f};
     titleStyle.outlineThickness = 3.0f;
     titleStyle.padding = 7.0f;
-    world_.combat.tutorialTitleText_ = std::make_unique<cg2::TextLabel>();
-    world_.combat.tutorialTitleText_->Initialize(cg2::SpriteCommon::GetInstance(), "MOVE", titleStyle);
+    world_.combat.tutorialTitleText_ = std::make_unique<myEngine::TextLabel>();
+    world_.combat.tutorialTitleText_->Initialize(myEngine::SpriteCommon::GetInstance(), "MOVE", titleStyle);
     world_.combat.tutorialTitleText_->SetAnchorPoint({0.5f, 0.5f});
-    world_.combat.tutorialTitleText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 91.0f});
+    world_.combat.tutorialTitleText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 91.0f});
 
-    cg2::TextStyle inputStyle = titleStyle;
+    myEngine::TextStyle inputStyle = titleStyle;
     inputStyle.fontSize = 20.0f;
     inputStyle.color = {0.90f, 1.0f, 1.0f, 1.0f};
     inputStyle.outlineThickness = 2.0f;
-    world_.combat.tutorialInputText_ = std::make_unique<cg2::TextLabel>();
-    world_.combat.tutorialInputText_->Initialize(cg2::SpriteCommon::GetInstance(), "W A S D", inputStyle);
+    world_.combat.tutorialInputText_ = std::make_unique<myEngine::TextLabel>();
+    world_.combat.tutorialInputText_->Initialize(myEngine::SpriteCommon::GetInstance(), "W A S D", inputStyle);
     world_.combat.tutorialInputText_->SetAnchorPoint({0.5f, 0.5f});
-    world_.combat.tutorialInputText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 128.0f});
+    world_.combat.tutorialInputText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 128.0f});
 
-    cg2::TextStyle descriptionStyle = inputStyle;
+    myEngine::TextStyle descriptionStyle = inputStyle;
     descriptionStyle.fontSize = 15.0f;
     descriptionStyle.color = {0.78f, 0.86f, 0.92f, 0.92f};
-    world_.combat.tutorialDescriptionText_ = std::make_unique<cg2::TextLabel>();
-    world_.combat.tutorialDescriptionText_->Initialize(cg2::SpriteCommon::GetInstance(), "移動してみよう", descriptionStyle);
+    world_.combat.tutorialDescriptionText_ = std::make_unique<myEngine::TextLabel>();
+    world_.combat.tutorialDescriptionText_->Initialize(myEngine::SpriteCommon::GetInstance(), "移動してみよう", descriptionStyle);
     world_.combat.tutorialDescriptionText_->SetAnchorPoint({0.5f, 0.5f});
-    world_.combat.tutorialDescriptionText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 160.0f});
+    world_.combat.tutorialDescriptionText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 160.0f});
 
     world_.combat.tutorialPreviousPlayerPosition_ = world_.resources.player_->GetWorldPosition();
     world_.combat.tutorialMoveDistance_ = 0.0f;
@@ -282,8 +282,8 @@ void CombatTutorial::UpdateTutorial(float deltaTime)
         return;
     }
 
-    const cg2::Vector3 currentPosition = world_.resources.player_->GetWorldPosition();
-    const float actualMoveDistance = cg2::Length(currentPosition - world_.combat.tutorialPreviousPlayerPosition_);
+    const myEngine::Vector3 currentPosition = world_.resources.player_->GetWorldPosition();
+    const float actualMoveDistance = myEngine::Length(currentPosition - world_.combat.tutorialPreviousPlayerPosition_);
     world_.combat.tutorialPreviousPlayerPosition_ = currentPosition;
 
     if (world_.combat.tutorialStep_ == TutorialStep::Phase1Complete) {
@@ -400,11 +400,11 @@ void CombatTutorial::UpdateTutorialText()
         return;
     }
 
-    cg2::TextStyle inputStyle = world_.combat.tutorialInputText_->GetStyle();
+    myEngine::TextStyle inputStyle = world_.combat.tutorialInputText_->GetStyle();
     inputStyle.color = world_.combat.tutorialStepCompleting_ || world_.combat.tutorialStep_ == TutorialStep::Phase1Complete ||
                                world_.combat.tutorialStep_ == TutorialStep::TutorialComplete
-                           ? cg2::Vector4{0.42f, 1.0f, 0.62f, 1.0f}
-                           : cg2::Vector4{0.90f, 1.0f, 1.0f, 1.0f};
+                           ? myEngine::Vector4{0.42f, 1.0f, 0.62f, 1.0f}
+                           : myEngine::Vector4{0.90f, 1.0f, 1.0f, 1.0f};
     world_.combat.tutorialInputText_->SetStyle(inputStyle);
 
     if (world_.combat.tutorialStepCompleting_) {
@@ -512,16 +512,16 @@ void CombatTutorial::DrawTutorialUi()
             world_.combat.tutorialInputText_->SetPosition({1090.0f, 50.0f});
     } else {
         if (world_.combat.tutorialPanel_) {
-            world_.combat.tutorialPanel_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 128.0f});
+            world_.combat.tutorialPanel_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 128.0f});
             world_.combat.tutorialPanel_->SetSize({390.0f, 126.0f});
             world_.combat.tutorialPanel_->Update();
         }
         if (world_.combat.tutorialTitleText_)
-            world_.combat.tutorialTitleText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 91.0f});
+            world_.combat.tutorialTitleText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 91.0f});
         if (world_.combat.tutorialInputText_)
-            world_.combat.tutorialInputText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 128.0f});
+            world_.combat.tutorialInputText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 128.0f});
         if (world_.combat.tutorialDescriptionText_)
-            world_.combat.tutorialDescriptionText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 160.0f});
+            world_.combat.tutorialDescriptionText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 160.0f});
     }
     if (world_.combat.tutorialPanel_)
         world_.combat.tutorialPanel_->Draw();

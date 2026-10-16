@@ -8,7 +8,7 @@
 #include <future>
 #include <memory>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 画像の読み込みとSRVの割り当てを管理し、読み込み済み画像を共有する。
 class TextureManager {
@@ -125,4 +125,4 @@ private:
     bool pbrEnvironmentLoadedFromSource_ = false;
 };
 
-} // namespace cg2
+} // namespace myEngine

@@ -20,10 +20,10 @@ std::optional<tankexp::MapDefinition> sessionMap;
 std::optional<tankexp::RoomCatalog> sessionRooms;
 std::optional<tankcontent::Catalog> sessionContent;
 /// @brief 遠征マップの矩形表示用スプライトを生成する。
-std::unique_ptr<cg2::Sprite> MapRect(cg2::Vector2 p, cg2::Vector2 size, const cg2::Vector4& color)
+std::unique_ptr<myEngine::Sprite> MapRect(myEngine::Vector2 p, myEngine::Vector2 size, const myEngine::Vector4& color)
 {
-    auto s = std::make_unique<cg2::Sprite>();
-    s->Initialize(cg2::SpriteCommon::GetInstance(), "resources/white512x512.png");
+    auto s = std::make_unique<myEngine::Sprite>();
+    s->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/white512x512.png");
     s->SetPosition(p);
     s->SetSize(size);
     s->SetColor(color);
@@ -31,21 +31,21 @@ std::unique_ptr<cg2::Sprite> MapRect(cg2::Vector2 p, cg2::Vector2 size, const cg
     return s;
 }
 /// @brief 遠征マップの表示用文字を生成する。
-std::unique_ptr<cg2::TextLabel> MapLabel(float size, cg2::Vector2 p, const cg2::Vector4& color)
+std::unique_ptr<myEngine::TextLabel> MapLabel(float size, myEngine::Vector2 p, const myEngine::Vector4& color)
 {
-    cg2::TextStyle style{};
+    myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
     style.fontSize = size;
     style.color = color;
     style.padding = 4;
     style.outlineThickness = 0;
-    auto t = std::make_unique<cg2::TextLabel>();
-    t->Initialize(cg2::SpriteCommon::GetInstance(), " ", style);
+    auto t = std::make_unique<myEngine::TextLabel>();
+    t->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     t->SetPosition(p);
     return t;
 }
 /// @brief ノードの種類と状態に対応する色を返す。
-cg2::Vector4 NodeColor(NK kind)
+myEngine::Vector4 NodeColor(NK kind)
 {
     const auto& color = tankexp::GetNodeKindDefinition(kind).color;
     return {color[0], color[1], color[2], color[3]};
@@ -100,12 +100,12 @@ int ThreatCount(EnemyManager* enemies)
     return n;
 }
 /// @brief 入力の押下開始を判定する。
-bool Press(cg2::Input* input, int key)
+bool Press(myEngine::Input* input, int key)
 {
     return input->IsKeyTriggered(static_cast<uint8_t>(key));
 }
 /// @brief 指定位置が対象の範囲内か判定する。
-bool Inside(cg2::Vector2 mouse, float x, float y, float w, float h)
+bool Inside(myEngine::Vector2 mouse, float x, float y, float w, float h)
 {
     return mouse.x >= x && mouse.x <= x + w && mouse.y >= y && mouse.y <= y + h;
 }
@@ -113,12 +113,12 @@ bool Inside(cg2::Vector2 mouse, float x, float y, float w, float h)
 
 void ExpeditionMapController::InitializeExpeditionMap()
 {
-    cg2::StartupTrace::Scope scope("Expedition.Map");
+    myEngine::StartupTrace::Scope scope("Expedition.Map");
     auto initialization = BuildInitialization();
     while (!initialization.Advance()) {}
 }
 
-cg2::InitializationTask ExpeditionMapController::BuildInitialization()
+myEngine::InitializationTask ExpeditionMapController::BuildInitialization()
 {
 
     world_.run.expeditionMapEnabled_ = true;
@@ -139,9 +139,9 @@ cg2::InitializationTask ExpeditionMapController::BuildInitialization()
     if (sessionContent)
         world_.run.expeditionContent_ = *sessionContent;
     wchar_t mapTest[8]{};
-    world_.run.expeditionMapAutoTest_ = GetEnvironmentVariableW(L"CG2_TANK_MAP_AUTOTEST", mapTest, 8) > 0 && mapTest[0] == L'1';
+    world_.run.expeditionMapAutoTest_ = GetEnvironmentVariableW(L"MYENGINE_TANK_MAP_AUTOTEST", mapTest, 8) > 0 && mapTest[0] == L'1';
     world_.run.expeditionSeed_ = static_cast<uint32_t>(GetTickCount64()) ^ world_.run.expeditionMapDefinition_.generationSeed;
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (GameplayScenarioSession::Get().IsActive())
         world_.run.expeditionSeed_ = GameplayScenarioSession::Get().GetSettings().seed;
 #endif
@@ -207,7 +207,7 @@ cg2::InitializationTask ExpeditionMapController::BuildInitialization()
             break;
         }
     co_await std::suspend_always{};
-    const cg2::Vector4 white{0.83f, 0.96f, 1, 1}, muted{0.42f, 0.64f, 0.75f, 1};
+    const myEngine::Vector4 white{0.83f, 0.96f, 1, 1}, muted{0.42f, 0.64f, 0.75f, 1};
     world_.run.expeditionMapTitle_ = MapLabel(32, {44, 85}, white);
     world_.run.expeditionMapSubtitle_ = MapLabel(16, {46, 133}, muted);
     world_.run.expeditionMapLegend_ = MapLabel(14, {46, 195}, muted);
@@ -264,7 +264,7 @@ cg2::InitializationTask ExpeditionMapController::BuildInitialization()
         world_.run.expeditionBlueprintLabels_[i]->SetText(i == 0 ? "←" : i == 1 ? "→" : " ");
     }
     wchar_t flag[8]{};
-    world_.run.expeditionMapAutoTest_ = GetEnvironmentVariableW(L"CG2_TANK_MAP_AUTOTEST", flag, 8) > 0 && flag[0] == L'1';
+    world_.run.expeditionMapAutoTest_ = GetEnvironmentVariableW(L"MYENGINE_TANK_MAP_AUTOTEST", flag, 8) > 0 && flag[0] == L'1';
     if (world_.run.expeditionMapAutoTest_) {
         world_.presentation.debugPlayerNoDamage_ = true;
         world_.run.tankExpeditionTutorial_.Skip();
@@ -277,7 +277,7 @@ cg2::InitializationTask ExpeditionMapController::BuildInitialization()
 }
 
 void ExpeditionMapController::BeginExpeditionPresentation(int action, const std::string& title, const std::string& detail,
-                                                          const cg2::Vector4& color)
+                                                          const myEngine::Vector4& color)
 {
     if (!world_.run.expeditionTransition_.Begin())
         return;
@@ -378,7 +378,7 @@ void ExpeditionMapController::DrawExpeditionPresentation()
 {
     if (!world_.run.expeditionTransition_.IsActive() || !world_.run.expeditionCurtain_)
         return;
-    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     world_.run.expeditionCurtain_->SetColor({0.006f, 0.015f, 0.03f, world_.run.expeditionTransition_.Cover()});
     world_.run.expeditionCurtain_->Update();
     world_.run.expeditionCurtain_->Draw();
@@ -410,7 +410,7 @@ void ExpeditionMapController::SetExpeditionBlueprint(int index)
     tankrun::Config config;
     config.combatSeconds = 1000000;
     uint32_t blueprintSeed = static_cast<uint32_t>(GetTickCount64());
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (GameplayScenarioSession::Get().IsActive())
         blueprintSeed = GameplayScenarioSession::Get().GetSettings().seed;
 #endif
@@ -607,7 +607,7 @@ bool ExpeditionMapController::StartAuthoredExpeditionRoom()
     world_.presentation.stagePostCacheValid_ = false;
     world_.resources.stage_->SetDamageBlockDamage(12);
     // 生存中で遠征成長が有効な自機の部屋状態をリセットし、開始位置へ置く。現在HP/成長は部屋をまたいで保持する。
-    const cg2::Vector3 start{room->playerStart.x, room->playerStart.y, 0};
+    const myEngine::Vector3 start{room->playerStart.x, room->playerStart.y, 0};
     world_.resources.player_->ResetRunRoomState(start);
     world_.run.tankExpeditionTutorialPrevious_ = start;
     world_.resources.camera->SetTranslate({start.x, start.y, world_.resources.camera->GetTranslate().z});
@@ -925,15 +925,15 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
                                                                      : "左クリックで修理"));
         }
         const bool repair = active->kind == NK::Heal;
-        world_.run.expeditionSkipButton_->SetPosition(repair ? cg2::Vector2{490, 560} : cg2::Vector2{966, 620});
-        world_.run.expeditionSkipButton_->SetSize(repair ? cg2::Vector2{300, 52} : cg2::Vector2{242, 44});
-        world_.run.expeditionSkipText_->SetPosition(repair ? cg2::Vector2{640, 574} : cg2::Vector2{1087, 629});
+        world_.run.expeditionSkipButton_->SetPosition(repair ? myEngine::Vector2{490, 560} : myEngine::Vector2{966, 620});
+        world_.run.expeditionSkipButton_->SetSize(repair ? myEngine::Vector2{300, 52} : myEngine::Vector2{242, 44});
+        world_.run.expeditionSkipText_->SetPosition(repair ? myEngine::Vector2{640, 574} : myEngine::Vector2{1087, 629});
         world_.run.expeditionSkipText_->SetText(repair ? "修理せず進む" : "購入せず進む");
         const auto mouse = world_.resources.input_->GetMousePosition();
         const bool skipFocus = world_.run.tankRunSelection_ == 3 || Inside(mouse, repair ? 490.0f : 966.0f, repair ? 560.0f : 620.0f,
                                                                            repair ? 300.0f : 242.0f, repair ? 52.0f : 44.0f);
-        world_.run.expeditionSkipButton_->SetColor(skipFocus ? cg2::Vector4{0.065f, 0.19f, 0.22f, 1}
-                                                             : cg2::Vector4{0.045f, 0.09f, 0.13f, 1});
+        world_.run.expeditionSkipButton_->SetColor(skipFocus ? myEngine::Vector4{0.065f, 0.19f, 0.22f, 1}
+                                                             : myEngine::Vector4{0.045f, 0.09f, 0.13f, 1});
         world_.run.expeditionSkipButton_->Update();
         world_.run.expeditionSkipText_->PrepareForDraw();
         world_.run.expeditionMapInfo_->SetPosition({46, 674});
@@ -958,7 +958,7 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         world_.run.expeditionMapHelp_->SetText(WrapMapText(world_.run.expeditionMapStatus_, 48, 1));
     }
     auto position = [this](const tankexp::MapNode& n) {
-        return cg2::Vector2{90 + 120.0f * n.column - world_.run.expeditionMapScroll_, 186 + 84.0f * n.row};
+        return myEngine::Vector2{90 + 120.0f * n.column - world_.run.expeditionMapScroll_, 186 + 84.0f * n.row};
     };
     const auto available = world_.run.expeditionMapRun_.GetAvailableNodeIds();
     world_.expeditionExperience->EnsureExpeditionPointers((std::max)(size_t{6}, available.size() * 6));
@@ -984,7 +984,7 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         const bool intro = n.role == tankexp::NodeRole::TutorialCombat || n.role == tankexp::NodeRole::TutorialSkip;
         const bool learning = reachable && n.role == tankexp::NodeRole::TutorialCombat;
         const bool abandoned = !visited && !reachable && !future.contains(n.id) && current;
-        auto tint = visited ? cg2::Vector4{0.25f, 1.35f, 0.62f, 1} : NodeColor(n.kind);
+        auto tint = visited ? myEngine::Vector4{0.25f, 1.35f, 0.62f, 1} : NodeColor(n.kind);
         tint.w = abandoned ? 0.09f : reachable || selected ? 1.0f : visited ? 0.9f : 0.35f;
         const float pulse = 0.5f + 0.5f * std::sin(world_.run.expeditionPresentationClock_ * 3.8f - static_cast<float>(i) * 0.4f);
         const float focus = v.focus;
@@ -997,13 +997,13 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         v.halo->SetSize({55 + focus * 10 + pulse * (learning ? 5.0f : 3.0f), 55 + focus * 10 + pulse * (learning ? 5.0f : 3.0f)});
         v.rim->SetSize({46 + focus * 5, 46 + focus * 5});
         v.fill->SetSize({42 + focus * 5, 42 + focus * 5});
-        v.fill->SetColor(visited ? cg2::Vector4{0.03f, 0.14f, 0.16f, 1} : cg2::Vector4{0.016f, 0.040f, 0.065f, 1});
+        v.fill->SetColor(visited ? myEngine::Vector4{0.03f, 0.14f, 0.16f, 1} : myEngine::Vector4{0.016f, 0.040f, 0.065f, 1});
         for (auto* s : {v.halo.get(), v.rim.get(), v.fill.get()}) {
             s->SetPosition(v.center);
             s->Update();
         }
         auto style = v.icon->GetStyle();
-        style.color = visited ? cg2::Vector4{0.3f, 1.4f, 0.65f, 1} : NodeColor(n.kind);
+        style.color = visited ? myEngine::Vector4{0.3f, 1.4f, 0.65f, 1} : NodeColor(n.kind);
         v.icon->SetStyle(style);
         v.icon->SetText(visited ? "完" : NodeIcon(n.kind));
         v.icon->SetPosition({v.center.x, v.center.y - 2});
@@ -1043,10 +1043,10 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         const bool focusPath = edge.to == world_.run.expeditionMapSelection_ || edge.from == world_.run.expeditionMapSelection_;
         const bool abandoned =
             current && !chosen && (!future.contains(edge.to) || (!future.contains(edge.from) && edge.from != current->id));
-        edge.line->SetColor(abandoned   ? cg2::Vector4{0.16f, 0.24f, 0.30f, 0.10f}
-                            : chosen    ? cg2::Vector4{0.2f, 1.1f, 0.62f, 0.85f}
-                            : focusPath ? cg2::Vector4{0.25f, 0.86f, 0.85f, 0.9f}
-                                        : cg2::Vector4{0.24f, 0.42f, 0.56f, 0.35f});
+        edge.line->SetColor(abandoned   ? myEngine::Vector4{0.16f, 0.24f, 0.30f, 0.10f}
+                            : chosen    ? myEngine::Vector4{0.2f, 1.1f, 0.62f, 0.85f}
+                            : focusPath ? myEngine::Vector4{0.25f, 0.86f, 0.85f, 0.9f}
+                                        : myEngine::Vector4{0.24f, 0.42f, 0.56f, 0.35f});
         edge.glow->SetColor({0.14f, 0.70f, 0.82f, chosen || focusPath ? 0.15f : 0.03f});
         const float travel = std::fmod(world_.run.expeditionPresentationClock_ * 0.60f, 1.0f);
         edge.pulse->SetPosition({a.x + (b.x - a.x) * travel, a.y + (b.y - a.y) * travel});
@@ -1061,8 +1061,8 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         world_.run.expeditionBlueprintLabels_[i]->SetPosition({i == 0 ? 68.0f : 152.0f, 628});
         world_.run.expeditionBlueprintButtons_[i]->SetColor(
             Inside(world_.resources.input_->GetMousePosition(), i == 0 ? 46.0f : 130.0f, 620, 68, 44)
-                ? cg2::Vector4{0.04f, 0.21f, 0.24f, 1}
-                : cg2::Vector4{0.025f, 0.07f, 0.11f, 1});
+                ? myEngine::Vector4{0.04f, 0.21f, 0.24f, 1}
+                : myEngine::Vector4{0.025f, 0.07f, 0.11f, 1});
         world_.run.expeditionBlueprintLabels_[i]->PrepareForDraw();
     }
     for (auto* t : {world_.run.expeditionMapTitle_.get(), world_.run.expeditionMapSubtitle_.get(), world_.run.expeditionMapLegend_.get(),
@@ -1102,7 +1102,7 @@ void ExpeditionMapController::DrawExpeditionMapUi()
         for (int i = 0; i < 3; ++i)
             if (cardPresent(i) && world_.run.expeditionRewardCards_[i])
                 world_.run.expeditionRewardCards_[i]->PreparePreviewRender();
-    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     world_.run.tankRunDimmer_->Draw();
     world_.run.tankRunHudPanel_->Draw();
     world_.run.tankRunHud_->Draw();
@@ -1134,8 +1134,8 @@ void ExpeditionMapController::DrawExpeditionMapUi()
             world_.run.tankRunCards_[0]->SetPosition({424, 270});
             world_.run.tankRunCards_[0]->SetSize({432, 260});
             world_.run.tankRunCards_[0]->SetColor(
-                enabled ? cg2::Vector4{0.028f + 0.012f * focus, 0.065f + 0.105f * focus, 0.075f + 0.105f * focus, 1}
-                        : cg2::Vector4{0.025f, 0.035f, 0.045f, 1});
+                enabled ? myEngine::Vector4{0.028f + 0.012f * focus, 0.065f + 0.105f * focus, 0.075f + 0.105f * focus, 1}
+                        : myEngine::Vector4{0.025f, 0.035f, 0.045f, 1});
             world_.run.tankRunCardTitles_[0]->SetPosition({446, 292});
             world_.run.tankRunCardBodies_[0]->SetPosition({446, 338});
             world_.run.tankRunCards_[0]->Update();
@@ -1167,7 +1167,7 @@ void ExpeditionMapController::DrawExpeditionMapUi()
             e.line->Draw();
             e.pulse->Draw();
         }
-        std::vector<cg2::TextLabel*> completed;
+        std::vector<myEngine::TextLabel*> completed;
         const auto& nodes = world_.run.expeditionMapRun_.GetDefinition().nodes;
         for (size_t i = 0; i < world_.run.expeditionMapVisuals_.size(); ++i) {
             const auto& v = world_.run.expeditionMapVisuals_[i];
@@ -1175,7 +1175,7 @@ void ExpeditionMapController::DrawExpeditionMapUi()
                 completed.push_back(v.icon.get());
         }
         world_.run.expeditionCompleteGlow_->DrawBloom(completed);
-        cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+        myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
         for (auto& n : world_.run.expeditionMapVisuals_)
             if (n.center.x >= 66 && n.center.x <= 1214) {
                 n.halo->Draw();
@@ -1233,7 +1233,7 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
     world_.run.tankRunAutoTime_ += dt;
     if (world_.run.expeditionMapAutoTest_)
         UpdateExpeditionMapValidation(dt);
-    if (cg2::kDeveloperTools && Press(world_.resources.input_, DIK_F10))
+    if (myEngine::kDeveloperTools && Press(world_.resources.input_, DIK_F10))
         world_.arenaRunController->RequestTankRunCapture("map_manual");
     if (Press(world_.resources.input_, DIK_M)) {
         world_.run.tankExpeditionMusicEnabled_ = !world_.run.tankExpeditionMusicEnabled_;

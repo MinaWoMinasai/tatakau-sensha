@@ -10,7 +10,7 @@ public:
     explicit ExpeditionBuildSelection(GameWorld& world) : world_(world) {}
     /// @brief 遠征強化ビルドカードを初期化する。
     void InitializeExpeditionBuildCards();
-    cg2::InitializationTask BuildInitialization();
+    myEngine::InitializationTask BuildInitialization();
 
     /// @brief 遠征強化ビルドカードを最新の内容へ更新する。
     void RefreshExpeditionBuildCards();

@@ -17,19 +17,19 @@ bool ExpeditionBuildSelection::IsExpeditionBuildCardScreen() const
 
 void ExpeditionBuildSelection::InitializeExpeditionBuildCards()
 {
-    cg2::StartupTrace::Scope scope("Expedition.BuildCards");
+    myEngine::StartupTrace::Scope scope("Expedition.BuildCards");
     auto initialization = BuildInitialization();
     while (!initialization.Advance()) {}
 }
 
-cg2::InitializationTask ExpeditionBuildSelection::BuildInitialization()
+myEngine::InitializationTask ExpeditionBuildSelection::BuildInitialization()
 {
 
     for (auto& card : world_.run.expeditionRewardCards_) {
         co_await std::suspend_always{};
         card = std::make_unique<TankRewardCard>();
-        card->Initialize(cg2::SpriteCommon::GetInstance());
-        card->InitializePreview(cg2::Object3dCommon::GetInstance()->GetSrvManager());
+        card->Initialize(myEngine::SpriteCommon::GetInstance());
+        card->InitializePreview(myEngine::Object3dCommon::GetInstance()->GetSrvManager());
     }
     // Authored maps without the two introductory branches still offer a style
     // before their first encounter. The isolated AI fixture has no map input.

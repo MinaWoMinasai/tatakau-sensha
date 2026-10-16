@@ -9,7 +9,7 @@
 
 namespace {
 /// @brief ベクトル3を読み取る。
-cg2::Vector3 ReadVector3(const nlohmann::json& json, const cg2::Vector3& fallback)
+myEngine::Vector3 ReadVector3(const nlohmann::json& json, const myEngine::Vector3& fallback)
 {
 	if (!json.is_array() || json.size() < 3) {
 		return fallback;
@@ -22,7 +22,7 @@ cg2::Vector3 ReadVector3(const nlohmann::json& json, const cg2::Vector3& fallbac
 }
 
 /// @brief ベクトル2を読み取る。
-cg2::Vector2 ReadVector2(const nlohmann::json& json, const cg2::Vector2& fallback)
+myEngine::Vector2 ReadVector2(const nlohmann::json& json, const myEngine::Vector2& fallback)
 {
 	if (!json.is_array() || json.size() < 2) {
 		return fallback;
@@ -37,7 +37,7 @@ cg2::Vector2 ReadVector2(const nlohmann::json& json, const cg2::Vector2& fallbac
 }
 
 /// @brief JSON配列から4成分を読む。要素数が不足する場合はfallbackを返す。
-cg2::Vector4 ReadVector4(const nlohmann::json& json, const cg2::Vector4& fallback)
+myEngine::Vector4 ReadVector4(const nlohmann::json& json, const myEngine::Vector4& fallback)
 {
 	if (!json.is_array() || json.size() < 4) {
 		return fallback;
@@ -151,13 +151,13 @@ const char* BodyShapeToString(PlayerBodyShape shape)
 }
 
 /// @brief ベクトル3を保存用のJSONへ変換する。
-nlohmann::json Vector3ToJson(const cg2::Vector3& value)
+nlohmann::json Vector3ToJson(const myEngine::Vector3& value)
 {
 	return nlohmann::json::array({ value.x, value.y, value.z });
 }
 
 /// @brief ベクトル4を保存用のJSONへ変換する。
-nlohmann::json Vector4ToJson(const cg2::Vector4& value)
+nlohmann::json Vector4ToJson(const myEngine::Vector4& value)
 {
 	return nlohmann::json::array({ value.x, value.y, value.z, value.w });
 }
@@ -354,7 +354,7 @@ PlayerClassConfig PlayerClassCatalog::CreateDefaultConfig(ClassType type)
 	config.randomSpread = true;
 	config.reloadScale = 1.0f;
 	config.alternateBarrels = false;
-	auto makeBarrel = [](const cg2::Vector3& offset, const cg2::Vector3& scale, float angleDeg) {
+	auto makeBarrel = [](const myEngine::Vector3& offset, const myEngine::Vector3& scale, float angleDeg) {
 		WeaponMountConfig barrel{};
 		barrel.model = "gunBarrel.obj";
 		barrel.offset = offset;

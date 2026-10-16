@@ -5,7 +5,7 @@
 #include "Sprite.h"
 #include "TextRenderer.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 表示文字列と描画用スプライトを保持し、文字の変更時にテクスチャを更新する。
 class TextLabel {
@@ -19,7 +19,7 @@ public:
     static void RefreshAllInputPrompts();
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-    /// @brief cg2::TextLabelの処理件数や所要時間を保持し、性能と動作の確認に使う。
+    /// @brief myEngine::TextLabelの処理件数や所要時間を保持し、性能と動作の確認に使う。
     struct ProfileStats {
         float setStyleCpuMs = 0.0f;
         float setTextCpuMs = 0.0f;
@@ -100,4 +100,4 @@ private:
 #endif
 };
 
-} // namespace cg2
+} // namespace myEngine

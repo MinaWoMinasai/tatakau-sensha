@@ -15,7 +15,7 @@
 
 namespace {
 /// @brief 表示内容を指定した領域へ収める。
-void Fit(cg2::TextLabel& label,const cg2::Vector2& bounds) {
+void Fit(myEngine::TextLabel& label,const myEngine::Vector2& bounds) {
     label.PrepareForDraw();
     if(auto* sprite=label.GetSprite()) {
         const auto size=sprite->GetSize();
@@ -25,10 +25,10 @@ void Fit(cg2::TextLabel& label,const cg2::Vector2& bounds) {
 }
 // Font registration while a hidden world initializes can invalidate old labels.
 // Finish any texture rebuilds before Game starts recording the title draw pass.
-void PrepareLabels(std::initializer_list<cg2::TextLabel*> labels) {
+void PrepareLabels(std::initializer_list<myEngine::TextLabel*> labels) {
     for(auto* label:labels) if(label) {
         const bool hadSprite=label->GetSprite()!=nullptr;
-        const auto size=hadSprite?label->GetSprite()->GetSize():cg2::Vector2{};
+        const auto size=hadSprite?label->GetSprite()->GetSize():myEngine::Vector2{};
         label->PrepareForDraw();
         // Rebuilding after font registration must keep the title's fitted bounds.
         if(hadSprite&&label->GetSprite()) label->GetSprite()->SetSize(size);
@@ -38,29 +38,29 @@ void PrepareLabels(std::initializer_list<cg2::TextLabel*> labels) {
 TitleScene::TitleScene()=default;
 TitleScene::~TitleScene()=default;
 void TitleScene::Initialize() {
-    cg2::StartupTrace::Scope startupScope("TitleScene.Initialize");
-    input_=cg2::Input::GetInstance();
-    cg2::Object3dCommon::GetInstance()->SetDefaultCamera(nullptr);
-    cg2::Object3dCommon::GetInstance()->SetDebugDefaultCamera(nullptr);
+    myEngine::StartupTrace::Scope startupScope("TitleScene.Initialize");
+    input_=myEngine::Input::GetInstance();
+    myEngine::Object3dCommon::GetInstance()->SetDefaultCamera(nullptr);
+    myEngine::Object3dCommon::GetInstance()->SetDebugDefaultCamera(nullptr);
     finished_=false;demoFrozen_=false;nextSceneName_.clear();
     phase_=Phase::kFadeIn;blinkTimer_=0;capturedStages_=0;
     previousMousePosition_=input_->GetMousePosition();
     wchar_t test[8]{};
-    autoTest_=GetEnvironmentVariableW(L"CG2_TITLE_AUTOTEST",test,8)>0&&test[0]==L'1';
-    startupAutoTest_=GetEnvironmentVariableW(L"CG2_STARTUP_AUTOTEST",test,8)>0&&test[0]==L'1';
+    autoTest_=GetEnvironmentVariableW(L"MYENGINE_TITLE_AUTOTEST",test,8)>0&&test[0]==L'1';
+    startupAutoTest_=GetEnvironmentVariableW(L"MYENGINE_STARTUP_AUTOTEST",test,8)>0&&test[0]==L'1';
     if(autoTest_) {
         std::filesystem::create_directories("generated/title_demo");
         std::ofstream("generated/title_demo/validation.json")<<"{\"completed\":false}\n";
     }
     char asyncFlag[8]{};
-    asyncStartup_=!(GetEnvironmentVariableA("CG2_ASYNC_STARTUP",asyncFlag,sizeof(asyncFlag))==1 && asyncFlag[0]=='0');
-    engineReady_=cg2::SpriteCommon::GetInstance()->GetDxCommon()->ArePipelinesReady();
+    asyncStartup_=!(GetEnvironmentVariableA("MYENGINE_ASYNC_STARTUP",asyncFlag,sizeof(asyncFlag))==1 && asyncFlag[0]=='0');
+    engineReady_=myEngine::SpriteCommon::GetInstance()->GetDxCommon()->ArePipelinesReady();
     stageSamples_={};
     fade_=std::make_unique<Fade>();fade_->Initialize();fade_->Start(Fade::Status::FadeIn,0.65f);
-    const float w=static_cast<float>(cg2::WinApp::kClientWidth);
-    const float h=static_cast<float>(cg2::WinApp::kClientHeight);
-    backgroundVeil_=std::make_unique<cg2::Sprite>();
-    backgroundVeil_->Initialize(cg2::SpriteCommon::GetInstance(),"resources/white512x512.png");
+    const float w=static_cast<float>(myEngine::WinApp::kClientWidth);
+    const float h=static_cast<float>(myEngine::WinApp::kClientHeight);
+    backgroundVeil_=std::make_unique<myEngine::Sprite>();
+    backgroundVeil_->Initialize(myEngine::SpriteCommon::GetInstance(),"resources/white512x512.png");
     backgroundVeil_->SetPosition({0,0});backgroundVeil_->SetSize({w,h});
     backgroundVeil_->SetColor({0.004f,0.009f,0.016f,0.42f});backgroundVeil_->Update();
     title_.reset();subtitle_.reset();hint_.reset();demoCaption_.reset();menu_[0].reset();
@@ -75,15 +75,15 @@ void TitleScene::Initialize() {
 }
 
 void TitleScene::CreateLabels() {
-    const float w=static_cast<float>(cg2::WinApp::kClientWidth);
-    const float h=static_cast<float>(cg2::WinApp::kClientHeight);
-    const auto label=[](const std::string& text,float size,cg2::Vector2 position,const cg2::Vector4& color,bool rounded=false) {
-        cg2::TextStyle style{};style.fontFamily=rounded?"Zen Maru Gothic":"Meiryo";
+    const float w=static_cast<float>(myEngine::WinApp::kClientWidth);
+    const float h=static_cast<float>(myEngine::WinApp::kClientHeight);
+    const auto label=[](const std::string& text,float size,myEngine::Vector2 position,const myEngine::Vector4& color,bool rounded=false) {
+        myEngine::TextStyle style{};style.fontFamily=rounded?"Zen Maru Gothic":"Meiryo";
         if(rounded) style.fontPath="resources/fonts/ZenMaruGothic-Bold.ttf";
         style.fontSize=size;style.fontWeight=rounded?700:400;
         style.color=color;style.outlineThickness=0;style.padding=8;
-        auto result=std::make_unique<cg2::TextLabel>();
-        result->Initialize(cg2::SpriteCommon::GetInstance(),text,style);
+        auto result=std::make_unique<myEngine::TextLabel>();
+        result->Initialize(myEngine::SpriteCommon::GetInstance(),text,style);
         result->SetAnchorPoint({0.5f,0.5f});result->SetPosition(position);return result;
     };
     title_=label("たたかうせんしゃ",100,{w*0.5f,h*0.32f},{0.91f,1,0.96f,1},true);
@@ -92,7 +92,7 @@ void TitleScene::CreateLabels() {
     Fit(*subtitle_,{w*0.78f,42});
     menu_[0]=label("遠征をはじめる",31,{w*0.5f,h*0.60f},{0.47f,1,0.76f,1});
     for(auto& item:menu_) Fit(*item,{w*0.72f,58});
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     hint_=label("クリックで決定 / F7 ボス戦へ直接移動（制作確認・自機無敵）",15,{w*0.5f,h-36},{0.57f,0.71f,0.77f,1});
 #else
     hint_=label("クリックで決定",15,{w*0.5f,h-36},{0.57f,0.71f,0.77f,1});
@@ -110,35 +110,35 @@ void TitleScene::CreateLabels() {
 void TitleScene::StartAssetPreloads() {
     // Idempotent: Game calls this before DirectX initialization so file decoding
     // overlaps device/pipeline creation; returning to the title is a no-op.
-    auto* textures=cg2::TextureManager::GetInstance();
+    auto* textures=myEngine::TextureManager::GetInstance();
     // Only game dependencies; dynamic text and unrelated project assets are not scanned.
     for(const auto* path : {"resources/white512x512.png", "resources/skybox.dds", "resources/circle.png",
         "resources/fade.png", "resources/gradationLine.png", "resources/wasd.png", "resources/dashGide.png",
         "resources/toTitle.png", "resources/ui/salvage_orb.png"}) textures->PreloadTexture(path);
-    auto* models=cg2::ModelManager::GetInstance();
+    auto* models=myEngine::ModelManager::GetInstance();
     for(const auto* path : {"ground.obj", "enemy3D.obj", "plane.obj", "player3D.obj", "bloomBlock.obj", "jewelry.obj",
         "cube.obj", "cubeDamage.obj", "playerHPBarGreenLong.obj", "playerHPBarLong.obj", "expTriangle.obj", "expBlock.obj"})
         models->PreloadObjModel(path);
-    cg2::SkinnedModel::PreloadAsset("resources/models/neon_hologram/AvatarSample_B.glb");
+    myEngine::SkinnedModel::PreloadAsset("resources/models/neon_hologram/AvatarSample_B.glb");
 }
 
 bool TitleScene::InitializeDemoStep() {
-    cg2::ModelManager::GetInstance()->PumpPreloads();
-    if(!cg2::ModelManager::GetInstance()->ArePreloadsReady() ||
-        !cg2::TextureManager::GetInstance()->ArePreloadsReady()) return false;
+    myEngine::ModelManager::GetInstance()->PumpPreloads();
+    if(!myEngine::ModelManager::GetInstance()->ArePreloadsReady() ||
+        !myEngine::TextureManager::GetInstance()->ArePreloadsReady()) return false;
     if(!titleTextNeonEffect_) {
     NeonTextEffectStyle neon{};neon.enabled=true;neon.glowColor={0.18f,1,0.56f,1};
     neon.sourceBrightness=1.55f;neon.threshold=0;neon.innerIntensity=0.48f;neon.outerIntensity=0.22f;
     titleTextNeonEffect_=std::make_unique<NeonTextEffect>();
-    titleTextNeonEffect_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),cg2::Object3dCommon::GetInstance()->GetSrvManager());
+    titleTextNeonEffect_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),myEngine::Object3dCommon::GetInstance()->GetSrvManager());
     titleTextNeonEffect_->SetStyle(neon);
         return true;
     }
     if(!demo_) {
         demo_=std::make_unique<GameScene>(false,true);
         demo_->EnableTitleDemo();
-        cg2::StartupTrace::Mark("demo.initialize_begin");
-        cg2::StartupTrace::Flush();
+        myEngine::StartupTrace::Mark("demo.initialize_begin");
+        myEngine::StartupTrace::Flush();
     }
     if(demo_->InitializeStep()) {
         demoReady_=true;
@@ -146,8 +146,8 @@ bool TitleScene::InitializeDemoStep() {
         CreateLabels();
         // Fade in from the first frame that actually shows the title and demo.
         phase_=Phase::kFadeIn;blinkTimer_=0;fade_->Start(Fade::Status::FadeIn,0.65f);
-        cg2::StartupTrace::Mark("title.demo_ready");
-        cg2::StartupTrace::Flush();
+        myEngine::StartupTrace::Mark("title.demo_ready");
+        myEngine::StartupTrace::Flush();
     }
     return true;
 }
@@ -159,16 +159,16 @@ void TitleScene::PrepareForTransition() {
     demo_.reset();
     demoReady_=false;
     loadingGame_=true;
-    cg2::Object3dCommon::GetInstance()->SetDefaultCamera(nullptr);
-    cg2::Object3dCommon::GetInstance()->SetDebugDefaultCamera(nullptr);
+    myEngine::Object3dCommon::GetInstance()->SetDefaultCamera(nullptr);
+    myEngine::Object3dCommon::GetInstance()->SetDebugDefaultCamera(nullptr);
     demoCaption_->SetText("遠征を準備しています…");
     demoCaption_->SetAnchorPoint({1.0f,1.0f});
-    demoCaption_->SetPosition({static_cast<float>(cg2::WinApp::kClientWidth)-28,static_cast<float>(cg2::WinApp::kClientHeight)-24});
+    demoCaption_->SetPosition({static_cast<float>(myEngine::WinApp::kClientWidth)-28,static_cast<float>(myEngine::WinApp::kClientHeight)-24});
 }
 void TitleScene::Update() {
     constexpr float dt=1.0f/60.0f;
     blinkTimer_+=dt;
-    if(asyncStartup_ && titleFrames_++>0) cg2::TextureManager::GetInstance()->PumpPreloads();
+    if(asyncStartup_ && titleFrames_++>0) myEngine::TextureManager::GetInstance()->PumpPreloads();
     if(loadingGame_) {
         PrepareLabels({demoCaption_.get()});
         return;
@@ -187,17 +187,17 @@ void TitleScene::Update() {
     // Confirmation is evaluated before the background simulation. The first
     // input therefore cannot shoot, move, or select a reward inside the demo.
     if(phase_!=Phase::kFadeOut) {
-        const cg2::Vector2 mouse=input_->GetMousePosition();
+        const myEngine::Vector2 mouse=input_->GetMousePosition();
         previousMousePosition_=mouse;
         const bool click=input_->IsTrigger(input_->GetMouseState().rgbButtons[0],input_->GetPreMouseState().rgbButtons[0]);
         const int hovered=HitTestMenu(mouse);
         if(menuHovered_!=(hovered==0)) {menuHovered_=hovered==0;UpdateMenuVisuals();}
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
         if(triggered(DIK_F7)) {
             if(StartTransitionIfAvailable("TANK_EXPEDITION",0.5f)) GameStartSession::RequestDeveloperBossStart();
         } else
 #endif
-        if(cg2::kDeveloperTools&&triggered(DIK_F9)) StartTransitionIfAvailable("TANK_EXPEDITION",0.5f);
+        if(myEngine::kDeveloperTools&&triggered(DIK_F9)) StartTransitionIfAvailable("TANK_EXPEDITION",0.5f);
         else if(triggered(DIK_RETURN)||triggered(DIK_SPACE)||(click&&hovered>=0)) {
             if(menuSelection_==0) StartTransitionIfAvailable("TANK_EXPEDITION",0.65f);
         }
@@ -262,7 +262,7 @@ void TitleScene::DrawPostEffect3D(){if(demoReady_) demo_->DrawPostEffect3D();}
 void TitleScene::DrawAfterPostEffect3D(){
     // Dim only the game background; both text glow and sharp source glyphs
     // follow this veil, so moving walls/volleys cannot wash out menu labels.
-    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     backgroundVeil_->SetColor({0.004f,0.009f,0.016f,demoReady_?0.42f+0.58f*demo_->GetTitleDemoFade():1.0f});backgroundVeil_->Update();
     backgroundVeil_->Draw();
     if(titleTextNeonEffect_) {
@@ -280,7 +280,7 @@ void TitleScene::DrawSprite(){
     hint_->Draw();demoCaption_->Draw();
     if(demoReady_ || phase_==Phase::kFadeOut) fade_->Draw();
 }
-void TitleScene::RecordDeveloperFrame(cg2::DirectXCommon&) {
+void TitleScene::RecordDeveloperFrame(myEngine::DirectXCommon&) {
     if(demoReady_) demo_->CopyTitleDemoCapture(); // Final backbuffer, after CRT composition.
 }
 IScene::ArenaLookSettings TitleScene::GetArenaLookSettings()const {
@@ -294,13 +294,13 @@ IScene::ScreenEffectState TitleScene::GetScreenEffectState()const {
 void TitleScene::UpdateMenuVisuals(){
     for(int i=0;i<1;++i){
         const auto size=menu_[i]->GetSprite()->GetSize();auto style=menu_[i]->GetStyle();
-        style.color=menuHovered_?cg2::Vector4{0.47f,1,0.76f,1}:cg2::Vector4{0.48f,0.52f,0.55f,1};
+        style.color=menuHovered_?myEngine::Vector4{0.47f,1,0.76f,1}:myEngine::Vector4{0.48f,0.52f,0.55f,1};
         menu_[i]->SetStyle(style);menu_[i]->PrepareForDraw();menu_[i]->GetSprite()->SetSize(size);
     }
 }
 bool TitleScene::IsSceneAvailable(std::string_view name)const{return SceneManager::GetInstance()->ContainsScene(name);}
 bool TitleScene::IsMenuAvailable(int selection)const{return selection==0&&IsSceneAvailable("TANK_EXPEDITION");}
-int TitleScene::HitTestMenu(const cg2::Vector2& mouse)const{
+int TitleScene::HitTestMenu(const myEngine::Vector2& mouse)const{
     for(int i=0;i<1;++i)if(IsMenuAvailable(i)){
         auto* sprite=menu_[i]->GetSprite();const auto center=sprite->GetPosition(),size=sprite->GetSize();
         if(std::abs(mouse.x-center.x)<=(std::max)(150.0f,size.x*0.5f)&&std::abs(mouse.y-center.y)<=28)return i;
@@ -308,7 +308,7 @@ int TitleScene::HitTestMenu(const cg2::Vector2& mouse)const{
 }
 bool TitleScene::StartTransitionIfAvailable(std::string_view name,float duration){
     if(!IsSceneAvailable(name)||phase_==Phase::kFadeOut)return false;
-    cg2::StartupTrace::Mark("transition.request."+std::string(name));
+    myEngine::StartupTrace::Mark("transition.request."+std::string(name));
     demoFrozen_=true;frozenAt_=demoReady_?demo_->GetTitleDemoStatus().totalSeconds:0;nextSceneName_=name;
     if(name=="TANK_EXPEDITION")GameStartSession::SetMode(GameStartMode::Normal);
     fade_->Start(Fade::Status::FadeOut,duration);phase_=Phase::kFadeOut;return true;

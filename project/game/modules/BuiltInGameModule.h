@@ -8,7 +8,7 @@
 class BuiltInGameModule final : public IGameModule {
 public:
     static constexpr std::string_view kId = "builtin";
-    static constexpr std::string_view kDisplayName = "CG2 Built-in";
+    static constexpr std::string_view kDisplayName = "MyEngine Built-in";
 
     /// @brief 識別子を返す。
     std::string_view GetId() const override;

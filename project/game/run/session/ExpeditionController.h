@@ -27,7 +27,7 @@ public:
 
     /// @brief 戦車遠征を初期化する。
     void InitializeTankExpedition();
-    cg2::InitializationTask BuildInitialization();
+    myEngine::InitializationTask BuildInitialization();
 
     /// @brief 戦車遠征を更新する。
     /// @param dt この処理で進める経過時間（秒）。

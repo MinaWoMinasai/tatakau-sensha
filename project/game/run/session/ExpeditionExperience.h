@@ -11,7 +11,7 @@ public:
     void InitializeExpeditionExperience();
 
     /// @brief 遠征通貨を出現させる。
-    void SpawnExpeditionCredits(const cg2::Vector3& position, int amount, bool flyImmediately = false);
+    void SpawnExpeditionCredits(const myEngine::Vector3& position, int amount, bool flyImmediately = false);
 
     /// @brief 遠征通貨を更新する。
     /// @param dt この処理で進める経過時間（秒）。
@@ -40,13 +40,13 @@ public:
     bool IsGuidedExpeditionPaused() const;
 
     /// @brief 遠征衝撃を後で処理するために予約する。
-    void QueueExpeditionImpact(const cg2::Vector3& position, const cg2::Vector3& direction, bool finisher);
+    void QueueExpeditionImpact(const myEngine::Vector3& position, const myEngine::Vector3& direction, bool finisher);
 
     /// @brief 遠征ポインターを描画する。
-    void DrawExpeditionPointer(cg2::Vector2 target, bool right = true);
+    void DrawExpeditionPointer(myEngine::Vector2 target, bool right = true);
 
     /// @brief 通貨Iconを描画する。
-    void DrawCurrencyIcon(cg2::Vector2 center, float size = 30);
+    void DrawCurrencyIcon(myEngine::Vector2 center, float size = 30);
 
     /// @brief 遠征Pointersを必要な状態を用意する。
     void EnsureExpeditionPointers(size_t count);

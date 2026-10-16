@@ -79,25 +79,25 @@ public:
     }
 
     /// @brief JustDodgeを発動させる。
-    void TriggerJustDodge(const cg2::Vector2& screenPosition);
+    void TriggerJustDodge(const myEngine::Vector2& screenPosition);
     /// @brief 自機ダメージを発動させる。
-    void TriggerPlayerDamage(const cg2::Vector2& hitDirection);
+    void TriggerPlayerDamage(const myEngine::Vector2& hitDirection);
     /// @brief 低下したHP比率を設定する。
     void SetLowHpRatio(float ratio);
     /// @brief 敵撃破を発動させる。
-    void TriggerEnemyDefeat(const cg2::Vector2& screenPosition, float importance);
+    void TriggerEnemyDefeat(const myEngine::Vector2& screenPosition, float importance);
     /// @brief ボスEntryを発動させる。
     void TriggerBossEntry();
     /// @brief ボス段階Changeを発動させる。
     void TriggerBossPhaseChange();
     /// @brief ボス撃破を発動させる。
-    void TriggerBossDefeat(const cg2::Vector2& screenPosition);
+    void TriggerBossDefeat(const myEngine::Vector2& screenPosition);
     /// @brief 強化メニューOpenを設定する。
     void SetUpgradeMenuOpen(bool open);
     /// @brief 強化Confirmedを発動させる。
-    void TriggerUpgradeConfirmed(const cg2::Vector2& screenPosition);
+    void TriggerUpgradeConfirmed(const myEngine::Vector2& screenPosition);
     /// @brief ダッシュを発動させる。
-    void TriggerDash(const cg2::Vector2& screenPosition);
+    void TriggerDash(const myEngine::Vector2& screenPosition);
     /// @brief ゲームOverを発動させる。
     void TriggerGameOver();
 
@@ -105,7 +105,7 @@ public:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Update(float deltaTime);
     /// @brief へのを現在の状態へ適用する。
-    void ApplyTo(cg2::BloomParam& param) const;
+    void ApplyTo(myEngine::BloomParam& param) const;
 
     /// @brief 時間倍率Multiplierを返す。
     float GetTimeScaleMultiplier() const;
@@ -117,7 +117,7 @@ private:
     struct TimedEffect {
         float remaining = 0.0f;
         float duration = 0.0f;
-        cg2::Vector2 center{0.5f, 0.5f};
+        myEngine::Vector2 center{0.5f, 0.5f};
         float importance = 1.0f;
     };
 
@@ -131,7 +131,7 @@ private:
     /// @brief 計算に使う値の無効な状態を補正する。
     static float Safe(float value, float fallback = 0.0f);
     /// @brief Shockwaveを設定する。
-    void SetShockwave(cg2::BloomParam& param, int& currentPriority, int priority, const TimedEffect& effect, float maxRadius, float width,
+    void SetShockwave(myEngine::BloomParam& param, int& currentPriority, int priority, const TimedEffect& effect, float maxRadius, float width,
                       float strength) const;
 
     Config config_{};
@@ -144,7 +144,7 @@ private:
     TimedEffect gameOver_{};
     TimedEffect dash_{};
     TimedEffect upgradeConfirm_{};
-    cg2::Vector2 damageDirection_{};
+    myEngine::Vector2 damageDirection_{};
     float lowHpRatio_ = 1.0f;
     bool upgradeMenuOpen_ = false;
 };

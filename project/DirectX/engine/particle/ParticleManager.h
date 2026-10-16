@@ -15,7 +15,7 @@
 #include "NeonParticlePresentation.h"
 #include <nlohmann/json.hpp>
 
-namespace cg2 {
+namespace myEngine {
 
 class DebugCamera;
 
@@ -149,14 +149,14 @@ public:
     };
     static_assert(sizeof(ModelParticleTransformationMatrix) == 208, "ModelParticle RenderData stride must remain unchanged");
 
-    /// @brief cg2::ParticleManagerで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
+    /// @brief myEngine::ParticleManagerで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
     struct GlobalConfig {
         float deltaTime;
         uint32_t maxParticles;
         float time;
         uint32_t itemCount;
     };
-    /// @brief cg2::ParticleManagerで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
+    /// @brief myEngine::ParticleManagerで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
     struct SceneConfig {
         Matrix4x4 viewProjection;
         Vector3 cameraPosition;
@@ -223,7 +223,7 @@ public:
     /// @brief ネオン三角形イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     std::vector<NeonTriangleEvent> ConsumeNeonTriangleEvents();
     /// @brief 設定に従って演出を発生させる。
-    void Emit(const cg2::Particle& particle);
+    void Emit(const myEngine::Particle& particle);
     /// @brief ImGUI編集画面を描画する。
     void DrawImGuiEditor();
     /// @brief 有効件数を返す。
@@ -372,4 +372,4 @@ private:
     bool gpuDrawReady_ = false;
 };
 
-} // namespace cg2
+} // namespace myEngine

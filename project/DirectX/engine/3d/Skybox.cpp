@@ -1,6 +1,6 @@
 #include "Skybox.h"
 
-namespace cg2 {
+namespace myEngine {
 
 void Skybox::Initialize(const std::string& textureFilePath) {
 
@@ -68,4 +68,4 @@ void Skybox::Draw() {
     }
 }
 
-} // namespace cg2
+} // namespace myEngine

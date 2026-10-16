@@ -33,7 +33,7 @@ public:
     void ArmWallSmash(ExpEnemy* target, float strength = 1);
 
     /// @brief チャージ演出用に先頭砲塔の銃口のワールド座標を返す。設定がなければ照準方向の既定位置。
-    cg2::Vector3 GetRailChargeMuzzle() const;
+    myEngine::Vector3 GetRailChargeMuzzle() const;
 
     /// @brief 追加能力・接続レーザー・斬撃波・パリィを更新し、必要なダメージ・弾・イベントを生成する。
     /// @param dt この処理で進める経過時間（秒）。
@@ -43,7 +43,7 @@ public:
     void UpdateSpecialCombat(Stage& stage, BulletManager* bullets, Enemy* boss, EnemyManager* enemies, float dt);
 
     /// @brief 誘導・ドローン照準に使う対象のワールド座標を、先頭48件までコピーする。
-    void SetRunHomingTargets(const std::vector<cg2::Vector3>& targets);
+    void SetRunHomingTargets(const std::vector<myEngine::Vector3>& targets);
 
     /// @brief 入力・装備・発射待ち時間に従って主攻撃を処理し、反動と実行イベントを更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
@@ -99,7 +99,7 @@ public:
     /// @param recoilPower 発射後の反動の大きさの出力先。ドローン方式では0にする。
     /// @return 攻撃処理を進めた場合true。待ち時間・上限などで処理しない場合false。
     /// @note 有効な弾管理先が必要。trueでも、ドローン上限やAddの拒否などにより生成弾数が増えるとは限らない。
-    bool FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, cg2::Vector3& recoilDir,
+    bool FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, myEngine::Vector3& recoilDir,
                              float& recoilPower);
 
     /// @brief 機体設定と再使用待ち時間から特殊行動を選んで開始する。開始した場合true。

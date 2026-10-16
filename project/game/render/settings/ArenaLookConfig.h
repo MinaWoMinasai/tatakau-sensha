@@ -42,7 +42,7 @@ inline IScene::ArenaLookSettings Load()
     auto number = [&](const char* key, float& value) {
         if (root.contains(key) && root.at(key).is_number()) value = root.at(key).get<float>();
     };
-    auto color = [&](const char* key, cg2::Vector3& value) {
+    auto color = [&](const char* key, myEngine::Vector3& value) {
         if (!root.contains(key) || !root.at(key).is_array() || root.at(key).size() != 3) return;
         const auto& array = root.at(key);
         if (array[0].is_number() && array[1].is_number() && array[2].is_number())

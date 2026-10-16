@@ -33,7 +33,7 @@ public:
     void DrawAfterPostEffect3D() override;
     /// @brief スプライトを描画する。
     void DrawSprite() override;
-    void RecordDeveloperFrame(cg2::DirectXCommon&) override;
+    void RecordDeveloperFrame(myEngine::DirectXCommon&) override;
     /// @brief タイトルとデモが使うファイルの読み込みを裏で開始する。何度呼んでもよい。
     static void StartAssetPreloads();
     /// @brief 後処理ガウシアン強度を返す。
@@ -66,7 +66,7 @@ private:
     /// @brief メニュー利用可能であるか判定する。
     bool IsMenuAvailable(int selection) const;
     /// @brief 入力位置がメニュー項目に重なるか判定する。
-    int HitTestMenu(const cg2::Vector2& mouse) const;
+    int HitTestMenu(const myEngine::Vector2& mouse) const;
     /// @brief デモ検証を書き込む。
     void WriteDemoValidation(bool fadeComplete);
     /// @return 先読み待ち以外で処理が進んだ場合true。
@@ -77,10 +77,10 @@ private:
     unsigned titleFrames_ = 0;
     std::unique_ptr<GameScene> demo_;
     std::unique_ptr<Fade> fade_;
-    std::unique_ptr<cg2::Sprite> backgroundVeil_;
-    cg2::Input* input_ = nullptr;
-    std::unique_ptr<cg2::TextLabel> title_, subtitle_, hint_, demoCaption_;
-    std::array<std::unique_ptr<cg2::TextLabel>, 1> menu_;
+    std::unique_ptr<myEngine::Sprite> backgroundVeil_;
+    myEngine::Input* input_ = nullptr;
+    std::unique_ptr<myEngine::TextLabel> title_, subtitle_, hint_, demoCaption_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 1> menu_;
     /// @brief タイトルデモの1時点の状態と表示用の計測値を表す。
     struct DemoSample {
         std::string build;
@@ -101,5 +101,5 @@ private:
     float frozenAt_ = 0, blinkTimer_ = 0;
     int menuSelection_ = 0;
     bool menuHovered_ = false;
-    cg2::Vector2 previousMousePosition_{};
+    myEngine::Vector2 previousMousePosition_{};
 };

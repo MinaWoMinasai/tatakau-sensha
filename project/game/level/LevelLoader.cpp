@@ -13,13 +13,13 @@ void LogLevelWarning(const std::string& message)
 }
 
 /// @brief ベクトル3オブジェクトを読み取る。
-cg2::Vector3 ReadVector3Object(const nlohmann::json& json, const cg2::Vector3& fallback)
+myEngine::Vector3 ReadVector3Object(const nlohmann::json& json, const myEngine::Vector3& fallback)
 {
 	if (!json.is_object()) {
 		return fallback;
 	}
 
-	cg2::Vector3 value = fallback;
+	myEngine::Vector3 value = fallback;
 	if (json.contains("x") && json["x"].is_number()) {
 		value.x = json["x"].get<float>();
 	}
@@ -33,7 +33,7 @@ cg2::Vector3 ReadVector3Object(const nlohmann::json& json, const cg2::Vector3& f
 }
 
 /// @brief ベクトル3配列を読み取る。
-cg2::Vector3 ReadVector3Array(const nlohmann::json& json, const cg2::Vector3& fallback)
+myEngine::Vector3 ReadVector3Array(const nlohmann::json& json, const myEngine::Vector3& fallback)
 {
 	if (!json.is_array() || json.size() < 3 ||
 		!json[0].is_number() || !json[1].is_number() || !json[2].is_number()) {
@@ -90,7 +90,7 @@ LevelObject ReadLevelObject(const nlohmann::json& objectJson)
 	object.name = ReadString(objectJson, "name", "");
 	object.type = ReadString(objectJson, "type", "");
 	object.prefab = ReadString(objectJson, "prefab", "Default");
-	object.transform = cg2::InitWorldTransform();
+	object.transform = myEngine::InitWorldTransform();
 	object.transform.translate = ReadVector3Object(objectJson.value("position", nlohmann::json::object()), object.transform.translate);
 	object.transform.rotate = ReadVector3Object(objectJson.value("rotation", nlohmann::json::object()), object.transform.rotate);
 	object.transform.scale = ReadVector3Object(objectJson.value("scale", nlohmann::json::object()), object.transform.scale);
@@ -108,17 +108,17 @@ LevelObject ReadBlenderLevelObject(const nlohmann::json& objectJson)
 	object.name = ReadString(objectJson, "name", "");
 	object.type = ReadString(objectJson, "type", "");
 	object.prefab = ReadString(objectJson, "file_name", "");
-	object.transform = cg2::InitWorldTransform();
+	object.transform = myEngine::InitWorldTransform();
 
 	const nlohmann::json transformJson =
 		objectJson.value("transform", nlohmann::json::object());
-	const cg2::Vector3 blenderTranslation = ReadVector3Array(
+	const myEngine::Vector3 blenderTranslation = ReadVector3Array(
 		transformJson.value("translation", nlohmann::json::array()),
 		{ 0.0f, 0.0f, 0.0f });
-	const cg2::Vector3 blenderRotationDegrees = ReadVector3Array(
+	const myEngine::Vector3 blenderRotationDegrees = ReadVector3Array(
 		transformJson.value("rotation", nlohmann::json::array()),
 		{ 0.0f, 0.0f, 0.0f });
-	const cg2::Vector3 blenderScaling = ReadVector3Array(
+	const myEngine::Vector3 blenderScaling = ReadVector3Array(
 		transformJson.value("scaling", nlohmann::json::array()),
 		{ 1.0f, 1.0f, 1.0f });
 

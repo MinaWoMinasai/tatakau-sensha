@@ -13,7 +13,7 @@
 
 #pragma comment(lib, "gdiplus.lib")
 
-namespace cg2 {
+namespace myEngine {
 
 namespace {
 
@@ -309,4 +309,4 @@ bool TextRenderer::SaveTextPng(const std::wstring& text, const TextStyle& style,
 	return bitmap.Save(widePath.c_str(), &pngClsid, nullptr) == Gdiplus::Ok;
 }
 
-} // namespace cg2
+} // namespace myEngine

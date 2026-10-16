@@ -17,7 +17,7 @@
 #include <sstream>
 #include <utility>
 
-namespace cg2 {
+namespace myEngine {
 
 namespace {
 /// @brief 入力を0〜1の範囲に制限して返す。
@@ -1901,4 +1901,4 @@ ModelData Model::CreateUvSphere(float radius, uint32_t latitudeSegments, uint32_
 	return modelData;
 }
 
-} // namespace cg2
+} // namespace myEngine

@@ -4,7 +4,7 @@
 #include "TextureManager.h"
 #include <filesystem>
 
-namespace cg2 {
+namespace myEngine {
 
 ModelManager* ModelManager::GetInstance() {
 	static ModelManager instance;
@@ -200,4 +200,4 @@ Model* ModelManager::FindModel(const std::string& filePath)
 	return nullptr;
 }
 
-} // namespace cg2
+} // namespace myEngine

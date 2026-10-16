@@ -58,10 +58,10 @@ void RunVisualSettings::InitializeTankRunVisuals()
 
     // These are generated postprocess contours, not the intentional frame
     // lines of the tanks, resource shapes, and arena geometry.
-    const auto removeGeneratedOutline = [](cg2::ObjectPostEffect* effect) {
+    const auto removeGeneratedOutline = [](myEngine::ObjectPostEffect* effect) {
         if (!effect)
             return;
-        cg2::BloomParam param = effect->GetParam();
+        myEngine::BloomParam param = effect->GetParam();
         param.outlineWidth = 0.0f;
         param.outlineBloomIntensity = 0.0f;
         param.outlineBloomWidth = 0.0f;
@@ -70,17 +70,17 @@ void RunVisualSettings::InitializeTankRunVisuals()
         param.depthOutlineScale = 0.0f;
         effect->SetParam(param);
     };
-    for (cg2::ObjectPostEffect* effect :
+    for (myEngine::ObjectPostEffect* effect :
          {world_.resources.playerPostEffect_.get(), world_.resources.enemyPostEffect_.get(), world_.resources.expEnemyPostEffect_.get(),
           world_.resources.stagePostEffect_.get(), world_.resources.neonGridPostEffect_.get(),
           world_.resources.bulletTrailPostEffect_.get(), world_.resources.particlePostEffect_.get(),
           world_.resources.sharedObjectBloomPostEffect_.get()}) {
         removeGeneratedOutline(effect);
     }
-    const auto restoreEmitterBloom = [](cg2::ObjectPostEffect* effect, float intensity) {
+    const auto restoreEmitterBloom = [](myEngine::ObjectPostEffect* effect, float intensity) {
         if (!effect)
             return;
-        cg2::BloomParam param = effect->GetParam();
+        myEngine::BloomParam param = effect->GetParam();
         param.threshold = 0.0f;
         param.intensity = intensity;
         param.gaussianIntensity = 0.0f;
@@ -125,10 +125,10 @@ void RunVisualSettings::InitializeTankRunVisuals()
         if (!visual.empty())
             world_.gameplaySettings->ApplyGameVisualConfig(visual);
     }
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     // Reproducible A/B fixtures; never persisted and never compiled into Release.
     char testMode[16]{};
-    if (GetEnvironmentVariableA("CG2_STAGE_SURFACE_TEST_MODE", testMode, sizeof(testMode)) > 0) {
+    if (GetEnvironmentVariableA("MYENGINE_STAGE_SURFACE_TEST_MODE", testMode, sizeof(testMode)) > 0) {
         const std::string mode(testMode);
         if (mode == "phase1") world_.presentation.stageSurface_ = stagesurface::Phase1Settings();
         auto& surface = world_.presentation.stageSurface_;
@@ -146,15 +146,15 @@ void RunVisualSettings::InitializeTankRunVisuals()
         const long parsed = std::strtol(value, &end, 10);
         if (end != value && *end == '\0' && parsed >= -1 && parsed <= high) target = static_cast<int>(parsed);
     };
-    overrideInt("CG2_STAGE_SURFACE_TEST_DEBUG", world_.presentation.developerStageSurfaceDebugView_, 13);
-    overrideInt("CG2_STAGE_SURFACE_TEST_SSAO", world_.presentation.developerStageSurfaceSSAO_, 1);
-    overrideInt("CG2_STAGE_SURFACE_TEST_SSR", world_.presentation.developerStageSurfaceSSR_, 1);
-    overrideInt("CG2_STAGE_SURFACE_TEST_BLOOM", world_.presentation.developerBloomComparisonMode_, 3);
+    overrideInt("MYENGINE_STAGE_SURFACE_TEST_DEBUG", world_.presentation.developerStageSurfaceDebugView_, 13);
+    overrideInt("MYENGINE_STAGE_SURFACE_TEST_SSAO", world_.presentation.developerStageSurfaceSSAO_, 1);
+    overrideInt("MYENGINE_STAGE_SURFACE_TEST_SSR", world_.presentation.developerStageSurfaceSSR_, 1);
+    overrideInt("MYENGINE_STAGE_SURFACE_TEST_BLOOM", world_.presentation.developerBloomComparisonMode_, 3);
     int tilt = 0;
-    overrideInt("CG2_STAGE_SURFACE_TEST_TILT", tilt, 1);
+    overrideInt("MYENGINE_STAGE_SURFACE_TEST_TILT", tilt, 1);
     world_.presentation.developerStageTilt_ = tilt == 1;
     int localLight = -1;
-    overrideInt("CG2_STAGE_SURFACE_TEST_LIGHT", localLight, 1);
+    overrideInt("MYENGINE_STAGE_SURFACE_TEST_LIGHT", localLight, 1);
     if (localLight >= 0) world_.presentation.stageSurface_.floorLocalLight = localLight == 1;
 #endif
     world_.presentation.stagePostCacheValid_ = false;

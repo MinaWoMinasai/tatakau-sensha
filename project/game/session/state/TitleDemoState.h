@@ -20,8 +20,8 @@ struct TitleDemoState {
 
     float titleDemoNavigationTimer_ = 0;
 
-    cg2::Vector3 titleDemoMoveTarget_{};
+    myEngine::Vector3 titleDemoMoveTarget_{};
 
-    std::vector<cg2::Vector3> titleDemoPath_;
+    std::vector<myEngine::Vector3> titleDemoPath_;
 };
 } // namespace gameplay

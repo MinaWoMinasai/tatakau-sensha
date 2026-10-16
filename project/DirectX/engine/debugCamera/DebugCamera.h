@@ -7,7 +7,7 @@
 #include "externals/imgui/imgui.h"
 #include "WinApp.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 開発時の入力で動かせるカメラの姿勢と行列を管理する。
 class DebugCamera {
@@ -121,4 +121,4 @@ private:
     Vector3 eye_;                             // カメラのワールド位置
 };
 
-} // namespace cg2
+} // namespace myEngine

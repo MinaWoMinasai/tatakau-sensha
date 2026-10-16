@@ -147,14 +147,14 @@ void EnemyManager::UpdateSummonedUnits(Stage& stage)
             bool spawned = false;
             for (int candidate = 0; candidate < 12; ++candidate) {
                 const float angle = (static_cast<float>(candidate) + slot * 4.0f) * 0.52359878f;
-                const cg2::Vector3 position =
-                    commander->GetWorldPosition() + cg2::Vector3{std::cos(angle) * 2.8f, std::sin(angle) * 2.8f, 0};
+                const myEngine::Vector3 position =
+                    commander->GetWorldPosition() + myEngine::Vector3{std::cos(angle) * 2.8f, std::sin(angle) * 2.8f, 0};
                 if (stage.IsCollisionWithAnyBlock(position, 0.85f) ||
-                    (player_ && cg2::Length(position - player_->GetWorldPosition()) < 3.0f))
+                    (player_ && myEngine::Length(position - player_->GetWorldPosition()) < 3.0f))
                     continue;
                 bool occupied = false;
                 for (const auto& actor : enemies_)
-                    if (actor && !actor->IsDead() && cg2::Length(position - actor->GetWorldPosition()) < 1.8f) {
+                    if (actor && !actor->IsDead() && myEngine::Length(position - actor->GetWorldPosition()) < 1.8f) {
                         occupied = true;
                         break;
                     }
@@ -184,17 +184,17 @@ void EnemyManager::Spawn(Stage& stage)
     const float kMapMaxY = MapChip::kBlockHeight * (MapChip::kNumBlockVirtical - 3.0f);
 
     for (int i = 0; i < 10; ++i) { // 最大10回リトライ
-        cg2::Vector3 spawnPos = {cg2::Rand(kMapMin, kMapMaxX), cg2::Rand(kMapMin, kMapMaxY), 0.0f};
+        myEngine::Vector3 spawnPos = {myEngine::Rand(kMapMin, kMapMaxX), myEngine::Rand(kMapMin, kMapMaxY), 0.0f};
 
         // 壁と重なっていないか確認
         if (!stage.IsCollisionWithAnyBlock(spawnPos, 1.0f)) {
             // プレイヤーのすぐ近くには出さない（安全のため）
-            float dist = cg2::Length(spawnPos - player_->GetWorldPosition());
+            float dist = myEngine::Length(spawnPos - player_->GetWorldPosition());
             if (dist < 10.0f)
                 continue;
 
             ExpEnemyType type = ExpEnemyType::Square;
-            const int roll = static_cast<int>(cg2::Rand(0.0f, 100.0f));
+            const int roll = static_cast<int>(myEngine::Rand(0.0f, 100.0f));
             if (roll >= 88) {
                 type = ExpEnemyType::Pentagon;
             } else if (roll >= 68) {
@@ -229,7 +229,7 @@ void EnemyManager::DrawBodyOnly()
     }
 }
 
-bool EnemyManager::SpawnLevelEnemy(const cg2::Vector3& position, const std::string& prefab, int hp)
+bool EnemyManager::SpawnLevelEnemy(const myEngine::Vector3& position, const std::string& prefab, int hp)
 {
     ExpEnemyType type = ExpEnemyType::Square;
     // 制作カタログを優先し、見つからない識別子だけ互換prefab名として解決する。
@@ -267,7 +267,7 @@ void EnemyManager::AddLevelSpawnArea(const SpawnArea& spawnArea)
     spawnAreas_.push_back(area);
 }
 
-ExpEnemy* EnemyManager::SpawnRunResource(const cg2::Vector3& position, int hp, std::function<void(bool playerOwned)> onClaim)
+ExpEnemy* EnemyManager::SpawnRunResource(const myEngine::Vector3& position, int hp, std::function<void(bool playerOwned)> onClaim)
 {
     auto resource = std::make_unique<ExpEnemy>();
     resource->Initialize(position, player_, ExpEnemyType::Pentagon);
@@ -306,7 +306,7 @@ void EnemyManager::SetExpEnemyHostileToBoss(bool hostile)
     }
 }
 
-ExpEnemy* EnemyManager::FindNearestEnemy(const cg2::Vector3& position, float maxDistance, bool includeShooters) const
+ExpEnemy* EnemyManager::FindNearestEnemy(const myEngine::Vector3& position, float maxDistance, bool includeShooters) const
 {
     ExpEnemy* nearest = nullptr;
     float bestDistance = maxDistance;
@@ -315,7 +315,7 @@ ExpEnemy* EnemyManager::FindNearestEnemy(const cg2::Vector3& position, float max
         if (!enemy || enemy->IsDead() || (!includeShooters && enemy->IsCombatThreat())) {
             continue;
         }
-        const float distance = cg2::Length(enemy->GetWorldPosition() - position);
+        const float distance = myEngine::Length(enemy->GetWorldPosition() - position);
         if (distance < bestDistance) {
             bestDistance = distance;
             nearest = enemy.get();
@@ -324,14 +324,14 @@ ExpEnemy* EnemyManager::FindNearestEnemy(const cg2::Vector3& position, float max
     return nearest;
 }
 
-ExpEnemy* EnemyManager::FindNearestRunResource(const cg2::Vector3& position, float maxDistance) const
+ExpEnemy* EnemyManager::FindNearestRunResource(const myEngine::Vector3& position, float maxDistance) const
 {
     ExpEnemy* nearest = nullptr;
     float bestDistance = maxDistance;
     for (const auto& enemy : enemies_) {
         if (!enemy || enemy->IsDead() || !enemy->IsRunResource())
             continue;
-        const float distance = cg2::Length(enemy->GetWorldPosition() - position);
+        const float distance = myEngine::Length(enemy->GetWorldPosition() - position);
         if (distance < bestDistance) {
             bestDistance = distance;
             nearest = enemy.get();
@@ -353,12 +353,12 @@ void EnemyManager::UpdateLevelSpawnAreas(Stage& stage, float deltaTime)
         }
 
         for (int i = 0; i < 10; ++i) {
-            cg2::Vector3 spawnPos = {cg2::Rand(area.center.x - area.size.x * 0.5f, area.center.x + area.size.x * 0.5f),
-                                     cg2::Rand(area.center.y - area.size.y * 0.5f, area.center.y + area.size.y * 0.5f), area.center.z};
+            myEngine::Vector3 spawnPos = {myEngine::Rand(area.center.x - area.size.x * 0.5f, area.center.x + area.size.x * 0.5f),
+                                     myEngine::Rand(area.center.y - area.size.y * 0.5f, area.center.y + area.size.y * 0.5f), area.center.z};
             if (stage.IsCollisionWithAnyBlock(spawnPos, 1.0f)) {
                 continue;
             }
-            if (player_ && cg2::Length(spawnPos - player_->GetWorldPosition()) < 6.0f) {
+            if (player_ && myEngine::Length(spawnPos - player_->GetWorldPosition()) < 6.0f) {
                 continue;
             }
             SpawnLevelEnemy(spawnPos, area.prefab, area.hp);
@@ -378,7 +378,7 @@ int EnemyManager::CountEnemiesInArea(const SpawnArea& spawnArea) const
         if (!enemy || enemy->IsDead()) {
             continue;
         }
-        const cg2::Vector3 pos = enemy->GetWorldPosition();
+        const myEngine::Vector3 pos = enemy->GetWorldPosition();
         if (pos.x >= spawnArea.center.x - halfX && pos.x <= spawnArea.center.x + halfX && pos.y >= spawnArea.center.y - halfY &&
             pos.y <= spawnArea.center.y + halfY) {
             ++count;
@@ -387,10 +387,10 @@ int EnemyManager::CountEnemiesInArea(const SpawnArea& spawnArea) const
     return count;
 }
 
-void EnemyManager::DrawBodyOnlyVisible(const cg2::Vector3& cameraPos, float halfWidth, float halfHeight)
+void EnemyManager::DrawBodyOnlyVisible(const myEngine::Vector3& cameraPos, float halfWidth, float halfHeight)
 {
     for (auto& enemy : enemies_) {
-        const cg2::Vector3 pos = enemy->GetWorldPosition();
+        const myEngine::Vector3 pos = enemy->GetWorldPosition();
         const float radius = enemy->GetRadius();
         if (pos.x + radius < cameraPos.x - halfWidth || pos.x - radius > cameraPos.x + halfWidth ||
             pos.y + radius < cameraPos.y - halfHeight || pos.y - radius > cameraPos.y + halfHeight) {

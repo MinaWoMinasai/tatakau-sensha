@@ -47,7 +47,7 @@ bool GameSession::IsFinished() const
     return world_->gameplayQueries->IsFinished();
 }
 
-cg2::Object3d* GameSession::GetBallObj()
+myEngine::Object3d* GameSession::GetBallObj()
 {
     return world_->gameplayQueries->GetBallObj();
 }
@@ -96,12 +96,12 @@ DeveloperShowcaseState GameSession::GetDeveloperShowcaseState()
     return world_->gameplayQueries->GetDeveloperShowcaseState();
 }
 
-void GameSession::RecordDeveloperPostParameters(const cg2::BloomParam& param)
+void GameSession::RecordDeveloperPostParameters(const myEngine::BloomParam& param)
 {
     world_->gameplayQueries->RecordDeveloperPostParameters(param);
 }
 
-void GameSession::RecordDeveloperFrame(cg2::DirectXCommon& dx)
+void GameSession::RecordDeveloperFrame(myEngine::DirectXCommon& dx)
 {
     world_->gameplayQueries->RecordDeveloperFrame(dx);
     if (world_->run.prototypeRun_) world_->arenaRunController->CopyTankRunCapture();

@@ -1,5 +1,5 @@
 #include "NeonShowcaseCapture.h"
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "externals/DirectXTex/DirectXTex.h"
 #include <wincodec.h>
 #include <fstream>
@@ -22,7 +22,7 @@ void NeonShowcaseCapture::Request(const std::filesystem::path& directory, const 
     requested_ = true;
 }
 
-void NeonShowcaseCapture::Record(cg2::DirectXCommon& dx) {
+void NeonShowcaseCapture::Record(myEngine::DirectXCommon& dx) {
     if (!requested_ || pending_) return;
     try {
         Check(dx.GetSwapChain()->GetBuffer(dx.GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&source_)), "Backbuffer capture");
@@ -59,7 +59,7 @@ void NeonShowcaseCapture::Record(cg2::DirectXCommon& dx) {
     } catch (const std::exception& error) { requested_ = false; status_ = error.what(); }
 }
 
-void NeonShowcaseCapture::Resolve(cg2::DirectXCommon& dx) {
+void NeonShowcaseCapture::Resolve(myEngine::DirectXCommon& dx) {
     if (!pending_ || dx.GetFence()->GetCompletedValue() < fence_) return;
     uint8_t* bytes = nullptr;
     try {

@@ -74,4 +74,4 @@ MapChipType MapChip::GetMapChipTypeByIndex(uint32_t xIndex, uint32_t yIndex) {
 	return mapChipData_.data[yIndex][xIndex];
 }
 
-cg2::Vector3 MapChip::GetMapChipPositionByIndex(uint32_t xIndex, uint32_t yIndex) { return cg2::Vector3(kBlockWidth * xIndex, kBlockHeight * (kNumBlockVirtical - 1 - yIndex), 0); }
+myEngine::Vector3 MapChip::GetMapChipPositionByIndex(uint32_t xIndex, uint32_t yIndex) { return myEngine::Vector3(kBlockWidth * xIndex, kBlockHeight * (kNumBlockVirtical - 1 - yIndex), 0); }

@@ -4,7 +4,7 @@
 #include "SceneManager.h"
 #include "ShadowMap.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 影描画用のパイプラインと描画準備を管理する。
 class Shadow {
@@ -33,4 +33,4 @@ private:
     std::unique_ptr<ShadowMap> shadowMap_;
 };
 
-} // namespace cg2
+} // namespace myEngine

@@ -15,10 +15,10 @@ constexpr uint32_t kTitleSeed = 20260925u;
 constexpr float kDemoStageSeconds = 20.0f;
 
 /// @brief 射撃を消去する。
-bool ClearShot(Stage& stage, const cg2::Vector3& from, const cg2::Vector3& to)
+bool ClearShot(Stage& stage, const myEngine::Vector3& from, const myEngine::Vector3& to)
 {
-    const cg2::Vector3 delta = to - from;
-    const int steps = (std::max)(1, static_cast<int>(cg2::Length(delta) / 0.6f));
+    const myEngine::Vector3 delta = to - from;
+    const int steps = (std::max)(1, static_cast<int>(myEngine::Length(delta) / 0.6f));
     for (int i = 1; i < steps; ++i)
         if (stage.IsCollisionWithAnyBlock(from + delta * (static_cast<float>(i) / steps), 0.35f))
             return false;
@@ -28,13 +28,13 @@ bool ClearShot(Stage& stage, const cg2::Vector3& from, const cg2::Vector3& to)
 // A tiny fixed-grid path is enough to prevent the attract player from spending
 // its whole scene shooting a wall. Combat, bullets and collisions remain real.
 /// @brief デモパスを検索する。
-std::vector<cg2::Vector3> FindDemoPath(Stage& stage, const cg2::Vector3& from, const cg2::Vector3& target)
+std::vector<myEngine::Vector3> FindDemoPath(Stage& stage, const myEngine::Vector3& from, const myEngine::Vector3& target)
 {
     constexpr int width = 44, height = 28, count = width * height;
     const auto position = [](int cell) {
-        return cg2::Vector3{1.0f + 2.0f * (cell % width), 1.0f + 2.0f * (cell / width), 0};
+        return myEngine::Vector3{1.0f + 2.0f * (cell % width), 1.0f + 2.0f * (cell / width), 0};
     };
-    const auto index = [](const cg2::Vector3& p) {
+    const auto index = [](const myEngine::Vector3& p) {
         return (std::clamp)(static_cast<int>(std::round((p.y - 1) / 2)), 0, height - 1) * width +
                (std::clamp)(static_cast<int>(std::round((p.x - 1) / 2)), 0, width - 1);
     };
@@ -45,7 +45,7 @@ std::vector<cg2::Vector3> FindDemoPath(Stage& stage, const cg2::Vector3& from, c
     std::queue<int> pending;
     pending.push(start);
     int best = start;
-    float bestDistance = cg2::Length(position(start) - target);
+    float bestDistance = myEngine::Length(position(start) - target);
     while (!pending.empty()) {
         const int cell = pending.front();
         pending.pop();
@@ -57,14 +57,14 @@ std::vector<cg2::Vector3> FindDemoPath(Stage& stage, const cg2::Vector3& from, c
                 continue;
             parent[next] = cell;
             pending.push(next);
-            const float distance = cg2::Length(position(next) - target);
+            const float distance = myEngine::Length(position(next) - target);
             if (distance < bestDistance) {
                 best = next;
                 bestDistance = distance;
             }
         }
     }
-    std::vector<cg2::Vector3> path;
+    std::vector<myEngine::Vector3> path;
     while (best != start) {
         path.push_back(position(best));
         best = parent[best];
@@ -104,8 +104,8 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
     world_.combat.bossDefeatHandled_ = world_.combat.playerDeathHandled_ = false;
     world_.combat.bossEntryTriggered_ = true;
     world_.combat.timeScale_ = 1;
-    cg2::StartupTrace::Scope traceScope("TitleDemo.ResetStage");
-    { cg2::StartupTrace::Scope scope("TitleDemo.ScreenEffects");
+    myEngine::StartupTrace::Scope traceScope("TitleDemo.ResetStage");
+    { myEngine::StartupTrace::Scope scope("TitleDemo.ScreenEffects");
     world_.combat.screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json"); }
     // A normal expedition has four room rewards plus at most one event card.
     // Do not let a late showcase collect a sixth, unattainable modification.
@@ -132,7 +132,7 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
         if (world_.run.tankRun_.OpenRewardDraft(false, cards[i]))
             world_.run.tankRun_.ChooseCard(0);
     }
-    cg2::StartupTrace::Mark("TitleDemo.CardsChosen");
+    myEngine::StartupTrace::Mark("TitleDemo.CardsChosen");
     if (stage > 0)
         world_.arenaRunController->ApplyTankRunCards();
     if (stage >= 2) {
@@ -168,10 +168,10 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
             break;
         }
     }
-    { cg2::StartupTrace::Scope scope("TitleDemo.StartRoom");
+    { myEngine::StartupTrace::Scope scope("TitleDemo.StartRoom");
     world_.expeditionController->StartTankExpeditionRoom(); }
     world_.resources.player_->SetDebugNoDamage(true);
-    world_.resources.player_->SetDemoInput(true, {}, world_.resources.player_->GetWorldPosition() + cg2::Vector3{1, 0, 0}, false, false);
+    world_.resources.player_->SetDemoInput(true, {}, world_.resources.player_->GetWorldPosition() + myEngine::Vector3{1, 0, 0}, false, false);
     world_.run.tankRunMenuAge_ = 0;
     world_.run.tankExpeditionAudio_.SetMusicVolume(0);
     world_.run.tankExpeditionAudio_.SetEffectsVolume(0);
@@ -208,7 +208,7 @@ void TitleDemoController::UpdateTitleDemo(float dt)
     world_.run.tankRunMenuAge_ += dt;
     const auto phase = world_.run.tankExpedition_.GetPhase();
     if (phase != tankexp::Phase::Combat) {
-        world_.resources.player_->SetDemoInput(true, {}, world_.resources.player_->GetWorldPosition() + cg2::Vector3{1, 0, 0}, false,
+        world_.resources.player_->SetDemoInput(true, {}, world_.resources.player_->GetWorldPosition() + myEngine::Vector3{1, 0, 0}, false,
                                                false);
         if (world_.run.tankRunMenuAge_ > 0.35f && world_.demo.titleDemoRoomFade_ >= 1.0f) {
             const int option = phase == tankexp::Phase::Route && world_.run.tankExpedition_.GetRouteRound() == 0 ? 1 : 0;
@@ -242,12 +242,12 @@ void TitleDemoController::UpdateTitleDemo(float dt)
     world_.run.tankExpedition_.Update(dt);
     world_.run.tankRun_.Update(dt);
     world_.run.tankExpeditionArrival_ += dt;
-    const cg2::Vector3 origin = world_.resources.player_->GetWorldPosition();
-    cg2::Vector3 aim = origin + cg2::Vector3{10, 0, 0};
+    const myEngine::Vector3 origin = world_.resources.player_->GetWorldPosition();
+    myEngine::Vector3 aim = origin + myEngine::Vector3{10, 0, 0};
     float distance = 10000;
     bool found = false;
-    const auto consider = [&](const cg2::Vector3& point, bool threat) {
-        const float actualDistance = cg2::Length(point - origin);
+    const auto consider = [&](const myEngine::Vector3& point, bool threat) {
+        const float actualDistance = myEngine::Length(point - origin);
         const float score = actualDistance + (ClearShot(*world_.resources.stage_, origin, point) ? 0.0f : 25.0f) + (threat ? 0.0f : 100.0f);
         if (score < distance) {
             distance = score;
@@ -260,11 +260,11 @@ void TitleDemoController::UpdateTitleDemo(float dt)
             consider(actor->GetWorldPosition(), actor->IsCombatThreat() || actor->IsRunResource());
     if (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())
         consider(world_.resources.enemy_->GetWorldPosition(), true);
-    cg2::Vector3 move{};
+    myEngine::Vector3 move{};
     if (found) {
-        const cg2::Vector3 toTarget = aim - origin;
-        const float range = cg2::Length(toTarget);
-        const cg2::Vector3 heading = range > 0.01f ? toTarget * (1.0f / range) : cg2::Vector3{1, 0, 0};
+        const myEngine::Vector3 toTarget = aim - origin;
+        const float range = myEngine::Length(toTarget);
+        const myEngine::Vector3 heading = range > 0.01f ? toTarget * (1.0f / range) : myEngine::Vector3{1, 0, 0};
         const bool visible = ClearShot(*world_.resources.stage_, origin, aim);
         world_.demo.titleDemoNavigationTimer_ -= dt;
         if (world_.demo.titleDemoNavigationTimer_ <= 0) {
@@ -272,24 +272,24 @@ void TitleDemoController::UpdateTitleDemo(float dt)
             world_.demo.titleDemoNavigationTimer_ = 0.45f;
         }
         if ((!visible || range > 9) && !world_.demo.titleDemoPath_.empty()) {
-            while (world_.demo.titleDemoPath_.size() > 1 && cg2::Length(world_.demo.titleDemoPath_.front() - origin) < 1.1f)
+            while (world_.demo.titleDemoPath_.size() > 1 && myEngine::Length(world_.demo.titleDemoPath_.front() - origin) < 1.1f)
                 world_.demo.titleDemoPath_.erase(world_.demo.titleDemoPath_.begin());
             move = world_.demo.titleDemoPath_.front() - origin;
         } else {
             const float orbit = static_cast<int>(world_.demo.titleDemoStatus_.stageSeconds / 3.0f) % 2 ? -1.0f : 1.0f;
-            move = cg2::Vector3{-heading.y, heading.x, 0} * orbit + heading * (range < 5.0f ? -0.8f : 0.15f);
+            move = myEngine::Vector3{-heading.y, heading.x, 0} * orbit + heading * (range < 5.0f ? -0.8f : 0.15f);
         }
-        const float magnitude = cg2::Length(move);
+        const float magnitude = myEngine::Length(move);
         if (magnitude > 0.01f)
             move = move * (1.0f / magnitude);
         if (world_.resources.stage_->IsCollisionWithAnyBlock(origin + move * 1.6f, 0.9f)) {
-            const cg2::Vector3 tangent{-move.y, move.x, 0};
+            const myEngine::Vector3 tangent{-move.y, move.x, 0};
             move = !world_.resources.stage_->IsCollisionWithAnyBlock(origin + tangent * 1.6f, 0.9f) ? tangent : tangent * -1.0f;
         }
     }
     bool danger = false;
     for (auto* bullet : world_.resources.bulletManager_->GetBulletPtrs())
-        if (bullet && !bullet->IsDead() && bullet->GetOwner() != kPlayer && cg2::Length(bullet->GetWorldPosition() - origin) < 4.0f) {
+        if (bullet && !bullet->IsDead() && bullet->GetOwner() != kPlayer && myEngine::Length(bullet->GetWorldPosition() - origin) < 4.0f) {
             danger = true;
             break;
         }
@@ -349,7 +349,7 @@ void TitleDemoController::VerifyTitleDemoTransition(float dt)
     if (world_.demo.titleDemo_ || !world_.run.expeditionRun_ || world_.demo.titleDemoTransitionVerified_)
         return;
     wchar_t test[8]{};
-    if (!(GetEnvironmentVariableW(L"CG2_TITLE_AUTOTEST", test, 8) > 0 && test[0] == L'1'))
+    if (!(GetEnvironmentVariableW(L"MYENGINE_TITLE_AUTOTEST", test, 8) > 0 && test[0] == L'1'))
         return;
     world_.demo.titleDemoTransitionTimer_ += dt;
     if (world_.demo.titleDemoTransitionTimer_ < 2.0f)

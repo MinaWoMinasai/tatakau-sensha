@@ -6,7 +6,7 @@
 #include "ShadowMap.h"
 #include <algorithm>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 3Dオブジェクトの描画で共有するカメラ・パイプライン・ライトを管理する。
 class Object3dCommon {
@@ -140,4 +140,4 @@ private:
     float shadowRange_ = 500.0f;
 };
 
-} // namespace cg2
+} // namespace myEngine

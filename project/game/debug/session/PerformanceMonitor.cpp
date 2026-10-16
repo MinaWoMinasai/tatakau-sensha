@@ -61,7 +61,7 @@ void PerformanceMonitor::UpdatePostProfileText()
     }
 
     char text[768]{};
-    int offset = std::snprintf(text, sizeof(text), "CG2  PostProfile F8 hide F9 mode | %s", GetPostProfileModeName());
+    int offset = std::snprintf(text, sizeof(text), "MyEngine  PostProfile F8 hide F9 mode | %s", GetPostProfileModeName());
     const int frames = (std::max)(1, world_.presentation.postProfileAccumulatedFrames_);
     for (size_t i = 0; i < world_.presentation.postProfileEntryCount_ && offset > 0 && offset < static_cast<int>(sizeof(text)); ++i) {
         const float avgMs = world_.presentation.postProfileAccumulatedMs_[i] / static_cast<float>(frames);
@@ -71,7 +71,7 @@ void PerformanceMonitor::UpdatePostProfileText()
                                 world_.presentation.postProfileEntries_[i].name, avgMs);
     }
 
-    SetWindowTextA(cg2::WinApp::GetInstance()->GetHwnd(), text);
+    SetWindowTextA(myEngine::WinApp::GetInstance()->GetHwnd(), text);
     world_.presentation.postProfileAccumulatedMs_.fill(0.0f);
     world_.presentation.postProfileAccumulatedFrames_ = 0;
 #endif // USE_IMGUI
@@ -99,7 +99,7 @@ void PerformanceMonitor::DrawPerformanceBreakdownImGui()
 
     ImGui::Text("現在FPS %.2f / 計測フレーム %.3fms", fps, frameMs);
     ImGui::Text("合計対象 %.3fms + 未計測 %.3fms = %.3fms (100.0%%)", measuredTopLevelMs, unmeasuredMs, frameMs);
-    const bool gpuValidationEnabled = cg2::Object3dCommon::GetInstance()->GetDxCommon()->IsGpuBasedValidationEnabled();
+    const bool gpuValidationEnabled = myEngine::Object3dCommon::GetInstance()->GetDxCommon()->IsGpuBasedValidationEnabled();
     ImGui::TextColored(gpuValidationEnabled ? ImVec4{1.0f, 0.45f, 0.30f, 1.0f} : ImVec4{0.45f, 1.0f, 0.65f, 1.0f},
                        "D3D12 GPU-Based Validation: %s", gpuValidationEnabled ? "ON (計測には非常に重い)" : "OFF");
     ImGui::TextWrapped(
@@ -237,7 +237,7 @@ void PerformanceMonitor::StartPerformanceCapture()
     world_.presentation.performanceCaptureConditions_.expEnemyPostEnabled =
         world_.presentation.enableExpEnemyPostEffect_ && IsPostProfileCategoryEnabled("ExpEnemy");
     world_.presentation.performanceCaptureConditions_.d3d12DebugLayerEnabled =
-        cg2::Object3dCommon::GetInstance()->GetDxCommon()->IsD3D12DebugLayerEnabled();
+        myEngine::Object3dCommon::GetInstance()->GetDxCommon()->IsD3D12DebugLayerEnabled();
     if (world_.resources.player_) {
         world_.presentation.performanceCaptureConditions_.upgradeHud = world_.resources.player_->GetUpgradeHudDebugSnapshot();
         world_.presentation.performanceCaptureConditions_.trailAutoFireEnabled = world_.resources.player_->IsDebugAutoFireEnabled();

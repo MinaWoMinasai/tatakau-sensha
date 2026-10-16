@@ -1,32 +1,32 @@
 #include "game/debug/session/RouteReplay.h"
 #include "game/session/GameplaySystems.h"
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "Enemy.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "Player.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "game/exp/ExpEnemyNavigation.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "game/player/TankSpecialCombat.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <cmath>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <fstream>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <limits>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <stdexcept>
 #endif
 
 namespace gameplay {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 
 namespace {
 using Json = nlohmann::json;
@@ -42,8 +42,8 @@ struct NormalReplay {
     int style = -1, previousBossHp = 0;
     bool finished = false, retryPending = false, bossReached = false, shoot = false, dash = false;
     std::string active;
-    cg2::Vector2 move{};
-    cg2::Vector3 aim{};
+    myEngine::Vector2 move{};
+    myEngine::Vector3 aim{};
     std::array<bool, 45 * 30> navigationBlocked{};
     std::string navigationNode;
     uint64_t navigationGeneration = 0, navigationBuilds = 0, navigationUses = 0, navigationRejected = 0;
@@ -52,7 +52,7 @@ struct NormalReplay {
     bool usingNavigation = false, incomingThreat = false;
     uint64_t incomingThreatFrames = 0;
 } replay;
-bool ReplayDanger(const neondepth::Snapshot* snapshot, cg2::Vector3 point, float radius)
+bool ReplayDanger(const neondepth::Snapshot* snapshot, myEngine::Vector3 point, float radius)
 {
     if (!snapshot || snapshot->phase < neondepth::Phase::Telegraph || snapshot->phase > neondepth::Phase::Active)
         return false;
@@ -76,7 +76,7 @@ bool ReplayDanger(const neondepth::Snapshot* snapshot, cg2::Vector3 point, float
 }
 // Read actual Stage geometry for both firing LOS and the whole proposed movement
 // segment. Expanded boxes also protect Player's existing X/Y AABB movement.
-bool ReplayPathClear(Stage& stage, cg2::Vector3 from, cg2::Vector3 to, float padding)
+bool ReplayPathClear(Stage& stage, myEngine::Vector3 from, myEngine::Vector3 to, float padding)
 {
     for (const auto& wall : stage.GetMergedBlocks())
         if (tankspecial::SegmentCrossesBox(from.x, from.y, to.x, to.y, wall.aabb.min.x - padding, wall.aabb.min.y - padding,
@@ -84,11 +84,11 @@ bool ReplayPathClear(Stage& stage, cg2::Vector3 from, cg2::Vector3 to, float pad
             return false;
     return true;
 }
-int ReplayCell(cg2::Vector3 p)
+int ReplayCell(myEngine::Vector3 p)
 {
     return (std::clamp)(static_cast<int>(std::round(p.y / 2)), 0, 29) * 45 + (std::clamp)(static_cast<int>(std::round(p.x / 2)), 0, 44);
 }
-cg2::Vector3 ReplayCellPoint(int cell)
+myEngine::Vector3 ReplayCellPoint(int cell)
 {
     return {static_cast<float>(cell % 45) * 2, static_cast<float>(cell / 45) * 2, 0};
 }
@@ -112,7 +112,7 @@ void ReplayOperation(const char* operation, Json argument)
 void RouteReplay::InitializeNormalRouteReplay()
 {
     wchar_t value[8]{};
-    if (world_.demo.titleDemo_ || GetEnvironmentVariableW(L"CG2_NEON_DEPTH_NORMAL_REPLAY_STYLE", value, 8) != 1 || value[0] < L'0' ||
+    if (world_.demo.titleDemo_ || GetEnvironmentVariableW(L"MYENGINE_NEON_DEPTH_NORMAL_REPLAY_STYLE", value, 8) != 1 || value[0] < L'0' ||
         value[0] > L'2' || replay.finished)
         return;
     try {
@@ -131,7 +131,7 @@ void RouteReplay::InitializeNormalRouteReplay()
                 {"map", false}, {"forcedDamageOrKill", false}, {"autoCollect", false}, {"combatClock", false}, {"wallPolicy", false}};
         }
         world_.resources.normalRouteReplayActive_ = true;
-        for (const wchar_t* flag : {L"CG2_TITLE_AUTOTEST", L"CG2_STARTUP_AUTOTEST", L"CG2_SUBMISSION_AUTOTEST"}) {
+        for (const wchar_t* flag : {L"MYENGINE_TITLE_AUTOTEST", L"MYENGINE_STARTUP_AUTOTEST", L"MYENGINE_SUBMISSION_AUTOTEST"}) {
             wchar_t enabled[8]{};
             if (GetEnvironmentVariableW(flag, enabled, 8) > 0 && enabled[0] == L'1') {
                 StopNormalRouteReplay("rejected-title-automation");
@@ -322,7 +322,7 @@ void RouteReplay::PrepareNormalRouteReplay()
             return;
         const float desired = world_.resources.player_->IsMeleeBuild() ? 2.8f : 10.0f, radius = world_.resources.player_->GetRadius();
         const auto observedBullets = world_.resources.bulletManager_->GetBulletPtrs();
-        const auto bulletRisk = [&](cg2::Vector3 point, bool current = false) {
+        const auto bulletRisk = [&](myEngine::Vector3 point, bool current = false) {
             float risk = 0;
             for (const auto* bullet : observedBullets)
                 if (bullet && !bullet->IsDead() && bullet->GetOwner() == BulletOwner::kEnemy) {
@@ -348,11 +348,11 @@ void RouteReplay::PrepareNormalRouteReplay()
         bulletRisk(position, true);
         if (replay.incomingThreat)
             ++replay.incomingThreatFrames;
-        constexpr std::array<cg2::Vector2, 9> directions{
+        constexpr std::array<myEngine::Vector2, 9> directions{
             {{0, 0}, {1, 0}, {.7071f, .7071f}, {0, 1}, {-.7071f, .7071f}, {-1, 0}, {-.7071f, -.7071f}, {0, -1}, {.7071f, -.7071f}}};
         float best = std::numeric_limits<float>::max();
         for (const auto direction : directions) {
-            const cg2::Vector3 probe{position.x + direction.x * 2, position.y + direction.y * 2, 0};
+            const myEngine::Vector3 probe{position.x + direction.x * 2, position.y + direction.y * 2, 0};
             if (world_.resources.stage_->IsCollisionWithAnyBlock(probe, radius + .15f))
                 continue;
             const float dx = replay.aim.x - probe.x, dy = replay.aim.y - probe.y;

@@ -1,6 +1,6 @@
 #include "AudioManager.h"
 
-namespace cg2 {
+namespace myEngine {
 
 AudioManager* AudioManager::GetInstance() {
 	static AudioManager instance;
@@ -239,4 +239,4 @@ void AudioManager::StopBGM() {
     }
 }
 
-} // namespace cg2
+} // namespace myEngine

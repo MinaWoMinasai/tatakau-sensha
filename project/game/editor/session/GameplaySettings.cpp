@@ -260,7 +260,7 @@ bool GameplaySettings::WriteBalanceAIHandoff(const std::string& filePath) const
     return true;
 }
 
-void GameplaySettings::DrawPostEffectParamControls(const char* labelPrefix, cg2::BloomParam& param)
+void GameplaySettings::DrawPostEffectParamControls(const char* labelPrefix, myEngine::BloomParam& param)
 {
 #ifdef USE_IMGUI
     ImGui::PushID(labelPrefix);
@@ -296,7 +296,7 @@ void GameplaySettings::DrawPostEffectParamControls(const char* labelPrefix, cg2:
 
 nlohmann::json GameplaySettings::BuildGamePostEffectConfig() const
 {
-    auto makeEntry = [](bool enabled, const cg2::ObjectPostEffect* effect) {
+    auto makeEntry = [](bool enabled, const myEngine::ObjectPostEffect* effect) {
         nlohmann::json entry = nlohmann::json::object();
         entry["enabled"] = enabled;
         if (effect) {
@@ -339,7 +339,7 @@ void GameplaySettings::ApplyGamePostEffectConfig(const nlohmann::json& configJso
         return;
     }
 
-    auto applyEntry = [&](const char* key, bool* enabled, cg2::ObjectPostEffect* effect) {
+    auto applyEntry = [&](const char* key, bool* enabled, myEngine::ObjectPostEffect* effect) {
         if (!configJson.contains(key) || !configJson[key].is_object()) {
             return;
         }
@@ -348,7 +348,7 @@ void GameplaySettings::ApplyGamePostEffectConfig(const nlohmann::json& configJso
             *enabled = ReadCustomBool(entry, "enabled", *enabled);
         }
         if (effect && entry.contains("param")) {
-            cg2::BloomParam param = effect->GetParam();
+            myEngine::BloomParam param = effect->GetParam();
             ReadBloomParamJson(entry["param"], param);
             effect->SetParam(param);
         }
@@ -656,8 +656,8 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
                          8);
         world_.presentation.neonTriangleEffectMode_ =
             (std::clamp)(ReadCustomInt(gridJson, "triangleEffectMode", world_.presentation.neonTriangleEffectMode_), 0, 2);
-        cg2::ParticleManager::GetInstance()->SetNeonTriangleEffectMode(
-            static_cast<cg2::ParticleManager::NeonTriangleEffectMode>(world_.presentation.neonTriangleEffectMode_));
+        myEngine::ParticleManager::GetInstance()->SetNeonTriangleEffectMode(
+            static_cast<myEngine::ParticleManager::NeonTriangleEffectMode>(world_.presentation.neonTriangleEffectMode_));
         if (gridJson.contains("playerColor"))
             world_.presentation.playerGridColor_ = ReadJsonVector4(gridJson["playerColor"], world_.presentation.playerGridColor_);
         if (gridJson.contains("bossEnemyColor"))

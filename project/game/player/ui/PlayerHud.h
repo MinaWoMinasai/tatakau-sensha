@@ -15,7 +15,7 @@ public:
 
     /// @brief ゲーム中のHUDで発光対象にする文字ラベルの借用ポインターをlabelsの末尾へ追加する。
     /// @note 進化画面中は追加しない。所有権は移らず、UIの再構築やPlayerの破棄をまたいで保持しない。
-    void AppendGameplayNeonTextLabels(std::vector<cg2::TextLabel*>& labels) const;
+    void AppendGameplayNeonTextLabels(std::vector<myEngine::TextLabel*>& labels) const;
 
     /// @brief 強化HUD文字テクスチャを利用前に準備する。
     void PrepareUpgradeHudTextTextures();
@@ -36,13 +36,13 @@ public:
 
     /// @brief 経験値表示の文字ラベルを更新し、描画用テクスチャを準備して配置する。
     /// @param text 1バイトずつ分けて表示する文字列。呼び出し側では数字やEXPなどのASCII文字を渡す。
-    void UpdateUpgradeHudExpGlyphs(const std::string& text, const cg2::TextStyle& style);
+    void UpdateUpgradeHudExpGlyphs(const std::string& text, const myEngine::TextStyle& style);
 
     /// @brief 強化HUDの経験値表示の各文字を配置する。
     void PositionUpgradeHudExpGlyphs();
 
     /// @brief レベルの数字と機体名の文字ラベルを更新し、配置する。
-    void UpdateUpgradeHudLevelLabels(int level, const std::string& className, const cg2::TextStyle& style);
+    void UpdateUpgradeHudLevelLabels(int level, const std::string& className, const myEngine::TextStyle& style);
 
     /// @brief 強化HUDのレベル表示の各文字を配置する。
     void PositionUpgradeHudLevelLabels();
@@ -67,8 +67,8 @@ public:
     void DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, float levelRatio, float listAlpha, float listOffsetX);
 
     /// @brief 指定した画面座標の矩形を、2三角形分の6頂点としてverticesの末尾へ追加する。
-    void QueueUpgradeHudRect(std::vector<cg2::TrailVertex>& vertices, const cg2::Vector2& pos, const cg2::Vector2& size,
-                             const cg2::Vector4& color) const;
+    void QueueUpgradeHudRect(std::vector<myEngine::TrailVertex>& vertices, const myEngine::Vector2& pos, const myEngine::Vector2& size,
+                             const myEngine::Vector4& color) const;
 
     /// @brief 保存しているHUD配置をスプライト・文字・ゲージへ反映する。
     void ApplyUpgradeHudLayout();

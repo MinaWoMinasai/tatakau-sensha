@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 時刻と値の組を表す。アニメーション補間の入力に使う。
 template <typename TValue> struct Keyframe {
@@ -111,4 +111,4 @@ public:
     static std::vector<Animation> LoadAllFromFile(const std::string& filePath);
 };
 
-} // namespace cg2
+} // namespace myEngine

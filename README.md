@@ -66,13 +66,13 @@ Visual StudioのDeveloper PowerShellで、環境に合う一方を実行しま�
 
 ```powershell
 # VS 2022 / CIと同じ指定
-MSBuild.exe project/CG2.sln /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:CG2DeveloperTools=false
+MSBuild.exe project/MyEngine.sln /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:MyEngineDeveloperTools=false
 
 # VS 2026 / プロジェクト既定のv145
-MSBuild.exe project/CG2.sln /m /p:Configuration=Release /p:Platform=x64 /p:CG2DeveloperTools=false
+MSBuild.exe project/MyEngine.sln /m /p:Configuration=Release /p:Platform=x64 /p:MyEngineDeveloperTools=false
 ```
 
-GUIでは`project/CG2.sln`を開き、Release / x64を選びます。VS 2022では両プロジェクトのツールセットをv143へ合わせる必要があります。
+GUIでは`project/MyEngine.sln`を開き、Release / x64を選びます。VS 2022では両プロジェクトのツールセットをv143へ合わせる必要があります。
 
 | ソリューション構成 | 実際のプロジェクト構成 | 開発機能の標準値 |
 | --- | --- | --- |
@@ -84,12 +84,12 @@ GUIでは`project/CG2.sln`を開き、Release / x64を選びます。VS 2022で�
 
 ### 3. 起動する
 
-出力は`generated/outputs/Release/CG2.exe`です。素材の相対パスを解決できるよう、作業ディレクトリを`project`にします。
+出力は`generated/outputs/Release/MyEngine.exe`です。素材の相対パスを解決できるよう、作業ディレクトリを`project`にします。
 
 ```powershell
 Push-Location project
 try {
-    & ..\generated\outputs\Release\CG2.exe --project resources/projects/tank_game.project.json
+    & ..\generated\outputs\Release\MyEngine.exe --project resources/projects/tank_game.project.json
 } finally {
     Pop-Location
 }

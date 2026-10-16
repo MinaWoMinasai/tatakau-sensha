@@ -43,20 +43,20 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     const float localGridZ = surfaceFloor ? gridZ : -0.03f;
     float minimumGridWidth = 0.0f;
     if (surfaceFloor) {
-        const bool debug = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera();
+        const bool debug = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera();
         const auto& view = debug ? world_.resources.debugCamera->GetViewMatrix() : world_.resources.camera->GetViewMatrix();
         const auto& projection = debug ? world_.resources.debugCamera->GetProjectionMatrix() : world_.resources.camera->GetProjectionMatrix();
         auto focus = world_.resourceNeonRenderer->GetFloorVisibilityCenter();
         focus.z = gridZ;
-        const float depth = std::abs(cg2::TransformMatrix(focus, view).z);
-        const auto cameraWorld = cg2::Inverse(view);
+        const float depth = std::abs(myEngine::TransformMatrix(focus, view).z);
+        const auto cameraWorld = myEngine::Inverse(view);
         const float facing = (std::max)(0.35f, std::abs(cameraWorld.m[2][2]));
-        const float pixels = (std::max)(1.0f, cg2::Object3dCommon::GetInstance()->GetDxCommon()->GetRenderTargetState().viewport.Height);
+        const float pixels = (std::max)(1.0f, myEngine::Object3dCommon::GetInstance()->GetDxCommon()->GetRenderTargetState().viewport.Height);
         minimumGridWidth = surface.gridMinPixelWidth * depth * 2.0f /
             ((std::max)(0.001f, std::abs(projection.m[1][1])) * pixels * facing);
     }
     auto gridWidth = [&](float authored) { return authored > 0.0f ? (std::max)(authored, minimumGridWidth) : authored; };
-    auto gridColor = [&](cg2::Vector4 authored, float width) {
+    auto gridColor = [&](myEngine::Vector4 authored, float width) {
         // Preserve emitted energy when widening subpixel lines in distant/tilted views.
         if (width > 0.0f) authored.w *= width / gridWidth(width);
         return authored;
@@ -124,12 +124,12 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     if (world_.presentation.fillActorNeonBodies_ &&
         (world_.presentation.playerNeonRenderMode_ == 1 || world_.presentation.bossNeonRenderMode_ == 1 ||
          world_.presentation.expEnemyNeonRenderMode_ == 1)) {
-        const cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
+        const myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
                                       ? world_.resources.debugCamera->GetViewProjectionMatrix()
                                       : world_.resources.camera->GetViewProjectionMatrix();
         world_.resources.neonGridRenderer_->DrawRange(0, world_.resources.neonGridRenderer_->GetVertexCount(), vp,
                                                       world_.resources.neonDepthCameraScoped_ &&
-                                                          !cg2::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
+                                                          !myEngine::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
         world_.actorNeonRenderer->DrawActorNeonBodyFillPass(false, ActorNeonRenderer::BodySet::Enemies);
         foregroundStart = world_.resources.neonGridRenderer_->GetVertexCount();
     }
@@ -141,12 +141,12 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         !world_.presentation.playerLaserBeams_.empty() || !world_.presentation.playerMines_.empty() ||
         !world_.presentation.playerMineExplosions_.empty() || !world_.presentation.playerMeleeSlashes_.empty() ||
         !world_.presentation.neonTriangleParticles_.empty()) {
-        cg2::Matrix4x4 viewMatrix = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewMatrix()
+        myEngine::Matrix4x4 viewMatrix = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewMatrix()
                                                                                            : world_.resources.camera->GetViewMatrix();
-        cg2::Matrix4x4 cameraWorld = cg2::Inverse(viewMatrix);
-        cg2::Vector3 cameraRight = cg2::Normalize({cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2]});
-        cg2::Vector3 cameraUp = cg2::Normalize({cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2]});
-        cg2::Vector3 cameraForward = cg2::Normalize({cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2]});
+        myEngine::Matrix4x4 cameraWorld = myEngine::Inverse(viewMatrix);
+        myEngine::Vector3 cameraRight = myEngine::Normalize({cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2]});
+        myEngine::Vector3 cameraUp = myEngine::Normalize({cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2]});
+        myEngine::Vector3 cameraForward = myEngine::Normalize({cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2]});
         if (queueExpEnemyNeonInGridPass) {
             world_.resourceNeonRenderer->QueueExpEnemyNeonShapes(cameraRight, cameraUp, cameraForward);
         }
@@ -166,11 +166,11 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     }
 
     world_.playerAttackEffects->QueueSpecialCombatPresentation();
-    cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewProjectionMatrix()
+    myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewProjectionMatrix()
                                                                                : world_.resources.camera->GetViewProjectionMatrix();
     world_.resources.neonGridRenderer_->DrawRange(
         foregroundStart, world_.resources.neonGridRenderer_->GetVertexCount() - foregroundStart, vp,
-        world_.resources.neonDepthCameraScoped_ && !cg2::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
+        world_.resources.neonDepthCameraScoped_ && !myEngine::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
 }
 
 void StageNeonRenderer::DrawStageBlockNeonPass()
@@ -189,7 +189,7 @@ void StageNeonRenderer::DrawStageBlockNeonPass()
         return;
     }
 
-    cg2::Matrix4x4 vp = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewProjectionMatrix()
+    myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewProjectionMatrix()
                                                                                : world_.resources.camera->GetViewProjectionMatrix();
     world_.resources.neonGridRenderer_->DrawRange(startVertex, vertexCount, vp);
 }
@@ -200,11 +200,11 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
         return;
     }
 
-    cg2::Matrix4x4 viewMatrix = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewMatrix()
+    myEngine::Matrix4x4 viewMatrix = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewMatrix()
                                                                                        : world_.resources.camera->GetViewMatrix();
-    cg2::Matrix4x4 cameraWorld = cg2::Inverse(viewMatrix);
-    cg2::Vector3 cameraForward = cg2::Normalize({cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2]});
-    const cg2::Vector3 cameraPos = GetActiveCameraPosition(world_.resources.camera.get(), world_.resources.debugCamera.get());
+    myEngine::Matrix4x4 cameraWorld = myEngine::Inverse(viewMatrix);
+    myEngine::Vector3 cameraForward = myEngine::Normalize({cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2]});
+    const myEngine::Vector3 cameraPos = GetActiveCameraPosition(world_.resources.camera.get(), world_.resources.debugCamera.get());
     const auto& surface = world_.presentation.stageSurface_;
     const bool surfaceBlocks = world_.run.prototypeRun_ && surface.enabled && surface.blocksEnabled;
     if (surfaceBlocks && surface.wallStyle == 1) {
@@ -218,23 +218,23 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
             const auto visual = Stage::SurfaceWallTransform(wall, surface);
             if (!world_.resourceNeonRenderer->IsNearCamera2D(visual.translate,
                 38.0f+std::abs(visual.scale.x),24.0f+std::abs(visual.scale.y),3.0f)) continue;
-            const auto matrix = cg2::MakeAffineMatrix(visual.scale,visual.rotate,visual.translate);
-            auto world = [&](cg2::Vector3 p) { return cg2::TransformMatrix(p,matrix); };
-            auto color = wall.exterior ? cg2::Vector4{1.55f,.16f,.34f,1.0f} :
+            const auto matrix = myEngine::MakeAffineMatrix(visual.scale,visual.rotate,visual.translate);
+            auto world = [&](myEngine::Vector3 p) { return myEngine::TransformMatrix(p,matrix); };
+            auto color = wall.exterior ? myEngine::Vector4{1.55f,.16f,.34f,1.0f} :
                 (damage ? world_.presentation.stageDamageBlockNeonColor_ : world_.presentation.stageBlockNeonColor_);
             float pulse = 1.0f;
             if (damage) pulse = world_.presentation.stageDamageBlockPulseMin_ +
                 (world_.presentation.stageDamageBlockPulseMax_-world_.presentation.stageDamageBlockPulseMin_)*
                 (.5f+.5f*std::sin(world_.presentation.stageDamageBlockPulseTime_*world_.presentation.stageDamageBlockPulseSpeed_));
             color.x*=surface.blockEmission*pulse; color.y*=surface.blockEmission*pulse; color.z*=surface.blockEmission*pulse;
-            auto line = [&](cg2::Vector3 a,cg2::Vector3 b,cg2::Vector3 normal,bool rim) {
-                const auto n=cg2::Normalize(world(normal)-world({0,0,0}));
+            auto line = [&](myEngine::Vector3 a,myEngine::Vector3 b,myEngine::Vector3 normal,bool rim) {
+                const auto n=myEngine::Normalize(world(normal)-world({0,0,0}));
                 a=world(a)+n*.012f; b=world(b)+n*.012f;
                 std::array<int,3> ka{int(std::round(a.x*1000)),int(std::round(a.y*1000)),int(std::round(a.z*1000))};
                 std::array<int,3> kb{int(std::round(b.x*1000)),int(std::round(b.y*1000)),int(std::round(b.z*1000))};
                 if (kb<ka) std::swap(ka,kb);
                 if (!emitted.insert({ka[0],ka[1],ka[2],kb[0],kb[1],kb[2]}).second) return;
-                cg2::NeonContourStyle style;
+                myEngine::NeonContourStyle style;
                 style.roundCaps=false; style.coreWidthRatio=.28f; style.coreIntensity=1.0f;
                 style.coreWhiteMix=.02f; style.shoulderIntensity=.80f; style.haloIntensity=.20f; style.haloAlpha=.04f;
                 auto c=color;
@@ -244,11 +244,11 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 // Orient the ribbon toward the eye per segment. With the wide perspective camera, lines that run
                 // along Z (wall height) are nearly parallel to the camera axis and collapse with a global forward.
                 const auto toSegment=(a+b)*.5f-cameraPos;
-                const auto viewDirection=cg2::Length(toSegment)>.0001f?cg2::Normalize(toSegment):cameraForward;
+                const auto viewDirection=myEngine::Length(toSegment)>.0001f?myEngine::Normalize(toSegment):cameraForward;
                 world_.resources.neonGridRenderer_->QueueContourLine(a,b,surface.wallLineWidth,c,viewDirection,style);
             };
-            auto visible = [&](cg2::Vector3 normal) {
-                return cg2::Dot(cg2::Normalize(world(normal)-world({0,0,0})),cameraPos-world(normal))>=0.0f;
+            auto visible = [&](myEngine::Vector3 normal) {
+                return myEngine::Dot(myEngine::Normalize(world(normal)-world({0,0,0})),cameraPos-world(normal))>=0.0f;
             };
             const int nx=(std::max)(1,int(std::round(std::abs(visual.scale.x))));
             const int ny=(std::max)(1,int(std::round(std::abs(visual.scale.y))));
@@ -292,13 +292,13 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 continue;
             }
 
-            const cg2::Transform visual = surfaceBlocks ? stagesurface::BlockTransform(block.worldTransform, surface) : block.worldTransform;
-            const cg2::Matrix4x4 transform = cg2::MakeAffineMatrix(visual.scale, visual.rotate, visual.translate);
+            const myEngine::Transform visual = surfaceBlocks ? stagesurface::BlockTransform(block.worldTransform, surface) : block.worldTransform;
+            const myEngine::Matrix4x4 transform = myEngine::MakeAffineMatrix(visual.scale, visual.rotate, visual.translate);
 
-            auto localToWorld = [&](const cg2::Vector3& local) {
-                return cg2::TransformMatrix(local, transform);
+            auto localToWorld = [&](const myEngine::Vector3& local) {
+                return myEngine::TransformMatrix(local, transform);
             };
-            cg2::Vector4 blockNeonColor = world_.presentation.stageBlockNeonColor_;
+            myEngine::Vector4 blockNeonColor = world_.presentation.stageBlockNeonColor_;
             if (isDamageBlock) {
                 const float wave = 0.5f + 0.5f * std::sin(world_.presentation.stageDamageBlockPulseTime_ *
                                                           world_.presentation.stageDamageBlockPulseSpeed_);
@@ -315,23 +315,23 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 blockNeonColor.y *= surface.blockEmission;
                 blockNeonColor.z *= surface.blockEmission;
             }
-            auto queueLocalLine = [&](const cg2::Vector3& start, const cg2::Vector3& end, const cg2::Vector3& localNormal, bool boundary) {
-                cg2::Vector3 worldStart = localToWorld(start);
-                cg2::Vector3 worldEnd = localToWorld(end);
-                cg2::Vector3 worldNormal = localToWorld(localNormal) - localToWorld({0.0f, 0.0f, 0.0f});
-                if (cg2::Length(worldNormal) > 0.0001f && world_.presentation.stageBlockNeonDepthBias_ > 0.0f) {
-                    worldNormal = cg2::Normalize(worldNormal);
+            auto queueLocalLine = [&](const myEngine::Vector3& start, const myEngine::Vector3& end, const myEngine::Vector3& localNormal, bool boundary) {
+                myEngine::Vector3 worldStart = localToWorld(start);
+                myEngine::Vector3 worldEnd = localToWorld(end);
+                myEngine::Vector3 worldNormal = localToWorld(localNormal) - localToWorld({0.0f, 0.0f, 0.0f});
+                if (myEngine::Length(worldNormal) > 0.0001f && world_.presentation.stageBlockNeonDepthBias_ > 0.0f) {
+                    worldNormal = myEngine::Normalize(worldNormal);
                     worldStart = worldStart + worldNormal * world_.presentation.stageBlockNeonDepthBias_;
                     worldEnd = worldEnd + worldNormal * world_.presentation.stageBlockNeonDepthBias_;
                 }
-                cg2::NeonContourStyle contour;
+                myEngine::NeonContourStyle contour;
                 contour.coreWidthRatio = boundary ? 0.13f : 0.10f;
                 contour.coreIntensity = boundary ? 1.8f : 1.0f;
                 contour.coreWhiteMix = boundary ? 0.12f : 0.0f;
                 contour.shoulderIntensity = boundary ? 1.5f : 0.85f;
                 contour.haloIntensity = boundary ? 0.55f : 0.28f;
                 contour.haloAlpha = boundary ? 0.09f : 0.07f;
-                cg2::Vector4 faceColor = blockNeonColor;
+                myEngine::Vector4 faceColor = blockNeonColor;
                 const float faceLight = std::abs(localNormal.z) > 0.5f ? 1.0f : 0.58f;
                 const float light = faceLight * (boundary ? 1.0f : 0.55f);
                 faceColor.x *= light;
@@ -342,16 +342,16 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                     worldStart, worldEnd, world_.presentation.stageBlockNeonLineWidth_ * (boundary ? 0.82f : 0.48f), faceColor,
                     cameraForward, contour);
             };
-            auto shouldDrawFace = [&](const cg2::Vector3& localCenter, const cg2::Vector3& localNormal) {
-                const cg2::Vector3 worldCenter = localToWorld(localCenter);
-                const cg2::Vector3 worldNormal = localToWorld(localCenter + localNormal) - worldCenter;
-                const cg2::Vector3 toCamera = cameraPos - worldCenter;
-                const float normalLength = cg2::Length(worldNormal);
-                const float toCameraLength = cg2::Length(toCamera);
+            auto shouldDrawFace = [&](const myEngine::Vector3& localCenter, const myEngine::Vector3& localNormal) {
+                const myEngine::Vector3 worldCenter = localToWorld(localCenter);
+                const myEngine::Vector3 worldNormal = localToWorld(localCenter + localNormal) - worldCenter;
+                const myEngine::Vector3 toCamera = cameraPos - worldCenter;
+                const float normalLength = myEngine::Length(worldNormal);
+                const float toCameraLength = myEngine::Length(toCamera);
                 if (normalLength <= 0.0001f || toCameraLength <= 0.0001f) {
                     return true;
                 }
-                const float facingDot = cg2::Dot(worldNormal / normalLength, toCamera / toCameraLength);
+                const float facingDot = myEngine::Dot(worldNormal / normalLength, toCamera / toCameraLength);
                 return facingDot >= -0.08f;
             };
             auto localCoord = [faceExtent](int index, int divisions) {
@@ -363,7 +363,7 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
             const int divZ = surfaceBlocks ? surface.sideLineDivisions : divisionCount(block.worldTransform.scale.z);
 
             for (float z : {-1.0f, 1.0f}) {
-                const cg2::Vector3 faceNormal = {0.0f, 0.0f, z};
+                const myEngine::Vector3 faceNormal = {0.0f, 0.0f, z};
                 if (!shouldDrawFace({0.0f, 0.0f, z}, {0.0f, 0.0f, z})) {
                     continue;
                 }
@@ -378,7 +378,7 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
             }
 
             for (float y : {-1.0f, 1.0f}) {
-                const cg2::Vector3 faceNormal = {0.0f, y, 0.0f};
+                const myEngine::Vector3 faceNormal = {0.0f, y, 0.0f};
                 if (!shouldDrawFace({0.0f, y, 0.0f}, {0.0f, y, 0.0f})) {
                     continue;
                 }
@@ -393,7 +393,7 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
             }
 
             for (float x : {-1.0f, 1.0f}) {
-                const cg2::Vector3 faceNormal = {x, 0.0f, 0.0f};
+                const myEngine::Vector3 faceNormal = {x, 0.0f, 0.0f};
                 if (!shouldDrawFace({x, 0.0f, 0.0f}, {x, 0.0f, 0.0f})) {
                     continue;
                 }
@@ -410,12 +410,12 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
     }
 }
 
-cg2::Vector2 StageNeonRenderer::GetStagePostCacheUvOffset(const cg2::Vector3& currentCameraPos) const
+myEngine::Vector2 StageNeonRenderer::GetStagePostCacheUvOffset(const myEngine::Vector3& currentCameraPos) const
 {
-    const cg2::Vector2 cacheCenterScreen = world_.gameplayHud->WorldToScreen(
+    const myEngine::Vector2 cacheCenterScreen = world_.gameplayHud->WorldToScreen(
         {world_.presentation.stagePostCacheCameraPos_.x, world_.presentation.stagePostCacheCameraPos_.y, 0.0f});
-    const cg2::Vector2 currentCenterScreen = world_.gameplayHud->WorldToScreen({currentCameraPos.x, currentCameraPos.y, 0.0f});
-    return {(cacheCenterScreen.x - currentCenterScreen.x) / static_cast<float>(cg2::WinApp::kClientWidth),
-            (cacheCenterScreen.y - currentCenterScreen.y) / static_cast<float>(cg2::WinApp::kClientHeight)};
+    const myEngine::Vector2 currentCenterScreen = world_.gameplayHud->WorldToScreen({currentCameraPos.x, currentCameraPos.y, 0.0f});
+    return {(cacheCenterScreen.x - currentCenterScreen.x) / static_cast<float>(myEngine::WinApp::kClientWidth),
+            (cacheCenterScreen.y - currentCenterScreen.y) / static_cast<float>(myEngine::WinApp::kClientHeight)};
 }
 } // namespace gameplay

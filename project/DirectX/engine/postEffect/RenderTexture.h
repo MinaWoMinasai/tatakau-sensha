@@ -3,7 +3,7 @@
 #include "RtvManager.h"
 #include <array>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 描画先テクスチャとRTV/SRVを管理する。利用時は対応するリソース状態へ遷移させる。
 class RenderTexture {
@@ -68,4 +68,4 @@ private:
     uint32_t depthSrvIndex_ = 0;
 };
 
-} // namespace cg2
+} // namespace myEngine

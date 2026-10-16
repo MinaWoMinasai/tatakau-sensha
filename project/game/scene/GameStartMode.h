@@ -9,7 +9,7 @@ enum class GameStartMode {
 namespace GameStartSession {
 
 inline GameStartMode mode = GameStartMode::Normal;
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 inline bool developerBossStartRequested = false;
 
 /// @brief 次の遠征だけをボス確認から開始する。タイトルの背景デモには消費させない。
@@ -31,7 +31,7 @@ inline bool ConsumeDeveloperBossStart()
 inline void SetMode(GameStartMode newMode)
 {
     mode = newMode;
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     developerBossStartRequested = false;
 #endif
 }

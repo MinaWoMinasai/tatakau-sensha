@@ -34,7 +34,7 @@ public:
     {
         if (initialized_)
             return;
-        auto* audio = cg2::Audio::GetInstance();
+        auto* audio = myEngine::Audio::GetInstance();
         if (!audio->IsReady())
             return; // Game initializes Audio after its first scene.
         initialized_ = true;
@@ -53,7 +53,7 @@ public:
     void Shutdown()
     {
         if (initialized_) {
-            auto* audio = cg2::Audio::GetInstance();
+            auto* audio = myEngine::Audio::GetInstance();
             for (size_t n = 0; n < Count; ++n)
                 if (loaded_[n]) {
                     audio->StopAudio(keys_[n]);
@@ -115,7 +115,7 @@ public:
         const float blend = 1.0f - std::exp(-seconds / 0.28f);
         baseGain_ += (baseGoal - baseGain_) * blend;
         intensityGain_ += (intensityGoal - intensityGain_) * blend;
-        auto* audio = cg2::Audio::GetInstance();
+        auto* audio = myEngine::Audio::GetInstance();
         audio->SetVolume(baseVoice_, baseGain_);
         audio->SetVolume(intensityVoice_, intensityGain_);
     }
@@ -212,7 +212,7 @@ public:
     /// @brief Music再生中であるか判定する。
     bool IsMusicPlaying() const
     {
-        auto* audio = cg2::Audio::GetInstance();
+        auto* audio = myEngine::Audio::GetInstance();
         return audio->IsVoicePlaying(baseVoice_) || audio->IsVoicePlaying(intensityVoice_);
     }
     /// @brief 件数を再生する。
@@ -261,7 +261,7 @@ private:
     {
         if (!loaded_[clip] || cooldowns_[clip] > 0 || effectsVolume_ <= 0)
             return;
-        const auto handle = cg2::Audio::GetInstance()->TryPlayAudio(keys_[clip], false, Gain(gain * effectsVolume_), pitch);
+        const auto handle = myEngine::Audio::GetInstance()->TryPlayAudio(keys_[clip], false, Gain(gain * effectsVolume_), pitch);
         if (handle.IsValid()) {
             cooldowns_[clip] = cooldown;
             ++playCount_;
@@ -271,7 +271,7 @@ private:
     std::array<std::wstring, Count> keys_{};
     std::array<bool, Count> loaded_{};
     std::array<float, Count> cooldowns_{};
-    cg2::Audio::VoiceHandle baseVoice_{}, intensityVoice_{};
+    myEngine::Audio::VoiceHandle baseVoice_{}, intensityVoice_{};
     bool initialized_ = false, combat_ = false, boss_ = false, ducked_ = false;
     float musicVolume_ = 0.55f, effectsVolume_ = 0.80f, baseGain_ = 0, intensityGain_ = 0;
     uint64_t variant_ = 0, playCount_ = 0;

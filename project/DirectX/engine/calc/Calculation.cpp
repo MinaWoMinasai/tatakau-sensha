@@ -2,7 +2,7 @@
 #include "Calculation.h"
 #include <Easing.h>
 
-namespace cg2 {
+namespace myEngine {
 
 std::mt19937 rng(std::random_device{}());
 
@@ -1155,4 +1155,4 @@ Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, cons
 		(-p0 + p1 * 3.0f - p2 * 3.0f + p3) * t3) * 0.5f;
 }
 
-} // namespace cg2
+} // namespace myEngine

@@ -3,7 +3,7 @@
 #include "Calculation.h"
 
 #pragma region イージングの種類
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 補間係数にEaseInSineのイージング曲線を適用する。動きの加減速を調整するために使う。
 float EaseInSine(float t);
@@ -74,4 +74,4 @@ Vector3 Lerp(const Vector3& start, const Vector3& end, float t);
 Vector4 Lerp(const Vector4& start, const Vector4& end, float t);
 #pragma endregion
 
-} // namespace cg2
+} // namespace myEngine

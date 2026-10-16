@@ -7,7 +7,7 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "xinput.lib")
 
-namespace cg2 {
+namespace myEngine {
 
 Input* Input::GetInstance()
 {
@@ -53,7 +53,7 @@ void Input::Initialize(const WNDCLASS& wc, const HWND& hwnd)
 
 void Input::BeforeFrameData()
 {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     validationFrame_ = false;
 #endif
 	memcpy(frameKeyPress_, pendingKeyPress_, sizeof(frameKeyPress_));
@@ -88,7 +88,7 @@ void Input::BeforeFrameData()
 	// ゲームパッドの更新。未接続のポートへの問い合わせは重いので、未接続の間は約1秒ごとに確認する。
 	previousGamepadState_ = currentGamepadState_;
 	ZeroMemory(&currentGamepadState_, sizeof(XINPUT_STATE));
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 	if (PollFakeGamepad()) {
 	} else
 #endif
@@ -131,13 +131,13 @@ void Input::BeforeFrameData()
 	UpdateVibration();
 }
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 bool Input::PollFakeGamepad()
 {
 	if (!fakeGamepadLoaded_) {
 		fakeGamepadLoaded_ = true;
 		char path[MAX_PATH]{};
-		const DWORD length = GetEnvironmentVariableA("CG2_FAKE_GAMEPAD", path, MAX_PATH);
+		const DWORD length = GetEnvironmentVariableA("MYENGINE_FAKE_GAMEPAD", path, MAX_PATH);
 		if (length > 0 && length < MAX_PATH) {
 			if (FILE* file = nullptr; fopen_s(&file, path, "r") == 0 && file) {
 				FakeGamepadSegment segment;
@@ -314,7 +314,7 @@ void Input::UpdateVibration()
 	}
 }
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 void Input::OverrideValidationFrame(const Vector2& mousePosition)
 {
     ZeroMemory(key_, sizeof(key_));
@@ -437,7 +437,7 @@ Vector2 Input::GetRightStick() const {
 }
 
 Vector2 Input::GetMousePosition() const {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (validationFrame_) return validationMousePosition_;
 #endif
 	POINT point;
@@ -449,4 +449,4 @@ Vector2 Input::GetMousePosition() const {
 	return position;
 }
 
-} // namespace cg2
+} // namespace myEngine

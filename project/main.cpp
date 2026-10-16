@@ -18,24 +18,24 @@ std::vector<std::string> GetUtf8CommandLineArguments()
 	int argumentCount = 0;
 	wchar_t** wideArguments = CommandLineToArgvW(GetCommandLineW(), &argumentCount);
 	if (!wideArguments) {
-		cg2::LogWrite().Log("[GameProject] Failed to read the UTF-16 command line. Using default project selection.\n");
+		myEngine::LogWrite().Log("[GameProject] Failed to read the UTF-16 command line. Using default project selection.\n");
 		return {};
 	}
 
 	std::vector<std::string> arguments;
 	try {
 		arguments.reserve(static_cast<std::size_t>(argumentCount));
-		cg2::LogWrite stringConverter;
+		myEngine::LogWrite stringConverter;
 		for (int index = 0; index < argumentCount; ++index) {
 			arguments.push_back(stringConverter.ConvertString(wideArguments[index]));
 		}
 	} catch (const std::exception& error) {
-		cg2::LogWrite().Log(
+		myEngine::LogWrite().Log(
 			"[GameProject] Failed to convert command-line arguments to UTF-8: " +
 			std::string(error.what()) + ". Using default project selection.\n");
 		arguments.clear();
 	} catch (...) {
-		cg2::LogWrite().Log(
+		myEngine::LogWrite().Log(
 			"[GameProject] Failed to convert command-line arguments to UTF-8. "
 			"Using default project selection.\n");
 		arguments.clear();
@@ -50,7 +50,7 @@ std::vector<std::string> GetUtf8CommandLineArguments()
 /// @brief Windowsアプリの入口としてゲームを起動し、終了コードを返す。
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
-    cg2::StartupTrace::Mark("process.entry");
+    myEngine::StartupTrace::Mark("process.entry");
 
     const GameProjectCommandLineOptions projectOptions =
         ParseGameProjectCommandLine(GetUtf8CommandLineArguments());
@@ -68,22 +68,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         }
     }
 
-    cg2::D3DResourceLeakChecker leakCheck;
+    myEngine::D3DResourceLeakChecker leakCheck;
 
     Game game;
     if (!game.Initialize(projectOptions)) {
-        cg2::StartupTrace::Mark("initialization.failed");
-        cg2::StartupTrace::Flush();
+        myEngine::StartupTrace::Mark("initialization.failed");
+        myEngine::StartupTrace::Flush();
         return -1;
     }
 
-    cg2::StartupTrace::Mark("initialization.ready");
-    cg2::StartupTrace::Flush();
+    myEngine::StartupTrace::Mark("initialization.ready");
+    myEngine::StartupTrace::Flush();
 
     const int exitCode = game.Run();
     game.Finalize();
-    cg2::StartupTrace::Mark("process.finalized");
-    cg2::StartupTrace::Flush();
+    myEngine::StartupTrace::Mark("process.finalized");
+    myEngine::StartupTrace::Flush();
 
     return exitCode;
 }

@@ -12,7 +12,7 @@
 #pragma comment(lib, "Mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
 
-namespace cg2 {
+namespace myEngine {
 
 namespace {
 static_assert(std::is_nothrow_move_assignable_v<Audio::AudioData>);
@@ -355,4 +355,4 @@ void Audio::SetMasterVolume(float volume) {
     if (masterVoice_) masterVoice_->SetVolume(SafeGain(volume));
 }
 
-} // namespace cg2
+} // namespace myEngine

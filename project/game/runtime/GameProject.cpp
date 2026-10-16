@@ -14,7 +14,7 @@ namespace {
 /// @brief プロジェクトエラーを診断ログへ出力する。
 void LogProjectError(const std::string& message)
 {
-	cg2::LogWrite().Log("[GameProject] " + message + "\n");
+	myEngine::LogWrite().Log("[GameProject] " + message + "\n");
 }
 
 /// @brief Utf8パスを作成して返す。

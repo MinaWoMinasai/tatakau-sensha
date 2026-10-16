@@ -5,10 +5,10 @@
 namespace {
 
 /// @brief ブルーム外観を現在の状態へ適用する。
-void ApplyBloomStyle(cg2::ObjectPostEffect& effect, const NeonTextEffectStyle& style,
+void ApplyBloomStyle(myEngine::ObjectPostEffect& effect, const NeonTextEffectStyle& style,
     float intensity, float qualityGain, float qualityScatter, float qualityRadius)
 {
-	cg2::BloomParam param = effect.GetParam();
+	myEngine::BloomParam param = effect.GetParam();
 	param.threshold = (std::max)(0.0f, style.threshold);
 	param.intensity = (std::max)(0.0f, intensity);
 	// Legacy keeps its historical cubic intensity; the new filter uses one linear gain.
@@ -24,14 +24,14 @@ void ApplyBloomStyle(cg2::ObjectPostEffect& effect, const NeonTextEffectStyle& s
 } // namespace
 
 void NeonTextEffect::Initialize(
-	cg2::DirectXCommon* dxCommon,
-	cg2::SrvManager* srvManager,
-	cg2::RtvManager* rtvManager)
+	myEngine::DirectXCommon* dxCommon,
+	myEngine::SrvManager* srvManager,
+	myEngine::RtvManager* rtvManager)
 {
-	spriteCommon_ = cg2::SpriteCommon::GetInstance();
-	innerEffect_ = std::make_unique<cg2::ObjectPostEffect>();
+	spriteCommon_ = myEngine::SpriteCommon::GetInstance();
+	innerEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
 	innerEffect_->Initialize(dxCommon, srvManager, rtvManager, 1.0f);
-	outerEffect_ = std::make_unique<cg2::ObjectPostEffect>();
+	outerEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
 	outerEffect_->Initialize(dxCommon, srvManager, rtvManager, 0.4f);
 	SetStyle(style_);
 }
@@ -54,7 +54,7 @@ void NeonTextEffect::SetStyle(const NeonTextEffectStyle& style)
 	}
 }
 
-void NeonTextEffect::DrawBloom(const std::vector<cg2::TextLabel*>& labels)
+void NeonTextEffect::DrawBloom(const std::vector<myEngine::TextLabel*>& labels)
 {
 	if (!style_.enabled || !innerEffect_ || !outerEffect_ || labels.empty()) {
 		return;
@@ -69,9 +69,9 @@ void NeonTextEffect::ClearSources()
 	sources_.clear();
 }
 
-void NeonTextEffect::SynchronizeSources(const std::vector<cg2::TextLabel*>& labels)
+void NeonTextEffect::SynchronizeSources(const std::vector<myEngine::TextLabel*>& labels)
 {
-	for (cg2::TextLabel* label : labels) {
+	for (myEngine::TextLabel* label : labels) {
 		if (!label) {
 			continue;
 		}
@@ -81,7 +81,7 @@ void NeonTextEffect::SynchronizeSources(const std::vector<cg2::TextLabel*>& labe
 		}
 		GlowSource& source = sources_[label];
 		if (!source.sprite) {
-			source.sprite = std::make_unique<cg2::Sprite>();
+			source.sprite = std::make_unique<myEngine::Sprite>();
 			source.sprite->Initialize(spriteCommon_, label->GetTexturePath());
 			source.texturePath = label->GetTexturePath();
 		} else if (source.texturePath != label->GetTexturePath()) {
@@ -89,7 +89,7 @@ void NeonTextEffect::SynchronizeSources(const std::vector<cg2::TextLabel*>& labe
 			source.texturePath = label->GetTexturePath();
 		}
 
-		cg2::Sprite* sharp = label->GetSprite();
+		myEngine::Sprite* sharp = label->GetSprite();
 		source.sprite->SetPosition(sharp->GetPosition());
 		source.sprite->SetRotation(sharp->GetRotation());
 		source.sprite->SetSize(sharp->GetSize());
@@ -105,11 +105,11 @@ void NeonTextEffect::SynchronizeSources(const std::vector<cg2::TextLabel*>& labe
 	}
 }
 
-void NeonTextEffect::DrawLayer(cg2::ObjectPostEffect& effect, const std::vector<cg2::TextLabel*>& labels)
+void NeonTextEffect::DrawLayer(myEngine::ObjectPostEffect& effect, const std::vector<myEngine::TextLabel*>& labels)
 {
 	effect.BeginCapture();
-	cg2::SpriteCommon::GetInstance()->PreDrawForScene(cg2::kNormal);
-	for (cg2::TextLabel* label : labels) {
+	myEngine::SpriteCommon::GetInstance()->PreDrawForScene(myEngine::kNormal);
+	for (myEngine::TextLabel* label : labels) {
 		const auto found = sources_.find(label);
 		if (found != sources_.end() && found->second.sprite) {
 			found->second.sprite->Draw();

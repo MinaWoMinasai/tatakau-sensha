@@ -10,7 +10,7 @@
 #include <d3d12.h>
 #include <wrl.h>
 
-namespace cg2 {
+namespace myEngine {
 
 class DirectXCommon;
 class SrvManager;
@@ -210,4 +210,4 @@ private:
     std::string geometryLinesStatus_ = "Not initialized.";
 };
 
-} // namespace cg2
+} // namespace myEngine

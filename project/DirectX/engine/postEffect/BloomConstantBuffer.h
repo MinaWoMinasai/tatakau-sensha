@@ -2,7 +2,7 @@
 #include "DirectXCommon.h"
 #include <vector>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief ブルームなどの画面効果のパラメーターをGPUへ転送する。
 class BloomConstantBuffer {
@@ -26,4 +26,4 @@ private:
     uint64_t frameFence_ = 0;
 };
 
-} // namespace cg2
+} // namespace myEngine

@@ -2,7 +2,7 @@
 #include "NeonSkinnedRenderer.h"
 #include "SkinCluster.h"
 
-namespace cg2 {
+namespace myEngine {
 
 // Existing Preview Recommended Line Art values, shared with gameplay. Texture
 // mask candidates remain opt-in; no Scene-wide Bloom settings are changed.
@@ -46,4 +46,4 @@ inline void ApplyRecommendedNeonCharacterStyle(NeonSkinnedParams& params,
     }
 }
 
-} // namespace cg2
+} // namespace myEngine

@@ -10,7 +10,7 @@ constexpr float kPi=3.14159265359f;
 constexpr const char* kWhite="resources/white512x512.png";
 constexpr const char* kGlow="resources/ui/salvage_orb.png";
 /// @brief レア度に対応する表示色を返す。
-cg2::Vector4 RarityColor(int rarity,float phase=0.0f) {
+myEngine::Vector4 RarityColor(int rarity,float phase=0.0f) {
     switch(rarity) {
     case 1:return {0.70f,1.0f,0.26f,1};
     case 2:return {0.28f,0.85f,1.0f,1};
@@ -137,14 +137,14 @@ std::string DemoNote(const TankRewardCardModel& m) {
 }
 } // namespace
 
-void TankRewardCard::Initialize(cg2::SpriteCommon* spriteCommon) {
+void TankRewardCard::Initialize(myEngine::SpriteCommon* spriteCommon) {
     if(spriteCommon_)return;
-    cg2::StartupTrace::Scope scope("RewardCard.Initialize");
+    myEngine::StartupTrace::Scope scope("RewardCard.Initialize");
     spriteCommon_=spriteCommon;
     {
-        cg2::StartupTrace::Scope poolScope("RewardCard.SpritePool");
+        myEngine::StartupTrace::Scope poolScope("RewardCard.SpritePool");
         wchar_t flag[8]{};
-        const bool baseline=GetEnvironmentVariableW(L"CG2_STARTUP_CACHE",flag,8)>0&&flag[0]==L'0';
+        const bool baseline=GetEnvironmentVariableW(L"MYENGINE_STARTUP_CACHE",flag,8)>0&&flag[0]==L'0';
         // The HDR preview replaced the sprite-based demonstration. Its frame
         // needs at most 85 solids and 28 glows, including legendary acquisition.
         // Reserve above those bounds so opening any rarity adds no allocations.
@@ -153,13 +153,13 @@ void TankRewardCard::Initialize(cg2::SpriteCommon* spriteCommon) {
         const std::size_t glowReserve=baseline?kGlowCapacity:32;
         for(std::size_t i=0;i<solidReserve;++i) EnsureSprite(solids_[i],kWhite);
         for(std::size_t i=0;i<glowReserve;++i) EnsureSprite(glows_[i],kGlow);
-        cg2::StartupTrace::Count("rewardCard.reservedSprites",static_cast<double>(solidReserve+glowReserve));
+        myEngine::StartupTrace::Count("rewardCard.reservedSprites",static_cast<double>(solidReserve+glowReserve));
     }
     for(std::size_t i=0;i<labels_.size();++i) {
-        cg2::TextStyle style;style.fontSize=i==1?24.0f:i==2?16.0f:i==3?18.0f:12.0f;
+        myEngine::TextStyle style;style.fontSize=i==1?24.0f:i==2?16.0f:i==3?18.0f:12.0f;
         style.fontWeight=i==1||i==3?700:400;style.padding=2;style.outlineThickness=0;
-        style.color=i==2?cg2::Vector4{0.78f,0.84f,0.91f,1}:cg2::Vector4{0.94f,0.97f,1,1};
-        labels_[i]=std::make_unique<cg2::TextLabel>();labels_[i]->Initialize(spriteCommon," ",style);
+        style.color=i==2?myEngine::Vector4{0.78f,0.84f,0.91f,1}:myEngine::Vector4{0.94f,0.97f,1,1};
+        labels_[i]=std::make_unique<myEngine::TextLabel>();labels_[i]->Initialize(spriteCommon," ",style);
         labels_[i]->SetAnchorPoint({0.5f,0.5f});
     }
     dirty_=true;
@@ -169,11 +169,11 @@ void TankRewardCard::SetModel(const TankRewardCardModel& model) {
     model_=model;model_.rarity=(std::clamp)(model_.rarity,0,4);dirty_=true;
     clock_.Reset();acquireTime_=-1.0f;previewDirty_=true;
 }
-void TankRewardCard::InitializePreview(cg2::SrvManager* srvManager) {
+void TankRewardCard::InitializePreview(myEngine::SrvManager* srvManager) {
     if(preview_||!spriteCommon_||!srvManager)return;
-    cg2::StartupTrace::Scope scope("RewardCard.InitializePreview");
+    myEngine::StartupTrace::Scope scope("RewardCard.InitializePreview");
     preview_=std::make_unique<TankRewardPreviewRenderer>();preview_->Initialize(spriteCommon_->GetDxCommon(),srvManager);
-    previewSprite_=std::make_unique<cg2::Sprite>();previewSprite_->Initialize(spriteCommon_,preview_->GetSrvIndex(),srvManager);
+    previewSprite_=std::make_unique<myEngine::Sprite>();previewSprite_->Initialize(spriteCommon_,preview_->GetSrvIndex(),srvManager);
     previewSprite_->SetAnchorPoint({.5f,.5f});previewSprite_->SetColor({1,1,1,1});previewDirty_=true;
 }
 void TankRewardCard::SetPreviewAppearance(const TankRewardPreviewAppearance& appearance) {
@@ -233,7 +233,7 @@ void TankRewardCard::RefreshText() {
     labels_[5]->SetText("現在");labels_[6]->SetText("取得後");
     labels_[7]->SetText("LEFT CLICK");dirty_=false;
 }
-void TankRewardCard::Update(const cg2::Vector2& center,const cg2::Vector2& size,float dt,bool hovered,bool enabled) {
+void TankRewardCard::Update(const myEngine::Vector2& center,const myEngine::Vector2& size,float dt,bool hovered,bool enabled) {
     if(!spriteCommon_)return;
     if(!std::isfinite(dt))dt=0;dt=(std::clamp)(dt,0.0f,0.1f);
     center_=center;size_={(std::max)(240.0f,size.x),(std::max)(280.0f,size.y)};
@@ -253,29 +253,29 @@ void TankRewardCard::Update(const cg2::Vector2& center,const cg2::Vector2& size,
     if(!model_.styleChoice&&!model_.footer.empty()&&model_.footer.front()>='0'&&model_.footer.front()<='9') { const auto size=labels_[3]->GetSprite()->GetSize(); Glow({center_.x-size.x*0.5f-10,top+size_.y-22},{30,30},{1.5f,1.15f,0.34f,1}); }
     Label(4,{center_.x,top+size_.y-58},size_.x-38,17,0.66f+0.20f*hoverBlend_);
 }
-void TankRewardCard::Rect(cg2::Vector2 center,cg2::Vector2 size,const cg2::Vector4& color,float rotation) {
+void TankRewardCard::Rect(myEngine::Vector2 center,myEngine::Vector2 size,const myEngine::Vector4& color,float rotation) {
     if(solidCount_>=solids_.size())return;
     auto& s=solids_[solidCount_++];EnsureSprite(s,kWhite);s->SetPosition(center);s->SetSize(size);s->SetRotation(rotation);
     s->SetColor(tankui::ScaleAlpha(color,alpha_));s->Update();
 }
-void TankRewardCard::Line(cg2::Vector2 a,cg2::Vector2 b,float width,const cg2::Vector4& color) {
+void TankRewardCard::Line(myEngine::Vector2 a,myEngine::Vector2 b,float width,const myEngine::Vector4& color) {
     const float dx=b.x-a.x,dy=b.y-a.y;
     Rect({(a.x+b.x)*0.5f,(a.y+b.y)*0.5f},{std::sqrt(dx*dx+dy*dy),width},color,std::atan2(dy,dx));
 }
-void TankRewardCard::Glow(cg2::Vector2 center,cg2::Vector2 size,const cg2::Vector4& color,float rotation) {
+void TankRewardCard::Glow(myEngine::Vector2 center,myEngine::Vector2 size,const myEngine::Vector4& color,float rotation) {
     if(glowCount_>=glows_.size())return;
     auto& s=glows_[glowCount_++];EnsureSprite(s,kGlow);s->SetPosition(center);s->SetSize(size);s->SetRotation(rotation);
     s->SetColor(tankui::ScaleAlpha(color,alpha_));s->Update();
 }
-void TankRewardCard::EnsureSprite(std::unique_ptr<cg2::Sprite>& sprite,const char* texture) {
+void TankRewardCard::EnsureSprite(std::unique_ptr<myEngine::Sprite>& sprite,const char* texture) {
     if(sprite)return;
-    sprite=std::make_unique<cg2::Sprite>();sprite->Initialize(spriteCommon_,texture);sprite->SetAnchorPoint({0.5f,0.5f});
-    cg2::StartupTrace::Count("rewardCard.allocatedSprites");
+    sprite=std::make_unique<myEngine::Sprite>();sprite->Initialize(spriteCommon_,texture);sprite->SetAnchorPoint({0.5f,0.5f});
+    myEngine::StartupTrace::Count("rewardCard.allocatedSprites");
 }
-void TankRewardCard::Label(std::size_t index,cg2::Vector2 position,float maxWidth,float maxHeight,float alpha) {
+void TankRewardCard::Label(std::size_t index,myEngine::Vector2 position,float maxWidth,float maxHeight,float alpha) {
     auto& label=labels_[index];label->SetPosition(position);label->SetAlpha(alpha*alpha_);label->PrepareForDraw();
     auto* sprite=label->GetSprite();if(!sprite)return;
-    const cg2::Vector2 native=sprite->GetTextureSize();
+    const myEngine::Vector2 native=sprite->GetTextureSize();
     const float scale=(std::min)({1.0f,maxWidth/(std::max)(1.0f,native.x),maxHeight/(std::max)(1.0f,native.y)});
     sprite->SetSize({native.x*scale,native.y*scale});sprite->Update();labelVisible_[index]=true;
 }
@@ -289,11 +289,11 @@ void TankRewardCard::BuildFrame() {
     Rect(center_,size_,{0.016f+hoverBlend_*0.009f,0.024f+hoverBlend_*0.008f,0.040f+hoverBlend_*0.008f,0.985f});
     Rect({center_.x,y+17},{w-22,22},{0.035f,0.049f,0.07f,0.8f});
     constexpr float cut=10;
-    const std::array<cg2::Vector2,8> frame{{{x+cut,y},{x+w-cut,y},{x+w,y+cut},{x+w,y+h-cut},
+    const std::array<myEngine::Vector2,8> frame{{{x+cut,y},{x+w-cut,y},{x+w,y+cut},{x+w,y+h-cut},
         {x+w-cut,y+h},{x+cut,y+h},{x,y+h-cut},{x,y+cut}}};
     for(std::size_t i=0;i<frame.size();++i) {
         const auto a=frame[i],b=frame[(i+1)%frame.size()];
-        cg2::Vector4 color=RarityColor(model_.styleChoice?0:model_.rarity,visualTime_*1.6f+static_cast<float>(i)*0.72f);
+        myEngine::Vector4 color=RarityColor(model_.styleChoice?0:model_.rarity,visualTime_*1.6f+static_cast<float>(i)*0.72f);
         Line(a,b,1.2f+hoverBlend_*0.7f+acquire,tankui::ScaleAlpha(color,focus));
         if(i%2==0&&(rarity>0||acquire>0.0f)) {
             const float length=std::sqrt((b.x-a.x)*(b.x-a.x)+(b.y-a.y)*(b.y-a.y));
@@ -313,7 +313,7 @@ void TankRewardCard::BuildFrame() {
             const float path=std::fmod(visualTime_*1.4f+static_cast<float>(n)*4,8.0f);
             const auto index=static_cast<std::size_t>(path);const float blend=path-static_cast<float>(index);
             const auto a=frame[index],b=frame[(index+1)%frame.size()];
-            const cg2::Vector2 at{a.x+(b.x-a.x)*blend,a.y+(b.y-a.y)*blend};
+            const myEngine::Vector2 at{a.x+(b.x-a.x)*blend,a.y+(b.y-a.y)*blend};
             Glow(at,{15,15},tankui::ScaleAlpha(accent_,0.7f*hoverBlend_));Rect(at,{3,3},tankui::ScaleAlpha(accent_,hoverBlend_));
         }
     }
@@ -331,7 +331,7 @@ void TankRewardCard::BuildFrame() {
             Rect({bx+sx*8,by+sy*8},{6,6},tankui::ScaleAlpha(accent_,0.45f),kPi*0.25f);
             if(hoverBlend_>0.03f) {
                 const float jitter=std::sin(visualTime_*24+static_cast<float>(side+bottom*2)*2)*3;
-                const cg2::Vector2 a{bx+sx*36,by+sy*2},m{bx+sx*(46+jitter),by-sy*3},b{bx+sx*58,by+sy*2};
+                const myEngine::Vector2 a{bx+sx*36,by+sy*2},m{bx+sx*(46+jitter),by-sy*3},b{bx+sx*58,by+sy*2};
                 Line(a,m,1.1f,tankui::ScaleAlpha(accent_,hoverBlend_*0.72f));Line(m,b,1.1f,tankui::ScaleAlpha(accent_,hoverBlend_*0.72f));
             }
         }
@@ -360,13 +360,13 @@ void TankRewardCard::BuildFrame() {
         if(rarity==4)for(int i=0;i<12;++i) {
             const float p=static_cast<float>(i)/12.0f*2*kPi;
             const float outward=acquireTime_*14;
-            const cg2::Vector2 at{center_.x+std::cos(p)*(w*0.47f+outward),center_.y+std::sin(p)*(h*0.47f+outward)};
+            const myEngine::Vector2 at{center_.x+std::cos(p)*(w*0.47f+outward),center_.y+std::sin(p)*(h*0.47f+outward)};
             Line(at,{at.x+std::cos(p)*7,at.y+std::sin(p)*7},2,tankui::ScaleAlpha(RarityColor(4,p),acquire));
             Glow(at,{19,19},tankui::ScaleAlpha(RarityColor(4,p),acquire*0.65f));
         }
     }
 }
-void TankRewardCard::Tank(cg2::Vector2 center,float radius,float angle,const cg2::Vector4& color,bool drone,int barrels) {
+void TankRewardCard::Tank(myEngine::Vector2 center,float radius,float angle,const myEngine::Vector4& color,bool drone,int barrels) {
     const int segments=drone?4:12;
     if(!drone) {
         Rect({center.x,center.y-radius*0.72f},{radius*1.8f,radius*0.38f},{0.17f,0.24f,0.32f,0.9f});
@@ -380,14 +380,14 @@ void TankRewardCard::Tank(cg2::Vector2 center,float radius,float angle,const cg2
     }
     for(int n=0;n<barrels;++n) {
         const float offset=(static_cast<float>(n)-static_cast<float>(barrels-1)*0.5f)*radius*0.25f;
-        const cg2::Vector2 base{center.x-std::sin(angle)*offset,center.y+std::cos(angle)*offset};
+        const myEngine::Vector2 base{center.x-std::sin(angle)*offset,center.y+std::cos(angle)*offset};
         Line(base,{base.x+std::cos(angle)*radius*1.55f,base.y+std::sin(angle)*radius*1.55f},drone?2.0f:2.6f,color);
     }
     Glow(center,{radius*3.3f,radius*3.3f},tankui::ScaleAlpha(color,0.22f));
 }
-void TankRewardCard::DrawLane(const tankreward::DemoSnapshot& s,const cg2::Vector2& origin,const cg2::Vector2& size,bool after) {
-    auto point=[&](tankreward::Point p)->cg2::Vector2{return {origin.x+p.x*size.x,origin.y+p.y*size.y};};
-    const cg2::Vector4 actor=after?cg2::Vector4{0.30f,0.90f,1.0f,0.95f}:cg2::Vector4{0.55f,0.63f,0.70f,0.67f};
+void TankRewardCard::DrawLane(const tankreward::DemoSnapshot& s,const myEngine::Vector2& origin,const myEngine::Vector2& size,bool after) {
+    auto point=[&](tankreward::Point p)->myEngine::Vector2{return {origin.x+p.x*size.x,origin.y+p.y*size.y};};
+    const myEngine::Vector4 actor=after?myEngine::Vector4{0.30f,0.90f,1.0f,0.95f}:myEngine::Vector4{0.55f,0.63f,0.70f,0.67f};
     const float radius=(std::min)(9.0f,size.y*0.16f);
     if(s.wall)Line(point({0.35f,0.18f}),point({0.71f,0.18f}),3,{0.52f,0.63f,0.76f,0.65f});
     // Reticle: a real cursor target, distinct from the enemy and bullet path.
@@ -396,9 +396,9 @@ void TankRewardCard::DrawLane(const tankreward::DemoSnapshot& s,const cg2::Vecto
     Line({cursor.x,cursor.y-4},{cursor.x,cursor.y+4},1,{0.5f,0.68f,0.75f,0.34f});
     for(int n=0;n<s.targetCount;++n) {
         auto at=point(s.targets[n]);const float r=radius*0.88f;
-        const cg2::Vector4 enemy{1.0f,0.27f+s.hit[n]*0.42f,0.30f+s.hit[n]*0.4f,0.82f};
+        const myEngine::Vector4 enemy{1.0f,0.27f+s.hit[n]*0.42f,0.30f+s.hit[n]*0.4f,0.82f};
         Rect(at,{r*1.2f,r*1.2f},{0.13f,0.026f,0.048f,0.98f},0.17f);
-        const std::array<cg2::Vector2,4> ends{{{at.x-r,at.y-r},{at.x+r,at.y-r},{at.x+r,at.y+r},{at.x-r,at.y+r}}};
+        const std::array<myEngine::Vector2,4> ends{{{at.x-r,at.y-r},{at.x+r,at.y-r},{at.x+r,at.y+r},{at.x-r,at.y+r}}};
         for(std::size_t i=0;i<4;++i)Line(ends[i],ends[(i+1)%4],1.2f,enemy);
         if(s.hit[n]>0.0f) {
             Glow(at,{radius*4,radius*4},tankui::ScaleAlpha(enemy,s.hit[n]*0.45f));
@@ -486,18 +486,18 @@ void TankRewardCard::BuildDemo() {
 }
 void TankRewardCard::Draw() {
     if(!spriteCommon_)return;
-    spriteCommon_->PreDraw(cg2::kNormal);
+    spriteCommon_->PreDraw(myEngine::kNormal);
     for(std::size_t i=0;i<solidCount_;++i)solids_[i]->Draw();
     if(preview_&&preview_->HasRendered()&&previewSprite_)previewSprite_->Draw();
-    spriteCommon_->PreDraw(cg2::kAdd);
+    spriteCommon_->PreDraw(myEngine::kAdd);
     for(std::size_t i=0;i<glowCount_;++i)glows_[i]->Draw();
-    spriteCommon_->PreDraw(cg2::kNormal);
+    spriteCommon_->PreDraw(myEngine::kNormal);
     // TextLabel::Draw may rebuild a texture after a font change. Drawing only
     // prepared sprites guarantees no texture creation inside the render pass.
     for(std::size_t i=0;i<labels_.size();++i)if(labelVisible_[i])if(auto* sprite=labels_[i]->GetSprite())sprite->Draw();
 }
 void TankRewardCard::DrawBloomSource() {
     if(!spriteCommon_)return;
-    spriteCommon_->PreDrawForScene(cg2::kAdd);
+    spriteCommon_->PreDrawForScene(myEngine::kAdd);
     for(std::size_t i=0;i<glowCount_;++i)glows_[i]->Draw();
 }

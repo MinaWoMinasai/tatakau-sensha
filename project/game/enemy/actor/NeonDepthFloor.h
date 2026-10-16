@@ -3,7 +3,7 @@
 #include <span>
 
 // Domain-specific XY wall clipping; the Stage adapter supplies copied
-// actual merged boxes. No cg2 vector, actor, renderer or random-stream clone.
+// actual merged boxes. No myEngine vector, actor, renderer or random-stream clone.
 namespace neondepth {
 struct FloorBox { Point minimum{}, maximum{}; };
 inline bool Valid(const FloorBox& box) {

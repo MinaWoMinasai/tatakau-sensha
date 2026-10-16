@@ -218,7 +218,7 @@ bool LevelRuntime::AddLevelItem(const LevelObject& levelObject)
 
     LevelVisualObject visual{};
     visual.name = levelObject.name;
-    visual.object = std::make_unique<cg2::Object3d>();
+    visual.object = std::make_unique<myEngine::Object3d>();
     visual.object->Initialize();
     visual.object->SetModel(model);
     visual.object->SetTransform(levelObject.transform);

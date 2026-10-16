@@ -2,7 +2,7 @@
 #pragma comment(lib, "Dbghelp.lib")
 #pragma comment(lib, "dxcompiler.lib")
 
-namespace cg2 {
+namespace myEngine {
 
 LONG __stdcall Dump::Export(EXCEPTION_POINTERS* exception)
 {
@@ -29,4 +29,4 @@ LONG __stdcall Dump::Export(EXCEPTION_POINTERS* exception)
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 
-} // namespace cg2
+} // namespace myEngine

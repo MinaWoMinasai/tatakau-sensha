@@ -6,12 +6,12 @@
 namespace gameplay {
 
 namespace {
-constexpr cg2::Vector2 kWallet{304, 32};
+constexpr myEngine::Vector2 kWallet{304, 32};
 /// @brief 経験値などの表示用スプライトを生成する。
-std::unique_ptr<cg2::Sprite> ExperienceSprite(const char* texture, cg2::Vector2 p, cg2::Vector2 size, const cg2::Vector4& tint)
+std::unique_ptr<myEngine::Sprite> ExperienceSprite(const char* texture, myEngine::Vector2 p, myEngine::Vector2 size, const myEngine::Vector4& tint)
 {
-    auto sprite = std::make_unique<cg2::Sprite>();
-    sprite->Initialize(cg2::SpriteCommon::GetInstance(), texture);
+    auto sprite = std::make_unique<myEngine::Sprite>();
+    sprite->Initialize(myEngine::SpriteCommon::GetInstance(), texture);
     sprite->SetPosition(p);
     sprite->SetSize(size);
     sprite->SetColor(tint);
@@ -19,16 +19,16 @@ std::unique_ptr<cg2::Sprite> ExperienceSprite(const char* texture, cg2::Vector2 
     return sprite;
 }
 /// @brief 経験値などの表示用文字を生成する。
-std::unique_ptr<cg2::TextLabel> ExperienceText(float size, cg2::Vector2 p, const char* text, const cg2::Vector4& color)
+std::unique_ptr<myEngine::TextLabel> ExperienceText(float size, myEngine::Vector2 p, const char* text, const myEngine::Vector4& color)
 {
-    cg2::TextStyle style{};
+    myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
     style.fontSize = size;
     style.color = color;
     style.padding = 4;
     style.outlineThickness = 0;
-    auto label = std::make_unique<cg2::TextLabel>();
-    label->Initialize(cg2::SpriteCommon::GetInstance(), text, style);
+    auto label = std::make_unique<myEngine::TextLabel>();
+    label->Initialize(myEngine::SpriteCommon::GetInstance(), text, style);
     label->SetPosition(p);
     return label;
 }
@@ -37,8 +37,8 @@ std::unique_ptr<cg2::TextLabel> ExperienceText(float size, cg2::Vector2 p, const
 void ExpeditionExperience::InitializeExpeditionExperience()
 {
     world_.run.expeditionCompleteGlow_ = std::make_unique<NeonTextEffect>();
-    world_.run.expeditionCompleteGlow_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),
-                                                   cg2::Object3dCommon::GetInstance()->GetSrvManager());
+    world_.run.expeditionCompleteGlow_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
+                                                   myEngine::Object3dCommon::GetInstance()->GetSrvManager());
     NeonTextEffectStyle completeStyle;
     completeStyle.glowColor = {0.15f, 1, 0.38f, 1};
     completeStyle.innerIntensity = 0.65f;
@@ -65,7 +65,7 @@ void ExpeditionExperience::InitializeExpeditionExperience()
     world_.run.expeditionCredits_.reserve(96);
 }
 
-void ExpeditionExperience::SpawnExpeditionCredits(const cg2::Vector3& position, int amount, bool flyImmediately)
+void ExpeditionExperience::SpawnExpeditionCredits(const myEngine::Vector3& position, int amount, bool flyImmediately)
 {
     if (!world_.run.expeditionMapEnabled_ || amount <= 0)
         return;
@@ -105,7 +105,7 @@ void ExpeditionExperience::UpdateExpeditionCredits(float dt, bool collectAll)
             else
                 orb.velocity = orb.velocity * -0.3f;
             orb.velocity = orb.velocity * std::exp(-dt * 5.5f);
-            if (collectAll || (orb.age > 0.25f && cg2::Length(orb.position - playerPosition) < 3.0f)) {
+            if (collectAll || (orb.age > 0.25f && myEngine::Length(orb.position - playerPosition) < 3.0f)) {
                 orb.flying = true;
                 orb.launch = world_.gameplayHud->WorldToScreen(orb.position);
                 orb.flight = 0;
@@ -133,7 +133,7 @@ void ExpeditionExperience::DrawExpeditionVitals()
 {
     if (!world_.run.expeditionCreditIcon_)
         return;
-    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     const auto& stats = world_.resources.player_->GetStats();
     const float stamina = stats.maxStamina > 0 ? (std::clamp)(stats.stamina / stats.maxStamina, 0.0f, 1.0f) : 0;
     world_.run.expeditionStaminaTrack_->Draw();
@@ -156,9 +156,9 @@ void ExpeditionExperience::DrawExpeditionCredits()
 {
     if (!world_.run.expeditionMapEnabled_)
         return;
-    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     for (auto& orb : world_.run.expeditionCredits_) {
-        cg2::Vector2 point = world_.gameplayHud->WorldToScreen(orb.position);
+        myEngine::Vector2 point = world_.gameplayHud->WorldToScreen(orb.position);
         if (orb.flying) {
             const float t = (std::clamp)(orb.flight / 0.55f, 0.0f, 1.0f), ease = t * t * (3 - 2 * t);
             point = {orb.launch.x + (kWallet.x - orb.launch.x) * ease,
@@ -173,7 +173,7 @@ void ExpeditionExperience::DrawExpeditionCredits()
     }
 }
 
-void ExpeditionExperience::DrawExpeditionPointer(cg2::Vector2 target, bool right)
+void ExpeditionExperience::DrawExpeditionPointer(myEngine::Vector2 target, bool right)
 {
     target.x = (std::clamp)(target.x, 64.0f, 1216.0f);
     const float sign = right ? 1.0f : -1.0f;
@@ -196,16 +196,16 @@ void ExpeditionExperience::DrawExpeditionPointer(cg2::Vector2 target, bool right
             halo->SetRotation(angle);
             halo->SetColor({0.15f, 0.8f, 0.85f, 0.45f - i * 0.08f});
             halo->Update();
-            cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kAdd);
+            myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kAdd);
             halo->Draw();
-            cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+            myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
             line->SetColor({0.65f, 1.15f, 1.1f, 0.95f - i * 0.18f});
             line->Update();
             line->Draw();
         }
 }
 
-void ExpeditionExperience::DrawCurrencyIcon(cg2::Vector2 center, float size)
+void ExpeditionExperience::DrawCurrencyIcon(myEngine::Vector2 center, float size)
 {
     world_.run.expeditionPriceIcon_->SetPosition(center);
     world_.run.expeditionPriceIcon_->SetSize({size, size});
@@ -224,11 +224,11 @@ void ExpeditionExperience::EnsureExpeditionPointers(size_t count)
         }
 }
 
-void ExpeditionExperience::QueueExpeditionImpact(const cg2::Vector3& position, const cg2::Vector3& direction, bool finisher)
+void ExpeditionExperience::QueueExpeditionImpact(const myEngine::Vector3& position, const myEngine::Vector3& direction, bool finisher)
 {
     if (!world_.run.expeditionRun_)
         return;
-    cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(position, direction, {1.45f, 0.95f, 0.28f, 1}, finisher ? 16 : 10);
+    myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(position, direction, {1.45f, 0.95f, 0.28f, 1}, finisher ? 16 : 10);
     if (world_.run.tankRunBursts_.size() < 24)
         world_.run.tankRunBursts_.push_back({position, 0, false});
     world_.presentation.cameraShakeDuration_ = finisher ? 0.15f : 0.10f;
@@ -318,8 +318,8 @@ void ExpeditionExperience::DrawGuidedExpedition()
         return;
     if (step == S::Upgrade && active->kind != tankexp::NodeKind::Upgrade)
         return;
-    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
-    cg2::Vector2 target = world_.gameplayHud->WorldToScreen(world_.resources.player_->GetWorldPosition());
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+    myEngine::Vector2 target = world_.gameplayHud->WorldToScreen(world_.resources.player_->GetWorldPosition());
     if (step == S::ShootKill || step == S::Briefing) {
         for (auto* e : world_.resources.enemyManager_->GetEnemyPtrs())
             if (e && !e->IsDead()) {
@@ -337,8 +337,8 @@ void ExpeditionExperience::DrawGuidedExpedition()
         const float x = vitals ? 12 : (std::clamp)(target.x - 74, 12.0f, 1110.0f),
                     y = vitals ? 8 : (std::clamp)(target.y - 74, 90.0f, 480.0f);
         const float w = vitals ? 252.0f : 148.0f, h = vitals ? 78.0f : 148.0f;
-        const cg2::Vector2 positions[] = {{0, 0}, {0, y}, {x + w, y}, {0, y + h}};
-        const cg2::Vector2 sizes[] = {{1280, y}, {x, h}, {1280 - x - w, h}, {1280, 720 - y - h}};
+        const myEngine::Vector2 positions[] = {{0, 0}, {0, y}, {x + w, y}, {0, y + h}};
+        const myEngine::Vector2 sizes[] = {{1280, y}, {x, h}, {1280 - x - w, h}, {1280, 720 - y - h}};
         for (int i = 0; i < 4; ++i) {
             world_.run.expeditionSpotlight_[i]->SetPosition(positions[i]);
             world_.run.expeditionSpotlight_[i]->SetSize(sizes[i]);

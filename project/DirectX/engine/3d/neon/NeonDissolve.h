@@ -7,7 +7,7 @@
 #include <limits>
 #include <string>
 
-namespace cg2 {
+namespace myEngine {
 
 // Direction and all distances are in the frozen, skinned model space, before World.
 // scanMin/Max bound the directional projection; noise adds +/- noiseStrength/2.
@@ -185,4 +185,4 @@ inline float EvaluateNeonDissolveSignedDistance(const Vector3& position, const N
     return projected + noise - threshold;
 }
 
-} // namespace cg2
+} // namespace myEngine

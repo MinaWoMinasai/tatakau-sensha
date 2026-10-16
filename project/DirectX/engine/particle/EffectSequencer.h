@@ -6,7 +6,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 
-namespace cg2 {
+namespace myEngine {
 
 class Object3d;
 class Object3dCommon;
@@ -72,7 +72,7 @@ public:
         Finished,
     };
 
-    /// @brief cg2::EffectSequencerが扱う演出の発生時刻・内容を表す。
+    /// @brief myEngine::EffectSequencerが扱う演出の発生時刻・内容を表す。
     struct Event {
         std::string effectName;
         float delay = 0.0f;
@@ -147,7 +147,7 @@ public:
     }
 
 private:
-    /// @brief cg2::EffectSequencerが扱う演出の発生時刻・内容と発生後の進行状態を保持する。
+    /// @brief myEngine::EffectSequencerが扱う演出の発生時刻・内容と発生後の進行状態を保持する。
     struct ActiveEvent {
         Event event;
         Vector3 origin = {0.0f, 0.0f, 0.0f};
@@ -191,4 +191,4 @@ private:
     char profileFilename_[128] = "effect_default.json";
 };
 
-} // namespace cg2
+} // namespace myEngine

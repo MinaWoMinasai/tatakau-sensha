@@ -2,7 +2,7 @@
 
 #pragma region イージングの種類
 
-namespace cg2 {
+namespace myEngine {
 namespace { constexpr double kEasingPi = 3.141592653589793; }
 
 float EaseInSine(float t) { return 1.0f - cosf(float(t * kEasingPi) / 2.0f); }
@@ -211,4 +211,4 @@ Vector4 Lerp(const Vector4& start, const Vector4& end, float t)
 
 #pragma endregion
 
-} // namespace cg2
+} // namespace myEngine

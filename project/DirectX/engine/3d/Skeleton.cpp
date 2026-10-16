@@ -5,7 +5,7 @@
 #include <cassert>
 #include <stdexcept>
 
-namespace cg2 {
+namespace myEngine {
 
 int32_t SkeletonSystem::CreateJoint(
 	const SkeletonNode& node,
@@ -133,4 +133,4 @@ void SkeletonSystem::Update(Skeleton& skeleton) {
 	}
 }
 
-} // namespace cg2
+} // namespace myEngine

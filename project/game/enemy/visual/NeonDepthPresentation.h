@@ -13,13 +13,13 @@ namespace neondepth {
 struct PresentationConfig {
     float worldHeight=18.0f;
     float hoverHeight=3.0f;
-    cg2::Vector2 floorOffset{0,2};
+    myEngine::Vector2 floorOffset{0,2};
     bool reducedMotion=false;
     float motionAmplitude=1.0f;
     float collapseSeconds=.35f;
     float dissolveSeconds=1.2f;
-    cg2::Vector3 footOffsetLocal{};
-    float forwardYawOffsetRadians=cg2::pi*.5f;
+    myEngine::Vector3 footOffsetLocal{};
+    float forwardYawOffsetRadians=myEngine::pi*.5f;
 };
 inline bool Valid(const PresentationConfig& value) {
     return InRange(value.worldHeight,4,40) && InRange(value.hoverHeight,0,15) &&
@@ -28,23 +28,23 @@ inline bool Valid(const PresentationConfig& value) {
         InRange(value.dissolveSeconds,.4f,2) &&
         InRange(value.footOffsetLocal.x,-.5f,.5f) && InRange(value.footOffsetLocal.y,-.5f,.5f) &&
         InRange(value.footOffsetLocal.z,-.5f,.5f) &&
-        InRange(value.forwardYawOffsetRadians,-2*cg2::pi,2*cg2::pi);
+        InRange(value.forwardYawOffsetRadians,-2*myEngine::pi,2*myEngine::pi);
 }
 inline float Unit(float value) { return Finite(value)?(std::clamp)(value,0.0f,1.0f):0; }
 inline float Smooth(float value) { const float t=Unit(value); return t*t*(3-2*t); }
 inline float PresentationDelta(float value) { return InRange(value,0,.1f)?value:
     (Finite(value)&&value>0?.1f:0); }
 
-struct BindBounds { cg2::Vector3 low{}, high{}; };
+struct BindBounds { myEngine::Vector3 low{}, high{}; };
 struct BindPlacement {
-    cg2::Vector3 stableFootLocal{};
+    myEngine::Vector3 stableFootLocal{};
     float boundsHeight=0;
     unsigned footBonesFound=0;
 };
 // Called immediately after Initialize, before any generated animation is sampled.
 // Actual loader-transformed skeleton matrices determine X/Z. Bottom bind bounds
 // determine sole Y; the ankle joint's ~.1155 Y is deliberately not used as a sole.
-inline bool TryBindPlacement(const cg2::Skeleton& skeleton, const BindBounds& bounds,
+inline bool TryBindPlacement(const myEngine::Skeleton& skeleton, const BindBounds& bounds,
     BindPlacement& output) {
     if(!ValidateDepthBindSkeleton(skeleton) || !Finite(bounds.low) || !Finite(bounds.high) ||
         bounds.high.x<bounds.low.x || bounds.high.z<bounds.low.z ||
@@ -58,7 +58,7 @@ inline bool TryBindPlacement(const cg2::Skeleton& skeleton, const BindBounds& bo
         const auto found=skeleton.jointMap.find(name);
         if(found==skeleton.jointMap.end()) continue;
         const auto& matrix=skeleton.joints[static_cast<size_t>(found->second)].skeletonSpaceMatrix;
-        const cg2::Vector3 point{matrix.m[3][0],matrix.m[3][1],matrix.m[3][2]};
+        const myEngine::Vector3 point{matrix.m[3][0],matrix.m[3][1],matrix.m[3][2]};
         if(!Finite(point)) return false;
         footX+=point.x; footZ+=point.z; ++candidate.footBonesFound;
     }
@@ -80,8 +80,8 @@ inline PlacementConfig MakePlacementConfig(const BindPlacement& bind, const Pres
 enum class Socket { Chest, LeftHand, RightHand };
 // Model is already sampled for this frame. A socket is a display endpoint only;
 // its height/animation never changes the floor danger or wall-clipped hit segment.
-inline bool TrySocketWorld(const cg2::Skeleton& skeleton,const cg2::Matrix4x4& world,
-    Socket socket,cg2::Vector3& output) {
+inline bool TrySocketWorld(const myEngine::Skeleton& skeleton,const myEngine::Matrix4x4& world,
+    Socket socket,myEngine::Vector3& output) {
     const char* name=socket==Socket::Chest?"J_Bip_C_Chest":
         socket==Socket::LeftHand?"J_Bip_L_Hand":"J_Bip_R_Hand";
     const auto found=skeleton.jointMap.find(name);
@@ -89,8 +89,8 @@ inline bool TrySocketWorld(const cg2::Skeleton& skeleton,const cg2::Matrix4x4& w
         static_cast<size_t>(found->second)>=skeleton.joints.size() || !Finite(world)) return false;
     const auto& matrix=skeleton.joints[static_cast<size_t>(found->second)].skeletonSpaceMatrix;
     if(!Finite(matrix)) return false;
-    const auto jointWorld=cg2::Multiply(matrix,world);
-    cg2::Vector3 candidate;
+    const auto jointWorld=myEngine::Multiply(matrix,world);
+    myEngine::Vector3 candidate;
     if(!TryHomogeneousPoint({0,0,0},jointWorld,candidate)) return false;
     output=candidate; return true;
 }
@@ -161,9 +161,9 @@ inline Formation MapFormation(const Snapshot& snapshot) {
     return {Smooth(p/.25f),Smooth((p-.12f)/.38f),Smooth((p-.25f)/.65f)};
 }
 struct BodyMotion {
-    cg2::Vector2 extraFloorOffset{};
+    myEngine::Vector2 extraFloorOffset{};
     float extraHoverHeight=0;
-    cg2::Vector3 localLean{};
+    myEngine::Vector3 localLean{};
 };
 // Immutable plan progress -> fresh bounded transform. No previous pose additions,
 // wall/core resolution, screen displacement, attack activation or shared RNG.
@@ -171,7 +171,7 @@ inline BodyMotion MapBodyMotion(const Snapshot& snapshot,const PresentationConfi
     BodyMotion result;
     const float p=Unit(snapshot.progress);
     const float amplitude=profile.motionAmplitude*(profile.reducedMotion?.35f:1.0f);
-    const float wave=p>0 && p<1?std::sin(cg2::pi*p):0;
+    const float wave=p>0 && p<1?std::sin(myEngine::pi*p):0;
     const bool dive=snapshot.plan.attack==Attack::Dive;
     const bool beam=snapshot.plan.attack==Attack::Beam;
     switch(snapshot.phase) {

@@ -6,7 +6,7 @@
 #include "DirectXCommon.h"
 
 #include <filesystem>
-namespace cg2 {
+namespace myEngine {
 
 namespace fs = std::filesystem;
 
@@ -71,4 +71,4 @@ private:
     const std::string kAudioDirPath = "resources/audio/";
 };
 
-} // namespace cg2
+} // namespace myEngine

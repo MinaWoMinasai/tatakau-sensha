@@ -3,7 +3,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "game/session/TitleDemoStatus.h"
-namespace cg2 {
+namespace myEngine {
 class Object3d;
 }
 
@@ -46,7 +46,7 @@ public:
     bool IsFinished() const;
 
     /// @brief BallOBJ形式を返す。
-    cg2::Object3d* GetBallObj();
+    myEngine::Object3d* GetBallObj();
 
     /// @brief 最終差分時間を返す。
     float GetFinalDeltaTime() const;
@@ -66,9 +66,9 @@ public:
 
     DeveloperShowcaseState GetDeveloperShowcaseState();
 
-    void RecordDeveloperPostParameters(const cg2::BloomParam& param);
+    void RecordDeveloperPostParameters(const myEngine::BloomParam& param);
 
-    void RecordDeveloperFrame(cg2::DirectXCommon& dx);
+    void RecordDeveloperFrame(myEngine::DirectXCommon& dx);
 
     /// @brief 描画区間の計測値を設定する。
     void SetRenderProfile(const IScene::RenderProfile& profile);

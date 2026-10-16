@@ -11,7 +11,7 @@
 #include <d3d12.h>
 #include <wrl.h>
 
-namespace cg2 {
+namespace myEngine {
 
 class DirectXCommon;
 class SrvManager;
@@ -273,4 +273,4 @@ private:
     uint32_t paletteSrvIndex_ = 0;
 };
 
-} // namespace cg2
+} // namespace myEngine
