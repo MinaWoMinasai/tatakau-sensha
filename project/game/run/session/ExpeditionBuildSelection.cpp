@@ -204,6 +204,8 @@ void ExpeditionBuildSelection::UpdateExpeditionBuildCards(float dt)
         if (present && mouse.x >= 64 + i * 388 && mouse.x <= 432 + i * 388 && mouse.y >= 260 && mouse.y <= 590)
             hovered = i;
     }
+    if (hovered < 0 && world_.resources.input_->IsGamepadActive())
+        hovered = world_.run.tankRunSelection_;
     if (world_.validation.experienceValidationVariant_)
         hovered = world_.run.expeditionBuildChoice_ ? world_.validation.experienceValidationStyle_ : world_.run.tankRunSelection_;
     for (int i = 0; i < 3; ++i) {

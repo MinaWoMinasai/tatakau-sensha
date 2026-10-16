@@ -41,9 +41,11 @@ struct CombatFlowEvents {
 class CombatFlowController {
 public:
     void Reset() { *this = CombatFlowController{}; }
-    void BeginBossDefeat(float dissolveSpeed, float impactDelay) {
+    // minimumDuration lets a staged finale (camera push-in, burst chain, title) finish before the result.
+    void BeginBossDefeat(float dissolveSpeed, float impactDelay, float minimumDuration = 0.0f) {
         state_ = CombatFlowState::BossDefeatSequence;
-        timer_ = (std::clamp)(2.30f / (std::max)(0.10f, dissolveSpeed), 1.10f, 2.20f);
+        timer_ = (std::max)((std::clamp)(2.30f / (std::max)(0.10f, dissolveSpeed), 1.10f, 2.20f),
+                            std::isfinite(minimumDuration) ? (std::min)(minimumDuration, 8.0f) : 0.0f);
         bossDefeatDuration_ = timer_;
         impactDelay_ = impactDelay;
         impactTriggered_ = false;

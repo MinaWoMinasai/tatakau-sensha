@@ -28,8 +28,48 @@ namespace gameplay {
 
 using namespace detail;
 
+namespace {
+const char* BloomViewCaption(int view)
+{
+    static const char* kCaptions[] = {
+        "ブルーム：ON（5段のピラミッドを合成）",
+        "ブルーム：OFF",
+        "ブルーム：1段目だけ（1/2解像度・細いにじみ）",
+        "ブルーム：2段目だけ（1/4解像度）",
+        "ブルーム：3段目だけ（1/8解像度）",
+        "ブルーム：4段目だけ（1/16解像度）",
+        "ブルーム：5段目だけ（1/32解像度・広いにじみ）",
+        "ブルーム：光の成分だけ（5段を合成した結果）",
+    };
+    return kCaptions[(std::clamp)(view, 0, 7)];
+}
+} // namespace
+
 void CombatFramePipeline::Update()
 {
+    // Presentation helper: compare the pyramid bloom on the live game ([B] view, [Shift+B] back, [V] freeze).
+    if (!world_.demo.titleDemo_ && world_.resources.input_) {
+        auto& presentation = world_.presentation;
+        const bool shift = world_.resources.input_->GetKey()[DIK_LSHIFT] || world_.resources.input_->GetKey()[DIK_RSHIFT];
+        bool changed = false;
+        if (world_.resources.input_->IsKeyTriggered(DIK_B)) {
+            presentation.bloomView_ = (presentation.bloomView_ + (shift ? 7 : 1)) % 8;
+            changed = true;
+        }
+        if (world_.resources.input_->IsKeyTriggered(DIK_V)) {
+            presentation.bloomViewFreeze_ = !presentation.bloomViewFreeze_;
+            changed = true;
+        }
+        if (changed) {
+            presentation.bloomViewLabelTimer_ = 2.5f;
+            if (world_.combat.bloomViewText_)
+                world_.combat.bloomViewText_->SetText(std::string(BloomViewCaption(presentation.bloomView_)) +
+                                                      (presentation.bloomViewFreeze_ ? "   ■ 一時停止中 [V]で再開" : "   [B]切替  [V]一時停止"));
+        }
+        presentation.bloomViewLabelTimer_ = (std::max)(0.0f, presentation.bloomViewLabelTimer_ - 1.0f / 60.0f);
+        if (presentation.bloomViewFreeze_)
+            return; // Freeze the frame: drawing continues with the same state, so views compare one moment.
+    }
 
     // 通常の基準時間は1/60秒。検証では指定した固定時間でメニュー・演出も進める。
     float baseDeltaTime = 1.0f / 60.0f;
@@ -270,42 +310,31 @@ void CombatFramePipeline::Update()
         const float kCameraZ = arenacamera::CameraZ();
         const float kMarginX = 18.0f;
         const float kMarginY = 11.0f;
-        float kMinCameraX = kMarginX;
-        float kMinCameraY = kMarginY;
-        float kMaxCameraX = MapChip::kBlockWidth * (MapChip::kNumBlockHorizontal - 1) - kMarginX;
-        float kMaxCameraY = MapChip::kBlockHeight * (MapChip::kNumBlockVirtical - 1) - kMarginY;
-        if (world_.run.prototypeRun_ && world_.resources.stage_) {
-            // Frame the walled arena like a fixed monitor view: the floor view may reach at most a
-            // little past the outer wall, so the tall rampart never fills the screen. Display only.
-            float minX = 1.0e6f, minY = 1.0e6f, maxX = -1.0e6f, maxY = -1.0e6f;
-            for (const auto& row : world_.resources.stage_->GetBlocks())
-                for (const auto& block : row) {
-                    if (!block.isActive || block.isLevelObject) continue;
-                    minX = (std::min)(minX, block.aabb.min.x); minY = (std::min)(minY, block.aabb.min.y);
-                    maxX = (std::max)(maxX, block.aabb.max.x); maxY = (std::max)(maxY, block.aabb.max.y);
-                }
-            if (minX < maxX && minY < maxY) {
-                const float halfHeight = arenacamera::Distance() * std::tan(arenacamera::kFovY * 0.5f);
-                const float halfWidth = halfHeight * static_cast<float>(cg2::WinApp::kClientWidth) / static_cast<float>(cg2::WinApp::kClientHeight);
-                constexpr float kOverscan = 1.0f;
-                auto axis = [&](float low, float high, float half, float& outMin, float& outMax) {
-                    outMin = low + half - kOverscan;
-                    outMax = high - half + kOverscan;
-                    if (outMin > outMax) outMin = outMax = (low + high) * 0.5f;
-                };
-                axis(minX, maxX, halfWidth, kMinCameraX, kMaxCameraX);
-                axis(minY, maxY, halfHeight, kMinCameraY, kMaxCameraY);
+        const float kMaxCameraX = MapChip::kBlockWidth * (MapChip::kNumBlockHorizontal - 1) - kMarginX;
+        const float kMaxCameraY = MapChip::kBlockHeight * (MapChip::kNumBlockVirtical - 1) - kMarginY;
+        // Frame the walled arena like a fixed monitor view: the floor view may reach at most a
+        // little past the outer wall, so the tall rampart never fills the screen. Display only.
+        float arenaMinX = 0.0f, arenaMinY = 0.0f, arenaMaxX = 0.0f, arenaMaxY = 0.0f;
+        const bool framedArena = world_.run.prototypeRun_ && world_.resources.stage_ &&
+                                 arenacamera::ArenaBounds(world_.resources.stage_->GetBlocks(), arenaMinX, arenaMinY, arenaMaxX, arenaMaxY);
+        auto clampTarget = [&](cg2::Vector3 target) {
+            if (framedArena) {
+                const float halfHeight = arenacamera::HalfViewHeight();
+                target.x = arenacamera::ClampFocus(target.x, arenaMinX, arenaMaxX, halfHeight * arenacamera::kAspect);
+                target.y = arenacamera::ClampFocus(target.y, arenaMinY, arenaMaxY, halfHeight);
+            } else {
+                target.x = (std::clamp)(target.x, kMarginX, kMaxCameraX);
+                target.y = (std::clamp)(target.y, kMarginY, kMaxCameraY);
             }
-        }
-        cg2::Vector3 targetCameraPos = {(std::clamp)(playerPos.x, kMinCameraX, kMaxCameraX), (std::clamp)(playerPos.y, kMinCameraY, kMaxCameraY),
-                                        kCameraZ};
+            return target;
+        };
+        cg2::Vector3 targetCameraPos = clampTarget({playerPos.x, playerPos.y, kCameraZ});
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
         // Capture fixture only: show both actors with the same normal top-down camera.
         if ((world_.resources.neonBossAutoTest_ || GameplayScenarioSession::Get().IsActive()) &&
             world_.gameplayQueries->IsRunRivalActive()) {
             const auto center = (playerPos + world_.resources.enemy_->GetWorldPosition()) * 0.5f;
-            targetCameraPos.x = (std::clamp)(center.x, kMinCameraX, kMaxCameraX);
-            targetCameraPos.y = (std::clamp)(center.y, kMinCameraY, kMaxCameraY);
+            targetCameraPos = clampTarget({center.x, center.y, kCameraZ});
         }
 #endif
         cg2::Vector3 currentCameraPos = world_.resources.camera->GetTranslate();
@@ -363,6 +392,9 @@ void CombatFramePipeline::Update()
         !world_.arenaRunController->IsTankRunMenuOpen()) {
         if (world_.combat.phase_ == Phase::kMain && !world_.resources.player_->IsChangeMode()) {
             world_.combat.playTime_ += baseDeltaTime;
+            // While the player is in control, gamepad buttons drive combat (shoot / dash) next frame.
+            if (!world_.demo.titleDemo_)
+                world_.resources.input_->RequestGamepadGameplayContext();
         }
         world_.resources.stage_->Update();
         world_.levelRuntime->UpdateLevelItems();
@@ -495,8 +527,10 @@ void CombatFramePipeline::Update()
 #endif
     // 戦闘停止中も、残っている演出を進め、未消費の特殊戦闘イベントを受け取る。
     world_.playerAttackEffects->UpdateSpecialCombatPresentation(baseDeltaTime);
-    world_.combat.screenEffectDirector_.SetUpgradeMenuOpen(world_.resources.player_->IsChangeMode() ||
-                                                           world_.arenaRunController->IsTankRunMenuOpen());
+    // The completed boss room counts as an open run menu; keep its gray menu veil off the finale.
+    world_.combat.screenEffectDirector_.SetUpgradeMenuOpen(
+        (world_.resources.player_->IsChangeMode() || world_.arenaRunController->IsTankRunMenuOpen()) &&
+        world_.combat.combatFlow_.GetState() != GameFlowState::BossDefeatSequence);
     world_.resources.playerPostEffect_->Update(world_.combat.finalDeltaTime);
     world_.resources.enemyPostEffect_->Update(world_.combat.finalDeltaTime);
     world_.resources.expEnemyPostEffect_->Update(world_.combat.finalDeltaTime);

@@ -642,6 +642,11 @@ void Bloom::Update() {
         ? 15.0f
         : static_cast<float>(renderDebugMode_);
     arenaLook_ = SceneManager::GetInstance()->GetArenaLookSettings();
+    // Presentation comparison of the pyramid bloom (off / one level / bloom only / full).
+    const IScene::BloomViewSettings bloomView = SceneManager::GetInstance()->GetBloomViewSettings();
+    BloomPyramid::SetPresentationView(bloomView.view == 1, bloomView.view == 2 ? bloomView.level : -1);
+    if (bloomView.view == 3 && bloomParam_.renderDebugMode < 0.5f)
+        bloomParam_.renderDebugMode = 2.0f; // Bloom Only: the tone-mapped bloom buffer by itself.
 	if (!screenEffectState_.active) {
 		CaptureScreenEffectBase();
 	}
@@ -1079,6 +1084,7 @@ void Bloom::PostDraw() {
         // Existing gameplay pulses remain relative boosts in the linear path.
         // Compose a draw-only gain so menu suppression cannot accumulate.
         bloomParam_.bloomGain = (std::clamp)(
+            BloomPyramid::GetPresentationGainScale(bloomParam_.bloomScatter) *
             bloomParam_.bloomGain * ((1.0f + (std::max)(0.0f, transientBloomBoost_)) *
                 (std::clamp)(screenEffectState_.bloomScale, 0.0f, 1.0f) +
                 (screenEffectState_.active ? (std::max)(0.0f, screenEffectState_.param.intensity) : 0.0f)),

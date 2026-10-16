@@ -9,6 +9,8 @@ public:
     explicit GameplayHud(GameWorld& world) : world_(world) {}
     /// @brief 描画
     void DrawSprite();
+    /// @brief 最終ボスの登場・撃破の黒帯とタイトルを描く。
+    void DrawBossCinematic();
 
     /// @brief 追従HPBarsを初期化する。
     void InitializeFollowHpBars(size_t count);

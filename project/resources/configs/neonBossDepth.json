@@ -7,8 +7,9 @@
     "fovY": 0.55
   },
   "visual": {
-    "worldHeight": 18,
-    "hoverHeight": 3,
+    "worldHeight": 9,
+    "hoverHeight": 1.5,
+    "motionAmplitude": 0.5,
     "floorOffset": [
       0,
       2

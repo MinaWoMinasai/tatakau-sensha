@@ -51,6 +51,13 @@ void SessionBootstrap::Initialize()
     world_.resources.debugCamera = std::make_unique<cg2::DebugCamera>();
 
     world_.resources.camera = std::make_unique<cg2::Camera>();
+    {
+        // Reproducible bloom comparison captures (same scenario frame, one view per run).
+        char view[8]{};
+        const DWORD length = GetEnvironmentVariableA("CG2_BLOOM_VIEW", view, sizeof(view));
+        if (length > 0 && length < sizeof(view) && view[0] >= '0' && view[0] <= '7' && view[1] == '\0')
+            world_.presentation.bloomView_ = view[0] - '0';
+    }
 
     world_.resources.camera->SetFovY(arenacamera::kFovY);
     world_.resources.camera->SetTranslate(cg2::Vector3(17.0f, 21.0f, arenacamera::CameraZ() * 1.45f));
