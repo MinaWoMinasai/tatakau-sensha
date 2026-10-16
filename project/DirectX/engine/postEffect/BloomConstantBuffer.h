@@ -19,6 +19,7 @@ private:
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;
         BloomParam* mapped = nullptr;
     };
+
     DirectXCommon* dxCommon_ = nullptr;
     std::vector<Snapshot> snapshots_;
     size_t nextSnapshot_ = 0;

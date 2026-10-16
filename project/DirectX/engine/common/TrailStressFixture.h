@@ -19,8 +19,9 @@ public:
     void Initialize(DirectXCommon* dxCommon, Object3dCommon* objectCommon, uint32_t count)
     {
         Shutdown();
-        if (!dxCommon || count == 0)
+        if (!dxCommon || count == 0) {
             return;
+        }
         count = (std::min)(count, 512u);
         columns_ = static_cast<uint32_t>(std::ceil(std::sqrt(static_cast<float>(count))));
         rows_ = (count + columns_ - 1u) / columns_;
@@ -46,16 +47,18 @@ public:
         }
         // Start measurements with a full, stable history rather than counting
         // the initial 4-point visibility and lifetime ramp as a performance win.
-        for (uint32_t i = 0; i < config_.maxPoints + 2u; ++i)
+        for (uint32_t i = 0; i < config_.maxPoints + 2u; ++i) {
             Update(1.0f / 60.0f);
+        }
     }
 
     // Pass the same fixed dt for both A/B runs, irrespective of wall-clock FPS.
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update(float fixedDeltaTime)
     {
-        if (!manager_ || !std::isfinite(fixedDeltaTime) || fixedDeltaTime <= 0.0f)
+        if (!manager_ || !std::isfinite(fixedDeltaTime) || fixedDeltaTime <= 0.0f) {
             return;
+        }
         elapsed_ += static_cast<double>(fixedDeltaTime);
         const float cellWidth = 1.84f / static_cast<float>(columns_);
         const float cellHeight = 1.76f / static_cast<float>(rows_);
@@ -83,8 +86,9 @@ public:
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     void Draw()
     {
-        if (!manager_)
+        if (!manager_) {
             return;
+        }
         Matrix4x4 identity{};
         identity.m[0][0] = identity.m[1][1] = identity.m[2][2] = identity.m[3][3] = 1.0f;
         manager_->DrawAll(identity);

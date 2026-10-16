@@ -20,7 +20,8 @@ struct NeonContourStyle {
 
 // Actors keep a colored rim at rest; projectiles and attack flashes can use a
 // brighter profile without whitening every outline in the scene.
-inline NeonContourStyle ActorNeonContourStyle() {
+inline NeonContourStyle ActorNeonContourStyle()
+{
     // A white-hot ring with a tight colored halo, so the black body inside stays readable.
     NeonContourStyle style;
     style.coreWidthRatio = 0.20f;
@@ -53,8 +54,8 @@ public:
     // Pale HDR core, colored shoulder, and smooth halo in a single continuous
     // profile. Polygon joins are shared, with round exterior corners; free lines
     // have round caps. A complete primitive is skipped if the batch is full.
-    void QueueContourLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color,
-                          const Vector3& cameraForward, const NeonContourStyle& style = {});
+    void QueueContourLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color, const Vector3& cameraForward,
+                          const NeonContourStyle& style = {});
     void QueueContourPolygon(const Vector3* points, uint32_t pointCount, float lineWidth, const Vector4& color,
                              const Vector3& cameraForward, const NeonContourStyle& style = {});
     void QueueContourTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color,
@@ -64,9 +65,9 @@ public:
     void QueueBillboardContourTriangle(const Vector3& center, float radius, float rotationRad, float lineWidth, const Vector4& color,
                                        const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward,
                                        const NeonContourStyle& style = {});
-    void QueueBillboardContourRectangle(const Vector3& center, const Vector2& size, float rotationRad, float lineWidth, const Vector4& color,
-                                        const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward,
-                                        const NeonContourStyle& style = {});
+    void QueueBillboardContourRectangle(const Vector3& center, const Vector2& size, float rotationRad, float lineWidth,
+                                        const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp,
+                                        const Vector3& cameraForward, const NeonContourStyle& style = {});
     /// @brief 三角形を後で処理するために予約する。
     void QueueTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color);
     /// @brief ビルボード三角形を後で処理するために予約する。
@@ -84,8 +85,8 @@ public:
     // A dark face and a lit bevel, drawn in the solid pass below its neon rim.
     // While a body-shading eye is set, the outline is raised toward the eye into a glossy black
     // 3D body (a smooth dome for round outlines, a faceted frustum for polygons).
-    void QueueBeveledPolygonFill(const Vector3* points, uint32_t count, const Vector4& baseColor,
-                                 const Vector4& tint, const Vector3& lightDirection);
+    void QueueBeveledPolygonFill(const Vector3* points, uint32_t count, const Vector4& baseColor, const Vector4& tint,
+                                 const Vector3& lightDirection);
     /// @brief 機体の立体陰影に使う視点を設定する。nullptrで従来の平面塗りへ戻す。
     void SetBodyShadingEye(const Vector3* eye);
     /// @brief 視点側へ伸びる黒い箱（砲身など）を陰影つきで予約する。立体陰影の視点が必要。

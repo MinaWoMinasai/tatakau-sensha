@@ -7,8 +7,10 @@ namespace gameplay {
 
 namespace {
 constexpr myEngine::Vector2 kWallet{304, 32};
+
 /// @brief 経験値などの表示用スプライトを生成する。
-std::unique_ptr<myEngine::Sprite> ExperienceSprite(const char* texture, myEngine::Vector2 p, myEngine::Vector2 size, const myEngine::Vector4& tint)
+std::unique_ptr<myEngine::Sprite> ExperienceSprite(const char* texture, myEngine::Vector2 p, myEngine::Vector2 size,
+                                                   const myEngine::Vector4& tint)
 {
     auto sprite = std::make_unique<myEngine::Sprite>();
     sprite->Initialize(myEngine::SpriteCommon::GetInstance(), texture);
@@ -18,6 +20,7 @@ std::unique_ptr<myEngine::Sprite> ExperienceSprite(const char* texture, myEngine
     sprite->Update();
     return sprite;
 }
+
 /// @brief 経験値などの表示用文字を生成する。
 std::unique_ptr<myEngine::TextLabel> ExperienceText(float size, myEngine::Vector2 p, const char* text, const myEngine::Vector4& color)
 {
@@ -51,8 +54,9 @@ void ExpeditionExperience::InitializeExpeditionExperience()
     world_.run.expeditionCreditText_ = ExperienceText(25, {328, 12}, "20", {1, 0.91f, 0.57f, 1});
     world_.run.expeditionStaminaTrack_ = ExperienceSprite("resources/white512x512.png", {24, 66}, {230, 5}, {0.17f, 0.14f, 0.05f, 0.9f});
     world_.run.expeditionStaminaFill_ = ExperienceSprite("resources/white512x512.png", {24, 66}, {230, 5}, {1, 0.80f, 0.16f, 1});
-    for (auto& shade : world_.run.expeditionSpotlight_)
+    for (auto& shade : world_.run.expeditionSpotlight_) {
         shade = ExperienceSprite("resources/white512x512.png", {0, 0}, {1, 1}, {0.002f, 0.006f, 0.014f, 0.82f});
+    }
     EnsureExpeditionPointers(6);
     world_.run.expeditionPriceIcon_ = ExperienceSprite("resources/ui/salvage_orb.png", {0, 0}, {30, 30}, {1.5f, 1.15f, 0.34f, 1});
     world_.run.expeditionPriceIcon_->SetAnchorPoint({0.5f, 0.5f});
@@ -67,8 +71,9 @@ void ExpeditionExperience::InitializeExpeditionExperience()
 
 void ExpeditionExperience::SpawnExpeditionCredits(const myEngine::Vector3& position, int amount, bool flyImmediately)
 {
-    if (!world_.run.expeditionMapEnabled_ || amount <= 0)
+    if (!world_.run.expeditionMapEnabled_ || amount <= 0) {
         return;
+    }
     // A bounded number of visible balls preserves the exact sum for large rewards.
     const int count = (std::min)(5, (std::max)(1, amount / 3));
     for (int i = 0; i < count; ++i) {
@@ -93,17 +98,19 @@ void ExpeditionExperience::SpawnExpeditionCredits(const myEngine::Vector3& posit
 void ExpeditionExperience::UpdateExpeditionCredits(float dt, bool collectAll)
 {
     world_.run.expeditionCreditPulseAge_ = (std::max)(0.0f, world_.run.expeditionCreditPulseAge_ - dt);
-    if (!world_.resources.player_ || world_.run.tankRunPaused_ || world_.run.expeditionMapPreview_ || IsGuidedExpeditionPaused())
+    if (!world_.resources.player_ || world_.run.tankRunPaused_ || world_.run.expeditionMapPreview_ || IsGuidedExpeditionPaused()) {
         return;
+    }
     const auto playerPosition = world_.resources.player_->GetWorldPosition();
     for (auto& orb : world_.run.expeditionCredits_) {
         orb.age += dt;
         if (!orb.flying) {
             const auto next = orb.position + orb.velocity * dt;
-            if (!world_.resources.stage_->IsCollisionWithAnyBlock(next, 0.18f))
+            if (!world_.resources.stage_->IsCollisionWithAnyBlock(next, 0.18f)) {
                 orb.position = next;
-            else
+            } else {
                 orb.velocity = orb.velocity * -0.3f;
+            }
             orb.velocity = orb.velocity * std::exp(-dt * 5.5f);
             if (collectAll || (orb.age > 0.25f && myEngine::Length(orb.position - playerPosition) < 3.0f)) {
                 orb.flying = true;
@@ -115,8 +122,9 @@ void ExpeditionExperience::UpdateExpeditionCredits(float dt, bool collectAll)
             if (orb.flight >= 0.55f) {
                 world_.run.expeditionMapRun_.EarnCurrency(orb.value);
                 world_.run.expeditionCreditsCollected_ += orb.value;
-                if (world_.run.expeditionGuideActive_)
+                if (world_.run.expeditionGuideActive_) {
                     world_.run.expeditionGuide_.RecordCurrencyCollected(orb.value);
+                }
                 world_.run.tankExpeditionAudio_.Collect(orb.value);
                 world_.run.expeditionCreditPulseAge_ = 0.25f;
                 orb.value = 0;
@@ -131,8 +139,9 @@ void ExpeditionExperience::UpdateExpeditionCredits(float dt, bool collectAll)
 
 void ExpeditionExperience::DrawExpeditionVitals()
 {
-    if (!world_.run.expeditionCreditIcon_)
+    if (!world_.run.expeditionCreditIcon_) {
         return;
+    }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     const auto& stats = world_.resources.player_->GetStats();
     const float stamina = stats.maxStamina > 0 ? (std::clamp)(stats.stamina / stats.maxStamina, 0.0f, 1.0f) : 0;
@@ -154,8 +163,9 @@ void ExpeditionExperience::DrawExpeditionVitals()
 
 void ExpeditionExperience::DrawExpeditionCredits()
 {
-    if (!world_.run.expeditionMapEnabled_)
+    if (!world_.run.expeditionMapEnabled_) {
         return;
+    }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     for (auto& orb : world_.run.expeditionCredits_) {
         myEngine::Vector2 point = world_.gameplayHud->WorldToScreen(orb.position);
@@ -163,8 +173,9 @@ void ExpeditionExperience::DrawExpeditionCredits()
             const float t = (std::clamp)(orb.flight / 0.55f, 0.0f, 1.0f), ease = t * t * (3 - 2 * t);
             point = {orb.launch.x + (kWallet.x - orb.launch.x) * ease,
                      orb.launch.y + (kWallet.y - orb.launch.y) * ease - std::sin(t * 3.14159265f) * 80};
-        } else
+        } else {
             point.y -= std::sin(orb.age * 5.5f) * 3;
+        }
         const float size = orb.flying ? 30.0f : 34 + std::sin(orb.age * 4.5f) * 3;
         orb.sprite->SetPosition(point);
         orb.sprite->SetSize({size, size});
@@ -178,11 +189,12 @@ void ExpeditionExperience::DrawExpeditionPointer(myEngine::Vector2 target, bool 
     target.x = (std::clamp)(target.x, 64.0f, 1216.0f);
     const float sign = right ? 1.0f : -1.0f;
     const float motion = std::sin(world_.run.expeditionPresentationClock_ * 5.0f) * 5;
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < 3; ++i) {
         for (int side = 0; side < 2; ++side) {
             if (world_.run.expeditionPointerCursor_ >= world_.run.expeditionPointer_.size() ||
-                !world_.run.expeditionPointer_[world_.run.expeditionPointerCursor_])
+                !world_.run.expeditionPointer_[world_.run.expeditionPointerCursor_]) {
                 return;
+            }
             auto& line = world_.run.expeditionPointer_[world_.run.expeditionPointerCursor_];
             auto& halo = world_.run.expeditionPointerGlow_[world_.run.expeditionPointerCursor_++];
             line->SetPosition({target.x - sign * (24 + i * 14 - motion) + (side ? sign * 13.0f : 0), target.y + (side ? 0 : -11)});
@@ -203,6 +215,7 @@ void ExpeditionExperience::DrawExpeditionPointer(myEngine::Vector2 target, bool 
             line->Update();
             line->Draw();
         }
+    }
 }
 
 void ExpeditionExperience::DrawCurrencyIcon(myEngine::Vector2 center, float size)
@@ -215,22 +228,25 @@ void ExpeditionExperience::DrawCurrencyIcon(myEngine::Vector2 center, float size
 
 void ExpeditionExperience::EnsureExpeditionPointers(size_t count)
 {
-    for (size_t i = 0; i < (std::min)(count, world_.run.expeditionPointer_.size()); ++i)
+    for (size_t i = 0; i < (std::min)(count, world_.run.expeditionPointer_.size()); ++i) {
         if (!world_.run.expeditionPointer_[i]) {
             world_.run.expeditionPointer_[i] = ExperienceSprite("resources/white512x512.png", {0, 0}, {17, 3}, {1, 1, 1, 1});
             world_.run.expeditionPointer_[i]->SetAnchorPoint({0, 0.5f});
             world_.run.expeditionPointerGlow_[i] = ExperienceSprite("resources/ui/salvage_orb.png", {0, 0}, {42, 22}, {1, 1, 1, 1});
             world_.run.expeditionPointerGlow_[i]->SetAnchorPoint({0.5f, 0.5f});
         }
+    }
 }
 
 void ExpeditionExperience::QueueExpeditionImpact(const myEngine::Vector3& position, const myEngine::Vector3& direction, bool finisher)
 {
-    if (!world_.run.expeditionRun_)
+    if (!world_.run.expeditionRun_) {
         return;
+    }
     myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(position, direction, {1.45f, 0.95f, 0.28f, 1}, finisher ? 16 : 10);
-    if (world_.run.tankRunBursts_.size() < 24)
+    if (world_.run.tankRunBursts_.size() < 24) {
         world_.run.tankRunBursts_.push_back({position, 0, false});
+    }
     world_.presentation.cameraShakeDuration_ = finisher ? 0.15f : 0.10f;
     world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
     world_.presentation.cameraShakePower_ = finisher ? 0.20f : 0.11f;
@@ -241,8 +257,9 @@ void ExpeditionExperience::QueueExpeditionImpact(const myEngine::Vector3& positi
 
 bool ExpeditionExperience::IsGuidedExpeditionPaused() const
 {
-    if (!world_.run.expeditionMapEnabled_ || !world_.run.expeditionGuideActive_ || world_.run.expeditionTransition_.IsActive())
+    if (!world_.run.expeditionMapEnabled_ || !world_.run.expeditionGuideActive_ || world_.run.expeditionTransition_.IsActive()) {
         return false;
+    }
     using S = tankexp::GuidedCombatTutorial::Stage;
     return world_.run.expeditionGuide_.GetStage() == S::Briefing || world_.run.expeditionGuide_.GetStage() == S::Vitals;
 }
@@ -251,8 +268,9 @@ void ExpeditionExperience::AcknowledgeGuidedExpedition()
 {
     using S = tankexp::GuidedCombatTutorial::Stage;
     const auto before = world_.run.expeditionGuide_.GetStage();
-    if (!world_.run.expeditionGuide_.Acknowledge())
+    if (!world_.run.expeditionGuide_.Acknowledge()) {
         return;
+    }
     world_.run.expeditionGuideAge_ = 0;
     world_.run.tankExpeditionAudio_.UiConfirm();
     if (before == S::Vitals && !world_.run.expeditionGuideShooterSpawned_) {
@@ -263,8 +281,9 @@ void ExpeditionExperience::AcknowledgeGuidedExpedition()
 
 void ExpeditionExperience::UpdateGuidedExpedition(float dt)
 {
-    if (!world_.run.expeditionGuideActive_ || world_.run.expeditionTransition_.IsActive())
+    if (!world_.run.expeditionGuideActive_ || world_.run.expeditionTransition_.IsActive()) {
         return;
+    }
     world_.run.expeditionGuideAge_ += dt;
     using S = tankexp::GuidedCombatTutorial::Stage;
     const auto before = world_.run.expeditionGuide_.GetStage();
@@ -278,24 +297,29 @@ void ExpeditionExperience::UpdateGuidedExpedition(float dt)
         return;
     }
     if (world_.run.tankExpedition_.IsCombat()) {
-        if (world_.resources.player_->GetPrimaryAttackCount() > world_.run.expeditionGuideAttackCount_)
+        if (world_.resources.player_->GetPrimaryAttackCount() > world_.run.expeditionGuideAttackCount_) {
             world_.run.expeditionGuide_.RecordShot();
+        }
         while (world_.run.expeditionGuideLastKills_ < world_.combat.defeatedEnemies_) {
             ++world_.run.expeditionGuideLastKills_;
             world_.run.expeditionGuide_.RecordEnemyDefeat();
         }
-        if (world_.resources.player_->GetDamageTakenCount() != world_.run.expeditionGuideDamageCount_)
+        if (world_.resources.player_->GetDamageTakenCount() != world_.run.expeditionGuideDamageCount_) {
             world_.run.expeditionGuide_.RecordDamage();
+        }
         world_.run.expeditionGuideDamageCount_ = world_.resources.player_->GetDamageTakenCount();
         world_.run.expeditionGuide_.ObserveDash(world_.resources.player_->IsDashing(), world_.resources.player_->GetHp());
         // A destroyed practice turret is replaced until the dodge is actually completed.
         if (world_.run.expeditionGuide_.GetStage() == S::Dash && world_.run.expeditionGuideShooterSpawned_) {
             bool alive = false;
-            for (auto* e : world_.resources.enemyManager_->GetEnemyPtrs())
-                if (e && !e->IsDead())
+            for (auto* e : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                if (e && !e->IsDead()) {
                     alive = true;
-            if (!alive)
+                }
+            }
+            if (!alive) {
                 world_.resources.enemyManager_->SpawnLevelEnemy({52, 30, 0}, "tutorial_retry", 24);
+            }
         }
     }
     if (before != world_.run.expeditionGuide_.GetStage()) {
@@ -307,31 +331,37 @@ void ExpeditionExperience::UpdateGuidedExpedition(float dt)
 void ExpeditionExperience::DrawGuidedExpedition()
 {
     if (!world_.run.expeditionMapEnabled_ || !world_.run.expeditionGuideActive_ || world_.run.expeditionTransition_.IsActive() ||
-        world_.run.tankRunPaused_)
+        world_.run.tankRunPaused_) {
         return;
+    }
     using S = tankexp::GuidedCombatTutorial::Stage;
     const auto step = world_.run.expeditionGuide_.GetStage();
-    if (step == S::Complete)
+    if (step == S::Complete) {
         return;
+    }
     const auto* active = world_.run.expeditionMapRun_.GetActiveNode();
-    if (!active)
+    if (!active) {
         return;
-    if (step == S::Upgrade && active->kind != tankexp::NodeKind::Upgrade)
+    }
+    if (step == S::Upgrade && active->kind != tankexp::NodeKind::Upgrade) {
         return;
+    }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     myEngine::Vector2 target = world_.gameplayHud->WorldToScreen(world_.resources.player_->GetWorldPosition());
     if (step == S::ShootKill || step == S::Briefing) {
-        for (auto* e : world_.resources.enemyManager_->GetEnemyPtrs())
+        for (auto* e : world_.resources.enemyManager_->GetEnemyPtrs()) {
             if (e && !e->IsDead()) {
                 target = world_.gameplayHud->WorldToScreen(e->GetWorldPosition());
                 break;
             }
-    } else if (step == S::Collect && !world_.run.expeditionCredits_.empty())
+        }
+    } else if (step == S::Collect && !world_.run.expeditionCredits_.empty()) {
         target = world_.gameplayHud->WorldToScreen(world_.run.expeditionCredits_.front().position);
-    else if (step == S::Vitals)
+    } else if (step == S::Vitals) {
         target = {264, 72};
-    else if (step == S::Upgrade)
+    } else if (step == S::Upgrade) {
         target = {70, 405};
+    }
     if (IsGuidedExpeditionPaused()) {
         const bool vitals = step == S::Vitals;
         const float x = vitals ? 12 : (std::clamp)(target.x - 74, 12.0f, 1110.0f),
@@ -346,8 +376,9 @@ void ExpeditionExperience::DrawGuidedExpedition()
             world_.run.expeditionSpotlight_[i]->Draw();
         }
     }
-    if (step != S::Upgrade)
+    if (step != S::Upgrade) {
         DrawExpeditionPointer(target, step != S::Vitals);
+    }
     world_.combat.tutorialPanel_->Draw();
     world_.combat.tutorialTitleText_->Draw();
     world_.combat.tutorialInputText_->Draw();
@@ -360,10 +391,12 @@ void ExpeditionExperience::DrawGuidedExpedition()
 
 void ExpeditionExperience::RefreshGuidedExpeditionUi()
 {
-    if (world_.run.expeditionCreditText_)
+    if (world_.run.expeditionCreditText_) {
         world_.run.expeditionCreditText_->SetText(std::to_string(world_.run.expeditionMapRun_.GetCurrency()));
-    if (!world_.run.expeditionGuideActive_)
+    }
+    if (!world_.run.expeditionGuideActive_) {
         return;
+    }
     using S = tankexp::GuidedCombatTutorial::Stage;
     const auto step = world_.run.expeditionGuide_.GetStage();
     const auto copy = tankexp::GuidedTutorialCopy(step, world_.run.expeditionGuide_.GetFailedDashAttempts() > 0);

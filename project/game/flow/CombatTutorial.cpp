@@ -506,30 +506,39 @@ void CombatTutorial::DrawTutorialUi()
             world_.combat.tutorialPanel_->SetSize({300.0f, 62.0f});
             world_.combat.tutorialPanel_->Update();
         }
-        if (world_.combat.tutorialTitleText_)
+        if (world_.combat.tutorialTitleText_) {
             world_.combat.tutorialTitleText_->SetPosition({1090.0f, 23.0f});
-        if (world_.combat.tutorialInputText_)
+        }
+        if (world_.combat.tutorialInputText_) {
             world_.combat.tutorialInputText_->SetPosition({1090.0f, 50.0f});
+        }
     } else {
         if (world_.combat.tutorialPanel_) {
             world_.combat.tutorialPanel_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 128.0f});
             world_.combat.tutorialPanel_->SetSize({390.0f, 126.0f});
             world_.combat.tutorialPanel_->Update();
         }
-        if (world_.combat.tutorialTitleText_)
+        if (world_.combat.tutorialTitleText_) {
             world_.combat.tutorialTitleText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 91.0f});
-        if (world_.combat.tutorialInputText_)
+        }
+        if (world_.combat.tutorialInputText_) {
             world_.combat.tutorialInputText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 128.0f});
-        if (world_.combat.tutorialDescriptionText_)
+        }
+        if (world_.combat.tutorialDescriptionText_) {
             world_.combat.tutorialDescriptionText_->SetPosition({myEngine::WinApp::kClientWidth * 0.5f, 160.0f});
+        }
     }
-    if (world_.combat.tutorialPanel_)
+    if (world_.combat.tutorialPanel_) {
         world_.combat.tutorialPanel_->Draw();
-    if (world_.combat.tutorialTitleText_)
+    }
+    if (world_.combat.tutorialTitleText_) {
         world_.combat.tutorialTitleText_->Draw();
-    if (world_.combat.tutorialInputText_)
+    }
+    if (world_.combat.tutorialInputText_) {
         world_.combat.tutorialInputText_->Draw();
-    if (!compactEvolutionHint && world_.combat.tutorialDescriptionText_)
+    }
+    if (!compactEvolutionHint && world_.combat.tutorialDescriptionText_) {
         world_.combat.tutorialDescriptionText_->Draw();
+    }
 }
 } // namespace gameplay

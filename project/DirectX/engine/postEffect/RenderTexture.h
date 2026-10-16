@@ -21,11 +21,13 @@ public:
     {
         return srvIndex_;
     }
+
     /// @brief RTVハンドルを返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() const
     {
         return rtvHandle_;
     }
+
     /// @brief DSVハンドルを返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle() const
     {
@@ -43,6 +45,7 @@ public:
     {
         return resource_.Get();
     }
+
     /// @brief 深度リソースを返す。
     ID3D12Resource* GetDepthResource()
     {

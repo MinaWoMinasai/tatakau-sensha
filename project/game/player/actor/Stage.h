@@ -58,14 +58,19 @@ public:
     /// @note drawNormalBlocksがfalseなら通常ブロックを除く。形状全体との交差によるカリングではない。
     void DrawVisible(const myEngine::Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks = true);
     /// @brief Scene MRT/深度へ描く不透明床。実マップと表示矩形を覆う。衝突を持たない。
-    uint32_t DrawSurfaceFloor(const stagesurface::Settings& settings, const myEngine::Vector3& cameraPos,
-                              float halfWidth, float halfHeight, const myEngine::Vector3& lightPosition);
+    uint32_t DrawSurfaceFloor(const stagesurface::Settings& settings, const myEngine::Vector3& cameraPos, float halfWidth, float halfHeight,
+                              const myEngine::Vector3& lightPosition);
     /// @brief 既存の地形状態/カリングを使い、衝突とは独立したベベル形状を描く。
-    uint32_t DrawSurfaceBlocks(const stagesurface::Settings& settings, const myEngine::Vector3& cameraPos,
-                               float halfWidth, float halfHeight, bool drawNormalBlocks = true);
+    uint32_t DrawSurfaceBlocks(const stagesurface::Settings& settings, const myEngine::Vector3& cameraPos, float halfWidth,
+                               float halfHeight, bool drawNormalBlocks = true);
     const std::vector<SurfaceWall>& GetSurfaceWalls(const stagesurface::Settings& settings);
     static myEngine::Transform SurfaceWallTransform(const SurfaceWall& wall, const stagesurface::Settings& settings);
-    uint32_t GetSurfaceTriangles() const { return surfaceTriangles_; }
+
+    uint32_t GetSurfaceTriangles() const
+    {
+        return surfaceTriangles_;
+    }
+
     /// @brief 地形モデル・ブロック配列・統合AABBを消去する。マップチップデータは保持する。
     void ClearBlocksForPreview();
     /// @brief 対応するprefabの障害物モデルと衝突形状を追加する。未対応のprefabならfalseで何も追加しない。
@@ -73,6 +78,7 @@ public:
     bool AddLevelObstacle(const myEngine::Transform& transform, const std::string& prefab);
     /// @brief レベル障害物として追加した行を消去し、残った地形の統合AABBを再構築する。
     void ClearLevelObstacles();
+
     /// @brief 自機のAABB衝突でDamageへ渡す、ダメージブロックの威力を設定する。
     void SetDamageBlockDamage(uint32_t damage)
     {

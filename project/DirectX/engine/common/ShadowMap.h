@@ -16,11 +16,13 @@ public:
     {
         return resource_.Get();
     }
+
     /// @brief DSVハンドルを返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle()
     {
         return dsvHandle_;
     }
+
     /// @brief SRV添字を返す。
     uint32_t GetSrvIndex() const
     {

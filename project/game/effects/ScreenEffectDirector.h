@@ -62,16 +62,19 @@ public:
 
     /// @brief 設定を読み込む。
     bool LoadConfig(const std::string& filePath);
+
     /// @brief 設定を返す。
     const Config& GetConfig() const
     {
         return config_;
     }
+
     /// @brief 輪郭有効を設定する。
     void SetOutlineEnabled(bool enabled)
     {
         config_.outlineEnabled = enabled;
     }
+
     /// @brief 輪郭有効であるか判定する。
     bool IsOutlineEnabled() const
     {
@@ -131,8 +134,8 @@ private:
     /// @brief 計算に使う値の無効な状態を補正する。
     static float Safe(float value, float fallback = 0.0f);
     /// @brief Shockwaveを設定する。
-    void SetShockwave(myEngine::BloomParam& param, int& currentPriority, int priority, const TimedEffect& effect, float maxRadius, float width,
-                      float strength) const;
+    void SetShockwave(myEngine::BloomParam& param, int& currentPriority, int priority, const TimedEffect& effect, float maxRadius,
+                      float width, float strength) const;
 
     Config config_{};
     TimedEffect justDodge_{};

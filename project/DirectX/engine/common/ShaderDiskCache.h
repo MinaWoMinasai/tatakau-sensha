@@ -39,6 +39,7 @@ public:
     public:
         /// @brief インスタンスの初期値と利用先を設定する。
         explicit IncludeRecorder(IDxcIncludeHandler* inner) : inner_(inner) {}
+
         /// @brief includeファイルをDXCへ渡し、見つからなかった候補も依存情報として記録する。
         /// @param filename DXCが照合するinclude候補のパス。
         /// @param source 読み込み結果の出力先。所有権はCOMの参照カウントに従う。
@@ -50,14 +51,16 @@ public:
                 const bool found = SUCCEEDED(result) && source && *source;
                 dependencies.push_back(
                     {filename, found, found ? Hash((*source)->GetBufferPointer(), (*source)->GetBufferSize()) : std::string()});
-                if (found && dependencies.back().digest.empty())
+                if (found && dependencies.back().digest.empty()) {
                     valid = false;
+                }
             }
             catch (...) {
                 valid = false;
             }
             return result;
         }
+
         std::vector<Dependency> dependencies;
         bool valid = true;
 
@@ -75,17 +78,20 @@ public:
     /// @brief hが存在するか判定する。
     static std::string Hash(const void* bytes, size_t size)
     {
-        if (size > (std::numeric_limits<ULONG>::max)())
+        if (size > (std::numeric_limits<ULONG>::max)()) {
             return {};
+        }
         BCRYPT_ALG_HANDLE algorithm = nullptr;
-        if (BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0) < 0)
+        if (BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0) < 0) {
             return {};
+        }
         std::array<unsigned char, 32> digest{};
         const NTSTATUS status = BCryptHash(algorithm, nullptr, 0, reinterpret_cast<PUCHAR>(const_cast<void*>(bytes)),
                                            static_cast<ULONG>(size), digest.data(), static_cast<ULONG>(digest.size()));
         BCryptCloseAlgorithmProvider(algorithm, 0);
-        if (status < 0)
+        if (status < 0) {
             return {};
+        }
         constexpr char hex[] = "0123456789abcdef";
         std::string result;
         result.reserve(64);
@@ -102,27 +108,32 @@ public:
     std::string MakeKey(const std::wstring& path, const void* source, size_t size, LPCWSTR const* arguments, size_t count) noexcept
     {
         try {
-            if (!Enabled())
+            if (!Enabled()) {
                 return {};
+            }
             if (!identityInitialized_) {
                 identityInitialized_ = true;
                 const std::string compiler = ModuleDigest(L"dxcompiler.dll");
                 const std::string validator = ModuleDigest(L"dxil.dll");
-                if (!compiler.empty() && !validator.empty())
+                if (!compiler.empty() && !validator.empty()) {
                     identity_ = compiler + validator;
+                }
             }
-            if (identity_.empty())
+            if (identity_.empty()) {
                 return {};
+            }
             nlohmann::json metadata = {{"format", 1},
                                        {"compiler", identity_},
                                        {"sourcePath", Utf8(std::filesystem::absolute(path).lexically_normal().wstring())},
                                        {"workingDirectory", Utf8(std::filesystem::current_path().wstring())},
                                        {"source", Hash(source, size)},
                                        {"arguments", nlohmann::json::array()}};
-            if (metadata["source"].get<std::string>().empty())
+            if (metadata["source"].get<std::string>().empty()) {
                 return {};
-            for (size_t index = 0; index < count; ++index)
+            }
+            for (size_t index = 0; index < count; ++index) {
                 metadata["arguments"].push_back(Utf8(arguments[index]));
+            }
             const std::string serialized = metadata.dump();
             return Hash(serialized.data(), serialized.size());
         }
@@ -135,40 +146,49 @@ public:
     Microsoft::WRL::ComPtr<IDxcBlob> Load(const std::string& key, IDxcIncludeHandler* includeHandler, IDxcUtils* utils) noexcept
     {
         try {
-            if (key.empty())
+            if (key.empty()) {
                 return {};
+            }
             const auto bytes = ReadFile(CachePath(key), kMaximumCacheSize);
             constexpr size_t prefixSize = sizeof(kMagic) + sizeof(uint32_t);
-            if (bytes.size() < prefixSize || memcmp(bytes.data(), kMagic, sizeof(kMagic)) != 0)
+            if (bytes.size() < prefixSize || memcmp(bytes.data(), kMagic, sizeof(kMagic)) != 0) {
                 return {};
+            }
             uint32_t metadataSize = 0;
             memcpy(&metadataSize, bytes.data() + sizeof(kMagic), sizeof(metadataSize));
-            if (metadataSize > 4 * 1024 * 1024 || metadataSize > bytes.size() - prefixSize)
+            if (metadataSize > 4 * 1024 * 1024 || metadataSize > bytes.size() - prefixSize) {
                 return {};
+            }
             const auto metadata = nlohmann::json::parse(bytes.data() + prefixSize, bytes.data() + prefixSize + metadataSize);
-            if (metadata.at("key").get<std::string>() != key)
+            if (metadata.at("key").get<std::string>() != key) {
                 return {};
+            }
             const size_t objectOffset = prefixSize + metadataSize;
             const size_t objectSize = bytes.size() - objectOffset;
             if (objectSize == 0 || metadata.at("size").get<size_t>() != objectSize ||
-                metadata.at("sha256").get<std::string>() != Hash(bytes.data() + objectOffset, objectSize))
+                metadata.at("sha256").get<std::string>() != Hash(bytes.data() + objectOffset, objectSize)) {
                 return {};
+            }
             const auto& dependencies = metadata.at("dependencies");
-            if (!dependencies.is_array() || dependencies.size() > 4096)
+            if (!dependencies.is_array() || dependencies.size() > 4096) {
                 return {};
+            }
             for (const auto& dependency : dependencies) {
                 Microsoft::WRL::ComPtr<IDxcBlob> included;
                 const std::wstring filename = Wide(dependency.at("path").get<std::string>());
                 const HRESULT status = includeHandler->LoadSource(filename.c_str(), &included);
                 const bool found = SUCCEEDED(status) && included;
-                if (dependency.at("found").get<bool>() != found)
+                if (dependency.at("found").get<bool>() != found) {
                     return {};
-                if (found && dependency.at("sha256").get<std::string>() != Hash(included->GetBufferPointer(), included->GetBufferSize()))
+                }
+                if (found && dependency.at("sha256").get<std::string>() != Hash(included->GetBufferPointer(), included->GetBufferSize())) {
                     return {};
+                }
             }
             Microsoft::WRL::ComPtr<IDxcBlobEncoding> result;
-            if (FAILED(utils->CreateBlob(bytes.data() + objectOffset, static_cast<UINT32>(objectSize), DXC_CP_ACP, &result)))
+            if (FAILED(utils->CreateBlob(bytes.data() + objectOffset, static_cast<UINT32>(objectSize), DXC_CP_ACP, &result))) {
                 return {};
+            }
             return result;
         }
         catch (...) {
@@ -180,11 +200,13 @@ public:
     void Store(const std::string& key, const IncludeRecorder& includes, IDxcBlob* object) noexcept
     {
         try {
-            if (key.empty() || !includes.valid || !object || object->GetBufferSize() > kMaximumCacheSize)
+            if (key.empty() || !includes.valid || !object || object->GetBufferSize() > kMaximumCacheSize) {
                 return;
+            }
             const std::string digest = Hash(object->GetBufferPointer(), object->GetBufferSize());
-            if (digest.empty())
+            if (digest.empty()) {
                 return;
+            }
             nlohmann::json metadata = {
                 {"key", key}, {"size", object->GetBufferSize()}, {"sha256", digest}, {"dependencies", nlohmann::json::array()}};
             for (const auto& dependency : includes.dependencies) {
@@ -192,8 +214,9 @@ public:
                     {{"path", Utf8(dependency.path)}, {"found", dependency.found}, {"sha256", dependency.digest}});
             }
             const std::string serialized = metadata.dump();
-            if (serialized.size() > 4 * 1024 * 1024)
+            if (serialized.size() > 4 * 1024 * 1024) {
                 return;
+            }
             const uint32_t size = static_cast<uint32_t>(serialized.size());
             const auto destination = CachePath(key);
             std::filesystem::create_directories(destination.parent_path());
@@ -228,8 +251,9 @@ public:
         if (length > 0 && length < 32768) {
             std::vector<wchar_t> directory(length);
             const DWORD copied = GetEnvironmentVariableW(L"MYENGINE_SHADER_CACHE_DIR", directory.data(), length);
-            if (copied > 0 && copied < length)
+            if (copied > 0 && copied < length) {
                 return std::filesystem::path(directory.data()) / (key + ".dxilcache");
+            }
         }
         return std::filesystem::path(L"generated/shader_cache/v1") / (key + ".dxilcache");
     }
@@ -244,44 +268,54 @@ private:
     /// @brief ワイド文字列をUTF-8へ変換する。
     static std::string Utf8(const std::wstring& value)
     {
-        if (value.empty())
+        if (value.empty()) {
             return {};
+        }
         const int count =
             WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, value.data(), static_cast<int>(value.size()), nullptr, 0, nullptr, nullptr);
-        if (count <= 0)
+        if (count <= 0) {
             throw std::runtime_error("Invalid shader path");
+        }
         std::string result(static_cast<size_t>(count), '\0');
         WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, value.data(), static_cast<int>(value.size()), result.data(), count, nullptr,
                             nullptr);
         return result;
     }
+
     /// @brief UTF-8文字列をワイド文字列へ変換する。
     static std::wstring Wide(const std::string& value)
     {
-        if (value.empty())
+        if (value.empty()) {
             return {};
+        }
         const int count = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.data(), static_cast<int>(value.size()), nullptr, 0);
-        if (count <= 0)
+        if (count <= 0) {
             throw std::runtime_error("Invalid shader path");
+        }
         std::wstring result(static_cast<size_t>(count), L'\0');
         MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.data(), static_cast<int>(value.size()), result.data(), count);
         return result;
     }
+
     /// @brief ファイルを読み取る。
     static std::vector<char> ReadFile(const std::filesystem::path& path, size_t limit)
     {
         std::ifstream input(path, std::ios::binary | std::ios::ate);
-        if (!input)
+        if (!input) {
             return {};
+        }
         const auto length = input.tellg();
-        if (length < 0 || static_cast<uint64_t>(length) > limit)
+        if (length < 0 || static_cast<uint64_t>(length) > limit) {
             return {};
+        }
         std::vector<char> bytes(static_cast<size_t>(length));
         input.seekg(0);
-        if (!bytes.empty())
+        if (!bytes.empty()) {
             input.read(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+        }
         return input ? bytes : std::vector<char>();
     }
+
     /// @brief 実行モジュールの内容をキャッシュ識別用のハッシュへ変換する。
     static std::string ModuleDigest(const wchar_t* name)
     {
@@ -289,8 +323,9 @@ private:
         const HMODULE module = GetModuleHandleW(name);
         const DWORD count = module ? GetModuleFileNameW(module, path.data(), static_cast<DWORD>(path.size()))
                                    : SearchPathW(nullptr, name, nullptr, static_cast<DWORD>(path.size()), path.data(), nullptr);
-        if (count == 0 || count >= path.size())
+        if (count == 0 || count >= path.size()) {
             return {};
+        }
         const auto bytes = ReadFile(path.data(), 256 * 1024 * 1024);
         return bytes.empty() ? std::string() : Hash(bytes.data(), bytes.size());
     }

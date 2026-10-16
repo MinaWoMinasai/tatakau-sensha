@@ -3,7 +3,6 @@
 #include <vector>
 
 enum class ClassType {
-
     // 第一段階
     Basic,
 

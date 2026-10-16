@@ -14,7 +14,9 @@ struct TankCombatStyleProfile {
     int droneCount = 3;
     float droneFollowSpeed = 0.25f, droneCatchupSpeed = 0.62f, droneResponse = 5.0f, droneFormationRadius = 1.5f;
 };
+
 using TankCombatStyleBalances = std::array<TankCombatStyleProfile, 3>;
+
 /// @brief 戦車戦闘外観Balancesの既定値を作成して返す。
 inline constexpr TankCombatStyleBalances DefaultTankCombatStyleBalances()
 {
@@ -25,6 +27,7 @@ inline constexpr TankCombatStyleBalances DefaultTankCombatStyleBalances()
     profiles[2].attackIntervalSeconds = 0.33f;
     return profiles;
 }
+
 /// @brief 戦闘系統の設定値を対応範囲内へ補正する。
 inline TankCombatStyleProfile SanitizeTankCombatStyleProfile(TankCombatStyleProfile p, const TankCombatStyleProfile& defaults = {})
 {
@@ -48,6 +51,7 @@ inline TankCombatStyleProfile SanitizeTankCombatStyleProfile(TankCombatStyleProf
     p.droneFormationRadius = safe(p.droneFormationRadius, defaults.droneFormationRadius, 0, 8);
     return p;
 }
+
 /// @brief 戦闘系統に対応するドローン数を返す。
 inline constexpr int TankCombatStyleDroneCount(int baseCount, int authoredCount, bool evolved, int supportCount)
 {

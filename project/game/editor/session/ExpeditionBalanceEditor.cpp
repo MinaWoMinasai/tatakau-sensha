@@ -13,8 +13,9 @@ void ExpeditionBalanceEditor::InitializeTankExpeditionBalance()
 {
     world_.run.tankExpeditionBalance_ = tankexp::DefaultBalance();
     std::string error;
-    if (!tankexp::LoadBalance(tankexp::kBalancePath, world_.run.tankExpeditionBalance_, error))
+    if (!tankexp::LoadBalance(tankexp::kBalancePath, world_.run.tankExpeditionBalance_, error)) {
         world_.resources.balanceEditor_.statusMessage = "既定値を使用 / " + error;
+    }
     world_.gameplaySettings->LoadBalanceEditorFromJson(world_.run.tankExpeditionBalance_);
     world_.run.expeditionStyleBalanceDraft_ = world_.run.tankExpeditionBalance_["combatStyles"];
     world_.resources.balanceEditor_.bossMaxHp = world_.run.tankExpeditionBalance_["bossMaxHp"].get<int>();
@@ -28,8 +29,9 @@ void ExpeditionBalanceEditor::InitializeTankExpeditionBalance()
 
 void ExpeditionBalanceEditor::ApplyTankExpeditionRoomBalance()
 {
-    if (!world_.run.expeditionRun_ || !world_.run.tankExpeditionBalance_.is_object())
+    if (!world_.run.expeditionRun_ || !world_.run.tankExpeditionBalance_.is_object()) {
         return;
+    }
     auto effective = world_.run.tankExpeditionBalance_;
     const bool resourceRoom = world_.run.tankExpedition_.GetRoomKind() == tankexp::RoomKind::Resource;
     effective["enemySystem"]["expEnemyHostileToBoss"] = resourceRoom;
@@ -41,14 +43,16 @@ void ExpeditionBalanceEditor::ApplyTankExpeditionRoomBalance()
     effective.erase("combatStyles");
     const auto curve = tankexp::GetRoomBalance(world_.run.tankExpedition_.GetRoomIndex());
     auto& damage = effective["damage"];
-    for (const char* key : {"expEnemyContact", "shooterContact", "shooterBullet"})
+    for (const char* key : {"expEnemyContact", "shooterContact", "shooterBullet"}) {
         damage[key] = (std::max)(1, static_cast<int>(std::round(damage[key].get<float>() * curve.contactScale)));
+    }
     damage["shooterBulletSpeed"] = damage["shooterBulletSpeed"].get<float>() * curve.bulletSpeedScale;
     damage["shooterFireInterval"] = damage["shooterFireInterval"].get<float>() * curve.fireIntervalScale;
     world_.levelRuntime->ApplyLevelBalance(effective);
     for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs()) {
-        if (!actor || actor->IsRunResource() || (world_.run.expeditionMapEnabled_ && actor->HasAuthoredDefinition()))
+        if (!actor || actor->IsRunResource() || (world_.run.expeditionMapEnabled_ && actor->HasAuthoredDefinition())) {
             continue;
+        }
         actor->SetDamage(damage[actor->GetType() == ExpEnemyType::Shooter || actor->GetType() == ExpEnemyType::Sniper ? "shooterContact"
                                                                                                                       : "expEnemyContact"]
                              .get<uint32_t>());
@@ -60,17 +64,20 @@ void ExpeditionBalanceEditor::ApplyTankExpeditionRoomBalance()
     const int maxHp = world_.run.tankExpedition_.GetRoomKind() == tankexp::RoomKind::Boss
                           ? requested
                           : (std::max)(1, static_cast<int>(std::round(requested * 0.52f)));
-    if (world_.resources.enemy_->GetMaxHp() != maxHp)
+    if (world_.resources.enemy_->GetMaxHp() != maxHp) {
         world_.resources.enemy_->SetPrototypeMaxHp(maxHp, false);
+    }
 }
 
 void ExpeditionBalanceEditor::UpdateTankExpeditionBalanceEditor()
 {
-    if (world_.run.expeditionTransition_.IsActive())
+    if (world_.run.expeditionTransition_.IsActive()) {
         return;
+    }
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
-    if (!world_.run.expeditionRun_ || !ImGui::GetCurrentContext())
+    if (!world_.run.expeditionRun_ || !ImGui::GetCurrentContext()) {
         return;
+    }
     if (world_.resources.input_->IsKeyTriggered(DIK_F2)) {
         world_.run.tankExpeditionBalanceEditorOpen_ = !world_.run.tankExpeditionBalanceEditorOpen_;
         if (world_.run.tankExpeditionBalanceEditorOpen_) {
@@ -86,8 +93,9 @@ void ExpeditionBalanceEditor::UpdateTankExpeditionBalanceEditor()
 void ExpeditionBalanceEditor::DrawTankExpeditionBalanceEditor()
 {
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
-    if (!world_.run.expeditionRun_ || !world_.run.tankExpeditionBalanceEditorOpen_ || !ImGui::GetCurrentContext())
+    if (!world_.run.expeditionRun_ || !world_.run.tankExpeditionBalanceEditorOpen_ || !ImGui::GetCurrentContext()) {
         return;
+    }
     ImGui::SetNextWindowPos({210, 82}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({860, 560}, ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("遠征バランス / F2で再開", &world_.run.tankExpeditionBalanceEditorOpen_)) {
@@ -132,8 +140,9 @@ void ExpeditionBalanceEditor::DrawTankExpeditionBalanceEditor()
             world_.resources.balanceEditor_.bossMaxHp = loaded["bossMaxHp"].get<int>();
             apply();
             world_.resources.balanceEditor_.statusMessage = "保存済みJSONを読み込み、実行中の遠征に適用しました。";
-        } else
+        } else {
             world_.resources.balanceEditor_.statusMessage = "再読込失敗 / 現在値を保持: " + error;
+        }
     }
     ImGui::SameLine();
     if (ImGui::Button("Reset / 既定値")) {
@@ -158,8 +167,9 @@ void ExpeditionBalanceEditor::DrawTankExpeditionBalanceEditor()
             ImGui::TextWrapped("導入後に選ぶ系統の基礎値です。現在の進化機体にも、この値 × 進化倍率 × 取得改造が反映されます。");
             if (ImGui::BeginTabBar("CombatStyleProfiles")) {
                 for (size_t i = 0; i < profiles.size(); ++i) {
-                    if (!ImGui::BeginTabItem(tankbuild::Names[i]))
+                    if (!ImGui::BeginTabItem(tankbuild::Names[i])) {
                         continue;
+                    }
                     auto& p = profiles[i];
                     ImGui::PushID(static_cast<int>(i));
                     ImGui::DragFloat("最大HP", &p.maxHp, 1, 1, 9999, "%.0f");
@@ -176,8 +186,9 @@ void ExpeditionBalanceEditor::DrawTankExpeditionBalanceEditor()
                                      : i == 1 ? "各ドローンの発射間隔 / 秒"
                                               : "主砲の発射間隔 / 秒",
                                      &p.attackIntervalSeconds, .01f, .05f, 10, "%.3f");
-                    if (i != 2)
+                    if (i != 2) {
                         ImGui::DragFloat("弾速", &p.bulletSpeed, .005f, .01f, 4, "%.3f");
+                    }
                     if (i == 2) {
                         ImGui::DragFloat("斬撃の射程", &p.meleeRange, .05f, .5f, 20);
                         ImGui::DragFloat("1段目の押し出し", &p.meleeKnockback, .01f, 0, .95f);
@@ -225,9 +236,10 @@ void ExpeditionBalanceEditor::DrawTankExpeditionBalanceEditor()
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("敵")) {
-            if (world_.run.expeditionMapEnabled_)
+            if (world_.run.expeditionMapEnabled_) {
                 ImGui::TextWrapped(
                     "マップ遠征の敵はF6の種類エディターで調整します。弾倉数・装填時間・移動速度もF6で変更できます。以下は旧遠征の共通設定です。");
+            }
             ImGui::TextWrapped("第3区画を基準値とし、序盤はゆっくり・終盤は高圧力に自動補正します。予告時間は短縮しません。");
             ImGui::DragInt("接触ダメージ", &world_.resources.balanceEditor_.expEnemyContact, 1, 1, 999);
             ImGui::DragInt("射撃敵の接触", &world_.resources.balanceEditor_.shooterContact, 1, 1, 999);

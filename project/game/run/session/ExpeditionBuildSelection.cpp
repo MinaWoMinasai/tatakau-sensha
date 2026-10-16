@@ -7,10 +7,12 @@ namespace gameplay {
 
 bool ExpeditionBuildSelection::IsExpeditionBuildCardScreen() const
 {
-    if (!world_.run.expeditionMapEnabled_ || world_.run.tankRunPaused_ || world_.run.expeditionMapPreview_)
+    if (!world_.run.expeditionMapEnabled_ || world_.run.tankRunPaused_ || world_.run.expeditionMapPreview_) {
         return false;
-    if (world_.run.expeditionBuildChoice_)
+    }
+    if (world_.run.expeditionBuildChoice_) {
         return true;
+    }
     const auto* node = world_.run.expeditionMapRun_.GetActiveNode();
     return node && (node->kind == tankexp::NodeKind::Upgrade || node->kind == tankexp::NodeKind::Evolution);
 }
@@ -19,12 +21,12 @@ void ExpeditionBuildSelection::InitializeExpeditionBuildCards()
 {
     myEngine::StartupTrace::Scope scope("Expedition.BuildCards");
     auto initialization = BuildInitialization();
-    while (!initialization.Advance()) {}
+    while (!initialization.Advance()) {
+    }
 }
 
 myEngine::InitializationTask ExpeditionBuildSelection::BuildInitialization()
 {
-
     for (auto& card : world_.run.expeditionRewardCards_) {
         co_await std::suspend_always{};
         card = std::make_unique<TankRewardCard>();
@@ -44,8 +46,9 @@ myEngine::InitializationTask ExpeditionBuildSelection::BuildInitialization()
 
 void ExpeditionBuildSelection::SelectExpeditionBuildStyle(int index)
 {
-    if (!world_.run.expeditionBuildChoice_ || world_.run.expeditionBuildChosen_ || index < 0 || index > 2)
+    if (!world_.run.expeditionBuildChoice_ || world_.run.expeditionBuildChosen_ || index < 0 || index > 2) {
         return;
+    }
     const auto style = static_cast<tankbuild::Style>(index);
     if (!world_.run.expeditionTransition_.IsActive()) {
         world_.run.expeditionPendingBuild_ = index;
@@ -57,8 +60,9 @@ void ExpeditionBuildSelection::SelectExpeditionBuildStyle(int index)
     const int hp = world_.resources.player_->GetHp(), maxHp = world_.resources.player_->GetMaxHp(),
               credits = world_.run.expeditionMapRun_.GetCurrency();
     const auto cards = world_.run.tankRun_.GetCardCounts();
-    if (!world_.resources.player_->SetExpeditionCombatStyle(style))
+    if (!world_.resources.player_->SetExpeditionCombatStyle(style)) {
         return;
+    }
     world_.run.expeditionBuildStyle_ = style;
     world_.run.expeditionBuildChosen_ = true;
     world_.run.expeditionBuildChoice_ = false;
@@ -67,10 +71,12 @@ void ExpeditionBuildSelection::SelectExpeditionBuildStyle(int index)
         world_.validation.experienceBuildPreserved_ =
             hp == world_.resources.player_->GetHp() && maxHp == world_.resources.player_->GetMaxHp() &&
             credits == world_.run.expeditionMapRun_.GetCurrency() && cards == world_.run.tankRun_.GetCardCounts();
-        if (!world_.validation.experienceBuildPreserved_)
+        if (!world_.validation.experienceBuildPreserved_) {
             world_.validation.experienceValidationErrors_.push_back("Style choice changed health, currency or purchased modules");
-        if (style == tankbuild::Style::Drone && world_.resources.player_->GetDronePtrs().size() != 3)
+        }
+        if (style == tankbuild::Style::Drone && world_.resources.player_->GetDronePtrs().size() != 3) {
             world_.validation.experienceValidationErrors_.push_back("Drone style did not equip three companions immediately");
+        }
     }
     world_.run.expeditionGuideActive_ = false;
     world_.run.tankRunMenuAge_ = 0;
@@ -83,15 +89,17 @@ void ExpeditionBuildSelection::SelectExpeditionBuildStyle(int index)
 
 void ExpeditionBuildSelection::RefreshExpeditionBuildCards()
 {
-    if (!IsExpeditionBuildCardScreen() || !world_.run.expeditionRewardCards_[0])
+    if (!IsExpeditionBuildCardScreen() || !world_.run.expeditionRewardCards_[0]) {
         return;
+    }
     const auto current = world_.resources.player_->GetRunCombatSnapshot();
     for (int i = 0; i < 3; ++i) {
         const size_t offerIndex = static_cast<size_t>(world_.run.expeditionServicePage_ * 3 + i);
         if (!world_.run.expeditionBuildChoice_ &&
             (offerIndex >= world_.run.expeditionServiceOffers_.size() ||
-             !tankcontent::FindUpgrade(world_.run.expeditionContent_, world_.run.expeditionServiceOffers_[offerIndex])))
+             !tankcontent::FindUpgrade(world_.run.expeditionContent_, world_.run.expeditionServiceOffers_[offerIndex]))) {
             continue;
+        }
         TankRewardCardModel model;
         model.style = world_.run.expeditionBuildStyle_;
         model.ownedEffects = world_.run.tankRun_.GetCardCounts();
@@ -200,8 +208,9 @@ void ExpeditionBuildSelection::RefreshExpeditionBuildCards()
 
 void ExpeditionBuildSelection::UpdateExpeditionBuildCards(float dt)
 {
-    if (!IsExpeditionBuildCardScreen() || !world_.run.expeditionRewardCards_[0])
+    if (!IsExpeditionBuildCardScreen() || !world_.run.expeditionRewardCards_[0]) {
         return;
+    }
     const auto mouse = world_.resources.input_->GetMousePosition();
     int hovered = -1;
     for (int i = 0; i < 3; ++i) {
@@ -209,27 +218,32 @@ void ExpeditionBuildSelection::UpdateExpeditionBuildCards(float dt)
         const bool present = world_.run.expeditionBuildChoice_ ||
                              (index < world_.run.expeditionServiceOffers_.size() &&
                               tankcontent::FindUpgrade(world_.run.expeditionContent_, world_.run.expeditionServiceOffers_[index]));
-        if (present && mouse.x >= 64 + i * 388 && mouse.x <= 432 + i * 388 && mouse.y >= 260 && mouse.y <= 590)
+        if (present && mouse.x >= 64 + i * 388 && mouse.x <= 432 + i * 388 && mouse.y >= 260 && mouse.y <= 590) {
             hovered = i;
+        }
     }
-    if (hovered < 0 && world_.resources.input_->IsGamepadActive())
+    if (hovered < 0 && world_.resources.input_->IsGamepadActive()) {
         hovered = world_.run.tankRunSelection_;
-    if (world_.validation.experienceValidationVariant_)
+    }
+    if (world_.validation.experienceValidationVariant_) {
         hovered = world_.run.expeditionBuildChoice_ ? world_.validation.experienceValidationStyle_ : world_.run.tankRunSelection_;
+    }
     for (int i = 0; i < 3; ++i) {
         const size_t index = static_cast<size_t>(world_.run.expeditionServicePage_ * 3 + i);
         const bool present = world_.run.expeditionBuildChoice_ ||
                              (index < world_.run.expeditionServiceOffers_.size() &&
                               tankcontent::FindUpgrade(world_.run.expeditionContent_, world_.run.expeditionServiceOffers_[index]));
-        if (!present)
+        if (!present) {
             continue;
+        }
         world_.run.expeditionRewardCards_[i]->Update({248.0f + i * 388.0f, 425}, {368, 330}, dt,
                                                      i == hovered && !world_.run.expeditionTransition_.IsActive(), true);
     }
     const std::string focus = "card_" + std::to_string(hovered);
     if (world_.run.expeditionBuildChoice_ && focus != world_.run.expeditionLastFocus_) {
-        if (hovered >= 0 && !world_.run.expeditionLastFocus_.empty() && !world_.run.expeditionTransition_.IsActive())
+        if (hovered >= 0 && !world_.run.expeditionLastFocus_.empty() && !world_.run.expeditionTransition_.IsActive()) {
             world_.run.tankExpeditionAudio_.UiHover();
+        }
         world_.run.expeditionLastFocus_ = focus;
     }
 }

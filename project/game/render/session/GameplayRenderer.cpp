@@ -29,25 +29,26 @@ using namespace detail;
 
 void GameplayRenderer::Draw()
 {
-
     myEngine::Object3dCommon::GetInstance()->PreDraw(myEngine::kNormal);
 }
 
 void GameplayRenderer::DrawPostEffect3D()
 {
-
     world_.performanceMonitor->ResetPostProfileEntries();
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     // Bloom::PreDraw直後は3枚のScene MRT + D24S8。ObjectPostEffect captureより先に描く。
-    if (world_.resources.neonSkinnedPreview_)
+    if (world_.resources.neonSkinnedPreview_) {
         world_.resources.neonSkinnedPreview_->Draw();
-    if (world_.gameplayQueries->IsNeonShowcaseActive())
+    }
+    if (world_.gameplayQueries->IsNeonShowcaseActive()) {
         return;
+    }
 #endif
     if (world_.resources.player_) {
         for (PlayerDrone* drone : world_.resources.player_->GetDronePtrs()) {
-            if (drone)
+            if (drone) {
                 drone->SetNeonVisual(world_.run.prototypeRun_ && world_.presentation.playerNeonRenderMode_ == 1);
+            }
         }
     }
     ExpEnemy::SetShapeNeonRenderMode(world_.presentation.expEnemyNeonRenderMode_);
@@ -79,7 +80,9 @@ void GameplayRenderer::DrawPostEffect3D()
     stagesurface::Settings surface = world_.presentation.stageSurface_;
     surface.enabled = surface.enabled && world_.run.prototypeRun_;
     stagesurface::Sanitize(surface);
-    if (world_.resources.player_ && world_.resources.player_->IsDead()) surface.floorLocalIntensity = 0.0f;
+    if (world_.resources.player_ && world_.resources.player_->IsDead()) {
+        surface.floorLocalIntensity = 0.0f;
+    }
     const bool surfaceBlocks = surface.enabled && surface.blocksEnabled;
     if (surface.enabled && world_.resources.stage_) {
         profile("Stage Surfaces", true, [&]() {
@@ -87,8 +90,8 @@ void GameplayRenderer::DrawPostEffect3D()
             const auto center = world_.resourceNeonRenderer->GetFloorVisibilityCenter();
             const auto lightPosition = world_.resources.player_ ? world_.resources.player_->GetWorldPosition() : center;
             const auto floors = world_.resources.stage_->DrawSurfaceFloor(surface, center, 38.0f, 24.0f, lightPosition);
-            const auto blocks = world_.resources.stage_->DrawSurfaceBlocks(surface, center, 38.0f, 24.0f,
-                world_.presentation.showStageNormalBlockBodies_);
+            const auto blocks =
+                world_.resources.stage_->DrawSurfaceBlocks(surface, center, 38.0f, 24.0f, world_.presentation.showStageNormalBlockBodies_);
             auto& diagnostics = myEngine::RuntimeProfiler::Get();
             diagnostics.SetCounter("Stage surface floor draws", floors);
             diagnostics.SetCounter("Stage surface block draws", blocks);
@@ -112,8 +115,11 @@ void GameplayRenderer::DrawPostEffect3D()
 
     if (useGridPost && !depthOverlay) {
         profile("Grid Post", true, [&]() {
-            if (surface.enabled) world_.resources.neonGridPostEffect_->BeginCaptureWithCurrentDepth(true);
-            else world_.resources.neonGridPostEffect_->BeginCapture();
+            if (surface.enabled) {
+                world_.resources.neonGridPostEffect_->BeginCaptureWithCurrentDepth(true);
+            } else {
+                world_.resources.neonGridPostEffect_->BeginCapture();
+            }
             world_.stageNeonRenderer->DrawNeonGridPass(false);
             world_.resources.neonGridPostEffect_->EndCaptureAdditiveOnly();
             myEngine::Object3dCommon::GetInstance()->PreDraw(myEngine::kNormal);
@@ -154,8 +160,10 @@ void GameplayRenderer::DrawPostEffect3D()
         }
         world_.resources.bulletManager_->Draw();
         world_.levelRuntime->DrawLevelItems();
-        if (!surfaceBlocks) world_.resources.stage_->DrawVisible(world_.resourceNeonRenderer->GetFloorVisibilityCenter(), 38.0f, 24.0f,
-                                             world_.presentation.showStageNormalBlockBodies_);
+        if (!surfaceBlocks) {
+            world_.resources.stage_->DrawVisible(world_.resourceNeonRenderer->GetFloorVisibilityCenter(), 38.0f, 24.0f,
+                                                 world_.presentation.showStageNormalBlockBodies_);
+        }
     });
     world_.performanceMonitor->AddPostProfileEntry("Stage Glow", 0.0f, useStagePost);
     if (depthOverlay) {
@@ -163,8 +171,11 @@ void GameplayRenderer::DrawPostEffect3D()
             world_.resources.neonDepthEffects_->DrawAir();
         });
         profile("Neon Depth FX Floor", true, [&]() {
-            if (surface.enabled) world_.resources.neonGridPostEffect_->BeginCaptureWithCurrentDepth(true);
-            else world_.resources.neonGridPostEffect_->BeginCapture();
+            if (surface.enabled) {
+                world_.resources.neonGridPostEffect_->BeginCaptureWithCurrentDepth(true);
+            } else {
+                world_.resources.neonGridPostEffect_->BeginCapture();
+            }
             world_.resources.neonDepthEffects_->DrawFloor();
             world_.stageNeonRenderer->DrawNeonGridPass(false);
             world_.resources.neonGridPostEffect_->EndCaptureAdditiveOnly();
@@ -191,22 +202,26 @@ void GameplayRenderer::DrawPostEffect3D()
     }
 
     {
-        myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewProjectionMatrix()
-                                                                                   : world_.resources.camera->GetViewProjectionMatrix();
+        myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
+                                     ? world_.resources.debugCamera->GetViewProjectionMatrix()
+                                     : world_.resources.camera->GetViewProjectionMatrix();
         const bool hasTrailContent = world_.resources.bulletManager_->GetBulletCount() != 0 ||
                                      world_.resources.bulletManager_->HasDrawableTrails() ||
                                      (world_.presentation.enablePlayerMeleeRibbonTrail_ && world_.resources.playerMeleeTrailManager_ &&
                                       world_.resources.playerMeleeTrailManager_->HasDrawableInstances());
         // Prepare one immutable head batch for this frame, before either capture branch.
         const auto view = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewMatrix()
-                                                                                 : world_.resources.camera->GetViewMatrix();
+                                                                                      : world_.resources.camera->GetViewMatrix();
         const auto cameraWorld = myEngine::Inverse(view);
         const myEngine::Vector3 forward{cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2]};
         world_.resources.neonProjectileRenderer_->BeginFrame(world_.resources.bulletManager_->GetBulletPtrs(), forward);
         if (useBulletTrailPost && hasTrailContent) {
             profile("Trail Post", true, [&]() {
-                if (surface.enabled) world_.resources.bulletTrailPostEffect_->BeginCaptureWithCurrentDepth(true);
-                else world_.resources.bulletTrailPostEffect_->BeginCapture();
+                if (surface.enabled) {
+                    world_.resources.bulletTrailPostEffect_->BeginCaptureWithCurrentDepth(true);
+                } else {
+                    world_.resources.bulletTrailPostEffect_->BeginCapture();
+                }
                 world_.resources.bulletManager_->DrawTrails(vp);
                 world_.resources.neonProjectileRenderer_->Draw(vp);
                 if (world_.presentation.enablePlayerMeleeRibbonTrail_ && world_.resources.playerMeleeTrailManager_) {
@@ -260,8 +275,9 @@ void GameplayRenderer::DrawPostEffect3D()
     }
 
     if (world_.presentation.showCollisionDebug_) {
-        myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewProjectionMatrix()
-                                                                                   : world_.resources.camera->GetViewProjectionMatrix();
+        myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
+                                     ? world_.resources.debugCamera->GetViewProjectionMatrix()
+                                     : world_.resources.camera->GetViewProjectionMatrix();
         profile("Collision", true, [&]() {
             world_.resources.collisionDebugRingManager_->DrawAll(vp);
         });
@@ -298,12 +314,14 @@ void GameplayRenderer::DrawPostEffect3D()
 
 void GameplayRenderer::DrawAfterPostEffect3D()
 {
-    if (world_.gameplayQueries->IsNeonShowcaseActive())
+    if (world_.gameplayQueries->IsNeonShowcaseActive()) {
         return;
+    }
     if (world_.resources.player_) {
         world_.resources.player_->DrawEvolutionAfterPostEffects();
-        if (!world_.run.expeditionRun_)
+        if (!world_.run.expeditionRun_) {
             world_.resources.player_->DrawUpgradeHudAfterPostEffects();
+        }
     }
     world_.gameplayHud->DrawGameTextBloom();
     if (!world_.bossPresentation->UseNeonBossVisual() && world_.combat.combatFlow_.GetState() == GameFlowState::BossDefeatSequence &&

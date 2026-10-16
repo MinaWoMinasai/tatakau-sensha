@@ -20,7 +20,8 @@ public:
 
     /// @brief 指定した銃口のワールド座標から弾を生成する。中心からの位置補正は行わない。
     /// @note 弾管理先と方向の条件、登録成否の扱いはFireと同じ。
-    void FireFromMuzzle(const myEngine::Vector3& muzzlePosition, const myEngine::Vector3& baseDir, const AttackParam& param, BulletOwner owner);
+    void FireFromMuzzle(const myEngine::Vector3& muzzlePosition, const myEngine::Vector3& baseDir, const AttackParam& param,
+                        BulletOwner owner);
 
 private:
     /// @brief 拡散方向と発射位置を求め、弾の基本性能・成長・命中元を設定して管理先へ渡す。

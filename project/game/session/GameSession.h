@@ -3,6 +3,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "game/session/TitleDemoStatus.h"
+
 namespace myEngine {
 class Object3d;
 }
@@ -13,6 +14,7 @@ using ScreenEffectState = IScene::ScreenEffectState;
 using DeveloperShowcaseState = IScene::DeveloperShowcaseState;
 
 struct GameWorld;
+
 /// @brief 各担当の寿命をまとめ、シーンにゲームの公開窓口を提供する。
 class GameSession {
 public:

@@ -11,8 +11,9 @@ namespace myEngine {
 /// 割り当ては Input::TranslateGamepad と対応させること。
 inline std::string ApplyInputPrompts(std::string text)
 {
-    if (!Input::GetInstance()->IsGamepadActive())
+    if (!Input::GetInstance()->IsGamepadActive()) {
         return text;
+    }
     static const std::pair<const char*, const char*> kGamepadPrompts[] = {
         {"数字キー / クリック: 決定    ← → + Enter: 選択", "A: 決定    十字キー: 選択"},
         {"数字キー / クリック: 決定   ← → + Enter: 選択", "A: 決定   十字キー: 選択"},
@@ -47,8 +48,9 @@ inline std::string ApplyInputPrompts(std::string text)
     };
     for (const auto& [from, to] : kGamepadPrompts) {
         const std::string source(from), target(to);
-        for (size_t at = text.find(source); at != std::string::npos; at = text.find(source, at + target.size()))
+        for (size_t at = text.find(source); at != std::string::npos; at = text.find(source, at + target.size())) {
             text.replace(at, source.size(), target);
+        }
     }
     return text;
 }

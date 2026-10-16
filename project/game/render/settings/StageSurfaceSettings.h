@@ -41,11 +41,13 @@ inline constexpr const char* kFloorModel = "__tank_surface_floor_xy";
 inline constexpr const char* kBlockModel = "__tank_surface_beveled_block";
 inline constexpr const char* kWallModel = "__tank_surface_rectilinear_wall";
 
-inline float FiniteClamp(float value, float fallback, float low, float high) {
+inline float FiniteClamp(float value, float fallback, float low, float high)
+{
     return std::isfinite(value) ? (std::clamp)(value, low, high) : fallback;
 }
 
-inline void Sanitize(Settings& settings) {
+inline void Sanitize(Settings& settings)
+{
     const Settings defaults;
     auto color = [&](myEngine::Vector4& value, const myEngine::Vector4& fallback) {
         value.x = FiniteClamp(value.x, fallback.x, 0.0f, 1.0f);
@@ -82,7 +84,8 @@ inline void Sanitize(Settings& settings) {
     settings.sideLineDivisions = (std::clamp)(settings.sideLineDivisions, 1, 8);
 }
 
-inline myEngine::Transform BlockTransform(const myEngine::Transform& gameplay, const Settings& settings) {
+inline myEngine::Transform BlockTransform(const myEngine::Transform& gameplay, const Settings& settings)
+{
     myEngine::Transform visual = gameplay;
     visual.scale.z *= settings.blockHeight * 0.5f;
     // Anchor the back to the floor. This changes only the render object, never AABB/OBB.
@@ -90,7 +93,8 @@ inline myEngine::Transform BlockTransform(const myEngine::Transform& gameplay, c
     return visual;
 }
 
-inline Settings Phase1Settings() {
+inline Settings Phase1Settings()
+{
     Settings result;
     result.enabled = true;
     result.wallStyle = 0;

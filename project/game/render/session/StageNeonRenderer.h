@@ -7,6 +7,7 @@ class StageNeonRenderer {
 public:
     /// @brief 借用するワールドを設定する。
     explicit StageNeonRenderer(GameWorld& world) : world_(world) {}
+
     /// @brief ネオン格子描画パスを描画する。
     void DrawNeonGridPass(bool includeStageBlockOutlines = true);
 

@@ -2,7 +2,8 @@
 
 namespace myEngine {
 
-void ShadowMap::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height) {
+void ShadowMap::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height)
+{
     auto device = dxCommon->GetDevice();
 
     // 1. リソース作成 (R24G8_TYPELESS)
@@ -29,10 +30,9 @@ void ShadowMap::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint
     clearValue.DepthStencil.Depth = 1.0f;
     clearValue.DepthStencil.Stencil = 0;
 
-    HRESULT hr = device->CreateCommittedResource(
-        &heapProps, D3D12_HEAP_FLAG_NONE, &desc,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // 初期状態は読み取り用にしておくのが安全
-        &clearValue, IID_PPV_ARGS(&resource_));
+    HRESULT hr = device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc,
+                                                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // 初期状態は読み取り用にしておくのが安全
+                                                 &clearValue, IID_PPV_ARGS(&resource_));
 
     assert(SUCCEEDED(hr));
 

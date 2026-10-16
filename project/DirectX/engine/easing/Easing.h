@@ -3,6 +3,7 @@
 #include "Calculation.h"
 
 #pragma region イージングの種類
+
 namespace myEngine {
 
 /// @brief 補間係数にEaseInSineのイージング曲線を適用する。動きの加減速を調整するために使う。

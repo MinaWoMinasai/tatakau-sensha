@@ -22,21 +22,25 @@ public:
     void Initialize(DirectXCommon* dx);
     /// @brief 利用を終了し、保持している資源と計測状態を解放する。
     void Shutdown();
+
     /// @brief Allowedであるか判定する。
     bool IsAllowed() const
     {
         return allowed_;
     }
+
     /// @brief 表示中であるか判定する。
     bool IsVisible() const
     {
         return displayMode_ != 0;
     }
+
     /// @brief 記録中であるか判定する。
     bool IsRecording() const
     {
         return recording_;
     }
+
     /// @brief 開発機能を切り替えるショートカット入力を処理する。
     void HandleShortcut(bool shift);
     /// @brief フレームを開始する。
@@ -55,12 +59,18 @@ public:
     void FinishFrame(double frameMs, double presentMs, double fenceMs, double limitMs);
     /// @brief 重ね表示を描画する。
     void DrawOverlay(bool limitEnabled, const char* scene);
+
     /// @brief 計測完了であるか判定する。
     bool IsCaptureComplete() const
     {
         return captureCompleted_;
     }
-    bool IsCaptureActive() const { return captureFrames_ > 0 && !captureCompleted_; }
+
+    bool IsCaptureActive() const
+    {
+        return captureFrames_ > 0 && !captureCompleted_;
+    }
+
     // Developer UIから既存timestamp計測を再開する。無効環境では副作用なくfalse。
     bool StartCapture(const std::string& path, int frames = 300, int warmupFrames = 60);
 
@@ -70,15 +80,19 @@ public:
         /// @brief インスタンスの初期値と利用先を設定する。
         explicit CpuScope(const char* name) : name_(name), enabled_(Get().IsRecording())
         {
-            if (enabled_)
+            if (enabled_) {
                 start_ = Clock::now();
+            }
         }
+
         /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
         ~CpuScope()
         {
-            if (enabled_)
+            if (enabled_) {
                 Get().AddCpu(name_, std::chrono::duration<double, std::milli>(Clock::now() - start_).count());
+            }
         }
+
         CpuScope(const CpuScope&) = delete;
         CpuScope& operator=(const CpuScope&) = delete;
 
@@ -88,16 +102,19 @@ public:
         bool enabled_;
         Clock::time_point start_{};
     };
+
     /// @brief GPU計測の開始・終了を対応させるRAIIオブジェクトを表す。
     class GpuScope {
     public:
         /// @brief インスタンスの初期値と利用先を設定する。
         explicit GpuScope(const char* name) : token_(Get().BeginGpu(name)) {}
+
         /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
         ~GpuScope()
         {
             Get().EndGpu(token_);
         }
+
         GpuScope(const GpuScope&) = delete;
         GpuScope& operator=(const GpuScope&) = delete;
 
@@ -112,11 +129,13 @@ private:
         double sum = 0, latest = 0, average = 0;
         bool seen = false;
     };
+
     /// @brief GPUのタイムスタンプ計測に必要な問い合わせ情報を保持する。
     struct GpuSample {
         const char* name = nullptr;
         bool ended = false;
     };
+
     /// @brief 指定した値や要素を加える。
     static void Add(std::vector<Metric>& metrics, const char* name, double value);
     /// @brief ウィンドウを予約分を処理する。

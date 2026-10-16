@@ -38,8 +38,9 @@ public:
     /// @note 1呼び出しで進む段階は最大1つ。余った時間を次段階へ繰り越さないため、長い更新でも照準固定を飛ばさない。
     bool Advance(float deltaTime, bool canTrackTarget)
     {
-        if (!std::isfinite(deltaTime) || deltaTime <= 0.0f)
+        if (!std::isfinite(deltaTime) || deltaTime <= 0.0f) {
             return false;
+        }
         const State& state = GetState(phase_);
         return state.Update(*this, deltaTime, canTrackTarget);
     }
@@ -49,30 +50,37 @@ public:
     {
         recoveryScale_ = (std::clamp)(scale, 0.20f, 8.0f);
     }
+
     /// @brief 回復を開始する。
     void EnterRecovery()
     {
         Enter(ExpEnemyCombatPhase::Recovery, timing_.recovery * recoveryScale_);
     }
+
     /// @brief 段階を返す。
     ExpEnemyCombatPhase GetPhase() const
     {
         return phase_;
     }
+
     /// @brief 照準固定であるか判定する。
     bool IsAimLocked() const
     {
         return phase_ == ExpEnemyCombatPhase::Locked || phase_ == ExpEnemyCombatPhase::Active;
     }
+
     /// @brief 予告比率を返す。
     float GetWarningRatio() const
     {
-        if (phase_ == ExpEnemyCombatPhase::Locked)
+        if (phase_ == ExpEnemyCombatPhase::Locked) {
             return 1.0f;
-        if (phase_ != ExpEnemyCombatPhase::Tracking)
+        }
+        if (phase_ != ExpEnemyCombatPhase::Tracking) {
             return 0.0f;
+        }
         return (std::clamp)(1.0f - remaining_ / (std::max)(0.001f, timing_.tracking), 0.0f, 1.0f);
     }
+
     /// @brief Recoveryの残り時間の割合を0〜1で返す。それ以外は0。経過した時間の割合ではない。
     float GetRecoveryRatio() const
     {
@@ -92,6 +100,7 @@ private:
         /// @param dt この処理で進める経過時間（秒）。
         virtual bool Update(ExpEnemyCombatCycle& cycle, float dt, bool canTrack) const = 0;
     };
+
     /// @brief ExpEnemyCombatCycleで次の攻撃まで待機する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class CooldownState final : public State {
     public:
@@ -99,11 +108,13 @@ private:
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyCombatCycle& cycle, float dt, bool canTrack) const override
         {
-            if (cycle.Elapse(dt) && canTrack)
+            if (cycle.Elapse(dt) && canTrack) {
                 cycle.Enter(ExpEnemyCombatPhase::Tracking, cycle.timing_.tracking);
+            }
             return false;
         }
     };
+
     /// @brief ExpEnemyCombatCycleで対象を追尾する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class TrackingState final : public State {
     public:
@@ -111,13 +122,15 @@ private:
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyCombatCycle& cycle, float dt, bool canTrack) const override
         {
-            if (!canTrack)
+            if (!canTrack) {
                 cycle.Enter(ExpEnemyCombatPhase::Cooldown, 0.40f);
-            else if (cycle.Elapse(dt))
+            } else if (cycle.Elapse(dt)) {
                 cycle.Enter(ExpEnemyCombatPhase::Locked, cycle.timing_.locked);
+            }
             return false;
         }
     };
+
     /// @brief ExpEnemyCombatCycleで照準を固定する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class LockedState final : public State {
     public:
@@ -125,12 +138,14 @@ private:
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyCombatCycle& cycle, float dt, bool) const override
         {
-            if (!cycle.Elapse(dt))
+            if (!cycle.Elapse(dt)) {
                 return false;
+            }
             cycle.Enter(ExpEnemyCombatPhase::Active, cycle.timing_.active);
             return true;
         }
     };
+
     /// @brief ExpEnemyCombatCycleで攻撃が有効な状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class ActiveState final : public State {
     public:
@@ -138,11 +153,13 @@ private:
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyCombatCycle& cycle, float dt, bool) const override
         {
-            if (cycle.Elapse(dt))
+            if (cycle.Elapse(dt)) {
                 cycle.EnterRecovery();
+            }
             return false;
         }
     };
+
     /// @brief ExpEnemyCombatCycleで攻撃後に回復する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class RecoveryState final : public State {
     public:
@@ -150,11 +167,13 @@ private:
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyCombatCycle& cycle, float dt, bool) const override
         {
-            if (cycle.Elapse(dt))
+            if (cycle.Elapse(dt)) {
                 cycle.Enter(ExpEnemyCombatPhase::Cooldown, cycle.timing_.cooldown * cycle.recoveryScale_);
+            }
             return false;
         }
     };
+
     /// @brief 状態を返す。
     static const State& GetState(ExpEnemyCombatPhase phase)
     {
@@ -169,6 +188,7 @@ private:
         const auto index = static_cast<std::size_t>(phase);
         return *states[index < states.size() ? index : 0];
     }
+
     /// @brief 経過時間を内部タイマーへ反映する。
     /// @param dt この処理で進める経過時間（秒）。
     bool Elapse(float dt)
@@ -176,12 +196,14 @@ private:
         remaining_ = (std::max)(0.0f, remaining_ - dt);
         return remaining_ <= 0.0f;
     }
+
     /// @brief 指定状態へ入る際の時間と条件を初期化する。
     void Enter(ExpEnemyCombatPhase phase, float duration)
     {
         phase_ = phase;
         remaining_ = (std::max)(0.001f, duration);
     }
+
     Timing timing_{};
     ExpEnemyCombatPhase phase_ = ExpEnemyCombatPhase::Cooldown;
     float remaining_ = 0.0f;

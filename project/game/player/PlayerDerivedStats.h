@@ -44,9 +44,12 @@ inline TankPlayerStats CalculatePlayerDerivedStats(const PlayerDerivedStatsInput
     TankPlayerStats stats = input.base;
     if (input.runEnabled && input.combatStyleSelected) {
         const auto& profile = input.combatStyleProfile;
-        stats.maxHp = profile.maxHp; stats.moveSpeed = profile.moveSpeed;
-        stats.maxStamina = profile.maxStamina; stats.staminaRecovery = profile.staminaRecovery;
-        stats.bodyDamage = profile.bodyDamage; stats.bulletSpeed = profile.bulletSpeed;
+        stats.maxHp = profile.maxHp;
+        stats.moveSpeed = profile.moveSpeed;
+        stats.maxStamina = profile.maxStamina;
+        stats.staminaRecovery = profile.staminaRecovery;
+        stats.bodyDamage = profile.bodyDamage;
+        stats.bulletSpeed = profile.bulletSpeed;
         stats.bulletDamage = profile.attackDamage / (input.combatStyle == tankbuild::Style::Melee ? 3.8f : 1.0f);
         stats.reloadSpeed = profile.attackIntervalSeconds * 60.0f;
     }
@@ -56,7 +59,9 @@ inline TankPlayerStats CalculatePlayerDerivedStats(const PlayerDerivedStatsInput
     stats.bulletSpeed *= 1.0f + input.upgradeRates.bulletSpeed * static_cast<float>(input.upgradeLevels[3]);
     stats.bulletDamage *= 1.0f + input.upgradeRates.bulletDamage * static_cast<float>(input.upgradeLevels[4]);
     stats.reloadSpeed *= (std::max)(0.05f, 1.0f - input.upgradeRates.reload * static_cast<float>(input.upgradeLevels[5]));
-    if (!input.combatStyleSelected) stats.reloadSpeed = (std::max)(input.upgradeRates.minimumReloadFrames, stats.reloadSpeed);
+    if (!input.combatStyleSelected) {
+        stats.reloadSpeed = (std::max)(input.upgradeRates.minimumReloadFrames, stats.reloadSpeed);
+    }
     stats.moveSpeed *= 1.0f + input.upgradeRates.moveSpeed * static_cast<float>(input.upgradeLevels[6]);
     stats.bulletDamage *= input.runTuning.damage;
     stats.bulletSpeed *= input.runTuning.bulletSpeed;

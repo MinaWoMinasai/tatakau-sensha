@@ -43,12 +43,14 @@ public:
     /// @param hp 正なら初期HP・最大HPを上書きし、0以下なら種類/制作定義の値を使う。
     /// @return 登録した場合true。未対応prefabなら生成せずfalse。壁や自機との重なり・管理個体数の上限は判定しない。
     bool SpawnLevelEnemy(const myEngine::Vector3& position, const std::string& prefab, int hp = -1);
+
     /// @brief 遠征の制作カタログをコピーして保持し、以後の生成時に使う。既存個体の設定は変えない。
     void SetExpeditionContent(const tankcontent::Catalog& catalog)
     {
         expeditionContent_ = catalog;
         useExpeditionContent_ = true;
     }
+
     /// @brief 指定位置へ資源を生成して所有し、その個体への借用ポインターを返す。HPは最低1。
     /// @note 死亡フラグが立っても実体削除までアドレスは有効。Updateによる削除またはClearで無効になる。
     ExpEnemy* SpawnRunResource(const myEngine::Vector3& position, int hp, std::function<void(bool playerOwned)> onClaim);
@@ -60,11 +62,13 @@ public:
     /// @brief ClearLevelDataの消去に加え、既定のランダム生成を停止する。
     /// @note 衝突・報酬通知などが取得済みポインターを使い終えた境界で呼ぶ。共有コールバックは保持する。
     void ClearRunActors();
+
     /// @brief 既定のランダム出現を切り替える。出現領域と召喚の処理はこの設定では停止しない。
     void SetDefaultRandomSpawnEnabled(bool enabled)
     {
         defaultRandomSpawnEnabled_ = enabled;
     }
+
     /// @brief ボスへの敵対共有設定を更新し、現在の全個体の衝突マスクも再設定する。
     void SetExpEnemyHostileToBoss(bool hostile);
     /// @brief 距離がmaxDistance未満の生存個体から最寄りを借用ポインターで返す。該当なしはnullptr。
@@ -77,6 +81,7 @@ public:
     /// @brief 所有個体への借用ポインター一覧を値で返す。死亡済みで削除待ちの個体も含む。
     /// @note 一覧のコピーは所有権を持たない。個体のUpdate削除またはClear後は、その個体へのポインターが無効になる。
     std::vector<ExpEnemy*> GetEnemyPtrs() const;
+
     /// @brief 管理中の個体数を返す。資源・召喚個体・死亡済みの削除待ちも含む。
     size_t GetEnemyCount() const
     {

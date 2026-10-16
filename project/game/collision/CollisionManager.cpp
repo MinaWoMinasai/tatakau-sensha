@@ -19,14 +19,12 @@ void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletMa
     // 同じ組を重複して調べないよう、後ろの要素だけと組み合わせる。
     std::list<Collider*>::iterator itrA = colliders_.begin();
     for (; itrA != colliders_.end(); ++itrA) {
-
         Collider* colliderA = *itrA;
 
         std::list<Collider*>::iterator itrB = itrA;
         itrB++;
 
         for (; itrB != colliders_.end(); ++itrB) {
-
             Collider* colliderB = *itrB;
 
             CheckCollisionPair(colliderA, colliderB);
@@ -48,17 +46,21 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
     }
     // 連鎖ダメージで、この走査中に後続の対象が撃破されることもある。
     for (auto* actor : {colliderA, colliderB}) {
-        if (auto* enemy = dynamic_cast<ExpEnemy*>(actor); enemy && enemy->IsDead())
+        if (auto* enemy = dynamic_cast<ExpEnemy*>(actor); enemy && enemy->IsDead()) {
             return;
-        if (auto* boss = dynamic_cast<Enemy*>(actor); boss && (boss->IsDead() || boss->GetHp() <= 0))
+        }
+        if (auto* boss = dynamic_cast<Enemy*>(actor); boss && (boss->IsDead() || boss->GetHp() <= 0)) {
             return;
+        }
     }
     // 貫通弾が複数フレーム重なっても、衝突IDの命中履歴で双方の通知を抑え、ダメージ・演出の重複を防ぐ。
-    if ((bulletA && !bulletB && !bulletA->CanHitActor(colliderB)) || (bulletB && !bulletA && !bulletB->CanHitActor(colliderA)))
+    if ((bulletA && !bulletB && !bulletA->CanHitActor(colliderB)) || (bulletB && !bulletA && !bulletB->CanHitActor(colliderA))) {
         return;
+    }
     if ((bulletA && bulletA->GetSpecialKind() == Bullet::SpecialKind::SlashWave && !bulletA->CanHitActor(colliderB)) ||
-        (bulletB && bulletB->GetSpecialKind() == Bullet::SpecialKind::SlashWave && !bulletB->CanHitActor(colliderA)))
+        (bulletB && bulletB->GetSpecialKind() == Bullet::SpecialKind::SlashWave && !bulletB->CanHitActor(colliderA))) {
         return;
+    }
 
     bool hit = false;
 
@@ -68,8 +70,9 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
         hit = dist < (colliderA->GetRadius() + colliderB->GetRadius());
         // 高速移動で現在位置の球が敵を通り越した場合も、XY平面の移動区間で接触を拾う。
         auto swept = [&](const Bullet* shot, Collider* target) {
-            if (!shot || (shot->GetSpecialKind() == Bullet::SpecialKind::None && !shot->IsBoomerang()))
+            if (!shot || (shot->GetSpecialKind() == Bullet::SpecialKind::None && !shot->IsBoomerang())) {
                 return false;
+            }
             const auto a = shot->GetPreviousWorldPosition(), b = shot->GetWorldPosition(), p = target->GetWorldPosition();
             return tankspecial::SegmentTouches(a.x, a.y, b.x, b.y, p.x, p.y, shot->GetRadius() + target->GetRadius());
         };
@@ -92,23 +95,28 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
     // どちらかのマスクが相手を許可すれば、後続で双方へ通知する。マスクごとに通知を分ける処理ではない。
     bool canA = (colliderA->GetCollisionMask() & colliderB->GetCollisionAttribute());
     bool canB = (colliderB->GetCollisionMask() & colliderA->GetCollisionAttribute());
-    if (!(canA || canB))
+    if (!(canA || canB)) {
         return;
+    }
 
     // 自機のダッシュ衝撃で処理する接触は通常通知を省く。同じダッシュの対象履歴はPlayerが保持する。
-    if (auto* player = dynamic_cast<Player*>(colliderA); player && player->TryDashImpact(colliderB))
+    if (auto* player = dynamic_cast<Player*>(colliderA); player && player->TryDashImpact(colliderB)) {
         return;
-    if (auto* player = dynamic_cast<Player*>(colliderB); player && player->TryDashImpact(colliderA))
+    }
+    if (auto* player = dynamic_cast<Player*>(colliderB); player && player->TryDashImpact(colliderA)) {
         return;
+    }
 
     // 床コアの通常接触だけを省く。直前の明示ダッシュ攻撃は既存経路で成立させる。
     auto isDepthCoreContact = [](Collider* candidateCore, Collider* body) {
         const auto* core = dynamic_cast<const Enemy*>(candidateCore);
         const uint32_t attribute = body->GetCollisionAttribute();
         return core && core->IsNeonDepthEncounterEnabled() &&
-            (attribute == kCollisionAttributePlayer || attribute == kCollisionAttributePlayerDrone);
+               (attribute == kCollisionAttributePlayer || attribute == kCollisionAttributePlayerDrone);
     };
-    if (isDepthCoreContact(colliderA,colliderB) || isDepthCoreContact(colliderB,colliderA)) return;
+    if (isDepthCoreContact(colliderA, colliderB) || isDepthCoreContact(colliderB, colliderA)) {
+        return;
+    }
 
     Bullet* shot = dynamic_cast<Bullet*>(colliderA);
     Collider* victim = colliderB;
@@ -123,10 +131,12 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
         (shot->GetSpecialKind() == Bullet::SpecialKind::None || shot->GetSpecialKind() == Bullet::SpecialKind::Rail)) {
         if (auto* armor = dynamic_cast<ExpEnemy*>(victim)) {
             myEngine::Vector3 movement = shot->GetWorldPosition() - shot->GetPreviousWorldPosition();
-            if (myEngine::Length(movement) < .0001f)
+            if (myEngine::Length(movement) < .0001f) {
                 movement = shot->GetMove();
+            }
             const myEngine::Vector3 source =
-                victim->GetWorldPosition() - (myEngine::Length(movement) > .0001f ? myEngine::Normalize(movement) : myEngine::Vector3{1, 0, 0});
+                victim->GetWorldPosition() -
+                (myEngine::Length(movement) > .0001f ? myEngine::Normalize(movement) : myEngine::Vector3{1, 0, 0});
             if (armor->TryReflectProjectile(source)) {
                 activeBulletManager_->QueueArmorReflection(*shot, victim->GetWorldPosition());
                 shot->Die();
@@ -136,40 +146,44 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
     }
     // ロック補正は今回の接触だけに使う。貫通して別の敵に当たるときの基礎ダメージは保持する。
     const uint32_t originalDamage = shot ? shot->GetDamage() : 0;
-    if (playerHit && shot->GetSourcePlayer() && shot->GetSourceDroneIndex() >= 0)
+    if (playerHit && shot->GetSourcePlayer() && shot->GetSourceDroneIndex() >= 0) {
         shot->SetDamage(shot->GetSourcePlayer()->NotifyDroneHit(shot->GetSourceDroneIndex(), victim, originalDamage));
+    }
 
     // 片方の通知で死亡しても実体はまだ管理配列に残る。双方の通知後に撃破結果から射撃強化を処理する。
     colliderA->OnCollision(colliderB);
     colliderB->OnCollision(colliderA);
     if (playerHit && activeBulletManager_) {
         bool killed = false;
-        if (auto* regular = dynamic_cast<ExpEnemy*>(victim))
+        if (auto* regular = dynamic_cast<ExpEnemy*>(victim)) {
             killed = regular->IsDead();
-        else if (auto* boss = dynamic_cast<Enemy*>(victim))
+        } else if (auto* boss = dynamic_cast<Enemy*>(victim)) {
             killed = boss->GetHp() <= 0;
+        }
         activeBulletManager_->NotifyPlayerHit(*shot, *victim, killed);
     }
     // 射撃強化の通知まで補正値を使い終えてから元に戻す。この場で弾を削除しない。
-    if (shot)
+    if (shot) {
         shot->SetDamage(originalDamage);
+    }
 }
 
 void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager)
 {
-
     // 自機はここでは死亡状態で除外しない。各通知の受付条件とシーン側の呼び出し条件を併せて確認する。
     colliders_.push_back(player);
 
     // 再構築中など利用できないドローンを除外する。
     for (PlayerDrone* drone : player->GetDronePtrs()) {
-        if (drone && drone->IsRunAvailable())
+        if (drone && drone->IsRunAvailable()) {
             colliders_.push_back(drone);
+        }
     }
 
     // 敵を登録
-    if (enemy && !enemy->IsDead())
+    if (enemy && !enemy->IsDead()) {
         colliders_.push_back(enemy);
+    }
 
     // 死亡済みの削除待ち弾も一覧には含む。ペアの入口で除外し、削除はBulletManagerの更新に任せる。
     for (Bullet* bullet : bulletManager->GetBulletPtrs()) {
@@ -178,8 +192,9 @@ void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager*
 
     if (enemyManager) {
         for (ExpEnemy* expEnemy : enemyManager->GetEnemyPtrs()) {
-            if (expEnemy && !expEnemy->IsDead())
+            if (expEnemy && !expEnemy->IsDead()) {
                 colliders_.push_back(expEnemy);
+            }
         }
     }
 }

@@ -12,7 +12,6 @@ namespace myEngine {
 
 /// @brief 画像の読み込みとSRVの割り当てを管理し、読み込み済み画像を共有する。
 class TextureManager {
-
 public:
     enum class TextureColorSpace {
         SRGB,
@@ -91,7 +90,9 @@ private:
         TextureColorSpace colorSpace;
         std::shared_future<std::shared_ptr<DirectX::ScratchImage>> result;
     };
+
     std::unordered_map<std::string, PendingTexture> pendingTextures_;
+
     /// @brief 画像のGPUリソース・メタデータ・SRVハンドルをまとめる。
     struct TextureData {
         DirectX::TexMetadata metaData;

@@ -15,27 +15,32 @@ namespace tankreward {
 struct Point {
     float x = 0.0f, y = 0.0f;
 };
+
 /// @brief 2つの入力を指定係数で混合する。
 inline Point Mix(Point a, Point b, float t)
 {
     return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t};
 }
+
 /// @brief 入力値を0〜1の範囲へ制限する。
 inline float Saturate(float v)
 {
     return (std::clamp)(v, 0.0f, 1.0f);
 }
+
 /// @brief 補間係数にEaseのイージング曲線を適用する。動きの加減速を調整するために使う。
 inline float Ease(float v)
 {
     v = Saturate(v);
     return v * v * (3.0f - 2.0f * v);
 }
+
 /// @brief 入力ベクトルなどの大きさを返す。
 inline float Length(Point p)
 {
     return std::sqrt(p.x * p.x + p.y * p.y);
 }
+
 inline constexpr float kCycleSeconds = 2.8f;
 enum class DemoKind {
     Shooter,
@@ -63,6 +68,7 @@ enum class DemoKind {
     SpinBlade,
     WallSmash
 };
+
 /// @brief 報酬カードのデモで再現する攻撃と動作条件を指定する。
 struct DemoConfig {
     DemoKind kind = DemoKind::Shooter;
@@ -85,6 +91,7 @@ struct DemoConfig {
     TankRunGrowth growth{};
     decltype(TankRunModifiers{}.effectPower) effectPower = TankRunModifiers{}.effectPower;
 };
+
 /// @brief 報酬カードの短いデモに表示する弾の位置と速度を表す。実際の戦闘用の弾とは別に保持する。
 struct Bullet {
     Point position{};
@@ -94,6 +101,7 @@ struct Bullet {
     bool visible = false;
     int bounces = 0;
 };
+
 /// @brief 報酬カードのデモの1時点の機体・弾・演出を表す。
 struct DemoSnapshot {
     Point player{0.18f, 0.54f}, cursor{0.78f, 0.54f};
@@ -124,11 +132,13 @@ struct DemoSnapshot {
     float blast = 0, lock = 0, droneChargeGlow = 0, rebuild = 0, spin = 0;
     bool returning = false, verticalWall = false;
 };
+
 /// @brief 命中時の時間に応じた発光強度を求める。
 inline float HitPulse(float now, float at)
 {
     return at >= 0.0f ? Saturate(1.0f - (now - at) / 0.28f) * (now >= at ? 1.0f : 0.0f) : 0.0f;
 }
+
 /// @brief 位置がデモの表示レーン内か判定する。
 inline bool WithinLane(Point p)
 {
@@ -144,8 +154,9 @@ inline Bullet SampleProjectile(Point start, Point target, float age, float initi
     Bullet out;
     out.position = start;
     out.angle = initialAngle;
-    if (age < 0.0f)
+    if (age < 0.0f) {
         return out;
+    }
     constexpr float step = 1.0f / 120.0f, turnLimit = 1.6f;
     const float speed = 0.57f * (std::clamp)(speedScale, 0.3f, 2.0f);
     out.visible = true;
@@ -161,8 +172,9 @@ inline Bullet SampleProjectile(Point start, Point target, float age, float initi
             const float distance = Length({target.x - out.position.x, target.y - out.position.y});
             // The miniature uses a 20-unit-wide field: 0.70 corresponds to
             // the actor's 14-unit acquisition radius, with the same front cone.
-            if (distance < 0.70f && distance > 0.01f && std::cos(diff) >= 0.35f)
+            if (distance < 0.70f && distance > 0.01f && std::cos(diff) >= 0.35f) {
                 out.angle += (std::clamp)(diff, -turnLimit * dt * homingPower, turnLimit * dt * homingPower);
+            }
         }
         out.position.x += std::cos(out.angle) * speed * dt;
         out.position.y += std::sin(out.angle) * speed * dt;
@@ -184,24 +196,28 @@ inline Bullet SampleProjectile(Point start, Point target, float age, float initi
         for (int n = 0; n < (pierce ? 2 : 1); ++n) {
             if ((mask & (1 << n)) == 0 && Length({targets[n].x - out.position.x, targets[n].y - out.position.y}) < 0.045f) {
                 mask |= 1 << n;
-                if (!pierce || n == 1)
+                if (!pierce || n == 1) {
                     out.visible = false;
+                }
             }
         }
         if (i % 5 == 0) {
-            if (out.trailCount < out.trail.size())
+            if (out.trailCount < out.trail.size()) {
                 out.trail[out.trailCount++] = out.position;
-            else {
-                for (std::size_t j = 1; j < out.trail.size(); ++j)
+            } else {
+                for (std::size_t j = 1; j < out.trail.size(); ++j) {
                     out.trail[j - 1] = out.trail[j];
+                }
                 out.trail.back() = out.position;
             }
         }
     }
-    if (hitMask)
+    if (hitMask) {
         *hitMask = mask;
+    }
     return out;
 }
+
 /// @brief 基準デモをサンプリングする。
 inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
 {
@@ -240,8 +256,9 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
     const float t = std::fmod((std::max)(0.0f, time), kCycleSeconds);
     s.progress = t / kCycleSeconds;
     s.leftClick = t >= 0.45f && t < 2.15f;
-    if (c.kind == DemoKind::Info)
+    if (c.kind == DemoKind::Info) {
         return s;
+    }
     if (c.kind == DemoKind::Melee || c.kind == DemoKind::BladeReach || c.kind == DemoKind::SlashWave || c.kind == DemoKind::ParryBlade ||
         (c.kind == DemoKind::ImpactDrive && c.meleeStyle)) {
         s.barrelCount = 0;
@@ -303,13 +320,15 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
                 }
             }
             for (int n = 0; n < s.targetCount; ++n) {
-                if (s.targets[n].x - s.player.x > reach + 0.02f)
+                if (s.targets[n].x - s.player.x > reach + 0.02f) {
                     continue;
+                }
                 const float force = tuning.knockback * 0.15f * (c.useProfile ? c.profile.meleeKnockback / .16f : 1.0f);
                 s.targets[n].x = (std::min)(.90f, s.targets[n].x + force * Ease((t - impactAt) / 0.16f));
                 s.hit[n] = (std::max)(s.hit[n], HitPulse(t, impactAt));
-                if (t >= impactAt)
+                if (t >= impactAt) {
                     s.damage[n] += tuning.damage * c.damageScale * 0.17f;
+                }
             }
         }
         return s;
@@ -353,10 +372,12 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
             s.drones[n] = follower(t, angle);
             // Holding LEFT CLICK is explicitly displayed during every firing period.
             const float at = .45f + (.17f + static_cast<float>(n) * .09f) * droneTuning.reloadSeconds / .5f * c.reloadScale;
-            if (at >= 2.15f)
+            if (at >= 2.15f) {
                 continue; // An edited slow attack never fires after LEFT CLICK is released.
-            if (t >= at)
+            }
+            if (t >= at) {
                 ++s.shots;
+            }
             s.muzzleFlash = (std::max)(s.muzzleFlash, HitPulse(t, at));
             const Point launch = follower(at, angle);
             const Point target = s.targets[0];
@@ -385,8 +406,9 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
                 s.linkContact[n] = tankspecial::SegmentTouches(a.x, a.y, b.x, b.y, p.x, p.y, .036f);
                 touching |= s.linkContact[n];
             }
-            if (touching)
+            if (touching) {
                 s.hit[1] = .8f;
+            }
             for (float tick = 0; s.links && tick <= t; tick += .20f) {
                 const auto p = crossing(tick);
                 bool hit = false;
@@ -395,8 +417,9 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
                                b = follower(tick, ((n + 1) % s.droneCount) * 6.2831853f / s.droneCount);
                     hit = tankspecial::SegmentTouches(a.x, a.y, b.x, b.y, p.x, p.y, .036f);
                 }
-                if (hit)
+                if (hit) {
                     s.damage[1] += .10f * c.damageScale;
+                }
             }
         }
         return s;
@@ -416,24 +439,29 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
         for (int n = 0; n < s.barrelCount; ++n) {
             const float offset = (n - (s.barrelCount - 1) * .5f);
             s.barrelAngles[n] = offset * c.fanAngle * .0174532925f;
-            if (c.alternate && n != 0)
+            if (c.alternate && n != 0) {
                 continue;
+            }
             int mask = 0;
             auto origin = s.player;
             origin.y += offset * .035f;
             s.bullets[n] = SampleProjectile(origin, s.targets[0], t - release, s.barrelAngles[n], false, false, true, &mask, 2);
-            for (int target = 0; target < 2; ++target)
-                if (mask & (1 << target))
+            for (int target = 0; target < 2; ++target) {
+                if (mask & (1 << target)) {
                     ++hits[target];
+                }
+            }
         }
-        if (t >= release)
+        if (t >= release) {
             s.shots = c.alternate ? 1 : s.barrelCount;
-        for (int n = 0; n < 2; ++n)
+        }
+        for (int n = 0; n < 2; ++n) {
             if (hits[n]) {
                 s.damage[n] =
                     .4f * c.damageScale * tankspecial::RailDamageScale(1, c.effectPower[20]) * hits[n] * (c.alternate ? s.barrelCount : 1);
                 s.hit[n] = .8f;
             }
+        }
         return s;
     }
     Point launch = s.player;
@@ -457,8 +485,9 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
     }
     s.barrelCount = c.kind == DemoKind::Shooter ? (std::clamp)(c.barrels, 1, 6) : 1;
     const float shotAt = .45f + .10f * c.reloadScale;
-    if (shotAt >= 2.15f)
+    if (shotAt >= 2.15f) {
         return s;
+    }
     s.muzzleFlash = HitPulse(t, shotAt);
     std::array<int, 3> hits{};
     for (int n = 0; n < s.barrelCount; ++n) {
@@ -467,36 +496,45 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
         origin.y += (static_cast<float>(n) - static_cast<float>(s.barrelCount - 1) * 0.5f) * 0.035f;
         const float at = shotAt + (c.alternate ? static_cast<float>(n) * .16f * c.reloadScale : 0);
         s.barrelAngles[n] = (static_cast<float>(n) - static_cast<float>(s.barrelCount - 1) * .5f) * c.fanAngle * .0174532925f;
-        if (t >= at)
+        if (t >= at) {
             ++s.shots;
-        if (at >= 2.15f)
+        }
+        if (at >= 2.15f) {
             continue;
+        }
         s.bullets[n] = SampleProjectile(origin, s.targets[0], t - at, angle + s.barrelAngles[n], c.homing, c.ricochet, c.pierce, &shotHits,
                                         c.bulletSpeedScale, c.effectPower[9]);
-        for (int target = 0; target < s.targetCount; ++target)
-            if (shotHits & (1 << target))
+        for (int target = 0; target < s.targetCount; ++target) {
+            if (shotHits & (1 << target)) {
                 ++hits[target];
+            }
+        }
     }
     // Hit visualization is taken from the simulation, including the stopping
     // projectile. A miss never turns into a scripted successful hit.
-    for (int n = 0; n < s.targetCount; ++n)
+    for (int n = 0; n < s.targetCount; ++n) {
         if (hits[n] > 0) {
             s.hit[n] = 0.6f;
             s.damage[n] = 0.4f * c.damageScale * hits[n];
         }
+    }
     return s;
 }
+
 /// @brief デモをサンプリングする。
 inline DemoSnapshot SampleDemo(const DemoConfig& input, float time)
 {
     DemoConfig c = input;
     const auto kind = c.kind;
-    if (kind >= DemoKind::ChainLightning && kind <= DemoKind::KillBurst)
+    if (kind >= DemoKind::ChainLightning && kind <= DemoKind::KillBurst) {
         c.kind = DemoKind::Shooter;
-    if (kind >= DemoKind::DroneCharge && kind <= DemoKind::AutonomousSpread)
+    }
+    if (kind >= DemoKind::DroneCharge && kind <= DemoKind::AutonomousSpread) {
         c.kind = DemoKind::Drone;
-    if (kind >= DemoKind::DashSlash && kind <= DemoKind::WallSmash)
+    }
+    if (kind >= DemoKind::DashSlash && kind <= DemoKind::WallSmash) {
         c.kind = DemoKind::Melee;
+    }
     auto s = SampleBaseDemo(c, time);
     if (kind == DemoKind::WallSmash) {
         s.wall = true;
@@ -525,9 +563,11 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input, float time)
         s.bullets = {};
         s.damage[0] = 0;
         int hits = 0;
-        for (int n = 0; n < 4; ++n)
-            if (shot(s.player, s.targets[0], .2f + n * .28f, n, 1.5f))
+        for (int n = 0; n < 4; ++n) {
+            if (shot(s.player, s.targets[0], .2f + n * .28f, n, 1.5f)) {
                 ++hits;
+            }
+        }
         s.damage[0] = hits * .07f;
         if (c.markDetonation) {
             s.marks[0] = hits < 4 ? hits : 0;
@@ -549,8 +589,9 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input, float time)
         };
         b.position = path((std::max)(0.0f, age));
         b.angle = s.returning ? 3.14159f : 0;
-        for (int n = 0; n < 8; ++n)
+        for (int n = 0; n < 8; ++n) {
             b.trail[n] = path((std::max)(0.0f, age - (7 - n) * .025f));
+        }
         b.trailCount = 8;
         s.hit[0] = (std::max)(HitPulse(t, .73f), HitPulse(t, 1.47f));
         s.damage[0] = (t > .73f ? .22f : 0) + (t > 1.47f ? .22f : 0);
@@ -576,8 +617,9 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input, float time)
         const Point home = s.drones[0], target = s.targets[0];
         const bool bomb = kind == DemoKind::DroneRebuildBomb;
         s.droneChargeGlow = t > .45f && t < .8f ? (.55f + .4f * std::sin(t * 35)) : 0;
-        if (t >= .8f && t < 1.1f)
+        if (t >= .8f && t < 1.1f) {
             s.drones[0] = Mix(home, target, Ease((t - .8f) / .3f));
+        }
         if (t >= 1.1f) {
             s.hit[0] = HitPulse(t, 1.1f);
             s.damage[0] += (bomb ? .65f : .28f);
@@ -587,23 +629,26 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input, float time)
                 s.droneDisabled[0] = t < 2.5f;
                 s.bullets[0].visible = false;
                 s.rebuild = t > 1.8f ? Saturate((t - 1.8f) / .7f) : 0;
-            } else
+            } else {
                 s.drones[0] = Mix(target, home, Ease((t - 1.1f) / .55f));
+            }
         }
     } else if (kind == DemoKind::TargetPainter && c.targetPainter) {
         s.lock = t >= 1.15f ? Saturate((t - 1.15f) / .3f) : 0;
-        if (t > 1.5f)
+        if (t > 1.5f) {
             s.damage[0] *= 1.35f;
+        }
     } else if (kind == DemoKind::AutonomousSpread && c.autonomousSpread) {
         s.targetCount = 3;
         s.targets = {Point{.75f, .3f}, Point{.82f, .52f}, Point{.73f, .76f}};
         s.damage = {};
         s.hit = {};
-        for (int n = 0; n < s.droneCount; ++n)
+        for (int n = 0; n < s.droneCount; ++n) {
             if (shot(s.drones[n], s.targets[n % 3], .45f + n * .05f, n)) {
                 s.hit[n % 3] = .65f;
                 s.damage[n % 3] += .14f;
             }
+        }
     } else if (kind == DemoKind::DashSlash && c.dashSlash) {
         s.player = Mix({.18f, .52f}, {.53f, .52f}, Ease((t - .48f) / .30f));
         s.dashing = t > .48f && t < .80f;
@@ -648,6 +693,7 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input, float time)
     }
     return s;
 }
+
 /// @brief 報酬カードのデモの経過時間と再生周期を管理する。
 class DemoClock {
 public:
@@ -664,16 +710,19 @@ public:
             ++advanceCount_;
         }
     }
+
     /// @brief 状態と集計値を初期状態へ戻す。
     void Reset()
     {
         elapsed_ = 0.0f;
     }
+
     /// @brief 開始時刻からの経過時間を返す。
     float Elapsed() const
     {
         return elapsed_;
     }
+
     /// @brief 指定時間内に進む攻撃回数を計算する。
     std::uint64_t AdvanceCount() const
     {

@@ -5,7 +5,8 @@
 
 namespace myEngine {
 
-void RingManager::Initialize(DirectXCommon* dxCommon, const std::string& textureFilePath) {
+void RingManager::Initialize(DirectXCommon* dxCommon, const std::string& textureFilePath)
+{
     dxCommon_ = dxCommon;
     textureFilePath_ = textureFilePath;
 
@@ -26,11 +27,13 @@ void RingManager::Initialize(DirectXCommon* dxCommon, const std::string& texture
     materialData_->shininess = 1.0f;
 }
 
-void RingManager::Emit(const Vector3& position, const RingEffectConfig& config) {
-    rings_.push_back({ position, config, 0.0f });
+void RingManager::Emit(const Vector3& position, const RingEffectConfig& config)
+{
+    rings_.push_back({position, config, 0.0f});
 }
 
-void RingManager::Update(float deltaTime) {
+void RingManager::Update(float deltaTime)
+{
     for (ActiveRing& ring : rings_) {
         ring.currentTime += deltaTime;
     }
@@ -40,7 +43,8 @@ void RingManager::Update(float deltaTime) {
     });
 }
 
-void RingManager::DrawAll(const Matrix4x4& viewProjection) {
+void RingManager::DrawAll(const Matrix4x4& viewProjection)
+{
     if (!dxCommon_ || !vertexData_ || rings_.empty()) {
         return;
     }
@@ -72,7 +76,7 @@ void RingManager::DrawAll(const Matrix4x4& viewProjection) {
         const float innerRadius = (std::max)(0.0f, radius - width * 0.5f);
         const float outerRadius = radius + width * 0.5f;
         const Vector4 color = Lerp(config.startColor, config.endColor, t);
-        const Matrix4x4 transform = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, config.rotate, ring.position);
+        const Matrix4x4 transform = MakeAffineMatrix({1.0f, 1.0f, 1.0f}, config.rotate, ring.position);
 
         for (uint32_t i = 0; i <= divisions; ++i) {
             const float ratio = static_cast<float>(i) / static_cast<float>(divisions);
@@ -81,13 +85,13 @@ void RingManager::DrawAll(const Matrix4x4& viewProjection) {
             const float s = std::sin(angle);
             const uint32_t vertexIndex = currentVertexOffset + i * 2;
 
-            vertexData_[vertexIndex].pos = TransformPoint({ c * outerRadius, s * outerRadius, 0.0f }, transform);
+            vertexData_[vertexIndex].pos = TransformPoint({c * outerRadius, s * outerRadius, 0.0f}, transform);
             vertexData_[vertexIndex].color = color;
-            vertexData_[vertexIndex].uv = { ratio, 0.0f };
+            vertexData_[vertexIndex].uv = {ratio, 0.0f};
 
-            vertexData_[vertexIndex + 1].pos = TransformPoint({ c * innerRadius, s * innerRadius, 0.0f }, transform);
+            vertexData_[vertexIndex + 1].pos = TransformPoint({c * innerRadius, s * innerRadius, 0.0f}, transform);
             vertexData_[vertexIndex + 1].color = color;
-            vertexData_[vertexIndex + 1].uv = { ratio, 1.0f };
+            vertexData_[vertexIndex + 1].uv = {ratio, 1.0f};
         }
 
         commandList->DrawInstanced(vertexCount, 1, currentVertexOffset, 0);
@@ -95,16 +99,19 @@ void RingManager::DrawAll(const Matrix4x4& viewProjection) {
     }
 }
 
-float RingManager::EaseOut(float t) {
+float RingManager::EaseOut(float t)
+{
     t = std::clamp(t, 0.0f, 1.0f);
     return 1.0f - (1.0f - t) * (1.0f - t);
 }
 
-Vector4 RingManager::Lerp(const Vector4& start, const Vector4& end, float t) {
+Vector4 RingManager::Lerp(const Vector4& start, const Vector4& end, float t)
+{
     return start + (end - start) * std::clamp(t, 0.0f, 1.0f);
 }
 
-Vector3 RingManager::TransformPoint(const Vector3& point, const Matrix4x4& matrix) {
+Vector3 RingManager::TransformPoint(const Vector3& point, const Matrix4x4& matrix)
+{
     Vector3 result = TransformNormal(point, matrix);
     result.x += matrix.m[3][0];
     result.y += matrix.m[3][1];

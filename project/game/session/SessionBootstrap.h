@@ -8,6 +8,7 @@ class SessionBootstrap {
 public:
     /// @brief 借用するワールドを設定する。
     explicit SessionBootstrap(GameWorld& world) : world_(world) {}
+
     /// @brief 初期化
     void Initialize();
     bool InitializeStep();

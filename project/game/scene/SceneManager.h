@@ -20,15 +20,28 @@ public:
     bool ContainsScene(std::string_view sceneName) const;
     /// @brief 登録済みシーン名前を返す。
     std::vector<std::string> GetRegisteredSceneNames() const;
+
     /// @brief 現在シーン名前を返す。
     const std::string& GetCurrentSceneName() const
     {
         return currentSceneName_;
     }
+
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update();
-    bool UsesSimpleRendering() const { return pendingScene_ || (currentScene_ && currentScene_->UsesSimpleRendering()); }
-    void OnEngineReady() { if (currentScene_) currentScene_->OnEngineReady(); }
+
+    bool UsesSimpleRendering() const
+    {
+        return pendingScene_ || (currentScene_ && currentScene_->UsesSimpleRendering());
+    }
+
+    void OnEngineReady()
+    {
+        if (currentScene_) {
+            currentScene_->OnEngineReady();
+        }
+    }
+
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     void Draw();
     /// @brief 後処理演出3Dを描画する。

@@ -41,7 +41,6 @@ struct BulletTrailSettings {
 
 /// @brief 弾1発の移動・寿命・衝突・貫通・反射と軌跡を管理する。
 class Bullet : public Collider {
-
 public:
     enum class SpecialKind {
         None,
@@ -50,19 +49,23 @@ public:
         ParryReflection,
         ArmorReflection
     };
+
     /// @brief 射撃系の強化効果を弾へ渡すためにまとめる。
     struct ShooterAbilities {
         bool chain = false, mark = false, boomerang = false, killBurst = false;
         float chainPower = 1, markPower = 1, boomerangPower = 1, burstPower = 1;
     };
+
     /// @brief 射撃強化の有効状態と強さをそのまま保持する。いずれか有効なら遠征ルールも有効にする。
     void ConfigureShooterAbilities(bool chain, bool mark, bool boomerang, bool killBurst, float chainPower = 1, float markPower = 1,
                                    float boomerangPower = 1, float burstPower = 1);
+
     /// @brief シューター能力を返す。
     const ShooterAbilities& GetShooterAbilities() const
     {
         return shooter_;
     }
+
     /// @brief 命中元ドローンの添字と自機の借用先を設定する。
     /// @note indexの負値はドローン弾以外を表す。playerはnullptrを許容し、衝突通知で使う間は有効に保つ。
     void ConfigureDroneSource(int index, Player* player)
@@ -70,46 +73,55 @@ public:
         sourceDroneIndex_ = index;
         sourcePlayer_ = player;
     }
+
     /// @brief 命中元ドローンの添字を返す。負値はドローン弾以外を表す。
     int GetSourceDroneIndex() const
     {
         return sourceDroneIndex_;
     }
+
     /// @brief 命中元の自機の借用ポインターを返す。未設定ならnullptr。
     Player* GetSourcePlayer() const
     {
         return sourcePlayer_;
     }
+
     /// @brief 帰還中かを返す。
     bool GetIsReturning() const
     {
         return returnFlight_.returning;
     }
+
     /// @brief ブーメラン能力が有効かを返す。帰還中かとは別の判定。
     bool IsBoomerang() const
     {
         return shooter_.boomerang;
     }
+
     /// @brief 帰還先のワールド座標をコピーする。対象アクターを保持する処理ではない。
     void SetReturnTarget(const myEngine::Vector3& target)
     {
         returnTarget_ = target;
     }
+
     /// @brief 装甲で反射された弾かを記録する。この関数では速度を反転しない。
     void SetArmorReflected(bool value)
     {
         armorReflected_ = value;
     }
+
     /// @brief 装甲による反射が既に行われた弾か判定する。
     bool WasArmorReflected() const
     {
         return armorReflected_;
     }
+
     /// @brief 撃破時の破裂、または命中・壁衝突による分裂の子弾として記録されているかを返す。
     bool IsBurstChild() const
     {
         return burstChild_;
     }
+
     /// @brief 破裂・分裂の子弾を識別するフラグを設定する。子弾を生成する処理ではない。
     /// @note trueの弾はBulletManager::NotifyPlayerHitの対象外となり、その通知による連鎖・マーキング／起爆・撃破時破裂を行わない。
     /// 壁反射や衝突時の分裂回数を変更するフラグではない。分裂の制限はConfigureGrowthなどが別に設定する。
@@ -117,18 +129,21 @@ public:
     {
         burstChild_ = value;
     }
+
     /// @brief 弾の衝突半径と軌跡幅の倍率を設定する。各入力は0.5～2に制限する。
     void ConfigureVisualScale(float size, float trail)
     {
         radius_ = .5f * (std::clamp)(size, .5f, 2.0f);
         visualTrailScale_ = (std::clamp)(trail, .5f, 2.0f);
     }
+
     /// @brief 弾の特殊な命中によって発生した演出情報を表す。
     struct SpecialImpact {
         SpecialKind kind = SpecialKind::None;
         myEngine::Vector3 position{}, direction{};
         bool bulletCut = false;
     };
+
     /// @brief 特殊命中イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     std::vector<SpecialImpact> ConsumeSpecialImpacts()
     {
@@ -136,20 +151,24 @@ public:
         specialImpacts_.clear();
         return events;
     }
+
     /// @brief 特殊弾の種類・衝突半径・残り寿命を設定する。
     /// @param radius ワールド座標の半径。0.1～2.5に制限する。
     /// @param lifetime 残り秒数。0.05～kLifeTimeに制限する。
     void ConfigureSpecial(SpecialKind kind, float radius, float lifetime);
+
     /// @brief 特殊弾の種類を返す。
     SpecialKind GetSpecialKind() const
     {
         return specialKind_;
     }
+
     /// @brief 直前の移動更新で保存したワールド座標への読み取り専用参照を返す。
     const myEngine::Vector3& GetPreviousWorldPosition() const
     {
         return previousPosition_;
     }
+
     /// @brief 壁反射とアクター貫通の、管理側が未回収の発生件数を保持する。
     struct GrowthEvents {
         uint32_t wallBounces = 0;
@@ -160,8 +179,8 @@ public:
     /// @param velocity 60FPS相当の基準1フレームの移動量。
     /// @param bulletHp 弾の耐久度。最低0.1に補正する。
     /// @param bulletPenetration 他の弾の耐久度へ与える値。最低0.1に補正する。
-    void Initialize(const myEngine::Vector3& position, const myEngine::Vector3& velocity, uint32_t damage, BulletOwner owner, bool reflectable,
-                    float bulletHp = 1.0f, float bulletPenetration = 1.0f);
+    void Initialize(const myEngine::Vector3& position, const myEngine::Vector3& velocity, uint32_t damage, BulletOwner owner,
+                    bool reflectable, float bulletHp = 1.0f, float bulletPenetration = 1.0f);
 
     /// @brief 前回位置を保存し、移動・帰還・残り寿命・外観・軌跡を更新する。地形衝突と削除は管理側が行う。
     /// @param deltaTime この処理で進める経過時間（秒）。
@@ -196,7 +215,10 @@ public:
     }
 
     /// @brief 所有者・反射・特殊状態を反映した表示色を返す。戦闘状態は変更しない。
-    myEngine::Vector4 GetVisualColor() const { return GetBulletColor(); }
+    myEngine::Vector4 GetVisualColor() const
+    {
+        return GetBulletColor();
+    }
 
     /// @brief ワールド座標を設定し、描画オブジェクトへ反映する。移動前の記録は更新しない。
     void SetWorldPosition(const myEngine::Vector3& pos)
@@ -223,31 +245,37 @@ public:
     {
         return isReflectable_;
     }
+
     /// @brief 所有者を返す。
     BulletOwner GetOwner() const
     {
         return owner_;
     }
+
     /// @brief 弾の現在の耐久度を返す。
     float GetBulletHp() const
     {
         return bulletHp_;
     }
+
     /// @brief 衝突した他の弾の耐久度へ与える値を返す。
     float GetBulletPenetration() const
     {
         return bulletPenetration_;
     }
+
     /// @brief 命中時に遠征の資源取得へ算入する設定かを返す。
     bool CanClaimRunResource() const
     {
         return canClaimRunResource_;
     }
+
     /// @brief 命中時に遠征の資源取得へ算入するかを設定する。
     void SetCanClaimRunResource(bool enabled)
     {
         canClaimRunResource_ = enabled;
     }
+
     /// @brief 弾耐久度ダメージを現在の状態へ適用する。
     void ApplyBulletDurabilityDamage(float amount);
     /// @brief 壁反射・アクター貫通・分裂の残り回数と分裂威力を補正して設定する。
@@ -256,11 +284,13 @@ public:
     /// @param impactSplitCount 1回だけ予約する子弾数。0～2に制限する。
     /// @note 遠征ルールのフラグも上書きする。子弾の実生成はAppendImpactChildrenで行う。
     void ConfigureGrowth(int maxWallBounces, int actorPierceCount, int impactSplitCount, float impactSplitDamageScale = 0.55f);
+
     /// @brief 遠征用の弾の挙動規則を適用するか判定する。
     bool UsesRunProjectileRules() const
     {
         return usesRunProjectileRules_;
     }
+
     /// @brief actorがnullptrでなく、現在の命中履歴に衝突IDがなければtrueを返す。状態は変更しない。
     bool CanHitActor(const Collider* actor) const;
     /// @brief 壁衝撃の通知を受けて、このオブジェクトの状態を反映する。
@@ -268,21 +298,25 @@ public:
     /// @brief 保留した分裂を消費し、残り枠の範囲で生成した子弾をchildrenへ所有権付きで追加する。
     /// @note 衝突走査後に呼ぶ。枠不足でも予約を消費する。子弾は再分裂せず、親の残り寿命と命中履歴を引き継ぐ。
     void AppendImpactChildren(std::vector<std::unique_ptr<Bullet>>& children, size_t availableSlots);
+
     /// @brief 残りの壁反射回数を返す。-1は無制限。
     int GetRemainingWallBounces() const
     {
         return remainingWallBounces_;
     }
+
     /// @brief アクターへ命中後も飛行を続けられる残り回数を返す。
     int GetRemainingActorPierces() const
     {
         return remainingActorPierces_;
     }
+
     /// @brief 残り寿命（秒）を返す。
     float GetRemainingLifetime() const
     {
         return deathTimer_;
     }
+
     /// @brief 成長イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     GrowthEvents ConsumeGrowthEvents()
     {

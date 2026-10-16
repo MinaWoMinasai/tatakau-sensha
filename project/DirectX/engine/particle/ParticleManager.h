@@ -73,11 +73,13 @@ public:
         LegacyModel = 1,
         Hybrid = 2
     };
+
     /// @brief 画面効果へ渡すパルスの強度・時間などを表す。
     struct ScreenPulseEvent {
         Vector3 position{};
         float strength = 1.0f;
     };
+
     /// @brief ネオン三角形の発生位置・色・動作を表す。
     struct NeonTriangleEvent {
         Vector3 position{};
@@ -94,6 +96,7 @@ public:
         float endRadius = -1.0f;
         Vector4 color{1.0f, 0.4f, 1.0f, 1.0f};
     };
+
     // GPUに送るパーティクル1粒のデータ
     /// @brief GPU計算で保持する1粒子の状態を表す。HLSL側の構造と合わせる。
     struct ParticleGPU {
@@ -114,6 +117,7 @@ public:
         Vector3 angularVelocity;
         float padding2;
     };
+
     static_assert(sizeof(ParticleGPU) == 128, "ParticleGPU must match ParticleCompute.hlsli");
     static_assert(offsetof(ParticleGPU, padding1) == 108, "neonRadiance uses the existing padding1 slot");
     static_assert(offsetof(ParticleGPU, padding2) == 124, "neonShape uses the existing padding2 slot");
@@ -147,6 +151,7 @@ public:
         Matrix4x4 WorldInverseTranspose;
         Vector4 color;
     };
+
     static_assert(sizeof(ModelParticleTransformationMatrix) == 208, "ModelParticle RenderData stride must remain unchanged");
 
     /// @brief myEngine::ParticleManagerで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
@@ -156,6 +161,7 @@ public:
         float time;
         uint32_t itemCount;
     };
+
     /// @brief myEngine::ParticleManagerで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
     struct SceneConfig {
         Matrix4x4 viewProjection;
@@ -186,6 +192,7 @@ public:
         float seed;
         float padding[2];
     };
+
     static_assert(sizeof(GpuEmitterRequest) == 128, "GpuEmitterRequest must match ParticleEmit.CS.hlsl");
 
     /// @brief 共有インスタンスを返す。呼び出し側は取得したポインターをdeleteしない。
@@ -232,29 +239,37 @@ public:
     bool HasDrawableParticles() const;
     /// @brief 使用GPU更新を設定する。
     void SetUseGpuUpdate(bool useGpuUpdate);
+
     /// @brief ネオン三角形演出方式を設定する。
     void SetNeonTriangleEffectMode(NeonTriangleEffectMode mode)
     {
         neonTriangleEffectMode_ = mode;
     }
+
     /// @brief ネオン三角形演出方式を返す。
     NeonTriangleEffectMode GetNeonTriangleEffectMode() const
     {
         return neonTriangleEffectMode_;
     }
+
     /// @brief 使用GPU更新であるか判定する。
     bool IsUseGpuUpdate() const
     {
         return useGpuUpdate_;
     }
+
     // Keep particle count / silhouette changes from consuming gameplay RNG.
-    void SetPresentationSeed(uint32_t seed) { presentationRandom_.seed(seed); }
+    void SetPresentationSeed(uint32_t seed)
+    {
+        presentationRandom_.seed(seed);
+    }
 
 private:
     float Rand(float min, float max);
     Vector3 Rand(const Vector3& min, const Vector3& max);
     Vector3 RandomUnitVector();
     std::mt19937 presentationRandom_{std::random_device{}()};
+
     /// @brief 発生中の粒子に必要な状態と設定の参照を保持する。
     struct ActiveParticle {
         Particle particle;

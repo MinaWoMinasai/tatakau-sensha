@@ -75,11 +75,13 @@ public:
     void Initialize(DirectXCommon* dxCommon);
     /// @brief パラメーターを設定する。
     void SetParameters(const Parameters& parameters);
+
     /// @brief パラメーターを返す。
     const Parameters& GetParameters() const
     {
         return parameters_;
     }
+
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Update(float deltaTime);

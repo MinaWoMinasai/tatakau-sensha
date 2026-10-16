@@ -34,13 +34,22 @@ public:
 
     void Initialize(myEngine::DirectXCommon* dx);
     void SetParams(const NeonProjectileParams& params);
-    const NeonProjectileParams& GetParams() const { return params_; }
+
+    const NeonProjectileParams& GetParams() const
+    {
+        return params_;
+    }
+
     // Once per rendered frame after the existing frame Fence is complete.
     // Frozen gameplay still calls this from Draw; no animation/time is advanced.
     void BeginFrame(const std::vector<Bullet*>& bullets, const myEngine::Vector3& cameraForward);
     // Once per frame in the existing Trail capture or compatible Scene pass.
     void Draw(const myEngine::Matrix4x4& viewProjection);
-    const DrawStats& GetStats() const { return stats_; }
+
+    const DrawStats& GetStats() const
+    {
+        return stats_;
+    }
 
 private:
     void QueueHead(const Bullet& bullet, const myEngine::Vector3& cameraForward);

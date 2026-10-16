@@ -6,7 +6,6 @@ namespace myEngine {
 
 /// @brief 頂点・マテリアル・テクスチャを保持し、静的モデルを描画する。
 class Model {
-
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(ModelCommon* modelCommon, const std::string& directorypath, const std::string& filename);
@@ -47,16 +46,19 @@ public:
     {
         return modelData_;
     }
+
     /// @brief 頂点リソースを返す。
     const Microsoft::WRL::ComPtr<ID3D12Resource>& GetVertexResource() const
     {
         return vertexResource;
     }
+
     /// @brief 頂点バッファ視点を返す。
     const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() const
     {
         return vertexBufferView;
     }
+
     /// @brief 添字バッファ視点を返す。
     const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() const
     {

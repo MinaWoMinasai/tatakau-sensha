@@ -7,6 +7,7 @@ class GameplayEditor {
 public:
     /// @brief 借用するワールドを設定する。
     explicit GameplayEditor(GameWorld& world) : world_(world) {}
+
     /// @brief ゲームシーン開発表示ImGUIを描画する。
     void DrawGameplayDebugUi();
 

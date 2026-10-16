@@ -1,10 +1,12 @@
 #pragma once
+
 namespace tankrun::copy {
 /// @brief 報酬カードに表示する見出し・説明・補足文を表す。
 struct CardCopy {
     const char* title;
     const char* body;
 };
+
 constexpr CardCopy kRunCards[] = {
     {"反射コーティング", "壁で弾が反射する。\n反射コアなら弾速 +20%。\n\nドローンの弾にも適用。\n壁際の射線を使いこなす。"},
     {"重い弾頭", "弾の威力 +70%\n弾速 -28% / 発射間隔 +20%\n\n一発の重みを増やす。\nブレードの威力にも有効。"},
@@ -105,6 +107,7 @@ constexpr CardCopy kExpeditionCards[] = {
      "3段目の後も押し続けると回転斬り。\nスタミナ1で0.8秒、全方向を4回攻撃。\n移動速度低下。パリィブレード所持で弱い弾も切る。"},
     {"壁砕き", "吹き飛ばした敵が壁で衝撃波を起こす。\n追加威力は近接の1.75倍 / 半径2.8。\n周囲の敵にも40%の威力。"},
 };
+
 /// @brief 遠征の報酬に対応するカードの表示文を返す。
 inline CardCopy ExpeditionCardCopy(int index)
 {

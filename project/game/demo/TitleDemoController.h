@@ -7,6 +7,7 @@ class TitleDemoController {
 public:
     /// @brief 借用するワールドを設定する。
     explicit TitleDemoController(GameWorld& world) : world_(world) {}
+
     /// @brief タイトルデモを有効にする。
     void EnableTitleDemo();
 

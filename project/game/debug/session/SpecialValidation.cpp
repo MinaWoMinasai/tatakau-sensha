@@ -16,6 +16,7 @@ constexpr std::array<tankrun::CardId, 15> kSpecialEffects{
     tankrun::CardId::ChainLightning, tankrun::CardId::MarkDetonation,   tankrun::CardId::BoomerangShell, tankrun::CardId::KillBurst,
     tankrun::CardId::DroneCharge,    tankrun::CardId::DroneRebuildBomb, tankrun::CardId::TargetPainter,  tankrun::CardId::AutonomousSpread,
     tankrun::CardId::DashSlash,      tankrun::CardId::SpinBlade,        tankrun::CardId::WallSmash};
+
 /// @brief 検証用の対象配置を計算する。
 myEngine::Vector3 ProbePosition(int index, size_t actor, float age)
 {
@@ -47,8 +48,9 @@ void SpecialValidation::InitializeSpecialValidationFixture()
     wchar_t flag[8]{};
     world_.run.specialValidationEnabled_ =
         !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"MYENGINE_TANK_SPECIAL_AUTOTEST", flag, 8) > 0 && flag[0] == L'1';
-    if (!world_.run.specialValidationEnabled_)
+    if (!world_.run.specialValidationEnabled_) {
         return;
+    }
     world_.run.specialValidation_ = {{"completed", false},
                                      {"testMode", true},
                                      {"forcedDamage", false},
@@ -99,15 +101,17 @@ void SpecialValidation::InitializeSpecialValidationFixture()
 
 bool SpecialValidation::UpdateSpecialValidation(float dt)
 {
-    if (!world_.run.specialValidationEnabled_)
+    if (!world_.run.specialValidationEnabled_) {
         return false;
+    }
     auto write = [&] {
         std::ofstream(std::string(kSpecialDirectory) + "validation.json") << std::setw(2) << world_.run.specialValidation_ << '\n';
     };
     auto capture = [&](const std::string& name) {
         auto& names = world_.run.specialValidation_["captures"];
-        if (!world_.run.tankRunCapturePath_.empty() || std::find(names.begin(), names.end(), nlohmann::json(name)) != names.end())
+        if (!world_.run.tankRunCapturePath_.empty() || std::find(names.begin(), names.end(), nlohmann::json(name)) != names.end()) {
             return;
+        }
         names.push_back(name);
         world_.run.tankRunCapturePath_ = std::string(kSpecialDirectory) + name + ".png";
     };
@@ -136,8 +140,9 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
         world_.expeditionController->RefreshTankExpeditionUi();
         return true;
     }
-    if (!world_.run.tankExpedition_.IsCombat())
+    if (!world_.run.tankExpedition_.IsCombat()) {
         return true;
+    }
     int index = world_.run.specialValidation_.value("probe", -1);
     if (index >= static_cast<int>(kSpecialNames.size())) {
         if (world_.run.tankRunCapturePath_.empty()) {
@@ -151,8 +156,9 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
         index = index < 0 ? 0 : index + 1;
         world_.run.specialValidation_["probe"] = index;
         world_.run.specialValidation_["beginNext"] = false;
-        if (index >= static_cast<int>(kSpecialNames.size()))
+        if (index >= static_cast<int>(kSpecialNames.size())) {
             return true;
+        }
         world_.resources.enemyManager_->ClearRunActors();
         world_.resources.bulletManager_->ClearAll();
         world_.resources.enemy_->SetRunEncounterEnabled(false);
@@ -161,28 +167,35 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
         world_.presentation.playerLaserBeams_.clear();
         world_.presentation.playerMines_.clear();
         world_.run.expeditionHitSparks_.clear();
-        if (world_.resources.playerMeleeTrailManager_)
+        if (world_.resources.playerMeleeTrailManager_) {
             world_.resources.playerMeleeTrailManager_->ClearInstances();
+        }
         world_.resources.player_->ResetRunRoomState(index == 14 ? myEngine::Vector3{62, 29, 0} : myEngine::Vector3{30, 29, 0});
         world_.resources.player_->SetDebugNoDamage(true);
         world_.run.tankRun_.Reset(20260927);
         world_.run.tankRun_.ChooseLoadout(0);
         world_.run.tankRun_.ChooseCore(0);
-        if (!world_.run.tankRun_.GrantExpeditionModules({kSpecialEffects[static_cast<size_t>(index)]}))
+        if (!world_.run.tankRun_.GrantExpeditionModules({kSpecialEffects[static_cast<size_t>(index)]})) {
             fail("Could not grant actual expedition module");
-        if (index == 12)
+        }
+        if (index == 12) {
             world_.run.tankRun_.GrantExpeditionModules({tankrun::CardId::SlashWave});
-        if (index == 13)
+        }
+        if (index == 13) {
             world_.run.tankRun_.GrantExpeditionModules({tankrun::CardId::ParryBlade});
-        if (index == 14)
+        }
+        if (index == 14) {
             world_.run.tankRun_.GrantExpeditionModules({tankrun::CardId::ImpactDrive});
+        }
         world_.arenaRunController->ApplyTankRunCards();
         world_.run.expeditionBuildStyle_ = index == 0 || (index >= 4 && index <= 7)    ? tankbuild::Style::Shooter
                                            : index == 1 || (index >= 8 && index <= 11) ? tankbuild::Style::Drone
                                                                                        : tankbuild::Style::Melee;
-        if (!world_.resources.player_->SetExpeditionCombatStyle(world_.run.expeditionBuildStyle_))
+        if (!world_.resources.player_->SetExpeditionCombatStyle(world_.run.expeditionBuildStyle_)) {
             fail("Could not equip style");
-        world_.resources.player_->SetDemoInput(true, {}, index == 14 ? myEngine::Vector3{68, 29, 0} : myEngine::Vector3{50, 29, 0}, false, false);
+        }
+        world_.resources.player_->SetDemoInput(true, {}, index == 14 ? myEngine::Vector3{68, 29, 0} : myEngine::Vector3{50, 29, 0}, false,
+                                               false);
         const auto stats = world_.resources.player_->GetSpecialCombatStats();
         world_.run.specialValidation_["before"] = {{"railShots", stats.railShots},
                                                    {"linkTicks", stats.linkTicks},
@@ -214,9 +227,10 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
         world_.run.specialValidation_["thirdMinHp"] = 5000;
         world_.run.specialValidation_["spinCutInjected"] = false;
         const int count = index == 3 ? 0 : index == 0 || index == 13 || index == 14 ? 2 : index == 4 || index == 7 || index == 11 ? 3 : 1;
-        for (int n = 0; n < count; ++n)
+        for (int n = 0; n < count; ++n) {
             world_.resources.enemyManager_->SpawnLevelEnemy(ProbePosition(index, static_cast<size_t>(n), 0), "special_target",
                                                             index == 7 && n == 0 ? 6 : 5000);
+        }
         world_.combatFlow->SetEventCallout(std::string("SPECIAL VALIDATION / ") + kSpecialNames[static_cast<size_t>(index)], 1.2f);
         write();
     }
@@ -230,8 +244,9 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
     const auto actors = world_.resources.enemyManager_->GetEnemyPtrs();
     // Position fixtures isolate damage from movement/knockback; no HP or damage is injected.
     for (size_t i = 0; i < actors.size(); ++i) {
-        if (index != 14 && index != 7)
+        if (index != 14 && index != 7) {
             actors[i]->SetWorldPosition(ProbePosition(index, i, age));
+        }
         const char* field = i == 0 ? "minHp" : i == 1 ? "secondMinHp" : "thirdMinHp";
         world_.run.specialValidation_[field] = (std::min)(world_.run.specialValidation_.value(field, 5000), actors[i]->GetHp());
     }
@@ -248,31 +263,38 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
         }
         if (bullet->GetSpecialKind() == Bullet::SpecialKind::SlashWave) {
             world_.run.specialValidation_["waveSamples"] = world_.run.specialValidation_.value("waveSamples", 0) + 1;
-            if (myEngine::Length(bullet->GetWorldPosition() - world_.resources.player_->GetWorldPosition()) > 4.5f)
+            if (myEngine::Length(bullet->GetWorldPosition() - world_.resources.player_->GetWorldPosition()) > 4.5f) {
                 capture("slash_wave");
+            }
         }
         // Latch the first cut: a later, separately timed sword swing may finish it.
         if (index == 3 && bullet->GetOwner() == kEnemy && bullet->GetDamage() == 13 && bullet->GetBulletHp() < 12 &&
-            world_.run.specialValidation_.value("armoredRemaining", 12.0f) == 12)
+            world_.run.specialValidation_.value("armoredRemaining", 12.0f) == 12) {
             world_.run.specialValidation_["armoredRemaining"] = bullet->GetBulletHp();
+        }
     }
     bool shoot = false;
     if (index == 0) {
         shoot = age > .3f && age < 1.5f;
-        if (world_.resources.player_->GetRailChargeRatio() >= .999f)
+        if (world_.resources.player_->GetRailChargeRatio() >= .999f) {
             capture("rail_charge");
+        }
     }
     if (index == 1 && std::any_of(world_.resources.player_->GetDroneLaserLinks().begin(),
                                   world_.resources.player_->GetDroneLaserLinks().end(), [](const auto& link) {
                                       return link.contact;
-                                  }))
+                                  })) {
         capture("drone_link");
-    if (index >= 2)
+    }
+    if (index >= 2) {
         shoot = age > .35f;
-    if (index == 12)
+    }
+    if (index == 12) {
         shoot = age > .42f;
-    if (index == 4 || index == 6 || index == 7)
+    }
+    if (index == 4 || index == 6 || index == 7) {
         shoot = age > .35f && age < .46f;
+    }
     bool dash = false;
     if ((index == 12 || index == 14) && age > .42f && !world_.run.specialValidation_.value("dashInjected", false)) {
         dash = true;
@@ -287,19 +309,23 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
         int available = 0;
         bool escort = true;
         for (auto* drone : world_.resources.player_->GetDronePtrs()) {
-            if (drone->IsRunAvailable())
+            if (drone->IsRunAvailable()) {
                 ++available;
-            if (drone->GetRunMission().GetPhase() != tankspecial::DronePhase::Escort)
+            }
+            if (drone->GetRunMission().GetPhase() != tankspecial::DronePhase::Escort) {
                 escort = false;
+            }
         }
         world_.run.specialValidation_["minAvailable"] = (std::min)(world_.run.specialValidation_.value("minAvailable", 99), available);
-        if (escort && stats.droneChargeHits > before.value("droneChargeHits", 0u))
+        if (escort && stats.droneChargeHits > before.value("droneChargeHits", 0u)) {
             world_.run.specialValidation_["returnedEscort"] = true;
+        }
     }
     if (index == 13 && world_.resources.player_->GetSpinBladeRatio() > .35f &&
         !world_.run.specialValidation_.value("spinCutInjected", false)) {
         auto shot = std::make_unique<Bullet>();
-        shot->Initialize(world_.resources.player_->GetWorldPosition() + myEngine::Vector3{-2.5f, 0, 0}, {.01f, 0, 0}, 7, kEnemy, false, 6, 1);
+        shot->Initialize(world_.resources.player_->GetWorldPosition() + myEngine::Vector3{-2.5f, 0, 0}, {.01f, 0, 0}, 7, kEnemy, false, 6,
+                         1);
         shot->ConfigureGrowth(0, 0, 0);
         world_.resources.bulletManager_->Add(std::move(shot));
         world_.run.specialValidation_["spinCutInjected"] = true;
@@ -307,30 +333,42 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
         world_.run.specialValidation_["parryAtSpin"] = stats.parries;
     }
     const auto shooterStats = world_.resources.bulletManager_->GetShooterStats();
-    if (index == 4 && shooterStats.chainHits > 0)
+    if (index == 4 && shooterStats.chainHits > 0) {
         capture("chain_lightning");
-    if (index == 5 && shooterStats.detonations > 0)
+    }
+    if (index == 5 && shooterStats.detonations > 0) {
         capture("mark_detonation");
-    if (index == 6 && shooterStats.returns > 0)
+    }
+    if (index == 6 && shooterStats.returns > 0) {
         capture("boomerang_shell");
-    if (index == 7 && shooterStats.burstTriggers > 0)
+    }
+    if (index == 7 && shooterStats.burstTriggers > 0) {
         capture("kill_burst");
-    if (index == 8 && stats.droneChargeHits > before.value("droneChargeHits", 0u))
+    }
+    if (index == 8 && stats.droneChargeHits > before.value("droneChargeHits", 0u)) {
         capture("drone_charge");
-    if (index == 9 && stats.droneBombs > before.value("droneBombs", 0u))
+    }
+    if (index == 9 && stats.droneBombs > before.value("droneBombs", 0u)) {
         capture("drone_bomb");
-    if (index == 9 && stats.droneRebuilds > before.value("droneRebuilds", 0u))
+    }
+    if (index == 9 && stats.droneRebuilds > before.value("droneRebuilds", 0u)) {
         capture("drone_rebuild");
-    if (index == 10 && stats.targetLocks > before.value("targetLocks", 0u))
+    }
+    if (index == 10 && stats.targetLocks > before.value("targetLocks", 0u)) {
         capture("target_painter");
-    if (index == 11 && age > 1.8f)
+    }
+    if (index == 11 && age > 1.8f) {
         capture("autonomous_spread");
-    if (index == 12 && stats.dashSlashes > before.value("dashSlashes", 0u))
+    }
+    if (index == 12 && stats.dashSlashes > before.value("dashSlashes", 0u)) {
         capture("dash_slash");
-    if (index == 13 && world_.resources.player_->GetSpinBladeRatio() > .3f)
+    }
+    if (index == 13 && world_.resources.player_->GetSpinBladeRatio() > .3f) {
         capture("spin_blade");
-    if (index == 14 && stats.wallSmashes > before.value("wallSmashes", 0u))
+    }
+    if (index == 14 && stats.wallSmashes > before.value("wallSmashes", 0u)) {
         capture("wall_smash");
+    }
     if (index == 3) {
         const auto spawn = [&](float hp, uint32_t damage, const myEngine::Vector3& offset) {
             auto b = std::make_unique<Bullet>();
@@ -352,10 +390,12 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
                 world_.run.specialValidation_["perfectInjected"] = true;
             }
         }
-        if (stats.parries > before.value("parries", 0u) && stats.perfectParries == before.value("perfectParries", 0u))
+        if (stats.parries > before.value("parries", 0u) && stats.perfectParries == before.value("perfectParries", 0u)) {
             capture("parry_normal");
-        if (stats.perfectParries > before.value("perfectParries", 0u))
+        }
+        if (stats.perfectParries > before.value("perfectParries", 0u)) {
             capture("parry_perfect");
+        }
     }
     const float duration = index == 9                                                               ? 11.5f
                            : index == 8                                                             ? 5.4f
@@ -393,43 +433,59 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
                                  {"wallSmashes", stats.wallSmashes - before.value("wallSmashes", 0u)},
                                  {"thirdDamage", 5000 - world_.run.specialValidation_.value("thirdMinHp", 5000)}};
         if (index == 0 && (result["railShots"].get<int>() != 1 || result["damage"].get<int>() < 25 ||
-                           result["secondDamage"].get<int>() < 25 || result["maxCharge"].get<float>() < .99f))
+                           result["secondDamage"].get<int>() < 25 || result["maxCharge"].get<float>() < .99f)) {
             fail("Rail charge/release/pierce actual target damage incomplete");
-        if (index == 1 && (result["linkTicks"].get<int>() < 2 || result["damage"].get<int>() < 2 || result["maxLinks"].get<int>() != 3))
+        }
+        if (index == 1 && (result["linkTicks"].get<int>() < 2 || result["damage"].get<int>() < 2 || result["maxLinks"].get<int>() != 3)) {
             fail("Actual drone laser contact/damage incomplete");
-        if (index == 2 && (result["slashWaves"].get<int>() < 1 || result["damage"].get<int>() < 1 || result["waveSamples"].get<int>() < 1))
+        }
+        if (index == 2 &&
+            (result["slashWaves"].get<int>() < 1 || result["damage"].get<int>() < 1 || result["waveSamples"].get<int>() < 1)) {
             fail("Actual finisher wave failed to hit outside melee reach");
+        }
         if (index == 3 && (result["parries"].get<int>() < 3 || result["perfectParries"].get<int>() < 2 ||
-                           result["armoredRemaining"].get<float>() <= 0 || result["armoredRemaining"].get<float>() >= 12))
+                           result["armoredRemaining"].get<float>() <= 0 || result["armoredRemaining"].get<float>() >= 12)) {
             fail("Normal/perfect cut and armored bullet survival incomplete");
-        if (index == 4 && (shooterStats.chainHits != 2 || result["secondDamage"].get<int>() < 1 || result["thirdDamage"].get<int>() < 1))
+        }
+        if (index == 4 && (shooterStats.chainHits != 2 || result["secondDamage"].get<int>() < 1 || result["thirdDamage"].get<int>() < 1)) {
             fail("Chain lightning did not hit exactly two additional targets");
-        if (index == 5 && shooterStats.detonations < 1)
+        }
+        if (index == 5 && shooterStats.detonations < 1) {
             fail("Actual repeated projectile hits did not detonate mark");
-        if (index == 6 && (shooterStats.returns != 1 || result["damage"].get<int>() < 12))
+        }
+        if (index == 6 && (shooterStats.returns != 1 || result["damage"].get<int>() < 12)) {
             fail("One boomerang did not return and hit outward/inward");
-        if (index == 7 && (shooterStats.burstTriggers != 1 || shooterStats.burstChildren != 6))
+        }
+        if (index == 7 && (shooterStats.burstTriggers != 1 || shooterStats.burstChildren != 6)) {
             fail("Kill burst missing or recursively triggered");
+        }
         if (index == 8 && (result["droneCharges"].get<int>() < 1 || result["droneChargeHits"].get<int>() < 1 ||
-                           !world_.run.specialValidation_.value("returnedEscort", false)))
+                           !world_.run.specialValidation_.value("returnedEscort", false))) {
             fail("Drone charge hit/return incomplete");
+        }
         if (index == 9 && (result["droneBombs"].get<int>() < 1 || result["droneRebuilds"].get<int>() < 1 ||
-                           world_.run.specialValidation_.value("minAvailable", 99) != 2))
+                           world_.run.specialValidation_.value("minAvailable", 99) != 2)) {
             fail("Drone bomb offline/rebuild incomplete");
-        if (index == 10 && result["targetLocks"].get<int>() < 1)
+        }
+        if (index == 10 && result["targetLocks"].get<int>() < 1) {
             fail("Distinct drone attacks did not build target LOCK");
+        }
         if (index == 11 &&
-            (result["damage"].get<int>() < 1 || result["secondDamage"].get<int>() < 1 || result["thirdDamage"].get<int>() < 1))
+            (result["damage"].get<int>() < 1 || result["secondDamage"].get<int>() < 1 || result["thirdDamage"].get<int>() < 1)) {
             fail("Autonomous drones did not damage distinct targets");
+        }
         if (index == 12 &&
-            (result["dashSlashes"].get<int>() < 1 || result["dashSlashHits"].get<int>() < 1 || result["slashWaves"].get<int>() < 1))
+            (result["dashSlashes"].get<int>() < 1 || result["dashSlashHits"].get<int>() < 1 || result["slashWaves"].get<int>() < 1)) {
             fail("Dash slash hit/combo finisher connection incomplete");
+        }
         if (index == 13 && (result["spinTicks"].get<int>() < 4 || result["secondDamage"].get<int>() < 1 ||
                             stats.parries <= world_.run.specialValidation_.value("parryAtSpin", stats.parries) ||
-                            stats.perfectParries != world_.run.specialValidation_.value("perfectAtSpin", stats.perfectParries)))
+                            stats.perfectParries != world_.run.specialValidation_.value("perfectAtSpin", stats.perfectParries))) {
             fail("Spin damage or non-perfect bullet cut incomplete");
-        if (index == 14 && result["wallSmashes"].get<int>() < 1)
+        }
+        if (index == 14 && result["wallSmashes"].get<int>() < 1) {
             fail("Actual knockback/wall collision did not create WallSmash");
+        }
         world_.run.specialValidation_["probes"].push_back(result);
         world_.run.specialValidation_["beginNext"] = true;
         write();

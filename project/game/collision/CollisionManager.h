@@ -10,7 +10,6 @@ class EnemyManager;
 
 /// @brief アクターと弾を借用して衝突判定・通知を行い、走査後に予約弾の生成を反映する。
 class CollisionManager {
-
 public:
     /// @brief 対象一覧を作り直して全ペアを調べ、成立した接触を通知して走査後に予約弾を生成する。
     /// @note player・bulletManagerはnullptr不可。enemy・enemyManagerのnullptrは対象なし。

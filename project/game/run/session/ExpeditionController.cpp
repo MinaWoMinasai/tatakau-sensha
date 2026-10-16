@@ -15,6 +15,7 @@ namespace {
 using EPhase = tankexp::Phase;
 using Room = tankexp::RoomKind;
 using namespace tankrun::copy;
+
 /// @brief 現在の部屋の表示名を返す。
 const char* RoomName(Room room)
 {
@@ -35,20 +36,25 @@ const char* RoomName(Room room)
         return "最深部 / 最終決戦";
     }
 }
+
 /// @brief 生存している戦闘対象の数を返す。
 int LivingThreats(EnemyManager* manager)
 {
     int count = 0;
-    for (auto* actor : manager->GetEnemyPtrs())
-        if (actor && actor->IsCombatThreat())
+    for (auto* actor : manager->GetEnemyPtrs()) {
+        if (actor && actor->IsCombatThreat()) {
             ++count;
+        }
+    }
     return count;
 }
+
 /// @brief 遠征検証の出力先ディレクトリーを返す。
 std::string ExpeditionDirectory(int variant)
 {
     return "generated/tank_expedition/variant_" + std::to_string(variant);
 }
+
 /// @brief チュートリアル設定の保存先パスを返す。
 const char* TutorialSettingsPath()
 {
@@ -60,12 +66,12 @@ void ExpeditionController::InitializeTankExpedition()
 {
     myEngine::StartupTrace::Scope scope("Expedition.Initialize");
     auto initialization = BuildInitialization();
-    while (!initialization.Advance()) {}
+    while (!initialization.Advance()) {
+    }
 }
 
 myEngine::InitializationTask ExpeditionController::BuildInitialization()
 {
-
     world_.resources.player_->SetRunCheckpointEvolution(true);
     world_.resources.enemy_->SetRunEncounterEnabled(false);
     world_.resources.enemyManager_->ClearRunActors();
@@ -74,7 +80,9 @@ myEngine::InitializationTask ExpeditionController::BuildInitialization()
     // initialization, so building the same blocks here would be discarded work.
     if (!world_.demo.titleDemo_ && world_.resources.stage_->LoadRunMap("resources/maps/expedition_crossfire.csv", true)) {
         auto blocks = world_.resources.stage_->BuildBlocks();
-        while (!blocks.Advance()) co_await std::suspend_always{};
+        while (!blocks.Advance()) {
+            co_await std::suspend_always{};
+        }
     }
     world_.presentation.stagePostCacheValid_ = false;
     world_.resources.player_->ResetRunRoomState({26, 28, 0});
@@ -170,14 +178,16 @@ myEngine::InitializationTask ExpeditionController::BuildInitialization()
     world_.run.tankExpeditionTutorialPrevious_ = world_.resources.player_->GetWorldPosition();
     world_.run.tankExpeditionTutorialKills_ = world_.combat.defeatedEnemies_;
     world_.expeditionBalanceEditor->InitializeTankExpeditionBalance();
-    if (!world_.demo.titleDemo_ && !world_.run.tankRunAutoTest_ && !world_.run.tankExpeditionTutorialValidation_.enabled)
-    {
+    if (!world_.demo.titleDemo_ && !world_.run.tankRunAutoTest_ && !world_.run.tankExpeditionTutorialValidation_.enabled) {
         auto map = world_.expeditionMapController->BuildInitialization();
-        while (!map.Advance()) co_await std::suspend_always{};
+        while (!map.Advance()) {
+            co_await std::suspend_always{};
+        }
     }
     wchar_t variant[16]{};
-    if (GetEnvironmentVariableW(L"MYENGINE_TANK_EXPEDITION_VARIANT", variant, 16) > 0)
+    if (GetEnvironmentVariableW(L"MYENGINE_TANK_EXPEDITION_VARIANT", variant, 16) > 0) {
         world_.run.tankExpeditionAutoVariant_ = (std::clamp)(_wtoi(variant), 0, 5);
+    }
     if (world_.run.tankRunAutoTest_) {
         std::filesystem::create_directories(ExpeditionDirectory(world_.run.tankExpeditionAutoVariant_));
         std::ofstream(ExpeditionDirectory(world_.run.tankExpeditionAutoVariant_) + "/validation.json")
@@ -187,8 +197,9 @@ myEngine::InitializationTask ExpeditionController::BuildInitialization()
 
 void ExpeditionController::StartTankExpeditionRoom()
 {
-    if (!world_.run.tankExpedition_.IsCombat())
+    if (!world_.run.tankExpedition_.IsCombat()) {
         return;
+    }
     // 更新の冒頭か停止中のメニューから部屋を開始する。資源の命中コールバックは完了待ちなどを更新する。
     // ここで前の敵・弾・場の攻撃を消去し、衝突走査中に対象の実体を削除しない。
     world_.resources.enemy_->SetRunEncounterEnabled(false);
@@ -201,12 +212,14 @@ void ExpeditionController::StartTankExpeditionRoom()
     world_.presentation.playerMeleeSlashes_.clear();
     world_.presentation.playerNeonAfterimages_.clear();
     world_.presentation.neonTriangleParticles_.clear();
-    if (world_.resources.playerMeleeTrailManager_)
+    if (world_.resources.playerMeleeTrailManager_) {
         world_.resources.playerMeleeTrailManager_->ClearInstances();
+    }
     world_.combat.hpBarVisibility_.clear();
     world_.run.tankRunBursts_.clear();
-    for (auto& node : world_.run.tankRunResources_)
+    for (auto& node : world_.run.tankRunResources_) {
         node = {};
+    }
     world_.run.tankExpeditionRoomPending_ = false;
     world_.run.tankExpeditionResourceWon_ = false;
     world_.run.tankExpeditionRewardOpen_ = false;
@@ -223,8 +236,9 @@ void ExpeditionController::StartTankExpeditionRoom()
                       : room == Room::Elite || room == Room::Reflection ? "hazard_lane"
                       : room == Room::Boss                              ? "final_duel"
                                                                         : "crossfire";
-    if (!world_.resources.stage_->LoadRunMap(std::string("resources/maps/expedition_") + map + ".csv"))
+    if (!world_.resources.stage_->LoadRunMap(std::string("resources/maps/expedition_") + map + ".csv")) {
         OutputDebugStringA("[TankExpedition] map could not be loaded\n");
+    }
     world_.levelRuntime->ApplyTankExpeditionRoomGeometry();
     world_.presentation.stagePostCacheValid_ = false;
     // この部屋のダメージ地形へ渡す値を12に設定する。衝突時の位置補正とダメージ適用は別の処理。
@@ -236,33 +250,42 @@ void ExpeditionController::StartTankExpeditionRoom()
     world_.resources.camera->SetTranslate({26, 28, world_.resources.camera->GetTranslate().z});
     world_.resources.camera->Update();
     auto freePosition = [this](const myEngine::Vector3& desired) {
-        if (!world_.resources.stage_->IsCollisionWithAnyBlock(desired, 1.3f))
+        if (!world_.resources.stage_->IsCollisionWithAnyBlock(desired, 1.3f)) {
             return desired;
-        for (int r = 2; r <= 10; r += 2)
-            for (int y = -r; y <= r; y += 2)
+        }
+        for (int r = 2; r <= 10; r += 2) {
+            for (int y = -r; y <= r; y += 2) {
                 for (int x = -r; x <= r; x += 2) {
                     myEngine::Vector3 p = desired + myEngine::Vector3{static_cast<float>(x), static_cast<float>(y), 0};
-                    if (p.x > 23 && p.x < 65 && p.y > 17 && p.y < 41 && !world_.resources.stage_->IsCollisionWithAnyBlock(p, 1.3f))
+                    if (p.x > 23 && p.x < 65 && p.y > 17 && p.y < 41 && !world_.resources.stage_->IsCollisionWithAnyBlock(p, 1.3f)) {
                         return p;
+                    }
                 }
+            }
+        }
         return myEngine::Vector3{44, 30, 0};
     };
-    const std::array<myEngine::Vector3, 6> shapes = {myEngine::Vector3{34, 22, 0}, myEngine::Vector3{44, 22, 0}, myEngine::Vector3{54, 22, 0},
-                                                myEngine::Vector3{34, 36, 0}, myEngine::Vector3{44, 36, 0}, myEngine::Vector3{54, 36, 0}};
+    const std::array<myEngine::Vector3, 6> shapes = {myEngine::Vector3{34, 22, 0}, myEngine::Vector3{44, 22, 0},
+                                                     myEngine::Vector3{54, 22, 0}, myEngine::Vector3{34, 36, 0},
+                                                     myEngine::Vector3{44, 36, 0}, myEngine::Vector3{54, 36, 0}};
     const auto encounter = tankexp::GetEncounter(room, world_.run.tankExpedition_.GetRoomIndex());
     for (int i = 0; i < encounter.count; ++i) {
         const auto& unit = encounter.units[i];
-        if (world_.resources.enemyManager_->SpawnLevelEnemy(freePosition({unit.x, unit.y, 0}), unit.prefab, unit.hp))
+        if (world_.resources.enemyManager_->SpawnLevelEnemy(freePosition({unit.x, unit.y, 0}), unit.prefab, unit.hp)) {
             ++world_.run.tankExpeditionSpawned_;
+        }
     }
     const int shapeCount = room == Room::Boss ? 2 : 4;
-    for (int i = 0; i < shapeCount; ++i)
+    for (int i = 0; i < shapeCount; ++i) {
         world_.resources.enemyManager_->SpawnLevelEnemy(freePosition(shapes[i]), i % 2 ? "Triangle" : "Square", 8);
-    if (room == Room::Resource)
+    }
+    if (room == Room::Resource) {
         world_.run.tankRunResources_[0].position = freePosition({44, 30, 0});
+    }
     if (room == Room::Guard) {
         const int count = 3;
-        const std::array<myEngine::Vector3, 3> centers = {myEngine::Vector3{44, 30, 0}, myEngine::Vector3{36, 38, 0}, myEngine::Vector3{54, 20, 0}};
+        const std::array<myEngine::Vector3, 3> centers = {myEngine::Vector3{44, 30, 0}, myEngine::Vector3{36, 38, 0},
+                                                          myEngine::Vector3{54, 20, 0}};
         for (int i = 0; i < count; ++i) {
             auto& node = world_.run.tankRunResources_[i];
             node.position = freePosition(centers[i]);
@@ -280,8 +303,9 @@ void ExpeditionController::StartTankExpeditionRoom()
         auto progress = world_.resources.enemy_->GetEnemyProgressConfig();
         progress.levelingModeEnabled = room == Room::Resource;
         world_.resources.enemy_->SetEnemyProgressConfig(progress);
-        if (room == Room::Boss)
+        if (room == Room::Boss) {
             world_.combat.screenEffectDirector_.TriggerBossEntry();
+        }
     }
     world_.expeditionBalanceEditor->ApplyTankExpeditionRoomBalance();
     world_.depthEncounter->ConfigureNeonDepthEncounter();
@@ -290,9 +314,10 @@ void ExpeditionController::StartTankExpeditionRoom()
     world_.combat.bossDefeatHandled_ = false;
     world_.run.tankRunSelection_ = 0;
     world_.run.tankRunMenuAge_ = -0.15f;
-    if (!world_.resources.enemy_->IsNeonDepthEncounterEnabled())
+    if (!world_.resources.enemy_->IsNeonDepthEncounterEnabled()) {
         world_.combatFlow->SetEventCallout(
             std::string("第") + std::to_string(world_.run.tankExpedition_.GetRoomIndex() + 1) + "区画 / " + RoomName(room), 1.6f);
+    }
     RefreshTankExpeditionUi();
 }
 
@@ -304,10 +329,12 @@ void ExpeditionController::FinishTankExpeditionRoom()
         return;
     }
     if (world_.resources.player_->IsDead() || !world_.run.tankExpedition_.IsCombat() ||
-        world_.run.tankExpedition_.GetRoomKind() == Room::Boss)
+        world_.run.tankExpedition_.GetRoomKind() == Room::Boss) {
         return;
-    if (!world_.run.tankExpedition_.CompleteRoom())
+    }
+    if (!world_.run.tankExpedition_.CompleteRoom()) {
         return;
+    }
     // 進行を報酬/進路選択へ切り替えるとIsTankRunMenuOpenが戦闘を止める。実体の消去は次の部屋開始時。
     world_.run.tankExpeditionTutorial_.RecordRoomClear();
     world_.resources.player_->AwardRunMaintenancePoint(world_.run.tankExpedition_.GetRoomIndex() + 1);
@@ -328,8 +355,9 @@ void ExpeditionController::FinishTankExpeditionRoom()
 
 int ExpeditionController::GetTankExpeditionOptionCount() const
 {
-    if (world_.run.tankRunPaused_)
+    if (world_.run.tankRunPaused_) {
         return 2;
+    }
     switch (world_.run.tankExpedition_.GetPhase()) {
     case EPhase::Dormant:
         return 3;
@@ -351,26 +379,30 @@ int ExpeditionController::GetTankExpeditionOptionCount() const
 
 void ExpeditionController::SelectTankExpeditionOption(int index)
 {
-    if (index < 0 || index >= GetTankExpeditionOptionCount())
+    if (index < 0 || index >= GetTankExpeditionOptionCount()) {
         return;
+    }
     const EPhase before = world_.run.tankExpedition_.GetPhase();
     if (before == EPhase::Reward) {
         if (world_.run.tankExpeditionMaintenanceOpen_) {
-            if (world_.resources.player_->SpendRunMaintenancePoint(index))
+            if (world_.resources.player_->SpendRunMaintenancePoint(index)) {
                 world_.run.tankExpeditionAudio_.Upgrade();
-            else
+            } else {
                 world_.combatFlow->SetEventCallout("整備ポイント不足、または強化上限です", 0.8f);
+            }
             RefreshTankExpeditionUi();
             return;
         }
         if (world_.run.tankExpeditionRewardOpen_) {
             const auto card = world_.run.tankRun_.GetOffers()[index];
-            if (!world_.run.tankRun_.ChooseCard(index))
+            if (!world_.run.tankRun_.ChooseCard(index)) {
                 return;
+            }
             world_.run.tankExpeditionTutorial_.RecordUpgrade();
             world_.arenaRunController->ApplyTankRunCards();
-            if (card == tankrun::CardId::Repair)
+            if (card == tankrun::CardId::Repair) {
                 world_.resources.player_->HealRunPlayer(30);
+            }
             world_.combat.screenEffectDirector_.TriggerUpgradeConfirmed(
                 world_.gameplayQueries->WorldToScreenUv(world_.resources.player_->GetWorldPosition()));
             world_.run.tankExpeditionAudio_.Upgrade();
@@ -378,24 +410,28 @@ void ExpeditionController::SelectTankExpeditionOption(int index)
         world_.run.tankExpeditionRewardOpen_ = false;
         world_.run.tankExpedition_.ChooseRewardDone();
     } else if (before == EPhase::Route) {
-        if (!world_.run.tankExpedition_.ChooseRoute(index))
+        if (!world_.run.tankExpedition_.ChooseRoute(index)) {
             return;
+        }
         world_.run.tankExpeditionTutorial_.RecordRoute();
-        if (world_.run.tankExpedition_.GetPhase() == EPhase::Reward)
+        if (world_.run.tankExpedition_.GetPhase() == EPhase::Reward) {
             world_.run.tankExpeditionRewardOpen_ = world_.run.tankRun_.OpenExpeditionRewardDraft(
                 world_.run.tankExpedition_.GetRoomIndex(), world_.run.tankExpedition_.GetRewardRare(),
                 world_.run.tankExpedition_.GetRewardAffinity());
+        }
     } else if (before == EPhase::Event) {
         if (index == 1 && !world_.resources.player_->SpendRunHealth(20)) {
             world_.combatFlow->SetEventCallout("HPが21以上あると選べます", 1.3f);
             return;
         }
-        if (index == 0)
+        if (index == 0) {
             world_.resources.player_->HealRunPlayer(40);
+        }
         world_.run.tankExpedition_.ChooseEvent(index);
-        if (index == 1)
+        if (index == 1) {
             world_.run.tankExpeditionRewardOpen_ =
                 world_.run.tankRun_.OpenExpeditionRewardDraft(world_.run.tankExpedition_.GetRoomIndex(), true);
+        }
         world_.combat.previousPlayerHp_ = world_.resources.player_->GetHp();
     } else if (before == EPhase::Evolution) {
         const int hp = world_.resources.player_->GetHp();
@@ -404,18 +440,23 @@ void ExpeditionController::SelectTankExpeditionOption(int index)
                                           world_.resources.player_->GetRunMaintenanceRank(2)};
         const auto cards = world_.run.tankRun_.GetCardCounts();
         if (index < static_cast<int>(world_.run.tankExpeditionEvolutions_.size()) &&
-            !world_.resources.player_->ChooseRunEvolution(world_.run.tankExpeditionEvolutions_[index].id))
+            !world_.resources.player_->ChooseRunEvolution(world_.run.tankExpeditionEvolutions_[index].id)) {
             return;
+        }
         if (world_.run.tankRunAutoTest_) {
-            if (hp != world_.resources.player_->GetHp() || cards != world_.run.tankRun_.GetCardCounts())
+            if (hp != world_.resources.player_->GetHp() || cards != world_.run.tankRun_.GetCardCounts()) {
                 ++world_.run.tankExpeditionValidationErrors_;
-            for (int i = 0; i < 3; ++i)
-                if (ranks[i] != world_.resources.player_->GetRunMaintenanceRank(i))
+            }
+            for (int i = 0; i < 3; ++i) {
+                if (ranks[i] != world_.resources.player_->GetRunMaintenanceRank(i)) {
                     ++world_.run.tankExpeditionValidationErrors_;
+                }
+            }
         }
         world_.run.tankExpedition_.CompleteEvolution();
-    } else
+    } else {
         return;
+    }
     if (world_.run.tankExpedition_.GetPhase() == EPhase::Evolution) {
         world_.resources.player_->PrepareRunEvolution();
         world_.run.tankExpeditionEvolutions_ = world_.resources.player_->GetRunEvolutionChoices();
@@ -423,28 +464,33 @@ void ExpeditionController::SelectTankExpeditionOption(int index)
     world_.run.tankExpeditionMaintenanceOpen_ = false;
     world_.run.tankRunSelection_ = 0;
     world_.run.tankRunMenuAge_ = -0.12f;
-    if (world_.run.tankExpedition_.IsCombat())
+    if (world_.run.tankExpedition_.IsCombat()) {
         StartTankExpeditionRoom();
+    }
     RefreshTankExpeditionUi();
 }
 
 void ExpeditionController::UpdateTankExpedition(float dt)
 {
-    if (world_.demo.titleDemo_)
+    if (world_.demo.titleDemo_) {
         return;
+    }
     UpdateTankExpeditionAudio(dt);
     if (world_.run.expeditionMapEnabled_) {
         world_.expeditionMapController->UpdateExpeditionMap(dt);
         return;
     }
-    if (world_.combat.phase_ != Phase::kMain)
+    if (world_.combat.phase_ != Phase::kMain) {
         return;
-    if (world_.run.tankExpeditionBalanceEditorOpen_ || (myEngine::kDeveloperTools && world_.resources.input_->IsKeyTriggered(DIK_F2)))
+    }
+    if (world_.run.tankExpeditionBalanceEditorOpen_ || (myEngine::kDeveloperTools && world_.resources.input_->IsKeyTriggered(DIK_F2))) {
         return;
+    }
     world_.run.tankRunMenuAge_ += dt;
     world_.run.tankRunAutoTime_ += dt;
-    if (world_.run.tankExpeditionTutorialValidation_.enabled)
+    if (world_.run.tankExpeditionTutorialValidation_.enabled) {
         UpdateTankExpeditionTutorialValidation(dt);
+    }
     const auto triggered = [this](int key) {
         return world_.resources.input_->IsKeyTriggered(static_cast<uint8_t>(key));
     };
@@ -454,14 +500,17 @@ void ExpeditionController::UpdateTankExpedition(float dt)
         RefreshTankExpeditionUi();
     }
     if (world_.run.tankExpeditionDetailsOpen_) {
-        if (triggered(DIK_ESCAPE))
+        if (triggered(DIK_ESCAPE)) {
             world_.run.tankExpeditionDetailsOpen_ = false;
+        }
         return;
     }
-    if (!world_.run.tankRunPaused_ && world_.combat.combatFlow_.GetState() == GameFlowState::Playing)
+    if (!world_.run.tankRunPaused_ && world_.combat.combatFlow_.GetState() == GameFlowState::Playing) {
         UpdateTankExpeditionTutorial(dt);
-    if (myEngine::kDeveloperTools && triggered(DIK_F10))
+    }
+    if (myEngine::kDeveloperTools && triggered(DIK_F10)) {
         world_.arenaRunController->RequestTankRunCapture("manual");
+    }
     if (triggered(DIK_M)) {
         world_.run.tankExpeditionMusicEnabled_ = !world_.run.tankExpeditionMusicEnabled_;
         world_.run.tankExpeditionAudio_.SetMusicVolume(world_.run.tankExpeditionMusicEnabled_ ? 0.55f : 0.0f);
@@ -501,8 +550,9 @@ void ExpeditionController::UpdateTankExpedition(float dt)
                     << ",\"audioEvents\":" << world_.run.tankExpeditionAudio_.PlayCount()
                     << ",\"musicPlaying\":" << (world_.run.tankExpeditionAudio_.IsMusicPlaying() ? "true" : "false") << ",\"class\":\""
                     << world_.resources.player_->GetCurrentClassName() << "\",\"cards\":[";
-                for (size_t i = 0; i < tankrun::CardCount; ++i)
+                for (size_t i = 0; i < tankrun::CardCount; ++i) {
                     log << (i ? "," : "") << world_.run.tankRun_.GetCardCounts()[i];
+                }
                 log << "]}\n";
                 log.close();
                 PostQuitMessage(0);
@@ -515,10 +565,12 @@ void ExpeditionController::UpdateTankExpedition(float dt)
         if (menu) {
             int count = GetTankExpeditionOptionCount();
             if (world_.run.tankRunMenuAge_ > 0.16f && count > 0) {
-                if (triggered(DIK_LEFT) || triggered(DIK_A))
+                if (triggered(DIK_LEFT) || triggered(DIK_A)) {
                     world_.run.tankRunSelection_ = (world_.run.tankRunSelection_ + count - 1) % count;
-                if (triggered(DIK_RIGHT) || triggered(DIK_D))
+                }
+                if (triggered(DIK_RIGHT) || triggered(DIK_D)) {
                     world_.run.tankRunSelection_ = (world_.run.tankRunSelection_ + 1) % count;
+                }
                 const auto mouse = world_.resources.input_->GetMousePosition();
                 const auto motion = world_.resources.input_->GetMouseState();
                 int hovered = -1;
@@ -533,17 +585,20 @@ void ExpeditionController::UpdateTankExpedition(float dt)
                 }
                 for (int i = 0; i < count; ++i) {
                     const float x = 64 + static_cast<float>(i) * 388;
-                    if (mouse.x >= x && mouse.x <= x + 368 && mouse.y >= 280 && mouse.y <= 560)
+                    if (mouse.x >= x && mouse.x <= x + 368 && mouse.y >= 280 && mouse.y <= 560) {
                         hovered = i;
+                    }
                 }
-                if (hovered >= 0 && (motion.lX || motion.lY))
+                if (hovered >= 0 && (motion.lX || motion.lY)) {
                     world_.run.tankRunSelection_ = hovered;
+                }
                 bool confirm = triggered(DIK_RETURN) || triggered(DIK_SPACE);
-                for (int i = 0; i < count; ++i)
+                for (int i = 0; i < count; ++i) {
                     if (triggered(DIK_1 + i)) {
                         world_.run.tankRunSelection_ = i;
                         confirm = true;
                     }
+                }
                 if (hovered >= 0 && leftClick) {
                     world_.run.tankRunSelection_ = hovered;
                     confirm = true;
@@ -554,13 +609,15 @@ void ExpeditionController::UpdateTankExpedition(float dt)
                      (hovered >= 0 &&
                       world_.resources.input_->IsTrigger(motion.rgbButtons[1], world_.resources.input_->GetPreMouseState().rgbButtons[1])));
                 if (refund) {
-                    if (hovered >= 0 &&
-                        world_.resources.input_->IsTrigger(motion.rgbButtons[1], world_.resources.input_->GetPreMouseState().rgbButtons[1]))
+                    if (hovered >= 0 && world_.resources.input_->IsTrigger(motion.rgbButtons[1],
+                                                                           world_.resources.input_->GetPreMouseState().rgbButtons[1])) {
                         world_.run.tankRunSelection_ = hovered;
+                    }
                     world_.resources.player_->RefundRunMaintenancePoint(world_.run.tankRunSelection_);
                     RefreshTankExpeditionUi();
-                } else if (confirm)
+                } else if (confirm) {
                     world_.arenaRunController->SelectTankRunOption(world_.run.tankRunSelection_);
+                }
             }
             if (world_.run.tankRunAutoTest_ && !world_.run.tankRunPaused_) {
                 if (world_.run.tankRunMenuAge_ > 0.4f && world_.run.tankExpeditionCaptureIndex_ == world_.run.tankRunAutoMenuIndex_) {
@@ -575,8 +632,9 @@ void ExpeditionController::UpdateTankExpedition(float dt)
                     const int hp = world_.resources.player_->GetHp();
                     world_.resources.player_->RefundRunMaintenancePoint(rank);
                     SelectTankExpeditionOption(rank);
-                    if (world_.resources.player_->GetHp() != hp)
+                    if (world_.resources.player_->GetHp() != hp) {
                         ++world_.run.tankExpeditionValidationErrors_;
+                    }
                     world_.run.tankExpeditionAutoMaintainedRoom_ = world_.run.tankExpedition_.GetRoomIndex();
                     world_.arenaRunController->RequestTankRunCapture("maintenance_" +
                                                                      std::to_string(world_.run.tankExpedition_.GetRoomIndex() + 1));
@@ -586,15 +644,19 @@ void ExpeditionController::UpdateTankExpedition(float dt)
                     int option = 0;
                     const int loadouts[] = {0, 2, 0, 1, 1, 2};
                     const int evolutions[] = {0, 0, 1, 0, 1, 1};
-                    if (phase == EPhase::Dormant)
+                    if (phase == EPhase::Dormant) {
                         option = loadouts[world_.run.tankExpeditionAutoVariant_];
-                    if (phase == EPhase::Route)
+                    }
+                    if (phase == EPhase::Route) {
                         option = world_.run.tankExpedition_.GetRouteRound() == 0 ? world_.run.tankExpeditionAutoVariant_ % 2
                                                                                  : (world_.run.tankExpeditionAutoVariant_ / 2) % 2;
-                    if (phase == EPhase::Event)
+                    }
+                    if (phase == EPhase::Event) {
                         option = world_.run.tankExpeditionAutoVariant_ % 3 == 0 ? 0 : 1;
-                    if (phase == EPhase::Evolution)
+                    }
+                    if (phase == EPhase::Evolution) {
                         option = evolutions[world_.run.tankExpeditionAutoVariant_];
+                    }
                     world_.arenaRunController->SelectTankRunOption(option);
                     ++world_.run.tankRunAutoMenuIndex_;
                 }
@@ -621,15 +683,16 @@ void ExpeditionController::UpdateTankExpedition(float dt)
             if (room != Room::Boss && world_.run.tankExpeditionSpawned_ > 0 &&
                 (world_.run.tankExpedition_.GetRoomIndex() != 0 || world_.run.tankExpeditionTutorial_.CanLeaveFirstRoom()) &&
                 tankexp::IsRoomObjectiveComplete(room, threats, world_.run.tankExpeditionNodes_, world_.run.tankExpeditionRoomPending_,
-                                                 world_.resources.enemy_->IsDead()))
+                                                 world_.resources.enemy_->IsDead())) {
                 FinishTankExpeditionRoom();
-            else {
+            } else {
                 world_.run.tankExpedition_.Update(dt);
                 world_.run.tankRun_.Update(dt);
                 world_.run.tankExpeditionArrival_ += dt;
                 world_.run.tankRunComboTime_ = (std::max)(0.0f, world_.run.tankRunComboTime_ - dt);
-                for (auto& burst : world_.run.tankRunBursts_)
+                for (auto& burst : world_.run.tankRunBursts_) {
                     burst.age += dt;
+                }
                 std::erase_if(world_.run.tankRunBursts_, [](const RunBurst& b) {
                     return b.age > (b.resource ? 0.7f : 0.35f);
                 });
@@ -642,19 +705,23 @@ void ExpeditionController::UpdateTankExpedition(float dt)
                         ++world_.run.tankRunAutoStep_;
                     }
                     if (world_.run.tankExpeditionArrival_ > 3 && room != Room::Boss) {
-                        for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs())
+                        for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs()) {
                             if (actor && !actor->IsDead()) {
-                                if (!actor->IsCombatThreat() && !actor->IsRunResource())
+                                if (!actor->IsCombatThreat() && !actor->IsRunResource()) {
                                     continue;
-                                if (room == Room::Resource && world_.run.tankExpeditionAutoVariant_ == 2)
+                                }
+                                if (room == Room::Resource && world_.run.tankExpeditionAutoVariant_ == 2) {
                                     actor->TakeDamageFromEnemy(100000);
-                                else
+                                } else {
                                     actor->TakeDamageFromPlayer(100000);
+                                }
                             }
+                        }
                         world_.run.tankRunAutoStep_ = step + 2;
                     }
-                    if (room == Room::Boss && world_.run.tankExpeditionArrival_ > 5)
+                    if (room == Room::Boss && world_.run.tankExpeditionArrival_ > 5) {
                         world_.resources.enemy_->TakeDamage(100000);
+                    }
                 }
             }
         }
@@ -696,9 +763,11 @@ void ExpeditionController::RefreshTankExpeditionUi()
     int threats = LivingThreats(world_.resources.enemyManager_.get());
     if (world_.run.expeditionMapEnabled_) {
         threats = 0;
-        for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs())
-            if (actor && !actor->IsDead() && !actor->IsRunResource())
+        for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (actor && !actor->IsDead() && !actor->IsRunResource()) {
                 ++threats;
+            }
+        }
     }
     const std::string objective =
         room == Room::Resource
@@ -716,8 +785,9 @@ void ExpeditionController::RefreshTankExpeditionUi()
     world_.run.tankRunObjectiveText_->SetText(mapNode ? (inCombat ? objective : std::string(" "))
                                                       : "ROOM " + std::to_string(world_.run.tankExpedition_.GetRoomIndex() + 1) + " / 5\n" +
                                                             (inCombat ? objective : std::string(RoomName(room))));
-    if (world_.run.expeditionMapEnabled_ && !mapNode)
+    if (world_.run.expeditionMapEnabled_ && !mapNode) {
         world_.run.tankRunObjectiveText_->SetText("作戦マップ");
+    }
     world_.run.tankRunBossText_->SetAnchorPoint({0.5f, 0});
     world_.run.tankRunBossText_->SetPosition({640, 80});
     world_.run.tankRunBossText_->SetText("最深部のボス");
@@ -759,8 +829,9 @@ void ExpeditionController::RefreshTankExpeditionUi()
     const std::string combatStyle = world_.resources.player_->IsMeleeBuild()   ? "近接ブレード"
                                     : world_.resources.player_->IsDroneBuild() ? "ドローン編隊"
                                                                                : "シューター";
-    if (world_.run.expeditionMapEnabled_)
+    if (world_.run.expeditionMapEnabled_) {
         build = combatStyle;
+    }
     const auto& counts = world_.run.tankRun_.GetCardCounts();
     const auto visible = tankexp::CompactBuildCards(counts);
     int shown = 0;
@@ -768,9 +839,10 @@ void ExpeditionController::RefreshTankExpeditionUi()
     details << (world_.run.expeditionMapEnabled_ ? "取得した強化   [Tab / Escで閉じる]\n\n" : "BUILD / 改造一覧   [TAB / ESC で閉じる]\n\n")
             << "機体: " << world_.resources.player_->GetCurrentClassName() << "  /  "
             << (world_.run.expeditionMapEnabled_ ? combatStyle : features[core]) << "\n";
-    if (world_.run.tankRun_.GetDraftCount() < 2 && !world_.run.expeditionMapEnabled_)
+    if (world_.run.tankRun_.GetDraftCount() < 2 && !world_.run.expeditionMapEnabled_) {
         details << "主軸コアは改造を2つ取得すると起動\n";
-    for (size_t i = 0; i < tankrun::CardCount; ++i)
+    }
+    for (size_t i = 0; i < tankrun::CardCount; ++i) {
         if (counts[i] > 0) {
             const std::string name = std::string(ExpeditionCardCopy(static_cast<int>(i)).title) +
                                      (world_.run.expeditionMapEnabled_ ? "" : " Lv." + std::to_string(counts[i]));
@@ -780,14 +852,16 @@ void ExpeditionController::RefreshTankExpeditionUi()
                 ++shown;
             }
         }
+    }
     if (!world_.run.tankRun_.GetDraftCount()) {
         build += world_.resources.player_->IsMeleeBuild()   ? "\n基本装備 / 3段斬り"
                  : world_.resources.player_->IsDroneBuild() ? "\n基本装備 / 左クリックで指揮"
                                                             : "\n基本装備 / 単発射撃";
         details << (world_.run.expeditionMapEnabled_ ? "\nまだ強化を取得していません" : "\nまだ改造を取得していません");
     }
-    if (!world_.run.expeditionMapEnabled_)
+    if (!world_.run.expeditionMapEnabled_) {
         build += "\nTAB 詳細";
+    }
     auto buildStyle = world_.run.tankRunBuildText_->GetStyle();
     buildStyle.fontSize = 13;
     world_.run.tankRunBuildText_->SetStyle(buildStyle);
@@ -795,12 +869,14 @@ void ExpeditionController::RefreshTankExpeditionUi()
     world_.run.tankRunBuildText_->SetText(build);
     world_.run.tankExpeditionBuildPanel_->SetSize({280, static_cast<float>(shown + 3) * 21});
     world_.run.tankExpeditionBuildPanel_->Update();
-    if (!world_.run.expeditionMapEnabled_)
+    if (!world_.run.expeditionMapEnabled_) {
         details << "\n\n整備: 機動 " << world_.resources.player_->GetRunMaintenanceRank(0) << " / 装填 "
                 << world_.resources.player_->GetRunMaintenanceRank(1) << " / 装甲 " << world_.resources.player_->GetRunMaintenanceRank(2)
                 << "   残り " << world_.resources.player_->GetRunMaintenancePoints() << " pt";
-    if (world_.run.expeditionMapEnabled_)
+    }
+    if (world_.run.expeditionMapEnabled_) {
         details << "\n\n通貨: " << world_.run.expeditionMapRun_.GetCurrency() << "\n工房の強化・修理に使います";
+    }
     world_.run.tankExpeditionDetailsText_->SetText(details.str());
     std::string route = "外周 → ";
     route += world_.run.tankExpedition_.GetRouteChoice(0) < 0    ? "[資源 / 精鋭]"
@@ -823,11 +899,12 @@ void ExpeditionController::RefreshTankExpeditionUi()
             "到達区画 " + std::to_string(world_.run.tankExpedition_.GetRoomIndex() + 1) + " / 5    撃破 " +
             std::to_string(world_.combat.defeatedEnemies_) + "    最長 " + std::to_string(world_.run.tankRunBestCombo_) + " CHAIN\n改造 " +
             std::to_string(world_.run.tankRun_.GetDraftCount()) + "個 / 次は違う機体・主軸・進路も試してみよう。");
-        if (world_.run.expeditionMapEnabled_)
+        if (world_.run.expeditionMapEnabled_) {
             world_.run.tankRunDescription_->SetText(
                 "クリアした地点 " + std::to_string(world_.run.expeditionMapRun_.GetVisitedNodeIds().size()) + "  /  強化 " +
                 std::to_string(world_.run.tankRun_.GetDraftCount()) + "個  /  残り " +
                 std::to_string(world_.run.expeditionMapRun_.GetCurrency()) + "\n次は別の戦闘スタイルや強化を試してみよう。");
+        }
         card(0, "もう一度挑戦",
              world_.run.expeditionMapEnabled_ ? "新しい遠征をはじめます。" : "作戦マップから再スタート。\n\n新しい主軸や改造を試す。");
         card(1, "タイトルへ",
@@ -848,26 +925,29 @@ void ExpeditionController::RefreshTankExpeditionUi()
             "残り " + std::to_string(world_.resources.player_->GetRunMaintenancePoints()) +
             " ポイント / 区画突破ごとに +1、各項目は3段階まで。\n報酬画面で振り直し可能。装甲は被ダメージを軽減し、HPは回復しません。");
         const auto choices = world_.resources.player_->GetRunMaintenanceChoices();
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < 3; ++i) {
             card(i, choices[i].name + "  " + std::to_string(choices[i].rank) + " / 3",
                  choices[i].description + (choices[i].rank >= 3  ? "\n\n強化上限"
                                            : choices[i].canSpend ? "\n\n選択で1ポイント使用"
                                                                  : "\n\nポイントを持ち越して整備可能"));
+        }
     } else if (phase == EPhase::Reward) {
         world_.run.tankRunHeading_->SetText("区画報酬 / 改造を1つ選ぶ");
-        if (world_.run.tankExpedition_.GetEventChoice() == 1 && world_.run.tankExpedition_.GetRoomIndex() == 1)
+        if (world_.run.tankExpedition_.GetEventChoice() == 1 && world_.run.tankExpedition_.GetRoomIndex() == 1) {
             world_.run.tankRunHeading_->SetText("禁制の改造 / レア候補を獲得");
+        }
         world_.run.tankRunDescription_->SetText(
             "機体を進化させても主軸・改造・整備は引き継ぎます。\nE または下の整備ボタンで能力を調整。改造を選ぶと先へ進みます。");
-        if (world_.run.tankExpeditionRewardOpen_)
+        if (world_.run.tankExpeditionRewardOpen_) {
             for (size_t i = 0; i < world_.run.tankRun_.GetOfferCount(); ++i) {
                 const auto id = world_.run.tankRun_.GetOffers()[i];
                 const auto copy = ExpeditionCardCopy(static_cast<int>(id));
                 const std::string title = copy.title;
                 card(static_cast<int>(i), tankrun::IsRare(id) ? "レア\n" + title : title, copy.body);
             }
-        else
+        } else {
             card(0, "次へ", "改造の取得上限に達しました。\n現在の構成で進みます。");
+        }
     } else if (phase == EPhase::Route) {
         world_.run.tankRunHeading_->SetText("次の区画を選ぶ");
         world_.run.tankRunDescription_->SetText(
@@ -895,31 +975,36 @@ void ExpeditionController::RefreshTankExpeditionUi()
         world_.run.tankRunDescription_->SetText(
             "現在: " + std::string(world_.resources.player_->GetCurrentClassName()) +
             "  / 同じ機体から異なる2つの方向へ。\n主軸・改造・整備・現在HPを保ち、残り3区画の戦い方を選びます。");
-        for (size_t i = 0; i < world_.run.tankExpeditionEvolutions_.size(); ++i)
+        for (size_t i = 0; i < world_.run.tankExpeditionEvolutions_.size(); ++i) {
             card(static_cast<int>(i), world_.run.tankExpeditionEvolutions_[i].name, world_.run.tankExpeditionEvolutions_[i].description);
-        if (world_.run.tankExpeditionEvolutions_.size() < 3)
+        }
+        if (world_.run.tankExpeditionEvolutions_.size() < 3) {
             card(static_cast<int>(world_.run.tankExpeditionEvolutions_.size()), "現在の機体で進む",
                  "今回は進化せず、\n今の射撃感を維持する。\n\n主軸・改造・整備で\n現在の機体を伸ばす。");
+        }
     }
     world_.run.tankRunFooter_->SetText(
         terminal
             ? "数字キー / クリック: 決定    ← → + Enter: 選択\nもう一度挑戦するか、タイトルへ戻ります。"
             : "数字キー / クリック: 決定    ← → + Enter: 選択    Esc: 一時停止\n選択後は次の区画へ。手に入れた改造を試しながら最深部を目指そう。");
-    if (world_.run.tankRunPaused_ && world_.run.expeditionMapEnabled_)
+    if (world_.run.tankRunPaused_ && world_.run.expeditionMapEnabled_) {
         world_.run.tankRunFooter_->SetText("クリックで決定    Esc: ゲームに戻る\n続けるか、タイトルへ戻るかを選べます。");
+    }
     if (phase == EPhase::Reward && !world_.run.tankRunPaused_) {
         world_.run.tankExpeditionMaintenanceText_->SetText(world_.run.tankExpeditionMaintenanceOpen_
                                                                ? "E / クリック: 改造の選択へ戻る"
                                                                : "E / クリック: 機体整備   残り " +
                                                                      std::to_string(world_.resources.player_->GetRunMaintenancePoints()) +
                                                                      " ポイント（未使用分は持ち越し）");
-        if (world_.run.tankExpeditionMaintenanceOpen_)
+        if (world_.run.tankExpeditionMaintenanceOpen_) {
             world_.run.tankRunFooter_->SetText(
                 "数字キー / 左クリック: 強化    Shift + 数字 / 右クリック: 1段階戻す\n整備が済んだら E で改造の選択へ戻ります。選択中は戦闘が停止します。");
+        }
     }
     RefreshTankExpeditionTutorialUi();
-    if (world_.run.expeditionMapEnabled_)
+    if (world_.run.expeditionMapEnabled_) {
         world_.expeditionMapController->RefreshExpeditionMapUi();
+    }
 }
 
 void ExpeditionController::DrawTankExpeditionUi()
@@ -929,22 +1014,25 @@ void ExpeditionController::DrawTankExpeditionUi()
         world_.expeditionMapController->DrawExpeditionMapUi();
         return;
     }
-    if (world_.resources.player_->IsChangeMode())
+    if (world_.resources.player_->IsChangeMode()) {
         return;
+    }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     const auto phase = world_.run.tankExpedition_.GetPhase();
     const bool result = world_.combat.combatFlow_.GetState() == GameFlowState::StageClear ||
                         (world_.combat.combatFlow_.GetState() == GameFlowState::GameOver && world_.combat.combatFlow_.GetTimer() <= 0);
     const bool decision = world_.run.tankRunPaused_ || phase == EPhase::Reward || phase == EPhase::Route || phase == EPhase::Event ||
                           phase == EPhase::Evolution;
-    if (decision || result || world_.run.tankExpeditionDetailsOpen_)
+    if (decision || result || world_.run.tankExpeditionDetailsOpen_) {
         world_.run.tankRunDimmer_->Draw();
+    }
     world_.run.tankRunHudPanel_->Draw();
     world_.run.tankRunHud_->Draw();
     world_.run.tankExpeditionHpTrack_->Draw();
     world_.run.tankExpeditionHpFill_->Draw();
-    if (world_.run.expeditionMapEnabled_)
+    if (world_.run.expeditionMapEnabled_) {
         world_.expeditionExperience->DrawExpeditionVitals();
+    }
     world_.run.tankRunObjectiveText_->Draw();
     if (world_.run.tankExpeditionDetailsOpen_) {
         world_.run.tankExpeditionDetailsText_->Draw();
@@ -974,9 +1062,9 @@ void ExpeditionController::DrawTankExpeditionUi()
         const bool selected = i == (result ? world_.combat.resultSelection_ : world_.run.tankRunSelection_);
         const bool rare = phase == EPhase::Reward && !world_.run.tankRunPaused_ && !world_.run.tankExpeditionMaintenanceOpen_ &&
                           world_.run.tankExpeditionRewardOpen_ && tankrun::IsRare(world_.run.tankRun_.GetOffers()[i]);
-        world_.run.tankRunCards_[i]->SetColor(selected
-                                                  ? (rare ? myEngine::Vector4{0.21f, 0.12f, 0.045f, 1} : myEngine::Vector4{0.045f, 0.16f, 0.19f, 1})
-                                                  : myEngine::Vector4{0.028f, 0.045f, 0.075f, 1});
+        world_.run.tankRunCards_[i]->SetColor(
+            selected ? (rare ? myEngine::Vector4{0.21f, 0.12f, 0.045f, 1} : myEngine::Vector4{0.045f, 0.16f, 0.19f, 1})
+                     : myEngine::Vector4{0.028f, 0.045f, 0.075f, 1});
         world_.run.tankRunCards_[i]->Update();
         world_.run.tankRunCards_[i]->Draw();
         world_.run.tankRunCardTitles_[i]->Draw();
@@ -986,34 +1074,42 @@ void ExpeditionController::DrawTankExpeditionUi()
         world_.run.tankExpeditionMaintenanceButton_->Draw();
         world_.run.tankExpeditionMaintenanceText_->Draw();
     }
-    if (!world_.run.tankExpeditionTutorial_.IsVisible() || world_.run.tankRunPaused_ || result)
+    if (!world_.run.tankExpeditionTutorial_.IsVisible() || world_.run.tankRunPaused_ || result) {
         world_.run.tankRunFooter_->Draw();
-    if (!world_.run.tankRunPaused_ && !result)
+    }
+    if (!world_.run.tankRunPaused_ && !result) {
         DrawTankExpeditionTutorial();
+    }
 }
 
 void ExpeditionController::UpdateTankExpeditionTutorial(float dt)
 {
     if (world_.demo.titleDemo_ || world_.run.tankExpedition_.GetPhase() == EPhase::Dormant ||
-        !world_.run.tankExpeditionTutorial_.IsVisible())
+        !world_.run.tankExpeditionTutorial_.IsVisible()) {
         return;
+    }
     const auto position = world_.resources.player_->GetWorldPosition();
     if (world_.run.tankExpedition_.IsCombat()) {
-        if (world_.resources.player_->HasMovementInput() && !world_.resources.player_->IsDashing())
+        if (world_.resources.player_->HasMovementInput() && !world_.resources.player_->IsDashing()) {
             world_.run.tankExpeditionTutorial_.AddMovement(myEngine::Length(position - world_.run.tankExpeditionTutorialPrevious_));
-        if (world_.combat.defeatedEnemies_ > world_.run.tankExpeditionTutorialKills_)
+        }
+        if (world_.combat.defeatedEnemies_ > world_.run.tankExpeditionTutorialKills_) {
             world_.run.tankExpeditionTutorial_.RecordKill();
+        }
         // Observe the actual dash state without consuming the effect/audio event.
-        if (world_.resources.player_->IsDashing())
+        if (world_.resources.player_->IsDashing()) {
             world_.run.tankExpeditionTutorial_.RecordDash();
+        }
     }
     world_.run.tankExpeditionTutorialPrevious_ = position;
     world_.run.tankExpeditionTutorialKills_ = world_.combat.defeatedEnemies_;
-    if (myEngine::kDeveloperTools && world_.resources.input_->IsKeyTriggered(DIK_F3))
+    if (myEngine::kDeveloperTools && world_.resources.input_->IsKeyTriggered(DIK_F3)) {
         world_.run.tankExpeditionTutorial_.Skip();
+    }
     world_.run.tankExpeditionTutorial_.Update(dt);
-    if (world_.run.tankExpeditionTutorial_.IsComplete())
+    if (world_.run.tankExpeditionTutorial_.IsComplete()) {
         SaveExpeditionTutorialCompletion();
+    }
     RefreshTankExpeditionTutorialUi();
 }
 
@@ -1024,8 +1120,9 @@ void ExpeditionController::SaveExpeditionTutorialCompletion()
                             world_.validation.experienceValidationVariant_ != 0 || world_.run.specialValidationEnabled_ ||
                             world_.run.tankExpeditionTutorialValidation_.enabled;
     if (world_.run.tankExpeditionTutorialSaved_ ||
-        !tankexp::ShouldSaveTutorialCompletion(world_.demo.titleDemo_, validation, isolatedSubmission))
+        !tankexp::ShouldSaveTutorialCompletion(world_.demo.titleDemo_, validation, isolatedSubmission)) {
         return;
+    }
     // Both tutorial flows share the existing settings file. Preserve unknown
     // settings and publish the complete document with one atomic replacement.
     try {
@@ -1034,8 +1131,9 @@ void ExpeditionController::SaveExpeditionTutorialCompletion()
             std::ifstream in(TutorialSettingsPath());
             if (in) {
                 settings = nlohmann::json::parse(in, nullptr, false);
-                if (!settings.is_object())
+                if (!settings.is_object()) {
                     return; // Preserve a damaged file for recovery.
+                }
             }
         }
         settings["tutorialCompleted"] = true;
@@ -1043,11 +1141,13 @@ void ExpeditionController::SaveExpeditionTutorialCompletion()
         std::ofstream out(temporary);
         out << std::setw(2) << settings << '\n';
         out.close();
-        if (out)
+        if (out) {
             world_.run.tankExpeditionTutorialSaved_ =
                 MoveFileExA(temporary.c_str(), TutorialSettingsPath(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
-        if (world_.run.tankExpeditionTutorialSaved_)
+        }
+        if (world_.run.tankExpeditionTutorialSaved_) {
             world_.run.expeditionTutorialPreviouslyCompleted_ = true;
+        }
     }
     catch (...) {
         OutputDebugStringA("[TankExpedition] Tutorial settings could not be saved\n");
@@ -1091,22 +1191,24 @@ void ExpeditionController::UpdateTankExpeditionTutorialValidation(float dt)
         return;
     }
     if (!started) {
-        world_.resources.player_->SetDemoInput(true, {0, 0}, world_.resources.player_->GetWorldPosition() + myEngine::Vector3{1, 0, 0}, false,
-                                               false);
-        if (world_.run.tankRunMenuAge_ > 0.85f)
+        world_.resources.player_->SetDemoInput(true, {0, 0}, world_.resources.player_->GetWorldPosition() + myEngine::Vector3{1, 0, 0},
+                                               false, false);
+        if (world_.run.tankRunMenuAge_ > 0.85f) {
             world_.arenaRunController->SelectTankRunOption(0);
+        }
         return;
     }
     world_.resources.player_->SetDemoInput(true, {0, 0}, world_.resources.player_->GetWorldPosition() + myEngine::Vector3{1, 0, 0}, false,
                                            false);
-    if (validation.stepAge < 0.6f || world_.run.tankExpeditionTutorial_.IsSuccess())
+    if (validation.stepAge < 0.6f || world_.run.tankExpeditionTutorial_.IsSuccess()) {
         return;
+    }
     using Step = tankexp::TutorialStep;
     const auto lesson = world_.run.tankExpeditionTutorial_.GetStep();
     const auto position = world_.resources.player_->GetWorldPosition();
     myEngine::Vector3 aim = position + myEngine::Vector3{1, 0, 0};
     float distance = 10000;
-    for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs())
+    for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs()) {
         if (actor && actor->IsCombatThreat()) {
             const float candidate = myEngine::Length(actor->GetWorldPosition() - position);
             if (candidate < distance) {
@@ -1114,27 +1216,33 @@ void ExpeditionController::UpdateTankExpeditionTutorialValidation(float dt)
                 aim = actor->GetWorldPosition();
             }
         }
+    }
     myEngine::Vector2 move{};
-    if (lesson == Step::Move)
+    if (lesson == Step::Move) {
         move = {1, 0};
+    }
     const bool shoot = lesson == Step::Shoot || lesson == Step::ClearRoom;
     if (shoot && distance > 13 && distance < 1000) {
         const auto direction = myEngine::Normalize(aim - position);
         move = {direction.x, direction.y};
     }
-    if (lesson == Step::Dash)
+    if (lesson == Step::Dash) {
         move = {0, 1};
+    }
     world_.resources.player_->SetDemoInput(true, move, aim, shoot, lesson == Step::Dash);
-    if (lesson == Step::Route && world_.run.tankExpedition_.GetPhase() == EPhase::Route && world_.run.tankRunMenuAge_ > 1.0f)
+    if (lesson == Step::Route && world_.run.tankExpedition_.GetPhase() == EPhase::Route && world_.run.tankRunMenuAge_ > 1.0f) {
         SelectTankExpeditionOption(1);
-    if (lesson == Step::Upgrade && world_.run.tankExpedition_.GetPhase() == EPhase::Reward && world_.run.tankRunMenuAge_ > 1.0f)
+    }
+    if (lesson == Step::Upgrade && world_.run.tankExpedition_.GetPhase() == EPhase::Reward && world_.run.tankRunMenuAge_ > 1.0f) {
         SelectTankExpeditionOption(0);
+    }
 }
 
 void ExpeditionController::RefreshTankExpeditionTutorialUi()
 {
-    if (world_.demo.titleDemo_ || !world_.run.tankExpeditionTutorial_.IsVisible())
+    if (world_.demo.titleDemo_ || !world_.run.tankExpeditionTutorial_.IsVisible()) {
         return;
+    }
     using Step = tankexp::TutorialStep;
     const auto step = world_.run.tankExpeditionTutorial_.GetStep();
     const char* actions[] = {
@@ -1151,8 +1259,9 @@ void ExpeditionController::RefreshTankExpeditionTutorialUi()
                                                     : step == Step::Move                           ? "移動した距離で達成"
                                                     : step == Step::Route || step == Step::Upgrade ? "数字キー / クリック / ← → + Enter"
                                                                                                    : " ");
-    world_.combat.tutorialPanel_->SetColor(world_.run.tankExpeditionTutorial_.IsSuccess() ? myEngine::Vector4{0.01f, 0.14f, 0.10f, 0.9f}
-                                                                                          : myEngine::Vector4{0.008f, 0.025f, 0.04f, 0.84f});
+    world_.combat.tutorialPanel_->SetColor(world_.run.tankExpeditionTutorial_.IsSuccess()
+                                               ? myEngine::Vector4{0.01f, 0.14f, 0.10f, 0.9f}
+                                               : myEngine::Vector4{0.008f, 0.025f, 0.04f, 0.84f});
     const float y = world_.run.tankExpedition_.IsCombat() ? 590.0f : 606.0f;
     world_.combat.tutorialPanel_->SetPosition({410, y});
     world_.combat.tutorialPanel_->SetSize({460, 70});
@@ -1167,10 +1276,12 @@ void ExpeditionController::RefreshTankExpeditionTutorialUi()
 
 void ExpeditionController::DrawTankExpeditionTutorial()
 {
-    if (world_.run.expeditionMapEnabled_)
+    if (world_.run.expeditionMapEnabled_) {
         return;
-    if (world_.demo.titleDemo_ || !world_.run.tankExpeditionTutorial_.IsVisible())
+    }
+    if (world_.demo.titleDemo_ || !world_.run.tankExpeditionTutorial_.IsVisible()) {
         return;
+    }
     world_.combat.tutorialPanel_->Draw();
     world_.combat.tutorialTitleText_->Draw();
     world_.combat.tutorialInputText_->Draw();
@@ -1184,8 +1295,9 @@ void ExpeditionController::UpdateTankExpeditionAudio(float dt)
     world_.run.tankExpeditionAudio_.SetBoss(world_.run.tankExpedition_.GetRoomKind() == Room::Boss);
     world_.run.tankExpeditionAudio_.SetDucked(world_.arenaRunController->IsTankRunMenuOpen() || world_.combat.phase_ == Phase::kFadeOut);
     world_.run.tankExpeditionAudio_.Update(dt);
-    if (!combat || world_.arenaRunController->IsTankRunMenuOpen())
+    if (!combat || world_.arenaRunController->IsTankRunMenuOpen()) {
         return;
+    }
     if (world_.resources.enemy_->IsExpeditionRivalEnabled() && world_.resources.enemy_->GetRivalCombatStatus().phase2 &&
         !world_.run.expeditionBossPhase2Seen_) {
         world_.run.expeditionBossPhase2Seen_ = true;
@@ -1196,15 +1308,17 @@ void ExpeditionController::UpdateTankExpeditionAudio(float dt)
     std::unordered_map<const ExpEnemy*, int> hp;
     std::unordered_map<const ExpEnemy*, bool> warning;
     std::unordered_map<const ExpEnemy*, std::pair<uint64_t, uint64_t>> guardCounts;
-    for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs())
+    for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs()) {
         if (actor && !actor->IsDead()) {
             const auto counts = std::make_pair(actor->GetShieldBlockCount(), actor->GetBladeSwingCount());
             const auto oldGuard = world_.run.guardAudioCounts_.find(actor);
             const auto before = oldGuard == world_.run.guardAudioCounts_.end() ? std::pair<uint64_t, uint64_t>{} : oldGuard->second;
-            if (counts.first > before.first)
+            if (counts.first > before.first) {
                 world_.run.tankExpeditionAudio_.ArmorBreak();
-            if (counts.second > before.second)
+            }
+            if (counts.second > before.second) {
                 world_.run.tankExpeditionAudio_.Slash();
+            }
             guardCounts[actor] = counts;
             const auto previous = world_.run.tankExpeditionEnemyHp_.find(actor);
             if (previous != world_.run.tankExpeditionEnemyHp_.end() && actor->GetHp() < previous->second) {
@@ -1220,10 +1334,12 @@ void ExpeditionController::UpdateTankExpeditionAudio(float dt)
             hp[actor] = actor->GetHp();
             const bool locked = actor->IsExpeditionCombatRole() && actor->IsAttackAimLocked();
             const auto old = world_.run.tankExpeditionEnemyWarning_.find(actor);
-            if (locked && (old == world_.run.tankExpeditionEnemyWarning_.end() || !old->second))
+            if (locked && (old == world_.run.tankExpeditionEnemyWarning_.end() || !old->second)) {
                 world_.run.tankExpeditionAudio_.EnemyWarning();
+            }
             warning[actor] = locked;
         }
+    }
     world_.run.tankExpeditionEnemyHp_ = std::move(hp);
     world_.run.tankExpeditionEnemyWarning_ = std::move(warning);
     world_.run.guardAudioCounts_ = std::move(guardCounts);

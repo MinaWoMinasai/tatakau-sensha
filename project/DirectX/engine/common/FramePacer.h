@@ -27,11 +27,13 @@ public:
 
     /// @brief インスタンスの初期値と利用先を設定する。
     FramePacer() = default;
+
     /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~FramePacer()
     {
         CloseTimer();
     }
+
     FramePacer(const FramePacer&) = delete;
     FramePacer& operator=(const FramePacer&) = delete;
 
@@ -70,11 +72,13 @@ public:
     {
         return enabled_;
     }
+
     /// @brief 高精度の待機タイマーを利用できているか判定する。
     bool IsHighResolutionTimer() const
     {
         return highResolution_;
     }
+
     /// @brief フレーム間隔・待機時間・待機超過の計測値をミリ秒で返す。
     const Stats& GetStats() const
     {

@@ -62,11 +62,13 @@ public:
     {
         return environmentSrvIndex_;
     }
+
     /// @brief Loadedからの元データであるか判定する。
     bool IsLoadedFromSource() const
     {
         return loadedFromSource_;
     }
+
     /// @brief 元データ文字を返す。
     const std::string& GetSourceLabel() const
     {

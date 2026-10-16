@@ -265,8 +265,9 @@ void PlayerHud::InitializeUpgradeHud()
 
 void PlayerHud::PrepareUpgradeHudTextTextures()
 {
-    if (!ui_.arenaUiEnabled_)
+    if (!ui_.arenaUiEnabled_) {
         return;
+    }
     myEngine::TextRenderer* textRenderer = myEngine::TextRenderer::GetInstance();
     if (!textRenderer || (ui_.upgradeHudTextPrepared_ && ui_.upgradeHudTextFontRevision_ == textRenderer->GetFontRevision() &&
                           ui_.upgradeHudTextPreparedForSegmentedBars_ == ui_.upgradeHudUseSegmentedUpgradeBars_)) {
@@ -315,25 +316,30 @@ void PlayerHud::PrepareUpgradeHudTextTextures()
         ui_.upgradeHudPointLabel_->SetStyle(smallStyle);
         ui_.upgradeHudPointLabel_->PrepareForDraw();
     }
-    if (ui_.upgradeHudLevelLabel_)
+    if (ui_.upgradeHudLevelLabel_) {
         ui_.upgradeHudLevelLabel_->PrepareForDraw();
-    if (ui_.upgradeHudLevelClassLabel_)
+    }
+    if (ui_.upgradeHudLevelClassLabel_) {
         ui_.upgradeHudLevelClassLabel_->PrepareForDraw();
+    }
     for (auto& label : ui_.upgradeHudExpGlyphLabels_) {
-        if (label)
+        if (label) {
             label->PrepareForDraw();
+        }
     }
     for (auto& label : ui_.upgradeHudLevelGlyphLabels_) {
-        if (label)
+        if (label) {
             label->PrepareForDraw();
+        }
     }
     for (int i = 0; i < 7; ++i) {
         if (ui_.upgradeHudNameLabels_[i]) {
             ui_.upgradeHudNameLabels_[i]->SetStyle(listControlStyle);
             ui_.upgradeHudNameLabels_[i]->PrepareForDraw();
         }
-        if (ui_.upgradeHudLevelLabels_[i])
+        if (ui_.upgradeHudLevelLabels_[i]) {
             ui_.upgradeHudLevelLabels_[i]->PrepareForDraw();
+        }
         if (ui_.upgradeHudMinusLabels_[i]) {
             ui_.upgradeHudMinusLabels_[i]->SetStyle(listControlStyle);
             ui_.upgradeHudMinusLabels_[i]->PrepareForDraw();
@@ -395,16 +401,18 @@ void PlayerHud::UpdateUpgradeHudLevelLabels(int level, const std::string& classN
     const size_t glyphCount = (std::min)(levelText.size(), ui_.upgradeHudLevelGlyphLabels_.size());
     for (size_t i = 0; i < glyphCount; ++i) {
         myEngine::TextLabel* label = ui_.upgradeHudLevelGlyphLabels_[i].get();
-        if (!label)
+        if (!label) {
             continue;
+        }
         label->SetStyle(style);
         label->SetText(std::string(1, levelText[i]));
         label->PrepareForDraw();
         label->SetAlpha(1.0f);
     }
     for (size_t i = glyphCount; i < ui_.upgradeHudLevelGlyphCount_; ++i) {
-        if (ui_.upgradeHudLevelGlyphLabels_[i])
+        if (ui_.upgradeHudLevelGlyphLabels_[i]) {
             ui_.upgradeHudLevelGlyphLabels_[i]->SetAlpha(0.0f);
+        }
     }
     ui_.upgradeHudLevelGlyphCount_ = glyphCount;
     SetLabel(ui_.upgradeHudLevelLabel_, myEngine::SpriteCommon::GetInstance(), "Lv ", ui_.upgradeHudLevelTextPos_, style);
@@ -422,8 +430,9 @@ void PlayerHud::PositionUpgradeHudLevelLabels()
     }
     for (size_t i = 0; i < ui_.upgradeHudLevelGlyphCount_; ++i) {
         myEngine::TextLabel* label = ui_.upgradeHudLevelGlyphLabels_[i].get();
-        if (!label)
+        if (!label) {
             continue;
+        }
         label->SetPosition({x, ui_.upgradeHudLevelTextPos_.y});
         x += GetUpgradeHudTextAdvance(label, style);
     }
@@ -477,8 +486,8 @@ void PlayerHud::InitializeUpgradeHudBatch()
 
     ui_.upgradeHudBatchTransformResource_ = dxCommon->CreateBufferResource(sizeof(myEngine::Matrix4x4));
     ui_.upgradeHudBatchTransformResource_->Map(0, nullptr, reinterpret_cast<void**>(&ui_.upgradeHudBatchTransformData_));
-    *ui_.upgradeHudBatchTransformData_ =
-        myEngine::MakeOrthographicMatrix(0.0f, 0.0f, float(myEngine::WinApp::kClientWidth), float(myEngine::WinApp::kClientHeight), 0.0f, 100.0f);
+    *ui_.upgradeHudBatchTransformData_ = myEngine::MakeOrthographicMatrix(0.0f, 0.0f, float(myEngine::WinApp::kClientWidth),
+                                                                          float(myEngine::WinApp::kClientHeight), 0.0f, 100.0f);
 
     ui_.upgradeHudBatchMaterialResource_ = dxCommon->CreateBufferResource(sizeof(myEngine::Material));
     ui_.upgradeHudBatchMaterialResource_->Map(0, nullptr, reinterpret_cast<void**>(&ui_.upgradeHudBatchMaterialData_));
@@ -540,14 +549,18 @@ void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
     const float easedListAlpha = listAlpha * listAlpha * (3.0f - 2.0f * listAlpha);
     const float listOffsetX = -(1.0f - easedListAlpha) * ui_.upgradeHudListSlideDistance_;
     if (!showUpgradeList) {
-        if (ui_.upgradeHudExpBackSprite_)
+        if (ui_.upgradeHudExpBackSprite_) {
             ui_.upgradeHudExpBackSprite_->Update();
-        if (ui_.upgradeHudExpFillSprite_)
+        }
+        if (ui_.upgradeHudExpFillSprite_) {
             ui_.upgradeHudExpFillSprite_->Update();
-        if (ui_.upgradeHudLevelBackSprite_)
+        }
+        if (ui_.upgradeHudLevelBackSprite_) {
             ui_.upgradeHudLevelBackSprite_->Update();
-        if (ui_.upgradeHudLevelFillSprite_)
+        }
+        if (ui_.upgradeHudLevelFillSprite_) {
             ui_.upgradeHudLevelFillSprite_->Update();
+        }
         return;
     }
     if (ui_.upgradeHudUseSegmentedUpgradeBars_) {
@@ -641,16 +654,21 @@ void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
         }
     }
 
-    if (ui_.upgradeHudBackdropSprite_)
+    if (ui_.upgradeHudBackdropSprite_) {
         ui_.upgradeHudBackdropSprite_->Update();
-    if (ui_.upgradeHudExpBackSprite_)
+    }
+    if (ui_.upgradeHudExpBackSprite_) {
         ui_.upgradeHudExpBackSprite_->Update();
-    if (ui_.upgradeHudExpFillSprite_)
+    }
+    if (ui_.upgradeHudExpFillSprite_) {
         ui_.upgradeHudExpFillSprite_->Update();
-    if (ui_.upgradeHudLevelBackSprite_)
+    }
+    if (ui_.upgradeHudLevelBackSprite_) {
         ui_.upgradeHudLevelBackSprite_->Update();
-    if (ui_.upgradeHudLevelFillSprite_)
+    }
+    if (ui_.upgradeHudLevelFillSprite_) {
         ui_.upgradeHudLevelFillSprite_->Update();
+    }
 }
 
 void PlayerHud::DrawUpgradeHud()
@@ -753,7 +771,7 @@ void PlayerHud::DrawUpgradeHud()
                     compactGauge ? (std::max)(0.0f, (ui_.upgradeHudSegmentBarSize_.y - ui_.upgradeHudPlusSize_.y) * 0.5f) : 0.0f;
                 const myEngine::Vector2 namePosition =
                     compactGauge ? myEngine::Vector2{ui_.upgradeHudRowStart_.x + ui_.upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX,
-                                                y + ui_.upgradeHudSegmentBarSize_.y * 0.5f}
+                                                     y + ui_.upgradeHudSegmentBarSize_.y * 0.5f}
                                  : myEngine::Vector2{ui_.upgradeHudNameX_ + listOffsetX, y + ui_.upgradeHudNameTextOffsetY_};
                 SetLabel(ui_.upgradeHudNameLabels_[i], spriteCommon, std::to_string(i + 1) + " " + names[i], namePosition,
                          compactGauge ? upgradeOverlayTextStyle : smallStyle);
@@ -762,13 +780,13 @@ void PlayerHud::DrawUpgradeHud()
                          {ui_.upgradeHudLevelX_ + listOffsetX, y + ui_.upgradeHudLevelTextOffsetY_}, smallStyle);
                 SetLabel(ui_.upgradeHudMinusLabels_[i], spriteCommon, "-",
                          compactGauge ? myEngine::Vector2{ui_.upgradeHudMinusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
-                                                     y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
+                                                          y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
                                       : myEngine::Vector2{ui_.upgradeHudMinusLabelX_ + listOffsetX, y + ui_.upgradeHudMinusTextOffsetY_},
                          compactGauge ? upgradeOverlayTextStyle : smallStyle);
                 ui_.upgradeHudMinusLabels_[i]->SetAnchorPoint(compactGauge ? myEngine::Vector2{0.5f, 0.5f} : myEngine::Vector2{0.0f, 0.0f});
                 SetLabel(ui_.upgradeHudPlusLabels_[i], spriteCommon, player_.upgradeLevels_[i] >= player_.maxEnhancePoint ? "済" : "+",
                          compactGauge ? myEngine::Vector2{ui_.upgradeHudPlusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
-                                                     y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
+                                                          y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
                                       : myEngine::Vector2{ui_.upgradeHudPlusLabelX_ + listOffsetX, y + ui_.upgradeHudPlusTextOffsetY_},
                          compactGauge ? upgradeOverlayTextStyle : smallStyle);
                 ui_.upgradeHudPlusLabels_[i]->SetAnchorPoint(compactGauge ? myEngine::Vector2{0.5f, 0.5f} : myEngine::Vector2{0.0f, 0.0f});
@@ -791,10 +809,12 @@ void PlayerHud::DrawUpgradeHud()
             ui_.upgradeHudProfile_.listTextGeneratedPngCount = static_cast<int>(textLabelStats.generatedPngCount);
 #endif
         } else {
-            if (ui_.upgradeHudPointLabel_)
+            if (ui_.upgradeHudPointLabel_) {
                 ui_.upgradeHudPointLabel_->SetPosition({ui_.upgradeHudPointPos_.x + listOffsetX, ui_.upgradeHudPointPos_.y});
-            if (ui_.upgradeHudTitleLabel_)
+            }
+            if (ui_.upgradeHudTitleLabel_) {
                 ui_.upgradeHudTitleLabel_->SetPosition({ui_.upgradeHudTitlePos_.x + listOffsetX, ui_.upgradeHudTitlePos_.y});
+            }
             for (int i = 0; i < 7; ++i) {
                 const float y = ui_.upgradeHudRowStart_.y + static_cast<float>(i) * ui_.upgradeHudRowGap_;
                 const float controlOffsetY = ui_.upgradeHudUseSegmentedUpgradeBars_
@@ -804,38 +824,47 @@ void PlayerHud::DrawUpgradeHud()
                     ui_.upgradeHudNameLabels_[i]->SetPosition(
                         ui_.upgradeHudUseSegmentedUpgradeBars_
                             ? myEngine::Vector2{ui_.upgradeHudRowStart_.x + ui_.upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX,
-                                           y + ui_.upgradeHudSegmentBarSize_.y * 0.5f}
+                                                y + ui_.upgradeHudSegmentBarSize_.y * 0.5f}
                             : myEngine::Vector2{ui_.upgradeHudNameX_ + listOffsetX, y + ui_.upgradeHudNameTextOffsetY_});
                 }
-                if (ui_.upgradeHudLevelLabels_[i])
+                if (ui_.upgradeHudLevelLabels_[i]) {
                     ui_.upgradeHudLevelLabels_[i]->SetPosition({ui_.upgradeHudLevelX_ + listOffsetX, y + ui_.upgradeHudLevelTextOffsetY_});
-                if (ui_.upgradeHudMinusLabels_[i])
+                }
+                if (ui_.upgradeHudMinusLabels_[i]) {
                     ui_.upgradeHudMinusLabels_[i]->SetPosition(
                         ui_.upgradeHudUseSegmentedUpgradeBars_
                             ? myEngine::Vector2{ui_.upgradeHudMinusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
-                                           y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
+                                                y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
                             : myEngine::Vector2{ui_.upgradeHudMinusLabelX_ + listOffsetX, y + ui_.upgradeHudMinusTextOffsetY_});
-                if (ui_.upgradeHudPlusLabels_[i])
+                }
+                if (ui_.upgradeHudPlusLabels_[i]) {
                     ui_.upgradeHudPlusLabels_[i]->SetPosition(
                         ui_.upgradeHudUseSegmentedUpgradeBars_
                             ? myEngine::Vector2{ui_.upgradeHudPlusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
-                                           y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
+                                                y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
                             : myEngine::Vector2{ui_.upgradeHudPlusLabelX_ + listOffsetX, y + ui_.upgradeHudPlusTextOffsetY_});
+                }
             }
         }
-        if (ui_.upgradeHudPointLabel_)
+        if (ui_.upgradeHudPointLabel_) {
             ui_.upgradeHudPointLabel_->SetAlpha(easedListAlpha);
-        if (ui_.upgradeHudTitleLabel_)
+        }
+        if (ui_.upgradeHudTitleLabel_) {
             ui_.upgradeHudTitleLabel_->SetAlpha(easedListAlpha);
+        }
         for (int i = 0; i < 7; ++i) {
-            if (ui_.upgradeHudNameLabels_[i])
+            if (ui_.upgradeHudNameLabels_[i]) {
                 ui_.upgradeHudNameLabels_[i]->SetAlpha(easedListAlpha);
-            if (ui_.upgradeHudLevelLabels_[i])
+            }
+            if (ui_.upgradeHudLevelLabels_[i]) {
                 ui_.upgradeHudLevelLabels_[i]->SetAlpha(easedListAlpha);
-            if (ui_.upgradeHudMinusLabels_[i])
+            }
+            if (ui_.upgradeHudMinusLabels_[i]) {
                 ui_.upgradeHudMinusLabels_[i]->SetAlpha(easedListAlpha);
-            if (ui_.upgradeHudPlusLabels_[i])
+            }
+            if (ui_.upgradeHudPlusLabels_[i]) {
                 ui_.upgradeHudPlusLabels_[i]->SetAlpha(easedListAlpha);
+            }
         }
     }
     ui_.cachedUpgradeHudListVisible_ = showUpgradeList;
@@ -911,10 +940,12 @@ void PlayerHud::DrawUpgradeHud()
     }
     if (ui_.upgradeHudDrawBottomBars_ && ui_.upgradeHudUseNeonProgressBars_) {
         myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
-        if (ui_.upgradeHudLevelProgressBar_)
+        if (ui_.upgradeHudLevelProgressBar_) {
             ui_.upgradeHudLevelProgressBar_->Draw();
-        if (ui_.upgradeHudExpProgressBar_)
+        }
+        if (ui_.upgradeHudExpProgressBar_) {
             ui_.upgradeHudExpProgressBar_->Draw();
+        }
         ui_.upgradeHudProfile_.spriteDraws += 10;
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
@@ -1027,8 +1058,8 @@ void PlayerHud::AppendGameplayNeonTextLabels(std::vector<myEngine::TextLabel*>& 
     }
 }
 
-void PlayerHud::QueueUpgradeHudRect(std::vector<myEngine::TrailVertex>& vertices, const myEngine::Vector2& pos, const myEngine::Vector2& size,
-                                    const myEngine::Vector4& color) const
+void PlayerHud::QueueUpgradeHudRect(std::vector<myEngine::TrailVertex>& vertices, const myEngine::Vector2& pos,
+                                    const myEngine::Vector2& size, const myEngine::Vector4& color) const
 {
     const float left = pos.x;
     const float top = pos.y;
@@ -1076,10 +1107,10 @@ void PlayerHud::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, fl
             const myEngine::Vector4 rowColor = UpgradeHudRowColors()[i];
             const myEngine::Vector4 buttonColor =
                 LerpColor({0.10f + missFlash * 0.20f, 0.12f, 0.15f + refundFlash * 0.16f, 0.84f}, {0.35f, 0.90f, 0.72f, 0.96f}, flash);
-            const myEngine::Vector4 minusColor = player_.upgradeLevels_[i] > 0
-                                                ? LerpColor({rowColor.x * 0.45f, rowColor.y * 0.45f, rowColor.z * 0.45f, 0.72f},
-                                                            {0.88f, 0.94f, 1.0f, 0.98f}, refundFlash)
-                                                : myEngine::Vector4{0.12f + missFlash * 0.30f, 0.14f, 0.18f, 0.42f + missFlash * 0.28f};
+            const myEngine::Vector4 minusColor =
+                player_.upgradeLevels_[i] > 0 ? LerpColor({rowColor.x * 0.45f, rowColor.y * 0.45f, rowColor.z * 0.45f, 0.72f},
+                                                          {0.88f, 0.94f, 1.0f, 0.98f}, refundFlash)
+                                              : myEngine::Vector4{0.12f + missFlash * 0.30f, 0.14f, 0.18f, 0.42f + missFlash * 0.28f};
             const myEngine::Vector4 plusColor =
                 player_.skillPoints_ > 0
                     ? LerpColor({rowColor.x * 0.82f, rowColor.y * 0.82f, rowColor.z * 0.82f, 0.90f}, {1.0f, 1.0f, 1.0f, 1.0f}, flash)
@@ -1112,8 +1143,8 @@ void PlayerHud::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, fl
         vertices.resize(ui_.kUpgradeHudBatchMaxVertices);
     }
     std::memcpy(ui_.upgradeHudBatchVertexData_, vertices.data(), sizeof(myEngine::TrailVertex) * vertices.size());
-    *ui_.upgradeHudBatchTransformData_ =
-        myEngine::MakeOrthographicMatrix(0.0f, 0.0f, float(myEngine::WinApp::kClientWidth), float(myEngine::WinApp::kClientHeight), 0.0f, 100.0f);
+    *ui_.upgradeHudBatchTransformData_ = myEngine::MakeOrthographicMatrix(0.0f, 0.0f, float(myEngine::WinApp::kClientWidth),
+                                                                          float(myEngine::WinApp::kClientHeight), 0.0f, 100.0f);
 
     myEngine::DirectXCommon* dxCommon = myEngine::SpriteCommon::GetInstance()->GetDxCommon();
     ID3D12GraphicsCommandList* commandList = dxCommon->GetList().Get();
@@ -1350,8 +1381,9 @@ void PlayerHud::DrawUpgradeHudDebugImGui()
 
 void PlayerHud::DrawUpgradeHudAfterPostEffects()
 {
-    if (!ui_.arenaUiEnabled_)
+    if (!ui_.arenaUiEnabled_) {
         return;
+    }
     const bool drawBottomBars = ui_.upgradeHudDrawBottomBars_ && ui_.upgradeHudUseNeonProgressBars_;
     bool drawSegmentBars = ui_.upgradeHudUseSegmentedUpgradeBars_ && ui_.upgradeHudListVisibility_ > 0.01f;
 #if defined(USE_IMGUI) && !defined(NDEBUG)

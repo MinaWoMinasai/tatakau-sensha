@@ -11,8 +11,10 @@ inline myEngine::Vector3 Direction(float angle)
 {
     return {std::cos(angle), std::sin(angle), 0};
 }
+
 /// @brief 輪状の攻撃または演出を発生させる。
-inline void Ring(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& at, float radius, float width, const myEngine::Vector4& color)
+inline void Ring(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& at, float radius, float width,
+                 const myEngine::Vector4& color)
 {
     auto previous = at + myEngine::Vector3{radius, 0, 0};
     for (int i = 1; i <= 24; ++i) {
@@ -21,17 +23,21 @@ inline void Ring(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& 
         previous = p;
     }
 }
+
 /// @brief チャージの進行を更新する。
 inline void Charge(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& at, float charge, float age, float scale = 1)
 {
-    if (charge <= 0)
+    if (charge <= 0) {
         return;
+    }
     const bool full = charge >= .999f;
-    const myEngine::Vector4 color = full ? myEngine::Vector4{1.55f, .65f, 2.3f, .8f} : myEngine::Vector4{.18f, 1.0f, 1.8f, .35f + charge * .4f};
+    const myEngine::Vector4 color =
+        full ? myEngine::Vector4{1.55f, .65f, 2.3f, .8f} : myEngine::Vector4{.18f, 1.0f, 1.8f, .35f + charge * .4f};
     Ring(renderer, at, (.16f + charge * .27f) * scale, .12f * scale, color);
     Ring(renderer, at, (.12f + charge * .16f) * scale, .05f * scale, {1.1f, 1.8f, 2.0f, .6f});
-    if (full)
+    if (full) {
         Ring(renderer, at, (.62f + .035f * std::sin(age * 14)) * scale, .045f * scale, color);
+    }
     for (int i = 0; i < 8; ++i) {
         const float phase = std::fmod(age * 1.7f + i * .137f, 1.0f);
         const auto dir = Direction(i * 2.399963f + age * .3f);
@@ -39,14 +45,17 @@ inline void Charge(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3
         renderer.QueueLine(p, p - dir * .11f * scale, .04f * scale, {color.x, color.y, color.z, phase * .55f * charge});
     }
 }
+
 /// @brief 指定した対象間の接続を処理する。
 inline void Link(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& a, const myEngine::Vector3& b, float scale = 1)
 {
     renderer.QueueLine(a, b, .09f * scale, {.15f, 1.1f, 1.45f, .19f});
     renderer.QueueLine(a, b, .025f * scale, {.5f, 1.45f, 1.8f, .38f});
 }
+
 /// @brief 三日月状の攻撃形状を生成する。
-inline void Crescent(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& at, const myEngine::Vector3& direction, float radius, float alpha = 1)
+inline void Crescent(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& at, const myEngine::Vector3& direction, float radius,
+                     float alpha = 1)
 {
     const float angle = std::atan2(direction.y, direction.x);
     for (int band = 0; band < 3; ++band) {
@@ -63,6 +72,7 @@ inline void Crescent(myEngine::NeonGridRenderer& renderer, const myEngine::Vecto
         }
     }
 }
+
 /// @brief 接触した対象への攻撃処理を行う。
 inline void Contact(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& at, float age, float scale = 1, bool perfect = false)
 {

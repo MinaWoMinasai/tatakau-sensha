@@ -129,8 +129,9 @@ void ExpEnemy::ApplyAuthoredDefinition(const tankcontent::Enemy& definition)
     authoredBulletDamage_ = static_cast<uint32_t>((std::clamp)(definition.bulletDamage, 1, 999));
     authoredMoveSpeedScale_ = (std::clamp)(definition.moveSpeedScale, 0.1f, 3.0f);
     authoredFireIntervalScale_ = (std::clamp)(definition.fireIntervalScale, 0.3f, 4.0f);
-    if (IsExpeditionCombatRole())
+    if (IsExpeditionCombatRole()) {
         ResetMagazine(definition.magazineSize, definition.reloadSeconds);
+    }
     expValue_ = static_cast<uint32_t>((std::clamp)(definition.creditDrop, 0, 999) * 5);
     baseColor_ = {definition.color[0], definition.color[1], definition.color[2], definition.color[3]};
     visualColor_ = baseColor_;
@@ -144,8 +145,9 @@ void ExpEnemy::RefreshCollisionMask()
     if (enemyInteractionConfig_.hostileToBoss || isRunResource_) {
         mask |= kCollisionAttributeEnemy;
     }
-    if (isRunResource_)
+    if (isRunResource_) {
         mask |= kCollisionAttributeEnemyBullet;
+    }
     SetCollisionMask(mask);
 }
 
@@ -167,17 +169,20 @@ void ExpEnemy::ConfigureSummonedUnit(uint64_t commanderId)
 
 bool ExpEnemy::TryReflectProjectile(const myEngine::Vector3& attackSource)
 {
-    if (isDead_ || type_ != ExpEnemyType::ReflectArmor)
+    if (isDead_ || type_ != ExpEnemyType::ReflectArmor) {
         return false;
+    }
     const myEngine::Vector3 source = attackSource - GetWorldPosition();
     if (myEngine::Length(source) < 0.0001f ||
-        !expguard::InFacingCone(aimDirection_.x, aimDirection_.y, source.x, source.y, expguard::kReflectHalfAngle))
+        !expguard::InFacingCone(aimDirection_.x, aimDirection_.y, source.x, source.y, expguard::kReflectHalfAngle)) {
         return false;
+    }
     ++reflectionCount_;
     ++shieldBlockCount_;
-    if (shieldFlashTimer_ <= 0)
+    if (shieldFlashTimer_ <= 0) {
         myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(GetWorldPosition() + myEngine::Normalize(source) * 1.2f,
-                                                                  myEngine::Normalize(source), {1.7f, 0.20f, 1.3f, 1}, 4);
+                                                                       myEngine::Normalize(source), {1.7f, 0.20f, 1.3f, 1}, 4);
+    }
     shieldFlashTimer_ = 0.13f;
     return true;
 }
@@ -300,31 +305,34 @@ void ExpEnemy::ApplyTypeParams()
     visualColor_ = baseColor_;
     maxHp_ = hp_;
     SetDamage(type_ == ExpEnemyType::Shooter ? balanceConfig_.shooterContactDamage : balanceConfig_.contactDamage);
-    if (type_ == ExpEnemyType::BladeGuard)
+    if (type_ == ExpEnemyType::BladeGuard) {
         SetDamage(0);
+    }
 }
 
 void ExpEnemy::ResetMagazine(int rounds, float reloadSeconds)
 {
     ExpEnemyMagazineCycle::Timing timing{};
-    if (type_ == ExpEnemyType::Sniper)
+    if (type_ == ExpEnemyType::Sniper) {
         timing = {2, 0.52f, 0.26f, 0.20f, 1.55f};
-    else if (type_ == ExpEnemyType::Flanker)
+    } else if (type_ == ExpEnemyType::Flanker) {
         timing = {2, 0.24f, 0.17f, 0.22f, 1.55f};
-    else if (type_ == ExpEnemyType::Suppressor)
+    } else if (type_ == ExpEnemyType::Suppressor) {
         timing = {5, 0.18f, 0.14f, 0.16f, 2.00f};
-    else if (type_ == ExpEnemyType::ShieldGuard || type_ == ExpEnemyType::ReflectArmor)
+    } else if (type_ == ExpEnemyType::ShieldGuard || type_ == ExpEnemyType::ReflectArmor) {
         timing = {2, 0.38f, 0.18f, 0.28f, 1.60f};
-    if (rounds > 0)
+    }
+    if (rounds > 0) {
         timing.rounds = rounds;
-    if (reloadSeconds > 0)
+    }
+    if (reloadSeconds > 0) {
         timing.reload = reloadSeconds;
+    }
     magazineCycle_.Reset(timing, 0.55f + combatStagger_);
 }
 
 void ExpEnemy::Update(Stage& stage, float deltaTime)
 {
-
     // 寿命・被弾演出を先に進め、以降の資源/戦闘役/図形/Shooterの経路を選ぶ。
     dt_ = deltaTime;
 
@@ -465,23 +473,27 @@ void ExpEnemy::Update(Stage& stage, float deltaTime)
     object_->Update();
 }
 
-myEngine::Vector3 ExpEnemy::ClipCombatRay(Stage& stage, const myEngine::Vector3& origin, const myEngine::Vector3& direction, float distance) const
+myEngine::Vector3 ExpEnemy::ClipCombatRay(Stage& stage, const myEngine::Vector3& origin, const myEngine::Vector3& direction,
+                                          float distance) const
 {
     // XYの各軸で進行パラメーターの区間を絞り、境界接触も交差として受け付ける。
     float nearest = distance;
     for (const auto& row : stage.GetBlocks()) {
         for (const Block& block : row) {
-            if (!block.isActive)
+            if (!block.isActive) {
                 continue;
+            }
             float enter = 0.0f;
             float leave = nearest;
             auto clipAxis = [&](float start, float speed, float minimum, float maximum) {
-                if (std::abs(speed) < 0.0001f)
+                if (std::abs(speed) < 0.0001f) {
                     return start >= minimum && start <= maximum;
+                }
                 float nearT = (minimum - start) / speed;
                 float farT = (maximum - start) / speed;
-                if (nearT > farT)
+                if (nearT > farT) {
                     std::swap(nearT, farT);
+                }
                 enter = (std::max)(enter, nearT);
                 leave = (std::min)(leave, farT);
                 return enter <= leave;
@@ -514,8 +526,9 @@ bool ExpEnemy::MoveCombatActor(Stage& stage, const myEngine::Vector3& displaceme
         SetWorldPosition(desired);
         stage.ResolveExpEnemyCollision(*this, myEngine::Y);
         blocked = blocked || std::abs(GetWorldPosition().y - desired.y) > 0.005f;
-        if (blocked && IsDashing())
+        if (blocked && IsDashing()) {
             break;
+        }
     }
     // 外部衝撃の受付中だけ壁衝撃を記録し、受付を消費して同じ衝撃での重複記録を防ぐ。
     if (blocked && wallImpactArmedTimer_ > 0 && myEngine::Length(velocity_) > 0.01f) {
@@ -533,16 +546,19 @@ myEngine::Vector3 ExpEnemy::FindCombatWaypoint(Stage& stage, const myEngine::Vec
     std::array<bool, width * height> blocked{};
     for (const auto& row : stage.GetBlocks()) {
         for (const Block& block : row) {
-            if (!block.isActive)
+            if (!block.isActive) {
                 continue;
+            }
             // 射線と異なり機体の幅を考慮するため、AABBを0.85広げた範囲の格子点を通行不可にする。
             const int minX = (std::max)(0, static_cast<int>(std::ceil((block.aabb.min.x - 0.85f) / cellSize)));
             const int maxX = (std::min)(width - 1, static_cast<int>(std::floor((block.aabb.max.x + 0.85f) / cellSize)));
             const int minY = (std::max)(0, static_cast<int>(std::ceil((block.aabb.min.y - 0.85f) / cellSize)));
             const int maxY = (std::min)(height - 1, static_cast<int>(std::floor((block.aabb.max.y + 0.85f) / cellSize)));
-            for (int y = minY; y <= maxY; ++y)
-                for (int x = minX; x <= maxX; ++x)
+            for (int y = minY; y <= maxY; ++y) {
+                for (int x = minX; x <= maxX; ++x) {
                     blocked[y * width + x] = true;
+                }
+            }
         }
     }
     // 最も近い2単位間隔の格子点へ四捨五入し、マップ範囲へ制限する。添字はy * width + x。
@@ -560,11 +576,13 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
 {
     // この移動戦闘経路は死亡/非有限時間を除外し、1回の戦闘進行を最大0.20秒に制限する。
     // Update冒頭の寿命・演出タイマーは、呼び出し側から来た秒数で先に進んでいる。
-    if (isDead_ || !std::isfinite(deltaTime))
+    if (isDead_ || !std::isfinite(deltaTime)) {
         return;
+    }
     const float dt = (std::clamp)(deltaTime, 0.0f, 0.20f);
-    if (dt <= 0)
+    if (dt <= 0) {
         return;
+    }
     combatRepathTimer_ -= dt;
     dashCooldown_ -= dt;
     shooterMuzzleFlashTimer_ = (std::max)(0.0f, shooterMuzzleFlashTimer_ - dt);
@@ -575,7 +593,8 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
     const float distance = myEngine::Length(toTarget);
     const myEngine::Vector3 desiredDirection = distance > 0.001f ? toTarget / distance : aimDirection_;
     const myEngine::Vector3 tangent{-desiredDirection.y * orbitSign_, desiredDirection.x * orbitSign_, 0};
-    const bool visible = hasTarget && myEngine::Length(ClipCombatRay(stage, origin, desiredDirection, distance) - origin) >= distance - 0.05f;
+    const bool visible =
+        hasTarget && myEngine::Length(ClipCombatRay(stage, origin, desiredDirection, distance) - origin) >= distance - 0.05f;
     const bool charger = type_ == ExpEnemyType::Charger;
     const bool sniper = type_ == ExpEnemyType::Sniper;
     const bool flanker = type_ == ExpEnemyType::Flanker;
@@ -590,8 +609,9 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
             const float turn = std::remainder(goalAngle - oldAngle, 6.28318531f);
             const float angle = oldAngle + (std::clamp)(turn, -1.65f * dt, 1.65f * dt);
             aimDirection_ = {std::cos(angle), std::sin(angle), 0};
-        } else
+        } else {
             aimDirection_ = desiredDirection;
+        }
     }
 
     // 射線が通っていても機体幅では塞がる場合があるため、前方の重なりも調べる。
@@ -600,8 +620,9 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
     bool movingToTarget = false;
     auto navigate = [&](const myEngine::Vector3& direction, float speed, bool pathToTarget) {
         myEngine::Vector3 desired = direction;
-        if (myEngine::Length(desired) < 0.01f || !hasTarget)
+        if (myEngine::Length(desired) < 0.01f || !hasTarget) {
             return;
+        }
         desired = myEngine::Normalize(desired);
         if (pathToTarget && (!visible || stage.IsCollisionWithAnyBlock(origin + desired * 1.7f, 0.85f))) {
             if (combatRepathTimer_ <= 0 || myEngine::Length(combatWaypoint_ - origin) < 0.35f) {
@@ -623,19 +644,22 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
             supportFlashTimer_ = 0.32f;
             if (jammer) {
                 ++empPulseCount_;
-                if (visible && distance <= expguard::kEmpRadius + player_->GetRadius())
+                if (visible && distance <= expguard::kEmpRadius + player_->GetRadius()) {
                     player_->ApplyEmpJammer(2.5f);
-            } else
+                }
+            } else {
                 summonRequested_ = true;
+            }
         }
         if (hasTarget && !supportPulse_.IsWarning()) {
             const float preferred = jammer ? 6.4f : 15.0f;
-            if (!visible || distance > preferred + 2)
+            if (!visible || distance > preferred + 2) {
                 navigate(desiredDirection + tangent * 0.18f, jammer ? 4.0f : 3.1f, true);
-            else if (distance < preferred - 2)
+            } else if (distance < preferred - 2) {
                 navigate(desiredDirection * -0.75f + tangent * 0.35f, 3.0f, false);
-            else
+            } else {
                 navigate(tangent, 1.2f, false);
+            }
         }
         SetDamage(hasAuthoredDefinition_ ? authoredContactDamage_ : 8u);
     } else if (blade) {
@@ -656,21 +680,22 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
             if (player_->GetHp() < previousHp) {
                 player_->SetVelocity(player_->GetMove() * 0.25f + desiredDirection * 0.50f);
                 myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(player_->GetWorldPosition(), {1.8f, 0.55f, 0.15f, 1},
-                                                                         {0.8f, 0.15f, 0.05f, 0}, 0.12f);
+                                                                              {0.8f, 0.15f, 0.05f, 0}, 0.12f);
             }
         }
     } else if (charger) {
         combatCycle_.SetRecoveryScale((std::max)(0.8f, authoredFireIntervalScale_));
         const bool started = combatCycle_.Advance(dt, visible && distance < 13.0f);
-        if (started)
+        if (started) {
             ++combatDashCount_;
+        }
         const auto phase = combatCycle_.GetPhase();
         // ChargerのActiveでは固定済みの方向へ突進し、地形補正が生じたら回復段階へ移る。
         if (phase == ExpEnemyCombatPhase::Active) {
             if (MoveCombatActor(stage, aimDirection_ * (30.0f * authoredMoveSpeedScale_ * dt))) {
                 combatCycle_.EnterRecovery();
-                myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(GetWorldPosition(), {1.8f, 0.7f, 0.15f, 1}, {0.8f, 0.2f, 0.1f, 0},
-                                                                         0.12f);
+                myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(GetWorldPosition(), {1.8f, 0.7f, 0.15f, 1},
+                                                                              {0.8f, 0.2f, 0.1f, 0}, 0.12f);
             }
         } else if (hasTarget && distance > 2.2f && (phase == ExpEnemyCombatPhase::Cooldown || phase == ExpEnemyCombatPhase::Tracking)) {
             navigate(desiredDirection + tangent * 0.18f, phase == ExpEnemyCombatPhase::Tracking ? 3.0f : 6.8f, true);
@@ -707,10 +732,11 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
             }
         } else if (dashTimer_ > 0) {
             const float stepTime = (std::min)(dt, dashTimer_);
-            if (MoveCombatActor(stage, dashDirection_ * (21.0f * stepTime)))
+            if (MoveCombatActor(stage, dashDirection_ * (21.0f * stepTime))) {
                 dashTimer_ = 0;
-            else
+            } else {
                 dashTimer_ = (std::max)(0.0f, dashTimer_ - dt);
+            }
         }
         magazineCycle_.SetIntervalScale(authoredFireIntervalScale_);
         // ダッシュ予告/実行中は弾倉周期を停止する。発射通知時には周期側の残弾は既に消費されている。
@@ -720,12 +746,13 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
             const float mobility = phase == ExpEnemyCombatPhase::Recovery   ? 0.25f
                                    : phase == ExpEnemyCombatPhase::Tracking ? (sniper ? 0.0f : 0.45f)
                                                                             : 1.0f;
-            if (!visible || distance > preferred + 2.5f)
+            if (!visible || distance > preferred + 2.5f) {
                 navigate(desiredDirection + tangent * 0.22f, speed * mobility, true);
-            else if (distance < preferred - 2.5f)
+            } else if (distance < preferred - 2.5f) {
                 navigate(desiredDirection * -0.85f + tangent * 0.65f, speed * mobility, false);
-            else
+            } else {
                 navigate(tangent, speed * mobility * (sniper ? 0.6f : shield ? 0.3f : 0.85f), false);
+            }
         }
         SetDamage(magazineCycle_.IsReloading() ? 0u
                                                : (hasAuthoredDefinition_ ? authoredContactDamage_ : balanceConfig_.shooterContactDamage));
@@ -751,16 +778,18 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
     }
     // 自律移動速度は秒当たりの距離。突進開始時は残存速度を弱め、目標速度へ徐々に近づける。
     const bool dashing = IsDashing();
-    if (dashing && !combatWasDashing_)
+    if (dashing && !combatWasDashing_) {
         combatMoveVelocity_ = combatMoveVelocity_ * 0.20f;
+    }
     const float response =
         ((blade && bladeCycle_.GetPhase() != ExpEnemyCombatPhase::Cooldown) || (IsSupportRole() && supportPulse_.IsWarning())) ? 12.0f
-        : myEngine::Length(desiredMoveVelocity) > 0.01f                                                                             ? 2.5f
+        : myEngine::Length(desiredMoveVelocity) > 0.01f                                                                        ? 2.5f
                                                                                                                                : 3.5f;
     combatMoveVelocity_ += (desiredMoveVelocity - combatMoveVelocity_) * (1.0f - std::exp(-response * dt));
     if (MoveCombatActor(stage, combatMoveVelocity_ * dt)) {
-        if (!movingToTarget)
+        if (!movingToTarget) {
             orbitSign_ = -orbitSign_;
+        }
         combatRepathTimer_ = 0;
         combatMoveVelocity_ = combatMoveVelocity_ * 0.35f;
     }
@@ -768,8 +797,9 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
     // 外部衝撃速度は照準固定や再装填中も残す。60FPS基準から変位へ換算し、
     // 自律移動とは別に同じ地形補正を通した後、指数的に減衰させる。
     if (myEngine::Length(velocity_) > 0.001f) {
-        if (myEngine::Length(velocity_) > 0.95f)
+        if (myEngine::Length(velocity_) > 0.95f) {
             velocity_ = myEngine::Normalize(velocity_) * 0.95f;
+        }
         MoveCombatActor(stage, velocity_ * (dt * 60.0f));
         velocity_ = velocity_ * std::exp(-5.0f * dt);
     }
@@ -786,11 +816,13 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
     }
 }
 
-void ExpEnemy::QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp,
-                                  const myEngine::Vector3& cameraForward, float lineWidth, bool fillOnly) const
+void ExpEnemy::QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraRight,
+                                  const myEngine::Vector3& cameraUp, const myEngine::Vector3& cameraForward, float lineWidth,
+                                  bool fillOnly) const
 {
-    if (!IsExpeditionCombatRole() || isDead_)
+    if (!IsExpeditionCombatRole() || isDead_) {
         return;
+    }
     const myEngine::Vector3 center = GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.38f};
     const myEngine::Vector3 forward = aimDirection_;
     const myEngine::Vector3 side{-forward.y, forward.x, 0.0f};
@@ -798,10 +830,14 @@ void ExpEnemy::QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const my
     auto bodyPolygon = [&](const myEngine::Vector3* points, uint32_t count, const myEngine::Vector4& color) {
         if (fillOnly) {
             myEngine::Vector3 fill[6]{};
-            for (uint32_t i = 0; i < count; ++i) fill[i] = points[i] - myEngine::Vector3{0,0,0.005f};
-            renderer.QueueBeveledPolygonFill(fill, count, {0.006f,0.010f,0.016f,0.96f}, color,
-                myEngine::Normalize(cameraUp - cameraRight * 0.5f));
-        } else renderer.QueueContourPolygon(points, count, width, color, cameraForward, myEngine::ActorNeonContourStyle());
+            for (uint32_t i = 0; i < count; ++i) {
+                fill[i] = points[i] - myEngine::Vector3{0, 0, 0.005f};
+            }
+            renderer.QueueBeveledPolygonFill(fill, count, {0.006f, 0.010f, 0.016f, 0.96f}, color,
+                                             myEngine::Normalize(cameraUp - cameraRight * 0.5f));
+        } else {
+            renderer.QueueContourPolygon(points, count, width, color, cameraForward, myEngine::ActorNeonContourStyle());
+        }
     };
     auto line = [&](const myEngine::Vector3& a, const myEngine::Vector3& b, float thickness, const myEngine::Vector4& color) {
         renderer.QueueCameraFacingLine(a, b, thickness, color, cameraForward);
@@ -825,7 +861,9 @@ void ExpEnemy::QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const my
             bodyPoints[i] = arcPoint(a, 0.90f);
         }
         bodyPolygon(bodyPoints, static_cast<uint32_t>(sides), visualColor_);
-        if (fillOnly) return;
+        if (fillOnly) {
+            return;
+        }
         for (int i = 0; i < sides; ++i) {
             const float a = tau * static_cast<float>(i) / sides;
             contour(arcPoint(a, 0.55f), arcPoint(a, 1.20f + charge * 0.20f), width, signal);
@@ -841,17 +879,19 @@ void ExpEnemy::QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const my
                 const float b = tau * static_cast<float>(i + 1) / segments;
                 line(arcPoint(a, radius), arcPoint(b, radius), width * (0.65f + flash),
                      {signal.x, signal.y, signal.z, warning ? 0.30f + 0.30f * charge : flash * 0.7f});
-                if (warning)
+                if (warning) {
                     line(arcPoint(a, radius * growing), arcPoint(b, radius * growing), width * 0.60f,
                          {signal.x, signal.y, signal.z, 0.18f + charge * 0.24f});
+                }
             }
-            if (!emp)
+            if (!emp) {
                 for (int i = 0; i < 3; ++i) {
                     const float angle = tau * static_cast<float>(i) / 3.0f;
                     const myEngine::Vector3 marker = arcPoint(angle, radius);
                     line(marker - side * 0.30f, marker + side * 0.30f, width, signal);
                     line(marker - forward * 0.30f, marker + forward * 0.30f, width, signal);
                 }
+            }
         }
         return;
     }
@@ -865,14 +905,17 @@ void ExpEnemy::QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const my
         const myEngine::Vector3 rear = center - forward * 0.9f;
         const myEngine::Vector3 bodyPoints[]{tip, center + side * 0.72f, rear, center - side * 0.72f};
         bodyPolygon(bodyPoints, 4, body);
-        if (fillOnly) return;
+        if (fillOnly) {
+            return;
+        }
 
         // 予告中の引き、攻撃中の扇形の振り、回復中の横構えを攻撃周期に合わせて表示する。
         const float pose = warning    ? -expguard::kBladeHalfAngle - 0.2f * bladeCycle_.WarningRatio()
                            : active   ? -expguard::kBladeHalfAngle + 2.0f * expguard::kBladeHalfAngle * bladeCycle_.SweepRatio()
                            : recovery ? 1.65f
                                       : -0.45f;
-        const myEngine::Vector4 bladeColor = recovery ? myEngine::Vector4{0.2f, 0.8f, 1.0f, 0.55f} : myEngine::Vector4{2.0f, 0.65f, 0.24f, 0.95f};
+        const myEngine::Vector4 bladeColor =
+            recovery ? myEngine::Vector4{0.2f, 0.8f, 1.0f, 0.55f} : myEngine::Vector4{2.0f, 0.65f, 0.24f, 0.95f};
         contour(arcPoint(pose, 0.65f), arcPoint(pose, active ? expguard::kBladeReach : 2.0f), width * 1.6f, bladeColor);
         contour(arcPoint(pose - 0.14f, 0.9f), arcPoint(pose + 0.14f, 0.9f), width, bladeColor);
         if (warning || active) {
@@ -924,7 +967,9 @@ void ExpEnemy::QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const my
         const myEngine::Vector3 right = center - forward * (0.72f * pulse) - side * (0.82f * pulse);
         const myEngine::Vector3 bodyPoints[]{nose, left, right};
         bodyPolygon(bodyPoints, 3, visualColor_);
-        if (fillOnly) return;
+        if (fillOnly) {
+            return;
+        }
         contour(center - side * 0.42f, center + forward * 0.48f, width * 0.80f, visualColor_);
         contour(center + forward * 0.48f, center + side * 0.42f, width * 0.80f, visualColor_);
     } else {
@@ -938,7 +983,9 @@ void ExpEnemy::QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const my
             bodyPoints[i] = center + (side * std::cos(a) + forward * std::sin(a)) * (0.82f * pulse);
         }
         bodyPolygon(bodyPoints, static_cast<uint32_t>(sides), visualColor_);
-        if (fillOnly) return;
+        if (fillOnly) {
+            return;
+        }
         contour(center + side * 0.20f, center + forward * 1.35f + side * 0.12f, width, visualColor_);
         contour(center - side * 0.20f, center + forward * 1.35f - side * 0.12f, width, visualColor_);
         contour(center - side * 0.36f, center + side * 0.36f, width, visualColor_);
@@ -955,8 +1002,8 @@ void ExpEnemy::QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const my
     if (phase == ExpEnemyCombatPhase::Tracking || phase == ExpEnemyCombatPhase::Locked) {
         const bool locked = phase == ExpEnemyCombatPhase::Locked;
         const myEngine::Vector4 warning = locked                          ? myEngine::Vector4{2.1f, 1.45f, 0.75f, 0.95f}
-                                     : type_ == ExpEnemyType::Sniper ? myEngine::Vector4{1.8f, 0.20f, 0.62f, 0.52f}
-                                                                     : myEngine::Vector4{1.8f, 0.50f, 0.12f, 0.52f};
+                                          : type_ == ExpEnemyType::Sniper ? myEngine::Vector4{1.8f, 0.20f, 0.62f, 0.52f}
+                                                                          : myEngine::Vector4{1.8f, 0.50f, 0.12f, 0.52f};
         const float distance = myEngine::Length(telegraphEnd_ - GetWorldPosition());
         const float start = (std::min)(1.5f, distance);
         if (type_ == ExpEnemyType::Sniper) {
@@ -975,8 +1022,9 @@ void ExpEnemy::QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const my
             const float reach = (std::min)(distance, type_ == ExpEnemyType::Skirmisher ? 3.5f : 6.0f);
             const float fan = type_ == ExpEnemyType::Flanker ? 0.46f : type_ == ExpEnemyType::Suppressor ? 0.27f : 0.0f;
             line(center + forward * start, center + forward * reach + side * (reach * fan), width * 0.75f, warning);
-            if (fan > 0)
+            if (fan > 0) {
                 line(center + forward * start, center + forward * reach - side * (reach * fan), width * 0.75f, warning);
+            }
         }
         if (type_ == ExpEnemyType::Charger || type_ == ExpEnemyType::Sniper) {
             const myEngine::Vector3 end = center + forward * distance;
@@ -1066,8 +1114,9 @@ void ExpEnemy::OnCollision(Collider* other)
     }
     if (isRunResource_) {
         const auto* bullet = dynamic_cast<const Bullet*>(other);
-        if (bullet && !bullet->CanClaimRunResource())
+        if (bullet && !bullet->CanClaimRunResource()) {
             return;
+        }
     }
     myEngine::Vector3 hitDir = worldTransform_.translate - other->GetWorldPosition();
 
@@ -1079,8 +1128,9 @@ void ExpEnemy::OnCollision(Collider* other)
     const float kKnockBackPower = 0.05f;
 
     // 接触による速度加算はダメージ可否や自機接触の無敵判定より先に行う。位置は後のUpdateで進める。
-    if (!isRunResource_)
+    if (!isRunResource_) {
         velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
+    }
     if (type_ == ExpEnemyType::Charger && otherAttribute == kCollisionAttributePlayer &&
         combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active) {
         combatCycle_.EnterRecovery();
@@ -1113,11 +1163,12 @@ void ExpEnemy::OnCollision(Collider* other)
             // 弾の中心位置ではなく現在の入射側を盾判定に使う。特殊弾は移動前後の変位を優先し、
             // それ以外や変位がほぼ0のときは速度を使う。
             const myEngine::Vector3 sweptMovement = bullet->GetWorldPosition() - bullet->GetPreviousWorldPosition();
-            const myEngine::Vector3 movement = bullet->GetSpecialKind() != Bullet::SpecialKind::None && myEngine::Length(sweptMovement) > 0.0001f
-                                              ? sweptMovement
-                                              : bullet->GetMove();
-            if (myEngine::Length(movement) > 0.0001f)
+            const myEngine::Vector3 movement =
+                bullet->GetSpecialKind() != Bullet::SpecialKind::None && myEngine::Length(sweptMovement) > 0.0001f ? sweptMovement
+                                                                                                                   : bullet->GetMove();
+            if (myEngine::Length(movement) > 0.0001f) {
                 source = GetWorldPosition() - myEngine::Normalize(movement);
+            }
             melee = bullet->GetSpecialKind() == Bullet::SpecialKind::SlashWave;
         }
         damage = ResolveShieldDamage(damage, source, melee);
@@ -1143,8 +1194,9 @@ bool ExpEnemy::TakeDamageFromPlayer(uint32_t amount)
 
 uint32_t ExpEnemy::ResolveShieldDamage(uint32_t amount, const myEngine::Vector3& attackSource, bool melee)
 {
-    if (type_ != ExpEnemyType::ShieldGuard || isDead_ || amount == 0)
+    if (type_ != ExpEnemyType::ShieldGuard || isDead_ || amount == 0) {
         return amount;
+    }
     const myEngine::Vector3 offset = attackSource - GetWorldPosition();
     const uint32_t result = expguard::ShieldDamage(amount, aimDirection_.x, aimDirection_.y, offset.x, offset.y, melee);
     if (result < amount) {
@@ -1152,7 +1204,7 @@ uint32_t ExpEnemy::ResolveShieldDamage(uint32_t amount, const myEngine::Vector3&
         if (shieldFlashTimer_ <= 0.0f) {
             const myEngine::Vector3 normal = myEngine::Length(offset) > 0.0001f ? myEngine::Normalize(offset) : aimDirection_;
             myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(GetWorldPosition() + normal * 1.25f, normal,
-                                                                      {0.30f, 1.40f, 1.90f, 0.95f}, 4);
+                                                                           {0.30f, 1.40f, 1.90f, 0.95f}, 4);
         }
         shieldFlashTimer_ = 0.13f;
     }
@@ -1166,18 +1218,22 @@ bool ExpEnemy::TakeDirectionalDamage(uint32_t amount, const myEngine::Vector3& a
 
 void ExpEnemy::ApplyKnockback(const myEngine::Vector3& direction, float power)
 {
-    if (isDead_ || isRunResource_ || !std::isfinite(power) || power <= 0.0f || myEngine::Length(direction) < 0.001f)
+    if (isDead_ || isRunResource_ || !std::isfinite(power) || power <= 0.0f || myEngine::Length(direction) < 0.001f) {
         return;
+    }
     velocity_ += myEngine::Normalize(direction) * (std::min)(0.95f, power);
-    if (power >= 0.16f)
+    if (power >= 0.16f) {
         wallImpactArmedTimer_ = 1.0f;
-    if (myEngine::Length(velocity_) > 0.95f)
+    }
+    if (myEngine::Length(velocity_) > 0.95f) {
         velocity_ = myEngine::Normalize(velocity_) * 0.95f;
+    }
     // 強い衝撃ではChargerの攻撃周期と短いダッシュを中断する。
     // 弾倉の周期・残弾は保持し、衝撃だけで再装填や即時射撃は行わない。
     if (power >= 0.30f) {
-        if (type_ == ExpEnemyType::Charger)
+        if (type_ == ExpEnemyType::Charger) {
             combatCycle_.EnterRecovery();
+        }
         dashTimer_ = dashWarningTimer_ = 0.0f;
         dashCooldown_ = (std::max)(dashCooldown_, 0.65f);
     }
@@ -1194,18 +1250,23 @@ bool ExpEnemy::ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinar
         // 通知先からの再入や同じフレームの後続ダメージに備え、撃破通知より先に死亡を確定する。
         isDead_ = true;
         myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(
-            GetWorldPosition(), isRunResource_ ? myEngine::Vector4{1.35f, 0.92f, 0.28f, 1.0f} : myEngine::Vector4{visualColor_.x, visualColor_.y, visualColor_.z, 1.0f},
+            GetWorldPosition(),
+            isRunResource_ ? myEngine::Vector4{1.35f, 0.92f, 0.28f, 1.0f}
+                           : myEngine::Vector4{visualColor_.x, visualColor_.y, visualColor_.z, 1.0f},
             {0.18f, 1.10f, 1.35f, 0.0f}, isRunResource_ ? 0.46f : 0.32f);
         // 資源は取得側の通知、通常敵は自機側の経験値/撃破通知か敵側の撃破通知へ分ける。
         // 召喚個体の撃破では、これらの報酬通知を行わない。
         if (isRunResource_) {
-            if (runResourceClaimCallback_)
+            if (runResourceClaimCallback_) {
                 runResourceClaimCallback_(playerOwned);
+            }
         } else if (playerOwned && !IsSummonedUnit()) {
-            if (player_)
+            if (player_) {
                 player_->AddExp(expValue_);
-            if (playerDefeatCallback_)
+            }
+            if (playerDefeatCallback_) {
                 playerDefeatCallback_(GetWorldPosition());
+            }
         } else if (!IsSummonedUnit() && reportOrdinaryEnemyKill && enemyKillCallback_) {
             enemyKillCallback_(expValue_);
         }

@@ -8,10 +8,12 @@ myEngine::Vector2 ReadVector2Object(const nlohmann::json& json, const myEngine::
         return fallback;
     }
     myEngine::Vector2 value = fallback;
-    if (json.contains("x") && json["x"].is_number())
+    if (json.contains("x") && json["x"].is_number()) {
         value.x = json["x"].get<float>();
-    if (json.contains("y") && json["y"].is_number())
+    }
+    if (json.contains("y") && json["y"].is_number()) {
         value.y = json["y"].get<float>();
+    }
     return value;
 }
 

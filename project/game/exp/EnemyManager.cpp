@@ -98,8 +98,9 @@ void EnemyManager::Update(Stage& stage, float deltaTime)
     // 生存個体だけを更新し、既に死亡していた個体と更新中に期限切れとなった個体を破棄する。
     // 後続の衝突で死亡した個体は、次のUpdateまで借用先として残る。
     for (auto it = enemies_.begin(); it != enemies_.end();) {
-        if (!(*it)->IsDead())
+        if (!(*it)->IsDead()) {
             (*it)->Update(stage, deltaTime);
+        }
 
         if ((*it)->IsDead()) {
             it = enemies_.erase(it); // 削除
@@ -114,12 +115,16 @@ void EnemyManager::Update(Stage& stage, float deltaTime)
 void EnemyManager::DismissOrphanedSummons()
 {
     std::unordered_set<uint64_t> commanders;
-    for (const auto& actor : enemies_)
-        if (actor && !actor->IsDead() && actor->GetType() == ExpEnemyType::SummonerCommander)
+    for (const auto& actor : enemies_) {
+        if (actor && !actor->IsDead() && actor->GetType() == ExpEnemyType::SummonerCommander) {
             commanders.insert(actor->GetCollisionId());
-    for (auto& actor : enemies_)
-        if (actor && actor->IsSummonedUnit() && !commanders.contains(actor->GetSummonerId()))
+        }
+    }
+    for (auto& actor : enemies_) {
+        if (actor && actor->IsSummonedUnit() && !commanders.contains(actor->GetSummonerId())) {
             actor->DismissSummonedUnit();
+        }
+    }
 }
 
 void EnemyManager::UpdateSummonedUnits(Stage& stage)
@@ -129,18 +134,23 @@ void EnemyManager::UpdateSummonedUnits(Stage& stage)
     // 召喚は期限付きの無報酬個体として生成し、出現領域には登録しない。
     std::vector<ExpEnemy*> commanders;
     size_t liveSummons = 0;
-    for (const auto& actor : enemies_)
+    for (const auto& actor : enemies_) {
         if (actor && !actor->IsDead()) {
-            if (actor->IsSummonedUnit())
+            if (actor->IsSummonedUnit()) {
                 ++liveSummons;
-            if (actor->GetType() == ExpEnemyType::SummonerCommander && actor->ConsumeSummonRequest())
+            }
+            if (actor->GetType() == ExpEnemyType::SummonerCommander && actor->ConsumeSummonRequest()) {
                 commanders.push_back(actor.get());
+            }
         }
+    }
     for (auto* commander : commanders) {
         int owned = 0;
-        for (const auto& actor : enemies_)
-            if (actor && !actor->IsDead() && actor->GetSummonerId() == commander->GetCollisionId())
+        for (const auto& actor : enemies_) {
+            if (actor && !actor->IsDead() && actor->GetSummonerId() == commander->GetCollisionId()) {
                 ++owned;
+            }
+        }
         // 所有者の同時生存数と生成累計を分け、全体の生存召喚数・管理個体数も制限する。
         const int slots = expguard::SummonSlots(owned, commander->GetSummonTotal());
         for (int slot = 0; slot < slots && liveSummons < 24 && enemies_.size() < 128; ++slot) {
@@ -150,16 +160,19 @@ void EnemyManager::UpdateSummonedUnits(Stage& stage)
                 const myEngine::Vector3 position =
                     commander->GetWorldPosition() + myEngine::Vector3{std::cos(angle) * 2.8f, std::sin(angle) * 2.8f, 0};
                 if (stage.IsCollisionWithAnyBlock(position, 0.85f) ||
-                    (player_ && myEngine::Length(position - player_->GetWorldPosition()) < 3.0f))
+                    (player_ && myEngine::Length(position - player_->GetWorldPosition()) < 3.0f)) {
                     continue;
+                }
                 bool occupied = false;
-                for (const auto& actor : enemies_)
+                for (const auto& actor : enemies_) {
                     if (actor && !actor->IsDead() && myEngine::Length(position - actor->GetWorldPosition()) < 1.8f) {
                         occupied = true;
                         break;
                     }
-                if (occupied)
+                }
+                if (occupied) {
                     continue;
+                }
                 auto unit = std::make_unique<ExpEnemy>();
                 unit->Initialize(position, player_, ExpEnemyType::Charger);
                 unit->SetBossTarget(boss_);
@@ -171,8 +184,9 @@ void EnemyManager::UpdateSummonedUnits(Stage& stage)
                 spawned = true;
                 break;
             }
-            if (!spawned)
+            if (!spawned) {
                 break; // 空き位置がなければ消費済み要求を戻さず、次のパルスまで待つ。
+            }
         }
     }
 }
@@ -190,8 +204,9 @@ void EnemyManager::Spawn(Stage& stage)
         if (!stage.IsCollisionWithAnyBlock(spawnPos, 1.0f)) {
             // プレイヤーのすぐ近くには出さない（安全のため）
             float dist = myEngine::Length(spawnPos - player_->GetWorldPosition());
-            if (dist < 10.0f)
+            if (dist < 10.0f) {
                 continue;
+            }
 
             ExpEnemyType type = ExpEnemyType::Square;
             const int roll = static_cast<int>(myEngine::Rand(0.0f, 100.0f));
@@ -234,17 +249,18 @@ bool EnemyManager::SpawnLevelEnemy(const myEngine::Vector3& position, const std:
     ExpEnemyType type = ExpEnemyType::Square;
     // 制作カタログを優先し、見つからない識別子だけ互換prefab名として解決する。
     const auto* authored = useExpeditionContent_ ? tankcontent::FindEnemy(expeditionContent_, prefab) : nullptr;
-    if (authored)
+    if (authored) {
         type = static_cast<ExpEnemyType>(authored->behavior);
-    else if (!TryGetExpEnemyType(prefab, type)) {
+    } else if (!TryGetExpEnemyType(prefab, type)) {
         std::cerr << "[LevelLoader] Unsupported Enemy prefab: " << prefab << std::endl;
         return false;
     }
 
     auto newEnemy = std::make_unique<ExpEnemy>();
     newEnemy->Initialize(position, player_, type);
-    if (authored)
+    if (authored) {
         newEnemy->ApplyAuthoredDefinition(*authored);
+    }
     newEnemy->SetBossTarget(boss_);
     newEnemy->SetAttackControllerBulletManager(bulletManager_);
     if (hp > 0) {
@@ -329,8 +345,9 @@ ExpEnemy* EnemyManager::FindNearestRunResource(const myEngine::Vector3& position
     ExpEnemy* nearest = nullptr;
     float bestDistance = maxDistance;
     for (const auto& enemy : enemies_) {
-        if (!enemy || enemy->IsDead() || !enemy->IsRunResource())
+        if (!enemy || enemy->IsDead() || !enemy->IsRunResource()) {
             continue;
+        }
         const float distance = myEngine::Length(enemy->GetWorldPosition() - position);
         if (distance < bestDistance) {
             bestDistance = distance;
@@ -354,7 +371,8 @@ void EnemyManager::UpdateLevelSpawnAreas(Stage& stage, float deltaTime)
 
         for (int i = 0; i < 10; ++i) {
             myEngine::Vector3 spawnPos = {myEngine::Rand(area.center.x - area.size.x * 0.5f, area.center.x + area.size.x * 0.5f),
-                                     myEngine::Rand(area.center.y - area.size.y * 0.5f, area.center.y + area.size.y * 0.5f), area.center.z};
+                                          myEngine::Rand(area.center.y - area.size.y * 0.5f, area.center.y + area.size.y * 0.5f),
+                                          area.center.z};
             if (stage.IsCollisionWithAnyBlock(spawnPos, 1.0f)) {
                 continue;
             }

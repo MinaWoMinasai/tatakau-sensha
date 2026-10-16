@@ -2,26 +2,25 @@
 
 namespace myEngine {
 
-void TrailInstance::SetConfig(const TrailConfig& config) {
+void TrailInstance::SetConfig(const TrailConfig& config)
+{
     // Compare fields, not padding bytes. Merely advancing point ages does not
     // affect this renderer until a point expires.
     const auto sameColor = [](const Vector4& a, const Vector4& b) {
         return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
     };
-    if (!sameColor(config_.startColor, config.startColor) ||
-        !sameColor(config_.endColor, config.endColor) ||
-        config_.interpolationSteps != config.interpolationSteps ||
-        config_.maxPoints != config.maxPoints || config_.lifetime != config.lifetime ||
-        config_.startWidthScale != config.startWidthScale ||
-        config_.endWidthScale != config.endWidthScale ||
-        config_.widthCurvePower != config.widthCurvePower ||
+    if (!sameColor(config_.startColor, config.startColor) || !sameColor(config_.endColor, config.endColor) ||
+        config_.interpolationSteps != config.interpolationSteps || config_.maxPoints != config.maxPoints ||
+        config_.lifetime != config.lifetime || config_.startWidthScale != config.startWidthScale ||
+        config_.endWidthScale != config.endWidthScale || config_.widthCurvePower != config.widthCurvePower ||
         config_.colorCurvePower != config.colorCurvePower) {
         config_ = config;
         ++geometryRevision_;
     }
 }
 
-void TrailInstance::Update(float deltaTime, const Vector3& tipPos, const Vector3& basePos, const TrailConfig& config) {
+void TrailInstance::Update(float deltaTime, const Vector3& tipPos, const Vector3& basePos, const TrailConfig& config)
+{
     SetConfig(config);
     bool geometryChanged = false;
 
@@ -32,7 +31,7 @@ void TrailInstance::Update(float deltaTime, const Vector3& tipPos, const Vector3
 
     if (isActive_) {
         // 振っている間は新しい座標を追加
-        points_.push_front({ tipPos, basePos, 0.0f });
+        points_.push_front({tipPos, basePos, 0.0f});
         geometryChanged = true;
     }
 
@@ -47,7 +46,9 @@ void TrailInstance::Update(float deltaTime, const Vector3& tipPos, const Vector3
         points_.pop_back();
         geometryChanged = true;
     }
-    if (geometryChanged) ++geometryRevision_;
+    if (geometryChanged) {
+        ++geometryRevision_;
+    }
 }
 
 } // namespace myEngine

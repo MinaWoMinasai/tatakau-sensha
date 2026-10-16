@@ -30,6 +30,7 @@ public:
         uint32_t cacheFileExistedCount = 0;
         uint32_t generatedPngCount = 0;
     };
+
     /// @brief 処理の計測値を初期状態へ戻す。
     static void ResetProfileStats();
     /// @brief 処理の計測値を返す。
@@ -60,16 +61,19 @@ public:
     {
         return text_;
     }
+
     /// @brief 外観を返す。
     const TextStyle& GetStyle() const
     {
         return style_;
     }
+
     /// @brief テクスチャパスを返す。
     const std::string& GetTexturePath() const
     {
         return texturePath_;
     }
+
     /// @brief スプライトを返す。
     Sprite* GetSprite() const
     {

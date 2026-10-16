@@ -14,12 +14,14 @@
 namespace myEngine {
 
 /// @brief 最後に操作された入力機器。操作説明の表記と照準の取り方を切り替える。
-enum class InputDevice { KeyboardMouse, Gamepad };
+enum class InputDevice {
+    KeyboardMouse,
+    Gamepad
+};
 
 /// @brief キーボード・マウス・ゲームパッドの前回と今回の状態を保持する。
 /// ゲームパッドの操作は、既存のキー・マウスの状態へ変換して合成する（メニュー等の既存処理をそのまま使う）。
 class Input {
-
 public:
     // シングルトン
     static Input* GetInstance();
@@ -65,26 +67,31 @@ public:
     {
         return key_;
     }
+
     /// @brief 前処理キーを返す。
     std::span<const BYTE> GetPreKey() const
     {
         return preKey_;
     }
+
     /// @brief マウス状態を返す。
     DIMOUSESTATE GetMouseState()
     {
         return mouseState_;
     }
+
     /// @brief 前処理マウス状態を返す。
     DIMOUSESTATE GetPreMouseState()
     {
         return preMouseState_;
     }
+
     /// @brief 現在ゲームパッド状態を返す。
     XINPUT_STATE GetCurrentGamepadState() const
     {
         return currentGamepadState_;
     }
+
     /// @brief 左Stickを返す。
     Vector2 GetLeftStick() const;
     /// @brief 右Stickを返す。
@@ -94,15 +101,35 @@ public:
     Vector2 GetMousePosition() const;
 
     /// @brief 最後に操作された入力機器を返す。
-    InputDevice GetActiveDevice() const { return activeDevice_; }
+    InputDevice GetActiveDevice() const
+    {
+        return activeDevice_;
+    }
+
     /// @brief 最後の操作がゲームパッドであるか。
-    bool IsGamepadActive() const { return activeDevice_ == InputDevice::Gamepad; }
+    bool IsGamepadActive() const
+    {
+        return activeDevice_ == InputDevice::Gamepad;
+    }
+
     /// @brief ゲームパッドが接続されているか。
-    bool IsGamepadConnected() const { return gamepadConnected_; }
+    bool IsGamepadConnected() const
+    {
+        return gamepadConnected_;
+    }
+
     /// @brief 入力機器が切り替わるたびに増える番号。操作説明の文字を作り直す判定に使う。
-    uint32_t GetPromptRevision() const { return promptRevision_; }
+    uint32_t GetPromptRevision() const
+    {
+        return promptRevision_;
+    }
+
     /// @brief 戦闘を操作中のフレームで毎回呼ぶ。次のフレームのボタン割り当てを戦闘用にする。
-    void RequestGamepadGameplayContext() { gameplayContextRequested_ = true; }
+    void RequestGamepadGameplayContext()
+    {
+        gameplayContextRequested_ = true;
+    }
+
     /// @brief 移動入力（左スティック、戦闘中は十字キーも）。半径方向のデッドゾーン処理済み、長さ0〜1。
     Vector2 GetGamepadMove() const;
     /// @brief 右スティックの照準方向。倒していなければfalse。
@@ -146,7 +173,11 @@ private:
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     // Development check without hardware: MYENGINE_FAKE_GAMEPAD names a text file of scripted pad states,
     // one segment per line: firstFrame endFrame buttons(hex) lx ly rx ry lt rt  (sticks -1..1, triggers 0..1).
-    struct FakeGamepadSegment { uint32_t first = 0, end = 0; XINPUT_GAMEPAD pad{}; };
+    struct FakeGamepadSegment {
+        uint32_t first = 0, end = 0;
+        XINPUT_GAMEPAD pad{};
+    };
+
     std::vector<FakeGamepadSegment> fakeGamepad_;
     bool fakeGamepadLoaded_ = false;
     uint32_t fakeGamepadFrame_ = 0;

@@ -7,6 +7,7 @@ class GameplaySettings {
 public:
     /// @brief 借用するワールドを設定する。
     explicit GameplaySettings(GameWorld& world) : world_(world) {}
+
     /// @brief 後処理演出パラメーターControlsを描画する。
     void DrawPostEffectParamControls(const char* labelPrefix, myEngine::BloomParam& param);
 

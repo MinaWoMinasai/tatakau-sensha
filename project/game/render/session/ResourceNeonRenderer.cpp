@@ -50,8 +50,8 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
         world_.resources.neonGridRenderer_->QueueContourLine(a, b, width, color, cameraForward, wireContour);
     };
 
-    auto queueCube = [&](const myEngine::Vector3& center, float size, const myEngine::Vector3& rotate, const myEngine::Vector3& scale, float lineWidth,
-                         const myEngine::Vector4& color) {
+    auto queueCube = [&](const myEngine::Vector3& center, float size, const myEngine::Vector3& rotate, const myEngine::Vector3& scale,
+                         float lineWidth, const myEngine::Vector4& color) {
         const float h = size * 0.5f;
         const float z = size * 0.5f;
         myEngine::Vector3 corners[8] = {{-h, -h, -z}, {h, -h, -z}, {h, h, -z}, {-h, h, -z}, {-h, -h, z}, {h, -h, z}, {h, h, z}, {-h, h, z}};
@@ -64,8 +64,8 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
         }
     };
 
-    auto queueTriangularPyramid = [&](const myEngine::Vector3& center, float radius, const myEngine::Vector3& rotate, const myEngine::Vector3& scale,
-                                      float lineWidth, const myEngine::Vector4& color) {
+    auto queueTriangularPyramid = [&](const myEngine::Vector3& center, float radius, const myEngine::Vector3& rotate,
+                                      const myEngine::Vector3& scale, float lineWidth, const myEngine::Vector4& color) {
         constexpr float kTwoPi = 6.28318530718f;
         const float depth = radius * 0.75f;
         myEngine::Vector3 points[4]{};
@@ -82,8 +82,8 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
         queueWireLine(points[2], points[3], lineWidth, color);
     };
 
-    auto queuePentagonalPrism = [&](const myEngine::Vector3& center, float radius, const myEngine::Vector3& rotate, const myEngine::Vector3& scale,
-                                    float lineWidth, const myEngine::Vector4& color) {
+    auto queuePentagonalPrism = [&](const myEngine::Vector3& center, float radius, const myEngine::Vector3& rotate,
+                                    const myEngine::Vector3& scale, float lineWidth, const myEngine::Vector4& color) {
         constexpr float kTwoPi = 6.28318530718f;
         const float depth = radius * 0.85f;
         myEngine::Vector3 points[10]{};
@@ -102,8 +102,8 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
         }
     };
 
-    auto queueCircle3D = [&](const myEngine::Vector3& center, float radius, const myEngine::Vector3& rotate, const myEngine::Vector3& scale, int axis,
-                             float lineWidth, const myEngine::Vector4& color) {
+    auto queueCircle3D = [&](const myEngine::Vector3& center, float radius, const myEngine::Vector3& rotate, const myEngine::Vector3& scale,
+                             int axis, float lineWidth, const myEngine::Vector4& color) {
         constexpr float kTwoPi = 6.28318530718f;
         constexpr int kSegments = 20;
         myEngine::Vector3 previous{};
@@ -135,13 +135,13 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
         const float barrelHalf = radius * 0.22f;
         const float barrelOffset = radius * 0.72f;
         myEngine::Vector3 corners[8] = {{-barrelHalf, -barrelOffset, -barrelHalf},
-                                   {barrelHalf, -barrelOffset, -barrelHalf},
-                                   {barrelHalf, -barrelOffset - barrelLength, -barrelHalf},
-                                   {-barrelHalf, -barrelOffset - barrelLength, -barrelHalf},
-                                   {-barrelHalf, -barrelOffset, barrelHalf},
-                                   {barrelHalf, -barrelOffset, barrelHalf},
-                                   {barrelHalf, -barrelOffset - barrelLength, barrelHalf},
-                                   {-barrelHalf, -barrelOffset - barrelLength, barrelHalf}};
+                                        {barrelHalf, -barrelOffset, -barrelHalf},
+                                        {barrelHalf, -barrelOffset - barrelLength, -barrelHalf},
+                                        {-barrelHalf, -barrelOffset - barrelLength, -barrelHalf},
+                                        {-barrelHalf, -barrelOffset, barrelHalf},
+                                        {barrelHalf, -barrelOffset, barrelHalf},
+                                        {barrelHalf, -barrelOffset - barrelLength, barrelHalf},
+                                        {-barrelHalf, -barrelOffset - barrelLength, barrelHalf}};
         for (myEngine::Vector3& corner : corners) {
             corner = transformLocalPoint(corner, center, rotate, scale);
         }
@@ -154,39 +154,42 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
     auto queueBillboardPolygon = [&](const myEngine::Vector3& center, int sides, float radius, float rotation, float lineWidth,
                                      const myEngine::Vector4& color, bool luminous = true) {
         constexpr float kTwoPi = 6.28318530718f;
-        if (sides < 3 || sides > 48)
+        if (sides < 3 || sides > 48) {
             return;
+        }
         myEngine::Vector3 points[48]{};
         for (int i = 0; i < sides; ++i) {
             const float angle = rotation - kTwoPi * 0.25f + static_cast<float>(i) * (kTwoPi / static_cast<float>(sides));
             points[i] = center + cameraRight * (std::cos(angle) * radius) + cameraUp * (std::sin(angle) * radius);
         }
-        if (luminous)
+        if (luminous) {
             world_.resources.neonGridRenderer_->QueueContourPolygon(points, static_cast<uint32_t>(sides), lineWidth, color, cameraForward,
                                                                     myEngine::ActorNeonContourStyle());
-        else
-            for (int i = 0; i < sides; ++i)
+        } else {
+            for (int i = 0; i < sides; ++i) {
                 world_.resources.neonGridRenderer_->QueueCameraFacingLine(points[i], points[(i + 1) % sides], lineWidth, color,
                                                                           cameraForward);
+            }
+        }
     };
 
-    auto queueBillboardShooter = [&](const myEngine::Vector3& center, float radius, float rotation, float lineWidth, const myEngine::Vector4& color,
-                                     float warningRatio, float muzzleFlashRatio) {
+    auto queueBillboardShooter = [&](const myEngine::Vector3& center, float radius, float rotation, float lineWidth,
+                                     const myEngine::Vector4& color, float warningRatio, float muzzleFlashRatio) {
         warningRatio = (std::clamp)(warningRatio, 0.0f, 1.0f);
         muzzleFlashRatio = (std::clamp)(muzzleFlashRatio, 0.0f, 1.0f);
         const float warningImpact = warningRatio * warningRatio;
         if (warningRatio > 0.0f) {
             const float warningRadiusScale = 1.50f - warningRatio * 0.42f;
-            const myEngine::Vector4 warningColor{1.80f + warningImpact * 0.60f, 0.25f + warningImpact * 1.20f, 0.08f + warningImpact * 0.55f,
-                                            0.28f + warningRatio * 0.72f};
+            const myEngine::Vector4 warningColor{1.80f + warningImpact * 0.60f, 0.25f + warningImpact * 1.20f,
+                                                 0.08f + warningImpact * 0.55f, 0.28f + warningRatio * 0.72f};
             queueBillboardPolygon(center, 20, radius * warningRadiusScale, rotation, lineWidth * (0.75f + warningRatio * 0.55f),
                                   warningColor, false);
         }
 
         const myEngine::Vector4 bodyColor{color.x + warningImpact * 0.65f, color.y + warningImpact * 0.85f, color.z + warningImpact * 0.32f,
-                                     color.w};
+                                          color.w};
         const myEngine::Vector4 barrelColor{bodyColor.x + warningImpact * 0.35f, bodyColor.y + warningImpact * 0.30f,
-                                       bodyColor.z + warningImpact * 0.12f, bodyColor.w};
+                                            bodyColor.z + warningImpact * 0.12f, bodyColor.w};
         queueBillboardPolygon(center, 20, radius, rotation, lineWidth, bodyColor);
         const float c = std::cos(rotation);
         const float s = std::sin(rotation);
@@ -232,8 +235,9 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
             continue;
         }
 
-        const myEngine::Vector3 center = expEnemy->GetWorldPosition() +
-                                    (world_.presentation.expEnemyNeonRenderMode_ >= 2 ? myEngine::Vector3{} : myEngine::Vector3{0.0f, 0.0f, 0.35f});
+        const myEngine::Vector3 center =
+            expEnemy->GetWorldPosition() +
+            (world_.presentation.expEnemyNeonRenderMode_ >= 2 ? myEngine::Vector3{} : myEngine::Vector3{0.0f, 0.0f, 0.35f});
         const myEngine::Vector4 color = expEnemy->GetVisualColor();
         if (world_.presentation.expEnemyNeonRenderMode_ >= 2) {
             if (expEnemy->GetType() == ExpEnemyType::Triangle) {
@@ -304,8 +308,9 @@ void ResourceNeonRenderer::DrawExpEnemyNeonDepthLines()
         return;
     }
 
-    myEngine::Matrix4x4 viewMatrix = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewMatrix()
-                                                                                       : world_.resources.camera->GetViewMatrix();
+    myEngine::Matrix4x4 viewMatrix = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
+                                         ? world_.resources.debugCamera->GetViewMatrix()
+                                         : world_.resources.camera->GetViewMatrix();
     myEngine::Matrix4x4 cameraWorld = myEngine::Inverse(viewMatrix);
     myEngine::Vector3 cameraRight = myEngine::Normalize({cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2]});
     myEngine::Vector3 cameraUp = myEngine::Normalize({cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2]});
@@ -316,15 +321,18 @@ void ResourceNeonRenderer::DrawExpEnemyNeonDepthLines()
                                                      world_.presentation.neonLineCoreIntensity_);
     QueueExpEnemyNeonShapes(cameraRight, cameraUp, cameraForward);
 
-    myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewProjectionMatrix()
-                                                                               : world_.resources.camera->GetViewProjectionMatrix();
+    myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
+                                 ? world_.resources.debugCamera->GetViewProjectionMatrix()
+                                 : world_.resources.camera->GetViewProjectionMatrix();
     world_.resources.neonGridRenderer_->DrawAll(vp);
 }
 
 myEngine::Vector3 ResourceNeonRenderer::GetFloorVisibilityCenter() const
 {
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    if (world_.presentation.developerStageTiltApplied_) return world_.presentation.developerStageBaseCamera_;
+    if (world_.presentation.developerStageTiltApplied_) {
+        return world_.presentation.developerStageBaseCamera_;
+    }
 #endif
     // A tilted camera's eye is outside the room in XY. Floor culling follows
     // its displayed focus; facing/depth calculations still use the real eye.

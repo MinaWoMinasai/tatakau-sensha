@@ -36,6 +36,7 @@ public:
     void Update(float deltaTime);
     /// @brief 全体を描画する。
     void DrawAll(const Matrix4x4& viewProjection);
+
     /// @brief 保持している要素を消去する。
     void Clear()
     {

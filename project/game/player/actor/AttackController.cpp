@@ -16,21 +16,20 @@ void AttackController::FireFromMuzzle(const myEngine::Vector3& muzzlePosition, c
     FireInternal(muzzlePosition, baseDir, param, owner, true);
 }
 
-void AttackController::FireInternal(const myEngine::Vector3& origin, const myEngine::Vector3& baseDir, const AttackParam& param, BulletOwner owner,
-                                    bool originIsMuzzle)
+void AttackController::FireInternal(const myEngine::Vector3& origin, const myEngine::Vector3& baseDir, const AttackParam& param,
+                                    BulletOwner owner, bool originIsMuzzle)
 {
-
     assert(bulletManager_);
     // 正規化できない方向や非有限の弾速では弾を作らない。管理先の設定は呼び出し側の前提。
     const float directionLength = myEngine::Length(baseDir);
-    if (!std::isfinite(directionLength) || directionLength <= 0.0001f || !std::isfinite(param.bulletSpeed))
+    if (!std::isfinite(directionLength) || directionLength <= 0.0001f || !std::isfinite(param.bulletSpeed)) {
         return;
+    }
     myEngine::Vector3 dirNorm = baseDir / directionLength;
 
     float halfSpread = param.spreadAngleDeg * 0.5f;
 
     for (int i = 0; i < param.bulletCount; ++i) {
-
         // 拡散角は度。均等配置では両端を含め、1発だけなら中心方向、ランダムなら範囲内から選ぶ。
         float angleOffset;
         if (param.randomSpread) {

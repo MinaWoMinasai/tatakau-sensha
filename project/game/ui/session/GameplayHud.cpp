@@ -65,16 +65,20 @@ void GameplayHud::DrawGameTextBloom()
     // 強化段数バー表示中は、項目名と +/- のネオン源も追加される。
     labels.reserve(32);
     if (world_.run.expeditionMapEnabled_ && world_.run.tankExpedition_.IsCombat() && !world_.run.tankRunPaused_ &&
-        world_.run.tankRunObjectiveText_)
+        world_.run.tankRunObjectiveText_) {
         labels.push_back(world_.run.tankRunObjectiveText_.get());
+    }
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing) {
-        if (!world_.run.expeditionRun_)
+        if (!world_.run.expeditionRun_) {
             world_.resources.player_->AppendGameplayNeonTextLabels(labels);
+        }
         if (world_.combat.tutorialConfig_.enabled && world_.combat.tutorialUiVisible_) {
-            if (world_.combat.tutorialTitleText_)
+            if (world_.combat.tutorialTitleText_) {
                 labels.push_back(world_.combat.tutorialTitleText_.get());
-            if (world_.combat.tutorialInputText_)
+            }
+            if (world_.combat.tutorialInputText_) {
                 labels.push_back(world_.combat.tutorialInputText_.get());
+            }
         }
     }
     if (world_.combat.eventCalloutTimer_ > 0.0f && world_.combat.eventCalloutText_) {
@@ -83,8 +87,9 @@ void GameplayHud::DrawGameTextBloom()
     const auto& cine = world_.presentation.bossCinematic_;
     const bool cinematicTitle = world_.resources.neonDepthCameraScoped_ && cine.titleMode != 0 && cine.titleAlpha > 0.05f &&
                                 world_.combat.cinematicTitle_ && world_.combat.cinematicTitleMode_ == cine.titleMode;
-    if (cinematicTitle)
+    if (cinematicTitle) {
         labels.push_back(world_.combat.cinematicTitle_.get());
+    }
     if (world_.combat.combatFlow_.GetState() != GameFlowState::Playing && world_.combat.flowBannerText_ &&
         !(world_.resources.neonDepthCameraScoped_ && cine.defeatTime >= 0.0f)) {
         labels.push_back(world_.combat.flowBannerText_.get());
@@ -102,8 +107,9 @@ void GameplayHud::DrawGameTextBloom()
     }
     auto glow = world_.combat.gameTextNeonStyle_;
     if (world_.combat.eventCalloutTimer_ > 0 && world_.combat.eventCalloutText_ &&
-        (world_.combat.eventCalloutText_->GetText() == "ダメージ" || world_.combat.eventCalloutText_->GetText() == "戦闘不能"))
+        (world_.combat.eventCalloutText_->GetText() == "ダメージ" || world_.combat.eventCalloutText_->GetText() == "戦闘不能")) {
         glow.glowColor = {1, 0.08f, 0.025f, 1};
+    }
     world_.combat.gameTextNeonEffect_->SetStyle(glow);
     world_.combat.gameTextNeonEffect_->DrawBloom(labels);
     world_.combat.gameTextNeonEffect_->SetStyle(world_.combat.gameTextNeonStyle_);
@@ -112,11 +118,13 @@ void GameplayHud::DrawGameTextBloom()
 void GameplayHud::DrawBossCinematic()
 {
     const auto& cine = world_.presentation.bossCinematic_;
-    if (!world_.resources.neonDepthCameraScoped_ || cine.letterbox < 0.01f)
+    if (!world_.resources.neonDepthCameraScoped_ || cine.letterbox < 0.01f) {
         return;
+    }
     auto& ui = world_.combat;
-    if (!ui.cinematicBarTop_ || !ui.cinematicTitle_)
+    if (!ui.cinematicBarTop_ || !ui.cinematicTitle_) {
         return;
+    }
     const float width = static_cast<float>(myEngine::WinApp::kClientWidth);
     const float height = static_cast<float>(myEngine::WinApp::kClientHeight);
     const float bar = 86.0f * cine.letterbox;
@@ -131,8 +139,9 @@ void GameplayHud::DrawBossCinematic()
     ui.cinematicBarTop_->Draw();
     ui.cinematicBarBottom_->Draw();
 
-    if (cine.titleMode == 0 || cine.titleAlpha < 0.01f || ui.cinematicTitleMode_ != cine.titleMode)
+    if (cine.titleMode == 0 || cine.titleAlpha < 0.01f || ui.cinematicTitleMode_ != cine.titleMode) {
         return;
+    }
     // The title slides in slightly while it fades, then holds.
     const float settle = 1.0f - std::exp(-cine.titleAge * 5.0f);
     const float alpha = (std::clamp)(cine.titleAlpha, 0.0f, 1.0f);
@@ -141,16 +150,18 @@ void GameplayHud::DrawBossCinematic()
     ui.cinematicSubtitle_->SetPosition({width * 0.5f, height * 0.72f + 54.0f});
     ui.cinematicSubtitle_->SetAlpha(alpha * settle);
     // Below the title, in the lower letterbox where it never covers the actors.
-    if (cine.titleMode == 1)
+    if (cine.titleMode == 1) {
         ui.cinematicSubtitle_->SetPosition({width * 0.5f, height - bar * 0.5f});
+    }
     ui.cinematicTitle_->Draw();
     ui.cinematicSubtitle_->Draw();
 }
 
 void GameplayHud::DrawSprite()
 {
-    if (world_.gameplayQueries->IsNeonShowcaseActive())
+    if (world_.gameplayQueries->IsNeonShowcaseActive()) {
         return;
+    }
     world_.run.expeditionPointerCursor_ = 0;
 
     if (!world_.run.expeditionRun_ && !world_.gameplayQueries->IsTutorialCombatSuppressed()) {
@@ -197,8 +208,9 @@ void GameplayHud::DrawSprite()
     DrawHpBarBatches();
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     DrawBossCinematic();
-    if (!world_.run.expeditionRun_)
+    if (!world_.run.expeditionRun_) {
         world_.resources.player_->DrawSprite();
+    }
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing) {
         world_.resources.player_->DrawEncyclopedia();
     }
@@ -247,14 +259,16 @@ void GameplayHud::DrawSprite()
         }
     }
     if (world_.combat.phase_ != Phase::kFadeIn) {
-        if (world_.run.prototypeRun_)
+        if (world_.run.prototypeRun_) {
             world_.arenaRunController->DrawTankRunUi();
+        }
         if (world_.run.expeditionMapEnabled_) {
             world_.expeditionExperience->DrawExpeditionCredits();
             world_.expeditionExperience->DrawGuidedExpedition();
         }
-        if (world_.run.expeditionMapEnabled_)
+        if (world_.run.expeditionMapEnabled_) {
             world_.expeditionMapController->DrawExpeditionPresentation();
+        }
         world_.combat.fade_->Draw();
     }
 }
@@ -318,8 +332,8 @@ void GameplayHud::InitializeFollowHpBarBatch()
     world_.combat.hpBarTransformData_->World = myEngine::MakeIdentity4x4();
     world_.combat.hpBarTransformData_->WorldInverseTranspose = myEngine::MakeIdentity4x4();
     world_.combat.hpBarTransformData_->LightWVP = myEngine::MakeIdentity4x4();
-    world_.combat.hpBarTransformData_->WVP =
-        myEngine::MakeOrthographicMatrix(0.0f, 0.0f, float(myEngine::WinApp::kClientWidth), float(myEngine::WinApp::kClientHeight), 0.0f, 100.0f);
+    world_.combat.hpBarTransformData_->WVP = myEngine::MakeOrthographicMatrix(0.0f, 0.0f, float(myEngine::WinApp::kClientWidth),
+                                                                              float(myEngine::WinApp::kClientHeight), 0.0f, 100.0f);
 }
 
 void GameplayHud::DrawFollowHpBar(const void* ownerKey, const myEngine::Vector3& worldPos, int hp, int maxHp, float width, float yOffset)
@@ -343,8 +357,9 @@ void GameplayHud::DrawFollowHpBar(const void* ownerKey, const myEngine::Vector3&
     visibility.lastMaxHp = maxHp;
 
     const float targetAlpha = ownerKey == world_.resources.player_.get() || hp < maxHp || visibility.visibleTimer > 0.0f ? 1.0f : 0.0f;
-    if (ownerKey == world_.resources.player_.get())
+    if (ownerKey == world_.resources.player_.get()) {
         visibility.alpha = 1.0f;
+    }
     const float fadeSpeed = targetAlpha > visibility.alpha ? 10.0f : 4.0f;
     if (visibility.alpha < targetAlpha) {
         visibility.alpha = (std::min)(targetAlpha, visibility.alpha + world_.combat.finalDeltaTime * fadeSpeed);
@@ -406,7 +421,8 @@ void GameplayHud::DrawFollowStaminaBar(const myEngine::Vector3& worldPos, float 
     QueueHpBarQuad(world_.combat.hpBarOutlineVertices_[kOpaqueBucket], screenPos, {width, height});
 }
 
-void GameplayHud::QueueHpBarQuad(std::vector<myEngine::VertexData>& vertices, const myEngine::Vector2& center, const myEngine::Vector2& size)
+void GameplayHud::QueueHpBarQuad(std::vector<myEngine::VertexData>& vertices, const myEngine::Vector2& center,
+                                 const myEngine::Vector2& size)
 {
     const float left = center.x - size.x * 0.5f;
     const float right = center.x + size.x * 0.5f;
@@ -474,8 +490,8 @@ void GameplayHud::DrawHpBarBatches()
         return;
     }
 
-    world_.combat.hpBarTransformData_->WVP =
-        myEngine::MakeOrthographicMatrix(0.0f, 0.0f, float(myEngine::WinApp::kClientWidth), float(myEngine::WinApp::kClientHeight), 0.0f, 100.0f);
+    world_.combat.hpBarTransformData_->WVP = myEngine::MakeOrthographicMatrix(0.0f, 0.0f, float(myEngine::WinApp::kClientWidth),
+                                                                              float(myEngine::WinApp::kClientHeight), 0.0f, 100.0f);
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     for (const HpBarDrawCommand& command : drawCommands) {
         if (command.vertexCount == 0) {
@@ -488,8 +504,8 @@ void GameplayHud::DrawHpBarBatches()
 myEngine::Vector2 GameplayHud::WorldToScreen(const myEngine::Vector3& worldPos) const
 {
     myEngine::Matrix4x4 matVP = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
-                               ? world_.resources.debugCamera->GetViewMatrix() * world_.resources.debugCamera->GetProjectionMatrix()
-                               : world_.resources.camera->GetViewMatrix() * world_.resources.camera->GetProjectionMatrix();
+                                    ? world_.resources.debugCamera->GetViewMatrix() * world_.resources.debugCamera->GetProjectionMatrix()
+                                    : world_.resources.camera->GetViewMatrix() * world_.resources.camera->GetProjectionMatrix();
     myEngine::Vector3 ndcPos = myEngine::TransformMatrix(worldPos, matVP);
 
     float screenX = (ndcPos.x + 1.0f) * 0.5f * myEngine::WinApp::kClientWidth;

@@ -4,23 +4,23 @@ namespace myEngine {
 
 Object3dCommon* Object3dCommon::GetInstance()
 {
-	static Object3dCommon instance;
-	return &instance;
+    static Object3dCommon instance;
+    return &instance;
 }
 
 void Object3dCommon::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, ShadowMap* shadowMap)
 {
-
-	if (dxCommon_ != nullptr) {
-		return;
-	}
-	dxCommon_ = dxCommon;
-	srvManager_ = srvManager;
-	shadowMap_ = shadowMap;
-    lightDir_ = Normalize({ 0.01f, -0.99f, 0.1f });
+    if (dxCommon_ != nullptr) {
+        return;
+    }
+    dxCommon_ = dxCommon;
+    srvManager_ = srvManager;
+    shadowMap_ = shadowMap;
+    lightDir_ = Normalize({0.01f, -0.99f, 0.1f});
 }
 
-void Object3dCommon::Update() {
+void Object3dCommon::Update()
+{
     // 1. ライトの向き（DirectionalLightと同じ向きにする）
     // 例：斜め下 45度方向
 
@@ -39,15 +39,12 @@ void Object3dCommon::Update() {
     // 2. ライトの位置
     // ライトの向きの逆方向に、十分離れた場所にカメラを置く
     float distance = 300.0f; // 十分な距離をとる
-    Vector3 lightPos = {
-        shadowFocus_.x + lightDir_.x * distance,
-        shadowFocus_.y - lightDir_.y * distance,
-        shadowFocus_.z + lightDir_.z * distance
-    };
+    Vector3 lightPos = {shadowFocus_.x + lightDir_.x * distance, shadowFocus_.y - lightDir_.y * distance,
+                        shadowFocus_.z + lightDir_.z * distance};
 
     // 3. ライトビュー行列
     // 原点付近を映す。もしキャラが動くならここをキャラの座標にする
-    Matrix4x4 lightView = MakeLookAtMatrix(lightPos, shadowFocus_, { 0, 1, 0 });
+    Matrix4x4 lightView = MakeLookAtMatrix(lightPos, shadowFocus_, {0, 1, 0});
 
     // 4. プロジェクション行列（ここが重要！）
     // 地面全体（緑色の範囲）を広げるために range を大きくする
@@ -60,12 +57,11 @@ void Object3dCommon::Update() {
 
 void Object3dCommon::PreDraw(BlendMode blendMode)
 {
+    dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObjectForScene(blendMode).root_.GetSignature().Get());
+    dxCommon_->GetList()->SetPipelineState(dxCommon_->GetObjectScenePipeline(blendMode));
+    dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObjectForScene(blendMode).root_.GetSignature().Get());
-	dxCommon_->GetList()->SetPipelineState(dxCommon_->GetObjectScenePipeline(blendMode));
-	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	blendMode_ = blendMode;
+    blendMode_ = blendMode;
 }
 
 } // namespace myEngine

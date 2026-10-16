@@ -8,7 +8,6 @@ namespace myEngine {
 
 /// @brief GPUバッファの作成とマップ領域を管理する。
 class Resource {
-
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize();

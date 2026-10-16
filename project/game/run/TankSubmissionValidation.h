@@ -19,6 +19,7 @@ inline bool Enabled()
     }();
     return enabled;
 }
+
 /// @brief 提出版の実行検証で観測した進行状態と結果を保持する。
 struct State {
     int titles = 0, runs = 0, repairStep = 0, repairWallet = 0, repairHp = 0, repairCost = 0;
@@ -29,7 +30,9 @@ struct State {
     std::vector<std::string> path, errors;
     nlohmann::json screens = nlohmann::json::object(), experience;
 };
+
 inline State state;
+
 /// @brief 保存済みのチュートリアル履修状態を判定する。
 inline bool TutorialSaved()
 {
@@ -37,6 +40,7 @@ inline bool TutorialSaved()
     const auto value = in ? nlohmann::json::parse(in, nullptr, false) : nlohmann::json{};
     return value.is_object() && value.value("tutorialCompleted", false);
 }
+
 /// @brief 検証した状態を出力先へ書き込む。
 inline void Write(bool completed = false)
 {

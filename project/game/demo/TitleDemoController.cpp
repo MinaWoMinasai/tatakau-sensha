@@ -19,9 +19,11 @@ bool ClearShot(Stage& stage, const myEngine::Vector3& from, const myEngine::Vect
 {
     const myEngine::Vector3 delta = to - from;
     const int steps = (std::max)(1, static_cast<int>(myEngine::Length(delta) / 0.6f));
-    for (int i = 1; i < steps; ++i)
-        if (stage.IsCollisionWithAnyBlock(from + delta * (static_cast<float>(i) / steps), 0.35f))
+    for (int i = 1; i < steps; ++i) {
+        if (stage.IsCollisionWithAnyBlock(from + delta * (static_cast<float>(i) / steps), 0.35f)) {
             return false;
+        }
+    }
     return true;
 }
 
@@ -53,8 +55,9 @@ std::vector<myEngine::Vector3> FindDemoPath(Stage& stage, const myEngine::Vector
         const std::array<int, 4> adjacent{
             {x > 0 ? cell - 1 : -1, x + 1 < width ? cell + 1 : -1, y > 0 ? cell - width : -1, y + 1 < height ? cell + width : -1}};
         for (int next : adjacent) {
-            if (next < 0 || parent[next] >= 0 || stage.IsCollisionWithAnyBlock(position(next), 0.85f))
+            if (next < 0 || parent[next] >= 0 || stage.IsCollisionWithAnyBlock(position(next), 0.85f)) {
                 continue;
+            }
             parent[next] = cell;
             pending.push(next);
             const float distance = myEngine::Length(position(next) - target);
@@ -76,8 +79,9 @@ std::vector<myEngine::Vector3> FindDemoPath(Stage& stage, const myEngine::Vector
 
 void TitleDemoController::InitializeTitleDemo()
 {
-    if (!world_.demo.titleDemo_)
+    if (!world_.demo.titleDemo_) {
         return;
+    }
     world_.run.tankRunAutoTest_ = false;
     world_.combat.tutorialConfig_.enabled = false;
     world_.presentation.debugPlayerNoDamage_ = true; // Attract mode cannot terminate on player death.
@@ -105,8 +109,10 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
     world_.combat.bossEntryTriggered_ = true;
     world_.combat.timeScale_ = 1;
     myEngine::StartupTrace::Scope traceScope("TitleDemo.ResetStage");
-    { myEngine::StartupTrace::Scope scope("TitleDemo.ScreenEffects");
-    world_.combat.screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json"); }
+    {
+        myEngine::StartupTrace::Scope scope("TitleDemo.ScreenEffects");
+        world_.combat.screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json");
+    }
     // A normal expedition has four room rewards plus at most one event card.
     // Do not let a late showcase collect a sixth, unattainable modification.
     tankrun::Config config;
@@ -129,17 +135,20 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
     const auto& cards = stage == 3 ? bossCards : lateCards;
     const int cardCount = stage == 0 ? 0 : stage == 1 ? 3 : 5;
     for (int i = 0; i < cardCount; ++i) {
-        if (world_.run.tankRun_.OpenRewardDraft(false, cards[i]))
+        if (world_.run.tankRun_.OpenRewardDraft(false, cards[i])) {
             world_.run.tankRun_.ChooseCard(0);
+        }
     }
     myEngine::StartupTrace::Mark("TitleDemo.CardsChosen");
-    if (stage > 0)
+    if (stage > 0) {
         world_.arenaRunController->ApplyTankRunCards();
+    }
     if (stage >= 2) {
         world_.resources.player_->PrepareRunEvolution();
         const auto choices = world_.resources.player_->GetRunEvolutionChoices();
-        if (!choices.empty())
+        if (!choices.empty()) {
             world_.resources.player_->ChooseRunEvolution(choices.front().id);
+        }
     }
     world_.resources.player_->HealRunPlayer(world_.resources.player_->GetMaxHp());
     world_.run.tankExpedition_.Reset();
@@ -168,10 +177,13 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
             break;
         }
     }
-    { myEngine::StartupTrace::Scope scope("TitleDemo.StartRoom");
-    world_.expeditionController->StartTankExpeditionRoom(); }
+    {
+        myEngine::StartupTrace::Scope scope("TitleDemo.StartRoom");
+        world_.expeditionController->StartTankExpeditionRoom();
+    }
     world_.resources.player_->SetDebugNoDamage(true);
-    world_.resources.player_->SetDemoInput(true, {}, world_.resources.player_->GetWorldPosition() + myEngine::Vector3{1, 0, 0}, false, false);
+    world_.resources.player_->SetDemoInput(true, {}, world_.resources.player_->GetWorldPosition() + myEngine::Vector3{1, 0, 0}, false,
+                                           false);
     world_.run.tankRunMenuAge_ = 0;
     world_.run.tankExpeditionAudio_.SetMusicVolume(0);
     world_.run.tankExpeditionAudio_.SetEffectsVolume(0);
@@ -179,32 +191,38 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
 
 void TitleDemoController::UpdateTitleDemo(float dt)
 {
-    if (!world_.demo.titleDemo_)
+    if (!world_.demo.titleDemo_) {
         return;
+    }
     // Attract mode bypasses the ordinary expedition update (including burst cleanup).
-    for (auto& burst : world_.run.tankRunBursts_)
+    for (auto& burst : world_.run.tankRunBursts_) {
         burst.age += dt;
+    }
     std::erase_if(world_.run.tankRunBursts_, [](const RunBurst& b) {
         return b.age > (b.resource ? 0.7f : 0.35f);
     });
     world_.demo.titleDemoRoomFade_ =
         (std::clamp)(world_.demo.titleDemoRoomFade_ + (world_.run.tankExpedition_.IsCombat() ? -dt : dt) / 0.5f, 0.0f, 1.0f);
     const size_t playerBullets = world_.resources.bulletManager_->GetBulletCounts().player;
-    if (playerBullets > world_.demo.titleDemoPreviousBulletCount_)
+    if (playerBullets > world_.demo.titleDemoPreviousBulletCount_) {
         world_.demo.titleDemoStatus_.shots += static_cast<int>(playerBullets - world_.demo.titleDemoPreviousBulletCount_);
+    }
     world_.demo.titleDemoPreviousBulletCount_ = playerBullets;
     world_.demo.titleDemoStatus_.maxPlayerBullets =
         (std::max)(world_.demo.titleDemoStatus_.maxPlayerBullets, static_cast<int>(playerBullets));
-    if (world_.resources.player_->IsDashing() && !world_.demo.titleDemoPreviousDash_)
+    if (world_.resources.player_->IsDashing() && !world_.demo.titleDemoPreviousDash_) {
         ++world_.demo.titleDemoStatus_.dashes;
+    }
     world_.demo.titleDemoPreviousDash_ = world_.resources.player_->IsDashing();
     world_.demo.titleDemoStatus_.kills = world_.combat.defeatedEnemies_;
     world_.demo.titleDemoStatus_.stageSeconds += dt;
     world_.demo.titleDemoStatus_.totalSeconds += dt;
-    if (world_.demo.titleDemoStatus_.stageSeconds >= kDemoStageSeconds)
+    if (world_.demo.titleDemoStatus_.stageSeconds >= kDemoStageSeconds) {
         ResetTitleDemoStage((world_.demo.titleDemoStatus_.stage + 1) % 4);
-    if (world_.combat.combatFlow_.GetState() != GameFlowState::Playing)
+    }
+    if (world_.combat.combatFlow_.GetState() != GameFlowState::Playing) {
         return;
+    }
     world_.run.tankRunMenuAge_ += dt;
     const auto phase = world_.run.tankExpedition_.GetPhase();
     if (phase != tankexp::Phase::Combat) {
@@ -213,18 +231,22 @@ void TitleDemoController::UpdateTitleDemo(float dt)
         if (world_.run.tankRunMenuAge_ > 0.35f && world_.demo.titleDemoRoomFade_ >= 1.0f) {
             const int option = phase == tankexp::Phase::Route && world_.run.tankExpedition_.GetRouteRound() == 0 ? 1 : 0;
             world_.expeditionController->SelectTankExpeditionOption(option);
-            if (phase == tankexp::Phase::Reward)
+            if (phase == tankexp::Phase::Reward) {
                 ++world_.demo.titleDemoStatus_.rewards;
-            if (phase == tankexp::Phase::Route)
+            }
+            if (phase == tankexp::Phase::Route) {
                 ++world_.demo.titleDemoStatus_.routes;
+            }
         }
         return;
     }
     const auto room = world_.run.tankExpedition_.GetRoomKind();
     int threats = 0;
-    for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs())
-        if (actor && actor->IsCombatThreat())
+    for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (actor && actor->IsCombatThreat()) {
             ++threats;
+        }
+    }
     if (room == tankexp::RoomKind::Resource && !world_.run.tankExpeditionResourceReleased_ && !threats &&
         world_.run.tankExpeditionSpawned_ > 0) {
         auto& node = world_.run.tankRunResources_[0];
@@ -255,11 +277,14 @@ void TitleDemoController::UpdateTitleDemo(float dt)
             found = true;
         }
     };
-    for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs())
-        if (actor && !actor->IsDead())
+    for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (actor && !actor->IsDead()) {
             consider(actor->GetWorldPosition(), actor->IsCombatThreat() || actor->IsRunResource());
-    if (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())
+        }
+    }
+    if (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead()) {
         consider(world_.resources.enemy_->GetWorldPosition(), true);
+    }
     myEngine::Vector3 move{};
     if (found) {
         const myEngine::Vector3 toTarget = aim - origin;
@@ -272,53 +297,62 @@ void TitleDemoController::UpdateTitleDemo(float dt)
             world_.demo.titleDemoNavigationTimer_ = 0.45f;
         }
         if ((!visible || range > 9) && !world_.demo.titleDemoPath_.empty()) {
-            while (world_.demo.titleDemoPath_.size() > 1 && myEngine::Length(world_.demo.titleDemoPath_.front() - origin) < 1.1f)
+            while (world_.demo.titleDemoPath_.size() > 1 && myEngine::Length(world_.demo.titleDemoPath_.front() - origin) < 1.1f) {
                 world_.demo.titleDemoPath_.erase(world_.demo.titleDemoPath_.begin());
+            }
             move = world_.demo.titleDemoPath_.front() - origin;
         } else {
             const float orbit = static_cast<int>(world_.demo.titleDemoStatus_.stageSeconds / 3.0f) % 2 ? -1.0f : 1.0f;
             move = myEngine::Vector3{-heading.y, heading.x, 0} * orbit + heading * (range < 5.0f ? -0.8f : 0.15f);
         }
         const float magnitude = myEngine::Length(move);
-        if (magnitude > 0.01f)
+        if (magnitude > 0.01f) {
             move = move * (1.0f / magnitude);
+        }
         if (world_.resources.stage_->IsCollisionWithAnyBlock(origin + move * 1.6f, 0.9f)) {
             const myEngine::Vector3 tangent{-move.y, move.x, 0};
             move = !world_.resources.stage_->IsCollisionWithAnyBlock(origin + tangent * 1.6f, 0.9f) ? tangent : tangent * -1.0f;
         }
     }
     bool danger = false;
-    for (auto* bullet : world_.resources.bulletManager_->GetBulletPtrs())
+    for (auto* bullet : world_.resources.bulletManager_->GetBulletPtrs()) {
         if (bullet && !bullet->IsDead() && bullet->GetOwner() != kPlayer && myEngine::Length(bullet->GetWorldPosition() - origin) < 4.0f) {
             danger = true;
             break;
         }
+    }
     world_.resources.player_->SetDemoInput(true, {move.x, move.y}, aim, found, danger && !world_.resources.player_->IsDashing());
 }
 
 void TitleDemoController::RequestTitleDemoCapture(const std::string& name)
 {
-    if (!world_.demo.titleDemo_ || !world_.run.tankRunCapturePath_.empty())
+    if (!world_.demo.titleDemo_ || !world_.run.tankRunCapturePath_.empty()) {
         return;
+    }
     std::filesystem::create_directories("generated/title_demo");
     world_.run.tankRunCapturePath_ = "generated/title_demo/" + name + ".png";
 }
+
 void TitleDemoController::CopyTitleDemoCapture()
 {
-    if (world_.demo.titleDemo_)
+    if (world_.demo.titleDemo_) {
         world_.arenaRunController->CopyTankRunCapture();
+    }
 }
+
 void TitleDemoController::FlushTitleDemoCapture()
 {
-    if (world_.demo.titleDemo_)
+    if (world_.demo.titleDemo_) {
         world_.arenaRunController->FinishTankRunCapture();
+    }
 }
 
 nlohmann::json TitleDemoController::GetTitleDemoBuild() const
 {
     float oldestBurstAge = 0;
-    for (const auto& burst : world_.run.tankRunBursts_)
+    for (const auto& burst : world_.run.tankRunBursts_) {
         oldestBurstAge = (std::max)(oldestBurstAge, burst.age);
+    }
     const auto combat = world_.resources.player_->GetRunCombatSnapshot();
     const auto growth = world_.resources.bulletManager_->GetGrowthStats();
     return {{"oldestBurstAge", oldestBurstAge},
@@ -346,26 +380,33 @@ nlohmann::json TitleDemoController::GetTitleDemoBuild() const
 
 void TitleDemoController::VerifyTitleDemoTransition(float dt)
 {
-    if (world_.demo.titleDemo_ || !world_.run.expeditionRun_ || world_.demo.titleDemoTransitionVerified_)
+    if (world_.demo.titleDemo_ || !world_.run.expeditionRun_ || world_.demo.titleDemoTransitionVerified_) {
         return;
+    }
     wchar_t test[8]{};
-    if (!(GetEnvironmentVariableW(L"MYENGINE_TITLE_AUTOTEST", test, 8) > 0 && test[0] == L'1'))
+    if (!(GetEnvironmentVariableW(L"MYENGINE_TITLE_AUTOTEST", test, 8) > 0 && test[0] == L'1')) {
         return;
+    }
     world_.demo.titleDemoTransitionTimer_ += dt;
-    if (world_.demo.titleDemoTransitionTimer_ < 2.0f)
+    if (world_.demo.titleDemoTransitionTimer_ < 2.0f) {
         return;
+    }
     const std::filesystem::path path("generated/title_demo/validation.json");
     std::ifstream input(path);
-    if (!input)
+    if (!input) {
         return;
+    }
     auto report = nlohmann::json::parse(input, nullptr, false);
     if (report.is_discarded() || !report.value("fadeComplete", false) ||
-        report.value("transitionRequested", std::string{}) != "TANK_EXPEDITION")
+        report.value("transitionRequested", std::string{}) != "TANK_EXPEDITION") {
         return;
-    if (world_.demo.titleDemoTransitionTimer_ < 2.0f + dt * 1.5f && world_.run.tankRunCapturePath_.empty())
+    }
+    if (world_.demo.titleDemoTransitionTimer_ < 2.0f + dt * 1.5f && world_.run.tankRunCapturePath_.empty()) {
         world_.run.tankRunCapturePath_ = "generated/title_demo/new_game.png";
-    if (world_.demo.titleDemoTransitionTimer_ < 3.0f)
+    }
+    if (world_.demo.titleDemoTransitionTimer_ < 3.0f) {
         return; // Finish the image copy on a later frame/fence.
+    }
     const bool freshStart =
         world_.run.expeditionMapEnabled_
             ? world_.run.tankExpedition_.GetPhase() == tankexp::Phase::Map && world_.run.expeditionMapRun_.IsChoosing() &&

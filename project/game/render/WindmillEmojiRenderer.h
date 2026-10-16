@@ -14,6 +14,7 @@ struct WindmillNeonSettings {
     myEngine::Vector3 haloColor{1, .38f, .025f};
     float recognitionAccent = 0;
 };
+
 static_assert(sizeof(WindmillNeonSettings) == 64);
 static_assert(offsetof(WindmillNeonSettings, coreColor) == 32);
 static_assert(offsetof(WindmillNeonSettings, haloColor) == 48);
@@ -37,6 +38,7 @@ public:
     void Queue(const myEngine::Vector3& center, float size, float angle, const std::array<float, 4>& uv, float visibility);
     /// @brief すべての板を一つの描画コマンドで描画する。
     void Draw(const myEngine::Matrix4x4& viewProjection);
+
     /// @brief 今フレームに追加した板の数を返す。
     uint32_t GetQuadCount() const
     {

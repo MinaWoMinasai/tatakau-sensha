@@ -482,8 +482,8 @@ void PlayerClassEditor::DrawPlayerClassEditor()
                 rebuildBarrels = true;
                 editedThisFrame = true;
             };
-            auto generateRadialLayout = [&](int count, float radius, float startAngleDeg, float angleOffsetDeg, const myEngine::Vector3& scale,
-                                            WeaponType forcedType = WeaponType::Projectile) {
+            auto generateRadialLayout = [&](int count, float radius, float startAngleDeg, float angleOffsetDeg,
+                                            const myEngine::Vector3& scale, WeaponType forcedType = WeaponType::Projectile) {
                 count = (std::clamp)(count, 1, 12);
                 constexpr float kDegToRad = 3.1415926535f / 180.0f;
                 config->barrels.clear();
@@ -505,8 +505,8 @@ void PlayerClassEditor::DrawPlayerClassEditor()
                 rebuildBarrels = true;
                 editedThisFrame = true;
             };
-            auto generateFixedAngleLayout = [&](const std::vector<float>& anglesDeg, float radius, const myEngine::Vector3& scale, bool fireAll,
-                                                bool alternate, WeaponType forcedType = WeaponType::Projectile) {
+            auto generateFixedAngleLayout = [&](const std::vector<float>& anglesDeg, float radius, const myEngine::Vector3& scale,
+                                                bool fireAll, bool alternate, WeaponType forcedType = WeaponType::Projectile) {
                 constexpr float kDegToRad = 3.1415926535f / 180.0f;
                 config->barrels.clear();
                 config->barrels.reserve(anglesDeg.size());

@@ -5,7 +5,8 @@
 
 namespace myEngine {
 
-void CylinderManager::Initialize(DirectXCommon* dxCommon, const std::string& textureFilePath) {
+void CylinderManager::Initialize(DirectXCommon* dxCommon, const std::string& textureFilePath)
+{
     dxCommon_ = dxCommon;
     textureFilePath_ = textureFilePath;
 
@@ -26,11 +27,13 @@ void CylinderManager::Initialize(DirectXCommon* dxCommon, const std::string& tex
     materialData_->shininess = 1.0f;
 }
 
-void CylinderManager::Emit(const Vector3& position, const CylinderEffectConfig& config) {
-    cylinders_.push_back({ position, config, 0.0f });
+void CylinderManager::Emit(const Vector3& position, const CylinderEffectConfig& config)
+{
+    cylinders_.push_back({position, config, 0.0f});
 }
 
-void CylinderManager::Update(float deltaTime) {
+void CylinderManager::Update(float deltaTime)
+{
     for (ActiveCylinder& cylinder : cylinders_) {
         cylinder.currentTime += deltaTime;
     }
@@ -40,7 +43,8 @@ void CylinderManager::Update(float deltaTime) {
     });
 }
 
-void CylinderManager::DrawAll(const Matrix4x4& viewProjection) {
+void CylinderManager::DrawAll(const Matrix4x4& viewProjection)
+{
     if (!dxCommon_ || !vertexData_ || cylinders_.empty()) {
         return;
     }
@@ -71,7 +75,7 @@ void CylinderManager::DrawAll(const Matrix4x4& viewProjection) {
         const float height = config.startHeight + (config.endHeight - config.startHeight) * easedT;
         const float halfHeight = height * 0.5f;
         const Vector4 color = Lerp(config.startColor, config.endColor, t);
-        const Matrix4x4 transform = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, config.rotate, cylinder.position);
+        const Matrix4x4 transform = MakeAffineMatrix({1.0f, 1.0f, 1.0f}, config.rotate, cylinder.position);
 
         for (uint32_t i = 0; i <= divisions; ++i) {
             const float ratio = static_cast<float>(i) / static_cast<float>(divisions);
@@ -80,13 +84,13 @@ void CylinderManager::DrawAll(const Matrix4x4& viewProjection) {
             const float s = std::sin(angle);
             const uint32_t vertexIndex = currentVertexOffset + i * 2;
 
-            vertexData_[vertexIndex].pos = TransformPoint({ c * radius, halfHeight, s * radius }, transform);
+            vertexData_[vertexIndex].pos = TransformPoint({c * radius, halfHeight, s * radius}, transform);
             vertexData_[vertexIndex].color = color;
-            vertexData_[vertexIndex].uv = { ratio, 0.0f };
+            vertexData_[vertexIndex].uv = {ratio, 0.0f};
 
-            vertexData_[vertexIndex + 1].pos = TransformPoint({ c * radius, -halfHeight, s * radius }, transform);
+            vertexData_[vertexIndex + 1].pos = TransformPoint({c * radius, -halfHeight, s * radius}, transform);
             vertexData_[vertexIndex + 1].color = color;
-            vertexData_[vertexIndex + 1].uv = { ratio, 1.0f };
+            vertexData_[vertexIndex + 1].uv = {ratio, 1.0f};
         }
 
         commandList->DrawInstanced(vertexCount, 1, currentVertexOffset, 0);
@@ -94,16 +98,19 @@ void CylinderManager::DrawAll(const Matrix4x4& viewProjection) {
     }
 }
 
-float CylinderManager::EaseOut(float t) {
+float CylinderManager::EaseOut(float t)
+{
     t = std::clamp(t, 0.0f, 1.0f);
     return 1.0f - (1.0f - t) * (1.0f - t);
 }
 
-Vector4 CylinderManager::Lerp(const Vector4& start, const Vector4& end, float t) {
+Vector4 CylinderManager::Lerp(const Vector4& start, const Vector4& end, float t)
+{
     return start + (end - start) * std::clamp(t, 0.0f, 1.0f);
 }
 
-Vector3 CylinderManager::TransformPoint(const Vector3& point, const Matrix4x4& matrix) {
+Vector3 CylinderManager::TransformPoint(const Vector3& point, const Matrix4x4& matrix)
+{
     Vector3 result = TransformNormal(point, matrix);
     result.x += matrix.m[3][0];
     result.y += matrix.m[3][1];

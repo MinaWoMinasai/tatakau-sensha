@@ -4,7 +4,8 @@
 
 namespace myEngine {
 
-void NeonGridRenderer::Initialize(DirectXCommon* dxCommon, const std::string& textureFilePath) {
+void NeonGridRenderer::Initialize(DirectXCommon* dxCommon, const std::string& textureFilePath)
+{
     dxCommon_ = dxCommon;
     textureFilePath_ = textureFilePath;
 
@@ -27,11 +28,13 @@ void NeonGridRenderer::Initialize(DirectXCommon* dxCommon, const std::string& te
     dxCommon_->InitializeTrailSceneNoDepthPipeline();
 }
 
-void NeonGridRenderer::DrawAll(const Matrix4x4& viewProjection, bool noDepth) {
+void NeonGridRenderer::DrawAll(const Matrix4x4& viewProjection, bool noDepth)
+{
     DrawRange(0, geometry_.GetVertexCount(), viewProjection, noDepth);
 }
 
-void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection, bool noDepth) {
+void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection, bool noDepth)
+{
     if (!dxCommon_ || !vertexData_ || vertexCount == 0 || startVertex >= geometry_.GetVertexCount()) {
         return;
     }
@@ -41,8 +44,11 @@ void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, con
 
     auto commandList = dxCommon_->GetList();
     commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
-    auto* pipeline = noDepth || !dxCommon_->HasCurrentDSV() ? dxCommon_->GetTrailSceneNoDepthPipeline() : dxCommon_->GetPSOTrailForScene().graphicsState_.Get();
-    if (!pipeline) return;
+    auto* pipeline = noDepth || !dxCommon_->HasCurrentDSV() ? dxCommon_->GetTrailSceneNoDepthPipeline()
+                                                            : dxCommon_->GetPSOTrailForScene().graphicsState_.Get();
+    if (!pipeline) {
+        return;
+    }
     commandList->SetPipelineState(pipeline);
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
@@ -52,7 +58,8 @@ void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, con
     commandList->DrawInstanced(drawableCount, 1, startVertex, 0);
 }
 
-void NeonGridRenderer::DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection) {
+void NeonGridRenderer::DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection)
+{
     if (!dxCommon_ || !vertexData_ || vertexCount == 0 || startVertex >= geometry_.GetVertexCount()) {
         return;
     }
@@ -71,7 +78,9 @@ void NeonGridRenderer::DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount
         description.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
         description.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
         description.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-        if (FAILED(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(&pipeline)))) return;
+        if (FAILED(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(&pipeline)))) {
+            return;
+        }
     }
     commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
     commandList->SetPipelineState(pipeline.Get());
@@ -83,9 +92,14 @@ void NeonGridRenderer::DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount
     commandList->DrawInstanced(drawableCount, 1, startVertex, 0);
 }
 
-bool NeonGridRenderer::InitializeSceneSolidPipeline() {
-    if (sceneSolidPipeline_) return true;
-    if (!dxCommon_) return false;
+bool NeonGridRenderer::InitializeSceneSolidPipeline()
+{
+    if (sceneSolidPipeline_) {
+        return true;
+    }
+    if (!dxCommon_) {
+        return false;
+    }
     // HUD用のLDR PSOをHDR描画先へ転用せず、SceneのMRT形式とroot signatureを維持する。
     auto description = dxCommon_->GetPSOTrailForScene().graphicsDesc_;
     description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
@@ -93,8 +107,11 @@ bool NeonGridRenderer::InitializeSceneSolidPipeline() {
     return SUCCEEDED(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(&sceneSolidPipeline_)));
 }
 
-void NeonGridRenderer::DrawRangeSceneSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection) {
-    if (!sceneSolidPipeline_ || !vertexData_ || !vertexCount || startVertex >= geometry_.GetVertexCount()) return;
+void NeonGridRenderer::DrawRangeSceneSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection)
+{
+    if (!sceneSolidPipeline_ || !vertexData_ || !vertexCount || startVertex >= geometry_.GetVertexCount()) {
+        return;
+    }
     *viewProjectionData_ = viewProjection;
     auto list = dxCommon_->GetList();
     list->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());

@@ -18,26 +18,31 @@ public:
         Return,
         Reflection
     };
+
     /// @brief 射撃強化の演出用に、イベントの種類・端点・強さを保持する。
     struct BuildEvent {
         BuildEventKind kind;
         myEngine::Vector3 start{}, end{};
         float strength = 1;
     };
+
     /// @brief マーキング対象の位置と蓄積数を表示へ渡す。
     struct MarkVisual {
         myEngine::Vector3 position;
         int stacks = 0;
     };
+
     /// @brief 射撃強化の命中・発動・追加弾の登録・帰還開始・反射予約の累積件数を保持する。
     struct ShooterStats {
         uint64_t chainHits = 0, detonations = 0, burstTriggers = 0, burstChildren = 0, returns = 0, reflections = 0;
     };
+
     /// @brief ClearAll以降の射撃強化の集計への読み取り専用参照を返す。
     const ShooterStats& GetShooterStats() const
     {
         return shooterStats_;
     }
+
     /// @brief 射撃系の強化イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     std::vector<BuildEvent> ConsumeBuildEvents()
     {
@@ -45,8 +50,10 @@ public:
         buildEvents_.clear();
         return out;
     }
+
     /// @brief マーキングされた対象の位置と蓄積数を表示用に返す。
     std::vector<MarkVisual> GetMarkVisuals() const;
+
     /// @brief 戦闘時に参照する自機・ボス・敵の管理先を設定する。
     /// @note 所有権は移らない。nullptrは参照先なしを表す。利用中は各参照先を有効に保つ。
     /// ClearAllで参照を解除する。地形の参照先はUpdateで設定する。
@@ -56,6 +63,7 @@ public:
         combatBoss_ = boss;
         combatEnemies_ = enemies;
     }
+
     /// @brief 自機弾の命中後に射撃強化を処理し、連鎖・起爆のダメージ適用と破裂弾の予約を行う。
     /// @param killed 元の衝突でtargetが撃破されたか。
     /// @note 元の衝突通知の後に呼ぶ。破裂子弾、ドローン弾、資源への命中は対象外。
@@ -63,12 +71,14 @@ public:
     /// @brief 装甲反射で発生する弾を衝突走査後の生成へ予約する。
     /// @note 元の弾は変更しない。既に装甲反射済み、速度がほぼ0、または予約列が48件以上なら予約しない。
     void QueueArmorReflection(const Bullet& bullet, const myEngine::Vector3& targetPosition);
+
     /// @brief 管理配列に残る弾の所有者別内訳を表す。死亡済みで削除待ちの弾も含む。
     struct BulletCounts {
         size_t player = 0;
         size_t enemy = 0;
         size_t hostileExpEnemy = 0;
     };
+
     /// @brief 弾の挙動による成長イベントの累積件数を保持する。
     struct GrowthStats {
         uint64_t wallBounces = 0;
@@ -76,12 +86,14 @@ public:
         uint64_t impactSplits = 0;
         uint64_t splitChildrenSpawned = 0;
     };
+
     /// @brief ClearAll以降の自機の弾による成長イベントの集計を返す。敵弾は含めない。
     /// @note FlushPendingSplitsで弾のイベントを取り込んだ時点の値への読み取り専用参照。
     const GrowthStats& GetGrowthStats() const
     {
         return growthStats_;
     }
+
     /// @brief 特殊命中イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     /// @note FlushPendingSplitsで弾から回収した分を返す。保留は最大64件。
     std::vector<Bullet::SpecialImpact> ConsumeSpecialImpacts()
@@ -121,30 +133,36 @@ public:
     /// @note 一覧はコピーで、弾は借用する。死亡済みの弾も含むため利用時に状態を確認する。
     /// 所有権は移らない。次の更新・削除・ClearAllをまたいで保持しない。
     std::vector<Bullet*> GetBulletPtrs() const;
+
     /// @brief 管理中の弾の総数を返す。
     /// @note 管理配列の要素数。死亡済みで次のUpdateによる削除を待つ弾も含む。
     size_t GetBulletCount() const
     {
         return bullets_.size();
     }
+
     /// @brief 管理中の弾数を、自機・敵・敵対する経験値敵の所有者別に集計して値で返す。
     /// @note IsDeadは検査せず、死亡済みで削除待ちの弾も数える。
     BulletCounts GetBulletCounts() const;
+
     /// @brief 弾の軌跡設定への読み取り専用参照を返す。
     const BulletTrailSettings& GetTrailSettings() const
     {
         return trailSettings_;
     }
+
     /// @brief 軌跡設定をコピーし、検査対象の数値の範囲を補正する。非有限の検査対象値は各既定値に戻す。
     /// @note 色の各成分は、この関数では検査・補正しない。
     void SetTrailSettings(const BulletTrailSettings& settings);
     /// @brief 管理中の軌跡の本数を返す。
     size_t GetTrailInstanceCount() const;
+
     /// @brief 描画可能軌跡が存在するか判定する。
     bool HasDrawableTrails() const
     {
         return trailManager_ && trailManager_->HasDrawableInstances();
     }
+
     /// @brief 軌跡の描画件数・頂点数の集計を返す。軌跡管理がなければ空の集計を返す。
     myEngine::TrailManager::DrawStats GetTrailDrawStats() const
     {
@@ -158,6 +176,7 @@ private:
         uint32_t damage = 1;
         bool reflection = false;
     };
+
     std::vector<PendingShot> pendingBuildShots_;
     std::vector<BuildEvent> buildEvents_;
     tankshooter::MarkLedger marks_{};

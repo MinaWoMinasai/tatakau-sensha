@@ -20,7 +20,6 @@ class EnemyManager;
 /// @brief ボスのHP・移動・射撃・死亡演出を管理する。通常AI、試作戦闘、遠征ライバルの行動を切り替える。
 /// @note 機体モデル・Player・Stage・各管理クラスは借用し、利用中は呼び出し側で有効に保つ。
 class Enemy : public Collider {
-
 public:
     /// @brief 射撃パターン、弾速（60FPS基準の1フレーム当たり）、拡散角（度）、発射間隔（秒）、威力・耐久度・貫通力の設定。
     struct BossAttackConfig {
@@ -40,6 +39,7 @@ public:
         bool randomSpread = true;
         Pattern pattern = Pattern::Spread;
     };
+
     /// @brief 通常敵への敵対・捕食による回復と成長、捕食対象を探す距離、照準の旋回時間（秒）の設定。
     struct EnemyProgressConfig {
         bool expEnemyHostile = false;
@@ -105,6 +105,7 @@ public:
     {
         player_ = player;
     }
+
     /// @brief 通常敵・資源を探索するEnemyManagerを借用する。nullptrでは捕食対象を探索しない。
     void SetEnemyManager(EnemyManager* enemyManager)
     {
@@ -169,11 +170,13 @@ public:
     {
         return dir_;
     }
+
     /// @brief 照準方向を返す。
     myEngine::Vector3 GetAimDirection() const
     {
         return {std::cos(worldTransform_.rotate.z), std::sin(worldTransform_.rotate.z), 0.0f};
     }
+
     /// @brief ダメージフィードバック比率を返す。
     float GetDamageFeedbackRatio() const
     {
@@ -222,16 +225,19 @@ public:
     {
         return isDead_;
     }
+
     /// @brief 現在のHPを返す。
     int GetHp() const
     {
         return hp_;
     }
+
     /// @brief 最大HPを返す。
     int GetMaxHp() const
     {
         return maxHP_;
     }
+
     /// @brief 撃破画面演出を更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateDefeatPresentation(float deltaTime);
@@ -244,38 +250,46 @@ public:
     void ApplyKnockback(const myEngine::Vector3& direction, float power);
     /// @brief 射撃設定をコピーして弾速・発射数・待ち時間などを制限し、通常射撃の間隔も更新する。
     void SetBossAttackConfig(const BossAttackConfig& config);
+
     /// @brief ボス攻撃設定を返す。
     const BossAttackConfig& GetBossAttackConfig() const
     {
         return bossAttackConfig_;
     }
+
     /// @brief 捕食・成長設定をコピーして距離・時間などを制限し、通常敵への衝突マスクも切り替える。
     void SetEnemyProgressConfig(const EnemyProgressConfig& config);
+
     /// @brief 敵進行度設定を返す。
     const EnemyProgressConfig& GetEnemyProgressConfig() const
     {
         return enemyProgressConfig_;
     }
+
     /// @brief レベルを返す。
     int GetLevel() const
     {
         return enemyLevel_;
     }
+
     /// @brief 敵経験値を返す。
     uint32_t GetEnemyExp() const
     {
         return enemyExp_;
     }
+
     /// @brief 現在、Playerとの距離に応じた捕食対象の探索モードに入っているかを返す。
     bool IsLevelingModeActive() const
     {
         return levelingModeActive_;
     }
+
     /// @brief 通常敵の撃破数を増やして捕食回復・成長を反映する。
     /// @note 資源争奪中は通常敵からの回復を最大1にし、経験値・レベルは増やさない。遭遇戦無効、または死亡/HP0以下なら何もしない。
     void RegisterExpEnemyKill(uint32_t expValue);
 
     using PrototypeAttackType = PrototypeBossCombat::AttackType;
+
     /// @brief 予備動作で示す攻撃方向・範囲・進行を保持する。
     struct PrototypeTelegraph {
         bool active = false;
@@ -285,32 +299,39 @@ public:
         // GapRingではdirectionを中心とする安全な開口幅、それ以外では危険な扇形の幅（度）。
         float spreadAngleDeg = 44.0f;
     };
+
     /// @brief 試作戦闘の有効状態が変わると攻撃時計をリセットする。有効化時は捕食回復の予算も設定する。
     void EnablePrototypeCombat(bool enabled);
+
     /// @brief 試作戦闘有効であるか判定する。
     bool IsPrototypeCombatEnabled() const
     {
         return prototypeCombatEnabled_;
     }
+
     /// @brief 試作戦闘の攻撃圧力を0～4に制限して設定する。
     void SetPrototypePressure(int pressure)
     {
         prototypePressure_ = (std::clamp)(pressure, 0, 4);
     }
+
     /// @brief 最大HPを1～1000000に制限し、捕食回復予算と現在HPを設定する。
     /// @note healToFullがfalseなら現在HPを新しい最大HP内に制限する。死亡済みの機体は復活させない。
     void SetPrototypeMaxHp(int maxHp, bool healToFull = true);
+
     /// @brief 試作攻撃調整値を設定する。
     void SetPrototypeAttackTuning(const BossAttackConfig& config)
     {
         SetBossAttackConfig(config);
         prototypeTuningEnabled_ = true;
     }
+
     /// @brief 試作戦闘で資源を優先探索する設定を切り替える。探索を有効にする他の条件は変更しない。
     void SetPrototypeResourceFocus(bool enabled)
     {
         prototypeResourceFocus_ = enabled;
     }
+
     /// @brief 生存中の有効な試作戦闘で資源優先が有効なら、資源取得による回復・成長を反映する。
     void RegisterRunResourceClaim();
     /// @brief 試作戦闘または遠征ライバルの現在の攻撃予告を値で返す。状態は消費しない。
@@ -318,30 +339,36 @@ public:
     /// @brief ボスの遭遇戦を切り替える。無効化時は移動速度と捕食モード・資源を狙うフラグを解除し、試作攻撃時計をリセットする。
     /// @note HP・死亡フラグ・射撃設定・目標座標・ライバルの行動状態は保持する。再開時の初期化はResetRunEncounterを使う。
     void SetRunEncounterEnabled(bool enabled);
+
     /// @brief ボスの遭遇戦が有効かを返す。生存状態とは別のフラグ。
     bool IsRunEncounterEnabled() const
     {
         return runEncounterEnabled_;
     }
+
     /// @brief 同じアクターを再利用する遭遇戦の世代。Visualが過去の死亡状態を引き継がないための識別値。
     uint64_t GetEncounterGeneration() const
     {
         return encounterGeneration_;
     }
+
     /// @brief 試作ボスの行動時計上の現在段階。描画側は遭遇戦・生存状態と併せて参照する。
     PrototypeBossCombat::Phase GetPrototypeCombatPhase() const
     {
         return prototypeCombat_.GetPhase();
     }
+
     /// @brief 現在の遭遇戦で発行した射撃要求の回数。単発攻撃が同一更新内でRecoveryへ戻っても観測できる。
     unsigned GetShotsFired() const
     {
         return shotsFired_;
     }
+
     /// @brief ボスを指定位置・HPの試作遭遇戦として復活させ、移動・死亡演出・成長・通常AI/試作戦闘を初期化する。
     /// @note Initialize後、アクター更新・衝突通知の外で呼ぶ。借用先と射撃設定は保持し、ダメージは初回に保存した基準値へ戻す。
     /// ライバルは無効化し、必要ならEnableExpeditionRivalで別に初期化する。
     void ResetRunEncounter(const myEngine::Vector3& position, int hp, int pressure, bool resourceFocus);
+
     /// @brief ライバルボスの行動状態を表示・検証へ提供する。
     struct RivalCombatStatus {
         bool enabled = false;
@@ -356,14 +383,17 @@ public:
         myEngine::Vector3 dashDirection{0.0f, 1.0f, 0.0f};
         float dashDistance = 0.0f;
     };
+
     /// @brief 遠征ライバルの有効状態を設定し、ライバルの時計・移動を初期化する。
     /// @note ResetRunEncounterの後に呼ぶ。有効化時は通常敵への敵対・捕食を止める。無効化だけでは捕食設定を復元しない。
     void EnableExpeditionRival(bool enabled);
+
     /// @brief 遠征ライバル有効であるか判定する。
     bool IsExpeditionRivalEnabled() const
     {
         return expeditionRivalEnabled_;
     }
+
     /// @brief ライバル戦闘状態を返す。
     RivalCombatStatus GetRivalCombatStatus() const;
 
@@ -372,18 +402,43 @@ public:
     void EnableNeonDepthEncounter(bool enabled = true, const neondepth::Tuning& tuning = {});
     /// @brief 有限範囲内の調整候補を、確定済み攻撃を変えず次の計画へ予約する。
     bool QueueNeonDepthTuning(const neondepth::Tuning& tuning);
+
     /// @brief 死亡演出中にも保持する専用profileの有効状態を返す。
-    bool IsNeonDepthEncounterEnabled() const { return neonDepthEnabled_; }
+    bool IsNeonDepthEncounterEnabled() const
+    {
+        return neonDepthEnabled_;
+    }
+
     /// @brief 描画側が読む計画・床shape・時計・被弾集計への借用const参照を返す。
-    const neondepth::Snapshot& GetNeonDepthSnapshot() const { return neonDepthCombat_.GetSnapshot(); }
+    const neondepth::Snapshot& GetNeonDepthSnapshot() const
+    {
+        return neonDepthCombat_.GetSnapshot();
+    }
+
     /// @brief 最新Gameplay更新の値eventを返す。読むだけでeventを再発火しない。
-    const neondepth::Events& GetNeonDepthEvents() const { return neonDepthEvents_; }
+    const neondepth::Events& GetNeonDepthEvents() const
+    {
+        return neonDepthEvents_;
+    }
+
     /// @brief 成立したshape接触の累計を返す。無敵などで実HPが減らない接触も含む。
-    uint64_t GetNeonDepthContactClaims() const { return neonDepthCombat_.GetSnapshot().contactClaims; }
+    uint64_t GetNeonDepthContactClaims() const
+    {
+        return neonDepthCombat_.GetSnapshot().contactClaims;
+    }
+
     /// @brief 既存Player処理で実HP損失が確認できたhitの累計を返す。
-    uint64_t GetNeonDepthAcceptedHits() const { return neonDepthCombat_.GetSnapshot().acceptedHits; }
+    uint64_t GetNeonDepthAcceptedHits() const
+    {
+        return neonDepthCombat_.GetSnapshot().acceptedHits;
+    }
+
     /// @brief 地形・回避可能性によって安全な攻撃計画を作れなかったかを返す。
-    bool HasNeonDepthPlanFailure() const { return neonDepthPlanRejected_; }
+    bool HasNeonDepthPlanFailure() const
+    {
+        return neonDepthPlanRejected_;
+    }
+
     /// @brief 登場だけを終了し、通常終了と同じ位置取り初期状態に進める。
     void SkipNeonDepthIntro();
     /// @brief 待機eventと有効hazardを停止する。HPや死亡状態、保持Visualのprofileは変更しない。
@@ -517,7 +572,7 @@ private:
     bool neonDepthEnabled_ = false, neonDepthGeometryReady_ = false, neonDepthPlanRejected_ = false;
     neondepth::Combat neonDepthCombat_{};
     neondepth::Events neonDepthEvents_{};
-    std::array<neondepth::FloorBox,4096> neonDepthWalls_{};
+    std::array<neondepth::FloorBox, 4096> neonDepthWalls_{};
     size_t neonDepthWallCount_ = 0;
     myEngine::Vector3 neonDepthRepositionTarget_{};
     uint64_t neonDepthRepositionKey_ = (std::numeric_limits<uint64_t>::max)();

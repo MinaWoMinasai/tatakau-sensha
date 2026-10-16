@@ -22,6 +22,7 @@ enum class TutorialStep {
     Complete,
     Hidden
 };
+
 /// @brief チュートリアルの履修状況と検証結果を保持する。
 struct TutorialValidationState {
     bool enabled = false;
@@ -40,64 +41,78 @@ public:
     {
         *this = ExpeditionTutorial{};
         maySkip_ = previouslyCompleted;
-        if (suppressed)
+        if (suppressed) {
             step_ = TutorialStep::Hidden;
+        }
     }
+
     /// @brief 移動を追加する。
     void AddMovement(float distance)
     {
-        if (step_ == TutorialStep::Move && std::isfinite(distance) && distance > 0 && distance < 4)
+        if (step_ == TutorialStep::Move && std::isfinite(distance) && distance > 0 && distance < 4) {
             movement_ += distance;
+        }
     }
+
     /// @brief 撃破を記録する。
     void RecordKill()
     {
         killed_ = true;
     }
+
     /// @brief ダッシュを記録する。
     void RecordDash()
     {
         dashed_ = true;
     }
+
     /// @brief 部屋消去を記録する。
     void RecordRoomClear()
     {
         roomCleared_ = true;
     }
+
     /// @brief 進路を記録する。
     void RecordRoute()
     {
         routeChosen_ = true;
     }
+
     /// @brief 強化を記録する。
     void RecordUpgrade()
     {
         upgraded_ = true;
     }
+
     /// @brief チュートリアルの省略を進行状態へ反映する。
     bool Skip()
     {
-        if (!maySkip_)
+        if (!maySkip_) {
             return false;
+        }
         step_ = TutorialStep::Hidden;
         return true;
     }
+
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     /// @param dt この処理で進める経過時間（秒）。
     void Update(float dt)
     {
-        if (!std::isfinite(dt) || dt <= 0 || step_ == TutorialStep::Hidden)
+        if (!std::isfinite(dt) || dt <= 0 || step_ == TutorialStep::Hidden) {
             return;
+        }
         if (step_ == TutorialStep::Complete) {
             timer_ -= dt;
-            if (timer_ <= 0)
+            if (timer_ <= 0) {
                 step_ = TutorialStep::Hidden;
+            }
             return;
         }
         if (success_) {
             timer_ -= dt;
-            if (timer_ > 0)
+            if (timer_ > 0) {
                 return;
+            }
             success_ = false;
             step_ = static_cast<TutorialStep>(static_cast<int>(step_) + 1);
             if (step_ == TutorialStep::Complete) {
@@ -112,37 +127,44 @@ public:
             timer_ = 0.65f;
         }
     }
+
     /// @brief 段階を返す。
     TutorialStep GetStep() const
     {
         return step_;
     }
+
     /// @brief Successであるか判定する。
     bool IsSuccess() const
     {
         return success_;
     }
+
     /// @brief 表示中であるか判定する。
     bool IsVisible() const
     {
         return step_ != TutorialStep::Hidden;
     }
+
     /// @brief 完了であるか判定する。
     bool IsComplete() const
     {
         return completed_;
     }
+
     /// @brief 省略が可能か判定する。
     bool CanSkip() const
     {
         return maySkip_ && IsVisible();
     }
+
     // Keep an emptied first room playable until the movement/dash lessons are done.
     /// @brief LeaveFirst部屋が可能か判定する。
     bool CanLeaveFirstRoom() const
     {
         return step_ >= TutorialStep::ClearRoom;
     }
+
     /// @brief 移動距離を返す。
     float GetMoveDistance() const
     {
@@ -163,12 +185,14 @@ inline std::array<bool, tankrun::CardCount> CompactBuildCards(const tankrun::Car
     std::array<bool, tankrun::CardCount> visible{};
     int ordinary = 0;
     for (size_t i = 0; i < cards.size(); ++i) {
-        if (cards[i] <= 0)
+        if (cards[i] <= 0) {
             continue;
+        }
         const bool rare = tankrun::IsRare(static_cast<tankrun::CardId>(i));
         visible[i] = rare || ordinary < 2;
-        if (!rare && visible[i])
+        if (!rare && visible[i]) {
             ++ordinary;
+        }
     }
     return visible;
 }

@@ -30,6 +30,7 @@ struct Vector3 {
         z *= s;
         return *this;
     }
+
     /// @brief 減算して自身へ反映する。
     inline Vector3& operator-=(const Vector3& v)
     {
@@ -38,6 +39,7 @@ struct Vector3 {
         z -= v.z;
         return *this;
     }
+
     /// @brief 加算して自身へ反映する。
     inline Vector3& operator+=(const Vector3& v)
     {
@@ -46,6 +48,7 @@ struct Vector3 {
         z += v.z;
         return *this;
     }
+
     /// @brief 除算して自身へ反映する。
     inline Vector3& operator/=(float s)
     {
@@ -69,6 +72,7 @@ struct Vector4 {
         w += v.w;
         return *this;
     }
+
     /// @brief 減算して自身へ反映する。
     inline Vector4& operator-=(const Vector4& v)
     {
@@ -78,6 +82,7 @@ struct Vector4 {
         w -= v.w;
         return *this;
     }
+
     /// @brief 乗算して自身へ反映する。
     inline Vector4& operator*=(float s)
     {
@@ -87,6 +92,7 @@ struct Vector4 {
         w *= s;
         return *this;
     }
+
     /// @brief 除算して自身へ反映する。
     inline Vector4& operator/=(float s)
     {
@@ -762,23 +768,24 @@ struct BloomParam {
     uint32_t bloomOutputToHdr = 1;
     float bloomPresentationPadding[2]{};
     // アリーナ表示（合成のみ）。星雲は深度から復元したワールドXYに固定し、残光はブラウン管の焼き付きを模す。
-    float arenaNebulaIntensity = 0.0f;   // 0で無効
-    float arenaNebulaScale = 0.035f;     // ワールド単位あたりの周波数
-    float arenaPhosphorDecay = 0.0f;     // 前フレームの残光の残り率（0で無効）
-    float arenaGrainIntensity = 0.0f;    // フィルム粒状ノイズ
+    float arenaNebulaIntensity = 0.0f; // 0で無効
+    float arenaNebulaScale = 0.035f;   // ワールド単位あたりの周波数
+    float arenaPhosphorDecay = 0.0f;   // 前フレームの残光の残り率（0で無効）
+    float arenaGrainIntensity = 0.0f;  // フィルム粒状ノイズ
     Vector3 arenaNebulaColorA{0.30f, 0.05f, 0.42f};
-    float arenaNebulaDrift = 0.004f;     // 秒あたりの流れ
+    float arenaNebulaDrift = 0.004f; // 秒あたりの流れ
     Vector3 arenaNebulaColorB{0.06f, 0.02f, 0.30f};
-    float arenaMaskSoftness = 0.012f;    // 角丸ビネット枠の柔らかさ
-    float arenaBezelMargin = 0.0f;       // 角丸画面の外側の黒枠（UV比）
-    float arenaBezelRadius = 0.0f;       // 角丸半径（UV比）
+    float arenaMaskSoftness = 0.012f; // 角丸ビネット枠の柔らかさ
+    float arenaBezelMargin = 0.0f;    // 角丸画面の外側の黒枠（UV比）
+    float arenaBezelRadius = 0.0f;    // 角丸半径（UV比）
     float arenaEnabled = 0.0f;
-    float arenaCurvature = 0.0f;         // 最終提示パスの樽型歪み（UIを含む画面全体）
-    float arenaChromAb = 0.0f;           // 最終提示パスの色収差
+    float arenaCurvature = 0.0f; // 最終提示パスの樽型歪み（UIを含む画面全体）
+    float arenaChromAb = 0.0f;   // 最終提示パスの色収差
     float arenaVignette = 0.0f;
     float arenaScanlineIntensity = 0.0f;
     float arenaScanlineFrequency = 0.0f; // ラジアン/UV
 };
+
 static_assert(sizeof(BloomParam) % 16 == 0, "BloomParam must stay a whole number of HLSL cbuffer rows.");
 
 /// @brief 点光源の位置・色・強度・影響範囲をGPUへ渡す。
@@ -796,6 +803,7 @@ struct ShadowTransformationMatrix {
     Matrix4x4 WVP;
     Matrix4x4 LightWVP;
 };
+
 /// @brief 影の参照に必要な行列などをGPUへ渡す。
 struct ShadowData {
     Matrix4x4 lightViewProjection;

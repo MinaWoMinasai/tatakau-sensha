@@ -86,16 +86,19 @@ public:
     {
         return influences_;
     }
+
     /// @brief 変形パレットを返す。
     const std::vector<SkinningPaletteEntry>& GetPalette() const
     {
         return palette_;
     }
+
     /// @brief 逆行列結合姿勢行列を返す。
     const std::vector<Matrix4x4>& GetInverseBindPoseMatrices() const
     {
         return inverseBindPoseMatrices_;
     }
+
     /// @brief 割り当て済みInfluence件数を返す。
     uint32_t GetAssignedInfluenceCount() const
     {
@@ -138,16 +141,19 @@ public:
     // SrvManagerの共通Heapを事前にBindし、指定Root Parameterに単一SRVの
     // Descriptor Tableを用意すること。先頭にSkinningPaletteEntryのStructuredBufferを設定する。
     void BindSkinningPalette(uint32_t rootParameterIndex) const;
+
     /// @brief サブメッシュ件数を返す。
     size_t GetSubmeshCount() const
     {
         return asset_.submeshes.size();
     }
+
     // 範囲外のindexはstd::out_of_range。返す参照はモデルの再Initializeまで有効。
     const SkinningModelAsset::Submesh& GetSubmesh(size_t index) const
     {
         return asset_.submeshes.at(index);
     }
+
     // Geometry / Paletteと各パスの設定をBind済みであること。範囲外はstd::out_of_range。
     void DrawSubmesh(size_t index) const;
 
@@ -168,22 +174,30 @@ public:
     {
         return skeleton_;
     }
+
     /// @brief アニメーションループを設定する。
     void SetAnimationLoop(bool loop)
     {
         animationPlayer_.SetLoop(loop);
     }
+
     /// @brief アニメーションPlayback速度を設定する。
     void SetAnimationPlaybackSpeed(float speed)
     {
         animationPlayer_.SetPlaybackSpeed(speed);
     }
+
     /// @brief 現在アニメーションを指定した再生位置へ移す。
     // 遷移を終了し、次のUpdateで指定時刻の姿勢を直接適用する。Pause状態は維持する。
     void SeekCurrentAnimation(float time);
     // 明示的なPauseは再生時刻と進行中のポーズブレンドの両方を止める。
     void SetAnimationPlaying(bool playing);
-    bool IsAnimationPaused() const { return animationPaused_; }
+
+    bool IsAnimationPaused() const
+    {
+        return animationPaused_;
+    }
+
     // Preview/checkpoint用の値。クリップのポインタやGPU資源を保持しない。
     struct AnimationPlaybackState {
         size_t animationIndex = 0;
@@ -194,54 +208,65 @@ public:
         float transitionDuration = 0.0f, transitionElapsed = 0.0f;
         bool transitionActive = false;
     };
+
     AnimationPlaybackState CaptureAnimationPlaybackState() const;
     // 検証失敗時は何も変更しない。成功後の次UpdateでPaletteへ反映する。
     bool RestoreAnimationPlaybackState(const AnimationPlaybackState& state);
+
     /// @brief 現在アニメーション時間を返す。
     float GetCurrentAnimationTime() const
     {
         return animationPlayer_.GetTime();
     }
+
     /// @brief 現在アニメーション継続時間を返す。
     float GetCurrentAnimationDuration() const
     {
         return animationPlayer_.GetAnimation() ? animationPlayer_.GetAnimation()->duration : 0.0f;
     }
+
     /// @brief 現在アニメーション再生中であるか判定する。
     bool IsCurrentAnimationPlaying() const
     {
         return animationPlayer_.IsPlaying();
     }
+
     /// @brief 現在アニメーションLoopingであるか判定する。
     bool IsCurrentAnimationLooping() const
     {
         return animationPlayer_.IsLooping();
     }
+
     /// @brief スキン変形情報を返す。
     const SkinCluster& GetSkinCluster() const
     {
         return skinCluster_;
     }
+
     /// @brief アニメーション自機を返す。
     const AnimationPlayer& GetAnimationPlayer() const
     {
         return animationPlayer_;
     }
+
     /// @brief アニメーションを返す。
     const Animation& GetAnimation() const
     {
         return animations_[currentAnimationIndex_];
     }
+
     /// @brief アニメーションを返す。
     const std::vector<Animation>& GetAnimations() const
     {
         return animations_;
     }
+
     /// @brief 現在アニメーション添字を返す。
     size_t GetCurrentAnimationIndex() const
     {
         return currentAnimationIndex_;
     }
+
     /// @brief アセットを返す。
     const SkinningModelAsset& GetAsset() const
     {

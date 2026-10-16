@@ -7,6 +7,7 @@ class GameplayHud {
 public:
     /// @brief 借用するワールドを設定する。
     explicit GameplayHud(GameWorld& world) : world_(world) {}
+
     /// @brief 描画
     void DrawSprite();
     /// @brief 最終ボスの登場・撃破の黒帯とタイトルを描く。

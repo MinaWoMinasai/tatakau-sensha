@@ -7,6 +7,7 @@ class GameplayQueries {
 public:
     /// @brief 借用するワールドを設定する。
     explicit GameplayQueries(GameWorld& world) : world_(world) {}
+
     /// @brief 終了済みであるか判定する。
     bool IsFinished() const;
 

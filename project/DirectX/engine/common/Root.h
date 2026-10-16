@@ -43,26 +43,31 @@ public:
     {
         return descriptionSignature_;
     }
+
     /// @brief パラメーターを返す。
     std::span<const D3D12_ROOT_PARAMETER> GetParameters() const
     {
         return Parameters_;
     }
+
     /// @brief ディスクリプター範囲を返す。
     std::span<const D3D12_DESCRIPTOR_RANGE> GetDescriptorRange() const
     {
         return descriptorRange_;
     }
+
     /// @brief 識別情報Blobを返す。
     ID3DBlob* GetSignatureBlob()
     {
         return signatureBlob_;
     }
+
     /// @brief エラーBlobを返す。
     ID3DBlob* GetErrorBlob()
     {
         return errorBlob_;
     }
+
     /// @brief 識別情報を返す。
     Microsoft::WRL::ComPtr<ID3D12RootSignature> GetSignature()
     {

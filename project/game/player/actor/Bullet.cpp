@@ -3,8 +3,8 @@
 #include "ParticleManager.h"
 #include <cmath>
 
-void Bullet::Initialize(const myEngine::Vector3& position, const myEngine::Vector3& velocity, uint32_t damage, BulletOwner owner, bool reflectable,
-                        float bulletHp, float bulletPenetration)
+void Bullet::Initialize(const myEngine::Vector3& position, const myEngine::Vector3& velocity, uint32_t damage, BulletOwner owner,
+                        bool reflectable, float bulletHp, float bulletPenetration)
 {
     object_ = std::make_unique<myEngine::Object3d>();
     object_->Initialize();
@@ -75,15 +75,17 @@ void Bullet::Initialize(const myEngine::Vector3& position, const myEngine::Vecto
 
 void Bullet::Update(float deltaTime)
 {
-    if (isDead_)
+    if (isDead_) {
         return;
+    }
     // 高速弾の接触判定と装甲反射の方向計算に使うため、今回の移動より先に前回位置を保存する。
     previousPosition_ = GetWorldPosition();
     if (shooter_.boomerang) {
         // 能力倍率は帰還開始までの時計へ渡す秒数を調整する。帰還中は保持する帰還先へ同じ速さで向ける。
         const float flightScale = (std::clamp)(.75f + .25f * shooter_.boomerangPower, .60f, 2.0f);
-        if (returnFlight_.Step(deltaTime / flightScale))
+        if (returnFlight_.Step(deltaTime / flightScale)) {
             BeginReturn();
+        }
         if (returnFlight_.returning) {
             const myEngine::Vector3 toOwner = returnTarget_ - GetWorldPosition();
             const float speed = myEngine::Length(velocity_);
@@ -129,11 +131,13 @@ void Bullet::OnCollision(Collider* other)
         }
         // 斬撃波は同じ弾との重なりで耐久ダメージ・命中演出を繰り返さないよう、衝突IDを記録する。
         if (specialKind_ == SpecialKind::SlashWave) {
-            if (!CanHitActor(otherBullet))
+            if (!CanHitActor(otherBullet)) {
                 return;
+            }
             hitActorIds_.push_back(otherBullet->GetCollisionId());
-            if (specialImpacts_.size() < 8)
+            if (specialImpacts_.size() < 8) {
                 specialImpacts_.push_back({specialKind_, GetWorldPosition(), velocity_, true});
+            }
         }
         myEngine::Vector3 impactNormal = velocity_ * -1.0f;
         myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(GetWorldPosition(), impactNormal, GetBulletColor(), 7);
@@ -142,11 +146,13 @@ void Bullet::OnCollision(Collider* other)
     }
 
     // 同じアクターへの再通知を防ぐ。死亡後も予約・イベントは管理側が回収するので、先に記録しておく。
-    if (!CanHitActor(other))
+    if (!CanHitActor(other)) {
         return;
+    }
     hitActorIds_.push_back(other->GetCollisionId());
-    if (specialKind_ != SpecialKind::None && specialImpacts_.size() < 8)
+    if (specialKind_ != SpecialKind::None && specialImpacts_.size() < 8) {
         specialImpacts_.push_back({specialKind_, other->GetWorldPosition(), velocity_, false});
+    }
     QueueImpactSplit(velocity_);
     myEngine::Vector3 impactNormal = velocity_ * -1.0f;
     myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(GetWorldPosition(), impactNormal, GetBulletColor(), 11);
@@ -172,8 +178,9 @@ void Bullet::ConfigureShooterAbilities(bool chain, bool mark, bool boomerang, bo
                                        float boomerangPower, float burstPower)
 {
     shooter_ = {chain, mark, boomerang, killBurst, chainPower, markPower, boomerangPower, burstPower};
-    if (chain || mark || boomerang || killBurst)
+    if (chain || mark || boomerang || killBurst) {
         usesRunProjectileRules_ = true;
+    }
 }
 
 void Bullet::BeginReturn()
@@ -182,8 +189,9 @@ void Bullet::BeginReturn()
     returnFlight_.returning = true;
     hitActorIds_.clear();
     impactSplitCount_ = 0;
-    if (specialImpacts_.size() < 8)
+    if (specialImpacts_.size() < 8) {
         specialImpacts_.push_back({specialKind_, GetWorldPosition(), velocity_, false});
+    }
 }
 
 void Bullet::ConfigureGrowth(int maxWallBounces, int actorPierceCount, int impactSplitCount, float impactSplitDamageScale)
@@ -204,11 +212,13 @@ bool Bullet::CanHitActor(const Collider* actor) const
 void Bullet::QueueImpactSplit(const myEngine::Vector3& direction)
 {
     // 元弾からの分裂は1回だけ予約する。通知中は生成せず、走査後に残り枠を渡して取り出す。
-    if (impactSplitCount_ <= 0 || deathTimer_ <= 0.0f)
+    if (impactSplitCount_ <= 0 || deathTimer_ <= 0.0f) {
         return;
+    }
     const float speed = myEngine::Length(direction);
-    if (!std::isfinite(speed) || speed <= 0.0001f)
+    if (!std::isfinite(speed) || speed <= 0.0001f) {
         return;
+    }
     pendingImpactSplitCount_ = impactSplitCount_;
     impactSplitCount_ = 0;
     pendingImpactDirection_ = direction;
@@ -218,8 +228,9 @@ void Bullet::QueueImpactSplit(const myEngine::Vector3& direction)
 
 void Bullet::OnWallImpact(const myEngine::Vector3& safePosition, const myEngine::Vector3& normal)
 {
-    if (isDead_)
+    if (isDead_) {
         return;
+    }
     SetWorldPosition(safePosition);
     const float normalLength = myEngine::Length(normal);
     if (!std::isfinite(normalLength) || normalLength <= 0.0001f) {
@@ -234,22 +245,26 @@ void Bullet::OnWallImpact(const myEngine::Vector3& safePosition, const myEngine:
         return;
     }
     const bool canReflect = isReflectable_ && remainingWallBounces_ != 0;
-    if (canReflect && remainingWallBounces_ > 0)
+    if (canReflect && remainingWallBounces_ > 0) {
         --remainingWallBounces_;
-    if (canReflect && usesRunProjectileRules_)
+    }
+    if (canReflect && usesRunProjectileRules_) {
         ++growthEvents_.wallBounces;
+    }
     // 親が反射できない場合も、分裂予約には壁から離れる反射方向と法線を渡す。
     const bool splitAtWall = impactSplitCount_ > 0;
     QueueImpactSplit(reflected);
-    if (splitAtWall)
+    if (splitAtWall) {
         pendingImpactWallNormal_ = unitNormal;
+    }
     if (canReflect) {
         SetVelocity(reflected);
     } else {
-        if (shooter_.boomerang && !returnFlight_.returning)
+        if (shooter_.boomerang && !returnFlight_.returning) {
             BeginReturn();
-        else
+        } else {
             Die();
+        }
     }
 }
 
@@ -257,11 +272,13 @@ void Bullet::AppendImpactChildren(std::vector<std::unique_ptr<Bullet>>& children
 {
     const int count = (std::min)(pendingImpactSplitCount_, static_cast<int>((std::min)(availableSlots, size_t{2})));
     pendingImpactSplitCount_ = 0; // 枠不足でも予約を消費する。空きができるまで持ち越して再試行しない。
-    if (count <= 0 || deathTimer_ <= 0.0f)
+    if (count <= 0 || deathTimer_ <= 0.0f) {
         return;
+    }
     const float speed = myEngine::Length(pendingImpactDirection_);
-    if (!std::isfinite(speed) || speed <= 0.0001f)
+    if (!std::isfinite(speed) || speed <= 0.0001f) {
         return;
+    }
     const myEngine::Vector3 base = pendingImpactDirection_ / speed;
     for (int index = 0; index < count; ++index) {
         // 分裂角はラジアン。1発なら中心、2発なら左右へ分ける。
@@ -305,7 +322,6 @@ void Bullet::ApplyBulletDurabilityDamage(float amount)
 
 myEngine::Vector3 Bullet::GetWorldPosition() const
 {
-
     myEngine::Vector3 worldPos;
     worldPos.x = worldTransform_.translate.x;
     worldPos.y = worldTransform_.translate.y;
@@ -347,16 +363,21 @@ void Bullet::AttachTrail(myEngine::TrailManager* trailManager, BulletTrailSettin
 myEngine::Vector4 Bullet::GetBulletColor() const
 {
     // 特殊状態の色を優先し、該当しなければ所有者・反射可否と借用設定から選ぶ。
-    if (armorReflected_)
+    if (armorReflected_) {
         return {1.5f, .18f, 1.0f, 1};
-    if (shooter_.boomerang && returnFlight_.returning)
+    }
+    if (shooter_.boomerang && returnFlight_.returning) {
         return {.55f, 1.6f, .85f, 1};
-    if (specialKind_ == SpecialKind::Rail)
+    }
+    if (specialKind_ == SpecialKind::Rail) {
         return {.32f, 1.30f, 1.70f, 1};
-    if (specialKind_ == SpecialKind::SlashWave)
+    }
+    if (specialKind_ == SpecialKind::SlashWave) {
         return {.30f, 1.50f, 1.15f, .80f};
-    if (specialKind_ == SpecialKind::ParryReflection)
+    }
+    if (specialKind_ == SpecialKind::ParryReflection) {
         return {1.5f, 1.15f, .25f, 1};
+    }
     if (trailSettings_) {
         if (owner_ == kPlayer && isReflectable_) {
             return trailSettings_->reflectableObjectColor;
@@ -462,10 +483,12 @@ void Bullet::UpdateTrail(float deltaTime)
     if (trailSettings_) {
         halfWidth = (owner_ == kPlayer) ? trailSettings_->playerHalfWidth : trailSettings_->enemyHalfWidth;
     }
-    if (specialKind_ == SpecialKind::Rail)
+    if (specialKind_ == SpecialKind::Rail) {
         halfWidth = (std::max)(halfWidth, radius_ * .85f);
-    if (specialKind_ == SpecialKind::SlashWave)
+    }
+    if (specialKind_ == SpecialKind::SlashWave) {
         halfWidth = radius_ * .20f;
+    }
     halfWidth *= visualTrailScale_;
     const myEngine::Vector3 center = {worldTransform_.translate.x, worldTransform_.translate.y, worldTransform_.translate.z - 0.015f};
     const myEngine::Vector3 tip = center + side * halfWidth;

@@ -6,6 +6,7 @@ class PlayerHud {
 public:
     /// @brief 自機と画面状態を接続する。
     PlayerHud(Player& player, PlayerUiState& ui) : player_(player), ui_(ui) {}
+
     using UiProfileStats = Player::UiProfileStats;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     using UpgradeHudDebugSnapshot = Player::UpgradeHudDebugSnapshot;

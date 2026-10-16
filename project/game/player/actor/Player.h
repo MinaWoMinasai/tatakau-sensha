@@ -51,6 +51,7 @@ struct TankSeed {
     int requiredRank;
     std::string texturePath;
 };
+
 /// @brief 図鑑の機体データと表示用スプライト・文字を保持する。
 struct TankData {
     ClassType type;
@@ -72,13 +73,13 @@ struct RunEvolutionChoice {
 };
 
 class Stage;
+
 namespace myEngine {
 class ObjectPostEffect;
 }
 
 /// @brief 自機の移動・攻撃・装備と成長状態を管理する。機体の制作データはPlayerClassCatalogから取得する。
 class Player : public Collider {
-
 public:
     /// @brief 自機の画面状態と表示担当を生成する。
     Player();
@@ -108,6 +109,7 @@ public:
         float minReloadSpeed = 3.0f;
         bool healToFull = false;
     };
+
     /// @brief レーザー発射の位置・方向・性能を戦闘側へ渡す。
     /// @note duration・damageIntervalは秒。range・widthはワールド座標の長さ。
     struct LaserShotEvent {
@@ -120,6 +122,7 @@ public:
         uint32_t damage = 1;
         myEngine::Vector4 color{0.25f, 1.0f, 0.95f, 1.0f};
     };
+
     /// @brief 地雷の配置位置と性能を戦闘側へ渡す。
     /// @note fuseTime・lifeTimeは秒。radiusはワールド座標の半径。
     struct MineDropEvent {
@@ -130,6 +133,7 @@ public:
         uint32_t damage = 1;
         myEngine::Vector4 color{1.0f, 0.25f, 0.95f, 1.0f};
     };
+
     /// @brief 近接斬撃の範囲と威力を戦闘側へ渡す。
     /// @note windupDurationは予備動作、durationは有効時間、recoveryDurationは硬直時間で、いずれも秒。
     /// arcDegは度。通常のcomboStepは0・1・2で、回転斬撃は-1を使う。
@@ -147,12 +151,14 @@ public:
         uint32_t damage = 1;
         myEngine::Vector4 color{0.55f, 1.25f, 1.0f, 1.0f};
     };
+
     /// @brief ダッシュ衝突の位置・方向と、ボス・強化攻撃の有無を演出へ渡す。
     struct DashImpactEvent {
         myEngine::Vector3 origin{}, direction{1.0f, 0.0f, 0.0f};
         bool boss = false;
         bool powered = false;
     };
+
     /// @brief ドローン間のレーザー接続のワールド座標の端点と、今回の更新での敵への接触有無を表す。
     struct DroneLaserLink {
         myEngine::Vector3 start{}, end{};
@@ -171,6 +177,7 @@ public:
         SpinBlade,
         WallSmash
     };
+
     /// @brief 特殊戦闘の発動結果をシーン側へ渡す。
     /// @note strengthの意味はkindによる。RailShotは蓄積秒数、DroneBomb・WallSmashは演出の輪の半径の増加に使う値。
     struct SpecialCombatEvent {
@@ -178,6 +185,7 @@ public:
         myEngine::Vector3 origin{}, direction{1, 0, 0};
         float strength = 1;
     };
+
     /// @brief 特殊戦闘の発動・命中の累積件数と、分散照準で選んだ対象のビット集合を保持する。
     struct SpecialCombatStats {
         uint32_t railShots = 0, slashWaves = 0, parries = 0, perfectParries = 0, linkTicks = 0;
@@ -185,6 +193,7 @@ public:
         uint32_t droneCharges = 0, droneChargeHits = 0, droneBombs = 0, droneRebuilds = 0, targetLocks = 0, spreadTargets = 0;
         uint32_t dashSlashes = 0, dashSlashHits = 0, spinTicks = 0, wallSmashes = 0;
     };
+
     /// @brief ドローン能力の状態を表示するための位置・進行度を表す。
     /// @note progressは段階の経過時間を表示用の基準時間で割り、0～1に制限した値。帰還時の基準は突撃の制限時間。
     struct DroneAbilityVisual {
@@ -193,39 +202,47 @@ public:
         float progress = 0;
         bool bomb = false;
     };
+
     /// @brief ロック蓄積中・ロック中の対象位置、命中蓄積数、ロック残り時間（秒）を表示へ渡す。
     struct TargetLockVisual {
         myEngine::Vector3 position{};
         int stacks = 0;
         float remaining = 0;
     };
+
     /// @brief 護衛中を除いた、生存ドローンの任務表示情報を値で返す。ドローン装備系統でなければ空。
     std::vector<DroneAbilityVisual> GetDroneAbilityVisuals() const;
+
     /// @brief 特殊戦闘更新で作成したロック対象の表示情報への読み取り専用参照を返す。
     /// @note 要素は次の特殊戦闘更新や能力リセットで再取得する。
     const std::vector<TargetLockVisual>& GetTargetLockVisuals() const
     {
         return targetLockVisuals_;
     }
+
     /// @brief 回転斬撃の残り時間を継続時間0.8秒で割った値を返す。
     /// @note 戻り値自体は範囲を制限しない。非負の時間で通常更新した状態では0～1。
     float GetSpinBladeRatio() const
     {
         return spinCycle_.remaining / .8f;
     }
+
     /// @brief EMP妨害の残り時間を基準2.5秒で割った値を返す。
     /// @note 0～1への制限はなく、3秒の妨害を適用した直後は1.2になる。
     float GetEmpRatio() const
     {
         return empJammerTimer_ / 2.5f;
     }
+
     /// @brief 遠征補正が有効ならEMP妨害の残り時間を延長する。現在より短い要求では短縮しない。
     /// @param seconds 要求する残り時間（秒）。0～3秒に制限する。
     void ApplyEmpJammer(float seconds = 2.5f)
     {
-        if (runModifiers_.enabled)
+        if (runModifiers_.enabled) {
             empJammerTimer_ = tankspecial::EmpDuration(empJammerTimer_, seconds);
+        }
     }
+
     /// @brief ドローンの命中をロックへ蓄積し、今回適用する補正後のダメージを返す。
     /// @param drone 命中元ドローンの添字。0～31は蓄積に使い、負値は処理対象外。
     /// @param target 借用する命中対象。nullptr、死亡済み、資源、対応外の型は処理対象外。
@@ -243,25 +260,30 @@ public:
     /// @param strength 0.5～2に制限して記録する強さ。現在の壁衝突ダメージ計算には使わない。
     /// @note 記録枠がない場合は何もしない。同じ対象の未処理の壁衝突があれば上書きしない。
     void ArmWallSmash(ExpEnemy* target, float strength = 1);
+
     /// @brief レール砲の押下中の蓄積時間（秒）を返す。押下継続状態でなければ0。
     /// @note 最大時間で割る正規化は行わない。現在のkRailMaxChargeSecondsが1秒のため、比率と同じ数値になる。
     float GetRailChargeRatio() const
     {
         return railCharge_.held ? railCharge_.seconds : 0.0f;
     }
+
     /// @brief チャージ演出用に先頭砲塔の銃口のワールド座標を返す。設定がなければ照準方向の既定位置。
     myEngine::Vector3 GetRailChargeMuzzle() const;
+
     /// @brief 今回の特殊戦闘更新で作成したドローン間レーザー接続への読み取り専用参照を返す。
     /// @note 要素は次のUpdateSpecialCombatや装備変更・部屋リセットで再取得する。
     const std::vector<DroneLaserLink>& GetDroneLaserLinks() const
     {
         return droneLaserLinks_;
     }
+
     /// @brief 特殊戦闘の累積集計への読み取り専用参照を返す。
     const SpecialCombatStats& GetSpecialCombatStats() const
     {
         return specialCombatStats_;
     }
+
     /// @brief 特殊戦闘イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     std::vector<SpecialCombatEvent> ConsumeSpecialCombatEvents();
     /// @brief 追加能力・接続レーザー・斬撃波・パリィを更新し、必要なダメージ・弾・イベントを生成する。
@@ -276,26 +298,31 @@ public:
     bool TryDashImpact(Collider* target);
     /// @brief ダッシュ衝撃イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     std::vector<DashImpactEvent> ConsumeDashImpactEvents();
+
     /// @brief ダッシュを開始した累積回数を返す。
     uint32_t GetDashStartedCount() const
     {
         return dashStartedCount_;
     }
+
     /// @brief 無敵・カウンターなどで無効化されず、被ダメージ処理へ進んだ累積回数を返す。
     uint32_t GetDamageTakenCount() const
     {
         return damageTakenCount_;
     }
+
     /// @brief 通常弾・床hazardを既存条件で実際にperfect-dodgeした累計を返す。
     uint64_t GetPerfectDodgeCount() const
     {
         return perfectDodgeCount_;
     }
+
     /// @brief 有限な現在の被弾無敵残時間（秒）を非負値で返す。時計は進めない。
     float GetInvincibilityRemainingSeconds() const
     {
         return std::isfinite(invincibleTimer_) ? (std::max)(0.0f, invincibleTimer_) : 0.0f;
     }
+
     /// @brief 既存のjust-evade保護が成立中かを返す。
     bool IsJustEvading() const
     {
@@ -307,26 +334,31 @@ public:
     {
         return primaryAttackCount_;
     }
+
     /// @brief 近接攻撃強化ビルドであるか判定する。
     bool IsMeleeBuild() const
     {
         return runModifiers_.enabled &&
                (expeditionCombatStyleSelected_ ? expeditionCombatStyle_ == tankbuild::Style::Melee : runModifiers_.meleeBlade);
     }
+
     /// @brief ドローン強化ビルドであるか判定する。
     bool IsDroneBuild() const
     {
         return runModifiers_.enabled && expeditionCombatStyleSelected_ && expeditionCombatStyle_ == tankbuild::Style::Drone;
     }
+
     /// @brief 遠征の戦闘系統を選び、性能・装備・特殊状態を切り替える。
     /// @return 有効な遠征で切り替えられた場合、または同じ系統が選択済みならtrue。
     /// @note 無効な系統、遠征外、死亡中、必要なBasic設定がない場合はfalse。切り替えでHP・スタミナを補充しない。
     bool SetExpeditionCombatStyle(tankbuild::Style style);
+
     /// @brief 保持している遠征の戦闘系統を返す。選択済みかはHasExpeditionCombatStyleで確認する。
     tankbuild::Style GetExpeditionCombatStyle() const
     {
         return expeditionCombatStyle_;
     }
+
     /// @brief 遠征の戦闘系統を選択済みかを返す。
     bool HasExpeditionCombatStyle() const
     {
@@ -393,6 +425,7 @@ public:
     {
         return velocity_;
     }
+
     /// @brief 現在の速度を設定する。単位は60FPS相当の基準1フレームの移動量。
     void SetVelocity(const myEngine::Vector3& v)
     {
@@ -417,11 +450,13 @@ public:
     /// @note 死亡中、amountが0、無敵中、無傷の開発設定中は何もしない。
     /// カウンターが成立すれば被ダメージを省略する。HPが0になれば死亡演出を開始する。
     void TakeDamage(uint32_t amount, float invincibleTime = 0.45f);
+
     /// @brief Depth専用の傾斜カメラでは、表示中のVPから安全にZ=0の照準を求める。
     void SetNeonDepthAimEnabled(bool enabled)
     {
         neonDepthAimEnabled_ = enabled;
     }
+
     /// @brief 成立済みの敵対床hazard接触を既存回避・無敵・被弾処理へ渡し、実HP損失を返す。
     /// @param dodgeable trueなら既存perfect-dodgeの弾と同じ受付条件を使う。
     /// @note 方向ゼロを被弾除外にせず、接触shapeは呼出元のGameplay計画を正とする。
@@ -431,13 +466,16 @@ public:
     /// @brief 戦闘系統ごとの調整値を補正して反映し、性能とドローン設定を更新する。
     /// @note HP・スタミナは新しい上限内に制限し、補充しない。
     void ApplyCombatStyleBalance(const TankCombatStyleBalances& profiles);
+
     /// @brief 戦闘系統の性能調整値への読み取り専用参照を返す。無効なstyleは先頭の系統として扱う。
     const TankCombatStyleProfile& GetCombatStyleProfile(tankbuild::Style style) const
     {
         return combatStyleBalances_[tankbuild::Valid(style) ? static_cast<size_t>(style) : 0];
     }
+
     /// @brief 遠征補正をコピーして性能・装備へ反映する。補正の有効化・無効化に伴う状態も初期化する。
     void SetRunModifiers(const TankRunModifiers& modifiers);
+
     /// @brief 遠征中の自機の戦闘性能を表示・検証用にまとめる。
     struct RunCombatSnapshot {
         int barrels = 0, projectilesPerBarrel = 1, activeDrones = 0;
@@ -455,13 +493,16 @@ public:
         uint32_t dashExplosionsEmitted = 0;
         float shotDamage = 0, reloadSeconds = 0;
     };
+
     /// @brief 遠征戦闘状態の写しを返す。
     RunCombatSnapshot GetRunCombatSnapshot() const;
+
     /// @brief デモ入力を使用する設定かを返す。
     bool IsDemoInputEnabled() const
     {
         return demoInputEnabled_;
     }
+
     /// @brief デモ用の移動・ワールド座標の照準・射撃・ダッシュ入力を設定する。
     /// @note 有効にすると進化画面を閉じ、部屋移動後の入力解放待ちを解除する。
     void SetDemoInput(bool enabled, const myEngine::Vector2& move, const myEngine::Vector3& aimWorld, bool shoot, bool dash)
@@ -476,6 +517,7 @@ public:
             runRoomAwaitInputRelease_ = false;
         }
     }
+
     /// @brief 遠征の初期装備を準備し、整備・進化状態を初期化する。遠征補正無効なら何もしない。
     /// @param archetype 初期系統。0: Twin、1: MachineGun、2: Overseer。範囲外は0～2へ制限する。
     /// @note 部屋ごとの進化方式ではBasicから開始し、レベル・強化・ドローンをリセットしてHPを全回復する。
@@ -486,11 +528,13 @@ public:
     /// @brief 遠征中の自機のHPを費用として消費する。
     /// @return 正のamountを支払ってHPが1以上残る場合true。遠征補正無効・死亡中・支払不可なら変更せずfalse。
     bool SpendRunHealth(int amount);
+
     /// @brief 部屋ごとの進化・整備方式を使うか設定する。切り替えに伴う状態の初期化は行わない。
     void SetRunCheckpointEvolution(bool enabled)
     {
         runCheckpointEvolution_ = enabled;
     }
+
     /// @brief 誘導・ドローン照準に使う対象のワールド座標を、先頭48件までコピーする。
     void SetRunHomingTargets(const std::vector<myEngine::Vector3>& targets);
     /// @brief 現在選択できる遠征の進化候補を値で返す。方式・装備系統・準備状態に応じて空になる。
@@ -505,17 +549,20 @@ public:
     /// @param clearedRoom 部屋番号（1～4）。
     /// @return 付与した場合true。付与済み・範囲外・遠征補正無効・方式外・死亡中はfalse。
     bool AwardRunMaintenancePoint(int clearedRoom);
+
     /// @brief 未使用の遠征整備ポイント数を返す。
     int GetRunMaintenancePoints() const
     {
         return runMaintenance_.Points();
     }
+
     /// @brief 遠征整備ランクを返す。
     /// @param stat 0: 機動、1: 装填、2: 装甲。範囲外は0を返す。
     int GetRunMaintenanceRank(int stat) const
     {
         return runMaintenance_.Rank(stat);
     }
+
     /// @brief 遠征整備の3項目について、現在の段階と支払可否を値で返す。
     std::array<RunMaintenanceChoice, 3> GetRunMaintenanceChoices() const;
     /// @brief 整備ポイントを1消費し、指定項目を1段階強化して性能を再計算する。
@@ -531,11 +578,13 @@ public:
     /// @note 遠征補正有効かつ生存中に行う。HP・成長は保ち、スタミナを全回復して短い無敵時間を設定する。
     /// 通常入力はマウスボタンを解放するまで攻撃を待つ。生成済みの弾はここでは消去しない。
     void ResetRunRoomState(const myEngine::Vector3& position);
+
     /// @brief 被ダメージを無効化する開発用設定を切り替える。
     void SetDebugNoDamage(bool enabled)
     {
         debugNoDamage_ = enabled;
     }
+
     /// @brief 被ダメージを無効化する開発用設定が有効かを返す。
     bool IsDebugNoDamage() const
     {
@@ -553,16 +602,19 @@ public:
     {
         return isDead_;
     }
+
     /// @brief 現在のHPを返す。
     int GetHp() const
     {
         return hp_;
     }
+
     /// @brief 現在の最大HPを整数へ変換して返す。
     int GetMaxHp() const
     {
         return static_cast<int>(stats_.maxHp);
     }
+
     /// @brief 撃破画面演出を更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateDefeatPresentation(float deltaTime);
@@ -572,6 +624,7 @@ public:
     {
         return isOnGround_;
     }
+
     /// @brief 接地状態を設定する。
     void SetOnGround(bool onGround)
     {
@@ -583,25 +636,30 @@ public:
     {
         return angle_;
     }
+
     /// @brief 照準方向への読み取り専用参照を返す。
     const myEngine::Vector3& GetDirection() const
     {
         return dir_;
     }
+
     /// @brief ダッシュ中かを返す。
     bool IsDashing() const
     {
         return isDashing_;
     }
+
     /// @brief 移動入力が存在するか判定する。
     bool HasMovementInput() const
     {
         return myEngine::Length(inputDir_) > 0.05f;
     }
+
     /// @brief 主攻撃の実行フラグを返し、保留フラグを解除する。複数回の実行も1つのtrueにまとめる。
     bool ConsumePrimaryAttackPerformedEvent();
     /// @brief ダッシュ開始の有無を返し、保留フラグを解除する。
     bool ConsumeDashStartedEvent();
+
     /// @brief ネオン描画する砲塔の位置・方向・形状を表す。
     struct NeonBarrelLayout {
         myEngine::Vector3 offset{};
@@ -615,6 +673,7 @@ public:
         myEngine::Vector4 barrelColor{0.25f, 1.0f, 0.95f, 1.0f};
         myEngine::Vector4 outlineColor{0.80f, 1.0f, 0.95f, 1.0f};
     };
+
     /// @brief ネオン描画する機体本体の形状・大きさ・色を表す。
     struct NeonBodyLayout {
         BodyShape shape = BodyShape::Circle;
@@ -622,6 +681,7 @@ public:
         myEngine::Vector4 fillColor{0.18f, 0.28f, 0.34f, 0.38f};
         myEngine::Vector4 outlineColor{0.50f, 1.0f, 0.35f, 1.0f};
     };
+
     /// @brief ネオン描画用の砲塔・刃の配置を値で返す。ドローン装備系統では空。
     std::vector<NeonBarrelLayout> GetNeonBarrelLayouts() const;
     /// @brief 現在の機体設定から、ネオン描画用の本体情報を値で返す。設定がなければ既定値。
@@ -661,11 +721,13 @@ public:
     /// @brief 撃破報酬をレベルへ加算せず、マップ所有の財布へ渡す通貨として保留する方式を切り替える。
     /// @note 方式が変わると保留通貨を消去する。有効化時はレベル・経験値・強化ポイントを初期化し進化画面を閉じる。
     void SetRunCurrencyMode(bool enabled);
+
     /// @brief 撃破報酬を通貨として保留する方式かを返す。
     bool IsRunCurrencyMode() const
     {
         return runCurrencyMode_;
     }
+
     /// @brief 未反映の獲得通貨を取り出し、取り出した分を消費済みにする。
     int TakeRunCurrencyEarned()
     {
@@ -673,6 +735,7 @@ public:
         runCurrencyEarned_ = 0;
         return earned;
     }
+
     /// @brief 制作データから遠征で使う機体設定を登録する。
     /// @note Catalogの検証失敗なら変更しない。成功時は登録一覧を置き換え、適合する選択中の制作機体も更新する。
     void InstallRunAuthoredClasses(const tankcontent::Catalog& catalog);
@@ -682,31 +745,37 @@ public:
     /// @return 遠征補正有効・生存中でIDと装備系統が適合すればtrue。それ以外は変更せずfalse。
     /// @note HPは新しい上限内に保ち、補充しない。ドローンと一部の特殊戦闘状態を作り直す。
     bool ChooseRunAuthoredClass(const std::string& id);
+
     /// @brief レベルを返す。
     int GetLevel() const
     {
         return level_;
     }
+
     /// @brief 経験値を返す。
     int GetExp() const
     {
         return exp_;
     }
+
     /// @brief 次のレベルアップに必要な経験値を返す。
     int GetNextLevelExpValue() const
     {
         return nextLevelExp_;
     }
+
     /// @brief 未使用の性能強化ポイント数を返す。
     int GetSkillPoints() const
     {
         return skillPoints_;
     }
+
     /// @brief 現在のレベルに対応する機体解放ランクを返す。
     int GetCurrentRank() const
     {
         return GetRankFromLevel(level_);
     }
+
     /// @brief 強化レベルを返す。
     /// @param index 強化項目の添字（0～6）。範囲外なら0。
     int GetUpgradeLevel(int index) const;
@@ -722,11 +791,13 @@ public:
     /// @brief 通常方式の指定強化を1段階戻し、ポイントを1返却して性能を再計算する。
     /// @return 返却した場合true。遠征補正有効・添字の範囲外・未強化なら変更せずfalse。
     bool RefundStatUpgrade(int index);
+
     /// @brief 補正後の性能と現在のスタミナへの読み取り専用参照を返す。
     const PlayerStats& GetStats() const
     {
         return stats_;
     }
+
     /// @brief 指定機体のボタン表示情報をoutputへコピーする。
     /// @return 設定が見つかればtrue。見つからなければoutputを変えずfalse。
     bool GetTankButtonVisualData(const std::string& classId, TankButtonVisualData& output) const;
@@ -759,6 +830,7 @@ public:
     void DrawUpgradeHudDebugImGui();
     /// @brief 進化UI外観編集画面を描画する。
     void DrawEvolutionUiStyleEditor();
+
     /// @brief 自機UIの更新・描画時間（ミリ秒）、描画件数、表示状態を保持する。
     struct UiProfileStats {
         float updateMs = 0.0f;
@@ -793,6 +865,7 @@ public:
         int listTextGeneratedPngCount = 0;
 #endif
     };
+
     /// @brief 強化HUDの処理時間と描画件数への読み取り専用参照を返す。
     const UiProfileStats& GetUpgradeHudProfileStats() const;
     /// @brief 進化UIの処理時間と描画件数への読み取り専用参照を返す。
@@ -820,13 +893,16 @@ public:
         bool playerIsDead = false;
         int maxEnhancePoint = 0;
     };
+
     /// @brief 強化HUD開発表示状態の写しを返す。
     UpgradeHudDebugSnapshot GetUpgradeHudDebugSnapshot() const;
+
     /// @brief 主攻撃入力を継続させる開発用設定を切り替える。
     void SetDebugAutoFireEnabled(bool enabled)
     {
         debugAutoFireEnabled_ = enabled;
     }
+
     /// @brief 主攻撃入力を継続させる開発用設定が有効かを返す。
     bool IsDebugAutoFireEnabled() const
     {
@@ -848,6 +924,7 @@ public:
     {
         return isChangeMode;
     }
+
     /// @brief チュートリアルの進行に合わせて進化画面を閉じる。
     void CloseEvolutionUiForTutorial();
     /// @brief 進化確定の有無を返し、保留フラグを解除する。
@@ -866,6 +943,7 @@ private:
 
     // モデル
     myEngine::Object3d* object_ = nullptr;
+
     /// @brief 1砲塔の描画オブジェクトを所有し、変換・配置・反動・発光時間を保持する。
     struct BarrelModel {
         std::unique_ptr<myEngine::Object3d> object;
@@ -874,6 +952,7 @@ private:
         float recoilOffset = 0.0f;
         float muzzleFlashTimer = 0.0f;
     };
+
     static constexpr float kMuzzleFlashDuration = 0.06f;
     std::vector<BarrelModel> barrels_;
     PlayerClassCatalog classCatalog_;
@@ -987,12 +1066,14 @@ private:
     float dashSlashTimer_ = 0;
     uint32_t dashSlashDamage_ = 1;
     std::vector<uint64_t> dashSlashTargets_;
+
     /// @brief 押し出した経験値敵の衝突ID、登録時の壁衝突回数、受付の残り秒数、記録した強さを保持する。
     struct WallSmashTarget {
         uint64_t id = 0;
         uint32_t collision = 0;
         float seconds = 0, strength = 1;
     };
+
     std::array<WallSmashTarget, 128> wallSmashTargets_{};
 
     // プレイヤーの経験値とレベル

@@ -8,6 +8,7 @@ class ExpeditionMapController {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ExpeditionMapController(GameWorld& world) : world_(world) {}
+
     /// @brief 遠征マップを初期化する。
     void InitializeExpeditionMap();
     myEngine::InitializationTask BuildInitialization();

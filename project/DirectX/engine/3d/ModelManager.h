@@ -10,7 +10,6 @@ namespace myEngine {
 
 /// @brief モデルを識別子で読み込み・生成し、同じモデルを共有する。
 class ModelManager {
-
 public:
     /// @brief 共有インスタンスを返す。呼び出し側は取得したポインターをdeleteしない。
     static ModelManager* GetInstance();
@@ -45,6 +44,7 @@ public:
 
     /// @brief モデルを検索する。
     Model* FindModel(const std::string& filePath);
+
     /// @brief モデルを返す。
     const std::map<std::string, std::unique_ptr<Model>>& GetModels() const
     {

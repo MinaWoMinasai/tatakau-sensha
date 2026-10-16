@@ -6,6 +6,7 @@ class PlayerProgression {
 public:
     /// @brief 戦闘主体である自機を借用する。
     explicit PlayerProgression(Player& player) : player_(player) {}
+
     using PlayerClassConfig = ::PlayerClassConfig;
     using BodyShape = Player::BodyShape;
     using BalanceConfig = Player::BalanceConfig;

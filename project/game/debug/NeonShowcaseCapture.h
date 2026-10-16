@@ -12,12 +12,39 @@ public:
     void Request(const std::filesystem::path& directory, const std::string& name, nlohmann::json metadata);
     void Record(myEngine::DirectXCommon& dx);
     void Resolve(myEngine::DirectXCommon& dx);
-    void SetFrameMetadata(nlohmann::json metadata) { if (requested_) metadata_ = std::move(metadata); }
-    bool IsBusy() const { return requested_ || pending_; }
-    bool HasRequest() const { return requested_; }
-    bool WasLastCaptureSuccessful() const { return lastCaptureSucceeded_; }
-    void CancelRequest() { requested_ = false; }
-    const std::string& GetStatus() const { return status_; }
+
+    void SetFrameMetadata(nlohmann::json metadata)
+    {
+        if (requested_) {
+            metadata_ = std::move(metadata);
+        }
+    }
+
+    bool IsBusy() const
+    {
+        return requested_ || pending_;
+    }
+
+    bool HasRequest() const
+    {
+        return requested_;
+    }
+
+    bool WasLastCaptureSuccessful() const
+    {
+        return lastCaptureSucceeded_;
+    }
+
+    void CancelRequest()
+    {
+        requested_ = false;
+    }
+
+    const std::string& GetStatus() const
+    {
+        return status_;
+    }
+
 private:
     Microsoft::WRL::ComPtr<ID3D12Resource> source_, readback_;
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint_{};
