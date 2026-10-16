@@ -4,8 +4,8 @@
 
 namespace myEngine {
 
-// Explicit per-call presentation for actor / obstacle contours. It deliberately
-// does not share SetLineStyle state with grids, telegraphs, or projectile heads.
+// アクターや障害物の輪郭を呼び出しごとに明示的に描画する。グリッド、予兆表示、
+// 弾の先端とはあえてSetLineStyleの状態を共有しない。
 struct NeonContourStyle {
     float coreWidthRatio = 0.18f;
     float coreIntensity = 2.8f;
@@ -14,15 +14,15 @@ struct NeonContourStyle {
     float haloWidthScale = 3.4f;
     float haloIntensity = 1.1f;
     float haloAlpha = 0.18f;
-    // Shared subdivision / wire endpoints can omit caps at 42 vertices per line.
+    // 細分化した線や端点を共有する線は、キャップを省いて1本あたり42頂点に収められる。
     bool roundCaps = true;
 };
 
-// Actors keep a colored rim at rest; projectiles and attack flashes can use a
-// brighter profile without whitening every outline in the scene.
+// アクターは静止時も色付きの縁を保つ。弾や攻撃の閃光は、シーン内の輪郭をすべて
+// 白飛びさせることなく、より明るいプロファイルを使える。
 inline NeonContourStyle ActorNeonContourStyle()
 {
-    // A white-hot ring with a tight colored halo, so the black body inside stays readable.
+    // 白熱した輪と締まった色付きのハローで、内側の黒い本体を読み取りやすく保つ。
     NeonContourStyle style;
     style.coreWidthRatio = 0.20f;
     style.coreIntensity = 2.8f;
@@ -37,8 +37,8 @@ inline NeonContourStyle ActorNeonContourStyle()
 /// @brief 借用した頂点配列へネオン格子・輪郭の形状を生成する。GPUの資源・描画を扱わない。
 class NeonGridGeometry {
 public:
-    // Includes 128 authored support actors, warning rings, dense actor-local
-    // grids, visible stage outlines, and a simultaneous death-outline burst.
+    // 配置済みの支援アクター128体、警告リング、アクター周辺の細かいグリッド、
+    // 表示中のステージ輪郭、同時に発生する撃破時の輪郭演出までを含む。
     static const uint32_t kMaxVertices = 786432;
 
     /// @brief 書き込み先を借用し、件数をリセットする。配列は次の付け替えまで有効に保つ。
@@ -51,9 +51,9 @@ public:
     void QueueLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color);
     /// @brief カメラFacing線を後で処理するために予約する。
     void QueueCameraFacingLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color, const Vector3& cameraForward);
-    // Pale HDR core, colored shoulder, and smooth halo in a single continuous
-    // profile. Polygon joins are shared, with round exterior corners; free lines
-    // have round caps. A complete primitive is skipped if the batch is full.
+    // 淡いHDRの芯、色付きの肩、滑らかなハローを1つの連続したプロファイルで描く。
+    // 多角形の継ぎ目は共有し、外側の角は丸める。独立した線の端は丸キャップにする。
+    // バッチが満杯なら、その図形は丸ごと描画しない。
     void QueueContourLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color, const Vector3& cameraForward,
                           const NeonContourStyle& style = {});
     void QueueContourPolygon(const Vector3* points, uint32_t pointCount, float lineWidth, const Vector4& color,
@@ -82,9 +82,9 @@ public:
     /// @brief ビルボードRegularPolygon塗りつぶしを後で処理するために予約する。
     void QueueBillboardRegularPolygonFill(const Vector3& center, int segments, float radius, float rotationRad, const Vector2& scale,
                                           const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp);
-    // A dark face and a lit bevel, drawn in the solid pass below its neon rim.
-    // While a body-shading eye is set, the outline is raised toward the eye into a glossy black
-    // 3D body (a smooth dome for round outlines, a faceted frustum for polygons).
+    // 暗い面と光の当たった斜面を、ネオンの縁の下にあるソリッドパスで描く。
+    // 本体の陰影用の視点が設定されている間は、輪郭を視点側へ持ち上げて光沢のある黒い
+    // 立体にする（丸い輪郭は滑らかなドーム、多角形は面取りした錐台）。
     void QueueBeveledPolygonFill(const Vector3* points, uint32_t count, const Vector4& baseColor, const Vector4& tint,
                                  const Vector3& lightDirection);
     /// @brief 機体の立体陰影に使う視点を設定する。nullptrで従来の平面塗りへ戻す。

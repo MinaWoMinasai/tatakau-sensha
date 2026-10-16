@@ -78,8 +78,8 @@ IScene::DeveloperShowcaseState GameplayQueries::GetDeveloperShowcaseState()
         state.ssrOverride = world_.presentation.developerStageSurfaceSSR_;
         state.bloomComparisonMode = world_.presentation.developerBloomComparisonMode_;
         state.toneMappingMode = world_.presentation.developerToneMappingMode_;
-        // Continuous scenario readback does not set either comparison flag.
-        // Unresolved recording fences fail before another held temporal draw.
+        // 連続したシナリオの読み戻しでは、どちらの比較フラグも立てない。
+        // 未解決の記録用フェンスがあれば、保持したテンポラル描画をもう一度行う前に失敗させる。
         state.comparisonFreeze = world_.presentation.developerBloomFreeze_ || world_.resources.neonBossDeveloperFreeze_;
     }
 #endif
@@ -278,13 +278,13 @@ myEngine::Object3d* GameplayQueries::GetBallObj()
 /// @brief 最終差分時間を返す。
 float GameplayQueries::GetFinalDeltaTime() const
 {
-    // The boss defeat cinematic is a full-color finale, not the grayscale pause/slow-motion cue.
+    // ボス撃破の演出はフルカラーのフィナーレで、グレースケールのポーズ/スローモーション表現ではない。
     if (world_.combat.combatFlow_.GetState() == GameFlowState::BossDefeatSequence && world_.resources.neonDepthCameraScoped_) {
         return 1.0f / 60.0f;
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (world_.presentation.developerBloomFreeze_ || world_.resources.neonBossDeveloperFreeze_) {
-        return 1.0f / 60.0f; // Freeze is a comparison, not the grayscale slow-motion effect.
+        return 1.0f / 60.0f; // 停止は比較用であり、グレースケールのスローモーション効果ではない。
     }
 #endif
     if (IsNeonShowcaseActive()) {

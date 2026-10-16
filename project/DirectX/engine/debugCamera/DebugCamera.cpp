@@ -20,8 +20,8 @@ void DebugCamera::Update(const DIMOUSESTATE& mousestate, const std::span<const B
 
     // マウスで回転
     if (input_.IsPress(mousestate.rgbButtons[2]) && input_.IsRelease(key[DIK_LSHIFT])) {
-        rotation.y += mousestate.lX * velocity_.x; // yaw
-        rotation.x += mousestate.lY * velocity_.y; // pitch
+        rotation.y += mousestate.lX * velocity_.x; // ヨー
+        rotation.x += mousestate.lY * velocity_.y; // ピッチ
     }
 
     // pitchに制限をかけない代わりに姿勢が崩れないように回転を行列で制御

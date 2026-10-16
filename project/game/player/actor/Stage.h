@@ -19,7 +19,7 @@ struct MergedBlock {
 struct Block {
     myEngine::Transform worldTransform;
     std::unique_ptr<myEngine::Object3d> object;
-    std::unique_ptr<myEngine::Object3d> surfaceObject; // Render-only transform; collision always uses worldTransform.
+    std::unique_ptr<myEngine::Object3d> surfaceObject; // 描画専用の変換。当たり判定には常にworldTransformを使う。
     myEngine::AABB aabb;
     myEngine::OBB obb;
     bool isActive = false;

@@ -5,7 +5,7 @@ bool NeonDissolvePreviewController::Trigger(myEngine::SkinnedModel& model, const
                                             const myEngine::Matrix4x4& cameraWorld, myEngine::NeonDissolveDirection direction,
                                             const myEngine::NeonDissolveParams& settings, float waitDuration, float duration)
 {
-    // Repeated Trigger restarts the first snapshot rather than capturing a partly dissolved state.
+    // Triggerを繰り返すと、途中まで溶けた状態を撮り直すのではなく最初のスナップショットからやり直す。
     if (active_) {
         return Restart(model);
     }
@@ -24,7 +24,7 @@ bool NeonDissolvePreviewController::Trigger(myEngine::SkinnedModel& model, const
         error_ = "Cannot compute a finite scan range from the current skinned Palette.";
         return false;
     }
-    // Snapshot allocation/validation completes before playback is paused or state is committed.
+    // スナップショットの確保と検証は、再生を止めたり状態を確定したりする前に済ませる。
     auto playback = model.CaptureAnimationPlaybackState();
     std::vector<myEngine::QuaternionTransform> pose;
     pose.reserve(model.GetSkeleton().joints.size());

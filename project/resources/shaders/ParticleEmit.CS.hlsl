@@ -97,8 +97,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
     particle.isActive = 1u;
     particle.easingType = emitter.easingType;
     particle.isBillboard = emitter.isBillboard;
-    particle.padding2 = emitter.padding.y; // silhouette, existing reserved slot
-    particle.padding1 = emitter.padding.x; // neonRadiance, existing 128-byte request layout
+    particle.padding2 = emitter.padding.y; // シルエット。既存の予約スロットを使う
+    particle.padding1 = emitter.padding.x; // neonRadiance。既存の128バイトの要求レイアウト
     gParticles[particleIndex] = particle;
 }
 

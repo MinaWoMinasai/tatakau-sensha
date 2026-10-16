@@ -98,9 +98,9 @@ void ProceduralFlameRenderer::Update(float deltaTime)
     for (uint32_t index = 0; index < parameters_.activeMetaballCount; ++index) {
         auto& metaball = metaballs_[index];
         metaball.age += scaledDeltaTime;
-        // The two roots never disappear. Rising lobes retain every fraction of
-        // elapsed time across respawns, including multiple generations in a
-        // long frame, so their seeded trajectory does not depend on frame rate.
+        // 2つの根元は消えない。上昇する炎の塊は、再生成をまたいでも経過時間の端数を
+        // すべて引き継ぐ（長いフレームで複数世代進む場合も含む）。そのため
+        // シード付きの軌道がフレームレートに左右されない。
         while (index >= 2u && metaball.age >= metaball.lifetime) {
             const float remainingAge = metaball.age - metaball.lifetime;
             RespawnMetaball(index);
@@ -149,9 +149,9 @@ void ProceduralFlameRenderer::RespawnMetaball(uint32_t index, float initialLifeF
     metaball.seed = Hash01(key + 5u);
     metaball.phase = Hash01(key + 6u) * 6.28318530718f;
 
-    // Two permanent roots feed larger rising tongues and short-lived embers.
-    // Every respawn uses its own seed, so detached lobes do not repeat one
-    // rigid loop or settle into the evenly spaced bubbles of a lava lamp.
+    // 常に存在する2つの根元から、大きく立ち上る炎の舌と短命な火の粉が生まれる。
+    // 再生成のたびに個別のシードを使うので、分離した塊が同じ固定ループを繰り返したり、
+    // ラバランプのような等間隔の泡に落ち着いたりしない。
     const bool root = index < 2u;
     metaball.isSatellite = index % 3u == 2u;
     const bool satellite = metaball.isSatellite;
@@ -243,8 +243,8 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
     parameterData_->starSparkTwinkleSpeed = parameters_.starSparkTwinkleSpeed;
     parameterData_->starSparkGlowStrength = parameters_.starSparkGlowStrength;
 
-    // xy: normalized billboard position (y grows upward), z: size scale,
-    // w: twinkle phase. Slots are relative to the aura, not screen space.
+    // xy: 正規化したビルボード上の位置（yは上向きが正）、z: 大きさの倍率、
+    // w: きらめきの位相。位置は画面空間ではなくオーラを基準にする。
     static const std::array<Vector4, kMaxStarSparks> kStarSparkData = {
         Vector4{0.18f, 0.34f, 1.12f, 0.07f}, Vector4{0.82f, 0.46f, 0.92f, 0.61f}, Vector4{0.28f, 0.63f, 0.78f, 0.29f},
         Vector4{0.73f, 0.68f, 1.05f, 0.83f}, Vector4{0.15f, 0.78f, 0.72f, 0.46f}, Vector4{0.84f, 0.82f, 0.82f, 0.94f},
@@ -263,8 +263,8 @@ void ProceduralFlameRenderer::UploadParameters(float billboardAspect)
             parameterData_->metaballs[index] = {};
             continue;
         }
-        // Re-evaluate while paused as well so radius/sway controls respond at
-        // the frozen time without changing the seeded animation state.
+        // 一時停止中も再評価し、半径や揺れの調整がシード付きのアニメーション状態を
+        // 変えずに停止時刻のまま反映されるようにする。
         EvaluateMetaball(index);
         const auto& metaball = metaballs_[index];
         const float life = std::clamp(metaball.age / metaball.lifetime, 0.0f, 1.0f);

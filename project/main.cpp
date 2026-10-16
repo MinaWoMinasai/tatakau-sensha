@@ -54,8 +54,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
     const GameProjectCommandLineOptions projectOptions = ParseGameProjectCommandLine(GetUtf8CommandLineArguments());
 
-    // A distributed EXE can be launched from a shortcut or an unrelated cwd.
-    // Explicit project paths and existing development resource roots keep their cwd.
+    // 配布したEXEはショートカットや無関係なカレントディレクトリから起動されることがある。
+    // プロジェクトのパスを明示した場合や、既存の開発用リソースのルートではカレントディレクトリを変えない。
     std::error_code resourcePathError;
     if (projectOptions.projectFilePath.empty() && !std::filesystem::is_directory(L"resources", resourcePathError)) {
         wchar_t executablePath[32768]{};

@@ -72,7 +72,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
 
     world_.resources.camera = std::make_unique<myEngine::Camera>();
     {
-        // Reproducible bloom comparison captures (same scenario frame, one view per run).
+        // 再現可能なBloomの比較キャプチャ（シナリオの同じフレームで、1回の実行につき1つの表示）。
         char view[8]{};
         const DWORD length = GetEnvironmentVariableA("MYENGINE_BLOOM_VIEW", view, sizeof(view));
         if (length > 0 && length < sizeof(view) && view[0] >= '0' && view[0] <= '7' && view[1] == '\0') {
@@ -179,7 +179,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
         world_.resources.bulletTrailPostEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
         world_.resources.bulletTrailPostEffect_->Initialize(
             myEngine::Object3dCommon::GetInstance()->GetDxCommon(), myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f,
-            1.0f // Quality/OFF preserve projectile cores at full resolution; Legacy retains its original source size.
+            1.0f // Quality/OFFは弾の芯をフル解像度で保ち、Legacyは元のサイズのままにする。
         );
         {
             myEngine::BloomParam& bulletTrailPost = world_.resources.bulletTrailPostEffect_->GetParam();
@@ -202,7 +202,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
             myEngine::BloomParam& particlePost = world_.resources.particlePostEffect_->GetParam();
             particlePost.threshold = 0.0f;
             particlePost.intensity = 1.65f;
-            // Small, fading model particles need more energy than the HDR projectile heads.
+            // 小さく消えていくモデルパーティクルは、HDRの弾の先端より多くのエネルギーが必要。
             ApplyGameplayNeonBloomPreset(particlePost, 2.0f);
             particlePost.outlineWidth = 0.0f;
             particlePost.outlineThreshold = 0.0f;
@@ -214,7 +214,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
         world_.resources.sharedObjectBloomPostEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
         world_.resources.sharedObjectBloomPostEffect_->Initialize(
             myEngine::Object3dCommon::GetInstance()->GetDxCommon(), myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f,
-            1.0f // Preserve thin model emitters in Quality/Light; keep Legacy's original capture.
+            1.0f // Quality/Lightでは細いモデルのエミッターを残し、Legacyは元のキャプチャのままにする。
         );
         {
             myEngine::BloomParam& objectBloomPost = world_.resources.sharedObjectBloomPostEffect_->GetParam();

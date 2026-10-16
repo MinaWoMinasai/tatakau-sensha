@@ -11,7 +11,7 @@ void ApplyBloomStyle(myEngine::ObjectPostEffect& effect, const NeonTextEffectSty
     myEngine::BloomParam param = effect.GetParam();
     param.threshold = (std::max)(0.0f, style.threshold);
     param.intensity = (std::max)(0.0f, intensity);
-    // Legacy keeps its historical cubic intensity; the new filter uses one linear gain.
+    // Legacyは従来の3乗の強度を保ち、新しいフィルタは線形の係数を1つ使う。
     param.bloomGain = qualityGain;
     param.bloomScatter = qualityScatter;
     param.bloomRadius = qualityRadius;
@@ -40,11 +40,11 @@ void NeonTextEffect::SetStyle(const NeonTextEffectStyle& style)
     style_.innerIntensity = (std::max)(0.0f, style_.innerIntensity);
     style_.outerIntensity = (std::max)(0.0f, style_.outerIntensity);
     if (innerEffect_) {
-        // The inner layer supplies a tight colored glow beside the separate sharp text.
+        // 内側の層は、別に描く鮮明な文字の横に締まった色付きの発光を加える。
         ApplyBloomStyle(*innerEffect_, style_, style_.innerIntensity, 0.55f * style_.innerIntensity / 0.82f, 0.35f, 0.7f);
     }
     if (outerEffect_) {
-        // More coarse-level weight gives the outer layer a broad, visible halo.
+        // 粗いレベルの重みを増やし、外側の層に広く見えるハローを付ける。
         ApplyBloomStyle(*outerEffect_, style_, style_.outerIntensity, 0.75f * style_.outerIntensity / 0.48f, 0.55f, 1.0f);
     }
 }

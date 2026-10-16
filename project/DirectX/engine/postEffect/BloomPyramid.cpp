@@ -37,7 +37,7 @@ float BloomPyramid::GetPresentationGainScale(float scatter)
         return 1.0f;
     }
     const float s = (std::clamp)(std::isfinite(scatter) ? scatter : 0.3f, 0.05f, 0.9f);
-    // Weight of level L in the upsample chain: s^L * (1 - s) for finer levels, s^(N-1) for the coarsest.
+    // アップサンプル連鎖でのレベルLの重み: 細かいレベルは s^L * (1 - s)、最も粗いレベルは s^(N-1)。
     const int last = static_cast<int>(kMaxLevels) - 1;
     const float weight = presentationLevel_ >= last ? std::pow(s, static_cast<float>(last))
                                                     : std::pow(s, static_cast<float>(presentationLevel_)) * (1.0f - s);
@@ -151,7 +151,7 @@ uint32_t BloomPyramid::Render(D3D12_GPU_DESCRIPTOR_HANDLE source, const BloomPar
         DrawPass(*down_[level], dimensions_[level], pipelines_->down.Get(), input, input, constants);
     }
     if (presentationLevel_ >= 0) {
-        // Show one rung of the pyramid by itself; the composite samples it bilinearly at screen size.
+        // ピラミッドの1段だけを単独で表示する。合成時に画面サイズへバイリニアで拡大して読む。
         const uint32_t level = (std::min)(static_cast<uint32_t>(presentationLevel_), activeLevelCount_ - 1);
         return outputSrv_ = down_[level]->GetSrvIndex();
     }
@@ -195,9 +195,9 @@ void BloomPyramid::Transition(RenderTexture& target, D3D12_RESOURCE_STATES befor
 
 void BloomPyramid::CreatePipeline()
 {
-    // ObjectPostEffect has several categories, but their filtering PSOs are
-    // immutable and identical. Weak ownership drops the bundle with its last
-    // instance, and device identity prevents reuse across hardware/WARP devices.
+    // ObjectPostEffectには複数のカテゴリがあるが、フィルタ用のPSOは不変で同一。
+    // 弱参照で持つため最後のインスタンスと一緒にまとめて解放され、
+    // デバイスの識別により別のハードウェアやWARPデバイス間で使い回されることもない。
     static std::weak_ptr<PipelineBundle> sharedPipeline;
     if (auto existing = sharedPipeline.lock(); existing && existing->device.Get() == dxCommon_->GetDevice().Get()) {
         pipelines_ = std::move(existing);

@@ -82,8 +82,8 @@ bool ReplayDanger(const neondepth::Snapshot* snapshot, myEngine::Vector3 point, 
     return false;
 }
 
-// Read actual Stage geometry for both firing LOS and the whole proposed movement
-// segment. Expanded boxes also protect Player's existing X/Y AABB movement.
+// 射線の判定と移動予定区間の全体の両方で、実際のStageの形状を読む。
+// 拡張した箱で、プレイヤーの既存のX/Y AABB移動も保護する。
 bool ReplayPathClear(Stage& stage, myEngine::Vector3 from, myEngine::Vector3 to, float padding)
 {
     for (const auto& wall : stage.GetMergedBlocks()) {
@@ -206,7 +206,7 @@ void RouteReplay::PrepareNormalRouteReplay()
         return;
     }
     try {
-        world_.resources.gameplayScenarioCombatDt_ = 0; // Observe only a real Player update later in this frame.
+        world_.resources.gameplayScenarioCombatDt_ = 0; // このフレームの後で行われる実際のプレイヤー更新だけを観測する。
         replay.move = {};
         replay.aim = world_.resources.player_->GetWorldPosition();
         replay.shoot = replay.dash = false;
@@ -334,7 +334,7 @@ void RouteReplay::PrepareNormalRouteReplay()
             return;
         }
         if (replay.warmup < 2) {
-            return; // Two real positive Player updates with physical buttons released precede this API's release-guard side effect.
+            return; // このAPIの離し判定ガードが働く前に、物理ボタンを離した状態での実際の正のプレイヤー更新を2回挟む。
         }
         const auto position = world_.resources.player_->GetWorldPosition();
         bool target = false;
@@ -355,7 +355,7 @@ void RouteReplay::PrepareNormalRouteReplay()
             for (const auto* bullet : observedBullets) {
                 if (bullet && !bullet->IsDead() && bullet->GetOwner() == BulletOwner::kEnemy) {
                     const auto p = bullet->GetWorldPosition(), v = bullet->GetMove();
-                    // GetMove is distance per 60 FPS tick: 18 ticks is the existing .30 s dash window.
+                    // GetMoveは60FPSの1tickあたりの移動距離。18tickが既存の0.30秒のダッシュ時間にあたる。
                     const float endX = p.x + v.x * 18, endY = p.y + v.y * 18, reach = radius + bullet->GetRadius() + .35f;
                     if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(endX) || !std::isfinite(endY) ||
                         !std::isfinite(reach) || reach < 0) {
@@ -376,7 +376,7 @@ void RouteReplay::PrepareNormalRouteReplay()
                     }
                 }
             }
-            return (std::min)(500.0f, risk); // Preserve the existing Depth-warning penalty of 1000.
+            return (std::min)(500.0f, risk); // 既存のDepth警告のペナルティ1000を保つ。
         };
         bulletRisk(position, true);
         if (replay.incomingThreat) {
@@ -425,7 +425,7 @@ void RouteReplay::PrepareNormalRouteReplay()
                 const float distance = std::hypot(waypoint.x - position.x, waypoint.y - position.y);
                 const int steps = (std::clamp)(static_cast<int>(std::ceil(distance / .25f)), 1, 128);
                 if (distance > 32) {
-                    safe = false; // A blocked-start relocation must still be a bounded legal segment.
+                    safe = false; // 開始位置が塞がれていて移した場合も、範囲内の正しい区間でなければならない。
                 }
                 for (int step = 0; safe && step <= steps; ++step) {
                     const float t = static_cast<float>(step) / static_cast<float>(steps);
@@ -433,7 +433,7 @@ void RouteReplay::PrepareNormalRouteReplay()
                                          radius + .25f);
                 }
                 if (safe) {
-                    // Read current inertia only; regular input still goes through actual PlayerMovement and Stage.
+                    // 現在の慣性を読むだけ。通常の入力は実際のPlayerMovementとStageを通る。
                     const auto velocity = world_.resources.player_->GetMove();
                     const float speed = (std::max)(.01f, world_.resources.player_->GetStats().moveSpeed);
                     replay.move = {((waypoint.x - position.x) / 30 - velocity.x) / speed,

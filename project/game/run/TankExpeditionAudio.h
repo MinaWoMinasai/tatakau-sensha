@@ -40,15 +40,15 @@ public:
         }
         auto* audio = myEngine::Audio::GetInstance();
         if (!audio->IsReady()) {
-            return; // Game initializes Audio after its first scene.
+            return; // GameはAudioを最初のシーンの後で初期化する。
         }
         initialized_ = true;
         for (size_t n = 0; n < Count; ++n) {
             loaded_[n] = audio->TryLoadPcmWave(keys_[n], (std::filesystem::path(L"resources/audio/tank_expedition") / Files[n]).wstring(),
                                                Voices[n]);
         }
-        // Equal-length stems share the device playback clock. They are started
-        // consecutively, not sample-accurate scheduled, and never restart for UI.
+        // 同じ長さのステムはデバイスの再生クロックを共有する。サンプル単位で同期させず連続して
+        // 開始し、UIのために再開し直すことはない。
         if (loaded_[MusicBase]) {
             baseVoice_ = audio->TryPlayAudio(keys_[MusicBase], true, 0);
         }
@@ -289,7 +289,7 @@ private:
     float NextPitch()
     {
         constexpr float pitches[] = {1.00f, 0.97f, 1.025f, 0.985f, 1.015f};
-        return pitches[variant_++ % 5]; // Presentation never consumes gameplay RNG.
+        return pitches[variant_++ % 5]; // 演出がゲームプレイの乱数を消費することはない。
     }
 
     /// @brief 指定した演出または音源の再生を開始する。

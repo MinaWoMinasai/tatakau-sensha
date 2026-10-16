@@ -10,9 +10,9 @@
 
 namespace myEngine {
 
-// Reuses the scene's HDR pixels without blurring or replacing the sharp source.
-// Render records commands only. The caller restores its render target, viewport
-// and pipeline afterward, and keeps the shared SrvManager alive until GPU idle.
+// シーンのHDRピクセルを、鮮明な元画像をぼかしたり置き換えたりせずに再利用する。
+// Renderはコマンドを記録するだけ。呼び出し側は後で描画先・ビューポート・パイプラインを戻し、
+// GPUがアイドルになるまで共有のSrvManagerを生かしておく。
 class BloomPyramid {
 public:
     static constexpr uint32_t kMaxLevels = 5;
@@ -25,11 +25,11 @@ public:
     uint32_t Render(uint32_t sourceSrv, const BloomParam& param, uint32_t materialSrv = (std::numeric_limits<uint32_t>::max)());
     uint32_t Render(D3D12_GPU_DESCRIPTOR_HANDLE sourceSrv, const BloomParam& param, D3D12_GPU_DESCRIPTOR_HANDLE materialSrv = {});
 
-    // A frame-wide comparison override: -1 follows each category's parameters.
+    // フレーム全体での比較用の上書き値。-1なら各カテゴリのパラメータに従う。
     static void SetModeOverride(int mode);
-    // Presentation comparison, shared by every pyramid (global and per-category glow):
-    // off removes all bloom; isolatedLevel >= 0 outputs only that downsampled level
-    // (0 = 1/2 resolution ... kMaxLevels-1 = 1/32) instead of the blended upsample chain.
+    // すべてのピラミッド（全体用とカテゴリ別の発光）で共有する表示比較の設定。
+    // offはBloomをすべて消す。isolatedLevel >= 0なら、混ぜ合わせたアップサンプル連鎖の代わりに
+    // その縮小レベルだけを出力する（0 = 1/2解像度 ... kMaxLevels-1 = 1/32）。
     static void SetPresentationView(bool off, int isolatedLevel);
 
     static int GetPresentationIsolatedLevel()
@@ -77,8 +77,8 @@ public:
 private:
     struct PipelineBundle;
 
-    // Mirrors BloomPyramidCommon.hlsli. Root constants are copied into the
-    // command stream per pass, so later draws cannot overwrite their values.
+    // BloomPyramidCommon.hlsliと対応させる。ルート定数はパスごとにコマンドストリームへ
+    // コピーされるため、後の描画で値が上書きされることはない。
     struct PassConstants {
         uint32_t sourceWidth, sourceHeight;
         float threshold, softKnee;
@@ -107,7 +107,7 @@ private:
     static uint32_t presentationGeneration_;
     DirectXCommon* dxCommon_ = nullptr;
     SrvManager* srvManager_ = nullptr;
-    // A private heap avoids exhausting the scene's already occupied RTV heap.
+    // 専用のヒープを使い、シーン側で既に埋まっているRTVヒープを使い切らないようにする。
     std::unique_ptr<RtvManager> rtvManager_;
     std::array<std::unique_ptr<RenderTexture>, kMaxLevels> down_;
     std::array<std::unique_ptr<RenderTexture>, kMaxLevels - 1> up_;

@@ -295,7 +295,7 @@ void RuntimeProfiler::ResolveGpu()
     if (!recording_ || !queryHeap_ || gpuCount_ == 0) {
         return;
     }
-    // Resolve only pairs with both timestamps written, including on an early-return path.
+    // 早期リターンの経路も含め、両方のタイムスタンプが書き込まれた組だけを解決する。
     for (unsigned index = 0; index < gpuCount_; ++index) {
         if (gpuSamples_[index].ended) {
             dx_->GetList()->ResolveQueryData(queryHeap_.Get(), D3D12_QUERY_TYPE_TIMESTAMP, index * 2, 2, readback_.Get(),
@@ -311,8 +311,8 @@ void RuntimeProfiler::FinishFrame(double frameMs, double presentMs, double fence
     if (!recording_) {
         return;
     }
-    // Resource loading can submit midway through Update. Exclude such frames:
-    // their timestamp span includes CPU idle gaps between command submissions.
+    // リソース読み込みはUpdateの途中でコマンドを送ることがある。その場合のタイムスタンプ区間は
+    // コマンド送信の間のCPU待ち時間を含んでしまうため、そうしたフレームは除外する。
     if (resolved_ && resolveFence_ == beginFence_ + 1 && dx_->GetFence()->GetCompletedValue() >= resolveFence_) {
         UINT64* ticks = nullptr;
         D3D12_RANGE range{0, sizeof(UINT64) * gpuCount_ * 2};
@@ -369,7 +369,7 @@ void RuntimeProfiler::FlushWindow()
     const double count = static_cast<double>(windowFrames_);
     fps_ = windowMs_ > 0 ? count * 1000.0 / windowMs_ : 0;
     shownMaxMs_ = maxFrameMs_;
-    // Summary metrics are averaged with the same window as the detailed rows.
+    // 概要の数値は、詳細行と同じ区間で平均する。
     for (auto* group : {&cpu_, &counters_}) {
         for (auto& metric : *group) {
             metric.average = metric.sum / count;

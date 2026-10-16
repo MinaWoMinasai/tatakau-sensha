@@ -783,8 +783,8 @@ void PlayerAttackEffects::QueuePlayerMeleeSlashes()
         const myEngine::Vector3 bladeDir = RotateVector2D(slash.direction, displayAngleDeg * kPi / 180.0f);
         if (isSwinging) {
             queueTipTrail(slash, hilt, (std::max)(0.0f, swingProgress - 0.42f), swingProgress, color);
-            // Three nested crescent trails give the top-down slash depth without
-            // hiding the center of the fight behind a full-screen flash.
+            // 入れ子にした3本の三日月形の軌跡で、全画面の閃光で戦闘の中心を隠さずに
+            // 見下ろし視点の斬撃に奥行きを出す。
             for (int band = 1; band <= 3; ++band) {
                 const float radius = slash.range * (1.0f - static_cast<float>(band) * 0.09f);
                 const float start = (std::max)(0.0f, swingProgress - 0.30f);

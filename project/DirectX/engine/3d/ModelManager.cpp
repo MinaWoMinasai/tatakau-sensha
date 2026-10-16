@@ -43,8 +43,8 @@ void ModelManager::PreloadObjModel(const std::string& filePath)
 
 void ModelManager::PumpPreloads()
 {
-    // A parsed OBJ names its material textures; decode them on the file threads
-    // too instead of synchronously when the model is first used.
+    // 解析済みOBJはマテリアルのテクスチャ名を持つ。初回使用時に同期デコードせず、
+    // それらもファイルスレッドでデコードしておく。
     for (const auto& [path, result] : pendingModels_) {
         if (texturePreloadsQueued_.contains(path) || result.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
             continue;
@@ -64,7 +64,7 @@ void ModelManager::PumpPreloads()
             }
         }
         catch (const std::exception&) {
-        } // LoadModel reports and falls back.
+        } // LoadModelがエラーを報告し、代替モデルへ切り替える。
     }
 }
 

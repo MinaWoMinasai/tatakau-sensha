@@ -1,5 +1,5 @@
 #pragma once
-// Pure bounded geometry commands built from immutable gameplay snapshots.
+// 不変のゲームプレイのスナップショットから作る、上限付きの純粋な形状コマンド。
 #include "NeonDepthPresentation.h"
 #include <array>
 #include <cmath>
@@ -54,7 +54,7 @@ struct EffectFill {
 
 inline constexpr unsigned kMaximumAirLines = 256, kMaximumFloorLines = 2048, kMaximumFloorFills = 64;
 inline constexpr unsigned kEffectCircleSteps = 48, kEffectCapSteps = 16;
-// Each soft line uses at most18 vertices; each48-step circle fill at most144.
+// 柔らかい線1本は最大18頂点、48分割の円の塗りつぶし1つは最大144頂点。
 inline constexpr unsigned kMaximumEffectVertices = (kMaximumAirLines + kMaximumFloorLines) * 18 + kMaximumFloorFills * 144;
 
 struct EffectGeometryFrame {
@@ -174,8 +174,8 @@ inline Point Shift(Point point, float x, float y)
 }
 } // namespace effectdetail
 
-// Stripe clipping shrinks only decorative stroke coverage by half its width.
-// The canonical radius/halfWidth and Gameplay contact shape stay unchanged.
+// 縞模様の切り詰めで縮めるのは、装飾用の線の範囲を幅の半分だけ。
+// 正規の半径/半幅とゲームプレイの接触形状は変えない。
 inline std::optional<Stripe> ClipStripe(const Circle& circle, Point a, Point b, float strokeWidth)
 {
     if (!Valid(circle) || !Finite(a) || !Finite(b) || !Within(strokeWidth, .01f, .4f)) {
@@ -293,8 +293,8 @@ public:
         if (!dead && !Within(input.coreRadius, .25f, 10)) {
             return frame_.valid = false;
         }
-        // Invalid frames cannot consume an attack entry or poison the cached
-        // launch. Valid missing sockets remain an honest no-projectile fallback.
+        // 不正なフレームで攻撃の開始を消費したり、キャッシュした発射情報を壊したりはしない。
+        // 有効だがソケットが無い場合は、正直に弾なしの代替にする。
         const bool entry = snapshot.phase == Phase::Airborne && (lastPhase_ != Phase::Airborne || instance_ != snapshot.plan.instance);
         if (!dead && entry && snapshot.plan.attack == Attack::Volley) {
             if (snapshot.plan.circleCount > kMaximumCircles) {
@@ -418,8 +418,8 @@ private:
         const Point center{input.core.x, input.core.y};
         const float hit = Unit(input.hitFeedback);
         const myEngine::Vector4 color{.10f + hit * .5f, .85f, .95f, visibility * (input.snapshot.vulnerable ? .85f : .35f)};
-        // Broken hexagon + central diamond is an attack target, visually distinct
-        // from the closed danger circle/capsule and its active striped fill.
+        // 欠けた六角形と中央のひし形は攻撃の標的を表し、閉じた危険範囲の
+        // 円・カプセルや発動中の縞模様の塗りつぶしとは見た目で区別できる。
         for (unsigned index = 0; index < 6; ++index) {
             const float a = myEngine::pi * 2 * float(index) / 6, b = myEngine::pi * 2 * float(index + 1) / 6;
             const Point first = effectdetail::Shift(center, std::cos(a) * radius, std::sin(a) * radius),
@@ -476,8 +476,8 @@ private:
         }
         const float dx = capsule.end[0] - capsule.start[0], dy = capsule.end[1] - capsule.start[1], lengthSquared = dx * dx + dy * dy;
         if (lengthSquared <= .00001f) {
-            // Semantic descriptor remains a capsule, including its degenerate
-            // Gameplay SegmentClosestFraction convention. Disc appends no copy.
+            // 意味上の記述はカプセルのままで、退化したときのゲームプレイの
+            // SegmentClosestFractionの規約も同じ。円盤ではコピーを追加しない。
             const unsigned previous = frame_.circleCount;
             Disc({capsule.start, capsule.halfWidth}, active, pulse);
             frame_.circleCount = previous;

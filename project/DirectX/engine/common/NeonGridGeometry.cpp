@@ -12,7 +12,7 @@ constexpr uint32_t kContourOffsets = kContourRadii * 2;
 constexpr uint32_t kContourSpanVertices = (kContourOffsets - 1) * 6;
 constexpr uint32_t kContourMaxPoints = 96;
 constexpr uint32_t kContourCapSegments = 8;
-constexpr float kContourJoinStep = 0.5235987756f; // At most 30 degrees per round-corner segment.
+constexpr float kContourJoinStep = 0.5235987756f; // 角丸1区間あたり最大30度。
 
 bool ContourFinite(const Vector3& value)
 {
@@ -169,8 +169,8 @@ void NeonGridGeometry::QueueContourLine(const Vector3& a, const Vector3& b, floa
     if (!style.roundCaps) {
         return;
     }
-    // These semicircular caps share the exact end cross-sections of the body.
-    // Unlike overlapping discs, they do not double the emission at either tip.
+    // この半円キャップは本体の端の断面とまったく同じ形を共有する。
+    // 円を重ねる方式と違い、両端で発光が二重にならない。
     constexpr float kContourPi = 3.14159265359f;
     for (int cap = 0; cap < 2; ++cap) {
         const Vector3 center = cap == 0 ? a : b;
@@ -219,7 +219,7 @@ void NeonGridGeometry::QueueContourPolygon(const Vector3* points, uint32_t point
         }
         normals[point] = Cross(forward, direction / length);
     }
-    // Bounded stack scratch; no per-object allocation or mutable style state.
+    // サイズ上限付きのスタック作業領域。オブジェクトごとの確保や可変な描画スタイル状態は持たない。
     std::array<ContourSection, kContourMaxPoints * 8> sections{};
     uint32_t sectionCount = 0;
     for (uint32_t point = 0; point < pointCount; ++point) {
@@ -231,23 +231,22 @@ void NeonGridGeometry::QueueContourPolygon(const Vector3* points, uint32_t point
         Vector3 miter = previous + next;
         const float miterLength = Length(miter);
         if (!std::isfinite(miterLength) || miterLength <= 0.0001f) {
-            return; // A folded/reversed edge is not a contour.
+            return; // 折り返した辺や逆向きの辺は輪郭として扱わない。
         }
         miter = miter / miterLength;
         const float denominator = (std::max)(0.001f, std::abs(ContourDot(miter, next)));
         miter = miter * (std::min)(4.0f, 1.0f / denominator);
-        // Already-smooth circle silhouettes need one shared miter section. Its
-        // extent differs from a circular arc by less than 4% below 30 degrees;
-        // extra fan sections here would double their vertex budget needlessly.
+        // もともと滑らかな円のシルエットは、共有のマイター断面1つで十分。
+        // 30度未満なら円弧との差は4%未満で、ここで扇状の断面を増やすと
+        // 頂点数が無駄に倍になる。
         const uint32_t steps =
             angleSize <= kContourJoinStep ? 0 : (std::min)(6u, static_cast<uint32_t>(std::ceil(angleSize / kContourJoinStep)));
         for (uint32_t step = 0; step <= steps; ++step) {
             const float t = steps == 0 ? 0.0f : static_cast<float>(step) / static_cast<float>(steps);
             const float rotation = angle * t;
             const Vector3 rounded = steps == 0 ? miter : previous * std::cos(rotation) + Cross(forward, previous) * std::sin(rotation);
-            // The inner boundary remains one shared intersection; only the outer
-            // boundary follows an arc. Adjacent bands therefore never leave gaps
-            // or overlap with a second bright strip at the corner.
+            // 内側の境界は共有の交点1つのままにし、外側の境界だけを円弧に沿わせる。
+            // そのため隣り合う帯の間に隙間ができたり、角で明るい帯が二重に重なったりしない。
             sections[sectionCount++] = {points[point], angle >= 0.0f ? miter : rounded, angle >= 0.0f ? rounded : miter};
         }
     }
@@ -441,19 +440,19 @@ Vector4 NeonGridGeometry::ShadeBody(const Vector3& position, const Vector3& norm
 {
     Vector3 toEye = bodyEye_ - position;
     toEye = Length(toEye) > 0.0001f ? Normalize(toEye) : Vector3{0.0f, 0.0f, -1.0f};
-    // Key light from the upper left, on the camera side of the XY gameplay plane.
+    // キーライトは左上から、XYのゲームプレイ平面のカメラ側に置く。
     const Vector3 light = Normalize(Vector3{-0.45f, 0.55f, -0.70f});
     const float facing = std::clamp(Dot(normal, toEye), 0.0f, 1.0f);
     const float fresnel = std::pow(1.0f - facing, 3.0f);
     const float diffuse = std::clamp(Dot(normal, light), 0.0f, 1.0f);
     const Vector3 halfVector = Normalize(light + toEye);
     const float specular = std::pow(std::clamp(Dot(normal, halfVector), 0.0f, 1.0f), 110.0f);
-    // A second, softer lobe from the lower right keeps the far side from going flat.
+    // 右下からの柔らかい2つ目のライトで、奥側がのっぺりしないようにする。
     const Vector3 fill = Normalize(Vector3{0.55f, -0.45f, -0.70f});
     const float fillSpecular = std::pow(std::clamp(Dot(normal, Normalize(fill + toEye)), 0.0f, 1.0f), 18.0f);
     const float peak = (std::max)({tint.x, tint.y, tint.z, 0.001f});
     const Vector3 hue{tint.x / peak, tint.y / peak, tint.z / peak};
-    // Smoked black lacquer: a faint body tint, a colored rim reflection of its own neon and sharp white glints.
+    // スモークブラックの漆塗り風: ほのかな本体の色味、自身のネオンを映した色付きのリム反射、鋭い白いハイライト。
     const float rim = 0.02f + 0.05f * diffuse + 0.85f * fresnel + 0.10f * fillSpecular;
     const float glint = specular * 2.2f;
     return {baseColor.x + hue.x * rim + glint, baseColor.y + hue.y * rim + glint, baseColor.z + hue.z * rim + glint, baseColor.w};
@@ -462,8 +461,8 @@ Vector4 NeonGridGeometry::ShadeBody(const Vector3& position, const Vector3& norm
 void NeonGridGeometry::PushShadedTriangle(const Vector3& a, const Vector3& b, const Vector3& c, const Vector4& ca, const Vector4& cb,
                                           const Vector4& cc)
 {
-    // Solid fills are alpha blended without depth writes; convex bodies stay order-independent
-    // when only the eye-facing half is emitted.
+    // 塗りつぶしは深度を書かずにアルファブレンドする。視点側の半分だけを出力すれば、
+    // 凸形状の本体は描画順に依存しない。
     const Vector3 normal = Cross(b - a, c - a);
     const Vector3 centroid = (a + b + c) / 3.0f;
     if (Dot(normal, bodyEye_ - centroid) <= 0.0f) {
@@ -488,7 +487,7 @@ void NeonGridGeometry::QueueShadedBody(const Vector3* points, uint32_t count, co
     if (radius <= 0.0001f) {
         return;
     }
-    // Raise toward the eye: the outline lies in a plane whose normal points at the camera.
+    // 視点側へ持ち上げる。輪郭線は法線がカメラを向く平面上にある。
     Vector3 up = Cross(points[1] - points[0], points[2] - points[0]);
     if (Length(up) <= 0.000001f) {
         return;
@@ -499,8 +498,8 @@ void NeonGridGeometry::QueueShadedBody(const Vector3* points, uint32_t count, co
     }
 
     const bool round = count >= 12;
-    // Profile rings as (outline scale, height / radius). The round body is a smooth dome,
-    // polygons are a faceted chamfered frustum like the arena blocks.
+    // プロファイルの各リングは（輪郭の拡大率, 高さ/半径）で表す。丸い本体は滑らかなドーム、
+    // 多角形はアリーナのブロックのような面取りした多面体の錐台にする。
     constexpr int kRoundRings = 7;
     constexpr std::array<float, 4> kPolygonScale{1.0f, 0.88f, 0.64f, 0.0f};
     constexpr std::array<float, 4> kPolygonHeight{0.0f, 0.26f, 0.42f, 0.42f};
@@ -526,7 +525,7 @@ void NeonGridGeometry::QueueShadedBody(const Vector3* points, uint32_t count, co
         return center + (points[i % count] - center) * ringScale(ring) + up * ringHeight(ring);
     };
     auto roundNormal = [&](uint32_t i, int ring) {
-        // Analytic normal of the dome profile: radial * dh/dt - up * |p - c| * ds/dt.
+        // ドーム形状の解析的な法線: radial * dh/dt - up * |p - c| * ds/dt。
         const float t = 1.5707963f * static_cast<float>(ring) / static_cast<float>(kRoundRings - 1);
         const Vector3 radial = points[i % count] - center;
         const float length = Length(radial);
@@ -538,7 +537,7 @@ void NeonGridGeometry::QueueShadedBody(const Vector3* points, uint32_t count, co
         for (uint32_t i = 0; i < count; ++i) {
             const Vector3 a = position(i, ring), b = position(i + 1, ring);
             const Vector3 c = position(i + 1, ring + 1), d = position(i, ring + 1);
-            // Each quad is offered in both windings; PushShadedTriangle keeps only the eye-facing one.
+            // 各四角形を両方の巻き順で渡し、PushShadedTriangleが視点側を向くほうだけを残す。
             if (round) {
                 const Vector4 ca = ShadeBody(a, roundNormal(i, ring), baseColor, tint);
                 const Vector4 cb = ShadeBody(b, roundNormal(i + 1, ring), baseColor, tint);
@@ -549,7 +548,7 @@ void NeonGridGeometry::QueueShadedBody(const Vector3* points, uint32_t count, co
                 PushShadedTriangle(a, c, b, ca, cc, cb);
                 PushShadedTriangle(a, d, c, ca, cd, cc);
             } else {
-                // Flat facets: one normal per quad keeps sharp, block-like edges.
+                // 平らな面: 四角形ごとに法線を1つにして、ブロックのような鋭い角を保つ。
                 Vector3 faceNormal = Cross(b - a, d - a);
                 if (Length(faceNormal) <= 0.000001f) {
                     faceNormal = Cross(c - b, a - b);
@@ -729,7 +728,7 @@ void NeonGridGeometry::QueueLocalGridClipped(const Vector3& center, float radius
         const float dx = x - center.x;
         const float dy = y - center.y;
         const float normalizedDistance = std::sqrt(dx * dx + dy * dy) / radius;
-        // Keep the territory evenly tinted and soften only its rim.
+        // 陣地は均一に色付けし、縁だけをぼかす。
         const float t = std::clamp((normalizedDistance - 0.45f) / 0.55f, 0.0f, 1.0f);
         return 1.0f - t * t * (3.0f - 2.0f * t);
     };

@@ -260,7 +260,7 @@ void NeonWindmillScene::Line(Vector3 a, Vector3 b, float width, Vector4 color)
 void NeonWindmillScene::BuildGeometry()
 {
     auto settings = appearances_[int(renderMode_)];
-    // An optional brief warm/pink accent, not a change in animation timing.
+    // 任意で短く入る暖色/ピンクのアクセント。アニメーションのタイミングは変えない。
     settings.recognitionAccent =
         renderMode_ == WindmillRenderMode::Legacy ? 0 : .45f * pose_.recognition * (1 - neonwindmill::Smooth(14.2f, 14.9f, pose_.seconds));
     emojiRenderer_->SetAppearance(renderMode_, settings);
@@ -311,8 +311,8 @@ void NeonWindmillScene::BuildRoom(bool solid)
         if (renderMode_ == WindmillRenderMode::Legacy) {
             Fill(wall, 4, {.003f, .007f, .018f, 1});
         } else {
-            // Local diffuse approximation: 78 cells, five moving sources.
-            // Shared lighting, model shaders and gameplay defaults stay intact.
+            // 局所的な拡散光の近似: 78セル、動く光源5つ。
+            // 共有のライティング、モデルシェーダー、ゲームプレイの既定値はそのまま。
             const auto& settings = appearances_[int(renderMode_)];
             const float strength = settings.coreIntensity * .4f + settings.surfaceEmission + settings.haloIntensity * .2f;
             for (int iy = 0; iy < 6; ++iy) {
@@ -374,7 +374,7 @@ void NeonWindmillScene::BuildCharacter(bool solid)
             return;
         }
         if (renderMode_ != WindmillRenderMode::Legacy) {
-            return; // Shader owns the sole Core/Halo source.
+            return; // Core/Haloの唯一の元データはシェーダーが持つ。
         }
         std::vector<Vector3> outline;
         outline.reserve(glyph.contour.size());
@@ -416,9 +416,9 @@ void NeonWindmillScene::DrawPostEffect3D()
     myEngine::RuntimeProfiler::GpuScope scope("Windmill scene");
     const auto& vp = camera_.GetViewProjectionMatrix();
     renderer_->DrawRangeSceneSolid(0, solidEnd_, vp);
-    // Quality is premultiplied and includes transparent halo. Draw room lines
-    // before the five disjoint plates so their source opacity covers the grid.
-    // Legacy retains its original cutout/depth/contour ordering byte for byte.
+    // Qualityは乗算済みアルファで、透明なハローを含む。元の不透明度がグリッドを覆うよう、
+    // 5枚の離れたプレートより先に部屋の線を描く。
+    // Legacyは元の切り抜き・深度・輪郭の順番をバイト単位でそのまま保つ。
     if (renderMode_ != WindmillRenderMode::Legacy) {
         renderer_->DrawRange(solidEnd_, renderer_->GetVertexCount() - solidEnd_, vp);
     }
@@ -598,7 +598,7 @@ void NeonWindmillScene::UpdateQualityVerification()
     ++verificationFrames_;
     const bool motion = qualityRun_ == "motion";
     const bool measure = qualityRun_.starts_with("perf");
-    const unsigned count = motion ? 480u : 48u; // 5 states x 3 modes x Bloom OFF/ON + diagnostics/controls.
+    const unsigned count = motion ? 480u : 48u; // 5状態 x 3モード x Bloom OFF/ON + 診断/操作。
     if (verificationPending_ && !capture_->IsBusy()) {
         if (capture_->WasLastCaptureSuccessful()) {
             capturedNames_.push_back(qualityCaptureName_);
@@ -758,8 +758,8 @@ void NeonWindmillScene::UpdateQualityVerification()
         report();
         return;
     }
-    // Static cases settle for eight frames: post metadata and texture commands
-    // belong to the selected case. Motion keeps post parameters constant.
+    // 静止したケースは8フレーム待って落ち着かせる。ポストの情報とテクスチャのコマンドは
+    // 選んだケースのものになる。動きのあるケースではポストのパラメータを一定に保つ。
     if (!verificationPending_ && (motion || verificationFrames_ % 8 == 0)) {
         capture_->Request(qualityOutput_, qualityCaptureName_, {});
         verificationPending_ = true;

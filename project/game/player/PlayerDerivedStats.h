@@ -4,7 +4,7 @@
 #include "TankCombatStyleBalance.h"
 #include "TankRunModifiers.h"
 
-// Actor-independent runtime values. Player keeps a source-compatible alias.
+// アクターに依存しない実行時の値。Playerはソース互換の別名を持っている。
 struct TankPlayerStats {
     float reloadSpeed = 10.0f;
     float bulletDamage = 1.0f;
@@ -23,8 +23,8 @@ struct PlayerUpgradeRates {
     float minimumReloadFrames = 3.0f;
 };
 
-// Only values used for composition cross this boundary. No actor, input,
-// resource or UI access occurs here. The profile is copied when the style is selected.
+// この境界を越えるのは合成に使う値だけ。ここではアクター、入力、
+// リソース、UIへのアクセスは行わない。プロファイルはスタイル選択時にコピーする。
 struct PlayerDerivedStatsInput {
     TankPlayerStats base{};
     std::array<int, 7> upgradeLevels{};
@@ -38,7 +38,7 @@ struct PlayerDerivedStatsInput {
     float previousStamina = 3.0f;
 };
 
-// Preserve composition order: class base -> upgrades -> run -> maintenance -> bounds.
+// 合成順を保つ: クラスの基本値 -> 強化 -> ラン -> 整備 -> 範囲制限。
 inline TankPlayerStats CalculatePlayerDerivedStats(const PlayerDerivedStatsInput& input)
 {
     TankPlayerStats stats = input.base;
@@ -84,8 +84,8 @@ inline TankPlayerStats CalculatePlayerDerivedStats(const PlayerDerivedStatsInput
     return stats;
 }
 
-// Recalculation has its legacy full-HP growth rule. Explicit no-heal callers
-// keep restoring their previous HP after this rule, just as before extraction.
+// 再計算には旧来の「最大HP増加分を回復する」規則がある。回復しないと明示した呼び出し側は、
+// 切り出し前と同じく、この規則の後で直前のHPに戻し続ける。
 inline int ResolvePlayerRecalculatedHp(int hp, int oldMaximum, int newMaximum, bool healToFull)
 {
     const bool wasFullHp = oldMaximum > 0 && hp >= oldMaximum;

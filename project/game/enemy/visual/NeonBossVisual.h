@@ -24,18 +24,18 @@ struct NeonBossVisualStats {
     unsigned depthPoseFreezes = 0, depthFormationBounds = 0, depthFallbackLoads = 0;
 };
 
-// Gameplay -> values -> presentation. Owns only rendering resources; its state
-// never feeds HP, collision, AI or attack timing back into the gameplay layer.
+// ゲームプレイ -> 値 -> 演出。所有するのは描画リソースだけで、その状態がHP、
+// 当たり判定、AI、攻撃タイミングとしてゲームプレイ層へ戻ることはない。
 class NeonBossVisual {
 public:
     ~NeonBossVisual();
     void Initialize(myEngine::Camera* camera, myEngine::DebugCamera* debugCamera);
-    // Reset only at a frame boundary after the previous GPU submission completed.
+    // 前回のGPU送信が完了した後の、フレーム境界でだけリセットする。
     void ResetEncounter();
-    // Same frame-boundary contract as NeonSkinnedRenderer::BeginFrame; call once
-    // after gameplay and Camera Update, before Scene HDR Draw.
+    // NeonSkinnedRenderer::BeginFrameと同じフレーム境界の約束事。
+    // ゲームプレイとCameraのUpdateの後、シーンのHDR描画の前に1回呼ぶ。
     void Update(const NeonBossVisualInput& input, float deltaTime);
-    // Valid edits apply at reset or the next attack instance; death timing is latched.
+    // 有効な編集はリセット時か次の攻撃インスタンスで反映する。死亡のタイミングは確定済み。
     bool SetDepthProfile(const neondepth::PresentationConfig& profile);
 
     const neondepth::PresentationConfig& GetDepthProfile() const

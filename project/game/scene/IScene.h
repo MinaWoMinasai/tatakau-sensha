@@ -15,12 +15,12 @@ public:
         myEngine::Camera* camera = nullptr;
         int diagnostic = 0;
         float threshold = 0.65f, intensity = 0.75f, exposure = 0.75f;
-        // -1 preserves the engine setting; 0/1/2/3 select Off/Legacy/Quality/Light.
+        // -1ならエンジンの設定を保つ。0/1/2/3でOff/Legacy/Quality/Lightを選ぶ。
         int bloomComparisonMode = -1;
         float bloomSoftKnee = 0.5f, bloomScatter = 0.3f, bloomRadius = 0.75f, bloomGain = 0.15f;
         int toneMappingMode = -1;
         bool comparisonFreeze = false;
-        // Scoped Developer diagnostics for actual gameplay (never activate Showcase).
+        // 実際のゲームプレイ向けの範囲を限ったDeveloper用診断（Showcaseは有効にしない）。
         int renderDebugOverride = -1;
         int ssaoOverride = -1, ssrOverride = -1;
     };
@@ -40,10 +40,10 @@ public:
         bool active = false;
         float bloomScale = 1.0f;
         bool suppressPostEffectDebugUi = false;
-        // Suppress generated screen-space edges, preserving authored neon geometry.
+        // 生成したスクリーン空間のエッジを抑え、作成したネオンの形状は残す。
         bool suppressOutlines = false;
-        // Moving skinned geometry has no per-object velocity in the existing
-        // temporal path. A scene may scope a stable, unjittered render profile.
+        // 既存のテンポラル経路では、動くスキン形状にオブジェクトごとの速度が無い。
+        // シーンは範囲を限って、安定したジッターなしの描画設定を使える。
         bool suppressTemporal = false;
         myEngine::BloomParam param{};
     };

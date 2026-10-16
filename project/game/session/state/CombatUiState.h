@@ -35,10 +35,10 @@ struct CombatUiState {
 
     std::unique_ptr<myEngine::TextLabel> flowBannerText_;
 
-    // Bloom comparison caption (presentation helper).
+    // Bloom比較用の見出し（演出確認用）。
     std::unique_ptr<myEngine::TextLabel> bloomViewText_;
 
-    // Final boss cinematic: letterbox bars and a title card (entrance / defeat).
+    // 最終ボスの演出: レターボックスの帯とタイトルカード（登場/撃破）。
     std::unique_ptr<myEngine::Sprite> cinematicBarTop_;
     std::unique_ptr<myEngine::Sprite> cinematicBarBottom_;
     std::unique_ptr<myEngine::TextLabel> cinematicTitle_;

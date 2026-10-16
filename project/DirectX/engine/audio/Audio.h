@@ -27,7 +27,7 @@ public:
     struct AudioData {
         std::vector<BYTE> bufferData;
         WAVEFORMATEX* waveFormat = nullptr;
-        IXAudio2SourceVoice* pSourceVoice = nullptr; // retained legacy member; pool owns voices
+        IXAudio2SourceVoice* pSourceVoice = nullptr; // 互換用に残しているメンバー。ボイスはプールが所有する
         UINT32 bufferSize = 0;
 
         // この音専用の再生用ボイスリスト

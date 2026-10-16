@@ -246,8 +246,8 @@ struct alignas(16) Material {
     float crystalFresnelPower;
     float iridescenceFactor;
     float iridescenceIor;
-    float iridescenceThicknessMinimumNm; // Thin-film thickness in nanometers.
-    float iridescenceThicknessMaximumNm; // Thin-film thickness in nanometers.
+    float iridescenceThicknessMinimumNm; // 薄膜の厚さ（ナノメートル）。
+    float iridescenceThicknessMaximumNm; // 薄膜の厚さ（ナノメートル）。
     float crystalEdgeEmission;
     float crystalCoreEmission;
     Vector3 crystalCoreColor;
@@ -692,7 +692,7 @@ struct BloomParam {
     float randomTimeScale;        // timeをSeedへ加える速度
     float randomGrayscalePreview; // 乱数を白黒で直接表示
     float exposure;               // HDRシーンをLDRへ落とす前の露出
-    float toneMappingMode;        // 0: Reinhard, 1: ACES
+    float toneMappingMode;        // 0: Reinhard、1: ACES
     float hdrWhitePoint;          // Reinhard系ToneMappingの白基準
     float hdrPadding;
     float
@@ -759,8 +759,8 @@ struct BloomParam {
     float waterHistoryWeight;      // 水面TAAの最大history weight
     float waterDebugMode;          // 0: Final, 1: Normal, 2: Fresnel, 3: Sun, 4: Foam, 5: Reactive
     float waterPostPadding[3];
-    // Legacy keeps intensity cubed; pyramid gain is applied only at composition.
-    uint32_t bloomMode = 2; // 0: Off, 1: Legacy, 2: Quality, 3: Light
+    // Legacyは強度の3乗を保つ。ピラミッドの係数は合成時にだけ掛ける。
+    uint32_t bloomMode = 2; // 0: オフ、1: Legacy、2: Quality、3: Light
     float bloomSoftKnee = 0.5f;
     float bloomScatter = 0.3f;
     float bloomRadius = 0.75f;

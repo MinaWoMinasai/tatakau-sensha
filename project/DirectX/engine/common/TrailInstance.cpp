@@ -4,8 +4,8 @@ namespace myEngine {
 
 void TrailInstance::SetConfig(const TrailConfig& config)
 {
-    // Compare fields, not padding bytes. Merely advancing point ages does not
-    // affect this renderer until a point expires.
+    // パディングのバイトではなくフィールドを比較する。点の経過時間が進むだけでは、
+    // 点が寿命を迎えるまでこの描画には影響しない。
     const auto sameColor = [](const Vector4& a, const Vector4& b) {
         return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
     };

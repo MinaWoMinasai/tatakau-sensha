@@ -33,10 +33,10 @@ public:
         std::string error;
     };
 
-    // Developer scenario adapter only. Call after the last submitted frame's
-    // fence completes while cameras and engine managers remain alive. Warms
-    // shared textures, then checks actual D3D instance descriptor ownership.
-    // No draw commands, gameplay state or ordinary Preview state are changed.
+    // Developer用シナリオアダプタ専用。最後に送信したフレームのフェンスが完了し、
+    // カメラとエンジンのマネージャーが生きている間に呼ぶ。共有テクスチャを先に読み込んでから、
+    // D3Dのインスタンス用ディスクリプタの実際の所有状況を確認する。
+    // 描画コマンド、ゲームプレイの状態、通常のプレビュー状態は変更しない。
     static ResourceLifecycleValidation ValidateResourceLifecycle(myEngine::Camera* camera, myEngine::DebugCamera* debugCamera,
                                                                  unsigned repeats = 3);
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
@@ -138,8 +138,8 @@ private:
 
     /// @brief 保存されたデータを読み込む。
     void Load();
-    // The owner releases instance descriptors at a GPU-complete boundary.
-    // Shared TextureManager entries remain cached across Preview encounters.
+    // 所有者は、GPUの処理が完了した境界でインスタンス用ディスクリプタを解放する。
+    // TextureManagerの共有エントリは、プレビューのたびにキャッシュされたまま残る。
     void ReleaseResources();
     // 外観だけを変更し、再生状態・Transform・Alpha Cutoutは保持する。
     void ApplyRecommendedLineArtPreset();

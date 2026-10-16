@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <string>
 
-// Copies the engine's final color before UI. Readback is consumed only after the existing frame fence.
+// UI描画前のエンジンの最終カラーをコピーする。読み戻しは既存のフレームフェンス通過後にだけ使う。
 class NeonShowcaseCapture {
 public:
     void Request(const std::filesystem::path& directory, const std::string& name, nlohmann::json metadata);

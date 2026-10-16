@@ -1,5 +1,5 @@
 #pragma once
-// Scene-owned immutable Depth effect ranges using the existing renderer.
+// 既存の描画を使う、シーン所有の不変なDepthエフェクトの範囲。
 #include "NeonDepthEffectGeometry.h"
 #include "NeonGridRenderer.h"
 #include <memory>
@@ -14,9 +14,9 @@ struct EffectsStats {
 };
 } // namespace neondepth
 
-// Scene-owned presentation resources. Snapshot and sockets are copied values.
-// Initialize/Release/Reset/Update obey the existing NeonGridRenderer frame fence
-// contract: previous submitted use has completed before mapped buffers change.
+// シーンが所有する演出用リソース。スナップショットとソケットは値のコピー。
+// Initialize/Release/Reset/Updateは既存のNeonGridRendererのフレームフェンスの約束事に従い、
+// マップしたバッファを変える前に、前回送信した使用が完了している必要がある。
 class NeonDepthEffects {
 public:
     ~NeonDepthEffects()
@@ -33,13 +33,13 @@ public:
     }
 
     void ResetEncounter();
-    // Call once per frame after Visual/model Update, using that same final camera.
-    // frameId is a monotonically changing Scene frame identity, not a motion clock.
+    // 表示/モデルのUpdateの後、同じ最終カメラを使って毎フレーム1回呼ぶ。
+    // frameIdは単調に変わるシーンのフレーム識別子で、動きのための時計ではない。
     bool Update(const neondepth::EffectsInput& input);
-    // Scene HDR + current Scene DSV. Depth read, no write; preserves occlusion.
+    // シーンのHDR + 現在のシーンDSV。深度は読むだけで書かず、遮蔽を保つ。
     void DrawAir();
-    // Scene-compatible HDR NoDepth target owned/bound by root's local overlay or
-    // existing ObjectPost capture. Same frozen VP. No DrawRangeSolid/HUD format.
+    // ルートのローカルオーバーレイか既存のObjectPostキャプチャが所有・バインドする、
+    // シーン互換のHDR・深度なしの描画先。同じ固定VPを使う。DrawRangeSolidやHUDのフォーマットは使わない。
     void DrawFloor();
 
     const neondepth::EffectsStats& GetStats() const

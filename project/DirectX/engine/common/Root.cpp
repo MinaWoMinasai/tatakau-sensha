@@ -82,14 +82,14 @@ void Root::InitalizeForObject()
     Parameters_[9].DescriptorTable.pDescriptorRanges = &descriptorRange_[3];
     Parameters_[9].DescriptorTable.NumDescriptorRanges = 1;
 
-    // [10] Naval water material copy (Vertex b2).
-    // Normal objects ignore it; Object3d.VS uses it only when environmentCoefficient >= 1.5.
+    // [10] 海面マテリアルのコピー（頂点 b2）。
+    // 通常オブジェクトは無視し、Object3d.VSはenvironmentCoefficient >= 1.5のときだけ使う。
     Parameters_[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     Parameters_[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     Parameters_[10].Descriptor.ShaderRegister = 2;
 
-    // [11] DescriptorTable (normal map t4). Models without a normal map bind
-    // the engine flat-normal texture, so the slot is always valid.
+    // [11] DescriptorTable（法線マップ t4）。法線マップを持たないモデルは
+    // エンジンの平坦な法線テクスチャをバインドするため、このスロットは常に有効。
     descriptorRange_[4].BaseShaderRegister = 4;
     descriptorRange_[4].NumDescriptors = 1;
     descriptorRange_[4].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -100,8 +100,8 @@ void Root::InitalizeForObject()
     Parameters_[11].DescriptorTable.pDescriptorRanges = &descriptorRange_[4];
     Parameters_[11].DescriptorTable.NumDescriptorRanges = 1;
 
-    // [12] DescriptorTable (metallic-roughness map t5). Uses glTF channel
-    // convention: G = roughness, B = metallic.
+    // [12] DescriptorTable（メタリック・ラフネスマップ t5）。glTFのチャンネル規約に従い、
+    // G = ラフネス、B = メタリック。
     descriptorRange_[5].BaseShaderRegister = 5;
     descriptorRange_[5].NumDescriptors = 1;
     descriptorRange_[5].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -112,7 +112,7 @@ void Root::InitalizeForObject()
     Parameters_[12].DescriptorTable.pDescriptorRanges = &descriptorRange_[5];
     Parameters_[12].DescriptorTable.NumDescriptorRanges = 1;
 
-    // [13] DescriptorTable (ambient occlusion map t6). Uses R channel.
+    // [13] DescriptorTable（アンビエントオクルージョンマップ t6）。Rチャンネルを使う。
     descriptorRange_[6].BaseShaderRegister = 6;
     descriptorRange_[6].NumDescriptors = 1;
     descriptorRange_[6].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -123,8 +123,8 @@ void Root::InitalizeForObject()
     Parameters_[13].DescriptorTable.pDescriptorRanges = &descriptorRange_[6];
     Parameters_[13].DescriptorTable.NumDescriptorRanges = 1;
 
-    // [14] DescriptorTable (integrated BRDF LUT t7). PBR specular IBL uses
-    // this split-sum table instead of the older analytic approximation.
+    // [14] DescriptorTable（積分済みBRDF LUT t7）。PBRの鏡面IBLは
+    // 古い解析近似の代わりにこのsplit-sumテーブルを使う。
     descriptorRange_[7].BaseShaderRegister = 7;
     descriptorRange_[7].NumDescriptors = 1;
     descriptorRange_[7].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -135,7 +135,7 @@ void Root::InitalizeForObject()
     Parameters_[14].DescriptorTable.pDescriptorRanges = &descriptorRange_[7];
     Parameters_[14].DescriptorTable.NumDescriptorRanges = 1;
 
-    // [15] DescriptorTable (diffuse irradiance cube t8).
+    // [15] DescriptorTable（拡散放射照度キューブ t8）。
     descriptorRange_[8].BaseShaderRegister = 8;
     descriptorRange_[8].NumDescriptors = 1;
     descriptorRange_[8].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -146,7 +146,7 @@ void Root::InitalizeForObject()
     Parameters_[15].DescriptorTable.pDescriptorRanges = &descriptorRange_[8];
     Parameters_[15].DescriptorTable.NumDescriptorRanges = 1;
 
-    // [16] DescriptorTable (prefiltered specular environment cube t9).
+    // [16] DescriptorTable（プリフィルタ済み鏡面環境キューブ t9）。
     descriptorRange_[9].BaseShaderRegister = 9;
     descriptorRange_[9].NumDescriptors = 1;
     descriptorRange_[9].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -157,14 +157,14 @@ void Root::InitalizeForObject()
     Parameters_[16].DescriptorTable.pDescriptorRanges = &descriptorRange_[9];
     Parameters_[16].DescriptorTable.NumDescriptorRanges = 1;
 
-    // [17] Naval ocean wake data (Vertex b3). Non-ocean meshes bind the default
-    // zero buffer and the vertex shader ignores it outside naval ocean mode.
+    // [17] 海面の航跡データ（頂点 b3）。海以外のメッシュは既定のゼロバッファをバインドし、
+    // 頂点シェーダーは海面モード以外ではこれを無視する。
     Parameters_[17].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     Parameters_[17].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     Parameters_[17].Descriptor.ShaderRegister = 3;
 
-    // [18] DescriptorTable (world-space caustics mask t10). Every Object3d binds
-    // a valid linear-data texture here; unused objects use the black fallback.
+    // [18] DescriptorTable（ワールド空間のコースティクスマスク t10）。すべてのObject3dが
+    // 有効なリニアテクスチャをバインドし、使わないオブジェクトは黒の代替テクスチャを使う。
     descriptorRange_[10].BaseShaderRegister = 10;
     descriptorRange_[10].NumDescriptors = 1;
     descriptorRange_[10].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -510,7 +510,7 @@ void Root::InitializeForPostEffect()
     descriptionSignature_.pStaticSamplers = staticSamplers_;
     descriptionSignature_.NumStaticSamplers = 1;
 
-    // -------- Serialize
+    // -------- シリアライズ
     HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
 
     if (FAILED(hr)) {
@@ -659,14 +659,14 @@ void Root::InitializeForOcean()
 {
     descriptionSignature_.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-    // b0 is shared by the ocean vertex and pixel stages.
+    // b0は海面の頂点ステージとピクセルステージで共有する。
     Parameters_[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     Parameters_[0].Descriptor.ShaderRegister = 0;
 
-    // t0: environment. t1/t2, t3/t4 and t5/t6 are the three
-    // displacement/slope pairs. t7..t9 are the selected cascade's debug data,
-    // and t10..t12 contain horizontal displacement derivatives.
+    // t0: 環境。t1/t2、t3/t4、t5/t6は3段の変位/勾配の組。
+    // t7..t9は選択中カスケードのデバッグ用データ、
+    // t10..t12は水平変位の微分を持つ。
     for (uint32_t index = 0; index < 13; ++index) {
         descriptorRange_[index].BaseShaderRegister = index;
         descriptorRange_[index].NumDescriptors = 1;
@@ -703,20 +703,20 @@ void Root::InitializeForOceanCompute()
 {
     descriptionSignature_.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
 
-    // Stable simulation parameters.
+    // 変化しないシミュレーション用パラメータ。
     Parameters_[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     Parameters_[0].Descriptor.ShaderRegister = 0;
 
-    // Per-dispatch FFT stage and direction. Root constants avoid reusing an
-    // upload-buffer value across multiple dispatches in one command list.
+    // ディスパッチごとのFFT段と方向。ルート定数を使うことで、1つのコマンドリスト内の
+    // 複数ディスパッチでアップロードバッファの値を使い回さずに済む。
     Parameters_[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
     Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     Parameters_[1].Constants.ShaderRegister = 1;
     Parameters_[1].Constants.Num32BitValues = 4;
 
-    // t0..t3 inputs. A/B/C/D are transformed together so the derivative
-    // stream does not add another FFT dispatch.
+    // t0..t3は入力。A/B/C/Dをまとめて変換し、
+    // 微分用のストリームのためにFFTディスパッチを増やさない。
     for (uint32_t index = 0; index < 4; ++index) {
         descriptorRange_[index].BaseShaderRegister = index;
         descriptorRange_[index].NumDescriptors = 1;
@@ -728,7 +728,7 @@ void Root::InitializeForOceanCompute()
         Parameters_[2 + index].DescriptorTable.NumDescriptorRanges = 1;
     }
 
-    // u0..u4 outputs.
+    // u0..u4は出力。
     for (uint32_t index = 0; index < 5; ++index) {
         descriptorRange_[4 + index].BaseShaderRegister = index;
         descriptorRange_[4 + index].NumDescriptors = 1;
@@ -765,7 +765,7 @@ void Root::InitializeForComputeParticle()
     Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     Parameters_[1].Descriptor.ShaderRegister = 1;
 
-    // u0..u5: Particle / RenderData / DrawArgs / FreeList resources.
+    // u0..u5: Particle / RenderData / DrawArgs / FreeList の各リソース。
     for (uint32_t i = 0; i < 6; ++i) {
         descriptorRange_[i].BaseShaderRegister = i;
         descriptorRange_[i].NumDescriptors = 1;
@@ -778,7 +778,7 @@ void Root::InitializeForComputeParticle()
         Parameters_[2 + i].DescriptorTable.NumDescriptorRanges = 1;
     }
 
-    // t0: GPU Emitter request or prebuilt particle input.
+    // t0: GPUエミッターの要求、または事前に作ったパーティクル入力。
     descriptorRange_[6].BaseShaderRegister = 0;
     descriptorRange_[6].NumDescriptors = 1;
     descriptorRange_[6].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;

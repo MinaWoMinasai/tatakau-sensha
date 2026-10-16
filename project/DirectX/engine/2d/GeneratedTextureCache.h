@@ -10,10 +10,9 @@
 #include "externals/DirectXTex/DirectXTex.h"
 #include "StartupTrace.h"
 
-// Lossless CPU-generated PBR data, independent of the graphics adapter/driver.
-// Bump the directory version whenever the procedural environment, integration
-// algorithm, sample count or output layout changes. The payload is DDS, with a
-// small integrity header so a truncated/corrupt cache always rebuilds safely.
+// GPUアダプタやドライバに依存しない、CPU生成の可逆なPBRデータ。
+// 手続き環境・積分アルゴリズム・サンプル数・出力レイアウトを変えたら、ディレクトリのバージョンを上げる。
+// 中身はDDSで、小さな整合性ヘッダを付けているため、途中で切れたり壊れたキャッシュは必ず安全に作り直される。
 namespace myEngine {
 
 namespace GeneratedTextureCache {

@@ -8,9 +8,9 @@ namespace myEngine {
 /// @brief 複数の軌跡を頂点へ展開し、GPUバッファの寿命と一括描画を管理する。
 class TrailManager {
 public:
-    // Initial allocation. Grow on demand without shortening existing trails.
+    // 初期確保量。既存の軌跡を短くせずに、必要に応じて拡張する。
     static constexpr uint32_t kMaxVertices = 8192;
-    // Keep pathological editor settings bounded (9 MiB of vertex data).
+    // エディタで極端な設定にされても上限内（頂点データ9MiB）に収める。
     static constexpr uint32_t kMaxBatchVertices = 262144;
 
     /// @brief 描画した件数・頂点数などを保持し、負荷の確認に使う。

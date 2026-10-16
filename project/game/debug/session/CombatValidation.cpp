@@ -14,7 +14,7 @@ constexpr std::array<const char*, 6> kCombatProbeNames{"Charger", "Sniper", "Ski
 /// @brief 指定した形状が地形の壁と重なるか判定する。
 bool OverlapsWall(const Stage& stage, const myEngine::AABB& body)
 {
-    // Resolved bodies have 0.01-unit separation. Ignore only floating point noise.
+    // 衝突解決後の物体の間隔は0.01単位。浮動小数点の誤差だけを無視する。
     for (const auto& row : stage.GetBlocks()) {
         for (const auto& block : row) {
             if (!block.isActive) {
@@ -52,7 +52,7 @@ void CombatValidation::InitializeCombatValidationFixture()
     world_.run.tankExpeditionMusicEnabled_ = world_.run.tankExpeditionEffectsEnabled_ = false;
     world_.run.tankExpeditionAudio_.SetMusicVolume(0);
     world_.run.tankExpeditionAudio_.SetEffectsVolume(0);
-    // All fixture changes are in memory; user-authored JSON is never rewritten.
+    // フィクスチャの変更はすべてメモリ上で行い、ユーザーが作成したJSONは書き換えない。
     world_.run.expeditionContent_ = tankcontent::DefaultCatalog();
     tankexp::RoomDefinition room;
     room.id = "ai_probe";
@@ -68,7 +68,7 @@ void CombatValidation::InitializeCombatValidationFixture()
             }
         }
     }
-    // Offset cover exercises navigation, without blocking the initial firing lane.
+    // 遮蔽物をずらして置き、最初の射線を塞がずにナビゲーションを確かめる。
     for (const tankexp::RoomPoint p : {tankexp::RoomPoint{44, 36}, tankexp::RoomPoint{44, 22}}) {
         room.grid[static_cast<size_t>(tankexp::RoomPointCell(p))] = 1;
     }
@@ -216,7 +216,7 @@ bool CombatValidation::UpdateCombatValidation(float dt)
         PostQuitMessage(6);
         return true;
     }
-    // The ordinary presentation gate also freezes this probe's actors.
+    // 通常の演出待ちの判定で、この検証のアクターも停止する。
     const bool transitioning = world_.run.expeditionTransition_.IsActive();
     world_.expeditionMapController->UpdateExpeditionPresentation(dt);
     if (transitioning) {
@@ -253,7 +253,7 @@ bool CombatValidation::UpdateCombatValidation(float dt)
     p.age += dt;
     p.sampleAge += dt;
     const bool boss = world_.run.combatValidationIndex_ == 5;
-    // Normal Player movement, with no teleporting or auto-fire during a probe.
+    // プレイヤーの通常の移動を使い、検証中にワープや自動射撃は行わない。
     const myEngine::Vector3 target{32.0f + 3.0f * std::sin(p.age * 0.55f), 29.0f + 6.0f * std::sin(p.age * 0.70f), 0};
     myEngine::Vector3 input = target - world_.resources.player_->GetWorldPosition();
     if (myEngine::Length(input) > 1.0f) {
@@ -324,7 +324,7 @@ bool CombatValidation::UpdateCombatValidation(float dt)
             ++p.tunnelingViolations;
         }
         if (dashing) {
-            // Sweep the straight dash's center so endpoint checks cannot miss a wall.
+            // 直線ダッシュの中心線を掃引し、端点だけの判定で壁を見逃さないようにする。
             const int steps = (std::max)(1, static_cast<int>(movement / 0.12f));
             for (int i = 1; i < steps; ++i) {
                 const myEngine::Vector3 sample = p.previousPosition + (position - p.previousPosition) * (static_cast<float>(i) / steps);

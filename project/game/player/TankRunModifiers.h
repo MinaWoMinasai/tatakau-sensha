@@ -114,7 +114,7 @@ inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifie
     if (!modifiers.enabled) {
         return result;
     }
-    // Enemy-bullet cancellation is independent of damage dealt to enemies.
+    // 敵弾の打ち消しは、敵に与えたダメージとは独立している。
     result.bulletHp = 1.0f;
     result.bulletInterception = modifiers.pierce ? 1.0f + 2.0f * TankEffectPower(modifiers, 7) : 1.0f;
     result.dashSpeed = 1.85f;
@@ -123,7 +123,7 @@ inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifie
         result.maxWallBounces = modifiers.core == TankRunCore::Ricochet ? 2 + (modifiers.ricochet ? TankEffectCount(modifiers, 0, 2) : 0)
                                                                         : (modifiers.ricochet ? TankEffectCount(modifiers, 0) : 0);
         result.actorPierceCount = modifiers.pierce ? TankEffectCount(modifiers, 7) : 0;
-        result.impactSplitCount = 0; // Legacy scatter data no longer multiplies shots.
+        result.impactSplitCount = 0; // 旧来の拡散データで弾数が増えることはもう無い。
     }
     if (modifiers.core == TankRunCore::Ricochet) {
         result.damage *= 1.20f;

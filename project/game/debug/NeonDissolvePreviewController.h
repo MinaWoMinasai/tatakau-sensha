@@ -3,7 +3,7 @@
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "DirectX/engine/3d/neon/NeonDissolve.h"
 
-// CPU preview state only; model/GPU resources remain owned by NeonSkinnedPreview.
+// CPU側のプレビュー状態だけを持つ。モデルやGPUリソースはNeonSkinnedPreviewが所有する。
 class NeonDissolvePreviewController {
 public:
     bool Trigger(myEngine::SkinnedModel& model, const myEngine::Matrix4x4& world, const myEngine::Matrix4x4& cameraWorld,

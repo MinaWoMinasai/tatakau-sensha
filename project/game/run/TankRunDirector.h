@@ -223,7 +223,7 @@ public:
         resumePhase_ = phase_;
         phase_ = Phase::Draft;
         salvage_ -= GetRefitCost();
-        // A contested cache guarantees one unowned rare option.
+        // 争奪戦のキャッシュでは、未所持のレアな選択肢が必ず1つ出る。
         BuildOffers(rareCredits_ > 0, CardId::Count);
         if (rareCredits_ > 0) {
             --rareCredits_;

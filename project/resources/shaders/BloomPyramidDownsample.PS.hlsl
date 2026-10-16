@@ -6,8 +6,8 @@ float4 main(PSInput input) : SV_TARGET
     sourceTex.GetDimensions(width, height);
     float2 texel = radius / float2(width, height);
     float2 uv = input.uv;
-    // Normalized 13-tap footprint: symmetric and energy preserving. No gain is
-    // applied inside filtering, so constant inputs stay constant at each level.
+    // 正規化した13タップの範囲で、対称かつエネルギーを保存する。フィルタ内では係数を
+    // 掛けないため、一定の入力は各レベルでも一定のまま。
     float4 sum = sourceTex.SampleLevel(linearClamp, uv, 0) * .125f;
     sum += (sourceTex.SampleLevel(linearClamp, uv + float2(-2, -2) * texel, 0)
         + sourceTex.SampleLevel(linearClamp, uv + float2(2, -2) * texel, 0)

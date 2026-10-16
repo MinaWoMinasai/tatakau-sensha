@@ -190,7 +190,7 @@ void PlayerDrone::Initialize(const myEngine::Vector3& position, const myEngine::
 
 void PlayerDrone::Update(myEngine::Camera* viewProjection, Stage& stage, const myEngine::Vector3& playerPosition, float deltaTime)
 {
-    // Damage resolves death immediately; never move or fire a terminal actor.
+    // ダメージを受けると死亡は即座に確定する。終了したアクターは移動も射撃もさせない。
     if (isDead_ || hp_ <= 0) {
         Die();
         return;

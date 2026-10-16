@@ -23,8 +23,8 @@ struct BossVisualDecision {
     bool resetEncounter = false;
 };
 
-// A value-only bridge owns short presentation history, without Enemy, Scene,
-// animation or renderer pointers. It cannot advance combat or modify its input.
+// 値だけを持つ橋渡し役で、短い演出履歴を所有する。Enemy、Scene、
+// アニメーション、描画へのポインタは持たず、戦闘を進めたり入力を変更したりはできない。
 class BossVisualBridge {
 public:
     BossVisualDecision Update(const BossVisualBridgeInput& input, float deltaTime)
@@ -80,8 +80,8 @@ public:
                 result.action = NeonBossAction::Reposition;
             }
         }
-        // AimedSpread emits and returns to Recovery in one combat tick. This
-        // hold affects only the visual; it never replaces a telegraph or Dash.
+        // AimedSpreadは1回の戦闘tickで発射してRecoveryに戻る。この保持は
+        // 見た目にだけ影響し、予兆表示やDashを置き換えることはない。
         if (input.shotsFired != previousShots_) {
             attackPresentationTimer_ = 0.70f;
         } else if (deltaTime > 0.0f) {

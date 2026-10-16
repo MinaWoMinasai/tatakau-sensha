@@ -73,9 +73,9 @@ void SceneManager::Finalize()
 {
     pendingScene_.reset();
     pendingSceneName_.clear();
-    // Scene resources can refer to engine-owned managers such as SrvManager.
-    // Destroy them explicitly while those managers are still alive instead of
-    // relying on static-destruction order at process shutdown.
+    // シーンのリソースは、SrvManagerなどエンジンが所有するマネージャーを参照することがある。
+    // プロセス終了時の静的破棄の順番に頼らず、
+    // それらのマネージャーが生きている間に明示的に破棄する。
     currentScene_.reset();
     sceneFactory_.reset();
     currentSceneName_.clear();
@@ -90,8 +90,8 @@ void SceneManager::Update()
     }
 
     if (pendingScene_) {
-        // Several steps per frame (~33 ms) keep the loading text animated while
-        // avoiding one vsync of idle time per coroutine step.
+        // 1フレームに複数ステップ（約33ms）進めることで、読み込み中の文字のアニメーションを保ちつつ、
+        // コルーチンの1ステップごとにvsync1回分の待ち時間が生じるのを避ける。
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(33);
         bool initialized = false;
         do {
@@ -103,7 +103,7 @@ void SceneManager::Update()
             myEngine::StartupTrace::Mark("transition.initialized." + currentSceneName_);
             myEngine::StartupTrace::Flush();
         } else {
-            currentScene_->Update(); // Prepare title text after hidden-world font registration.
+            currentScene_->Update(); // 非表示ワールドのフォント登録の後で、タイトルの文字を用意する。
         }
         return;
     }

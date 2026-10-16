@@ -69,7 +69,7 @@ void NeonProjectileRenderer::BeginFrame(const std::vector<Bullet*>& bullets, con
             ++stats_.skipped;
             continue;
         }
-        // Three soft strips (18 vertices each) and two 12-sided caps (36 each).
+        // 柔らかい帯3本（各18頂点）と12角形のキャップ2つ（各36頂点）。
         constexpr uint32_t verticesPerHead = 126;
         if (geometry_.GetVertexCount() + verticesPerHead > myEngine::NeonGridRenderer::kMaxVertices) {
             ++stats_.truncated;
@@ -88,7 +88,7 @@ void NeonProjectileRenderer::QueueHead(const Bullet& bullet, const myEngine::Vec
         return;
     }
     myEngine::Vector3 direction = bullet.GetMove();
-    direction.z = 0.0f; // Match the game's existing XY projectile presentation.
+    direction.z = 0.0f; // ゲームの既存のXY平面での弾の見せ方に合わせる。
     const float speed = Finite(direction) ? myEngine::Length(direction) : 0.0f;
     direction = std::isfinite(speed) && speed > 0.0001f ? direction / speed : myEngine::Vector3{1.0f, 0.0f, 0.0f};
     myEngine::Vector3 forward = cameraForward;

@@ -3,8 +3,8 @@
 #include "Calculation.h"
 #include <cmath>
 
-// Shared live/preview geometry. Only appends bounded vertices to the existing
-// neon batch; there are no assets, sprites, PSOs or persistent effect instances.
+// 実プレイとプレビューで共有する形状。既存のネオンバッチに上限付きで頂点を追加するだけで、
+// 素材、スプライト、PSO、常駐するエフェクトインスタンスは持たない。
 namespace tankspecialfx {
 /// @brief 攻撃または移動に使う方向を返す。
 inline myEngine::Vector3 Direction(float angle)

@@ -99,7 +99,7 @@ bool ParsePcm16Wave(const std::vector<BYTE>& bytes, WAVEFORMATEX& format, size_t
             if (position >= bytes.size()) {
                 return false;
             }
-            ++position; // RIFF chunks of odd length include a pad byte.
+            ++position; // 奇数長のRIFFチャンクにはパディング1バイトが付く。
         }
     }
     if (!hasFormat || !hasData || candidateSize % candidate.nBlockAlign != 0) {
@@ -217,8 +217,8 @@ bool Audio::InstallAudioData(const std::wstring& soundName, std::vector<BYTE> sa
                 return false;
             }
         }
-        // Map allocation and all new voices succeed before touching an old bank.
-        // Moving these default-allocator vectors cannot throw.
+        // 古いバンクに触れる前に、マップの確保と新しいボイスの作成をすべて成功させる。
+        // 既定アロケータのvectorのムーブは例外を投げない。
         auto destination = audioMap.try_emplace(soundName).first;
         ReleaseAudioData(destination->second);
         destination->second = std::move(candidate);
@@ -267,8 +267,8 @@ bool Audio::TryLoadPcmWave(const std::wstring& soundName, const std::wstring& so
     }
 }
 
-// Existing MP3/other Media Foundation callers remain supported. PCM16 WAV
-// sounds use TryLoadPcmWave instead, so missing codecs cannot affect that path.
+// 既存のMP3やその他Media Foundation経由の呼び出しも引き続き使える。PCM16のWAVは
+// TryLoadPcmWaveを使うため、コーデックが無くてもその経路には影響しない。
 void Audio::LoadAudio(const std::wstring& soundName, const std::wstring& filePath, size_t maxConcurrency)
 {
     if (!IsReady() || !mediaFoundationStarted_ || soundName.empty()) {
@@ -318,7 +318,7 @@ void Audio::LoadAudio(const std::wstring& soundName, const std::wstring& filePat
                     buffer->Unlock();
                     return;
                 }
-                // Ensure a failed allocation does not leave the MF buffer locked.
+                // 確保に失敗してもMFバッファがロックされたままにならないようにする。
                 try {
                     decoded.bufferData.resize(previous + length);
                     if (length) {
@@ -337,7 +337,7 @@ void Audio::LoadAudio(const std::wstring& soundName, const std::wstring& filePat
                 break;
             }
         }
-        decoded.waveFormat = nullptr; // InstallAudioData takes ownership, including failures.
+        decoded.waveFormat = nullptr; // 失敗時も含めてInstallAudioDataが所有権を引き取る。
         InstallAudioData(soundName, std::move(decoded.bufferData), format, std::clamp(maxConcurrency, size_t{1}, kMaxVoicesPerSound));
     }
     catch (...) {
@@ -416,8 +416,8 @@ Audio::VoiceHandle Audio::TryPlayAudio(const std::wstring& soundName, bool loop,
 
 Audio::VoiceHandle Audio::PlayAudioSE(const std::wstring& soundName, float volume)
 {
-    // The legacy default -1 was passed straight to XAudio2 (phase inversion).
-    // Treat that sentinel as unity gain; the new API uses an explicit 0..1 gain.
+    // 旧来の既定値-1はそのままXAudio2へ渡されていた（位相反転になる）。
+    // この値は等倍として扱う。新しいAPIは0..1の音量を明示的に指定する。
     return TryPlayAudio(soundName, false, volume < 0 ? 1.0f : volume, 1.0f);
 }
 
@@ -427,7 +427,7 @@ void Audio::PlayAudio(const std::wstring& soundName, bool loop, float volume)
     if (found == audioMap.end()) {
         return;
     }
-    // Preserve the old BGM API's restart-on-voice-zero behavior.
+    // 旧BGM APIの「ボイス0番なら再生し直す」挙動を維持する。
     StartVoice(soundName, found->second, 0, loop, volume < 0 ? 1.0f : volume, 1.0f);
 }
 

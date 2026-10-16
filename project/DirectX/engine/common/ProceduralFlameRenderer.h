@@ -9,9 +9,9 @@
 #include "DirectXCommon.h"
 #include "Struct.h"
 
-// A texture-free billboard renderer driven by a small set of persistent,
-// CPU-animated metaballs. Coloring is deliberately separate from the scalar
-// field so later layers can share the same contour source.
+// テクスチャを使わないビルボード描画。少数の常駐メタボールをCPUで動かして形を作る。
+// 色付けはスカラー場とあえて分けており、後から追加する層が
+// 同じ輪郭を共有できるようにしている。
 namespace myEngine {
 
 /// @brief プロシージャルな炎の状態を更新し、専用シェーダーで描画する。

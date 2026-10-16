@@ -117,8 +117,8 @@ class SkinnedModel {
 public:
     static void PreloadAsset(const std::string& filePath);
     static void ClearPreloadedAssets();
-    // Explicit frame-boundary teardown for presentation owners. The caller must
-    // keep SrvManager alive and wait for the last GPU use before calling this.
+    // 描画担当者がフレーム境界で明示的に解放する。呼び出し側はSrvManagerを生かしたまま、
+    // 最後のGPU使用の完了を待ってから呼ぶこと。
     void ReleaseGpuResources();
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, const std::string& filePath);

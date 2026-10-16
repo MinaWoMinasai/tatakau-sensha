@@ -10,8 +10,8 @@ namespace gameplaytest {
 nlohmann::json ToJson(const Snapshot& snapshot);
 }
 
-// Process-owned Developer validation session. A scene can be destroyed/recreated
-// without losing its script frame or evidence. No gameplay/renderer pointers.
+// プロセスが所有するDeveloper用の検証セッション。シーンを破棄・再生成しても
+// スクリプトのフレームや記録は失われない。ゲームプレイや描画へのポインタは持たない。
 class GameplayScenarioSession {
 public:
     static GameplayScenarioSession& Get();
@@ -52,8 +52,8 @@ public:
     }
 
     void BeginScene();
-    // Called once AFTER each simulated update. Input uses GetFrame() before
-    // the update; recorded/capture frames count completed updates starting at 1.
+    // シミュレーションの更新ごとに、その後で1回呼ぶ。入力は更新前のGetFrame()を使い、
+    // 記録・キャプチャのフレームは1から始まる完了済みの更新回数で数える。
     void Record(gameplaytest::Snapshot snapshot, float gameplayDt = 0.0f, float presentationDt = 0.0f, float effectiveTimeScale = 1.0f);
     bool BeginRecording(unsigned width, unsigned height);
     bool ShouldRecordCompletedFrame() const;
@@ -66,7 +66,7 @@ public:
     bool NotifyDepthSceneEntered(const std::string& name);
     void Fail(const std::string& error);
     bool ShouldFinish() const;
-    // The adapter resolves the last GPU capture before Finish and owns quit.
+    // アダプタはFinishの前に最後のGPUキャプチャを解決し、終了処理も担当する。
     bool Finish();
     nlohmann::json MakeMetadata() const;
     void ReportCapture(const std::string& name, const gameplaytest::Snapshot& snapshot);

@@ -16,8 +16,8 @@ void BloomConstantBuffer::Update(const BloomParam& param)
 {
     const auto fence = dxCommon_->GetFence();
     const uint64_t fenceValue = dxCommon_->GetFenceValue();
-    // Recycle only after DirectXCommon's submitted frame has completed.
-    // Updates in one command list retain independent immutable GPU snapshots.
+    // DirectXCommonが送信したフレームの完了後にだけ再利用する。
+    // 1つのコマンドリスト内の更新は、それぞれ独立した不変のGPUスナップショットを保つ。
     if (fence && fenceValue > frameFence_ && fence->GetCompletedValue() >= fenceValue) {
         frameFence_ = fenceValue;
         nextSnapshot_ = 0;

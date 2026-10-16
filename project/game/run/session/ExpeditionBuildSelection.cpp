@@ -33,8 +33,8 @@ myEngine::InitializationTask ExpeditionBuildSelection::BuildInitialization()
         card->Initialize(myEngine::SpriteCommon::GetInstance());
         card->InitializePreview(myEngine::Object3dCommon::GetInstance()->GetSrvManager());
     }
-    // Authored maps without the two introductory branches still offer a style
-    // before their first encounter. The isolated AI fixture has no map input.
+    // 導入用の2つの分岐を持たない作成済みマップでも、最初の戦闘の前にスタイルを選ばせる。
+    // 独立したAI用フィクスチャにはマップの入力が無い。
     const auto& nodes = world_.run.expeditionMapRun_.GetDefinition().nodes;
     world_.run.expeditionBuildChoice_ = !world_.run.combatValidationEnabled_ && !world_.run.specialValidationEnabled_ &&
                                         std::none_of(nodes.begin(), nodes.end(), [](const auto& n) {

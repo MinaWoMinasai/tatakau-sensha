@@ -120,8 +120,8 @@ void TankRewardPreviewRenderer::Update(const tankreward::DemoSnapshot& before, c
     afterReflect_ = afterReflect;
     melee_ = melee;
     elapsed_ = elapsed;
-    // Update owns all CPU-side geometry and configuration writes. Render only
-    // records commands using this prepared, private scene snapshot.
+    // CPU側の形状と設定の書き込みはすべてUpdateが担当する。Renderは
+    // この準備済みの専用シーンのスナップショットを使ってコマンドを記録するだけ。
     BuildGeometry();
     previousElapsed_ = elapsed;
     pending_ = true;
@@ -327,8 +327,8 @@ void TankRewardPreviewRenderer::QueueLane(int lane, const tankreward::DemoSnapsh
     if (s.parryFlash > 0) {
         tankspecialfx::Contact(*neon_, Position(lane, s.parryPosition), (1 - s.parryFlash) * .24f, .7f, s.perfectParry);
     }
-    // The same idle blade and layered swing blade as the gameplay pass. These
-    // are world-space neon vertices, not a sprite substitute for the actor.
+    // ゲームプレイのパスと同じ待機中の刃と、重ねた振りの刃。これらは
+    // ワールド空間のネオン頂点で、アクターの代わりのスプライトではない。
     if (melee_ && s.barrelCount == 0) {
         const float width = compare_ ? kWorldWidth * .5f : kWorldWidth;
         const float length = s.slashing ? s.slashReach * (width - .5f) : radius * 1.45f;
@@ -361,7 +361,7 @@ void TankRewardPreviewRenderer::QueueLane(int lane, const tankreward::DemoSnapsh
                                        0, bodyScale, tankui::ScaleAlpha(playerColor, .13f * (4 - i)), kRight, kUp);
         }
     }
-    // A small aiming cross uses the same scene scale; no real cursor is moved.
+    // 小さな照準の十字は同じシーンの縮尺を使う。実際のカーソルは動かさない。
     neon_->QueueLine(cursor - myEngine::Vector3{.09f, 0, 0}, cursor + myEngine::Vector3{.09f, 0, 0}, .018f, {.5f, .7f, .7f, .45f});
     neon_->QueueLine(cursor - myEngine::Vector3{0, .09f, 0}, cursor + myEngine::Vector3{0, .09f, 0}, .018f, {.5f, .7f, .7f, .45f});
 }
@@ -440,7 +440,7 @@ void TankRewardPreviewRenderer::Render()
     dx_->SetViewport(kWidth, kHeight);
     dx_->ClearRenderTarget(scene_->GetRTVHandle(), kPreviewClear.data());
     neon_->DrawRange(0, backgrounds_, projection_);
-    // Preview fills share the HDR emission source with outlines and trails.
+    // プレビューの塗りは、輪郭や軌跡と同じHDRの発光元を共有する。
     neon_->DrawRange(backgrounds_, fills_, projection_);
     for (int lane = 0; lane < (compare_ ? 2 : 1); ++lane) {
         const LONG width = static_cast<LONG>(compare_ ? kWidth / 2 : kWidth);

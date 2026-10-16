@@ -15,8 +15,8 @@ inline myEngine::ModelData FloorMesh()
     return mesh;
 }
 
-// Six faces, twelve edge chamfers and eight corner facets. A single shared mesh
-// retains hard normals and the original [-1,+1] XY envelope.
+// 6つの面、12本の辺の面取り、8つの角の小面。共有のメッシュ1つで
+// 硬い法線と元の[-1,+1]のXY範囲を保つ。
 inline myEngine::ModelData BlockMesh(float bevel = kBevel)
 {
     myEngine::ModelData mesh;
@@ -45,7 +45,7 @@ inline myEngine::ModelData BlockMesh(float bevel = kBevel)
         face({{{-q, -q, sign}, {q, -q, sign}, {q, q, sign}, {-q, q, sign}}}, 4, {0, 0, sign});
     }
     if (bevel <= 0.0f) {
-        return mesh; // Sharp shared box: 24 vertices, 12 triangles.
+        return mesh; // 鋭い角の共有ボックス: 24頂点、12三角形。
     }
     for (float a : {-1.0f, 1.0f}) {
         for (float b : {-1.0f, 1.0f}) {
@@ -79,7 +79,7 @@ inline myEngine::ModelData StackMesh(int levels)
         const uint32_t first = static_cast<uint32_t>(result.vertices.size());
         const float center = -1.0f + step * (static_cast<float>(layer) + .5f);
         for (auto vertex : box.vertices) {
-            // Tiny recessed Z joints, while XY remains completely continuous.
+            // Z方向にごく小さく凹んだ継ぎ目を入れ、XY方向は完全に連続させる。
             vertex.position.z = center + vertex.position.z * (step * .5f - .003f);
             result.vertices.push_back(vertex);
         }
@@ -90,8 +90,8 @@ inline myEngine::ModelData StackMesh(int levels)
     return result;
 }
 
-// Exact coverage of active, same-type cells. No occupied cell is lost or added.
-// Re-running this on a changed occupancy map reveals newly exposed wall ends.
+// 有効で同じ種類のセルをちょうど覆う。埋まっているセルが欠けたり増えたりはしない。
+// 占有マップが変わったときにこれを再実行すると、新たに露出した壁の端が現れる。
 inline std::vector<WallRectangle> MergeWallCells(const std::vector<int>& cells, size_t width, size_t height)
 {
     std::vector<WallRectangle> result;

@@ -547,8 +547,8 @@ void ArenaRunController::UpdateTankRun(float dt)
     } else if (!world_.resources.player_->IsChangeMode() && world_.run.tankRunMenuAge_ >= 0) {
         world_.run.tankRun_.Update(dt);
         UpdateTankRunResources(dt);
-        // Exercise actual core damage/ownership callbacks, optional refits and
-        // the ordinary victory path. This is a smoke test, not a balance test.
+        // 実際のコアへのダメージ・所有権のコールバック、任意の換装、通常の勝利経路を通す。
+        // これは動作確認用のスモークテストで、バランスのテストではない。
         if (world_.run.tankRunAutoTest_) {
             const double elapsed = world_.run.tankRun_.GetRunElapsedSeconds();
             if (world_.run.tankRunAutoStep_ == 0 && elapsed > 2) {
@@ -643,7 +643,7 @@ void ArenaRunController::RefreshTankRunUi()
             build += " / " + std::string(kRunCards[i].title);
         }
     }
-    // Two lines keep a full six-mod build within the viewport.
+    // 2行に分けて、6つの改造を持つ構成でもビューポート内に収める。
     if (build.size() > 130) {
         const auto split = build.find(" / ", 110);
         if (split != std::string::npos) {
@@ -804,7 +804,7 @@ void ArenaRunController::QueueTankRunTelegraph()
         }
         const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(world_.run.tankRun_.GetRunElapsedSeconds()) * 3);
         circle(node.position, 1.9f + 0.12f * pulse, 0.08f, {1, 0.69f, 0.13f, 0.85f}, 6);
-        // One/two/three ticks identify A/B/C without a world-space text pass.
+        // 目盛りの数1/2/3でA/B/Cを示し、ワールド空間での文字描画パスを使わない。
         for (size_t n = 0; n <= i; ++n) {
             const float x = static_cast<float>(n) * 0.45f - static_cast<float>(i) * 0.225f;
             world_.resources.neonGridRenderer_->QueueLine(node.position + myEngine::Vector3{x, 2.4f, -0.3f},

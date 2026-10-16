@@ -10,7 +10,7 @@ struct Material
     int32_t enableLighting;
     int32_t lightingMode;
     float32_t environmentCoefficient;
-    float32_t proceduralContour; // Material.padding at byte 28, opt in only
+    float32_t proceduralContour; // 28バイト目のMaterial.padding。明示的に有効にしたときだけ使う
     float32_t4x4 uvTransform;
     float32_t shininess;
 };
@@ -60,14 +60,14 @@ float TriangleContourDistance(float2 p)
 
 float CombatContourDistance(float2 p, uint shape)
 {
-    if (shape == 1u) // asymmetric shard
+    if (shape == 1u) // 非対称な破片
     {
         const float2 a = float2(0.0f, 0.95f), b = float2(-0.42f, -0.40f);
         const float2 c = float2(-0.12f, -0.62f), d = float2(0.45f, -0.12f);
         return min(min(SegmentDistance(p, a, b), SegmentDistance(p, b, c)),
                    min(SegmentDistance(p, c, d), SegmentDistance(p, d, a)));
     }
-    if (shape == 2u) // narrow triangular sliver
+    if (shape == 2u) // 細い三角形の切れ端
     {
         const float2 a = float2(0.12f, 1.0f), b = float2(-0.17f, -0.50f), c = float2(0.10f, -0.58f);
         return min(SegmentDistance(p, a, b), min(SegmentDistance(p, b, c), SegmentDistance(p, c, a)));
@@ -90,28 +90,28 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     if (gMaterial.proceduralContour > 0.5f)
     {
-        // A single distance field closes all three corners without drawing the
-        // shared vertices twice. Derivatives integrate the edge at pixel width.
+        // 1つの距離場で、共有の頂点を二重に描かずに3つの角をすべて閉じる。
+        // 微分を使って縁をピクセル幅で積分する。
         const uint shape = (uint)clamp(input.neonRadiance - 1.0f, 0.0f, 5.0f);
         float distance = CombatContourDistance(input.localPosition, shape);
         if (shape == 5u)
         {
-            // Expansion changes radius, while the shockwave's line stays thin
-            // in world space rather than becoming a thick donut at its edge.
+            // 拡大で半径は変わるが、衝撃波の線はワールド空間で細いままにし、
+            // 縁が太いドーナツにならないようにする。
             const float scaleX = length(ddx(input.worldPosition)) / max(length(ddx(input.localPosition)), 1e-5f);
             const float scaleY = length(ddy(input.worldPosition)) / max(length(ddy(input.localPosition)), 1e-5f);
             distance *= max(scaleX, scaleY);
         }
-        // The maximum filter support remains inside the quad's 0.35 padding,
-        // including a nearly edge-on or subpixel fragment.
+        // ほぼ真横から見た場合やサブピクセルの破片でも、フィルタの最大範囲は
+        // 四角形の余白0.35の内側に収まる。
         const float aa = clamp(fwidth(distance) * 0.5f, 0.0001f, 0.16f);
         const float shoulder = 1.0f - smoothstep(0.055f - aa, 0.075f + aa, distance);
         const float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
         const float4 source = gMaterial.color * textureColor * input.color;
         if (input.neonRadiance > 0.5f && shape == 4u)
         {
-            // Round, spatially soft flash. A short lifetime makes this the
-            // impact peak, while the separate ring and debris remain readable.
+            // 丸く空間的に柔らかい閃光。寿命を短くして衝撃のピークにし、
+            // 別に描くリングと破片が読み取れるようにする。
             const float radius = length(input.localPosition);
             const float edge = 1.0f - smoothstep(0.42f, 0.64f, radius);
             const float light = exp2(-5.0f * radius * radius) * edge;
@@ -121,7 +121,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         }
         if (input.neonRadiance <= 0.5f)
         {
-            // Keep the original authored RGB and alpha for ordinary emitters.
+            // 通常のエミッターでは、作成した元のRGBとアルファを保つ。
             output.color = float4(source.rgb, source.a * shoulder);
             if (output.color.a <= 0.0001f) discard;
             return output;
@@ -135,10 +135,10 @@ PixelShaderOutput main(VertexShaderOutput input)
                                             (shape == 0u ? 0.032f : 0.020f) + aa, distance);
         const float halo = exp2(-2.0f * distance * distance / (0.125f * 0.125f)) *
             (1.0f - smoothstep(0.24f, 0.29f, distance));
-        // Same source structure as the projectile heads: pale HDR core,
-        // saturated shoulder, and a low-energy halo outside the crisp contour.
-        // Bound already-HDR flashes to the projectile source range while
-        // preserving the authored energy of small, dimmer fragments.
+        // 弾の先端と同じ発光元の構造: 淡いHDRの芯、彩度の高い肩、
+        // 鮮明な輪郭の外側の低エネルギーのハロー。
+        // 既にHDRの閃光は弾の発光元の範囲に収めつつ、
+        // 小さく暗い破片の作成したエネルギーは保つ。
         const float energy = min(peak, 1.0f);
         output.color.rgb = energy * (hue * ((shape == 0u ? 2.8f : 2.2f) * shoulder * (1.0f - core * 0.70f) +
             (shape == 0u ? 0.22f : 0.16f) * halo) + pale * ((shape == 0u ? 4.5f : 3.4f) * core));

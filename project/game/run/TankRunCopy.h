@@ -61,7 +61,7 @@ constexpr CardCopy kCores[] = {
     {"突撃コア / 重砲", "1砲門1発の近距離重砲。\nダッシュ後は射撃を強化。\n\n近づく → 撃つ → 離脱する。"},
     {"指揮コア / 群体",
      "ドローン機体は最大8機。\n他の機体には援護が2機。\nダッシュで次の一斉射撃を促す。\n\n反射・誘導を群れへ組み込む。"}};
-// Expedition copy is separate so the arena retains its original descriptions.
+// アリーナの元の説明文を残すため、遠征用の文言は別にしている。
 constexpr CardCopy kExpeditionCards[] = {
     {"壁反射", "壁に当たった弾が跳ね返る。\n反射は1回。角度を変えて敵を狙う。"},
     {"攻撃力", "攻撃の一発を重くする。\n威力+25% / 弾速+20%\n攻撃間隔+10%。"},

@@ -817,7 +817,7 @@ void TextureManager::PreloadTexture(const std::string& path, TextureColorSpace c
     }
     std::error_code fileError;
     if (!std::filesystem::is_regular_file(path, fileError)) {
-        return; // Keep the synchronous fallback (e.g. optional skybox).
+        return; // 同期読み込みの代替経路を残す（任意のスカイボックスなど）。
     }
     auto result = BackgroundLoader::Get().Submit([path, colorSpace] {
         StartupTrace::Scope scope("FileThread.Texture." + path);
@@ -852,7 +852,7 @@ void TextureManager::PumpPreloads(unsigned maxUploads)
         }
         const auto path = it->second.path;
         const auto colorSpace = it->second.colorSpace;
-        ++it; // LoadTexture erases its entry; unordered_map erasure preserves other iterators.
+        ++it; // LoadTextureは自分のエントリを消す。unordered_mapの削除は他のイテレータを無効化しない。
         LoadTexture(path, colorSpace);
         --maxUploads;
     }

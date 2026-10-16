@@ -193,7 +193,7 @@ void Input::TranslateGamepad()
     };
     const bool rightTrigger = pad.bRightTrigger > 60, leftTrigger = pad.bLeftTrigger > 60;
 
-    // Shared: START pause, VIEW details, Y map, A confirm / skip.
+    // 共通: STARTでポーズ、VIEWで詳細、Yでマップ、Aで決定/スキップ。
     if (pressed(XINPUT_GAMEPAD_START)) {
         tap(DIK_ESCAPE);
     }
@@ -205,8 +205,8 @@ void Input::TranslateGamepad()
     }
 
     if (gameplayContext_) {
-        // Twin-stick combat: left stick moves (also as WASD for code that reads keys), right stick aims,
-        // RT / RB shoot (left mouse), LT / LB dash (right mouse).
+        // ツインスティック戦闘: 左スティックで移動（キーを読むコード向けにWASDとしても扱う）、右スティックで照準、
+        // RT / RBで射撃（左クリック）、LT / LBでダッシュ（右クリック）。
         const Vector2 move = GetGamepadMove();
         if (move.x < -0.35f) {
             hold(DIK_A);
@@ -233,8 +233,8 @@ void Input::TranslateGamepad()
         return;
     }
 
-    // Menus: D-pad / left stick select (arrow keys with auto-repeat), A confirm, B back,
-    // LB / RB page (Q / E), X maintenance (E), Y skip (X key), LB held = Shift (refund).
+    // メニュー: 十字キー/左スティックで選択（オートリピート付きの矢印キー）、Aで決定、Bで戻る、
+    // LB / RBでページ切り替え（Q / E）、Xで整備（E）、Yでスキップ（Xキー）、LB長押しでShift（払い戻し）。
     if (pressed(XINPUT_GAMEPAD_B)) {
         tap(DIK_ESCAPE);
     }
@@ -268,7 +268,7 @@ void Input::TranslateGamepad()
     const uint8_t newlyPressed = directions & ~heldDirections_;
     bool repeat = false;
     if (directions != 0 && directions == heldDirections_) {
-        // Hold to scroll: first repeat after ~0.4s, then every ~0.13s.
+        // 長押しでスクロール: 約0.4秒後に最初のリピート、以降は約0.13秒ごと。
         if (++directionRepeatFrames_ >= 24) {
             repeat = true;
             directionRepeatFrames_ = 16;
@@ -288,7 +288,7 @@ void Input::TranslateGamepad()
         }
     }
 
-    // The right stick moves the pointer and RT clicks, for screens that are operated by pointing.
+    // ポインターで操作する画面向けに、右スティックでポインターを動かしRTでクリックする。
     if (rightTrigger) {
         mouseState_.rgbButtons[0] = 0x80;
     }
@@ -302,7 +302,7 @@ void Input::TranslateGamepad()
             ClientToScreen(hwnd_, &bottomRight);
             const float speed = 18.0f * static_cast<float>(client.bottom - client.top) / 720.0f;
             const float magnitude = std::sqrt(pointer.x * pointer.x + pointer.y * pointer.y);
-            const float curve = magnitude * magnitude; // fine control near the center
+            const float curve = magnitude * magnitude; // 中心付近は細かく操作できるようにする
             cursor.x = std::clamp(cursor.x + static_cast<LONG>(pointer.x / magnitude * curve * speed), topLeft.x, bottomRight.x);
             cursor.y = std::clamp(cursor.y - static_cast<LONG>(pointer.y / magnitude * curve * speed), topLeft.y, bottomRight.y);
             SetCursorPos(cursor.x, cursor.y);
@@ -336,7 +336,7 @@ Vector2 Input::GetGamepadMove() const
         const float dpad = std::sqrt(move.x * move.x + move.y * move.y);
         return dpad > 0.0f ? Vector2{move.x / dpad, move.y / dpad} : Vector2{};
     }
-    // Rescale past the deadzone so a small tilt starts slow instead of jumping.
+    // デッドゾーンを越えた分で正規化し直し、少し傾けたときに飛ばずにゆっくり動き出すようにする。
     const float scaled = (std::min)(1.0f, (length - kDeadzone) / (1.0f - kDeadzone));
     return {move.x / length * scaled, move.y / length * scaled};
 }
@@ -440,8 +440,8 @@ void Input::RecordKeyDown(unsigned int scanCode, bool repeated)
 
 bool Input::IsKeyTriggered(uint8_t scanCode) const
 {
-    // UI edges have one source. Mixing the polled device edge with a message
-    // arriving next frame can otherwise toggle the same menu twice.
+    // UIの入力エッジは1つの入力元から取る。ポーリングしたデバイスのエッジと次フレームに届く
+    // メッセージを混ぜると、同じメニューが2回切り替わることがある。
     return frameKeyPress_[scanCode];
 }
 

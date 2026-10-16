@@ -54,8 +54,8 @@ CrystalMaterialResult EvaluateOpaqueCrystal(
         (1.0f - result.dielectricF0) *
         pow(saturate(1.0f - NdotV), safeFresnelPower);
 
-    // Approximate the refracted film angle with Snell's law. All square-root
-    // and divisor inputs are protected so extreme UI values remain finite.
+    // スネルの法則で薄膜内の屈折角を近似する。平方根や除算の入力はすべて保護しており、
+    // UIで極端な値にしても有限のまま保たれる。
     const float inverseIor = 1.0f / max(safeIor, 0.0001f);
     const float sinThetaTSquared =
         inverseIor * inverseIor * max(1.0f - NdotV * NdotV, 0.0f);
@@ -70,9 +70,8 @@ CrystalMaterialResult EvaluateOpaqueCrystal(
     const float opticalPathNm =
         max(2.0f * safeIor * thicknessNm * cosThetaT, 0.0f);
 
-    // Three representative wavelengths with channel-specific phase offsets
-    // give a stable thin-film interference approximation without spectral
-    // sampling. The response remains continuous as the view angle changes.
+    // チャンネルごとに位相をずらした代表的な3つの波長で、スペクトルのサンプリングなしに
+    // 安定した薄膜干渉の近似を得る。視線の角度が変わっても応答は連続したまま。
     const float3 wavelengthsNm = float3(650.0f, 510.0f, 475.0f);
     const float3 phaseOffsets = float3(
         0.0f,

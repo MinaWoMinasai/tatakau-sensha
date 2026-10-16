@@ -12,8 +12,8 @@ void RunVisualSettings::InitializeTankRunVisuals()
         return;
     }
     world_.presentation.stageSurface_.enabled = true;
-    // Stage presentation is independent of the older expeditionAuthored marker.
-    // A saved legacy switch must survive this run's defaults as well as restart.
+    // ステージの見た目は、古いexpeditionAuthoredの目印とは独立している。
+    // 保存された旧来のスイッチは、このランの既定値でも再起動後でも保持する必要がある。
     try {
         std::ifstream file("resources/configs/gameVisuals.json");
         nlohmann::json visual;
@@ -25,9 +25,9 @@ void RunVisualSettings::InitializeTankRunVisuals()
     catch (...) { /* Existing config load reports parse errors; defaults remain usable. */
     }
 
-    // Vector-monitor arena: a black stage drawn only with thin emissive lines.
-    // The floor grid is a dim blue lattice, walls are bright cyan wireframes,
-    // and each actor tints the floor lattice around it with its own color.
+    // ベクターモニター風のアリーナ: 細い発光線だけで描いた黒いステージ。
+    // 床のグリッドは暗い青の格子、壁は明るいシアンのワイヤーフレームで、
+    // 各アクターは自分の周りの床の格子を自分の色で染める。
     world_.presentation.worldGridLineWidth_ = 0.040f;
     world_.presentation.worldGridColor_ = {0.16f, 0.24f, 0.95f, 0.55f};
     world_.presentation.showNeonGrid_ = true;
@@ -58,8 +58,8 @@ void RunVisualSettings::InitializeTankRunVisuals()
     world_.presentation.enableParticlePostEffect_ = true;
     world_.presentation.postProfileMode_ = 0;
 
-    // These are generated postprocess contours, not the intentional frame
-    // lines of the tanks, resource shapes, and arena geometry.
+    // これらはポストプロセスで生成する輪郭で、戦車、資源の形、アリーナの形状に
+    // 意図して描いている枠線とは別のもの。
     const auto removeGeneratedOutline = [](myEngine::ObjectPostEffect* effect) {
         if (!effect) {
             return;
@@ -91,13 +91,13 @@ void RunVisualSettings::InitializeTankRunVisuals()
         param.fullScreenBoxBlurBlend = 0.0f;
         effect->SetParam(param);
     };
-    // Phosphor persistence already leaves a trail; keep shots as crisp dashes with a tighter halo.
+    // 蛍光体の残光で既に軌跡が残るため、弾はハローを締めた鋭い破線のままにする。
     restoreEmitterBloom(world_.resources.bulletTrailPostEffect_.get(), 1.4f);
     restoreEmitterBloom(world_.resources.particlePostEffect_.get(), 1.65f);
     restoreEmitterBloom(world_.resources.neonGridPostEffect_.get(), 1.0f);
     if (world_.run.expeditionRun_ && world_.resources.bulletManager_) {
-        // Keep emitter bloom and enemy shots bright; only shorten/narrow the
-        // player's overlapping trails so telegraphs remain visible in a volley.
+        // エミッターのBloomと敵弾は明るいままにし、プレイヤーの重なる軌跡だけを短く細くして、
+        // 一斉射撃の中でも予兆表示が見えるようにする。
         auto trail = world_.resources.bulletManager_->GetTrailSettings();
         trail.playerHalfWidth = (std::min)(trail.playerHalfWidth, 0.17f);
         trail.playerTrailLifetimeScale = 0.55f;
@@ -108,9 +108,9 @@ void RunVisualSettings::InitializeTankRunVisuals()
     world_.combat.gameTextOutlineEnabled_ = false;
     world_.combat.gameTextNeonEnabled_ = true;
     world_.gameplayHud->ApplyGameTextAppearance();
-    // Run defaults above remain the migration baseline. Explicit F3 saves win
-    // after those defaults, so authoring survives restart without changing the
-    // appearance of older installations that have never saved this editor.
+    // 上のランの既定値は移行時の基準のまま。F3で明示的に保存した値はその既定値より優先され、
+    // このエディタで一度も保存していない古い環境の見た目を変えずに、
+    // 作成した内容が再起動後も残る。
     if (world_.run.expeditionRun_) {
         auto authored = [](const char* path) {
             try {
@@ -132,7 +132,7 @@ void RunVisualSettings::InitializeTankRunVisuals()
         }
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    // Reproducible A/B fixtures; never persisted and never compiled into Release.
+    // 再現可能なA/B比較用フィクスチャ。保存されることはなく、Releaseにもコンパイルされない。
     char testMode[16]{};
     if (GetEnvironmentVariableA("MYENGINE_STAGE_SURFACE_TEST_MODE", testMode, sizeof(testMode)) > 0) {
         const std::string mode(testMode);

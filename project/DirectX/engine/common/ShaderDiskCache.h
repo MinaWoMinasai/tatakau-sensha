@@ -1,6 +1,6 @@
 #pragma once
 
-// Disposable DXIL cache. A cache failure must never make a valid shader fail to load.
+// 使い捨てのDXILキャッシュ。キャッシュの失敗で正しいシェーダーの読み込みが失敗してはならない。
 #include <Windows.h>
 #include <bcrypt.h>
 #include <dxcapi.h>

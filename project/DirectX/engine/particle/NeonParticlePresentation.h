@@ -5,8 +5,8 @@
 #include <cstdint>
 
 namespace myEngine {
-// Values are also used by the procedural particle shaders. Ordinary emitters
-// retain Triangle; only the combat presentation opts into the other silhouettes.
+// この値は手続き的なパーティクルシェーダーでも使う。通常のエミッターは
+// Triangleのままで、戦闘演出だけが他のシルエットを明示的に使う。
 enum class NeonParticleShape : uint32_t {
     Triangle,
     Shard,
@@ -31,8 +31,8 @@ inline float NeonParticleDrag(NeonParticleShape shape)
     return shape == NeonParticleShape::Shard || shape == NeonParticleShape::Sliver ? 2.8f : 0.0f;
 }
 
-// Unit silhouettes, with space for a halo inside the particle quad. Shared by
-// the outline renderer and CPU tests; the SDF shader uses the same coordinates.
+// 単位サイズのシルエット。パーティクルの四角形内にハロー用の余白を持つ。
+// 輪郭描画とCPUテストで共有し、SDFシェーダーも同じ座標を使う。
 inline uint32_t NeonParticlePoints(NeonParticleShape shape, std::array<std::array<float, 2>, 4>& points)
 {
     if (shape == NeonParticleShape::Shard) {

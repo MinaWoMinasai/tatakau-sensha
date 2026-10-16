@@ -11,8 +11,8 @@
 namespace {
 constexpr const char* kModelPath = "resources/models/neon_hologram/AvatarSample_B.glb";
 
-// Read only the source alpha metadata, once. BLEND uses the existing Preview's
-// alpha-cutout approximation; no alternate material/rendering path is introduced.
+// 元データのアルファ情報を1回だけ読む。BLENDは既存のプレビューの
+// アルファ切り抜き近似を使い、別のマテリアルや描画経路は追加しない。
 void ConfigureAlphaCutout(const myEngine::SkinnedModel& model, std::vector<myEngine::NeonSkinnedSubmeshParams>& surfaces)
 {
     std::ifstream stream(kModelPath, std::ios::binary);
@@ -41,7 +41,7 @@ void ConfigureAlphaCutout(const myEngine::SkinnedModel& model, std::vector<myEng
 
 NeonBossVisual::~NeonBossVisual()
 {
-    // Scene destruction happens after its final submitted frame has completed.
+    // シーンの破棄は、最後に送信したフレームの完了後に行われる。
     ReleaseResources();
 }
 
@@ -174,8 +174,8 @@ bool NeonBossVisual::EnsureDepthResources()
         }
         const size_t missing = motion.skippedMotionJoints.size();
         const bool rootOnly = motion.rootOnlyFallback;
-        // This branch intentionally bypasses the Preview builder's required-bone
-        // check: valid bind skeletons can safely use partial/empty Depth clips.
+        // この分岐では、あえてプレビュー用ビルダーの必須ボーン確認を通さない。
+        // 正しいバインドスケルトンなら、一部だけ・空のDepthクリップでも安全に使える。
         if (!model_->RegisterAnimations(std::move(motion.animations), &error)) {
             throw std::runtime_error("Depth boss animation registration failed: " + error);
         }
@@ -219,8 +219,8 @@ bool NeonBossVisual::EnsureDepthResources()
 void NeonBossVisual::ReleaseResources()
 {
     const bool hadResources = HasResources();
-    // Free the two instance SRVs before dropping the resources. TextureManager
-    // owns the cached embedded textures and shares them across later encounters.
+    // リソースを破棄する前に、インスタンス用の2つのSRVを解放する。キャッシュした
+    // 埋め込みテクスチャはTextureManagerが所有し、以降の戦闘でも共有する。
     if (renderer_) {
         renderer_->ReleaseGpuResources();
     }
@@ -244,9 +244,9 @@ void NeonBossVisual::UpdatePlacement(const NeonBossVisualInput& input)
     const float radius = std::isfinite(input.radius) ? (std::clamp)(input.radius, 0.5f, 10.0f) : 2.0f;
     const float scale = radius * 2.2f / modelHeight_;
     const float aim = std::isfinite(input.aimAngleRadians) ? input.aimAngleRadians : 0.0f;
-    // Game uses the XY plane, viewed from negative Z. Center the actual model
-    // bounds over the authoritative collider, point its head toward the aim,
-    // and pitch just its presentation to reveal volume under the existing camera.
+    // ゲームはXY平面を使い、負のZ方向から見る。実際のモデルの境界を
+    // 正となるコライダーの上に中央揃えし、頭を照準方向へ向け、
+    // 既存のカメラで立体感が出るよう見た目だけを前傾させる。
     const auto centered = myEngine::MakeTranslateMatrix({-modelCenter_.x, -modelCenter_.y, -modelCenter_.z});
     const auto placed =
         myEngine::MakeAffineMatrix(myEngine::Vector3{scale, scale, scale}, myEngine::Vector3{0.35f, 0.0f, aim - myEngine::pi * 0.5f},
@@ -267,13 +267,13 @@ myEngine::Vector3 NeonBossVisual::GetCameraPosition() const
 
 void NeonBossVisual::StartDeath()
 {
-    model_->SetAnimationPlaying(false); // No death clip exists: retain the exact current skinned pose.
+    model_->SetAnimationPlaying(false); // 死亡用のクリップが無いので、現在のスキンポーズをそのまま保つ。
     auto dissolve = params_.dissolve;
     std::string error;
     if (!myEngine::MakeNeonDissolveDirection(world_, GetCameraWorld(), myEngine::NeonDissolveDirection::UpperLeftToLowerRight,
                                              dissolve.direction, &error) ||
         !myEngine::ComputeNeonSkinnedProjectionBounds(*model_, dissolve.direction, dissolve.scanMin, dissolve.scanMax)) {
-        // A finite model-axis scan remains deterministic if a debug camera is invalid.
+        // デバッグカメラが不正でも、モデル軸に沿った有限のスキャンなら結果は決定的なまま。
         dissolve.direction = {1, 0, 0};
         if (!myEngine::ComputeNeonSkinnedProjectionBounds(*model_, dissolve.direction, dissolve.scanMin, dissolve.scanMax)) {
             status_ = "Neon boss dissolve bounds invalid; death will hide and release the visual at its terminal time.";
@@ -294,8 +294,8 @@ void NeonBossVisual::UpdateAnimation(float deltaTime)
     const auto& mapping = state_.GetMapping();
     if (state_.DidAnimationChange()) {
         const char* name = mapping.motion == NeonBossMotion::Attack ? "Preview_Attack" : "Preview_Idle";
-        // Entering a different clip uses the engine's existing pose blend exactly
-        // once. Sustained gameplay input cannot reset this animation every frame.
+        // 別のクリップに入るときは、エンジンの既存のポーズブレンドをちょうど1回使う。
+        // ゲームプレイの入力が続いても、このアニメーションが毎フレームリセットされることはない。
         if (model_->TransitionToAnimation(name, 0.2f)) {
             ++stats_.animationSelections;
         }
@@ -312,15 +312,15 @@ void NeonBossVisual::UpdateAnimation(float deltaTime)
     }
     model_->Update(std::isfinite(deltaTime) && deltaTime > 0 ? deltaTime : 0.0f);
     if (state_.GetAction() == NeonBossAction::Telegraph && model_->GetCurrentAnimationTime() >= 0.50f) {
-        model_->SetAnimationPlaying(false); // Existing Attack pull pose; Attack resumes from here.
+        model_->SetAnimationPlaying(false); // 既存のAttackの引き絞りポーズ。Attackはここから再開する。
     }
     ++stats_.modelUpdates;
 }
 
 void NeonBossVisual::Update(const NeonBossVisualInput& input, float deltaTime)
 {
-    // Presentation mode is fixed for an encounter. Caller Reset owns generation
-    // changes and resource release after the previous GPU frame has completed.
+    // 演出モードは戦闘ごとに固定。世代の変更とリソースの解放は、前のGPUフレームの
+    // 完了後に呼び出し側のResetが担当する。
     if (!depthModeLatched_ && input.encounterActive) {
         depthMode_ = input.depthEncounter;
         depthModeLatched_ = true;
@@ -353,14 +353,14 @@ void NeonBossVisual::Update(const NeonBossVisualInput& input, float deltaTime)
         UpdateAnimation(deltaTime);
         const float danger = 1.0f - state_.GetHpRatio();
         const float damage = std::isfinite(input.damageFeedback) ? (std::clamp)(input.damageFeedback, 0.0f, 1.0f) : 0;
-        // HP/phase/damage change the local material only; the normal Scene Bloom
-        // and the underlying Enemy HP, phases and timing remain authoritative.
+        // HP、フェーズ、ダメージで変わるのは局所的なマテリアルだけ。通常のシーンBloomと
+        // 元になるEnemyのHP、フェーズ、タイミングが正のまま。
         params_.emissiveColor = {1.0f, 0.025f + danger * 0.18f + (input.phaseTwo ? 0.06f : 0.0f), 0.35f * (1.0f - danger * 0.7f)};
         params_.bodyColor = {0.018f + damage * 0.10f, 0.0025f + damage * 0.015f, 0.012f, 1.0f};
     } else if (state_.DidDeathStart()) {
-        // Lethal collision can happen after movement this frame. Use that final
-        // authoritative position/aim, retaining the alive scale after Die zeros
-        // the collision radius. Only then freeze World for dissolution.
+        // 致死の衝突はこのフレームの移動後に起こりうる。その最終的な正しい位置と照準を使い、
+        // Dieで衝突半径が0になった後も生存時のスケールを保つ。
+        // そのうえで初めて、消滅演出のためにWorldを固定する。
         auto deathInput = input;
         deathInput.radius = lastAliveRadius_;
         UpdatePlacement(deathInput);
@@ -434,8 +434,8 @@ void NeonBossVisual::StartDepthCollapse(const NeonBossVisualInput& input)
     if (myEngine::IsFiniteNeonPosition(input.position)) {
         deathDepthPlacement_.floorAnchor = {input.position.x, input.position.y, 0};
     }
-    // Alive formation is a separate reveal. HP0 first restores the whole current
-    // body; the terminal death scan is configured only after actual collapse.
+    // 生存中の形成は別の出現演出。HP0になったらまず現在の体全体を復元し、
+    // 実際に崩れ落ちた後で初めて最終の死亡スキャンを設定する。
     params_.dissolve.enabled = 0;
     depthFormationBoundsReady_ = false;
     ApplyDepthMotion(depthMotionGate_.Step(input.depth, true, false, state_.GetDepthLifecycle().GetLatchedTiming().collapseSeconds));
@@ -527,8 +527,8 @@ void NeonBossVisual::UpdateDepth(const NeonBossVisualInput& input, float permitt
     if (state_.GetLife() == NeonBossVisualLife::Alive && input.encounterActive) {
         const auto command = depthMotionGate_.Step(input.depth);
         ApplyDepthMotion(command);
-        // Combat does one phase transition and discards spike remainder. New
-        // phase entry with elapsed0 also samples at0 rather than advancing early.
+        // 戦闘では1回のフェーズ遷移で突出の残りを捨てる。新しいフェーズに
+        // 経過0で入ったときも、先に進めず0の時点でサンプリングする。
         const float clock = command.phaseChanged && input.depth.elapsed <= 0 ? 0 : neondepth::PresentationDelta(permittedDelta);
         model_->Update(clock);
         ++stats_.modelUpdates;
@@ -552,7 +552,7 @@ void NeonBossVisual::UpdateDepth(const NeonBossVisualInput& input, float permitt
                 model_->SetAnimationPlaying(false);
                 depthPoseFrozen_ = true;
                 ++stats_.depthPoseFreezes;
-                StartDeath(); // Scan this exact frozen pose/palette/world once.
+                StartDeath(); // この固定したポーズ・パレット・ワールドを1回だけスキャンする。
                 if (params_.dissolve.enabled == 0) {
                     depthBodySuppressed_ = true;
                 }

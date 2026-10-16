@@ -173,8 +173,8 @@ void PlayerClassEditor::DrawPlayerClassEditor()
         ImGui::SameLine();
         if (ImGui::Button("JSON再読み込み")) {
             player_.LoadPlayerClassConfigs();
-            // Loading replaces the catalog. Keep the index-based editor selection,
-            // but acquire its config again before continuing this frame.
+            // 読み込みでカタログは置き換わる。インデックスによるエディタの選択は保つが、
+            // このフレームの処理を続ける前に設定を取得し直す。
             ui_.editorSelectedClassIndex_ =
                 (std::clamp)(ui_.editorSelectedClassIndex_, 0, static_cast<int>(player_.classCatalog_.OrderedIds().size()) - 1);
             selectedId = player_.classCatalog_.OrderedIds()[ui_.editorSelectedClassIndex_];

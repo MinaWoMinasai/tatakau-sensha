@@ -1,5 +1,5 @@
-// Dedicated Gameplay adapter: bounded floor plans, movement and hostile hazards.
-// Existing Enemy owns the single floor position/HP; presentation reads its values.
+// 専用のゲームプレイ用アダプタ: 上限付きの床上の計画、移動、敵の攻撃判定。
+// 床上の位置とHPは既存のEnemyが1つだけ持ち、演出はその値を読む。
 #include "Enemy.h"
 #include "Stage.h"
 #include "Player.h"
@@ -13,10 +13,10 @@ using neondepth::FloorBox;
 using neondepth::Point;
 constexpr unsigned kColumns = 45, kRows = 30, kCells = kColumns * kRows;
 constexpr float kCellStep = 2.0f;
-constexpr float kCoreClearance = 2.30f; // Covers existing sphere2 and AABB half-size1.6 corners.
+constexpr float kCoreClearance = 2.30f; // 既存の球(半径2)とAABB(半サイズ1.6)の角を覆う。
 constexpr float kMaximumDiveTravel = 12.0f;
-constexpr float kRepositionSpeed = 3.4f;         // Target-profile movement only, world units/sec.
-constexpr float kConservativePlayerSpeed = 6.0f; // Below unmodified normal movement; runtime verify3styles.
+constexpr float kRepositionSpeed = 3.4f;         // 目標プロファイルでの移動専用。ワールド単位/秒。
+constexpr float kConservativePlayerSpeed = 6.0f; // 未補正の通常移動より遅い。実行時に3スタイルで確認済み。
 constexpr uint16_t kUnreachable = (std::numeric_limits<uint16_t>::max)();
 
 Point XY(const myEngine::Vector3& value)
@@ -42,9 +42,9 @@ Point Cell(unsigned id)
 
 bool InRoom(Point point, float radius)
 {
-    // Actual final_duel interior wall faces: grid10..34/7..22, cell width2.
-    // Candidate cell centers are22..66/16..42. Radius must fit wall-face bounds
-    //21..67/15..43, avoiding double-insetting and rejecting real wall-hugging players.
+    // 実際のfinal_duelの内壁面: グリッド10..34/7..22、セル幅2。
+    // 候補セルの中心は22..66/16..42。半径は壁面の範囲21..67/15..43に収める必要がある。
+    // 二重に内側へ寄せるのを避け、実際に壁沿いにいるプレイヤーを除外しないようにする。
     return neondepth::Bounded(point) && point[0] - radius >= 21 && point[0] + radius <= 67 && point[1] - radius >= 15 &&
            point[1] + radius <= 43;
 }
@@ -104,7 +104,7 @@ ReachableFloor Reachable(Stage& stage, Point start, float radius, std::span<cons
                 continue;
             }
             result.distance[next] = static_cast<uint16_t>(result.distance[id] + 1);
-            queue[write++] = next; // Each cell enqueued once; fixed1350 maximum.
+            queue[write++] = next; // 各セルは1回だけキューに入れる。上限は固定の1350。
         }
     }
     return result;
@@ -132,7 +132,7 @@ std::optional<Point> NearestLegal(Stage& stage, const ReachableFloor& reachable,
 bool PointDangerous(const neondepth::AttackPlan& plan, Point point, float radius)
 {
     if (plan.attack == neondepth::Attack::Beam) {
-        // Committed conservative capsule union, matching the displayed warning.
+        // 確定済みの保守的なカプセルの和集合。表示中の警告と一致させる。
         for (unsigned index = 0; index < plan.beam.warningCount; ++index) {
             const auto& sample = plan.beam.warning[index];
             if (tankspecial::SegmentTouches(sample.start[0], sample.start[1], sample.end[0], sample.end[1], point[0], point[1],
@@ -182,7 +182,7 @@ bool Enemy::CacheNeonDepthStageGeometry()
         if (!neondepth::Valid(box)) {
             return false;
         }
-        // Actual floor walls are flat XY blockers. No borrowed Stage pointer is cached.
+        // 実際の床の壁はXY平面上の平らな障害物。借りたStageのポインタはキャッシュしない。
         neonDepthWalls_[neonDepthWallCount_++] = box;
     }
     neonDepthGeometryReady_ = true;
@@ -211,7 +211,7 @@ void Enemy::EnableNeonDepthEncounter(bool enabled, const neondepth::Tuning& tuni
         }
         return;
     }
-    // Enabling an encounter, even after toggling it off, always has a fresh ID.
+    // 戦闘を有効にすると、一度オフにした後でも必ず新しいIDになる。
     ++encounterGeneration_;
     if (!neonDepthCombat_.Reset(encounterGeneration_, XY(GetWorldPosition()), tuning)) {
         return;
@@ -249,7 +249,7 @@ void Enemy::AbortNeonDepthEncounter()
     neonDepthEvents_ = neonDepthCombat_.Abort();
     velocity_ = {};
     impactVelocity_ = {};
-    // Preserve raw policy identity for retained presentation; this is not legacy enable.
+    // 残している演出のために元の方針の識別子を保つ。旧来の有効化ではない。
 }
 
 bool Enemy::MoveNeonDepthCore(const myEngine::Vector3& desiredFloor)
@@ -367,7 +367,7 @@ void Enemy::UpdateNeonDepthCombat(float dt)
     }
     const float stepTime = (std::min)(dt, neondepth::kMaximumStep);
     velocity_ = {};
-    impactVelocity_ = {}; // Never run old per-frame-unit movement in this policy.
+    impactVelocity_ = {}; // この方針では、旧来のフレーム単位の移動を使ってはならない。
     const auto before = neonDepthCombat_.GetSnapshot();
     const auto walls = std::span<const neondepth::FloorBox>{neonDepthWalls_.data(), neonDepthWallCount_};
     if (before.phase == neondepth::Phase::Reposition) {
@@ -397,7 +397,7 @@ void Enemy::UpdateNeonDepthCombat(float dt)
                 }
             }
             const auto desired = GetWorldPosition() + direction * (std::min)(remaining, kRepositionSpeed * stepTime);
-            // A reposition collision may shorten travel; the corrected actual floor is still the next plan origin.
+            // 再配置時の衝突で移動距離が短くなることがある。補正後の実際の床位置を次の計画の起点にする。
             MoveNeonDepthCore(desired);
         }
         neonDepthCombat_.SetRepositionCore(XY(GetWorldPosition()));
@@ -418,7 +418,7 @@ void Enemy::UpdateNeonDepthCombat(float dt)
         if (plan && neonDepthCombat_.CommitPlan(*plan)) {
             neonDepthPlanRejected_ = false;
         } else {
-            neonDepthPlanRejected_ = true; // Stable diagnostic state; no unsafe plan/shrunk shape.
+            neonDepthPlanRejected_ = true; // 安定した診断状態。危険な計画や縮んだ形状は持たない。
         }
         snapshot = neonDepthCombat_.GetSnapshot();
     }
@@ -430,7 +430,7 @@ void Enemy::UpdateNeonDepthCombat(float dt)
         return;
     }
     if (snapshot.plan.attack == neondepth::Attack::Beam) {
-        // GetDesiredBeam already caps range to the shortest adjacent warning.
+        // GetDesiredBeamは既に、射程を隣接する最短の警告に合わせて制限している。
         const auto clipped = neondepth::ClipGroundBeam(neonDepthCombat_.GetDesiredBeam(), walls);
         if (!clipped || !neonDepthCombat_.ApplyBeamClip(snapshot.generation, snapshot.plan.instance, *clipped)) {
             neonDepthPlanRejected_ = true;

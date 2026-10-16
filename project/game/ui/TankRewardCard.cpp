@@ -277,10 +277,10 @@ void TankRewardCard::Initialize(myEngine::SpriteCommon* spriteCommon)
         myEngine::StartupTrace::Scope poolScope("RewardCard.SpritePool");
         wchar_t flag[8]{};
         const bool baseline = GetEnvironmentVariableW(L"MYENGINE_STARTUP_CACHE", flag, 8) > 0 && flag[0] == L'0';
-        // The HDR preview replaced the sprite-based demonstration. Its frame
-        // needs at most 85 solids and 28 glows, including legendary acquisition.
-        // Reserve above those bounds so opening any rarity adds no allocations.
-        // The legacy fallback may grow the existing pool only during Update.
+        // HDRプレビューがスプライトによる実演に置き換わった。そのフレームで必要なのは
+        // 伝説級の獲得演出を含めて最大でソリッド85個と発光28個。
+        // どのレア度を開いても確保が増えないよう、その上限より多めに予約しておく。
+        // 旧来の代替経路で既存のプールを拡張できるのはUpdate中だけ。
         const std::size_t solidReserve = baseline ? kSolidCapacity : 96;
         const std::size_t glowReserve = baseline ? kGlowCapacity : 32;
         for (std::size_t i = 0; i < solidReserve; ++i) {
@@ -422,11 +422,11 @@ tankreward::DemoConfig TankRewardCard::DemoConfig(bool after) const
             c.fanAngle = c.barrels == 2 ? 16.0f : 14.0f;
         }
         c.alternate |= c.alternatingFire && c.barrels >= 2;
-        // Extra barrels spread a modest total gain over the same base shot.
+        // 追加の砲身は、同じ基本の弾に対して控えめな合計の増加を分け合う。
         c.damageScale *= c.barrels == 2 ? .65f : c.barrels >= 3 ? .50f : 1.0f;
     }
-    // The card describes the changed behavior in isolation. For reflection and
-    // piercing comparisons, unrelated steering must not mask the difference.
+    // カードは変化した挙動だけを切り出して説明する。反射や貫通の比較では、
+    // 関係のない誘導で違いが分かりにくくなってはならない。
     if (c.kind == tankreward::DemoKind::Ricochet || c.kind == tankreward::DemoKind::Pierce) {
         c.homing = false;
     }
@@ -582,7 +582,7 @@ void TankRewardCard::BuildFrame()
         }
     }
     if (rarity >= 2) {
-        // Rare gains a distinct inner circuit, not just another tint.
+        // レアは色合いを変えるだけでなく、内側に専用の回路模様を持つ。
         for (std::size_t i = 0; i < frame.size(); ++i) {
             auto a = frame[i], b = frame[(i + 1) % frame.size()];
             a.x += (a.x < center_.x ? 5.0f : -5.0f);
@@ -604,8 +604,8 @@ void TankRewardCard::BuildFrame()
             }
         }
     }
-    // Corner brackets retain a sharp silhouette, while the glow is restricted
-    // to edges. The center stays dark at every rarity and interaction state.
+    // 角の括弧で鋭いシルエットを保ち、発光は縁だけに限る。
+    // 中央はどのレア度・操作状態でも暗いままにする。
     for (int side = 0; side < 2; ++side) {
         for (int bottom = 0; bottom < 2; ++bottom) {
             const float bx = x + (side ? w - 7 : 7), by = y + (bottom ? h - 7 : 7), sx = side ? -1.0f : 1.0f, sy = bottom ? -1.0f : 1.0f;
@@ -613,7 +613,7 @@ void TankRewardCard::BuildFrame()
             Line({bx, by + sy * 4}, {bx, by + sy * 22}, 2, tankui::ScaleAlpha(accent_, 0.72f));
             Rect({bx + sx * 9, by + sy * 9}, {3, 3}, tankui::ScaleAlpha(accent_, 0.84f));
             if (rarity >= 3) {
-                // Epic corner sockets, with short moving electric arcs on hover.
+                // エピックの角のソケット。ホバー時は短い電撃のアークが動く。
                 Line({bx + sx * 15, by + sy * 3}, {bx + sx * 33, by + sy * 3}, 2, tankui::ScaleAlpha(accent_, 0.55f));
                 Line({bx + sx * 3, by + sy * 15}, {bx + sx * 3, by + sy * 33}, 2, tankui::ScaleAlpha(accent_, 0.55f));
                 Rect({bx + sx * 8, by + sy * 8}, {6, 6}, tankui::ScaleAlpha(accent_, 0.45f), kPi * 0.25f);
@@ -694,7 +694,7 @@ void TankRewardCard::DrawLane(const tankreward::DemoSnapshot& s, const myEngine:
     if (s.wall) {
         Line(point({0.35f, 0.18f}), point({0.71f, 0.18f}), 3, {0.52f, 0.63f, 0.76f, 0.65f});
     }
-    // Reticle: a real cursor target, distinct from the enemy and bullet path.
+    // 照準: 実際のカーソルの的で、敵や弾道とは区別できる見た目にする。
     const auto cursor = point(s.cursor);
     Line({cursor.x - 4, cursor.y}, {cursor.x + 4, cursor.y}, 1, {0.5f, 0.68f, 0.75f, 0.34f});
     Line({cursor.x, cursor.y - 4}, {cursor.x, cursor.y + 4}, 1, {0.5f, 0.68f, 0.75f, 0.34f});
@@ -748,8 +748,8 @@ void TankRewardCard::DrawLane(const tankreward::DemoSnapshot& s, const myEngine:
         }
     }
     if (s.slashing) {
-        // The horizontal range is intentionally compared in the same scale in
-        // both lanes. A separate vertical scale keeps the arc inside the card.
+        // 横方向の範囲は、あえて両方のレーンで同じ縮尺で比較する。
+        // 縦方向は別の縮尺にして、弧がカード内に収まるようにする。
         constexpr int segments = 12;
         const float halfArc = s.slashArc * 0.26f;
         const float start = (std::max)(-s.slashArc * 0.5f, s.slashAngle - halfArc);
@@ -795,7 +795,7 @@ void TankRewardCard::BuildDemo()
         return;
     }
     if (kind == D::Info) {
-        // Generic statistics do not invent extra shots, range or effects.
+        // 汎用の統計では、余分な弾・射程・効果を作り出さない。
         const float r = 18;
         Tank({center_.x, demoY + demoH * 0.46f}, r, 0, tankui::ScaleAlpha(accent_, 0.70f));
         for (int i = 0; i < 3; ++i) {
@@ -839,8 +839,8 @@ void TankRewardCard::Draw()
         glows_[i]->Draw();
     }
     spriteCommon_->PreDraw(myEngine::kNormal);
-    // TextLabel::Draw may rebuild a texture after a font change. Drawing only
-    // prepared sprites guarantees no texture creation inside the render pass.
+    // TextLabel::Drawはフォント変更後にテクスチャを作り直すことがある。準備済みの
+    // スプライトだけを描画することで、描画パス内でテクスチャを作らないことを保証する。
     for (std::size_t i = 0; i < labels_.size(); ++i) {
         if (labelVisible_[i]) {
             if (auto* sprite = labels_[i]->GetSprite()) {

@@ -21,8 +21,8 @@ void ExpeditionBalanceEditor::InitializeTankExpeditionBalance()
     world_.resources.balanceEditor_.bossMaxHp = world_.run.tankExpeditionBalance_["bossMaxHp"].get<int>();
     world_.levelRuntime->ApplyLevelBalance(world_.run.tankExpeditionBalance_);
     world_.resources.player_->ApplyCombatStyleBalance(tankexp::ReadCombatStyleBalances(world_.run.tankExpeditionBalance_));
-    // Initialization grants the authored full HP once; subsequent Apply does
-    // not erase damage or revive a defeated player.
+    // 初期化時に設定上の最大HPを1回だけ与える。以降のApplyで
+    // 受けたダメージを消したり、倒れたプレイヤーを復活させたりはしない。
     world_.resources.player_->HealRunPlayer(world_.resources.player_->GetMaxHp());
     ApplyTankExpeditionRoomBalance();
 }
@@ -36,8 +36,8 @@ void ExpeditionBalanceEditor::ApplyTankExpeditionRoomBalance()
     const bool resourceRoom = world_.run.tankExpedition_.GetRoomKind() == tankexp::RoomKind::Resource;
     effective["enemySystem"]["expEnemyHostileToBoss"] = resourceRoom;
     effective["enemySystem"]["bossLevelingModeEnabled"] = resourceRoom;
-    // Room transitions change hostile pressure only. Player stats, current HP,
-    // cards, maintenance points, and in-progress XP must survive the checkpoint.
+    // 部屋の遷移で変わるのは敵の圧力だけ。プレイヤーの能力値、現在HP、
+    // カード、整備ポイント、獲得途中の経験値はチェックポイントをまたいで保持する。
     effective.erase("player");
     effective.erase("playerUpgrades");
     effective.erase("combatStyles");

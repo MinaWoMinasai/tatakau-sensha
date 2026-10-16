@@ -269,8 +269,8 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                            world_.presentation.actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true,
                            world_.presentation.playerNeonEmission_);
         if (drawBarrels && world_.combat.showFollowHpBars_ && (!world_.run.expeditionRun_ || world_.run.tankExpedition_.IsCombat())) {
-            // Segmented gauges hugging the body, in place of the floating HP / stamina bars:
-            // HP is the lower arc in the body color, stamina the shorter upper arc.
+            // 浮かんだHP/スタミナバーの代わりに、本体に沿った分割ゲージを表示する。
+            // HPは本体色の下側の弧、スタミナはそれより短い上側の弧。
             const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
             const float radius = world_.presentation.playerNeonBillboardRadius_;
             auto queueSegmentedArc = [&](float arcRadius, float centerAngle, float span, int segments, float ratio,
@@ -344,7 +344,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             const std::vector<Player::NeonBarrelLayout> droneBarrels{droneBarrel};
             queueTankBillboard(center, drone->GetAimDirection(), radius, world_.presentation.actorNeonBillboardLineWidth_ * 0.75f, color,
                                &droneBody, &droneBarrels, false, true, world_.presentation.playerNeonEmission_);
-            // A short thrust streak reads motion without painting a large glowing disk.
+            // 大きな光る円盤を描かずに、短い推進の筋で動きを伝える。
             const myEngine::Vector3 motion = drone->GetMove();
             const float speed = myEngine::Length(motion);
             if (drawBarrels && speed > 0.03f) {
@@ -383,7 +383,7 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
         direction = myEngine::Normalize(direction);
         return std::atan2(myEngine::Dot(direction, cameraRight), -myEngine::Dot(direction, cameraUp));
     };
-    // Bodies in this pass become glossy black 3D shapes lit from the active eye.
+    // このパスの本体は、現在の視点から照らされた光沢のある黒い立体になる。
     const myEngine::Vector3 eye{cameraWorld.m[3][0], cameraWorld.m[3][1], cameraWorld.m[3][2]};
     world_.resources.neonGridRenderer_->SetBodyShadingEye(&eye);
     auto queueRoundBody = [&](const myEngine::Vector3& center, float radius, const myEngine::Vector4& tint) {
@@ -396,7 +396,7 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
         world_.resources.neonGridRenderer_->QueueBeveledPolygonFill(points, kSegments, world_.presentation.actorNeonBodyFillColor_, tint,
                                                                     myEngine::Normalize(cameraUp - cameraRight * 0.5f));
     };
-    // Black gun blocks under the neon barrel outlines (same layout math as the outline pass).
+    // ネオンの砲身の輪郭の下に黒い砲のブロックを置く（配置計算は輪郭パスと同じ）。
     auto queueBarrelBlocks = [&](const myEngine::Vector3& center, const myEngine::Vector3& direction, float radius,
                                  const std::vector<Player::NeonBarrelLayout>& layouts, const myEngine::Vector4& tint) {
         myEngine::Vector3 mainDirection =
@@ -470,8 +470,8 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
     };
 
     const uint32_t fillStart = world_.resources.neonGridRenderer_->GetVertexCount();
-    // Drawn into the scene after the bloomed line capture, round bodies sit inside their ring
-    // and cover the ring's inner halo, so they read as black spheres.
+    // Bloomをかけた線のキャプチャの後にシーンへ描く。丸い本体はリングの内側に収まり、
+    // リングの内側のハローを覆うので、黒い球として見える。
     const float roundBodyScale = bodies == BodySet::RoundActors ? 0.86f / 0.96f : 1.0f;
     if (drawRound && world_.presentation.playerNeonRenderMode_ == 1 && world_.resources.player_ && !world_.resources.player_->IsDead()) {
         const float feedback = world_.resources.player_->GetDamageFeedbackRatio();

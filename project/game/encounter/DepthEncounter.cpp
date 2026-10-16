@@ -7,7 +7,7 @@
 #include <fstream>
 
 namespace gameplay {
-// Boss encounter policy, scoped camera and scene-owned presentation integration.
+// ボス戦の進行方針、専用カメラ、シーンが所有する演出の統合。
 
 bool DepthEncounter::LoadNeonDepthConfig(bool hotReload)
 {
@@ -28,9 +28,9 @@ bool DepthEncounter::LoadNeonDepthConfig(bool hotReload)
                 throw std::runtime_error(error);
             }
         }
-        // The camera/enabled choice is latched only on a fresh encounter. A
-        // valid active edit queues attack geometry/timing and visual placement
-        // for the next instance, preserving the already announced plan.
+        // カメラと有効化の選択は、新しい戦闘の開始時にだけ確定する。
+        // 戦闘中に有効な編集をした場合は、攻撃の形状・タイミングと表示位置を次のインスタンス用に
+        // 予約し、既に予告した計画はそのまま保つ。
         if (hotReload && IsNeonDepthEncounterActive()) {
             if (!world_.resources.enemy_->QueueNeonDepthTuning(candidate.combat) ||
                 (world_.resources.neonBossVisual_ && !world_.resources.neonBossVisual_->SetDepthProfile(candidate.visual))) {
@@ -48,7 +48,7 @@ bool DepthEncounter::LoadNeonDepthConfig(bool hotReload)
     catch (const std::exception& exception) {
         world_.resources.neonDepthConfigStatus_ = std::string(exception.what()).substr(0, 256);
         OutputDebugStringA((std::string("[NeonDepth] ") + world_.resources.neonDepthConfigStatus_ + "\n").c_str());
-        return false; // Preserve the previous valid profile (or initial defaults).
+        return false; // 直前の有効なプロファイル（または初期値）を保つ。
     }
 }
 
@@ -75,8 +75,8 @@ void DepthEncounter::ConfigureNeonDepthEncounter([[maybe_unused]] bool completed
     if (!world_.resources.neonDepthConfig_.enabled) {
         return;
     }
-    // Old explicitly selected Developer fixture profiles are preserved by the
-    // fixture adapter. Ordinary authored / sequential boss entry selects Depth.
+    // 明示的に選ばれた古いDeveloper用フィクスチャのプロファイルは、
+    // フィクスチャのアダプタが保持する。通常の配置や順番どおりのボス登場ではDepthを選ぶ。
     if (!world_.resources.neonDepthEffects_) {
         world_.resources.neonDepthEffects_ = std::make_unique<NeonDepthEffects>();
     }
@@ -130,8 +130,8 @@ bool DepthEncounter::UpdateNeonDepthCamera(float baseDeltaTime)
         const float ratio = (std::clamp)(world_.presentation.cameraShakeTimer_ / duration, 0.0f, 1.0f);
         const float amplitude = (std::min)(world_.presentation.cameraShakePower_, .45f) * ratio * ratio;
         const auto& snapshot = world_.resources.enemy_->GetNeonDepthSnapshot();
-        // Analytic bounded shake consumes no shared gameplay RNG. The final
-        // shaken matrix is installed before floor mouse input and all actors.
+        // 解析的に上限を決めた揺れで、共有のゲームプレイ乱数を消費しない。揺らした最終行列は
+        // 床へのマウス入力とすべてのアクターより先に設定する。
         const double eventPhase = double(snapshot.generation % 997) + double(snapshot.plan.instance % 991) * .71;
         const double age = double(duration - world_.presentation.cameraShakeTimer_);
         focus.x += amplitude * float(std::sin(age * 53 + eventPhase));
@@ -171,7 +171,7 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
     auto mix = [](const myEngine::Vector3& a, const myEngine::Vector3& b, float t) {
         return a + (b - a) * t;
     };
-    // Frame the visible projection (its feet), which is offset from the logical floor core.
+    // 論理上の床の中心からずれている、見えている投影像（の足元）を画面に収める。
     myEngine::Vector3 boss = world_.resources.enemy_->GetWorldPosition();
     if (world_.resources.neonBossVisual_ && world_.resources.neonBossVisual_->HasResources() &&
         world_.resources.neonBossVisual_->IsVisible()) {
@@ -185,11 +185,11 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
     myEngine::Vector3 player = world_.resources.player_ ? world_.resources.player_->GetWorldPosition() : boss;
     player.z = 0.0f;
 
-    // Combat: the normal arena camera distance and lens, following the player and leaning a little
-    // toward the boss, with a slight tilt so the standing projection still reads in depth.
-    // Keep both actors on screen: frame their midpoint and pull back only as far as their spread needs.
-    // The projection stands toward the camera, so its upper body is magnified outward by perspective
-    // (offset * D / (D - height)); solve for the smallest pull-back that still contains it.
+    // 戦闘中: 通常のアリーナと同じカメラ距離とレンズでプレイヤーを追い、ボス側に少し寄せる。
+    // わずかに傾けて、立ち上がった投影像の奥行きが読み取れるようにする。
+    // 両方のアクターを画面内に収めるため、中間点を中心にし、広がりに必要な分だけ引く。
+    // 投影像はカメラ側へ立っているので、上半身は透視で外側へ拡大される
+    // （offset * D / (D - height)）。それが収まる最小の引き量を求める。
     myEngine::Vector3 target = mix(player, boss, 0.5f);
     constexpr float kActorMargin = 4.0f;
     const float halfHeight = arenacamera::HalfViewHeight();
@@ -205,7 +205,7 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
     }
     float minX = 0, minY = 0, maxX = 0, maxY = 0;
     if (world_.resources.stage_ && arenacamera::ArenaBounds(world_.resources.stage_->GetBlocks(), minX, minY, maxX, maxY)) {
-        // The projection may hover over the rampart; let the frame follow it there.
+        // 投影像は城壁の上に浮かぶことがあるので、そこでも枠を追従させる。
         minX = (std::min)(minX, boss.x - bodyHeight);
         maxX = (std::max)(maxX, boss.x + bodyHeight);
         minY = (std::min)(minY, boss.y - bodyHeight);
@@ -217,11 +217,11 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
     float targetDistance = combatDistance, targetTilt = 14.0f, targetLetterbox = 0.0f;
 
     if (intro) {
-        // Entrance: open close and low on the forming projection, then slowly pull back.
+        // 登場時: 形成中の投影像に近く低い位置から始め、ゆっくり引いていく。
         cine.introSeen = true;
         cine.introTime += dt;
         const float t = smooth(cine.introTime / 3.2f);
-        // Aim at the middle of the standing projection, which rises toward the camera.
+        // カメラ側へ立ち上がる投影像の中央を狙う。
         const float bodyHeight = world_.resources.neonBossVisual_ ? world_.resources.neonBossVisual_->GetDepthProfile().worldHeight : 7.0f;
         target = boss + myEngine::Vector3{0.0f, 0.0f, -bodyHeight * 0.55f};
         targetDistance = 0.55f + 0.35f * t;
@@ -232,7 +232,7 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
             cine.titleAge = 0.0f;
         }
     } else if (cine.introSeen && !cine.revealFired) {
-        // The projection is complete: punctuate the hand-off back to the combat framing.
+        // 投影像が完成したら、戦闘用の構図へ戻る切り替えをはっきり見せる。
         cine.revealFired = true;
         world_.combatEffects->TriggerDeathPostPulse(cine.focus, 1.25f);
         world_.presentation.cameraShakeDuration_ = 0.55f;
@@ -248,7 +248,7 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
             cine.finaleFired = false;
         }
         cine.defeatTime += dt;
-        // Defeat: push in on the falling projection while it breaks apart in a chain of bursts.
+        // 撃破時: 連続する爆発で崩れながら倒れる投影像へ寄っていく。
         const float a = smooth(cine.defeatTime / 0.9f);
         target.z = 0.0f;
         target = mix(target, cine.defeatFocus, a);
@@ -259,7 +259,7 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
         constexpr int kBursts = static_cast<int>(sizeof(kBurstTimes) / sizeof(kBurstTimes[0]));
         const myEngine::Vector4 primary{1.8f, 0.25f, 0.95f, 1.0f}, secondary{1.6f, 1.2f, 1.6f, 1.0f};
         while (cine.burstsFired < kBursts && cine.defeatTime >= kBurstTimes[cine.burstsFired]) {
-            // Deterministic offsets keep replays identical and consume no gameplay RNG.
+            // 決定的なオフセットにより、リプレイが同一になりゲームプレイの乱数も消費しない。
             const float angle = 2.39996f * static_cast<float>(cine.burstsFired);
             const float radius = 1.2f + 0.45f * static_cast<float>(cine.burstsFired % 3);
             const myEngine::Vector3 at = cine.defeatFocus + myEngine::Vector3{std::cos(angle) * radius, std::sin(angle) * radius, -1.0f};
@@ -282,7 +282,7 @@ myEngine::Vector3 DepthEncounter::UpdateBossCinematicCamera(float baseDeltaTime,
             cine.titleAge = 0.0f;
         }
         if (cine.defeatTime >= 1.8f) {
-            // Let the arena breathe after the finale: ease back out a little for the closing title.
+            // フィナーレの後はアリーナに余韻を持たせ、締めのタイトルに向けて少しだけ引く。
             const float settle = smooth((cine.defeatTime - 1.8f) / 1.6f);
             targetDistance += 0.22f * settle;
             targetTilt -= 6.0f * settle;
@@ -354,7 +354,7 @@ bool DepthEncounter::UpdateNeonDepthIntro(float baseDeltaTime)
                       world_.resources.input_->IsKeyTriggered(DIK_SPACE))) {
         world_.resources.neonDepthSkipRequested_ = false;
         world_.resources.enemy_->SkipNeonDepthIntro();
-        world_.resources.enemy_->Update(0); // Refresh transforms; no first combat tick on the skip input.
+        world_.resources.enemy_->Update(0); // 変換を更新する。スキップ入力で最初の戦闘tickは進めない。
     } else {
         world_.resources.neonDepthIntroDelta_ = permitted ? baseDeltaTime : 0;
         world_.resources.enemy_->Update(world_.resources.neonDepthIntroDelta_);
@@ -362,8 +362,8 @@ bool DepthEncounter::UpdateNeonDepthIntro(float baseDeltaTime)
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     world_.resources.gameplayScenarioCombatDt_ = world_.resources.neonDepthIntroDelta_;
 #endif
-    // A zero-dt Player::Update still handles attacks; refresh borrowed drawing
-    // transforms without passing input into any actor during the intro lock.
+    // dtが0のPlayer::Updateでも攻撃は処理される。導入中のロックの間はどのアクターにも
+    // 入力を渡さず、借りている描画用の変換だけを更新する。
     if (world_.resources.playerObject_) {
         world_.resources.playerObject_->Update();
     }
@@ -402,16 +402,16 @@ void DepthEncounter::UpdateNeonDepthEffects()
     input.cameraForward = {world.m[2][0], world.m[2][1], world.m[2][2]};
     const bool terminal = input.snapshot.phase == neondepth::Phase::Defeated || input.snapshot.phase == neondepth::Phase::Aborted;
     if (terminal && world_.resources.neonBossVisual_->IsFinished()) {
-        // The previous submitted frame's fence completed before this Update.
-        // Keep the wrapper's evidence counters, return its instance buffers once.
+        // このUpdateの前に、前回送信したフレームのフェンスは完了している。
+        // ラッパーの記録用カウンターは残し、インスタンスバッファは1回だけ返す。
         if (world_.resources.neonDepthEffects_->HasResources()) {
             world_.resources.neonDepthEffects_->Release();
         }
     } else {
         world_.resources.neonDepthEffects_->Update(input);
     }
-    // Observable counters share the profiler's actual frame identity. They do
-    // not allocate resources or influence encounter/presentation clocks.
+    // 観測用のカウンターはプロファイラの実際のフレーム番号を共有する。
+    // リソースの確保はせず、戦闘や演出の時計にも影響しない。
     auto& profiler = myEngine::RuntimeProfiler::Get();
     const auto& model = world_.resources.neonBossVisual_->GetStats();
     const auto& effects = world_.resources.neonDepthEffects_->GetStats();

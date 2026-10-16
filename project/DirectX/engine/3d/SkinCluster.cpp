@@ -706,17 +706,17 @@ using DecodedTexture = std::shared_future<std::shared_ptr<DirectX::ScratchImage>
 
 struct PreparedSkinnedAsset {
     std::shared_ptr<const SkinningModelAsset> model;
-    std::vector<DecodedTexture> textures; // Same order as model->embeddedTextures.
+    std::vector<DecodedTexture> textures; // model->embeddedTexturesと同じ順番。
 };
 
-// The geometry import, the animation import and every embedded texture decode
-// are independent jobs, so they run on separate file threads.
+// 形状の読み込み、アニメーションの読み込み、埋め込みテクスチャのデコードは
+// 互いに独立した処理なので、別々のファイルスレッドで実行する。
 struct PreloadedSkinnedAsset {
     std::shared_future<std::shared_ptr<const PreparedSkinnedAsset>> model;
     std::shared_future<std::vector<Animation>> animations;
 };
 
-// Main-thread-only cache; workers only return independently owned CPU results.
+// メインスレッド専用のキャッシュ。ワーカーは独立して所有するCPU結果を返すだけ。
 std::unordered_map<std::string, PreloadedSkinnedAsset> preparedSkinnedAssets;
 } // namespace
 
@@ -732,7 +732,7 @@ void SkinnedModel::PreloadAsset(const std::string& filePath)
         auto prepared = std::make_shared<PreparedSkinnedAsset>();
         auto model = std::make_shared<const SkinningModelAsset>(SkinningModelLoader::LoadFromFile(filePath));
         prepared->model = model;
-        // Submitting from a worker never waits, so it cannot deadlock the pool.
+        // ワーカーからの投入は待機しないため、スレッドプールがデッドロックすることはない。
         for (size_t index = 0; index < model->embeddedTextures.size(); ++index) {
             prepared->textures.push_back(BackgroundLoader::Get().Submit([model, index, filePath] {
                 StartupTrace::Scope textureScope("FileThread.SkinnedTexture." + filePath);
@@ -751,7 +751,7 @@ void SkinnedModel::PreloadAsset(const std::string& filePath)
         }
         catch (const std::exception&) {
             return std::vector<Animation>{};
-        } // Static skinned models use BindPose.
+        } // 静的なスキンモデルはバインドポーズを使う。
     });
     preparedSkinnedAssets.emplace(filePath, std::move(preload));
 }
@@ -830,7 +830,7 @@ void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, c
                 image = prepared->textures[preparedTextureIndex].get();
             }
             catch (const std::exception&) {
-            } // Decode again synchronously below.
+            } // 下で同期的にデコードし直す。
         }
         ++preparedTextureIndex;
         bool loaded = false;
@@ -1068,7 +1068,7 @@ bool SkinnedModel::RestoreAnimationPlaybackState(const AnimationPlaybackState& s
             return false;
         }
     }
-    // Allocate before mutating playback, so allocation failure also preserves the old state.
+    // 再生状態を変更する前に確保する。確保に失敗しても元の状態が保たれる。
     auto pose = state.transitionStartPose;
     currentAnimationIndex_ = state.animationIndex;
     animationPlayer_.SetAnimation(&animations_[currentAnimationIndex_], true);

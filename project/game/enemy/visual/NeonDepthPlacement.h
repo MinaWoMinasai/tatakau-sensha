@@ -1,13 +1,13 @@
 #pragma once
-// Shared value-only floor, placement, camera and input projection math.
+// 床、配置、カメラ、入力の投影で共有する、値だけを扱う計算。
 #include "Calculation.h"
 #include <cmath>
 #include <algorithm>
 
 namespace neondepth {
 
-// The room is XY, viewed from negative Z. U x V is +Z; the semantic height
-// normal is -Z. Model orientation below remains a proper rotation, not a mirror.
+// 部屋はXY平面で、負のZ方向から見る。U x V は+Zで、意味上の高さ方向の
+// 法線は-Z。下のモデルの向きは鏡映ではなく正しい回転のまま。
 struct FloorBasis {
     myEngine::Vector3 origin{0, 0, 0};
     static constexpr myEngine::Vector3 u{1, 0, 0};
@@ -47,9 +47,9 @@ inline bool InRange(float value, float low, float high)
     return Finite(value) && value >= low && value <= high;
 }
 
-// Validate determinant before using the engine inverse (which divides without
-// a singular guard). Elimination only checks invertibility; engine math still
-// produces the inverse. Failed queries preserve the caller's previous matrix.
+// エンジンの逆行列（特異行列のガードなしで割り算する）を使う前に行列式を検証する。
+// 消去法では可逆かどうかを確かめるだけで、逆行列自体はエンジンの数学関数で求める。
+// 問い合わせに失敗した場合は、呼び出し側の直前の行列を保つ。
 inline bool TryInverseViewProjection(const myEngine::Matrix4x4& matrix, myEngine::Matrix4x4& output)
 {
     if (!Finite(matrix)) {
@@ -107,20 +107,20 @@ inline bool TryInverseViewProjection(const myEngine::Matrix4x4& matrix, myEngine
 }
 
 struct PlacementConfig {
-    // Determined once from bind skeleton / current-model bind bounds at load.
+    // 読み込み時に、バインドスケルトンと現在のモデルのバインド境界から1回だけ決める。
     myEngine::Vector3 stableFootLocal{};
     float boundsHeight = 1.5674443f;
     float worldHeight = 18.0f;
-    // This asset's candidate front is local -Z, initially world floor -Y.
+    // この素材の正面の候補はローカルの-Zで、初期状態ではワールドの床の-Y。
     float forwardYawOffset = myEngine::pi * 0.5f;
 };
 
 struct PlacementInput {
-    myEngine::Vector3 floorAnchor{}; // Authoritative Enemy XY / room floor Z.
-    myEngine::Vector2 floorOffset{}; // Purely visual retreat; never move the collider.
+    myEngine::Vector3 floorAnchor{}; // 正となるEnemyのXY / 部屋の床のZ。
+    myEngine::Vector2 floorOffset{}; // 見た目だけの後退。コライダーは動かさない。
     float hoverHeight = 3.0f;
     float bodyHeading = -myEngine::pi * 0.5f;
-    myEngine::Vector3 localLean{}; // Fresh bounded angles, never previous-pose deltas.
+    myEngine::Vector3 localLean{}; // 毎回新しく求める範囲付きの角度で、前のポーズからの差分は使わない。
 };
 
 struct PlacementResult {
@@ -130,8 +130,8 @@ struct PlacementResult {
     float uniformScale = 1.0f;
 };
 
-// Invalid input leaves the previous valid output unchanged. Stable foot is
-// centered before scale/lean/upright/yaw; animated feet never redefine it.
+// 不正な入力では直前の有効な出力をそのまま残す。安定した足元は
+// 拡縮・前傾・直立・ヨーの前に中央へ揃え、アニメーションする足で定義し直すことはない。
 inline bool TryPlacement(const FloorBasis& floor, const PlacementConfig& config, const PlacementInput& input, PlacementResult& output)
 {
     if (!Finite(floor.origin) || !Finite(config.stableFootLocal) || !InRange(config.boundsHeight, 0.001f, 1000.0f) ||
@@ -171,7 +171,7 @@ inline bool TryPlacement(const FloorBasis& floor, const PlacementConfig& config,
 }
 
 struct CameraProfile {
-    float tiltDegrees = 20.0f; // Compare actual normal gameplay at 15 / 20 / 25.
+    float tiltDegrees = 20.0f; // 実際の通常ゲームプレイで15 / 20 / 25を比べる。
     float distance = 64.0f;
     float fovY = 0.55f;
     float aspect = 1280.0f / 720.0f;
@@ -210,8 +210,8 @@ inline bool TryCamera(const CameraProfile& profile, const myEngine::Vector3& foc
     return true;
 }
 
-// Homogeneous conversion deliberately avoids the existing Vector4 transform's
-// implicit w handling and Vector3 transform's assert for w == 0.
+// 同次座標の変換では、既存のVector4変換の暗黙のw処理や、
+// Vector3変換の w == 0 のassertをあえて避ける。
 inline bool TryHomogeneousPoint(const myEngine::Vector3& point, const myEngine::Matrix4x4& matrix, myEngine::Vector3& output,
                                 bool requirePositiveW = false)
 {
@@ -235,8 +235,8 @@ inline bool TryHomogeneousPoint(const myEngine::Vector3& point, const myEngine::
     return true;
 }
 
-// Offscreen coordinates remain useful for framing; positive w and clip depth
-// are required. Drawing/picking policy handles the rectangle bounds separately.
+// 画面外の座標も構図の決定には役立つ。正のwとクリップ深度は必須。
+// 矩形範囲の扱いは描画やピッキングの方針で別に処理する。
 inline bool TryProject(const myEngine::Vector3& world, const myEngine::Matrix4x4& viewProjection, const myEngine::Vector2& viewport,
                        myEngine::Vector2& output, float* clipDepth = nullptr)
 {
@@ -247,9 +247,9 @@ inline bool TryProject(const myEngine::Vector3& world, const myEngine::Matrix4x4
     if (!TryHomogeneousPoint(world, viewProjection, ndc, true)) {
         return false;
     }
-    // Compare unrounded clip depth, matching the direct floor query. Rounding
-    // to float first can turn a point just beyond far into exactly1 and accept
-    // a point the displayed-VP floor query correctly rejects.
+    // 床への直接の問い合わせと合わせ、丸める前のクリップ深度で比較する。先にfloatへ
+    // 丸めると、farをわずかに超えた点がちょうど1になり、表示中のVPによる
+    // 床の問い合わせが正しく却下する点を受け入れてしまう。
     const double clipZ = double(world.x) * viewProjection.m[0][2] + double(world.y) * viewProjection.m[1][2] +
                          double(world.z) * viewProjection.m[2][2] + viewProjection.m[3][2];
     const double clipW = double(world.x) * viewProjection.m[0][3] + double(world.y) * viewProjection.m[1][3] +
@@ -269,10 +269,10 @@ inline bool TryProject(const myEngine::Vector3& world, const myEngine::Matrix4x4
     return true;
 }
 
-// An inverse of the exact displayed matrix, including the same-frame shake,
-// must be provided. The encounter jitter policy is fixed before actor update.
-// Floor picking is restricted to the displayed near/far segment, so an invisible
-// point outside the depth clip interval cannot become an attack aim target.
+// 同じフレームの揺れを含めた、表示中の行列そのものの逆行列を渡す必要がある。
+// 戦闘の揺れの方針はアクターの更新前に確定している。
+// 床のピッキングは表示中のnear/farの区間に限るため、深度のクリップ範囲外にある
+// 見えない点が攻撃の照準になることはない。
 inline bool TryScreenToFloor(const myEngine::Vector2& pixel, const myEngine::Vector2& viewport,
                              const myEngine::Matrix4x4& inverseViewProjection, float floorZ, myEngine::Vector3& output)
 {
@@ -305,11 +305,10 @@ inline bool TryScreenToFloor(const myEngine::Vector2& pixel, const myEngine::Vec
     return true;
 }
 
-// Prefer this for actual aim: solve the displayed floor directly from the same
-// float VP used to draw. A float inverse stores camera translation as the
-// difference of large terms at near.1/far5000 and loses subpixel precision even
-// when homogeneous evaluation uses doubles. This guarded2x2 floor restriction
-// avoids that inverse rounding; myEngine::Inverse still validates full invertibility.
+// 実際の照準にはこちらを使う。描画に使ったのと同じfloatのVPから表示中の床を直接解く。
+// floatの逆行列では、near 0.1/far 5000でカメラの平行移動が大きな項の差として保存され、
+// 同次座標の評価をdoubleで行ってもサブピクセルの精度が失われる。このガード付きの
+// 2x2の床への制限はその逆行列の丸めを避ける。myEngine::Inverseは引き続き完全な可逆性を検証する。
 inline bool TryScreenToFloorFromViewProjection(const myEngine::Vector2& pixel, const myEngine::Vector2& viewport,
                                                const myEngine::Matrix4x4& viewProjection, float floorZ, myEngine::Vector3& output)
 {

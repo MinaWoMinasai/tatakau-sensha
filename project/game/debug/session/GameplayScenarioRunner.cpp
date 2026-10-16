@@ -41,8 +41,8 @@ bool BossScenario(Scenario scenario)
            scenario == Scenario::BossDeath || gameplaytest::IsNeonDepthScenario(scenario);
 }
 
-// Preserve authored walls. Only the in-memory wave is replaced; points are
-// selected from the room's real free cells rather than putting actors in walls.
+// 作成済みの壁はそのまま残す。差し替えるのはメモリ上のウェーブだけで、出現位置は
+// アクターを壁に埋めないよう部屋の実際の空きセルから選ぶ。
 std::vector<tankexp::RoomPoint> ScenarioSpawnPoints(const tankexp::RoomDefinition& room, bool melee, bool boss)
 {
     std::vector<tankexp::RoomPoint> points;
@@ -94,7 +94,7 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
     try {
         if (session.GetSettings().recording.enabled) {
             Microsoft::WRL::ComPtr<ID3D12Resource> backbuffer;
-            // DirectX getters are nonconst; no device work/copy is submitted here.
+            // DirectXのゲッターは非constだが、ここではデバイスへの処理やコピーを送信しない。
             auto* writableDx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
             const HRESULT hr =
                 writableDx->GetSwapChain()->GetBuffer(writableDx->GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&backbuffer));
@@ -110,7 +110,7 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
                         "Gameplay scenarios require the initialized TANK_EXPEDITION scene.");
         const auto& settings = session.GetSettings();
         const bool boss = BossScenario(settings.scenario);
-        // 'arena' is a Developer alias for these existing authored rooms.
+        // 'arena'は、既存の作成済み部屋を指すDeveloper用の別名。
         const std::string roomId = settings.room == "arena" ? (boss ? "final_duel" : "outskirts") : settings.room;
         const auto* source = tankexp::FindRoom(world_.run.expeditionRooms_, roomId);
         RequireScenario(source && source->objective == (boss ? "boss" : "eliminate"),
@@ -164,8 +164,8 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
         if (!world_.run.expeditionMapRun_.Reset(fixture, error)) {
             throw std::runtime_error("Invalid scenario map: " + error);
         }
-        // Existing map visuals borrow definition indices. Keep valid slots and
-        // remove old edges at the frame boundary before the normal UI refresh.
+        // 既存のマップ表示は定義のインデックスを借りている。有効なスロットは残し、
+        // 通常のUI更新の前に、フレーム境界で古い辺を取り除く。
         RequireScenario(world_.run.expeditionMapVisuals_.size() >= fixture.nodes.size(),
                         "The authored map has too few initialized visual slots.");
         world_.run.expeditionMapVisuals_.resize(fixture.nodes.size());
@@ -346,15 +346,15 @@ bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
     if (world_.resources.gameplayScenarioCapturePending_) {
         if (world_.resources.gameplayScenarioCapture_.IsBusy()) {
             if (world_.resources.gameplayScenarioCaptureRecording_) {
-                // PostDraw already waits for this frame fence. Never introduce
-                // an extra TAA/history draw into a successful continuous run.
+                // PostDrawは既にこのフレームのフェンスを待っている。成功している連続実行に
+                // TAAや履歴用の描画を追加してはならない。
                 session.Fail("Recording fence did not resolve on the next Update; additional held Draw rejected.");
                 world_.bossPresentation->UpdateNeonBossVisual(0.0f);
                 session.Finish();
                 PostQuitMessage(9);
                 return true;
             }
-            // The existing freeze branch still resets renderer frame arenas.
+            // 既存の停止分岐でも、描画のフレーム用アリーナはリセットされる。
             world_.presentation.developerBloomFreeze_ = true;
             return false;
         }
@@ -403,8 +403,8 @@ bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
                 session.Fail("The actual expedition service purchase did not complete.");
             }
         }
-        // MainLoop still records its final draw before consuming WM_QUIT.
-        // Reset the visual's frame arena at this render-only boundary too.
+        // MainLoopはWM_QUITを処理する前に最後の描画を記録する。
+        // この描画だけの境界でも、表示用のフレームアリーナをリセットする。
         world_.bossPresentation->UpdateNeonBossVisual(0.0f);
         if (gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario)) {
             world_.depthValidation->FinishNeonDepthValidation();
@@ -414,9 +414,9 @@ bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
         return true;
     }
     if (world_.resources.gameplayScenarioFinishDeferred_) {
-        // SceneManager checks finished_ before calling the next Update. Let
-        // the captured old scene survive through Resolve, then freeze this
-        // render-only boundary before permitting its ordinary replacement.
+        // SceneManagerは次のUpdateを呼ぶ前にfinished_を確認する。キャプチャした古いシーンを
+        // Resolveまで残し、この描画だけの境界を固定してから
+        // 通常のシーン切り替えを許可する。
         world_.resources.gameplayScenarioFinishDeferred_ = false;
         world_.combat.finished_ = true;
         world_.presentation.developerBloomFreeze_ = true;
@@ -467,8 +467,8 @@ bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
         const bool expedition = settings.scenario == Scenario::ExpeditionTransition;
         if (expedition || settings.scenario == Scenario::StageTransition) {
             if (frame >= 120 && world_.resources.gameplayScenarioTransitionStep_ == 0) {
-                // Invoke actual damage/callbacks; ordinary room completion,
-                // credit flight and presentation transitions remain in Update.
+                // 実際のダメージ処理とコールバックを呼ぶ。通常の部屋クリア、
+                // クレジットの飛行、演出の遷移はUpdate側に残す。
                 for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs()) {
                     if (actor && !actor->IsDead()) {
                         actor->TakeDamageFromPlayer(static_cast<uint32_t>(actor->GetHp()));
@@ -619,7 +619,7 @@ void GameplayScenarioRunner::RecordGameplayScenarioFrame()
     if ((scenario == Scenario::StageTransition || scenario == Scenario::ExpeditionTransition) &&
         world_.run.expeditionMapRun_.GetActiveNodeId() == "scenario_b" && world_.run.tankExpedition_.IsCombat() &&
         !world_.run.expeditionTransition_.IsActive()) {
-        world_.resources.gameplayScenarioTransitionStep_ = 5; // Latch actual entry even if room B later clears.
+        world_.resources.gameplayScenarioTransitionStep_ = 5; // 後で部屋Bがクリアされても、実際に入ったことを記録しておく。
     }
     if (session.ShouldRecordCompletedFrame()) {
         char name[32]{};
@@ -662,8 +662,8 @@ void GameplayScenarioRunner::QueueGameplayScenarioCapture(const std::string& nam
     }
     world_.resources.gameplayScenarioCapture_.Request(directory, name, session.MakeMetadata());
     world_.resources.gameplayScenarioCapturePending_ = true;
-    // Sparse comparisons retain the original policy. A continuous request is
-    // pending readback only and never changes the standard temporal profile.
+    // 間引き比較は元の方針を保つ。連続記録の要求は読み戻し待ちになるだけで、
+    // 標準のテンポラル設定は変えない。
     if (!continuousRecording) {
         world_.presentation.developerBloomFreeze_ = true;
     }

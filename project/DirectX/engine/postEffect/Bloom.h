@@ -30,7 +30,7 @@ public:
     void SetTransientPulse(float bloomBoost, float chromAbAmount, const Vector2& center, float radius, float width, float strength);
     /// @brief 画面演出状態を設定する。
     void SetScreenEffectState(const IScene::ScreenEffectState& state);
-    // Scene defaults are inactive. Only Developer Showcase supplies a camera/settings.
+    // シーンの既定値では無効。カメラや設定を渡すのはDeveloper Showcaseだけ。
     void SetDeveloperShowcaseState(const IScene::DeveloperShowcaseState& state);
 
     const BloomParam& GetLastCompositeParams() const
@@ -88,7 +88,7 @@ private:
     float timer_ = 0.0f;
     bool manualGrayscale_ = false;
     bool forceGrayscale_ = false;
-    int fullScreenSmoothingMode_ = 0; // 0: Off, 1: Gaussian, 2: 5x5 Box
+    int fullScreenSmoothingMode_ = 0; // 0: オフ、1: ガウス、2: 5x5ボックス
     float baseGaussianIntensity_ = 0.0f;
     float baseFullScreenBoxBlurBlend_ = 0.0f;
     float gaussianOverrideIntensity_ = 0.0f;

@@ -201,8 +201,8 @@ void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset)
     if (qualityObjectRT_ && ((drawParam.bloomMode == 1) != (cachedFilterParam_.bloomMode == 1))) {
         throw std::logic_error("A Bloom capture with separate quality resolution must be recaptured after a Legacy mode switch.");
     }
-    // A before/after switch must not reuse a texture filtered by the other mode.
-    // The source capture stays resident; only its bloom is regenerated here.
+    // 前後の切り替えで、もう一方のモードでフィルタしたテクスチャを使い回してはならない。
+    // 元のキャプチャは保持したまま、ここではBloomだけを作り直す。
     if (cachedPresentationGeneration_ != BloomPyramid::GetPresentationGeneration() || drawParam.bloomMode != cachedFilterParam_.bloomMode ||
         drawParam.threshold != cachedFilterParam_.threshold || drawParam.bloomSoftKnee != cachedFilterParam_.bloomSoftKnee ||
         drawParam.bloomScatter != cachedFilterParam_.bloomScatter || drawParam.bloomRadius != cachedFilterParam_.bloomRadius ||
@@ -233,8 +233,8 @@ void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset)
 
 void ObjectPostEffect::FinishCapture(FinishMode mode, bool outputToHdr)
 {
-    // Fullscreen composition touches color only; restore the complete MRT set
-    // afterwards so subsequent opaque draws still contribute normals/materials.
+    // 全画面の合成は色だけを扱う。後続の不透明描画が法線やマテリアルを書き込めるよう、
+    // 合成後にMRTをすべて元に戻す。
     struct TargetRestore {
         DirectXCommon* dx;
         DirectXCommon::RenderTargetState state;
@@ -259,13 +259,13 @@ void ObjectPostEffect::FinishCapture(FinishMode mode, bool outputToHdr)
     if (mode == FinishMode::BloomOnlyCache) {
         return;
     }
-    // Update supplies an immutable GPU snapshot for this draw, including LDR vs
-    // HDR output and the effective comparison mode. The public settings stay intact.
+    // Updateはこの描画用の不変なGPUスナップショット（LDR/HDR出力や実際の比較モードを含む）を
+    // 用意する。公開している設定値はそのまま保つ。
     cb_->Update(drawParam);
     const auto bloomHandle = srvManager_->GetGPUDescriptorHandle(cachedBloomSrv_);
     const auto drawUnshiftedBloom = [&]() {
-        // Only DrawCachedBloom uses these fields as an explicit UV offset.
-        // Normal composition retains its filter settings but needs zero offset.
+        // これらのフィールドを明示的なUVオフセットとして使うのはDrawCachedBloomだけ。
+        // 通常の合成ではフィルタ設定は保ったまま、オフセットを0にする。
         BloomParam bloomAddParam = drawParam;
         bloomAddParam.boxBlurRadius = 0.0f;
         bloomAddParam.fullScreenBoxBlurBlend = 0.0f;
@@ -279,9 +279,9 @@ void ObjectPostEffect::FinishCapture(FinishMode mode, bool outputToHdr)
     if (mode == FinishMode::CompositeAndAdd) {
         postEffect_->DrawObjectComposite(activeCaptureRT_->GetGPUHandle(), bloomHandle, outputToHdr);
         if (drawParam.bloomMode != 1 && drawParam.outlineWidth <= 0 && drawParam.outlineBloomIntensity <= 0) {
-            // Composite already supplied the sharp source. OutlineAdd's no-outline
-            // fallback would add it again, especially after OFF removes the halo.
-            // Keep the historical Legacy path while adding only new filtered glow.
+            // 鮮明な元画像はCompositeで既に描かれている。OutlineAddの輪郭なし時の代替処理では
+            // それが二重に加算されてしまう（特にOFFでハローを消した後）。
+            // 従来のLegacy経路は残したまま、新しくフィルタした発光だけを加える。
             drawUnshiftedBloom();
             return;
         }
@@ -313,8 +313,8 @@ uint32_t ObjectPostEffect::RenderBloom(const BloomParam& drawParam)
         throw std::logic_error("Bloom mode must remain fixed between BeginCapture and EndCapture.");
     }
 
-    // These opaque full-target filters replace every pixel, including alpha.
-    // Keep the capture clear in BeginCapture, but do not clear filter outputs.
+    // これらの不透明な全画面フィルタはアルファも含めて全ピクセルを置き換える。
+    // BeginCaptureでのキャプチャのクリアは残すが、フィルタの出力はクリアしない。
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
     dxCommon_->SetViewport(halfWidth_, halfHeight_);

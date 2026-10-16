@@ -17,7 +17,7 @@
 #endif
 
 namespace gameplay {
-// Developer fixtures observe actual actors and declare every scripted shortcut.
+// Developer用フィクスチャは実際のアクターを観測し、スクリプトによる近道はすべて明示する。
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 
 namespace {
@@ -172,7 +172,7 @@ void DepthValidation::InitializeNeonDepthValidation()
     RequireDepth(world_.resources.neonBossVisual_ != nullptr, "Depth fixture requires the initialized production Visual owner.");
     world_.resources.neonBossVisual_->SetEnabled(world_.resources.neonBossVisualEnabled_);
     auto profile =
-        world_.resources.neonBossVisual_->GetDepthProfile(); // Read-only current config; never replace with a fabricated default.
+        world_.resources.neonBossVisual_->GetDepthProfile(); // 現在の設定を読み取るだけ。作った既定値で置き換えてはならない。
     profile.reducedMotion = settings.depthFixture.reducedMotion;
     RequireDepth(world_.resources.neonBossVisual_->SetDepthProfile(profile), "Valid fixture reduced-motion profile was rejected.");
     world_.resources.neonDepthPreviousBossHp_ = world_.resources.enemy_->GetHp();
@@ -199,7 +199,7 @@ nlohmann::json DepthValidation::MakeNeonDepthValidationConditions() const
         }
         return false;
     };
-    // IScene exposes this observing query as nonconst; it does not mutate Scene.
+    // ISceneはこの観測用の問い合わせを非constで公開しているが、Sceneは変更しない。
     const auto showcase = world_.gameplayQueries->GetDeveloperShowcaseState();
     const auto* window = myEngine::WinApp::GetInstance();
     const int clientWidth = window->GetClientWidth(), clientHeight = window->GetClientHeight();
@@ -328,8 +328,8 @@ void DepthValidation::PrepareNeonDepthValidation()
             RequireDepth(world_.resources.enemy_->GetHp() == 0 && world_.resources.enemy_->IsDead(),
                          "Actual Enemy::Die did not reach HP0.");
         } else if (fixture.probe == "intro_skip") {
-            // Use the same requested input consumed by the normal keyboard/GUI
-            // path, including its zero-tick player/combat lock on the skip frame.
+            // 通常のキーボード/GUI経路が使うのと同じ入力要求を使う。
+            // スキップしたフレームでの、プレイヤーと戦闘の0tickロックも含む。
             world_.resources.neonDepthSkipRequested_ = true;
             operation("queued_intro_skip_input");
         } else if (fixture.probe == "multidraw" || fixture.probe == "stationary_damage") {
@@ -368,8 +368,8 @@ void DepthValidation::PrepareNeonDepthValidation()
             const bool retreat = before.phase == neondepth::Phase::Locked || before.phase == neondepth::Phase::Airborne ||
                                  before.phase == neondepth::Phase::Active;
             if (retreat) {
-                // Read the committed plan. This helper changes only regular input,
-                // never the actual player position, shape or attack clock.
+                // 確定した計画を読む。この補助処理が変えるのは通常の入力だけで、
+                // プレイヤーの実際の位置、形状、攻撃の時計は変えない。
                 myEngine::Vector2 away{position.x - before.plan.lockedTarget[0], position.y - before.plan.lockedTarget[1]};
                 float length = std::sqrt(away.x * away.x + away.y * away.y);
                 if (length < .001f) {
@@ -436,8 +436,8 @@ void DepthValidation::RecordNeonDepthValidation()
                      {"bossDefeatHandled", world_.combat.bossDefeatHandled_},
                      {"playerDeathHandled", world_.combat.playerDeathHandled_},
                      {"actualCoreDamageExcludingInjection", world_.resources.neonDepthRealCoreDamage_}};
-    // Record after the actual Update. Draw totals include submitted prior-frame
-    // draws; this observer never updates/allocates/releases presentation resources.
+    // 実際のUpdateの後に記録する。描画数には前フレームで送信した描画も含む。
+    // この観測処理は描画用リソースの更新・確保・解放を一切行わない。
     json effects = nullptr;
     if (world_.resources.neonDepthEffects_) {
         const auto& stats = world_.resources.neonDepthEffects_->GetStats();
@@ -500,8 +500,8 @@ void DepthValidation::DrawNeonDepthValidation()
     const auto playerHp = world_.resources.player_->GetHp();
     const auto primary = world_.resources.player_->GetPrimaryAttackCount(), damage = world_.resources.player_->GetDamageTakenCount();
     const auto position = world_.resources.player_->GetWorldPosition();
-    // The ordinary Update reset the arena after the previous frame fence.
-    // Each Draw uses a distinct slot; do not BeginFrame/Update between commands.
+    // 通常のUpdateは前フレームのフェンス通過後にアリーナをリセットしている。
+    // Drawごとに別のスロットを使う。コマンドの間でBeginFrameやUpdateを呼ばないこと。
     world_.resources.neonBossVisual_->Draw();
     world_.resources.neonBossVisual_->Draw();
     const auto afterPosition = world_.resources.player_->GetWorldPosition();

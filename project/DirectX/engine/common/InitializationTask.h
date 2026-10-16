@@ -5,8 +5,8 @@
 #include <utility>
 
 namespace myEngine {
-// A main-thread initialization sequence, resumed once per frame. Suspension
-// retains local variables; destruction safely releases even a partial scene.
+// メインスレッドで1フレームに1回ずつ再開する初期化シーケンス。中断してもローカル変数は保持され、
+// 破棄すると途中まで作ったシーンも安全に解放される。
 class InitializationTask {
 public:
     struct promise_type {

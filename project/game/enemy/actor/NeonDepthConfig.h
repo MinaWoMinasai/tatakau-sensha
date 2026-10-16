@@ -1,5 +1,5 @@
 #pragma once
-// Strict transactional encounter settings; missing optional fields use defaults.
+// トランザクションとして厳密に扱う戦闘設定。省略可能な項目が無ければ既定値を使う。
 #include "game/enemy/actor/NeonDepthCombat.h"
 #include "game/enemy/visual/NeonDepthPlacement.h"
 #include "game/enemy/visual/NeonDepthPresentation.h"
@@ -178,7 +178,7 @@ inline bool ReadConfig(const nlohmann::json& document, Config& output, std::stri
     }
     catch (const std::exception& exception) {
         error = std::string(exception.what()).substr(0, 256);
-        return false; // Caller keeps the previous valid settings or defaults.
+        return false; // 呼び出し側は直前の有効な設定か既定値を保つ。
     }
 }
 } // namespace neondepth

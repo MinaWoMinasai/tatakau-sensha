@@ -142,14 +142,14 @@ void GameplayHud::DrawBossCinematic()
     if (cine.titleMode == 0 || cine.titleAlpha < 0.01f || ui.cinematicTitleMode_ != cine.titleMode) {
         return;
     }
-    // The title slides in slightly while it fades, then holds.
+    // タイトルはフェードしながら少しスライドして入り、その後は止まる。
     const float settle = 1.0f - std::exp(-cine.titleAge * 5.0f);
     const float alpha = (std::clamp)(cine.titleAlpha, 0.0f, 1.0f);
     ui.cinematicTitle_->SetPosition({width * 0.5f, height * 0.72f + (1.0f - settle) * 18.0f});
     ui.cinematicTitle_->SetAlpha(alpha);
     ui.cinematicSubtitle_->SetPosition({width * 0.5f, height * 0.72f + 54.0f});
     ui.cinematicSubtitle_->SetAlpha(alpha * settle);
-    // Below the title, in the lower letterbox where it never covers the actors.
+    // タイトルの下、アクターを覆わない下側のレターボックス内に置く。
     if (cine.titleMode == 1) {
         ui.cinematicSubtitle_->SetPosition({width * 0.5f, height - bar * 0.5f});
     }
@@ -179,7 +179,7 @@ void GameplayHud::DrawSprite()
         vertices.clear();
     }
     if (world_.combat.showFollowHpBars_) {
-        // The neon player draws its HP / stamina as segmented arcs around the body instead.
+        // ネオン表示のプレイヤーは、代わりにHP/スタミナを本体を囲む分割された弧で描く。
         const bool playerArcs = world_.run.prototypeRun_ && world_.presentation.playerNeonRenderMode_ == 1;
         if (!playerArcs && !world_.resources.player_->IsDead() && (!world_.run.expeditionRun_ || world_.run.tankExpedition_.IsCombat())) {
             DrawFollowHpBar(world_.resources.player_.get(), world_.resources.player_->GetWorldPosition(), world_.resources.player_->GetHp(),

@@ -125,7 +125,7 @@ void CombatFlow::BeginBossDefeatSequence()
         world_.arenaRunController->RefreshTankRunUi();
     }
     world_.combat.bossDefeatHandled_ = true;
-    // The final boss plays a staged finale (push-in, burst chain, closing title) before the result.
+    // 最終ボスは、結果画面の前に段階的なフィナーレ（寄り、連続爆発、締めのタイトル）を再生する。
     const bool staged = world_.resources.neonDepthCameraScoped_;
     world_.combat.combatFlow_.BeginBossDefeat(world_.combat.screenEffectDirector_.GetConfig().dissolveSpeed,
                                               world_.combat.screenEffectDirector_.GetConfig().bossDefeatImpactDelay, staged ? 4.6f : 0.0f);

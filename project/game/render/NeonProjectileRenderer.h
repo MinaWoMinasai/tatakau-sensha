@@ -6,7 +6,7 @@
 
 class Bullet;
 
-// Presentation dimensions are world units and never alter a collider radius.
+// 演出の寸法はワールド単位で、コライダーの半径は変えない。
 struct NeonProjectileParams {
     bool enabled = true;
     float headLength = 0.8f;
@@ -20,8 +20,8 @@ struct NeonProjectileParams {
     float haloAlpha = 0.18f;
 };
 
-// Adds a compact pale tip and colored halo beside the existing history ribbon.
-// The caller retains the Trail pass and rebinds the following renderer's state.
+// 既存の履歴リボンの横に、小さく淡い先端と色付きのハローを加える。
+// 呼び出し側はTrailパスを保ち、後続の描画の状態を設定し直す。
 class NeonProjectileRenderer {
 public:
     struct DrawStats {
@@ -40,10 +40,10 @@ public:
         return params_;
     }
 
-    // Once per rendered frame after the existing frame Fence is complete.
-    // Frozen gameplay still calls this from Draw; no animation/time is advanced.
+    // 既存のフレームフェンスの完了後、描画フレームごとに1回呼ぶ。
+    // ゲームプレイの停止中もDrawから呼ばれるが、アニメーションや時間は進めない。
     void BeginFrame(const std::vector<Bullet*>& bullets, const myEngine::Vector3& cameraForward);
-    // Once per frame in the existing Trail capture or compatible Scene pass.
+    // 既存のTrailキャプチャか互換のシーンパスで、フレームごとに1回呼ぶ。
     void Draw(const myEngine::Matrix4x4& viewProjection);
 
     const DrawStats& GetStats() const

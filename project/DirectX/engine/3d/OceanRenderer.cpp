@@ -467,8 +467,8 @@ void OceanRenderer::Update(float time, Camera& camera, DebugCamera& debugCamera,
     }
     parameters_.inverseViewProjection = Inverse(unjitteredViewProjection);
 
-    // Only the finite grid follows the camera. Ocean.VS evaluates every wave
-    // from the resulting world position, so this movement cannot drag the pattern.
+    // カメラに追従するのは有限のグリッドだけ。Ocean.VSは移動後のワールド座標から
+    // すべての波を評価するため、この移動で波の模様が引きずられることはない。
     parameters_.gridOrigin.x = parameters_.cameraPosition.x;
     parameters_.gridOrigin.y = parameters_.baseHeight;
     parameters_.gridOrigin.z = parameters_.cameraPosition.z;

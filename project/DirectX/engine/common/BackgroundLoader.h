@@ -14,10 +14,10 @@
 #include <objbase.h>
 
 namespace myEngine {
-// CPU-only file/decode work. GPU resources, descriptors, scene state and command
-// lists must stay on the main thread. Decoding (PNG/mips, Assimp) is CPU bound,
-// so use spare cores while leaving one for the main thread; 2..4 workers bound
-// disk/memory contention.
+// CPUだけで行うファイル読み込み・デコード処理。GPUリソース、ディスクリプタ、シーン状態、
+// コマンドリストはメインスレッドで扱うこと。デコード（PNGやミップ、Assimp）はCPU負荷が高いため、
+// メインスレッド用に1コア残して空きコアを使う。ワーカーを2..4個に抑えて
+// ディスクやメモリの取り合いを防ぐ。
 class BackgroundLoader {
 public:
     static BackgroundLoader& Get()
@@ -44,7 +44,7 @@ public:
         return result;
     }
 
-    // Drop unstarted work and join active decodes before managers/COM are freed.
+    // マネージャーやCOMを解放する前に、未着手の処理を捨て、実行中のデコードの終了を待つ。
     void Shutdown()
     {
         {
@@ -87,7 +87,7 @@ private:
                             job = std::move(jobs_.front());
                             jobs_.pop();
                         }
-                        job(); // packaged_task transports exceptions to its future.
+                        job(); // packaged_taskは例外をfutureへ伝える。
                     }
                     if (SUCCEEDED(com)) {
                         CoUninitialize();

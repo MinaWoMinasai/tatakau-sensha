@@ -2,8 +2,8 @@
 #include "NeonDepthCombat.h"
 #include <span>
 
-// Domain-specific XY wall clipping; the Stage adapter supplies copied
-// actual merged boxes. No myEngine vector, actor, renderer or random-stream clone.
+// この用途専用のXY平面上の壁による切り詰め。Stageアダプタが実際に結合した箱の
+// コピーを渡す。myEngineのベクトル、アクター、描画、乱数ストリームの複製は持たない。
 namespace neondepth {
 struct FloorBox {
     Point minimum{}, maximum{};
@@ -14,10 +14,10 @@ inline bool Valid(const FloorBox& box)
     return Bounded(box.minimum) && Bounded(box.maximum) && box.minimum[0] < box.maximum[0] && box.minimum[1] < box.maximum[1];
 }
 
-// Stage already leaves a .01 collision skin outside the physical radius.
-// Adding that skin again makes a legal wall-hugging start overlap every
-// path's expanded box at t=0. Keep physical radius clearance and reject
-// actual wall contact/crossing; no hazard or escape margin is changed.
+// Stageは既に物理半径の外側に0.01の衝突用の余白を残している。
+// その余白をもう一度足すと、壁沿いの正しい開始位置が t=0 の時点で
+// すべての経路の拡張した箱と重なってしまう。物理半径分の隙間は保ちつつ、
+// 実際の壁への接触や貫通は拒否する。危険範囲や回避の余裕は変えない。
 inline bool ClearFloorPath(Point from, Point to, float radius, std::span<const FloorBox> actualWalls)
 {
     if (!Bounded(from) || !Bounded(to) || !Within(radius, 0, 8) || actualWalls.size() > 4096) {
@@ -32,9 +32,9 @@ inline bool ClearFloorPath(Point from, Point to, float radius, std::span<const F
     return true;
 }
 
-// Stop the beam centerline before an obstacle expanded by the capsule radius.
-// Clipping only the centerline to the raw wall front leaves its rounded end
-// reaching through the wall. The same stored result is used by draw and hit.
+// カプセル半径分だけ膨らませた障害物の手前でビームの中心線を止める。
+// 中心線を生の壁面で切るだけだと、丸い先端が壁を突き抜けてしまう。
+// 保存した同じ結果を描画と当たり判定の両方で使う。
 inline std::optional<Segment> ClipGroundBeamAgainstBox(const Segment& desired, const FloorBox& wall)
 {
     Segment result = desired;
@@ -77,8 +77,8 @@ inline std::optional<Segment> ClipGroundBeamAgainstBox(const Segment& desired, c
 inline std::optional<Segment> ClipGroundBeam(const Segment& desired, std::span<const FloorBox> actualWalls)
 {
     Segment result = desired;
-    // Real merged Stage geometry is bounded once per encounter. Rejecting an
-    // invalid/oversized cache closes the hazard instead of ignoring a wall.
+    // 実際に結合したStageの形状は戦闘ごとに1回だけ範囲を調べる。不正または
+    // 大きすぎるキャッシュは、壁を無視するのではなく攻撃判定を閉じて拒否する。
     if (!Valid(desired) || actualWalls.size() > 4096) {
         return std::nullopt;
     }
@@ -95,10 +95,10 @@ inline std::optional<Segment> ClipGroundBeam(const Segment& desired, std::span<c
     return result;
 }
 
-// Keep a centered sweep when it is escapable. At close range the conservative
-// warning union can cover every reachable exit, so also try the locked target
-// on either sweep edge. All three use identical range, thickness, duration and
-// clipping; the Stage adapter's original escape policy accepts or rejects them.
+// 回避可能なら中央の掃引を使う。近距離では保守的な警告の和集合が
+// 到達可能な出口をすべて塞ぐことがあるため、掃引の両端で固定した標的も試す。
+// 3つとも射程・太さ・時間・切り詰めは同じで、
+// Stageアダプタの元の回避方針で採用か却下かを決める。
 template <class Accept>
 inline std::optional<BeamPlan> PlanGroundBeam(Point origin, Point lockedTarget, const Tuning& tuning, std::span<const FloorBox> actualWalls,
                                               Accept accept)

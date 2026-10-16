@@ -29,12 +29,12 @@ float4 SampleNeonFeatureMask(float2 uv, float2 uvDx, float2 uvDy)
 float2 ReconstructNeonLineCoverage(float2 uv, float2 uvDx, float2 uvDy, float4 mask)
 {
     float2 coverage = float2(mask.r, gFeatureMaskRenderMode == 0 ? 0.0f : mask.b);
-    // These root-constant decisions are uniform across the draw. All sampling and distance
-    // derivatives finish before alpha clip or any fragment-dependent branch in the body.
+    // これらのルート定数による分岐は描画全体で一様。サンプリングと距離の微分は、
+    // アルファのclipや本体のフラグメント依存の分岐より前にすべて済ませる。
     if (gFeatureMaskRenderMode == 2 && gHasDistanceMask != 0)
     {
-        // Average distance MIPs do not preserve thin stroke regions. Reconstruct from level 0
-        // and crossfade to separately filtered area coverage as the footprint gets smaller.
+        // 距離のMIPの平均では細い線の領域が保たれない。レベル0から復元し、
+        // 範囲が小さくなるにつれて、別にフィルタした面積カバレッジへクロスフェードする。
         float4 distanceSample = gFeatureDistanceTexture.SampleLevel(gSurfaceSampler, uv, 0);
         float distanceTexels = (distanceSample.r - 0.5f) * (2.0f * gSdfRangeTexels);
         float distancePerPixel = max(length(float2(ddx(distanceTexels), ddy(distanceTexels))), 0.125f);

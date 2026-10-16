@@ -27,7 +27,7 @@ public:
 
     /// @brief テクスチャを読み込む。
     void LoadTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
-    // CPU decoding runs on BackgroundLoader; registration/upload runs on main.
+    // CPUでのデコードはBackgroundLoaderで行い、登録とアップロードはメインスレッドで行う。
     void PreloadTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
     void PumpPreloads(unsigned maxUploads = 1);
     bool ArePreloadsReady() const;

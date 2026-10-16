@@ -51,19 +51,19 @@ void ApplySurfaceMaterial(myEngine::Object3d& object, const myEngine::Vector4& c
 {
     object.SetColor(color);
     object.SetLighting(true);
-    object.SetLightingMode(2); // Existing Cook-Torrance/Scene normal + material output.
+    object.SetLightingMode(2); // 既存のCook-Torrance/シーンの法線 + マテリアル出力。
     object.SetMetallic(metallic);
     object.SetRoughness(roughness);
     object.SetAmbientOcclusion(1.0f);
     object.SetEmissive({0.0f, 0.0f, 0.0f}, 0.0f);
     object.SetEnvironmentCoefficient(0.10f);
     object.SetIBLIntensity(0.10f, 0.16f);
-    object.SetShadowReceiveStrength(0.0f); // No stage shadow-map pass currently exists.
+    object.SetShadowReceiveStrength(0.0f); // 現在、ステージ用のシャドウマップのパスは無い。
     object.SetNormalDetail(0.0f, 1.0f);
     object.SetPointLightPosition({-10000.0f, -10000.0f, -10000.0f});
     object.Update();
-    // Update copies the global direction. Override only this object's key light,
-    // after its matrices are complete; actors and the shadow camera stay unchanged.
+    // Updateは全体のライト方向をコピーする。行列がそろった後で、このオブジェクトの
+    // キーライトだけを上書きする。アクターと影用のカメラは変えない。
     object.SetDirectionalLightDirection({-0.40f, -0.55f, 0.80f});
     object.SetInsensity(lightIntensity);
 }
@@ -83,7 +83,7 @@ uint32_t Stage::DrawSurfaceFloor(const stagesurface::Settings& settings, const m
     if (!surfaceFloor_ || !settings.enabled || !settings.floorEnabled) {
         return 0;
     }
-    // Include every cell, even empty cells, plus the existing camera visibility area.
+    // 空のセルも含めたすべてのセルと、既存のカメラの可視範囲を含める。
     float minX = -MapChip::kBlockWidth * 0.5f, minY = -MapChip::kBlockHeight * 0.5f;
     float maxX = MapChip::kBlockWidth * (MapChip::kNumBlockHorizontal - 0.5f);
     float maxY = MapChip::kBlockHeight * (MapChip::kNumBlockVirtical - 0.5f);
@@ -244,7 +244,7 @@ const std::vector<SurfaceWall>& Stage::GetSurfaceWalls(const stagesurface::Setti
     surfaceWallHash_ = hash;
     surfaceWalls_.clear();
     const auto rectangles = stagesurface::MergeWallCells(cells, MapChip::kNumBlockHorizontal, MapChip::kNumBlockVirtical);
-    // The outermost strips of the map are drawn as part of the continuous exterior rampart.
+    // マップの最も外側の帯は、外周を囲む連続した城壁の一部として描く。
     int minCellX = MapChip::kNumBlockHorizontal, minCellY = MapChip::kNumBlockVirtical, maxCellX = -1, maxCellY = -1;
     for (const auto& rectangle : rectangles) {
         const int x = static_cast<int>(rectangle.x), y = static_cast<int>(rectangle.y);

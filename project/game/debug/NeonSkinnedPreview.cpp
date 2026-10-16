@@ -68,8 +68,8 @@ nlohmann::json ReadGlbMetadata()
 
 NeonSkinnedPreview::~NeonSkinnedPreview()
 {
-    // Scene teardown occurs after its final frame's fence has completed and
-    // before the engine-owned descriptor manager is destroyed.
+    // シーンの破棄は、最終フレームのフェンスが完了した後、かつ
+    // エンジンが所有するディスクリプタ管理が破棄される前に行われる。
     if (model_) {
         dissolve_.Reset(*model_);
     }
@@ -99,9 +99,9 @@ NeonSkinnedPreview::ResourceLifecycleValidation NeonSkinnedPreview::ValidateReso
         return result;
     }
     result.initialDescriptors = descriptors->GetAllocatedCount();
-    // Embedded/material textures intentionally outlive each owner. Measure the
-    // baseline after this warm-up owner is destroyed, rather than treating the
-    // shared cache's first load as an instance leak.
+    // 埋め込みテクスチャやマテリアルのテクスチャは、意図的に各所有者より長く残る。
+    // 共有キャッシュの初回読み込みをインスタンスのリークと見なさないよう、
+    // このウォームアップ用の所有者を破棄した後で基準値を計測する。
     {
         NeonSkinnedPreview warmup;
         warmup.Initialize(camera, debugCamera);
@@ -213,8 +213,8 @@ void NeonSkinnedPreview::Load()
         myEngine::StartupTrace::Count("neon_preview.weight_assignments", model_->GetSkinCluster().GetAssignedInfluenceCount());
     }
     catch (const std::exception& error) {
-        // A failed model/pipeline load can already own instance descriptors.
-        // Release those before a later Load retry replaces the model/renderer.
+        // モデルやパイプラインの読み込みに失敗しても、インスタンス用ディスクリプタを既に持っていることがある。
+        // 後でLoadを再試行してモデルや描画を置き換える前に、それらを解放する。
         ReleaseResources();
         enabled_ = false;
         loadError_ = error.what();
@@ -257,7 +257,7 @@ void NeonSkinnedPreview::Update(float deltaTime)
         return;
     }
     UpdateDissolveSequence(false);
-    // Recording continues with F12 hidden. The clip trigger belongs to Update, not the UI.
+    // F12を隠しても録画は続く。クリップの開始はUIではなくUpdateが担当する。
     if (showcaseSequence_ && showcaseSequenceFrame_ >= 75 && !showcaseSequenceAttackStarted_) {
         neonpreview::SelectAnimation(*model_, neonpreview::Clip::Attack);
         showcaseSequenceAttackStarted_ = true;
@@ -805,9 +805,9 @@ void NeonSkinnedPreview::EnterShowcase()
     if (!ready_) {
         return;
     }
-    ResetDissolve(); // A new Showcase World cannot inherit a plane computed for the normal Preview World.
+    ResetDissolve(); // 新しいShowcase Worldは、通常のPreview World用に計算した平面を引き継げない。
     if (dissolve_.IsActive()) {
-        return; // Protect the snapshot if an unexpected playback-restore failure occurred.
+        return; // 再生状態の復元で予期しない失敗が起きた場合でも、スナップショットを保護する。
     }
     checkpoint_ = {enabled_,
                    neonMode_,
@@ -986,7 +986,7 @@ void NeonSkinnedPreview::FinishShowcaseComparison(const std::string& status)
 
 void NeonSkinnedPreview::ApplyRecommendedBloomPresentation()
 {
-    // Increase the surrounding glow without changing the source line/core settings.
+    // 元の線や芯の設定は変えずに、周囲の発光だけを強める。
     showcaseBloomMode_ = 2;
     showcaseBloomThreshold_ = 0.65f;
     showcaseBloomSoftKnee_ = 0.5f;
@@ -1002,7 +1002,7 @@ void NeonSkinnedPreview::StartBloomComparison()
         !model_->IsAnimationPaused() || showcaseOrbit_ || dissolve_.IsPlaying()) {
         return;
     }
-    // Only the Bloom mode and output diagnostic change; sampling and dissolve are already paused.
+    // 変わるのはBloomモードと出力診断だけ。サンプリングとディゾルブは既に停止している。
     bloomComparisonOriginalMode_ = showcaseBloomMode_;
     bloomComparisonOriginalDiagnostic_ = showcaseDiagnostic_;
     bloomComparisonDirectory_ =
@@ -1070,7 +1070,7 @@ void NeonSkinnedPreview::ResetDissolve()
     }
     if (dissolve_.Reset(*model_)) {
         params_.dissolve = dissolve_.GetParams();
-        restorePoseThisFrame_ = true; // First restored frame samples the saved time/blend without advancing it.
+        restorePoseThisFrame_ = true; // 復元後の最初のフレームは、保存した時刻とブレンド値を進めずにそのまま読む。
     }
 }
 
@@ -1903,7 +1903,7 @@ void NeonSkinnedPreview::DrawShowcaseWindow()
     ImGui::SetNextWindowPos({12, 45}, ImGuiCond_FirstUseEver);
     const float availableHeight = (std::max)(200.0f, ImGui::GetIO().DisplaySize.y - 80.0f);
     ImGui::SetNextWindowSize({510, (std::min)(760.0f, availableHeight)}, ImGuiCond_FirstUseEver);
-    // Apply the height cap to an existing imgui.ini size too; leave its user-selected width free.
+    // 既存のimgui.iniのサイズにも高さの上限を適用する。ユーザーが選んだ幅はそのままにする。
     ImGui::SetNextWindowSizeConstraints({0, 200}, {(std::numeric_limits<float>::max)(), availableHeight});
     const bool gpuCapture = myEngine::RuntimeProfiler::Get().IsCaptureActive();
     bool open = true;
