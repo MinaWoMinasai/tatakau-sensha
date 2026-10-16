@@ -1,39 +1,36 @@
 #include "SpriteCommon.h"
 #include "TextureManager.h"
 
-namespace cg2 {
+namespace myEngine {
 
 SpriteCommon* SpriteCommon::GetInstance()
 {
-	static SpriteCommon instance;
-	return &instance;
+    static SpriteCommon instance;
+    return &instance;
 }
 
 void SpriteCommon::Initialize(DirectXCommon* dxCommon)
 {
-	if (dxCommon_ != nullptr) {
-		return;
-	}
-	dxCommon_ = dxCommon;
-
+    if (dxCommon_ != nullptr) {
+        return;
+    }
+    dxCommon_ = dxCommon;
 }
 
 void SpriteCommon::PreDraw(BlendMode blendMode)
 {
-
-	TextureManager::GetInstance()->PreDraw();
-	dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject(blendMode).root_.GetSignature().Get());
-	dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObject(blendMode).graphicsState_.Get()); // PSOを設定
-	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
+    TextureManager::GetInstance()->PreDraw();
+    dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObject(blendMode).root_.GetSignature().Get());
+    dxCommon_->GetList()->SetPipelineState(dxCommon_->GetPSOObject(blendMode).graphicsState_.Get()); // PSOを設定
+    dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 void SpriteCommon::PreDrawForScene(BlendMode blendMode)
 {
-	TextureManager::GetInstance()->PreDraw();
-	dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObjectForScene(blendMode).root_.GetSignature().Get());
-	dxCommon_->GetList()->SetPipelineState(dxCommon_->GetObjectScenePipeline(blendMode));
-	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    TextureManager::GetInstance()->PreDraw();
+    dxCommon_->GetList()->SetGraphicsRootSignature(dxCommon_->GetPSOObjectForScene(blendMode).root_.GetSignature().Get());
+    dxCommon_->GetList()->SetPipelineState(dxCommon_->GetObjectScenePipeline(blendMode));
+    dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
-} // namespace cg2
+} // namespace myEngine

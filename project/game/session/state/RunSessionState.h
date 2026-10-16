@@ -56,7 +56,7 @@ struct RunSessionState {
 
     std::unordered_map<std::string, int> expeditionPurchases_;
 
-    // Retain purchased effects if their source is renamed/deleted while authoring.
+    // 作成中に元データの名前変更や削除があっても、購入済みの効果は保持する。
     std::unordered_map<std::string, tankcontent::Upgrade> expeditionPurchasedModules_;
 
     int expeditionServicePage_ = 0, expeditionBlueprint_ = 0;
@@ -85,11 +85,12 @@ struct RunSessionState {
 
     std::string expeditionPendingNode_;
 
-    cg2::Vector4 expeditionTransitionColor_{0.3f, 0.9f, 1, 1};
+    myEngine::Vector4 expeditionTransitionColor_{0.3f, 0.9f, 1, 1};
 
-    std::unique_ptr<cg2::Sprite> expeditionCurtain_, expeditionTransitionPanel_, expeditionTransitionRail_, expeditionTransitionProgress_;
+    std::unique_ptr<myEngine::Sprite> expeditionCurtain_, expeditionTransitionPanel_, expeditionTransitionRail_,
+        expeditionTransitionProgress_;
 
-    std::unique_ptr<cg2::TextLabel> expeditionTransitionTitle_, expeditionTransitionDetail_;
+    std::unique_ptr<myEngine::TextLabel> expeditionTransitionTitle_, expeditionTransitionDetail_;
 
     float expeditionPresentationClock_ = 0, expeditionUiErrorAge_ = 0;
 
@@ -107,34 +108,34 @@ struct RunSessionState {
 
     std::vector<MapEdgeVisual> expeditionMapEdges_;
 
-    std::vector<std::unique_ptr<cg2::Sprite>> expeditionMapGrid_;
+    std::vector<std::unique_ptr<myEngine::Sprite>> expeditionMapGrid_;
 
-    std::unique_ptr<cg2::TextLabel> expeditionMapTitle_, expeditionMapSubtitle_, expeditionMapInfo_, expeditionMapLegend_,
+    std::unique_ptr<myEngine::TextLabel> expeditionMapTitle_, expeditionMapSubtitle_, expeditionMapInfo_, expeditionMapLegend_,
         expeditionMapHelp_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, 3> expeditionBlueprintLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 3> expeditionBlueprintLabels_;
 
-    std::array<std::unique_ptr<cg2::Sprite>, 3> expeditionBlueprintButtons_;
+    std::array<std::unique_ptr<myEngine::Sprite>, 3> expeditionBlueprintButtons_;
 
     std::vector<ExpeditionCreditOrb> expeditionCredits_;
 
-    std::unique_ptr<cg2::Sprite> expeditionCreditIcon_, expeditionCreditPulse_, expeditionStaminaTrack_, expeditionStaminaFill_;
+    std::unique_ptr<myEngine::Sprite> expeditionCreditIcon_, expeditionCreditPulse_, expeditionStaminaTrack_, expeditionStaminaFill_;
 
-    std::unique_ptr<cg2::TextLabel> expeditionCreditText_;
+    std::unique_ptr<myEngine::TextLabel> expeditionCreditText_;
 
     std::unique_ptr<NeonTextEffect> expeditionCompleteGlow_;
 
-    std::array<std::unique_ptr<cg2::Sprite>, 4> expeditionSpotlight_;
+    std::array<std::unique_ptr<myEngine::Sprite>, 4> expeditionSpotlight_;
 
-    std::array<std::unique_ptr<cg2::Sprite>, 24> expeditionPointer_, expeditionPointerGlow_;
+    std::array<std::unique_ptr<myEngine::Sprite>, 24> expeditionPointer_, expeditionPointerGlow_;
 
-    std::unique_ptr<cg2::Sprite> expeditionPriceIcon_;
+    std::unique_ptr<myEngine::Sprite> expeditionPriceIcon_;
 
     size_t expeditionPointerCursor_ = 0;
 
-    std::unique_ptr<cg2::Sprite> expeditionContinueButton_, expeditionSkipButton_;
+    std::unique_ptr<myEngine::Sprite> expeditionContinueButton_, expeditionSkipButton_;
 
-    std::unique_ptr<cg2::TextLabel> expeditionContinueText_, expeditionSkipText_;
+    std::unique_ptr<myEngine::TextLabel> expeditionContinueText_, expeditionSkipText_;
 
     float expeditionCreditPulseAge_ = 0, expeditionImpactHold_ = 0;
 
@@ -178,13 +179,13 @@ struct RunSessionState {
 
     int tankExpeditionTutorialKills_ = 0;
 
-    cg2::Vector3 tankExpeditionTutorialPrevious_{};
+    myEngine::Vector3 tankExpeditionTutorialPrevious_{};
 
-    std::unique_ptr<cg2::Sprite> tankExpeditionHpTrack_, tankExpeditionHpFill_;
+    std::unique_ptr<myEngine::Sprite> tankExpeditionHpTrack_, tankExpeditionHpFill_;
 
-    std::unique_ptr<cg2::Sprite> tankExpeditionExpTrack_, tankExpeditionExpFill_, tankExpeditionBuildPanel_;
+    std::unique_ptr<myEngine::Sprite> tankExpeditionExpTrack_, tankExpeditionExpFill_, tankExpeditionBuildPanel_;
 
-    std::unique_ptr<cg2::TextLabel> tankExpeditionExpText_, tankExpeditionDetailsText_;
+    std::unique_ptr<myEngine::TextLabel> tankExpeditionExpText_, tankExpeditionDetailsText_;
 
     bool expeditionRun_ = false;
 
@@ -230,11 +231,11 @@ struct RunSessionState {
 
     std::vector<RunEvolutionChoice> tankExpeditionEvolutions_;
 
-    std::unique_ptr<cg2::TextLabel> tankExpeditionMapText_;
+    std::unique_ptr<myEngine::TextLabel> tankExpeditionMapText_;
 
-    std::unique_ptr<cg2::TextLabel> tankExpeditionMaintenanceText_;
+    std::unique_ptr<myEngine::TextLabel> tankExpeditionMaintenanceText_;
 
-    std::unique_ptr<cg2::Sprite> tankExpeditionMaintenanceButton_;
+    std::unique_ptr<myEngine::Sprite> tankExpeditionMaintenanceButton_;
 
     bool prototypeRun_ = false;
 
@@ -270,33 +271,33 @@ struct RunSessionState {
 
     int tankRunAutoMenuIndex_ = 0;
 
-    std::unique_ptr<cg2::Sprite> tankRunDimmer_;
+    std::unique_ptr<myEngine::Sprite> tankRunDimmer_;
 
-    std::unique_ptr<cg2::Sprite> tankRunHudPanel_;
+    std::unique_ptr<myEngine::Sprite> tankRunHudPanel_;
 
-    std::unique_ptr<cg2::Sprite> tankRunBossTrack_;
+    std::unique_ptr<myEngine::Sprite> tankRunBossTrack_;
 
-    std::unique_ptr<cg2::Sprite> tankRunBossFill_;
+    std::unique_ptr<myEngine::Sprite> tankRunBossFill_;
 
-    std::array<std::unique_ptr<cg2::Sprite>, 3> tankRunCards_;
+    std::array<std::unique_ptr<myEngine::Sprite>, 3> tankRunCards_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, 3> tankRunCardTitles_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 3> tankRunCardTitles_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, 3> tankRunCardBodies_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 3> tankRunCardBodies_;
 
-    std::unique_ptr<cg2::TextLabel> tankRunHeading_;
+    std::unique_ptr<myEngine::TextLabel> tankRunHeading_;
 
-    std::unique_ptr<cg2::TextLabel> tankRunDescription_;
+    std::unique_ptr<myEngine::TextLabel> tankRunDescription_;
 
-    std::unique_ptr<cg2::TextLabel> tankRunFooter_;
+    std::unique_ptr<myEngine::TextLabel> tankRunFooter_;
 
-    std::unique_ptr<cg2::TextLabel> tankRunHud_;
+    std::unique_ptr<myEngine::TextLabel> tankRunHud_;
 
-    std::unique_ptr<cg2::TextLabel> tankRunBuildText_;
+    std::unique_ptr<myEngine::TextLabel> tankRunBuildText_;
 
-    std::unique_ptr<cg2::TextLabel> tankRunObjectiveText_;
+    std::unique_ptr<myEngine::TextLabel> tankRunObjectiveText_;
 
-    std::unique_ptr<cg2::TextLabel> tankRunBossText_;
+    std::unique_ptr<myEngine::TextLabel> tankRunBossText_;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> tankRunCaptureReadback_;
 

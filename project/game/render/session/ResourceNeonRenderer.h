@@ -7,6 +7,7 @@ class ResourceNeonRenderer {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ResourceNeonRenderer(GameWorld& world) : world_(world) {}
+
     /// @brief 経験値敵ネオン塗りつぶしモデルを描画する。
     void DrawExpEnemyNeonFillModels();
 
@@ -14,12 +15,13 @@ public:
     void DrawExpEnemyNeonDepthLines();
 
     /// @brief 経験値敵ネオンShapesを後で処理するために予約する。
-    void QueueExpEnemyNeonShapes(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward);
+    void QueueExpEnemyNeonShapes(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp,
+                                 const myEngine::Vector3& cameraForward);
 
     /// @brief 近距離カメラ2Dであるか判定する。
-    cg2::Vector3 GetFloorVisibilityCenter() const;
+    myEngine::Vector3 GetFloorVisibilityCenter() const;
 
-    bool IsNearCamera2D(const cg2::Vector3& worldPos, float halfWidth, float halfHeight, float margin = 0.0f) const;
+    bool IsNearCamera2D(const myEngine::Vector3& worldPos, float halfWidth, float halfHeight, float margin = 0.0f) const;
 
 private:
     GameWorld& world_;

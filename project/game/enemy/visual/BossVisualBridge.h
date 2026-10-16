@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 
+/// @brief ボスの戦闘状態から見た目へ渡す観測値。
 struct BossVisualBridgeInput {
     uint64_t encounterGeneration = 0;
     unsigned shotsFired = 0;
@@ -17,17 +18,20 @@ struct BossVisualBridgeInput {
     PrototypeBossCombat::Phase prototypePhase = PrototypeBossCombat::Phase::Recovery;
 };
 
+/// @brief 観測値から決めた、見た目側で行う動作。
 struct BossVisualDecision {
     NeonBossAction action = NeonBossAction::Idle;
     bool phaseTwo = false;
     bool resetEncounter = false;
 };
 
-// A value-only bridge owns short presentation history, without Enemy, Scene,
-// animation or renderer pointers. It cannot advance combat or modify its input.
+// 値だけを持つ橋渡し役で、短い演出履歴を所有する。Enemy、Scene、
+// アニメーション、描画へのポインタは持たず、戦闘を進めたり入力を変更したりはできない。
 class BossVisualBridge {
 public:
-    BossVisualDecision Update(const BossVisualBridgeInput& input, float deltaTime) {
+    /// @brief 観測値を受け取り、見た目で行う動作を決める。戦闘の状態は変更しない。
+    BossVisualDecision Update(const BossVisualBridgeInput& input, float deltaTime)
+    {
         BossVisualDecision result;
         if (encounterGeneration_ != input.encounterGeneration) {
             encounterGeneration_ = input.encounterGeneration;
@@ -40,33 +44,56 @@ public:
         if (input.rivalEnabled) {
             using P = RivalBossCombat::Phase;
             switch (input.rivalPhase) {
-            case P::Reposition: result.action = NeonBossAction::Reposition; break;
-            case P::Tracking: case P::Locked: case P::DashWarning: result.action = NeonBossAction::Telegraph; break;
-            case P::Volley: result.action = NeonBossAction::Attack; break;
-            case P::Dash: result.action = NeonBossAction::Dash; break;
-            case P::Reload: result.action = NeonBossAction::Reload; break;
+            case P::Reposition:
+                result.action = NeonBossAction::Reposition;
+                break;
+            case P::Tracking:
+            case P::Locked:
+            case P::DashWarning:
+                result.action = NeonBossAction::Telegraph;
+                break;
+            case P::Volley:
+                result.action = NeonBossAction::Attack;
+                break;
+            case P::Dash:
+                result.action = NeonBossAction::Dash;
+                break;
+            case P::Reload:
+                result.action = NeonBossAction::Reload;
+                break;
             }
         } else if (input.prototypeEnabled) {
             using P = PrototypeBossCombat::Phase;
             switch (input.prototypePhase) {
-            case P::Recovery: result.action = NeonBossAction::Idle; break;
-            case P::Telegraph: result.action = NeonBossAction::Telegraph; break;
-            case P::Attack: result.action = NeonBossAction::Attack; break;
+            case P::Recovery:
+                result.action = NeonBossAction::Idle;
+                break;
+            case P::Telegraph:
+                result.action = NeonBossAction::Telegraph;
+                break;
+            case P::Attack:
+                result.action = NeonBossAction::Attack;
+                break;
             }
         } else {
             const float x = input.position[0] - previousPosition_[0];
             const float y = input.position[1] - previousPosition_[1];
             const float z = input.position[2] - previousPosition_[2];
-            if (std::sqrt(x*x + y*y + z*z) > 0.001f) result.action = NeonBossAction::Reposition;
+            if (std::sqrt(x * x + y * y + z * z) > 0.001f) {
+                result.action = NeonBossAction::Reposition;
+            }
         }
-        // AimedSpread emits and returns to Recovery in one combat tick. This
-        // hold affects only the visual; it never replaces a telegraph or Dash.
-        if (input.shotsFired != previousShots_) attackPresentationTimer_ = 0.70f;
-        else if (deltaTime > 0.0f)
+        // AimedSpreadは1回の戦闘tickで発射してRecoveryに戻る。この保持は
+        // 見た目にだけ影響し、予兆表示やDashを置き換えることはない。
+        if (input.shotsFired != previousShots_) {
+            attackPresentationTimer_ = 0.70f;
+        } else if (deltaTime > 0.0f) {
             attackPresentationTimer_ = (std::max)(0.0f, attackPresentationTimer_ - deltaTime);
+        }
         if (!input.rivalEnabled && attackPresentationTimer_ > 0.0f &&
-            (result.action == NeonBossAction::Idle || result.action == NeonBossAction::Reposition))
+            (result.action == NeonBossAction::Idle || result.action == NeonBossAction::Reposition)) {
             result.action = NeonBossAction::Attack;
+        }
         previousShots_ = input.shotsFired;
         previousPosition_ = input.position;
         return result;

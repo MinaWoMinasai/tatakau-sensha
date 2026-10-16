@@ -7,6 +7,7 @@ class GameplayRenderer {
 public:
     /// @brief 借用するワールドを設定する。
     explicit GameplayRenderer(GameWorld& world) : world_(world) {}
+
     /// @brief 描画
     void Draw();
 

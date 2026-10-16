@@ -2,6 +2,7 @@
 #include <array>
 #include <algorithm>
 
+/// @brief ランで選ぶコアの種類。
 enum class TankRunCore {
     None = 0,
     Ricochet,
@@ -70,6 +71,7 @@ inline constexpr float TankEffectPower(const TankRunModifiers& modifiers, size_t
     const float p = index < modifiers.effectPower.size() ? modifiers.effectPower[index] : 1.0f;
     return p == p ? (std::clamp)(p, 0.1f, 5.0f) : 1.0f;
 }
+
 /// @brief 指定した強化効果の取得数を返す。
 inline constexpr int TankEffectCount(const TankRunModifiers& modifiers, size_t index, int base = 1)
 {
@@ -113,7 +115,7 @@ inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifie
     if (!modifiers.enabled) {
         return result;
     }
-    // Enemy-bullet cancellation is independent of damage dealt to enemies.
+    // 敵弾の打ち消しは、敵に与えたダメージとは独立している。
     result.bulletHp = 1.0f;
     result.bulletInterception = modifiers.pierce ? 1.0f + 2.0f * TankEffectPower(modifiers, 7) : 1.0f;
     result.dashSpeed = 1.85f;
@@ -122,13 +124,14 @@ inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifie
         result.maxWallBounces = modifiers.core == TankRunCore::Ricochet ? 2 + (modifiers.ricochet ? TankEffectCount(modifiers, 0, 2) : 0)
                                                                         : (modifiers.ricochet ? TankEffectCount(modifiers, 0) : 0);
         result.actorPierceCount = modifiers.pierce ? TankEffectCount(modifiers, 7) : 0;
-        result.impactSplitCount = 0; // Legacy scatter data no longer multiplies shots.
+        result.impactSplitCount = 0; // 旧来の拡散データで弾数が増えることはもう無い。
     }
     if (modifiers.core == TankRunCore::Ricochet) {
         result.damage *= 1.20f;
         result.bulletSpeed *= 1.25f;
-        if (modifiers.ricochet)
+        if (modifiers.ricochet) {
             result.bulletSpeed *= 1.0f + 0.2f * TankEffectPower(modifiers, 0);
+        }
     } else if (modifiers.core == TankRunCore::Assault) {
         result.damage *= 1.80f;
         result.bulletSpeed *= 0.85f;
@@ -165,17 +168,20 @@ inline constexpr float TankDashMomentum(float previous, float direction, float s
 {
     return previous * 0.20f + direction * speed;
 }
+
 /// @brief 強化状態がジャスト回避を使用できる条件か判定する。
 inline constexpr bool TankCanPerfectDodge(bool enabled, bool enemyBullet, float elapsed, float power = 1.0f)
 {
     return enabled && enemyBullet && elapsed >= 0.0f && elapsed <= (std::min)(0.30f, 0.20f * power);
 }
+
 /// @brief 近接コンボの各段の速度・範囲・威力を指定する。
 struct TankMeleeComboTuning {
     float damage = 1.0f, range = 1.0f, arc = 120.0f;
     float windup = 0.05f, duration = 0.14f, recovery = 0.14f;
     float knockback = 0.16f;
 };
+
 /// @brief 戦車近接攻撃Comboを作成して返す。
 inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step, bool reach, bool impact, bool tempo = false, bool finisherCharge = false)
 {
@@ -198,8 +204,9 @@ inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step, bool reach, b
         result.range *= 1.30f;
         result.damage *= 1.20f;
     }
-    if (impact)
+    if (impact) {
         result.knockback *= 1.50f;
+    }
     if (tempo) {
         result.windup *= 0.82f;
         result.duration *= 0.82f;
@@ -216,15 +223,17 @@ inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step, bool reach, b
 inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step, const TankRunModifiers& modifiers)
 {
     auto result = MakeTankMeleeCombo(step, false, false);
-    if (!modifiers.enabled)
+    if (!modifiers.enabled) {
         return result;
+    }
     if (modifiers.bladeReach) {
         const float p = TankEffectPower(modifiers, 13);
         result.range *= 1.0f + .3f * p;
         result.damage *= 1.0f + .2f * p;
     }
-    if (modifiers.impactDrive)
+    if (modifiers.impactDrive) {
         result.knockback *= 1.0f + .5f * TankEffectPower(modifiers, 14);
+    }
     if (modifiers.meleeTempo) {
         const float rate = (std::max)(.05f, 1.0f - .18f * TankEffectPower(modifiers, 18));
         result.windup *= rate;
@@ -263,6 +272,7 @@ struct TankDroneTuning {
     float bulletHp = 1.0f, interception = 1.0f;
     float sizeScale = 1.0f, trailScale = 1.0f;
 };
+
 /// @brief 戦車ドローン調整値を作成して返す。
 inline constexpr TankDroneTuning MakeTankDroneTuning(const TankRunModifiers& modifiers, bool primaryStyle)
 {
@@ -272,13 +282,15 @@ inline constexpr TankDroneTuning MakeTankDroneTuning(const TankRunModifiers& mod
         result.reloadSeconds = 0.5f;
         result.spreadDegrees = 0.0f;
     }
-    if (!modifiers.enabled)
+    if (!modifiers.enabled) {
         return result;
+    }
     if (modifiers.droneFocus) {
         const float p = TankEffectPower(modifiers, 16);
         result.damageScale *= 1.0f + (modifiers.expedition ? .15f : .4f) * p;
-        if (!modifiers.expedition)
+        if (!modifiers.expedition) {
             result.reloadSeconds *= 1.0f + .15f * p;
+        }
         result.spreadDegrees = 0;
     }
     if (modifiers.heavyDroneCore) {
@@ -304,15 +316,18 @@ struct TankRunSynergy {
     float explosionRadius = 3.2f;
     float explosionDamageScale = 2.0f;
 };
+
 /// @brief 戦車遠征Synergyを作成して返す。
 inline constexpr TankRunSynergy MakeTankRunSynergy(const TankRunModifiers& modifiers, bool overdriveActive)
 {
     TankRunSynergy result{};
-    if (!modifiers.enabled)
+    if (!modifiers.enabled) {
         return result;
-    if (modifiers.homing)
+    }
+    if (modifiers.homing) {
         result.homingTurnRate =
             (modifiers.expedition && modifiers.overdrive && overdriveActive ? 3.2f : 1.6f) * TankEffectPower(modifiers, 9);
+    }
     result.dashExplosion = modifiers.expedition && modifiers.heavy && modifiers.dashBurst;
     result.explosionDamageScale = (result.dashExplosion ? 2.0f : 1.4f) * TankEffectPower(modifiers, 10);
     return result;

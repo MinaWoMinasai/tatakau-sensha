@@ -7,6 +7,7 @@ class LevelRuntime {
 public:
     /// @brief 借用するワールドを設定する。
     explicit LevelRuntime(GameWorld& world) : world_(world) {}
+
     /// @brief 戦車遠征部屋形状を現在の状態へ適用する。
     void ApplyTankExpeditionRoomGeometry();
 

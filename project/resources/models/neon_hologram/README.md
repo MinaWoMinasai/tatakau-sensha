@@ -39,7 +39,7 @@
 
 ## Preview操作
 
-PowerShellや起動引数は不要です。Visual Studioで`project/CG2.sln`を開き、**Development / x64**を選んでF5（またはCtrl+F5）で普通に起動します。タイトル画面の「遠征をはじめる」からTANK_EXPEDITIONへ進み、**F3「制作ツール」→「Neon Skinned Previewを開く」**を押すと、F12デバッグコンソールの**Neon Preview**タブが開きます。F12でコンソールを表示してNeon Previewタブを直接選んでも確認できます。従来の「ツール」タブ内のNeon Skinned Previewセクションも利用できます。
+PowerShellや起動引数は不要です。Visual Studioで`project/MyEngine.sln`を開き、**Development / x64**を選んでF5（またはCtrl+F5）で普通に起動します。タイトル画面の「遠征をはじめる」からTANK_EXPEDITIONへ進み、**F3「制作ツール」→「Neon Skinned Previewを開く」**を押すと、F12デバッグコンソールの**Neon Preview**タブが開きます。F12でコンソールを表示してNeon Previewタブを直接選んでも確認できます。従来の「ツール」タブ内のNeon Skinned Previewセクションも利用できます。
 
 Previewは開いただけでは有効になりません。下記の`Preview Enable`をオンにしてください。
 
@@ -55,7 +55,7 @@ Previewは開いただけでは有効になりません。下記の`Preview Enab
 
 `Play` / `Pause`、`Restart`、`Playback Speed`、現在のクリップ名・ループ状態・時刻 / durationを表示します。Pauseは進行中のポーズブレンドも停止します。Pause中の再生位置スライダーは遷移を終了し、その時刻のサンプル姿勢を表示します。Pause中のIdle / Attack選択だけでは現在姿勢を保持し、Playでブレンドを再開するかSeekで直接姿勢を指定できます。RestartはPause状態を維持し、指定クリップの時刻0へ戻します。BindPoseはPause中も直ちに元姿勢へ戻し、duration=0でスライダーを無効にします。Normal / Neonは再ロードや時刻リセットを行いません。
 
-`game/debug/NeonPreviewAnimations.cpp`がロード時に一度だけ回転キーフレームを生成し、`cg2::SkinnedModel::RegisterAnimations()`が検証後に所有します。既存`AnimationPlayer` → `SkeletonSystem` → `SkinCluster` / PaletteをUpdateで一回だけ更新し、BodyとOutlineで共有します。登録は全クリップを検証してからvectorを確定し、Playerの参照を再接続して時刻・再生・遷移状態を保ちます。失敗時は既存状態を維持し、Previewに不足ボーン名等を表示してBindPoseを使用します。
+`game/debug/NeonPreviewAnimations.cpp`がロード時に一度だけ回転キーフレームを生成し、`myEngine::SkinnedModel::RegisterAnimations()`が検証後に所有します。既存`AnimationPlayer` → `SkeletonSystem` → `SkinCluster` / PaletteをUpdateで一回だけ更新し、BodyとOutlineで共有します。登録は全クリップを検証してからvectorを確定し、Playerの参照を再接続して時刻・再生・遷移状態を保ちます。失敗時は既存状態を維持し、Previewに不足ボーン名等を表示してBindPoseを使用します。
 
 対象は名前解決した`J_Bip_C_Chest`、`J_Bip_C_Neck`、`J_Bip_L_UpperArm`、`J_Bip_R_UpperArm`、`J_Bip_L_LowerArm`、`J_Bip_R_LowerArm`です。Assimp / エンジン変換後の腕のbind回転は単位Quaternion、左の子ボーンは+X、右は-Xに伸びます。行ベクトルの回転行列に対し`R(qA*qB)=R(qB)*R(qA)`となる合成順を数値テストで確認し、ローカル差分`Rx*Ry*Rz`の後にbind回転を適用します。左右の腕はZの符号を反転して下げ、肘はYで曲げます。Translation / Scale曲線は追加せずbind値を維持し、root・脚・足は動かしません。glTFからの座標変換は追加適用しません。
 

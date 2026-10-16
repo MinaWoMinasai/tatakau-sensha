@@ -7,6 +7,7 @@ class CombatValidation {
 public:
     /// @brief 借用するワールドを設定する。
     explicit CombatValidation(GameWorld& world) : world_(world) {}
+
     /// @brief 戦闘検証Fixtureを初期化する。
     void InitializeCombatValidationFixture();
 

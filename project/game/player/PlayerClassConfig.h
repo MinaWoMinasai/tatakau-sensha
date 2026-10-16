@@ -2,8 +2,8 @@
 #include "game/weapon/WeaponMount.h"
 #include <vector>
 
+/// @brief プレイヤーの戦車のクラス。
 enum class ClassType {
-
     // 第一段階
     Basic,
 
@@ -23,6 +23,7 @@ enum class ClassType {
     Summoner,
 };
 
+/// @brief プレイヤーの車体の形。
 enum class PlayerBodyShape {
     Circle = 0,
     Box,
@@ -56,9 +57,9 @@ struct PlayerClassConfig {
     float saberCounterDamageScale = 2.5f;
     float saberCounterRangeScale = 1.35f;
     PlayerBodyShape bodyShape = PlayerBodyShape::Circle;
-    cg2::Vector2 bodyScale = {1.0f, 1.0f};
-    cg2::Vector4 bodyFillColor = {0.18f, 0.28f, 0.34f, 0.38f};
-    cg2::Vector4 bodyOutlineColor = {0.50f, 1.0f, 0.35f, 1.0f};
+    myEngine::Vector2 bodyScale = {1.0f, 1.0f};
+    myEngine::Vector4 bodyFillColor = {0.18f, 0.28f, 0.34f, 0.38f};
+    myEngine::Vector4 bodyOutlineColor = {0.50f, 1.0f, 0.35f, 1.0f};
     std::vector<WeaponMountConfig> barrels;
 };
 

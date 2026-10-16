@@ -5,6 +5,7 @@
 GameScene::GameScene(bool prototypeRun, bool expeditionRun) : session_(std::make_unique<gameplay::GameSession>(prototypeRun, expeditionRun))
 {
 }
+
 GameScene::~GameScene() = default;
 
 void GameScene::Initialize()
@@ -12,7 +13,10 @@ void GameScene::Initialize()
     session_->Initialize();
 }
 
-bool GameScene::InitializeStep() { return session_->InitializeStep(); }
+bool GameScene::InitializeStep()
+{
+    return session_->InitializeStep();
+}
 
 void GameScene::Update()
 {
@@ -49,7 +53,7 @@ bool GameScene::IsFinished() const
     return session_->IsFinished();
 }
 
-cg2::Object3d* GameScene::GetBallObj()
+myEngine::Object3d* GameScene::GetBallObj()
 {
     return session_->GetBallObj();
 }
@@ -94,12 +98,12 @@ IScene::DeveloperShowcaseState GameScene::GetDeveloperShowcaseState()
     return session_->GetDeveloperShowcaseState();
 }
 
-void GameScene::RecordDeveloperPostParameters(const cg2::BloomParam& param)
+void GameScene::RecordDeveloperPostParameters(const myEngine::BloomParam& param)
 {
     session_->RecordDeveloperPostParameters(param);
 }
 
-void GameScene::RecordDeveloperFrame(cg2::DirectXCommon& dx)
+void GameScene::RecordDeveloperFrame(myEngine::DirectXCommon& dx)
 {
     session_->RecordDeveloperFrame(dx);
 }

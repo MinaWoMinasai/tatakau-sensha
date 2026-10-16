@@ -12,7 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "game/debug/NeonShowcaseCapture.h"
 #include "externals/imgui/imgui.h"
 #include <iomanip>
@@ -20,8 +20,8 @@
 #endif
 
 namespace {
-using cg2::Vector3;
-using cg2::Vector4;
+using myEngine::Vector3;
+using myEngine::Vector4;
 constexpr float kPi = neonwindmill::kPi;
 constexpr std::array<Vector4, 4> kHandColors{{{.05f, 1.35f, 1.8f, 1}, {1.7f, .12f, .7f, 1}, {1.8f, .8f, .08f, 1}, {.4f, .3f, 1.9f, 1}}};
 
@@ -30,6 +30,7 @@ Vector3 V(neonwindmill::Point p)
 {
     return {p.x, p.y, p.z};
 }
+
 /// @brief 線形RGBを指定強度で減衰する。Alphaは別に保持する。
 Vector4 Scale(Vector4 c, float strength)
 {
@@ -41,8 +42,9 @@ NeonWindmillScene::NeonWindmillScene() = default;
 
 NeonWindmillScene::~NeonWindmillScene()
 {
-    if (cg2::Object3dCommon::GetInstance()->GetDefaultCamera() == &camera_)
-        cg2::Object3dCommon::GetInstance()->SetDefaultCamera(previousCamera_);
+    if (myEngine::Object3dCommon::GetInstance()->GetDefaultCamera() == &camera_) {
+        myEngine::Object3dCommon::GetInstance()->SetDefaultCamera(previousCamera_);
+    }
 }
 
 void NeonWindmillScene::Initialize()
@@ -50,42 +52,45 @@ void NeonWindmillScene::Initialize()
     appearances_[1].baseBrightness = .035f;
     appearances_[1].surfaceEmission = .015f;
     appearances_[1].innerIntensity = 1.1f;
-    auto* common = cg2::Object3dCommon::GetInstance();
+    auto* common = myEngine::Object3dCommon::GetInstance();
     previousCamera_ = common->GetDefaultCamera();
     common->SetDefaultCamera(&camera_);
     common->SetIsDebugCamera(false);
     common->SetDebugUiEnabled(false);
-    input_ = cg2::Input::GetInstance();
-    renderer_ = std::make_unique<cg2::NeonGridRenderer>();
+    input_ = myEngine::Input::GetInstance();
+    renderer_ = std::make_unique<myEngine::NeonGridRenderer>();
     renderer_->Initialize(common->GetDxCommon(), "resources/white512x512.png");
-    if (!renderer_->InitializeSceneSolidPipeline())
+    if (!renderer_->InitializeSceneSolidPipeline()) {
         throw std::runtime_error("Neon windmill HDR solid pipeline could not initialize.");
+    }
     std::ifstream atlasFile("../generated/neon_windmill/iphone_atlas.json");
-    if (!atlasFile)
+    if (!atlasFile) {
         throw std::runtime_error("iPhone emoji atlas is missing. The author-local project/tools/prepare_windmill_emoji.py generates it.");
+    }
     const auto atlas = nlohmann::json::parse(atlasFile);
     for (const auto& item : atlas.at("glyphs").items()) {
         Glyph glyph;
         glyph.uv = item.value().at("uv").get<std::array<float, 4>>();
-        for (const auto& p : item.value().at("contour"))
+        for (const auto& p : item.value().at("contour")) {
             glyph.contour.push_back({p.at(0).get<float>(), p.at(1).get<float>()});
+        }
         glyphs_.emplace(item.key(), std::move(glyph));
     }
     emojiRenderer_ = std::make_unique<WindmillEmojiRenderer>();
     emojiRenderer_->Initialize(common->GetDxCommon(), "../generated/neon_windmill/iphone_atlas.png");
-    camera_.SetAspectRatio(float(cg2::WinApp::kClientWidth) / float(cg2::WinApp::kClientHeight));
+    camera_.SetAspectRatio(float(myEngine::WinApp::kClientWidth) / float(myEngine::WinApp::kClientHeight));
     camera_.SetFovY(.7f);
     camera_.SetNearClip(.1f);
     camera_.SetFarClip(80);
-    const auto label = [this](const std::string& text, float size, cg2::Vector2 position, Vector4 color) {
-        cg2::TextStyle style{};
+    const auto label = [this](const std::string& text, float size, myEngine::Vector2 position, Vector4 color) {
+        myEngine::TextStyle style{};
         style.fontFamily = "Meiryo";
         style.fontSize = size;
         style.fontWeight = 400;
         style.color = color;
         style.padding = 3;
-        auto item = std::make_unique<cg2::TextLabel>();
-        item->Initialize(cg2::SpriteCommon::GetInstance(), text, style);
+        auto item = std::make_unique<myEngine::TextLabel>();
+        item->Initialize(myEngine::SpriteCommon::GetInstance(), text, style);
         item->SetAnchorPoint({0, 0});
         item->SetPosition(position);
         labels_.push_back(std::move(item));
@@ -97,19 +102,23 @@ void NeonWindmillScene::Initialize()
     label("SPACE 停止 / R 再生し直す / B ブルーム比較 / H 表示切替", 14, {42, 646}, {.52f, .74f, .82f, 1});
     label("← → 視点 / ↑ ↓ 距離 / 1 回転 / 2 停止 / 3 認識 / + - 光量 / ESC 終了", 13, {42, 674}, {.38f, .55f, .64f, 1});
     previousTime_ = std::chrono::steady_clock::now();
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     capture_ = std::make_unique<NeonShowcaseCapture>();
     char flag[8]{};
-    verification_ = GetEnvironmentVariableA("CG2_WINDMILL_AUTOTEST", flag, sizeof(flag)) == 1 && flag[0] == '1';
+    verification_ = GetEnvironmentVariableA("MYENGINE_WINDMILL_AUTOTEST", flag, sizeof(flag)) == 1 && flag[0] == '1';
     char run[128]{}, output[1024]{};
-    if (verification_ && GetEnvironmentVariableA("CG2_WINDMILL_RUN", run, sizeof(run)) > 0)
+    if (verification_ && GetEnvironmentVariableA("MYENGINE_WINDMILL_RUN", run, sizeof(run)) > 0) {
         qualityRun_ = run;
-    if (GetEnvironmentVariableA("CG2_WINDMILL_OUTPUT", output, sizeof(output)) > 0)
+    }
+    if (GetEnvironmentVariableA("MYENGINE_WINDMILL_OUTPUT", output, sizeof(output)) > 0) {
         qualityOutput_ = output;
-    if (qualityOutput_.empty())
+    }
+    if (qualityOutput_.empty()) {
         qualityOutput_ = "../generated/neon_windmill_quality/" + qualityRun_;
-    if (!qualityRun_.empty())
+    }
+    if (!qualityRun_.empty()) {
         std::filesystem::create_directories(qualityOutput_);
+    }
 #endif
     pose_ = neonwindmill::Evaluate(seconds_);
     UpdateCamera();
@@ -122,35 +131,41 @@ void NeonWindmillScene::Update()
     const auto now = std::chrono::steady_clock::now();
     const float dt = (std::clamp)(std::chrono::duration<float>(now - previousTime_).count(), 0.0f, .05f);
     previousTime_ = now;
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-    capture_->Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    capture_->Resolve(*myEngine::Object3dCommon::GetInstance()->GetDxCommon());
     if (verification_) {
-        if (qualityRun_.empty())
+        if (qualityRun_.empty()) {
             UpdateVerification();
-        else
+        } else {
             UpdateQualityVerification();
+        }
     } else
 #endif
     {
         bool keyboard = true;
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-        if (input_->IsKeyTriggered(DIK_F4))
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+        if (input_->IsKeyTriggered(DIK_F4)) {
             settingsUi_ = !settingsUi_;
+        }
         keyboard = !(settingsUi_ && ImGui::GetIO().WantCaptureKeyboard);
 #endif
         if (keyboard) {
-            if (input_->IsKeyTriggered(DIK_M))
+            if (input_->IsKeyTriggered(DIK_M)) {
                 SelectMode(WindmillRenderMode((int(renderMode_) + 1) % 3));
-            if (input_->IsKeyTriggered(DIK_ESCAPE))
+            }
+            if (input_->IsKeyTriggered(DIK_ESCAPE)) {
                 PostQuitMessage(0);
-            if (input_->IsKeyTriggered(DIK_SPACE))
+            }
+            if (input_->IsKeyTriggered(DIK_SPACE)) {
                 paused_ = !paused_;
+            }
             if (input_->IsKeyTriggered(DIK_B)) {
                 bloomEnabled_ = !bloomEnabled_;
                 lastStatus_ = -1;
             }
-            if (input_->IsKeyTriggered(DIK_H))
+            if (input_->IsKeyTriggered(DIK_H)) {
                 showUi_ = !showUi_;
+            }
             if (input_->IsKeyTriggered(DIK_R)) {
                 seconds_ = 0;
                 paused_ = false;
@@ -167,43 +182,49 @@ void NeonWindmillScene::Update()
                 seconds_ = 13.95;
                 paused_ = true;
             }
-            if (input_->IsKeyTriggered(DIK_EQUALS) || input_->IsKeyTriggered(DIK_ADD))
+            if (input_->IsKeyTriggered(DIK_EQUALS) || input_->IsKeyTriggered(DIK_ADD)) {
                 bloomGain_ = (std::min)(1.8f, bloomGain_ + .1f);
-            if (input_->IsKeyTriggered(DIK_MINUS) || input_->IsKeyTriggered(DIK_SUBTRACT))
+            }
+            if (input_->IsKeyTriggered(DIK_MINUS) || input_->IsKeyTriggered(DIK_SUBTRACT)) {
                 bloomGain_ = (std::max)(0.0f, bloomGain_ - .1f);
+            }
             const auto held = [this](int key) {
                 return input_->IsPress(input_->GetKey()[key]);
             };
             yaw_ += (float(held(DIK_RIGHT)) - float(held(DIK_LEFT))) * dt * .7f;
             distance_ = (std::clamp)(distance_ + (float(held(DIK_DOWN)) - float(held(DIK_UP))) * dt * 4, 7.5f, 19.0f);
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-            if (input_->IsKeyTriggered(DIK_P) && !capture_->IsBusy())
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+            if (input_->IsKeyTriggered(DIK_P) && !capture_->IsBusy()) {
                 capture_->Request("../generated/neon_windmill", "manual_" + std::to_string(++manualCaptureIndex_), {});
+            }
 #endif
         }
-        if (!paused_)
+        if (!paused_) {
             seconds_ += dt * speed_;
+        }
     }
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-    if (!verification_ && settingsUi_)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if (!verification_ && settingsUi_) {
         DrawSettingsUi();
+    }
 #endif
     pose_ = neonwindmill::Evaluate(seconds_);
     UpdateCamera();
     {
-        cg2::RuntimeProfiler::CpuScope scope("Windmill geometry update");
+        myEngine::RuntimeProfiler::CpuScope scope("Windmill geometry update");
         BuildGeometry();
     }
     UpdateLabels();
-    cg2::RuntimeProfiler::Get().SetCounter("Windmill generated vertices", renderer_->GetVertexCount());
-    cg2::RuntimeProfiler::Get().SetCounter("Windmill 3D draw calls", (solidEnd_ ? 1 : 0) + (emojiRenderer_->GetQuadCount() ? 1 : 0) +
-                                                                         (renderer_->GetVertexCount() > solidEnd_ ? 1 : 0));
+    myEngine::RuntimeProfiler::Get().SetCounter("Windmill generated vertices", renderer_->GetVertexCount());
+    myEngine::RuntimeProfiler::Get().SetCounter("Windmill 3D draw calls", (solidEnd_ ? 1 : 0) + (emojiRenderer_->GetQuadCount() ? 1 : 0) +
+                                                                              (renderer_->GetVertexCount() > solidEnd_ ? 1 : 0));
 }
 
 void NeonWindmillScene::SelectMode(WindmillRenderMode mode)
 {
-    if (mode == renderMode_)
+    if (mode == renderMode_) {
         return;
+    }
     renderMode_ = mode;
     lastStatus_ = -1;
 }
@@ -216,7 +237,7 @@ void NeonWindmillScene::UpdateCamera()
     camera_.SetRotate({std::atan2(cameraY - target.y, distance_), -yaw_, 0});
     camera_.SetProjectionJitter({0, 0});
     camera_.Update();
-    cameraForward_ = cg2::Normalize(target - camera_.GetTranslate());
+    cameraForward_ = myEngine::Normalize(target - camera_.GetTranslate());
 }
 
 void NeonWindmillScene::Fill(const Vector3* points, uint32_t count, Vector4 color)
@@ -226,7 +247,7 @@ void NeonWindmillScene::Fill(const Vector3* points, uint32_t count, Vector4 colo
 
 void NeonWindmillScene::Line(Vector3 a, Vector3 b, float width, Vector4 color)
 {
-    cg2::NeonContourStyle style{};
+    myEngine::NeonContourStyle style{};
     style.coreIntensity = 2.1f;
     style.coreWhiteMix = .12f;
     style.shoulderIntensity = 1.0f;
@@ -239,18 +260,20 @@ void NeonWindmillScene::Line(Vector3 a, Vector3 b, float width, Vector4 color)
 void NeonWindmillScene::BuildGeometry()
 {
     auto settings = appearances_[int(renderMode_)];
-    // An optional brief warm/pink accent, not a change in animation timing.
+    // 任意で短く入る暖色/ピンクのアクセント。アニメーションのタイミングは変えない。
     settings.recognitionAccent =
         renderMode_ == WindmillRenderMode::Legacy ? 0 : .45f * pose_.recognition * (1 - neonwindmill::Smooth(14.2f, 14.9f, pose_.seconds));
     emojiRenderer_->SetAppearance(renderMode_, settings);
     renderer_->BeginFrame();
     emojiRenderer_->BeginFrame();
-    if (showBackground_)
+    if (showBackground_) {
         BuildRoom(true);
+    }
     BuildCharacter(true);
     solidEnd_ = renderer_->GetVertexCount();
-    if (showBackground_)
+    if (showBackground_) {
         BuildRoom(false);
+    }
     BuildCharacter(false);
 }
 
@@ -260,7 +283,7 @@ void NeonWindmillScene::BuildRoom(bool solid)
         // ブルームは画面上のにじみなので、床の照明は独立した点光源の減衰で求める。
         // N=(0,1,0)のLambert項と距離減衰を使い、5光源の床への照り返しを毎フレーム更新する。
         constexpr float step = .65f;
-        for (int iz = -14; iz < 22; ++iz)
+        for (int iz = -14; iz < 22; ++iz) {
             for (int ix = -18; ix < 18; ++ix) {
                 const float x = float(ix) * step, z = float(iz) * step;
                 const Vector3 sample{x + step * .5f, 0, z + step * .5f};
@@ -268,7 +291,7 @@ void NeonWindmillScene::BuildRoom(bool solid)
                 for (int source = 0; source < 5; ++source) {
                     const Vector3 light = source == 4 ? V(pose_.center) : V(pose_.hands[static_cast<std::size_t>(source)]);
                     const Vector3 d = light - sample;
-                    const float d2 = cg2::Dot(d, d), lambert = (std::max)(0.0f, d.y / std::sqrt((std::max)(.001f, d2)));
+                    const float d2 = myEngine::Dot(d, d), lambert = (std::max)(0.0f, d.y / std::sqrt((std::max)(.001f, d2)));
                     const float amount = pose_.visibility * .045f * lambert / (1 + d2 * .30f);
                     const auto& settings = appearances_[int(renderMode_)];
                     const float radiance = settings.coreIntensity * .4f + settings.surfaceEmission + settings.haloIntensity * .2f;
@@ -283,22 +306,23 @@ void NeonWindmillScene::BuildRoom(bool solid)
                 const Vector3 points[] = {{x, 0, z}, {x + step, 0, z}, {x + step, 0, z + step}, {x, 0, z + step}};
                 Fill(points, 4, color);
             }
+        }
         const Vector3 wall[] = {{-13, 0, 14}, {13, 0, 14}, {13, 12, 14}, {-13, 12, 14}};
-        if (renderMode_ == WindmillRenderMode::Legacy)
+        if (renderMode_ == WindmillRenderMode::Legacy) {
             Fill(wall, 4, {.003f, .007f, .018f, 1});
-        else {
-            // Local diffuse approximation: 78 cells, five moving sources.
-            // Shared lighting, model shaders and gameplay defaults stay intact.
+        } else {
+            // 局所的な拡散光の近似: 78セル、動く光源5つ。
+            // 共有のライティング、モデルシェーダー、ゲームプレイの既定値はそのまま。
             const auto& settings = appearances_[int(renderMode_)];
             const float strength = settings.coreIntensity * .4f + settings.surfaceEmission + settings.haloIntensity * .2f;
-            for (int iy = 0; iy < 6; ++iy)
+            for (int iy = 0; iy < 6; ++iy) {
                 for (int ix = 0; ix < 13; ++ix) {
                     const float x = -13 + float(ix) * 2, y = float(iy) * 2;
                     Vector4 color{.003f, .007f, .018f, 1};
                     for (int source = 0; source < 5; ++source) {
                         const auto light = source == 4 ? V(pose_.center) : V(pose_.hands[std::size_t(source)]);
                         const auto d = light - Vector3{x + 1, y + 1, 14};
-                        const float d2 = cg2::Dot(d, d);
+                        const float d2 = myEngine::Dot(d, d);
                         const float lambert = (std::max)(0.0f, -d.z / std::sqrt((std::max)(d2, .001f)));
                         const float amount = pose_.visibility * strength * .045f * lambert / (1 + d2 * .30f);
                         color.x += settings.haloColor.x * amount;
@@ -308,6 +332,7 @@ void NeonWindmillScene::BuildRoom(bool solid)
                     const Vector3 cell[] = {{x, y, 14}, {x + 2, y, 14}, {x + 2, y + 2, 14}, {x, y + 2, 14}};
                     Fill(cell, 4, color);
                 }
+            }
         }
         const Vector3 door[] = {{3.4f, 0, 5}, {5.0f, 0, 5}, {5.0f, 3.3f, 5}, {3.4f, 3.3f, 5}};
         Fill(door, 4, {.001f, .001f, .004f, 1});
@@ -324,11 +349,12 @@ void NeonWindmillScene::BuildRoom(bool solid)
         Line({std::cos(a) * 3.4f, .018f, std::sin(a) * 3.4f - .8f}, {std::cos(b) * 3.4f, .018f, std::sin(b) * 3.4f - .8f}, .025f,
              {.02f, .4f, .55f, .65f});
     }
-    for (float x : {-8.5f, 8.5f})
+    for (float x : {-8.5f, 8.5f}) {
         for (float z : {5.0f, 11.0f}) {
             Line({x, 0, z}, {x, 8, z}, .035f, {.05f, .15f, .32f, .8f});
             Line({x, 8, z}, {-x, 8, z}, .025f, {.02f, .09f, .2f, .6f});
         }
+    }
     Line({3.4f, 0, 4.98f}, {3.4f, 3.3f, 4.98f}, .035f, {.45f, .03f, .75f, 1});
     Line({3.4f, 3.3f, 4.98f}, {5, 3.3f, 4.98f}, .035f, {.45f, .03f, .75f, 1});
     Line({5, 3.3f, 4.98f}, {5, 0, 4.98f}, .035f, {.45f, .03f, .75f, 1});
@@ -336,8 +362,9 @@ void NeonWindmillScene::BuildRoom(bool solid)
 
 void NeonWindmillScene::BuildCharacter(bool solid)
 {
-    if (pose_.visibility < .001f)
+    if (pose_.visibility < .001f) {
         return;
+    }
     const bool recognized = pose_.recognition >= .5f;
     const auto add = [this, solid](const std::string& codepoint, Vector3 center, float size, float angle, Vector4 tint) {
         const auto& glyph = glyphs_.at(codepoint);
@@ -346,14 +373,16 @@ void NeonWindmillScene::BuildCharacter(bool solid)
             emojiRenderer_->Queue(center, size, angle, glyph.uv, pose_.visibility);
             return;
         }
-        if (renderMode_ != WindmillRenderMode::Legacy)
-            return; // Shader owns the sole Core/Halo source.
+        if (renderMode_ != WindmillRenderMode::Legacy) {
+            return; // Core/Haloの唯一の元データはシェーダーが持つ。
+        }
         std::vector<Vector3> outline;
         outline.reserve(glyph.contour.size());
         const float c = std::cos(angle), s = std::sin(angle);
-        for (const auto& p : glyph.contour)
+        for (const auto& p : glyph.contour) {
             outline.push_back(center + Vector3{size * (p.x * c - p.y * s), size * (p.x * s + p.y * c), -.012f});
-        cg2::NeonContourStyle style{};
+        }
+        myEngine::NeonContourStyle style{};
         style.coreIntensity = 2.1f;
         style.coreWhiteMix = .12f;
         style.shoulderIntensity = 1.0f;
@@ -384,20 +413,22 @@ void NeonWindmillScene::BuildCharacter(bool solid)
 
 void NeonWindmillScene::DrawPostEffect3D()
 {
-    cg2::RuntimeProfiler::GpuScope scope("Windmill scene");
+    myEngine::RuntimeProfiler::GpuScope scope("Windmill scene");
     const auto& vp = camera_.GetViewProjectionMatrix();
     renderer_->DrawRangeSceneSolid(0, solidEnd_, vp);
-    // Quality is premultiplied and includes transparent halo. Draw room lines
-    // before the five disjoint plates so their source opacity covers the grid.
-    // Legacy retains its original cutout/depth/contour ordering byte for byte.
-    if (renderMode_ != WindmillRenderMode::Legacy)
+    // Qualityは乗算済みアルファで、透明なハローを含む。元の不透明度がグリッドを覆うよう、
+    // 5枚の離れたプレートより先に部屋の線を描く。
+    // Legacyは元の切り抜き・深度・輪郭の順番をバイト単位でそのまま保つ。
+    if (renderMode_ != WindmillRenderMode::Legacy) {
         renderer_->DrawRange(solidEnd_, renderer_->GetVertexCount() - solidEnd_, vp);
+    }
     {
-        cg2::RuntimeProfiler::GpuScope plates("Windmill plates");
+        myEngine::RuntimeProfiler::GpuScope plates("Windmill plates");
         emojiRenderer_->Draw(vp);
     }
-    if (renderMode_ == WindmillRenderMode::Legacy)
+    if (renderMode_ == WindmillRenderMode::Legacy) {
         renderer_->DrawRange(solidEnd_, renderer_->GetVertexCount() - solidEnd_, vp);
+    }
 }
 
 IScene::DeveloperShowcaseState NeonWindmillScene::GetDeveloperShowcaseState()
@@ -431,15 +462,16 @@ IScene::ScreenEffectState NeonWindmillScene::GetScreenEffectState() const
 void NeonWindmillScene::UpdateLabels()
 {
     const int status = int(pose_.phase) * 12 + int(renderMode_) * 4 + (bloomEnabled_ ? 1 : 0) + (paused_ ? 2 : 0);
-    if (lastStatus_ == status)
+    if (lastStatus_ == status) {
         return;
+    }
     const char* phases[] = {"回転 / ORBIT",   "接近 / APPROACH", "減速・停止 / LOCK", "認識・正面への指差し / RECOGNIZED",
                             "急接近 / SURGE", "再構成 / RESET"};
     const char* modes[] = {"LEGACY", "LINE ART", "HYBRID GOLD"};
     labels_[3]->SetText(std::string(phases[int(pose_.phase)]) + "  |  " + modes[int(renderMode_)] + "  |  BLOOM " +
                         (bloomEnabled_ ? "ON" : "OFF") + (paused_ ? "  |  PAUSED" : ""));
     labels_[4]->SetText("SPACE 停止 / R 再生 / M 描画モード / B ブルーム / H 表示"
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
                         " / F4 開発設定"
 #endif
     );
@@ -448,10 +480,12 @@ void NeonWindmillScene::UpdateLabels()
 
 void NeonWindmillScene::DrawSprite()
 {
-    if (showUi_)
-        for (auto& label : labels_)
+    if (showUi_) {
+        for (auto& label : labels_) {
             label->Draw();
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+        }
+    }
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (capture_->HasRequest()) {
         nlohmann::json metadata = {
             {"scene", "NEON_WINDMILL"},
@@ -478,7 +512,7 @@ void NeonWindmillScene::DrawSprite()
             {"angle", pose_.angle},
             {"visibility", pose_.visibility},
             {"background", showBackground_},
-            {"resolution", {cg2::WinApp::kClientWidth, cg2::WinApp::kClientHeight}},
+            {"resolution", {myEngine::WinApp::kClientWidth, myEngine::WinApp::kClientHeight}},
             {"appearance",
              {{"base", appearances_[int(renderMode_)].baseBrightness},
               {"coreWidth", appearances_[int(renderMode_)].coreWidthPixels},
@@ -503,19 +537,20 @@ void NeonWindmillScene::DrawSprite()
               {"temporal", renderedPost_.temporalEnabled},
               {"toneMapping", renderedPost_.toneMappingMode}}}};
         capture_->SetFrameMetadata(std::move(metadata));
-        capture_->Record(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
+        capture_->Record(*myEngine::Object3dCommon::GetInstance()->GetDxCommon());
     }
 #endif
 }
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 void NeonWindmillScene::DrawSettingsUi()
 {
     ImGui::SetNextWindowSize({365, 570}, ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Windmill appearance / F4", &settingsUi_)) {
         int mode = int(renderMode_);
-        if (ImGui::Combo("Mode / M", &mode, "Legacy Neon\0Neon Line Art\0Hybrid Neon (Gold)\0"))
+        if (ImGui::Combo("Mode / M", &mode, "Legacy Neon\0Neon Line Art\0Hybrid Neon (Gold)\0")) {
             SelectMode(WindmillRenderMode(mode));
+        }
         ImGui::Checkbox("Pause / Space", &paused_);
         float time = float(seconds_);
         if (ImGui::SliderFloat("Seek (seconds)", &time, 0, 15.99f)) {
@@ -548,8 +583,9 @@ void NeonWindmillScene::DrawSettingsUi()
         ImGui::ColorEdit3("Core color (linear)", &s.coreColor.x);
         ImGui::ColorEdit3("Halo / inner color", &s.haloColor.x);
         int diagnostic = int(s.diagnostic);
-        if (ImGui::Combo("Source diagnostic", &diagnostic, "Combined\0Base\0Outer Core\0Inner Lines\0Local Halo\0Surface\0"))
+        if (ImGui::Combo("Source diagnostic", &diagnostic, "Combined\0Base\0Outer Core\0Inner Lines\0Local Halo\0Surface\0")) {
             s.diagnostic = uint32_t(diagnostic);
+        }
         ImGui::EndDisabled();
         ImGui::TextWrapped(
             "Legacy preserves the original source shader, contour geometry, palette and Bloom defaults. Texture contrast lines are approximate, not semantic detection.");
@@ -562,17 +598,18 @@ void NeonWindmillScene::UpdateQualityVerification()
     ++verificationFrames_;
     const bool motion = qualityRun_ == "motion";
     const bool measure = qualityRun_.starts_with("perf");
-    const unsigned count = motion ? 480u : 48u; // 5 states x 3 modes x Bloom OFF/ON + diagnostics/controls.
+    const unsigned count = motion ? 480u : 48u; // 5状態 x 3モード x Bloom OFF/ON + 診断/操作。
     if (verificationPending_ && !capture_->IsBusy()) {
-        if (capture_->WasLastCaptureSuccessful())
+        if (capture_->WasLastCaptureSuccessful()) {
             capturedNames_.push_back(qualityCaptureName_);
-        else
+        } else {
             verificationErrors_.push_back(capture_->GetStatus());
+        }
         verificationPending_ = false;
         ++verificationIndex_;
     }
     const auto report = [this, motion, measure]() {
-        auto* dx = cg2::Object3dCommon::GetInstance()->GetDxCommon();
+        auto* dx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
         UINT64 frequency = 0;
         dx->GetQueue()->GetTimestampFrequency(&frequency);
         Microsoft::WRL::ComPtr<IDXGIFactory4> factory;
@@ -603,7 +640,7 @@ void NeonWindmillScene::UpdateQualityVerification()
                                 {"distance", distance_},
                                 {"bloomGain", bloomGain_},
                                 {"bloomEnabled", bloomEnabled_},
-                                {"resolution", {cg2::WinApp::kClientWidth, cg2::WinApp::kClientHeight}},
+                                {"resolution", {myEngine::WinApp::kClientWidth, myEngine::WinApp::kClientHeight}},
                                 {"debugLayer", dx->IsD3D12DebugLayerEnabled()},
                                 {"gpuValidation", dx->IsGpuBasedValidationEnabled()}})
                     .dump(2)
@@ -630,15 +667,16 @@ void NeonWindmillScene::UpdateQualityVerification()
         }
         SelectMode(WindmillRenderMode(qualityRun_.back() - '0'));
         seconds_ = 3.35;
-        auto& profiler = cg2::RuntimeProfiler::Get();
+        auto& profiler = myEngine::RuntimeProfiler::Get();
         if (!qualityMeasureStarted_) {
             qualityMeasureStarted_ = profiler.StartCapture(qualityOutput_ + "/gpu.csv", 300, 60);
             if (!qualityMeasureStarted_) {
                 verificationErrors_.push_back("GPU profiler unavailable");
                 report();
             }
-        } else if (profiler.IsCaptureComplete())
+        } else if (profiler.IsCaptureComplete()) {
             report();
+        }
         return;
     }
     if (verificationIndex_ >= count) {
@@ -674,20 +712,27 @@ void NeonWindmillScene::UpdateQualityVerification()
                                                         "zero_emission",   "side",     "far",          "core_wide_halo", "core_no_halo",
                                                         "bloom_zero_gain", "dim_base", "core_bloom_on"};
             qualityCaptureName_ = std::string("diagnostic_") + names[i - 30];
-            if (i == 36)
+            if (i == 36) {
                 settings.haloIntensity = 0;
-            if (i == 37)
+            }
+            if (i == 37) {
                 settings.haloWidthPixels = 6;
-            if (i == 38)
+            }
+            if (i == 38) {
                 settings.coreWidthPixels = .75f;
-            if (i == 39)
+            }
+            if (i == 39) {
                 settings.coreWidthPixels = 2.5f;
-            if (i == 40)
+            }
+            if (i == 40) {
                 settings.coreIntensity = settings.innerIntensity = settings.surfaceEmission = settings.haloIntensity = 0;
-            if (i == 41)
+            }
+            if (i == 41) {
                 yaw_ = .72f;
-            if (i == 42)
+            }
+            if (i == 42) {
                 distance_ = 19;
+            }
             if (i == 43) {
                 settings.diagnostic = 2;
                 settings.haloWidthPixels = 6;
@@ -700,8 +745,9 @@ void NeonWindmillScene::UpdateQualityVerification()
                 bloomEnabled_ = true;
                 bloomGain_ = 0;
             }
-            if (i == 46)
+            if (i == 46) {
                 settings.baseBrightness = .20f;
+            }
             if (i == 47) {
                 settings.diagnostic = 2;
                 bloomEnabled_ = true;
@@ -712,8 +758,8 @@ void NeonWindmillScene::UpdateQualityVerification()
         report();
         return;
     }
-    // Static cases settle for eight frames: post metadata and texture commands
-    // belong to the selected case. Motion keeps post parameters constant.
+    // 静止したケースは8フレーム待って落ち着かせる。ポストの情報とテクスチャのコマンドは
+    // 選んだケースのものになる。動きのあるケースではポストのパラメータを一定に保つ。
     if (!verificationPending_ && (motion || verificationFrames_ % 8 == 0)) {
         capture_->Request(qualityOutput_, qualityCaptureName_, {});
         verificationPending_ = true;
@@ -726,23 +772,25 @@ void NeonWindmillScene::UpdateVerification()
     constexpr std::array<double, 6> times{{3.35, 3.35, 3.35, 13.3, 13.95, 4.45}};
     ++verificationFrames_;
     if (verificationPending_ && !capture_->IsBusy()) {
-        if (capture_->WasLastCaptureSuccessful())
+        if (capture_->WasLastCaptureSuccessful()) {
             capturedNames_.push_back(names[verificationIndex_]);
-        else
+        } else {
             verificationErrors_.push_back(capture_->GetStatus());
+        }
         verificationPending_ = false;
         ++verificationIndex_;
     }
     if (verificationIndex_ >= names.size() || verificationFrames_ > 600) {
-        if (verificationIndex_ < names.size())
+        if (verificationIndex_ < names.size()) {
             verificationErrors_.push_back("GPU capture verification timed out.");
+        }
         std::filesystem::create_directories("../generated/neon_windmill");
         std::ofstream report("../generated/neon_windmill/runtime_report.json");
         report << nlohmann::json({{"captures", capturedNames_},
                                   {"errors", verificationErrors_},
                                   {"frames", verificationFrames_},
                                   {"emojiQuads", emojiRenderer_->GetQuadCount()},
-                                  {"maxVertices", uint32_t(cg2::NeonGridRenderer::kMaxVertices)},
+                                  {"maxVertices", uint32_t(myEngine::NeonGridRenderer::kMaxVertices)},
                                   {"completed", verificationIndex_ == names.size() && verificationErrors_.empty()}})
                       .dump(2)
                << '\n';

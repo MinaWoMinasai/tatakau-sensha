@@ -3,7 +3,8 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "game/session/TitleDemoStatus.h"
-namespace cg2 {
+
+namespace myEngine {
 class Object3d;
 }
 
@@ -13,6 +14,7 @@ using ScreenEffectState = IScene::ScreenEffectState;
 using DeveloperShowcaseState = IScene::DeveloperShowcaseState;
 
 struct GameWorld;
+
 /// @brief 各担当の寿命をまとめ、シーンにゲームの公開窓口を提供する。
 class GameSession {
 public:
@@ -22,6 +24,7 @@ public:
     ~GameSession();
     /// @brief 初期化
     void Initialize();
+    /// @brief 初期化を1ステップ進める。完了したらtrueを返す。
     bool InitializeStep();
 
     /// @brief シーンの状態に応じて戦闘・演出・進行を更新する。戦闘の呼び出し順は実装内に記載する。
@@ -46,7 +49,7 @@ public:
     bool IsFinished() const;
 
     /// @brief BallOBJ形式を返す。
-    cg2::Object3d* GetBallObj();
+    myEngine::Object3d* GetBallObj();
 
     /// @brief 最終差分時間を返す。
     float GetFinalDeltaTime() const;
@@ -66,9 +69,11 @@ public:
 
     DeveloperShowcaseState GetDeveloperShowcaseState();
 
-    void RecordDeveloperPostParameters(const cg2::BloomParam& param);
+    /// @brief 開発者用にポストエフェクトのパラメータを記録する。
+    void RecordDeveloperPostParameters(const myEngine::BloomParam& param);
 
-    void RecordDeveloperFrame(cg2::DirectXCommon& dx);
+    /// @brief 開発者用にフレームを記録する。
+    void RecordDeveloperFrame(myEngine::DirectXCommon& dx);
 
     /// @brief 描画区間の計測値を設定する。
     void SetRenderProfile(const IScene::RenderProfile& profile);

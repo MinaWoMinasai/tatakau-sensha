@@ -2,13 +2,22 @@
 #include "Skeleton.h"
 #include <vector>
 
-namespace cg2 { class SkinnedModel; }
+namespace myEngine {
+class SkinnedModel;
+}
 
 // AvatarSample_B用の既存生成クリップ。Previewと本編Presentationで共有し、GLB由来のAnimationとは区別する。
 namespace neonpreview {
-enum class Clip { BindPose, Idle, Attack };
-std::vector<cg2::Animation> CreateAnimations(const cg2::Skeleton& skeleton);
-bool SelectAnimation(cg2::SkinnedModel& model, Clip clip);
+/// @brief プレビューで使うアニメーションクリップ。
+enum class Clip {
+    BindPose,
+    Idle,
+    Attack
+};
+/// @brief スケルトンからプレビュー用のアニメーションを生成する。
+std::vector<myEngine::Animation> CreateAnimations(const myEngine::Skeleton& skeleton);
+/// @brief モデルで再生するクリップを切り替える。
+bool SelectAnimation(myEngine::SkinnedModel& model, Clip clip);
 // 1フレームに一度だけモデルを更新し、非ループAttack終了後は既存ブレンドでIdleへ戻す。
-void UpdateAnimation(cg2::SkinnedModel& model, float deltaTime);
-}
+void UpdateAnimation(myEngine::SkinnedModel& model, float deltaTime);
+} // namespace neonpreview

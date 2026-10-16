@@ -8,12 +8,14 @@ class ArenaRunController {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ArenaRunController(GameWorld& world) : world_(world) {}
+
     /// @brief 遠征の強化効果の強度を表示・計算用にまとめる。
     std::array<float, tankrun::CardCount> ExpeditionEffectPowers() const;
 
     /// @brief 戦車遠征を初期化する。
     void InitializeTankRun();
-    cg2::InitializationTask BuildInitialization();
+    /// @brief 初期化を分割して行うコルーチンを作る。
+    myEngine::InitializationTask BuildInitialization();
 
     /// @brief 戦車遠征を更新する。
     /// @param dt この処理で進める経過時間（秒）。
@@ -36,7 +38,7 @@ public:
     void OnTankRunResourceClaim(size_t index, bool playerOwned);
 
     /// @brief 戦車遠征敵Defeatedの通知を受けて、このオブジェクトの状態を反映する。
-    void OnTankRunEnemyDefeated(const cg2::Vector3& position);
+    void OnTankRunEnemyDefeated(const myEngine::Vector3& position);
 
     /// @brief 戦車遠征選択肢を選択する。
     void SelectTankRunOption(int index);

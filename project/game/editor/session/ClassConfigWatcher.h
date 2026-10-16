@@ -7,6 +7,7 @@ class ClassConfigWatcher {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ClassConfigWatcher(GameWorld& world) : world_(world) {}
+
     /// @brief 自機機体設定監視を初期化する。
     void InitializePlayerClassConfigWatch();
 

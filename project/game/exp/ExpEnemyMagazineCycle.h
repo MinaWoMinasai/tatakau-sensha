@@ -12,6 +12,7 @@ public:
         float cadence = 0.16f;
         float reload = 1.50f;
     };
+
     /// @brief 時間設定を各下限、斉射回数を1〜8へ制限し、満タン・再装填回数0・Cooldownへ戻す。間隔倍率は保持する。
     void Reset(const Timing& timing, float delay)
     {
@@ -25,11 +26,13 @@ public:
         reloadCount_ = 0;
         Enter(ExpEnemyCombatPhase::Cooldown, (std::max)(0.0f, delay));
     }
+
     /// @brief 次の射撃後の待ちと再装填に使う倍率を0.3〜4へ制限する。開始済みのタイマーは変更しない。
     void SetIntervalScale(float scale)
     {
         intervalScale_ = (std::clamp)(scale, 0.3f, 4.0f);
     }
+
     /// @brief 1段階の時間を進め、LockedからActiveへ入るとき残弾を1消費してtrueを返す。
     /// @param dt 進める秒数。非有限値・0以下では状態を変えずfalse。
     /// @param canTrack 待ち終了後の追尾開始とTrackingの継続を許可するか。照準固定後と再装填では参照しない。
@@ -37,48 +40,58 @@ public:
     /// 1呼び出しに1段階だけ処理し、余った時間を繰り越さない。
     bool Advance(float dt, bool canTrack)
     {
-        if (!std::isfinite(dt) || dt <= 0)
+        if (!std::isfinite(dt) || dt <= 0) {
             return false;
+        }
         const State& state = GetState(phase_);
         return state.Update(*this, dt, canTrack);
     }
+
     /// @brief 段階を返す。
     ExpEnemyCombatPhase GetPhase() const
     {
         return phase_;
     }
+
     /// @brief 照準固定であるか判定する。
     bool IsAimLocked() const
     {
         return phase_ == ExpEnemyCombatPhase::Locked || phase_ == ExpEnemyCombatPhase::Active;
     }
+
     /// @brief Recovery段階、すなわち再装填中かを返す。
     bool IsReloading() const
     {
         return phase_ == ExpEnemyCombatPhase::Recovery;
     }
+
     /// @brief 弾倉の残り斉射回数を返す。1斉射で何発生成するかは呼び出し側が決める。
     int GetAmmo() const
     {
         return ammo_;
     }
+
     /// @brief 満タン時の斉射回数を返す。1斉射から生成される弾の数とは異なる。
     int GetCapacity() const
     {
         return timing_.rounds;
     }
+
     /// @brief 再装填を開始した回数を返す。完了回数ではない。
     unsigned GetReloadCount() const
     {
         return reloadCount_;
     }
+
     /// @brief 予告比率を返す。
     float GetWarningRatio() const
     {
-        if (phase_ == ExpEnemyCombatPhase::Locked)
+        if (phase_ == ExpEnemyCombatPhase::Locked) {
             return 1;
+        }
         return phase_ == ExpEnemyCombatPhase::Tracking ? (std::clamp)(1 - remaining_ / timing_.tracking, 0.0f, 1.0f) : 0;
     }
+
     /// @brief 再装填進行度を返す。
     float GetReloadProgress() const
     {
@@ -95,6 +108,7 @@ private:
         /// @param dt この処理で進める経過時間（秒）。
         virtual bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool canTrack) const = 0;
     };
+
     /// @brief ExpEnemyMagazineCycleで次の攻撃まで待機する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class CooldownState final : public State {
     public:
@@ -102,11 +116,13 @@ private:
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool canTrack) const override
         {
-            if (cycle.Elapse(dt) && canTrack)
+            if (cycle.Elapse(dt) && canTrack) {
                 cycle.Enter(ExpEnemyCombatPhase::Tracking, cycle.timing_.tracking);
+            }
             return false;
         }
     };
+
     /// @brief ExpEnemyMagazineCycleで対象を追尾する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class TrackingState final : public State {
     public:
@@ -114,13 +130,15 @@ private:
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool canTrack) const override
         {
-            if (!canTrack)
+            if (!canTrack) {
                 cycle.Enter(ExpEnemyCombatPhase::Cooldown, 0.14f);
-            else if (cycle.Elapse(dt))
+            } else if (cycle.Elapse(dt)) {
                 cycle.Enter(ExpEnemyCombatPhase::Locked, cycle.timing_.locked);
+            }
             return false;
         }
     };
+
     /// @brief ExpEnemyMagazineCycleで照準を固定する状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class LockedState final : public State {
     public:
@@ -128,13 +146,15 @@ private:
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool) const override
         {
-            if (!cycle.Elapse(dt) || cycle.ammo_ <= 0)
+            if (!cycle.Elapse(dt) || cycle.ammo_ <= 0) {
                 return false;
+            }
             --cycle.ammo_;
             cycle.Enter(ExpEnemyCombatPhase::Active, (std::max)(0.08f, cycle.timing_.cadence * cycle.intervalScale_));
             return true;
         }
     };
+
     /// @brief ExpEnemyMagazineCycleで攻撃が有効な状態を表す。状態ごとの更新と次状態への遷移を担当する。
     class ActiveState final : public State {
     public:
@@ -142,17 +162,20 @@ private:
         /// @param dt この処理で進める経過時間（秒）。
         bool Update(ExpEnemyMagazineCycle& cycle, float dt, bool) const override
         {
-            if (!cycle.Elapse(dt))
+            if (!cycle.Elapse(dt)) {
                 return false;
+            }
             if (cycle.ammo_ == 0) {
                 ++cycle.reloadCount_;
                 cycle.reloadDuration_ = (std::max)(0.80f, cycle.timing_.reload * cycle.intervalScale_);
                 cycle.Enter(ExpEnemyCombatPhase::Recovery, cycle.reloadDuration_);
-            } else
+            } else {
                 cycle.Enter(ExpEnemyCombatPhase::Cooldown, 0.01f);
+            }
             return false;
         }
     };
+
     /// @brief 弾倉の再装填を終え、残弾を満タンにして次の追尾予告へ進む状態を表す。
     class RecoveryState final : public State {
     public:
@@ -167,6 +190,7 @@ private:
             return false;
         }
     };
+
     /// @brief 状態を返す。
     static const State& GetState(ExpEnemyCombatPhase phase)
     {
@@ -180,6 +204,7 @@ private:
         const auto index = static_cast<std::size_t>(phase);
         return *states[index < states.size() ? index : 0];
     }
+
     /// @brief 経過時間を内部タイマーへ反映する。
     /// @param dt この処理で進める経過時間（秒）。
     bool Elapse(float dt)
@@ -187,12 +212,14 @@ private:
         remaining_ = (std::max)(0.0f, remaining_ - dt);
         return remaining_ <= 0.0f;
     }
+
     /// @brief 指定状態へ入る際の時間と条件を初期化する。
     void Enter(ExpEnemyCombatPhase phase, float time)
     {
         phase_ = phase;
         remaining_ = time;
     }
+
     Timing timing_{};
     ExpEnemyCombatPhase phase_ = ExpEnemyCombatPhase::Cooldown;
     float remaining_ = 0, intervalScale_ = 1, reloadDuration_ = 1;

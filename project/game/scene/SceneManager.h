@@ -20,15 +20,30 @@ public:
     bool ContainsScene(std::string_view sceneName) const;
     /// @brief 登録済みシーン名前を返す。
     std::vector<std::string> GetRegisteredSceneNames() const;
+
     /// @brief 現在シーン名前を返す。
     const std::string& GetCurrentSceneName() const
     {
         return currentSceneName_;
     }
+
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update();
-    bool UsesSimpleRendering() const { return pendingScene_ || (currentScene_ && currentScene_->UsesSimpleRendering()); }
-    void OnEngineReady() { if (currentScene_) currentScene_->OnEngineReady(); }
+
+    /// @brief 簡易描画（ポストエフェクトなし）で描画するかを返す。
+    bool UsesSimpleRendering() const
+    {
+        return pendingScene_ || (currentScene_ && currentScene_->UsesSimpleRendering());
+    }
+
+    /// @brief エンジンの初期化完了を現在のシーンへ伝える。
+    void OnEngineReady()
+    {
+        if (currentScene_) {
+            currentScene_->OnEngineReady();
+        }
+    }
+
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     void Draw();
     /// @brief 後処理演出3Dを描画する。
@@ -49,8 +64,10 @@ public:
     /// @brief 画面演出状態を返す。
     IScene::ScreenEffectState GetScreenEffectState();
     IScene::DeveloperShowcaseState GetDeveloperShowcaseState();
-    void RecordDeveloperFrame(cg2::DirectXCommon& dx);
-    void RecordDeveloperPostParameters(const cg2::BloomParam& param);
+    /// @brief 開発者用に現在のシーンのフレームを記録する。
+    void RecordDeveloperFrame(myEngine::DirectXCommon& dx);
+    /// @brief 開発者用にポストエフェクトのパラメータを記録する。
+    void RecordDeveloperPostParameters(const myEngine::BloomParam& param);
     /// @brief 水面後処理Process設定を返す。
     IScene::WaterPostProcessSettings GetWaterPostProcessSettings();
     /// @brief 現在シーンのアリーナ表示設定を返す。

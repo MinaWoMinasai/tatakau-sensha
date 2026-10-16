@@ -7,11 +7,10 @@
 #include "externals/imgui/imgui.h"
 #include "WinApp.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 開発時の入力で動かせるカメラの姿勢と行列を管理する。
 class DebugCamera {
-
 public:
     /// @brief インスタンスの初期値と利用先を設定する。
     DebugCamera();
@@ -45,46 +44,55 @@ public:
     {
         return projectionMatrix_;
     }
+
     /// @brief 視点射影行列を返す。
     const Matrix4x4& GetViewProjectionMatrix() const
     {
         return viewProjectionMatrix_;
     }
+
     /// @brief ジッター適用前の射影行列を返す。
     const Matrix4x4& GetUnjitteredProjectionMatrix() const
     {
         return unjitteredProjectionMatrix_;
     }
+
     /// @brief ジッター適用前の視点射影行列を返す。
     const Matrix4x4& GetUnjitteredViewProjectionMatrix() const
     {
         return unjitteredViewProjectionMatrix_;
     }
+
     /// @brief 射影射影ジッターを返す。
     const Vector2& GetProjectionJitter() const
     {
         return projectionJitter_;
     }
+
     /// @brief 近クリップ距離を返す。
     float GetNearClip() const
     {
         return nearClip_;
     }
+
     /// @brief 遠クリップ距離を返す。
     float GetFarClip() const
     {
         return farClip_;
     }
+
     /// @brief 近クリップ距離を設定する。
     void SetNearClip(float nearClip)
     {
         nearClip_ = nearClip;
     }
+
     /// @brief 遠クリップ距離を設定する。
     void SetFarClip(float farClip)
     {
         farClip_ = farClip;
     }
+
     /// @brief 射影射影ジッターを設定する。
     void SetProjectionJitter(const Vector2& jitter);
 
@@ -121,4 +129,4 @@ private:
     Vector3 eye_;                             // カメラのワールド位置
 };
 
-} // namespace cg2
+} // namespace myEngine

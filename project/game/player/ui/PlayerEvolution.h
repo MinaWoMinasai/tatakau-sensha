@@ -5,8 +5,10 @@
 class PlayerEvolution {
 public:
     using BodyShape = Player::BodyShape;
+
     /// @brief 自機と画面状態を接続する。
     PlayerEvolution(Player& player, PlayerUiState& ui) : player_(player), ui_(ui) {}
+
     using UiProfileStats = Player::UiProfileStats;
     /// @brief 進化画面の背景と発光演出を、シーンのポストエフェクト後に描画する。
     void DrawEvolutionAfterPostEffects();
@@ -72,19 +74,19 @@ public:
     bool ShouldUseStaticEvolutionPrototype() const;
 
     /// @brief 進化画面の配置基準を仮想画面座標へ変換する。
-    cg2::Vector2 EvolutionAnchorToVirtual(const cg2::Vector2& normalizedAnchor) const;
+    myEngine::Vector2 EvolutionAnchorToVirtual(const myEngine::Vector2& normalizedAnchor) const;
 
     /// @brief 進化画面の仮想座標を描画座標へ変換する。
-    cg2::Vector2 EvolutionVirtualToRender(const cg2::Vector2& virtualPosition) const;
+    myEngine::Vector2 EvolutionVirtualToRender(const myEngine::Vector2& virtualPosition) const;
 
     /// @brief ウィンドウ座標を進化画面の仮想座標へ変換する。
-    cg2::Vector2 EvolutionClientToVirtual(const cg2::Vector2& clientPosition) const;
+    myEngine::Vector2 EvolutionClientToVirtual(const myEngine::Vector2& clientPosition) const;
 
     /// @brief 仮想画面全体がクライアント領域に収まる、縦横共通の描画倍率を返す。
     float GetEvolutionRenderScale() const;
 
     /// @brief 仮想画面をクライアント領域の中央へ配置するオフセット（ピクセル）を返す。
-    cg2::Vector2 GetEvolutionRenderOffset() const;
+    myEngine::Vector2 GetEvolutionRenderOffset() const;
 
     /// @brief 固定配置の進化UIで、ノード間の回路線の制御点とスプライトを更新する。
     void UpdateStaticEvolutionCircuit();

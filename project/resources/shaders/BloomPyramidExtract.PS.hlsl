@@ -12,7 +12,7 @@ float4 ExtractSample(uint2 coordinate)
             * (1.0f - smoothstep(.765f, .80f, alpha)) * waterDiagnosticsEnabled);
         color *= lerp(1.0f, waterBloomEnabled, mask);
     }
-    // Saturated magenta/cyan are bright neon sources even at low luminance.
+    // 彩度の高いマゼンタ/シアンは、輝度が低くても明るいネオンの光源として扱う。
     float brightness = max(color.r, max(color.g, color.b));
     float knee = threshold * softKnee;
     float soft = clamp(brightness - threshold + knee, 0.0f, 2.0f * knee);
@@ -23,8 +23,8 @@ float4 ExtractSample(uint2 coordinate)
 
 float4 main(PSInput input) : SV_TARGET
 {
-    // Threshold each original pixel BEFORE averaging. This preserves tiny bright
-    // emitters across the four phases of the half-resolution pixel footprint.
+    // 平均を取る前に、元の各ピクセルでしきい値を判定する。これにより、半解像度の
+    // ピクセル範囲の4つの位相のどこにあっても、小さく明るい光源が残る。
     uint2 base = uint2(input.position.xy) * 2;
     return (ExtractSample(base) + ExtractSample(base + uint2(1, 0))
         + ExtractSample(base + uint2(0, 1)) + ExtractSample(base + uint2(1, 1))) * .25f;

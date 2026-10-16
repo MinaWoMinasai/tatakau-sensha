@@ -6,18 +6,18 @@ namespace gameplay {
 /// @brief 最終ボスの登場・戦闘・撃破のカメラワークと画面演出の進行状態（表示のみ）。
 struct BossCinematicState {
     bool cameraInitialized = false;
-    cg2::Vector3 focus{};
+    myEngine::Vector3 focus{};
     float distanceScale = 1.0f;
     float tiltDegrees = 14.0f;
     float introTime = 0.0f;
     bool introSeen = false;
     bool revealFired = false;
     float defeatTime = -1.0f;
-    cg2::Vector3 defeatFocus{};
+    myEngine::Vector3 defeatFocus{};
     int burstsFired = 0;
     bool finaleFired = false;
     float letterbox = 0.0f;
-    int titleMode = 0; // 0: none, 1: entrance, 2: defeat
+    int titleMode = 0; // 0: なし、1: 登場、2: 撃破
     float titleAlpha = 0.0f;
     float titleAge = 0.0f;
 };
@@ -25,56 +25,56 @@ struct BossCinematicState {
 /// @brief NeonPresentationStateに属する資源と実行状態を保持する。
 struct NeonPresentationState {
     BossCinematicState bossCinematic_;
-    // Bloom explanation for presentations: [B] cycles the view, [V] freezes the frame.
-    // 0: full, 1: off, 2..6: one pyramid level (1/2 .. 1/32), 7: the bloom term only.
+    // 演出確認用のBloom解説: [B]で表示を切り替え、[V]でフレームを止める。
+    // 0: すべて、1: オフ、2..6: ピラミッドの1レベル（1/2 .. 1/32）、7: Bloom成分のみ。
     int bloomView_ = 0;
     bool bloomViewFreeze_ = false;
     float bloomViewLabelTimer_ = 0.0f;
     stagesurface::Settings stageSurface_;
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     int developerStageSurfaceDebugView_ = -1;
     int developerStageSurfaceSSAO_ = -1, developerStageSurfaceSSR_ = -1;
     bool developerStageTilt_ = false, developerStageTiltApplied_ = false;
     float developerStageTiltDegrees_ = 18.0f;
-    cg2::Vector3 developerStageBaseCamera_{}, developerStageBaseRotation_{};
+    myEngine::Vector3 developerStageBaseCamera_{}, developerStageBaseRotation_{};
 #endif
     bool enableExpEnemyPostEffect_ = true;
 
     bool enableStagePostEffect_ = false;
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     int developerBloomComparisonMode_ = -1;
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     int developerToneMappingMode_ = -1;
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     bool developerBloomFreeze_ = false;
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     NeonShowcaseCapture developerGameCapture_;
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-    cg2::BloomParam developerCompositeParams_{};
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    myEngine::BloomParam developerCompositeParams_{};
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     bool developerCompositeParamsAvailable_ = false;
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     unsigned developerGameCaptureNumber_ = 0;
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     std::string developerGameCaptureDirectory_;
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     char developerGameCaptureLabel_[64] = "game_bloom";
 #endif
 
@@ -142,7 +142,7 @@ struct NeonPresentationState {
 
     bool stagePostCacheValid_ = false;
 
-    cg2::Vector3 stagePostCacheCameraPos_{};
+    myEngine::Vector3 stagePostCacheCameraPos_{};
 
     float stagePostCacheRefreshPixels_ = 48.0f;
 
@@ -232,7 +232,7 @@ struct NeonPresentationState {
 
     float worldGridLineWidth_ = 0.075f;
 
-    cg2::Vector4 worldGridColor_ = {0.12f, 0.42f, 1.0f, 0.15f};
+    myEngine::Vector4 worldGridColor_ = {0.12f, 0.42f, 1.0f, 0.15f};
 
     float actorGridRadius_ = 5.4f;
 
@@ -244,11 +244,11 @@ struct NeonPresentationState {
 
     float neonLineCoreIntensity_ = 1.35f;
 
-    cg2::Vector4 playerGridColor_ = {0.50f, 1.0f, 0.35f, 1.0f};
+    myEngine::Vector4 playerGridColor_ = {0.50f, 1.0f, 0.35f, 1.0f};
 
-    cg2::Vector4 enemyGridColor_ = {1.0f, 0.18f, 0.24f, 1.0f};
+    myEngine::Vector4 enemyGridColor_ = {1.0f, 0.18f, 0.24f, 1.0f};
 
-    cg2::Vector4 expEnemyGridColor_ = {1.0f, 0.32f, 0.58f, 1.0f};
+    myEngine::Vector4 expEnemyGridColor_ = {1.0f, 0.32f, 0.58f, 1.0f};
 
     bool showStageBlockNeonOutlines_ = true;
 
@@ -258,11 +258,11 @@ struct NeonPresentationState {
 
     float stageBlockNeonDepthBias_ = 0.035f;
 
-    cg2::Vector4 stageBlockNeonColor_ = {0.55f, 1.0f, 0.32f, 1.0f};
+    myEngine::Vector4 stageBlockNeonColor_ = {0.55f, 1.0f, 0.32f, 1.0f};
 
     bool showStageDamageBlockNeonOutlines_ = true;
 
-    cg2::Vector4 stageDamageBlockNeonColor_ = {1.20f, 0.035f, 0.02f, 1.0f};
+    myEngine::Vector4 stageDamageBlockNeonColor_ = {1.20f, 0.035f, 0.02f, 1.0f};
 
     float stageDamageBlockPulseSpeed_ = 5.0f;
 
@@ -314,7 +314,7 @@ struct NeonPresentationState {
 
     bool fillActorNeonBodies_ = true;
 
-    cg2::Vector4 actorNeonBodyFillColor_ = {0.006f, 0.010f, 0.016f, 0.92f};
+    myEngine::Vector4 actorNeonBodyFillColor_ = {0.006f, 0.010f, 0.016f, 0.92f};
 
     float playerDashCurrentAlpha_ = 0.58f;
 
@@ -389,7 +389,7 @@ struct NeonPresentationState {
 
     int neonTriangleEffectMode_ = 0;
 
-    cg2::Vector3 neonTriangleDemoCenter_ = {30.0f, 30.0f, 1.2f};
+    myEngine::Vector3 neonTriangleDemoCenter_ = {30.0f, 30.0f, 1.2f};
 
     float neonTriangleDemoRadius_ = 2.2f;
 };

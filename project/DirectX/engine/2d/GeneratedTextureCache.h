@@ -10,11 +10,10 @@
 #include "externals/DirectXTex/DirectXTex.h"
 #include "StartupTrace.h"
 
-// Lossless CPU-generated PBR data, independent of the graphics adapter/driver.
-// Bump the directory version whenever the procedural environment, integration
-// algorithm, sample count or output layout changes. The payload is DDS, with a
-// small integrity header so a truncated/corrupt cache always rebuilds safely.
-namespace cg2 {
+// GPUアダプタやドライバに依存しない、CPU生成の可逆なPBRデータ。
+// 手続き環境・積分アルゴリズム・サンプル数・出力レイアウトを変えたら、ディレクトリのバージョンを上げる。
+// 中身はDDSで、小さな整合性ヘッダを付けているため、途中で切れたり壊れたキャッシュは必ず安全に作り直される。
+namespace myEngine {
 
 namespace GeneratedTextureCache {
 
@@ -22,7 +21,7 @@ namespace GeneratedTextureCache {
 inline bool Enabled()
 {
     char value[8]{};
-    const DWORD length = GetEnvironmentVariableA("CG2_STARTUP_CACHE", value, sizeof(value));
+    const DWORD length = GetEnvironmentVariableA("MYENGINE_STARTUP_CACHE", value, sizeof(value));
     return length != 1 || value[0] != '0';
 }
 
@@ -30,7 +29,7 @@ inline bool Enabled()
 inline std::filesystem::path Path(const wchar_t* name)
 {
     wchar_t configured[32768]{};
-    const DWORD length = GetEnvironmentVariableW(L"CG2_TEXTURE_CACHE_DIR", configured, static_cast<DWORD>(_countof(configured)));
+    const DWORD length = GetEnvironmentVariableW(L"MYENGINE_TEXTURE_CACHE_DIR", configured, static_cast<DWORD>(_countof(configured)));
     const std::filesystem::path root =
         length > 0 && length < _countof(configured) ? std::filesystem::path(configured) : std::filesystem::path(L"generated/texture_cache");
     return root / L"v1" / (std::wstring(name) + L".dds.cache");
@@ -61,8 +60,9 @@ inline bool Matches(const DirectX::TexMetadata& metadata, size_t size, size_t mi
 /// @brief 保存されたデータを読み込む。
 inline bool Load(const wchar_t* name, size_t size, size_t mipLevels, bool cube, DirectX::ScratchImage& image)
 {
-    if (!Enabled())
+    if (!Enabled()) {
         return false;
+    }
     StartupTrace::Scope scope("Textures.GeneratedCache.Load");
     try {
         std::ifstream file(Path(name), std::ios::binary | std::ios::ate);
@@ -104,20 +104,23 @@ inline bool Load(const wchar_t* name, size_t size, size_t mipLevels, bool cube, 
 /// @brief 指定したデータを保存する。
 inline void Store(const wchar_t* name, const DirectX::ScratchImage& image)
 {
-    if (!Enabled())
+    if (!Enabled()) {
         return;
+    }
     StartupTrace::Scope scope("Textures.GeneratedCache.Store");
     std::filesystem::path temporary;
     try {
         DirectX::Blob dds;
         if (FAILED(DirectX::SaveToDDSMemory(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::DDS_FLAGS_NONE, dds)) ||
-            dds.GetBufferSize() > kMaxPayloadBytes)
+            dds.GetBufferSize() > kMaxPayloadBytes) {
             return;
+        }
         const auto path = Path(name);
         std::error_code error;
         std::filesystem::create_directories(path.parent_path(), error);
-        if (error)
+        if (error) {
             return;
+        }
         static std::atomic<uint64_t> sequence{0};
         temporary = path;
         temporary += L"." + std::to_wstring(GetCurrentProcessId()) + L"." + std::to_wstring(sequence++) + L".tmp";
@@ -143,4 +146,4 @@ inline void Store(const wchar_t* name, const DirectX::ScratchImage& image)
 
 } // namespace GeneratedTextureCache
 
-} // namespace cg2
+} // namespace myEngine

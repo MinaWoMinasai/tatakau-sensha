@@ -38,11 +38,11 @@ cbuffer FlameParameters : register(b0)
     float gStarSparkTwinkleSpeed;
     float gStarSparkGlowStrength;
     float2 gStarSparkPadding;
-    // xy: normalized billboard position, z: size scale, w: phase
+    // xy: 正規化したビルボード上の位置、z: 大きさの倍率、w: 位相
     float4 gStarSparkData[8];
     float4 gStarSparkColors[8];
-    // xy: normalized billboard position (y grows upward)
-    // z: radius, w: lifetime contribution
+    // xy: 正規化したビルボード上の位置（yは上向きが正）
+    // z: 半径、w: 寿命への寄与
     float4 gMetaballs[12];
 };
 
@@ -66,12 +66,12 @@ float Hash21(float2 p)
     return frac(p.x * p.y);
 }
 
-// Smooth lattice value noise. This is intentionally compact and authored for
-// this renderer; no third-party shader code is embedded here.
+// 滑らかな格子のバリューノイズ。このレンダラー用にあえて小さく自作したもので、
+// サードパーティのシェーダーコードは含んでいない。
 float LatticeHash(int2 cell)
 {
-    // Integer arithmetic gives a shared corner exactly the same value from
-    // either adjacent cell, including negative coordinates and fused math.
+    // 整数演算により、共有する角は隣り合うどちらのセルからでもまったく同じ値になる。
+    // 負の座標や融合演算の場合も同じ。
     uint key = asuint(cell.x) * 0x9e3779b9u ^ asuint(cell.y) * 0x85ebca6bu;
     key ^= key >> 16;
     key *= 0x7feb352du;
@@ -114,9 +114,9 @@ float3 HsvToRgb(float3 hsv)
     return hsv.z * lerp(1.0f.xxx, rgbRamp, hsv.y);
 }
 
-// These distances are in billboard-height units, including aspect correction.
-// Give subpixel features analytic coverage instead of forcing every line to a
-// full pixel (which used to wash the entire rainbow contour towards white).
+// これらの距離はアスペクト補正を含めたビルボードの高さ単位。
+// すべての線を1ピクセル幅に強制せず（以前は虹色の輪郭全体が白っぽくなっていた）、
+// サブピクセルの要素には解析的なカバレッジを与える。
 float StrokeMask(float distanceToLine, float halfWidth, float aa)
 {
     return (1.0f - smoothstep(max(halfWidth - aa, 0.0f), halfWidth + aa, distanceToLine))
@@ -141,8 +141,8 @@ void BuildStarSparkLayer(float2 p, float pixelSize, out float3 radiance, out flo
             const float generation = floor(clock);
             const float seed = Hash21(float2(index + 19.0f, generation));
             const float envelope = pow(saturate(sin(cycle * 3.14159265f)), 3.0f);
-            // New position at each invisible end of the twinkle. The flash
-            // rises a little with the plume, rather than marking fixed slots.
+            // きらめきが見えなくなる端ごとに新しい位置にする。閃光は
+            // 固定の位置に出るのではなく、炎と一緒に少し上昇する。
             float2 center = spark.xy;
             center.x = lerp(0.18f, 0.82f, seed);
             center.y = lerp(0.27f, 0.77f, Hash21(float2(generation + 8.0f, index + 3.0f)));
@@ -165,8 +165,8 @@ void BuildStarSparkLayer(float2 p, float pixelSize, out float3 radiance, out flo
         }
     }
 
-    // Small hollow embers and pinpoints give scale to the larger glints. Every
-    // slot has its own birth, drift and fade; no textures or particle buffers.
+    // 小さな中空の火の粉や光点で、大きなきらめきに大きさの対比を付ける。どのスロットも
+    // 個別の発生・漂い・フェードを持ち、テクスチャやパーティクルバッファは使わない。
     [loop]
     for (uint ember = 0; ember < 28; ++ember)
     {
@@ -203,7 +203,7 @@ float BuildAuraField(float2 uv)
         height * gNoiseScale * 1.35f - gTime * gNoiseSpeed);
     const float2 warp = flow * 0.62f + float2(13.17f, -7.31f);
     const float2 turbulence = float2(Fbm3(warp), Fbm3(warp + float2(5.23f, 9.41f))) - 0.5f;
-    // Preserve a rounded foot; ascending lobes curl, pinch off and tear.
+    // 丸い根元を保ち、上昇する塊は巻き、くびれて千切れる。
     const float breakup = smoothstep(0.17f, 0.73f, height);
     p += turbulence * float2(0.34f, 0.18f) * gDistortionStrength * lerp(0.48f, 1.7f, breakup);
     p.x += sin(height * 17.0f - gTime * 1.8f) * 0.012f * breakup;
@@ -223,8 +223,8 @@ float BuildAuraField(float2 uv)
             field += ball.w * 1.45f * compact * compact * compact;
         }
     }
-    // Multiplicative erosion cannot create disconnected noise outside the
-    // compact support. The upper edge has more detail than the quiet base.
+    // 乗算による侵食なので、範囲の外に途切れたノイズが生じることはない。
+    // 上端は落ち着いた根元より細部が多い。
     return field * gFieldGain * max(0.25f,
         1.0f + detail * gDistortionStrength * lerp(0.8f, 3.8f, breakup));
 }
@@ -252,8 +252,8 @@ PixelShaderOutput main(PixelShaderInput input)
         * smoothstep(0.02f, gContourThreshold * 0.8f, field);
     const float filledMask = smoothstep(gContourThreshold - fieldAa, gContourThreshold + fieldAa, field);
 
-    // A separate advected erosion field carves the white heat into small
-    // connected lobes. The outer contour still comes from the original field.
+    // 移流させた別の侵食場で、白熱部分を小さくつながった塊に刻む。
+    // 外側の輪郭は元の場のまま。
     const float2 coreDomain = float2((p.x - 0.5f) * gCoreNoiseScale * 1.55f + 47.13f,
         vertical * gCoreNoiseScale * 1.25f - gTime * gNoiseSpeed * 1.35f + 11.71f);
     const float coreNoise = Fbm3(coreDomain);
@@ -266,8 +266,8 @@ PixelShaderOutput main(PixelShaderInput input)
     const float2 rootDelta = (float2(coreUv.x, 1.0f - coreUv.y) - gMetaballs[0].xy)
         * float2(gBillboardAspect, 1.0f);
     const float rootRadius = max(gMetaballs[0].z * 0.55f, 0.001f);
-    // The heat source follows the animated root and is eroded by the same
-    // noise. It keeps a small live coal when all of the rising lobes separate.
+    // 熱源はアニメーションする根元に追従し、同じノイズで侵食される。
+    // 上昇する塊がすべて離れても、小さな残り火を保つ。
     const float rootHeat = exp(-dot(rootDelta, rootDelta) / (rootRadius * rootRadius))
         * gMetaballs[0].w * 4.5f * gFieldGain;
     const float shapedCore = max(coreField - upperPenalty, rootHeat) + ((coreNoise - 0.5f) * 2.8f
@@ -279,10 +279,10 @@ PixelShaderOutput main(PixelShaderInput input)
     const float coreHotMask = smoothstep(hotThreshold - coreAa, hotThreshold + coreAa, shapedCore)
         * coreMask;
 
-    // Translucent iridescent tongues take over above the white heat. Their
-    // palette travels across the shape so several colors coexist each frame.
-    // Bias the density, not opacity: a vertical alpha ramp would leave a
-    // stationary horizontal band across the moving flame.
+    // 白熱部分の上では、半透明の虹色の炎の舌が主役になる。配色は形の上を
+    // 移動するため、毎フレーム複数の色が同時に見える。
+    // 不透明度ではなく密度に偏りを付ける。縦方向のアルファの傾斜だと、
+    // 動く炎の中に止まった横縞が残ってしまう。
     const float ribbonField = field + (coreNoise - 0.50f) * 4.2f + (fineCoreNoise - 0.5f) * 1.6f
         - (1.0f - smoothstep(0.32f, 0.65f, vertical)) * 3.0f;
     const float ribbonThreshold = gContourThreshold + 0.45f;
@@ -316,8 +316,8 @@ PixelShaderOutput main(PixelShaderInput input)
     }
     else
     {
-        // Keep the cyan transition narrow: it fringes the white heat instead
-        // of filling the whole interior with an opaque pale oval.
+        // シアンへの遷移は細く保つ。内側全体を不透明な淡い楕円で埋めるのではなく、
+        // 白熱部分の縁取りにする。
         const float heat = smoothstep(0.0f, 0.38f, coreHotMask);
         const float3 heatColor = lerp(gCoreCyanTint.rgb, float3(1.0f, 0.98f, 0.88f), heat);
         const float3 coreRadiance = heatColor * coreMask * gCoreIntensity * lerp(0.20f, 1.0f, heat);
@@ -330,8 +330,8 @@ PixelShaderOutput main(PixelShaderInput input)
         const float coverage = saturate(max(max(contourMask, outerGlowMask * 0.08f),
             max(max(coreMask, ribbonMask * 0.86f), sparkCoverage)));
         if (coverage < 0.001f) discard;
-        // Straight alpha PSO: encode accumulated radiance once. Coverage
-        // attenuates the background, not the already-masked HDR emission.
+        // ストレートアルファのPSO: 蓄積した放射輝度を1回だけエンコードする。カバレッジは
+        // 既にマスク済みのHDRの発光ではなく背景を減衰させる。
         output.color = float4(radiance / max(coverage, 0.001f), coverage * gColor.a);
     }
     output.normal = float4(0.5f, 0.5f, 1.0f, 0.0f);

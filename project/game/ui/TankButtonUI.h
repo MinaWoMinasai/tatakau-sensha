@@ -9,10 +9,11 @@
 #include "TextLabel.h"
 #include "game/weapon/WeaponMount.h"
 
-namespace cg2 {
+namespace myEngine {
 class ObjectPostEffect;
 }
 
+/// @brief ボタンに表示する車体の形。
 enum class TankButtonBodyShape {
     Circle = 0,
     Box,
@@ -20,6 +21,7 @@ enum class TankButtonBodyShape {
     Pentagon,
 };
 
+/// @brief ボタンの状態。
 enum class TankButtonState {
     Normal = 0,
     Hover,
@@ -33,9 +35,9 @@ struct TankButtonVisualData {
     std::string hiraganaName = "べーしっく";
     int rank = 1;
     TankButtonBodyShape bodyShape = TankButtonBodyShape::Circle;
-    cg2::Vector2 bodyScale{1.0f, 1.0f};
-    cg2::Vector4 bodyFillColor{0.10f, 0.22f, 0.30f, 0.95f};
-    cg2::Vector4 bodyOutlineColor{0.58f, 1.0f, 0.72f, 1.0f};
+    myEngine::Vector2 bodyScale{1.0f, 1.0f};
+    myEngine::Vector4 bodyFillColor{0.10f, 0.22f, 0.30f, 0.95f};
+    myEngine::Vector4 bodyOutlineColor{0.58f, 1.0f, 0.72f, 1.0f};
     std::vector<WeaponMountConfig> weaponMounts;
     bool usesDrone = false;
 };
@@ -55,21 +57,21 @@ struct TankButtonUiStyle {
     float selectedGlowMultiplier = 1.15f;
     float lockedGlowMultiplier = 0.10f;
 
-    cg2::Vector4 fillColor{0.012f, 0.026f, 0.052f, 1.0f};
+    myEngine::Vector4 fillColor{0.012f, 0.026f, 0.052f, 1.0f};
     float fillOpacity = 0.94f;
-    std::array<cg2::Vector4, 4> borderColors{
-        cg2::Vector4{0.58f, 1.0f, 0.28f, 1.0f},
-        cg2::Vector4{0.22f, 0.76f, 1.0f, 1.0f},
-        cg2::Vector4{0.76f, 0.36f, 1.0f, 1.0f},
-        cg2::Vector4{1.0f, 0.78f, 0.24f, 1.0f},
+    std::array<myEngine::Vector4, 4> borderColors{
+        myEngine::Vector4{0.58f, 1.0f, 0.28f, 1.0f},
+        myEngine::Vector4{0.22f, 0.76f, 1.0f, 1.0f},
+        myEngine::Vector4{0.76f, 0.36f, 1.0f, 1.0f},
+        myEngine::Vector4{1.0f, 0.78f, 0.24f, 1.0f},
     };
-    std::array<cg2::Vector4, 4> glowColors{
-        cg2::Vector4{0.48f, 1.0f, 0.24f, 1.0f},
-        cg2::Vector4{0.14f, 0.70f, 1.0f, 1.0f},
-        cg2::Vector4{0.70f, 0.24f, 1.0f, 1.0f},
-        cg2::Vector4{1.0f, 0.66f, 0.12f, 1.0f},
+    std::array<myEngine::Vector4, 4> glowColors{
+        myEngine::Vector4{0.48f, 1.0f, 0.24f, 1.0f},
+        myEngine::Vector4{0.14f, 0.70f, 1.0f, 1.0f},
+        myEngine::Vector4{0.70f, 0.24f, 1.0f, 1.0f},
+        myEngine::Vector4{1.0f, 0.66f, 0.12f, 1.0f},
     };
-    cg2::Vector4 lockedTint{0.38f, 0.44f, 0.50f, 0.62f};
+    myEngine::Vector4 lockedTint{0.38f, 0.44f, 0.50f, 0.62f};
 
     float iconScale = 1.0f;
     float iconOffsetY = -22.0f;
@@ -78,13 +80,13 @@ struct TankButtonUiStyle {
     std::string labelFontFamily = "Meiryo";
     std::string labelFontPath;
     int labelFontWeight = 400;
-    cg2::Vector4 labelColor{0.94f, 0.98f, 1.0f, 1.0f};
-    cg2::Vector4 labelOutlineColor{0.0f, 0.02f, 0.05f, 0.82f};
+    myEngine::Vector4 labelColor{0.94f, 0.98f, 1.0f, 1.0f};
+    myEngine::Vector4 labelOutlineColor{0.0f, 0.02f, 0.05f, 0.82f};
     float labelOutlineWidth = 0.45f;
 
     float buttonSpacingX = 22.0f;
     float buttonSpacingY = 28.0f;
-    cg2::Vector2 previewAreaOffset{240.0f, 132.0f};
+    myEngine::Vector2 previewAreaOffset{240.0f, 132.0f};
     int previewAreaColumns = 4;
 };
 
@@ -99,7 +101,7 @@ bool SaveTankButtonUiStyle(const TankButtonUiStyle& style, const std::string& pa
 class TankButtonUI {
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
-    void Initialize(cg2::SpriteCommon* spriteCommon);
+    void Initialize(myEngine::SpriteCommon* spriteCommon);
     /// @brief 表示データを設定する。
     void SetVisualData(const TankButtonVisualData& visualData);
     /// @brief ランクを設定する。
@@ -107,13 +109,14 @@ public:
     /// @brief 状態を設定する。
     void SetState(TankButtonState state);
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
-    void Update(const cg2::Vector2& center, const TankButtonUiStyle& style);
+    void Update(const myEngine::Vector2& center, const TankButtonUiStyle& style);
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     void Draw();
     /// @brief ブルーム元データを描画する。
     void DrawBloomSource();
+
     /// @brief 文字を返す。
-    cg2::TextLabel* GetLabel() const
+    myEngine::TextLabel* GetLabel() const
     {
         return label_.get();
     }
@@ -125,28 +128,28 @@ private:
     static constexpr size_t kFillSpriteCount = 2;
 
     /// @brief フレームを更新する。
-    void UpdateFrame(const cg2::Vector2& center, const TankButtonUiStyle& style);
+    void UpdateFrame(const myEngine::Vector2& center, const TankButtonUiStyle& style);
     /// @brief Iconを更新する。
-    void UpdateIcon(const cg2::Vector2& center, const TankButtonUiStyle& style);
+    void UpdateIcon(const myEngine::Vector2& center, const TankButtonUiStyle& style);
     /// @brief 文字を更新する。
-    void UpdateLabel(const cg2::Vector2& center, const TankButtonUiStyle& style);
+    void UpdateLabel(const myEngine::Vector2& center, const TankButtonUiStyle& style);
 
-    cg2::SpriteCommon* spriteCommon_ = nullptr;
+    myEngine::SpriteCommon* spriteCommon_ = nullptr;
     TankButtonVisualData visualData_{};
     int rank_ = 1;
     TankButtonState state_ = TankButtonState::Normal;
-    std::array<std::unique_ptr<cg2::Sprite>, kFillSpriteCount> fillSprites_;
-    std::array<std::array<std::unique_ptr<cg2::Sprite>, kFrameSegmentCount>, kFrameLayerCount> frameSprites_;
-    std::array<std::unique_ptr<cg2::Sprite>, kIconSpriteCount> iconSprites_;
-    std::array<std::unique_ptr<cg2::Sprite>, kIconSpriteCount> iconBloomSprites_;
-    std::unique_ptr<cg2::TextLabel> label_;
+    std::array<std::unique_ptr<myEngine::Sprite>, kFillSpriteCount> fillSprites_;
+    std::array<std::array<std::unique_ptr<myEngine::Sprite>, kFrameSegmentCount>, kFrameLayerCount> frameSprites_;
+    std::array<std::unique_ptr<myEngine::Sprite>, kIconSpriteCount> iconSprites_;
+    std::array<std::unique_ptr<myEngine::Sprite>, kIconSpriteCount> iconBloomSprites_;
+    std::unique_ptr<myEngine::TextLabel> label_;
 };
 
 /// @brief 戦車ボタンの見本を開発画面へ表示する。
 class TankButtonGallery {
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
-    void Initialize(cg2::SpriteCommon* spriteCommon, const std::array<TankButtonVisualData, 4>& classVisuals);
+    void Initialize(myEngine::SpriteCommon* spriteCommon, const std::array<TankButtonVisualData, 4>& classVisuals);
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update();
     /// @brief 後の後処理演出を描画する。
@@ -155,11 +158,13 @@ public:
     void Draw();
     /// @brief ImGUIを描画する。
     void DrawImGui();
+
     /// @brief 表示中を設定する。
     void SetVisible(bool visible)
     {
         visible_ = visible;
     }
+
     /// @brief 表示中であるか判定する。
     bool IsVisible() const
     {
@@ -173,17 +178,17 @@ private:
     /// @brief 文字表示を更新する。
     void UpdateLabels();
 
-    cg2::SpriteCommon* spriteCommon_ = nullptr;
+    myEngine::SpriteCommon* spriteCommon_ = nullptr;
     bool visible_ = true;
     TankButtonUiStyle style_{};
     std::string styleStatus_;
-    std::unique_ptr<cg2::Sprite> backdrop_;
-    std::unique_ptr<cg2::ObjectPostEffect> bloomEffect_;
+    std::unique_ptr<myEngine::Sprite> backdrop_;
+    std::unique_ptr<myEngine::ObjectPostEffect> bloomEffect_;
     std::array<std::unique_ptr<TankButtonUI>, kSampleCount> buttons_;
     std::array<TankButtonVisualData, kSampleCount> sampleVisuals_{};
     std::array<int, kSampleCount> sampleRanks_{};
     std::array<TankButtonState, kSampleCount> sampleStates_{};
-    std::unique_ptr<cg2::TextLabel> titleLabel_;
-    std::array<std::unique_ptr<cg2::TextLabel>, 3> rowLabels_;
-    std::unique_ptr<cg2::TextLabel> noteLabel_;
+    std::unique_ptr<myEngine::TextLabel> titleLabel_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 3> rowLabels_;
+    std::unique_ptr<myEngine::TextLabel> noteLabel_;
 };

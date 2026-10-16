@@ -7,6 +7,7 @@ class CombatTutorial {
 public:
     /// @brief 借用するワールドを設定する。
     explicit CombatTutorial(GameWorld& world) : world_(world) {}
+
     /// @brief 提出版UIを初期化する。
     void InitializeSubmissionUi();
 

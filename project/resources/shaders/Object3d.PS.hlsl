@@ -315,8 +315,8 @@ PixelShaderOutput main(VertexShaderOutput input)
         return output;
     }
 
-    // Graphics lab water. environmentCoefficient >= 2.5 is reserved for
-    // the dedicated high-density river mesh.
+    // Graphics Lab用の水。environmentCoefficient >= 2.5 は
+    // 専用の高密度な川のメッシュ用に予約している。
     if (gMaterial.environmentCoefficient >= 2.5f)
     {
         float time = gMaterial.shininess;
@@ -603,7 +603,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         color = lerp(color, float3(0.012f, 0.055f, 0.105f), navalOceanMode * lerp(0.26f, 0.07f, arcBlancMode));
         if (waterDiagnostics < 0.5f)
         {
-            // Preserve the shipped Naval look while Graphics Lab emits linear HDR.
+            // Graphics LabがリニアHDRを出力する間も、出荷済みのNavalの見た目を保つ。
             color = lerp(color, color * color * 1.42f, navalOceanMode * lerp(0.36f, 0.12f, arcBlancMode));
             color = lerp(color, color / (1.0f + color * 0.42f), arcBlancMode * 0.76f);
         }
@@ -679,9 +679,9 @@ PixelShaderOutput main(VertexShaderOutput input)
         return output;
     }
 
-    // Naval water prototype.
-    // environmentCoefficient >= 1.5 is reserved as a lightweight water-material flag.
-    // shininess is reused as scene time for the water object only.
+    // 海戦用の水のプロトタイプ。
+    // environmentCoefficient >= 1.5 は軽量な水マテリアルのフラグとして予約している。
+    // 水オブジェクトに限り、shininessをシーンの時刻として流用する。
     if (gMaterial.environmentCoefficient >= 1.5f)
     {
         float time = gMaterial.shininess;
@@ -755,8 +755,8 @@ PixelShaderOutput main(VertexShaderOutput input)
         color += skyTint * glint * 1.45f;
         color += skyTint * longSpecularBand * lowAngleFresnel * 0.105f;
 
-        // Naval battle water: start from the darker original-game ocean, then add
-        // restrained modern glints so ships and UI remain readable.
+        // 海戦の水: 元のゲームの暗めの海から始め、
+        // 船やUIが読み取れるよう控えめな現代的なきらめきを加える。
         color = max(color * gMaterial.color.rgb * 0.98f, 0.0f);
         output.color = float4(color, gMaterial.color.a * textureColor.a);
         AddWorldSpaceCaustics(output, input);

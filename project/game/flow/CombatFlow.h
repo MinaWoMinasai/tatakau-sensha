@@ -7,6 +7,7 @@ class CombatFlow {
 public:
     /// @brief 借用するワールドを設定する。
     explicit CombatFlow(GameWorld& world) : world_(world) {}
+
     /// @brief 基準時間で撃破/死亡演出の終了を判定し、結果表示とその選択入力を処理する。
     /// @param baseDeltaTime 演出と進行に使う経過秒。戦闘の減速倍率を掛けない。
     void UpdateGameFlow(float baseDeltaTime);

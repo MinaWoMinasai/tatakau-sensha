@@ -1,35 +1,36 @@
 #include "game/debug/session/RouteReplay.h"
 #include "game/session/GameplaySystems.h"
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "Enemy.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "Player.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "game/exp/ExpEnemyNavigation.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "game/player/TankSpecialCombat.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <cmath>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <fstream>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <limits>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <stdexcept>
 #endif
 
 namespace gameplay {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 
 namespace {
 using Json = nlohmann::json;
+
 struct NormalReplay {
     std::filesystem::path directory;
     std::ofstream trace;
@@ -42,8 +43,8 @@ struct NormalReplay {
     int style = -1, previousBossHp = 0;
     bool finished = false, retryPending = false, bossReached = false, shoot = false, dash = false;
     std::string active;
-    cg2::Vector2 move{};
-    cg2::Vector3 aim{};
+    myEngine::Vector2 move{};
+    myEngine::Vector3 aim{};
     std::array<bool, 45 * 30> navigationBlocked{};
     std::string navigationNode;
     uint64_t navigationGeneration = 0, navigationBuilds = 0, navigationUses = 0, navigationRejected = 0;
@@ -52,58 +53,78 @@ struct NormalReplay {
     bool usingNavigation = false, incomingThreat = false;
     uint64_t incomingThreatFrames = 0;
 } replay;
-bool ReplayDanger(const neondepth::Snapshot* snapshot, cg2::Vector3 point, float radius)
+
+/// @brief 指定位置がDepthボスの攻撃範囲に入っているかを返す。
+bool ReplayDanger(const neondepth::Snapshot* snapshot, myEngine::Vector3 point, float radius)
 {
-    if (!snapshot || snapshot->phase < neondepth::Phase::Telegraph || snapshot->phase > neondepth::Phase::Active)
+    if (!snapshot || snapshot->phase < neondepth::Phase::Telegraph || snapshot->phase > neondepth::Phase::Active) {
         return false;
+    }
     const auto& plan = snapshot->plan;
     auto circle = [&](const neondepth::Circle& c) {
         return std::hypot(point.x - c.center[0], point.y - c.center[1]) <= c.radius + radius;
     };
     if (plan.attack == neondepth::Attack::Volley) {
-        for (unsigned i = 0; i < plan.circleCount; ++i)
-            if (circle(plan.circles[i]))
+        for (unsigned i = 0; i < plan.circleCount; ++i) {
+            if (circle(plan.circles[i])) {
                 return true;
-    } else if (plan.attack == neondepth::Attack::Dive)
+            }
+        }
+    } else if (plan.attack == neondepth::Attack::Dive) {
         return circle(plan.dive);
-    else
+    } else {
         for (unsigned i = 0; i < plan.beam.warningCount; ++i) {
             const auto& s = plan.beam.warning[i];
-            if (tankspecial::SegmentTouches(s.start[0], s.start[1], s.end[0], s.end[1], point.x, point.y, s.halfWidth + radius))
+            if (tankspecial::SegmentTouches(s.start[0], s.start[1], s.end[0], s.end[1], point.x, point.y, s.halfWidth + radius)) {
                 return true;
+            }
         }
+    }
     return false;
 }
-// Read actual Stage geometry for both firing LOS and the whole proposed movement
-// segment. Expanded boxes also protect Player's existing X/Y AABB movement.
-bool ReplayPathClear(Stage& stage, cg2::Vector3 from, cg2::Vector3 to, float padding)
+
+// 射線の判定と移動予定区間の全体の両方で、実際のStageの形状を読む。
+// 拡張した箱で、プレイヤーの既存のX/Y AABB移動も保護する。
+bool ReplayPathClear(Stage& stage, myEngine::Vector3 from, myEngine::Vector3 to, float padding)
 {
-    for (const auto& wall : stage.GetMergedBlocks())
+    for (const auto& wall : stage.GetMergedBlocks()) {
         if (tankspecial::SegmentCrossesBox(from.x, from.y, to.x, to.y, wall.aabb.min.x - padding, wall.aabb.min.y - padding,
-                                           wall.aabb.max.x + padding, wall.aabb.max.y + padding))
+                                           wall.aabb.max.x + padding, wall.aabb.max.y + padding)) {
             return false;
+        }
+    }
     return true;
 }
-int ReplayCell(cg2::Vector3 p)
+
+/// @brief 座標が属するマップのセル番号を返す。
+int ReplayCell(myEngine::Vector3 p)
 {
     return (std::clamp)(static_cast<int>(std::round(p.y / 2)), 0, 29) * 45 + (std::clamp)(static_cast<int>(std::round(p.x / 2)), 0, 44);
 }
-cg2::Vector3 ReplayCellPoint(int cell)
+
+/// @brief セル番号の中心座標を返す。
+myEngine::Vector3 ReplayCellPoint(int cell)
 {
     return {static_cast<float>(cell % 45) * 2, static_cast<float>(cell / 45) * 2, 0};
 }
+
+/// @brief ルート再生の記録をファイルへ書き出す。
 void FlushReplay()
 {
     replay.trace.flush();
     std::ofstream out(replay.directory / "route-proof.json");
     out << replay.report.dump(2);
-    if (!out || !replay.trace)
+    if (!out || !replay.trace) {
         throw std::runtime_error("Normal replay evidence write failed");
+    }
 }
+
+/// @brief ルート再生で行った操作を記録する。
 void ReplayOperation(const char* operation, Json argument)
 {
-    if (replay.report["operations"].size() >= 192)
+    if (replay.report["operations"].size() >= 192) {
         throw std::runtime_error("Normal replay operation limit");
+    }
     replay.report["operations"].push_back(
         {{"frame", replay.frame}, {"attempt", replay.attempts}, {"operation", operation}, {"argument", std::move(argument)}});
 }
@@ -112,9 +133,10 @@ void ReplayOperation(const char* operation, Json argument)
 void RouteReplay::InitializeNormalRouteReplay()
 {
     wchar_t value[8]{};
-    if (world_.demo.titleDemo_ || GetEnvironmentVariableW(L"CG2_NEON_DEPTH_NORMAL_REPLAY_STYLE", value, 8) != 1 || value[0] < L'0' ||
-        value[0] > L'2' || replay.finished)
+    if (world_.demo.titleDemo_ || GetEnvironmentVariableW(L"MYENGINE_NEON_DEPTH_NORMAL_REPLAY_STYLE", value, 8) != 1 || value[0] < L'0' ||
+        value[0] > L'2' || replay.finished) {
         return;
+    }
     try {
         if (!replay.attempts) {
             replay.style = static_cast<int>(value[0] - L'0');
@@ -131,7 +153,7 @@ void RouteReplay::InitializeNormalRouteReplay()
                 {"map", false}, {"forcedDamageOrKill", false}, {"autoCollect", false}, {"combatClock", false}, {"wallPolicy", false}};
         }
         world_.resources.normalRouteReplayActive_ = true;
-        for (const wchar_t* flag : {L"CG2_TITLE_AUTOTEST", L"CG2_STARTUP_AUTOTEST", L"CG2_SUBMISSION_AUTOTEST"}) {
+        for (const wchar_t* flag : {L"MYENGINE_TITLE_AUTOTEST", L"MYENGINE_STARTUP_AUTOTEST", L"MYENGINE_SUBMISSION_AUTOTEST"}) {
             wchar_t enabled[8]{};
             if (GetEnvironmentVariableW(flag, enabled, 8) > 0 && enabled[0] == L'1') {
                 StopNormalRouteReplay("rejected-title-automation");
@@ -139,8 +161,9 @@ void RouteReplay::InitializeNormalRouteReplay()
             }
         }
         int lastColumn = -1;
-        for (const auto& n : world_.run.expeditionMapRun_.GetDefinition().nodes)
+        for (const auto& n : world_.run.expeditionMapRun_.GetDefinition().nodes) {
             lastColumn = (std::max)(lastColumn, n.column);
+        }
         const auto& map = world_.run.expeditionMapRun_.GetDefinition();
         if (!world_.run.expeditionRun_ || !world_.run.expeditionMapEnabled_ || !map.procedural ||
             map.generationSeed != world_.run.expeditionSeed_ || lastColumn < 17 || lastColumn > 21 || map.generationMinColumns != 18 ||
@@ -184,10 +207,11 @@ void RouteReplay::InitializeNormalRouteReplay()
 
 void RouteReplay::PrepareNormalRouteReplay()
 {
-    if (!world_.resources.normalRouteReplayActive_ || replay.finished)
+    if (!world_.resources.normalRouteReplayActive_ || replay.finished) {
         return;
+    }
     try {
-        world_.resources.gameplayScenarioCombatDt_ = 0; // Observe only a real Player update later in this frame.
+        world_.resources.gameplayScenarioCombatDt_ = 0; // このフレームの後で行われる実際のプレイヤー更新だけを観測する。
         replay.move = {};
         replay.aim = world_.resources.player_->GetWorldPosition();
         replay.shoot = replay.dash = false;
@@ -224,8 +248,9 @@ void RouteReplay::PrepareNormalRouteReplay()
             world_.combatFlow->ConfirmResultSelection();
             return;
         }
-        if (flow != GameFlowState::Playing || world_.resources.player_->IsDead())
+        if (flow != GameFlowState::Playing || world_.resources.player_->IsDead()) {
             return;
+        }
         const auto* node = world_.run.expeditionMapRun_.GetActiveNode();
         const std::string id = node ? node->id : "";
         if (replay.active != id) {
@@ -241,11 +266,12 @@ void RouteReplay::PrepareNormalRouteReplay()
             const auto available = world_.run.expeditionMapRun_.GetAvailableNodeIds();
             const tankexp::MapNode* choice = nullptr;
             int best = 999;
-            for (const auto& option : available)
+            for (const auto& option : available) {
                 if (world_.run.expeditionMapRun_.CanSelectNode(option)) {
                     const auto* n = tankexp::FindMapNode(world_.run.expeditionMapRun_.GetDefinition(), option);
-                    if (!n)
+                    if (!n) {
                         continue;
+                    }
                     const int score = n->role == tankexp::NodeRole::TutorialSkip ? -100
                                       : n->kind == tankexp::NodeKind::Heal
                                           ? (world_.resources.player_->GetHp() < world_.resources.player_->GetMaxHp() ? 0 : 2)
@@ -258,6 +284,7 @@ void RouteReplay::PrepareNormalRouteReplay()
                         choice = n;
                     }
                 }
+            }
             if (choice) {
                 ReplayOperation("ordinary-map-choice",
                                 {{"id", choice->id}, {"available", available}, {"wallet", world_.run.expeditionMapRun_.GetCurrency()}});
@@ -267,19 +294,21 @@ void RouteReplay::PrepareNormalRouteReplay()
         }
         if (node && !tankexp::IsCombatNode(node->kind)) {
             replay.warmup = 0;
-            if (world_.run.tankRunMenuAge_ <= .25f || node->kind == tankexp::NodeKind::Currency)
+            if (world_.run.tankRunMenuAge_ <= .25f || node->kind == tankexp::NodeKind::Currency) {
                 return;
+            }
             int option = 3, price = 0;
             std::string offer;
             if (node->kind == tankexp::NodeKind::Heal && world_.resources.player_->GetHp() < world_.resources.player_->GetMaxHp() &&
                 world_.run.expeditionMapRun_.CanAfford(node->serviceCost)) {
                 option = 0;
                 price = node->serviceCost;
-            } else
+            } else {
                 for (int i = 0; i < 3; ++i) {
                     const auto index = static_cast<size_t>(world_.run.expeditionServicePage_ * 3 + i);
-                    if (index >= world_.run.expeditionServiceOffers_.size())
+                    if (index >= world_.run.expeditionServiceOffers_.size()) {
                         continue;
+                    }
                     const auto& candidate = world_.run.expeditionServiceOffers_[index];
                     const auto* upgrade = tankcontent::FindUpgrade(world_.run.expeditionContent_, candidate);
                     if (upgrade &&
@@ -291,6 +320,7 @@ void RouteReplay::PrepareNormalRouteReplay()
                         break;
                     }
                 }
+            }
             ReplayOperation("ordinary-service-choice", {{"option", option},
                                                         {"offer", offer},
                                                         {"price", price},
@@ -299,16 +329,18 @@ void RouteReplay::PrepareNormalRouteReplay()
             world_.expeditionMapController->SelectExpeditionService(option);
             return;
         }
-        if (!node || !world_.run.tankExpedition_.IsCombat() || world_.arenaRunController->IsTankRunMenuOpen())
+        if (!node || !world_.run.tankExpedition_.IsCombat() || world_.arenaRunController->IsTankRunMenuOpen()) {
             return;
+        }
         const neondepth::Snapshot* depth =
             world_.resources.enemy_->IsNeonDepthEncounterEnabled() ? &world_.resources.enemy_->GetNeonDepthSnapshot() : nullptr;
         if (depth && depth->inputLocked) {
             replay.warmup = 0;
             return;
         }
-        if (replay.warmup < 2)
-            return; // Two real positive Player updates with physical buttons released precede this API's release-guard side effect.
+        if (replay.warmup < 2) {
+            return; // このAPIの離し判定ガードが働く前に、物理ボタンを離した状態での実際の正のプレイヤー更新を2回挟む。
+        }
         const auto position = world_.resources.player_->GetWorldPosition();
         bool target = false;
         if (const auto* nearest = world_.resources.enemyManager_->FindNearestEnemy(position, 10000.0f)) {
@@ -318,43 +350,51 @@ void RouteReplay::PrepareNormalRouteReplay()
             replay.aim = world_.resources.enemy_->GetWorldPosition();
             target = true;
         }
-        if (!target)
+        if (!target) {
             return;
+        }
         const float desired = world_.resources.player_->IsMeleeBuild() ? 2.8f : 10.0f, radius = world_.resources.player_->GetRadius();
         const auto observedBullets = world_.resources.bulletManager_->GetBulletPtrs();
-        const auto bulletRisk = [&](cg2::Vector3 point, bool current = false) {
+        const auto bulletRisk = [&](myEngine::Vector3 point, bool current = false) {
             float risk = 0;
-            for (const auto* bullet : observedBullets)
+            for (const auto* bullet : observedBullets) {
                 if (bullet && !bullet->IsDead() && bullet->GetOwner() == BulletOwner::kEnemy) {
                     const auto p = bullet->GetWorldPosition(), v = bullet->GetMove();
-                    // GetMove is distance per 60 FPS tick: 18 ticks is the existing .30 s dash window.
+                    // GetMoveは60FPSの1tickあたりの移動距離。18tickが既存の0.30秒のダッシュ時間にあたる。
                     const float endX = p.x + v.x * 18, endY = p.y + v.y * 18, reach = radius + bullet->GetRadius() + .35f;
                     if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(endX) || !std::isfinite(endY) ||
-                        !std::isfinite(reach) || reach < 0)
+                        !std::isfinite(reach) || reach < 0) {
                         continue;
+                    }
                     const float t = tankspecial::SegmentClosestFraction(p.x, p.y, endX, endY, point.x, point.y);
                     const float gap = std::hypot(p.x + (endX - p.x) * t - point.x, p.y + (endY - p.y) * t - point.y) - reach;
-                    if (!std::isfinite(gap))
+                    if (!std::isfinite(gap)) {
                         continue;
+                    }
                     if (gap <= 0) {
                         risk += 100;
-                        if (current)
+                        if (current) {
                             replay.incomingThreat = true;
-                    } else
+                        }
+                    } else {
                         risk += 8 / (1 + gap * gap);
+                    }
                 }
-            return (std::min)(500.0f, risk); // Preserve the existing Depth-warning penalty of 1000.
+            }
+            return (std::min)(500.0f, risk); // 既存のDepth警告のペナルティ1000を保つ。
         };
         bulletRisk(position, true);
-        if (replay.incomingThreat)
+        if (replay.incomingThreat) {
             ++replay.incomingThreatFrames;
-        constexpr std::array<cg2::Vector2, 9> directions{
+        }
+        constexpr std::array<myEngine::Vector2, 9> directions{
             {{0, 0}, {1, 0}, {.7071f, .7071f}, {0, 1}, {-.7071f, .7071f}, {-1, 0}, {-.7071f, -.7071f}, {0, -1}, {.7071f, -.7071f}}};
         float best = std::numeric_limits<float>::max();
         for (const auto direction : directions) {
-            const cg2::Vector3 probe{position.x + direction.x * 2, position.y + direction.y * 2, 0};
-            if (world_.resources.stage_->IsCollisionWithAnyBlock(probe, radius + .15f))
+            const myEngine::Vector3 probe{position.x + direction.x * 2, position.y + direction.y * 2, 0};
+            if (world_.resources.stage_->IsCollisionWithAnyBlock(probe, radius + .15f)) {
                 continue;
+            }
             const float dx = replay.aim.x - probe.x, dy = replay.aim.y - probe.y;
             const float cost = std::abs(std::hypot(dx, dy) - desired) + (ReplayDanger(depth, probe, radius + .25f) ? 1000.0f : 0.0f) -
                                .08f * (direction.x * dy - direction.y * dx) + bulletRisk(probe);
@@ -369,8 +409,9 @@ void RouteReplay::PrepareNormalRouteReplay()
             const float padding = radius + .02f;
             const auto generation = world_.resources.enemy_->GetEncounterGeneration();
             if (replay.navigationNode != id || replay.navigationGeneration != generation || replay.navigationRadius != padding) {
-                for (int cell = 0; cell < 45 * 30; ++cell)
+                for (int cell = 0; cell < 45 * 30; ++cell) {
                     replay.navigationBlocked[cell] = world_.resources.stage_->IsCollisionWithAnyBlock(ReplayCellPoint(cell), padding);
+                }
                 replay.navigationNode = id;
                 replay.navigationGeneration = generation;
                 replay.navigationRadius = padding;
@@ -378,24 +419,26 @@ void RouteReplay::PrepareNormalRouteReplay()
                 ++replay.navigationBuilds;
             }
             if (replay.navigationWaypoint < 0 || std::hypot(ReplayCellPoint(replay.navigationWaypoint).x - position.x,
-                                                            ReplayCellPoint(replay.navigationWaypoint).y - position.y) < .12f)
+                                                            ReplayCellPoint(replay.navigationWaypoint).y - position.y) < .12f) {
                 replay.navigationWaypoint =
                     FindExpEnemyNextCell<45, 30>(replay.navigationBlocked, ReplayCell(position), ReplayCell(replay.aim));
+            }
             if (replay.navigationWaypoint >= 0) {
                 const auto waypoint = ReplayCellPoint(replay.navigationWaypoint);
                 bool safe = ReplayPathClear(*world_.resources.stage_, position, waypoint, padding) &&
                             !world_.resources.stage_->IsCollisionWithAnyBlock(waypoint, padding);
                 const float distance = std::hypot(waypoint.x - position.x, waypoint.y - position.y);
                 const int steps = (std::clamp)(static_cast<int>(std::ceil(distance / .25f)), 1, 128);
-                if (distance > 32)
-                    safe = false; // A blocked-start relocation must still be a bounded legal segment.
+                if (distance > 32) {
+                    safe = false; // 開始位置が塞がれていて移した場合も、範囲内の正しい区間でなければならない。
+                }
                 for (int step = 0; safe && step <= steps; ++step) {
                     const float t = static_cast<float>(step) / static_cast<float>(steps);
                     safe = !ReplayDanger(depth, {position.x + (waypoint.x - position.x) * t, position.y + (waypoint.y - position.y) * t, 0},
                                          radius + .25f);
                 }
                 if (safe) {
-                    // Read current inertia only; regular input still goes through actual PlayerMovement and Stage.
+                    // 現在の慣性を読むだけ。通常の入力は実際のPlayerMovementとStageを通る。
                     const auto velocity = world_.resources.player_->GetMove();
                     const float speed = (std::max)(.01f, world_.resources.player_->GetStats().moveSpeed);
                     replay.move = {((waypoint.x - position.x) / 30 - velocity.x) / speed,
@@ -412,13 +455,15 @@ void RouteReplay::PrepareNormalRouteReplay()
                     ++replay.navigationRejected;
                 }
             }
-        } else
+        } else {
             replay.navigationWaypoint = -1;
+        }
         replay.shoot = !replay.usingNavigation;
         replay.dash = ReplayDanger(depth, position, radius) && depth && depth->phase >= neondepth::Phase::Locked &&
                       !world_.resources.player_->IsDashing();
-        if (replay.incomingThreat && std::hypot(replay.move.x, replay.move.y) > .01f && !world_.resources.player_->IsDashing())
+        if (replay.incomingThreat && std::hypot(replay.move.x, replay.move.y) > .01f && !world_.resources.player_->IsDashing()) {
             replay.dash = true;
+        }
         world_.resources.player_->SetDemoInput(true, replay.move, replay.aim, replay.shoot, replay.dash);
     }
     catch (const std::exception& error) {
@@ -428,8 +473,9 @@ void RouteReplay::PrepareNormalRouteReplay()
 
 void RouteReplay::RecordNormalRouteReplay()
 {
-    if (!world_.resources.normalRouteReplayActive_ || replay.finished)
+    if (!world_.resources.normalRouteReplayActive_ || replay.finished) {
         return;
+    }
     try {
         if (tankexp::ExpeditionMapJson(world_.run.expeditionMapRun_.GetDefinition()) != replay.topology) {
             StopNormalRouteReplay("map-topology-changed");
@@ -437,8 +483,9 @@ void RouteReplay::RecordNormalRouteReplay()
         }
         if (!world_.resources.player_->IsDemoInputEnabled() && world_.resources.gameplayScenarioCombatDt_ > 0 &&
             !world_.resources.input_->IsPress(world_.resources.input_->GetMouseState().rgbButtons[0]) &&
-            !world_.resources.input_->IsPress(world_.resources.input_->GetMouseState().rgbButtons[1]))
+            !world_.resources.input_->IsPress(world_.resources.input_->GetMouseState().rgbButtons[1])) {
             ++replay.warmup;
+        }
         const auto p = world_.resources.player_->GetWorldPosition();
         const auto& stats = world_.resources.player_->GetStats();
         const auto* node = world_.run.expeditionMapRun_.GetActiveNode();
@@ -507,18 +554,21 @@ void RouteReplay::RecordNormalRouteReplay()
         frame["finalBossReached"] = replay.bossReached;
         frame["topologyUnchanged"] = true;
         frame["enemies"] = Json::array();
-        for (const auto* actor : world_.resources.enemyManager_->GetEnemyPtrs())
+        for (const auto* actor : world_.resources.enemyManager_->GetEnemyPtrs()) {
             if (actor) {
                 const auto enemyPosition = actor->GetWorldPosition();
                 frame["enemies"].push_back(
                     {{"hp", actor->GetHp()}, {"dead", actor->IsDead()}, {"position", {enemyPosition.x, enemyPosition.y, enemyPosition.z}}});
             }
+        }
         replay.trace << frame.dump() << '\n';
         replay.report["attempts"].back()["latest"] = frame;
-        if (replay.frame % 60 == 0 || replay.retryPending)
+        if (replay.frame % 60 == 0 || replay.retryPending) {
             FlushReplay();
-        if (world_.combat.combatFlow_.GetState() == GameFlowState::StageClear)
+        }
+        if (world_.combat.combatFlow_.GetState() == GameFlowState::StageClear) {
             StopNormalRouteReplay("ordinary-victory");
+        }
     }
     catch (const std::exception& error) {
         StopNormalRouteReplay(error.what());
@@ -530,8 +580,9 @@ void RouteReplay::StopNormalRouteReplay(const char* reason)
     world_.resources.normalRouteReplayActive_ = false;
     replay.finished = true;
     replay.report["status"] = reason;
-    if (world_.resources.player_)
+    if (world_.resources.player_) {
         world_.resources.player_->SetDemoInput(false, {}, world_.resources.player_->GetWorldPosition(), false, false);
+    }
     try {
         FlushReplay();
     }
@@ -539,6 +590,7 @@ void RouteReplay::StopNormalRouteReplay(const char* reason)
         replay.report["evidenceWriteFailed"] = true;
     }
 }
+
 Json RouteReplay::MakeNormalRouteReplayState() const
 {
     return replay.report;

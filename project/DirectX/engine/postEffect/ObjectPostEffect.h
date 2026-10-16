@@ -6,14 +6,14 @@
 #include "RtvManager.h"
 #include <memory>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief オブジェクト用の輪郭線・発光の抽出と合成を管理する。
 class ObjectPostEffect {
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
-    void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager,
-        float renderScale = 1.0f, float qualityCaptureScale = 0.0f);
+    void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager, float renderScale = 1.0f,
+                    float qualityCaptureScale = 0.0f);
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Update(float deltaTime = 1.0f / 60.0f);
@@ -44,15 +44,18 @@ public:
     {
         return param_;
     }
+
     /// @brief パラメーターを返す。
     const BloomParam& GetParam() const
     {
         return param_;
     }
+
     /// @brief パラメーターを設定する。
     void SetParam(const BloomParam& param);
 
 private:
+    /// @brief キャプチャ結果を最後にどう合成するか。
     enum class FinishMode {
         CompositeAndAdd,
         AdditiveOnly,
@@ -61,8 +64,11 @@ private:
     };
     /// @brief 計測を終了する。
     void FinishCapture(FinishMode mode, bool outputToHdr);
+    /// @brief キャプチャした画像からBloomを作成し、結果のSRVインデックスを返す。
     uint32_t RenderBloom(const BloomParam& drawParam);
+    /// @brief 描画時に使うBloomパラメータを作る。
     BloomParam MakeDrawParam(bool outputToHdr) const;
+    /// @brief キャプチャに使う描画先を選ぶ。
     void SelectCaptureTarget(bool preserveFullResolution = false);
     /// @brief GPUリソースを次の利用に必要な状態へ遷移させる。
     void Transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
@@ -105,4 +111,4 @@ private:
     bool preserveFullResolutionCapture_ = false;
 };
 
-} // namespace cg2
+} // namespace myEngine

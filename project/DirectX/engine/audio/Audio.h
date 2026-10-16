@@ -15,7 +15,7 @@
 #include <mfidl.h>
 #include <mfreadwrite.h>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 音声データと再生ボイスのプールを管理する。制御には世代付きVoiceHandleを使う。
 class Audio {
@@ -27,7 +27,7 @@ public:
     struct AudioData {
         std::vector<BYTE> bufferData;
         WAVEFORMATEX* waveFormat = nullptr;
-        IXAudio2SourceVoice* pSourceVoice = nullptr; // retained legacy member; pool owns voices
+        IXAudio2SourceVoice* pSourceVoice = nullptr; // 互換用に残しているメンバー。ボイスはプールが所有する
         UINT32 bufferSize = 0;
 
         // この音専用の再生用ボイスリスト
@@ -42,6 +42,7 @@ public:
         std::wstring soundName;
         size_t voiceIndex = 0;
         uint64_t generation = 0;
+
         /// @brief 有効であるか判定する。
         bool IsValid() const
         {
@@ -54,6 +55,7 @@ public:
 
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize();
+
     /// @brief 準備完了であるか判定する。
     bool IsReady() const
     {
@@ -127,4 +129,4 @@ private:
     bool mediaFoundationStarted_ = false;
 };
 
-} // namespace cg2
+} // namespace myEngine

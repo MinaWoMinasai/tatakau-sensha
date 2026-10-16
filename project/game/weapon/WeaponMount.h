@@ -3,6 +3,7 @@
 #include "Struct.h"
 #include <string>
 
+/// @brief 武器の種類。
 enum class WeaponType {
     Projectile = 0,
     Laser,
@@ -11,6 +12,7 @@ enum class WeaponType {
     Melee,
 };
 
+/// @brief 砲身の形。
 enum class BarrelShape {
     Box = 0,
     Heavy,
@@ -23,8 +25,8 @@ enum class BarrelShape {
 struct WeaponMountConfig {
     std::string model = "gunBarrel.obj";
     BarrelShape barrelShape = BarrelShape::Box;
-    cg2::Vector3 offset = {0.72f, 0.0f, 0.0f};
-    cg2::Vector3 scale = {1.25f, 0.24f, 0.24f};
+    myEngine::Vector3 offset = {0.72f, 0.0f, 0.0f};
+    myEngine::Vector3 scale = {1.25f, 0.24f, 0.24f};
     float angleDeg = 0.0f;
     float muzzleForward = 0.95f;
     bool fires = true;
@@ -34,9 +36,9 @@ struct WeaponMountConfig {
     int fireGroup = 0;
     float reloadScale = 1.0f;
     float recoilScale = 1.0f;
-    cg2::Vector4 barrelColor = {0.25f, 1.0f, 0.95f, 1.0f};
-    cg2::Vector4 outlineColor = {0.80f, 1.0f, 0.95f, 1.0f};
-    cg2::Vector4 effectColor = {0.25f, 1.0f, 0.95f, 1.0f};
+    myEngine::Vector4 barrelColor = {0.25f, 1.0f, 0.95f, 1.0f};
+    myEngine::Vector4 outlineColor = {0.80f, 1.0f, 0.95f, 1.0f};
+    myEngine::Vector4 effectColor = {0.25f, 1.0f, 0.95f, 1.0f};
     float laserRange = 18.0f;
     float laserWidth = 0.18f;
     float laserDuration = 0.12f;

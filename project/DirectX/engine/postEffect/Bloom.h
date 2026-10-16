@@ -10,7 +10,7 @@
 #include "SceneManager.h"
 #include <cstdint>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief シーン画像からブルーム・画面効果・時間方向の合成を実行する。
 class Bloom {
@@ -18,9 +18,11 @@ public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager);
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
-    void Update();   // ImGuiと定数バッファ更新
-    void PreDraw();  // 1. SceneRTをセット
-    void PostDraw(); // 2. 抽出・ぼかし・合成を実行
+    void Update(); // ImGuiと定数バッファ更新
+    /// @brief 1. シーン描画用のレンダーターゲット（SceneRT）を設定する。
+    void PreDraw();
+    /// @brief 2. シーン描画後に抽出・ぼかし・合成を実行する。
+    void PostDraw();
     /// @brief 3D合成とUIを重ねた中間画像を、ブラウン管処理つきでバックバッファへ写す。UI描画の後に呼ぶ。
     void PresentToBackBuffer();
     void SetGrayscaleEnabled(bool enabled);
@@ -30,9 +32,13 @@ public:
     void SetTransientPulse(float bloomBoost, float chromAbAmount, const Vector2& center, float radius, float width, float strength);
     /// @brief 画面演出状態を設定する。
     void SetScreenEffectState(const IScene::ScreenEffectState& state);
-    // Scene defaults are inactive. Only Developer Showcase supplies a camera/settings.
+    // シーンの既定値では無効。カメラや設定を渡すのはDeveloper Showcaseだけ。
     void SetDeveloperShowcaseState(const IScene::DeveloperShowcaseState& state);
-    const BloomParam& GetLastCompositeParams() const { return lastCompositeParams_; }
+
+    const BloomParam& GetLastCompositeParams() const
+    {
+        return lastCompositeParams_;
+    }
 
 private:
     // 便利関数：リソースバリアの切り替え
@@ -84,7 +90,7 @@ private:
     float timer_ = 0.0f;
     bool manualGrayscale_ = false;
     bool forceGrayscale_ = false;
-    int fullScreenSmoothingMode_ = 0; // 0: Off, 1: Gaussian, 2: 5x5 Box
+    int fullScreenSmoothingMode_ = 0; // 0: オフ、1: ガウス、2: 5x5ボックス
     float baseGaussianIntensity_ = 0.0f;
     float baseFullScreenBoxBlurBlend_ = 0.0f;
     float gaussianOverrideIntensity_ = 0.0f;
@@ -122,4 +128,4 @@ private:
     IScene::DeveloperShowcaseState developerShowcase_{};
 };
 
-} // namespace cg2
+} // namespace myEngine

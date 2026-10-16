@@ -11,25 +11,21 @@ SceneManager* SceneManager::GetInstance()
     return &instance;
 }
 
-bool SceneManager::SetSceneFactory(
-    std::unique_ptr<AbstractSceneFactory> sceneFactory)
+bool SceneManager::SetSceneFactory(std::unique_ptr<AbstractSceneFactory> sceneFactory)
 {
     if (!sceneFactory) {
-        cg2::LogWrite().Log(
-            "[SceneManager] Rejected a nullptr scene factory. "
-            "The existing factory remains unchanged.\n");
+        myEngine::LogWrite().Log("[SceneManager] Rejected a nullptr scene factory. "
+                                 "The existing factory remains unchanged.\n");
         return false;
     }
     if (currentScene_) {
-        cg2::LogWrite().Log(
-            "[SceneManager] Cannot set a scene factory after a scene has been initialized. "
-            "The existing factory remains unchanged.\n");
+        myEngine::LogWrite().Log("[SceneManager] Cannot set a scene factory after a scene has been initialized. "
+                                 "The existing factory remains unchanged.\n");
         return false;
     }
     if (sceneFactory_) {
-        cg2::LogWrite().Log(
-            "[SceneManager] Cannot replace an already configured scene factory. "
-            "The existing factory remains unchanged.\n");
+        myEngine::LogWrite().Log("[SceneManager] Cannot replace an already configured scene factory. "
+                                 "The existing factory remains unchanged.\n");
         return false;
     }
 
@@ -44,27 +40,24 @@ bool SceneManager::ContainsScene(std::string_view sceneName) const
 
 std::vector<std::string> SceneManager::GetRegisteredSceneNames() const
 {
-    return sceneFactory_
-        ? sceneFactory_->GetRegisteredSceneNames()
-        : std::vector<std::string>{};
+    return sceneFactory_ ? sceneFactory_->GetRegisteredSceneNames() : std::vector<std::string>{};
 }
 
-bool SceneManager::Initialize(const std::string& firstSceneName) {
-    cg2::StartupTrace::Scope startupScope("Scene.Initialize." + firstSceneName);
+bool SceneManager::Initialize(const std::string& firstSceneName)
+{
+    myEngine::StartupTrace::Scope startupScope("Scene.Initialize." + firstSceneName);
 
     if (!sceneFactory_) {
-        cg2::LogWrite().Log(
-            "[SceneManager] Cannot initialize scene '" + firstSceneName +
-            "' because no scene factory has been configured.\n");
+        myEngine::LogWrite().Log("[SceneManager] Cannot initialize scene '" + firstSceneName +
+                                 "' because no scene factory has been configured.\n");
         return false;
     }
 
     // 最初のシーンを生成
     std::unique_ptr<IScene> firstScene = sceneFactory_->CreateScene(firstSceneName);
     if (!firstScene) {
-        cg2::LogWrite().Log(
-            "[SceneManager] Failed to initialize first scene '" + firstSceneName +
-            "'. The existing active scene, if any, remains unchanged.\n");
+        myEngine::LogWrite().Log("[SceneManager] Failed to initialize first scene '" + firstSceneName +
+                                 "'. The existing active scene, if any, remains unchanged.\n");
         return false;
     }
 
@@ -80,9 +73,9 @@ void SceneManager::Finalize()
 {
     pendingScene_.reset();
     pendingSceneName_.clear();
-    // Scene resources can refer to engine-owned managers such as SrvManager.
-    // Destroy them explicitly while those managers are still alive instead of
-    // relying on static-destruction order at process shutdown.
+    // シーンのリソースは、SrvManagerなどエンジンが所有するマネージャーを参照することがある。
+    // プロセス終了時の静的破棄の順番に頼らず、
+    // それらのマネージャーが生きている間に明示的に破棄する。
     currentScene_.reset();
     sceneFactory_.reset();
     currentSceneName_.clear();
@@ -90,24 +83,28 @@ void SceneManager::Finalize()
     failedTransitionToSceneName_.clear();
 }
 
-void SceneManager::Update() {
+void SceneManager::Update()
+{
     if (!currentScene_) {
         return;
     }
 
     if (pendingScene_) {
-        // Several steps per frame (~33 ms) keep the loading text animated while
-        // avoiding one vsync of idle time per coroutine step.
+        // 1フレームに複数ステップ（約33ms）進めることで、読み込み中の文字のアニメーションを保ちつつ、
+        // コルーチンの1ステップごとにvsync1回分の待ち時間が生じるのを避ける。
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(33);
         bool initialized = false;
-        do initialized = pendingScene_->InitializeStep();
-        while (!initialized && std::chrono::steady_clock::now() < deadline);
+        do {
+            initialized = pendingScene_->InitializeStep();
+        } while (!initialized && std::chrono::steady_clock::now() < deadline);
         if (initialized) {
             currentScene_ = std::move(pendingScene_);
             currentSceneName_ = std::move(pendingSceneName_);
-            cg2::StartupTrace::Mark("transition.initialized." + currentSceneName_);
-            cg2::StartupTrace::Flush();
-        } else currentScene_->Update(); // Prepare title text after hidden-world font registration.
+            myEngine::StartupTrace::Mark("transition.initialized." + currentSceneName_);
+            myEngine::StartupTrace::Flush();
+        } else {
+            currentScene_->Update(); // 非表示ワールドのフォント登録の後で、タイトルの文字を用意する。
+        }
         return;
     }
 
@@ -116,42 +113,39 @@ void SceneManager::Update() {
         // 次のシーン名をシーン自身から取得する
         std::string nextSceneName = currentScene_->GetNextSceneName();
 
-        const bool alreadyReported =
-            failedTransitionFromSceneName_ == currentSceneName_ &&
-            failedTransitionToSceneName_ == nextSceneName;
+        const bool alreadyReported = failedTransitionFromSceneName_ == currentSceneName_ && failedTransitionToSceneName_ == nextSceneName;
         if (!alreadyReported) {
             // Factory に新しいシーンを作ってもらう
             // ここで SceneManager は「何が作られるか」を具体的に知らなくて済む
             std::unique_ptr<IScene> nextScene = sceneFactory_->CreateScene(nextSceneName);
 
             if (nextScene) {
-                cg2::StartupTrace::Mark("transition.begin." + currentSceneName_ + "." + nextSceneName);
+                myEngine::StartupTrace::Mark("transition.begin." + currentSceneName_ + "." + nextSceneName);
                 if (currentScene_->KeepTitleDuringTransition()) {
                     currentScene_->PrepareForTransition();
                     pendingScene_ = std::move(nextScene);
                     pendingSceneName_ = nextSceneName;
-                    cg2::StartupTrace::Flush();
+                    myEngine::StartupTrace::Flush();
                     return;
                 }
                 {
-                    cg2::StartupTrace::Scope scope("Scene.DestroyPrevious." + currentSceneName_);
+                    myEngine::StartupTrace::Scope scope("Scene.DestroyPrevious." + currentSceneName_);
                     currentScene_ = std::move(nextScene);
                 }
                 currentSceneName_ = nextSceneName;
                 failedTransitionFromSceneName_.clear();
                 failedTransitionToSceneName_.clear();
                 {
-                    cg2::StartupTrace::Scope scope("Scene.Initialize." + nextSceneName);
+                    myEngine::StartupTrace::Scope scope("Scene.Initialize." + nextSceneName);
                     currentScene_->Initialize();
                 }
-                cg2::StartupTrace::Mark("transition.initialized." + nextSceneName);
-                cg2::StartupTrace::Flush();
+                myEngine::StartupTrace::Mark("transition.initialized." + nextSceneName);
+                myEngine::StartupTrace::Flush();
             } else {
                 failedTransitionFromSceneName_ = currentSceneName_;
                 failedTransitionToSceneName_ = nextSceneName;
-                cg2::LogWrite().Log(
-                    "[SceneManager] Transition from '" + currentSceneName_ + "' to '" +
-                    nextSceneName + "' failed. The current scene remains active.\n");
+                myEngine::LogWrite().Log("[SceneManager] Transition from '" + currentSceneName_ + "' to '" + nextSceneName +
+                                         "' failed. The current scene remains active.\n");
             }
         }
     } else {
@@ -162,89 +156,98 @@ void SceneManager::Update() {
     currentScene_->Update();
 }
 
-void SceneManager::Draw() {
+void SceneManager::Draw()
+{
     if (currentScene_) {
         currentScene_->Draw();
     }
 }
 
-void SceneManager::DrawShadow() {
+void SceneManager::DrawShadow()
+{
     if (currentScene_) {
         currentScene_->DrawShadow();
     }
 }
 
-void SceneManager::DrawPostEffect3D() {
+void SceneManager::DrawPostEffect3D()
+{
     if (currentScene_) {
         currentScene_->DrawPostEffect3D();
     }
 }
 
-void SceneManager::DrawAfterPostEffect3D() {
+void SceneManager::DrawAfterPostEffect3D()
+{
     if (currentScene_) {
         currentScene_->DrawAfterPostEffect3D();
     }
 }
 
-void SceneManager::DrawSprite() {
+void SceneManager::DrawSprite()
+{
     if (currentScene_) {
         currentScene_->DrawSprite();
     }
 }
+
 float SceneManager::GetFinalDeltaTime()
 {
-	return currentScene_ ? currentScene_->GetFinalDeltaTime() : 1.0f / 60.0f;
+    return currentScene_ ? currentScene_->GetFinalDeltaTime() : 1.0f / 60.0f;
 }
 
 float SceneManager::GetPostGaussianIntensity()
 {
-	return currentScene_ ? currentScene_->GetPostGaussianIntensity() : 0.0f;
+    return currentScene_ ? currentScene_->GetPostGaussianIntensity() : 0.0f;
 }
 
 IScene::PostEffectPulse SceneManager::GetPostEffectPulse()
 {
-	return currentScene_ ? currentScene_->GetPostEffectPulse() : IScene::PostEffectPulse{};
+    return currentScene_ ? currentScene_->GetPostEffectPulse() : IScene::PostEffectPulse{};
 }
 
 IScene::ScreenEffectState SceneManager::GetScreenEffectState()
 {
-	return currentScene_ ? currentScene_->GetScreenEffectState() : IScene::ScreenEffectState{};
+    return currentScene_ ? currentScene_->GetScreenEffectState() : IScene::ScreenEffectState{};
 }
 
-IScene::DeveloperShowcaseState SceneManager::GetDeveloperShowcaseState() {
+IScene::DeveloperShowcaseState SceneManager::GetDeveloperShowcaseState()
+{
     return currentScene_ ? currentScene_->GetDeveloperShowcaseState() : IScene::DeveloperShowcaseState{};
 }
-void SceneManager::RecordDeveloperFrame(cg2::DirectXCommon& dx) {
-    if (currentScene_) currentScene_->RecordDeveloperFrame(dx);
+
+void SceneManager::RecordDeveloperFrame(myEngine::DirectXCommon& dx)
+{
+    if (currentScene_) {
+        currentScene_->RecordDeveloperFrame(dx);
+    }
 }
-void SceneManager::RecordDeveloperPostParameters(const cg2::BloomParam& param) {
-    if (currentScene_) currentScene_->RecordDeveloperPostParameters(param);
+
+void SceneManager::RecordDeveloperPostParameters(const myEngine::BloomParam& param)
+{
+    if (currentScene_) {
+        currentScene_->RecordDeveloperPostParameters(param);
+    }
 }
 
 IScene::WaterPostProcessSettings SceneManager::GetWaterPostProcessSettings()
 {
-	return currentScene_
-		? currentScene_->GetWaterPostProcessSettings()
-		: IScene::WaterPostProcessSettings{};
+    return currentScene_ ? currentScene_->GetWaterPostProcessSettings() : IScene::WaterPostProcessSettings{};
 }
 
 IScene::BloomViewSettings SceneManager::GetBloomViewSettings()
 {
-	return currentScene_
-		? currentScene_->GetBloomViewSettings()
-		: IScene::BloomViewSettings{};
+    return currentScene_ ? currentScene_->GetBloomViewSettings() : IScene::BloomViewSettings{};
 }
 
 IScene::ArenaLookSettings SceneManager::GetArenaLookSettings()
 {
-	return currentScene_
-		? currentScene_->GetArenaLookSettings()
-		: IScene::ArenaLookSettings{};
+    return currentScene_ ? currentScene_->GetArenaLookSettings() : IScene::ArenaLookSettings{};
 }
 
 void SceneManager::SetRenderProfile(const IScene::RenderProfile& profile)
 {
-	if (currentScene_) {
-		currentScene_->SetRenderProfile(profile);
-	}
+    if (currentScene_) {
+        currentScene_->SetRenderProfile(profile);
+    }
 }

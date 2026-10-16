@@ -2,7 +2,7 @@
 #include "DirectXCommon.h"
 #include "BloomConstantBuffer.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 全画面描画で使用するパイプラインの共通操作を提供する。
 class PostEffect {
@@ -52,4 +52,4 @@ private:
     BloomConstantBuffer* bloomCB_;
 };
 
-} // namespace cg2
+} // namespace myEngine

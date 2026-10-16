@@ -6,8 +6,9 @@
 #include <memory>
 #include <string>
 
+/// @brief ボスの見た目を更新するために戦闘側から渡す値。
 struct NeonBossVisualInput {
-    cg2::Vector3 position{};
+    myEngine::Vector3 position{};
     float aimAngleRadians = 0.0f;
     float radius = 2.0f;
     int hp = 1, maxHp = 1;
@@ -18,73 +19,148 @@ struct NeonBossVisualInput {
     neondepth::Snapshot depth{};
 };
 
+/// @brief ボスの見た目の処理回数。検証で使う。
 struct NeonBossVisualStats {
     unsigned resourceCreates = 0, resourceReleases = 0, animationSelections = 0;
     unsigned modelUpdates = 0, draws = 0;
     unsigned depthPoseFreezes = 0, depthFormationBounds = 0, depthFallbackLoads = 0;
 };
 
-// Gameplay -> values -> presentation. Owns only rendering resources; its state
-// never feeds HP, collision, AI or attack timing back into the gameplay layer.
+// ゲームプレイ -> 値 -> 演出。所有するのは描画リソースだけで、その状態がHP、
+// 当たり判定、AI、攻撃タイミングとしてゲームプレイ層へ戻ることはない。
 class NeonBossVisual {
 public:
     ~NeonBossVisual();
-    void Initialize(cg2::Camera* camera, cg2::DebugCamera* debugCamera);
-    // Reset only at a frame boundary after the previous GPU submission completed.
+    /// @brief カメラを受け取り、描画の準備をする。
+    void Initialize(myEngine::Camera* camera, myEngine::DebugCamera* debugCamera);
+    // 前回のGPU送信が完了した後の、フレーム境界でだけリセットする。
     void ResetEncounter();
-    // Same frame-boundary contract as NeonSkinnedRenderer::BeginFrame; call once
-    // after gameplay and Camera Update, before Scene HDR Draw.
+    // NeonSkinnedRenderer::BeginFrameと同じフレーム境界の約束事。
+    // ゲームプレイとCameraのUpdateの後、シーンのHDR描画の前に1回呼ぶ。
     void Update(const NeonBossVisualInput& input, float deltaTime);
-    // Valid edits apply at reset or the next attack instance; death timing is latched.
+    // 有効な編集はリセット時か次の攻撃インスタンスで反映する。死亡のタイミングは確定済み。
     bool SetDepthProfile(const neondepth::PresentationConfig& profile);
-    const neondepth::PresentationConfig& GetDepthProfile() const { return depthProfile_; }
-    bool GetDepthSocketWorld(neondepth::Socket socket, cg2::Vector3& output) const;
-    neondepth::Life GetDepthLife() const { return state_.GetDepthLifecycle().GetLife(); }
-    neondepth::Formation GetDepthFormation() const { return depthFormation_; }
+
+    const neondepth::PresentationConfig& GetDepthProfile() const
+    {
+        return depthProfile_;
+    }
+
+    bool GetDepthSocketWorld(neondepth::Socket socket, myEngine::Vector3& output) const;
+
+    neondepth::Life GetDepthLife() const
+    {
+        return state_.GetDepthLifecycle().GetLife();
+    }
+
+    neondepth::Formation GetDepthFormation() const
+    {
+        return depthFormation_;
+    }
+
+    /// @brief ボスのモデルを描画する。
     void Draw();
-    void SetEnabled(bool enabled) { enabled_ = enabled; }
-    bool IsEnabled() const { return enabled_; }
+
+    void SetEnabled(bool enabled)
+    {
+        enabled_ = enabled;
+    }
+
+    bool IsEnabled() const
+    {
+        return enabled_;
+    }
+
     bool IsVisible() const;
-    bool IsFinished() const { return state_.GetLife() == NeonBossVisualLife::Finished; }
-    bool HasResources() const { return model_ != nullptr && object_ != nullptr && renderer_ != nullptr; }
-    size_t GetDrawConstantBufferCount() const { return renderer_ ? renderer_->GetDrawConstantBufferCount() : 0; }
-    const NeonBossVisualState& GetState() const { return state_; }
-    const NeonBossVisualStats& GetStats() const { return stats_; }
-    const std::string& GetStatus() const { return status_; }
-    float GetDissolveProgress() const { return state_.GetDissolveProgress(); }
+
+    bool IsFinished() const
+    {
+        return state_.GetLife() == NeonBossVisualLife::Finished;
+    }
+
+    bool HasResources() const
+    {
+        return model_ != nullptr && object_ != nullptr && renderer_ != nullptr;
+    }
+
+    size_t GetDrawConstantBufferCount() const
+    {
+        return renderer_ ? renderer_->GetDrawConstantBufferCount() : 0;
+    }
+
+    const NeonBossVisualState& GetState() const
+    {
+        return state_;
+    }
+
+    const NeonBossVisualStats& GetStats() const
+    {
+        return stats_;
+    }
+
+    const std::string& GetStatus() const
+    {
+        return status_;
+    }
+
+    float GetDissolveProgress() const
+    {
+        return state_.GetDissolveProgress();
+    }
+
     std::string GetAnimationName() const;
     float GetAnimationTime() const;
-    const cg2::Matrix4x4& GetWorldMatrix() const { return world_; }
-    const cg2::NeonSkinnedParams& GetParams() const { return params_; }
+
+    const myEngine::Matrix4x4& GetWorldMatrix() const
+    {
+        return world_;
+    }
+
+    const myEngine::NeonSkinnedParams& GetParams() const
+    {
+        return params_;
+    }
 
 private:
+    /// @brief 通常ボス用のモデルと描画リソースを用意する。成功したらtrueを返す。
     bool EnsureResources();
+    /// @brief Depthボス用のモデルと描画リソースを用意する。成功したらtrueを返す。
     bool EnsureDepthResources();
+    /// @brief Depthボスの見た目を更新する。
     void UpdateDepth(const NeonBossVisualInput& input, float permittedDelta);
+    /// @brief Depthボスのアニメーション指示を適用する。
     bool ApplyDepthMotion(const neondepth::MotionCommand& command);
+    /// @brief Depthボスの床上の配置と姿勢を更新する。
     bool UpdateDepthPlacement(const NeonBossVisualInput& input, const neondepth::BodyMotion& motion);
+    /// @brief Depthボスの崩壊演出を開始する。
     void StartDepthCollapse(const NeonBossVisualInput& input);
+    /// @brief Depthボスの崩壊演出を進める。
     void UpdateDepthCollapse(float collapseProgress);
+    /// @brief Depthボスの登場時の形成演出を進める。
     void UpdateDepthFormation();
+    /// @brief 描画リソースを解放する。
     void ReleaseResources();
+    /// @brief 通常ボスの位置と向きを更新する。
     void UpdatePlacement(const NeonBossVisualInput& input);
+    /// @brief 死亡演出を開始する。
     void StartDeath();
+    /// @brief アニメーションを進める。
     void UpdateAnimation(float deltaTime);
-    cg2::Matrix4x4 GetCameraWorld() const;
-    cg2::Vector3 GetCameraPosition() const;
+    myEngine::Matrix4x4 GetCameraWorld() const;
+    myEngine::Vector3 GetCameraPosition() const;
 
-    cg2::Camera* camera_ = nullptr;
-    cg2::DebugCamera* debugCamera_ = nullptr;
-    std::unique_ptr<cg2::SkinnedModel> model_;
-    std::unique_ptr<cg2::Object3d> object_;
-    std::unique_ptr<cg2::NeonSkinnedRenderer> renderer_;
+    myEngine::Camera* camera_ = nullptr;
+    myEngine::DebugCamera* debugCamera_ = nullptr;
+    std::unique_ptr<myEngine::SkinnedModel> model_;
+    std::unique_ptr<myEngine::Object3d> object_;
+    std::unique_ptr<myEngine::NeonSkinnedRenderer> renderer_;
     NeonBossVisualState state_;
     NeonBossVisualStats stats_;
-    cg2::NeonSkinnedParams params_{};
-    cg2::Vector3 modelCenter_{};
+    myEngine::NeonSkinnedParams params_{};
+    myEngine::Vector3 modelCenter_{};
     float modelHeight_ = 1.6f;
     float lastAliveRadius_ = 2.0f;
-    cg2::Matrix4x4 world_{};
+    myEngine::Matrix4x4 world_{};
     bool enabled_ = true, loadAttempted_ = false, encounterActive_ = false;
     std::string status_;
     neondepth::PresentationConfig depthProfile_{}, pendingDepthProfile_{}, deathDepthProfile_{};
@@ -92,7 +168,7 @@ private:
     neondepth::PlacementInput depthPlacement_{}, deathDepthPlacement_{};
     neondepth::MotionGate depthMotionGate_{};
     neondepth::Formation depthFormation_{0, 0, 0};
-    cg2::NeonDissolveParams depthFormationDissolve_{};
+    myEngine::NeonDissolveParams depthFormationDissolve_{};
     uint64_t depthProfileInstance_ = 0;
     bool depthMode_ = false, depthModeLatched_ = false, depthProfilePending_ = false;
     bool depthPlacementValid_ = false, depthPoseFrozen_ = false;

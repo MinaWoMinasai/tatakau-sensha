@@ -4,32 +4,32 @@
 #include <cmath>
 
 namespace stagesurface {
-// Presentation only. Never pass this transform to Stage's collision builders.
+// 表示専用。この変換をStageの当たり判定の構築処理へ渡してはならない。
 struct Settings {
     bool enabled = false;
     bool floorEnabled = true;
     bool blocksEnabled = true;
-    int wallStyle = 1; // 0: Phase 1 beveled tiles; 1: continuous rectilinear walls.
+    int wallStyle = 1; // 0: Phase 1の面取りタイル、1: 連続した直線的な壁。
     bool exteriorEnabled = true;
     float exteriorHeight = 8.0f, exteriorGap = 2.0f, exteriorWidth = 2.0f;
     int stackLevels = 3;
     float wallLineWidth = 0.028f;
     bool floorLocalLight = true;
-    cg2::Vector4 floorLightColor{0.20f, 0.85f, 0.65f, 1.0f};
+    myEngine::Vector4 floorLightColor{0.20f, 0.85f, 0.65f, 1.0f};
     float floorLocalIntensity = 24.0f, floorLocalRadius = 11.0f, floorLocalHeight = 3.0f;
-    float floorDetail = 0.0f; // The generic sinusoidal detail produces bands on a large XY floor.
-    cg2::Vector4 floorColor{0.035f, 0.045f, 0.060f, 1.0f};
+    float floorDetail = 0.0f; // 汎用の正弦波のディテールは、広いXYの床に縞模様を生じさせる。
+    myEngine::Vector4 floorColor{0.035f, 0.045f, 0.060f, 1.0f};
     float floorMetallic = 0.20f;
     float floorRoughness = 0.52f;
-    float floorDepth = 1.10f; // Camera is on -Z; +Z is behind the XY gameplay plane.
+    float floorDepth = 1.10f; // カメラは-Z側にある。+ZはXYのゲームプレイ平面の奥側。
     float floorPadding = 8.0f;
     float floorLightIntensity = 1.6f;
     float gridMinPixelWidth = 1.15f;
-    cg2::Vector4 blockColor{0.032f, 0.040f, 0.055f, 1.0f};
-    cg2::Vector4 damageBlockColor{0.140f, 0.035f, 0.045f, 1.0f};
+    myEngine::Vector4 blockColor{0.032f, 0.040f, 0.055f, 1.0f};
+    myEngine::Vector4 damageBlockColor{0.140f, 0.035f, 0.045f, 1.0f};
     float blockMetallic = 0.30f;
     float blockRoughness = 0.56f;
-    float blockHeight = 4.8f; // Full connected-wall height; isolated cells use one tier.
+    float blockHeight = 4.8f; // つながった壁の全高。孤立したセルは1段だけにする。
     float blockEmission = 0.65f;
     float blockLightIntensity = 2.2f;
     int sideLineDivisions = 1;
@@ -41,17 +41,21 @@ inline constexpr const char* kFloorModel = "__tank_surface_floor_xy";
 inline constexpr const char* kBlockModel = "__tank_surface_beveled_block";
 inline constexpr const char* kWallModel = "__tank_surface_rectilinear_wall";
 
-inline float FiniteClamp(float value, float fallback, float low, float high) {
+/// @brief 値を範囲内に収める。非有限ならfallbackを返す。
+inline float FiniteClamp(float value, float fallback, float low, float high)
+{
     return std::isfinite(value) ? (std::clamp)(value, low, high) : fallback;
 }
 
-inline void Sanitize(Settings& settings) {
+/// @brief 設定値をすべて有効な範囲に収める。
+inline void Sanitize(Settings& settings)
+{
     const Settings defaults;
-    auto color = [&](cg2::Vector4& value, const cg2::Vector4& fallback) {
+    auto color = [&](myEngine::Vector4& value, const myEngine::Vector4& fallback) {
         value.x = FiniteClamp(value.x, fallback.x, 0.0f, 1.0f);
         value.y = FiniteClamp(value.y, fallback.y, 0.0f, 1.0f);
         value.z = FiniteClamp(value.z, fallback.z, 0.0f, 1.0f);
-        value.w = 1.0f; // Opaque bodies must write real scene depth.
+        value.w = 1.0f; // 不透明な本体は実際のシーン深度を書き込む必要がある。
     };
     color(settings.floorColor, defaults.floorColor);
     color(settings.blockColor, defaults.blockColor);
@@ -61,7 +65,7 @@ inline void Sanitize(Settings& settings) {
     settings.stackLevels = (std::clamp)(settings.stackLevels, 1, 5);
     settings.exteriorHeight = FiniteClamp(settings.exteriorHeight, defaults.exteriorHeight, 1.0f, 12.0f);
     settings.exteriorGap = FiniteClamp(settings.exteriorGap, defaults.exteriorGap, 0.0f, 12.0f);
-    // A wide rampart reaches past the screen edge, so no bare floor shows outside the arena.
+    // 幅の広い城壁を画面端の外まで伸ばし、アリーナの外にむき出しの床が見えないようにする。
     settings.exteriorWidth = FiniteClamp(settings.exteriorWidth, defaults.exteriorWidth, 0.5f, 64.0f);
     settings.wallLineWidth = FiniteClamp(settings.wallLineWidth, defaults.wallLineWidth, 0.008f, 0.08f);
     settings.floorLocalIntensity = FiniteClamp(settings.floorLocalIntensity, defaults.floorLocalIntensity, 0.0f, 80.0f);
@@ -82,15 +86,19 @@ inline void Sanitize(Settings& settings) {
     settings.sideLineDivisions = (std::clamp)(settings.sideLineDivisions, 1, 8);
 }
 
-inline cg2::Transform BlockTransform(const cg2::Transform& gameplay, const Settings& settings) {
-    cg2::Transform visual = gameplay;
+/// @brief 当たり判定用のブロックの変換から、表示用の変換を作る。
+inline myEngine::Transform BlockTransform(const myEngine::Transform& gameplay, const Settings& settings)
+{
+    myEngine::Transform visual = gameplay;
     visual.scale.z *= settings.blockHeight * 0.5f;
-    // Anchor the back to the floor. This changes only the render object, never AABB/OBB.
+    // 背面を床に固定する。変わるのは描画オブジェクトだけで、AABB/OBBは変えない。
     visual.translate.z += settings.floorDepth - 0.03f - std::abs(visual.scale.z);
     return visual;
 }
 
-inline Settings Phase1Settings() {
+/// @brief Phase 1の見た目の設定を返す。
+inline Settings Phase1Settings()
+{
     Settings result;
     result.enabled = true;
     result.wallStyle = 0;

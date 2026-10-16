@@ -6,8 +6,8 @@ float4 main(PSInput input) : SV_TARGET
     sourceTex.GetDimensions(width, height);
     float2 texel = radius / float2(width, height);
     float2 uv = input.uv;
-    // A normalized separable [1,2,1] tent. Mix scales instead of summing them,
-    // preventing an intensity increase simply because Quality has more levels.
+    // 正規化した分離可能な[1,2,1]のテントフィルタ。各スケールは足し合わせずに混ぜ、
+    // Qualityでレベル数が多いだけで強度が上がるのを防ぐ。
     float4 coarse = sourceTex.SampleLevel(linearClamp, uv, 0) * .25f;
     coarse += (sourceTex.SampleLevel(linearClamp, uv + float2(0, -1) * texel, 0)
         + sourceTex.SampleLevel(linearClamp, uv + float2(-1, 0) * texel, 0)

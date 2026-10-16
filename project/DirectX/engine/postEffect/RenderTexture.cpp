@@ -1,44 +1,37 @@
 #include "RenderTexture.h"
 #include "StartupTrace.h"
 
-namespace cg2 {
+namespace myEngine {
 
 RenderTexture::~RenderTexture()
 {
-	if (!srvManager_) {
-		return;
-	}
-	if (srvIndex_ != 0) {
-		srvManager_->Free(srvIndex_);
-		srvIndex_ = 0;
-	}
-	if (depthSrvIndex_ != 0) {
-		srvManager_->Free(depthSrvIndex_);
-		depthSrvIndex_ = 0;
-	}
+    if (!srvManager_) {
+        return;
+    }
+    if (srvIndex_ != 0) {
+        srvManager_->Free(srvIndex_);
+        srvIndex_ = 0;
+    }
+    if (depthSrvIndex_ != 0) {
+        srvManager_->Free(depthSrvIndex_);
+        depthSrvIndex_ = 0;
+    }
 }
 
-void RenderTexture::Initialize(
-    DirectXCommon* dxCommon,
-    SrvManager* srvManager,
-    RtvManager* rtvManager,
-    uint32_t width,
-    uint32_t height,
-    std::array<float, 4> clearColor,
-    bool createDepth,
-    DXGI_FORMAT colorFormat
-) {
+void RenderTexture::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager, uint32_t width, uint32_t height,
+                               std::array<float, 4> clearColor, bool createDepth, DXGI_FORMAT colorFormat)
+{
     StartupTrace::Scope startupScope("RenderTexture.Initialize");
     StartupTrace::Count("render_texture.created");
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
     rtvManager_ = rtvManager;
 
-    // Empty render targets have no upload work. Start in the state expected by
-    // BeginRender instead of submitting and waiting for a one-off transition.
-    // Keep the original path available for like-for-like startup measurements.
+    // 空のレンダーターゲットにはアップロード処理がない。一度きりの状態遷移を送って待つ代わりに、
+    // BeginRenderが期待する状態で作成する。
+    // 同条件で起動時間を比較できるよう、元の経路も残しておく。
     char cacheSetting[8]{};
-    const DWORD cacheLength = GetEnvironmentVariableA("CG2_STARTUP_CACHE", cacheSetting, sizeof(cacheSetting));
+    const DWORD cacheLength = GetEnvironmentVariableA("MYENGINE_STARTUP_CACHE", cacheSetting, sizeof(cacheSetting));
     const bool directInitialState = cacheLength != 1 || cacheSetting[0] != '0';
 
     // RenderTarget用テクスチャ作成
@@ -49,33 +42,19 @@ void RenderTexture::Initialize(
     clearValue.Color[2] = clearColor[2];
     clearValue.Color[3] = clearColor[3];
 
-    resource_ = dxCommon_->CreateTextureResource(
-        width,
-        height,
-        colorFormat,
-        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
-        &clearValue,
-        directInitialState ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_RENDER_TARGET
-    );
+    resource_ = dxCommon_->CreateTextureResource(width, height, colorFormat, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, &clearValue,
+                                                 directInitialState ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+                                                                    : D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     // RTV（← ここが RtvManager）
     uint32_t rtvIndex = rtvManager_->Allocate();
     rtvHandle_ = rtvManager_->GetHandle(rtvIndex);
 
-    dxCommon_->GetDevice()->CreateRenderTargetView(
-        resource_.Get(),
-        nullptr,
-        rtvManager_->GetHandle(rtvIndex)
-    );
+    dxCommon_->GetDevice()->CreateRenderTargetView(resource_.Get(), nullptr, rtvManager_->GetHandle(rtvIndex));
 
     // SRV（← ここが SrvManager）
     srvIndex_ = srvManager_->Allocate();
-    srvManager_->CreateSRVforTexture2D(
-        srvIndex_,
-        resource_.Get(),
-        colorFormat,
-        1
-    );
+    srvManager_->CreateSRVforTexture2D(srvIndex_, resource_.Get(), colorFormat, 1);
 
     if (createDepth) {
         // --- 1. 深度リソース (ID3D12Resource) の作成 ---
@@ -97,11 +76,10 @@ void RenderTexture::Initialize(
         depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
         depthClearValue.DepthStencil.Depth = 1.0f;
 
-        HRESULT hr = dxCommon->GetDevice()->CreateCommittedResource(
-            &heapProps, D3D12_HEAP_FLAG_NONE, &depthDesc,
-            directInitialState ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue,
-            IID_PPV_ARGS(&depthResource_)
-        );
+        HRESULT hr = dxCommon->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &depthDesc,
+                                                                    directInitialState ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+                                                                                       : D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                                                                    &depthClearValue, IID_PPV_ARGS(&depthResource_));
         assert(SUCCEEDED(hr));
 
         // --- 2. DSVハンドルを取得して View を作成 ---
@@ -151,7 +129,7 @@ void RenderTexture::Initialize(
 
 D3D12_GPU_DESCRIPTOR_HANDLE RenderTexture::GetGPUHandle()
 {
-	return srvManager_->GetGPUDescriptorHandle(srvIndex_);
+    return srvManager_->GetGPUDescriptorHandle(srvIndex_);
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE RenderTexture::GetDepthGPUHandle()
@@ -160,4 +138,4 @@ D3D12_GPU_DESCRIPTOR_HANDLE RenderTexture::GetDepthGPUHandle()
     return srvManager_->GetGPUDescriptorHandle(depthSrvIndex_);
 }
 
-} // namespace cg2
+} // namespace myEngine

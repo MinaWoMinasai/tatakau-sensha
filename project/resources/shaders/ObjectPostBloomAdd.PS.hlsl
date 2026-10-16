@@ -12,16 +12,16 @@ float4 main(PSInput input) : SV_TARGET
     }
 
     float4 bloom = bloomTex.Sample(samp, uv);
-    // Bound glow sent directly to LDR; preserve hue using one scalar shoulder.
+    // LDRへ直接送る発光を範囲内に収める。スカラーの肩1つで色相を保つ。
     float3 color = ComposeObjectBloom(bloom.rgb);
     float energy = max(max(color.r, color.g), color.b);
     if (energy <= 0.001f)
     {
         discard;
     }
-    // This pass is already an additive light-energy composite.  Reusing the
-    // blurred coverage as SrcAlpha attenuates thin emitters a second time and
-    // makes one-pixel UI lines effectively disappear.  The energy test above
-    // keeps empty pixels out, so surviving bloom must be added at full weight.
+    // このパスは既に光エネルギーの加算合成になっている。ぼかしたカバレッジを
+    // SrcAlphaとして再利用すると細い光源が二重に減衰し、
+    // 1ピクセル幅のUIの線が実質的に消えてしまう。上のエネルギー判定で
+    // 空のピクセルは除外しているので、残ったBloomは重み1で加算する。
     return float4(color, 1.0f);
 }

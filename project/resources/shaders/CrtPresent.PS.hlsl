@@ -3,12 +3,12 @@ SamplerState samp : register(s0);
 
 #include "PostEffectCommon.hlsli"
 
-// Final presentation of the whole frame (3D composite + UI) through a vector-monitor CRT:
-// barrel distortion, slight RGB convergence error, scanlines, phosphor grain, vignette and a rounded bezel.
+// フレーム全体（3D合成 + UI）を、ベクターモニター風のCRTを通して最終表示する。
+// 樽型歪み、わずかなRGBのずれ、走査線、蛍光体の粒状感、周辺減光、丸いベゼル。
 
 float2 Distort(float2 centered)
 {
-    // Barrel distortion that grows toward the corners, like a curved glass face.
+    // 曲面ガラスのように、角へ向かうほど強くなる樽型歪み。
     float2 offset = centered.yx * 0.5f;
     return centered + centered * (offset * offset) * arenaCurvature;
 }
@@ -43,14 +43,14 @@ float4 main(PSInput input) : SV_TARGET
         return float4(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
-    // Convergence error: red and blue guns land slightly apart, more at the edges.
+    // コンバージェンスのずれ: 赤と青の電子銃がわずかにずれて着弾し、端ほど大きくずれる。
     float2 shift = (uv - 0.5f) * arenaChromAb;
     float3 color;
     color.r = presentTex.Sample(samp, uv + shift).r;
     color.g = presentTex.Sample(samp, uv).g;
     color.b = presentTex.Sample(samp, uv - shift).b;
 
-    // A faint halo from the neighbouring texels keeps thin vector lines soft like phosphor dots.
+    // 隣のテクセルからのかすかなハローで、細いベクター線を蛍光体の点のように柔らかく保つ。
     float2 texel = 1.0f / float2(width, height);
     float3 halo = presentTex.Sample(samp, uv + float2(texel.x, 0.0f)).rgb +
                   presentTex.Sample(samp, uv - float2(texel.x, 0.0f)).rgb +
@@ -58,11 +58,11 @@ float4 main(PSInput input) : SV_TARGET
                   presentTex.Sample(samp, uv - float2(0.0f, texel.y)).rgb;
     color = max(color, halo * 0.25f * 0.55f);
 
-    // Scanlines darken between beam passes; black remains black.
+    // 走査線はビームの通過の間を暗くする。黒は黒のまま。
     float beam = 0.5f + 0.5f * sin(uv.y * arenaScanlineFrequency);
     color *= 1.0f - arenaScanlineIntensity * (1.0f - beam);
 
-    // Phosphor grain only on lit pixels.
+    // 蛍光体の粒状感は点灯しているピクセルにだけ加える。
     if (arenaGrainIntensity > 0.0f)
     {
         float grain = Hash(floor(uv * float2(width, height) * 0.5f) + frac(timer * 7.31f) * 97.0f) - 0.5f;

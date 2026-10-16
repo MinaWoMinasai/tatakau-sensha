@@ -6,18 +6,19 @@
 #include "Struct.h"
 #include "TextureManager.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief PBR用の環境マップ・拡散反射・鏡面反射・BRDFテクスチャを管理する。
 class PbrEnvironment {
 public:
+    /// @brief PBR環境光の元データの種類。
     enum class SourceType {
         ProceduralSky,
         TextureFile,
         SolidColor,
     };
 
-    /// @brief cg2::PbrEnvironmentで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
+    /// @brief myEngine::PbrEnvironmentで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
     struct Settings {
         SourceType sourceType = SourceType::ProceduralSky;
         std::string texturePath;
@@ -62,11 +63,13 @@ public:
     {
         return environmentSrvIndex_;
     }
+
     /// @brief Loadedからの元データであるか判定する。
     bool IsLoadedFromSource() const
     {
         return loadedFromSource_;
     }
+
     /// @brief 元データ文字を返す。
     const std::string& GetSourceLabel() const
     {
@@ -88,4 +91,4 @@ private:
     std::string sourceLabel_ = "not applied";
 };
 
-} // namespace cg2
+} // namespace myEngine

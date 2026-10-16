@@ -6,18 +6,20 @@
 
 std::string_view BuiltInGameModule::GetId() const
 {
-	return kId;
+    return kId;
 }
 
 std::string_view BuiltInGameModule::GetDisplayName() const
 {
-	return kDisplayName;
+    return kDisplayName;
 }
 
 bool BuiltInGameModule::RegisterScenes(SceneRegistry& registry) const
 {
-	bool success = true;
-	success = registry.Register<TitleScene>("TITLE") && success;
-	success = registry.Register("TANK_EXPEDITION", []() { return std::make_unique<GameScene>(true, true); }) && success;
-	return success;
+    bool success = true;
+    success = registry.Register<TitleScene>("TITLE") && success;
+    success = registry.Register("TANK_EXPEDITION", []() {
+        return std::make_unique<GameScene>(true, true);
+    }) && success;
+    return success;
 }

@@ -2,1157 +2,1132 @@
 #include "Calculation.h"
 #include <Easing.h>
 
-namespace cg2 {
+namespace myEngine {
 
 std::mt19937 rng(std::random_device{}());
 
 Vector2 Add(const Vector2& v1, const Vector2& v2)
 {
+    Vector2 result;
+    result.x = v1.x + v2.x;
+    result.y = v1.y + v2.y;
 
-	Vector2 result;
-	result.x = v1.x + v2.x;
-	result.y = v1.y + v2.y;
-
-	return result;
+    return result;
 }
 
-Vector3 Add(const Vector3& v1, const Vector3& v2) {
+Vector3 Add(const Vector3& v1, const Vector3& v2)
+{
+    Vector3 result;
+    result.x = v1.x + v2.x;
+    result.y = v1.y + v2.y;
+    result.z = v1.z + v2.z;
 
-	Vector3 result;
-	result.x = v1.x + v2.x;
-	result.y = v1.y + v2.y;
-	result.z = v1.z + v2.z;
-
-	return result;
-
+    return result;
 }
 
 Vector4 Add(const Vector4& v1, const Vector4& v2)
 {
-	Vector4 result;
-	result.x = v1.x + v2.x;
-	result.y = v1.y + v2.y;
-	result.z = v1.z + v2.z;
-	result.w = v1.w + v2.w;
+    Vector4 result;
+    result.x = v1.x + v2.x;
+    result.y = v1.y + v2.y;
+    result.z = v1.z + v2.z;
+    result.w = v1.w + v2.w;
 
-	return result;
+    return result;
 }
 
 Vector2 Subtract(const Vector2& v1, const Vector2& v2)
 {
-	Vector2 result;
-	result.x = v1.x - v2.x;
-	result.y = v1.y - v2.y;
+    Vector2 result;
+    result.x = v1.x - v2.x;
+    result.y = v1.y - v2.y;
 
-	return result;
+    return result;
 }
 
 // 減産
-Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
+Vector3 Subtract(const Vector3& v1, const Vector3& v2)
+{
+    Vector3 result;
+    result.x = v1.x - v2.x;
+    result.y = v1.y - v2.y;
+    result.z = v1.z - v2.z;
 
-	Vector3 result;
-	result.x = v1.x - v2.x;
-	result.y = v1.y - v2.y;
-	result.z = v1.z - v2.z;
-
-	return result;
-
+    return result;
 }
 
 Vector4 Subtract(const Vector4& v1, const Vector4& v2)
 {
+    Vector4 result;
+    result.x = v1.x - v2.x;
+    result.y = v1.y - v2.y;
+    result.z = v1.z - v2.z;
 
-	Vector4 result;
-	result.x = v1.x - v2.x;
-	result.y = v1.y - v2.y;
-	result.z = v1.z - v2.z;
-
-
-	return result;
+    return result;
 }
 
 Vector2 Multiply(float scalar, const Vector2& v)
 {
+    Vector2 result;
+    result.x = scalar * v.x;
+    result.y = scalar * v.y;
 
-	Vector2 result;
-	result.x = scalar * v.x;
-	result.y = scalar * v.y;
-
-	return result;
-
+    return result;
 }
 
-Vector3 Multiply(float scalar, const Vector3& v) {
+Vector3 Multiply(float scalar, const Vector3& v)
+{
+    Vector3 result;
+    result.x = scalar * v.x;
+    result.y = scalar * v.y;
+    result.z = scalar * v.z;
 
-	Vector3 result;
-	result.x = scalar * v.x;
-	result.y = scalar * v.y;
-	result.z = scalar * v.z;
-
-	return result;
-
+    return result;
 }
 
-float Dot(const Vector3& v1, const Vector3& v2) {
-
-	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
-
+float Dot(const Vector3& v1, const Vector3& v2)
+{
+    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
-float Length(const Vector3& v) {
-
-	return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
-
+float Length(const Vector3& v)
+{
+    return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
-Vector3 Normalize(const Vector3& v) {
+Vector3 Normalize(const Vector3& v)
+{
+    float length = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
 
-	float length = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+    Vector3 result;
+    result.x = v.x / length;
+    result.y = v.y / length;
+    result.z = v.z / length;
 
-	Vector3 result;
-	result.x = v.x / length;
-	result.y = v.y / length;
-	result.z = v.z / length;
-
-	return result;
-
+    return result;
 }
 
-float DotQuaternion(const Quaternion& q0, const Quaternion& q1) {
-	return q0.x * q1.x + q0.y * q1.y + q0.z * q1.z + q0.w * q1.w;
+float DotQuaternion(const Quaternion& q0, const Quaternion& q1)
+{
+    return q0.x * q1.x + q0.y * q1.y + q0.z * q1.z + q0.w * q1.w;
 }
 
-Quaternion NormalizeQuaternion(const Quaternion& quaternion) {
-	const float length = std::sqrt(DotQuaternion(quaternion, quaternion));
-	if (length <= 0.000001f) {
-		return { 0.0f, 0.0f, 0.0f, 1.0f };
-	}
-	return {
-		quaternion.x / length,
-		quaternion.y / length,
-		quaternion.z / length,
-		quaternion.w / length,
-	};
+Quaternion NormalizeQuaternion(const Quaternion& quaternion)
+{
+    const float length = std::sqrt(DotQuaternion(quaternion, quaternion));
+    if (length <= 0.000001f) {
+        return {0.0f, 0.0f, 0.0f, 1.0f};
+    }
+    return {
+        quaternion.x / length,
+        quaternion.y / length,
+        quaternion.z / length,
+        quaternion.w / length,
+    };
 }
 
-Quaternion SlerpQuaternion(const Quaternion& q0, const Quaternion& q1, float t) {
-	Quaternion start = NormalizeQuaternion(q0);
-	Quaternion end = NormalizeQuaternion(q1);
-	float dot = DotQuaternion(start, end);
-	if (dot < 0.0f) {
-		end = { -end.x, -end.y, -end.z, -end.w };
-		dot = -dot;
-	}
-	dot = (std::clamp)(dot, -1.0f, 1.0f);
-	if (dot > 0.9995f) {
-		return NormalizeQuaternion({
-			start.x + (end.x - start.x) * t,
-			start.y + (end.y - start.y) * t,
-			start.z + (end.z - start.z) * t,
-			start.w + (end.w - start.w) * t,
-		});
-	}
+Quaternion SlerpQuaternion(const Quaternion& q0, const Quaternion& q1, float t)
+{
+    Quaternion start = NormalizeQuaternion(q0);
+    Quaternion end = NormalizeQuaternion(q1);
+    float dot = DotQuaternion(start, end);
+    if (dot < 0.0f) {
+        end = {-end.x, -end.y, -end.z, -end.w};
+        dot = -dot;
+    }
+    dot = (std::clamp)(dot, -1.0f, 1.0f);
+    if (dot > 0.9995f) {
+        return NormalizeQuaternion({
+            start.x + (end.x - start.x) * t,
+            start.y + (end.y - start.y) * t,
+            start.z + (end.z - start.z) * t,
+            start.w + (end.w - start.w) * t,
+        });
+    }
 
-	const float theta = std::acos(dot);
-	const float sinTheta = std::sin(theta);
-	const float startWeight = std::sin((1.0f - t) * theta) / sinTheta;
-	const float endWeight = std::sin(t * theta) / sinTheta;
-	return {
-		start.x * startWeight + end.x * endWeight,
-		start.y * startWeight + end.y * endWeight,
-		start.z * startWeight + end.z * endWeight,
-		start.w * startWeight + end.w * endWeight,
-	};
+    const float theta = std::acos(dot);
+    const float sinTheta = std::sin(theta);
+    const float startWeight = std::sin((1.0f - t) * theta) / sinTheta;
+    const float endWeight = std::sin(t * theta) / sinTheta;
+    return {
+        start.x * startWeight + end.x * endWeight,
+        start.y * startWeight + end.y * endWeight,
+        start.z * startWeight + end.z * endWeight,
+        start.w * startWeight + end.w * endWeight,
+    };
 }
 
-Quaternion MakeRotateAxisAngleQuaternion(const Vector3& axis, float angle) {
-	const Vector3 normalizedAxis = Normalize(axis);
-	const float halfAngle = angle * 0.5f;
-	const float sinHalfAngle = std::sin(halfAngle);
-	return NormalizeQuaternion({
-		normalizedAxis.x * sinHalfAngle,
-		normalizedAxis.y * sinHalfAngle,
-		normalizedAxis.z * sinHalfAngle,
-		std::cos(halfAngle),
-	});
+Quaternion MakeRotateAxisAngleQuaternion(const Vector3& axis, float angle)
+{
+    const Vector3 normalizedAxis = Normalize(axis);
+    const float halfAngle = angle * 0.5f;
+    const float sinHalfAngle = std::sin(halfAngle);
+    return NormalizeQuaternion({
+        normalizedAxis.x * sinHalfAngle,
+        normalizedAxis.y * sinHalfAngle,
+        normalizedAxis.z * sinHalfAngle,
+        std::cos(halfAngle),
+    });
 }
 
 Vector3 TransformNormal(const Vector3& v, const Matrix4x4& m)
 {
+    Vector3 result{
+        v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0],
+        v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1],
+        v.x * m.m[0][2] + v.y * m.m[1][2] + v.z * m.m[2][2],
+    };
 
-	Vector3 result{
-		v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0],
-		v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1],
-		v.x * m.m[0][2] + v.y * m.m[1][2] + v.z * m.m[2][2],
-	};
-
-	return result;
+    return result;
 }
 
-Vector3 Cross(const Vector3& v1, const Vector3& v2) {
+Vector3 Cross(const Vector3& v1, const Vector3& v2)
+{
+    Vector3 result;
 
-	Vector3 result;
+    result.x = v1.y * v2.z - v1.z * v2.y;
+    result.y = v1.z * v2.x - v1.x * v2.z;
+    result.z = v1.x * v2.y - v1.y * v2.x;
 
-	result.x = v1.y * v2.z - v1.z * v2.y;
-	result.y = v1.z * v2.x - v1.x * v2.z;
-	result.z = v1.x * v2.y - v1.y * v2.x;
-
-	return result;
-
+    return result;
 }
 
-Matrix4x4 Add(const Matrix4x4& m1, const Matrix4x4& m2) {
+Matrix4x4 Add(const Matrix4x4& m1, const Matrix4x4& m2)
+{
+    Matrix4x4 result;
 
-	Matrix4x4 result;
+    result.m[0][0] = m1.m[0][0] + m2.m[0][0];
+    result.m[0][1] = m1.m[0][1] + m2.m[0][1];
+    result.m[0][2] = m1.m[0][2] + m2.m[0][2];
+    result.m[0][3] = m1.m[0][3] + m2.m[0][3];
 
-	result.m[0][0] = m1.m[0][0] + m2.m[0][0];
-	result.m[0][1] = m1.m[0][1] + m2.m[0][1];
-	result.m[0][2] = m1.m[0][2] + m2.m[0][2];
-	result.m[0][3] = m1.m[0][3] + m2.m[0][3];
+    result.m[1][0] = m1.m[1][0] + m2.m[1][0];
+    result.m[1][1] = m1.m[1][1] + m2.m[1][1];
+    result.m[1][2] = m1.m[1][2] + m2.m[1][2];
+    result.m[1][3] = m1.m[1][3] + m2.m[1][3];
 
-	result.m[1][0] = m1.m[1][0] + m2.m[1][0];
-	result.m[1][1] = m1.m[1][1] + m2.m[1][1];
-	result.m[1][2] = m1.m[1][2] + m2.m[1][2];
-	result.m[1][3] = m1.m[1][3] + m2.m[1][3];
+    result.m[2][0] = m1.m[2][0] + m2.m[2][0];
+    result.m[2][1] = m1.m[2][1] + m2.m[2][1];
+    result.m[2][2] = m1.m[2][2] + m2.m[2][2];
+    result.m[2][3] = m1.m[2][3] + m2.m[2][3];
 
-	result.m[2][0] = m1.m[2][0] + m2.m[2][0];
-	result.m[2][1] = m1.m[2][1] + m2.m[2][1];
-	result.m[2][2] = m1.m[2][2] + m2.m[2][2];
-	result.m[2][3] = m1.m[2][3] + m2.m[2][3];
+    result.m[3][0] = m1.m[3][0] + m2.m[3][0];
+    result.m[3][1] = m1.m[3][1] + m2.m[3][1];
+    result.m[3][2] = m1.m[3][2] + m2.m[3][2];
+    result.m[3][3] = m1.m[3][3] + m2.m[3][3];
 
-	result.m[3][0] = m1.m[3][0] + m2.m[3][0];
-	result.m[3][1] = m1.m[3][1] + m2.m[3][1];
-	result.m[3][2] = m1.m[3][2] + m2.m[3][2];
-	result.m[3][3] = m1.m[3][3] + m2.m[3][3];
-
-	return result;
-
+    return result;
 }
 
-Matrix4x4 Subtract(const Matrix4x4& m1, const Matrix4x4& m2) {
+Matrix4x4 Subtract(const Matrix4x4& m1, const Matrix4x4& m2)
+{
+    Matrix4x4 result;
 
-	Matrix4x4 result;
+    result.m[0][0] = m1.m[0][0] - m2.m[0][0];
+    result.m[0][1] = m1.m[0][1] - m2.m[0][1];
+    result.m[0][2] = m1.m[0][2] - m2.m[0][2];
+    result.m[0][3] = m1.m[0][3] - m2.m[0][3];
 
-	result.m[0][0] = m1.m[0][0] - m2.m[0][0];
-	result.m[0][1] = m1.m[0][1] - m2.m[0][1];
-	result.m[0][2] = m1.m[0][2] - m2.m[0][2];
-	result.m[0][3] = m1.m[0][3] - m2.m[0][3];
+    result.m[1][0] = m1.m[1][0] - m2.m[1][0];
+    result.m[1][1] = m1.m[1][1] - m2.m[1][1];
+    result.m[1][2] = m1.m[1][2] - m2.m[1][2];
+    result.m[1][3] = m1.m[1][3] - m2.m[1][3];
 
-	result.m[1][0] = m1.m[1][0] - m2.m[1][0];
-	result.m[1][1] = m1.m[1][1] - m2.m[1][1];
-	result.m[1][2] = m1.m[1][2] - m2.m[1][2];
-	result.m[1][3] = m1.m[1][3] - m2.m[1][3];
+    result.m[2][0] = m1.m[2][0] - m2.m[2][0];
+    result.m[2][1] = m1.m[2][1] - m2.m[2][1];
+    result.m[2][2] = m1.m[2][2] - m2.m[2][2];
+    result.m[2][3] = m1.m[2][3] - m2.m[2][3];
 
-	result.m[2][0] = m1.m[2][0] - m2.m[2][0];
-	result.m[2][1] = m1.m[2][1] - m2.m[2][1];
-	result.m[2][2] = m1.m[2][2] - m2.m[2][2];
-	result.m[2][3] = m1.m[2][3] - m2.m[2][3];
+    result.m[3][0] = m1.m[3][0] - m2.m[3][0];
+    result.m[3][1] = m1.m[3][1] - m2.m[3][1];
+    result.m[3][2] = m1.m[3][2] - m2.m[3][2];
+    result.m[3][3] = m1.m[3][3] - m2.m[3][3];
 
-	result.m[3][0] = m1.m[3][0] - m2.m[3][0];
-	result.m[3][1] = m1.m[3][1] - m2.m[3][1];
-	result.m[3][2] = m1.m[3][2] - m2.m[3][2];
-	result.m[3][3] = m1.m[3][3] - m2.m[3][3];
-
-	return result;
-
+    return result;
 }
 
-Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) {
+Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2)
+{
+    Matrix4x4 result;
 
-	Matrix4x4 result;
+    result.m[0][0] = m1.m[0][0] * m2.m[0][0] + m1.m[0][1] * m2.m[1][0] + m1.m[0][2] * m2.m[2][0] + m1.m[0][3] * m2.m[3][0];
+    result.m[0][1] = m1.m[0][0] * m2.m[0][1] + m1.m[0][1] * m2.m[1][1] + m1.m[0][2] * m2.m[2][1] + m1.m[0][3] * m2.m[3][1];
+    result.m[0][2] = m1.m[0][0] * m2.m[0][2] + m1.m[0][1] * m2.m[1][2] + m1.m[0][2] * m2.m[2][2] + m1.m[0][3] * m2.m[3][2];
+    result.m[0][3] = m1.m[0][0] * m2.m[0][3] + m1.m[0][1] * m2.m[1][3] + m1.m[0][2] * m2.m[2][3] + m1.m[0][3] * m2.m[3][3];
 
-	result.m[0][0] = m1.m[0][0] * m2.m[0][0] + m1.m[0][1] * m2.m[1][0] + m1.m[0][2] * m2.m[2][0] + m1.m[0][3] * m2.m[3][0];
-	result.m[0][1] = m1.m[0][0] * m2.m[0][1] + m1.m[0][1] * m2.m[1][1] + m1.m[0][2] * m2.m[2][1] + m1.m[0][3] * m2.m[3][1];
-	result.m[0][2] = m1.m[0][0] * m2.m[0][2] + m1.m[0][1] * m2.m[1][2] + m1.m[0][2] * m2.m[2][2] + m1.m[0][3] * m2.m[3][2];
-	result.m[0][3] = m1.m[0][0] * m2.m[0][3] + m1.m[0][1] * m2.m[1][3] + m1.m[0][2] * m2.m[2][3] + m1.m[0][3] * m2.m[3][3];
+    result.m[1][0] = m1.m[1][0] * m2.m[0][0] + m1.m[1][1] * m2.m[1][0] + m1.m[1][2] * m2.m[2][0] + m1.m[1][3] * m2.m[3][0];
+    result.m[1][1] = m1.m[1][0] * m2.m[0][1] + m1.m[1][1] * m2.m[1][1] + m1.m[1][2] * m2.m[2][1] + m1.m[1][3] * m2.m[3][1];
+    result.m[1][2] = m1.m[1][0] * m2.m[0][2] + m1.m[1][1] * m2.m[1][2] + m1.m[1][2] * m2.m[2][2] + m1.m[1][3] * m2.m[3][2];
+    result.m[1][3] = m1.m[1][0] * m2.m[0][3] + m1.m[1][1] * m2.m[1][3] + m1.m[1][2] * m2.m[2][3] + m1.m[1][3] * m2.m[3][3];
 
-	result.m[1][0] = m1.m[1][0] * m2.m[0][0] + m1.m[1][1] * m2.m[1][0] + m1.m[1][2] * m2.m[2][0] + m1.m[1][3] * m2.m[3][0];
-	result.m[1][1] = m1.m[1][0] * m2.m[0][1] + m1.m[1][1] * m2.m[1][1] + m1.m[1][2] * m2.m[2][1] + m1.m[1][3] * m2.m[3][1];
-	result.m[1][2] = m1.m[1][0] * m2.m[0][2] + m1.m[1][1] * m2.m[1][2] + m1.m[1][2] * m2.m[2][2] + m1.m[1][3] * m2.m[3][2];
-	result.m[1][3] = m1.m[1][0] * m2.m[0][3] + m1.m[1][1] * m2.m[1][3] + m1.m[1][2] * m2.m[2][3] + m1.m[1][3] * m2.m[3][3];
+    result.m[2][0] = m1.m[2][0] * m2.m[0][0] + m1.m[2][1] * m2.m[1][0] + m1.m[2][2] * m2.m[2][0] + m1.m[2][3] * m2.m[3][0];
+    result.m[2][1] = m1.m[2][0] * m2.m[0][1] + m1.m[2][1] * m2.m[1][1] + m1.m[2][2] * m2.m[2][1] + m1.m[2][3] * m2.m[3][1];
+    result.m[2][2] = m1.m[2][0] * m2.m[0][2] + m1.m[2][1] * m2.m[1][2] + m1.m[2][2] * m2.m[2][2] + m1.m[2][3] * m2.m[3][2];
+    result.m[2][3] = m1.m[2][0] * m2.m[0][3] + m1.m[2][1] * m2.m[1][3] + m1.m[2][2] * m2.m[2][3] + m1.m[2][3] * m2.m[3][3];
 
-	result.m[2][0] = m1.m[2][0] * m2.m[0][0] + m1.m[2][1] * m2.m[1][0] + m1.m[2][2] * m2.m[2][0] + m1.m[2][3] * m2.m[3][0];
-	result.m[2][1] = m1.m[2][0] * m2.m[0][1] + m1.m[2][1] * m2.m[1][1] + m1.m[2][2] * m2.m[2][1] + m1.m[2][3] * m2.m[3][1];
-	result.m[2][2] = m1.m[2][0] * m2.m[0][2] + m1.m[2][1] * m2.m[1][2] + m1.m[2][2] * m2.m[2][2] + m1.m[2][3] * m2.m[3][2];
-	result.m[2][3] = m1.m[2][0] * m2.m[0][3] + m1.m[2][1] * m2.m[1][3] + m1.m[2][2] * m2.m[2][3] + m1.m[2][3] * m2.m[3][3];
+    result.m[3][0] = m1.m[3][0] * m2.m[0][0] + m1.m[3][1] * m2.m[1][0] + m1.m[3][2] * m2.m[2][0] + m1.m[3][3] * m2.m[3][0];
+    result.m[3][1] = m1.m[3][0] * m2.m[0][1] + m1.m[3][1] * m2.m[1][1] + m1.m[3][2] * m2.m[2][1] + m1.m[3][3] * m2.m[3][1];
+    result.m[3][2] = m1.m[3][0] * m2.m[0][2] + m1.m[3][1] * m2.m[1][2] + m1.m[3][2] * m2.m[2][2] + m1.m[3][3] * m2.m[3][2];
+    result.m[3][3] = m1.m[3][0] * m2.m[0][3] + m1.m[3][1] * m2.m[1][3] + m1.m[3][2] * m2.m[2][3] + m1.m[3][3] * m2.m[3][3];
 
-	result.m[3][0] = m1.m[3][0] * m2.m[0][0] + m1.m[3][1] * m2.m[1][0] + m1.m[3][2] * m2.m[2][0] + m1.m[3][3] * m2.m[3][0];
-	result.m[3][1] = m1.m[3][0] * m2.m[0][1] + m1.m[3][1] * m2.m[1][1] + m1.m[3][2] * m2.m[2][1] + m1.m[3][3] * m2.m[3][1];
-	result.m[3][2] = m1.m[3][0] * m2.m[0][2] + m1.m[3][1] * m2.m[1][2] + m1.m[3][2] * m2.m[2][2] + m1.m[3][3] * m2.m[3][2];
-	result.m[3][3] = m1.m[3][0] * m2.m[0][3] + m1.m[3][1] * m2.m[1][3] + m1.m[3][2] * m2.m[2][3] + m1.m[3][3] * m2.m[3][3];
-
-	return result;
-
+    return result;
 }
 
-Matrix4x4 Inverse(const Matrix4x4& m) {
+Matrix4x4 Inverse(const Matrix4x4& m)
+{
+    float inverse = m.m[0][0] * m.m[1][1] * m.m[2][2] * m.m[3][3] + m.m[0][0] * m.m[1][2] * m.m[2][3] * m.m[3][1] +
+                    m.m[0][0] * m.m[1][3] * m.m[2][1] * m.m[3][2] - m.m[0][0] * m.m[1][3] * m.m[2][2] * m.m[3][1] -
+                    m.m[0][0] * m.m[1][2] * m.m[2][1] * m.m[3][3] - m.m[0][0] * m.m[1][1] * m.m[2][3] * m.m[3][2] -
+                    m.m[0][1] * m.m[1][0] * m.m[2][2] * m.m[3][3] - m.m[0][2] * m.m[1][0] * m.m[2][3] * m.m[3][1] -
+                    m.m[0][3] * m.m[1][0] * m.m[2][1] * m.m[3][2] + m.m[0][3] * m.m[1][0] * m.m[2][2] * m.m[3][1] +
+                    m.m[0][2] * m.m[1][0] * m.m[2][1] * m.m[3][3] + m.m[0][1] * m.m[1][0] * m.m[2][3] * m.m[3][2] +
+                    m.m[0][1] * m.m[1][2] * m.m[2][0] * m.m[3][3] + m.m[0][2] * m.m[1][3] * m.m[2][0] * m.m[3][1] +
+                    m.m[0][3] * m.m[1][1] * m.m[2][0] * m.m[3][2] - m.m[0][3] * m.m[1][2] * m.m[2][0] * m.m[3][1] -
+                    m.m[0][2] * m.m[1][1] * m.m[2][0] * m.m[3][3] - m.m[0][1] * m.m[1][3] * m.m[2][0] * m.m[3][2] -
+                    m.m[0][1] * m.m[1][2] * m.m[2][3] * m.m[3][0] - m.m[0][2] * m.m[1][3] * m.m[2][1] * m.m[3][0] -
+                    m.m[0][3] * m.m[1][1] * m.m[2][2] * m.m[3][0] + m.m[0][3] * m.m[1][2] * m.m[2][1] * m.m[3][0] +
+                    m.m[0][2] * m.m[1][1] * m.m[2][3] * m.m[3][0] + m.m[0][1] * m.m[1][3] * m.m[2][2] * m.m[3][0];
 
-	float inverse =
-		m.m[0][0] * m.m[1][1] * m.m[2][2] * m.m[3][3] + m.m[0][0] * m.m[1][2] * m.m[2][3] * m.m[3][1] + m.m[0][0] * m.m[1][3] * m.m[2][1] * m.m[3][2]
-		- m.m[0][0] * m.m[1][3] * m.m[2][2] * m.m[3][1] - m.m[0][0] * m.m[1][2] * m.m[2][1] * m.m[3][3] - m.m[0][0] * m.m[1][1] * m.m[2][3] * m.m[3][2]
-		- m.m[0][1] * m.m[1][0] * m.m[2][2] * m.m[3][3] - m.m[0][2] * m.m[1][0] * m.m[2][3] * m.m[3][1] - m.m[0][3] * m.m[1][0] * m.m[2][1] * m.m[3][2]
-		+ m.m[0][3] * m.m[1][0] * m.m[2][2] * m.m[3][1] + m.m[0][2] * m.m[1][0] * m.m[2][1] * m.m[3][3] + m.m[0][1] * m.m[1][0] * m.m[2][3] * m.m[3][2]
-		+ m.m[0][1] * m.m[1][2] * m.m[2][0] * m.m[3][3] + m.m[0][2] * m.m[1][3] * m.m[2][0] * m.m[3][1] + m.m[0][3] * m.m[1][1] * m.m[2][0] * m.m[3][2]
-		- m.m[0][3] * m.m[1][2] * m.m[2][0] * m.m[3][1] - m.m[0][2] * m.m[1][1] * m.m[2][0] * m.m[3][3] - m.m[0][1] * m.m[1][3] * m.m[2][0] * m.m[3][2]
-		- m.m[0][1] * m.m[1][2] * m.m[2][3] * m.m[3][0] - m.m[0][2] * m.m[1][3] * m.m[2][1] * m.m[3][0] - m.m[0][3] * m.m[1][1] * m.m[2][2] * m.m[3][0]
-		+ m.m[0][3] * m.m[1][2] * m.m[2][1] * m.m[3][0] + m.m[0][2] * m.m[1][1] * m.m[2][3] * m.m[3][0] + m.m[0][1] * m.m[1][3] * m.m[2][2] * m.m[3][0];
-
-	Matrix4x4 result;
-	result.m[0][0] = (
-		m.m[1][1] * m.m[2][2] * m.m[3][3] + m.m[1][2] * m.m[2][3] * m.m[3][1] + m.m[1][3] * m.m[2][1] * m.m[3][2] -
-		m.m[1][3] * m.m[2][2] * m.m[3][1] - m.m[1][2] * m.m[2][1] * m.m[3][3] - m.m[1][1] * m.m[2][3] * m.m[3][2]) / inverse;
-	result.m[0][1] = (-
-		m.m[0][1] * m.m[2][2] * m.m[3][3] - m.m[0][2] * m.m[2][3] * m.m[3][1] - m.m[0][3] * m.m[2][1] * m.m[3][2] +
-		m.m[0][3] * m.m[2][2] * m.m[3][1] + m.m[0][2] * m.m[2][1] * m.m[3][3] + m.m[0][1] * m.m[2][3] * m.m[3][2]) / inverse;
-	result.m[0][2] = (
-		m.m[0][1] * m.m[1][2] * m.m[3][3] + m.m[0][2] * m.m[1][3] * m.m[3][1] + m.m[0][3] * m.m[1][1] * m.m[3][2] -
-		m.m[0][3] * m.m[1][2] * m.m[3][1] - m.m[0][2] * m.m[1][1] * m.m[3][3] - m.m[0][1] * m.m[1][3] * m.m[3][2]) / inverse;
-	result.m[0][3] = (-
-		m.m[0][1] * m.m[1][2] * m.m[2][3] - m.m[0][2] * m.m[1][3] * m.m[2][1] - m.m[0][3] * m.m[1][1] * m.m[2][2] +
-		m.m[0][3] * m.m[1][2] * m.m[2][1] + m.m[0][2] * m.m[1][1] * m.m[2][3] + m.m[0][1] * m.m[1][3] * m.m[2][2]) / inverse;
-	result.m[1][0] = (-
-		m.m[1][0] * m.m[2][2] * m.m[3][3] - m.m[1][2] * m.m[2][3] * m.m[3][0] - m.m[1][3] * m.m[2][0] * m.m[3][2] +
-		m.m[1][3] * m.m[2][2] * m.m[3][0] + m.m[1][2] * m.m[2][0] * m.m[3][3] + m.m[1][0] * m.m[2][3] * m.m[3][2]) / inverse;
-	result.m[1][1] = (
-		m.m[0][0] * m.m[2][2] * m.m[3][3] + m.m[0][2] * m.m[2][3] * m.m[3][0] + m.m[0][3] * m.m[2][0] * m.m[3][2] -
-		m.m[0][3] * m.m[2][2] * m.m[3][0] - m.m[0][2] * m.m[2][0] * m.m[3][3] - m.m[0][0] * m.m[2][3] * m.m[3][2]) / inverse;
-	result.m[1][2] = (-
-		m.m[0][0] * m.m[1][2] * m.m[3][3] - m.m[0][2] * m.m[1][3] * m.m[3][0] - m.m[0][3] * m.m[1][0] * m.m[3][2] +
-		m.m[0][3] * m.m[1][2] * m.m[3][0] + m.m[0][2] * m.m[1][0] * m.m[3][3] + m.m[0][0] * m.m[1][3] * m.m[3][2]) / inverse;
-	result.m[1][3] = (
-		m.m[0][0] * m.m[1][2] * m.m[2][3] + m.m[0][2] * m.m[1][3] * m.m[2][0] + m.m[0][3] * m.m[1][0] * m.m[2][2] -
-		m.m[0][3] * m.m[1][2] * m.m[2][0] - m.m[0][2] * m.m[1][0] * m.m[2][3] - m.m[0][0] * m.m[1][3] * m.m[2][2]) / inverse;
-	result.m[2][0] = (
-		m.m[1][0] * m.m[2][1] * m.m[3][3] + m.m[1][1] * m.m[2][3] * m.m[3][0] + m.m[1][3] * m.m[2][0] * m.m[3][1] -
-		m.m[1][3] * m.m[2][1] * m.m[3][0] - m.m[1][1] * m.m[2][0] * m.m[3][3] - m.m[1][0] * m.m[2][3] * m.m[3][1]) / inverse;
-	result.m[2][1] = (-
-		m.m[0][0] * m.m[2][1] * m.m[3][3] - m.m[0][1] * m.m[2][3] * m.m[3][0] - m.m[0][3] * m.m[2][0] * m.m[3][1] +
-		m.m[0][3] * m.m[2][1] * m.m[3][0] + m.m[0][1] * m.m[2][0] * m.m[3][3] + m.m[0][0] * m.m[2][3] * m.m[3][1]) / inverse;
-	result.m[2][2] = (
-		m.m[0][0] * m.m[1][1] * m.m[3][3] + m.m[0][1] * m.m[1][3] * m.m[3][0] + m.m[0][3] * m.m[1][0] * m.m[3][1] -
-		m.m[0][3] * m.m[1][1] * m.m[3][0] - m.m[0][1] * m.m[1][0] * m.m[3][3] - m.m[0][0] * m.m[1][3] * m.m[3][1]) / inverse;
-	result.m[2][3] = (-
-		m.m[0][0] * m.m[1][1] * m.m[2][3] - m.m[0][1] * m.m[1][3] * m.m[2][0] - m.m[0][3] * m.m[1][0] * m.m[2][1] +
-		m.m[0][3] * m.m[1][1] * m.m[2][0] + m.m[0][1] * m.m[1][0] * m.m[2][3] + m.m[0][0] * m.m[1][3] * m.m[2][1]) / inverse;
-	result.m[3][0] = (-
-		m.m[1][0] * m.m[2][1] * m.m[3][2] - m.m[1][1] * m.m[2][2] * m.m[3][0] - m.m[1][2] * m.m[2][0] * m.m[3][1] +
-		m.m[1][2] * m.m[2][1] * m.m[3][0] + m.m[1][1] * m.m[2][0] * m.m[3][2] + m.m[1][0] * m.m[2][2] * m.m[3][1]) / inverse;
-	result.m[3][1] = (
-		m.m[0][0] * m.m[2][1] * m.m[3][2] + m.m[0][1] * m.m[2][2] * m.m[3][0] + m.m[0][2] * m.m[2][0] * m.m[3][1] -
-		m.m[0][2] * m.m[2][1] * m.m[3][0] - m.m[0][1] * m.m[2][0] * m.m[3][2] - m.m[0][0] * m.m[2][2] * m.m[3][1]) / inverse;
-	result.m[3][2] = (-
-		m.m[0][0] * m.m[1][1] * m.m[3][2] - m.m[0][1] * m.m[1][2] * m.m[3][0] - m.m[0][2] * m.m[1][0] * m.m[3][1] +
-		m.m[0][2] * m.m[1][1] * m.m[3][0] + m.m[0][1] * m.m[1][0] * m.m[3][2] + m.m[0][0] * m.m[1][2] * m.m[3][1]) / inverse;
-	result.m[3][3] = (
-		m.m[0][0] * m.m[1][1] * m.m[2][2] + m.m[0][1] * m.m[1][2] * m.m[2][0] + m.m[0][2] * m.m[1][0] * m.m[2][1] -
-		m.m[0][2] * m.m[1][1] * m.m[2][0] - m.m[0][1] * m.m[1][0] * m.m[2][2] - m.m[0][0] * m.m[1][2] * m.m[2][1]) / inverse;
-	return result;
-
+    Matrix4x4 result;
+    result.m[0][0] = (m.m[1][1] * m.m[2][2] * m.m[3][3] + m.m[1][2] * m.m[2][3] * m.m[3][1] + m.m[1][3] * m.m[2][1] * m.m[3][2] -
+                      m.m[1][3] * m.m[2][2] * m.m[3][1] - m.m[1][2] * m.m[2][1] * m.m[3][3] - m.m[1][1] * m.m[2][3] * m.m[3][2]) /
+                     inverse;
+    result.m[0][1] = (-m.m[0][1] * m.m[2][2] * m.m[3][3] - m.m[0][2] * m.m[2][3] * m.m[3][1] - m.m[0][3] * m.m[2][1] * m.m[3][2] +
+                      m.m[0][3] * m.m[2][2] * m.m[3][1] + m.m[0][2] * m.m[2][1] * m.m[3][3] + m.m[0][1] * m.m[2][3] * m.m[3][2]) /
+                     inverse;
+    result.m[0][2] = (m.m[0][1] * m.m[1][2] * m.m[3][3] + m.m[0][2] * m.m[1][3] * m.m[3][1] + m.m[0][3] * m.m[1][1] * m.m[3][2] -
+                      m.m[0][3] * m.m[1][2] * m.m[3][1] - m.m[0][2] * m.m[1][1] * m.m[3][3] - m.m[0][1] * m.m[1][3] * m.m[3][2]) /
+                     inverse;
+    result.m[0][3] = (-m.m[0][1] * m.m[1][2] * m.m[2][3] - m.m[0][2] * m.m[1][3] * m.m[2][1] - m.m[0][3] * m.m[1][1] * m.m[2][2] +
+                      m.m[0][3] * m.m[1][2] * m.m[2][1] + m.m[0][2] * m.m[1][1] * m.m[2][3] + m.m[0][1] * m.m[1][3] * m.m[2][2]) /
+                     inverse;
+    result.m[1][0] = (-m.m[1][0] * m.m[2][2] * m.m[3][3] - m.m[1][2] * m.m[2][3] * m.m[3][0] - m.m[1][3] * m.m[2][0] * m.m[3][2] +
+                      m.m[1][3] * m.m[2][2] * m.m[3][0] + m.m[1][2] * m.m[2][0] * m.m[3][3] + m.m[1][0] * m.m[2][3] * m.m[3][2]) /
+                     inverse;
+    result.m[1][1] = (m.m[0][0] * m.m[2][2] * m.m[3][3] + m.m[0][2] * m.m[2][3] * m.m[3][0] + m.m[0][3] * m.m[2][0] * m.m[3][2] -
+                      m.m[0][3] * m.m[2][2] * m.m[3][0] - m.m[0][2] * m.m[2][0] * m.m[3][3] - m.m[0][0] * m.m[2][3] * m.m[3][2]) /
+                     inverse;
+    result.m[1][2] = (-m.m[0][0] * m.m[1][2] * m.m[3][3] - m.m[0][2] * m.m[1][3] * m.m[3][0] - m.m[0][3] * m.m[1][0] * m.m[3][2] +
+                      m.m[0][3] * m.m[1][2] * m.m[3][0] + m.m[0][2] * m.m[1][0] * m.m[3][3] + m.m[0][0] * m.m[1][3] * m.m[3][2]) /
+                     inverse;
+    result.m[1][3] = (m.m[0][0] * m.m[1][2] * m.m[2][3] + m.m[0][2] * m.m[1][3] * m.m[2][0] + m.m[0][3] * m.m[1][0] * m.m[2][2] -
+                      m.m[0][3] * m.m[1][2] * m.m[2][0] - m.m[0][2] * m.m[1][0] * m.m[2][3] - m.m[0][0] * m.m[1][3] * m.m[2][2]) /
+                     inverse;
+    result.m[2][0] = (m.m[1][0] * m.m[2][1] * m.m[3][3] + m.m[1][1] * m.m[2][3] * m.m[3][0] + m.m[1][3] * m.m[2][0] * m.m[3][1] -
+                      m.m[1][3] * m.m[2][1] * m.m[3][0] - m.m[1][1] * m.m[2][0] * m.m[3][3] - m.m[1][0] * m.m[2][3] * m.m[3][1]) /
+                     inverse;
+    result.m[2][1] = (-m.m[0][0] * m.m[2][1] * m.m[3][3] - m.m[0][1] * m.m[2][3] * m.m[3][0] - m.m[0][3] * m.m[2][0] * m.m[3][1] +
+                      m.m[0][3] * m.m[2][1] * m.m[3][0] + m.m[0][1] * m.m[2][0] * m.m[3][3] + m.m[0][0] * m.m[2][3] * m.m[3][1]) /
+                     inverse;
+    result.m[2][2] = (m.m[0][0] * m.m[1][1] * m.m[3][3] + m.m[0][1] * m.m[1][3] * m.m[3][0] + m.m[0][3] * m.m[1][0] * m.m[3][1] -
+                      m.m[0][3] * m.m[1][1] * m.m[3][0] - m.m[0][1] * m.m[1][0] * m.m[3][3] - m.m[0][0] * m.m[1][3] * m.m[3][1]) /
+                     inverse;
+    result.m[2][3] = (-m.m[0][0] * m.m[1][1] * m.m[2][3] - m.m[0][1] * m.m[1][3] * m.m[2][0] - m.m[0][3] * m.m[1][0] * m.m[2][1] +
+                      m.m[0][3] * m.m[1][1] * m.m[2][0] + m.m[0][1] * m.m[1][0] * m.m[2][3] + m.m[0][0] * m.m[1][3] * m.m[2][1]) /
+                     inverse;
+    result.m[3][0] = (-m.m[1][0] * m.m[2][1] * m.m[3][2] - m.m[1][1] * m.m[2][2] * m.m[3][0] - m.m[1][2] * m.m[2][0] * m.m[3][1] +
+                      m.m[1][2] * m.m[2][1] * m.m[3][0] + m.m[1][1] * m.m[2][0] * m.m[3][2] + m.m[1][0] * m.m[2][2] * m.m[3][1]) /
+                     inverse;
+    result.m[3][1] = (m.m[0][0] * m.m[2][1] * m.m[3][2] + m.m[0][1] * m.m[2][2] * m.m[3][0] + m.m[0][2] * m.m[2][0] * m.m[3][1] -
+                      m.m[0][2] * m.m[2][1] * m.m[3][0] - m.m[0][1] * m.m[2][0] * m.m[3][2] - m.m[0][0] * m.m[2][2] * m.m[3][1]) /
+                     inverse;
+    result.m[3][2] = (-m.m[0][0] * m.m[1][1] * m.m[3][2] - m.m[0][1] * m.m[1][2] * m.m[3][0] - m.m[0][2] * m.m[1][0] * m.m[3][1] +
+                      m.m[0][2] * m.m[1][1] * m.m[3][0] + m.m[0][1] * m.m[1][0] * m.m[3][2] + m.m[0][0] * m.m[1][2] * m.m[3][1]) /
+                     inverse;
+    result.m[3][3] = (m.m[0][0] * m.m[1][1] * m.m[2][2] + m.m[0][1] * m.m[1][2] * m.m[2][0] + m.m[0][2] * m.m[1][0] * m.m[2][1] -
+                      m.m[0][2] * m.m[1][1] * m.m[2][0] - m.m[0][1] * m.m[1][0] * m.m[2][2] - m.m[0][0] * m.m[1][2] * m.m[2][1]) /
+                     inverse;
+    return result;
 }
 
-Matrix4x4 Transpose(const Matrix4x4& m) {
+Matrix4x4 Transpose(const Matrix4x4& m)
+{
+    Matrix4x4 result;
 
-	Matrix4x4 result;
+    result.m[0][0] = m.m[0][0];
+    result.m[0][1] = m.m[1][0];
+    result.m[0][2] = m.m[2][0];
+    result.m[0][3] = m.m[3][0];
 
-	result.m[0][0] = m.m[0][0];
-	result.m[0][1] = m.m[1][0];
-	result.m[0][2] = m.m[2][0];
-	result.m[0][3] = m.m[3][0];
+    result.m[1][0] = m.m[0][1];
+    result.m[1][1] = m.m[1][1];
+    result.m[1][2] = m.m[2][1];
+    result.m[1][3] = m.m[3][1];
 
-	result.m[1][0] = m.m[0][1];
-	result.m[1][1] = m.m[1][1];
-	result.m[1][2] = m.m[2][1];
-	result.m[1][3] = m.m[3][1];
+    result.m[2][0] = m.m[0][2];
+    result.m[2][1] = m.m[1][2];
+    result.m[2][2] = m.m[2][2];
+    result.m[2][3] = m.m[3][2];
 
-	result.m[2][0] = m.m[0][2];
-	result.m[2][1] = m.m[1][2];
-	result.m[2][2] = m.m[2][2];
-	result.m[2][3] = m.m[3][2];
+    result.m[3][0] = m.m[0][3];
+    result.m[3][1] = m.m[1][3];
+    result.m[3][2] = m.m[2][3];
+    result.m[3][3] = m.m[3][3];
 
-	result.m[3][0] = m.m[0][3];
-	result.m[3][1] = m.m[1][3];
-	result.m[3][2] = m.m[2][3];
-	result.m[3][3] = m.m[3][3];
-
-	return result;
-
+    return result;
 }
 
-Matrix4x4 MakeIdentity4x4() {
+Matrix4x4 MakeIdentity4x4()
+{
+    Matrix4x4 result;
 
-	Matrix4x4 result;
+    result.m[0][0] = 1.0f;
+    result.m[0][1] = 0.0f;
+    result.m[0][2] = 0.0f;
+    result.m[0][3] = 0.0f;
 
-	result.m[0][0] = 1.0f;
-	result.m[0][1] = 0.0f;
-	result.m[0][2] = 0.0f;
-	result.m[0][3] = 0.0f;
+    result.m[1][0] = 0.0f;
+    result.m[1][1] = 1.0f;
+    result.m[1][2] = 0.0f;
+    result.m[1][3] = 0.0f;
 
-	result.m[1][0] = 0.0f;
-	result.m[1][1] = 1.0f;
-	result.m[1][2] = 0.0f;
-	result.m[1][3] = 0.0f;
+    result.m[2][0] = 0.0f;
+    result.m[2][1] = 0.0f;
+    result.m[2][2] = 1.0f;
+    result.m[2][3] = 0.0f;
 
-	result.m[2][0] = 0.0f;
-	result.m[2][1] = 0.0f;
-	result.m[2][2] = 1.0f;
-	result.m[2][3] = 0.0f;
+    result.m[3][0] = 0.0f;
+    result.m[3][1] = 0.0f;
+    result.m[3][2] = 0.0f;
+    result.m[3][3] = 1.0f;
 
-	result.m[3][0] = 0.0f;
-	result.m[3][1] = 0.0f;
-	result.m[3][2] = 0.0f;
-	result.m[3][3] = 1.0f;
-
-	return result;
-
+    return result;
 }
 
-Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
+Matrix4x4 MakeTranslateMatrix(const Vector3& translate)
+{
+    Matrix4x4 result;
 
-	Matrix4x4 result;
+    result.m[0][0] = 1.0f;
+    result.m[0][1] = 0.0f;
+    result.m[0][2] = 0.0f;
+    result.m[0][3] = 0.0f;
 
-	result.m[0][0] = 1.0f;
-	result.m[0][1] = 0.0f;
-	result.m[0][2] = 0.0f;
-	result.m[0][3] = 0.0f;
+    result.m[1][0] = 0.0f;
+    result.m[1][1] = 1.0f;
+    result.m[1][2] = 0.0f;
+    result.m[1][3] = 0.0f;
 
-	result.m[1][0] = 0.0f;
-	result.m[1][1] = 1.0f;
-	result.m[1][2] = 0.0f;
-	result.m[1][3] = 0.0f;
+    result.m[2][0] = 0.0f;
+    result.m[2][1] = 0.0f;
+    result.m[2][2] = 1.0f;
+    result.m[2][3] = 0.0f;
 
-	result.m[2][0] = 0.0f;
-	result.m[2][1] = 0.0f;
-	result.m[2][2] = 1.0f;
-	result.m[2][3] = 0.0f;
+    result.m[3][0] = translate.x;
+    result.m[3][1] = translate.y;
+    result.m[3][2] = translate.z;
+    result.m[3][3] = 1.0f;
 
-	result.m[3][0] = translate.x;
-	result.m[3][1] = translate.y;
-	result.m[3][2] = translate.z;
-	result.m[3][3] = 1.0f;
-
-	return result;
-
+    return result;
 }
 
-Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
+Matrix4x4 MakeScaleMatrix(const Vector3& scale)
+{
+    Matrix4x4 result;
 
-	Matrix4x4 result;
+    result.m[0][0] = scale.x;
+    result.m[0][1] = 0.0f;
+    result.m[0][2] = 0.0f;
+    result.m[0][3] = 0.0f;
 
-	result.m[0][0] = scale.x;
-	result.m[0][1] = 0.0f;
-	result.m[0][2] = 0.0f;
-	result.m[0][3] = 0.0f;
+    result.m[1][0] = 0.0f;
+    result.m[1][1] = scale.y;
+    result.m[1][2] = 0.0f;
+    result.m[1][3] = 0.0f;
 
-	result.m[1][0] = 0.0f;
-	result.m[1][1] = scale.y;
-	result.m[1][2] = 0.0f;
-	result.m[1][3] = 0.0f;
+    result.m[2][0] = 0.0f;
+    result.m[2][1] = 0.0f;
+    result.m[2][2] = scale.z;
+    result.m[2][3] = 0.0f;
 
-	result.m[2][0] = 0.0f;
-	result.m[2][1] = 0.0f;
-	result.m[2][2] = scale.z;
-	result.m[2][3] = 0.0f;
+    result.m[3][0] = 0.0f;
+    result.m[3][1] = 0.0f;
+    result.m[3][2] = 0.0f;
+    result.m[3][3] = 1.0f;
 
-	result.m[3][0] = 0.0f;
-	result.m[3][1] = 0.0f;
-	result.m[3][2] = 0.0f;
-	result.m[3][3] = 1.0f;
-
-	return result;
+    return result;
 }
 
-Vector3 TransformMatrix(const Vector3& vector, const Matrix4x4& matrix) {
+Vector3 TransformMatrix(const Vector3& vector, const Matrix4x4& matrix)
+{
+    Vector3 result;
 
-	Vector3 result;
+    result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + 1.0f * matrix.m[3][0];
+    result.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + 1.0f * matrix.m[3][1];
+    result.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + 1.0f * matrix.m[3][2];
+    float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + 1.0f * matrix.m[3][3];
 
-	result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + 1.0f * matrix.m[3][0];
-	result.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + 1.0f * matrix.m[3][1];
-	result.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + 1.0f * matrix.m[3][2];
-	float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + 1.0f * matrix.m[3][3];
-
-	assert(w != 0.0f);
-	result.x /= w;
-	result.y /= w;
-	result.z /= w;
-	return result;
-
+    assert(w != 0.0f);
+    result.x /= w;
+    result.y /= w;
+    result.z /= w;
+    return result;
 }
 
-Vector4 TransformMatrix(const Vector4& vector, const Matrix4x4& matrix) {
+Vector4 TransformMatrix(const Vector4& vector, const Matrix4x4& matrix)
+{
+    Vector4 result;
 
-	Vector4 result;
+    result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + 1.0f * matrix.m[3][0];
+    result.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + 1.0f * matrix.m[3][1];
+    result.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + 1.0f * matrix.m[3][2];
+    float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + 1.0f * matrix.m[3][3];
 
-	result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + 1.0f * matrix.m[3][0];
-	result.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + 1.0f * matrix.m[3][1];
-	result.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + 1.0f * matrix.m[3][2];
-	float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + 1.0f * matrix.m[3][3];
+    result.w = vector.w;
 
-	result.w = vector.w;
-
-	assert(w != 0.0f);
-	result.x /= w;
-	result.y /= w;
-	result.z /= w;
-	return result;
-
+    assert(w != 0.0f);
+    result.x /= w;
+    result.y /= w;
+    result.z /= w;
+    return result;
 }
 
+Matrix4x4 MakeRotateXMatrix(float radian)
+{
+    Matrix4x4 result;
 
-Matrix4x4 MakeRotateXMatrix(float radian) {
+    result.m[0][0] = 1.0f;
+    result.m[0][1] = 0.0f;
+    result.m[0][2] = 0.0f;
+    result.m[0][3] = 0.0f;
 
-	Matrix4x4 result;
+    result.m[1][0] = 0.0f;
+    result.m[1][1] = std::cos(radian);
+    result.m[1][2] = std::sin(radian);
+    result.m[1][3] = 0.0f;
 
-	result.m[0][0] = 1.0f;
-	result.m[0][1] = 0.0f;
-	result.m[0][2] = 0.0f;
-	result.m[0][3] = 0.0f;
+    result.m[2][0] = 0.0f;
+    result.m[2][1] = -std::sin(radian);
+    result.m[2][2] = std::cos(radian);
+    result.m[2][3] = 0.0f;
 
-	result.m[1][0] = 0.0f;
-	result.m[1][1] = std::cos(radian);
-	result.m[1][2] = std::sin(radian);
-	result.m[1][3] = 0.0f;
+    result.m[3][0] = 0.0f;
+    result.m[3][1] = 0.0f;
+    result.m[3][2] = 0.0f;
+    result.m[3][3] = 1.0f;
 
-	result.m[2][0] = 0.0f;
-	result.m[2][1] = -std::sin(radian);
-	result.m[2][2] = std::cos(radian);
-	result.m[2][3] = 0.0f;
-
-	result.m[3][0] = 0.0f;
-	result.m[3][1] = 0.0f;
-	result.m[3][2] = 0.0f;
-	result.m[3][3] = 1.0f;
-
-	return result;
-
+    return result;
 }
 
-Matrix4x4 MakeRotateYMatrix(float radian) {
+Matrix4x4 MakeRotateYMatrix(float radian)
+{
+    Matrix4x4 result;
 
-	Matrix4x4 result;
+    result.m[0][0] = std::cos(radian);
+    result.m[0][1] = 0.0f;
+    result.m[0][2] = -std::sin(radian);
+    result.m[0][3] = 0.0f;
 
-	result.m[0][0] = std::cos(radian);
-	result.m[0][1] = 0.0f;
-	result.m[0][2] = -std::sin(radian);
-	result.m[0][3] = 0.0f;
+    result.m[1][0] = 0.0f;
+    result.m[1][1] = 1.0f;
+    result.m[1][2] = 0.0f;
+    result.m[1][3] = 0.0f;
 
-	result.m[1][0] = 0.0f;
-	result.m[1][1] = 1.0f;
-	result.m[1][2] = 0.0f;
-	result.m[1][3] = 0.0f;
+    result.m[2][0] = std::sin(radian);
+    result.m[2][1] = 0.0f;
+    result.m[2][2] = std::cos(radian);
+    result.m[2][3] = 0.0f;
 
-	result.m[2][0] = std::sin(radian);
-	result.m[2][1] = 0.0f;
-	result.m[2][2] = std::cos(radian);
-	result.m[2][3] = 0.0f;
+    result.m[3][0] = 0.0f;
+    result.m[3][1] = 0.0f;
+    result.m[3][2] = 0.0f;
+    result.m[3][3] = 1.0f;
 
-	result.m[3][0] = 0.0f;
-	result.m[3][1] = 0.0f;
-	result.m[3][2] = 0.0f;
-	result.m[3][3] = 1.0f;
-
-	return result;
-
+    return result;
 }
 
-Matrix4x4 MakeRotateZMatrix(float radian) {
+Matrix4x4 MakeRotateZMatrix(float radian)
+{
+    Matrix4x4 result;
 
-	Matrix4x4 result;
+    result.m[0][0] = std::cos(radian);
+    result.m[0][1] = std::sin(radian);
+    result.m[0][2] = 0.0f;
+    result.m[0][3] = 0.0f;
 
-	result.m[0][0] = std::cos(radian);
-	result.m[0][1] = std::sin(radian);
-	result.m[0][2] = 0.0f;
-	result.m[0][3] = 0.0f;
+    result.m[1][0] = -std::sin(radian);
+    result.m[1][1] = std::cos(radian);
+    result.m[1][2] = 0.0f;
+    result.m[1][3] = 0.0f;
 
-	result.m[1][0] = -std::sin(radian);
-	result.m[1][1] = std::cos(radian);
-	result.m[1][2] = 0.0f;
-	result.m[1][3] = 0.0f;
+    result.m[2][0] = 0.0f;
+    result.m[2][1] = 0.0f;
+    result.m[2][2] = 1.0f;
+    result.m[2][3] = 0.0f;
 
-	result.m[2][0] = 0.0f;
-	result.m[2][1] = 0.0f;
-	result.m[2][2] = 1.0f;
-	result.m[2][3] = 0.0f;
+    result.m[3][0] = 0.0f;
+    result.m[3][1] = 0.0f;
+    result.m[3][2] = 0.0f;
+    result.m[3][3] = 1.0f;
 
-	result.m[3][0] = 0.0f;
-	result.m[3][1] = 0.0f;
-	result.m[3][2] = 0.0f;
-	result.m[3][3] = 1.0f;
-
-	return result;
-
+    return result;
 }
 
-Matrix4x4 MakeRotateMatrix(const Quaternion& quaternion) {
-	const Quaternion q = NormalizeQuaternion(quaternion);
-	Matrix4x4 result = MakeIdentity4x4();
-	result.m[0][0] = 1.0f - 2.0f * (q.y * q.y + q.z * q.z);
-	result.m[0][1] = 2.0f * (q.x * q.y + q.z * q.w);
-	result.m[0][2] = 2.0f * (q.x * q.z - q.y * q.w);
-	result.m[1][0] = 2.0f * (q.x * q.y - q.z * q.w);
-	result.m[1][1] = 1.0f - 2.0f * (q.x * q.x + q.z * q.z);
-	result.m[1][2] = 2.0f * (q.y * q.z + q.x * q.w);
-	result.m[2][0] = 2.0f * (q.x * q.z + q.y * q.w);
-	result.m[2][1] = 2.0f * (q.y * q.z - q.x * q.w);
-	result.m[2][2] = 1.0f - 2.0f * (q.x * q.x + q.y * q.y);
-	return result;
+Matrix4x4 MakeRotateMatrix(const Quaternion& quaternion)
+{
+    const Quaternion q = NormalizeQuaternion(quaternion);
+    Matrix4x4 result = MakeIdentity4x4();
+    result.m[0][0] = 1.0f - 2.0f * (q.y * q.y + q.z * q.z);
+    result.m[0][1] = 2.0f * (q.x * q.y + q.z * q.w);
+    result.m[0][2] = 2.0f * (q.x * q.z - q.y * q.w);
+    result.m[1][0] = 2.0f * (q.x * q.y - q.z * q.w);
+    result.m[1][1] = 1.0f - 2.0f * (q.x * q.x + q.z * q.z);
+    result.m[1][2] = 2.0f * (q.y * q.z + q.x * q.w);
+    result.m[2][0] = 2.0f * (q.x * q.z + q.y * q.w);
+    result.m[2][1] = 2.0f * (q.y * q.z - q.x * q.w);
+    result.m[2][2] = 1.0f - 2.0f * (q.x * q.x + q.y * q.y);
+    return result;
 }
 
-Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
-	// 行ベクトルの規約に従い、拡大・回転を合成してから最終行へ平行移動を格納する。
-	Matrix4x4 result = { 0 };
-	Matrix4x4 rotateXYZMatrix = Multiply(MakeRotateXMatrix(rotate.x), Multiply(MakeRotateYMatrix(rotate.y), MakeRotateZMatrix(rotate.z)));
-	result.m[0][0] = scale.x * rotateXYZMatrix.m[0][0];
-	result.m[0][1] = scale.x * rotateXYZMatrix.m[0][1];
-	result.m[0][2] = scale.x * rotateXYZMatrix.m[0][2];
-	result.m[1][0] = scale.y * rotateXYZMatrix.m[1][0];
-	result.m[1][1] = scale.y * rotateXYZMatrix.m[1][1];
-	result.m[1][2] = scale.y * rotateXYZMatrix.m[1][2];
-	result.m[2][0] = scale.z * rotateXYZMatrix.m[2][0];
-	result.m[2][1] = scale.z * rotateXYZMatrix.m[2][1];
-	result.m[2][2] = scale.z * rotateXYZMatrix.m[2][2];
-	result.m[3][0] = translate.x;
-	result.m[3][1] = translate.y;
-	result.m[3][2] = translate.z;
-	result.m[3][3] = 1.0f;
-	return result;
-
+Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate)
+{
+    // 行ベクトルの規約に従い、拡大・回転を合成してから最終行へ平行移動を格納する。
+    Matrix4x4 result = {0};
+    Matrix4x4 rotateXYZMatrix = Multiply(MakeRotateXMatrix(rotate.x), Multiply(MakeRotateYMatrix(rotate.y), MakeRotateZMatrix(rotate.z)));
+    result.m[0][0] = scale.x * rotateXYZMatrix.m[0][0];
+    result.m[0][1] = scale.x * rotateXYZMatrix.m[0][1];
+    result.m[0][2] = scale.x * rotateXYZMatrix.m[0][2];
+    result.m[1][0] = scale.y * rotateXYZMatrix.m[1][0];
+    result.m[1][1] = scale.y * rotateXYZMatrix.m[1][1];
+    result.m[1][2] = scale.y * rotateXYZMatrix.m[1][2];
+    result.m[2][0] = scale.z * rotateXYZMatrix.m[2][0];
+    result.m[2][1] = scale.z * rotateXYZMatrix.m[2][1];
+    result.m[2][2] = scale.z * rotateXYZMatrix.m[2][2];
+    result.m[3][0] = translate.x;
+    result.m[3][1] = translate.y;
+    result.m[3][2] = translate.z;
+    result.m[3][3] = 1.0f;
+    return result;
 }
 
-Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate) {
-	Matrix4x4 result = MakeRotateMatrix(rotate);
-	for (size_t column = 0; column < 3; ++column) {
-		result.m[0][column] *= scale.x;
-		result.m[1][column] *= scale.y;
-		result.m[2][column] *= scale.z;
-	}
-	result.m[3][0] = translate.x;
-	result.m[3][1] = translate.y;
-	result.m[3][2] = translate.z;
-	result.m[3][3] = 1.0f;
-	return result;
+Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate)
+{
+    Matrix4x4 result = MakeRotateMatrix(rotate);
+    for (size_t column = 0; column < 3; ++column) {
+        result.m[0][column] *= scale.x;
+        result.m[1][column] *= scale.y;
+        result.m[2][column] *= scale.z;
+    }
+    result.m[3][0] = translate.x;
+    result.m[3][1] = translate.y;
+    result.m[3][2] = translate.z;
+    result.m[3][3] = 1.0f;
+    return result;
 }
 
-Matrix4x4 MakePerspectiveForMatrix(float fovY, float aspectRatio, float nearClip, float farClip) {
+Matrix4x4 MakePerspectiveForMatrix(float fovY, float aspectRatio, float nearClip, float farClip)
+{
+    Matrix4x4 result;
 
-	Matrix4x4 result;
+    result.m[0][0] = (1.0f / aspectRatio) * (1.0f / std::tan(fovY / 2.0f));
+    result.m[0][1] = 0.0f;
+    result.m[0][2] = 0.0f;
+    result.m[0][3] = 0.0f;
 
-	result.m[0][0] = (1.0f / aspectRatio) * (1.0f / std::tan(fovY / 2.0f));
-	result.m[0][1] = 0.0f;
-	result.m[0][2] = 0.0f;
-	result.m[0][3] = 0.0f;
+    result.m[1][0] = 0.0f;
+    result.m[1][1] = (1.0f / std::tan(fovY / 2.0f));
+    result.m[1][2] = 0.0f;
+    result.m[1][3] = 0.0f;
 
-	result.m[1][0] = 0.0f;
-	result.m[1][1] = (1.0f / std::tan(fovY / 2.0f));
-	result.m[1][2] = 0.0f;
-	result.m[1][3] = 0.0f;
+    result.m[2][0] = 0.0f;
+    result.m[2][1] = 0.0f;
+    result.m[2][2] = (farClip) / (farClip - nearClip);
+    result.m[2][3] = 1.0f;
 
-	result.m[2][0] = 0.0f;
-	result.m[2][1] = 0.0f;
-	result.m[2][2] = (farClip) / (farClip - nearClip);
-	result.m[2][3] = 1.0f;
+    result.m[3][0] = 0.0f;
+    result.m[3][1] = 0.0f;
+    result.m[3][2] = -(farClip * nearClip) / (farClip - nearClip);
+    result.m[3][3] = 0.0f;
 
-	result.m[3][0] = 0.0f;
-	result.m[3][1] = 0.0f;
-	result.m[3][2] = -(farClip * nearClip) / (farClip - nearClip);
-	result.m[3][3] = 0.0f;
-
-	return result;
+    return result;
 }
 
-Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip) {
+Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip)
+{
+    Matrix4x4 result;
+    result.m[0][0] = 2.0f / (right - left);
+    result.m[0][1] = 0.0f;
+    result.m[0][2] = 0.0f;
+    result.m[0][3] = 0.0f;
 
-	Matrix4x4 result;
-	result.m[0][0] = 2.0f / (right - left);
-	result.m[0][1] = 0.0f;
-	result.m[0][2] = 0.0f;
-	result.m[0][3] = 0.0f;
+    result.m[1][0] = 0.0f;
+    result.m[1][1] = 2.0f / (top - bottom);
+    result.m[1][2] = 0.0f;
+    result.m[1][3] = 0.0f;
 
-	result.m[1][0] = 0.0f;
-	result.m[1][1] = 2.0f / (top - bottom);
-	result.m[1][2] = 0.0f;
-	result.m[1][3] = 0.0f;
+    result.m[2][0] = 0.0f;
+    result.m[2][1] = 0.0f;
+    result.m[2][2] = 1.0f / (farClip - nearClip);
+    result.m[2][3] = 0.0f;
 
-	result.m[2][0] = 0.0f;
-	result.m[2][1] = 0.0f;
-	result.m[2][2] = 1.0f / (farClip - nearClip);
-	result.m[2][3] = 0.0f;
+    result.m[3][0] = (left + right) / (left - right);
+    result.m[3][1] = (top + bottom) / (bottom - top);
+    result.m[3][2] = nearClip / (nearClip - farClip);
+    result.m[3][3] = 1.0f;
 
-	result.m[3][0] = (left + right) / (left - right);
-	result.m[3][1] = (top + bottom) / (bottom - top);
-	result.m[3][2] = nearClip / (nearClip - farClip);
-	result.m[3][3] = 1.0f;
-
-	return result;
+    return result;
 }
 
-Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth) {
+Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth)
+{
+    Matrix4x4 result;
 
-	Matrix4x4 result;
+    result.m[0][0] = width / 2.0f;
+    result.m[0][1] = 0.0f;
+    result.m[0][2] = 0.0f;
+    result.m[0][3] = 0.0f;
 
-	result.m[0][0] = width / 2.0f;
-	result.m[0][1] = 0.0f;
-	result.m[0][2] = 0.0f;
-	result.m[0][3] = 0.0f;
+    result.m[1][0] = 0.0f;
+    result.m[1][1] = -height / 2.0f;
+    result.m[1][2] = 0.0f;
+    result.m[1][3] = 0.0f;
 
-	result.m[1][0] = 0.0f;
-	result.m[1][1] = -height / 2.0f;
-	result.m[1][2] = 0.0f;
-	result.m[1][3] = 0.0f;
+    result.m[2][0] = 0.0f;
+    result.m[2][1] = 0.0f;
+    result.m[2][2] = maxDepth - minDepth;
+    result.m[2][3] = 0.0f;
 
-	result.m[2][0] = 0.0f;
-	result.m[2][1] = 0.0f;
-	result.m[2][2] = maxDepth - minDepth;
-	result.m[2][3] = 0.0f;
+    result.m[3][0] = left + width / 2.0f;
+    result.m[3][1] = top + height / 2.0f;
+    result.m[3][2] = minDepth;
+    result.m[3][3] = 1.0f;
 
-	result.m[3][0] = left + width / 2.0f;
-	result.m[3][1] = top + height / 2.0f;
-	result.m[3][2] = minDepth;
-	result.m[3][3] = 1.0f;
-
-	return result;
+    return result;
 }
+
 Matrix4x4 MakeLookAtMatrix(const Vector3& eye, const Vector3& target, const Vector3& up)
 {
-	// カメラの前方向（Z軸）を計算（正規化）
-	Vector3 zAxis = Normalize(Subtract(target, eye));
+    // カメラの前方向（Z軸）を計算（正規化）
+    Vector3 zAxis = Normalize(Subtract(target, eye));
 
-	// カメラの右方向（X軸）を計算（正規化）
-	Vector3 xAxis = Normalize(Cross(up, zAxis));
+    // カメラの右方向（X軸）を計算（正規化）
+    Vector3 xAxis = Normalize(Cross(up, zAxis));
 
-	// カメラの上方向（Y軸）を再計算（直交ベクトル）
-	Vector3 yAxis = Cross(zAxis, xAxis);
+    // カメラの上方向（Y軸）を再計算（直交ベクトル）
+    Vector3 yAxis = Cross(zAxis, xAxis);
 
-	// 平行移動成分（逆行列）
-	float tx = -Dot(xAxis, eye);
-	float ty = -Dot(yAxis, eye);
-	float tz = -Dot(zAxis, eye);
+    // 平行移動成分（逆行列）
+    float tx = -Dot(xAxis, eye);
+    float ty = -Dot(yAxis, eye);
+    float tz = -Dot(zAxis, eye);
 
-	// ビュー行列を構築
-	Matrix4x4 viewMatrix = {
-		xAxis.x, yAxis.x, zAxis.x, 0.0f,
-		xAxis.y, yAxis.y, zAxis.y, 0.0f,
-		xAxis.z, yAxis.z, zAxis.z, 0.0f,
-		tx,      ty,      tz,      1.0f
-	};
+    // ビュー行列を構築
+    Matrix4x4 viewMatrix = {xAxis.x, yAxis.x, zAxis.x, 0.0f, xAxis.y, yAxis.y, zAxis.y, 0.0f,
+                            xAxis.z, yAxis.z, zAxis.z, 0.0f, tx,      ty,      tz,      1.0f};
 
-	return viewMatrix;
+    return viewMatrix;
 }
 
-int Rand(int min, int max) {
-	std::uniform_int_distribution<int> dist(min, max);
-	return dist(rng);
+int Rand(int min, int max)
+{
+    std::uniform_int_distribution<int> dist(min, max);
+    return dist(rng);
 }
 
-float Rand(float min, float max) {
-	std::uniform_real_distribution<float> dist(min, max);
-	return dist(rng);
+float Rand(float min, float max)
+{
+    std::uniform_real_distribution<float> dist(min, max);
+    return dist(rng);
 }
 
 Vector2 Rand(const Vector2& min, const Vector2& max)
 {
-	return {
-		Rand(min.x, max.x),
-		Rand(min.y, max.y)
-	};
+    return {Rand(min.x, max.x), Rand(min.y, max.y)};
 }
 
-Vector3 Rand(const Vector3& min, const Vector3& max) {
-	return {
-		Rand(min.x, max.x),
-		Rand(min.y, max.y),
-		Rand(min.z, max.z)
-	};
+Vector3 Rand(const Vector3& min, const Vector3& max)
+{
+    return {Rand(min.x, max.x), Rand(min.y, max.y), Rand(min.z, max.z)};
 }
 
-Vector4 Rand(const Vector4& min, const Vector4& max) {
-	return {
-		Rand(min.x, max.x),
-		Rand(min.y, max.y),
-		Rand(min.z, max.z),
-		Rand(min.w, max.w),
-	};
+Vector4 Rand(const Vector4& min, const Vector4& max)
+{
+    return {
+        Rand(min.x, max.x),
+        Rand(min.y, max.y),
+        Rand(min.z, max.z),
+        Rand(min.w, max.w),
+    };
 }
 
-Particle MakeParticle(const Vector3& position, const Vector4& baseColor) {
-	Particle particle;
+Particle MakeParticle(const Vector3& position, const Vector4& baseColor)
+{
+    Particle particle;
 
-	particle.transform.scale = { 1.0f, 1.0f, 1.0f };
-	particle.transform.rotate = { 0.0f, 0.0f, 0.0f };
-	particle.transform.translate = position + Rand(Vector3(-0.05f, -0.05f, -0.05f), Vector3(0.05f, 0.05f, 0.05f));
+    particle.transform.scale = {1.0f, 1.0f, 1.0f};
+    particle.transform.rotate = {0.0f, 0.0f, 0.0f};
+    particle.transform.translate = position + Rand(Vector3(-0.05f, -0.05f, -0.05f), Vector3(0.05f, 0.05f, 0.05f));
 
-	// パーティクル初期化時
-	Vector3 direction = RandomUnitVector();
+    // パーティクル初期化時
+    Vector3 direction = RandomUnitVector();
 
-	// 拡散の強さ（スピード）を調整
-	float speed = Rand(4.0f, 20.0f); // 広がる速さの範囲
-	particle.velocity = (direction * speed) - Vector3(0.0f, 0.2f, 0.0f);
-	particle.kVelocity = (direction * speed) - Vector3(0.0f, 0.2f, 0.0f);
-	particle.angularVelocity = Rand(Vector3(-3.0f, -3.0f, -3.0f), Vector3(3.0f, 3.0, 3.0f));
+    // 拡散の強さ（スピード）を調整
+    float speed = Rand(4.0f, 20.0f); // 広がる速さの範囲
+    particle.velocity = (direction * speed) - Vector3(0.0f, 0.2f, 0.0f);
+    particle.kVelocity = (direction * speed) - Vector3(0.0f, 0.2f, 0.0f);
+    particle.angularVelocity = Rand(Vector3(-3.0f, -3.0f, -3.0f), Vector3(3.0f, 3.0, 3.0f));
 
-	particle.acceleration = Vector3(0.0f, -0.08f, 0.0f);
+    particle.acceleration = Vector3(0.0f, -0.08f, 0.0f);
 
-	Vector4 randomOffset = Rand(
-		Vector4(-0.2f, -0.2f, -0.2f, 0.0f),
-		Vector4(+0.2f, +0.2f, +0.2f, 0.0f)
-	);
+    Vector4 randomOffset = Rand(Vector4(-0.2f, -0.2f, -0.2f, 0.0f), Vector4(+0.2f, +0.2f, +0.2f, 0.0f));
 
-	particle.color = Lerp(baseColor, baseColor + randomOffset, 0.5f);
-	particle.lifeTime = Rand(2.0f, 3.0f);
-	particle.currentTime = 0.0f;
+    particle.color = Lerp(baseColor, baseColor + randomOffset, 0.5f);
+    particle.lifeTime = Rand(2.0f, 3.0f);
+    particle.currentTime = 0.0f;
 
-	return particle;
+    return particle;
 }
 
 TornadoParticle MakeTornadoParticle(const Vector3& center)
 {
-	TornadoParticle p;
+    TornadoParticle p;
 
-	p.angle = Rand(0.0f, 6.28f);
-	p.height = Rand(0.0f, 3.0f);      // ← 初期高さランダム
-	p.baseRadius = Rand(0.5f, 1.0f);
-	p.rotateSpeed = Rand(2.0f, 5.0f);
-	p.upSpeed = Rand(0.4f, 0.8f);
-	p.maxHeight = 10.0f;               // ← この高さでループ
+    p.angle = Rand(0.0f, 6.28f);
+    p.height = Rand(0.0f, 3.0f); // ← 初期高さランダム
+    p.baseRadius = Rand(0.5f, 1.0f);
+    p.rotateSpeed = Rand(2.0f, 5.0f);
+    p.upSpeed = Rand(0.4f, 0.8f);
+    p.maxHeight = 10.0f; // ← この高さでループ
 
-	p.color = { 0.8f, 0.9f, 1.0f, 0.4f };
+    p.color = {0.8f, 0.9f, 1.0f, 0.4f};
 
-	p.pos = center;
+    p.pos = center;
 
-	return p;
+    return p;
 }
 
-Vector3 ScreenToWorld2D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth, float windowHeight) {
-	// スクリーン → NDC
-	float x = (2.0f * screenPos.x / windowWidth) - 1.0f;
-	float y = 1.0f - (2.0f * screenPos.y / windowHeight); // Y反転
-	float z = 0.0f; // 2D空間ならZ=0固定
+Vector3 ScreenToWorld2D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth,
+                        float windowHeight)
+{
+    // スクリーン → NDC
+    float x = (2.0f * screenPos.x / windowWidth) - 1.0f;
+    float y = 1.0f - (2.0f * screenPos.y / windowHeight); // Y反転
+    float z = 0.0f;                                       // 2D空間ならZ=0固定
 
-	// 同次座標系で変換
-	Vector4 ndcPos = { x, y, z, 1.0f };
+    // 同次座標系で変換
+    Vector4 ndcPos = {x, y, z, 1.0f};
 
-	Matrix4x4 invViewProj = Inverse(viewMatrix * projectionMatrix);
-	Vector4 worldPos4 = TransformMatrix(ndcPos, invViewProj);
-	worldPos4 /= worldPos4.w;
+    Matrix4x4 invViewProj = Inverse(viewMatrix * projectionMatrix);
+    Vector4 worldPos4 = TransformMatrix(ndcPos, invViewProj);
+    worldPos4 /= worldPos4.w;
 
-	return Vector3(worldPos4.x, worldPos4.y, 0.0f); // 最後にZを0に固定
+    return Vector3(worldPos4.x, worldPos4.y, 0.0f); // 最後にZを0に固定
 }
 
-Vector3 ScreenToWorldOnZ0(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth, float windowHeight) {
+Vector3 ScreenToWorldOnZ0(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth,
+                          float windowHeight)
+{
+    // 1. マウス座標をNDCに変換
+    float x = (2.0f * screenPos.x / windowWidth) - 1.0f;
+    float y = 1.0f - (2.0f * screenPos.y / windowHeight);
 
-	// 1. マウス座標をNDCに変換
-	float x = (2.0f * screenPos.x / windowWidth) - 1.0f;
-	float y = 1.0f - (2.0f * screenPos.y / windowHeight);
+    // 2. Near/Far平面上の点を求める
+    Vector4 nearPos = {x, y, 0.0f, 1.0f};
+    Vector4 farPos = {x, y, 1.0f, 1.0f};
 
-	// 2. Near/Far平面上の点を求める
-	Vector4 nearPos = { x, y, 0.0f, 1.0f };
-	Vector4 farPos = { x, y, 1.0f, 1.0f };
+    Matrix4x4 invViewProj = Inverse(viewMatrix * projectionMatrix);
 
-	Matrix4x4 invViewProj = Inverse(viewMatrix * projectionMatrix);
+    nearPos = TransformMatrix(nearPos, invViewProj);
+    farPos = TransformMatrix(farPos, invViewProj);
 
-	nearPos = TransformMatrix(nearPos, invViewProj);
-	farPos = TransformMatrix(farPos, invViewProj);
+    nearPos /= nearPos.w;
+    farPos /= farPos.w;
 
-	nearPos /= nearPos.w;
-	farPos /= farPos.w;
+    // 3. レイを作る
+    Vector3 rayOrigin = {nearPos.x, nearPos.y, nearPos.z};
+    Vector3 rayDir = Normalize(Vector3{farPos.x - nearPos.x, farPos.y - nearPos.y, farPos.z - nearPos.z});
 
-	// 3. レイを作る
-	Vector3 rayOrigin = { nearPos.x, nearPos.y, nearPos.z };
-	Vector3 rayDir = Normalize(Vector3{ farPos.x - nearPos.x, farPos.y - nearPos.y, farPos.z - nearPos.z });
+    // 4. Z=0平面と交差するtを求める（rayOrigin + t * rayDir）
+    float t = -rayOrigin.z / rayDir.z;
+    Vector3 hitPos = rayOrigin + rayDir * t;
 
-	// 4. Z=0平面と交差するtを求める（rayOrigin + t * rayDir）
-	float t = -rayOrigin.z / rayDir.z;
-	Vector3 hitPos = rayOrigin + rayDir * t;
-
-	return hitPos; // これがz=0平面上のマウス位置！
+    return hitPos; // これがz=0平面上のマウス位置！
 }
 
-Vector3 ScreenToWorld3D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix,
-	float windowWidth, float windowHeight, float distanceFromCamera) {
+Vector3 ScreenToWorld3D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth,
+                        float windowHeight, float distanceFromCamera)
+{
+    float x = (2.0f * screenPos.x / windowWidth) - 1.0f;
+    float y = 1.0f - (2.0f * screenPos.y / windowHeight);
 
-	float x = (2.0f * screenPos.x / windowWidth) - 1.0f;
-	float y = 1.0f - (2.0f * screenPos.y / windowHeight);
+    Vector4 nearPos = {x, y, 0.0f, 1.0f};
+    Vector4 farPos = {x, y, 1.0f, 1.0f};
 
-	Vector4 nearPos = { x, y, 0.0f, 1.0f };
-	Vector4 farPos = { x, y, 1.0f, 1.0f };
+    Matrix4x4 invViewProj = Inverse(viewMatrix * projectionMatrix);
+    nearPos = TransformMatrix(nearPos, invViewProj);
+    farPos = TransformMatrix(farPos, invViewProj);
+    nearPos /= nearPos.w;
+    farPos /= farPos.w;
 
-	Matrix4x4 invViewProj = Inverse(viewMatrix * projectionMatrix);
-	nearPos = TransformMatrix(nearPos, invViewProj);
-	farPos = TransformMatrix(farPos, invViewProj);
-	nearPos /= nearPos.w;
-	farPos /= farPos.w;
+    Vector3 rayOrigin = {nearPos.x, nearPos.y, nearPos.z};
+    Vector3 rayDir = Normalize(Vector3{farPos.x - nearPos.x, farPos.y - nearPos.y, farPos.z - nearPos.z});
 
-	Vector3 rayOrigin = { nearPos.x, nearPos.y, nearPos.z };
-	Vector3 rayDir = Normalize(Vector3{ farPos.x - nearPos.x, farPos.y - nearPos.y, farPos.z - nearPos.z });
-
-	return rayOrigin + rayDir * distanceFromCamera;
+    return rayOrigin + rayDir * distanceFromCamera;
 }
 
-bool IsCollision(const AABB& aabb1, const AABB& aabb2) {
-	if ((aabb1.min.x <= aabb2.max.x && aabb1.max.x >= aabb2.min.x) && (aabb1.min.y <= aabb2.max.y && aabb1.max.y >= aabb2.min.y) && (aabb1.min.z <= aabb2.max.z && aabb1.max.z >= aabb2.min.z)) {
-		return true;
-	}
-	return false;
+bool IsCollision(const AABB& aabb1, const AABB& aabb2)
+{
+    if ((aabb1.min.x <= aabb2.max.x && aabb1.max.x >= aabb2.min.x) && (aabb1.min.y <= aabb2.max.y && aabb1.max.y >= aabb2.min.y) &&
+        (aabb1.min.z <= aabb2.max.z && aabb1.max.z >= aabb2.min.z)) {
+        return true;
+    }
+    return false;
 }
 
 /// @brief 重なりを返す。
-Vector3 GetOverlap(const AABB& a, const AABB& b) {
-	Vector3 overlap = { std::min(a.max.x, b.max.x) - std::max(a.min.x, b.min.x), std::min(a.max.y, b.max.y) - std::max(a.min.y, b.min.y), std::min(a.max.z, b.max.z) - std::max(a.min.z, b.min.z) };
-	return overlap;
+Vector3 GetOverlap(const AABB& a, const AABB& b)
+{
+    Vector3 overlap = {std::min(a.max.x, b.max.x) - std::max(a.min.x, b.min.x), std::min(a.max.y, b.max.y) - std::max(a.min.y, b.min.y),
+                       std::min(a.max.z, b.max.z) - std::max(a.min.z, b.min.z)};
+    return overlap;
 }
 
-bool IsCollision(const Sphere& sphere, const Plane& plane) {
-
-	float distance = Dot(plane.normal, sphere.center) - plane.distance;
-	if (distance < 0.0f) {
-		distance *= -1.0f;
-	}
-	return distance < sphere.radius;
+bool IsCollision(const Sphere& sphere, const Plane& plane)
+{
+    float distance = Dot(plane.normal, sphere.center) - plane.distance;
+    if (distance < 0.0f) {
+        distance *= -1.0f;
+    }
+    return distance < sphere.radius;
 }
 
-bool IsCollision(const Segment& segment, const Plane& plane) {
+bool IsCollision(const Segment& segment, const Plane& plane)
+{
+    float dot = Dot(plane.normal, segment.diff);
 
-	float dot = Dot(plane.normal, segment.diff);
+    if (dot == 0.0f) {
+        return false;
+    }
+    float t = (plane.distance - Dot(plane.normal, segment.origin)) / dot;
 
-	if (dot == 0.0f) {
-		return false;
-	}
-	float t = (plane.distance - Dot(plane.normal, segment.origin)) / dot;
-
-	// tの値と線の種類によって衝突しているかを判断する
-	return (0.0f <= t && t <= 1.0f);
+    // tの値と線の種類によって衝突しているかを判断する
+    return (0.0f <= t && t <= 1.0f);
 }
 
-bool IsCollision(const Segment& segment, const Triangle& triangle) {
-	// 三角形の点を結んだベクトルを作る
-	const Vector3 v01 = triangle.vertex[1] - triangle.vertex[0];
-	const Vector3 v12 = triangle.vertex[2] - triangle.vertex[1];
-	const Vector3 v20 = triangle.vertex[0] - triangle.vertex[2];
+bool IsCollision(const Segment& segment, const Triangle& triangle)
+{
+    // 三角形の点を結んだベクトルを作る
+    const Vector3 v01 = triangle.vertex[1] - triangle.vertex[0];
+    const Vector3 v12 = triangle.vertex[2] - triangle.vertex[1];
+    const Vector3 v20 = triangle.vertex[0] - triangle.vertex[2];
 
-	Vector3 dir = segment.diff - segment.origin; // 線分の方向ベクトル
-	Vector3 normal = Cross(v01, v12);
-	normal = Normalize(normal); // 三角形の法線
+    Vector3 dir = segment.diff - segment.origin; // 線分の方向ベクトル
+    Vector3 normal = Cross(v01, v12);
+    normal = Normalize(normal); // 三角形の法線
 
-	float d = Dot(normal, triangle.vertex[0]);
-	float denom = Dot(normal, dir);
+    float d = Dot(normal, triangle.vertex[0]);
+    float denom = Dot(normal, dir);
 
-	// 平行チェック
-	if (fabs(denom) < 1e-6f)
-		return false;
+    // 平行チェック
+    if (fabs(denom) < 1e-6f) {
+        return false;
+    }
 
-	// 線分と平面の交点を t で求める（segment.origin + t * dir）
-	float t = (d - Dot(normal, segment.origin)) / denom;
+    // 線分と平面の交点を t で求める（segment.origin + t * dir）
+    float t = (d - Dot(normal, segment.origin)) / denom;
 
-	// t が [0,1] の範囲外なら、交点は線分外にある
-	if (t < 0.0f || t > 1.0f)
-		return false;
+    // t が [0,1] の範囲外なら、交点は線分外にある
+    if (t < 0.0f || t > 1.0f) {
+        return false;
+    }
 
-	Vector3 intersection = segment.origin + t * dir;
+    Vector3 intersection = segment.origin + t * dir;
 
-	// 頂点と衝突点pを結んだベクトルを作る
-	Vector3 v0p = intersection - triangle.vertex[0];
-	Vector3 v1p = intersection - triangle.vertex[1];
-	Vector3 v2p = intersection - triangle.vertex[2];
+    // 頂点と衝突点pを結んだベクトルを作る
+    Vector3 v0p = intersection - triangle.vertex[0];
+    Vector3 v1p = intersection - triangle.vertex[1];
+    Vector3 v2p = intersection - triangle.vertex[2];
 
-	// これらのベクトルのクロス積を取る
-	Vector3 cross01 = Cross(v01, v1p);
-	Vector3 cross12 = Cross(v12, v2p);
-	Vector3 cross20 = Cross(v20, v0p);
+    // これらのベクトルのクロス積を取る
+    Vector3 cross01 = Cross(v01, v1p);
+    Vector3 cross12 = Cross(v12, v2p);
+    Vector3 cross20 = Cross(v20, v0p);
 
-	// すべての小三角形のクロス積と法線が同じ方向を向いていたら衝突
-	if (Dot(cross01, normal) >= 0.0f && Dot(cross12, normal) >= 0.0f && Dot(cross20, normal) >= 0.0f) {
-		return true;
-	}
-	return false;
+    // すべての小三角形のクロス積と法線が同じ方向を向いていたら衝突
+    if (Dot(cross01, normal) >= 0.0f && Dot(cross12, normal) >= 0.0f && Dot(cross20, normal) >= 0.0f) {
+        return true;
+    }
+    return false;
 }
 
-bool IsCollision(const AABB& aabb, const Sphere& sphere) {
-	Vector3 closetpoint{
-		std::clamp(sphere.center.x, aabb.min.x, aabb.max.x),
-		std::clamp(sphere.center.y, aabb.min.y, aabb.max.y),
-		std::clamp(sphere.center.z, aabb.min.z, aabb.max.z),
-	};
-	// 最近接点と球の中心との距離を求める
-	float distance = Length(closetpoint - sphere.center);
-	// 距離が半径よりも小さければ衝突
-	if (distance <= sphere.radius) {
-		// 衝突
-		return true;
-	}
+bool IsCollision(const AABB& aabb, const Sphere& sphere)
+{
+    Vector3 closetpoint{
+        std::clamp(sphere.center.x, aabb.min.x, aabb.max.x),
+        std::clamp(sphere.center.y, aabb.min.y, aabb.max.y),
+        std::clamp(sphere.center.z, aabb.min.z, aabb.max.z),
+    };
+    // 最近接点と球の中心との距離を求める
+    float distance = Length(closetpoint - sphere.center);
+    // 距離が半径よりも小さければ衝突
+    if (distance <= sphere.radius) {
+        // 衝突
+        return true;
+    }
 
-	return false;
+    return false;
 }
 
-bool IsCollision(const AABB& aabb, const Segment& segment) {
-	Vector3 dir = segment.diff; // 方向ベクトル（差分）
+bool IsCollision(const AABB& aabb, const Segment& segment)
+{
+    Vector3 dir = segment.diff; // 方向ベクトル（差分）
 
-	float tmin = 0.0f; // 線分始点
-	float tmax = 1.0f; // 線分終点
+    float tmin = 0.0f; // 線分始点
+    float tmax = 1.0f; // 線分終点
 
-	for (int i = 0; i < 3; ++i) {
-		float origin = (i == 0) ? segment.origin.x : (i == 1) ? segment.origin.y : segment.origin.z;
-		float direction = (i == 0) ? dir.x : (i == 1) ? dir.y : dir.z;
-		float slabMin = (i == 0) ? aabb.min.x : (i == 1) ? aabb.min.y : aabb.min.z;
-		float slabMax = (i == 0) ? aabb.max.x : (i == 1) ? aabb.max.y : aabb.max.z;
+    for (int i = 0; i < 3; ++i) {
+        float origin = (i == 0) ? segment.origin.x : (i == 1) ? segment.origin.y : segment.origin.z;
+        float direction = (i == 0) ? dir.x : (i == 1) ? dir.y : dir.z;
+        float slabMin = (i == 0) ? aabb.min.x : (i == 1) ? aabb.min.y : aabb.min.z;
+        float slabMax = (i == 0) ? aabb.max.x : (i == 1) ? aabb.max.y : aabb.max.z;
 
-		if (fabsf(direction) < 1e-6f) {
-			// 平行な場合、始点がAABB内にないと交差しない
-			if (origin < slabMin || origin > slabMax) {
-				return false;
-			}
-		} else {
-			float t1 = (slabMin - origin) / direction;
-			float t2 = (slabMax - origin) / direction;
+        if (fabsf(direction) < 1e-6f) {
+            // 平行な場合、始点がAABB内にないと交差しない
+            if (origin < slabMin || origin > slabMax) {
+                return false;
+            }
+        } else {
+            float t1 = (slabMin - origin) / direction;
+            float t2 = (slabMax - origin) / direction;
 
-			if (t1 > t2) {
-				float temp = t1;
-				t1 = t2;
-				t2 = temp;
-			}
+            if (t1 > t2) {
+                float temp = t1;
+                t1 = t2;
+                t2 = temp;
+            }
 
-			tmin = (t1 > tmin) ? t1 : tmin;
-			tmax = (t2 < tmax) ? t2 : tmax;
+            tmin = (t1 > tmin) ? t1 : tmin;
+            tmax = (t2 < tmax) ? t2 : tmax;
 
-			if (tmin > tmax) {
-				return false;
-			}
-		}
-	}
+            if (tmin > tmax) {
+                return false;
+            }
+        }
+    }
 
-	// すべて当たっていたら
-	return true;
+    // すべて当たっていたら
+    return true;
 }
 
-float DistancePointToSegment(const Vector3& point, const Segment& segment) {
-	Vector3 a = segment.origin;
-	Vector3 b = segment.origin + segment.diff;
+float DistancePointToSegment(const Vector3& point, const Segment& segment)
+{
+    Vector3 a = segment.origin;
+    Vector3 b = segment.origin + segment.diff;
 
-	Vector3 ab = b - a;
-	Vector3 ap = point - a;
+    Vector3 ab = b - a;
+    Vector3 ap = point - a;
 
-	float abLen2 = Dot(ab, ab);
-	if (abLen2 == 0.0f) {
-		// 線分の長さが0の場合は始点との距離
-		return Length(point - a);
-	}
+    float abLen2 = Dot(ab, ab);
+    if (abLen2 == 0.0f) {
+        // 線分の長さが0の場合は始点との距離
+        return Length(point - a);
+    }
 
-	float t = Dot(ap, ab) / abLen2;
-	t = std::clamp(t, 0.0f, 1.0f);
+    float t = Dot(ap, ab) / abLen2;
+    t = std::clamp(t, 0.0f, 1.0f);
 
-	Vector3 closest = a + ab * t;
-	return Length(point - closest);
+    Vector3 closest = a + ab * t;
+    return Length(point - closest);
 }
 
-bool IsCollision(const Segment& segment, const Sphere& sphere) {
+bool IsCollision(const Segment& segment, const Sphere& sphere)
+{
+    float dist = DistancePointToSegment(sphere.center, segment);
 
-	float dist = DistancePointToSegment(sphere.center, segment);
-
-	return dist <= sphere.radius;
+    return dist <= sphere.radius;
 }
 
-bool IsCollision(const Segment& seg, const Sphere& sphere, float capsuleRadius) {
+bool IsCollision(const Segment& seg, const Sphere& sphere, float capsuleRadius)
+{
+    float dist = DistancePointToSegment(sphere.center, seg);
 
-	float dist = DistancePointToSegment(sphere.center, seg);
-
-	return dist <= (sphere.radius + capsuleRadius);
+    return dist <= (sphere.radius + capsuleRadius);
 }
 
-Vector3 RandomUnitVector() {
-	float theta = Rand(0.0f, 2.0f * pi);   // 0〜2π の角度
-	float phi = acosf(Rand(-1.0f, 1.0f));           // -1〜1を使ってφを決定
+Vector3 RandomUnitVector()
+{
+    float theta = Rand(0.0f, 2.0f * pi);  // 0〜2π の角度
+    float phi = acosf(Rand(-1.0f, 1.0f)); // -1〜1を使ってφを決定
 
-	Vector3 dir;
-	dir.x = sinf(phi) * cosf(theta);
-	dir.y = sinf(phi) * sinf(theta);
-	dir.z = cosf(phi);
-	return dir; // すでに正規化済み
+    Vector3 dir;
+    dir.x = sinf(phi) * cosf(theta);
+    dir.y = sinf(phi) * sinf(theta);
+    dir.z = cosf(phi);
+    return dir; // すでに正規化済み
 }
 
 Transform InitWorldTransform()
 {
-	Transform worldTransform;
-	worldTransform.scale = { 1.0f, 1.0f, 1.0f };
-	worldTransform.rotate = { 0.0f, 0.0f, 0.0f };
-	worldTransform.translate = { 0.0f, 0.0f, 0.0f };
-	return worldTransform;
+    Transform worldTransform;
+    worldTransform.scale = {1.0f, 1.0f, 1.0f};
+    worldTransform.rotate = {0.0f, 0.0f, 0.0f};
+    worldTransform.translate = {0.0f, 0.0f, 0.0f};
+    return worldTransform;
 }
 
-Vector3 SlideLeft(const Vector3& dir) {
-	return Normalize(Vector3(-dir.y, dir.x, 0.0f));
+Vector3 SlideLeft(const Vector3& dir)
+{
+    return Normalize(Vector3(-dir.y, dir.x, 0.0f));
 }
 
-Vector3 SlideRight(const Vector3& dir) {
-	return Normalize(Vector3(dir.y, -dir.x, 0.0f));
+Vector3 SlideRight(const Vector3& dir)
+{
+    return Normalize(Vector3(dir.y, -dir.x, 0.0f));
 }
 
 CollisionResult CheckSphereVsOBB(const Sphere& s, const OBB& o)
 {
-	CollisionResult r{};
-	r.hit = false;
+    CollisionResult r{};
+    r.hit = false;
 
-	// OBBローカル空間へ
-	Vector3 d = s.center - o.center;
+    // OBBローカル空間へ
+    Vector3 d = s.center - o.center;
 
-	Vector3 local{
-		Dot(d, o.orientation[0]),
-		Dot(d, o.orientation[1]),
-		Dot(d, o.orientation[2])
-	};
+    Vector3 local{Dot(d, o.orientation[0]), Dot(d, o.orientation[1]), Dot(d, o.orientation[2])};
 
-	// 最近接点
-	Vector3 closest{
-		std::clamp(local.x, -o.halfExtents.x, o.halfExtents.x),
-		std::clamp(local.y, -o.halfExtents.y, o.halfExtents.y),
-		std::clamp(local.z, -o.halfExtents.z, o.halfExtents.z)
-	};
+    // 最近接点
+    Vector3 closest{std::clamp(local.x, -o.halfExtents.x, o.halfExtents.x), std::clamp(local.y, -o.halfExtents.y, o.halfExtents.y),
+                    std::clamp(local.z, -o.halfExtents.z, o.halfExtents.z)};
 
-	Vector3 diff = local - closest;
+    Vector3 diff = local - closest;
 
-	float distSq = Dot(diff, diff);
+    float distSq = Dot(diff, diff);
 
-	if (distSq > s.radius * s.radius) {
-		return r;
-	}
+    if (distSq > s.radius * s.radius) {
+        return r;
+    }
 
-	float dist = sqrt(distSq);
-	r.hit = true;
-	r.depth = s.radius - dist;
+    float dist = sqrt(distSq);
+    r.hit = true;
+    r.depth = s.radius - dist;
 
-	Vector3 normalLocal =
-		(dist > 0.0001f) ? diff / dist : Vector3(0, 1, 0);
+    Vector3 normalLocal = (dist > 0.0001f) ? diff / dist : Vector3(0, 1, 0);
 
-	// ワールドへ
-	r.normal =
-		o.orientation[0] * normalLocal.x +
-		o.orientation[1] * normalLocal.y +
-		o.orientation[2] * normalLocal.z;
+    // ワールドへ
+    r.normal = o.orientation[0] * normalLocal.x + o.orientation[1] * normalLocal.y + o.orientation[2] * normalLocal.z;
 
-	return r;
+    return r;
 }
 
 /// @brief 指定した中心・軸の周囲で位置を回転する。
-Vector2 RotateAround(
-	const Vector2& point,
-	const Vector2& pivot,
-	float rad
-) {
-	Vector2 p = point - pivot;
+Vector2 RotateAround(const Vector2& point, const Vector2& pivot, float rad)
+{
+    Vector2 p = point - pivot;
 
-	Vector2 r;
-	r.x = p.x * cosf(rad) - p.y * sinf(rad);
-	r.y = p.x * sinf(rad) + p.y * cosf(rad);
+    Vector2 r;
+    r.x = p.x * cosf(rad) - p.y * sinf(rad);
+    r.y = p.x * sinf(rad) + p.y * cosf(rad);
 
-	return pivot + r;
+    return pivot + r;
 }
 
 // Catmull-Romスプラインによる補間関数
-Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t) {
-	float t2 = t * t;
-	float t3 = t2 * t;
+Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t)
+{
+    float t2 = t * t;
+    float t3 = t2 * t;
 
-	return ((p1 * 2.0f) +
-		(-p0 + p2) * t +
-		(p0 * 2.0f - p1 * 5.0f + p2 * 4.0f - p3) * t2 +
-		(-p0 + p1 * 3.0f - p2 * 3.0f + p3) * t3) * 0.5f;
+    return ((p1 * 2.0f) + (-p0 + p2) * t + (p0 * 2.0f - p1 * 5.0f + p2 * 4.0f - p3) * t2 + (-p0 + p1 * 3.0f - p2 * 3.0f + p3) * t3) * 0.5f;
 }
 
-} // namespace cg2
+} // namespace myEngine

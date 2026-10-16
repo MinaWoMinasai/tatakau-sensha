@@ -8,6 +8,7 @@ class ExpeditionController {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ExpeditionController(GameWorld& world) : world_(world) {}
+
     /// @brief 戦車遠征チュートリアルを更新する。
     /// @param dt この処理で進める経過時間（秒）。
     void UpdateTankExpeditionTutorial(float dt);
@@ -27,7 +28,8 @@ public:
 
     /// @brief 戦車遠征を初期化する。
     void InitializeTankExpedition();
-    cg2::InitializationTask BuildInitialization();
+    /// @brief 初期化を分割して行うコルーチンを作る。
+    myEngine::InitializationTask BuildInitialization();
 
     /// @brief 戦車遠征を更新する。
     /// @param dt この処理で進める経過時間（秒）。

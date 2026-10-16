@@ -260,14 +260,15 @@ bool GameplaySettings::WriteBalanceAIHandoff(const std::string& filePath) const
     return true;
 }
 
-void GameplaySettings::DrawPostEffectParamControls(const char* labelPrefix, cg2::BloomParam& param)
+void GameplaySettings::DrawPostEffectParamControls(const char* labelPrefix, myEngine::BloomParam& param)
 {
 #ifdef USE_IMGUI
     ImGui::PushID(labelPrefix);
     const char* bloomModes[] = {"OFF", "Legacy", "Quality", "Light"};
     int bloomMode = static_cast<int>(param.bloomMode);
-    if (ImGui::Combo("カテゴリのBloom方式", &bloomMode, bloomModes, 4))
+    if (ImGui::Combo("カテゴリのBloom方式", &bloomMode, bloomModes, 4)) {
         param.bloomMode = static_cast<uint32_t>(bloomMode);
+    }
     ImGui::DragFloat("Legacyブルーム強度", &param.intensity, 0.01f, 0.0f, 8.0f);
     ImGui::DragFloat("QualityブルームGain", &param.bloomGain, 0.01f, 0.0f, 2.0f);
     ImGui::DragFloat("Quality Soft knee", &param.bloomSoftKnee, 0.01f, 0.0f, 1.0f);
@@ -296,7 +297,7 @@ void GameplaySettings::DrawPostEffectParamControls(const char* labelPrefix, cg2:
 
 nlohmann::json GameplaySettings::BuildGamePostEffectConfig() const
 {
-    auto makeEntry = [](bool enabled, const cg2::ObjectPostEffect* effect) {
+    auto makeEntry = [](bool enabled, const myEngine::ObjectPostEffect* effect) {
         nlohmann::json entry = nlohmann::json::object();
         entry["enabled"] = enabled;
         if (effect) {
@@ -339,7 +340,7 @@ void GameplaySettings::ApplyGamePostEffectConfig(const nlohmann::json& configJso
         return;
     }
 
-    auto applyEntry = [&](const char* key, bool* enabled, cg2::ObjectPostEffect* effect) {
+    auto applyEntry = [&](const char* key, bool* enabled, myEngine::ObjectPostEffect* effect) {
         if (!configJson.contains(key) || !configJson[key].is_object()) {
             return;
         }
@@ -348,7 +349,7 @@ void GameplaySettings::ApplyGamePostEffectConfig(const nlohmann::json& configJso
             *enabled = ReadCustomBool(entry, "enabled", *enabled);
         }
         if (effect && entry.contains("param")) {
-            cg2::BloomParam param = effect->GetParam();
+            myEngine::BloomParam param = effect->GetParam();
             ReadBloomParamJson(entry["param"], param);
             effect->SetParam(param);
         }
@@ -437,21 +438,37 @@ nlohmann::json GameplaySettings::BuildGameVisualConfig() const
     nlohmann::json config = nlohmann::json::object();
     config["version"] = 3;
     const auto& surface = world_.presentation.stageSurface_;
-    config["stageSurface"] = {{"enabled", surface.enabled}, {"floorEnabled", surface.floorEnabled},
-        {"blocksEnabled", surface.blocksEnabled}, {"floorColor", WriteJsonVector4(surface.floorColor)},
-        {"floorMetallic", surface.floorMetallic}, {"floorRoughness", surface.floorRoughness},
-        {"floorDepth", surface.floorDepth}, {"floorPadding", surface.floorPadding},
-        {"floorLightIntensity", surface.floorLightIntensity}, {"blockColor", WriteJsonVector4(surface.blockColor)},
-        {"gridMinPixelWidth", surface.gridMinPixelWidth},
-        {"damageBlockColor", WriteJsonVector4(surface.damageBlockColor)}, {"blockMetallic", surface.blockMetallic},
-        {"blockRoughness", surface.blockRoughness}, {"blockHeight", surface.blockHeight},
-        {"blockEmission", surface.blockEmission}, {"blockLightIntensity", surface.blockLightIntensity},
-        {"sideLineDivisions", surface.sideLineDivisions}, {"wallStyle", surface.wallStyle},
-        {"exteriorEnabled", surface.exteriorEnabled}, {"exteriorHeight", surface.exteriorHeight},
-        {"exteriorGap", surface.exteriorGap}, {"exteriorWidth", surface.exteriorWidth}, {"stackLevels", surface.stackLevels},
-        {"wallLineWidth", surface.wallLineWidth}, {"floorLocalLight", surface.floorLocalLight},
-        {"floorLightColor", WriteJsonVector4(surface.floorLightColor)}, {"floorLocalIntensity", surface.floorLocalIntensity},
-        {"floorLocalRadius", surface.floorLocalRadius}, {"floorLocalHeight", surface.floorLocalHeight}, {"floorDetail", surface.floorDetail}};
+    config["stageSurface"] = {{"enabled", surface.enabled},
+                              {"floorEnabled", surface.floorEnabled},
+                              {"blocksEnabled", surface.blocksEnabled},
+                              {"floorColor", WriteJsonVector4(surface.floorColor)},
+                              {"floorMetallic", surface.floorMetallic},
+                              {"floorRoughness", surface.floorRoughness},
+                              {"floorDepth", surface.floorDepth},
+                              {"floorPadding", surface.floorPadding},
+                              {"floorLightIntensity", surface.floorLightIntensity},
+                              {"blockColor", WriteJsonVector4(surface.blockColor)},
+                              {"gridMinPixelWidth", surface.gridMinPixelWidth},
+                              {"damageBlockColor", WriteJsonVector4(surface.damageBlockColor)},
+                              {"blockMetallic", surface.blockMetallic},
+                              {"blockRoughness", surface.blockRoughness},
+                              {"blockHeight", surface.blockHeight},
+                              {"blockEmission", surface.blockEmission},
+                              {"blockLightIntensity", surface.blockLightIntensity},
+                              {"sideLineDivisions", surface.sideLineDivisions},
+                              {"wallStyle", surface.wallStyle},
+                              {"exteriorEnabled", surface.exteriorEnabled},
+                              {"exteriorHeight", surface.exteriorHeight},
+                              {"exteriorGap", surface.exteriorGap},
+                              {"exteriorWidth", surface.exteriorWidth},
+                              {"stackLevels", surface.stackLevels},
+                              {"wallLineWidth", surface.wallLineWidth},
+                              {"floorLocalLight", surface.floorLocalLight},
+                              {"floorLightColor", WriteJsonVector4(surface.floorLightColor)},
+                              {"floorLocalIntensity", surface.floorLocalIntensity},
+                              {"floorLocalRadius", surface.floorLocalRadius},
+                              {"floorLocalHeight", surface.floorLocalHeight},
+                              {"floorDetail", surface.floorDetail}};
     config["textAppearance"] = {{"fontMode", world_.combat.gameTextFontMode_},
                                 {"neonEnabled", world_.combat.gameTextNeonEnabled_},
                                 {"outlineEnabled", world_.combat.gameTextOutlineEnabled_},
@@ -566,7 +583,7 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
     if (configJson.contains("stageSurface") && configJson["stageSurface"].is_object()) {
         const auto& data = configJson["stageSurface"];
         auto& surface = world_.presentation.stageSurface_;
-        // Version 2 settings retain Phase 1 unless the new wall style is explicit.
+        // バージョン2の設定は、新しい壁スタイルを明示しない限りPhase 1のままにする。
         surface.wallStyle = ReadCustomInt(data, "wallStyle", 0);
         surface.exteriorEnabled = ReadCustomBool(data, "exteriorEnabled", false);
         surface.exteriorHeight = ReadCustomFloat(data, "exteriorHeight", surface.exteriorHeight);
@@ -575,7 +592,9 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
         surface.stackLevels = ReadCustomInt(data, "stackLevels", surface.stackLevels);
         surface.wallLineWidth = ReadCustomFloat(data, "wallLineWidth", surface.wallLineWidth);
         surface.floorLocalLight = ReadCustomBool(data, "floorLocalLight", false);
-        if (data.contains("floorLightColor")) surface.floorLightColor = ReadJsonVector4(data["floorLightColor"], surface.floorLightColor);
+        if (data.contains("floorLightColor")) {
+            surface.floorLightColor = ReadJsonVector4(data["floorLightColor"], surface.floorLightColor);
+        }
         surface.floorLocalIntensity = ReadCustomFloat(data, "floorLocalIntensity", surface.floorLocalIntensity);
         surface.floorLocalRadius = ReadCustomFloat(data, "floorLocalRadius", surface.floorLocalRadius);
         surface.floorLocalHeight = ReadCustomFloat(data, "floorLocalHeight", surface.floorLocalHeight);
@@ -583,9 +602,15 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
         surface.enabled = ReadCustomBool(data, "enabled", surface.enabled);
         surface.floorEnabled = ReadCustomBool(data, "floorEnabled", surface.floorEnabled);
         surface.blocksEnabled = ReadCustomBool(data, "blocksEnabled", surface.blocksEnabled);
-        if (data.contains("floorColor")) surface.floorColor = ReadJsonVector4(data["floorColor"], surface.floorColor);
-        if (data.contains("blockColor")) surface.blockColor = ReadJsonVector4(data["blockColor"], surface.blockColor);
-        if (data.contains("damageBlockColor")) surface.damageBlockColor = ReadJsonVector4(data["damageBlockColor"], surface.damageBlockColor);
+        if (data.contains("floorColor")) {
+            surface.floorColor = ReadJsonVector4(data["floorColor"], surface.floorColor);
+        }
+        if (data.contains("blockColor")) {
+            surface.blockColor = ReadJsonVector4(data["blockColor"], surface.blockColor);
+        }
+        if (data.contains("damageBlockColor")) {
+            surface.damageBlockColor = ReadJsonVector4(data["damageBlockColor"], surface.damageBlockColor);
+        }
         surface.floorMetallic = ReadCustomFloat(data, "floorMetallic", surface.floorMetallic);
         surface.floorRoughness = ReadCustomFloat(data, "floorRoughness", surface.floorRoughness);
         surface.floorDepth = ReadCustomFloat(data, "floorDepth", surface.floorDepth);
@@ -628,8 +653,9 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
         world_.presentation.showActorLocalGrid_ = ReadCustomBool(gridJson, "showActorLocalGrid", world_.presentation.showActorLocalGrid_);
         world_.presentation.worldGridSpacing_ = ReadCustomFloat(gridJson, "worldSpacing", world_.presentation.worldGridSpacing_);
         world_.presentation.worldGridLineWidth_ = ReadCustomFloat(gridJson, "worldLineWidth", world_.presentation.worldGridLineWidth_);
-        if (gridJson.contains("worldColor"))
+        if (gridJson.contains("worldColor")) {
             world_.presentation.worldGridColor_ = ReadJsonVector4(gridJson["worldColor"], world_.presentation.worldGridColor_);
+        }
         world_.presentation.actorGridRadius_ = ReadCustomFloat(gridJson, "actorRadius", world_.presentation.actorGridRadius_);
         world_.presentation.actorGridSpacing_ = ReadCustomFloat(gridJson, "actorSpacing", world_.presentation.actorGridSpacing_);
         world_.presentation.actorGridLineWidth_ = ReadCustomFloat(gridJson, "actorLineWidth", world_.presentation.actorGridLineWidth_);
@@ -656,14 +682,17 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
                          8);
         world_.presentation.neonTriangleEffectMode_ =
             (std::clamp)(ReadCustomInt(gridJson, "triangleEffectMode", world_.presentation.neonTriangleEffectMode_), 0, 2);
-        cg2::ParticleManager::GetInstance()->SetNeonTriangleEffectMode(
-            static_cast<cg2::ParticleManager::NeonTriangleEffectMode>(world_.presentation.neonTriangleEffectMode_));
-        if (gridJson.contains("playerColor"))
+        myEngine::ParticleManager::GetInstance()->SetNeonTriangleEffectMode(
+            static_cast<myEngine::ParticleManager::NeonTriangleEffectMode>(world_.presentation.neonTriangleEffectMode_));
+        if (gridJson.contains("playerColor")) {
             world_.presentation.playerGridColor_ = ReadJsonVector4(gridJson["playerColor"], world_.presentation.playerGridColor_);
-        if (gridJson.contains("bossEnemyColor"))
+        }
+        if (gridJson.contains("bossEnemyColor")) {
             world_.presentation.enemyGridColor_ = ReadJsonVector4(gridJson["bossEnemyColor"], world_.presentation.enemyGridColor_);
-        if (gridJson.contains("expEnemyColor"))
+        }
+        if (gridJson.contains("expEnemyColor")) {
             world_.presentation.expEnemyGridColor_ = ReadJsonVector4(gridJson["expEnemyColor"], world_.presentation.expEnemyGridColor_);
+        }
         world_.presentation.showStageBlockNeonOutlines_ =
             ReadCustomBool(gridJson, "showStageBlockNeonOutlines", world_.presentation.showStageBlockNeonOutlines_);
         world_.presentation.showStageNormalBlockBodies_ =
@@ -672,14 +701,16 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
             ReadCustomFloat(gridJson, "stageBlockNeonLineWidth", world_.presentation.stageBlockNeonLineWidth_);
         world_.presentation.stageBlockNeonDepthBias_ =
             ReadCustomFloat(gridJson, "stageBlockNeonDepthBias", world_.presentation.stageBlockNeonDepthBias_);
-        if (gridJson.contains("stageBlockNeonColor"))
+        if (gridJson.contains("stageBlockNeonColor")) {
             world_.presentation.stageBlockNeonColor_ =
                 ReadJsonVector4(gridJson["stageBlockNeonColor"], world_.presentation.stageBlockNeonColor_);
+        }
         world_.presentation.showStageDamageBlockNeonOutlines_ =
             ReadCustomBool(gridJson, "showStageDamageBlockNeonOutlines", world_.presentation.showStageDamageBlockNeonOutlines_);
-        if (gridJson.contains("stageDamageBlockNeonColor"))
+        if (gridJson.contains("stageDamageBlockNeonColor")) {
             world_.presentation.stageDamageBlockNeonColor_ =
                 ReadJsonVector4(gridJson["stageDamageBlockNeonColor"], world_.presentation.stageDamageBlockNeonColor_);
+        }
         world_.presentation.stageDamageBlockPulseSpeed_ =
             ReadCustomFloat(gridJson, "stageDamageBlockPulseSpeed", world_.presentation.stageDamageBlockPulseSpeed_);
         world_.presentation.stageDamageBlockPulseMin_ =
@@ -734,9 +765,10 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
             ReadCustomFloat(gridJson, "bossNeonBarrelAngleDeg", world_.presentation.bossNeonBarrelAngleDeg_);
         world_.presentation.fillActorNeonBodies_ =
             ReadCustomBool(gridJson, "fillActorNeonBodies", world_.presentation.fillActorNeonBodies_);
-        if (gridJson.contains("actorNeonBodyFillColor"))
+        if (gridJson.contains("actorNeonBodyFillColor")) {
             world_.presentation.actorNeonBodyFillColor_ =
                 ReadJsonVector4(gridJson["actorNeonBodyFillColor"], world_.presentation.actorNeonBodyFillColor_);
+        }
         world_.presentation.playerDashCurrentAlpha_ =
             ReadCustomFloat(gridJson, "playerDashCurrentAlpha", world_.presentation.playerDashCurrentAlpha_);
         world_.presentation.playerAfterimageAlpha_ =
@@ -798,8 +830,9 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
                 profile.hiltSideOffset = ReadCustomFloat(profileJson, "hiltSideOffset", profile.hiltSideOffset);
                 profile.windupAngleDeg = ReadCustomFloat(profileJson, "windupAngleDeg", profile.windupAngleDeg);
                 profile.returnAngleDeg = ReadCustomFloat(profileJson, "returnAngleDeg", profile.returnAngleDeg);
-                if (profileJson.contains("colorScale"))
+                if (profileJson.contains("colorScale")) {
                     profile.colorScale = ReadJsonVector4(profileJson["colorScale"], profile.colorScale);
+                }
                 loadedProfiles.push_back(profile);
             }
             if (!loadedProfiles.empty()) {
@@ -807,17 +840,19 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
             }
         }
         world_.presentation.showNeonTriangleDemo_ = ReadCustomBool(gridJson, "showTriangleDemo", world_.presentation.showNeonTriangleDemo_);
-        if (gridJson.contains("triangleCenter"))
+        if (gridJson.contains("triangleCenter")) {
             world_.presentation.neonTriangleDemoCenter_ =
                 ReadJsonVector3(gridJson["triangleCenter"], world_.presentation.neonTriangleDemoCenter_);
+        }
         world_.presentation.neonTriangleDemoRadius_ =
             ReadCustomFloat(gridJson, "triangleRadius", world_.presentation.neonTriangleDemoRadius_);
         world_.validation.neonTriangleDemoLineWidth_ =
             ReadCustomFloat(gridJson, "triangleLineWidth", world_.validation.neonTriangleDemoLineWidth_);
         world_.validation.neonTriangleDemoRotateSpeed_ =
             ReadCustomFloat(gridJson, "triangleRotateSpeed", world_.validation.neonTriangleDemoRotateSpeed_);
-        if (gridJson.contains("triangleColor"))
+        if (gridJson.contains("triangleColor")) {
             world_.validation.neonTriangleDemoColor_ = ReadJsonVector4(gridJson["triangleColor"], world_.validation.neonTriangleDemoColor_);
+        }
     }
     if (world_.resources.bulletManager_ && configJson.contains("bulletTrail")) {
         auto trail = world_.resources.bulletManager_->GetTrailSettings();

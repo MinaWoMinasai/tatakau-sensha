@@ -11,26 +11,27 @@
 
 /// @brief 同じマップ行で連続する同種ブロックの統合AABB、またはレベル障害物1個のAABBと種類を保持する。
 struct MergedBlock {
-    cg2::AABB aabb;
+    myEngine::AABB aabb;
     MapChipType type;
 };
 
 /// @brief 地形1個の描画モデルを所有し、姿勢・AABB/OBB・有効状態・種類・元の位置を保持する。
 struct Block {
-    cg2::Transform worldTransform;
-    std::unique_ptr<cg2::Object3d> object;
-    std::unique_ptr<cg2::Object3d> surfaceObject; // Render-only transform; collision always uses worldTransform.
-    cg2::AABB aabb;
-    cg2::OBB obb;
+    myEngine::Transform worldTransform;
+    std::unique_ptr<myEngine::Object3d> object;
+    std::unique_ptr<myEngine::Object3d> surfaceObject; // 描画専用の変換。当たり判定には常にworldTransformを使う。
+    myEngine::AABB aabb;
+    myEngine::OBB obb;
     bool isActive = false;
     bool isLevelObject = false;
     MapChipType type;
-    cg2::Vector3 originalPos;
+    myEngine::Vector3 originalPos;
     float orbitAngle = 0.0f;
 };
 
+/// @brief 表面描画に使う壁1つ分の情報。
 struct SurfaceWall {
-    cg2::Transform gameplay;
+    myEngine::Transform gameplay;
     MapChipType type;
     bool exterior = false, isolated = false;
 };
@@ -40,8 +41,10 @@ class Stage {
 public:
     /// @brief resources/map.csvからマップチップを読み込み、描画モデルと衝突形状を生成する。
     void Initialize();
-    cg2::InitializationTask BuildInitialization();
-    cg2::InitializationTask BuildBlocks();
+    /// @brief ステージの初期化を分割して行うコルーチンを作る。
+    myEngine::InitializationTask BuildInitialization();
+    /// @brief ブロックの生成を分割して行うコルーチンを作る。
+    myEngine::InitializationTask BuildBlocks();
     /// @brief 45列・30行、各セル0～2のCSVを検証してからマップを差し替え、既存ブロックを消去して生成し直す。
     /// @return 読み込み・検証に成功した場合true。失敗時は既存の地形を保持する。
     /// @note フレーム間で呼ぶ。成功すると取得済みのブロック要素へのポインター・参照は無効になる。
@@ -56,23 +59,30 @@ public:
     /// @param halfWidth 表示矩形の横半幅（ワールド単位）。
     /// @param halfHeight 表示矩形の縦半幅（ワールド単位）。
     /// @note drawNormalBlocksがfalseなら通常ブロックを除く。形状全体との交差によるカリングではない。
-    void DrawVisible(const cg2::Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks = true);
+    void DrawVisible(const myEngine::Vector3& cameraPos, float halfWidth, float halfHeight, bool drawNormalBlocks = true);
     /// @brief Scene MRT/深度へ描く不透明床。実マップと表示矩形を覆う。衝突を持たない。
-    uint32_t DrawSurfaceFloor(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
-                              float halfWidth, float halfHeight, const cg2::Vector3& lightPosition);
+    uint32_t DrawSurfaceFloor(const stagesurface::Settings& settings, const myEngine::Vector3& cameraPos, float halfWidth, float halfHeight,
+                              const myEngine::Vector3& lightPosition);
     /// @brief 既存の地形状態/カリングを使い、衝突とは独立したベベル形状を描く。
-    uint32_t DrawSurfaceBlocks(const stagesurface::Settings& settings, const cg2::Vector3& cameraPos,
-                               float halfWidth, float halfHeight, bool drawNormalBlocks = true);
+    uint32_t DrawSurfaceBlocks(const stagesurface::Settings& settings, const myEngine::Vector3& cameraPos, float halfWidth,
+                               float halfHeight, bool drawNormalBlocks = true);
     const std::vector<SurfaceWall>& GetSurfaceWalls(const stagesurface::Settings& settings);
-    static cg2::Transform SurfaceWallTransform(const SurfaceWall& wall, const stagesurface::Settings& settings);
-    uint32_t GetSurfaceTriangles() const { return surfaceTriangles_; }
+    /// @brief 壁の当たり判定用の変換から、表面描画用の変換を作る。
+    static myEngine::Transform SurfaceWallTransform(const SurfaceWall& wall, const stagesurface::Settings& settings);
+
+    uint32_t GetSurfaceTriangles() const
+    {
+        return surfaceTriangles_;
+    }
+
     /// @brief 地形モデル・ブロック配列・統合AABBを消去する。マップチップデータは保持する。
     void ClearBlocksForPreview();
     /// @brief 対応するprefabの障害物モデルと衝突形状を追加する。未対応のprefabならfalseで何も追加しない。
     /// @note 衝突形状は位置とスケールから作る軸平行形状で、transformの回転は反映しない。
-    bool AddLevelObstacle(const cg2::Transform& transform, const std::string& prefab);
+    bool AddLevelObstacle(const myEngine::Transform& transform, const std::string& prefab);
     /// @brief レベル障害物として追加した行を消去し、残った地形の統合AABBを再構築する。
     void ClearLevelObstacles();
+
     /// @brief 自機のAABB衝突でDamageへ渡す、ダメージブロックの威力を設定する。
     void SetDamageBlockDamage(uint32_t damage)
     {
@@ -88,21 +98,21 @@ public:
 
     /// @brief 統合AABBとの接触で、指定したX/Y軸の位置を押し戻して同軸の速度を0にする。
     /// @note 各軸の移動後に呼ぶ。ダメージブロックではDamageも呼び、Y軸でブロックの上側へ押し戻す場合は接地を設定する。
-    void ResolvePlayerCollision(Player& player, cg2::AxisXYZ axis);
+    void ResolvePlayerCollision(Player& player, myEngine::AxisXYZ axis);
     /// @brief 統合AABBとの接触で、指定したX/Y軸の位置を押し戻して同軸の速度を0にする。
     /// @note 各軸の移動後に呼ぶ。ダメージブロックでも、この経路はドローンのHPを減らさない。
-    void ResolvePlayerDroneCollision(PlayerDrone& playerDrone, cg2::AxisXYZ axis);
+    void ResolvePlayerDroneCollision(PlayerDrone& playerDrone, myEngine::AxisXYZ axis);
     /// @brief ボスの移動後、統合AABBとの接触で指定したX/Y軸の位置だけを押し戻す。速度は変更しない。
-    void ResolveEnemyCollision(Enemy& enemy, cg2::AxisXYZ axis);
+    void ResolveEnemyCollision(Enemy& enemy, myEngine::AxisXYZ axis);
     /// @brief 生存中の弾の現在位置の球と統合AABBを調べ、壁外の補正位置・XY法線をOnWallImpactへ渡す。
     /// @note nullptr・死亡済みの弾は除く。弾は処理完了まで有効に保つ。移動経路の連続判定は行わない。
     /// 成長弾ルールを使わない弾が壁内に埋まった場合は、壁通知の代わりに死亡させる。
     void ResolveBulletsCollision(const std::vector<Bullet*>& bullets);
     /// @brief 通常敵・資源の移動後、統合AABBとの接触で指定したX/Y軸の位置だけを押し戻す。速度・壁衝突回数は変更しない。
-    void ResolveExpEnemyCollision(ExpEnemy& enemy, cg2::AxisXYZ axis);
+    void ResolveExpEnemyCollision(ExpEnemy& enemy, myEngine::AxisXYZ axis);
 
     /// @brief ワールド座標posと半径radiusの球が、有効な個別ブロックのOBBに接触するかを返す。境界の接触も含む。
-    bool IsCollisionWithAnyBlock(const cg2::Vector3& pos, float radius);
+    bool IsCollisionWithAnyBlock(const myEngine::Vector3& pos, float radius);
 
     /// @brief 個別ブロックのOBBに対して球を押し戻し、壁へ向かう法線速度を除いて上向き接触の接地を設定する。
     void ResolvePlayerCollisionSphere(Player& player);
@@ -122,12 +132,13 @@ public:
     const std::vector<std::vector<Block>>& GetBlocks() const;
 
 private:
+    /// @brief 表面描画用のモデルを用意する。
     void InitializeSurfaceModels();
-    std::unique_ptr<cg2::Object3d> surfaceFloor_;
+    std::unique_ptr<myEngine::Object3d> surfaceFloor_;
     uint64_t surfaceWallHash_ = 0;
     uint32_t surfaceTriangles_ = 0;
     std::vector<SurfaceWall> surfaceWalls_;
-    std::vector<std::unique_ptr<cg2::Object3d>> surfaceWallObjects_;
+    std::vector<std::unique_ptr<myEngine::Object3d>> surfaceWallObjects_;
     // ブロック用のワールドトランスフォーム
     std::vector<std::vector<Block>> blocks_;
 

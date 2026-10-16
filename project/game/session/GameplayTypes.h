@@ -2,7 +2,7 @@
 #include "game/weapon/CombatTypes.h"
 #include "DeveloperTools.h"
 #define NOMINMAX
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "game/debug/NeonSkinnedPreview.h"
 #include "game/debug/GameplayScenarioSession.h"
 #endif
@@ -75,7 +75,7 @@ using RenderProfile = IScene::RenderProfile;
 struct CombatValidationProbe {
     std::string id;
     float age = 0, pathLength = 0, maxStep = 0, reloadSeconds = 0, sampleAge = 0;
-    cg2::Vector3 previousPosition{};
+    myEngine::Vector3 previousPosition{};
     bool hasPrevious = false, previousReload = false, phase2 = false;
     unsigned shots = 0, dashes = 0, reloads = 0, phases = 0, patterns = 0;
     int previousAmmo = 0, reloadViolations = 0, wallIntersections = 0, tunnelingViolations = 0, playerBulletSamples = 0;
@@ -85,59 +85,59 @@ struct CombatValidationProbe {
 
 /// @brief 遠征の命中火花の位置・色・残り時間を保持する。
 struct ExpeditionHitSpark {
-    cg2::Vector3 position{}, direction{};
+    myEngine::Vector3 position{}, direction{};
     float age = 0;
 };
 
 /// @brief 遠征ルートの1ノードの描画資源と表示状態を保持する。
 struct MapNodeVisual {
-    cg2::Vector2 center{};
+    myEngine::Vector2 center{};
     float focus = 0;
-    std::unique_ptr<cg2::Sprite> halo, rim, fill;
-    std::unique_ptr<cg2::TextLabel> icon, label, state;
+    std::unique_ptr<myEngine::Sprite> halo, rim, fill;
+    std::unique_ptr<myEngine::TextLabel> icon, label, state;
 };
 
 /// @brief 遠征ルートの1接続の描画資源と表示状態を保持する。
 struct MapEdgeVisual {
     std::string from, to;
-    std::unique_ptr<cg2::Sprite> glow, line, pulse;
+    std::unique_ptr<myEngine::Sprite> glow, line, pulse;
 };
 
 /// @brief 遠征で回収する通貨の位置・移動・回収状態を保持する。
 struct ExpeditionCreditOrb {
-    cg2::Vector3 position{}, velocity{};
-    cg2::Vector2 launch{};
+    myEngine::Vector3 position{}, velocity{};
+    myEngine::Vector2 launch{};
     float age = 0, flight = 0;
     int value = 0;
     bool flying = false;
-    std::unique_ptr<cg2::Sprite> sprite;
+    std::unique_ptr<myEngine::Sprite> sprite;
 };
 
 /// @brief 遠征中に配置する回収資源の位置と種類を表す。
 struct RunResource {
-    cg2::Vector3 position{};
+    myEngine::Vector3 position{};
     float respawn = 0;
     bool active = false;
 };
 
 /// @brief 遠征の破裂演出の位置と進行状態を保持する。
 struct RunBurst {
-    cg2::Vector3 position{};
+    myEngine::Vector3 position{};
     float age = 0;
     bool resource = false;
 };
 
 /// @brief 対象を追従するHPバーの描画資源と表示状態を保持する。
 struct FollowHpBar {
-    std::unique_ptr<cg2::Sprite> outline;
-    std::unique_ptr<cg2::Sprite> background;
-    std::unique_ptr<cg2::Sprite> fill;
+    std::unique_ptr<myEngine::Sprite> outline;
+    std::unique_ptr<myEngine::Sprite> background;
+    std::unique_ptr<myEngine::Sprite> fill;
 };
 
 /// @brief レベル配置オブジェクトの描画資源と姿勢を保持する。
 struct LevelVisualObject {
     std::string name;
-    std::unique_ptr<cg2::Object3d> object;
+    std::unique_ptr<myEngine::Object3d> object;
 };
 
 /// @brief 現在のボス段階と発動済み条件を保持する。
@@ -200,6 +200,7 @@ struct BalanceEditorState {
     std::string statusMessage;
 };
 
+/// @brief チュートリアルの手順。
 enum class TutorialStep {
     Move,
     Shoot,
@@ -224,7 +225,7 @@ struct TutorialConfig {
 /// @brief HPバーの一括描画で使うマテリアルのGPUバッファを保持する。
 struct HpBarMaterialBuffer {
     Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-    cg2::Material* data = nullptr;
+    myEngine::Material* data = nullptr;
 };
 
 struct PlayerMeleeSlash;
@@ -233,7 +234,7 @@ struct PlayerMeleeSlash;
 struct SpecialCombatFlash {
     Player::SpecialCombatEvent event;
     float age = 0;
-    cg2::Vector3 end{};
+    myEngine::Vector3 end{};
 };
 
 /// @brief 射撃強化イベントと、フラッシュ開始からの経過秒を保持する。
@@ -244,7 +245,7 @@ struct BuildCombatFlash {
 
 /// @brief 特殊投射物の外観と表示状態を保持する。
 struct SpecialProjectileVisual {
-    cg2::Vector3 position, direction;
+    myEngine::Vector3 position, direction;
     float radius;
     Bullet::SpecialKind kind;
 };
@@ -305,7 +306,7 @@ struct PerformanceCaptureFrame {
     size_t enemyBulletCount = 0;
     size_t hostileExpEnemyBulletCount = 0;
     size_t bulletTrailCount = 0;
-    cg2::TrailManager::DrawStats trailDrawStats{};
+    myEngine::TrailManager::DrawStats trailDrawStats{};
     size_t playerLaserCount = 0;
     size_t playerMineCount = 0;
     size_t playerMeleeSlashCount = 0;
@@ -313,55 +314,56 @@ struct PerformanceCaptureFrame {
 };
 #endif
 
+/// @brief ボス戦の前に保存しておくカメラの設定。
 struct DepthSavedCamera {
-    cg2::Vector3 position{}, rotation{};
-    cg2::Vector2 jitter{};
+    myEngine::Vector3 position{}, rotation{};
+    myEngine::Vector2 jitter{};
     float fovY = 0, aspect = 0, nearClip = 0, farClip = 0;
 };
 
 /// @brief 自機のネオン残像の姿勢・色・寿命を保持する。
 struct PlayerNeonAfterimage {
-    cg2::Vector3 position{};
-    cg2::Vector3 direction{0.0f, -1.0f, 0.0f};
+    myEngine::Vector3 position{};
+    myEngine::Vector3 direction{0.0f, -1.0f, 0.0f};
     float life = 0.0f;
 };
 
 /// @brief 命中適用後のレーザーの端点・幅・色・残り表示秒を保持する。威力は保持しない。
 struct PlayerLaserBeam {
-    cg2::Vector3 start{};
-    cg2::Vector3 end{};
+    myEngine::Vector3 start{};
+    myEngine::Vector3 end{};
     float width = 0.18f;
     float life = 0.0f;
     float maxLife = 0.12f;
-    cg2::Vector4 color{0.25f, 1.0f, 0.95f, 1.0f};
+    myEngine::Vector4 color{0.25f, 1.0f, 0.95f, 1.0f};
 };
 
 /// @brief 自機の地雷の位置・起爆条件・寿命を保持する。
 struct PlayerMine {
-    cg2::Vector3 position{};
+    myEngine::Vector3 position{};
     float radius = 3.2f;
     float fuse = 0.45f;
     float life = 5.0f;
     float maxLife = 5.0f;
     uint32_t damage = 1;
     float rotation = 0.0f;
-    cg2::Vector4 color{1.0f, 0.25f, 0.95f, 1.0f};
+    myEngine::Vector4 color{1.0f, 0.25f, 0.95f, 1.0f};
 };
 
 /// @brief 起爆後の爆発表示の位置・半径・色・残り表示秒を保持する。威力は保持しない。
 struct PlayerMineExplosion {
-    cg2::Vector3 position{};
+    myEngine::Vector3 position{};
     float radius = 3.2f;
     float life = 0.28f;
     float maxLife = 0.28f;
-    cg2::Vector4 color{1.0f, 0.25f, 0.95f, 1.0f};
+    myEngine::Vector4 color{1.0f, 0.25f, 0.95f, 1.0f};
 };
 
 /// @brief 自機の斬撃の形状・威力・有効時間を保持する。
 struct PlayerMeleeSlash {
-    cg2::Vector3 origin{};
-    cg2::Vector3 followAnchor{};
-    cg2::Vector3 direction{1.0f, 0.0f, 0.0f};
+    myEngine::Vector3 origin{};
+    myEngine::Vector3 followAnchor{};
+    myEngine::Vector3 direction{1.0f, 0.0f, 0.0f};
     float range = 3.4f;
     float arcDeg = 105.0f;
     float startAngleDeg = -52.5f;
@@ -383,8 +385,8 @@ struct PlayerMeleeSlash {
     std::vector<const Collider*> hitTargets;
     float life = 0.18f;
     float maxLife = 0.18f;
-    cg2::Vector4 color{0.55f, 1.25f, 1.0f, 1.0f};
-    cg2::TrailInstance* trail = nullptr;
+    myEngine::Vector4 color{0.55f, 1.25f, 1.0f, 1.0f};
+    myEngine::TrailInstance* trail = nullptr;
 };
 
 /// @brief 近接コンボの段数ごとの斬撃外観を指定する。
@@ -397,14 +399,14 @@ struct MeleeComboVisualProfile {
     float hiltSideOffset = 0.0f;
     float windupAngleDeg = -100.0f;
     float returnAngleDeg = 58.0f;
-    cg2::Vector4 colorScale{1.0f, 1.0f, 1.0f, 1.0f};
+    myEngine::Vector4 colorScale{1.0f, 1.0f, 1.0f, 1.0f};
 };
 
 /// @brief ネオン三角形演出の位置・速度・色・寿命を保持する。
 struct NeonTriangleParticle {
-    cg2::Vector3 position{};
-    cg2::Vector3 velocity{};
-    cg2::Vector3 initialVelocity{};
+    myEngine::Vector3 position{};
+    myEngine::Vector3 velocity{};
+    myEngine::Vector3 initialVelocity{};
     float radius = 0.35f;
     float rotation = 0.0f;
     float angularVelocity = 0.0f;
@@ -414,8 +416,8 @@ struct NeonTriangleParticle {
     float tiltRad = 0.0f;
     int trailCopies = 0;
     bool isBillboard = false;
-    cg2::NeonParticleShape shape = cg2::NeonParticleShape::Triangle;
+    myEngine::NeonParticleShape shape = myEngine::NeonParticleShape::Triangle;
     float endRadius = -1.0f;
-    cg2::Vector4 color{1.0f, 0.4f, 1.0f, 1.0f};
+    myEngine::Vector4 color{1.0f, 0.4f, 1.0f, 1.0f};
 };
 } // namespace gameplay

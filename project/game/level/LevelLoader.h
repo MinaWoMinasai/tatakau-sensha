@@ -9,7 +9,7 @@ struct LevelObject {
     std::string name;
     std::string type;
     std::string prefab;
-    cg2::Transform transform;
+    myEngine::Transform transform;
     nlohmann::json customProperties = nlohmann::json::object();
 };
 
@@ -17,8 +17,8 @@ struct LevelObject {
 struct LevelSpawnArea {
     std::string name;
     std::string prefab;
-    cg2::Vector3 center;
-    cg2::Vector3 size;
+    myEngine::Vector3 center;
+    myEngine::Vector3 size;
     float spawnInterval = 2.0f;
     int maxAlive = 8;
     int hp = -1;

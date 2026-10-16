@@ -3,6 +3,7 @@
 #include <vector>
 #include "Struct.h"
 
+/// @brief マップチップの種類。
 enum class MapChipType {
     kBlank,       // 空白
     kBlock,       // ブロック
@@ -16,7 +17,6 @@ struct MapChipData {
 
 /// @brief チップ座標とワールド座標を対応させ、地形の参照を提供する。
 class MapChip {
-
 public:
     /// @brief マップチップデータをリセット
     void ResetMapChipData();
@@ -29,13 +29,14 @@ public:
 
     /// @brief 列xIndex・行yIndexのセル中心をワールド座標へ変換する。範囲検査は行わない。
     /// @note Xは右向き、行は下向き。先頭行のワールドYは58、最終行は0で、セル間隔は2。
-    cg2::Vector3 GetMapChipPositionByIndex(uint32_t xIndex, uint32_t yIndex);
+    myEngine::Vector3 GetMapChipPositionByIndex(uint32_t xIndex, uint32_t yIndex);
 
     /// @brief マップの行数（30）を返す。
     uint32_t GetNumBlockVirtical()
     {
         return kNumBlockVirtical;
     }
+
     /// @brief マップの列数（45）を返す。
     uint32_t GetNumBlockHorizontal()
     {

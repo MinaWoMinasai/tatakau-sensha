@@ -1,7 +1,7 @@
 #ifndef NEON_SKINNED_HLSLI
 #define NEON_SKINNED_HLSLI
 
-// NeonSkinnedRenderer::GpuConstants (320byte, allocated in a 512byte resource).
+// NeonSkinnedRenderer::GpuConstants（320バイト、512バイトのリソースに確保）。
 cbuffer NeonSkinnedConstants : register(b1)
 {
     float4 gBodyColor;

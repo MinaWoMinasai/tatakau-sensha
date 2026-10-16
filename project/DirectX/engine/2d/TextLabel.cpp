@@ -6,47 +6,48 @@
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 #include <chrono>
 #endif
-namespace cg2 {
+namespace myEngine {
 
 namespace {
 /// @brief 生存中のラベル。入力機器の切り替え時に操作説明をまとめて作り直すために使う。
 std::unordered_set<TextLabel*>& LiveLabels()
 {
-	static std::unordered_set<TextLabel*> labels;
-	return labels;
+    static std::unordered_set<TextLabel*> labels;
+    return labels;
 }
 } // namespace
 
 TextLabel::TextLabel()
 {
-	LiveLabels().insert(this);
+    LiveLabels().insert(this);
 }
 
 TextLabel::~TextLabel()
 {
-	LiveLabels().erase(this);
+    LiveLabels().erase(this);
 }
 
 void TextLabel::RefreshAllInputPrompts()
 {
-	const uint32_t revision = Input::GetInstance()->GetPromptRevision();
-	for (TextLabel* label : LiveLabels())
-		if (label->spriteCommon_ && label->builtPromptRevision_ != revision)
-			label->RebuildTexture();
+    const uint32_t revision = Input::GetInstance()->GetPromptRevision();
+    for (TextLabel* label : LiveLabels()) {
+        if (label->spriteCommon_ && label->builtPromptRevision_ != revision) {
+            label->RebuildTexture();
+        }
+    }
 }
-
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
 TextLabel::ProfileStats TextLabel::profileStats_{};
 
 void TextLabel::ResetProfileStats()
 {
-	profileStats_ = {};
+    profileStats_ = {};
 }
 
 const TextLabel::ProfileStats& TextLabel::GetProfileStats()
 {
-	return profileStats_;
+    return profileStats_;
 }
 #endif
 
@@ -55,245 +56,222 @@ namespace {
 /// @brief JSON配列から4成分を読む。要素数が不足する場合はfallbackを返す。
 Vector4 ReadVector4(const nlohmann::json& json, const Vector4& fallback)
 {
-	if (!json.is_array() || json.size() < 4) {
-		return fallback;
-	}
-	return {
-		json[0].get<float>(),
-		json[1].get<float>(),
-		json[2].get<float>(),
-		json[3].get<float>()
-	};
+    if (!json.is_array() || json.size() < 4) {
+        return fallback;
+    }
+    return {json[0].get<float>(), json[1].get<float>(), json[2].get<float>(), json[3].get<float>()};
 }
 
 /// @brief ベクトル2を読み取る。
 Vector2 ReadVector2(const nlohmann::json& json, const Vector2& fallback)
 {
-	if (!json.is_array() || json.size() < 2) {
-		return fallback;
-	}
-	return {
-		json[0].get<float>(),
-		json[1].get<float>()
-	};
+    if (!json.is_array() || json.size() < 2) {
+        return fallback;
+    }
+    return {json[0].get<float>(), json[1].get<float>()};
 }
 
 } // namespace
 
 void TextLabel::Initialize(SpriteCommon* spriteCommon, const std::string& text, const TextStyle& style)
 {
-	spriteCommon_ = spriteCommon;
-	text_ = text;
-	style_ = style;
-	RebuildTexture();
+    spriteCommon_ = spriteCommon;
+    text_ = text;
+    style_ = style;
+    RebuildTexture();
 }
 
 bool TextLabel::InitializeFromJson(SpriteCommon* spriteCommon, const std::string& configPath, const std::string& labelId)
 {
-	std::ifstream file(configPath);
-	if (!file.is_open()) {
-		return false;
-	}
+    std::ifstream file(configPath);
+    if (!file.is_open()) {
+        return false;
+    }
 
-	nlohmann::json root{};
-	file >> root;
-	if (!root.contains("labels") || !root["labels"].contains(labelId)) {
-		return false;
-	}
+    nlohmann::json root{};
+    file >> root;
+    if (!root.contains("labels") || !root["labels"].contains(labelId)) {
+        return false;
+    }
 
-	const nlohmann::json& label = root["labels"][labelId];
-	TextStyle style{};
-	style.fontFamily = label.value("fontFamily", style.fontFamily);
-	style.fontPath = label.value("fontPath", style.fontPath);
-	style.fontWeight = label.value("fontWeight", style.fontWeight);
-	style.fontSize = label.value("fontSize", style.fontSize);
-	style.color = ReadVector4(label.value("color", nlohmann::json::array()), style.color);
-	style.outlineColor = ReadVector4(label.value("outlineColor", nlohmann::json::array()), style.outlineColor);
-	style.outlineThickness = label.value("outlineThickness", style.outlineThickness);
-	style.padding = label.value("padding", style.padding);
+    const nlohmann::json& label = root["labels"][labelId];
+    TextStyle style{};
+    style.fontFamily = label.value("fontFamily", style.fontFamily);
+    style.fontPath = label.value("fontPath", style.fontPath);
+    style.fontWeight = label.value("fontWeight", style.fontWeight);
+    style.fontSize = label.value("fontSize", style.fontSize);
+    style.color = ReadVector4(label.value("color", nlohmann::json::array()), style.color);
+    style.outlineColor = ReadVector4(label.value("outlineColor", nlohmann::json::array()), style.outlineColor);
+    style.outlineThickness = label.value("outlineThickness", style.outlineThickness);
+    style.padding = label.value("padding", style.padding);
 
-	Initialize(spriteCommon, label.value("text", std::string{}), style);
-	SetPosition(ReadVector2(label.value("position", nlohmann::json::array()), position_));
-	SetAnchorPoint(ReadVector2(label.value("anchorPoint", nlohmann::json::array()), anchorPoint_));
-	SetAlpha(label.value("alpha", alpha_));
-	return true;
+    Initialize(spriteCommon, label.value("text", std::string{}), style);
+    SetPosition(ReadVector2(label.value("position", nlohmann::json::array()), position_));
+    SetAnchorPoint(ReadVector2(label.value("anchorPoint", nlohmann::json::array()), anchorPoint_));
+    SetAlpha(label.value("alpha", alpha_));
+    return true;
 }
 
 void TextLabel::SetText(const std::string& text)
 {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	const auto setTextStart = std::chrono::steady_clock::now();
+    const auto setTextStart = std::chrono::steady_clock::now();
 #endif
-	if (text_ == text) {
+    if (text_ == text) {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-		profileStats_.setTextCpuMs += std::chrono::duration<float, std::milli>(
-			std::chrono::steady_clock::now() - setTextStart).count();
+        profileStats_.setTextCpuMs += std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - setTextStart).count();
 #endif
-		return;
-	}
-	text_ = text;
+        return;
+    }
+    text_ = text;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	const auto rebuildStart = std::chrono::steady_clock::now();
+    const auto rebuildStart = std::chrono::steady_clock::now();
 #endif
-	RebuildTexture();
+    RebuildTexture();
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	const auto setTextEnd = std::chrono::steady_clock::now();
-	profileStats_.setTextRebuildCpuMs += std::chrono::duration<float, std::milli>(
-		setTextEnd - rebuildStart).count();
-	profileStats_.setTextCpuMs += std::chrono::duration<float, std::milli>(
-		setTextEnd - setTextStart).count();
+    const auto setTextEnd = std::chrono::steady_clock::now();
+    profileStats_.setTextRebuildCpuMs += std::chrono::duration<float, std::milli>(setTextEnd - rebuildStart).count();
+    profileStats_.setTextCpuMs += std::chrono::duration<float, std::milli>(setTextEnd - setTextStart).count();
 #endif
 }
 
 void TextLabel::SetStyle(const TextStyle& style)
 {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	const auto setStyleStart = std::chrono::steady_clock::now();
+    const auto setStyleStart = std::chrono::steady_clock::now();
 #endif
-	if (IsSameStyle(style)) {
+    if (IsSameStyle(style)) {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-		profileStats_.setStyleCpuMs += std::chrono::duration<float, std::milli>(
-			std::chrono::steady_clock::now() - setStyleStart).count();
+        profileStats_.setStyleCpuMs += std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - setStyleStart).count();
 #endif
-		return;
-	}
-	style_ = style;
-	RebuildTexture();
+        return;
+    }
+    style_ = style;
+    RebuildTexture();
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	profileStats_.setStyleCpuMs += std::chrono::duration<float, std::milli>(
-		std::chrono::steady_clock::now() - setStyleStart).count();
+    profileStats_.setStyleCpuMs += std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - setStyleStart).count();
 #endif
 }
 
 void TextLabel::SetPosition(const Vector2& position)
 {
-	position_ = position;
-	if (sprite_) {
-		sprite_->SetPosition(position_);
-	}
+    position_ = position;
+    if (sprite_) {
+        sprite_->SetPosition(position_);
+    }
 }
 
 void TextLabel::SetAnchorPoint(const Vector2& anchorPoint)
 {
-	anchorPoint_ = anchorPoint;
-	if (sprite_) {
-		sprite_->SetAnchorPoint(anchorPoint_);
-	}
+    anchorPoint_ = anchorPoint;
+    if (sprite_) {
+        sprite_->SetAnchorPoint(anchorPoint_);
+    }
 }
 
 void TextLabel::SetAlpha(float alpha)
 {
-	alpha_ = alpha;
-	if (sprite_) {
-		sprite_->SetAlpha(alpha_);
-	}
+    alpha_ = alpha;
+    if (sprite_) {
+        sprite_->SetAlpha(alpha_);
+    }
 }
 
 void TextLabel::Draw()
 {
-	PrepareForDraw();
-	if (!sprite_) {
-		return;
-	}
-	sprite_->Update();
-	sprite_->Draw();
+    PrepareForDraw();
+    if (!sprite_) {
+        return;
+    }
+    sprite_->Update();
+    sprite_->Draw();
 }
 
 void TextLabel::PrepareForDraw()
 {
-	if (builtFontRevision_ != TextRenderer::GetInstance()->GetFontRevision() ||
-		builtPromptRevision_ != Input::GetInstance()->GetPromptRevision()) {
-		RebuildTexture();
-	}
+    if (builtFontRevision_ != TextRenderer::GetInstance()->GetFontRevision() ||
+        builtPromptRevision_ != Input::GetInstance()->GetPromptRevision()) {
+        RebuildTexture();
+    }
 }
 
 void TextLabel::RebuildTexture()
 {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	const auto rebuildTextureStart = std::chrono::steady_clock::now();
+    const auto rebuildTextureStart = std::chrono::steady_clock::now();
 #endif
-	if (!spriteCommon_) {
+    if (!spriteCommon_) {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-		profileStats_.rebuildTextureCpuMs += std::chrono::duration<float, std::milli>(
-			std::chrono::steady_clock::now() - rebuildTextureStart).count();
+        profileStats_.rebuildTextureCpuMs +=
+            std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - rebuildTextureStart).count();
 #endif
-		return;
-	}
+        return;
+    }
 
-	TextRenderer* textRenderer = TextRenderer::GetInstance();
+    TextRenderer* textRenderer = TextRenderer::GetInstance();
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	const auto getOrCreateTextureStart = std::chrono::steady_clock::now();
+    const auto getOrCreateTextureStart = std::chrono::steady_clock::now();
 #endif
-	// Operation prompts follow the last used device (e.g. "左クリック" becomes "RT" on a gamepad).
-	builtPromptRevision_ = Input::GetInstance()->GetPromptRevision();
-	texturePath_ = textRenderer->GetOrCreateTexture(ApplyInputPrompts(text_), style_);
+    // Operation prompts follow the last used device (e.g. "左クリック" becomes "RT" on a gamepad).
+    builtPromptRevision_ = Input::GetInstance()->GetPromptRevision();
+    texturePath_ = textRenderer->GetOrCreateTexture(ApplyInputPrompts(text_), style_);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	const auto getOrCreateTextureEnd = std::chrono::steady_clock::now();
-	profileStats_.getOrCreateTextureCpuMs += std::chrono::duration<float, std::milli>(
-		getOrCreateTextureEnd - getOrCreateTextureStart).count();
-	const TextRenderer::GetOrCreateTextureProfile& textureProfile =
-		textRenderer->GetLastGetOrCreateTextureProfile();
-	profileStats_.cacheFileExistedCount += textureProfile.cacheFileExisted ? 1u : 0u;
-	profileStats_.generatedPngCount += textureProfile.generatedPng ? 1u : 0u;
+    const auto getOrCreateTextureEnd = std::chrono::steady_clock::now();
+    profileStats_.getOrCreateTextureCpuMs +=
+        std::chrono::duration<float, std::milli>(getOrCreateTextureEnd - getOrCreateTextureStart).count();
+    const TextRenderer::GetOrCreateTextureProfile& textureProfile = textRenderer->GetLastGetOrCreateTextureProfile();
+    profileStats_.cacheFileExistedCount += textureProfile.cacheFileExisted ? 1u : 0u;
+    profileStats_.generatedPngCount += textureProfile.generatedPng ? 1u : 0u;
 #endif
-	builtFontRevision_ = textRenderer->GetFontRevision();
-	if (!sprite_) {
-		sprite_ = std::make_unique<Sprite>();
-		sprite_->Initialize(spriteCommon_, texturePath_);
-		ApplyLogicalSize();
-		sprite_->SetPosition(position_);
-		sprite_->SetAnchorPoint(anchorPoint_);
-		sprite_->SetAlpha(alpha_);
+    builtFontRevision_ = textRenderer->GetFontRevision();
+    if (!sprite_) {
+        sprite_ = std::make_unique<Sprite>();
+        sprite_->Initialize(spriteCommon_, texturePath_);
+        ApplyLogicalSize();
+        sprite_->SetPosition(position_);
+        sprite_->SetAnchorPoint(anchorPoint_);
+        sprite_->SetAlpha(alpha_);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-		profileStats_.rebuildTextureCpuMs += std::chrono::duration<float, std::milli>(
-			std::chrono::steady_clock::now() - rebuildTextureStart).count();
+        profileStats_.rebuildTextureCpuMs +=
+            std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - rebuildTextureStart).count();
 #endif
-		return;
-	}
+        return;
+    }
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	const auto spriteSetTextureStart = std::chrono::steady_clock::now();
+    const auto spriteSetTextureStart = std::chrono::steady_clock::now();
 #endif
-	sprite_->SetTexture(texturePath_);
-	ApplyLogicalSize();
+    sprite_->SetTexture(texturePath_);
+    ApplyLogicalSize();
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	profileStats_.spriteSetTextureCpuMs += std::chrono::duration<float, std::milli>(
-		std::chrono::steady_clock::now() - spriteSetTextureStart).count();
+    profileStats_.spriteSetTextureCpuMs +=
+        std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - spriteSetTextureStart).count();
 #endif
-	sprite_->SetPosition(position_);
-	sprite_->SetAnchorPoint(anchorPoint_);
-	sprite_->SetAlpha(alpha_);
+    sprite_->SetPosition(position_);
+    sprite_->SetAnchorPoint(anchorPoint_);
+    sprite_->SetAlpha(alpha_);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-	profileStats_.rebuildTextureCpuMs += std::chrono::duration<float, std::milli>(
-		std::chrono::steady_clock::now() - rebuildTextureStart).count();
+    profileStats_.rebuildTextureCpuMs +=
+        std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - rebuildTextureStart).count();
 #endif
 }
 
 void TextLabel::ApplyLogicalSize()
 {
-	// 文字画像は描画解像度の密度で作られている。UIの配置は論理座標なので表示サイズを戻す。
-	const float scale = TextRenderer::GetRasterScale();
-	const Vector2& textureSize = sprite_->GetTextureSize();
-	sprite_->SetSize({ textureSize.x / scale, textureSize.y / scale });
+    // 文字画像は描画解像度の密度で作られている。UIの配置は論理座標なので表示サイズを戻す。
+    const float scale = TextRenderer::GetRasterScale();
+    const Vector2& textureSize = sprite_->GetTextureSize();
+    sprite_->SetSize({textureSize.x / scale, textureSize.y / scale});
 }
 
 bool TextLabel::IsSameStyle(const TextStyle& style) const
 {
-	return style_.fontFamily == style.fontFamily &&
-		style_.fontPath == style.fontPath &&
-		style_.fontWeight == style.fontWeight &&
-		style_.fontSize == style.fontSize &&
-		style_.color.x == style.color.x &&
-		style_.color.y == style.color.y &&
-		style_.color.z == style.color.z &&
-		style_.color.w == style.color.w &&
-		style_.outlineColor.x == style.outlineColor.x &&
-		style_.outlineColor.y == style.outlineColor.y &&
-		style_.outlineColor.z == style.outlineColor.z &&
-		style_.outlineColor.w == style.outlineColor.w &&
-		style_.outlineThickness == style.outlineThickness &&
-		style_.padding == style.padding &&
-		style_.preserveOutline == style.preserveOutline;
+    return style_.fontFamily == style.fontFamily && style_.fontPath == style.fontPath && style_.fontWeight == style.fontWeight &&
+           style_.fontSize == style.fontSize && style_.color.x == style.color.x && style_.color.y == style.color.y &&
+           style_.color.z == style.color.z && style_.color.w == style.color.w && style_.outlineColor.x == style.outlineColor.x &&
+           style_.outlineColor.y == style.outlineColor.y && style_.outlineColor.z == style.outlineColor.z &&
+           style_.outlineColor.w == style.outlineColor.w && style_.outlineThickness == style.outlineThickness &&
+           style_.padding == style.padding && style_.preserveOutline == style.preserveOutline;
 }
 
-} // namespace cg2
+} // namespace myEngine

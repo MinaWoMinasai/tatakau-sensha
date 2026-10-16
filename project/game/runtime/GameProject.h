@@ -6,7 +6,7 @@
 /// @brief 起動するゲームモジュール・初期シーン・設定ファイルを指定する。
 struct GameProject {
     int schemaVersion = 1;
-    std::string projectName = "CG2 Default";
+    std::string projectName = "MyEngine Default";
     std::string gameModule = "builtin";
     std::string startupScene = "TITLE";
     std::string resourceRoot = "resources";

@@ -17,8 +17,8 @@ public:
     struct SpawnArea {
         std::string name;
         std::string prefab;
-        cg2::Vector3 center;
-        cg2::Vector3 size;
+        myEngine::Vector3 center;
+        myEngine::Vector3 size;
         float spawnInterval = 2.0f;
         float timer = 0.0f;
         int maxAlive = 8;
@@ -38,20 +38,22 @@ public:
     /// @brief 各個体のDrawBodyOnlyを呼ぶ。個体ごとのネオン描画方式による除外に従う。
     void DrawBodyOnly();
     /// @brief カメラ中心のXY矩形と各個体の半径が重なる範囲だけDrawBodyOnlyを呼ぶ。距離はワールド単位。
-    void DrawBodyOnlyVisible(const cg2::Vector3& cameraPos, float halfWidth, float halfHeight);
+    void DrawBodyOnlyVisible(const myEngine::Vector3& cameraPos, float halfWidth, float halfHeight);
     /// @brief 制作カタログまたは互換prefab名を解決し、指定位置に1体生成して所有する。
     /// @param hp 正なら初期HP・最大HPを上書きし、0以下なら種類/制作定義の値を使う。
     /// @return 登録した場合true。未対応prefabなら生成せずfalse。壁や自機との重なり・管理個体数の上限は判定しない。
-    bool SpawnLevelEnemy(const cg2::Vector3& position, const std::string& prefab, int hp = -1);
+    bool SpawnLevelEnemy(const myEngine::Vector3& position, const std::string& prefab, int hp = -1);
+
     /// @brief 遠征の制作カタログをコピーして保持し、以後の生成時に使う。既存個体の設定は変えない。
     void SetExpeditionContent(const tankcontent::Catalog& catalog)
     {
         expeditionContent_ = catalog;
         useExpeditionContent_ = true;
     }
+
     /// @brief 指定位置へ資源を生成して所有し、その個体への借用ポインターを返す。HPは最低1。
     /// @note 死亡フラグが立っても実体削除までアドレスは有効。Updateによる削除またはClearで無効になる。
-    ExpEnemy* SpawnRunResource(const cg2::Vector3& position, int hp, std::function<void(bool playerOwned)> onClaim);
+    ExpEnemy* SpawnRunResource(const myEngine::Vector3& position, int hp, std::function<void(bool playerOwned)> onClaim);
     /// @brief 有効な出現領域をコピーして追加する。間隔は最低0.1秒、上限数とXY寸法は最低0にする。
     void AddLevelSpawnArea(const SpawnArea& spawnArea);
     /// @brief 出現領域と全所有個体を破棄し、ランダム出現タイマーを0へ戻す。
@@ -60,23 +62,26 @@ public:
     /// @brief ClearLevelDataの消去に加え、既定のランダム生成を停止する。
     /// @note 衝突・報酬通知などが取得済みポインターを使い終えた境界で呼ぶ。共有コールバックは保持する。
     void ClearRunActors();
+
     /// @brief 既定のランダム出現を切り替える。出現領域と召喚の処理はこの設定では停止しない。
     void SetDefaultRandomSpawnEnabled(bool enabled)
     {
         defaultRandomSpawnEnabled_ = enabled;
     }
+
     /// @brief ボスへの敵対共有設定を更新し、現在の全個体の衝突マスクも再設定する。
     void SetExpEnemyHostileToBoss(bool hostile);
     /// @brief 距離がmaxDistance未満の生存個体から最寄りを借用ポインターで返す。該当なしはnullptr。
     /// @param includeShooters falseではShooterだけでなく全IsCombatThreat対象を除く。資源は検索対象に含む。
     /// @note Updateでその個体を削除した場合、またはClear後は返却ポインターが無効になる。
-    ExpEnemy* FindNearestEnemy(const cg2::Vector3& position, float maxDistance, bool includeShooters = true) const;
+    ExpEnemy* FindNearestEnemy(const myEngine::Vector3& position, float maxDistance, bool includeShooters = true) const;
     /// @brief 距離がmaxDistance未満の生存資源から最寄りを借用ポインターで返す。該当なしはnullptr。
-    ExpEnemy* FindNearestRunResource(const cg2::Vector3& position, float maxDistance) const;
+    ExpEnemy* FindNearestRunResource(const myEngine::Vector3& position, float maxDistance) const;
 
     /// @brief 所有個体への借用ポインター一覧を値で返す。死亡済みで削除待ちの個体も含む。
     /// @note 一覧のコピーは所有権を持たない。個体のUpdate削除またはClear後は、その個体へのポインターが無効になる。
     std::vector<ExpEnemy*> GetEnemyPtrs() const;
+
     /// @brief 管理中の個体数を返す。資源・召喚個体・死亡済みの削除待ちも含む。
     size_t GetEnemyCount() const
     {

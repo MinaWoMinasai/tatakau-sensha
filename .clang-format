@@ -23,3 +23,13 @@ AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 AllowShortLambdasOnASingleLine: None
+# if/for/while の本体は1行でも必ず {} で囲む。
+InsertBraces: true
+# 空行は最大1行まで。ブロック先頭・ファイル先頭末尾の空行は詰める。
+MaxEmptyLinesToKeep: 1
+KeepEmptyLines:
+  AtEndOfFile: false
+  AtStartOfBlock: false
+  AtStartOfFile: false
+# 関数・クラスなどの定義同士の間には必ず1行空ける。
+SeparateDefinitionBlocks: Always

@@ -6,6 +6,7 @@ class PlayerProgression {
 public:
     /// @brief 戦闘主体である自機を借用する。
     explicit PlayerProgression(Player& player) : player_(player) {}
+
     using PlayerClassConfig = ::PlayerClassConfig;
     using BodyShape = Player::BodyShape;
     using BalanceConfig = Player::BalanceConfig;
@@ -75,7 +76,7 @@ public:
     /// @brief 部屋移動時に一時的な戦闘状態・ドローン・イベントをリセットし、指定ワールド座標へ移す。
     /// @note 遠征補正有効かつ生存中に行う。HP・成長は保ち、スタミナを全回復して短い無敵時間を設定する。
     /// 通常入力はマウスボタンを解放するまで攻撃を待つ。生成済みの弾はここでは消去しない。
-    void ResetRunRoomState(const cg2::Vector3& position);
+    void ResetRunRoomState(const myEngine::Vector3& position);
 
     /// @brief 経験値を加算してレベル・強化ポイントを更新する。通貨方式では獲得通貨として保留する。
     /// @param amount 獲得した経験値。呼び出し側では非負の値を渡す。

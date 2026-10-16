@@ -36,8 +36,9 @@ void PlayerProgression::AddExp(int amount)
         player_.runCurrencyEarned_ = (std::min)(1000000, player_.runCurrencyEarned_ + tankcontent::CreditsFromExperience(amount));
         return;
     }
-    if (player_.level_ >= player_.kMaxLevel)
+    if (player_.level_ >= player_.kMaxLevel) {
         return;
+    }
 
     player_.exp_ += amount;
     // レベルアップ判定（余剰分も考慮してループ）
@@ -68,8 +69,9 @@ void PlayerProgression::AddExp(int amount)
 
 void PlayerProgression::SetRunCurrencyMode(bool enabled)
 {
-    if (player_.runCurrencyMode_ == enabled)
+    if (player_.runCurrencyMode_ == enabled) {
         return;
+    }
     player_.runCurrencyMode_ = enabled;
     player_.runCurrencyEarned_ = 0;
     if (enabled) {
@@ -84,15 +86,17 @@ void PlayerProgression::SetRunCurrencyMode(bool enabled)
 void PlayerProgression::InstallRunAuthoredClasses(const tankcontent::Catalog& catalog)
 {
     std::string error;
-    if (!tankcontent::ValidateCatalog(catalog, error))
+    if (!tankcontent::ValidateCatalog(catalog, error)) {
         return;
+    }
     player_.runAuthoredClasses_.clear();
     player_.runAuthoredChoices_.clear();
     player_.runAuthoredStyles_.clear();
     for (const auto& authored : catalog.players) {
         const auto* base = GetClassConfig(authored.baseClass);
-        if (!base || base->barrels.empty())
+        if (!base || base->barrels.empty()) {
             continue;
+        }
         PlayerClassConfig config = *base;
         config.id = authored.id;
         config.displayName = authored.name;
@@ -140,39 +144,46 @@ void PlayerProgression::InstallRunAuthoredClasses(const tankcontent::Catalog& ca
             player_.InitializeBarrels();
             player_.UpdateBarrelLayout();
             EnsureExpeditionDrones();
-            for (auto& drone : player_.drones_)
+            for (auto& drone : player_.drones_) {
                 player_.ConfigureRunDrone(*drone);
+            }
         }
     }
 }
 
 std::vector<RunEvolutionChoice> PlayerProgression::GetRunAuthoredEvolutionChoices() const
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_)
+    if (!player_.runModifiers_.enabled || player_.isDead_) {
         return {};
+    }
     std::vector<RunEvolutionChoice> result;
     for (const auto& choice : player_.runAuthoredChoices_) {
         const auto style = player_.runAuthoredStyles_.find(choice.id);
         if (player_.expeditionCombatStyleSelected_ &&
-            (style == player_.runAuthoredStyles_.end() || style->second != player_.expeditionCombatStyle_))
+            (style == player_.runAuthoredStyles_.end() || style->second != player_.expeditionCombatStyle_)) {
             continue;
-        if (!player_.runEvolutionActive_ || choice.id != player_.runEvolutionConfig_.id)
+        }
+        if (!player_.runEvolutionActive_ || choice.id != player_.runEvolutionConfig_.id) {
             result.push_back(choice);
+        }
     }
     return result;
 }
 
 bool PlayerProgression::ChooseRunAuthoredClass(const std::string& id)
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_)
+    if (!player_.runModifiers_.enabled || player_.isDead_) {
         return false;
+    }
     const auto it = player_.runAuthoredClasses_.find(id);
-    if (it == player_.runAuthoredClasses_.end())
+    if (it == player_.runAuthoredClasses_.end()) {
         return false;
+    }
     const auto style = player_.runAuthoredStyles_.find(id);
     if (player_.expeditionCombatStyleSelected_ &&
-        (style == player_.runAuthoredStyles_.end() || style->second != player_.expeditionCombatStyle_))
+        (style == player_.runAuthoredStyles_.end() || style->second != player_.expeditionCombatStyle_)) {
         return false;
+    }
     const int previousHp = player_.hp_;
     player_.runEvolutionConfig_ = it->second;
     player_.runEvolutionActive_ = true;
@@ -223,10 +234,11 @@ void PlayerProgression::ApplyBalanceConfig(const BalanceConfig& config)
     player_.runGrowth_ = {player_.maxHpUpgradeRate_, player_.bulletDamageUpgradeRate_, player_.bulletSpeedUpgradeRate_,
                           (std::min)(0.90f, player_.reloadUpgradeRate_), player_.moveSpeedUpgradeRate_};
     RecalculateStatsFromBase(config.healToFull);
-    // Editing a running expedition must not grant a free heal when the old
-    // maximum was full. Card acquisition keeps its separate growth/heal rule.
-    if (player_.runCheckpointEvolution_ && !config.healToFull)
+    // 遠征中に編集しても、元の最大HPが満タンだったときに無料で回復させてはならない。
+    // カードの獲得は別の成長・回復ルールのまま。
+    if (player_.runCheckpointEvolution_ && !config.healToFull) {
         player_.hp_ = (std::clamp)(previousHp, 0, player_.GetMaxHp());
+    }
 }
 
 void PlayerProgression::SetRunModifiers(const TankRunModifiers& modifiers)
@@ -235,8 +247,9 @@ void PlayerProgression::SetRunModifiers(const TankRunModifiers& modifiers)
     const int previousHp = player_.hp_;
     player_.runModifiers_ = modifiers;
     player_.RefreshAdditiveArmaments();
-    if (!modifiers.enabled || !modifiers.railCannon)
+    if (!modifiers.enabled || !modifiers.railCannon) {
         player_.railCharge_.Reset();
+    }
     if (!wasEnabled || !player_.runModifiers_.enabled) {
         player_.ResetAdditionalAbilities();
         player_.expeditionCombatStyleSelected_ = false;
@@ -251,13 +264,14 @@ void PlayerProgression::SetRunModifiers(const TankRunModifiers& modifiers)
         player_.ui_->upgradeHudMouseCaptured_ = false;
     }
     RecalculateStatsFromBase(false);
-    // Refitting edited modules is not healing. A purchased repair grants its
-    // explicit recovery in the scene, including before the style is selected.
-    if (wasEnabled && player_.runModifiers_.enabled && player_.runModifiers_.expedition)
+    // 編集したモジュールの付け替えは回復ではない。購入した修理は、スタイル選択前も含め
+    // シーン内で明示的な回復量を与える。
+    if (wasEnabled && player_.runModifiers_.enabled && player_.runModifiers_.expedition) {
         player_.hp_ = (std::clamp)(previousHp, 0, player_.GetMaxHp());
+    }
     if (wasEnabled && !player_.runModifiers_.enabled) {
         SetRunCurrencyMode(false);
-        // A run's support units and attack configuration must not escape its mode.
+        // ランの支援ユニットと攻撃設定を、そのモードの外へ持ち出してはならない。
         player_.drones_.clear();
         player_.runSupportDroneTimer_ = 0.0f;
         player_.runDashAttackTimer_ = 0.0f;
@@ -279,14 +293,16 @@ void PlayerProgression::ApplyCombatStyleBalance(const TankCombatStyleBalances& p
     const int hp = player_.hp_;
     const float stamina = player_.stats_.stamina;
     const auto defaults = DefaultTankCombatStyleBalances();
-    for (size_t i = 0; i < profiles.size(); ++i)
+    for (size_t i = 0; i < profiles.size(); ++i) {
         player_.combatStyleBalances_[i] = SanitizeTankCombatStyleProfile(profiles[i], defaults[i]);
+    }
     RecalculateStatsFromBase(false);
     player_.hp_ = (std::clamp)(hp, 0, player_.GetMaxHp());
     player_.stats_.stamina = (std::clamp)(stamina, 0.0f, player_.stats_.maxStamina);
     EnsureExpeditionDrones();
-    for (auto& drone : player_.drones_)
+    for (auto& drone : player_.drones_) {
         player_.ConfigureRunDrone(*drone);
+    }
 }
 
 float PlayerProgression::GetRunBaseReloadFrames() const
@@ -298,14 +314,17 @@ float PlayerProgression::GetRunBaseReloadFrames() const
 
 bool PlayerProgression::SetExpeditionCombatStyle(tankbuild::Style style)
 {
-    if (!player_.runModifiers_.enabled || !player_.runModifiers_.expedition || player_.isDead_ || !tankbuild::Valid(style))
+    if (!player_.runModifiers_.enabled || !player_.runModifiers_.expedition || player_.isDead_ || !tankbuild::Valid(style)) {
         return false;
-    if (player_.expeditionCombatStyleSelected_ && player_.expeditionCombatStyle_ == style)
+    }
+    if (player_.expeditionCombatStyleSelected_ && player_.expeditionCombatStyle_ == style) {
         return true;
+    }
     const auto* basic = GetClassConfig("Basic");
-    if (!basic || basic->barrels.empty())
+    if (!basic || basic->barrels.empty()) {
         return false;
-    // Changing equipment must never rebuild the run or refill health/stamina.
+    }
+    // 装備の変更でランを作り直したり、HPやスタミナを回復させたりしてはならない。
     player_.runStarterConfig_ = *basic;
     player_.runStarterConfig_.displayName = tankbuild::Name(style);
     player_.runStarterConfig_.usesDrone = style == tankbuild::Style::Drone;
@@ -357,8 +376,9 @@ bool PlayerProgression::SetExpeditionCombatStyle(tankbuild::Style style)
 
 int PlayerProgression::GetExpeditionDroneLimit() const
 {
-    if (!player_.IsDroneBuild())
+    if (!player_.IsDroneBuild()) {
         return 0;
+    }
     const auto* config = GetCurrentClassConfig();
     return TankCombatStyleDroneCount(player_.GetCombatStyleProfile(tankbuild::Style::Drone).droneCount, config ? config->maxDrones : 3,
                                      player_.runEvolutionActive_,
@@ -367,14 +387,16 @@ int PlayerProgression::GetExpeditionDroneLimit() const
 
 void PlayerProgression::EnsureExpeditionDrones()
 {
-    if (!player_.IsDroneBuild() || !player_.object_ || !player_.runBulletManager_ || player_.isDead_)
+    if (!player_.IsDroneBuild() || !player_.object_ || !player_.runBulletManager_ || player_.isDead_) {
         return;
+    }
     const size_t limit = static_cast<size_t>(GetExpeditionDroneLimit());
-    if (player_.drones_.size() > limit)
+    if (player_.drones_.size() > limit) {
         player_.drones_.resize(limit);
+    }
     while (player_.drones_.size() < limit) {
         auto drone = std::make_unique<PlayerDrone>();
-        // Spawn at the owner; normal wall-aware movement forms the escort.
+        // 所有者の位置に出現させ、壁を考慮した通常の移動で護衛の隊形を作る。
         drone->Initialize(player_.GetWorldPosition(), {});
         drone->SetAttackControllerBulletManager(player_.runBulletManager_);
         player_.ConfigureRunDrone(*drone);
@@ -400,8 +422,9 @@ void PlayerProgression::ConfigurePrototypeLoadout(int archetype)
         player_.runDashExplosionsEmitted_ = 0;
         player_.runStarterBranch_ = branches[(std::clamp)(archetype, 0, 2)];
         EvolveById("Basic");
-        if (const auto* basic = GetClassConfig("Basic"))
+        if (const auto* basic = GetClassConfig("Basic")) {
             player_.runStarterConfig_ = *basic;
+        }
         player_.runStarterConfig_.displayName = "ベーシック";
         player_.runStarterConfig_.usesDrone = false;
         player_.runStarterConfig_.bulletCount = 1;
@@ -437,8 +460,8 @@ void PlayerProgression::ConfigurePrototypeLoadout(int archetype)
         player_.UpdateBarrelLayout();
         return;
     }
-    // Starting loadouts are rank two. Their next evolution becomes available
-    // at rank three, rather than opening a locked menu at the first rank-up.
+    // 初期装備はランク2。最初のランクアップでロックされたメニューを開くのではなく、
+    // ランク3で次の進化を選べるようにする。
     if (player_.level_ < 5) {
         player_.level_ = 5;
         player_.exp_ = 0;
@@ -458,9 +481,10 @@ void PlayerProgression::HealRunPlayer(int amount)
 
 bool PlayerProgression::SpendRunHealth(int amount)
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_ || amount <= 0 || player_.hp_ <= amount)
+    if (!player_.runModifiers_.enabled || player_.isDead_ || amount <= 0 || player_.hp_ <= amount) {
         return false;
-    // A chosen event cost is not an incoming hit and cannot be dodged or lethal.
+    }
+    // 自分で選んだイベントの代償は被弾ではないため、回避できず致死にもならない。
     player_.hp_ -= amount;
     return true;
 }
@@ -468,13 +492,16 @@ bool PlayerProgression::SpendRunHealth(int amount)
 std::vector<RunEvolutionChoice> PlayerProgression::GetRunEvolutionChoices() const
 {
     std::vector<RunEvolutionChoice> choices;
-    if (!player_.runModifiers_.enabled || player_.isDead_)
+    if (!player_.runModifiers_.enabled || player_.isDead_) {
         return choices;
-    if (player_.expeditionCombatStyleSelected_ && player_.expeditionCombatStyle_ != tankbuild::Style::Shooter)
+    }
+    if (player_.expeditionCombatStyleSelected_ && player_.expeditionCombatStyle_ != tankbuild::Style::Shooter) {
         return choices;
+    }
     if (player_.runCheckpointEvolution_) {
-        if (!player_.runEvolutionPrepared_ || player_.runEvolutionActive_)
+        if (!player_.runEvolutionPrepared_ || player_.runEvolutionActive_) {
             return choices;
+        }
         for (const auto& specialization : kTankExpeditionSpecializations) {
             if (player_.expeditionCombatStyleSelected_ ? specialization.drones == 0 : player_.runStarterBranch_ == specialization.starter) {
                 choices.push_back({specialization.id, specialization.name, specialization.description});
@@ -483,11 +510,13 @@ std::vector<RunEvolutionChoice> PlayerProgression::GetRunEvolutionChoices() cons
         return choices;
     }
     const PlayerClassConfig* current = GetCurrentClassConfig();
-    if (!current)
+    if (!current) {
         return choices;
+    }
     const auto firingMode = [](const PlayerClassConfig& config) {
-        if (config.usesDrone)
+        if (config.usesDrone) {
             return "ドローン上限" + std::to_string(config.maxDrones) + "機";
+        }
         const auto guns = std::count_if(config.barrels.begin(), config.barrels.end(), [](const WeaponMountConfig& mount) {
             return mount.fires && mount.weaponType == WeaponType::Projectile;
         });
@@ -499,13 +528,15 @@ std::vector<RunEvolutionChoice> PlayerProgression::GetRunEvolutionChoices() cons
         return std::string(text);
     };
     for (const std::string& id : player_.classCatalog_.OrderedIds()) {
-        // The editor's temporary copy has no firing advantage over Twin. Keep it
-        // in the original C tree, but omit it from expedition checkpoint rewards.
-        if (id == "Triple_Copy" || !CanEvolveTo(id))
+        // エディタ用の一時コピーはツインより射撃で有利にならない。元のCツリーには残すが、
+        // 遠征のチェックポイント報酬からは外す。
+        if (id == "Triple_Copy" || !CanEvolveTo(id)) {
             continue;
+        }
         const PlayerClassConfig* config = GetClassConfig(id);
-        if (!config)
+        if (!config) {
             continue;
+        }
         std::string description = "機体の基本性能を比較\n" + firingMode(*current) + "→" + firingMode(*config);
         description += "\n威力 " + scale(current->bulletDamageScale) + "→" + scale(config->bulletDamageScale);
         description += "\n発射間隔 " + scale(current->reloadScale) + "→" + scale(config->reloadScale);
@@ -518,50 +549,58 @@ std::vector<RunEvolutionChoice> PlayerProgression::GetRunEvolutionChoices() cons
         }
         description += "\n主軸・改造は引き継ぎ";
         choices.push_back({config->id, config->displayName, std::move(description)});
-        if (choices.size() == 3)
+        if (choices.size() == 3) {
             break;
+        }
     }
     return choices;
 }
 
 void PlayerProgression::PrepareRunEvolution()
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_)
+    if (!player_.runModifiers_.enabled || player_.isDead_) {
         return;
+    }
     player_.isChangeMode = false;
     player_.evolutionConfirmedEvent_ = false;
     player_.evolutionCancelledEvent_ = false;
     if (player_.runCheckpointEvolution_) {
-        // A checkpoint specialization is independent of the arena's level/tree.
+        // チェックポイントでの特化は、アリーナのレベルやツリーとは独立している。
         player_.runEvolutionPrepared_ = !player_.runEvolutionActive_;
         return;
     }
     const PlayerClassConfig* current = GetCurrentClassConfig();
-    if (!current || !player_.ui_->evolutionCircuitLoaded_)
+    if (!current || !player_.ui_->evolutionCircuitLoaded_) {
         return;
+    }
     const int targetRank = current->requiredRank + 1;
-    if (targetRank > GetRankFromLevel(player_.kMaxLevel))
+    if (targetRank > GetRankFromLevel(player_.kMaxLevel)) {
         return;
+    }
     const bool hasSuccessor =
         std::any_of(player_.classCatalog_.OrderedIds().begin(), player_.classCatalog_.OrderedIds().end(), [&](const std::string& id) {
-            if (id == "Triple_Copy")
-                return false; // Match the checkpoint candidate filter above.
+            if (id == "Triple_Copy") {
+                return false; // 上のチェックポイント候補の絞り込みと合わせる。
+            }
             const PlayerClassConfig* config = GetClassConfig(id);
             return config && config->requiredRank == targetRank && HasEvolutionEdge(current->id, id) && IsRunCompatibleClass(*config);
         });
-    if (!hasSuccessor)
+    if (!hasSuccessor) {
         return;
-    // Grant only the checkpoint's required rank. HP, partial XP, and the build
-    // remain untouched; normal level-up rewards and the legacy C popup do not run.
-    while (player_.level_ < player_.kMaxLevel && GetRankFromLevel(player_.level_) < targetRank)
+    }
+    // チェックポイントで必要なランクだけを与える。HP、獲得途中の経験値、構成は
+    // そのままで、通常のレベルアップ報酬や旧来のCのポップアップは実行しない。
+    while (player_.level_ < player_.kMaxLevel && GetRankFromLevel(player_.level_) < targetRank) {
         ++player_.level_;
+    }
     player_.nextLevelExp_ = GetNextLevelExp();
 }
 
 bool PlayerProgression::ChooseRunEvolution(const std::string& id)
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_)
+    if (!player_.runModifiers_.enabled || player_.isDead_) {
         return false;
+    }
     const auto choices = GetRunEvolutionChoices();
     if (std::none_of(choices.begin(), choices.end(), [&](const RunEvolutionChoice& choice) {
             return choice.id == id;
@@ -572,8 +611,9 @@ bool PlayerProgression::ChooseRunEvolution(const std::string& id)
         const auto* specialization = FindTankExpeditionSpecialization(id);
         const auto* starter =
             GetClassConfig(player_.expeditionCombatStyleSelected_ && specialization ? specialization->starter : player_.runStarterBranch_);
-        if (!specialization || !starter || starter->barrels.empty())
+        if (!specialization || !starter || starter->barrels.empty()) {
             return false;
+        }
         player_.runEvolutionConfig_ = *starter;
         auto& config = player_.runEvolutionConfig_;
         config.id = specialization->id;
@@ -603,8 +643,9 @@ bool PlayerProgression::ChooseRunEvolution(const std::string& id)
             barrel.reloadScale = 1.0f;
             barrel.damageScale = 1.0f;
             barrel.projectileSpeedScale = 1.0f;
-            if (specialization->speedScale > 1.2f)
+            if (specialization->speedScale > 1.2f) {
                 barrel.scale.x *= 1.25f;
+            }
         }
         player_.runEvolutionActive_ = true;
         player_.runAuthoredEvolutionActive_ = false;
@@ -646,29 +687,32 @@ std::array<RunMaintenanceChoice, 3> PlayerProgression::GetRunMaintenanceChoices(
 
 bool PlayerProgression::SpendRunMaintenancePoint(int stat)
 {
-    if (!player_.runModifiers_.enabled || !player_.runCheckpointEvolution_ || player_.isDead_ || !player_.runMaintenance_.Spend(stat))
+    if (!player_.runModifiers_.enabled || !player_.runCheckpointEvolution_ || player_.isDead_ || !player_.runMaintenance_.Spend(stat)) {
         return false;
+    }
     const int previousHp = player_.hp_;
     RecalculateStatsFromBase(false);
-    // Maintenance changes never heal, including while the player is at full HP.
+    // 整備の変更で回復することはない。プレイヤーのHPが満タンのときも同じ。
     player_.hp_ = (std::min)(previousHp, player_.GetMaxHp());
     return true;
 }
 
 bool PlayerProgression::RefundRunMaintenancePoint(int stat)
 {
-    if (!player_.runModifiers_.enabled || !player_.runCheckpointEvolution_ || player_.isDead_ || !player_.runMaintenance_.Refund(stat))
+    if (!player_.runModifiers_.enabled || !player_.runCheckpointEvolution_ || player_.isDead_ || !player_.runMaintenance_.Refund(stat)) {
         return false;
+    }
     const int previousHp = player_.hp_;
     RecalculateStatsFromBase(false);
     player_.hp_ = (std::min)(previousHp, player_.GetMaxHp());
     return true;
 }
 
-void PlayerProgression::ResetRunRoomState(const cg2::Vector3& position)
+void PlayerProgression::ResetRunRoomState(const myEngine::Vector3& position)
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_)
+    if (!player_.runModifiers_.enabled || player_.isDead_) {
         return;
+    }
     player_.ResetAdditionalAbilities();
     player_.railCharge_.Reset();
     player_.linkDamageClock_ = {};
@@ -737,8 +781,9 @@ Player::RunCombatSnapshot PlayerProgression::GetRunCombatSnapshot() const
 {
     RunCombatSnapshot result{};
     const auto* config = GetCurrentClassConfig();
-    if (!config)
+    if (!config) {
         return result;
+    }
     result.style = player_.expeditionCombatStyle_;
     result.hasStyle = player_.expeditionCombatStyleSelected_;
     result.melee = player_.IsMeleeBuild();
@@ -770,8 +815,9 @@ Player::RunCombatSnapshot PlayerProgression::GetRunCombatSnapshot() const
     result.homingTurnRate = synergy.homingTurnRate;
     result.dashExplosionsEmitted = player_.runDashExplosionsEmitted_;
     result.shotDamage = (std::max)(1.0f, std::round(player_.stats_.bulletDamage * config->bulletDamageScale));
-    if (!player_.IsDroneBuild() && !player_.IsMeleeBuild() && !config->barrels.empty())
+    if (!player_.IsDroneBuild() && !player_.IsMeleeBuild() && !config->barrels.empty()) {
         result.shotDamage = (std::max)(1.0f, std::round(result.shotDamage * config->barrels.front().damageScale));
+    }
     result.reloadSeconds = player_.stats_.reloadSpeed / 60.0f * config->reloadScale * player_.GetRunFireIntervalScale() *
                            (player_.isBuffActive_ ? 0.7f : 1.0f);
     if (player_.IsDroneBuild()) {
@@ -847,13 +893,16 @@ void PlayerProgression::EvolveById(const std::string& classId)
 
 bool PlayerProgression::IsRunCompatibleClass(const PlayerClassConfig& config) const
 {
-    if (!player_.runModifiers_.enabled)
+    if (!player_.runModifiers_.enabled) {
         return true;
-    // Smasher bypasses the configured guns and always performs a melee attack.
-    if (config.type == ClassType::Smasher)
+    }
+    // Smasherは設定された砲を使わず、常に近接攻撃を行う。
+    if (config.type == ClassType::Smasher) {
         return false;
-    if (config.usesDrone)
+    }
+    if (config.usesDrone) {
         return true;
+    }
     return std::any_of(config.barrels.begin(), config.barrels.end(), [](const WeaponMountConfig& mount) {
         return mount.fires && mount.weaponType == WeaponType::Projectile;
     });
@@ -861,9 +910,10 @@ bool PlayerProgression::IsRunCompatibleClass(const PlayerClassConfig& config) co
 
 bool PlayerProgression::IsEvolutionClassVisible(const std::string& classId) const
 {
-    // Keep the current node visible if an editor changes its weapon configuration.
-    if (!player_.runModifiers_.enabled || classId == player_.currentClassId_)
+    // エディタで武器構成を変えても、現在のノードを表示したままにする。
+    if (!player_.runModifiers_.enabled || classId == player_.currentClassId_) {
         return true;
+    }
     const PlayerClassConfig* config = GetClassConfig(classId);
     return config && IsRunCompatibleClass(*config);
 }
@@ -909,8 +959,9 @@ bool PlayerProgression::TryConfirmEvolutionById(const std::string& classId)
 bool PlayerProgression::LoadPlayerClassConfigs(const std::string& path)
 {
     PlayerClassCatalog loadedCatalog;
-    if (!loadedCatalog.Load(path))
+    if (!loadedCatalog.Load(path)) {
         return false;
+    }
     if (!loadedCatalog.Find(player_.currentClassId_)) {
         std::cerr << "[PlayerClass] Reload failed: current class is missing: " << player_.currentClassId_ << std::endl;
         return false;
@@ -965,12 +1016,15 @@ const Player::PlayerClassConfig* PlayerProgression::GetClassConfig(const std::st
 
 const Player::PlayerClassConfig* PlayerProgression::GetCurrentClassConfig() const
 {
-    if (player_.runModifiers_.enabled && player_.runEvolutionActive_)
+    if (player_.runModifiers_.enabled && player_.runEvolutionActive_) {
         return &player_.runEvolutionConfig_;
-    if (player_.runModifiers_.enabled && player_.expeditionCombatStyleSelected_)
+    }
+    if (player_.runModifiers_.enabled && player_.expeditionCombatStyleSelected_) {
         return &player_.runStarterConfig_;
-    if (player_.runModifiers_.enabled && player_.runCheckpointEvolution_ && !player_.runStarterConfig_.barrels.empty())
+    }
+    if (player_.runModifiers_.enabled && player_.runCheckpointEvolution_ && !player_.runStarterConfig_.barrels.empty()) {
         return &player_.runStarterConfig_;
+    }
     return GetClassConfig(player_.currentClassId_);
 }
 
@@ -981,12 +1035,15 @@ Player::PlayerClassConfig* PlayerProgression::GetMutableClassConfig(const std::s
 
 int PlayerProgression::GetRankFromLevel(int level) const
 {
-    if (level >= 15)
+    if (level >= 15) {
         return 4;
-    if (level >= 10)
+    }
+    if (level >= 10) {
         return 3;
-    if (level >= 5)
+    }
+    if (level >= 5) {
         return 2;
+    }
     return 1;
 }
 
@@ -1096,8 +1153,9 @@ void PlayerProgression::RecalculateStatsFromBase(bool healToFull)
     derivedStatsInput.runTuning = MakeTankRunTuning(player_.runModifiers_, player_.runGrowth_);
     derivedStatsInput.combatStyleSelected = player_.expeditionCombatStyleSelected_;
     derivedStatsInput.combatStyle = player_.expeditionCombatStyle_;
-    if (derivedStatsInput.runEnabled && derivedStatsInput.combatStyleSelected)
+    if (derivedStatsInput.runEnabled && derivedStatsInput.combatStyleSelected) {
         derivedStatsInput.combatStyleProfile = player_.GetCombatStyleProfile(player_.expeditionCombatStyle_);
+    }
     derivedStatsInput.maintenanceMoveScale = player_.runMaintenance_.MoveScale();
     derivedStatsInput.maintenanceReloadScale = player_.runMaintenance_.ReloadScale();
     derivedStatsInput.previousStamina = player_.stats_.stamina;

@@ -1,18 +1,22 @@
 #include "AudioManager.h"
 
-namespace cg2 {
+namespace myEngine {
 
-AudioManager* AudioManager::GetInstance() {
-	static AudioManager instance;
-	return &instance;
+AudioManager* AudioManager::GetInstance()
+{
+    static AudioManager instance;
+    return &instance;
 }
 
-void AudioManager::RefreshAudioFileList() {
+void AudioManager::RefreshAudioFileList()
+{
     audioFileList_.clear();
 
     std::string kAudioDirPath = "resources/audio/"; // ルートとなるフォルダ
 
-    if (!fs::exists(kAudioDirPath)) return;
+    if (!fs::exists(kAudioDirPath)) {
+        return;
+    }
 
     // recursive_directory_iterator を使うことでサブフォルダも全て探索する
     for (const auto& entry : fs::recursive_directory_iterator(kAudioDirPath)) {
@@ -31,29 +35,31 @@ void AudioManager::RefreshAudioFileList() {
 }
 
 // 全ての音設定をロードしてAudioクラスに登録する
-void AudioManager::LoadAllConfigs(const std::string& path) {
-	std::ifstream file(path);
-	if (!file.is_open()) return;
+void AudioManager::LoadAllConfigs(const std::string& path)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        return;
+    }
 
-	nlohmann::json j;
-	file >> j;
+    nlohmann::json j;
+    file >> j;
 
-	for (auto& [key, value] : j.items()) {
-		AudioConfig config;
-		config.FromJson(key, value);
-		configs_[key] = config;
+    for (auto& [key, value] : j.items()) {
+        AudioConfig config;
+        config.FromJson(key, value);
+        configs_[key] = config;
 
-		// Audioクラス（エンジン側）に読み込み命令を出す
-		// std::string -> std::wstring 変換が必要
-		std::wstring wName = ConvertString(key);
-		std::wstring wPath = ConvertString(config.filePath);
-		Audio::GetInstance()->LoadAudio(wName, wPath, config.maxConcurrency);
-	}
+        // Audioクラス（エンジン側）に読み込み命令を出す
+        // std::string -> std::wstring 変換が必要
+        std::wstring wName = ConvertString(key);
+        std::wstring wPath = ConvertString(config.filePath);
+        Audio::GetInstance()->LoadAudio(wName, wPath, config.maxConcurrency);
+    }
 }
 
-void AudioManager::UpdateImGui() {
-
-
+void AudioManager::UpdateImGui()
+{
 #ifdef USE_IMGUI
 
     ImGui::Begin("Audio Editor");
@@ -65,7 +71,7 @@ void AudioManager::UpdateImGui() {
     ImGui::SameLine();
     if (ImGui::Button("Add New Audio")) {
         std::string newName = "NewAudio_" + std::to_string(configs_.size());
-        configs_[newName] = AudioConfig{ newName, "resources/audio/sample.wav" };
+        configs_[newName] = AudioConfig{newName, "resources/audio/sample.wav"};
     }
 
     ImGui::Separator();
@@ -123,14 +129,15 @@ void AudioManager::UpdateImGui() {
             ImGui::Checkbox("Loop", &config.loop);
 
             if (ImGui::InputInt("Concurrency", &config.maxConcurrency)) {
-                if (config.maxConcurrency < 1) config.maxConcurrency = 1;
+                if (config.maxConcurrency < 1) {
+                    config.maxConcurrency = 1;
+                }
             }
 
             // --- 4. 反映とプレビュー ---
             std::wstring wName = ConvertString(name);
             if (ImGui::Button("Preview Play")) {
                 if (config.loop) {
-
                     PlayBGM(name);
                 } else {
                     Audio::GetInstance()->PlayAudioSE(wName, config.defaultVolume);
@@ -174,46 +181,52 @@ void AudioManager::UpdateImGui() {
     ImGui::End();
 
 #endif // USE_IMGUI
-
 }
 
 // 文字列変換用ヘルパー (std::string <-> std::wstring)
-std::wstring AudioManager::ConvertString(const std::string& str) {
-	int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
-	std::wstring wstrTo(size_needed, 0);
-	MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
-	return wstrTo;
+std::wstring AudioManager::ConvertString(const std::string& str)
+{
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
+    return wstrTo;
 }
 
-void AudioManager::SaveAllConfigs(const std::string& path) {
-	nlohmann::json j;
-	for (auto& [name, config] : configs_) {
-		j[name] = config.ToJson();
-	}
-	std::ofstream file(path);
-	file << std::setw(4) << j << std::endl;
+void AudioManager::SaveAllConfigs(const std::string& path)
+{
+    nlohmann::json j;
+    for (auto& [name, config] : configs_) {
+        j[name] = config.ToJson();
+    }
+    std::ofstream file(path);
+    file << std::setw(4) << j << std::endl;
 }
 
 // AudioManager経由でSEを鳴らす
-void AudioManager::PlaySE(const std::string& name) {
+void AudioManager::PlaySE(const std::string& name)
+{
     auto it = configs_.find(name);
-    if (it == configs_.end()) return;
+    if (it == configs_.end()) {
+        return;
+    }
 
     // エディターで設定した volume を使って再生！
-    Audio::GetInstance()->PlayAudioSE(
-        ConvertString(name),
-        it->second.defaultVolume
-    );
+    Audio::GetInstance()->PlayAudioSE(ConvertString(name), it->second.defaultVolume);
 }
 
 // BGMも同様
-void AudioManager::PlayBGM(const std::string& name) {
+void AudioManager::PlayBGM(const std::string& name)
+{
     // 1. 設定が存在するかチェック
     auto it = configs_.find(name);
-    if (it == configs_.end()) return;
+    if (it == configs_.end()) {
+        return;
+    }
 
     // 2. 既に同じBGMが流れているなら、何もしない（最初から再生し直したい場合はここを消す）
-    if (currentBGMName_ == name) return;
+    if (currentBGMName_ == name) {
+        return;
+    }
 
     // 3. 他のBGMが流れていたら停止する
     if (!currentBGMName_.empty()) {
@@ -222,21 +235,18 @@ void AudioManager::PlayBGM(const std::string& name) {
 
     // 4. 新しいBGMを再生
     // エディターの Loop 設定と Volume 設定をそのまま使う
-    Audio::GetInstance()->PlayAudio(
-        ConvertString(name),
-        it->second.loop,
-        it->second.defaultVolume
-    );
+    Audio::GetInstance()->PlayAudio(ConvertString(name), it->second.loop, it->second.defaultVolume);
 
     // 5. 「今はこの音が流れている」と記憶する
     currentBGMName_ = name;
 }
 
-void AudioManager::StopBGM() {
+void AudioManager::StopBGM()
+{
     if (!currentBGMName_.empty()) {
         Audio::GetInstance()->StopAudio(ConvertString(currentBGMName_));
         currentBGMName_ = "";
     }
 }
 
-} // namespace cg2
+} // namespace myEngine

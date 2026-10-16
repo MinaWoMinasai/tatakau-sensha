@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 時刻と値の組を表す。アニメーション補間の入力に使う。
 template <typename TValue> struct Keyframe {
@@ -62,32 +62,42 @@ public:
     {
         loop_ = loop;
     }
+
     /// @brief 再生中を設定する。
     void SetPlaying(bool playing)
     {
         playing_ = playing;
     }
+
     /// @brief Playback速度を設定する。
     void SetPlaybackSpeed(float speed)
     {
         playbackSpeed_ = speed;
     }
-    float GetPlaybackSpeed() const { return playbackSpeed_; }
+
+    float GetPlaybackSpeed() const
+    {
+        return playbackSpeed_;
+    }
+
     /// @brief 再生中であるか判定する。
     bool IsPlaying() const
     {
         return playing_;
     }
+
     /// @brief Loopingであるか判定する。
     bool IsLooping() const
     {
         return loop_;
     }
+
     /// @brief 時間を返す。
     float GetTime() const
     {
         return time_;
     }
+
     /// @brief アニメーションを返す。
     const Animation* GetAnimation() const
     {
@@ -111,4 +121,4 @@ public:
     static std::vector<Animation> LoadAllFromFile(const std::string& filePath);
 };
 
-} // namespace cg2
+} // namespace myEngine

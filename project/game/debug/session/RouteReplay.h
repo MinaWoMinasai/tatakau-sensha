@@ -7,23 +7,28 @@ class RouteReplay {
 public:
     /// @brief 借用するワールドを設定する。
     explicit RouteReplay(GameWorld& world) : world_(world) {}
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    /// @brief 通常ルートの再生検証を初期化する。
     void InitializeNormalRouteReplay();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    /// @brief 通常ルートの再生検証のフレーム前の準備を行う。
     void PrepareNormalRouteReplay();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    /// @brief 通常ルートの再生検証のフレーム結果を記録する。
     void RecordNormalRouteReplay();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    /// @brief 通常ルートの再生検証を理由付きで停止する。
     void StopNormalRouteReplay(const char* reason);
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    /// @brief 通常ルートの再生検証の状態をJSONで返す。
     nlohmann::json MakeNormalRouteReplayState() const;
 #endif
 private:

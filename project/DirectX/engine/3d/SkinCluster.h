@@ -11,7 +11,7 @@
 #include <d3d12.h>
 #include <wrl.h>
 
-namespace cg2 {
+namespace myEngine {
 
 class DirectXCommon;
 class SrvManager;
@@ -86,16 +86,19 @@ public:
     {
         return influences_;
     }
+
     /// @brief 変形パレットを返す。
     const std::vector<SkinningPaletteEntry>& GetPalette() const
     {
         return palette_;
     }
+
     /// @brief 逆行列結合姿勢行列を返す。
     const std::vector<Matrix4x4>& GetInverseBindPoseMatrices() const
     {
         return inverseBindPoseMatrices_;
     }
+
     /// @brief 割り当て済みInfluence件数を返す。
     uint32_t GetAssignedInfluenceCount() const
     {
@@ -112,10 +115,12 @@ private:
 /// @brief 骨格とアニメーションの再生状態を持ち、スキニングモデルを描画する。
 class SkinnedModel {
 public:
+    /// @brief スキンモデルのファイルをバックグラウンドで先読みする。
     static void PreloadAsset(const std::string& filePath);
+    /// @brief 先読み済みのスキンモデルのデータをすべて破棄する。
     static void ClearPreloadedAssets();
-    // Explicit frame-boundary teardown for presentation owners. The caller must
-    // keep SrvManager alive and wait for the last GPU use before calling this.
+    // 描画担当者がフレーム境界で明示的に解放する。呼び出し側はSrvManagerを生かしたまま、
+    // 最後のGPU使用の完了を待ってから呼ぶこと。
     void ReleaseGpuResources();
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, const std::string& filePath);
@@ -138,16 +143,19 @@ public:
     // SrvManagerの共通Heapを事前にBindし、指定Root Parameterに単一SRVの
     // Descriptor Tableを用意すること。先頭にSkinningPaletteEntryのStructuredBufferを設定する。
     void BindSkinningPalette(uint32_t rootParameterIndex) const;
+
     /// @brief サブメッシュ件数を返す。
     size_t GetSubmeshCount() const
     {
         return asset_.submeshes.size();
     }
+
     // 範囲外のindexはstd::out_of_range。返す参照はモデルの再Initializeまで有効。
     const SkinningModelAsset::Submesh& GetSubmesh(size_t index) const
     {
         return asset_.submeshes.at(index);
     }
+
     // Geometry / Paletteと各パスの設定をBind済みであること。範囲外はstd::out_of_range。
     void DrawSubmesh(size_t index) const;
 
@@ -168,22 +176,30 @@ public:
     {
         return skeleton_;
     }
+
     /// @brief アニメーションループを設定する。
     void SetAnimationLoop(bool loop)
     {
         animationPlayer_.SetLoop(loop);
     }
+
     /// @brief アニメーションPlayback速度を設定する。
     void SetAnimationPlaybackSpeed(float speed)
     {
         animationPlayer_.SetPlaybackSpeed(speed);
     }
+
     /// @brief 現在アニメーションを指定した再生位置へ移す。
     // 遷移を終了し、次のUpdateで指定時刻の姿勢を直接適用する。Pause状態は維持する。
     void SeekCurrentAnimation(float time);
     // 明示的なPauseは再生時刻と進行中のポーズブレンドの両方を止める。
     void SetAnimationPlaying(bool playing);
-    bool IsAnimationPaused() const { return animationPaused_; }
+
+    bool IsAnimationPaused() const
+    {
+        return animationPaused_;
+    }
+
     // Preview/checkpoint用の値。クリップのポインタやGPU資源を保持しない。
     struct AnimationPlaybackState {
         size_t animationIndex = 0;
@@ -194,54 +210,66 @@ public:
         float transitionDuration = 0.0f, transitionElapsed = 0.0f;
         bool transitionActive = false;
     };
+
+    /// @brief 現在のアニメーション再生状態を取り出す。RestoreAnimationPlaybackStateで元に戻せる。
     AnimationPlaybackState CaptureAnimationPlaybackState() const;
     // 検証失敗時は何も変更しない。成功後の次UpdateでPaletteへ反映する。
     bool RestoreAnimationPlaybackState(const AnimationPlaybackState& state);
+
     /// @brief 現在アニメーション時間を返す。
     float GetCurrentAnimationTime() const
     {
         return animationPlayer_.GetTime();
     }
+
     /// @brief 現在アニメーション継続時間を返す。
     float GetCurrentAnimationDuration() const
     {
         return animationPlayer_.GetAnimation() ? animationPlayer_.GetAnimation()->duration : 0.0f;
     }
+
     /// @brief 現在アニメーション再生中であるか判定する。
     bool IsCurrentAnimationPlaying() const
     {
         return animationPlayer_.IsPlaying();
     }
+
     /// @brief 現在アニメーションLoopingであるか判定する。
     bool IsCurrentAnimationLooping() const
     {
         return animationPlayer_.IsLooping();
     }
+
     /// @brief スキン変形情報を返す。
     const SkinCluster& GetSkinCluster() const
     {
         return skinCluster_;
     }
+
     /// @brief アニメーション自機を返す。
     const AnimationPlayer& GetAnimationPlayer() const
     {
         return animationPlayer_;
     }
+
     /// @brief アニメーションを返す。
     const Animation& GetAnimation() const
     {
         return animations_[currentAnimationIndex_];
     }
+
     /// @brief アニメーションを返す。
     const std::vector<Animation>& GetAnimations() const
     {
         return animations_;
     }
+
     /// @brief 現在アニメーション添字を返す。
     size_t GetCurrentAnimationIndex() const
     {
         return currentAnimationIndex_;
     }
+
     /// @brief アセットを返す。
     const SkinningModelAsset& GetAsset() const
     {
@@ -273,4 +301,4 @@ private:
     uint32_t paletteSrvIndex_ = 0;
 };
 
-} // namespace cg2
+} // namespace myEngine
