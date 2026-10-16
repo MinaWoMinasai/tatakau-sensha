@@ -35,10 +35,10 @@ public:
     void QueueLevelEditorPreview();
 
     /// @brief レベルオブジェクトプレビューを後で処理するために予約する。
-    void QueueLevelObjectPreview(const LevelObject& levelObject, const cg2::Vector4& color);
+    void QueueLevelObjectPreview(const LevelObject& levelObject, const myEngine::Vector4& color);
 
     /// @brief レベル出現範囲プレビューを後で処理するために予約する。
-    void QueueLevelSpawnAreaPreview(const LevelSpawnArea& spawnArea, const cg2::Vector4& color);
+    void QueueLevelSpawnAreaPreview(const LevelSpawnArea& spawnArea, const myEngine::Vector4& color);
 
     /// @brief 弾状態開発表示重ね表示を描画する。
     void DrawBulletStatusDebugOverlay();

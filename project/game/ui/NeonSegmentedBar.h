@@ -8,10 +8,10 @@
 // 任意の最大強化段数を、小さな区切りセルとして表示するHUD部品。
 /// @brief ネオンの分割バーの区切り・色・発光を指定する。
 struct NeonSegmentedBarStyle {
-    cg2::Vector4 backgroundColor{0.012f, 0.030f, 0.052f, 0.90f};
-    cg2::Vector4 emptyColor{0.055f, 0.100f, 0.145f, 0.94f};
-    cg2::Vector4 filledColor{0.38f, 1.00f, 0.62f, 0.98f};
-    cg2::Vector4 outlineColor{0.40f, 0.94f, 1.00f, 0.92f};
+    myEngine::Vector4 backgroundColor{0.012f, 0.030f, 0.052f, 0.90f};
+    myEngine::Vector4 emptyColor{0.055f, 0.100f, 0.145f, 0.94f};
+    myEngine::Vector4 filledColor{0.38f, 1.00f, 0.62f, 0.98f};
+    myEngine::Vector4 outlineColor{0.40f, 0.94f, 1.00f, 0.92f};
     float innerPadding = 2.0f;
     float segmentGap = 2.0f;
     float bloomBrightness = 1.75f;
@@ -25,11 +25,11 @@ struct NeonSegmentedBarStyle {
 class NeonSegmentedBar {
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
-    void Initialize(cg2::SpriteCommon* spriteCommon);
+    void Initialize(myEngine::SpriteCommon* spriteCommon);
     /// @brief 外観を設定する。
     void SetStyle(const NeonSegmentedBarStyle& style);
     /// @brief 境界を設定する。
-    void SetBounds(const cg2::Vector2& position, const cg2::Vector2& size);
+    void SetBounds(const myEngine::Vector2& position, const myEngine::Vector2& size);
     /// @brief 区切り件数を設定する。
     void SetSegmentCount(int count);
     /// @brief FilledSegmentsを設定する。
@@ -45,17 +45,17 @@ private:
     /// @brief 区切りスプライトを必要な状態を用意する。
     void EnsureSegmentSprites();
     /// @brief 色の明るさへ倍率を掛ける。
-    static cg2::Vector4 MultiplyBrightness(const cg2::Vector4& color, float brightness, float alpha);
+    static myEngine::Vector4 MultiplyBrightness(const myEngine::Vector4& color, float brightness, float alpha);
 
-    cg2::SpriteCommon* spriteCommon_ = nullptr;
+    myEngine::SpriteCommon* spriteCommon_ = nullptr;
     NeonSegmentedBarStyle style_{};
-    cg2::Vector2 position_{};
-    cg2::Vector2 size_{};
+    myEngine::Vector2 position_{};
+    myEngine::Vector2 size_{};
     int segmentCount_ = 1;
     int filledSegments_ = 0;
     bool dirty_ = true;
     std::unique_ptr<NeonProgressBar> frame_;
-    std::unique_ptr<cg2::Sprite> bloomBackdrop_;
-    std::vector<std::unique_ptr<cg2::Sprite>> segments_;
-    std::vector<std::unique_ptr<cg2::Sprite>> bloomSegments_;
+    std::unique_ptr<myEngine::Sprite> bloomBackdrop_;
+    std::vector<std::unique_ptr<myEngine::Sprite>> segments_;
+    std::vector<std::unique_ptr<myEngine::Sprite>> bloomSegments_;
 };

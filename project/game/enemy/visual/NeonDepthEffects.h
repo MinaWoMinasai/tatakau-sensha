@@ -20,7 +20,7 @@ struct EffectsStats {
 class NeonDepthEffects {
 public:
     ~NeonDepthEffects() { Release(); }
-    bool Initialize(cg2::DirectXCommon* dx,const std::string& texture="resources/white512x512.png");
+    bool Initialize(myEngine::DirectXCommon* dx,const std::string& texture="resources/white512x512.png");
     void Release();
     bool HasResources() const { return renderer_ != nullptr; }
     void ResetEncounter();
@@ -36,11 +36,11 @@ public:
     const neondepth::EffectGeometryFrame& GetGeometry() const { return builder_.GetFrame(); }
     const std::string& GetStatus() const { return status_; }
 private:
-    cg2::DirectXCommon* dx_=nullptr;
-    std::unique_ptr<cg2::NeonGridRenderer> renderer_;
+    myEngine::DirectXCommon* dx_=nullptr;
+    std::unique_ptr<myEngine::NeonGridRenderer> renderer_;
     neondepth::EffectGeometryBuilder builder_;
     neondepth::EffectsStats stats_{};
-    cg2::Matrix4x4 viewProjection_{};
+    myEngine::Matrix4x4 viewProjection_{};
     uint64_t lastFrameId_=0;
     uint32_t airStart_=0,airCount_=0,floorStart_=0,floorCount_=0;
     bool framePrepared_=false;

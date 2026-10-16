@@ -36,7 +36,7 @@ using playerui::Vector4ToJson;
 using playerui::WriteVector2Object;
 
 /// @brief 係数を0〜1に制限し、2つのRGBA色を線形補間して返す。
-cg2::Vector4 LerpColor(const cg2::Vector4& a, const cg2::Vector4& b, float t)
+myEngine::Vector4 LerpColor(const myEngine::Vector4& a, const myEngine::Vector4& b, float t)
 {
     t = (std::clamp)(t, 0.0f, 1.0f);
     return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t};
@@ -66,11 +66,11 @@ const std::array<const char*, 7>& UpgradeHudNames()
 }
 
 /// @brief 強化HUDの行ごとの表示色を返す。
-const std::array<cg2::Vector4, 7>& UpgradeHudRowColors()
+const std::array<myEngine::Vector4, 7>& UpgradeHudRowColors()
 {
     // diepio風の能力ごとの色分け。ゲーム内のネオン表現と衝突しないよう、
     // 発光は塗り全体ではなく、セルと細い外周に限定する。
-    static const std::array<cg2::Vector4, 7> colors = {{
+    static const std::array<myEngine::Vector4, 7> colors = {{
         {0.90f, 0.36f, 0.86f, 1.0f}, // 自動回復
         {0.67f, 0.36f, 0.95f, 1.0f}, // 最大HP
         {0.49f, 0.39f, 0.98f, 1.0f}, // 体当たり
@@ -85,7 +85,7 @@ const std::array<cg2::Vector4, 7>& UpgradeHudRowColors()
 /// @brief 強化HUD区切り外観を作成して返す。
 NeonSegmentedBarStyle MakeUpgradeHudSegmentStyle(int index)
 {
-    const cg2::Vector4 baseColor = UpgradeHudRowColors()[(std::clamp)(index, 0, 6)];
+    const myEngine::Vector4 baseColor = UpgradeHudRowColors()[(std::clamp)(index, 0, 6)];
     NeonSegmentedBarStyle style{};
     // 外周の半円部にも未取得セルと同じ不透明な色を入れ、端だけが薄く
     // 見えないようにする。
@@ -106,9 +106,9 @@ NeonSegmentedBarStyle MakeUpgradeHudSegmentStyle(int index)
 }
 
 /// @brief 強化HUD下端バー文字外観を作成して返す。
-cg2::TextStyle MakeUpgradeHudBottomBarTextStyle()
+myEngine::TextStyle MakeUpgradeHudBottomBarTextStyle()
 {
-    cg2::TextStyle style{};
+    myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
     style.fontSize = 15.0f;
     style.color = {0.90f, 0.94f, 1.0f, 1.0f};
@@ -120,9 +120,9 @@ cg2::TextStyle MakeUpgradeHudBottomBarTextStyle()
 }
 
 /// @brief 強化HUDSmall文字外観を作成して返す。
-cg2::TextStyle MakeUpgradeHudSmallTextStyle()
+myEngine::TextStyle MakeUpgradeHudSmallTextStyle()
 {
-    cg2::TextStyle style{};
+    myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
     style.fontSize = 15.0f;
     style.color = {0.90f, 0.94f, 1.0f, 1.0f};
@@ -133,9 +133,9 @@ cg2::TextStyle MakeUpgradeHudSmallTextStyle()
 }
 
 /// @brief 強化HUD重ね表示文字外観を作成して返す。
-cg2::TextStyle MakeUpgradeHudOverlayTextStyle()
+myEngine::TextStyle MakeUpgradeHudOverlayTextStyle()
 {
-    cg2::TextStyle style = MakeUpgradeHudSmallTextStyle();
+    myEngine::TextStyle style = MakeUpgradeHudSmallTextStyle();
     style.outlineColor = {0.0f, 0.0f, 0.0f, 0.92f};
     style.outlineThickness = 1.0f;
     style.padding = 3.0f;
@@ -144,7 +144,7 @@ cg2::TextStyle MakeUpgradeHudOverlayTextStyle()
 }
 
 /// @brief 強化HUD文字進行を返す。
-float GetUpgradeHudTextAdvance(const cg2::TextLabel* label, const cg2::TextStyle& style)
+float GetUpgradeHudTextAdvance(const myEngine::TextLabel* label, const myEngine::TextStyle& style)
 {
     if (!label || !label->GetSprite()) {
         return style.fontSize * 0.55f;
@@ -158,18 +158,18 @@ float GetUpgradeHudTextAdvance(const cg2::TextLabel* label, const cg2::TextStyle
 
 void PlayerHud::InitializeUpgradeHud()
 {
-    cg2::StartupTrace::Scope scope("Player.UpgradeHud");
-    cg2::SpriteCommon* spriteCommon = cg2::SpriteCommon::GetInstance();
-    auto makePanel = [spriteCommon](const cg2::Vector2& pos, const cg2::Vector2& size, const cg2::Vector4& color) {
-        auto panel = std::make_unique<cg2::Sprite>();
+    myEngine::StartupTrace::Scope scope("Player.UpgradeHud");
+    myEngine::SpriteCommon* spriteCommon = myEngine::SpriteCommon::GetInstance();
+    auto makePanel = [spriteCommon](const myEngine::Vector2& pos, const myEngine::Vector2& size, const myEngine::Vector4& color) {
+        auto panel = std::make_unique<myEngine::Sprite>();
         panel->Initialize(spriteCommon, "resources/white512x512.png");
         panel->SetPosition(pos);
         panel->SetSize(size);
         panel->SetColor(color);
         return panel;
     };
-    auto makePill = [spriteCommon](const cg2::Vector2& pos, const cg2::Vector2& size, const cg2::Vector4& color) {
-        auto pill = std::make_unique<cg2::Sprite>();
+    auto makePill = [spriteCommon](const myEngine::Vector2& pos, const myEngine::Vector2& size, const myEngine::Vector4& color) {
+        auto pill = std::make_unique<myEngine::Sprite>();
         pill->Initialize(spriteCommon, "resources/hpBarFillMask.png");
         pill->SetPosition(pos);
         pill->SetSize(size);
@@ -207,30 +207,30 @@ void PlayerHud::InitializeUpgradeHud()
         segmentBar->Initialize(spriteCommon);
         segmentBar->SetStyle(MakeUpgradeHudSegmentStyle(static_cast<int>(i)));
     }
-    ui_.upgradeHudBarBloomEffect_ = std::make_unique<cg2::ObjectPostEffect>();
-    ui_.upgradeHudBarBloomEffect_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),
-                                              cg2::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.75f);
-    cg2::BloomParam& barBloomParam = ui_.upgradeHudBarBloomEffect_->GetParam();
+    ui_.upgradeHudBarBloomEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
+    ui_.upgradeHudBarBloomEffect_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
+                                              myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.75f);
+    myEngine::BloomParam& barBloomParam = ui_.upgradeHudBarBloomEffect_->GetParam();
     barBloomParam.threshold = 0.0f;
     barBloomParam.intensity = 0.78f;
     barBloomParam.outlineWidth = 0.0f;
     barBloomParam.outlineBloomIntensity = 0.0f;
 
-    const cg2::TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
-    const cg2::TextStyle overlayTextStyle = MakeUpgradeHudOverlayTextStyle();
+    const myEngine::TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
+    const myEngine::TextStyle overlayTextStyle = MakeUpgradeHudOverlayTextStyle();
     SetLabel(ui_.upgradeHudTitleLabel_, spriteCommon, "強化", ui_.upgradeHudTitlePos_, smallStyle);
     SetLabel(ui_.upgradeHudPointLabel_, spriteCommon, "x0", ui_.upgradeHudPointPos_, smallStyle);
-    const cg2::TextStyle bottomBarTextStyle = MakeUpgradeHudBottomBarTextStyle();
+    const myEngine::TextStyle bottomBarTextStyle = MakeUpgradeHudBottomBarTextStyle();
     SetLabel(ui_.upgradeHudLevelLabel_, spriteCommon, "Lv ", ui_.upgradeHudLevelTextPos_, bottomBarTextStyle);
     SetLabel(ui_.upgradeHudLevelClassLabel_, spriteCommon, player_.GetCurrentClassName(), ui_.upgradeHudLevelTextPos_, bottomBarTextStyle);
     for (auto& glyphLabel : ui_.upgradeHudExpGlyphLabels_) {
-        glyphLabel = std::make_unique<cg2::TextLabel>();
+        glyphLabel = std::make_unique<myEngine::TextLabel>();
         glyphLabel->Initialize(spriteCommon, " ", bottomBarTextStyle);
         glyphLabel->SetPosition(ui_.upgradeHudExpTextPos_);
         glyphLabel->SetAlpha(0.0f);
     }
     for (auto& glyphLabel : ui_.upgradeHudLevelGlyphLabels_) {
-        glyphLabel = std::make_unique<cg2::TextLabel>();
+        glyphLabel = std::make_unique<myEngine::TextLabel>();
         glyphLabel->Initialize(spriteCommon, " ", bottomBarTextStyle);
         glyphLabel->SetPosition(ui_.upgradeHudLevelTextPos_);
         glyphLabel->SetAlpha(0.0f);
@@ -267,19 +267,19 @@ void PlayerHud::PrepareUpgradeHudTextTextures()
 {
     if (!ui_.arenaUiEnabled_)
         return;
-    cg2::TextRenderer* textRenderer = cg2::TextRenderer::GetInstance();
+    myEngine::TextRenderer* textRenderer = myEngine::TextRenderer::GetInstance();
     if (!textRenderer || (ui_.upgradeHudTextPrepared_ && ui_.upgradeHudTextFontRevision_ == textRenderer->GetFontRevision() &&
                           ui_.upgradeHudTextPreparedForSegmentedBars_ == ui_.upgradeHudUseSegmentedUpgradeBars_)) {
         return;
     }
-    cg2::StartupTrace::Scope scope("Player.UpgradeHudTextPrewarm");
+    myEngine::StartupTrace::Scope scope("Player.UpgradeHudTextPrewarm");
 
-    const cg2::TextStyle bottomStyle = MakeUpgradeHudBottomBarTextStyle();
-    const cg2::TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
-    const cg2::TextStyle listControlStyle = ui_.upgradeHudUseSegmentedUpgradeBars_ ? MakeUpgradeHudOverlayTextStyle() : smallStyle;
-    auto preload = [textRenderer](const std::string& text, const cg2::TextStyle& style) {
+    const myEngine::TextStyle bottomStyle = MakeUpgradeHudBottomBarTextStyle();
+    const myEngine::TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
+    const myEngine::TextStyle listControlStyle = ui_.upgradeHudUseSegmentedUpgradeBars_ ? MakeUpgradeHudOverlayTextStyle() : smallStyle;
+    auto preload = [textRenderer](const std::string& text, const myEngine::TextStyle& style) {
         const std::string texturePath = textRenderer->GetOrCreateTexture(text, style);
-        cg2::TextureManager::GetInstance()->LoadTexture(texturePath);
+        myEngine::TextureManager::GetInstance()->LoadTexture(texturePath);
     };
 
     constexpr char kGlyphs[] = "0123456789EXP /";
@@ -353,11 +353,11 @@ void PlayerHud::PrepareUpgradeHudTextTextures()
     ui_.cachedUpgradeHudListVisible_ = false;
 }
 
-void PlayerHud::UpdateUpgradeHudExpGlyphs(const std::string& text, const cg2::TextStyle& style)
+void PlayerHud::UpdateUpgradeHudExpGlyphs(const std::string& text, const myEngine::TextStyle& style)
 {
     const size_t glyphCount = (std::min)(text.size(), ui_.upgradeHudExpGlyphLabels_.size());
     for (size_t i = 0; i < glyphCount; ++i) {
-        cg2::TextLabel* label = ui_.upgradeHudExpGlyphLabels_[i].get();
+        myEngine::TextLabel* label = ui_.upgradeHudExpGlyphLabels_[i].get();
         if (!label) {
             continue;
         }
@@ -377,10 +377,10 @@ void PlayerHud::UpdateUpgradeHudExpGlyphs(const std::string& text, const cg2::Te
 
 void PlayerHud::PositionUpgradeHudExpGlyphs()
 {
-    const cg2::TextStyle style = MakeUpgradeHudBottomBarTextStyle();
+    const myEngine::TextStyle style = MakeUpgradeHudBottomBarTextStyle();
     float x = ui_.upgradeHudExpTextPos_.x;
     for (size_t i = 0; i < ui_.upgradeHudExpGlyphCount_; ++i) {
-        cg2::TextLabel* label = ui_.upgradeHudExpGlyphLabels_[i].get();
+        myEngine::TextLabel* label = ui_.upgradeHudExpGlyphLabels_[i].get();
         if (!label || !label->GetSprite()) {
             continue;
         }
@@ -389,12 +389,12 @@ void PlayerHud::PositionUpgradeHudExpGlyphs()
     }
 }
 
-void PlayerHud::UpdateUpgradeHudLevelLabels(int level, const std::string& className, const cg2::TextStyle& style)
+void PlayerHud::UpdateUpgradeHudLevelLabels(int level, const std::string& className, const myEngine::TextStyle& style)
 {
     const std::string levelText = std::to_string(level);
     const size_t glyphCount = (std::min)(levelText.size(), ui_.upgradeHudLevelGlyphLabels_.size());
     for (size_t i = 0; i < glyphCount; ++i) {
-        cg2::TextLabel* label = ui_.upgradeHudLevelGlyphLabels_[i].get();
+        myEngine::TextLabel* label = ui_.upgradeHudLevelGlyphLabels_[i].get();
         if (!label)
             continue;
         label->SetStyle(style);
@@ -407,21 +407,21 @@ void PlayerHud::UpdateUpgradeHudLevelLabels(int level, const std::string& classN
             ui_.upgradeHudLevelGlyphLabels_[i]->SetAlpha(0.0f);
     }
     ui_.upgradeHudLevelGlyphCount_ = glyphCount;
-    SetLabel(ui_.upgradeHudLevelLabel_, cg2::SpriteCommon::GetInstance(), "Lv ", ui_.upgradeHudLevelTextPos_, style);
-    SetLabel(ui_.upgradeHudLevelClassLabel_, cg2::SpriteCommon::GetInstance(), className, ui_.upgradeHudLevelTextPos_, style);
+    SetLabel(ui_.upgradeHudLevelLabel_, myEngine::SpriteCommon::GetInstance(), "Lv ", ui_.upgradeHudLevelTextPos_, style);
+    SetLabel(ui_.upgradeHudLevelClassLabel_, myEngine::SpriteCommon::GetInstance(), className, ui_.upgradeHudLevelTextPos_, style);
     PositionUpgradeHudLevelLabels();
 }
 
 void PlayerHud::PositionUpgradeHudLevelLabels()
 {
-    const cg2::TextStyle style = MakeUpgradeHudBottomBarTextStyle();
+    const myEngine::TextStyle style = MakeUpgradeHudBottomBarTextStyle();
     float x = ui_.upgradeHudLevelTextPos_.x;
     if (ui_.upgradeHudLevelLabel_) {
         ui_.upgradeHudLevelLabel_->SetPosition({x, ui_.upgradeHudLevelTextPos_.y});
         x += GetUpgradeHudTextAdvance(ui_.upgradeHudLevelLabel_.get(), style);
     }
     for (size_t i = 0; i < ui_.upgradeHudLevelGlyphCount_; ++i) {
-        cg2::TextLabel* label = ui_.upgradeHudLevelGlyphLabels_[i].get();
+        myEngine::TextLabel* label = ui_.upgradeHudLevelGlyphLabels_[i].get();
         if (!label)
             continue;
         label->SetPosition({x, ui_.upgradeHudLevelTextPos_.y});
@@ -463,26 +463,26 @@ void PlayerHud::PrepareUpgradeHudSegmentBars()
 
 void PlayerHud::InitializeUpgradeHudBatch()
 {
-    cg2::DirectXCommon* dxCommon = cg2::SpriteCommon::GetInstance()->GetDxCommon();
+    myEngine::DirectXCommon* dxCommon = myEngine::SpriteCommon::GetInstance()->GetDxCommon();
     if (!dxCommon) {
         return;
     }
-    cg2::TextureManager::GetInstance()->LoadTexture("resources/white512x512.png");
+    myEngine::TextureManager::GetInstance()->LoadTexture("resources/white512x512.png");
 
-    ui_.upgradeHudBatchVertexResource_ = dxCommon->CreateBufferResource(sizeof(cg2::TrailVertex) * ui_.kUpgradeHudBatchMaxVertices);
+    ui_.upgradeHudBatchVertexResource_ = dxCommon->CreateBufferResource(sizeof(myEngine::TrailVertex) * ui_.kUpgradeHudBatchMaxVertices);
     ui_.upgradeHudBatchVertexBufferView_.BufferLocation = ui_.upgradeHudBatchVertexResource_->GetGPUVirtualAddress();
-    ui_.upgradeHudBatchVertexBufferView_.SizeInBytes = sizeof(cg2::TrailVertex) * ui_.kUpgradeHudBatchMaxVertices;
-    ui_.upgradeHudBatchVertexBufferView_.StrideInBytes = sizeof(cg2::TrailVertex);
+    ui_.upgradeHudBatchVertexBufferView_.SizeInBytes = sizeof(myEngine::TrailVertex) * ui_.kUpgradeHudBatchMaxVertices;
+    ui_.upgradeHudBatchVertexBufferView_.StrideInBytes = sizeof(myEngine::TrailVertex);
     ui_.upgradeHudBatchVertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&ui_.upgradeHudBatchVertexData_));
 
-    ui_.upgradeHudBatchTransformResource_ = dxCommon->CreateBufferResource(sizeof(cg2::Matrix4x4));
+    ui_.upgradeHudBatchTransformResource_ = dxCommon->CreateBufferResource(sizeof(myEngine::Matrix4x4));
     ui_.upgradeHudBatchTransformResource_->Map(0, nullptr, reinterpret_cast<void**>(&ui_.upgradeHudBatchTransformData_));
     *ui_.upgradeHudBatchTransformData_ =
-        cg2::MakeOrthographicMatrix(0.0f, 0.0f, float(cg2::WinApp::kClientWidth), float(cg2::WinApp::kClientHeight), 0.0f, 100.0f);
+        myEngine::MakeOrthographicMatrix(0.0f, 0.0f, float(myEngine::WinApp::kClientWidth), float(myEngine::WinApp::kClientHeight), 0.0f, 100.0f);
 
-    ui_.upgradeHudBatchMaterialResource_ = dxCommon->CreateBufferResource(sizeof(cg2::Material));
+    ui_.upgradeHudBatchMaterialResource_ = dxCommon->CreateBufferResource(sizeof(myEngine::Material));
     ui_.upgradeHudBatchMaterialResource_->Map(0, nullptr, reinterpret_cast<void**>(&ui_.upgradeHudBatchMaterialData_));
-    *ui_.upgradeHudBatchMaterialData_ = cg2::MakeDefaultMaterial();
+    *ui_.upgradeHudBatchMaterialData_ = myEngine::MakeDefaultMaterial();
     ui_.upgradeHudBatchMaterialData_->shininess = 1.0f;
 }
 
@@ -573,9 +573,9 @@ void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
         const float controlOffsetY = ui_.upgradeHudUseSegmentedUpgradeBars_
                                          ? (std::max)(0.0f, (ui_.upgradeHudSegmentBarSize_.y - ui_.upgradeHudPlusSize_.y) * 0.5f)
                                          : 0.0f;
-        cg2::Sprite* button = ui_.upgradeHudButtonSprites_[i].get();
-        cg2::Sprite* plus = ui_.upgradeHudPlusSprites_[i].get();
-        cg2::Sprite* minus = ui_.upgradeHudMinusSprites_[i].get();
+        myEngine::Sprite* button = ui_.upgradeHudButtonSprites_[i].get();
+        myEngine::Sprite* plus = ui_.upgradeHudPlusSprites_[i].get();
+        myEngine::Sprite* minus = ui_.upgradeHudMinusSprites_[i].get();
         if (button) {
             button->SetPosition({ui_.upgradeHudRowStart_.x + listOffsetX, y});
         }
@@ -608,7 +608,7 @@ void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
         const float flash = (std::min)(1.0f, ui_.upgradeHudFlashTimers_[i] / 0.22f);
         const float refundFlash = (std::min)(1.0f, ui_.upgradeHudRefundFlashTimers_[i] / 0.22f);
         const float missFlash = (std::min)(1.0f, ui_.upgradeHudMissFlashTimers_[i] / 0.26f);
-        const cg2::Vector4 rowColor = UpgradeHudRowColors()[i];
+        const myEngine::Vector4 rowColor = UpgradeHudRowColors()[i];
         if (button) {
             if (maxed) {
                 button->SetColor({0.12f, 0.12f, 0.14f, 0.72f});
@@ -662,10 +662,10 @@ void PlayerHud::DrawUpgradeHud()
     ui_.upgradeHudProfile_.visible = true;
     const auto totalStart = std::chrono::steady_clock::now();
 
-    cg2::SpriteCommon* spriteCommon = cg2::SpriteCommon::GetInstance();
-    const cg2::TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
-    const cg2::TextStyle upgradeOverlayTextStyle = MakeUpgradeHudOverlayTextStyle();
-    const cg2::TextStyle bottomBarTextStyle = MakeUpgradeHudBottomBarTextStyle();
+    myEngine::SpriteCommon* spriteCommon = myEngine::SpriteCommon::GetInstance();
+    const myEngine::TextStyle smallStyle = MakeUpgradeHudSmallTextStyle();
+    const myEngine::TextStyle upgradeOverlayTextStyle = MakeUpgradeHudOverlayTextStyle();
+    const myEngine::TextStyle bottomBarTextStyle = MakeUpgradeHudBottomBarTextStyle();
 
     const int safeNextExp = (std::max)(1, player_.nextLevelExp_);
     const float expRatio = (std::clamp)(static_cast<float>(player_.exp_) / static_cast<float>(safeNextExp), 0.0f, 1.0f);
@@ -691,7 +691,7 @@ void PlayerHud::DrawUpgradeHud()
     if (baseTextDirty) {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
         ui_.upgradeHudProfile_.baseTextRefreshed = true;
-        cg2::TextLabel::ResetProfileStats();
+        myEngine::TextLabel::ResetProfileStats();
         const auto baseTextRefreshStart = std::chrono::steady_clock::now();
         const auto expLabelRefreshStart = baseTextRefreshStart;
 #endif
@@ -710,7 +710,7 @@ void PlayerHud::DrawUpgradeHud()
         ui_.cachedUpgradeHudLevel_ = player_.level_;
         ui_.cachedUpgradeHudClassName_ = className;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-        const cg2::TextLabel::ProfileStats& textLabelStats = cg2::TextLabel::GetProfileStats();
+        const myEngine::TextLabel::ProfileStats& textLabelStats = myEngine::TextLabel::GetProfileStats();
         ui_.upgradeHudProfile_.baseTextRefreshMs =
             std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - baseTextRefreshStart).count();
         ui_.upgradeHudProfile_.expLabelRefreshMs =
@@ -739,7 +739,7 @@ void PlayerHud::DrawUpgradeHud()
         if (listDirty) {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
             ui_.upgradeHudProfile_.listTextRefreshed = true;
-            cg2::TextLabel::ResetProfileStats();
+            myEngine::TextLabel::ResetProfileStats();
             const auto listTextRefreshStart = std::chrono::steady_clock::now();
 #endif
             SetLabel(ui_.upgradeHudPointLabel_, spriteCommon, "x" + std::to_string(player_.skillPoints_),
@@ -751,34 +751,34 @@ void PlayerHud::DrawUpgradeHud()
                 const bool compactGauge = ui_.upgradeHudUseSegmentedUpgradeBars_;
                 const float controlOffsetY =
                     compactGauge ? (std::max)(0.0f, (ui_.upgradeHudSegmentBarSize_.y - ui_.upgradeHudPlusSize_.y) * 0.5f) : 0.0f;
-                const cg2::Vector2 namePosition =
-                    compactGauge ? cg2::Vector2{ui_.upgradeHudRowStart_.x + ui_.upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX,
+                const myEngine::Vector2 namePosition =
+                    compactGauge ? myEngine::Vector2{ui_.upgradeHudRowStart_.x + ui_.upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX,
                                                 y + ui_.upgradeHudSegmentBarSize_.y * 0.5f}
-                                 : cg2::Vector2{ui_.upgradeHudNameX_ + listOffsetX, y + ui_.upgradeHudNameTextOffsetY_};
+                                 : myEngine::Vector2{ui_.upgradeHudNameX_ + listOffsetX, y + ui_.upgradeHudNameTextOffsetY_};
                 SetLabel(ui_.upgradeHudNameLabels_[i], spriteCommon, std::to_string(i + 1) + " " + names[i], namePosition,
                          compactGauge ? upgradeOverlayTextStyle : smallStyle);
-                ui_.upgradeHudNameLabels_[i]->SetAnchorPoint(compactGauge ? cg2::Vector2{0.5f, 0.5f} : cg2::Vector2{0.0f, 0.0f});
+                ui_.upgradeHudNameLabels_[i]->SetAnchorPoint(compactGauge ? myEngine::Vector2{0.5f, 0.5f} : myEngine::Vector2{0.0f, 0.0f});
                 SetLabel(ui_.upgradeHudLevelLabels_[i], spriteCommon, "Lv." + std::to_string(player_.upgradeLevels_[i]),
                          {ui_.upgradeHudLevelX_ + listOffsetX, y + ui_.upgradeHudLevelTextOffsetY_}, smallStyle);
                 SetLabel(ui_.upgradeHudMinusLabels_[i], spriteCommon, "-",
-                         compactGauge ? cg2::Vector2{ui_.upgradeHudMinusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
+                         compactGauge ? myEngine::Vector2{ui_.upgradeHudMinusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
                                                      y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
-                                      : cg2::Vector2{ui_.upgradeHudMinusLabelX_ + listOffsetX, y + ui_.upgradeHudMinusTextOffsetY_},
+                                      : myEngine::Vector2{ui_.upgradeHudMinusLabelX_ + listOffsetX, y + ui_.upgradeHudMinusTextOffsetY_},
                          compactGauge ? upgradeOverlayTextStyle : smallStyle);
-                ui_.upgradeHudMinusLabels_[i]->SetAnchorPoint(compactGauge ? cg2::Vector2{0.5f, 0.5f} : cg2::Vector2{0.0f, 0.0f});
+                ui_.upgradeHudMinusLabels_[i]->SetAnchorPoint(compactGauge ? myEngine::Vector2{0.5f, 0.5f} : myEngine::Vector2{0.0f, 0.0f});
                 SetLabel(ui_.upgradeHudPlusLabels_[i], spriteCommon, player_.upgradeLevels_[i] >= player_.maxEnhancePoint ? "済" : "+",
-                         compactGauge ? cg2::Vector2{ui_.upgradeHudPlusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
+                         compactGauge ? myEngine::Vector2{ui_.upgradeHudPlusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
                                                      y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
-                                      : cg2::Vector2{ui_.upgradeHudPlusLabelX_ + listOffsetX, y + ui_.upgradeHudPlusTextOffsetY_},
+                                      : myEngine::Vector2{ui_.upgradeHudPlusLabelX_ + listOffsetX, y + ui_.upgradeHudPlusTextOffsetY_},
                          compactGauge ? upgradeOverlayTextStyle : smallStyle);
-                ui_.upgradeHudPlusLabels_[i]->SetAnchorPoint(compactGauge ? cg2::Vector2{0.5f, 0.5f} : cg2::Vector2{0.0f, 0.0f});
+                ui_.upgradeHudPlusLabels_[i]->SetAnchorPoint(compactGauge ? myEngine::Vector2{0.5f, 0.5f} : myEngine::Vector2{0.0f, 0.0f});
             }
             ui_.cachedUpgradeHudSkillPoints_ = player_.skillPoints_;
             ui_.cachedUpgradeHudMaxEnhancePoint_ = player_.maxEnhancePoint;
             ui_.cachedUpgradeHudSegmentedBars_ = ui_.upgradeHudUseSegmentedUpgradeBars_;
             ui_.cachedUpgradeHudLevels_ = player_.upgradeLevels_;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-            const cg2::TextLabel::ProfileStats& textLabelStats = cg2::TextLabel::GetProfileStats();
+            const myEngine::TextLabel::ProfileStats& textLabelStats = myEngine::TextLabel::GetProfileStats();
             ui_.upgradeHudProfile_.listTextRefreshMs =
                 std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - listTextRefreshStart).count();
             ui_.upgradeHudProfile_.listTextSetStyleMs = textLabelStats.setStyleCpuMs;
@@ -803,24 +803,24 @@ void PlayerHud::DrawUpgradeHud()
                 if (ui_.upgradeHudNameLabels_[i]) {
                     ui_.upgradeHudNameLabels_[i]->SetPosition(
                         ui_.upgradeHudUseSegmentedUpgradeBars_
-                            ? cg2::Vector2{ui_.upgradeHudRowStart_.x + ui_.upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX,
+                            ? myEngine::Vector2{ui_.upgradeHudRowStart_.x + ui_.upgradeHudSegmentBarSize_.x * 0.5f + listOffsetX,
                                            y + ui_.upgradeHudSegmentBarSize_.y * 0.5f}
-                            : cg2::Vector2{ui_.upgradeHudNameX_ + listOffsetX, y + ui_.upgradeHudNameTextOffsetY_});
+                            : myEngine::Vector2{ui_.upgradeHudNameX_ + listOffsetX, y + ui_.upgradeHudNameTextOffsetY_});
                 }
                 if (ui_.upgradeHudLevelLabels_[i])
                     ui_.upgradeHudLevelLabels_[i]->SetPosition({ui_.upgradeHudLevelX_ + listOffsetX, y + ui_.upgradeHudLevelTextOffsetY_});
                 if (ui_.upgradeHudMinusLabels_[i])
                     ui_.upgradeHudMinusLabels_[i]->SetPosition(
                         ui_.upgradeHudUseSegmentedUpgradeBars_
-                            ? cg2::Vector2{ui_.upgradeHudMinusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
+                            ? myEngine::Vector2{ui_.upgradeHudMinusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
                                            y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
-                            : cg2::Vector2{ui_.upgradeHudMinusLabelX_ + listOffsetX, y + ui_.upgradeHudMinusTextOffsetY_});
+                            : myEngine::Vector2{ui_.upgradeHudMinusLabelX_ + listOffsetX, y + ui_.upgradeHudMinusTextOffsetY_});
                 if (ui_.upgradeHudPlusLabels_[i])
                     ui_.upgradeHudPlusLabels_[i]->SetPosition(
                         ui_.upgradeHudUseSegmentedUpgradeBars_
-                            ? cg2::Vector2{ui_.upgradeHudPlusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
+                            ? myEngine::Vector2{ui_.upgradeHudPlusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
                                            y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
-                            : cg2::Vector2{ui_.upgradeHudPlusLabelX_ + listOffsetX, y + ui_.upgradeHudPlusTextOffsetY_});
+                            : myEngine::Vector2{ui_.upgradeHudPlusLabelX_ + listOffsetX, y + ui_.upgradeHudPlusTextOffsetY_});
             }
         }
         if (ui_.upgradeHudPointLabel_)
@@ -844,7 +844,7 @@ void PlayerHud::DrawUpgradeHud()
     if (ui_.upgradeHudUseRectBatch_) {
         DrawUpgradeHudRectBatch(showUpgradeList, expRatio, levelRatio, easedListAlpha, listOffsetX);
     } else {
-        cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+        myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
         if (showUpgradeList && ui_.upgradeHudDrawListPanels_) {
             if (!ui_.upgradeHudUseSegmentedUpgradeBars_ && ui_.upgradeHudBackdropSprite_) {
                 ui_.upgradeHudBackdropSprite_->Draw();
@@ -885,7 +885,7 @@ void PlayerHud::DrawUpgradeHud()
         }
     }
     if (showUpgradeList && ui_.upgradeHudDrawListPanels_ && ui_.upgradeHudUseSegmentedUpgradeBars_) {
-        cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+        myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
         for (int i = 0; i < 7; ++i) {
             if (ui_.upgradeHudMinusSprites_[i]) {
                 ui_.upgradeHudMinusSprites_[i]->Draw();
@@ -901,7 +901,7 @@ void PlayerHud::DrawUpgradeHud()
 
     const auto textStart = std::chrono::steady_clock::now();
     if (showUpgradeList && ui_.upgradeHudUseSegmentedUpgradeBars_) {
-        cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+        myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
         for (int i = 0; i < 7; ++i) {
             if (ui_.upgradeHudSegmentBars_[i]) {
                 ui_.upgradeHudSegmentBars_[i]->Draw();
@@ -910,14 +910,14 @@ void PlayerHud::DrawUpgradeHud()
         ui_.upgradeHudProfile_.spriteDraws += 7 * 11;
     }
     if (ui_.upgradeHudDrawBottomBars_ && ui_.upgradeHudUseNeonProgressBars_) {
-        cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+        myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
         if (ui_.upgradeHudLevelProgressBar_)
             ui_.upgradeHudLevelProgressBar_->Draw();
         if (ui_.upgradeHudExpProgressBar_)
             ui_.upgradeHudExpProgressBar_->Draw();
         ui_.upgradeHudProfile_.spriteDraws += 10;
     }
-    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     if (showUpgradeList && ui_.upgradeHudDrawListText_) {
         if (ui_.upgradeHudTitleLabel_) {
             ui_.upgradeHudTitleLabel_->Draw();
@@ -977,7 +977,7 @@ void PlayerHud::DrawUpgradeHud()
     ui_.upgradeHudProfile_.totalMs = std::chrono::duration<float, std::milli>(totalEnd - totalStart).count();
 }
 
-void PlayerHud::AppendGameplayNeonTextLabels(std::vector<cg2::TextLabel*>& labels) const
+void PlayerHud::AppendGameplayNeonTextLabels(std::vector<myEngine::TextLabel*>& labels) const
 {
     if (player_.isChangeMode) {
         return;
@@ -1027,17 +1027,17 @@ void PlayerHud::AppendGameplayNeonTextLabels(std::vector<cg2::TextLabel*>& label
     }
 }
 
-void PlayerHud::QueueUpgradeHudRect(std::vector<cg2::TrailVertex>& vertices, const cg2::Vector2& pos, const cg2::Vector2& size,
-                                    const cg2::Vector4& color) const
+void PlayerHud::QueueUpgradeHudRect(std::vector<myEngine::TrailVertex>& vertices, const myEngine::Vector2& pos, const myEngine::Vector2& size,
+                                    const myEngine::Vector4& color) const
 {
     const float left = pos.x;
     const float top = pos.y;
     const float right = pos.x + size.x;
     const float bottom = pos.y + size.y;
-    const cg2::Vector3 p0{left, bottom, 0.0f};
-    const cg2::Vector3 p1{left, top, 0.0f};
-    const cg2::Vector3 p2{right, bottom, 0.0f};
-    const cg2::Vector3 p3{right, top, 0.0f};
+    const myEngine::Vector3 p0{left, bottom, 0.0f};
+    const myEngine::Vector3 p1{left, top, 0.0f};
+    const myEngine::Vector3 p2{right, bottom, 0.0f};
+    const myEngine::Vector3 p3{right, top, 0.0f};
 
     vertices.push_back({p0, color, {0.0f, 1.0f}});
     vertices.push_back({p1, color, {0.0f, 0.0f}});
@@ -1053,12 +1053,12 @@ void PlayerHud::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, fl
         return;
     }
 
-    std::vector<cg2::TrailVertex> vertices;
+    std::vector<myEngine::TrailVertex> vertices;
     vertices.reserve(ui_.kUpgradeHudBatchMaxVertices);
-    auto withListAlpha = [listAlpha](const cg2::Vector4& color) {
-        return cg2::Vector4{color.x, color.y, color.z, color.w * listAlpha};
+    auto withListAlpha = [listAlpha](const myEngine::Vector4& color) {
+        return myEngine::Vector4{color.x, color.y, color.z, color.w * listAlpha};
     };
-    auto offsetListPos = [listOffsetX](cg2::Vector2 pos) {
+    auto offsetListPos = [listOffsetX](myEngine::Vector2 pos) {
         pos.x += listOffsetX;
         return pos;
     };
@@ -1073,17 +1073,17 @@ void PlayerHud::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, fl
             float flash = (std::min)(1.0f, ui_.upgradeHudFlashTimers_[i] / 0.22f);
             const float refundFlash = (std::min)(1.0f, ui_.upgradeHudRefundFlashTimers_[i] / 0.22f);
             const float missFlash = (std::min)(1.0f, ui_.upgradeHudMissFlashTimers_[i] / 0.26f);
-            const cg2::Vector4 rowColor = UpgradeHudRowColors()[i];
-            const cg2::Vector4 buttonColor =
+            const myEngine::Vector4 rowColor = UpgradeHudRowColors()[i];
+            const myEngine::Vector4 buttonColor =
                 LerpColor({0.10f + missFlash * 0.20f, 0.12f, 0.15f + refundFlash * 0.16f, 0.84f}, {0.35f, 0.90f, 0.72f, 0.96f}, flash);
-            const cg2::Vector4 minusColor = player_.upgradeLevels_[i] > 0
+            const myEngine::Vector4 minusColor = player_.upgradeLevels_[i] > 0
                                                 ? LerpColor({rowColor.x * 0.45f, rowColor.y * 0.45f, rowColor.z * 0.45f, 0.72f},
                                                             {0.88f, 0.94f, 1.0f, 0.98f}, refundFlash)
-                                                : cg2::Vector4{0.12f + missFlash * 0.30f, 0.14f, 0.18f, 0.42f + missFlash * 0.28f};
-            const cg2::Vector4 plusColor =
+                                                : myEngine::Vector4{0.12f + missFlash * 0.30f, 0.14f, 0.18f, 0.42f + missFlash * 0.28f};
+            const myEngine::Vector4 plusColor =
                 player_.skillPoints_ > 0
                     ? LerpColor({rowColor.x * 0.82f, rowColor.y * 0.82f, rowColor.z * 0.82f, 0.90f}, {1.0f, 1.0f, 1.0f, 1.0f}, flash)
-                    : cg2::Vector4{0.18f + missFlash * 0.32f, 0.22f, 0.24f, 0.48f + missFlash * 0.28f};
+                    : myEngine::Vector4{0.18f + missFlash * 0.32f, 0.22f, 0.24f, 0.48f + missFlash * 0.28f};
             if (!ui_.upgradeHudUseSegmentedUpgradeBars_) {
                 QueueUpgradeHudRect(vertices, offsetListPos({ui_.upgradeHudRowStart_.x, y}), ui_.upgradeHudButtonSize_,
                                     withListAlpha(buttonColor));
@@ -1111,20 +1111,20 @@ void PlayerHud::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, fl
     if (vertices.size() > ui_.kUpgradeHudBatchMaxVertices) {
         vertices.resize(ui_.kUpgradeHudBatchMaxVertices);
     }
-    std::memcpy(ui_.upgradeHudBatchVertexData_, vertices.data(), sizeof(cg2::TrailVertex) * vertices.size());
+    std::memcpy(ui_.upgradeHudBatchVertexData_, vertices.data(), sizeof(myEngine::TrailVertex) * vertices.size());
     *ui_.upgradeHudBatchTransformData_ =
-        cg2::MakeOrthographicMatrix(0.0f, 0.0f, float(cg2::WinApp::kClientWidth), float(cg2::WinApp::kClientHeight), 0.0f, 100.0f);
+        myEngine::MakeOrthographicMatrix(0.0f, 0.0f, float(myEngine::WinApp::kClientWidth), float(myEngine::WinApp::kClientHeight), 0.0f, 100.0f);
 
-    cg2::DirectXCommon* dxCommon = cg2::SpriteCommon::GetInstance()->GetDxCommon();
+    myEngine::DirectXCommon* dxCommon = myEngine::SpriteCommon::GetInstance()->GetDxCommon();
     ID3D12GraphicsCommandList* commandList = dxCommon->GetList().Get();
-    cg2::TextureManager::GetInstance()->PreDraw();
+    myEngine::TextureManager::GetInstance()->PreDraw();
     commandList->SetGraphicsRootSignature(dxCommon->GetPSOHudRect().root_.GetSignature().Get());
     commandList->SetPipelineState(dxCommon->GetPSOHudRect().graphicsState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &ui_.upgradeHudBatchVertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, ui_.upgradeHudBatchMaterialResource_->GetGPUVirtualAddress());
     commandList->SetGraphicsRootConstantBufferView(1, ui_.upgradeHudBatchTransformResource_->GetGPUVirtualAddress());
-    commandList->SetGraphicsRootDescriptorTable(2, cg2::TextureManager::GetInstance()->GetSrvHandleGPU("resources/white512x512.png"));
+    commandList->SetGraphicsRootDescriptorTable(2, myEngine::TextureManager::GetInstance()->GetSrvHandleGPU("resources/white512x512.png"));
     commandList->DrawInstanced(static_cast<UINT>(vertices.size()), 1, 0, 0);
     ui_.upgradeHudProfile_.spriteDraws += 1;
 }
@@ -1363,7 +1363,7 @@ void PlayerHud::DrawUpgradeHudAfterPostEffects()
     }
 
     ui_.upgradeHudBarBloomEffect_->BeginCapture();
-    cg2::SpriteCommon::GetInstance()->PreDrawForScene(cg2::kNormal);
+    myEngine::SpriteCommon::GetInstance()->PreDrawForScene(myEngine::kNormal);
     if (drawBottomBars) {
         if (ui_.upgradeHudLevelProgressBar_) {
             ui_.upgradeHudLevelProgressBar_->DrawBloomSource();

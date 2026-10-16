@@ -20,9 +20,9 @@ inline constexpr std::array<const char*, 10> kMotionJoints = {
     "J_Bip_C_Chest", "J_Bip_C_Neck", "J_Bip_L_UpperArm", "J_Bip_R_UpperArm",
     "J_Bip_L_LowerArm", "J_Bip_R_LowerArm", "J_Bip_L_UpperLeg", "J_Bip_R_UpperLeg",
     "J_Bip_L_LowerLeg", "J_Bip_R_LowerLeg"};
-using MotionAngles = std::array<cg2::Vector3, kMotionJoints.size()>;
+using MotionAngles = std::array<myEngine::Vector3, kMotionJoints.size()>;
 struct MotionBuildResult {
-    std::vector<cg2::Animation> animations;
+    std::vector<myEngine::Animation> animations;
     std::vector<std::string> skippedMotionJoints;
     bool safeToRegister = false;
     bool rootOnlyFallback = false;
@@ -34,7 +34,7 @@ struct MotionBuildResult {
 // skeleton. ApplyAnimation restores every unanimated joint's original bind;
 // skipping a corrupt quaternion cannot repair that fallback. Validate BEFORE
 // clip registration, visual model Update or any Draw submission.
-inline bool ValidateDepthBindSkeleton(const cg2::Skeleton& skeleton, std::string* error = nullptr) {
+inline bool ValidateDepthBindSkeleton(const myEngine::Skeleton& skeleton, std::string* error = nullptr) {
     auto fail = [error](const char* message) { if(error) *error=message; return false; };
     const auto count=skeleton.joints.size();
     if(count==0 || count>4096 || skeleton.root!=0 || skeleton.jointMap.size()!=count)
@@ -75,16 +75,16 @@ inline bool ValidateDepthBindSkeleton(const cg2::Skeleton& skeleton, std::string
     return true;
 }
 
-inline cg2::Quaternion QuaternionProduct(const cg2::Quaternion& a, const cg2::Quaternion& b) {
+inline myEngine::Quaternion QuaternionProduct(const myEngine::Quaternion& a, const myEngine::Quaternion& b) {
     return {a.w*b.x+a.x*b.w+a.y*b.z-a.z*b.y, a.w*b.y-a.x*b.z+a.y*b.w+a.z*b.x,
         a.w*b.z+a.x*b.y-a.y*b.x+a.z*b.w, a.w*b.w-a.x*b.x-a.y*b.y-a.z*b.z};
 }
-inline cg2::Quaternion BindRelativeRotation(const cg2::Quaternion& bind, const cg2::Vector3& angles) {
-    const auto x = cg2::MakeRotateAxisAngleQuaternion({1,0,0},angles.x);
-    const auto y = cg2::MakeRotateAxisAngleQuaternion({0,1,0},angles.y);
-    const auto z = cg2::MakeRotateAxisAngleQuaternion({0,0,1},angles.z);
+inline myEngine::Quaternion BindRelativeRotation(const myEngine::Quaternion& bind, const myEngine::Vector3& angles) {
+    const auto x = myEngine::MakeRotateAxisAngleQuaternion({1,0,0},angles.x);
+    const auto y = myEngine::MakeRotateAxisAngleQuaternion({0,1,0},angles.y);
+    const auto z = myEngine::MakeRotateAxisAngleQuaternion({0,0,1},angles.z);
     // Row-vector rule: R(qA*qB)=R(qB)*R(qA). Same composition as Preview.
-    return cg2::NormalizeQuaternion(QuaternionProduct(bind,QuaternionProduct(z,QuaternionProduct(y,x))));
+    return myEngine::NormalizeQuaternion(QuaternionProduct(bind,QuaternionProduct(z,QuaternionProduct(y,x))));
 }
 inline MotionAngles RestAngles() {
     MotionAngles result{};
@@ -93,7 +93,7 @@ inline MotionAngles RestAngles() {
     return result;
 }
 
-inline MotionBuildResult CreateDepthAnimations(const cg2::Skeleton& skeleton) {
+inline MotionBuildResult CreateDepthAnimations(const myEngine::Skeleton& skeleton) {
     MotionBuildResult result;
     if(!ValidateDepthBindSkeleton(skeleton,&result.bindError)) return result;
     result.safeToRegister=true;
@@ -116,29 +116,29 @@ inline MotionBuildResult CreateDepthAnimations(const cg2::Skeleton& skeleton) {
     }
     result.rootOnlyFallback = true;
     for (int index : indices) if (index>=0) result.rootOnlyFallback=false;
-    auto addPose = [&](cg2::Animation& clip, float time, const MotionAngles& angles) {
+    auto addPose = [&](myEngine::Animation& clip, float time, const MotionAngles& angles) {
         for(size_t i=0;i<indices.size();++i) {
             if(indices[i]<0) continue;
             const auto& bind = skeleton.joints[static_cast<size_t>(indices[i])].bindTransform;
             auto& node = clip.nodeAnimations[kMotionJoints[i]];
             auto q = BindRelativeRotation(bind.rotate,angles[i]);
-            if(!node.rotate.keyframes.empty() && cg2::DotQuaternion(node.rotate.keyframes.back().value,q)<0)
+            if(!node.rotate.keyframes.empty() && myEngine::DotQuaternion(node.rotate.keyframes.back().value,q)<0)
                 q={-q.x,-q.y,-q.z,-q.w};
             node.rotate.keyframes.push_back({time,q});
             // Empty translation/scale curves use the fresh bind fallback. No root motion.
         }
     };
     auto makeClip = [&](Motion motion, const MotionAngles& pose, bool holdEnd) {
-        cg2::Animation clip;
+        myEngine::Animation clip;
         clip.name=kMotionNames[static_cast<size_t>(motion)]; clip.duration=1.0f;
         addPose(clip,0,RestAngles()); addPose(clip,.35f,pose); addPose(clip,.72f,pose);
         addPose(clip,1,holdEnd?pose:RestAngles()); result.animations.push_back(std::move(clip));
     };
-    cg2::Animation hover;
+    myEngine::Animation hover;
     hover.name=kMotionNames[0]; hover.duration=3.0f;
     for(int i=0;i<=8;++i) {
         auto pose=RestAngles();
-        const float wave=(i==0||i==8)?0.0f:std::sin(float(i)*cg2::pi/4.0f);
+        const float wave=(i==0||i==8)?0.0f:std::sin(float(i)*myEngine::pi/4.0f);
         pose[0].x=.035f*wave; pose[1].y=.055f*wave;
         pose[2].z+=.035f*wave; pose[3].z-=.035f*wave;
         addPose(hover,3.0f*float(i)/8.0f,pose);

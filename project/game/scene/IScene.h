@@ -1,14 +1,14 @@
 #pragma once
 #include <string>
 #include "Struct.h"
-namespace cg2 { class Camera; class DirectXCommon; }
+namespace myEngine { class Camera; class DirectXCommon; }
 
 /// @brief 初期化・更新・描画と画面効果の共通契約を定義する。
 class IScene {
 public:
     struct DeveloperShowcaseState {
         bool active = false;
-        cg2::Camera* camera = nullptr;
+        myEngine::Camera* camera = nullptr;
         int diagnostic = 0;
         float threshold = 0.65f, intensity = 0.75f, exposure = 0.75f;
         // -1 preserves the engine setting; 0/1/2/3 select Off/Legacy/Quality/Light.
@@ -24,7 +24,7 @@ public:
     struct PostEffectPulse {
         float bloomBoost = 0.0f;
         float chromAbAmount = 0.0f;
-        cg2::Vector2 center = {0.5f, 0.5f};
+        myEngine::Vector2 center = {0.5f, 0.5f};
         float radius = 0.0f;
         float width = 0.05f;
         float strength = 0.0f;
@@ -39,7 +39,7 @@ public:
         // Moving skinned geometry has no per-object velocity in the existing
         // temporal path. A scene may scope a stable, unjittered render profile.
         bool suppressTemporal = false;
-        cg2::BloomParam param{};
+        myEngine::BloomParam param{};
     };
     /// @brief 水面に関連する画面効果の設定を表す。
     struct WaterPostProcessSettings {
@@ -68,8 +68,8 @@ public:
         float nebulaIntensity = 0.0f;
         float nebulaScale = 0.035f;
         float nebulaDrift = 0.004f;
-        cg2::Vector3 nebulaColorA{0.30f, 0.05f, 0.42f};
-        cg2::Vector3 nebulaColorB{0.06f, 0.02f, 0.30f};
+        myEngine::Vector3 nebulaColorA{0.30f, 0.05f, 0.42f};
+        myEngine::Vector3 nebulaColorB{0.06f, 0.02f, 0.30f};
     };
     /// @brief ブルームの説明用の表示切り替え。view: 0=通常, 1=OFF, 2=ピラミッドの1段だけ, 3=光の成分だけ。
     struct BloomViewSettings {
@@ -161,8 +161,8 @@ public:
         (void)profile;
     }
     virtual DeveloperShowcaseState GetDeveloperShowcaseState() { return {}; }
-    virtual void RecordDeveloperPostParameters(const cg2::BloomParam&) {}
-    virtual void RecordDeveloperFrame(cg2::DirectXCommon&) {}
+    virtual void RecordDeveloperPostParameters(const myEngine::BloomParam&) {}
+    virtual void RecordDeveloperFrame(myEngine::DirectXCommon&) {}
 
     // シーン終了判定（SceneManagerがチェックする）
     virtual bool IsFinished() const = 0;

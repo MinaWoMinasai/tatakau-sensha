@@ -23,7 +23,7 @@ float SmoothToward(float current, float target, float response, float deltaTime)
 }
 
 /// @brief 塗りつぶしスプライトを設定する。
-void SetFillSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2::Vector2& size, float ratio, const cg2::Vector4& color)
+void SetFillSprite(myEngine::Sprite* sprite, const myEngine::Vector2& position, const myEngine::Vector2& size, float ratio, const myEngine::Vector4& color)
 {
 	if (!sprite) {
 		return;
@@ -31,7 +31,7 @@ void SetFillSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2:
 	const float width = (std::max)(0.0f, size.x * (std::clamp)(ratio, 0.0f, 1.0f));
 	sprite->SetPosition(position);
 	sprite->SetSize({ width, size.y });
-	cg2::Vector4 visibleColor = color;
+	myEngine::Vector4 visibleColor = color;
 	if (width <= 0.01f || size.y <= 0.01f) {
 		visibleColor.w = 0.0f;
 	}
@@ -40,14 +40,14 @@ void SetFillSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2:
 }
 
 /// @brief 単色スプライトを設定する。
-void SetSolidSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2::Vector2& size, const cg2::Vector4& color)
+void SetSolidSprite(myEngine::Sprite* sprite, const myEngine::Vector2& position, const myEngine::Vector2& size, const myEngine::Vector4& color)
 {
 	if (!sprite) {
 		return;
 	}
 	sprite->SetPosition(position);
 	sprite->SetSize(size);
-	cg2::Vector4 visibleColor = color;
+	myEngine::Vector4 visibleColor = color;
 	if (size.x <= 0.01f || size.y <= 0.01f) {
 		visibleColor.w = 0.0f;
 	}
@@ -57,12 +57,12 @@ void SetSolidSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2
 
 /// @brief カプセルSegmentsを設定する。
 void SetCapsuleSegments(
-	cg2::Sprite* left,
-	cg2::Sprite* center,
-	cg2::Sprite* right,
-	const cg2::Vector2& position,
-	const cg2::Vector2& size,
-	const cg2::Vector4& color,
+	myEngine::Sprite* left,
+	myEngine::Sprite* center,
+	myEngine::Sprite* right,
+	const myEngine::Vector2& position,
+	const myEngine::Vector2& size,
+	const myEngine::Vector4& color,
 	bool closeRight)
 {
 	const float capWidth = (std::min)(size.x * 0.5f, size.y * 0.5f);
@@ -82,14 +82,14 @@ void SetCapsuleSegments(
 
 } // namespace
 
-void NeonProgressBar::Initialize(cg2::SpriteCommon* spriteCommon)
+void NeonProgressBar::Initialize(myEngine::SpriteCommon* spriteCommon)
 {
 	spriteCommon_ = spriteCommon;
 	if (!spriteCommon_) {
 		return;
 	}
 	auto makeSprite = [this](const char* texturePath) {
-		auto sprite = std::make_unique<cg2::Sprite>();
+		auto sprite = std::make_unique<myEngine::Sprite>();
 		sprite->Initialize(spriteCommon_, texturePath);
 		return sprite;
 	};
@@ -107,7 +107,7 @@ void NeonProgressBar::Initialize(cg2::SpriteCommon* spriteCommon)
 	bloomOutlineRight_ = makeSprite(kSolidTexture);
 
 	auto makeMaskSegment = [spriteCommon](const char* texturePath, float sourceX, float sourceWidth, float sourceHeight) {
-		auto sprite = std::make_unique<cg2::Sprite>();
+		auto sprite = std::make_unique<myEngine::Sprite>();
 		sprite->Initialize(spriteCommon, texturePath);
 		sprite->SetTextureLeftTop({ sourceX, 0.0f });
 		sprite->SetTextureSize({ sourceWidth, sourceHeight });
@@ -141,9 +141,9 @@ void NeonProgressBar::SetStyle(const NeonProgressBarStyle& style)
 	dirty_ = true;
 }
 
-void NeonProgressBar::SetBounds(const cg2::Vector2& position, const cg2::Vector2& size)
+void NeonProgressBar::SetBounds(const myEngine::Vector2& position, const myEngine::Vector2& size)
 {
-	const cg2::Vector2 clampedSize = { (std::max)(0.0f, size.x), (std::max)(0.0f, size.y) };
+	const myEngine::Vector2 clampedSize = { (std::max)(0.0f, size.x), (std::max)(0.0f, size.y) };
 	if (position_.x == position.x && position_.y == position.y &&
 		size_.x == clampedSize.x && size_.y == clampedSize.y) {
 		return;
@@ -279,28 +279,28 @@ void NeonProgressBar::UpdateSprites()
 		return;
 	}
 	const float outlineWidth = (std::min)(style_.outlineWidth, (std::min)(size_.x, size_.y) * 0.5f);
-	const cg2::Vector2 innerPosition = { position_.x + outlineWidth, position_.y + outlineWidth };
-	const cg2::Vector2 innerSize = {
+	const myEngine::Vector2 innerPosition = { position_.x + outlineWidth, position_.y + outlineWidth };
+	const myEngine::Vector2 innerSize = {
 		(std::max)(0.0f, size_.x - outlineWidth * 2.0f),
 		(std::max)(0.0f, size_.y - outlineWidth * 2.0f)
 	};
-	const cg2::Vector2 bottomPosition = { position_.x, position_.y + (std::max)(0.0f, size_.y - outlineWidth) };
-	const cg2::Vector2 rightPosition = { position_.x + (std::max)(0.0f, size_.x - outlineWidth), position_.y };
-	const cg2::Vector4 bloomOutlineColor = MultiplyBrightness(style_.outlineColor, style_.bloomBrightness, style_.bloomAlpha);
+	const myEngine::Vector2 bottomPosition = { position_.x, position_.y + (std::max)(0.0f, size_.y - outlineWidth) };
+	const myEngine::Vector2 rightPosition = { position_.x + (std::max)(0.0f, size_.x - outlineWidth), position_.y };
+	const myEngine::Vector4 bloomOutlineColor = MultiplyBrightness(style_.outlineColor, style_.bloomBrightness, style_.bloomAlpha);
 
 	if (style_.roundedEnds) {
 		const float roundedOutlineInset = (std::max)(outlineWidth, size_.y * 0.12f);
-		const cg2::Vector2 roundedInnerPosition = { position_.x + roundedOutlineInset, position_.y + roundedOutlineInset };
-		const cg2::Vector2 roundedInnerSize = {
+		const myEngine::Vector2 roundedInnerPosition = { position_.x + roundedOutlineInset, position_.y + roundedOutlineInset };
+		const myEngine::Vector2 roundedInnerSize = {
 			(std::max)(0.0f, size_.x - roundedOutlineInset * 2.0f),
 			(std::max)(0.0f, size_.y - roundedOutlineInset * 2.0f)
 		};
-		const cg2::Vector4 bloomFillColor = MultiplyBrightness(style_.fillColor, style_.bloomBrightness, style_.bloomAlpha);
-		const cg2::Vector4 bloomOutlineColor = MultiplyBrightness(style_.outlineColor, style_.bloomBrightness, style_.bloomAlpha);
+		const myEngine::Vector4 bloomFillColor = MultiplyBrightness(style_.fillColor, style_.bloomBrightness, style_.bloomAlpha);
+		const myEngine::Vector4 bloomOutlineColor = MultiplyBrightness(style_.outlineColor, style_.bloomBrightness, style_.bloomAlpha);
 		const bool fillComplete = displayValue_ >= 0.999f;
 		const bool delayedComplete = delayedValue_ >= 0.999f;
-		const cg2::Vector2 fillSize = { roundedInnerSize.x * displayValue_, roundedInnerSize.y };
-		const cg2::Vector2 delayedSize = { roundedInnerSize.x * delayedValue_, roundedInnerSize.y };
+		const myEngine::Vector2 fillSize = { roundedInnerSize.x * displayValue_, roundedInnerSize.y };
+		const myEngine::Vector2 delayedSize = { roundedInnerSize.x * delayedValue_, roundedInnerSize.y };
 
 		SetCapsuleSegments(roundedBackgroundLeft_.get(), background_.get(), roundedBackgroundRight_.get(), position_, size_, style_.backgroundColor, true);
 		SetCapsuleSegments(roundedDelayedLeft_.get(), delayedFill_.get(), roundedDelayedRight_.get(), roundedInnerPosition, delayedSize, style_.delayedFillColor, delayedComplete);
@@ -329,7 +329,7 @@ void NeonProgressBar::UpdateSprites()
 	dirty_ = false;
 }
 
-cg2::Vector4 NeonProgressBar::MultiplyBrightness(const cg2::Vector4& color, float brightness, float alpha)
+myEngine::Vector4 NeonProgressBar::MultiplyBrightness(const myEngine::Vector4& color, float brightness, float alpha)
 {
 	return { color.x * brightness, color.y * brightness, color.z * brightness, color.w * alpha };
 }

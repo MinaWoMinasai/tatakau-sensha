@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdint>
 
-namespace cg2 {
+namespace myEngine {
 // Values are also used by the procedural particle shaders. Ordinary emitters
 // retain Triangle; only the combat presentation opts into the other silhouettes.
 enum class NeonParticleShape : uint32_t { Triangle, Shard, Sliver, Spark, Flash, Ring };
@@ -32,4 +32,4 @@ inline uint32_t NeonParticlePoints(NeonParticleShape shape, std::array<std::arra
     points = {{{0.0f, 1.0f}, {-0.8660254f, -0.50f}, {0.8660254f, -0.50f}, {0.0f, 0.0f}}};
     return 3;
 }
-} // namespace cg2
+} // namespace myEngine

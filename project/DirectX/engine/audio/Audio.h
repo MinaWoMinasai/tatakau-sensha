@@ -15,7 +15,7 @@
 #include <mfidl.h>
 #include <mfreadwrite.h>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 音声データと再生ボイスのプールを管理する。制御には世代付きVoiceHandleを使う。
 class Audio {
@@ -127,4 +127,4 @@ private:
     bool mediaFoundationStarted_ = false;
 };
 
-} // namespace cg2
+} // namespace myEngine

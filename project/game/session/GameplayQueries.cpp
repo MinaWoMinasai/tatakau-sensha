@@ -28,11 +28,11 @@ namespace gameplay {
 
 using namespace detail;
 
-cg2::Vector2 GameplayQueries::WorldToScreenUv(const cg2::Vector3& worldPos) const
+myEngine::Vector2 GameplayQueries::WorldToScreenUv(const myEngine::Vector3& worldPos) const
 {
-    const cg2::Vector2 screen = world_.gameplayHud->WorldToScreen(worldPos);
-    return {(std::clamp)(screen.x / static_cast<float>(cg2::WinApp::kClientWidth), 0.0f, 1.0f),
-            (std::clamp)(screen.y / static_cast<float>(cg2::WinApp::kClientHeight), 0.0f, 1.0f)};
+    const myEngine::Vector2 screen = world_.gameplayHud->WorldToScreen(worldPos);
+    return {(std::clamp)(screen.x / static_cast<float>(myEngine::WinApp::kClientWidth), 0.0f, 1.0f),
+            (std::clamp)(screen.y / static_cast<float>(myEngine::WinApp::kClientHeight), 0.0f, 1.0f)};
 }
 
 IScene::ScreenEffectState GameplayQueries::GetScreenEffectState() const
@@ -58,7 +58,7 @@ IScene::ScreenEffectState GameplayQueries::GetScreenEffectState() const
 IScene::DeveloperShowcaseState GameplayQueries::GetDeveloperShowcaseState()
 {
     IScene::DeveloperShowcaseState state{};
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (IsNeonShowcaseActive()) {
         state.active = true;
         state.camera = world_.resources.neonSkinnedPreview_->GetShowcaseCamera();
@@ -86,9 +86,9 @@ IScene::DeveloperShowcaseState GameplayQueries::GetDeveloperShowcaseState()
     return state;
 }
 
-void GameplayQueries::RecordDeveloperPostParameters(const cg2::BloomParam& param)
+void GameplayQueries::RecordDeveloperPostParameters(const myEngine::BloomParam& param)
 {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     world_.presentation.developerCompositeParams_ = param;
     world_.presentation.developerCompositeParamsAvailable_ = true;
 #else
@@ -96,9 +96,9 @@ void GameplayQueries::RecordDeveloperPostParameters(const cg2::BloomParam& param
 #endif
 }
 
-void GameplayQueries::RecordDeveloperFrame(cg2::DirectXCommon& dx)
+void GameplayQueries::RecordDeveloperFrame(myEngine::DirectXCommon& dx)
 {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (world_.resources.neonSkinnedPreview_)
         world_.resources.neonSkinnedPreview_->RecordShowcaseCapture(dx);
     world_.bossPresentation->RecordNeonBossDeveloperFrame(dx);
@@ -111,10 +111,10 @@ void GameplayQueries::RecordDeveloperFrame(cg2::DirectXCommon& dx)
 #endif
 }
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(cg2::DirectXCommon& dx) const
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(myEngine::DirectXCommon& dx) const
 {
-    auto vector = [](const cg2::Vector3& value) {
+    auto vector = [](const myEngine::Vector3& value) {
         return nlohmann::json::array({value.x, value.y, value.z});
     };
     const auto& post = world_.presentation.developerCompositeParams_;
@@ -162,13 +162,13 @@ nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(cg2::DirectXCom
           {"enemyBullets", counts.enemy},
           {"hostileExpBullets", counts.hostileExpEnemy},
           {"enemies", world_.resources.enemyManager_->GetEnemyCount()},
-          {"particles", cg2::ParticleManager::GetInstance()->GetActiveCount()},
+          {"particles", myEngine::ParticleManager::GetInstance()->GetActiveCount()},
           {"particlesCountIsCpuOnly", true},
-          {"particlesGpuUpdate", cg2::ParticleManager::GetInstance()->IsUseGpuUpdate()},
-          {"particlesDrawReady", cg2::ParticleManager::GetInstance()->HasDrawableParticles()},
+          {"particlesGpuUpdate", myEngine::ParticleManager::GetInstance()->IsUseGpuUpdate()},
+          {"particlesDrawReady", myEngine::ParticleManager::GetInstance()->HasDrawableParticles()},
           {"neonTriangles", world_.presentation.neonTriangleParticles_.size()}}},
         {"camera",
-         {{"debug", cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()},
+         {{"debug", myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()},
           {"gamePosition", vector(world_.resources.camera->GetTranslate())},
           {"gameRotation", vector(world_.resources.camera->GetRotate())},
           {"debugEye", vector(world_.resources.debugCamera->GetEyePosition())}}},
@@ -185,8 +185,8 @@ nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(cg2::DirectXCom
             world_.combat.gameTextNeonStyle_.glowColor.z, world_.combat.gameTextNeonStyle_.glowColor.w}}}},
         {"validation", {{"d3d12DebugLayer", dx.IsD3D12DebugLayerEnabled()}, {"gpuBasedValidation", dx.IsGpuBasedValidationEnabled()}}},
         {"gpuTiming",
-         {{"captureActive", cg2::RuntimeProfiler::Get().IsCaptureActive()},
-          {"captureComplete", cg2::RuntimeProfiler::Get().IsCaptureComplete()},
+         {{"captureActive", myEngine::RuntimeProfiler::Get().IsCaptureActive()},
+          {"captureComplete", myEngine::RuntimeProfiler::Get().IsCaptureComplete()},
           {"note", "Actual per-scope timestamps are in the separate profiler CSV, not inferred from this image."}}}};
     for (const auto& row : world_.resources.debugCamera->GetViewProjectionMatrix().m)
         metadata["camera"]["debugViewProjection"].push_back({row[0], row[1], row[2], row[3]});
@@ -252,7 +252,7 @@ bool GameplayQueries::IsFinished() const
 }
 
 /// @brief BallOBJ形式を返す。
-cg2::Object3d* GameplayQueries::GetBallObj()
+myEngine::Object3d* GameplayQueries::GetBallObj()
 {
     return world_.resources.ballObj_.get();
 }
@@ -263,7 +263,7 @@ float GameplayQueries::GetFinalDeltaTime() const
     // The boss defeat cinematic is a full-color finale, not the grayscale pause/slow-motion cue.
     if (world_.combat.combatFlow_.GetState() == GameFlowState::BossDefeatSequence && world_.resources.neonDepthCameraScoped_)
         return 1.0f / 60.0f;
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (world_.presentation.developerBloomFreeze_ || world_.resources.neonBossDeveloperFreeze_)
         return 1.0f / 60.0f; // Freeze is a comparison, not the grayscale slow-motion effect.
 #endif
@@ -290,7 +290,7 @@ PostEffectPulse GameplayQueries::GetPostEffectPulse() const
 
 bool GameplayQueries::IsNeonShowcaseActive() const
 {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     return world_.resources.neonSkinnedPreview_ && world_.resources.neonSkinnedPreview_->IsShowcaseActive();
 #else
     return false;

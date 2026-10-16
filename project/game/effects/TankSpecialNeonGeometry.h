@@ -7,14 +7,14 @@
 // neon batch; there are no assets, sprites, PSOs or persistent effect instances.
 namespace tankspecialfx {
 /// @brief 攻撃または移動に使う方向を返す。
-inline cg2::Vector3 Direction(float angle)
+inline myEngine::Vector3 Direction(float angle)
 {
     return {std::cos(angle), std::sin(angle), 0};
 }
 /// @brief 輪状の攻撃または演出を発生させる。
-inline void Ring(cg2::NeonGridRenderer& renderer, const cg2::Vector3& at, float radius, float width, const cg2::Vector4& color)
+inline void Ring(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& at, float radius, float width, const myEngine::Vector4& color)
 {
-    auto previous = at + cg2::Vector3{radius, 0, 0};
+    auto previous = at + myEngine::Vector3{radius, 0, 0};
     for (int i = 1; i <= 24; ++i) {
         const auto p = at + Direction(i * 6.2831853f / 24) * radius;
         renderer.QueueLine(previous, p, width, color);
@@ -22,12 +22,12 @@ inline void Ring(cg2::NeonGridRenderer& renderer, const cg2::Vector3& at, float 
     }
 }
 /// @brief チャージの進行を更新する。
-inline void Charge(cg2::NeonGridRenderer& renderer, const cg2::Vector3& at, float charge, float age, float scale = 1)
+inline void Charge(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& at, float charge, float age, float scale = 1)
 {
     if (charge <= 0)
         return;
     const bool full = charge >= .999f;
-    const cg2::Vector4 color = full ? cg2::Vector4{1.55f, .65f, 2.3f, .8f} : cg2::Vector4{.18f, 1.0f, 1.8f, .35f + charge * .4f};
+    const myEngine::Vector4 color = full ? myEngine::Vector4{1.55f, .65f, 2.3f, .8f} : myEngine::Vector4{.18f, 1.0f, 1.8f, .35f + charge * .4f};
     Ring(renderer, at, (.16f + charge * .27f) * scale, .12f * scale, color);
     Ring(renderer, at, (.12f + charge * .16f) * scale, .05f * scale, {1.1f, 1.8f, 2.0f, .6f});
     if (full)
@@ -40,13 +40,13 @@ inline void Charge(cg2::NeonGridRenderer& renderer, const cg2::Vector3& at, floa
     }
 }
 /// @brief 指定した対象間の接続を処理する。
-inline void Link(cg2::NeonGridRenderer& renderer, const cg2::Vector3& a, const cg2::Vector3& b, float scale = 1)
+inline void Link(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& a, const myEngine::Vector3& b, float scale = 1)
 {
     renderer.QueueLine(a, b, .09f * scale, {.15f, 1.1f, 1.45f, .19f});
     renderer.QueueLine(a, b, .025f * scale, {.5f, 1.45f, 1.8f, .38f});
 }
 /// @brief 三日月状の攻撃形状を生成する。
-inline void Crescent(cg2::NeonGridRenderer& renderer, const cg2::Vector3& at, const cg2::Vector3& direction, float radius, float alpha = 1)
+inline void Crescent(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& at, const myEngine::Vector3& direction, float radius, float alpha = 1)
 {
     const float angle = std::atan2(direction.y, direction.x);
     for (int band = 0; band < 3; ++band) {
@@ -64,10 +64,10 @@ inline void Crescent(cg2::NeonGridRenderer& renderer, const cg2::Vector3& at, co
     }
 }
 /// @brief 接触した対象への攻撃処理を行う。
-inline void Contact(cg2::NeonGridRenderer& renderer, const cg2::Vector3& at, float age, float scale = 1, bool perfect = false)
+inline void Contact(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& at, float age, float scale = 1, bool perfect = false)
 {
     const float fade = (std::max)(0.0f, 1 - age / .24f);
-    const cg2::Vector4 color = perfect ? cg2::Vector4{.45f, 1.8f, 2.0f, fade} : cg2::Vector4{1.7f, 1.15f, .35f, fade};
+    const myEngine::Vector4 color = perfect ? myEngine::Vector4{.45f, 1.8f, 2.0f, fade} : myEngine::Vector4{1.7f, 1.15f, .35f, fade};
     Ring(renderer, at, (.22f + age * 3) * scale, .045f * scale, color);
     for (int i = 0; i < 6; ++i) {
         const auto dir = Direction(i * 1.04719755f + .3f);

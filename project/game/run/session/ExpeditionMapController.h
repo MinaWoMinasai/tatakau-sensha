@@ -10,7 +10,7 @@ public:
     explicit ExpeditionMapController(GameWorld& world) : world_(world) {}
     /// @brief 遠征マップを初期化する。
     void InitializeExpeditionMap();
-    cg2::InitializationTask BuildInitialization();
+    myEngine::InitializationTask BuildInitialization();
 
     /// @brief 遠征マップを更新する。
     /// @param dt この処理で進める経過時間（秒）。
@@ -32,7 +32,7 @@ public:
     void RequestExpeditionMapNode(const std::string& id);
 
     /// @brief 停止を伴う遠征遷移を開始し、反映時点で実行するactionを予約する。既に遷移中なら何もしない。
-    void BeginExpeditionPresentation(int action, const std::string& title, const std::string& detail, const cg2::Vector4& color);
+    void BeginExpeditionPresentation(int action, const std::string& title, const std::string& detail, const myEngine::Vector4& color);
 
     /// @brief 遠征遷移と表示を進め、反映時点で予約済みactionを一度消費する。
     /// @param dt この処理で進める経過時間（秒）。

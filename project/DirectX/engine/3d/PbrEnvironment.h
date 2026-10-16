@@ -6,7 +6,7 @@
 #include "Struct.h"
 #include "TextureManager.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief PBR用の環境マップ・拡散反射・鏡面反射・BRDFテクスチャを管理する。
 class PbrEnvironment {
@@ -17,7 +17,7 @@ public:
         SolidColor,
     };
 
-    /// @brief cg2::PbrEnvironmentで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
+    /// @brief myEngine::PbrEnvironmentで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
     struct Settings {
         SourceType sourceType = SourceType::ProceduralSky;
         std::string texturePath;
@@ -88,4 +88,4 @@ private:
     std::string sourceLabel_ = "not applied";
 };
 
-} // namespace cg2
+} // namespace myEngine

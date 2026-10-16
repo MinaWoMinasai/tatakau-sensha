@@ -1,6 +1,6 @@
 #include "Shadow.h"
 
-namespace cg2 {
+namespace myEngine {
 
 void Shadow::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager) {
 
@@ -52,4 +52,4 @@ void Shadow::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12
 
 }
 
-} // namespace cg2
+} // namespace myEngine

@@ -8,7 +8,7 @@
 #include <limits>
 #include <memory>
 
-namespace cg2 {
+namespace myEngine {
 
 // Reuses the scene's HDR pixels without blurring or replacing the sharp source.
 // Render records commands only. The caller restores its render target, viewport
@@ -87,4 +87,4 @@ private:
     uint32_t outputSrv_ = 0, activeLevelCount_ = 0;
 };
 
-} // namespace cg2
+} // namespace myEngine

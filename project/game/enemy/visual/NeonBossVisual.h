@@ -7,7 +7,7 @@
 #include <string>
 
 struct NeonBossVisualInput {
-    cg2::Vector3 position{};
+    myEngine::Vector3 position{};
     float aimAngleRadians = 0.0f;
     float radius = 2.0f;
     int hp = 1, maxHp = 1;
@@ -29,7 +29,7 @@ struct NeonBossVisualStats {
 class NeonBossVisual {
 public:
     ~NeonBossVisual();
-    void Initialize(cg2::Camera* camera, cg2::DebugCamera* debugCamera);
+    void Initialize(myEngine::Camera* camera, myEngine::DebugCamera* debugCamera);
     // Reset only at a frame boundary after the previous GPU submission completed.
     void ResetEncounter();
     // Same frame-boundary contract as NeonSkinnedRenderer::BeginFrame; call once
@@ -38,7 +38,7 @@ public:
     // Valid edits apply at reset or the next attack instance; death timing is latched.
     bool SetDepthProfile(const neondepth::PresentationConfig& profile);
     const neondepth::PresentationConfig& GetDepthProfile() const { return depthProfile_; }
-    bool GetDepthSocketWorld(neondepth::Socket socket, cg2::Vector3& output) const;
+    bool GetDepthSocketWorld(neondepth::Socket socket, myEngine::Vector3& output) const;
     neondepth::Life GetDepthLife() const { return state_.GetDepthLifecycle().GetLife(); }
     neondepth::Formation GetDepthFormation() const { return depthFormation_; }
     void Draw();
@@ -54,8 +54,8 @@ public:
     float GetDissolveProgress() const { return state_.GetDissolveProgress(); }
     std::string GetAnimationName() const;
     float GetAnimationTime() const;
-    const cg2::Matrix4x4& GetWorldMatrix() const { return world_; }
-    const cg2::NeonSkinnedParams& GetParams() const { return params_; }
+    const myEngine::Matrix4x4& GetWorldMatrix() const { return world_; }
+    const myEngine::NeonSkinnedParams& GetParams() const { return params_; }
 
 private:
     bool EnsureResources();
@@ -70,21 +70,21 @@ private:
     void UpdatePlacement(const NeonBossVisualInput& input);
     void StartDeath();
     void UpdateAnimation(float deltaTime);
-    cg2::Matrix4x4 GetCameraWorld() const;
-    cg2::Vector3 GetCameraPosition() const;
+    myEngine::Matrix4x4 GetCameraWorld() const;
+    myEngine::Vector3 GetCameraPosition() const;
 
-    cg2::Camera* camera_ = nullptr;
-    cg2::DebugCamera* debugCamera_ = nullptr;
-    std::unique_ptr<cg2::SkinnedModel> model_;
-    std::unique_ptr<cg2::Object3d> object_;
-    std::unique_ptr<cg2::NeonSkinnedRenderer> renderer_;
+    myEngine::Camera* camera_ = nullptr;
+    myEngine::DebugCamera* debugCamera_ = nullptr;
+    std::unique_ptr<myEngine::SkinnedModel> model_;
+    std::unique_ptr<myEngine::Object3d> object_;
+    std::unique_ptr<myEngine::NeonSkinnedRenderer> renderer_;
     NeonBossVisualState state_;
     NeonBossVisualStats stats_;
-    cg2::NeonSkinnedParams params_{};
-    cg2::Vector3 modelCenter_{};
+    myEngine::NeonSkinnedParams params_{};
+    myEngine::Vector3 modelCenter_{};
     float modelHeight_ = 1.6f;
     float lastAliveRadius_ = 2.0f;
-    cg2::Matrix4x4 world_{};
+    myEngine::Matrix4x4 world_{};
     bool enabled_ = true, loadAttempted_ = false, encounterActive_ = false;
     std::string status_;
     neondepth::PresentationConfig depthProfile_{}, pendingDepthProfile_{}, deathDepthProfile_{};
@@ -92,7 +92,7 @@ private:
     neondepth::PlacementInput depthPlacement_{}, deathDepthPlacement_{};
     neondepth::MotionGate depthMotionGate_{};
     neondepth::Formation depthFormation_{0, 0, 0};
-    cg2::NeonDissolveParams depthFormationDissolve_{};
+    myEngine::NeonDissolveParams depthFormationDissolve_{};
     uint64_t depthProfileInstance_ = 0;
     bool depthMode_ = false, depthModeLatched_ = false, depthProfilePending_ = false;
     bool depthPlacementValid_ = false, depthPoseFrozen_ = false;

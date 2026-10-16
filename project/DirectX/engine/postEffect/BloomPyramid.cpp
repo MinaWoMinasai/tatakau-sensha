@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace cg2 {
+namespace myEngine {
 namespace {
 float FiniteClamp(float value, float fallback, float minimum, float maximum) {
     return (std::clamp)(std::isfinite(value) ? value : fallback, minimum, maximum);
@@ -242,4 +242,4 @@ void BloomPyramid::CreatePipeline() {
     sharedPipeline = pipelines_;
 }
 
-} // namespace cg2
+} // namespace myEngine

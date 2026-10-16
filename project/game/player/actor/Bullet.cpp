@@ -3,10 +3,10 @@
 #include "ParticleManager.h"
 #include <cmath>
 
-void Bullet::Initialize(const cg2::Vector3& position, const cg2::Vector3& velocity, uint32_t damage, BulletOwner owner, bool reflectable,
+void Bullet::Initialize(const myEngine::Vector3& position, const myEngine::Vector3& velocity, uint32_t damage, BulletOwner owner, bool reflectable,
                         float bulletHp, float bulletPenetration)
 {
-    object_ = std::make_unique<cg2::Object3d>();
+    object_ = std::make_unique<myEngine::Object3d>();
     object_->Initialize();
 
     // 再使用時に前の命中履歴・成長イベント・特殊能力・命中元を持ち越さないよう、戦闘状態を戻す。
@@ -41,28 +41,28 @@ void Bullet::Initialize(const cg2::Vector3& position, const cg2::Vector3& veloci
         SetCollisionAttribute(kCollisionAttributePlayerBullet);
         SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeExpEnemy | kCollisionAttributeEnemyBullet);
         if (isReflectable_) {
-            object_->SetColor(cg2::Vector4(1.0f, 1.0f, 0.0f, 1.0f));
+            object_->SetColor(myEngine::Vector4(1.0f, 1.0f, 0.0f, 1.0f));
         } else {
-            object_->SetColor(cg2::Vector4(1.0f, 0.78f, 0.28f, 1.0f));
+            object_->SetColor(myEngine::Vector4(1.0f, 0.78f, 0.28f, 1.0f));
         }
     } else if (owner_ == kEnemy) {
         object_->SetModel("bullet.obj");
-        object_->SetColor(cg2::Vector4(1.0f, 0.22f, 0.38f, 1.0f));
+        object_->SetColor(myEngine::Vector4(1.0f, 0.22f, 0.38f, 1.0f));
         SetCollisionAttribute(kCollisionAttributeEnemyBullet);
         SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerDrone | kCollisionAttributeExpEnemy |
                          kCollisionAttributePlayerBullet);
     } else if (owner_ == kExpEnemyHostile) {
         object_->SetModel("bullet.obj");
-        object_->SetColor(cg2::Vector4(1.0f, 0.16f, 0.08f, 1.0f));
+        object_->SetColor(myEngine::Vector4(1.0f, 0.16f, 0.08f, 1.0f));
         SetCollisionAttribute(kCollisionAttributeHostileExpEnemyBullet);
         SetCollisionMask(kCollisionAttributeEnemy);
     }
 
-    worldTransform_ = cg2::InitWorldTransform();
+    worldTransform_ = myEngine::InitWorldTransform();
     worldTransform_.translate = position;
-    worldTransform_.scale = cg2::Vector3(0.5f, 0.5f, 0.5f);
+    worldTransform_.scale = myEngine::Vector3(0.5f, 0.5f, 0.5f);
     velocity_ = velocity;
-    if (cg2::Length(velocity_) > 0.001f) {
+    if (myEngine::Length(velocity_) > 0.001f) {
         worldTransform_.rotate.z = std::atan2(velocity_.y, velocity_.x);
     }
 
@@ -85,19 +85,19 @@ void Bullet::Update(float deltaTime)
         if (returnFlight_.Step(deltaTime / flightScale))
             BeginReturn();
         if (returnFlight_.returning) {
-            const cg2::Vector3 toOwner = returnTarget_ - GetWorldPosition();
-            const float speed = cg2::Length(velocity_);
-            if (cg2::Length(toOwner) < (std::max)(.9f, speed * deltaTime * 60.0f)) {
+            const myEngine::Vector3 toOwner = returnTarget_ - GetWorldPosition();
+            const float speed = myEngine::Length(velocity_);
+            if (myEngine::Length(toOwner) < (std::max)(.9f, speed * deltaTime * 60.0f)) {
                 Die();
                 return;
             }
-            velocity_ = cg2::Normalize(toOwner) * speed;
+            velocity_ = myEngine::Normalize(toOwner) * speed;
         }
     }
 
     // velocity_は60FPS相当の基準1フレームの移動量。deltaTime秒を基準フレーム数へ換算する。
     worldTransform_.translate += velocity_ * (deltaTime * 60.0f);
-    if (cg2::Length(velocity_) > 0.001f) {
+    if (myEngine::Length(velocity_) > 0.001f) {
         worldTransform_.rotate.z = std::atan2(velocity_.y, velocity_.x);
     }
 
@@ -135,8 +135,8 @@ void Bullet::OnCollision(Collider* other)
             if (specialImpacts_.size() < 8)
                 specialImpacts_.push_back({specialKind_, GetWorldPosition(), velocity_, true});
         }
-        cg2::Vector3 impactNormal = velocity_ * -1.0f;
-        cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(GetWorldPosition(), impactNormal, GetBulletColor(), 7);
+        myEngine::Vector3 impactNormal = velocity_ * -1.0f;
+        myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(GetWorldPosition(), impactNormal, GetBulletColor(), 7);
         ApplyBulletDurabilityDamage(otherBullet->GetBulletPenetration());
         return;
     }
@@ -148,8 +148,8 @@ void Bullet::OnCollision(Collider* other)
     if (specialKind_ != SpecialKind::None && specialImpacts_.size() < 8)
         specialImpacts_.push_back({specialKind_, other->GetWorldPosition(), velocity_, false});
     QueueImpactSplit(velocity_);
-    cg2::Vector3 impactNormal = velocity_ * -1.0f;
-    cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(GetWorldPosition(), impactNormal, GetBulletColor(), 11);
+    myEngine::Vector3 impactNormal = velocity_ * -1.0f;
+    myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(GetWorldPosition(), impactNormal, GetBulletColor(), 11);
     if (shooter_.boomerang) {
         // 帰還弾は命中で消費せず、往路・帰路それぞれの履歴で1対象1回にする。帰還開始時に新規分裂を止める。
         ++growthEvents_.actorPierces;
@@ -201,12 +201,12 @@ bool Bullet::CanHitActor(const Collider* actor) const
     return actor && std::find(hitActorIds_.begin(), hitActorIds_.end(), actor->GetCollisionId()) == hitActorIds_.end();
 }
 
-void Bullet::QueueImpactSplit(const cg2::Vector3& direction)
+void Bullet::QueueImpactSplit(const myEngine::Vector3& direction)
 {
     // 元弾からの分裂は1回だけ予約する。通知中は生成せず、走査後に残り枠を渡して取り出す。
     if (impactSplitCount_ <= 0 || deathTimer_ <= 0.0f)
         return;
-    const float speed = cg2::Length(direction);
+    const float speed = myEngine::Length(direction);
     if (!std::isfinite(speed) || speed <= 0.0001f)
         return;
     pendingImpactSplitCount_ = impactSplitCount_;
@@ -216,20 +216,20 @@ void Bullet::QueueImpactSplit(const cg2::Vector3& direction)
     pendingImpactWallNormal_ = {};
 }
 
-void Bullet::OnWallImpact(const cg2::Vector3& safePosition, const cg2::Vector3& normal)
+void Bullet::OnWallImpact(const myEngine::Vector3& safePosition, const myEngine::Vector3& normal)
 {
     if (isDead_)
         return;
     SetWorldPosition(safePosition);
-    const float normalLength = cg2::Length(normal);
+    const float normalLength = myEngine::Length(normal);
     if (!std::isfinite(normalLength) || normalLength <= 0.0001f) {
         Die();
         return;
     }
     // 正規化できる法線から反射方向を計算する。壁から離す位置はStageが求めたsafePositionを使う。
-    const cg2::Vector3 unitNormal = normal / normalLength;
-    const cg2::Vector3 reflected = velocity_ - 2.0f * cg2::Dot(velocity_, unitNormal) * unitNormal;
-    if (!std::isfinite(cg2::Length(reflected))) {
+    const myEngine::Vector3 unitNormal = normal / normalLength;
+    const myEngine::Vector3 reflected = velocity_ - 2.0f * myEngine::Dot(velocity_, unitNormal) * unitNormal;
+    if (!std::isfinite(myEngine::Length(reflected))) {
         Die();
         return;
     }
@@ -259,19 +259,19 @@ void Bullet::AppendImpactChildren(std::vector<std::unique_ptr<Bullet>>& children
     pendingImpactSplitCount_ = 0; // 枠不足でも予約を消費する。空きができるまで持ち越して再試行しない。
     if (count <= 0 || deathTimer_ <= 0.0f)
         return;
-    const float speed = cg2::Length(pendingImpactDirection_);
+    const float speed = myEngine::Length(pendingImpactDirection_);
     if (!std::isfinite(speed) || speed <= 0.0001f)
         return;
-    const cg2::Vector3 base = pendingImpactDirection_ / speed;
+    const myEngine::Vector3 base = pendingImpactDirection_ / speed;
     for (int index = 0; index < count; ++index) {
         // 分裂角はラジアン。1発なら中心、2発なら左右へ分ける。
         const float angle = count == 1 ? 0.0f : (index == 0 ? -0.42f : 0.42f);
         const float cosine = std::cos(angle), sine = std::sin(angle);
-        cg2::Vector3 direction = {base.x * cosine - base.y * sine, base.x * sine + base.y * cosine, base.z};
+        myEngine::Vector3 direction = {base.x * cosine - base.y * sine, base.x * sine + base.y * cosine, base.z};
         // 壁での分裂では、外向き成分が小さすぎる方向を補正し、壁へ戻る向きで生成しない。
-        const float outward = cg2::Dot(direction, pendingImpactWallNormal_);
-        if (outward < 0.1f && cg2::Length(pendingImpactWallNormal_) > 0.5f) {
-            direction = cg2::Normalize(direction + pendingImpactWallNormal_ * (0.1f - outward));
+        const float outward = myEngine::Dot(direction, pendingImpactWallNormal_);
+        if (outward < 0.1f && myEngine::Length(pendingImpactWallNormal_) > 0.5f) {
+            direction = myEngine::Normalize(direction + pendingImpactWallNormal_ * (0.1f - outward));
         }
         auto child = std::make_unique<Bullet>();
         const uint32_t childDamage =
@@ -303,10 +303,10 @@ void Bullet::ApplyBulletDurabilityDamage(float amount)
     }
 }
 
-cg2::Vector3 Bullet::GetWorldPosition() const
+myEngine::Vector3 Bullet::GetWorldPosition() const
 {
 
-    cg2::Vector3 worldPos;
+    myEngine::Vector3 worldPos;
     worldPos.x = worldTransform_.translate.x;
     worldPos.y = worldTransform_.translate.y;
     worldPos.z = worldTransform_.translate.z;
@@ -329,7 +329,7 @@ void Bullet::ReleaseTrail()
     }
 }
 
-void Bullet::AttachTrail(cg2::TrailManager* trailManager, BulletTrailSettings* trailSettings)
+void Bullet::AttachTrail(myEngine::TrailManager* trailManager, BulletTrailSettings* trailSettings)
 {
     if (!trailManager || trail_) {
         return;
@@ -344,7 +344,7 @@ void Bullet::AttachTrail(cg2::TrailManager* trailManager, BulletTrailSettings* t
     trail_->SetConfig(MakeTrailConfig());
 }
 
-cg2::Vector4 Bullet::GetBulletColor() const
+myEngine::Vector4 Bullet::GetBulletColor() const
 {
     // 特殊状態の色を優先し、該当しなければ所有者・反射可否と借用設定から選ぶ。
     if (armorReflected_)
@@ -389,10 +389,10 @@ void Bullet::ApplyVisualSettings()
     object_->SetColor(GetBulletColor());
 }
 
-cg2::TrailConfig Bullet::MakeTrailConfig() const
+myEngine::TrailConfig Bullet::MakeTrailConfig() const
 {
-    cg2::TrailConfig config{};
-    const cg2::Vector4 color = GetBulletColor();
+    myEngine::TrailConfig config{};
+    const myEngine::Vector4 color = GetBulletColor();
     if (trailSettings_) {
         // 弾色から軌跡色を作る方式と、軌跡専用の色設定を使う方式を分ける。
         if (trailSettings_->useObjectColorForTrail) {
@@ -449,15 +449,15 @@ void Bullet::UpdateTrail(float deltaTime)
     }
 
     // XY平面の移動方向に直交する帯を作る。静止中は新しい点を加えない。
-    cg2::Vector3 dir = velocity_;
+    myEngine::Vector3 dir = velocity_;
     dir.z = 0.0f;
-    const float speed = cg2::Length(dir);
+    const float speed = myEngine::Length(dir);
     if (speed <= 0.001f) {
         return;
     }
     dir = dir / speed;
 
-    cg2::Vector3 side = {-dir.y, dir.x, 0.0f};
+    myEngine::Vector3 side = {-dir.y, dir.x, 0.0f};
     float halfWidth = (owner_ == kPlayer) ? 0.26f : 0.22f;
     if (trailSettings_) {
         halfWidth = (owner_ == kPlayer) ? trailSettings_->playerHalfWidth : trailSettings_->enemyHalfWidth;
@@ -467,8 +467,8 @@ void Bullet::UpdateTrail(float deltaTime)
     if (specialKind_ == SpecialKind::SlashWave)
         halfWidth = radius_ * .20f;
     halfWidth *= visualTrailScale_;
-    const cg2::Vector3 center = {worldTransform_.translate.x, worldTransform_.translate.y, worldTransform_.translate.z - 0.015f};
-    const cg2::Vector3 tip = center + side * halfWidth;
-    const cg2::Vector3 base = center - side * halfWidth;
+    const myEngine::Vector3 center = {worldTransform_.translate.x, worldTransform_.translate.y, worldTransform_.translate.z - 0.015f};
+    const myEngine::Vector3 tip = center + side * halfWidth;
+    const myEngine::Vector3 base = center - side * halfWidth;
     trail_->Update(deltaTime, tip, base, MakeTrailConfig());
 }

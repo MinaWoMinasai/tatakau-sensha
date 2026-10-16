@@ -13,8 +13,8 @@ public:
     bool InitializeStep();
 
 private:
-    cg2::InitializationTask Build();
-    cg2::InitializationTask task_;
+    myEngine::InitializationTask Build();
+    myEngine::InitializationTask task_;
     GameWorld& world_;
 };
 } // namespace gameplay

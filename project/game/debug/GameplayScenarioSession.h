@@ -1,6 +1,6 @@
 #pragma once
 #include "DeveloperTools.h"
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "GameplayScenario.h"
 #include "externals/nlohmann/json.hpp"
 #include <string>

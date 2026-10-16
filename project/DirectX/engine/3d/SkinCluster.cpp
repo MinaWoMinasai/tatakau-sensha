@@ -22,7 +22,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace cg2 {
+namespace myEngine {
 
 namespace {
 
@@ -1236,4 +1236,4 @@ void SkinCluster::Update(const Skeleton& skeleton) {
 	}
 }
 
-} // namespace cg2
+} // namespace myEngine

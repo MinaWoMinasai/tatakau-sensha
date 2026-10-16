@@ -4,8 +4,8 @@
 #include <array>
 
 namespace stagesurface {
-inline cg2::ModelData FloorMesh() {
-    cg2::ModelData mesh;
+inline myEngine::ModelData FloorMesh() {
+    myEngine::ModelData mesh;
     mesh.vertices = {
         {{-1, -1, 0, 1}, {0, 1}, {0, 0, -1}},
         {{-1,  1, 0, 1}, {0, 0}, {0, 0, -1}},
@@ -18,13 +18,13 @@ inline cg2::ModelData FloorMesh() {
 
 // Six faces, twelve edge chamfers and eight corner facets. A single shared mesh
 // retains hard normals and the original [-1,+1] XY envelope.
-inline cg2::ModelData BlockMesh(float bevel = kBevel) {
-    cg2::ModelData mesh;
+inline myEngine::ModelData BlockMesh(float bevel = kBevel) {
+    myEngine::ModelData mesh;
     mesh.vertices.reserve(96);
     mesh.indices.reserve(132);
     const float q = 1.0f - bevel;
-    auto face = [&](const std::array<cg2::Vector3, 4>& points, int count, const cg2::Vector3& outward) {
-        const cg2::Vector3 normal = cg2::Normalize(outward);
+    auto face = [&](const std::array<myEngine::Vector3, 4>& points, int count, const myEngine::Vector3& outward) {
+        const myEngine::Vector3 normal = myEngine::Normalize(outward);
         const uint32_t first = static_cast<uint32_t>(mesh.vertices.size());
         for (int index = 0; index < count; ++index) {
             const auto& point = points[index];
@@ -33,7 +33,7 @@ inline cg2::ModelData BlockMesh(float bevel = kBevel) {
         }
         for (int index = 1; index + 1 < count; ++index) {
             uint32_t b = first + index, c = first + index + 1;
-            if (cg2::Dot(cg2::Cross(points[index] - points[0], points[index + 1] - points[0]), normal) < 0)
+            if (myEngine::Dot(myEngine::Cross(points[index] - points[0], points[index + 1] - points[0]), normal) < 0)
                 std::swap(b, c);
             mesh.indices.insert(mesh.indices.end(), {first, b, c});
         }
@@ -56,8 +56,8 @@ inline cg2::ModelData BlockMesh(float bevel = kBevel) {
 
 struct WallRectangle { size_t x, y, width, height; int type; };
 inline std::string StackModelName(int levels) { return std::string(kWallModel) + "_" + std::to_string(levels); }
-inline cg2::ModelData StackMesh(int levels) {
-    cg2::ModelData result;
+inline myEngine::ModelData StackMesh(int levels) {
+    myEngine::ModelData result;
     const auto box=BlockMesh(0.0f);
     const float step=2.0f/static_cast<float>(levels);
     for (int layer=0;layer<levels;++layer) {

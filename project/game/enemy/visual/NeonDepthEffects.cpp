@@ -1,12 +1,12 @@
 #include "NeonDepthEffects.h"
 #include <stdexcept>
 
-bool NeonDepthEffects::Initialize(cg2::DirectXCommon* dx,const std::string& texture) {
+bool NeonDepthEffects::Initialize(myEngine::DirectXCommon* dx,const std::string& texture) {
     if(renderer_) return dx_==dx;
     if(!dx) return false;
-    static_assert(neondepth::kMaximumEffectVertices<cg2::NeonGridRenderer::kMaxVertices);
+    static_assert(neondepth::kMaximumEffectVertices<myEngine::NeonGridRenderer::kMaxVertices);
     try {
-        auto renderer=std::make_unique<cg2::NeonGridRenderer>();
+        auto renderer=std::make_unique<myEngine::NeonGridRenderer>();
         renderer->Initialize(dx,texture);
         renderer->SetLineStyle(.35f,1.0f);
         renderer_=std::move(renderer); dx_=dx;
@@ -66,7 +66,7 @@ bool NeonDepthEffects::Update(const neondepth::EffectsInput& input) {
         const auto& fill=geometry.fills[index];
         if(fill.rectangle) {
             constexpr float inverseRoot2=.70710678118f;
-            renderer_->QueueBillboardRegularPolygonFill(fill.center,4,1,cg2::pi*.25f,
+            renderer_->QueueBillboardRegularPolygonFill(fill.center,4,1,myEngine::pi*.25f,
                 {fill.size.x*inverseRoot2,fill.size.y*inverseRoot2},fill.color,fill.right,fill.up);
         } else renderer_->QueueBillboardDisc(fill.center,fill.radius,fill.color,fill.right,fill.up,neondepth::kEffectCircleSteps);
     }

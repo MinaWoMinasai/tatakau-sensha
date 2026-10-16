@@ -49,8 +49,8 @@ public:
     /// @brief 画面演出状態を返す。
     IScene::ScreenEffectState GetScreenEffectState();
     IScene::DeveloperShowcaseState GetDeveloperShowcaseState();
-    void RecordDeveloperFrame(cg2::DirectXCommon& dx);
-    void RecordDeveloperPostParameters(const cg2::BloomParam& param);
+    void RecordDeveloperFrame(myEngine::DirectXCommon& dx);
+    void RecordDeveloperPostParameters(const myEngine::BloomParam& param);
     /// @brief 水面後処理Process設定を返す。
     IScene::WaterPostProcessSettings GetWaterPostProcessSettings();
     /// @brief 現在シーンのアリーナ表示設定を返す。

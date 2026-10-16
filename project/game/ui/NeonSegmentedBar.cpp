@@ -10,14 +10,14 @@ constexpr float kFillMaskWidth = 128.0f;
 constexpr float kFillMaskHeight = 24.0f;
 
 /// @brief 単色スプライトを設定する。
-void SetSolidSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2::Vector2& size, const cg2::Vector4& color)
+void SetSolidSprite(myEngine::Sprite* sprite, const myEngine::Vector2& position, const myEngine::Vector2& size, const myEngine::Vector4& color)
 {
 	if (!sprite) {
 		return;
 	}
 	sprite->SetPosition(position);
 	sprite->SetSize(size);
-	cg2::Vector4 visibleColor = color;
+	myEngine::Vector4 visibleColor = color;
 	if (size.x <= 0.01f || size.y <= 0.01f) {
 		visibleColor.w = 0.0f;
 	}
@@ -27,7 +27,7 @@ void SetSolidSprite(cg2::Sprite* sprite, const cg2::Vector2& position, const cg2
 
 // 最初と最後のセルだけを片側丸端にする。中央側は直線のままなので、
 // 区切りセルの見た目を維持したまま、外枠から四角がはみ出さない。
-void SetSegmentShape(cg2::Sprite* sprite, int index, int segmentCount, const cg2::Vector2& size, bool roundedFrame)
+void SetSegmentShape(myEngine::Sprite* sprite, int index, int segmentCount, const myEngine::Vector2& size, bool roundedFrame)
 {
 	if (!sprite) {
 		return;
@@ -50,7 +50,7 @@ void SetSegmentShape(cg2::Sprite* sprite, int index, int segmentCount, const cg2
 
 } // namespace
 
-void NeonSegmentedBar::Initialize(cg2::SpriteCommon* spriteCommon)
+void NeonSegmentedBar::Initialize(myEngine::SpriteCommon* spriteCommon)
 {
 	spriteCommon_ = spriteCommon;
 	if (!spriteCommon_) {
@@ -58,7 +58,7 @@ void NeonSegmentedBar::Initialize(cg2::SpriteCommon* spriteCommon)
 	}
 	frame_ = std::make_unique<NeonProgressBar>();
 	frame_->Initialize(spriteCommon_);
-	bloomBackdrop_ = std::make_unique<cg2::Sprite>();
+	bloomBackdrop_ = std::make_unique<myEngine::Sprite>();
 	bloomBackdrop_->Initialize(spriteCommon_, kFillMaskTexture);
 	EnsureSegmentSprites();
 	dirty_ = true;
@@ -76,9 +76,9 @@ void NeonSegmentedBar::SetStyle(const NeonSegmentedBarStyle& style)
 	dirty_ = true;
 }
 
-void NeonSegmentedBar::SetBounds(const cg2::Vector2& position, const cg2::Vector2& size)
+void NeonSegmentedBar::SetBounds(const myEngine::Vector2& position, const myEngine::Vector2& size)
 {
-	const cg2::Vector2 clampedSize = { (std::max)(0.0f, size.x), (std::max)(0.0f, size.y) };
+	const myEngine::Vector2 clampedSize = { (std::max)(0.0f, size.x), (std::max)(0.0f, size.y) };
 	if (position_.x == position.x && position_.y == position.y &&
 		size_.x == clampedSize.x && size_.y == clampedSize.y) {
 		return;
@@ -134,14 +134,14 @@ void NeonSegmentedBar::Update()
 	const float padding = (std::min)(
 		(std::max)(style_.innerPadding, minimumRoundedPadding),
 		(std::min)(size_.x, size_.y) * 0.35f);
-	const cg2::Vector2 innerPosition = { position_.x + padding, position_.y + padding };
-	const cg2::Vector2 innerSize = {
+	const myEngine::Vector2 innerPosition = { position_.x + padding, position_.y + padding };
+	const myEngine::Vector2 innerSize = {
 		(std::max)(0.0f, size_.x - padding * 2.0f),
 		(std::max)(0.0f, size_.y - padding * 2.0f)
 	};
 	const float totalGap = style_.segmentGap * static_cast<float>((std::max)(0, segmentCount_ - 1));
 	const float segmentWidth = (std::max)(0.0f, (innerSize.x - totalGap) / static_cast<float>(segmentCount_));
-	const cg2::Vector4 bloomFilled = MultiplyBrightness(style_.filledColor, style_.bloomBrightness, style_.bloomAlpha);
+	const myEngine::Vector4 bloomFilled = MultiplyBrightness(style_.filledColor, style_.bloomBrightness, style_.bloomAlpha);
 	if (bloomBackdrop_) {
 		bloomBackdrop_->SetTexture(kFillMaskTexture);
 		bloomBackdrop_->SetTextureLeftTop({ 0.0f, 0.0f });
@@ -154,7 +154,7 @@ void NeonSegmentedBar::Update()
 	}
 
 	for (int i = 0; i < segmentCount_; ++i) {
-		const cg2::Vector2 segmentPosition = {
+		const myEngine::Vector2 segmentPosition = {
 			innerPosition.x + static_cast<float>(i) * (segmentWidth + style_.segmentGap),
 			innerPosition.y
 		};
@@ -166,7 +166,7 @@ void NeonSegmentedBar::Update()
 			bloomSegments_[i].get(),
 			segmentPosition,
 			{ segmentWidth, innerSize.y },
-			filled ? bloomFilled : cg2::Vector4{ 0.0f, 0.0f, 0.0f, 0.0f });
+			filled ? bloomFilled : myEngine::Vector4{ 0.0f, 0.0f, 0.0f, 0.0f });
 	}
 	dirty_ = false;
 }
@@ -204,16 +204,16 @@ void NeonSegmentedBar::EnsureSegmentSprites()
 		return;
 	}
 	while (static_cast<int>(segments_.size()) < segmentCount_) {
-		auto segment = std::make_unique<cg2::Sprite>();
+		auto segment = std::make_unique<myEngine::Sprite>();
 		segment->Initialize(spriteCommon_, kSolidTexture);
 		segments_.push_back(std::move(segment));
-		auto bloomSegment = std::make_unique<cg2::Sprite>();
+		auto bloomSegment = std::make_unique<myEngine::Sprite>();
 		bloomSegment->Initialize(spriteCommon_, kSolidTexture);
 		bloomSegments_.push_back(std::move(bloomSegment));
 	}
 }
 
-cg2::Vector4 NeonSegmentedBar::MultiplyBrightness(const cg2::Vector4& color, float brightness, float alpha)
+myEngine::Vector4 NeonSegmentedBar::MultiplyBrightness(const myEngine::Vector4& color, float brightness, float alpha)
 {
 	return { color.x * brightness, color.y * brightness, color.z * brightness, color.w * alpha };
 }

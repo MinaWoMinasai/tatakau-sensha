@@ -1,9 +1,9 @@
 #include "ModelCommon.h"
 
-namespace cg2 {
+namespace myEngine {
 
 void ModelCommon::Initialize(DirectXCommon* dxCommon) {
 	dxCommon_ = dxCommon;
 }
 
-} // namespace cg2
+} // namespace myEngine

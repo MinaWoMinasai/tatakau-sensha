@@ -13,7 +13,7 @@ public:
 
     /// @brief 戦車遠征を初期化する。
     void InitializeTankRun();
-    cg2::InitializationTask BuildInitialization();
+    myEngine::InitializationTask BuildInitialization();
 
     /// @brief 戦車遠征を更新する。
     /// @param dt この処理で進める経過時間（秒）。
@@ -36,7 +36,7 @@ public:
     void OnTankRunResourceClaim(size_t index, bool playerOwned);
 
     /// @brief 戦車遠征敵Defeatedの通知を受けて、このオブジェクトの状態を反映する。
-    void OnTankRunEnemyDefeated(const cg2::Vector3& position);
+    void OnTankRunEnemyDefeated(const myEngine::Vector3& position);
 
     /// @brief 戦車遠征選択肢を選択する。
     void SelectTankRunOption(int index);

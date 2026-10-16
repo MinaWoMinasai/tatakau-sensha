@@ -127,16 +127,16 @@ GPU時計・発熱・実行時負荷による変動があり、中央値の低�
 
 - [GameplayRenderer.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/render/session/GameplayRenderer.cpp)
 - [StageNeonRenderer.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/game/render/session/StageNeonRenderer.cpp)
-- [NeonGridGeometry.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/commom/NeonGridGeometry.cpp)
-- [NeonGridGeometry.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/commom/NeonGridGeometry.h)
-- [NeonGridRenderer.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/commom/NeonGridRenderer.cpp)
-- [NeonGridRenderer.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/commom/NeonGridRenderer.h)
-- [TrailManager.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/commom/TrailManager.cpp)
+- [NeonGridGeometry.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/common/NeonGridGeometry.cpp)
+- [NeonGridGeometry.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/common/NeonGridGeometry.h)
+- [NeonGridRenderer.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/common/NeonGridRenderer.cpp)
+- [NeonGridRenderer.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/common/NeonGridRenderer.h)
+- [TrailManager.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/common/TrailManager.cpp)
 
 **MRT・深度・Bloomの整合性**
 
-- [DirectXCommon.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/commom/DirectXCommon.cpp)
-- [DirectXCommon.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/commom/DirectXCommon.h)
+- [DirectXCommon.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/common/DirectXCommon.cpp)
+- [DirectXCommon.h](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/common/DirectXCommon.h)
 - [Object3dCommon.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/3d/Object3dCommon.cpp)
 - [SpriteCommon.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/2d/SpriteCommon.cpp)
 - [Sprite.cpp](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/DirectX/engine/2d/Sprite.cpp)
@@ -161,6 +161,6 @@ GPU時計・発熱・実行時負荷による変動があり、中央値の低�
 
 **プロジェクト登録**
 
-- [CG2_testPro.vcxproj](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/CG2_testPro.vcxproj)
-- [CG2_testPro.vcxproj.filters](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/CG2_testPro.vcxproj.filters)
+- [MyEngine.vcxproj](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/MyEngine.vcxproj)
+- [MyEngine.vcxproj.filters](C:/Users/k024g/OneDrive/デスクトップ/自作エンジン2/project/MyEngine.vcxproj.filters)
 

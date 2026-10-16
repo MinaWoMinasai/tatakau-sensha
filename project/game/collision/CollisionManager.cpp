@@ -64,7 +64,7 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 
     // 球同士は現在位置で判定する。特殊弾・帰還弾は前回位置からの線分も調べる。
     if (colliderA->GetShape() == ColliderShape::Sphere && colliderB->GetShape() == ColliderShape::Sphere) {
-        float dist = cg2::Length(colliderA->GetWorldPosition() - colliderB->GetWorldPosition());
+        float dist = myEngine::Length(colliderA->GetWorldPosition() - colliderB->GetWorldPosition());
         hit = dist < (colliderA->GetRadius() + colliderB->GetRadius());
         // 高速移動で現在位置の球が敵を通り越した場合も、XY平面の移動区間で接触を拾う。
         auto swept = [&](const Bullet* shot, Collider* target) {
@@ -78,11 +78,11 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 
     // レーザーのカプセルと球は、線分と半径による判定を使う。
     else if (colliderA->GetShape() == ColliderShape::Capsule && colliderB->GetShape() == ColliderShape::Sphere) {
-        cg2::Sphere s{colliderB->GetWorldPosition(), colliderB->GetRadius()};
-        hit = cg2::IsCollision(colliderA->GetSegment(), s, colliderA->GetCapsuleRadius());
+        myEngine::Sphere s{colliderB->GetWorldPosition(), colliderB->GetRadius()};
+        hit = myEngine::IsCollision(colliderA->GetSegment(), s, colliderA->GetCapsuleRadius());
     } else if (colliderB->GetShape() == ColliderShape::Capsule && colliderA->GetShape() == ColliderShape::Sphere) {
-        cg2::Sphere s{colliderA->GetWorldPosition(), colliderA->GetRadius()};
-        hit = cg2::IsCollision(colliderB->GetSegment(), s, colliderB->GetCapsuleRadius());
+        myEngine::Sphere s{colliderA->GetWorldPosition(), colliderA->GetRadius()};
+        hit = myEngine::IsCollision(colliderB->GetSegment(), s, colliderB->GetCapsuleRadius());
     }
 
     if (!hit) {
@@ -122,11 +122,11 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
     if (playerHit && activeBulletManager_ && !shot->WasArmorReflected() &&
         (shot->GetSpecialKind() == Bullet::SpecialKind::None || shot->GetSpecialKind() == Bullet::SpecialKind::Rail)) {
         if (auto* armor = dynamic_cast<ExpEnemy*>(victim)) {
-            cg2::Vector3 movement = shot->GetWorldPosition() - shot->GetPreviousWorldPosition();
-            if (cg2::Length(movement) < .0001f)
+            myEngine::Vector3 movement = shot->GetWorldPosition() - shot->GetPreviousWorldPosition();
+            if (myEngine::Length(movement) < .0001f)
                 movement = shot->GetMove();
-            const cg2::Vector3 source =
-                victim->GetWorldPosition() - (cg2::Length(movement) > .0001f ? cg2::Normalize(movement) : cg2::Vector3{1, 0, 0});
+            const myEngine::Vector3 source =
+                victim->GetWorldPosition() - (myEngine::Length(movement) > .0001f ? myEngine::Normalize(movement) : myEngine::Vector3{1, 0, 0});
             if (armor->TryReflectProjectile(source)) {
                 activeBulletManager_->QueueArmorReflection(*shot, victim->GetWorldPosition());
                 shot->Die();

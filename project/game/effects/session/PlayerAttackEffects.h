@@ -20,7 +20,7 @@ public:
     void UpdatePlayerLasers(float deltaTime);
 
     /// @brief 自機Lasersを後で処理するために予約する。
-    void QueuePlayerLasers(const cg2::Vector3& cameraForward);
+    void QueuePlayerLasers(const myEngine::Vector3& cameraForward);
 
     /// @brief 発射イベントから地雷の位置・威力・待機時間・寿命を登録する。
     void SpawnPlayerMine(const Player::MineDropEvent& event);
@@ -34,7 +34,7 @@ public:
     void DetonatePlayerMine(size_t index);
 
     /// @brief 自機Minesを後で処理するために予約する。
-    void QueuePlayerMines(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward);
+    void QueuePlayerMines(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp, const myEngine::Vector3& cameraForward);
 
     /// @brief 斬撃イベントから予備動作・振り・回復動作と命中履歴を持つ斬撃状態を登録する。
     /// @note 方向がほぼ0なら登録しない。この時点では命中ダメージを適用しない。
@@ -57,10 +57,10 @@ public:
     void QueueSpecialCombatPresentation();
 
     /// @brief 自機近接攻撃軌跡設定を作成して返す。
-    cg2::TrailConfig MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale = 1.0f) const;
+    myEngine::TrailConfig MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale = 1.0f) const;
 
     /// @brief 振りの進行度を0～1へ制限して刃外側の軌跡の2端点を計算し、base/tipへ書き込む。
-    void ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, cg2::Vector3& base, cg2::Vector3& tip) const;
+    void ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, myEngine::Vector3& base, myEngine::Vector3& tip) const;
 
 private:
     GameWorld& world_;

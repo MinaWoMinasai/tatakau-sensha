@@ -3,7 +3,7 @@
 #include "TextureManager.h"
 #include "DirectXCommon.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 背景のキューブマップをカメラの周囲に描画する。
 class Skybox {
@@ -27,4 +27,4 @@ private:
     SrvManager* srvManager_;
 };
 
-} // namespace cg2
+} // namespace myEngine

@@ -428,7 +428,7 @@ void PlayerClassEditor::DrawPlayerClassEditor()
             static float layoutArcRotationScale = 1.0f;
             static bool layoutSnapAngles = true;
             static float layoutSnapStepDeg = 15.0f;
-            static cg2::Vector3 layoutScale = {1.25f, 0.24f, 0.24f};
+            static myEngine::Vector3 layoutScale = {1.25f, 0.24f, 0.24f};
             ImGui::DragInt("配置数", &layoutCount, 1.0f, 1, 12);
             ImGui::DragFloat("前方向位置", &layoutForward, 0.01f, -2.0f, 5.0f);
             ImGui::DragFloat("横間隔", &layoutSideSpacing, 0.01f, 0.0f, 3.0f);
@@ -482,7 +482,7 @@ void PlayerClassEditor::DrawPlayerClassEditor()
                 rebuildBarrels = true;
                 editedThisFrame = true;
             };
-            auto generateRadialLayout = [&](int count, float radius, float startAngleDeg, float angleOffsetDeg, const cg2::Vector3& scale,
+            auto generateRadialLayout = [&](int count, float radius, float startAngleDeg, float angleOffsetDeg, const myEngine::Vector3& scale,
                                             WeaponType forcedType = WeaponType::Projectile) {
                 count = (std::clamp)(count, 1, 12);
                 constexpr float kDegToRad = 3.1415926535f / 180.0f;
@@ -505,7 +505,7 @@ void PlayerClassEditor::DrawPlayerClassEditor()
                 rebuildBarrels = true;
                 editedThisFrame = true;
             };
-            auto generateFixedAngleLayout = [&](const std::vector<float>& anglesDeg, float radius, const cg2::Vector3& scale, bool fireAll,
+            auto generateFixedAngleLayout = [&](const std::vector<float>& anglesDeg, float radius, const myEngine::Vector3& scale, bool fireAll,
                                                 bool alternate, WeaponType forcedType = WeaponType::Projectile) {
                 constexpr float kDegToRad = 3.1415926535f / 180.0f;
                 config->barrels.clear();
@@ -649,8 +649,8 @@ void PlayerClassEditor::DrawPlayerClassEditor()
                 config->barrels.clear();
                 for (float angleDeg : {0.0f, 180.0f}) {
                     const float angleRad = angleDeg * 3.1415926535f / 180.0f;
-                    const cg2::Vector3 forwardOffset = {std::cos(angleRad) * 0.72f, std::sin(angleRad) * 0.72f, 0.0f};
-                    const cg2::Vector3 sideAxis = {-std::sin(angleRad), std::cos(angleRad), 0.0f};
+                    const myEngine::Vector3 forwardOffset = {std::cos(angleRad) * 0.72f, std::sin(angleRad) * 0.72f, 0.0f};
+                    const myEngine::Vector3 sideAxis = {-std::sin(angleRad), std::cos(angleRad), 0.0f};
                     for (float side : {-0.22f, 0.22f}) {
                         WeaponMountConfig barrel{};
                         applyCommonMountStyle(barrel);

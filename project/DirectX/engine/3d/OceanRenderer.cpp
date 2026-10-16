@@ -17,7 +17,7 @@
 #include "Model.h"
 #include "Object3dCommon.h"
 
-namespace cg2 {
+namespace myEngine {
 
 namespace {
 /// @brief 定数バッファのサイズをDirectX 12が要求する256バイト境界へ切り上げる。
@@ -2988,4 +2988,4 @@ void OceanRenderer::DrawProjectedGrid()
 		0);
 }
 
-} // namespace cg2
+} // namespace myEngine

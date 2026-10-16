@@ -48,7 +48,7 @@ void PlayerDrone::Attack(float deltaTime)
         if (bulletCoolTime <= 0) {
 
             // 発射位置
-            cg2::Vector3 origin = GetWorldPosition();
+            myEngine::Vector3 origin = GetWorldPosition();
 
             // 攻撃パラメータを設定
             AttackParam param{};
@@ -69,22 +69,22 @@ void PlayerDrone::Attack(float deltaTime)
     }
 }
 
-void PlayerDrone::RotateToMouse(cg2::Camera* viewProjection)
+void PlayerDrone::RotateToMouse(myEngine::Camera* viewProjection)
 {
     // 自機が渡した照準位置を使う場合はマウス座標の逆変換を省く。ほぼ同位置なら前の向きを保つ。
     if (runAttackEnabled_ && runInputOverride_) {
-        const cg2::Vector3 aim = runAimTarget_ - worldTransform_.translate;
-        if (cg2::Length(aim) > 0.001f)
-            dir = cg2::Normalize(aim);
+        const myEngine::Vector3 aim = runAimTarget_ - worldTransform_.translate;
+        if (myEngine::Length(aim) > 0.001f)
+            dir = myEngine::Normalize(aim);
         angle_ = std::atan2(dir.y, dir.x);
         worldTransform_.rotate.z = angle_;
         object_->SetRotate(worldTransform_.rotate);
         return;
     }
     if (input_ && input_->IsGamepadActive()) {
-        cg2::Vector2 aim{};
+        myEngine::Vector2 aim{};
         if (input_->TryGetGamepadAim(aim))
-            dir = cg2::Normalize(cg2::Vector3{aim.x, aim.y, 0.0f});
+            dir = myEngine::Normalize(myEngine::Vector3{aim.x, aim.y, 0.0f});
         angle_ = std::atan2(dir.y, dir.x);
         worldTransform_.rotate.z = angle_;
         object_->SetRotate(worldTransform_.rotate);
@@ -92,21 +92,21 @@ void PlayerDrone::RotateToMouse(cg2::Camera* viewProjection)
     }
     if (neonDepthAimEnabled_) {
         if (!viewProjection) return;
-        auto* window = cg2::WinApp::GetInstance();
+        auto* window = myEngine::WinApp::GetInstance();
         POINT mousePosition{};
         if (!window || !GetCursorPos(&mousePosition) || !ScreenToClient(window->GetHwnd(), &mousePosition)) return;
-        constexpr cg2::Vector2 viewport{1280.0f,720.0f};
-        cg2::Vector2 logicalMouse{static_cast<float>(mousePosition.x),static_cast<float>(mousePosition.y)};
+        constexpr myEngine::Vector2 viewport{1280.0f,720.0f};
+        myEngine::Vector2 logicalMouse{static_cast<float>(mousePosition.x),static_cast<float>(mousePosition.y)};
         window->ClientToLogical(logicalMouse.x,logicalMouse.y);
-        cg2::Vector2 pixel{};
-        cg2::Vector3 target{};
+        myEngine::Vector2 pixel{};
+        myEngine::Vector3 target{};
         if (!neondepth::TryClientToViewport(logicalMouse,viewport,viewport,pixel) ||
             !neondepth::TryScreenToFloorFromViewProjection(pixel,viewport,
                 viewProjection->GetViewProjectionMatrix(),0.0f,target)) return;
-        const cg2::Vector3 offset = target-worldTransform_.translate;
-        const float length = cg2::Length(offset);
+        const myEngine::Vector3 offset = target-worldTransform_.translate;
+        const float length = myEngine::Length(offset);
         if (!neondepth::Finite(offset) || !std::isfinite(length) || length<=0.001f) return;
-        dir = cg2::Normalize(offset);
+        dir = myEngine::Normalize(offset);
         angle_ = std::atan2(dir.y,dir.x);
         worldTransform_.rotate.z = angle_;
         object_->SetRotate(worldTransform_.rotate);
@@ -115,34 +115,34 @@ void PlayerDrone::RotateToMouse(cg2::Camera* viewProjection)
     // --- 1. マウス座標取得 ---
     POINT mousePosition;
     GetCursorPos(&mousePosition);
-    HWND hwnd = cg2::WinApp::GetInstance()->GetHwnd();
+    HWND hwnd = myEngine::WinApp::GetInstance()->GetHwnd();
     ScreenToClient(hwnd, &mousePosition);
     float logicalMouseX = static_cast<float>(mousePosition.x);
     float logicalMouseY = static_cast<float>(mousePosition.y);
-    cg2::WinApp::GetInstance()->ClientToLogical(logicalMouseX, logicalMouseY);
+    myEngine::WinApp::GetInstance()->ClientToLogical(logicalMouseX, logicalMouseY);
 
     // --- 2. 逆変換用の行列を準備 ---
-    cg2::Matrix4x4 matViewport = cg2::MakeViewportMatrix(0, 0, cg2::WinApp::kClientWidth, cg2::WinApp::kClientHeight, 0, 1);
-    cg2::Matrix4x4 matVPV = viewProjection->GetViewMatrix() * viewProjection->GetProjectionMatrix() * matViewport;
-    cg2::Matrix4x4 matInverseVPV = cg2::Inverse(matVPV);
+    myEngine::Matrix4x4 matViewport = myEngine::MakeViewportMatrix(0, 0, myEngine::WinApp::kClientWidth, myEngine::WinApp::kClientHeight, 0, 1);
+    myEngine::Matrix4x4 matVPV = viewProjection->GetViewMatrix() * viewProjection->GetProjectionMatrix() * matViewport;
+    myEngine::Matrix4x4 matInverseVPV = myEngine::Inverse(matVPV);
 
     // --- 3. マウス座標をワールドに変換 ---
-    cg2::Vector3 posNear = cg2::Vector3(logicalMouseX, logicalMouseY, 0);
-    cg2::Vector3 posFar = cg2::Vector3(logicalMouseX, logicalMouseY, 1);
+    myEngine::Vector3 posNear = myEngine::Vector3(logicalMouseX, logicalMouseY, 0);
+    myEngine::Vector3 posFar = myEngine::Vector3(logicalMouseX, logicalMouseY, 1);
 
-    posNear = cg2::TransformMatrix(posNear, matInverseVPV);
-    posFar = cg2::TransformMatrix(posFar, matInverseVPV);
+    posNear = myEngine::TransformMatrix(posNear, matInverseVPV);
+    posFar = myEngine::TransformMatrix(posFar, matInverseVPV);
 
     // 画面の近点・遠点からレイを作り、ゲームのXY平面（Z=0）で照準位置を求める。
-    cg2::Vector3 mouseDirection = posFar - posNear;
-    cg2::Vector3 rayDir = cg2::Normalize(mouseDirection);
+    myEngine::Vector3 mouseDirection = posFar - posNear;
+    myEngine::Vector3 rayDir = myEngine::Normalize(mouseDirection);
     float t = -posNear.z / rayDir.z;
-    cg2::Vector3 target = posNear + rayDir * t;
+    myEngine::Vector3 target = posNear + rayDir * t;
 
     // --- 5. プレイヤーの位置と方向ベクトル ---
-    cg2::Vector3 playerPos = worldTransform_.translate;
-    cg2::Vector3 targetPos = target - playerPos;
-    dir = cg2::Normalize(targetPos);
+    myEngine::Vector3 playerPos = worldTransform_.translate;
+    myEngine::Vector3 targetPos = target - playerPos;
+    dir = myEngine::Normalize(targetPos);
 
     // --- 6. 回転角度を算出 ---
     angle_ = atan2(dir.y, dir.x);
@@ -150,16 +150,16 @@ void PlayerDrone::RotateToMouse(cg2::Camera* viewProjection)
     object_->SetRotate(worldTransform_.rotate);
 }
 
-void PlayerDrone::Initialize(const cg2::Vector3& position, const cg2::Vector3& velocity)
+void PlayerDrone::Initialize(const myEngine::Vector3& position, const myEngine::Vector3& velocity)
 {
 
     neonVisual_ = false;
-    object_ = std::make_unique<cg2::Object3d>();
+    object_ = std::make_unique<myEngine::Object3d>();
     object_->Initialize();
 
     object_->SetModel("enemy.obj");
 
-    worldTransform_ = cg2::InitWorldTransform();
+    worldTransform_ = myEngine::InitWorldTransform();
     worldTransform_.translate = position;
     object_->SetTransform(worldTransform_);
     object_->Update();
@@ -167,7 +167,7 @@ void PlayerDrone::Initialize(const cg2::Vector3& position, const cg2::Vector3& v
     velocity_ = velocity;
 
     // シングルトンインスタンス
-    input_ = cg2::Input::GetInstance();
+    input_ = myEngine::Input::GetInstance();
 
     SetDamage(1);
 
@@ -178,7 +178,7 @@ void PlayerDrone::Initialize(const cg2::Vector3& position, const cg2::Vector3& v
                      kCollisionAttributeExpEnemy);
 }
 
-void PlayerDrone::Update(cg2::Camera* viewProjection, Stage& stage, const cg2::Vector3& playerPosition, float deltaTime)
+void PlayerDrone::Update(myEngine::Camera* viewProjection, Stage& stage, const myEngine::Vector3& playerPosition, float deltaTime)
 {
     // Damage resolves death immediately; never move or fire a terminal actor.
     if (isDead_ || hp_ <= 0) { Die(); return; }
@@ -188,7 +188,7 @@ void PlayerDrone::Update(cg2::Camera* viewProjection, Stage& stage, const cg2::V
     if (runAttackEnabled_) {
         // Stepは時間による遷移と再構築完了を扱う。到着時のダメージはここではなく自機の追加能力更新で行う。
         const auto previous = mission_.GetPhase();
-        const bool home = cg2::Length(playerPosition + runFollowOffset_ - GetWorldPosition()) < 1.2f;
+        const bool home = myEngine::Length(playerPosition + runFollowOffset_ - GetWorldPosition()) < 1.2f;
         if (mission_.Step(dt, home)) {
             rebuilt_ = true;
             hp_ = kMaxHp;
@@ -204,34 +204,34 @@ void PlayerDrone::Update(cg2::Camera* viewProjection, Stage& stage, const cg2::V
 
     RotateToMouse(viewProjection);
 
-    cg2::Vector3 toPlayer = playerPosition + (runAttackEnabled_ ? runFollowOffset_ : cg2::Vector3{}) - worldTransform_.translate;
+    myEngine::Vector3 toPlayer = playerPosition + (runAttackEnabled_ ? runFollowOffset_ : myEngine::Vector3{}) - worldTransform_.translate;
     // 予告中は停止し、突撃中は登録した位置へ向かう。通常の帰還・護衛は自機の追従位置を使う。
     if (runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Warning)
         toPlayer = {};
     if (runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Charging) {
         toPlayer = missionTarget_ - GetWorldPosition();
-        if (cg2::Length(toPlayer) < 1.1f) {
+        if (myEngine::Length(toPlayer) < 1.1f) {
             mission_.Arrive();
             toPlayer = {};
         }
     }
 
-    float distance = cg2::Length(toPlayer);
+    float distance = myEngine::Length(toPlayer);
     if (distance < 0.01f && !runAttackEnabled_) {
         return;
     }
 
     // 遠征では自機付近で静止していても、後段の任務到着・射撃処理まで進める。
-    cg2::Vector3 followDirection = distance < 0.01f ? cg2::Vector3{} : cg2::Normalize(toPlayer);
+    myEngine::Vector3 followDirection = distance < 0.01f ? myEngine::Vector3{} : myEngine::Normalize(toPlayer);
 
     // 追従速度は距離に応じて増やし、追い付き速度の設定値を上限にする。
     const float followSpeed = runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Charging ? .90f
                               : runAttackEnabled_ ? (std::min)(runCatchupSpeed_, runFollowSpeed_ + distance * 0.035f)
                                                   : maxSpeed_;
-    cg2::Vector3 targetVelocity = followDirection * (runAttackEnabled_ ? followSpeed * (std::min)(1.0f, distance / 1.2f) : followSpeed);
+    myEngine::Vector3 targetVelocity = followDirection * (runAttackEnabled_ ? followSpeed * (std::min)(1.0f, distance / 1.2f) : followSpeed);
 
     // 遠征の追従は秒数を使った指数補間。突撃は目標速度へ直接切り替え、予告では速度を0にする。
-    float accel = runAttackEnabled_ ? runFollowResponse_ : ((cg2::Length(followDirection) > 0.0f) ? accel_ : decel_);
+    float accel = runAttackEnabled_ ? runFollowResponse_ : ((myEngine::Length(followDirection) > 0.0f) ? accel_ : decel_);
 
     velocity_ += (targetVelocity - velocity_) * (runAttackEnabled_ ? 1.0f - std::exp(-accel * dt) : accel * dt);
     if (runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Charging)
@@ -240,21 +240,21 @@ void PlayerDrone::Update(cg2::Camera* viewProjection, Stage& stage, const cg2::V
         velocity_ = {};
 
     // 速度を基準フレームから今回の移動量へ換算し、細分化してX・Yの順に地形へ通知する。
-    cg2::Vector3 frameMove = GetMove() * (dt * 60.0f);
+    myEngine::Vector3 frameMove = GetMove() * (dt * 60.0f);
     const float maxStep = 0.30f;
     const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(frameMove.x), std::abs(frameMove.y)) / maxStep) + 1);
-    cg2::Vector3 stepMove = frameMove / static_cast<float>(subStepCount);
+    myEngine::Vector3 stepMove = frameMove / static_cast<float>(subStepCount);
     for (int i = 0; i < subStepCount; ++i) {
-        const cg2::Vector3 previous = GetWorldPosition();
-        cg2::Vector3 playerPos = GetWorldPosition();
+        const myEngine::Vector3 previous = GetWorldPosition();
+        myEngine::Vector3 playerPos = GetWorldPosition();
         playerPos.x += stepMove.x;
         SetWorldPosition(playerPos);
-        stage.ResolvePlayerDroneCollision(*this, cg2::X);
+        stage.ResolvePlayerDroneCollision(*this, myEngine::X);
 
         playerPos = GetWorldPosition();
         playerPos.y += stepMove.y;
         SetWorldPosition(playerPos);
-        stage.ResolvePlayerDroneCollision(*this, cg2::Y);
+        stage.ResolvePlayerDroneCollision(*this, myEngine::Y);
         // 小刻みな移動の間に目標を通り過ぎた場合も、線分の接触でArriveを通知する。
         if (runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Charging) {
             const auto p = GetWorldPosition();
@@ -263,7 +263,7 @@ void PlayerDrone::Update(cg2::Camera* viewProjection, Stage& stage, const cg2::V
         }
     }
 
-    cg2::Vector3 pos = GetWorldPosition();
+    myEngine::Vector3 pos = GetWorldPosition();
 
     // ワールド座標からマップインデックスに変換
     int xIndex = static_cast<int>(pos.x / MapChip::kBlockWidth);
@@ -304,10 +304,10 @@ void PlayerDrone::Draw()
 
 void PlayerDrone::DrawSprite() {}
 
-cg2::Vector3 PlayerDrone::GetWorldPosition() const
+myEngine::Vector3 PlayerDrone::GetWorldPosition() const
 {
 
-    cg2::Vector3 worldPos;
+    myEngine::Vector3 worldPos;
     worldPos.x = worldTransform_.translate.x;
     worldPos.y = worldTransform_.translate.y;
     worldPos.z = worldTransform_.translate.z;
@@ -332,29 +332,29 @@ void PlayerDrone::OnCollision(Collider* other)
         if (hp_ <= 0) { Die(); return; }
     }
 
-    cg2::Vector3 hitDir = worldTransform_.translate - other->GetWorldPosition();
+    myEngine::Vector3 hitDir = worldTransform_.translate - other->GetWorldPosition();
 
-    if (cg2::Length(hitDir) < 0.0001f) {
+    if (myEngine::Length(hitDir) < 0.0001f) {
         return;
     }
 
-    hitDir = cg2::Normalize(hitDir);
+    hitDir = myEngine::Normalize(hitDir);
 
     // 接触方向へ押し出し、保持する速度の大きさを上限へ制限する。
     const float kKnockBackPower = 0.1f;
 
     velocity_ += hitDir * kKnockBackPower * other->GetHitPower();
     const float maxKnockSpeed = 0.22f;
-    if (cg2::Length(velocity_) > maxKnockSpeed) {
-        velocity_ = cg2::Normalize(velocity_) * maxKnockSpeed;
+    if (myEngine::Length(velocity_) > maxKnockSpeed) {
+        velocity_ = myEngine::Normalize(velocity_) * maxKnockSpeed;
     }
 }
 
-cg2::AABB PlayerDrone::GetAABB()
+myEngine::AABB PlayerDrone::GetAABB()
 {
-    cg2::Vector3 worldPos = GetWorldPosition();
+    myEngine::Vector3 worldPos = GetWorldPosition();
 
-    cg2::AABB aabb;
+    myEngine::AABB aabb;
 
     aabb.min = {worldPos.x - kWidth / 2.0f, worldPos.y - kHeight / 2.0f, worldPos.z - kWidth / 2.0f};
     aabb.max = {worldPos.x + kWidth / 2.0f, worldPos.y + kHeight / 2.0f, worldPos.z + kWidth / 2.0f};

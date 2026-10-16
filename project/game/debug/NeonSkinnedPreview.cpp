@@ -1,6 +1,6 @@
 #include "NeonSkinnedPreview.h"
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "StartupTrace.h"
 #include "NeonPreviewAnimations.h"
 #include "DirectX/engine/3d/neon/NeonCharacterStyle.h"
@@ -71,9 +71,9 @@ void NeonSkinnedPreview::ReleaseResources() {
 }
 
 NeonSkinnedPreview::ResourceLifecycleValidation NeonSkinnedPreview::ValidateResourceLifecycle(
-	cg2::Camera* camera, cg2::DebugCamera* debugCamera, unsigned repeats) {
+	myEngine::Camera* camera, myEngine::DebugCamera* debugCamera, unsigned repeats) {
 	ResourceLifecycleValidation result;
-	auto* common = cg2::Object3dCommon::GetInstance();
+	auto* common = myEngine::Object3dCommon::GetInstance();
 	auto* descriptors = common->GetSrvManager();
 	if (!camera || !debugCamera || !descriptors || !common->GetDxCommon() || repeats == 0 || repeats > 8) {
 		result.error = "Preview lifecycle validation requires initialized cameras/managers and 1..8 repeats.";
@@ -113,7 +113,7 @@ NeonSkinnedPreview::ResourceLifecycleValidation NeonSkinnedPreview::ValidateReso
 	return result;
 }
 
-void NeonSkinnedPreview::Initialize(cg2::Camera* camera, cg2::DebugCamera* debugCamera) {
+void NeonSkinnedPreview::Initialize(myEngine::Camera* camera, myEngine::DebugCamera* debugCamera) {
 	camera_ = camera;
 	debugCamera_ = debugCamera;
 	params_.internalLineEnabled = 1;
@@ -122,7 +122,7 @@ void NeonSkinnedPreview::Initialize(cg2::Camera* camera, cg2::DebugCamera* debug
 void NeonSkinnedPreview::Load() {
 	if (ready_) return;
 	try {
-		cg2::StartupTrace::Scope scope("NeonSkinnedPreview.Load");
+		myEngine::StartupTrace::Scope scope("NeonSkinnedPreview.Load");
 		const auto metadata = ReadGlbMetadata();
 		sourceAnimationCount_ = metadata.contains("animations") ? metadata["animations"].size() : 0;
 		sourceMaterials_.clear();
@@ -135,8 +135,8 @@ void NeonSkinnedPreview::Load() {
 					alphaMode == "MASK" ? material.value("alphaCutoff", 0.5f) : alphaMode == "BLEND" ? 0.03f : 0.0f });
 			}
 		}
-		auto* common = cg2::Object3dCommon::GetInstance();
-		model_ = std::make_unique<cg2::SkinnedModel>();
+		auto* common = myEngine::Object3dCommon::GetInstance();
+		model_ = std::make_unique<myEngine::SkinnedModel>();
 		model_->Initialize(common->GetDxCommon(), common->GetSrvManager(), kPreviewModelPath);
 		// ロード時に一度だけ生成し、モデルが所有する。失敗してもBindPoseでPreviewを継続する。
 		generatedAnimationCount_ = 0;
@@ -149,7 +149,7 @@ void NeonSkinnedPreview::Load() {
 				neonpreview::SelectAnimation(*model_, neonpreview::Clip::Idle);
 			}
 		} catch (const std::exception& error) { animationError_ = error.what(); }
-		submeshParams_.assign(model_->GetSubmeshCount(), cg2::NeonSkinnedSubmeshParams{});
+		submeshParams_.assign(model_->GetSubmeshCount(), myEngine::NeonSkinnedSubmeshParams{});
 		featureMaskBindings_.assign(model_->GetSubmeshCount(), FeatureMaskBinding{});
 		featureMaskIndices_.assign(model_->GetSubmeshCount(), std::nullopt);
 		featureDistanceIndices_.assign(model_->GetSubmeshCount(), std::nullopt);
@@ -162,7 +162,7 @@ void NeonSkinnedPreview::Load() {
 			}
 		}
 		ApplyRecommendedLineArtPreset();
-		object_ = std::make_unique<cg2::Object3d>();
+		object_ = std::make_unique<myEngine::Object3d>();
 		object_->Initialize();
 		object_->SetCamera(camera_);
 		object_->SetDebugCamera(debugCamera_);
@@ -171,10 +171,10 @@ void NeonSkinnedPreview::Load() {
 		PlaceInFrontOfCamera();
 		ready_ = true;
 		loadError_.clear();
-		cg2::StartupTrace::Count("neon_preview.model_loads");
-		cg2::StartupTrace::Count("neon_preview.submeshes", static_cast<double>(model_->GetSubmeshCount()));
-		cg2::StartupTrace::Count("neon_preview.joints", static_cast<double>(model_->GetSkeleton().joints.size()));
-		cg2::StartupTrace::Count("neon_preview.weight_assignments", model_->GetSkinCluster().GetAssignedInfluenceCount());
+		myEngine::StartupTrace::Count("neon_preview.model_loads");
+		myEngine::StartupTrace::Count("neon_preview.submeshes", static_cast<double>(model_->GetSubmeshCount()));
+		myEngine::StartupTrace::Count("neon_preview.joints", static_cast<double>(model_->GetSkeleton().joints.size()));
+		myEngine::StartupTrace::Count("neon_preview.weight_assignments", model_->GetSkinCluster().GetAssignedInfluenceCount());
 	} catch (const std::exception& error) {
 		// A failed model/pipeline load can already own instance descriptors.
 		// Release those before a later Load retry replaces the model/renderer.
@@ -184,24 +184,24 @@ void NeonSkinnedPreview::Load() {
 	}
 }
 
-cg2::Vector3 NeonSkinnedPreview::GetCameraPosition() const {
+myEngine::Vector3 NeonSkinnedPreview::GetCameraPosition() const {
 	if (showcaseActive_) return showcaseCamera_.GetTranslate();
-	return cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
+	return myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
 		? debugCamera_->GetEyePosition() : camera_->GetTranslate();
 }
 
 void NeonSkinnedPreview::PlaceInFrontOfCamera() {
-	const cg2::Matrix4x4 world = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
-		? cg2::Inverse(debugCamera_->GetViewMatrix()) : camera_->GetWorldMatrix();
-	const cg2::Vector3 forward{ world.m[2][0], world.m[2][1], world.m[2][2] };
-	const cg2::Vector3 up{ world.m[1][0], world.m[1][1], world.m[1][2] };
+	const myEngine::Matrix4x4 world = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
+		? myEngine::Inverse(debugCamera_->GetViewMatrix()) : camera_->GetWorldMatrix();
+	const myEngine::Vector3 forward{ world.m[2][0], world.m[2][1], world.m[2][2] };
+	const myEngine::Vector3 up{ world.m[1][0], world.m[1][1], world.m[1][2] };
 	// 足元原点の約1.6mのモデルを画面中央へ置く。ゲーム側のCameraには変更を加えない。
 	transform_.translate = GetCameraPosition() + forward * 35.0f - up * (0.8f * transform_.scale.y);
 }
 
 void NeonSkinnedPreview::Update(float deltaTime) {
 	if (!ready_) return;
-	showcaseCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
+	showcaseCapture_.Resolve(*myEngine::Object3dCommon::GetInstance()->GetDxCommon());
 	AdvanceShowcaseComparison();
 	AdvanceDissolveComparison();
 	AdvanceBloomComparison();
@@ -224,7 +224,7 @@ void NeonSkinnedPreview::Update(float deltaTime) {
 	if (showcaseActive_) UpdateShowcaseCamera(deltaTime);
 	object_->SetTransform(showcaseActive_ ? showcaseTransform_ : transform_);
 	// Object3dの既存World/WVP経路を再利用する。グローバルdebug-camera設定は保存復帰する。
-	auto* common = cg2::Object3dCommon::GetInstance();
+	auto* common = myEngine::Object3dCommon::GetInstance();
 	const bool debug = common->GetIsDebugCamera();
 	if (showcaseActive_) { common->SetIsDebugCamera(false); object_->SetCamera(&showcaseCamera_); }
 	object_->Update();
@@ -239,20 +239,20 @@ void NeonSkinnedPreview::Update(float deltaTime) {
 
 void NeonSkinnedPreview::Draw() {
 	if (!enabled_ || !ready_) return;
-	cg2::RuntimeProfiler::GpuScope gpuScope("Neon Character");
+	myEngine::RuntimeProfiler::GpuScope gpuScope("Neon Character");
 	if (neonMode_) {
 		renderer_.Draw(*model_, object_->GetTransformationResource()->GetGPUVirtualAddress(), GetCameraPosition());
-		cg2::StartupTrace::Count("neon_preview.neon_draws");
+		myEngine::StartupTrace::Count("neon_preview.neon_draws");
 	} else {
 		object_->DrawSkinned(*model_);
-		cg2::StartupTrace::Count("neon_preview.normal_draws");
+		myEngine::StartupTrace::Count("neon_preview.normal_draws");
 	}
 	// Custom Root Signatureの状態を後続の通常Rendererへ渡さない。
-	cg2::Object3dCommon::GetInstance()->PreDraw(cg2::kNormal);
+	myEngine::Object3dCommon::GetInstance()->PreDraw(myEngine::kNormal);
 }
 
 void NeonSkinnedPreview::ApplyRecommendedLineArtPreset() {
-	cg2::ApplyRecommendedNeonCharacterStyle(params_, model_.get(), submeshParams_);
+	myEngine::ApplyRecommendedNeonCharacterStyle(params_, model_.get(), submeshParams_);
 	geometryPreset_ = GeometryPreset::Off;
 }
 
@@ -261,7 +261,7 @@ void NeonSkinnedPreview::ApplyLegacyNeonPreset() {
 	const float maskIntensity = params_.featureMaskIntensity;
 	const float maskBlend = params_.featureMaskBlend;
 	const uint32_t maskDebugMode = params_.featureMaskDebugMode;
-	params_ = cg2::NeonSkinnedParams{};
+	params_ = myEngine::NeonSkinnedParams{};
 	params_.featureMaskColor = maskColor;
 	params_.featureMaskIntensity = maskIntensity;
 	params_.featureMaskBlend = maskBlend;
@@ -314,8 +314,8 @@ void NeonSkinnedPreview::LoadFeatureMaskCandidates() {
 					stream.seekg(0);
 					if (!stream.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size())))
 						throw std::runtime_error("PNG read failed; automatic lines retained.");
-					auto* textures = cg2::TextureManager::GetInstance();
-					constexpr auto colorSpace = cg2::TextureManager::TextureColorSpace::LinearData;
+					auto* textures = myEngine::TextureManager::GetInstance();
+					constexpr auto colorSpace = myEngine::TextureManager::TextureColorSpace::LinearData;
 					if (!textures->LoadTextureFromMemory(target.path, bytes.data(), bytes.size(), colorSpace))
 						throw std::runtime_error("PNG decode/upload failed; automatic lines retained.");
 					const auto& metadata = textures->GetMetaData(target.path, colorSpace);
@@ -481,8 +481,8 @@ void NeonSkinnedPreview::SelectQualityCandidate(int candidate) {
 			if (!input || input.tellg() <= 0 || input.tellg() > 16*1024*1024) throw std::runtime_error("Candidate PNG missing/invalid: " + path);
 			std::vector<uint8_t> bytes(static_cast<size_t>(input.tellg())); input.seekg(0);
 			if (!input.read(reinterpret_cast<char*>(bytes.data()),bytes.size())) throw std::runtime_error("Candidate PNG read failed.");
-			auto* textures = cg2::TextureManager::GetInstance();
-			constexpr auto linear = cg2::TextureManager::TextureColorSpace::LinearData;
+			auto* textures = myEngine::TextureManager::GetInstance();
+			constexpr auto linear = myEngine::TextureManager::TextureColorSpace::LinearData;
 			if (!textures->LoadTextureFromMemory(path,bytes.data(),bytes.size(),linear)) throw std::runtime_error("LinearData PNG load failed: " + path);
 			const auto& metadata = textures->GetMetaData(path,linear);
 			if (metadata.dimension != DirectX::TEX_DIMENSION_TEXTURE2D || metadata.arraySize != 1 ||
@@ -581,7 +581,7 @@ void NeonSkinnedPreview::EnterShowcase() {
 	if (dissolve_.IsActive()) return; // Protect the snapshot if an unexpected playback-restore failure occurred.
 	checkpoint_ = { enabled_, neonMode_, alphaCutoutEnabled_, geometryPreset_, transform_, params_,
 		submeshParams_, featureMaskIndices_, featureDistanceIndices_, featureMaskBindings_, qualityCandidate_, featureMasksLoadAttempted_,
-		featureMaskError_, qualityError_, cg2::Object3dCommon::GetInstance()->GetIsDebugCamera(),
+		featureMaskError_, qualityError_, myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera(),
 		camera_->GetTranslate(), camera_->GetRotate(), model_->CaptureAnimationPlaybackState() };
 	showcaseActive_ = true; enabled_ = true;
 	showcaseTransform_ = {{1,1,1},{},{}};
@@ -592,7 +592,7 @@ void NeonSkinnedPreview::EnterShowcase() {
 			std::chrono::system_clock::now().time_since_epoch()).count());
 	showcaseCaptureNumber_ = 0;
 	UpdateShowcaseCamera(0);
-	cg2::StartupTrace::Count("neon_showcase.entries");
+	myEngine::StartupTrace::Count("neon_showcase.entries");
 }
 
 void NeonSkinnedPreview::LeaveShowcase() {
@@ -612,16 +612,16 @@ void NeonSkinnedPreview::LeaveShowcase() {
 	featureMasksLoadAttempted_ = checkpoint_.masksLoadAttempted; featureMaskError_ = checkpoint_.maskError; qualityError_ = checkpoint_.qualityError;
 	if (!model_->RestoreAnimationPlaybackState(checkpoint_.playback))
 		animationError_ = "Showcase checkpoint restore failed; playback was retained.";
-	cg2::Object3dCommon::GetInstance()->SetIsDebugCamera(checkpoint_.usingDebugCamera);
+	myEngine::Object3dCommon::GetInstance()->SetIsDebugCamera(checkpoint_.usingDebugCamera);
 	camera_->SetTranslate(checkpoint_.gameCameraPosition); camera_->SetRotate(checkpoint_.gameCameraRotation); camera_->Update();
 	showcaseActive_ = false;
-	cg2::StartupTrace::Count("neon_showcase.exits");
+	myEngine::StartupTrace::Count("neon_showcase.exits");
 }
 
 void NeonSkinnedPreview::StartShowcaseComparison() {
 	if (!ready_ || !showcaseActive_ || showcaseComparisonActive_ || bloomComparisonActive_ || !model_->IsAnimationPaused() ||
 		showcaseOrbit_ || showcaseSequence_ || dissolveSequence_ || dissolveComparisonActive_ || dissolve_.IsActive() ||
-		showcaseCapture_.IsBusy() || cg2::RuntimeProfiler::Get().IsCaptureActive()) return;
+		showcaseCapture_.IsBusy() || myEngine::RuntimeProfiler::Get().IsCaptureActive()) return;
 	comparisonCheckpoint_ = {enabled_,neonMode_,alphaCutoutEnabled_,geometryPreset_,transform_,params_,
 		submeshParams_,featureMaskIndices_,featureDistanceIndices_,featureMaskBindings_,qualityCandidate_,featureMasksLoadAttempted_,
 		featureMaskError_,qualityError_,false,{},{},model_->CaptureAnimationPlaybackState()};
@@ -691,7 +691,7 @@ void NeonSkinnedPreview::ApplyRecommendedBloomPresentation() {
 void NeonSkinnedPreview::StartBloomComparison() {
 	if (!ready_ || !showcaseActive_ || bloomComparisonActive_ || showcaseComparisonActive_ ||
 		dissolveComparisonActive_ || showcaseSequence_ || dissolveSequence_ || showcaseCapture_.IsBusy() ||
-		cg2::RuntimeProfiler::Get().IsCaptureActive() || !model_->IsAnimationPaused() ||
+		myEngine::RuntimeProfiler::Get().IsCaptureActive() || !model_->IsAnimationPaused() ||
 		showcaseOrbit_ || dissolve_.IsPlaying()) return;
 	// Only the Bloom mode and output diagnostic change; sampling and dissolve are already paused.
 	bloomComparisonOriginalMode_ = showcaseBloomMode_;
@@ -730,11 +730,11 @@ void NeonSkinnedPreview::FinishBloomComparison(const std::string& status) {
 bool NeonSkinnedPreview::TriggerDissolve() {
 	if (!ready_ || !enabled_ || !neonMode_) return false;
 	const auto& transform = showcaseActive_ ? showcaseTransform_ : transform_;
-	const auto world = cg2::MakeAffineMatrix(transform.scale,transform.rotate,transform.translate);
+	const auto world = myEngine::MakeAffineMatrix(transform.scale,transform.rotate,transform.translate);
 	const auto cameraWorld = showcaseActive_ ? showcaseCamera_.GetWorldMatrix() :
-		cg2::Object3dCommon::GetInstance()->GetIsDebugCamera() ? cg2::Inverse(debugCamera_->GetViewMatrix()) : camera_->GetWorldMatrix();
+		myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? myEngine::Inverse(debugCamera_->GetViewMatrix()) : camera_->GetWorldMatrix();
 	const bool success = dissolve_.Trigger(*model_,world,cameraWorld,
-		static_cast<cg2::NeonDissolveDirection>(dissolveDirection_),dissolveSettings_,dissolveWait_,dissolveDuration_);
+		static_cast<myEngine::NeonDissolveDirection>(dissolveDirection_),dissolveSettings_,dissolveWait_,dissolveDuration_);
 	if (success) params_.dissolve = dissolve_.GetParams();
 	return success;
 }
@@ -750,7 +750,7 @@ void NeonSkinnedPreview::ResetDissolve() {
 void NeonSkinnedPreview::StartDissolveComparison() {
 	if (!showcaseActive_ || !ready_ || !neonMode_ || bloomComparisonActive_ || showcaseComparisonActive_ || dissolveComparisonActive_ ||
 		showcaseSequence_ || dissolveSequence_ || showcaseCapture_.IsBusy() || showcaseOrbit_ ||
-		cg2::RuntimeProfiler::Get().IsCaptureActive() || !model_->IsAnimationPaused() || dissolve_.IsPlaying()) return;
+		myEngine::RuntimeProfiler::Get().IsCaptureActive() || !model_->IsAnimationPaused() || dissolve_.IsPlaying()) return;
 	const auto& settings = dissolve_.IsActive() ? dissolve_.GetParams() : dissolveSettings_;
 	if (params_.geometryLineEnabled || !(settings.noiseStrength > 0) || !(settings.noiseScale > 0) ||
 		!settings.edgeEnabled || !(settings.edgeWidth > 0) || !(settings.edgeIntensity > 0)) {
@@ -808,7 +808,7 @@ void NeonSkinnedPreview::FinishDissolveComparison(const std::string& status) {
 void NeonSkinnedPreview::StartDissolveSequence() {
 	if (!showcaseActive_ || !ready_ || !neonMode_ || bloomComparisonActive_ || showcaseComparisonActive_ || dissolveComparisonActive_ ||
 		showcaseSequence_ || dissolveSequence_ || dissolve_.IsActive() || showcaseCapture_.IsBusy() ||
-		cg2::RuntimeProfiler::Get().IsCaptureActive()) return;
+		myEngine::RuntimeProfiler::Get().IsCaptureActive()) return;
 	dissolveSequencePlayback_ = model_->CaptureAnimationPlaybackState();
 	dissolveSequenceOriginalOrbit_ = showcaseOrbit_; dissolveSequenceOriginalYaw_ = showcaseYaw_;
 	showcaseSequenceFrame_ = 0; dissolveSequenceLastEventFrame_ = UINT32_MAX;
@@ -856,7 +856,7 @@ void NeonSkinnedPreview::DrawDissolveImGui() {
 	if (!ready_) return;
 	const bool recording = showcaseSequence_ || dissolveSequence_;
 	const bool locked = bloomComparisonActive_ || showcaseComparisonActive_ || dissolveComparisonActive_ || recording ||
-		cg2::RuntimeProfiler::Get().IsCaptureActive() || showcaseCapture_.IsBusy();
+		myEngine::RuntimeProfiler::Get().IsCaptureActive() || showcaseCapture_.IsBusy();
 	ImGui::TextUnformatted("Directional surface dissolve / Neon only");
 	ImGui::TextWrapped("Trigger freezes the displayed animation including its blend. The start camera's scan plane and seed remain fixed when the camera moves.");
 	ImGui::BeginDisabled(locked || !neonMode_);
@@ -897,7 +897,7 @@ void NeonSkinnedPreview::DrawDissolveImGui() {
 		ImGui::TextWrapped("Eight-condition capture requires Geometry Lines OFF, nonzero noise strength/scale, and edge emission ON with positive width/intensity. Other experiments remain available through single-frame capture.");
 		if (!dissolveComparisonStatus_.empty()) ImGui::TextWrapped("%s",dissolveComparisonStatus_.c_str());
 		ImGui::BeginDisabled(bloomComparisonActive_ || showcaseComparisonActive_ || dissolveComparisonActive_ || showcaseSequence_ ||
-			cg2::RuntimeProfiler::Get().IsCaptureActive() || (!dissolveSequence_ && (dissolve_.IsActive() || showcaseCapture_.IsBusy())) || !neonMode_);
+			myEngine::RuntimeProfiler::Get().IsCaptureActive() || (!dissolveSequence_ && (dissolve_.IsActive() || showcaseCapture_.IsBusy())) || !neonMode_);
 		if (ImGui::Button(dissolveSequence_ ? "Stop dissolve recording" : "Record 8s: Idle / Attack / dissolve / orbit / Reset")) {
 			if (dissolveSequence_) FinishDissolveSequence(); else StartDissolveSequence();
 		}
@@ -915,7 +915,7 @@ void NeonSkinnedPreview::UpdateShowcaseCamera(float deltaTime) {
 	showcaseCamera_.SetRotate({0, -showcaseYaw_, 0});
 	showcaseCamera_.SetFovY(0.45f);
 	showcaseCamera_.SetNearClip(0.03f); showcaseCamera_.SetFarClip(100.0f);
-	const auto viewport = cg2::Object3dCommon::GetInstance()->GetDxCommon()->GetViewportRect();
+	const auto viewport = myEngine::Object3dCommon::GetInstance()->GetDxCommon()->GetViewportRect();
 	showcaseCamera_.SetAspectRatio(viewport.Width / (std::max)(1.0f, viewport.Height));
 	showcaseCamera_.SetProjectionJitter({});
 	showcaseCamera_.Update();
@@ -923,7 +923,7 @@ void NeonSkinnedPreview::UpdateShowcaseCamera(float deltaTime) {
 
 nlohmann::json NeonSkinnedPreview::MakeShowcaseMetadata() const {
     const auto& renderParams = renderer_.GetParams();
-	auto vector = [](const cg2::Vector3& v) { return nlohmann::json::array({v.x,v.y,v.z}); };
+	auto vector = [](const myEngine::Vector3& v) { return nlohmann::json::array({v.x,v.y,v.z}); };
 	const char* framings[] = {"face", "upper_body", "full_body", "game_size", "face_detail"};
 	nlohmann::json metadata = {
 		{"schemaVersion",1}, {"model",kPreviewModelPath}, {"build","Development"}, {"renderScale",1.0},
@@ -973,7 +973,7 @@ nlohmann::json NeonSkinnedPreview::MakeShowcaseMetadata() const {
 		{"coordinateSpace","Frozen skinned model space before World; start camera plane remains fixed."},
 		{"distanceUnits","scan bounds, noise strength and edge width in model units; noise scale in lattice cells/model unit"}};
 	if (dissolve_.IsActive()) {
-		auto matrix = [](const cg2::Matrix4x4& value) {
+		auto matrix = [](const myEngine::Matrix4x4& value) {
 			nlohmann::json rows = nlohmann::json::array();
 			for (const auto& row : value.m) rows.push_back({row[0],row[1],row[2],row[3]});
 			return rows;
@@ -997,7 +997,7 @@ nlohmann::json NeonSkinnedPreview::MakeShowcaseMetadata() const {
 		}
 	}
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter;
-	auto* dx = cg2::Object3dCommon::GetInstance()->GetDxCommon();
+	auto* dx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
 	const auto viewport = dx->GetViewportRect();
 	metadata["resolution"] = {static_cast<uint32_t>(viewport.Width),static_cast<uint32_t>(viewport.Height)};
 	metadata["sceneViewportResolution"] = metadata["resolution"];
@@ -1029,7 +1029,7 @@ nlohmann::json NeonSkinnedPreview::MakeShowcaseMetadata() const {
 	return metadata;
 }
 
-void NeonSkinnedPreview::RecordShowcaseCapture(cg2::DirectXCommon& dx) {
+void NeonSkinnedPreview::RecordShowcaseCapture(myEngine::DirectXCommon& dx) {
 	if (!showcaseActive_) return;
 	bool requestedSequenceFrame = false;
 	bool requestedComparisonFrame = false;
@@ -1089,14 +1089,14 @@ void NeonSkinnedPreview::DrawShowcaseImGui() {
 		ImGui::TextWrapped("Developer-only black-background comparison. Game state and Preview settings are restored on exit.");
 		return;
 	}
-	const bool gpuCapture = cg2::RuntimeProfiler::Get().IsCaptureActive();
+	const bool gpuCapture = myEngine::RuntimeProfiler::Get().IsCaptureActive();
 	const bool automated = bloomComparisonActive_ || showcaseComparisonActive_ || dissolveComparisonActive_ || dissolveSequence_;
 	ImGui::BeginDisabled(automated || gpuCapture);
 	const char* framings[] = {"Face close-up", "Upper body", "Full body", "Game-size", "Face detail (magnified)"};
 	ImGui::Combo("Showcase framing", &showcaseFraming_, framings,5);
 	const char* views[] = {"Front", "Three-quarter (45 deg)", "Side (90 deg)"};
 	if (ImGui::Combo("Showcase view",&showcaseView_,views,3)) {
-		showcaseYaw_ = static_cast<float>(showcaseView_) * cg2::pi * 0.25f; showcaseOrbit_ = false;
+		showcaseYaw_ = static_cast<float>(showcaseView_) * myEngine::pi * 0.25f; showcaseOrbit_ = false;
 	}
 	ImGui::Checkbox("Camera orbit (independent of animation)",&showcaseOrbit_);
 	ImGui::SliderFloat("Orbit speed (rad/s)",&showcaseOrbitSpeed_,0.05f,0.8f);
@@ -1159,7 +1159,7 @@ void NeonSkinnedPreview::DrawShowcaseImGui() {
 	if (ImGui::Button("Measure GPU: 60 warmup + 300 frames")) {
 		const auto path = std::filesystem::path(showcaseCaptureDirectory_) / (std::string(showcaseCaptureLabel_) + "_gpu.csv");
 		if (std::filesystem::path(showcaseCaptureLabel_).filename().string() == showcaseCaptureLabel_ &&
-			cg2::RuntimeProfiler::Get().StartCapture(path.generic_string(),300,60)) {
+			myEngine::RuntimeProfiler::Get().StartCapture(path.generic_string(),300,60)) {
 			auto metadata = MakeShowcaseMetadata();
 			metadata["measurement"] = {{"warmupFrames",60},{"sampleFrames",300},{"method","D3D12 timestamp query / queue frequency / existing fence"}};
 			std::ofstream stream(path.parent_path() / (std::string(showcaseCaptureLabel_) + "_gpu.json")); stream << metadata.dump(2) << '\n';
@@ -1171,7 +1171,7 @@ void NeonSkinnedPreview::DrawShowcaseImGui() {
 	ImGui::EndDisabled();
 	if (!showcaseTimingStatus_.empty()) {
 		ImGui::TextWrapped("%s",showcaseTimingStatus_.c_str());
-		if (cg2::RuntimeProfiler::Get().IsCaptureComplete()) ImGui::TextUnformatted("GPU capture complete (300 timestamp frames).");
+		if (myEngine::RuntimeProfiler::Get().IsCaptureComplete()) ImGui::TextUnformatted("GPU capture complete (300 timestamp frames).");
 	}
 	ImGui::TextWrapped("%s",showcaseCapture_.GetStatus().c_str());
 	ImGui::TextWrapped("Raw images exclude UI. Sequence PNGs contain actual engine frames at 60 updates/s; offline encoding does not alter their appearance.");
@@ -1186,7 +1186,7 @@ void NeonSkinnedPreview::DrawAnimationImGui() {
 		ImGui::Text("GLB animations: %zu / Generated clips: %zu", sourceAnimationCount_, generatedAnimationCount_);
 		if (!animationError_.empty()) ImGui::TextWrapped("Motion unavailable (BindPose retained): %s", animationError_.c_str());
 		ImGui::BeginDisabled(bloomComparisonActive_ || dissolve_.IsActive() || dissolveComparisonActive_ || dissolveSequence_ ||
-			cg2::RuntimeProfiler::Get().IsCaptureActive());
+			myEngine::RuntimeProfiler::Get().IsCaptureActive());
 		const auto& clip = model_->GetAnimation();
 		int selection = clip.name == "Preview_Idle" ? 1 : clip.name == "Preview_Attack" ? 2 : 0;
 		const char* clips[] = { "BindPose", "Preview_Idle", "Preview_Attack" };
@@ -1309,7 +1309,7 @@ void NeonSkinnedPreview::DrawShowcaseWindow() {
 	ImGui::SetNextWindowSize({510,(std::min)(760.0f,availableHeight)},ImGuiCond_FirstUseEver);
 	// Apply the height cap to an existing imgui.ini size too; leave its user-selected width free.
 	ImGui::SetNextWindowSizeConstraints({0,200},{(std::numeric_limits<float>::max)(),availableHeight});
-	const bool gpuCapture = cg2::RuntimeProfiler::Get().IsCaptureActive();
+	const bool gpuCapture = myEngine::RuntimeProfiler::Get().IsCaptureActive();
 	bool open = true;
 	if (!ImGui::Begin("Neon Character Showcase",gpuCapture ? nullptr : &open)) {
 		ImGui::End(); if (!open) LeaveShowcase(); return;

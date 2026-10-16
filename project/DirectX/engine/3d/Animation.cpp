@@ -7,7 +7,7 @@
 #include <cmath>
 #include <stdexcept>
 
-namespace cg2 {
+namespace myEngine {
 
 namespace {
 
@@ -174,4 +174,4 @@ std::vector<Animation> AnimationLoader::LoadAllFromFile(const std::string& fileP
 	return animations;
 }
 
-} // namespace cg2
+} // namespace myEngine

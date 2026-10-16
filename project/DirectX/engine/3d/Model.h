@@ -2,7 +2,7 @@
 #include "ModelCommon.h"
 #include "TextureManager.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 頂点・マテリアル・テクスチャを保持し、静的モデルを描画する。
 class Model {
@@ -86,4 +86,4 @@ private:
     Texture texture;
 };
 
-} // namespace cg2
+} // namespace myEngine

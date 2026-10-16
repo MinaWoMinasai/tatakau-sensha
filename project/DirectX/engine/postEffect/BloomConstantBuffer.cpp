@@ -3,7 +3,7 @@
 #include <cmath>
 #include <stdexcept>
 
-namespace cg2 {
+namespace myEngine {
 
 void BloomConstantBuffer::Initialize(DirectXCommon* dxCommon) {
     dxCommon_ = dxCommon;
@@ -51,4 +51,4 @@ D3D12_GPU_VIRTUAL_ADDRESS BloomConstantBuffer::GetGPUAddress() const {
     return snapshots_.at(currentSnapshot_).resource->GetGPUVirtualAddress();
 }
 
-} // namespace cg2
+} // namespace myEngine

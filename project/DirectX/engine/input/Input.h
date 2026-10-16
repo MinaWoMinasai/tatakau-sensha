@@ -9,9 +9,9 @@
 #include <cassert>
 #include <Xinput.h>
 #include "Struct.h"
-#include "DirectX/engine/commom/DeveloperTools.h"
+#include "DirectX/engine/common/DeveloperTools.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 最後に操作された入力機器。操作説明の表記と照準の取り方を切り替える。
 enum class InputDevice { KeyboardMouse, Gamepad };
@@ -29,7 +29,7 @@ public:
 
     /// @brief 前のデータの保存
     void BeforeFrameData();
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     // A validation driver may replace hardware state for this frame only.
     // The next BeforeFrameData restores ordinary polling.
     void OverrideValidationFrame(const Vector2& mousePosition);
@@ -115,7 +115,7 @@ private:
     void TranslateGamepad();
     /// @brief 振動の残り時間を進め、モーターへ反映する。
     void UpdateVibration();
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     bool validationFrame_ = false;
     Vector2 validationMousePosition_{};
 #endif
@@ -143,8 +143,8 @@ private:
     uint32_t directionRepeatFrames_ = 0;
     float vibrationLow_ = 0.0f, vibrationHigh_ = 0.0f, vibrationSeconds_ = 0.0f;
     bool vibrationApplied_ = false;
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
-    // Development check without hardware: CG2_FAKE_GAMEPAD names a text file of scripted pad states,
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    // Development check without hardware: MYENGINE_FAKE_GAMEPAD names a text file of scripted pad states,
     // one segment per line: firstFrame endFrame buttons(hex) lx ly rx ry lt rt  (sticks -1..1, triggers 0..1).
     struct FakeGamepadSegment { uint32_t first = 0, end = 0; XINPUT_GAMEPAD pad{}; };
     std::vector<FakeGamepadSegment> fakeGamepad_;
@@ -157,4 +157,4 @@ private:
     IDirectInputDevice8* keyboard_ = nullptr;
 };
 
-} // namespace cg2
+} // namespace myEngine

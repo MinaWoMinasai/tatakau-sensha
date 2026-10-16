@@ -46,30 +46,30 @@ void PlayerAttackEffects::UpdatePlayerNeonAfterimages(float deltaTime)
 
     world_.presentation.playerAfterimageSpawnTimer_ -= deltaTime;
     if (world_.presentation.playerAfterimageSpawnTimer_ <= 0.0f) {
-        cg2::Vector3 direction = world_.resources.player_->GetDirection();
-        if (cg2::Length(direction) < 0.001f) {
+        myEngine::Vector3 direction = world_.resources.player_->GetDirection();
+        if (myEngine::Length(direction) < 0.001f) {
             direction = {0.0f, -1.0f, 0.0f};
         }
         world_.presentation.playerNeonAfterimages_.push_back(
-            {world_.resources.player_->GetWorldPosition(), cg2::Normalize(direction), world_.presentation.playerAfterimageLifetime_});
+            {world_.resources.player_->GetWorldPosition(), myEngine::Normalize(direction), world_.presentation.playerAfterimageLifetime_});
         world_.presentation.playerAfterimageSpawnTimer_ = world_.presentation.playerAfterimageInterval_;
     }
 }
 
 void PlayerAttackEffects::SpawnPlayerLaser(const Player::LaserShotEvent& event)
 {
-    if (cg2::Length(event.direction) < 0.0001f) {
+    if (myEngine::Length(event.direction) < 0.0001f) {
         return;
     }
 
-    const cg2::Vector3 direction = cg2::Normalize(event.direction);
+    const myEngine::Vector3 direction = myEngine::Normalize(event.direction);
     // 0.35ワールド単位ごとの球判定で壁までの長さを近似する。厳密な線分交差ではない。
     // 最初に接触したサンプルを表示と命中判定の終点に使う。
     float range = (std::max)(0.1f, event.range);
     if (world_.resources.stage_) {
         const float step = 0.35f;
         for (float d = step; d <= range; d += step) {
-            const cg2::Vector3 sample = event.origin + direction * d;
+            const myEngine::Vector3 sample = event.origin + direction * d;
             if (world_.resources.stage_->IsCollisionWithAnyBlock(sample, (std::max)(0.03f, event.width * 0.35f))) {
                 range = d;
                 break;
@@ -77,7 +77,7 @@ void PlayerAttackEffects::SpawnPlayerLaser(const Player::LaserShotEvent& event)
         }
     }
 
-    const cg2::Vector3 end = event.origin + direction * range;
+    const myEngine::Vector3 end = event.origin + direction * range;
     PlayerLaserBeam beam{};
     beam.start = event.origin;
     beam.end = end;
@@ -95,7 +95,7 @@ void PlayerAttackEffects::SpawnPlayerLaser(const Player::LaserShotEvent& event)
         const float distance = DistancePointToSegment2D(world_.resources.enemy_->GetWorldPosition(), event.origin, end, &t);
         if (distance <= world_.resources.enemy_->GetRadius() + beam.width * 0.75f) {
             world_.resources.enemy_->TakeDamage(event.damage);
-            cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f,
+            myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f,
                                                                       event.color, 8);
             emittedImpact = true;
         }
@@ -110,7 +110,7 @@ void PlayerAttackEffects::SpawnPlayerLaser(const Player::LaserShotEvent& event)
             if (distance <= expEnemy->GetRadius() + beam.width * 0.75f) {
                 expEnemy->TakeDirectionalDamage(event.damage, event.origin);
                 if (!emittedImpact) {
-                    cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f,
+                    myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(event.origin + (end - event.origin) * t, direction * -1.0f,
                                                                               event.color, 8);
                     emittedImpact = true;
                 }
@@ -133,7 +133,7 @@ void PlayerAttackEffects::UpdatePlayerLasers(float deltaTime)
                                                 world_.presentation.playerLaserBeams_.end());
 }
 
-void PlayerAttackEffects::QueuePlayerLasers(const cg2::Vector3& cameraForward)
+void PlayerAttackEffects::QueuePlayerLasers(const myEngine::Vector3& cameraForward)
 {
     if (!world_.resources.neonGridRenderer_) {
         return;
@@ -141,12 +141,12 @@ void PlayerAttackEffects::QueuePlayerLasers(const cg2::Vector3& cameraForward)
 
     for (const PlayerLaserBeam& beam : world_.presentation.playerLaserBeams_) {
         const float t = beam.maxLife > 0.0f ? (std::clamp)(beam.life / beam.maxLife, 0.0f, 1.0f) : 0.0f;
-        cg2::Vector4 color = beam.color;
+        myEngine::Vector4 color = beam.color;
         color.w *= t;
         world_.resources.neonGridRenderer_->QueueCameraFacingLine(beam.start, beam.end, beam.width * (0.70f + 0.35f * t), color,
                                                                   cameraForward);
 
-        cg2::Vector4 coreColor = {1.0f, 1.0f, 1.0f, color.w};
+        myEngine::Vector4 coreColor = {1.0f, 1.0f, 1.0f, color.w};
         world_.resources.neonGridRenderer_->QueueCameraFacingLine(beam.start, beam.end, beam.width * 0.32f, coreColor, cameraForward);
     }
 }
@@ -160,10 +160,10 @@ void PlayerAttackEffects::SpawnPlayerMine(const Player::MineDropEvent& event)
     mine.life = (std::max)(0.1f, event.lifeTime);
     mine.maxLife = mine.life;
     mine.damage = event.damage;
-    mine.rotation = cg2::Rand(0.0f, 6.28318530718f);
+    mine.rotation = myEngine::Rand(0.0f, 6.28318530718f);
     mine.color = event.color;
     world_.presentation.playerMines_.push_back(mine);
-    cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(mine.position, {0.0f, 1.0f, 0.0f}, mine.color, 5);
+    myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(mine.position, {0.0f, 1.0f, 0.0f}, mine.color, 5);
 }
 
 void PlayerAttackEffects::UpdatePlayerMines(float deltaTime)
@@ -188,14 +188,14 @@ void PlayerAttackEffects::UpdatePlayerMines(float deltaTime)
         bool shouldDetonate = mine.life <= 0.0f;
         if (!shouldDetonate && mine.fuse <= 0.0f) {
             if (world_.resources.enemy_ && (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead()) &&
-                cg2::Length(world_.resources.enemy_->GetWorldPosition() - mine.position) <=
+                myEngine::Length(world_.resources.enemy_->GetWorldPosition() - mine.position) <=
                     mine.radius + world_.resources.enemy_->GetRadius()) {
                 shouldDetonate = true;
             }
             if (!shouldDetonate && world_.resources.enemyManager_) {
                 for (ExpEnemy* expEnemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
                     if (expEnemy && !expEnemy->IsDead() &&
-                        cg2::Length(expEnemy->GetWorldPosition() - mine.position) <= mine.radius + expEnemy->GetRadius()) {
+                        myEngine::Length(expEnemy->GetWorldPosition() - mine.position) <= mine.radius + expEnemy->GetRadius()) {
                         shouldDetonate = true;
                         break;
                     }
@@ -222,35 +222,35 @@ void PlayerAttackEffects::DetonatePlayerMine(size_t index)
     // 距離はZを含み、地形による遮蔽は調べない。正面装甲などの適用条件は対象の関数へ任せる。
     const PlayerMine mine = world_.presentation.playerMines_[index];
     if (world_.resources.enemy_ && (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead()) &&
-        cg2::Length(world_.resources.enemy_->GetWorldPosition() - mine.position) <= mine.radius + world_.resources.enemy_->GetRadius()) {
+        myEngine::Length(world_.resources.enemy_->GetWorldPosition() - mine.position) <= mine.radius + world_.resources.enemy_->GetRadius()) {
         world_.resources.enemy_->TakeDamage(mine.damage);
     }
     if (world_.resources.enemyManager_) {
         for (ExpEnemy* expEnemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
             if (expEnemy && !expEnemy->IsDead() &&
-                cg2::Length(expEnemy->GetWorldPosition() - mine.position) <= mine.radius + expEnemy->GetRadius()) {
+                myEngine::Length(expEnemy->GetWorldPosition() - mine.position) <= mine.radius + expEnemy->GetRadius()) {
                 expEnemy->TakeDirectionalDamage(mine.damage, mine.position);
             }
         }
     }
 
-    cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(mine.position, {0.0f, 1.0f, 0.0f}, mine.color, 18);
+    myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(mine.position, {0.0f, 1.0f, 0.0f}, mine.color, 18);
     world_.presentation.playerMineExplosions_.push_back({mine.position, mine.radius, 0.30f, 0.30f, mine.color});
     world_.presentation.playerMines_.erase(world_.presentation.playerMines_.begin() + static_cast<std::ptrdiff_t>(index));
 }
 
-void PlayerAttackEffects::QueuePlayerMines(const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp, const cg2::Vector3& cameraForward)
+void PlayerAttackEffects::QueuePlayerMines(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp, const myEngine::Vector3& cameraForward)
 {
     if (!world_.resources.neonGridRenderer_) {
         return;
     }
 
-    auto queueCircle = [&](const cg2::Vector3& center, float radius, float lineWidth, const cg2::Vector4& color) {
+    auto queueCircle = [&](const myEngine::Vector3& center, float radius, float lineWidth, const myEngine::Vector4& color) {
         const int segments = 36;
-        cg2::Vector3 previous = center + cameraRight * radius;
+        myEngine::Vector3 previous = center + cameraRight * radius;
         for (int i = 1; i <= segments; ++i) {
             const float angle = 6.28318530718f * static_cast<float>(i) / static_cast<float>(segments);
-            const cg2::Vector3 current = center + (cameraRight * std::cos(angle) + cameraUp * std::sin(angle)) * radius;
+            const myEngine::Vector3 current = center + (cameraRight * std::cos(angle) + cameraUp * std::sin(angle)) * radius;
             world_.resources.neonGridRenderer_->QueueLine(previous, current, lineWidth, color);
             previous = current;
         }
@@ -258,17 +258,17 @@ void PlayerAttackEffects::QueuePlayerMines(const cg2::Vector3& cameraRight, cons
 
     for (const PlayerMineExplosion& explosion : world_.presentation.playerMineExplosions_) {
         const float t = explosion.maxLife > 0.0f ? (std::clamp)(explosion.life / explosion.maxLife, 0.0f, 1.0f) : 0.0f;
-        cg2::Vector4 color = explosion.color;
+        myEngine::Vector4 color = explosion.color;
         color.w *= t;
         queueCircle(explosion.position, explosion.radius * (1.05f - t * 0.35f), 0.10f * (0.6f + t), color);
-        cg2::Vector4 coreColor = {1.0f, 1.0f, 1.0f, color.w * 0.8f};
+        myEngine::Vector4 coreColor = {1.0f, 1.0f, 1.0f, color.w * 0.8f};
         queueCircle(explosion.position, explosion.radius * (0.55f + (1.0f - t) * 0.25f), 0.045f, coreColor);
     }
 
     for (const PlayerMine& mine : world_.presentation.playerMines_) {
         const float lifeRatio = mine.maxLife > 0.0f ? (std::clamp)(mine.life / mine.maxLife, 0.0f, 1.0f) : 0.0f;
         const float armed = mine.fuse <= 0.0f ? 1.0f : 0.45f;
-        cg2::Vector4 color = mine.color;
+        myEngine::Vector4 color = mine.color;
         const float warningPulse = 0.5f + 0.5f * std::sin(mine.rotation * (mine.fuse <= 0.0f ? 8.0f : 3.0f));
         color.w *= (0.45f + 0.55f * armed) * (0.45f + 0.55f * lifeRatio) * (0.72f + warningPulse * 0.28f);
         const float markerRadius = 0.42f + warningPulse * 0.12f;
@@ -277,16 +277,16 @@ void PlayerAttackEffects::QueuePlayerMines(const cg2::Vector3& cameraRight, cons
         world_.resources.neonGridRenderer_->QueueBillboardTriangle(mine.position, markerRadius * 0.72f, -mine.rotation * 1.35f, 0.04f,
                                                                    color, cameraRight, cameraUp, cameraForward);
 
-        cg2::Vector4 rangeColor = color;
+        myEngine::Vector4 rangeColor = color;
         rangeColor.w *= mine.fuse <= 0.0f ? 0.28f : 0.14f;
         queueCircle(mine.position, mine.radius * (0.96f + warningPulse * 0.04f), 0.035f + warningPulse * 0.02f, rangeColor);
     }
 }
 
-cg2::TrailConfig PlayerAttackEffects::MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale) const
+myEngine::TrailConfig PlayerAttackEffects::MakePlayerMeleeTrailConfig(const PlayerMeleeSlash& slash, float alphaScale) const
 {
-    cg2::TrailConfig config{};
-    cg2::Vector4 headColor = slash.color;
+    myEngine::TrailConfig config{};
+    myEngine::Vector4 headColor = slash.color;
     headColor.x *= 1.45f;
     headColor.y *= 1.45f;
     headColor.z *= 1.45f;
@@ -303,16 +303,16 @@ cg2::TrailConfig PlayerAttackEffects::MakePlayerMeleeTrailConfig(const PlayerMel
     return config;
 }
 
-void PlayerAttackEffects::ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, cg2::Vector3& base,
-                                                         cg2::Vector3& tip) const
+void PlayerAttackEffects::ComputePlayerMeleeBladeSection(const PlayerMeleeSlash& slash, float progress, myEngine::Vector3& base,
+                                                         myEngine::Vector3& tip) const
 {
     constexpr float kPi = 3.1415926535f;
     const float x = (std::clamp)(progress, 0.0f, 1.0f);
     const float eased = x * x * (3.0f - 2.0f * x);
     const float angle = (slash.startAngleDeg + (slash.endAngleDeg - slash.startAngleDeg) * eased) * kPi / 180.0f;
-    const cg2::Vector3 bladeDir = RotateVector2D(slash.direction, angle);
-    const cg2::Vector3 right = {-slash.direction.y, slash.direction.x, 0.0f};
-    const cg2::Vector3 hilt = slash.origin - slash.direction * (slash.range * 0.08f) + right * (slash.range * slash.hiltSideOffset);
+    const myEngine::Vector3 bladeDir = RotateVector2D(slash.direction, angle);
+    const myEngine::Vector3 right = {-slash.direction.y, slash.direction.x, 0.0f};
+    const myEngine::Vector3 hilt = slash.origin - slash.direction * (slash.range * 0.08f) + right * (slash.range * slash.hiltSideOffset);
     // 軌跡は刃の外側だけに置き、斬撃範囲内の対象を覆わない。
     base = hilt + bladeDir * (slash.range * slash.bladeLengthScale * 0.62f);
     tip = hilt + bladeDir * (slash.range * slash.bladeLengthScale * (0.92f + x * 0.08f));
@@ -320,14 +320,14 @@ void PlayerAttackEffects::ComputePlayerMeleeBladeSection(const PlayerMeleeSlash&
 
 void PlayerAttackEffects::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& event)
 {
-    if (cg2::Length(event.direction) < 0.0001f) {
+    if (myEngine::Length(event.direction) < 0.0001f) {
         return;
     }
 
     PlayerMeleeSlash slash{};
     slash.origin = event.origin;
     slash.followAnchor = world_.resources.player_ ? world_.resources.player_->GetWorldPosition() : event.origin;
-    slash.direction = cg2::Normalize(event.direction);
+    slash.direction = myEngine::Normalize(event.direction);
     slash.range = (std::max)(0.3f, event.range);
     slash.arcDeg = (std::clamp)(event.arcDeg, 5.0f, 360.0f);
     slash.width = (std::max)(0.02f, event.width);
@@ -375,11 +375,11 @@ void PlayerAttackEffects::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& e
 void PlayerAttackEffects::UpdatePlayerMeleeSlashes(float deltaTime)
 {
     const bool canFollowPlayer = world_.resources.player_ != nullptr;
-    const cg2::Vector3 playerPosition = canFollowPlayer ? world_.resources.player_->GetWorldPosition() : cg2::Vector3{};
+    const myEngine::Vector3 playerPosition = canFollowPlayer ? world_.resources.player_->GetWorldPosition() : myEngine::Vector3{};
     for (PlayerMeleeSlash& slash : world_.presentation.playerMeleeSlashes_) {
         // 発射時の方向は保ったまま、自機のXY移動量だけ斬撃の原点へ加える。
         if (canFollowPlayer) {
-            cg2::Vector3 followDelta = playerPosition - slash.followAnchor;
+            myEngine::Vector3 followDelta = playerPosition - slash.followAnchor;
             followDelta.z = 0.0f;
             slash.origin += followDelta;
             slash.followAnchor = playerPosition;
@@ -391,16 +391,16 @@ void PlayerAttackEffects::UpdatePlayerMeleeSlashes(float deltaTime)
             const float halfArcRad = slash.arcDeg * 0.5f * 3.1415926535f / 180.0f;
             const float minDot = slash.arcDeg >= 359.0f ? -1.0f : std::cos(halfArcRad);
             // XYの射程/角度と、0.6単位ごとの壁サンプルで判定する。対象半径の手前までを調べる近似。
-            auto hitTarget = [&](const cg2::Vector3& targetPos, float targetRadius) {
-                cg2::Vector3 toTarget = targetPos - slash.origin;
+            auto hitTarget = [&](const myEngine::Vector3& targetPos, float targetRadius) {
+                myEngine::Vector3 toTarget = targetPos - slash.origin;
                 toTarget.z = 0.0f;
-                const float distance = cg2::Length(toTarget);
+                const float distance = myEngine::Length(toTarget);
                 if (distance > 0.001f)
                     for (float t = 0.6f; t < distance - targetRadius; t += 0.6f)
                         if (world_.resources.stage_->IsCollisionWithAnyBlock(slash.origin + toTarget * (t / distance), 0.12f))
                             return false;
                 return distance <= 0.0001f ||
-                       (distance <= slash.range + targetRadius && cg2::Dot(cg2::Normalize(toTarget), slash.direction) >= minDot);
+                       (distance <= slash.range + targetRadius && myEngine::Dot(myEngine::Normalize(toTarget), slash.direction) >= minDot);
             };
             // この斬撃で処理した対象のアドレスを記録し、次フレームも同じ対象への重複適用を避ける。
             // 命中演出のhitAppliedは斬撃全体の初回用で、各対象の命中記録とは別に扱う。
@@ -415,7 +415,7 @@ void PlayerAttackEffects::UpdatePlayerMeleeSlashes(float deltaTime)
                                                                        slash.finisher);
                     slash.hitApplied = true;
                 }
-                cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(world_.resources.enemy_->GetWorldPosition(),
+                myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(world_.resources.enemy_->GetWorldPosition(),
                                                                           slash.direction * -1.0f, slash.color, 10);
             }
             if (world_.resources.enemyManager_) {
@@ -433,7 +433,7 @@ void PlayerAttackEffects::UpdatePlayerMeleeSlashes(float deltaTime)
                                                                                slash.finisher);
                             slash.hitApplied = true;
                         }
-                        cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(), slash.direction * -1.0f,
+                        myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(expEnemy->GetWorldPosition(), slash.direction * -1.0f,
                                                                                   slash.color, 8);
                     }
                 }
@@ -449,8 +449,8 @@ void PlayerAttackEffects::UpdatePlayerMeleeSlashes(float deltaTime)
         }
         if (world_.presentation.enablePlayerMeleeRibbonTrail_ && isSwinging && slash.trail) {
             const float progress = (std::clamp)(swingElapsed / slash.swingDuration, 0.0f, 1.0f);
-            cg2::Vector3 base{};
-            cg2::Vector3 tip{};
+            myEngine::Vector3 base{};
+            myEngine::Vector3 tip{};
             ComputePlayerMeleeBladeSection(slash, progress, base, tip);
             slash.trail->Update(deltaTime, tip, base, MakePlayerMeleeTrailConfig(slash));
         } else if (slash.trail) {
@@ -494,7 +494,7 @@ void PlayerAttackEffects::UpdateSpecialCombatPresentation(float dt)
             world_.run.tankExpeditionAudio_.Hit();
     }
     for (const auto& event : world_.resources.player_->ConsumeSpecialCombatEvents()) {
-        cg2::Vector3 end = event.origin;
+        myEngine::Vector3 end = event.origin;
         if (event.kind == Player::SpecialEventKind::RailShot) {
             // レールの見た目の終点を0.4単位の壁サンプルで求める。命中・威力の計算とは別。
             for (float distance = .4f; distance < 22; distance += .4f) {
@@ -556,7 +556,7 @@ void PlayerAttackEffects::UpdateSpecialCombatPresentation(float dt)
             if (!bullet || bullet->IsDead() || bullet->GetSpecialKind() == Bullet::SpecialKind::None)
                 continue;
             auto direction = bullet->GetMove();
-            direction = cg2::Length(direction) > .0001f ? cg2::Normalize(direction) : cg2::Vector3{1, 0, 0};
+            direction = myEngine::Length(direction) > .0001f ? myEngine::Normalize(direction) : myEngine::Vector3{1, 0, 0};
             world_.run.specialProjectileVisuals_.push_back(
                 {bullet->GetWorldPosition(), direction, bullet->GetRadius(), bullet->GetSpecialKind()});
         }
@@ -573,7 +573,7 @@ void PlayerAttackEffects::QueueSpecialCombatPresentation()
     for (const auto& mark : world_.resources.bulletManager_->GetMarkVisuals())
         for (int i = 0; i < mark.stacks; ++i) {
             const float angle = world_.combat.playTime_ * 1.6f + static_cast<float>(i) * 1.5707963f;
-            const auto p = mark.position + cg2::Vector3{std::cos(angle) * 1.3f, std::sin(angle) * 1.3f, .04f};
+            const auto p = mark.position + myEngine::Vector3{std::cos(angle) * 1.3f, std::sin(angle) * 1.3f, .04f};
             tankspecialfx::Ring(*world_.resources.neonGridRenderer_, p, .13f, .04f, {1.4f, .45f, .9f, .7f});
         }
     for (const auto& lock : world_.resources.player_->GetTargetLockVisuals()) {
@@ -582,7 +582,7 @@ void PlayerAttackEffects::QueueSpecialCombatPresentation()
                             {.25f, 1.3f, 1.5f, lock.remaining > 0 ? .6f : .25f});
         for (int i = 0; i < 4; ++i) {
             const float a = i * 1.5707963f;
-            const cg2::Vector3 d{std::cos(a), std::sin(a), 0};
+            const myEngine::Vector3 d{std::cos(a), std::sin(a), 0};
             world_.resources.neonGridRenderer_->QueueLine(lock.position + d * radius, lock.position + d * (radius + .25f), .045f,
                                                           {.35f, 1.6f, 1.8f, .7f});
         }
@@ -592,21 +592,21 @@ void PlayerAttackEffects::QueueSpecialCombatPresentation()
         if (drone.phase == Phase::Warning) {
             const float pulse = .45f + .3f * std::sin(world_.combat.playTime_ * 28);
             tankspecialfx::Ring(*world_.resources.neonGridRenderer_, drone.position, .65f + drone.progress * .25f, .05f,
-                                drone.bomb ? cg2::Vector4{1.7f, .35f, .6f, pulse} : cg2::Vector4{1.5f, 1.0f, .25f, pulse});
+                                drone.bomb ? myEngine::Vector4{1.7f, .35f, .6f, pulse} : myEngine::Vector4{1.5f, 1.0f, .25f, pulse});
             world_.resources.neonGridRenderer_->QueueLine(drone.position, drone.target, .018f, {.6f, .9f, 1.2f, .20f});
         } else if (drone.phase == Phase::Rebuilding) {
             tankspecialfx::Ring(*world_.resources.neonGridRenderer_, drone.position, .32f + drone.progress * .3f, .025f,
                                 {.3f, 1.3f, 1.6f, .25f + drone.progress * .4f});
             for (int i = 0; i < 3; ++i) {
                 const float a = world_.combat.playTime_ * 3 + i * 2.0944f;
-                const cg2::Vector3 d{std::cos(a), std::sin(a), 0};
+                const myEngine::Vector3 d{std::cos(a), std::sin(a), 0};
                 world_.resources.neonGridRenderer_->QueueLine(drone.position + d * .8f, drone.position + d * (.8f - .45f * drone.progress),
                                                               .035f, {.4f, 1.5f, 1.8f, .5f});
             }
         } else if (drone.phase == Phase::Charging) {
             const auto v = drone.target - drone.position;
-            if (cg2::Length(v) > .001f)
-                world_.resources.neonGridRenderer_->QueueLine(drone.position - cg2::Normalize(v) * 1.3f, drone.position, .09f,
+            if (myEngine::Length(v) > .001f)
+                world_.resources.neonGridRenderer_->QueueLine(drone.position - myEngine::Normalize(v) * 1.3f, drone.position, .09f,
                                                               {.4f, 1.4f, 1.7f, .5f});
         }
     }
@@ -614,7 +614,7 @@ void PlayerAttackEffects::QueueSpecialCombatPresentation()
         const auto center = world_.resources.player_->GetWorldPosition();
         for (int i = 0; i < 3; ++i) {
             const float a = world_.combat.playTime_ * 7 + i * 2.0944f;
-            const cg2::Vector3 d{std::cos(a), std::sin(a), 0};
+            const myEngine::Vector3 d{std::cos(a), std::sin(a), 0};
             world_.resources.neonGridRenderer_->QueueLine(center + d * 1.6f, center + d * 1.85f, .035f, {.7f, .4f, 1.5f, .32f});
         }
     }
@@ -641,7 +641,7 @@ void PlayerAttackEffects::QueueSpecialCombatPresentation()
                                 {1.6f, .55f, .9f, fade * .7f});
             tankspecialfx::Contact(*world_.resources.neonGridRenderer_, event.origin, flash.age, 1.0f, false);
         } else if (event.kind == Player::SpecialEventKind::DashSlash) {
-            const auto d = cg2::Length(event.direction) > .001f ? cg2::Normalize(event.direction) : cg2::Vector3{1, 0, 0};
+            const auto d = myEngine::Length(event.direction) > .001f ? myEngine::Normalize(event.direction) : myEngine::Vector3{1, 0, 0};
             world_.resources.neonGridRenderer_->QueueLine(event.origin - d * 3, event.origin + d * 2, .10f,
                                                           {.55f, 1.4f, 1.9f, (1 - flash.age / .24f) * .6f});
         } else
@@ -654,7 +654,7 @@ void PlayerAttackEffects::QueueSpecialCombatPresentation()
         const float alpha = (1 - flash.age / .30f);
         if (e.kind == BulletManager::BuildEventKind::Chain) {
             const auto delta = e.end - e.start;
-            const auto side = cg2::Length(delta) > .001f ? cg2::Normalize(cg2::Vector3{-delta.y, delta.x, 0}) : cg2::Vector3{0, 1, 0};
+            const auto side = myEngine::Length(delta) > .001f ? myEngine::Normalize(myEngine::Vector3{-delta.y, delta.x, 0}) : myEngine::Vector3{0, 1, 0};
             auto previous = e.start;
             for (int i = 1; i <= 5; ++i) {
                 const auto next = e.start + delta * (i / 5.0f) + side * (i == 5 ? 0 : (i % 2 ? .18f : -.18f));
@@ -662,8 +662,8 @@ void PlayerAttackEffects::QueueSpecialCombatPresentation()
                 previous = next;
             }
         } else {
-            const auto color = e.kind == BulletManager::BuildEventKind::Reflection ? cg2::Vector4{1.5f, .25f, 1.2f, alpha * .7f}
-                                                                                   : cg2::Vector4{1.5f, .8f, .35f, alpha * .65f};
+            const auto color = e.kind == BulletManager::BuildEventKind::Reflection ? myEngine::Vector4{1.5f, .25f, 1.2f, alpha * .7f}
+                                                                                   : myEngine::Vector4{1.5f, .8f, .35f, alpha * .65f};
             tankspecialfx::Ring(*world_.resources.neonGridRenderer_, e.start, .3f + flash.age * e.strength * 5, .055f, color);
         }
     }
@@ -684,27 +684,27 @@ void PlayerAttackEffects::QueuePlayerMeleeSlashes()
         const float angle = (slash.startAngleDeg + (slash.endAngleDeg - slash.startAngleDeg) * smoothStep(progress)) * kPi / 180.0f;
         return RotateVector2D(slash.direction, angle);
     };
-    auto queueBlade = [&](const cg2::Vector3& hilt, const cg2::Vector3& bladeDir, float length, float width, const cg2::Vector4& color,
+    auto queueBlade = [&](const myEngine::Vector3& hilt, const myEngine::Vector3& bladeDir, float length, float width, const myEngine::Vector4& color,
                           float coreAlpha) {
         tankneon::QueueMeleeBlade(*world_.resources.neonGridRenderer_, hilt, bladeDir, length, width, color, coreAlpha,
                                   {world_.presentation.playerMeleeBladeOuterWidthScale_,
                                    world_.presentation.playerMeleeBladeHaloWidthScale_,
                                    world_.presentation.playerMeleeBladeCoreWidthScale_});
     };
-    auto queueTipTrail = [&](const PlayerMeleeSlash& slash, const cg2::Vector3& hilt, float startProgress, float endProgress,
-                             const cg2::Vector4& color) {
+    auto queueTipTrail = [&](const PlayerMeleeSlash& slash, const myEngine::Vector3& hilt, float startProgress, float endProgress,
+                             const myEngine::Vector4& color) {
         const int segments = 12;
-        cg2::Vector3 previous = hilt + directionAt(slash, startProgress) * (slash.range * slash.bladeLengthScale);
+        myEngine::Vector3 previous = hilt + directionAt(slash, startProgress) * (slash.range * slash.bladeLengthScale);
         for (int i = 1; i <= segments; ++i) {
             const float localT = static_cast<float>(i) / static_cast<float>(segments);
             const float progress = startProgress + (endProgress - startProgress) * localT;
-            const cg2::Vector3 current = hilt + directionAt(slash, progress) * (slash.range * slash.bladeLengthScale);
-            cg2::Vector4 segmentColor = color;
+            const myEngine::Vector3 current = hilt + directionAt(slash, progress) * (slash.range * slash.bladeLengthScale);
+            myEngine::Vector4 segmentColor = color;
             segmentColor.w *= localT * 0.72f * world_.presentation.playerMeleeTrailAlphaScale_;
             world_.resources.neonGridRenderer_->QueueLine(
                 previous, current, slash.width * (0.55f + localT * 0.55f) * world_.presentation.playerMeleeTrailWidthScale_, segmentColor);
 
-            cg2::Vector4 coreColor = {1.0f, 1.0f, 1.0f, segmentColor.w * 0.55f};
+            myEngine::Vector4 coreColor = {1.0f, 1.0f, 1.0f, segmentColor.w * 0.55f};
             world_.resources.neonGridRenderer_->QueueLine(
                 previous, current, slash.width * (0.10f + localT * 0.12f) * world_.presentation.playerMeleeTrailWidthScale_, coreColor);
             previous = current;
@@ -730,26 +730,26 @@ void PlayerAttackEffects::QueuePlayerMeleeSlashes()
             recoveryProgress = slash.recoveryDuration > 0.0f ? smoothStep(recoveryElapsed / slash.recoveryDuration) : 1.0f;
             displayAngleDeg = slash.endAngleDeg + (slash.returnAngleDeg - slash.endAngleDeg) * recoveryProgress;
         }
-        const cg2::Vector3 right = {-slash.direction.y, slash.direction.x, 0.0f};
-        const cg2::Vector3 attackHilt =
+        const myEngine::Vector3 right = {-slash.direction.y, slash.direction.x, 0.0f};
+        const myEngine::Vector3 attackHilt =
             slash.origin - slash.direction * (slash.range * 0.08f) + right * (slash.range * slash.hiltSideOffset);
-        cg2::Vector3 idleHilt =
+        myEngine::Vector3 idleHilt =
             slash.followAnchor +
             slash.direction * (world_.presentation.playerIdleSaberForwardOffset_ * world_.presentation.playerNeonBillboardRadius_) +
             right * (world_.presentation.playerIdleSaberSideOffset_ * world_.presentation.playerNeonBillboardRadius_);
         idleHilt.z = attackHilt.z;
-        auto lerpPosition = [](const cg2::Vector3& a, const cg2::Vector3& b, float amount) {
+        auto lerpPosition = [](const myEngine::Vector3& a, const myEngine::Vector3& b, float amount) {
             return a + (b - a) * (std::clamp)(amount, 0.0f, 1.0f);
         };
-        const cg2::Vector3 hilt = isWindup ? lerpPosition(idleHilt, attackHilt, windupProgress)
+        const myEngine::Vector3 hilt = isWindup ? lerpPosition(idleHilt, attackHilt, windupProgress)
                                            : (isSwinging ? attackHilt : lerpPosition(attackHilt, idleHilt, recoveryProgress));
-        cg2::Vector4 color = slash.color;
+        myEngine::Vector4 color = slash.color;
         color.x *= 1.18f * world_.presentation.playerNeonEmission_;
         color.y *= 1.18f * world_.presentation.playerNeonEmission_;
         color.z *= 1.18f * world_.presentation.playerNeonEmission_;
         color.w *= (0.25f + t * 0.75f) * (std::min)(1.0f, world_.presentation.playerNeonEmission_);
 
-        const cg2::Vector3 bladeDir = RotateVector2D(slash.direction, displayAngleDeg * kPi / 180.0f);
+        const myEngine::Vector3 bladeDir = RotateVector2D(slash.direction, displayAngleDeg * kPi / 180.0f);
         if (isSwinging) {
             queueTipTrail(slash, hilt, (std::max)(0.0f, swingProgress - 0.42f), swingProgress, color);
             // Three nested crescent trails give the top-down slash depth without
@@ -757,11 +757,11 @@ void PlayerAttackEffects::QueuePlayerMeleeSlashes()
             for (int band = 1; band <= 3; ++band) {
                 const float radius = slash.range * (1.0f - static_cast<float>(band) * 0.09f);
                 const float start = (std::max)(0.0f, swingProgress - 0.30f);
-                cg2::Vector3 previous = hilt + directionAt(slash, start) * radius;
+                myEngine::Vector3 previous = hilt + directionAt(slash, start) * radius;
                 for (int segment = 1; segment <= 9; ++segment) {
                     const float q = static_cast<float>(segment) / 9.0f;
-                    const cg2::Vector3 point = hilt + directionAt(slash, start + (swingProgress - start) * q) * radius;
-                    cg2::Vector4 glow = color;
+                    const myEngine::Vector3 point = hilt + directionAt(slash, start + (swingProgress - start) * q) * radius;
+                    myEngine::Vector4 glow = color;
                     glow.w *= q * (0.32f - 0.06f * band);
                     world_.resources.neonGridRenderer_->QueueLine(previous, point, slash.width * (1.25f - band * 0.2f), glow);
                     previous = point;
@@ -774,7 +774,7 @@ void PlayerAttackEffects::QueuePlayerMeleeSlashes()
             if (sampleProgress < 0.0f) {
                 continue;
             }
-            cg2::Vector4 afterColor = slash.color;
+            myEngine::Vector4 afterColor = slash.color;
             afterColor.x *= 1.08f * world_.presentation.playerNeonEmission_;
             afterColor.y *= 1.08f * world_.presentation.playerNeonEmission_;
             afterColor.z *= 1.08f * world_.presentation.playerNeonEmission_;

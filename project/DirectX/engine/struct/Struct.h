@@ -8,7 +8,7 @@
 #include <wrl.h>
 #include <d3d12.h>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 2成分の座標・方向・大きさを表す値型。
 struct Vector2 {
@@ -808,4 +808,4 @@ struct TrailVertex {
     Vector2 uv;    // TEXCOORD
 };
 
-} // namespace cg2
+} // namespace myEngine

@@ -7,27 +7,27 @@ class DepthValidation {
 public:
     /// @brief 借用するワールドを設定する。
     explicit DepthValidation(GameWorld& world) : world_(world) {}
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     void InitializeNeonDepthValidation();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     void PrepareNeonDepthValidation();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     void RecordNeonDepthValidation();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     void FinishNeonDepthValidation();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     void DrawNeonDepthValidation();
 #endif
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     nlohmann::json MakeNeonDepthValidationConditions() const;
 #endif
 private:

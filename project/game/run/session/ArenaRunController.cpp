@@ -29,7 +29,7 @@ std::string RunClock(double time)
     return text.str();
 }
 /// @brief 2点の間の方向を求める。
-std::string DirectionTo(const cg2::Vector3& delta)
+std::string DirectionTo(const myEngine::Vector3& delta)
 {
     std::string direction = delta.y > 3 ? "北" : delta.y < -3 ? "南" : "";
     direction += delta.x > 3 ? "東" : delta.x < -3 ? "西" : "";
@@ -63,18 +63,18 @@ void ArenaRunController::InitializeTankRun()
     while (!initialization.Advance()) {}
 }
 
-cg2::InitializationTask ArenaRunController::BuildInitialization()
+myEngine::InitializationTask ArenaRunController::BuildInitialization()
 {
     wchar_t automatic[16]{};
     world_.run.tankRunAutoTest_ =
-        !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"CG2_TANK_AUTOTEST", automatic, 16) > 0 && automatic[0] == L'1';
+        !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"MYENGINE_TANK_AUTOTEST", automatic, 16) > 0 && automatic[0] == L'1';
     tankrun::Config config;
     if (world_.run.tankRunAutoTest_)
         config.combatSeconds = 24;
     if (world_.run.expeditionRun_)
         config.combatSeconds = 1000000;
     uint32_t runSeed = world_.run.tankRunAutoTest_ ? 20260919u : static_cast<uint32_t>(GetTickCount64());
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (GameplayScenarioSession::Get().IsActive())
         runSeed = GameplayScenarioSession::Get().GetSettings().seed;
 #endif
@@ -95,24 +95,24 @@ cg2::InitializationTask ArenaRunController::BuildInitialization()
         std::filesystem::create_directories("generated/tank_run");
         std::ofstream("generated/tank_run/validation.json") << "{\"completed\":false,\"testMode\":true}\n";
     }
-    auto panel = [](cg2::Vector2 position, cg2::Vector2 size, const cg2::Vector4& color) {
-        auto item = std::make_unique<cg2::Sprite>();
-        item->Initialize(cg2::SpriteCommon::GetInstance(), "resources/white512x512.png");
+    auto panel = [](myEngine::Vector2 position, myEngine::Vector2 size, const myEngine::Vector4& color) {
+        auto item = std::make_unique<myEngine::Sprite>();
+        item->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/white512x512.png");
         item->SetPosition(position);
         item->SetSize(size);
         item->SetColor(color);
         item->Update();
         return item;
     };
-    auto label = [](float size, cg2::Vector2 position, const cg2::Vector4& color) {
-        cg2::TextStyle style{};
+    auto label = [](float size, myEngine::Vector2 position, const myEngine::Vector4& color) {
+        myEngine::TextStyle style{};
         style.fontFamily = "Meiryo";
         style.fontSize = size;
         style.color = color;
         style.outlineThickness = 0;
         style.padding = 4;
-        auto item = std::make_unique<cg2::TextLabel>();
-        item->Initialize(cg2::SpriteCommon::GetInstance(), " ", style);
+        auto item = std::make_unique<myEngine::TextLabel>();
+        item->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
         item->SetPosition(position);
         return item;
     };
@@ -142,7 +142,7 @@ cg2::InitializationTask ArenaRunController::BuildInitialization()
         RefreshTankRunUi();
         co_return;
     }
-    const std::array<cg2::Vector3, 3> centers = {cg2::Vector3{25, 18, 0}, cg2::Vector3{43, 38, 0}, cg2::Vector3{65, 20, 0}};
+    const std::array<myEngine::Vector3, 3> centers = {myEngine::Vector3{25, 18, 0}, myEngine::Vector3{43, 38, 0}, myEngine::Vector3{65, 20, 0}};
     for (size_t i = 0; i < centers.size(); ++i) {
         auto& resource = world_.run.tankRunResources_[i];
         resource.position = centers[i];
@@ -150,7 +150,7 @@ cg2::InitializationTask ArenaRunController::BuildInitialization()
         for (int radius = 0; radius <= 12 && !found; radius += 2)
             for (int n = 0; n < 16 && !found; ++n) {
                 const float angle = static_cast<float>(n) * 0.392699f;
-                const cg2::Vector3 p = centers[i] + cg2::Vector3{std::cos(angle) * radius, std::sin(angle) * radius, 0};
+                const myEngine::Vector3 p = centers[i] + myEngine::Vector3{std::cos(angle) * radius, std::sin(angle) * radius, 0};
                 if (p.x > 5 && p.x < 81 && p.y > 5 && p.y < 51 && !world_.resources.stage_->IsCollisionWithAnyBlock(p, 2.3f)) {
                     resource.position = p;
                     found = true;
@@ -158,9 +158,9 @@ cg2::InitializationTask ArenaRunController::BuildInitialization()
             }
         for (int n = 0; n < 10; ++n) {
             const float angle = static_cast<float>(n) * 0.628319f;
-            const cg2::Vector3 p = resource.position + cg2::Vector3{std::cos(angle) * 6, std::sin(angle) * 6, 0};
+            const myEngine::Vector3 p = resource.position + myEngine::Vector3{std::cos(angle) * 6, std::sin(angle) * 6, 0};
             if (!world_.resources.stage_->IsCollisionWithAnyBlock(p, 1.1f) &&
-                cg2::Length(p - world_.resources.player_->GetWorldPosition()) > 4)
+                myEngine::Length(p - world_.resources.player_->GetWorldPosition()) > 4)
                 world_.resources.enemyManager_->SpawnLevelEnemy(p, n % 3 == 0 ? "Triangle" : "Square", 8);
         }
         EnemyManager::SpawnArea area{};
@@ -247,7 +247,7 @@ void ArenaRunController::ApplyTankRunCards()
     world_.resources.player_->SetRunModifiers(m);
 }
 
-void ArenaRunController::OnTankRunEnemyDefeated(const cg2::Vector3& position)
+void ArenaRunController::OnTankRunEnemyDefeated(const myEngine::Vector3& position)
 {
     if (!world_.run.tankRun_.IsCombat())
         return;
@@ -262,7 +262,7 @@ void ArenaRunController::OnTankRunEnemyDefeated(const cg2::Vector3& position)
     world_.combat.screenEffectDirector_.TriggerEnemyDefeat(world_.gameplayQueries->WorldToScreenUv(position), 0.20f);
     if (world_.run.expeditionRun_) {
         world_.run.tankExpeditionAudio_.Kill(world_.run.tankRunCombo_);
-        cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(position, {0, 1, 0}, {0.22f, 1.1f, 0.82f, 1}, 10);
+        myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(position, {0, 1, 0}, {0.22f, 1.1f, 0.82f, 1}, 10);
         if (world_.run.expeditionMapEnabled_ && world_.presentation.cameraShakeTimer_ <= 0) {
             world_.presentation.cameraShakeDuration_ = 0.08f;
             world_.presentation.cameraShakeTimer_ = 0.08f;
@@ -314,7 +314,7 @@ void ArenaRunController::OnTankRunResourceClaim(size_t index, bool playerOwned)
     }
     if (world_.run.tankRunBursts_.size() < 24)
         world_.run.tankRunBursts_.push_back({resource.position, 0, true});
-    cg2::ParticleManager::GetInstance()->EmitNeonImpactEffect(resource.position, {0, 1, 0}, {1, 0.72f, 0.15f, 1}, 18);
+    myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(resource.position, {0, 1, 0}, {1, 0.72f, 0.15f, 1}, 18);
     world_.run.tankRunHudTimer_ = 0;
 }
 
@@ -417,7 +417,7 @@ void ArenaRunController::UpdateTankRun(float dt)
     const auto triggered = [this](int key) {
         return world_.resources.input_->IsTrigger(world_.resources.input_->GetKey()[key], world_.resources.input_->GetPreKey()[key]);
     };
-    if (cg2::kDeveloperTools && triggered(DIK_F10))
+    if (myEngine::kDeveloperTools && triggered(DIK_F10))
         RequestTankRunCapture("manual");
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !world_.resources.player_->IsChangeMode() &&
         triggered(DIK_ESCAPE)) {
@@ -601,7 +601,7 @@ void ArenaRunController::RefreshTankRunUi()
         objective << static_cast<char>('A' + i) << " ";
         if (node.active)
             objective << DirectionTo(node.position - world_.resources.player_->GetWorldPosition()) << " "
-                      << static_cast<int>(cg2::Length(node.position - world_.resources.player_->GetWorldPosition()));
+                      << static_cast<int>(myEngine::Length(node.position - world_.resources.player_->GetWorldPosition()));
         else
             objective << "再出現 " << static_cast<int>(std::ceil(node.respawn)) << "秒";
         objective << "    ";
@@ -688,7 +688,7 @@ void ArenaRunController::DrawTankRunUi()
     }
     if (world_.resources.player_->IsChangeMode())
         return;
-    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     const auto phase = world_.run.tankRun_.GetPhase();
     const bool result = world_.combat.combatFlow_.GetState() == GameFlowState::StageClear ||
                         (world_.combat.combatFlow_.GetState() == GameFlowState::GameOver && world_.combat.combatFlow_.GetTimer() <= 0);
@@ -714,8 +714,8 @@ void ArenaRunController::DrawTankRunUi()
         const bool selected = static_cast<int>(i) == (result ? world_.combat.resultSelection_ : world_.run.tankRunSelection_);
         const bool rare = phase == RunPhase::Draft && !world_.run.tankRunPaused_ && tankrun::IsRare(world_.run.tankRun_.GetOffers()[i]);
         world_.run.tankRunCards_[i]->SetColor(selected
-                                                  ? (rare ? cg2::Vector4{0.21f, 0.12f, 0.045f, 1} : cg2::Vector4{0.045f, 0.16f, 0.19f, 1})
-                                                  : cg2::Vector4{0.028f, 0.045f, 0.075f, 1});
+                                                  ? (rare ? myEngine::Vector4{0.21f, 0.12f, 0.045f, 1} : myEngine::Vector4{0.045f, 0.16f, 0.19f, 1})
+                                                  : myEngine::Vector4{0.028f, 0.045f, 0.075f, 1});
         world_.run.tankRunCards_[i]->Update();
         world_.run.tankRunCards_[i]->Draw();
         world_.run.tankRunCardTitles_[i]->Draw();
@@ -726,13 +726,13 @@ void ArenaRunController::DrawTankRunUi()
 
 void ArenaRunController::QueueTankRunTelegraph()
 {
-    auto circle = [&](const cg2::Vector3& position, float radius, float width, const cg2::Vector4& tint, int sides) {
-        cg2::Vector3 origin = position;
+    auto circle = [&](const myEngine::Vector3& position, float radius, float width, const myEngine::Vector4& tint, int sides) {
+        myEngine::Vector3 origin = position;
         origin.z = -0.3f;
         for (int n = 0; n < sides; ++n) {
-            const float a = 2 * cg2::pi * static_cast<float>(n) / sides, b = 2 * cg2::pi * static_cast<float>(n + 1) / sides;
-            world_.resources.neonGridRenderer_->QueueLine(origin + cg2::Vector3{std::cos(a) * radius, std::sin(a) * radius, 0},
-                                                          origin + cg2::Vector3{std::cos(b) * radius, std::sin(b) * radius, 0}, width,
+            const float a = 2 * myEngine::pi * static_cast<float>(n) / sides, b = 2 * myEngine::pi * static_cast<float>(n + 1) / sides;
+            world_.resources.neonGridRenderer_->QueueLine(origin + myEngine::Vector3{std::cos(a) * radius, std::sin(a) * radius, 0},
+                                                          origin + myEngine::Vector3{std::cos(b) * radius, std::sin(b) * radius, 0}, width,
                                                           tint);
         }
     };
@@ -745,30 +745,30 @@ void ArenaRunController::QueueTankRunTelegraph()
         // One/two/three ticks identify A/B/C without a world-space text pass.
         for (size_t n = 0; n <= i; ++n) {
             const float x = static_cast<float>(n) * 0.45f - static_cast<float>(i) * 0.225f;
-            world_.resources.neonGridRenderer_->QueueLine(node.position + cg2::Vector3{x, 2.4f, -0.3f},
-                                                          node.position + cg2::Vector3{x, 2.9f, -0.3f}, 0.10f, {1, 0.85f, 0.4f, 1});
+            world_.resources.neonGridRenderer_->QueueLine(node.position + myEngine::Vector3{x, 2.4f, -0.3f},
+                                                          node.position + myEngine::Vector3{x, 2.9f, -0.3f}, 0.10f, {1, 0.85f, 0.4f, 1});
         }
     }
     for (const auto& burst : world_.run.tankRunBursts_) {
         const float duration = burst.resource ? 0.7f : 0.35f;
         const float t = burst.age / duration;
         circle(burst.position, 0.7f + t * (burst.resource ? 5.0f : 2.2f), 0.09f * (1 - t),
-               burst.resource ? cg2::Vector4{1, 0.72f, 0.15f, 1 - t} : cg2::Vector4{0.25f, 1, 0.8f, 1 - t}, 20);
+               burst.resource ? myEngine::Vector4{1, 0.72f, 0.15f, 1 - t} : myEngine::Vector4{0.25f, 1, 0.8f, 1 - t}, 20);
         if (world_.run.expeditionRun_ && !burst.resource)
             for (int i = 0; i < 8; ++i) {
-                const float a = static_cast<float>(i) * cg2::pi / 4 + burst.position.x;
-                const cg2::Vector3 direction{std::cos(a), std::sin(a), 0};
-                const cg2::Vector3 start = burst.position + direction * (0.6f + 3.8f * t) + cg2::Vector3{0, 0, -0.35f};
+                const float a = static_cast<float>(i) * myEngine::pi / 4 + burst.position.x;
+                const myEngine::Vector3 direction{std::cos(a), std::sin(a), 0};
+                const myEngine::Vector3 start = burst.position + direction * (0.6f + 3.8f * t) + myEngine::Vector3{0, 0, -0.35f};
                 world_.resources.neonGridRenderer_->QueueLine(start, start + direction * (0.45f * (1 - t)), 0.075f * (1 - t),
                                                               {0.45f, 1.2f, 0.85f, 1 - t});
             }
     }
     for (const auto& hit : world_.run.expeditionHitSparks_) {
         const float t = hit.age / 0.18f;
-        const cg2::Vector3 center = hit.position + cg2::Vector3{0, 0, -0.35f};
+        const myEngine::Vector3 center = hit.position + myEngine::Vector3{0, 0, -0.35f};
         for (int i = 0; i < 5; ++i) {
             const float a = std::atan2(hit.direction.y, hit.direction.x) + (i - 2) * 0.55f;
-            const cg2::Vector3 ray{std::cos(a), std::sin(a), 0};
+            const myEngine::Vector3 ray{std::cos(a), std::sin(a), 0};
             const auto start = center + ray * (0.50f + t * 1.5f);
             world_.resources.neonGridRenderer_->QueueLine(start, start + ray * (0.40f * (1 - t)), 0.08f * (1 - t),
                                                           {1.9f, 1.4f, 0.65f, 1 - t});
@@ -779,29 +779,29 @@ void ArenaRunController::QueueTankRunTelegraph()
     if (world_.resources.enemy_->IsExpeditionRivalEnabled()) {
         const auto status = world_.resources.enemy_->GetRivalCombatStatus();
         using P = RivalBossCombat::Phase;
-        const cg2::Vector3 origin = world_.resources.enemy_->GetWorldPosition() + cg2::Vector3{0, 0, -0.35f};
+        const myEngine::Vector3 origin = world_.resources.enemy_->GetWorldPosition() + myEngine::Vector3{0, 0, -0.35f};
         const bool reload = status.phase == P::Reload;
         for (int i = 0; i < status.capacity; ++i) {
             const float x = (static_cast<float>(i) - (status.capacity - 1) * 0.5f) * 0.65f;
             const bool full = i < status.ammo;
-            world_.resources.neonGridRenderer_->QueueLine(origin + cg2::Vector3{x, 3.2f, 0}, origin + cg2::Vector3{x, 3.6f, 0}, 0.16f,
-                                                          reload ? cg2::Vector4{0.2f, 1.2f, 1.1f, 1}
-                                                          : full ? cg2::Vector4{1.5f, 0.65f, 0.25f, 1}
-                                                                 : cg2::Vector4{0.20f, 0.16f, 0.16f, 0.7f});
+            world_.resources.neonGridRenderer_->QueueLine(origin + myEngine::Vector3{x, 3.2f, 0}, origin + myEngine::Vector3{x, 3.6f, 0}, 0.16f,
+                                                          reload ? myEngine::Vector4{0.2f, 1.2f, 1.1f, 1}
+                                                          : full ? myEngine::Vector4{1.5f, 0.65f, 0.25f, 1}
+                                                                 : myEngine::Vector4{0.20f, 0.16f, 0.16f, 0.7f});
         }
         if (reload) {
             const int segments = static_cast<int>(32 * status.progress);
             for (int i = 0; i < segments; ++i) {
-                const float a = 2 * cg2::pi * i / 32, b = 2 * cg2::pi * (i + 1) / 32;
-                world_.resources.neonGridRenderer_->QueueLine(origin + cg2::Vector3{std::cos(a) * 2.5f, std::sin(a) * 2.5f, 0},
-                                                              origin + cg2::Vector3{std::cos(b) * 2.5f, std::sin(b) * 2.5f, 0}, 0.13f,
+                const float a = 2 * myEngine::pi * i / 32, b = 2 * myEngine::pi * (i + 1) / 32;
+                world_.resources.neonGridRenderer_->QueueLine(origin + myEngine::Vector3{std::cos(a) * 2.5f, std::sin(a) * 2.5f, 0},
+                                                              origin + myEngine::Vector3{std::cos(b) * 2.5f, std::sin(b) * 2.5f, 0}, 0.13f,
                                                               {0.25f, 1.2f, 1, 0.9f});
             }
         }
         if (status.phase == P::DashWarning || status.phase == P::Dash) {
-            const cg2::Vector3 side{-status.dashDirection.y, status.dashDirection.x, 0};
-            const cg2::Vector3 end = origin + status.dashDirection * status.dashDistance;
-            const cg2::Vector4 tint{1.5f, 0.45f, 0.16f, 0.65f + 0.3f * status.progress};
+            const myEngine::Vector3 side{-status.dashDirection.y, status.dashDirection.x, 0};
+            const myEngine::Vector3 end = origin + status.dashDirection * status.dashDistance;
+            const myEngine::Vector4 tint{1.5f, 0.45f, 0.16f, 0.65f + 0.3f * status.progress};
             for (float offset : {-1.4f, 1.4f})
                 world_.resources.neonGridRenderer_->QueueLine(origin + side * offset, end + side * offset, 0.10f, tint);
             world_.resources.neonGridRenderer_->QueueLine(end - side * 1.4f, end + side * 1.4f, 0.10f, tint);
@@ -811,9 +811,9 @@ void ArenaRunController::QueueTankRunTelegraph()
         }
         if (status.phase == P::Tracking || status.phase == P::Locked || status.phase == P::Volley) {
             const float base = std::atan2(status.direction.y, status.direction.x);
-            const float half = RivalBossCombat::WarningHalfAngle(status.pattern) * cg2::pi / 180;
-            const cg2::Vector4 tint{1.4f, 0.45f + 0.3f * status.progress, 0.14f, status.phase == P::Volley ? 0.32f : 0.65f};
-            auto clipDistance = [&](const cg2::Vector3& ray) {
+            const float half = RivalBossCombat::WarningHalfAngle(status.pattern) * myEngine::pi / 180;
+            const myEngine::Vector4 tint{1.4f, 0.45f + 0.3f * status.progress, 0.14f, status.phase == P::Volley ? 0.32f : 0.65f};
+            auto clipDistance = [&](const myEngine::Vector3& ray) {
                 float nearest = 24.0f;
                 for (const auto& row : world_.resources.stage_->GetBlocks())
                     for (const auto& block : row)
@@ -839,7 +839,7 @@ void ArenaRunController::QueueTankRunTelegraph()
             };
             for (int i = 0; i < 3; ++i) {
                 const float angle = base + half * (i - 1);
-                const cg2::Vector3 ray{std::cos(angle), std::sin(angle), 0};
+                const myEngine::Vector3 ray{std::cos(angle), std::sin(angle), 0};
                 const float distance = clipDistance(ray);
                 if (distance > 1.8f)
                     world_.resources.neonGridRenderer_->QueueLine(origin + ray * 1.8f, origin + ray * distance, 0.06f, tint);
@@ -850,22 +850,22 @@ void ArenaRunController::QueueTankRunTelegraph()
     const auto telegraph = world_.resources.enemy_->GetPrototypeTelegraph();
     if (!telegraph.active)
         return;
-    cg2::Vector3 origin = world_.resources.enemy_->GetWorldPosition();
+    myEngine::Vector3 origin = world_.resources.enemy_->GetWorldPosition();
     origin.z = -0.3f;
-    const float base = std::atan2(telegraph.direction.y, telegraph.direction.x), half = telegraph.spreadAngleDeg * cg2::pi / 360;
+    const float base = std::atan2(telegraph.direction.y, telegraph.direction.x), half = telegraph.spreadAngleDeg * myEngine::pi / 360;
     const bool ring = telegraph.attackType == Enemy::PrototypeAttackType::GapRing;
-    const cg2::Vector4 color{1, 0.30f + 0.25f * telegraph.progress, 0.08f, 0.75f};
-    auto radial = [&](float angle, float length, float width, const cg2::Vector4& tint) {
-        world_.resources.neonGridRenderer_->QueueLine(origin, origin + cg2::Vector3{std::cos(angle) * length, std::sin(angle) * length, 0},
+    const myEngine::Vector4 color{1, 0.30f + 0.25f * telegraph.progress, 0.08f, 0.75f};
+    auto radial = [&](float angle, float length, float width, const myEngine::Vector4& tint) {
+        world_.resources.neonGridRenderer_->QueueLine(origin, origin + myEngine::Vector3{std::cos(angle) * length, std::sin(angle) * length, 0},
                                                       width, tint);
     };
     if (ring) {
         for (int i = 0; i < 48; ++i) {
-            const float a = base + half + (2 * cg2::pi - 2 * half) * static_cast<float>(i) / 48,
-                        b = base + half + (2 * cg2::pi - 2 * half) * static_cast<float>(i + 1) / 48;
+            const float a = base + half + (2 * myEngine::pi - 2 * half) * static_cast<float>(i) / 48,
+                        b = base + half + (2 * myEngine::pi - 2 * half) * static_cast<float>(i + 1) / 48;
             const float radius = 4 + telegraph.progress * 2;
-            world_.resources.neonGridRenderer_->QueueLine(origin + cg2::Vector3{std::cos(a) * radius, std::sin(a) * radius, 0},
-                                                          origin + cg2::Vector3{std::cos(b) * radius, std::sin(b) * radius, 0}, 0.09f,
+            world_.resources.neonGridRenderer_->QueueLine(origin + myEngine::Vector3{std::cos(a) * radius, std::sin(a) * radius, 0},
+                                                          origin + myEngine::Vector3{std::cos(b) * radius, std::sin(b) * radius, 0}, 0.09f,
                                                           color);
         }
         radial(base - half, 12, 0.065f, {0.12f, 0.95f, 0.88f, 0.7f});
@@ -893,7 +893,7 @@ void ArenaRunController::CopyTankRunCapture()
 {
     if (world_.run.tankRunCapturePath_.empty() || world_.run.tankRunCaptureCopied_)
         return;
-    auto dx = cg2::Object3dCommon::GetInstance()->GetDxCommon();
+    auto dx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
     Microsoft::WRL::ComPtr<ID3D12Resource> source;
     if (FAILED(dx->GetSwapChain()->GetBuffer(dx->GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&source))))
         return;

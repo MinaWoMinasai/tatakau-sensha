@@ -8,7 +8,7 @@ public:
     /// @brief 借用するワールドを設定する。
     explicit GameplaySettings(GameWorld& world) : world_(world) {}
     /// @brief 後処理演出パラメーターControlsを描画する。
-    void DrawPostEffectParamControls(const char* labelPrefix, cg2::BloomParam& param);
+    void DrawPostEffectParamControls(const char* labelPrefix, myEngine::BloomParam& param);
 
     /// @brief ゲーム後処理演出設定を読み込む。
     bool LoadGamePostEffectConfig(const std::string& filePath = "resources/configs/gamePostEffects.json");

@@ -73,14 +73,14 @@ void CombatFramePipeline::Update()
 
     // 通常の基準時間は1/60秒。検証では指定した固定時間でメニュー・演出も進める。
     float baseDeltaTime = 1.0f / 60.0f;
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     world_.resources.gameplayScenarioCombatDt_ = world_.resources.gameplayScenarioPresentationDt_ = 0.0f;
     if (GameplayScenarioSession::Get().IsActive()) {
         baseDeltaTime = GameplayScenarioSession::Get().GetSettings().fixedDeltaTime;
         if (world_.gameplayScenarioRunner->PrepareGameplayScenarioFrame())
             return;
     }
-    world_.presentation.developerGameCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
+    world_.presentation.developerGameCapture_.Resolve(*myEngine::Object3dCommon::GetInstance()->GetDxCommon());
     if (!world_.demo.titleDemo_ && world_.run.expeditionMapEnabled_ && world_.resources.input_->IsKeyTriggered(DIK_F7))
         world_.bossPresentation->RequestNeonBossDeveloperEncounter();
     world_.bossPresentation->UpdateNeonBossDeveloperValidation();
@@ -136,7 +136,7 @@ void CombatFramePipeline::Update()
         world_.arenaRunController->FinishTankRunCapture();
         world_.arenaRunController->UpdateTankRun(baseDeltaTime);
     }
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     world_.routeReplay->PrepareNormalRouteReplay();
 #endif
     if (world_.run.expeditionMapEnabled_)
@@ -162,7 +162,7 @@ void CombatFramePipeline::Update()
         if (world_.run.expeditionRun_)
             world_.run.tankExpeditionAudio_.Upgrade();
         else
-            cg2::Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.25f);
+            myEngine::Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.25f);
     }
 
     const float requestedTimeScale = world_.combat.screenEffectDirector_.GetTimeScaleMultiplier();
@@ -180,7 +180,7 @@ void CombatFramePipeline::Update()
     }
     // 時間倍率が基準時間の95%を超え、命中時の停止も終わったら基準時間へ戻す。
     bool restoreBaseTime = world_.combat.finalDeltaTime * 60.0f > 0.95f;
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (GameplayScenarioSession::Get().IsActive())
         restoreBaseTime = gameplaytest::ScenarioShouldSnapTimeScale(world_.combat.finalDeltaTime, baseDeltaTime);
 #endif
@@ -197,11 +197,11 @@ void CombatFramePipeline::Update()
                     : "H:操作説明ON");
         }
     }
-    if (cg2::kDeveloperTools && !world_.demo.titleDemo_ && !world_.run.expeditionMapEnabled_ &&
+    if (myEngine::kDeveloperTools && !world_.demo.titleDemo_ && !world_.run.expeditionMapEnabled_ &&
         world_.resources.input_->IsTrigger(world_.resources.input_->GetKey()[DIK_F5], world_.resources.input_->GetPreKey()[DIK_F5])) {
         world_.classConfigWatcher->ReloadPlayerClassConfig(false);
     }
-    if (cg2::kDeveloperTools)
+    if (myEngine::kDeveloperTools)
         world_.classConfigWatcher->UpdatePlayerClassConfigWatch(baseDeltaTime);
     world_.presentation.slowMotionPostActive_ = world_.combat.finalDeltaTime < baseDeltaTime * 0.98f;
 
@@ -216,7 +216,7 @@ void CombatFramePipeline::Update()
     world_.presentation.stageDamageBlockPulseTime_ += baseDeltaTime;
     ExpEnemy::SetShapeNeonRenderMode(world_.presentation.expEnemyNeonRenderMode_);
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     {
         const auto now = std::chrono::steady_clock::now();
         const float realDeltaTime = std::chrono::duration<float>(now - world_.combat.fpsLastSampleTime_).count();
@@ -246,7 +246,7 @@ void CombatFramePipeline::Update()
 
     if (!world_.demo.titleDemo_)
         world_.gameplayEditor->DrawGameplayDebugUi();
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (world_.gameplayQueries->IsNeonShowcaseActive()) {
         world_.resources.neonSkinnedPreview_->DrawShowcaseWindow();
         world_.resources.neonSkinnedPreview_->Update(world_.gameplayQueries->IsNeonShowcaseActive() ? baseDeltaTime : 0.0f);
@@ -296,7 +296,7 @@ void CombatFramePipeline::Update()
     }
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     // Undo the last comparison eye before normal follow or a boss camera saves it.
     if (world_.presentation.developerStageTiltApplied_) {
         world_.resources.camera->SetTranslate(world_.presentation.developerStageBaseCamera_);
@@ -306,7 +306,7 @@ void CombatFramePipeline::Update()
     }
 #endif
     if (!world_.depthEncounter->UpdateNeonDepthCamera(baseDeltaTime)) {
-        cg2::Vector3 playerPos = world_.resources.player_->GetWorldPosition();
+        myEngine::Vector3 playerPos = world_.resources.player_->GetWorldPosition();
         const float kCameraZ = arenacamera::CameraZ();
         const float kMarginX = 18.0f;
         const float kMarginY = 11.0f;
@@ -317,7 +317,7 @@ void CombatFramePipeline::Update()
         float arenaMinX = 0.0f, arenaMinY = 0.0f, arenaMaxX = 0.0f, arenaMaxY = 0.0f;
         const bool framedArena = world_.run.prototypeRun_ && world_.resources.stage_ &&
                                  arenacamera::ArenaBounds(world_.resources.stage_->GetBlocks(), arenaMinX, arenaMinY, arenaMaxX, arenaMaxY);
-        auto clampTarget = [&](cg2::Vector3 target) {
+        auto clampTarget = [&](myEngine::Vector3 target) {
             if (framedArena) {
                 const float halfHeight = arenacamera::HalfViewHeight();
                 target.x = arenacamera::ClampFocus(target.x, arenaMinX, arenaMaxX, halfHeight * arenacamera::kAspect);
@@ -328,8 +328,8 @@ void CombatFramePipeline::Update()
             }
             return target;
         };
-        cg2::Vector3 targetCameraPos = clampTarget({playerPos.x, playerPos.y, kCameraZ});
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+        myEngine::Vector3 targetCameraPos = clampTarget({playerPos.x, playerPos.y, kCameraZ});
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
         // Capture fixture only: show both actors with the same normal top-down camera.
         if ((world_.resources.neonBossAutoTest_ || GameplayScenarioSession::Get().IsActive()) &&
             world_.gameplayQueries->IsRunRivalActive()) {
@@ -337,21 +337,21 @@ void CombatFramePipeline::Update()
             targetCameraPos = clampTarget({center.x, center.y, kCameraZ});
         }
 #endif
-        cg2::Vector3 currentCameraPos = world_.resources.camera->GetTranslate();
-        cg2::Vector3 nextCameraPos = currentCameraPos + (targetCameraPos - currentCameraPos) * 0.12f;
+        myEngine::Vector3 currentCameraPos = world_.resources.camera->GetTranslate();
+        myEngine::Vector3 nextCameraPos = currentCameraPos + (targetCameraPos - currentCameraPos) * 0.12f;
         if (world_.presentation.cameraShakeTimer_ > 0.0f) {
             world_.presentation.cameraShakeTimer_ -= baseDeltaTime;
             float t = (std::clamp)(world_.presentation.cameraShakeTimer_ / world_.presentation.cameraShakeDuration_, 0.0f, 1.0f);
             float power = world_.presentation.cameraShakePower_ * t * t;
-            nextCameraPos.x += cg2::Rand(-power, power);
-            nextCameraPos.y += cg2::Rand(-power, power);
+            nextCameraPos.x += myEngine::Rand(-power, power);
+            nextCameraPos.y += myEngine::Rand(-power, power);
         }
         world_.resources.camera->SetTranslate(nextCameraPos);
     }
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (world_.presentation.developerStageTilt_ && world_.run.prototypeRun_ && !world_.demo.titleDemo_ &&
-        !world_.resources.neonDepthCameraScoped_ && !cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()) {
+        !world_.resources.neonDepthCameraScoped_ && !myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()) {
         auto& presentation = world_.presentation;
         presentation.developerStageBaseCamera_ = world_.resources.camera->GetTranslate();
         presentation.developerStageBaseRotation_ = world_.resources.camera->GetRotate();
@@ -369,7 +369,7 @@ void CombatFramePipeline::Update()
     world_.resources.camera->Update();
     world_.resources.debugCamera->Update(world_.resources.input_->GetMouseState(), world_.resources.input_->GetKey(),
                                          world_.resources.input_->GetLeftStick());
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (world_.resources.neonSkinnedPreview_)
         world_.resources.neonSkinnedPreview_->Update(baseDeltaTime);
 #endif
@@ -377,7 +377,7 @@ void CombatFramePipeline::Update()
         world_.resources.skybox_->Update(world_.resources.camera.get(), world_.resources.debugCamera.get());
     }
 
-    world_.combat.direction = cg2::Normalize(world_.combat.direction);
+    world_.combat.direction = myEngine::Normalize(world_.combat.direction);
     world_.resources.ball_->SetDirectionalLightDirection(world_.combat.direction);
     world_.resources.ball_->SetInsensity(world_.combat.insensity);
     world_.resources.ball_->SetShininess(world_.combat.shininess);
@@ -405,7 +405,7 @@ void CombatFramePipeline::Update()
              world_.run.expeditionMapRun_.GetActiveNode()->role == tankexp::NodeRole::TutorialCombat));
         // 誘導先は敵の位置の写し。これを設定してから自機・ドローンを更新し、弾の生成とレーザー・地雷・斬撃の予約を進める。
         if (world_.run.prototypeRun_ && !world_.resources.player_->IsChangeMode()) {
-            std::vector<cg2::Vector3> targets;
+            std::vector<myEngine::Vector3> targets;
             if ((world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead()))
                 targets.push_back(world_.resources.enemy_->GetWorldPosition());
             for (const auto* actor : world_.resources.enemyManager_->GetEnemyPtrs())
@@ -414,10 +414,10 @@ void CombatFramePipeline::Update()
             world_.resources.player_->SetRunHomingTargets(targets);
         }
         {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
             world_.resources.gameplayScenarioCombatDt_ = world_.combat.finalDeltaTime;
 #endif
-            cg2::RuntimeProfiler::CpuScope scope("Player / Drones Update");
+            myEngine::RuntimeProfiler::CpuScope scope("Player / Drones Update");
             world_.resources.player_->Update(world_.resources.camera.get(), *world_.resources.stage_, world_.resources.bulletManager_.get(),
                                              world_.combat.finalDeltaTime, baseDeltaTime);
         }
@@ -452,7 +452,7 @@ void CombatFramePipeline::Update()
             // 予約攻撃の受取と弾の更新はこの抑制条件の外で行う。
             const bool suppressTutorialCombat = world_.gameplayQueries->IsTutorialCombatSuppressed();
             if (!suppressTutorialCombat) {
-                cg2::RuntimeProfiler::CpuScope scope("Enemy AI Update");
+                myEngine::RuntimeProfiler::CpuScope scope("Enemy AI Update");
                 if (world_.gameplayQueries->IsRunRivalActive())
                     world_.resources.enemy_->Update(world_.combat.finalDeltaTime);
                 if (!world_.run.prototypeRun_)
@@ -462,14 +462,14 @@ void CombatFramePipeline::Update()
 
             // 敵AIが発射した弾も含めて移動・壁衝突を処理する。この更新内で死亡弾の実体も削除する。
             {
-                cg2::RuntimeProfiler::CpuScope scope("Bullets / Trails / Wall Collision");
+                myEngine::RuntimeProfiler::CpuScope scope("Bullets / Trails / Wall Collision");
                 world_.resources.bulletManager_->Update(*world_.resources.stage_, world_.combat.finalDeltaTime);
             }
 
             // 弾と敵の更新後に特殊戦闘を適用し、その後で通常のアクター接触を通知する。
             // 衝突通知中に予約された弾はCheckAllCollisionsの走査後に追加され、このフレームの移動には戻らない。
             if (!suppressTutorialCombat) {
-                cg2::RuntimeProfiler::CpuScope scope("Actor / Bullet Collision");
+                myEngine::RuntimeProfiler::CpuScope scope("Actor / Bullet Collision");
                 world_.resources.player_->UpdateSpecialCombat(*world_.resources.stage_, world_.resources.bulletManager_.get(),
                                                               world_.gameplayQueries->IsRunRivalActive() ? world_.resources.enemy_.get()
                                                                                                          : nullptr,
@@ -522,7 +522,7 @@ void CombatFramePipeline::Update()
                                        ? world_.combat.finalDeltaTime
                                        : 0.0f));
     world_.bossPresentation->UpdateNeonBossVisual(bossPresentationDeltaTime);
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     world_.resources.gameplayScenarioPresentationDt_ = bossPresentationDeltaTime;
 #endif
     // 戦闘停止中も、残っている演出を進め、未消費の特殊戦闘イベントを受け取る。
@@ -550,20 +550,20 @@ void CombatFramePipeline::Update()
         // 左クリックしたらパーティクル追加
         if (world_.resources.input_->IsTrigger(world_.resources.input_->GetMouseState().rgbButtons[0],
                                                world_.resources.input_->GetPreMouseState().rgbButtons[0])) {
-            cg2::Matrix4x4 viewMatrix = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
+            myEngine::Matrix4x4 viewMatrix = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
                                             ? world_.resources.debugCamera->GetViewMatrix()
                                             : world_.resources.camera->GetViewMatrix();
-            cg2::Matrix4x4 projectionMatrix = cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()
+            myEngine::Matrix4x4 projectionMatrix = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
                                                   ? world_.resources.debugCamera->GetProjectionMatrix()
                                                   : world_.resources.camera->GetProjectionMatrix();
-            cg2::Vector3 worldPos = cg2::ScreenToWorldOnZ0(world_.resources.input_->GetMousePosition(), viewMatrix, projectionMatrix,
-                                                           cg2::WinApp::kClientWidth, cg2::WinApp::kClientHeight);
-            cg2::ParticleManager::GetInstance()->EmitHitEffect(worldPos);
+            myEngine::Vector3 worldPos = myEngine::ScreenToWorldOnZ0(world_.resources.input_->GetMousePosition(), viewMatrix, projectionMatrix,
+                                                           myEngine::WinApp::kClientWidth, myEngine::WinApp::kClientHeight);
+            myEngine::ParticleManager::GetInstance()->EmitHitEffect(worldPos);
         }
     }
 
     if (world_.presentation.showParticleEditor_) {
-        cg2::ParticleManager::GetInstance()->DrawImGuiEditor();
+        myEngine::ParticleManager::GetInstance()->DrawImGuiEditor();
     }
 
 #endif // USE_IMGUI
@@ -574,10 +574,10 @@ void CombatFramePipeline::Update()
             ? world_.combat.finalDeltaTime
             : baseDeltaTime;
     {
-        cg2::RuntimeProfiler::CpuScope scope("Particles Update");
-        cg2::ParticleManager::GetInstance()->Update(particleDeltaTime, world_.resources.camera.get(), world_.resources.debugCamera.get());
+        myEngine::RuntimeProfiler::CpuScope scope("Particles Update");
+        myEngine::ParticleManager::GetInstance()->Update(particleDeltaTime, world_.resources.camera.get(), world_.resources.debugCamera.get());
     }
-    for (const cg2::ParticleManager::ScreenPulseEvent& event : cg2::ParticleManager::GetInstance()->ConsumeScreenPulseEvents()) {
+    for (const myEngine::ParticleManager::ScreenPulseEvent& event : myEngine::ParticleManager::GetInstance()->ConsumeScreenPulseEvents()) {
         world_.combatEffects->TriggerDeathPostPulse(event.position, event.strength);
     }
     // 死亡演出・通貨回収の終了条件を見て結果画面へ移る。戦闘の時間倍率には合わせない。
@@ -622,7 +622,7 @@ void CombatFramePipeline::Update()
     world_.combat.toTitleGide->Update();
     if (!world_.demo.titleDemo_)
         world_.titleDemoController->VerifyTitleDemoTransition(baseDeltaTime);
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     world_.gameplayScenarioRunner->RecordGameplayScenarioFrame();
     world_.routeReplay->RecordNormalRouteReplay();
 #endif

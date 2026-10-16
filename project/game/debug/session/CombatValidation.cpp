@@ -11,7 +11,7 @@ namespace {
 constexpr const char* kCombatProbeDirectory = "generated/combat_validation/";
 constexpr std::array<const char*, 6> kCombatProbeNames{"Charger", "Sniper", "Skirmisher", "Flanker", "Suppressor", "Rival"};
 /// @brief 指定した形状が地形の壁と重なるか判定する。
-bool OverlapsWall(const Stage& stage, const cg2::AABB& body)
+bool OverlapsWall(const Stage& stage, const myEngine::AABB& body)
 {
     // Resolved bodies have 0.01-unit separation. Ignore only floating point noise.
     for (const auto& row : stage.GetBlocks())
@@ -31,7 +31,7 @@ void CombatValidation::InitializeCombatValidationFixture()
 {
     wchar_t flag[8]{};
     world_.run.combatValidationEnabled_ =
-        !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"CG2_TANK_COMBAT_AUTOTEST", flag, 8) > 0 && flag[0] == L'1';
+        !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"MYENGINE_TANK_COMBAT_AUTOTEST", flag, 8) > 0 && flag[0] == L'1';
     if (!world_.run.combatValidationEnabled_)
         return;
     world_.run.combatValidationRequested_ = world_.run.combatValidationPhase2Injected_ = false;
@@ -229,14 +229,14 @@ bool CombatValidation::UpdateCombatValidation(float dt)
     p.sampleAge += dt;
     const bool boss = world_.run.combatValidationIndex_ == 5;
     // Normal Player movement, with no teleporting or auto-fire during a probe.
-    const cg2::Vector3 target{32.0f + 3.0f * std::sin(p.age * 0.55f), 29.0f + 6.0f * std::sin(p.age * 0.70f), 0};
-    cg2::Vector3 input = target - world_.resources.player_->GetWorldPosition();
-    if (cg2::Length(input) > 1.0f)
-        input = cg2::Normalize(input);
+    const myEngine::Vector3 target{32.0f + 3.0f * std::sin(p.age * 0.55f), 29.0f + 6.0f * std::sin(p.age * 0.70f), 0};
+    myEngine::Vector3 input = target - world_.resources.player_->GetWorldPosition();
+    if (myEngine::Length(input) > 1.0f)
+        input = myEngine::Normalize(input);
     world_.resources.player_->SetDemoInput(true, {input.x, input.y}, {56, 29, 0}, false, false);
     world_.presentation.debugPlayerNoDamage_ = true;
-    cg2::Vector3 position{};
-    cg2::AABB body{};
+    myEngine::Vector3 position{};
+    myEngine::AABB body{};
     unsigned shots = 0, dashes = 0, reloads = 0;
     bool reloading = false, dashing = false;
     int ammo = 0, phase = 0;
@@ -288,7 +288,7 @@ bool CombatValidation::UpdateCombatValidation(float dt)
         return true;
     }
     if (p.hasPrevious) {
-        const float movement = cg2::Length(position - p.previousPosition);
+        const float movement = myEngine::Length(position - p.previousPosition);
         p.pathLength += movement;
         p.maxStep = (std::max)(p.maxStep, movement);
         if (movement > 1.25f)
@@ -297,7 +297,7 @@ bool CombatValidation::UpdateCombatValidation(float dt)
             // Sweep the straight dash's center so endpoint checks cannot miss a wall.
             const int steps = (std::max)(1, static_cast<int>(movement / 0.12f));
             for (int i = 1; i < steps; ++i) {
-                const cg2::Vector3 sample = p.previousPosition + (position - p.previousPosition) * (static_cast<float>(i) / steps);
+                const myEngine::Vector3 sample = p.previousPosition + (position - p.previousPosition) * (static_cast<float>(i) / steps);
                 if (world_.resources.stage_->IsCollisionWithAnyBlock(sample, 0.05f)) {
                     ++p.tunnelingViolations;
                     break;

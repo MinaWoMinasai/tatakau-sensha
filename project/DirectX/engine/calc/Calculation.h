@@ -3,7 +3,7 @@
 #include <cassert>
 #include <random>
 
-namespace cg2 {
+namespace myEngine {
 
 extern std::mt19937 rng;
 
@@ -282,4 +282,4 @@ Matrix4x4 CalculateLightViewProjection();
 /// @brief 制御点列からCatmull-Rom補間で位置を求めて返す。
 Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t);
 
-} // namespace cg2
+} // namespace myEngine

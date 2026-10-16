@@ -25,7 +25,7 @@ void ExperienceValidation::InitializeExperienceValidation()
     if (world_.demo.titleDemo_)
         return;
     const bool submission = tanksubmission::Enabled();
-    if (!submission && (GetEnvironmentVariableW(L"CG2_TANK_EXPERIENCE_AUTOTEST", flag, 8) == 0 || (flag[0] != L'1' && flag[0] != L'2')))
+    if (!submission && (GetEnvironmentVariableW(L"MYENGINE_TANK_EXPERIENCE_AUTOTEST", flag, 8) == 0 || (flag[0] != L'1' && flag[0] != L'2')))
         return;
     if (submission) {
         flag[0] = L'1';
@@ -37,7 +37,7 @@ void ExperienceValidation::InitializeExperienceValidation()
     }
     world_.validation.experienceValidationVariant_ = flag[0] == L'1' ? 1 : 2;
     wchar_t styleFlag[8]{};
-    if (GetEnvironmentVariableW(L"CG2_TANK_EXPERIENCE_STYLE", styleFlag, 8) > 0 && styleFlag[0] >= L'0' && styleFlag[0] <= L'2')
+    if (GetEnvironmentVariableW(L"MYENGINE_TANK_EXPERIENCE_STYLE", styleFlag, 8) > 0 && styleFlag[0] >= L'0' && styleFlag[0] <= L'2')
         world_.validation.experienceValidationStyle_ = styleFlag[0] - L'0';
     world_.run.expeditionSeed_ = kExperienceSeed;
     world_.run.expeditionMapDefinition_ = tankexp::GenerateExpeditionMap(world_.run.expeditionSeed_, 30, 8);
@@ -166,12 +166,12 @@ void ExperienceValidation::BeginExperienceMeleeProbe()
         world_.resources.player_->GetExpeditionCombatStyle() != static_cast<tankbuild::Style>(world_.validation.experienceValidationStyle_))
         world_.validation.experienceValidationErrors_.push_back("Chosen base style was not equipped after introduction");
     world_.arenaRunController->ApplyTankRunCards();
-    const cg2::Vector3 position = world_.resources.player_->GetWorldPosition();
-    const std::array<cg2::Vector3, 4> directions{cg2::Vector3{1, 0, 0}, cg2::Vector3{0, 1, 0}, cg2::Vector3{-1, 0, 0},
-                                                 cg2::Vector3{0, -1, 0}};
+    const myEngine::Vector3 position = world_.resources.player_->GetWorldPosition();
+    const std::array<myEngine::Vector3, 4> directions{myEngine::Vector3{1, 0, 0}, myEngine::Vector3{0, 1, 0}, myEngine::Vector3{-1, 0, 0},
+                                                 myEngine::Vector3{0, -1, 0}};
     bool spawned = false;
     for (const auto& direction : directions) {
-        const cg2::Vector3 target = position + direction * 3.1f;
+        const myEngine::Vector3 target = position + direction * 3.1f;
         if (world_.resources.stage_->IsCollisionWithAnyBlock(target, 1.0f) ||
             world_.resources.stage_->IsCollisionWithAnyBlock(position + direction * 1.6f, 0.8f))
             continue;
@@ -211,7 +211,7 @@ bool ExperienceValidation::UpdateExperienceValidation(float dt)
         WriteExperienceValidationReport(false);
     }
     world_.validation.experienceValidationStateAge_ += dt;
-    world_.resources.player_->SetDemoInput(true, {}, world_.resources.player_->GetWorldPosition() + cg2::Vector3{1, 0, 0}, false, false);
+    world_.resources.player_->SetDemoInput(true, {}, world_.resources.player_->GetWorldPosition() + myEngine::Vector3{1, 0, 0}, false, false);
     if (world_.run.expeditionGuideActive_)
         world_.validation.experienceGuideStageMask_ |= 1u << static_cast<unsigned>(stage);
     for (const auto& orb : world_.run.expeditionCredits_) {
@@ -359,8 +359,8 @@ bool ExperienceValidation::UpdateExperienceValidation(float dt)
                 CaptureExperienceValidation("dash");
             const auto bullets = world_.resources.bulletManager_->GetBulletCounts();
             const bool request = world_.validation.experienceValidationStateAge_ > 0.6f && !world_.resources.player_->IsDashing();
-            const cg2::Vector2 move = (request || world_.resources.player_->IsDashing()) ? cg2::Vector2{0, 1} : cg2::Vector2{};
-            world_.resources.player_->SetDemoInput(true, move, world_.resources.player_->GetWorldPosition() + cg2::Vector3{0, 1, 0}, false,
+            const myEngine::Vector2 move = (request || world_.resources.player_->IsDashing()) ? myEngine::Vector2{0, 1} : myEngine::Vector2{};
+            world_.resources.player_->SetDemoInput(true, move, world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0, 1, 0}, false,
                                                    request);
             return false;
         }
@@ -372,9 +372,9 @@ bool ExperienceValidation::UpdateExperienceValidation(float dt)
         if (stage == S::Collect) {
             CaptureExperienceValidation("collect");
             if (!world_.run.expeditionCredits_.empty()) {
-                cg2::Vector3 move = world_.run.expeditionCredits_.front().position - world_.resources.player_->GetWorldPosition();
-                if (cg2::Length(move) > 0.1f)
-                    move = cg2::Normalize(move);
+                myEngine::Vector3 move = world_.run.expeditionCredits_.front().position - world_.resources.player_->GetWorldPosition();
+                if (myEngine::Length(move) > 0.1f)
+                    move = myEngine::Normalize(move);
                 world_.resources.player_->SetDemoInput(true, {move.x, move.y}, world_.run.expeditionCredits_.front().position, false,
                                                        false);
             }
@@ -422,7 +422,7 @@ bool ExperienceValidation::UpdateExperienceValidation(float dt)
             world_.validation.experienceMeleeMinHp_ = (std::min)(world_.validation.experienceMeleeMinHp_, target->GetHp());
             world_.validation.experienceMeleeDisplacement_ =
                 (std::max)(world_.validation.experienceMeleeDisplacement_,
-                           cg2::Length(target->GetWorldPosition() - world_.validation.experienceMeleeTargetStart_));
+                           myEngine::Length(target->GetWorldPosition() - world_.validation.experienceMeleeTargetStart_));
             world_.validation.experienceMeleeSlashSamples_ += static_cast<int>(world_.presentation.playerMeleeSlashes_.size());
             world_.validation.experienceMeleeBulletSamples_ += static_cast<int>(world_.resources.bulletManager_->GetBulletCounts().player);
             world_.validation.experienceDroneSamples_ += static_cast<int>(world_.resources.player_->GetDronePtrs().size());
@@ -510,7 +510,7 @@ void ExperienceValidation::RecordSubmissionUi(const std::string& screen)
 {
     auto& check = tanksubmission::state;
     auto text = nlohmann::json::array();
-    auto add = [&](const cg2::TextLabel* label) {
+    auto add = [&](const myEngine::TextLabel* label) {
         if (label && !label->GetText().empty())
             text.push_back(label->GetText());
     };

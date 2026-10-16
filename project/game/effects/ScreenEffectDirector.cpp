@@ -92,12 +92,12 @@ bool ScreenEffectDirector::LoadConfig(const std::string& filePath)
 	return true;
 }
 
-void ScreenEffectDirector::TriggerJustDodge(const cg2::Vector2& screenPosition)
+void ScreenEffectDirector::TriggerJustDodge(const myEngine::Vector2& screenPosition)
 {
 	justDodge_ = { config_.justDodgeDuration, config_.justDodgeDuration, screenPosition, 1.0f };
 }
 
-void ScreenEffectDirector::TriggerPlayerDamage(const cg2::Vector2& hitDirection)
+void ScreenEffectDirector::TriggerPlayerDamage(const myEngine::Vector2& hitDirection)
 {
 	playerDamage_ = { config_.playerDamageDuration, config_.playerDamageDuration, { 0.5f, 0.5f }, 1.0f };
 	damageDirection_ = hitDirection;
@@ -108,7 +108,7 @@ void ScreenEffectDirector::SetLowHpRatio(float ratio)
 	lowHpRatio_ = (std::clamp)(Safe(ratio, 1.0f), 0.0f, 1.0f);
 }
 
-void ScreenEffectDirector::TriggerEnemyDefeat(const cg2::Vector2& screenPosition, float importance)
+void ScreenEffectDirector::TriggerEnemyDefeat(const myEngine::Vector2& screenPosition, float importance)
 {
 	enemyDefeat_ = {
 		config_.enemyDefeatDuration,
@@ -128,7 +128,7 @@ void ScreenEffectDirector::TriggerBossPhaseChange()
 	bossPhase_ = { config_.bossPhaseDuration, config_.bossPhaseDuration, { 0.5f, 0.5f }, 1.0f };
 }
 
-void ScreenEffectDirector::TriggerBossDefeat(const cg2::Vector2& screenPosition)
+void ScreenEffectDirector::TriggerBossDefeat(const myEngine::Vector2& screenPosition)
 {
 	bossDefeat_ = { config_.bossDefeatDuration, config_.bossDefeatDuration, screenPosition, 1.0f };
 }
@@ -138,12 +138,12 @@ void ScreenEffectDirector::SetUpgradeMenuOpen(bool open)
 	upgradeMenuOpen_ = open;
 }
 
-void ScreenEffectDirector::TriggerUpgradeConfirmed(const cg2::Vector2& screenPosition)
+void ScreenEffectDirector::TriggerUpgradeConfirmed(const myEngine::Vector2& screenPosition)
 {
 	upgradeConfirm_ = { config_.upgradeConfirmDuration, config_.upgradeConfirmDuration, screenPosition, 1.0f };
 }
 
-void ScreenEffectDirector::TriggerDash(const cg2::Vector2& screenPosition)
+void ScreenEffectDirector::TriggerDash(const myEngine::Vector2& screenPosition)
 {
 	dash_ = { config_.dashDuration, config_.dashDuration, screenPosition, 1.0f };
 }
@@ -167,7 +167,7 @@ void ScreenEffectDirector::Update(float deltaTime)
 	Tick(upgradeConfirm_, safeDeltaTime);
 }
 
-void ScreenEffectDirector::ApplyTo(cg2::BloomParam& param) const
+void ScreenEffectDirector::ApplyTo(myEngine::BloomParam& param) const
 {
 	int shockwavePriority = -1;
 	if (config_.outlineEnabled) {
@@ -379,7 +379,7 @@ float ScreenEffectDirector::Safe(float value, float fallback)
 }
 
 void ScreenEffectDirector::SetShockwave(
-	cg2::BloomParam& param,
+	myEngine::BloomParam& param,
 	int& currentPriority,
 	int priority,
 	const TimedEffect& effect,

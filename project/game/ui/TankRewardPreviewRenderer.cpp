@@ -10,13 +10,13 @@ namespace {
 constexpr float kWorldWidth=18.0f;
 constexpr float kWorldHeight=kWorldWidth*static_cast<float>(TankRewardPreviewRenderer::kHeight)/TankRewardPreviewRenderer::kWidth;
 constexpr std::array<float,4> kPreviewClear{.010f,.018f,.024f,1};
-constexpr cg2::Vector3 kRight{1,0,0},kUp{0,1,0},kForward{0,0,1};
+constexpr myEngine::Vector3 kRight{1,0,0},kUp{0,1,0},kForward{0,0,1};
 /// @brief 攻撃または移動に使う方向を返す。
-cg2::Vector3 Direction(float angle){return {std::cos(angle),std::sin(angle),0};}
+myEngine::Vector3 Direction(float angle){return {std::cos(angle),std::sin(angle),0};}
 /// @brief 2つの設定値が等しいか判定する。
-bool Equal(cg2::Vector2 a,cg2::Vector2 b){return a.x==b.x&&a.y==b.y;}
+bool Equal(myEngine::Vector2 a,myEngine::Vector2 b){return a.x==b.x&&a.y==b.y;}
 /// @brief 2つの設定値が等しいか判定する。
-bool Equal(const cg2::Vector4& a,const cg2::Vector4& b){return a.x==b.x&&a.y==b.y&&a.z==b.z&&a.w==b.w;}
+bool Equal(const myEngine::Vector4& a,const myEngine::Vector4& b){return a.x==b.x&&a.y==b.y&&a.z==b.z&&a.w==b.w;}
 /// @brief 2つの設定値が等しいか判定する。
 bool Equal(const BulletTrailSettings& a,const BulletTrailSettings& b) {
     return std::tie(a.playerHalfWidth,a.enemyHalfWidth,a.lifetime,a.maxPoints,a.interpolationSteps,
@@ -44,24 +44,24 @@ bool Equal(const TankRewardPreviewAppearance& a,const TankRewardPreviewAppearanc
         b.blade.outerWidth,b.blade.haloWidth,b.blade.coreWidth,b.bodySegments,b.separateCurrentBody,b.currentBodySegments);
 }
 }
-void TankRewardPreviewRenderer::Initialize(cg2::DirectXCommon* dx,cg2::SrvManager* srv) {
+void TankRewardPreviewRenderer::Initialize(myEngine::DirectXCommon* dx,myEngine::SrvManager* srv) {
     if(dx_)return;dx_=dx;srv_=srv;
-    cg2::StartupTrace::Scope scope("RewardPreview.Initialize");
-    rtv_=std::make_unique<cg2::RtvManager>();rtv_->Initialize(dx);
-    auto make=[&](std::unique_ptr<cg2::RenderTexture>& rt,uint32_t w,uint32_t h,DXGI_FORMAT format,
+    myEngine::StartupTrace::Scope scope("RewardPreview.Initialize");
+    rtv_=std::make_unique<myEngine::RtvManager>();rtv_->Initialize(dx);
+    auto make=[&](std::unique_ptr<myEngine::RenderTexture>& rt,uint32_t w,uint32_t h,DXGI_FORMAT format,
         const std::array<float,4>& clear = {0,0,0,1}) {
-        rt=std::make_unique<cg2::RenderTexture>();rt->Initialize(dx,srv,rtv_.get(),w,h,clear,false,format);
+        rt=std::make_unique<myEngine::RenderTexture>();rt->Initialize(dx,srv,rtv_.get(),w,h,clear,false,format);
     };
-    make(scene_,kWidth,kHeight,cg2::DirectXCommon::kSceneRenderTargetFormat,kPreviewClear);
-    make(blurA_,kWidth/2,kHeight/2,cg2::DirectXCommon::kSceneRenderTargetFormat);
-    make(blurB_,kWidth/2,kHeight/2,cg2::DirectXCommon::kSceneRenderTargetFormat);
-    make(output_,kWidth,kHeight,cg2::DirectXCommon::kBackBufferRenderTargetFormat,kPreviewClear);
-    neon_=std::make_unique<cg2::NeonGridRenderer>();neon_->Initialize(dx,"resources/white512x512.png");
-    trails_=std::make_unique<cg2::TrailManager>();trails_->Initialize(dx,cg2::Object3dCommon::GetInstance(),"resources/white512x512.png");
+    make(scene_,kWidth,kHeight,myEngine::DirectXCommon::kSceneRenderTargetFormat,kPreviewClear);
+    make(blurA_,kWidth/2,kHeight/2,myEngine::DirectXCommon::kSceneRenderTargetFormat);
+    make(blurB_,kWidth/2,kHeight/2,myEngine::DirectXCommon::kSceneRenderTargetFormat);
+    make(output_,kWidth,kHeight,myEngine::DirectXCommon::kBackBufferRenderTargetFormat,kPreviewClear);
+    neon_=std::make_unique<myEngine::NeonGridRenderer>();neon_->Initialize(dx,"resources/white512x512.png");
+    trails_=std::make_unique<myEngine::TrailManager>();trails_->Initialize(dx,myEngine::Object3dCommon::GetInstance(),"resources/white512x512.png");
     for(auto& trail:trailInstances_){trail=trails_->CreateInstance();trail->SetIsPermanent(true);}
-    bloom_=std::make_unique<cg2::BloomConstantBuffer>();bloom_->Initialize(dx);
-    post_=std::make_unique<cg2::PostEffect>();post_->Initialize(dx,bloom_.get());
-    projection_=cg2::MakeIdentity4x4();projection_.m[0][0]=2/kWorldWidth;projection_.m[1][1]=2/kWorldHeight;
+    bloom_=std::make_unique<myEngine::BloomConstantBuffer>();bloom_->Initialize(dx);
+    post_=std::make_unique<myEngine::PostEffect>();post_->Initialize(dx,bloom_.get());
+    projection_=myEngine::MakeIdentity4x4();projection_.m[0][0]=2/kWorldWidth;projection_.m[1][1]=2/kWorldHeight;
     projection_.m[3][0]=-1;projection_.m[3][1]=-1;
 }
 void TankRewardPreviewRenderer::SetAppearance(const TankRewardPreviewAppearance& appearance) {
@@ -76,11 +76,11 @@ void TankRewardPreviewRenderer::Update(const tankreward::DemoSnapshot& before,co
     // Update owns all CPU-side geometry and configuration writes. Render only
     // records commands using this prepared, private scene snapshot.
     BuildGeometry();previousElapsed_=elapsed;pending_=true;appearanceDirty_=false;
-    cg2::BloomParam param{};param.threshold=appearance_.bloomThreshold;param.intensity=appearance_.bloomIntensity;
+    myEngine::BloomParam param{};param.threshold=appearance_.bloomThreshold;param.intensity=appearance_.bloomIntensity;
     param.exposure=1;param.toneMappingMode=1;param.hdrWhitePoint=11.2f;
     bloom_->Update(param);
 }
-cg2::Vector3 TankRewardPreviewRenderer::Position(int lane,tankreward::Point p)const {
+myEngine::Vector3 TankRewardPreviewRenderer::Position(int lane,tankreward::Point p)const {
     const float width=compare_?kWorldWidth*0.5f:kWorldWidth;
     const float offset=compare_?static_cast<float>(lane)*width:0;
     return {offset+0.25f+p.x*(width-0.5f),0.3f+(1-p.y)*(kWorldHeight-0.6f),0.35f};
@@ -116,10 +116,10 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
     const auto player=Position(lane,s.player),cursor=Position(lane,s.cursor);
     const float aim=std::atan2(cursor.y-player.y,cursor.x-player.x);
     const float muzzle=s.muzzleFlash;
-    auto tank=[&](const cg2::Vector3& at,float r,float angle,const cg2::Vector4& color,int barrels,int segments,cg2::Vector2 bodyScale) {
+    auto tank=[&](const myEngine::Vector3& at,float r,float angle,const myEngine::Vector4& color,int barrels,int segments,myEngine::Vector2 bodyScale) {
         if(fill) {neon_->QueueBillboardRegularPolygonFill(at,segments,r*0.96f,angle,bodyScale,appearance_.bodyFill,kRight,kUp);return;}
         tankneon::QueueBodyOutline(*neon_,at,r,appearance_.lineWidth,segments,angle,bodyScale,color,kRight,kUp);
-        const auto forward=Direction(angle),right=cg2::Vector3{-forward.y,forward.x,0};
+        const auto forward=Direction(angle),right=myEngine::Vector3{-forward.y,forward.x,0};
         for(int b=0;b<barrels;++b) {
             const auto barrelForward=Direction(angle-(barrels==s.barrelCount?s.barrelAngles[b]:0));
             const float side=(static_cast<float>(b)-static_cast<float>(barrels-1)*0.5f)*0.48f*r;
@@ -144,8 +144,8 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
     if(s.wall) {
         const auto start=Position(lane,s.verticalWall?tankreward::Point{.94f,.25f}:tankreward::Point{.35f,.18f});
         const auto end=Position(lane,s.verticalWall?tankreward::Point{.94f,.80f}:tankreward::Point{.71f,.18f});
-        const auto center=(start+end)*0.5f;const float length=cg2::Length(end-start);
-        const cg2::Vector2 size=s.verticalWall?cg2::Vector2{.45f,length}:cg2::Vector2{length,.45f};
+        const auto center=(start+end)*0.5f;const float length=myEngine::Length(end-start);
+        const myEngine::Vector2 size=s.verticalWall?myEngine::Vector2{.45f,length}:myEngine::Vector2{length,.45f};
         if(fill)neon_->QueueBillboardRegularPolygonFill(center,4,1,.78539816f,{size.x*.70710678f,size.y*.70710678f},{.025f,.055f,.064f,1},kRight,kUp);
         else neon_->QueueBillboardRectangle(center,size,0,.055f,{.2f,.65f,.75f,1},kRight,kUp,kForward);
     }
@@ -155,10 +155,10 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
         if(fill)neon_->QueueBillboardRegularPolygonFill(center,4,r,0.78539816f,{1,1},{.13f,.035f,.025f,1},kRight,kUp);
         else {
             tankneon::QueueBodyOutline(*neon_,center,r,.055f,4,.78539816f,{1,1},color,kRight,kUp);
-            neon_->QueueBillboardRectangle(center+cg2::Vector3{-.08f,.08f,0},{r*1.42f,r*1.42f},0,.024f,tankui::ScaleAlpha(color,.35f),kRight,kUp,kForward);
-            const auto bar=center+cg2::Vector3{-r*.7f,r+0.2f,0};
-            neon_->QueueLine(bar,bar+cg2::Vector3{r*1.4f,0,0},.065f,{.16f,.1f,.1f,1});
-            neon_->QueueLine(bar,bar+cg2::Vector3{r*1.4f*(1-tankreward::Saturate(s.damage[i])),0,0},.05f,{1,.35f,.2f,1});
+            neon_->QueueBillboardRectangle(center+myEngine::Vector3{-.08f,.08f,0},{r*1.42f,r*1.42f},0,.024f,tankui::ScaleAlpha(color,.35f),kRight,kUp,kForward);
+            const auto bar=center+myEngine::Vector3{-r*.7f,r+0.2f,0};
+            neon_->QueueLine(bar,bar+myEngine::Vector3{r*1.4f,0,0},.065f,{.16f,.1f,.1f,1});
+            neon_->QueueLine(bar,bar+myEngine::Vector3{r*1.4f*(1-tankreward::Saturate(s.damage[i])),0,0},.05f,{1,.35f,.2f,1});
             if(s.hit[i]>0.01f)for(int part=0;part<5;++part) {
                 const float a=static_cast<float>(part)*1.256637f;
                 const auto pos=center+Direction(a)*(r+0.3f+(1-s.hit[i])*.25f);
@@ -169,7 +169,7 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
     if(fill)return;
     if(s.chainCount>1)for(int i=1;i<s.chainCount;++i) {
         const auto a=Position(lane,s.chainPoints[i-1]),b=Position(lane,s.chainPoints[i]);
-        const auto mid=(a+b)*.5f+cg2::Vector3{0,.16f,0};
+        const auto mid=(a+b)*.5f+myEngine::Vector3{0,.16f,0};
         neon_->QueueLine(a,mid,.04f,{.4f,1.6f,2.0f,.8f});neon_->QueueLine(mid,b,.04f,{.4f,1.6f,2.0f,.8f});
     }
     for(int n=0;n<s.targetCount;++n)for(int i=0;i<s.marks[n];++i) {
@@ -200,7 +200,7 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
     if(s.wave)tankspecialfx::Crescent(*neon_,Position(lane,s.wavePosition),{1,0,0},s.waveRadius*(compare_?8.5f:17.5f));
     if(s.hostileBullet) {
         const auto p=Position(lane,s.hostilePosition);
-        neon_->QueueLine(p+cg2::Vector3{.22f,0,0},p,.07f,{2.0f,.4f,.15f,.9f});
+        neon_->QueueLine(p+myEngine::Vector3{.22f,0,0},p,.07f,{2.0f,.4f,.15f,.9f});
     }
     if(s.parryFlash>0)tankspecialfx::Contact(*neon_,Position(lane,s.parryPosition),(1-s.parryFlash)*.24f,.7f,s.perfectParry);
     // The same idle blade and layered swing blade as the gameplay pass. These
@@ -215,7 +215,7 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
             for(int band=0;band<3;++band) {
                 const float range=length*(1-static_cast<float>(band)*.09f);
                 const float span=(std::min)(s.slashArc*.32f,.85f);
-                cg2::Vector3 previous=hilt+Direction(angle-span)*range;
+                myEngine::Vector3 previous=hilt+Direction(angle-span)*range;
                 for(int segment=1;segment<=12;++segment) {
                     const float p=static_cast<float>(segment)/12;
                     const auto current=hilt+Direction(angle-span+span*p)*range;
@@ -228,37 +228,37 @@ void TankRewardPreviewRenderer::QueueLane(int lane,const tankreward::DemoSnapsho
         }
         tankneon::QueueMeleeBlade(*neon_,hilt,Direction(angle),length,s.comboStep==2?.13f:.10f,color,.94f,appearance_.blade);
     }
-    if(s.dashing)for(int i=1;i<4;++i)tankneon::QueueBodyOutline(*neon_,player-cg2::Vector3{static_cast<float>(i)*.3f,0,0},
+    if(s.dashing)for(int i=1;i<4;++i)tankneon::QueueBodyOutline(*neon_,player-myEngine::Vector3{static_cast<float>(i)*.3f,0,0},
         radius,.035f,bodySegments,0,bodyScale,tankui::ScaleAlpha(playerColor,.13f*(4-i)),kRight,kUp);
     // A small aiming cross uses the same scene scale; no real cursor is moved.
-    neon_->QueueLine(cursor-cg2::Vector3{.09f,0,0},cursor+cg2::Vector3{.09f,0,0},.018f,{.5f,.7f,.7f,.45f});
-    neon_->QueueLine(cursor-cg2::Vector3{0,.09f,0},cursor+cg2::Vector3{0,.09f,0},.018f,{.5f,.7f,.7f,.45f});
+    neon_->QueueLine(cursor-myEngine::Vector3{.09f,0,0},cursor+myEngine::Vector3{.09f,0,0},.018f,{.5f,.7f,.7f,.45f});
+    neon_->QueueLine(cursor-myEngine::Vector3{0,.09f,0},cursor+myEngine::Vector3{0,.09f,0},.018f,{.5f,.7f,.7f,.45f});
 }
 void TankRewardPreviewRenderer::PrepareTrails(int lane,const tankreward::DemoSnapshot& s,bool reflects) {
     const auto& source=appearance_.bulletTrail;
-    const auto color=s.returning?cg2::Vector4{.55f,1.6f,.85f,1}:reflects?source.reflectableObjectColor:source.playerObjectColor;
-    cg2::TrailConfig config{};
-    config.startColor=source.useObjectColorForTrail?cg2::Vector4{color.x*source.trailHeadIntensity,color.y*source.trailHeadIntensity,color.z*source.trailHeadIntensity,source.trailHeadAlpha*source.playerTrailAlphaScale}:source.startColor;
-    config.endColor=source.useObjectColorForTrail?cg2::Vector4{color.x*source.trailTailIntensity,color.y*source.trailTailIntensity,color.z*source.trailTailIntensity,source.trailTailAlpha}:reflects?source.reflectableEndColor:source.playerEndColor;
+    const auto color=s.returning?myEngine::Vector4{.55f,1.6f,.85f,1}:reflects?source.reflectableObjectColor:source.playerObjectColor;
+    myEngine::TrailConfig config{};
+    config.startColor=source.useObjectColorForTrail?myEngine::Vector4{color.x*source.trailHeadIntensity,color.y*source.trailHeadIntensity,color.z*source.trailHeadIntensity,source.trailHeadAlpha*source.playerTrailAlphaScale}:source.startColor;
+    config.endColor=source.useObjectColorForTrail?myEngine::Vector4{color.x*source.trailTailIntensity,color.y*source.trailTailIntensity,color.z*source.trailTailIntensity,source.trailTailAlpha}:reflects?source.reflectableEndColor:source.playerEndColor;
     config.startWidthScale=source.headWidthScale;config.endWidthScale=source.tailWidthScale;
     config.widthCurvePower=source.widthCurvePower;config.colorCurvePower=source.colorCurvePower;
     config.interpolationSteps=static_cast<uint32_t>((std::max)(1,source.interpolationSteps));config.maxPoints=12;config.lifetime=1;
     for(std::size_t i=0;i<s.bullets.size();++i) {
         const auto& bullet=s.bullets[i];auto* trail=trailInstances_[static_cast<std::size_t>(lane)*6+i];
         if(!bullet.visible)continue;
-        const auto right=cg2::Vector3{std::sin(bullet.angle),std::cos(bullet.angle),0}*(source.playerHalfWidth*(s.rail?2.2f:s.heavyProjectiles?1.3f:1.0f));
+        const auto right=myEngine::Vector3{std::sin(bullet.angle),std::cos(bullet.angle),0}*(source.playerHalfWidth*(s.rail?2.2f:s.heavyProjectiles?1.3f:1.0f));
         for(std::size_t p=0;p<bullet.trailCount;++p) {
             const auto pos=Position(lane,bullet.trail[p]);trail->Update(0,pos+right,pos-right,config);
         }
         const auto head=Position(lane,bullet.position);trail->Update(0,head+right,head-right,config);
     }
 }
-void TankRewardPreviewRenderer::Transition(cg2::RenderTexture& rt,D3D12_RESOURCE_STATES before,D3D12_RESOURCE_STATES after) {
+void TankRewardPreviewRenderer::Transition(myEngine::RenderTexture& rt,D3D12_RESOURCE_STATES before,D3D12_RESOURCE_STATES after) {
     D3D12_RESOURCE_BARRIER barrier{};barrier.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.pResource=rt.GetResource();barrier.Transition.StateBefore=before;barrier.Transition.StateAfter=after;
     barrier.Transition.Subresource=D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;dx_->GetList()->ResourceBarrier(1,&barrier);
 }
-void TankRewardPreviewRenderer::Filter(cg2::RenderTexture& source,cg2::RenderTexture& target,cg2::BlendMode blend) {
+void TankRewardPreviewRenderer::Filter(myEngine::RenderTexture& source,myEngine::RenderTexture& target,myEngine::BlendMode blend) {
     Transition(target,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_RENDER_TARGET);
     dx_->SetRenderTargetNoDepth(target.GetRTVHandle());dx_->SetViewport(kWidth/2,kHeight/2);
     post_->Draw(source.GetGPUHandle(),blend,true);
@@ -284,7 +284,7 @@ void TankRewardPreviewRenderer::Render() {
     dx_->GetList()->RSSetScissorRects(1,&full);
     trails_->DrawAll(projection_);
     Transition(*scene_,D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    Filter(*scene_,*blurA_,cg2::kAdd_Bloom_Extract);Filter(*blurA_,*blurB_,cg2::kAdd_Bloom_BlurH);Filter(*blurB_,*blurA_,cg2::kAdd_Bloom_BlurV);
+    Filter(*scene_,*blurA_,myEngine::kAdd_Bloom_Extract);Filter(*blurA_,*blurB_,myEngine::kAdd_Bloom_BlurH);Filter(*blurB_,*blurA_,myEngine::kAdd_Bloom_BlurV);
     Transition(*output_,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_RENDER_TARGET);
     dx_->SetRenderTargetNoDepth(output_->GetRTVHandle());dx_->SetViewport(kWidth,kHeight);
     dx_->ClearRenderTarget(output_->GetRTVHandle(),kPreviewClear.data());

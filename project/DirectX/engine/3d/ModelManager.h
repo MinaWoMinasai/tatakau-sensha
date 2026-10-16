@@ -6,7 +6,7 @@
 #include <future>
 #include <Model.h>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief モデルを識別子で読み込み・生成し、同じモデルを共有する。
 class ModelManager {
@@ -67,4 +67,4 @@ private:
     std::set<std::string> texturePreloadsQueued_;
 };
 
-} // namespace cg2
+} // namespace myEngine

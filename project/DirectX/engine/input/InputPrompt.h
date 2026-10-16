@@ -3,7 +3,7 @@
 #include <string>
 #include <utility>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 画面の操作説明を、最後に操作された入力機器の表記へ置き換える。
 /// キーボード・マウスでは元の文字列のまま。ゲームパッドでは下の表を上から順に置き換える
@@ -53,4 +53,4 @@ inline std::string ApplyInputPrompts(std::string text)
     return text;
 }
 
-} // namespace cg2
+} // namespace myEngine

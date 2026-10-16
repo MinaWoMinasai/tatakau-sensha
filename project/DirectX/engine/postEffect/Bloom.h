@@ -10,7 +10,7 @@
 #include "SceneManager.h"
 #include <cstdint>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief シーン画像からブルーム・画面効果・時間方向の合成を実行する。
 class Bloom {
@@ -122,4 +122,4 @@ private:
     IScene::DeveloperShowcaseState developerShowcase_{};
 };
 
-} // namespace cg2
+} // namespace myEngine

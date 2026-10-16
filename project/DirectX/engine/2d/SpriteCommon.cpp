@@ -1,7 +1,7 @@
 #include "SpriteCommon.h"
 #include "TextureManager.h"
 
-namespace cg2 {
+namespace myEngine {
 
 SpriteCommon* SpriteCommon::GetInstance()
 {
@@ -36,4 +36,4 @@ void SpriteCommon::PreDrawForScene(BlendMode blendMode)
 	dxCommon_->GetList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
-} // namespace cg2
+} // namespace myEngine

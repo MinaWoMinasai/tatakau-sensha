@@ -4,7 +4,7 @@
 #include <string>
 #include "Struct.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 文字のフォント・色・縁取りなど、文字テクスチャ生成時の外観を指定する。
 struct TextStyle {
@@ -103,4 +103,4 @@ private:
 #endif
 };
 
-} // namespace cg2
+} // namespace myEngine

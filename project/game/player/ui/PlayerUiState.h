@@ -4,42 +4,42 @@
 /// @brief 自機のHUD・進化画面・図鑑の表示資源と操作状態。戦闘状態は保持しない。
 struct PlayerUiState {
     using UiProfileStats = Player::UiProfileStats;
-    std::unique_ptr<cg2::Sprite> machineGunBtnSprite_ = nullptr;
+    std::unique_ptr<myEngine::Sprite> machineGunBtnSprite_ = nullptr;
 
     // ボタンの見た目
-    cg2::Vector2 btnPos_ = {50.0f, 200.0f};
+    myEngine::Vector2 btnPos_ = {50.0f, 200.0f};
 
     // ボタンの位置（画面左下あたり）
-    cg2::Vector2 btnSize_ = {100.0f, 50.0f};
+    myEngine::Vector2 btnSize_ = {100.0f, 50.0f};
 
     // ボタンのサイズ
 
     // 図鑑の並び順（表示したい順番に定義）
     std::vector<TankData> encyclopedia_;
 
-    std::unique_ptr<cg2::Sprite> evolutionBackdropSprite_;
+    std::unique_ptr<myEngine::Sprite> evolutionBackdropSprite_;
 
-    std::unique_ptr<cg2::Sprite> evolutionPreviewPanelSprite_;
+    std::unique_ptr<myEngine::Sprite> evolutionPreviewPanelSprite_;
 
-    std::unique_ptr<cg2::Sprite> evolutionStatsPanelSprite_;
+    std::unique_ptr<myEngine::Sprite> evolutionStatsPanelSprite_;
 
-    std::unique_ptr<cg2::Sprite> evolutionPreviewTankSprite_;
+    std::unique_ptr<myEngine::Sprite> evolutionPreviewTankSprite_;
 
-    std::unique_ptr<cg2::Sprite> evolutionShotSprite_;
+    std::unique_ptr<myEngine::Sprite> evolutionShotSprite_;
 
-    std::unique_ptr<cg2::Sprite> evolutionChangeButtonSprite_;
+    std::unique_ptr<myEngine::Sprite> evolutionChangeButtonSprite_;
 
-    std::unique_ptr<cg2::TextLabel> evolutionTitleLabel_;
+    std::unique_ptr<myEngine::TextLabel> evolutionTitleLabel_;
 
-    std::unique_ptr<cg2::TextLabel> evolutionHintLabel_;
+    std::unique_ptr<myEngine::TextLabel> evolutionHintLabel_;
 
-    std::unique_ptr<cg2::TextLabel> evolutionPreviewNameLabel_;
+    std::unique_ptr<myEngine::TextLabel> evolutionPreviewNameLabel_;
 
-    std::unique_ptr<cg2::TextLabel> evolutionRoleLabel_;
+    std::unique_ptr<myEngine::TextLabel> evolutionRoleLabel_;
 
-    std::unique_ptr<cg2::TextLabel> evolutionChangeButtonLabel_;
+    std::unique_ptr<myEngine::TextLabel> evolutionChangeButtonLabel_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, 9> evolutionStatLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 9> evolutionStatLabels_;
 
     static constexpr size_t kStaticEvolutionMaxCandidates = 4;
 
@@ -51,13 +51,13 @@ struct PlayerUiState {
     struct EvolutionUiStyleConfig {
         bool enabled = true;
         bool radialLayout = false;
-        cg2::Vector2 virtualResolution{1280.0f, 720.0f};
+        myEngine::Vector2 virtualResolution{1280.0f, 720.0f};
         float safeMargin = 48.0f;
-        std::array<cg2::Vector2, 4> nodeAnchors{{{0.23f, 0.43f}, {0.67f, 0.22f}, {0.67f, 0.43f}, {0.67f, 0.64f}}};
-        std::array<cg2::Vector2, 4> radialNodeAnchors{{{0.50f, 0.43f}, {0.33f, 0.20f}, {0.67f, 0.20f}, {0.50f, 0.70f}}};
-        cg2::Vector2 branchPointAnchor{0.49f, 0.43f};
-        cg2::Vector2 currentNodeSize{160.0f, 112.0f};
-        cg2::Vector2 candidateNodeSize{160.0f, 112.0f};
+        std::array<myEngine::Vector2, 4> nodeAnchors{{{0.23f, 0.43f}, {0.67f, 0.22f}, {0.67f, 0.43f}, {0.67f, 0.64f}}};
+        std::array<myEngine::Vector2, 4> radialNodeAnchors{{{0.50f, 0.43f}, {0.33f, 0.20f}, {0.67f, 0.20f}, {0.50f, 0.70f}}};
+        myEngine::Vector2 branchPointAnchor{0.49f, 0.43f};
+        myEngine::Vector2 currentNodeSize{160.0f, 112.0f};
+        myEngine::Vector2 candidateNodeSize{160.0f, 112.0f};
         float normalScale = 1.0f;
         float hoverScale = 1.05f;
         float selectedScale = 1.08f;
@@ -73,9 +73,9 @@ struct PlayerUiState {
         float circuitMiddleAlpha = 0.34f;
         float circuitCoreAlpha = 0.90f;
         float backgroundDimOpacity = 0.88f;
-        cg2::Vector2 detailPanelAnchor{0.50f, 0.88f};
-        cg2::Vector2 detailPanelSize{1088.0f, 134.0f};
-        cg2::Vector2 confirmButtonSize{186.0f, 44.0f};
+        myEngine::Vector2 detailPanelAnchor{0.50f, 0.88f};
+        myEngine::Vector2 detailPanelSize{1088.0f, 134.0f};
+        myEngine::Vector2 confirmButtonSize{186.0f, 44.0f};
         float titleFontSize = 26.0f;
         float classNameFontSize = 22.0f;
         float bodyFontSize = 16.0f;
@@ -84,17 +84,17 @@ struct PlayerUiState {
         std::string fontPath;
         int fontWeight = 400;
         NeonTextEffectStyle neonText{};
-        cg2::Vector4 normalColor{0.12f, 0.34f, 0.42f, 0.82f};
-        cg2::Vector4 availableColor{0.16f, 0.64f, 0.72f, 0.92f};
-        cg2::Vector4 hoverColor{0.30f, 0.94f, 1.00f, 1.0f};
-        cg2::Vector4 selectedColor{0.42f, 1.00f, 0.58f, 1.0f};
-        cg2::Vector4 lockedColor{0.18f, 0.22f, 0.28f, 0.68f};
-        cg2::Vector4 panelColor{0.025f, 0.055f, 0.080f, 0.94f};
-        cg2::Vector4 titleTextColor{0.74f, 1.00f, 0.92f, 1.0f};
-        cg2::Vector4 classTextColor{0.92f, 1.00f, 0.96f, 1.0f};
-        cg2::Vector4 bodyTextColor{0.84f, 0.92f, 1.00f, 1.0f};
-        cg2::Vector4 buttonTextColor{0.96f, 1.00f, 0.98f, 1.0f};
-        cg2::Vector4 textOutlineColor{0.0f, 0.025f, 0.045f, 0.96f};
+        myEngine::Vector4 normalColor{0.12f, 0.34f, 0.42f, 0.82f};
+        myEngine::Vector4 availableColor{0.16f, 0.64f, 0.72f, 0.92f};
+        myEngine::Vector4 hoverColor{0.30f, 0.94f, 1.00f, 1.0f};
+        myEngine::Vector4 selectedColor{0.42f, 1.00f, 0.58f, 1.0f};
+        myEngine::Vector4 lockedColor{0.18f, 0.22f, 0.28f, 0.68f};
+        myEngine::Vector4 panelColor{0.025f, 0.055f, 0.080f, 0.94f};
+        myEngine::Vector4 titleTextColor{0.74f, 1.00f, 0.92f, 1.0f};
+        myEngine::Vector4 classTextColor{0.92f, 1.00f, 0.96f, 1.0f};
+        myEngine::Vector4 bodyTextColor{0.84f, 0.92f, 1.00f, 1.0f};
+        myEngine::Vector4 buttonTextColor{0.96f, 1.00f, 0.98f, 1.0f};
+        myEngine::Vector4 textOutlineColor{0.0f, 0.025f, 0.045f, 0.96f};
         float titleOutlineWidth = 0.9f;
         float classNameOutlineWidth = 1.0f;
         float bodyOutlineWidth = 0.35f;
@@ -104,69 +104,69 @@ struct PlayerUiState {
 
     EvolutionUiStyleConfig evolutionUiStyle_{};
 
-    std::unique_ptr<cg2::Sprite> staticEvolutionBackdropSprite_;
+    std::unique_ptr<myEngine::Sprite> staticEvolutionBackdropSprite_;
 
     std::unique_ptr<TankButtonUiStyle> tankButtonUiStyle_;
 
-    std::unique_ptr<cg2::ObjectPostEffect> staticEvolutionButtonBloomEffect_;
+    std::unique_ptr<myEngine::ObjectPostEffect> staticEvolutionButtonBloomEffect_;
 
     std::unique_ptr<NeonTextEffect> staticEvolutionTextEffect_;
 
     std::array<std::unique_ptr<TankButtonUI>, kStaticEvolutionMaxNodes> staticEvolutionTankButtons_;
 
-    std::unique_ptr<cg2::Sprite> staticEvolutionDetailPanelSprite_;
+    std::unique_ptr<myEngine::Sprite> staticEvolutionDetailPanelSprite_;
 
-    std::unique_ptr<cg2::Sprite> staticEvolutionConfirmButtonSprite_;
+    std::unique_ptr<myEngine::Sprite> staticEvolutionConfirmButtonSprite_;
 
-    std::array<std::unique_ptr<cg2::Sprite>, 8> staticEvolutionConfirmOutlineSprites_;
+    std::array<std::unique_ptr<myEngine::Sprite>, 8> staticEvolutionConfirmOutlineSprites_;
 
-    std::unique_ptr<cg2::Sprite> staticEvolutionBranchGlowSprite_;
+    std::unique_ptr<myEngine::Sprite> staticEvolutionBranchGlowSprite_;
 
-    std::unique_ptr<cg2::Sprite> staticEvolutionBranchCoreSprite_;
+    std::unique_ptr<myEngine::Sprite> staticEvolutionBranchCoreSprite_;
 
-    std::array<std::array<std::unique_ptr<cg2::Sprite>, 3>, kStaticEvolutionMaxNodes> staticEvolutionNodePanelSprites_;
+    std::array<std::array<std::unique_ptr<myEngine::Sprite>, 3>, kStaticEvolutionMaxNodes> staticEvolutionNodePanelSprites_;
 
     static constexpr size_t kStaticEvolutionNodeFrameSpriteCount = 24;
 
-    std::array<std::array<std::unique_ptr<cg2::Sprite>, kStaticEvolutionNodeFrameSpriteCount>, kStaticEvolutionMaxNodes>
+    std::array<std::array<std::unique_ptr<myEngine::Sprite>, kStaticEvolutionNodeFrameSpriteCount>, kStaticEvolutionMaxNodes>
         staticEvolutionNodeFrameSprites_;
 
     static constexpr size_t kStaticEvolutionSilhouetteSpriteCount = 32;
 
-    std::array<std::array<std::unique_ptr<cg2::Sprite>, kStaticEvolutionSilhouetteSpriteCount>, kStaticEvolutionMaxNodes>
+    std::array<std::array<std::unique_ptr<myEngine::Sprite>, kStaticEvolutionSilhouetteSpriteCount>, kStaticEvolutionMaxNodes>
         staticEvolutionSilhouetteSprites_;
 
     static constexpr size_t kStaticEvolutionCircuitSpriteCount = 27;
 
-    std::array<std::unique_ptr<cg2::Sprite>, kStaticEvolutionCircuitSpriteCount> staticEvolutionCircuitSprites_;
+    std::array<std::unique_ptr<myEngine::Sprite>, kStaticEvolutionCircuitSpriteCount> staticEvolutionCircuitSprites_;
 
-    std::unique_ptr<cg2::TextLabel> staticEvolutionTitleLabel_;
+    std::unique_ptr<myEngine::TextLabel> staticEvolutionTitleLabel_;
 
-    std::unique_ptr<cg2::TextLabel> staticEvolutionPrototypeLabel_;
+    std::unique_ptr<myEngine::TextLabel> staticEvolutionPrototypeLabel_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeNameLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeNameLabels_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeRankLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, kStaticEvolutionMaxNodes> staticEvolutionNodeRankLabels_;
 
-    std::unique_ptr<cg2::TextLabel> staticEvolutionDetailClassLabel_;
+    std::unique_ptr<myEngine::TextLabel> staticEvolutionDetailClassLabel_;
 
-    std::unique_ptr<cg2::TextLabel> staticEvolutionRoleLabel_;
+    std::unique_ptr<myEngine::TextLabel> staticEvolutionRoleLabel_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, 3> staticEvolutionDeltaLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 3> staticEvolutionDeltaLabels_;
 
-    std::unique_ptr<cg2::TextLabel> staticEvolutionAbilityLabel_;
+    std::unique_ptr<myEngine::TextLabel> staticEvolutionAbilityLabel_;
 
-    std::unique_ptr<cg2::TextLabel> staticEvolutionConfirmLabel_;
+    std::unique_ptr<myEngine::TextLabel> staticEvolutionConfirmLabel_;
 
-    std::unique_ptr<cg2::TextLabel> staticEvolutionPanelHintLabel_;
+    std::unique_ptr<myEngine::TextLabel> staticEvolutionPanelHintLabel_;
 
-    std::array<cg2::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeCentersVirtual_{};
+    std::array<myEngine::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeCentersVirtual_{};
 
-    std::array<cg2::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeDrawSizesVirtual_{};
+    std::array<myEngine::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeDrawSizesVirtual_{};
 
-    std::array<cg2::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeHitSizesVirtual_{};
+    std::array<myEngine::Vector2, kStaticEvolutionMaxNodes> staticEvolutionNodeHitSizesVirtual_{};
 
-    std::array<std::array<cg2::Vector2, 4>, kStaticEvolutionMaxPaths> staticEvolutionCircuitControlPoints_{};
+    std::array<std::array<myEngine::Vector2, 4>, kStaticEvolutionMaxPaths> staticEvolutionCircuitControlPoints_{};
 
     std::array<int, kStaticEvolutionMaxPaths> staticEvolutionCircuitControlPointCounts_{};
 
@@ -200,31 +200,31 @@ struct PlayerUiState {
 
     std::vector<std::string> evolutionHistory_;
 
-    std::array<cg2::Vector2, kEvolutionCircuitMaxNodes> evolutionCircuitNodeCentersVirtual_{};
+    std::array<myEngine::Vector2, kEvolutionCircuitMaxNodes> evolutionCircuitNodeCentersVirtual_{};
 
     std::array<std::unique_ptr<TankButtonUI>, kEvolutionCircuitMaxNodes> evolutionCircuitTankButtons_;
 
     std::unique_ptr<TankButtonUI> evolutionCircuitDetailPreview_;
 
-    std::array<std::unique_ptr<cg2::Sprite>, kEvolutionCircuitMaxLineSprites> evolutionCircuitLineSprites_;
+    std::array<std::unique_ptr<myEngine::Sprite>, kEvolutionCircuitMaxLineSprites> evolutionCircuitLineSprites_;
 
-    std::unique_ptr<cg2::Sprite> evolutionCircuitBackdropSprite_;
+    std::unique_ptr<myEngine::Sprite> evolutionCircuitBackdropSprite_;
 
-    std::unique_ptr<cg2::Sprite> evolutionCircuitDetailPanelSprite_;
+    std::unique_ptr<myEngine::Sprite> evolutionCircuitDetailPanelSprite_;
 
-    std::unique_ptr<cg2::TextLabel> evolutionCircuitTitleLabel_;
+    std::unique_ptr<myEngine::TextLabel> evolutionCircuitTitleLabel_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, 4> evolutionCircuitRankLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 4> evolutionCircuitRankLabels_;
 
-    std::unique_ptr<cg2::TextLabel> evolutionCircuitDetailNameLabel_;
+    std::unique_ptr<myEngine::TextLabel> evolutionCircuitDetailNameLabel_;
 
-    std::unique_ptr<cg2::TextLabel> evolutionCircuitDetailMetaLabel_;
+    std::unique_ptr<myEngine::TextLabel> evolutionCircuitDetailMetaLabel_;
 
-    std::unique_ptr<cg2::TextLabel> evolutionCircuitDetailRoleLabel_;
+    std::unique_ptr<myEngine::TextLabel> evolutionCircuitDetailRoleLabel_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, 3> evolutionCircuitDetailStatLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 3> evolutionCircuitDetailStatLabels_;
 
-    std::unique_ptr<cg2::TextLabel> evolutionCircuitHintLabel_;
+    std::unique_ptr<myEngine::TextLabel> evolutionCircuitHintLabel_;
 
     int evolutionCircuitSelectedNode_ = 0;
 
@@ -250,15 +250,15 @@ struct PlayerUiState {
 
     bool showEvolutionResolutionInfo_ = false;
 
-    std::unique_ptr<cg2::Sprite> upgradeHudBackdropSprite_;
+    std::unique_ptr<myEngine::Sprite> upgradeHudBackdropSprite_;
 
-    std::unique_ptr<cg2::Sprite> upgradeHudExpBackSprite_;
+    std::unique_ptr<myEngine::Sprite> upgradeHudExpBackSprite_;
 
-    std::unique_ptr<cg2::Sprite> upgradeHudExpFillSprite_;
+    std::unique_ptr<myEngine::Sprite> upgradeHudExpFillSprite_;
 
-    std::unique_ptr<cg2::Sprite> upgradeHudLevelBackSprite_;
+    std::unique_ptr<myEngine::Sprite> upgradeHudLevelBackSprite_;
 
-    std::unique_ptr<cg2::Sprite> upgradeHudLevelFillSprite_;
+    std::unique_ptr<myEngine::Sprite> upgradeHudLevelFillSprite_;
 
     std::unique_ptr<NeonProgressBar> upgradeHudLevelProgressBar_;
 
@@ -266,31 +266,31 @@ struct PlayerUiState {
 
     std::array<std::unique_ptr<NeonSegmentedBar>, 7> upgradeHudSegmentBars_;
 
-    std::unique_ptr<cg2::ObjectPostEffect> upgradeHudBarBloomEffect_;
+    std::unique_ptr<myEngine::ObjectPostEffect> upgradeHudBarBloomEffect_;
 
     NeonProgressBarStyle upgradeHudLevelProgressStyle_{};
 
     NeonProgressBarStyle upgradeHudExpProgressStyle_{};
 
-    std::unique_ptr<cg2::TextLabel> upgradeHudTitleLabel_;
+    std::unique_ptr<myEngine::TextLabel> upgradeHudTitleLabel_;
 
-    std::unique_ptr<cg2::TextLabel> upgradeHudPointLabel_;
+    std::unique_ptr<myEngine::TextLabel> upgradeHudPointLabel_;
 
-    std::unique_ptr<cg2::TextLabel> upgradeHudLevelLabel_;
+    std::unique_ptr<myEngine::TextLabel> upgradeHudLevelLabel_;
 
-    std::unique_ptr<cg2::TextLabel> upgradeHudLevelClassLabel_;
+    std::unique_ptr<myEngine::TextLabel> upgradeHudLevelClassLabel_;
 
-    std::unique_ptr<cg2::TextLabel> upgradeHudListLabel_;
+    std::unique_ptr<myEngine::TextLabel> upgradeHudListLabel_;
 
     static constexpr size_t kUpgradeHudExpGlyphSlotCount = 32;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, kUpgradeHudExpGlyphSlotCount> upgradeHudExpGlyphLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, kUpgradeHudExpGlyphSlotCount> upgradeHudExpGlyphLabels_;
 
     size_t upgradeHudExpGlyphCount_ = 0;
 
     static constexpr size_t kUpgradeHudLevelGlyphSlotCount = 2;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, kUpgradeHudLevelGlyphSlotCount> upgradeHudLevelGlyphLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, kUpgradeHudLevelGlyphSlotCount> upgradeHudLevelGlyphLabels_;
 
     size_t upgradeHudLevelGlyphCount_ = 0;
 
@@ -300,33 +300,33 @@ struct PlayerUiState {
 
     bool upgradeHudTextPreparedForSegmentedBars_ = false;
 
-    std::array<std::unique_ptr<cg2::Sprite>, 7> upgradeHudButtonSprites_;
+    std::array<std::unique_ptr<myEngine::Sprite>, 7> upgradeHudButtonSprites_;
 
-    std::array<std::unique_ptr<cg2::Sprite>, 7> upgradeHudPlusSprites_;
+    std::array<std::unique_ptr<myEngine::Sprite>, 7> upgradeHudPlusSprites_;
 
-    std::array<std::unique_ptr<cg2::Sprite>, 7> upgradeHudMinusSprites_;
+    std::array<std::unique_ptr<myEngine::Sprite>, 7> upgradeHudMinusSprites_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudNameLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 7> upgradeHudNameLabels_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudLevelLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 7> upgradeHudLevelLabels_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudMinusLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 7> upgradeHudMinusLabels_;
 
-    std::array<std::unique_ptr<cg2::TextLabel>, 7> upgradeHudPlusLabels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 7> upgradeHudPlusLabels_;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchVertexResource_;
 
     D3D12_VERTEX_BUFFER_VIEW upgradeHudBatchVertexBufferView_{};
 
-    cg2::TrailVertex* upgradeHudBatchVertexData_ = nullptr;
+    myEngine::TrailVertex* upgradeHudBatchVertexData_ = nullptr;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchTransformResource_;
 
-    cg2::Matrix4x4* upgradeHudBatchTransformData_ = nullptr;
+    myEngine::Matrix4x4* upgradeHudBatchTransformData_ = nullptr;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> upgradeHudBatchMaterialResource_;
 
-    cg2::Material* upgradeHudBatchMaterialData_ = nullptr;
+    myEngine::Material* upgradeHudBatchMaterialData_ = nullptr;
 
     static constexpr uint32_t kUpgradeHudBatchMaxVertices = 256;
 
@@ -372,19 +372,19 @@ struct PlayerUiState {
     bool upgradeHudSegmentedBarBloomEnabled_ = true;
 #endif
 
-    cg2::Vector2 upgradeHudSegmentBarOffset_ = {0.0f, 0.0f};
+    myEngine::Vector2 upgradeHudSegmentBarOffset_ = {0.0f, 0.0f};
 
-    cg2::Vector2 upgradeHudSegmentBarSize_ = {230.0f, 22.0f};
+    myEngine::Vector2 upgradeHudSegmentBarSize_ = {230.0f, 22.0f};
 
-    cg2::Vector2 upgradeHudPanelPos_ = {18.0f, 338.0f};
+    myEngine::Vector2 upgradeHudPanelPos_ = {18.0f, 338.0f};
 
-    cg2::Vector2 upgradeHudPanelSize_ = {340.0f, 260.0f};
+    myEngine::Vector2 upgradeHudPanelSize_ = {340.0f, 260.0f};
 
-    cg2::Vector2 upgradeHudRowStart_ = {30.0f, 384.0f};
+    myEngine::Vector2 upgradeHudRowStart_ = {30.0f, 384.0f};
 
-    cg2::Vector2 upgradeHudButtonSize_ = {286.0f, 22.0f};
+    myEngine::Vector2 upgradeHudButtonSize_ = {286.0f, 22.0f};
 
-    cg2::Vector2 upgradeHudPlusSize_ = {32.0f, 18.0f};
+    myEngine::Vector2 upgradeHudPlusSize_ = {32.0f, 18.0f};
 
     float upgradeHudRowGap_ = 29.0f;
 
@@ -408,21 +408,21 @@ struct PlayerUiState {
 
     float upgradeHudPlusTextOffsetY_ = 1.0f;
 
-    cg2::Vector2 upgradeHudTitlePos_ = {32.0f, 350.0f};
+    myEngine::Vector2 upgradeHudTitlePos_ = {32.0f, 350.0f};
 
-    cg2::Vector2 upgradeHudPointPos_ = {286.0f, 352.0f};
+    myEngine::Vector2 upgradeHudPointPos_ = {286.0f, 352.0f};
 
-    cg2::Vector2 upgradeHudLevelBarPos_ = {415.0f, 656.0f};
+    myEngine::Vector2 upgradeHudLevelBarPos_ = {415.0f, 656.0f};
 
-    cg2::Vector2 upgradeHudLevelBarSize_ = {450.0f, 16.0f};
+    myEngine::Vector2 upgradeHudLevelBarSize_ = {450.0f, 16.0f};
 
-    cg2::Vector2 upgradeHudLevelTextPos_ = {565.0f, 653.0f};
+    myEngine::Vector2 upgradeHudLevelTextPos_ = {565.0f, 653.0f};
 
-    cg2::Vector2 upgradeHudExpBarPos_ = {390.0f, 680.0f};
+    myEngine::Vector2 upgradeHudExpBarPos_ = {390.0f, 680.0f};
 
-    cg2::Vector2 upgradeHudExpBarSize_ = {500.0f, 20.0f};
+    myEngine::Vector2 upgradeHudExpBarSize_ = {500.0f, 20.0f};
 
-    cg2::Vector2 upgradeHudExpTextPos_ = {560.0f, 677.0f};
+    myEngine::Vector2 upgradeHudExpTextPos_ = {560.0f, 677.0f};
 
     std::string upgradeHudConfigStatus_;
 

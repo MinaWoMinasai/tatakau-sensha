@@ -5,7 +5,7 @@
 #include <array>
 #include <vector>
 
-namespace cg2 {
+namespace myEngine {
 
 class SkinnedModel;
 
@@ -412,4 +412,4 @@ private:
     bool userEmissiveOverride_ = false;
 };
 
-} // namespace cg2
+} // namespace myEngine

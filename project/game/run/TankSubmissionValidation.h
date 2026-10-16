@@ -14,7 +14,7 @@ inline bool Enabled()
 {
     static const bool enabled = [] {
         wchar_t value[8]{};
-        return GetEnvironmentVariableW(L"CG2_SUBMISSION_AUTOTEST", value, 8) > 0 && value[0] == L'1' &&
+        return GetEnvironmentVariableW(L"MYENGINE_SUBMISSION_AUTOTEST", value, 8) > 0 && value[0] == L'1' &&
                std::filesystem::is_regular_file("generated/submission_validation/isolated-profile");
     }();
     return enabled;

@@ -9,36 +9,36 @@
 
 namespace neondepth {
 struct EffectSockets {
-    cg2::Vector3 chest{},leftHand{},rightHand{};
+    myEngine::Vector3 chest{},leftHand{},rightHand{};
     bool chestValid=false,leftHandValid=false,rightHandValid=false;
 };
 struct EffectsInput {
     uint64_t frameId=0;
     Snapshot snapshot{};
-    cg2::Vector3 core{};
+    myEngine::Vector3 core{};
     float coreRadius=2,hitFeedback=0;
     Formation formation{};
     Life life=Life::Active;
     float dissolveProgress=0;
     PresentationConfig profile{};
     EffectSockets sockets{};
-    cg2::Matrix4x4 viewProjection{};
-    cg2::Vector3 cameraRight{1,0,0},cameraUp{0,1,0},cameraForward{0,0,1};
+    myEngine::Matrix4x4 viewProjection{};
+    myEngine::Vector3 cameraRight{1,0,0},cameraUp{0,1,0},cameraForward{0,0,1};
     bool encounterActive=false,bodyVisualEnabled=true;
 };
 enum class Cue { Core, WarningEdge, ActiveEdge, ActiveStripe, Connector, Projectile, GroundedBeam };
 struct EffectLine {
-    cg2::Vector3 start{},end{};
+    myEngine::Vector3 start{},end{};
     float width=.10f;
-    cg2::Vector4 color{};
+    myEngine::Vector4 color{};
     Cue cue=Cue::Core;
 };
 struct EffectFill {
     bool rectangle=false;
-    cg2::Vector3 center{},right{1,0,0},up{0,1,0};
+    myEngine::Vector3 center{},right{1,0,0},up{0,1,0};
     float radius=1;
-    cg2::Vector2 size{};
-    cg2::Vector4 color{};
+    myEngine::Vector2 size{};
+    myEngine::Vector4 color{};
 };
 inline constexpr unsigned kMaximumAirLines=256,kMaximumFloorLines=2048,kMaximumFloorFills=64;
 inline constexpr unsigned kEffectCircleSteps=48,kEffectCapSteps=16;
@@ -52,7 +52,7 @@ struct EffectGeometryFrame {
     std::array<Circle,kMaximumCircles> dangerCircles{};
     std::array<Segment,kMaximumWarningSegments> dangerSegments{};
     unsigned circleCount=0,segmentCount=0;
-    std::array<cg2::Vector3,kMaximumCircles> projectilePositions{};
+    std::array<myEngine::Vector3,kMaximumCircles> projectilePositions{};
     unsigned projectileCount=0;
     bool valid=true,capacityReached=false;
 };
@@ -66,17 +66,17 @@ inline bool Contains(const Segment& capsule,Point point,float margin=0) {
 }
 struct Stripe { Point start{},end{}; };
 namespace effectdetail {
-inline bool BoundedWorld(cg2::Vector3 value) {
+inline bool BoundedWorld(myEngine::Vector3 value) {
     return Finite(value) && std::abs(value.x)<=10000 && std::abs(value.y)<=10000 && std::abs(value.z)<=10000;
 }
 inline bool CameraAxes(const EffectsInput& input) {
     if(!Finite(input.cameraRight) || !Finite(input.cameraUp) || !Finite(input.cameraForward)) return false;
-    return Within(cg2::Dot(input.cameraRight,input.cameraRight),.99f,1.01f) &&
-        Within(cg2::Dot(input.cameraUp,input.cameraUp),.99f,1.01f) &&
-        Within(cg2::Dot(input.cameraForward,input.cameraForward),.99f,1.01f) &&
-        std::abs(cg2::Dot(input.cameraRight,input.cameraUp))<.01f &&
-        std::abs(cg2::Dot(input.cameraRight,input.cameraForward))<.01f &&
-        std::abs(cg2::Dot(input.cameraUp,input.cameraForward))<.01f;
+    return Within(myEngine::Dot(input.cameraRight,input.cameraRight),.99f,1.01f) &&
+        Within(myEngine::Dot(input.cameraUp,input.cameraUp),.99f,1.01f) &&
+        Within(myEngine::Dot(input.cameraForward,input.cameraForward),.99f,1.01f) &&
+        std::abs(myEngine::Dot(input.cameraRight,input.cameraUp))<.01f &&
+        std::abs(myEngine::Dot(input.cameraRight,input.cameraForward))<.01f &&
+        std::abs(myEngine::Dot(input.cameraUp,input.cameraForward))<.01f;
 }
 struct Interval { double low=0,high=1; };
 inline std::optional<Interval> CircleInterval(Point center,float radius,Point a,Point b) {
@@ -112,7 +112,7 @@ inline Stripe At(Point a,Point b,Interval interval) {
     }
     return result;
 }
-inline cg2::Vector3 Floor(Point point,float z=-.035f) { return {point[0],point[1],z}; }
+inline myEngine::Vector3 Floor(Point point,float z=-.035f) { return {point[0],point[1],z}; }
 inline Point Shift(Point point,float x,float y) { return {point[0]+x,point[1]+y}; }
 }
 // Stripe clipping shrinks only decorative stroke coverage by half its width.
@@ -142,10 +142,10 @@ inline std::optional<Stripe> ClipStripe(const Segment& capsule,Point a,Point b,f
     }
     return result?std::optional<Stripe>{effectdetail::At(a,b,*result)}:std::nullopt;
 }
-inline cg2::Vector3 VolleyArc(cg2::Vector3 launch,Point target,float progress,float lift) {
-    const float p=Unit(progress); const cg2::Vector3 finish{target[0],target[1],0};
+inline myEngine::Vector3 VolleyArc(myEngine::Vector3 launch,Point target,float progress,float lift) {
+    const float p=Unit(progress); const myEngine::Vector3 finish{target[0],target[1],0};
     if(p<=0) return launch; if(p>=1) return finish;
-    const cg2::Vector3 control{(launch.x+finish.x)*.5f,(launch.y+finish.y)*.5f,(launch.z+finish.z)*.5f-lift};
+    const myEngine::Vector3 control{(launch.x+finish.x)*.5f,(launch.y+finish.y)*.5f,(launch.z+finish.z)*.5f-lift};
     const float a=(1-p)*(1-p),b=2*(1-p)*p,c=p*p;
     return {launch.x*a+control.x*b+finish.x*c,launch.y*a+control.y*b+finish.y*c,launch.z*a+control.z*b+finish.z*c};
 }
@@ -154,7 +154,7 @@ class EffectGeometryBuilder {
 public:
     void Reset() { frame_={}; generation_=instance_=0; lastPhase_=Phase::Aborted; launchValid_=false; launchCount_=0; lastCoreRadius_=2; }
     const EffectGeometryFrame& GetFrame() const { return frame_; }
-    const cg2::Vector3& GetLaunchSocket() const { return launch_; }
+    const myEngine::Vector3& GetLaunchSocket() const { return launch_; }
     unsigned GetLaunchCount() const { return launchCount_; }
     bool Build(const EffectsInput& input) {
         frame_.airCount=frame_.floorCount=frame_.fillCount=frame_.circleCount=frame_.segmentCount=frame_.projectileCount=0;
@@ -189,7 +189,7 @@ public:
         const bool warning=snapshot.phase==Phase::Telegraph || snapshot.phase==Phase::Locked || snapshot.phase==Phase::Airborne;
         const bool active=snapshot.phase==Phase::Active;
         const float decoration=input.profile.reducedMotion?.35f:1;
-        const float pulse=1+.12f*decoration*input.profile.motionAmplitude*std::sin(cg2::pi*Unit(snapshot.progress));
+        const float pulse=1+.12f*decoration*input.profile.motionAmplitude*std::sin(myEngine::pi*Unit(snapshot.progress));
         if(warning || active) {
             if(snapshot.plan.attack==Attack::Beam) {
                 if(warning) {
@@ -197,7 +197,7 @@ public:
                     for(unsigned index=0;index<snapshot.plan.beam.warningCount;++index) Capsule(snapshot.plan.beam.warning[index],false,1);
                 } else if(snapshot.activeBeamClipped) {
                     Capsule(snapshot.activeBeam,true,pulse);
-                    cg2::Vector3 origin;
+                    myEngine::Vector3 origin;
                     if(input.bodyVisualEnabled && TakeSocket(input.sockets,origin))
                         Air(origin,{snapshot.activeBeam.start[0],snapshot.activeBeam.start[1],0},.16f,{.8f,.20f,.95f,.65f},Cue::GroundedBeam);
                 }
@@ -213,49 +213,49 @@ public:
         return frame_.valid && !frame_.capacityReached;
     }
 private:
-    static bool TakeSocket(const EffectSockets& sockets,cg2::Vector3& output) {
+    static bool TakeSocket(const EffectSockets& sockets,myEngine::Vector3& output) {
         if(sockets.rightHandValid && effectdetail::BoundedWorld(sockets.rightHand)) { output=sockets.rightHand; return true; }
         if(sockets.leftHandValid && effectdetail::BoundedWorld(sockets.leftHand)) { output=sockets.leftHand; return true; }
         if(sockets.chestValid && effectdetail::BoundedWorld(sockets.chest)) { output=sockets.chest; return true; }
         return false;
     }
-    void Air(cg2::Vector3 a,cg2::Vector3 b,float width,cg2::Vector4 color,Cue cue) {
+    void Air(myEngine::Vector3 a,myEngine::Vector3 b,float width,myEngine::Vector4 color,Cue cue) {
         if(frame_.airCount==kMaximumAirLines) { frame_.capacityReached=true; return; }
         frame_.air[frame_.airCount++]={a,b,width,color,cue};
     }
-    void Floor(Point a,Point b,float width,cg2::Vector4 color,Cue cue) {
+    void Floor(Point a,Point b,float width,myEngine::Vector4 color,Cue cue) {
         if(frame_.floorCount==kMaximumFloorLines) { frame_.capacityReached=true; return; }
         frame_.floor[frame_.floorCount++]={effectdetail::Floor(a),effectdetail::Floor(b),width,color,cue};
     }
-    void FillDisc(Point center,float radius,cg2::Vector4 color) {
+    void FillDisc(Point center,float radius,myEngine::Vector4 color) {
         if(frame_.fillCount==kMaximumFloorFills) { frame_.capacityReached=true; return; }
         frame_.fills[frame_.fillCount++]={false,effectdetail::Floor(center),{1,0,0},{0,1,0},radius,{},color};
     }
     void Core(const EffectsInput& input,float radius,float visibility) {
         const Point center{input.core.x,input.core.y};
         const float hit=Unit(input.hitFeedback);
-        const cg2::Vector4 color{.10f+hit*.5f,.85f,.95f,visibility*(input.snapshot.vulnerable?.85f:.35f)};
+        const myEngine::Vector4 color{.10f+hit*.5f,.85f,.95f,visibility*(input.snapshot.vulnerable?.85f:.35f)};
         // Broken hexagon + central diamond is an attack target, visually distinct
         // from the closed danger circle/capsule and its active striped fill.
         for(unsigned index=0;index<6;++index) {
-            const float a=cg2::pi*2*float(index)/6,b=cg2::pi*2*float(index+1)/6;
+            const float a=myEngine::pi*2*float(index)/6,b=myEngine::pi*2*float(index+1)/6;
             const Point first=effectdetail::Shift(center,std::cos(a)*radius,std::sin(a)*radius),last=effectdetail::Shift(center,std::cos(b)*radius,std::sin(b)*radius);
             Floor({first[0]+(last[0]-first[0])*.12f,first[1]+(last[1]-first[1])*.12f},
                 {first[0]+(last[0]-first[0])*.88f,first[1]+(last[1]-first[1])*.88f},.13f,color,Cue::Core);
         }
         const float r=radius*.34f;
         for(unsigned index=0;index<4;++index) {
-            const float a=cg2::pi*.5f*float(index),b=cg2::pi*.5f*float(index+1);
+            const float a=myEngine::pi*.5f*float(index),b=myEngine::pi*.5f*float(index+1);
             Floor(effectdetail::Shift(center,std::cos(a)*r,std::sin(a)*r),effectdetail::Shift(center,std::cos(b)*r,std::sin(b)*r),.10f,color,Cue::Core);
         }
     }
     void Disc(Circle circle,bool active,float pulse) {
         if(!Valid(circle)) { frame_.valid=false; return; }
         if(frame_.circleCount<kMaximumCircles) frame_.dangerCircles[frame_.circleCount++]=circle;
-        const cg2::Vector4 color=active?cg2::Vector4{1,.20f,.08f,.76f*pulse}:cg2::Vector4{.90f,.45f,.10f,.52f};
-        FillDisc(circle.center,circle.radius,active?cg2::Vector4{.9f,.1f,.04f,.065f}:cg2::Vector4{.7f,.35f,.08f,.025f});
+        const myEngine::Vector4 color=active?myEngine::Vector4{1,.20f,.08f,.76f*pulse}:myEngine::Vector4{.90f,.45f,.10f,.52f};
+        FillDisc(circle.center,circle.radius,active?myEngine::Vector4{.9f,.1f,.04f,.065f}:myEngine::Vector4{.7f,.35f,.08f,.025f});
         for(unsigned index=0;index<kEffectCircleSteps;++index) {
-            const float a=cg2::pi*2*float(index)/kEffectCircleSteps,b=cg2::pi*2*float(index+1)/kEffectCircleSteps;
+            const float a=myEngine::pi*2*float(index)/kEffectCircleSteps,b=myEngine::pi*2*float(index+1)/kEffectCircleSteps;
             Floor(effectdetail::Shift(circle.center,std::cos(a)*circle.radius,std::sin(a)*circle.radius),
                 effectdetail::Shift(circle.center,std::cos(b)*circle.radius,std::sin(b)*circle.radius),.12f,color,active?Cue::ActiveEdge:Cue::WarningEdge);
         }
@@ -276,8 +276,8 @@ private:
             Disc({capsule.start,capsule.halfWidth},active,pulse); frame_.circleCount=previous; return;
         }
         const float length=std::sqrt(lengthSquared),tx=dx/length,ty=dy/length,nx=-ty,ny=tx,theta=std::atan2(ty,tx),r=capsule.halfWidth;
-        const cg2::Vector4 edge=active?cg2::Vector4{.9f,.14f,.95f,.76f*pulse}:cg2::Vector4{.65f,.3f,.85f,.38f};
-        const cg2::Vector4 fill=active?cg2::Vector4{.8f,.08f,.9f,.055f}:cg2::Vector4{.5f,.12f,.75f,.012f};
+        const myEngine::Vector4 edge=active?myEngine::Vector4{.9f,.14f,.95f,.76f*pulse}:myEngine::Vector4{.65f,.3f,.85f,.38f};
+        const myEngine::Vector4 fill=active?myEngine::Vector4{.8f,.08f,.9f,.055f}:myEngine::Vector4{.5f,.12f,.75f,.012f};
         FillDisc(capsule.start,r,fill); FillDisc(capsule.end,r,fill);
         if(frame_.fillCount==kMaximumFloorFills) frame_.capacityReached=true;
         else frame_.fills[frame_.fillCount++]={true,effectdetail::Floor({(capsule.start[0]+capsule.end[0])*.5f,(capsule.start[1]+capsule.end[1])*.5f}),
@@ -286,8 +286,8 @@ private:
         Floor(effectdetail::Shift(capsule.start,nx*r,ny*r),effectdetail::Shift(capsule.end,nx*r,ny*r),.11f,edge,cue);
         Floor(effectdetail::Shift(capsule.end,-nx*r,-ny*r),effectdetail::Shift(capsule.start,-nx*r,-ny*r),.11f,edge,cue);
         for(unsigned index=0;index<kEffectCapSteps;++index) for(unsigned end=0;end<2;++end) {
-            const float startAngle=theta+(end?cg2::pi*.5f:-cg2::pi*.5f);
-            const float a=startAngle-cg2::pi*float(index)/kEffectCapSteps,b=startAngle-cg2::pi*float(index+1)/kEffectCapSteps;
+            const float startAngle=theta+(end?myEngine::pi*.5f:-myEngine::pi*.5f);
+            const float a=startAngle-myEngine::pi*float(index)/kEffectCapSteps,b=startAngle-myEngine::pi*float(index+1)/kEffectCapSteps;
             const auto center=end?capsule.end:capsule.start;
             Floor(effectdetail::Shift(center,std::cos(a)*r,std::sin(a)*r),effectdetail::Shift(center,std::cos(b)*r,std::sin(b)*r),.11f,edge,cue);
         }
@@ -320,7 +320,7 @@ private:
     EffectGeometryFrame frame_{};
     uint64_t generation_=0,instance_=0;
     Phase lastPhase_=Phase::Aborted;
-    cg2::Vector3 launch_{};
+    myEngine::Vector3 launch_{};
     std::array<Circle,kMaximumCircles> launchTargets_{};
     unsigned launchTargetCount_=0,launchCount_=0;
     bool launchValid_=false;

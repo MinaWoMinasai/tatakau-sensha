@@ -1,6 +1,6 @@
 #pragma once
 #include "DeveloperTools.h"
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "DirectXCommon.h"
 #include "externals/nlohmann/json.hpp"
 #include <filesystem>
@@ -10,8 +10,8 @@
 class NeonShowcaseCapture {
 public:
     void Request(const std::filesystem::path& directory, const std::string& name, nlohmann::json metadata);
-    void Record(cg2::DirectXCommon& dx);
-    void Resolve(cg2::DirectXCommon& dx);
+    void Record(myEngine::DirectXCommon& dx);
+    void Resolve(myEngine::DirectXCommon& dx);
     void SetFrameMetadata(nlohmann::json metadata) { if (requested_) metadata_ = std::move(metadata); }
     bool IsBusy() const { return requested_ || pending_; }
     bool HasRequest() const { return requested_; }

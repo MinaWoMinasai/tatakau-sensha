@@ -1,5 +1,5 @@
 #include "GameplayScenarioSession.h"
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -21,7 +21,7 @@ void Require(bool condition, const char* error) {
 fs::path WorkspaceDirectory() {
     fs::path directory = fs::current_path();
     for (unsigned level = 0; level < 10; ++level) {
-        if (fs::is_regular_file(directory / "project/CG2.sln")) return directory;
+        if (fs::is_regular_file(directory / "project/MyEngine.sln")) return directory;
         const auto parent = directory.parent_path();
         if (parent == directory) break;
         directory = parent;
@@ -240,14 +240,14 @@ GameplayScenarioSession& GameplayScenarioSession::Get() {
     return session;
 }
 GameplayScenarioSession::GameplayScenarioSession() {
-    const DWORD required = GetEnvironmentVariableW(L"CG2_GAMEPLAY_SCENARIO", nullptr, 0);
+    const DWORD required = GetEnvironmentVariableW(L"MYENGINE_GAMEPLAY_SCENARIO", nullptr, 0);
     if (required <= 1) return; // An unset or empty environment value is inactive.
     try {
         const auto workspace = WorkspaceDirectory();
         outputDirectory_ = Utf8(workspace / "generated/scenario_error");
         Require(required <= 32767, "Scenario manifest path is too long.");
         std::wstring manifestPath(required, L'\0');
-        const DWORD written = GetEnvironmentVariableW(L"CG2_GAMEPLAY_SCENARIO", manifestPath.data(), required);
+        const DWORD written = GetEnvironmentVariableW(L"MYENGINE_GAMEPLAY_SCENARIO", manifestPath.data(), required);
         Require(written != 0 && written < required, "Could not read scenario manifest environment setting.");
         manifestPath.resize(written);
         const fs::path file(manifestPath);

@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace cg2 {
+namespace myEngine {
 
 using Microsoft::WRL::ComPtr;
 
@@ -519,4 +519,4 @@ void NeonSkinnedRenderer::CreatePipeline() {
 		"Failed to create NeonSkinnedRenderer stencil-clear PSO.");
 }
 
-} // namespace cg2
+} // namespace myEngine

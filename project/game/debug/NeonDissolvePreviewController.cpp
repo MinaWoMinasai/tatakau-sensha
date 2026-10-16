@@ -1,28 +1,28 @@
 #include "NeonDissolvePreviewController.h"
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 
-bool NeonDissolvePreviewController::Trigger(cg2::SkinnedModel& model, const cg2::Matrix4x4& world,
-    const cg2::Matrix4x4& cameraWorld, cg2::NeonDissolveDirection direction,
-    const cg2::NeonDissolveParams& settings, float waitDuration, float duration) {
+bool NeonDissolvePreviewController::Trigger(myEngine::SkinnedModel& model, const myEngine::Matrix4x4& world,
+    const myEngine::Matrix4x4& cameraWorld, myEngine::NeonDissolveDirection direction,
+    const myEngine::NeonDissolveParams& settings, float waitDuration, float duration) {
     // Repeated Trigger restarts the first snapshot rather than capturing a partly dissolved state.
     if (active_) return Restart(model);
     if (!std::isfinite(waitDuration) || waitDuration < 0 || waitDuration > 60 ||
         !std::isfinite(duration) || duration < 0.01f || duration > 60 ||
         !std::isfinite(settings.noiseStrength) || !std::isfinite(settings.noiseScale) ||
         !std::isfinite(settings.edgeWidth) || !std::isfinite(settings.edgeIntensity) ||
-        !cg2::IsFiniteNeonPosition(settings.edgeColor)) {
+        !myEngine::IsFiniteNeonPosition(settings.edgeColor)) {
         error_ = "Dissolve timing and settings must be finite and duration must be positive.";
         return false;
     }
-    auto next = cg2::SanitizeNeonDissolveParams(settings);
-    if (!cg2::MakeNeonDissolveDirection(world,cameraWorld,direction,next.direction,&error_)) return false;
-    if (!cg2::ComputeNeonSkinnedProjectionBounds(model,next.direction,next.scanMin,next.scanMax)) {
+    auto next = myEngine::SanitizeNeonDissolveParams(settings);
+    if (!myEngine::MakeNeonDissolveDirection(world,cameraWorld,direction,next.direction,&error_)) return false;
+    if (!myEngine::ComputeNeonSkinnedProjectionBounds(model,next.direction,next.scanMin,next.scanMax)) {
         error_ = "Cannot compute a finite scan range from the current skinned Palette.";
         return false;
     }
     // Snapshot allocation/validation completes before playback is paused or state is committed.
     auto playback = model.CaptureAnimationPlaybackState();
-    std::vector<cg2::QuaternionTransform> pose;
+    std::vector<myEngine::QuaternionTransform> pose;
     pose.reserve(model.GetSkeleton().joints.size());
     for (const auto& joint : model.GetSkeleton().joints) pose.push_back(joint.transform);
     next.enabled = 1; next.progress = 0;
@@ -42,7 +42,7 @@ void NeonDissolvePreviewController::Update(float deltaTime) {
     if (params_.progress >= 1) playing_ = false;
 }
 
-bool NeonDissolvePreviewController::Restart(cg2::SkinnedModel& model) {
+bool NeonDissolvePreviewController::Restart(myEngine::SkinnedModel& model) {
     if (!active_) return false;
     if (!model.RestoreAnimationPlaybackState(playback_)) {
         error_ = "Cannot restore the original frozen animation snapshot."; return false;
@@ -52,7 +52,7 @@ bool NeonDissolvePreviewController::Restart(cg2::SkinnedModel& model) {
     return true;
 }
 
-bool NeonDissolvePreviewController::Reset(cg2::SkinnedModel& model) {
+bool NeonDissolvePreviewController::Reset(myEngine::SkinnedModel& model) {
     if (!active_) return true;
     if (!model.RestoreAnimationPlaybackState(playback_)) {
         error_ = "Cannot restore playback; dissolve remains active to protect its snapshot."; return false;

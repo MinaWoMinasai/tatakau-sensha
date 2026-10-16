@@ -28,7 +28,7 @@ std::string FormatRegisteredIds(const std::vector<std::string>& ids)
 /// @brief Registryエラーを診断ログへ出力する。
 void LogRegistryError(const std::string& message)
 {
-	cg2::LogWrite().Log("[GameModuleRegistry] " + message + "\n");
+	myEngine::LogWrite().Log("[GameModuleRegistry] " + message + "\n");
 }
 
 }

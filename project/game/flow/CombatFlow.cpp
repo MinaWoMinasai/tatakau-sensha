@@ -40,8 +40,8 @@ void CombatFlow::UpdateGameplayEventEffects(float, bool)
     if (world_.combat.previousPlayerHp_ >= 0 && playerHp < world_.combat.previousPlayerHp_) {
         const int damage = world_.combat.previousPlayerHp_ - playerHp;
         world_.combat.damageTaken_ += damage;
-        const cg2::Vector3 hitDelta = world_.resources.player_->GetWorldPosition() - world_.resources.enemy_->GetWorldPosition();
-        cg2::Vector2 hitDirection{hitDelta.x, hitDelta.y};
+        const myEngine::Vector3 hitDelta = world_.resources.player_->GetWorldPosition() - world_.resources.enemy_->GetWorldPosition();
+        myEngine::Vector2 hitDirection{hitDelta.x, hitDelta.y};
         const float length = std::sqrt(hitDirection.x * hitDirection.x + hitDirection.y * hitDirection.y);
         if (length > 0.0001f) {
             hitDirection.x /= length;
@@ -124,7 +124,7 @@ void CombatFlow::BeginBossDefeatSequence()
     if (world_.combat.flowBannerText_) {
         world_.combat.flowBannerText_->SetText("ボス撃破");
     }
-    const cg2::Vector2 center = world_.gameplayQueries->WorldToScreenUv(world_.resources.enemy_->GetWorldPosition());
+    const myEngine::Vector2 center = world_.gameplayQueries->WorldToScreenUv(world_.resources.enemy_->GetWorldPosition());
     world_.combat.screenEffectDirector_.TriggerBossDefeat(center);
     world_.resources.input_->Vibrate(0.9f, 0.6f, 0.7f);
     world_.presentation.cameraShakeDuration_ = world_.combat.screenEffectDirector_.GetConfig().cameraShakeDuration * 4.5f;
@@ -298,7 +298,7 @@ void CombatFlow::SetEventCallout(const std::string& text, float duration)
     if (world_.combat.eventCalloutText_) {
         world_.combat.eventCalloutText_->SetText(text);
         auto style = world_.combat.eventCalloutText_->GetStyle();
-        style.color = (text == "ダメージ" || text == "戦闘不能") ? cg2::Vector4{1, 0.23f, 0.16f, 1} : cg2::Vector4{0.68f, 1, 0.88f, 1};
+        style.color = (text == "ダメージ" || text == "戦闘不能") ? myEngine::Vector4{1, 0.23f, 0.16f, 1} : myEngine::Vector4{0.68f, 1, 0.88f, 1};
         world_.combat.eventCalloutText_->SetStyle(style);
     }
     world_.combat.eventCalloutTimer_ = (std::max)(0.0f, duration);

@@ -11,7 +11,7 @@
 class Player;
 class Stage;
 class Enemy;
-namespace cg2 {
+namespace myEngine {
 class NeonGridRenderer;
 }
 
@@ -59,7 +59,7 @@ public:
     static void SetEnemyKillCallback(std::function<void(uint32_t)> callback);
     /// @brief 自機側が通常の経験値敵を撃破したとき、その敵の位置を渡す共有コールバックを設定する。
     /// @note 自機自身の死亡通知ではない。資源・召喚個体は対象外で、空の関数で解除できる。
-    static void SetPlayerDefeatCallback(std::function<void(const cg2::Vector3&)> callback);
+    static void SetPlayerDefeatCallback(std::function<void(const myEngine::Vector3&)> callback);
     /// @brief 図形のネオン表示を切り替え、有効なら描画方式1、無効なら方式0にする。
     static void SetShapeNeonBillboardEnabled(bool enabled);
     /// @brief 図形のネオン描画方式を0〜3に制限して設定する。0以外では通常のモデル描画を省く。
@@ -73,7 +73,7 @@ public:
     /// @brief 指定位置・種類で描画オブジェクト、HP、攻撃周期、衝突属性を初期化する。
     /// @param player 照準と経験値付与に使う借用先。nullptrなら自機を参照する処理を省く。
     /// @note playerはこの個体が参照する間有効に保つ。すべての既存タイマーや速度を消去する処理ではない。
-    void Initialize(const cg2::Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
+    void Initialize(const myEngine::Vector3& position, Player* player, ExpEnemyType type = ExpEnemyType::Square);
     /// @brief 制作定義のHP・ダメージ・移動/射撃倍率・報酬・色を制限して適用する。種類と位置は変更しない。
     void ApplyAuthoredDefinition(const tankcontent::Enemy& definition);
     /// @brief 制作定義または召喚個体用の性能が適用されているかを返す。
@@ -97,7 +97,7 @@ public:
     void OnCollision(Collider* other) override;
 
     /// @brief 現在のワールド位置を値で返す。
-    cg2::Vector3 GetWorldPosition() const override
+    myEngine::Vector3 GetWorldPosition() const override
     {
         return worldTransform_.translate;
     }
@@ -119,7 +119,7 @@ public:
     }
 
     /// @brief ワールド位置を設定し、描画オブジェクトの変換も更新する。初期化後に呼ぶ。
-    void SetWorldPosition(const cg2::Vector3& pos)
+    void SetWorldPosition(const myEngine::Vector3& pos)
     {
         worldTransform_.translate = pos;
         object_->SetTransform(worldTransform_);
@@ -127,7 +127,7 @@ public:
     }
 
     /// @brief 中心から各軸±0.8のAABBを返す。資源の球半径や表示倍率による拡大は含めない。
-    cg2::AABB GetAABB();
+    myEngine::AABB GetAABB();
 
     /// @brief 死亡または召喚解除のフラグを返す。実体の削除はEnemyManager::UpdateまたはClearが行う。
     bool IsDead() const
@@ -246,7 +246,7 @@ public:
     /// @brief 生存中のReflectArmorへの正面入射を判定し、成立時に受付回数と装甲の演出を更新する。
     /// @param attackSource 攻撃が来た側のワールド位置。
     /// @return 正面の反射受付が成立した場合true。弾の生成・追加予約は呼び出し側が行う。
-    bool TryReflectProjectile(const cg2::Vector3& attackSource);
+    bool TryReflectProjectile(const myEngine::Vector3& attackSource);
     /// @brief 反射装甲の受付が成立した回数を返す。反射弾の登録成功数ではない。
     uint32_t GetReflectionCount() const
     {
@@ -296,18 +296,18 @@ public:
         }
     }
     /// @brief 照準方向を返す。
-    const cg2::Vector3& GetAimDirection() const
+    const myEngine::Vector3& GetAimDirection() const
     {
         return aimDirection_;
     }
     /// @brief 地形で切り詰めた攻撃予告の終点を借用参照で返す。位置は更新時に変わる。
-    const cg2::Vector3& GetTelegraphEnd() const
+    const myEngine::Vector3& GetTelegraphEnd() const
     {
         return telegraphEnd_;
     }
     /// @brief 生存中の移動戦闘役の輪郭・攻撃予告・残弾などを、シーンが使うネオン描画先へ予約する。
-    void QueueCombatVisuals(cg2::NeonGridRenderer& renderer, const cg2::Vector3& cameraRight, const cg2::Vector3& cameraUp,
-                            const cg2::Vector3& cameraForward, float lineWidth, bool fillOnly = false) const;
+    void QueueCombatVisuals(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp,
+                            const myEngine::Vector3& cameraForward, float lineWidth, bool fillOnly = false) const;
     /// @brief 借用する自機の位置を攻撃元として、自機側ダメージを適用する。自機がなければ中心からの攻撃として扱う。
     /// @return この呼び出しで撃破した場合true。falseでもHPや被弾演出が変わる場合がある。
     bool TakeDamageFromPlayer(uint32_t amount);
@@ -316,11 +316,11 @@ public:
     /// @param melee trueなら盾正面で近接用の減衰率を使う。
     /// @return この呼び出しで撃破した場合true。死亡済み・0ダメージ・生存継続ならfalse。
     /// @note OnCollisionの自機接触用の無敵タイマーは、この経路では判定しない。
-    bool TakeDirectionalDamage(uint32_t amount, const cg2::Vector3& attackSource, bool melee = false);
+    bool TakeDirectionalDamage(uint32_t amount, const myEngine::Vector3& attackSource, bool melee = false);
     /// @brief 方向を正規化して外部衝撃速度へ加算する。位置の移動はUpdateが行う。
     /// @param power 60FPS基準の速度への加算量。正の有限値のみ受け付け、加算量と合成速度に上限0.95を設ける。
     /// @note 死亡・資源・ほぼ0の方向は対象外。0.16以上で壁衝撃を1秒受け付け、0.30以上でダッシュを中断する。
-    void ApplyKnockback(const cg2::Vector3& direction, float power);
+    void ApplyKnockback(const myEngine::Vector3& direction, float power);
     /// @brief 敵側ダメージをHPへ適用し、新たな撃破ならtrueを返す。falseでも非致死ダメージは適用される。
     /// @note 資源の取得通知は行うが、通常敵の撃破通知は呼び出し側が担当する。
     bool TakeDamageFromEnemy(uint32_t amount);
@@ -338,7 +338,7 @@ public:
         return type_;
     }
     /// @brief 表示色を返す。
-    const cg2::Vector4& GetVisualColor() const
+    const myEngine::Vector4& GetVisualColor() const
     {
         return visualColor_;
     }
@@ -348,12 +348,12 @@ public:
         return worldTransform_.rotate.z;
     }
     /// @brief 表示用の各軸回転角（ラジアン）を借用参照で返す。
-    const cg2::Vector3& GetVisualRotate() const
+    const myEngine::Vector3& GetVisualRotate() const
     {
         return worldTransform_.rotate;
     }
     /// @brief 表示倍率を返す。
-    const cg2::Vector3& GetVisualScale() const
+    const myEngine::Vector3& GetVisualScale() const
     {
         return worldTransform_.scale;
     }
@@ -396,34 +396,34 @@ private:
     /// @brief 変位を細分化し、各回のX、Yの順で位置設定と地形補正を行う。
     /// @return どちらかの軸で0.005を超える補正が生じた場合true。
     /// @note Z成分の移動は行わない。壁衝撃の受付条件を満たした接触では回数も更新する。
-    bool MoveCombatActor(Stage& stage, const cg2::Vector3& displacement);
+    bool MoveCombatActor(Stage& stage, const myEngine::Vector3& displacement);
     /// @brief 障害物を0.85広げた2単位の格子で次の経由セルを探し、ワールド位置へ戻す。経路なしなら現在位置。
-    cg2::Vector3 FindCombatWaypoint(Stage& stage, const cg2::Vector3& target) const;
+    myEngine::Vector3 FindCombatWaypoint(Stage& stage, const myEngine::Vector3& target) const;
     /// @brief origin + direction * distanceまでのXY射線を、最初に触れる有効ブロックのAABBへ切り詰める。
     /// @note directionが単位ベクトルならdistanceはワールド距離。Z軸の交差は検査しない。
-    cg2::Vector3 ClipCombatRay(Stage& stage, const cg2::Vector3& origin, const cg2::Vector3& direction, float distance) const;
+    myEngine::Vector3 ClipCombatRay(Stage& stage, const myEngine::Vector3& origin, const myEngine::Vector3& direction, float distance) const;
     /// @brief ShieldGuardの正面攻撃を減衰し、減衰が成立したら受付回数と装甲演出を更新してダメージ値を返す。HPは変更しない。
-    uint32_t ResolveShieldDamage(uint32_t amount, const cg2::Vector3& attackSource, bool melee);
+    uint32_t ResolveShieldDamage(uint32_t amount, const myEngine::Vector3& attackSource, bool melee);
 
     static BalanceConfig balanceConfig_;
     static EnemyInteractionConfig enemyInteractionConfig_;
     static std::function<void(uint32_t)> enemyKillCallback_;
-    static std::function<void(const cg2::Vector3&)> playerDefeatCallback_;
+    static std::function<void(const myEngine::Vector3&)> playerDefeatCallback_;
     static bool shapeNeonBillboardEnabled_;
     static int shapeNeonRenderMode_;
 
-    cg2::Transform worldTransform_;
-    cg2::Vector3 baseScale_{1.0f, 1.0f, 1.0f};
-    cg2::Vector4 baseColor_{1.0f, 1.0f, 1.0f, 1.0f};
-    cg2::Vector4 visualColor_{1.0f, 1.0f, 1.0f, 1.0f};
-    std::unique_ptr<cg2::Object3d> object_;
+    myEngine::Transform worldTransform_;
+    myEngine::Vector3 baseScale_{1.0f, 1.0f, 1.0f};
+    myEngine::Vector4 baseColor_{1.0f, 1.0f, 1.0f, 1.0f};
+    myEngine::Vector4 visualColor_{1.0f, 1.0f, 1.0f, 1.0f};
+    std::unique_ptr<myEngine::Object3d> object_;
 
     // 攻撃コントローラ
     AttackController attackController_;
 
     Player* player_ = nullptr;
     Enemy* boss_ = nullptr;
-    cg2::Vector3 aimDirection_{0.0f, -1.0f, 0.0f};
+    myEngine::Vector3 aimDirection_{0.0f, -1.0f, 0.0f};
 
     int hp_ = 10;
     int maxHp_ = 10;
@@ -443,8 +443,8 @@ private:
     uint32_t authoredContactDamage_ = 0, authoredBulletDamage_ = 1;
     float authoredMoveSpeedScale_ = 1, authoredFireIntervalScale_ = 1;
 
-    cg2::Vector3 velocity_;
-    cg2::Vector3 combatMoveVelocity_{};
+    myEngine::Vector3 velocity_;
+    myEngine::Vector3 combatMoveVelocity_{};
     bool combatWasDashing_ = false;
 
     float decel_ = 3.5f; // 現在の減衰処理では参照していない設定。
@@ -475,9 +475,9 @@ private:
     uint32_t reflectionCount_ = 0, empPulseCount_ = 0, wallCollisionCount_ = 0;
     float combatStagger_ = 0.0f, orbitSign_ = 1.0f;
     float dashCooldown_ = 0.0f, dashWarningTimer_ = 0.0f, dashTimer_ = 0.0f;
-    cg2::Vector3 dashDirection_{};
+    myEngine::Vector3 dashDirection_{};
     uint32_t combatShotsFired_ = 0, combatDashCount_ = 0;
-    cg2::Vector3 telegraphEnd_{};
-    cg2::Vector3 combatWaypoint_{};
+    myEngine::Vector3 telegraphEnd_{};
+    myEngine::Vector3 combatWaypoint_{};
     float combatRepathTimer_ = 0.0f;
 };

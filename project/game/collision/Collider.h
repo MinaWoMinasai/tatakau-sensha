@@ -34,7 +34,7 @@ public:
     }
 
     /// @brief ワールド座標の取得
-    virtual cg2::Vector3 GetWorldPosition() const = 0;
+    virtual myEngine::Vector3 GetWorldPosition() const = 0;
 
     /// @brief 衝突判定
     virtual void OnCollision(Collider* other) = 0;
@@ -83,7 +83,7 @@ public:
     }
 
     /// @brief カプセルを設定する。
-    void SetCapsule(const cg2::Segment& seg, float r)
+    void SetCapsule(const myEngine::Segment& seg, float r)
     {
         if (!std::isfinite(r) || r < 0.0f)
             return;
@@ -91,7 +91,7 @@ public:
         capsuleRadius_ = r;
     }
     /// @brief 区切りを返す。
-    const cg2::Segment& GetSegment() const
+    const myEngine::Segment& GetSegment() const
     {
         return segment_;
     }
@@ -154,7 +154,7 @@ private:
     // 衝突図形
     ColliderShape shape_ = ColliderShape::Sphere;
 
-    cg2::Segment segment_;
+    myEngine::Segment segment_;
     float capsuleRadius_ = 0.0f;
     float hitPower_ = 1.0f;
 

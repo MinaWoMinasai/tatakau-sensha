@@ -15,18 +15,18 @@ struct Settings {
     int stackLevels = 3;
     float wallLineWidth = 0.028f;
     bool floorLocalLight = true;
-    cg2::Vector4 floorLightColor{0.20f, 0.85f, 0.65f, 1.0f};
+    myEngine::Vector4 floorLightColor{0.20f, 0.85f, 0.65f, 1.0f};
     float floorLocalIntensity = 24.0f, floorLocalRadius = 11.0f, floorLocalHeight = 3.0f;
     float floorDetail = 0.0f; // The generic sinusoidal detail produces bands on a large XY floor.
-    cg2::Vector4 floorColor{0.035f, 0.045f, 0.060f, 1.0f};
+    myEngine::Vector4 floorColor{0.035f, 0.045f, 0.060f, 1.0f};
     float floorMetallic = 0.20f;
     float floorRoughness = 0.52f;
     float floorDepth = 1.10f; // Camera is on -Z; +Z is behind the XY gameplay plane.
     float floorPadding = 8.0f;
     float floorLightIntensity = 1.6f;
     float gridMinPixelWidth = 1.15f;
-    cg2::Vector4 blockColor{0.032f, 0.040f, 0.055f, 1.0f};
-    cg2::Vector4 damageBlockColor{0.140f, 0.035f, 0.045f, 1.0f};
+    myEngine::Vector4 blockColor{0.032f, 0.040f, 0.055f, 1.0f};
+    myEngine::Vector4 damageBlockColor{0.140f, 0.035f, 0.045f, 1.0f};
     float blockMetallic = 0.30f;
     float blockRoughness = 0.56f;
     float blockHeight = 4.8f; // Full connected-wall height; isolated cells use one tier.
@@ -47,7 +47,7 @@ inline float FiniteClamp(float value, float fallback, float low, float high) {
 
 inline void Sanitize(Settings& settings) {
     const Settings defaults;
-    auto color = [&](cg2::Vector4& value, const cg2::Vector4& fallback) {
+    auto color = [&](myEngine::Vector4& value, const myEngine::Vector4& fallback) {
         value.x = FiniteClamp(value.x, fallback.x, 0.0f, 1.0f);
         value.y = FiniteClamp(value.y, fallback.y, 0.0f, 1.0f);
         value.z = FiniteClamp(value.z, fallback.z, 0.0f, 1.0f);
@@ -82,8 +82,8 @@ inline void Sanitize(Settings& settings) {
     settings.sideLineDivisions = (std::clamp)(settings.sideLineDivisions, 1, 8);
 }
 
-inline cg2::Transform BlockTransform(const cg2::Transform& gameplay, const Settings& settings) {
-    cg2::Transform visual = gameplay;
+inline myEngine::Transform BlockTransform(const myEngine::Transform& gameplay, const Settings& settings) {
+    myEngine::Transform visual = gameplay;
     visual.scale.z *= settings.blockHeight * 0.5f;
     // Anchor the back to the floor. This changes only the render object, never AABB/OBB.
     visual.translate.z += settings.floorDepth - 0.03f - std::abs(visual.scale.z);

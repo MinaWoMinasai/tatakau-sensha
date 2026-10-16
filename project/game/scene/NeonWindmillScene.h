@@ -9,12 +9,12 @@
 #include <map>
 #include <vector>
 
-namespace cg2 {
+namespace myEngine {
 class NeonGridRenderer;
 class Input;
 class TextLabel;
-} // namespace cg2
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+} // namespace myEngine
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 class NeonShowcaseCapture;
 #endif
 
@@ -40,7 +40,7 @@ public:
     /// @brief 生成輪郭の保持と履歴残像の抑制を指示する。
     ScreenEffectState GetScreenEffectState() const override;
     /// @brief 描画に実際に使われたブルーム設定を検証用に保存する。
-    void RecordDeveloperPostParameters(const cg2::BloomParam& param) override
+    void RecordDeveloperPostParameters(const myEngine::BloomParam& param) override
     {
         renderedPost_ = param;
     }
@@ -60,14 +60,14 @@ private:
     /// @brief ワールドXY面に固定した顔・手の板と、Alpha輪郭に沿ったネオンを生成する。
     void BuildCharacter(bool solid);
     /// @brief 線分をカメラへ向けたHDRネオンとして追加する。
-    void Line(cg2::Vector3 a, cg2::Vector3 b, float width, cg2::Vector4 color);
+    void Line(myEngine::Vector3 a, myEngine::Vector3 b, float width, myEngine::Vector4 color);
     /// @brief 平面の凸多角形を不透明な色で追加する。
-    void Fill(const cg2::Vector3* points, uint32_t count, cg2::Vector4 color);
+    void Fill(const myEngine::Vector3* points, uint32_t count, myEngine::Vector4 color);
     /// @brief 時刻とブルーム状態を示すラベルを必要時だけ更新する。
     void UpdateLabels();
     /// @brief 比較モードのみを切り替え、再生時刻・カメラ・姿勢は保持する。
     void SelectMode(WindmillRenderMode mode);
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     /// @brief 同一時刻のブルーム比較・側面・認識姿勢のGPUキャプチャを順番に検証する。
     void UpdateVerification();
     /// @brief 風車だけの発光設定と時刻シークを開発UIへ表示する。
@@ -75,21 +75,21 @@ private:
     /// @brief 同条件モード・寄与画像、連番、GPU計測を既存キャプチャ経路で保存する。
     void UpdateQualityVerification();
 #endif
-    cg2::Camera camera_;
-    cg2::Camera* previousCamera_ = nullptr;
-    cg2::Input* input_ = nullptr;
-    std::unique_ptr<cg2::NeonGridRenderer> renderer_;
+    myEngine::Camera camera_;
+    myEngine::Camera* previousCamera_ = nullptr;
+    myEngine::Input* input_ = nullptr;
+    std::unique_ptr<myEngine::NeonGridRenderer> renderer_;
     std::unique_ptr<WindmillEmojiRenderer> emojiRenderer_;
     /// @brief 一文字分のアトラス範囲と、Alphaから抽出した局所輪郭を保持する。
     struct Glyph {
         std::array<float, 4> uv{};
-        std::vector<cg2::Vector2> contour;
+        std::vector<myEngine::Vector2> contour;
     };
     std::map<std::string, Glyph> glyphs_;
-    std::vector<std::unique_ptr<cg2::TextLabel>> labels_;
-    cg2::BloomParam renderedPost_{};
+    std::vector<std::unique_ptr<myEngine::TextLabel>> labels_;
+    myEngine::BloomParam renderedPost_{};
     neonwindmill::Pose pose_{};
-    cg2::Vector3 cameraForward_{};
+    myEngine::Vector3 cameraForward_{};
     std::chrono::steady_clock::time_point previousTime_;
     double seconds_ = 0;
     float speed_ = 1, yaw_ = 0.12f, distance_ = 11.5f, bloomGain_ = 0.65f;
@@ -99,7 +99,7 @@ private:
     std::array<WindmillNeonSettings, 3> appearances_{};
     uint32_t solidEnd_ = 0;
     int lastStatus_ = -1;
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     std::unique_ptr<NeonShowcaseCapture> capture_;
     bool verification_ = false, verificationPending_ = false;
     unsigned verificationIndex_ = 0, verificationFrames_ = 0, manualCaptureIndex_ = 0;

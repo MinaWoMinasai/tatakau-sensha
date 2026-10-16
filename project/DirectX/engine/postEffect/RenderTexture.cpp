@@ -1,7 +1,7 @@
 #include "RenderTexture.h"
 #include "StartupTrace.h"
 
-namespace cg2 {
+namespace myEngine {
 
 RenderTexture::~RenderTexture()
 {
@@ -38,7 +38,7 @@ void RenderTexture::Initialize(
     // BeginRender instead of submitting and waiting for a one-off transition.
     // Keep the original path available for like-for-like startup measurements.
     char cacheSetting[8]{};
-    const DWORD cacheLength = GetEnvironmentVariableA("CG2_STARTUP_CACHE", cacheSetting, sizeof(cacheSetting));
+    const DWORD cacheLength = GetEnvironmentVariableA("MYENGINE_STARTUP_CACHE", cacheSetting, sizeof(cacheSetting));
     const bool directInitialState = cacheLength != 1 || cacheSetting[0] != '0';
 
     // RenderTarget用テクスチャ作成
@@ -160,4 +160,4 @@ D3D12_GPU_DESCRIPTOR_HANDLE RenderTexture::GetDepthGPUHandle()
     return srvManager_->GetGPUDescriptorHandle(depthSrvIndex_);
 }
 
-} // namespace cg2
+} // namespace myEngine

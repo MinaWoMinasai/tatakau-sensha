@@ -77,7 +77,7 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
         world_.run.expeditionContentEditorOpen_ = true;
         world_.run.expeditionAuthoringHubOpen_ = false;
     }
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (ImGui::Button("F7 ボス戦へ移動 / 再生成"))
         world_.bossPresentation->RequestNeonBossDeveloperEncounter();
     ImGui::SameLine();
@@ -183,7 +183,7 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
             scalar(surface,"floorLocalRadius","床の局所光半径",2,24);
             scalar(surface,"floorLocalHeight","光源の高さ（XY平面基準）",.5f,8);
             scalar(surface,"floorDetail","床の法線ディテール（実験）",0,.2f);
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
             ImGui::Checkbox("開発用 / 軽く傾けた視点",&world_.presentation.developerStageTilt_);
             ImGui::SliderFloat("比較視点の角度",&world_.presentation.developerStageTiltDegrees_,5,28);
 #endif

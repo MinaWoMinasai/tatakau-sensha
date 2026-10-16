@@ -11,7 +11,7 @@ $source = (Resolve-Path -LiteralPath $SourceDir).Path
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $vendorRoot = Join-Path $projectRoot "externals\assimp"
 if ([string]::IsNullOrWhiteSpace($BuildDir)) {
-    $BuildDir = Join-Path $env:TEMP "cg2-assimp-vs2026"
+    $BuildDir = Join-Path $env:TEMP "myengine-assimp-vs2026"
 }
 
 $cmake = Join-Path $VsRoot "Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"

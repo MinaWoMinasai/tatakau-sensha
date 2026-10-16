@@ -1,7 +1,7 @@
 #include "Camera.h"
 #include "WinApp.h"
 
-namespace cg2 {
+namespace myEngine {
 
 Camera::Camera() {
 	transform_ = { {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f,0.0f}, {0.0f, 0.0f, -20.0f} };
@@ -34,4 +34,4 @@ void Camera::UpdateProjectionMatrices() {
 	viewProjectionMatrix_ = Multiply(viewMatrix_, projectionMatrix_);
 }
 
-} // namespace cg2
+} // namespace myEngine

@@ -665,7 +665,7 @@ bool PlayerProgression::RefundRunMaintenancePoint(int stat)
     return true;
 }
 
-void PlayerProgression::ResetRunRoomState(const cg2::Vector3& position)
+void PlayerProgression::ResetRunRoomState(const myEngine::Vector3& position)
 {
     if (!player_.runModifiers_.enabled || player_.isDead_)
         return;

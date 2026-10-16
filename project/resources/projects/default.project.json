@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "projectName": "CG2 Default",
+  "projectName": "MyEngine Default",
   "gameModule": "builtin",
   "startupScene": "TITLE",
   "resourceRoot": "resources"

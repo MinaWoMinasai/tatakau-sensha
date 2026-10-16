@@ -2,7 +2,7 @@
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
 
-namespace cg2 {
+namespace myEngine {
 
 DebugCamera::DebugCamera(){
     fovY_ = 0.45f;
@@ -76,4 +76,4 @@ void DebugCamera::UpdateProjectionMatrices() {
     viewProjectionMatrix_ = Multiply(viewMatrix_, projectionMatrix_);
 }
 
-} // namespace cg2
+} // namespace myEngine

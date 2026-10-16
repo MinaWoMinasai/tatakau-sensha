@@ -10,7 +10,7 @@
 #include <functional>
 #include <cstdint>
 
-namespace cg2 {
+namespace myEngine {
 
 // Imguiで0番を使用するため、1番から使用する
 uint32_t TextureManager::kSRVIndexTop = 1;
@@ -1643,4 +1643,4 @@ uint32_t TextureManager::GetSrvIndex(const std::string& filePath, TextureColorSp
 	return textureDatas[textureKey].srvIndex;
 }
 
-} // namespace cg2
+} // namespace myEngine

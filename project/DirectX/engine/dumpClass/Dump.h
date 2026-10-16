@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <dbghelp.h>
 #include <strsafe.h>
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 例外時の診断用ダンプ出力を提供する。
 class Dump {
@@ -13,4 +13,4 @@ public:
     static LONG WINAPI Export(EXCEPTION_POINTERS* exception);
 };
 
-} // namespace cg2
+} // namespace myEngine
