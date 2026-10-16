@@ -1,4 +1,6 @@
 #include "SkinCluster.h"
+#include "BackgroundLoader.h"
+#include "StartupTrace.h"
 #include "StringUtils.h"
 
 #include "Calculation.h"
@@ -715,10 +717,70 @@ void SkinnedModel::ReleaseGpuResources() {
 	vertexResource_.Reset();
 }
 
+namespace {
+using DecodedTexture = std::shared_future<std::shared_ptr<DirectX::ScratchImage>>;
+struct PreparedSkinnedAsset {
+    std::shared_ptr<const SkinningModelAsset> model;
+    std::vector<DecodedTexture> textures; // Same order as model->embeddedTextures.
+};
+// The geometry import, the animation import and every embedded texture decode
+// are independent jobs, so they run on separate file threads.
+struct PreloadedSkinnedAsset {
+    std::shared_future<std::shared_ptr<const PreparedSkinnedAsset>> model;
+    std::shared_future<std::vector<Animation>> animations;
+};
+// Main-thread-only cache; workers only return independently owned CPU results.
+std::unordered_map<std::string, PreloadedSkinnedAsset> preparedSkinnedAssets;
+}
+
+void SkinnedModel::PreloadAsset(const std::string& filePath) {
+    if (preparedSkinnedAssets.contains(filePath)) return;
+    auto& loader = BackgroundLoader::Get();
+    PreloadedSkinnedAsset preload;
+    preload.model = loader.Submit([filePath]() -> std::shared_ptr<const PreparedSkinnedAsset> {
+        StartupTrace::Scope scope("FileThread.SkinnedModel." + filePath);
+        auto prepared = std::make_shared<PreparedSkinnedAsset>();
+        auto model = std::make_shared<const SkinningModelAsset>(SkinningModelLoader::LoadFromFile(filePath));
+        prepared->model = model;
+        // Submitting from a worker never waits, so it cannot deadlock the pool.
+        for (size_t index = 0; index < model->embeddedTextures.size(); ++index) {
+            prepared->textures.push_back(BackgroundLoader::Get().Submit([model, index, filePath] {
+                StartupTrace::Scope textureScope("FileThread.SkinnedTexture." + filePath);
+                const auto& texture = model->embeddedTextures[index];
+                return TextureManager::DecodeTextureMemory(texture.encodedData.data(), texture.encodedData.size(),
+                    texture.linearData ? TextureManager::TextureColorSpace::LinearData : TextureManager::TextureColorSpace::SRGB);
+            }));
+        }
+        return prepared;
+    });
+    preload.animations = loader.Submit([filePath] {
+        StartupTrace::Scope scope("FileThread.SkinnedAnimation." + filePath);
+        try { return AnimationLoader::LoadAllFromFile(filePath); }
+        catch (const std::exception&) { return std::vector<Animation>{}; } // Static skinned models use BindPose.
+    });
+    preparedSkinnedAssets.emplace(filePath, std::move(preload));
+}
+
+void SkinnedModel::ClearPreloadedAssets() { preparedSkinnedAssets.clear(); }
+
 void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, const std::string& filePath) {
 	dxCommon_ = dxCommon;
 	srvManager_ = srvManager;
-	asset_ = SkinningModelLoader::LoadFromFile(filePath);
+    std::shared_ptr<const PreparedSkinnedAsset> prepared;
+    std::vector<Animation> preparedAnimations;
+    if (auto found = preparedSkinnedAssets.find(filePath); found != preparedSkinnedAssets.end()) {
+        StartupTrace::Scope waitScope("SkinnedModel.WaitForFileThread");
+        try {
+            prepared = found->second.model.get();
+            preparedAnimations = found->second.animations.get();
+        } catch (const std::exception& error) {
+            LogWrite().Log("[BackgroundLoader] Skinned model fallback: " + std::string(error.what()) + "\n");
+            prepared.reset();
+            preparedSkinnedAssets.erase(found);
+        }
+    }
+    asset_ = prepared ? *prepared->model : SkinningModelLoader::LoadFromFile(filePath);
+    if (prepared) StartupTrace::Count("SkinnedModels.BackgroundUsed");
 	TextureManager::GetInstance()->CreateFlatNormalTexture();
 	TextureManager::GetInstance()->CreateBrdfLutTexture();
 	TextureManager::GetInstance()->CreatePbrIrradianceTexture();
@@ -735,7 +797,8 @@ void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, c
 	skeleton_ = SkeletonSystem::Create(asset_.rootNode);
 	skinCluster_ = SkinCluster::Create(skeleton_, asset_);
 	try {
-		animations_ = AnimationLoader::LoadAllFromFile(filePath);
+        animations_ = prepared ? std::move(preparedAnimations) : AnimationLoader::LoadAllFromFile(filePath);
+        if (animations_.empty()) throw std::runtime_error("No animations; use BindPose");
 		currentAnimationIndex_ = 0;
 		animationPlayer_.SetAnimation(&animations_[currentAnimationIndex_]);
 	} catch (const std::exception&) {
@@ -752,12 +815,24 @@ void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, c
 
 	std::unordered_set<std::string> embeddedTextureKeys;
 	std::unordered_set<std::string> failedEmbeddedTextureKeys;
-	for (const SkinningModelAsset::EmbeddedTexture& embedded : asset_.embeddedTextures) {
+    size_t preparedTextureIndex = 0;
+    for (const SkinningModelAsset::EmbeddedTexture& embedded : asset_.embeddedTextures) {
 		const TextureManager::TextureColorSpace colorSpace = embedded.linearData
 			? TextureManager::TextureColorSpace::LinearData
 			: TextureManager::TextureColorSpace::SRGB;
-		if (TextureManager::GetInstance()->LoadTextureFromMemory(
-			embedded.textureKey, embedded.encodedData.data(), embedded.encodedData.size(), colorSpace)) {
+        std::shared_ptr<DirectX::ScratchImage> image;
+        if (prepared && preparedTextureIndex < prepared->textures.size()) {
+            try { image = prepared->textures[preparedTextureIndex].get(); }
+            catch (const std::exception&) {} // Decode again synchronously below.
+        }
+        ++preparedTextureIndex;
+        bool loaded = false;
+        if (image) {
+            TextureManager::GetInstance()->RegisterPreparedTexture(embedded.textureKey, colorSpace, *image);
+            loaded = true;
+        } else loaded = TextureManager::GetInstance()->LoadTextureFromMemory(
+            embedded.textureKey, embedded.encodedData.data(), embedded.encodedData.size(), colorSpace);
+        if (loaded) {
 			embeddedTextureKeys.insert(embedded.textureKey);
 		} else {
 			failedEmbeddedTextureKeys.insert(embedded.textureKey);

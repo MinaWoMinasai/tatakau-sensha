@@ -14,7 +14,7 @@ namespace cg2 {
 
 using namespace Microsoft::WRL;
 
-void DirectXCommon::Initialize(WinApp* winApp)
+void DirectXCommon::Initialize(WinApp* winApp, bool titleFirst)
 {
 	StartupTrace::Scope startupScope("DirectXCommon.Initialize");
 	assert(winApp);
@@ -36,7 +36,9 @@ void DirectXCommon::Initialize(WinApp* winApp)
 	CreateDXCCompiler();
 	InitializeImGui();
 
-	{ StartupTrace::Scope scope("DirectXCommon.AllPipelines"); CreateShader(); }
+	pipelineTask_ = BuildPipelines();
+    if (titleFirst) InitializePipelinesStep(); // Only the three sprite pipelines.
+    else CreateShader();
 }
 
 void DirectXCommon::PreDraw()
@@ -405,6 +407,21 @@ void DirectXCommon::CreateComputeShaderCommon(PSO& pso, const std::wstring& shad
 
 void DirectXCommon::CreateShader()
 {
+    StartupTrace::Scope scope("DirectXCommon.AllPipelines");
+    while (!InitializePipelinesStep()) {}
+}
+
+bool DirectXCommon::InitializePipelinesStep()
+{
+    if (pipelinesReady_) return true;
+    StartupTrace::Scope scope("DirectXCommon.PipelineStep");
+    pipelinesReady_ = pipelineTask_.Advance();
+    if (pipelinesReady_) StartupTrace::Mark("engine.pipelines_ready");
+    return pipelinesReady_;
+}
+
+InitializationTask DirectXCommon::BuildPipelines()
+{
 	objectPSO_None.shaderType_ = Object;
 	objectPSO_Alpha.shaderType_ = Object;
 	objectPSO_Add.shaderType_ = Object;
@@ -491,56 +508,107 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(objectPSO_None, kNone);
 	CreateShaderCommon(objectPSO_Alpha, kNormal);
 	CreateShaderCommon(objectPSO_Add, kAdd);
+	co_await std::suspend_always{};
 	CreateShaderCommon(objectPSO_None_HDR, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(objectPSO_Alpha_HDR, kNormal, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(objectPSO_Add_HDR, kAdd, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(oceanPSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(psoParticle_, kAdd);
+	co_await std::suspend_always{};
 	CreateShaderCommon(psoModelParticle_, kAdd);
+	co_await std::suspend_always{};
 	CreateShaderCommon(psoModelParticle_HDR, kAdd, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateComputeShaderCommon(psoInitializeParticle_, L"resources/shaders/ParticleInitialize.CS.hlsl");
+	co_await std::suspend_always{};
 	CreateComputeShaderCommon(psoEmitParticle_, L"resources/shaders/ParticleEmit.CS.hlsl");
+	co_await std::suspend_always{};
 	CreateComputeShaderCommon(psoEmitBatchParticle_, L"resources/shaders/ParticleEmitBatch.CS.hlsl");
+	co_await std::suspend_always{};
 	CreateComputeShaderCommon(psoComputeParticle_, L"resources/shaders/ParticleUpdate.CS.hlsl");
+	co_await std::suspend_always{};
 	CreateShaderCommon(bloomPSO, kNone);
+	co_await std::suspend_always{};
 	CreateShaderCommon(bloomPSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(blurHPSO, kNone);
+	co_await std::suspend_always{};
 	CreateShaderCommon(blurHPSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(blurVPSO, kNone);
+	co_await std::suspend_always{};
 	CreateShaderCommon(blurVPSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(gaussianFilterPSO, kNone);
+	co_await std::suspend_always{};
 	CreateShaderCommon(conpositePSO, kAdd);
+	co_await std::suspend_always{};
 	CreateShaderCommon(objectPostCompositePSO, kNormal);
+	co_await std::suspend_always{};
 	CreateShaderCommon(objectPostOutlineAddPSO, kAdd);
+	co_await std::suspend_always{};
 	CreateShaderCommon(objectPostBloomAddPSO, kAdd);
+	co_await std::suspend_always{};
 	CreateShaderCommon(objectPostCompositePSO_HDR, kNormal, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(objectPostOutlineAddPSO_HDR, kAdd, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(objectPostBloomAddPSO_HDR, kAdd, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(randomPSO, kNone);
+	co_await std::suspend_always{};
 	CreateShaderCommon(randomPSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(ssaoResolvePSO, kNone, false, kAmbientOcclusionBufferFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(ssaoDenoisePSO, kNone, false, kAmbientOcclusionBufferFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(ssrResolvePSO, kNone);
+	co_await std::suspend_always{};
 	CreateShaderCommon(ssrResolvePSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(ssrDenoisePSO, kNone);
+	co_await std::suspend_always{};
 	CreateShaderCommon(ssrDenoisePSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(motionVectorResolvePSO, kNone, false, kMotionVectorBufferFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(temporalResolvePSO, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(phosphorPersistencePSO, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(crtPresentPSO, kNone);
+	co_await std::suspend_always{};
 	CreateShaderCommon(downsamplePSO, kNone);
+	co_await std::suspend_always{};
 	CreateShaderCommon(downsamplePSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(shadowPSO, kShadow);
+	co_await std::suspend_always{};
 	CreateShaderCommon(trailPSO, kAdd);
+	co_await std::suspend_always{};
 	CreateShaderCommon(trailPSO_HDR, kAdd, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(hudRectPSO, kNormal);
+	co_await std::suspend_always{};
 	CreateShaderCommon(skyboxPSO, kNone);
+	co_await std::suspend_always{};
 	CreateShaderCommon(skyboxPSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(skinningPSO, kNone);
+	co_await std::suspend_always{};
 	CreateShaderCommon(skinningDoubleSidedPSO, kNone, true);
+	co_await std::suspend_always{};
 	CreateShaderCommon(skinningPSO_HDR, kNone, false, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(skinningDoubleSidedPSO_HDR, kNone, true, kSceneRenderTargetFormat);
+	co_await std::suspend_always{};
 	CreateShaderCommon(skinningShadowPSO, kShadow);
+	co_await std::suspend_always{};
 }
 
 
@@ -1349,89 +1417,91 @@ void DirectXCommon::UpdateFixFPS()
 }
 
 void DirectXCommon::Release() {
+    pipelineTask_ = {}; // A title can close before every PSO exists.
+    const auto releaseIfCreated = [](IUnknown* object) { if (object) object->Release(); };
 
-	objectPSO_None.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(objectPSO_None.root_.GetSignatureBlob());
 	if (objectPSO_None.root_.GetErrorBlob()) {
 		objectPSO_None.root_.GetErrorBlob()->Release();
 	}
-	objectPSO_None.pixelShaderBlob_->Release();
-	objectPSO_None.vertexShaderBlob_->Release();
+	releaseIfCreated(objectPSO_None.pixelShaderBlob_);
+	releaseIfCreated(objectPSO_None.vertexShaderBlob_);
 
-	objectPSO_Alpha.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(objectPSO_Alpha.root_.GetSignatureBlob());
 	if (objectPSO_Alpha.root_.GetErrorBlob()) {
 		objectPSO_Alpha.root_.GetErrorBlob()->Release();
 	}
-	objectPSO_Alpha.pixelShaderBlob_->Release();
-	objectPSO_Alpha.vertexShaderBlob_->Release();
+	releaseIfCreated(objectPSO_Alpha.pixelShaderBlob_);
+	releaseIfCreated(objectPSO_Alpha.vertexShaderBlob_);
 
-	shadowPSO.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(shadowPSO.root_.GetSignatureBlob());
 	if (shadowPSO.root_.GetErrorBlob()) {
 		shadowPSO.root_.GetErrorBlob()->Release();
 	}
-	shadowPSO.vertexShaderBlob_->Release();
+	releaseIfCreated(shadowPSO.vertexShaderBlob_);
 
-	bloomPSO.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(bloomPSO.root_.GetSignatureBlob());
 	if (bloomPSO.root_.GetErrorBlob()) {
 		bloomPSO.root_.GetErrorBlob()->Release();
 	}
-	bloomPSO.pixelShaderBlob_->Release();
-	bloomPSO.vertexShaderBlob_->Release();
+	releaseIfCreated(bloomPSO.pixelShaderBlob_);
+	releaseIfCreated(bloomPSO.vertexShaderBlob_);
 
-	downsamplePSO.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(downsamplePSO.root_.GetSignatureBlob());
 	if (downsamplePSO.root_.GetErrorBlob()) {
 		downsamplePSO.root_.GetErrorBlob()->Release();
 	}
-	downsamplePSO.pixelShaderBlob_->Release();
-	downsamplePSO.vertexShaderBlob_->Release();
+	releaseIfCreated(downsamplePSO.pixelShaderBlob_);
+	releaseIfCreated(downsamplePSO.vertexShaderBlob_);
 
-	blurHPSO.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(blurHPSO.root_.GetSignatureBlob());
 	if (blurHPSO.root_.GetErrorBlob()) {
 		blurHPSO.root_.GetErrorBlob()->Release();
 	}
-	blurHPSO.pixelShaderBlob_->Release();
-	blurHPSO.vertexShaderBlob_->Release();
+	releaseIfCreated(blurHPSO.pixelShaderBlob_);
+	releaseIfCreated(blurHPSO.vertexShaderBlob_);
 
-	blurVPSO.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(blurVPSO.root_.GetSignatureBlob());
 	if (blurVPSO.root_.GetErrorBlob()) {
 		blurVPSO.root_.GetErrorBlob()->Release();
 	}
-	blurVPSO.pixelShaderBlob_->Release();
-	blurVPSO.vertexShaderBlob_->Release();
+	releaseIfCreated(blurVPSO.pixelShaderBlob_);
+	releaseIfCreated(blurVPSO.vertexShaderBlob_);
 
-	gaussianFilterPSO.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(gaussianFilterPSO.root_.GetSignatureBlob());
 	if (gaussianFilterPSO.root_.GetErrorBlob()) {
 		gaussianFilterPSO.root_.GetErrorBlob()->Release();
 	}
-	gaussianFilterPSO.pixelShaderBlob_->Release();
-	gaussianFilterPSO.vertexShaderBlob_->Release();
+	releaseIfCreated(gaussianFilterPSO.pixelShaderBlob_);
+	releaseIfCreated(gaussianFilterPSO.vertexShaderBlob_);
 
-	conpositePSO.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(conpositePSO.root_.GetSignatureBlob());
 	if (conpositePSO.root_.GetErrorBlob()) {
 		conpositePSO.root_.GetErrorBlob()->Release();
 	}
-	conpositePSO.pixelShaderBlob_->Release();
-	conpositePSO.vertexShaderBlob_->Release();
+	releaseIfCreated(conpositePSO.pixelShaderBlob_);
+	releaseIfCreated(conpositePSO.vertexShaderBlob_);
 
-	randomPSO.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(randomPSO.root_.GetSignatureBlob());
 	if (randomPSO.root_.GetErrorBlob()) {
 		randomPSO.root_.GetErrorBlob()->Release();
 	}
-	randomPSO.pixelShaderBlob_->Release();
-	randomPSO.vertexShaderBlob_->Release();
+	releaseIfCreated(randomPSO.pixelShaderBlob_);
+	releaseIfCreated(randomPSO.vertexShaderBlob_);
 
-	trailPSO.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(trailPSO.root_.GetSignatureBlob());
 	if (trailPSO.root_.GetErrorBlob()) {
 		trailPSO.root_.GetErrorBlob()->Release();
 	}
-	trailPSO.pixelShaderBlob_->Release();
-	trailPSO.vertexShaderBlob_->Release();
+	releaseIfCreated(trailPSO.pixelShaderBlob_);
+	releaseIfCreated(trailPSO.vertexShaderBlob_);
 
-	hudRectPSO.root_.GetSignatureBlob()->Release();
+	releaseIfCreated(hudRectPSO.root_.GetSignatureBlob());
 	if (hudRectPSO.root_.GetErrorBlob()) {
 		hudRectPSO.root_.GetErrorBlob()->Release();
 	}
-	hudRectPSO.pixelShaderBlob_->Release();
-	hudRectPSO.vertexShaderBlob_->Release();
+	releaseIfCreated(hudRectPSO.pixelShaderBlob_);
+	releaseIfCreated(hudRectPSO.vertexShaderBlob_);
 
 }
 

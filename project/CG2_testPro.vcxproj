@@ -464,6 +464,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectX\engine\audio\AudioManager.h" />
+    <ClInclude Include="DirectX\engine\commom\BackgroundLoader.h" />
+    <ClInclude Include="DirectX\engine\commom\InitializationTask.h" />
     <ClInclude Include="DirectX\engine\commom\CylinderManager.h" />
     <ClInclude Include="DirectX\engine\commom\NeonGridRenderer.h" />
     <ClInclude Include="DirectX\engine\commom\NeonGridGeometry.h" />

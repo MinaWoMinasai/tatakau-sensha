@@ -30,6 +30,22 @@ using namespace detail;
 
 void SessionBootstrap::Initialize()
 {
+    cg2::StartupTrace::Scope scope(world_.demo.titleDemo_ ? "GameScene.Initialize.Demo" : "GameScene.Initialize.Play");
+    while (!InitializeStep()) {}
+}
+
+bool SessionBootstrap::InitializeStep()
+{
+    cg2::ModelManager::GetInstance()->PumpPreloads();
+    if (!cg2::ModelManager::GetInstance()->ArePreloadsReady() ||
+        !cg2::TextureManager::GetInstance()->ArePreloadsReady()) return false;
+    if (!task_) task_ = Build();
+    cg2::StartupTrace::Scope scope("GameScene.InitializeStep");
+    return task_.Advance();
+}
+
+cg2::InitializationTask SessionBootstrap::Build()
+{
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
     wchar_t bossTest[8]{};
     world_.resources.neonBossAutoTest_ = GetEnvironmentVariableW(L"CG2_NEON_BOSS_AUTOTEST", bossTest, 8) > 0 && bossTest[0] == L'1';
@@ -38,7 +54,7 @@ void SessionBootstrap::Initialize()
         cg2::ParticleManager::GetInstance()->SetPresentationSeed(GameplayScenarioSession::Get().GetSettings().seed);
     }
 #endif
-    cg2::StartupTrace::Scope startupScope(world_.demo.titleDemo_ ? "GameScene.Initialize.Demo" : "GameScene.Initialize.Play");
+    cg2::StartupTrace::Mark(world_.demo.titleDemo_ ? "demo.initialize_begin" : "gameplay.initialize_begin");
 
     world_.resources.worldTransform_ = cg2::InitWorldTransform();
 
@@ -71,8 +87,9 @@ void SessionBootstrap::Initialize()
     }
 #endif
 
+    co_await std::suspend_always{};
     {
-        cg2::StartupTrace::Scope scope("GameScene.ObjectPostEffects");
+        cg2::StartupTrace::Mark("GameScene.ObjectPostEffects");
         world_.resources.playerPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
         world_.resources.playerPostEffect_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),
                                                        cg2::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f);
@@ -88,6 +105,7 @@ void SessionBootstrap::Initialize()
             playerPost.outlineBloomWidth = 2.7f;
         }
 
+    co_await std::suspend_always{};
         world_.resources.enemyPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
         world_.resources.enemyPostEffect_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),
                                                       cg2::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f);
@@ -103,6 +121,7 @@ void SessionBootstrap::Initialize()
             enemyPost.outlineBloomWidth = 2.7f;
         }
 
+    co_await std::suspend_always{};
         world_.resources.expEnemyPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
         world_.resources.expEnemyPostEffect_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),
                                                          cg2::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f);
@@ -119,6 +138,7 @@ void SessionBootstrap::Initialize()
             expEnemyPost.outlineBloomWidth = 2.7f;
         }
 
+    co_await std::suspend_always{};
         world_.resources.stagePostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
         world_.resources.stagePostEffect_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),
                                                       cg2::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f);
@@ -135,6 +155,7 @@ void SessionBootstrap::Initialize()
             stagePost.outlineBloomWidth = 0.0f;
         }
 
+    co_await std::suspend_always{};
         world_.resources.neonGridPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
         world_.resources.neonGridPostEffect_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),
                                                          cg2::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 1.0f);
@@ -149,6 +170,7 @@ void SessionBootstrap::Initialize()
             gridPost.outlineBloomWidth = 0.0f;
         }
 
+    co_await std::suspend_always{};
         world_.resources.bulletTrailPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
         world_.resources.bulletTrailPostEffect_->Initialize(
             cg2::Object3dCommon::GetInstance()->GetDxCommon(), cg2::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f,
@@ -167,6 +189,7 @@ void SessionBootstrap::Initialize()
             bulletTrailPost.outlineBloomWidth = 0.0f;
         }
 
+    co_await std::suspend_always{};
         world_.resources.particlePostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
         world_.resources.particlePostEffect_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),
                                                          cg2::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 1.0f);
@@ -182,6 +205,7 @@ void SessionBootstrap::Initialize()
             particlePost.outlineBloomWidth = 0.0f;
         }
 
+    co_await std::suspend_always{};
         world_.resources.sharedObjectBloomPostEffect_ = std::make_unique<cg2::ObjectPostEffect>();
         world_.resources.sharedObjectBloomPostEffect_->Initialize(
             cg2::Object3dCommon::GetInstance()->GetDxCommon(), cg2::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f,
@@ -200,8 +224,9 @@ void SessionBootstrap::Initialize()
         world_.gameplaySettings->LoadGamePostEffectConfig();
     }
 
+    co_await std::suspend_always{};
     {
-        cg2::StartupTrace::Scope scope("GameScene.WorldAndActors");
+        cg2::StartupTrace::Mark("GameScene.WorldAndActors");
         world_.resources.enemyObject_ = std::make_unique<cg2::Object3d>();
         world_.resources.enemyObject_->Initialize();
 
@@ -223,6 +248,7 @@ void SessionBootstrap::Initialize()
         world_.resources.ball_->SetTranslate(cg2::Vector3(-20.0f, 0.0f, 0.0f));
         world_.resources.ball_->Update();
 
+    co_await std::suspend_always{};
         world_.resources.groundObj_ = std::make_unique<cg2::Object3d>();
         world_.resources.groundObj_->Initialize();
         world_.resources.groundObj_->SetModel("ground.obj");
@@ -233,6 +259,7 @@ void SessionBootstrap::Initialize()
         world_.resources.skybox_->Initialize("resources/skybox.dds");
         const uint32_t skyboxTextureIndex = cg2::TextureManager::GetInstance()->GetSrvIndex("resources/skybox.dds");
 
+    co_await std::suspend_always{};
         world_.resources.enemyObject_->SetModel("enemy3D.obj");
         world_.resources.enemyObject_->SetLighting(true);
         world_.resources.enemyObject_->SetEnvironmentMap(skyboxTextureIndex);
@@ -247,9 +274,12 @@ void SessionBootstrap::Initialize()
 
         world_.resources.ball_->SetModel("jewelry.obj");
 
+    co_await std::suspend_always{};
         world_.resources.stage_ = std::make_unique<Stage>();
-        world_.resources.stage_->Initialize();
+        auto stage = world_.resources.stage_->BuildInitialization();
+        while (!stage.Advance()) co_await std::suspend_always{};
 
+    co_await std::suspend_always{};
         // 弾マネージャの生成
         world_.resources.bulletManager_ = std::make_unique<BulletManager>();
         world_.resources.bulletManager_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(), cg2::Object3dCommon::GetInstance());
@@ -269,10 +299,12 @@ void SessionBootstrap::Initialize()
             }
         }
 
+    co_await std::suspend_always{};
         world_.resources.player_ = std::make_unique<Player>();
         world_.resources.player_->Initialize(world_.resources.playerObject_.get(), playerSpawnPosition, !world_.run.expeditionRun_);
         world_.resources.player_->SetAttackControllerBulletManager(world_.resources.bulletManager_.get());
 
+    co_await std::suspend_always{};
         // 敵キャラの生成
         world_.resources.enemy_ = std::make_unique<Enemy>();
         // 敵キャラの初期化
@@ -295,6 +327,7 @@ void SessionBootstrap::Initialize()
         world_.resources.enemy_->Initialize(world_.resources.enemyObject_.get(), bossSpawnPosition, world_.resources.stage_.get());
         world_.resources.enemy_->SetAttackControllerBulletManager(world_.resources.bulletManager_.get());
 
+    co_await std::suspend_always{};
         // 経験値敵マネージャの生成
         world_.resources.enemyManager_ = std::make_unique<EnemyManager>();
         world_.resources.enemyManager_->Initialize(world_.resources.player_.get(), world_.resources.bulletManager_.get(),
@@ -319,8 +352,9 @@ void SessionBootstrap::Initialize()
         }
     }
 
+    co_await std::suspend_always{};
     {
-        cg2::StartupTrace::Scope scope("GameScene.PresentationAndUi");
+        cg2::StartupTrace::Mark("GameScene.PresentationAndUi");
         // 衝突マネージャの生成
         world_.resources.collisionManager_ = std::make_unique<CollisionManager>();
         world_.resources.collisionDebugRingManager_ = std::make_unique<cg2::RingManager>();
@@ -335,6 +369,7 @@ void SessionBootstrap::Initialize()
                                                               cg2::Object3dCommon::GetInstance(), "resources/white512x512.png");
         world_.gameplaySettings->LoadGameVisualConfig();
 
+    co_await std::suspend_always{};
         world_.combat.fade_ = std::make_unique<Fade>();
         world_.combat.fade_->Initialize();
         world_.combat.fade_->Start(Fade::Status::FadeIn, 1.0f);
@@ -363,6 +398,7 @@ void SessionBootstrap::Initialize()
         world_.combat.toTitleGide->SetPosition({20.0f, 610.0f});
         world_.combat.toTitleGide->SetSize({200.0f, 50.0f});
 
+    co_await std::suspend_always{};
         world_.combat.dashGuideText_ = std::make_unique<cg2::TextLabel>();
         world_.combat.dashGuideText_->InitializeFromJson(cg2::SpriteCommon::GetInstance(), "resources/configs/gameText.json", "dashGuide");
 
@@ -373,6 +409,7 @@ void SessionBootstrap::Initialize()
         world_.combat.titleGuideText_->InitializeFromJson(cg2::SpriteCommon::GetInstance(), "resources/configs/gameText.json",
                                                           "titleGuide");
 
+    co_await std::suspend_always{};
         cg2::TextStyle controlGuideStyle{};
         controlGuideStyle.fontFamily = "Meiryo";
         controlGuideStyle.fontSize = 14.0f;
@@ -408,20 +445,26 @@ void SessionBootstrap::Initialize()
         world_.combat.postProfileText_->SetPosition({16.0f, 46.0f});
 #endif // !defined(NDEBUG)
 
+    co_await std::suspend_always{};
         world_.gameplayHud->InitializeFollowHpBarBatch();
         world_.combatTutorial->InitializeSubmissionUi();
         world_.combat.gameTextNeonEffect_ = std::make_unique<NeonTextEffect>();
         world_.combat.gameTextNeonEffect_->Initialize(cg2::Object3dCommon::GetInstance()->GetDxCommon(),
                                                       cg2::Object3dCommon::GetInstance()->GetSrvManager());
         world_.gameplayHud->ApplyGameTextAppearance();
+    co_await std::suspend_always{};
         world_.combatTutorial->InitializeTutorialUi();
         if (cg2::kDeveloperTools)
             world_.classConfigWatcher->InitializePlayerClassConfigWatch();
     }
-    if (world_.run.prototypeRun_)
-        world_.arenaRunController->InitializeTankRun();
+    if (world_.run.prototypeRun_) {
+        auto run = world_.arenaRunController->BuildInitialization();
+        while (!run.Advance()) co_await std::suspend_always{};
+    }
+    co_await std::suspend_always{};
     world_.combat.previousPlayerHp_ = world_.resources.player_ ? world_.resources.player_->GetHp() : 0;
     world_.combat.previousBossHp_ = world_.resources.enemy_ ? world_.resources.enemy_->GetHp() : 0;
+    co_await std::suspend_always{};
     if (world_.demo.titleDemo_)
         world_.titleDemoController->InitializeTitleDemo();
     if (!world_.demo.titleDemo_) {
@@ -439,5 +482,6 @@ void SessionBootstrap::Initialize()
     world_.gameplayScenarioRunner->InitializeGameplayScenario();
     world_.routeReplay->InitializeNormalRouteReplay();
 #endif
+    cg2::StartupTrace::Mark(world_.demo.titleDemo_ ? "demo.initialize_ready" : "gameplay.initialize_ready");
 }
 } // namespace gameplay

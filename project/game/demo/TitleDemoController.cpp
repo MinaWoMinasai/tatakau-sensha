@@ -1,4 +1,5 @@
 #include "game/demo/TitleDemoController.h"
+#include "StartupTrace.h"
 #include "game/session/GameplaySystems.h"
 #include "game/weapon/CombatTypes.h"
 #include "game/player/TankRunModifiers.h"
@@ -103,7 +104,9 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
     world_.combat.bossDefeatHandled_ = world_.combat.playerDeathHandled_ = false;
     world_.combat.bossEntryTriggered_ = true;
     world_.combat.timeScale_ = 1;
-    world_.combat.screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json");
+    cg2::StartupTrace::Scope traceScope("TitleDemo.ResetStage");
+    { cg2::StartupTrace::Scope scope("TitleDemo.ScreenEffects");
+    world_.combat.screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json"); }
     // A normal expedition has four room rewards plus at most one event card.
     // Do not let a late showcase collect a sixth, unattainable modification.
     tankrun::Config config;
@@ -129,6 +132,7 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
         if (world_.run.tankRun_.OpenRewardDraft(false, cards[i]))
             world_.run.tankRun_.ChooseCard(0);
     }
+    cg2::StartupTrace::Mark("TitleDemo.CardsChosen");
     if (stage > 0)
         world_.arenaRunController->ApplyTankRunCards();
     if (stage >= 2) {
@@ -164,7 +168,8 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
             break;
         }
     }
-    world_.expeditionController->StartTankExpeditionRoom();
+    { cg2::StartupTrace::Scope scope("TitleDemo.StartRoom");
+    world_.expeditionController->StartTankExpeditionRoom(); }
     world_.resources.player_->SetDebugNoDamage(true);
     world_.resources.player_->SetDemoInput(true, {}, world_.resources.player_->GetWorldPosition() + cg2::Vector3{1, 0, 0}, false, false);
     world_.run.tankRunMenuAge_ = 0;

@@ -59,15 +59,28 @@ const char* TutorialSettingsPath()
 void ExpeditionController::InitializeTankExpedition()
 {
     cg2::StartupTrace::Scope scope("Expedition.Initialize");
+    auto initialization = BuildInitialization();
+    while (!initialization.Advance()) {}
+}
+
+cg2::InitializationTask ExpeditionController::BuildInitialization()
+{
+
     world_.resources.player_->SetRunCheckpointEvolution(true);
     world_.resources.enemy_->SetRunEncounterEnabled(false);
     world_.resources.enemyManager_->ClearRunActors();
     world_.resources.bulletManager_->ClearAll();
-    world_.resources.stage_->LoadRunMap("resources/maps/expedition_crossfire.csv");
+    // The title demo's ResetTitleDemoStage() loads its room map right after this
+    // initialization, so building the same blocks here would be discarded work.
+    if (!world_.demo.titleDemo_ && world_.resources.stage_->LoadRunMap("resources/maps/expedition_crossfire.csv", true)) {
+        auto blocks = world_.resources.stage_->BuildBlocks();
+        while (!blocks.Advance()) co_await std::suspend_always{};
+    }
     world_.presentation.stagePostCacheValid_ = false;
     world_.resources.player_->ResetRunRoomState({26, 28, 0});
     world_.resources.camera->SetTranslate({26, 28, world_.resources.camera->GetTranslate().z});
     world_.resources.camera->Update();
+    co_await std::suspend_always{};
     cg2::TextStyle style{};
     style.fontFamily = "Meiryo";
     style.fontSize = 14;
@@ -109,6 +122,7 @@ void ExpeditionController::InitializeTankExpedition()
         item->SetPosition(position);
         return item;
     };
+    co_await std::suspend_always{};
     world_.run.tankExpeditionHpTrack_ = panel({24, 53}, {230, 6}, {0.10f, 0.16f, 0.21f, 0.9f});
     world_.run.tankExpeditionHpFill_ = panel({24, 53}, {230, 6}, {0.23f, 1.0f, 0.65f, 1});
     world_.run.tankExpeditionExpTrack_ = panel({24, 702}, {1232, 6}, {0.10f, 0.16f, 0.21f, 0.9f});
@@ -118,6 +132,7 @@ void ExpeditionController::InitializeTankExpedition()
     world_.run.tankExpeditionDetailsText_ = label(18, {280, 140}, {0.83f, 0.94f, 1, 1});
     // Reuse the existing Tutorial UI primitives, but keep expedition progression
     // separate from the arena's combat-suppressing introduction.
+    co_await std::suspend_always{};
     world_.combat.tutorialPanel_ = panel({410, 596}, {460, 70}, {0.008f, 0.025f, 0.04f, 0.84f});
     world_.combat.tutorialTitleText_ = label(12, {640, 601}, {0.43f, 0.81f, 0.93f, 1});
     world_.combat.tutorialInputText_ = label(20, {640, 620}, {0.93f, 1, 1, 1});
@@ -125,6 +140,7 @@ void ExpeditionController::InitializeTankExpedition()
     world_.combat.tutorialTitleText_->SetAnchorPoint({0.5f, 0});
     world_.combat.tutorialInputText_->SetAnchorPoint({0.5f, 0});
     world_.combat.tutorialDescriptionText_->SetAnchorPoint({0.5f, 0});
+    co_await std::suspend_always{};
     bool completed = false;
     try {
         std::ifstream f(TutorialSettingsPath());
@@ -155,7 +171,10 @@ void ExpeditionController::InitializeTankExpedition()
     world_.run.tankExpeditionTutorialKills_ = world_.combat.defeatedEnemies_;
     world_.expeditionBalanceEditor->InitializeTankExpeditionBalance();
     if (!world_.demo.titleDemo_ && !world_.run.tankRunAutoTest_ && !world_.run.tankExpeditionTutorialValidation_.enabled)
-        world_.expeditionMapController->InitializeExpeditionMap();
+    {
+        auto map = world_.expeditionMapController->BuildInitialization();
+        while (!map.Advance()) co_await std::suspend_always{};
+    }
     wchar_t variant[16]{};
     if (GetEnvironmentVariableW(L"CG2_TANK_EXPEDITION_VARIANT", variant, 16) > 0)
         world_.run.tankExpeditionAutoVariant_ = (std::clamp)(_wtoi(variant), 0, 5);

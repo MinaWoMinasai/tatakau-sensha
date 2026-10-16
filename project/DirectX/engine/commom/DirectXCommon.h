@@ -15,6 +15,7 @@
 #include "Struct.h"
 #include "Texture.h"
 #include "FramePacer.h"
+#include "InitializationTask.h"
 
 namespace cg2 {
 
@@ -125,7 +126,9 @@ public:
     };
 
     /// @brief 初期化
-    void Initialize(WinApp* winApp);
+    void Initialize(WinApp* winApp, bool titleFirst = false);
+    bool InitializePipelinesStep();
+    bool ArePipelinesReady() const { return pipelinesReady_; }
 
     /// @brief 描画前処理
     void PreDraw();
@@ -628,6 +631,9 @@ private:
     void CreateComputeShaderCommon(PSO& pso, const std::wstring& shaderPath);
     /// @brief シェーダーを生成する。
     void CreateShader();
+    InitializationTask BuildPipelines();
+    InitializationTask pipelineTask_;
+    bool pipelinesReady_ = false;
     /// @brief Graphicsを生成する。
     void CreateGraphics();
 

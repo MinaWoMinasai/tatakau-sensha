@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
+#include <future>
+#include <memory>
 
 namespace cg2 {
 
@@ -26,6 +28,12 @@ public:
 
     /// @brief テクスチャを読み込む。
     void LoadTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
+    // CPU decoding runs on BackgroundLoader; registration/upload runs on main.
+    void PreloadTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
+    void PumpPreloads(unsigned maxUploads = 1);
+    bool ArePreloadsReady() const;
+    static std::shared_ptr<DirectX::ScratchImage> DecodeTextureMemory(const void* data, size_t size, TextureColorSpace colorSpace);
+    void RegisterPreparedTexture(const std::string& key, TextureColorSpace colorSpace, const DirectX::ScratchImage& image);
     /// @brief Blackコースティクステクスチャを生成する。
     void CreateBlackCausticsTexture();
     /// @brief 平面法線テクスチャを生成する。
@@ -78,6 +86,12 @@ public:
     static const std::string& GetPbrPrefilteredEnvironmentTexturePath();
 
 private:
+    struct PendingTexture {
+        std::string path;
+        TextureColorSpace colorSpace;
+        std::shared_future<std::shared_ptr<DirectX::ScratchImage>> result;
+    };
+    std::unordered_map<std::string, PendingTexture> pendingTextures_;
     /// @brief 画像のGPUリソース・メタデータ・SRVハンドルをまとめる。
     struct TextureData {
         DirectX::TexMetadata metaData;
