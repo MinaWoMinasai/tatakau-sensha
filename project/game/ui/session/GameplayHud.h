@@ -7,6 +7,7 @@ class GameplayHud {
 public:
     /// @brief 借用するワールドを設定する。
     explicit GameplayHud(GameWorld& world) : world_(world) {}
+
     /// @brief 描画
     void DrawSprite();
     /// @brief 最終ボスの登場・撃破の黒帯とタイトルを描く。
@@ -19,13 +20,13 @@ public:
     void InitializeFollowHpBarBatch();
 
     /// @brief 追従HPバーを描画する。
-    void DrawFollowHpBar(const void* ownerKey, const cg2::Vector3& worldPos, int hp, int maxHp, float width, float yOffset);
+    void DrawFollowHpBar(const void* ownerKey, const myEngine::Vector3& worldPos, int hp, int maxHp, float width, float yOffset);
 
     /// @brief 追従スタミナバーを描画する。
-    void DrawFollowStaminaBar(const cg2::Vector3& worldPos, float stamina, float maxStamina, float width, float yOffset);
+    void DrawFollowStaminaBar(const myEngine::Vector3& worldPos, float stamina, float maxStamina, float width, float yOffset);
 
     /// @brief HPバー四角形を後で処理するために予約する。
-    void QueueHpBarQuad(std::vector<cg2::VertexData>& vertices, const cg2::Vector2& center, const cg2::Vector2& size);
+    void QueueHpBarQuad(std::vector<myEngine::VertexData>& vertices, const myEngine::Vector2& center, const myEngine::Vector2& size);
 
     /// @brief HPバー一括処理を描画する。
     void DrawHpBarBatch(uint32_t startVertex, uint32_t vertexCount, const std::string& textureFilePath,
@@ -35,7 +36,7 @@ public:
     void DrawHpBarBatches();
 
     /// @brief ワールド座標をカメラの画面座標へ変換する。
-    cg2::Vector2 WorldToScreen(const cg2::Vector3& worldPos) const;
+    myEngine::Vector2 WorldToScreen(const myEngine::Vector3& worldPos) const;
 
     /// @brief ゲーム文字外観を現在の状態へ適用する。
     void ApplyGameTextAppearance();

@@ -88,7 +88,7 @@ float ApplyEasing(float t, uint easingType)
         return t * t;
     if (easingType == 2) // EaseOut (二次)
         return 1.0 - (1.0 - t) * (1.0 - t);
-    return t; // Linear
+    return t; // 線形
 }
 
 // --- 新機能: ビルボード行列生成 ---
@@ -174,8 +174,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float4 currentColor = lerp(p.startColor, p.endColor, neonRadiance ? rawT : t);
     if (neonRadiance)
     {
-        // Match the CPU path. The old EaseOut-alpha * raw-alpha product erased
-        // neon debris much earlier than its lifetime and lost its bloom source.
+        // CPU経路と合わせる。以前のEaseOutのアルファ * 元のアルファの積では、
+        // ネオンの破片が寿命よりかなり早く消え、Bloomの発光元が失われていた。
         const float hold = p.padding2 == 4.0f ? 0.0f : p.padding2 == 5.0f ? 0.08f : p.padding2 == 0.0f ? 0.10f : 0.28f;
         const float fadeT = saturate((rawT - hold) / (1.0f - hold));
         const float fade = fadeT * fadeT * (3.0f - 2.0f * fadeT);
@@ -183,7 +183,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     }
     else
     {
-        currentColor.a *= (1.0f - rawT); // Preserve ordinary GPU particles.
+        currentColor.a *= (1.0f - rawT); // 通常のGPUパーティクルはそのまま保つ。
     }
 
     // 6. 行列生成
@@ -193,8 +193,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
     {
         if (neonRadiance && p.padding2 == 3.0f && dot(p.velocity, p.velocity) > 1e-8f)
         {
-            // Align the spark with its projected travel in the same basis as
-            // MakeBillboardMatrix. World atan2 mirrored it on a front camera.
+            // MakeBillboardMatrixと同じ基底で、火花を投影後の進行方向に揃える。
+            // ワールドでのatan2では、正面のカメラで左右が反転していた。
             const float3 facing = normalize(gScene.cameraPosition - p.position);
             const float3 referenceUp = abs(facing.y) > 0.999f ? float3(0,0,1) : float3(0,1,0);
             const float3 right = normalize(cross(referenceUp, facing));
@@ -225,7 +225,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     gRenderData[drawIndex].World = world;
     gRenderData[drawIndex].WVP = mul(world, gScene.viewProjection);
     gRenderData[drawIndex].WorldInverseTranspose = transpose(world);
-    // The homogeneous element is not consumed by the normal 3x3 transform.
+    // 同次座標の要素は、法線の3x3変換では使われない。
     gRenderData[drawIndex].WorldInverseTranspose[3][3] = neonRadiance ? 2.0f + p.padding2 : 1.0f;
     gRenderData[drawIndex].color = currentColor;
 

@@ -3,7 +3,7 @@
 #include "TextureManager.h"
 #include "SrvManager.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief テクスチャを画面上の矩形として描画する。位置・色・UVをインスタンスごとに保持する。
 class Sprite {
@@ -33,6 +33,7 @@ public:
     {
         return position_;
     }
+
     /// @brief 位置を設定する。
     void SetPosition(const Vector2& position)
     {
@@ -44,6 +45,7 @@ public:
     {
         return rotation_;
     }
+
     /// @brief 回転角を設定する。
     void SetRotation(float rotation)
     {
@@ -55,6 +57,7 @@ public:
     {
         return materialData->color;
     }
+
     /// @brief 色を設定する。
     void SetColor(const Vector4& color)
     {
@@ -72,6 +75,7 @@ public:
     {
         return size_;
     }
+
     /// @brief サイズを設定する。
     void SetSize(const Vector2& size)
     {
@@ -83,6 +87,7 @@ public:
     {
         return uvTransform_;
     }
+
     /// @brief UV姿勢を設定する。
     void SetUvTransform(const Transform& uvTransform)
     {
@@ -94,6 +99,7 @@ public:
     {
         return anchorPoint_;
     }
+
     /// @brief スプライトの配置基準点を設定する。
     void SetAnchorPoint(const Vector2& anchorPoint)
     {
@@ -105,6 +111,7 @@ public:
     {
         return isFlipX_;
     }
+
     /// @brief 画像の左右反転設定を設定する。
     void SetIsFlipX(bool isFlipX)
     {
@@ -116,6 +123,7 @@ public:
     {
         return isFlipY_;
     }
+
     /// @brief 画像の上下反転設定を設定する。
     void SetIsFlipY(bool isFlipY)
     {
@@ -127,6 +135,7 @@ public:
     {
         return textureLeftTop_;
     }
+
     /// @brief 画像の切り出し開始位置を設定する。
     void SetTextureLeftTop(const Vector2& textureLeftTop)
     {
@@ -138,6 +147,7 @@ public:
     {
         return textureSize_;
     }
+
     /// @brief 画像の切り出しサイズを設定する。
     void SetTextureSize(const Vector2& textureSize)
     {
@@ -203,4 +213,4 @@ private:
     SrvManager* srvManager_ = nullptr;
 };
 
-} // namespace cg2
+} // namespace myEngine

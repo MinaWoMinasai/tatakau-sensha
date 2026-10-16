@@ -6,7 +6,7 @@
 #include "ShadowMap.h"
 #include <algorithm>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 3Dオブジェクトの描画で共有するカメラ・パイプライン・ライトを管理する。
 class Object3dCommon {
@@ -19,11 +19,13 @@ public:
 
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update();
+
     /// @brief 開発表示UI有効を設定する。
     void SetDebugUiEnabled(bool enabled)
     {
         debugUiEnabled_ = enabled;
     }
+
     /// @brief 開発表示UI有効を返す。
     bool GetDebugUiEnabled() const
     {
@@ -44,16 +46,19 @@ public:
     {
         defaultCamera_ = camera;
     }
+
     /// @brief 既定値カメラを返す。
     Camera* GetDefaultCamera()
     {
         return defaultCamera_;
     }
+
     /// @brief 開発表示既定値カメラを設定する。
     void SetDebugDefaultCamera(DebugCamera* debugCamera)
     {
         debugDefaultCamera_ = debugCamera;
     }
+
     /// @brief 開発表示カメラを返す。
     DebugCamera* GetDebugCamera()
     {
@@ -65,6 +70,7 @@ public:
     {
         return isDebugCamera_;
     }
+
     /// @brief 状態開発表示カメラを設定する。
     void SetIsDebugCamera(bool isDebugCamera)
     {
@@ -100,21 +106,25 @@ public:
     {
         return lightDir_;
     }
+
     /// @brief 影注目点を設定する。
     void SetShadowFocus(const Vector3& focus)
     {
         shadowFocus_ = focus;
     }
+
     /// @brief 影範囲を設定する。
     void SetShadowRange(float range)
     {
         shadowRange_ = (std::max)(range, 1.0f);
     }
+
     /// @brief 影注目点を返す。
     const Vector3& GetShadowFocus() const
     {
         return shadowFocus_;
     }
+
     /// @brief 影範囲を返す。
     float GetShadowRange() const
     {
@@ -140,4 +150,4 @@ private:
     float shadowRange_ = 500.0f;
 };
 
-} // namespace cg2
+} // namespace myEngine

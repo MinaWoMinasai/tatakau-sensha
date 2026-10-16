@@ -5,13 +5,19 @@
 #include <stdexcept>
 #include <string>
 
-namespace cg2 {
+namespace myEngine {
 namespace {
-float FiniteClamp(float value, float fallback, float minimum, float maximum) {
+float FiniteClamp(float value, float fallback, float minimum, float maximum)
+{
     return (std::clamp)(std::isfinite(value) ? value : fallback, minimum, maximum);
 }
-void Check(HRESULT result, const char* message) {
-    if (FAILED(result)) throw std::runtime_error(message);
+
+/// @brief HRESULTが失敗なら例外を投げる。
+void Check(HRESULT result, const char* message)
+{
+    if (FAILED(result)) {
+        throw std::runtime_error(message);
+    }
 }
 } // namespace
 
@@ -26,38 +32,53 @@ bool BloomPyramid::presentationOff_ = false;
 int BloomPyramid::presentationLevel_ = -1;
 uint32_t BloomPyramid::presentationGeneration_ = 0;
 
-float BloomPyramid::GetPresentationGainScale(float scatter) {
-    if (presentationOff_ || presentationLevel_ < 0) return 1.0f;
+float BloomPyramid::GetPresentationGainScale(float scatter)
+{
+    if (presentationOff_ || presentationLevel_ < 0) {
+        return 1.0f;
+    }
     const float s = (std::clamp)(std::isfinite(scatter) ? scatter : 0.3f, 0.05f, 0.9f);
-    // Weight of level L in the upsample chain: s^L * (1 - s) for finer levels, s^(N-1) for the coarsest.
+    // アップサンプル連鎖でのレベルLの重み: 細かいレベルは s^L * (1 - s)、最も粗いレベルは s^(N-1)。
     const int last = static_cast<int>(kMaxLevels) - 1;
     const float weight = presentationLevel_ >= last ? std::pow(s, static_cast<float>(last))
                                                     : std::pow(s, static_cast<float>(presentationLevel_)) * (1.0f - s);
     return (std::clamp)(1.0f / (std::max)(weight, 0.0001f), 1.0f, 12.0f) * 0.5f;
 }
 
-void BloomPyramid::SetPresentationView(bool off, int isolatedLevel) {
+void BloomPyramid::SetPresentationView(bool off, int isolatedLevel)
+{
     const int level = isolatedLevel >= 0 && isolatedLevel < static_cast<int>(kMaxLevels) ? isolatedLevel : -1;
-    if (off != presentationOff_ || level != presentationLevel_) ++presentationGeneration_;
+    if (off != presentationOff_ || level != presentationLevel_) {
+        ++presentationGeneration_;
+    }
     presentationOff_ = off;
     presentationLevel_ = level;
 }
 
-void BloomPyramid::SetModeOverride(int mode) {
+void BloomPyramid::SetModeOverride(int mode)
+{
     modeOverride_ = mode >= 0 && mode <= 3 ? mode : -1;
 }
 
-uint32_t BloomPyramid::EffectiveMode(const BloomParam& param) {
-    if (presentationOff_) return 0;
-    if (modeOverride_ >= 0) return static_cast<uint32_t>(modeOverride_);
+uint32_t BloomPyramid::EffectiveMode(const BloomParam& param)
+{
+    if (presentationOff_) {
+        return 0;
+    }
+    if (modeOverride_ >= 0) {
+        return static_cast<uint32_t>(modeOverride_);
+    }
     return param.bloomMode <= 3 ? param.bloomMode : 2;
 }
 
-void BloomPyramid::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager,
-    uint32_t sourceWidth, uint32_t sourceHeight) {
-    if (!dxCommon || !srvManager || sourceWidth == 0 || sourceHeight == 0)
+void BloomPyramid::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t sourceWidth, uint32_t sourceHeight)
+{
+    if (!dxCommon || !srvManager || sourceWidth == 0 || sourceHeight == 0) {
         throw std::invalid_argument("BloomPyramid requires a device, SRV manager and nonzero source size.");
-    if (dxCommon_) throw std::logic_error("BloomPyramid is initialized once; recreate only after GPU idle.");
+    }
+    if (dxCommon_) {
+        throw std::logic_error("BloomPyramid is initialized once; recreate only after GPU idle.");
+    }
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
     sourceWidth_ = sourceWidth;
@@ -68,37 +89,45 @@ void BloomPyramid::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager,
     for (uint32_t level = 0; level < kMaxLevels; ++level) {
         width = (std::max)(1u, width / 2 + width % 2);
         height = (std::max)(1u, height / 2 + height % 2);
-        dimensions_[level] = { width, height };
+        dimensions_[level] = {width, height};
         down_[level] = std::make_unique<RenderTexture>();
-        down_[level]->Initialize(dxCommon_, srvManager_, rtvManager_.get(), width, height,
-            { 0, 0, 0, 0 }, false, DirectXCommon::kSceneRenderTargetFormat);
+        down_[level]->Initialize(dxCommon_, srvManager_, rtvManager_.get(), width, height, {0, 0, 0, 0}, false,
+                                 DirectXCommon::kSceneRenderTargetFormat);
         if (level < kMaxLevels - 1) {
             up_[level] = std::make_unique<RenderTexture>();
-            up_[level]->Initialize(dxCommon_, srvManager_, rtvManager_.get(), width, height,
-                { 0, 0, 0, 0 }, false, DirectXCommon::kSceneRenderTargetFormat);
+            up_[level]->Initialize(dxCommon_, srvManager_, rtvManager_.get(), width, height, {0, 0, 0, 0}, false,
+                                   DirectXCommon::kSceneRenderTargetFormat);
         }
     }
     CreatePipeline();
     outputSrv_ = down_[0]->GetSrvIndex();
 }
 
-uint32_t BloomPyramid::GetExtractSrvIndex() const {
+uint32_t BloomPyramid::GetExtractSrvIndex() const
+{
     return down_[0] ? down_[0]->GetSrvIndex() : 0;
 }
 
-uint32_t BloomPyramid::Render(uint32_t sourceSrv, const BloomParam& param, uint32_t materialSrv) {
-    if (!srvManager_) throw std::logic_error("BloomPyramid is not initialized.");
+uint32_t BloomPyramid::Render(uint32_t sourceSrv, const BloomParam& param, uint32_t materialSrv)
+{
+    if (!srvManager_) {
+        throw std::logic_error("BloomPyramid is not initialized.");
+    }
     const auto source = srvManager_->GetGPUDescriptorHandle(sourceSrv);
-    const auto material = materialSrv == (std::numeric_limits<uint32_t>::max)()
-        ? D3D12_GPU_DESCRIPTOR_HANDLE{} : srvManager_->GetGPUDescriptorHandle(materialSrv);
+    const auto material = materialSrv == (std::numeric_limits<uint32_t>::max)() ? D3D12_GPU_DESCRIPTOR_HANDLE{}
+                                                                                : srvManager_->GetGPUDescriptorHandle(materialSrv);
     return Render(source, param, material);
 }
 
-uint32_t BloomPyramid::Render(D3D12_GPU_DESCRIPTOR_HANDLE source, const BloomParam& param,
-    D3D12_GPU_DESCRIPTOR_HANDLE material) {
-    if (!dxCommon_ || !source.ptr) throw std::logic_error("BloomPyramid requires an initialized source descriptor.");
+uint32_t BloomPyramid::Render(D3D12_GPU_DESCRIPTOR_HANDLE source, const BloomParam& param, D3D12_GPU_DESCRIPTOR_HANDLE material)
+{
+    if (!dxCommon_ || !source.ptr) {
+        throw std::logic_error("BloomPyramid requires an initialized source descriptor.");
+    }
     const uint32_t mode = EffectiveMode(param);
-    if (mode == 1) throw std::logic_error("Legacy Bloom is rendered by the caller's existing filter path.");
+    if (mode == 1) {
+        throw std::logic_error("Legacy Bloom is rendered by the caller's existing filter path.");
+    }
     if (mode == 0) {
         Transition(*down_[0], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
         const float black[4]{};
@@ -107,40 +136,42 @@ uint32_t BloomPyramid::Render(D3D12_GPU_DESCRIPTOR_HANDLE source, const BloomPar
         activeLevelCount_ = 0;
         return outputSrv_ = down_[0]->GetSrvIndex();
     }
-    const PassConstants constants{ sourceWidth_, sourceHeight_,
-        FiniteClamp(param.threshold, 1, 0, 64), FiniteClamp(param.bloomSoftKnee, .5f, 0, 1),
-        FiniteClamp(param.bloomScatter, .3f, 0, .9f), FiniteClamp(param.bloomRadius, .75f, .25f, 2),
-        material.ptr != 0 ? 1u : 0u, FiniteClamp(param.waterBloomEnabled, 1, 0, 1),
-        FiniteClamp(param.waterDiagnosticsEnabled, 0, 0, 1) };
+    const PassConstants constants{sourceWidth_,
+                                  sourceHeight_,
+                                  FiniteClamp(param.threshold, 1, 0, 64),
+                                  FiniteClamp(param.bloomSoftKnee, .5f, 0, 1),
+                                  FiniteClamp(param.bloomScatter, .3f, 0, .9f),
+                                  FiniteClamp(param.bloomRadius, .75f, .25f, 2),
+                                  material.ptr != 0 ? 1u : 0u,
+                                  FiniteClamp(param.waterBloomEnabled, 1, 0, 1),
+                                  FiniteClamp(param.waterDiagnosticsEnabled, 0, 0, 1)};
     activeLevelCount_ = mode == 3 ? 3u : kMaxLevels;
-    DrawPass(*down_[0], dimensions_[0], pipelines_->extract.Get(), source,
-        material.ptr ? material : source, constants);
+    DrawPass(*down_[0], dimensions_[0], pipelines_->extract.Get(), source, material.ptr ? material : source, constants);
     for (uint32_t level = 1; level < activeLevelCount_; ++level) {
         const auto input = down_[level - 1]->GetGPUHandle();
         DrawPass(*down_[level], dimensions_[level], pipelines_->down.Get(), input, input, constants);
     }
     if (presentationLevel_ >= 0) {
-        // Show one rung of the pyramid by itself; the composite samples it bilinearly at screen size.
+        // ピラミッドの1段だけを単独で表示する。合成時に画面サイズへバイリニアで拡大して読む。
         const uint32_t level = (std::min)(static_cast<uint32_t>(presentationLevel_), activeLevelCount_ - 1);
         return outputSrv_ = down_[level]->GetSrvIndex();
     }
     D3D12_GPU_DESCRIPTOR_HANDLE coarse = down_[activeLevelCount_ - 1]->GetGPUHandle();
     for (uint32_t level = activeLevelCount_ - 1; level-- > 0;) {
-        DrawPass(*up_[level], dimensions_[level], pipelines_->up.Get(), coarse,
-            down_[level]->GetGPUHandle(), constants);
+        DrawPass(*up_[level], dimensions_[level], pipelines_->up.Get(), coarse, down_[level]->GetGPUHandle(), constants);
         coarse = up_[level]->GetGPUHandle();
     }
     return outputSrv_ = up_[0]->GetSrvIndex();
 }
 
-void BloomPyramid::DrawPass(RenderTexture& output, const LevelDimensions& dimensions,
-    ID3D12PipelineState* pipeline, D3D12_GPU_DESCRIPTOR_HANDLE source,
-    D3D12_GPU_DESCRIPTOR_HANDLE auxiliary, const PassConstants& constants) {
+void BloomPyramid::DrawPass(RenderTexture& output, const LevelDimensions& dimensions, ID3D12PipelineState* pipeline,
+                            D3D12_GPU_DESCRIPTOR_HANDLE source, D3D12_GPU_DESCRIPTOR_HANDLE auxiliary, const PassConstants& constants)
+{
     Transition(output, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(output.GetRTVHandle());
     dxCommon_->SetViewport(dimensions.width, dimensions.height);
     auto list = dxCommon_->GetList();
-    ID3D12DescriptorHeap* heaps[] = { srvManager_->GetSrvHeap().Get() };
+    ID3D12DescriptorHeap* heaps[] = {srvManager_->GetSrvHeap().Get()};
     list->SetDescriptorHeaps(1, heaps);
     list->SetGraphicsRootSignature(pipelines_->rootSignature.Get());
     list->SetPipelineState(pipeline);
@@ -152,8 +183,8 @@ void BloomPyramid::DrawPass(RenderTexture& output, const LevelDimensions& dimens
     Transition(output, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void BloomPyramid::Transition(RenderTexture& target, D3D12_RESOURCE_STATES before,
-    D3D12_RESOURCE_STATES after) {
+void BloomPyramid::Transition(RenderTexture& target, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
+{
     D3D12_RESOURCE_BARRIER barrier{};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.pResource = target.GetResource();
@@ -163,10 +194,11 @@ void BloomPyramid::Transition(RenderTexture& target, D3D12_RESOURCE_STATES befor
     dxCommon_->GetList()->ResourceBarrier(1, &barrier);
 }
 
-void BloomPyramid::CreatePipeline() {
-    // ObjectPostEffect has several categories, but their filtering PSOs are
-    // immutable and identical. Weak ownership drops the bundle with its last
-    // instance, and device identity prevents reuse across hardware/WARP devices.
+void BloomPyramid::CreatePipeline()
+{
+    // ObjectPostEffectには複数のカテゴリがあるが、フィルタ用のPSOは不変で同一。
+    // 弱参照で持つため最後のインスタンスと一緒にまとめて解放され、
+    // デバイスの識別により別のハードウェアやWARPデバイス間で使い回されることもない。
     static std::weak_ptr<PipelineBundle> sharedPipeline;
     if (auto existing = sharedPipeline.lock(); existing && existing->device.Get() == dxCommon_->GetDevice().Get()) {
         pipelines_ = std::move(existing);
@@ -177,13 +209,13 @@ void BloomPyramid::CreatePipeline() {
     D3D12_DESCRIPTOR_RANGE ranges[2]{};
     D3D12_ROOT_PARAMETER parameters[3]{};
     for (uint32_t index = 0; index < 2; ++index) {
-        ranges[index] = { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, index, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND };
+        ranges[index] = {D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, index, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND};
         parameters[index].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        parameters[index].DescriptorTable = { 1, &ranges[index] };
+        parameters[index].DescriptorTable = {1, &ranges[index]};
         parameters[index].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     }
     parameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    parameters[2].Constants = { 0, 0, sizeof(PassConstants) / sizeof(uint32_t) };
+    parameters[2].Constants = {0, 0, sizeof(PassConstants) / sizeof(uint32_t)};
     parameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     D3D12_STATIC_SAMPLER_DESC sampler{};
     sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -198,18 +230,19 @@ void BloomPyramid::CreatePipeline() {
     root.pStaticSamplers = &sampler;
     root.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     Microsoft::WRL::ComPtr<ID3DBlob> serialized, error;
-    const HRESULT result = D3D12SerializeRootSignature(&root, D3D_ROOT_SIGNATURE_VERSION_1,
-        &serialized, &error);
-    if (FAILED(result)) throw std::runtime_error(error
-        ? std::string(static_cast<const char*>(error->GetBufferPointer()), error->GetBufferSize())
-        : "Cannot serialize BloomPyramid root signature.");
-    Check(dxCommon_->GetDevice()->CreateRootSignature(0, serialized->GetBufferPointer(),
-        serialized->GetBufferSize(), IID_PPV_ARGS(&bundle->rootSignature)), "Cannot create BloomPyramid root signature.");
+    const HRESULT result = D3D12SerializeRootSignature(&root, D3D_ROOT_SIGNATURE_VERSION_1, &serialized, &error);
+    if (FAILED(result)) {
+        throw std::runtime_error(error ? std::string(static_cast<const char*>(error->GetBufferPointer()), error->GetBufferSize())
+                                       : "Cannot serialize BloomPyramid root signature.");
+    }
+    Check(dxCommon_->GetDevice()->CreateRootSignature(0, serialized->GetBufferPointer(), serialized->GetBufferSize(),
+                                                      IID_PPV_ARGS(&bundle->rootSignature)),
+          "Cannot create BloomPyramid root signature.");
     Microsoft::WRL::ComPtr<IDxcBlob> vertex;
     vertex.Attach(dxCommon_->CompileShader(L"resources/shaders/FullScreen.VS.hlsl", L"vs_6_0"));
     D3D12_GRAPHICS_PIPELINE_STATE_DESC description{};
     description.pRootSignature = bundle->rootSignature.Get();
-    description.VS = { vertex->GetBufferPointer(), vertex->GetBufferSize() };
+    description.VS = {vertex->GetBufferPointer(), vertex->GetBufferSize()};
     description.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     description.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
     description.SampleDesc.Count = 1;
@@ -226,20 +259,19 @@ void BloomPyramid::CreatePipeline() {
     blend.BlendOp = blend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
     blend.LogicOp = D3D12_LOGIC_OP_NOOP;
     blend.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-    const wchar_t* files[] = { L"resources/shaders/BloomPyramidExtract.PS.hlsl",
-        L"resources/shaders/BloomPyramidDownsample.PS.hlsl", L"resources/shaders/BloomPyramidUpsample.PS.hlsl" };
-    Microsoft::WRL::ComPtr<ID3D12PipelineState>* pipelines[] = {
-        &bundle->extract, &bundle->down, &bundle->up };
+    const wchar_t* files[] = {L"resources/shaders/BloomPyramidExtract.PS.hlsl", L"resources/shaders/BloomPyramidDownsample.PS.hlsl",
+                              L"resources/shaders/BloomPyramidUpsample.PS.hlsl"};
+    Microsoft::WRL::ComPtr<ID3D12PipelineState>* pipelines[] = {&bundle->extract, &bundle->down, &bundle->up};
     for (uint32_t index = 0; index < 3; ++index) {
         Microsoft::WRL::ComPtr<IDxcBlob> pixel;
         pixel.Attach(dxCommon_->CompileShader(files[index], L"ps_6_0"));
-        description.PS = { pixel->GetBufferPointer(), pixel->GetBufferSize() };
-        Check(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&description,
-            IID_PPV_ARGS(pipelines[index]->GetAddressOf())), "Cannot create BloomPyramid graphics pipeline.");
+        description.PS = {pixel->GetBufferPointer(), pixel->GetBufferSize()};
+        Check(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(pipelines[index]->GetAddressOf())),
+              "Cannot create BloomPyramid graphics pipeline.");
         StartupTrace::Count("pipeline.graphics.created");
     }
     pipelines_ = std::move(bundle);
     sharedPipeline = pipelines_;
 }
 
-} // namespace cg2
+} // namespace myEngine

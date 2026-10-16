@@ -7,6 +7,7 @@ class PerformanceMonitor {
 public:
     /// @brief 借用するワールドを設定する。
     explicit PerformanceMonitor(GameWorld& world) : world_(world) {}
+
     /// @brief 描画区間の計測値を設定する。
     void SetRenderProfile(const IScene::RenderProfile& profile);
 

@@ -10,19 +10,23 @@ namespace gameplay {
 namespace {
 constexpr const char* kCombatProbeDirectory = "generated/combat_validation/";
 constexpr std::array<const char*, 6> kCombatProbeNames{"Charger", "Sniper", "Skirmisher", "Flanker", "Suppressor", "Rival"};
+
 /// @brief 指定した形状が地形の壁と重なるか判定する。
-bool OverlapsWall(const Stage& stage, const cg2::AABB& body)
+bool OverlapsWall(const Stage& stage, const myEngine::AABB& body)
 {
-    // Resolved bodies have 0.01-unit separation. Ignore only floating point noise.
-    for (const auto& row : stage.GetBlocks())
+    // 衝突解決後の物体の間隔は0.01単位。浮動小数点の誤差だけを無視する。
+    for (const auto& row : stage.GetBlocks()) {
         for (const auto& block : row) {
-            if (!block.isActive)
+            if (!block.isActive) {
                 continue;
+            }
             const float x = (std::min)(body.max.x, block.aabb.max.x) - (std::max)(body.min.x, block.aabb.min.x);
             const float y = (std::min)(body.max.y, block.aabb.max.y) - (std::max)(body.min.y, block.aabb.min.y);
-            if (x > 0.035f && y > 0.035f)
+            if (x > 0.035f && y > 0.035f) {
                 return true;
+            }
         }
+    }
     return false;
 }
 } // namespace
@@ -31,9 +35,10 @@ void CombatValidation::InitializeCombatValidationFixture()
 {
     wchar_t flag[8]{};
     world_.run.combatValidationEnabled_ =
-        !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"CG2_TANK_COMBAT_AUTOTEST", flag, 8) > 0 && flag[0] == L'1';
-    if (!world_.run.combatValidationEnabled_)
+        !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"MYENGINE_TANK_COMBAT_AUTOTEST", flag, 8) > 0 && flag[0] == L'1';
+    if (!world_.run.combatValidationEnabled_) {
         return;
+    }
     world_.run.combatValidationRequested_ = world_.run.combatValidationPhase2Injected_ = false;
     world_.run.combatValidationElapsed_ = 0;
     world_.run.combatValidationIndex_ = -1;
@@ -47,7 +52,7 @@ void CombatValidation::InitializeCombatValidationFixture()
     world_.run.tankExpeditionMusicEnabled_ = world_.run.tankExpeditionEffectsEnabled_ = false;
     world_.run.tankExpeditionAudio_.SetMusicVolume(0);
     world_.run.tankExpeditionAudio_.SetEffectsVolume(0);
-    // All fixture changes are in memory; user-authored JSON is never rewritten.
+    // フィクスチャの変更はすべてメモリ上で行い、ユーザーが作成したJSONは書き換えない。
     world_.run.expeditionContent_ = tankcontent::DefaultCatalog();
     tankexp::RoomDefinition room;
     room.id = "ai_probe";
@@ -56,21 +61,26 @@ void CombatValidation::InitializeCombatValidationFixture()
     room.playerStart = {30, 29};
     room.objectiveTargets = {{56, 29}};
     room.grid.assign(tankexp::kRoomColumns * tankexp::kRoomRows, 0);
-    for (int row = tankexp::kRoomTop; row <= tankexp::kRoomBottom; ++row)
-        for (int col = tankexp::kRoomLeft; col <= tankexp::kRoomRight; ++col)
-            if (row == tankexp::kRoomTop || row == tankexp::kRoomBottom || col == tankexp::kRoomLeft || col == tankexp::kRoomRight)
+    for (int row = tankexp::kRoomTop; row <= tankexp::kRoomBottom; ++row) {
+        for (int col = tankexp::kRoomLeft; col <= tankexp::kRoomRight; ++col) {
+            if (row == tankexp::kRoomTop || row == tankexp::kRoomBottom || col == tankexp::kRoomLeft || col == tankexp::kRoomRight) {
                 room.grid[static_cast<size_t>(row * tankexp::kRoomColumns + col)] = 1;
-    // Offset cover exercises navigation, without blocking the initial firing lane.
-    for (const tankexp::RoomPoint p : {tankexp::RoomPoint{44, 36}, tankexp::RoomPoint{44, 22}})
+            }
+        }
+    }
+    // 遮蔽物をずらして置き、最初の射線を塞がずにナビゲーションを確かめる。
+    for (const tankexp::RoomPoint p : {tankexp::RoomPoint{44, 36}, tankexp::RoomPoint{44, 22}}) {
         room.grid[static_cast<size_t>(tankexp::RoomPointCell(p))] = 1;
+    }
     world_.run.expeditionRooms_.rooms = {room};
     world_.run.expeditionMapDefinition_.startingCurrency = 0;
     world_.run.expeditionMapDefinition_.startNodes = {"ai_probe"};
     world_.run.expeditionMapDefinition_.nodes = {{"ai_probe", "AI / 実動作検証", tankexp::NodeKind::Boss, 0, 2, 0, "ai_probe", 0, 0, {}}};
     std::string error;
     if (!tankexp::ValidateRoomCatalog(world_.run.expeditionRooms_, error) ||
-        !tankexp::ValidateExpeditionMap(world_.run.expeditionMapDefinition_, error))
+        !tankexp::ValidateExpeditionMap(world_.run.expeditionMapDefinition_, error)) {
         world_.run.combatValidationErrors_.push_back("Invalid fixture: " + error);
+    }
     std::filesystem::create_directories(kCombatProbeDirectory);
     WriteCombatValidationReport(false);
 }
@@ -79,8 +89,9 @@ void CombatValidation::CaptureCombatValidation(const std::string& name)
 {
     if (!world_.run.tankRunCapturePath_.empty() ||
         std::find(world_.run.combatValidationCaptures_.begin(), world_.run.combatValidationCaptures_.end(), name) !=
-            world_.run.combatValidationCaptures_.end())
+            world_.run.combatValidationCaptures_.end()) {
         return;
+    }
     world_.run.combatValidationCaptures_.push_back(name);
     world_.run.tankRunCapturePath_ = std::string(kCombatProbeDirectory) + name + ".png";
 }
@@ -98,8 +109,9 @@ void CombatValidation::BeginCombatValidationProbe(int index)
     world_.resources.player_->SetDebugNoDamage(true);
     world_.resources.player_->SetDemoInput(true, {}, {56, 29, 0}, false, false);
     if (index < 5) {
-        if (!world_.resources.enemyManager_->SpawnLevelEnemy({54, 29, 0}, world_.run.combatValidationProbe_.id, 50000))
+        if (!world_.resources.enemyManager_->SpawnLevelEnemy({54, 29, 0}, world_.run.combatValidationProbe_.id, 50000)) {
             world_.run.combatValidationErrors_.push_back("Could not spawn " + world_.run.combatValidationProbe_.id);
+        }
     } else {
         world_.run.tankExpeditionRivalActive_ = true;
         world_.resources.enemy_->ResetRunEncounter({56, 29, 0}, 10000, 1, false);
@@ -118,29 +130,39 @@ void CombatValidation::FinishCombatValidationProbe()
     auto fail = [&](const std::string& text) {
         world_.run.combatValidationErrors_.push_back(p.id + ": " + text);
     };
-    if (p.pathLength < 1.0f)
+    if (p.pathLength < 1.0f) {
         fail("No meaningful movement");
-    if (p.wallIntersections)
-        fail("Actor intersects solid wall");
-    if (p.tunnelingViolations)
-        fail("Dash crossed solid wall or implausible movement step");
-    if (p.reloadViolations)
-        fail("Weapon fired/consumed ammo while reloading");
-    if (p.playerBulletSamples)
-        fail("Validation player fired unexpectedly");
-    if (charger) {
-        if (p.dashes < 1)
-            fail("No committed charge");
-    } else {
-        if (p.shots < 2 || p.projectileSamples == 0)
-            fail("No real projectile emission");
-        if (p.reloads < 1 || p.reloadSeconds < 0.5f)
-            fail("No finite-magazine reload opening");
     }
-    if ((world_.run.combatValidationIndex_ == 2 || world_.run.combatValidationIndex_ == 3 || boss) && p.dashes < 1)
+    if (p.wallIntersections) {
+        fail("Actor intersects solid wall");
+    }
+    if (p.tunnelingViolations) {
+        fail("Dash crossed solid wall or implausible movement step");
+    }
+    if (p.reloadViolations) {
+        fail("Weapon fired/consumed ammo while reloading");
+    }
+    if (p.playerBulletSamples) {
+        fail("Validation player fired unexpectedly");
+    }
+    if (charger) {
+        if (p.dashes < 1) {
+            fail("No committed charge");
+        }
+    } else {
+        if (p.shots < 2 || p.projectileSamples == 0) {
+            fail("No real projectile emission");
+        }
+        if (p.reloads < 1 || p.reloadSeconds < 0.5f) {
+            fail("No finite-magazine reload opening");
+        }
+    }
+    if ((world_.run.combatValidationIndex_ == 2 || world_.run.combatValidationIndex_ == 3 || boss) && p.dashes < 1) {
         fail("No dash");
-    if (boss && (!p.phase2 || p.patterns != 7u))
+    }
+    if (boss && (!p.phase2 || p.patterns != 7u)) {
         fail("Boss did not reach phase two/all attack patterns");
+    }
     world_.run.combatValidationResults_.push_back({{"id", p.id},
                                                    {"seconds", p.age},
                                                    {"pathLength", p.pathLength},
@@ -184,8 +206,9 @@ void CombatValidation::WriteCombatValidationReport(bool completed)
 
 bool CombatValidation::UpdateCombatValidation(float dt)
 {
-    if (!world_.run.combatValidationEnabled_)
+    if (!world_.run.combatValidationEnabled_) {
         return false;
+    }
     world_.run.combatValidationElapsed_ += dt;
     if (world_.run.combatValidationElapsed_ > 95.0f) {
         world_.run.combatValidationErrors_.push_back("Runtime probe timed out");
@@ -193,7 +216,7 @@ bool CombatValidation::UpdateCombatValidation(float dt)
         PostQuitMessage(6);
         return true;
     }
-    // The ordinary presentation gate also freezes this probe's actors.
+    // 通常の演出待ちの判定で、この検証のアクターも停止する。
     const bool transitioning = world_.run.expeditionTransition_.IsActive();
     world_.expeditionMapController->UpdateExpeditionPresentation(dt);
     if (transitioning) {
@@ -201,8 +224,9 @@ bool CombatValidation::UpdateCombatValidation(float dt)
         return true;
     }
     if (!world_.run.combatValidationRequested_) {
-        if (world_.run.combatValidationElapsed_ > 0.2f)
+        if (world_.run.combatValidationElapsed_ > 0.2f) {
             CaptureCombatValidation("map");
+        }
         if (world_.run.combatValidationElapsed_ > 0.7f && world_.run.tankRunCapturePath_.empty()) {
             world_.run.combatValidationRequested_ = true;
             world_.expeditionMapController->RequestExpeditionMapNode("ai_probe");
@@ -214,8 +238,9 @@ bool CombatValidation::UpdateCombatValidation(float dt)
         world_.expeditionController->RefreshTankExpeditionUi();
         return true;
     }
-    if (world_.run.combatValidationIndex_ < 0)
+    if (world_.run.combatValidationIndex_ < 0) {
         BeginCombatValidationProbe(0);
+    }
     if (world_.run.combatValidationIndex_ >= 6) {
         if (world_.run.tankRunCapturePath_.empty()) {
             const bool pass = world_.run.combatValidationErrors_.empty() && world_.run.combatValidationResults_.size() == 6;
@@ -228,15 +253,16 @@ bool CombatValidation::UpdateCombatValidation(float dt)
     p.age += dt;
     p.sampleAge += dt;
     const bool boss = world_.run.combatValidationIndex_ == 5;
-    // Normal Player movement, with no teleporting or auto-fire during a probe.
-    const cg2::Vector3 target{32.0f + 3.0f * std::sin(p.age * 0.55f), 29.0f + 6.0f * std::sin(p.age * 0.70f), 0};
-    cg2::Vector3 input = target - world_.resources.player_->GetWorldPosition();
-    if (cg2::Length(input) > 1.0f)
-        input = cg2::Normalize(input);
+    // プレイヤーの通常の移動を使い、検証中にワープや自動射撃は行わない。
+    const myEngine::Vector3 target{32.0f + 3.0f * std::sin(p.age * 0.55f), 29.0f + 6.0f * std::sin(p.age * 0.70f), 0};
+    myEngine::Vector3 input = target - world_.resources.player_->GetWorldPosition();
+    if (myEngine::Length(input) > 1.0f) {
+        input = myEngine::Normalize(input);
+    }
     world_.resources.player_->SetDemoInput(true, {input.x, input.y}, {56, 29, 0}, false, false);
     world_.presentation.debugPlayerNoDamage_ = true;
-    cg2::Vector3 position{};
-    cg2::AABB body{};
+    myEngine::Vector3 position{};
+    myEngine::AABB body{};
     unsigned shots = 0, dashes = 0, reloads = 0;
     bool reloading = false, dashing = false;
     int ammo = 0, phase = 0;
@@ -259,12 +285,15 @@ bool CombatValidation::UpdateCombatValidation(float dt)
             world_.resources.enemy_->TakeDamage(6000);
             world_.run.combatValidationPhase2Injected_ = true;
         }
-        if (dashing)
+        if (dashing) {
             CaptureCombatValidation("Rival_dash");
-        if (reloading)
+        }
+        if (reloading) {
             CaptureCombatValidation("Rival_reload");
-        if (status.phase2 && status.phase == RivalBossCombat::Phase::Locked)
+        }
+        if (status.phase2 && status.phase == RivalBossCombat::Phase::Locked) {
             CaptureCombatValidation("Rival_phase2");
+        }
     } else {
         const auto actors = world_.resources.enemyManager_->GetEnemyPtrs();
         if (!actors.empty() && actors.front() && !actors.front()->IsDead()) {
@@ -288,29 +317,33 @@ bool CombatValidation::UpdateCombatValidation(float dt)
         return true;
     }
     if (p.hasPrevious) {
-        const float movement = cg2::Length(position - p.previousPosition);
+        const float movement = myEngine::Length(position - p.previousPosition);
         p.pathLength += movement;
         p.maxStep = (std::max)(p.maxStep, movement);
-        if (movement > 1.25f)
+        if (movement > 1.25f) {
             ++p.tunnelingViolations;
+        }
         if (dashing) {
-            // Sweep the straight dash's center so endpoint checks cannot miss a wall.
+            // 直線ダッシュの中心線を掃引し、端点だけの判定で壁を見逃さないようにする。
             const int steps = (std::max)(1, static_cast<int>(movement / 0.12f));
             for (int i = 1; i < steps; ++i) {
-                const cg2::Vector3 sample = p.previousPosition + (position - p.previousPosition) * (static_cast<float>(i) / steps);
+                const myEngine::Vector3 sample = p.previousPosition + (position - p.previousPosition) * (static_cast<float>(i) / steps);
                 if (world_.resources.stage_->IsCollisionWithAnyBlock(sample, 0.05f)) {
                     ++p.tunnelingViolations;
                     break;
                 }
             }
         }
-        if (p.previousReload && reloading && (shots != p.shots || ammo < p.previousAmmo))
+        if (p.previousReload && reloading && (shots != p.shots || ammo < p.previousAmmo)) {
             ++p.reloadViolations;
+        }
     }
-    if (OverlapsWall(*world_.resources.stage_, body))
+    if (OverlapsWall(*world_.resources.stage_, body)) {
         ++p.wallIntersections;
-    if (reloading)
+    }
+    if (reloading) {
         p.reloadSeconds += dt;
+    }
     p.phases |= 1u << static_cast<unsigned>(phase);
     p.previousPosition = position;
     p.previousAmmo = ammo;
@@ -334,8 +367,9 @@ bool CombatValidation::UpdateCombatValidation(float dt)
                            {"shots", shots},
                            {"bullets", enemyBullets}});
     }
-    if (p.age > 2.2f)
+    if (p.age > 2.2f) {
         CaptureCombatValidation(p.id);
+    }
     world_.run.tankExpedition_.Update(dt);
     world_.run.tankRun_.Update(dt);
     world_.run.tankExpeditionArrival_ += dt;
@@ -347,10 +381,11 @@ bool CombatValidation::UpdateCombatValidation(float dt)
     if (p.age >= (boss ? 25.0f : 11.0f) && world_.run.tankRunCapturePath_.empty()) {
         FinishCombatValidationProbe();
         const int next = world_.run.combatValidationIndex_ + 1;
-        if (next < 6)
+        if (next < 6) {
             BeginCombatValidationProbe(next);
-        else
+        } else {
             world_.run.combatValidationIndex_ = next;
+        }
     }
     return true;
 }

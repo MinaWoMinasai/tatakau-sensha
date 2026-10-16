@@ -5,7 +5,7 @@
 #include "Sprite.h"
 #include "TextRenderer.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 表示文字列と描画用スプライトを保持し、文字の変更時にテクスチャを更新する。
 class TextLabel {
@@ -19,7 +19,7 @@ public:
     static void RefreshAllInputPrompts();
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-    /// @brief cg2::TextLabelの処理件数や所要時間を保持し、性能と動作の確認に使う。
+    /// @brief myEngine::TextLabelの処理件数や所要時間を保持し、性能と動作の確認に使う。
     struct ProfileStats {
         float setStyleCpuMs = 0.0f;
         float setTextCpuMs = 0.0f;
@@ -30,6 +30,7 @@ public:
         uint32_t cacheFileExistedCount = 0;
         uint32_t generatedPngCount = 0;
     };
+
     /// @brief 処理の計測値を初期状態へ戻す。
     static void ResetProfileStats();
     /// @brief 処理の計測値を返す。
@@ -60,16 +61,19 @@ public:
     {
         return text_;
     }
+
     /// @brief 外観を返す。
     const TextStyle& GetStyle() const
     {
         return style_;
     }
+
     /// @brief テクスチャパスを返す。
     const std::string& GetTexturePath() const
     {
         return texturePath_;
     }
+
     /// @brief スプライトを返す。
     Sprite* GetSprite() const
     {
@@ -93,11 +97,11 @@ private:
     Vector2 anchorPoint_ = {0.0f, 0.0f};
     float alpha_ = 1.0f;
     unsigned long long builtFontRevision_ = 0;
-    // Input device the operation prompts were rendered for (keyboard/mouse or gamepad wording).
+    // 操作案内を描画した入力デバイス（キーボード/マウス表記かゲームパッド表記か）。
     uint32_t builtPromptRevision_ = 0;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     static ProfileStats profileStats_;
 #endif
 };
 
-} // namespace cg2
+} // namespace myEngine

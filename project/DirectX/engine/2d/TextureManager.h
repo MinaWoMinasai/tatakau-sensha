@@ -8,12 +8,12 @@
 #include <future>
 #include <memory>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 画像の読み込みとSRVの割り当てを管理し、読み込み済み画像を共有する。
 class TextureManager {
-
 public:
+    /// @brief テクスチャをsRGBとして扱うか、リニアなデータとして扱うかを表す。
     enum class TextureColorSpace {
         SRGB,
         LinearData,
@@ -28,11 +28,15 @@ public:
 
     /// @brief テクスチャを読み込む。
     void LoadTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
-    // CPU decoding runs on BackgroundLoader; registration/upload runs on main.
+    // CPUでのデコードはBackgroundLoaderで行い、登録とアップロードはメインスレッドで行う。
     void PreloadTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
+    /// @brief 先読み済みのテクスチャを、1回の呼び出しで最大maxUploads枚だけGPUへ登録する。メインスレッドで呼ぶ。
     void PumpPreloads(unsigned maxUploads = 1);
+    /// @brief 要求した先読みがすべてGPUへ登録済みかを返す。
     bool ArePreloadsReady() const;
+    /// @brief メモリ上の画像データをデコードし、ミップマップ付きのScratchImageを作る。どのスレッドからでも呼べる。
     static std::shared_ptr<DirectX::ScratchImage> DecodeTextureMemory(const void* data, size_t size, TextureColorSpace colorSpace);
+    /// @brief デコード済みの画像を、指定したキーのテクスチャとして登録する。
     void RegisterPreparedTexture(const std::string& key, TextureColorSpace colorSpace, const DirectX::ScratchImage& image);
     /// @brief Blackコースティクステクスチャを生成する。
     void CreateBlackCausticsTexture();
@@ -86,12 +90,15 @@ public:
     static const std::string& GetPbrPrefilteredEnvironmentTexturePath();
 
 private:
+    /// @brief バックグラウンドでデコード中のテクスチャの要求内容と結果を保持する。
     struct PendingTexture {
         std::string path;
         TextureColorSpace colorSpace;
         std::shared_future<std::shared_ptr<DirectX::ScratchImage>> result;
     };
+
     std::unordered_map<std::string, PendingTexture> pendingTextures_;
+
     /// @brief 画像のGPUリソース・メタデータ・SRVハンドルをまとめる。
     struct TextureData {
         DirectX::TexMetadata metaData;
@@ -125,4 +132,4 @@ private:
     bool pbrEnvironmentLoadedFromSource_ = false;
 };
 
-} // namespace cg2
+} // namespace myEngine

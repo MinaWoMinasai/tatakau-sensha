@@ -6,11 +6,10 @@
 #include <future>
 #include <Model.h>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief モデルを識別子で読み込み・生成し、同じモデルを共有する。
 class ModelManager {
-
 public:
     /// @brief 共有インスタンスを返す。呼び出し側は取得したポインターをdeleteしない。
     static ModelManager* GetInstance();
@@ -23,9 +22,11 @@ public:
 
     /// @brief モデルを読み込む。
     void LoadModel(const std::string& filePath);
+    /// @brief OBJモデルの読み込みをバックグラウンドで開始する。
     void PreloadObjModel(const std::string& filePath);
     /// @brief 読み込み済みOBJのマテリアルテクスチャも裏で先読みさせる。メインスレッドで呼ぶ。
     void PumpPreloads();
+    /// @brief 要求したOBJモデルの先読みがすべて完了したかを返す。
     bool ArePreloadsReady() const;
     /// @brief 平面モデルを生成する。
     void CreatePlaneModel(const std::string& modelName, float width = 1.0f, float depth = 1.0f);
@@ -45,6 +46,7 @@ public:
 
     /// @brief モデルを検索する。
     Model* FindModel(const std::string& filePath);
+
     /// @brief モデルを返す。
     const std::map<std::string, std::unique_ptr<Model>>& GetModels() const
     {
@@ -67,4 +69,4 @@ private:
     std::set<std::string> texturePreloadsQueued_;
 };
 
-} // namespace cg2
+} // namespace myEngine

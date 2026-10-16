@@ -6,19 +6,20 @@
 #include "RuntimeProfiler.h"
 #include <cmath>
 #include <fstream>
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG) && defined(USE_IMGUI)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG) && defined(USE_IMGUI)
 #include "externals/imgui/imgui.h"
 #endif
 
 namespace gameplay {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG) && defined(USE_IMGUI)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG) && defined(USE_IMGUI)
 #endif
 
 void BossPresentation::UpdateNeonBossVisual(float deltaTime)
 {
-    if (!world_.resources.neonBossVisual_ || !world_.resources.enemy_)
+    if (!world_.resources.neonBossVisual_ || !world_.resources.enemy_) {
         return;
-    cg2::RuntimeProfiler::CpuScope scope("Neon Boss Update");
+    }
+    myEngine::RuntimeProfiler::CpuScope scope("Neon Boss Update");
     NeonBossVisualInput input;
     input.position = world_.resources.enemy_->GetWorldPosition();
     const auto aim = world_.resources.enemy_->GetAimDirection();
@@ -45,15 +46,16 @@ void BossPresentation::UpdateNeonBossVisual(float deltaTime)
     bridgeInput.prototypeEnabled = world_.resources.enemy_->IsPrototypeCombatEnabled();
     bridgeInput.prototypePhase = world_.resources.enemy_->GetPrototypeCombatPhase();
     const auto decision = world_.resources.bossVisualBridge_.Update(bridgeInput, deltaTime);
-    // Reset remains before this encounter's first visual Update. The bridge
-    // only maps observable values and owns presentation history, never combat.
-    if (decision.resetEncounter)
+    // Resetはこの戦闘の最初の表示Updateより前のまま。橋渡し役は
+    // 観測できる値を対応付けて演出の履歴を持つだけで、戦闘は扱わない。
+    if (decision.resetEncounter) {
         world_.resources.neonBossVisual_->ResetEncounter();
+    }
     input.phaseTwo = decision.phaseTwo;
     input.action = decision.action;
     world_.resources.neonBossVisual_->SetEnabled(world_.resources.neonBossVisualEnabled_);
     {
-        cg2::RuntimeProfiler::CpuScope modelScope("Neon Depth Model Update");
+        myEngine::RuntimeProfiler::CpuScope modelScope("Neon Depth Model Update");
         world_.resources.neonBossVisual_->Update(input, deltaTime);
     }
     world_.depthEncounter->UpdateNeonDepthEffects();
@@ -61,21 +63,24 @@ void BossPresentation::UpdateNeonBossVisual(float deltaTime)
 
 bool BossPresentation::UseNeonBossVisual() const
 {
-    if (world_.resources.enemy_ && world_.resources.enemy_->IsNeonDepthEncounterEnabled())
-        return true; // Floor core owns gameplay; no legacy decorative tank.
+    if (world_.resources.enemy_ && world_.resources.enemy_->IsNeonDepthEncounterEnabled()) {
+        return true; // 床のコアがゲームプレイを担当する。旧来の装飾用の戦車は使わない。
+    }
     return world_.resources.neonBossVisualEnabled_ && world_.resources.neonBossVisual_ && world_.gameplayQueries->IsRunRivalActive() &&
            (world_.resources.neonBossVisual_->HasResources() || world_.resources.neonBossVisual_->IsFinished());
 }
 
 void BossPresentation::DrawNeonBossVisual()
 {
-    if (!UseNeonBossVisual() || world_.gameplayQueries->IsTutorialCombatSuppressed())
+    if (!UseNeonBossVisual() || world_.gameplayQueries->IsTutorialCombatSuppressed()) {
         return;
-    if (world_.resources.neonBossVisual_)
+    }
+    if (world_.resources.neonBossVisual_) {
         world_.resources.neonBossVisual_->Draw();
+    }
 }
 
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 namespace {
 constexpr const char* kBossCaptureDirectory = "generated/neon_boss_gameplay";
 }
@@ -83,8 +88,9 @@ constexpr const char* kBossCaptureDirectory = "generated/neon_boss_gameplay";
 void BossPresentation::RequestNeonBossDeveloperEncounter()
 {
     if (world_.demo.titleDemo_ || !world_.run.expeditionMapEnabled_ || world_.combat.phase_ == Phase::kFadeOut ||
-        world_.gameplayQueries->IsNeonShowcaseActive())
+        world_.gameplayQueries->IsNeonShowcaseActive()) {
         return;
+    }
     if (world_.resources.player_->IsDead()) {
         // 死亡済みの自機は復活させず、通常の再出撃で新しいシーンを作る。
         GameStartSession::RequestDeveloperBossStart();
@@ -97,16 +103,17 @@ void BossPresentation::RequestNeonBossDeveloperEncounter()
 
 void BossPresentation::StartNeonBossDeveloperEncounter()
 {
-    if (!world_.run.expeditionMapEnabled_)
+    if (!world_.run.expeditionMapEnabled_) {
         return;
+    }
     if (world_.resources.player_->IsDead()) {
         world_.run.expeditionMapStatus_ = "自機が死亡しています。結果画面から再出撃してボス確認を開いてください。";
         world_.resources.neonBossValidationErrors_.push_back(
             "Developer encounter requires a living player; restart from the result screen.");
         return;
     }
-    // Copy an authored boss room into a one-node in-memory run. Use the ordinary
-    // room entry/spawn path; never save over the player's map or room definitions.
+    // 作成済みのボス部屋を、メモリ上の1ノードだけのランへコピーする。通常の
+    // 部屋への入場・出現の経路を使い、プレイヤーのマップや部屋定義は上書き保存しない。
     const auto& definition = world_.run.expeditionMapRun_.GetDefinition();
     const auto found = std::find_if(definition.nodes.begin(), definition.nodes.end(), [](const auto& node) {
         return node.kind == tankexp::NodeKind::Boss;
@@ -127,9 +134,9 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
         world_.resources.neonBossValidationErrors_.push_back(error);
         return;
     }
-    // Map UI owns one visual per definition node/edge. Retain one existing node
-    // slot and drop stale edges before ordinary UI refresh can dereference them.
-    // This entry runs after the previous frame fence completed.
+    // マップUIは定義のノード/辺ごとに表示を1つ持つ。既存のノードのスロットを1つ残し、
+    // 通常のUI更新が参照する前に古い辺を取り除く。
+    // この処理は前フレームのフェンスが完了した後に実行される。
     world_.run.expeditionMapVisuals_.resize(1);
     world_.run.expeditionMapEdges_.clear();
     world_.run.expeditionMapSelection_ = node.id;
@@ -156,8 +163,8 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
         world_.run.tankExpeditionMusicEnabled_ = world_.run.tankExpeditionEffectsEnabled_ = false;
         world_.run.tankExpeditionAudio_.SetMusicVolume(0);
         world_.run.tankExpeditionAudio_.SetEffectsVolume(0);
-        // Keep the existing camera while ensuring both actors are in its viewport.
-        const auto position = world_.resources.enemy_->GetWorldPosition() + cg2::Vector3{-14, 0, 0};
+        // 既存のカメラは保ったまま、両方のアクターがビューポート内に入るようにする。
+        const auto position = world_.resources.enemy_->GetWorldPosition() + myEngine::Vector3{-14, 0, 0};
         world_.resources.player_->ResetRunRoomState(position);
         world_.resources.player_->SetDemoInput(true, {}, world_.resources.enemy_->GetWorldPosition(), false, false);
         const auto center = (position + world_.resources.enemy_->GetWorldPosition()) * 0.5f;
@@ -171,7 +178,7 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
 
 nlohmann::json BossPresentation::MakeNeonBossMetadata() const
 {
-    auto vector = [](const cg2::Vector3& p) {
+    auto vector = [](const myEngine::Vector3& p) {
         return nlohmann::json::array({p.x, p.y, p.z});
     };
     const auto rival = world_.resources.enemy_->GetRivalCombatStatus();
@@ -207,23 +214,27 @@ nlohmann::json BossPresentation::MakeNeonBossMetadata() const
           {"status", world_.resources.neonBossVisual_->GetStatus()}}},
         {"camera",
          {{"position", vector(world_.resources.camera->GetTranslate())}, {"rotation", vector(world_.resources.camera->GetRotate())}}},
-        {"descriptorCount", cg2::Object3dCommon::GetInstance()->GetSrvManager()->GetAllocatedCount()},
+        {"descriptorCount", myEngine::Object3dCommon::GetInstance()->GetSrvManager()->GetAllocatedCount()},
         {"globalBloomModified", false}};
-    for (const auto& row : world_.resources.camera->GetViewProjectionMatrix().m)
+    for (const auto& row : world_.resources.camera->GetViewProjectionMatrix().m) {
         data["camera"]["viewProjection"].push_back({row[0], row[1], row[2], row[3]});
-    for (const auto& row : world_.resources.neonBossVisual_->GetWorldMatrix().m)
+    }
+    for (const auto& row : world_.resources.neonBossVisual_->GetWorldMatrix().m) {
         data["presentation"]["world"].push_back({row[0], row[1], row[2], row[3]});
+    }
     return data;
 }
 
-void BossPresentation::RecordNeonBossDeveloperFrame(cg2::DirectXCommon& dx)
+void BossPresentation::RecordNeonBossDeveloperFrame(myEngine::DirectXCommon& dx)
 {
     if (world_.resources.neonBossCapture_.HasRequest()) {
         auto metadata = MakeNeonBossMetadata();
         const auto frame = world_.gameplayQueries->MakeDeveloperGameCaptureMetadata(dx);
-        for (const char* key : {"gpu", "queueTimestampFrequencyHz", "validation"})
-            if (frame.contains(key))
+        for (const char* key : {"gpu", "queueTimestampFrequencyHz", "validation"}) {
+            if (frame.contains(key)) {
                 metadata[key] = frame.at(key);
+            }
+        }
         metadata["comparisonTemporalAA"] =
             "Existing comparisonFreeze temporarily disables TAA/jitter; normal gameplay settings are preserved.";
         world_.resources.neonBossCapture_.SetFrameMetadata(std::move(metadata));
@@ -247,15 +258,17 @@ void BossPresentation::WriteNeonBossValidation(bool completed)
 
 void BossPresentation::UpdateNeonBossDeveloperValidation()
 {
-    world_.resources.neonBossCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
+    world_.resources.neonBossCapture_.Resolve(*myEngine::Object3dCommon::GetInstance()->GetDxCommon());
     if (world_.resources.neonBossDeveloperStartPending_ && world_.combat.phase_ == Phase::kMain) {
         world_.resources.neonBossDeveloperStartPending_ = false;
         StartNeonBossDeveloperEncounter();
-        if (world_.resources.neonBossAutoTest_)
+        if (world_.resources.neonBossAutoTest_) {
             WriteNeonBossValidation(false);
+        }
     }
-    if (!world_.resources.neonBossAutoTest_ || !world_.resources.neonBossVisual_ || world_.resources.neonBossDeveloperStartPending_)
+    if (!world_.resources.neonBossAutoTest_ || !world_.resources.neonBossVisual_ || world_.resources.neonBossDeveloperStartPending_) {
         return;
+    }
     world_.resources.neonBossValidationAge_ += 1.0f / 60.0f;
     if (world_.resources.neonBossValidationAge_ > 60) {
         world_.resources.neonBossValidationErrors_.push_back("Timed out waiting for actual boss phases/captures.");
@@ -265,10 +278,12 @@ void BossPresentation::UpdateNeonBossDeveloperValidation()
         return;
     }
     if (world_.resources.neonBossCaptureStep_) {
-        if (world_.resources.neonBossCapture_.IsBusy())
+        if (world_.resources.neonBossCapture_.IsBusy()) {
             return;
-        if (!world_.resources.neonBossCapture_.WasLastCaptureSuccessful())
+        }
+        if (!world_.resources.neonBossCapture_.WasLastCaptureSuccessful()) {
             world_.resources.neonBossValidationErrors_.push_back(world_.resources.neonBossCapture_.GetStatus());
+        }
         if (world_.resources.neonBossCaptureStep_ == 1) {
             world_.resources.neonBossVisualEnabled_ = true;
             world_.resources.neonBossVisual_->SetEnabled(true);
@@ -281,24 +296,26 @@ void BossPresentation::UpdateNeonBossDeveloperValidation()
         world_.resources.neonBossDeveloperFreeze_ = false;
         ++world_.resources.neonBossProbe_;
         WriteNeonBossValidation(false);
-        if (world_.resources.neonBossProbe_ == 1 && cg2::RuntimeProfiler::Get().IsAllowed()) {
-            // Same camera, pose, effects and collider for this A/B cost sample.
+        if (world_.resources.neonBossProbe_ == 1 && myEngine::RuntimeProfiler::Get().IsAllowed()) {
+            // このA/Bの負荷計測では、カメラ・ポーズ・エフェクト・コライダーを同じにする。
             world_.resources.neonBossDeveloperFreeze_ = true;
             world_.resources.neonBossVisualEnabled_ = false;
             world_.resources.neonBossVisual_->SetEnabled(false);
-            if (cg2::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_off.csv", 120, 30))
+            if (myEngine::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_off.csv", 120, 30)) {
                 world_.resources.neonBossProfileStep_ = 1;
-            else
+            } else {
                 world_.resources.neonBossDeveloperFreeze_ = false;
+            }
         }
     }
     if (world_.resources.neonBossProfileStep_) {
-        if (!cg2::RuntimeProfiler::Get().IsCaptureComplete())
+        if (!myEngine::RuntimeProfiler::Get().IsCaptureComplete()) {
             return;
+        }
         if (world_.resources.neonBossProfileStep_ == 1) {
             world_.resources.neonBossVisualEnabled_ = true;
             world_.resources.neonBossVisual_->SetEnabled(true);
-            if (cg2::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_on.csv", 120, 30)) {
+            if (myEngine::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_on.csv", 120, 30)) {
                 world_.resources.neonBossProfileStep_ = 2;
                 return;
             }
@@ -306,40 +323,48 @@ void BossPresentation::UpdateNeonBossDeveloperValidation()
         world_.resources.neonBossProfileStep_ = 0;
         world_.resources.neonBossDeveloperFreeze_ = false;
     }
-    if (!world_.gameplayQueries->IsRunRivalActive())
+    if (!world_.gameplayQueries->IsRunRivalActive()) {
         return;
+    }
     const auto rival = world_.resources.enemy_->GetRivalCombatStatus();
     if (world_.resources.enemy_->IsDead() && world_.resources.neonBossProbe_ >= 6 &&
         (world_.resources.enemy_->GetShotsFired() != world_.resources.neonBossDeadShots_ ||
          rival.dashCount != world_.resources.neonBossDeadDashCount_ ||
-         cg2::Length(world_.resources.enemy_->GetWorldPosition() - world_.resources.neonBossDeadPosition_) > 0.0001f))
+         myEngine::Length(world_.resources.enemy_->GetWorldPosition() - world_.resources.neonBossDeadPosition_) > 0.0001f)) {
         world_.resources.neonBossValidationErrors_.push_back("Gameplay changed during death dissolve.");
+    }
     std::string name;
     switch (world_.resources.neonBossProbe_) {
     case 0:
-        // Let the existing bind-to-idle blend finish and entry flash settle.
-        if (world_.resources.neonBossVisual_->HasResources() && world_.resources.neonBossVisual_->GetAnimationTime() >= 0.45f)
+        // 既存のバインドから待機へのブレンドが終わり、登場時の閃光が収まるまで待つ。
+        if (world_.resources.neonBossVisual_->HasResources() && world_.resources.neonBossVisual_->GetAnimationTime() >= 0.45f) {
             name = "idle";
+        }
         break;
     case 1:
-        if (rival.phase == RivalBossCombat::Phase::Locked)
+        if (rival.phase == RivalBossCombat::Phase::Locked) {
             name = "telegraph";
+        }
         break;
     case 2:
         if (rival.phase == RivalBossCombat::Phase::Volley && rival.shotsFired > 0 &&
-            world_.resources.neonBossVisual_->GetAnimationTime() >= 0.80f)
+            world_.resources.neonBossVisual_->GetAnimationTime() >= 0.80f) {
             name = "attack";
+        }
         break;
     case 3:
-        if (rival.phase == RivalBossCombat::Phase::Dash)
+        if (rival.phase == RivalBossCombat::Phase::Dash) {
             name = "dash";
+        }
         break;
     case 4:
-        if (!rival.phase2 && world_.resources.enemy_->GetHp() > world_.resources.enemy_->GetMaxHp() / 2)
+        if (!rival.phase2 && world_.resources.enemy_->GetHp() > world_.resources.enemy_->GetMaxHp() / 2) {
             world_.resources.enemy_->TakeDamage(
                 static_cast<uint32_t>(world_.resources.enemy_->GetHp() - world_.resources.enemy_->GetMaxHp() / 3));
-        if (rival.phase2)
+        }
+        if (rival.phase2) {
             name = "low_hp";
+        }
         break;
     case 5:
         if (!world_.resources.enemy_->IsDead()) {
@@ -347,31 +372,36 @@ void BossPresentation::UpdateNeonBossDeveloperValidation()
             world_.resources.neonBossDeadShots_ = world_.resources.enemy_->GetShotsFired();
             world_.resources.neonBossDeadDashCount_ = rival.dashCount;
             world_.resources.neonBossDeadPosition_ = world_.resources.enemy_->GetWorldPosition();
-            UpdateNeonBossVisual(0); // Record the exact zero endpoint before advancing time.
+            UpdateNeonBossVisual(0); // 時間を進める前に、ちょうど0の端点を記録する。
         }
         name = "dissolve_000";
         break;
     case 6:
-        if (world_.resources.neonBossVisual_->GetDissolveProgress() >= 0.50f)
+        if (world_.resources.neonBossVisual_->GetDissolveProgress() >= 0.50f) {
             name = "dissolve_050";
+        }
         break;
     case 7:
-        if (world_.resources.neonBossVisual_->IsFinished())
+        if (world_.resources.neonBossVisual_->IsFinished()) {
             name = "dissolve_100";
+        }
         break;
     default:
-        if (world_.resources.neonBossVisual_->HasResources())
+        if (world_.resources.neonBossVisual_->HasResources()) {
             world_.resources.neonBossValidationErrors_.push_back("Terminal visual retained resources.");
+        }
         if (world_.resources.neonBossVisual_->GetStats().resourceCreates != 1 ||
-            world_.resources.neonBossVisual_->GetStats().resourceReleases != 1)
+            world_.resources.neonBossVisual_->GetStats().resourceReleases != 1) {
             world_.resources.neonBossValidationErrors_.push_back("Unexpected resource lifecycle count.");
+        }
         WriteNeonBossValidation(world_.resources.neonBossValidationErrors_.empty());
         PostQuitMessage(world_.resources.neonBossValidationErrors_.empty() ? 0 : 9);
         world_.resources.neonBossAutoTest_ = false;
         return;
     }
-    if (name.empty())
+    if (name.empty()) {
         return;
+    }
     world_.resources.neonBossDeveloperFreeze_ = true;
     world_.resources.neonBossCaptureName_ = name;
     const bool compare = world_.resources.neonBossProbe_ <= 4;
@@ -388,36 +418,45 @@ void BossPresentation::DrawNeonBossDeveloperTools()
 #ifdef USE_IMGUI
     ImGui::TextUnformatted("本編のボス状態を3D表示へ渡します。HP・攻撃・衝突はEnemyが管理します。");
     ImGui::TextUnformatted("F7: ボス戦へ移動 / 再生成。現在の遠征を確認用ルートへ置き換え、自機を無敵にします。");
-    if (world_.resources.player_ && world_.resources.player_->IsDead())
+    if (world_.resources.player_ && world_.resources.player_->IsDead()) {
         ImGui::TextUnformatted("自機死亡中: F7または下のボタンで再出撃し、ボス戦から開始します。");
-    if (world_.run.expeditionMapEnabled_ && ImGui::Button("本編ボス戦へ移動 / 再生成 (F7)"))
+    }
+    if (world_.run.expeditionMapEnabled_ && ImGui::Button("本編ボス戦へ移動 / 再生成 (F7)")) {
         RequestNeonBossDeveloperEncounter();
-    if (ImGui::Checkbox("3D Neon Visual (OFF: existing tank)", &world_.resources.neonBossVisualEnabled_))
-        if (world_.resources.neonBossVisual_)
+    }
+    if (ImGui::Checkbox("3D Neon Visual (OFF: existing tank)", &world_.resources.neonBossVisualEnabled_)) {
+        if (world_.resources.neonBossVisual_) {
             world_.resources.neonBossVisual_->SetEnabled(world_.resources.neonBossVisualEnabled_);
+        }
+    }
     ImGui::Checkbox("Freeze for visual comparison", &world_.presentation.developerBloomFreeze_);
-    if (ImGui::Button("Reload Depth settings"))
+    if (ImGui::Button("Reload Depth settings")) {
         world_.depthEncounter->LoadNeonDepthConfig(true);
+    }
     ImGui::TextWrapped("%s", world_.resources.neonDepthConfigStatus_.c_str());
     if (world_.resources.enemy_ && world_.resources.enemy_->IsNeonDepthEncounterEnabled()) {
         const auto& depth = world_.resources.enemy_->GetNeonDepthSnapshot();
         ImGui::Text("Depth attack %d | phase %d | instance %llu", int(depth.plan.attack), int(depth.phase),
                     static_cast<unsigned long long>(depth.plan.instance));
-        if (ImGui::Button("Skip entrance"))
+        if (ImGui::Button("Skip entrance")) {
             world_.resources.neonDepthSkipRequested_ = true;
+        }
         auto profile = world_.resources.neonBossVisual_->GetDepthProfile();
-        if (ImGui::Checkbox("Reduced motion", &profile.reducedMotion))
+        if (ImGui::Checkbox("Reduced motion", &profile.reducedMotion)) {
             world_.resources.neonBossVisual_->SetDepthProfile(profile);
+        }
     }
-    if (!world_.resources.enemy_ || !world_.gameplayQueries->IsRunRivalActive() || !world_.resources.neonBossVisual_)
+    if (!world_.resources.enemy_ || !world_.gameplayQueries->IsRunRivalActive() || !world_.resources.neonBossVisual_) {
         return;
+    }
     const auto rival = world_.resources.enemy_->GetRivalCombatStatus();
     ImGui::Text("HP %d / %d | Phase %d | Phase 2 %s | Shots %u", world_.resources.enemy_->GetHp(), world_.resources.enemy_->GetMaxHp(),
                 static_cast<int>(rival.phase), rival.phase2 ? "YES" : "NO", world_.resources.enemy_->GetShotsFired());
     if (!world_.resources.enemy_->IsDead()) {
-        if (ImGui::Button("HP -> 33% / Phase 2"))
+        if (ImGui::Button("HP -> 33% / Phase 2")) {
             world_.resources.enemy_->TakeDamage(
                 static_cast<uint32_t>((std::max)(0, world_.resources.enemy_->GetHp() - world_.resources.enemy_->GetMaxHp() / 3)));
+        }
         ImGui::SameLine();
         if (ImGui::Button("Kill / Directional Dissolve")) {
             world_.resources.enemy_->TakeDamage(static_cast<uint32_t>(world_.resources.enemy_->GetHp()));
@@ -427,8 +466,9 @@ void BossPresentation::DrawNeonBossDeveloperTools()
     ImGui::Text("Animation %s | Dissolve %.3f", world_.resources.neonBossVisual_->GetAnimationName().c_str(),
                 world_.resources.neonBossVisual_->GetDissolveProgress());
     ImGui::TextWrapped("%s", world_.resources.neonBossVisual_->GetStatus().c_str());
-    if (ImGui::Button("Capture gameplay"))
+    if (ImGui::Button("Capture gameplay")) {
         world_.resources.neonBossCapture_.Request(kBossCaptureDirectory, "manual", {});
+    }
     ImGui::TextWrapped("%s", world_.resources.neonBossCapture_.GetStatus().c_str());
     const auto stats = world_.resources.neonBossVisual_->GetStats();
     ImGui::Text("Resources %u created / %u released | Animation selections %u", stats.resourceCreates, stats.resourceReleases,
@@ -436,13 +476,13 @@ void BossPresentation::DrawNeonBossDeveloperTools()
     if (ImGui::Button("Profile 3D ON (120 frames)")) {
         world_.resources.neonBossVisualEnabled_ = true;
         world_.resources.neonBossVisual_->SetEnabled(true);
-        cg2::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_on.csv", 120, 30);
+        myEngine::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_on.csv", 120, 30);
     }
     ImGui::SameLine();
     if (ImGui::Button("Profile OFF (120 frames)")) {
         world_.resources.neonBossVisualEnabled_ = false;
         world_.resources.neonBossVisual_->SetEnabled(false);
-        cg2::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_off.csv", 120, 30);
+        myEngine::RuntimeProfiler::Get().StartCapture(std::string(kBossCaptureDirectory) + "/profile_off.csv", 120, 30);
     }
 #endif
 }

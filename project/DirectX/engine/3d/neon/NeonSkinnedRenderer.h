@@ -10,7 +10,7 @@
 #include <d3d12.h>
 #include <wrl.h>
 
-namespace cg2 {
+namespace myEngine {
 
 class DirectXCommon;
 class SrvManager;
@@ -32,13 +32,13 @@ struct NeonSkinnedParams {
     float internalLineThreshold = 0.12f;
     Vector3 geometryLineColor = {0.08f, 0.65f, 1.0f};
     float geometryLineIntensity = 4.0f;
-    uint32_t geometryLineEnabled = 0; // 既存の外観を維持。対応Deviceで明示的に有効化する。
+    uint32_t geometryLineEnabled = 0;     // 既存の外観を維持。対応Deviceで明示的に有効化する。
     float geometryLineWidthPixels = 1.0f; // 共有辺を挟む全幅。各三角形側はこの半幅。
-    float bodyEmissionIntensity = 0.0f; // Body色による弱い面の補助発光。0で従来の出力を維持する。
+    float bodyEmissionIntensity = 0.0f;   // Body色による弱い面の補助発光。0で従来の出力を維持する。
     float bodyPadding = 0.0f;
     Vector3 featureMaskColor = {1.0f, 0.025f, 0.35f};
     float featureMaskIntensity = 5.0f;
-    float featureMaskBlend = 0.0f; // 0で従来のTexture特徴線を維持する。
+    float featureMaskBlend = 0.0f;     // 0で従来のTexture特徴線を維持する。
     uint32_t featureMaskDebugMode = 0; // 0: 発光合成、1: R coverage、2: G置換領域。
     float featureMaskPadding[2]{};
     Vector3 lineCoreColor = {1.0f, 0.25f, 0.45f};
@@ -47,15 +47,15 @@ struct NeonSkinnedParams {
     float lineHaloIntensity = 1.5f;
     Vector3 outlineCoreColor = {1.0f, 0.12f, 0.38f};
     float outlineCoreIntensity = 8.0f;
-    uint32_t featureMaskRenderMode = 0; // 0: original RG, 1: coverage RGB, 2: SDF with coverage minification fallback.
-    uint32_t splitLineEmission = 0; // Opt-in: independently colored core and narrow surface halo.
-    uint32_t lineDiagnosticMode = 0; // 0: combined, 1: core, 2: surface halo, 3: dark body.
-    float sdfRangeTexels = 16.0f; // Encoded distance = (R - .5) * 2 * range; positive inside a stroke.
-    float sdfHaloWidthTexels = 4.0f; // UV surface halo, not screen-space bloom. Candidate G includes this support.
+    uint32_t featureMaskRenderMode = 0; // 0: 元のRG、1: カバレッジRGB、2: カバレッジ縮小フォールバック付きのSDF。
+    uint32_t splitLineEmission = 0;     // 任意: 個別に色付けした芯と細い表面ハロー。
+    uint32_t lineDiagnosticMode = 0;    // 0: 合成、1: 芯、2: 表面ハロー、3: 暗いボディ。
+    float sdfRangeTexels = 16.0f;       // 距離のエンコード = (R - .5) * 2 * range。線の内側が正。
+    float sdfHaloWidthTexels = 4.0f;    // スクリーン空間のBloomではなくUV上の表面ハロー。候補Gはこれを含む。
     float sdfLodBlendStart = 1.0f;
     float sdfLodBlendEnd = 2.0f;
     float qualityPadding = 0.0f;
-    NeonDissolveParams dissolve; // Disabled by default; evaluated in skinned pre-World model space.
+    NeonDissolveParams dissolve; // 既定では無効。World変換前のスキン適用済みモデル空間で評価する。
 };
 
 static_assert(sizeof(NeonSkinnedParams) == 288);
@@ -88,9 +88,10 @@ static_assert(offsetof(NeonSkinnedParams, sdfHaloWidthTexels) == 192);
 struct NeonSkinnedSubmeshParams {
     float lineStrength = 1.0f;
     float alphaCutoff = 0.0f;
-    float geometryLineStrength = 0.0f; // Texture特徴線とは独立。既定では構造線を出さない。
+    float geometryLineStrength = 0.0f;       // Texture特徴線とは独立。既定では構造線を出さない。
     float internalLineThresholdScale = 1.0f; // Textureの薄線と幅広い陰影の選別。1で従来のしきい値。
 };
+
 static_assert(sizeof(NeonSkinnedSubmeshParams) == 16);
 static_assert(offsetof(NeonSkinnedSubmeshParams, geometryLineStrength) == 8);
 static_assert(offsetof(NeonSkinnedSubmeshParams, internalLineThresholdScale) == 12);
@@ -110,33 +111,49 @@ public:
     NeonSkinnedRenderer(const NeonSkinnedRenderer&) = delete;
     NeonSkinnedRenderer& operator=(const NeonSkinnedRenderer&) = delete;
 
-    // Explicit frame-boundary teardown. Last GPU use must have completed and
-    // SrvManager must remain alive. Safe to call again after resources are freed.
+    // フレーム境界で明示的に解放する。最後のGPU使用が完了しており、
+    // SrvManagerが生きている必要がある。解放後に再度呼んでも安全。
     void ReleaseGpuResources();
 
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     // falseは任意機能のパイプラインを作らず従来描画を使う（比較・フォールバック検証用）。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, bool enableGeometryLinePipeline = true);
-    bool IsGeometryLinesSupported() const { return geometryLinesSupported_; }
-    const std::string& GetGeometryLinesStatus() const { return geometryLinesStatus_; }
+
+    bool IsGeometryLinesSupported() const
+    {
+        return geometryLinesSupported_;
+    }
+
+    const std::string& GetGeometryLinesStatus() const
+    {
+        return geometryLinesStatus_;
+    }
+
     // 前フレームのGPU実行完了後、フレーム開始時に一度だけ呼ぶ。Draw用CB領域を再利用する。
     void BeginFrame();
-    size_t GetDrawConstantBufferCount() const { return drawConstantBuffers_.size(); }
+
+    size_t GetDrawConstantBufferCount() const
+    {
+        return drawConstantBuffers_.size();
+    }
+
     /// @brief パラメーターを設定する。
     void SetParams(const NeonSkinnedParams& params);
+
     /// @brief パラメーターを返す。
     const NeonSkinnedParams& GetParams() const
     {
         return params_;
     }
+
     // 空または描くモデルのSubmesh数と同じ長さ。各DrawのRoot Constantsへ記録する。
     void SetSubmeshParams(const std::vector<NeonSkinnedSubmeshParams>& params);
     // 空またはモデルのSubmesh数と同じ長さ。nullopt / 予約index 0 / 範囲外はG=0のnull SRVへ戻す。
     // SRVは同じSrvManagerのLinearData Texture2D。所有者はGPU完了まで資源とSRVを保持する。
     // TextureManagerのキャッシュを使い、GPU使用中の差し替え・破棄は行わない。
     void SetSubmeshFeatureMasks(const std::vector<std::optional<uint32_t>>& srvIndices);
-    // Optional signed-distance maps paired with the coverage masks above. Missing / invalid maps
-    // retain the coverage path, even if SDF mode was requested. Resources obey the same lifetime contract.
+    // 上のカバレッジマスクと対になる任意の符号付き距離マップ。マップが無いか不正な場合は
+    // SDFモードを指定していてもカバレッジ経路を使う。リソースの寿命の約束事は上と同じ。
     void SetSubmeshFeatureDistanceMasks(const std::vector<std::optional<uint32_t>>& srvIndices);
 
     // transformationCbvはObject3d::Update()等で更新済みのTransformationMatrix(WithShadow)を指す。
@@ -158,19 +175,22 @@ private:
         Vector2 viewportSize{};
         float viewportPadding[2]{};
     };
+
     static_assert(sizeof(GpuConstants) == 320);
     static_assert(offsetof(GpuConstants, cameraWorldPosition) == 288);
     static_assert(offsetof(GpuConstants, viewportSize) == 304);
     static constexpr size_t kDrawConstantBufferBytes =
-        ((sizeof(GpuConstants) + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1)
-            / D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) * D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+        ((sizeof(GpuConstants) + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1) / D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) *
+        D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     static_assert(kDrawConstantBufferBytes >= sizeof(GpuConstants));
 
+    /// @brief サブメッシュごとにGPUへ渡す定数。
     struct SubmeshConstants {
         NeonSkinnedSubmeshParams surface;
         uint32_t hasDistanceMask = 0;
         uint32_t padding[3]{};
     };
+
     static_assert(sizeof(SubmeshConstants) == 32);
     static_assert(offsetof(SubmeshConstants, hasDistanceMask) == 16);
 
@@ -210,4 +230,4 @@ private:
     std::string geometryLinesStatus_ = "Not initialized.";
 };
 
-} // namespace cg2
+} // namespace myEngine

@@ -3,7 +3,7 @@
 #include "RtvManager.h"
 #include <array>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 描画先テクスチャとRTV/SRVを管理する。利用時は対応するリソース状態へ遷移させる。
 class RenderTexture {
@@ -21,11 +21,13 @@ public:
     {
         return srvIndex_;
     }
+
     /// @brief RTVハンドルを返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() const
     {
         return rtvHandle_;
     }
+
     /// @brief DSVハンドルを返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle() const
     {
@@ -43,6 +45,7 @@ public:
     {
         return resource_.Get();
     }
+
     /// @brief 深度リソースを返す。
     ID3D12Resource* GetDepthResource()
     {
@@ -68,4 +71,4 @@ private:
     uint32_t depthSrvIndex_ = 0;
 };
 
-} // namespace cg2
+} // namespace myEngine

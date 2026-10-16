@@ -8,13 +8,16 @@ class SessionBootstrap {
 public:
     /// @brief 借用するワールドを設定する。
     explicit SessionBootstrap(GameWorld& world) : world_(world) {}
+
     /// @brief 初期化
     void Initialize();
+    /// @brief 初期化を1ステップ進める。完了したらtrueを返す。
     bool InitializeStep();
 
 private:
-    cg2::InitializationTask Build();
-    cg2::InitializationTask task_;
+    /// @brief 初期化を分割して行うコルーチンを作る。
+    myEngine::InitializationTask Build();
+    myEngine::InitializationTask task_;
     GameWorld& world_;
 };
 } // namespace gameplay

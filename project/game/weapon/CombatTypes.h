@@ -10,6 +10,7 @@ enum Phase {
 };
 
 class Player;
+
 /// @brief 弾の発射数・拡散・速度・耐久度・ダメージと、命中元や追加効果の設定をまとめる。
 /// 発射位置と方向はメンバーに含まず、AttackControllerの呼び出しへ別に渡す。
 struct AttackParam {

@@ -1,7 +1,7 @@
 #pragma once
 #include "DirectXCommon.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 静的モデル描画で共用するパイプライン・カメラ・ライティングを管理する。
 class ModelCommon {
@@ -19,4 +19,4 @@ private:
     DirectXCommon* dxCommon_;
 };
 
-} // namespace cg2
+} // namespace myEngine

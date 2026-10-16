@@ -3,19 +3,21 @@
 #include <cmath>
 #include <stdexcept>
 
-namespace cg2 {
+namespace myEngine {
 
-void BloomConstantBuffer::Initialize(DirectXCommon* dxCommon) {
+void BloomConstantBuffer::Initialize(DirectXCommon* dxCommon)
+{
     dxCommon_ = dxCommon;
     frameFence_ = dxCommon_->GetFenceValue();
     Update(BloomParam{});
 }
 
-void BloomConstantBuffer::Update(const BloomParam& param) {
+void BloomConstantBuffer::Update(const BloomParam& param)
+{
     const auto fence = dxCommon_->GetFence();
     const uint64_t fenceValue = dxCommon_->GetFenceValue();
-    // Recycle only after DirectXCommon's submitted frame has completed.
-    // Updates in one command list retain independent immutable GPU snapshots.
+    // DirectXCommonが送信したフレームの完了後にだけ再利用する。
+    // 1つのコマンドリスト内の更新は、それぞれ独立した不変のGPUスナップショットを保つ。
     if (fence && fenceValue > frameFence_ && fence->GetCompletedValue() >= fenceValue) {
         frameFence_ = fenceValue;
         nextSnapshot_ = 0;
@@ -24,13 +26,16 @@ void BloomConstantBuffer::Update(const BloomParam& param) {
         Snapshot snapshot;
         const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         const auto desc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(BloomParam) + 255u) & ~255u);
-        HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
-            &heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr, IID_PPV_ARGS(&snapshot.resource));
-        if (FAILED(hr)) throw std::runtime_error("Bloom constant snapshot allocation failed");
+        HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                                     nullptr, IID_PPV_ARGS(&snapshot.resource));
+        if (FAILED(hr)) {
+            throw std::runtime_error("Bloom constant snapshot allocation failed");
+        }
         const D3D12_RANGE noRead{0, 0};
         hr = snapshot.resource->Map(0, &noRead, reinterpret_cast<void**>(&snapshot.mapped));
-        if (FAILED(hr)) throw std::runtime_error("Bloom constant snapshot mapping failed");
+        if (FAILED(hr)) {
+            throw std::runtime_error("Bloom constant snapshot mapping failed");
+        }
         snapshots_.push_back(std::move(snapshot));
     }
     currentSnapshot_ = nextSnapshot_++;
@@ -47,8 +52,9 @@ void BloomConstantBuffer::Update(const BloomParam& param) {
     *snapshots_[currentSnapshot_].mapped = safe;
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS BloomConstantBuffer::GetGPUAddress() const {
+D3D12_GPU_VIRTUAL_ADDRESS BloomConstantBuffer::GetGPUAddress() const
+{
     return snapshots_.at(currentSnapshot_).resource->GetGPUVirtualAddress();
 }
 
-} // namespace cg2
+} // namespace myEngine

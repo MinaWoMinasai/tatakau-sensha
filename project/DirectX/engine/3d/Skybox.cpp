@@ -1,9 +1,9 @@
 #include "Skybox.h"
 
-namespace cg2 {
+namespace myEngine {
 
-void Skybox::Initialize(const std::string& textureFilePath) {
-
+void Skybox::Initialize(const std::string& textureFilePath)
+{
     object3dCommon_ = Object3dCommon::GetInstance();
     dxCommon_ = object3dCommon_->GetDxCommon();
     srvManager_ = object3dCommon_->GetSrvManager();
@@ -18,11 +18,11 @@ void Skybox::Initialize(const std::string& textureFilePath) {
     object_ = std::make_unique<Object3d>();
     object_->Initialize();
     object_->SetModel("cube.obj"); // Skybox用の立方体モデル
-    object_->SetScale({ 500.0f, 500.0f, 500.0f });
+    object_->SetScale({500.0f, 500.0f, 500.0f});
 }
 
-void Skybox::Update(Camera* camera, DebugCamera* debugCamera) {
-
+void Skybox::Update(Camera* camera, DebugCamera* debugCamera)
+{
     // 3. カメラの位置に追従させる（空が遠くに見えるように）
     if (object3dCommon_->GetIsDebugCamera()) {
         // debugCameraの位置に追従させる
@@ -35,13 +35,15 @@ void Skybox::Update(Camera* camera, DebugCamera* debugCamera) {
     }
 }
 
-void Skybox::SetColor(const Vector4& color) {
+void Skybox::SetColor(const Vector4& color)
+{
     if (object_) {
         object_->SetColor(color);
     }
 }
 
-void Skybox::Draw() {
+void Skybox::Draw()
+{
     auto list = dxCommon_->GetList();
     auto& pso = dxCommon_->GetPSOSkybox();
 
@@ -68,4 +70,4 @@ void Skybox::Draw() {
     }
 }
 
-} // namespace cg2
+} // namespace myEngine

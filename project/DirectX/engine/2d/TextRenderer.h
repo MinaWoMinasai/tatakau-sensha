@@ -4,7 +4,7 @@
 #include <string>
 #include "Struct.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 文字のフォント・色・縁取りなど、文字テクスチャ生成時の外観を指定する。
 struct TextStyle {
@@ -56,11 +56,13 @@ public:
     std::string GetOrCreateTexture(const std::string& utf8Text, const TextStyle& style);
     /// @brief 文字範囲ごとのフォント上書き設定を設定する。
     void SetFontOverride(const TextFontOverride& fontOverride);
+
     /// @brief 文字範囲ごとのフォント上書き設定を返す。
     const TextFontOverride& GetFontOverride() const
     {
         return fontOverride_;
     }
+
     /// @brief フォントRevisionを返す。
     unsigned long long GetFontRevision() const
     {
@@ -103,4 +105,4 @@ private:
 #endif
 };
 
-} // namespace cg2
+} // namespace myEngine

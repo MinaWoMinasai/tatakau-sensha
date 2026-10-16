@@ -3,7 +3,7 @@
 #include <string>
 #include <utility>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 画面の操作説明を、最後に操作された入力機器の表記へ置き換える。
 /// キーボード・マウスでは元の文字列のまま。ゲームパッドでは下の表を上から順に置き換える
@@ -11,8 +11,9 @@ namespace cg2 {
 /// 割り当ては Input::TranslateGamepad と対応させること。
 inline std::string ApplyInputPrompts(std::string text)
 {
-    if (!Input::GetInstance()->IsGamepadActive())
+    if (!Input::GetInstance()->IsGamepadActive()) {
         return text;
+    }
     static const std::pair<const char*, const char*> kGamepadPrompts[] = {
         {"数字キー / クリック: 決定    ← → + Enter: 選択", "A: 決定    十字キー: 選択"},
         {"数字キー / クリック: 決定   ← → + Enter: 選択", "A: 決定   十字キー: 選択"},
@@ -47,10 +48,11 @@ inline std::string ApplyInputPrompts(std::string text)
     };
     for (const auto& [from, to] : kGamepadPrompts) {
         const std::string source(from), target(to);
-        for (size_t at = text.find(source); at != std::string::npos; at = text.find(source, at + target.size()))
+        for (size_t at = text.find(source); at != std::string::npos; at = text.find(source, at + target.size())) {
             text.replace(at, source.size(), target);
+        }
     }
     return text;
 }
 
-} // namespace cg2
+} // namespace myEngine

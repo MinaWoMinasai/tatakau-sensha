@@ -24,10 +24,11 @@
 
 namespace gameplay::detail {
 
-inline void ApplyGameplayNeonBloomPreset(cg2::BloomParam& param, float gain = 1.2f)
+/// @brief ゲームプレイ用のネオンBloom設定を適用する。
+inline void ApplyGameplayNeonBloomPreset(myEngine::BloomParam& param, float gain = 1.2f)
 {
-    // Match the projectile halo while composing the unchanged sharp source separately.
-    // Legacy intensity is independent: the pyramid applies this linear gain once.
+    // 弾のハローに合わせつつ、変更していない鮮明な元画像は別に合成する。
+    // Legacyの強度とは独立しており、ピラミッドはこの線形の係数を1回だけ掛ける。
     param.bloomMode = 2;
     param.threshold = 0.0f;
     param.bloomSoftKnee = 0.5f;
@@ -37,7 +38,7 @@ inline void ApplyGameplayNeonBloomPreset(cg2::BloomParam& param, float gain = 1.
 }
 
 /// @brief 衝突開発表示色を返す。
-inline cg2::Vector4 GetCollisionDebugColor(uint32_t attribute)
+inline myEngine::Vector4 GetCollisionDebugColor(uint32_t attribute)
 {
     if (attribute & kCollisionAttributePlayer) {
         return {0.15f, 1.0f, 0.95f, 0.85f};
@@ -176,70 +177,79 @@ inline std::string GetBossPhaseDisplayName(const LevelBossPhase& phase)
 }
 
 /// @brief Jsonベクトル4を読み取る。
-inline cg2::Vector4 ReadJsonVector4(const nlohmann::json& json, const cg2::Vector4& fallback)
+inline myEngine::Vector4 ReadJsonVector4(const nlohmann::json& json, const myEngine::Vector4& fallback)
 {
     if (!json.is_object()) {
         return fallback;
     }
 
-    cg2::Vector4 value = fallback;
-    if (json.contains("x") && json["x"].is_number())
+    myEngine::Vector4 value = fallback;
+    if (json.contains("x") && json["x"].is_number()) {
         value.x = json["x"].get<float>();
-    if (json.contains("y") && json["y"].is_number())
+    }
+    if (json.contains("y") && json["y"].is_number()) {
         value.y = json["y"].get<float>();
-    if (json.contains("z") && json["z"].is_number())
+    }
+    if (json.contains("z") && json["z"].is_number()) {
         value.z = json["z"].get<float>();
-    if (json.contains("w") && json["w"].is_number())
+    }
+    if (json.contains("w") && json["w"].is_number()) {
         value.w = json["w"].get<float>();
+    }
     return value;
 }
 
 /// @brief Jsonベクトル3を読み取る。
-inline cg2::Vector3 ReadJsonVector3(const nlohmann::json& json, const cg2::Vector3& fallback)
+inline myEngine::Vector3 ReadJsonVector3(const nlohmann::json& json, const myEngine::Vector3& fallback)
 {
     if (!json.is_object()) {
         return fallback;
     }
 
-    cg2::Vector3 value = fallback;
-    if (json.contains("x") && json["x"].is_number())
+    myEngine::Vector3 value = fallback;
+    if (json.contains("x") && json["x"].is_number()) {
         value.x = json["x"].get<float>();
-    if (json.contains("y") && json["y"].is_number())
+    }
+    if (json.contains("y") && json["y"].is_number()) {
         value.y = json["y"].get<float>();
-    if (json.contains("z") && json["z"].is_number())
+    }
+    if (json.contains("z") && json["z"].is_number()) {
         value.z = json["z"].get<float>();
+    }
     return value;
 }
 
 /// @brief Jsonベクトル2を読み取る。
-inline cg2::Vector2 ReadJsonVector2(const nlohmann::json& json, const cg2::Vector2& fallback)
+inline myEngine::Vector2 ReadJsonVector2(const nlohmann::json& json, const myEngine::Vector2& fallback)
 {
     if (!json.is_object()) {
         return fallback;
     }
 
-    cg2::Vector2 value = fallback;
-    if (json.contains("x") && json["x"].is_number())
+    myEngine::Vector2 value = fallback;
+    if (json.contains("x") && json["x"].is_number()) {
         value.x = json["x"].get<float>();
-    if (json.contains("y") && json["y"].is_number())
+    }
+    if (json.contains("y") && json["y"].is_number()) {
         value.y = json["y"].get<float>();
+    }
     return value;
 }
 
 /// @brief Jsonベクトル2を書き込む。
-inline nlohmann::json WriteJsonVector2(const cg2::Vector2& value)
+inline nlohmann::json WriteJsonVector2(const myEngine::Vector2& value)
 {
     return {{"x", value.x}, {"y", value.y}};
 }
 
 /// @brief Jsonベクトル3を書き込む。
-inline nlohmann::json WriteJsonVector3(const cg2::Vector3& value)
+inline nlohmann::json WriteJsonVector3(const myEngine::Vector3& value)
 {
     return {{"x", value.x}, {"y", value.y}, {"z", value.z}};
 }
 
 /// @brief Jsonベクトル4を書き込む。
-inline nlohmann::json WriteJsonVector4(const cg2::Vector4& value)
+inline nlohmann::json WriteJsonVector4(const myEngine::Vector4& value)
 {
     return {{"x", value.x}, {"y", value.y}, {"z", value.z}, {"w", value.w}};
 }
@@ -290,24 +300,31 @@ inline void ReadBulletTrailSettingsJson(const nlohmann::json& json, BulletTrailS
     settings.trailTailIntensity = ReadCustomFloat(json, "trailTailIntensity", settings.trailTailIntensity);
     settings.trailHeadAlpha = ReadCustomFloat(json, "trailHeadAlpha", settings.trailHeadAlpha);
     settings.trailTailAlpha = ReadCustomFloat(json, "trailTailAlpha", settings.trailTailAlpha);
-    if (json.contains("playerObjectColor"))
+    if (json.contains("playerObjectColor")) {
         settings.playerObjectColor = ReadJsonVector4(json["playerObjectColor"], settings.playerObjectColor);
-    if (json.contains("enemyObjectColor"))
+    }
+    if (json.contains("enemyObjectColor")) {
         settings.enemyObjectColor = ReadJsonVector4(json["enemyObjectColor"], settings.enemyObjectColor);
-    if (json.contains("reflectableObjectColor"))
+    }
+    if (json.contains("reflectableObjectColor")) {
         settings.reflectableObjectColor = ReadJsonVector4(json["reflectableObjectColor"], settings.reflectableObjectColor);
-    if (json.contains("startColor"))
+    }
+    if (json.contains("startColor")) {
         settings.startColor = ReadJsonVector4(json["startColor"], settings.startColor);
-    if (json.contains("playerEndColor"))
+    }
+    if (json.contains("playerEndColor")) {
         settings.playerEndColor = ReadJsonVector4(json["playerEndColor"], settings.playerEndColor);
-    if (json.contains("enemyEndColor"))
+    }
+    if (json.contains("enemyEndColor")) {
         settings.enemyEndColor = ReadJsonVector4(json["enemyEndColor"], settings.enemyEndColor);
-    if (json.contains("reflectableEndColor"))
+    }
+    if (json.contains("reflectableEndColor")) {
         settings.reflectableEndColor = ReadJsonVector4(json["reflectableEndColor"], settings.reflectableEndColor);
+    }
 }
 
 /// @brief ブルームパラメーターJsonを書き込む。
-inline nlohmann::json WriteBloomParamJson(const cg2::BloomParam& param)
+inline nlohmann::json WriteBloomParamJson(const myEngine::BloomParam& param)
 {
     return {{"threshold", param.threshold},
             {"intensity", param.intensity},
@@ -350,7 +367,7 @@ inline nlohmann::json WriteBloomParamJson(const cg2::BloomParam& param)
 }
 
 /// @brief ブルームパラメーターJsonを読み取る。
-inline void ReadBloomParamJson(const nlohmann::json& json, cg2::BloomParam& param)
+inline void ReadBloomParamJson(const nlohmann::json& json, myEngine::BloomParam& param)
 {
     if (!json.is_object()) {
         return;
@@ -406,9 +423,9 @@ inline void ReadBloomParamJson(const nlohmann::json& json, cg2::BloomParam& para
 }
 
 /// @brief 衝突Ring設定を作成して返す。
-inline cg2::RingEffectConfig MakeCollisionRingConfig(float radius, const cg2::Vector4& color)
+inline myEngine::RingEffectConfig MakeCollisionRingConfig(float radius, const myEngine::Vector4& color)
 {
-    cg2::RingEffectConfig config{};
+    myEngine::RingEffectConfig config{};
     config.lifeTime = 0.045f;
     config.startRadius = radius;
     config.endRadius = radius;
@@ -422,15 +439,15 @@ inline cg2::RingEffectConfig MakeCollisionRingConfig(float radius, const cg2::Ve
 }
 
 /// @brief Collider開発表示Ringsを発生させる。
-inline void EmitColliderDebugRings(cg2::RingManager& ringManager, Collider& collider)
+inline void EmitColliderDebugRings(myEngine::RingManager& ringManager, Collider& collider)
 {
-    const cg2::Vector4 color = GetCollisionDebugColor(collider.GetCollisionAttribute());
+    const myEngine::Vector4 color = GetCollisionDebugColor(collider.GetCollisionAttribute());
     if (collider.GetShape() == ColliderShape::Capsule) {
-        const cg2::Segment& segment = collider.GetSegment();
-        const cg2::Vector3 start = segment.origin;
-        const cg2::Vector3 end = segment.origin + segment.diff;
-        const cg2::Vector3 middle = start + segment.diff * 0.5f;
-        cg2::RingEffectConfig config = MakeCollisionRingConfig(collider.GetCapsuleRadius(), color);
+        const myEngine::Segment& segment = collider.GetSegment();
+        const myEngine::Vector3 start = segment.origin;
+        const myEngine::Vector3 end = segment.origin + segment.diff;
+        const myEngine::Vector3 middle = start + segment.diff * 0.5f;
+        myEngine::RingEffectConfig config = MakeCollisionRingConfig(collider.GetCapsuleRadius(), color);
         ringManager.Emit(start, config);
         ringManager.Emit(middle, config);
         ringManager.Emit(end, config);
@@ -441,17 +458,19 @@ inline void EmitColliderDebugRings(cg2::RingManager& ringManager, Collider& coll
 }
 
 /// @brief 有効カメラ位置を返す。
-inline cg2::Vector3 GetActiveCameraPosition(cg2::Camera* camera, cg2::DebugCamera* debugCamera)
+inline myEngine::Vector3 GetActiveCameraPosition(myEngine::Camera* camera, myEngine::DebugCamera* debugCamera)
 {
-    return cg2::Object3dCommon::GetInstance()->GetIsDebugCamera() && debugCamera ? debugCamera->GetEyePosition() : camera->GetTranslate();
+    return myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() && debugCamera ? debugCamera->GetEyePosition()
+                                                                                      : camera->GetTranslate();
 }
 
 /// @brief XY平面で点と有限線分の最短距離を返す。Z座標は距離に含めない。
 /// @param outT 非nullなら最近点の線分上の割合（0～1）を書き込む。XYの長さの二乗が0.0001以下なら0。
-inline float DistancePointToSegment2D(const cg2::Vector3& point, const cg2::Vector3& start, const cg2::Vector3& end, float* outT = nullptr)
+inline float DistancePointToSegment2D(const myEngine::Vector3& point, const myEngine::Vector3& start, const myEngine::Vector3& end,
+                                      float* outT = nullptr)
 {
-    const cg2::Vector3 segment = end - start;
-    const cg2::Vector3 toPoint = point - start;
+    const myEngine::Vector3 segment = end - start;
+    const myEngine::Vector3 toPoint = point - start;
     const float lengthSq = segment.x * segment.x + segment.y * segment.y;
     float t = 0.0f;
     if (lengthSq > 0.0001f) {
@@ -460,13 +479,13 @@ inline float DistancePointToSegment2D(const cg2::Vector3& point, const cg2::Vect
     if (outT) {
         *outT = t;
     }
-    const cg2::Vector3 closest = start + segment * t;
-    const cg2::Vector3 diff = point - closest;
+    const myEngine::Vector3 closest = start + segment * t;
+    const myEngine::Vector3 diff = point - closest;
     return std::sqrt(diff.x * diff.x + diff.y * diff.y);
 }
 
 /// @brief XY平面のベクトルをangleRadラジアンだけ回転し、Z成分は保持する。
-inline cg2::Vector3 RotateVector2D(const cg2::Vector3& value, float angleRad)
+inline myEngine::Vector3 RotateVector2D(const myEngine::Vector3& value, float angleRad)
 {
     const float c = std::cos(angleRad);
     const float s = std::sin(angleRad);

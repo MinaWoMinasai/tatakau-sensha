@@ -39,9 +39,9 @@ ConstantBuffer<Material> gMaterial : register(b2);
 
 struct OceanWakeData
 {
-    float32_t4 wakePoints[16];     // x: local sea x, y: local sea z, z: age, w: strength
-    float32_t4 wakeDirections[16]; // xz: flow direction in local sea space, y: wake type
-    float32_t4 parameters;        // x: active count, yzw: reserved
+    float32_t4 wakePoints[16];     // x: 海のローカルx、y: 海のローカルz、z: 経過時間、w: 強さ
+    float32_t4 wakeDirections[16]; // xz: 海のローカル空間での流れの方向、y: 航跡の種類
+    float32_t4 parameters;        // x: 有効な数、yzw: 予約
 };
 
 ConstantBuffer<OceanWakeData> gOceanWake : register(b3);
@@ -61,7 +61,7 @@ VertexShaderOutput main(VertexShaderInput input)
     float32_t3 localNormal = input.normal;
     float32_t4 localTangent = input.tangent;
 
-    // Graphics lab water: dedicated high-density river mesh.
+    // Graphics Lab用の水: 専用の高密度な川のメッシュ。
     if (gMaterial.environmentCoefficient >= 2.5f)
     {
         float time = gMaterial.shininess;
@@ -201,9 +201,9 @@ VertexShaderOutput main(VertexShaderInput input)
         grad += wakeGrad * 0.36f;
         localNormal = normalize(float32_t3(-grad.x, 1.0f, -grad.y));
     }
-    // Naval water prototype:
-    // environmentCoefficient >= 1.5 means this mesh is the sea.
-    // The sea mesh must be subdivided; otherwise this only moves the large plane corners.
+    // 海戦用の水のプロトタイプ:
+    // environmentCoefficient >= 1.5 はこのメッシュが海であることを表す。
+    // 海のメッシュは細分化しておく必要がある。そうでないと大きな平面の角が動くだけになる。
     else if (gMaterial.environmentCoefficient >= 1.5f)
     {
         float time = gMaterial.shininess;

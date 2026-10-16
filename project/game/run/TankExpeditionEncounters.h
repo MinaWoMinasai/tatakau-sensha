@@ -11,12 +11,14 @@ struct EncounterUnit {
     float y;
     int hp;
 };
+
 /// @brief 部屋で発生する敵出現グループと進行条件を表す。
 struct Encounter {
     std::array<EncounterUnit, 6> units{};
     int count = 0;
     const char* hint = "";
 };
+
 /// @brief 基準敵出現を返す。
 inline Encounter GetBaseEncounter(RoomKind room)
 {
@@ -47,30 +49,38 @@ inline Encounter GetBaseEncounter(RoomKind room)
     }
     return {};
 }
+
 /// @brief 敵出現を返す。
 inline Encounter GetEncounter(RoomKind room, int roomIndex = 0)
 {
     auto result = GetBaseEncounter(room);
     const auto scale = GetRoomBalance(roomIndex);
-    for (int i = 0; i < result.count; ++i)
+    for (int i = 0; i < result.count; ++i) {
         result.units[i].hp = (std::max)(4, static_cast<int>(std::round(result.units[i].hp * scale.hpScale)));
-    if (roomIndex >= 2 && result.count < 6)
+    }
+    if (roomIndex >= 2 && result.count < 6) {
         result.units[result.count++] = {"Shooter", 48, 28, static_cast<int>(28 * scale.hpScale)};
-    if (roomIndex >= 3 && room != RoomKind::Boss && result.count < 6)
+    }
+    if (roomIndex >= 3 && room != RoomKind::Boss && result.count < 6) {
         result.units[result.count++] = {"Sniper", 62, 34, static_cast<int>(34 * scale.hpScale)};
+    }
     return result;
 }
+
 // Passive salvage never blocks a combat room. A core objective cannot bypass
 // its guards, while the final rival remains the boss-room objective.
 /// @brief 部屋Objective完了であるか判定する。
 inline bool IsRoomObjectiveComplete(RoomKind room, int threats, int nodes, bool coreClaimed, bool bossDead)
 {
-    if (room == RoomKind::Boss)
+    if (room == RoomKind::Boss) {
         return bossDead;
-    if (room == RoomKind::Resource)
+    }
+    if (room == RoomKind::Resource) {
         return coreClaimed;
-    if (room == RoomKind::Guard)
+    }
+    if (room == RoomKind::Guard) {
         return nodes >= 3 && threats == 0;
+    }
     return threats == 0;
 }
 } // namespace tankexp

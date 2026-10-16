@@ -1,10 +1,12 @@
 #pragma once
+
 namespace tankrun::copy {
 /// @brief 報酬カードに表示する見出し・説明・補足文を表す。
 struct CardCopy {
     const char* title;
     const char* body;
 };
+
 constexpr CardCopy kRunCards[] = {
     {"反射コーティング", "壁で弾が反射する。\n反射コアなら弾速 +20%。\n\nドローンの弾にも適用。\n壁際の射線を使いこなす。"},
     {"重い弾頭", "弾の威力 +70%\n弾速 -28% / 発射間隔 +20%\n\n一発の重みを増やす。\nブレードの威力にも有効。"},
@@ -59,7 +61,7 @@ constexpr CardCopy kCores[] = {
     {"突撃コア / 重砲", "1砲門1発の近距離重砲。\nダッシュ後は射撃を強化。\n\n近づく → 撃つ → 離脱する。"},
     {"指揮コア / 群体",
      "ドローン機体は最大8機。\n他の機体には援護が2機。\nダッシュで次の一斉射撃を促す。\n\n反射・誘導を群れへ組み込む。"}};
-// Expedition copy is separate so the arena retains its original descriptions.
+// アリーナの元の説明文を残すため、遠征用の文言は別にしている。
 constexpr CardCopy kExpeditionCards[] = {
     {"壁反射", "壁に当たった弾が跳ね返る。\n反射は1回。角度を変えて敵を狙う。"},
     {"攻撃力", "攻撃の一発を重くする。\n威力+25% / 弾速+20%\n攻撃間隔+10%。"},
@@ -105,6 +107,7 @@ constexpr CardCopy kExpeditionCards[] = {
      "3段目の後も押し続けると回転斬り。\nスタミナ1で0.8秒、全方向を4回攻撃。\n移動速度低下。パリィブレード所持で弱い弾も切る。"},
     {"壁砕き", "吹き飛ばした敵が壁で衝撃波を起こす。\n追加威力は近接の1.75倍 / 半径2.8。\n周囲の敵にも40%の威力。"},
 };
+
 /// @brief 遠征の報酬に対応するカードの表示文を返す。
 inline CardCopy ExpeditionCardCopy(int index)
 {

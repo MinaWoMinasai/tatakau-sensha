@@ -2,7 +2,7 @@
 #include "DirectXCommon.h"
 #include <vector>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief ブルームなどの画面効果のパラメーターをGPUへ転送する。
 class BloomConstantBuffer {
@@ -15,10 +15,12 @@ public:
     D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const;
 
 private:
+    /// @brief 定数バッファの1回分のスナップショット。
     struct Snapshot {
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;
         BloomParam* mapped = nullptr;
     };
+
     DirectXCommon* dxCommon_ = nullptr;
     std::vector<Snapshot> snapshots_;
     size_t nextSnapshot_ = 0;
@@ -26,4 +28,4 @@ private:
     uint64_t frameFence_ = 0;
 };
 
-} // namespace cg2
+} // namespace myEngine

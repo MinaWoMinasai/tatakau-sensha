@@ -7,6 +7,7 @@ class ExpeditionBalanceEditor {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ExpeditionBalanceEditor(GameWorld& world) : world_(world) {}
+
     /// @brief 戦車遠征性能調整を初期化する。
     void InitializeTankExpeditionBalance();
 

@@ -36,7 +36,7 @@ using playerui::Vector4ToJson;
 using playerui::WriteVector2Object;
 
 /// @brief 係数を0〜1に制限し、2つのRGBA色を線形補間して返す。
-cg2::Vector4 LerpColor(const cg2::Vector4& a, const cg2::Vector4& b, float t)
+myEngine::Vector4 LerpColor(const myEngine::Vector4& a, const myEngine::Vector4& b, float t)
 {
     t = (std::clamp)(t, 0.0f, 1.0f);
     return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t};
@@ -66,11 +66,11 @@ const std::array<const char*, 7>& UpgradeHudNames()
 }
 
 /// @brief 強化HUDの行ごとの表示色を返す。
-const std::array<cg2::Vector4, 7>& UpgradeHudRowColors()
+const std::array<myEngine::Vector4, 7>& UpgradeHudRowColors()
 {
     // diepio風の能力ごとの色分け。ゲーム内のネオン表現と衝突しないよう、
     // 発光は塗り全体ではなく、セルと細い外周に限定する。
-    static const std::array<cg2::Vector4, 7> colors = {{
+    static const std::array<myEngine::Vector4, 7> colors = {{
         {0.90f, 0.36f, 0.86f, 1.0f}, // 自動回復
         {0.67f, 0.36f, 0.95f, 1.0f}, // 最大HP
         {0.49f, 0.39f, 0.98f, 1.0f}, // 体当たり
@@ -85,7 +85,7 @@ const std::array<cg2::Vector4, 7>& UpgradeHudRowColors()
 /// @brief 強化HUD区切り外観を作成して返す。
 NeonSegmentedBarStyle MakeUpgradeHudSegmentStyle(int index)
 {
-    const cg2::Vector4 baseColor = UpgradeHudRowColors()[(std::clamp)(index, 0, 6)];
+    const myEngine::Vector4 baseColor = UpgradeHudRowColors()[(std::clamp)(index, 0, 6)];
     NeonSegmentedBarStyle style{};
     // 外周の半円部にも未取得セルと同じ不透明な色を入れ、端だけが薄く
     // 見えないようにする。
@@ -106,9 +106,9 @@ NeonSegmentedBarStyle MakeUpgradeHudSegmentStyle(int index)
 }
 
 /// @brief 強化HUD下端バー文字外観を作成して返す。
-cg2::TextStyle MakeUpgradeHudBottomBarTextStyle()
+myEngine::TextStyle MakeUpgradeHudBottomBarTextStyle()
 {
-    cg2::TextStyle style{};
+    myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
     style.fontSize = 15.0f;
     style.color = {0.90f, 0.94f, 1.0f, 1.0f};
@@ -120,9 +120,9 @@ cg2::TextStyle MakeUpgradeHudBottomBarTextStyle()
 }
 
 /// @brief 強化HUDSmall文字外観を作成して返す。
-cg2::TextStyle MakeUpgradeHudSmallTextStyle()
+myEngine::TextStyle MakeUpgradeHudSmallTextStyle()
 {
-    cg2::TextStyle style{};
+    myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
     style.fontSize = 15.0f;
     style.color = {0.90f, 0.94f, 1.0f, 1.0f};
@@ -133,9 +133,9 @@ cg2::TextStyle MakeUpgradeHudSmallTextStyle()
 }
 
 /// @brief 強化HUD重ね表示文字外観を作成して返す。
-cg2::TextStyle MakeUpgradeHudOverlayTextStyle()
+myEngine::TextStyle MakeUpgradeHudOverlayTextStyle()
 {
-    cg2::TextStyle style = MakeUpgradeHudSmallTextStyle();
+    myEngine::TextStyle style = MakeUpgradeHudSmallTextStyle();
     style.outlineColor = {0.0f, 0.0f, 0.0f, 0.92f};
     style.outlineThickness = 1.0f;
     style.padding = 3.0f;
@@ -144,7 +144,7 @@ cg2::TextStyle MakeUpgradeHudOverlayTextStyle()
 }
 
 /// @brief 強化HUD文字進行を返す。
-float GetUpgradeHudTextAdvance(const cg2::TextLabel* label, const cg2::TextStyle& style)
+float GetUpgradeHudTextAdvance(const myEngine::TextLabel* label, const myEngine::TextStyle& style)
 {
     if (!label || !label->GetSprite()) {
         return style.fontSize * 0.55f;
@@ -172,9 +172,9 @@ bool Player::ConsumeDashStartedEvent()
     return started;
 }
 
-cg2::Sphere Player::GetSphere() const
+myEngine::Sphere Player::GetSphere() const
 {
-    cg2::Sphere s{};
+    myEngine::Sphere s{};
     s.center = GetWorldPosition();
 
     // 半径は「横幅基準」が安定
@@ -192,24 +192,26 @@ bool Player::RequestSlow()
     return false;
 }
 
-void Player::RotateToMouse(cg2::Camera* viewProjection)
+void Player::RotateToMouse(myEngine::Camera* viewProjection)
 {
     if (demoInputEnabled_) {
         runAimWorld_ = demoAim_;
-        const cg2::Vector3 offset = demoAim_ - worldTransform_.translate;
-        if (cg2::Length(offset) > 0.001f)
-            dir_ = cg2::Normalize(offset);
+        const myEngine::Vector3 offset = demoAim_ - worldTransform_.translate;
+        if (myEngine::Length(offset) > 0.001f) {
+            dir_ = myEngine::Normalize(offset);
+        }
         angle_ = std::atan2(dir_.y, dir_.x);
         worldTransform_.rotate.z = angle_;
         object_->SetRotate(worldTransform_.rotate);
         return;
     }
     if (input_ && input_->IsGamepadActive()) {
-        // Twin-stick aim: the right stick sets the barrel direction; released, the last direction is kept.
-        // The OS cursor is ignored so a resting mouse cannot pull the aim.
-        cg2::Vector2 aim{};
-        if (input_->TryGetGamepadAim(aim))
-            dir_ = cg2::Normalize(cg2::Vector3{aim.x, aim.y, 0.0f});
+        // ツインスティックの照準: 右スティックで砲身の向きを決め、離すと最後の向きを保つ。
+        // 置いたままのマウスで照準が引っ張られないよう、OSのカーソルは無視する。
+        myEngine::Vector2 aim{};
+        if (input_->TryGetGamepadAim(aim)) {
+            dir_ = myEngine::Normalize(myEngine::Vector3{aim.x, aim.y, 0.0f});
+        }
         runAimWorld_ = worldTransform_.translate + dir_ * 12.0f;
         angle_ = std::atan2(dir_.y, dir_.x);
         worldTransform_.rotate.z = angle_;
@@ -217,25 +219,29 @@ void Player::RotateToMouse(cg2::Camera* viewProjection)
         return;
     }
     if (neonDepthAimEnabled_) {
-        if (!viewProjection)
+        if (!viewProjection) {
             return;
-        auto* window = cg2::WinApp::GetInstance();
+        }
+        auto* window = myEngine::WinApp::GetInstance();
         POINT mousePosition{};
-        if (!window || !GetCursorPos(&mousePosition) || !ScreenToClient(window->GetHwnd(), &mousePosition))
+        if (!window || !GetCursorPos(&mousePosition) || !ScreenToClient(window->GetHwnd(), &mousePosition)) {
             return;
-        constexpr cg2::Vector2 viewport{1280.0f, 720.0f};
-        cg2::Vector2 logicalMouse{static_cast<float>(mousePosition.x), static_cast<float>(mousePosition.y)};
+        }
+        constexpr myEngine::Vector2 viewport{1280.0f, 720.0f};
+        myEngine::Vector2 logicalMouse{static_cast<float>(mousePosition.x), static_cast<float>(mousePosition.y)};
         window->ClientToLogical(logicalMouse.x, logicalMouse.y);
-        cg2::Vector2 pixel{};
-        cg2::Vector3 target{};
+        myEngine::Vector2 pixel{};
+        myEngine::Vector3 target{};
         if (!neondepth::TryClientToViewport(logicalMouse, viewport, viewport, pixel) ||
-            !neondepth::TryScreenToFloorFromViewProjection(pixel, viewport, viewProjection->GetViewProjectionMatrix(), 0.0f, target))
+            !neondepth::TryScreenToFloorFromViewProjection(pixel, viewport, viewProjection->GetViewProjectionMatrix(), 0.0f, target)) {
             return;
-        const cg2::Vector3 offset = target - worldTransform_.translate;
-        const float length = cg2::Length(offset);
-        if (!neondepth::Finite(offset) || !std::isfinite(length) || length <= 0.001f)
+        }
+        const myEngine::Vector3 offset = target - worldTransform_.translate;
+        const float length = myEngine::Length(offset);
+        if (!neondepth::Finite(offset) || !std::isfinite(length) || length <= 0.001f) {
             return;
-        dir_ = cg2::Normalize(offset);
+        }
+        dir_ = myEngine::Normalize(offset);
         runAimWorld_ = target;
         angle_ = std::atan2(dir_.y, dir_.x);
         worldTransform_.rotate.z = angle_;
@@ -245,35 +251,36 @@ void Player::RotateToMouse(cg2::Camera* viewProjection)
     // --- 1. マウス座標取得 ---
     POINT mousePosition;
     GetCursorPos(&mousePosition);
-    HWND hwnd = cg2::WinApp::GetInstance()->GetHwnd();
+    HWND hwnd = myEngine::WinApp::GetInstance()->GetHwnd();
     ScreenToClient(hwnd, &mousePosition);
     float logicalMouseX = static_cast<float>(mousePosition.x);
     float logicalMouseY = static_cast<float>(mousePosition.y);
-    cg2::WinApp::GetInstance()->ClientToLogical(logicalMouseX, logicalMouseY);
+    myEngine::WinApp::GetInstance()->ClientToLogical(logicalMouseX, logicalMouseY);
 
     // --- 2. 逆変換用の行列を準備 ---
-    cg2::Matrix4x4 matViewport = cg2::MakeViewportMatrix(0, 0, cg2::WinApp::kClientWidth, cg2::WinApp::kClientHeight, 0, 1);
-    cg2::Matrix4x4 matVPV = viewProjection->GetViewMatrix() * viewProjection->GetProjectionMatrix() * matViewport;
-    cg2::Matrix4x4 matInverseVPV = cg2::Inverse(matVPV);
+    myEngine::Matrix4x4 matViewport =
+        myEngine::MakeViewportMatrix(0, 0, myEngine::WinApp::kClientWidth, myEngine::WinApp::kClientHeight, 0, 1);
+    myEngine::Matrix4x4 matVPV = viewProjection->GetViewMatrix() * viewProjection->GetProjectionMatrix() * matViewport;
+    myEngine::Matrix4x4 matInverseVPV = myEngine::Inverse(matVPV);
 
     // --- 3. マウス座標をワールドに変換 ---
-    cg2::Vector3 posNear = cg2::Vector3(logicalMouseX, logicalMouseY, 0);
-    cg2::Vector3 posFar = cg2::Vector3(logicalMouseX, logicalMouseY, 1);
+    myEngine::Vector3 posNear = myEngine::Vector3(logicalMouseX, logicalMouseY, 0);
+    myEngine::Vector3 posFar = myEngine::Vector3(logicalMouseX, logicalMouseY, 1);
 
-    posNear = cg2::TransformMatrix(posNear, matInverseVPV);
-    posFar = cg2::TransformMatrix(posFar, matInverseVPV);
+    posNear = myEngine::TransformMatrix(posNear, matInverseVPV);
+    posFar = myEngine::TransformMatrix(posFar, matInverseVPV);
 
     // --- 4. レイと Z=0 平面の交差 ---
-    cg2::Vector3 mouseDirection = posFar - posNear;
-    cg2::Vector3 rayDir = cg2::Normalize(mouseDirection);
+    myEngine::Vector3 mouseDirection = posFar - posNear;
+    myEngine::Vector3 rayDir = myEngine::Normalize(mouseDirection);
     float t = -posNear.z / rayDir.z;
-    cg2::Vector3 target = posNear + rayDir * t;
+    myEngine::Vector3 target = posNear + rayDir * t;
     runAimWorld_ = target;
 
     // --- 5. プレイヤーの位置と方向ベクトル ---
-    cg2::Vector3 playerPos = worldTransform_.translate;
-    cg2::Vector3 targetPos = target - playerPos;
-    dir_ = cg2::Normalize(targetPos);
+    myEngine::Vector3 playerPos = worldTransform_.translate;
+    myEngine::Vector3 targetPos = target - playerPos;
+    dir_ = myEngine::Normalize(targetPos);
 
     // --- 6. 回転角度を算出 ---
     angle_ = atan2(dir_.y, dir_.x);
@@ -281,21 +288,21 @@ void Player::RotateToMouse(cg2::Camera* viewProjection)
     object_->SetRotate(worldTransform_.rotate);
 }
 
-void Player::Initialize(cg2::Object3d* object, const cg2::Vector3& position, bool arenaUi)
+void Player::Initialize(myEngine::Object3d* object, const myEngine::Vector3& position, bool arenaUi)
 {
-    cg2::StartupTrace::Scope scope("Player.Initialize");
+    myEngine::StartupTrace::Scope scope("Player.Initialize");
     wchar_t startupCacheFlag[8]{};
-    const bool baseline = GetEnvironmentVariableW(L"CG2_STARTUP_CACHE", startupCacheFlag, 8) > 0 && startupCacheFlag[0] == L'0';
+    const bool baseline = GetEnvironmentVariableW(L"MYENGINE_STARTUP_CACHE", startupCacheFlag, 8) > 0 && startupCacheFlag[0] == L'0';
     ui_->arenaUiEnabled_ = arenaUi || baseline;
 
-    sprite = std::make_unique<cg2::Sprite>();
-    sprite->Initialize(cg2::SpriteCommon::GetInstance(), "resources/fade.png");
-    sprite->SetColor(cg2::Vector4(1.0f, 1.0f, 1.0f, 0.8f));
+    sprite = std::make_unique<myEngine::Sprite>();
+    sprite->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/fade.png");
+    sprite->SetColor(myEngine::Vector4(1.0f, 1.0f, 1.0f, 0.8f));
 
     object_ = object;
     baseVehicleColor_ = object_->GetColor();
 
-    worldTransform_ = cg2::InitWorldTransform();
+    worldTransform_ = myEngine::InitWorldTransform();
     worldTransform_.translate = position;
     object_->SetTransform(worldTransform_);
     object_->Update();
@@ -307,7 +314,7 @@ void Player::Initialize(cg2::Object3d* object, const cg2::Vector3& position, boo
     UpdateBarrelLayout();
 
     // シングルトンインスタンス
-    input_ = cg2::Input::GetInstance();
+    input_ = myEngine::Input::GetInstance();
 
     // 衝突属性を設定
     SetCollisionAttribute(kCollisionAttributePlayer);
@@ -320,8 +327,8 @@ void Player::Initialize(cg2::Object3d* object, const cg2::Vector3& position, boo
     nextLevelExp_ = GetNextLevelExp();
     hp_ = GetMaxHp();
 
-    ui_->machineGunBtnSprite_ = std::make_unique<cg2::Sprite>();
-    ui_->machineGunBtnSprite_->Initialize(cg2::SpriteCommon::GetInstance(), "resources/white512x512.png");
+    ui_->machineGunBtnSprite_ = std::make_unique<myEngine::Sprite>();
+    ui_->machineGunBtnSprite_->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/white512x512.png");
     ui_->machineGunBtnSprite_->SetPosition({ui_->btnPos_});
     ui_->machineGunBtnSprite_->SetSize({ui_->btnSize_});
 
@@ -336,22 +343,22 @@ void Player::Initialize(cg2::Object3d* object, const cg2::Vector3& position, boo
         playerHud_->PrepareUpgradeHudSegmentBars();
         playerHud_->PrepareUpgradeHudTextTextures();
     } else {
-        // Keep authored progression rules available for combat/evolution logic.
-        // Only the legacy arena's invisible UI is omitted, never deferred.
+        // 作成済みの成長ルールは戦闘や進化の処理で使えるように残す。
+        // 旧来のアリーナの見えないUIだけを省き、後回しにはしない。
         playerEvolution_->LoadEvolutionCircuitTree();
-        cg2::StartupTrace::Count("player.unusedArenaUiSkipped");
+        myEngine::StartupTrace::Count("player.unusedArenaUiSkipped");
     }
 }
 
-void Player::Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* BulletManager, float deltaTime, float uiDeltaTime)
+void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManager* BulletManager, float deltaTime, float uiDeltaTime)
 {
     sprite->Update();
 
     POINT mousePos;
     GetCursorPos(&mousePos);
-    ScreenToClient(cg2::WinApp::GetInstance()->GetHwnd(), &mousePos);
+    ScreenToClient(myEngine::WinApp::GetInstance()->GetHwnd(), &mousePos);
     mousePosition_ = {static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)};
-    cg2::WinApp::GetInstance()->ClientToLogical(mousePosition_.x, mousePosition_.y);
+    myEngine::WinApp::GetInstance()->ClientToLogical(mousePosition_.x, mousePosition_.y);
     // UIにはスローの影響を受けない時間を渡す。操作による開閉も同じフレーム内で判定する。
     const bool evolutionUiWasOpen = isChangeMode;
     if (!demoInputEnabled_ && ui_->arenaUiEnabled_) {
@@ -382,20 +389,27 @@ void Player::Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* Bu
     }
 
     if (!demoInputEnabled_ && !runModifiers_.enabled && skillPoints_ > 0) {
-        if (input_->IsTrigger(input_->GetKey()[DIK_1], input_->GetPreKey()[DIK_1]))
+        if (input_->IsTrigger(input_->GetKey()[DIK_1], input_->GetPreKey()[DIK_1])) {
             ApplyStatUpgrade(0);
-        if (input_->IsTrigger(input_->GetKey()[DIK_2], input_->GetPreKey()[DIK_2]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_2], input_->GetPreKey()[DIK_2])) {
             ApplyStatUpgrade(1);
-        if (input_->IsTrigger(input_->GetKey()[DIK_3], input_->GetPreKey()[DIK_3]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_3], input_->GetPreKey()[DIK_3])) {
             ApplyStatUpgrade(2);
-        if (input_->IsTrigger(input_->GetKey()[DIK_4], input_->GetPreKey()[DIK_4]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_4], input_->GetPreKey()[DIK_4])) {
             ApplyStatUpgrade(3);
-        if (input_->IsTrigger(input_->GetKey()[DIK_5], input_->GetPreKey()[DIK_5]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_5], input_->GetPreKey()[DIK_5])) {
             ApplyStatUpgrade(4);
-        if (input_->IsTrigger(input_->GetKey()[DIK_6], input_->GetPreKey()[DIK_6]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_6], input_->GetPreKey()[DIK_6])) {
             ApplyStatUpgrade(5);
-        if (input_->IsTrigger(input_->GetKey()[DIK_7], input_->GetPreKey()[DIK_7]))
+        }
+        if (input_->IsTrigger(input_->GetKey()[DIK_7], input_->GetPreKey()[DIK_7])) {
             ApplyStatUpgrade(6);
+        }
     }
 
     if (runModifiers_.enabled) {
@@ -441,23 +455,28 @@ void Player::Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* Bu
 
     // 右クリックは機体ごとの特殊行動スロットとして扱う。
     if (runModifiers_.enabled) {
-        // Read the current direction before a dash; a newly pressed movement
-        // key should redirect the boost immediately, not on the following frame.
+        // ダッシュの前に現在の方向を読む。新たに押した移動キーで
+        // 次のフレームではなく即座に加速の向きを変えるため。
         inputDir_ = {};
-        if (input_->IsPress(input_->GetKey()[DIK_A]))
+        if (input_->IsPress(input_->GetKey()[DIK_A])) {
             inputDir_.x -= 1.0f;
-        if (input_->IsPress(input_->GetKey()[DIK_D]))
+        }
+        if (input_->IsPress(input_->GetKey()[DIK_D])) {
             inputDir_.x += 1.0f;
-        if (input_->IsPress(input_->GetKey()[DIK_W]))
+        }
+        if (input_->IsPress(input_->GetKey()[DIK_W])) {
             inputDir_.y += 1.0f;
-        if (input_->IsPress(input_->GetKey()[DIK_S]))
+        }
+        if (input_->IsPress(input_->GetKey()[DIK_S])) {
             inputDir_.y -= 1.0f;
+        }
         if (input_->IsGamepadActive()) {
-            const cg2::Vector2 move = input_->GetGamepadMove();
+            const myEngine::Vector2 move = input_->GetGamepadMove();
             inputDir_ = {move.x, move.y, 0};
         }
-        if (demoInputEnabled_)
+        if (demoInputEnabled_) {
             inputDir_ = {demoMove_.x, demoMove_.y, 0};
+        }
         RotateToMouse(viewProjection);
     }
     if ((!runModifiers_.enabled || !runRoomAwaitInputRelease_) &&
@@ -487,22 +506,27 @@ void Player::Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* Bu
     RotateToMouse(viewProjection);
     inputDir_ = {0, 0, 0};
 
-    if (input_->IsPress(input_->GetKey()[DIK_A]))
+    if (input_->IsPress(input_->GetKey()[DIK_A])) {
         inputDir_.x -= 1.0f;
-    if (input_->IsPress(input_->GetKey()[DIK_D]))
+    }
+    if (input_->IsPress(input_->GetKey()[DIK_D])) {
         inputDir_.x += 1.0f;
-    if (input_->IsPress(input_->GetKey()[DIK_W]))
+    }
+    if (input_->IsPress(input_->GetKey()[DIK_W])) {
         inputDir_.y += 1.0f;
-    if (input_->IsPress(input_->GetKey()[DIK_S]))
+    }
+    if (input_->IsPress(input_->GetKey()[DIK_S])) {
         inputDir_.y -= 1.0f;
+    }
     if (input_->IsGamepadActive()) {
-        // Analog stick: direction and tilt (the movement step limits the length).
-        const cg2::Vector2 move = input_->GetGamepadMove();
+        // アナログスティック: 方向と傾き（長さは移動の1ステップで制限する）。
+        const myEngine::Vector2 move = input_->GetGamepadMove();
         inputDir_ = {move.x, move.y, 0};
     }
 
-    if (demoInputEnabled_)
+    if (demoInputEnabled_) {
         inputDir_ = {demoMove_.x, demoMove_.y, 0};
+    }
     PlayerMovementInput movementInput{};
     movementInput.direction = inputDir_;
     movementInput.velocity = velocity_;
@@ -518,21 +542,21 @@ void Player::Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* Bu
     inputDir_ = movementStep.direction;
     velocity_ = movementStep.velocity;
     const int subStepCount = movementStep.subStepCount;
-    const cg2::Vector3 stepMove = movementStep.stepMove;
-    // Preserve collision resolution order: each substep applies X, then Y.
+    const myEngine::Vector3 stepMove = movementStep.stepMove;
+    // 衝突解決の順番を保つ: 各サブステップでX、次にYを適用する。
     for (int i = 0; i < subStepCount; ++i) {
-        cg2::Vector3 pos = GetWorldPosition();
+        myEngine::Vector3 pos = GetWorldPosition();
         pos.x += stepMove.x;
         SetWorldPosition(pos);
-        stage.ResolvePlayerCollision(*this, cg2::X);
+        stage.ResolvePlayerCollision(*this, myEngine::X);
 
         pos = GetWorldPosition();
         pos.y += stepMove.y;
         SetWorldPosition(pos);
-        stage.ResolvePlayerCollision(*this, cg2::Y);
+        stage.ResolvePlayerCollision(*this, myEngine::Y);
     }
 
-    if (!isDead_ && !isDashing_ && cg2::Length(inputDir_) > 0.05f) {
+    if (!isDead_ && !isDashing_ && myEngine::Length(inputDir_) > 0.05f) {
         movementParticleTimer_ -= deltaTime;
         if (movementParticleTimer_ <= 0.0f) {
             SpawnAfterimage();
@@ -580,8 +604,9 @@ void Player::Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* Bu
         if (IsDroneBuild()) {
             runBulletManager_ = BulletManager;
             runSupportDroneTimer_ = (std::max)(0.0f, runSupportDroneTimer_ - deltaTime);
-            if (runSupportDroneTimer_ <= 0.0f)
+            if (runSupportDroneTimer_ <= 0.0f) {
                 EnsureExpeditionDrones();
+            }
         } else if (runModifiers_.enabled && !runRoomAwaitInputRelease_ && supportLimit > 0 && (!activeClass || !activeClass->usesDrone)) {
             runSupportDroneTimer_ = (std::max)(0.0f, runSupportDroneTimer_ - deltaTime);
             if (drones_.size() < supportLimit && runSupportDroneTimer_ <= 0.0f) {
@@ -602,25 +627,28 @@ void Player::Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* Bu
                 drone->SetRunOwner(this, static_cast<int>(companionIndex));
                 const bool wantsAttack = !runRoomAwaitInputRelease_ && !ui_->upgradeHudMouseCaptured_ &&
                                          (demoInputEnabled_ ? demoShoot_ : input_->IsPress(input_->GetMouseState().rgbButtons[0]));
-                cg2::Vector3 aim = runAimWorld_;
+                myEngine::Vector3 aim = runAimWorld_;
                 if (IsDroneBuild() && !runHomingTargets_.empty() && (runModifiers_.autonomousSpread || runModifiers_.droneFocus)) {
                     std::array<float, 48> distances{};
                     const auto from = runModifiers_.autonomousSpread ? drone->GetWorldPosition() : runAimWorld_;
                     const int count = static_cast<int>((std::min)(runHomingTargets_.size(), distances.size()));
-                    for (int n = 0; n < count; ++n)
-                        distances[static_cast<size_t>(n)] = cg2::Length(runHomingTargets_[static_cast<size_t>(n)] - from);
+                    for (int n = 0; n < count; ++n) {
+                        distances[static_cast<size_t>(n)] = myEngine::Length(runHomingTargets_[static_cast<size_t>(n)] - from);
+                    }
                     const int chosen = tankspecial::ChooseSpreadTarget(distances.data(), spreadUsed.data(), count);
                     if (chosen >= 0 && (runModifiers_.autonomousSpread || distances[static_cast<size_t>(chosen)] < 6.0f)) {
                         aim = runHomingTargets_[static_cast<size_t>(chosen)];
                         if (runModifiers_.autonomousSpread) {
                             spreadUsed[static_cast<size_t>(chosen)] = true;
-                            if (wantsAttack)
+                            if (wantsAttack) {
                                 specialCombatStats_.spreadTargets |= uint32_t{1} << (chosen % 32);
+                            }
                         }
                     }
                 }
-                if (expeditionCombatStyleSelected_ || demoInputEnabled_)
+                if (expeditionCombatStyleSelected_ || demoInputEnabled_) {
                     drone->SetRunInput(aim, wantsAttack);
+                }
                 if (IsDroneBuild()) {
                     const float orbit =
                         static_cast<float>(companionIndex) * 6.2831853f / static_cast<float>((std::max)(size_t{1}, drones_.size()));
@@ -643,8 +671,9 @@ void Player::Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* Bu
                                          return drone->IsDead();
                                      }),
                       drones_.end());
-        if (IsDroneBuild() && drones_.size() < static_cast<size_t>(GetExpeditionDroneLimit()) && runSupportDroneTimer_ <= 0.0f)
+        if (IsDroneBuild() && drones_.size() < static_cast<size_t>(GetExpeditionDroneLimit()) && runSupportDroneTimer_ <= 0.0f) {
             runSupportDroneTimer_ = 1.2f;
+        }
         UpdateRunProjectiles(BulletManager, deltaTime);
     }
 
@@ -660,11 +689,11 @@ void Player::Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* Bu
 
 void Player::Draw(bool drawBody)
 {
-
     // ドローンの描画
     for (auto& drone : drones_) {
-        if (!drone->UsesNeonVisual())
+        if (!drone->UsesNeonVisual()) {
             drone->Draw();
+        }
     }
 
     if (drawBody) {
@@ -681,9 +710,9 @@ void Player::DrawBodyOnly()
 
         const float progress = 1.0f - deathChargeTimer_ / deathChargeDuration_;
         const float charge = progress * progress;
-        cg2::Transform chargeTransform = worldTransform_;
+        myEngine::Transform chargeTransform = worldTransform_;
         chargeTransform.scale = worldTransform_.scale * (1.0f + charge * 0.65f);
-        const cg2::Vector4 savedColor = object_->GetColor();
+        const myEngine::Vector4 savedColor = object_->GetColor();
         const bool savedLighting = object_->IsLightingEnabled();
         object_->SetTransform(chargeTransform);
         object_->SetLighting(false);
@@ -709,7 +738,7 @@ void Player::DrawBodyOnly()
                     SetVehicleAlpha(0.5f);
                 }
                 if (damageFeedbackTimer_ > 0.0f) {
-                    cg2::Transform drawTransform = worldTransform_;
+                    myEngine::Transform drawTransform = worldTransform_;
                     const float t = damageFeedbackTimer_ / damageFeedbackDuration_;
                     const float pulse = std::sin(t * 3.14159265f) * 0.10f;
                     drawTransform.scale = worldTransform_.scale * (1.0f + pulse);
@@ -725,7 +754,7 @@ void Player::DrawBodyOnly()
             SetVehicleAlpha(1.0f);
         }
         if (damageFeedbackTimer_ > 0.0f) {
-            cg2::Transform drawTransform = worldTransform_;
+            myEngine::Transform drawTransform = worldTransform_;
             const float t = damageFeedbackTimer_ / damageFeedbackDuration_;
             const float pulse = std::sin(t * 3.14159265f) * 0.10f;
             drawTransform.scale = worldTransform_.scale * (1.0f + pulse);
@@ -739,7 +768,7 @@ void Player::DrawBodyOnly()
 
 void Player::DrawSprite()
 {
-    cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     playerHud_->DrawUpgradeHud();
 }
 
@@ -753,11 +782,10 @@ std::vector<PlayerDrone*> Player::GetDronePtrs() const
     return result;
 }
 
-cg2::Vector3 Player::GetWorldPosition() const
+myEngine::Vector3 Player::GetWorldPosition() const
 {
-
     // ワールド座標を入れる
-    cg2::Vector3 worldPos;
+    myEngine::Vector3 worldPos;
     // ワールド行列の平行移動成分を取得(ワールド座標)
     worldPos.x = worldTransform_.translate.x;
     worldPos.y = worldTransform_.translate.y;
@@ -812,24 +840,25 @@ void Player::OnCollision(Collider* other)
         }
     }
 
-    if (TryPerfectDodgeFromHostileContact(other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet))
+    if (TryPerfectDodgeFromHostileContact(other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet)) {
         return;
+    }
 
-    cg2::Vector3 hitDir = worldTransform_.translate - other->GetWorldPosition();
+    myEngine::Vector3 hitDir = worldTransform_.translate - other->GetWorldPosition();
 
-    if (cg2::Length(hitDir) < 0.0001f) {
+    if (myEngine::Length(hitDir) < 0.0001f) {
         // 押し戻す方向が定まらない場合は、後続の被ダメージ処理にも進まない。
         return;
     }
 
-    hitDir = cg2::Normalize(hitDir);
+    hitDir = myEngine::Normalize(hitDir);
 
     const float kKnockBackPower = 0.15f;
 
     velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
     const float maxKnockSpeed = isDashing_ ? 0.32f : 0.20f;
-    if (cg2::Length(velocity_) > maxKnockSpeed) {
-        velocity_ = cg2::Normalize(velocity_) * maxKnockSpeed;
+    if (myEngine::Length(velocity_) > maxKnockSpeed) {
+        velocity_ = myEngine::Normalize(velocity_) * maxKnockSpeed;
     }
 
     if (other->GetCollisionAttribute() == kCollisionAttributeEnemy || other->GetCollisionAttribute() == kCollisionAttributeExpEnemy ||
@@ -840,16 +869,19 @@ void Player::OnCollision(Collider* other)
 
 uint32_t Player::ReceiveHostileHazard(uint32_t amount, bool dodgeable)
 {
-    if (isDead_ || amount == 0)
+    if (isDead_ || amount == 0) {
         return 0;
+    }
     if (currentClass_ == ClassType::Assassin) {
         isStealth_ = false;
         stealthTimer_ = 0.0f;
     }
-    if ((invincibleTimer_ > 0.0f && !isDashing_) || isJustEvaded_ || isSmash_)
+    if ((invincibleTimer_ > 0.0f && !isDashing_) || isJustEvaded_ || isSmash_) {
         return 0;
-    if (TryPerfectDodgeFromHostileContact(dodgeable))
+    }
+    if (TryPerfectDodgeFromHostileContact(dodgeable)) {
         return 0;
+    }
     const int before = hp_;
     TakeDamage(amount, 0.45f);
     return static_cast<uint32_t>((std::max)(0, before - hp_));
@@ -857,27 +889,32 @@ uint32_t Player::ReceiveHostileHazard(uint32_t amount, bool dodgeable)
 
 bool Player::TryDashImpact(Collider* target)
 {
-    if (!target || isDead_ || !isDashing_)
+    if (!target || isDead_ || !isDashing_) {
         return false;
+    }
     auto* regular = dynamic_cast<ExpEnemy*>(target);
     auto* boss = dynamic_cast<Enemy*>(target);
     if ((!regular && !boss) || (regular && (regular->IsDead() || regular->IsRunResource())) ||
-        (boss && (!boss->IsRunEncounterEnabled() || boss->IsDead())))
+        (boss && (!boss->IsRunEncounterEnabled() || boss->IsDead()))) {
         return false;
+    }
     const uint64_t id = target->GetCollisionId();
     if (std::find(dashImpactTargets_.begin(), dashImpactTargets_.end(), id) != dashImpactTargets_.end()) {
         // このダッシュで処理済みなら、受付時間を過ぎてもtrueを返して通常の双方通知を抑える。
         return true;
     }
-    if (kDashDuration - dashTimer_ > kJustEvadeWindow)
+    if (kDashDuration - dashTimer_ > kJustEvadeWindow) {
         return false;
+    }
     dashImpactTargets_.push_back(id);
-    cg2::Vector3 direction = target->GetWorldPosition() - GetWorldPosition();
-    if (cg2::Length(direction) < 0.001f)
+    myEngine::Vector3 direction = target->GetWorldPosition() - GetWorldPosition();
+    if (myEngine::Length(direction) < 0.001f) {
         direction = velocity_;
-    if (cg2::Length(direction) < 0.001f)
+    }
+    if (myEngine::Length(direction) < 0.001f) {
         direction = {1, 0, 0};
-    direction = cg2::Normalize(direction);
+    }
+    direction = myEngine::Normalize(direction);
     const bool powered = runModifiers_.enabled && runModifiers_.impactDrive;
     const float strength = powered ? 1.0f + 0.5f * TankEffectPower(runModifiers_, 14) : 1.0f;
     const uint32_t damage =
@@ -905,11 +942,11 @@ std::vector<Player::DashImpactEvent> Player::ConsumeDashImpactEvents()
     return events;
 }
 
-cg2::AABB Player::GetAABB()
+myEngine::AABB Player::GetAABB()
 {
-    cg2::Vector3 worldPos = GetWorldPosition();
+    myEngine::Vector3 worldPos = GetWorldPosition();
 
-    cg2::AABB aabb;
+    myEngine::AABB aabb;
 
     aabb.min = {worldPos.x - kWidth / 2.0f, worldPos.y - kHeight / 2.0f, worldPos.z - kWidth / 2.0f};
     aabb.max = {worldPos.x + kWidth / 2.0f, worldPos.y + kHeight / 2.0f, worldPos.z + kWidth / 2.0f};
@@ -960,8 +997,9 @@ std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents()
 
 void Player::Die()
 {
-    if (isDead_)
+    if (isDead_) {
         return;
+    }
 
     isDead_ = true;
     isExploding_ = true;
@@ -1069,7 +1107,7 @@ std::vector<Player::MeleeSlashEvent> Player::ConsumeMeleeSlashEvents()
     return events;
 }
 
-cg2::Vector3 Player::RotateDirection(const cg2::Vector3& direction, float angleDeg) const
+myEngine::Vector3 Player::RotateDirection(const myEngine::Vector3& direction, float angleDeg) const
 {
     const float rad = angleDeg * 3.1415926535f / 180.0f;
     return {direction.x * cosf(rad) - direction.y * sinf(rad), direction.x * sinf(rad) + direction.y * cosf(rad), direction.z};
@@ -1083,13 +1121,13 @@ void Player::InitializeBarrels()
     barrels_.reserve(barrelCount);
     for (size_t i = 0; i < barrelCount; ++i) {
         BarrelModel barrel{};
-        barrel.object = std::make_unique<cg2::Object3d>();
+        barrel.object = std::make_unique<myEngine::Object3d>();
         barrel.object->Initialize();
         barrel.object->SetModel(config ? config->barrels[i].model : "gunBarrel.obj");
-        barrel.object->SetColor(cg2::Vector4(0.48f, 0.86f, 0.22f, 1.0f));
-        baseBarrelColor_ = cg2::Vector4(0.48f, 0.86f, 0.22f, 1.0f);
-        barrel.transform = cg2::InitWorldTransform();
-        barrel.transform.scale = config ? config->barrels[i].scale : cg2::Vector3{1.25f, 0.24f, 0.24f};
+        barrel.object->SetColor(myEngine::Vector4(0.48f, 0.86f, 0.22f, 1.0f));
+        baseBarrelColor_ = myEngine::Vector4(0.48f, 0.86f, 0.22f, 1.0f);
+        barrel.transform = myEngine::InitWorldTransform();
+        barrel.transform.scale = config ? config->barrels[i].scale : myEngine::Vector3{1.25f, 0.24f, 0.24f};
         barrels_.push_back(std::move(barrel));
     }
 }
@@ -1100,8 +1138,8 @@ void Player::UpdateBarrelLayout()
         return;
     }
 
-    const cg2::Vector3 forward = cg2::Length(dir_) > 0.0001f ? cg2::Normalize(dir_) : cg2::Vector3{1.0f, 0.0f, 0.0f};
-    const cg2::Vector3 right = {-forward.y, forward.x, 0.0f};
+    const myEngine::Vector3 forward = myEngine::Length(dir_) > 0.0001f ? myEngine::Normalize(dir_) : myEngine::Vector3{1.0f, 0.0f, 0.0f};
+    const myEngine::Vector3 right = {-forward.y, forward.x, 0.0f};
     const PlayerClassConfig* config = GetCurrentClassConfig();
     const float recoilReturn = 0.055f;
 
@@ -1113,11 +1151,11 @@ void Player::UpdateBarrelLayout()
         barrel.recoilOffset = (std::max)(0.0f, barrel.recoilOffset - recoilReturn * dt_ * 60.0f);
         barrel.muzzleFlashTimer = (std::max)(0.0f, barrel.muzzleFlashTimer - dt_);
         barrel.localOffset = forward * (barrelConfig.offset.x - barrel.recoilOffset) + right * barrelConfig.offset.y +
-                             cg2::Vector3{0.0f, 0.0f, barrelConfig.offset.z};
+                             myEngine::Vector3{0.0f, 0.0f, barrelConfig.offset.z};
         barrel.transform.translate = worldTransform_.translate + barrel.localOffset;
         barrel.transform.rotate = worldTransform_.rotate;
         barrel.transform.rotate.z += barrelConfig.angleDeg * 3.1415926535f / 180.0f;
-        barrel.transform.scale = active ? barrelConfig.scale : cg2::Vector3{0.0f, 0.0f, 0.0f};
+        barrel.transform.scale = active ? barrelConfig.scale : myEngine::Vector3{0.0f, 0.0f, 0.0f};
         barrel.object->SetTransform(barrel.transform);
         barrel.object->Update();
     }
@@ -1139,12 +1177,12 @@ void Player::SetVehicleAlpha(float alpha)
         const float t = damageFeedbackTimer_ / damageFeedbackDuration_;
         flash = t * t * 0.75f;
     }
-    cg2::Vector4 vehicleColor = LerpColor(baseVehicleColor_, {1.0f, 1.0f, 1.0f, baseVehicleColor_.w}, flash);
+    myEngine::Vector4 vehicleColor = LerpColor(baseVehicleColor_, {1.0f, 1.0f, 1.0f, baseVehicleColor_.w}, flash);
     vehicleColor.w = alpha;
     object_->SetColor(vehicleColor);
     for (BarrelModel& barrel : barrels_) {
         if (barrel.object) {
-            cg2::Vector4 barrelColor = LerpColor(baseBarrelColor_, {1.0f, 1.0f, 1.0f, baseBarrelColor_.w}, flash);
+            myEngine::Vector4 barrelColor = LerpColor(baseBarrelColor_, {1.0f, 1.0f, 1.0f, baseBarrelColor_.w}, flash);
             barrelColor.w = alpha;
             barrel.object->SetColor(barrelColor);
         }
@@ -1158,8 +1196,8 @@ void Player::TriggerDamageFeedback()
 
 void Player::SpawnParticles()
 {
-    cg2::Vector3 center = GetWorldPosition();
-    cg2::ParticleManager::GetInstance()->EmitNeonDeathEffect(center, {1.45f, 1.30f, 0.72f, 1.0f}, {0.08f, 1.25f, 1.55f, 0.0f}, 1.0f);
+    myEngine::Vector3 center = GetWorldPosition();
+    myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(center, {1.45f, 1.30f, 0.72f, 1.0f}, {0.08f, 1.25f, 1.55f, 0.0f}, 1.0f);
     deathChargeTimer_ = deathChargeDuration_;
     deathEffectTimer_ = 1.85f;
 }
@@ -1190,7 +1228,7 @@ void Player::UpdateStealth(float deltaTime)
     // Assassinの仕様: しばらく経つとステルス
     if (currentClass_ == ClassType::Assassin) {
         // 移動入力があるか、攻撃しているかをチェック
-        if (cg2::Length(velocity_) > 0.1f || input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
+        if (myEngine::Length(velocity_) > 0.1f || input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
             stealthTimer_ = 0.0f;
             isStealth_ = false;
         } else {
@@ -1217,7 +1255,7 @@ void Player::UpdateStealth(float deltaTime)
 
     // アルファ値の適用 (描画時に反映させる)
     float targetAlpha = isStealth_ ? 0.2f : 1.0f;
-    stealthAlpha_ = cg2::Lerp(stealthAlpha_, targetAlpha, 0.1f);
+    stealthAlpha_ = myEngine::Lerp(stealthAlpha_, targetAlpha, 0.1f);
     // 実際のモデルのカラーに適用
     object_->SetAlpha(stealthAlpha_);
     for (BarrelModel& barrel : barrels_) {
@@ -1229,8 +1267,9 @@ void Player::UpdateStealth(float deltaTime)
 
 void Player::UpdateSummoner(float deltaTime)
 {
-    if (currentClass_ != ClassType::Summoner)
+    if (currentClass_ != ClassType::Summoner) {
         return;
+    }
 
     // ドローンの数が足りなければ生成
     if (drones_.size() < kMaxSummonerDrones) {
@@ -1245,26 +1284,27 @@ void Player::UpdateSummoner(float deltaTime)
 
 void Player::SpawnCasing()
 {
-    cg2::ParticleManager::GetInstance()->Emit("CasingSpark", GetWorldPosition() + dir_ * 1.0f, 2);
+    myEngine::ParticleManager::GetInstance()->Emit("CasingSpark", GetWorldPosition() + dir_ * 1.0f, 2);
 }
 
 void Player::SpawnAfterimage()
 {
-    cg2::Vector3 position = GetWorldPosition();
-    cg2::Vector3 moveDirection = velocity_;
+    myEngine::Vector3 position = GetWorldPosition();
+    myEngine::Vector3 moveDirection = velocity_;
     moveDirection.z = 0.0f;
-    if (cg2::Length(moveDirection) > 0.001f) {
-        position -= cg2::Normalize(moveDirection) * 0.65f;
+    if (myEngine::Length(moveDirection) > 0.001f) {
+        position -= myEngine::Normalize(moveDirection) * 0.65f;
     }
-    cg2::ParticleManager::GetInstance()->Emit("DashDust", position, 1);
-    cg2::ParticleManager::GetInstance()->EmitNeonMovementEffect(position, moveDirection);
+    myEngine::ParticleManager::GetInstance()->Emit("DashDust", position, 1);
+    myEngine::ParticleManager::GetInstance()->EmitNeonMovementEffect(position, moveDirection);
 }
 
 std::vector<Player::NeonBarrelLayout> Player::GetNeonBarrelLayouts() const
 {
     std::vector<NeonBarrelLayout> layouts;
-    if (IsDroneBuild())
+    if (IsDroneBuild()) {
         return layouts;
+    }
     if (IsMeleeBuild()) {
         NeonBarrelLayout blade{};
         blade.isMelee = true;
@@ -1333,19 +1373,20 @@ float Player::GetDamageFeedbackRatio() const
 
 void Player::SpawnBuffParticle()
 {
-    cg2::ParticleManager::GetInstance()->Emit("DashDust", GetWorldPosition(), 1);
+    myEngine::ParticleManager::GetInstance()->Emit("DashDust", GetWorldPosition(), 1);
 }
-cg2::Vector2 Player::WorldToScreen(const cg2::Vector3& worldPos, cg2::Camera* camera)
+
+myEngine::Vector2 Player::WorldToScreen(const myEngine::Vector3& worldPos, myEngine::Camera* camera)
 {
     // 1. ビュープロジェクション行列で変換
 
-    cg2::Matrix4x4 matVP = camera->GetViewMatrix() * camera->GetProjectionMatrix();
-    cg2::Vector3 ndcPos = cg2::TransformMatrix(worldPos, matVP);
+    myEngine::Matrix4x4 matVP = camera->GetViewMatrix() * camera->GetProjectionMatrix();
+    myEngine::Vector3 ndcPos = myEngine::TransformMatrix(worldPos, matVP);
 
     // 2. NDC座標 (-1.0 ~ 1.0) をスクリーン座標 (0 ~ ウィンドウ幅/高) に変換
     // ※ WinAppなどのシングルトンから画面サイズを取得してください
-    float screenX = (ndcPos.x + 1.0f) * 0.5f * cg2::WinApp::kClientWidth;
-    float screenY = (1.0f - ndcPos.y) * 0.5f * cg2::WinApp::kClientHeight;
+    float screenX = (ndcPos.x + 1.0f) * 0.5f * myEngine::WinApp::kClientWidth;
+    float screenY = (1.0f - ndcPos.y) * 0.5f * myEngine::WinApp::kClientHeight;
 
     return {screenX, screenY};
 }
@@ -1368,7 +1409,7 @@ void Player::DrawUpgradeHudAfterPostEffects()
     playerHud_->DrawUpgradeHudAfterPostEffects();
 }
 
-void Player::AppendGameplayNeonTextLabels(std::vector<cg2::TextLabel*>& labels) const
+void Player::AppendGameplayNeonTextLabels(std::vector<myEngine::TextLabel*>& labels) const
 {
     playerHud_->AppendGameplayNeonTextLabels(labels);
 }
@@ -1455,7 +1496,7 @@ float Player::GetRunFireIntervalScale() const
     return playerWeapons_->GetRunFireIntervalScale();
 }
 
-cg2::Vector3 Player::GetRailChargeMuzzle() const
+myEngine::Vector3 Player::GetRailChargeMuzzle() const
 {
     return playerWeapons_->GetRailChargeMuzzle();
 }
@@ -1470,7 +1511,7 @@ void Player::UpdateSpecialCombat(Stage& stage, BulletManager* bullets, Enemy* bo
     playerWeapons_->UpdateSpecialCombat(stage, bullets, boss, enemies, dt);
 }
 
-void Player::SetRunHomingTargets(const std::vector<cg2::Vector3>& targets)
+void Player::SetRunHomingTargets(const std::vector<myEngine::Vector3>& targets)
 {
     playerWeapons_->SetRunHomingTargets(targets);
 }
@@ -1505,8 +1546,8 @@ void Player::TriggerSaberCounter(const PlayerClassConfig& config)
     playerWeapons_->TriggerSaberCounter(config);
 }
 
-bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload, cg2::Vector3& recoilDir,
-                                 float& recoilPower)
+bool Player::FireConfiguredClass(const PlayerClassConfig& config, BulletManager* bulletManager, float baseReload,
+                                 myEngine::Vector3& recoilDir, float& recoilPower)
 {
     return playerWeapons_->FireConfiguredClass(config, bulletManager, baseReload, recoilDir, recoilPower);
 }
@@ -1656,7 +1697,7 @@ bool Player::RefundRunMaintenancePoint(int stat)
     return playerProgression_->RefundRunMaintenancePoint(stat);
 }
 
-void Player::ResetRunRoomState(const cg2::Vector3& position)
+void Player::ResetRunRoomState(const myEngine::Vector3& position)
 {
     playerProgression_->ResetRunRoomState(position);
 }
@@ -1779,14 +1820,17 @@ void Player::RecalculateStatsFromBase(bool healToFull)
 std::vector<Player::DroneAbilityVisual> Player::GetDroneAbilityVisuals() const
 {
     std::vector<DroneAbilityVisual> result;
-    if (!IsDroneBuild())
+    if (!IsDroneBuild()) {
         return result;
+    }
     for (const auto& drone : drones_) {
-        if (!drone || drone->IsDead())
+        if (!drone || drone->IsDead()) {
             continue;
+        }
         const auto& mission = drone->GetRunMission();
-        if (mission.GetPhase() == tankspecial::DronePhase::Escort)
+        if (mission.GetPhase() == tankspecial::DronePhase::Escort) {
             continue;
+        }
         // 表示用の進行度。帰還にも突撃の制限時間を使うため、帰還の時間切れまでの完了率ではない。
         const float duration = mission.GetPhase() == tankspecial::DronePhase::Warning ? mission.GetWarningDuration()
                                : mission.GetPhase() == tankspecial::DronePhase::Rebuilding

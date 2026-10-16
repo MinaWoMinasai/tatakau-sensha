@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief 骨格階層を構成するノードの初期姿勢と子ノードを表す。
 struct SkeletonNode {
@@ -58,4 +58,4 @@ private:
     static int32_t CreateJoint(const SkeletonNode& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints);
 };
 
-} // namespace cg2
+} // namespace myEngine

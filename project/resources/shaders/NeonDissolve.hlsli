@@ -2,7 +2,7 @@
 #define NEON_DISSOLVE_HLSLI
 #include "NeonSkinned.hlsli"
 
-// CPU reference: NeonDissolve.h. Integer overflow is intentional and seed is frozen.
+// CPU版: NeonDissolve.h。整数のオーバーフローは意図的なもので、シードは固定。
 uint NeonDissolveHash(uint3 cell)
 {
     uint h = cell.x * 0x8da6b343u ^ cell.y * 0xd8163841u ^ cell.z * 0xcb1ab31fu ^ gDissolveSeed;
@@ -34,9 +34,9 @@ struct NeonDissolveEvaluation
     float3 edgeEmission;
 };
 
-// Call before ALL clips. It computes derivatives but never discards a pixel itself.
-// Width and noise strength are distances along the normalized model-space plane;
-// noise scale is lattice cells per model-space unit, independent of camera/time.
+// すべてのclipより前に呼ぶ。微分を計算するが、自分でピクセルを破棄することはない。
+// 幅とノイズの強さは、正規化したモデル空間の平面に沿った距離で表す。
+// ノイズの縮尺はモデル空間1単位あたりの格子セル数で、カメラや時間とは独立している。
 NeonDissolveEvaluation EvaluateNeonDissolve(float3 skinnedModelPosition)
 {
     NeonDissolveEvaluation result;

@@ -1,74 +1,87 @@
 #include "game/debug/session/GameplayScenarioRunner.h"
 #include "game/session/GameplaySystems.h"
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "Enemy.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "PlayerDrone.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "RuntimeProfiler.h"
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <cmath>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <cstdio>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <filesystem>
 #endif
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <stdexcept>
 #endif
 
 namespace gameplay {
-#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 
 namespace {
 using gameplaytest::Scenario;
+
+/// @brief 条件を満たさなければ例外を投げる。
 void RequireScenario(bool condition, const std::string& error)
 {
-    if (!condition)
+    if (!condition) {
         throw std::runtime_error(error);
+    }
 }
+
+/// @brief ボス戦を扱うシナリオかを返す。
 bool BossScenario(Scenario scenario)
 {
     return scenario == Scenario::RivalBoss || scenario == Scenario::PrototypeBoss || scenario == Scenario::NeonBoss ||
            scenario == Scenario::BossDeath || gameplaytest::IsNeonDepthScenario(scenario);
 }
 
-// Preserve authored walls. Only the in-memory wave is replaced; points are
-// selected from the room's real free cells rather than putting actors in walls.
+// 作成済みの壁はそのまま残す。差し替えるのはメモリ上のウェーブだけで、出現位置は
+// アクターを壁に埋めないよう部屋の実際の空きセルから選ぶ。
 std::vector<tankexp::RoomPoint> ScenarioSpawnPoints(const tankexp::RoomDefinition& room, bool melee, bool boss)
 {
     std::vector<tankexp::RoomPoint> points;
     auto add = [&](tankexp::RoomPoint point) {
-        if (!tankexp::IsRoomPointClear(room, point))
+        if (!tankexp::IsRoomPointClear(room, point)) {
             return;
+        }
         const float px = point.x - room.playerStart.x, py = point.y - room.playerStart.y;
-        if (px * px + py * py < 4.0f)
+        if (px * px + py * py < 4.0f) {
             return;
+        }
         if (boss && !room.objectiveTargets.empty()) {
             const auto target = room.objectiveTargets.front();
             const float bx = point.x - target.x, by = point.y - target.y;
-            if (bx * bx + by * by < 12.25f)
+            if (bx * bx + by * by < 12.25f) {
                 return;
+            }
         }
         for (const auto previous : points) {
             const float dx = point.x - previous.x, dy = point.y - previous.y;
-            if (dx * dx + dy * dy < 2.56f)
+            if (dx * dx + dy * dy < 2.56f) {
                 return;
+            }
         }
         points.push_back(point);
     };
-    if (melee)
+    if (melee) {
         add({room.playerStart.x + 3.0f, room.playerStart.y});
-    for (const auto& spawn : room.spawns)
+    }
+    for (const auto& spawn : room.spawns) {
         add({spawn.x, spawn.y});
-    for (int row = tankexp::kRoomTop + 1; row < tankexp::kRoomBottom; ++row)
-        for (int column = tankexp::kRoomLeft + 1; column < tankexp::kRoomRight; ++column)
+    }
+    for (int row = tankexp::kRoomTop + 1; row < tankexp::kRoomBottom; ++row) {
+        for (int column = tankexp::kRoomLeft + 1; column < tankexp::kRoomRight; ++column) {
             add(tankexp::RoomCellToWorld(column, row));
+        }
+    }
     return points;
 }
 } // namespace
@@ -76,14 +89,15 @@ std::vector<tankexp::RoomPoint> ScenarioSpawnPoints(const tankexp::RoomDefinitio
 void GameplayScenarioRunner::InitializeGameplayScenario()
 {
     auto& session = GameplayScenarioSession::Get();
-    if (!session.IsActive() || session.IsFinished() || world_.demo.titleDemo_)
+    if (!session.IsActive() || session.IsFinished() || world_.demo.titleDemo_) {
         return;
+    }
     session.BeginScene();
     try {
         if (session.GetSettings().recording.enabled) {
             Microsoft::WRL::ComPtr<ID3D12Resource> backbuffer;
-            // DirectX getters are nonconst; no device work/copy is submitted here.
-            auto* writableDx = cg2::Object3dCommon::GetInstance()->GetDxCommon();
+            // DirectXのゲッターは非constだが、ここではデバイスへの処理やコピーを送信しない。
+            auto* writableDx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
             const HRESULT hr =
                 writableDx->GetSwapChain()->GetBuffer(writableDx->GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&backbuffer));
             RequireScenario(SUCCEEDED(hr), "Could not inspect the native recording backbuffer.");
@@ -98,7 +112,7 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
                         "Gameplay scenarios require the initialized TANK_EXPEDITION scene.");
         const auto& settings = session.GetSettings();
         const bool boss = BossScenario(settings.scenario);
-        // 'arena' is a Developer alias for these existing authored rooms.
+        // 'arena'は、既存の作成済み部屋を指すDeveloper用の別名。
         const std::string roomId = settings.room == "arena" ? (boss ? "final_duel" : "outskirts") : settings.room;
         const auto* source = tankexp::FindRoom(world_.run.expeditionRooms_, roomId);
         RequireScenario(source && source->objective == (boss ? "boss" : "eliminate"),
@@ -129,10 +143,11 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
                                       : transition ? "scenario_b"
                                                    : "scenario_boss"}});
             int column = 1;
-            if (expedition)
+            if (expedition) {
                 fixture.nodes.push_back(
                     {"scenario_upgrade", "Scenario workshop", tankexp::NodeKind::Upgrade, column++, 2, -1, "", 0, 0, {"scenario_b"}});
-            if (transition)
+            }
+            if (transition) {
                 fixture.nodes.push_back({"scenario_b",
                                          "Scenario combat B",
                                          tankexp::NodeKind::Combat,
@@ -143,14 +158,16 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
                                          0,
                                          0,
                                          {"scenario_boss"}});
+            }
             fixture.nodes.push_back(
                 {"scenario_boss", "Scenario final boss", tankexp::NodeKind::Boss, column, 2, 2, bossRoom->id, 0, 0, {}});
         }
         std::string error;
-        if (!world_.run.expeditionMapRun_.Reset(fixture, error))
+        if (!world_.run.expeditionMapRun_.Reset(fixture, error)) {
             throw std::runtime_error("Invalid scenario map: " + error);
-        // Existing map visuals borrow definition indices. Keep valid slots and
-        // remove old edges at the frame boundary before the normal UI refresh.
+        }
+        // 既存のマップ表示は定義のインデックスを借りている。有効なスロットは残し、
+        // 通常のUI更新の前に、フレーム境界で古い辺を取り除く。
         RequireScenario(world_.run.expeditionMapVisuals_.size() >= fixture.nodes.size(),
                         "The authored map has too few initialized visual slots.");
         world_.run.expeditionMapVisuals_.resize(fixture.nodes.size());
@@ -184,8 +201,9 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
         world_.arenaRunController->ApplyTankRunCards();
         world_.resources.player_->ConfigurePrototypeLoadout(0);
         int style = settings.playerStyle;
-        if (style == -1)
+        if (style == -1) {
             style = settings.scenario == Scenario::Drone ? 1 : settings.scenario == Scenario::Melee ? 2 : 0;
+        }
         world_.run.expeditionBuildStyle_ = static_cast<tankbuild::Style>(style);
         RequireScenario(world_.resources.player_->SetExpeditionCombatStyle(world_.run.expeditionBuildStyle_),
                         "Could not apply the scenario player style.");
@@ -211,7 +229,7 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
         world_.resources.enemyManager_->ClearRunActors();
         if (!settings.enemyWave.empty()) {
             for (const auto& wave : settings.enemyWave) {
-                const cg2::Vector3 position{wave.position[0], wave.position[1], wave.position[2]};
+                const myEngine::Vector3 position{wave.position[0], wave.position[1], wave.position[2]};
                 RequireScenario(tankcontent::FindEnemy(world_.run.expeditionContent_, wave.type) &&
                                     !world_.resources.stage_->IsCollisionWithAnyBlock(position, 0.8f) &&
                                     world_.resources.enemyManager_->SpawnLevelEnemy(position, wave.type, wave.hp),
@@ -235,42 +253,46 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
             const auto target = source->objectiveTargets.front();
             world_.resources.enemy_->ResetRunEncounter({target.x, target.y, 0}, settings.bossHp, 1, true);
             world_.resources.enemy_->EnableExpeditionRival(settings.scenario != Scenario::PrototypeBoss);
-            if (gameplaytest::IsNeonDepthScenario(settings.scenario))
+            if (gameplaytest::IsNeonDepthScenario(settings.scenario)) {
                 world_.depthEncounter->ConfigureNeonDepthEncounter(true);
-            else
+            } else {
                 world_.resources.enemy_->EnableNeonDepthEncounter(false);
+            }
             auto progress = world_.resources.enemy_->GetEnemyProgressConfig();
             progress.levelingModeEnabled = false;
             world_.resources.enemy_->SetEnemyProgressConfig(progress);
         }
         world_.resources.neonBossVisualEnabled_ = settings.scenario == Scenario::NeonBoss || settings.scenario == Scenario::BossDeath ||
                                                   gameplaytest::IsNeonDepthScenario(settings.scenario);
-        if (world_.resources.neonBossVisual_)
+        if (world_.resources.neonBossVisual_) {
             world_.resources.neonBossVisual_->SetEnabled(world_.resources.neonBossVisualEnabled_);
+        }
         RequireScenario(settings.playerHp != 0,
                         "Initial playerHp=0 is unsupported by the living room-reset contract; use player_restart for real lethal damage.");
         if (settings.playerHp > 0) {
             RequireScenario(settings.playerHp <= world_.resources.player_->GetMaxHp(),
                             "Configured playerHp exceeds this player's actual maximum HP.");
-            if (settings.playerHp < world_.resources.player_->GetHp())
+            if (settings.playerHp < world_.resources.player_->GetHp()) {
                 RequireScenario(world_.resources.player_->SpendRunHealth(world_.resources.player_->GetHp() - settings.playerHp),
                                 "Could not apply configured player HP.");
-            else
+            } else {
                 world_.resources.player_->HealRunPlayer(settings.playerHp - world_.resources.player_->GetHp());
+            }
         }
         world_.presentation.debugPlayerNoDamage_ = true;
         world_.resources.player_->SetDebugNoDamage(true);
         world_.combat.previousPlayerHp_ = world_.resources.player_->GetHp();
         world_.combat.previousBossHp_ = world_.resources.enemy_->GetHp();
-        world_.resources.player_->SetDemoInput(true, {}, boss ? world_.resources.enemy_->GetWorldPosition() : cg2::Vector3{50, 29, 0},
+        world_.resources.player_->SetDemoInput(true, {}, boss ? world_.resources.enemy_->GetWorldPosition() : myEngine::Vector3{50, 29, 0},
                                                false, false);
         for (unsigned index = 0; index < settings.initialProjectiles; ++index) {
             const float angle = static_cast<float>(index) * 0.618034f;
             const float radius = 2.0f + static_cast<float>(index % 12) * 0.30f;
             const auto point = source->playerStart;
-            cg2::Vector3 position{point.x + 8.0f + std::cos(angle) * radius, point.y + std::sin(angle) * radius, 0};
-            if (world_.resources.stage_->IsCollisionWithAnyBlock(position, 0.5f))
+            myEngine::Vector3 position{point.x + 8.0f + std::cos(angle) * radius, point.y + std::sin(angle) * radius, 0};
+            if (world_.resources.stage_->IsCollisionWithAnyBlock(position, 0.5f)) {
                 position = world_.resources.player_->GetWorldPosition();
+            }
             auto projectile = std::make_unique<Bullet>();
             const auto owner = index < BulletManager::kMaxRunProjectilesPerOwner ? kPlayer : kEnemy;
             projectile->Initialize(position, {std::cos(angle) * 0.08f, std::sin(angle) * 0.08f, 0}, 1, owner, true);
@@ -279,8 +301,9 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
         }
         RequireScenario(world_.resources.bulletManager_->GetBulletCount() == settings.initialProjectiles,
                         "The configured initial projectile count exceeds the real manager's owner cap.");
-        if (gameplaytest::IsNeonDepthScenario(settings.scenario))
+        if (gameplaytest::IsNeonDepthScenario(settings.scenario)) {
             world_.depthValidation->InitializeNeonDepthValidation();
+        }
         world_.resources.gameplayScenarioInitialized_ = true;
         session.ReportDetail("fixture", {{"authoredRoom", roomId},
                                          {"geometryPreserved", true},
@@ -291,8 +314,9 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
                                          {"sceneEpoch", session.GetSceneEpoch()}});
         world_.expeditionController->RefreshTankExpeditionUi();
         if (session.GetFrame() == 0 &&
-            std::find(settings.captureFrames.begin(), settings.captureFrames.end(), 0u) != settings.captureFrames.end())
+            std::find(settings.captureFrames.begin(), settings.captureFrames.end(), 0u) != settings.captureFrames.end()) {
             QueueGameplayScenarioCapture("frame_0");
+        }
     }
     catch (const std::exception& error) {
         session.Fail(std::string("Scenario initialization: ") + error.what());
@@ -304,10 +328,12 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
 bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
 {
     auto& session = GameplayScenarioSession::Get();
-    if (!session.IsActive() || world_.demo.titleDemo_)
+    if (!session.IsActive() || world_.demo.titleDemo_) {
         return false;
-    if (session.IsFinished())
+    }
+    if (session.IsFinished()) {
         return true;
+    }
     if (session.GetSettings().recording.enabled &&
         ((world_.presentation.developerBloomFreeze_ &&
           (!world_.resources.gameplayScenarioCapturePending_ || world_.resources.gameplayScenarioCaptureRecording_)) ||
@@ -318,19 +344,19 @@ bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
         PostQuitMessage(9);
         return true;
     }
-    world_.resources.gameplayScenarioCapture_.Resolve(*cg2::Object3dCommon::GetInstance()->GetDxCommon());
+    world_.resources.gameplayScenarioCapture_.Resolve(*myEngine::Object3dCommon::GetInstance()->GetDxCommon());
     if (world_.resources.gameplayScenarioCapturePending_) {
         if (world_.resources.gameplayScenarioCapture_.IsBusy()) {
             if (world_.resources.gameplayScenarioCaptureRecording_) {
-                // PostDraw already waits for this frame fence. Never introduce
-                // an extra TAA/history draw into a successful continuous run.
+                // PostDrawは既にこのフレームのフェンスを待っている。成功している連続実行に
+                // TAAや履歴用の描画を追加してはならない。
                 session.Fail("Recording fence did not resolve on the next Update; additional held Draw rejected.");
                 world_.bossPresentation->UpdateNeonBossVisual(0.0f);
                 session.Finish();
                 PostQuitMessage(9);
                 return true;
             }
-            // The existing freeze branch still resets renderer frame arenas.
+            // 既存の停止分岐でも、描画のフレーム用アリーナはリセットされる。
             world_.presentation.developerBloomFreeze_ = true;
             return false;
         }
@@ -347,13 +373,16 @@ bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
                 catch (const std::exception& error) {
                     session.Fail(std::string("Recording save validation: ") + error.what());
                 }
-            } else
+            } else {
                 session.ReportCapture(world_.resources.gameplayScenarioCaptureName_, world_.resources.gameplayScenarioCaptureSnapshot_);
-        } else
+            }
+        } else {
             session.Fail("Scenario capture failed: " + world_.resources.gameplayScenarioCapture_.GetStatus());
+        }
         world_.resources.gameplayScenarioCapturePending_ = false;
-        if (!world_.resources.gameplayScenarioCaptureRecording_)
+        if (!world_.resources.gameplayScenarioCaptureRecording_) {
             world_.presentation.developerBloomFreeze_ = false;
+        }
         world_.resources.gameplayScenarioCaptureRecording_ = false;
     }
     if (session.ShouldFinish() || !world_.resources.gameplayScenarioInitialized_) {
@@ -362,29 +391,34 @@ bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
             const auto scenario = session.GetSettings().scenario;
             if (scenario == Scenario::BossDeath &&
                 !(final.bossDead && final.bossHp == 0 && final.visualCreates == 1 && final.visualReleases == 1 &&
-                  final.dissolveProgress == 1 && !final.visualHasResources && final.visualConstantBuffers == 0))
+                  final.dissolveProgress == 1 && !final.visualHasResources && final.visualConstantBuffers == 0)) {
                 session.Fail("Boss death and dissolve did not complete; increase the scenario duration.");
-            if (scenario == Scenario::PlayerRestart && !(session.GetSceneEpoch() >= 2 && !final.playerDead && final.playerHp > 0))
+            }
+            if (scenario == Scenario::PlayerRestart && !(session.GetSceneEpoch() >= 2 && !final.playerDead && final.playerHp > 0)) {
                 session.Fail("Player death and scene restart did not complete; increase the scenario duration.");
+            }
             if ((scenario == Scenario::StageTransition || scenario == Scenario::ExpeditionTransition) &&
-                world_.resources.gameplayScenarioTransitionStep_ != 5)
+                world_.resources.gameplayScenarioTransitionStep_ != 5) {
                 session.Fail("The actual second combat room was not entered and presented; increase the scenario duration.");
-            if (scenario == Scenario::ExpeditionTransition && world_.run.expeditionMapTestPurchases_ == 0)
+            }
+            if (scenario == Scenario::ExpeditionTransition && world_.run.expeditionMapTestPurchases_ == 0) {
                 session.Fail("The actual expedition service purchase did not complete.");
+            }
         }
-        // MainLoop still records its final draw before consuming WM_QUIT.
-        // Reset the visual's frame arena at this render-only boundary too.
+        // MainLoopはWM_QUITを処理する前に最後の描画を記録する。
+        // この描画だけの境界でも、表示用のフレームアリーナをリセットする。
         world_.bossPresentation->UpdateNeonBossVisual(0.0f);
-        if (gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario))
+        if (gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario)) {
             world_.depthValidation->FinishNeonDepthValidation();
+        }
         const bool completed = session.Finish();
         PostQuitMessage(completed ? 0 : 9);
         return true;
     }
     if (world_.resources.gameplayScenarioFinishDeferred_) {
-        // SceneManager checks finished_ before calling the next Update. Let
-        // the captured old scene survive through Resolve, then freeze this
-        // render-only boundary before permitting its ordinary replacement.
+        // SceneManagerは次のUpdateを呼ぶ前にfinished_を確認する。キャプチャした古いシーンを
+        // Resolveまで残し、この描画だけの境界を固定してから
+        // 通常のシーン切り替えを許可する。
         world_.resources.gameplayScenarioFinishDeferred_ = false;
         world_.combat.finished_ = true;
         world_.presentation.developerBloomFreeze_ = true;
@@ -435,11 +469,13 @@ bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
         const bool expedition = settings.scenario == Scenario::ExpeditionTransition;
         if (expedition || settings.scenario == Scenario::StageTransition) {
             if (frame >= 120 && world_.resources.gameplayScenarioTransitionStep_ == 0) {
-                // Invoke actual damage/callbacks; ordinary room completion,
-                // credit flight and presentation transitions remain in Update.
-                for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs())
-                    if (actor && !actor->IsDead())
+                // 実際のダメージ処理とコールバックを呼ぶ。通常の部屋クリア、
+                // クレジットの飛行、演出の遷移はUpdate側に残す。
+                for (auto* actor : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                    if (actor && !actor->IsDead()) {
                         actor->TakeDamageFromPlayer(static_cast<uint32_t>(actor->GetHp()));
+                    }
+                }
                 world_.resources.gameplayScenarioTransitionStep_ = 1;
             }
             if (!world_.run.expeditionTransition_.IsActive()) {
@@ -464,8 +500,9 @@ bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
         }
         auto scripted = gameplaytest::InputAtFrame(settings, frame);
         if (settings.input.empty()) {
-            if (settings.scenario == Scenario::Melee && frame < 120)
+            if (settings.scenario == Scenario::Melee && frame < 120) {
                 scripted.movement = {};
+            }
             if (!BossScenario(settings.scenario)) {
                 if (const auto* nearest =
                         world_.resources.enemyManager_->FindNearestEnemy(world_.resources.player_->GetWorldPosition(), 10000.0f)) {
@@ -479,8 +516,9 @@ bool GameplayScenarioRunner::PrepareGameplayScenarioFrame()
         }
         world_.resources.player_->SetDemoInput(true, {scripted.movement[0], scripted.movement[1]},
                                                {scripted.aim[0], scripted.aim[1], scripted.aim[2]}, scripted.shoot, scripted.dash);
-        if (gameplaytest::IsNeonDepthScenario(settings.scenario))
+        if (gameplaytest::IsNeonDepthScenario(settings.scenario)) {
             world_.depthValidation->PrepareNeonDepthValidation();
+        }
     }
     catch (const std::exception& error) {
         session.Fail(std::string("Scenario driver: ") + error.what());
@@ -512,15 +550,19 @@ gameplaytest::Snapshot GameplayScenarioRunner::MakeGameplayScenarioSnapshot() co
     snapshot.playerProjectiles = static_cast<unsigned>(counts.player);
     snapshot.enemyProjectiles = static_cast<unsigned>(counts.enemy + counts.hostileExpEnemy);
     snapshot.enemies = static_cast<unsigned>(world_.resources.enemyManager_->GetEnemyCount());
-    for (const auto* drone : world_.resources.player_->GetDronePtrs())
-        if (drone && !drone->IsDead())
+    for (const auto* drone : world_.resources.player_->GetDronePtrs()) {
+        if (drone && !drone->IsDead()) {
             ++snapshot.activeDrones;
+        }
+    }
     snapshot.activeAttacks =
         static_cast<unsigned>(world_.presentation.playerLaserBeams_.size() + world_.presentation.playerMines_.size() +
                               world_.presentation.playerMineExplosions_.size() + world_.presentation.playerMeleeSlashes_.size());
-    for (const auto* actor : world_.resources.enemyManager_->GetEnemyPtrs())
-        if (actor && !actor->IsDead())
+    for (const auto* actor : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (actor && !actor->IsDead()) {
             snapshot.minimumEnemyHp = snapshot.minimumEnemyHp == -1 ? actor->GetHp() : (std::min)(snapshot.minimumEnemyHp, actor->GetHp());
+        }
+    }
     snapshot.bossActive = world_.gameplayQueries->IsRunRivalActive() && world_.resources.enemy_->IsRunEncounterEnabled();
     snapshot.bossDead = world_.resources.enemy_->IsDead();
     snapshot.bossHp = world_.resources.enemy_->GetHp();
@@ -536,7 +578,7 @@ gameplaytest::Snapshot GameplayScenarioRunner::MakeGameplayScenarioSnapshot() co
         snapshot.bossShots = static_cast<unsigned>(depth.activationEvents);
         snapshot.bossDashes = 0;
     }
-    snapshot.descriptors = cg2::Object3dCommon::GetInstance()->GetSrvManager()->GetAllocatedCount();
+    snapshot.descriptors = myEngine::Object3dCommon::GetInstance()->GetSrvManager()->GetAllocatedCount();
     if (world_.resources.neonBossVisual_) {
         const auto& stats = world_.resources.neonBossVisual_->GetStats();
         snapshot.visualCreates = stats.resourceCreates;
@@ -550,8 +592,9 @@ gameplaytest::Snapshot GameplayScenarioRunner::MakeGameplayScenarioSnapshot() co
     snapshot.visitedNodes = static_cast<unsigned>(world_.run.expeditionMapRun_.GetVisitedNodeIds().size());
     snapshot.nodeId = world_.run.expeditionMapRun_.GetActiveNodeId().empty() ? world_.run.expeditionMapRun_.GetCurrentNodeId()
                                                                              : world_.run.expeditionMapRun_.GetActiveNodeId();
-    if (const auto* node = tankexp::FindMapNode(world_.run.expeditionMapRun_.GetDefinition(), snapshot.nodeId))
+    if (const auto* node = tankexp::FindMapNode(world_.run.expeditionMapRun_.GetDefinition(), snapshot.nodeId)) {
         snapshot.roomId = node->roomTemplate;
+    }
     return snapshot;
 }
 
@@ -559,8 +602,9 @@ void GameplayScenarioRunner::RecordGameplayScenarioFrame()
 {
     auto& session = GameplayScenarioSession::Get();
     if (!session.IsActive() || session.IsFinished() || world_.demo.titleDemo_ || !world_.resources.gameplayScenarioInitialized_ ||
-        world_.presentation.developerBloomFreeze_)
+        world_.presentation.developerBloomFreeze_) {
         return;
+    }
     session.Record(MakeGameplayScenarioSnapshot(), world_.resources.gameplayScenarioCombatDt_,
                    world_.resources.gameplayScenarioPresentationDt_,
                    world_.resources.gameplayScenarioCombatDt_ / session.GetSettings().fixedDeltaTime);
@@ -572,31 +616,35 @@ void GameplayScenarioRunner::RecordGameplayScenarioFrame()
             session.Fail(std::string("Depth frame evidence: ") + error.what());
         }
     }
-    cg2::RuntimeProfiler::Get().SetCounter("Scenario simulation frame", session.GetFrame());
+    myEngine::RuntimeProfiler::Get().SetCounter("Scenario simulation frame", session.GetFrame());
     const auto scenario = session.GetSettings().scenario;
     if ((scenario == Scenario::StageTransition || scenario == Scenario::ExpeditionTransition) &&
         world_.run.expeditionMapRun_.GetActiveNodeId() == "scenario_b" && world_.run.tankExpedition_.IsCombat() &&
-        !world_.run.expeditionTransition_.IsActive())
-        world_.resources.gameplayScenarioTransitionStep_ = 5; // Latch actual entry even if room B later clears.
+        !world_.run.expeditionTransition_.IsActive()) {
+        world_.resources.gameplayScenarioTransitionStep_ = 5; // 後で部屋Bがクリアされても、実際に入ったことを記録しておく。
+    }
     if (session.ShouldRecordCompletedFrame()) {
         char name[32]{};
         std::snprintf(name, sizeof(name), "frame_%05u", session.GetRecordingSequenceFrame());
         QueueGameplayScenarioCapture(name, true);
     }
     const auto& frames = session.GetSettings().captureFrames;
-    if (std::find(frames.begin(), frames.end(), session.GetFrame()) != frames.end())
+    if (std::find(frames.begin(), frames.end(), session.GetFrame()) != frames.end()) {
         QueueGameplayScenarioCapture("frame_" + std::to_string(session.GetFrame()));
+    }
     if (world_.combat.finished_ && world_.resources.gameplayScenarioCapturePending_) {
-        if (world_.resources.gameplayScenarioCaptureRecording_)
+        if (world_.resources.gameplayScenarioCaptureRecording_) {
             session.Fail("Scene exited during continuous recording.");
+        }
         world_.combat.finished_ = false;
         world_.resources.gameplayScenarioFinishDeferred_ = true;
     }
-    if (session.ShouldFinish())
+    if (session.ShouldFinish()) {
         session.ReportDetail("transitions", {{"step", world_.resources.gameplayScenarioTransitionStep_},
                                              {"servicePurchases", world_.run.expeditionMapTestPurchases_},
                                              {"visited", world_.run.expeditionMapRun_.GetVisitedNodeIds()},
                                              {"chosen", world_.run.expeditionMapRun_.GetChosenNodeIds()}});
+    }
 }
 
 void GameplayScenarioRunner::QueueGameplayScenarioCapture(const std::string& name, bool continuousRecording)
@@ -611,21 +659,24 @@ void GameplayScenarioRunner::QueueGameplayScenarioCapture(const std::string& nam
     world_.resources.gameplayScenarioCaptureRecording_ = continuousRecording;
     world_.resources.gameplayScenarioRecordingSequence_ = continuousRecording ? session.GetRecordingSequenceFrame() : 0;
     auto directory = tankexp::ExpeditionMapPath(session.GetOutputDirectory());
-    if (continuousRecording)
+    if (continuousRecording) {
         directory /= "recording/frames";
+    }
     world_.resources.gameplayScenarioCapture_.Request(directory, name, session.MakeMetadata());
     world_.resources.gameplayScenarioCapturePending_ = true;
-    // Sparse comparisons retain the original policy. A continuous request is
-    // pending readback only and never changes the standard temporal profile.
-    if (!continuousRecording)
+    // 間引き比較は元の方針を保つ。連続記録の要求は読み戻し待ちになるだけで、
+    // 標準のテンポラル設定は変えない。
+    if (!continuousRecording) {
         world_.presentation.developerBloomFreeze_ = true;
+    }
 }
 
-void GameplayScenarioRunner::RecordGameplayScenarioCapture(cg2::DirectXCommon& dx)
+void GameplayScenarioRunner::RecordGameplayScenarioCapture(myEngine::DirectXCommon& dx)
 {
     auto& session = GameplayScenarioSession::Get();
-    if (!session.IsActive() || world_.demo.titleDemo_ || !world_.resources.gameplayScenarioCapturePending_)
+    if (!session.IsActive() || world_.demo.titleDemo_ || !world_.resources.gameplayScenarioCapturePending_) {
         return;
+    }
     if (world_.resources.gameplayScenarioCapture_.HasRequest()) {
         auto metadata = session.MakeMetadata();
         metadata["snapshot"] = gameplaytest::ToJson(world_.resources.gameplayScenarioCaptureSnapshot_);
@@ -635,13 +686,16 @@ void GameplayScenarioRunner::RecordGameplayScenarioCapture(cg2::DirectXCommon& d
               world_.resources.camera->GetTranslate().z}},
             {"rotation",
              {world_.resources.camera->GetRotate().x, world_.resources.camera->GetRotate().y, world_.resources.camera->GetRotate().z}}};
-        for (const auto& row : world_.resources.camera->GetViewProjectionMatrix().m)
+        for (const auto& row : world_.resources.camera->GetViewProjectionMatrix().m) {
             metadata["camera"]["viewProjection"].push_back({row[0], row[1], row[2], row[3]});
-        if (BossScenario(session.GetSettings().scenario) && world_.resources.neonBossVisual_)
+        }
+        if (BossScenario(session.GetSettings().scenario) && world_.resources.neonBossVisual_) {
             metadata["bossVisual"] = world_.bossPresentation->MakeNeonBossMetadata().at("presentation");
+        }
         metadata["comparisonFreeze"] = !world_.resources.gameplayScenarioCaptureRecording_;
-        if (gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario))
+        if (gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario)) {
             metadata["depthConditions"] = world_.depthValidation->MakeNeonDepthValidationConditions();
+        }
         if (world_.resources.gameplayScenarioCaptureRecording_) {
             const auto recording = session.MakeRecordingMetadata();
             metadata["sequenceFrame"] = world_.resources.gameplayScenarioRecordingSequence_;
@@ -659,7 +713,7 @@ void GameplayScenarioRunner::RecordGameplayScenarioCapture(cg2::DirectXCommon& d
                 {"forcedDefeat", session.GetSettings().scenario == Scenario::BossDeath},
                 {"cameraFixtureCentering", !gameplaytest::IsNeonDepthScenario(session.GetSettings().scenario) &&
                                                BossScenario(session.GetSettings().scenario) && world_.gameplayQueries->IsRunRivalActive()},
-                {"debugCamera", cg2::Object3dCommon::GetInstance()->GetIsDebugCamera()},
+                {"debugCamera", myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()},
                 {"HUDIncluded", true},
                 {"debugUIIncluded", false},
                 {"audio", "none"},
@@ -679,9 +733,11 @@ void GameplayScenarioRunner::RecordGameplayScenarioCapture(cg2::DirectXCommon& d
         }
         const auto frame = world_.gameplayQueries->MakeDeveloperGameCaptureMetadata(dx);
         for (const char* key : {"gpu", "queueTimestampFrequencyHz", "validation", "resolution", "globalPost", "localCategories",
-                                "visualAppearance", "sourceResolution", "sourceCounts"})
-            if (frame.contains(key))
+                                "visualAppearance", "sourceResolution", "sourceCounts"}) {
+            if (frame.contains(key)) {
                 metadata[key] = frame.at(key);
+            }
+        }
         world_.resources.gameplayScenarioCapture_.SetFrameMetadata(std::move(metadata));
     }
     world_.resources.gameplayScenarioCapture_.Record(dx);

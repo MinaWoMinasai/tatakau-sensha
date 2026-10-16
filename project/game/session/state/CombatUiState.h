@@ -13,51 +13,51 @@ struct CombatUiState {
 
     Phase phase_ = Phase::kFadeIn;
 
-    std::unique_ptr<cg2::Sprite> shotGide;
+    std::unique_ptr<myEngine::Sprite> shotGide;
 
-    std::unique_ptr<cg2::Sprite> wasdGide;
+    std::unique_ptr<myEngine::Sprite> wasdGide;
 
-    std::unique_ptr<cg2::Sprite> dashGide;
+    std::unique_ptr<myEngine::Sprite> dashGide;
 
-    std::unique_ptr<cg2::Sprite> toTitleGide;
+    std::unique_ptr<myEngine::Sprite> toTitleGide;
 
-    std::unique_ptr<cg2::TextLabel> dashGuideText_;
+    std::unique_ptr<myEngine::TextLabel> dashGuideText_;
 
-    std::unique_ptr<cg2::TextLabel> moveGuideText_;
+    std::unique_ptr<myEngine::TextLabel> moveGuideText_;
 
-    std::unique_ptr<cg2::TextLabel> titleGuideText_;
+    std::unique_ptr<myEngine::TextLabel> titleGuideText_;
 
-    std::unique_ptr<cg2::TextLabel> controlGuideText_;
+    std::unique_ptr<myEngine::TextLabel> controlGuideText_;
 
-    std::unique_ptr<cg2::TextLabel> fpsText_;
+    std::unique_ptr<myEngine::TextLabel> fpsText_;
 
-    std::unique_ptr<cg2::TextLabel> postProfileText_;
+    std::unique_ptr<myEngine::TextLabel> postProfileText_;
 
-    std::unique_ptr<cg2::TextLabel> flowBannerText_;
+    std::unique_ptr<myEngine::TextLabel> flowBannerText_;
 
-    // Bloom comparison caption (presentation helper).
-    std::unique_ptr<cg2::TextLabel> bloomViewText_;
+    // Bloom比較用の見出し（演出確認用）。
+    std::unique_ptr<myEngine::TextLabel> bloomViewText_;
 
-    // Final boss cinematic: letterbox bars and a title card (entrance / defeat).
-    std::unique_ptr<cg2::Sprite> cinematicBarTop_;
-    std::unique_ptr<cg2::Sprite> cinematicBarBottom_;
-    std::unique_ptr<cg2::TextLabel> cinematicTitle_;
-    std::unique_ptr<cg2::TextLabel> cinematicSubtitle_;
+    // 最終ボスの演出: レターボックスの帯とタイトルカード（登場/撃破）。
+    std::unique_ptr<myEngine::Sprite> cinematicBarTop_;
+    std::unique_ptr<myEngine::Sprite> cinematicBarBottom_;
+    std::unique_ptr<myEngine::TextLabel> cinematicTitle_;
+    std::unique_ptr<myEngine::TextLabel> cinematicSubtitle_;
     int cinematicTitleMode_ = 0;
 
-    std::unique_ptr<cg2::TextLabel> resultSummaryText_;
+    std::unique_ptr<myEngine::TextLabel> resultSummaryText_;
 
-    std::unique_ptr<cg2::TextLabel> resultMenuText_;
+    std::unique_ptr<myEngine::TextLabel> resultMenuText_;
 
-    std::unique_ptr<cg2::TextLabel> eventCalloutText_;
+    std::unique_ptr<myEngine::TextLabel> eventCalloutText_;
 
-    std::unique_ptr<cg2::Sprite> tutorialPanel_;
+    std::unique_ptr<myEngine::Sprite> tutorialPanel_;
 
-    std::unique_ptr<cg2::TextLabel> tutorialTitleText_;
+    std::unique_ptr<myEngine::TextLabel> tutorialTitleText_;
 
-    std::unique_ptr<cg2::TextLabel> tutorialInputText_;
+    std::unique_ptr<myEngine::TextLabel> tutorialInputText_;
 
-    std::unique_ptr<cg2::TextLabel> tutorialDescriptionText_;
+    std::unique_ptr<myEngine::TextLabel> tutorialDescriptionText_;
 
     std::unique_ptr<NeonTextEffect> gameTextNeonEffect_;
 
@@ -67,7 +67,7 @@ struct CombatUiState {
 
     bool gameTextOutlineEnabled_ = false;
 
-    cg2::Vector4 gameTextOutlineColor_{0.0f, 0.0f, 0.0f, 0.9f};
+    myEngine::Vector4 gameTextOutlineColor_{0.0f, 0.0f, 0.0f, 0.9f};
 
     float gameTextOutlineThickness_ = 1.0f;
 
@@ -75,13 +75,13 @@ struct CombatUiState {
 
     std::vector<FollowHpBar> followHpBars_;
 
-    std::array<std::vector<cg2::VertexData>, 4> hpBarBackgroundVertices_;
+    std::array<std::vector<myEngine::VertexData>, 4> hpBarBackgroundVertices_;
 
-    std::array<std::vector<cg2::VertexData>, 4> hpBarFillVertices_;
+    std::array<std::vector<myEngine::VertexData>, 4> hpBarFillVertices_;
 
-    std::vector<cg2::VertexData> staminaBarFillVertices_;
+    std::vector<myEngine::VertexData> staminaBarFillVertices_;
 
-    std::array<std::vector<cg2::VertexData>, 4> hpBarOutlineVertices_;
+    std::array<std::vector<myEngine::VertexData>, 4> hpBarOutlineVertices_;
 
     std::unordered_map<const void*, HpBarVisibility> hpBarVisibility_;
 
@@ -91,11 +91,11 @@ struct CombatUiState {
 
     D3D12_VERTEX_BUFFER_VIEW hpBarVertexBufferView_{};
 
-    cg2::VertexData* hpBarVertexData_ = nullptr;
+    myEngine::VertexData* hpBarVertexData_ = nullptr;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> hpBarTransformResource_;
 
-    cg2::TransformationMatrixWithShadow* hpBarTransformData_ = nullptr;
+    myEngine::TransformationMatrixWithShadow* hpBarTransformData_ = nullptr;
 
     size_t followHpBarIndex_ = 0;
 
@@ -123,7 +123,7 @@ struct CombatUiState {
 
     float tutorialMoveDistance_ = 0.0f;
 
-    cg2::Vector3 tutorialPreviousPlayerPosition_{};
+    myEngine::Vector3 tutorialPreviousPlayerPosition_{};
 
     bool tutorialUpgradeRewardGranted_ = false;
 
@@ -136,7 +136,7 @@ struct CombatUiState {
     // カメラ合わせフラグ
     bool cameraFollow_ = true;
 
-    cg2::Vector3 direction = {0.0f, -1.0f, 0.0f};
+    myEngine::Vector3 direction = {0.0f, -1.0f, 0.0f};
 
     float insensity = 1.0f;
 

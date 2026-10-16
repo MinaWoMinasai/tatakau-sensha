@@ -22,16 +22,19 @@ namespace tankexp {
 inline constexpr const char* kRoomCatalogPath = "resources/maps/expedition_layouts.json";
 inline constexpr int kRoomColumns = 45, kRoomRows = 30;
 inline constexpr int kRoomLeft = 10, kRoomRight = 34, kRoomTop = 7, kRoomBottom = 22;
+
 /// @brief 遠征部屋内の配置座標を表す。
 struct RoomPoint {
     float x = 26, y = 28;
 };
+
 /// @brief 遠征部屋内の敵の出現位置と条件を表す。
 struct RoomSpawn {
     std::string id, type;
     float x = 44, y = 30;
     int hp = 0;
 };
+
 /// @brief 遠征部屋の地形・出現点・境界などの制作データを表す。
 struct RoomDefinition {
     std::string id, name, objective = "eliminate";
@@ -40,52 +43,66 @@ struct RoomDefinition {
     RoomPoint playerStart;
     std::vector<RoomPoint> objectiveTargets;
 };
+
 /// @brief 制作された部屋定義を識別子で保持する。
 struct RoomCatalog {
     std::vector<RoomDefinition> rooms;
 };
+
 /// @brief 部屋のセル座標をワールド座標へ変換する。
 inline RoomPoint RoomCellToWorld(int column, int row)
 {
     return {static_cast<float>(column * 2), static_cast<float>((kRoomRows - 1 - row) * 2)};
 }
+
 /// @brief 部屋の座標に対応するセルを求める。
 inline int RoomPointCell(RoomPoint point)
 {
-    if (!std::isfinite(point.x) || !std::isfinite(point.y) || point.x < 0 || point.x > 88 || point.y < 0 || point.y > 58)
+    if (!std::isfinite(point.x) || !std::isfinite(point.y) || point.x < 0 || point.x > 88 || point.y < 0 || point.y > 58) {
         return -1;
+    }
     const int column = static_cast<int>(std::round(point.x / 2));
     const int row = kRoomRows - 1 - static_cast<int>(std::round(point.y / 2));
     return row * kRoomColumns + column;
 }
+
 /// @brief 部屋点消去であるか判定する。
 inline bool IsRoomPointClear(const RoomDefinition& room, RoomPoint point, float radius = 0.8f)
 {
     if (room.grid.size() != static_cast<size_t>(kRoomColumns * kRoomRows) || !std::isfinite(point.x) || !std::isfinite(point.y) ||
-        point.x < 22 || point.x > 66 || point.y < 16 || point.y > 42)
+        point.x < 22 || point.x > 66 || point.y < 16 || point.y > 42) {
         return false;
-    for (int row = kRoomTop; row <= kRoomBottom; ++row)
+    }
+    for (int row = kRoomTop; row <= kRoomBottom; ++row) {
         for (int col = kRoomLeft; col <= kRoomRight; ++col) {
-            if (room.grid[static_cast<size_t>(row * kRoomColumns + col)] == 0)
+            if (room.grid[static_cast<size_t>(row * kRoomColumns + col)] == 0) {
                 continue;
+            }
             const auto center = RoomCellToWorld(col, row);
             const float dx = (std::max)(std::abs(point.x - center.x) - 1.0f, 0.0f);
             const float dy = (std::max)(std::abs(point.y - center.y) - 1.0f, 0.0f);
-            if (dx * dx + dy * dy <= radius * radius)
+            if (dx * dx + dy * dy <= radius * radius) {
                 return false;
+            }
         }
+    }
     return true;
 }
+
 /// @brief 部屋IDが保存・参照に使える形式か判定する。
 inline bool RoomIdentifierValid(const std::string& id)
 {
-    if (id.empty() || id.size() > 64)
+    if (id.empty() || id.size() > 64) {
         return false;
-    for (const unsigned char c : id)
-        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-'))
+    }
+    for (const unsigned char c : id) {
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-')) {
             return false;
+        }
+    }
     return true;
 }
+
 /// @brief 部屋制作一覧を検証する。
 inline bool ValidateRoomCatalog(const RoomCatalog& catalog, std::string& error, const std::vector<std::string>* enemyIds = nullptr)
 {
@@ -93,35 +110,46 @@ inline bool ValidateRoomCatalog(const RoomCatalog& catalog, std::string& error, 
         error = message;
         return false;
     };
-    if (catalog.rooms.empty() || catalog.rooms.size() > 128)
+    if (catalog.rooms.empty() || catalog.rooms.size() > 128) {
         return fail("部屋数は1～128件です。");
+    }
     std::set<std::string> ids;
     for (const auto& room : catalog.rooms) {
         const std::string prefix = room.name + " [" + room.id + "]: ";
-        if (!RoomIdentifierValid(room.id) || !ids.insert(room.id).second)
+        if (!RoomIdentifierValid(room.id) || !ids.insert(room.id).second) {
             return fail(prefix + "部屋IDは重複のない英数字・_-で指定してください。");
-        if (room.name.empty() || room.name.size() > 192)
+        }
+        if (room.name.empty() || room.name.size() > 192) {
             return fail(prefix + "名前は1～192バイトです。");
-        if (room.objective != "eliminate" && room.objective != "control" && room.objective != "boss")
+        }
+        if (room.objective != "eliminate" && room.objective != "control" && room.objective != "boss") {
             return fail(prefix + "未対応の目標です。");
-        if (room.grid.size() != static_cast<size_t>(kRoomColumns * kRoomRows))
+        }
+        if (room.grid.size() != static_cast<size_t>(kRoomColumns * kRoomRows)) {
             return fail(prefix + "グリッドは45×30です。");
-        for (int row = 0; row < kRoomRows; ++row)
+        }
+        for (int row = 0; row < kRoomRows; ++row) {
             for (int col = 0; col < kRoomColumns; ++col) {
                 const int tile = room.grid[static_cast<size_t>(row * kRoomColumns + col)];
-                if (tile < 0 || tile > 2)
+                if (tile < 0 || tile > 2) {
                     return fail(prefix + "ブロックは0/1/2で指定してください。");
+                }
                 const bool inside = col >= kRoomLeft && col <= kRoomRight && row >= kRoomTop && row <= kRoomBottom;
                 const bool border = inside && (col == kRoomLeft || col == kRoomRight || row == kRoomTop || row == kRoomBottom);
-                if ((border && tile != 1) || (!inside && tile != 0))
+                if ((border && tile != 1) || (!inside && tile != 0)) {
                     return fail(prefix + "外周は通常壁で囲み、外側は空にしてください。");
+                }
             }
-        if (!IsRoomPointClear(room, room.playerStart))
+        }
+        if (!IsRoomPointClear(room, room.playerStart)) {
             return fail(prefix + "自機開始位置が壁または範囲外です。");
-        if (room.spawns.size() > 128)
+        }
+        if (room.spawns.size() > 128) {
             return fail(prefix + "敵は128体まで配置できます。");
-        if (room.objectiveTargets.size() != (room.objective == "control" ? 3u : room.objective == "boss" ? 1u : 0u))
+        }
+        if (room.objectiveTargets.size() != (room.objective == "control" ? 3u : room.objective == "boss" ? 1u : 0u)) {
             return fail(prefix + "制圧は目標3個、ボスは開始位置1個、殲滅は目標なしです。");
+        }
         std::array<bool, kRoomColumns * kRoomRows> reached{};
         std::queue<int> open;
         const int start = RoomPointCell(room.playerStart);
@@ -135,10 +163,12 @@ inline bool ValidateRoomCatalog(const RoomCatalog& catalog, std::string& error, 
             for (const int n : next) {
                 const int nr = n / kRoomColumns, nc = n % kRoomColumns;
                 if (nr <= kRoomTop || nr >= kRoomBottom || nc <= kRoomLeft || nc >= kRoomRight ||
-                    std::abs(nr - row) + std::abs(nc - col) != 1)
+                    std::abs(nr - row) + std::abs(nc - col) != 1) {
                     continue;
-                if (reached[static_cast<size_t>(n)] || room.grid[static_cast<size_t>(n)] != 0)
+                }
+                if (reached[static_cast<size_t>(n)] || room.grid[static_cast<size_t>(n)] != 0) {
                     continue;
+                }
                 reached[static_cast<size_t>(n)] = true;
                 open.push(n);
             }
@@ -146,61 +176,79 @@ inline bool ValidateRoomCatalog(const RoomCatalog& catalog, std::string& error, 
         std::set<std::string> spawnIds;
         std::vector<std::pair<RoomPoint, float>> occupied{{room.playerStart, 0.8f}};
         auto available = [&](RoomPoint point, float radius) {
-            if (!IsRoomPointClear(room, point, radius))
+            if (!IsRoomPointClear(room, point, radius)) {
                 return false;
+            }
             const int cell = RoomPointCell(point);
-            if (cell < 0 || !reached[static_cast<size_t>(cell)])
+            if (cell < 0 || !reached[static_cast<size_t>(cell)]) {
                 return false;
+            }
             for (const auto& other : occupied) {
                 const float dx = point.x - other.first.x, dy = point.y - other.first.y;
                 const float clearance = radius + other.second;
-                if (dx * dx + dy * dy < clearance * clearance)
+                if (dx * dx + dy * dy < clearance * clearance) {
                     return false;
+                }
             }
             occupied.push_back({point, radius});
             return true;
         };
         for (const auto& spawn : room.spawns) {
-            if (!RoomIdentifierValid(spawn.id) || !spawnIds.insert(spawn.id).second)
+            if (!RoomIdentifierValid(spawn.id) || !spawnIds.insert(spawn.id).second) {
                 return fail(prefix + "配置IDが不正または重複しています。");
-            if (!RoomIdentifierValid(spawn.type) || spawn.hp < 0 || spawn.hp > 100000)
+            }
+            if (!RoomIdentifierValid(spawn.type) || spawn.hp < 0 || spawn.hp > 100000) {
                 return fail(prefix + "敵の種類またはHPが不正です。");
-            if (enemyIds && std::find(enemyIds->begin(), enemyIds->end(), spawn.type) == enemyIds->end())
+            }
+            if (enemyIds && std::find(enemyIds->begin(), enemyIds->end(), spawn.type) == enemyIds->end()) {
                 return fail(prefix + "敵の種類が見つかりません: " + spawn.type);
-            if (!available({spawn.x, spawn.y}, 0.8f))
+            }
+            if (!available({spawn.x, spawn.y}, 0.8f)) {
                 return fail(prefix + "敵 " + spawn.id + " が壁・範囲外・孤立区画・他の配置に重なっています。");
+            }
         }
-        if (room.objective == "eliminate" && room.spawns.empty())
+        if (room.objective == "eliminate" && room.spawns.empty()) {
             return fail(prefix + "殲滅目標には敵または資源タイプを1体以上配置してください。");
-        for (const auto point : room.objectiveTargets)
-            if (!available(point, room.objective == "boss" ? 2.0f : 1.2f))
+        }
+        for (const auto point : room.objectiveTargets) {
+            if (!available(point, room.objective == "boss" ? 2.0f : 1.2f)) {
                 return fail(prefix + "目標位置が壁・範囲外・孤立区画・他の配置に重なっています。");
+            }
+        }
     }
     error.clear();
     return true;
 }
+
 /// @brief 部屋を検索する。
 inline const RoomDefinition* FindRoom(const RoomCatalog& catalog, const std::string& id)
 {
-    for (const auto& room : catalog.rooms)
-        if (room.id == id)
+    for (const auto& room : catalog.rooms) {
+        if (room.id == id) {
             return &room;
+        }
+    }
     return nullptr;
 }
+
 /// @brief 部屋を検索する。
 inline RoomDefinition* FindRoom(RoomCatalog& catalog, const std::string& id)
 {
-    for (auto& room : catalog.rooms)
-        if (room.id == id)
+    for (auto& room : catalog.rooms) {
+        if (room.id == id) {
             return &room;
+        }
+    }
     return nullptr;
 }
+
 /// @brief 遠征マップRoomsを検証する。
 inline bool ValidateExpeditionMapRooms(const MapDefinition& map, const RoomCatalog& rooms, std::string& error,
                                        const std::vector<std::string>* enemyIds = nullptr)
 {
-    if (!ValidateExpeditionMap(map, error) || !ValidateRoomCatalog(rooms, error, enemyIds))
+    if (!ValidateExpeditionMap(map, error) || !ValidateRoomCatalog(rooms, error, enemyIds)) {
         return false;
+    }
     auto check = [&](const std::string& id, NodeKind kind, const std::string& context) {
         const auto* room = FindRoom(rooms, id);
         if (!room) {
@@ -213,17 +261,23 @@ inline bool ValidateExpeditionMapRooms(const MapDefinition& map, const RoomCatal
         }
         return true;
     };
-    for (const auto& node : map.nodes)
-        if (IsCombatNode(node.kind) && !check(node.roomTemplate, node.kind, "地点 " + node.id))
+    for (const auto& node : map.nodes) {
+        if (IsCombatNode(node.kind) && !check(node.roomTemplate, node.kind, "地点 " + node.id)) {
             return false;
-    if (map.procedural)
-        for (const auto& rule : map.generationRooms)
+        }
+    }
+    if (map.procedural) {
+        for (const auto& rule : map.generationRooms) {
             if (!check(rule.roomTemplate, rule.kind,
-                       "生成候補 " + std::to_string(rule.firstColumn + 1) + "～" + std::to_string(rule.lastColumn + 1) + "列目"))
+                       "生成候補 " + std::to_string(rule.firstColumn + 1) + "～" + std::to_string(rule.lastColumn + 1) + "列目")) {
                 return false;
+            }
+        }
+    }
     error.clear();
     return true;
 }
+
 /// @brief Empty部屋を作成して返す。
 inline RoomDefinition MakeEmptyRoom(const std::string& id, const std::string& name)
 {
@@ -231,13 +285,17 @@ inline RoomDefinition MakeEmptyRoom(const std::string& id, const std::string& na
     room.id = id;
     room.name = name;
     room.grid.resize(kRoomColumns * kRoomRows);
-    for (int row = kRoomTop; row <= kRoomBottom; ++row)
-        for (int col = kRoomLeft; col <= kRoomRight; ++col)
-            if (row == kRoomTop || row == kRoomBottom || col == kRoomLeft || col == kRoomRight)
+    for (int row = kRoomTop; row <= kRoomBottom; ++row) {
+        for (int col = kRoomLeft; col <= kRoomRight; ++col) {
+            if (row == kRoomTop || row == kRoomBottom || col == kRoomLeft || col == kRoomRight) {
                 room.grid[static_cast<size_t>(row * kRoomColumns + col)] = 1;
+            }
+        }
+    }
     room.spawns = {{"enemy_1", "Charger", 38, 22, 24}, {"enemy_2", "Skirmisher", 50, 34, 24}, {"enemy_3", "Skirmisher", 58, 22, 24}};
     return room;
 }
+
 /// @brief 部屋制作一覧の既定値を作成して返す。
 inline RoomCatalog DefaultRoomCatalog()
 {
@@ -246,26 +304,37 @@ inline RoomCatalog DefaultRoomCatalog()
                                                                                  {"crossfire", "交差射線"},
                                                                                  {"resource_fork", "中継拠点"},
                                                                                  {"hazard_lane", "危険回廊"},
-                                                                                 {"final_duel", "最終決戦"}}})
+                                                                                 {"final_duel", "最終決戦"}}}) {
         catalog.rooms.push_back(MakeEmptyRoom(entry.first, entry.second));
+    }
     auto set = [&](int index, int col, int row, int tile) {
         catalog.rooms[static_cast<size_t>(index)].grid[static_cast<size_t>(row * kRoomColumns + col)] = tile;
     };
-    for (int r = 10; r <= 11; ++r)
-        for (int c = 18; c <= 19; ++c)
+    for (int r = 10; r <= 11; ++r) {
+        for (int c = 18; c <= 19; ++c) {
             set(1, c, r, 1);
-    for (int r = 18; r <= 19; ++r)
-        for (int c = 25; c <= 26; ++c)
+        }
+    }
+    for (int r = 18; r <= 19; ++r) {
+        for (int c = 25; c <= 26; ++c) {
             set(1, c, r, 1);
-    for (int r : {9, 10, 11, 17, 18, 19})
-        for (int c : {19, 25})
+        }
+    }
+    for (int r : {9, 10, 11, 17, 18, 19}) {
+        for (int c : {19, 25}) {
             set(2, c, r, 1);
-    for (int r : {11, 17})
-        for (int c : {19, 20, 21, 23, 24, 25})
+        }
+    }
+    for (int r : {11, 17}) {
+        for (int c : {19, 20, 21, 23, 24, 25}) {
             set(3, c, r, 2);
-    for (int r : {10, 11, 18, 19})
-        for (int c : {16, 17, 27, 28})
+        }
+    }
+    for (int r : {10, 11, 18, 19}) {
+        for (int c : {16, 17, 27, 28}) {
             set(4, c, r, 1);
+        }
+    }
     catalog.rooms[1].spawns = {{"enemy_1", "Flanker", 42, 24, 0},
                                {"enemy_2", "Skirmisher", 58, 34, 0},
                                {"enemy_3", "Sniper", 60, 20, 0},
@@ -312,6 +381,7 @@ inline RoomCatalog DefaultRoomCatalog()
     catalog.rooms.back().spawns[1].type = "BladeGuard";
     return catalog;
 }
+
 /// @brief 部屋制作一覧を保存用のJSONへ変換する。
 inline nlohmann::json RoomCatalogToJson(const RoomCatalog& catalog)
 {
@@ -327,18 +397,22 @@ inline nlohmann::json RoomCatalogToJson(const RoomCatalog& catalog)
         for (int y = 0; y < kRoomRows; ++y) {
             std::string line;
             line.reserve(kRoomColumns);
-            for (int x = 0; x < kRoomColumns; ++x)
+            for (int x = 0; x < kRoomColumns; ++x) {
                 line.push_back(static_cast<char>('0' + room.grid[static_cast<size_t>(y * kRoomColumns + x)]));
+            }
             row["tiles"].push_back(line);
         }
-        for (const auto& spawn : room.spawns)
+        for (const auto& spawn : room.spawns) {
             row["spawns"].push_back({{"id", spawn.id}, {"type", spawn.type}, {"x", spawn.x}, {"y", spawn.y}, {"hp", spawn.hp}});
-        for (const auto target : room.objectiveTargets)
+        }
+        for (const auto target : room.objectiveTargets) {
             row["objectiveTargets"].push_back({target.x, target.y});
+        }
         data["rooms"].push_back(std::move(row));
     }
     return data;
 }
+
 /// @brief 部屋制作一覧をJSONから読み取る。
 inline bool RoomCatalogFromJson(const nlohmann::json& data, RoomCatalog& output, std::string& error)
 {
@@ -355,46 +429,56 @@ inline bool RoomCatalogFromJson(const nlohmann::json& data, RoomCatalog& output,
             room.name = value.at("name").get<std::string>();
             room.objective = value.at("objective").get<std::string>();
             const auto& start = value.at("playerStart");
-            if (!start.is_array() || start.size() != 2)
+            if (!start.is_array() || start.size() != 2) {
                 throw std::runtime_error("playerStart needs [x,y]");
+            }
             room.playerStart = {start[0].get<float>(), start[1].get<float>()};
             const auto& tiles = value.at("tiles");
-            if (!tiles.is_array() || tiles.size() != kRoomRows)
+            if (!tiles.is_array() || tiles.size() != kRoomRows) {
                 throw std::runtime_error("tiles needs 30 rows");
+            }
             for (const auto& lineValue : tiles) {
                 const auto line = lineValue.get<std::string>();
-                if (line.size() != kRoomColumns)
+                if (line.size() != kRoomColumns) {
                     throw std::runtime_error("tile row needs 45 cells");
+                }
                 for (const char tile : line) {
-                    if (tile < '0' || tile > '2')
+                    if (tile < '0' || tile > '2') {
                         throw std::runtime_error("tile must be 0,1,2");
+                    }
                     room.grid.push_back(tile - '0');
                 }
             }
             const auto& spawns = value.at("spawns");
-            if (!spawns.is_array() || spawns.size() > 128)
+            if (!spawns.is_array() || spawns.size() > 128) {
                 throw std::runtime_error("spawns needs an array (max128)");
+            }
             for (const auto& spawn : spawns) {
-                if (!spawn.at("hp").is_number_integer())
+                if (!spawn.at("hp").is_number_integer()) {
                     throw std::runtime_error("enemy hp must be an integer");
+                }
                 const auto hp = spawn.at("hp").get<int64_t>();
-                if (hp < 0 || hp > 100000)
+                if (hp < 0 || hp > 100000) {
                     throw std::runtime_error("enemy hp out of range");
+                }
                 room.spawns.push_back({spawn.at("id").get<std::string>(), spawn.at("type").get<std::string>(), spawn.at("x").get<float>(),
                                        spawn.at("y").get<float>(), static_cast<int>(hp)});
             }
             const auto& targets = value.at("objectiveTargets");
-            if (!targets.is_array() || targets.size() > 3)
+            if (!targets.is_array() || targets.size() > 3) {
                 throw std::runtime_error("objectiveTargets needs an array (max3)");
+            }
             for (const auto& target : targets) {
-                if (!target.is_array() || target.size() != 2)
+                if (!target.is_array() || target.size() != 2) {
                     throw std::runtime_error("target needs [x,y]");
+                }
                 room.objectiveTargets.push_back({target[0].get<float>(), target[1].get<float>()});
             }
             loaded.rooms.push_back(std::move(room));
         }
-        if (!ValidateRoomCatalog(loaded, error))
+        if (!ValidateRoomCatalog(loaded, error)) {
             return false;
+        }
         output = std::move(loaded);
         error.clear();
         return true;
@@ -404,6 +488,7 @@ inline bool RoomCatalogFromJson(const nlohmann::json& data, RoomCatalog& output,
         return false;
     }
 }
+
 /// @brief 部屋制作一覧を読み込む。
 inline bool LoadRoomCatalog(const std::string& path, RoomCatalog& output, std::string& error)
 {
@@ -427,11 +512,13 @@ inline bool LoadRoomCatalog(const std::string& path, RoomCatalog& output, std::s
         return false;
     }
 }
+
 /// @brief 部屋制作一覧を保存する。
 inline bool SaveRoomCatalog(const std::string& path, const RoomCatalog& catalog, std::string& error)
 {
-    if (!ValidateRoomCatalog(catalog, error))
+    if (!ValidateRoomCatalog(catalog, error)) {
         return false;
+    }
     const std::filesystem::path target = ExpeditionMapPath(path);
     auto temporary = target;
     temporary += ".tmp";
@@ -465,16 +552,19 @@ inline bool SaveRoomCatalog(const std::string& path, const RoomCatalog& catalog,
         return false;
     }
 }
+
 /// @brief 部屋の地形をCSVへ変換する。
 inline std::string RoomToCsv(const RoomDefinition& room)
 {
-    if (room.grid.size() != static_cast<size_t>(kRoomColumns * kRoomRows))
+    if (room.grid.size() != static_cast<size_t>(kRoomColumns * kRoomRows)) {
         return {};
+    }
     std::ostringstream text;
     for (int y = 0; y < kRoomRows; ++y) {
         for (int x = 0; x < kRoomColumns; ++x) {
-            if (x)
+            if (x) {
                 text << ',';
+            }
             text << room.grid[static_cast<size_t>(y * kRoomColumns + x)];
         }
         text << '\n';

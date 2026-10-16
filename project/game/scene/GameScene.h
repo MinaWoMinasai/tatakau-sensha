@@ -3,9 +3,11 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "game/session/TitleDemoStatus.h"
-namespace cg2 {
+
+namespace myEngine {
 class Object3d;
 }
+
 namespace gameplay {
 class GameSession;
 }
@@ -20,6 +22,7 @@ public:
     ~GameScene() override;
     /// @brief 初期化
     void Initialize() override;
+    /// @brief 初期化を1ステップ進める。完了したらtrueを返す。
     bool InitializeStep() override;
 
     /// @brief シーンの状態に応じて戦闘・演出・進行を更新する。戦闘の呼び出し順は実装内に記載する。
@@ -44,7 +47,7 @@ public:
     bool IsFinished() const override;
 
     /// @brief BallOBJ形式を返す。
-    cg2::Object3d* GetBallObj();
+    myEngine::Object3d* GetBallObj();
 
     /// @brief 最終差分時間を返す。
     float GetFinalDeltaTime() const override;
@@ -66,9 +69,11 @@ public:
 
     DeveloperShowcaseState GetDeveloperShowcaseState() override;
 
-    void RecordDeveloperPostParameters(const cg2::BloomParam& param) override;
+    /// @brief 開発者用にポストエフェクトのパラメータを記録する。
+    void RecordDeveloperPostParameters(const myEngine::BloomParam& param) override;
 
-    void RecordDeveloperFrame(cg2::DirectXCommon& dx) override;
+    /// @brief 開発者用にフレームを記録する。
+    void RecordDeveloperFrame(myEngine::DirectXCommon& dx) override;
 
     /// @brief 描画区間の計測値を設定する。
     void SetRenderProfile(const IScene::RenderProfile& profile) override;

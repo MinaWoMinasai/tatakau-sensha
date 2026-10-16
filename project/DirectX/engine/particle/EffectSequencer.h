@@ -6,7 +6,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 
-namespace cg2 {
+namespace myEngine {
 
 class Object3d;
 class Object3dCommon;
@@ -64,6 +64,7 @@ struct EffectProfile {
 /// @brief 登録した演出を時間順に発生させ、発射・飛行・命中の進行を管理する。
 class EffectSequencer {
 public:
+    /// @brief 演出シーケンスの進行段階。
     enum class State {
         Idle,
         Firing,
@@ -72,7 +73,7 @@ public:
         Finished,
     };
 
-    /// @brief cg2::EffectSequencerが扱う演出の発生時刻・内容を表す。
+    /// @brief myEngine::EffectSequencerが扱う演出の発生時刻・内容を表す。
     struct Event {
         std::string effectName;
         float delay = 0.0f;
@@ -112,18 +113,22 @@ public:
     {
         return state_ == State::Finished || state_ == State::Idle;
     }
+
     /// @brief 有効であるか判定する。
     bool IsActive() const
     {
         return state_ != State::Idle && state_ != State::Finished;
     }
+
     /// @brief 状態を返す。
     State GetState() const
     {
         return state_;
     }
+
     /// @brief 状態と集計値を初期状態へ戻す。
     void Reset();
+
     /// @brief On命中通知関数を設定する。
     void SetOnHitCallback(std::function<void()> callback)
     {
@@ -140,6 +145,7 @@ public:
     {
         return profile_;
     }
+
     /// @brief 演出設定を設定する。
     void SetProfile(const EffectProfile& profile)
     {
@@ -147,7 +153,7 @@ public:
     }
 
 private:
-    /// @brief cg2::EffectSequencerが扱う演出の発生時刻・内容と発生後の進行状態を保持する。
+    /// @brief myEngine::EffectSequencerが扱う演出の発生時刻・内容と発生後の進行状態を保持する。
     struct ActiveEvent {
         Event event;
         Vector3 origin = {0.0f, 0.0f, 0.0f};
@@ -191,4 +197,4 @@ private:
     char profileFilename_[128] = "effect_default.json";
 };
 
-} // namespace cg2
+} // namespace myEngine

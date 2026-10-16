@@ -22,8 +22,8 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float4 spectrumC = gSpectrumC.Load(int3(coordinate, 0));
     float4 spectrumD = gSpectrumD.Load(int3(coordinate, 0));
 
-    // The butterfly kernels intentionally perform an unnormalized inverse
-    // transform. Apply the standard 2D IFFT normalization exactly once here.
+    // バタフライのカーネルはあえて正規化なしの逆変換を行う。
+    // 標準的な2D IFFTの正規化はここでちょうど1回だけ掛ける。
     float normalization = rcp(float(gFFTSize * gFFTSize));
     float height = spectrumA.x * normalization;
     float displacementX = spectrumA.z * normalization;

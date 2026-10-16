@@ -10,31 +10,27 @@
 #include <functional>
 #include <cstdint>
 
-namespace cg2 {
+namespace myEngine {
 
 // Imguiで0番を使用するため、1番から使用する
 uint32_t TextureManager::kSRVIndexTop = 1;
 
-namespace
-{
+namespace {
 /// @brief テクスチャ生成用の2成分の計算値を表す。
-struct Float2
-{
+struct Float2 {
     float x;
     float y;
 };
 
 /// @brief テクスチャ生成用の3成分の計算値を表す。
-struct Float3
-{
+struct Float3 {
     float x;
     float y;
     float z;
 };
 
 /// @brief テクスチャ生成用の4成分の計算値を表す。
-struct Float4
-{
+struct Float4 {
     float x;
     float y;
     float z;
@@ -51,17 +47,17 @@ float Saturate(float value)
 
 Float3 operator+(Float3 lhs, Float3 rhs)
 {
-    return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
+    return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};
 }
 
 Float3 operator-(Float3 lhs, Float3 rhs)
 {
-    return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z };
+    return {lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z};
 }
 
 Float3 operator*(Float3 value, float scale)
 {
-    return { value.x * scale, value.y * scale, value.z * scale };
+    return {value.x * scale, value.y * scale, value.z * scale};
 }
 
 Float3 operator/(Float3 value, float scale)
@@ -80,12 +76,7 @@ Float3 Lerp(Float3 a, Float3 b, float t)
 
 Float4 Lerp(Float4 a, Float4 b, float t)
 {
-    return {
-        a.x * (1.0f - t) + b.x * t,
-        a.y * (1.0f - t) + b.y * t,
-        a.z * (1.0f - t) + b.z * t,
-        a.w * (1.0f - t) + b.w * t
-    };
+    return {a.x * (1.0f - t) + b.x * t, a.y * (1.0f - t) + b.y * t, a.z * (1.0f - t) + b.z * t, a.w * (1.0f - t) + b.w * t};
 }
 
 float Dot(Float3 lhs, Float3 rhs)
@@ -95,18 +86,14 @@ float Dot(Float3 lhs, Float3 rhs)
 
 Float3 Cross(Float3 lhs, Float3 rhs)
 {
-    return {
-        lhs.y * rhs.z - lhs.z * rhs.y,
-        lhs.z * rhs.x - lhs.x * rhs.z,
-        lhs.x * rhs.y - lhs.y * rhs.x
-    };
+    return {lhs.y * rhs.z - lhs.z * rhs.y, lhs.z * rhs.x - lhs.x * rhs.z, lhs.x * rhs.y - lhs.y * rhs.x};
 }
 
 Float3 Normalize(Float3 value)
 {
     const float length = std::sqrt((std::max)(Dot(value, value), 0.0f));
     if (length <= 0.00001f) {
-        return { 0.0f, 0.0f, 1.0f };
+        return {0.0f, 0.0f, 1.0f};
     }
     const float invLength = 1.0f / length;
     return value * invLength;
@@ -115,9 +102,7 @@ Float3 Normalize(Float3 value)
 /// @brief 接空間の方向を指定した法線のワールド空間へ変換する。
 Float3 TangentToWorld(Float3 localDirection, Float3 normal)
 {
-    const Float3 up = std::fabs(normal.z) < 0.999f
-        ? Float3{ 0.0f, 0.0f, 1.0f }
-        : Float3{ 1.0f, 0.0f, 0.0f };
+    const Float3 up = std::fabs(normal.z) < 0.999f ? Float3{0.0f, 0.0f, 1.0f} : Float3{1.0f, 0.0f, 0.0f};
     const Float3 tangent = Normalize(Cross(up, normal));
     const Float3 bitangent = Cross(normal, tangent);
     return Normalize(tangent * localDirection.x + bitangent * localDirection.y + normal * localDirection.z);
@@ -137,10 +122,7 @@ float RadicalInverseVdc(uint32_t bits)
 /// @brief 低偏差の2次元サンプル点を求める。
 Float2 Hammersley(uint32_t index, uint32_t sampleCount)
 {
-    return {
-        static_cast<float>(index) / static_cast<float>(sampleCount),
-        RadicalInverseVdc(index)
-    };
+    return {static_cast<float>(index) / static_cast<float>(sampleCount), RadicalInverseVdc(index)};
 }
 
 /// @brief anceサンプルGGXを取り込む。
@@ -152,11 +134,7 @@ Float3 ImportanceSampleGGX(Float2 xi, Float3 normal, float roughness)
     const float cosTheta = std::sqrt((1.0f - xi.y) / (1.0f + (a2 - 1.0f) * xi.y));
     const float sinTheta = std::sqrt((std::max)(1.0f - cosTheta * cosTheta, 0.0f));
 
-    const Float3 halfVector = {
-        std::cos(phi) * sinTheta,
-        std::sin(phi) * sinTheta,
-        cosTheta
-    };
+    const Float3 halfVector = {std::cos(phi) * sinTheta, std::sin(phi) * sinTheta, cosTheta};
 
     return TangentToWorld(halfVector, normal);
 }
@@ -166,11 +144,7 @@ Float3 CosineSampleHemisphere(Float2 xi, Float3 normal)
 {
     const float radius = std::sqrt(xi.x);
     const float phi = 2.0f * kPi * xi.y;
-    const Float3 localDirection = {
-        std::cos(phi) * radius,
-        std::sin(phi) * radius,
-        std::sqrt((std::max)(1.0f - xi.x, 0.0f))
-    };
+    const Float3 localDirection = {std::cos(phi) * radius, std::sin(phi) * radius, std::sqrt((std::max)(1.0f - xi.x, 0.0f))};
     return TangentToWorld(localDirection, normal);
 }
 
@@ -182,18 +156,18 @@ Float3 TexelDirectionForCubeFace(size_t face, size_t x, size_t y, size_t width, 
 
     switch (face) {
     case 0:
-        return Normalize({ 1.0f, -v, -u });
+        return Normalize({1.0f, -v, -u});
     case 1:
-        return Normalize({ -1.0f, -v, u });
+        return Normalize({-1.0f, -v, u});
     case 2:
-        return Normalize({ u, 1.0f, v });
+        return Normalize({u, 1.0f, v});
     case 3:
-        return Normalize({ u, -1.0f, -v });
+        return Normalize({u, -1.0f, -v});
     case 4:
-        return Normalize({ u, -v, 1.0f });
+        return Normalize({u, -v, 1.0f});
     case 5:
     default:
-        return Normalize({ -u, -v, -1.0f });
+        return Normalize({-u, -v, -1.0f});
     }
 }
 
@@ -202,7 +176,7 @@ Float3 SampleProceduralPbrEnvironment(Float3 direction, float lod)
 {
     const Float3 dir = Normalize(direction);
     const float horizon = Saturate(dir.y * 0.5f + 0.5f);
-    const Float3 sunDir = Normalize({ 0.36f, 0.30f, 0.88f });
+    const Float3 sunDir = Normalize({0.36f, 0.30f, 0.88f});
     const float sunDot = Saturate(Dot(dir, sunDir));
     const float sun = std::pow(sunDot, 380.0f);
     const float sunGlow = std::pow(sunDot, 14.0f);
@@ -219,21 +193,17 @@ Float3 SampleProceduralPbrEnvironment(Float3 direction, float lod)
         return t * t * (3.0f - 2.0f * t);
     };
 
-    const Float3 zenith = { 0.065f, 0.155f, 0.300f };
-    const Float3 midSky = { 0.170f, 0.430f, 0.620f };
-    const Float3 horizonSky = { 0.700f, 0.760f, 0.720f };
-    const Float3 waterBelow = { 0.045f, 0.260f, 0.340f };
+    const Float3 zenith = {0.065f, 0.155f, 0.300f};
+    const Float3 midSky = {0.170f, 0.430f, 0.620f};
+    const Float3 horizonSky = {0.700f, 0.760f, 0.720f};
+    const Float3 waterBelow = {0.045f, 0.260f, 0.340f};
     Float3 color = lerpFloat3(waterBelow, horizonSky, smoothstep(0.0f, 0.42f, horizon));
     color = lerpFloat3(color, midSky, smoothstep(0.16f, 0.70f, horizon));
     color = lerpFloat3(color, zenith, zenithFade * 0.72f);
-    color = color + Float3{ 1.0f, 0.76f, 0.48f } * sunGlow * 0.42f * broadLightFade;
-    color = color + Float3{ 1.0f, 0.92f, 0.66f } * sun * 5.2f * sharpLightFade;
-    color = lerpFloat3(color, { 0.43f, 0.56f, 0.58f }, lowMist * 0.13f);
-    return {
-        (std::max)(color.x, 0.0f),
-        (std::max)(color.y, 0.0f),
-        (std::max)(color.z, 0.0f)
-    };
+    color = color + Float3{1.0f, 0.76f, 0.48f} * sunGlow * 0.42f * broadLightFade;
+    color = color + Float3{1.0f, 0.92f, 0.66f} * sun * 5.2f * sharpLightFade;
+    color = lerpFloat3(color, {0.43f, 0.56f, 0.58f}, lowMist * 0.13f);
+    return {(std::max)(color.x, 0.0f), (std::max)(color.y, 0.0f), (std::max)(color.z, 0.0f)};
 }
 
 /// @brief キューブマップの指定画素へ浮動小数の色を書き込む。
@@ -256,7 +226,7 @@ Float3 ReadFloatCubePixel(const DirectX::Image* imageData, size_t x, size_t y)
     const size_t safeY = (std::min)(y, imageData->height - 1);
     const uint8_t* row = imageData->pixels + imageData->rowPitch * safeY;
     const float* pixel = reinterpret_cast<const float*>(row + safeX * sizeof(float) * 4);
-    return { pixel[0], pixel[1], pixel[2] };
+    return {pixel[0], pixel[1], pixel[2]};
 }
 
 /// @brief 浮動小数キューブ画像双線形補間をサンプリングする。
@@ -302,9 +272,7 @@ Float3 SampleFloat2DImageBilinear(const DirectX::Image* imageData, float u, floa
     const float texelY = v * static_cast<float>(imageData->height - 1);
     const size_t x0 = static_cast<size_t>(std::floor(texelX));
     const size_t y0 = static_cast<size_t>(std::floor(texelY));
-    const size_t x1 = wrapU
-        ? ((x0 + 1) % imageData->width)
-        : (std::min)(x0 + 1, imageData->width - 1);
+    const size_t x1 = wrapU ? ((x0 + 1) % imageData->width) : (std::min)(x0 + 1, imageData->width - 1);
     const size_t y1 = (std::min)(y0 + 1, imageData->height - 1);
     const float tx = texelX - static_cast<float>(x0);
     const float ty = texelY - static_cast<float>(y0);
@@ -324,7 +292,7 @@ Float4 ReadFloat4Pixel(const DirectX::Image* imageData, size_t x, size_t y)
     const size_t safeY = (std::min)(y, imageData->height - 1);
     const uint8_t* row = imageData->pixels + imageData->rowPitch * safeY;
     const float* pixel = reinterpret_cast<const float*>(row + safeX * sizeof(float) * 4);
-    return { pixel[0], pixel[1], pixel[2], pixel[3] };
+    return {pixel[0], pixel[1], pixel[2], pixel[3]};
 }
 
 /// @brief 浮動小数4画像双線形補間をサンプリングする。
@@ -397,12 +365,7 @@ bool LoadTexture2DAsFloat(const std::string& filePath, DirectX::ScratchImage& ou
     DirectX::ScratchImage working{};
     if (DirectX::IsCompressed(metadata.format)) {
         DirectX::ScratchImage decompressed{};
-        hr = DirectX::Decompress(
-            loaded.GetImages(),
-            loaded.GetImageCount(),
-            metadata,
-            DXGI_FORMAT_R8G8B8A8_UNORM,
-            decompressed);
+        hr = DirectX::Decompress(loaded.GetImages(), loaded.GetImageCount(), metadata, DXGI_FORMAT_R8G8B8A8_UNORM, decompressed);
         if (FAILED(hr)) {
             return false;
         }
@@ -418,14 +381,8 @@ bool LoadTexture2DAsFloat(const std::string& filePath, DirectX::ScratchImage& ou
 
     if (workingMetadata.format != DXGI_FORMAT_R32G32B32A32_FLOAT) {
         DirectX::ScratchImage converted{};
-        hr = DirectX::Convert(
-            working.GetImages(),
-            working.GetImageCount(),
-            workingMetadata,
-            DXGI_FORMAT_R32G32B32A32_FLOAT,
-            DirectX::TEX_FILTER_DEFAULT,
-            DirectX::TEX_THRESHOLD_DEFAULT,
-            converted);
+        hr = DirectX::Convert(working.GetImages(), working.GetImageCount(), workingMetadata, DXGI_FORMAT_R32G32B32A32_FLOAT,
+                              DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, converted);
         if (FAILED(hr)) {
             return false;
         }
@@ -457,12 +414,7 @@ bool BuildCubeFromLatLongTexture(const DirectX::ScratchImage& latLongImage, Dire
 
     constexpr size_t kCubeSize = 256;
     DirectX::ScratchImage baseCube{};
-    HRESULT hr = baseCube.InitializeCube(
-        DXGI_FORMAT_R32G32B32A32_FLOAT,
-        kCubeSize,
-        kCubeSize,
-        1,
-        1);
+    HRESULT hr = baseCube.InitializeCube(DXGI_FORMAT_R32G32B32A32_FLOAT, kCubeSize, kCubeSize, 1, 1);
     if (FAILED(hr)) {
         return false;
     }
@@ -479,13 +431,8 @@ bool BuildCubeFromLatLongTexture(const DirectX::ScratchImage& latLongImage, Dire
     }
 
     DirectX::ScratchImage mipCube{};
-    hr = DirectX::GenerateMipMaps(
-        baseCube.GetImages(),
-        baseCube.GetImageCount(),
-        baseCube.GetMetadata(),
-        DirectX::TEX_FILTER_DEFAULT,
-        0,
-        mipCube);
+    hr = DirectX::GenerateMipMaps(baseCube.GetImages(), baseCube.GetImageCount(), baseCube.GetMetadata(), DirectX::TEX_FILTER_DEFAULT, 0,
+                                  mipCube);
     outCube = SUCCEEDED(hr) ? std::move(mipCube) : std::move(baseCube);
     return true;
 }
@@ -574,14 +521,9 @@ Float3 SampleFloatCube(const DirectX::ScratchImage& cubeImage, Float3 direction,
 /// @brief Procedural環境キューブを組み立てる。
 bool BuildProceduralEnvironmentCube(DirectX::ScratchImage& outCube, size_t cubeSize = 256)
 {
-    cubeSize = (std::max)(cubeSize, size_t{ 1 });
+    cubeSize = (std::max)(cubeSize, size_t{1});
     DirectX::ScratchImage baseCube{};
-    HRESULT hr = baseCube.InitializeCube(
-        DXGI_FORMAT_R32G32B32A32_FLOAT,
-        cubeSize,
-        cubeSize,
-        1,
-        1);
+    HRESULT hr = baseCube.InitializeCube(DXGI_FORMAT_R32G32B32A32_FLOAT, cubeSize, cubeSize, 1, 1);
     if (FAILED(hr)) {
         return false;
     }
@@ -598,13 +540,8 @@ bool BuildProceduralEnvironmentCube(DirectX::ScratchImage& outCube, size_t cubeS
     }
 
     DirectX::ScratchImage mipCube{};
-    hr = DirectX::GenerateMipMaps(
-        baseCube.GetImages(),
-        baseCube.GetImageCount(),
-        baseCube.GetMetadata(),
-        DirectX::TEX_FILTER_DEFAULT,
-        0,
-        mipCube);
+    hr = DirectX::GenerateMipMaps(baseCube.GetImages(), baseCube.GetImageCount(), baseCube.GetMetadata(), DirectX::TEX_FILTER_DEFAULT, 0,
+                                  mipCube);
     outCube = SUCCEEDED(hr) ? std::move(mipCube) : std::move(baseCube);
     return true;
 }
@@ -619,12 +556,7 @@ bool IsOptionalSkyboxTexture(const std::string& filePath)
 /// @brief 単色色キューブを組み立てる。
 bool BuildSolidColorCube(Float3 color, size_t cubeSize, size_t mipLevels, DirectX::ScratchImage& outCube)
 {
-    HRESULT hr = outCube.InitializeCube(
-        DXGI_FORMAT_R32G32B32A32_FLOAT,
-        cubeSize,
-        cubeSize,
-        1,
-        mipLevels);
+    HRESULT hr = outCube.InitializeCube(DXGI_FORMAT_R32G32B32A32_FLOAT, cubeSize, cubeSize, 1, mipLevels);
     if (FAILED(hr)) {
         return false;
     }
@@ -665,12 +597,7 @@ bool LoadEnvironmentCubeAsFloat(const std::string& filePath, DirectX::ScratchIma
     DirectX::ScratchImage working{};
     if (DirectX::IsCompressed(metadata.format)) {
         DirectX::ScratchImage decompressed{};
-        hr = DirectX::Decompress(
-            loaded.GetImages(),
-            loaded.GetImageCount(),
-            metadata,
-            DXGI_FORMAT_R8G8B8A8_UNORM,
-            decompressed);
+        hr = DirectX::Decompress(loaded.GetImages(), loaded.GetImageCount(), metadata, DXGI_FORMAT_R8G8B8A8_UNORM, decompressed);
         if (FAILED(hr)) {
             return false;
         }
@@ -682,17 +609,10 @@ bool LoadEnvironmentCubeAsFloat(const std::string& filePath, DirectX::ScratchIma
     DirectX::TexMetadata workingMetadata = working.GetMetadata();
     if (workingMetadata.format != DXGI_FORMAT_R32G32B32A32_FLOAT) {
         DirectX::ScratchImage converted{};
-        const DirectX::TEX_FILTER_FLAGS convertFilter = DirectX::IsSRGB(metadata.format)
-            ? DirectX::TEX_FILTER_SRGB_IN
-            : DirectX::TEX_FILTER_DEFAULT;
-        hr = DirectX::Convert(
-            working.GetImages(),
-            working.GetImageCount(),
-            workingMetadata,
-            DXGI_FORMAT_R32G32B32A32_FLOAT,
-            convertFilter,
-            DirectX::TEX_THRESHOLD_DEFAULT,
-            converted);
+        const DirectX::TEX_FILTER_FLAGS convertFilter =
+            DirectX::IsSRGB(metadata.format) ? DirectX::TEX_FILTER_SRGB_IN : DirectX::TEX_FILTER_DEFAULT;
+        hr = DirectX::Convert(working.GetImages(), working.GetImageCount(), workingMetadata, DXGI_FORMAT_R32G32B32A32_FLOAT, convertFilter,
+                              DirectX::TEX_THRESHOLD_DEFAULT, converted);
         if (FAILED(hr)) {
             return false;
         }
@@ -706,7 +626,7 @@ bool LoadEnvironmentCubeAsFloat(const std::string& filePath, DirectX::ScratchIma
     }
 
     if (workingMetadata.dimension == DirectX::TEX_DIMENSION_TEXTURE2D && workingMetadata.arraySize >= 1) {
-        const float aspect = static_cast<float>(workingMetadata.width) / static_cast<float>((std::max)(workingMetadata.height, size_t{ 1 }));
+        const float aspect = static_cast<float>(workingMetadata.width) / static_cast<float>((std::max)(workingMetadata.height, size_t{1}));
         if (aspect < 1.8f || aspect > 2.2f) {
             return false;
         }
@@ -738,12 +658,8 @@ Float2 IntegrateBrdf(float nDotV, float roughness)
     nDotV = (std::max)(nDotV, 0.001f);
     roughness = (std::max)(roughness, 0.04f);
 
-    const Float3 normal = { 0.0f, 0.0f, 1.0f };
-    const Float3 view = {
-        std::sqrt((std::max)(1.0f - nDotV * nDotV, 0.0f)),
-        0.0f,
-        nDotV
-    };
+    const Float3 normal = {0.0f, 0.0f, 1.0f};
+    const Float3 view = {std::sqrt((std::max)(1.0f - nDotV * nDotV, 0.0f)), 0.0f, nDotV};
 
     constexpr uint32_t kSampleCount = 256;
     float scale = 0.0f;
@@ -766,12 +682,9 @@ Float2 IntegrateBrdf(float nDotV, float roughness)
         }
     }
 
-    return {
-        scale / static_cast<float>(kSampleCount),
-        bias / static_cast<float>(kSampleCount)
-    };
+    return {scale / static_cast<float>(kSampleCount), bias / static_cast<float>(kSampleCount)};
 }
-}
+} // namespace
 
 std::string TextureManager::MakeTextureKey(const std::string& filePath, TextureColorSpace colorSpace)
 {
@@ -817,36 +730,35 @@ const std::string& TextureManager::GetPbrPrefilteredEnvironmentTexturePath()
     return kPbrPrefilteredEnvironmentTexturePath;
 }
 
-TextureManager* TextureManager::GetInstance() {
-	static TextureManager instance;
-	return &instance;
+TextureManager* TextureManager::GetInstance()
+{
+    static TextureManager instance;
+    return &instance;
 }
 
-void TextureManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager) {
+void TextureManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager)
+{
     StartupTrace::Scope startupScope("Textures.Initialize");
-	dxCommon_ = dxCommon;
-	srvManager_ = srvManager;
-	textureDatas.reserve(SrvManager::kMaxSrvCount);
-	CreateBlackCausticsTexture();
-	CreateFlatNormalTexture();
-	CreateBrdfLutTexture();
-	CreatePbrIrradianceTexture();
-	CreatePbrPrefilteredEnvironmentTexture();
+    dxCommon_ = dxCommon;
+    srvManager_ = srvManager;
+    textureDatas.reserve(SrvManager::kMaxSrvCount);
+    CreateBlackCausticsTexture();
+    CreateFlatNormalTexture();
+    CreateBrdfLutTexture();
+    CreatePbrIrradianceTexture();
+    CreatePbrPrefilteredEnvironmentTexture();
 }
 
 void TextureManager::CreateBlackCausticsTexture()
 {
     const std::string& filePath = GetBlackCausticsTexturePath();
     const std::string textureKey = MakeTextureKey(filePath, TextureColorSpace::LinearData);
-    if (textureDatas.contains(textureKey)) return;
+    if (textureDatas.contains(textureKey)) {
+        return;
+    }
 
     DirectX::ScratchImage image{};
-    const HRESULT hr = image.Initialize2D(
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        1,
-        1,
-        1,
-        1);
+    const HRESULT hr = image.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, 1, 1, 1, 1);
     assert(SUCCEEDED(hr));
 
     const DirectX::Image* imageData = image.GetImage(0, 0, 0);
@@ -859,85 +771,110 @@ void TextureManager::CreateBlackCausticsTexture()
     StoreGeneratedTexture(filePath, TextureColorSpace::LinearData, image, false);
 }
 
-void TextureManager::Finalize() {
-	pendingTextures_.clear();
-	textureDatas.clear();
-	dxCommon_ = nullptr;
-	srvManager_ = nullptr;
-	pbrEnvironmentSourcePath_.clear();
-	pbrEnvironmentBuilt_ = false;
-	pbrEnvironmentLoadedFromSource_ = false;
+void TextureManager::Finalize()
+{
+    pendingTextures_.clear();
+    textureDatas.clear();
+    dxCommon_ = nullptr;
+    srvManager_ = nullptr;
+    pbrEnvironmentSourcePath_.clear();
+    pbrEnvironmentBuilt_ = false;
+    pbrEnvironmentLoadedFromSource_ = false;
 }
 
 namespace {
-std::shared_ptr<DirectX::ScratchImage> BuildDecodedTexture(DirectX::ScratchImage image,
-    TextureManager::TextureColorSpace colorSpace) {
+/// @brief デコードした画像からミップマップを生成する。圧縮形式の画像はそのまま使う。
+std::shared_ptr<DirectX::ScratchImage> BuildDecodedTexture(DirectX::ScratchImage image, TextureManager::TextureColorSpace colorSpace)
+{
     auto result = std::make_shared<DirectX::ScratchImage>();
-    if (DirectX::IsCompressed(image.GetMetadata().format)) *result = std::move(image);
-    else {
-        const auto filter = colorSpace == TextureManager::TextureColorSpace::LinearData
-            ? DirectX::TEX_FILTER_DEFAULT : DirectX::TEX_FILTER_SRGB;
-        if (FAILED(DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(),
-            image.GetMetadata(), filter, 0, *result))) throw std::runtime_error("Texture mip generation failed");
+    if (DirectX::IsCompressed(image.GetMetadata().format)) {
+        *result = std::move(image);
+    } else {
+        const auto filter =
+            colorSpace == TextureManager::TextureColorSpace::LinearData ? DirectX::TEX_FILTER_DEFAULT : DirectX::TEX_FILTER_SRGB;
+        if (FAILED(DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), filter, 0, *result))) {
+            throw std::runtime_error("Texture mip generation failed");
+        }
     }
     return result;
 }
-}
+} // namespace
 
-std::shared_ptr<DirectX::ScratchImage> TextureManager::DecodeTextureMemory(
-    const void* data, size_t size, TextureColorSpace colorSpace) {
+std::shared_ptr<DirectX::ScratchImage> TextureManager::DecodeTextureMemory(const void* data, size_t size, TextureColorSpace colorSpace)
+{
     DirectX::ScratchImage image;
     const auto flags = colorSpace == TextureColorSpace::LinearData ? DirectX::WIC_FLAGS_NONE : DirectX::WIC_FLAGS_FORCE_SRGB;
-    if (FAILED(DirectX::LoadFromWICMemory(static_cast<const uint8_t*>(data), size, flags, nullptr, image)))
+    if (FAILED(DirectX::LoadFromWICMemory(static_cast<const uint8_t*>(data), size, flags, nullptr, image))) {
         throw std::runtime_error("Embedded texture decode failed");
+    }
     return BuildDecodedTexture(std::move(image), colorSpace);
 }
 
-void TextureManager::PreloadTexture(const std::string& path, TextureColorSpace colorSpace) {
+void TextureManager::PreloadTexture(const std::string& path, TextureColorSpace colorSpace)
+{
     const auto key = MakeTextureKey(path, colorSpace);
-    if (textureDatas.contains(key) || pendingTextures_.contains(key)) return;
+    if (textureDatas.contains(key) || pendingTextures_.contains(key)) {
+        return;
+    }
     std::error_code fileError;
-    if (!std::filesystem::is_regular_file(path, fileError)) return; // Keep the synchronous fallback (e.g. optional skybox).
+    if (!std::filesystem::is_regular_file(path, fileError)) {
+        return; // 同期読み込みの代替経路を残す（任意のスカイボックスなど）。
+    }
     auto result = BackgroundLoader::Get().Submit([path, colorSpace] {
         StartupTrace::Scope scope("FileThread.Texture." + path);
         DirectX::ScratchImage image;
         const auto wide = LogWrite().ConvertString(path);
         const auto flags = colorSpace == TextureColorSpace::LinearData ? DirectX::WIC_FLAGS_NONE : DirectX::WIC_FLAGS_FORCE_SRGB;
         const HRESULT hr = std::filesystem::path(path).extension() == ".dds"
-            ? DirectX::LoadFromDDSFile(wide.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image)
-            : DirectX::LoadFromWICFile(wide.c_str(), flags, nullptr, image);
-        if (FAILED(hr)) throw std::runtime_error("Cannot decode " + path);
+                               ? DirectX::LoadFromDDSFile(wide.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image)
+                               : DirectX::LoadFromWICFile(wide.c_str(), flags, nullptr, image);
+        if (FAILED(hr)) {
+            throw std::runtime_error("Cannot decode " + path);
+        }
         return BuildDecodedTexture(std::move(image), colorSpace);
     });
     pendingTextures_.emplace(key, PendingTexture{path, colorSpace, std::move(result)});
 }
 
-void TextureManager::RegisterPreparedTexture(const std::string& key, TextureColorSpace colorSpace,
-    const DirectX::ScratchImage& image) {
-    if (textureDatas.contains(MakeTextureKey(key, colorSpace))) return;
+void TextureManager::RegisterPreparedTexture(const std::string& key, TextureColorSpace colorSpace, const DirectX::ScratchImage& image)
+{
+    if (textureDatas.contains(MakeTextureKey(key, colorSpace))) {
+        return;
+    }
     StoreGeneratedTexture(key, colorSpace, image, (image.GetMetadata().miscFlags & DirectX::TEX_MISC_TEXTURECUBE) != 0);
 }
 
-void TextureManager::PumpPreloads(unsigned maxUploads) {
+void TextureManager::PumpPreloads(unsigned maxUploads)
+{
     for (auto it = pendingTextures_.begin(); it != pendingTextures_.end() && maxUploads > 0;) {
-        if (it->second.result.wait_for(std::chrono::seconds(0)) != std::future_status::ready) { ++it; continue; }
+        if (it->second.result.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            ++it;
+            continue;
+        }
         const auto path = it->second.path;
         const auto colorSpace = it->second.colorSpace;
-        ++it; // LoadTexture erases its entry; unordered_map erasure preserves other iterators.
+        ++it; // LoadTextureは自分のエントリを消す。unordered_mapの削除は他のイテレータを無効化しない。
         LoadTexture(path, colorSpace);
         --maxUploads;
     }
 }
 
-bool TextureManager::ArePreloadsReady() const {
-    for (const auto& entry : pendingTextures_)
-        if (entry.second.result.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return false;
+bool TextureManager::ArePreloadsReady() const
+{
+    for (const auto& entry : pendingTextures_) {
+        if (entry.second.result.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            return false;
+        }
+    }
     return true;
 }
 
-void TextureManager::LoadTexture(const std::string& filePath, TextureColorSpace colorSpace) {
+void TextureManager::LoadTexture(const std::string& filePath, TextureColorSpace colorSpace)
+{
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
-    if (textureDatas.contains(textureKey)) return;
+    if (textureDatas.contains(textureKey)) {
+        return;
+    }
 
     if (auto pending = pendingTextures_.find(textureKey); pending != pendingTextures_.end()) {
         auto result = pending->second.result;
@@ -947,7 +884,8 @@ void TextureManager::LoadTexture(const std::string& filePath, TextureColorSpace 
             RegisterPreparedTexture(filePath, colorSpace, *image);
             StartupTrace::Count("Textures.BackgroundUsed");
             return;
-        } catch (const std::exception& error) {
+        }
+        catch (const std::exception& error) {
             LogWrite().Log("[BackgroundLoader] Texture fallback: " + std::string(error.what()) + "\n");
         }
     }
@@ -974,9 +912,7 @@ void TextureManager::LoadTexture(const std::string& filePath, TextureColorSpace 
         DirectX::ScratchImage fallbackCube{};
         if (BuildProceduralEnvironmentCube(fallbackCube, 64)) {
             StoreGeneratedTexture(filePath, colorSpace, fallbackCube, true);
-            LogWrite().Log(
-                "[TextureManager] Optional skybox was not found; using a generated fallback cubemap: " +
-                filePath + "\n");
+            LogWrite().Log("[TextureManager] Optional skybox was not found; using a generated fallback cubemap: " + filePath + "\n");
             return;
         }
     }
@@ -1004,29 +940,21 @@ void TextureManager::LoadTexture(const std::string& filePath, TextureColorSpace 
 
     // CubeMapかどうかの判定
     if (textureData.metaData.miscFlags & DirectX::TEX_MISC_TEXTURECUBE) {
-        srvManager_->CreateSRVforTextureCube(textureData.srvIndex, textureData.resource.Get(),
-            textureData.metaData.format, static_cast<UINT>(textureData.metaData.mipLevels));
+        srvManager_->CreateSRVforTextureCube(textureData.srvIndex, textureData.resource.Get(), textureData.metaData.format,
+                                             static_cast<UINT>(textureData.metaData.mipLevels));
     } else {
-        srvManager_->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(),
-            textureData.metaData.format, static_cast<UINT>(textureData.metaData.mipLevels));
+        srvManager_->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(), textureData.metaData.format,
+                                           static_cast<UINT>(textureData.metaData.mipLevels));
     }
 
-    auto intermediateResource = texture.UploadData(
-        textureData.resource,
-        mipImages,
-        dxCommon_->GetDevice(),
-        dxCommon_->GetList()
-    );
+    auto intermediateResource = texture.UploadData(textureData.resource, mipImages, dxCommon_->GetDevice(), dxCommon_->GetList());
 
     // GPUの完了を待つ。この関数が終わるまで intermediateResource は生存し続ける。
     dxCommon_->ExecuteCommandListAndWait();
 }
 
-void TextureManager::StoreGeneratedTexture(
-    const std::string& filePath,
-    TextureColorSpace colorSpace,
-    const DirectX::ScratchImage& image,
-    bool textureCube)
+void TextureManager::StoreGeneratedTexture(const std::string& filePath, TextureColorSpace colorSpace, const DirectX::ScratchImage& image,
+                                           bool textureCube)
 {
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
     auto it = textureDatas.find(textureKey);
@@ -1043,24 +971,14 @@ void TextureManager::StoreGeneratedTexture(
     textureData.metaData = image.GetMetadata();
     textureData.resource = texture.CreateResource(dxCommon_->GetDevice(), textureData.metaData);
     if (textureCube) {
-        srvManager_->CreateSRVforTextureCube(
-            textureData.srvIndex,
-            textureData.resource.Get(),
-            textureData.metaData.format,
-            static_cast<UINT>(textureData.metaData.mipLevels));
+        srvManager_->CreateSRVforTextureCube(textureData.srvIndex, textureData.resource.Get(), textureData.metaData.format,
+                                             static_cast<UINT>(textureData.metaData.mipLevels));
     } else {
-        srvManager_->CreateSRVforTexture2D(
-            textureData.srvIndex,
-            textureData.resource.Get(),
-            textureData.metaData.format,
-            static_cast<UINT>(textureData.metaData.mipLevels));
+        srvManager_->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(), textureData.metaData.format,
+                                           static_cast<UINT>(textureData.metaData.mipLevels));
     }
 
-    auto intermediateResource = texture.UploadData(
-        textureData.resource,
-        image,
-        dxCommon_->GetDevice(),
-        dxCommon_->GetList());
+    auto intermediateResource = texture.UploadData(textureData.resource, image, dxCommon_->GetDevice(), dxCommon_->GetList());
     dxCommon_->ExecuteCommandListAndWait();
 }
 
@@ -1080,12 +998,7 @@ bool TextureManager::CreatePbrEnvironmentTexturesFromCubeMap(const std::string& 
     constexpr size_t kIrradianceSize = 32;
     constexpr uint32_t kIrradianceSampleCount = 128;
     DirectX::ScratchImage irradianceImage{};
-    HRESULT hr = irradianceImage.InitializeCube(
-        DXGI_FORMAT_R32G32B32A32_FLOAT,
-        kIrradianceSize,
-        kIrradianceSize,
-        1,
-        1);
+    HRESULT hr = irradianceImage.InitializeCube(DXGI_FORMAT_R32G32B32A32_FLOAT, kIrradianceSize, kIrradianceSize, 1, 1);
     if (FAILED(hr)) {
         return false;
     }
@@ -1110,14 +1023,9 @@ bool TextureManager::CreatePbrEnvironmentTexturesFromCubeMap(const std::string& 
     constexpr size_t kPrefilterSize = 128;
     constexpr size_t kPrefilterMipLevels = 8;
     constexpr uint32_t kPrefilterSampleCount = 128;
-    const float sourceMaxMip = static_cast<float>((std::max)(sourceCube.GetMetadata().mipLevels, size_t{ 1 }) - 1);
+    const float sourceMaxMip = static_cast<float>((std::max)(sourceCube.GetMetadata().mipLevels, size_t{1}) - 1);
     DirectX::ScratchImage prefilteredImage{};
-    hr = prefilteredImage.InitializeCube(
-        DXGI_FORMAT_R32G32B32A32_FLOAT,
-        kPrefilterSize,
-        kPrefilterSize,
-        1,
-        kPrefilterMipLevels);
+    hr = prefilteredImage.InitializeCube(DXGI_FORMAT_R32G32B32A32_FLOAT, kPrefilterSize, kPrefilterSize, 1, kPrefilterMipLevels);
     if (FAILED(hr)) {
         return false;
     }
@@ -1166,16 +1074,9 @@ bool TextureManager::CreatePbrEnvironmentTexturesFromCubeMap(const std::string& 
 
 bool TextureManager::CreatePbrSolidColorEnvironmentTextures(float red, float green, float blue)
 {
-    const Float3 color = {
-        (std::max)(red, 0.0f),
-        (std::max)(green, 0.0f),
-        (std::max)(blue, 0.0f)
-    };
+    const Float3 color = {(std::max)(red, 0.0f), (std::max)(green, 0.0f), (std::max)(blue, 0.0f)};
     const std::string sourceKey =
-        "__engine/pbr_solid_environment_" +
-        std::to_string(color.x) + "_" +
-        std::to_string(color.y) + "_" +
-        std::to_string(color.z);
+        "__engine/pbr_solid_environment_" + std::to_string(color.x) + "_" + std::to_string(color.y) + "_" + std::to_string(color.z);
     if (pbrEnvironmentBuilt_ && pbrEnvironmentSourcePath_ == sourceKey) {
         return true;
     }
@@ -1183,8 +1084,7 @@ bool TextureManager::CreatePbrSolidColorEnvironmentTextures(float red, float gre
     DirectX::ScratchImage environmentImage{};
     DirectX::ScratchImage irradianceImage{};
     DirectX::ScratchImage prefilteredImage{};
-    if (!BuildSolidColorCube(color, 256, 9, environmentImage) ||
-        !BuildSolidColorCube(color, 32, 1, irradianceImage) ||
+    if (!BuildSolidColorCube(color, 256, 9, environmentImage) || !BuildSolidColorCube(color, 32, 1, irradianceImage) ||
         !BuildSolidColorCube(color, 128, 8, prefilteredImage)) {
         return false;
     }
@@ -1198,26 +1098,16 @@ bool TextureManager::CreatePbrSolidColorEnvironmentTextures(float red, float gre
     return true;
 }
 
-std::string TextureManager::CreatePackedPbrMaterialTexture(
-    const std::string& metallicPath,
-    float metallicChannel,
-    const std::string& roughnessPath,
-    float roughnessChannel,
-    const std::string& occlusionPath,
-    float occlusionChannel,
-    float metallicFallback,
-    float roughnessFallback,
-    float occlusionFallback)
+std::string TextureManager::CreatePackedPbrMaterialTexture(const std::string& metallicPath, float metallicChannel,
+                                                           const std::string& roughnessPath, float roughnessChannel,
+                                                           const std::string& occlusionPath, float occlusionChannel, float metallicFallback,
+                                                           float roughnessFallback, float occlusionFallback)
 {
-    const std::string sourceKey =
-        metallicPath + "|" + std::to_string(metallicChannel) + "|" +
-        roughnessPath + "|" + std::to_string(roughnessChannel) + "|" +
-        occlusionPath + "|" + std::to_string(occlusionChannel) + "|" +
-        std::to_string(metallicFallback) + "|" +
-        std::to_string(roughnessFallback) + "|" +
-        std::to_string(occlusionFallback);
-    const std::string generatedPath =
-        "__engine/pbr_packed_material_" + std::to_string(std::hash<std::string>{}(sourceKey));
+    const std::string sourceKey = metallicPath + "|" + std::to_string(metallicChannel) + "|" + roughnessPath + "|" +
+                                  std::to_string(roughnessChannel) + "|" + occlusionPath + "|" + std::to_string(occlusionChannel) + "|" +
+                                  std::to_string(metallicFallback) + "|" + std::to_string(roughnessFallback) + "|" +
+                                  std::to_string(occlusionFallback);
+    const std::string generatedPath = "__engine/pbr_packed_material_" + std::to_string(std::hash<std::string>{}(sourceKey));
     if (textureDatas.contains(MakeTextureKey(generatedPath, TextureColorSpace::LinearData))) {
         return generatedPath;
     }
@@ -1252,12 +1142,7 @@ std::string TextureManager::CreatePackedPbrMaterialTexture(
     }
 
     DirectX::ScratchImage packedImage{};
-    HRESULT hr = packedImage.Initialize2D(
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        width,
-        height,
-        1,
-        1);
+    HRESULT hr = packedImage.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1);
     if (FAILED(hr)) {
         return {};
     }
@@ -1273,15 +1158,12 @@ std::string TextureManager::CreatePackedPbrMaterialTexture(
         const float v = (static_cast<float>(y) + 0.5f) / static_cast<float>(height);
         for (size_t x = 0; x < width; ++x) {
             const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(width);
-            const float metallic = metallicSource
-                ? SelectChannel(SampleFloat4ImageBilinear(metallicSource, u, v), metallicChannel)
-                : metallicFallback;
-            const float roughness = roughnessSource
-                ? SelectChannel(SampleFloat4ImageBilinear(roughnessSource, u, v), roughnessChannel)
-                : roughnessFallback;
-            const float occlusion = occlusionSource
-                ? SelectChannel(SampleFloat4ImageBilinear(occlusionSource, u, v), occlusionChannel)
-                : occlusionFallback;
+            const float metallic =
+                metallicSource ? SelectChannel(SampleFloat4ImageBilinear(metallicSource, u, v), metallicChannel) : metallicFallback;
+            const float roughness =
+                roughnessSource ? SelectChannel(SampleFloat4ImageBilinear(roughnessSource, u, v), roughnessChannel) : roughnessFallback;
+            const float occlusion =
+                occlusionSource ? SelectChannel(SampleFloat4ImageBilinear(occlusionSource, u, v), occlusionChannel) : occlusionFallback;
 
             uint8_t* pixel = row + x * 4;
             pixel[0] = FloatToByte(occlusion);
@@ -1292,13 +1174,8 @@ std::string TextureManager::CreatePackedPbrMaterialTexture(
     }
 
     DirectX::ScratchImage mipImages{};
-    hr = DirectX::GenerateMipMaps(
-        packedImage.GetImages(),
-        packedImage.GetImageCount(),
-        packedImage.GetMetadata(),
-        DirectX::TEX_FILTER_DEFAULT,
-        0,
-        mipImages);
+    hr = DirectX::GenerateMipMaps(packedImage.GetImages(), packedImage.GetImageCount(), packedImage.GetMetadata(),
+                                  DirectX::TEX_FILTER_DEFAULT, 0, mipImages);
     if (SUCCEEDED(hr)) {
         StoreGeneratedTexture(generatedPath, TextureColorSpace::LinearData, mipImages, false);
     } else {
@@ -1311,18 +1188,15 @@ void TextureManager::CreateFlatNormalTexture()
 {
     const std::string& filePath = GetFlatNormalTexturePath();
     const std::string textureKey = MakeTextureKey(filePath, TextureColorSpace::LinearData);
-    if (textureDatas.contains(textureKey)) return;
+    if (textureDatas.contains(textureKey)) {
+        return;
+    }
 
     assert(textureDatas.size() + kSRVIndexTop < SrvManager::kMaxSrvCount);
 
     constexpr size_t kTextureSize = 4;
     DirectX::ScratchImage image{};
-    HRESULT hr = image.Initialize2D(
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        kTextureSize,
-        kTextureSize,
-        1,
-        1);
+    HRESULT hr = image.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, kTextureSize, kTextureSize, 1, 1);
     assert(SUCCEEDED(hr));
 
     const DirectX::Image* imageData = image.GetImage(0, 0, 0);
@@ -1344,17 +1218,10 @@ void TextureManager::CreateFlatNormalTexture()
     textureData.srvIndex = srvManager_->Allocate();
     textureData.srvHandleCPU = srvManager_->GetCPUDescriptorHandle(textureData.srvIndex);
     textureData.srvHandleGPU = srvManager_->GetGPUDescriptorHandle(textureData.srvIndex);
-    srvManager_->CreateSRVforTexture2D(
-        textureData.srvIndex,
-        textureData.resource.Get(),
-        textureData.metaData.format,
-        static_cast<UINT>(textureData.metaData.mipLevels));
+    srvManager_->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(), textureData.metaData.format,
+                                       static_cast<UINT>(textureData.metaData.mipLevels));
 
-    auto intermediateResource = texture.UploadData(
-        textureData.resource,
-        image,
-        dxCommon_->GetDevice(),
-        dxCommon_->GetList());
+    auto intermediateResource = texture.UploadData(textureData.resource, image, dxCommon_->GetDevice(), dxCommon_->GetList());
     dxCommon_->ExecuteCommandListAndWait();
 }
 
@@ -1363,7 +1230,9 @@ void TextureManager::CreateBrdfLutTexture()
     StartupTrace::Scope startupScope("Textures.BrdfLut");
     const std::string& filePath = GetBrdfLutTexturePath();
     const std::string textureKey = MakeTextureKey(filePath, TextureColorSpace::LinearData);
-    if (textureDatas.contains(textureKey)) return;
+    if (textureDatas.contains(textureKey)) {
+        return;
+    }
 
     assert(textureDatas.size() + kSRVIndexTop < SrvManager::kMaxSrvCount);
 
@@ -1371,12 +1240,7 @@ void TextureManager::CreateBrdfLutTexture()
     DirectX::ScratchImage image{};
     if (!GeneratedTextureCache::Load(L"brdf-lut", kTextureSize, 1, false, image)) {
         StartupTrace::Count("Textures.GeneratedCache.Generated");
-        HRESULT hr = image.Initialize2D(
-            DXGI_FORMAT_R32G32B32A32_FLOAT,
-            kTextureSize,
-            kTextureSize,
-            1,
-            1);
+        HRESULT hr = image.Initialize2D(DXGI_FORMAT_R32G32B32A32_FLOAT, kTextureSize, kTextureSize, 1, 1);
         assert(SUCCEEDED(hr));
 
         const DirectX::Image* imageData = image.GetImage(0, 0, 0);
@@ -1404,17 +1268,10 @@ void TextureManager::CreateBrdfLutTexture()
     textureData.srvIndex = srvManager_->Allocate();
     textureData.srvHandleCPU = srvManager_->GetCPUDescriptorHandle(textureData.srvIndex);
     textureData.srvHandleGPU = srvManager_->GetGPUDescriptorHandle(textureData.srvIndex);
-    srvManager_->CreateSRVforTexture2D(
-        textureData.srvIndex,
-        textureData.resource.Get(),
-        textureData.metaData.format,
-        static_cast<UINT>(textureData.metaData.mipLevels));
+    srvManager_->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(), textureData.metaData.format,
+                                       static_cast<UINT>(textureData.metaData.mipLevels));
 
-    auto intermediateResource = texture.UploadData(
-        textureData.resource,
-        image,
-        dxCommon_->GetDevice(),
-        dxCommon_->GetList());
+    auto intermediateResource = texture.UploadData(textureData.resource, image, dxCommon_->GetDevice(), dxCommon_->GetList());
     dxCommon_->ExecuteCommandListAndWait();
 }
 
@@ -1423,7 +1280,9 @@ void TextureManager::CreatePbrIrradianceTexture()
     StartupTrace::Scope startupScope("Textures.Irradiance");
     const std::string& filePath = GetPbrIrradianceTexturePath();
     const std::string textureKey = MakeTextureKey(filePath, TextureColorSpace::LinearData);
-    if (textureDatas.contains(textureKey)) return;
+    if (textureDatas.contains(textureKey)) {
+        return;
+    }
 
     assert(textureDatas.size() + kSRVIndexTop < SrvManager::kMaxSrvCount);
 
@@ -1432,12 +1291,7 @@ void TextureManager::CreatePbrIrradianceTexture()
     DirectX::ScratchImage image{};
     if (!GeneratedTextureCache::Load(L"irradiance", kTextureSize, 1, true, image)) {
         StartupTrace::Count("Textures.GeneratedCache.Generated");
-        HRESULT hr = image.InitializeCube(
-            DXGI_FORMAT_R32G32B32A32_FLOAT,
-            kTextureSize,
-            kTextureSize,
-            1,
-            1);
+        HRESULT hr = image.InitializeCube(DXGI_FORMAT_R32G32B32A32_FLOAT, kTextureSize, kTextureSize, 1, 1);
         assert(SUCCEEDED(hr));
 
         for (size_t face = 0; face < 6; ++face) {
@@ -1466,17 +1320,10 @@ void TextureManager::CreatePbrIrradianceTexture()
     textureData.srvIndex = srvManager_->Allocate();
     textureData.srvHandleCPU = srvManager_->GetCPUDescriptorHandle(textureData.srvIndex);
     textureData.srvHandleGPU = srvManager_->GetGPUDescriptorHandle(textureData.srvIndex);
-    srvManager_->CreateSRVforTextureCube(
-        textureData.srvIndex,
-        textureData.resource.Get(),
-        textureData.metaData.format,
-        static_cast<UINT>(textureData.metaData.mipLevels));
+    srvManager_->CreateSRVforTextureCube(textureData.srvIndex, textureData.resource.Get(), textureData.metaData.format,
+                                         static_cast<UINT>(textureData.metaData.mipLevels));
 
-    auto intermediateResource = texture.UploadData(
-        textureData.resource,
-        image,
-        dxCommon_->GetDevice(),
-        dxCommon_->GetList());
+    auto intermediateResource = texture.UploadData(textureData.resource, image, dxCommon_->GetDevice(), dxCommon_->GetList());
     dxCommon_->ExecuteCommandListAndWait();
 }
 
@@ -1485,7 +1332,9 @@ void TextureManager::CreatePbrPrefilteredEnvironmentTexture()
     StartupTrace::Scope startupScope("Textures.PrefilteredEnvironment");
     const std::string& filePath = GetPbrPrefilteredEnvironmentTexturePath();
     const std::string textureKey = MakeTextureKey(filePath, TextureColorSpace::LinearData);
-    if (textureDatas.contains(textureKey)) return;
+    if (textureDatas.contains(textureKey)) {
+        return;
+    }
 
     assert(textureDatas.size() + kSRVIndexTop < SrvManager::kMaxSrvCount);
 
@@ -1495,12 +1344,7 @@ void TextureManager::CreatePbrPrefilteredEnvironmentTexture()
     DirectX::ScratchImage image{};
     if (!GeneratedTextureCache::Load(L"prefiltered-environment", kTextureSize, kMipLevels, true, image)) {
         StartupTrace::Count("Textures.GeneratedCache.Generated");
-        HRESULT hr = image.InitializeCube(
-            DXGI_FORMAT_R32G32B32A32_FLOAT,
-            kTextureSize,
-            kTextureSize,
-            1,
-            kMipLevels);
+        HRESULT hr = image.InitializeCube(DXGI_FORMAT_R32G32B32A32_FLOAT, kTextureSize, kTextureSize, 1, kMipLevels);
         assert(SUCCEEDED(hr));
 
         for (size_t mip = 0; mip < kMipLevels; ++mip) {
@@ -1510,8 +1354,7 @@ void TextureManager::CreatePbrPrefilteredEnvironmentTexture()
                 assert(imageData != nullptr);
                 for (size_t y = 0; y < imageData->height; ++y) {
                     for (size_t x = 0; x < imageData->width; ++x) {
-                        const Float3 reflection = TexelDirectionForCubeFace(
-                            face, x, y, imageData->width, imageData->height);
+                        const Float3 reflection = TexelDirectionForCubeFace(face, x, y, imageData->width, imageData->height);
                         const Float3 normal = reflection;
                         const Float3 view = reflection;
                         Float3 color{};
@@ -1545,24 +1388,22 @@ void TextureManager::CreatePbrPrefilteredEnvironmentTexture()
     textureData.srvIndex = srvManager_->Allocate();
     textureData.srvHandleCPU = srvManager_->GetCPUDescriptorHandle(textureData.srvIndex);
     textureData.srvHandleGPU = srvManager_->GetGPUDescriptorHandle(textureData.srvIndex);
-    srvManager_->CreateSRVforTextureCube(
-        textureData.srvIndex,
-        textureData.resource.Get(),
-        textureData.metaData.format,
-        static_cast<UINT>(textureData.metaData.mipLevels));
+    srvManager_->CreateSRVforTextureCube(textureData.srvIndex, textureData.resource.Get(), textureData.metaData.format,
+                                         static_cast<UINT>(textureData.metaData.mipLevels));
 
-    auto intermediateResource = texture.UploadData(
-        textureData.resource,
-        image,
-        dxCommon_->GetDevice(),
-        dxCommon_->GetList());
+    auto intermediateResource = texture.UploadData(textureData.resource, image, dxCommon_->GetDevice(), dxCommon_->GetList());
     dxCommon_->ExecuteCommandListAndWait();
 }
 
-bool TextureManager::LoadTextureFromMemory(const std::string& textureKey, const void* data, size_t size, TextureColorSpace colorSpace) {
+bool TextureManager::LoadTextureFromMemory(const std::string& textureKey, const void* data, size_t size, TextureColorSpace colorSpace)
+{
     const std::string resolvedTextureKey = MakeTextureKey(textureKey, colorSpace);
-    if (textureDatas.contains(resolvedTextureKey)) return true;
-    if (data == nullptr || size == 0) return false;
+    if (textureDatas.contains(resolvedTextureKey)) {
+        return true;
+    }
+    if (data == nullptr || size == 0) {
+        return false;
+    }
 
     assert(textureDatas.size() + kSRVIndexTop < SrvManager::kMaxSrvCount);
 
@@ -1570,17 +1411,13 @@ bool TextureManager::LoadTextureFromMemory(const std::string& textureKey, const 
     const bool linearData = colorSpace == TextureColorSpace::LinearData;
     const DirectX::WIC_FLAGS wicFlags = linearData ? DirectX::WIC_FLAGS_NONE : DirectX::WIC_FLAGS_FORCE_SRGB;
     const DirectX::TEX_FILTER_FLAGS mipFilter = linearData ? DirectX::TEX_FILTER_DEFAULT : DirectX::TEX_FILTER_SRGB;
-    HRESULT hr = DirectX::LoadFromWICMemory(
-        static_cast<const uint8_t*>(data), size,
-        wicFlags, nullptr, image);
+    HRESULT hr = DirectX::LoadFromWICMemory(static_cast<const uint8_t*>(data), size, wicFlags, nullptr, image);
     if (FAILED(hr)) {
         return false;
     }
 
     DirectX::ScratchImage mipImages{};
-    hr = DirectX::GenerateMipMaps(
-        image.GetImages(), image.GetImageCount(), image.GetMetadata(),
-        mipFilter, 0, mipImages);
+    hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), mipFilter, 0, mipImages);
     if (FAILED(hr)) {
         return false;
     }
@@ -1591,12 +1428,10 @@ bool TextureManager::LoadTextureFromMemory(const std::string& textureKey, const 
     textureData.srvIndex = srvManager_->Allocate();
     textureData.srvHandleCPU = srvManager_->GetCPUDescriptorHandle(textureData.srvIndex);
     textureData.srvHandleGPU = srvManager_->GetGPUDescriptorHandle(textureData.srvIndex);
-    srvManager_->CreateSRVforTexture2D(
-        textureData.srvIndex, textureData.resource.Get(),
-        textureData.metaData.format, static_cast<UINT>(textureData.metaData.mipLevels));
+    srvManager_->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(), textureData.metaData.format,
+                                       static_cast<UINT>(textureData.metaData.mipLevels));
 
-    auto intermediateResource = texture.UploadData(
-        textureData.resource, mipImages, dxCommon_->GetDevice(), dxCommon_->GetList());
+    auto intermediateResource = texture.UploadData(textureData.resource, mipImages, dxCommon_->GetDevice(), dxCommon_->GetList());
     dxCommon_->ExecuteCommandListAndWait();
     return true;
 }
@@ -1611,36 +1446,36 @@ void TextureManager::PreDraw()
 uint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filePath, TextureColorSpace colorSpace)
 {
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
-	// 読み込み済みテクスチャを検索
-	if (textureDatas.contains(textureKey)) {
-		return textureDatas[textureKey].srvIndex;
-	}
+    // 読み込み済みテクスチャを検索
+    if (textureDatas.contains(textureKey)) {
+        return textureDatas[textureKey].srvIndex;
+    }
 
-	assert(0);
-	return false;
+    assert(0);
+    return false;
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE TextureManager::GetSrvHandleGPU(const std::string& filePath, TextureColorSpace colorSpace)
 {
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
-	// 範囲外指定違反チェック
+    // 範囲外指定違反チェック
 
-	TextureData& textureData = textureDatas[textureKey];
-	return textureData.srvHandleGPU;
+    TextureData& textureData = textureDatas[textureKey];
+    return textureData.srvHandleGPU;
 }
 
 const DirectX::TexMetadata& TextureManager::GetMetaData(const std::string& filePath, TextureColorSpace colorSpace)
 {
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
 
-	TextureData& textureData = textureDatas[textureKey];
-	return textureData.metaData;
+    TextureData& textureData = textureDatas[textureKey];
+    return textureData.metaData;
 }
 
 uint32_t TextureManager::GetSrvIndex(const std::string& filePath, TextureColorSpace colorSpace)
 {
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
-	return textureDatas[textureKey].srvIndex;
+    return textureDatas[textureKey].srvIndex;
 }
 
-} // namespace cg2
+} // namespace myEngine

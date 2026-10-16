@@ -7,6 +7,7 @@ class ExpeditionAuthoring {
 public:
     /// @brief 借用するワールドを設定する。
     explicit ExpeditionAuthoring(GameWorld& world) : world_(world) {}
+
     /// @brief 遠征制作データHubを更新する。
     void UpdateExpeditionAuthoringHub();
 

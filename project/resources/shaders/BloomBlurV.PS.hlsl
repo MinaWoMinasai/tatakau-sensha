@@ -46,8 +46,8 @@ float4 main(PSInput input) : SV_TARGET
     float4 col = 0.0f;
     if (fullScreenBoxBlurBlend > 0.0f)
     {
-        // Vertical 5-tap box filter. Combined with the horizontal pass this
-        // gives a true 5x5 1/25 box filter.
+        // 縦方向の5タップのボックスフィルタ。横方向のパスと合わせると
+        // 正しい5x5の1/25ボックスフィルタになる。
         const int kBoxRadius = 2;
         const float kBoxWeight = 1.0f / 5.0f;
         [unroll]
@@ -58,9 +58,9 @@ float4 main(PSInput input) : SV_TARGET
     }
     else
     {
-        // Pair the original adjacent Gaussian taps with bilinear sampling.
-        // Preserve radius, normalization and intensity while using 5 fetches
-        // instead of 9. The horizontal pass uses the identical kernel.
+        // 元の隣り合うガウスのタップ2つを、バイリニアのサンプリングでまとめる。
+        // 半径・正規化・強度は保ったまま、読み込みを9回から5回に減らす。
+        // 横方向のパスもまったく同じカーネルを使う。
         const float pairedWeight12 = 0.19541357f + 0.11973994f;
         const float pairedWeight34 = 0.05293135f + 0.01688015f;
         const float pairedOffset12 = (0.19541357f + 2.0f * 0.11973994f) / pairedWeight12;

@@ -27,21 +27,25 @@ public:
     {
         return activeProject_;
     }
+
     /// @brief 有効プロジェクトLoadedからのFallbackであるか判定する。
     bool IsActiveProjectLoadedFromFallback() const
     {
         return activeProjectLoadedFromFallback_;
     }
+
     /// @brief ゲームModuleUsingFallbackであるか判定する。
     bool IsGameModuleUsingFallback() const
     {
         return gameModuleUsedFallback_;
     }
+
     /// @brief 起動時シーンUsingFallbackであるか判定する。
     bool IsStartupSceneUsingFallback() const
     {
         return startupSceneUsedFallback_;
     }
+
     /// @brief Resolved起動時シーンを返す。
     const std::string& GetResolvedStartupScene() const
     {
@@ -57,7 +61,8 @@ private:
     bool ResolveStartupScene();
     /// @brief Engineを初期化する。
     void InitializeEngine();
-    cg2::InitializationTask InitializePresentation();
+    /// @brief 画面表示まわりの初期化を分割して行うコルーチンを作る。
+    myEngine::InitializationTask InitializePresentation();
     /// @brief ImGUIを初期化する。
     void InitializeImGui();
     /// @brief リソースを読み込む。
@@ -66,13 +71,13 @@ private:
     int MainLoop();
 
 private:
-    std::unique_ptr<cg2::DirectXCommon> dxCommon_;
+    std::unique_ptr<myEngine::DirectXCommon> dxCommon_;
     Microsoft::WRL::ComPtr<ID3D12Resource> startupConstants_;
-    std::unique_ptr<cg2::SrvManager> srvManager_;
-    std::unique_ptr<cg2::RtvManager> rtvManager_;
+    std::unique_ptr<myEngine::SrvManager> srvManager_;
+    std::unique_ptr<myEngine::RtvManager> rtvManager_;
 
-    std::unique_ptr<cg2::Bloom> bloom_;
-    std::unique_ptr<cg2::Shadow> shadow_;
+    std::unique_ptr<myEngine::Bloom> bloom_;
+    std::unique_ptr<myEngine::Shadow> shadow_;
     std::unique_ptr<IGameModule> activeGameModule_;
 
     GameProject activeProject_;
@@ -82,6 +87,6 @@ private:
     std::string resolvedStartupScene_ = "TITLE";
     bool imguiInitialized_ = false;
     bool titleFirst_ = false, engineReady_ = false;
-    cg2::InitializationTask presentationTask_;
-    std::unique_ptr<cg2::TrailStressFixture> trailStress_;
+    myEngine::InitializationTask presentationTask_;
+    std::unique_ptr<myEngine::TrailStressFixture> trailStress_;
 };

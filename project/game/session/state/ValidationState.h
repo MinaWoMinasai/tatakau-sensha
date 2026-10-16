@@ -10,7 +10,7 @@ struct ValidationState {
 
     float neonTriangleDemoRotation_ = 0.0f;
 
-    cg2::Vector4 neonTriangleDemoColor_ = {0.15f, 0.95f, 1.0f, 1.0f};
+    myEngine::Vector4 neonTriangleDemoColor_ = {0.15f, 0.95f, 1.0f, 1.0f};
 
     int experienceValidationVariant_ = 0;
 
@@ -44,7 +44,7 @@ struct ValidationState {
 
     float experienceMeleeDisplacement_ = 0;
 
-    cg2::Vector3 experienceMeleeTargetStart_{};
+    myEngine::Vector3 experienceMeleeTargetStart_{};
 
     unsigned experienceGuideStageMask_ = 0, experienceSuccessfulDashes_ = 0;
 

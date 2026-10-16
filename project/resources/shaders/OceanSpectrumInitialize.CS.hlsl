@@ -101,12 +101,12 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float waveNumberSpectrum =
         unfilteredWaveNumberSpectrum * bandWeight;
 
-    // A normalized 2D IFFT computes (1 / N^2) sum(H[k] exp(i k x)).
-    // Store N^2 times the physical Fourier-series coefficient so the final
-    // explicit normalization preserves the continuous-spectrum discretization.
-    // The complex Gaussian has E[|xi|^2] = 2. The 0.25 factor gives
-    // E[|h0(k)|^2] = 0.5 P(k) deltaK^2; adding the +/-k evolution pair then
-    // produces exactly one physical P(k) integral in expectation.
+    // 正規化した2D IFFTは (1 / N^2) sum(H[k] exp(i k x)) を計算する。
+    // 最後の明示的な正規化で連続スペクトルの離散化が保たれるよう、
+    // 物理的なフーリエ級数の係数のN^2倍を保存する。
+    // 複素ガウスは E[|xi|^2] = 2。係数0.25により
+    // E[|h0(k)|^2] = 0.5 P(k) deltaK^2 となり、+/-kの時間発展の組を足すと
+    // 期待値でちょうど1つ分の物理的なP(k)の積分になる。
     float inverseTransformScale = float(gFFTSize * gFFTSize);
     float amplitude =
         sqrt(max(waveNumberSpectrum, 0.0f) * 0.25f) *

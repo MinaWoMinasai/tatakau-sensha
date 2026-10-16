@@ -7,6 +7,7 @@ class SpecialValidation {
 public:
     /// @brief 借用するワールドを設定する。
     explicit SpecialValidation(GameWorld& world) : world_(world) {}
+
     /// @brief 特殊検証Fixtureを初期化する。
     void InitializeSpecialValidationFixture();
 

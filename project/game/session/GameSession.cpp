@@ -3,6 +3,7 @@
 
 namespace gameplay {
 GameSession::GameSession(bool prototypeRun, bool expeditionRun) : world_(std::make_unique<GameWorld>(prototypeRun, expeditionRun)) {}
+
 GameSession::~GameSession() = default;
 
 void GameSession::Initialize()
@@ -10,7 +11,10 @@ void GameSession::Initialize()
     world_->sessionBootstrap->Initialize();
 }
 
-bool GameSession::InitializeStep() { return world_->sessionBootstrap->InitializeStep(); }
+bool GameSession::InitializeStep()
+{
+    return world_->sessionBootstrap->InitializeStep();
+}
 
 void GameSession::Update()
 {
@@ -47,7 +51,7 @@ bool GameSession::IsFinished() const
     return world_->gameplayQueries->IsFinished();
 }
 
-cg2::Object3d* GameSession::GetBallObj()
+myEngine::Object3d* GameSession::GetBallObj()
 {
     return world_->gameplayQueries->GetBallObj();
 }
@@ -71,13 +75,14 @@ IScene::BloomViewSettings GameSession::GetBloomViewSettings() const
 {
     IScene::BloomViewSettings settings;
     const int view = world_->presentation.bloomView_;
-    if (view == 1)
+    if (view == 1) {
         settings.view = 1;
-    else if (view >= 2 && view <= 6) {
+    } else if (view >= 2 && view <= 6) {
         settings.view = 2;
         settings.level = view - 2;
-    } else if (view == 7)
+    } else if (view == 7) {
         settings.view = 3;
+    }
     return settings;
 }
 
@@ -96,15 +101,17 @@ DeveloperShowcaseState GameSession::GetDeveloperShowcaseState()
     return world_->gameplayQueries->GetDeveloperShowcaseState();
 }
 
-void GameSession::RecordDeveloperPostParameters(const cg2::BloomParam& param)
+void GameSession::RecordDeveloperPostParameters(const myEngine::BloomParam& param)
 {
     world_->gameplayQueries->RecordDeveloperPostParameters(param);
 }
 
-void GameSession::RecordDeveloperFrame(cg2::DirectXCommon& dx)
+void GameSession::RecordDeveloperFrame(myEngine::DirectXCommon& dx)
 {
     world_->gameplayQueries->RecordDeveloperFrame(dx);
-    if (world_->run.prototypeRun_) world_->arenaRunController->CopyTankRunCapture();
+    if (world_->run.prototypeRun_) {
+        world_->arenaRunController->CopyTankRunCapture();
+    }
 }
 
 void GameSession::SetRenderProfile(const IScene::RenderProfile& profile)

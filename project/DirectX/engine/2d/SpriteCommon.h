@@ -1,7 +1,7 @@
 #pragma once
 #include "DirectXCommon.h"
 
-namespace cg2 {
+namespace myEngine {
 
 /// @brief スプライト描画で共有するパイプラインと描画先を管理する。
 class SpriteCommon {
@@ -27,4 +27,4 @@ private:
     DirectXCommon* dxCommon_ = nullptr;
 };
 
-} // namespace cg2
+} // namespace myEngine

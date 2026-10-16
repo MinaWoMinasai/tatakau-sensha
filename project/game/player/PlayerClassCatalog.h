@@ -1,6 +1,7 @@
 #pragma once
 #include "PlayerClassConfig.h"
 #include <unordered_map>
+
 /// @brief 制作された機体設定と表示順を所有する。実行中の装備・HP・成長はPlayerに保持する。
 class PlayerClassCatalog {
 public:
@@ -27,12 +28,14 @@ public:
     /// @brief 編集する機体設定を検索する。見つからなければnullptrを返す。
     /// @note 寿命はFindと同じ。IDの変更は表示順と整合させて管理する。
     PlayerClassConfig* FindMutable(const std::string& id);
+
     /// @brief 制作データの表示順で機体ID一覧を返す。
     /// @return Catalogが所有する一覧への読み取り専用参照。
     const std::vector<std::string>& OrderedIds() const
     {
         return classOrder_;
     }
+
     /// @brief 設定を追加または上書きする。既存IDの表示位置を保つ。
     /// @note 追加しても既存要素へのポインターは有効。既存IDの値は上書きされる。
     void InsertOrAssign(const PlayerClassConfig& config);
