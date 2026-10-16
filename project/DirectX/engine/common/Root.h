@@ -28,10 +28,6 @@ public:
     void InitalizeForTrail();
     /// @brief 用の背景を初期化する。
     void InitializeForSkybox();
-    /// @brief 用の海面を初期化する。
-    void InitializeForOcean();
-    /// @brief 用の海面計算を初期化する。
-    void InitializeForOceanCompute();
     /// @brief 用の計算粒子を初期化する。
     void InitializeForComputeParticle();
 

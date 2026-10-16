@@ -82,8 +82,8 @@ void Root::InitalizeForObject()
     Parameters_[9].DescriptorTable.pDescriptorRanges = &descriptorRange_[3];
     Parameters_[9].DescriptorTable.NumDescriptorRanges = 1;
 
-    // [10] 海面マテリアルのコピー（頂点 b2）。
-    // 通常オブジェクトは無視し、Object3d.VSはenvironmentCoefficient >= 1.5のときだけ使う。
+    // [10] マテリアルのコピー（頂点 b2）。現在どの頂点シェーダーも参照しないが、
+    // 各所のルートパラメータ番号を保つために枠だけ残している。
     Parameters_[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     Parameters_[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     Parameters_[10].Descriptor.ShaderRegister = 2;
@@ -157,8 +157,8 @@ void Root::InitalizeForObject()
     Parameters_[16].DescriptorTable.pDescriptorRanges = &descriptorRange_[9];
     Parameters_[16].DescriptorTable.NumDescriptorRanges = 1;
 
-    // [17] 海面の航跡データ（頂点 b3）。海以外のメッシュは既定のゼロバッファをバインドし、
-    // 頂点シェーダーは海面モード以外ではこれを無視する。
+    // [17] 旧海面の航跡データ（頂点 b3）。現在どのシェーダーも参照しないが、
+    // ルートパラメータ番号を保つために枠だけ残している。
     Parameters_[17].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     Parameters_[17].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     Parameters_[17].Descriptor.ShaderRegister = 3;
@@ -648,102 +648,6 @@ void Root::InitializeForSkybox()
 
     descriptionSignature_.pStaticSamplers = staticSamplers_;
     descriptionSignature_.NumStaticSamplers = 1;
-
-    HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
-    if (FAILED(hr)) {
-        assert(false);
-    }
-}
-
-void Root::InitializeForOcean()
-{
-    descriptionSignature_.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-    // b0は海面の頂点ステージとピクセルステージで共有する。
-    Parameters_[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-    Parameters_[0].Descriptor.ShaderRegister = 0;
-
-    // t0: 環境。t1/t2、t3/t4、t5/t6は3段の変位/勾配の組。
-    // t7..t9は選択中カスケードのデバッグ用データ、
-    // t10..t12は水平変位の微分を持つ。
-    for (uint32_t index = 0; index < 13; ++index) {
-        descriptorRange_[index].BaseShaderRegister = index;
-        descriptorRange_[index].NumDescriptors = 1;
-        descriptorRange_[index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        descriptorRange_[index].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-        Parameters_[1 + index].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        Parameters_[1 + index].ShaderVisibility =
-            index == 1 || index == 3 || index == 5 ? D3D12_SHADER_VISIBILITY_ALL : D3D12_SHADER_VISIBILITY_PIXEL;
-        Parameters_[1 + index].DescriptorTable.pDescriptorRanges = &descriptorRange_[index];
-        Parameters_[1 + index].DescriptorTable.NumDescriptorRanges = 1;
-    }
-
-    descriptionSignature_.pParameters = Parameters_;
-    descriptionSignature_.NumParameters = 14;
-
-    staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    staticSamplers_[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSamplers_[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSamplers_[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSamplers_[0].ShaderRegister = 0;
-    staticSamplers_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-    descriptionSignature_.pStaticSamplers = staticSamplers_;
-    descriptionSignature_.NumStaticSamplers = 1;
-
-    HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
-    if (FAILED(hr)) {
-        assert(false);
-    }
-}
-
-void Root::InitializeForOceanCompute()
-{
-    descriptionSignature_.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
-
-    // 変化しないシミュレーション用パラメータ。
-    Parameters_[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    Parameters_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-    Parameters_[0].Descriptor.ShaderRegister = 0;
-
-    // ディスパッチごとのFFT段と方向。ルート定数を使うことで、1つのコマンドリスト内の
-    // 複数ディスパッチでアップロードバッファの値を使い回さずに済む。
-    Parameters_[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-    Parameters_[1].Constants.ShaderRegister = 1;
-    Parameters_[1].Constants.Num32BitValues = 4;
-
-    // t0..t3は入力。A/B/C/Dをまとめて変換し、
-    // 微分用のストリームのためにFFTディスパッチを増やさない。
-    for (uint32_t index = 0; index < 4; ++index) {
-        descriptorRange_[index].BaseShaderRegister = index;
-        descriptorRange_[index].NumDescriptors = 1;
-        descriptorRange_[index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        descriptorRange_[index].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-        Parameters_[2 + index].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        Parameters_[2 + index].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-        Parameters_[2 + index].DescriptorTable.pDescriptorRanges = &descriptorRange_[index];
-        Parameters_[2 + index].DescriptorTable.NumDescriptorRanges = 1;
-    }
-
-    // u0..u4は出力。
-    for (uint32_t index = 0; index < 5; ++index) {
-        descriptorRange_[4 + index].BaseShaderRegister = index;
-        descriptorRange_[4 + index].NumDescriptors = 1;
-        descriptorRange_[4 + index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-        descriptorRange_[4 + index].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-        Parameters_[6 + index].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        Parameters_[6 + index].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-        Parameters_[6 + index].DescriptorTable.pDescriptorRanges = &descriptorRange_[4 + index];
-        Parameters_[6 + index].DescriptorTable.NumDescriptorRanges = 1;
-    }
-
-    descriptionSignature_.pParameters = Parameters_;
-    descriptionSignature_.NumParameters = 11;
-    descriptionSignature_.pStaticSamplers = nullptr;
-    descriptionSignature_.NumStaticSamplers = 0;
 
     HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
     if (FAILED(hr)) {
