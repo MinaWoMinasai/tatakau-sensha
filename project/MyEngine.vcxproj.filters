@@ -189,9 +189,6 @@
     <ClCompile Include="DirectX\engine\3d\Object3d.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\OceanRenderer.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\3d\ModelCommon.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -327,19 +324,10 @@
     <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\audio\AudioManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\CylinderManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\common\RingManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\3d\Skybox.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\particle\EffectSequencer.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\common\TrailInstance.cpp">
@@ -359,12 +347,6 @@
     <FxCompile Include="resources\shaders\Object3d.VS.hlsl">
       <Filter>DirectX\shaders</Filter>
     </FxCompile>
-    <FxCompile Include="resources\shaders\Ocean.PS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\Ocean.VS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </FxCompile>
     <FxCompile Include="resources\shaders\Particle.PS.hlsl">
       <Filter>DirectX\shaders</Filter>
     </FxCompile>
@@ -377,12 +359,6 @@
     <FxCompile Include="resources\shaders\Shadow.PS.hlsl" />
     <FxCompile Include="resources\shaders\Trail.PS.hlsl" />
     <FxCompile Include="resources\shaders\Trail.VS.hlsl" />
-    <FxCompile Include="resources\shaders\ProceduralFlame.PS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\ProceduralFlame.VS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\imgui\imconfig.h">
@@ -470,9 +446,6 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\3d\Object3d.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\OceanRenderer.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\3d\ModelCommon.h">
@@ -639,22 +612,10 @@
     <ClInclude Include="DirectX\engine\postEffect\Shadow.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\audio\AudioManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\CylinderManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="DirectX\engine\common\RingManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\3d\Skybox.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\PbrEnvironment.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\particle\EffectSequencer.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\common\TrailInstance.h">
@@ -676,24 +637,6 @@
     <None Include="resources\shaders\Object3d.hlsli">
       <Filter>DirectX\shaders</Filter>
     </None>
-    <None Include="resources\shaders\OceanCommon.hlsli">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <None Include="resources\shaders\OceanFFTCommon.hlsli">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <None Include="resources\shaders\OceanSpectrumInitialize.CS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <None Include="resources\shaders\OceanSpectrumEvolve.CS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <None Include="resources\shaders\OceanFFT.CS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <None Include="resources\shaders\OceanFFTOutput.CS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </None>
     <None Include="resources\shaders\Particle.hlsli">
       <Filter>DirectX\shaders</Filter>
     </None>
@@ -701,12 +644,6 @@
     <None Include="resources\shaders\Trail.hlsli" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="DirectX\engine\common\ProceduralFlameRenderer.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClInclude Include="DirectX\engine\common\ProceduralFlameRenderer.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectX\engine\common\RuntimeProfiler.cpp" />
