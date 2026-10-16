@@ -15,6 +15,7 @@ namespace {
 using nlohmann::json;
 namespace fs = std::filesystem;
 
+/// @brief 条件を満たさなければ例外を投げる。
 void Require(bool condition, const char* error)
 {
     if (!condition) {
@@ -22,6 +23,7 @@ void Require(bool condition, const char* error)
     }
 }
 
+/// @brief MyEngine.slnがあるワークスペースのルートを、カレントディレクトリから上へ探す。
 fs::path WorkspaceDirectory()
 {
     fs::path directory = fs::current_path();
@@ -50,6 +52,7 @@ fs::path Utf8Path(const std::string& value)
     return fs::path(std::u8string(value.begin(), value.end()));
 }
 
+/// @brief シナリオの出力先ディレクトリを決め、ワークスペース内にあることを確認する。
 fs::path OutputDirectory(const json& manifest, const fs::path& workspace, const gameplaytest::Settings& settings)
 {
     const std::string requested =
@@ -75,6 +78,7 @@ fs::path OutputDirectory(const json& manifest, const fs::path& workspace, const 
     return directory;
 }
 
+/// @brief JSONから整数の項目を読む。項目が無ければfallbackを返す。
 template <class Integer> Integer IntegerField(const json& data, const char* key, Integer fallback)
 {
     if (!data.contains(key)) {
@@ -98,6 +102,7 @@ template <class Integer> Integer IntegerField(const json& data, const char* key,
     return static_cast<Integer>(number);
 }
 
+/// @brief JSONからfloatの固定長配列を読む。項目が無ければfallbackを返す。
 template <size_t Size> std::array<float, Size> FloatArray(const json& data, const char* key, std::array<float, Size> fallback)
 {
     if (!data.contains(key)) {
@@ -112,6 +117,7 @@ template <size_t Size> std::array<float, Size> FloatArray(const json& data, cons
     return fallback;
 }
 
+/// @brief JSONオブジェクトに許可されていないキーが無いことを確認する。
 void CheckKeys(const json& data, std::initializer_list<const char*> allowed)
 {
     Require(data.is_object(), "Scenario instructions must be JSON objects.");
@@ -124,6 +130,7 @@ void CheckKeys(const json& data, std::initializer_list<const char*> allowed)
     }
 }
 
+/// @brief シナリオのマニフェストから設定を読み込んで検証する。
 gameplaytest::Settings ReadSettings(const json& manifest)
 {
     CheckKeys(manifest, {"schemaVersion", "scenario", "seed", "fixedDeltaTime", "frames", "playerStyle", "playerHp", "bossHp", "enemyCount",
@@ -234,6 +241,7 @@ gameplaytest::Settings ReadSettings(const json& manifest)
     return settings;
 }
 
+/// @brief シナリオ設定をJSONへ変換する。
 json SettingsJson(const gameplaytest::Settings& settings)
 {
     json result = {{"scenario", gameplaytest::Name(settings.scenario)},
@@ -281,6 +289,7 @@ json SettingsJson(const gameplaytest::Settings& settings)
     return result;
 }
 
+/// @brief JSONの数値がすべて有限かを再帰的に調べる。
 bool FiniteJson(const json& value, unsigned depth = 0)
 {
     if (depth > 16) {
@@ -299,6 +308,7 @@ bool FiniteJson(const json& value, unsigned depth = 0)
     return true;
 }
 
+/// @brief JSONをファイルへ書き出す。失敗したら例外を投げる。
 void WriteJson(const fs::path& file, const json& value)
 {
     std::ofstream output(file, std::ios::binary);

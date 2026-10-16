@@ -47,6 +47,7 @@ void Stage::InitializeSurfaceModels()
 }
 
 namespace {
+/// @brief 表面描画用のマテリアル設定をオブジェクトへ適用する。
 void ApplySurfaceMaterial(myEngine::Object3d& object, const myEngine::Vector4& color, float metallic, float roughness, float lightIntensity)
 {
     object.SetColor(color);
@@ -68,6 +69,7 @@ void ApplySurfaceMaterial(myEngine::Object3d& object, const myEngine::Vector4& c
     object.SetInsensity(lightIntensity);
 }
 
+/// @brief ブロックの表面描画用オブジェクトを作成する。
 void InitializeSurfaceBlock(Block& block)
 {
     block.surfaceObject = std::make_unique<myEngine::Object3d>();

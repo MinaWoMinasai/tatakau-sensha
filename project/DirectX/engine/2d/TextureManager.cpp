@@ -783,6 +783,7 @@ void TextureManager::Finalize()
 }
 
 namespace {
+/// @brief デコードした画像からミップマップを生成する。圧縮形式の画像はそのまま使う。
 std::shared_ptr<DirectX::ScratchImage> BuildDecodedTexture(DirectX::ScratchImage image, TextureManager::TextureColorSpace colorSpace)
 {
     auto result = std::make_shared<DirectX::ScratchImage>();

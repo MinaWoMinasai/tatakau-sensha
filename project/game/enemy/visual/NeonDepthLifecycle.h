@@ -5,6 +5,7 @@
 #include <cmath>
 
 namespace neondepth {
+/// @brief Depthボスの生存段階。
 enum class Life {
     Dormant,
     Intro,
@@ -14,23 +15,28 @@ enum class Life {
     Finished
 };
 
+/// @brief 生存段階の更新に使う戦闘側の値。
 struct LifecycleInput {
     bool encounterActive = false, alive = true, intro = false, aborted = false;
     int hp = 1, maxHp = 1;
     float introProgress = 0;
 };
 
+/// @brief 崩壊と消滅にかける時間（秒）。
 struct LifecycleTiming {
     float collapseSeconds = .35f, dissolveSeconds = 1.2f;
 };
 
+/// @brief Depthボスの生存段階と、死亡時の演出の進行を管理する。
 class Lifecycle {
 public:
+    /// @brief 初期状態に戻す。
     void Reset()
     {
         *this = Lifecycle{};
     }
 
+    /// @brief 戦闘の状態から生存段階を更新する。
     void Update(const LifecycleInput& input, const LifecycleTiming& timing, float permittedDelta)
     {
         deathStarted_ = freezeRequested_ = releaseRequested_ = false;
@@ -117,27 +123,32 @@ public:
         return timing_;
     }
 
+    /// @brief 直前のUpdateで死亡演出が始まったかを返す。
     bool DidDeathStart() const
     {
         return deathStarted_;
     }
 
+    /// @brief 直前のUpdateでポーズの固定を要求したかを返す。
     bool ShouldFreezePose() const
     {
         return freezeRequested_;
     }
 
+    /// @brief 直前のUpdateでリソースの解放を要求したかを返す。
     bool ShouldReleaseResources() const
     {
         return releaseRequested_;
     }
 
 private:
+    /// @brief 値が有限で、指定範囲内にあるかを返す。
     static bool Bounded(float v, float low, float high)
     {
         return std::isfinite(v) && v >= low && v <= high;
     }
 
+    /// @brief 値を0..1に収める。非有限なら0を返す。
     static float Unit(float v)
     {
         return std::isfinite(v) ? (std::clamp)(v, 0.0f, 1.0f) : 0;

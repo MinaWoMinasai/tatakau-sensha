@@ -42,6 +42,7 @@ inline float Length(Point p)
 }
 
 inline constexpr float kCycleSeconds = 2.8f;
+/// @brief 報酬カードの実演の種類。
 enum class DemoKind {
     Shooter,
     Drone,

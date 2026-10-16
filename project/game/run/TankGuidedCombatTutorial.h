@@ -7,6 +7,7 @@ namespace tankexp {
 /// @brief 戦闘中の操作課題と次の説明へ進む条件を管理する。
 class GuidedCombatTutorial {
 public:
+    /// @brief 戦闘チュートリアルの段階。
     enum class Stage {
         Briefing,
         ShootKill,

@@ -5,6 +5,7 @@
 /// @brief 画面のフェードイン・フェードアウトの進行と描画を管理する。
 class Fade {
 public:
+    /// @brief フェードの状態。
     enum class Status {
         None,    // フェードなし
         FadeIn,  // フェードイン中

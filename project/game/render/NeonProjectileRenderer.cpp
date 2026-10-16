@@ -16,6 +16,7 @@ float Bounded(float value, float fallback, float low, float high)
     return std::isfinite(value) ? (std::clamp)(value, low, high) : fallback;
 }
 
+/// @brief 色と強さから発光色を作る。
 myEngine::Vector4 Emission(myEngine::Vector3 color, float intensity, float alpha)
 {
     return {color.x * intensity, color.y * intensity, color.z * intensity, alpha};

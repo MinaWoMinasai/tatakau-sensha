@@ -11,6 +11,7 @@ class EnemyManager;
 /// @brief 弾と軌跡を所有し、更新・描画を行う。衝突通知で予約した追加弾は走査後に生成する。
 class BulletManager {
 public:
+    /// @brief ビルドの効果で発生するイベントの種類。
     enum class BuildEventKind {
         Chain,
         Detonation,

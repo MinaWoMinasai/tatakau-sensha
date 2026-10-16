@@ -29,6 +29,7 @@ struct Block {
     float orbitAngle = 0.0f;
 };
 
+/// @brief 表面描画に使う壁1つ分の情報。
 struct SurfaceWall {
     myEngine::Transform gameplay;
     MapChipType type;
@@ -40,7 +41,9 @@ class Stage {
 public:
     /// @brief resources/map.csvからマップチップを読み込み、描画モデルと衝突形状を生成する。
     void Initialize();
+    /// @brief ステージの初期化を分割して行うコルーチンを作る。
     myEngine::InitializationTask BuildInitialization();
+    /// @brief ブロックの生成を分割して行うコルーチンを作る。
     myEngine::InitializationTask BuildBlocks();
     /// @brief 45列・30行、各セル0～2のCSVを検証してからマップを差し替え、既存ブロックを消去して生成し直す。
     /// @return 読み込み・検証に成功した場合true。失敗時は既存の地形を保持する。
@@ -64,6 +67,7 @@ public:
     uint32_t DrawSurfaceBlocks(const stagesurface::Settings& settings, const myEngine::Vector3& cameraPos, float halfWidth,
                                float halfHeight, bool drawNormalBlocks = true);
     const std::vector<SurfaceWall>& GetSurfaceWalls(const stagesurface::Settings& settings);
+    /// @brief 壁の当たり判定用の変換から、表面描画用の変換を作る。
     static myEngine::Transform SurfaceWallTransform(const SurfaceWall& wall, const stagesurface::Settings& settings);
 
     uint32_t GetSurfaceTriangles() const
@@ -128,6 +132,7 @@ public:
     const std::vector<std::vector<Block>>& GetBlocks() const;
 
 private:
+    /// @brief 表面描画用のモデルを用意する。
     void InitializeSurfaceModels();
     std::unique_ptr<myEngine::Object3d> surfaceFloor_;
     uint64_t surfaceWallHash_ = 0;

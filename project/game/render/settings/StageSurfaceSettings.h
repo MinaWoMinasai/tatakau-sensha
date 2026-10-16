@@ -41,11 +41,13 @@ inline constexpr const char* kFloorModel = "__tank_surface_floor_xy";
 inline constexpr const char* kBlockModel = "__tank_surface_beveled_block";
 inline constexpr const char* kWallModel = "__tank_surface_rectilinear_wall";
 
+/// @brief 値を範囲内に収める。非有限ならfallbackを返す。
 inline float FiniteClamp(float value, float fallback, float low, float high)
 {
     return std::isfinite(value) ? (std::clamp)(value, low, high) : fallback;
 }
 
+/// @brief 設定値をすべて有効な範囲に収める。
 inline void Sanitize(Settings& settings)
 {
     const Settings defaults;
@@ -84,6 +86,7 @@ inline void Sanitize(Settings& settings)
     settings.sideLineDivisions = (std::clamp)(settings.sideLineDivisions, 1, 8);
 }
 
+/// @brief 当たり判定用のブロックの変換から、表示用の変換を作る。
 inline myEngine::Transform BlockTransform(const myEngine::Transform& gameplay, const Settings& settings)
 {
     myEngine::Transform visual = gameplay;
@@ -93,6 +96,7 @@ inline myEngine::Transform BlockTransform(const myEngine::Transform& gameplay, c
     return visual;
 }
 
+/// @brief Phase 1の見た目の設定を返す。
 inline Settings Phase1Settings()
 {
     Settings result;

@@ -11,9 +11,11 @@ public:
 
     /// @brief 初期化
     void Initialize();
+    /// @brief 初期化を1ステップ進める。完了したらtrueを返す。
     bool InitializeStep();
 
 private:
+    /// @brief 初期化を分割して行うコルーチンを作る。
     myEngine::InitializationTask Build();
     myEngine::InitializationTask task_;
     GameWorld& world_;

@@ -19,6 +19,7 @@ public:
         Enemies,
         RoundActors
     };
+    /// @brief アクター本体の塗りつぶしを描画する。
     void DrawActorNeonBodyFillPass(bool restoreOutlines = true, BodySet bodies = BodySet::All);
 
 private:

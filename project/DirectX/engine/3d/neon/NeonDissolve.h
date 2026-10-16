@@ -35,6 +35,7 @@ static_assert(offsetof(NeonDissolveParams, enabled) == 32);
 static_assert(offsetof(NeonDissolveParams, edgeColor) == 48);
 static_assert(offsetof(NeonDissolveParams, edgeWidth) == 64);
 
+/// @brief ディゾルブで消えていく方向。
 enum class NeonDissolveDirection {
     UpperLeftToLowerRight,
     UpperRightToLowerLeft,
@@ -47,6 +48,7 @@ inline bool IsFiniteNeonPosition(const Vector3& p)
     return std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z);
 }
 
+/// @brief 方向ベクトルを正規化する。長さが0や非有限の場合はfalseを返す。
 inline bool NormalizeNeonDirection(Vector3& direction)
 {
     if (!IsFiniteNeonPosition(direction)) {
@@ -61,6 +63,7 @@ inline bool NormalizeNeonDirection(Vector3& direction)
     return true;
 }
 
+/// @brief ディゾルブのパラメータを有効な範囲に収め、非有限の値は既定値に置き換える。
 inline NeonDissolveParams SanitizeNeonDissolveParams(NeonDissolveParams value)
 {
     const auto clean = [](float x, float low, float high, float fallback) {
@@ -211,6 +214,7 @@ inline uint32_t NeonDissolveHash(uint32_t x, uint32_t y, uint32_t z, uint32_t se
     return h;
 }
 
+/// @brief ディゾルブ用の3線形バリューノイズを評価する。CPU側の参照実装。
 inline float NeonDissolveValueNoise(const Vector3& position, float scale, uint32_t seed)
 {
     if (!IsFiniteNeonPosition(position) || !std::isfinite(scale) || scale <= 0) {
@@ -236,6 +240,7 @@ inline float NeonDissolveValueNoise(const Vector3& position, float scale, uint32
     return lerp(a, b, sz);
 }
 
+/// @brief ディゾルブの境界からの符号付き距離を求める。負なら消えた側。
 inline float EvaluateNeonDissolveSignedDistance(const Vector3& position, const NeonDissolveParams& params)
 {
     if (params.enabled == 0 || params.progress <= 0) {

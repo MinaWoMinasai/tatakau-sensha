@@ -20,33 +20,39 @@ class Model;
 /// @brief 海面のFFTシミュレーションと投影グリッドによる描画を管理する。
 class OceanRenderer {
 public:
+    /// @brief 海面の見た目の種類。
     enum class Mode : uint32_t {
         Calm = 0,
         Naval = 1,
         ArcBlanc = 2,
     };
 
+    /// @brief 波の形状を手続き的に作るか、FFTで作るかの選択。
     enum class WaveSource : uint32_t {
         Procedural = 0,
         FFTSingleCascade = 1,
         FFTThreeCascades = 2,
     };
 
+    /// @brief FFTの波で使う海洋スペクトルのモデル。
     enum class SpectrumModel : uint32_t {
         Phillips = 0,
         JonswapDonelanBanner = 1,
     };
 
+    /// @brief FFTカスケード間で波長帯をどう切り替えるか。
     enum class CascadeBandMode : uint32_t {
         HardCutoff = 0,
         SmoothTransition = 1,
     };
 
+    /// @brief 海面メッシュを固定グリッドにするか、画面に投影したグリッドにするか。
     enum class MeshMode : uint32_t {
         FixedGrid = 0,
         ProjectedGrid = 1,
     };
 
+    /// @brief 投影グリッドのデバッグ表示の種類。
     enum class ProjectedGridDebugMode : uint32_t {
         None = 0,
         Density = 1,

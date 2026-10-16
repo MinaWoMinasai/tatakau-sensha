@@ -15,6 +15,7 @@ public:
     D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const;
 
 private:
+    /// @brief 定数バッファの1回分のスナップショット。
     struct Snapshot {
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;
         BloomParam* mapped = nullptr;

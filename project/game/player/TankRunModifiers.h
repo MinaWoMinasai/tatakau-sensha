@@ -2,6 +2,7 @@
 #include <array>
 #include <algorithm>
 
+/// @brief ランで選ぶコアの種類。
 enum class TankRunCore {
     None = 0,
     Ricochet,

@@ -9,6 +9,7 @@ namespace myEngine {
 // 破棄すると途中まで作ったシーンも安全に解放される。
 class InitializationTask {
 public:
+    /// @brief コルーチンの状態と、中で発生した例外を保持する。
     struct promise_type {
         std::exception_ptr error;
 
@@ -57,11 +58,13 @@ public:
         }
     }
 
+    /// @brief 実行中または未完了のコルーチンを持っているかを返す。
     explicit operator bool() const
     {
         return static_cast<bool>(handle_);
     }
 
+    /// @brief コルーチンを次の中断点まで進める。完了したらtrueを返し、中で例外が起きていれば再送出する。
     bool Advance()
     {
         if (!handle_) {
@@ -77,6 +80,7 @@ public:
     }
 
 private:
+    /// @brief コルーチンのハンドルを受け取って所有する。
     explicit InitializationTask(std::coroutine_handle<promise_type> handle) : handle_(handle) {}
 
     std::coroutine_handle<promise_type> handle_{};

@@ -23,6 +23,7 @@ class Enemy : public Collider {
 public:
     /// @brief 射撃パターン、弾速（60FPS基準の1フレーム当たり）、拡散角（度）、発射間隔（秒）、威力・耐久度・貫通力の設定。
     struct BossAttackConfig {
+        /// @brief 敵の弾の撃ち方。
         enum class Pattern {
             Spread = 0,
             Ring = 1,
@@ -55,6 +56,7 @@ public:
         float aimTurnHalfSeconds = 1.0f;
     };
 
+    /// @brief 敵AIの行動状態。
     enum class AIState {
         Attack,       // 攻撃、射撃
         KeepDistance, // 距離をとる

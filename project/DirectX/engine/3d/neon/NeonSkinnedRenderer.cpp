@@ -34,6 +34,7 @@ void CheckResult(HRESULT hr, const char* message)
     }
 }
 
+/// @brief メッセージにHRESULTの値を付けた文字列を返す。
 std::string ResultMessage(const char* message, HRESULT hr)
 {
     std::ostringstream result;

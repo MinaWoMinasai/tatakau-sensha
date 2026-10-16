@@ -20,6 +20,7 @@ public:
     static constexpr uint32_t kMaxMetaballs = 12;
     static constexpr uint32_t kMaxStarSparks = 8;
 
+    /// @brief 炎の表示モード。
     enum class DisplayMode : uint32_t {
         OuterContour = 0,
         Field = 1,

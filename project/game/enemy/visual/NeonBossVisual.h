@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 
+/// @brief ボスの見た目を更新するために戦闘側から渡す値。
 struct NeonBossVisualInput {
     myEngine::Vector3 position{};
     float aimAngleRadians = 0.0f;
@@ -18,6 +19,7 @@ struct NeonBossVisualInput {
     neondepth::Snapshot depth{};
 };
 
+/// @brief ボスの見た目の処理回数。検証で使う。
 struct NeonBossVisualStats {
     unsigned resourceCreates = 0, resourceReleases = 0, animationSelections = 0;
     unsigned modelUpdates = 0, draws = 0;
@@ -29,6 +31,7 @@ struct NeonBossVisualStats {
 class NeonBossVisual {
 public:
     ~NeonBossVisual();
+    /// @brief カメラを受け取り、描画の準備をする。
     void Initialize(myEngine::Camera* camera, myEngine::DebugCamera* debugCamera);
     // 前回のGPU送信が完了した後の、フレーム境界でだけリセットする。
     void ResetEncounter();
@@ -55,6 +58,7 @@ public:
         return depthFormation_;
     }
 
+    /// @brief ボスのモデルを描画する。
     void Draw();
 
     void SetEnabled(bool enabled)
@@ -118,17 +122,29 @@ public:
     }
 
 private:
+    /// @brief 通常ボス用のモデルと描画リソースを用意する。成功したらtrueを返す。
     bool EnsureResources();
+    /// @brief Depthボス用のモデルと描画リソースを用意する。成功したらtrueを返す。
     bool EnsureDepthResources();
+    /// @brief Depthボスの見た目を更新する。
     void UpdateDepth(const NeonBossVisualInput& input, float permittedDelta);
+    /// @brief Depthボスのアニメーション指示を適用する。
     bool ApplyDepthMotion(const neondepth::MotionCommand& command);
+    /// @brief Depthボスの床上の配置と姿勢を更新する。
     bool UpdateDepthPlacement(const NeonBossVisualInput& input, const neondepth::BodyMotion& motion);
+    /// @brief Depthボスの崩壊演出を開始する。
     void StartDepthCollapse(const NeonBossVisualInput& input);
+    /// @brief Depthボスの崩壊演出を進める。
     void UpdateDepthCollapse(float collapseProgress);
+    /// @brief Depthボスの登場時の形成演出を進める。
     void UpdateDepthFormation();
+    /// @brief 描画リソースを解放する。
     void ReleaseResources();
+    /// @brief 通常ボスの位置と向きを更新する。
     void UpdatePlacement(const NeonBossVisualInput& input);
+    /// @brief 死亡演出を開始する。
     void StartDeath();
+    /// @brief アニメーションを進める。
     void UpdateAnimation(float deltaTime);
     myEngine::Matrix4x4 GetCameraWorld() const;
     myEngine::Vector3 GetCameraPosition() const;

@@ -2,18 +2,21 @@
 #include <algorithm>
 #include <cmath>
 
+/// @brief 戦闘シーンの進行状態。
 enum class CombatFlowState {
     Playing,
     BossDefeatSequence,
     StageClear,
     GameOver
 };
+/// @brief 死亡判定の結果。
 enum class CombatDeathOutcome {
     None,
     PlayerDeath,
     BossDefeat
 };
 
+/// @brief 死亡判定に使う戦闘側の値。
 struct CombatDeathInput {
     bool expedition = false;
     bool playerDead = false;
@@ -40,6 +43,7 @@ inline CombatDeathOutcome SelectCombatDeathOutcome(const CombatDeathInput& input
     return CombatDeathOutcome::None;
 }
 
+/// @brief 1回の更新で発生した進行イベント。
 struct CombatFlowEvents {
     bool bossImpact = false;
     bool bossResultReady = false;
@@ -52,6 +56,7 @@ struct CombatFlowEvents {
 // 実際のシーン遷移の要求は引き続きSceneが担当する。
 class CombatFlowController {
 public:
+    /// @brief 初期状態に戻す。
     void Reset()
     {
         *this = CombatFlowController{};
@@ -68,18 +73,21 @@ public:
         impactTriggered_ = false;
     }
 
+    /// @brief ゲームオーバー演出を開始する。
     void BeginGameOver(float duration)
     {
         state_ = CombatFlowState::GameOver;
         timer_ = duration;
     }
 
+    /// @brief 結果画面の状態へ移る。
     void EnterResult(bool stageClear)
     {
         state_ = stageClear ? CombatFlowState::StageClear : CombatFlowState::GameOver;
         timer_ = 0.0f;
     }
 
+    /// @brief タイマーを進め、発生した進行イベントを返す。
     CombatFlowEvents Update(float baseDeltaTime, bool pendingCredits)
     {
         CombatFlowEvents events;

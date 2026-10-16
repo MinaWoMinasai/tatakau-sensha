@@ -23,6 +23,7 @@ class NeonSkinnedPreview {
 public:
     ~NeonSkinnedPreview();
 
+    /// @brief インスタンス用ディスクリプタの確保と解放を検証した結果。
     struct ResourceLifecycleValidation {
         bool passed = false;
         uint32_t initialDescriptors = 0;
@@ -109,10 +110,13 @@ public:
         return showcaseToneMappingMode_;
     }
 
+    /// @brief ショーケース表示中のフレームをキャプチャする。
     void RecordShowcaseCapture(myEngine::DirectXCommon& dx);
+    /// @brief ショーケース用の操作ウィンドウを描画する。
     void DrawShowcaseWindow();
 
 private:
+    /// @brief ジオメトリ線の設定プリセット。
     enum class GeometryPreset {
         Off,
         Subtle,
@@ -128,6 +132,7 @@ private:
         float alphaCutoff = 0.0f;
     };
 
+    /// @brief 特徴線マスクの候補テクスチャと、その読み込み状態。
     struct FeatureMaskBinding {
         std::string path;
         std::string distancePath;
@@ -143,37 +148,67 @@ private:
     void ReleaseResources();
     // 外観だけを変更し、再生状態・Transform・Alpha Cutoutは保持する。
     void ApplyRecommendedLineArtPreset();
+    /// @brief 推奨のBloom表示設定を適用する。
     void ApplyRecommendedBloomPresentation();
+    /// @brief 旧来のネオン表示設定を適用する。
     void ApplyLegacyNeonPreset();
     // Geometry設定だけを変更する。モデル・再生状態・既存の線設定は維持する。
     void ApplyGeometryPreset(GeometryPreset preset);
+    /// @brief ジオメトリ線の設定UIを描画する。
     void DrawGeometryLinesImGui();
+    /// @brief 特徴線マスクの候補テクスチャを読み込む。
     void LoadFeatureMaskCandidates();
+    /// @brief 特徴線マスクの設定UIを描画する。
     void DrawFeatureMaskImGui();
+    /// @brief 品質比較用の候補を選ぶ。
     void SelectQualityCandidate(int candidate);
+    /// @brief 品質比較用の候補を選ぶUIを描画する。
     void DrawQualityCandidateImGui();
+    /// @brief ショーケース表示に切り替える。
     void EnterShowcase();
+    /// @brief ショーケース表示を終えて通常のプレビューに戻る。
     void LeaveShowcase();
+    /// @brief ショーケース用のカメラを動かす。
     void UpdateShowcaseCamera(float deltaTime);
+    /// @brief ショーケースの設定UIを描画する。
     void DrawShowcaseImGui();
+    /// @brief アニメーションの設定UIを描画する。
     void DrawAnimationImGui();
+    /// @brief ショーケースの比較撮影を開始する。
     void StartShowcaseComparison();
+    /// @brief ショーケースの比較撮影を次のケースへ進める。
     void AdvanceShowcaseComparison();
+    /// @brief 現在のショーケース比較ケースの設定を適用する。
     void ApplyShowcaseComparisonCase();
+    /// @brief ショーケースの比較撮影を終了し、結果を記録する。
     void FinishShowcaseComparison(const std::string& status);
+    /// @brief Bloomの比較撮影を開始する。
     void StartBloomComparison();
+    /// @brief Bloomの比較撮影を次のケースへ進める。
     void AdvanceBloomComparison();
+    /// @brief Bloomの比較撮影を終了し、結果を記録する。
     void FinishBloomComparison(const std::string& status);
+    /// @brief ディゾルブを開始する。開始できたらtrueを返す。
     bool TriggerDissolve();
+    /// @brief ディゾルブを解除して元の表示に戻す。
     void ResetDissolve();
+    /// @brief ディゾルブの設定UIを描画する。
     void DrawDissolveImGui();
+    /// @brief ディゾルブの比較撮影を開始する。
     void StartDissolveComparison();
+    /// @brief ディゾルブの比較撮影を次のケースへ進める。
     void AdvanceDissolveComparison();
+    /// @brief 現在のディゾルブ比較ケースの設定を適用する。
     void ApplyDissolveComparisonCase();
+    /// @brief ディゾルブの比較撮影を終了し、結果を記録する。
     void FinishDissolveComparison(const std::string& status);
+    /// @brief 待機・ディゾルブ・復帰を順に行う連続再生を開始する。
     void StartDissolveSequence();
+    /// @brief ディゾルブの連続再生を進める。ポーズ更新の前後どちらで呼ばれたかを受け取る。
     void UpdateDissolveSequence(bool afterPoseUpdate);
+    /// @brief ディゾルブの連続再生を終了する。
     void FinishDissolveSequence();
+    /// @brief ショーケース撮影用のメタデータを作る。
     nlohmann::json MakeShowcaseMetadata() const;
     /// @brief プレビュー対象をカメラの前へ配置する。
     void PlaceInFrontOfCamera();
@@ -200,6 +235,7 @@ private:
     std::vector<FeatureMaskBinding> originalMaskBindings_;
     std::vector<std::optional<uint32_t>> originalMaskIndices_;
 
+    /// @brief 品質比較用テクスチャの出所を確認するための情報。
     struct QualityTextureProvenance {
         uint32_t srvIndex = 0;
         std::string imageSha256, authoringSha256, authoringVersionSha256, authoringRevision;
@@ -215,6 +251,7 @@ private:
     std::string animationError_;
     std::string loadError_;
 
+    /// @brief ショーケースから戻るときに復元するプレビューの状態。
     struct PreviewCheckpoint {
         bool enabled = false, neonMode = true, alphaCutout = true;
         GeometryPreset geometryPreset = GeometryPreset::Off;

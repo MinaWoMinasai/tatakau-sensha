@@ -9,6 +9,7 @@
 #include <vector>
 
 namespace neondepth {
+/// @brief Depthボスのモーションの種類。
 enum class Motion {
     Hover,
     VolleyCharge,
@@ -29,6 +30,7 @@ inline constexpr std::array<const char*, 10> kMotionJoints = {
     "J_Bip_R_LowerArm", "J_Bip_L_UpperLeg", "J_Bip_R_UpperLeg", "J_Bip_L_LowerLeg", "J_Bip_R_LowerLeg"};
 using MotionAngles = std::array<myEngine::Vector3, kMotionJoints.size()>;
 
+/// @brief Depthボス用アニメーションの生成結果。
 struct MotionBuildResult {
     std::vector<myEngine::Animation> animations;
     std::vector<std::string> skippedMotionJoints;
@@ -109,12 +111,14 @@ inline bool ValidateDepthBindSkeleton(const myEngine::Skeleton& skeleton, std::s
     return true;
 }
 
+/// @brief 2つのクォータニオンの積を返す。
 inline myEngine::Quaternion QuaternionProduct(const myEngine::Quaternion& a, const myEngine::Quaternion& b)
 {
     return {a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y, a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
             a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w, a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z};
 }
 
+/// @brief バインドポーズの回転に、XYZの角度による回転を加えた回転を返す。
 inline myEngine::Quaternion BindRelativeRotation(const myEngine::Quaternion& bind, const myEngine::Vector3& angles)
 {
     const auto x = myEngine::MakeRotateAxisAngleQuaternion({1, 0, 0}, angles.x);
@@ -124,6 +128,7 @@ inline myEngine::Quaternion BindRelativeRotation(const myEngine::Quaternion& bin
     return myEngine::NormalizeQuaternion(QuaternionProduct(bind, QuaternionProduct(z, QuaternionProduct(y, x))));
 }
 
+/// @brief 待機時の関節の角度を返す。
 inline MotionAngles RestAngles()
 {
     MotionAngles result{};
@@ -134,6 +139,7 @@ inline MotionAngles RestAngles()
     return result;
 }
 
+/// @brief スケルトンを検証し、Depthボス用のアニメーションを生成する。
 inline MotionBuildResult CreateDepthAnimations(const myEngine::Skeleton& skeleton)
 {
     MotionBuildResult result;

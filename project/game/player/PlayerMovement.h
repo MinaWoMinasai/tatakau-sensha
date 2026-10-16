@@ -12,11 +12,13 @@ struct PlayerMovementInput {
     bool runEnabled = false, dashing = false, railHeld = false, spinActive = false;
 };
 
+/// @brief 1フレーム分の移動計算の結果。
 struct PlayerMovementStep {
     myEngine::Vector3 direction{}, velocity{}, stepMove{};
     int subStepCount = 1;
 };
 
+/// @brief 入力からプレイヤーの移動量を計算する。壁との衝突は呼び出し側で解決する。
 inline PlayerMovementStep CalculatePlayerMovement(const PlayerMovementInput& input)
 {
     PlayerMovementStep result{};

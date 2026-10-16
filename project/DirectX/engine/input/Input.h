@@ -181,6 +181,7 @@ private:
     std::vector<FakeGamepadSegment> fakeGamepad_;
     bool fakeGamepadLoaded_ = false;
     uint32_t fakeGamepadFrame_ = 0;
+    /// @brief MYENGINE_FAKE_GAMEPADで指定したファイルからパッドの状態を読み込む。有効なら true を返す。
     bool PollFakeGamepad();
 #endif
 

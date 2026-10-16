@@ -3,6 +3,7 @@
 #include <string_view>
 
 namespace tankbuild {
+/// @brief 戦闘スタイル。
 enum class Style {
     Shooter,
     Drone,

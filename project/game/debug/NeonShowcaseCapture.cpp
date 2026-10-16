@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 namespace {
+/// @brief HRESULTが失敗なら例外を投げる。
 void Check(HRESULT hr, const char* message)
 {
     if (FAILED(hr)) {

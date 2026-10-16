@@ -24,6 +24,7 @@ namespace {
 using gameplaytest::Scenario;
 using nlohmann::json;
 
+/// @brief 攻撃の種類の名前を返す。
 const char* AttackName(neondepth::Attack value)
 {
     switch (value) {
@@ -37,6 +38,7 @@ const char* AttackName(neondepth::Attack value)
     return "invalid";
 }
 
+/// @brief 攻撃の段階の名前を返す。
 const char* PhaseName(neondepth::Phase value)
 {
     switch (value) {
@@ -62,11 +64,13 @@ const char* PhaseName(neondepth::Phase value)
     return "invalid";
 }
 
+/// @brief ベクトルをJSON配列にする。
 json Vector(const myEngine::Vector3& value)
 {
     return json::array({value.x, value.y, value.z});
 }
 
+/// @brief 行列をJSON配列にする。
 json Matrix(const myEngine::Matrix4x4& value)
 {
     json rows = json::array();
@@ -76,16 +80,19 @@ json Matrix(const myEngine::Matrix4x4& value)
     return rows;
 }
 
+/// @brief 円形の攻撃範囲をJSONにする。
 json Circle(const neondepth::Circle& value)
 {
     return {{"center", value.center}, {"radius", value.radius}};
 }
 
+/// @brief 線分状の攻撃範囲をJSONにする。
 json Segment(const neondepth::Segment& value)
 {
     return {{"start", value.start}, {"end", value.end}, {"halfWidth", value.halfWidth}};
 }
 
+/// @brief Depthボス戦の状態とイベントをJSONにする。
 json DepthSnapshot(const neondepth::Snapshot& value, const neondepth::Events& events)
 {
     const auto& plan = value.plan;
@@ -148,6 +155,7 @@ json DepthSnapshot(const neondepth::Snapshot& value, const neondepth::Events& ev
                 {"warning", warning}}}}}};
 }
 
+/// @brief 条件を満たさなければ例外を投げる。
 void RequireDepth(bool condition, const char* message)
 {
     if (!condition) {
@@ -171,8 +179,7 @@ void DepthValidation::InitializeNeonDepthValidation()
     world_.resources.neonBossVisualEnabled_ = settings.depthFixture.visualEnabled;
     RequireDepth(world_.resources.neonBossVisual_ != nullptr, "Depth fixture requires the initialized production Visual owner.");
     world_.resources.neonBossVisual_->SetEnabled(world_.resources.neonBossVisualEnabled_);
-    auto profile =
-        world_.resources.neonBossVisual_->GetDepthProfile(); // 現在の設定を読み取るだけ。作った既定値で置き換えてはならない。
+    auto profile = world_.resources.neonBossVisual_->GetDepthProfile(); // 現在の設定を読み取るだけ。作った既定値で置き換えてはならない。
     profile.reducedMotion = settings.depthFixture.reducedMotion;
     RequireDepth(world_.resources.neonBossVisual_->SetDepthProfile(profile), "Valid fixture reduced-motion profile was rejected.");
     world_.resources.neonDepthPreviousBossHp_ = world_.resources.enemy_->GetHp();

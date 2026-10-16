@@ -12,11 +12,13 @@
 // アクター、描画、アニメーション、プラットフォーム、乱数ストリームには依存しない。
 namespace neondepth {
 using Point = std::array<float, 2>;
+/// @brief Depthボスの攻撃の種類。
 enum class Attack {
     Volley,
     Dive,
     Beam
 };
+/// @brief Depthボスの攻撃の進行段階。
 enum class Phase {
     Intro,
     Reposition,
@@ -28,6 +30,7 @@ enum class Phase {
     Defeated,
     Aborted
 };
+/// @brief Depthボスの戦闘で発生するイベントの種類。
 enum class EventKind {
     IntroComplete,
     FloorArrival,
@@ -40,38 +43,45 @@ constexpr unsigned kMaximumCircles = 5;
 constexpr unsigned kMaximumWarningSegments = 17;
 constexpr float kMaximumStep = .10f;
 
+/// @brief 座標が有限の値かを返す。
 inline bool Finite(Point point)
 {
     return std::isfinite(point[0]) && std::isfinite(point[1]);
 }
 
+/// @brief 座標が有限で、想定範囲内にあるかを返す。
 inline bool Bounded(Point point)
 {
     return Finite(point) && std::abs(point[0]) <= 10000 && std::abs(point[1]) <= 10000;
 }
 
+/// @brief 値が有限で、指定範囲内にあるかを返す。
 inline bool Within(float value, float minimum, float maximum)
 {
     return std::isfinite(value) && value >= minimum && value <= maximum;
 }
 
+/// @brief 床上の円形の攻撃範囲。
 struct Circle {
     Point center{};
     float radius = 2.1f;
     bool operator==(const Circle&) const = default;
 };
 
+/// @brief 床上の線分状の攻撃範囲（太さ付き）。
 struct Segment {
     Point start{}, end{};
     float halfWidth = .8f;
     bool operator==(const Segment&) const = default;
 };
 
+/// @brief 攻撃の各段階の長さ（秒）。
 struct Durations {
     float telegraph = .85f, locked = .30f, airborne = .55f, active = .35f, recovery = 1.0f;
     bool operator==(const Durations&) const = default;
 };
 
+/// @brief Depthボスの戦闘調整値。
 struct Tuning {
     float intro = 2.4f, reposition = .6f, hitInterval = .45f;
     float volleyRadius = 2.1f, diveRadius = 3.4f, beamRange = 28.0f, beamHalfWidth = .8f, beamSweepRadians = 1.2f;
@@ -80,12 +90,14 @@ struct Tuning {
     bool operator==(const Tuning&) const = default;
 };
 
+/// @brief 各段階の長さが有効な範囲かを返す。
 inline bool Valid(const Durations& value)
 {
     return Within(value.telegraph, .35f, 5) && Within(value.locked, .15f, 2) && Within(value.airborne, .05f, 3) &&
            Within(value.active, .05f, 5) && Within(value.recovery, .35f, 5);
 }
 
+/// @brief 戦闘調整値が有効な範囲かを返す。
 inline bool Valid(const Tuning& value)
 {
     return Within(value.intro, .1f, 5) && Within(value.reposition, .1f, 5) && Within(value.hitInterval, .1f, 2) &&
@@ -95,11 +107,13 @@ inline bool Valid(const Tuning& value)
            value.beamDamage >= 1 && value.beamDamage <= 999;
 }
 
+/// @brief 円形の攻撃範囲が有効かを返す。
 inline bool Valid(const Circle& value)
 {
     return Bounded(value.center) && Within(value.radius, .25f, 8);
 }
 
+/// @brief 線分状の攻撃範囲が有効かを返す。
 inline bool Valid(const Segment& value)
 {
     return Bounded(value.start) && Bounded(value.end) && Within(value.halfWidth, .1f, 6);
@@ -120,6 +134,7 @@ inline bool IsClippedSegment(const Segment& desired, const Segment& clipped)
     return Within(fraction, 0, 1.00001f) && std::abs(dx * cy - dy * cx) <= .0001f * lengthSquared;
 }
 
+/// @brief ビーム攻撃の掃引の計画。
 struct BeamPlan {
     Point origin{};
     float startAngle = -.6f, endAngle = .6f, range = 28, halfWidth = .8f;
@@ -130,6 +145,7 @@ struct BeamPlan {
     bool operator==(const BeamPlan&) const = default;
 };
 
+/// @brief ビームの警告表示の半幅を返す。複数の警告をまとめて覆える幅にする。
 inline float BeamWarningHalfWidth(const BeamPlan& beam)
 {
     if (beam.warningCount < 2) {
@@ -139,6 +155,7 @@ inline float BeamWarningHalfWidth(const BeamPlan& beam)
            beam.range * std::sin(std::abs(beam.endAngle - beam.startAngle) / (2.0f * static_cast<float>(beam.warningCount - 1)));
 }
 
+/// @brief 確定した1回分の攻撃計画。
 struct AttackPlan {
     // Commitが識別子と調整値を割り当てる。呼び出し側がIDを偽造したり再利用したりはできない。
     uint64_t generation = 0, instance = 0;
@@ -155,23 +172,27 @@ struct AttackPlan {
     bool operator==(const AttackPlan&) const = default;
 };
 
+/// @brief 次の攻撃計画を作るための要求内容。
 struct PlanningRequest {
     Attack attack;
     bool phaseTwo;
     Tuning tuning;
 };
 
+/// @brief 戦闘で発生した1件のイベント。
 struct Event {
     EventKind kind;
     uint64_t generation, instance;
     unsigned index;
 };
 
+/// @brief 1回の更新で発生したイベントの一覧。
 struct Events {
     std::array<Event, kMaximumCircles + 1> values{};
     unsigned count = 0;
 };
 
+/// @brief 戦闘の現在の状態。
 struct Snapshot {
     uint64_t generation = 0;
     Phase phase = Phase::Aborted;
@@ -186,14 +207,17 @@ struct Snapshot {
     bool operator==(const Snapshot&) const = default;
 };
 
+/// @brief 接触による命中の要求。
 struct HitRequest {
     uint64_t generation, instance, target, claim;
     unsigned index;
     uint32_t damage;
 };
 
+/// @brief Depthボスの攻撃の進行と当たり判定を管理する。
 class Combat {
 public:
+    /// @brief 新しい世代で戦闘を初期化する。古い世代なら拒否してfalseを返す。
     bool Reset(uint64_t generation, Point core, const Tuning& tuning = {})
     {
         // 古い状態に触れる前に、再利用された世代や過去の世代を拒否する。
@@ -210,6 +234,7 @@ public:
         return true;
     }
 
+    /// @brief 次の攻撃から使う調整値を予約する。
     bool QueueTuning(const Tuning& tuning)
     {
         if (!Valid(tuning)) {
@@ -238,6 +263,7 @@ public:
         return true;
     }
 
+    /// @brief 作成した攻撃計画を確定する。要求と一致しない計画は拒否する。
     bool CommitPlan(AttackPlan candidate)
     {
         const auto request = GetPlanningRequest();
@@ -311,6 +337,7 @@ public:
         return true;
     }
 
+    /// @brief 登場演出を飛ばして戦闘を始める。
     Events SkipIntro()
     {
         Events events;
@@ -321,16 +348,19 @@ public:
         return events;
     }
 
+    /// @brief ボスの撃破で戦闘を終了する。
     Events Defeat()
     {
         return Cancel(Phase::Defeated);
     }
 
+    /// @brief 戦闘を中断する。
     Events Abort()
     {
         return Cancel(Phase::Aborted);
     }
 
+    /// @brief 戦闘を1回分進め、発生したイベントを返す。
     Events Step(float dt, float hpRatio, bool bossAlive = true, bool playerAlive = true)
     {
         // 接触の許可は、この正のゲームプレイ更新に属する。一時停止中や不正な更新では
@@ -429,6 +459,7 @@ public:
         return {beam.origin, {beam.origin[0] + std::cos(angle) * range, beam.origin[1] + std::sin(angle) * range}, beam.halfWidth};
     }
 
+    /// @brief 壁で切り詰めたビームの線分を反映する。
     bool ApplyBeamClip(uint64_t generation, uint64_t instance, const Segment& clipped)
     {
         if (!contactOpen_ || snapshot_.phase != Phase::Active || snapshot_.plan.attack != Attack::Beam ||
@@ -444,6 +475,7 @@ public:
         return true;
     }
 
+    /// @brief 対象への接触ダメージを要求する。同じ対象への連続命中は間隔で制限する。
     std::optional<HitRequest> TryClaimContact(unsigned index, uint64_t target, Point position, float radius)
     {
         if (!contactOpen_ || snapshot_.phase != Phase::Active || !target || !Bounded(position) || !Within(radius, 0, 8)) {
@@ -514,6 +546,7 @@ public:
     }
 
 private:
+    /// @brief 対象ごとの直近の命中記録。
     struct HitRecord {
         uint64_t target = 0;
         unsigned index = 0;
@@ -522,11 +555,13 @@ private:
         bool reported = false;
     };
 
+    /// @brief 撃破または中断で終了しているかを返す。
     bool Terminal() const
     {
         return snapshot_.phase == Phase::Defeated || snapshot_.phase == Phase::Aborted;
     }
 
+    /// @brief 現在の段階の長さを返す。
     float Duration() const
     {
         switch (snapshot_.phase) {
@@ -549,6 +584,7 @@ private:
         }
     }
 
+    /// @brief 段階の長さと進行度を更新する。
     void Refresh()
     {
         snapshot_.duration = Duration();
@@ -570,6 +606,7 @@ private:
         }
     }
 
+    /// @brief 指定した段階へ移る。
     void Enter(Phase phase)
     {
         contactOpen_ = false;
@@ -580,6 +617,7 @@ private:
         Refresh();
     }
 
+    /// @brief イベントを一覧に追加する。
     void Push(Events& events, EventKind kind, unsigned index = 0)
     {
         if (events.count < events.values.size()) {
@@ -590,6 +628,7 @@ private:
         }
     }
 
+    /// @brief 指定した終了状態へ移り、終了イベントを返す。
     Events Cancel(Phase terminal)
     {
         Events events;

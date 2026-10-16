@@ -6,11 +6,15 @@
 // CPU側のプレビュー状態だけを持つ。モデルやGPUリソースはNeonSkinnedPreviewが所有する。
 class NeonDissolvePreviewController {
 public:
+    /// @brief モデルの現在の姿でディゾルブを開始する。
     bool Trigger(myEngine::SkinnedModel& model, const myEngine::Matrix4x4& world, const myEngine::Matrix4x4& cameraWorld,
                  myEngine::NeonDissolveDirection direction, const myEngine::NeonDissolveParams& settings, float waitDuration = 0.15f,
                  float duration = 2.0f);
+    /// @brief ディゾルブの進行を進める。
     void Update(float deltaTime);
+    /// @brief 同じスナップショットでディゾルブを最初からやり直す。
     bool Restart(myEngine::SkinnedModel& model);
+    /// @brief ディゾルブを解除して元の表示に戻す。
     bool Reset(myEngine::SkinnedModel& model);
 
     void SetPlaying(bool playing)
@@ -20,6 +24,7 @@ public:
         }
     }
 
+    /// @brief 進行度を指定した位置へ移動する。
     bool Seek(float progress);
     bool SetPlaybackSpeed(float speed);
 

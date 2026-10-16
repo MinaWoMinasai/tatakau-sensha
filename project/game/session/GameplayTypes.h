@@ -200,6 +200,7 @@ struct BalanceEditorState {
     std::string statusMessage;
 };
 
+/// @brief チュートリアルの手順。
 enum class TutorialStep {
     Move,
     Shoot,
@@ -313,6 +314,7 @@ struct PerformanceCaptureFrame {
 };
 #endif
 
+/// @brief ボス戦の前に保存しておくカメラの設定。
 struct DepthSavedCamera {
     myEngine::Vector3 position{}, rotation{};
     myEngine::Vector2 jitter{};
